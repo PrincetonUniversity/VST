@@ -40,11 +40,16 @@ Definition is_in (st:ST)(P:SST):= P st.
 (*Notation enth:= (List.nth_error).*)
 Infix "\In":= (is_in) (at level 20, right associativity).
 
-Inductive R (P P': SST): Prop:=
+Inductive RRR {X Y: Type} (R: X -> X -> Y -> Prop)(valid:X->Y->Prop) (P P':X -> Prop) : Prop:=
+    | blahblah: (forall x y, P x -> valid x y -> exists x', R x x' y /\ P' x') ->
+                (forall x', P' x' -> exists x y, R x x' y /\ P x /\ valid x y) ->
+                RRR R valid P P'.
+Definition R := RRR (fun st st' U => exists U', STEP st U st' U') valid.
+(*Inductive R (P P': SST): Prop:=
 |blah :
    (forall st U, st  \In P -> valid st U -> exists st' U', STEP st U st' U' /\ st' \In P') ->
    (forall st',  st' \In P' -> exists st U U', STEP st U st' U' /\ st \In P /\ valid st U ) ->
-   R P P'.
+   R P P'.*)
    
 Inductive R' (P P': ST -> SCH -> Prop): Prop:=
 |blah' :
@@ -68,7 +73,7 @@ Proof.
   - move=> P HH st U inP VAL. 
     inversion HH; subst.
     inversion H0.
-    move: VAL inP => /H H' /H'  [] st' [] U' [] STP inx'.
+    move: VAL inP => /H H' /H'  [] st' [][] U' STP inx'.
     apply: (sft_step st U n st' U' STP)=> U'' VALID'.
     apply: (IHn x' _ )=>//.
 Qed.
@@ -97,12 +102,12 @@ Proof.
       + move => st U inP VAL.
         move: (inP) (VAL)=> /HH HH' /HH' ksf.
         inversion ksf.
-        exists st', U'; split =>//.
+        exists st'; split; [exists U'| ] =>//.
         rewrite /is_in /P'.
         exists st, U, U'=>//.
       + move => st'.
         rewrite /is_in /P'=> [] [] st [] U [] U' []inP[] VAL[] STP CONDITION.
-        exists st, U, U'=>//.
+        exists st, U; split;[exists  U' | ]=>//.
     - eapply IHn => st' U [] st [] UU [] U' [] inP [] VAL [] STP COND;
                      by apply: COND.
 Qed.
@@ -122,7 +127,7 @@ Lemma coinductive_safety_equivalence: forall P,
 Proof.
   cofix=> P SF st U. 
   inversion SF; subst x; rename x' into P'.
-  inversion H => /H1 H1' /H1' [] st' [] U' [] STP inP'.
+  inversion H => /H1 H1' /H1' [] st' [] [] U' STP inP'.
   apply: (csft_step _ _ st' U')=>// U'' VAL'.
   apply: (coinductive_safety_equivalence P')=> //.
 Qed.
@@ -354,11 +359,22 @@ Proof.
   move =>st. exists 1, (fun _ => st) => st' HH.
   inversion HH. exists 0; split; auto.
 Qed.
-      
+
+Definition possible_image st st' U:= valid st U /\ exists U', STEP st U st' U'.
+Definition finite_on_x {X Y} (A:X->Y->Prop):= 
+  exists n (f: nat -> X), forall x y, A x y -> exists i, (i < n) /\ f i = x.
+Lemma finite_rel_generalize {X Y} (valid: X -> Y -> Prop) (R: X -> X -> Y -> Prop):
+  forall (propositional_extentionality: True),
+  (forall x, finite_on_x (possible_image x)) ->
+  forall (P:X -> Prop), finite P ->
+               finite (RRR R valid P).
+Proof.
+Admitted.
+
 Lemma finit_to_infinite_safety:
   (forall P: Prop, P \/ ~ P) ->
   forall (propositional_extentionality: True),
-  forall (claim_that_step_branches_finitely_on_the_state: True),
+  forall (branches_finitely_on_the_state: forall x : ST, finite_on_x (possible_image x)),
   forall st,
     (forall U : SCH, valid st U) ->
       (forall n U, ksafe st U n) ->
@@ -368,58 +384,17 @@ Proof.
   apply: coinductive_safety_equivalence' =>//.
   
   eapply ( filtered_konigsafe _ finite)=> //.
-  - Inductive RRR {X Y: Type} (R: X -> X -> Y -> Prop)(valid:X->Y->Prop) (P P':X -> Prop) : Prop:=
-    | blahblah: (forall x y, P x -> valid x y -> exists x', R x x' y /\ P' x') ->
-                (forall x', P' x' -> exists x y, R x x' y /\ P x /\ valid x y) ->
-                RRR R valid P P'.
-    Lemma R_RRR: forall P P', R P P' <-> (RRR (fun st st' U => exists U', STEP st U st' U') valid P P').
-    Proof.
-      move => P P'; split; move=> HH; inversion HH.
-      (* R -> RRR*)
-      { econstructor.
-        - move=> st U /(H st U) PP /PP [] st' [] U' [] A B. by exists st'; split; [exists U'|].
-        - move => x' /H0 [] st []U []U' [] A B. by exists st, U; split; [exists U'|]. }
-      { econstructor.
-        - move=> st U /(H st U) PP /PP [] st' [] [] U' A B. by exists st', U'; split.
-        - move => x' /H0 [] st []U [] [] U' A B. by exists st, U, U'; split. }
-    Qed.
-                                    
-                                    
-  - Focus 2. apply finite_P_init.
-  apply: finit_to_infinite_safety_parallel => //.
-  - move => P.
-    Definition finite_on_x {X Y} (A:X->Y->Prop):= 
-      exists n (f: nat -> X), forall x y, A x y -> exists i, (i < n) /\ f i = x.
-    
-    
-
-    Lemma two_to_one {Z Y}: forall (A: Z-> Z-> Y->Prop),
-        (forall x, finite_on_x (A x)) ->
-        forall P, finite P ->
-        finite (RRR A P).
-    Proof.
-      move => A FINx P FINP.
-    Admitted.
-    
-    
-    Definition finite_on_state (R: ST -> SCH -> ST -> SCH -> Prop) (st:ST):=
-      finite_on_x (fun st' schs=> valid st (fst schs) /\ R st (fst schs) st' (snd schs)).
-    assert (H: forall st, finite_on_state STEP st) by admit.
-    move: H => /two_to_one FINPP. 
-    specialize (FINPP P).
-    Lemma 
-    unfold finite_on_state in H.
-    eapply two_to_one in H. simpl in H.
-    
-    Definition two_to_one {X Y} (A:X->Y->Prop):= False.
-      
-    Lemma finite_on_set:  
-    
+  rewrite /R.
+  - clear - FINIT PROP_EXT.
+    move => st' FINst.
+    apply: (finite_rel_generalize _ _ PROP_EXT) =>//. 
+    apply: finite_P_init.
   - move=> n; apply: hhalb' => //.
-Admitted.
+Qed.
 
-  
-  
+Print Assumptions finit_to_infinite_safety.
+
+
 Definition extract_exist st U n (SF: ksafe st U n.+1): SST.
     Proof.
       inversion SF.
