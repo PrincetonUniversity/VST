@@ -1698,6 +1698,30 @@ Section Simulation.
         unshelve erewrite <-gtc_age; auto.
   Qed.
   
+  Lemma restrPermMap_mem_contents p' m (Hlt: permMapLt p' (getMaxPerm m)): 
+    Mem.mem_contents (restrPermMap Hlt) = Mem.mem_contents m.
+  Proof.
+    reflexivity.
+  Qed.
+  
+  Lemma islock_valid_access tp m b ofs p
+        (compat : mem_compatible tp m) :
+    (4 | ofs) ->
+    lockRes tp (b, ofs) <> None ->
+    p <> Freeable ->
+    Mem.valid_access
+      (restrPermMap
+         (mem_compatible_locks_ltwritable compat))
+      Mint32 b ofs p.
+  Proof.
+    intros div islock NE.
+    eapply Mem.valid_access_implies with (p1 := Writable).
+    2:destruct p; constructor || tauto.
+    pose proof lset_range_perm.
+    do 6 autospec H.
+    split; auto.
+  Qed.
+  
   Theorem progress Gamma n state :
     state_invariant Jspec' Gamma (S n) state ->
     exists state',
@@ -2685,7 +2709,26 @@ Section Simulation.
             pose proof (loc_writable compat) as lw.
             intros b' ofs' is; specialize (lw b' ofs').
             destruct (eq_dec (b, Int.intval ofs) (b', ofs')).
-            + admit (* do something *).
+            + injection e as <- <- .
+              intros ofs0 int0.
+              rewrite (Mem.store_access _ _ _ _ _ _ Hstore).
+              pose proof restrPermMap_Max as RR.
+              unfold permission_at in RR.
+              rewrite RR; clear RR.
+              clear is.
+              assert_specialize lw. {
+                clear lw.
+                unfold lockRes in *.
+                unfold LocksAndResources.lock_info in *.
+                rewrite His_unlocked.
+                reflexivity.
+              }
+              specialize (lw ofs0).
+              autospec lw.
+              exact_eq lw; f_equal.
+              unfold getMaxPerm in *.
+              rewrite PMap.gmap.
+              reflexivity.
             + assert_specialize lw. {
                 simpl in is.
                 rewrite AMap_find_add in is.
@@ -2756,21 +2799,66 @@ Section Simulation.
                 eauto.
               
               - (* in dry : it is 0 *)
-                simpl.
-                admit.
+                unfold m_ in *; clear m_.
+                unfold compat_ in *; clear compat_.
+                unfold load_at.
+                clear (* lock_coh *) Htstep Hload.
+                
+                unfold Mem.load. simpl fst; simpl snd.
+                if_tac [H|H].
+                + rewrite restrPermMap_mem_contents.
+                  apply Mem.load_store_same in Hstore.
+                  unfold Mem.load in Hstore.
+                  if_tac in Hstore; [ | discriminate ].
+                  apply Hstore.
+                + exfalso.
+                  apply H; clear H.
+                  apply islock_valid_access.
+                  * apply Mem.load_store_same in Hstore.
+                    unfold Mem.load in Hstore.
+                    if_tac [[H H']|H] in Hstore; [ | discriminate ].
+                    apply H'.
+                  * unfold tp_.
+                    rewrite JTP.gssLockRes. congruence.
+                  * congruence.
             }
           
           * (* not the current lock *)
             destruct (AMap.find (elt:=option rmap) loc (lset tp)) as [o|] eqn:Eo; swap 1 2.
             now auto (* not even a lock *).
+            (* options:
+             - maintain the invariant that the distance between two locks is >= 4 (or =0)
+             - try to relate to the wet memory?
+             - others?
+             *)
             set (u := load_at _ _).
             set (v := load_at _ _) in lock_coh.
-            assert (L : forall val, v = Some val -> u = Some val); unfold u, v in *; clear u v.
+            assert (L : forall val, v = Some val -> u = Some val); unfold u, v in *. (* ; clear u v. *)
             {
               intros val.
               unfold load_at in *.
               clear lock_coh.
-              admit.
+              unfold Mem.load in *.
+              if_tac [V|V]; [ | congruence].
+              if_tac [V'|V'].
+              - do 2 rewrite restrPermMap_mem_contents.
+                destruct loc as (b', ofs'). simpl fst in *; simpl snd in *.
+                admit.
+              - exfalso.
+                apply V'; clear V'.
+                unfold Mem.valid_access in *.
+                split. 2:apply V. destruct V as [V _].
+                unfold Mem.range_perm in *.
+                intros ofs0 int0; specialize (V ofs0 int0).
+                unfold Mem.perm in *.
+                pose proof restrPermMap_Cur as RR.
+                unfold permission_at in *.
+                rewrite RR in *.
+                unfold tp_.
+                rewrite <-lockSet_updLockSet.
+                (* should I maintain the fact that lock ranges don't
+                interfere with each-other? *)
+                admit.
               (* ask around *)
             }
             destruct o; split; intuition.
