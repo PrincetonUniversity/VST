@@ -38,12 +38,12 @@ Definition closed (P:ST -> SCH -> Prop):=
 Definition SST:= ST -> Prop.
 Definition is_in (st:ST)(P:SST):= P st. 
 (*Notation enth:= (List.nth_error).*)
-Infix "\In":= (is_in) (at level 80, right associativity).
+Infix "\In":= (is_in) (at level 20, right associativity).
 
 Inductive R (P P': SST): Prop:=
 |blah :
    (forall st U, st  \In P -> valid st U -> exists st' U', STEP st U st' U' /\ st' \In P') ->
-   (forall st',  st' \In P' -> exists st U U', STEP st U st' U' /\  st \In P) ->
+   (forall st',  st' \In P' -> exists st U U', STEP st U st' U' /\ st \In P /\ valid st U ) ->
    R P P'.
    
 Inductive R' (P P': ST -> SCH -> Prop): Prop:=
@@ -333,37 +333,28 @@ Section filtered_konig.
     dependent rewrite B => P1 P2; f_equal.
     apply: ProofIrrelevance.PI.proof_irrelevance.
 
-    move=> n.
-    
-    f_equal.
-    rewrite B.
-    if_true_tac.
-    
-    
-    Focus 2.
     move => n.
     apply: unfiltered_to_filtered_safeN=> //.
-    
-    Lemma filter_finite: forall 
-    
-    sfN.
-    pose (P:= TT X Filter).
-    intros.
-  
-  
-  forall Filter:
-  (forall P, P \/ ~P) -> (forall x, finite (R x)) -> (forall n, safeN n x) -> safe x.
+  Admitted.
 
+End filtered_konig.
+  
 Lemma finit_to_infinite_safety_parallel:
   (forall P: Prop, P \/ ~ P) ->
   forall P,
-    (forall P, finite (R P)) ->
+    (forall P, finite (Top.R P)) ->
     (forall n, my_safeN n P) ->
     my_safe P.
-Proof. move => P A B.
-       apply: concurrency.konig.konigsafe => //.
+Proof. move => EM P A B.
+       apply: (concurrency.konig.konigsafe)  => //.
 Qed.
 
+Lemma finite_P_init: forall {st}, finite (@P_init st).
+Proof.
+  move =>st. exists 1, (fun _ => st) => st' HH.
+  inversion HH. exists 0; split; auto.
+Qed.
+      
 Lemma finit_to_infinite_safety:
   (forall P: Prop, P \/ ~ P) ->
   forall (propositional_extentionality: True),
@@ -375,8 +366,55 @@ Lemma finit_to_infinite_safety:
 Proof.
   move => EM PROP_EXT FINIT st all_valid SF.
   apply: coinductive_safety_equivalence' =>//.
+  
+  eapply ( filtered_konigsafe _ finite)=> //.
+  - Inductive RRR {X Y: Type} (R: X -> X -> Y -> Prop)(valid:X->Y->Prop) (P P':X -> Prop) : Prop:=
+    | blahblah: (forall x y, P x -> valid x y -> exists x', R x x' y /\ P' x') ->
+                (forall x', P' x' -> exists x y, R x x' y /\ P x /\ valid x y) ->
+                RRR R valid P P'.
+    Lemma R_RRR: forall P P', R P P' <-> (RRR (fun st st' U => exists U', STEP st U st' U') valid P P').
+    Proof.
+      move => P P'; split; move=> HH; inversion HH.
+      (* R -> RRR*)
+      { econstructor.
+        - move=> st U /(H st U) PP /PP [] st' [] U' [] A B. by exists st'; split; [exists U'|].
+        - move => x' /H0 [] st []U []U' [] A B. by exists st, U; split; [exists U'|]. }
+      { econstructor.
+        - move=> st U /(H st U) PP /PP [] st' [] [] U' A B. by exists st', U'; split.
+        - move => x' /H0 [] st []U [] [] U' A B. by exists st, U, U'; split. }
+    Qed.
+                                    
+                                    
+  - Focus 2. apply finite_P_init.
   apply: finit_to_infinite_safety_parallel => //.
-  - 
+  - move => P.
+    Definition finite_on_x {X Y} (A:X->Y->Prop):= 
+      exists n (f: nat -> X), forall x y, A x y -> exists i, (i < n) /\ f i = x.
+    
+    
+
+    Lemma two_to_one {Z Y}: forall (A: Z-> Z-> Y->Prop),
+        (forall x, finite_on_x (A x)) ->
+        forall P, finite P ->
+        finite (RRR A P).
+    Proof.
+      move => A FINx P FINP.
+    Admitted.
+    
+    
+    Definition finite_on_state (R: ST -> SCH -> ST -> SCH -> Prop) (st:ST):=
+      finite_on_x (fun st' schs=> valid st (fst schs) /\ R st (fst schs) st' (snd schs)).
+    assert (H: forall st, finite_on_state STEP st) by admit.
+    move: H => /two_to_one FINPP. 
+    specialize (FINPP P).
+    Lemma 
+    unfold finite_on_state in H.
+    eapply two_to_one in H. simpl in H.
+    
+    Definition two_to_one {X Y} (A:X->Y->Prop):= False.
+      
+    Lemma finite_on_set:  
+    
   - move=> n; apply: hhalb' => //.
 Admitted.
 
