@@ -141,6 +141,7 @@ Check concurrency.konig.konigsafe.
 Section filtered_konig.
   
   Variable X: Type.
+  Axiom X_dec: forall x y:X, {x=y} + {x<>y}.
   Variable Filter: X -> Prop.
   Variable R: X->X->Prop.
   Axiom  preservation :  forall P P', Filter P -> R P P' -> Filter P'.
@@ -176,7 +177,121 @@ Section filtered_konig.
       by constructor.
       by apply: IHn.
   Qed.
-  
+
+  Inductive cardinality {X} (P:X->Prop): nat -> Prop:=
+  |Cardinality n (f:nat-> X): (forall i j, i<n -> j<n -> i<>j -> f(i)<>f(j)) ->
+                           (forall i, i<n -> P (f i)) ->
+                           (forall x, P x -> exists i, i < n /\ f i = x) ->
+                           cardinality P n.
+  Inductive cardinality' {X} (P:X->Prop): nat -> Prop:=
+  |Cardinality' n (f:nat-> X): (forall i j, i<n -> j<n -> i<>j  -> f(i)<>f(j)) ->
+                            (forall i, i<n -> P (f i)) ->
+                            cardinality' P n.
+
+  Lemma repetition_dec: forall (f:nat -> X) x n,  (exists i, i<n /\ f(i) = x) \/ (forall i, i<n -> f i <> x).
+              Proof. 
+                induction n=>//.
+                - constructor 2 => //.
+                - move: IHn=> [[]i [] A B| A].
+                  + constructor; exists i; split =>//; auto.
+                  + destruct (X_dec (f n) x).
+                    * left; exists n; split=> //.
+                    * right=> i ineq.
+                      { destruct (Nat.eq_dec i n).
+                        - subst i => //.
+                        - apply: A=>//.
+                          destruct (le_lt_dec n i) as [HH|HH]; move: HH=> /leP // /leP ineq2.
+                        contradict n1. move: ineq=> /leP ineq.
+                        omega.
+                      }
+              Qed.
+  Lemma finite_cardinality:
+    forall (P:X->Prop) (EM: forall x, P x \/ ~ P x), finite P -> exists n, cardinality P n. 
+  Proof.
+    move => P EM [] n [] f FIN.
+    cut (forall n2,
+            (exists f0 n0,
+                (n0 <= n2) /\
+               (forall i j, i<n0 -> j<n0 -> i <> j -> f0(i)<>f0(j)) /\
+               (forall i, i<n0 -> P (f0 i)) /\
+               (forall i, i<n2 -> P (f i) -> exists i0, i0<n0 /\ f i = f0 i0)) \/
+               (exists n1, n1<=n2 /\ cardinality P n1)
+        ).
+    { move => HH; move: (HH n) => [ [] f0 [] n0 [] A [] B []  C D | [] n0 [] HH0 HH1 ].
+      - exists n0; exists f0 => //.
+        move =>  x Px. move: (FIN x Px)=> [] i [] /leP /D D' fi.
+        move: Px; rewrite -fi => /D' [] i0 [] ineqi0 fifi0. rewrite fifi0. 
+        by exists i0; split.
+      - by exists n0.
+    }
+    { induction n2. 
+      - left; exists f, 0; repeat split=>//.
+      - move: IHn2=> [].
+        + move => [] f0 [] n0 [] ineq02 [] inject0 [] prf0 subset.
+          destruct (Compare.le_or_le_S n n2) as [A | A]; move:A=> /leP ineq.
+          * right. exists n0; split => //; auto.
+            apply: (Cardinality P n0 f0)=> //.
+            move=> x Px. move: (FIN x Px)=> [] i [] /leP ineq' fi.
+            assert (H:i< n2) by admit.
+            move: Px; rewrite -fi=> /(subset _ H) []  i' [] ineq0' fifo.
+            by rewrite fifo; exists i'; split.
+          * { pose (new_x:= f n2).
+              (*check if new_x is in P*)
+              destruct (EM new_x) as [Pnew_x | nPnew_x].
+              - left; destruct (repetition_dec f new_x n2) as [HH|HH]; move: HH.
+                + move=> [] i [] ineq2 fi.
+                  exists f0, n0; repeat split=>//; auto.
+                  move=> j ineqj Px.
+                  destruct (Nat.eq_dec j n2).
+                  * subst j.
+                    move: Px. rewrite -/new_x -fi => /(subset i ineq2) => [] [] i' [] ineqi' fifi'.
+                    by exists i'; split.
+                  * apply: subset=>//.
+                    destruct (lt_dec j n2) as [HH|HH]; move:HH ineqj=> /leP // /leP HH /leP ineqj.
+                    by contradict n1; omega.
+                    
+                + { move => HH.
+                    pose (f0':= eq_dec.upd f0 n0 new_x); exists f0', n0.+1; repeat split => //.
+                    - move => i j ineqi ineqj diffij.
+                      destruct (Nat.eq_dec i n0);destruct (Nat.eq_dec j n0); try subst=> //.
+                      + rewrite /f0' eq_dec.upd_eq eq_dec.upd_neq=> // .
+                        assert (Hj: j < n0) by admit.
+                        move: (prf0 j Hj) => /FIN [] h [] A B; rewrite -B. 
+                        move => eq. apply: (HH h)=> //.
+                        admit. (*by integers.*)
+                        
+                      + rewrite /f0' eq_dec.upd_eq eq_dec.upd_neq=> // .
+                        assert (Hj: i < n0) by admit.
+                        move: (prf0 i Hj) => /FIN [] h [] A B; rewrite -B. 
+                        move => eq. apply: (HH h)=> //.
+                        admit. (*by integers.*)
+                          by move=>AA; apply: diffij.
+                      + rewrite /f0' eq_dec.upd_neq=>//; auto;
+                        rewrite eq_dec.upd_neq=>//; auto.
+                        assert (ineqi':  i < n0) by admit.
+                        assert (ineqj':  j < n0) by admit.
+                          by move: inject0 => /(_ _ _ ineqi' ineqj' diffij).
+                    - move=> i0 ineqi0; destruct (Nat.eq_dec i0 n0).
+                        by subst; rewrite /f0' eq_dec.upd_eq.
+                        rewrite /f0' eq_dec.upd_neq; [apply: prf0| admit].
+                        admit.
+                    - move => i0 ineq0 Px; destruct (Nat.eq_dec i0 n2).
+                        by subst; exists n0; split =>//; rewrite /f0' eq_dec.upd_eq.
+                        move: (subset i0)=> [] //. admit.
+                        move=> i0' [] A B. exists i0'; split=>//. auto.
+                        rewrite /f0' eq_dec.upd_neq=> //. admit.
+                  }
+                + left; exists f0, n0; repeat split=> //.
+                  * auto.
+                  * move => i0 ineq0. destruct (Nat.eq_dec i0 n2).
+                      by subst; move=> Px; exfalso; apply nPnew_x.
+                      assert (H:i0<n2) by admit.
+                      by move /(subset _ H).
+            }
+        + move => [] n0 [] /leP /(le_trans _ _ n2.+1) A B; right; exists n0; split=> //.
+          admit.
+  Admitted.
+                      
   Lemma filtered_konigsafe:
     forall (x : X),
       (forall P : Prop, P \/ ~ P) ->
@@ -191,6 +306,39 @@ Section filtered_konig.
 
     move=> [] xx prfx.
     rewrite /finite.
+
+    assert (EM': forall x0, R xx x0 \/ ~ R xx x0) by (move=>x0; apply EM;auto).
+    move: (blah _ prfx)=> /(finite_cardinality _ EM') [] n car.
+    inversion car; subst n0.
+
+    exists n.
+    assert (HH: forall i, i < n -> Filter (f i)) by move => i / H0 / (preservation _ _ prfx) //.
+    assert (refl:forall i n, (i < n)%coq_nat -> is_true (i < n)) by move => i' n' /ltP //. 
+    pose (f0:= fun i =>
+                 match le_lt_dec n i with
+                 | left _ =>  mkTT xx prfx
+                 | right ineq => mkTT (f i) (HH i (refl i n ineq))
+                 end ).
+    
+    exists f0 => [] [] xx' prfx' /= stepstep. inversion stepstep.
+    move: stp0; subst x'=> /= /H1 [] i0 [] /ltP A B.
+    exists i0; split=> //.
+    rewrite /f0.
+    destruct (le_lt_dec n i0) => //.
+    move: A l=> /ltP A /leP.
+    admit.
+    clear stepstep.
+    remember (HH i0 (refl i0 n l)) as prfx''. clear Heqprfx''.
+    move: prfx' prfx''. 
+    dependent rewrite B => P1 P2; f_equal.
+    apply: ProofIrrelevance.PI.proof_irrelevance.
+
+    move=> n.
+    
+    f_equal.
+    rewrite B.
+    if_true_tac.
+    
     
     Focus 2.
     move => n.
