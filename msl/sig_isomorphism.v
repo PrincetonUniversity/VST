@@ -141,3 +141,29 @@ Proof.
   unfold id, compose, sig_sigsig, sigsig_sig; simpl.
   apply exist_ext'; auto.
 Qed.
+
+Definition sig_sig_iff_bij {A} {P Q: A -> Prop} (H: forall a, P a <-> Q a):
+  bijection (sig P) (sig Q).
+  refine (Bijection _ _
+           (sig_sig_iff H)
+           (sig_sig_iff' H) _ _).
+  + apply sig_sig_iff_iff'.
+  + apply sig_sig_iff'_iff.
+Defined.
+
+Definition sig_sig_eq_bij {A} {P Q: A -> Prop} (H: forall a, P a = Q a):
+  bijection (sig P) (sig Q).
+  refine (Bijection _ _
+           (sig_sig_eq H)
+           (sig_sig_eq' H) _ _).
+  + apply sig_sig_eq_eq'.
+  + apply sig_sig_eq'_eq.
+Defined.
+
+Definition sig_sigsig_bij {A} (P Q: A -> Prop):
+  bijection (sig (fun a => P a /\ Q a)) (sig (fun a: sig P => Q (proj1_sig a))).
+  refine (Bijection _ _ (sig_sigsig) (sigsig_sig) _ _).
+  + apply sig_sigsig_sig.
+  + apply sigsig_sig_sigsig.
+Defined.
+
