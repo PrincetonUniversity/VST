@@ -71,6 +71,11 @@ Definition schedule := SCH.schedule.
 Import JuicyMachineLemmas.
 Import ThreadPool.
 
+Ltac cleanup :=
+  unfold lockRes in *;
+  unfold LocksAndResources.lock_info in *;
+  unfold lockGuts in *.
+
 (*+ Description of the invariant *)
 
 Definition cm_state := (Mem.mem * Clight.genv * (schedule * Machine.t))%type.
@@ -2757,6 +2762,7 @@ Section Simulation.
               clear is.
               assert_specialize lw. {
                 clear lw.
+                cleanup.
                 unfold lockRes in *.
                 unfold LocksAndResources.lock_info in *.
                 rewrite His_unlocked.
@@ -2819,11 +2825,6 @@ Section Simulation.
         + (* matchfunspec *)
           auto.
         
-          Ltac cleanup :=
-            unfold lockRes in *;
-            unfold LocksAndResources.lock_info in *;
-            unfold lockGuts in *.
-        
         + (* lock sparsity *)
           unfold tp_ in *.
           simpl.
@@ -2872,9 +2873,7 @@ Section Simulation.
             { subst loc.
               split; swap 1 2.
               - (* the rmap is unchanged (but we lose the SAT information) *)
-                unfold lockRes in *.
-                unfold LocksAndResources.lock_info in *.
-                unfold lockGuts in *.
+                cleanup.
                 rewrite His_unlocked in lock_coh.
                 destruct lock_coh as (H & ? & ? & lk & _).
                 eauto.
@@ -2908,23 +2907,74 @@ Section Simulation.
             destruct (AMap.find (elt:=option rmap) loc (lset tp)) as [o|] eqn:Eo; swap 1 2.
             now auto (* not even a lock *).
             (* options:
-             - maintain the invariant that the distance between two locks is >= 4 (or =0)
+             - maintain the invariant that the distance between
+                two locks is >= 4 (or =0)
              - try to relate to the wet memory?
              - others?
              *)
             set (u := load_at _ _).
             set (v := load_at _ _) in lock_coh.
-            assert (L : forall val, v = Some val -> u = Some val); unfold u, v in *. (* ; clear u v. *)
+            assert (L : forall val, v = Some val -> u = Some val); unfold u, v in *.
+            (* ; clear u v. *)
             {
               intros val.
               unfold load_at in *.
               clear lock_coh.
+              destruct loc as (b', ofs'). simpl fst in *; simpl snd in *.
+              pose proof sparse (b, Int.intval ofs) (b', ofs') as SPA.
+              assert_specialize SPA by (cleanup; congruence).
+              assert_specialize SPA by (cleanup; congruence).
+              simpl in SPA.
+              destruct SPA as [SPA|SPA]; [ tauto | ].
               unfold Mem.load in *.
               if_tac [V|V]; [ | congruence].
               if_tac [V'|V'].
               - do 2 rewrite restrPermMap_mem_contents.
-                destruct loc as (b', ofs'). simpl fst in *; simpl snd in *.
-                admit.
+                intros G; exact_eq G.
+                f_equal.
+                f_equal.
+                f_equal.
+                simpl.
+                
+                pose proof store_outside' _ _ _ _ _ _ Hstore as OUT.
+                destruct OUT as (OUT, _).
+                cut (forall z,
+                        (0 <= z < 4)%Z ->
+                        ZMap.get (ofs' + z)%Z (Mem.mem_contents m) !! b' =
+                        ZMap.get (ofs' + z)%Z (Mem.mem_contents m_) !! b').
+                {
+                  intros G.
+                  repeat rewrite <- Z.add_assoc.
+                  f_equal.
+                  - specialize (G 0%Z ltac:(omega)).
+                    exact_eq G. repeat f_equal; auto with zarith.
+                  - f_equal; [apply G; omega | ].
+                    f_equal; [apply G; omega | ].
+                    f_equal; apply G; omega.
+                }
+                intros z Iz.
+                specialize (OUT b' (ofs' + z)%Z).
+                
+                Lemma far_range ofs ofs' z :
+                  (0 <= z < 4)%Z ->
+                  far ofs ofs' ->
+                  ~(ofs <= ofs' + z < ofs + size_chunk Mint32)%Z.
+                Proof.
+                  unfold far; simpl.
+                  intros H1 H2.
+                  zify.
+                  omega.
+                Qed.
+                
+                destruct OUT as [[-> OUT]|OUT]; [ | clear SPA].
+                + exfalso.
+                  destruct SPA as [? | [_ SPA]]; [ tauto | ].
+                  eapply far_range in SPA. apply SPA; clear SPA.
+                  apply OUT. omega.
+                + unfold contents_at in *.
+                  simpl in OUT.
+                  apply OUT.
+              
               - exfalso.
                 apply V'; clear V'.
                 unfold Mem.valid_access in *.
@@ -2937,10 +2987,22 @@ Section Simulation.
                 rewrite RR in *.
                 unfold tp_.
                 rewrite <-lockSet_updLockSet.
-                (* should I maintain the fact that lock ranges don't
-                interfere with each-other? *)
-                admit.
-              (* ask around *)
+                match goal with |- _ ?a _ => cut (a = Some Writable) end.
+                { intros ->. constructor. }
+                
+                destruct SPA as [bOUT | [<- ofsOUT]].
+                + rewrite gsoLockSet_2; auto.
+                  eapply lockSet_spec_2.
+                  * hnf; simpl. eauto.
+                  * cleanup. rewrite Eo. reflexivity.
+                + rewrite gsoLockSet_1; auto.
+                  * eapply lockSet_spec_2.
+                    -- hnf; simpl. eauto.
+                    -- cleanup. rewrite Eo. reflexivity.
+                  * unfold far in *.
+                    simpl in *.
+                    zify.
+                    omega.
             }
             destruct o; split; intuition.
         
