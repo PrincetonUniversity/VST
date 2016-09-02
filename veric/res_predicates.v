@@ -612,6 +612,7 @@ Qed.
 Lemma general_slice_resource_resource_share: forall r sh sh',
   resource_share r = Some sh ->
   join_sub sh' sh ->
+(*  join_sub sh' Share.Lsh -> *)
   resource_share (general_slice_resource sh' r) = Some sh'.
 Proof.
   intros.
@@ -622,8 +623,13 @@ Proof.
     eapply join_sub_trans; eauto.
   + destruct (dec_share_identity (Share.unrel Share.Rsh sh')); simpl.
     - f_equal.
-      apply share_rel_unrel.
-      apply share_sub_Lsh; auto.
+      rewrite share_rel_unrel; auto.
+      pose proof (@share_rel_unrel' Share.Rsh sh').
+      apply identity_share_bot in i. rewrite i in H.
+      rewrite Share.rel_bot1 in H. symmetry in H.
+      clear - H.
+      rewrite Share.glb_commute in H.
+     apply share_lemma88; auto.
     - f_equal.
       apply splice_unrel_unrel.
 Qed.
@@ -2175,9 +2181,10 @@ Proof.
   destruct (a @ l); inv H0.
   + rewrite <- splice_bot2 in H4.
     rewrite <- (Share.unrel_splice_L t Share.bot), H4, unrel_bot.
-    apply NO_identity.
-  + assert (pshare_sh p0 = Share.bot) by
-      (rewrite <- (Share.unrel_splice_R t (pshare_sh p0)), H4, unrel_bot; auto).
+    apply NO_identity. apply Lsh_nonidentity.
+  + assert (pshare_sh p0 = Share.bot).
+     rewrite <- (Share.unrel_splice_R t (pshare_sh p0)), H4, unrel_bot; auto.
+     apply Rsh_nonidentity.
     pose proof pshare_not_identity p0.
     pose proof bot_identity.
     rewrite H0 in H3; tauto.
@@ -2435,7 +2442,7 @@ Proof.
     destruct H0.
     split; [auto |].
     split; split.
-    - eapply general_slice_resource_resource_share; [eauto | eexists; eauto].
+    - eapply general_slice_resource_resource_share; [eauto | eexists; eauto ].
     - eapply general_slice_resource_nonlock; [eauto | eexists; eauto | auto].
     - eapply general_slice_resource_resource_share; [eauto | eexists; eapply join_comm; eauto].
     - eapply general_slice_resource_nonlock; [eauto | eexists; eapply join_comm; eauto | auto].
@@ -2619,12 +2626,10 @@ apply pred_ext.
   assert (NU2: nonunit (Share.unrel Share.Rsh sh2)). {
     clear - H0.
     unfold readable_share in H0.
-  apply nonidentity_nonunit. red in H0|-*. red in H0. contradict H0.
-  apply share_sub_Lsh in H0.
-  rewrite (@sub_glb_bot Share.Rsh _ _ H0).
-  apply bot_identity. rewrite Share.glb_commute.
-  apply Share.split_disjoint with Share.top.
-  unfold  Share.Rsh, Share.Lsh. destruct (Share.split Share.top); simpl; auto.
+    apply nonidentity_nonunit. red in H0|-*. red in H0. contradict H0.
+    rewrite <- share_rel_unrel'.
+    apply identity_share_bot in H0. rewrite H0.
+    rewrite Share.rel_bot1. apply bot_identity.
  } clear H0.
   intros w ?.
   hnf in H0.
