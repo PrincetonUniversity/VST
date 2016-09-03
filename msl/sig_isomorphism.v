@@ -30,6 +30,15 @@ Program Definition sigsig_sig {A: Type} {P Q: A -> Prop}
 Program Definition sig_sigsig {A: Type} {P Q: A -> Prop}
   (x: sig (fun x => P x /\ Q x)): sig (fun x: sig P => Q (proj1_sig x)) := x.
 
+Program Definition bij_f_sig {A B} (f: bijection A B) (P: A -> Prop)
+  (x: sig P): sig (fun b => P (bij_g _ _ f b)) := bij_f _ _ f x.
+Next Obligation.
+  rewrite bij_gf; auto.
+Defined.
+
+Program Definition bij_g_sig {A B} (f: bijection A B) (P: A -> Prop)
+  (x: sig (fun b => P (bij_g _ _ f b))): sig P := bij_g _ _ f x.
+
 Lemma sig_sig_iff_iff': forall {A: Type} {P Q: A -> Prop}
   (H: forall a, P a <-> Q a) x,
   (sig_sig_iff H) (sig_sig_iff' H x) = x.
@@ -93,6 +102,24 @@ Proof.
   apply exist_ext'; auto.
 Qed.
 
+Lemma bij_fg_sig: forall {A B} (f: bijection A B) (P: A -> Prop) x,
+  bij_f_sig f P (bij_g_sig f P x) = x.
+Proof.
+  intros.
+  destruct x; unfold bij_f_sig, bij_g_sig; simpl.
+  apply exist_ext.
+  rewrite bij_fg; auto.
+Qed.
+
+Lemma bij_gf_sig: forall {A B} (f: bijection A B) (P: A -> Prop) x,
+  bij_g_sig f P (bij_f_sig f P x) = x.
+Proof.
+  intros.
+  destruct x; unfold bij_f_sig, bij_g_sig; simpl.
+  apply exist_ext.
+  rewrite bij_gf; auto.
+Qed.
+
 Lemma sig_sig_iff'_iff_id: forall {A: Type} {P Q: A -> Prop}
   (H: forall a, P a <-> Q a),
   (sig_sig_iff' H) oo (sig_sig_iff H) = id _.
@@ -142,6 +169,26 @@ Proof.
   apply exist_ext'; auto.
 Qed.
 
+Lemma bij_fg_sig_id: forall {A B} (f: bijection A B) (P: A -> Prop),
+  (bij_f_sig f P) oo (bij_g_sig f P) = id _.
+Proof.
+  intros.
+  extensionality x.
+  destruct x; unfold compose, id, bij_f_sig, bij_g_sig; simpl.
+  apply exist_ext.
+  rewrite bij_fg; auto.
+Qed.
+
+Lemma bij_gf_sig_id: forall {A B} (f: bijection A B) (P: A -> Prop),
+  (bij_g_sig f P) oo (bij_f_sig f P) = id _.
+Proof.
+  intros.
+  extensionality x.
+  destruct x; unfold compose, id, bij_f_sig, bij_g_sig; simpl.
+  apply exist_ext.
+  rewrite bij_gf; auto.
+Qed.
+
 Definition sig_sig_iff_bij {A} {P Q: A -> Prop} (H: forall a, P a <-> Q a):
   bijection (sig P) (sig Q).
   refine (Bijection _ _
@@ -167,3 +214,9 @@ Definition sig_sigsig_bij {A} (P Q: A -> Prop):
   + apply sigsig_sig_sigsig.
 Defined.
 
+Definition bij_sig {A B} (f: bijection A B) (P: A -> Prop):
+  bijection (sig P) (sig (fun b => P (bij_g _ _ f b))).
+  refine (Bijection _ _ (bij_f_sig f P) (bij_g_sig f P) _ _).
+  + apply bij_fg_sig.
+  + apply bij_gf_sig.
+Defined.

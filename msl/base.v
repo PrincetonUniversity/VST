@@ -90,10 +90,27 @@ Defined.
 
 Infix "ooo" := bij_compose (at level 54, right associativity).
 
+Definition bij_refl (A: Type): bijection A A.
+  refine (Bijection _ _ (id _) (id _) _ _).
+  + reflexivity.
+  + reflexivity.
+Defined.
+
 Definition bij_sym {A B} (f: bijection A B): bijection B A.
   refine (Bijection _ _ (bij_g _ _ f) (bij_f _ _ f) _ _).
   + apply bij_gf.
   + apply bij_fg.
+Defined.
+
+Definition func_bij {A1 A2 B1 B2} (f: bijection A1 A2) (g: bijection B1 B2):
+  bijection (A1 -> B1) (A2 -> B2).
+  refine (Bijection _ _
+            (fun F => (bij_f _ _ g) oo F oo (bij_g _ _ f))
+            (fun F => (bij_g _ _ g) oo F oo (bij_f _ _ f)) _ _).
+  + intros F; extensionality x.
+    unfold compose; rewrite !bij_fg; auto.
+  + intros F; extensionality x.
+    unfold compose; rewrite !bij_gf; auto.
 Defined.
 
 Definition unit_unit1 (A: Type): bijection A (A * unit).
