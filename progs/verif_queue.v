@@ -27,7 +27,6 @@ rewrite Share.lub_commute.
 rewrite Share.lub_absorb.
 apply readable_nonidentity.
 apply writable_readable.
-apply Share.contains_Rsh_e.
 apply sepalg.join_sub_refl.
 Qed.  (* share hacking *)
 

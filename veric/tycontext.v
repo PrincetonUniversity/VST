@@ -368,7 +368,7 @@ Proof.
   - eapply Z.divide_trans; [| apply local_legal_alignas_type_spec; auto].
     inversion H2; simpl; unfold align_attr;
     destruct (attr_alignas a); reflexivity.
-Admitted.
+Qed.
 
 Definition composite_legal_alignas (env : composite_env) (co : composite) : Prop :=
   (co_alignof co >= alignof_composite env (co_members co)).

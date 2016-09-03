@@ -191,7 +191,7 @@ FLOYD_FILES= \
 
 
 PROGS_FILES= \
-  list_dt.v verif_reverse.v verif_queue.v verif_sumarray.v \
+  list_dt.v verif_reverse.v verif_queue.v verif_queue2.v verif_sumarray.v \
   insertionsort.v reverse.v queue.v sumarray.v message.v string.v\
   revarray.v verif_revarray.v insertionsort.v append.v \
   verif_float.v verif_ptr_compare.v \
@@ -285,7 +285,7 @@ HMACDRBG_FILES = \
 #  verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v verif_hmac_drbg_generate.v
 
 
-C_FILES = reverse.c queue.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c
+C_FILES = reverse.c queue.c queue2.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
@@ -396,6 +396,8 @@ progs/revarray.v: progs/revarray.c
 progs/reverse.v: progs/reverse.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/queue.v: progs/queue.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/queue2.v: progs/queue2.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/sumarray.v: progs/sumarray.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
