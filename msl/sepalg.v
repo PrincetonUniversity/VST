@@ -659,17 +659,6 @@ Proof with auto.
   eapply unit_identity; eauto.
 Qed.
 
-(** A join homomorphism is a function from one separation
-    algebra to another which preserves the join relation.
-
-    This is used when we build the sa_preimage (to add a Perm_alg to the knot).
- *)
-
-Definition join_hom {A} {JA: Join A} {B} {JB: Join B} (f:A ->B) :=
-  forall x y z,
-    join x y z ->
-    join (f x) (f y) (f z).
-
 (** The elements of a multi-unit separation algebra can be partitioned
     into equivalance classes, where two elements are in the class iff
     they have the same unit.

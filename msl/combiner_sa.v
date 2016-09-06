@@ -8,6 +8,7 @@
 Require Import msl.base.
 Require Import msl.sepalg.
 Require Import msl.functors.
+Require Import msl.sepalg_generators.
 Require Import msl.sepalg_functors.
 
 Definition midObj {A} {JA: Join A} (a : A) : Prop := ~identity a /\ ~ full a.

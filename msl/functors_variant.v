@@ -217,6 +217,17 @@ Definition CovariantFunctor_MixVariantFunctor (F: CovariantFunctor.functor):
   + apply CovariantFunctor.ff_comp, CovariantFunctor.functor_facts.
 Defined.
 
+Definition ContraVariantFunctor_MixVariantFunctor
+ (F: ContraVariantFunctor.functor):
+  MixVariantFunctor.functor.
+  refine (@MixVariantFunctor.Functor
+   (fun T => F T)
+   (fun A B _ f => ContraVariantFunctor.fmap F f) _).
+  constructor; intros; simpl.
+  + apply ContraVariantFunctor.ff_id, ContraVariantFunctor.functor_facts.
+  + apply ContraVariantFunctor.ff_comp, ContraVariantFunctor.functor_facts.
+Defined.
+
 Definition CovariantFunctor_CoContraVariantBiFunctor
  (F: CovariantFunctor.functor):
   CoContraVariantBiFunctor.functor.
@@ -252,6 +263,17 @@ Definition CovariantFunctor_CovariantFunctor_compose
   + rewrite !CovariantFunctorLemmas.fmap_comp; auto.
 Defined.
 
+Definition CovariantFunctor_MixVariantFunctor_compose
+(F1: CovariantFunctor.functor) (F2: MixVariantFunctor.functor):
+  MixVariantFunctor.functor.
+  refine (@MixVariantFunctor.Functor
+   (fun T => F1 (F2 T))
+   (fun A B f g => CovariantFunctor.fmap F1 (MixVariantFunctor.fmap F2 f g)) _).
+  constructor; intros; simpl.
+  + rewrite MixVariantFunctorLemmas.fmap_id, CovariantFunctorLemmas.fmap_id; auto.
+  + rewrite !CovariantFunctorLemmas.fmap_comp, MixVariantFunctorLemmas.fmap_comp; auto.
+Defined.
+
 Definition CovariantBiFunctor_CovariantFunctor_compose
 (F: CovariantBiFunctor.functor)
 (F1 F2: CovariantFunctor.functor):
@@ -265,19 +287,44 @@ Definition CovariantBiFunctor_CovariantFunctor_compose
   + rewrite CovariantBiFunctorLemmas.fmap_comp, !CovariantFunctorLemmas.fmap_comp; auto.
 Defined.
 
+Definition CovariantBiFunctor_MixVariantFunctor_compose
+(F: CovariantBiFunctor.functor)
+(F1 F2: MixVariantFunctor.functor):
+  MixVariantFunctor.functor.
+  refine (@MixVariantFunctor.Functor
+   (fun T => F (F1 T) (F2 T))
+   (fun A B f g => CovariantBiFunctor.fmap F
+      (MixVariantFunctor.fmap F1 f g) (MixVariantFunctor.fmap F2 f g)) _). 
+  constructor; intros; simpl.
+  + rewrite !MixVariantFunctorLemmas.fmap_id, CovariantBiFunctorLemmas.fmap_id; auto.
+  + rewrite CovariantBiFunctorLemmas.fmap_comp, !MixVariantFunctorLemmas.fmap_comp; auto.
+Defined.
+
 Definition CoContraVariantBiFunctor_CoContraVariantFunctor_compose
 (F: CoContraVariantBiFunctor.functor)
 (F1: CovariantFunctor.functor)
 (F2: ContraVariantFunctor.functor):
   CovariantFunctor.functor.
   refine (@CovariantFunctor.Functor
-   (fun T => CoContraVariantBiFunctor._functor F
-      (CovariantFunctor._functor F1 T) (ContraVariantFunctor._functor F2 T))
+   (fun T => F (F1 T) (F2 T))
    (fun A B f => CoContraVariantBiFunctor.fmap F
       (CovariantFunctor.fmap F1 f) (ContraVariantFunctor.fmap F2 f)) _). 
   constructor; intros; simpl.
   + rewrite CovariantFunctorLemmas.fmap_id, ContraVariantFunctorLemmas.fmap_id, CoContraVariantBiFunctorLemmas.fmap_id; auto.
   + rewrite CoContraVariantBiFunctorLemmas.fmap_comp, CovariantFunctorLemmas.fmap_comp, ContraVariantFunctorLemmas.fmap_comp; auto.
+Defined.
+
+Definition CoContraVariantBiFunctor_MixVariantFunctor_compose
+(F: CoContraVariantBiFunctor.functor)
+(F1 F2: MixVariantFunctor.functor):
+  MixVariantFunctor.functor.
+  refine (@MixVariantFunctor.Functor
+   (fun T => F (F1 T) (F2 T))
+   (fun A B f g => CoContraVariantBiFunctor.fmap F
+      (MixVariantFunctor.fmap F1 f g) (MixVariantFunctor.fmap F2 g f)) _). 
+  constructor; intros; simpl.
+  + rewrite !MixVariantFunctorLemmas.fmap_id, CoContraVariantBiFunctorLemmas.fmap_id; auto.
+  + rewrite CoContraVariantBiFunctorLemmas.fmap_comp, !MixVariantFunctorLemmas.fmap_comp; auto.
 Defined.
 
 End GeneralFunctorGenerator.
@@ -422,6 +469,31 @@ Module MixVariantFunctorGenerator.
 
 Import MixVariantFunctor.
 Import MixVariantFunctorLemmas.
+
+Definition fconst (T : Type): functor :=
+  GeneralFunctorGenerator.CovariantFunctor_MixVariantFunctor
+  (CovariantFunctorGenerator.fconst T).
+
+Definition fidentity: functor :=
+  GeneralFunctorGenerator.CovariantFunctor_MixVariantFunctor
+  CovariantFunctorGenerator.fidentity.
+
+Definition fpair (F1 F2: functor): functor :=
+  GeneralFunctorGenerator.CovariantBiFunctor_MixVariantFunctor_compose
+  CovariantBiFunctorGenerator.Fpair
+  F1
+  F2.
+
+Definition foption (F: functor): functor :=
+  GeneralFunctorGenerator.CovariantFunctor_MixVariantFunctor_compose
+  CovariantFunctorGenerator.Foption
+  F.
+
+Definition ffunc (F1 F2: functor): functor :=
+  GeneralFunctorGenerator.CoContraVariantBiFunctor_MixVariantFunctor_compose
+  CoContraVariantBiFunctorGenerator.Ffunc
+  F2
+  F1.
 
 End MixVariantFunctorGenerator.
 

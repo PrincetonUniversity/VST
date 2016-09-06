@@ -9,16 +9,10 @@ Open Local Scope nat_scope.
 Require Import msl.ageable.
 Require Import msl.functors_variant.
 Require Import msl.sepalg.
-Require Import msl.sepalg_functors.
-Require Import msl.sepalg_generators.
-Require Import msl.predicates_hered.
+Require Import msl.xsepalg_functors.
+Require Import msl.xsepalg_generators.
 Require Import msl.age_sepalg.
 Require Import msl.knot_full_variant.
-
-Definition join_hom {A} {JA: Join A} {B} {JB: Join B} (f:A ->B) :=
-  forall x y z,
-    join x y z <->
-    join (f x) (f y) (f z).
 
 Module Type KNOT_FULL_BASIC_INPUT.
   Parameter F: MixVariantFunctor.functor.
@@ -77,11 +71,15 @@ Module Type KNOT_BASIC_LEMMAS.
   Import K.KI.
   Import K.
 
+  Axiom unsquash_inj : forall k1 k2,
+    unsquash k1 = unsquash k2 ->
+    k1 = k2.
+
   Axiom unsquash_approx : forall k n Fp,
     unsquash k = (n, Fp) ->
     Fp = fmap F (approx n) (approx n) Fp.
   Implicit Arguments unsquash_approx.
-  
+
   Axiom approx_approx1 : forall m n,
     approx n = approx n oo approx (m+n).
 
@@ -102,8 +100,8 @@ Module Type KNOT_FULL_SA.
   Import KL.
 
   Parameter Join_knot: Join knot.  Existing Instance Join_knot.
-  Parameter Perm_knot : Perm_alg knot.  Existing Instance Perm_knot.
 (*
+  Parameter Perm_knot : Perm_alg knot.  Existing Instance Perm_knot.
   Parameter Sep_knot : (forall A, Sep_alg (F A)) -> Sep_alg knot.  Existing Instance Sep_knot.
   Parameter Canc_knot : (forall A, Canc_alg (F A)) -> Canc_alg knot.  Existing Instance Canc_knot.
   Parameter Disj_knot : (forall A, Disj_alg (F A)) -> Disj_alg knot.  Existing Instance Disj_knot.
@@ -111,9 +109,9 @@ Module Type KNOT_FULL_SA.
   Instance Join_nat_F: Join (nat * F predicate) := 
        Join_prod nat  (Join_equiv nat) (F predicate) _.
 
+(*
   Instance Perm_nat_F : Perm_alg (nat * F predicate) :=
     @Perm_prod nat _ _ _ (Perm_equiv _) (Perm_F _).
-(*
   Instance Sep_nat_F (Sep_F: forall A, Sep_alg (F A)): Sep_alg (nat * F predicate) :=
     @Sep_prod nat _ _ _ (Sep_equiv _) (Sep_F predicate).
   Instance Canc_nat_F (Canc_F: forall A, Canc_alg (F A)): Canc_alg (nat * F predicate) :=
@@ -142,6 +140,8 @@ Module KnotFullSa
   Module K := K'.
   Module KL := KL'.
 
+  Import MixVariantFunctor.
+  Import MixVariantFunctorLemmas.
   Import KI.
   Import KSAI.
   Import K.
@@ -187,14 +187,14 @@ Module KnotFullSa
 
   Instance Sep_knot(Sep_F: forall A, Sep_alg (F A)) : Sep_alg knot := 
     Sep_preimage _ _ _  unsquash squash squash_unsquash unsquash_squash_join_hom.
-
+*)
   Lemma join_unsquash : forall x1 x2 x3,
     join x1 x2 x3 =
     join (unsquash x1) (unsquash x2) (unsquash x3).
   Proof.
     intuition.
   Qed.
-
+(*
   Instance Canc_knot(Canc_F: forall A, Canc_alg (F A)) : Canc_alg knot.
   Proof. repeat intro. 
             do 3 red in H, H0.
@@ -287,54 +287,37 @@ Module KnotFullSa
       constructor.
       - constructor; auto.
       - simpl.
-        apply @unsquash_approx in H0.
-Print hom_F.
-Print join_hom.
-        rewrite approx_approx1 in H0.
-        apply hom_F
-        re
-Check unsquash_approx.
-
-
-    destruct (paf_preserves_unmap_right (approx n) f f1 f0)
-      as [q [w [? [? ?]]]].
-    rewrite <- (unsquash_approx H1); auto.
-    exists (squash (S n,q)).
-    exists (squash (S n,w)). split. hnf.
-    repeat rewrite unsquash_squash.
-    split; simpl; auto.
-    generalize (paf_join_hom (approx (S n)) _ _ _ H2).
-    rewrite <- (unsquash_approx H0); auto.
-
-    split; hnf.
-    rewrite knot_age1.
-    rewrite unsquash_squash. f_equal.
-    replace y' with (squash (n,fmap (approx (S n)) q)); auto.
-    apply unsquash_inj.
-    rewrite unsquash_squash, H1.
-    apply injective_projections; simpl; auto.
-    rewrite (unsquash_approx H1).
-    rewrite <- H4.
-    rewrite fmap_app.
-    replace (approx n oo approx (S n)) with (approx n); auto.
-    extensionality a.
-    replace (S n) with (1 + n)%nat by trivial.
-    rewrite <- (approx_approx1 1 n).
-    trivial.
-
-    rewrite knot_age1.
-    rewrite unsquash_squash. f_equal.
-    replace z' with  (squash (n,fmap (approx (S n)) w)); auto.
-    apply unsquash_inj.
-    rewrite unsquash_squash, H.
-    apply injective_projections; simpl; auto.
-    rewrite <- H5.
-    rewrite fmap_app.
-    replace (approx n oo approx (S n)) with (approx n); auto.
-    extensionality a.
-    replace (S n) with (1 + n)%nat by trivial.
-    rewrite <- (approx_approx1 1 n).
-    trivial.
+        rewrite (unsquash_approx H), (unsquash_approx H1) in H3.
+        rewrite (approx_approx1 1 n) in H3 at 3 5.
+        rewrite (approx_approx2 1 n) in H3 at 4 6.
+        rewrite <- ff_comp in H3.
+        unfold compose in H3; simpl in H3.
+        apply (proj2 (hom_F _ _ _ _ _)) in H3; auto.
+        apply functor_facts.
+    + rewrite knot_age1.
+      rewrite unsquash_squash. f_equal.
+      replace y' with (squash (n,fmap F (approx (S n)) (approx (S n)) f0)); auto.
+      apply unsquash_inj.
+      rewrite unsquash_squash, H.
+      apply injective_projections; simpl; auto.
+      rewrite (unsquash_approx H).
+      rewrite fmap_app.
+      replace (S n) with (1 + n)%nat by trivial.
+      rewrite <- (approx_approx1 1 n),  <- (approx_approx2 1 n).
+      rewrite fmap_app.
+      f_equal; symmetry; apply (approx_approx1 0 n).
+    + rewrite knot_age1.
+      rewrite unsquash_squash. f_equal.
+      replace z' with  (squash (n, fmap F (approx (S n)) (approx (S n)) f1)); auto.
+      apply unsquash_inj.
+      rewrite unsquash_squash, H1.
+      apply injective_projections; simpl; auto.
+      rewrite (unsquash_approx H1).
+      rewrite fmap_app.
+      replace (S n) with (1 + n)%nat by trivial.
+      rewrite <- (approx_approx1 1 n),  <- (approx_approx2 1 n).
+      rewrite fmap_app.
+      f_equal; symmetry; apply (approx_approx1 0 n).
   Qed.
 
   Lemma unage_join2 :
@@ -347,54 +330,50 @@ Check unsquash_approx.
     unfold join, Join_knot, Join_preimage, age in *; simpl in *.
     repeat rewrite knot_age1.
 
-    case_eq (unsquash x');
-    case_eq (unsquash y');
-    case_eq (unsquash z');
-    case_eq (unsquash z); intros.
-    destruct n;  inv H4.
+    destruct (unsquash x') as [n f] eqn:?H;
+    destruct (unsquash y') as [n0 f0] eqn:?H;
+    destruct (unsquash z') as [n1 f1] eqn:?H;
+    destruct (unsquash z) as [n2 f2] eqn:?H; intros.
+    destruct n2;  inv H4.
     destruct H3. hnf in H3. simpl in *. destruct H3; subst.
-    rewrite unsquash_squash in H0.
-    inv H0.
-    rename n0 into n.
+    rewrite unsquash_squash in H1.
+    inv H1.
+    rename n1 into n.
 
-    destruct (paf_preserves_unmap_left
-      (approx n) f2 f1 f)
-      as [wx [wy [? [? ?]]]]; auto.
-    rewrite <- (unsquash_approx H1); auto.
-    exists (squash (S n, wx)).
-    exists (squash (S n, wy)).
-    split. unfold join, Join_nat_F, Join_prod; simpl.
-    (* unfold Join_knot; simpl. unfold Join_preimage; simpl. *)
-    repeat rewrite unsquash_squash.  simpl.  split; auto. 
+    exists (squash (S n, f)).
+    exists (squash (S n, f0)).
+    split; [| split].
 
-    rewrite (unsquash_approx H).
-    apply paf_join_hom; auto.
-    split; rewrite knot_age1; rewrite unsquash_squash; f_equal; hnf.
-    apply unsquash_inj.
-    rewrite unsquash_squash, H2.
-    apply injective_projections; simpl; auto.
-    rewrite fmap_app.
-    replace (approx n oo approx (S n)) with (approx n); auto.
-    extensionality x.
-    unfold compose.
-    change (approx n (approx (S n) x)) with ((approx n oo approx (1 + n)) x).
-    rewrite <- (approx_approx1 1 n).
-    trivial.
-    apply unsquash_inj.
-    rewrite unsquash_squash, H1.
-    apply injective_projections; simpl; auto.
-    rewrite fmap_app.
-    replace (approx n oo approx (S n)) with (approx n); auto.
-    rewrite H5.
-    rewrite <- (unsquash_approx H1); auto.
-    extensionality x.
-    unfold compose.
-    change (approx n (approx (S n) x)) with ((approx n oo approx (1 + n)) x).
-    rewrite <- (approx_approx1 1 n).
-    trivial.
+    + unfold join, Join_nat_F, Join_prod; simpl.
+      repeat rewrite unsquash_squash.  simpl.  split; auto.
+
+      rewrite (unsquash_approx H0), (unsquash_approx H) in H4.
+      rewrite (approx_approx1 1 n) in H4 at 1 3.
+      rewrite (approx_approx2 1 n) in H4 at 2 4.
+      rewrite <- ff_comp in H4 by (apply functor_facts).
+      apply paf_join_hom in H4; auto.
+      constructor; intros; apply hom_F.
+    + rewrite knot_age1; rewrite unsquash_squash; f_equal; hnf.
+      apply unsquash_inj.
+      rewrite unsquash_squash, H.
+      apply injective_projections; simpl; auto.
+      rewrite fmap_app.
+      change (S n) with (1 + n).
+      rewrite <- (approx_approx1 1 n).
+      rewrite <- (approx_approx2 1 n).
+      symmetry; eapply @unsquash_approx; eauto.
+    + rewrite knot_age1; rewrite unsquash_squash; f_equal; hnf.
+      apply unsquash_inj.
+      rewrite unsquash_squash, H0.
+      apply injective_projections; simpl; auto.
+      rewrite fmap_app.
+      change (S n) with (1 + n).
+      rewrite <- (approx_approx1 1 n).
+      rewrite <- (approx_approx2 1 n).
+      symmetry; eapply @unsquash_approx; eauto.
   Qed.
 
-  Theorem asa_knot : @Age_alg knot _ K.ag_knot.
+  Theorem asa_knot : @Age_alg knot _ K.ageable_knot.
   Proof.
     constructor.
     exact age_join1.
@@ -403,4 +382,4 @@ Check unsquash_approx.
     exact unage_join2.
   Qed.
 
-End KnotHeredSa.
+End KnotFullSa.
