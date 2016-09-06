@@ -1,5 +1,6 @@
 (*
- * Copyright (c) 2009-2011, Andrew Appel, Robert Dockins and Aquinas Hobor.
+ * Copyright (c) 2009-2016, Andrew Appel, Robert Dockins,
+    Aquinas Hobor and Le Xuan Bach
  *
  *)
 
@@ -504,6 +505,16 @@ intro. apply (@identity_unit _ _ _ sh2 Share.bot) in H1. apply H0 in H1; auto.
 apply joins_comm. apply bot_joins.
 Qed.
 
+
+Lemma decompose_bijection: forall sh1 sh2,
+ sh1 = sh2 <-> decompose sh1 = decompose sh2.
+Proof.
+ intros.
+ split;intros. subst;trivial.
+ generalize (recompose_decompose sh1);intro.
+ generalize (recompose_decompose sh2);intro.
+ congruence.
+Qed.
 
 Module ShareMap.
 Section SM.

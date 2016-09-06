@@ -8,17 +8,14 @@ Lemma unrel_glb:
     Share.unrel a b = Share.unrel a (Share.glb a b).
 Admitted.
 
-Lemma join_unrel:
-  forall sh a b c,
-  sepalg.join a b c ->
-  sepalg.join (Share.unrel sh a)  (Share.unrel sh b)  (Share.unrel sh c).
+Lemma join_top_comp:
+  forall a b, join a b Share.top -> Share.comp a = b.
 Proof.
-intros.
-destruct H.
-subst c.
-rewrite (unrel_glb sh a), (unrel_glb sh b), (unrel_glb sh (Share.lub a b)).
-rewrite Share.distrib1.
-Admitted. (* share hacking *) 
+Admitted.
+
+Lemma share_lemma87:
+  forall a b, Share.glb a b = Share.bot -> Share.glb (Share.comp a) b = b.
+Admitted.
 
 Lemma share_rel_unrel':
   forall r sh, 
@@ -26,21 +23,43 @@ Lemma share_rel_unrel':
 Proof.
 Admitted.
 
+Lemma share_sub_Lsh:
+forall sh, identity (Share.unrel Share.Rsh sh) -> join_sub sh Share.Lsh.
+Proof.
+ intros. 
+ rewrite (Share.decompose_Rsh sh) in H.
+ remember (decompose sh).
+ symmetry in Heqp. destruct p as [sh1 sh2].
+ simpl in H.
+ apply identity_share_bot in H. subst.
+ generalize (top_correct' sh1);intro.
+ destruct H.
+ exists (Share.recompose (x, Share.bot)).
+ rewrite Share.Lsh_recompose.
+ assert (sh = Share.recompose (sh1, Share.bot)).
+  rewrite <- Heqp. rewrite Share.recompose_decompose. trivial.
+ rewrite H0.
+ eapply Share.decompose_join.
+ rewrite Share.decompose_recompose. f_equal.
+ rewrite Share.decompose_recompose. f_equal.
+ rewrite Share.decompose_recompose. f_equal.
+ split. trivial.
+ split. apply Share.glb_bot. apply Share.lub_bot.
+Qed.
+
 Lemma join_splice2_aux:
-  forall L R a1 a2 a3 b1 b2 b3,
-  Share.glb L R = Share.bot ->
-  Share.lub (Share.rel L (Share.lub a1 a2)) (Share.rel R (Share.lub b1 b2)) 
-        = Share.lub (Share.rel L a3) (Share.rel R b3) ->
-  Share.lub a1 a2 = a3.
-Admitted.
-
-Lemma join_top_comp:
-  forall a b, join a b Share.top -> Share.comp a = b.
-Admitted.
-
-Lemma share_lemma87:
-  forall a b, Share.glb a b = Share.bot -> Share.glb (Share.comp a) b = b.
-Admitted.
+forall a1 a2 a3 b1 b2 b3,
+Share.lub (Share.rel Share.Lsh (Share.lub a1 a2)) (Share.rel Share.Rsh (Share.lub b1 b2)) 
+= Share.lub (Share.rel Share.Lsh a3) (Share.rel Share.Rsh b3) ->
+Share.lub a1 a2 = a3 /\ Share.lub b1 b2 = b3.
+Proof with try tauto.
+ intros. rewrite Share.lub_rel_recompose in H.
+ generalize (Share.decompose_recompose (Share.lub a1 a2, Share.lub b1 b2));intro.
+ rewrite H in H0.
+ rewrite Share.lub_rel_recompose in H0.
+ rewrite Share.decompose_recompose in H0.
+ split;congruence.
+Qed.
 
 Lemma share_distrib1':
       forall w x y z : Share.t,
@@ -83,40 +102,12 @@ Lemma glb_less_both:
    Share.Ord a L -> Share.Ord b R ->
    Share.Ord (Share.glb a b) (Share.glb L R).
 Proof.
-intros.
-apply leq_join_sub in H.
-apply leq_join_sub in H0.
-apply leq_join_sub.
-destruct H as [x H]; destruct H0 as [y H0].
-exists (Share.lub (Share.lub (Share.glb b x) (Share.glb a y)) (Share.glb x y)).
-destruct H, H0.
-subst L R.
-rewrite share_distrib1'.
-split.
-*
-rewrite Share.distrib1.
-rewrite Share.distrib1.
-rewrite (Share.glb_commute a b).
-rewrite !(Share.glb_assoc b a).
-rewrite <- (Share.glb_assoc a a).
-rewrite Share.glb_idem.
-rewrite (Share.glb_commute b x).
-rewrite <- (Share.glb_assoc a x).
-rewrite H.
-rewrite (Share.glb_commute Share.bot), !Share.glb_bot.
-rewrite (Share.glb_commute a y).
-rewrite <- (Share.glb_assoc b y).
-rewrite H0.
-rewrite (Share.glb_commute Share.bot), !Share.glb_bot.
-rewrite Share.lub_bot.
-rewrite <- (Share.glb_assoc a x).
-rewrite H.
-rewrite (Share.glb_commute Share.bot), !Share.glb_bot.
-rewrite Share.lub_bot; auto.
-*
-rewrite !Share.lub_assoc.
-rewrite (Share.glb_commute x b).
-auto.
+ intros.
+ generalize (Share.glb_lower1 a b);intro.
+ generalize (Share.glb_lower2 a b);intro.
+ generalize (Share.ord_trans _ _ _ H1 H);intro.
+ generalize (Share.ord_trans _ _ _ H2 H0);intro.
+ eapply Share.glb_greatest;auto.
 Qed.
 
 Lemma comp_bot: Share.comp Share.bot = Share.top.
@@ -522,23 +513,6 @@ Proof. intros.
   auto.
 Qed.
 
-Lemma join_splice2_aux2:
-  forall a1 a2 a3 b1 b2 b3,
-  Share.lub (Share.rel Share.Lsh (Share.lub a1 a2)) (Share.rel Share.Rsh (Share.lub b1 b2)) 
-        = Share.lub (Share.rel Share.Lsh a3) (Share.rel Share.Rsh b3) ->
-  Share.lub a1 a2 = a3 /\ Share.lub b1 b2 = b3.
-Proof.
-intros.
-split.
-apply join_splice2_aux in H; auto.
-apply glb_Lsh_Rsh.
-rewrite Share.lub_commute in H.
-rewrite (Share.lub_commute (Share.rel _ a3)) in H.
-apply join_splice2_aux in H; auto.
-rewrite Share.glb_commute.
-apply glb_Lsh_Rsh.
-Qed.
-
 Lemma join_splice:
   forall a1 a2 a3 b1 b2 b3,
  sepalg.join a1 a2 a3 ->
@@ -667,7 +641,7 @@ rewrite <- Share.rel_preserves_lub in H0.
 rewrite Share.lub_assoc in H0.
 rewrite <- Share.rel_preserves_lub in H0.
 rewrite (Share.lub_commute b2) in H0.
-apply join_splice2_aux2; auto.
+apply join_splice2_aux; auto.
 Qed.
 
 Lemma join_sub_readable:

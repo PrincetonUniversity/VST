@@ -618,8 +618,8 @@ Proof.
     simpl in H0; rewrite H0 by (intros; subst; pose proof tc_val_Vundef t; tauto); clear H0.
     f_equal; f_equal.
     - apply address_mapsto_share_join.
-      1: apply join_unrel; auto.
-      1: apply join_unrel; auto.
+      1: apply Share.unrel_join; auto.
+      1: apply Share.unrel_join; auto.
       1: rewrite <- splice_unrel_unrel in r.
          apply right_nonempty_readable in r; apply nonidentity_nonunit in r; auto.
       1: rewrite <- splice_unrel_unrel in r0.
@@ -636,8 +636,8 @@ Proof.
         simpl in H0; rewrite H0; clear H0.
         apply normalize.derives_extract_prop'; intro; subst; auto.
       * apply address_mapsto_share_join.
-        1: apply join_unrel; auto.
-        1: apply join_unrel; auto.
+        1: apply Share.unrel_join; auto.
+        1: apply Share.unrel_join; auto.
         1: rewrite <- splice_unrel_unrel in r.
            apply right_nonempty_readable in r; apply nonidentity_nonunit in r; auto.
         1: rewrite <- splice_unrel_unrel in r0.
@@ -1029,22 +1029,22 @@ Proof.
       apply VALspec_range_share_join.
       * apply readable_share_unrel_Rsh; auto.
       * apply readable_share_unrel_Rsh; auto.
-      * apply join_unrel; auto.
-      * apply join_unrel; auto.
+      * apply Share.unrel_join; auto.
+      * apply Share.unrel_join; auto.
     - rewrite if_true by (eapply readable_share_join; eauto).
       rewrite sepcon_comm.
       rewrite <- (splice_unrel_unrel sh2).
       replace (Share.unrel Share.Rsh sh) with (Share.unrel Share.Rsh sh1).
       replace (Share.unrel Share.Rsh sh2) with Share.bot.
       apply nonlock_permission_bytes_VALspec_range_join.
-      * apply join_unrel; auto.
+      * apply Share.unrel_join; auto.
       * rewrite readable_share_unrel_Rsh in n0.
         symmetry; apply not_nonunit_bot; auto.
       * rewrite readable_share_unrel_Rsh in n0.
         apply not_nonunit_bot in n0.
         rewrite <- (splice_unrel_unrel sh1), <- (splice_unrel_unrel sh).
         rewrite !Share.unrel_splice_R.
-        apply join_unrel with (sh := Share.Rsh) in H.
+        apply Share.unrel_join with (x := Share.Rsh) in H.
         rewrite n0 in H.
         eapply join_eq; eauto.
     - rewrite if_true by (eapply readable_share_join; eauto).
@@ -1052,14 +1052,14 @@ Proof.
       replace (Share.unrel Share.Rsh sh) with (Share.unrel Share.Rsh sh2).
       replace (Share.unrel Share.Rsh sh1) with Share.bot.
       apply nonlock_permission_bytes_VALspec_range_join.
-      * apply join_unrel; auto.
+      * apply Share.unrel_join; auto.
       * rewrite readable_share_unrel_Rsh in n0.
         symmetry; apply not_nonunit_bot; auto.
       * rewrite readable_share_unrel_Rsh in n0.
         apply not_nonunit_bot in n0.
         rewrite <- (splice_unrel_unrel sh2), <- (splice_unrel_unrel sh).
         rewrite !Share.unrel_splice_R.
-        apply join_unrel with (sh := Share.Rsh) in H.
+        apply Share.unrel_join with (x := Share.Rsh) in H.
         rewrite n0 in H.
         eapply join_eq; eauto.
     - rewrite if_false.
@@ -1067,7 +1067,7 @@ Proof.
       * rewrite readable_share_unrel_Rsh in *.
         apply not_nonunit_bot in n0.
         apply not_nonunit_bot in n1.
-        apply join_unrel with (sh := Share.Rsh) in H.
+        apply Share.unrel_join with (x := Share.Rsh) in H.
         rewrite n0, n1 in H.
         rewrite (@not_nonunit_bot (Share.unrel Share.Rsh sh)).
         eapply join_eq; eauto.
