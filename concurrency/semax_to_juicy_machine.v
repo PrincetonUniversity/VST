@@ -196,18 +196,128 @@ Definition threads_safety {Z} (Jspec : juicy_ext_spec Z) m ge tp PHI (mcompat : 
     end.
 
 Definition threads_wellformed tp :=
-  forall i (cnti : Machine.containsThread tp i),
-    match Machine.getThreadC cnti with
+  forall i (cnti : containsThread tp i),
+    match getThreadC cnti with
     | Krun q => Logic.True
     | Kblocked q => cl_at_external q <> None
     | Kresume q v => cl_at_external q <> None /\ v = Vundef
     | Kinit _ _ => Logic.True
     end.
 
-Definition threads_unique_Krun tp sch :=
-  (lt 1 tp.(ThreadPool.num_threads).(pos.n) -> forall i cnti q,
-      @ThreadPool.getThreadC i tp cnti = Krun q ->
+Definition unique_Krun tp sch :=
+  (lt 1 tp.(num_threads).(pos.n) -> forall i cnti q,
+      @getThreadC i tp cnti = Krun q ->
       exists sch', sch = i :: sch').
+
+Definition no_Krun tp :=
+  forall i cnti q, @getThreadC i tp cnti <> Krun q.
+
+Lemma no_Krun_unique_Krun tp sch : no_Krun tp -> unique_Krun tp sch.
+Proof.
+  intros H _ i cnti q E; destruct (H i cnti q E).
+Qed.
+
+Lemma no_Krun_age tp n :
+  no_Krun tp -> no_Krun (age_tp_to n tp).
+Proof.
+  intros N i cnti q.
+  unshelve erewrite <-gtc_age; eauto.
+  eapply cnt_age; eauto.
+Qed.
+
+Lemma no_Krun_stable tp i cnti c' phi' :
+  (forall q, c' <> Krun q) ->
+  no_Krun tp ->
+  no_Krun (@updThread i tp cnti c' phi').
+Proof.
+  intros notkrun H j cntj q.
+  destruct (eq_dec i j).
+  - subst.
+    rewrite gssThreadCode.
+    apply notkrun.
+  - unshelve erewrite gsoThreadCode; auto.
+Qed.
+
+Lemma no_Krun_unique_Krun_updThread tp i sch cnti q phi' :
+  no_Krun tp ->
+  unique_Krun (@updThread i tp cnti (Krun q) phi') (i :: sch).
+Proof.
+  intros NO H j cntj q'.
+  destruct (eq_dec i j).
+  - subst.
+    rewrite gssThreadCode.
+    injection 1 as <-. eauto.
+  - Set Printing Implicit.
+    unshelve erewrite gsoThreadCode; auto.
+    intros E; specialize (NO _ _ _ E). destruct NO.
+Qed.
+
+Lemma no_Krun_updLockSet tp loc ophi :
+  no_Krun tp ->
+  no_Krun (updLockSet tp loc ophi).
+Proof.
+  intros N; apply N.
+Qed.
+
+Lemma ssr_leP_inv i n : is_true (ssrnat.leq i n) -> i <= n.
+Proof.
+  pose proof @ssrnat.leP i n as H.
+  intros E; rewrite E in H.
+  inversion H; auto.
+Qed.
+
+Lemma different_threads_means_several_threads i j tp
+      (cnti : containsThread tp i)
+      (cntj : containsThread tp j) :
+  i <> j -> 1 < pos.n (num_threads tp).
+Proof.
+  unfold containsThread in *.
+  simpl in *.
+  unfold tid in *.
+  destruct tp as [n].
+  simpl in *.
+  remember (pos.n n) as k; clear Heqk n.
+  apply ssr_leP_inv in cnti.
+  apply ssr_leP_inv in cntj.
+  omega.
+Qed.
+
+Lemma unique_Krun_no_Krun tp i sch cnti :
+  unique_Krun tp (i :: sch) ->
+  (forall q : code, @getThreadC i tp cnti <> Krun q) ->
+  no_Krun tp.
+Proof.
+  intros U N j cntj q E.
+  assert (i <> j). {
+    intros <-.
+    apply N with q.
+    exact_eq E; do 2 f_equal.
+    apply proof_irr.
+  }
+  unfold unique_Krun in *.
+  assert_specialize U.
+  now eapply (different_threads_means_several_threads i j); eauto.
+  specialize (U _ _ _ E). destruct U. congruence.
+Qed.
+
+Lemma unique_Krun_no_Krun_updThread tp i sch cnti c' phi' :
+  (forall q, c' <> Krun q) ->
+  unique_Krun tp (i :: sch) ->
+  no_Krun (@updThread i tp cnti c' phi').
+Proof.
+  intros notkrun uniq j cntj q.
+  destruct (eq_dec i j) as [<-|N].
+  - rewrite gssThreadCode.
+    apply notkrun.
+  - unshelve erewrite gsoThreadCode; auto.
+    unfold unique_Krun in *.
+    assert_specialize uniq.
+    now eapply (different_threads_means_several_threads i j); eauto.
+    intros E.
+    specialize (uniq _ _ _ E).
+    destruct uniq.
+    congruence.
+Qed.
 
 Definition matchfunspec (ge : genviron) Gamma : forall Phi, Prop :=
   (ALL b : block,
@@ -218,7 +328,7 @@ Definition matchfunspec (ge : genviron) Gamma : forall Phi, Prop :=
 
 Definition lock_coherence' tp PHI m (mcompat : mem_compatible_with tp m PHI) :=
   lock_coherence
-    (ThreadPool.lset tp) PHI
+    (lset tp) PHI
     (restrPermMap
        (mem_compatible_locks_ltwritable
           (mem_compatible_forget mcompat))).
@@ -233,7 +343,7 @@ Inductive state_invariant {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat) : cm_st
       (lock_coh : lock_coherence' tp PHI m mcompat)
       (safety : threads_safety Jspec m ge tp PHI mcompat n)
       (wellformed : threads_wellformed tp)
-      (uniqkrun :  threads_unique_Krun tp sch)
+      (uniqkrun :  unique_Krun tp sch)
     : state_invariant Jspec Gamma n (m, ge, (sch, tp)).
 
 Lemma mem_compatible_with_age {n tp m phi} :
@@ -1141,7 +1251,7 @@ Section Simulation.
         (lock_coh : lock_coherence' tp Phi m compat)
         (safety : threads_safety Jspec m ge tp Phi compat (S n))
         (wellformed : threads_wellformed tp)
-        (unique : threads_unique_Krun tp (i :: sch))
+        (unique : unique_Krun tp (i :: sch))
         (cnti : containsThread tp i)
         (stepi : corestep (juicy_core_sem cl_core_sem) ge ci (personal_mem cnti (mem_compatible_forget compat)) ci' jmi')
         (safei' : forall ora : Z, jsafeN Jspec ge n ora ci' jmi')
@@ -2142,7 +2252,7 @@ Section Simulation.
                   replace z with LKSIZE.
                   unfold pack_res_inv.
                   f_equal.
-                  + admit (* again z / LKSIZE *).
+                  + admit (* evar dep *).
                   + admit (* evar dependencies *).
                   + f_equal. extensionality x. unfold "oo".
                     reflexivity.
@@ -3093,17 +3203,13 @@ Section Simulation.
           * unshelve erewrite gsoThreadCode; auto.
         
         + (* uniqueness *)
-          intros notone j lj q.
-          specialize (unique notone j lj).
-          unfold tp_ in *.
-          unshelve erewrite gLockSetCode; auto.
-          destruct (eq_dec i j).
-          * subst j.
-            rewrite gssThreadCode.
-            admit.
-          * unshelve erewrite gsoThreadCode; auto.
-            (* seems redundant *)
-            admit.
+          apply no_Krun_unique_Krun.
+          (* unfold tp_ in *. *)
+          apply no_Krun_updLockSet.
+          apply no_Krun_stable. congruence.
+          eapply unique_Krun_no_Krun. eassumption.
+          instantiate (1 := Htid). rewrite Hthread.
+          congruence.
       
       - (* the case of release *)
         admit.
@@ -3298,6 +3404,16 @@ Inductive jmsafe : nat -> cm_state -> Prop :=
     @JuicyMachine.machine_step ge (i :: sch) nil tp m sch nil tp' m' ->
     (forall sch', jmsafe n (m', ge, (sch', tp'))) ->
     jmsafe (S n) (m, ge, (i :: sch, tp)).
+
+(*
+Inductive jmsafe : nat -> cm_state -> Prop :=
+| jmsafe_0 m ge sch tp : jmsafe 0 (m, ge, (sch, tp))
+| jmsafe_halted n m ge tp : jmsafe n (m, ge, (nil, tp))
+| jmsafe_sch n m m' ge i sch tp tp':
+    @JuicyMachine.machine_step ge (i :: sch) nil tp m sch nil tp' m' ->
+    (forall sch', unique_Krun tp sch' -> jmsafe n (m', ge, (sch', tp'))) ->
+    jmsafe (S n) (m, ge, (i :: sch, tp)).
+ *)
 
 Lemma step_sch_irr ge i sch sch' tp m tp' m' :
   @JuicyMachine.machine_step ge (i :: sch) nil tp m sch nil tp' m' ->
