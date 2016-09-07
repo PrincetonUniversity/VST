@@ -108,17 +108,6 @@ Module X86CoreErasure <: CoreErasure X86SEM.
   
   Hint Resolve regs_erasure_get regs_erasure_refl regs_erasure_set : regs_erasure.
   
-
-  (*NOTE THIS IS DUPLICATED WITH X86_INJ*)
-  Lemma set_regs_empty_1:
-    forall regs rs,
-      set_regs regs [::] rs = rs.
-  Proof.
-    intros;
-    induction regs; by reflexivity.
-  Qed.
-  
-
   (** ** Result about at_external, after_external and initial_core *)
   Lemma at_external_erase:
     forall c c' (Herase: core_erasure c c'),
@@ -166,18 +155,11 @@ Module X86CoreErasure <: CoreErasure X86SEM.
     split; [|unfold loader_erasure; auto].      
     destruct (loc_external_result (ef_sig f0)) as [|r' regs];
       simpl.
-    eapply regs_erasure_set; eauto.
-    eapply H1.
+    eauto with regs_erasure val_erasure.
     destruct (sig_res (ef_sig f0)) as [ty|];
       try destruct ty;
       simpl;
-      try do 2 rewrite set_regs_empty_1;
-      repeat apply regs_erasure_set; eauto;
-      try apply H1.
-    destruct regs as [|r'' regs'']; simpl;
-    eauto with val_erasure regs_erasure.
-    do 2 rewrite set_regs_empty_1;
-      eauto with regs_erasure val_erasure.
+      repeat apply regs_erasure_set; eauto with val_erasure regs_erasure.
   Qed.
 
   Lemma erasure_initial_core:
@@ -664,10 +646,51 @@ Module X86CoreErasure <: CoreErasure X86SEM.
       econstructor; eauto.
       constructor.
   Qed.
+
+  (*TODO: Move to ValErasure module*)
+  Lemma val_erasure_longofwords:
+    forall vhi vlo vhi' vlo',
+      val_erasure vhi vhi' ->
+      val_erasure vlo vlo' ->
+      val_erasure (Val.longofwords vhi vlo) (Val.longofwords vhi' vlo').
+  Proof.
+    intros; destruct vhi, vlo, vhi', vlo'; simpl in *; auto;
+    try discriminate.
+    inv H; inv H0; reflexivity.
+  Qed.
+
+  Hint Resolve val_erasure_longofwords : val_erasure.
+
+  Lemma extcall_arg_pair_erasure:
+    forall m m' loc arg rs rs' ev
+      (Harg_ev: Asm_event.extcall_arg_pair_ev rs m loc arg ev)
+      (Hmem_obs_eq: mem_erasure m m') 
+      (Hrs : regs_erasure rs rs'),
+    exists arg' ev',
+      Asm_event.extcall_arg_pair_ev rs' m' loc arg' ev' /\
+      extcall_arg_pair rs' m' loc arg' /\
+      val_erasure arg arg' /\
+      mem_event_list_erasure ev ev'.
+  Proof with eauto with val_erasure regs_erasure.
+    intros.
+    inv Harg_ev.
+    - pose proof (Asm_event.extcall_arg_ev_extcall_arg _ _ _ _ _ H).
+      eapply extcall_arg_erasure in H; eauto.
+      destruct H as [? [? [? [? [? ?]]]]].
+      do 2 eexists; (repeat split); try econstructor...
+    - pose proof (Asm_event.extcall_arg_ev_extcall_arg _ _ _ _ _ H).
+      pose proof (Asm_event.extcall_arg_ev_extcall_arg _ _ _ _ _ H0).
+      eapply extcall_arg_erasure in H; eauto.
+      eapply extcall_arg_erasure in H0; eauto.
+      destruct H as [vhi' [T1' [? [? [? ?]]]]].
+      destruct H0 as [vlo' [T2' [? [? [? ?]]]]].
+      exists (Val.longofwords vhi' vlo'), (T1' ++ T2').
+      (repeat split); try econstructor...
+      eapply mem_event_list_erasure_cat; eauto.
+  Qed.
       
   Lemma extcall_arguments_erasure:
     forall m m' ef args rs rs' ev
-      (Hexternal: extcall_arguments rs m (ef_sig ef) args)
       (Hexternal_ev: Asm_event.extcall_arguments_ev rs m (ef_sig ef) args ev)
       (Hmem_obs_eq: mem_erasure m m') 
       (Hrs : regs_erasure rs rs'),
@@ -682,17 +705,15 @@ Module X86CoreErasure <: CoreErasure X86SEM.
     generalize dependent ev.
     generalize dependent (Conventions1.loc_arguments (ef_sig ef)).
     induction args; intros.
-    - inversion Hexternal; subst.
-      inv Hexternal_ev.
+    - inv Hexternal_ev.
       exists [::], [::].
       repeat split;
         constructor.
-    - inversion Hexternal; subst.
-      inv Hexternal_ev.
-      destruct (IHargs _ H3 _ H9) as (args' & T2' & Hargs_ev &
+    - inv Hexternal_ev.
+      destruct (IHargs _ _ H6) as (args' & T2' & Hargs_ev &
                                       Hls & Hargs_erasure & HT_erasure2).
-      eapply extcall_arg_erasure in H2; eauto.
-      destruct H2 as (arg' & T1' & Harg_ev' & Harg' & Harg_erasure' & HT_erasure1).
+      eapply extcall_arg_pair_erasure in H4; eauto.
+      destruct H4 as (arg' & T1' & Harg_ev' & Harg' & Harg_erasure' & HT_erasure1).
       exists (arg' :: args'), (T1' ++ T2').
       repeat split; try econstructor; eauto.
       eapply mem_event_list_erasure_cat; eauto.
@@ -847,7 +868,7 @@ Module X86CoreErasure <: CoreErasure X86SEM.
     + assert (Hpc' : rs1' PC = Vptr b Int.zero)
           by (erewrite get_reg_erasure in H1; eauto;
               rewrite H1; discriminate).
-      assert (Hargs' := extcall_arguments_erasure _ H3 H8 HerasedMem Hrs).
+      assert (Hargs' := extcall_arguments_erasure _ H8 HerasedMem Hrs).
       destruct Hargs' as (args' & ev' & Hargs_ev' & Hargs'
                           & Hargs_erasure & Hev_erasure).
       exists (Asm_CallstateOut ef args' rs1' loader1'), m1', ev'.

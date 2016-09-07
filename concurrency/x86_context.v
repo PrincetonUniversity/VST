@@ -10,6 +10,7 @@ Require Import concurrency.dry_machine_lemmas.
 Require Import ccc26x86.Asm_coop.
 Require Import ccc26x86.Asm_event.
 Require Import compcert.common.Globalenvs.
+Require Import compcert.common.Memory.
 Require Import Coqlib.
 Require Import msl.Coqlib2.
 
@@ -114,7 +115,7 @@ Module X86SEMAxioms <: SemanticsAxioms X86SEM.
       contradiction. subst b'. clear - H.
       Transparent Memory.Mem.alloc. unfold Memory.Mem.alloc in H. Opaque Memory.Mem.alloc.
       inv H. simpl.
-      destruct (veric.Memory.range_dec lo ofs hi); [left | right]; intros.
+      destruct (range_dec lo ofs hi); [left | right]; intros.
       rewrite PMap.gss. destruct (zle lo ofs); try omega. destruct (zlt ofs hi); try omega.
       reflexivity.
       rewrite PMap.gss.

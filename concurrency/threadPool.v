@@ -141,6 +141,15 @@ Open Scope nat_scope.
   Definition containsThread (tp : t) (i : NatTID.tid) : Prop:=
     i < num_threads tp.
 
+  Definition containsThread_dec:
+    forall i tp, {containsThread tp i} + { ~ containsThread tp i}.
+  Proof.
+    intros.
+    unfold containsThread.
+    destruct (leq (S i) (num_threads tp)) eqn:Hleq;
+      by auto.
+  Defined.
+
   Definition getThreadC {i tp} (cnt: containsThread tp i) : ctl :=
     tp (Ordinal cnt).
   

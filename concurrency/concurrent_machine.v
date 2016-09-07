@@ -97,6 +97,10 @@ Module Type ThreadPoolSig.
   Parameter latestThread : t -> tid.
 
   Parameter lr_valid : (address -> option lock_info) -> Prop.
+
+  (* Decidability of containsThread *)
+  Axiom containsThread_dec:
+    forall i tp, {containsThread tp i} + { ~ containsThread tp i}.
   
   (*Proof Irrelevance of contains*)
   Axiom cnt_irr: forall t tid
@@ -339,9 +343,10 @@ End ThreadPoolSig.
 Module Type EventSig.
   Declare Module TID: ThreadID.
   Import TID.
+  
   Inductive sync_event : Type :=
-  | release : address -> sync_event
-  | acquire : address -> sync_event
+  | release : address -> option (access_map * delta_map) -> sync_event
+  | acquire : address -> option (access_map * delta_map) -> sync_event
   | mklock :  address -> sync_event
   | freelock : address -> sync_event
   | spawn : address -> sync_event
@@ -887,20 +892,23 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
   
 End FineMachine.
 
-Module Events  <: EventSig
+Module Events <: EventSig
    with Module TID:=NatTID. 
 
  Module TID := NatTID.
  Import TID event_semantics.
-         
+
+ (** Synchronization Events.  The release/acquire cases include the
+footprints of permissions moved to the thread when applicable*)
  Inductive sync_event : Type :=
-  | release : address -> sync_event
-  | acquire : address -> sync_event
+  | release : address -> option (access_map * delta_map) -> sync_event
+  | acquire : address -> option (access_map * delta_map) -> sync_event
   | mklock :  address -> sync_event
   | freelock : address -> sync_event
   | spawn : address -> sync_event
   | failacq: address -> sync_event.
-
+ 
+ (** Machine Events *)
   Inductive machine_event : Type :=
   | internal: TID.tid -> mem_event -> machine_event
   | external : TID.tid -> sync_event -> machine_event.
@@ -946,8 +954,8 @@ Module Events  <: EventSig
       end
     | external _ sev =>
       match sev with
-      | release _ => Release
-      | acquire _ => Acquire
+      | release _ _ => Release
+      | acquire _ _ => Acquire
       | mklock _ => Mklock
       | freelock _ => Freelock
       | failacq _ => Failacq
@@ -965,13 +973,24 @@ Module Events  <: EventSig
       end 
     | external _ sev =>
       match sev with
-      | release addr => Some (addr, lksize.LKSIZE_nat)
-      | acquire addr => Some (addr, lksize.LKSIZE_nat)
+      | release addr _ => Some (addr, lksize.LKSIZE_nat)
+      | acquire addr _ => Some (addr, lksize.LKSIZE_nat)
       | mklock addr => Some (addr, lksize.LKSIZE_nat)
       | freelock addr => Some (addr, lksize.LKSIZE_nat)
       | spawn addr => Some (addr, lksize.LKSIZE_nat)
       | failacq addr => Some (addr, lksize.LKSIZE_nat)
       end
+    end.
+
+  Definition resources ev : option (access_map * delta_map) :=
+    match ev with
+    | external _ mev =>
+      match mev with
+      | release _ res => res
+      | acquire _ res => res
+      | _ => None
+      end
+    | _ => None
     end.
   
 End Events.

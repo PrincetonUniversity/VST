@@ -117,22 +117,23 @@ SEPCOMP_FILES = \
 # what is:  erasure.v context.v context_equiv.v jstep.v 
 
 CONCUR_FILES= \
-  addressFiniteMap.v call_lemmas.v cast.v compcert_imports.v \
+  addressFiniteMap.v cast.v compcert_imports.v \
   compcert_linking.v compcert_linking_lemmas.v \
   compcert_threads_lemmas.v \
   concurrent_machine.v disjointness.v dry_context.v dry_machine.v dry_machine_lemmas.v \
   ClightSemantincsForMachines.v JuicyMachineModule.v DryMachineSource.v \
   erased_machine.v erasure_proof.v erasure_safety.v erasure_signature.v \
   fineConc_safe.v inj_lemmas.v join_sm.v juicy_machine.v \
-  lifting.v linking_inv.v linking_spec.v lksize.v \
+  lksize.v \
   main.v mem_obs_eq.v memory_lemmas.v permissions.v pos.v pred_lemmas.v \
-  rc_semantics.v rc_semantics_lemmas.v reach_lemmas.v reestablish.v ret_lemmas.v \
-  scheduler.v   semax_conc.v semax_to_juicy_machine.v \
+  rc_semantics.v rc_semantics_lemmas.v \
+  scheduler.v semax_conc.v semax_to_juicy_machine.v \
   sepcomp.v seq_lemmas.v ssromega.v stack.v \
   threadPool.v threads_lemmas.v wf_lemmas.v \
-  x86_inj.v x86_safe.v x86_context.v fineConc_x86.v \
+  x86_inj.v x86_safe.v x86_context.v fineConc_x86.v executions.v \
   SC_erasure.v sync_preds.v join_lemmas.v coqlib5.v age_to.v \
-  konig.v safety.v
+  konig.v safety.v \
+  reach_lemmas.v reestablish.v ret_lemmas.v lifting.v linking_inv.v linking_spec.v call_lemmas.v
 
 CCC26x86_FILES = \
   Archi.v Bounds.v Conventions1.v Conventions.v Separation.v \

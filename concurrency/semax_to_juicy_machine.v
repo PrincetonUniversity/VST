@@ -2412,7 +2412,7 @@ Section Simulation.
           + (* taking the step *)
             apply state_step_c.
             apply JuicyMachine.sync_step
-            with (ev := (Events.acquire (b, Int.intval ofs)))
+            with (ev := (Events.acquire (b, Int.intval ofs) None))
                    (tid := i)
                    (Htid := cnti)
                    (Hcmpt := mem_compatible_forget compat)

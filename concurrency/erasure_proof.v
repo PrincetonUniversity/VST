@@ -727,11 +727,11 @@ Module Parching <: ErasureSig.
       (Hcmpt: JSEM.mem_compatible js m)
       (HschedN: schedPeek U = Some i)
       (Htstep:  JSEM.syncStep genv Hi Hcmpt js' m' ev),
-      exists ds' : dstate,
+      exists ds' : dstate, exists ev',
         DSEM.invariant ds' /\
         match_st js' ds' /\
         DSEM.syncStep genv (MTCH_cnt MATCH Hi) (MTCH_compat _ _ _ MATCH Hcmpt) ds' m'
-                      ev.
+                      ev'.
   Proof.
 
     intros.
@@ -761,7 +761,7 @@ Module Parching <: ErasureSig.
                      (DSEM.ThreadPool.getThreadR Htid') virtue)).
          pose (ds'':= DSEM.ThreadPool.updLockSet ds'
                       (b, Int.intval ofs) empty_map).
-         exists ds''.
+         exists ds'', (DSEM.Events.acquire (b, Int.intval ofs) (Some (empty_map, virtue))).
          split; [|split].
     - unfold ds''.
       rewrite DSEM.ThreadPool.updLock_updThread_comm.
@@ -1487,7 +1487,8 @@ Module Parching <: ErasureSig.
              + inversion MATCH; rewrite mtch_perm; reflexivity.
     }
     
-    exists ds''.
+    exists ds'',  (JSEM.Events.release (b, Int.intval ofs)
+                                  (Some (JSEM.juice2Perm d_phi m, virtue))).
     split; [|split].
     - unfold ds''.
       cut (DSEM.invariant ds').
@@ -2094,8 +2095,7 @@ Module Parching <: ErasureSig.
       }
       pose (ds_upd:= DTP.updThread (MTCH_cnt MATCH Hi) (Kresume c Vundef) (computeMap (DTP.getThreadR (MTCH_cnt MATCH Hi)) virtue1)).
       pose (ds':= DTP.addThread ds_upd (Vptr b ofs) arg (computeMap empty_map virtue2)).
-      
-      exists ds'.
+      exists ds', (JSEM.Events.spawn (b, Int.intval ofs)).
       split ;[|split].
       { (* invariant *)  
         cut (DSEM.invariant ds_upd).
@@ -2249,7 +2249,7 @@ Module Parching <: ErasureSig.
       pose (ds':= DTP.updThread Htid' (Kresume c Vundef) pmap_tid').
       pose (ds'':= DTP.updLockSet ds' (b, Int.intval ofs) empty_map).
 
-      exists ds''.
+      exists ds'',  (JSEM.Events.mklock (b, Int.intval ofs)).
       split ; [|split].
       - (*DSEM.invariant ds''*)
         cut (DSEM.invariant ds').
@@ -2614,8 +2614,9 @@ Module Parching <: ErasureSig.
        pose (ds':= DTP.updThread Htid' (Kresume c Vundef) pmap_tid').
        pose (ds'':= DTP.remLockSet ds' (b,(Int.intval ofs))).
        
-       exists ds''.
+       exists ds'', (JSEM.Events.freelock (b, Int.intval ofs)).
        split ; [|split].
+
        
       unfold ds''; rewrite DSEM.ThreadPool.remLock_updThread_comm.
       pose (ds0:= (DSEM.ThreadPool.remLockSet ds (b, (Int.intval ofs)))).
@@ -2931,7 +2932,7 @@ Module Parching <: ErasureSig.
 
     (* step_acqfail *)
     {
-      exists ds.
+      exists ds, (JSEM.Events.failacq (b, Int.intval ofs)).
       split ; [|split].
       + assumption.
       + assumption.
@@ -3082,7 +3083,7 @@ Module Parching <: ErasureSig.
        (*Conc step*)
        {
          destruct (conc_step_diagram m m' U js js' ds tid genv ev MATCH dinv Htid Hcmpt HschedN Htstep)
-           as [ds' [dinv' [MTCH' step']]]; eauto.
+           as [ds' [ev' [dinv' [MTCH' step']]]]; eauto.
          exists ds'; split; [| split]; try assumption.
          econstructor 5; simpl; try eassumption.
          reflexivity.

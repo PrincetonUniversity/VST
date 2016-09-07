@@ -1,3 +1,5 @@
+(** ** Safety of the FineConc Machine (generic)*)
+
 Require Import compcert.lib.Axioms.
 
 Require Import concurrency.sepcomp. Import SepComp.
@@ -96,7 +98,7 @@ Module FineConcSafe (SEM : Semantics) (SemAxioms : SemanticsAxioms SEM)
   Qed.
   
   (** Assuming safety of cooperative concurrency*)
-  Section safety.
+  Section Safety.
     Variable (f : val) (arg : list val).
     Variable init_coarse_safe:
       forall  U tpc mem sched n,
@@ -215,6 +217,7 @@ defined*)
     ssromega.
   Qed.
 
+  (** The [strong_tsim] relation is reflexive under the identity renaming*)
   Lemma strong_tsim_refl:
     forall tp m i (cnti: containsThread tp i)
       (Hcomp: mem_compatible tp m)
@@ -331,16 +334,8 @@ defined*)
 
   Notation fsafe := (FineConc.fsafe the_ge).
 
-  (*TODO: Put in threadpool*)
-  Definition containsThread_dec:
-    forall i tp, {containsThread tp i} + { ~ containsThread tp i}.
-  Proof.
-    intros.
-    unfold containsThread.
-    destruct (leq (S i) (num_threads tp)) eqn:Hleq;
-      by auto.
-  Qed.
-
+  (** If a thread has reached an external then it cannot be in the
+  list that denotes the delta of execution between the two machines *)
   Lemma at_external_not_in_xs:
     forall tpc mc tpf mf xs f fg fp i n
       (Hsim: sim tpc mc tpf mf xs f fg fp n)
@@ -370,6 +365,7 @@ defined*)
     auto.
   Qed.
 
+  (** Simulation between the two machines implies safety*)
   Lemma fine_safe:
     forall tpf tpc mf mc (g fg : memren) fp (xs : Sch) sched
       (Hsim: sim tpc mc tpf mf xs g fg fp (S (size sched))),
@@ -436,7 +432,7 @@ defined*)
   Qed.
   
 
-  End safety.
+  End Safety.
 End FineConcSafe.
 
 

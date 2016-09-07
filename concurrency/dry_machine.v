@@ -245,7 +245,8 @@ Module Concur.
            (Htp': tp' = updThread cnt0 (Kresume c Vundef)
                                   (computeMap (getThreadR cnt0) virtueThread))
            (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) empty_map),
-           ext_step genv cnt0 Hcompat tp'' m' (acquire (b, Int.intval ofs))
+           ext_step genv cnt0 Hcompat tp'' m'
+                    (acquire (b, Int.intval ofs) (Some (empty_map, virtueThread)))
                     
      | step_release :
          forall (tp' tp'':thread_pool) m1 c m' b ofs pmap virtueThread virtueLP
@@ -264,7 +265,8 @@ Module Concur.
            (Htp': tp' = updThread cnt0 (Kresume c Vundef)
                                   (computeMap (getThreadR cnt0) virtueThread))
            (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) virtueLP),
-           ext_step genv cnt0 Hcompat tp'' m' (release (b, Int.intval ofs))
+           ext_step genv cnt0 Hcompat tp'' m'
+                    (release (b, Int.intval ofs) (Some (virtueLP, virtueThread)))
                     
      | step_create :
          forall  (tp_upd tp':thread_pool) c b ofs arg virtue1 virtue2,

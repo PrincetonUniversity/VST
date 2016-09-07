@@ -27,11 +27,18 @@ Require Import concurrency.concurrent_machine.
 Require Import concurrency.memory_lemmas.
 Require Import concurrency.dry_context.
 Require Import concurrency.fineConc_safe.
+Require Import concurrency.executions.
 Require Import Coqlib.
 Require Import msl.Coqlib2.
 
 Set Bullet Behavior "None".
 Set Bullet Behavior "Strict Subproofs".
+
+
+(** The erasure removes permissions and angels from the machine
+(i.e. making it a bare machine) and also allows some values to become
+more defined. See [val_erasure] and [memval_erasure] for a precise
+account of that. *)
 
 (** ** Erasure of Values*)
 Module ValErasure.
@@ -729,13 +736,22 @@ Module TraceErasure.
                    (Hev_erasure: mem_event_erasure mev mev')
                    (Hls_erasure: mem_event_list_erasure ls ls'),
       mem_event_list_erasure (mev :: ls) (mev' :: ls').
+
+  (** Removing the footprints from a [sync_event] *)
+  Definition eraseSyncEvent ev :=
+    match ev with
+    | Events.release addr _ => Events.release addr None
+    | Events.acquire addr _ => Events.acquire addr None
+    | _ => ev
+    end.
   
   Inductive event_erasure : Events.machine_event -> Events.machine_event -> Prop :=
   | InternalErasure: forall tid mev mev',
       mem_event_erasure mev mev' ->
       event_erasure (Events.internal tid mev) (Events.internal tid mev')
   | ExternalErasure: forall tid ev,
-      event_erasure (Events.external tid ev) (Events.external tid ev).
+      event_erasure (Events.external tid ev)
+                    (Events.external tid (eraseSyncEvent ev)).
 
   Inductive trace_erasure : list Events.machine_event ->
                             list Events.machine_event -> Prop :=
@@ -793,6 +809,11 @@ Module MemErasure.
   
   (** The values of the erased memory may be more defined and its
        permissions are top.*)
+  (** In retrospect setting the permissions to top was a bad
+  choice. It should have been that the permissions of the erased
+  memory are above the permissions of the other memory. This would
+  make it more reusable and it wouldn't need a second definition for
+  free. *)
 
   Local Notation "a # b" := (PMap.get b a) (at level 1).
 
@@ -1693,6 +1714,8 @@ Module SCErasure (SEM: Semantics)
   Module ThreadPoolErasure := ThreadPoolErasure SEM Machines CE.
   Import ValErasure MemErasure TraceErasure CE ThreadPoolErasure.
   Import Machines DryMachine ThreadPool AsmContext.
+  Module Executions := Executions SEM Machines AsmContext.
+  Import Executions.
 
   Import event_semantics.
   (** ** Simulation for syncStep, startStep, resumeStep, suspendStep,
@@ -1708,7 +1731,7 @@ Module SCErasure (SEM: Semantics)
       (Hcomp1': ErasedMachine.mem_compatible tp1' m1')
       (Hstep: syncStep ge cnti Hcomp1 tp2 m2 ev),
     exists tp2' m2',
-      ErasedMachine.syncStep ge cnti' Hcomp1' tp2' m2' ev /\
+      ErasedMachine.syncStep ge cnti' Hcomp1' tp2' m2' (eraseSyncEvent ev) /\
       threadPool_erasure tp2 tp2' /\ mem_erasure m2 m2'.
   Proof with eauto with val_erasure erased.
     intros.
@@ -2135,7 +2158,7 @@ Module SCErasure (SEM: Semantics)
       split; eauto.
     - assert (Hstep' := syncStep_erase HerasePool H Hmem_erasure Hcomp1' Htstep).
       destruct Hstep' as (tp2' & m2' & Hstep' & HerasePool' & Hmem_erasure').
-      exists tp2', m2', (tr1' ++ [:: Events.external tid ev]).
+      exists tp2', m2', (tr1' ++ [:: Events.external tid (eraseSyncEvent ev)]).
       split.
       eapply SC.sync_step; eauto.
       split...
@@ -2158,50 +2181,6 @@ Module SCErasure (SEM: Semantics)
   
   Notation sc_safe := (SC.fsafe the_ge).
   Notation fsafe := (FineConc.fsafe the_ge).
-
-  Inductive sc_execution :
-    SC.MachState -> mem -> SC.MachState -> mem -> Prop :=
-  | refl_sc_exec : forall ms (m : mem),
-      SC.halted ms ->
-      sc_execution ms m ms m
-  | step_sc_trans : forall i U U'
-                      (tp tp' tp'': SC.machine_state)
-                      (tr tr' tr'': SC.event_trace)
-                      (m m' m'' : mem),
-      SC.MachStep the_ge (i :: U, tr, tp) m (U, tr', tp') m' ->
-      sc_execution (U, tr', tp') m' (U', tr'', tp'') m'' ->
-      sc_execution (i :: U,tr,tp) m (U',tr'',tp'') m''.
-
-  Inductive fine_execution :
-    FineConc.MachState -> mem -> FineConc.MachState -> mem -> Prop :=
-  | refl_fine_exec : forall ms (m : mem),
-      FineConc.halted ms ->
-      fine_execution ms m ms m
-  | step_fine_trans : forall i U U'
-                        (tp tp' tp'': FineConc.machine_state)
-                        (tr tr' tr'': FineConc.event_trace)
-                        (m m' m'' : mem),
-      FineConc.MachStep the_ge (i :: U, tr, tp) m (U, tr ++ tr', tp') m' ->
-      fine_execution (U, tr ++ tr', tp') m' (U', tr ++ tr' ++ tr'', tp'') m'' ->
-      fine_execution (i :: U,tr,tp) m (U',tr ++ tr' ++ tr'',tp'') m''.
-
-  (* TODO: Move this lemma. Maybe definitions above it too*)
-  Lemma fstep_trace_irr:
-    forall U i tp m tp' m' tr tr'
-      (Hstep: FineConc.MachStep the_ge (i :: U, tr, tp) m (U, tr', tp') m'),
-    forall tr'', exists ev,
-        FineConc.MachStep the_ge (i :: U, tr'', tp) m (U, tr'' ++ ev, tp') m'.
-  Proof.
-    intros.
-    inversion Hstep; subst; simpl in *; subst; inv HschedN; pf_cleanup.
-    - exists [::]; erewrite cats0; econstructor; simpl; eauto.
-    - exists [::]; erewrite cats0; econstructor 2; simpl; eauto.
-    - exists (map [eta Events.internal tid] ev); econstructor 3; simpl; eauto.
-    - exists [::]; erewrite cats0; econstructor 4; simpl; eauto.
-    - exists [:: Events.external tid ev]; econstructor 5; simpl; eauto.
-    - exists [::]; erewrite cats0; econstructor 6; simpl; eauto.
-    - exists [::]; erewrite cats0; econstructor 7; simpl; eauto.
-  Qed.
 
   Lemma fsafe_execution:
     forall tpf mf U tr,
@@ -2317,7 +2296,8 @@ Module SCErasure (SEM: Semantics)
                          & Hmem_erasure' & ?).
       econstructor 3; eauto.
   Qed.
-  
+
+  (** Final erasure theorem from FineConc to SC*)
   Theorem sc_erasure:
     forall sched f arg U tpsc tpf m
       (Hmem: init_mem = Some m)
