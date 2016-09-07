@@ -172,9 +172,9 @@ Qed.
           rewrite /JuicyMachine.new_valid /JuicyMachine.mk_ostate /=.
           move: DVAL match' => /assume KK /KK //.
     }
-  Admitted.
+    Admitted.
 
-  Lemma new_erasure_safety': forall n ge sch js ds m,
+  (*Lemma new_erasure_safety': forall n ge sch js ds m,
       ErasureProof.match_st js ds ->
       DSEM.invariant ds ->
       JuicyMachine.ksafe_new_step ge (sch, nil, js) m n ->
@@ -249,6 +249,20 @@ Qed.
         unfold JuicyMachine.MachStep in step_diagram; simpl in step_diagram.
         eapply step_diagram in Hstep; try eassumption.
         destruct Hstep as [ds' [dinv' [MATCH' stp']]].
-        econstructor 4; eauto. }
+        econstructor 4; eauto. } *)
+
+ (* Theorem new_erasure_safety: forall ge cd j jtp dtp m n,
+      (forall sch,  JuicyMachine.valid (sch, nil, jtp) ) -> 
+      forall sch, Erasure.match_state cd j (sch, nil, jtp) m (sch, nil, dtp) m ->
+    JuicyMachine.csafe ge (sch, nil, jtp) m n ->
+    DryMachine.csafe ge (sch, nil, dtp) m n.
+  Proof.
+    intros.
+    eapply new_erasure_safety''.
+    intros ? ? ? ? ? ? ? MATCH jsafe.
+    inversion MATCH. subst.
+    eapply erasure_safety'; eauto.
+  Qed.*)
+  
     
 End ErasureSafety. 
