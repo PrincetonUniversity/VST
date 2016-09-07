@@ -2197,70 +2197,75 @@ Section Simulation.
               [ reflexivity (* schedPeek *)
               | reflexivity (* schedSkip *)
               | ].
-            eapply step_acqfail with (Hcompatible := mem_compatible_forget compat).
-            * constructor.
-            * apply Eci.
-            * simpl.
-              unfold SEM.Sem in *.
-              rewrite SEM.CLN_msem; simpl.
+            
+            (* factoring proofs out before the inversion/eapply *)
+            specialize (LKSPEC (b, Int.unsigned ofs)).
+            simpl in LKSPEC.
+            if_tac in LKSPEC; swap 1 2.
+            { destruct H.
+              unfold lock_size; simpl.
+              split. reflexivity. omega. }
+            if_tac in LKSPEC; [ | congruence ].
+            destruct LKSPEC as (p & E).
+            pose proof (resource_at_join _ _ _ (b, Int.unsigned ofs) Join) as J.
+            rewrite E in J.
+            
+            assert (Ename : name = "acquire"). {
+              simpl in *.
+              injection H_acquire as Ee.
+              apply ext_link_inj in Ee; auto.
+            }
+            
+            assert (Ez : z = LKSIZE). {
+              admit.
+            }
+            
+            assert (Ecall: Some (EF_external name sg, sig, args) =
+                           Some (LOCK, UNLOCK_SIG, Vptr b ofs :: nil)). {
               repeat f_equal.
-              -- simpl.
-                 simpl in H_acquire.
-                 injection H_acquire as Ee.
-                 apply ext_link_inj in Ee.
-                 auto.
-              -- (* inversion safei; subst. *)
-                 admit.
+              auto.
+              - admit.
+              - admit.
                  (* design decision:
                     - we can make 'safety' imply wellformedness of this signature
                     - or we can add wellformed as an hypothesis of the program *)
                  (* see with andrew: should safety require signatures
                  to be exactly something?  Maybe it should be in
                  ext_spec_type, it'd be easy, maybe. *)
-              -- admit (* another sig! *).
-              -- assert (L: length args = 1%nat) by admit.
-                 (* TODO discuss with andrew for where to add this requirement *)
-                 clear -PREB L.
-                 unfold expr.eval_id in PREB.
-                 unfold expr.force_val in PREB.
-                 match goal with H : context [Map.get ?a ?b] |- _ => destruct (Map.get a b) eqn:E end.
-                 subst v. 2: discriminate.
-                 pose  (gx := (filter_genv (symb2genv (Genv.genv_symb ge)))). fold gx in E.
-                 destruct args as [ | arg [ | ar args ]].
-                 ++ now inversion E.
-                 ++ inversion E. reflexivity.
-                 ++ inversion E. f_equal.
-                    inversion L.
-            * reflexivity.
-            * reflexivity.
-            * rewrite compatible_getThreadR_m_phi. (* todo is this transparent enough to be identity? *)
-              specialize (LKSPEC (b, Int.unsigned ofs)).
-              simpl in LKSPEC.
-              if_tac in LKSPEC; swap 1 2.
-              { destruct H.
-                unfold lock_size; simpl.
-                split. reflexivity. omega. }
-              if_tac in LKSPEC; [ | congruence ].
-              destruct LKSPEC as (p & E).
-              pose proof (resource_at_join _ _ _ (b, Int.unsigned ofs) Join) as J.
-              rewrite E in J.
-              {
-                inversion J; subst.
-                - symmetry.
-                  unfold Int.unsigned in *.
-                  rewrite <-H7.
-                  replace z with LKSIZE.
-                  unfold pack_res_inv.
-                  f_equal.
-                  + admit (* evar dep *).
-                  + admit (* evar dependencies *).
-                  + f_equal. extensionality x. unfold "oo".
-                    reflexivity.
-                  + admit (* again z / LKSIZE *).
-                - (* same work as above *)
-                  admit.
-              }
-            * (* maybe we should write this in the invariant instead? *)
+              - assert (L: length args = 1%nat) by admit.
+                (* TODO discuss with andrew for where to add this requirement *)
+                clear -PREB L.
+                unfold expr.eval_id in PREB.
+                unfold expr.force_val in PREB.
+                match goal with H : context [Map.get ?a ?b] |- _ => destruct (Map.get a b) eqn:E end.
+                subst v. 2: discriminate.
+                pose  (gx := (filter_genv (symb2genv (Genv.genv_symb ge)))). fold gx in E.
+                destruct args as [ | arg [ | ar args ]].
+                + now inversion E.
+                + inversion E. reflexivity.
+                + inversion E. f_equal.
+                  inversion L.
+            }
+            
+            assert (Eae : at_external SEM.Sem (ExtCall (EF_external name sg) sig args lid ve te k) =
+                    Some (LOCK, ef_sig LOCK, Vptr b ofs :: nil)). {
+              simpl.
+              unfold SEM.Sem in *.
+              rewrite SEM.CLN_msem; simpl.
+              repeat f_equal; congruence.
+            }
+            
+            assert
+            (Hload :
+               Mem.load
+                 Mint32
+                 (@restrPermMap
+                    (lockSet tp) m
+                    (@mem_compatible_locks_ltwritable
+                       tp m (@mem_compatible_forget tp m Phi compat)))
+                 b (Int.intval ofs) =
+               @Some val (Vint Int.zero)).
+            {
               rewrite <-LOAD.
               unfold load_at.
               Transparent Mem.load.
@@ -2268,12 +2273,28 @@ Section Simulation.
               unfold restrPermMap at 5.
               simpl.
               if_tac; if_tac; try reflexivity.
-              -- exfalso; clear -H H0.
-                 unfold Int.unsigned in *.
-                 tauto.
-              -- exfalso; clear -H H0.
-                 unfold Int.unsigned in *.
-                 tauto.
+              all: exfalso; unfold Int.unsigned in *; tauto.
+            }
+            
+            inversion J; subst.
+            
+            * eapply step_acqfail with (Hcompatible := mem_compatible_forget compat)
+                                       (R := approx (level phi0) (Interp Rx)).
+              all: try solve [ constructor | eassumption | reflexivity ];
+                [ > idtac ].
+              simpl.
+              unfold Int.unsigned in *.
+              rewrite <-H7.
+              reflexivity.
+            
+            * eapply step_acqfail with (Hcompatible := mem_compatible_forget compat)
+                                       (R := approx (level phi0) (Interp Rx)).
+              all: try solve [ constructor | eassumption | reflexivity ];
+                [ > idtac ].
+              simpl.
+              unfold Int.unsigned in *.
+              rewrite <-H7.
+              reflexivity.
         
         - (* acquire succeeds *)
           destruct isl as [sh [psh [z Ewetv]]].
@@ -2287,7 +2308,6 @@ Section Simulation.
           destruct PREC as (b0 & ofs0 & EQ & LKSPEC).
           injection EQ as <- <-.
           
-          (* rewrite Eat in Ewetv. *)
           specialize (lk (b, Int.unsigned ofs)).
           rewrite jam_true in lk; swap 1 2.
           { hnf. unfold lock_size in *; split; auto; omega. }

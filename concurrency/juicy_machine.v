@@ -1480,14 +1480,6 @@ Admitted.
         - apply compatible_threadRes_sub. assumption.
       Qed.
       
-      Lemma compatible_getThreadR_m_phi
-        js m i (cnt:containsThread js i)
-        (c : mem_compatible js m) :
-        m_phi (personal_mem cnt c) = getThreadR cnt.
-      Proof.
-          reflexivity.
-      Qed.
-      
       (** *Lemmas about aging*)
       Lemma cnt_age {js i n} :
           containsThread js i <->
