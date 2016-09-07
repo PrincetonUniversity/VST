@@ -137,6 +137,17 @@ Definition lock_coherence (lset : AMap.t (option rmap)) (phi : rmap) (m : mem) :
 
 Definition far (ofs1 ofs2 : Z) := (Z.abs (ofs1 - ofs2) >= 4)%Z.
 
+Lemma far_range ofs ofs' z :
+  (0 <= z < 4)%Z ->
+  far ofs ofs' ->
+  ~(ofs <= ofs' + z < ofs + size_chunk Mint32)%Z.
+Proof.
+  unfold far; simpl.
+  intros H1 H2.
+  zify.
+  omega.
+Qed.
+
 Definition lock_sparsity {A} (lset : AMap.t A) : Prop :=
   forall loc1 loc2,
     AMap.find loc1 lset <> None ->
@@ -144,6 +155,48 @@ Definition lock_sparsity {A} (lset : AMap.t A) : Prop :=
     loc1 = loc2 \/
     fst loc1 <> fst loc2 \/
     (fst loc1 = fst loc2 /\ far (snd loc1) (snd loc2)).
+
+Lemma lock_sparsity_age_to tp n :
+  lock_sparsity (lset tp) -> 
+  lock_sparsity (lset (age_tp_to n tp)).
+Proof.
+  destruct tp as [A B C lset0]; simpl.
+  intros S l1 l2 E1 E2; apply (S l1 l2).
+  - rewrite AMap_find_map_option_map in E1.
+    cleanup.
+    destruct (AMap.find (elt:=option rmap) l1 lset0); congruence || tauto.
+  - rewrite AMap_find_map_option_map in E2.
+    cleanup.
+    destruct (AMap.find (elt:=option rmap) l2 lset0); congruence || tauto.
+Qed.
+
+Definition lset_same_support {A} (lset1 lset2 : AMap.t A) :=
+  forall loc,
+    AMap.find loc lset1 = None <->
+    AMap.find loc lset2 = None.
+
+Lemma sparsity_same_support {A} (lset1 lset2 : AMap.t A) :
+  lset_same_support lset1 lset2 ->
+  lock_sparsity lset1 ->
+  lock_sparsity lset2.
+Proof.
+  intros same sparse l1 l2.
+  specialize (sparse l1 l2).
+  rewrite <-(same l1).
+  rewrite <-(same l2).
+  auto.
+Qed.
+
+Lemma same_support_change_lock {A} (lset : AMap.t A) l x :
+  AMap.find l lset <> None ->
+  lset_same_support lset (AMap.add l x lset).
+Proof.
+  intros E l'.
+  rewrite AMap_find_add.
+  if_tac.
+  - split; congruence.
+  - tauto.
+Qed.
 
 (*! Joinability and coherence *)
 
@@ -1018,9 +1071,8 @@ Proof.
     destruct Co1 as [In|Out].
     + exfalso (* because there is no lock at (b', ofs') *).
       specialize (LJ (b, Int.intval ofs)).
-      unfold lockRes in *.
-      unfold LocksAndResources.lock_info in *.
-      destruct (AMap.find (elt:=option rmap) (b, Int.intval ofs) (lockGuts tp)).
+      cleanup.
+      destruct (AMap.find (elt:=option rmap) (b, Int.intval ofs) (lset tp)).
       2:tauto.
       autospec LJ.
       destruct LJ as (sh1 & sh1' & pp & EPhi).
@@ -1574,20 +1626,6 @@ Section Simulation.
     - (* lock coherence: own rmap has changed, but we prove it did not affect locks *)
       unfold tp''; simpl.
       unfold tp'; simpl.
-      
-      Lemma lock_sparsity_age_to tp n :
-        lock_sparsity (lset tp) -> 
-        lock_sparsity (lset (age_tp_to n tp)).
-      Proof.
-        destruct tp as [A B C lset0]; simpl.
-        intros S l1 l2 E1 E2; apply (S l1 l2).
-        - rewrite AMap_find_map_option_map in E1.
-          unfold LocksAndResources.lock_info in *.
-          destruct (AMap.find (elt:=option rmap) l1 lset0); congruence || tauto.
-        - rewrite AMap_find_map_option_map in E2.
-          unfold LocksAndResources.lock_info in *.
-          destruct (AMap.find (elt:=option rmap) l2 lset0); congruence || tauto.
-      Qed.
       apply lock_sparsity_age_to. auto.
     
     - (* lock coherence: own rmap has changed, but we prove it did not affect locks *)
@@ -2843,7 +2881,8 @@ Section Simulation.
         try solve [jmstep_inv; getThread_inv; congruence].
       
       simpl SCH.schedSkip in *.
-      right (* no aging *).
+      right (* TO BE CHANGED *).
+      (* left (* we need aging, because we're using the safety of the call *). *)
       match goal with |- _ _ _ (?M, _, (_, ?TP)) => set (tp_ := TP); set (m_ := M) end.
       pose (compat_ := mem_compatible_with tp_ m_ Phi).
       jmstep_inv.
@@ -2865,7 +2904,7 @@ Section Simulation.
             revert Hadd_lock_res J.
             generalize (getThreadR Htid) d_phi (m_phi jm').
             generalize (all_but i (maps (remLockSet tp (b, Int.intval ofs)))).
-            unfold LocksAndResources.res in *.
+            cleanup.
             clear.
             intros l a b c j h.
             rewrite Permutation.perm_swap in h.
@@ -2893,8 +2932,6 @@ Section Simulation.
               assert_specialize lw. {
                 clear lw.
                 cleanup.
-                unfold lockRes in *.
-                unfold LocksAndResources.lock_info in *.
                 rewrite His_unlocked.
                 reflexivity.
               }
@@ -2942,13 +2979,17 @@ Section Simulation.
             + apply lj. (* easy for other addresses *)
             + intros _.
               apply lj. subst loc.
-              unfold lockRes in *.
-              unfold LocksAndResources.lock_info in *.
+              cleanup.
               rewrite His_unlocked.
               reflexivity.
         }
         
-        apply state_invariant_c with (PHI := Phi) (mcompat := compat').
+        assert (compat'' : mem_compatible_with (age_tp_to n tp_) m_ (age_to n Phi)).
+        {
+          admit.
+        }
+        
+        apply state_invariant_c with (mcompat := compat').
         + (* level *)
           assumption.
         
@@ -2959,34 +3000,6 @@ Section Simulation.
           unfold tp_ in *.
           simpl.
           cleanup.
-          Definition lset_same_support {A} (lset1 lset2 : AMap.t A) :=
-            forall loc,
-              AMap.find loc lset1 = None <->
-              AMap.find loc lset2 = None.
-          
-          Lemma sparsity_same_support {A} (lset1 lset2 : AMap.t A) :
-            lset_same_support lset1 lset2 ->
-            lock_sparsity lset1 ->
-            lock_sparsity lset2.
-          Proof.
-            intros same sparse l1 l2.
-            specialize (sparse l1 l2).
-            rewrite <-(same l1).
-            rewrite <-(same l2).
-            auto.
-          Qed.
-          
-          Lemma same_support_change_lock {A} (lset : AMap.t A) l x :
-            AMap.find l lset <> None ->
-            lset_same_support lset (AMap.add l x lset).
-          Proof.
-            intros E l'.
-            rewrite AMap_find_add.
-            if_tac.
-            - split; congruence.
-            - tauto.
-          Qed.
-          
           eapply sparsity_same_support with (lset tp); auto.
           apply same_support_change_lock.
           cleanup.
@@ -3085,17 +3098,6 @@ Section Simulation.
                 intros z Iz.
                 specialize (OUT b' (ofs' + z)%Z).
                 
-                Lemma far_range ofs ofs' z :
-                  (0 <= z < 4)%Z ->
-                  far ofs ofs' ->
-                  ~(ofs <= ofs' + z < ofs + size_chunk Mint32)%Z.
-                Proof.
-                  unfold far; simpl.
-                  intros H1 H2.
-                  zify.
-                  omega.
-                Qed.
-                
                 destruct OUT as [[-> OUT]|OUT]; [ | clear SPA].
                 + exfalso.
                   destruct SPA as [? | [_ SPA]]; [ tauto | ].
@@ -3191,7 +3193,9 @@ Section Simulation.
                   (z' := ora) (n' := n) as (c'' & Ec'' & Safe').
                 + auto.
                 + hnf. (* ouch *) admit.
-                + (* ouch, we must satisfy the post condition *) admit.
+                + (* ouch, we must satisfy the post condition *)
+                  unfold ext_spec_post in *.
+                  admit.
                 + exact_eq Safe'.
                   unfold jsafeN in *.
                   unfold juicy_safety.safeN in *.
