@@ -166,14 +166,28 @@ Module MainSafety .
       - eapply AA.
     Qed.
 
+    (** * New Safety of the dry Clight concurrent semantics*)
+    Theorem new_dry_clight_safety: forall n sch,
+        DryMachine.ksafe (globalenv prog) (sch, nil, ds_initial) initial_memory n.
+    Proof.
+      intros.
+      assert (AA:=safety_initial_state CS V G ext_link ext_link_inj prog all_safe init_mem_not_none sch n).
+      assert (BB:= erasure_match).
+      assert (CC:= erasure_safety' n).
+      eapply CC in BB.
+      - eapply BB.
+      - eapply DSEM.DryMachineLemmas.initial_invariant.
+      - eapply AA.
+    Qed.
+    
     Require Import concurrency.dry_context. 
-    Definition dry_initial_core_2:=
+    (*Definition dry_initial_core_2:=
       initial_core (coarse_semantics) 
                    (the_ge) (Vptr x Int.zero) nil.
     Definition initial_corestate_2 :=
-      initial_core coarse_semantics the_ge (Vptr x Int.zero) nil.
-    Definition ds_initial_2 := DryMachine.init_mach
-                                 init_perm the_ge
+      initial_core coarse_semantics the_ge (Vptr x Int.zero) nil. *)
+    Definition ds_initial_2 := DryMachine.SIG.init_mach
+                                 init_perm ge
                                  (Vptr x Int.zero) nil.
 
 

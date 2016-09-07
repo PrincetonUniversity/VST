@@ -90,7 +90,7 @@ Module ValErasure.
   Lemma val_erasure_list_decode:
     forall vals vals' typs,
       val_erasure_list vals vals' ->
-      val_erasure_list (decode_longs typs vals) (decode_longs typs vals').
+      val_erasure_list ( sepcomp.val_casted.decode_longs typs vals) ( sepcomp.val_casted.decode_longs typs vals').
   Proof.
     intros.
     generalize dependent vals.
