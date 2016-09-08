@@ -116,13 +116,13 @@ Qed.
   Qed.
 
   (** *Lets proof that again with the new kind of safety*)
+  Axiom assume: forall js ds, match_st js ds -> forall sch, JuicyMachine.valid (sch, nil, js) <-> DryMachine.valid (sch, nil, ds).
   Lemma new_erasure_safety'': forall n ge js ds m,
       ErasureProof.match_st js ds ->
       DSEM.invariant ds ->
       (forall sch, JuicyMachine.valid (sch, nil, js) -> JuicyMachine.ksafe_new_step ge (sch, nil, js) m n) ->
       (forall sch, DryMachine.valid (sch, nil, ds) -> DryMachine.ksafe_new_step ge (sch, nil, ds) m n).
   Proof.
-    assert (assume: forall js ds, match_st js ds -> forall sch, JuicyMachine.valid (sch, nil, js) <-> DryMachine.valid (sch, nil, ds)) by admit.
     induction n; [intros; constructor| ].
     move => ge js ds m MATCH INV H1 sch VAL. specialize (H1 sch).
     move: VAL (MATCH) => /assume /H1 HH /HH KSF.
@@ -174,82 +174,21 @@ Qed.
     }
     Admitted.
 
-  (*Lemma new_erasure_safety': forall n ge sch js ds m,
+
+  Lemma new_erasure_safety': forall n ge js ds m,
+      (forall sch, JuicyMachine.valid (sch, nil, js)) -> 
       ErasureProof.match_st js ds ->
       DSEM.invariant ds ->
-      JuicyMachine.ksafe_new_step ge (sch, nil, js) m n ->
-      DryMachine.ksafe_new_step ge (sch, nil, ds) m n.
+      (forall sch, JuicyMachine.ksafe_new_step ge (sch, nil, js) m n) ->
+      forall sch, DryMachine.ksafe_new_step ge (sch, nil, ds) m n.
   Proof.
-    induction n; [intros; constructor| ].
-    intros. inversion H1.
-    rewrite /DryMachine.ksafe_new_step /DryMachine.mk_nstate /=.
-    move: H3; rewrite /JuicyMachine.new_step /JuicyMachine.mk_ostate /==> HH.
-    inversion HH.
-    { (*Halted case*)
-      apply: (safety.sft_step).
-      - apply: DryMachine.halt_with_step=> //. 
-      - move => U'' nVAL.
-        apply: IHn => //.
-        + apply: H.
-        + rewrite /JuicyMachine.ksafe_new_step /JuicyMachine.mk_nstate /=.
-          destruct st' as [[a b] c]/ ; subst=> /=.
-          simpl in H8; rewrite -H8 in H4.
-          apply: H4.
-          simpl in nVAL.
-        subst.
-    }
-    {  assert (step_diagram:=step_diagram).
-        specialize (step_diagram m initU sch U' (Some init_rmap) (Some init_pmap)).
-        specialize (step_diagram ds js).
-        specialize (step_diagram (snd (fst st')) (snd st')).
-        unfold JuicyMachine.MachStep in step_diagram; simpl in step_diagram.
-        unfold JuicyMachineModule.THE_JUICY_MACHINE.JuicyMachine.MachStep in step_diagram; simpl in step_diagram.
-        assert (requirement:(fst (fst st')) = nil) by admit.
-        rewrite requirement in H3.
-        eapply step_diagram in H3 => //.
-        destruct H3 as [ ds' [ Dinv' [ match' step']]].
-
-        apply: (safety.sft_step).
-        - by eapply (DryMachine.step_with_halt _ _ _ (DryMachine.mk_ostate (nil, ds', (snd st')) U')) => //.
-        - move => U''
-        
-        rewrite requirement.
-        apply step'.
-        (*Halted case: *)
-        
-        
-      unfold corestep in step_diagram; simpl in step_diagram.
+    move => n ge js ds m all_val MATCH dINV sch jKSF.
+    apply: new_erasure_safety''=> //.
+    - exact MATCH.
+    - eapply assume. exact MATCH.
+      apply: all_val.
+  Qed.
       
-    - apply: (safety.sft_step ) => //.
-      simpl in H3; inversion H3.
-      
-
-      constructor; simpl. unfold DryMachine.halted; simpl.
-      unfold JuicyMachine.halted in H2; simpl in H2.
-      change JuicyMachineModule.THE_JUICY_MACHINE.SCH.schedPeek with
-      DryMachineSource.THE_DRY_MACHINE_SOURCE.SCH.schedPeek in H2.
-      destruct ( DryMachineSource.THE_DRY_MACHINE_SOURCE.SCH.schedPeek sch ) eqn:AA;
-      inversion H; auto.
-    - { simpl in Hstep.
-        unfold JuicyMachine.MachStep in Hstep; simpl in Hstep.
-        assert (step_diagram:=step_diagram).
-        specialize (step_diagram m initU sch sch (Some init_rmap) (Some init_pmap)).
-        specialize (step_diagram ds js tp' m').
-        unfold corestep in step_diagram; simpl in step_diagram.
-        unfold JuicyMachine.MachStep in step_diagram; simpl in step_diagram.
-        eapply step_diagram in Hstep; try eassumption.
-        destruct Hstep as [ds' [dinv' [MATCH' stp']]].
-        econstructor 3; eauto. }
-    - { simpl in Hstep.
-        unfold JuicyMachine.MachStep in Hstep; simpl in Hstep.
-        assert (step_diagram:=step_diagram).
-        specialize (step_diagram m initU sch (SCH.schedSkip sch) (Some init_rmap) (Some init_pmap)).
-        specialize (step_diagram ds js tp' m').
-        unfold corestep in step_diagram; simpl in step_diagram.
-        unfold JuicyMachine.MachStep in step_diagram; simpl in step_diagram.
-        eapply step_diagram in Hstep; try eassumption.
-        destruct Hstep as [ds' [dinv' [MATCH' stp']]].
-        econstructor 4; eauto. } *)
 
  (* Theorem new_erasure_safety: forall ge cd j jtp dtp m n,
       (forall sch,  JuicyMachine.valid (sch, nil, jtp) ) -> 

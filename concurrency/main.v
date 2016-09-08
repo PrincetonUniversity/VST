@@ -1,4 +1,5 @@
 (** *Semax Imports*)
+From mathcomp.ssreflect Require Import ssreflect seq ssrbool ssrnat.
 Require Import Coq.Strings.String.
 
 Require Import compcert.lib.Integers.
@@ -45,8 +46,6 @@ Require Import concurrency.erasure_proof.
 Require Import concurrency.erasure_safety.
 
 Require Import concurrency.fineConc_safe.
-
-Set Bullet Behavior "Strict Subproofs".
 
 
 Module MainSafety .
@@ -167,18 +166,52 @@ Module MainSafety .
     Qed.
 
     (** * New Safety of the dry Clight concurrent semantics*)
+
+    (*This is the result I need from the juicy semantics*)
+    Axiom juicy_initial_safety: forall (CS : compspecs) (V : varspecs) (G : funspecs)
+         (ext_link : string -> ident),
+       (forall s1 s2 : string, ext_link s1 = ext_link s2 -> s1 = s2) ->
+       forall (prog : program)
+         (all_safe : semax_prog (Concurrent_Oracular_Espec CS ext_link)
+                       prog V G)
+         (init_mem_not_none : Genv.init_mem
+                                (Ctypes.program_of_program prog) <> None)
+         (sch : schedule) (n : nat),
+          JuicyMachine.ksafe_new_step
+         (globalenv prog)
+         (sch, nil,
+         initial_machine_state CS V G ext_link prog all_safe
+           init_mem_not_none n)
+         (proj1_sig (init_mem prog init_mem_not_none)) n.
+    Axiom juicy_initial_all_valid: forall n sch,
+        is_true
+          (JuicyMachine.valid
+          (sch, nil,
+         initial_machine_state CS V G ext_link prog all_safe
+           init_mem_not_none n)).
+    
     Theorem new_dry_clight_safety: forall n sch,
-        DryMachine.ksafe (globalenv prog) (sch, nil, ds_initial) initial_memory n.
+        DryMachine.ksafe_new_step  (globalenv prog) (sch, nil, ds_initial) initial_memory n.
     Proof.
       intros.
-      assert (AA:=safety_initial_state CS V G ext_link ext_link_inj prog all_safe init_mem_not_none sch n).
-      assert (BB:= erasure_match).
-      assert (CC:= erasure_safety' n).
-      eapply CC in BB.
-      - eapply BB.
+      eapply new_erasure_safety'; eauto.
+      - eapply juicy_initial_all_valid.
+      - eapply erasure_match.
       - eapply DSEM.DryMachineLemmas.initial_invariant.
-      - eapply AA.
+      - intros sch0. eapply juicy_initial_safety; auto.
     Qed.
+
+    Theorem new_dry_clight_infinite_safety: forall sch,
+        DryMachine.safe_new_step  (globalenv prog) (sch, nil, ds_initial) initial_memory.
+    Proof.
+      move => sch.
+      apply: safety.ksafe_safe => //.
+      - admit. (*EM*)
+      - move => ds.
+        admit. (*Finite branchin!*)
+      - admit. (*all_valid in the dry machine (I can probably carry this from the juicym)*)
+      - apply: new_dry_clight_safety.
+    Admitted.
     
     Require Import concurrency.dry_context. 
     (*Definition dry_initial_core_2:=
@@ -186,9 +219,9 @@ Module MainSafety .
                    (the_ge) (Vptr x Int.zero) nil.
     Definition initial_corestate_2 :=
       initial_core coarse_semantics the_ge (Vptr x Int.zero) nil. *)
-    Definition ds_initial_2 := DryMachine.SIG.init_mach
+    (* Definition ds_initial_2 := DryMachine.SIG.init_mach
                                  init_perm ge
-                                 (Vptr x Int.zero) nil.
+                                 (Vptr x Int.zero) nil. *)
 
 
     (** *The comiler preserves safety*)

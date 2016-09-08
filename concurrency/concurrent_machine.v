@@ -621,6 +621,8 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   Definition new_valid st U := valid (mk_ostate st U). 
   Definition ksafe_new_step (ge : G) (st : MachState) (m : mem) : nat -> Prop :=
     ksafe _ _ (new_step ge) new_valid (mk_nstate st m) (fst (fst st)).
+  Definition safe_new_step (ge : G) (st : MachState) (m : mem) : Prop :=
+    safe _ _ (new_step ge) new_valid (mk_nstate st m) (fst (fst st)).
 
   (*Things that we must prove:*)
   Axiom sch_dec: forall (U U': Sch), {U = U'} + {U <> U'}.
