@@ -48,6 +48,13 @@ Require Import concurrency.erasure_safety.
 Require Import concurrency.fineConc_safe.
 
 
+(** *Compiler simulation*)
+Require Import lifting.
+
+(** *Terget machine*)
+Require Import concurrency.x86_context.
+
+
 Module MainSafety .
 
   Module ErasureProof := erasure_proof.Parching.
@@ -55,6 +62,10 @@ Module MainSafety .
   Import ErasureProof.
   Import Erasure.
 
+  (*Module lifting_this := lifting ErasureProof.SEM.*)
+  Module lfting_this:= lifting X86SEM X86Machines.
+
+  
   Module ErasureSafety := ErasureSafety.
   Import ErasureSafety.
 
@@ -223,6 +234,9 @@ Module MainSafety .
                                  init_perm ge
                                  (Vptr x Int.zero) nil. *)
 
+    
+    concurc_sim
+    
 
     (** *The comiler preserves safety*)
     Lemma compilation_safety_preservation: forall n sch m,
