@@ -63,7 +63,7 @@ Module MainSafety .
   Import Erasure.
 
   (*Module lifting_this := lifting ErasureProof.SEM.*)
-  Module lfting_this:= lifting X86SEM X86Machines.
+  Module lifting_this:= lifting X86SEM X86Machines.
 
   
   Module ErasureSafety := ErasureSafety.
@@ -234,10 +234,31 @@ Module MainSafety .
                                  init_perm ge
                                  (Vptr x Int.zero) nil. *)
 
-    
-    concurc_sim
-    
+    Definition compiled_machine_simulation:= lifting_this.concur_sim.
 
+    Parameter gTx86:  X86SEM.G.
+    Parameter main: val.
+    Parameter p: option ErasureProof.DSEM.perm_map.
+    Parameter sch : X86Machines.SC.Sch.
+    
+    Definition this_simulation:=
+      compiled_machine_simulation gTx86 (globalenv prog) main p sch.
+    Goal True.
+      (*destruct this_simulation.*)
+      assert (HH:= wholeprog_simulations.Wholeprog_sim.match_state
+                     _ _ _ _ _ _ _ _
+                     this_simulation).
+      Definition compiler_match:=
+        wholeprog_simulations.Wholeprog_sim.match_state
+          _ _ _ _ _ _ _ _
+          this_simulation.
+      Lemma new_target_safety: forall
+          (exists cd j, compiler_match  )
+      exists c, X86Machines.DryMachine.ThreadPool.SEM.Sem
+      X86Machines.DryConc.safe_new_step gTx86 
+X86Machines.DryMachine.ThreadPool.SEM.Sem
+      
+    
     (** *The comiler preserves safety*)
     Lemma compilation_safety_preservation: forall n sch m,
         dry_context.init_mem = Some m -> 
