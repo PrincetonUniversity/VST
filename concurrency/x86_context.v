@@ -115,7 +115,7 @@ Module X86SEMAxioms <: SemanticsAxioms X86SEM.
       contradiction. subst b'. clear - H.
       Transparent Memory.Mem.alloc. unfold Memory.Mem.alloc in H. Opaque Memory.Mem.alloc.
       inv H. simpl.
-      destruct (range_dec lo ofs hi); [left | right]; intros.
+      destruct (veric.Memory.range_dec lo ofs hi); [left | right]; intros.
       rewrite PMap.gss. destruct (zle lo ofs); try omega. destruct (zlt ofs hi); try omega.
       reflexivity.
       rewrite PMap.gss.
