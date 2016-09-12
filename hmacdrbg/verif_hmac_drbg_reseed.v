@@ -70,11 +70,11 @@ Lemma REST: forall (Espec : OracleKind) (contents : list Z) additional add_len c
   (s0 : ENTROPY.stream)
   (Heqentropy_result : ENTROPY.success entropy_bytes s0 = ENTROPY.get_bytes (Z.to_nat entropy_len) s),
 @semax hmac_drbg_compspecs.CompSpecs Espec
-  (initialized_list [_entropy_len; 232%positive; 231%positive]
+  (initialized_list [_entropy_len; _t'2; _t'1]
      (func_tycontext f_mbedtls_hmac_drbg_reseed HmacDrbgVarSpecs
         HmacDrbgFunSpecs))
   (PROP ( )
-   LOCAL (temp 232%positive Vzero; temp _entropy_len (Vint (Int.repr entropy_len));
+   LOCAL (temp _t'2 Vzero; temp _entropy_len (Vint (Int.repr entropy_len));
    lvar _seed (tarray tuchar 384) seed; temp _ctx ctx; temp _additional additional;
    temp _len (Vint (Int.repr add_len)); gvar sha._K256 kv)
    SEP (Stream (get_stream_result (get_entropy 0 entropy_len entropy_len false s));
@@ -99,11 +99,11 @@ Lemma REST: forall (Espec : OracleKind) (contents : list Z) additional add_len c
            (Sifthenelse
               (Ebinop Cop.One (Etempvar _additional (tptr tuchar))
                  (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
-              (Sset 233%positive
+              (Sset _t'3
                  (Ecast
                     (Ebinop Cop.One (Etempvar _len tuint) (Econst_int (Int.repr 0) tint) tint)
-                    tbool)) (Sset 233%positive (Econst_int (Int.repr 0) tint)))
-           (Sifthenelse (Etempvar 233%positive tint)
+                    tbool)) (Sset _t'3 (Econst_int (Int.repr 0) tint)))
+           (Sifthenelse (Etempvar _t'3 tint)
               (Ssequence
                  (Scall None
                     (Evar _memcpy
@@ -163,7 +163,7 @@ Proof.
 *)
   freeze [0;(*2;*)4;5;6;7] FR6. freeze [1;2] SEED.
   
- replace_SEP 0 (data_at Tsh (tarray tuchar 384)
+  replace_SEP 0 (data_at Tsh (tarray tuchar 384)
          ((map Vint
             (map Int.repr entropy_bytes)) ++ (list_repeat (Z.to_nat (384 - entropy_len)) (Vint Int.zero))) seed).
   {
@@ -185,8 +185,7 @@ Proof.
       temp _entropy_len (Vint (Int.repr entropy_len));
       lvar _seed (tarray tuchar 384) seed; temp _ctx ctx;
       temp _additional additional; temp _len (Vint (Int.repr add_len));
-(*      temp 148%positive (Val.of_bool non_empty_additional);*)
-      temp 233%positive (Val.of_bool non_empty_additional);
+      temp _t'3 (Val.of_bool non_empty_additional);
       gvar sha._K256 kv)
       SEP  (FRZL FR7; da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional)).
   { destruct additional; simpl in PNadditional; try contradiction.
@@ -198,12 +197,13 @@ Proof.
       apply data_at_valid_ptr; auto. }
   { (*nonnull additional*) 
     destruct additional; simpl in PNadditional; try contradiction. subst i. elim H; trivial. clear H.
-    forward. entailer!. simpl. unfold  contents_with_add; simpl.
+    forward. entailer!. simpl. 
     destruct (initial_world.EqDec_Z (Zlength contents) 0).
-    + rewrite e. simpl. split; reflexivity.
-    + simpl. rewrite Int.eq_false; simpl. split; try reflexivity. intros N.
-       assert (Y: Int.unsigned (Int.repr (Zlength contents)) = Int.unsigned (Int.repr 0)). rewrite N; trivial.
-       clear N. rewrite Int.unsigned_repr in Y. 2: omega. rewrite Int.unsigned_repr in Y; omega. 
+    + rewrite e. simpl. reflexivity.
+    + simpl in *. rewrite Int.eq_false; simpl. reflexivity.
+      intros N. 
+      assert (Y: Int.unsigned (Int.repr (Zlength contents)) = Int.unsigned (Int.repr 0)) by (rewrite N; trivial).
+      clear N. rewrite Int.unsigned_repr in Y. 2: omega. rewrite Int.unsigned_repr in Y; omega. 
   }
   { (*nullval additional*) 
     rewrite H in *. 
@@ -621,7 +621,7 @@ Proof.
       LOCAL  (temp _entropy_len (Vint (Int.repr entropy_len));
       lvar _seed (tarray tuchar 384) seed; temp _ctx ctx;
       temp _additional additional; temp _len (Vint (Int.repr add_len));
-      temp 231%positive (Val.of_bool add_len_too_high);
+      temp _t'1 (Val.of_bool add_len_too_high);
       gvar sha._K256 kv)
       SEP  (FRZL FR2)). 
   { forward. entailer!. }
@@ -692,7 +692,7 @@ Proof.
   thaw FR3. freeze [1;2;3;4;6;7] FR4.
   forward_call (Tsh, s, seed, entropy_len).
   { split. split; try omega. rewrite int_max_unsigned_eq. omega.
-    apply semax_call.writable_share_top.
+    apply writable_share_top.
 (*    
     subst entropy_len; auto.*)
   }
@@ -714,7 +714,7 @@ Proof.
   freeze [0;1;2] FR5.
   forward_if (
       PROP  (vret=Vzero)
-      LOCAL  (temp 232%positive vret;
+      LOCAL  (temp _t'2 vret;
       temp _entropy_len (Vint (Int.repr entropy_len));
       lvar _seed (tarray tuchar 384) seed; temp _ctx ctx;
       temp _additional additional; temp _len (Vint (Int.repr add_len));

@@ -822,7 +822,7 @@ Proof.
       temp _ctx (*ctx*)(Vptr b i); temp _p_rng (*ctx*)(Vptr b i); temp _output output;
       temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
       temp _add_len (Vint (Int.repr add_len)); gvar sha._K256 kv;
-      temp (*159*)244%positive (Val.of_bool should_reseed) (* ADDED *)
+      temp _t'4 (Val.of_bool should_reseed) (* ADDED *)
       )
       SEP (FRZL FR2)). 
   {
@@ -883,7 +883,7 @@ Proof.
    temp _out output; temp _left (Vint (Int.repr out_len)); temp _ctx (Vptr b i);
    temp _p_rng (Vptr b i); temp _output output; temp _out_len (Vint (Int.repr out_len));
    temp _additional additional; temp _add_len (Vint (Int.repr after_reseed_add_len));
-   gvar sha._K256 kv; temp 244%positive (Val.of_bool should_reseed))
+   gvar sha._K256 kv; temp _t'4 (Val.of_bool should_reseed))
    SEP (EX myctx : reptype t_struct_hmac256drbg_context_st,
         (!! (if should_reseed
             then
@@ -906,7 +906,7 @@ Proof.
     unfold POSTCONDITION, abbreviate. rewrite Hshould_reseed in *. clear POSTCONDITION. thaw FR2. 
     abbreviate_semax.
 
-    forward_call (*WIT. fails!!*)(contents, additional, add_len, (*ctx*)Vptr b i, initial_state, initial_state_abs,
+    forward_call (contents, additional, add_len, (*ctx*)Vptr b i, initial_state, initial_state_abs,
                   kv, info_contents, s).
     { subst initial_state initial_state_abs; cancel.
       unfold hmac256drbg_relate. entailer!.
@@ -925,7 +925,7 @@ Proof.
     assert (F: 0>? 256 = false) by reflexivity.
 
     forward_if (PROP  (return_value = Vzero) (* ADDED *)
-      LOCAL  (temp _ret return_value; (*temp (*158*)243%positive return_value;*)
+      LOCAL  (temp _ret return_value; 
       temp _md_len (Vint (Int.repr 32)); temp _info (*(let (x, _) := md_ctx' in x)*)mc1;
       temp _reseed_interval (Vint (Int.repr reseed_interval));
       temp _reseed_counter (Vint (Int.repr reseed_counter));
@@ -934,7 +934,7 @@ Proof.
       temp _ctx (*ctx*)(Vptr b i); temp _p_rng (*ctx*)(Vptr b i); temp _output output;
       temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
       temp _add_len (Vint (Int.repr add_len)); gvar sha._K256 kv; 
-      temp 244%positive (Val.of_bool true))
+      temp _t'4 (Val.of_bool true))
       SEP (reseedPOST return_value contents additional add_len s initial_state_abs 
                 (Vptr b i) info_contents kv initial_state;
           data_at_ Tsh (tarray tuchar out_len) output)).
@@ -1005,7 +1005,7 @@ Proof.
      temp _left (Vint (Int.repr out_len)); temp _ctx (Vptr b i); temp _p_rng (Vptr b i); temp _output output;
      temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
      temp _add_len (Vint (Int.repr after_reseed_add_len)); gvar sha._K256 kv;
-     temp 244%positive (Val.of_bool should_reseed))
+     temp _t'4 (Val.of_bool should_reseed))
     SEP (data_at Tsh t_struct_hmac256drbg_context_st ctx1 (Vptr b i); data_at_ Tsh (tarray tuchar out_len) output;
      da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional;
      data_at Tsh t_struct_mbedtls_md_info IC mc1; K_vector kv;
@@ -1045,7 +1045,7 @@ Proof.
       temp _output output; temp _out_len (Vint (Int.repr out_len));
       temp _additional additional;
       temp _add_len (Vint (Int.repr after_reseed_add_len));
-      gvar sha._K256 kv; temp 244%positive (Val.of_bool should_reseed))
+      gvar sha._K256 kv; temp _t'4 (Val.of_bool should_reseed))
      SEP (data_at Tsh t_struct_hmac256drbg_context_st ctx1 (Vptr b i);
       data_at_ Tsh (tarray tuchar out_len) output;
       da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional;
@@ -1085,8 +1085,8 @@ Proof.
    temp _ctx (Vptr b i); temp _p_rng (Vptr b i); temp _output output;
    temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
    temp _add_len (Vint (Int.repr after_reseed_add_len)); gvar sha._K256 kv;
-   temp 244%positive (Val.of_bool should_reseed);
-   temp 245%positive (Val.of_bool na))
+   temp _t'4 (Val.of_bool should_reseed);
+   temp _t'5 (Val.of_bool na))
    SEP (FRZL FR4;
         da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional)).
   { destruct additional; simpl in PNadditional; try contradiction.
@@ -1118,8 +1118,8 @@ Proof.
    temp _ctx (Vptr b i); temp _p_rng (Vptr b i); temp _output output;
    temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
    temp _add_len (Vint (Int.repr after_reseed_add_len)); 
-   gvar sha._K256 kv; temp 244%positive (Val.of_bool should_reseed);
-   temp 245%positive (Val.of_bool na))
+   gvar sha._K256 kv; temp _t'4 (Val.of_bool should_reseed);
+   temp _t'5 (Val.of_bool na))
    SEP (FRZL FR3; K_vector kv;
    da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional;
    if na 
@@ -1195,7 +1195,7 @@ apply semax_pre with (P' := EX ctx2:reptype t_struct_hmac256drbg_context_st, EX 
    temp _left (Vint (Int.repr out_len)); temp _ctx (Vptr b i); temp _p_rng (Vptr b i);
    temp _output output; temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
    temp _add_len (Vint (Int.repr after_reseed_add_len)); gvar sha._K256 kv;
-   temp 244%positive (Val.of_bool should_reseed); temp 245%positive (Val.of_bool na))
+   temp _t'4 (Val.of_bool should_reseed); temp _t'5 (Val.of_bool na))
    SEP (FRZL FR3; K_vector kv;
    da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional;
    data_at Tsh t_struct_hmac256drbg_context_st ctx2 (Vptr b i) * md_full key2 (mc1, (mc2, mc3)))).
@@ -1249,7 +1249,7 @@ apply semax_pre with (P':=
    temp _ctx (Vptr b i); temp _p_rng (Vptr b i); temp _output output;
    temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
    temp _add_len (Vint (Int.repr after_reseed_add_len)); gvar sha._K256 kv;
-   temp 244%positive (Val.of_bool should_reseed); temp 245%positive (Val.of_bool na))
+   temp _t'4 (Val.of_bool should_reseed); temp _t'5 (Val.of_bool na))
    SEP (data_at_ Tsh (tarray tuchar out_len) output; Stream stream1; 
      K_vector kv;
      da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional;
@@ -1412,7 +1412,7 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
    temp _ctx (Vptr b i); temp _p_rng (Vptr b i); temp _output output;
    temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
    temp _add_len (Vint (Int.repr after_reseed_add_len)); gvar sha._K256 kv;
-      temp (*161*)246%positive (Vint (Int.repr (Z.min (Z.of_nat SHA256.DigestLength) (out_len - done)))))
+      temp _t'6 (Vint (Int.repr (Z.min (Z.of_nat SHA256.DigestLength) (out_len - done)))))
    SEP (FRZL FR1;
    data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (mc1, (mc2, mc3))
      (field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] (Vptr b i));
@@ -1458,8 +1458,6 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
 
     { simpl. apply prop_right. rewrite HZlength_V, field_address_offset; trivial.
       split; simpl; trivial. 
-      split; trivial. erewrite <- Hfield_md_ctx; simpl; trivial.
-      rewrite Int.add_zero; trivial.
     }
     { simpl; simpl in HZlength_V; rewrite HZlength_V (*, <- Hmultiple*).
       cancel.

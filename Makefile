@@ -21,7 +21,7 @@ COMPCERT ?= compcert
 
 #Note2:  By default, the rules for converting .c files to .v files
 # are inactive.  To activate them, do something like
-#  make CLIGHTGEN=clightgen
+CLIGHTGEN=../CompCert-2.7.1/clightgen	
 
 #Note3: for SSReflect, one solution is to install MathComp 1.6
 # somewhere add this line to a CONFIGURE file
@@ -390,8 +390,8 @@ clean_cvfiles:
 	rm $(CVFILES)
 
 ifdef CLIGHTGEN
-sha/sha.v sha/hmac.v: sha/sha.c sha/hmac.c
-	$(CLIGHTGEN) ${CGFLAGS} sha/sha.c sha/hmac.c
+sha/sha.v sha/hmac.v hmacdrbg/hmac_drbg.v: sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c
+	$(CLIGHTGEN) ${CGFLAGS} sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c
 # Is there a way to generate the next 5 rules automatically from C_FILES? 
 progs/revarray.v: progs/revarray.c
 	$(CLIGHTGEN) ${CGFLAGS} $<

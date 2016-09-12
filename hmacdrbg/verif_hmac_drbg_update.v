@@ -82,7 +82,6 @@ Lemma loopbody: forall (Espec : OracleKind)
   (initial_state_abs : hmac256drbgabs)
   (kv : val)
   (info_contents : md_info_state)
-(*Delta_specs := abbreviate : PTree.t funspec*)
   (sep K : val)
   (H : 0 <= add_len <= Int.max_unsigned)
   (initial_value : list Z)
@@ -93,19 +92,13 @@ Lemma loopbody: forall (Espec : OracleKind)
   (H3 : Forall general_lemmas.isbyteZ contents)
   (PNadditional : is_pointer_or_null additional)
   (Pctx : isptr ctx)
-(*FR0 := abbreviate : list mpred
-FR1 := abbreviate : list mpred*)
   (na : bool)
   (Heqna : na = (negb (eq_dec additional nullval) && negb (eq_dec add_len 0))%bool)
-(*FR2 := abbreviate : list mpred*)
   (rounds : Z)
   (Heqrounds : rounds = (if na then 2 else 1))
   (initial_key : list Z)
   (Heqinitial_key : initial_key = hmac256drbgabs_key initial_state_abs)
   (i : Z)
-(*Delta := abbreviate : tycontext
-POSTCONDITION := abbreviate : ret_assert
-MORE_COMMANDS := abbreviate : statement*)
   (H4 : 0 <= i < rounds)
   (key value : list Z)
   (state_abs : hmac256drbgabs)
@@ -119,8 +112,7 @@ MORE_COMMANDS := abbreviate : statement*)
   (H10 : Forall general_lemmas.isbyteZ value),
 @semax hmac_drbg_compspecs.CompSpecs Espec 
   (initialized_list
-     [_info; _md_len; _rounds; _sep_value; 226%positive; 225%positive;
-     224%positive]
+     [_info; _md_len; _rounds; _sep_value; _t'3; _t'2; _t'1]
      (func_tycontext f_mbedtls_hmac_drbg_update HmacDrbgVarSpecs
         HmacDrbgFunSpecs))
   (PROP ( )
@@ -572,7 +564,7 @@ Proof. intros. simpl.
                        field_address t_struct_hmac256drbg_context_st [StructField _V] ctx, @nil Z, V, kv). (*9; Naphat 72 *)
     {
       (* prove the function parameters match up *)
-      rewrite H9. apply prop_right; reflexivity.
+      rewrite H9, FA_ctx_V. apply prop_right. destruct ctx; try contradiction. split; reflexivity.
     }
     (*{
       (* prove the function SEP clauses match up *)
@@ -672,8 +664,8 @@ Proof.
       temp _ctx ctx;
       lvar _sep (tarray tuchar 1) sep;
       temp _additional additional; temp _add_len (Vint (Int.repr add_len));
-      temp 225%positive (Val.of_bool na);
-(*      temp 225%positive (Val.of_bool non_empty_additional);*)
+      temp _t'2 (Val.of_bool na);
+(*      temp 225x%positive (Val.of_bool non_empty_additional);*)
       gvar sha._K256 kv)
       SEP  (FRZL (FR2))). 
   {
@@ -701,7 +693,6 @@ Proof.
       simpl. destruct (initial_world.EqDec_Z add_len 0); trivial; omega.
     }
   } 
-  
 
   {
     (* show that add_len = 0 implies the post condition *)
@@ -715,8 +706,8 @@ Proof.
       temp _ctx ctx;
       lvar _sep (tarray tuchar 1) sep;
       temp _additional additional; temp _add_len (Vint (Int.repr add_len));
-(*      temp 141%positive (Vint (Int.repr rounds));*)
-      temp 226%positive (Vint (Int.repr rounds));
+(*      temp 141x%positive (Vint (Int.repr rounds));*)
+      temp _t'3 (Vint (Int.repr rounds));
       gvar sha._K256 kv
              )
       SEP  (FRZL FR2) 
@@ -739,8 +730,7 @@ Proof.
 
   (* verif_sha_final2.v, @exp (environ -> mpred) *)
   (* for ( sep_value = 0; sep_value < rounds; sep_value++ ) *)
-  Time forward_for_simple_bound rounds (
-                              EX i: Z,
+  Time forward_for_simple_bound rounds (EX i: Z,
       PROP  (
       (* (key, value) = HMAC_DRBG_update_round HMAC256 (map Int.signed contents) old_key old_value 0 (Z.to_nat i);
       (*
@@ -803,7 +793,8 @@ Proof.
 (*    change (`(eq (Vint (Int.repr rounds))) (eval_expr (Etempvar _rounds tint))) with (temp _rounds (Vint (Int.repr rounds))).*)
     Intros key value state_abs. normalize.
     clear FR2 FR1 FR0.
-    (* semax_subcommand HmacDrbgVarSpecs HmacDrbgFunSpecs 
+
+    (*( semax_subcommand HmacDrbgVarSpecs HmacDrbgFunSpecs 
        f_mbedtls_hmac_drbg_update hmac_drbg_update_spec.*)
 
     (*unfold MORE_COMMANDS, POSTCONDITION, abbreviate.*)

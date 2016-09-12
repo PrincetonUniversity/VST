@@ -6,18 +6,9 @@ Require Import floyd.sublist.
 Require Import hmacdrbg.hmac_drbg.
 Require Import hmacdrbg.spec_hmac_drbg.
 
-(*TEMPORARRY FIX TO DEAL WITH NAME SPACES*)
-
-Axiom FINALNAME:_HMAC_Final = hmac._HMAC_Final. 
-Axiom UPDATENAME:_HMAC_Update = hmac._HMAC_Update. 
-Axiom INITNAME: _HMAC_Init = hmac._HMAC_Init. 
-Axiom CTX_Struct: Tstruct _hmac_ctx_st noattr = spec_hmac.t_struct_hmac_ctx_st.
-
 Axiom EmptyDissolve: forall v, 
   UNDER_SPEC.EMPTY v |-- memory_block Tsh (sizeof spec_hmac.t_struct_hmac_ctx_st) v .
 (*Provable in the implementation of UNDERSPEC, but currently not exposed in the interface*)
-
-Eval compute in (sizeof (Tstruct _hmac_ctx_st noattr)).
 
 Lemma body_md_free: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
        f_mbedtls_md_free md_free_spec.
@@ -37,10 +28,8 @@ eapply (semax_call_id00_wow (Vptr b0 i0, 324) [FRZL FR1]); trivial; try reflexiv
 + entailer!. 
 + entailer!. constructor. constructor. constructor. 
 + entailer!. constructor. 
-+ simpl. cancel. 
-  eapply derives_trans. apply EmptyDissolve. 
-    rewrite <- CTX_Struct. simpl. trivial.
-+ Intros v. simpl. forward. thaw FR1.
++ simpl. cancel. apply EmptyDissolve. 
++ Intros v. simpl. forward. thaw FR1. 
   unfold_data_at 1%nat. cancel.
 Qed.
 
@@ -61,7 +50,6 @@ Proof.
   unfold_data_at 1%nat.
   forward. 
 
-  rewrite INITNAME , CTX_Struct.
   forward_call (@inr (val * Z * list Z * val) _ (r3, l, key, kv, b, i)).
   (* call pattern for reset:
   forward_call (@inl _ (val * Z * list Z * val * block * int) (r3, l, key, kv)).*)
@@ -89,7 +77,6 @@ Proof.
   rewrite data_at_isptr with (p:=d); Intros.
   destruct d; try contradiction.
 
-  rewrite UPDATENAME, CTX_Struct.
   forward_call (key, internal_r, Vptr b i, data, data1, kv).
   {
     unfold spec_sha.data_block.
@@ -119,7 +106,6 @@ Proof.
   forward.
 
   (* HMAC_Final(hmac_ctx, output); *)
-  rewrite FINALNAME, CTX_Struct.
   forward_call (data, key, internal_r, md, shmd, kv).
 
   (* return 0 *)
@@ -140,7 +126,6 @@ Proof.
   (* HMAC_CTX * hmac_ctx = ctx->hmac_ctx; *)
   forward.
 
-  rewrite INITNAME, CTX_Struct.
   forward_call (@inl _ (val * Z * list Z * val * block * int) (internal_r, 32, key, kv)). 
   forward.
 
@@ -179,6 +164,6 @@ Proof.
   }
   rewrite memory_block_isptr. Intros.
   unfold_data_at 1%nat.
-  forward. forward. Exists 0. simpl. entailer!. 
-  Exists vret. unfold_data_at 1%nat. entailer!. 
-Admitted. (*needs insertion of field assignment in code*) 
+  forward. forward. forward. Exists 0. simpl. entailer!. 
+  Exists vret. unfold_data_at 1%nat. entailer!.
+Qed. 
