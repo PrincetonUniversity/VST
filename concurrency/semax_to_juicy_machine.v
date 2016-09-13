@@ -298,24 +298,23 @@ Proof.
   intros H _ i cnti q E; destruct (H i cnti q E).
 Qed.
 
-(*
-(* TODO remove this (redundant with following) *)
-Lemma no_Krun_age tp n :
-  no_Krun tp -> no_Krun (age_tp_to n tp).
+Lemma containsThread_age_tp_to_eq tp n :
+  containsThread (age_tp_to n tp) = containsThread tp.
 Proof.
-  intros N i cnti q.
-  unshelve erewrite <-gtc_age; eauto.
-  eapply cnt_age; eauto.
+  destruct tp; reflexivity.
 Qed.
-*)
 
 Lemma no_Krun_age_tp_to n tp :
-  no_Krun (age_tp_to n tp) <-> no_Krun tp.
-Admitted.
+  no_Krun (age_tp_to n tp) = no_Krun tp.
+Proof.
+  destruct tp; reflexivity.
+Qed.
 
 Lemma unique_Krun_age_tp_to n tp sch :
   unique_Krun (age_tp_to n tp) sch <-> unique_Krun tp sch.
-Admitted.
+Proof.
+  destruct tp; reflexivity.
+Qed.
 
 Lemma no_Krun_stable tp i cnti c' phi' :
   (forall q, c' <> Krun q) ->
@@ -3480,7 +3479,6 @@ Section Simulation.
               rewrite isSome_option_map.
               intros is; specialize (lj is).
               destruct lj as (sh' & psh' & P & E).
-              (* I could have a lemma just for this YES, but maybe I should use the lemma [age_to_resource_at] that I admitted above. I'll do that for now. *)
               rewrite age_to_resource_at.
               rewrite E. simpl. eauto.
             + intros _. subst loc.
@@ -3801,7 +3799,7 @@ Section Simulation.
           (* unfold tp_ in *. *)
           unfold tp_.
           Unset Printing Implicit.
-          apply no_Krun_age_tp_to.
+          rewrite no_Krun_age_tp_to.
           apply no_Krun_updLockSet.
           apply no_Krun_stable. congruence.
           eapply unique_Krun_no_Krun. eassumption.

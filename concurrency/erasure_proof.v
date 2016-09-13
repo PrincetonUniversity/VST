@@ -485,6 +485,46 @@ Module Parching <: ErasureSig.
       - simpl; eapply mtch_locksRes; eassumption.
     Qed.
 
+    Lemma match_st_age_tp_to tp n ds :
+      match_st tp ds -> match_st (JSEM.age_tp_to n tp) ds.
+    Proof.
+      intros M.
+      inversion M as [? ? A B C D E F G]; subst.
+      constructor; intros.
+      - now apply A; (eapply cnt_age; eauto).
+      - now erewrite <-cnt_age; eauto.
+      - now erewrite <-gtc_age; eauto.
+      - erewrite <-D.
+        erewrite <-getThreadR_age; eauto.
+        erewrite JSEM.perm_of_age.
+        reflexivity.
+      - erewrite <-E.
+        apply LockRes_age.
+      - unshelve eapply F with (lock := lock); auto.
+        unfold JSEM.ThreadPool.lockRes in *.
+        unfold JSEM.ThreadPool.lockGuts in *.
+        Require Import concurrency.sync_preds.
+        rewrite lset_age_tp_to in H.
+        rewrite AMap_find_map_option_map in H.
+        unfold juicy_machine.LocksAndResources.lock_info in *.
+        destruct (AMap.find (elt:=option rmap) lock (JSEM.ThreadPool.lset tp))
+          as [[o|]|]; simpl in *; congruence.
+        unfold JSEM.ThreadPool.lockRes in *.
+        unfold juicy_machine.LocksAndResources.lock_info in *.
+      - specialize (G lock).
+        unfold JSEM.ThreadPool.lockRes in *.
+        unfold JSEM.ThreadPool.lockGuts in *.
+        rewrite lset_age_tp_to in H.
+        rewrite AMap_find_map_option_map in H.
+        destruct (AMap.find (elt:=option rmap) lock (JSEM.ThreadPool.lset tp))
+          as [[o|]|]; simpl in *; try congruence.
+        specialize (G o dres Logic.eq_refl ltac:(assumption)).
+        rewrite <-G.
+        injection H as <-.
+        apply JSEM.perm_of_age.
+        (* again aging lset. *)
+        Unshelve. auto. auto.
+    Qed.
     
     Definition match_rmap_perm (rmap : rmap) (pmap: access_map): Prop:=
       forall b ofs, perm_of_res (rmap @ (b, ofs)) = pmap !! b ofs.
@@ -1166,30 +1206,6 @@ Module Parching <: ErasureSig.
           }
       }
     - unfold ds''.
-      Lemma match_st_age_tp_to tp n ds :
-        match_st tp ds -> match_st (JSEM.age_tp_to n tp) ds.
-      Proof.
-        intros M.
-        inversion M as [? ? A B C D E F G]; subst.
-        constructor; intros.
-        - now apply A; (eapply cnt_age; eauto).
-        - now erewrite <-cnt_age; eauto.
-        - now erewrite <-gtc_age; eauto.
-        - erewrite <-D.
-          Set Printing Implicit.
-          erewrite <-getThreadR_age; eauto.
-          erewrite JSEM.perm_of_age.
-          reflexivity.
-        - erewrite <-E.
-          apply LockRes_age.
-        - eapply F with (lock := lock); auto.
-          unfold JSEM.ThreadPool.lockRes in *.
-          unfold JSEM.ThreadPool.lockGuts in *.
-          (* lacking lemmas about aging lset *)
-          now admit.
-        - (* again aging lset. *)
-          admit.
-      Admitted.
       apply match_st_age_tp_to.
         apply MTCH_updLockN.
         unfold ds'.
@@ -3059,17 +3075,14 @@ Module Parching <: ErasureSig.
            inversion MATCH. erewrite <- mtch_gtc0; eassumption.
          }
          {
-           admit.
-(*
-           apply MTCH_age.
            apply MTCH_update.
+           apply MTCH_age.
            assumption.
            intros.
            assert (HH:= juicy_mem_access jm').
            rewrite <- HH.
            rewrite getCurPerm_correct.
            reflexivity.
-*)
          }
          {  assert (Hcmpt': DSEM.mem_compatible ds m) by
                (eapply MTCH_compat; eassumption).
@@ -3139,8 +3152,8 @@ Module Parching <: ErasureSig.
        Grab Existential Variables.
        - simpl. apply mtch_cnt. assumption.
        - assumption.
-       - simpl. admit. eapply MTCH_cnt ; eauto.
-Admitted.
+       - simpl. eapply MTCH_cnt ; eauto.
+Qed.
   
   Lemma core_diagram:
     forall (m : Mem.mem)  (U0 U U': schedule) rmap pmap 

@@ -49,9 +49,9 @@ Require Import concurrency.fineConc_safe.
 
 
 (** *Compiler simulation*)
-Require Import lifting.
+Require Import concurrency.lifting.
 
-(** *Terget machine*)
+(** *Target machine*)
 Require Import concurrency.x86_context.
 
 
