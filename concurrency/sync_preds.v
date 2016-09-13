@@ -995,6 +995,15 @@ Proof.
   apply isSome_find_map.
 Qed.
 
+Lemma lockSet_age_to n tp :
+  lockSet (age_tp_to n tp) = lockSet tp.
+Proof.
+  destruct tp as [num thds phis lset].
+  unfold lockSet in *.
+  simpl.
+  
+Admitted.  
+
 Lemma juicyLocks_in_lockSet_age n tp phi :
   juicyLocks_in_lockSet (lset tp) phi ->
   juicyLocks_in_lockSet (lset (age_tp_to n tp)) (age_to n phi).
