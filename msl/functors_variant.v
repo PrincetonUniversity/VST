@@ -342,6 +342,21 @@ Definition Fpair: functor.
   extensionality p; destruct p as [a1 a2]; simpl; auto.
 Defined.
 
+Definition Fchoice: functor.
+  refine (@Functor
+   (fun T1 T2 => sum T1 T2)
+   (fun _ _ _ _ f1 f2 x =>
+      match x with
+      | inl x => inl (f1 x)
+      | inr x => inr (f2 x)
+      end) _).
+  constructor; intros; simpl.
+  + extensionality c.
+    destruct c; auto.
+  + extensionality c.
+    destruct c; unfold compose; simpl; auto.
+Defined.
+
 End CovariantBiFunctorGenerator.
 
 Module CoContraVariantBiFunctorGenerator.
@@ -390,6 +405,12 @@ Definition fpair (F1 F2: functor): functor :=
 Goal forall (F1 F2: functor) (T: Type), fpair F1 F2 T = prod (F1 T) (F2 T).
 reflexivity.
 Qed.
+
+Definition fchoice (F1 F2: functor): functor :=
+  GeneralFunctorGenerator.CovariantBiFunctor_CovariantFunctor_compose
+  CovariantBiFunctorGenerator.Fchoice
+  F1
+  F2.
 
 Definition foption (F: functor): functor :=
   GeneralFunctorGenerator.CovariantFunctor_CovariantFunctor_compose
@@ -484,6 +505,12 @@ Definition fpair (F1 F2: functor): functor :=
   F1
   F2.
 
+Definition fchoice (F1 F2: functor): functor :=
+  GeneralFunctorGenerator.CovariantBiFunctor_MixVariantFunctor_compose
+  CovariantBiFunctorGenerator.Fchoice
+  F1
+  F2.
+
 Definition foption (F: functor): functor :=
   GeneralFunctorGenerator.CovariantFunctor_MixVariantFunctor_compose
   CovariantFunctorGenerator.Foption
@@ -494,6 +521,17 @@ Definition ffunc (F1 F2: functor): functor :=
   CoContraVariantBiFunctorGenerator.Ffunc
   F2
   F1.
+
+Definition fsig {I: Type} (F: I -> functor): functor.
+  refine (@Functor
+   (fun T => @sigT I (fun i => F i T))
+   (fun _ _ f g x => match x with existT _ i x0 => existT _ i (fmap (F i) f g x0) end) _).
+  constructor; intros; simpl.
+  + extensionality p; destruct p as [i a]; simpl.
+    rewrite !fmap_id; auto.
+  + extensionality p; destruct p as [i a]; simpl.
+    unfold compose at 1. rewrite !fmap_app; auto.
+Defined.
 
 End MixVariantFunctorGenerator.
 
