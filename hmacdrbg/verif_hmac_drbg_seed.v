@@ -18,19 +18,6 @@ Require Import hmacdrbg.spec_hmac_drbg.
 Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
 Require Import hmacdrbg.spec_hmac_drbg_pure_lemmas.
 
-(*TEMPORARRY FIX TO DEAL WITH NAME SPACES*)
-Axiom FINALNAME:_HMAC_Final = hmac._HMAC_Final. 
-Axiom UPDATENAME:_HMAC_Update = hmac._HMAC_Update. 
-Axiom INITNAME: _HMAC_Init = hmac._HMAC_Init. 
-Axiom CTX_Struct: Tstruct hmac_drbg._hmac_ctx_st noattr = spec_hmac.t_struct_hmac_ctx_st.
-
-(*
-Inductive md_any (r: mdstate): mpred :=
-  md_any_empty: md_empty r -> md_any r.
-| md_any_rep: forall h r, md_relate h r -> md_any r
-| md_any_full: forall k r, md_full k r -> md_any r.
-*)
-
 Lemma ReseedRes: forall X r v, @return_value_relate_result X r (Vint v) -> Int.eq v (Int.repr (-20864)) = false.
 Proof. intros.
   unfold return_value_relate_result in H.
@@ -145,7 +132,7 @@ Proof.
   forward.
   forward_if (
      PROP (v=0)
-   LOCAL (temp _ret (Vint (Int.repr v)); temp 235%positive (Vint (Int.repr v));
+   LOCAL (temp _ret (Vint (Int.repr v)); temp _t'2 (Vint (Int.repr v));
    temp _ctx (Vptr b i); temp _md_info info; temp _len (Vint (Int.repr len));
    temp _custom data; gvar sha._K256 kv)
    SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr))p && 
@@ -220,7 +207,7 @@ Proof.
   (PROP ( )
    LOCAL (temp _md_size (Vint (Int.repr 32)); temp _ctx (Vptr b i); temp _md_info info;
    temp _len (Vint (Int.repr (Zlength Data))); temp _custom data; gvar sha._K256 kv;
-   temp 237%positive (Vint (Int.repr 32)))
+   temp _t'4 (Vint (Int.repr 32)))
    SEP (FRZL ALLSEP)).
   { forward. entailer. }
   { forward_if 
@@ -228,7 +215,7 @@ Proof.
       LOCAL (temp _md_size (Vint (Int.repr 32)); 
              temp _ctx (Vptr b i); temp _md_info info;
              temp _len (Vint (Int.repr (Zlength Data))); temp _custom data; gvar sha._K256 kv;
-             temp 237%positive (Vint (Int.repr 32)))  
+             temp _t'4 (Vint (Int.repr 32)))  
       SEP (FRZL ALLSEP)).
     { forward. forward. entailer. }
     { forward. forward. entailer. }
@@ -242,7 +229,7 @@ Proof.
       { apply andp_left2. cancel. }
     }
   }
-  forward. simpl. drop_LOCAL 7%nat. (*237%positive*) 
+  forward. simpl. drop_LOCAL 7%nat. (*_t'4*) 
 
   (*NEXT INSTRUCTION:  ctx->entropy_len = entropy_len * 3 / 2*)
   thaw ALLSEP. thaw FIELDS2. forward.
@@ -301,7 +288,7 @@ Proof.
   forward. 
   forward_if (
    PROP ( v = nullval)
-   LOCAL (temp _ret v; temp 240%positive v;
+   LOCAL (temp _ret v; temp _t'7 v;
    temp _entropy_len (Vint (Int.repr 32));
    temp _md_size (Vint (Int.repr 32)); temp _ctx (Vptr b i);
    temp _md_info info;

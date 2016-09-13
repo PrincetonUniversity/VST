@@ -109,13 +109,13 @@ Module ErasureFnctr (PC:ErasureSig).
   Module SEM:=PC.SEM.
   Import PC SEM DryMachine.SCH.
 
-  (*Parameter halt_inv: SM_Injection ->
+  (* remove all of this Parameter halt_inv: SM_Injection ->
                       G -> Values.val -> M ->
                       G -> Values.val -> M -> Prop.
-  Parameter init_inv: Values.Val.meminj ->
+  remove all of thisParameter init_inv: Values.Val.meminj ->
                       G ->  list Values.val -> M ->
                       G ->  list Values.val -> M ->  Prop.*)
-  (*Erasure is about drying memory. So the invariants are trivial. *)
+  (*remove all of this Erasure is about drying memory. So the invariants are trivial. *)
     Inductive init_inv:  Values.Val.meminj ->
                        G -> list Values.val -> mem ->
                        G -> list Values.val -> mem -> Prop:=
@@ -150,15 +150,17 @@ Module ErasureFnctr (PC:ErasureSig).
   
   
   Lemma core_ord_wf:  well_founded core_ord.
-      Proof. constructor; intros y H; inversion H. Qed.
-      Theorem erasure: forall U rmap pmap,
-          PC.match_rmap_perm rmap pmap ->
-          Wholeprog_sim.Wholeprog_sim
-            (JMachineSem U (Some rmap)) (DMachineSem U (Some pmap))
-            PC.genv PC.genv
-            PC.main
-            ge_inv init_inv halt_inv.
-  Proof. intros U rmap pmap init_OK.
+  Proof. constructor; intros y H; inversion H. Qed.
+  
+  Theorem erasure: forall U rmap pmap,
+      PC.match_rmap_perm rmap pmap ->
+      Wholeprog_sim.Wholeprog_sim
+        (JMachineSem U (Some rmap)) (DMachineSem U (Some pmap))
+        PC.genv PC.genv
+        PC.main
+        ge_inv init_inv halt_inv.
+  Proof.
+    intros U rmap pmap init_OK.
     apply (Wholeprog_sim.Build_Wholeprog_sim
              (JMachineSem U (Some rmap)) (DMachineSem U (Some pmap))
              PC.genv PC.genv

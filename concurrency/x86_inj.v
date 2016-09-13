@@ -54,9 +54,7 @@ Module X86WD.
       end.
 
     Definition ge_wd (the_ge: genv) : Prop :=
-      (forall b, Maps.PTree.get b (genv_funs the_ge) ->
-            f b) /\
-      (forall b, Maps.PTree.get b (genv_vars the_ge) ->
+      (forall b, Maps.PTree.get b (genv_defs the_ge) ->
             f b) /\
       (forall id ofs v, Senv.symbol_address the_ge id ofs = v ->
                    valid_val f v).
@@ -129,7 +127,7 @@ Module X86WD.
   Lemma decode_longs_valid_val:
     forall f vals tys,
       valid_val_list f vals ->
-      valid_val_list f (decode_longs tys vals).
+      valid_val_list f (val_casted.decode_longs tys vals).
   Proof.
     intros.
     generalize dependent vals.
@@ -215,10 +213,10 @@ Module X86WD.
       valid_val f (symbol_address g id i).
   Proof with eauto with wd.
     intros.
-    destruct Hge_wd as (H1 & H2 & H3).
+    destruct Hge_wd as (H1 & H2).
     unfold symbol_address, Senv.symbol_address in *;
       simpl in *.
-    specialize (H3 id i _ ltac:(reflexivity)).
+    specialize (H2 id i _ ltac:(reflexivity)).
     destruct (find_symbol g id); auto.
     eapply valid_val_incr; eauto.      
   Qed.
@@ -255,8 +253,7 @@ Module X86WD.
     destruct const; simpl; auto.
     destruct p.
     destruct H0.
-    destruct H2.
-    specialize (H3 i i0 _ ltac:(reflexivity)).
+    specialize (H2 i i0 _ ltac:(reflexivity)).
     unfold symbol_address, Senv.symbol_address in *. simpl in *.
     eapply valid_val_incr; eauto.
   Qed.
@@ -374,7 +371,8 @@ Module X86Inj <: CoreInjections X86SEM.
   Lemma decode_longs_val_obs_list:
     forall f (vals vals' : seq val) tys
       (Hobs_eq: val_obs_list f vals vals'),
-      val_obs_list f (decode_longs tys vals) (decode_longs tys vals').
+      val_obs_list f (val_casted.decode_longs tys vals)
+                   (val_casted.decode_longs tys vals').
   Proof.
     intros.
     generalize dependent vals.
@@ -397,9 +395,10 @@ Module X86Inj <: CoreInjections X86SEM.
       constructor; try constructor; auto.
   Qed.
 
-  Lemma set_regs_empty_1:
+  (*
+  Lemma set_res_empty_1:
     forall regs rs,
-      set_regs regs [::] rs = rs.
+      set_res regs [::] rs = rs.
   Proof.
     intros;
     induction regs; by reflexivity.
@@ -433,7 +432,7 @@ Module X86Inj <: CoreInjections X86SEM.
     rewrite set_regs_empty_1.
     rewrite Pregmap.gsspec.
     rewrite Coqlib2.if_false; auto.
-  Qed.
+  Qed. *)
 
   Lemma get_reg_renC:
     forall f r rs rs',
@@ -612,8 +611,6 @@ Module X86Inj <: CoreInjections X86SEM.
       by auto.
   Qed.
 
-
-  
   Hint Resolve
        loader_ren_incr loader_ren_id loader_ren_trans
        val_obs_reg regset_ren_set : reg_renamings.
@@ -631,10 +628,10 @@ Module X86Inj <: CoreInjections X86SEM.
       val_obs f (symbol_address g id i) (symbol_address g id i).
   Proof with eauto with ge_renamings renamings val_renamings.
     intros.
-    destruct Hge_wd as (H1 & H2 & H3).
+    destruct Hge_wd as (H1 & H2).
     unfold symbol_address, Senv.symbol_address in *;
       simpl in *.
-    specialize (H3 id i _ ltac:(reflexivity)).
+    specialize (H2 id i _ ltac:(reflexivity)).
     destruct (find_symbol g id)...
   Qed.
   
@@ -662,7 +659,7 @@ Module X86Inj <: CoreInjections X86SEM.
   Proof with (eauto with renamings val_renamings).
     intros.
     unfold ge_wd in *.
-    destruct H as (? & ? & ?);
+    destruct H as (? & ?);
       repeat split;
       intros...
   Qed.
@@ -674,7 +671,7 @@ Module X86Inj <: CoreInjections X86SEM.
     intros.
     unfold ge_wd in *.
     unfold domain_memren in *.
-    destruct H as (Hf & Hv & Hs);
+    destruct H as (Hf & Hv);
       repeat split;
       intros;
       try destruct (H0 b), (H1 b);
@@ -760,7 +757,6 @@ Module X86Inj <: CoreInjections X86SEM.
     destruct v; simpl; auto.
   Qed.
   
-  
   Lemma after_external_wd :
     forall (c c' : state) (f : memren) (ef : external_function)
       (sig : signature) (args : seq val) (ov : option val)
@@ -791,77 +787,18 @@ Module X86Inj <: CoreInjections X86SEM.
       simpl; first by auto.
       (* it's easier to do the case analysis than try to write a lemma
     for set_regs (are the registers unique and more similar problems)*)
-      destruct (loc_external_result (ef_sig ef)) as [|r' regs].
-      rewrite set_regs_empty_2;
-        first by eauto.
+      destruct (loc_external_result (ef_sig ef)) as [|r' regs];
+      simpl;
+      eapply valid_val_reg_set; eauto.
+      eapply valid_val_loword; auto.
+      eapply regset_wd_set; eauto.
+      eapply valid_val_hiword; auto.
       simpl.
-      destruct (sig_res (ef_sig ef)) as [ty|];
-        try destruct ty;
+      split.
+      destruct (loc_external_result (ef_sig ef)) as [|r' regs];
         simpl;
-        try rewrite set_regs_empty_1;
-        try rewrite Pregmap.gsspec;
-        try (destruct (Pregmap.elt_eq r r'); subst; eauto);
-        destruct regs as [|r'' regs''];
-        simpl;
-        try (rewrite Pregmap.gsspec);
-        repeat match goal with
-               | [|- context[match Pregmap.elt_eq ?X ?X with _ => _ end]] =>
-                 rewrite Coqlib2.if_true; auto
-               | [H: ?X <> ?Y|- context[match Pregmap.elt_eq ?X ?Y with _ => _ end]] =>
-                 rewrite Coqlib2.if_false; auto
-               | [|- valid_val _ (Val.hiword _)] =>
-                 eapply valid_val_hiword
-               | [|- context[set_regs _ [::] _]] =>
-                 rewrite set_regs_empty_1
-               end; eauto;
-        do 2 rewrite Pregmap.gsspec;
-        repeat match goal with
-               | [|- context[match ?Expr with _ => _ end]] =>
-                 destruct Expr; subst; eauto
-               | [|- valid_val _ (Val.loword _)] =>
-                 eapply valid_val_loword
-               | [|- valid_val _ (Val.hiword _)] =>
-                 eapply valid_val_hiword
-               end; eauto.
-    - split; auto.
-      intros r.
-      unfold regset_wd, Pregmap.get in Hrs_wd.
-      assert (Hr := Hrs_wd r).
-      rewrite Pregmap.gsspec.
-      destruct (Pregmap.elt_eq r PC); subst;
-      simpl; first by auto.
-      destruct (loc_external_result (ef_sig ef)) as [|r' regs].
-      rewrite set_regs_empty_2;
-        first by eauto.
-      simpl.
-      destruct (sig_res (ef_sig ef)) as [ty|];
-        try destruct ty;
-        simpl;
-        try rewrite set_regs_empty_1;
-        try rewrite Pregmap.gsspec;
-        try (destruct (Pregmap.elt_eq r r'); subst; eauto);
-        destruct regs as [|r'' regs''];
-        simpl;
-        try (rewrite Pregmap.gsspec);
-        repeat match goal with
-               | [|- context[match Pregmap.elt_eq ?X ?X with _ => _ end]] =>
-                 rewrite Coqlib2.if_true; auto
-               | [H: ?X <> ?Y|- context[match Pregmap.elt_eq ?X ?Y with _ => _ end]] =>
-                 rewrite Coqlib2.if_false; auto
-               | [|- valid_val _ (Val.hiword _)] =>
-                 eapply valid_val_hiword
-               | [|- context[set_regs _ [::] _]] =>
-                 rewrite set_regs_empty_1
-               end; eauto;
-        do 2 rewrite Pregmap.gsspec;
-        repeat match goal with
-               | [|- context[match ?Expr with _ => _ end]] =>
-                 destruct Expr; subst; eauto
-               | [|- valid_val _ (Val.loword _)] =>
-                 eapply valid_val_loword
-               | [|- valid_val _ (Val.hiword _)] =>
-                 eapply valid_val_hiword
-               end; eauto.
+        repeat (eapply regset_wd_set; eauto).
+      assumption.
   Qed.
   
   Lemma initial_core_wd :
@@ -883,8 +820,10 @@ Module X86Inj <: CoreInjections X86SEM.
     destruct H2.
     inversion H; subst.
     split.
-    unfold find_funct_ptr in Heqo;
-      by specialize ((proj1 H1) b ltac:(rewrite Heqo; auto)).
+    unfold find_funct_ptr in Heqo.
+    destruct (find_def the_ge b) as[[|]|] eqn:Hg; try discriminate.
+    unfold find_def in Hg.
+      by specialize ((proj1 H1) b ltac:(rewrite Hg; auto)).
     constructor;
       by [auto | constructor].
   Qed.
@@ -963,12 +902,10 @@ Module X86Inj <: CoreInjections X86SEM.
               forall v v',
                 val_obs f v v' ->
                 regset_ren f
-                           (set_regs (loc_external_result (ef_sig f1))
-                                     (encode_long (sig_res (ef_sig f1)) v) rs) # PC <- 
-                           (rs RA)
-                           (set_regs (loc_external_result (ef_sig f1))
-                                     (encode_long (sig_res (ef_sig f1)) v') rs0) # PC <-
-                           (rs0 RA)).
+                           ((set_pair (loc_external_result (ef_sig f1)) v rs)
+                           # PC <- (rs RA))
+                           ((set_pair (loc_external_result (ef_sig f1)) v' rs0)
+                              # PC <- (rs0 RA))).
     { intros.
       intros r.
       unfold regset_ren, reg_ren in *.
@@ -976,40 +913,8 @@ Module X86Inj <: CoreInjections X86SEM.
       destruct (Pregmap.elt_eq r PC); subst;
       simpl;
       first by eauto.
-      (* it's easier to do the case analysis than try to write a lemma
-    for set_regs (are the registers unique and more similar problems)*)
-      destruct (loc_external_result (ef_sig f1)) as [|r' regs].
-      do 2 rewrite set_regs_empty_2;
-        first by eauto.
-      unfold regset_ren, reg_ren in *.
-      destruct (sig_res (ef_sig f1)) as [ty|];
-        try destruct ty;
-        simpl;
-        try do 2 rewrite set_regs_empty_1;
-        try do 2 rewrite Pregmap.gsspec;
-        try (destruct (Pregmap.elt_eq r r'); subst; eauto);
-        destruct regs as [|r'' regs''];
-        simpl;
-        try (do 2 rewrite Pregmap.gsspec);
-        repeat match goal with
-               | [|- context[match Pregmap.elt_eq ?X ?X with _ => _ end]] =>
-                 rewrite Coqlib2.if_true; auto
-               | [H: ?X <> ?Y|- context[match Pregmap.elt_eq ?X ?Y with _ => _ end]] =>
-                 rewrite Coqlib2.if_false; auto
-               | [|- val_obs _ (Val.hiword _) (Val.hiword _)] =>
-                 eapply val_obs_hiword
-               | [|- context[set_regs _ [::] _]] =>
-                 rewrite set_regs_empty_1
-               end; eauto;
-        do 4 rewrite Pregmap.gsspec;
-        repeat match goal with
-               | [|- context[match ?Expr with _ => _ end]] =>
-                 destruct Expr; subst; eauto
-               | [|- val_obs _ (Val.loword _) (Val.loword _)] =>
-                 eapply val_obs_loword
-               | [|- val_obs _ (Val.hiword _) (Val.hiword _)] =>
-                 eapply val_obs_hiword
-               end; eauto.
+      destruct (loc_external_result (ef_sig f1)) as [|r' regs]; simpl;
+      repeat (eapply regset_ren_set; eauto with val_renamings).
     }
     simpl in Hafter_external.
     inversion Hafter_external.
@@ -1068,27 +973,8 @@ Module X86Inj <: CoreInjections X86SEM.
            rewrite Heqo);
       eauto;
       simpl in Heql0.
-    destruct (rs EDX) eqn:?; simpl in *; inversion Heql0;
-    subst;
-    erewrite get_reg_renC with (r := EDX); eauto;
-    rewrite Heqv0; simpl;
-    try constructor.
-    erewrite get_reg_renC with (f := f) (rs := rs) (rs' := rs0); eauto.
-    destruct (rs EAX) eqn:Heax; subst;
-    simpl;
-    try constructor.
-    specialize (H EAX).
-    unfold Pregmap.get in *.
-    rewrite Heax in H. inversion H; subst.
-    rewrite H2;
-      by constructor.
-    specialize (H EDX).
-    unfold Pregmap.get in H.
-    rewrite Heqv0 in H.
-    inversion H; subst.
-    rewrite H2.
-    simpl;
-      by constructor.
+    inv Heql0;
+    eauto with val_renamings.
   Qed.
   
   Lemma core_inj_init :
@@ -1110,9 +996,10 @@ Module X86Inj <: CoreInjections X86SEM.
     inversion Hvf; subst.
     destruct (Int.eq_dec i Int.zero); subst; try discriminate.
     unfold Genv.find_funct_ptr in *.
-    destruct (Maps.PTree.get b (genv_funs the_ge)) eqn:Hget; try discriminate.
+    destruct (find_def the_ge b) as [[|]|] eqn:Hget; try discriminate.
     destruct f0; try discriminate.
-    destruct Hge_wd as (Hge_wd1 & Hge_wd2 & Hge_wd3).
+    destruct Hge_wd as (Hge_wd1 & Hge_wd2).
+    unfold find_def in *.
     specialize (Hge_wd1 b ltac:(rewrite Hget; eauto)).
     assert (Hfg_b: b = b2).
     { destruct (fg b) eqn:Hfg'.
@@ -1203,8 +1090,10 @@ Module X86Inj <: CoreInjections X86SEM.
   Proof.
     intros.
     unfold Genv.find_funct_ptr in *.
+    destruct (find_def g b1) as [[|]|] eqn:Hfind; try discriminate.
     destruct Hge_wd.
-    specialize (H b1 ltac:(rewrite Hget; auto)).
+    unfold find_def in *.
+    specialize (H b1 ltac:(rewrite Hfind; auto)).
     destruct (fg b1) eqn:Hfg'; try by exfalso.
     assert (Heq := Hfg _ _ Hfg'); subst b.
     inversion Hobs_eq; subst.
@@ -1221,11 +1110,11 @@ Module X86Inj <: CoreInjections X86SEM.
       val_obs f (Senv.symbol_address g id ofs) (Senv.symbol_address g id ofs).
   Proof with eauto with renamings.
     intros.
-    destruct Hge_wd as (? & ? & ?).
+    destruct Hge_wd as (? & ?).
     unfold Senv.symbol_address in *.
-    specialize (H1 id ofs _ ltac:(reflexivity)).
+    specialize (H0 id ofs _ ltac:(reflexivity)).
     destruct (Senv.find_symbol g id) eqn:Hsymb; constructor.
-    destruct H1 as [b' Hfg'].
+    destruct H0 as [b' Hfg'].
     assert (Heq := Hfg _ _ Hfg'); subst...
   Qed.
   
@@ -1286,23 +1175,7 @@ Module X86Inj <: CoreInjections X86SEM.
     exists (varg' :: vargs');
       split; econstructor; eauto.
   Qed.
-
-  Lemma eventval_valid_ge:
-    forall fg g ev chunk v
-      (Hge_wd: ge_wd fg g)
-      (Hevent_val: eventval_match g ev (type_of_chunk chunk) v),
-      valid_val fg v.
-  Proof with eauto with renamings val_renamings.
-    intros.
-    inversion Hevent_val; subst; try rewrite H1;
-    try by (eexists; split)...
-    destruct Hge_wd as (? & ? &?).
-    unfold Senv.symbol_address in H4.
-    specialize (H4 id ofs _ ltac:(reflexivity)).
-    rewrite H2 in H4.
-    assumption.
-  Qed.
-
+  
   Lemma block_is_volatile_ren:
     forall g fg f b1 b2
       (Hfg: forall b1 b2 : block, fg b1 = Some b2 -> b1 = b2)
@@ -1315,20 +1188,26 @@ Module X86Inj <: CoreInjections X86SEM.
       Senv.block_is_volatile g b2 = false.
   Proof.
     intros.
-    destruct Hge_wd as (H1 & H2 & H3).
+    destruct Hge_wd as (H1 & H2).
     unfold Senv.block_is_volatile in *. simpl in *.
     unfold block_is_volatile, find_var_info in *.
-    destruct (Maps.PTree.get b1 (genv_vars g)) eqn:Hget.
-    specialize (H2 b1 ltac:(rewrite Hget; auto)).
+    destruct (find_def g b1) as [[|]|] eqn:Hfind; try discriminate;
+    unfold find_def in *.
+    specialize (H1 b1 ltac:(rewrite Hfind; auto)).
     destruct (fg b1) eqn:Hfg'; try by exfalso.
     assert (Heq:= Hfg _ _ Hfg'); subst b.
     apply Hincr in Hfg'.
     rewrite Hf in Hfg'; inversion Hfg';
-    subst.
-    rewrite Hget.
-    assumption.
-    destruct (Maps.PTree.get b2 (genv_vars g)) eqn:Hget2; auto.
-    specialize (H2 b2 ltac:(rewrite Hget2; auto)).
+    subst. rewrite Hfind. reflexivity.
+    unfold find_def in *.
+    specialize (H1 b1 ltac:(rewrite Hfind; auto)).
+    destruct (fg b1) eqn:Hfg'; try by exfalso.
+    assert (Heq:= Hfg _ _ Hfg'); subst b.
+    apply Hincr in Hfg'.
+    rewrite Hf in Hfg'; inversion Hfg';
+    subst. rewrite Hfind. assumption.
+    destruct (Maps.PTree.get b2 (genv_defs g)) as [[|]|] eqn:Hget2; auto.
+    specialize (H1 b2 ltac:(rewrite Hget2; auto)).
     destruct (fg b2) eqn:Hfg'; try by exfalso.
     assert (Heq:= Hfg _ _ Hfg'); subst b.
     apply Hincr in Hfg'.
@@ -1560,7 +1439,7 @@ Module X86Inj <: CoreInjections X86SEM.
         + erewrite <- val_at_alloc_1; eauto.
           erewrite <- val_at_alloc_1 with (m' := m2')
             by (eauto; eapply (codomain_valid (weak_obs_eq Hobs_eq)); eauto).
-          assert (Heq := permission_at_alloc_1 _ _ _ _ _ ofs Halloc v).
+          assert (Heq := permission_at_alloc_1 _ _ _ _ _ _ ofs Halloc v Cur).
           unfold permissions.permission_at in Heq.
           pose proof (val_obs_eq (strong_obs_eq Hobs_eq) _ ofs Hrenaming).
           unfold Mem.perm in *.
@@ -1927,6 +1806,31 @@ Module X86Inj <: CoreInjections X86SEM.
     econstructor; eauto.
   Qed.
 
+  Lemma extcall_arg_pair_ren:
+    forall f rs rs' m m' locs arg
+      (Hrs_ren: regset_ren f rs rs')
+      (Hobs_eq: mem_obs_eq f m m')
+      (Harg: extcall_arg_pair rs m locs arg),
+    exists arg',
+      extcall_arg_pair rs' m' locs arg' /\
+      val_obs f arg arg'.
+  Proof with eauto with reg_renamings val_renamings.
+    intros.
+    inversion Harg; subst.
+    eapply extcall_arg_reg in H; eauto.
+    destruct H as [arg' [Harg' Hobs_arg]].
+    exists arg'.
+    split...
+    constructor; auto.
+    eapply extcall_arg_reg in H; eauto.
+    eapply extcall_arg_reg in H0; eauto.
+    destruct H as [vhi' [Hhi' Hobs_hi]].
+    destruct H0 as [vlo' [Hlo' Hobs_lo]].
+    exists (Val.longofwords vhi' vlo').
+    split...
+    constructor; auto.
+  Qed.
+  
   Lemma extcall_arguments_ren:
     forall f m m' ef args rs rs'
       (Hexternal: extcall_arguments rs m (ef_sig ef) args)
@@ -1946,7 +1850,7 @@ Module X86Inj <: CoreInjections X86SEM.
         constructor.
     - inversion Hexternal; subst.
       destruct (IHargs _ H3) as [args' [Hls' Hobs']].
-      eapply extcall_arg_reg in H2; eauto.
+      eapply extcall_arg_pair_ren in H2; eauto.
       destruct H2 as [arg' [Harg Hval_obs]].
       exists (arg' :: args'); split;
       constructor; eauto.
@@ -2145,6 +2049,33 @@ Module X86Inj <: CoreInjections X86SEM.
     eapply loadv_wd in H0; eauto.
   Qed.
 
+
+  Lemma valid_val_longofwords:
+    forall f hi lo,
+      valid_val f hi ->
+      valid_val f lo ->
+      valid_val f (Val.longofwords hi lo).
+  Proof.
+    intros. unfold Val.longofwords.
+    destruct hi, lo; simpl; auto.
+  Qed.
+
+  Hint Resolve valid_val_longofwords : wd.
+  
+  Lemma extcall_arg_pair_valid:
+    forall f rs m locs arg
+      (Hrs_wd: regset_wd f rs)
+      (Hmem_wd : valid_mem m)
+      (Hobs_eq: domain_memren f m)
+      (Harg: extcall_arg_pair rs m locs arg),
+      valid_val f arg.
+  Proof with eauto with wd.
+    intros.
+    inversion Harg; subst;
+    eapply extcall_arg_valid in H; eauto.
+    eapply extcall_arg_valid in H0; eauto...
+  Qed.
+  
   Lemma extcall_arguments_valid:
     forall f m ef args rs
       (Hexternal: extcall_arguments rs m (ef_sig ef) args)
@@ -2158,7 +2089,7 @@ Module X86Inj <: CoreInjections X86SEM.
     generalize dependent (Conventions1.loc_arguments (ef_sig ef)).
     induction args; intros; constructor.
     inversion Hexternal; subst.
-    eapply extcall_arg_valid; eauto.
+    eapply extcall_arg_pair_valid; eauto.
     inversion Hexternal; subst.
     eauto.
   Qed.
@@ -2432,9 +2363,6 @@ Qed.
     
   
   (** Well-definedness of state is retained. *)
-  (* The case for internal steps is missing. It's probably the most
-interesting, but on the other hand all necessary lemmas, for store,
-alloc, etc. have been proved.*)
   Lemma corestep_wd:
     forall c m c' m' f fg the_ge
       (Hwd: core_wd f c)

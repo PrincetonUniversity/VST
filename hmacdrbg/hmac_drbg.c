@@ -33,7 +33,7 @@
 
 #include "hmac_drbg.h"
 
-#include <string.h>
+/*#include <string.h>*/
 
 #if defined(MBEDTLS_SELF_TEST)
 #include <stdio.h>
@@ -41,7 +41,7 @@
 #endif /* MBEDTLS_PLATFORM_C */
 
 #include <stdlib.h>
-#include "hmac.h"
+#include "../sha/hmac.c"
 
 struct mbedtls_md_info_t {
 	int dummy;
@@ -68,7 +68,7 @@ void test_md_get_size() {
 }
 
 int mbedtls_md_setup( mbedtls_md_context_t *ctx, const mbedtls_md_info_t *md_info, int hmac ) {
-    HMAC_CTX * sha_ctx = (HMAC_CTX *) malloc(sizeof(HMAC_CTX));
+  HMAC_CTX * sha_ctx = (HMAC_CTX *) malloc(sizeof(HMAC_CTX));
     if (sha_ctx == NULL) {
         return MBEDTLS_ERR_MD_ALLOC_FAILED;
     }
@@ -112,7 +112,7 @@ int get_entropy(unsigned char*, size_t);
 /* Implementation that should never be optimized out by the compiler */
 static void mbedtls_zeroize( void *v, size_t n ) {
 //    volatile unsigned char *p = v; while( n-- ) *p++ = 0;
-// TODO: wrie paragraph justifying elimination of "volatile"
+//LENB TODO: write paragraph justifying elimination of "volatile"
     unsigned char *p = v; while( n-- ) *p++ = 0;
 }
 

@@ -191,7 +191,7 @@ Proof.
     forward_if 
      (PROP ( n-k<>0)
       LOCAL (temp _n (Vint (Int.sub (Int.repr (n - k)) (Int.repr 1)));
-        temp 222%positive (Vint (Int.repr (n - k))); temp _p (offset_val k (Vptr b i)); 
+        temp _t'1 (Vint (Int.repr (n - k))); temp _p (offset_val k (Vptr b i)); 
         temp _v (Vptr b i))
       SEP (data_at_ Tsh (tarray tuchar (n - k)) (offset_val k (Vptr b i));
            data_at Tsh (tarray tuchar k) (list_repeat (Z.to_nat k) (Vint Int.zero)) (Vptr b i))).
@@ -199,8 +199,7 @@ Proof.
       entailer. apply prop_right. intros NN; rewrite NN in *. elim H1; trivial.
     - inv H. apply negb_false_iff in H1. apply int_eq_e in H1. rewrite H1.
       forward.
-      entailer. unfold data_block.
-      (*FLOYD: WHY DOES NORMALIZE HERE YIELD A NONSENSICAL GOAL (Vptr as additional argument to "!!" ???*) simpl.  
+      entailer. unfold data_block. normalize. simpl.
       apply andp_right. apply prop_right. apply Forall_list_repeat. split; omega. 
       assert (NK: n = k).
       { apply f_equal with (f:=Int.unsigned) in H1. unfold Int.zero in H1.
@@ -208,7 +207,26 @@ Proof.
       subst k. rewrite Zminus_diag, Zlength_list_repeat; try omega. 
       repeat rewrite general_lemmas.map_list_repeat. cancel.
       rewrite data_at__memory_block. normalize.
-    - forward. forward. admit. (*we don't seem to have proof rule for Sbuiltin EF_vstore*)
+    - unfold MORE_COMMANDS, abbreviate. forward. forward.
+      unfold offset_val; simpl.
+      replace_SEP 0  (data_at Tsh (tarray tuchar (n - k)) (list_repeat (Z.to_nat (n-k)) Vundef) (Vptr b (Int.add i (Int.repr k)))).
+      { entailer. }
+      admit. (*TODO erewrite (data_at_complete_split [Vundef] (list_repeat (Z.to_nat (n-k-1)) Vundef)); try reflexivity.
+      * normalize. unfold Zlength. simpl. freeze [1;2;3] FR6. unfold tarray, tuchar, tint in *.
+assert (Econst_int (Int.repr 0) tint = Ecast (Econst_int (Int.repr 0) tint) tuchar). admit.
+rewrite H0. forward.
+        admit.
+      * assert (ZZ: [Vundef] = list_repeat (Z.to_nat 1) Vundef) by reflexivity.
+        rewrite ZZ; repeat rewrite Zlength_list_repeat; try omega.
+        assert (QQ: 1 + (n - k - 1) = n-k) by omega. rewrite QQ; clear QQ ZZ.
+        destruct (@field_compatible_Tarray_split hmac_drbg_compspecs.CompSpecs tuchar k n (Vptr b i)) as [FC' _]. omega.
+        destruct (FC' FC) as [_ FFC]; clear FC'.
+        unfold field_address0 in FFC. rewrite if_true in FFC. 
+        2: auto with field_compatible.
+        simpl in FFC. rewrite Z.add_0_l, Z.mul_1_l in FFC. apply FFC. 
+      * rewrite Zlength_list_repeat. unfold Zlength; simpl. omega. omega.
+      * assert (ZZ: [Vundef] = list_repeat (Z.to_nat 1) Vundef) by reflexivity.
+        rewrite ZZ, list_repeat_app, <- Z2Nat.inj_add; try omega. f_equal. f_equal. omega. *)
   + forward. entailer.
 Admitted. (*Proof contains one admit, for the missing proof rule for volatile stores*)
 

@@ -71,6 +71,11 @@ Definition schedule := SCH.schedule.
 Import JuicyMachineLemmas.
 Import ThreadPool.
 
+Ltac cleanup :=
+  unfold lockRes in *;
+  unfold LocksAndResources.lock_info in *;
+  unfold lockGuts in *.
+
 (*+ Description of the invariant *)
 
 Definition cm_state := (Mem.mem * Clight.genv * (schedule * Machine.t))%type.
@@ -132,6 +137,17 @@ Definition lock_coherence (lset : AMap.t (option rmap)) (phi : rmap) (m : mem) :
 
 Definition far (ofs1 ofs2 : Z) := (Z.abs (ofs1 - ofs2) >= 4)%Z.
 
+Lemma far_range ofs ofs' z :
+  (0 <= z < 4)%Z ->
+  far ofs ofs' ->
+  ~(ofs <= ofs' + z < ofs + size_chunk Mint32)%Z.
+Proof.
+  unfold far; simpl.
+  intros H1 H2.
+  zify.
+  omega.
+Qed.
+
 Definition lock_sparsity {A} (lset : AMap.t A) : Prop :=
   forall loc1 loc2,
     AMap.find loc1 lset <> None ->
@@ -139,6 +155,48 @@ Definition lock_sparsity {A} (lset : AMap.t A) : Prop :=
     loc1 = loc2 \/
     fst loc1 <> fst loc2 \/
     (fst loc1 = fst loc2 /\ far (snd loc1) (snd loc2)).
+
+Lemma lock_sparsity_age_to tp n :
+  lock_sparsity (lset tp) -> 
+  lock_sparsity (lset (age_tp_to n tp)).
+Proof.
+  destruct tp as [A B C lset0]; simpl.
+  intros S l1 l2 E1 E2; apply (S l1 l2).
+  - rewrite AMap_find_map_option_map in E1.
+    cleanup.
+    destruct (AMap.find (elt:=option rmap) l1 lset0); congruence || tauto.
+  - rewrite AMap_find_map_option_map in E2.
+    cleanup.
+    destruct (AMap.find (elt:=option rmap) l2 lset0); congruence || tauto.
+Qed.
+
+Definition lset_same_support {A} (lset1 lset2 : AMap.t A) :=
+  forall loc,
+    AMap.find loc lset1 = None <->
+    AMap.find loc lset2 = None.
+
+Lemma sparsity_same_support {A} (lset1 lset2 : AMap.t A) :
+  lset_same_support lset1 lset2 ->
+  lock_sparsity lset1 ->
+  lock_sparsity lset2.
+Proof.
+  intros same sparse l1 l2.
+  specialize (sparse l1 l2).
+  rewrite <-(same l1).
+  rewrite <-(same l2).
+  auto.
+Qed.
+
+Lemma same_support_change_lock {A} (lset : AMap.t A) l x :
+  AMap.find l lset <> None ->
+  lset_same_support lset (AMap.add l x lset).
+Proof.
+  intros E l'.
+  rewrite AMap_find_add.
+  if_tac.
+  - split; congruence.
+  - tauto.
+Qed.
 
 (*! Joinability and coherence *)
 
@@ -191,18 +249,128 @@ Definition threads_safety {Z} (Jspec : juicy_ext_spec Z) m ge tp PHI (mcompat : 
     end.
 
 Definition threads_wellformed tp :=
-  forall i (cnti : Machine.containsThread tp i),
-    match Machine.getThreadC cnti with
+  forall i (cnti : containsThread tp i),
+    match getThreadC cnti with
     | Krun q => Logic.True
     | Kblocked q => cl_at_external q <> None
     | Kresume q v => cl_at_external q <> None /\ v = Vundef
     | Kinit _ _ => Logic.True
     end.
 
-Definition threads_unique_Krun tp sch :=
-  (lt 1 tp.(ThreadPool.num_threads).(pos.n) -> forall i cnti q,
-      @ThreadPool.getThreadC i tp cnti = Krun q ->
+Definition unique_Krun tp sch :=
+  (lt 1 tp.(num_threads).(pos.n) -> forall i cnti q,
+      @getThreadC i tp cnti = Krun q ->
       exists sch', sch = i :: sch').
+
+Definition no_Krun tp :=
+  forall i cnti q, @getThreadC i tp cnti <> Krun q.
+
+Lemma no_Krun_unique_Krun tp sch : no_Krun tp -> unique_Krun tp sch.
+Proof.
+  intros H _ i cnti q E; destruct (H i cnti q E).
+Qed.
+
+Lemma no_Krun_age tp n :
+  no_Krun tp -> no_Krun (age_tp_to n tp).
+Proof.
+  intros N i cnti q.
+  unshelve erewrite <-gtc_age; eauto.
+  eapply cnt_age; eauto.
+Qed.
+
+Lemma no_Krun_stable tp i cnti c' phi' :
+  (forall q, c' <> Krun q) ->
+  no_Krun tp ->
+  no_Krun (@updThread i tp cnti c' phi').
+Proof.
+  intros notkrun H j cntj q.
+  destruct (eq_dec i j).
+  - subst.
+    rewrite gssThreadCode.
+    apply notkrun.
+  - unshelve erewrite gsoThreadCode; auto.
+Qed.
+
+Lemma no_Krun_unique_Krun_updThread tp i sch cnti q phi' :
+  no_Krun tp ->
+  unique_Krun (@updThread i tp cnti (Krun q) phi') (i :: sch).
+Proof.
+  intros NO H j cntj q'.
+  destruct (eq_dec i j).
+  - subst.
+    rewrite gssThreadCode.
+    injection 1 as <-. eauto.
+  - Set Printing Implicit.
+    unshelve erewrite gsoThreadCode; auto.
+    intros E; specialize (NO _ _ _ E). destruct NO.
+Qed.
+
+Lemma no_Krun_updLockSet tp loc ophi :
+  no_Krun tp ->
+  no_Krun (updLockSet tp loc ophi).
+Proof.
+  intros N; apply N.
+Qed.
+
+Lemma ssr_leP_inv i n : is_true (ssrnat.leq i n) -> i <= n.
+Proof.
+  pose proof @ssrnat.leP i n as H.
+  intros E; rewrite E in H.
+  inversion H; auto.
+Qed.
+
+Lemma different_threads_means_several_threads i j tp
+      (cnti : containsThread tp i)
+      (cntj : containsThread tp j) :
+  i <> j -> 1 < pos.n (num_threads tp).
+Proof.
+  unfold containsThread in *.
+  simpl in *.
+  unfold tid in *.
+  destruct tp as [n].
+  simpl in *.
+  remember (pos.n n) as k; clear Heqk n.
+  apply ssr_leP_inv in cnti.
+  apply ssr_leP_inv in cntj.
+  omega.
+Qed.
+
+Lemma unique_Krun_no_Krun tp i sch cnti :
+  unique_Krun tp (i :: sch) ->
+  (forall q : code, @getThreadC i tp cnti <> Krun q) ->
+  no_Krun tp.
+Proof.
+  intros U N j cntj q E.
+  assert (i <> j). {
+    intros <-.
+    apply N with q.
+    exact_eq E; do 2 f_equal.
+    apply proof_irr.
+  }
+  unfold unique_Krun in *.
+  assert_specialize U.
+  now eapply (different_threads_means_several_threads i j); eauto.
+  specialize (U _ _ _ E). destruct U. congruence.
+Qed.
+
+Lemma unique_Krun_no_Krun_updThread tp i sch cnti c' phi' :
+  (forall q, c' <> Krun q) ->
+  unique_Krun tp (i :: sch) ->
+  no_Krun (@updThread i tp cnti c' phi').
+Proof.
+  intros notkrun uniq j cntj q.
+  destruct (eq_dec i j) as [<-|N].
+  - rewrite gssThreadCode.
+    apply notkrun.
+  - unshelve erewrite gsoThreadCode; auto.
+    unfold unique_Krun in *.
+    assert_specialize uniq.
+    now eapply (different_threads_means_several_threads i j); eauto.
+    intros E.
+    specialize (uniq _ _ _ E).
+    destruct uniq.
+    congruence.
+Qed.
 
 Definition matchfunspec (ge : genviron) Gamma : forall Phi, Prop :=
   (ALL b : block,
@@ -213,7 +381,7 @@ Definition matchfunspec (ge : genviron) Gamma : forall Phi, Prop :=
 
 Definition lock_coherence' tp PHI m (mcompat : mem_compatible_with tp m PHI) :=
   lock_coherence
-    (ThreadPool.lset tp) PHI
+    (lset tp) PHI
     (restrPermMap
        (mem_compatible_locks_ltwritable
           (mem_compatible_forget mcompat))).
@@ -228,7 +396,7 @@ Inductive state_invariant {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat) : cm_st
       (lock_coh : lock_coherence' tp PHI m mcompat)
       (safety : threads_safety Jspec m ge tp PHI mcompat n)
       (wellformed : threads_wellformed tp)
-      (uniqkrun :  threads_unique_Krun tp sch)
+      (uniqkrun :  unique_Krun tp sch)
     : state_invariant Jspec Gamma n (m, ge, (sch, tp)).
 
 Lemma mem_compatible_with_age {n tp m phi} :
@@ -903,9 +1071,8 @@ Proof.
     destruct Co1 as [In|Out].
     + exfalso (* because there is no lock at (b', ofs') *).
       specialize (LJ (b, Int.intval ofs)).
-      unfold lockRes in *.
-      unfold LocksAndResources.lock_info in *.
-      destruct (AMap.find (elt:=option rmap) (b, Int.intval ofs) (lockGuts tp)).
+      cleanup.
+      destruct (AMap.find (elt:=option rmap) (b, Int.intval ofs) (lset tp)).
       2:tauto.
       autospec LJ.
       destruct LJ as (sh1 & sh1' & pp & EPhi).
@@ -1136,7 +1303,7 @@ Section Simulation.
         (lock_coh : lock_coherence' tp Phi m compat)
         (safety : threads_safety Jspec m ge tp Phi compat (S n))
         (wellformed : threads_wellformed tp)
-        (unique : threads_unique_Krun tp (i :: sch))
+        (unique : unique_Krun tp (i :: sch))
         (cnti : containsThread tp i)
         (stepi : corestep (juicy_core_sem cl_core_sem) ge ci (personal_mem cnti (mem_compatible_forget compat)) ci' jmi')
         (safei' : forall ora : Z, jsafeN Jspec ge n ora ci' jmi')
@@ -1459,20 +1626,6 @@ Section Simulation.
     - (* lock coherence: own rmap has changed, but we prove it did not affect locks *)
       unfold tp''; simpl.
       unfold tp'; simpl.
-      
-      Lemma lock_sparsity_age_to tp n :
-        lock_sparsity (lset tp) -> 
-        lock_sparsity (lset (age_tp_to n tp)).
-      Proof.
-        destruct tp as [A B C lset0]; simpl.
-        intros S l1 l2 E1 E2; apply (S l1 l2).
-        - rewrite AMap_find_map_option_map in E1.
-          unfold LocksAndResources.lock_info in *.
-          destruct (AMap.find (elt:=option rmap) l1 lset0); congruence || tauto.
-        - rewrite AMap_find_map_option_map in E2.
-          unfold LocksAndResources.lock_info in *.
-          destruct (AMap.find (elt:=option rmap) l2 lset0); congruence || tauto.
-      Qed.
       apply lock_sparsity_age_to. auto.
     
     - (* lock coherence: own rmap has changed, but we prove it did not affect locks *)
@@ -2082,70 +2235,75 @@ Section Simulation.
               [ reflexivity (* schedPeek *)
               | reflexivity (* schedSkip *)
               | ].
-            eapply step_acqfail with (Hcompatible := mem_compatible_forget compat).
-            * constructor.
-            * apply Eci.
-            * simpl.
-              unfold SEM.Sem in *.
-              rewrite SEM.CLN_msem; simpl.
+            
+            (* factoring proofs out before the inversion/eapply *)
+            specialize (LKSPEC (b, Int.unsigned ofs)).
+            simpl in LKSPEC.
+            if_tac in LKSPEC; swap 1 2.
+            { destruct H.
+              unfold lock_size; simpl.
+              split. reflexivity. omega. }
+            if_tac in LKSPEC; [ | congruence ].
+            destruct LKSPEC as (p & E).
+            pose proof (resource_at_join _ _ _ (b, Int.unsigned ofs) Join) as J.
+            rewrite E in J.
+            
+            assert (Ename : name = "acquire"). {
+              simpl in *.
+              injection H_acquire as Ee.
+              apply ext_link_inj in Ee; auto.
+            }
+            
+            assert (Ez : z = LKSIZE). {
+              admit.
+            }
+            
+            assert (Ecall: Some (EF_external name sg, sig, args) =
+                           Some (LOCK, UNLOCK_SIG, Vptr b ofs :: nil)). {
               repeat f_equal.
-              -- simpl.
-                 simpl in H_acquire.
-                 injection H_acquire as Ee.
-                 apply ext_link_inj in Ee.
-                 auto.
-              -- (* inversion safei; subst. *)
-                 admit.
+              auto.
+              - admit.
+              - admit.
                  (* design decision:
                     - we can make 'safety' imply wellformedness of this signature
                     - or we can add wellformed as an hypothesis of the program *)
                  (* see with andrew: should safety require signatures
                  to be exactly something?  Maybe it should be in
                  ext_spec_type, it'd be easy, maybe. *)
-              -- admit (* another sig! *).
-              -- assert (L: length args = 1%nat) by admit.
-                 (* TODO discuss with andrew for where to add this requirement *)
-                 clear -PREB L.
-                 unfold expr.eval_id in PREB.
-                 unfold expr.force_val in PREB.
-                 match goal with H : context [Map.get ?a ?b] |- _ => destruct (Map.get a b) eqn:E end.
-                 subst v. 2: discriminate.
-                 pose  (gx := (filter_genv (symb2genv (Genv.genv_symb ge)))). fold gx in E.
-                 destruct args as [ | arg [ | ar args ]].
-                 ++ now inversion E.
-                 ++ inversion E. reflexivity.
-                 ++ inversion E. f_equal.
-                    inversion L.
-            * reflexivity.
-            * reflexivity.
-            * rewrite compatible_getThreadR_m_phi. (* todo is this transparent enough to be identity? *)
-              specialize (LKSPEC (b, Int.unsigned ofs)).
-              simpl in LKSPEC.
-              if_tac in LKSPEC; swap 1 2.
-              { destruct H.
-                unfold lock_size; simpl.
-                split. reflexivity. omega. }
-              if_tac in LKSPEC; [ | congruence ].
-              destruct LKSPEC as (p & E).
-              pose proof (resource_at_join _ _ _ (b, Int.unsigned ofs) Join) as J.
-              rewrite E in J.
-              {
-                inversion J; subst.
-                - symmetry.
-                  unfold Int.unsigned in *.
-                  rewrite <-H7.
-                  replace z with LKSIZE.
-                  unfold pack_res_inv.
-                  f_equal.
-                  + admit (* again z / LKSIZE *).
-                  + admit (* evar dependencies *).
-                  + f_equal. extensionality x. unfold "oo".
-                    reflexivity.
-                  + admit (* again z / LKSIZE *).
-                - (* same work as above *)
-                  admit.
-              }
-            * (* maybe we should write this in the invariant instead? *)
+              - assert (L: length args = 1%nat) by admit.
+                (* TODO discuss with andrew for where to add this requirement *)
+                clear -PREB L.
+                unfold expr.eval_id in PREB.
+                unfold expr.force_val in PREB.
+                match goal with H : context [Map.get ?a ?b] |- _ => destruct (Map.get a b) eqn:E end.
+                subst v. 2: discriminate.
+                pose  (gx := (filter_genv (symb2genv (Genv.genv_symb ge)))). fold gx in E.
+                destruct args as [ | arg [ | ar args ]].
+                + now inversion E.
+                + inversion E. reflexivity.
+                + inversion E. f_equal.
+                  inversion L.
+            }
+            
+            assert (Eae : at_external SEM.Sem (ExtCall (EF_external name sg) sig args lid ve te k) =
+                    Some (LOCK, ef_sig LOCK, Vptr b ofs :: nil)). {
+              simpl.
+              unfold SEM.Sem in *.
+              rewrite SEM.CLN_msem; simpl.
+              repeat f_equal; congruence.
+            }
+            
+            assert
+            (Hload :
+               Mem.load
+                 Mint32
+                 (@restrPermMap
+                    (lockSet tp) m
+                    (@mem_compatible_locks_ltwritable
+                       tp m (@mem_compatible_forget tp m Phi compat)))
+                 b (Int.intval ofs) =
+               @Some val (Vint Int.zero)).
+            {
               rewrite <-LOAD.
               unfold load_at.
               Transparent Mem.load.
@@ -2153,12 +2311,28 @@ Section Simulation.
               unfold restrPermMap at 5.
               simpl.
               if_tac; if_tac; try reflexivity.
-              -- exfalso; clear -H H0.
-                 unfold Int.unsigned in *.
-                 tauto.
-              -- exfalso; clear -H H0.
-                 unfold Int.unsigned in *.
-                 tauto.
+              all: exfalso; unfold Int.unsigned in *; tauto.
+            }
+            
+            inversion J; subst.
+            
+            * eapply step_acqfail with (Hcompatible := mem_compatible_forget compat)
+                                       (R := approx (level phi0) (Interp Rx)).
+              all: try solve [ constructor | eassumption | reflexivity ];
+                [ > idtac ].
+              simpl.
+              unfold Int.unsigned in *.
+              rewrite <-H7.
+              reflexivity.
+            
+            * eapply step_acqfail with (Hcompatible := mem_compatible_forget compat)
+                                       (R := approx (level phi0) (Interp Rx)).
+              all: try solve [ constructor | eassumption | reflexivity ];
+                [ > idtac ].
+              simpl.
+              unfold Int.unsigned in *.
+              rewrite <-H7.
+              reflexivity.
         
         - (* acquire succeeds *)
           destruct isl as [sh [psh [z Ewetv]]].
@@ -2172,7 +2346,6 @@ Section Simulation.
           destruct PREC as (b0 & ofs0 & EQ & LKSPEC).
           injection EQ as <- <-.
           
-          (* rewrite Eat in Ewetv. *)
           specialize (lk (b, Int.unsigned ofs)).
           rewrite jam_true in lk; swap 1 2.
           { hnf. unfold lock_size in *; split; auto; omega. }
@@ -2239,7 +2412,7 @@ Section Simulation.
           + (* taking the step *)
             apply state_step_c.
             apply JuicyMachine.sync_step
-            with (ev := (Events.acquire (b, Int.intval ofs)))
+            with (ev := (Events.acquire (b, Int.intval ofs) None))
                    (tid := i)
                    (Htid := cnti)
                    (Hcmpt := mem_compatible_forget compat)
@@ -2708,7 +2881,8 @@ Section Simulation.
         try solve [jmstep_inv; getThread_inv; congruence].
       
       simpl SCH.schedSkip in *.
-      right (* no aging *).
+      right (* TO BE CHANGED *).
+      (* left (* we need aging, because we're using the safety of the call *). *)
       match goal with |- _ _ _ (?M, _, (_, ?TP)) => set (tp_ := TP); set (m_ := M) end.
       pose (compat_ := mem_compatible_with tp_ m_ Phi).
       jmstep_inv.
@@ -2730,7 +2904,7 @@ Section Simulation.
             revert Hadd_lock_res J.
             generalize (getThreadR Htid) d_phi (m_phi jm').
             generalize (all_but i (maps (remLockSet tp (b, Int.intval ofs)))).
-            unfold LocksAndResources.res in *.
+            cleanup.
             clear.
             intros l a b c j h.
             rewrite Permutation.perm_swap in h.
@@ -2757,8 +2931,7 @@ Section Simulation.
               clear is.
               assert_specialize lw. {
                 clear lw.
-                unfold lockRes in *.
-                unfold LocksAndResources.lock_info in *.
+                cleanup.
                 rewrite His_unlocked.
                 reflexivity.
               }
@@ -2806,56 +2979,27 @@ Section Simulation.
             + apply lj. (* easy for other addresses *)
             + intros _.
               apply lj. subst loc.
-              unfold lockRes in *.
-              unfold LocksAndResources.lock_info in *.
+              cleanup.
               rewrite His_unlocked.
               reflexivity.
         }
         
-        apply state_invariant_c with (PHI := Phi) (mcompat := compat').
+        assert (compat'' : mem_compatible_with (age_tp_to n tp_) m_ (age_to n Phi)).
+        {
+          admit.
+        }
+        
+        apply state_invariant_c with (mcompat := compat').
         + (* level *)
           assumption.
         
         + (* matchfunspec *)
           auto.
         
-          Ltac cleanup :=
-            unfold lockRes in *;
-            unfold LocksAndResources.lock_info in *;
-            unfold lockGuts in *.
-        
         + (* lock sparsity *)
           unfold tp_ in *.
           simpl.
           cleanup.
-          Definition lset_same_support {A} (lset1 lset2 : AMap.t A) :=
-            forall loc,
-              AMap.find loc lset1 = None <->
-              AMap.find loc lset2 = None.
-          
-          Lemma sparsity_same_support {A} (lset1 lset2 : AMap.t A) :
-            lset_same_support lset1 lset2 ->
-            lock_sparsity lset1 ->
-            lock_sparsity lset2.
-          Proof.
-            intros same sparse l1 l2.
-            specialize (sparse l1 l2).
-            rewrite <-(same l1).
-            rewrite <-(same l2).
-            auto.
-          Qed.
-          
-          Lemma same_support_change_lock {A} (lset : AMap.t A) l x :
-            AMap.find l lset <> None ->
-            lset_same_support lset (AMap.add l x lset).
-          Proof.
-            intros E l'.
-            rewrite AMap_find_add.
-            if_tac.
-            - split; congruence.
-            - tauto.
-          Qed.
-          
           eapply sparsity_same_support with (lset tp); auto.
           apply same_support_change_lock.
           cleanup.
@@ -2872,9 +3016,7 @@ Section Simulation.
             { subst loc.
               split; swap 1 2.
               - (* the rmap is unchanged (but we lose the SAT information) *)
-                unfold lockRes in *.
-                unfold LocksAndResources.lock_info in *.
-                unfold lockGuts in *.
+                cleanup.
                 rewrite His_unlocked in lock_coh.
                 destruct lock_coh as (H & ? & ? & lk & _).
                 eauto.
@@ -2908,23 +3050,63 @@ Section Simulation.
             destruct (AMap.find (elt:=option rmap) loc (lset tp)) as [o|] eqn:Eo; swap 1 2.
             now auto (* not even a lock *).
             (* options:
-             - maintain the invariant that the distance between two locks is >= 4 (or =0)
+             - maintain the invariant that the distance between
+                two locks is >= 4 (or =0)
              - try to relate to the wet memory?
              - others?
              *)
             set (u := load_at _ _).
             set (v := load_at _ _) in lock_coh.
-            assert (L : forall val, v = Some val -> u = Some val); unfold u, v in *. (* ; clear u v. *)
+            assert (L : forall val, v = Some val -> u = Some val); unfold u, v in *.
+            (* ; clear u v. *)
             {
               intros val.
               unfold load_at in *.
               clear lock_coh.
+              destruct loc as (b', ofs'). simpl fst in *; simpl snd in *.
+              pose proof sparse (b, Int.intval ofs) (b', ofs') as SPA.
+              assert_specialize SPA by (cleanup; congruence).
+              assert_specialize SPA by (cleanup; congruence).
+              simpl in SPA.
+              destruct SPA as [SPA|SPA]; [ tauto | ].
               unfold Mem.load in *.
               if_tac [V|V]; [ | congruence].
               if_tac [V'|V'].
               - do 2 rewrite restrPermMap_mem_contents.
-                destruct loc as (b', ofs'). simpl fst in *; simpl snd in *.
-                admit.
+                intros G; exact_eq G.
+                f_equal.
+                f_equal.
+                f_equal.
+                simpl.
+                
+                pose proof store_outside' _ _ _ _ _ _ Hstore as OUT.
+                destruct OUT as (OUT, _).
+                cut (forall z,
+                        (0 <= z < 4)%Z ->
+                        ZMap.get (ofs' + z)%Z (Mem.mem_contents m) !! b' =
+                        ZMap.get (ofs' + z)%Z (Mem.mem_contents m_) !! b').
+                {
+                  intros G.
+                  repeat rewrite <- Z.add_assoc.
+                  f_equal.
+                  - specialize (G 0%Z ltac:(omega)).
+                    exact_eq G. repeat f_equal; auto with zarith.
+                  - f_equal; [apply G; omega | ].
+                    f_equal; [apply G; omega | ].
+                    f_equal; apply G; omega.
+                }
+                intros z Iz.
+                specialize (OUT b' (ofs' + z)%Z).
+                
+                destruct OUT as [[-> OUT]|OUT]; [ | clear SPA].
+                + exfalso.
+                  destruct SPA as [? | [_ SPA]]; [ tauto | ].
+                  eapply far_range in SPA. apply SPA; clear SPA.
+                  apply OUT. omega.
+                + unfold contents_at in *.
+                  simpl in OUT.
+                  apply OUT.
+              
               - exfalso.
                 apply V'; clear V'.
                 unfold Mem.valid_access in *.
@@ -2937,10 +3119,22 @@ Section Simulation.
                 rewrite RR in *.
                 unfold tp_.
                 rewrite <-lockSet_updLockSet.
-                (* should I maintain the fact that lock ranges don't
-                interfere with each-other? *)
-                admit.
-              (* ask around *)
+                match goal with |- _ ?a _ => cut (a = Some Writable) end.
+                { intros ->. constructor. }
+                
+                destruct SPA as [bOUT | [<- ofsOUT]].
+                + rewrite gsoLockSet_2; auto.
+                  eapply lockSet_spec_2.
+                  * hnf; simpl. eauto.
+                  * cleanup. rewrite Eo. reflexivity.
+                + rewrite gsoLockSet_1; auto.
+                  * eapply lockSet_spec_2.
+                    -- hnf; simpl. eauto.
+                    -- cleanup. rewrite Eo. reflexivity.
+                  * unfold far in *.
+                    simpl in *.
+                    zify.
+                    omega.
             }
             destruct o; split; intuition.
         
@@ -2999,7 +3193,9 @@ Section Simulation.
                   (z' := ora) (n' := n) as (c'' & Ec'' & Safe').
                 + auto.
                 + hnf. (* ouch *) admit.
-                + (* ouch, we must satisfy the post condition *) admit.
+                + (* ouch, we must satisfy the post condition *)
+                  unfold ext_spec_post in *.
+                  admit.
                 + exact_eq Safe'.
                   unfold jsafeN in *.
                   unfold juicy_safety.safeN in *.
@@ -3031,17 +3227,13 @@ Section Simulation.
           * unshelve erewrite gsoThreadCode; auto.
         
         + (* uniqueness *)
-          intros notone j lj q.
-          specialize (unique notone j lj).
-          unfold tp_ in *.
-          unshelve erewrite gLockSetCode; auto.
-          destruct (eq_dec i j).
-          * subst j.
-            rewrite gssThreadCode.
-            admit.
-          * unshelve erewrite gsoThreadCode; auto.
-            (* seems redundant *)
-            admit.
+          apply no_Krun_unique_Krun.
+          (* unfold tp_ in *. *)
+          apply no_Krun_updLockSet.
+          apply no_Krun_stable. congruence.
+          eapply unique_Krun_no_Krun. eassumption.
+          instantiate (1 := Htid). rewrite Hthread.
+          congruence.
       
       - (* the case of release *)
         admit.
@@ -3236,6 +3428,16 @@ Inductive jmsafe : nat -> cm_state -> Prop :=
     @JuicyMachine.machine_step ge (i :: sch) nil tp m sch nil tp' m' ->
     (forall sch', jmsafe n (m', ge, (sch', tp'))) ->
     jmsafe (S n) (m, ge, (i :: sch, tp)).
+
+(*
+Inductive jmsafe : nat -> cm_state -> Prop :=
+| jmsafe_0 m ge sch tp : jmsafe 0 (m, ge, (sch, tp))
+| jmsafe_halted n m ge tp : jmsafe n (m, ge, (nil, tp))
+| jmsafe_sch n m m' ge i sch tp tp':
+    @JuicyMachine.machine_step ge (i :: sch) nil tp m sch nil tp' m' ->
+    (forall sch', unique_Krun tp sch' -> jmsafe n (m', ge, (sch', tp'))) ->
+    jmsafe (S n) (m, ge, (i :: sch, tp)).
+ *)
 
 Lemma step_sch_irr ge i sch sch' tp m tp' m' :
   @JuicyMachine.machine_step ge (i :: sch) nil tp m sch nil tp' m' ->

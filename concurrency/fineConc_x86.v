@@ -1,3 +1,5 @@
+(** Safety of the FineConc Machine initiliazed with X86 semantics *)
+
 Require Import compcert.lib.Axioms.
 
 Require Import concurrency.sepcomp. Import SepComp.
@@ -70,19 +72,13 @@ Module X86Initial : FineConcInitial X86SEM X86Machines X86Context X86Inj.
     unfold the_ge.
     constructor.
     - intros b Hfuns.
-      destruct ((Genv.genv_funs (Genv.globalenv the_program)) ! b) eqn:Hget;
+      destruct ((Genv.genv_defs (Genv.globalenv the_program)) ! b) eqn:Hget;
         try by exfalso.
-      apply Genv.genv_funs_range in Hget.
+      apply Genv.genv_defs_range in Hget.
       erewrite Genv.init_mem_genv_next in Hget by eauto.
       apply id_ren_validblock in Hget.
       rewrite Hget; auto.
-    - split; intros.
-      destruct ((Genv.genv_vars (Genv.globalenv the_program)) ! b) eqn:Hget;
-        try by exfalso.
-      apply Genv.genv_vars_range in Hget.
-      erewrite Genv.init_mem_genv_next in Hget by eauto.
-      apply id_ren_validblock in Hget.
-      rewrite Hget; auto.
+    - intros. 
       unfold Senv.symbol_address in H0.
       destruct (Senv.find_symbol (Genv.globalenv the_program) id) eqn:Hfind.
       apply Senv.find_symbol_below in Hfind.

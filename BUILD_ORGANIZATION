@@ -5,31 +5,33 @@ HOW TO BUILD:
   will tell you which versions are compatible.
 
 0a. Make sure you have the right version of CompCert.
-   VST 1.7 uses CompCert 2.7.1 for Coq 8.5pl2, available here.
+   VST 1.7 uses CompCert 2.7.1 for Coq 8.5pl2.
 
 METHOD A [recommended]
-1. [If you will not need to run clightgen, then you can skip this step.]
- Examine the file vst/compcert/VERSION, download that version
- of CompCert from compcert.inria.fr, then in the compcert directory: 
-     ./configure [see instructions]; make;  make clightgen
- [recommended: put the executable compcert/clightgen on your searchpath.]
-2. In the vst/compcert directory,
-    ./make
-3. In the vst directory,
-    make
-
-METHOD B [alternate]
- This method bases the VST directly on the .vo files of your
- compcert installation, instead of the copy of CompCert's front end
- contained in VST/compcert.  
-1. and 1a.  as in Method A.
+ This method bases the VST on a copy of certain CompCert specification
+ files distributed with VST, located in VST/compcert.
+1. Execute this command:  make
+  (or, if you have a multicore computer,  make -j)
+2. [optional, only if you're going to run "clightgen"]
+  Unpack CompCert in the location of your choice
+   (not under VST/), and in that directory,
+   make clightgen
   CYGWIN note:  Because Coq on cygwin has difficulty with absolute paths,
   it's best if "compcert" and "VST" are unpacked as sibling directories
   in the same parent directory, so the "../compcert" path works in step 2.
-2. In the vst directory, create a file CONFIGURE containing exactly the text:
+
+METHOD B [alternate]
+ This method bases the VST on the same specification files
+ that the CompCert compiler is built upon (in contrast to method A,
+ which uses verbatim copies of them).
+1. Unpack CompCert in a sibling directory to VST;
+   in that directory, build CompCert according to the instructions
+   (typically:  ./configure ia32-linux; make clightgen)
+2. In the VST directory, create a file CONFIGURE containing exactly the text:
     COMPCERT=../compcert
-3. In the vst directory,  
+3. In the VST directory,  
     make
+
 
 ORGANIZATION:
 The Verified Software Toolchain is organized into separate subprojects,

@@ -6957,11 +6957,17 @@ Module SimProofs (SEM: Semantics)
         remember (updLockSet tpf' (b2, Int.intval ofs)
                              (projectMap (fp i pfc) empty_map)) as tpf'' eqn:Htpf'';
           symmetry in Htpf''.
-        exists tpf'', mf', (fp i pfc), fp, (tr ++ [:: (external i (acquire (b2, Int.intval ofs)))]).
+        exists tpf'', mf', (fp i pfc), fp,
+        (tr ++ [:: (external i (acquire (b2, Int.intval ofs)
+                                       (Some (projectMap (fp i pfc) empty_map,
+                                        virtueF))))]).
         split.
         (* proof that the fine grained machine can step*)
         intros U.
-        assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf'' mf'  (acquire (b2, Int.intval ofs)))
+        assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf'' mf'
+                                     (acquire (b2, Int.intval ofs)
+                                              (Some (projectMap (fp i pfc) empty_map,
+                                                     virtueF))))
           by (eapply step_acquire with (b:=b2); eauto).
         econstructor; simpl;
           by eauto.
@@ -7528,11 +7534,15 @@ Module SimProofs (SEM: Semantics)
       (* and finally build the final fine-grained state*)
       remember (updLockSet tpf' (b2, Int.intval ofs) virtueLPF) as tpf'' eqn:Htpf'';
         symmetry in Htpf''.
-      exists tpf'', mf', (fp i pfc), fp, (tr ++ [:: (external i (release (b2, Int.intval ofs)))]).
+      exists tpf'', mf', (fp i pfc), fp,
+      (tr ++ [:: (external i (release (b2, Int.intval ofs)
+                                     (Some (virtueLPF, virtueF))))]).
       split.
       (* proof that the fine grained machine can step*)
       intros U.
-      assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf'' mf' (release (b2, Int.intval ofs)))
+      assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf'' mf'
+                                   (release (b2, Int.intval ofs)
+                                            (Some (virtueLPF, virtueF))))
         by (eapply step_release with (b:=b2); eauto).
       econstructor; simpl;
         by eauto.

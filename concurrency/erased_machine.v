@@ -115,7 +115,7 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
          (Hload: Mem.load Mint32 m b (Int.intval ofs) = Some (Vint Int.one))
          (Hstore: Mem.store Mint32 m b (Int.intval ofs) (Vint Int.zero) = Some m')
          (Htp': tp' = updThreadC cnt0 (Kresume c Vundef)),
-         ext_step genv cnt0 Hcompat tp' m' (acquire (b, Int.intval ofs))
+         ext_step genv cnt0 Hcompat tp' m' (acquire (b, Int.intval ofs) None)
                   
    | step_release :
        forall (tp':thread_pool) c m' b ofs
@@ -124,7 +124,7 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
                         Some (UNLOCK, ef_sig UNLOCK, Vptr b ofs::nil))
          (Hstore: Mem.store Mint32 m b (Int.intval ofs) (Vint Int.one) = Some m')
          (Htp': tp' = updThreadC cnt0 (Kresume c Vundef)),
-         ext_step genv cnt0 Hcompat tp' m' (release (b, Int.intval ofs))
+         ext_step genv cnt0 Hcompat tp' m' (release (b, Int.intval ofs) None)
                   
    | step_create :
        forall (tp_upd tp':thread_pool) c b ofs arg

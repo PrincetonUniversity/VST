@@ -1063,7 +1063,7 @@ Admitted.
             (Hadd_lock_res: join phi d_phi  phi')  
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) None ),
-            syncStep' genv cnt0 Hcompat tp'' m' (acquire (b, Int.intval ofs))                
+            syncStep' genv cnt0 Hcompat tp'' m' (acquire (b, Int.intval ofs) None)                
     | step_release :
         forall  (tp' tp'':thread_pool) c m1 jm' b ofs psh  (phi d_phi :rmap) (R: pred rmap) ,
           (* let: phi := m_phi jm in *)
@@ -1095,7 +1095,7 @@ Admitted.
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' =
                     updLockSet tp' (b, Int.intval ofs) (Some d_phi)),
-            syncStep' genv cnt0 Hcompat tp'' m' (release (b, Int.intval ofs))      
+            syncStep' genv cnt0 Hcompat tp'' m' (release (b, Int.intval ofs) None)      
     | step_create :
         (* HAVE TO REVIEW THIS STEP LOOKING INTO THE ORACULAR SEMANTICS*)
         forall  (tp_upd tp':thread_pool) c c_new vf arg jm (d_phi phi': rmap) b ofs P Q,
@@ -1478,14 +1478,6 @@ Admitted.
         eapply mem_cohere_sub.
         - eassumption.
         - apply compatible_threadRes_sub. assumption.
-      Qed.
-      
-      Lemma compatible_getThreadR_m_phi
-        js m i (cnt:containsThread js i)
-        (c : mem_compatible js m) :
-        m_phi (personal_mem cnt c) = getThreadR cnt.
-      Proof.
-          reflexivity.
       Qed.
       
       (** *Lemmas about aging*)

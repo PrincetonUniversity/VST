@@ -18,13 +18,6 @@ Require Import hmacdrbg.spec_hmac_drbg.
 Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
 Require Import hmacdrbg.spec_hmac_drbg_pure_lemmas.
 
-(*TEMPORARRY FIX TO DEAL WITH NAME SPACES*)
-Axiom FINALNAME:_HMAC_Final = hmac._HMAC_Final. 
-Axiom UPDATENAME:_HMAC_Update = hmac._HMAC_Update. 
-Axiom INITNAME: _HMAC_Init = hmac._HMAC_Init. 
-Axiom CTX_Struct: Tstruct hmac_drbg._hmac_ctx_st noattr = spec_hmac.t_struct_hmac_ctx_st.
-
-
 Definition hmac_drbg_seed_buf_spec :=
   DECLARE _mbedtls_hmac_drbg_seed_buf
    WITH ctx: val, info:val, d_len: Z, data:val, Data: list Z,
@@ -88,7 +81,7 @@ Proof.
   forward.
   forward_if (
      PROP (v=0)
-   LOCAL (temp _ret (Vint (Int.repr v)); temp 228%positive (Vint (Int.repr v)); 
+   LOCAL (temp _ret (Vint (Int.repr v)); temp _t'2 (Vint (Int.repr v)); 
    temp _ctx (Vptr b i); temp _md_info info; temp _data_len (Vint (Int.repr d_len)); 
    temp _data data; gvar sha._K256 kv)
    SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr))p && 
@@ -265,7 +258,7 @@ Proof.
   forward.
   forward_if (
      PROP (v=0)
-   LOCAL (temp _ret (Vint (Int.repr v)); temp 228%positive (Vint (Int.repr v)); 
+   LOCAL (temp _ret (Vint (Int.repr v)); temp _t'2 (Vint (Int.repr v)); 
    temp _ctx (Vptr b i); temp _md_info info; temp _data_len (Vint (Int.repr d_len)); 
    temp _data data; gvar sha._K256 kv)
    SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr))p &&

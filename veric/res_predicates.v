@@ -2587,20 +2587,20 @@ apply pred_ext.
    clear - p H.
    apply nonunit_nonidentity in p.
    apply nonidentity_nonunit. red. contradict p.
-   assert  (H98 := join_unrel Share.Rsh H).
+   assert  (H98 := Share.unrel_join Share.Rsh _ _ _ H).
    apply join_comm in H98. apply split_identity in H98; auto.
   }
   exists p8.
   destruct (x @ b); inv H1.
   -
     inv H3.
-    assert  (H99 := join_unrel Share.Lsh H); 
+    assert  (H99 := Share.unrel_join Share.Lsh _ _ _ H); 
     rewrite Share.unrel_rel in H99 by apply Lsh_nonidentity.
     pose proof (join_eq RJ H99); clear H99; subst rsh3.
     hnf. rewrite <- H9; clear H9.
     f_equal; [ | rewrite (proj2 (join_level _ _ _ H0)); reflexivity].
     assert (Share.unrel Share.Rsh sh2 = Share.unrel Share.Rsh sh).
-    assert  (H98 := join_unrel Share.Rsh H).
+    assert  (H98 := Share.unrel_join Share.Rsh _ _ _ H).
     assert (H97:=Share.unrel_splice_R t Share.bot); 
       rewrite splice_bot2 in H97; rewrite H97 in H98; clear H97.
    eapply join_unit1_e; try eassumption. apply bot_identity.
@@ -2610,8 +2610,8 @@ apply pred_ext.
   -
    clear H1'.  inv H3. 
    hnf. rewrite <- H12. clear H12. simpl.
-   assert  (H99 := join_unrel Share.Lsh H).
-   assert  (H98 := join_unrel Share.Rsh H).
+   assert  (H99 := Share.unrel_join Share.Lsh _ _ _ H).
+   assert  (H98 := Share.unrel_join Share.Rsh _ _ _ H).
    rewrite (Share.unrel_splice_L t (pshare_sh p0)) in H99.
    f_equal; [ | | rewrite (proj2 (join_level _ _ _ H0)); reflexivity].
    eapply join_eq; eauto.
@@ -2653,7 +2653,7 @@ apply pred_ext.
   if_tac in H0. destruct H0. rewrite H0.
   unfold general_slice_resource.
   destruct (dec_share_identity (Share.unrel Share.Rsh sh1)).
-    assert  (H98 := join_unrel Share.Rsh H).
+    assert  (H98 := Share.unrel_join Share.Rsh _ _ _ H).
   apply join_unit1_e in H98; auto.
   destruct (dec_share_identity (Share.unrel Share.Rsh sh2)).
   rewrite H98 in i0. apply nonunit_nonidentity in p.
@@ -2661,7 +2661,7 @@ apply pred_ext.
   replace (mk_pshare (Share.unrel Share.Rsh sh2) (nonidentity_nonunit n))
       with (mk_lifted (Share.unrel Share.Rsh sh) x).
   constructor.
-  apply join_unrel; auto.
+  apply Share.unrel_join; auto.
   clear - H98.
    forget (Share.unrel Share.Rsh sh2) as s2; 
    forget (Share.unrel Share.Rsh sh) as s. subst.
@@ -2671,14 +2671,14 @@ apply pred_ext.
   replace (mk_pshare (Share.unrel Share.Rsh sh1) (nonidentity_nonunit n))
       with (mk_lifted (Share.unrel Share.Rsh sh) x).
   constructor.
-  apply join_unrel; auto.
-  assert  (H98 := join_unrel Share.Rsh H).
+  apply Share.unrel_join; auto.
+  assert  (H98 := Share.unrel_join Share.Rsh _ _ _ H).
    apply join_unit2_e in H98; auto.
   forget (Share.unrel Share.Rsh sh1) as rsh1. subst.
   apply mk_lifted_refl1.
   constructor.
-  apply join_unrel; auto.
-  do 3 red. simpl. apply join_unrel; auto.
+  apply Share.unrel_join; auto.
+  do 3 red. simpl. apply Share.unrel_join; auto.
   do 3 red in H0.
   unfold general_slice_resource.
   destruct (w @ loc). 

@@ -13,6 +13,8 @@ Require Import concurrency.addressFiniteMap.
 Require Import concurrency.scheduler.
 Require Import Coq.Program.Program.
 
+Require Import concurrency.safety.
+
 (* This module represents the arguments
    to build a CoreSemantics with 
    compcert mem. This is used by BOTH
@@ -95,6 +97,10 @@ Module Type ThreadPoolSig.
   Parameter latestThread : t -> tid.
 
   Parameter lr_valid : (address -> option lock_info) -> Prop.
+
+  (* Decidability of containsThread *)
+  Axiom containsThread_dec:
+    forall i tp, {containsThread tp i} + { ~ containsThread tp i}.
   
   (*Proof Irrelevance of contains*)
   Axiom cnt_irr: forall t tid
@@ -337,9 +343,10 @@ End ThreadPoolSig.
 Module Type EventSig.
   Declare Module TID: ThreadID.
   Import TID.
+  
   Inductive sync_event : Type :=
-  | release : address -> sync_event
-  | acquire : address -> sync_event
+  | release : address -> option (access_map * delta_map) -> sync_event
+  | acquire : address -> option (access_map * delta_map) -> sync_event
   | mklock :  address -> sync_event
   | freelock : address -> sync_event
   | spawn : address -> sync_event
@@ -494,7 +501,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
         (Hcmpt: mem_compatible ms m)
         (Htstep: threadStep genv Htid Hcmpt ms' m' ev),
         machine_step U [::] ms m U [::] ms' m'
-  | suspend_step: (*Want to remove*)
+  | suspend_step:
       forall tid U U' ms ms' m
         (HschedN: schedPeek U = Some tid)
         (HschedS: schedSkip U = U')        (*Schedule Forward*)
@@ -601,6 +608,84 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
                  (Hstep: MachStep ge st m (schedSkip (fst (fst st)),[::],tp') m')
                  (Hsafe: forall U'', csafe ge (U'',[::],tp') m' n),
       csafe ge st m (S n).
+
+  Section new_safety.
+  (** *I create a new type of safety that satisfies (forall n, safeN) -> safe and is preserved by simulations. *)
+    
+    Inductive sem_with_halt ge: MachState -> mem -> MachState -> mem -> Prop:=
+    | halt_with_step st m: halted st -> sem_with_halt ge st m st m
+    | step_with_halt st m st' m' : MachStep ge st m st' m' -> sem_with_halt ge st m st' m'.
+    
+  Definition new_state: Type:= seq machine_event * machine_state * mem.
+  Definition mk_nstate (st:MachState) m:new_state:= (snd (fst st), snd st, m).
+  Definition mk_ostate (st:new_state) U:MachState:= (U, fst (fst st), snd (fst st)).
+  Definition new_step ge (st: new_state) U st' U': Prop:=
+    sem_with_halt ge (mk_ostate st U) (snd st) (mk_ostate st' U') (snd st').
+  (*This has to be filled in:*)
+  Axiom valid: MachState -> bool.
+  Definition new_valid st U := valid (mk_ostate st U). 
+  Definition ksafe_new_step (ge : G) (st : MachState) (m : mem) : nat -> Prop :=
+    ksafe _ _ (new_step ge) new_valid (mk_nstate st m) (fst (fst st)).
+  Definition safe_new_step (ge : G) (st : MachState) (m : mem) : Prop :=
+    safe _ _ (new_step ge) new_valid (mk_nstate st m) (fst (fst st)).
+
+  (*Things that we must prove:*)
+  Axiom sch_dec: forall (U U': Sch), {U = U'} + {U <> U'}.
+  Axiom step_sch: forall {ge U tr tp m U' tr' tp' m'}, MachStep ge (U, tr, tp) m (U', tr', tp') m' -> {U=U'}+{schedSkip(U)=U'}.
+  Axiom step_trace: forall {ge U tr tp m U' tr' tp' m'}, MachStep ge (U, tr, tp) m (U', tr', tp') m' -> nil = tr'. 
+  Axiom step_valid: forall {ge st m st' m'}, MachStep ge st m st' m'  -> valid st -> valid st'. 
+  Axiom step_sch_valid: forall {ge U tr tp m U' tr' tp' m'}, MachStep ge (U, tr, tp) m (U', tr', tp') m' -> U<>U' -> forall U'', valid (U'', tr', tp').
+  Axiom skip_not_eq: forall U, U <> schedSkip U.
+  Lemma safety_equivalence':
+    forall ge st_ m,
+      (forall U n, new_valid (nil, st_, m) U -> ksafe_new_step ge (U, nil, st_) m n) ->
+      (forall U n, valid (U, nil, st_) ->  csafe ge (U, nil, st_) m n).
+  Proof.
+    move=> ge st_ m KSF' U n VAL.
+    assert (KSF: forall U, new_valid (nil, st_, m) U -> ksafe_new_step ge (U, nil, st_) m n) by (move=> U'' NV; apply: KSF'=>// ).
+    clear KSF'.
+    assert (VAL_: new_valid (nil, st_, m) U) by rewrite /new_valid /mk_ostate /= //. clear VAL.
+    (*move: VAL_=> /(KSF _ n) KSF_new.*)
+    move: st_ m KSF U VAL_.
+    induction n.
+    - constructor.
+    - move => st_ m KSF U nVAL.
+      move: (nVAL) => /KSF => KSF_new.
+      inversion KSF_new; subst.
+      move: H0; rewrite /new_step /mk_nstate /= => STEP_halt.
+      inversion STEP_halt.
+      + subst; move: H6; rewrite /mk_ostate=> H6; apply: HaltedSafe=>//.
+      + subst; move: H; rewrite /mk_ostate /= => H.
+          assert (HH:=step_trace H); rewrite -HH in H.
+        destruct (step_sch H).
+        * subst U'; apply: (CoreSafe _ _ _ (snd (fst st')) (snd st')) =>/= //.
+          { apply: IHn => //.
+            - move => U'' nVAL'; rewrite /ksafe_new_step /mk_nstate => /=.
+              destruct st' as [p m0]; destruct p=> /=. simpl in HH; rewrite -HH in H1.
+              apply: H1=> //.
+            - rewrite /new_valid /mk_ostate=> /=.
+              apply: (step_valid H) =>//.
+          }
+        * subst U'. apply: (AngelSafe _ _ _ (snd (fst st')) (snd st'))=>//.
+          move=>U''.
+          { destruct st' as [[tr' tp'] m'] => /=; eapply IHn.
+            - move => U0 nVAL0. rewrite /ksafe_new_step /mk_nstate=> /=.
+              simpl in HH; rewrite -HH in H1.
+              by apply: H1. 
+            - rewrite /new_valid /mk_ostate=> /=. simpl in H.
+              apply (step_sch_valid H).
+                by apply: skip_not_eq.
+          }
+  Qed.
+        
+  Lemma safety_equivalence:
+    forall ge tp m,
+      (forall U, new_valid (nil, tp, m) U) ->
+      (forall n U, ksafe_new_step ge (U, nil, tp) m n) ->
+      (forall n U, csafe ge (U, nil, tp) m n).
+  Proof. by move => ? ? ? H ? ? ?; apply: safety_equivalence'; try apply: H. Qed.
+  
+  End new_safety.
 
   Lemma csafe_reduce:
     forall ge sched tp mem n m,
@@ -807,20 +892,23 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
   
 End FineMachine.
 
-Module Events  <: EventSig
+Module Events <: EventSig
    with Module TID:=NatTID. 
 
  Module TID := NatTID.
  Import TID event_semantics.
-         
+
+ (** Synchronization Events.  The release/acquire cases include the
+footprints of permissions moved to the thread when applicable*)
  Inductive sync_event : Type :=
-  | release : address -> sync_event
-  | acquire : address -> sync_event
+  | release : address -> option (access_map * delta_map) -> sync_event
+  | acquire : address -> option (access_map * delta_map) -> sync_event
   | mklock :  address -> sync_event
   | freelock : address -> sync_event
   | spawn : address -> sync_event
   | failacq: address -> sync_event.
-
+ 
+ (** Machine Events *)
   Inductive machine_event : Type :=
   | internal: TID.tid -> mem_event -> machine_event
   | external : TID.tid -> sync_event -> machine_event.
@@ -834,11 +922,14 @@ Module Events  <: EventSig
   Inductive act : Type :=
   | Read : act
   | Write : act
+  | Alloc : act
+  | Free : act
   | Release : act
   | Acquire : act
   | Mklock : act
   | Freelock : act
-  | Failacq : act.
+  | Failacq : act
+  | Spawn : act.
 
   Definition is_internal ev :=
     match ev with
@@ -852,22 +943,23 @@ Module Events  <: EventSig
     | _ => false
     end.
   
-  Definition action ev : option act :=
+  Definition action ev : act :=
     match ev with
     | internal _ mev =>
       match mev with
-      | event_semantics.Write _ _ _ => Some Write
-      | event_semantics.Read _ _ _ _ => Some Read
-      | _ => None
+      | event_semantics.Write _ _ _ => Write
+      | event_semantics.Read _ _ _ _ => Read
+      | event_semantics.Alloc _ _ _ => Alloc
+      | event_semantics.Free _ => Free
       end
     | external _ sev =>
       match sev with
-      | release _ => Some Release
-      | acquire _ => Some Acquire
-      | mklock _ => Some Mklock
-      | freelock _ => Some Freelock
-      | failacq _ => Some Failacq
-      | _ => None (*should spawn also compete?*)
+      | release _ _ => Release
+      | acquire _ _ => Acquire
+      | mklock _ => Mklock
+      | freelock _ => Freelock
+      | failacq _ => Failacq
+      | spawn _ => Spawn
       end
     end.
   
@@ -881,13 +973,24 @@ Module Events  <: EventSig
       end 
     | external _ sev =>
       match sev with
-      | release addr => Some (addr, lksize.LKSIZE_nat)
-      | acquire addr => Some (addr, lksize.LKSIZE_nat)
+      | release addr _ => Some (addr, lksize.LKSIZE_nat)
+      | acquire addr _ => Some (addr, lksize.LKSIZE_nat)
       | mklock addr => Some (addr, lksize.LKSIZE_nat)
       | freelock addr => Some (addr, lksize.LKSIZE_nat)
       | spawn addr => Some (addr, lksize.LKSIZE_nat)
       | failacq addr => Some (addr, lksize.LKSIZE_nat)
       end
+    end.
+
+  Definition resources ev : option (access_map * delta_map) :=
+    match ev with
+    | external _ mev =>
+      match mev with
+      | release _ res => res
+      | acquire _ res => res
+      | _ => None
+      end
+    | _ => None
     end.
   
 End Events.
