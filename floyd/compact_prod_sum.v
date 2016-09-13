@@ -305,9 +305,6 @@ Lemma proj_compact_sum_JMeq': forall A i (l: list A) F1 F2 d1 d2 (v1: compact_su
   JMeq v1 v2 ->
   JMeq (proj_compact_sum i l v1 d1 H) (proj_compact_sum i l v2 d2 H).
 Proof.
-Admitted. (* This proof script may cause Universe inconsistency. *)
-(* Hopefully, this problem will be solved in Coq8.5. *)
-(*
   intros.
   destruct l as [| a0 l]; [simpl in H1; tauto |].
   revert a0 v1 v2 H0 H1 H2; induction l as [| a1 l]; intros.
@@ -349,7 +346,6 @@ Admitted. (* This proof script may cause Universe inconsistency. *)
         apply H0.
         right; auto.
 Qed.
-*)
 
 Lemma proj_compact_sum_JMeq: forall A i (l: list A) F1 F2 d1 d2 (v1: compact_sum (map F1 l)) (v2: compact_sum (map F2 l)) H,
   (forall i, In i l -> F1 i = F2 i) ->
@@ -440,9 +436,6 @@ Lemma upd_compact_prod_JMeq: forall A i (l: list A) F1 F2 d1 d2 (v1: compact_pro
   JMeq v1 v2 ->
   JMeq (upd_compact_prod l v1 i d1 H) (upd_compact_prod l v2 i d2 H).
 Proof.
-Admitted. (* This proof script may cause Universe inconsistency. *)
-(* Hopefully, this problem will be solved in Coq8.5. *)
-(*
   intros.
   destruct l as [| a0 l]; [simpl; auto |].
   revert a0 v1 v2 H2 H0; induction l as [| a1 l]; intros.
@@ -480,7 +473,6 @@ Admitted. (* This proof script may cause Universe inconsistency. *)
       apply IHl; auto.
       intros; apply H0; simpl; auto.
 Qed.
-*)
 
 Lemma upd_compact_sum_JMeq: forall A i (l: list A) F1 F2 d1 d2 (v1: compact_sum (map F1 l)) (v2: compact_sum (map F2 l)) H,
   (forall i, In i l -> F1 i = F2 i) ->
@@ -488,8 +480,6 @@ Lemma upd_compact_sum_JMeq: forall A i (l: list A) F1 F2 d1 d2 (v1: compact_sum 
   JMeq v1 v2 ->
   JMeq (upd_compact_sum l v1 i d1 H) (upd_compact_sum l v2 i d2 H).
 Proof.
-Admitted. (* This proof script may cause Universe inconsistency. *)
-(*
   intros.
   unfold upd_compact_sum.
   destruct (in_dec H i l) as [?H | ?H]; auto.
@@ -523,4 +513,3 @@ Admitted. (* This proof script may cause Universe inconsistency. *)
         apply H0.
         simpl; auto.
 Qed.
-*)
