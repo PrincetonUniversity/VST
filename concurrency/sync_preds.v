@@ -1094,3 +1094,8 @@ Lemma jstep_preserves_mem_equiv_on_other_threads m ge i j tp ci ci' jmi'
     (m_dry (@personal_mem j tp m cntj compat))
     (m_dry (@personal_mem j tp'' (m_dry jmi') (cnt_age' cntj) compat')).
 Admitted.
+
+Lemma age_to_resource_at phi n loc : age_to n phi @ loc = resource_fmap (approx n) (phi @ loc).
+Proof.
+  unfold age_to.
+Admitted.

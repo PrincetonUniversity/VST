@@ -1912,6 +1912,7 @@ Module Parching <: ErasureSig.
       
     - (*match_st*)
       unfold ds''.
+      apply match_st_age_tp_to.
       apply MTCH_updLockS.
       Focus 2.
       {

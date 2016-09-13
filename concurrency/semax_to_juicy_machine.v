@@ -199,6 +199,33 @@ Proof.
   - tauto.
 Qed.
 
+Lemma lset_same_support_map {A} m (f : A -> A) :
+  lset_same_support (AMap.map (option_map f) m) m.
+Proof.
+  intros k.
+  rewrite AMap_find_map_option_map.
+  destruct (AMap.find (elt:=option A) k m); simpl; split; congruence.
+Qed.
+
+Lemma lset_same_support_sym {A} (m1 m2 : AMap.t A) :
+  lset_same_support m1 m2 ->
+  lset_same_support m2 m1.
+Proof.
+  unfold lset_same_support in *.
+  intros E loc.
+  rewrite E; tauto.
+Qed.
+
+Lemma lset_same_support_trans {A} (m1 m2 m3 : AMap.t A) :
+  lset_same_support m1 m2 ->
+  lset_same_support m2 m3 ->
+  lset_same_support m1 m3.
+Proof.
+  unfold lset_same_support in *.
+  intros E F loc.
+  rewrite E; apply F.
+Qed.
+
 (*! Joinability and coherence *)
 
 Lemma mem_compatible_forget {tp m phi} :
@@ -271,6 +298,7 @@ Proof.
   intros H _ i cnti q E; destruct (H i cnti q E).
 Qed.
 
+(*
 (* TODO remove this (redundant with following) *)
 Lemma no_Krun_age tp n :
   no_Krun tp -> no_Krun (age_tp_to n tp).
@@ -279,6 +307,7 @@ Proof.
   unshelve erewrite <-gtc_age; eauto.
   eapply cnt_age; eauto.
 Qed.
+*)
 
 Lemma no_Krun_age_tp_to n tp :
   no_Krun (age_tp_to n tp) <-> no_Krun tp.
@@ -1114,10 +1143,7 @@ Proof.
     + (* joining of permissions, values don't change *)
       symmetry in H.
       destruct jm'.
-      apply (JMcontents _ _ _ _ _ H).
-  - admit.
-  - admit.
-  - admit. *)
+      apply (JMcontents _ _ _ _ _ H).. *)
 Admitted.
 
 Lemma resource_decay_matchfunspec {b phi phi' g Gamma} :
@@ -3294,11 +3320,6 @@ Section Simulation.
       
       cleanup.
       assert (El : level (getThreadR Htid) - 1 = n). {
-        Lemma getThread_level i tp cnti Phi :
-          join_all tp Phi ->
-          level (@getThreadR i tp cnti) = level Phi.
-        Proof.
-        Admitted.
         rewrite getThread_level with (Phi := Phi).
         - cleanup.
           rewrite lev.
@@ -3361,43 +3382,6 @@ Section Simulation.
               unfold lockSet in *.
               rewrite lset_age_tp_to.
               intros b0.
-              
-              Lemma AMap_Raw_map_app {A} (f : A -> A) l1 l2 :
-                AMap.Raw.map (option_map f) (app l1 l2) =
-                app (AMap.Raw.map (option_map f) l1)
-                    (AMap.Raw.map (option_map f) l2).
-              Proof.
-                induction l1; simpl; auto.
-                rewrite IHl1. destruct a; auto.
-              Qed.
-              
-              Lemma AMap_Raw_map_rev {A} (f : A -> A) l :
-                AMap.Raw.map (option_map f) (rev l) =
-                rev (AMap.Raw.map (option_map f) l).
-              Proof.
-                induction l; simpl; auto.
-                rewrite AMap_Raw_map_app. simpl. destruct a.
-                rewrite IHl. auto.
-              Qed.
-              
-              Lemma A2PMap_option_map {A} (m : AMap.t (option A)) (f : A -> A) :
-                A2PMap (AMap.map (option_map f) m) = A2PMap m.
-              Proof.
-                destruct m as [l sorted].
-                unfold A2PMap in *.
-                do 2 rewrite fold_right_rev_left.
-                unfold AMap.elements in *.
-                unfold AMap.map in *.
-                unfold AMap.Raw.elements in *.
-                simpl AMap.this.
-                clear sorted.
-                unfold AMap.Raw.t in *.
-                rewrite <-AMap_Raw_map_rev.
-                induction (rev l). reflexivity.
-                simpl in *. rewrite <-IHl0.
-                destruct a. reflexivity.
-              Qed.
-              
               rewrite (@A2PMap_option_map rmap (lset tp)).
               reflexivity.
               
@@ -3537,26 +3521,6 @@ Section Simulation.
           simpl.
           cleanup.
           eapply sparsity_same_support with (lset tp); auto.
-          Lemma lset_same_support_map {A} m (f : A -> A) :
-            lset_same_support (AMap.map (option_map f) m) m.
-          Admitted.
-          Lemma lset_same_support_sym {A} (m1 m2 : AMap.t A) :
-            lset_same_support m1 m2 ->
-            lset_same_support m2 m1.
-          Proof.
-            unfold lset_same_support in *.
-            intros E loc.
-            rewrite E; tauto.
-          Qed.
-          Lemma lset_same_support_trans {A} (m1 m2 m3 : AMap.t A) :
-            lset_same_support m1 m2 ->
-            lset_same_support m2 m3 ->
-            lset_same_support m1 m3.
-          Proof.
-            unfold lset_same_support in *.
-            intros E F loc.
-            rewrite E; apply F.
-          Qed.
           apply lset_same_support_sym.
           eapply lset_same_support_trans.
           * apply lset_same_support_map.

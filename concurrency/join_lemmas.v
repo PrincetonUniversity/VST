@@ -889,3 +889,11 @@ Lemma maps_remLockSet_updThread i tp addr cnti c phi :
 Proof.
   reflexivity.
 Qed.
+
+Lemma getThread_level i tp cnti Phi :
+  join_all tp Phi ->
+  level (@getThreadR i tp cnti) = level Phi.
+Proof.
+  intros j.
+  apply juicy_mem.rmap_join_sub_eq_level, compatible_threadRes_sub, j.
+Qed.

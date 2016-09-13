@@ -228,3 +228,39 @@ Proof.
       intros y' Ey'; eapply E.
       eauto.
 Qed.
+
+Lemma AMap_Raw_map_app {A} (f : A -> A) l1 l2 :
+  AMap.Raw.map (option_map f) (app l1 l2) =
+  app (AMap.Raw.map (option_map f) l1)
+      (AMap.Raw.map (option_map f) l2).
+Proof.
+  induction l1; simpl; auto.
+  rewrite IHl1. destruct a; auto.
+Qed.
+
+Lemma AMap_Raw_map_rev {A} (f : A -> A) l :
+  AMap.Raw.map (option_map f) (rev l) =
+  rev (AMap.Raw.map (option_map f) l).
+Proof.
+  induction l; simpl; auto.
+  rewrite AMap_Raw_map_app. simpl. destruct a.
+  rewrite IHl. auto.
+Qed.
+
+Lemma A2PMap_option_map {A} (m : AMap.t (option A)) (f : A -> A) :
+  A2PMap (AMap.map (option_map f) m) = A2PMap m.
+Proof.
+  destruct m as [l sorted].
+  unfold A2PMap in *.
+  do 2 rewrite <-fold_left_rev_right.
+  unfold AMap.elements in *.
+  unfold AMap.map in *.
+  unfold AMap.Raw.elements in *.
+  simpl AMap.this.
+  clear sorted.
+  unfold AMap.Raw.t in *.
+  rewrite <-AMap_Raw_map_rev.
+  induction (rev l). reflexivity.
+  simpl in *. rewrite <-IHl0.
+  destruct a. reflexivity.
+Qed.
