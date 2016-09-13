@@ -50,7 +50,9 @@ Section PairSAFunctor.
   Variables (J_F1: forall A, Join (F1 A)) (pafF1: pafunctor F1 J_F1).
   Variables (J_F2: forall A, Join (F2 A)) (pafF2: pafunctor F2 J_F2).
 
-  Definition paf_pair : @pafunctor (fpair F1 F2) _.
+  (* The second argument must be explicitly specified (instead of _) *)
+  (* Or else, it will cause universe inconsistency in floyd. *)
+  Definition paf_pair : @pafunctor (fpair F1 F2) (fun A : Type => Join_prod (F1 A) (J_F1 A) (F2 A) (J_F2 A)).
   Proof with auto.
     constructor; repeat intro.
     split; repeat intro.
