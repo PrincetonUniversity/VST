@@ -108,15 +108,66 @@ Definition LK_at R sh :=
 
 Definition load_at m loc := Mem.load Mint32 m (fst loc) (snd loc).
 
+Definition isLK (r : resource) := exists sh sh' z P, r = YES sh sh' (LK z) P.
+Definition isCT (r : resource) := exists sh sh' z P, r = YES sh sh' (CT z) P.
+
+Ltac breakhyps :=
+  repeat
+    match goal with
+      H : _ \/ _  |- _ => destruct H
+    | H : _ /\ _  |- _ => destruct H
+    | H : prod _ _  |- _ => destruct H
+    | H : sum _ _  |- _ => destruct H
+    | H : sumbool _ _  |- _ => destruct H
+    | H : sumor _ _  |- _ => destruct H
+    | H : ex _  |- _ => destruct H
+    | H : sig _  |- _ => destruct H
+    | H : sigT _  |- _ => destruct H
+    | H : sigT2 _  |- _ => destruct H
+    end;
+  discriminate || congruence || tauto || auto.
+
+Lemma isLKCT_rewrite r :
+  (forall sh sh' z P,
+      r <> YES sh sh' (LK z) P /\
+      r <> YES sh sh' (CT z) P)
+  <-> ~isLK r /\ ~isCT r.
+Proof.
+  unfold isLK, isCT; split.
+  - intros H; split; intros (sh & sh' & z & P & E); do 4 autospec H; intuition.
+  - intros (A & B). intros sh sh' z P; split; intros ->; eauto 40.
+Qed.
+
+Lemma isLK_age_to n phi loc : isLK (age_to n phi @ loc) = isLK (phi @ loc).
+Proof.
+  unfold isLK in *.
+  rewrite age_to_resource_at.
+  destruct (phi @ loc); simpl; auto.
+  - apply prop_ext; split;
+      intros (sh & sh' & z & P & E);
+      injection E; intros; subst; eauto.
+  - repeat (f_equal; extensionality).
+    apply prop_ext; split; congruence.
+Qed.
+
+Lemma isCT_age_to n phi loc : isCT (age_to n phi @ loc) = isCT (phi @ loc).
+Proof.
+  unfold isCT in *.
+  rewrite age_to_resource_at.
+  destruct (phi @ loc); simpl; auto.
+  - apply prop_ext; split;
+      intros (sh & sh' & z & P & E);
+      injection E; intros; subst; eauto.
+  - repeat (f_equal; extensionality).
+    apply prop_ext; split; congruence.
+Qed.
+
 Definition lock_coherence (lset : AMap.t (option rmap)) (phi : rmap) (m : mem) : Prop :=
   forall loc : address,
     match AMap.find loc lset with
     
     (* not a lock *)
-    | None =>
-      forall sh sh' z P,
-        phi @ loc <> YES sh sh' (LK z) P /\
-        phi @ loc <> YES sh sh' (CT z) P
+    | None => ~isLK (phi @ loc) /\ ~isCT (phi @ loc)
     
     (* locked lock *)
     | Some None =>
@@ -633,7 +684,7 @@ Section Initial_State.
     - (*! lock coherence (no locks at first) *)
       intros lock.
       rewrite threadPool.find_empty.
-      intros sh sh' z P; split; unfold jm;
+      split; intros (sh & sh' & z & P & E); revert E; unfold jm;
       match goal with
         |- context [proj1_sig ?x] => destruct x as (jm' & jmm & lev & S & nolocks)
       end; simpl.
@@ -705,25 +756,9 @@ Definition resource_decay_aux (nextb: block) (phi1 phi2: rmap) : Type :=
   
   + { v : _ & { pp : _ | phi1 @ l = YES Share.top pfullshare (VAL v) pp /\ phi2 @ l = NO Share.bot } })).
 
-Ltac myintuition :=
-  repeat
-    match goal with
-      H : _ \/ _  |- _ => destruct H
-    | H : _ /\ _  |- _ => destruct H
-    | H : prod _ _  |- _ => destruct H
-    | H : sum _ _  |- _ => destruct H
-    | H : sumbool _ _  |- _ => destruct H
-    | H : sumor _ _  |- _ => destruct H
-    | H : ex _  |- _ => destruct H
-    | H : sig _  |- _ => destruct H
-    | H : sigT _  |- _ => destruct H
-    | H : sigT2 _  |- _ => destruct H
-    end;
-  discriminate || congruence || tauto || auto.
-
 Ltac check_false P :=
   let F := fresh "false" in
-  assert (F : P -> False) by (intro; myintuition);
+  assert (F : P -> False) by (intro; breakhyps);
   clear F.
 
 Ltac sumsimpl :=
@@ -750,17 +785,17 @@ Proof.
     destruct r2 as [ sh2 | sh2 sh2' k2 pp2 | k2 pp2 ];
     simpl in *.
   
-  - sumsimpl. sumsimpl. sumsimpl. myintuition.
+  - sumsimpl. sumsimpl. sumsimpl. breakhyps.
   
   - sumsimpl.
     sumsimpl.
-    myintuition.
+    breakhyps.
     destruct k2; split; eauto.
-    now (exists m; myintuition).
-    all: exfalso; myintuition.
+    now (exists m; breakhyps).
+    all: exfalso; breakhyps.
   
   - sumsimpl.
-    exfalso. myintuition.
+    exfalso. breakhyps.
   
   - sumsimpl.
     destruct (eq_dec sh1 Share.top).
@@ -768,7 +803,7 @@ Proof.
     destruct k1.
     destruct (eq_dec sh2 Share.bot).
     now subst; eauto.
-    all: exfalso; myintuition.
+    all: exfalso; breakhyps.
   
   - sumsimpl.
     destruct D.
@@ -777,29 +812,29 @@ Proof.
       destruct (eq_dec sh1' pfullshare); subst.
       destruct (eq_dec sh2' pfullshare); subst.
       destruct (eq_dec k1 k2); try subst k2.
-      now left; f_equal; myintuition.
+      now left; f_equal; breakhyps.
       destruct k1, k2.
-      right. exists sh1, m, m0. split; auto; f_equal; myintuition.
-      all: try solve [exfalso; myintuition].
-      sumsimpl. myintuition.
+      right. exists sh1, m, m0. split; auto; f_equal; breakhyps.
+      all: try solve [exfalso; breakhyps].
+      sumsimpl. breakhyps.
   
-  - sumsimpl. exfalso; myintuition.
+  - sumsimpl. exfalso; breakhyps.
   
-  - sumsimpl. exfalso; myintuition.
+  - sumsimpl. exfalso; breakhyps.
   
-  - sumsimpl. sumsimpl. myintuition.
+  - sumsimpl. sumsimpl. breakhyps.
     destruct k2; split; eauto.
-    now (exists m; myintuition).
-    all: exfalso; myintuition.
+    now (exists m; breakhyps).
+    all: exfalso; breakhyps.
   
-  - sumsimpl. sumsimpl. sumsimpl. myintuition.
+  - sumsimpl. sumsimpl. sumsimpl. breakhyps.
 Qed.
 
 Lemma resource_decay_aux_spec_inv b phi1 phi2 :
   resource_decay_aux b phi1 phi2 -> resource_decay b phi1 phi2.
 Proof.
   intros [lev rd]; split; [ apply lev | clear lev]; intros loc; specialize (rd loc).
-  myintuition; intuition eauto.
+  breakhyps; intuition eauto.
 Qed.
 
 Inductive res_join' : resource -> resource -> resource -> Type :=
@@ -973,7 +1008,7 @@ Proof.
         rewr (phi1 @ loc) in J.
         apply res_join'_spec_inv in J.
         apply YES_join_full in J.
-        exfalso. myintuition.
+        exfalso. breakhyps.
     
     - autospec nn.
       autospec bound.
@@ -1181,7 +1216,9 @@ Proof.
   destruct (AMap.find loc lset)
     as [[unlockedphi | ] | ] eqn:Efind;
     simpl option_map; cbv iota beta; swap 1 3.
-  - intros sh sh' z pp.
+  - rewrite <-isLKCT_rewrite.
+    rewrite <-isLKCT_rewrite in LC.
+    intros sh sh' z pp.
     destruct RD as [NN [R|[R|[[P [v R]]|R]]]].
     + split; intros E; rewrite E in *;
         destruct (phi @ loc); try destruct k; simpl in R; try discriminate;
@@ -2635,6 +2672,7 @@ Section Simulation.
           exfalso.
           destruct isl as [x [? [? EPhi]]].
           rewrite EPhi in lock_coh'.
+          rewrite <-isLKCT_rewrite in lock_coh'.
           eapply (proj1 (lock_coh' _ _ _ _)).
           reflexivity.
         
@@ -3503,14 +3541,7 @@ Section Simulation.
             matchfunspec e Gamma (age_to n Phi).
           Proof.
             unfold matchfunspec in *.
-            Lemma age_to_mpred (P : mpred) x n : (* TODO remove this (copied in age_to.v) *)
-              app_pred P x ->
-              app_pred P (age_to n x).
-            Proof.
-              apply age_to_ind. clear x n.
-              destruct P as [x h]. apply h.
-            Qed.
-            apply age_to_mpred.
+            apply age_to_pred.
           Qed.
           apply matchfunspec_age_to.
         
@@ -3540,7 +3571,7 @@ Section Simulation.
               split; swap 1 2.
               - (* the rmap is unchanged (but we lose the SAT information) *)
                 cut (exists sh0 R0, (LK_at R0 sh0 (b, Int.intval ofs)) Phi).
-                { intros (sh0 & R0 & AP). exists sh0, R0. apply age_to_mpred, AP. }
+                { intros (sh0 & R0 & AP). exists sh0, R0. apply age_to_pred, AP. }
                 cleanup.
                 rewrite His_unlocked in lock_coh.
                 destruct lock_coh as (H & ? & ? & lk & _).
@@ -3585,12 +3616,7 @@ Section Simulation.
             {
               simpl.
               clear -lock_coh.
-              (* use lock_coh and the lemma [age_to_resource_at] in a laborious way? *)
-              (* we need a version of the lemma in the opposite direction *)
-              intros sh sh' z P; split; intros E.
-              admit.
-              admit.
-              (* now simpl; auto (* not even a lock *). *)
+              rewrite isLK_age_to, isCT_age_to. auto.
             }
             (* options:
              - maintain the invariant that the distance between
@@ -3661,10 +3687,6 @@ Section Simulation.
                 unfold permission_at in *.
                 rewrite RR in *.
                 unfold tp_.
-                Lemma lockSet_age_to n tp :
-                  lockSet (age_tp_to n tp) = lockSet tp.
-                Proof.
-                Admitted.  
                 rewrite lockSet_age_to.
                 rewrite <-lockSet_updLockSet.
                 match goal with |- _ ?a _ => cut (a = Some Writable) end.
@@ -3689,23 +3711,18 @@ Section Simulation.
             -- exists sh', R'.
                destruct lks as (lk, sat); split.
                ++ revert lk.
-                  apply age_to_mpred.
+                  apply age_to_pred.
                ++ destruct sat as [sat|sat].
                   ** left; revert sat.
                      unfold age_to in *.
                      rewrite age_by_age_by.
-                     Lemma age_by_age_by_pred {A} `{agA : ageable A} (P : pred A) x n1 n2 :
-                       le n1 n2 ->
-                       app_pred P (age_by n1 x) ->
-                       app_pred P (age_by n2 x).
-                     Admitted. (* TODO remove (is already in age_to.v) *)
                      apply age_by_age_by_pred.
                      omega.
                   ** congruence.
             -- now intuition.
             -- exists sh', R'.
                revert lks.
-               apply age_to_mpred.
+               apply age_to_pred.
         
         + (* safety *)
           intros j lj ora.
