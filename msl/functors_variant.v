@@ -443,46 +443,21 @@ Definition fsig {I: Type} (F: I -> functor): functor.
     unfold compose at 1. rewrite !fmap_app; auto.
 Defined.
 
-(* TODO: resume the following generator. *)
-(*
-Section SubsetFunctor.
-  Variable F:Type -> Type.
-  Variable fF: functor F.
-
-  Variable P : forall A, F A -> Prop.
-
-  Variable HPfmap1 : forall A B (f:A->B) x, 
-    P x -> P (fmap f x).
-
-  Definition subset A := { x:F A | P x }.
-  
-  Definition subset_fmap (A B:Type) (f:A->B) (x:subset A) : subset B :=
-    match x with
-    | exist _ x' H => exist (fun x => P x) (fmap f x') (HPfmap1 f H)
-    end.
-
-  Lemma ff_subset : functorFacts subset subset_fmap.
-  Proof.
-    constructor; unfold subset_fmap; intros.
-    extensionality. destruct x; simpl.
-    generalize (HPfmap1 (id A) p).
-    rewrite fmap_id; intros.
-    unfold id; simpl.
-    replace p0 with p by apply proof_irr; auto.
-    extensionality. destruct x; simpl.
-    unfold compose at 1.
-    generalize (HPfmap1 (f oo g) p).
-    rewrite <- fmap_comp.
-    intros.
-    replace p0 with
-      (HPfmap1 f (HPfmap1 g p))
-      by apply proof_irr; auto.
-  Qed.
-
-  Definition f_subset : functor subset := Functor ff_subset.
-  Existing Instance f_subset.
-End SubsetFunctor.
-*)
+Definition fsubset (F: functor) (P: forall A, F A -> Prop)
+  (Pfmap: forall A B (f: A -> B) x, P A x -> P B (fmap F f x)): functor.
+  refine (@Functor
+   (fun T => {x: F T | P T x})
+   (fun _ _ f x =>
+      match x with exist _ x' H => exist _ (fmap F f x')
+                                           (Pfmap _ _ f x' H) end) _).
+  constructor; intros; simpl.
+  + extensionality x; destruct x as [x ?H].
+    apply exist_ext.
+    rewrite !fmap_id; auto.
+  + extensionality x; destruct x as [x ?H].
+    apply exist_ext.
+    rewrite !fmap_app; auto.
+Defined.
 
 End CovariantFunctorGenerator.
 
@@ -531,6 +506,22 @@ Definition fsig {I: Type} (F: I -> functor): functor.
     rewrite !fmap_id; auto.
   + extensionality p; destruct p as [i a]; simpl.
     unfold compose at 1. rewrite !fmap_app; auto.
+Defined.
+
+Definition fsubset (F: functor) (P: forall A, F A -> Prop)
+  (Pfmap: forall A B f g x, P A x -> P B (fmap F f g x)): functor.
+  refine (@Functor
+   (fun T => {x: F T | P T x})
+   (fun _ _ f g x =>
+      match x with exist _ x' H => exist _ (fmap F f g x')
+                                           (Pfmap _ _ f g x' H) end) _).
+  constructor; intros; simpl.
+  + extensionality x; destruct x as [x ?H].
+    apply exist_ext.
+    rewrite !fmap_id; auto.
+  + extensionality x; destruct x as [x ?H].
+    apply exist_ext.
+    rewrite !fmap_app; auto.
 Defined.
 
 End MixVariantFunctorGenerator.
