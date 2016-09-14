@@ -1165,7 +1165,32 @@ Module Parching <: ErasureSig.
               
           }
       }
-        - unfold ds''.
+    - unfold ds''.
+      Lemma match_st_age_tp_to tp n ds :
+        match_st tp ds -> match_st (JSEM.age_tp_to n tp) ds.
+      Proof.
+        intros M.
+        inversion M as [? ? A B C D E F G]; subst.
+        constructor; intros.
+        - now apply A; (eapply cnt_age; eauto).
+        - now erewrite <-cnt_age; eauto.
+        - now erewrite <-gtc_age; eauto.
+        - erewrite <-D.
+          Set Printing Implicit.
+          erewrite <-getThreadR_age; eauto.
+          erewrite JSEM.perm_of_age.
+          reflexivity.
+        - erewrite <-E.
+          apply LockRes_age.
+        - eapply F with (lock := lock); auto.
+          unfold JSEM.ThreadPool.lockRes in *.
+          unfold JSEM.ThreadPool.lockGuts in *.
+          (* lacking lemmas about aging lset *)
+          now admit.
+        - (* again aging lset. *)
+          admit.
+      Admitted.
+      apply match_st_age_tp_to.
         apply MTCH_updLockN.
         unfold ds'.
         apply MTCH_update; auto.
@@ -1887,6 +1912,7 @@ Module Parching <: ErasureSig.
       
     - (*match_st*)
       unfold ds''.
+      apply match_st_age_tp_to.
       apply MTCH_updLockS.
       Focus 2.
       {

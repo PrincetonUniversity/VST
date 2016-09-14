@@ -74,6 +74,7 @@ Import ThreadPool.
 Ltac cleanup :=
   unfold lockRes in *;
   unfold LocksAndResources.lock_info in *;
+  unfold LocksAndResources.res in *;
   unfold lockGuts in *.
 
 (*+ Description of the invariant *)
@@ -198,6 +199,33 @@ Proof.
   - tauto.
 Qed.
 
+Lemma lset_same_support_map {A} m (f : A -> A) :
+  lset_same_support (AMap.map (option_map f) m) m.
+Proof.
+  intros k.
+  rewrite AMap_find_map_option_map.
+  destruct (AMap.find (elt:=option A) k m); simpl; split; congruence.
+Qed.
+
+Lemma lset_same_support_sym {A} (m1 m2 : AMap.t A) :
+  lset_same_support m1 m2 ->
+  lset_same_support m2 m1.
+Proof.
+  unfold lset_same_support in *.
+  intros E loc.
+  rewrite E; tauto.
+Qed.
+
+Lemma lset_same_support_trans {A} (m1 m2 m3 : AMap.t A) :
+  lset_same_support m1 m2 ->
+  lset_same_support m2 m3 ->
+  lset_same_support m1 m3.
+Proof.
+  unfold lset_same_support in *.
+  intros E F loc.
+  rewrite E; apply F.
+Qed.
+
 (*! Joinability and coherence *)
 
 Lemma mem_compatible_forget {tp m phi} :
@@ -270,6 +298,8 @@ Proof.
   intros H _ i cnti q E; destruct (H i cnti q E).
 Qed.
 
+(*
+(* TODO remove this (redundant with following) *)
 Lemma no_Krun_age tp n :
   no_Krun tp -> no_Krun (age_tp_to n tp).
 Proof.
@@ -277,6 +307,15 @@ Proof.
   unshelve erewrite <-gtc_age; eauto.
   eapply cnt_age; eauto.
 Qed.
+*)
+
+Lemma no_Krun_age_tp_to n tp :
+  no_Krun (age_tp_to n tp) <-> no_Krun tp.
+Admitted.
+
+Lemma unique_Krun_age_tp_to n tp sch :
+  unique_Krun (age_tp_to n tp) sch <-> unique_Krun tp sch.
+Admitted.
 
 Lemma no_Krun_stable tp i cnti c' phi' :
   (forall q, c' <> Krun q) ->
@@ -649,24 +688,408 @@ Proof.
   intros [_ rd] j lev a.
 Admitted.
 
+Unset Printing Implicit.
+
+(* Constructive version of resource_decay (equivalent to the non-constructive version, see below) *)
+Definition resource_decay_aux (nextb: block) (phi1 phi2: rmap) : Type :=
+  prod (level phi1 >= level phi2)
+  (forall l: address,
+    
+  ((fst l >= nextb)%positive -> phi1 @ l = NO Share.bot) *
+  ( (resource_fmap (approx (level phi2)) (phi1 @ l) = (phi2 @ l))
+    
+  + { rsh : _ & { v : _ & { v' : _ |
+       resource_fmap (approx (level phi2)) (phi1 @ l) = YES rsh pfullshare (VAL v) NoneP /\ 
+       phi2 @ l = YES rsh pfullshare (VAL v') NoneP }}}
+  
+  + (fst l >= nextb)%positive * { v | phi2 @ l = YES Share.top pfullshare (VAL v) NoneP }
+  
+  + { v : _ & { pp : _ | phi1 @ l = YES Share.top pfullshare (VAL v) pp /\ phi2 @ l = NO Share.bot } })).
+
+Ltac myintuition :=
+  repeat
+    match goal with
+      H : _ \/ _  |- _ => destruct H
+    | H : _ /\ _  |- _ => destruct H
+    | H : prod _ _  |- _ => destruct H
+    | H : sum _ _  |- _ => destruct H
+    | H : sumbool _ _  |- _ => destruct H
+    | H : sumor _ _  |- _ => destruct H
+    | H : ex _  |- _ => destruct H
+    | H : sig _  |- _ => destruct H
+    | H : sigT _  |- _ => destruct H
+    | H : sigT2 _  |- _ => destruct H
+    end;
+  discriminate || congruence || tauto || auto.
+
+Ltac check_false P :=
+  let F := fresh "false" in
+  assert (F : P -> False) by (intro; myintuition);
+  clear F.
+
+Ltac sumsimpl :=
+  match goal with
+    |- sum ?A ?B => check_false A; right
+  | |- sum ?A ?B => check_false B; left
+  | |- sumor ?A ?B => check_false A; right
+  | |- sumor ?A ?B => check_false B; left
+  | |- sumbool ?A ?B => check_false A; right
+  | |- sumbool ?A ?B => check_false B; left
+  end.
+
+Lemma resource_decay_aux_spec b phi1 phi2 :
+  resource_decay b phi1 phi2 -> resource_decay_aux b phi1 phi2.
+Proof.
+  intros [lev rd]; split; [ apply lev | clear lev]; intros loc; specialize (rd loc).
+  assert (D: {(fst loc >= b)%positive} + {(fst loc < b)%positive}) by (pose proof zlt; zify; eauto).
+  split. apply rd. destruct rd as [nn rd].
+  remember (phi1 @ loc) as r1.
+  remember (phi2 @ loc) as r2.
+  remember (level phi2) as n.
+  clear phi1 phi2 Heqr1 Heqr2 Heqn.
+  destruct r1 as [ sh1 | sh1 sh1' k1 pp1 | k1 pp1 ];
+    destruct r2 as [ sh2 | sh2 sh2' k2 pp2 | k2 pp2 ];
+    simpl in *.
+  
+  - sumsimpl. sumsimpl. sumsimpl. myintuition.
+  
+  - sumsimpl.
+    sumsimpl.
+    myintuition.
+    destruct k2; split; eauto.
+    now (exists m; myintuition).
+    all: exfalso; myintuition.
+  
+  - sumsimpl.
+    exfalso. myintuition.
+  
+  - sumsimpl.
+    destruct (eq_dec sh1 Share.top).
+    destruct (eq_dec sh1' pfullshare).
+    destruct k1.
+    destruct (eq_dec sh2 Share.bot).
+    now subst; eauto.
+    all: exfalso; myintuition.
+  
+  - sumsimpl.
+    destruct D.
+    + autospec nn. congruence.
+    + sumsimpl.
+      destruct (eq_dec sh1' pfullshare); subst.
+      destruct (eq_dec sh2' pfullshare); subst.
+      destruct (eq_dec k1 k2); try subst k2.
+      now left; f_equal; myintuition.
+      destruct k1, k2.
+      right. exists sh1, m, m0. split; auto; f_equal; myintuition.
+      all: try solve [exfalso; myintuition].
+      sumsimpl. myintuition.
+  
+  - sumsimpl. exfalso; myintuition.
+  
+  - sumsimpl. exfalso; myintuition.
+  
+  - sumsimpl. sumsimpl. myintuition.
+    destruct k2; split; eauto.
+    now (exists m; myintuition).
+    all: exfalso; myintuition.
+  
+  - sumsimpl. sumsimpl. sumsimpl. myintuition.
+Qed.
+
+Lemma resource_decay_aux_spec_inv b phi1 phi2 :
+  resource_decay_aux b phi1 phi2 -> resource_decay b phi1 phi2.
+Proof.
+  intros [lev rd]; split; [ apply lev | clear lev]; intros loc; specialize (rd loc).
+  myintuition; intuition eauto.
+Qed.
+
+Inductive res_join' : resource -> resource -> resource -> Type :=
+    res_join'_NO1 : forall rsh1 rsh2 rsh3 : Share.t,
+                   sepalg.join rsh1 rsh2 rsh3 ->
+                   res_join' (NO rsh1) (NO rsh2) (NO rsh3)
+  | res_join'_NO2 : forall (rsh1 rsh2 rsh3 : Share.t) (sh : pshare) 
+                     (k : AV.kind) (p : preds),
+                   sepalg.join rsh1 rsh2 rsh3 ->
+                   res_join' (YES rsh1 sh k p) (NO rsh2) (YES rsh3 sh k p)
+  | res_join'_NO3 : forall (rsh1 rsh2 rsh3 : Share.t) (sh : pshare) 
+                     (k : AV.kind) (p : preds),
+                   sepalg.join rsh1 rsh2 rsh3 ->
+                   res_join' (NO rsh1) (YES rsh2 sh k p) (YES rsh3 sh k p)
+  | res_join'_YES : forall (rsh1 rsh2 rsh3 : Share.t) (sh1 sh2 sh3 : pshare)
+                     (k : AV.kind) (p : preds),
+                   sepalg.join rsh1 rsh2 rsh3 ->
+                   sepalg.join sh1 sh2 sh3 ->
+                   res_join' (YES rsh1 sh1 k p) (YES rsh2 sh2 k p) (YES rsh3 sh3 k p)
+  | res_join'_PURE : forall (k : AV.kind) (p : preds),
+                    res_join' (PURE k p) (PURE k p) (PURE k p).
+
+Lemma res_join'_spec r1 r2 r3 : res_join r1 r2 r3 -> res_join' r1 r2 r3.
+Proof.
+  intros J.
+  destruct r1 as [sh1 | sh1 sh1' k1 pp1 | k1 pp1],
+           r2 as [sh2 | sh2 sh2' k2 pp2 | k2 pp2],
+           r3 as [sh3 | sh3 sh3' k3 pp3 | k3 pp3].
+  all: try solve [ exfalso; inversion J ].
+  all: try (assert (k1 = k3) by (inv J; auto); subst).
+  all: try (assert (k2 = k3) by (inv J; auto); subst).
+  all: try (assert (pp1 = pp3) by (inv J; auto); subst).
+  all: try (assert (pp2 = pp3) by (inv J; auto); subst).
+  all: try (assert (sh1' = sh3') by (inv J; auto); subst).
+  all: try (assert (sh2' = sh3') by (inv J; auto); subst).
+  all: constructor; inv J; auto.
+Qed.
+
+Lemma res_join'_spec_inv r1 r2 r3 : res_join' r1 r2 r3 -> res_join r1 r2 r3.
+Proof.
+  inversion 1; constructor; assumption.
+Qed.
+
+(* Constructive version of resource_decay (equivalent to the non-constructive version, see below) *)
+
+Definition resource_decay_at (nextb: block) n (r1 r2 : resource) b := 
+  ((b >= nextb)%positive -> r1 = NO Share.bot) /\
+  (resource_fmap (approx (n)) (r1) = (r2) \/
+  (exists rsh, exists v, exists v',
+       resource_fmap (approx (n)) (r1) = YES rsh pfullshare (VAL v) NoneP /\ 
+       r2 = YES rsh pfullshare (VAL v') NoneP)
+  \/ ((b >= nextb)%positive /\ exists v, r2 = YES Share.top pfullshare (VAL v) NoneP)
+  \/ (exists v, exists pp, r1 = YES Share.top pfullshare (VAL v) pp /\ r2 = NO Share.bot)).
+
+(* @andrew ask if there is a name for this *)
+
+Definition rmap_bound b phi :=
+  (forall loc, (fst loc >= b)%positive -> phi @ loc = NO Share.bot).
+
+(* @andrew those lemmas already somewhere? *)
+
+Lemma join_bot_bot_eq sh :
+  sepalg.join Share.bot Share.bot sh ->
+  sh = Share.bot.
+Proof.
+  intros j.
+  apply (join_eq j  (z' := Share.bot) (join_bot_eq Share.bot)).
+Qed.
+
+Lemma join_to_bot_l {sh1 sh2} :
+  sepalg.join sh1 sh2 Share.bot ->
+  sh1 = Share.bot.
+Admitted.
+
+Lemma join_to_bot_r {sh1 sh2} :
+  sepalg.join sh1 sh2 Share.bot ->
+  sh2 = Share.bot.
+Admitted.
+
+Lemma join_top_l {sh2 sh3} :
+  sepalg.join Share.top sh2 sh3 ->
+  sh2 = Share.bot.
+Proof.
+Admitted.
+         
+Lemma join_top {sh2 sh3} :
+  sepalg.join Share.top sh2 sh3 ->
+  sh3 = Share.top.
+Proof.
+Admitted.
+
+Lemma join_pfullshare {sh2 sh3 : pshare} : ~sepalg.join pfullshare sh2 sh3.
+Proof.
+Admitted.
+
+Lemma age_to_resource_at phi n loc : age_to n phi @ loc = resource_fmap (approx n) (phi @ loc).
+Proof.
+Admitted.
+
 Lemma join_resource_decay b phi1 phi1' phi2 phi3 :
+  rmap_bound b phi2 ->
   resource_decay b phi1 phi1' ->
   sepalg.join phi1 phi2 phi3 ->
   exists phi3',
     sepalg.join phi1' (age_to (level phi1') phi2) phi3' /\
     resource_decay b phi3 phi3'.
 Proof.
+  Unset Printing Implicit.
+  intros bound rd; apply resource_decay_aux_spec in rd; revert rd.
+  intros [lev rd] J.
+  assert (lev12 : level phi1 = level phi2).
+  { apply join_level in J; intuition congruence. }
+  
+  set (phi2' := age_to (level phi1') phi2).
+  unfold resource_decay in *.
+  
+  assert (DESCR : forall loc,
+             { r3 |
+               sepalg.join (phi1' @ loc) (phi2' @ loc) r3 /\
+               resource_decay_at b (level phi1') (phi3 @ loc) r3 (fst loc) /\
+               resource_fmap (approx (level phi1')) r3 = r3
+         }).
+  {
+    intros loc.
+    specialize (rd loc).
+    assert (D: {(fst loc >= b)%positive} + {(fst loc < b)%positive}) by (pose proof zlt; zify; eauto).
+    apply resource_at_join with (loc := loc) in J.
+    
+    unfold phi2'; clear phi2'; rewrite age_to_resource_at.
+    autospec bound.
+    
+    destruct rd as [nn [[[E1 | (rsh & v & v' & E1 & E1')] | (pos & v & E1') ] | (v & pp & E1 & E1')]].
+    
+    - exists ( resource_fmap (approx (level phi1')) (phi3 @ loc)).
+      rewrite <-E1.
+      split;[|split;[split|]].
+      + inversion J; simpl; constructor; auto.
+      + intros pos; autospec bound; autospec nn. rewrite bound in *; rewrite nn in *.
+        inv J. f_equal. eapply join_bot_bot_eq; auto.
+      + left. auto.
+      + Lemma resource_fmap_approx_idempotent n r :
+          resource_fmap (approx n) (resource_fmap (approx n) r) = resource_fmap (approx n) r.
+        Proof.
+          destruct r; simpl; f_equal.
+          - destruct p0; simpl.
+            rewrite <-compose_assoc.
+            rewrite approx_oo_approx.
+            reflexivity.
+          - destruct p; simpl.
+            rewrite <-compose_assoc.
+            rewrite approx_oo_approx.
+            reflexivity.
+        Qed.
+        apply resource_fmap_approx_idempotent.
+    
+    - rewrite E1'.
+      apply res_join'_spec in J.
+      inversion J; rewr (phi1 @ loc) in E1; simpl in *.
+      all:try congruence.
+      + injection E1; intros; subst.
+        exists (YES rsh3 pfullshare (VAL v') NoneP).
+        split;[|split;[split|]].
+        * constructor; assumption.
+        * intros pos; autospec bound; autospec nn. rewrite bound in *; rewrite nn in *.
+          congruence.
+        * right. left. simpl. exists rsh3, v, v'. split; congruence.
+        * simpl. f_equal. unfold "oo"; simpl.
+          unfold NoneP in *. simpl. f_equal. extensionality.
+          apply approx_FF.
+      + injection E1; intros; subst.
+        rewr (phi1 @ loc) in J.
+        apply res_join'_spec_inv in J.
+        apply YES_join_full in J.
+        exfalso. myintuition.
+    
+    - autospec nn.
+      autospec bound.
+      rewrite nn in *.
+      rewrite bound in *.
+      apply res_join'_spec in J.
+      inv J; simpl.
+      exists (phi1' @ loc).
+      rewrite E1'.
+      split;[|split;[split|]].
+      + constructor. eauto.
+      + intros _. f_equal.
+        apply join_bot_bot_eq. auto.
+      + right. right. left. eauto.
+      + simpl. unfold NoneP in *. simpl. do 2 f_equal. extensionality.
+        apply approx_FF.
+    
+    - rewrite E1 in J.
+      exists (NO Share.bot).
+      rewrite E1'.
+      inv J.
+      + simpl.
+        split;[|split;[split|]].
+        * constructor.
+          cut (rsh2 = Share.bot).
+          now intros ->; auto with *.
+          revert RJ; clear.
+          apply join_top_l.
+        * intros pos; autospec bound; autospec nn. rewrite bound in *; rewrite nn in *.
+          congruence.
+        * right. right. right. exists v, pp. split; f_equal.
+          revert RJ; clear.
+          apply join_top.
+        * reflexivity.
+      + exfalso.
+        eapply join_pfullshare.
+        eauto.
+  }
+  
+  destruct (make_rmap (fun loc => proj1_sig (DESCR loc))) with (n := level phi1') as (phi3' & lev3 & at3).
+  {
+    (* validity *)
+    intros b' ofs; unfold "oo"; simpl.
+    pose proof phi_valid phi1 as V1.
+    pose proof phi_valid phi2 as V2.
+    pose proof phi_valid phi3 as V3.
+    admit. (* doable *)
+  }
+  {
+    (* the right level of approximation *)
+    unfold "oo".
+    extensionality loc; simpl.
+    destruct (DESCR loc) as (?&?&rd3&?); simpl; auto.
+  }
+  
+  exists phi3'.
+  split;[|split].
+  - apply resource_at_join2; auto.
+    + rewrite lev3.
+      unfold phi2'.
+      apply level_age_to.
+      eauto with *.
+    + intros loc.
+      rewrite at3.
+      destruct (DESCR loc) as (?&?&?); simpl; auto.
+  - rewrite lev3.
+    apply join_level in J.
+    auto with *.
+  - intros loc.
+    rewrite at3.
+    destruct (DESCR loc) as (?&?&rd3); simpl; auto.
+    destruct rd3 as [[NN rd3] _].
+    split; auto.
+    destruct rd3 as [R|[R|[R|R]]].
+    + left. exact_eq R; do 3 f_equal. auto.
+    + right; left. exact_eq R.
+      do 7 (f_equal; try extensionality).
+      auto.
+    + right; right; left. auto.
+    + auto.
 Admitted.
 
+Lemma rmap_bound_join {b phi1 phi2 phi3} :
+  sepalg.join phi1 phi2 phi3 ->
+  rmap_bound b phi3 <-> (rmap_bound b phi1 /\ rmap_bound b phi2).
+Proof.
+  intros j; split.
+  - intros B; split.
+    + intros l p; specialize (B l p).
+      apply resource_at_join with (loc := l) in j.
+      rewrite B in j.
+      inv j. f_equal. apply (join_to_bot_l RJ).
+    + intros l p; specialize (B l p).
+      apply resource_at_join with (loc := l) in j.
+      rewrite B in j.
+      inv j. f_equal. apply (join_to_bot_r RJ).
+  - intros [B1 B2] l p.
+    specialize (B1 l p).
+    specialize (B2 l p).
+    apply resource_at_join with (loc := l) in j.
+    rewrite B1, B2 in j.
+    inv j. f_equal. apply join_bot_bot_eq; auto.
+Qed.
+
 Lemma joinlist_resource_decay b phi1 phi1' l Phi :
+  rmap_bound b Phi ->
   resource_decay b phi1 phi1' ->
   joinlist (phi1 :: l) Phi ->
   exists Phi',
     joinlist (phi1' :: (map (age_to (level phi1')) l)) Phi' /\
     resource_decay b Phi Phi'.
 Proof.
-  intros rd (x & h & j).
-  destruct (join_resource_decay _ _ _ _ _ rd j) as (Phi' & j' & rd').
+  intros B rd (x & h & j).
+  assert (Bx : rmap_bound b x). { apply (rmap_bound_join j) in B. intuition. }
+  destruct (join_resource_decay _ _ _ _ _ Bx rd j) as (Phi' & j' & rd').
   exists Phi'; split; auto.
   exists (age_to (level phi1') x); split; auto.
   apply joinlist_age_to, h.
@@ -694,7 +1117,8 @@ Lemma mem_cohere_step c c' jm jm' Phi (X : rmap) ge :
 Proof.
   intros MC J C.
   destruct C as [step [RD L]].
-  destruct (join_resource_decay _ _ _ _ _ RD (* L *) J) as [Phi' [J' RD']].
+  assert (Bx : rmap_bound (Mem.nextblock (m_dry jm)) X). admit.
+  destruct (join_resource_decay _ _ _ _ _  Bx RD (* L *) J) as [Phi' [J' RD']].
   exists Phi'. split. apply J'.
   constructor.
   - intros sh rsh v loc pp AT.
@@ -719,10 +1143,7 @@ Proof.
     + (* joining of permissions, values don't change *)
       symmetry in H.
       destruct jm'.
-      apply (JMcontents _ _ _ _ _ H).
-  - admit.
-  - admit.
-  - admit. *)
+      apply (JMcontents _ _ _ _ _ H).. *)
 Admitted.
 
 Lemma resource_decay_matchfunspec {b phi phi' g Gamma} :
@@ -1035,6 +1456,15 @@ Qed.
 
 Lemma resource_decay_join_identity b phi phi' e e' :
   resource_decay b phi phi' ->
+  sepalg.joins phi e ->
+  sepalg.joins phi' e' ->
+  identity e ->
+  identity e' ->
+  e' = age_to (level phi') e.
+Admitted.
+
+Lemma core_necr_join_identity (phi phi' e e' : rmap) :
+  necR (core phi) (core phi') ->
   sepalg.joins phi e ->
   sepalg.joins phi' e' ->
   identity e ->
@@ -2422,6 +2852,9 @@ Section Simulation.
             with (R := approx (level phi0) (Interp Rx))
             (* with (sh := shx) *)
             .
+            all: try match goal with |- _ = age_tp_to _ _ => reflexivity end.
+            all: try match goal with |- _ = updLockSet _ _ _ => reflexivity end.
+            all: try match goal with |- _ = updThread _ _ _ => reflexivity end.
             * now auto.
             * eassumption.
             * simpl.
@@ -2449,8 +2882,6 @@ Section Simulation.
             * apply Efind.
             * replace (m_phi jm') with phi' by intuition.
               apply Jphi'.
-            * reflexivity.
-            * reflexivity.
       }
 
       { (* the case of release *) admit. }
@@ -2881,23 +3312,38 @@ Section Simulation.
         try solve [jmstep_inv; getThread_inv; congruence].
       
       simpl SCH.schedSkip in *.
-      right (* TO BE CHANGED *).
+      left (* TO BE CHANGED *).
       (* left (* we need aging, because we're using the safety of the call *). *)
       match goal with |- _ _ _ (?M, _, (_, ?TP)) => set (tp_ := TP); set (m_ := M) end.
-      pose (compat_ := mem_compatible_with tp_ m_ Phi).
+      pose (compat_ := mem_compatible_with tp_ m_ (age_to n Phi)).
       jmstep_inv.
+      
+      cleanup.
+      assert (El : level (getThreadR Htid) - 1 = n). {
+        rewrite getThread_level with (Phi := Phi).
+        - cleanup.
+          rewrite lev.
+          omega.
+        - destruct compat. auto.
+      }
+      cleanup.
+      
+      pose proof mem_compatible_with_age compat (n := n) as compat_aged.
       
       - (* the case of acquire *)
         assert (compat' : compat_). {
           subst compat_ tp_ m_.
+          rewrite El.
           constructor.
           - destruct compat as [J].
-            clear -J His_unlocked Hadd_lock_res.
+            clear -J lev His_unlocked Hadd_lock_res.
             rewrite join_all_joinlist in *.
+            rewrite maps_age_to.
             rewrite maps_updlock1.
             erewrite maps_getlock3 in J; eauto.
             rewrite maps_remLockSet_updThread.
             rewrite maps_updthread.
+            simpl map.
             assert (pr:containsThread (remLockSet tp (b, Int.intval ofs)) i) by auto.
             rewrite (maps_getthread i _ pr) in J.
             rewrite gRemLockSetRes with (cnti := Htid) in J. clear pr.
@@ -2905,18 +3351,41 @@ Section Simulation.
             generalize (getThreadR Htid) d_phi (m_phi jm').
             generalize (all_but i (maps (remLockSet tp (b, Int.intval ofs)))).
             cleanup.
-            clear.
+            clear -lev.
             intros l a b c j h.
             rewrite Permutation.perm_swap in h.
-            eapply joinlist_merge; eassumption.
+            pose proof @joinlist_age_to _ _ _ _ _ n _ _ h as h'.
+            simpl map in h'.
+            apply age_to_join_eq with (k := n) in j; auto.
+            + eapply joinlist_merge; eassumption.
+            + cut (level c = level Phi). omega.
+              apply join_level in j. destruct j.
+              eapply (joinlist_level a) in h.
+              * congruence.
+              * left; auto.
           
           - (* mem_cohere' *)
             destruct compat as [J MC].
             clear safety lock_coh jmstep.
-            eapply mem_cohere'_store.
-            + rewrite His_unlocked. congruence.
-            + eauto.
-            + constructor; auto.
+            eapply mem_cohere'_store with
+            (tp := age_tp_to n tp)
+              (Hcmpt := mem_compatible_forget compat_aged)
+              (i := Int.zero).
+            + cleanup.
+              rewrite lset_age_tp_to.
+              rewrite AMap_find_map_option_map.
+              rewrite His_unlocked. simpl. congruence.
+            + exact_eq Hstore.
+              f_equal.
+              f_equal.
+              apply restrPermMap_ext.
+              unfold lockSet in *.
+              rewrite lset_age_tp_to.
+              intros b0.
+              rewrite (@A2PMap_option_map rmap (lset tp)).
+              reflexivity.
+              
+            + auto.
           
           - (* lockSet_Writable *)
             pose proof (loc_writable compat) as lw.
@@ -2943,8 +3412,14 @@ Section Simulation.
               reflexivity.
             + assert_specialize lw. {
                 simpl in is.
+                rewrite AMap_find_map_option_map in is.
                 rewrite AMap_find_add in is.
-                if_tac in is. tauto. apply is.
+                if_tac in is. tauto.
+                exact_eq is.
+                unfold ssrbool.isSome in *.
+                cleanup.
+                destruct (AMap.find (elt:=option rmap) (b', ofs') (lset tp));
+                  reflexivity.
               }
               intros ofs0 inter.
               specialize (lw ofs0 inter).
@@ -2961,53 +3436,103 @@ Section Simulation.
                 apply equal_f with (x := (b', ofs0)) in SO.
                 apply equal_f with (x := Max) in SO.
                 apply SO.
-          
           - (* juicyLocks_in_lockSet *)
             pose proof jloc_in_set compat as jl.
             intros loc sh1 sh1' pp z E.
+            cleanup.
+            (* rewrite lset_age_tp_to. *)
+            (* rewrite AMap_find_map_option_map. *)
+            Lemma isSome_option_map {A B} (f : A -> B) o : ssrbool.isSome (option_map f o) = ssrbool.isSome o.
+            Proof.
+              destruct o; reflexivity.
+            Qed.
+            (* rewrite isSome_option_map. *)
+            apply juicyLocks_in_lockSet_age with (n := n) in jl.
             specialize (jl loc sh1 sh1' pp z E).
             simpl.
+            Lemma AMap_map_add {A B} (f : A -> B) m x y :
+              AMap.Equal
+                (AMap.map f (AMap.add x y m))
+                (AMap.add x (f y) (AMap.map f m)).
+            Proof.
+              intros k.
+              rewrite AMap_find_map_option_map.
+              rewrite AMap_find_add.
+              rewrite AMap_find_add.
+              rewrite AMap_find_map_option_map.
+              destruct (AMap.find (elt:=A) k m); if_tac; auto.
+            Qed.
+            rewrite AMap_map_add.
             rewrite AMap_find_add.
-            if_tac. reflexivity. apply jl.
+            if_tac. reflexivity.
+            rewrite lset_age_tp_to in jl.
+            apply jl.
           
           - (* lockSet_in_juicyLocks *)
             pose proof lset_in_juice compat as lj.
             intros loc; specialize (lj loc).
             simpl.
+            rewrite AMap_map_add.
             rewrite AMap_find_add.
+            rewrite AMap_find_map_option_map.
             if_tac; swap 1 2.
-            + apply lj. (* easy for other addresses *)
-            + intros _.
-              apply lj. subst loc.
-              cleanup.
-              rewrite His_unlocked.
-              reflexivity.
-        }
-        
-        assert (compat'' : mem_compatible_with (age_tp_to n tp_) m_ (age_to n Phi)).
-        {
-          admit.
+            + cleanup.
+              rewrite isSome_option_map.
+              intros is; specialize (lj is).
+              destruct lj as (sh' & psh' & P & E).
+              (* I could have a lemma just for this YES, but maybe I should use the lemma [age_to_resource_at] that I admitted above. I'll do that for now. *)
+              rewrite age_to_resource_at.
+              rewrite E. simpl. eauto.
+            + intros _. subst loc.
+              assert_specialize lj. {
+                cleanup.
+                rewrite His_unlocked.
+                reflexivity.
+              }
+              destruct lj as (sh' & psh' & P & E).
+              rewrite age_to_resource_at.
+              rewrite E. simpl. eauto.
         }
         
         apply state_invariant_c with (mcompat := compat').
         + (* level *)
-          assumption.
+          apply level_age_to. omega.
         
         + (* matchfunspec *)
-          auto.
+          revert gam. clear.
+          Lemma matchfunspec_age_to e Gamma n Phi :
+            matchfunspec e Gamma Phi ->
+            matchfunspec e Gamma (age_to n Phi).
+          Proof.
+            unfold matchfunspec in *.
+            Lemma age_to_mpred (P : mpred) x n : (* TODO remove this (copied in age_to.v) *)
+              app_pred P x ->
+              app_pred P (age_to n x).
+            Proof.
+              apply age_to_ind. clear x n.
+              destruct P as [x h]. apply h.
+            Qed.
+            apply age_to_mpred.
+          Qed.
+          apply matchfunspec_age_to.
         
         + (* lock sparsity *)
           unfold tp_ in *.
           simpl.
           cleanup.
           eapply sparsity_same_support with (lset tp); auto.
-          apply same_support_change_lock.
-          cleanup.
-          rewrite His_unlocked. congruence.
+          apply lset_same_support_sym.
+          eapply lset_same_support_trans.
+          * apply lset_same_support_map.
+          * apply lset_same_support_sym.
+            apply same_support_change_lock.
+            cleanup.
+            rewrite His_unlocked. congruence.
         
         + (* lock coherence *)
           intros loc.
           simpl (AMap.find _ _).
+          rewrite AMap_find_map_option_map.
           rewrite AMap_find_add.
           specialize (lock_coh loc).
           if_tac.
@@ -3016,6 +3541,8 @@ Section Simulation.
             { subst loc.
               split; swap 1 2.
               - (* the rmap is unchanged (but we lose the SAT information) *)
+                cut (exists sh0 R0, (LK_at R0 sh0 (b, Int.intval ofs)) Phi).
+                { intros (sh0 & R0 & AP). exists sh0, R0. apply age_to_mpred, AP. }
                 cleanup.
                 rewrite His_unlocked in lock_coh.
                 destruct lock_coh as (H & ? & ? & lk & _).
@@ -3042,13 +3569,31 @@ Section Simulation.
                     if_tac [[H H']|H] in Hstore; [ | discriminate ].
                     apply H'.
                   * unfold tp_.
-                    rewrite JTP.gssLockRes. congruence.
+                    Lemma LockRes_age_content1 js n a :
+                      lockRes (age_tp_to n js) a = option_map (option_map (age_to n)) (lockRes js a).
+                    Proof.
+                      cleanup.
+                      rewrite lset_age_tp_to, AMap_find_map_option_map.
+                      reflexivity.
+                    Qed.
+                    rewrite LockRes_age_content1.
+                    rewrite JTP.gssLockRes. simpl. congruence.
                   * congruence.
             }
           
           * (* not the current lock *)
+            rewrite El.
             destruct (AMap.find (elt:=option rmap) loc (lset tp)) as [o|] eqn:Eo; swap 1 2.
-            now auto (* not even a lock *).
+            {
+              simpl.
+              clear -lock_coh.
+              (* use lock_coh and the lemma [age_to_resource_at] in a laborious way? *)
+              (* we need a version of the lemma in the opposite direction *)
+              intros sh sh' z P; split; intros E.
+              admit.
+              admit.
+              (* now simpl; auto (* not even a lock *). *)
+            }
             (* options:
              - maintain the invariant that the distance between
                 two locks is >= 4 (or =0)
@@ -3118,6 +3663,11 @@ Section Simulation.
                 unfold permission_at in *.
                 rewrite RR in *.
                 unfold tp_.
+                Lemma lockSet_age_to n tp :
+                  lockSet (age_tp_to n tp) = lockSet tp.
+                Proof.
+                Admitted.  
+                rewrite lockSet_age_to.
                 rewrite <-lockSet_updLockSet.
                 match goal with |- _ ?a _ => cut (a = Some Writable) end.
                 { intros ->. constructor. }
@@ -3136,13 +3686,34 @@ Section Simulation.
                     zify.
                     omega.
             }
-            destruct o; split; intuition.
+            destruct o; destruct lock_coh as (Load & sh' & R' & lks); split.
+            -- now intuition.
+            -- exists sh', R'.
+               destruct lks as (lk, sat); split.
+               ++ revert lk.
+                  apply age_to_mpred.
+               ++ destruct sat as [sat|sat].
+                  ** left; revert sat.
+                     unfold age_to in *.
+                     rewrite age_by_age_by.
+                     Lemma age_by_age_by_pred {A} `{agA : ageable A} (P : pred A) x n1 n2 :
+                       le n1 n2 ->
+                       app_pred P (age_by n1 x) ->
+                       app_pred P (age_by n2 x).
+                     Admitted. (* TODO remove (is already in age_to.v) *)
+                     apply age_by_age_by_pred.
+                     omega.
+                  ** congruence.
+            -- now intuition.
+            -- exists sh', R'.
+               revert lks.
+               apply age_to_mpred.
         
         + (* safety *)
           intros j lj ora.
           specialize (safety j lj ora).
-          Set Printing Implicit.
           unfold tp_.
+          unshelve erewrite <-gtc_age. auto.
           unshelve erewrite gLockSetCode; auto.
           destruct (eq_dec i j).
           * {
@@ -3185,8 +3756,7 @@ Section Simulation.
                 congruence.
               
               - (* at_external : we can now use safety *)
-                subst.
-                Unset Printing Implicit.
+                subst z c0 m0.
                 destruct Post with
                   (ret := Some (Vint Int.zero))
                   (m' := jm_ lj compat')
@@ -3200,12 +3770,10 @@ Section Simulation.
                   unfold jsafeN in *.
                   unfold juicy_safety.safeN in *.
                   f_equal.
-                  * (* this is the leveling problem *)
-                    admit.
-                  * cut (Some c'' = Some c'). injection 1; auto.
-                    rewrite <-Ec'', <-Ec'.
-                    unfold cl_core_sem; simpl.
-                    auto.
+                  cut (Some c'' = Some c'). injection 1; auto.
+                  rewrite <-Ec'', <-Ec'.
+                  unfold cl_core_sem; simpl.
+                  auto.
             }
           
           * unshelve erewrite gsoThreadCode; auto.
@@ -3217,6 +3785,8 @@ Section Simulation.
           intros j lj.
           unfold tp_.
           specialize (wellformed j lj).
+          Set Printing Implicit.
+          unshelve erewrite <-gtc_age. auto.
           unshelve erewrite gLockSetCode; auto.
           destruct (eq_dec i j).
           * subst j.
@@ -3229,6 +3799,9 @@ Section Simulation.
         + (* uniqueness *)
           apply no_Krun_unique_Krun.
           (* unfold tp_ in *. *)
+          unfold tp_.
+          Unset Printing Implicit.
+          apply no_Krun_age_tp_to.
           apply no_Krun_updLockSet.
           apply no_Krun_stable. congruence.
           eapply unique_Krun_no_Krun. eassumption.

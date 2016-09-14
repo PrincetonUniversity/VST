@@ -49,3 +49,31 @@ Lemma age_to_necR {A} `{agA : ageable A} n x : necR x (age_to n x).
 Proof.
   apply age_by_necR.
 Qed.
+
+Require Import msl.predicates_hered.
+
+Lemma age_to_pred {A} `{agA : ageable A} (P : pred A) x n :
+  app_pred P x ->
+  app_pred P (age_to n x).
+Proof.
+  apply age_to_ind. clear x n.
+  destruct P as [x h]. apply h.
+Qed.
+
+Lemma age_by_pred {A} `{agA : ageable A} (P : pred A) x n :
+  app_pred P x ->
+  app_pred P (age_by n x).
+Proof.
+  apply age_by_ind. clear x n.
+  destruct P as [x h]. apply h.
+Qed.
+
+Lemma age_by_age_by_pred {A} `{agA : ageable A} (P : pred A) x n1 n2 :
+  le n1 n2 ->
+  app_pred P (age_by n1 x) ->
+  app_pred P (age_by n2 x).
+Proof.
+  intros l. replace n2 with ((n2 - n1) + n1) by auto with *.
+  rewrite <-age_by_age_by.
+  apply age_by_pred.
+Qed.

@@ -116,6 +116,20 @@ Proof.
     eapply join_eq; eauto.
 Qed.
 
+Lemma joinlist_join_sub {A} {JA : Join A} {PA : Perm_alg A} (x phi : A) l :
+  joinlist l phi ->
+  In x l -> join_sub x phi.
+Proof.
+  revert x phi; induction l; simpl. tauto.
+  intros x phi (b & jb & ab) [-> | i].
+  - exists b; auto.
+  - specialize (IHl _ _ jb i); auto.
+    destruct IHl as (c, xc).
+    apply sepalg.join_comm in ab.
+    destruct (sepalg.join_assoc xc ab) as (d, H).
+    exists d; intuition.
+Qed.
+
 (** * Other list functions *)
 
 Fixpoint listoption_inv {A} (l : list (option A)) : list A :=
@@ -276,6 +290,15 @@ Qed.
 
 Require Import msl.ageable.
 Require Import msl.age_sepalg.
+
+Lemma joinlist_level {A} `{agA : ageable A} {J : Join A} {_ : Perm_alg A} {_ : Age_alg A} (x : A) l Phi :
+  joinlist l Phi ->
+  In x l -> level x = level Phi.
+Proof.
+  intros j i.
+  destruct (joinlist_join_sub x Phi l j i) as (y, Hy).
+  apply join_level in Hy. apply Hy.
+Qed.
 
 Lemma joinlist_age1' {A} `{agA : ageable A} {J : Join A} {_ : Age_alg A} {_ : Perm_alg A} (l : list A) (x : A) :
   joinlist l x ->
@@ -865,4 +888,12 @@ Lemma maps_remLockSet_updThread i tp addr cnti c phi :
   maps (@updThread i (remLockSet tp addr) cnti c phi).
 Proof.
   reflexivity.
+Qed.
+
+Lemma getThread_level i tp cnti Phi :
+  join_all tp Phi ->
+  level (@getThreadR i tp cnti) = level Phi.
+Proof.
+  intros j.
+  apply juicy_mem.rmap_join_sub_eq_level, compatible_threadRes_sub, j.
 Qed.
