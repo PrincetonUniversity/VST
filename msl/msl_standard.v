@@ -28,11 +28,10 @@ Require Export msl.cross_split.
 Require Export msl.psepalg.
 Require Export msl.pshares.
 Require Export msl.eq_dec.
-(*
+
 Require Export msl.functors_variant.
 Require Export msl.knot_full_variant.
 Require Export msl.knot_shims.
 Require Export msl.xsepalg_generators.
 Require Import msl.xsepalg_functors.
 Require Export msl.knot_full_sa.
-*)

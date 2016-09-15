@@ -50,7 +50,9 @@ Section PairSAFunctor.
   Variables (J_F1: forall A, Join (F1 A)) (pafF1: pafunctor F1 J_F1).
   Variables (J_F2: forall A, Join (F2 A)) (pafF2: pafunctor F2 J_F2).
 
-  Definition paf_pair : @pafunctor (fpair F1 F2) _.
+  (* The second argument must be explicitly specified (instead of _) *)
+  (* Or else, it will cause universe inconsistency in floyd. *)
+  Definition paf_pair : @pafunctor (fpair F1 F2) (fun A : Type => Join_prod (F1 A) (J_F1 A) (F2 A) (J_F2 A)).
   Proof with auto.
     constructor; repeat intro.
     split; repeat intro.
@@ -156,86 +158,34 @@ Section SigmaSAFunctor.
   Qed.
 
 End SigmaSAFunctor.
-
+*)
 Section SepAlgSubset_Functor.
-  Variables (F: Type -> Type) (fF : functor F).
-  Variables(JOIN: forall A, Join (F A))
-                  (paF: forall A, Perm_alg (F A))
-                  (fSA : pafunctor fF).
+  Variables (F: functor).
+  Variables (JOIN: forall A, Join (F A))
+            (fSA : @pafunctor F JOIN).
   
   Variable P : forall A, F A -> Prop.
-
-  Hypothesis HPunit :
-    forall A (x e: F A), P x -> unit_for e x -> P e.
-  Hypothesis HPjoin : forall A (x y z : F A),
-    join x y z -> P x -> P y -> P z.
-  Hypothesis HPfmap1 : forall A B (f:A->B) x,
-    P x -> P (fmap f x).
-  Hypothesis HPfmap2 : forall A B (f:A->B) x, 
-    P (fmap f x) -> P x.
-
-  Instance pa_fsubset X : Perm_alg (subset F P X).
-  Proof. apply Perm_prop; auto. apply HPjoin. Qed.
-
-  Existing Instance fF.
-  Existing Instance f_subset.
-
-  Instance saf_subset : @pafunctor _ (f_subset fF P HPfmap1) _.
+  Arguments P {A} _.
+  Hypothesis HPfmap : forall A B (f: A -> B) (g: B -> A) x,
+    P x -> P (fmap F f g x).
+  
+  Definition paf_subset :
+    @pafunctor (fsubset F (@P) HPfmap) (fun A => Join_prop _ _ P).
   Proof.
     constructor.
-
     repeat intro. simpl.
-    destruct x as [x Hx].
-    destruct y as [y Hy].
-    destruct z as [z Hz].
-    red; simpl.
-    apply paf_join_hom; auto.
-    
-    intros. simpl; hnf; intros.
-    destruct x' as [x' Hx'].
-    destruct y as [y Hy].
-    destruct z as [z Hz].
-    simpl in *.
-    do 2 red in H. simpl in H.
-    apply paf_preserves_unmap_left in H.
-    destruct H as [x [y0 [?[??]]]].
-    subst x'.
-    exists (exist (fun x => @P A x) x (HPfmap2 _ _  Hx')).
-    assert (P y0).
-    apply (HPfmap2 f). rewrite H1. apply HPfmap1. auto.
-    exists (exist (fun x => @P A x) y0 H0).
-    intuition.
-    simpl.
-    replace (HPfmap1 f (HPfmap2 f x Hx')) with Hx'
-      by apply proof_irr; auto.
-    simpl.
-    generalize (HPfmap1 f H0).
-    rewrite H1. intros.
-    replace p with (HPfmap1 f Hy) by apply proof_irr; auto.
- 
-    intros. simpl; hnf; intros.
-    destruct x as [x Hx].
-    destruct y as [y Hy].
-    destruct z' as [z' Hz'].
-    simpl in *.
-    do 2 red in H. simpl in H.
-    apply paf_preserves_unmap_right in H.
-    destruct H as [y0 [z [?[??]]]].
-    subst z'.
-    assert (P y0).
-    apply (HPfmap2 f). rewrite H0. apply HPfmap1. auto.
-    exists (exist (fun x => @P A x) y0 H1).
-    exists (exist (fun x => @P A x) z (HPfmap2 _ _  Hz')).
-    intuition.
-    simpl.
-    generalize (HPfmap1 f H1).
-    rewrite H0. intros.
-    replace p with (HPfmap1 f Hy) by apply proof_irr; auto.
-    simpl.
-    replace (HPfmap1 f (HPfmap2 f z Hz')) with Hz'
-      by apply proof_irr; auto.
-  Qed.
- 
+    split.
+    + destruct x as [x Hx].
+      destruct y as [y Hy].
+      destruct z as [z Hz].
+      red; simpl.
+      apply paf_join_hom; auto.
+    + destruct x as [x Hx].
+      destruct y as [y Hy].
+      destruct z as [z Hz].
+      red; simpl.
+      apply paf_join_hom; auto.
+  Defined.
+
 End SepAlgSubset_Functor.
-*)
 
