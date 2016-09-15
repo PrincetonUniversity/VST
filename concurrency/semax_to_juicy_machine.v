@@ -1033,12 +1033,60 @@ Proof.
   
   destruct (make_rmap (fun loc => proj1_sig (DESCR loc))) with (n := level phi1') as (phi3' & lev3 & at3).
   {
+    Lemma res_option_age_to n phi loc : res_option ((age_to n phi) @ loc) = res_option (phi @ loc).
+    Proof.
+      rewrite age_to_resource_at.
+      destruct (phi @ loc) as [t0 | t0 p [m | z | z | f c] p0 | k p]; simpl; auto.
+    Qed.
+    
+    Lemma resource_decay_at_LK {nextb n r1 r2 b sh i} :
+      resource_decay_at nextb n r1 r2 b ->
+      res_option r1 = Some (sh, LK i) <->
+      res_option r2 = Some (sh, LK i).
+    Proof.
+      destruct r1 as [t1 | t1 p1 [m1 | z1 | z1 | f1 c1] pp1 | k1 p1];
+        destruct r2 as [t2 | t2 p2 [m2 | z2 | z2 | f2 c2] pp2 | k2 p2]; simpl;
+          unfold resource_decay_at; intros rd; split; intros E.
+      all: try congruence.
+      all: breakhyps.
+      autospec H; congruence.
+      all: simpl in *; congruence.
+    Qed.
+    
+    Lemma resource_decay_at_CT {nextb n r1 r2 b sh i} :
+      resource_decay_at nextb n r1 r2 b ->
+      res_option r1 = Some (sh, CT i) <->
+      res_option r2 = Some (sh, CT i).
+    Proof.
+      destruct r1 as [t1 | t1 p1 [m1 | z1 | z1 | f1 c1] pp1 | k1 p1];
+        destruct r2 as [t2 | t2 p2 [m2 | z2 | z2 | f2 c2] pp2 | k2 p2]; simpl;
+          unfold resource_decay_at; intros rd; split; intros E.
+      all: try congruence.
+      all: breakhyps.
+      autospec H; congruence.
+      all: simpl in *; congruence.
+    Qed.
+    
     (* validity *)
-    intros b' ofs; unfold "oo"; simpl.
-    pose proof phi_valid phi1 as V1.
-    pose proof phi_valid phi2 as V2.
-    pose proof phi_valid phi3 as V3.
-    admit. (* doable *)
+    intros b' ofs.
+    pose proof phi_valid phi3 b' ofs as V3.
+    change compcert_rmaps.R.res_option with res_option.
+    unfold "oo" in *; simpl in *.
+    destruct (DESCR (b', ofs)) as (r & j & rd' & Er); simpl; auto; clear Er.
+    destruct (res_option r) as [[sh [m | z | z | f c]] | ] eqn:Err; auto.
+    - apply (resource_decay_at_LK rd') in Err.
+      rewrite Err in V3.
+      intros i Hi; specialize (V3 i Hi).
+      destruct (DESCR (b', Z.add ofs i)) as (r' & j' & rd'' & Er); simpl; auto; clear Er.
+      apply (resource_decay_at_CT rd'').
+      auto.
+    - apply (resource_decay_at_CT rd') in Err.
+      rewrite Err in V3.
+      destruct V3 as (n & lz & E).
+      exists n; split; auto.
+      destruct (DESCR (b', Z.sub ofs z)) as (r' & j' & rd'' & Er); simpl; auto; clear Er.
+      apply (resource_decay_at_LK rd'').
+      auto.
   }
   {
     (* the right level of approximation *)
@@ -1072,7 +1120,7 @@ Proof.
       auto.
     + right; right; left. auto.
     + auto.
-Admitted.
+Qed.
 
 Lemma rmap_bound_join {b phi1 phi2 phi3} :
   sepalg.join phi1 phi2 phi3 ->
