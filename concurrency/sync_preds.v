@@ -1156,3 +1156,122 @@ Lemma jstep_preserves_mem_equiv_on_other_threads m ge i j tp ci ci' jmi'
     (m_dry (@personal_mem j tp m cntj compat))
     (m_dry (@personal_mem j tp'' (m_dry jmi') (cnt_age' cntj) compat')).
 Admitted.
+
+Lemma PTree_xmap_ext (A B : Type) (f f' : positive -> A -> B) t :
+  (forall a, f a = f' a) ->
+  PTree.xmap f t = PTree.xmap f' t.
+Proof.
+  intros E.
+  induction t as [ | t1 IH1 [a|] t2 IH2 ].
+  - reflexivity.
+  - simpl.
+    extensionality p.
+    rewrite IH1, IH2, E.
+    reflexivity.
+  - simpl.
+    rewrite IH1, IH2.
+    reflexivity.
+Qed.
+
+Lemma juicyRestrictCur_ext m phi phi'
+      (coh : access_cohere' m phi)
+      (coh' : access_cohere' m phi')
+      (same : forall loc, perm_of_res (phi @ loc) = perm_of_res (phi' @ loc)) :
+  Mem.mem_access (juicyRestrict coh) =
+  Mem.mem_access (juicyRestrict coh').
+Proof.
+  unfold juicyRestrict in *.
+  unfold restrPermMap in *; simpl.
+  f_equal.
+  unfold PTree.map in *.
+  eapply equal_f.
+  apply PTree_xmap_ext.
+  intros b.
+  extensionality f ofs k.
+  destruct k; auto.
+  unfold juice2Perm in *.
+  unfold mapmap in *.
+  simpl.
+  unfold PTree.map in *.
+  eapply equal_f.
+  f_equal.
+  f_equal.
+  eapply equal_f.
+  apply PTree_xmap_ext.
+  intros.
+  extensionality c ofs0.
+  apply same.
+Qed.
+
+Lemma PTree_xmap_self A f (m : PTree.t A) i :
+  (forall p a, m ! p = Some a -> f (PTree.prev_append i p) a = a) ->
+  PTree.xmap f m i = m.
+Proof.
+  revert i.
+  induction m; intros i E.
+  - reflexivity.
+  - simpl.
+    f_equal.
+    + apply IHm1.
+      intros p a; specialize (E (xO p) a).
+      apply E.
+    + specialize (E xH).
+      destruct o eqn:Eo; auto.
+    + apply IHm2.
+      intros p a; specialize (E (xI p) a).
+      apply E.
+Qed.
+
+Lemma PTree_map_self (A : Type) (f : positive -> A -> A) t :
+  (forall b a, t ! b = Some a -> f b a = a) ->
+  PTree.map f t = t.
+Proof.
+  intros H.
+  apply PTree_xmap_self, H.
+Qed.
+
+Lemma juicyRestrictCur_unchanged m phi 
+      (coh : access_cohere' m phi)
+      (pres : forall loc, perm_of_res (phi @ loc) = access_at m loc Cur) :
+  Mem.mem_access (juicyRestrict coh) = Mem.mem_access m.
+Proof.
+  unfold juicyRestrict in *.
+  unfold restrPermMap in *; simpl.
+  unfold access_at in *.
+  destruct (Mem.mem_access m) as (a, t) eqn:Eat.
+  simpl.
+  f_equal.
+  - extensionality ofs k.
+    destruct k. auto.
+    pose proof Mem_canonical_useful m as H.
+    rewrite Eat in H.
+    auto.
+  - apply PTree_xmap_self.
+    intros b f E.
+    extensionality ofs k.
+    destruct k; auto.
+    specialize (pres (b, ofs)).
+    unfold "!!" in pres.
+    simpl in pres.
+    rewrite E in pres.
+    rewrite <-pres.
+    simpl.
+    unfold juice2Perm in *.
+    unfold mapmap in *.
+    unfold "!!".
+    simpl.
+    rewrite Eat; simpl.
+    rewrite PTree.gmap.
+    rewrite PTree.gmap1.
+    rewrite E.
+    simpl.
+    reflexivity.
+Qed.
+
+Lemma ZIndexed_index_surj p : { z : Z | ZIndexed.index z = p }.
+Proof.
+  destruct p.
+  exists (Z.neg p); reflexivity.
+  exists (Z.pos p); reflexivity.
+  exists Z0; reflexivity.
+Qed.
