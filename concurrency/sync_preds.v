@@ -41,6 +41,8 @@ Require Import concurrency.addressFiniteMap.
 Require Import concurrency.permissions.
 Require Import concurrency.JuicyMachineModule.
 
+Set Bullet Behavior "Strict Subproofs".
+
 Definition islock_pred R r := exists sh sh' z, r = YES sh sh' (LK z) (SomeP nil (fun _ => R)).
 
 Lemma islock_pred_join_sub {r1 r2 R} : join_sub r1 r2 -> islock_pred R r1  -> islock_pred R r2.
@@ -1001,8 +1003,9 @@ Proof.
   destruct tp as [num thds phis lset].
   unfold lockSet in *.
   simpl.
-  
-Admitted.  
+  unfold LocksAndResources.lock_info in *.
+  apply A2PMap_option_map.
+Qed.
 
 Lemma juicyLocks_in_lockSet_age n tp phi :
   juicyLocks_in_lockSet (lset tp) phi ->
@@ -1082,6 +1085,65 @@ Proof.
     auto.
 Qed.
 
+Lemma resource_fmap_approx_idempotent n r :
+  resource_fmap (approx n) (resource_fmap (approx n) r) = resource_fmap (approx n) r.
+Proof.
+  destruct r; simpl; f_equal.
+  - destruct p0; simpl.
+    rewrite <-compose_assoc.
+    rewrite approx_oo_approx.
+    reflexivity.
+  - destruct p; simpl.
+    rewrite <-compose_assoc.
+    rewrite approx_oo_approx.
+    reflexivity.
+Qed.
+
+Lemma age_to_resource_at phi n loc : age_to n phi @ loc = resource_fmap (approx n) (phi @ loc).
+Proof.
+  assert (D : n <= level phi \/ n >= level phi) by omega.
+  destruct D as [D | D]; swap 1 2.
+  - rewrite age_to_ge; auto.
+    rewrite <-resource_at_approx.
+    change compcert_rmaps.R.resource_fmap with resource_fmap.
+    change compcert_rmaps.R.approx with approx.
+    match goal with
+      |- _ = ?map ?f (?map ?g ?r) => transitivity (map (f oo g) r)
+    end; swap 1 2.
+    + destruct (phi @ loc); unfold "oo"; simpl; auto.
+      * destruct p0; auto.
+      * destruct p; auto.
+    + f_equal. rewrite approx_oo_approx''; auto.
+  - generalize (age_to_ageN n phi).
+    generalize (age_to n phi); intros phi'.
+    replace n with (level phi - (level phi - n)) at 2 by omega.
+    generalize (level phi - n); intros k. clear n D.
+    revert phi phi'; induction k; intros phi phi'.
+    + unfold ageN in *; simpl.
+      injection 1 as <-.
+      simpl; replace (level phi - 0) with (level phi) by omega.
+      symmetry.
+      apply resource_at_approx.
+    + change (ageN (S k) phi) with
+      (match age1 phi with Some w' => ageN k w' | None => None end).
+      destruct (age1 phi) as [o|] eqn:Eo. 2:congruence.
+      intros A; specialize (IHk _ _ A).
+      rewrite IHk.
+      pose proof age_resource_at Eo (loc := loc) as R.
+      rewrite R.
+      clear A R.
+      rewrite (age_level _ _ Eo).
+      simpl.
+      match goal with
+        |- ?map ?f (?map ?g ?r) = _ => transitivity (map (f oo g) r)
+      end.
+      * destruct (phi @ loc); unfold "oo"; simpl; auto.
+        -- destruct p0; auto.
+        -- destruct p; auto.
+      * f_equal. rewrite approx_oo_approx'; auto.
+        omega.
+Qed.
+
 Lemma jstep_preserves_mem_equiv_on_other_threads m ge i j tp ci ci' jmi'
   (other : i <> j)
   (compat : mem_compatible tp m)
@@ -1093,9 +1155,4 @@ Lemma jstep_preserves_mem_equiv_on_other_threads m ge i j tp ci ci' jmi'
   mem_equiv
     (m_dry (@personal_mem j tp m cntj compat))
     (m_dry (@personal_mem j tp'' (m_dry jmi') (cnt_age' cntj) compat')).
-Admitted.
-
-Lemma age_to_resource_at phi n loc : age_to n phi @ loc = resource_fmap (approx n) (phi @ loc).
-Proof.
-  unfold age_to.
 Admitted.

@@ -12,6 +12,8 @@ Require Import msl.sepalg.
 Require Import veric.mem_lessdef.
 Require Import veric.coqlib4.
 
+Set Bullet Behavior "Strict Subproofs".
+
 (** * Results on joining lists and the necessary algebras *)
 
 Fixpoint joinlist {A} {JA : Join A} (l : list A) (x : A) :=

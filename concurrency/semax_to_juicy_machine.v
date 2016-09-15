@@ -930,10 +930,6 @@ Lemma join_pfullshare {sh2 sh3 : pshare} : ~sepalg.join pfullshare sh2 sh3.
 Proof.
 Admitted.
 
-Lemma age_to_resource_at phi n loc : age_to n phi @ loc = resource_fmap (approx n) (phi @ loc).
-Proof.
-Admitted.
-
 Lemma join_resource_decay b phi1 phi1' phi2 phi3 :
   rmap_bound b phi2 ->
   resource_decay b phi1 phi1' ->
@@ -975,20 +971,7 @@ Proof.
       + intros pos; autospec bound; autospec nn. rewrite bound in *; rewrite nn in *.
         inv J. f_equal. eapply join_bot_bot_eq; auto.
       + left. auto.
-      + Lemma resource_fmap_approx_idempotent n r :
-          resource_fmap (approx n) (resource_fmap (approx n) r) = resource_fmap (approx n) r.
-        Proof.
-          destruct r; simpl; f_equal.
-          - destruct p0; simpl.
-            rewrite <-compose_assoc.
-            rewrite approx_oo_approx.
-            reflexivity.
-          - destruct p; simpl.
-            rewrite <-compose_assoc.
-            rewrite approx_oo_approx.
-            reflexivity.
-        Qed.
-        apply resource_fmap_approx_idempotent.
+      + apply resource_fmap_approx_idempotent.
     
     - rewrite E1'.
       apply res_join'_spec in J.
