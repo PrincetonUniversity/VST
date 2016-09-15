@@ -533,6 +533,103 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
         (HschedS: schedSkip U = U'),        (*Schedule Forward*)
         machine_step U [::] ms m U' [::] ms m.
 
+  (*Lemma to deal with the trivial trace*)
+  Lemma trace_nil: forall ge U tr st m U' tr' st' m',
+      @machine_step ge U tr st m U' tr' st' m' ->
+  tr = nil /\ tr' = nil.
+  Proof. move=> ge U tr st m U' tr' st' m' ms; inversion ms; intuition. Qed.
+  
+  (*The new semantics bellow makes internal (thread) and external (machine) steps explicit*)
+  Inductive internal_step {genv:G}:
+    Sch -> event_trace -> machine_state -> mem ->
+    event_trace -> machine_state -> mem -> Prop :=
+  | start_state': forall tid U ms ms' m
+        (HschedN: schedPeek U = Some tid)
+        (Htid: containsThread ms tid)
+        (Hcmpt: mem_compatible ms m)
+        (Htstep: start_thread genv Htid ms'),
+        internal_step U [::] ms m [::] ms' m
+  | resume_step':
+      forall tid U ms ms' m
+        (HschedN: schedPeek U = Some tid)
+        (Htid: containsThread ms tid)
+        (Hcmpt: mem_compatible ms m)
+        (Htstep: resume_thread Htid ms'),
+        internal_step U [::] ms m [::] ms' m
+  | thread_step':
+      forall tid U ms ms' m m' ev
+        (HschedN: schedPeek U = Some tid)
+        (Htid: containsThread ms tid)
+        (Hcmpt: mem_compatible ms m)
+        (Htstep: threadStep genv Htid Hcmpt ms' m' ev),
+        internal_step U [::] ms m [::] ms' m'.
+
+  Inductive external_step  {genv:G}:
+    Sch -> event_trace -> machine_state -> mem -> Sch ->
+    event_trace -> machine_state -> mem -> Prop :=
+  | suspend_step':
+      forall tid U U' ms ms' m
+        (HschedN: schedPeek U = Some tid)
+        (HschedS: schedSkip U = U')        (*Schedule Forward*)
+        (Htid: containsThread ms tid)
+        (Hcmpt: mem_compatible ms m)
+        (Htstep:suspend_thread Htid ms'),
+        external_step U [::] ms m U' [::] ms' m
+  | sync_step':
+      forall tid U U' ms ms' m m' ev 
+        (HschedN: schedPeek U = Some tid)
+        (HschedS: schedSkip U = U')        (*Schedule Forward*)
+        (Htid: containsThread ms tid)
+        (Hcmpt: mem_compatible ms m)
+        (Htstep: syncStep genv Htid Hcmpt ms' m' ev),
+        external_step U [::] ms m  U' [::] ms' m'           
+  | halted_step':
+      forall tid U U' ms m
+        (HschedN: schedPeek U = Some tid)
+        (HschedS: schedSkip U = U')        (*Schedule Forward*)
+        (Htid: containsThread ms tid)
+        (Hcmpt: mem_compatible ms m)
+        (Hhalted: threadHalted Htid),
+        external_step U [::] ms m  U' [::] ms m
+  | schedfail':
+      forall tid U U' ms m
+        (HschedN: schedPeek U = Some tid)
+        (Htid: ~ containsThread ms tid)
+        (Hinv: invariant ms)
+        (HschedS: schedSkip U = U'),        (*Schedule Forward*)
+        external_step U [::] ms m U' [::] ms m.
+  (*Symmetry*)
+  (* These steps are basically the same: *)
+  Lemma step_equivalence1: forall ge U tr st m U' tr' st' m',
+    @machine_step ge U tr st m U' tr' st' m' ->
+    (U=U' /\ @internal_step ge U tr st m nil st' m') \/
+    @external_step ge U tr st m U' nil st' m'.
+  Proof.
+    move=> ge U tr st m U' tr' st' m' ms.
+    inversion ms;
+      first[ solve [ left; split=>//; econstructor; eauto] |
+             solve[right; econstructor; eauto]].
+  Qed.
+  Lemma step_equivalence2: forall ge U tr st m tr' st' m',
+      @internal_step ge U tr st m tr' st' m' ->
+      @machine_step ge U tr st m U nil st' m'.
+  Proof. move=>  ge U tr st m tr' st' m' istp.
+         inversion istp;
+                           [ solve[econstructor 1 ; eauto]|
+                            solve[econstructor 2 ; eauto]|
+                            solve[econstructor 3 ; eauto]].
+  Qed.
+   Lemma step_equivalence3: forall ge U tr st m U' tr' st' m',
+      @external_step ge U tr st m U' tr' st' m' ->
+      @machine_step ge U tr st m U' tr' st' m'.
+   Proof. move=>  ge U tr st m U' nil st' m' estp.
+          inversion estp;
+            [ solve[econstructor 4 ; eauto]|
+              solve[econstructor 5 ; eauto]|
+              solve[econstructor 6 ; eauto]|
+              solve[econstructor 7 ; eauto]].
+   Qed.
+  
   Definition MachState: Type := (Sch * event_trace * machine_state)%type.
 
   Definition MachStep G (c:MachState) (m:mem)
@@ -555,6 +652,10 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     | Some _ => None
     | _ => Some Vundef
     end.
+
+  (*Lemma halted_al_schedules: forall st,
+      halted st ->*)
+      
 
   Definition init_machine (U:schedule) (r : option RES.res) the_ge
              (f : val) (args : list val)
@@ -622,7 +723,14 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   Definition new_step ge (st: new_state) U st' U': Prop:=
     sem_with_halt ge (mk_ostate st U) (snd st) (mk_ostate st' U') (snd st').
   (*This has to be filled in:*)
-  Axiom valid: MachState -> bool.
+  Axiom running_thread: MachState -> option tid.
+  Definition valid (st: MachState): bool:=
+    match (running_thread st), (schedPeek (fst (fst st))) with
+    | _, None => true
+    | None, _ => true
+    | Some a, Some b => eq_tid_dec a b
+    end.
+ 
   Definition new_valid st U := valid (mk_ostate st U). 
   Definition ksafe_new_step (ge : G) (st : MachState) (m : mem) : nat -> Prop :=
     ksafe _ _ (new_step ge) new_valid (mk_nstate st m) (fst (fst st)).
@@ -684,6 +792,82 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
       (forall n U, ksafe_new_step ge (U, nil, tp) m n) ->
       (forall n U, csafe ge (U, nil, tp) m n).
   Proof. by move => ? ? ? H ? ? ?; apply: safety_equivalence'; try apply: H. Qed.
+
+  (** *I further create a different type of safety that discriminates non-determinism*)
+  CoInductive explicit_safety ge (U:Sch) (st:machine_state) (m:mem): Prop:=
+  | halted_safety : halted (U, nil, st) -> explicit_safety ge U st m
+  | internal_safety st' m': @internal_step ge U nil st m nil st' m' ->
+                            (forall U', new_valid (nil, st', m') U' -> explicit_safety ge U' st' m') ->
+                            explicit_safety ge U st m
+  | external_safety U' st' m': @external_step ge U nil st m U' nil st' m' ->
+                            (forall U', new_valid (nil, st', m') U' -> explicit_safety ge U' st' m') ->
+                            explicit_safety ge U st m.
+
+  (*BUT, this is basically the same safety!!! *)
+  Lemma safety_equivalence21: forall ge st m,
+      (forall U, new_valid (nil, st, m) U ->
+             safe_new_step ge (U, nil, st) m) ->
+      forall U, new_valid (nil, st, m) U ->
+            explicit_safety ge U st m.
+  Proof.
+    move => ge.
+    cofix.
+    move =>  st m sns_all U /sns_all sns.
+    inversion sns.
+    move: H; rewrite /mk_nstate /= => stp.
+    inversion stp; subst.
+    - move: H6; rewrite /mk_ostate /= => hltd.
+      apply: (halted_safety _ _ _ _ hltd).
+    - destruct st' as [[tr tp] m'].
+      move: H H0; rewrite /mk_ostate /MachStep /= => HH.
+      move: HH (HH)  => /trace_nil [] ? -> /step_equivalence1 [[] -> istp | estp] sns_all'.
+      + eapply (internal_safety _ _ _ _ _ _ istp).
+        eapply safety_equivalence21 => //.
+      + eapply (external_safety _ _ _ _ _ _ _ estp).
+        eapply safety_equivalence21 => //.
+  Qed.
+
+  Lemma safety_equivalence22: forall ge st m,
+      (forall U, new_valid (nil, st, m) U ->
+            explicit_safety ge U st m) ->
+      (forall U, new_valid (nil, st, m) U ->
+             safe_new_step ge (U, nil, st) m).
+  Proof.
+    move => ge.
+    cofix.
+    move =>  st m es_all U /es_all es.
+    inversion es.
+    - econstructor.
+      + econstructor. rewrite /mk_nstate /mk_ostate /= //.
+      + rewrite /mk_nstate /= => U'' VAL.
+        apply: safety_equivalence22 => //. 
+    - econstructor.
+      + econstructor 2. rewrite /mk_nstate /mk_ostate /MachStep /=. 
+        move: H => / step_equivalence2.
+        instantiate(1:=(@nil machine_event, st', m')).
+        instantiate(1:=U).
+        simpl => //.
+      + rewrite /mk_nstate /= => U'' VAL.
+        apply: safety_equivalence22 => //.
+    - econstructor.
+      + econstructor 2. rewrite /mk_nstate /mk_ostate /MachStep /=. 
+        move: H => / step_equivalence3.
+        instantiate(1:=(@nil machine_event, st', m')).
+        instantiate(1:=U').
+        simpl => //.
+      + rewrite /mk_nstate /= => U'' VAL.
+        apply: safety_equivalence22 => //.   
+  Qed.
+
+  Lemma safety_equivalence2: forall ge st m,
+      (forall U, new_valid (nil, st, m) U ->
+             safe_new_step ge (U, nil, st) m) <->
+      (forall U, new_valid (nil, st, m) U ->
+            explicit_safety ge U st m).
+  Proof.
+    move => ge st m; split;
+           [apply: safety_equivalence21 | apply: safety_equivalence22].
+  Qed.
   
   End new_safety.
 

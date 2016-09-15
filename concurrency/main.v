@@ -252,6 +252,7 @@ Module MainSafety .
         wholeprog_simulations.Wholeprog_sim.match_state
           _ _ _ _ _ _ _ _
           this_simulation.
+      
       Lemma new_target_safety: forall
           (exists cd j, compiler_match  )
       exists c, X86Machines.DryMachine.ThreadPool.SEM.Sem
