@@ -11,20 +11,19 @@ Require Import compcert.common.AST.
 Require Import compcert.common.Globalenvs.
 
 Require Import sepcomp.mem_lemmas.
-Require Import sepcomp.semantics.
-Require Import sepcomp.semantics_lemmas.
 Require Import sepcomp.structured_injections.
 Require Import sepcomp.reach.
 Require Import sepcomp.mem_wd.
 
-Require Import sepcomp.effect_semantics. (*for specialization below*)
+Require Import concurrency.machine_semantics.
+Require Import concurrency.machine_semantics_lemmas.
 
 Module Machine_sim. Section Machine_sim.
 
-Context {G1 C1 M1 G2 C2 M2 : Type}
+Context {G1 SCH C1 M1 G2 C2 M2 : Type}
 
-(Sem1 : @CoreSemantics G1 C1 M1)
-(Sem2 : @CoreSemantics G2 C2 M2)
+(Sem1 : @ConcurSemantics G1 SCH C1 M1)
+(Sem2 : @ConcurSemantics G2 SCH C2 M2)
 
 (ge1 : G1)
 (ge2 : G2)
@@ -54,23 +53,32 @@ Record Machine_sim  :=
     exists (*mu*) cd c2,
       (*as_inj mu = j*
       /\*) initial_core Sem2 ge2 main vals2 = Some c2 
-      /\ match_state cd (*mu*)j c1 m1 c2 m2
-; core_diagram : 
-    forall st1 m1 st1' m1', 
-    corestep Sem1 ge1 st1 m1 st1' m1' ->
+      /\ match_state cd j c1 m1 c2 m2
+; thread_diagram : 
+    forall U st1 m1 st1' m1', 
+    thread_step Sem1 ge1 U st1 m1 st1' m1' ->
     forall cd st2 mu m2,
     match_state cd mu st1 m1 st2 m2 ->
     exists st2', exists m2', exists cd', exists mu',
     match_state cd' mu' st1' m1' st2' m2' 
-    /\ (corestep_plus Sem2 ge2 st2 m2 st2' m2' 
-        \/ (corestep_star Sem2 ge2 st2 m2 st2' m2' /\ core_ord cd' cd))
-; core_halted : 
-    forall cd mu c1 m1 c2 m2 v1,
+    /\ (thread_step_plus Sem2 ge2 U st2 m2 st2' m2' 
+       \/ (thread_step_star Sem2 ge2 U st2 m2 st2' m2' /\ core_ord cd' cd))
+; machine_diagram : 
+    forall U st1 m1 U' st1' m1', 
+    machine_step Sem1 ge1 U st1 m1 U' st1' m1' ->
+    forall cd st2 mu m2,
+    match_state cd mu st1 m1 st2 m2 ->
+    exists st2', exists m2', exists cd', exists mu',
+    match_state cd' mu' st1' m1' st2' m2' 
+    /\ machine_step Sem2 ge2 U st2 m2 U' st2' m2'
+        
+; thread_halted : 
+    forall cd mu U c1 m1 c2 m2 v1,
     match_state cd mu c1 m1 c2 m2 ->
-    halted Sem1 c1 = Some v1 ->
+    conc_halted Sem1 U c1 = Some v1 ->
     exists j v2, 
        halt_inv j ge1 v1 m1 ge2 v2 m2 
-       /\ halted Sem2 c2 = Some v2
+       /\ conc_halted Sem2 U c2 = Some v2
 ; core_running:
     forall cd mu c1 m1 c2 m2 ,
       match_state cd mu c1 m1 c2 m2 ->

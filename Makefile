@@ -133,7 +133,8 @@ CONCUR_FILES= \
   x86_inj.v x86_safe.v x86_context.v fineConc_x86.v executions.v \
   SC_erasure.v sync_preds.v join_lemmas.v coqlib5.v age_to.v \
   konig.v safety.v \
-  reach_lemmas.v reestablish.v ret_lemmas.v lifting.v linking_inv.v linking_spec.v call_lemmas.v
+  reach_lemmas.v reestablish.v ret_lemmas.v lifting.v linking_inv.v linking_spec.v call_lemmas.v \
+  machine_semantics.v machine_semantics_lemmas.v machine_simulation.vVS	
 
 CCC26x86_FILES = \
   Archi.v Bounds.v Conventions1.v Conventions.v Separation.v \
