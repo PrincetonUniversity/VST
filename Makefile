@@ -134,7 +134,7 @@ CONCUR_FILES= \
   SC_erasure.v sync_preds.v join_lemmas.v coqlib5.v age_to.v \
   konig.v safety.v \
   reach_lemmas.v reestablish.v ret_lemmas.v lifting.v linking_inv.v linking_spec.v call_lemmas.v \
-  machine_semantics.v machine_semantics_lemmas.v machine_simulation.vVS	
+  machine_semantics.v machine_semantics_lemmas.v machine_simulation.v
 
 CCC26x86_FILES = \
   Archi.v Bounds.v Conventions1.v Conventions.v Separation.v \
