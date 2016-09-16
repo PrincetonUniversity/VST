@@ -31,6 +31,7 @@ Module THE_DRY_MACHINE_SOURCE.
   Module DSEM := DryMachineShell SEM.
   Module DryMachine <: ConcurrentMachine:= CoarseMachine SCH DSEM.
   Notation DMachineSem:= DryMachine.MachineSemantics. 
+  Notation new_DMachineSem:= DryMachine.new_MachineSemantics. 
   Notation dstate:= DryMachine.SIG.ThreadPool.t.
   Notation dmachine_state:= DryMachine.MachState.
   Module DTP:=DryMachine.SIG.ThreadPool.

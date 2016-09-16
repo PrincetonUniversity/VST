@@ -20,10 +20,10 @@ Require Import concurrency.machine_semantics_lemmas.
 
 Module Machine_sim. Section Machine_sim.
 
-Context {G1 SCH C1 M1 G2 C2 M2 : Type}
+Context {G1 SCH TID C1 M1 G2 C2 M2 : Type}
 
-(Sem1 : @ConcurSemantics G1 SCH C1 M1)
-(Sem2 : @ConcurSemantics G2 SCH C2 M2)
+(Sem1 : @ConcurSemantics G1 SCH TID C1 M1)
+(Sem2 : @ConcurSemantics G2 SCH TID C2 M2)
 
 (ge1 : G1)
 (ge2 : G2)
@@ -36,9 +36,9 @@ Variable init_inv : meminj -> G1 -> list val -> M1 -> G2 -> list val -> M2 -> Pr
 
 Variable halt_inv : (*SM_Injection*)meminj -> G1 -> val -> M1 -> G2 -> val -> M2 -> Prop.
 
-Variable tid: Type.
+(*Variable tid: Type.
 Variable runing_thread1 : C1 -> option tid.
-Variable runing_thread2 : C2 -> option tid.
+Variable runing_thread2 : C2 -> option tid.*)
 
 Record Machine_sim  := 
 { core_data : Type
@@ -48,11 +48,11 @@ Record Machine_sim  :=
 ; genv_inv : ge_inv ge1 ge2
 ; core_initial : 
     forall j c1 vals1 m1 vals2 m2,
-    initial_core Sem1 ge1 main vals1 = Some c1 ->
+    initial_machine Sem1 ge1 main vals1 = Some c1 ->
     init_inv j ge1 vals1 m1 ge2 vals2 m2 ->
     exists (*mu*) cd c2,
       (*as_inj mu = j*
-      /\*) initial_core Sem2 ge2 main vals2 = Some c2 
+      /\*) initial_machine Sem2 ge2 main vals2 = Some c2 
       /\ match_state cd j c1 m1 c2 m2
 ; thread_diagram : 
     forall U st1 m1 st1' m1', 
@@ -79,10 +79,10 @@ Record Machine_sim  :=
     exists j v2, 
        halt_inv j ge1 v1 m1 ge2 v2 m2 
        /\ conc_halted Sem2 U c2 = Some v2
-; core_running:
+; thread_running:
     forall cd mu c1 m1 c2 m2 ,
       match_state cd mu c1 m1 c2 m2 ->
-      runing_thread1 c1 = runing_thread2 c2 }.
+      runing_thread Sem1 c1 = runing_thread Sem2 c2 }.
 
 End Machine_sim.
 

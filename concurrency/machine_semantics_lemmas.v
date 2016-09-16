@@ -18,13 +18,13 @@ Require Import concurrency.machine_semantics.
 Require Import msl.Coqlib2.
 
 Section thread_stepN.
-  Context {G SCH C M E:Type} (Sem:@ConcurSemantics G SCH C M) (ge:G).
+  Context {G SCH TID C M E:Type} (Sem:@ConcurSemantics G SCH TID C M) (ge:G).
 
   Fixpoint thread_stepN (n:nat) : SCH -> C -> M -> C -> M -> Prop :=
     match n with
       | O => fun U c m c' m' => (c,m) = ( c',m')
       | S k => fun U c1 m1 c3 m3 => exists c2, exists m2,
-        @thread_step _ _ _ _ Sem ge U c1 m1 c2 m2 /\
+        @thread_step _ _ _ _ _ Sem ge U c1 m1 c2 m2 /\
         thread_stepN k U c2 m2 c3 m3
     end.
 

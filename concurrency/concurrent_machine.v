@@ -7,6 +7,8 @@ Require Import compcert.lib.Integers.
 Require Import Coq.ZArith.ZArith.
 Require Import sepcomp.semantics.
 Require Import sepcomp.event_semantics.
+
+Require Import concurrency.machine_semantics.
 Require Import concurrency.permissions.
 Require Import concurrency.addressFiniteMap.
 
@@ -679,6 +681,38 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   intros. inversion H; subst; rewrite HschedN; reflexivity.
   auto.
   Defined.
+
+  Definition init_machine' (r : option RES.res) the_ge
+             (f : val) (args : list val)
+    : option (event_trace * machine_state) :=
+    match init_mach r the_ge f args with
+    | None => None
+    | Some c => Some ([::], c)
+    end.
+
+   (*This has to be filled in:*)
+  Axiom running_thread: machine_state -> option tid.
+  
+  Program Definition new_MachineSemantics (U:schedule) (r : option RES.res):
+    @ConcurSemantics G schedule tid (event_trace * machine_state) mem.
+  apply (@Build_ConcurSemantics _ schedule tid (event_trace * machine_state) _
+                              (init_machine' r)
+                              (fun U st => halted (U, fst st, snd st))  
+                              (fun ge U st m st' m' =>
+                                 @internal_step ge U (fst st) (snd st) m
+                                                (fst st') (snd st') m'
+                              )
+                              (fun ge U st m U' st' m' =>
+                                 @external_step ge U (fst st) (snd st) m
+                                                U' (fst st') (snd st') m'
+                              )
+                              (fun A => running_thread (snd A)))
+         ;
+    unfold at_external, halted; try reflexivity.
+  - intros. inversion H; subst; rewrite HschedN; reflexivity.
+  - intros. inversion H; subst; rewrite HschedN; reflexivity.
+  Defined.
+  
 (*
   Definition MachineSemantics:= MachineSemantics'.*)
   Lemma initial_schedule: forall genv main vals U U' p c tr,
@@ -722,10 +756,9 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   Definition mk_ostate (st:new_state) U:MachState:= (U, fst (fst st), snd (fst st)).
   Definition new_step ge (st: new_state) U st' U': Prop:=
     sem_with_halt ge (mk_ostate st U) (snd st) (mk_ostate st' U') (snd st').
-  (*This has to be filled in:*)
-  Axiom running_thread: MachState -> option tid.
+
   Definition valid (st: MachState): bool:=
-    match (running_thread st), (schedPeek (fst (fst st))) with
+    match (running_thread (snd st)), (schedPeek (fst (fst st))) with
     | _, None => true
     | None, _ => true
     | Some a, Some b => eq_tid_dec a b

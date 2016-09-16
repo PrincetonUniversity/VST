@@ -22,6 +22,10 @@ Require Import concurrency.dry_context.
 (** The Clight DryConc Machine*)
 Require Import concurrency.DryMachineSource.
 
+(** The new machine simulation*)
+Require Import concurrency.machine_semantics. Import machine_semantics.
+Require Import concurrency.machine_simulation. Import Machine_sim.
+
 Module lifting (SEMT: Semantics) (Machine: MachinesSig with Module SEM := SEMT).
   Section lifting.
     Import THE_DRY_MACHINE_SOURCE.
@@ -47,11 +51,20 @@ Module lifting (SEMT: Semantics) (Machine: MachinesSig with Module SEM := SEMT).
     Definition halt_inv j (geS : GS) rv1 mS (geT : GT) rv2 mT :=
       Mem.mem_inj j mS mT /\
       val_inject j rv1 rv2.
-    
-    Lemma concur_sim main p (sch : mySchedule.schedule) :
+
+    Lemma concur_whole_sim main p (sch : mySchedule.schedule) :
       Wholeprog_sim
         (DMachineSem sch p)
         (Machine.DryConc.MachineSemantics sch p)
+        gS gT main
+        ge_inv init_inv halt_inv.
+    Proof.
+    Admitted.
+
+    Lemma concur_sim main p (sch : mySchedule.schedule) :
+      Machine_sim
+        (new_DMachineSem sch p)
+        (Machine.DryConc.new_MachineSemantics sch p)
         gS gT main
         ge_inv init_inv halt_inv.
     Proof.

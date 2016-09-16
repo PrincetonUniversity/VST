@@ -36,13 +36,14 @@ Require Import sepcomp.mem_lemmas.
    the behavior of programs. *)
 (** -2 a state cannot both step and be halted, and *)
 
-Record ConcurSemantics {G SCH C M: Type} : Type :=
-  { initial_core : G -> val -> list val -> option C
+Record ConcurSemantics {G SCH TID C M: Type} : Type :=
+  { initial_machine : G -> val -> list val -> option C
     ; conc_halted : SCH -> C -> option val
     ; thread_step : G -> SCH -> C -> M -> C -> M -> Prop 
     ; machine_step : G -> SCH -> C -> M -> SCH -> C -> M -> Prop 
+    ; runing_thread : C -> option TID
     ; thread_step_not_halted: 
       forall ge  U m q  m' q', thread_step ge U q m q' m' -> conc_halted U q = None
     ; machine_step_not_halted: 
-      forall ge  U m q  U' m' q', machine_step ge U q m U' q' m' -> conc_halted U q = None
+        forall ge  U m q  U' m' q', machine_step ge U q m U' q' m' -> conc_halted U q = None
    }.
