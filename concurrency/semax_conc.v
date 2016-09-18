@@ -274,12 +274,9 @@ Definition concurrent_oracular_specs (cs : compspecs) (ext_link : string -> iden
   (ext_link "release"%string, release_oracular_spec) ::
   nil.
 
-Definition concurrent_specs (cs : compspecs) (ext_link : string -> ident) :=
+Definition concurrent_simple_specs (cs : compspecs) (ext_link : string -> ident) :=
   (ext_link "acquire"%string, acquire_spec) ::
   (ext_link "release"%string, release_spec) ::
-  (* (ext_link "makelock"%string, makelock_spec cs) :: *)
-  (* (ext_link "freelock"%string, freelock_spec cs) :: *)
-  (* (ext_link "spawn"%string, spawn_spec) :: *)
   nil.
 
 Definition concurrent_oracular_ext_spec (cs : compspecs) (ext_link : string -> ident) :=
@@ -289,22 +286,22 @@ Definition concurrent_oracular_ext_spec (cs : compspecs) (ext_link : string -> i
     (ok_void_spec (list rmap)).(@OK_spec)
     (concurrent_oracular_specs cs ext_link).
 
-Definition concurrent_ext_spec Z (cs : compspecs) (ext_link : string -> ident) :=
+Definition concurrent_simple_ext_spec Z (cs : compspecs) (ext_link : string -> ident) :=
   add_funspecs_rec
     ext_link
     (ok_void_spec Z).(@OK_ty)
     (ok_void_spec Z).(@OK_spec)
-    (concurrent_specs cs ext_link).
+    (concurrent_simple_specs cs ext_link).
 
 Definition Concurrent_Oracular_Espec cs ext_link :=
   Build_OracleKind
     (list rmap)
     (concurrent_oracular_ext_spec cs ext_link).
 
-Definition Concurrent_Espec Z cs ext_link :=
+Definition Concurrent_Simple_Espec Z cs ext_link :=
   Build_OracleKind
     Z
-    (concurrent_ext_spec Z cs ext_link).
+    (concurrent_simple_ext_spec Z cs ext_link).
 
 Lemma strong_nat_ind (P : nat -> Prop) (IH : forall n, (forall i, lt i n -> P i) -> P n) n : P n.
 Proof.
@@ -321,7 +318,7 @@ Proof.
 Qed.
 
 Theorem oracular_refinement cs ext_link ge n oracle c m :
-  jsafeN (Concurrent_Espec unit cs ext_link).(@OK_spec) ge n tt c m ->
+  jsafeN (Concurrent_Simple_Espec unit cs ext_link).(@OK_spec) ge n tt c m ->
   jsafeN (Concurrent_Oracular_Espec cs ext_link).(@OK_spec) ge n oracle c m.
 Proof.
   revert oracle c m; induction n as [n InductionHypothesis] using strong_nat_ind; intros oracle c m.
@@ -612,6 +609,7 @@ Proof.
     }
 Qed.
 
+
 (*
 Lemma semax_conc' cs (ext_link: string -> ident) id sig cc A P Q :
   let fs := threadspecs cs ext_link in
@@ -641,3 +639,23 @@ Proof.
   apply semax_conc'; hnf; auto.
 Qed.
  *)
+
+Definition concurrent_specs (cs : compspecs) (ext_link : string -> ident) :=
+  (ext_link "acquire"%string, acquire_spec) ::
+  (ext_link "release"%string, release_spec) ::
+  (ext_link "makelock"%string, makelock_spec cs) ::
+  (ext_link "freelock"%string, freelock_spec cs) ::
+  (ext_link "spawn"%string, spawn_spec) ::
+  nil.
+
+Definition concurrent_ext_spec Z (cs : compspecs) (ext_link : string -> ident) :=
+  add_funspecs_rec
+    ext_link
+    (ok_void_spec Z).(@OK_ty)
+    (ok_void_spec Z).(@OK_spec)
+    (concurrent_specs cs ext_link).
+
+Definition Concurrent_Espec Z cs ext_link :=
+  Build_OracleKind
+    Z
+    (concurrent_ext_spec Z cs ext_link).

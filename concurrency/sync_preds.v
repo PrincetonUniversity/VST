@@ -1275,3 +1275,46 @@ Proof.
   exists (Z.pos p); reflexivity.
   exists Z0; reflexivity.
 Qed.
+
+Lemma resource_at_joins phi1 phi2 loc :
+  joins phi1 phi2 -> joins (phi1 @ loc) (phi2 @ loc).
+Proof.
+  intros (phi3, j).
+  apply resource_at_join with (loc := loc) in j.
+  hnf; eauto.
+Qed.
+
+Lemma self_join_pshare_false (psh psh' : pshare) : ~sepalg.join psh psh psh'.
+Proof.
+  intros j; inv j.
+  destruct psh as (sh, n); simpl in *.
+  destruct psh' as (sh', n'); simpl in *.
+  eapply share_joins_self.
+  - exists sh'; auto. constructor; eauto.
+  - auto.
+Qed.
+
+Lemma positive_precise_joins_false R phi1 phi2 :
+  positive_mpred R ->
+  precise R ->
+  app_pred R phi1 ->
+  app_pred R phi2 ->
+  joins phi1 phi2 ->
+  False.
+Proof.
+  intros pos prec S1 S2 j.
+  assert (phi1 = phi2). {
+    destruct j as (phi3, j).
+    eapply prec; auto.
+    - exists phi2; apply j.
+    - exists phi1. apply join_comm, j.
+  }
+  subst phi2.
+  specialize (pos _ S1).
+  destruct pos as (l & sh & rsh & k & pp & E).
+  apply resource_at_joins with (loc := l) in j.
+  rewrite E in j.
+  destruct j as (r3, j).
+  inv j.
+  eapply self_join_pshare_false; eauto.
+Qed.

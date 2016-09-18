@@ -502,47 +502,6 @@ Proof.
   - apply lockSet_in_juicyLocks_age. easy.
 Qed.
 
-(*  maybe we don't need this lemma, we just keep a tight relation n / level
-Lemma state_invariant_S {Z} (Jspec : juicy_ext_spec Z) Gamma n m ge sch tp :
-  state_invariant Jspec Gamma (S n) (m, ge, (sch, tp)) ->
-  state_invariant Jspec Gamma n (m, ge, (sch, age_tp_to n tp)).
-Proof.
-  intros INV.
-  inversion INV as [m0 ge0 sch0 tp0 PHI lev gam compat LC safety wellformed uniqkrun H0]; subst.
-  apply state_invariant_c with (age_to n PHI) (mem_compatible_with_age compat); auto.
-  - apply level_age_to. omega.
-  - intros b fs phi necr fa.
-    refine (gam b fs phi _ _).
-    + apply necR_trans with (age_to n PHI); auto.
-      apply age_to_necR.
-    + auto.
-  - intros loc.
-    specialize (LC loc).
-    rewrite lset_age_tp_to.
-    rewrite AMap_find_map_option_map.
-    destruct (AMap.find (elt:=option rmap) loc (lset tp)) as [[lockphi | ] | ].
-    all: simpl option_map; cbv iota beta.
-    all: exact_eq LC.
-    all: f_equal.
-    + f_equal.
-      (* that's an awful lot of aging, probably we don't really need it in such a lemma *)
-      
-(*      unfold mem_compatible_with_age.
-    match goal with
-      |- match ?w with ?ASD end => idtac
-    end.
-  destruct compat as [J MC LW JL LJ].
-  (* unshelve eapply state_invariant_c with (age_to n PHI) _; auto.
-  - inversion mcompat as [A B C D E]; constructor.
-    clear -lev A. *)
-  intros i cnti ora; specialize (safety i cnti ora).
-  destruct (ThreadPool.getThreadC cnti); auto; try apply safe_downward1, safety.
-  intros c' E. apply safe_downward1, safety, E.
-Qed.
- *)
-Admitted.
-*)
-
 (* Schedule irrelevance of the invariant *)
 Lemma state_invariant_sch_irr {Z} (Jspec : juicy_ext_spec Z) Gamma n m ge i sch sch' tp :
   state_invariant Jspec Gamma n (m, ge, (i :: sch, tp)) ->
@@ -565,10 +524,10 @@ Section Initial_State.
   Variables
     (CS : compspecs) (V : varspecs) (G : funspecs)
     (ext_link : string -> ident) (prog : Clight.program)
-    (all_safe : semax_prog.semax_prog (Concurrent_Oracular_Espec CS ext_link) prog V G)
+    (all_safe : semax_prog.semax_prog (Concurrent_Espec unit CS ext_link) prog V G)
     (init_mem_not_none : Genv.init_mem prog <> None).
   
-  Definition Jspec := @OK_spec (Concurrent_Oracular_Espec CS ext_link).
+  Definition Jspec := @OK_spec (Concurrent_Espec unit CS ext_link).
   
   Definition init_m : { m | Genv.init_mem prog = Some m } :=
     match Genv.init_mem prog as y return (y <> None -> {m : mem | y = Some m}) with
@@ -581,7 +540,7 @@ Section Initial_State.
      globalenv prog,
      (sch,
       let spr := semax_prog_rule
-                   (Concurrent_Oracular_Espec CS ext_link) V G prog
+                   (Concurrent_Espec unit CS ext_link) V G prog
                    (proj1_sig init_m) all_safe (proj2_sig init_m) in
       let q : corestate := projT1 (projT2 spr) in
       let jm : juicy_mem := proj1_sig (snd (projT2 (projT2 spr)) n) in
@@ -613,7 +572,7 @@ Section Initial_State.
   Proof.
     unfold initial_state.
     destruct init_m as [m Hm]; simpl proj1_sig; simpl proj2_sig.
-    set (spr := semax_prog_rule (Concurrent_Oracular_Espec CS ext_link) V G prog m all_safe Hm).
+    set (spr := semax_prog_rule (Concurrent_Espec unit CS ext_link) V G prog m all_safe Hm).
     set (q := projT1 (projT2 spr)).
     set (jm := proj1_sig (snd (projT2 (projT2 spr)) n)).
     match goal with |- _ _ _ (_, (_, ?TP)) => set (tp := TP) end.
@@ -677,7 +636,7 @@ Section Initial_State.
     
     apply state_invariant_c with (PHI := m_phi jm) (mcompat := compat); auto.
     
-    - pose proof semax_prog_entry_point (Concurrent_Oracular_Espec CS ext_link) V G prog.
+    - pose proof semax_prog_entry_point (Concurrent_Espec unit CS ext_link) V G prog.
       unfold matchfunspec in *.
       simpl.
       intros b SPEC phi NECR FU.
@@ -1158,6 +1117,7 @@ Proof.
 Qed.
 
 Lemma join_all_resource_decay {tp m Phi} c' {phi' i} {cnti : ThreadPool.containsThread tp i}:
+  rmap_bound (Mem.nextblock m) Phi ->
   resource_decay (Mem.nextblock m) (ThreadPool.getThreadR cnti) phi' /\
   level (getThreadR cnti) = S (level phi') ->
   join_all tp Phi ->
@@ -1167,7 +1127,17 @@ Lemma join_all_resource_decay {tp m Phi} c' {phi' i} {cnti : ThreadPool.contains
     level Phi = S (level Phi').
 Proof.
   do 2 rewrite join_all_joinlist.
-Admitted.
+  intros B (rd, lev) j.
+  rewrite (maps_getthread _ _ cnti) in j.
+  destruct (joinlist_resource_decay _ _ _ _ _ B rd j) as (Phi' & j' & rd').
+  exists Phi'; split; [ | split]; auto.
+  - rewrite maps_updthread.
+    exact_eq j'. f_equal. f_equal. rewrite <-all_but_map, maps_age_to.
+    auto.
+  - exact_eq lev; f_equal.
+    + apply rmap_join_sub_eq_level. eapply joinlist_join_sub; eauto. left; auto.
+    + f_equal. apply rmap_join_sub_eq_level. eapply joinlist_join_sub; eauto. left; auto.
+Qed.
 
 Lemma mem_cohere_step c c' jm jm' Phi (X : rmap) ge :
   mem_cohere' (m_dry jm) Phi ->
@@ -1406,16 +1376,44 @@ Lemma resource_decay_join_identity b phi phi' e e' :
   identity e ->
   identity e' ->
   e' = age_to (level phi') e.
-Admitted.
-
-Lemma core_necr_join_identity (phi phi' e e' : rmap) :
-  necR (core phi) (core phi') ->
-  sepalg.joins phi e ->
-  sepalg.joins phi' e' ->
-  identity e ->
-  identity e' ->
-  e' = age_to (level phi') e.
-Admitted.
+Proof.
+  intros rd j j' i i'.
+  apply rmap_ext.
+  - apply rmap_join_eq_level in j.
+    apply rmap_join_eq_level in j'.
+    destruct rd as (lev, rd).
+    rewrite level_age_to; eauto with *.
+  - intros l.
+    rewrite age_to_resource_at.
+    apply resource_at_identity with (loc := l) in i.
+    apply resource_at_identity with (loc := l) in i'.
+    apply empty_NO in i.
+    apply empty_NO in i'.
+    destruct j as (a & j).
+    destruct j' as (a' & j').
+    apply resource_at_join with (loc := l) in j.
+    apply resource_at_join with (loc := l) in j'.
+    unfold compcert_rmaps.R.AV.address in *.
+    destruct i as [E | (k & pp & E)], i' as [E' | (k' & pp' & E')]; rewrite E, E' in *.
+    + reflexivity.
+    + inv j'.
+      pose proof resource_decay_PURE_inv rd as I.
+      repeat autospec I.
+      breakhyps.
+      rewr (phi @ l) in j.
+      inv j.
+    + inv j.
+      pose proof resource_decay_PURE rd as I.
+      repeat autospec I.
+      rewr (phi' @ l) in j'.
+      inv j'.
+    + inv j.
+      pose proof resource_decay_PURE rd as I.
+      specialize (I l k pp ltac:(auto)).
+      rewr (phi' @ l) in j'.
+      inv j'.
+      reflexivity.
+Qed.
 
 Lemma jsafeN_downward {Z} {Jspec : juicy_ext_spec Z} {ge n z c jm} :
   jsafeN Jspec ge (S n) z c jm ->
@@ -1492,13 +1490,36 @@ Proof.
     destruct SO as (_ & _ & <-). auto.
 Qed.
 
+Ltac absurd_ext_link_naming :=
+  exfalso;
+  match goal with
+  | H : Some ((_ : string -> ident) _) = _ |- _ =>
+    rewrite <-H in *
+  end;
+  match goal with
+  | H : Some ((?ext_link : string -> ident) ?a) <> Some (?ext_link ?a) |- _ =>
+    congruence
+  | H : Some ((?ext_link : string -> ident) ?a) = Some (?ext_link ?b) |- _ =>
+    match goal with
+    | ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2 |- _ =>
+      assert (a = b) by (apply ext_link_inj; congruence); congruence
+    end
+  end.
+
+Ltac funspec_destruct s :=
+  simpl (ext_spec_pre _); simpl (ext_spec_type _); simpl (ext_spec_post _);
+  unfold funspec2pre, funspec2post;
+  let Heq_name := fresh "Heq_name" in
+  destruct (oi_eq_dec (Some (_ s)) (ef_id _ (EF_external _ _)))
+    as [Heq_name | Heq_name]; try absurd_ext_link_naming.
+
 Section Simulation.
   Variables
     (CS : compspecs)
     (ext_link : string -> ident)
     (ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2).
 
-  Definition Jspec' := (@OK_spec (Concurrent_Oracular_Espec CS ext_link)).
+  Definition Jspec' := (@OK_spec (Concurrent_Espec unit CS ext_link)).
   
   Lemma Jspec'_juicy_mem_equiv : ext_spec_stable juicy_mem_equiv (JE_spec _ Jspec').
   Proof.
@@ -1507,48 +1528,38 @@ Section Simulation.
     
     unfold Jspec' in *.
     destruct e as [name sg | | | | | | | | | | | ].
-    all: try (exfalso; simpl in x; do 2 (if_tac in x; [ discriminate | ]); apply x).
+    all: try (exfalso; simpl in x; do 5 (if_tac in x; [ discriminate | ]); apply x).
     
     (* dependent destruction *)
     revert x.
     
-    simpl (ext_spec_pre _); simpl (ext_spec_type _); simpl (ext_spec_post _).
-    unfold funspecOracle2pre, funspecOracle2post.
-    unfold ext_spec_pre, ext_spec_post.
-    destruct (oi_eq_dec (Some (ext_link "acquire")) (ef_id ext_link (EF_external name sg))) as [Eacquire | Nacquire].
-    {
-      (** * the case of acquire *)
-      rewrite (proj2 E).
-      exact (fun x y => y).
-    }
+    (** * the case of acquire *)
+    funspec_destruct "acquire".
+    rewrite (proj2 E).
+    exact (fun x y => y).
     
-    (* goal massaging for dependent destruction *)
-    change (
-      forall x :
-          ext_spec_type
-            (@OK_spec
-               {| OK_spec :=
-                   add_funspecsOracle_rec
-                     ext_link (@OK_ty (ok_void_spec (list rmap))) (@OK_spec (ok_void_spec (list rmap)))
-                     ((ext_link "release", release_oracular_spec) :: @nil (ident * funspecOracle Oracle)) |})
-              (EF_external name sg),
-        ext_spec_pre OK_spec (EF_external name sg) x b tl vl z m1 ->
-        ext_spec_pre OK_spec (EF_external name sg) x b tl vl z m2
-    ).
+    (** * the case of release *)
+    funspec_destruct "release".
+    rewrite (proj2 E).
+    exact (fun x y => y).
     
-    simpl (ext_spec_pre _); simpl (ext_spec_type _); simpl (ext_spec_post _).
-    unfold funspecOracle2pre, funspecOracle2post.
-    unfold ext_spec_pre, ext_spec_post.
-    destruct (oi_eq_dec (Some (ext_link "release")) (ef_id ext_link (EF_external name sg))) as [Erelease | Nrelease].
-    {
-      (** * the case of release *)
-      rewrite (proj2 E).
-      exact (fun x y => y).
-    }
+    (** * the case of makelock *)
+    funspec_destruct "makelock".
+    rewrite (proj2 E).
+    exact (fun x y => y).
+    
+    (** * the case of freelock *)
+    funspec_destruct "freelock".
+    rewrite (proj2 E).
+    exact (fun x y => y).
+    
+    (** * the case of spawn *)
+    funspec_destruct "spawn".
+    rewrite (proj2 E).
+    exact (fun x y => y).
     
     (** * no more cases *)
-    simpl.
-    tauto.
+    simpl; tauto.
   Qed.
   
   Lemma Jspec'_hered : ext_spec_stable age (JE_spec _ Jspec').
@@ -1558,15 +1569,12 @@ Section Simulation.
     
     unfold Jspec' in *.
     destruct e as [name sg | | | | | | | | | | | ].
-    all: try (exfalso; simpl in x; do 2 (if_tac in x; [ discriminate | ]); apply x).
+    all: try (exfalso; simpl in x; do 5 (if_tac in x; [ discriminate | ]); apply x).
     
     (* dependent destruction *)
     revert x.
     
-    simpl (ext_spec_pre _); simpl (ext_spec_type _); simpl (ext_spec_post _).
-    unfold funspecOracle2pre, funspecOracle2post.
-    unfold ext_spec_pre, ext_spec_post.
-    destruct (oi_eq_dec (Some (ext_link "acquire")) (ef_id ext_link (EF_external name sg))) as [Eacquire | Nacquire].
+    funspec_destruct "acquire".
     {
       (** * the case of acquire *)
       intros x.
@@ -1575,7 +1583,7 @@ Section Simulation.
       destruct (age1_join2 (A := rmap) _ J A) as (phi0' & phi1' & J' & A0 & A1).
       exists phi0', phi1'; split; auto.
       split.
-      - destruct x as (p, ((((ok, ora), v), sh), R)); simpl in Pre |- *.
+      - destruct x as (p, ((v, sh), R)); simpl in Pre |- *.
         unfold canon.PROPx in *.
         unfold fold_right in *.
         unfold canon.LOCALx in *.
@@ -1597,24 +1605,7 @@ Section Simulation.
         + constructor; auto.
     }
     
-    (* goal massaging for dependent destruction *)
-    change (
-      forall x :
-          ext_spec_type
-            (@OK_spec
-               {| OK_spec :=
-                   add_funspecsOracle_rec
-                     ext_link (@OK_ty (ok_void_spec (list rmap))) (@OK_spec (ok_void_spec (list rmap)))
-                     ((ext_link "release", release_oracular_spec) :: @nil (ident * funspecOracle Oracle)) |})
-              (EF_external name sg),
-        ext_spec_pre OK_spec (EF_external name sg) x b tl vl z m1 ->
-        ext_spec_pre OK_spec (EF_external name sg) x b tl vl z m2
-    ).
-    
-    simpl (ext_spec_pre _); simpl (ext_spec_type _); simpl (ext_spec_post _).
-    unfold funspecOracle2pre, funspecOracle2post.
-    unfold ext_spec_pre, ext_spec_post.
-    destruct (oi_eq_dec (Some (ext_link "release")) (ef_id ext_link (EF_external name sg))) as [Erelease | Nrelease].
+    funspec_destruct "release".
     {
       (** * the case of release *)
       intros x.
@@ -1623,7 +1614,7 @@ Section Simulation.
       destruct (age1_join2 (A := rmap) _ J A) as (phi0' & phi1' & J' & A0 & A1).
       exists phi0', phi1'; split; auto.
       split.
-      - destruct x as (p, (((ora, v), sh), R)); simpl in Pre |- *.
+      - destruct x as (p, ((v, sh), R)); simpl in Pre |- *.
         unfold canon.PROPx in *.
         unfold fold_right in *.
         unfold canon.LOCALx in *.
@@ -1647,10 +1638,28 @@ Section Simulation.
         + constructor; auto.
     }
     
+    funspec_destruct "makelock".
+    {
+      (** * the case of makelock *)
+      admit (* mindless *).
+    }
+    
+    funspec_destruct "freelock".
+    {
+      (** * the case of freelock *)
+      admit (* mindless *).
+    }
+    
+    funspec_destruct "spawn".
+    {
+      (** * the case of spawn *)
+      admit (* mindless *).
+    }
+    
     (** * no more cases *)
     simpl.
     tauto.
-  Qed.
+  Admitted.
   
   Inductive state_step : cm_state -> cm_state -> Prop :=
   | state_step_empty_sched ge m jstate :
@@ -1705,7 +1714,8 @@ Section Simulation.
     }
     
     (** * Getting new global rmap (Phi'') with smaller level [n] *)
-    destruct (join_all_resource_decay (Krun ci') (proj2 stepi) J)
+    assert (B : rmap_bound (Mem.nextblock m) Phi) by apply compat.
+    destruct (join_all_resource_decay (Krun ci') B (proj2 stepi) J)
       as [Phi'' [J'' [RD L]]].
     rewrite join_all_joinlist in J''.
     assert (Eni'' : level (m_phi jmi') = n). {
@@ -2340,7 +2350,7 @@ Section Simulation.
                    /\ forall ora, jsafeN Jspec' ge n ora ci' jmi').
         {
           specialize (safety i cnti).
-          pose proof (safety nil) as safei.
+          pose proof (safety tt) as safei.
           rewrite Eci in *.
           inversion safei as [ | ? ? ? ? c' m' step safe H H2 H3 H4 | | ]; subst.
           2: now match goal with H : at_external _ _ = _ |- _ => inversion H end.
@@ -2426,7 +2436,7 @@ Section Simulation.
       (* paragraph below: ef has to be an EF_external *)
       assert (Hef : match ef with EF_external _ _ => Logic.True | _ => False end).
       {
-        pose proof (safety i cnti nil) as safe_i.
+        pose proof (safety i cnti tt) as safe_i.
         rewrite Eci in safe_i.
         inversion safe_i; subst; [ now inversion H0; inversion H | | now inversion H ].
         inversion H0; subst; [].
@@ -2449,7 +2459,7 @@ Section Simulation.
                 Some (ext_link "freelock") = (ef_id ext_link (EF_external name sg)) \/
                 Some (ext_link "spawn") = (ef_id ext_link (EF_external name sg))).
       {
-        pose proof (safety i cnti nil) as safe_i.
+        pose proof (safety i cnti tt) as safe_i.
         rewrite Eci in safe_i.
         inversion safe_i; subst; [ now inversion H0; inversion H | | now inversion H ].
         inversion H0; subst; [].
@@ -2480,29 +2490,23 @@ Section Simulation.
       { (* the case of acquire *)
         
         (* using the safety to prepare the precondition *)
-        pose proof (safety i cnti nil) as safei.
+        pose proof (safety i cnti tt) as safei.
         rewrite Eci in safei.
         unfold jsafeN, juicy_safety.safeN in safei.
         inversion safei
-          as [ | n0 z c m0 c' m' H0 H1 H H2 H3 H4
-               | n0 z c m0 e sig0 args0 x at_ex Pre SafePost H H3 H4 H5
-               | n0 z c m0 i0 H H0 H1 H2 H3 H4];
-          [ now inversion H0; inversion H | subst | now inversion H ].
+          as [ | ?????? bad | n0 z c m0 e sig0 args0 x at_ex Pre SafePost | ????? bad ];
+          [ now inversion bad; inversion H | subst | now inversion bad ].
         subst.
         simpl in at_ex. injection at_ex as <- <- <- .
         hnf in x.
         revert x Pre SafePost.
         
-        (* dependent destruction *)
-        simpl (ext_spec_pre _); simpl (ext_spec_post _).
-        unfold funspecOracle2pre, funspecOracle2post.
-        unfold ext_spec_pre, ext_spec_post.
         Local Notation "{| 'JE_spec ... |}" := {| JE_spec := _; JE_pre_hered := _; JE_post_hered := _; JE_exit_hered := _ |}.
-        destruct (oi_eq_dec (Some (ext_link "acquire")) (ef_id ext_link (EF_external name sg)))
-          as [Eef | Eef];
-          [ | now clear -Eef H_acquire; simpl in *; congruence ].
         
-        intros (phix, ((((ok, oracle_x), vx), shx), Rx)) Pre. simpl in Pre.
+        (* dependent destruction *)
+        funspec_destruct "acquire".
+        
+        intros (phix, ((vx, shx), Rx)) Pre. simpl in Pre.
         destruct Pre as (phi0 & phi1 & Join & Precond & HnecR).
         simpl (and _).
         intros Post.
@@ -2510,15 +2514,15 @@ Section Simulation.
         (* relate lset to val *)
         destruct Precond as [PREA [[PREB _] PREC]].
         hnf in PREB.
-        assert (islock : exists b ofs, vx = Vptr b ofs /\ exists R, islock_pred R (phi0 @ (b, Int.unsigned ofs))). {
-          unfold canon.SEPx in PREC.
-          simpl in PREC.
-          rewrite seplog.sepcon_emp in PREC.
-          unfold lock_inv in PREC.
-          destruct PREC as (b & ofs & Evx & lk).
-          exists b, ofs. split. now apply Evx.
+        
+        Lemma lock_inv_at sh v R phi :
+          app_pred (lock_inv sh v R) phi ->
+          exists b ofs, v = Vptr b ofs /\ exists R, islock_pred R (phi @ (b, Int.unsigned ofs)).
+        Proof.
+          intros (b & ofs & Ev & lk).
+          exists b, ofs. split. now apply Ev.
           specialize (lk (b, Int.unsigned ofs)).
-          exists (approx (level phi0) (Interp Rx)).
+          exists (approx (level phi) R).
           simpl in lk.
           if_tac in lk; swap 1 2. {
             exfalso.
@@ -2534,7 +2538,13 @@ Section Simulation.
           do 3 eexists.
           unfold compose.
           reflexivity.
-        }
+        Qed.
+        
+        unfold canon.SEPx in PREC.
+        simpl in PREC.
+        rewrite seplog.sepcon_emp in PREC.
+        pose proof PREC as islock.
+        apply lock_inv_at in islock.
         
         assert (SUB : join_sub phi0 Phi). {
           apply join_sub_trans with  (ThreadPool.getThreadR cnti).
@@ -2595,9 +2605,6 @@ Section Simulation.
           { hnf. unfold lock_size in *; split; auto; omega. }
           rewrite jam_true in lk; swap 1 2. now auto.
           
-          unfold canon.SEPx in PREC.
-          unfold fold_right in PREC.
-          rewrite seplog.sepcon_emp in PREC.
           unfold lock_inv in PREC.
           destruct PREC as (b0 & ofs0 & EQ & LKSPEC).
           injection EQ as <- <-.
@@ -2718,9 +2725,6 @@ Section Simulation.
           destruct lock_coh' as [LOAD (sh' & R' & lk & sat)].
           rewrite Ewetv in *.
           
-          unfold canon.SEPx in PREC.
-          unfold fold_right in PREC.
-          rewrite seplog.sepcon_emp in PREC.
           unfold lock_inv in PREC.
           destruct PREC as (b0 & ofs0 & EQ & LKSPEC).
           injection EQ as <- <-.
@@ -2730,18 +2734,6 @@ Section Simulation.
           { hnf. unfold lock_size in *; split; auto; omega. }
           rewrite jam_true in lk; swap 1 2. now auto.
           destruct sat as [sat | sat]; [ | omega ].
-          
-          (* destruct isl' as [sh' [psh' [z' Eat]]]. *)
-          (*
-          rewrite Eat in Ewetv.
-          injection Ewetv as -> -> -> Epr.
-          apply inj_pair2 in Epr.
-          assert (R0 = R). {
-            assert (feq: forall A B (f g : A -> B), f = g -> forall x, f x = g x) by congruence.
-            apply (feq _ _ _ _ Epr tt).
-          }
-          subst R0; clear Epr.
-           *)
           
           (* changing value of lock *)
           Unset Printing Implicit.
@@ -2833,13 +2825,166 @@ Section Simulation.
               apply Jphi'.
       }
 
-      { (* the case of release *) admit. }
+      { (* the case of release *)
+
+        (* using the safety to prepare the precondition *)
+        pose proof (safety i cnti tt) as safei.
+        rewrite Eci in safei.
+        unfold jsafeN, juicy_safety.safeN in safei.
+        inversion safei
+          as [ | ?????? bad | n0 z c m0 e sig0 args0 x at_ex Pre SafePost | ????? bad ];
+          [ now inversion bad; inversion H | subst | now inversion bad ].
+        subst.
+        simpl in at_ex. injection at_ex as <- <- <- .
+        hnf in x.
+        revert x Pre SafePost.
+        
+        (* dependent destruction *)
+        funspec_destruct "acquire".
+        funspec_destruct "release".
+        
+        intros (phix, ((vx, shx), Rx)) Pre. simpl in Pre.
+        destruct Pre as (phi0 & phi1 & Join & Precond & HnecR).
+        simpl (and _).
+        intros Post.
+        
+        (* relate lset to val *)
+        destruct Precond as [PREA [[PREB _] PREC]].
+        hnf in PREB.
+        unfold canon.SEPx in PREC.
+        simpl in PREC.
+        rewrite seplog.sepcon_emp in PREC.
+        destruct PREC as (phi_lockinv & phi_sat & jphi & Hlockinv & SAT).
+        pose proof Hlockinv as islock.
+        apply lock_inv_at in islock.
+        
+        assert (SUB : join_sub phi_lockinv Phi). {
+          admit.
+          (*apply join_sub_trans with  (ThreadPool.getThreadR cnti).
+          - econstructor; eauto.
+          - apply compatible_threadRes_sub; eauto.
+            destruct compat; eauto. *)
+        }
+        destruct islock as [b [ofs [-> [R islock]]]].
+        pose proof (resource_at_join_sub _ _ (b, Int.unsigned ofs) SUB) as SUB'.
+        pose proof islock_pred_join_sub SUB' islock as isl.
+        
+        (* next step depends on status of lock: *)
+        pose proof (lock_coh (b, Int.unsigned ofs)) as lock_coh'.
+        destruct (AMap.find (elt:=option rmap) (b, Int.unsigned ofs) (ThreadPool.lset tp))
+          as [[unlockedphi|]|] eqn:Efind;
+          swap 1 3.
+        
+        - (* None: that cannot be: there is no lock at that address *)
+          exfalso.
+          destruct isl as [x [? [? EPhi]]].
+          rewrite EPhi in lock_coh'.
+          rewrite <-isLKCT_rewrite in lock_coh'.
+          eapply (proj1 (lock_coh' _ _ _ _)).
+          reflexivity.
+        
+        - (* Some None: lock is locked, so [release] should succeed. *)
+          destruct lock_coh' as [LOAD (sh' & R' & lk)].
+          destruct isl as [sh [psh [z Ewetv]]].
+          rewrite Ewetv in *.
+          admit.
+          
+        - (* Some Some: lock is unlocked, this should be impossible *)
+          destruct lock_coh' as [LOAD (sh' & R' & lk & sat)].
+          destruct sat as [sat | ?]; [ | congruence ].
+          destruct isl as [sh [psh [z Ewetv]]].
+          rewrite Ewetv in *.
+          exfalso.
+          clear Post.
+          
+          (* sketch *)
+          (* assert (Sat1 : R unlockedphi). *)
+          (* assert (Sat2 : R phi_sat). *)
+          (* assert (J12 : joins phi_sat unlockedphi). *)
+          pose proof positive_precise_joins_false R' (age_by 1 unlockedphi) phi_sat as PP.
+          apply PP.
+          + (* positive *)
+            admit.
+          
+          + (* precise *)
+            admit.
+          
+          + (* sat 1 *)
+            admit.
+          
+          + (* sat 2 *)
+            admit.
+          
+          + (* joins *)
+            admit.
+      }
       
-      { (* the case of makelock *) admit. }
+      { (* the case of makelock *)
+
+        (* using the safety to prepare the precondition *)
+        pose proof (safety i cnti tt) as safei.
+        rewrite Eci in safei.
+        unfold jsafeN, juicy_safety.safeN in safei.
+        inversion safei
+          as [ | ?????? bad | n0 z c m0 e sig0 args0 x at_ex Pre SafePost | ????? bad ];
+          [ now inversion bad; inversion H | subst | now inversion bad ].
+        subst.
+        simpl in at_ex. injection at_ex as <- <- <- .
+        hnf in x.
+        revert x Pre SafePost.
+        
+        (* dependent destruction *)
+        funspec_destruct "acquire".
+        funspec_destruct "release".
+        funspec_destruct "makelock".
+        admit.
+      }
       
-      { (* the case of freelock *) admit. }
+      { (* the case of makelock *)
+
+        (* using the safety to prepare the precondition *)
+        pose proof (safety i cnti tt) as safei.
+        rewrite Eci in safei.
+        unfold jsafeN, juicy_safety.safeN in safei.
+        inversion safei
+          as [ | ?????? bad | n0 z c m0 e sig0 args0 x at_ex Pre SafePost | ????? bad ];
+          [ now inversion bad; inversion H | subst | now inversion bad ].
+        subst.
+        simpl in at_ex. injection at_ex as <- <- <- .
+        hnf in x.
+        revert x Pre SafePost.
+        
+        (* dependent destruction *)
+        funspec_destruct "acquire".
+        funspec_destruct "release".
+        funspec_destruct "makelock".
+        funspec_destruct "freelock".
+        admit.
+      }
       
-      { (* the case of spawn *) admit. }
+      { (* the case of makelock *)
+
+        (* using the safety to prepare the precondition *)
+        pose proof (safety i cnti tt) as safei.
+        rewrite Eci in safei.
+        unfold jsafeN, juicy_safety.safeN in safei.
+        inversion safei
+          as [ | ?????? bad | n0 z c m0 e sig0 args0 x at_ex Pre SafePost | ????? bad ];
+          [ now inversion bad; inversion H | subst | now inversion bad ].
+        subst.
+        simpl in at_ex. injection at_ex as <- <- <- .
+        hnf in x.
+        revert x Pre SafePost.
+        
+        (* dependent destruction *)
+        funspec_destruct "acquire".
+        funspec_destruct "release".
+        funspec_destruct "makelock".
+        funspec_destruct "freelock".
+        funspec_destruct "spawn".
+        admit.
+        (* no obligation after "release" yet *)
+      }
     }
     (* end of Kblocked *)
     
@@ -3030,7 +3175,7 @@ Section Simulation.
                    /\ forall ora, jsafeN Jspec' ge n ora ci' jmi').
         {
           specialize (safety i cnti).
-          pose proof (safety nil) as safei.
+          pose proof (safety tt) as safei.
           rewrite Eci in *.
           inversion safei as [ | ? ? ? ? c' m'' step safe H H2 H3 H4 | | ]; subst.
           2: now match goal with H : at_external _ _ = _ |- _ => inversion H end.
@@ -3972,7 +4117,7 @@ Section Safety.
     (ext_link : string -> ident)
     (ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2)
     (prog : Clight.program)
-    (all_safe : semax_prog.semax_prog (Concurrent_Oracular_Espec CS ext_link) prog V G)
+    (all_safe : semax_prog.semax_prog (Concurrent_Espec unit CS ext_link) prog V G)
     (init_mem_not_none : Genv.init_mem prog <> None).
 
   Lemma invariant_safe Gamma n state :
@@ -4035,7 +4180,7 @@ Section Safety.
   
   Definition spr :=
     semax_prog_rule
-      (Concurrent_Oracular_Espec CS ext_link) V G prog
+      (Concurrent_Espec unit CS ext_link) V G prog
       (proj1_sig init_mem) all_safe (proj2_sig init_mem).
   
   Definition initial_corestate : corestate := projT1 (projT2 spr).
