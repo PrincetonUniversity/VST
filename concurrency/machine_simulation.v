@@ -20,10 +20,10 @@ Require Import concurrency.machine_semantics_lemmas.
 
 Module Machine_sim. Section Machine_sim.
 
-Context {G1 SCH TID C1 M1 G2 C2 M2 : Type}
+Context {G1 TID SCH TR C1 M1 G2 C2 M2 : Type}
 
-(Sem1 : @ConcurSemantics G1 SCH TID C1 M1)
-(Sem2 : @ConcurSemantics G2 SCH TID C2 M2)
+(Sem1 : @ConcurSemantics G1 TID SCH TR C1 M1)
+(Sem2 : @ConcurSemantics G2 TID SCH TR C2 M2)
 
 (ge1 : G1)
 (ge2 : G2)
@@ -64,13 +64,13 @@ Record Machine_sim  :=
     /\ (thread_step_plus Sem2 ge2 U st2 m2 st2' m2' 
        \/ (thread_step_star Sem2 ge2 U st2 m2 st2' m2' /\ core_ord cd' cd))
 ; machine_diagram : 
-    forall U st1 m1 U' st1' m1', 
-    machine_step Sem1 ge1 U st1 m1 U' st1' m1' ->
+    forall U tr st1 m1 U' tr' st1' m1', 
+    machine_step Sem1 ge1 U tr st1 m1 U' tr' st1' m1' ->
     forall cd st2 mu m2,
     match_state cd mu st1 m1 st2 m2 ->
     exists st2', exists m2', exists cd', exists mu',
     match_state cd' mu' st1' m1' st2' m2' 
-    /\ machine_step Sem2 ge2 U st2 m2 U' st2' m2'
+    /\ machine_step Sem2 ge2 U tr st2 m2 U' tr' st2' m2'
         
 ; thread_halted : 
     forall cd mu U c1 m1 c2 m2 v1,

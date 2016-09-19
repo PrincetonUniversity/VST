@@ -683,29 +683,29 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
 
   Definition init_machine' (r : option RES.res) the_ge
              (f : val) (args : list val)
-    : option (event_trace * machine_state) :=
+    : option (machine_state) :=
     match init_mach r the_ge f args with
     | None => None
-    | Some c => Some ([::], c)
+    | Some c => Some (c)
     end.
 
    (*This has to be filled in:*)
   Axiom running_thread: machine_state -> option tid.
   
   Program Definition new_MachineSemantics (U:schedule) (r : option RES.res):
-    @ConcurSemantics G schedule tid (event_trace * machine_state) mem.
-  apply (@Build_ConcurSemantics _ schedule tid (event_trace * machine_state) _
+    @ConcurSemantics G tid schedule event_trace machine_state mem.
+  apply (@Build_ConcurSemantics _ tid schedule event_trace  machine_state _
                               (init_machine' r)
-                              (fun U st => halted (U, fst st, snd st))  
+                              (fun U st => halted (U, nil, st))  
                               (fun ge U st m st' m' =>
-                                 @internal_step ge U (snd st) m
-                                                (snd st') m'
+                                 @internal_step ge U st m
+                                                st' m'
                               )
-                              (fun ge U st m U' st' m' =>
-                                 @external_step ge U (fst st) (snd st) m
-                                                U' (fst st') (snd st') m'
+                              (fun ge U (tr:event_trace) st m U' tr' st' m' =>
+                                 @external_step ge U tr st m
+                                                U' tr' st' m'
                               )
-                              (fun A => running_thread (snd A)))
+                              (fun A => running_thread A))
          ;
     unfold at_external, halted; try reflexivity.
   - intros. inversion H; subst; rewrite HschedN; reflexivity.
@@ -828,7 +828,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   (** *I further create a different type of safety that discriminates non-determinism*)
   CoInductive explicit_safety ge (U:Sch) (st:machine_state) (m:mem): Prop:=
   | halted_safety : halted (U, nil, st) -> explicit_safety ge U st m
-  | internal_safety st' m': @internal_step ge U nil st m nil st' m' ->
+  | internal_safety st' m': @internal_step ge U st m st' m' ->
                             (forall U', new_valid (nil, st', m') U' -> explicit_safety ge U' st' m') ->
                             explicit_safety ge U st m
   | external_safety U' st' m': @external_step ge U nil st m U' nil st' m' ->
@@ -852,7 +852,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
       apply: (halted_safety _ _ _ _ hltd).
     - destruct st' as [[tr tp] m'].
       move: H H0; rewrite /mk_ostate /MachStep /= => HH.
-      move: HH (HH)  => /trace_nil [] ? -> /step_equivalence1 [[] -> istp | estp] sns_all'.
+      move: HH (HH)  => /trace_nil [] ? -> /step_equivalence1 [[] -> [] ? istp | estp] sns_all'.
       + eapply (internal_safety _ _ _ _ _ _ istp).
         eapply safety_equivalence21 => //.
       + eapply (external_safety _ _ _ _ _ _ _ estp).
@@ -900,6 +900,22 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     move => ge st m; split;
            [apply: safety_equivalence21 | apply: safety_equivalence22].
   Qed.
+
+  (** * AND another safety: explicift safety with stutter *)
+  (*Section newer_semantics_with_stutter.
+    Context (core_data: Type)
+    (core_ord : core_data -> core_data -> Prop)
+    (core_ord_wf : well_founded core_ord).
+    
+  CoInductive explicit_safety_stutter ge (cd:core_data) (U:Sch) (st:machine_state) (m:mem): Prop:=
+  | halted_safety : halted (U, nil, st) -> explicit_safety ge cd U st m
+  | internal_safety cd' st' m': @internal_step ge U st m st' m' ->
+                            (forall U', new_valid (nil, st', m') U' -> explicit_safety ge U' st' m') ->
+                            explicit_safety cd' ge U st m
+  | external_safety cd' U' st' m': @external_step ge U nil st m U' nil st' m' ->
+                            (forall U', new_valid (nil, st', m') U' -> explicit_safety ge U' st' m') ->
+                            explicit_safety cd' ge U st m
+  | stutter: *)
   
   End new_safety.
 
