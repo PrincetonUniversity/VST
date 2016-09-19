@@ -561,14 +561,14 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
         (Htstep: start_thread genv Htid ms'),
-        internal_step U [::] ms m U [::] ms' m
+        external_step U [::] ms m U [::] ms' m
   | resume_step':
       forall tid U ms ms' m
         (HschedN: schedPeek U = Some tid)
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
         (Htstep: resume_thread Htid ms'),
-        internal_step U [::] ms m U [::] ms' m
+        external_step U [::] ms m U [::] ms' m
   | suspend_step':
       forall tid U U' ms ms' m
         (HschedN: schedPeek U = Some tid)
