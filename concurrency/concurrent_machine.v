@@ -616,17 +616,17 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
       @internal_step ge U tr st m tr' st' m' ->
       @machine_step ge U tr st m U nil st' m'.
   Proof. move=>  ge U tr st m tr' st' m' istp.
-         inversion istp;
-                           [ solve[econstructor 1 ; eauto]|
-                            solve[econstructor 2 ; eauto]|
-                            solve[econstructor 3 ; eauto]].
+         by inversion istp; econstructor; eauto.
   Qed.
    Lemma step_equivalence3: forall ge U tr st m U' tr' st' m',
       @external_step ge U tr st m U' tr' st' m' ->
       @machine_step ge U tr st m U' tr' st' m'.
    Proof. move=>  ge U tr st m U' nil st' m' estp.
           inversion estp;
-            [ solve[econstructor 4 ; eauto]|
+            [
+              solve[econstructor 1 ; eauto]|
+              solve[econstructor 2 ; eauto]|
+              solve[econstructor 4 ; eauto]|
               solve[econstructor 5 ; eauto]|
               solve[econstructor 6 ; eauto]|
               solve[econstructor 7 ; eauto]].
