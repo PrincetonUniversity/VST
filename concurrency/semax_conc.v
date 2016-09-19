@@ -30,10 +30,10 @@ Set Bullet Behavior "Strict Subproofs".
 Definition _f := 1%positive.      (* alpha-convertible *)
 Definition _args := 2%positive.   (* alpha-convertible *)
 Definition _lock := 1%positive.   (* alpha-convertible *)
-Definition _lock_t := 2%positive. (* 2 is the number given by
+Definition _lock_t := 3%positive. (* 2 (* 3 -WM *) is the number given by
 clightgen when threads.h is included first *)
 
-Variable voidstar_funtype : type.
+Definition voidstar_funtype := Tfunction (Tcons (tptr tvoid) Tnil) (tptr tvoid) cc_default.
 Definition tlock := Tstruct _lock_t noattr.
 (* Notation tlock := tuint (only parsing). *)
 
@@ -50,6 +50,108 @@ Definition lock_inv : share -> val -> mpred -> mpred :=
 Definition positive_mpred (R : mpred) :=
   forall phi, app_pred R phi -> exists l sh rsh k p, phi @ l = YES sh rsh k p.
 
+Definition selflock_fun Q sh p : (unit -> mpred) -> (unit -> mpred) :=
+  fun R _ => (Q * lock_inv sh p (|> R tt))%logic.
+
+Definition selflock' Q sh p : unit -> mpred := HORec (selflock_fun Q sh p).
+Definition selflock Q sh p : mpred := selflock' Q sh p tt.
+
+Definition nonexpansive F := HOnonexpansive (fun P (_ : unit) => F (P tt)).
+
+Lemma nonexpansive_entail F : nonexpansive F -> forall P Q, (P <=> Q |-- F P <=> F Q)%logic.
+Proof.
+  intros N P Q.
+  specialize (N (fun _ => P) (fun _ => Q)).
+  eapply derives_trans; [ eapply derives_trans | ]; [ | apply N | ].
+  now apply allp_right.
+  now apply allp_left.
+Qed.
+
+Axiom nonexpansive_lock_inv : forall sh p, nonexpansive (lock_inv sh p).
+
+Lemma lock_inv_later sh p R : lock_inv sh p R |-- lock_inv sh p (|> R)%logic.
+Admitted.
+
+Lemma selflock'_eq Q sh p : selflock' Q sh p =
+  selflock_fun Q sh p (selflock' Q sh p).
+Proof.
+  apply HORec_fold_unfold, prove_HOcontractive.
+  intros P1 P2 u.
+  apply subp_sepcon; [ apply subp_refl | ].
+  eapply derives_trans. apply (nonexpansive_lock_inv sh p).
+  apply allp_left with tt, fash_derives, andp_left1, derives_refl.
+Qed.
+
+Lemma selflock_eq Q sh p : selflock Q sh p = (Q * lock_inv sh p (|> selflock Q sh p))%logic.
+Proof.
+  unfold selflock at 1.
+  rewrite selflock'_eq.
+  reflexivity.
+Qed.
+
+(* In fact we need locks to two resources:
+   1) the resource invariant, for passing the resources
+   2) the join resource invariant, for returning all resources, including itself
+   for this we need to define them in a mutually recursive fashion: *)
+
+Definition res_invariants_fun Q sh1 p1 sh2 p2 : (bool -> mpred) -> (bool -> mpred) :=
+  fun R b =>
+    if b then
+      (Q * lock_inv sh2 p2 (|> R false))%logic
+    else
+      (Q * lock_inv sh1 p1 (|> R true) * lock_inv sh2 p2 (|> R false))%logic.
+
+Definition res_invariants Q sh1 p1 sh2 p2 : bool -> mpred := HORec (res_invariants_fun Q sh1 p1 sh2 p2).
+Definition res_invariant Q sh1 p1 sh2 p2 : mpred := res_invariants Q sh1 p1 sh2 p2 true.
+Definition join_res_invariant Q sh1 p1 sh2 p2 : mpred := res_invariants Q sh1 p1 sh2 p2 false.
+
+Lemma res_invariants_eq Q sh1 p1 sh2 p2 : res_invariants Q sh1 p1 sh2 p2 =
+  res_invariants_fun Q sh1 p1 sh2 p2 (res_invariants Q sh1 p1 sh2 p2).
+Proof.
+  apply HORec_fold_unfold, prove_HOcontractive.
+  intros P1 P2 b.
+  destruct b.
+    (* resource invariant *)
+    apply subp_sepcon; try apply subp_refl.
+    apply allp_left with false.
+    eapply derives_trans.
+      apply nonexpansive_entail, nonexpansive_lock_inv.
+      apply fash_derives, andp_left1, derives_refl.
+    
+    (* join resource invariant *)
+    repeat apply subp_sepcon; try apply subp_refl.
+      apply allp_left with true.
+      eapply derives_trans.
+        apply nonexpansive_entail, nonexpansive_lock_inv.
+        apply fash_derives, andp_left1, derives_refl.
+      
+      apply allp_left with false.
+      eapply derives_trans.
+        apply nonexpansive_entail, nonexpansive_lock_inv.
+        apply fash_derives, andp_left1, derives_refl.
+Qed.
+
+Lemma res_invariant_eq Q sh1 p1 sh2 p2 :
+  res_invariant Q sh1 p1 sh2 p2 =
+  (Q *
+  lock_inv sh2 p2 (|> join_res_invariant Q sh1 p1 sh2 p2))%logic.
+Proof.
+  unfold res_invariant at 1.
+  rewrite res_invariants_eq.
+  reflexivity.
+Qed.
+
+Lemma join_res_invariant_eq Q sh1 p1 sh2 p2 :
+  join_res_invariant Q sh1 p1 sh2 p2 =
+  (Q *
+  lock_inv sh1 p1 (|> res_invariant Q sh1 p1 sh2 p2) *
+  lock_inv sh2 p2 (|> join_res_invariant Q sh1 p1 sh2 p2))%logic.
+Proof.
+  unfold join_res_invariant at 1.
+  rewrite res_invariants_eq.
+  reflexivity.
+Qed.
+
 (*+ Deep embedding of [mpred]s *)
 
 Inductive Pred :=
@@ -58,8 +160,11 @@ Inductive Pred :=
   | Data_at : forall cs : compspecs, Share.t -> forall t : type, reptype t -> val -> Pred
   | Data_at_ : forall cs : compspecs, Share.t -> type -> val -> Pred
   | Lock_inv : Share.t -> val -> Pred -> Pred
+  | Self_lock : Pred -> Share.t -> val -> Pred
+  | Res_inv : Pred -> Share.t -> val -> Share.t -> val -> Pred
   | Pred_prop : Prop -> Pred
   | Exp : forall A : Type, (A -> Pred) -> Pred
+  | Later : Pred -> Pred
   | Pred_list : list Pred -> Pred.
 
 Fixpoint Interp (p : Pred) : mpred :=
@@ -69,8 +174,11 @@ Fixpoint Interp (p : Pred) : mpred :=
   | Data_at a b c d e => @data_at a b c d e
   | Data_at_ a b c d => @data_at_ a b c d
   | Lock_inv a b c => lock_inv a b (Interp c)
+  | Self_lock a b c => selflock (Interp a) b c
+  | Res_inv a b c d e => res_invariant (Interp a) b c d e
   | Pred_prop a => prop a
   | Exp a b => exp (fun x => Interp (b x))
+  | Later a => later (Interp a)
   | Pred_list l => fold_right sepcon emp (map Interp l)
   end.
 

@@ -1298,6 +1298,18 @@ Axiom semax_ext:
   sig' = funsig2signature sig cc -> 
   @semax_external (add_funspecs Espec ext_link fs) ids (EF_external id sig') _ P Q.
 
+Axiom semax_ext_void: 
+  forall  (Espec : OracleKind) 
+         (ext_link: Strings.String.string -> ident)
+         (id : Strings.String.string) (ids : list ident) sig (sig' : signature)
+         cc (A : Type) (P Q : A -> environ -> mpred) (fs : funspecs),
+  let f := mk_funspec (sig, tvoid) cc A P Q in
+  In (ext_link id,f) fs -> 
+  funspecs_norepeat fs -> 
+  ids = fst (split sig) -> 
+  sig' = mksignature (map typ_of_type (map snd sig)) None cc -> 
+  @semax_external (add_funspecs Espec ext_link fs) ids (EF_external id sig') _ P Q.
+
 Axiom semax_external_FF:
  forall Espec ids ef A, 
   @semax_external Espec ids ef A (fun _ _ => FF) (fun _ _ => FF).

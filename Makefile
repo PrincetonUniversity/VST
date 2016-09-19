@@ -27,6 +27,7 @@ CLIGHTGEN=../CompCert-2.7.1/clightgen
 # somewhere add this line to a CONFIGURE file
 # MATHCOMP=/my/path/to/mathcomp
 
+MATHCOMP=~/.opam/4.02.3+mingw64c/user-contrib/mathcomp
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
 DIRS= msl sepcomp veric concurrency floyd progs sha linking fcf hmacfcf tweetnacl20140427 ccc26x86 hmacdrbg
@@ -194,14 +195,15 @@ FLOYD_FILES= \
 
 
 PROGS_FILES= \
-  list_dt.v verif_reverse.v verif_queue.v verif_queue2.v verif_sumarray.v \
+  bin_search.v list_dt.v verif_reverse.v verif_queue.v verif_queue2.v verif_sumarray.v \
   insertionsort.v reverse.v queue.v sumarray.v message.v string.v\
   revarray.v verif_revarray.v insertionsort.v append.v \
   verif_float.v verif_ptr_compare.v \
   verif_nest3.v verif_nest2.v \
   logical_compare.v verif_logical_compare.v field_loadstore.v  verif_field_loadstore.v \
   even.v verif_even.v odd.v verif_odd.v \
-  merge.v verif_merge.v verif_append.v verif_append2.v bst.v verif_bst.v
+  merge.v verif_merge.v verif_append.v verif_append2.v bst.v verif_bst.v \
+  verif_bin_search.v btree.v incr.v
 # verif_message.v verif_dotprod.v verif_insertion_sort.v 
 
 SHA_FILES= \
