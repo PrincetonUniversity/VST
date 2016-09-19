@@ -902,21 +902,53 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   Qed.
 
   (** * AND another safety: explicift safety with stutter *)
-  (*Section newer_semantics_with_stutter.
-    Context (core_data: Type)
-    (core_ord : core_data -> core_data -> Prop)
-    (core_ord_wf : well_founded core_ord).
+  Section newer_semantics_with_stutter.
+    Context {core_data: Type}
+            {core_ord : core_data -> core_data -> Prop}
+            (core_ord_wf : well_founded core_ord).
+    Axiom EM : ClassicalFacts.excluded_middle.
     
-  CoInductive explicit_safety_stutter ge (cd:core_data) (U:Sch) (st:machine_state) (m:mem): Prop:=
-  | halted_safety : halted (U, nil, st) -> explicit_safety ge cd U st m
-  | internal_safety cd' st' m': @internal_step ge U st m st' m' ->
-                            (forall U', new_valid (nil, st', m') U' -> explicit_safety ge U' st' m') ->
-                            explicit_safety cd' ge U st m
-  | external_safety cd' U' st' m': @external_step ge U nil st m U' nil st' m' ->
-                            (forall U', new_valid (nil, st', m') U' -> explicit_safety ge U' st' m') ->
-                            explicit_safety cd' ge U st m
-  | stutter: *)
-  
+    CoInductive explicit_safety_stutter ge (cd:core_data) (U:Sch) (st:machine_state) (m:mem): Prop:=
+    | exp_safety : explicit_safety ge U st m -> explicit_safety_stutter ge cd U st m
+    | stutter cd': explicit_safety_stutter ge cd' U st m ->
+                   core_ord cd' cd ->
+                   explicit_safety_stutter ge cd U st m.
+
+    Variable default: core_data.
+
+    
+    Lemma weak_well_founded_induction:
+      forall (A : Type) (R : A -> A -> Prop),
+        well_founded R ->
+        forall P : A -> Prop,
+          (forall x: A, ~ (exists y:A, R y x) -> P x) ->
+          (forall x : A, (exists y : A, R y x /\ P y) -> P x) ->
+          forall a : A, P a.
+    Proof.
+      move => A R WF P base ind a.
+      specialize (WF a).
+      induction WF.
+      specialize (EM (exists y: A, R y x)) ; move => [[]y Ryx | is_base ].
+      - by apply: ind; exists y; split; auto.
+      - by apply: base.
+    Qed.
+    
+    Lemma safety_equivalence_stutter:
+      forall ge U st m,
+        (explicit_safety ge U st m) <-> (exists cd, explicit_safety_stutter ge cd U st m).
+    Proof.
+      split.
+      (* -> *)
+      - move => AA; exists default.
+        inversion AA; apply: exp_safety => //.
+      (* <- *)
+      - move=> [] cd; move: ge U st m.
+        eapply well_founded_ind with (a:=cd)=>//.
+        intros. inversion p=> //.
+        eapply H; eauto.
+    Qed.
+    End newer_semantics_with_stutter.
+
   End new_safety.
 
   Lemma csafe_reduce:
