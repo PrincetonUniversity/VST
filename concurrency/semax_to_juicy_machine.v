@@ -53,7 +53,14 @@ Ltac eassert :=
 
 Ltac range_tac :=
   match goal with
-    H : ~ adr_range (?b, _) _ (?b, _) |- _ =>
+  | H : ~ adr_range (?b, _) _ (?b, _) |- _ =>
+    exfalso; apply H;
+    repeat split; auto;
+    try unfold Int.unsigned;
+    unfold lock_size;
+    omega
+  | H : ~ adr_range ?l _ ?l |- _ =>
+    destruct l;
     exfalso; apply H;
     repeat split; auto;
     try unfold Int.unsigned;
@@ -160,6 +167,87 @@ Proof.
       injection E; intros; subst; eauto.
   - repeat (f_equal; extensionality).
     apply prop_ext; split; congruence.
+Qed.
+
+Definition predat phi loc R :=
+  exists sh sh' z, phi @ loc = YES sh sh' (LK z) (SomeP nil (fun _ => R)).
+
+Lemma predat_inj {phi loc R1 R2} :
+  predat phi loc R1 ->
+  predat phi loc R2 ->
+  R1 = R2.
+Proof.
+  unfold predat in *.
+  intros.
+  breakhyps.
+  rewr (phi @ loc) in H.
+  injection H as A B C D.
+  apply inj_pair2 in D.
+  apply equal_f with tt in D.
+  auto.
+Qed.
+
+Lemma predat1 {phi loc R z sh psh} :
+  phi @ loc = YES sh psh (LK z) (SomeP nil (fun _ : veric.rmaps.listprod nil => R)) ->
+  predat phi loc (approx (level phi) R).
+Proof.
+  intro E; hnf; eauto.
+  pose proof resource_at_approx phi loc as M.
+  rewrite E in M at 1; simpl in M.
+  rewrite <-M. unfold "oo"; simpl.
+  eauto.
+Qed.
+
+Lemma predat2 {phi loc R sh sh'} :
+  LKspec_ext R sh sh' loc phi ->
+  predat phi loc (approx (level phi) R).
+Proof.
+  intros lk; specialize (lk loc); simpl in lk.
+  if_tac in lk. 2:range_tac.
+  if_tac in lk. 2:tauto.
+  hnf. unfold "oo" in *; simpl in *; destruct lk; eauto.
+Qed.
+
+Lemma predat3 {phi loc R sh} :
+  LK_at R sh loc phi ->
+  predat phi loc (approx (level phi) R).
+Proof.
+  apply predat2.
+Qed.
+
+Lemma predat4 {phi b ofs sh R} :
+  app_pred (lock_inv sh (Vptr b ofs) R) phi ->
+  predat phi (b, Int.unsigned ofs) (approx (level phi) R).
+Proof.
+  unfold lock_inv in *.
+  intros (b' & ofs' & E & lk).
+  injection E as <- <-.
+  specialize (lk (b, Int.unsigned ofs)); simpl in lk.
+  if_tac in lk. 2:range_tac.
+  if_tac in lk. 2:tauto.
+  hnf. unfold "oo" in *; simpl in *; destruct lk; eauto.
+Qed.
+
+Lemma predat_join_sub {phi1 phi2 loc R} :
+  join_sub phi1 phi2 ->
+  predat phi1 loc R ->
+  predat phi2 loc R.
+Proof.
+  intros (phi3, j) (sh & sh' & z & E). pose proof j as J.
+  apply resource_at_join with (loc := loc) in j.
+  hnf.
+  apply join_level in J.
+  rewrite E in j; inv j; eauto.
+(*  - do 3 eexists.
+    unfold veric.rmaps.listprod in *.
+    do 2 f_equal.
+    extensionality; f_equal.
+    destruct J; auto.
+  - do 3 eexists. eauto.
+    unfold veric.rmaps.listprod in *.
+    do 2 f_equal.
+    extensionality; f_equal.
+    destruct J; auto. *)
 Qed.
 
 Definition lock_coherence (lset : AMap.t (option rmap)) (phi : rmap) (m : mem) : Prop :=
@@ -2897,26 +2985,105 @@ Section Simulation.
           exfalso.
           clear Post.
           
-          (* sketch *)
-          (* assert (Sat1 : R unlockedphi). *)
-          (* assert (Sat2 : R phi_sat). *)
-          (* assert (J12 : joins phi_sat unlockedphi). *)
-          pose proof positive_precise_joins_false R' (age_by 1 unlockedphi) phi_sat as PP.
+          (* sketch: *)
+          (* - [unlockedphi] satisfies R *)
+          (* - [phi_sat] satisfies R *)
+          (* - [unlockedphi] and [phi_sat] join *)
+          (* - but R is positive and precise so that's impossible *)
+          simpl in PREA.
+          destruct PREA as (Hreadable & Hprecise & Hpositive & []).
+          
+          Lemma join_sub_level {A} `{JA : sepalg.Join A} `{_ : ageable A} {_ : Perm_alg A} {_ : Age_alg A} :
+            forall x y : A, join_sub x y -> level x = level y.
+          Proof.
+            intros x y (z, j).
+            apply (join_level _ _ _ j).
+          Qed.
+          Lemma joins_level {A} `{JA : sepalg.Join A} `{_ : ageable A} {_ : Perm_alg A} {_ : Age_alg A} :
+            forall x y : A, joins x y -> level x = level y.
+          Proof.
+            intros x y (z, j).
+            destruct (join_level _ _ _ j); congruence.
+          Qed.
+          pose proof predat3 lk as E1.
+          pose proof predat1 Ewetv as E2.
+          pose proof predat4 Hlockinv as E3.
+          apply (predat_join_sub SUB) in E3.
+          assert (level phi_lockinv = level Phi) by apply join_sub_level, SUB.
+          assert (level unlockedphi = level Phi).
+          { eapply join_sub_level, compatible_lockRes_sub; eauto; apply compat. }
+          rewr (level phi_lockinv) in E3.
+          assert (join_sub phi_sat Phi). {
+            apply join_sub_trans with phi0. hnf; eauto.
+            apply join_sub_trans with (getThreadR cnti). hnf; eauto.
+            apply compatible_threadRes_sub. apply compat.
+          }
+          assert (level phi_sat = level Phi) by (apply join_sub_level; auto).
+          
+          pose proof positive_precise_joins_false
+               (approx (level Phi) R) (age_by 1 unlockedphi) (age_by 1 phi_sat) as PP.
           apply PP.
           + (* positive *)
-            admit.
+            Lemma positive_approx R n : positive_mpred R -> positive_mpred (approx n R).
+            Proof.
+              intros P phi a; eapply P, approx_p, a.
+            Qed.
+            apply positive_approx with (n := level Phi) in Hpositive.
+            exact_eq Hpositive; f_equal.
+            eapply predat_inj; eauto.
           
           + (* precise *)
-            admit.
+            Lemma precise_approx R n : precise R -> precise (approx n R).
+            Proof.
+              intros P phi.
+              intros w1 w2 H H0 H1 H2.
+              hnf in P.
+              apply (P phi w1 w2); auto; eapply approx_p; eassumption.
+            Qed.
+            unfold approx.
+            apply precise_approx with (n := level Phi) in Hprecise.
+            exact_eq Hprecise; f_equal.
+            eapply predat_inj; eauto.
           
           + (* sat 1 *)
-            admit.
+            split.
+            * rewrite level_age_by. rewr (level unlockedphi). omega.
+            * revert sat.
+              Lemma approx_eq_app_pred {P1 P2 : mpred} x n :
+                level x < n ->
+                @approx n P1 = approx n P2 ->
+                app_pred P1 x ->
+                app_pred P2 x.
+              Proof.
+                intros l E s1.
+                apply approx_p with n; rewrite <-E.
+                split; auto.
+              Qed.
+              apply approx_eq_app_pred with (level Phi).
+              -- rewrite level_age_by. rewr (level unlockedphi). omega.
+              -- eapply predat_inj; eauto.
           
           + (* sat 2 *)
-            admit.
+            split.
+            -- rewrite level_age_by. rewr (level phi_sat). omega.
+            -- cut (app_pred (Interp Rx) (age_by 1 phi_sat)).
+               ++ apply approx_eq_app_pred with (S n).
+                  ** rewrite level_age_by. rewr (level phi_sat). omega.
+                  ** pose proof (predat_inj E3 E2) as G.
+                     exact_eq G; do 2 f_equal; auto.
+               ++ revert SAT. apply age_by_ind.
+                  destruct (Interp Rx).
+                  auto.
           
           + (* joins *)
-            admit.
+            apply age_by_joins.
+            apply joins_sym.
+            eapply @join_sub_joins_trans with (c := phi0); auto. apply Perm_rmap.
+            * exists phi_lockinv. apply join_comm. auto.
+            * eapply @join_sub_joins_trans with (c := getThreadR cnti); auto. apply Perm_rmap.
+              -- exists phi1. auto.
+              -- eapply compatible_threadRes_lockRes_join. apply (mem_compatible_forget compat).
+                 apply Efind.
       }
       
       { (* the case of makelock *)

@@ -293,6 +293,73 @@ Qed.
 Require Import msl.ageable.
 Require Import msl.age_sepalg.
 
+Lemma age_by_overflow {A} {_ : ageable A} {JA: Join A} (x : A) n : le (level x) n -> age_by n x = age_by (level x) x.
+Proof.
+  intros l.
+  replace n with ((n - level x) + level x)%nat by omega.
+  generalize (n - level x)%nat; intros k. clear n l.
+  revert x; induction k; intros x. reflexivity.
+  simpl. rewrite IHk.
+  unfold age1' in *.
+  destruct (age1 (age_by (level x) x)) eqn:E. 2:reflexivity. exfalso.
+  eapply age1_level0_absurd. eauto.
+  rewrite level_age_by. omega.
+Qed.
+
+Lemma age_by_minusminus {A} {_ : ageable A} {JA: Join A} (x : A) n : age_by (level x - (level x - n)) x = age_by n x.
+Proof.
+  assert (D : le (level x) n \/ lt n (level x)). omega.
+  destruct D as [D|D].
+  - replace (level x - (level x - n))%nat with (level x) by omega.
+    symmetry; apply age_by_overflow, D.
+  - f_equal; omega.
+Qed.
+
+Lemma age_by_join {A} {JA: Join A} {PA: Perm_alg A} {agA: ageable A} {AgeA: Age_alg A} :
+  forall k x1 x2 x3,
+    join x1 x2 x3 ->
+    join (age_by k x1) (age_by k x2) (age_by k x3).
+Proof.
+  intros k x1 x2 x3 H.
+  pose proof age_to_join_eq (level x3 - k) x1 x2 x3 H ltac:(omega) as G.
+  pose proof join_level _ _ _ H as [e1 e2].
+  exact_eq G; f_equal; unfold age_to.
+  - rewrite <-e1; apply age_by_minusminus.
+  - rewrite <-e2; apply age_by_minusminus.
+  - apply age_by_minusminus.
+Qed.
+
+(* this generalizes [age_to_join_eq], but we do use [age_to_join_eq] inside this proof *)
+Lemma age_to_join {A} {JA: Join A} {PA: Perm_alg A} {agA: ageable A} {AgeA: Age_alg A} :
+  forall k x1 x2 x3,
+    join x1 x2 x3 ->
+    join (age_to k x1) (age_to k x2) (age_to k x3).
+Proof.
+  intros k x1 x2 x3 J.
+  unfold age_to in *.
+  pose proof age_by_join ((level x1 - k)%nat) _ _ _ J as G.
+  exact_eq G; do 3 f_equal.
+  all: apply join_level in J; destruct J; congruence.
+Qed.
+
+Lemma age_by_joins {A} {JA: Join A} {PA: Perm_alg A} {agA: ageable A} {AgeA: Age_alg A} :
+  forall k x1 x2,
+    joins x1 x2 ->
+    joins (age_by k x1) (age_by k x2).
+Proof.
+  intros k x1 x2 [].
+  eexists; apply age_by_join; eauto.
+Qed.
+
+Lemma age_to_joins {A} {JA: Join A} {PA: Perm_alg A} {agA: ageable A} {AgeA: Age_alg A} :
+  forall k x1 x2,
+    joins x1 x2 ->
+    joins (age_to k x1) (age_to k x2).
+Proof.
+  intros k x1 x2 [].
+  eexists; apply age_to_join; eauto.
+Qed.
+
 Lemma joinlist_level {A} `{agA : ageable A} {J : Join A} {_ : Perm_alg A} {_ : Age_alg A} (x : A) l Phi :
   joinlist l Phi ->
   In x l -> level x = level Phi.
