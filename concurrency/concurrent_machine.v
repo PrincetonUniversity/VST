@@ -543,15 +543,14 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   
   (*The new semantics bellow makes internal (thread) and external (machine) steps explicit*)
   Inductive internal_step {genv:G}:
-    Sch -> event_trace -> machine_state -> mem ->
-    event_trace -> machine_state -> mem -> Prop :=
+    Sch -> machine_state -> mem -> machine_state -> mem -> Prop :=
   | thread_step':
       forall tid U ms ms' m m' ev
         (HschedN: schedPeek U = Some tid)
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
         (Htstep: threadStep genv Htid Hcmpt ms' m' ev),
-        internal_step U [::] ms m [::] ms' m'.
+        internal_step U ms m ms' m'.
 
   Inductive external_step  {genv:G}:
     Sch -> event_trace -> machine_state -> mem -> Sch ->
@@ -604,18 +603,18 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   (* These steps are basically the same: *)
   Lemma step_equivalence1: forall ge U tr st m U' tr' st' m',
     @machine_step ge U tr st m U' tr' st' m' ->
-    (U=U' /\ @internal_step ge U tr st m nil st' m') \/
+    (U=U' /\ tr = tr' /\  @internal_step ge U st m st' m') \/
     @external_step ge U tr st m U' nil st' m'.
   Proof.
     move=> ge U tr st m U' tr' st' m' ms.
     inversion ms;
-      first[ solve [ left; split=>//; econstructor; eauto] |
+      first[ solve [ left; repeat split=>//; econstructor; eauto] |
              solve[right; econstructor; eauto]].
   Qed.
-  Lemma step_equivalence2: forall ge U tr st m tr' st' m',
-      @internal_step ge U tr st m tr' st' m' ->
-      @machine_step ge U tr st m U nil st' m'.
-  Proof. move=>  ge U tr st m tr' st' m' istp.
+  Lemma step_equivalence2: forall ge U st m st' m',
+      @internal_step ge U st m st' m' ->
+      @machine_step ge U nil st m U nil st' m'.
+  Proof. move=>  ge U st m st' m' istp.
          by inversion istp; econstructor; eauto.
   Qed.
    Lemma step_equivalence3: forall ge U tr st m U' tr' st' m',
@@ -699,8 +698,8 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
                               (init_machine' r)
                               (fun U st => halted (U, fst st, snd st))  
                               (fun ge U st m st' m' =>
-                                 @internal_step ge U (fst st) (snd st) m
-                                                (fst st') (snd st') m'
+                                 @internal_step ge U (snd st) m
+                                                (snd st') m'
                               )
                               (fun ge U st m U' st' m' =>
                                  @external_step ge U (fst st) (snd st) m
