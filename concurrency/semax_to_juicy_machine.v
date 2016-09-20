@@ -2604,7 +2604,7 @@ Section Simulation.
           
           (* somehow the new mem and the Phi has to be a juicy memory *)
           assert (Hjm' : exists jm', m_dry jm' = m' /\ m_phi jm' = phi'). {
-            admit (* same as above *)
+            admit (* same as above *).
           }
           destruct Hjm' as (jm', Hjm').
           
