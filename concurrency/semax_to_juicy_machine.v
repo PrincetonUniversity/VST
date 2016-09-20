@@ -1650,6 +1650,37 @@ Section Simulation.
     simpl; tauto.
   Qed.
   
+  Lemma pred_hered {A} {_ : ageable A} (P : pred A) : hereditary age (app_pred P).
+  Proof.
+    destruct P; auto.
+  Qed.
+  
+  Ltac hered :=
+    match goal with
+      H : ?P ?x |- ?P ?y => revert H
+    end;
+    match goal with
+      |- ?P ?x -> ?P ?y =>
+      cut (hereditary age P);
+      [ let h := fresh "h" in intros h; apply h; auto | ]
+    end.
+
+  Ltac agejoinhyp :=
+    match goal with
+      H : sepalg.join _ _ ?m, A : age ?m _ |- _ =>
+      pose proof age1_join2 _ H A; clear H
+    end.
+  
+  Ltac agehyps :=
+    match goal with
+      H : age ?x ?y, HH : ?P ?x |- _ =>
+      cut (P y);
+      [ clear HH; intros HH
+      | hered;
+        try apply pred_hered;
+        try apply predicates_hered.exactly_obligation_1]
+    end.
+  
   Lemma Jspec'_hered : ext_spec_stable age (JE_spec _ Jspec').
   Proof.
     split; [ | easy ].
@@ -1663,139 +1694,19 @@ Section Simulation.
     
     (* dependent destruction *)
     revert x.
+    1:funspec_destruct "acquire".
+    2:funspec_destruct "release".
+    3:funspec_destruct "makelock".
+    4:funspec_destruct "freelock".
+    5:funspec_destruct "spawn".
     
-    funspec_destruct "acquire".
-    {
-      (** * the case of acquire *)
-      intros x.
-      intros (phi0 & phi1 & J & Pre & necr).
-      destruct (age1_join2 (A := rmap) _ J A) as (phi0' & phi1' & J' & A0 & A1).
-      exists phi0', phi1'; split; auto.
-      split.
-      - destruct x as (p, ((v, sh), R)); simpl in Pre |- *.
-        unfold canon.PROPx in *.
-        unfold fold_right in *.
-        unfold canon.LOCALx in *.
-        destruct Pre as [? Pre].
-        split; [ assumption | ].
-        clear -A0 Pre.
-        simpl in *.
-        split; [ apply Pre | ].
-        destruct Pre as [_ Pre].
-        unfold canon.SEPx in *.
-        simpl in *.
-        revert Pre.
-        match goal with |- app_pred ?a _ -> app_pred ?a _ => set (P := a) end.
-        destruct P as [P Hered].
-        apply Hered, A0.
-      
-      - econstructor 3.
-        + apply necr.
-        + constructor; auto.
-    }
-    
-    funspec_destruct "release".
-    {
-      (** * the case of release *)
-      intros x.
-      intros (phi0 & phi1 & J & Pre & necr).
-      destruct (age1_join2 (A := rmap) _ J A) as (phi0' & phi1' & J' & A0 & A1).
-      exists phi0', phi1'; split; auto.
-      split.
-      - destruct x as (p, ((v, sh), R)); simpl in Pre |- *.
-        unfold canon.PROPx in *.
-        unfold fold_right in *.
-        unfold canon.LOCALx in *.
-        destruct Pre as [? Pre].
-        split; [ assumption | ].
-        clear -A0 Pre.
-        simpl in *.
-        split; [ apply Pre | ].
-        destruct Pre as [_ Pre].
-        unfold canon.SEPx in *.
-        simpl in *.
-        rewrite seplog.sepcon_emp in *.
-        rewrite seplog.sepcon_emp in Pre.
-        revert Pre.
-        match goal with |- app_pred ?a _ -> app_pred ?a _ => set (P := a) end.
-        destruct P as [P Hered].
-        apply Hered, A0.
-      
-      - econstructor 3.
-        + apply necr.
-        + constructor; auto.
-    }
-    
-    Lemma pred_hered {A} {_ : ageable A} (P : pred A) : hereditary age (app_pred P).
-    Proof.
-      destruct P; auto.
-    Qed.
-    
-    Ltac hered :=
-      match goal with
-        H : ?P ?x |- ?P ?y => revert H
-      end;
-      match goal with
-        |- ?P ?x -> ?P ?y =>
-        cut (hereditary age P);
-        [ let h := fresh "h" in intros h; apply h; auto | ]
-      end.
-
-    Ltac agejoinhyp :=
-      match goal with
-        H : sepalg.join _ _ ?m, A : age ?m _ |- _ =>
-        pose proof age1_join2 _ H A; clear H
-      end.
-    
-    Ltac agehyps :=
-      match goal with
-        H : age ?x ?y, HH : ?P ?x |- _ =>
-        cut (P y);
-        [ clear HH; intros HH
-        | hered;
-          try apply pred_hered;
-          try apply predicates_hered.exactly_obligation_1]
-      end.
-    
-    funspec_destruct "makelock".
-    {
-      (** * the case of makelock *)
-      intros.
-      breakhyps.
-      agejoinhyp.
-      breakhyps.
-      agehyps.
-      agehyps.
-      eauto.
-    }
-    
-    funspec_destruct "freelock".
-    {
-      (** * the case of freelock *)
-      intros.
-      breakhyps.
-      agejoinhyp.
-      breakhyps.
-      agehyps.
-      agehyps.
-      eauto.
-    }
-    
-    funspec_destruct "spawn".
-    {
-      (** * the case of spawn *)
-      intros.
-      breakhyps.
-      agejoinhyp.
-      breakhyps.
-      agehyps.
-      agehyps.
-      eauto.
-    }
-    
-    (** * no more cases *)
-    simpl.
-    tauto.
+    all:intros.
+    all:breakhyps.
+    all:agejoinhyp.
+    all:breakhyps.
+    all:agehyps.
+    all:agehyps.
+    all:eauto.
   Qed.
   
   Inductive state_step : cm_state -> cm_state -> Prop :=
