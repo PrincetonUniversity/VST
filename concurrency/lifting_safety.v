@@ -203,15 +203,45 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
 
           move: H3=> [] st2'' [] m2'' [] t_step t_stepN.
           assert (exists j, match_st Tg Sg main p U cd' j (st') m' st2' m2') by (exists mu' => //) .
-          assert (my_safeN:= stepN_safety' U p Tg st2' m2' x _ _ _ t_stepN).
-          apply (Machine.DryConc.exp_safety _ _ _ _ _ ).
-          apply: Machine.DryConc.internal_safety.
+          Guarded.
+          apply (Machine.DryConc.exp_safety _ _ _ _ _
+                      (Machine.DryConc.internal_safety _ _ _ _ _ _ t_step
+                                                  (stepN_safety' U p Tg st2' m2' x _ _ _ t_stepN
+                                                                 ( fun sch' val => safety_equivalence_stutter'
+                                     (core_ord_wf _ _ _ _ _)
+               cd
+               _ _ _ _
+               (ex_intro _ cd' (*exists cd' *)
+                         (safety_preservation'' tr _ _ st2' m2' cd' H3 H2 _ val)))
+                                                  )
+                 )                      
+                ).
+          Guarded.
+          apply: (Machine.DryConc.internal_safety _ _ _ _ _ _ t_step
+                                                  (stepN_safety' U p Tg st2' m2' x _ _ _ t_stepN
+                                                                 ( fun sch' val => safety_equivalence_stutter'
+                                     (core_ord_wf _ _ _ _ _)
+               cd
+               _ _ _ _
+               (ex_intro _ cd' (*exists cd' *)
+                         (safety_preservation'' tr _ _ st2' m2' cd' H3 H2 _ val)))
+                                                  )
+                 )
+          .
           apply: t_step.
-          apply: my_safeN.
-          move => sch' val.
-          
+          apply: (stepN_safety' U p Tg st2' m2' x _ _ _ t_stepN
+                    ( fun sch' val => safety_equivalence_stutter'
+               (core_ord_wf _ _ _ _ _)
+               cd
+               _ _ _ _
+               (ex_intro _ cd' (*exists cd' *)
+                         (safety_preservation'' tr _ _ st2' m2' cd' H3 H2 _ val)))
+                 )
+          .
+          (* move => sch' val.
+          *)
           eapply
-            (safety_equivalence_stutter'
+            ( fun sch' val => safety_equivalence_stutter'
                (core_ord_wf _ _ _ _ _)
                cd
                _ _ _ _
