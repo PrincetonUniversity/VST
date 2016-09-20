@@ -5,7 +5,7 @@ Require Import sepcomp.semantics_lemmas.
 
 Require Import concurrency.pos.
 
-From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
+From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype fintype finfun.
 Set Implicit Arguments.
 
 (*NOTE: because of redefinition of [val], these imports must appear 
@@ -55,16 +55,20 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
     rewrite H. simpl. rewrite add0n. reflexivity.
   Defined.
 
+  (* NOTE: seems to be deprecated. Delete if so*)
+  (*
   (** Well-formed predicate on new permission map*)
   Definition newPermMap_wf tp pmap :=
-    forall i (cnt : containsThread tp i),
-      permMapsDisjoint (getThreadR cnt) pmap.
+    forall k,
+      permMapsDisjoint (Resources.get k (allDataRes tp)) pmap.1 /\
+      permMapsDisjoint (Resources.get k (allLockRes tp)) pmap.2.
 
   Definition permMap_wf tp pmap i :=
     forall j (cntj : containsThread tp j) (Hneq: i <> j),
       permMapsDisjoint (getThreadR cntj) pmap.
-  
-  Opaque pos_incr.
+
+
+ Opaque pos_incr.
   Lemma addThread_racefree :
     forall tp vf arg p (Hwf: newPermMap_wf tp p) (Hrace: race_free tp),
       race_free (addThread tp vf arg p).
@@ -112,9 +116,10 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
         exfalso. apply unlift_some in Hcontra.
         rewrite Hgeti in Hcontra. destruct Hcontra.
         discriminate.
-  Defined.
+  Defined. *)
 
-  Lemma invariant_decr:
+  (* NOTE: This is used in spawn case and it doesn't hold anymore because now the invariant relates permissions to locks. Dropping permissions is not good enough. We need to have a transfer of permissions*)
+ (* Lemma invariant_decr:
     forall tp c pmap i (cnti: containsThread tp i)
       (Hinv: invariant tp)
       (Hdecr: forall b ofs,
@@ -166,28 +171,174 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
         by eauto.
     - by eauto.
       eauto.
+  Qed. *)
+
+
+  Lemma allLockRes_strong_1:
+    forall k n m (pf: (n <= m + n)%coq_nat) init_map
+      (perm_maps0 : 'I_(m + n) -> dry_machine.LocksAndResources.res)
+      (Hget: Resources.get
+               k (List.fold_right
+                    (fun pf0 : 'I_(m + n) =>
+                       [eta Resources.set (EqResKey.Thread pf0)
+                            (perm_maps0 (Ordinal (ltn_ord pf0)))#2])
+                    init_map
+                    (List.rev (@enum_from n (m + n) pf))) <>
+             empty_map),
+      (exists i (cnt: i < m + n), k = EqResKey.Thread i /\
+                            (perm_maps0 (Ordinal cnt)).2 =
+                            Resources.get k (List.fold_right
+                                               (fun pf0 : 'I_(m + n) =>
+                                                  [eta Resources.set (EqResKey.Thread pf0)
+                                                       (perm_maps0 (Ordinal (ltn_ord pf0)))#2])
+                                               init_map
+                                               (List.rev (@enum_from n (m + n) pf)))) \/
+      (Resources.get k init_map <> empty_map).
+  Proof.
+    intros.
+    generalize dependent init_map.
+    generalize dependent m.
+    induction n; intros.
+    - simpl in *; right. assumption.
+    - simpl in Hget.
+      rewrite List.fold_right_app in Hget. simpl in Hget.
+      admit.
+  Admitted. 
+
+  Lemma getLocksLR_correct_1:
+    forall tp k
+      (Hget: Resources.get k (getLocksLR (Resources.init empty_map) tp) <> empty_map),
+    exists addr rmap, k = EqResKey.Lock addr /\
+                 lockRes tp addr = Some rmap /\
+                 rmap.2 = Resources.get k (getLocksLR (Resources.init empty_map) tp).
+  Proof.
+    intros.
+    unfold getLocksLR in *.
+    unfold lockRes. unfold lockGuts.
+    pose proof (addressFiniteMap.AMap.elements_3 (lset tp)).
+    unfold addressFiniteMap.AMap.find, addressFiniteMap.AMap.elements in *.
+    induction (addressFiniteMap.AMap.this (lset tp)) as [|l ls];
+      simpl in Hget.
+    - unfold Resources.get in Hget.
+      rewrite Resources.gi in Hget;
+        by exfalso.
+    - rewrite Resources.gsspec in Hget.
+      destruct (Resources.elt_eq k (EqResKey.Lock l#1)) eqn:Heqs; subst;
+      rewrite Heqs in Hget.
+      + exists l.1, l.2. split; auto; simpl. split.
+        destruct l; simpl.
+        destruct (addressFiniteMap.AMap.Raw.PX.MO.elim_compare_eq (Logic.eq_refl a)).
+        rewrite H0. auto.
+        rewrite Resources.gsspec.
+        destruct (Resources.elt_eq (EqResKey.Lock l#1) (EqResKey.Lock l#1)) eqn:Hguard;
+          rewrite Hguard;
+          [reflexivity | exfalso; eauto].
+      + simpl in IHls.
+        inversion H; subst.
+        unfold addressFiniteMap.AMap.Raw.elements in IHls.
+        eapply IHls in Hget; eauto.
+        destruct Hget as [addr [rmap [? [? ?]]]]; subst.
+        eexists; exists rmap; split; eauto.
+        destruct l.
+        inversion H3.
+        * subst. simpl in H1. by exfalso.
+        * subst.
+          simpl.
+          pose proof H1 as Hfind.
+          rewrite addressFiniteMap.AMap.Raw.find_equation in H1.
+          destruct b.
+          destruct (addressFiniteMap.AddressOrdered.compare addr k);
+            first by exfalso.
+          unfold addressFiniteMap.AddressOrdered.eq in e. subst.
+          apply addressFiniteMap.AMap.Raw.PX.MO.elim_compare_gt in H0.
+          destruct H0 as [? Hcmp]. 
+          rewrite Hcmp. split; auto.
+          rewrite Resources.gsspec.
+          erewrite Coqlib2.if_false by eauto.
+          assumption.
+          apply addressFiniteMap.AMap.Raw.PX.MO.elim_compare_gt in H0.
+          destruct H0 as [Hgt Hcmp].
+          simpl in Hcmp, Hgt.
+          assert (Hgt': addressFiniteMap.AddressOrdered.lt a addr)
+            by (eapply addressFiniteMap.AddressOrdered.lt_trans; eauto).
+          eapply addressFiniteMap.AMap.Raw.PX.MO.elim_compare_gt in Hgt'.
+          destruct Hgt' as [? Hcmp'].
+          rewrite Hcmp'; split; first by assumption.
+          rewrite Resources.gsspec.
+          erewrite Coqlib2.if_false by eauto.
+          eauto.
   Qed.
 
+  (* TODO: move to permissions.v*)
+  Lemma not_empty_map:
+    forall pmap b ofs p,
+      Mem.perm_order' (pmap # b ofs) p ->
+      pmap <> empty_map.
+  Proof.
+    intros.
+    intros Hcontra.
+    subst.
+    rewrite empty_map_spec in H.
+    simpl in H; assumption.
+  Qed.
+
+  Lemma allLockRes_correct_1:
+    forall tp k
+      (Hget: Resources.get k (allLockRes tp) <> empty_map),
+      (exists i (cnti : containsThread tp i), k = EqResKey.Thread i /\ (getThreadR cnti).2 = Resources.get k (allLockRes tp)) \/
+      (exists addr rmap, k = EqResKey.Lock addr /\
+                   lockRes tp addr = Some rmap /\
+                   rmap.2 = Resources.get k (allLockRes tp)).
+  Proof.
+    intros.
+    unfold allLockRes in *.
+    unfold getThreadsLR in Hget.
+    unfold containsThread.
+    simpl in Hget.
+    unfold enum in Hget.
+    eapply allLockRes_strong_1 with (m := 0) in Hget.
+    destruct Hget as [[i [cnti [Hk Hres]]]|?];
+      try eauto using getLocksLR_correct_1.
+    right.
+    eapply getLocksLR_correct_1 in H.
+    (*TODO: need to prove that getThreadsLR only adds EqResKey.Thread keys and
+    whenever a key is found in getLocksLR it is also found in allLockRes *)
+  Admitted.
+  
   Lemma lock_valid_block:
     forall (tpc : thread_pool) (mc : mem) (bl1 : block) 
       (ofs : Z) rmap1
       (HmemCompC: mem_compatible tpc mc)
+      (Hinv: invariant tpc)
       (Hl1: lockRes tpc (bl1, ofs) = Some rmap1),
       Mem.valid_block mc bl1.
   Proof.
     intros.
-    assert (HlockSet := lockSet_spec_1 tpc bl1 ofs ltac:(rewrite Hl1; auto)).
-    destruct (valid_block_dec mc bl1) as [? | Hinvalid]; auto.
-    exfalso.
-    apply (Mem.nextblock_noaccess) with (k:= Max) (ofs := ofs) in Hinvalid.
-    assert (H:= compat_ls HmemCompC).
-    unfold permMapLt in H.
-    specialize (H bl1 ofs).
-    rewrite getMaxPerm_correct in H.
-    unfold permission_at in H.
-    rewrite Hinvalid in H.
-    rewrite HlockSet in H;
-      by simpl in H.
+    pose proof (proj1 (lock_res_perm Hinv bl1 ofs) ltac:(rewrite Hl1; auto)) as Hlock_perm.
+    destruct Hlock_perm as [k Hlock_perm].
+    pose proof (not_empty_map _ _ _ Hlock_perm) as Hk.
+    eapply allLockRes_correct_1 in Hk.
+    destruct Hk as [[i [cnti [Hk Hrmap]]] | [laddr [rmap [Hk [Hres Heq]]]]]; subst.
+    - pose proof (compat_thl HmemCompC cnti bl1 ofs) as Hlt.
+      rewrite <- Hrmap in Hlock_perm.
+      destruct (valid_block_dec mc bl1); auto.
+      eapply Mem.nextblock_noaccess with (ofs := ofs) (k := Max) in n.
+      rewrite getMaxPerm_correct in Hlt.
+      unfold permission_at in Hlt.
+      rewrite n in Hlt.
+      simpl in Hlt.
+      destruct ((getThreadR cnti)#2 # bl1 ofs);
+        by exfalso.
+    - pose proof (compat_lpl HmemCompC laddr Hres bl1 ofs) as Hlt.
+      destruct (valid_block_dec mc bl1); auto.
+      eapply Mem.nextblock_noaccess with (ofs := ofs) (k := Max) in n.
+      rewrite getMaxPerm_correct in Hlt.
+      unfold permission_at in Hlt.
+      rewrite n in Hlt.
+      simpl in Hlt.
+      rewrite <- Heq in Hlock_perm.       
+      destruct (rmap#2 # bl1 ofs);
+        by exfalso.
   Qed.
 
 End ThreadPoolWF.
