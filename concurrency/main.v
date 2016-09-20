@@ -81,7 +81,7 @@ Module MainSafety .
       (ext_link : string -> ident)
       (ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2)
       (prog : Ctypes.program _)
-      (all_safe : semax_prog.semax_prog (Concurrent_Oracular_Espec CS ext_link) prog V G)
+      (all_safe : semax_prog.semax_prog (Concurrent_Espec unit CS ext_link) prog V G)
       (init_mem_not_none : Genv.init_mem (Ctypes.program_of_program prog) <> None)
       (x: block)
       (block: (Genv.find_symbol (globalenv prog) (prog_main (Ctypes.program_of_program prog)) = Some x)).
@@ -130,7 +130,7 @@ Module MainSafety .
              unfold initial_state in *.
              unfold spr in *.
              remember
-              (semax_prog_rule (Concurrent_Oracular_Espec CS ext_link) V G
+              (semax_prog_rule (Concurrent_Espec unit CS ext_link) V G
                        prog (proj1_sig (init_mem prog init_mem_not_none)) all_safe
                        (proj2_sig (init_mem prog init_mem_not_none))) as spr.
              unfold init_mem in *.
@@ -183,7 +183,7 @@ Module MainSafety .
          (ext_link : string -> ident),
        (forall s1 s2 : string, ext_link s1 = ext_link s2 -> s1 = s2) ->
        forall (prog : program)
-         (all_safe : semax_prog (Concurrent_Oracular_Espec CS ext_link)
+         (all_safe : semax_prog (Concurrent_Espec unit CS ext_link)
                        prog V G)
          (init_mem_not_none : Genv.init_mem
                                 (Ctypes.program_of_program prog) <> None)

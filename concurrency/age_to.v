@@ -143,3 +143,12 @@ Lemma age_to_ageN {A} `{agA : ageable A} n (x : A) :
 Proof.
   apply age_by_ageN. auto with *.
 Qed.
+
+Lemma age_by_1 {A} {_ : ageable A} x : 0 < level x -> age x (age_by 1 x).
+Proof.
+  intros l.
+  unfold age_by, age1'; simpl.
+  destruct (age1 x) eqn:E; eauto.
+  apply age1_level0 in E.
+  omega.
+Qed.

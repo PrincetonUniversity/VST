@@ -46,6 +46,10 @@ Require Import concurrency.join_lemmas.
 
 Set Bullet Behavior "Strict Subproofs".
 
+(* Those were overwritten in structured_injections *)
+Notation join := sepalg.join.
+Notation join_assoc := sepalg.join_assoc.
+
 Ltac eassert :=
   let mp := fresh "mp" in
   pose (mp := fun {goal Q : Type} (x : goal) (y : goal -> Q) => y x);
@@ -84,6 +88,16 @@ Ltac cleanup :=
   unfold LocksAndResources.res in *;
   unfold lockGuts in *.
 
+Ltac join_level_tac :=
+  match goal with
+    cnti : containsThread ?tp _,
+           compat : mem_compatible_with ?tp ?m ?Phi |- _ =>
+    assert (join_sub (getThreadR cnti) Phi) by (apply compatible_threadRes_sub, compat)
+  end;
+  repeat match goal with H : join_sub _ _ |- _ => apply join_sub_level in H end;
+  repeat match goal with H : join _ _ _ |- _ => apply join_level in H; destruct H end;
+  try congruence.
+
 (*+ Description of the invariant *)
 
 Definition cm_state := (Mem.mem * Clight.genv * (schedule * Machine.t))%type.
@@ -117,22 +131,6 @@ Definition load_at m loc := Mem.load Mint32 m (fst loc) (snd loc).
 
 Definition isLK (r : resource) := exists sh sh' z P, r = YES sh sh' (LK z) P.
 Definition isCT (r : resource) := exists sh sh' z P, r = YES sh sh' (CT z) P.
-
-Ltac breakhyps :=
-  repeat
-    match goal with
-      H : _ \/ _  |- _ => destruct H
-    | H : _ /\ _  |- _ => destruct H
-    | H : prod _ _  |- _ => destruct H
-    | H : sum _ _  |- _ => destruct H
-    | H : sumbool _ _  |- _ => destruct H
-    | H : sumor _ _  |- _ => destruct H
-    | H : ex _  |- _ => destruct H
-    | H : sig _  |- _ => destruct H
-    | H : sigT _  |- _ => destruct H
-    | H : sigT2 _  |- _ => destruct H
-    end;
-  discriminate || congruence || tauto || auto.
 
 Lemma isLKCT_rewrite r :
   (forall sh sh' z P,
@@ -226,6 +224,13 @@ Proof.
   if_tac in lk. 2:range_tac.
   if_tac in lk. 2:tauto.
   hnf. unfold "oo" in *; simpl in *; destruct lk; eauto.
+Qed.
+
+Lemma predat5 {phi loc R} :
+  islock_pred R (phi @ loc) ->
+  predat phi loc R.
+Proof.
+  intros H; apply H.
 Qed.
 
 Lemma predat_join_sub {phi1 phi2 loc R} :
@@ -784,155 +789,6 @@ End Initial_State.
 
 Unset Printing Implicit.
 
-(* Constructive version of resource_decay (equivalent to the non-constructive version, see below) *)
-Definition resource_decay_aux (nextb: block) (phi1 phi2: rmap) : Type :=
-  prod (level phi1 >= level phi2)
-  (forall l: address,
-    
-  ((fst l >= nextb)%positive -> phi1 @ l = NO Share.bot) *
-  ( (resource_fmap (approx (level phi2)) (phi1 @ l) = (phi2 @ l))
-    
-  + { rsh : _ & { v : _ & { v' : _ |
-       resource_fmap (approx (level phi2)) (phi1 @ l) = YES rsh pfullshare (VAL v) NoneP /\ 
-       phi2 @ l = YES rsh pfullshare (VAL v') NoneP }}}
-  
-  + (fst l >= nextb)%positive * { v | phi2 @ l = YES Share.top pfullshare (VAL v) NoneP }
-  
-  + { v : _ & { pp : _ | phi1 @ l = YES Share.top pfullshare (VAL v) pp /\ phi2 @ l = NO Share.bot } })).
-
-Ltac check_false P :=
-  let F := fresh "false" in
-  assert (F : P -> False) by (intro; breakhyps);
-  clear F.
-
-Ltac sumsimpl :=
-  match goal with
-    |- sum ?A ?B => check_false A; right
-  | |- sum ?A ?B => check_false B; left
-  | |- sumor ?A ?B => check_false A; right
-  | |- sumor ?A ?B => check_false B; left
-  | |- sumbool ?A ?B => check_false A; right
-  | |- sumbool ?A ?B => check_false B; left
-  end.
-
-Lemma resource_decay_aux_spec b phi1 phi2 :
-  resource_decay b phi1 phi2 -> resource_decay_aux b phi1 phi2.
-Proof.
-  intros [lev rd]; split; [ apply lev | clear lev]; intros loc; specialize (rd loc).
-  assert (D: {(fst loc >= b)%positive} + {(fst loc < b)%positive}) by (pose proof zlt; zify; eauto).
-  split. apply rd. destruct rd as [nn rd].
-  remember (phi1 @ loc) as r1.
-  remember (phi2 @ loc) as r2.
-  remember (level phi2) as n.
-  clear phi1 phi2 Heqr1 Heqr2 Heqn.
-  destruct r1 as [ sh1 | sh1 sh1' k1 pp1 | k1 pp1 ];
-    destruct r2 as [ sh2 | sh2 sh2' k2 pp2 | k2 pp2 ];
-    simpl in *.
-  
-  - sumsimpl. sumsimpl. sumsimpl. breakhyps.
-  
-  - sumsimpl.
-    sumsimpl.
-    breakhyps.
-    destruct k2; split; eauto.
-    now (exists m; breakhyps).
-    all: exfalso; breakhyps.
-  
-  - sumsimpl.
-    exfalso. breakhyps.
-  
-  - sumsimpl.
-    destruct (eq_dec sh1 Share.top).
-    destruct (eq_dec sh1' pfullshare).
-    destruct k1.
-    destruct (eq_dec sh2 Share.bot).
-    now subst; eauto.
-    all: exfalso; breakhyps.
-  
-  - sumsimpl.
-    destruct D.
-    + autospec nn. congruence.
-    + sumsimpl.
-      destruct (eq_dec sh1' pfullshare); subst.
-      destruct (eq_dec sh2' pfullshare); subst.
-      destruct (eq_dec k1 k2); try subst k2.
-      now left; f_equal; breakhyps.
-      destruct k1, k2.
-      right. exists sh1, m, m0. split; auto; f_equal; breakhyps.
-      all: try solve [exfalso; breakhyps].
-      sumsimpl. breakhyps.
-  
-  - sumsimpl. exfalso; breakhyps.
-  
-  - sumsimpl. exfalso; breakhyps.
-  
-  - sumsimpl. sumsimpl. breakhyps.
-    destruct k2; split; eauto.
-    now (exists m; breakhyps).
-    all: exfalso; breakhyps.
-  
-  - sumsimpl. sumsimpl. sumsimpl. breakhyps.
-Qed.
-
-Lemma resource_decay_aux_spec_inv b phi1 phi2 :
-  resource_decay_aux b phi1 phi2 -> resource_decay b phi1 phi2.
-Proof.
-  intros [lev rd]; split; [ apply lev | clear lev]; intros loc; specialize (rd loc).
-  breakhyps; intuition eauto.
-Qed.
-
-Inductive res_join' : resource -> resource -> resource -> Type :=
-    res_join'_NO1 : forall rsh1 rsh2 rsh3 : Share.t,
-                   sepalg.join rsh1 rsh2 rsh3 ->
-                   res_join' (NO rsh1) (NO rsh2) (NO rsh3)
-  | res_join'_NO2 : forall (rsh1 rsh2 rsh3 : Share.t) (sh : pshare) 
-                     (k : AV.kind) (p : preds),
-                   sepalg.join rsh1 rsh2 rsh3 ->
-                   res_join' (YES rsh1 sh k p) (NO rsh2) (YES rsh3 sh k p)
-  | res_join'_NO3 : forall (rsh1 rsh2 rsh3 : Share.t) (sh : pshare) 
-                     (k : AV.kind) (p : preds),
-                   sepalg.join rsh1 rsh2 rsh3 ->
-                   res_join' (NO rsh1) (YES rsh2 sh k p) (YES rsh3 sh k p)
-  | res_join'_YES : forall (rsh1 rsh2 rsh3 : Share.t) (sh1 sh2 sh3 : pshare)
-                     (k : AV.kind) (p : preds),
-                   sepalg.join rsh1 rsh2 rsh3 ->
-                   sepalg.join sh1 sh2 sh3 ->
-                   res_join' (YES rsh1 sh1 k p) (YES rsh2 sh2 k p) (YES rsh3 sh3 k p)
-  | res_join'_PURE : forall (k : AV.kind) (p : preds),
-                    res_join' (PURE k p) (PURE k p) (PURE k p).
-
-Lemma res_join'_spec r1 r2 r3 : res_join r1 r2 r3 -> res_join' r1 r2 r3.
-Proof.
-  intros J.
-  destruct r1 as [sh1 | sh1 sh1' k1 pp1 | k1 pp1],
-           r2 as [sh2 | sh2 sh2' k2 pp2 | k2 pp2],
-           r3 as [sh3 | sh3 sh3' k3 pp3 | k3 pp3].
-  all: try solve [ exfalso; inversion J ].
-  all: try (assert (k1 = k3) by (inv J; auto); subst).
-  all: try (assert (k2 = k3) by (inv J; auto); subst).
-  all: try (assert (pp1 = pp3) by (inv J; auto); subst).
-  all: try (assert (pp2 = pp3) by (inv J; auto); subst).
-  all: try (assert (sh1' = sh3') by (inv J; auto); subst).
-  all: try (assert (sh2' = sh3') by (inv J; auto); subst).
-  all: constructor; inv J; auto.
-Qed.
-
-Lemma res_join'_spec_inv r1 r2 r3 : res_join' r1 r2 r3 -> res_join r1 r2 r3.
-Proof.
-  inversion 1; constructor; assumption.
-Qed.
-
-(* Constructive version of resource_decay (equivalent to the non-constructive version, see below) *)
-
-Definition resource_decay_at (nextb: block) n (r1 r2 : resource) b := 
-  ((b >= nextb)%positive -> r1 = NO Share.bot) /\
-  (resource_fmap (approx (n)) (r1) = (r2) \/
-  (exists rsh, exists v, exists v',
-       resource_fmap (approx (n)) (r1) = YES rsh pfullshare (VAL v) NoneP /\ 
-       r2 = YES rsh pfullshare (VAL v') NoneP)
-  \/ ((b >= nextb)%positive /\ exists v, r2 = YES Share.top pfullshare (VAL v) NoneP)
-  \/ (exists v, exists pp, r1 = YES Share.top pfullshare (VAL v) pp /\ r2 = NO Share.bot)).
-
 (* @andrew ask if there is a name for this *)
 
 Definition rmap_bound b phi :=
@@ -1077,40 +933,6 @@ Proof.
   
   destruct (make_rmap (fun loc => proj1_sig (DESCR loc))) with (n := level phi1') as (phi3' & lev3 & at3).
   {
-    Lemma res_option_age_to n phi loc : res_option ((age_to n phi) @ loc) = res_option (phi @ loc).
-    Proof.
-      rewrite age_to_resource_at.
-      destruct (phi @ loc) as [t0 | t0 p [m | z | z | f c] p0 | k p]; simpl; auto.
-    Qed.
-    
-    Lemma resource_decay_at_LK {nextb n r1 r2 b sh i} :
-      resource_decay_at nextb n r1 r2 b ->
-      res_option r1 = Some (sh, LK i) <->
-      res_option r2 = Some (sh, LK i).
-    Proof.
-      destruct r1 as [t1 | t1 p1 [m1 | z1 | z1 | f1 c1] pp1 | k1 p1];
-        destruct r2 as [t2 | t2 p2 [m2 | z2 | z2 | f2 c2] pp2 | k2 p2]; simpl;
-          unfold resource_decay_at; intros rd; split; intros E.
-      all: try congruence.
-      all: breakhyps.
-      autospec H; congruence.
-      all: simpl in *; congruence.
-    Qed.
-    
-    Lemma resource_decay_at_CT {nextb n r1 r2 b sh i} :
-      resource_decay_at nextb n r1 r2 b ->
-      res_option r1 = Some (sh, CT i) <->
-      res_option r2 = Some (sh, CT i).
-    Proof.
-      destruct r1 as [t1 | t1 p1 [m1 | z1 | z1 | f1 c1] pp1 | k1 p1];
-        destruct r2 as [t2 | t2 p2 [m2 | z2 | z2 | f2 c2] pp2 | k2 p2]; simpl;
-          unfold resource_decay_at; intros rd; split; intros E.
-      all: try congruence.
-      all: breakhyps.
-      autospec H; congruence.
-      all: simpl in *; congruence.
-    Qed.
-    
     (* validity *)
     intros b' ofs.
     pose proof phi_valid phi3 b' ofs as V3.
@@ -2695,7 +2517,7 @@ Section Simulation.
             assert (Ecall: Some (EF_external name sg, sig, args) =
                            Some (LOCK, UNLOCK_SIG, Vptr b ofs :: nil)). {
               repeat f_equal.
-              auto.
+              - auto.
               - admit.
               - admit.
                  (* design decision:
@@ -2725,27 +2547,6 @@ Section Simulation.
               unfold SEM.Sem in *.
               rewrite SEM.CLN_msem; simpl.
               repeat f_equal; congruence.
-            }
-            
-            assert
-            (Hload :
-               Mem.load
-                 Mint32
-                 (@restrPermMap
-                    (lockSet tp) m
-                    (@mem_compatible_locks_ltwritable
-                       tp m (@mem_compatible_forget tp m Phi compat)))
-                 b (Int.intval ofs) =
-               @Some val (Vint Int.zero)).
-            {
-              rewrite <-LOAD.
-              unfold load_at.
-              Transparent Mem.load.
-              unfold Mem.load.
-              unfold restrPermMap at 5.
-              simpl.
-              if_tac; if_tac; try reflexivity.
-              all: exfalso; unfold Int.unsigned in *; tauto.
             }
             
             inversion J; subst.
@@ -2785,14 +2586,13 @@ Section Simulation.
           
           (* changing value of lock *)
           Unset Printing Implicit.
-          pose (m1 := restrPermMap (mem_compatible_locks_ltwritable (mem_compatible_forget compat))).
-          assert (Hm' : exists m', Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m'). {
+          assert (Hm' : exists m', Mem.store Mint32 (restrPermMap (mem_compatible_locks_ltwritable (mem_compatible_forget compat))) b (Int.intval ofs) (Vint Int.zero) = Some m'). {
             Transparent Mem.store.
             unfold Mem.store in *.
-            destruct (Mem.valid_access_dec m1 Mint32 b (Int.intval ofs) Writable) as [N|N].
+            destruct (Mem.valid_access_dec _ Mint32 b (Int.intval ofs) Writable) as [N|N].
             now eauto.
             exfalso.
-            apply N; unfold m1; clear -Efind lock_coh.
+            apply N; clear -Efind lock_coh.
             eapply lset_valid_access; eauto.
             unfold Int.unsigned in *.
             congruence.
@@ -2804,11 +2604,7 @@ Section Simulation.
           
           (* somehow the new mem and the Phi has to be a juicy memory *)
           assert (Hjm' : exists jm', m_dry jm' = m' /\ m_phi jm' = phi'). {
-            admit (* ask santiago if he can provide such coherence results on restrPermMap *).
-            (*unshelve eexists.
-            unshelve refine (mkJuicyMem m' phi' _ _ _ _).
-            all: try (split; reflexivity).
-             *)
+            admit (* same as above *)
           }
           destruct Hjm' as (jm', Hjm').
           
@@ -2865,8 +2661,7 @@ Section Simulation.
               f_equal.
             * reflexivity.
             * apply LOAD.
-            * unfold m1 in Hm'.
-              replace (m_dry jm') with m' by intuition.
+            * replace (m_dry jm') with m' by intuition.
               apply Hm'.
             * apply Efind.
             * replace (m_phi jm') with phi' by intuition.
@@ -2907,11 +2702,9 @@ Section Simulation.
         apply lock_inv_at in islock.
         
         assert (SUB : join_sub phi_lockinv Phi). {
-          admit.
-          (*apply join_sub_trans with  (ThreadPool.getThreadR cnti).
-          - econstructor; eauto.
-          - apply compatible_threadRes_sub; eauto.
-            destruct compat; eauto. *)
+          apply join_sub_trans with phi0. econstructor; eauto.
+          apply join_sub_trans with (getThreadR cnti). econstructor; eauto.
+          apply compatible_threadRes_sub; eauto. apply compat.
         }
         destruct islock as [b [ofs [-> [R islock]]]].
         pose proof (resource_at_join_sub _ _ (b, Int.unsigned ofs) SUB) as SUB'.
@@ -2935,8 +2728,127 @@ Section Simulation.
           destruct lock_coh' as [LOAD (sh' & R' & lk)].
           destruct isl as [sh [psh [z Ewetv]]].
           rewrite Ewetv in *.
-          admit.
           
+          (* rewrite Eat in Ewetv. *)
+          specialize (lk (b, Int.unsigned ofs)).
+          rewrite jam_true in lk; swap 1 2.
+          { hnf. unfold lock_size in *; split; auto; omega. }
+          rewrite jam_true in lk; swap 1 2. now auto.
+          
+          assert (Ename : name = "release"). {
+            simpl in *.
+            injection H_release as Ee.
+            apply ext_link_inj in Ee; auto.
+          }
+          
+          assert (Ez : z = LKSIZE). {
+            simpl in lk.
+            destruct lk as [psh' EPhi].
+            rewrite EPhi in Ewetv.
+            injection Ewetv as _ _ <-.
+            reflexivity.
+          }
+          
+          assert (Ecall: Some (EF_external name sg, sig, args) =
+                         Some (UNLOCK, UNLOCK_SIG, Vptr b ofs :: nil)). {
+            admit.
+            (* same problem as above. *)
+            (* repeat f_equal; auto. *)
+          }
+          
+          assert (Eae : at_external SEM.Sem (ExtCall (EF_external name sg) sig args lid ve te k) =
+                        Some (UNLOCK, ef_sig UNLOCK, Vptr b ofs :: nil)). {
+            simpl.
+            unfold SEM.Sem in *.
+            rewrite SEM.CLN_msem; simpl.
+            auto.
+          }
+          subst z.
+          
+          assert (E1: exists sh sh', getThreadR cnti @ (b, Int.intval ofs) = YES sh sh' (LK LKSIZE) (pack_res_inv R)).
+          {
+            revert Join jphi SUB' islock; clear.
+            unfold Int.unsigned in *.
+            generalize (b, Int.intval ofs); intros l. clear b ofs.
+            intros A B (r, C).
+            apply resource_at_join with (loc := l) in A.
+            apply resource_at_join with (loc := l) in B.
+            unfold islock_pred in *.
+            intros (sh1 & sh1' & z & E).
+            rewr (phi_lockinv @ l) in C; inv C;
+              rewr (phi_lockinv @ l) in B; inv B;
+                rewr (phi0 @ l) in A; inv A;
+                  eauto.
+          }
+          destruct E1 as (sh1 & sh1' & E1).
+          
+          assert (Hm' : exists m', Mem.store Mint32 (restrPermMap (mem_compatible_locks_ltwritable (mem_compatible_forget compat))) b (Int.intval ofs) (Vint Int.one) = Some m').
+          {
+            unfold Mem.store in *.
+            destruct (Mem.valid_access_dec _ Mint32 b (Int.intval ofs) Writable) as [N|N].
+            now eauto.
+            exfalso.
+            apply N; clear -Efind lock_coh.
+            eapply lset_valid_access; eauto.
+            unfold Int.unsigned in *.
+            congruence.
+          }
+          destruct Hm' as (m', Hm').
+          
+          (* remove [phi_sat] from [getThreadR cnti] to get the new [phi'] *)
+          assert (Hphi' : exists phi',
+                     join phi_lockinv phi1 phi' /\
+                     join phi' phi_sat (getThreadR cnti)). {
+            repeat match goal with H : join _ _ _ |- _ => revert H end; clear; intros.
+            apply join_comm in jphi.
+            destruct (sepalg.join_assoc jphi Join) as (phi' & j1 & j2).
+            eauto.
+          }
+          destruct Hphi' as (phi' & Ephi' & Join_with_sat).
+          
+          assert (Sat : R (age_by 1 phi_sat)). {
+            clear Post Hm' safei PREA Eci Heq_name Heq_name0 LOAD Eae.
+            apply predat4 in Hlockinv.
+            apply predat5 in islock.
+            pose proof predat_inj islock Hlockinv.
+            subst R.
+            split.
+            - rewrite level_age_by.
+              replace (level phi_sat) with (level Phi) by join_level_tac.
+              replace (level phi_lockinv) with (level Phi) by join_level_tac.
+              omega.
+            - hered. 2: apply pred_hered.
+              apply age_by_1. replace (level phi_sat) with (level Phi). omega. join_level_tac.
+          }
+          
+          (* somehow the new mem and the Phi has to be a juicy memory *)
+          assert (Hjm' : exists jm', m_dry jm' = m' /\ m_phi jm' = phi'). {
+            admit (* ask santiago if he can provide such coherence results on restrPermMap *).
+            (*unshelve eexists.
+            unshelve refine (mkJuicyMem m' phi' _ _ _ _).
+            all: try (split; reflexivity).
+             *)
+          }
+          destruct Hjm' as (jm' & <- & <-).
+          
+          eexists (m_dry jm', ge, (sch, _)).
+          eapply state_step_c.
+          eapply JuicyMachine.sync_step with (Htid := cnti); auto.
+          eapply step_release
+          with (c := (ExtCall (EF_external name sg) sig args lid ve te k))
+                 (Hcompatible := mem_compatible_forget compat);
+              try apply Eci;
+            try apply Eae;
+            try apply Eci;
+            try apply LOAD;
+            try apply Hm';
+            try apply E1;
+            try eapply join_comm, Join_with_sat;
+            try apply Wjm';
+            try apply Sat;
+            try apply Efind;
+            try reflexivity.
+        
         - (* Some Some: lock is unlocked, this should be impossible *)
           destruct lock_coh' as [LOAD (sh' & R' & lk & sat)].
           destruct sat as [sat | ?]; [ | congruence ].
@@ -2953,18 +2865,6 @@ Section Simulation.
           simpl in PREA.
           destruct PREA as (Hreadable & Hprecise & Hpositive & []).
           
-          Lemma join_sub_level {A} `{JA : sepalg.Join A} `{_ : ageable A} {_ : Perm_alg A} {_ : Age_alg A} :
-            forall x y : A, join_sub x y -> level x = level y.
-          Proof.
-            intros x y (z, j).
-            apply (join_level _ _ _ j).
-          Qed.
-          Lemma joins_level {A} `{JA : sepalg.Join A} `{_ : ageable A} {_ : Perm_alg A} {_ : Age_alg A} :
-            forall x y : A, joins x y -> level x = level y.
-          Proof.
-            intros x y (z, j).
-            destruct (join_level _ _ _ j); congruence.
-          Qed.
           pose proof predat3 lk as E1.
           pose proof predat1 Ewetv as E2.
           pose proof predat4 Hlockinv as E3.

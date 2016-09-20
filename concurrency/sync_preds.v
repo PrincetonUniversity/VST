@@ -404,6 +404,253 @@ Proof.
   - rewrite resource_at_approx. reflexivity.
 Qed.
 
+
+Lemma age_to_resource_at phi n loc : age_to n phi @ loc = resource_fmap (approx n) (phi @ loc).
+Proof.
+  assert (D : (n <= level phi \/ n >= level phi)%nat) by omega.
+  destruct D as [D | D]; swap 1 2.
+  - rewrite age_to_ge; auto.
+    rewrite <-resource_at_approx.
+    change compcert_rmaps.R.resource_fmap with resource_fmap.
+    change compcert_rmaps.R.approx with approx.
+    match goal with
+      |- _ = ?map ?f (?map ?g ?r) => transitivity (map (f oo g) r)
+    end; swap 1 2.
+    + destruct (phi @ loc); unfold "oo"; simpl; auto.
+      * destruct p0; auto.
+      * destruct p; auto.
+    + f_equal. rewrite approx_oo_approx''; auto.
+  - generalize (age_to_ageN n phi).
+    generalize (age_to n phi); intros phi'.
+    replace n with (level phi - (level phi - n))%nat at 2 by omega.
+    generalize (level phi - n)%nat; intros k. clear n D.
+    revert phi phi'; induction k; intros phi phi'.
+    + unfold ageN in *; simpl.
+      injection 1 as <-.
+      simpl; replace (level phi - 0)%nat with (level phi) by omega.
+      symmetry.
+      apply resource_at_approx.
+    + change (ageN (S k) phi) with
+      (match age1 phi with Some w' => ageN k w' | None => None end).
+      destruct (age1 phi) as [o|] eqn:Eo. 2:congruence.
+      intros A; specialize (IHk _ _ A).
+      rewrite IHk.
+      pose proof age_resource_at Eo (loc := loc) as R.
+      rewrite R.
+      clear A R.
+      rewrite (age_level _ _ Eo).
+      simpl.
+      match goal with
+        |- ?map ?f (?map ?g ?r) = _ => transitivity (map (f oo g) r)
+      end.
+      * destruct (phi @ loc); unfold "oo"; simpl; auto.
+        -- destruct p0; auto.
+        -- destruct p; auto.
+      * f_equal. rewrite approx_oo_approx'; auto.
+        omega.
+Qed.
+
+Local Open Scope nat_scope.
+
+(* Constructive version of resource_decay (equivalent to the non-constructive version, see below) *)
+Definition resource_decay_aux (nextb: block) (phi1 phi2: rmap) : Type :=
+  prod (level phi1 >= level phi2)
+  (forall l: address,
+    
+  ((fst l >= nextb)%positive -> phi1 @ l = NO Share.bot) *
+  ( (resource_fmap (approx (level phi2)) (phi1 @ l) = (phi2 @ l))
+    
+  + { rsh : _ & { v : _ & { v' : _ |
+       resource_fmap (approx (level phi2)) (phi1 @ l) = YES rsh pfullshare (VAL v) NoneP /\ 
+       phi2 @ l = YES rsh pfullshare (VAL v') NoneP }}}
+  
+  + (fst l >= nextb)%positive * { v | phi2 @ l = YES Share.top pfullshare (VAL v) NoneP }
+  
+  + { v : _ & { pp : _ | phi1 @ l = YES Share.top pfullshare (VAL v) pp /\ phi2 @ l = NO Share.bot } })).
+
+Ltac breakhyps :=
+  repeat
+    match goal with
+      H : _ \/ _  |- _ => destruct H
+    | H : _ /\ _  |- _ => destruct H
+    | H : prod _ _  |- _ => destruct H
+    | H : sum _ _  |- _ => destruct H
+    | H : sumbool _ _  |- _ => destruct H
+    | H : sumor _ _  |- _ => destruct H
+    | H : ex _  |- _ => destruct H
+    | H : sig _  |- _ => destruct H
+    | H : sigT _  |- _ => destruct H
+    | H : sigT2 _  |- _ => destruct H
+    end;
+  discriminate || congruence || tauto || auto.
+
+Ltac check_false P :=
+  let F := fresh "false" in
+  assert (F : P -> False) by (intro; breakhyps);
+  clear F.
+
+Ltac sumsimpl :=
+  match goal with
+    |- sum ?A ?B => check_false A; right
+  | |- sum ?A ?B => check_false B; left
+  | |- sumor ?A ?B => check_false A; right
+  | |- sumor ?A ?B => check_false B; left
+  | |- sumbool ?A ?B => check_false A; right
+  | |- sumbool ?A ?B => check_false B; left
+  end.
+
+Lemma resource_decay_aux_spec b phi1 phi2 :
+  resource_decay b phi1 phi2 -> resource_decay_aux b phi1 phi2.
+Proof.
+  intros [lev rd]; split; [ apply lev | clear lev]; intros loc; specialize (rd loc).
+  assert (D: {(fst loc >= b)%positive} + {(fst loc < b)%positive}) by (pose proof zlt; zify; eauto).
+  split. apply rd. destruct rd as [nn rd].
+  remember (phi1 @ loc) as r1.
+  remember (phi2 @ loc) as r2.
+  remember (level phi2) as n.
+  clear phi1 phi2 Heqr1 Heqr2 Heqn.
+  destruct r1 as [ sh1 | sh1 sh1' k1 pp1 | k1 pp1 ];
+    destruct r2 as [ sh2 | sh2 sh2' k2 pp2 | k2 pp2 ];
+    simpl in *.
+  
+  - sumsimpl. sumsimpl. sumsimpl. breakhyps.
+  
+  - sumsimpl.
+    sumsimpl.
+    breakhyps.
+    destruct k2; split; eauto.
+    now (exists m; breakhyps).
+    all: exfalso; breakhyps.
+  
+  - sumsimpl.
+    exfalso. breakhyps.
+  
+  - sumsimpl.
+    destruct (eq_dec sh1 Share.top).
+    destruct (eq_dec sh1' pfullshare).
+    destruct k1.
+    destruct (eq_dec sh2 Share.bot).
+    now subst; eauto.
+    all: exfalso; breakhyps.
+  
+  - sumsimpl.
+    destruct D.
+    + autospec nn. congruence.
+    + sumsimpl.
+      destruct (eq_dec sh1' pfullshare); subst.
+      destruct (eq_dec sh2' pfullshare); subst.
+      destruct (eq_dec k1 k2); try subst k2.
+      now left; f_equal; breakhyps.
+      destruct k1, k2.
+      right. exists sh1, m, m0. split; auto; f_equal; breakhyps.
+      all: try solve [exfalso; breakhyps].
+      sumsimpl. breakhyps.
+  
+  - sumsimpl. exfalso; breakhyps.
+  
+  - sumsimpl. exfalso; breakhyps.
+  
+  - sumsimpl. sumsimpl. breakhyps.
+    destruct k2; split; eauto.
+    now (exists m; breakhyps).
+    all: exfalso; breakhyps.
+  
+  - sumsimpl. sumsimpl. sumsimpl. breakhyps.
+Qed.
+
+Lemma resource_decay_aux_spec_inv b phi1 phi2 :
+  resource_decay_aux b phi1 phi2 -> resource_decay b phi1 phi2.
+Proof.
+  intros [lev rd]; split; [ apply lev | clear lev]; intros loc; specialize (rd loc).
+  breakhyps; intuition eauto.
+Qed.
+
+Inductive res_join' : resource -> resource -> resource -> Type :=
+    res_join'_NO1 : forall rsh1 rsh2 rsh3 : Share.t,
+                   sepalg.join rsh1 rsh2 rsh3 ->
+                   res_join' (NO rsh1) (NO rsh2) (NO rsh3)
+  | res_join'_NO2 : forall (rsh1 rsh2 rsh3 : Share.t) (sh : pshare) 
+                     (k : AV.kind) (p : preds),
+                   sepalg.join rsh1 rsh2 rsh3 ->
+                   res_join' (YES rsh1 sh k p) (NO rsh2) (YES rsh3 sh k p)
+  | res_join'_NO3 : forall (rsh1 rsh2 rsh3 : Share.t) (sh : pshare) 
+                     (k : AV.kind) (p : preds),
+                   sepalg.join rsh1 rsh2 rsh3 ->
+                   res_join' (NO rsh1) (YES rsh2 sh k p) (YES rsh3 sh k p)
+  | res_join'_YES : forall (rsh1 rsh2 rsh3 : Share.t) (sh1 sh2 sh3 : pshare)
+                     (k : AV.kind) (p : preds),
+                   sepalg.join rsh1 rsh2 rsh3 ->
+                   sepalg.join sh1 sh2 sh3 ->
+                   res_join' (YES rsh1 sh1 k p) (YES rsh2 sh2 k p) (YES rsh3 sh3 k p)
+  | res_join'_PURE : forall (k : AV.kind) (p : preds),
+                    res_join' (PURE k p) (PURE k p) (PURE k p).
+
+Lemma res_join'_spec r1 r2 r3 : res_join r1 r2 r3 -> res_join' r1 r2 r3.
+Proof.
+  intros J.
+  destruct r1 as [sh1 | sh1 sh1' k1 pp1 | k1 pp1],
+           r2 as [sh2 | sh2 sh2' k2 pp2 | k2 pp2],
+           r3 as [sh3 | sh3 sh3' k3 pp3 | k3 pp3].
+  all: try solve [ exfalso; inversion J ].
+  all: try (assert (k1 = k3) by (inv J; auto); subst).
+  all: try (assert (k2 = k3) by (inv J; auto); subst).
+  all: try (assert (pp1 = pp3) by (inv J; auto); subst).
+  all: try (assert (pp2 = pp3) by (inv J; auto); subst).
+  all: try (assert (sh1' = sh3') by (inv J; auto); subst).
+  all: try (assert (sh2' = sh3') by (inv J; auto); subst).
+  all: constructor; inv J; auto.
+Qed.
+
+Lemma res_join'_spec_inv r1 r2 r3 : res_join' r1 r2 r3 -> res_join r1 r2 r3.
+Proof.
+  inversion 1; constructor; assumption.
+Qed.
+
+(* Constructive version of resource_decay (equivalent to the non-constructive version, see below) *)
+
+Definition resource_decay_at (nextb: block) n (r1 r2 : resource) b := 
+  ((b >= nextb)%positive -> r1 = NO Share.bot) /\
+  (resource_fmap (approx (n)) (r1) = (r2) \/
+  (exists rsh, exists v, exists v',
+       resource_fmap (approx (n)) (r1) = YES rsh pfullshare (VAL v) NoneP /\ 
+       r2 = YES rsh pfullshare (VAL v') NoneP)
+  \/ ((b >= nextb)%positive /\ exists v, r2 = YES Share.top pfullshare (VAL v) NoneP)
+  \/ (exists v, exists pp, r1 = YES Share.top pfullshare (VAL v) pp /\ r2 = NO Share.bot)).
+
+Lemma res_option_age_to n phi loc : res_option ((age_to n phi) @ loc) = res_option (phi @ loc).
+Proof.
+  rewrite age_to_resource_at.
+  destruct (phi @ loc) as [t0 | t0 p [m | z | z | f c] p0 | k p]; simpl; auto.
+Qed.
+
+Lemma resource_decay_at_LK {nextb n r1 r2 b sh i} :
+  resource_decay_at nextb n r1 r2 b ->
+  res_option r1 = Some (sh, LK i) <->
+  res_option r2 = Some (sh, LK i).
+Proof.
+  destruct r1 as [t1 | t1 p1 [m1 | z1 | z1 | f1 c1] pp1 | k1 p1];
+    destruct r2 as [t2 | t2 p2 [m2 | z2 | z2 | f2 c2] pp2 | k2 p2]; simpl;
+      unfold resource_decay_at; intros rd; split; intros E.
+  all: try congruence.
+  all: breakhyps.
+  autospec H; congruence.
+  all: simpl in *; congruence.
+Qed.
+
+Lemma resource_decay_at_CT {nextb n r1 r2 b sh i} :
+  resource_decay_at nextb n r1 r2 b ->
+  res_option r1 = Some (sh, CT i) <->
+  res_option r2 = Some (sh, CT i).
+Proof.
+  destruct r1 as [t1 | t1 p1 [m1 | z1 | z1 | f1 c1] pp1 | k1 p1];
+    destruct r2 as [t2 | t2 p2 [m2 | z2 | z2 | f2 c2] pp2 | k2 p2]; simpl;
+      unfold resource_decay_at; intros rd; split; intros E.
+  all: try congruence.
+  all: breakhyps.
+  autospec H; congruence.
+  all: simpl in *; congruence.
+Qed.
+
 Lemma jstep_age_sim {G C} {csem : CoreSemantics G C mem} {ge c c' jm1 jm2 jm1'} :
   age jm1 jm2 ->
   jstep csem ge c jm1 c' jm1' ->
@@ -1097,51 +1344,6 @@ Proof.
     rewrite <-compose_assoc.
     rewrite approx_oo_approx.
     reflexivity.
-Qed.
-
-Lemma age_to_resource_at phi n loc : age_to n phi @ loc = resource_fmap (approx n) (phi @ loc).
-Proof.
-  assert (D : n <= level phi \/ n >= level phi) by omega.
-  destruct D as [D | D]; swap 1 2.
-  - rewrite age_to_ge; auto.
-    rewrite <-resource_at_approx.
-    change compcert_rmaps.R.resource_fmap with resource_fmap.
-    change compcert_rmaps.R.approx with approx.
-    match goal with
-      |- _ = ?map ?f (?map ?g ?r) => transitivity (map (f oo g) r)
-    end; swap 1 2.
-    + destruct (phi @ loc); unfold "oo"; simpl; auto.
-      * destruct p0; auto.
-      * destruct p; auto.
-    + f_equal. rewrite approx_oo_approx''; auto.
-  - generalize (age_to_ageN n phi).
-    generalize (age_to n phi); intros phi'.
-    replace n with (level phi - (level phi - n)) at 2 by omega.
-    generalize (level phi - n); intros k. clear n D.
-    revert phi phi'; induction k; intros phi phi'.
-    + unfold ageN in *; simpl.
-      injection 1 as <-.
-      simpl; replace (level phi - 0) with (level phi) by omega.
-      symmetry.
-      apply resource_at_approx.
-    + change (ageN (S k) phi) with
-      (match age1 phi with Some w' => ageN k w' | None => None end).
-      destruct (age1 phi) as [o|] eqn:Eo. 2:congruence.
-      intros A; specialize (IHk _ _ A).
-      rewrite IHk.
-      pose proof age_resource_at Eo (loc := loc) as R.
-      rewrite R.
-      clear A R.
-      rewrite (age_level _ _ Eo).
-      simpl.
-      match goal with
-        |- ?map ?f (?map ?g ?r) = _ => transitivity (map (f oo g) r)
-      end.
-      * destruct (phi @ loc); unfold "oo"; simpl; auto.
-        -- destruct p0; auto.
-        -- destruct p; auto.
-      * f_equal. rewrite approx_oo_approx'; auto.
-        omega.
 Qed.
 
 Lemma jstep_preserves_mem_equiv_on_other_threads m ge i j tp ci ci' jmi'

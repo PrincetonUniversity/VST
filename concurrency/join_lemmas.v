@@ -966,3 +966,17 @@ Proof.
   intros j.
   apply juicy_mem.rmap_join_sub_eq_level, compatible_threadRes_sub, j.
 Qed.
+
+Lemma join_sub_level {A} `{JA : sepalg.Join A} `{_ : ageable A} {_ : Perm_alg A} {_ : Age_alg A} :
+  forall x y : A, join_sub x y -> level x = level y.
+Proof.
+  intros x y (z, j).
+  apply (join_level _ _ _ j).
+Qed.
+
+Lemma joins_level {A} `{JA : sepalg.Join A} `{_ : ageable A} {_ : Perm_alg A} {_ : Age_alg A} :
+  forall x y : A, joins x y -> level x = level y.
+Proof.
+  intros x y (z, j).
+  destruct (join_level _ _ _ j); congruence.
+Qed.

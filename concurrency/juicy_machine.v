@@ -1079,7 +1079,7 @@ Admitted.
             (* Hpersonal_perm: 
                personal_mem cnt0 Hcompatible = jm *)
             (Hpersonal_juice: getThreadR cnt0 = phi)
-            (sh:Share.t)(R:pred rmap)
+            (sh:Share.t)
             (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
             (Hrestrict_pmap:
                permissions.restrPermMap
@@ -1091,7 +1091,7 @@ Admitted.
             (* what does the return value denote?*)
             (*p: veric.rmaps.listprod (JMem.AType::nil) -> pred rmap*)
             (*Hget_lock_inv': JMem.get_lock_inv' jm (b, Int.intval ofs) = Some (existT _ _ p) *)
-            (Hsat_lock_inv: R d_phi)
+            (Hsat_lock_inv: R (age_by 1 d_phi))
             (Hrem_lock_res: join d_phi phi' phi)
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' =
