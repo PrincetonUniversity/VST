@@ -152,6 +152,14 @@ Proof.
   reflexivity.
 Qed.
 
+(* Condition variables *)
+(*Definition _cond_t := 4%positive.*)
+Definition tcond := tint.
+
+(* Does this need to be anything special? *)
+Definition cond_var {cs} sh v := @data_at_ cs sh tcond v.
+
+
 (*+ Deep embedding of [mpred]s *)
 
 Inductive Pred :=
@@ -162,6 +170,7 @@ Inductive Pred :=
   | Lock_inv : Share.t -> val -> Pred -> Pred
   | Self_lock : Pred -> Share.t -> val -> Pred
   | Res_inv : Pred -> Share.t -> val -> Share.t -> val -> Pred
+  | Cond_var : forall cs : compspecs, Share.t -> val -> Pred
   | Pred_prop : Prop -> Pred
   | Exp : forall A : Type, (A -> Pred) -> Pred
   | Later : Pred -> Pred
@@ -176,6 +185,7 @@ Fixpoint Interp (p : Pred) : mpred :=
   | Lock_inv a b c => lock_inv a b (Interp c)
   | Self_lock a b c => selflock (Interp a) b c
   | Res_inv a b c d e => res_invariant (Interp a) b c d e
+  | Cond_var a b c => @cond_var a b c
   | Pred_prop a => prop a
   | Exp a b => exp (fun x => Interp (b x))
   | Later a => later (Interp a)

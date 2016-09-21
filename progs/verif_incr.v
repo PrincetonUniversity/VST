@@ -1,3 +1,4 @@
+Require Import msl.predicates_sl.
 Require Import floyd.proofauto.
 Require Import concurrency.semax_conc.
 Require Import progs.incr.
@@ -28,7 +29,8 @@ Lemma later_rec : forall v R, rec_inv v R -> rec_inv v (Later R).
 Proof.
   unfold rec_inv; intros.
   destruct H as (Q & sh & H); exists (|> Q), sh; simpl.
-  rewrite H at 1; rewrite later_sepcon, lock_inv_later_eq; auto.
+  rewrite H at 1.
+  rewrite later_sepcon, lock_inv_later_eq; auto.
 Qed.
 
 Definition freelock2_spec :=
@@ -47,7 +49,7 @@ Definition release2_spec :=
   DECLARE _release2
    WITH v : val, sh : share, R : Pred
    PRE [ _lock OF tptr tlock ]
-     PROP (readable_share sh; predicates_sl.precise (Interp R); positive_mpred (Interp R); rec_inv v R)
+     PROP (readable_share sh; precise (Interp R); positive_mpred (Interp R); rec_inv v R)
      LOCAL (temp _lock v)
      SEP (Interp R)
    POST [ tvoid ]
@@ -89,10 +91,11 @@ Definition thread_lock_pred sh ctr lockc lockt := Self_lock (Lock_inv sh lockc (
 
 Definition thread_func_spec :=
  DECLARE _thread_func
-  WITH ctr : val, sh : share, lock : val, lockt : val
+  WITH y : val, x : val * share * val * val
   PRE [ _args OF (tptr tvoid) ]
+         let '(ctr, sh, lock, lockt) := x in
          PROP  (readable_share sh)
-         LOCAL (gvar _ctr ctr; gvar _ctr_lock lock; gvar _thread_lock lockt)
+         LOCAL (temp _args y; gvar _ctr ctr; gvar _ctr_lock lock; gvar _thread_lock lockt)
          SEP   (cptr_lock_inv lock sh ctr; thread_lock_inv sh ctr lock lockt)
   POST [ tvoid ]
          PROP ()
@@ -108,47 +111,100 @@ Definition main_spec :=
 Definition Gprog : funspecs := augment_funspecs prog [acquire_spec; release_spec; release2_spec; makelock_spec;
   freelock_spec; freelock2_spec; spawn_spec; incr_spec; read_spec; thread_func_spec; main_spec].
 
-Lemma data_at_precise : forall sh t v, predicates_sl.precise (data_at_ sh t v).
+Lemma precise_sepcon : forall P Q (HP : precise P) (HQ : precise Q), precise (P * Q).
 Proof.
-  intros; apply predicates_sl.derives_precise with
-    (Q := at_offset (data_at_rec sh t (default_val t)) 0 v).
-  - repeat intro.
-    destruct H; auto.
-  - unfold at_offset.
-    intros ??? HP1 HP2 (b1 & Hw1) (b2 & Hw2).
-    admit.
-Admitted.
+  unfold precise; intros ??????? (l1 & r1 & Hjoin1 & HP1 & HQ1) (l2 & r2 & Hjoin2 & HP2 & HQ2)
+    Hsub1 Hsub2.
+  specialize (HP w _ _ HP1 HP2); specialize (HQ w _ _ HQ1 HQ2).
+  rewrite HP, HQ in Hjoin1.
+  eapply sepalg.join_eq; eauto.
+  - apply sepalg.join_sub_trans with (b := w1); auto.
+    eapply sepalg.join_join_sub'; eauto.
+  - apply sepalg.join_sub_trans with (b := w2); auto.
+    eapply sepalg.join_join_sub'; eauto.
+  - apply sepalg.join_sub_trans with (b := w1); auto.
+    eapply sepalg.join_join_sub; eauto.
+  - apply sepalg.join_sub_trans with (b := w2); auto.
+    eapply sepalg.join_join_sub; eauto.
+Qed.
 
-Lemma lock_inv_precise : forall ctr,
-  predicates_sl.precise (EX x : Z, data_at Ews (tarray tint 1) [Vint (Int.repr x)] ctr).
+Lemma precise_andp1 : forall P Q (HP : precise P), precise (P && Q).
 Proof.
-  intros; eapply predicates_sl.derives_precise; [|apply data_at_precise].
+  intros ?????? (? & ?) (? & ?) ??; eauto.
+Qed.
+
+Lemma precise_andp2 : forall P Q (HQ : precise Q), precise (P && Q).
+Proof.
+  intros ?????? (? & ?) (? & ?) ??; eauto.
+Qed.
+
+Lemma ex_address_mapsto_precise: forall ch rsh sh l,
+  precise (EX v : val, res_predicates.address_mapsto ch v rsh sh l).
+Proof.
+  intros.
+  eapply derives_precise, res_predicates.VALspec_range_precise.
   repeat intro.
   destruct H.
-  destruct H.
-  unfold data_at_, field_at_, field_at; simpl in *.
-  split; [eassumption|].
-  unfold default_val; simpl.
-  instantiate (1 := Ews).
-  admit.
-Admitted.
+  eapply res_predicates.address_mapsto_VALspec_range; eauto.
+Qed.
 
-Lemma lock_inv_positive : forall ctr,
+Lemma mapsto_undef_precise : forall sh t b o (Hsh : readable_share sh)
+  (Hval : type_is_by_value t = true) (Hvol : type_is_volatile t = false),
+  precise (mapsto sh t (Vptr b o) Vundef).
+Proof.
+  intros; unfold mapsto.
+  destruct (access_mode_by_value _ Hval) as (? & Heq); rewrite Heq, Hvol.
+  destruct (readable_share_dec _); [|contradiction].
+  pose proof (tc_val_Vundef t).
+  intros ??? [(? & _) | (_ & HP1)] [(? & _) | (_ & HP2)]; normalize.
+  eapply ex_address_mapsto_precise; eauto.
+Qed.
+
+Lemma lock_precise : forall sh b o, readable_share sh -> precise (data_at_ sh tlock (Vptr b o)).
+Proof.
+  intros.
+  unfold data_at_, field_at_, field_at, at_offset; simpl.
+  apply precise_andp2.
+  rewrite data_at_rec_eq; unfold withspacer, at_offset; simpl.
+  rewrite data_at_rec_eq; unfold withspacer, at_offset; simpl.
+  rewrite data_at_rec_eq; unfold withspacer, at_offset; simpl.
+  unfold array_pred, aggregate_pred.array_pred; simpl.
+  unfold Zlength, Znth; simpl.
+  rewrite data_at_rec_eq; simpl.
+  rewrite data_at_rec_eq; simpl.
+  apply precise_sepcon; apply precise_andp2; repeat apply precise_sepcon; try apply precise_emp;
+    apply mapsto_undef_precise; auto.
+Qed.
+
+Lemma ctr_inv_precise : forall b o,
+  predicates_sl.precise (EX x : Z, data_at Ews (tarray tint 1) [Vint (Int.repr x)] (Vptr b o)).
+Proof.
+  intros; apply predicates_sl.derives_precise with (Q := data_at_ Ews (tarray tint 1) (Vptr b o)).
+  { intros ? (? & ?).
+    apply (data_at_data_at_ _ _ _ _ _ H). }
+  unfold data_at_, field_at_, field_at, at_offset; simpl.
+  apply precise_andp2.
+  rewrite data_at_rec_eq; unfold withspacer, at_offset; simpl.
+  unfold array_pred, aggregate_pred.array_pred; simpl.
+  unfold Zlength, Znth; simpl.
+  apply precise_andp2.
+  rewrite data_at_rec_eq; simpl.
+  apply precise_sepcon; [apply mapsto_undef_precise | apply precise_emp]; auto.
+Qed.
+
+Lemma ctr_inv_positive : forall ctr,
   positive_mpred (EX x : Z, data_at Ews (tarray tint 1) [Vint (Int.repr x)] ctr).
 Proof.
-  repeat intro.
-  unfold compcert_rmaps.RML.R.resource_at.
-  unfold compcert_rmaps.RML.R.unsquash.
-  destruct H.
 Admitted.
 
-Lemma lock_inv_precise' : forall v sh R,
-  predicates_sl.precise (lock_inv v sh R).
+Lemma lock_inv_precise : forall v sh R, predicates_sl.precise (lock_inv sh v R).
 Proof.
+  repeat intro.
+  destruct H as (b & o & ? & Hlock).
   admit.
 Admitted.
 
-Lemma lock_inv_positive' : forall v sh R,
+Lemma lock_inv_positive : forall v sh R,
   positive_mpred (lock_inv v sh R).
 Proof.
   admit.
@@ -157,15 +213,33 @@ Admitted.
 Lemma selflock_precise : forall R sh v, predicates_sl.precise R ->
   predicates_sl.precise (selflock R v sh).
 Proof.
+  intros.
+  rewrite selflock_eq.
+  apply precise_sepcon; auto.
+  apply lock_inv_precise.
+Qed.
+
+Lemma positive_sepcon1 : forall P Q (HP : positive_mpred P),
+  positive_mpred (P * Q).
+Proof.
+  repeat intro.
+  destruct H as (? & ? & ? & HP1 & ?).
+  specialize (HP _ HP1).
+  destruct HP as (l & sh & rsh & k & p & HP); exists l, sh, rsh, k, p.
+  admit.
 Admitted.
 
 Lemma selflock_positive : forall R sh v, positive_mpred R ->
   positive_mpred (selflock R v sh).
 Proof.
-Admitted.
+  intros.
+  rewrite selflock_eq.
+  apply positive_sepcon1; auto.
+Qed.
 
 Lemma later_positive : forall P, positive_mpred P -> positive_mpred (|> P).
 Proof.
+  admit.
 Admitted.
 
 Lemma body_incr: semax_body Vprog Gprog f_incr incr_spec.
@@ -178,10 +252,12 @@ Proof.
   Intro z.
   forward.
   forward.
+  rewrite field_at_isptr; normalize.
   forward_call (lock, sh, lock_pred ctr).
   { simpl; unfold Frame; instantiate (1 := []); entailer.
     Exists (z + 1); entailer. }
-  { split; auto; simpl; split; [apply lock_inv_precise | apply lock_inv_positive]. }
+  { destruct ctr; try contradiction.
+    split; auto; simpl; split; [apply ctr_inv_precise | apply ctr_inv_positive]. }
   forward.
 Qed.
 
@@ -193,10 +269,12 @@ Proof.
   simpl.
   Intro z.
   forward.
+  rewrite data_at_isptr; normalize.
   forward_call (lock, sh, lock_pred ctr).
   { simpl; unfold Frame; instantiate (1 := []); entailer.
     Exists z; entailer. }
-  { split; auto; simpl; split; [apply lock_inv_precise | apply lock_inv_positive]. }
+  { destruct ctr; try contradiction.
+    split; auto; simpl; split; [apply ctr_inv_precise | apply ctr_inv_positive]. }
   forward.
   Exists z; entailer.
 Qed.
@@ -212,8 +290,8 @@ Proof.
     rewrite selflock_eq at 2; entailer!.
     apply lock_inv_later. }
   { split; auto; simpl; split; [|split].
-    - apply selflock_precise, lock_inv_precise'.
-    - apply selflock_positive, lock_inv_positive'.
+    - apply selflock_precise, lock_inv_precise.
+    - apply selflock_positive, lock_inv_positive.
     - apply selflock_rec. }
   forward.
 Qed.
@@ -254,8 +332,7 @@ eapply (semax_fun_id'' _f); try reflexivity.
 Lemma lock_inv_join : forall sh1 sh2 sh v R (Hjoin : sepalg.join sh1 sh2 sh),
   lock_inv sh1 v R * lock_inv sh2 v R = lock_inv sh v R.
 Proof.
-  intros; unfold lock_inv.
-  unfold res_predicates.LKspec.
+  admit.
 Admitted.
 
 Lemma split_readable_share sh :
@@ -275,23 +352,36 @@ Proof.
   apply split_readable_share; auto.
 Qed.
 
-Lemma lock_inv_almost_empty : forall sh v R phi, predicates_hered.app_pred (lock_inv sh v R) phi ->
-  juicy_machine.almost_empty phi.
-Proof.
-Admitted.
-
 Lemma emp_almost_empty : forall phi, predicates_hered.app_pred emp phi -> juicy_machine.almost_empty phi.
 Proof.
+  repeat intro; subst.
+(*  Check compcert_rmaps.RML.resource_at_join.*)
+  admit.
 Admitted.
 
 Lemma prop_almost_empty : forall P phi, predicates_hered.app_pred (prop P) phi -> juicy_machine.almost_empty phi.
 Proof.
+  admit.
 Admitted.
 
-Lemma almost_empty_join : forall phi1 phi2 phi, juicy_machine.almost_empty phi1 ->
-  juicy_machine.almost_empty phi2 ->
-  sepalg.join phi1 phi2 phi -> juicy_machine.almost_empty phi.
+Lemma lock_inv_almost_empty : forall sh v R phi, predicates_hered.app_pred (lock_inv sh v R) phi ->
+  juicy_machine.almost_empty phi.
 Proof.
+  admit.
+Admitted.
+
+Lemma almost_empty_join : forall phi1 phi2 phi
+  (Hphi1 : juicy_machine.almost_empty phi1)
+  (Hphi2 : juicy_machine.almost_empty phi2)
+  (Hjoin : sepalg.join phi1 phi2 phi),
+  juicy_machine.almost_empty phi.
+Proof.
+  repeat intro.
+  specialize (Hphi1 loc sh psh k P); specialize (Hphi2 loc sh psh k P).
+  pose proof (compcert_rmaps.RML.resource_at_join _ _ _ loc Hjoin) as Hsum.
+  rewrite H in Hsum.
+(*  SearchAbout sepalg.join compcert_rmaps.RML.R.YES.*)
+  admit.
 Admitted.
 
 Definition thread_lock_pred' sh ctr lockc lockt := Later (Self_lock (Lock_inv sh lockc (lock_pred ctr)) sh lockt).
@@ -324,11 +414,13 @@ Proof.
   forward.
   forward_call (gvar0, Ews, lock_pred gvar2).
   { unfold tlock, semax_conc._lock_t; entailer!. }
+  rewrite field_at_isptr; normalize.
   forward_call (gvar0, Ews, lock_pred gvar2).
   { subst Frame; instantiate (1 := [data_at_ Ews tlock gvar1]); simpl.
     unfold tlock, semax_conc._lock_t; entailer!.
     Exists 0; entailer!. }
-  { split; auto; split; [apply lock_inv_precise | apply lock_inv_positive]. }
+  { destruct gvar2; try contradiction.
+    split; auto; split; [apply ctr_inv_precise | apply ctr_inv_positive]. }
   (* need to split off shares for the locks here *)
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
   forward_call (gvar1, Ews, thread_lock_pred sh1 gvar2 gvar0 gvar1).
@@ -349,7 +441,7 @@ Proof.
     repeat rewrite sepcon_assoc; erewrite <- (sepcon_assoc (lock_inv sh1 gvar1 _)), lock_inv_join; eauto.
     cancel.
     repeat rewrite sepcon_assoc; erewrite lock_inv_join; eauto; cancel.
-    admit. (* Can we move derives inside func_ptr? *) }
+    admit. (* Can we move derives inside func_ptr? Either way, the shape of spawn_spec is unuseful. *) }
   { simpl; intros ? Hpred.
     destruct Hpred as (? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & Hemp).
     eapply almost_empty_join; eauto; [|eapply almost_empty_join; eauto; [|eapply almost_empty_join; eauto]].
@@ -376,11 +468,11 @@ Proof.
     { apply sepcon_derives; [apply lock_inv_later | apply derives_refl]. }
     erewrite lock_inv_join; eauto; unfold rec_inv; entailer. }
   { split.
-    - apply later_positive, selflock_positive, lock_inv_positive'.
+    - apply later_positive, selflock_positive, lock_inv_positive.
     - apply later_rec, selflock_rec. }
   forward_call (gvar0, Ews, lock_pred gvar2).
   { unfold cptr_lock_inv; simpl; entailer!. }
-  { split; [auto | apply lock_inv_positive]. }
+  { split; [auto | apply ctr_inv_positive]. }
   forward.
 Admitted.
 
