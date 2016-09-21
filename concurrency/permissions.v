@@ -51,7 +51,22 @@ Section permMapDefs.
 
   Definition permission_at (m : mem) (b : block) (ofs : Z) (k : perm_kind) :=
     Maps.PMap.get b (Mem.mem_access m) ofs k.
- 
+
+  (** Coherence between permissions. This is used for the relation between data
+  and lock permissions*)
+  Definition perm_coh (p1 p2 : option permission) :=
+    match p1 with
+    | Some Freeable | Some Writable | Some Readable =>
+                                      match p2 with
+                                      | None => True
+                                      | _ => False
+                                      end
+    | Some Nonempty | None => True
+    end.
+
+  Definition pmap_coh (pmap1 pmap2 : access_map) :=
+    forall b ofs, perm_coh (pmap1 !! b ofs) (pmap2 !! b ofs).
+  
   (* Some None represents the empty permission. None is used for
   permissions that conflict/race. *)
      

@@ -311,6 +311,28 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
     should be redone in an opaque way *)
 
 
+  Ltac pf_cleanup :=
+    repeat match goal with
+           | [H1: invariant ?X, H2: invariant ?X |- _] =>
+             assert (H1 = H2) by (by eapply proof_irr);
+             subst H2
+           | [H1: mem_compatible ?TP ?M, H2: mem_compatible ?TP ?M |- _] =>
+             assert (H1 = H2) by (by eapply proof_irr);
+             subst H2
+           | [H1: is_true (leq ?X ?Y), H2: is_true (leq ?X ?Y) |- _] =>
+             assert (H1 = H2) by (by eapply proof_irr); subst H2
+           | [H1: containsThread ?TP ?M, H2: containsThread ?TP ?M |- _] =>
+             assert (H1 = H2) by (by eapply proof_irr); subst H2
+           | [H1: containsThread ?TP ?M,
+                  H2: containsThread (@updThreadC _ ?TP _ _) ?M |- _] =>
+             apply cntUpdateC' in H2;
+             assert (H1 = H2) by (by eapply cnt_irr); subst H2
+           | [H1: containsThread ?TP ?M,
+                  H2: containsThread (@updThread _ ?TP _ _ _) ?M |- _] =>
+             apply cntUpdate' in H2;
+             assert (H1 = H2) by (by eapply cnt_irr); subst H2
+           end.
+
     (** Lemmas about containsThread and coresteps *)
     Lemma corestep_containsThread:
       forall (tp : thread_pool) ge c c' m m' p i j ev
@@ -358,45 +380,138 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (* by decay of permissions*)
         assert (Hdecay := ev_step_decay _ _ _ _ _ _ Hcorestep).
         (* let's prove a slightly different statement that will reduce proof duplication*)
-        assert (forall b ofs, Mem.perm_order'' ((getThreadR cnt).1 !! b ofs) ((getMaxPerm m') !! b ofs) /\
-                         Mem.perm_order'' ((getThreadR cnt).1 !! b ofs) ((getMaxPerm m') !! b ofs)).
-        intros b ofs.
-        (* we proceed by case analysis on whether the block was a valid one or not*)
-        destruct (valid_block_dec (restrPermMap (proj1 (Hcompatible i pf))) b)
-          as [Hvalid|Hinvalid].
-        - (*case it's a valid block*)
-          destruct (Hdecay b ofs) as [ _ HdecayValid].
-          destruct (HdecayValid Hvalid) as [Hfreed | Heq]; clear Hdecay.
-          + (* case it is a block that was freed *)
-            destruct (Hfreed Cur) as [HFree Hdrop].
-            assert (Hempty: (getThreadR cnt) # b ofs = None).
-            { assert (Hp := restrPermMap_Cur (Hcompatible i pf) b ofs).
-              unfold permission_at in Hp. rewrite Hp in HFree.
-              assert (Hno_race := no_race Hinv).
-              unfold race_free in Hno_race.
-              specialize (Hno_race _ _ cnt0 pf Htid).
-              unfold permMapsDisjoint in Hno_race.
-              specialize (Hno_race b ofs).
-              assert (Hnot_racy : not_racy ((getThreadR cnt0) # b ofs)).
-              rewrite perm_union_comm in Hno_race.
-              eapply no_race_racy with (p1 := (getThreadR pf) # b ofs); eauto.
-              rewrite HFree. constructor.
-              rewrite gsoThreadRes; auto.
-                by inversion Hnot_racy.
-            }
-            rewrite Hempty.
-            destruct ((getMaxPerm m') # b ofs); simpl; auto.
-          + rewrite getMaxPerm_correct. unfold permission_at.
-            assert (HeqCur := Heq Max).
-            rewrite <- HeqCur.
-            rewrite gsoThreadRes; auto.
-            assert (H := compat_th Hcompatible cnt0).
-            assert (Hrestr_max := restrPermMap_Max (Hcompatible i pf) b ofs).
-            unfold permission_at in Hrestr_max.
-            rewrite Hrestr_max;
-              by eauto.                        
-        - apply Mem.nextblock_noaccess with (ofs := ofs) (k := Max) in Hinvalid.
-          assert (Hp := restrPermMap_Max (Hcompatible i pf) b ofs).
+        assert (Hhelper: forall b ofs, Mem.perm_order'' ((getMaxPerm m') !! b ofs) ((getThreadR cnt).1 !! b ofs)  /\
+                                  Mem.perm_order''  ((getMaxPerm m') !! b ofs) ((getThreadR cnt).2 !! b ofs)).
+        { intros b ofs.
+          (* we proceed by case analysis on whether the block was a valid one or not*)
+          destruct (valid_block_dec (restrPermMap (proj1 (Hcompatible i pf))) b)
+            as [Hvalid|Hinvalid].
+          - (*case it's a valid block*)
+            destruct (Hdecay b ofs) as [ _ HdecayValid].
+            destruct (HdecayValid Hvalid) as [Hfreed | Heq]; clear Hdecay.
+            + (* case it is a block that was freed *)
+              destruct (Hfreed Cur) as [HFree Hdrop].
+              (* since the data of thread tid have a Freeable permission on (b,
+            ofs) it must be that no lock permission exists in the threadpool and
+            hence on thread tid as we ll*)
+              assert (Hlock_empty: (getThreadR cnt)#2 !! b ofs = None).
+              { destruct (thread_data_lock_coh Hinv cnt0) as [Hcoh _].
+                specialize (Hcoh _ pf b ofs).
+                assert (Hp := restrPermMap_Cur (proj1 (Hcompatible i pf)) b ofs).
+                unfold permission_at in Hp.
+                rewrite <- Hp, HFree in Hcoh.
+                simpl in Hcoh.
+                destruct (((getThreadR cnt0)#2) # b ofs) eqn:?;
+                         first by exfalso.
+                destruct (i == tid) eqn:Htid; move/eqP:Htid=>Htid; subst.
+                - rewrite gssThreadRes. pf_cleanup. simpl.
+                  assumption.
+                - erewrite gsoThreadRes with (cntj := cnt0) by assumption.
+                  assumption.
+              }
+              rewrite Hlock_empty.
+              (* and that concludes the case for lock permissions*)
+              split; [idtac | eapply po_None].
+              (* for data permissions we proceed by case analysis*)
+              destruct (i == tid) eqn:Htid;
+                move/eqP:Htid=>Htid; subst;
+                                (* for the thread that took the step it is
+                              straightforward by the definition of [Mem.mem]*)
+                                first by (rewrite gssThreadRes; simpl;
+                                          apply getCur_Max).
+              (* for other threads it must hold by the disjointess invariant
+            that:*)
+              assert (Hempty: (getThreadR cnt).1 # b ofs = None).
+              { assert (Hp := restrPermMap_Cur (proj1 (Hcompatible i pf)) b ofs).
+                unfold permission_at in Hp. rewrite Hp in HFree.
+                assert (Hno_race := no_race_thr Hinv pf cnt0 Htid).
+                unfold permMapsDisjoint2 in Hno_race.
+                pose proof (proj1 Hno_race b ofs) as Hunion.
+                assert (Hnot_racy : not_racy ((getThreadR cnt0).1 # b ofs)).
+                eapply no_race_racy with (p1 := (getThreadR pf).1 # b ofs); eauto.
+                rewrite HFree. constructor.
+                rewrite gsoThreadRes; auto.
+                  by inversion Hnot_racy.
+              }
+              rewrite Hempty.
+              now apply po_None.
+            + (* Case where the permission between the two states remained the same*)
+              destruct (i == tid) eqn:Htid;
+                move/eqP:Htid=>Htid; subst.
+              * rewrite gssThreadRes. simpl.
+                split. eapply getCur_Max.
+                rewrite getMaxPerm_correct. unfold permission_at.
+                assert (HeqCur := Heq Max).
+                rewrite <- HeqCur.
+                pf_cleanup.
+                assert (Hrestr_max := restrPermMap_Max Hlt1 b ofs).
+                unfold permission_at in Hrestr_max.
+                rewrite Hrestr_max.
+                eauto.
+              * (*case it's  another thread*)            
+                rewrite gsoThreadRes; auto.
+                assert (HeqCur := Heq Max).
+                assert (Hrestr_max := restrPermMap_Max (proj1 (Hcompatible i pf)) b ofs).
+                unfold permission_at in Hrestr_max.
+                rewrite getMaxPerm_correct. unfold permission_at.
+                rewrite <- HeqCur.
+                rewrite Hrestr_max;
+                  by eauto.
+          - (*case it is an invalid block*)
+            (* since the lock permissions don't change and that block was
+               invalid before it must be that the lock/data permissions the threads
+               had are empty*)
+            apply Mem.nextblock_noaccess with (ofs := ofs) (k := Max) in Hinvalid.
+            assert (Hp := restrPermMap_Max (proj1 (Hcompatible i pf)) b ofs).
+            unfold permission_at in Hp. rewrite Hp in Hinvalid.
+            specialize (Hlt1 b ofs).
+            specialize (Hlt2 b ofs).
+            rewrite Hinvalid in Hlt1 Hlt2.
+            simpl in Hlt1, Hlt2.
+            repeat match goal with
+                   | [H: match ?Expr with _ => _ end |- _] =>
+                     destruct Expr eqn:?
+                   end; try by exfalso.
+            (*we proceed by case analysis on the thread id*)
+            destruct (i == tid) eqn:Htid; move/eqP:Htid => Htid; subst.
+            +
+              (*for the thread that stepped the data permissions may have
+                changed. But the goal is easily discharged by the Max> Cur invariant
+                of [Mem.mem]*)
+              split; rewrite gssThreadRes; simpl;
+                [now eapply getCur_Max| pf_cleanup; rewrite Heqo; now apply po_None].
+            + (*for different threads the permission maps did not change, hence
+                remain empty at this location*)
+              erewrite! gsoThreadRes with (cntj := cnt0) by eauto.
+              rewrite Heqo0 Heqo.
+              split; simpl; now apply po_None.
+        }
+        split; intros b ofs; destruct (Hhelper b ofs);
+          assumption.
+      }
+      { (*likewise for lock resources*) 
+
+          
+
+            (*same thread*)
+            split; rewrite gssThreadRes; simpl;
+              [now eapply getCur_Max |].
+
+
+          apply Mem.nextblock_noaccess with (ofs := ofs) (k := Max) in Hinvalid.
+          assert (Hp := restrPermMap_Max (proj1 (Hcompatible i pf)) b ofs).
+          unfold permission_at in Hp. rewrite Hp in Hinvalid.
+          specialize (Hlt1 b ofs).
+          rewrite Hinvalid in Hlt1.
+          simpl in Hlt1.
+          destruct ((getThreadR cnt0).1 # b ofs); first by exfalso.
+
+          destruct ((lockSet tp) # b ofs);
+            [by exfalso| destruct ((getMaxPerm m') # b ofs); simpl; by auto].
+
+          apply Mem.nextblock_noaccess with (ofs := ofs) (k := Max) in Hinvalid.
+          assert (Hp := restrPermMap_Max Hlt1 b ofs).
+          rewrite getMaxPerm_correct. unfold permission_at.
           unfold permission_at in Hp. rewrite Hp in Hinvalid.
           rewrite Hinvalid in Hlt.
           simpl in Hlt.
