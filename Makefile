@@ -127,11 +127,16 @@ CONCUR_FILES= \
   lksize.v \
   main.v mem_obs_eq.v memory_lemmas.v permissions.v pos.v pred_lemmas.v \
   rc_semantics.v rc_semantics_lemmas.v \
-  scheduler.v semax_conc.v semax_to_juicy_machine.v \
-  sepcomp.v seq_lemmas.v ssromega.v stack.v \
+  scheduler.v sepcomp.v seq_lemmas.v ssromega.v stack.v \
   threadPool.v threads_lemmas.v wf_lemmas.v \
-  x86_inj.v x86_safe.v x86_context.v fineConc_x86.v executions.v \
-  SC_erasure.v sync_preds.v join_lemmas.v coqlib5.v age_to.v \
+  x86_inj.v x86_safe.v x86_context.v fineConc_x86.v executions.v SC_erasure.v \
+  sync_preds_defs.v sync_preds.v \
+  semax_conc.v semax_to_juicy_machine.v \
+  semax_invariant.v semax_initial.v \
+  semax_to_safety.v semax_simlemmas.v \
+  semax_progress.v cl_step_lemmas.v \
+  aging_lemmas.v resource_decay_lemmas.v \
+  resource_decay_join.v join_lemmas.v coqlib5.v age_to.v \
   konig.v safety.v \
   reach_lemmas.v reestablish.v ret_lemmas.v lifting.v linking_inv.v linking_spec.v call_lemmas.v \
   machine_semantics.v machine_semantics_lemmas.v machine_simulation.v
