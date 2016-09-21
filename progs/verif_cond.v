@@ -96,12 +96,13 @@ Definition thread_func_spec :=
   WITH y : val, x : val * share * val * val * val
   PRE [ _args OF (tptr tvoid) ]
          let '(data, sh, lock, lockt, cond) := x in
-         PROP  (readable_share sh)
+         PROP  ()
          LOCAL (temp _args y; gvar _data data; gvar _mutex lock; gvar _tlock lockt;
                 gvar _cond cond)
-         SEP   (cond_var sh cond; lock_inv sh lock (Interp (lock_pred data));
+         SEP   ((!!readable_share sh && emp); cond_var sh cond;
+                lock_inv sh lock (Interp (lock_pred data));
                 lock_inv sh lockt (Interp (tlock_pred sh lockt lock cond data)))
-  POST [ tvoid ]
+  POST [ tptr tvoid ]
          PROP ()
          LOCAL ()
          SEP (emp).
@@ -170,6 +171,7 @@ Qed.
 Lemma body_thread_func : semax_body Vprog Gprog f_thread_func thread_func_spec.
 Proof.
   start_function.
+  normalize.
   forward.
   forward.
   forward.
@@ -261,10 +263,13 @@ Proof.
                 Lock_inv sh lockt (tlock_pred sh lockt lock cond data)])).
   { entailer.
     Exists _args; entailer.
-    Exists ([(_data, gvar3); (_mutex, gvar0); (_tlock, gvar1); (_cond, gvar2)]); entailer.
+    Exists (fun x :val * share * val * val * val => let '(data, sh, lock, lockt, cond) := x in
+      [(_data, data); (_mutex, lock); (_tlock, lockt); (_cond, cond)]); entailer.
     subst Frame; instantiate (1 := [lock_inv sh2 gvar1 (Interp (tlock_pred sh1 gvar1 gvar0 gvar2 gvar3));
       lock_inv sh2 gvar0 (Interp (lock_pred gvar3)); cond_var sh2 gvar2;
       field_at Ews (tarray tint 1) [] [Vint (Int.repr 0)] gvar3]).
+    evar (body : funspec); replace (WITH _ : _ PRE [_] _ POST [_] _) with body.
+    repeat rewrite sepcon_assoc; apply sepcon_derives; subst body; [apply derives_refl|].
     simpl; entailer; cancel.
     repeat rewrite sepcon_assoc.
     rewrite <- (sepcon_assoc (lock_inv sh1 gvar1 _)).
@@ -272,10 +277,14 @@ Proof.
     repeat rewrite sepcon_assoc.
     rewrite <- (sepcon_assoc (lock_inv sh1 gvar0 _)).
     erewrite lock_inv_join; eauto; cancel.
-    rewrite sepcon_assoc; erewrite cond_var_join; eauto; cancel.
-    admit. (* Can we move derives inside func_ptr? Either way, the shape of spawn_spec is unuseful. *) }
+    erewrite cond_var_join; eauto.
+    subst body; f_equal.
+    extensionality.
+    destruct x as (?, ((((?, ?), ?), ?), ?)); simpl.
+    f_equal; f_equal.
+    unfold SEPx; simpl; normalize. }
   { simpl; intros ? Hpred.
-    destruct Hpred as (? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & Hemp).
+    destruct Hpred as (? & ? & ? & (? & ?) & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & Hemp).
     eapply almost_empty_join; eauto; [|eapply almost_empty_join; eauto;
       [|eapply almost_empty_join; eauto; [|eapply almost_empty_join; eauto]]].
     - eapply prop_almost_empty; eauto.
@@ -325,7 +334,7 @@ Proof.
     { split; [auto | apply inv_positive]. }
     forward_call (gvar2, Ews).
     forward.
-Admitted.
+Qed.
 
 Definition extlink := ext_link_prog prog.
 

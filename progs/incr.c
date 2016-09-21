@@ -27,13 +27,13 @@ int read() {
   return t;
 }
 
-void thread_func(void *args) {
+void *thread_func(void *args) {
   lock_t *l = &thread_lock;
   //Increment the counter
   incr();
   //Yield: 'ready to join'.
   release2(l);
-  return;
+  return (void *)NULL;
 }
 
 int main(void)

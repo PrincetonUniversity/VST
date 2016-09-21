@@ -27,7 +27,6 @@ CLIGHTGEN=../CompCert-2.7.1/clightgen
 # somewhere add this line to a CONFIGURE file
 # MATHCOMP=/my/path/to/mathcomp
 
-MATHCOMP=~/.opam/4.02.3+mingw64c/user-contrib/mathcomp
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
 DIRS= msl sepcomp veric concurrency floyd progs sha linking fcf hmacfcf tweetnacl20140427 ccc26x86 hmacdrbg

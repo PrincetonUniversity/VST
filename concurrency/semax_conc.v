@@ -186,7 +186,7 @@ Fixpoint Interp (p : Pred) : mpred :=
   | Self_lock a b c => selflock (Interp a) b c
   | Res_inv a b c d e => res_invariant (Interp a) b c d e
   | Cond_var a b c => @cond_var a b c
-  | Pred_prop a => prop a
+  | Pred_prop a => (!!a && emp)%logic
   | Exp a b => exp (fun x => Interp (b x))
   | Later a => later (Interp a)
   | Pred_list l => fold_right sepcon emp (map Interp l)
@@ -343,13 +343,13 @@ Definition spawn_spec :=
      )
      LOCAL (temp _args b)
      SEP
-     (EX _y : ident, EX globals : list (ident * val),
-      match PrePost with existT ty (_, pre) =>
+     (match PrePost with existT ty (_, pre) =>
+      EX _y : ident, EX globals : ty -> list (ident * val),
       (func_ptr'
         (WITH y : val, x : ty
           PRE [ _y OF tptr tvoid ]
             PROP ()
-            (LOCALx (temp _y y :: map (fun x => gvar (fst x) (snd x)) globals)
+            (LOCALx (temp _y y :: map (fun x => gvar (fst x) (snd x)) (globals x))
             (SEP   (Interp (pre x y))))
           POST [tptr tvoid]
             PROP  ()

@@ -104,7 +104,7 @@ Definition v_data := {|
 |}.
 
 Definition f_thread_func := {|
-  fn_return := tvoid;
+  fn_return := (tptr tvoid);
   fn_callconv := cc_default;
   fn_params := ((_args, (tptr tvoid)) :: nil);
   fn_vars := nil;
@@ -151,7 +151,8 @@ Definition f_thread_func := {|
                                     (Tcons (tptr (Tstruct _lock_t noattr))
                                       Tnil) tvoid cc_default))
                   ((Etempvar _t (tptr (Tstruct _lock_t noattr))) :: nil))
-                (Sreturn None)))))))))
+                (Sreturn (Some (Ecast (Econst_int (Int.repr 0) tint)
+                                 (tptr tvoid))))))))))))
 |}.
 
 Definition f_main := {|
@@ -209,10 +210,10 @@ Definition f_main := {|
                     ((Ecast
                        (Eaddrof
                          (Evar _thread_func (Tfunction
-                                              (Tcons (tptr tvoid) Tnil) tvoid
-                                              cc_default))
-                         (tptr (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
-                                 cc_default))) (tptr tvoid)) ::
+                                              (Tcons (tptr tvoid) Tnil)
+                                              (tptr tvoid) cc_default))
+                         (tptr (Tfunction (Tcons (tptr tvoid) Tnil)
+                                 (tptr tvoid) cc_default))) (tptr tvoid)) ::
                      (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) ::
                      nil))
                   (Ssequence

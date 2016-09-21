@@ -94,10 +94,10 @@ Definition thread_func_spec :=
   WITH y : val, x : val * share * val * val
   PRE [ _args OF (tptr tvoid) ]
          let '(ctr, sh, lock, lockt) := x in
-         PROP  (readable_share sh)
+         PROP  ()
          LOCAL (temp _args y; gvar _ctr ctr; gvar _ctr_lock lock; gvar _thread_lock lockt)
-         SEP   (cptr_lock_inv lock sh ctr; thread_lock_inv sh ctr lock lockt)
-  POST [ tvoid ]
+         SEP   ((!!readable_share sh && emp); cptr_lock_inv lock sh ctr; thread_lock_inv sh ctr lock lockt)
+  POST [ tptr tvoid ]
          PROP ()
          LOCAL ()
          SEP (emp).
@@ -282,6 +282,7 @@ Qed.
 Lemma body_thread_func : semax_body Vprog Gprog f_thread_func thread_func_spec.
 Proof.
   start_function.
+  normalize.
   forward.
   forward_call (ctr, sh, lock).
   forward_call (lockt, sh, Self_lock (Lock_inv sh lock (lock_pred ctr)) sh lockt).
@@ -431,19 +432,27 @@ Proof.
    (val * share * val * val)%type ((gvar2, sh1, gvar0, gvar1),
    fun (x : (val * share * val * val)) (_ : val) => let '(ctr, sh, lock, tlock) := x in
      Pred_list [Pred_prop (readable_share sh); Lock_inv sh lock (lock_pred ctr);
-    Lock_inv sh tlock (thread_lock_pred sh gvar2 gvar0 gvar1)])).
+    Lock_inv sh tlock (thread_lock_pred sh ctr lock tlock)])).
   { entailer.
     Exists _args; entailer.
-    Exists ([(_ctr, gvar2); (_ctr_lock, gvar0); (_thread_lock, gvar1)]); entailer.
+    Exists (fun x : val * share * val * val => let '(ctr, sh, lock, lockt) := x in
+      [(_ctr, ctr); (_ctr_lock, lock); (_thread_lock, lockt)]); simpl; entailer.
+    evar (body : funspec); replace (WITH _ : _ PRE [_] _ POST [_] _) with body.
+    repeat rewrite sepcon_assoc; apply sepcon_derives; subst body; [apply derives_refl|].
     subst Frame; instantiate (1 := [lock_inv sh2 gvar1 (Interp (thread_lock_pred sh1 gvar2 gvar0 gvar1));
       lock_inv sh2 gvar0 (Interp (lock_pred gvar2))]).
     simpl; entailer.
     repeat rewrite sepcon_assoc; erewrite <- (sepcon_assoc (lock_inv sh1 gvar1 _)), lock_inv_join; eauto.
     cancel.
     repeat rewrite sepcon_assoc; erewrite lock_inv_join; eauto; cancel.
-    admit. (* Can we move derives inside func_ptr? Either way, the shape of spawn_spec is unuseful. *) }
+    subst body; f_equal.
+    extensionality.
+    destruct x as (?, (((?, ?), ?), ?)); simpl.
+    f_equal; f_equal.
+    unfold SEPx; simpl.
+    unfold thread_lock_inv, cptr_lock_inv; normalize. }
   { simpl; intros ? Hpred.
-    destruct Hpred as (? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & Hemp).
+    destruct Hpred as (? & ? & ? & (? & ?) & ? & ? & ? & ? & ? & ? & ? & ? & Hemp).
     eapply almost_empty_join; eauto; [|eapply almost_empty_join; eauto; [|eapply almost_empty_join; eauto]].
     - eapply prop_almost_empty; eauto.
     - eapply lock_inv_almost_empty; eauto.
@@ -474,7 +483,7 @@ Proof.
   { unfold cptr_lock_inv; simpl; entailer!. }
   { split; [auto | apply ctr_inv_positive]. }
   forward.
-Admitted.
+Qed.
 
 Definition extlink := ext_link_prog prog.
 
