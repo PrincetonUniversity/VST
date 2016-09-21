@@ -38,6 +38,8 @@ Require Import concurrency.scheduler.
 Require Import concurrency.addressFiniteMap.
 Require Import concurrency.permissions.
 
+Require Import concurrency.semax_invariant.
+Require Import concurrency.semax_initial.
 Require Import concurrency.semax_to_juicy_machine.
 
 (** *Erasure Imports*)

@@ -133,8 +133,8 @@ CONCUR_FILES= \
   sync_preds_defs.v sync_preds.v \
   semax_conc.v semax_to_juicy_machine.v \
   semax_invariant.v semax_initial.v \
-  semax_to_safety.v semax_simlemmas.v \
-  semax_progress.v cl_step_lemmas.v \
+  semax_simlemmas.v cl_step_lemmas.v \
+  semax_progress.v semax_preservation.v \
   aging_lemmas.v resource_decay_lemmas.v \
   resource_decay_join.v join_lemmas.v coqlib5.v age_to.v \
   konig.v safety.v \

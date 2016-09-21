@@ -53,7 +53,7 @@ Require Import concurrency.sync_preds.
 Require Import concurrency.semax_invariant.
 Require Import concurrency.semax_initial.
 Require Import concurrency.semax_progress.
-Require Import concurrency.semax_to_juicy_machine.
+Require Import concurrency.semax_preservation.
 
 Inductive jmsafe : nat -> cm_state -> Prop :=
 | jmsafe_0 m ge sch tp : jmsafe 0 (m, ge, (sch, tp))
