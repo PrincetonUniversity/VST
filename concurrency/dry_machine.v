@@ -168,44 +168,61 @@ Module Concur.
      (** The state respects the memory*)
      Record mem_compatible' tp m : Prop :=
        { compat_th :> forall {tid} (cnt: containsThread tp tid),
-             permMapLt (getThreadR cnt).1 (getMaxPerm m);
-         compat_thl :> forall {tid} (cnt: containsThread tp tid),
+             permMapLt (getThreadR cnt).1 (getMaxPerm m) /\
              permMapLt (getThreadR cnt).2 (getMaxPerm m);
          compat_lp : forall l pmaps, lockRes tp l = Some pmaps ->
-                               permMapLt pmaps.1 (getMaxPerm m);
-         compat_lpl : forall l pmaps, lockRes tp l = Some pmaps ->
-                               permMapLt pmaps.2 (getMaxPerm m)}.
+                                permMapLt pmaps.1 (getMaxPerm m) /\
+                                permMapLt pmaps.2 (getMaxPerm m)}.
      
      Definition mem_compatible tp m : Prop := mem_compatible' tp m.
 
-     (** Disjointness between any two data permission maps in the thread pool*)
-     Definition drf tp :=
-       forall k1 k2 (Hneq: k1 <> k2),
-         permMapsDisjoint (Resources.get k1 (allDataRes tp))
-                          (Resources.get k2 (allDataRes tp)).
+    Record invariant' tp :=
+       { no_race_thr :
+           forall i j (cnti: containsThread tp i) (cntj: containsThread tp j)
+             (Hneq: i <> j),
+             permMapsDisjoint2 (getThreadR cnti)
+                              (getThreadR cntj); (*thread's resources are disjoint *)
+         no_race_lr:
+           forall laddr1 laddr2 rmap1 rmap2
+             (Hneq: laddr1 <> laddr2)
+             (Hres1: lockRes tp laddr1 = Some rmap1)
+             (Hres2: lockRes tp laddr2 = Some rmap2),
+             permMapsDisjoint2 rmap1 rmap2; (*lock's resources are disjoint *)
+         no_race:
+           forall i laddr (cnti: containsThread tp i) rmap
+             (Hres: lockRes tp laddr = Some rmap),
+             permMapsDisjoint2 (getThreadR cnti) rmap; (*resources are disjoint
+             between threads and locks*)
+         (* an address is in the lockres if there is at least one >= Readable
+         lock permission - I am writing the weak version where this is required
+         only for permissions of threads*)
+         (* lock_res_perm: *)
+         (*   forall b ofs, *)
+         (*     (exists i (cnti: containsThread tp i), *)
+         (*         Mem.perm_order' ((getThreadR cnti).2 !! b ofs) Readable) ->  *)
+         (*     lockRes tp (b, ofs); *)
 
-     (** Disjointness between any two lock permission maps in the thread pool*)
-     Definition lrf tp :=
-       forall k1 k2 (Hneq: k1 <> k2),
-         permMapsDisjoint (Resources.get k1 (allLockRes tp))
-                          (Resources.get k2 (allLockRes tp)).
-
-     Record invariant' tp :=
-       { no_data_race : drf tp; (*data resources are disjoint *)
-         no_lock_race: lrf tp; (*lock resources are disjoint *)
-         (* an address is a lock iff there is at least one >= Readable lock permission*)
-         lock_res_perm:
-           forall b ofs,
-             lockRes tp (b, ofs) <->
-             exists k, Mem.perm_order' ((Resources.get k (allLockRes tp)) !! b ofs) Readable;
          (* if an address is a lock then there can be no data
              permission above non-empty for this address*)
-         lock_data_coh: forall b ofs,
-             lockRes tp (b, ofs) ->
-             forall k',
-               (Mem.perm_order'' (Some Nonempty) ((Resources.get k' (allDataRes tp)) !! b ofs));
+         thread_data_lock_coh:
+           forall i (cnti: containsThread tp i) b ofs
+             (Hreadable: Mem.perm_order' ((getThreadR cnti).2 !! b ofs) Readable),
+             (forall j (cntj: containsThread tp j),
+                Mem.perm_order'' (Some Nonempty) ((getThreadR cntj).1 !! b ofs)) /\
+             (forall laddr rmap,
+                 lockRes tp laddr = Some rmap ->
+                 Mem.perm_order'' (Some Nonempty) (rmap.1 !! b ofs));
+       locks_data_lock_coh:
+         forall laddr rmap b ofs
+           (Hres: lockRes tp laddr = Some rmap)
+           (Hreadable: Mem.perm_order' (rmap.2 !! b ofs) Readable),
+           (forall j (cntj: containsThread tp j),
+               Mem.perm_order'' (Some Nonempty) ((getThreadR cntj).1 !! b ofs)) /\
+           (forall laddr rmap,
+               lockRes tp laddr = Some rmap ->
+               Mem.perm_order'' (Some Nonempty) (rmap.1 !! b ofs));
          lockRes_valid: lr_valid (lockRes tp) (*well-formed locks*)
-       }. 
+       }.
 
      Definition invariant := invariant'.
      Parameter threadStep :
@@ -245,46 +262,63 @@ Module Concur.
 
      Record mem_compatible' tp m : Prop :=
        { compat_th :> forall {tid} (cnt: containsThread tp tid),
-             permMapLt (getThreadR cnt).1 (getMaxPerm m);
-         compat_thl :> forall {tid} (cnt: containsThread tp tid),
+             permMapLt (getThreadR cnt).1 (getMaxPerm m) /\
              permMapLt (getThreadR cnt).2 (getMaxPerm m);
          compat_lp : forall l pmaps, lockRes tp l = Some pmaps ->
-                               permMapLt pmaps.1 (getMaxPerm m);
-         compat_lpl : forall l pmaps, lockRes tp l = Some pmaps ->
-                               permMapLt pmaps.2 (getMaxPerm m)}.
+                                permMapLt pmaps.1 (getMaxPerm m) /\
+                                permMapLt pmaps.2 (getMaxPerm m)}.
      
      Definition mem_compatible tp m : Prop := mem_compatible' tp m.
-
-     (** Disjointness between any two data permission maps in the thread pool*)
-     Definition drf tp :=
-       forall k1 k2 (Hneq: k1 <> k2),
-         permMapsDisjoint (Resources.get k1 (allDataRes tp))
-                          (Resources.get k2 (allDataRes tp)).
-     
-     (** Disjointness between any two lock permission maps in the thread pool*)
-     Definition lrf tp :=
-       forall k1 k2 (Hneq: k1 <> k2),
-         permMapsDisjoint (Resources.get k1 (allLockRes tp))
-                          (Resources.get k2 (allLockRes tp)).
 
      (* should there be something that says that if something is a lock then
      someone has at least readable permission on it?*)
      Record invariant' tp :=
-       { no_data_race : drf tp; (*data resources are disjoint *)
-         no_lock_race: lrf tp; (*lock resources are disjoint *)
-         (* an address is a lock iff there is at least one >= Readable lock permission*)
-         lock_res_perm:
-           forall b ofs,
-             lockRes tp (b, ofs) <->
-             exists k, Mem.perm_order' ((Resources.get k (allLockRes tp)) !! b ofs) Readable;
+       { no_race_thr :
+           forall i j (cnti: containsThread tp i) (cntj: containsThread tp j)
+             (Hneq: i <> j),
+             permMapsDisjoint2 (getThreadR cnti)
+                              (getThreadR cntj); (*thread's resources are disjoint *)
+         no_race_lr:
+           forall laddr1 laddr2 rmap1 rmap2
+             (Hneq: laddr1 <> laddr2)
+             (Hres1: lockRes tp laddr1 = Some rmap1)
+             (Hres2: lockRes tp laddr2 = Some rmap2),
+             permMapsDisjoint2 rmap1 rmap2; (*lock's resources are disjoint *)
+         no_race:
+           forall i laddr (cnti: containsThread tp i) rmap
+             (Hres: lockRes tp laddr = Some rmap),
+             permMapsDisjoint2 (getThreadR cnti) rmap; (*resources are disjoint
+             between threads and locks*)
+         (* an address is in the lockres if there is at least one >= Readable
+         lock permission - I am writing the weak version where this is required
+         only for permissions of threads*)
+         (* lock_res_perm: *)
+         (*   forall b ofs, *)
+         (*     (exists i (cnti: containsThread tp i), *)
+         (*         Mem.perm_order' ((getThreadR cnti).2 !! b ofs) Readable) ->  *)
+         (*     lockRes tp (b, ofs); *)
+
          (* if an address is a lock then there can be no data
              permission above non-empty for this address*)
-         lock_data_coh: forall b ofs,
-             lockRes tp (b, ofs) ->
-             forall k',
-               (Mem.perm_order'' (Some Nonempty) ((Resources.get k' (allDataRes tp)) !! b ofs));
+         thread_data_lock_coh:
+           forall i (cnti: containsThread tp i) b ofs
+             (Hreadable: Mem.perm_order' ((getThreadR cnti).2 !! b ofs) Readable),
+             (forall j (cntj: containsThread tp j),
+                Mem.perm_order'' (Some Nonempty) ((getThreadR cntj).1 !! b ofs)) /\
+             (forall laddr rmap,
+                 lockRes tp laddr = Some rmap ->
+                 Mem.perm_order'' (Some Nonempty) (rmap.1 !! b ofs));
+       locks_data_lock_coh:
+         forall laddr rmap b ofs
+           (Hres: lockRes tp laddr = Some rmap)
+           (Hreadable: Mem.perm_order' (rmap.2 !! b ofs) Readable),
+           (forall j (cntj: containsThread tp j),
+               Mem.perm_order'' (Some Nonempty) ((getThreadR cntj).1 !! b ofs)) /\
+           (forall laddr rmap,
+               lockRes tp laddr = Some rmap ->
+               Mem.perm_order'' (Some Nonempty) (rmap.1 !! b ofs));
          lockRes_valid: lr_valid (lockRes tp) (*well-formed locks*)
-       }.      
+       }.
      Definition invariant := invariant'.
 
      Record relAngelSpec (src tgt src' tgt' : access_map) : Prop :=
@@ -312,7 +346,7 @@ Module Concur.
      | step_dry :
          forall (tp':thread_pool) c m1 m' (c' : code) ev
            (*installing the permission's of the thread on non-lock locations*)
-           (Hrestrict_pmap: restrPermMap (Hcompatible tid0 cnt) = m1)
+           (Hrestrict_pmap: restrPermMap (proj1 (Hcompatible tid0 cnt)) = m1)
            (Hinv : invariant tp)
            (Hcode: getThreadC cnt = Krun c)
            (Hcorestep: ev_step Sem genv c m1 ev c' m')
@@ -328,24 +362,26 @@ Module Concur.
        end.
      Infix "??" := option_function (at level 80, right associativity).
 
-     Definition store_unasfe :=  
-       fun (chunk : memory_chunk) (m : mem) (b : block) (ofs : Z) (v : val) =>
-         match Mem.valid_access_dec m chunk b ofs Writable with
-         | left x =>
-           Some
-             {|
+     (*TODO: move this to memory lemmas*)
+     Definition store_unsafe (chunk : memory_chunk) (m : mem) (b : block) (ofs : Z) (v : val) : Mem.mem.
+     Proof.
+       refine({|
                Mem.mem_contents := PMap.set b
                                             (Mem.setN (encode_val chunk v) ofs
-                                                      (Mem.mem_contents m) # b) 
+                                                      (Mem.mem_contents m) !! b) 
                                             (Mem.mem_contents m);
                Mem.mem_access := Mem.mem_access m;
                Mem.nextblock := Mem.nextblock m;
-               Mem.access_max := Memory.Mem.store_obligation_1 chunk m b ofs v x;
-               Mem.nextblock_noaccess := Memory.Mem.store_obligation_2 chunk m b ofs v
-                                                                       x;
-               Mem.contents_default := Memory.Mem.store_obligation_3 chunk m b ofs v x |}
-         | right _ => None
-         end
+               Mem.access_max := _;
+               Mem.nextblock_noaccess := _;
+               Mem.contents_default := _|}).
+       now apply Mem.access_max.
+       now apply Mem.nextblock_noaccess.
+       intros. unfold Mem.setN.
+       rewrite Maps.PMap.gsspec. destruct (Coqlib.peq b0 b).
+       rewrite Mem.setN_default. apply Mem.contents_default.
+       apply Mem.contents_default.
+     Qed.
      
      Inductive ext_step (genv:G) {tid0 tp m}
                (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
@@ -358,10 +394,11 @@ Module Concur.
            (Hcode: getThreadC cnt0 = Kblocked c)
            (Hat_external: at_external Sem c = Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
            (* install the thread's permissions on lock locations*)
-           (Hrestrict_pmap: restrPermMap (compat_thl Hcompat cnt0) = m1)
+           (Hrestrict_pmap: restrPermMap (proj2 (Hcompat tid0 cnt0)) = m1)
            (* check if the thread has permission to acquire the lock and the lock is free*)
            (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.one))
-           (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
+           (* acquire the lock*)
+           (Hstore: store_unsafe Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = m')
            (HisLock: lockRes tp (b, Int.intval ofs) = Some pmap)
            (* (Hangel: acqAngelSpec pmap (getThreadR cnt0) *)
            (*                    empty_map *)
@@ -385,9 +422,10 @@ Module Concur.
            (Hat_external: at_external Sem c =
                           Some (UNLOCK, ef_sig UNLOCK, Vptr b ofs::nil))
            (* install the thread's permissions on lock locations *) 
-           (Hrestrict_pmap: restrPermMap (compat_thl Hcompat cnt0) = m1)
+           (Hrestrict_pmap: restrPermMap (proj2 (Hcompat tid0 cnt0)) = m1)
            (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero))
-           (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.one) = Some m')
+           (* release the lock *)
+           (Hstore: store_unsafe Mint32 m1 b (Int.intval ofs) (Vint Int.one) = m')
            (HisLock: lockRes tp (b, Int.intval ofs) = Some pmap)
            (* (Hangel: relAngelSpec (getThreadR cnt0) pmap *)
            (*                    (computeMap (getThreadR cnt0) virtueThread) *)
@@ -434,7 +472,7 @@ Module Concur.
              (Hat_external: at_external Sem c =
                             Some (MKLOCK, ef_sig MKLOCK, Vptr b ofs::nil))
              (* install the thread's data permissions*)
-             (Hrestrict_pmap: restrPermMap (Hcompat tid0 cnt0) = m1)
+             (Hrestrict_pmap: restrPermMap (proj1 (Hcompat tid0 cnt0)) = m1)
              (* lock is created in acquired state*)
              (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
              (Hdata_perm: setPermBlock None b (Int.intval ofs) pmap_tid.1 LKSIZE_nat = pmap_tid'.1)
@@ -460,7 +498,7 @@ Module Concur.
            kind of lock - permission invariant*)
            (His_lock: lockRes tp (b, (Int.intval ofs)))
            (* Install the thread's lock permissions*)
-           (Hrestrict_pmap: restrPermMap (compat_thl Hcompat cnt0) = m1)
+           (Hrestrict_pmap: restrPermMap (proj2 (Hcompat tid0 cnt0)) = m1)
            (* To free the lock the thread must have at least Writable on it*)
            (Hfreeable: Mem.range_perm m1 b (Int.intval ofs) ((Int.intval ofs) + LKSIZE) Cur Writable)
            (* lock permissions of the thread are dropped to empty *)
@@ -480,7 +518,7 @@ Module Concur.
            (Hat_external: at_external Sem c =
                           Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
            (* Install the thread's lock permissions*)
-           (Hrestrict_pmap: restrPermMap (compat_thl Hcompat cnt0) = m1)
+           (Hrestrict_pmap: restrPermMap (proj2 (Hcompat tid0 cnt0)) = m1)
            (* Lock is already acquired.*)
            (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero)),
            ext_step genv cnt0 Hcompat tp m (failacq (b, Int.intval ofs)).
@@ -560,11 +598,10 @@ Module Concur.
            isCanonical (ThreadPool.getThreadR cnt).1 /\
            isCanonical (ThreadPool.getThreadR cnt).2.
              intros.
-             pose (HH:= compat_th H cnt);
-               pose (HH' := compat_thl H cnt);
+             destruct (compat_th H cnt);
                eauto using canonical_lt.
        Qed.
-
+(*
        (** *Invariant Lemmas*)
        Lemma initial_invariant: forall pmap c,
            invariant (initial_machine pmap c).
@@ -1017,9 +1054,9 @@ Module Concur.
         rewrite gsoThreadLPool; auto.
         }
     Qed. *)
-    
+     *)    
      End DryMachineLemmas.
-     
+
   End DryMachineShell.
   
 End Concur.

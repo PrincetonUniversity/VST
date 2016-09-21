@@ -331,6 +331,10 @@ Section permMapDefs.
       perm_union ((Maps.PMap.get b pmap1) ofs)
                  ((Maps.PMap.get b pmap2) ofs) = Some pu.
 
+  Definition permMapsDisjoint2 (pmap pmap': access_map * access_map) :=
+    permMapsDisjoint pmap.1 pmap'.1 /\
+    permMapsDisjoint pmap.2 pmap'.2.
+
   Lemma permDisjoint_permMapsDisjoint: forall r1 r2,
       (forall b ofs, permDisjoint (r1 !! b ofs) (r2 !! b ofs))->
       permMapsDisjoint r1 r2.
