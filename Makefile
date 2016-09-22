@@ -141,6 +141,23 @@ CONCUR_FILES= \
   reach_lemmas.v reestablish.v ret_lemmas.v lifting.v linking_inv.v linking_spec.v call_lemmas.v \
   machine_semantics.v machine_semantics_lemmas.v machine_simulation.v
 
+PACO_FILES= \
+  hpattern.v\
+  paco.v\
+  paco0.v\
+  paco1.v\
+  paco2.v\
+  paco3.v\
+  paco4.v\
+  paco5.v\
+  paco6.v\
+  paco7.v\
+  pacodef.v\
+  paconotation.v\
+  pacotac.v\
+  pacotacuser.v\
+  tutorial.v
+
 CCC26x86_FILES = \
   Archi.v Bounds.v Conventions1.v Conventions.v Separation.v \
   Decidableplus.v Locations.v Op.v Ordered.v Stacklayout.v Linear.v LTL.v \
@@ -370,7 +387,7 @@ endif
 msl:     .loadpath version.vo $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
 ccc26x86:   .loadpath $(CCC26x86_FILES:%.v=ccc26x86/%.vo)
-concurrency: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo)
+concurrency: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo) $(PACO_FILES:%.v=concurrency/paco/src/%.vo)
 linking: .loadpath $(LINKING_FILES:%.v=linking/%.vo) 
 veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
 floyd:   .loadpath $(FLOYD_FILES:%.v=floyd/%.vo)
@@ -461,7 +478,7 @@ depend-linking:
 	$(COQDEP) $(FILES) $(LINKING_FILES:%.v=linking/%.v) > .depend
 
 depend-concur:
-	$(COQDEP) > .depend-concur $(CONCUR_FILES:%.v=concurrency/%.v) $(CCC26x86_FILES:%.v=concurrency/%.v)
+	$(COQDEP) > .depend-concur $(CONCUR_FILES:%.v=concurrency/%.v) $(PACO_FILES:%.v=concurrency/paco/src/%.v) $(CCC26x86_FILES:%.v=concurrency/%.v)
 
 clean:
 	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) floyd/floyd.coq .loadpath .depend
