@@ -207,18 +207,18 @@ Module Concur.
          thread_data_lock_coh:
            forall i (cnti: containsThread tp i), 
              (forall j (cntj: containsThread tp j),
-                pmap_coh (getThreadR cntj).1 (getThreadR cnti).2) /\
+                permMapCoherence (getThreadR cntj).1 (getThreadR cnti).2) /\
              (forall laddr rmap,
                  lockRes tp laddr = Some rmap ->
-                 pmap_coh rmap.1 (getThreadR cnti).2);
+                 permMapCoherence rmap.1 (getThreadR cnti).2);
          locks_data_lock_coh:
            forall laddr rmap
              (Hres: lockRes tp laddr = Some rmap),
              (forall j (cntj: containsThread tp j),
-                 pmap_coh (getThreadR cntj).1 rmap.2) /\
+                 permMapCoherence (getThreadR cntj).1 rmap.2) /\
              (forall laddr' rmap',
                  lockRes tp laddr' = Some rmap' ->
-                 pmap_coh rmap'.1 rmap.2);
+                 permMapCoherence rmap'.1 rmap.2);
          lockRes_valid: lr_valid (lockRes tp) (*well-formed locks*)
        }.
 
@@ -302,18 +302,18 @@ Module Concur.
          thread_data_lock_coh:
            forall i (cnti: containsThread tp i), 
              (forall j (cntj: containsThread tp j),
-                pmap_coh (getThreadR cntj).1 (getThreadR cnti).2) /\
+                permMapCoherence (getThreadR cntj).1 (getThreadR cnti).2) /\
              (forall laddr rmap,
                  lockRes tp laddr = Some rmap ->
-                 pmap_coh rmap.1 (getThreadR cnti).2);
+                 permMapCoherence rmap.1 (getThreadR cnti).2);
          locks_data_lock_coh:
            forall laddr rmap
              (Hres: lockRes tp laddr = Some rmap),
              (forall j (cntj: containsThread tp j),
-                 pmap_coh (getThreadR cntj).1 rmap.2) /\
+                 permMapCoherence (getThreadR cntj).1 rmap.2) /\
              (forall laddr' rmap',
                  lockRes tp laddr' = Some rmap' ->
-                 pmap_coh rmap'.1 rmap.2);
+                 permMapCoherence rmap'.1 rmap.2);
          lockRes_valid: lr_valid (lockRes tp) (*well-formed locks*)
        }.
      Definition invariant := invariant'.

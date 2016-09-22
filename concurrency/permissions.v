@@ -64,7 +64,7 @@ Section permMapDefs.
     | Some Nonempty | None => True
     end.
 
-  Definition pmap_coh (pmap1 pmap2 : access_map) :=
+  Definition permMapCoherence (pmap1 pmap2 : access_map) :=
     forall b ofs, perm_coh (pmap1 !! b ofs) (pmap2 !! b ofs).
   
   (* Some None represents the empty permission. None is used for
