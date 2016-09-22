@@ -9,11 +9,12 @@ Require Import concurrency.paco.src.paco.
 
 Section safety_equivalence.
 
-  Parameter X Y:Type.
-  Parameter halted: X -> Y -> Prop.
-  Parameter int_step: X -> Y -> Y -> Prop.
-  Parameter ext_step: X -> Y -> X -> Y -> Prop.
-  Parameter valid: X -> Y -> Prop.
+  Context
+  ( X Y:Type)
+  ( halted: X -> Y -> Prop)
+  ( int_step: X -> Y -> Y -> Prop)
+  ( ext_step: X -> Y -> X -> Y -> Prop)
+  ( valid: X -> Y -> Prop).
 
   Axiom determinism:
     forall x y y',
@@ -60,7 +61,7 @@ Section safety_equivalence.
         pfold. inversion HH;
           [ econstructor 1; eauto |
             econstructor 2; eauto |
-            econstructor 3; eauto ]; intros x'' VAL'.  Guarded.
+            econstructor 3; eauto ]; intros x'' VAL'.  
       - cofix CO; intros x y HH. 
         inversion HH. inversion SIM;
           [ econstructor 1; eauto |
@@ -140,7 +141,7 @@ Section safety_equivalence.
           constructor; reflexivity.
           intros x' AA.
           right.
-          eapply CO; try assumption. Guarded.
+          eapply CO; try assumption. 
           specialize (LE _ _ (H0 _ AA)).
           destruct LE. 2: compute in *; tauto.
           unfold paco_exp_safety.
@@ -149,7 +150,7 @@ Section safety_equivalence.
           econstructor 3. eauto.
           intros x'0 AA.
           right.
-          eapply CO; try assumption. Guarded.
+          eapply CO; try assumption. 
           specialize (LE _ _ (H0 _ AA)).
           destruct LE. 2: compute in *; tauto.
           unfold paco_exp_safety.
@@ -171,7 +172,7 @@ Section safety_equivalence.
               pfold. econstructor 2. eassumption.
               intros x' AA.
               right.
-              eapply CO; try assumption. Guarded.
+              eapply CO; try assumption. 
               specialize (LE' _ _ (H0 _ AA)).
               destruct LE'; [ | compute in *; tauto].
               unfold paco_exp_safetyN.
@@ -192,7 +193,7 @@ Section safety_equivalence.
           econstructor 3. eauto.
           intros x'0 AA.
           right.
-          eapply CO; try assumption. Guarded.
+          eapply CO; try assumption. 
           specialize (LE _ _ (H0 _ AA)).
           destruct LE. 2: compute in *; tauto.
           unfold paco_exp_safety.
@@ -245,7 +246,7 @@ Section safety_equivalence.
         [ econstructor 1; eauto |
             econstructor 2; eauto |
             econstructor 3; eauto |
-            econstructor 4; eauto ]; intros x'' VAL'.  Guarded.
+            econstructor 4; eauto ]; intros x'' VAL'.  
     - cofix CO; intros cd x y HH. 
       inversion HH. inversion SIM;
         [ econstructor 1; eauto |

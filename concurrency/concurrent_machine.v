@@ -17,6 +17,8 @@ Require Import Coq.Program.Program.
 
 Require Import concurrency.safety.
 
+Require Import concurrency.coinductive_safety.
+
 (* This module represents the arguments
    to build a CoreSemantics with 
    compcert mem. This is used by BOTH
@@ -826,14 +828,21 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   Proof. by move => ? ? ? H ? ? ?; apply: safety_equivalence'; try apply: H. Qed.
 
   (** *I further create a different type of safety that discriminates non-determinism*)
-  CoInductive explicit_safety ge (U:Sch) (st:machine_state) (m:mem): Prop:=
+
+  Definition explicit_safety ge (U:Sch) (st:machine_state) (m:mem): Prop:=
+    exp_safety _ _ (fun U stm => halted (U, nil, fst stm))
+                   (fun U stm stm' => @internal_step ge U (fst stm) (snd stm) (fst stm') (snd stm')) 
+                   (fun U stm U' stm' => @external_step ge U nil (fst stm) (snd stm) U' nil (fst stm') (snd stm'))
+                   (fun U stm => @new_valid (nil,fst stm, snd stm) U) U (st,m).
+  
+  (*CoInductive explicit_safety ge (U:Sch) (st:machine_state) (m:mem): Prop:=
   | halted_safety : halted (U, nil, st) -> explicit_safety ge U st m
   | internal_safety st' m': @internal_step ge U st m st' m' ->
                             (forall U', new_valid (nil, st', m') U' -> explicit_safety ge U' st' m') ->
                             explicit_safety ge U st m
   | external_safety U' st' m': @external_step ge U nil st m U' nil st' m' ->
                             (forall U', new_valid (nil, st', m') U' -> explicit_safety ge U' st' m') ->
-                            explicit_safety ge U st m.
+                            explicit_safety ge U st m.*)
 
   (*BUT, this is basically the same safety!!! *)
   Lemma safety_equivalence21: forall ge st m,
@@ -849,13 +858,15 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     move: H; rewrite /mk_nstate /= => stp.
     inversion stp; subst.
     - move: H6; rewrite /mk_ostate /= => hltd.
-      apply: (halted_safety _ _ _ _ hltd).
+      eapply (halted_safety); simpl; assumption. 
     - destruct st' as [[tr tp] m'].
       move: H H0; rewrite /mk_ostate /MachStep /= => HH.
       move: HH (HH)  => /trace_nil [] ? -> /step_equivalence1 [[] -> [] ? istp | estp] sns_all'.
-      + eapply (internal_safety _ _ _ _ _ _ istp).
+      + eapply (internal_safety).
+        instantiate (1:=(tp,m')); simpl. exact istp.
         eapply safety_equivalence21 => //.
-      + eapply (external_safety _ _ _ _ _ _ _ estp).
+      + eapply (external_safety).
+        instantiate (1:=(tp,m')); simpl. exact estp.
         eapply safety_equivalence21 => //.
   Qed.
 
@@ -865,6 +876,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
       (forall U, new_valid (nil, st, m) U ->
              safe_new_step ge (U, nil, st) m).
   Proof.
+    (*
     move => ge.
     cofix.
     move =>  st m es_all U /es_all es.
@@ -888,8 +900,9 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
         instantiate(1:=U').
         simpl => //.
       + rewrite /mk_nstate /= => U'' VAL.
-        apply: safety_equivalence22 => //.   
-  Qed.
+        apply: safety_equivalence22 => //. 
+     *)
+    Admitted.
 
   Lemma safety_equivalence2: forall ge st m,
       (forall U, new_valid (nil, st, m) U ->
@@ -906,9 +919,16 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     Context {core_data: Type}
             {core_ord : core_data -> core_data -> Prop}
             (core_ord_wf : well_founded core_ord).
-    Axiom EM : ClassicalFacts.excluded_middle.
-    
-    CoInductive explicit_safety_stutter' ge (cd:core_data) (U:Sch) (st:machine_state) (m:mem): Prop:=
+
+    Definition stutter_stepN_safety ge cd (U:Sch) (st:machine_state) (m:mem): Prop:=
+    @exp_safetyN_stutter _ _ (fun U stm => halted (U, nil, fst stm))
+                   (fun U stm stm' => @internal_step ge U (fst stm) (snd stm) (fst stm') (snd stm')) 
+                   (fun U stm U' stm' => @external_step ge U nil (fst stm) (snd stm) U' nil (fst stm') (snd stm'))
+                   (fun U stm => @new_valid (nil,fst stm, snd stm) U)
+                   core_data core_ord
+                   cd U (st,m).
+      
+    (*CoInductive explicit_safety_stutter' ge (cd:core_data) (U:Sch) (st:machine_state) (m:mem): Prop:=
     | exp_safety : explicit_safety ge U st m -> explicit_safety_stutter' ge cd U st m
     | stutter' cd': explicit_safety_stutter' ge cd' U st m ->
                    core_ord cd' cd ->
@@ -924,35 +944,39 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
                                  explicit_safety_stutter ge cd U st m
     | stutter cd': explicit_safety_stutter ge cd' U st m ->
                    core_ord cd' cd ->
-                   explicit_safety_stutter ge cd U st m.
+                   explicit_safety_stutter ge cd U st m.*)
 
     Variable default: core_data.
 
-    
+    (*This lemma is not needed but it's cool
+      How come the standard library doesn't have it!? *)
     Lemma weak_well_founded_induction:
       forall (A : Type) (R : A -> A -> Prop),
+      (forall P, P \/ ~P) ->
         well_founded R ->
         forall P : A -> Prop,
           (forall x: A, ~ (exists y:A, R y x) -> P x) ->
           (forall x : A, (exists y : A, R y x /\ P y) -> P x) ->
           forall a : A, P a.
     Proof.
-      move => A R WF P base ind a.
+      move => A R EM WF P base ind a.
       specialize (WF a).
       induction WF.
-      specialize (EM (exists y: A, R y x)) ; move => [[]y Ryx | is_base ].
+      generalize (EM (exists y: A, R y x)) ; move => [[]y Ryx | is_base ].
       - by apply: ind; exists y; split; auto.
       - by apply: base.
     Qed.
-    
+
+
+    (*
     Lemma safety_equivalence_stutter':
       forall ge U st m,
-        (explicit_safety ge U st m) <-> (exists cd, explicit_safety_stutter' ge cd U st m).
+        (explicit_safety ge U st m) <-> (exists cd, stutter_stepN_safety ge cd U st m).
     Proof.
       split.
       (* -> *)
       - move => AA; exists default.
-        inversion AA; apply: exp_safety => //.
+        inversion AA. apply: exp_safety => //.
       (* <- *)
       - move=> [] cd; move: ge U st m.
         eapply well_founded_ind with (a:=cd)=>//.
@@ -962,7 +986,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
 
   Lemma safety_equivalence_stutter:
       forall ge U st m,
-        (explicit_safety ge U st m) <-> (exists cd, explicit_safety_stutter ge cd U st m).
+        (explicit_safety ge U st m) <-> (exists cd, stutter_stepN_safety ge cd U st m).
     Proof.
       split.
       (* -> *)
@@ -996,7 +1020,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
         
         
         eapply H; eauto.
-    Qed.
+    Qed. *)
     End newer_semantics_with_stutter.
 
   End new_safety.
