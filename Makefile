@@ -138,7 +138,7 @@ CONCUR_FILES= \
   aging_lemmas.v resource_decay_lemmas.v \
   resource_decay_join.v join_lemmas.v coqlib5.v age_to.v \
   konig.v safety.v \
-  reach_lemmas.v reestablish.v ret_lemmas.v lifting.v linking_inv.v linking_spec.v call_lemmas.v \
+  reach_lemmas.v reestablish.v ret_lemmas.v lifting.v lifting_safety.v linking_inv.v linking_spec.v call_lemmas.v \
   machine_semantics.v machine_semantics_lemmas.v machine_simulation.v \
   coinductive_safety.v
 
