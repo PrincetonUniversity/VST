@@ -387,7 +387,8 @@ endif
 msl:     .loadpath version.vo $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
 ccc26x86:   .loadpath $(CCC26x86_FILES:%.v=ccc26x86/%.vo)
-concurrency: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo) $(PACO_FILES:%.v=concurrency/paco/src/%.vo)
+concurrency: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo)
+paco: .loadpath $(PACO_FILES:%.v=concurrency/paco/src/%.vo)
 linking: .loadpath $(LINKING_FILES:%.v=linking/%.vo) 
 veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
 floyd:   .loadpath $(FLOYD_FILES:%.v=floyd/%.vo)
@@ -479,6 +480,9 @@ depend-linking:
 
 depend-concur:
 	$(COQDEP) > .depend-concur $(CONCUR_FILES:%.v=concurrency/%.v) $(PACO_FILES:%.v=concurrency/paco/src/%.v) $(CCC26x86_FILES:%.v=concurrency/%.v)
+
+depend-paco:
+	$(COQDEP) > .depend-concur $(PACO_FILES:%.v=concurrency/paco/src/%.v)
 
 clean:
 	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) floyd/floyd.coq .loadpath .depend
