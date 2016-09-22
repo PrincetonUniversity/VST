@@ -337,7 +337,7 @@ Section safety_equivalence.
           (core_ord_wf: well_founded core_ord)
           (default: core_data).
   
-  Theorem stutter_stepN_equiv:
+  Theorem safety_stutter_stepN_equiv:
     forall x y,
       valid x y ->
       exp_safety x y <-> exists cd, @exp_safetyN_stutter _ core_ord cd x y.
