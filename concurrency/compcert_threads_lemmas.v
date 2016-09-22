@@ -1,4 +1,4 @@
-(** DryConc to FineConc simulation*)
+(** * DryConc to FineConc simulation*)
 
 Require Import compcert.lib.Axioms.
 
@@ -76,7 +76,7 @@ Module SimDefs (SEM: Semantics)
   (** Simulations between individual threads. *)
   
   (* Consider hiding thread_pool completely *)
-  (* The weak simulation is required to prove the correctness of
+  (** The weak simulation is required to prove the correctness of
   concurrent calls. In particular, suppose that a thread executes an
   external call, this thread will be "synchronized" meaning that its
   permissions will be equal between the two machines. When the angel
@@ -85,20 +85,26 @@ Module SimDefs (SEM: Semantics)
   something about those threads as well. The fact that the permissions
   of the coarse grained machine are above the ones on the fine is
   enough to establish non-interference for the fine grained machine *)
-  Definition weak_tsim {tpc tpf : thread_pool} (mc mf : Mem.mem)
+  Record weak_tsim {tpc tpf : thread_pool} (mc mf : Mem.mem)
              {i} (f: memren) (pfc : containsThread tpc i)
              (pff : containsThread tpf i) (compc: mem_compatible tpc mc)
              (compf: mem_compatible tpf mf) : Prop :=
-    weak_mem_obs_eq f (restrPermMap  (compc i pfc))
-                    (restrPermMap (compf i pff)).
+    { weak_tsim_data:
+        weak_mem_obs_eq f (restrPermMap (proj1 (compc i pfc)))
+                        (restrPermMap (proj1 (compf i pff)));
+      weak_tsim_locks:
+        weak_mem_obs_eq f (restrPermMap (proj2 (compc i pfc)))
+                        (restrPermMap (proj2 (compf i pff)))}.
   
   Record strong_tsim {tpc tpf : thread_pool} (mc mf : Mem.mem) {i}
          (f: memren) (pfc : containsThread tpc i)
          (pff : containsThread tpf i) (compc: mem_compatible tpc mc)
          (compf: mem_compatible tpf mf) : Prop :=
     { code_eq: ctl_inj f (getThreadC pfc) (getThreadC pff);
-      obs_eq: mem_obs_eq f (restrPermMap (compc i pfc))
-                         (restrPermMap (compf i pff))
+      obs_eq_data: mem_obs_eq f (restrPermMap ((proj1 (compc i pfc))))
+                         (restrPermMap (proj1 (compf i pff)));
+      obs_eq_locks: mem_obs_eq f (restrPermMap ((proj2 (compc i pfc))))
+                         (restrPermMap (proj2 (compf i pff)));                              
     }.
   
   (** Simulation relation between a "coarse-grain" 
