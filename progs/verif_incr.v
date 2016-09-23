@@ -11,51 +11,8 @@ Definition release_spec := DECLARE _release release_spec.
 Definition makelock_spec := DECLARE _makelock (makelock_spec _).
 Definition freelock_spec := DECLARE _freelock (freelock_spec _).
 Definition spawn_spec := DECLARE _spawn_thread spawn_spec.
-
-Definition rec_inv v R := exists Q sh, Interp R = (Q * lock_inv sh v (Interp (Later R))).
-
-Lemma selflock_rec : forall sh v R, rec_inv v (Self_lock R sh v).
-Proof.
-  intros; unfold rec_inv.
-  exists (Interp R), sh; simpl.
-  apply selflock_eq.
-Qed.
-
-Lemma lock_inv_later_eq : forall sh v R, |> lock_inv sh v R = lock_inv sh v (|> R).
-Proof.
-Admitted.
-
-Lemma later_rec : forall v R, rec_inv v R -> rec_inv v (Later R).
-Proof.
-  unfold rec_inv; intros.
-  destruct H as (Q & sh & H); exists (|> Q), sh; simpl.
-  rewrite H at 1.
-  rewrite later_sepcon, lock_inv_later_eq; auto.
-Qed.
-
-Definition freelock2_spec :=
-  DECLARE _freelock2
-   WITH v : val, R : Pred
-   PRE [ _lock OF tptr tlock ]
-     PROP (positive_mpred (Interp R); rec_inv v R)
-     LOCAL (temp _lock v)  
-     SEP (lock_inv Ews v (Interp R))
-   POST [ tvoid ]
-     PROP ()
-     LOCAL ()
-     SEP (data_at_ Ews tlock v).
-
-Definition release2_spec :=
-  DECLARE _release2
-   WITH v : val, sh : share, R : Pred
-   PRE [ _lock OF tptr tlock ]
-     PROP (readable_share sh; precise (Interp R); positive_mpred (Interp R); rec_inv v R)
-     LOCAL (temp _lock v)
-     SEP (Interp R)
-   POST [ tvoid ]
-     PROP ()
-     LOCAL ()
-     SEP (emp).
+Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
+Definition release2_spec := DECLARE _release2 release2_spec.
 
 Definition cptr_lock_inv lock sh ctr := lock_inv sh lock
   (EX z : Z, data_at Ews (tarray tint 1) [Vint (Int.repr z)] ctr).
@@ -466,7 +423,7 @@ Proof.
   Intro z.
   forward_call (gvar0, sh2, lock_pred gvar2).
   { unfold cptr_lock_inv; simpl; entailer!. }
-  forward_call (gvar1, thread_lock_pred' sh1 gvar2 gvar0 gvar1).
+  forward_call (gvar1, Ews, thread_lock_pred' sh1 gvar2 gvar0 gvar1).
   { subst Frame; instantiate (1 := [cptr_lock_inv gvar0 Ews gvar2; Interp (lock_pred gvar2)]); simpl; cancel.
     rewrite selflock_eq at 2.
     rewrite sepcon_assoc, <- (sepcon_assoc (lock_inv _ gvar1 _)), (sepcon_comm (lock_inv _ gvar1 _)).
@@ -476,7 +433,7 @@ Proof.
     eapply derives_trans.
     { apply sepcon_derives; [apply lock_inv_later | apply derives_refl]. }
     erewrite lock_inv_join; eauto; unfold rec_inv; entailer. }
-  { split.
+  { split; auto; split.
     - apply later_positive, selflock_positive, lock_inv_positive.
     - apply later_rec, selflock_rec. }
   forward_call (gvar0, Ews, lock_pred gvar2).
@@ -490,6 +447,24 @@ Definition extlink := ext_link_prog prog.
 Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
 Existing Instance Espec.
 
+(* For an external function returning void to typecheck, its postcondition must
+   ensure that it does not return anything (i.e., ret_temp does not map to anything).
+   For instance, we could write:
+
+Definition acquire_spec :=
+   WITH v : val, sh : share, R : Pred
+   PRE [ _lock OF tptr tlock ]
+     PROP (readable_share sh)
+     LOCAL (temp _lock v)
+     SEP (lock_inv sh v (Interp R))
+   POST [ tvoid ]
+     (PROP ()
+      LOCAL ()
+      SEP (lock_inv sh v (Interp R); Interp R) &&
+      fun phi => match phi with mkEnviron _ _ e => !!(e = Map.remove ret_temp e) end).
+
+  However, there is no way to do this in PROP-LOCAL-SEP form, so this would break
+  forward_call. *)
 Lemma all_funcs_correct:
   semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.

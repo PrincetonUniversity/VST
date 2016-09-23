@@ -30,6 +30,7 @@ Set Bullet Behavior "Strict Subproofs".
 Definition _f := 1%positive.      (* alpha-convertible *)
 Definition _args := 2%positive.   (* alpha-convertible *)
 Definition _lock := 1%positive.   (* alpha-convertible *)
+Definition _cond := 2%positive.   (* alpha-convertible *)
 Definition _lock_t := 3%positive. (* 2 (* 3 -WM *) is the number given by
 clightgen when threads.h is included first *)
 
@@ -295,6 +296,97 @@ Definition freelock_spec cs :=
      PROP ()
      LOCAL ()
      SEP (@data_at_ cs sh tlock v; Interp R).
+
+(* versions that give away all their resources *)
+Definition rec_inv v R := exists Q sh, Interp R = (Q * lock_inv sh v (Interp (Later R)))%logic.
+
+Lemma selflock_rec : forall sh v R, rec_inv v (Self_lock R sh v).
+Proof.
+  intros; unfold rec_inv.
+  exists (Interp R), sh; simpl.
+  apply selflock_eq.
+Qed.
+
+Lemma lock_inv_later_eq : forall sh v R, (|> lock_inv sh v R = lock_inv sh v (|> R))%logic.
+Proof.
+Admitted.
+
+Lemma later_rec : forall v R, rec_inv v R -> rec_inv v (Later R).
+Proof.
+  unfold rec_inv; intros.
+  destruct H as (Q & sh & H); exists (|> Q)%logic, sh; simpl.
+  rewrite H at 1.
+  rewrite later_sepcon, lock_inv_later_eq; auto.
+Qed.
+
+Definition freelock2_spec cs :=
+   WITH v : val, sh : share, R : Pred
+   PRE [ _lock OF tptr tlock ]
+     PROP (writable_share sh; positive_mpred (Interp R); rec_inv v R)
+     LOCAL (temp _lock v)
+     SEP (lock_inv sh v (Interp R))
+   POST [ tvoid ]
+     PROP ()
+     LOCAL ()
+     SEP (@data_at_ cs sh tlock v).
+
+Definition release2_spec :=
+   WITH v : val, sh : share, R : Pred
+   PRE [ _lock OF tptr tlock ]
+     PROP (readable_share sh; precise (Interp R); positive_mpred (Interp R); rec_inv v R)
+     LOCAL (temp _lock v)
+     SEP (Interp R)
+   POST [ tvoid ]
+     PROP ()
+     LOCAL ()
+     SEP (emp).
+
+(* condition variables *)
+Definition makecond_spec cs :=
+   WITH v : val, sh : share
+   PRE [ _cond OF tptr tcond ]
+     PROP (writable_share sh)
+     LOCAL (temp _cond v)
+     SEP (@data_at_ cs sh tcond v)
+   POST [ tvoid ]
+     PROP ()
+     LOCAL ()
+     SEP (cond_var sh v).
+
+Definition freecond_spec cs :=
+   WITH v : val, sh : share
+   PRE [ _cond OF tptr tcond ]
+     PROP (writable_share sh)
+     LOCAL (temp _cond v)
+     SEP (@cond_var cs sh v)
+   POST [ tvoid ]
+     PROP ()
+     LOCAL ()
+     SEP (@data_at_ cs sh tcond v).
+
+Definition wait_spec cs :=
+   WITH c : val, l : val, shc : share, shl : share, R : Pred
+   PRE [ _cond OF tptr tcond, _lock OF tptr tlock ]
+     PROP (readable_share shc)
+     LOCAL (temp _cond c; temp _lock l)
+     SEP (@cond_var cs shc c; lock_inv shl l (Interp R); Interp R)
+   POST [ tvoid ]
+     PROP ()
+     LOCAL ()
+     SEP (cond_var shc c; lock_inv shl l (Interp R); Interp R).
+
+Definition signal_spec cs :=
+   WITH c : val, shc : share
+   PRE [ _cond OF tptr tcond ]
+     PROP (readable_share shc)
+     LOCAL (temp _cond c)
+     SEP (@cond_var cs shc c)
+   POST [ tvoid ]
+     PROP ()
+     LOCAL ()
+     SEP (@cond_var cs shc c).
+
+
 
 (* Notes about spawn_thread:
 
