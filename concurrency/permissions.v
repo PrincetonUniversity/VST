@@ -243,6 +243,7 @@ Section permMapDefs.
     intros. unfold getCurPerm. by rewrite Maps.PMap.gmap.
   Qed.
 
+
   Definition permDisjoint p1 p2:=
     exists pu : option permission,
       perm_union p1 p2 = Some pu.
@@ -573,7 +574,23 @@ Section permMapDefs.
     unfold Maps.PMap.get in Hlt.
     rewrite Hp' in Hlt.
     destruct (p'.1 ofs); tauto.
-  Qed.  
+  Qed.
+
+   Lemma invalid_block_empty:
+    forall pmap m
+      (Hlt: permMapLt pmap (getMaxPerm m)),
+    forall b, ~ Mem.valid_block m b ->
+         forall ofs,
+           pmap !! b ofs = None.
+  Proof.
+    intros.
+    apply Mem.nextblock_noaccess with (ofs := ofs) (k := Max) in H.
+    specialize (Hlt b ofs).
+    rewrite getMaxPerm_correct in Hlt.
+    unfold permission_at in Hlt.
+    rewrite H in Hlt. simpl in Hlt.
+    destruct (pmap !! b ofs); [by exfalso | reflexivity].
+  Qed.
     
   Definition setPerm (p : option permission) (b : block)
              (ofs : Z) (pmap : access_map) : access_map :=

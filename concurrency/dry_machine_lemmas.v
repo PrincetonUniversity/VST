@@ -821,9 +821,51 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
       }
     Qed.
 
+    (** A corestep cannot change the contents of memory locations where permission is not above [Readable]*)
+    Lemma corestep_stable_val:
+      forall ge c c' m m' pmap1 pmap2
+        (Hlt1: permMapLt pmap1 (getMaxPerm m))
+        (Hlt2: permMapLt pmap2 (getMaxPerm m))
+        (Hdisjoint: permMapsDisjoint pmap1 pmap2 \/ permMapCoherence pmap1 pmap2)
+        (Hstep: corestep Sem ge c (restrPermMap Hlt1) c' m'),
+      forall b ofs (Hreadable: Mem.perm (restrPermMap Hlt2) b ofs Cur Readable),
+        Maps.ZMap.get ofs (Mem.mem_contents m) # b =
+        Maps.ZMap.get ofs (Mem.mem_contents m') # b.
+    Proof.
+      intros.
+      (** By disjoitness/coherence it must be that pmap1 has at most [Readable]
+      permission on [(b,ofs)]*)
+      assert (Hstable: ~ Mem.perm (restrPermMap Hlt1) b ofs Cur Writable).
+      { intros Hcontra.
+        assert (Hperm1 := restrPermMap_Cur Hlt1 b ofs).
+        assert (Hperm2 := restrPermMap_Cur Hlt2 b ofs).
+        unfold permission_at, Mem.perm in *.
+        rewrite Hperm1 in Hcontra.
+        rewrite Hperm2 in Hreadable.
+        unfold Mem.perm_order' in *.
+        (** Either [pmap1] is disjoint from [pmap2] or there is [permMapCoherence] relation between them*)
+        destruct Hdisjoint as [Hdisjoint | Hdisjoint];
+          specialize (Hdisjoint b ofs);
+          destruct (pmap1 # b ofs) as [p1 |]; destruct (pmap2 # b ofs) as [p2 |]; try (by exfalso);
+            destruct p1; (try by inversion Hcontra); destruct p2; try (by inversion Hreadable);
+              simpl in Hdisjoint; destruct Hdisjoint as [? ?];
+                by discriminate.
+      }
+      apply corestep_unchanged_on with (b := b) (ofs := ofs) in Hstep; auto.
+      erewrite restrPermMap_valid.
+      destruct (valid_block_dec m b); auto.
+      apply invalid_block_empty with (pmap := pmap2) (ofs := ofs) in n; auto.
+      unfold Mem.perm in Hreadable.
+      pose proof (restrPermMap_Cur Hlt2 b ofs) as Heq.
+      unfold permission_at in Heq.
+      rewrite Heq in Hreadable.
+      rewrite n in Hreadable.
+      simpl; by exfalso.
+    Qed.
+        
     (** If some thread has permission above readable on some address then
     stepping another thread cannot change the value of that location*)
-    Lemma corestep_disjoint_val:
+    Corollary corestep_disjoint_val:
       forall (tp : thread_pool) ge (m m' : mem) i j (Hneq: i <> j)
         (c c' : C) 
         (pfi : containsThread tp i) (pfj : containsThread tp j)
@@ -836,62 +878,10 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
     Proof.
       intros.
-      assert (Hstable: ~ Mem.perm (restrPermMap (proj1 (Hcomp _ pfi)))
-                         b ofs Cur Writable).
-      { intros Hcontra.
-        assert (Hpermi := restrPermMap_Cur (proj1 (Hcomp _ pfi)) b ofs).
-        assert (Hpermj := restrPermMap_Cur (proj1 (Hcomp _ pfj)) b ofs).
-        assert (Hpermj_2 := restrPermMap_Cur (proj2 (Hcomp _ pfj)) b ofs).
-        unfold permission_at, Mem.perm in *.
-        rewrite Hpermj Hpermj_2 in Hreadable.
-        rewrite Hpermi in Hcontra.
-        unfold Mem.perm_order' in *.
-        (* We look at the 2 cases for the permission of j*)
-        destruct Hreadable as [Hreadable | Hreadable].
-        - (* thread j has a data permission on (b, ofs), then by disjointness
-          invariant we have a contradition*)
-          destruct (no_race_thr Hinv pfi pfj Hneq) as [Hdisjoint _].
-          clear - Hcontra Hreadable Hdisjoint.
-          specialize (Hdisjoint b ofs). destruct Hdisjoint as [pu Hunion].
-          destruct ((getThreadR pfi).1 # b ofs);
-            try (exfalso; assumption);
-            inversion Hcontra; subst; simpl in Hunion;
-              destruct ((getThreadR pfj).1 # b ofs);
-              try match goal with
-                  | [H: Some _ = Some _ |- _] => inversion H; subst
-                  | [H: match ?Expr with _ => _ end = _ |- _] => destruct Expr
-                  end; try discriminate; inversion Hreadable.
-        - (* thread j has a lock permission on (b, ofs), then by coherence
-          between lock and data permissions*)
-          pose proof ((proj1 (thread_data_lock_coh Hinv pfj)) i pfi b ofs) as Hcoh.
-          clear - Hcontra Hreadable Hcoh.
-          destruct ((getThreadR pfi).1 # b ofs) as [p|]; try (by exfalso);
-            destruct p; simpl in *; try (by inversion Hcontra);
-              destruct ((getThreadR pfj).2 # b ofs); now auto.
-      }
-      apply corestep_unchanged_on with (b := b) (ofs := ofs) in Hcorestep; auto.
-      erewrite restrPermMap_valid.
-      destruct (valid_block_dec m b); auto.
-      apply Mem.nextblock_noaccess with (ofs := ofs) (k := Max) in n.
-      destruct Hreadable as [Hreadable | Hreadable].
-      - assert (Hlt := proj1 (Hcomp _ pfj) b ofs).
-        rewrite getMaxPerm_correct in Hlt.
-        assert (Heq:= restrPermMap_Cur (proj1 (Hcomp j pfj)) b ofs).
-        unfold permission_at in *.
-        unfold Mem.perm in *.
-        rewrite Heq in Hreadable.
-        rewrite n in Hlt.
-        destruct ((getThreadR pfj).1 # b ofs); simpl in *;
-          by exfalso.
-      - assert (Hlt := proj2 (Hcomp _ pfj) b ofs).
-        rewrite getMaxPerm_correct in Hlt.
-        assert (Heq:= restrPermMap_Cur (proj2 (Hcomp j pfj)) b ofs).
-        unfold permission_at in *.
-        unfold Mem.perm in *.
-        rewrite Heq in Hreadable.
-        rewrite n in Hlt.
-        destruct ((getThreadR pfj).2 # b ofs); simpl in *;
-          by exfalso.
+      destruct Hinv.
+      destruct Hreadable;
+        eapply corestep_stable_val; eauto;
+          [left; eapply no_race_thr0; eauto| right; eapply (proj1 (thread_data_lock_coh0 j pfj)); eauto].
     Qed.
 
     (** If some lock has permission above [Readable] on some address then
@@ -911,61 +901,10 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
     Proof.
       intros.
-      assert (Hstable: ~ Mem.perm (restrPermMap (proj1 (Hcomp _ pfi)))
-                         b ofs Cur Writable).
-      { intros Hcontra.
-        assert (Hpermi := restrPermMap_Cur (proj1 (Hcomp _ pfi)) b ofs).
-        assert (Hpermls := restrPermMap_Cur ((proj1 (compat_lp Hcomp _ Hlock))) b ofs).
-        assert (Hpermls2 := restrPermMap_Cur ((proj2 (compat_lp Hcomp _ Hlock))) b ofs).
-        unfold permission_at, Mem.perm in *.
-        rewrite Hpermi in Hcontra.
-        rewrite Hpermls Hpermls2 in Hreadable.
-        unfold Mem.perm_order' in *.
-        (* by case analysis on whether addr has a lock or data permission on (b,ofs)*)
-        destruct Hreadable as [Hreadable | Hreadable].
-        - (*by disjointness between thread and lockpool data*)
-          assert (Hdisjoint := proj1 (no_race Hinv _ pfi Hlock) b ofs).
-          clear - Hcontra Hreadable Hdisjoint.
-          destruct Hdisjoint as [pu Hunion].
-          destruct ((getThreadR pfi).1 # b ofs);
-            try (exfalso; assumption);
-            inversion Hcontra; subst; simpl in *;
-              destruct (pmap.1 # b ofs); simpl in *;
-                try match goal with
-                    | [H: Some _ = Some _ |- _] => inversion H; subst
-                    | [H: match ?Expr with _ => _ end = _ |- _] => destruct Expr
-                    end; try discriminate; inversion Hreadable.
-        - (* by coherence of lock and data permissions *)
-          assert (Hcoh := proj1 (locks_data_lock_coh Hinv addr Hlock) _ pfi).
-          clear - Hcoh Hcontra Hreadable.
-          specialize (Hcoh b ofs).
-          destruct (pmap.2 !! b ofs) as [p|], ((getThreadR pfi).1 !! b ofs) as [p0|];
-            try (by exfalso); destruct p, p0; simpl in *;
-              by (exfalso || inversion Hcontra || inversion Hreadable).
-      }
-      apply corestep_unchanged_on with (b := b) (ofs := ofs) in Hcorestep; auto.
-      erewrite restrPermMap_valid.
-      destruct (valid_block_dec m b); auto.
-      apply Mem.nextblock_noaccess with (ofs := ofs) (k := Max) in n.
-      destruct Hreadable as [Hreadable | Hreadable].
-      - assert (Hlt := (proj1 (compat_lp Hcomp _ Hlock) b ofs)).
-        rewrite getMaxPerm_correct in Hlt.
-        assert (Heq:= restrPermMap_Cur (proj1 (compat_lp Hcomp _ Hlock)) b ofs).
-        unfold permission_at in *.
-        unfold Mem.perm in *.
-        rewrite Heq in Hreadable.
-        rewrite n in Hlt.
-        destruct (pmap.1 # b ofs); simpl in *;
-          by exfalso.
-      - assert (Hlt := proj2 (compat_lp Hcomp _ Hlock) b ofs).
-        rewrite getMaxPerm_correct in Hlt.
-        assert (Heq:= restrPermMap_Cur (proj2 (compat_lp Hcomp _ Hlock)) b ofs).
-        unfold permission_at in *.
-        unfold Mem.perm in *.
-        rewrite Heq in Hreadable.
-        rewrite n in Hlt.
-        destruct (pmap.2 # b ofs); simpl in *;
-          by exfalso.
+      destruct Hinv.
+      destruct Hreadable;
+        eapply corestep_stable_val; eauto;
+          [left; eapply no_race0; eauto| right; eapply (proj1 (locks_data_lock_coh0 addr _ Hlock)); eauto].
     Qed.
     
 End CoreLanguageDry.
