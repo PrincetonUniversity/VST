@@ -257,11 +257,16 @@ Ltac semax_func_cons_ext :=
   eapply semax_func_cons_ext;
     [reflexivity | reflexivity | reflexivity | reflexivity 
     | semax_func_cons_ext_tc 
-    | solve[ eapply semax_ext; 
+    | solve[ first [eapply semax_ext; 
           [ repeat first [reflexivity | left; reflexivity | right]
           | apply compute_funspecs_norepeat_e; reflexivity 
           | reflexivity 
-          | reflexivity ]] 
+          | reflexivity ] || 
+                    eapply semax_ext_void; 
+          [ repeat first [reflexivity | left; reflexivity | right]
+          | apply compute_funspecs_norepeat_e; reflexivity 
+          | reflexivity 
+          | reflexivity ]]] 
       || fail "Try 'eapply semax_func_cons_ext.'" 
               "To solve [semax_external] judgments, do 'eapply semax_ext.'"
               "Make sure that the Espec declared using 'Existing Instance' 

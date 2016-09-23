@@ -127,13 +127,37 @@ CONCUR_FILES= \
   lksize.v \
   main.v mem_obs_eq.v memory_lemmas.v permissions.v pos.v pred_lemmas.v \
   rc_semantics.v rc_semantics_lemmas.v \
-  scheduler.v semax_conc.v semax_to_juicy_machine.v \
-  sepcomp.v seq_lemmas.v ssromega.v stack.v \
+  scheduler.v sepcomp.v seq_lemmas.v ssromega.v stack.v \
   threadPool.v threads_lemmas.v wf_lemmas.v \
-  x86_inj.v x86_safe.v x86_context.v fineConc_x86.v executions.v \
-  SC_erasure.v sync_preds.v join_lemmas.v coqlib5.v age_to.v \
+  x86_inj.v x86_safe.v x86_context.v fineConc_x86.v executions.v SC_erasure.v \
+  sync_preds_defs.v sync_preds.v \
+  semax_conc.v semax_to_juicy_machine.v \
+  semax_invariant.v semax_initial.v \
+  semax_simlemmas.v cl_step_lemmas.v \
+  semax_progress.v semax_preservation.v \
+  aging_lemmas.v resource_decay_lemmas.v \
+  resource_decay_join.v join_lemmas.v coqlib5.v age_to.v \
   konig.v safety.v \
-  reach_lemmas.v reestablish.v ret_lemmas.v lifting.v linking_inv.v linking_spec.v call_lemmas.v
+  reach_lemmas.v reestablish.v ret_lemmas.v lifting.v lifting_safety.v linking_inv.v linking_spec.v call_lemmas.v \
+  machine_semantics.v machine_semantics_lemmas.v machine_simulation.v \
+  coinductive_safety.v
+
+PACO_FILES= \
+  hpattern.v\
+  paco.v\
+  paco0.v\
+  paco1.v\
+  paco2.v\
+  paco3.v\
+  paco4.v\
+  paco5.v\
+  paco6.v\
+  paco7.v\
+  pacodef.v\
+  paconotation.v\
+  pacotac.v\
+  pacotacuser.v\
+  tutorial.v
 
 CCC26x86_FILES = \
   Archi.v Bounds.v Conventions1.v Conventions.v Separation.v \
@@ -193,14 +217,15 @@ FLOYD_FILES= \
 
 
 PROGS_FILES= \
-  list_dt.v verif_reverse.v verif_queue.v verif_queue2.v verif_sumarray.v \
+  bin_search.v list_dt.v verif_reverse.v verif_queue.v verif_queue2.v verif_sumarray.v \
   insertionsort.v reverse.v queue.v sumarray.v message.v string.v\
   revarray.v verif_revarray.v insertionsort.v append.v \
   verif_float.v verif_ptr_compare.v \
   verif_nest3.v verif_nest2.v \
   logical_compare.v verif_logical_compare.v field_loadstore.v  verif_field_loadstore.v \
   even.v verif_even.v odd.v verif_odd.v \
-  merge.v verif_merge.v verif_append.v verif_append2.v bst.v verif_bst.v
+  merge.v verif_merge.v verif_append.v verif_append2.v bst.v verif_bst.v \
+  verif_bin_search.v btree.v incr.v verif_incr.v cond.v verif_cond.v
 # verif_message.v verif_dotprod.v verif_insertion_sort.v 
 
 SHA_FILES= \
@@ -364,6 +389,7 @@ msl:     .loadpath version.vo $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
 ccc26x86:   .loadpath $(CCC26x86_FILES:%.v=ccc26x86/%.vo)
 concurrency: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo)
+paco: .loadpath $(PACO_FILES:%.v=concurrency/paco/src/%.vo)
 linking: .loadpath $(LINKING_FILES:%.v=linking/%.vo) 
 veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
 floyd:   .loadpath $(FLOYD_FILES:%.v=floyd/%.vo)
@@ -454,7 +480,10 @@ depend-linking:
 	$(COQDEP) $(FILES) $(LINKING_FILES:%.v=linking/%.v) > .depend
 
 depend-concur:
-	$(COQDEP) > .depend-concur $(CONCUR_FILES:%.v=concurrency/%.v) $(CCC26x86_FILES:%.v=concurrency/%.v)
+	$(COQDEP) > .depend-concur $(CONCUR_FILES:%.v=concurrency/%.v) $(PACO_FILES:%.v=concurrency/paco/src/%.v) $(CCC26x86_FILES:%.v=concurrency/%.v)
+
+depend-paco:
+	$(COQDEP) > .depend-concur $(PACO_FILES:%.v=concurrency/paco/src/%.v)
 
 clean:
 	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) floyd/floyd.coq .loadpath .depend

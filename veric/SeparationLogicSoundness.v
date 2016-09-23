@@ -122,6 +122,7 @@ Definition semax_external_FF := @semax_external_FF.
 Definition juicy_ext_spec := juicy_ext_spec.
 
 Definition semax_ext := @semax_ext.
+Definition semax_ext_void := @semax_ext_void.
 
 End CSL.
 

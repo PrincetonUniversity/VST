@@ -38,6 +38,8 @@ Require Import concurrency.scheduler.
 Require Import concurrency.addressFiniteMap.
 Require Import concurrency.permissions.
 
+Require Import concurrency.semax_invariant.
+Require Import concurrency.semax_initial.
 Require Import concurrency.semax_to_juicy_machine.
 
 (** *Erasure Imports*)
@@ -49,9 +51,9 @@ Require Import concurrency.fineConc_safe.
 
 
 (** *Compiler simulation*)
-Require Import lifting.
+Require Import concurrency.lifting.
 
-(** *Terget machine*)
+(** *Target machine*)
 Require Import concurrency.x86_context.
 
 
@@ -63,7 +65,7 @@ Module MainSafety .
   Import Erasure.
 
   (*Module lifting_this := lifting ErasureProof.SEM.*)
-  Module lfting_this:= lifting X86SEM X86Machines.
+  Module lifting_this:= lifting X86SEM X86Machines.
 
   
   Module ErasureSafety := ErasureSafety.
@@ -81,7 +83,7 @@ Module MainSafety .
       (ext_link : string -> ident)
       (ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2)
       (prog : Ctypes.program _)
-      (all_safe : semax_prog.semax_prog (Concurrent_Oracular_Espec CS ext_link) prog V G)
+      (all_safe : semax_prog.semax_prog (Concurrent_Espec unit CS ext_link) prog V G)
       (init_mem_not_none : Genv.init_mem (Ctypes.program_of_program prog) <> None)
       (x: block)
       (block: (Genv.find_symbol (globalenv prog) (prog_main (Ctypes.program_of_program prog)) = Some x)).
@@ -130,7 +132,7 @@ Module MainSafety .
              unfold initial_state in *.
              unfold spr in *.
              remember
-              (semax_prog_rule (Concurrent_Oracular_Espec CS ext_link) V G
+              (semax_prog_rule (Concurrent_Espec unit CS ext_link) V G
                        prog (proj1_sig (init_mem prog init_mem_not_none)) all_safe
                        (proj2_sig (init_mem prog init_mem_not_none))) as spr.
              unfold init_mem in *.
@@ -183,7 +185,7 @@ Module MainSafety .
          (ext_link : string -> ident),
        (forall s1 s2 : string, ext_link s1 = ext_link s2 -> s1 = s2) ->
        forall (prog : program)
-         (all_safe : semax_prog (Concurrent_Oracular_Espec CS ext_link)
+         (all_safe : semax_prog (Concurrent_Espec unit CS ext_link)
                        prog V G)
          (init_mem_not_none : Genv.init_mem
                                 (Ctypes.program_of_program prog) <> None)
@@ -234,10 +236,32 @@ Module MainSafety .
                                  init_perm ge
                                  (Vptr x Int.zero) nil. *)
 
-    
-    concurc_sim
-    
+    Definition compiled_machine_simulation:= lifting_this.concur_sim.
 
+    Parameter gTx86:  X86SEM.G.
+    Parameter main: val.
+    Parameter p: option ErasureProof.DSEM.perm_map.
+    Parameter sch : X86Machines.SC.Sch.
+    
+    Definition this_simulation:=
+      compiled_machine_simulation gTx86 (globalenv prog) main p sch.
+    Goal True.
+      (*destruct this_simulation.*)
+      assert (HH:= wholeprog_simulations.Wholeprog_sim.match_state
+                     _ _ _ _ _ _ _ _
+                     this_simulation).
+      Definition compiler_match:=
+        wholeprog_simulations.Wholeprog_sim.match_state
+          _ _ _ _ _ _ _ _
+          this_simulation.
+      
+      Lemma new_target_safety: forall
+          (exists cd j, compiler_match  )
+      exists c, X86Machines.DryMachine.ThreadPool.SEM.Sem
+      X86Machines.DryConc.safe_new_step gTx86 
+X86Machines.DryMachine.ThreadPool.SEM.Sem
+      
+    
     (** *The comiler preserves safety*)
     Lemma compilation_safety_preservation: forall n sch m,
         dry_context.init_mem = Some m -> 
