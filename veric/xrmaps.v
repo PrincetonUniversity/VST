@@ -372,7 +372,7 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
     @Disj_prop _ _ _ (Disj_fun address _ _ _).
 
 End StratModel.
-(*
+
 Open Local Scope nat_scope.
 
 Module Type RMAPS.
@@ -427,35 +427,39 @@ Module Type RMAPS.
   Axiom Canc_resource: Canc_alg resource. Existing Instance Canc_resource.
   Axiom Disj_resource: Disj_alg resource. Existing Instance Disj_resource.
 
-  Definition preds_fmap (f:pred rmap -> pred rmap) (x:preds) : preds :=
+  Definition preds_fmap (f g: pred rmap -> pred rmap) (x:preds) : preds :=
     match x with SomeP A Q => SomeP A (f oo Q)
     end.
-  Axiom preds_fmap_id : preds_fmap (id _) = id preds.
-  Axiom preds_fmap_comp : forall f g, preds_fmap g oo preds_fmap f = preds_fmap (g oo f).
+  (* Check whether the following two can be erased. *)
+  Axiom preds_fmap_id : preds_fmap (id _) (id _) = id preds.
+  Axiom preds_fmap_comp : forall f1 f2 g1 g2,
+    preds_fmap g1 g2 oo preds_fmap f1 f2 = preds_fmap (g1 oo f1) (f2 oo g2).
 
-  Definition resource_fmap (f:pred rmap -> pred rmap) (x:resource) : resource :=
+  Definition resource_fmap (f g:pred rmap -> pred rmap) (x:resource) : resource :=
     match x with
     | NO rsh => NO rsh
-    | YES rsh sh k p => YES rsh sh k (preds_fmap f p)
-    | PURE k p => PURE k (preds_fmap f p)
+    | YES rsh sh k p => YES rsh sh k (preds_fmap f g p)
+    | PURE k p => PURE k (preds_fmap f g p)
     end.
-  Axiom resource_fmap_id : resource_fmap (id _) = id resource.
-  Axiom resource_fmap_comp : forall f g, resource_fmap g oo resource_fmap f = resource_fmap (g oo f).
+  Axiom resource_fmap_id : resource_fmap (id _) (id _) = id resource.
+  Axiom resource_fmap_comp : forall f1 f2 g1 g2,
+    resource_fmap g1 g2 oo resource_fmap f1 f2 = resource_fmap (g1 oo f1) (f2 oo g2).
 
   Definition valid (m: address -> resource) : Prop :=
     AV.valid  (res_option oo m).
 
-  Axiom valid_res_map : forall f m, valid m -> valid (resource_fmap f oo m).
+  Axiom valid_res_map : forall f g m, valid m -> valid (resource_fmap f g oo m).
   Axiom rmapj_valid_join : forall (x y z : address -> resource),
     join x y z -> valid x -> valid y -> valid z.
   Axiom rmapj_valid_core: forall x: address -> resource, valid x -> valid (core x).
 
   Definition rmap' := sig valid. 
 
-  Definition rmap_fmap (f: pred rmap -> pred rmap) (x:rmap') : rmap' :=
-    match x with exist m H => exist (fun m => valid m) (resource_fmap f oo m) (valid_res_map f m H) end.
-  Axiom rmap_fmap_id : rmap_fmap (id _) = id rmap'.
-  Axiom rmap_fmap_comp : forall f g, rmap_fmap g oo rmap_fmap f = rmap_fmap (g oo f).
+  Definition rmap_fmap (f g: pred rmap -> pred rmap) (x:rmap') : rmap' :=
+    match x with exist m H => exist (fun m => valid m) (resource_fmap f g oo m) (valid_res_map f g m H) end.
+  Axiom rmap_fmap_id : rmap_fmap (id _) (id _) = id rmap'.
+  Axiom rmap_fmap_comp : forall f1 f2 g1 g2,
+   rmap_fmap g1 g2 oo rmap_fmap f1 f2 = rmap_fmap (g1 oo f1) (f2 oo g2).
 
   Parameter squash : (nat * rmap') -> rmap.
   Parameter unsquash : rmap -> (nat * rmap').
@@ -492,10 +496,10 @@ Module Type RMAPS.
   Qed.
 
   Axiom squash_unsquash : forall phi, squash (unsquash phi) = phi.
-  Axiom unsquash_squash : forall n rm, unsquash (squash (n,rm)) = (n,rmap_fmap (approx n) rm).
+  Axiom unsquash_squash : forall n rm, unsquash (squash (n,rm)) = (n,rmap_fmap (approx n) (approx n) rm).
 
 End RMAPS.
-
+(*
 Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
   Module AV:=AV'.
   Import AV.
