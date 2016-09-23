@@ -658,13 +658,13 @@ Existing Instance Disj_list.
 
 Definition raw_join_hom A B (j1: A -> A -> A -> Prop) (j2: B -> B -> B -> Prop) (f:A ->B) :=
   forall x y z,
-    j1 x y z <->
+    j1 x y z ->
     j2 (f x) (f y) (f z).
 Implicit Arguments raw_join_hom.
 
 Definition join_hom {A} {JA: Join A} {B} {JB: Join B} (f:A ->B) :=
   forall x y z,
-    join x y z <->
+    join x y z ->
     join (f x) (f y) (f z).
 
 (** The SA induced by the preimage of a section
@@ -708,7 +708,7 @@ Section sa_preimage.
     split;
      [ do 2 red; rewrite <- (Hf'_f b); rewrite <- (Hf'_f c)
      | do 2 red; rewrite <- (Hf'_f a); rewrite <- (Hf'_f e)];
-    apply (proj1 (Hf_f' _ _ _)); auto.
+    apply (Hf_f' _ _ _); auto.
 
     do 2 red in H|-*; auto.
 
@@ -720,8 +720,7 @@ Section sa_preimage.
     apply mkSep with (fun x : A => f' (core (f x))); intros.
  
     do 3 red.
-    generalize
-      (proj1 (@Hf_f' (@core B B_J SAb (f t)) (f t) (f t)) (core_unit _)).
+    generalize (@Hf_f' (@core B B_J SAb (f t)) (f t) (f t) (core_unit _)).
     intro.
     unfold compose in H. rewrite Hf'_f in H. auto.
     do 2 red in H.
