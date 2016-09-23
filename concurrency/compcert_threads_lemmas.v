@@ -957,60 +957,43 @@ Module SimProofs (SEM: Semantics)
            not have changed the contents at locations where there is readable
            permission for the lock. *)
           subst.
-          constructor.
-          pose proof (weak_obs_eq memObsEq_locks) as Hobs_weak_locks.
           assert (Hlt: permMapLt (getThreadR pfc').2 (getMaxPerm mc))
             by (rewrite gssThreadRes; simpl; destruct Hcompc; destruct (compat_th0 _ pfc); eauto).
-          erewrite restrPermMap_irr' with (Hlt' := Hlt) in Hobs_weak_locks by (rewrite gssThreadRes; simpl; auto).
           assert (HltF: permMapLt (getThreadR pff').2 (getMaxPerm mf))
             by (rewrite gssThreadRes; simpl; destruct Hcompf as [compat_thf ?]; destruct (compat_thf _ pff); eauto).
+          constructor.
+          (* dependent types mumbo-jumbo*)
+          pose proof (weak_obs_eq memObsEq_locks) as Hobs_weak_locks.
+          erewrite restrPermMap_irr' with (Hlt' := Hlt) in Hobs_weak_locks by (rewrite gssThreadRes; simpl; auto).
           erewrite restrPermMap_irr' with (Hlt' := HltF) in Hobs_weak_locks by (rewrite gssThreadRes; simpl; auto).
+          (* apply the lemma *)
           eapply weak_mem_obs_eq_restrEq with (Hlt := Hlt) (HltF := HltF); eauto.
           erewrite <- weak_obs_eq_setMax; now eapply (weak_obs_eq Hobs_eq').
           (* proof of strong_mem_obs_eq*)
-
-        
-
-          assert (Hlt: permMapLt (getThreadR pfc').2 (getMaxPerm mc))
-            by (rewrite gssThreadRes; simpl; destruct Hcompc; destruct (compat_th0 _ pfc); eauto).
           erewrite restrPermMap_irr' with (Hlt' := Hlt) in memObsEq_locks by (rewrite gssThreadRes; simpl; auto).
-          assert (HltF: permMapLt (getThreadR pff').2 (getMaxPerm mf))
-            by (rewrite gssThreadRes; simpl; destruct Hcompf as [compat_thf ?]; destruct (compat_thf _ pff); eauto).
           erewrite restrPermMap_irr' with (Hlt' := HltF) in memObsEq_locks by (rewrite gssThreadRes; simpl; auto).
           eapply strong_mem_obs_eq_disjoint_step; eauto.
-          intros. eapply corestep_disjoint_val_lock
-          
-
-
-
-
-
-                
-
-                  
-
-              destruct (valid_block_dec 
-
-
-
-
-          
-          
-          
-
-              
-
-
-              destruct memObsEq_locks.
-          econstructor.
-          destruct weak_obs_eq0.
-          econstructor; eauto.
+          (* stability of contents of DryConc *)
+          intros.
+          pose proof (proj1 (thread_data_lock_coh Hinv pfc) _ pfc).
+          apply ev_step_ax1 in H'.
+          eapply corestep_stable_val with (Hlt2 := Hlt); eauto.
+          rewrite gssThreadRes; simpl;
+            by eauto.
+          (* stability of contents of FineConc *)
+          intros.
+          pose proof (proj1 (thread_data_lock_coh HinvF pff) _ pff).
+          simpl.
+          eapply corestep_stable_val with (Hlt2 := HltF); eauto.
+          rewrite gssThreadRes; simpl;
+            by eauto.
         (* block ownership*)
         (*sketch: the invariant is maintanted by coresteps hence it
            will hold for tpf'. Moreover we know that the new blocks in
            mc'|i will be mapped to new blocks in mf' by inject separated,
            where the permissions are empty for other threads. *)
-        split.
+          split.
+          (*TODO: redo this proof with invalid_block_empty and fixing the proof to work for lock perms too*)
         intros j pffj Hij b1 b2 Hfi' Hfi ofs.
         specialize (Hseparated _ _ Hfi Hfi').
         destruct Hseparated as [Hinvalidmc1 Hinvalidmf1].
