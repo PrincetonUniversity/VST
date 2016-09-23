@@ -236,15 +236,13 @@ Section SepAlgSubset_Functor.
   
   Variable P : forall A, F A -> Prop.
   Arguments P {A} _.
-  Hypothesis HPfmap : forall A B (f: A -> B) (g: B -> A) x,
-    P x -> P (fmap F f g x).
   Hypothesis HPfmap1 : forall A B (f: A -> B) (g: B -> A) x,
     P x -> P (fmap F f g x).
   Hypothesis HPfmap2 : forall A B (f: A -> B) (g: B -> A) x, 
     P (fmap F f g x) -> P x.
   
   Definition paf_subset :
-    @pafunctor (fsubset F (@P) HPfmap) (fun A => Join_prop _ _ P).
+    @pafunctor (fsubset F (@P) HPfmap1) (fun A => Join_prop _ _ P).
   Proof.
     constructor.
     + repeat intro.

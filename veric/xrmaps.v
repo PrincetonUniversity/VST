@@ -128,31 +128,24 @@ Module Type STRAT_MODEL.
   Parameter paf_pre_rmap : @pafunctor f_pre_rmap Join_pre_rmap.
 
 End STRAT_MODEL.
-(*
+
 Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
   Module AV := AV'.
   Import AV.
 
-  Definition preds (PRED : Type) : Type := 
-    { A: list Type & (listprod A -> PRED) }.
-
-  Definition f_preds : functor preds :=
-    f_sigma _ (fun _ => f_fun _ f_identity).
-  Existing Instance f_preds.
-
-  Instance Join_preds (A: Type) : Join (preds A) := Join_equiv _.
+  Definition preds: functor := fsig (fun A: list Type =>
+    ffunc (fconst (listprod A)) fidentity).
 
   Inductive res (PRED : Type) : Type :=
     | NO':  Share.t -> res PRED
     | YES': Share.t -> pshare -> kind -> preds PRED -> res PRED
     | PURE': kind -> preds PRED -> res PRED.
 
-
-  Definition res_fmap (A B:Type) (f:A->B) (x:res A) : res B :=
+  Definition res_fmap (A B:Type) (f:A->B) (g:B->A)(x:res A) : res B :=
     match x with
       | NO' rsh => NO' B rsh
-      | YES' rsh sh k pds => YES' B rsh sh k (fmap f pds)
-      | PURE' k pds => PURE' B k (fmap f pds)
+      | YES' rsh sh k pds => YES' B rsh sh k (fmap preds f g pds)
+      | PURE' k pds => PURE' B k (fmap preds f g pds)
     end.
 
   Lemma ff_res : functorFacts res res_fmap.
@@ -162,10 +155,9 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
     rewrite <- fmap_comp... rewrite <- fmap_comp...
   Qed.
 
-  Definition f_res : functor res := Functor ff_res.
-  Existing Instance f_res.
-
-  Inductive res_join (PRED : Type) : res PRED -> res PRED -> res PRED -> Prop :=
+  Definition f_res : functor := Functor ff_res.
+  
+  Inductive res_join (PRED : Type) : f_res PRED -> f_res PRED -> f_res PRED -> Prop :=
     | res_join_NO1 : forall rsh1 rsh2 rsh3,
                                join rsh1 rsh2 rsh3 ->
                                res_join PRED (NO' PRED rsh1) (NO' PRED rsh2) (NO' PRED rsh3)
@@ -181,7 +173,7 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
               res_join PRED (YES' PRED rsh1 sh1 k p) (YES' PRED rsh2 sh2 k p) (YES' PRED rsh3 sh3 k p)
     | res_join_PURE : forall k p, res_join PRED (PURE' PRED k p) (PURE' PRED k p) (PURE' PRED k p).
 
- Instance Join_res (PRED: Type) : Join (res PRED) := res_join PRED.
+  Instance Join_res (PRED: Type) : Join (res PRED) := res_join PRED.
 
   Instance pa_rj : forall PRED, @Perm_alg _ (res_join PRED).
   Proof. intros. constructor.
@@ -268,11 +260,11 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
     inv H; f_equal; auto; apply join_self; auto.
   Qed.
 
-  Instance paf_res : @pafunctor res f_res res_join.
+  Definition paf_res : @pafunctor f_res res_join.
   Proof. constructor; repeat intro.
   (* This is a little painful because of the way res_join is defined, but
       whatever... *)
-    inv H; simpl; constructor; trivial.
+   inv H; simpl; constructor; trivial.
    destruct z as [ rz | rz sz kz pz | kz pz ].
    destruct x' as [ rx' | rx' sx' kx' px' | kx' px' ]; try solve [elimtype False; inv H].
    destruct y as [ ry | ry sy ky py | ky py ]; try solve [elimtype False; inv H].
@@ -315,34 +307,33 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
     apply extensionality; auto.
   Qed.
 
-  Lemma valid'_res_map : forall A B f m,
-    valid' A m -> valid' B (fmap f oo m).
+  Lemma valid'_res_map : forall A B f g m,
+    valid' A m -> valid' B (fmap f_res f g oo m).
   Proof.
-    unfold valid'; intros A B f m.
+    unfold valid'; intros A B f g m.
     apply same_valid; intro l.
     unfold compose.
     destruct (m l); simpl; auto.
   Qed.
 
-  Lemma valid'_res_map2 : forall A B f m,
-    valid' B (res_fmap A B f oo m) -> valid' A m.
+  Lemma valid'_res_map2 : forall A B f g m,
+    valid' B (fmap f_res f g oo m) -> valid' A m.
   Proof.
-    unfold valid'; intros A B f m.
+    unfold valid'; intros A B f g m.
     apply same_valid; intro l.
     unfold compose.
     destruct (m l); simpl; auto.
   Qed.
 
   Definition pre_rmap (A:Type) := { m:address -> res A | valid' A m }.
-  Definition f_pre_rmap : functor pre_rmap :=
-    f_subset (f_fun _ f_res) _ valid'_res_map.
-  Existing Instance f_pre_rmap.
-  
+  Definition f_pre_rmap : functor :=
+    fsubset (ffunc (fconst address) f_res) _ valid'_res_map.
+
   Instance Join_pre_rmap (A: Type) : Join (pre_rmap A) :=
             Join_prop _ (Join_fun address (res A) (res_join A)) (valid' A).
 
-  Instance paf_pre_rmap : pafunctor f_pre_rmap := 
-    saf_subset  (paf_fun address paf_res) valid' valid'_res_map valid'_res_map2.
+  Definition paf_pre_rmap : @pafunctor f_pre_rmap Join_pre_rmap :=
+    paf_subset (paf_fun address paf_res) valid' valid'_res_map valid'_res_map2.
 
   Lemma pre_rmap_sa_valid_core (A: Type):
         forall x : address -> res A,
@@ -381,7 +372,7 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
     @Disj_prop _ _ _ (Disj_fun address _ _ _).
 
 End StratModel.
-
+(*
 Open Local Scope nat_scope.
 
 Module Type RMAPS.
