@@ -909,7 +909,7 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
   Proof.
     intros.
     unfold unsquash, squash.
-    rewrite K.unsquash_squash; simpl.
+    rewrite K.unsquash_squash. simpl.
     match goal with [|- (_,?X) = (_,?Y) ] =>
       replace Y with X; auto
     end.

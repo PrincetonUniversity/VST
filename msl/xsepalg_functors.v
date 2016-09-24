@@ -34,6 +34,7 @@ End unmaps.
 Implicit Arguments unmap_right.
 Implicit Arguments unmap_left.
 
+(*
 Definition Join_paf (F: functor): Type :=
   forall A, Join (F A).
 Definition Perm_paf {F: functor} (paf_join: forall A, Join (F A)): Type :=
@@ -44,6 +45,7 @@ Definition Canc_paf {F: functor} (paf_join: forall A, Join (F A)): Type :=
   forall A: Type, Canc_alg (F A).
 Definition Disj_paf {F: functor} (paf_join: forall A, Join (F A)): Type :=
   forall A: Type, Disj_alg (F A).
+*)
 
 (* TODO: change pafunctor, unmap_left, unmap_right into prop *)
 Record pafunctor (F: functor) (paf_join: forall A, Join (F A)): Type := Pafunctor
