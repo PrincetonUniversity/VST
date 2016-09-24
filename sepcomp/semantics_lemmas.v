@@ -246,6 +246,93 @@ constructor.
       destruct (H2 _ VB2 _ H4 k p); destruct M. split; intros; eauto.
 Qed.
 
+Lemma mem_step_forward m m': mem_step m m' -> mem_forward m m'.
+intros. apply preserve_mem; trivial.
+eapply mem_forward_preserve; trivial.
+Qed.
+
+Lemma freelist_perm_inv: forall l m m' (L : Mem.free_list m l = Some m') b (B: Mem.valid_block m b)
+      ofs k p (P: Mem.perm m b ofs k p),
+      Mem.perm m b ofs Max Freeable \/ Mem.perm m' b ofs k p.
+Proof. induction l; simpl; intros.
++ inv L. right; trivial. 
++ destruct a. destruct p0.
+  remember (Mem.free m b0 z0 z) as w. symmetry in Heqw.
+  destruct w; inv L.
+  exploit Mem.perm_free_inv; eauto. intros [[HHx HH] | HH]; try subst b0.
+  - left. eapply Mem.perm_max.  eapply Mem.free_range_perm; eassumption.
+  - destruct (IHl _ _  H0 _ (Mem.valid_block_free_1 _ _ _ _ _ Heqw _ B) _ _ _ HH); clear IHl.
+    2: right; trivial.
+    left. eapply Mem.perm_free_3; eauto.
+Qed.
+
+Theorem preserves_max_eq_or_free: 
+   memstep_preserve (fun m m' =>  mem_forward m m' /\ 
+                                  forall b (VB: Mem.valid_block m b) ofs, 
+                                   (forall k p, Mem.perm m b ofs k p <-> Mem.perm m' b ofs k p) \/ 
+                                   (Mem.perm m b ofs Max Freeable /\ 
+                                    Mem.perm_order'' None ((Mem.mem_access m') !! b ofs Max))).
+Proof. 
+constructor.
++ intros; split. eapply mem_forward_trans. apply H. apply H0.
+  destruct H; destruct H0. intros.
+  assert (VB2: Mem.valid_block m2 b). { apply H; trivial. }
+  destruct (H1 _ VB ofs) as [K1 | [K1 L1]]; destruct (H2 _ VB2 ofs) as [K2 | [K2 L2]]; clear H1 H2.
+  - left; intros. specialize (K1 k p); specialize (K2 k p). intuition.
+  - right; split; trivial. apply K1; trivial. 
+  - right; split; trivial. simpl in *. specialize (K2 Max).
+    unfold Mem.perm in *.
+    remember ((Mem.mem_access m3) !! b ofs Max) as w; destruct w; trivial.
+    destruct ((Mem.mem_access m2) !! b ofs Max); try contradiction. 
+    destruct (K2 p); simpl in *. apply H2. apply perm_refl.
+  - right; split; trivial. 
++ intros; induction H. 
+  - split; intros. eapply storebytes_forward; eassumption.
+    left; intros. split; intros.
+    * eapply Mem.perm_storebytes_1; eassumption.
+    * eapply Mem.perm_storebytes_2; eassumption.
+  - split; intros. eapply alloc_forward; eassumption.
+    left; intros. split; intros.
+    * eapply Mem.perm_alloc_1; eassumption.
+    * eapply Mem.perm_alloc_4; try eassumption.
+      intros N; subst. eapply Mem.fresh_block_alloc; eassumption.
+  - split; intros. eapply freelist_forward; eassumption.
+    destruct (Mem.perm_dec m' b ofs Max Nonempty).
+    * left; intros. eapply freelist_perm; eassumption.
+    * destruct (Mem.perm_dec m b ofs Max Freeable); trivial.
+       right; split; trivial. unfold Mem.perm in n; simpl in *.
+       destruct ((Mem.mem_access m') !! b ofs Max); trivial.
+       elim n; clear n. constructor.
+      left; intros.
+      split; intros. 2: eapply perm_freelist; eassumption.
+      exploit freelist_perm_inv; eauto. intros [X | X]; trivial; contradiction. 
+  - clear H H0. destruct IHmem_step1; destruct IHmem_step2. 
+    split. eapply mem_forward_trans; eassumption.
+    intros.
+    assert (VB2 : Mem.valid_block m'' b). { apply H; trivial. }
+    specialize (H0 _ VB ofs). specialize (H2 _ VB2 ofs).
+    destruct H0 as [K | [K1 K2]]; destruct H2 as [L | [L1 L2]].
+    * left; intros. split; intros. apply L. apply K; trivial.
+      apply K. apply L; trivial.
+    * right. split; trivial. apply K; trivial.
+    * right. split; trivial.
+      clear K1. unfold Mem.perm in *. simpl in *. specialize (L Max).
+      remember ((Mem.mem_access m') !! b ofs Max) as d; destruct d; trivial.
+      destruct ((Mem.mem_access m'') !! b ofs Max); try contradiction.
+      specialize (L p); simpl in *. apply L. apply perm_refl.
+    * right. split; trivial.
+Qed. 
+
+Theorem mem_step_max_eq_or_free m m' (STEP: mem_step m m') b (VB: Mem.valid_block m b) ofs:
+       (forall k p, Mem.perm m b ofs k p <-> Mem.perm m' b ofs k p) \/ 
+       (Mem.perm m b ofs Max Freeable /\ None = ((Mem.mem_access m') !! b ofs Max)).
+Proof. intros.
+exploit preserve_mem. apply preserves_max_eq_or_free. eassumption.
+simpl; intros [A B]. destruct (B _ VB ofs). left; trivial. right.
+  destruct H; split; trivial.
+  destruct ((Mem.mem_access m') !! b ofs Max); trivial; contradiction.
+Qed.
+
 Lemma memsem_preserves {G C} (s: @MemSem G C) P (HP:memstep_preserve P):
       forall g c m c' m', corestep s g c m c' m'-> P m m'.
 Proof. intros.
