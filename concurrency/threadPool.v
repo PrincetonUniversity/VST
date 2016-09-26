@@ -1,3 +1,4 @@
+
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 
 Require Import compcert.common.Values. (*for val*)
@@ -138,6 +139,8 @@ Qed.
     
 Open Scope nat_scope.
 
+(* Definition containsThread_dec (tp : t) (i : NatTID.tid) : bool:=
+  Compare.Pcompare i (num_threads tp). *)
   Definition containsThread (tp : t) (i : NatTID.tid) : Prop:=
     i < num_threads tp.
 

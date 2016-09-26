@@ -762,7 +762,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     match (running_thread (snd st)), (schedPeek (fst (fst st))) with
     | _, None => true
     | None, _ => true
-    | Some a, Some b => eq_tid_dec a b
+    | Some a, Some b => eq_tid_dec a b  || containsThread_dec b (snd st)
     end.
  
   Definition new_valid st U := valid (mk_ostate st U). 
