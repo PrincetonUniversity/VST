@@ -288,14 +288,14 @@ destruct fs; simpl in *.
 destruct H6 as [pp H6].
  rewrite <- resource_at_approx.
 case_eq (w @ (loc,0)); intros.
-assert (core w @ (loc,0) = compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level (core w))) (NO Share.bot)).
+assert (core w @ (loc,0) = compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level (core w))) (compcert_rmaps.R.approx (level (core w))) (NO Share.bot)).
  rewrite <- core_resource_at.
 simpl; erewrite <- core_NO; f_equal; eassumption.
 pose proof (necR_resource_at _ _ _ _ CORE H0).
 pose proof (necR_resource_at _ _ _ _ (necR_core _ _ Hw2) H1).
 rewrite <- core_resource_at in H2; rewrite H6 in H2; 
  rewrite core_PURE in H2; inv H2.
-assert (core w @ (loc,0) = compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level (core w))) (NO Share.bot)).
+assert (core w @ (loc,0) = compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level (core w))) (compcert_rmaps.R.approx (level (core w))) (NO Share.bot)).
  rewrite <- core_resource_at.
 simpl; erewrite <- core_YES; f_equal; eassumption.
 pose proof (necR_resource_at _ _ _ _ CORE H0).
@@ -305,16 +305,16 @@ rewrite <- core_resource_at in H2; rewrite H6 in H2;
 pose proof (resource_at_approx w (loc,0)).
 pattern (w @ (loc,0)) at 1 in H0; rewrite H in H0.
 symmetry in H0.
-assert (core (w @ (loc,0)) = core (compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level w))
+assert (core (w @ (loc,0)) = core (compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level w)) (compcert_rmaps.R.approx (level w))
        (PURE k p))) by (f_equal; auto).
 rewrite core_resource_at in H1.
 assert (core w @ (loc,0) = 
-        compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level (core w))) 
+        compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level (core w))) (compcert_rmaps.R.approx (level (core w)))
          (PURE k p)). 
  rewrite H1.  simpl. rewrite level_core; rewrite core_PURE; auto.
 pose proof (necR_resource_at _ _ _ _ CORE H2).
  assert (w' @ (loc,0) = compcert_rmaps.R.resource_fmap
-       (compcert_rmaps.R.approx (level w')) (PURE k p)).
+       (compcert_rmaps.R.approx (level w')) (compcert_rmaps.R.approx (level w')) (PURE k p)).
  rewrite <- core_resource_at in H3. rewrite level_core in H3.
  destruct (w' @ (loc,0)).
   rewrite core_NO in H3; inv H3.

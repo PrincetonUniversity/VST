@@ -102,8 +102,6 @@ rewrite H. intro; discriminate.
 rewrite Zcompare_refl; intro; discriminate.
 Defined.
 
-SearchAbout Pos.compare_cont CompOpp.
-
 Definition Pos_compare_cont_antisym : 
   forall (p q : positive) (c : comparison),
        eq (CompOpp (Pos.compare_cont c p q))
