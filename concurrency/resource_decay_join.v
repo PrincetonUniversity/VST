@@ -13,6 +13,7 @@ Require Import veric.tycontext.
 Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
 Require Import veric.coqlib4.
+Require Import concurrency.permjoin.
 Require Import concurrency.age_to.
 Require Import concurrency.aging_lemmas.
 Require Import concurrency.sync_preds_defs.
@@ -20,40 +21,6 @@ Require Import concurrency.sync_preds_defs.
 Set Bullet Behavior "Strict Subproofs".
 
 (* @andrew those lemmas already somewhere? *)
-
-Lemma join_bot_bot_eq sh :
-  sepalg.join Share.bot Share.bot sh ->
-  sh = Share.bot.
-Proof.
-  intros j.
-  apply (join_eq j  (z' := Share.bot) (join_bot_eq Share.bot)).
-Qed.
-
-Lemma join_to_bot_l {sh1 sh2} :
-  sepalg.join sh1 sh2 Share.bot ->
-  sh1 = Share.bot.
-Admitted.
-
-Lemma join_to_bot_r {sh1 sh2} :
-  sepalg.join sh1 sh2 Share.bot ->
-  sh2 = Share.bot.
-Admitted.
-
-Lemma join_top_l {sh2 sh3} :
-  sepalg.join Share.top sh2 sh3 ->
-  sh2 = Share.bot.
-Proof.
-Admitted.
-         
-Lemma join_top {sh2 sh3} :
-  sepalg.join Share.top sh2 sh3 ->
-  sh3 = Share.top.
-Proof.
-Admitted.
-
-Lemma join_pfullshare {sh2 sh3 : pshare} : ~sepalg.join pfullshare sh2 sh3.
-Proof.
-Admitted.
 
 Lemma rmap_bound_join {b phi1 phi2 phi3} :
   sepalg.join phi1 phi2 phi3 ->
