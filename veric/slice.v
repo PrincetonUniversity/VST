@@ -44,7 +44,8 @@ destruct (m @ (b,ofs-z)); inv H1; auto.
 Qed.
 
 Lemma slice_rmap_ok: forall rsh sh m,
-  resource_fmap (approx (level m)) oo (fun l => slice_resource (rsh l) sh (m @ l)) =
+  resource_fmap (approx (level m)) (approx (level m)) oo
+    (fun l => slice_resource (rsh l) sh (m @ l)) =
        (fun l => slice_resource (rsh l) sh (m @ l)).
 Proof.
 intros.
@@ -148,7 +149,7 @@ destruct (m @ (b,ofs-z)); inv H0; auto.
 Qed.
 
 Lemma split_rmap_ok1: forall m,
-  resource_fmap (approx (level m)) oo (fun l => fst (split_resource (m @ l))) =
+  resource_fmap (approx (level m)) (approx (level m)) oo (fun l => fst (split_resource (m @ l))) =
        (fun l => fst (split_resource (m @ l))).
 Proof.
 intros.
@@ -173,7 +174,7 @@ auto.
 Qed.
 
 Lemma split_rmap_ok2: forall m,
-  resource_fmap (approx (level m)) oo (fun l => snd (split_resource (m @ l))) =
+  resource_fmap (approx (level m)) (approx (level m)) oo (fun l => snd (split_resource (m @ l))) =
        (fun l => snd (split_resource (m @ l))).
 Proof.
 intros.

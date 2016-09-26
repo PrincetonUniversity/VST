@@ -40,7 +40,7 @@ Definition spec : Type :=  forall (rsh: Share.t) (sh: Share.t) (l: AV.address), 
 
 Program Definition yesat_raw (pp: preds) (k: kind) 
                            (rsh: share) (sh: pshare) (l: address) : pred rmap :=
-   fun phi => phi @ l = YES rsh sh k (preds_fmap (approx (level phi)) pp).
+   fun phi => phi @ l = YES rsh sh k (preds_fmap (approx (level phi)) (approx (level phi)) pp).
   Next Obligation.
    try intro; intros.
    apply (age1_resource_at a a' H l (YES rsh sh k pp) H0).
@@ -58,7 +58,7 @@ Program Definition yesat (pp: preds) (k: kind) : spec :=
   Qed.
 
 Program Definition pureat (pp: preds) (k: kind) (l: AV.address): pred rmap :=
-       fun phi => phi @ l = PURE k (preds_fmap (approx (level phi)) pp).
+       fun phi => phi @ l = PURE k (preds_fmap (approx (level phi)) (approx (level phi)) pp).
   Next Obligation.
     intros; intro; intros.
    apply (age1_resource_at a a' H l (PURE k pp) H0).
@@ -74,8 +74,8 @@ Lemma yesat_raw_eq_aux:
   forall pp k rsh sh l, 
     hereditary age
     (fun phi : rmap =>
-     resource_fmap (approx (level phi)) (phi @ l) =
-     resource_fmap (approx (level phi)) (YES rsh sh k pp)).
+     resource_fmap (approx (level phi)) (approx (level phi)) (phi @ l) =
+     resource_fmap (approx (level phi)) (approx (level phi)) (YES rsh sh k pp)).
 Proof.
  intros.
   intro; intros.
@@ -90,8 +90,8 @@ Lemma yesat_raw_eq: yesat_raw =
   fun pp k rsh sh l =>
   ((exist (hereditary age)
    (fun phi => 
-   resource_fmap (approx (level phi)) (phi @ l) = 
-   resource_fmap (approx (level phi)) (YES rsh sh k pp)) 
+   resource_fmap (approx (level phi)) (approx (level phi)) (phi @ l) = 
+   resource_fmap (approx (level phi)) (approx (level phi)) (YES rsh sh k pp)) 
    (yesat_raw_eq_aux pp k rsh sh l)) : pred rmap).
 Proof.
 unfold yesat_raw.
@@ -182,8 +182,8 @@ Lemma yesat_eq_aux:
     hereditary age
     (fun m : rmap =>
       exists p, 
-     resource_fmap (approx (level m)) (m @ l) =
-     resource_fmap (approx (level m)) (YES rsh (mk_lifted sh p) k pp)).
+     resource_fmap (approx (level m)) (approx (level m)) (m @ l) =
+     resource_fmap (approx (level m)) (approx (level m)) (YES rsh (mk_lifted sh p) k pp)).
 Proof.
  intros.
   intro; intros.
@@ -197,8 +197,8 @@ Lemma yesat_eq: yesat = fun pp k rsh sh l =>
  exist (hereditary age)
   (fun m => 
   exists p, 
-   resource_fmap (approx (level m)) (m @ l) = 
-   resource_fmap (approx (level m)) (YES rsh (mk_lifted sh p) k pp))
+   resource_fmap (approx (level m)) (approx (level m)) (m @ l) = 
+   resource_fmap (approx (level m)) (approx (level m)) (YES rsh (mk_lifted sh p) k pp))
    (yesat_eq_aux pp k rsh sh l).
 Proof.
 unfold yesat.
@@ -881,7 +881,7 @@ Definition spec_parametric (Q: address -> spec) : Prop :=
              forall rsh sh m,
            Q l rsh sh l' m = 
             (exists p, exists k, ok k /\ m @ l' = 
-                 YES rsh (mk_lifted sh p) k (preds_fmap (approx (level m)) pp)).
+                 YES rsh (mk_lifted sh p) k (preds_fmap (approx (level m)) (approx (level m)) pp)).
 
 Lemma jam_noat_splittable_aux:
   forall S' S Q (PARAMETRIC: spec_parametric Q)
@@ -1038,7 +1038,7 @@ apply pred_ext; intro w; simpl.
   rewrite H2 in H0.
   destruct H0 as [? [? [? ?]]].
   rewrite H3.
-  generalize (preds_fmap (approx (level w)) pp); intro.
+  generalize (preds_fmap (approx (level w)) (approx (level w)) pp); intro.
   simpl.
   constructor; auto.
   unfold rslice. repeat rewrite if_true by auto.
@@ -2832,23 +2832,3 @@ Proof.
  intro i; specialize (H2 (S i)); apply H2.
 Qed.
 
-(*
-(* not used *)
-
-Definition address_mapsto' ch v rsh sh loc bl :=
-  !!(length bl = size_chunk_nat ch /\ decode_val ch bl = v /\ (align_chunk ch | snd loc)) &&
-  allp
-  (jam (adr_range_dec loc (size_chunk ch))
-    (fun loc' : address =>
-      yesat NoneP
-      (VAL (nth (nat_of_Z (snd loc' - snd loc)) bl Undef)) rsh sh loc') noat).
-
-Lemma address_mapsto'_mapsto: forall ch v rsh sh loc bl phi,
-  address_mapsto' ch v rsh sh loc bl phi -> address_mapsto ch v rsh sh loc phi.
-Proof.
-intros until phi; intro H.
-unfold address_mapsto' in H; unfold address_mapsto.
-exists bl; auto.
-Qed.
-
-*)

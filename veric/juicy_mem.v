@@ -512,7 +512,7 @@ Definition inflate_initial_mem' (w: rmap) (loc: address) :=
          end.
 
 Lemma inflate_initial_mem'_fmap:
- forall w, resource_fmap (approx (level w)) oo inflate_initial_mem' w = 
+ forall w, resource_fmap (approx (level w)) (approx (level w)) oo inflate_initial_mem' w = 
                 inflate_initial_mem' w.
 Proof.
 unfold valid, CompCert_AV.valid, compose.
@@ -609,7 +609,8 @@ destruct p0; simpl; auto.
 Defined.
 
 Lemma approx_map_idem: forall n (lp: preds), 
-  preds_fmap (approx n) (preds_fmap (approx n) lp) = preds_fmap (approx n) lp.
+  preds_fmap (approx n) (approx n) (preds_fmap (approx n) (approx n) lp) =
+  preds_fmap (approx n) (approx n) lp.
 Proof.
 intros n ls; unfold preds_fmap.
 destruct ls.
@@ -623,7 +624,7 @@ Definition inflate_store: rmap. refine (
 proj1_sig (make_rmap (fun loc =>
   match phi @ loc with
     | YES rsh sh (VAL _) _ => YES rsh sh (VAL (contents_at m loc)) NoneP
-    | YES _ _ _ _ => resource_fmap (approx (level phi)) (phi @ loc)
+    | YES _ _ _ _ => resource_fmap (approx (level phi)) (approx (level phi)) (phi @ loc)
     | _ => phi @ loc
   end) _ (level phi) _)).
 Proof.
@@ -1209,7 +1210,7 @@ subst. congruence.
 Qed.
 
 Lemma after_alloc'_ok : forall lo hi b phi H,
-  resource_fmap (approx (level phi)) oo (after_alloc' lo hi b phi H)
+  resource_fmap (approx (level phi)) (approx (level phi)) oo (after_alloc' lo hi b phi H)
   = after_alloc' lo hi b phi H.
 Proof.
 intros.
@@ -1252,7 +1253,7 @@ rewrite core_PURE; simpl; auto.
 Qed.
 
 Lemma mod_after_alloc'_ok : forall phi lo hi b,
-  resource_fmap (approx (level phi)) oo (mod_after_alloc'  phi lo hi b)
+  resource_fmap (approx (level phi)) (approx (level phi)) oo (mod_after_alloc'  phi lo hi b)
   = mod_after_alloc' phi lo hi b.
 Proof.
 intros.
@@ -1383,9 +1384,9 @@ Definition resource_decay (nextb: block) (phi1 phi2: rmap) :=
   (level phi1 >= level phi2)%nat /\
  forall l: address,
   ((fst l >= nextb)%positive -> phi1 @ l = NO Share.bot) /\
-  (resource_fmap (approx (level phi2)) (phi1 @ l) = (phi2 @ l) \/
+  (resource_fmap (approx (level phi2)) (approx (level phi2)) (phi1 @ l) = (phi2 @ l) \/
   (exists rsh, exists v, exists v',
-       resource_fmap (approx (level phi2)) (phi1 @ l) = YES rsh pfullshare (VAL v) NoneP /\ 
+       resource_fmap (approx (level phi2)) (approx (level phi2)) (phi1 @ l) = YES rsh pfullshare (VAL v) NoneP /\ 
        phi2 @ l = YES rsh pfullshare (VAL v') NoneP)
   \/ ((fst l >= nextb)%positive /\ exists v, phi2 @ l = YES Share.top pfullshare (VAL v) NoneP)
   \/ (exists v, exists pp, phi1 @ l = YES Share.top pfullshare (VAL v) pp /\ phi2 @ l = NO Share.bot)).
@@ -1395,9 +1396,9 @@ Definition resource_nodecay (nextb: block) (phi1 phi2: rmap) :=
   (level phi1 >= level phi2)%nat /\
   forall l: address,
   ((fst l >= nextb)%positive -> phi1 @ l = NO Share.bot) /\
-  (resource_fmap (approx (level phi2)) (phi1 @ l) = (phi2 @ l) \/
+  (resource_fmap (approx (level phi2)) (approx (level phi2)) (phi1 @ l) = (phi2 @ l) \/
   (exists rsh, exists v, exists v',
-       resource_fmap (approx (level phi2)) (phi1 @ l) = YES rsh pfullshare (VAL v) NoneP
+       resource_fmap (approx (level phi2)) (approx (level phi2)) (phi1 @ l) = YES rsh pfullshare (VAL v) NoneP
       /\ phi2 @ l = YES rsh pfullshare (VAL v') NoneP)).
 
 Lemma resource_nodecay_decay: 
@@ -1430,9 +1431,9 @@ Proof.
  destruct H1.
  destruct H2. 
  left. rewrite <- H2.
- replace (resource_fmap (approx (level m3)) (m1 @ l))
-    with (resource_fmap (approx (level m3)) 
-              (resource_fmap (approx (level m2)) (m1 @ l)))
+ replace (resource_fmap (approx (level m3)) (approx (level m3)) (m1 @ l))
+    with (resource_fmap (approx (level m3)) (approx (level m3))
+              (resource_fmap (approx (level m2)) (approx (level m2)) (m1 @ l)))
   by (rewrite resource_fmap_fmap; rewrite approx_oo_approx' by auto; auto).
 rewrite H1. auto.
  clear - Hbb H H1 H0 H2 H' H0'.
@@ -1449,7 +1450,8 @@ rewrite H1. auto.
  destruct H2.
  destruct H1 as [[rsh [v [v' [? ?]]]]|[[? [v ?]] |?]].
  right; left; exists rsh,v,v'; split. 
- rewrite <- (approx_oo_approx' (level m3) (level m2)) by auto.
+ rewrite <- (approx_oo_approx' (level m3) (level m2)) at 1 by auto.
+ rewrite <- (approx'_oo_approx (level m3) (level m2)) at 2 by auto.
  rewrite <- resource_fmap_fmap. rewrite H1.
  unfold resource_fmap. rewrite preds_fmap_NoneP. auto.
  rewrite H3 in H2. rewrite <- H2.
@@ -1463,7 +1465,8 @@ rewrite H1. auto.
  destruct H1 as [[rsh [v [v' [? ?]]]]|[[? [v ?]] |?]].
  destruct H2 as [[rsh2 [v2 [v2' [? ?]]]]|[[? [v2 ?]] |?]].
  right; left; exists rsh,v,v2'; split.
- rewrite <- (approx_oo_approx' (level m3) (level m2)) by auto.
+ rewrite <- (approx_oo_approx' (level m3) (level m2)) at 1 by auto.
+ rewrite <- (approx'_oo_approx (level m3) (level m2)) at 2 by auto.
  rewrite <- resource_fmap_fmap. rewrite H1.
  unfold resource_fmap. rewrite preds_fmap_NoneP. auto.
  rewrite H3 in H2. rewrite H4. simpl in H2. inv H2; auto.

@@ -182,10 +182,11 @@ apply unsquash_inj.
 rewrite H.
 rewrite unsquash_squash.
 f_equal.
-generalize (equal_f (rmap_fmap_comp (approx (S n)) (approx n)) r0); intro.
+generalize (equal_f (rmap_fmap_comp (approx (S n)) (approx (S n)) (approx n) (approx n)) r0); intro.
 unfold compose at 1 in H0.
 rewrite H0.
 rewrite approx_oo_approx'; auto.
+rewrite approx'_oo_approx; auto.
 clear - H.
 generalize (unsquash_squash n r0); intros.
 rewrite <- H in H0.

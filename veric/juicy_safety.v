@@ -16,7 +16,7 @@ Definition pures_sub (jm jm' : juicy_mem) :=
   forall adr,
   match resource_at (m_phi jm) adr with
     | PURE k pp => resource_at (m_phi jm') adr 
-                 = PURE k (preds_fmap (approx (level jm')) pp)
+                 = PURE k (preds_fmap (approx (level jm')) (approx (level jm')) pp)
     | _ => True
   end.
 
