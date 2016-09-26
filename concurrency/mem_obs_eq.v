@@ -219,6 +219,19 @@ Qed.
       by exfalso.
   Qed.
 
+  Lemma id_ren_restr:
+    forall pmap m (Hlt: permMapLt pmap (getMaxPerm m)),
+      id_ren m = id_ren (restrPermMap Hlt).
+  Proof.
+    intros.
+    extensionality b.
+    unfold id_ren.
+    destruct (valid_block_dec m b), (valid_block_dec (restrPermMap Hlt) b); simpl; auto.
+    erewrite restrPermMap_valid in n; by exfalso.
+    erewrite restrPermMap_valid in v; by exfalso.
+  Qed.
+  
+  
   Lemma incr_domain_id:
     forall m f f'
       (Hincr: ren_incr f f')
@@ -1990,43 +2003,108 @@ Module MemObsEq.
       by eauto.
   Qed.
 
-  Lemma mem_obs_eq_id :
+  Lemma mem_obs_eq_setMaxPerm :
     forall m,
       valid_mem m ->
       mem_obs_eq (id_ren m) m (setMaxPerm m).
-Proof with eauto with renamings id_renamings val_renamings.
-  intros.
-  constructor; constructor;
-  eauto with id_renamings; unfold id_ren; intros;
-  repeat match goal with
-         | [H: context[valid_block_dec ?M ?B] |- _] =>
-           destruct (valid_block_dec M B); simpl in *
-         | [H: _ = Some _ |- _] => inv H; clear H
-         end; auto.
-  rewrite setMaxPerm_Cur;
-    apply po_refl.
-  rewrite setMaxPerm_Cur; auto.
-  destruct (ZMap.get ofs (Mem.mem_contents m) # b2) eqn:Hget;
-    constructor.
-  destruct v0; constructor.
-  specialize (H _ v _ _ Hget).
-  simpl in H.
-  (*this gives an anomaly:
+  Proof with eauto with renamings id_renamings val_renamings.
+    intros.
+    constructor; constructor;
+      eauto with id_renamings; unfold id_ren; intros;
+        repeat match goal with
+               | [H: context[valid_block_dec ?M ?B] |- _] =>
+                 destruct (valid_block_dec M B); simpl in *
+               | [H: _ = Some _ |- _] => inv H; clear H
+               end; auto.
+    rewrite setMaxPerm_Cur;
+      apply po_refl.
+    rewrite setMaxPerm_Cur; auto.
+    destruct (ZMap.get ofs (Mem.mem_contents m) # b2) eqn:Hget;
+      constructor.
+    destruct v0; constructor.
+    specialize (H _ v _ _ Hget).
+    simpl in H.
+    (*this gives an anomaly:
   erewrite Coqlib2.if_true with (E:= {Mem.valid_block m b} + {~ Mem.valid_block m b}).
-   *)
-  destruct (valid_block_dec m b); simpl; tauto.
-Qed.
+     *)
+    destruct (valid_block_dec m b); simpl; tauto.
+  Qed.
 
-(** If a memory [m] injects into a memory [m'] then [m'] is at least
+  Lemma mem_obs_eq_id :
+    forall m,
+      valid_mem m ->
+      mem_obs_eq (id_ren m) m m.
+  Proof with eauto with renamings id_renamings val_renamings.
+    intros.
+    constructor; constructor;
+      eauto with id_renamings; unfold id_ren; intros;
+        repeat match goal with
+               | [H: context[valid_block_dec ?M ?B] |- _] =>
+                 destruct (valid_block_dec M B); simpl in *
+               | [H: _ = Some _ |- _] => inv H; clear H
+               end; auto.
+    now apply po_refl.
+    destruct (ZMap.get ofs (Mem.mem_contents m) # b2) eqn:Hget;
+      constructor.
+    destruct v0; constructor.
+    specialize (H _ v _ _ Hget).
+    simpl in H.
+    destruct (valid_block_dec m b); simpl; tauto.
+  Qed.
+
+  Lemma mem_obs_eq_extend:
+    forall m1 m1' m2' f pmap pmap'
+      (Hlt1: permMapLt pmap (getMaxPerm m1))
+      (Hlt1': permMapLt pmap' (getMaxPerm m1'))
+      (Hlt2': permMapLt pmap' (getMaxPerm m2'))
+      (Hmem_obs_eq: mem_obs_eq f (restrPermMap Hlt1) (restrPermMap Hlt1'))
+      (Hextend': forall b, Mem.valid_block m1' b -> Mem.valid_block m2' b)
+      (Hstable: forall b ofs, Mem.perm (restrPermMap Hlt1') b ofs Cur Readable ->
+                         ZMap.get ofs (Mem.mem_contents m1') # b = ZMap.get ofs (Mem.mem_contents m2') # b),
+      mem_obs_eq f (restrPermMap Hlt1) (restrPermMap Hlt2').
+  Proof.
+    intros.
+    destruct Hmem_obs_eq.
+    constructor.
+    destruct weak_obs_eq0.
+    econstructor; eauto.
+    intros; erewrite restrPermMap_valid.
+    eapply Hextend'.
+    eapply codomain_valid0; eauto.
+    intros.
+    rewrite! restrPermMap_Cur.
+    specialize (perm_obs_weak0 _ _ ofs Hrenaming).
+    rewrite! restrPermMap_Cur in perm_obs_weak0.
+    eauto.
+    destruct strong_obs_eq0.
+    assert (Hperm_eq: forall (b1 b2 : block) (ofs : Z),
+               f b1 = Some b2 ->
+               permission_at (restrPermMap Hlt2') b2 ofs Cur =
+               permission_at (restrPermMap Hlt1) b1 ofs Cur).
+    { intros; rewrite! restrPermMap_Cur.
+      specialize (perm_obs_strong0 _ _ ofs H).
+      rewrite! restrPermMap_Cur in perm_obs_strong0.
+      assumption.
+    } 
+    constructor; eauto.
+    intros.
+    simpl.
+    erewrite <- Hstable.
+    eapply val_obs_eq0; eauto.
+    unfold permission_at, Mem.perm in *.
+    erewrite <- perm_obs_strong0 in Hperm; eauto.
+  Qed.
+
+  (** If a memory [m] injects into a memory [m'] then [m'] is at least
 as big as [m] *)
 
-Lemma weak_mem_obs_eq_nextblock:
-  forall f m m'
-    (Hobs_eq: weak_mem_obs_eq f m m'),
-    (Mem.nextblock m <= Mem.nextblock m')%positive.
-Proof.
-Admitted.
-    
+  Lemma weak_mem_obs_eq_nextblock:
+    forall f m m'
+      (Hobs_eq: weak_mem_obs_eq f m m'),
+      (Mem.nextblock m <= Mem.nextblock m')%positive.
+  Proof.
+  Admitted.
+  
   Definition max_inv mf := forall b ofs, Mem.valid_block mf b ->
                                     permission_at mf b ofs Max = Some Freeable.
 
