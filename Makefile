@@ -136,6 +136,7 @@ CONCUR_FILES= \
   semax_simlemmas.v cl_step_lemmas.v \
   semax_progress.v semax_preservation.v \
   aging_lemmas.v resource_decay_lemmas.v \
+  permjoin.v \
   resource_decay_join.v join_lemmas.v coqlib5.v age_to.v \
   konig.v safety.v \
   reach_lemmas.v reestablish.v ret_lemmas.v lifting.v lifting_safety.v linking_inv.v linking_spec.v call_lemmas.v \
