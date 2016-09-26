@@ -7,7 +7,7 @@ Require Import msl.base.
 Open Local Scope nat_scope.
 
 Require Import msl.ageable.
-Require Import msl.functors.
+Require Import msl.functors_variant.
 Require Import msl.sepalg.
 Require Import msl.sepalg_functors.
 Require Import msl.sepalg_generators.
@@ -15,6 +15,10 @@ Require Import msl.predicates_hered.
 Require Import msl.knot_hered.
 Require Import msl.knot_lemmas.
 Require Import msl.age_sepalg.
+
+Import MixVariantFunctor.
+Import MixVariantFunctorLemmas.
+Import MixVariantFunctorGenerator.
 
 Module Type TY_FUNCTOR_SA_PROP.
   Declare Module TF:TY_FUNCTOR_PROP.

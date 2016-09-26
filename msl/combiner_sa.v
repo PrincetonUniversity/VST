@@ -7,9 +7,13 @@
 
 Require Import msl.base.
 Require Import msl.sepalg.
-Require Import msl.functors.
+Require Import msl.functors_variant.
 Require Import msl.sepalg_generators.
 Require Import msl.sepalg_functors.
+
+Import MixVariantFunctor.
+Import MixVariantFunctorLemmas.
+Import MixVariantFunctorGenerator.
 
 Definition midObj {A} {JA: Join A} (a : A) : Prop := ~identity a /\ ~ full a.
 
@@ -421,23 +425,21 @@ Section ParameterizedCombiner.
   Variable sa_S : Sep_alg S.
   Variable ca_S : Canc_alg S.
 
-  Variable T1 : Type -> Type.
+  Variable T1 : functor.
   Variable J1: forall A, Join (T1 A).
   Variable Perm1: forall A, Perm_alg (T1 A).
   Variable Sep1: forall A, Sep_alg (T1 A).
-  Variable f_T1 : functor T1.
-  Variable T2 : Type -> Type.
-  Variable f_T2 : functor T2.
+  Variable T2 : functor.
  
   Definition fcombiner (A : Type) : Type := 
     @combiner S JS (T1 A) (T2 A).
  
-  Definition fcombiner_fmap (A B : Type) (f : A -> B) 
+  Definition fcombiner_fmap (A B : Type) (f: A -> B) (g: B -> A)
     (fa : fcombiner A) : fcombiner B :=
       match fa with
         | CEmpty _ _ _=> CEmpty _ _ _ 
-        | CPart _ sh rs => CPart _ sh (fmap f rs)
-        | CFull _ _ trs => CFull _ _ (fmap f trs)
+        | CPart _ sh rs => CPart _ sh (fmap T1 f g rs)
+        | CFull _ _ trs => CFull _ _ (fmap T2 f g trs)
       end.
   Implicit Arguments fcombiner_fmap [A B].
   
@@ -449,7 +451,7 @@ Section ParameterizedCombiner.
     icase pd; rewrite <- fmap_comp...
   Qed.
   
-  Instance f_combiner : functor fcombiner := Functor ff_combiner.
+  Definition f_combiner : functor := Functor ff_combiner.
 
   Variable top_S : S.
   Variable topS_full : full top_S.
@@ -469,7 +471,7 @@ Section ParameterizedCombiner.
     combjoin A v1 v2 v3 ->
     combjoin A v1' v2 v3 ->
     v1 = v1'.
-  Variable saf_T1 : pafunctor f_T1.
+  Variable saf_T1 : pafunctor T1 J1.
 
   Instance Join_fcombiner (A: Type) : Join (fcombiner A) :=
     Join_combiner top_S (J1 A) (combjoin A).
@@ -496,11 +498,11 @@ Section ParameterizedCombiner.
         combjoin B (f x) (f y) (g z).
   Implicit Arguments combjoin_hom [A B].
   
-  Variable fmaps_combjoin_hom: forall A B (f : A -> B),
-    combjoin_hom (fmap f) (fmap f).
+  Variable fmaps_combjoin_hom: forall A B (f : A -> B) (g: B -> A),
+    combjoin_hom (fmap T1 f g) (fmap T2 f g).
 
-  Lemma fmap_fcombiner_hom: forall A B (f : A -> B),
-    join_hom (JA := Join_fcombiner A) (JB := Join_fcombiner B) (fmap f).
+  Lemma fmap_fcombiner_hom: forall A B (f : A -> B) (g: B -> A),
+    join_hom (JA := Join_fcombiner A) (JB := Join_fcombiner B) (fmap f_combiner f g).
   Proof with auto.
     repeat intro. hnf in H|-*.
     icase x; icase y; icase z.
@@ -525,8 +527,8 @@ Section ParameterizedCombiner.
         {x : T1 A &  {y0 : T1 A | combjoin A x y0 z /\ f x = x' /\ f y0 = f y}}.
   Implicit Arguments combjoin_unmap_left [A B].
   
-  Variable combjoin_preserves_unmap_left : forall A B (f : A -> B),
-    combjoin_unmap_left (fmap f) (fmap f).
+  Variable combjoin_preserves_unmap_left : forall A B (f : A -> B) (g: B -> A),
+    combjoin_unmap_left (fmap T1 f g) (fmap T2 f g).
   
   Definition combjoin_unmap_right (A B : Type)
     (f : T1 A -> T1 B) (g : T2 A -> T2 B) : Type :=
@@ -535,11 +537,11 @@ Section ParameterizedCombiner.
         {y0 : T1 A &  {z : T2 A | combjoin A x y0 z /\ f y0 = f y /\ g z = z'}}.
   Implicit Arguments combjoin_unmap_right [A B].
   
-  Variable combjoin_preserves_unmap_right : forall A B (f : A -> B),
-    combjoin_unmap_right (fmap f) (fmap f).
-  
-  Lemma fmap_fcombiner_preserves_unmap_left: forall A B (f : A -> B),
-    unmap_left (Join_fcombiner A) (Join_fcombiner B) (fmap f).
+  Variable combjoin_preserves_unmap_right : forall A B (f : A -> B) (g: B -> A),
+    combjoin_unmap_right (fmap T1 f g) (fmap T2 f g).
+
+  Lemma fmap_fcombiner_preserves_unmap_left: forall A B (f : A -> B) (g: B -> A),
+    unmap_left (Join_fcombiner A) (Join_fcombiner B) (fmap f_combiner f g).
   Proof with auto.
     repeat intro. simpl in H|-*. unfold join in H|-*. simpl in H|-*.
     icase x'; icase y; icase z.
@@ -554,14 +556,14 @@ Section ParameterizedCombiner.
     destruct H. simpl.
     repeat split; congruence.
     destruct H.
-    generalize (paf_preserves_unmap_left f v v0 v1 H0); intro X.
+    generalize (paf_preserves_unmap_left saf_T1 f g v v0 v1 H0); intro X.
     destruct X as [x [y0 [? [? ?]]]].
     exists (CPart _ sh x). exists (CPart _ sh0 y0).
     split. split...
     simpl. split; congruence.
     (* combjoin case *)
     destruct H.
-    spec combjoin_preserves_unmap_left A B f v v0 v1 H.
+    spec combjoin_preserves_unmap_left A B f g v v0 v1 H.
     destruct combjoin_preserves_unmap_left as [x [y0 [? [? ?]]]].
     exists (CPart _ sh x). exists (CPart _ sh0 y0).
     split. split...
@@ -572,8 +574,8 @@ Section ParameterizedCombiner.
     repeat split; congruence.
   Qed.
 
-  Lemma fmap_fcombiner_preserves_unmap_right: forall A B (f : A -> B),
-    unmap_right (Join_fcombiner A) (Join_fcombiner B) (fmap f).
+  Lemma fmap_fcombiner_preserves_unmap_right: forall A B (f : A -> B) (g: B -> A),
+    unmap_right (Join_fcombiner A) (Join_fcombiner B) (fmap f_combiner f g).
   Proof with auto.
     repeat intro. simpl in H|-*. unfold join in H|-*. simpl in H|-*.
     icase x; icase y; icase z'.
@@ -588,14 +590,14 @@ Section ParameterizedCombiner.
     destruct H. simpl.
     repeat split; congruence.
     destruct H.
-    generalize (paf_preserves_unmap_right f v v0 v1 H0); intro X.
+    generalize (paf_preserves_unmap_right saf_T1 f g v v0 v1 H0); intro X.
     destruct X as [y0 [z [? [? ?]]]].
     exists (CPart _ sh0 y0). exists (CPart _ sh1 z).
     split. split...
     simpl. split; congruence.
     (* combjoin case *)
     destruct H.
-    spec combjoin_preserves_unmap_right A B f v v0 v1 H.
+    spec combjoin_preserves_unmap_right A B f g v v0 v1 H.
     destruct combjoin_preserves_unmap_right as [y0 [z [? [? ?]]]].
     exists (CPart _ sh0 y0). exists (CFull _ _ z).
     split. split...
@@ -606,7 +608,7 @@ Section ParameterizedCombiner.
     repeat split; congruence.
   Qed.
   
- Instance paf_combiner: @pafunctor _ f_combiner Join_fcombiner.
+ Definition paf_combiner: @pafunctor f_combiner Join_fcombiner.
  Proof.
     constructor.
     apply fmap_fcombiner_hom.

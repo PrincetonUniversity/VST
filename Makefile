@@ -73,7 +73,7 @@ COQDOC=$(COQBIN)coqdoc
 MSL_FILES = \
   Axioms.v Extensionality.v base.v eq_dec.v sig_isomorphism.v \
   ageable.v sepalg.v psepalg.v age_sepalg.v \
-  sepalg_generators.v xsepalg_generators.v functors.v functors_variant.v sepalg_functors.v xsepalg_functors.v combiner_sa.v \
+  sepalg_generators.v functors.v functors_variant.v sepalg_functors.v combiner_sa.v \
   cross_split.v join_hom_lemmas.v cjoins.v \
   boolean_alg.v tree_shares.v shares.v pshares.v \
   knot.v knot_sa.v knot_prop.v \
@@ -188,7 +188,7 @@ LINKING_FILES= \
   finfun.v
 
 VERIC_FILES= \
-  base.v Memory.v shares.v rmaps.v xrmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v juicy_base.v \
+  base.v Memory.v shares.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v juicy_base.v \
   tycontext.v lift.v expr.v expr2.v environ_lemmas.v binop_lemmas.v binop_lemmas2.v \
   expr_lemmas.v expr_lemmas2.v expr_lemmas3.v expr_rel.v xexpr_rel.v extend_tc.v \
   Clight_lemmas.v Clight_new.v Clightnew_coop.v Clight_sim.v \

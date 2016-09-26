@@ -3,13 +3,9 @@ Require Export msl.ageable.
 Require Export msl.age_sepalg.
 Require Export msl.base.
 Require Export msl.boolean_alg.
-Require Export msl.knot.
-Require Export msl.knot_hered.
-Require Export msl.knot_lemmas.
-Require Export msl.knot_prop.
-Require Export msl.knot_sa.
-Require Export msl.knot_hered_sa.
-Require Export msl.knot_sa_trivial.
+Require Export msl.knot_full_variant.
+Require Export msl.knot_shims.
+Require Export msl.knot_full_sa.
 Require Export msl.knot_shims.
 Require Export msl.predicates_hered.
 Require Export msl.predicates_sl.
@@ -30,8 +26,3 @@ Require Export msl.pshares.
 Require Export msl.eq_dec.
 
 Require Export msl.functors_variant.
-Require Export msl.knot_full_variant.
-Require Export msl.knot_shims.
-Require Export msl.xsepalg_generators.
-Require Import msl.xsepalg_functors.
-Require Export msl.knot_full_sa.
