@@ -61,10 +61,10 @@ Definition resource_decay_aux (nextb: block) (phi1 phi2: rmap) : Type :=
   (forall l: address,
     
   ((fst l >= nextb)%positive -> phi1 @ l = NO Share.bot) *
-  ( (resource_fmap (approx (level phi2)) (phi1 @ l) = (phi2 @ l))
+  ( (resource_fmap (approx (level phi2)) (approx (level phi2)) (phi1 @ l) = (phi2 @ l))
     
   + { rsh : _ & { v : _ & { v' : _ |
-       resource_fmap (approx (level phi2)) (phi1 @ l) = YES rsh pfullshare (VAL v) NoneP /\ 
+       resource_fmap (approx (level phi2)) (approx (level phi2)) (phi1 @ l) = YES rsh pfullshare (VAL v) NoneP /\ 
        phi2 @ l = YES rsh pfullshare (VAL v') NoneP }}}
   
   + (fst l >= nextb)%positive * { v | phi2 @ l = YES Share.top pfullshare (VAL v) NoneP }
@@ -104,9 +104,9 @@ Ltac sumsimpl :=
 
 Definition resource_decay_at (nextb: block) n (r1 r2 : resource) b := 
   ((b >= nextb)%positive -> r1 = NO Share.bot) /\
-  (resource_fmap (approx (n)) (r1) = (r2) \/
+  (resource_fmap (approx (n)) (approx (n)) (r1) = (r2) \/
   (exists rsh, exists v, exists v',
-       resource_fmap (approx (n)) (r1) = YES rsh pfullshare (VAL v) NoneP /\ 
+       resource_fmap (approx (n)) (approx (n)) (r1) = YES rsh pfullshare (VAL v) NoneP /\ 
        r2 = YES rsh pfullshare (VAL v') NoneP)
   \/ ((b >= nextb)%positive /\ exists v, r2 = YES Share.top pfullshare (VAL v) NoneP)
   \/ (exists v, exists pp, r1 = YES Share.top pfullshare (VAL v) pp /\ r2 = NO Share.bot)).

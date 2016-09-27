@@ -4,6 +4,10 @@ Require Import msl.Coqlib2.
 Require Import msl.sepalg_list.
 Require Import veric.rmaps.
 
+Import MixVariantFunctor.
+Import MixVariantFunctorLemmas.
+Import MixVariantFunctorGenerator.
+
 Module Rmaps_Lemmas (R: RMAPS).
 Module R := R. 
 Import R.
@@ -107,7 +111,7 @@ Qed.
 
 
 Lemma make_rmap (f: AV.address -> resource) (V: AV.valid (res_option oo f)) 
-    (n: nat) (H: resource_fmap (approx n) oo f = f) :
+    (n: nat) (H: resource_fmap (approx n) (approx n) oo f = f) :
   {phi: rmap | level phi = n /\ resource_at phi = f}.
 Proof.
 intros.
@@ -119,7 +123,7 @@ Qed.
 Lemma make_rmap'':
     forall n (f: AV.address -> resource) ,
       AV.valid (fun l => res_option (f l)) ->
-      exists phi:rmap, level phi = n /\ resource_at phi = resource_fmap (approx n) oo f.
+      exists phi:rmap, level phi = n /\ resource_at phi = resource_fmap (approx n) (approx n) oo f.
   Proof.
     intros.
     exists (squash (n, exist valid f H)).
@@ -136,7 +140,7 @@ extensionality P.
 Qed.
 
 Lemma approx'_oo_approx:
-  forall n n', (n' <= n)%nat -> approx n' oo approx n = approx n'.
+  forall n n', (n' >= n)%nat -> approx n' oo approx n = approx n.
 Proof.
 unfold compose; intros.
 extensionality P.
@@ -151,7 +155,7 @@ Qed.
 Lemma resources_same_level:
    forall f phi,
      (forall l : AV.address, join_sub (f l) (phi @ l)) ->
-        resource_fmap (approx (level phi)) oo f = f.
+        resource_fmap (approx (level phi)) (approx (level phi)) oo f = f.
 Proof.
   intros.
   rewrite rmap_level_eq.
@@ -172,16 +176,16 @@ Proof.
   revert H1.
   unfold resource_fmap, compose.
   destruct (f l); destruct g; destruct (x l); simpl; intro; auto; inv H1.
-  change (preds_fmap (approx n) (preds_fmap (approx n) p2))
-  with ((preds_fmap (approx n) oo preds_fmap (approx n)) p2).
+  change (preds_fmap (approx n) (approx n) (preds_fmap (approx n) (approx n) p2))
+  with ((preds_fmap (approx n) (approx n) oo preds_fmap (approx n) (approx n)) p2).
   rewrite preds_fmap_comp.
   rewrite approx_oo_approx; auto.
-  change (preds_fmap (approx n) (preds_fmap (approx n) p4))
-  with ((preds_fmap (approx n) oo preds_fmap (approx n)) p4).
+  change (preds_fmap (approx n) (approx n) (preds_fmap (approx n) (approx n) p4))
+  with ((preds_fmap (approx n) (approx n) oo preds_fmap (approx n) (approx n)) p4).
   rewrite preds_fmap_comp.
   rewrite approx_oo_approx; auto.
-  change (preds_fmap (approx n) (preds_fmap (approx n) p1))
-  with ((preds_fmap (approx n) oo preds_fmap (approx n)) p1).
+  change (preds_fmap (approx n) (approx n) (preds_fmap (approx n) (approx n) p1))
+  with ((preds_fmap (approx n) (approx n) oo preds_fmap (approx n) (approx n)) p1).
   rewrite preds_fmap_comp.
   rewrite approx_oo_approx; auto.
 Qed.
@@ -233,7 +237,7 @@ Qed.
 Lemma allocate:
      forall (phi : rmap) (f : AV.address -> resource),
      AV.valid (res_option oo f) ->
-        resource_fmap (approx (level phi)) oo f = f ->
+        resource_fmap (approx (level phi)) (approx (level phi)) oo f = f ->
        (forall l, {r' | join (phi@l) (f l) r'}) ->
        exists phi1 : rmap,
          exists phi2 : rmap,
@@ -294,10 +298,10 @@ Proof.
    unfold rmap_fmap, compose, resource_fmap.
    destruct phi'; simpl.
    destruct (x l); destruct (f l); destruct (g l); simpl; intros; auto; try inv H6;
-              try change (preds_fmap (approx n) (preds_fmap (approx n) p0)) with
-                ((preds_fmap (approx n) oo preds_fmap (approx n)) p0);
-              try change (preds_fmap (approx n) (preds_fmap (approx n) p)) with
-                ((preds_fmap (approx n) oo preds_fmap (approx n)) p);
+              try change (preds_fmap (approx n) (approx n) (preds_fmap (approx n) (approx n) p0)) with
+                ((preds_fmap (approx n) (approx n) oo preds_fmap (approx n) (approx n)) p0);
+              try change (preds_fmap (approx n) (approx n) (preds_fmap (approx n) (approx n) p)) with
+                ((preds_fmap (approx n) (approx n) oo preds_fmap (approx n) (approx n)) p);
                 rewrite preds_fmap_comp; rewrite approx_oo_approx; auto.
  rewrite H5.
  rewrite Gf.
@@ -332,13 +336,13 @@ Qed.
     rewrite unsquash_squash.
     rewrite unsquash_squash.
     simpl in H0.
-    replace (rmap_fmap (approx n0) r) with (rmap_fmap (approx n0) r0); auto.
+    replace (rmap_fmap (approx n0) (approx n0) r) with (rmap_fmap (approx n0) (approx n0) r0); auto.
     destruct r; destruct r0.
     simpl in *.
-    generalize (valid_res_map (approx n0) x0 v0).
-    generalize (valid_res_map (approx n0) x v).
-    replace (resource_fmap (approx n0) oo x0)
-      with (resource_fmap (approx n0) oo x).
+    generalize (valid_res_map (approx n0) (approx n0) x0 v0).
+    generalize (valid_res_map (approx n0) (approx n0) x v).
+    replace (resource_fmap (approx n0) (approx n0) oo x0)
+      with (resource_fmap (approx n0) (approx n0) oo x).
     intros v1 v2; replace v2 with v1 by apply proof_irr; auto.
     extensionality l.
     unfold compose.
@@ -403,26 +407,34 @@ Qed.
     unfold ageN in IHd. rewrite rmap_age1_eq in IHd.
     rewrite IHd.
     2: omega.
-    replace (squash ((n - d)%nat, rmap_fmap (approx (S n)) rm))
-       with (squash ((n - d)%nat, rm)); auto.
+    f_equal.
     apply unsquash_inj.
-    rewrite unsquash_squash.
-    rewrite unsquash_squash.
-    replace (rmap_fmap (approx (n - d)) rm)
-       with (rmap_fmap (approx (n - d) oo approx (S n)) rm); auto.
-    rewrite <- rmap_fmap_comp.
-    unfold compose; auto.
-    replace (approx (n-d) oo approx (S n)) with (approx (n-d)).
-    auto.
-    clear.
-    assert (n-d <= (S n))%nat by omega.
-    revert H; generalize (n-d)%nat (S n).
-    clear.
-    intros.
-    extensionality p.
-    apply pred_ext'.  extensionality w.
-    unfold compose, approx.
-    apply prop_ext; simpl; intuition.
+    rewrite !unsquash_squash.
+    f_equal.
+    change (rmap_fmap (approx (n - d)) (approx (n - d))
+             (rmap_fmap (approx (S n)) (approx (S n)) rm)) with
+           ((rmap_fmap (approx (n - d)) (approx (n - d)) oo
+              rmap_fmap (approx (S n)) (approx (S n))) rm).
+    rewrite rmap_fmap_comp.
+    f_equal.
+    + clear.
+      assert (n-d <= (S n))%nat by omega.
+      revert H; generalize (n-d)%nat (S n).
+      clear.
+      intros.
+      extensionality p.
+      apply pred_ext'.  extensionality w.
+      unfold compose, approx.
+      apply prop_ext; simpl; intuition.
+    + clear.
+      assert (n-d <= (S n))%nat by omega.
+      revert H; generalize (n-d)%nat (S n).
+      clear.
+      intros.
+      extensionality p.
+      apply pred_ext'.  extensionality w.
+      unfold compose, approx.
+      apply prop_ext; simpl; intuition.
   Qed.
 
   Lemma unageN: forall n (phi': rmap),   exists phi, ageN n phi = Some phi'.
@@ -493,13 +505,13 @@ match goal with |- ?a = ?b =>
     match b with context [map ?y _] => replace y with x; auto end end end.
 
 Lemma preds_fmap_fmap: 
-  forall f g pp, preds_fmap f (preds_fmap g pp) = preds_fmap (f oo g) pp.
+  forall f1 f2 g1 g2 pp, preds_fmap f1 f2 (preds_fmap g1 g2 pp) = preds_fmap (f1 oo g1) (g2 oo f2) pp.
 Proof.
 destruct pp; simpl; auto.
 Qed.
 
-Lemma resource_fmap_fmap:  forall f g r, resource_fmap f (resource_fmap g r) = 
-                                                                      resource_fmap (f oo g) r.
+Lemma resource_fmap_fmap:  forall f1 f2 g1 g2 r, resource_fmap f1 f2 (resource_fmap g1 g2 r) = 
+                                                                      resource_fmap (f1 oo g1) (g2 oo f2) r.
 Proof.
 destruct r; simpl; auto.
 rewrite preds_fmap_fmap; auto.
@@ -508,13 +520,13 @@ Qed.
 
 Lemma resource_at_approx:
   forall phi l, 
-      resource_fmap (approx (level phi)) (phi @ l) = phi @ l.
+      resource_fmap (approx (level phi)) (approx (level phi)) (phi @ l) = phi @ l.
 Proof.
 intros. symmetry. rewrite rmap_level_eq. unfold resource_at.
 case_eq (unsquash phi); intros.
 simpl.
 destruct r; simpl in *.
-assert (R.valid (resource_fmap (approx n) oo x)).
+assert (R.valid (resource_fmap (approx n) (approx n) oo x)).
 apply valid_res_map; auto.
 set (phi' := (squash (n, exist (fun m : AV.address -> resource => R.valid m) _ H0))).
 generalize (unsquash_inj phi phi'); intro.
@@ -526,10 +538,10 @@ unfold phi'.
 repeat rewrite unsquash_squash.
 simpl.
 replace (exist (fun m : AV.address -> resource => valid m)
-  (resource_fmap (approx n) oo x) (valid_res_map (approx n) x v)) with
+  (resource_fmap (approx n) (approx n) oo x) (valid_res_map (approx n) (approx n) x v)) with
 (exist (fun m : AV.address -> resource => valid m)
-  (resource_fmap (approx n) oo resource_fmap (approx n) oo x)
-  (valid_res_map (approx n) (resource_fmap (approx n) oo x) H0)); auto.
+  (resource_fmap (approx n) (approx n) oo resource_fmap (approx n) (approx n) oo x)
+  (valid_res_map (approx n) (approx n) (resource_fmap (approx n) (approx n) oo x) H0)); auto.
 assert (Hex: forall A (F: A -> Prop) (x x': A) y y', x=x' -> exist F x y = exist F x' y') by auto with extensionality.
 apply Hex.
 unfold compose.
@@ -549,8 +561,8 @@ Qed.
 Lemma necR_resource_at:
   forall phi phi' loc r,
         necR phi phi' ->
-         phi @ loc = resource_fmap (approx (level phi)) r ->
-         phi' @ loc = resource_fmap (approx (level phi')) r.
+         phi @ loc = resource_fmap (approx (level phi)) (approx (level phi)) r ->
+         phi' @ loc = resource_fmap (approx (level phi')) (approx (level phi')) r.
 Proof.
 intros.
 revert r loc H0; induction H; intros; auto.
@@ -572,7 +584,7 @@ Lemma necR_YES:
   forall phi phi' loc rsh sh k pp,
         necR phi phi' ->
          phi @ loc = YES rsh sh k pp ->
-         phi' @ loc = YES rsh sh k (preds_fmap (approx (level phi')) pp).
+         phi' @ loc = YES rsh sh k (preds_fmap (approx (level phi')) (approx (level phi')) pp).
 Proof.
 intros.
 generalize (eq_sym (resource_at_approx phi loc)); 
@@ -584,7 +596,7 @@ Lemma necR_PURE:
   forall phi phi' loc k pp,
         necR phi phi' ->
          phi @ loc = PURE k pp ->
-         phi' @ loc = PURE k (preds_fmap (approx (level phi')) pp).
+         phi' @ loc = PURE k (preds_fmap (approx (level phi')) (approx (level phi')) pp).
 Proof.
   intros.
   generalize (eq_sym (resource_at_approx phi loc)); 
@@ -634,7 +646,7 @@ Ltac inj_pair_tac :=
  end.
 
 Lemma preds_fmap_NoneP:
-  forall f, preds_fmap f NoneP = NoneP.
+  forall f1 f2, preds_fmap f1 f2 NoneP = NoneP.
 Proof.
 intros.
 unfold NoneP.
@@ -774,8 +786,8 @@ Lemma age1_resource_at:
      forall phi phi', 
           age1 phi = Some phi' ->
          forall loc r, 
-          phi @ loc = resource_fmap (approx (level phi)) r ->
-          phi' @ loc = resource_fmap (approx (level phi')) r.
+          phi @ loc = resource_fmap (approx (level phi)) (approx (level phi)) r ->
+          phi' @ loc = resource_fmap (approx (level phi')) (approx (level phi')) r.
 Proof.
    unfold resource_at; rewrite rmap_age1_eq, rmap_level_eq.
 intros until phi'; case_eq (unsquash phi); intros.
@@ -974,10 +986,11 @@ apply unsquash_inj.
 rewrite H.
 rewrite unsquash_squash.
 f_equal.
-generalize (equal_f (rmap_fmap_comp (approx (S n)) (approx n)) r0); intro.
+generalize (equal_f (rmap_fmap_comp (approx (S n)) (approx (S n)) (approx n) (approx n)) r0); intro.
 unfold compose at 1 in H0.
 rewrite H0.
 rewrite approx_oo_approx'; auto.
+rewrite approx'_oo_approx; auto.
 clear - H.
 generalize (unsquash_squash n r0); intros.
 rewrite <- H in H0.
@@ -1485,7 +1498,7 @@ apply core_identity.
 Qed.
 
 Lemma resource_fmap_core:
-  forall w loc, resource_fmap (approx (level w)) (core (w @ loc)) = core (w @ loc).
+  forall w loc, resource_fmap (approx (level w)) (approx (level w)) (core (w @ loc)) = core (w @ loc).
 Proof.
 intros.
 case_eq (w @ loc); intros;

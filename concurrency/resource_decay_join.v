@@ -13,6 +13,7 @@ Require Import veric.tycontext.
 Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
 Require Import veric.coqlib4.
+Require Import concurrency.permjoin.
 Require Import concurrency.age_to.
 Require Import concurrency.aging_lemmas.
 Require Import concurrency.sync_preds_defs.
@@ -20,40 +21,6 @@ Require Import concurrency.sync_preds_defs.
 Set Bullet Behavior "Strict Subproofs".
 
 (* @andrew those lemmas already somewhere? *)
-
-Lemma join_bot_bot_eq sh :
-  sepalg.join Share.bot Share.bot sh ->
-  sh = Share.bot.
-Proof.
-  intros j.
-  apply (join_eq j  (z' := Share.bot) (join_bot_eq Share.bot)).
-Qed.
-
-Lemma join_to_bot_l {sh1 sh2} :
-  sepalg.join sh1 sh2 Share.bot ->
-  sh1 = Share.bot.
-Admitted.
-
-Lemma join_to_bot_r {sh1 sh2} :
-  sepalg.join sh1 sh2 Share.bot ->
-  sh2 = Share.bot.
-Admitted.
-
-Lemma join_top_l {sh2 sh3} :
-  sepalg.join Share.top sh2 sh3 ->
-  sh2 = Share.bot.
-Proof.
-Admitted.
-         
-Lemma join_top {sh2 sh3} :
-  sepalg.join Share.top sh2 sh3 ->
-  sh3 = Share.top.
-Proof.
-Admitted.
-
-Lemma join_pfullshare {sh2 sh3 : pshare} : ~sepalg.join pfullshare sh2 sh3.
-Proof.
-Admitted.
 
 Lemma rmap_bound_join {b phi1 phi2 phi3} :
   sepalg.join phi1 phi2 phi3 ->
@@ -144,7 +111,7 @@ Proof.
 Qed.
 
 Lemma resource_fmap_approx_idempotent n r :
-  resource_fmap (approx n) (resource_fmap (approx n) r) = resource_fmap (approx n) r.
+  resource_fmap (approx n) (approx n) (resource_fmap (approx n) (approx n) r) = resource_fmap (approx n) (approx n) r.
 Proof.
   destruct r; simpl; f_equal.
   - destruct p0; simpl.
@@ -253,7 +220,7 @@ Proof.
              { r3 |
                sepalg.join (phi1' @ loc) (phi2' @ loc) r3 /\
                resource_decay_at b (level phi1') (phi3 @ loc) r3 (fst loc) /\
-               resource_fmap (approx (level phi1')) r3 = r3
+               resource_fmap (approx (level phi1')) (approx (level phi1')) r3 = r3
          }).
   {
     intros loc.
@@ -266,7 +233,7 @@ Proof.
     
     destruct rd as [nn [[[E1 | (rsh & v & v' & E1 & E1')] | (pos & v & E1') ] | (v & pp & E1 & E1')]].
     
-    - exists ( resource_fmap (approx (level phi1')) (phi3 @ loc)).
+    - exists ( resource_fmap (approx (level phi1')) (approx (level phi1')) (phi3 @ loc)).
       rewrite <-E1.
       split;[|split;[split|]].
       + inversion J; simpl; constructor; auto.
@@ -382,9 +349,9 @@ Proof.
     destruct rd3 as [[NN rd3] _].
     split; auto.
     destruct rd3 as [R|[R|[R|R]]].
-    + left. exact_eq R; do 3 f_equal. auto.
-    + right; left. exact_eq R.
-      do 7 (f_equal; try extensionality).
+    + left. exact_eq R; do 3 f_equal; auto.
+    + right; left. exact_eq R;
+      do 7 (f_equal; try extensionality);
       auto.
     + right; right; left. auto.
     + auto.

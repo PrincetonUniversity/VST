@@ -171,167 +171,171 @@ Lemma address_mapsto_zeros_eq:
    address_mapsto_zeros' (Z_of_nat n) 
             (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh).
 Proof.
-induction n;
-extensionality adr; destruct adr as [b i].
-* (* base case *)
-simpl.
-unfold address_mapsto_zeros'.
-apply pred_ext.
-intros w ?.
-intros [b' i'].
-hnf.
-rewrite if_false.
-simpl. apply resource_at_identity; auto.
-intros [? ?]. unfold Zmax in H1;  simpl in H1. omega.
-intros w ?.
-simpl.
-apply all_resource_at_identity.
-intros [b' i'].
-specialize (H (b',i')).
-hnf in H.
-rewrite if_false in H. apply H.
-clear; intros [? ?]. unfold Zmax in H0; simpl in H0. omega.
-* (* inductive case *)
-rewrite inj_S.
-simpl.
-rewrite IHn; clear IHn.
-apply pred_ext; intros w ?.
- - (* forward case *)
-destruct H as [w1 [w2 [? [? ?]]]].
-intros [b' i'].
-hnf.
-if_tac.
-destruct H0 as [bl [[? [? ?]] ?]].
-specialize (H5 (b',i')).
-hnf in H5.
-if_tac in H5.
-destruct H5 as [p ?]; exists p.
-hnf in H5.
-specialize (H1 (b',i')). hnf in H1. rewrite if_false in H1.
-assert (LEV := join_level _ _ _ H).
-apply (resource_at_join _ _ _ (b',i')) in H.
-apply join_comm in H; apply H1 in H.
-rewrite H in H5.
-hnf. rewrite H5. f_equal. f_equal.
-simpl. destruct H6. simpl in H7. replace (i'-i) with 0 by omega.
-unfold size_chunk_nat in H0. simpl in H0. 
-unfold nat_of_P in H0. simpl in H0.
-destruct bl; try solve [inv H0].
-destruct bl; inv H0.
-simpl.
-clear - H3.
- {
-destruct m; try solve [inv H3].
-rewrite decode_byte_val in H3.
-f_equal.
-assert (Int.zero_ext 8 (Int.repr (Byte.unsigned i)) = Int.repr 0).
-forget (Int.zero_ext 8 (Int.repr (Byte.unsigned i))) as j; inv H3; auto.
-clear H3.
-assert (Int.unsigned (Int.zero_ext 8 (Int.repr (Byte.unsigned i))) =
-    Int.unsigned Int.zero).
-f_equal; auto. rewrite Int.unsigned_zero in H0.
-clear H.
-rewrite Int.zero_ext_mod in H0 by (compute; split; congruence).
-rewrite Int.unsigned_repr in H0.
-rewrite Zdiv.Zmod_small in H0.
-assert (Byte.repr (Byte.unsigned i) = Byte.zero).
-apply f_equal; auto.
-rewrite Byte.repr_unsigned in H. auto.
-apply Byte.unsigned_range.
-clear.
-pose proof (Byte.unsigned_range i).
-destruct H; split; auto.
-apply Z.le_trans with Byte.modulus.
-omega.
-clear.
-compute; congruence.
-}
-f_equal. f_equal.
-destruct LEV; auto.
-destruct H2.
-intros [? ?].
-destruct H6.
-clear - H7 H9 H10. simpl in H10. omega.
-assert (LEV := join_level _ _ _ H).
-apply (resource_at_join _ _ _ (b',i')) in H.
-apply H5 in H.
-specialize (H1 (b',i')).
-hnf in H1.
-if_tac in H1.
-destruct H1 as [p ?]; exists p.
-hnf in H1|-*.
-rewrite H in H1; rewrite H1.
-f_equal. f_equal. f_equal. destruct LEV; auto.
-contradiction H6.
-destruct H2.
-split; auto.
-simpl.
-subst b'.
-clear - H7 H8.
-assert (~ (Zsucc i <= i' < (Zsucc i + Zmax (Z_of_nat n) 0))).
-contradict H7; split; auto.
-clear H7.
-replace (Zmax (Zsucc (Z_of_nat n)) 0) with (Zsucc (Z_of_nat n)) in H8.
-replace (Zmax (Z_of_nat n) 0) with (Z_of_nat n) in H.
-omega.
-symmetry; apply Zmax_left.
-apply Z_of_nat_ge_O.
-symmetry; apply Zmax_left.
-clear.
-pose proof (Z_of_nat_ge_O n). omega.
-apply (resource_at_join _ _ _ (b',i')) in H.
-destruct H0 as [bl [[? [? ?]] ?]].
-specialize (H5 (b',i')); specialize (H1 (b',i')).
-hnf in H1,H5.
-rewrite if_false in H5.
-rewrite if_false in H1.
-apply H5 in H.
-simpl in H1|-*.
-rewrite <- H; auto.
-clear - H2; contradict H2.
-destruct H2; split; auto.
-destruct H0.
-split; try omega.
-pose proof (Z_of_nat_ge_O n). 
-rewrite Zmax_left in H1 by omega.
-rewrite Zmax_left by omega.
-omega.
-clear - H2; contradict H2; simpl in H2.
-destruct H2; split; auto.
-rewrite Zmax_left by omega.
-omega.
+  induction n;
+  extensionality adr; destruct adr as [b i].
+  * (* base case *)
+    simpl.
+    unfold address_mapsto_zeros'.
+    apply pred_ext.
+    intros w ?.
+    intros [b' i'].
+    hnf.
+    rewrite if_false.
+    simpl. apply resource_at_identity; auto.
+    intros [? ?]. unfold Zmax in H1;  simpl in H1. omega.
+    intros w ?.
+    simpl.
+    apply all_resource_at_identity.
+    intros [b' i'].
+    specialize (H (b',i')).
+    hnf in H.
+    rewrite if_false in H. apply H.
+    clear; intros [? ?]. unfold Zmax in H0; simpl in H0. omega.
+  * (* inductive case *)
+    rewrite inj_S.
+    simpl.
+    rewrite IHn; clear IHn.
+    apply pred_ext; intros w ?.
+    - (* forward case *)
+      destruct H as [w1 [w2 [? [? ?]]]].
+      intros [b' i'].
+      hnf.
+      if_tac.
+      + destruct H0 as [bl [[? [? ?]] ?]].
+        specialize (H5 (b',i')).
+        hnf in H5.
+        if_tac in H5.
+       ** destruct H5 as [p ?]; exists p.
+          hnf in H5.
+          specialize (H1 (b',i')). hnf in H1. rewrite if_false in H1.
+          assert (LEV := join_level _ _ _ H).
+          Focus 1. {
+            apply (resource_at_join _ _ _ (b',i')) in H.
+            apply join_comm in H; apply H1 in H.
+            rewrite H in H5.
+            hnf. rewrite H5. f_equal.
+            * f_equal.
+              simpl. destruct H6. simpl in H7. replace (i'-i) with 0 by omega.
+              unfold size_chunk_nat in H0. simpl in H0. 
+              unfold nat_of_P in H0. simpl in H0.
+              destruct bl; try solve [inv H0].
+              destruct bl; inv H0.
+              simpl.
+              clear - H3.
+              (* TODO: Clean up the following proof. *)
+              destruct m; try solve [inv H3].
+              rewrite decode_byte_val in H3.
+              f_equal.
+              assert (Int.zero_ext 8 (Int.repr (Byte.unsigned i)) = Int.repr 0) by
+                (forget (Int.zero_ext 8 (Int.repr (Byte.unsigned i))) as j; inv H3; auto).
+              clear H3.
+              assert (Int.unsigned (Int.zero_ext 8 (Int.repr (Byte.unsigned i))) =
+                  Int.unsigned Int.zero) by (f_equal; auto).
+              rewrite Int.unsigned_zero in H0.
+              clear H.
+              rewrite Int.zero_ext_mod in H0 by (compute; split; congruence).
+              rewrite Int.unsigned_repr in H0.
+              rewrite Zdiv.Zmod_small in H0.
+              assert (Byte.repr (Byte.unsigned i) = Byte.zero).
+              apply f_equal; auto.
+              rewrite Byte.repr_unsigned in H. auto.
+              apply Byte.unsigned_range.
+              clear.
+              pose proof (Byte.unsigned_range i).
+              destruct H; split; auto.
+              apply Z.le_trans with Byte.modulus.
+              omega.
+              clear.
+              compute; congruence.
+            * f_equal; f_equal;
+              destruct LEV; auto.
+          } Unfocus. 
+          destruct H2.
+          intros [? ?].
+          destruct H6.
+          clear - H7 H9 H10. simpl in H10. omega.
+       ** assert (LEV := join_level _ _ _ H).
+          apply (resource_at_join _ _ _ (b',i')) in H.
+          apply H5 in H.
+          specialize (H1 (b',i')).
+          hnf in H1.
+          if_tac in H1.
+         -- destruct H1 as [p ?]; exists p.
+            hnf in H1|-*.
+            rewrite H in H1; rewrite H1.
+            f_equal. f_equal; f_equal; destruct LEV; auto.
+         -- contradiction H6.
+            destruct H2.
+            split; auto.
+            simpl.
+            subst b'.
+            clear - H7 H8.
+            assert (~ (Zsucc i <= i' < (Zsucc i + Zmax (Z_of_nat n) 0))).
+            contradict H7; split; auto.
+            clear H7.
+            replace (Zmax (Zsucc (Z_of_nat n)) 0) with (Zsucc (Z_of_nat n)) in H8.
+            replace (Zmax (Z_of_nat n) 0) with (Z_of_nat n) in H.
+            omega.
+            symmetry; apply Zmax_left.
+            apply Z_of_nat_ge_O.
+            symmetry; apply Zmax_left.
+            clear.
+            pose proof (Z_of_nat_ge_O n). omega.
+      + apply (resource_at_join _ _ _ (b',i')) in H.
+        destruct H0 as [bl [[? [? ?]] ?]].
+        specialize (H5 (b',i')); specialize (H1 (b',i')).
+        hnf in H1,H5.
+        rewrite if_false in H5.
+        rewrite if_false in H1.
+       ** apply H5 in H.
+          simpl in H1|-*.
+          rewrite <- H; auto.
+       ** clear - H2; contradict H2.
+          destruct H2; split; auto.
+          destruct H0.
+          split; try omega.
+          pose proof (Z_of_nat_ge_O n). 
+          rewrite Zmax_left in H1 by omega.
+          rewrite Zmax_left by omega.
+          omega.
+       ** clear - H2; contradict H2; simpl in H2.
+          destruct H2; split; auto.
+          rewrite Zmax_left by omega.
+          omega.
 
-- (* backward direction *)
-forget (Share.unrel Share.Lsh sh) as rsh.
-forget (Share.unrel Share.Rsh sh) as sh'. clear sh; rename sh' into sh.
-assert (H0 := H (b,i)).
-hnf in H0.
-rewrite if_true in H0
-  by (split; auto; pose proof (Z_of_nat_ge_O n); rewrite Zmax_left; omega).
-destruct H0 as [H0 H1].
-assert (AV.valid (res_option oo (fun loc => if eq_dec loc (b,i) then 
- YES rsh (mk_pshare _ H0) (VAL (Byte Byte.zero)) NoneP 
-    else core (w @ loc)))).
- {intros b' z'; unfold res_option, compose; if_tac; simpl; auto.
-  destruct (w @ (b',z')); [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; auto.  
- }
-destruct (make_rmap _ H2 (level w)) as [w1 [? ?]].
-extensionality loc. unfold compose.
-if_tac; [unfold resource_fmap; f_equal; apply preds_fmap_NoneP 
+    - (* backward direction *)
+      forget (Share.unrel Share.Lsh sh) as rsh.
+      forget (Share.unrel Share.Rsh sh) as sh'. clear sh; rename sh' into sh.
+      assert (H0 := H (b,i)).
+      hnf in H0.
+      rewrite if_true in H0
+        by (split; auto; pose proof (Z_of_nat_ge_O n); rewrite Zmax_left; omega).
+      destruct H0 as [H0 H1].
+      assert (AV.valid (res_option oo (fun loc => if eq_dec loc (b,i) then 
+       YES rsh (mk_pshare _ H0) (VAL (Byte Byte.zero)) NoneP 
+          else core (w @ loc)))).
+      Focus 1. {
+        intros b' z'; unfold res_option, compose; if_tac; simpl; auto.
+        destruct (w @ (b',z')); [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; auto.  
+      } Unfocus.
+      destruct (make_rmap _ H2 (level w)) as [w1 [? ?]].
+      extensionality loc. unfold compose.
+      if_tac; [unfold resource_fmap; f_equal; apply preds_fmap_NoneP 
            | apply resource_fmap_core].
-assert (AV.valid (res_option oo 
-  fun loc => if adr_range_dec (b, Zsucc i) (Z.max (Z.of_nat n) 0) loc
-                     then YES rsh (mk_pshare _ H0) (VAL (Byte Byte.zero)) NoneP 
-    else core (w @ loc))).
- {intros b' z'; unfold res_option, compose; if_tac; simpl; auto. 
-  case_eq (w @ (b',z')); intros;
-   [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; auto.
- }
-destruct (make_rmap _ H5 (level w)) as [w2 [? ?]].
-extensionality loc. unfold compose.
-if_tac; [unfold resource_fmap; f_equal; apply preds_fmap_NoneP 
+      assert (AV.valid (res_option oo 
+        fun loc => if adr_range_dec (b, Zsucc i) (Z.max (Z.of_nat n) 0) loc
+                       then YES rsh (mk_pshare _ H0) (VAL (Byte Byte.zero)) NoneP 
+          else core (w @ loc))).
+      Focus 1. {
+        intros b' z'; unfold res_option, compose; if_tac; simpl; auto. 
+        case_eq (w @ (b',z')); intros;
+         [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; auto.
+      } Unfocus.
+      destruct (make_rmap _ H5 (level w)) as [w2 [? ?]].
+      extensionality loc. unfold compose.
+      if_tac; [unfold resource_fmap; f_equal; apply preds_fmap_NoneP 
            | apply resource_fmap_core].
-exists w1; exists w2; split3; auto.
+      exists w1; exists w2; split3; auto.
 +apply resource_at_join2; try congruence.
   intro loc; rewrite H4; rewrite H7.
  clear - H.

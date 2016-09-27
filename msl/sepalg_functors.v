@@ -4,13 +4,22 @@
  *)
 
 Require Import msl.base.
-Require Import msl.functors.
+Require Import msl.functors_variant.
 Require Import msl.sepalg.
 Require Import msl.sepalg_generators.
 
+Set Implicit Arguments.
+
+Import MixVariantFunctor.
+Import MixVariantFunctorLemmas.
+Import MixVariantFunctorGenerator.
+
+(* Parameterized separating structures, useful for knot_prop_sa and 
+    maybe for the general sa_knot. *)
+
 Section unmaps.
-  Variables (A: Type)(J_A: Join A)(A_pa: Perm_alg A).
-  Variables (B: Type)(J_B: Join B)(B_pa: Perm_alg B).
+  Variables (A: Type)(J_A: Join A).
+  Variables (B: Type)(J_B: Join B).
 
   Definition unmap_left (f:A -> B) :=
     forall x' y z,
@@ -25,54 +34,47 @@ End unmaps.
 Implicit Arguments unmap_right.
 Implicit Arguments unmap_left.
 
-Set Implicit Arguments.
+(*
+Definition Join_paf (F: functor): Type :=
+  forall A, Join (F A).
+Definition Perm_paf {F: functor} (paf_join: forall A, Join (F A)): Type :=
+  forall A: Type, Perm_alg (F A).
+Definition Sep_paf {F: functor} (paf_join: forall A, Join (F A)): Type :=
+  forall A: Type, Sep_alg (F A).
+Definition Canc_paf {F: functor} (paf_join: forall A, Join (F A)): Type :=
+  forall A: Type, Canc_alg (F A).
+Definition Disj_paf {F: functor} (paf_join: forall A, Join (F A)): Type :=
+  forall A: Type, Disj_alg (F A).
+*)
 
-(* Parameterized separating structures, useful for knot_prop_sa and 
-    maybe for the general sa_knot. *)
-Class pafunctor {F: Type -> Type} (FUN: functor F){J_F: forall A, Join (F A)}
-    : Type := PaFunctor
+(* TODO: change pafunctor, unmap_left, unmap_right into prop *)
+Record pafunctor (F: functor) (paf_join: forall A, Join (F A)): Type := Pafunctor
 {
-  paf_join_hom : forall A B (f : A -> B),
-    join_hom (fmap f);
-  paf_preserves_unmap_left : forall A B (f : A -> B),
-    unmap_left (J_F A) (J_F B) (fmap f);
-  paf_preserves_unmap_right : forall A B (f : A -> B),
-    unmap_right (J_F A) (J_F B) (fmap f)
+  paf_join_hom : forall A B (f : A -> B) (g: B -> A), join_hom (fmap F f g);
+  paf_preserves_unmap_left : forall A B (f : A -> B) (g: B -> A),
+    unmap_left (paf_join A) (paf_join B) (fmap F f g);
+  paf_preserves_unmap_right : forall A B (f : A -> B) (g: B -> A),
+    unmap_right (paf_join A) (paf_join B) (fmap F f g)
 }.
-
-Definition f_paf {P} `{functor P} : functor P.
-intros. apply H. Defined.
-Existing Instance f_paf.
-
-Definition Perm_paf {F: Type -> Type}(FUN: functor F)(J_F: forall A, Join (F A)) :=
-                  forall (A: Type){JA: Join A}{Perm_A: Perm_alg A}, Perm_alg (F A).
-Definition Sep_paf {F}(FUN: functor F)(J_F: forall A, Join (F A)) :=
-                  forall (A: Type){JA: Join A}{Perm_A: Perm_alg A}{Sep_A: Sep_alg A}, Sep_alg (F A).
-Definition Canc_paf {F}(FUN: functor F)(J_F: forall A, Join (F A)) := 
-                  forall (A: Type){JA: Join A}{Perm_A: Perm_alg A}{Canc_A: Canc_alg A}, Canc_alg (F A).
-Definition Disj_paf {F}(FUN: functor F)(J_F: forall A, Join (F A)) :=
-                  forall (A: Type){JA: Join A}{Perm_A: Perm_alg A}{Disj_A: Disj_alg A}, Disj_alg (F A).
 
 (* GENERATORS *)
 
 Section ConstPAFunctor.
-  Variables (T : Type)(J_T: Join T) (pa_T : Perm_alg T).
-  
-  Existing Instance f_const.
-  Instance pa_fconst (A : Type) : Perm_alg (fconst T A) :=  pa_T.
-  Instance paf_const : pafunctor (f_const T).
-  Proof with auto.
-    constructor; repeat intro...
-    exists x'. exists y...
-    exists y. exists z'...
-  Qed.
 
+  Variables (T : Type)(J_T: Join T).
+
+  Lemma paf_const : pafunctor (fconst T) (fun _ => J_T).
+    constructor; intros; hnf; intros.
+    + auto.
+    + exists x'. exists y. auto.
+    + exists y. exists z'. auto.
+  Qed.
 End ConstPAFunctor.
 
 Section EquivPAFunctor.
-  Variables (F : Type -> Type) (f_F : functor F).
+  Variables (F : functor).
 
-  Instance paf_equiv : @pafunctor _ f_F  (fun A => @Join_equiv (F A)).
+  Lemma paf_equiv : @pafunctor F (fun A => @Join_equiv (F A)).
   Proof with auto.
     constructor; repeat intro.
     destruct H; subst; split...
@@ -85,110 +87,94 @@ Section EquivPAFunctor.
 End EquivPAFunctor.
 
 Section PairSAFunctor.
-  Variables (F1 : Type -> Type) (fF1 : functor F1).
-  Variables (F2 : Type -> Type) (fF2 : functor F2).
-  
-  Existing Instance f_pair.
-  Variables (J_F1: forall A, Join (F1 A)) (paF1: forall A, Perm_alg (F1 A)) 
-         (pafF1: pafunctor fF1).
-  Variables (J_F2: forall A, Join (F2 A)) (paF2: forall A, Perm_alg (F2 A)) 
-         (pafF2: pafunctor fF2).
+  Variables (F1 F2: functor).
+  Variables (J_F1: forall A, Join (F1 A)) (pafF1: pafunctor F1 J_F1).
+  Variables (J_F2: forall A, Join (F2 A)) (pafF2: pafunctor F2 J_F2).
 
-  Instance pa_fpair (A : Type) : Perm_alg (fpair F1 F2 A) :=
-    Perm_prod (paF1 A) (paF2 A).
-
-  Instance paf_pair : @pafunctor _ (f_pair fF1 fF2) _.
+  (* The second argument must be explicitly specified (instead of _) *)
+  (* Or else, it will cause universe inconsistency in floyd. *)
+  Lemma paf_pair : @pafunctor (fpair F1 F2) (fun A : Type => Join_prod (F1 A) (J_F1 A) (F2 A) (J_F2 A)).
   Proof with auto.
     constructor; repeat intro.
-    destruct H.
-    destruct x. destruct y. destruct z.
-    split; simpl in *;  eapply paf_join_hom...
-(* PU *)
-    icase x'; icase y; icase z.
-    destruct H.
-    simpl in H, H0.
-    generalize (paf_preserves_unmap_left f f0 f2 f4 H); intro X.
-    destruct X as [x1 [y01 [? [? ?]]]].
-    generalize (paf_preserves_unmap_left f f1 f3 f5 H0); intro X.
-    destruct X as [x2 [y02 [? [? ?]]]].
-    exists (x1, x2). exists (y01, y02).
-    split. split...
-    split; simpl; congruence.
-    icase x; icase y; icase z'.
-    destruct H.
-    simpl in H, H0.
-    generalize (paf_preserves_unmap_right f f0 f2 f4 H); intro X.
-    destruct X as [y01 [z1 [? [? ?]]]].
-    generalize (paf_preserves_unmap_right f f1 f3 f5 H0); intro X.
-    destruct X as [y02 [z2 [? [? ?]]]].
-    exists (y01, y02). exists (z1, z2).
-    split. split...
-    split; simpl; congruence.
+    + destruct H.
+      destruct x. destruct y. destruct z.
+      split; simpl in *.
+      - apply (@paf_join_hom _ _ pafF1 _ _ _ _ _ _ _); auto.
+      - apply (@paf_join_hom _ _ pafF2 _ _ _ _ _ _ _); auto.
+    + (* PU *)
+      destruct x' as [f0 f1], y as [f2 f3], z as [f4 f5].
+      destruct H.
+      simpl in H, H0.
+      generalize (paf_preserves_unmap_left pafF1 f g f0 f2 f4 H); intro X.
+      destruct X as [x1 [y01 [? [? ?]]]].
+      generalize (paf_preserves_unmap_left pafF2 f g f1 f3 f5 H0); intro X.
+      destruct X as [x2 [y02 [? [? ?]]]].
+      exists (x1, x2). exists (y01, y02).
+      split. split...
+      split; simpl; congruence.
+    + destruct x as [f0 f1], y as [f2 f3], z' as [f4 f5].
+      destruct H.
+      simpl in H, H0.
+      generalize (paf_preserves_unmap_right pafF1 f g f0 f2 f4 H); intro X.
+      destruct X as [y01 [z1 [? [? ?]]]].
+      generalize (paf_preserves_unmap_right pafF2 f g f1 f3 f5 H0); intro X.
+      destruct X as [y02 [z2 [? [? ?]]]].
+      exists (y01, y02). exists (z1, z2).
+      split. split...
+      split; simpl; congruence.
   Qed.
-
 End PairSAFunctor.
 
 Section CoFunSAFunctor.
-  Variable dom : Type.
-  Variable rng : Type -> Type.  
-  Variable (f_rng : functor rng).
-  
-  Existing Instance f_fun.
+  Variables (dom: Type) (rng : functor).
+  Variables (Join_rng: forall A, Join (rng A)) (pss_rng : pafunctor rng Join_rng).
 
-  Variables (Join_rng: forall A, Join (rng A)) (pa_rng: forall A, Perm_alg (rng A))
-       (pss_rng : pafunctor f_rng).
-
-  Instance pa_ffun (A: Type) : Perm_alg (ffun dom rng A) :=
-          Perm_fun _ _  _ _.
-
-  Instance paf_fun : @pafunctor _ (f_fun dom f_rng) _.
+  Definition paf_fun : @pafunctor (ffunc (fconst dom) rng)
+                         (fun A => Join_fun dom _ (Join_rng A)).
   Proof with auto.
-    constructor; simpl; intros; intro; intros.  intro i.
-    spec H i.
-    apply (paf_join_hom f (x i) (y i) (z i) H).
-    (* PU *)
-    set (f' := fun d => paf_preserves_unmap_left f (x' d) (y d) (z d) (H d)).
-    exists (fun d => projT1 (f' d)).
-    exists (fun d => proj1_sig (projT2 (f' d))).
-    split.
-    intro d. spec f' d.
-    destruct f' as [x [y0 [? [? ?]]]]...
-    split; extensionality d;
-    simpl; unfold ffun_fmap, compose, f';
-    remember (paf_preserves_unmap_left f (x' d) (y d) (z d) (H d));
-    destruct s as [x [y0 [? [? ?]]]]...
-    (* RIGHT *)
-    set (f' := fun d => paf_preserves_unmap_right f (x d) (y d) (z' d) (H d)).
-    exists (fun d => projT1 (f' d)).
-    exists (fun d => proj1_sig (projT2 (f' d))).
-    split.
-    intro d. spec f' d.
-    destruct f' as [y0 [z [? [? ?]]]]...
-    split; extensionality d;
-    simpl; unfold ffun_fmap, compose, f';
-    remember (paf_preserves_unmap_right f (x d) (y d) (z' d) (H d));
-    destruct s as [y0 [z [? [? ?]]]]...
+    constructor; simpl; intros; intro; intros.
+    + intro i.
+      spec H i.
+      apply (paf_join_hom pss_rng f g _ _ _ H).
+    + set (f' := fun d => paf_preserves_unmap_left pss_rng f g _ _ _ (H d)).
+      exists (fun d => projT1 (f' d)).
+      exists (fun d => proj1_sig (projT2 (f' d))).
+      split.
+      - intro d. spec f' d.
+        destruct f' as [x [y0 [? [? ?]]]]...
+      - split; extensionality d;
+        simpl; unfold compose, f';
+        remember (paf_preserves_unmap_left pss_rng f g (x' d) (y d) (z d) (H d));
+        destruct s as [x [y0 [? [? ?]]]]...
+    + set (f' := fun d => paf_preserves_unmap_right pss_rng f g (x d) (y d) (z' d) (H d)).
+      exists (fun d => projT1 (f' d)).
+      exists (fun d => proj1_sig (projT2 (f' d))).
+      split.
+      - intro d. spec f' d.
+        destruct f' as [y0 [z [? [? ?]]]]...
+      - split; extensionality d;
+        simpl; unfold compose, f';
+        remember (paf_preserves_unmap_right pss_rng f g (x d) (y d) (z' d) (H d));
+        destruct s as [y0 [z [? [? ?]]]]...
   Qed.
-
 End CoFunSAFunctor.
-
+(*
+(* This one is not used. *)
+(* And the assumption, inj_sig, is wierd. *)
 Section SigmaSAFunctor.
   Variable I:Type.
-  Variables (F: I -> Type -> Type) (fF : forall i , functor (F i)).
-  
-  Existing Instance f_sigma.
+  Variables (F: I -> functor).
+
   Variables (JOIN: forall i A, Join (F i A))
-                  (paF: forall i A, Perm_alg (F i A))
-       (fSA : forall i, pafunctor (fF i)).
+            (fSA : forall i, pafunctor (F i) (JOIN i)).
 
   Existing Instance Join_sigma.
 
-  Hypothesis inj_sig : forall A i x y, existT (fun i => F i A) i x = existT (fun i => F i A) i y -> x = y.
+  Hypothesis inj_sig : forall A i x y,
+    existT (fun i => F i A) i x = existT (fun i => F i A) i y -> x = y.
 
-  Instance pa_fsigma: forall X : Type, Perm_alg {i : I & F i X} := 
-    fun X => Perm_sigma I (fun i => F i X) _ (fun i => paF i X).
-
-  Instance paf_sigma : @pafunctor _ (f_sigma F fF) _.
+  Lemma paf_sigma : @pafunctor (fsig F)
+                         (fun A => Join_sigma I (fun i => F i A) (fun i => JOIN i A)).
   Proof.
     constructor; simpl; intros.
     hnf; simpl; intros.
@@ -244,84 +230,71 @@ Section SigmaSAFunctor.
   Qed.
 
 End SigmaSAFunctor.
-
+*)
 Section SepAlgSubset_Functor.
-  Variables (F: Type -> Type) (fF : functor F).
-  Variables(JOIN: forall A, Join (F A))
-                  (paF: forall A, Perm_alg (F A))
-                  (fSA : pafunctor fF).
+  Variables (F: functor).
+  Variables (JOIN: forall A, Join (F A))
+            (fSA : @pafunctor F JOIN).
   
   Variable P : forall A, F A -> Prop.
-
-  Hypothesis HPunit :
-    forall A (x e: F A), P x -> unit_for e x -> P e.
-  Hypothesis HPjoin : forall A (x y z : F A),
-    join x y z -> P x -> P y -> P z.
-  Hypothesis HPfmap1 : forall A B (f:A->B) x,
-    P x -> P (fmap f x).
-  Hypothesis HPfmap2 : forall A B (f:A->B) x, 
-    P (fmap f x) -> P x.
-
-  Instance pa_fsubset X : Perm_alg (subset F P X).
-  Proof. apply Perm_prop; auto. apply HPjoin. Qed.
-
-  Existing Instance fF.
-  Existing Instance f_subset.
-
-  Instance saf_subset : @pafunctor _ (f_subset fF P HPfmap1) _.
+  Arguments P {A} _.
+  Hypothesis HPfmap1 : forall A B (f: A -> B) (g: B -> A) x,
+    P x -> P (fmap F f g x).
+  Hypothesis HPfmap2 : forall A B (f: A -> B) (g: B -> A) x, 
+    P (fmap F f g x) -> P x.
+  
+  Definition paf_subset :
+    @pafunctor (fsubset F (@P) HPfmap1) (fun A => Join_prop _ _ P).
   Proof.
     constructor.
-
-    repeat intro. simpl.
-    destruct x as [x Hx].
-    destruct y as [y Hy].
-    destruct z as [z Hz].
-    red; simpl.
-    apply paf_join_hom; auto.
-    
-    intros. simpl; hnf; intros.
-    destruct x' as [x' Hx'].
-    destruct y as [y Hy].
-    destruct z as [z Hz].
-    simpl in *.
-    do 2 red in H. simpl in H.
-    apply paf_preserves_unmap_left in H.
-    destruct H as [x [y0 [?[??]]]].
-    subst x'.
-    exists (exist (fun x => @P A x) x (HPfmap2 _ _  Hx')).
-    assert (P y0).
-    apply (HPfmap2 f). rewrite H1. apply HPfmap1. auto.
-    exists (exist (fun x => @P A x) y0 H0).
-    intuition.
-    simpl.
-    replace (HPfmap1 f (HPfmap2 f x Hx')) with Hx'
-      by apply proof_irr; auto.
-    simpl.
-    generalize (HPfmap1 f H0).
-    rewrite H1. intros.
-    replace p with (HPfmap1 f Hy) by apply proof_irr; auto.
- 
-    intros. simpl; hnf; intros.
-    destruct x as [x Hx].
-    destruct y as [y Hy].
-    destruct z' as [z' Hz'].
-    simpl in *.
-    do 2 red in H. simpl in H.
-    apply paf_preserves_unmap_right in H.
-    destruct H as [y0 [z [?[??]]]].
-    subst z'.
-    assert (P y0).
-    apply (HPfmap2 f). rewrite H0. apply HPfmap1. auto.
-    exists (exist (fun x => @P A x) y0 H1).
-    exists (exist (fun x => @P A x) z (HPfmap2 _ _  Hz')).
-    intuition.
-    simpl.
-    generalize (HPfmap1 f H1).
-    rewrite H0. intros.
-    replace p with (HPfmap1 f Hy) by apply proof_irr; auto.
-    simpl.
-    replace (HPfmap1 f (HPfmap2 f z Hz')) with Hz'
-      by apply proof_irr; auto.
+    + repeat intro.
+      destruct x as [x Hx].
+      destruct y as [y Hy].
+      destruct z as [z Hz].
+      red; simpl.
+      apply paf_join_hom; auto.
+    + intros. simpl; hnf; intros.
+      destruct x' as [x' Hx'].
+      destruct y as [y Hy].
+      destruct z as [z Hz].
+      simpl in *.
+      do 2 red in H. simpl in H.
+      apply (paf_preserves_unmap_left fSA) in H.
+      destruct H as [x [y0 [?[??]]]].
+      subst x'.
+      exists (exist (fun x => @P A x) x (HPfmap2 _ _ _ Hx')).
+      assert (P y0).
+      Focus 1. {
+        apply (HPfmap2 f g). rewrite H1. apply HPfmap1. auto.
+      } Unfocus.
+      exists (exist (fun x => @P A x) y0 H0).
+      intuition.
+      - simpl.
+        replace (HPfmap1 f g (HPfmap2 f g x Hx')) with Hx'
+          by apply proof_irr.
+        apply exist_ext; auto.
+      - apply exist_ext; auto.
+    + intros. simpl; hnf; intros.
+      destruct x as [x Hx].
+      destruct y as [y Hy].
+      destruct z' as [z' Hz'].
+      simpl in *.
+      do 2 red in H. simpl in H.
+      apply (paf_preserves_unmap_right fSA) in H.
+      destruct H as [y0 [z [?[??]]]].
+      subst z'.
+      assert (P y0).
+      Focus 1. {
+        apply (HPfmap2 f g). rewrite H0. apply HPfmap1. auto.
+      } Unfocus.
+      exists (exist (fun x => @P A x) y0 H1).
+      exists (exist (fun x => @P A x) z (HPfmap2 _ _ _ Hz')).
+      intuition.
+      - apply exist_ext; auto.
+      - simpl.
+        replace (HPfmap1 f g (HPfmap2 f g z Hz')) with Hz' by apply proof_irr.
+        apply exist_ext; auto.
   Qed.
- 
+
 End SepAlgSubset_Functor.
+

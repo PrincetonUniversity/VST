@@ -23,7 +23,6 @@ Require Import compcert.lib.Integers.
 Require Import Coq.ZArith.ZArith.
 
 (*From msl get the juice! *)
-Require Import msl.rmaps.
 Require Import veric.compcert_rmaps.
 Require Import veric.juicy_mem.
 Require Import veric.juicy_mem_lemmas.

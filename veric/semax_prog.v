@@ -131,20 +131,6 @@ Program Definition HO_pred_eq {T}{agT: ageable T}
    intros. specialize (H0 x). eapply pred_hereditary; eauto.
  Qed.
 
-Lemma approx_oo_approx'':
-   forall n n' : nat,
-  (n' >= n)%nat ->
-    approx n' oo approx n = approx n.
-Proof.
-intros.
-extensionality P.
-apply pred_ext'; extensionality w.
-unfold approx, compose.
-simpl. rewrite rmap_level_eq.
-case_eq (unsquash w); intros; simpl in *.
-apply prop_ext; intuition.
-Qed.
-
 Lemma laterR_level: forall w w' : rmap, laterR w w' -> (level w > level w')%nat.
 Proof.
 induction 1.

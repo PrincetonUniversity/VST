@@ -320,6 +320,7 @@ Module Type KNOT__MIXVARIANT_HERED_PROP.
   Parameter ageable_knot : ageable knot.
   Existing Instance ageable_knot.
 
+  Definition predicate := pred knot.
   Parameter squash : (nat * F (pred knot)) -> knot.
   Parameter unsquash : knot -> (nat * F (pred knot)).
 
@@ -1502,6 +1503,7 @@ Module Knot_MixVariantHeredProp (KI':KNOT_INPUT__MIXVARIANT_HERED_PROP)
 
   Definition knot := K.knot.
   Definition ageable_knot := K.ageable_knot.
+  Definition predicate := pred knot.
   Definition squash: (nat * KI.F (pred knot)) -> knot := K.squash.
   Definition unsquash: knot -> (nat * KI.F (pred knot)) := K.unsquash.
   Definition approx: nat -> pred knot -> pred knot := K.approx.
@@ -1539,9 +1541,10 @@ Module Knot_MixVariantHeredProp (KI':KNOT_INPUT__MIXVARIANT_HERED_PROP)
 
 End Knot_MixVariantHeredProp.
 
-Module KnotLemmas_MixVariantHeredProp (K: KNOT__MIXVARIANT_HERED_PROP).
+Module KnotLemmas_MixVariantHeredProp (K': KNOT__MIXVARIANT_HERED_PROP).
 
   Import MixVariantFunctor.
+  Module K := K'.
   Import K.KI.
   Import K.
 

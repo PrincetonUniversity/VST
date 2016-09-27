@@ -129,7 +129,8 @@ congruence.
 Qed.
 
 Lemma preds_fmap_NoneP_approx: forall pp lev1 lev2,
-  preds_fmap (approx lev1) pp = NoneP -> preds_fmap (approx lev2) pp = NoneP.
+  preds_fmap (approx lev1) (approx lev1) pp = NoneP ->
+  preds_fmap (approx lev2) (approx lev2) pp = NoneP.
 Proof.
 intros.
 destruct pp.

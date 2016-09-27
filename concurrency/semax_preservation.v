@@ -32,7 +32,9 @@ Require Import floyd.coqlib3.
 Require Import sepcomp.semantics.
 Require Import sepcomp.step_lemmas.
 Require Import sepcomp.event_semantics.
+Require Import sepcomp.semantics_lemmas.
 Require Import concurrency.coqlib5.
+Require Import concurrency.permjoin.
 Require Import concurrency.semax_conc.
 Require Import concurrency.juicy_machine.
 Require Import concurrency.concurrent_machine.
@@ -53,6 +55,18 @@ Require Import concurrency.semax_simlemmas.
 Require Import concurrency.sync_preds.
 
 Set Bullet Behavior "Strict Subproofs".
+
+Lemma rmap_bound_join {b phi1 phi2 phi3} :
+  join phi1 phi2 phi3 ->
+  rmap_bound b phi3 ->
+  rmap_bound b phi2.
+Proof.
+  intros j B l p; specialize (B l p).
+  apply resource_at_join with (loc := l) in j.
+  rewrite B in j.
+  inv j; eauto.
+  erewrite join_to_bot_l; eauto.
+Qed.
 
 Lemma mem_compatible_with_age {n tp m phi} :
   mem_compatible_with tp m phi ->
@@ -135,6 +149,162 @@ Proof.
     + f_equal. apply rmap_join_sub_eq_level. eapply joinlist_join_sub; eauto. left; auto.
 Qed.
 
+Lemma resource_fmap_YES_inv f g r sh rsh k pp :
+  resource_fmap f g r = YES sh rsh k pp ->
+  exists pp', r = YES sh rsh k pp' /\ pp = preds_fmap f g pp'.
+Proof.
+  destruct r as [t0 | t0 p k0 p0 | k0 p]; simpl; try congruence.
+  injection 1 as <- <- <- <-. eauto.
+Qed.
+
+Lemma resource_fmap_PURE_inv f g r k pp :
+  resource_fmap f g r = PURE k pp ->
+  exists pp', r = PURE k pp' /\ pp = preds_fmap f g pp'.
+Proof.
+  destruct r as [t0 | t0 p k0 p0 | k0 p]; simpl; try congruence.
+  injection 1 as <- <-. eauto.
+Qed.
+
+Lemma resource_fmap_NO_inv f g r rsh :
+  resource_fmap f g r = NO rsh ->
+  r = NO rsh.
+Proof.
+  destruct r as [t0 | t0 p k0 p0 | k0 p]; simpl; try congruence.
+Qed.
+
+Lemma cl_step_mem_step ge c m c' m' : cl_step ge c m c' m' -> mem_step m m'.
+Admitted.
+
+Lemma mem_step_contents_at_None m m' loc :
+  Mem.valid_block m (fst loc) ->
+  mem_step m m' ->
+  access_at m loc Cur = None ->
+  contents_at m' loc = contents_at m loc.
+Proof.
+  intros V Ms Ac.
+  destruct loc as (b, ofs).
+  pose proof mem_step_obeys_cur_write m b ofs m' V as H.
+  specialize H _ Ms.
+  unfold contents_at in *.
+  simpl; symmetry.
+  apply H; clear H.
+  unfold access_at in *.
+  unfold Mem.perm in *.
+  simpl in *.
+  rewrite Ac.
+  intros O; inversion O.
+Qed.
+
+Lemma mem_step_contents_at_Nonempty m m' loc :
+  Mem.valid_block m (fst loc) ->
+  mem_step m m' ->
+  access_at m loc Cur = Some Nonempty ->
+  contents_at m' loc = contents_at m loc.
+Proof.
+  intros V Ms Ac.
+  destruct loc as (b, ofs).
+  pose proof mem_step_obeys_cur_write m b ofs m' V as H.
+  specialize H _ Ms.
+  unfold contents_at in *.
+  simpl; symmetry.
+  apply H; clear H.
+  unfold access_at in *.
+  unfold Mem.perm in *.
+  simpl in *.
+  rewrite Ac.
+  intros O; inversion O.
+Qed.
+
+Import Mem.
+
+Lemma perm_of_res_resource_fmap f g r :
+  perm_of_res (resource_fmap f g r) = perm_of_res r.
+Proof.
+  destruct r as [t0 | t0 p [] p0 | k p]; simpl; auto.
+Qed.
+
+Lemma resource_fmap_join f g r1 r2 r3 :
+  join r1 r2 r3 ->
+  join (resource_fmap f g r1) (resource_fmap f g r2) (resource_fmap f g r3).
+Proof.
+  destruct r1 as [t1 | t1 p1 k1 pp1 | k1 pp1];
+    destruct r2 as [t2 | t2 p2 k2 pp2 | k2 pp2];
+    destruct r3 as [t3 | t3 p3 k3 pp3 | k3 pp3]; simpl; auto;
+      intros j; inv j; constructor; auto.
+Qed.
+
+Lemma juicy_mem_perm_of_res_Max jm loc :
+  perm_order'' (max_access_at (m_dry jm) loc) (perm_of_res (m_phi jm @ loc)).
+Proof.
+  rewrite <- (juicy_mem_access jm loc).
+  apply access_cur_max.
+Qed.
+
+Lemma decay_rewrite m m' :
+  decay m m' <->
+  forall loc, 
+    (~valid_block m (fst loc) ->
+     valid_block m' (fst loc) ->
+     (forall k, access_at m' loc k = Some Freeable) \/
+     (forall k, access_at m' loc k = None))
+    /\ (valid_block m (fst loc) ->
+       (forall k, (access_at m loc k = Some Freeable /\ access_at m' loc k = None)) \/
+       (forall k, access_at m loc k = access_at m' loc k)).
+Proof.
+  unfold decay.
+  match goal with
+    |- (forall x : ?A, forall y : ?B, ?P) <-> _ =>
+    eapply iff_trans with (forall loc : A * B, let x := fst loc in let y := snd loc in P)
+  end.
+  {
+    split.
+    intros H []; apply H.
+    intros H b ofs; apply (H (b, ofs)).
+  }
+  split; auto.
+Qed.
+
+Lemma valid_block0 m b : ~valid_block m b <-> (b >= nextblock m)%positive.
+Proof.
+  unfold valid_block in *.
+  unfold Plt in *.
+  split; zify; omega.
+Qed.
+
+Lemma valid_block1 m b : valid_block m b <-> (b < nextblock m)%positive.
+Proof.
+  unfold valid_block in *.
+  unfold Plt in *.
+  split; zify; omega.
+Qed.
+
+Lemma not_Pge_Plt a b : ~ Pge a b -> Plt a b.
+Proof.
+  unfold Plt. zify. omega.
+Qed.
+
+Lemma mem_cohere'_redundant m phi :
+  contents_cohere m phi ->
+  access_cohere' m phi ->
+  alloc_cohere m phi ->
+  mem_cohere' m phi.
+Proof.
+  intros A B D; constructor; auto.
+  (* proving now max_access_cohere *)
+  intros loc. autospec B.
+  destruct (phi @ loc) as [t0 | t0 p [] p0 | k p]; auto.
+  { unfold perm_of_res in *.
+    unfold perm_of_sh in *.
+    if_tac. now destruct Share.nontrivial; auto.
+    if_tac. now auto.
+    tauto. }
+  all:destruct (plt (fst loc) (nextblock m)) as [|n]; [ assumption | exfalso ].
+  all:unfold max_access_at in *.
+  all:unfold access_at in *.
+  all:rewrite (nextblock_noaccess m _ (snd loc) Max n) in B.
+  all:inversion B.
+Qed.
+
 Lemma mem_cohere_step c c' jm jm' Phi (X : rmap) ge :
   mem_cohere' (m_dry jm) Phi ->
   sepalg.join (m_phi jm) X Phi ->
@@ -145,34 +315,217 @@ Lemma mem_cohere_step c c' jm jm' Phi (X : rmap) ge :
 Proof.
   intros MC J C.
   destruct C as [step [RD L]].
-  assert (Bx : rmap_bound (Mem.nextblock (m_dry jm)) X). admit.
+  assert (Bx : rmap_bound (Mem.nextblock (m_dry jm)) X) by apply (rmap_bound_join J), MC.
   destruct (resource_decay_join _ _ _ _ _  Bx RD (* L *) J) as [Phi' [J' RD']].
   exists Phi'. split. apply J'.
-  constructor.
-  - intros sh rsh v loc pp AT.
-    pose proof resource_at_join _ _ _ loc J as Jloc.
-    pose proof resource_at_join _ _ _ loc J' as J'loc.
-    rewrite AT in J'loc.
-    inversion J'loc; subst.
-    + (* all was in jm' *)
-      destruct MC.
-      (* specialize (cont_coh sh rsh v loc pp). *)
-      admit.
-    + (* all was in X *)
-(*      rewrite <-H in Jloc.
-      inversion Jloc; subst.
-      * symmetry in H7.
-        pose proof cont_coh MC _ H7.
-        intuition.
-        (* because the juice was NO, the dry hasn't changed *)
-        admit.
-      * (* same reasoning? *)
-        admit.
-    + (* joining of permissions, values don't change *)
-      symmetry in H.
-      destruct jm'.
-      apply (JMcontents _ _ _ _ _ H).. *)
-Admitted.
+  pose proof cl_step_mem_step _ _ _ _ _ step as ms.
+  pose proof cl_step_decay _ _ _ _ _ step as dec.
+  
+  destruct MC as [A B C D].
+  unfold contents_cohere in *.
+  apply mem_cohere'_redundant.
+  
+  - (* Proving contents_cohere *)
+    intros sh rsh v loc pp AT.
+    specialize A _ _ _ loc.
+    apply (resource_at_join _ _ _ loc) in J.
+    apply (resource_at_join _ _ _ loc) in J'.
+    destruct RD as (lev, RD); specialize (RD loc).
+    
+    rewrite age_to_resource_at in *.
+    pose proof juicy_mem_contents jm as Co.
+    pose proof juicy_mem_contents jm' as Co'.
+    pose proof juicy_mem_access jm as Ac.
+    pose proof juicy_mem_access jm' as Ac'.
+    unfold contents_cohere in *.
+    specialize Co _ _ _ loc.
+    specialize Co' _ _ _ loc.
+    specialize (Ac loc).
+    specialize (Ac' loc).
+    specialize (Bx loc).
+    remember (Phi @ loc) as R.
+    remember (Phi' @ loc) as R'.
+    remember (m_phi jm @ loc) as j.
+    remember (m_phi jm' @ loc) as j'.
+    remember (X @ loc) as x.
+    remember (resource_fmap (approx (level (m_phi jm'))) (approx (level (m_phi jm'))) x) as x'.
+    clear Heqx Heqj Heqj' HeqR' HeqR.
+    subst R'.
+    inv J'.
+    
+    + (* everything in jm' *)
+      specialize (Co' _ _ _ _ eq_refl).
+      auto.
+    
+    + (* everything in X : it means nothing has been changed at this place in jm' *)
+      symmetry in H0.
+      apply resource_fmap_YES_inv in H0.
+      destruct H0 as (pp' & -> & ->).
+      
+      inv J.
+      * (* case where nothing came from jm, which means indeed
+        contents was not changed *)
+        specialize (A _ _ _ _ eq_refl).
+        destruct A as [A ->].
+        rewrite preds_fmap_NoneP; split; auto.
+        simpl in Ac.
+        assert (Mem.valid_block (m_dry jm) (fst loc)). {
+          apply not_Pge_Plt.
+          intros Hl; specialize (Bx Hl).
+          discriminate.
+        }
+        if_tac in Ac.
+        -- rewrite mem_step_contents_at_None with (m := m_dry jm); auto.
+        -- rewrite mem_step_contents_at_Nonempty with (m := m_dry jm); auto.
+      
+      * (* case where something was in jm, which is impossible because
+        everything is in X *)
+        exfalso.
+        destruct RD as [NN [RD|[RD|[[P [v' RD]]|RD]]]].
+        all: breakhyps.
+        injection H as -> -> -> ->.
+        apply join_pfullshare in H5.
+        destruct H5.
+    
+    + (* from both X and jm' *)
+      symmetry in H1.
+      apply resource_fmap_YES_inv in H1.
+      destruct H1 as (pp' & -> & ->).
+      simpl in *.
+      inv J; eauto.
+  
+  - (* Proving access_cohere' *)
+    intros loc.
+    specialize (B loc).
+    destruct RD as (lev, RD).
+    specialize (RD loc).
+    destruct RD as [NN [RD|[RD|[[P [v' RD]]|RD]]]].
+    + (* The "preserving" case of resource_decay: in this case, same
+      wet resources in jm and jm', hence same resources in Phi and
+      Phi' *)
+      apply resource_at_join with (loc := loc) in J'.
+      rewrite <-RD in J'.
+      rewrite age_to_resource_at in J'.
+      
+      apply resource_at_join with (loc := loc) in J.
+      pose proof resource_fmap_join (approx (level (m_phi jm'))) (approx (level (m_phi jm'))) _ _ _ J as J_.
+      pose proof join_eq J' J_ as E'.
+      
+      rewrite decay_rewrite in dec.
+      specialize (dec loc).
+      unfold rmap_bound in *.
+      
+      destruct dec as (dec1, dec2).
+      destruct (valid_block_dec (m_dry jm) (fst loc)); swap 1 2.
+      * rewrite <-valid_block0 in NN. autospec NN. rewrite NN in *.
+        do 2 autospec Bx.
+        rewrite Bx in *.
+        inv J.
+        rewr (Phi @ loc) in E'. simpl in E'. rewrite E'.
+        apply join_bot_bot_eq in RJ. subst. simpl. if_tac. 2:tauto.
+        destruct (max_access_at (m_dry jm') loc); constructor.
+      * clear dec1. autospec dec2.
+        destruct dec2 as [Freed | Same].
+        -- exfalso (* old Cur is Freeable, new Cur is None, which
+           contradict the case from resource_decay *).
+           clear NN step lev L Bx A v.
+           clear -Freed RD.
+           specialize (Freed Cur).
+           do 2 rewrite juicy_mem_access in Freed.
+           rewrite <-RD in Freed.
+           rewrite perm_of_res_resource_fmap in Freed.
+           destruct Freed; congruence.
+        -- unfold max_access_at in * (* same Cur and Max *).
+           rewrite <-(Same Max), E'.
+           rewrite perm_of_res_resource_fmap; auto.
+    
+    + (* "Write" case *)
+      destruct RD as (rsh & v & v' & E & E').
+      rewrite decay_rewrite in dec.
+      specialize (dec loc).
+      unfold rmap_bound in *.
+      destruct dec as (dec1, dec2).
+      destruct (valid_block_dec (m_dry jm) (fst loc)); swap 1 2.
+      * rewrite <-valid_block0 in NN. autospec NN. rewrite NN in *.
+        discriminate.
+      * clear dec1. autospec dec2. clear v0 Bx.
+        destruct dec2 as [Freed | Same].
+        -- specialize (Freed Cur).
+           do 2 rewrite juicy_mem_access in Freed.
+           rewrite E' in Freed. destruct Freed. simpl in *.
+           unfold perm_of_sh in *. repeat if_tac in H0; try discriminate.
+           unfold fullshare in *.
+           tauto.
+        -- unfold max_access_at in * (* same Cur and Max *).
+           rewrite <-(Same Max).
+           replace (perm_of_res (Phi' @ loc)) with (perm_of_res (Phi @ loc)). auto.
+           apply resource_at_join with (loc := loc) in J'.
+           apply resource_at_join with (loc := loc) in J.
+           rewrite E' in J'.
+           apply (resource_fmap_join (approx (level (m_phi jm'))) (approx (level (m_phi jm')))) in J.
+           rewrite E in J.
+           rewrite age_to_resource_at in J'.
+           remember (resource_fmap (approx (level (m_phi jm'))) (approx (level (m_phi jm'))) (X @ loc)) as r.
+           inv J; inv J'.
+           ++ symmetry in H.
+              apply resource_fmap_YES_inv in H.
+              destruct H as (pp' & -> & Epp).
+              simpl; f_equal.
+              assert (rsh0 = rsh2) by congruence. subst.
+              eapply join_eq; eauto.
+           ++ destruct (X @ loc); congruence.
+           ++ destruct (X @ loc); congruence.
+           ++ assert (rsh0 = rsh2) by congruence. subst.
+              assert (sh0 = sh2) by congruence. subst.
+              symmetry in H5.
+              apply resource_fmap_YES_inv in H5.
+              destruct H5 as (pp' & -> & Epp).
+              simpl; f_equal.
+              ** eapply join_eq; eauto.
+              ** eapply join_eq; eauto.
+    
+    + (* "Alloc" case *)
+      autospec NN.
+      eapply perm_order''_trans. now apply access_cur_max.
+      rewrite juicy_mem_access.
+      rewrite RD.
+      simpl.
+      rewrite perm_of_freeable.
+      destruct (perm_of_res (Phi' @ loc)) as [[]|]; constructor.
+    
+    + (* "Free" case *)
+      cut (perm_of_res (Phi' @ loc) = None).
+      { intros ->. destruct (max_access_at (m_dry jm') loc) as [[]|]; constructor. }
+      destruct RD as (v & pp & E & E').
+      apply resource_at_join with (loc := loc) in J'.
+      apply resource_at_join with (loc := loc) in J.
+      rewrite E in J. rewrite E' in J'.
+      inv J.
+      * apply join_top_l in RJ. subst.
+        rewrite age_to_resource_at in J'.
+        rewr (X @ loc) in J'. simpl in J'.
+        inv J'.
+        apply join_bot_bot_eq in RJ; subst.
+        simpl. if_tac. auto. tauto.
+      * apply join_pfullshare in H0. tauto.
+  
+  - (* Proving alloc_cohere *)
+    intros loc g.
+    pose proof juicy_mem_alloc_cohere jm' loc g as Ac'.
+    specialize (Bx loc).
+    assert_specialize Bx. {
+      apply Pos.le_ge. apply Pos.ge_le in g. eapply Pos.le_trans. 2:eauto.
+      apply forward_nextblock.
+      apply mem_step_forward, ms.
+    }
+    apply resource_at_join with (loc := loc) in J'.
+    rewr (m_phi jm' @ loc) in J'.
+    rewrite age_to_resource_at in J'.
+    rewr (X @ loc) in J'.
+    simpl in J'.
+    inv J'.
+    rewrite (join_bot_bot_eq rsh3); auto.
+Qed.
 
 Lemma resource_decay_matchfunspec {b phi phi' g Gamma} :
   resource_decay b phi phi' ->
@@ -455,7 +808,7 @@ Proof.
     destruct SO as (_ & _ & <-). auto.
 Qed.
 
-Section Simulation.
+Section Preservation.
   Variables
     (CS : compspecs)
     (ext_link : string -> ident)
@@ -2114,4 +2467,4 @@ Section Simulation.
       admit.
     }
   Admitted.
-End Simulation.
+End Preservation.

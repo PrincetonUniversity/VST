@@ -117,73 +117,90 @@ Lemma age_resource_decay:
         level jm1 = S (level jm2) ->
         resource_decay b jm1' jm2'.
 Proof.
- unfold resource_decay; intros.
- rename H2 into LEV.
- destruct H as [H' H].
- split. clear H.
- apply age_level in H0; apply age_level in H1.
-  rewrite H0 in *; rewrite H1 in *. inv LEV. rewrite H2.
-  clear. forget (level jm2') as n. omega.
-  intro l. 
- specialize (H l).
+  unfold resource_decay; intros.
+  rename H2 into LEV.
+  destruct H as [H' H].
+  split.
+  Focus 1. {
+    clear H.
+    apply age_level in H0; apply age_level in H1.
+    rewrite H0 in *; rewrite H1 in *. inv LEV. rewrite H2.
+    clear. forget (level jm2') as n. omega.
+  } Unfocus.
+  intro l.
+  specialize (H l).
   destruct H.
   split.
-  intro.
-  specialize (H H3).
-  erewrite <- necR_NO; eauto.  constructor 1; auto.
+  Focus 1. {
+    intro.
+    specialize (H H3).
+    erewrite <- necR_NO; eauto.  constructor 1; auto.
+  } Unfocus.
   destruct H2 as [?|[?|[?|?]]].
-  left.
-  clear H. unfold age in *.
-  rewrite (age1_resource_at _ _ H0 l (jm1 @ l)); [ | symmetry; apply resource_at_approx].
-  rewrite (age1_resource_at _ _ H1 l (jm2 @ l)); [ | symmetry; apply resource_at_approx].
-  rewrite <- H2.
-  rewrite resource_fmap_fmap.
-  rewrite resource_fmap_fmap.
-  f_equal. change R.approx with approx.
- rewrite approx_oo_approx'.
- rewrite approx_oo_approx'.
-  auto.
- apply age_level in H0; apply age_level in H1.
-unfold rmap  in *;
- forget (level jm1) as j1. forget (level jm1') as j1'. forget (level jm2) as j2. forget (level jm2') as j2'.
- subst.  omega.
- apply age_level in H0; apply age_level in H1.
-unfold rmap in *.
- forget (level jm1) as j1. forget (level jm1') as j1'. forget (level jm2) as j2. forget (level jm2') as j2'.
- subst. omega.
- right.
-  destruct H2 as [rsh [v [v' [? ?]]]].
-  left; exists rsh, v,v'.
-  split.
-  apply age_level in H1.
-  unfold rmap in *.
-  forget (@level R.rmap R.ag_rmap jm2) as j2.
-  forget (@level R.rmap R.ag_rmap jm2') as j2'. subst j2.
-  clear - H2 H0 LEV.
-  revert H2; case_eq (jm1 @ l); intros; inv H2.
-  pose proof (necR_YES jm1 jm1' l rsh pfullshare (VAL v) p0 (rt_step _ _ _ _ H0) H).
-  rewrite H1.
-  simpl. rewrite preds_fmap_fmap.
- apply age_level in H0.
-  rewrite approx_oo_approx'.
- 2: rewrite H0 in *; inv LEV; omega.
- f_equal.
-  rewrite H6.
-  rewrite <- (approx_oo_approx' j2' (S j2')) by auto.
-  rewrite <- preds_fmap_fmap; rewrite H6. rewrite preds_fmap_NoneP. auto. 
-  pose proof (age1_YES _ _ l rsh pfullshare (VAL v') H1).
-  rewrite H4 in H3. auto.
-  destruct H2 as [? [v ?]]; right; right; left.
-  split; auto. exists v.   apply (age1_YES _ _ l _ _ _ H1) in H3. auto.
-  right; right; right.
- destruct H2 as [v [pp [? ?]]]. exists v. econstructor; split; auto. 
- pose proof (age1_resource_at _ _ H0 l (YES Share.top pfullshare (VAL v) pp)).
- rewrite H4.
- simpl. reflexivity.
- rewrite <- (resource_at_approx jm1 l). 
- rewrite H2. reflexivity.
- assert (necR jm2 jm2'). apply laterR_necR. constructor. auto.
- apply (necR_NO _ _ l Share.bot H4). auto.
+  + left.
+    clear H. unfold age in *.
+    rewrite (age1_resource_at _ _ H0 l (jm1 @ l)); [ | symmetry; apply resource_at_approx].
+    rewrite (age1_resource_at _ _ H1 l (jm2 @ l)); [ | symmetry; apply resource_at_approx].
+    rewrite <- H2.
+    rewrite resource_fmap_fmap.
+    rewrite resource_fmap_fmap.
+    f_equal.
+    - change R.approx with approx.
+      rewrite approx_oo_approx'; [rewrite approx_oo_approx'; auto |].
+      * apply age_level in H0; apply age_level in H1.
+        unfold rmap  in *;
+        forget (level jm1) as j1. forget (level jm1') as j1'. forget (level jm2) as j2. forget (level jm2') as j2'.
+        subst; omega.
+      * apply age_level in H0; apply age_level in H1.
+        unfold rmap in *.
+        forget (level jm1) as j1. forget (level jm1') as j1'. forget (level jm2) as j2. forget (level jm2') as j2'.
+        subst; omega.
+    - change R.approx with approx.
+      rewrite approx'_oo_approx; [rewrite approx'_oo_approx; auto |].
+      * apply age_level in H0; apply age_level in H1.
+        unfold rmap  in *;
+        forget (level jm1) as j1. forget (level jm1') as j1'. forget (level jm2) as j2. forget (level jm2') as j2'.
+        subst; omega.
+      * apply age_level in H0; apply age_level in H1.
+        unfold rmap in *.
+        forget (level jm1) as j1. forget (level jm1') as j1'. forget (level jm2) as j2. forget (level jm2') as j2'.
+        subst; omega.
+  + right.
+    destruct H2 as [rsh [v [v' [? ?]]]].
+    left; exists rsh, v,v'.
+    split.
+    - apply age_level in H1.
+      unfold rmap in *.
+      forget (@level R.rmap R.ag_rmap jm2) as j2.
+      forget (@level R.rmap R.ag_rmap jm2') as j2'. subst j2.
+      clear - H2 H0 LEV.
+      revert H2; case_eq (jm1 @ l); intros; inv H2.
+      pose proof (necR_YES jm1 jm1' l rsh pfullshare (VAL v) p0 (rt_step _ _ _ _ H0) H).
+      rewrite H1.
+      simpl. rewrite preds_fmap_fmap.
+      apply age_level in H0.
+      rewrite approx_oo_approx'.
+        2: rewrite H0 in *; inv LEV; omega.
+      rewrite approx'_oo_approx.
+        2: rewrite H0 in *; inv LEV; omega.
+      f_equal.
+      rewrite H6.
+      rewrite <- (approx_oo_approx' j2' (S j2')) at 1 by auto.
+      rewrite <- (approx'_oo_approx j2' (S j2')) at 2 by auto.
+      rewrite <- preds_fmap_fmap; rewrite H6. rewrite preds_fmap_NoneP. auto. 
+    - pose proof (age1_YES _ _ l rsh pfullshare (VAL v') H1).
+      rewrite H4 in H3. auto.
+  + destruct H2 as [? [v ?]]; right; right; left.
+    split; auto. exists v.   apply (age1_YES _ _ l _ _ _ H1) in H3. auto.
+  + right; right; right.
+    destruct H2 as [v [pp [? ?]]]. exists v. econstructor; split; auto. 
+    pose proof (age1_resource_at _ _ H0 l (YES Share.top pfullshare (VAL v) pp)).
+    rewrite H4.
+    simpl. reflexivity.
+    rewrite <- (resource_at_approx jm1 l). 
+    rewrite H2. reflexivity.
+    assert (necR jm2 jm2'). apply laterR_necR. constructor. auto.
+    apply (necR_NO _ _ l Share.bot H4). auto.
 Qed.
 
 Lemma necR_PURE' phi0 phi k p adr : 
@@ -243,44 +260,39 @@ Proof.
    omega.
    eapply IHN; try eassumption.
    apply age_level in H6; omega. 
-  + eapply safeN_external; eauto.
-    eapply JE_pre_hered; eauto. 
+  + eapply safeN_external; [eauto | eapply JE_pre_hered; eauto |].
     intros.
     destruct (H4 ret m' z' n') as [c' [? ?]]; auto.
-    assert (level (m_phi jm) < level (m_phi jm0)).
-    { apply age_level in H2.
-      do 2 rewrite <-level_juice_level_phi.
-      destruct H0.
-      rewrite H2; omega. }
-    destruct H0 as (?&?&?). split3; auto. 
-    do 2 rewrite <-level_juice_level_phi in H6. omega.
-    split.
-    {
-    destruct H8 as [H8 _].
-    unfold pures_sub in H8. intros adr. specialize (H8 adr).
-    assert (Hage: age (m_phi jm0) (m_phi jm)).
-    { apply age_jm_phi; auto. }
-    case_eq (m_phi jm0 @ adr); auto.
-    intros k p Hphi.
-    apply age1_resource_at with (loc := adr) (r := PURE k p) in Hage; auto.
-    rewrite Hage in H8; rewrite  H8; simpl.
-    f_equal. unfold preds_fmap. destruct p. f_equal.
-    generalize (approx'_oo_approx (level jm) (level m')); intros H9.
-    spec H9. omega.
-    do 2 rewrite <-level_juice_level_phi.
-    rewrite <-compose_assoc, H9; auto.
-    rewrite <-resource_at_approx, Hphi; auto.
-    }
-    { 
-    intros adr. case_eq (m_phi m' @ adr); auto. intros k p Hm'.
-    destruct H8 as [_ H8].
-    spec H8 adr. rewrite Hm' in H8. destruct H8 as [pp H8]. 
-    apply age_jm_phi in H2.
-    assert (Hnec: necR (m_phi jm0) (m_phi jm)).
-    { apply rt_step; auto. }
-    eapply necR_PURE' in Hnec; eauto.
-    }
-    exists c'; split; auto.
+    - assert (level (m_phi jm) < level (m_phi jm0)).
+      Focus 1. {
+        apply age_level in H2.
+        do 2 rewrite <-level_juice_level_phi.
+        destruct H0.
+        rewrite H2; omega.
+      } Unfocus.
+      destruct H0 as (?&?&?).
+      split3; [auto | do 2 rewrite <-level_juice_level_phi in H6; omega |].
+      split.
+      * destruct H8 as [H8 _].
+        unfold pures_sub in H8. intros adr. specialize (H8 adr).
+        assert (Hage: age (m_phi jm0) (m_phi jm)) by (apply age_jm_phi; auto).
+        case_eq (m_phi jm0 @ adr); auto.
+        intros k p Hphi.
+        apply age1_resource_at with (loc := adr) (r := PURE k p) in Hage; auto.
+       ++ rewrite Hage in H8; rewrite  H8; simpl.
+          f_equal. unfold preds_fmap. destruct p. f_equal.
+          generalize (approx_oo_approx' (level m') (level jm)); intros H9.
+          spec H9; [omega |].
+          do 2 rewrite <-level_juice_level_phi.
+          rewrite <-compose_assoc, H9; auto.
+       ++ rewrite <-resource_at_approx, Hphi; auto.
+      * intros adr. case_eq (m_phi m' @ adr); auto. intros k p Hm'.
+        destruct H8 as [_ H8].
+        spec H8 adr. rewrite Hm' in H8. destruct H8 as [pp H8]. 
+        apply age_jm_phi in H2.
+        assert (Hnec: necR (m_phi jm0) (m_phi jm)) by (apply rt_step; auto).
+        eapply necR_PURE' in Hnec; eauto.
+    - exists c'; split; auto.
   + unfold j_halted in *.
     eapply safeN_halted; eauto.
     eapply JE_exit_hered; eauto.

@@ -983,7 +983,7 @@ Hint Resolve bytes_writable_readable : mem.
 Lemma rmap_age_i:
  forall w w' : rmap,
     level w = S (level w') ->
-   (forall l, resource_fmap (approx (level w')) (w @ l) = w' @ l) -> 
+   (forall l, resource_fmap (approx (level w')) (approx (level w')) (w @ l) = w' @ l) -> 
     age w w'.
 Proof.
 intros.
