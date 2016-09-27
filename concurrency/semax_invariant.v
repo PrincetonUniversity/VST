@@ -59,13 +59,15 @@ Ltac cleanup :=
   unfold lockGuts in *.
 
 Ltac join_level_tac :=
-  match goal with
-    cnti : containsThread ?tp _,
-           compat : mem_compatible_with ?tp ?m ?Phi |- _ =>
-    assert (join_sub (getThreadR cnti) Phi) by (apply compatible_threadRes_sub, compat)
-  end;
+  try
+    match goal with
+      cnti : containsThread ?tp _,
+             compat : mem_compatible_with ?tp ?m ?Phi |- _ =>
+      assert (join_sub (getThreadR cnti) Phi) by (apply compatible_threadRes_sub, compat)
+    end;
   repeat match goal with H : join_sub _ _ |- _ => apply join_sub_level in H end;
   repeat match goal with H : join _ _ _ |- _ => apply join_level in H; destruct H end;
+  cleanup;
   try congruence.
 
 (*+ Description of the invariant *)
@@ -464,3 +466,86 @@ Ltac funspec_destruct s :=
   let Heq_name := fresh "Heq_name" in
   destruct (oi_eq_dec (Some (_ s)) (ef_id _ (EF_external _ _)))
     as [Heq_name | Heq_name]; try absurd_ext_link_naming.
+
+
+
+(* if a hypothesis if of the form forall a1 a2 a3 a4 ...,
+"forall_bringvar 3" will move a3 as the first variable, i.e. forall a3
+a1 a2 a4..., assuming the operation is legal wrt dependent types *)
+
+(* This allows us to define "specialize H _ _ _ term" below *)
+
+Tactic Notation "forall_bringvar" "2" hyp(H) :=
+  match type of H with
+    (forall a : ?A, forall b : ?B, ?P) =>
+    let H' := fresh "H" in
+    assert (H' : forall b : B, forall a : A, P)
+      by (intros; eapply H; eauto);
+    move H' after H;
+    clear H; rename H' into H
+  end.
+
+Tactic Notation "forall_bringvar" "2" hyp(H) :=
+  match type of H with
+    (forall a : ?A, forall b : ?B, ?P) =>
+    let H' := fresh "H" in
+    assert (H' : forall b : B, forall a : A, P)
+      by (intros; eapply H; eauto);
+    move H' after H;
+    clear H; rename H' into H
+  end.
+
+Tactic Notation "forall_bringvar" "3" hyp(H) :=
+  match type of H with
+    (forall a : ?A, forall b : ?B, forall c : ?C, ?P) =>
+    let H' := fresh "H" in
+    assert (H' : forall c : C, forall a : A, forall b : B, P)
+      by (intros; eapply H; eauto);
+    move H' after H;
+    clear H; rename H' into H
+  end.
+
+Tactic Notation "forall_bringvar" "4" hyp(H) :=
+  match type of H with
+    (forall a : ?A, forall b : ?B, forall c : ?C, forall d : ?D, ?P) =>
+    let H' := fresh "H" in
+    assert (H' : forall d : D, forall a : A, forall b : B, forall c : C, P)
+      by (intros; eapply H; eauto);
+    move H' after H;
+    clear H; rename H' into H
+  end.
+
+Tactic Notation "forall_bringvar" "5" hyp(H) :=
+  match type of H with
+    (forall a : ?A, forall b : ?B, forall c : ?C, forall d : ?D, forall e : ?E, ?P) =>
+    let H' := fresh "H" in
+    assert (H' :  forall e : E, forall a : A, forall b : B, forall c : C, forall d : D, P)
+      by (intros; eapply H; eauto);
+    move H' after H;
+    clear H; rename H' into H
+  end.
+
+Tactic Notation "forall_bringvar" "6" hyp(H) :=
+  match type of H with
+    (forall a : ?A, forall b : ?B, forall c : ?C, forall d : ?D, forall e : ?E, forall f : ?F, ?P) =>
+    let H' := fresh "H" in
+    assert (H' :  forall f : F, forall a : A, forall b : B, forall c : C, forall d : D, forall e : E, P)
+      by (intros; eapply H; eauto);
+    move H' after H;
+    clear H; rename H' into H
+  end.
+
+Tactic Notation "specialize" hyp(H) "_" constr(t) :=
+  forall_bringvar 2 H; specialize (H t).
+
+Tactic Notation "specialize" hyp(H) "_" "_" constr(t) :=
+  forall_bringvar 3 H; specialize (H t).
+
+Tactic Notation "specialize" hyp(H) "_" "_" "_" constr(t) :=
+  forall_bringvar 4 H; specialize (H t).
+
+Tactic Notation "specialize" hyp(H) "_" "_" "_" "_" constr(t) :=
+  forall_bringvar 5 H; specialize (H t).
+
+Tactic Notation "specialize" hyp(H) "_" "_" "_" "_" "_" constr(t) :=
+  forall_bringvar 6 H; specialize (H t).

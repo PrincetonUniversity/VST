@@ -169,7 +169,22 @@ Section Initial_State.
       unfold matchfunspec in *.
       simpl.
       intros b SPEC phi NECR FU.
-      (* rewrite find_id_maketycontext_s. *)
+      (* argh *)
+      (*
+      exists (prog_main prog). (* no, it can be anything *)
+      clear tp compat.
+      rewrite find_id_maketycontext_s.
+      destruct spr as (b' & q' & (Symb, init) & spr);
+        simpl (projT2 _) in *; simpl (projT1 _) in *.
+      unfold filter_genv in *.
+      rewrite Symb. unfold q in *; clear q.
+      unfold seplog.func_at' in *.
+      destruct SPEC as [f c A m0 m1].
+      destruct FU as [pp PA].
+      simpl snd in jm.
+      destruct (spr n) as (jm' & jmm & lev & S & nolocks). simpl in jm.
+      unfold jm in *; clear jm; rename jm' into jm. clear spr.
+       *)      
       admit.
       (* we need to relate the [jm] given by [semax_prog_rule]  *)
     

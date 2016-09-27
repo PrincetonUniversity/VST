@@ -53,6 +53,88 @@ Require Import concurrency.semax_simlemmas.
 
 Set Bullet Behavior "Strict Subproofs".
 
+(* Lemma resource_at_join_sub_inv (phi1 phi2 : rmap) : *)
+(*   (forall l, join_sub (phi1 @ l) (phi2 @ l)) -> *)
+(*   join_sub phi1 phi2. *)
+(* Proof. *)
+(* Qed. *)
+
+Lemma join_sub_to_joining {A} {J : Join A}
+      {_ : Perm_alg A} {_ : Sep_alg A} {_ : Canc_alg A} {_ : Disj_alg A}
+  (a b e : A) :
+    join_sub e a ->
+    join_sub e b ->
+    joins a b ->
+    identity e.
+Proof.
+  intros la lb ab.
+  eapply join_sub_joins_identity with b; auto.
+  apply (@join_sub_joins_trans _ _ _ _ _ a); auto.
+Qed.
+
+Lemma join_sub_join {A} {J : Join A}
+      {PA : Perm_alg A} {SA : Sep_alg A} {_ : Canc_alg A} {DA : Disj_alg A} {CA : Cross_alg A} 
+      (a b c x : A) :
+  join a b c ->
+  join_sub a x ->
+  join_sub b x ->
+  join_sub c x.
+Proof.
+  intros j (d, ja) (e, jb).
+  destruct (@cross_split _ _ _ _ _ _ _ _ ja jb)
+    as ((((ab, ae), bd), de) & ha & hd & hb & he).
+  exists de.
+  assert (Iab : identity ab)
+    by (apply join_sub_to_joining with a b; eexists; eauto).
+  pose proof join_unit1_e ae a Iab ha. subst ae. clear ha.
+  pose proof join_unit1_e bd b Iab hb. subst bd. clear hb.
+  apply join_comm in ja.
+  apply join_comm in hd.
+  destruct (join_assoc hd ja) as (c' & abc' & dec'x).
+  apply join_comm in abc'.
+  assert (c = c'). eapply join_eq. apply j. apply abc'. subst c'.
+  apply join_comm; auto.
+Qed.
+
+Ltac join_sub_tac :=
+  try
+    match goal with
+      c : mem_compatible_with ?tp ?m ?Phi |- _ =>
+      match goal with
+      | cnt1 : containsThread tp _,
+        cnt2 : containsThread tp _,
+        cnt3 : containsThread tp _,
+        cnt4 : containsThread tp _ |- _ =>
+        assert (join_sub (getThreadR cnt1) Phi) by (apply compatible_threadRes_sub, c);
+        assert (join_sub (getThreadR cnt2) Phi) by (apply compatible_threadRes_sub, c);
+        assert (join_sub (getThreadR cnt3) Phi) by (apply compatible_threadRes_sub, c);
+        assert (join_sub (getThreadR cnt4) Phi) by (apply compatible_threadRes_sub, c)
+      | cnt1 : containsThread tp _,
+        cnt2 : containsThread tp _,
+        cnt3 : containsThread tp _ |- _ =>
+        assert (join_sub (getThreadR cnt1) Phi) by (apply compatible_threadRes_sub, c);
+        assert (join_sub (getThreadR cnt2) Phi) by (apply compatible_threadRes_sub, c);
+        assert (join_sub (getThreadR cnt3) Phi) by (apply compatible_threadRes_sub, c)
+      | cnt1 : containsThread tp _,
+        cnt2 : containsThread tp _ |- _ =>
+        assert (join_sub (getThreadR cnt1) Phi) by (apply compatible_threadRes_sub, c);
+        assert (join_sub (getThreadR cnt2) Phi) by (apply compatible_threadRes_sub, c)
+      | cnt1 : containsThread tp _ |- _ =>
+        assert (join_sub (getThreadR cnt1) Phi) by (apply compatible_threadRes_sub, c)
+      end
+    end;
+  try
+    match goal with
+    | F : AMap.find (elt:=option rmap) ?loc (lset ?tp) = SSome ?phi,
+          c : mem_compatible_with ?tp _ ?Phi |- _
+      => assert (join_sub phi Phi) by eapply (@compatible_lockRes_sub tp loc phi F), c
+    end;
+  try
+    match goal with
+    | j : join ?a ?b ?c |- join_sub ?c _ => try apply (join_sub_join j)
+    end;
+  eauto using join_sub_trans, join_sub_join.
+
 Section Progress.
   Variables
     (CS : compspecs)
@@ -390,7 +472,9 @@ Section Progress.
                            Some (LOCK, UNLOCK_SIG, Vptr b ofs :: nil)). {
               repeat f_equal.
               - auto.
-              - admit.
+              - 
+                Unset Printing Notations.
+                admit.
               - admit.
                  (* design decision:
                     - we can make 'safety' imply wellformedness of this signature
@@ -456,7 +540,7 @@ Section Progress.
           rewrite jam_true in lk; swap 1 2. now auto.
           destruct sat as [sat | sat]; [ | omega ].
           
-          (* changing value of lock *)
+          (* changing value of lock in dry mem *)
           Unset Printing Implicit.
           assert (Hm' : exists m', Mem.store Mint32 (restrPermMap (mem_compatible_locks_ltwritable (mem_compatible_forget compat))) b (Int.intval ofs) (Vint Int.zero) = Some m'). {
             Transparent Mem.store.
@@ -471,12 +555,124 @@ Section Progress.
           }
           destruct Hm' as (m', Hm').
           
-          (* joinability condition provided by invariant : phi' will be the thread's new rmap  *)
-          destruct (compatible_threadRes_lockRes_join (mem_compatible_forget compat) cnti _ Efind) as (phi', Jphi').
           
-          (* somehow the new mem and the Phi has to be a juicy memory *)
+          (* joinability condition provided by invariant : phi' will
+          be the thread's new rmap *)
+          destruct (compatible_threadRes_lockRes_join (mem_compatible_forget compat) cnti _ Efind)
+            as (phi', Jphi').
+          
+          (*
+          (* to build the new dry memory I need to use [restrPermMap]
+          which requires [mem_compatible tp''' m']. Then I have to
+          prove all the coherence things again, one of being
+          [lockSet_Writable], which is NOT true. So I must use
+          something else. *)
+          
+          (* This is silly, there is no reason that this must be a
+          juicy mem. *)
+          
+          match goal with
+            _ : _ = Kblocked ?c |- _ => pose c end.
+          pose (tp' := updThread cnti (Kresume c Vundef) phi').
+          pose (tp'' := updLockSet tp' (b, Int.intval ofs) None).
+          pose (tp''' := age_tp_to (level phi' - 1) tp'').
+          pose (Phi' := age_to (level Phi - 1) Phi).
+          
+          assert (MC : mem_compatible_with tp''' m' Phi'). {
+            constructor.
+            - unfold tp''' in *.
+              unfold Phi' in *.
+              replace (level phi') with (level Phi) by (join_level_tac; cleanup; congruence).
+              apply join_all_age_to. cleanup; omega.
+              unfold tp'' in *.
+              rewrite join_all_joinlist.
+              rewrite maps_updlock1.
+              unfold tp' in *.
+              rewrite maps_remLockSet_updThread.
+              rewrite maps_updthread.
+              pose proof juice_join compat as j.
+              rewrite join_all_joinlist in j.
+              rewrite (maps_getlock3 _ _ _ Efind) in j.
+              assert (cnti': containsThread (remLockSet tp (b, Int.unsigned ofs)) i) by auto.
+              rewrite maps_getthread with (i := i) (cnti := cnti') in j.
+              revert j.
+              apply joinlist_merge.
+              apply join_comm.
+              exact_eq Jphi'; f_equal.
+              destruct tp. simpl. f_equal. f_equal. apply proof_irr.
+            
+            - (* pfdf. *)
+              admit.
+            
+            - unfold tp''' in *.
+              apply lockSet_Writable_age.
+              unfold tp'' in *.
+              Lemma lockSet_Writable_updLockSet tp loc m o :
+                lockRes tp loc <> None ->
+                lockSet_Writable (lset tp) m ->
+                lockSet_Writable (lset (updLockSet tp loc o)) m.
+              Proof.
+                unfold lockSet_Writable in *.
+                unfold lockRes in *.
+                cleanup.
+                intros F H b ofs E.
+                apply (H b ofs).
+                destruct tp; simpl in *.
+                rewrite AMap_find_add in E.
+                unfold AMap.key in *.
+                destruct (eq_dec loc (b, ofs)); [ | now auto ].
+                subst. cleanup.
+                destruct ( AMap.find (elt:=option rmap) (b, ofs) lset0). reflexivity. tauto.
+              Qed.
+              apply lockSet_Writable_updLockSet.
+              { cleanup.
+                unfold Int.unsigned in *.
+                unfold tp' in *.
+                simpl.
+                rewrite Efind.
+                congruence. }
+              unfold tp' in *.
+              simpl.
+              (* NOW I have to prove [lockSet_Writable (lset tp) m']
+              which is not true at all. *)
+              admit.
+            - admit.
+            - admit.
+          }
+          clear MC (* was not true *).
+          *)
+          
+          (* somehow the new mem and the Phi has to be a juicy memory
+          -> it does NOT. The requirement will be removed from the
+          juicy machine *)
           assert (Hjm' : exists jm', m_dry jm' = m' /\ m_phi jm' = phi'). {
-            admit (* same as above *).
+            unshelve eexists (mkJuicyMem m' phi' _ _ _ _); [ .. | auto ].
+            - Require Import veric.juicy_mem_lemmas.
+              apply contents_cohere_join_sub with Phi; [ | now join_sub_tac ].
+              assert (C : contents_cohere m Phi) by apply compat.
+              intros rsh sh0 v loc pp H.
+              specialize (C rsh sh0 v loc pp H).
+              destruct C as [C ?]; split; auto.
+              pose proof store_outside' _ _ _ _ _ _ Hm' as SO.
+              destruct SO as (SO & _).
+              destruct loc as (b', ofs').
+              specialize (SO b' ofs').
+              destruct SO as [SO | SO].
+              + exfalso.
+                admit (* cannot be YES *).
+              + rewrite <-SO.
+                rewrite restrPermMap_contents.
+                auto.
+            - (* this shouldn't be m', but some restrPermMap *)
+              Lemma contents_cohere_join_sub m phi1 phi2 :
+                join_sub phi1 phi2 ->
+                contents_cohere m phi2 ->
+                contents_cohere m phi1.
+              Admitted.
+              (* intros rsh sh0 v loc pp E. *)
+              admit.
+            - admit.
+            - admit.
           }
           destruct Hjm' as (jm', Hjm').
           
@@ -815,6 +1011,12 @@ Section Progress.
         funspec_destruct "acquire".
         funspec_destruct "release".
         funspec_destruct "makelock".
+        
+        intros (phix, ((vx, shx), Rx)) Pre. simpl in Pre.
+        destruct Pre as (phi0 & phi1 & Join & Precond & HnecR).
+        simpl (and _).
+        intros Post.
+        
         admit.
       }
       
