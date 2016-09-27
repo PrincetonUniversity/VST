@@ -217,44 +217,6 @@ Qed.
 
 Import Mem.
 
-(*
-Lemma mem_step_max_access_at m m' loc :
-  mem_step m m' ->
-  valid_block m (fst loc) ->
-  (forall k, access_at m loc k = access_at m' loc k \/
-   (access_at m loc Cur = Some Freeable /\
-    access_at m' loc Max = None)).
-(*  (~ valid_block m (fst loc) /\    (* not true *)
-   (max_access_at m loc = None /\
-    max_access_at m' loc = Some Freeable)). *)
-Proof.
-  (* Lennart is proving this at the moment *)
-Admitted.
- *)
-
-Lemma mem_cohere_step_new_attempt c c' jm jm' Phi (X : rmap) ge :
-  mem_cohere' (m_dry jm) Phi ->
-  sepalg.join (m_phi jm) X Phi ->
-  corestep (juicy_core_sem cl_core_sem) ge c jm c' jm' ->
-  exists Phi',
-    sepalg.join (m_phi jm') (age_to (level (m_phi jm')) X) Phi' /\
-    mem_cohere' (m_dry jm') Phi'.
-Proof.
-  intros MC J (S & RD & L).
-  assert (Bx : rmap_bound (Mem.nextblock (m_dry jm)) X) by apply (rmap_bound_join J), MC.
-  destruct (resource_decay_join _ _ _ _ _  Bx RD J) as [Phi' [J' RD']].
-  apply cl_step_mem_step in S. clear c c'.
-  remember (m_dry jm) as m.
-  remember (m_dry jm') as m'.
-  exists Phi'. split. apply J'.
-  revert Phi X jm jm' Heqm Heqm' J RD MC L Bx J' RD'.
-  induction S; intros Phi X jm jm' -> -> J RD MC L Bx J' RD'.
-  - (* store *)
-    (* hm, that does not help much because it does not correlate with
-    resource_decay *)
-Admitted.
-
-
 Lemma perm_of_res_resource_fmap f g r :
   perm_of_res (resource_fmap f g r) = perm_of_res r.
 Proof.
@@ -303,10 +265,45 @@ Proof.
 Qed.
 
 Lemma valid_block0 m b : ~valid_block m b <-> (b >= nextblock m)%positive.
-Admitted.
+Proof.
+  unfold valid_block in *.
+  unfold Plt in *.
+  split; zify; omega.
+Qed.
 
 Lemma valid_block1 m b : valid_block m b <-> (b < nextblock m)%positive.
-Admitted.
+Proof.
+  unfold valid_block in *.
+  unfold Plt in *.
+  split; zify; omega.
+Qed.
+
+Lemma not_Pge_Plt a b : ~ Pge a b -> Plt a b.
+Proof.
+  unfold Plt. zify. omega.
+Qed.
+
+Lemma mem_cohere'_redundant m phi :
+  contents_cohere m phi ->
+  access_cohere' m phi ->
+  alloc_cohere m phi ->
+  mem_cohere' m phi.
+Proof.
+  intros A B D; constructor; auto.
+  (* proving now max_access_cohere *)
+  intros loc. autospec B.
+  destruct (phi @ loc) as [t0 | t0 p [] p0 | k p]; auto.
+  { unfold perm_of_res in *.
+    unfold perm_of_sh in *.
+    if_tac. now destruct Share.nontrivial; auto.
+    if_tac. now auto.
+    tauto. }
+  all:destruct (plt (fst loc) (nextblock m)) as [|n]; [ assumption | exfalso ].
+  all:unfold max_access_at in *.
+  all:unfold access_at in *.
+  all:rewrite (nextblock_noaccess m _ (snd loc) Max n) in B.
+  all:inversion B.
+Qed.
 
 Lemma mem_cohere_step c c' jm jm' Phi (X : rmap) ge :
   mem_cohere' (m_dry jm) Phi ->
@@ -326,8 +323,7 @@ Proof.
   
   destruct MC as [A B C D].
   unfold contents_cohere in *.
-  
-  constructor.
+  apply mem_cohere'_redundant.
   
   - (* Proving contents_cohere *)
     intros sh rsh v loc pp AT.
@@ -374,10 +370,6 @@ Proof.
         rewrite preds_fmap_NoneP; split; auto.
         simpl in Ac.
         assert (Mem.valid_block (m_dry jm) (fst loc)). {
-          Lemma not_Pge_Plt a b : ~ Pge a b -> Plt a b.
-          Proof.
-            unfold Plt. zify. omega.
-          Qed.
           apply not_Pge_Plt.
           intros Hl; specialize (Bx Hl).
           discriminate.
@@ -448,19 +440,74 @@ Proof.
            rewrite perm_of_res_resource_fmap; auto.
     
     + (* "Write" case *)
-      admit.
+      destruct RD as (rsh & v & v' & E & E').
+      rewrite decay_rewrite in dec.
+      specialize (dec loc).
+      unfold rmap_bound in *.
+      destruct dec as (dec1, dec2).
+      destruct (valid_block_dec (m_dry jm) (fst loc)); swap 1 2.
+      * rewrite <-valid_block0 in NN. autospec NN. rewrite NN in *.
+        discriminate.
+      * clear dec1. autospec dec2. clear v0 Bx.
+        destruct dec2 as [Freed | Same].
+        -- specialize (Freed Cur).
+           do 2 rewrite juicy_mem_access in Freed.
+           rewrite E' in Freed. destruct Freed. simpl in *.
+           unfold perm_of_sh in *. repeat if_tac in H0; try discriminate.
+           unfold fullshare in *.
+           tauto.
+        -- unfold max_access_at in * (* same Cur and Max *).
+           rewrite <-(Same Max).
+           replace (perm_of_res (Phi' @ loc)) with (perm_of_res (Phi @ loc)). auto.
+           apply resource_at_join with (loc := loc) in J'.
+           apply resource_at_join with (loc := loc) in J.
+           rewrite E' in J'.
+           apply (resource_fmap_join (approx (level (m_phi jm'))) (approx (level (m_phi jm')))) in J.
+           rewrite E in J.
+           rewrite age_to_resource_at in J'.
+           remember (resource_fmap (approx (level (m_phi jm'))) (approx (level (m_phi jm'))) (X @ loc)) as r.
+           inv J; inv J'.
+           ++ symmetry in H.
+              apply resource_fmap_YES_inv in H.
+              destruct H as (pp' & -> & Epp).
+              simpl; f_equal.
+              assert (rsh0 = rsh2) by congruence. subst.
+              eapply join_eq; eauto.
+           ++ destruct (X @ loc); congruence.
+           ++ destruct (X @ loc); congruence.
+           ++ assert (rsh0 = rsh2) by congruence. subst.
+              assert (sh0 = sh2) by congruence. subst.
+              symmetry in H5.
+              apply resource_fmap_YES_inv in H5.
+              destruct H5 as (pp' & -> & Epp).
+              simpl; f_equal.
+              ** eapply join_eq; eauto.
+              ** eapply join_eq; eauto.
     
     + (* "Alloc" case *)
       autospec NN.
-      admit.
+      eapply perm_order''_trans. now apply access_cur_max.
+      rewrite juicy_mem_access.
+      rewrite RD.
+      simpl.
+      rewrite perm_of_freeable.
+      destruct (perm_of_res (Phi' @ loc)) as [[]|]; constructor.
     
     + (* "Free" case *)
-      admit.
-  
-  - (* Proving max_access_cohere *)
-    intros loc.
-    specialize (C loc).
-    admit.
+      cut (perm_of_res (Phi' @ loc) = None).
+      { intros ->. destruct (max_access_at (m_dry jm') loc) as [[]|]; constructor. }
+      destruct RD as (v & pp & E & E').
+      apply resource_at_join with (loc := loc) in J'.
+      apply resource_at_join with (loc := loc) in J.
+      rewrite E in J. rewrite E' in J'.
+      inv J.
+      * apply join_top_l in RJ. subst.
+        rewrite age_to_resource_at in J'.
+        rewr (X @ loc) in J'. simpl in J'.
+        inv J'.
+        apply join_bot_bot_eq in RJ; subst.
+        simpl. if_tac. auto. tauto.
+      * apply join_pfullshare in H0. tauto.
   
   - (* Proving alloc_cohere *)
     intros loc g.
@@ -469,9 +516,6 @@ Proof.
     assert_specialize Bx. {
       apply Pos.le_ge. apply Pos.ge_le in g. eapply Pos.le_trans. 2:eauto.
       apply forward_nextblock.
-      Lemma mem_step_forward m m' : mem_step m m' -> mem_forward m m'.
-        (* Lennart is to push this *)
-      Admitted.
       apply mem_step_forward, ms.
     }
     apply resource_at_join with (loc := loc) in J'.
@@ -481,115 +525,7 @@ Proof.
     simpl in J'.
     inv J'.
     rewrite (join_bot_bot_eq rsh3); auto.
-Admitted.
-  
-    (*
- 
-    destruct (RD
-      * specialize (Co' _ _ _ _ eq_refl).
-        eauto.
-      breakhyps.
-      subst.
-      simpl in *.
-      inv J.
-      discriminate.
-      simpl in *.
-        
-        injection H0
-        simpl in *.
-        now breakhyps.
-        simpl in *; discriminate.
-        specialize (A _ _ _ _ eq_refl).
-        destruct A as [A ->].
-        rewrite preds_fmap_NoneP; split; auto.
-        simpl in Ac.
-        assert (Mem.valid_block (m_dry jm) (fst loc)). {
-          apply not_Pge_Plt.
-          intros Hl; specialize (Bx Hl).
-          discriminate.
-        }
-        if_tac in Ac.
-        -- rewrite mem_step_contents_at_None with (m := m_dry jm); auto.
-        -- rewrite mem_step_contents_at_Nonempty with (m := m_dry jm); auto.
-              
-      * eapply A; eauto.
-      unfold contents_at in *.
-      (* apply cl_step_mem_step  *)
-      
-            (*
-      if_tac in Ac'.
-      * erewrite cl_step_access_at_None; eauto.
-        
-      * 
-      
-      admit.
-    + (* everything in jm' *)
-      specialize (Co' _ _ _ _ eq_refl).
-      auto.
-  
-  - 
-      inv J.
-      
-      destruct RD as [NN [RD|[RD|[[P [v' RD]]|RD]]]].
-      * apply resource_fmap_NO_inv in RD. subst j.
-      inv J.
-      specialize (A _ _ _ _ eq_refl).
-      subst x.
-      destruct RD as [NN [RD|[RD|[[P [v' RD]]|RD]]]].
-      * apply resource_fmap_YES_inv in RD.
-        destruct RD as (pp' & -> & ->).
-        inv J.
-        specialize (Co' _ _ _ _ eq_refl).
-        auto.
-      * destruct RD as (rsh0 & v0 & v' & E & E').
-        apply resource_fmap_YES_inv in E.
-        destruct E as (pp' & E & HN).
-        subst j.
-        specialize (Co' _ _ _ _ eq_refl).
-        
-        symmetry in HN.
-        
-        eapply preds_fmap_NoneP_approx in HN.
-        rewrite preds_fmap_NoneP; split; auto.
-        
-        simpl.
-        unfold NoneP in *.
-        destruct A; simpl; split; [ | subst; unfold "oo"; auto].
-        unfold NoneP in *.
-      
-      
-    + (* all was in jm' *)
-      destruct MC.
-      * rewr (m_phi jm' @ loc) in R.
-
-        apply resource_fmap_inv in R.
-        rewr (m_phi jm @ loc) in Jloc.
-        inv Jloc.
-        
-          
-      destruct rd
-      specialize (cont_coh0 sh rsh v loc pp).
-      destruct cont_coh0. split; auto.
-      rewr (Phi @ loc) in Jloc.
-      admit.
-    + (* all was in X *)
-(*      rewrite <-H in Jloc.
-      inversion Jloc; subst.
-      * symmetry in H7.
-        pose proof cont_coh MC _ H7.
-        intuition.
-        (* because the juice was NO, the dry hasn't changed *)
-        admit.
-      * (* same reasoning? *)
-        admit.
-    + (* joining of permissions, values don't change *)
-      symmetry in H.
-      destruct jm'.
-      apply (JMcontents _ _ _ _ _ H).. *)
-*)
-Admitted.
-
-     *)
+Qed.
 
 Lemma resource_decay_matchfunspec {b phi phi' g Gamma} :
   resource_decay b phi phi' ->
@@ -872,7 +808,7 @@ Proof.
     destruct SO as (_ & _ & <-). auto.
 Qed.
 
-Section Simulation.
+Section Preservation.
   Variables
     (CS : compspecs)
     (ext_link : string -> ident)
@@ -2531,4 +2467,4 @@ Section Simulation.
       admit.
     }
   Admitted.
-End Simulation.
+End Preservation.
