@@ -119,7 +119,7 @@ Qed.
 
 Lemma age_resource_at {phi phi' loc} :
   age phi phi' ->
-  phi' @ loc = resource_fmap (approx (level phi')) (phi @ loc).
+  phi' @ loc = resource_fmap (approx (level phi')) (approx (level phi')) (phi @ loc).
 Proof.
   intros A.
   rewrite <- (age1_resource_at _ _ A loc (phi @ loc)).
@@ -127,7 +127,7 @@ Proof.
   - rewrite resource_at_approx. reflexivity.
 Qed.
 
-Lemma age_to_resource_at phi n loc : age_to n phi @ loc = resource_fmap (approx n) (phi @ loc).
+Lemma age_to_resource_at phi n loc : age_to n phi @ loc = resource_fmap (approx n) (approx n) (phi @ loc).
 Proof.
   assert (D : (n <= level phi \/ n >= level phi)%nat) by omega.
   destruct D as [D | D]; swap 1 2.
@@ -136,15 +136,16 @@ Proof.
     change compcert_rmaps.R.resource_fmap with resource_fmap.
     change compcert_rmaps.R.approx with approx.
     match goal with
-      |- _ = ?map ?f (?map ?g ?r) => transitivity (map (f oo g) r)
+      |- _ = ?map ?f1 ?f2 (?map ?g1 ?g2 ?r) => transitivity (map (f1 oo g1) (g2 oo f2) r)
     end; swap 1 2.
     + destruct (phi @ loc); unfold "oo"; simpl; auto.
       * destruct p0; auto.
       * destruct p; auto.
     + f_equal. rewrite approx_oo_approx''; auto.
+      rewrite approx_oo_approx'; auto.
   - generalize (age_to_ageN n phi).
     generalize (age_to n phi); intros phi'.
-    replace n with (level phi - (level phi - n))%nat at 2 by omega.
+    replace n with (level phi - (level phi - n))%nat at 2 3 by omega.
     generalize (level phi - n)%nat; intros k. clear n D.
     revert phi phi'; induction k; intros phi phi'.
     + unfold ageN in *; simpl.
@@ -163,12 +164,14 @@ Proof.
       rewrite (age_level _ _ Eo).
       simpl.
       match goal with
-        |- ?map ?f (?map ?g ?r) = _ => transitivity (map (f oo g) r)
+        |- ?map ?f1 ?f2 (?map ?g1 ?g2 ?r) = _ => transitivity (map (f1 oo g1) (g2 oo f2) r)
       end.
       * destruct (phi @ loc); unfold "oo"; simpl; auto.
         -- destruct p0; auto.
         -- destruct p; auto.
       * f_equal. rewrite approx_oo_approx'; auto.
+        omega.
+        rewrite approx'_oo_approx; auto.
         omega.
 Qed.
 

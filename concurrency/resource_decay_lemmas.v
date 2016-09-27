@@ -22,7 +22,7 @@ Set Bullet Behavior "Strict Subproofs".
 Lemma resource_decay_LK {b phi phi' loc rsh sh n pp} :
   resource_decay b phi phi' ->
   phi @ loc = YES rsh sh (LK n) pp ->
-  phi' @ loc = YES rsh sh (LK n) (preds_fmap (approx (level phi')) pp).
+  phi' @ loc = YES rsh sh (LK n) (preds_fmap (approx (level phi')) (approx (level phi')) pp).
 Proof.
   intros [L R] E.
   specialize (R loc).
@@ -56,7 +56,7 @@ Lemma resource_decay_LK_inv {b phi phi' loc rsh sh n pp'} :
   resource_decay b phi phi' ->
   phi' @ loc = YES rsh sh (LK n) pp' ->
   exists pp,
-    pp' = preds_fmap (approx (level phi')) pp /\
+    pp' = preds_fmap (approx (level phi')) (approx (level phi')) pp /\
     phi @ loc = YES rsh sh (LK n) pp.
 Proof.
   intros [L R] E.
@@ -160,7 +160,7 @@ Lemma resource_decay_PURE {b phi phi'} :
   resource_decay b phi phi' ->
   forall loc sh P,
     phi @ loc = PURE sh P ->
-    phi' @ loc = PURE sh (preds_fmap (approx (level phi')) P).
+    phi' @ loc = PURE sh (preds_fmap (approx (level phi')) (approx (level phi')) P).
 Proof.
   intros [L RD] loc sh P PAT.
   specialize (RD loc).
@@ -177,7 +177,7 @@ Lemma resource_decay_PURE_inv {b phi phi'} :
     phi' @ loc = PURE sh P' ->
     exists P,
       phi @ loc = PURE sh P /\
-      P' = preds_fmap (approx (level phi')) P.
+      P' = preds_fmap (approx (level phi')) (approx (level phi')) P.
 Proof.
   intros [L RD] loc sh P PAT.
   specialize (RD loc).

@@ -111,7 +111,7 @@ Proof.
 Qed.
 
 Lemma resource_fmap_approx_idempotent n r :
-  resource_fmap (approx n) (resource_fmap (approx n) r) = resource_fmap (approx n) r.
+  resource_fmap (approx n) (approx n) (resource_fmap (approx n) (approx n) r) = resource_fmap (approx n) (approx n) r.
 Proof.
   destruct r; simpl; f_equal.
   - destruct p0; simpl.
@@ -220,7 +220,7 @@ Proof.
              { r3 |
                sepalg.join (phi1' @ loc) (phi2' @ loc) r3 /\
                resource_decay_at b (level phi1') (phi3 @ loc) r3 (fst loc) /\
-               resource_fmap (approx (level phi1')) r3 = r3
+               resource_fmap (approx (level phi1')) (approx (level phi1')) r3 = r3
          }).
   {
     intros loc.
@@ -233,7 +233,7 @@ Proof.
     
     destruct rd as [nn [[[E1 | (rsh & v & v' & E1 & E1')] | (pos & v & E1') ] | (v & pp & E1 & E1')]].
     
-    - exists ( resource_fmap (approx (level phi1')) (phi3 @ loc)).
+    - exists ( resource_fmap (approx (level phi1')) (approx (level phi1')) (phi3 @ loc)).
       rewrite <-E1.
       split;[|split;[split|]].
       + inversion J; simpl; constructor; auto.
@@ -349,9 +349,9 @@ Proof.
     destruct rd3 as [[NN rd3] _].
     split; auto.
     destruct rd3 as [R|[R|[R|R]]].
-    + left. exact_eq R; do 3 f_equal. auto.
-    + right; left. exact_eq R.
-      do 7 (f_equal; try extensionality).
+    + left. exact_eq R; do 3 f_equal; auto.
+    + right; left. exact_eq R;
+      do 7 (f_equal; try extensionality);
       auto.
     + right; right; left. auto.
     + auto.
