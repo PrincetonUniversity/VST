@@ -9,8 +9,8 @@ Open Local Scope nat_scope.
 Require Import msl.ageable.
 Require Import msl.functors_variant.
 Require Import msl.sepalg.
-Require Import msl.xsepalg_functors.
-Require Import msl.xsepalg_generators.
+Require Import msl.sepalg_functors.
+Require Import msl.sepalg_generators.
 Require Import msl.age_sepalg.
 Require Import msl.knot_full_variant.
 

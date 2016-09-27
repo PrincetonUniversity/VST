@@ -1,6 +1,5 @@
 Require Import msl.msl_standard.
 Require Import msl.Coqlib2.
-Require Import msl.xsepalg_functors. (* TODO: Not neccesary. *)
 Import MixVariantFunctor.
 Import MixVariantFunctorLemmas.
 Import MixVariantFunctorGenerator.

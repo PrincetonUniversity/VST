@@ -6,7 +6,7 @@
 Require Import msl.base.
 Require Import msl.functors_variant.
 Require Import msl.sepalg.
-Require Import msl.xsepalg_generators.
+Require Import msl.sepalg_generators.
 
 Set Implicit Arguments.
 
