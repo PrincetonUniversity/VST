@@ -141,7 +141,7 @@ Proof.
     + destruct (phi @ loc); unfold "oo"; simpl; auto.
       * destruct p0; auto.
       * destruct p; auto.
-    + f_equal. rewrite approx_oo_approx''; auto.
+    + f_equal. rewrite approx'_oo_approx; auto.
       rewrite approx_oo_approx'; auto.
   - generalize (age_to_ageN n phi).
     generalize (age_to n phi); intros phi'.
