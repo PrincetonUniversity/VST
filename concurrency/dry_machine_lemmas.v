@@ -377,7 +377,7 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (Hinv: invariant tp)
         (Hcode: getThreadC pf = Krun c)
         (Hcompatible : mem_compatible tp m)
-        (Hcorestep: ev_step Sem ge c (restrPermMap (proj1 (Hcompatible i pf))) ev c' m'),
+        (Hcorestep: ev_step Sem ge c (restrPermMap (Hcompatible i pf).1) ev c' m'),
         mem_compatible (updThread pf (Krun c') (getCurPerm m', (getThreadR pf).2)) m'.
     Proof.
       intros.
@@ -395,7 +395,7 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
                                   Mem.perm_order''  ((getMaxPerm m') !! b ofs) ((getThreadR cnt).2 !! b ofs)).
         { intros b ofs.
           (* we proceed by case analysis on whether the block was a valid one or not*)
-          destruct (valid_block_dec (restrPermMap (proj1 (Hcompatible i pf))) b)
+          destruct (valid_block_dec (restrPermMap (Hcompatible i pf).1) b)
             as [Hvalid|Hinvalid].
           - (*case it's a valid block*)
             destruct (Hdecay b ofs) as [ _ HdecayValid].
@@ -408,7 +408,7 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
               assert (Hlock_empty: (getThreadR cnt)#2 !! b ofs = None).
               { destruct (thread_data_lock_coh Hinv cnt0) as [Hcoh _].
                 specialize (Hcoh _ pf b ofs).
-                assert (Hp := restrPermMap_Cur (proj1 (Hcompatible i pf)) b ofs).
+                assert (Hp := restrPermMap_Cur (Hcompatible i pf).1 b ofs).
                 unfold permission_at in Hp.
                 rewrite <- Hp, HFree in Hcoh.
                 simpl in Hcoh.
@@ -433,7 +433,7 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
               (* for other threads it must hold by the disjointess invariant
             that:*)
               assert (Hempty: (getThreadR cnt).1 # b ofs = None).
-              { assert (Hp := restrPermMap_Cur (proj1 (Hcompatible i pf)) b ofs).
+              { assert (Hp := restrPermMap_Cur (Hcompatible i pf).1 b ofs).
                 unfold permission_at in Hp. rewrite Hp in HFree.
                 assert (Hno_race := no_race_thr Hinv pf cnt0 Htid).
                 unfold permMapsDisjoint2 in Hno_race.
@@ -462,7 +462,7 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
               * (*case it's  another thread*)            
                 rewrite gsoThreadRes; auto.
                 assert (HeqCur := Heq Max).
-                assert (Hrestr_max := restrPermMap_Max (proj1 (Hcompatible i pf)) b ofs).
+                assert (Hrestr_max := restrPermMap_Max (Hcompatible i pf).1 b ofs).
                 unfold permission_at in Hrestr_max.
                 rewrite getMaxPerm_correct. unfold permission_at.
                 rewrite <- HeqCur.
@@ -473,7 +473,7 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
                invalid before it must be that the lock/data permissions the threads
                had are empty*)
             apply Mem.nextblock_noaccess with (ofs := ofs) (k := Max) in Hinvalid.
-            assert (Hp := restrPermMap_Max (proj1 (Hcompatible i pf)) b ofs).
+            assert (Hp := restrPermMap_Max (Hcompatible i pf).1 b ofs).
             unfold permission_at in Hp. rewrite Hp in Hinvalid.
             specialize (Hlt1 b ofs).
             specialize (Hlt2 b ofs).
@@ -514,7 +514,7 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
           assert (Hdecay := ev_step_decay _ _ _ _ _ _ Hcorestep).
           intros b ofs.
           (* by cases analysis on whether b was a valid block*)
-          destruct (valid_block_dec (restrPermMap (proj1 (Hcompatible i pf))) b)
+          destruct (valid_block_dec (restrPermMap (Hcompatible i pf).1) b)
             as [Hvalid|Hinvalid].
           - (*case it was a valid block *)
             destruct (Hdecay b ofs) as [ _ HdecayValid].
@@ -527,7 +527,7 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
               { (*for lock permissions this is derived by coherency between data and locks*)
                 destruct (locks_data_lock_coh Hinv l Hres) as [Hcoh _].
                 specialize (Hcoh _ pf b ofs).
-                assert (Hp := restrPermMap_Cur (proj1 (Hcompatible i pf)) b ofs).
+                assert (Hp := restrPermMap_Cur (Hcompatible i pf).1 b ofs).
                 unfold permission_at in Hp.
                 rewrite <- Hp, HFree in Hcoh.
                 simpl in Hcoh.
@@ -537,7 +537,7 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
               }
               assert (HemptyD: pmaps.1 !! b ofs = None).
               { (*for data permissions this is derived by the disjointness invariant *)
-                assert (Hp := restrPermMap_Cur (proj1 (Hcompatible i pf)) b ofs).
+                assert (Hp := restrPermMap_Cur (Hcompatible i pf).1 b ofs).
                 unfold permission_at in Hp. rewrite Hp in HFree.
                 destruct (no_race Hinv _ pf Hres) as [Hno_race _].
                 specialize (Hno_race b ofs).
@@ -554,7 +554,7 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
               rewrite getMaxPerm_correct. unfold permission_at.
               assert (HeqCur := Heq Max).
               rewrite <- HeqCur.
-              assert (Hrestr_max := restrPermMap_Max (proj1 (Hcompatible i pf)) b ofs).
+              assert (Hrestr_max := restrPermMap_Max (Hcompatible i pf).1 b ofs).
               unfold permission_at in Hrestr_max.
               rewrite Hrestr_max;
                 by eauto.
@@ -563,7 +563,7 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
                invalid before it must be that the lock/data permissions the threads
                had are empty*)
             apply Mem.nextblock_noaccess with (ofs := ofs) (k := Max) in Hinvalid.
-            assert (Hp := restrPermMap_Max (proj1 (Hcompatible i pf)) b ofs).
+            assert (Hp := restrPermMap_Max (Hcompatible i pf).1 b ofs).
             unfold permission_at in Hp. rewrite Hp in Hinvalid.
             specialize (Hlt1 b ofs).
             specialize (Hlt2 b ofs).
@@ -662,7 +662,7 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (pf : containsThread tp i) c m1 m1' c'
         (Hinv: invariant tp)
         (Hcompatible: mem_compatible tp m)
-        (Hrestrict_pmap: restrPermMap (proj1 (Hcompatible i pf)) = m1)
+        (Hrestrict_pmap: restrPermMap (Hcompatible i pf).1 = m1)
         (Hcorestep: corestep Sem ge c m1 c' m1')
         (Hcore: getThreadC pf = Krun c),
         invariant (updThread pf (Krun c') (getCurPerm m1', (getThreadR pf).2)).
@@ -843,11 +843,14 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         rewrite Hperm1 in Hcontra.
         rewrite Hperm2 in Hreadable.
         unfold Mem.perm_order' in *.
-        (** Either [pmap1] is disjoint from [pmap2] or there is [permMapCoherence] relation between them*)
+        (** Either [pmap1] is disjoint from [pmap2] or there is
+        [permMapCoherence] relation between them*)
         destruct Hdisjoint as [Hdisjoint | Hdisjoint];
           specialize (Hdisjoint b ofs);
-          destruct (pmap1 # b ofs) as [p1 |]; destruct (pmap2 # b ofs) as [p2 |]; try (by exfalso);
-            destruct p1; (try by inversion Hcontra); destruct p2; try (by inversion Hreadable);
+          destruct (pmap1 # b ofs) as [p1 |];
+          destruct (pmap2 # b ofs) as [p2 |]; try (by exfalso);
+            destruct p1; (try by inversion Hcontra); destruct p2;
+              try (by inversion Hreadable);
               simpl in Hdisjoint; destruct Hdisjoint as [? ?];
                 by discriminate.
       }
@@ -870,9 +873,9 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (c c' : C) 
         (pfi : containsThread tp i) (pfj : containsThread tp j)
         (Hcomp : mem_compatible tp m) (b : block) (ofs : Z) 
-        (Hreadable: Mem.perm (restrPermMap (proj1 (Hcomp j pfj))) b ofs Cur Readable \/
-                    Mem.perm (restrPermMap (proj2 (Hcomp j pfj))) b ofs Cur Readable)
-        (Hcorestep: corestep Sem ge c (restrPermMap (proj1 (Hcomp i pfi))) c' m')
+        (Hreadable: Mem.perm (restrPermMap (Hcomp j pfj).1) b ofs Cur Readable \/
+                    Mem.perm (restrPermMap (Hcomp j pfj).2) b ofs Cur Readable)
+        (Hcorestep: corestep Sem ge c (restrPermMap (Hcomp i pfi).1) c' m')
         (Hinv: invariant tp),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
@@ -891,11 +894,11 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (pfi : containsThread tp i) (Hcomp : mem_compatible tp m) addr pmap
         (Hlock: lockRes tp addr = Some pmap)
         (b : block) (ofs : Z)
-        (Hreadable: Mem.perm (restrPermMap (proj1 (compat_lp Hcomp _ Hlock)))
+        (Hreadable: Mem.perm (restrPermMap (compat_lp Hcomp _ Hlock).1)
                              b ofs Cur Readable \/
-                    Mem.perm (restrPermMap (proj2 (compat_lp Hcomp _ Hlock)))
+                    Mem.perm (restrPermMap (compat_lp Hcomp _ Hlock).2)
                              b ofs Cur Readable)
-        (Hcorestep: corestep Sem ge c (restrPermMap (proj1 (Hcomp i pfi))) c' m')
+        (Hcorestep: corestep Sem ge c (restrPermMap (Hcomp i pfi).1) c' m')
         (Hinv: invariant tp),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
@@ -1386,8 +1389,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         mem_compatible tp' m'.
     Proof.
       intros.
-      inversion Hdry; subst; eapply corestep_compatible;
-        by eauto.
+      inversion Hdry; subst; eapply corestep_compatible; eauto.
     Qed.
 
     (** [mem_compatible] is preserved by [resume_thread]*)
@@ -1549,10 +1551,10 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (Hcomp: mem_compatible tp m)
         (Hcomp': mem_compatible tp' m')
         (Hstep: internal_step pfi Hcomp tp' m') b ofs,
-        permission_at (restrPermMap (proj1 (Hcomp _ pfj))) b ofs Cur =
-        permission_at (restrPermMap (proj1 (Hcomp' _ pfj'))) b ofs Cur /\
-        permission_at (restrPermMap (proj2 (Hcomp _ pfj))) b ofs Cur =
-        permission_at (restrPermMap (proj2 (Hcomp' _ pfj'))) b ofs Cur.
+        permission_at (restrPermMap (Hcomp _ pfj).1) b ofs Cur =
+        permission_at (restrPermMap (Hcomp' _ pfj').1) b ofs Cur /\
+        permission_at (restrPermMap (Hcomp _ pfj).2) b ofs Cur =
+        permission_at (restrPermMap (Hcomp' _ pfj').2) b ofs Cur.
     Proof.
       intros;
         rewrite! restrPermMap_Cur;
@@ -1626,6 +1628,50 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         erewrite gsoLockPool_step; eauto.
     Qed.
 
+    (** Lock resources of the threads are preserved by [internal_step] *)
+    Lemma internal_step_locks_eq:
+      forall tp m tp' m' i (cnti: containsThread tp i)
+        (Hcomp: mem_compatible tp m)
+        (Hstep: internal_step cnti Hcomp tp' m'),
+      forall j (cntj: containsThread tp j) (cntj': containsThread tp' j),
+        (getThreadR cntj).2 = (getThreadR cntj').2.
+    Proof.
+      intros.
+      destruct Hstep as [[? Htstep] | [[Htstep ?] | [Htstep ?]]];
+        inversion Htstep;
+        subst; try (rewrite gThreadCR; reflexivity).
+      destruct (i == j) eqn:Hij;
+        move/eqP:Hij=>Hij;
+                       subst;
+                       [rewrite gssThreadRes
+                       | erewrite @gsoThreadRes with (cntj := cntj) by eauto];
+                       pf_cleanup; reflexivity.
+    Qed.
+
+    (** Lock resources of the threads are preserved by [internal_execution] *)
+    Lemma internal_execution_locks_eq:
+      forall tp m tp' m' xs
+        (Hexec: internal_execution xs tp m tp' m'),
+      forall j (cntj: containsThread tp j) (cntj': containsThread tp' j),
+        (getThreadR cntj).2 = (getThreadR cntj').2.
+    Proof.
+      intros. generalize dependent tp. generalize dependent m.
+      induction xs; intros.
+      - simpl in Hexec. inversion Hexec; subst. by pf_cleanup.
+        simpl in HschedN. by discriminate.
+      - simpl in Hexec.
+        inversion Hexec; subst; simpl in *.
+        inversion HschedN; subst.
+        pose proof Hstep as Hstep2.
+        eapply internal_step_locks_eq with
+        (cntj := cntj)
+          (cntj' := containsThread_internal_step Hstep cntj)
+          in Hstep2; eauto.
+        specialize (IHxs _ _  Htrans).
+        rewrite Hstep2.
+        now eapply IHxs.
+    Qed.
+        
     Lemma permission_at_execution:
       forall tp m tp' m' i j xs
         (pfi: containsThread tp i)
@@ -1636,10 +1682,10 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (Hcomp': mem_compatible tp' m')
         (Hstep: internal_execution [seq x <- xs | x == i] tp m tp' m'),
       forall b ofs,
-        permission_at (restrPermMap (proj1 (Hcomp _ pfj))) b ofs Cur =
-        permission_at (restrPermMap (proj1 (Hcomp' _ pfj'))) b ofs Cur /\
-        permission_at (restrPermMap (proj2 (Hcomp _ pfj))) b ofs Cur =
-        permission_at (restrPermMap (proj2 (Hcomp' _ pfj'))) b ofs Cur.
+        permission_at (restrPermMap (Hcomp _ pfj).1) b ofs Cur =
+        permission_at (restrPermMap (Hcomp' _ pfj').1) b ofs Cur /\
+        permission_at (restrPermMap (Hcomp _ pfj).2) b ofs Cur =
+        permission_at (restrPermMap (Hcomp' _ pfj').2) b ofs Cur.
     Proof.
       intros.
       rewrite! restrPermMap_Cur.
@@ -1656,8 +1702,8 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (Hcomp': mem_compatible tp' m')
         (Hstep: internal_step pfi Hcomp tp' m') b ofs
         (Hreadable: 
-           Mem.perm (restrPermMap (proj1 (Hcomp _ pfj))) b ofs Cur Readable \/
-           Mem.perm (restrPermMap (proj2 (Hcomp _ pfj))) b ofs Cur Readable),
+           Mem.perm (restrPermMap (Hcomp _ pfj).1) b ofs Cur Readable \/
+           Mem.perm (restrPermMap (Hcomp _ pfj).2) b ofs Cur Readable),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
     Proof.
@@ -1676,8 +1722,8 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (Hcomp: mem_compatible tp m)
         (Hstep: internal_execution [seq x <- xs | x == i] tp m tp' m') b ofs
         (Hreadable: 
-           Mem.perm (restrPermMap (proj1 (Hcomp _ pfj))) b ofs Cur Readable \/
-           Mem.perm (restrPermMap (proj2 (Hcomp _ pfj))) b ofs Cur Readable),
+           Mem.perm (restrPermMap (Hcomp _ pfj).1) b ofs Cur Readable \/
+           Mem.perm (restrPermMap (Hcomp _ pfj).2) b ofs Cur Readable),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
     Proof.
@@ -1702,14 +1748,15 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
           assert(Hcomp0': mem_compatible tp'0 m'0) by
               (eapply internal_step_compatible; eauto).
           assert (Hreadable0':
-                    Mem.perm (restrPermMap (proj1 (Hcomp0' j pfj0'))) b ofs Cur Readable \/
-                    Mem.perm (restrPermMap (proj2 (Hcomp0' j pfj0'))) b ofs Cur Readable).
+                    Mem.perm (restrPermMap (Hcomp0' j pfj0').1) b ofs Cur Readable \/
+                    Mem.perm (restrPermMap (Hcomp0' j pfj0').2) b ofs Cur Readable).
           { clear IHxs Htrans HschedN Hstep.
-            destruct (permission_at_step Hneq  pfj pfj0' Hcomp0' Hstep0 b ofs) as [Hperm_eq1 Hperm_eq2].
+            destruct (permission_at_step Hneq  pfj pfj0' Hcomp0' Hstep0 b ofs)
+              as [Hperm_eq1 Hperm_eq2].
             rewrite! restrPermMap_Cur in Hperm_eq1 Hperm_eq2.
             unfold Mem.perm in *.
-            assert (H1:= restrPermMap_Cur (proj1 (Hcomp0' j pfj0')) b ofs).
-            assert (H2:= restrPermMap_Cur (proj2 (Hcomp0' j pfj0')) b ofs).
+            assert (H1:= restrPermMap_Cur (Hcomp0' j pfj0').1 b ofs).
+            assert (H2:= restrPermMap_Cur (Hcomp0' j pfj0').2 b ofs).
             unfold permission_at in H1, H2.
             rewrite H1 H2. rewrite <- Hperm_eq1, <- Hperm_eq2.
             assert (H1':= restrPermMap_Cur (proj1 (Hcomp j pfj)) b ofs).
@@ -1730,8 +1777,8 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (Hcomp: mem_compatible tp m)
         (Hcomp': mem_compatible tp' m')
         (Hstep: internal_step cnt Hcomp tp' m'),
-        decay (restrPermMap (proj1 (Hcomp _ cnt)))
-              (restrPermMap (proj1 (Hcomp' _ cnt'))).
+        decay (restrPermMap (Hcomp _ cnt).1)
+              (restrPermMap (Hcomp' _ cnt').1).
     Proof.
       intros. unfold decay. intros b ofs.
       assert (HpermCur: permission_at
@@ -1879,8 +1926,8 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (Hcomp: mem_compatible tp m)
         (Hcomp': mem_compatible tp' m')
         (Hexec: internal_execution [seq x <- xs | x == i] tp m tp' m'),
-        decay (restrPermMap (proj1 (Hcomp _ cnt)))
-              (restrPermMap (proj1 (Hcomp' _ cnt'))).
+        decay (restrPermMap (Hcomp _ cnt).1)
+              (restrPermMap ((Hcomp' _ cnt').1)).
     Proof.
       intros tp m tp' m' xs.
       generalize dependent tp. generalize dependent m.
@@ -1926,9 +1973,9 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (Hcomp': mem_compatible tp' m')
         (Hstep: internal_step pfi Hcomp tp' m') b ofs
         (Hl: lockRes tp (bl,ofsl) = Some pmap)
-        (Hreadable: Mem.perm (restrPermMap (proj1 (compat_lp Hcomp _ Hl)))
+        (Hreadable: Mem.perm (restrPermMap (compat_lp Hcomp _ Hl).1)
                              b ofs Cur Readable \/
-                    Mem.perm (restrPermMap (proj2 (compat_lp Hcomp _ Hl)))
+                    Mem.perm (restrPermMap (compat_lp Hcomp _ Hl).2)
                              b ofs Cur Readable),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
@@ -1946,9 +1993,9 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         (Hexec: internal_execution [seq x <- xs | x == i] tp m tp' m')
         (Hl: lockRes tp (bl,ofsl) = Some pmap)
         b ofs
-        (Hreadable: Mem.perm (restrPermMap (proj1 (compat_lp Hcomp _ Hl)))
+        (Hreadable: Mem.perm (restrPermMap (compat_lp Hcomp _ Hl).1)
                              b ofs Cur Readable \/
-                    Mem.perm (restrPermMap (proj2 (compat_lp Hcomp _ Hl)))
+                    Mem.perm (restrPermMap (compat_lp Hcomp _ Hl).2)
                              b ofs Cur Readable),
         Maps.ZMap.get ofs (Mem.mem_contents m) # b =
         Maps.ZMap.get ofs (Mem.mem_contents m') # b.
@@ -2015,7 +2062,8 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         exists x.
         eapply step_dry with (c := c0) (c' := c'); eauto.
         erewrite gsoThreadCode; eauto.
-        erewrite <- restrPermMap_irr' with (Hlt' := proj1 (Hcomp' j cntj')) (Hlt := proj1 (Hcomp j cntj));
+        erewrite <- restrPermMap_irr' with
+        (Hlt' := (Hcomp' j cntj').1) (Hlt := (Hcomp j cntj).1);
           eauto.
         erewrite @gsoThreadRes with (cntj := cntj); eauto.
         erewrite @gsoThreadRes with (cntj := cntj) by eauto.
@@ -2172,7 +2220,8 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         eapply remLock_inv; eauto.
         rewrite gRemLockSetCode.
         auto.
-        erewrite <- restrPermMap_irr' with (Hlt' := proj1 (Hcomp' j cntj')) (Hlt := proj1 (Hcomp j cntj));
+        erewrite <- restrPermMap_irr' with
+        (Hlt' := (Hcomp' j cntj').1) (Hlt := (Hcomp j cntj).1);
           eauto.
         rewrite gRemLockSetRes; auto.
         rewrite gRemLockSetRes; auto.
@@ -2457,9 +2506,10 @@ Module StepType (SEM : Semantics)
     absurd_internal Hstep.
     - apply updThreadC_invariant; auto.
     - apply updThreadC_invariant; auto.
-    - eapply ev_step_ax1 in Hcorestep.
+    -  
+      eapply ev_step_ax1 in Hcorestep.
       eapply corestep_invariant;
-        by eauto.   
+        by (simpl; eauto).
   Qed.
 
   Lemma fmachine_step_compatible:
@@ -2475,7 +2525,7 @@ Module StepType (SEM : Semantics)
              by eauto).
     eapply mem_compatible_setMaxPerm.
     eapply corestep_compatible;
-      by eauto.
+      by (simpl; eauto).
     (* this holds trivially, we don't need to use corestep_compatible*)
   Qed.
 
@@ -2506,8 +2556,8 @@ Module StepType (SEM : Semantics)
       (Hcomp': mem_compatible tp' m')
       (Hinv: pfi @ I)
       (Hstep: fmachine_step (i :: U, tr, tp) m (U,tr',tp') m') b ofs,
-      permission_at (restrPermMap (proj1 (Hcomp _ pfj))) b ofs Cur =
-      permission_at (restrPermMap (proj1 (Hcomp' _ pfj'))) b ofs Cur.
+      permission_at (restrPermMap (Hcomp _ pfj).1) b ofs Cur =
+      permission_at (restrPermMap (Hcomp' _ pfj').1) b ofs Cur.
   Proof.
     intros.
     do 2 rewrite restrPermMap_Cur;
@@ -2573,8 +2623,8 @@ Module StepType (SEM : Semantics)
       (Hinv: pfi @ I)
       (Hstep: fmachine_step (i :: U, tr, tp) m (U,tr', tp') m') b ofs
       (Hreadable: 
-         Mem.perm (restrPermMap (proj1 (Hcomp _ pfj))) b ofs Cur Readable \/
-         Mem.perm (restrPermMap (proj2 (Hcomp _ pfj))) b ofs Cur Readable),
+         Mem.perm (restrPermMap (Hcomp _ pfj).1) b ofs Cur Readable \/
+         Mem.perm (restrPermMap (Hcomp _ pfj).2) b ofs Cur Readable),
       Maps.ZMap.get ofs (Mem.mem_contents m) # b =
       Maps.ZMap.get ofs (Mem.mem_contents m') # b.
   Proof.
@@ -2583,7 +2633,7 @@ Module StepType (SEM : Semantics)
       try reflexivity;
     apply ev_step_ax1 in Hcorestep;
       eapply corestep_disjoint_val;
-        by eauto.
+        by (simpl; eauto).
   Qed.
 
   Lemma diluteMem_valid :
