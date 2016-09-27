@@ -149,24 +149,24 @@ Proof.
     + f_equal. apply rmap_join_sub_eq_level. eapply joinlist_join_sub; eauto. left; auto.
 Qed.
 
-Lemma resource_fmap_YES_inv n r sh rsh k pp :
-  resource_fmap (approx n) r = YES sh rsh k pp ->
-  exists pp', r = YES sh rsh k pp' /\ pp = preds_fmap (approx n) pp'.
+Lemma resource_fmap_YES_inv f g r sh rsh k pp :
+  resource_fmap f g r = YES sh rsh k pp ->
+  exists pp', r = YES sh rsh k pp' /\ pp = preds_fmap f g pp'.
 Proof.
   destruct r as [t0 | t0 p k0 p0 | k0 p]; simpl; try congruence.
   injection 1 as <- <- <- <-. eauto.
 Qed.
 
-Lemma resource_fmap_PURE_inv n r k pp :
-  resource_fmap (approx n) r = PURE k pp ->
-  exists pp', r = PURE k pp' /\ pp = preds_fmap (approx n) pp'.
+Lemma resource_fmap_PURE_inv f g r k pp :
+  resource_fmap f g r = PURE k pp ->
+  exists pp', r = PURE k pp' /\ pp = preds_fmap f g pp'.
 Proof.
   destruct r as [t0 | t0 p k0 p0 | k0 p]; simpl; try congruence.
   injection 1 as <- <-. eauto.
 Qed.
 
-Lemma resource_fmap_NO_inv n r rsh :
-  resource_fmap (approx n) r = NO rsh ->
+Lemma resource_fmap_NO_inv f g r rsh :
+  resource_fmap f g r = NO rsh ->
   r = NO rsh.
 Proof.
   destruct r as [t0 | t0 p k0 p0 | k0 p]; simpl; try congruence.
@@ -255,15 +255,15 @@ Proof.
 Admitted.
 
 
-Lemma perm_of_res_resource_fmap n r :
-  perm_of_res (resource_fmap (approx n) r) = perm_of_res r.
+Lemma perm_of_res_resource_fmap f g r :
+  perm_of_res (resource_fmap f g r) = perm_of_res r.
 Proof.
   destruct r as [t0 | t0 p [] p0 | k p]; simpl; auto.
 Qed.
 
-Lemma resource_fmap_join n r1 r2 r3 :
+Lemma resource_fmap_join f g r1 r2 r3 :
   join r1 r2 r3 ->
-  join (resource_fmap (approx n) r1) (resource_fmap (approx n) r2) (resource_fmap (approx n) r3).
+  join (resource_fmap f g r1) (resource_fmap f g r2) (resource_fmap f g r3).
 Proof.
   destruct r1 as [t1 | t1 p1 k1 pp1 | k1 pp1];
     destruct r2 as [t2 | t2 p2 k2 pp2 | k2 pp2];
@@ -352,7 +352,7 @@ Proof.
     remember (m_phi jm @ loc) as j.
     remember (m_phi jm' @ loc) as j'.
     remember (X @ loc) as x.
-    remember (resource_fmap (approx (level (m_phi jm'))) x) as x'.
+    remember (resource_fmap (approx (level (m_phi jm'))) (approx (level (m_phi jm'))) x) as x'.
     clear Heqx Heqj Heqj' HeqR' HeqR.
     subst R'.
     inv J'.
@@ -416,7 +416,7 @@ Proof.
       rewrite age_to_resource_at in J'.
       
       apply resource_at_join with (loc := loc) in J.
-      pose proof resource_fmap_join (level (m_phi jm')) _ _ _ J as J_.
+      pose proof resource_fmap_join (approx (level (m_phi jm'))) (approx (level (m_phi jm'))) _ _ _ J as J_.
       pose proof join_eq J' J_ as E'.
       
       rewrite decay_rewrite in dec.
