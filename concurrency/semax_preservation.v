@@ -21,6 +21,7 @@ Require Import veric.Clightnew_coop.
 Require Import veric.semax.
 Require Import veric.semax_ext.
 Require Import veric.juicy_extspec.
+Require Import veric.juicy_safety.
 Require Import veric.initial_world.
 Require Import veric.juicy_extspec.
 Require Import veric.tycontext.
@@ -687,6 +688,18 @@ Proof.
   apply juicyRestrictMax.
 Qed.
 
+Lemma level_jm_ m tp Phi (compat : mem_compatible_with tp m Phi)
+      i (cnti : containsThread tp i) :
+  level (jm_ cnti compat) = level Phi.
+Proof.
+  rewrite level_juice_level_phi.
+  apply join_sub_level.
+  unfold jm_ in *.
+  unfold personal_mem in *.
+  simpl.
+  apply compatible_threadRes_sub, compat.
+Qed.
+
 Lemma resource_decay_join_identity b phi phi' e e' :
   resource_decay b phi phi' ->
   sepalg.joins phi e ->
@@ -731,6 +744,80 @@ Proof.
       rewr (phi' @ l) in j'.
       inv j'.
       reflexivity.
+Qed.
+
+Definition pures_same phi1 phi2 := forall loc k pp, phi1 @ loc = PURE k pp <-> phi2 @ loc = PURE k pp.
+
+Lemma pures_same_sym phi1 phi2 : pures_same phi1 phi2 -> pures_same phi2 phi1.
+Proof.
+  unfold pures_same in *.
+  intros H loc k pp; rewrite (H loc k pp); intuition.
+Qed.
+
+Lemma joins_pures_same phi1 phi2 : joins phi1 phi2 -> pures_same phi1 phi2.
+Proof.
+  intros (phi3, J) loc k pp; apply resource_at_join with (loc := loc) in J.
+  split; intros E; rewrite E in J; inv J; auto.
+Qed.
+
+Lemma join_sub_pures_same phi1 phi2 : join_sub phi1 phi2 -> pures_same phi1 phi2.
+Proof.
+  intros (phi3, J) loc k pp; apply resource_at_join with (loc := loc) in J.
+  split; intros E; rewrite E in J; inv J; auto.
+Qed.
+
+Lemma pures_same_eq_l phi1 phi1' phi2 :
+  pures_same phi1 phi1' -> 
+  pures_eq phi1 phi2 -> 
+  pures_eq phi1' phi2.
+Proof.
+  intros E [M N]; split; intros loc; autospec M; autospec N; autospec E.
+  - destruct (phi1 @ loc), (phi2 @ loc), (phi1' @ loc); auto.
+    all: try solve [pose proof (proj2 (E _ _) eq_refl); congruence].
+  - destruct (phi1 @ loc), (phi2 @ loc), (phi1' @ loc); auto.
+    all: breakhyps.
+    all: try solve [pose proof (proj1 (E _ _) eq_refl); congruence].
+    injection H as <- <-.
+    exists p1. f_equal. 
+    try solve [pose proof (proj2 (E _ _) eq_refl); congruence].
+Qed.    
+
+Lemma pures_same_eq_r phi1 phi2 phi2' :
+  level phi2 = level phi2' ->
+  pures_same phi2 phi2' -> 
+  pures_eq phi1 phi2 -> 
+  pures_eq phi1 phi2'.
+Proof.
+  intros L E [M N]; split; intros loc; autospec M; autospec N; autospec E.
+  - destruct (phi1 @ loc), (phi2 @ loc), (phi2' @ loc); auto; try congruence.
+    all: try solve [pose proof (proj1 (E _ _) eq_refl); congruence].
+  - destruct (phi1 @ loc), (phi2 @ loc), (phi2' @ loc); auto.
+    all: breakhyps.
+    all: try solve [pose proof (proj2 (E _ _) eq_refl); congruence].
+    injection H as <- <-.
+    exists p. f_equal.
+    try solve [pose proof (proj2 (E _ _) eq_refl); congruence].
+Qed.
+
+Lemma pures_age_eq phi n :
+  ge (level phi) n ->
+  pures_eq phi (age_to n phi).
+Proof.
+  split; intros loc; rewrite age_to_resource_at.
+  - destruct (phi @ loc); auto; simpl; do 3 f_equal; rewrite level_age_to; auto.
+  - destruct (phi @ loc); simpl; eauto.
+Qed.
+
+Lemma pures_same_jm_ m tp Phi (compat : mem_compatible_with tp m Phi)
+      i (cnti : containsThread tp i) :
+  pures_same (m_phi (jm_ cnti compat)) Phi.
+Proof.
+  apply join_sub_pures_same, compatible_threadRes_sub, compat.
+Qed.
+
+Lemma level_m_phi jm : level (m_phi jm) = level jm.
+Proof.
+  symmetry; apply level_juice_level_phi.
 Qed.
 
 Lemma jsafeN_downward {Z} {Jspec : juicy_ext_spec Z} {ge n z c jm} :
@@ -2289,11 +2376,129 @@ Section Preservation.
                   (ret := Some (Vint Int.zero))
                   (m' := jm_ lj compat')
                   (z' := ora) (n' := n) as (c'' & Ec'' & Safe').
+                
                 + auto.
-                + hnf. (* ouch *) admit.
-                + (* ouch, we must satisfy the post condition *)
-                  unfold ext_spec_post in *.
-                  admit.
+                
+                + (* proving Hrel *)
+                  hnf.
+                  split; [ | split].
+                  * rewrite level_jm_.
+                    rewrite level_age_to; auto. omega.
+                  * do 2 rewrite level_jm_.
+                    rewrite level_age_to; auto. cleanup. omega.
+                    omega.
+                  * eapply pures_same_eq_l.
+                    apply pures_same_sym, pures_same_jm_.
+                    eapply pures_same_eq_r.
+                    2:apply pures_same_sym, pures_same_jm_.
+                    rewrite level_m_phi.
+                    rewrite level_jm_.
+                    auto.
+                    apply pures_age_eq. omega.
+                
+                + (* we must satisfy the post condition *)
+                  assert (e = LOCK).
+                  { rewrite <-Ejuicy_sem in *.
+                    unfold juicy_sem in *.
+                    simpl in ae.
+                    congruence. }
+                  subst e.
+                  revert x Pre Post.
+                  funspec_destruct "acquire"; swap 1 2.
+                  { exfalso. unfold ef_id in *. congruence. }
+                  intros x Pre Post.
+                  Lemma m_phi_jm_ m tp phi i cnti compat :
+                    m_phi (@jm_ tp m phi i cnti compat) = getThreadR cnti.
+                  Proof.
+                    reflexivity.
+                  Qed.
+                  destruct Pre as (phi0 & phi1 & j & Pre).
+                  destruct (join_assoc (join_comm j) Hadd_lock_res) as (phi0' & jphi0' & jframe).
+                  exists (age_to n phi0'), (age_to n phi1).
+                  rewrite m_phi_jm_ in *.
+                  split.
+                  * Set Printing Implicit.
+                    unfold tp_ in *.
+                    unshelve erewrite <-getThreadR_age. auto.
+                    cleanup.
+                    rewrite getThread_level with (Phi := Phi). 2:apply compat.
+                    cleanup.
+                    rewrite lev.
+                    simpl minus. rewrite <-minus_n_O.
+                    apply age_to_join.
+                    apply join_comm in jframe.
+                    exact_eq jframe. f_equal.
+                    unshelve erewrite gLockSetRes. auto.
+                    rewrite gssThreadRes. auto.
+                  * destruct x as (phix, ((vx, shx), Rx)); simpl (fst _) in *; simpl (snd _) in *.
+                    simpl.
+                    cbv iota beta in Pre.
+                    Unset Printing Implicit.
+                    destruct Pre as [[[A B] [C D]] E].
+                    simpl in *.
+                    split. 2:eapply necR_trans; [ | apply  age_to_necR ]; auto.
+                    split. now auto.
+                    split. now auto.
+                    unfold canon.SEPx in *.
+                    clear Post. simpl in *.
+                    rewrite seplog.sepcon_emp in *.
+                    rewrite seplog.sepcon_emp in D.
+                    exists (age_to n phi0), (age_to n d_phi); split3.
+                    -- apply age_to_join; auto.
+                    -- revert D. apply age_to_ind. apply pred_hered.
+                    -- specialize (lock_coh (b, Int.intval ofs)).
+                       rewrite His_unlocked in lock_coh.
+                       destruct lock_coh as [_ (sh' & R' & lkat & sat)].
+                       destruct sat as [sat | ?]. 2:congruence.
+                       pose proof predat2 lkat as ER'.
+                       assert (args = Vptr b ofs :: nil). {
+                         revert Hat_external ae; clear.
+                         unfold SEM.Sem in *.
+                         rewrite SEM.CLN_msem. simpl.
+                         congruence.
+                       }
+                       subst args.
+                       assert (vx = Vptr b ofs). {
+                         destruct C as [-> _].
+                         clear.
+                         unfold expr.eval_id in *.
+                         unfold expr.force_val in *.
+                         unfold make_ext_args in *.
+                         unfold te_of in *.
+                         unfold filter_genv in *.
+                         unfold Genv.find_symbol in *.
+                         unfold expr.env_set in *.
+                         rewrite Map.gss.
+                         auto.
+                       }
+                       subst vx.
+                       pose proof predat4 D as ERx.
+                       assert (join_sub phi0 Phi).
+                       { join_sub_tac.
+                         apply join_sub_trans with (getThreadR Htid). exists phi1. auto.
+                         apply compatible_threadRes_sub, compat.
+                       }
+                       apply (@predat_join_sub _ Phi) in ERx; auto.
+                       unfold Int.unsigned in *.
+                       pose proof predat_inj ER' ERx as ER.
+                       replace (age_by 1 d_phi) with (age_to n d_phi) in sat; swap 1 2.
+                       {
+                         unfold age_to in *. f_equal. 
+                         replace (level d_phi) with (level Phi); swap 1 2.
+                         {
+                           pose proof @compatible_lockRes_sub _ _ _ His_unlocked Phi ltac:(apply compat).
+                           join_level_tac.
+                         }
+                         omega.
+                       }
+                       replace (level phi0) with (level Phi) in * by join_level_tac.
+                       rewrite lev in *.
+                       revert sat.
+                       apply approx_eq_app_pred with (S n); auto.
+                       rewrite level_age_to. auto.
+                       replace (level d_phi) with (level Phi) in * by join_level_tac.
+                       omega.
+                
                 + exact_eq Safe'.
                   unfold jsafeN in *.
                   unfold juicy_safety.safeN in *.

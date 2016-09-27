@@ -12,19 +12,19 @@ Require Import sepcomp.step_lemmas.
 Require Import veric.compcert_rmaps.
 Require Import veric.juicy_mem.
 
-Definition pures_sub (jm jm' : juicy_mem) := 
+Definition pures_sub (phi phi' : rmap) := 
   forall adr,
-  match resource_at (m_phi jm) adr with
-    | PURE k pp => resource_at (m_phi jm') adr 
-                 = PURE k (preds_fmap (approx (level jm')) (approx (level jm')) pp)
+  match resource_at phi adr with
+    | PURE k pp => resource_at phi' adr 
+                 = PURE k (preds_fmap (approx (level phi')) (approx (level phi')) pp)
     | _ => True
   end.
 
-Definition pures_eq (jm jm' : juicy_mem) :=
-  pures_sub jm jm' /\ 
+Definition pures_eq (phi phi' : rmap) :=
+  pures_sub phi phi' /\ 
   (forall adr, 
-   match resource_at (m_phi jm') adr with
-    | PURE k pp' => exists pp, resource_at (m_phi jm) adr = PURE k pp
+   match resource_at phi' adr with
+    | PURE k pp' => exists pp, resource_at phi adr = PURE k pp
     | _ => True
   end).
 
@@ -36,7 +36,7 @@ Section juicy_safety.
   Definition Hrel n' m m' :=
     n' = level m' /\
     (level m' < level m)%nat /\ 
-    pures_eq m m'.
+    pures_eq (m_phi m) (m_phi m').
   Definition safeN := @safeN_ G C juicy_mem Z genv_symb Hrel Hcore Hspec.
 End juicy_safety.
 

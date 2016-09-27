@@ -175,27 +175,21 @@ Proof.
         omega.
 Qed.
 
-Lemma pures_eq_unage {jm1 jm1' jm2}:
-  ge (level jm1') (level jm2) ->
-  age jm1 jm1' ->
-  juicy_safety.pures_eq jm1' jm2 ->
-  juicy_safety.pures_eq jm1 jm2.
+Lemma pures_eq_unage {phi1 phi1' phi2}:
+  ge (level phi1') (level phi2) ->
+  age phi1 phi1' ->
+  juicy_safety.pures_eq phi1' phi2 ->
+  juicy_safety.pures_eq phi1 phi2.
 Proof.
   intros L A [S P]; split; intros loc; [clear P; autospec S | clear S; autospec P ].
-  all:apply age_jm_phi in A.
-  all:repeat rewrite level_juice_level_phi in *.
-  all:unfold m_phi in *.
-  all:destruct jm1 as [_ p1 _ _ _ _].
-  all:destruct jm1' as [_ p1' _ _ _ _].
-  all:destruct jm2 as [_ p2 _ _ _ _].
   - rewrite (age_resource_at A) in S.
-    destruct (p1 @ loc) eqn:E; auto.
+    destruct (phi1 @ loc) eqn:E; auto.
     simpl in S.
     rewrite S.
     rewrite preds_fmap_fmap.
     rewrite approx_oo_approx'; auto.
   
-  - destruct (p2 @ loc) eqn:E; auto.
+  - destruct (phi2 @ loc) eqn:E; auto.
     revert P.
     eapply age1_PURE. auto.
 Qed.
@@ -260,12 +254,13 @@ Proof.
       unfold juicy_safety.Hrel in *.
       split;[|split]; try apply rel.
       * apply age_level in A; omega.
-      * unshelve eapply (pures_eq_unage _ A), rel.
+      * apply age_jm_phi in A.
+        unshelve eapply (pures_eq_unage _ A), rel.
+        do 2 rewrite <-level_juice_level_phi.
         omega.
   - econstructor 4. eauto.
     eapply (proj2 heredspec); eauto.
 Qed.
-
 
 Lemma jsafeN_age_to Z Jspec ge ora q n l jm :
   ext_spec_stable age (JE_spec _ Jspec) ->
