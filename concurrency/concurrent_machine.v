@@ -102,6 +102,9 @@ Module Type ThreadPoolSig.
 
   Parameter lr_valid : (address -> option lock_info) -> Prop.
 
+  (*Find the first thread i, that satisfies (filter i) *)
+  Parameter find_thread: t -> (ctl -> bool) -> option tid.
+
   (* Decidability of containsThread *)
   Axiom containsThread_dec:
     forall i tp, {containsThread tp i} + { ~ containsThread tp i}.
@@ -341,7 +344,7 @@ Module Type ThreadPoolSig.
    forall tp i (cnti: containsThread tp i) c' m',
      lr_valid (lockRes tp) ->
      lr_valid (lockRes (updThread cnti c' m')).
-   
+ 
 End ThreadPoolSig.
 
 Module Type EventSig.
@@ -691,8 +694,14 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     | Some c => Some (c)
     end.
 
-   (*This has to be filled in:*)
-  Axiom running_thread: machine_state -> option tid.
+  (*This has to be filled in:*)
+  Definition find_runnin (c:@ctl C): bool :=
+    match c with 
+    | Krun _ => true
+    | _ => false
+    end.
+  Definition running_thread: machine_state -> option tid:=
+    fun st => find_thread st find_runnin.
   
   Program Definition new_MachineSemantics (U:schedule) (r : option RES.res):
     @ConcurSemantics G tid schedule event_trace machine_state mem.
@@ -762,7 +771,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     match (running_thread (snd st)), (schedPeek (fst (fst st))) with
     | _, None => true
     | None, _ => true
-    | Some a, Some b => eq_tid_dec a b
+    | Some a, Some b => eq_tid_dec a b (* || containsThread_dec b (snd st) *)
     end.
  
   Definition new_valid st U := valid (mk_ostate st U). 

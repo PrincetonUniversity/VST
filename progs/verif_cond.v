@@ -12,78 +12,12 @@ Definition release_spec := DECLARE _release release_spec.
 Definition makelock_spec := DECLARE _makelock (makelock_spec _).
 Definition freelock_spec := DECLARE _freelock (freelock_spec _).
 Definition spawn_spec := DECLARE _spawn_thread spawn_spec.
-
-Definition freelock2_spec :=
-  DECLARE _freelock2
-   WITH v : val, R : Pred
-   PRE [ _lock OF tptr tlock ]
-     PROP (positive_mpred (Interp R); rec_inv v R)
-     LOCAL (temp _lock v)  
-     SEP (lock_inv Ews v (Interp R))
-   POST [ tvoid ]
-     PROP ()
-     LOCAL ()
-     SEP (data_at_ Ews tlock v).
-
-Definition release2_spec :=
-  DECLARE _release2
-   WITH v : val, sh : share, R : Pred
-   PRE [ _lock OF tptr tlock ]
-     PROP (readable_share sh; precise (Interp R); positive_mpred (Interp R); rec_inv v R)
-     LOCAL (temp _lock v)
-     SEP (Interp R)
-   POST [ tvoid ]
-     PROP ()
-     LOCAL ()
-     SEP (emp).
-
-Definition makecond_spec :=
-  DECLARE _makecond
-   WITH v : val, sh : share
-   PRE [ _cond OF tptr tcond ]
-     PROP (writable_share sh)
-     LOCAL (temp _cond v)
-     SEP (data_at_ sh tcond v)
-   POST [ tvoid ]
-     PROP ()
-     LOCAL ()
-     SEP (cond_var sh v).
-
-Definition freecond_spec :=
-  DECLARE _freecond
-   WITH v : val, sh : share
-   PRE [ _cond OF tptr tcond ]
-     PROP (writable_share sh)
-     LOCAL (temp _cond v)
-     SEP (cond_var sh v)
-   POST [ tvoid ]
-     PROP ()
-     LOCAL ()
-     SEP (data_at_ sh tcond v).
-
-Definition wait_spec :=
-  DECLARE _wait
-   WITH c : val, l : val, shc : share, shl : share, R : Pred
-   PRE [ _cond OF tptr tcond, _mutex OF tptr tlock ]
-     PROP (readable_share shc)
-     LOCAL (temp _cond c; temp _mutex l)
-     SEP (cond_var shc c; lock_inv shl l (Interp R); Interp R)
-   POST [ tvoid ]
-     PROP ()
-     LOCAL ()
-     SEP (cond_var shc c; lock_inv shl l (Interp R); Interp R).
-
-Definition signal_spec :=
-  DECLARE _signal
-   WITH c : val, shc : share
-   PRE [ _cond OF tptr tcond ]
-     PROP (readable_share shc)
-     LOCAL (temp _cond c)
-     SEP (cond_var shc c)
-   POST [ tvoid ]
-     PROP ()
-     LOCAL ()
-     SEP (cond_var shc c).
+Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
+Definition release2_spec := DECLARE _release2 release2_spec.
+Definition makecond_spec := DECLARE _makecond (makecond_spec _).
+Definition freecond_spec := DECLARE _freecond (freecond_spec _).
+Definition wait_spec := DECLARE _wait (wait_spec _).
+Definition signal_spec := DECLARE _signal (signal_spec _).
 
 Definition lock_pred data :=
   Exp _ (fun i => Data_at _ Ews (tarray tint 1) [Vint (Int.repr i)] data).
@@ -144,8 +78,8 @@ Lemma inv_positive : forall ctr,
 Proof.
 Admitted.
 
-Lemma cond_var_precise : forall sh b o, readable_share sh ->
-  precise (cond_var sh (Vptr b o)).
+Lemma cond_var_precise : forall {cs} sh b o, readable_share sh ->
+  precise (@cond_var cs sh (Vptr b o)).
 Proof.
   intros; unfold cond_var, data_at_, field_at_, field_at, at_offset; simpl.
   apply precise_andp2.
@@ -163,7 +97,7 @@ Proof.
   admit.
 Admitted.
 
-Lemma cond_var_isptr : forall sh v, cond_var sh v = !! isptr v && cond_var sh v.
+Lemma cond_var_isptr : forall {cs} sh v, @cond_var cs sh v = !! isptr v && cond_var sh v.
 Proof.
   intros; apply data_at__isptr.
 Qed.
@@ -201,14 +135,14 @@ Proof.
   forward.
 Qed.
 
-Lemma cond_var_almost_empty : forall sh v phi, predicates_hered.app_pred (cond_var sh v) phi ->
+Lemma cond_var_almost_empty : forall {cs} sh v phi, predicates_hered.app_pred (@cond_var cs sh v) phi ->
   juicy_machine.almost_empty phi.
 Proof.
   admit.
 Admitted.
 
-Lemma cond_var_join : forall sh1 sh2 sh v (Hjoin : sepalg.join sh1 sh2 sh),
-  cond_var sh1 v * cond_var sh2 v = cond_var sh v.
+Lemma cond_var_join : forall {cs} sh1 sh2 sh v (Hjoin : sepalg.join sh1 sh2 sh),
+  @cond_var cs sh1 v * cond_var sh2 v = cond_var sh v.
 Proof.
   intros; unfold cond_var; apply data_at__share_join; auto.
 Qed.
@@ -309,7 +243,7 @@ Proof.
     Exists i'; entailer.
     Exists i'; entailer!.
   - forward_call (gvar1, sh2, tlock_pred sh1 gvar1 gvar0 gvar2 gvar3).
-    forward_call (gvar1, Later (tlock_pred sh1 gvar1 gvar0 gvar2 gvar3)).
+    forward_call (gvar1, Ews, Later (tlock_pred sh1 gvar1 gvar0 gvar2 gvar3)).
     { subst Frame; instantiate (1 := [lock_inv Ews gvar0 (Interp (lock_pred gvar3));
         cond_var Ews gvar2; Interp (lock_pred gvar3)]); simpl; cancel.
       rewrite selflock_eq at 2.
@@ -326,7 +260,7 @@ Proof.
       apply sepalg.join_comm in Hsh.
       erewrite lock_inv_join; eauto; cancel.
       erewrite cond_var_join; eauto. }
-    { split.
+    { split; auto; split.
       + apply later_positive, selflock_positive; simpl.
         apply positive_sepcon2, positive_sepcon1, lock_inv_positive.
       + apply later_rec, selflock_rec. }

@@ -29,4 +29,3 @@ void wait(cond_t *cond, lock_t *mutex);
 //for some reason, Pthreads only requires a mutex for wait
 
 void signal(cond_t *cond);
-//unlocks any mutex associated with an active wait call

@@ -385,14 +385,11 @@ Section Safety.
   Qed.
 
    Lemma safe_ksafe':
-    (forall P: Prop, P \/ ~ P) ->
-    forall (propositional_extentionality: True),
-    forall (branches_finitely_on_the_state: forall x : ST, finite_on_x (possible_image x)),
     forall st,
       (forall U, valid st U -> safe st U) ->
       (forall U, valid st U -> forall n, ksafe st U n).
   Proof.
-    move => EM PROP_EXT FINIT st SF U VAL n; move: st SF U VAL.
+    move => st SF U VAL n; move: st SF U VAL.
     induction n.
     - constructor.
     - move=> st SF U VAL; specialize (SF _ VAL); inversion SF.
@@ -401,14 +398,11 @@ Section Safety.
   Qed.
   
   Lemma safe_ksafe:
-    (forall P: Prop, P \/ ~ P) ->
-    forall (propositional_extentionality: True),
-    forall (branches_finitely_on_the_state: forall x : ST, finite_on_x (possible_image x)),
     forall st,
       (forall U : SCH, valid st U) ->
       (forall U, safe st U) ->
       (forall n U, ksafe st U n).
-  Proof. move => EM PROP_EXT FINIT st all_valid SF n U; apply: safe_ksafe'=>//. Qed.
+  Proof. move => st all_valid SF n U; apply: safe_ksafe'=>//. Qed.
 
 End Safety.
 

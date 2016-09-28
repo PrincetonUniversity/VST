@@ -168,7 +168,8 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
               /Machine.DryConc.valid
               /mySchedule.schedPeek /=.
       move => ? ? ? ? ? ? ? ? ? ? ? Tds' /(running_thread) /= -> U''.
-            destruct (Machine.DryConc.running_thread (Tds')); intuition.
+      destruct (Machine.DryConc.running_thread (Tds')); intuition .
+      
     }
 
     move: (MATCH) => /equivalid /= AA.
@@ -242,23 +243,23 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
   Guarded.
   Admitted.
            
-        Lemma safety_preservation': forall main p U Sg Tg tr Sds Sm Tds Tm
-      (MATCH: exists cd j, (match_st Tg Sg main p U) cd j Sds Sm Tds Tm),
+  Lemma safety_preservation': forall main p U Sg Tg tr Sds Sm Tds Tm
+                                (MATCH: exists cd j, (match_st Tg Sg main p U) cd j Sds Sm Tds Tm),
       (forall sch, THE_DRY_MACHINE_SOURCE.DryMachine.valid (sch, tr, Sds) ->
               THE_DRY_MACHINE_SOURCE.DryMachine.explicit_safety Sg sch Sds Sm) ->
       (forall sch, Machine.DryConc.valid (sch, tr, Tds) ->
               Machine.DryConc.explicit_safety Tg sch Tds Tm).
-        Proof.
-          move=> main p U Sg Tg tr Sds Sm Tds Tm  [] cd  [] mu MATCH HH sch VAL.
-          apply @coinductive_safety.safety_stutter_stepN_equiv
-          with (core_ord:=core_ord Tg Sg main p U); auto.
-          + apply (core_ord_wf Tg Sg main p U).  
-          + exists cd.
-            apply safety_preservation'' with (tr:=tr)(Sds:=Sds)(Sm:=Sm); try exists mu; assumption.
-        Qed.
+  Proof.
+    move=> main p U Sg Tg tr Sds Sm Tds Tm  [] cd  [] mu MATCH HH sch VAL.
+    apply @coinductive_safety.safety_stutter_stepN_equiv
+    with (core_ord:=core_ord Tg Sg main p U); auto.
+    + apply (core_ord_wf Tg Sg main p U).  
+    + exists cd.
+      apply safety_preservation'' with (tr:=tr)(Sds:=Sds)(Sm:=Sm); try exists mu; assumption.
+  Qed.
             
   Lemma safety_preservation: forall main p U Sg Tg Sds Sm Tds Tm
-      (MATCH: exists cd j, (match_st Tg Sg main p U) cd j Sds Sm Tds Tm),
+                               (MATCH: exists cd j, (match_st Tg Sg main p U) cd j Sds Sm Tds Tm),
       (forall sch, THE_DRY_MACHINE_SOURCE.DryMachine.valid (sch, nil, Sds) ->
               THE_DRY_MACHINE_SOURCE.DryMachine.safe_new_step Sg (sch, nil, Sds) Sm) ->
       (forall sch, Machine.DryConc.valid (sch, nil, Tds) ->

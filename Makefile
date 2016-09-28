@@ -118,7 +118,7 @@ SEPCOMP_FILES = \
 CONCUR_FILES= \
   addressFiniteMap.v cast.v compcert_imports.v \
   compcert_linking.v compcert_linking_lemmas.v \
-  compcert_threads_lemmas.v \
+  compcert_threads_lemmas.v threadPool.v  \
   concurrent_machine.v disjointness.v dry_context.v dry_machine.v dry_machine_lemmas.v \
   ClightSemantincsForMachines.v JuicyMachineModule.v DryMachineSource.v \
   erased_machine.v erasure_proof.v erasure_safety.v erasure_signature.v \
@@ -127,7 +127,7 @@ CONCUR_FILES= \
   main.v mem_obs_eq.v memory_lemmas.v permissions.v pos.v pred_lemmas.v \
   rc_semantics.v rc_semantics_lemmas.v \
   scheduler.v sepcomp.v seq_lemmas.v ssromega.v stack.v \
-  threadPool.v threads_lemmas.v wf_lemmas.v \
+  threads_lemmas.v wf_lemmas.v \
   x86_inj.v x86_safe.v x86_context.v fineConc_x86.v executions.v SC_erasure.v \
   sync_preds_defs.v sync_preds.v \
   semax_conc.v semax_to_juicy_machine.v \
