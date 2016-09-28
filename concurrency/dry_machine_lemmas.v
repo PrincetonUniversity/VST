@@ -577,6 +577,12 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         }
         split; intros b ofs; destruct (Hgoal b ofs); now auto.
       }
+      { intros.
+        rewrite gsoThreadLPool in H.
+        eapply corestep_validblock; eauto using ev_step_ax1.
+        eapply (lockRes_blocks Hcompatible);
+          by eauto.
+      }
     Qed.
 
 
@@ -939,6 +945,10 @@ Module StepLemmas (SEM : Semantics)
     erewrite gsoThreadCLPool in H.
     destruct Hcomp;
       by eauto.
+    intros.
+    erewrite gsoThreadCLPool in H;
+      eapply (lockRes_blocks Hcomp);
+      by eauto.
   Qed.
 
   (** [invariant] is preserved by [updThreadC]*)
@@ -1126,8 +1136,9 @@ Module StepLemmas (SEM : Semantics)
   Proof.
     intros tp m Hcomp.
     constructor;
-      [intros i cnti; split; intros b ofs | intros l pmap Hres; split; intros b ofs];
-      rewrite getMaxPerm_correct;
+      [intros i cnti; split; intros b ofs | intros l pmap Hres; split; intros b ofs |
+       intros l rmap Hres];
+      try (rewrite getMaxPerm_correct;
       destruct (valid_block_dec m b) as [Hvalid | Hinvalid];
       try (
           erewrite setMaxPerm_MaxV by assumption; simpl;
@@ -1152,7 +1163,8 @@ Module StepLemmas (SEM : Semantics)
            | [H: Mem.perm_order'' ?Expr _, H2: ?Expr = _ |- _] =>
              rewrite H2 in H
            end; simpl in *;
-      by auto.
+      by auto).
+    eapply (lockRes_blocks Hcomp); eauto.
   Qed.
 
   (** [mem_compatible] is preserved by [addThread]*)
@@ -1175,6 +1187,10 @@ Module StepLemmas (SEM : Semantics)
       erewrite <- gsoAddLPool
       with (vf := vf) (arg := arg) (p := pmap2) in Hres;
         by pose proof ((compat_lp Hcomp _ Hres)).
+    - intros l rmap Hres.
+      erewrite <- gsoAddLPool
+      with (vf := vf) (arg := arg) (p := pmap2) in Hres;
+        by pose proof ((lockRes_blocks Hcomp _ Hres)).
   Qed.
 
   (** [mem_compatible] is preserved by [remLockSet] *)
@@ -1192,6 +1208,11 @@ Module StepLemmas (SEM : Semantics)
       destruct (EqDec_address addr l).
       subst. rewrite gsslockResRemLock in H. discriminate.
       rewrite gsolockResRemLock in H; auto.
+      eapply Hcomp; eauto.
+    - intros l rmap Hres.
+      destruct (EqDec_address addr l).
+      subst. rewrite gsslockResRemLock in Hres. discriminate.
+      rewrite gsolockResRemLock in Hres; auto.
       eapply Hcomp; eauto.
   Qed.
 

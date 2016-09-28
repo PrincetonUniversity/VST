@@ -993,7 +993,6 @@ Module SimProofs (SEM: Semantics)
            mc'|i will be mapped to new blocks in mf' by inject separated,
            where the permissions are empty for other threads. *)
           split.
-          (*TODO: redo this proof with invalid_block_empty and fixing the proof to work for lock perms too*)
           + intros j pffj Hij b1 b2 Hfi' Hfi ofs.
             specialize (Hseparated _ _ Hfi Hfi').
             destruct Hseparated as [Hinvalidmc1 Hinvalidmf1].
@@ -3645,9 +3644,8 @@ into mcj' with an extension of the id injection (fij). *)
                     rewrite <- restrPermMap_Cur with (Hlt := (Hcompij j pfij).2).
                     rewrite <- Hpermmcj_mcj'.1, <- Hpermmcj_mcj'.2;
                       by eauto.
-              } constructor.
-              Focus 2.
-              constructor. Focus 2. constructor. Focus 2.
+              }
+
               (** Proof of [val_obs_eq] *)
               assert (Hval_obs_eq:   forall (b1 b2 : block) (ofs : Z),
                          (if is_left (valid_block_dec mc b1)
@@ -3805,211 +3803,53 @@ into mcj' with an extension of the id injection (fij). *)
                   simpl in Hinverse_b1.
                   destruct Hinverse_b1 as [Hfij _].
                   assert (Hpermeq := Hpermmcj_mcj' _ _ ofs Hfij).
-                  (*TODO: return here - need two assertions below *)
-                  assert (Hreadable': Mem.perm (restrPermMap (Hcompjj j pfcjj))
-                                               ((Z.to_pos
-                                                   match
-                                                     (- Z.pos_sub (Mem.nextblock mc'')
-                                                                  (Mem.nextblock mc))%Z
-                                                   with
-                                                   | 0%Z => Z.pos b1
-                                                   | Z.pos y' => Z.pos (b1 + y')
-                                                   | Z.neg y' => Z.pos_sub b1 y'
-                                                   end)) ofs Cur Readable)
-                    by (unfold Mem.perm in *; unfold permission_at in Hpermeq;
-                          by rewrite Hpermeq).
-                  specialize (Hvalmcj_mcj' _ _ ofs Hfij Hreadable').
-                  specialize (Hvalmcj_mf _ _ ofs Hf' Hreadable').
-                  clear Hreadable Hreadable' Hpermeq Hpermmcj_mcj' Hpermj_eqF Hpermj_mcj'
-                        Hpermj_mc'' Hpermmcj_F HpermF_mcj HpermC_mc_block.
-                  inversion Hvalmcj_mcj' as
-                      [n Hn_mcj Hn_mcj' | vj vj' q1 n Hval_obsjj' Hvj Hvj'| Hundef_mcj Hmv_mcj'].
-                  + rewrite <- Hn_mcj in Hvalmcj_mf.
-                    inversion Hvalmcj_mf as [n0 Heq Hn_mf| |];
-                      first by constructor.
-                  + (* Fragments case *)
-                    rewrite <- Hvj in Hvalmcj_mf.
-                    inversion Hvalmcj_mf as [| vj0 vf q n0 Hval_obsjf Hvj0 Hvf |];
-                      subst vj0 q1 n0.
-                    constructor.
-                    inversion Hval_obsjj' as [| | | | bpj1 bpj'2 ofsp Hfijp|]; subst;
-                    inversion Hval_obsjf as [| | | | bpj0 bpf2 ofspf Hf'p|];
-                    try subst bpj0; subst; try by constructor.
-                    clear Hval_obsjf Hval_obsjj' Hvf Hvj.
-                    constructor.
-                    destruct (valid_block_dec mc bpj1) as [Hvalidmcbpj1 | Hinvalidmcbpj1]
-                                                            eqn:Hdecbpj1.
-                    { assert (Hincr'_bpj1 := Hincr' bpj1 bpj1
-                                                    ltac:(eapply id_ren_validblock; eauto)).
-                      rewrite Hincr'_bpj1 in Hfijp; inversion Hfijp; subst bpj'2.
-                      rewrite Hdecbpj1.
-                      clear Hfijp Hdecbpj1.
-                      apply (domain_valid HsimWeak) in Hvalidmcbpj1.
-                      destruct Hvalidmcbpj1 as [b2' Hf].
-                      assert (b2' = bpf2)
-                        by (apply Hincrj in Hf; rewrite Hf in Hf'p; by inversion Hf'p);
-                        by subst.
-                    }
-                    { (* here it is usefulto have inject seperation for fij*)
-                      unfold inject_separated in Hsep.
-                      specialize (Hsep bpj1 bpj'2
-                                       ltac:(eapply id_ren_invalidblock; eauto) Hfijp).
-                      destruct Hsep as [_ Hinvalidmc''bpj'2].
-                      assert (Hinvalidbmcpj'2: ~ Mem.valid_block mc bpj'2).
-                      { intros Hcontra.
-                        eapply internal_execution_valid with
-                        (b := bpj'2) (m' := mc'') in Hcontra;
-                          by eauto.
-                      }
-                      destruct (valid_block_dec mc bpj'2) as
-                          [Hvalidmcbpj'2 | Hinvalidmcbpj'2];
-                        first (by exfalso; auto).
-                      destruct (valid_block_dec mc'' bpj'2) as [? | _];
-                        first by (exfalso; auto).
-                      destruct (valid_block_dec mcj' bpj'2) as [Hvalidmcj'bpj'2 | Hcontra].
-                      specialize (Hinverse _ Hvalidmcj'bpj'2 Hinvalidmc''bpj'2).
-                      simpl in Hinverse.
-                      destruct Hinverse as [Hfij0' Hfid0'].
-                      (* NOTE: i need injectivity for the newly
-                           (Separated) blocks. So fij bpj1 and fij
-                           imply b0 = bpj1. I can have that *)
-                      clear Hdecbpj1.
-                      apply (domain_invalid (weak_obs_eq (obs_eq Hsim_c_ci)))
-                        in Hinvalidmcbpj1.
-                      assert (Hinjective := injective (weak_obs_eq (obs_eq Hsimij))).
-                      specialize (Hinjective _ _ _  Hfij0' Hfijp).
-                      subst bpj1;
-                        by assumption.
-                      apply (codomain_valid (weak_obs_eq (obs_eq Hsimij))) in Hfijp.
-                      erewrite restrPermMap_valid in Hfijp;
-                        by exfalso.
-                    }
-                    rewrite <- Hundef_mcj in Hvalmcj_mf.
-                    inversion Hvalmcj_mf.
-                      by constructor.
+                  simpl in Hf'.
+                  assert (Hmem_val_obs_eq:
+                            memval_obs_eq fij (ZMap.get ofs (Mem.mem_contents mcj) #
+                                                        (Z.to_pos
+                                                           match (- Z.pos_sub (Mem.nextblock mc'') (Mem.nextblock mc))%Z with
+                                                           | 0%Z => Z.pos b1
+                                                           | Z.pos y' => Z.pos (b1 + y')
+                                                           | Z.neg y' => Z.pos_sub b1 y'
+                                                           end)) (ZMap.get ofs (Mem.mem_contents mcj') # b1) /\
+                            memval_obs_eq (fp j pfcj) (ZMap.get ofs (Mem.mem_contents mcj) #
+                                                                (Z.to_pos
+                                                                   match (- Z.pos_sub (Mem.nextblock mc'') (Mem.nextblock mc))%Z with
+                                                                   | 0%Z => Z.pos b1
+                                                                   | Z.pos y' => Z.pos (b1 + y')
+                                                                   | Z.neg y' => Z.pos_sub b1 y'
+                                                                   end)) (ZMap.get ofs (Mem.mem_contents mf) # b2)).
+                  { assert (Hreadable': Mem.perm (restrPermMap (Hcompjj j pfcjj).1)
+                                                 ((Z.to_pos
+                                                     match
+                                                       (- Z.pos_sub (Mem.nextblock mc'')
+                                                                    (Mem.nextblock mc))%Z
+                                                     with
+                                                     | 0%Z => Z.pos b1
+                                                     | Z.pos y' => Z.pos (b1 + y')
+                                                     | Z.neg y' => Z.pos_sub b1 y'
+                                                     end)) ofs Cur Readable \/
+                                        Mem.perm (restrPermMap (Hcompjj j pfcjj).2)
+                                                 ((Z.to_pos
+                                                     match
+                                                       (- Z.pos_sub (Mem.nextblock mc'')
+                                                                    (Mem.nextblock mc))%Z
+                                                     with
+                                                     | 0%Z => Z.pos b1
+                                                     | Z.pos y' => Z.pos (b1 + y')
+                                                     | Z.neg y' => Z.pos_sub b1 y'
+                                                     end)) ofs Cur Readable)
+                      by (unfold Mem.perm in *; unfold permission_at in Hpermeq;
+                          rewrite Hpermeq.1 Hpermeq.2; eauto).
+                    destruct Hreadable' as [Hreadable' | Hreadable'];
+                    [specialize (Hvalmcj_mcj'_data _ _ ofs Hfij Hreadable');
+                     specialize (Hvalmcj_mf_data _ _ ofs Hf' Hreadable') |
+                     specialize (Hvalmcj_mcj'_locks _ _ ofs Hfij Hreadable');
+                     specialize (Hvalmcj_mf_locks _ _ ofs Hf' Hreadable')]; eauto.
                   }
-                  
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                    
-
-                    
-
-
-                    
-                    inversion Hvalmcj_mcj'_b1 as
-                      [n Hn_mcj Hn_mcj' | vj vj' q1 n Hval_obsjj' Hvj Hvj'
-                       | Hundef_mcj Hmv_mcj'].
-                  + rewrite <- Hn_mcj in Hvalmcj_mf_b1.
-                    inversion Hvalmcj_mf_b1 as [n0 Heq Hn_mf| |];
-                      first by constructor.
-                  + (* Fragments case *)
-                    rewrite <- Hvj in Hvalmcj_mf_b1.
-                    inversion Hvalmcj_mf_b1 as [| vj0 vf q n0 Hval_obsjf Hvj0 Hvf |];
-                      subst vj0 q1 n0.
-                    constructor.
-                    inversion Hval_obsjj' as [| | | | bpj1 bpj'2 ofsp Hfijp|]; subst;
-                    inversion Hval_obsjf as [| | | | bpj0 bpf2 ofspf Hf'p|];
-                    try subst bpj0; subst; try by constructor.
-                    clear Hval_obsjf Hval_obsjj' Hvf Hvj.
-                    constructor.
-                    destruct (valid_block_dec mc bpj1) as [Hvalidmcbpj1 | Hinvalidmcbpj1]
-                                                            eqn:Hdecbpj1.
-                    { assert (Hincr'_bpj1 := Hincr' bpj1 bpj1 ltac:(eapply id_ren_validblock; eauto)).
-                      rewrite Hincr'_bpj1 in Hfijp; inversion Hfijp; subst bpj'2.
-                      rewrite Hdecbpj1.
-                      clear Hfijp Hdecbpj1.
-                      apply (domain_valid HsimWeak) in Hvalidmcbpj1.
-                      destruct Hvalidmcbpj1 as [b2' Hf].
-                      assert (b2' = bpf2)
-                        by (apply Hincrj in Hf; rewrite Hf in Hf'p; by inversion Hf'p);
-                        by subst.
-                    }
-                    { (* here it is usefulto have inject seperation for fij*)
-                      unfold inject_separated in Hsep.
-                      specialize (Hsep bpj1 bpj'2
-                                       ltac:(eapply id_ren_invalidblock; eauto) Hfijp).
-                      destruct Hsep as [_ Hinvalidmc''bpj'2].
-                      assert (Hinvalidbmcpj'2: ~ Mem.valid_block mc bpj'2).
-                      { intros Hcontra.
-                        eapply internal_execution_valid with
-                        (b := bpj'2) (m' := mc'') in Hcontra;
-                          by eauto.
-                      }
-                      destruct (valid_block_dec mc bpj'2) as
-                          [Hvalidmcbpj'2 | Hinvalidmcbpj'2];
-                        first (by exfalso; auto).
-                      destruct (valid_block_dec mc'' bpj'2) as [? | _];
-                        first by (exfalso; auto).
-                      destruct (valid_block_dec mcj' bpj'2) as [Hvalidmcj'bpj'2 | Hcontra].
-                      specialize (Hinverse _ Hvalidmcj'bpj'2 Hinvalidmc''bpj'2).
-                      simpl in Hinverse.
-                      destruct Hinverse as [Hfij0 Hfid0].
-                      clear HpermC_mc_block HpermF_mcj Hpermmcj_F Hpermj_mc'' Hreadable'
-                            Hreadable   Hpermmcj_mcj'   Hpermj_eqF    Hvj'.
-                      clear Hdecbpj1.
-                      apply (domain_invalid (weak_obs_eq (obs_eq Hsim_c_ci)))
-                        in Hinvalidmcbpj1.
-                      assert (Hinjective := injective (weak_obs_eq (obs_eq Hsimij))).
-                      specialize (Hinjective _ _ _ Hfij0 Hfijp).
-                      subst bpj1;
-                        by assumption.
-                      apply (codomain_valid (weak_obs_eq (obs_eq Hsimij))) in Hfijp.
-                      erewrite restrPermMap_valid in Hfijp;
-                        by exfalso.
-                    }
-                    rewrite <- Hundef_mcj in Hvalmcj_mf_b1.
-                    inversion Hvalmcj_mf_b1;
-                      by constructor.
-                - (* Notice that this case is exactly the same as
-                       above.  What changes is in which memory region
-                       the pointer is in, but the proof about the
-                       pointer itself is the same.  TODO: can we merge
-                       the two cases? I think no, but need to check
-                       again *)
-
-                  destruct (valid_block_dec mc'' b1) as [Hvalidmc'' | Hinvalidmc''].
-                  specialize (Hpermj_mcj' _ ofs Hinvalidmc Hvalidmc'').
-                  unfold Mem.perm in Hreadable.
-                  unfold permission_at in Hpermj_mcj'.
-                  rewrite Hpermj_mcj' in Hreadable.
-                  simpl in Hreadable;
-                    by exfalso.
-                  specialize (Hvalidmcj' _ _ _ Hinvalidmc Hinvalidmc'' Hf').
-                  assert (Hinverse_b1 := Hinverse _ Hvalidmcj' Hinvalidmc'').
-                  simpl in Hinverse_b1.
-                  destruct Hinverse_b1 as [Hfij _].
-                  assert (Hpermeq := Hpermmcj_mcj' _ _ ofs Hfij).
-                  assert (Hreadable': Mem.perm (restrPermMap (Hcompjj j pfcjj))
-                                               ((Z.to_pos
-                                                   match
-                                                     (- Z.pos_sub (Mem.nextblock mc'')
-                                                                  (Mem.nextblock mc))%Z
-                                                   with
-                                                   | 0%Z => Z.pos b1
-                                                   | Z.pos y' => Z.pos (b1 + y')
-                                                   | Z.neg y' => Z.pos_sub b1 y'
-                                                   end)) ofs Cur Readable)
-                    by (unfold Mem.perm in *; unfold permission_at in Hpermeq;
-                          by rewrite Hpermeq).
-                  specialize (Hvalmcj_mcj' _ _ ofs Hfij Hreadable').
-                  specialize (Hvalmcj_mf _ _ ofs Hf' Hreadable').
-                  clear Hreadable Hreadable' Hpermeq Hpermmcj_mcj' Hpermj_eqF Hpermj_mcj'
-                        Hpermj_mc'' Hpermmcj_F HpermF_mcj HpermC_mc_block.
+                  clear Hreadable Hpermeq Hpermmcj_mcj' Hpermj_eqF Hpermj_mcj'
+                  Hpermj_mc'' Hpermmcj_F_data Hpermmcj_F_locks HpermF_mcj_data HpermF_mcj_locks HpermC_mc_block.
+                  destruct Hmem_val_obs_eq as [Hvalmcj_mcj' Hvalmcj_mf].
                   inversion Hvalmcj_mcj' as
                       [n Hn_mcj Hn_mcj' | vj vj' q1 n Hval_obsjj' Hvj Hvj'| Hundef_mcj Hmv_mcj'].
                   + rewrite <- Hn_mcj in Hvalmcj_mf.
@@ -4032,7 +3872,8 @@ into mcj' with an extension of the id injection (fij). *)
                       rewrite Hincr'_bpj1 in Hfijp; inversion Hfijp; subst bpj'2.
                       rewrite Hdecbpj1.
                       clear Hfijp Hdecbpj1.
-                      apply (domain_valid HsimWeak) in Hvalidmcbpj1.
+                      simpl.
+                      apply (domain_valid (weak_tsim_data HsimWeak)) in Hvalidmcbpj1.
                       destruct Hvalidmcbpj1 as [b2' Hf].
                       assert (b2' = bpf2)
                         by (apply Hincrj in Hf; rewrite Hf in Hf'p; by inversion Hf'p);
@@ -4052,9 +3893,10 @@ into mcj' with an extension of the id injection (fij). *)
                       destruct (valid_block_dec mc bpj'2) as
                           [Hvalidmcbpj'2 | Hinvalidmcbpj'2];
                         first (by exfalso; auto).
-                      destruct (valid_block_dec mc'' bpj'2) as [? | _];
+                      destruct (valid_block_dec mc'' bpj'2) as [? | ?];
                         first by (exfalso; auto).
                       destruct (valid_block_dec mcj' bpj'2) as [Hvalidmcj'bpj'2 | Hcontra].
+                      simpl.
                       specialize (Hinverse _ Hvalidmcj'bpj'2 Hinvalidmc''bpj'2).
                       simpl in Hinverse.
                       destruct Hinverse as [Hfij0' Hfid0'].
@@ -4062,24 +3904,21 @@ into mcj' with an extension of the id injection (fij). *)
                            (Separated) blocks. So fij bpj1 and fij
                            imply b0 = bpj1. I can have that *)
                       clear Hdecbpj1.
-                      apply (domain_invalid (weak_obs_eq (obs_eq Hsim_c_ci)))
+                      apply (domain_invalid (weak_obs_eq (obs_eq_data Hsim_c_ci)))
                         in Hinvalidmcbpj1.
-                      assert (Hinjective := injective (weak_obs_eq (obs_eq Hsimij))).
-                      specialize (Hinjective _ _ _  Hfij0' Hfijp).
+                      assert (Hinj := injective (weak_obs_eq (obs_eq_data Hsimij))).
+                      specialize (Hinj _ _ _  Hfij0' Hfijp).
                       subst bpj1;
                         by assumption.
-                      apply (codomain_valid (weak_obs_eq (obs_eq Hsimij))) in Hfijp.
+                      apply (codomain_valid (weak_obs_eq (obs_eq_data Hsimij))) in Hfijp.
                       erewrite restrPermMap_valid in Hfijp;
                         by exfalso.
                     }
                     rewrite <- Hundef_mcj in Hvalmcj_mf.
                     inversion Hvalmcj_mf.
                       by constructor.
-              }
-             
-
-              
-            constructor.
+                }
+                constructor.
             - (** code injection between thread j on tpj' and tpf'*)
               assert (Hctlij := code_eq Hsimij).
               assert (Hctljj := code_eq Htsimj).
@@ -4151,259 +3990,88 @@ into mcj' with an extension of the id injection (fij). *)
               do 2 constructor; intros; eauto.
               erewrite restrPermMap_valid; eauto.
               now eapply ((Hperm_weak _ _ ofs Hrenaming).1).
-
-              
-
-              constructor.
-              { (* weak obs eq *)
-                constructor.
-                - (*invalid domain of f' *)
-                
-                - (*valid domain of f'*)
-                 
-                - (* valid codomain of f'*)
-                
-                - (* injectivity *)
-                 
-                - (* permissions of mcj' are higher than mf *)
-                  intros b1 b2 ofs Hf'.
-                  simpl in Hf'.
-                  destruct (valid_block_dec mc b1) as [Hvalidmc | Hinvalidmc].
-                  { (*case it's a block that's valid in mc*)
-                    specialize (HpermC_mc_block b1 ofs Hvalidmc).
-                    apply Hincrj in Hf'.
-                    specialize (HpermF_mcj b1 b2 ofs Hf').
-                    rewrite <- HpermC_mc_block in HpermF_mcj.
-                    do 2 erewrite restrPermMap_Cur in *.
-                    erewrite <- gsoThreadR_suspendF
-                    with (cntj := pffj) (cntj' := pffj'); eauto.
-                  }
-                  { (*case it's a block that's invalid in mc*)
-                    destruct (valid_block_dec mc'' b1)
-                      as [Hvalidmc'' | Hinvalidmc''].
-                    (*case it's a block that's valid in mc'' (an i-block)*)
-                    specialize (Hpermj_eqF _ _ ofs Hinvalidmc Hvalidmc'' Hf').
-                    rewrite Hpermj_eqF.
-                    specialize (Hpermj_mcj' b1 ofs Hinvalidmc Hvalidmc'').
-                    rewrite Hpermj_mcj'.
-                    simpl;
-                      by constructor.
-                    (*case it's a block that's invalid in mc'' *)
-                    specialize (Hvalidmcj' _ _ pfcj Hinvalidmc Hinvalidmc'' Hf').
-                    specialize (Hinverse b1 Hvalidmcj' Hinvalidmc'').
-                    simpl in Hinverse.
-                    destruct Hinverse as [Hfij _].
-                    specialize (HpermF_mcj _ _ ofs Hf').
-                    specialize (Hpermmcj_F _ _ ofs Hf').
-                    replace (permission_at (restrPermMap
-                                              (memCompF' j pffj')) b2 ofs Cur)
-                    with ((getThreadR pffj') # b2 ofs)
-                      by (rewrite restrPermMap_Cur; reflexivity).
-                    erewrite <- gsoThreadR_suspendF
-                    with (cntj := pffj) (cntj' := pffj'); eauto.
-                    replace ((getThreadR pffj) # b2 ofs)
-                    with
-                    (permission_at (restrPermMap
-                                      (mem_compf Hsim _ pffj)) b2 ofs Cur)
-                      by (rewrite restrPermMap_Cur; reflexivity).
-                    specialize (Hpermmcj_mcj' _ _ ofs Hfij).
-                    rewrite <- Hpermmcj_mcj'.
-                      by assumption.
-                  }
-              } constructor.
-              { (* strong_perm_obs *)
-                intros b1 b2 ofs Hf'.
-                (* the permissions of mf' and mf are the same,
-                     suspend step does not touch the memory*)
-                rewrite restrPermMap_Cur.
-                erewrite <- gsoThreadR_suspendF
-                with (cntj := pffj) (cntj' := pffj'); eauto.
-                simpl in Hf'.
-                rewrite <- restrPermMap_Cur with (Hlt := mem_compf Hsim _ pffj).
-                destruct (valid_block_dec mc b1) as [Hvalidmc | Hinvalidmc].
-                - (* b is a valid block in mc*)
-                  specialize (HpermC_mc_block _ ofs Hvalidmc).
-                  apply Hincrj in Hf'.
-                  specialize (Hpermmcj_F _ _ ofs Hf').
-                  rewrite <- HpermC_mc_block in Hpermmcj_F.
-                    by assumption.
-                - destruct (valid_block_dec mc'' b1)
-                    as [Hvalidmc'' | Hinvalidmc''].
-                  + (* b1 is an i-block (allocated by thread i) *)
-                    specialize (Hpermj_mcj' _ ofs Hinvalidmc Hvalidmc'').
-                    rewrite Hpermj_mcj'.
-                    rewrite restrPermMap_Cur.
-                    apply (domain_invalid HsimWeak) in Hinvalidmc.
-                      by eauto.
-                  + specialize (Hvalidmcj' _ _ _ Hinvalidmc Hinvalidmc'' Hf').
-                    specialize (Hinverse b1 Hvalidmcj' Hinvalidmc'').
-                    simpl in Hinverse.
-                    destruct Hinverse as [Hfij _].
-                    specialize (Hpermmcj_mcj' _ _ ofs Hfij).
-                    rewrite <- Hpermmcj_mcj'.
-                      by eauto.
-              }
-            
-          } split.
-          { (* Proof that block ownership is preserved*)
+              now eapply (Hstrong_perm_eq _ _ ofs Hrenaming).1.
+              do 2 constructor; intros; eauto.
+              erewrite restrPermMap_valid; eauto.
+              now eapply ((Hperm_weak _ _ ofs Hrenaming).2).
+              now eapply (Hstrong_perm_eq _ _ ofs Hrenaming).2.
+          }
+          split.
+          { (** Proof that block ownership is preserved*)
             intros k pffk' Hjk b1 b2 ofs Hf' Hfi.
             destruct (valid_block_dec mc b1) as [Hvalidmc | Hinvalidmc].
-            - (* If b1 is valid in mc then it should be in f and
+            - (** If b1 is valid in mc then it should be in f and
                 since fi is an extension of f it should be in fi as
                 well *)
-              apply (domain_valid HsimWeak) in Hvalidmc.
+              simpl in Hf'.
+              apply (domain_valid (weak_tsim_data HsimWeak)) in Hvalidmc.
               destruct Hvalidmc as [? Hf].
               apply Hincr in Hf. by congruence.
             - destruct (valid_block_dec mc'' b1) as [Hvalidmc'' | Hinvalidmc''];
-              first by congruence.
+              first by (simpl in Hf'; congruence).
               specialize (Hvalidmcj' _ _ _ Hinvalidmc Hinvalidmc'' Hf').
               destruct (Hinverse _ Hvalidmcj' Hinvalidmc'') as [Hfij ?].
               unfold inject_separated in Hsep.
               specialize (Hsep _ _ H Hfij).
               destruct Hsep as [Hinvalidb0 _].
-              apply (domain_invalid HsimWeak) in Hinvalidb0.
+              apply (domain_invalid (weak_tsim_data HsimWeak)) in Hinvalidb0.
               assert (pffk: containsThread tpf k)
                 by (eapply suspendF_containsThread with (cnti := pff); eauto).
               specialize (Hownedj _ pffk Hjk _ _ ofs Hf' Hinvalidb0).
               erewrite <- gsoThreadR_suspendF with (cntj := pffk);
                 by eauto.
-          } split.
-          { (*Block ownership with lockset*)
-            intros b1 b2 ofs Hf' Hfi.
-            destruct (valid_block_dec mc b1) as [Hvalidmc | Hinvalidmc].
-            - (* If b1 is valid in mc then it should be in f and
-                since fi is an extension of f it should be in fi as
-                well *)
-              apply (domain_valid HsimWeak) in Hvalidmc.
-              destruct Hvalidmc as [? Hf].
-              apply Hincr in Hf. by congruence.
-            - destruct (valid_block_dec mc'' b1) as [Hvalidmc'' | Hinvalidmc''];
-              first by congruence.
-              specialize (Hvalidmcj' _ _ _ Hinvalidmc Hinvalidmc'' Hf').
-              destruct (Hinverse _ Hvalidmcj' Hinvalidmc'') as [Hfij Hfinv].
-              unfold inject_separated in Hsep.
-              specialize (Hsep _ _ Hfinv Hfij).
-              destruct Hsep as [Hinvalidb0 _].
-              apply (domain_invalid HsimWeak) in Hinvalidb0.
-              specialize (Hownedj_ls _ _ ofs Hf' Hinvalidb0).
-              erewrite <- suspendF_lockSet with (tp := tpf);
-                by eauto.
           }
-          { (*Block ownership with lock resources *)
+          { (** Block ownership with lock resources *)
             intros bl ofsl rmap b1 b2 ofs Hf' Hfi Hres.
             destruct (valid_block_dec mc b1) as [Hvalidmc | Hinvalidmc].
-            - (* If b1 is valid in mc then it should be in f and
+            - (** If b1 is valid in mc then it should be in f and
                 since fi is an extension of f it should be in fi as
                 well *)
-              apply (domain_valid HsimWeak) in Hvalidmc.
+              simpl in Hf'.
+              apply (domain_valid (weak_tsim_data HsimWeak)) in Hvalidmc.
               destruct Hvalidmc as [? Hf].
               apply Hincr in Hf. by congruence.
             - destruct (valid_block_dec mc'' b1) as [Hvalidmc'' | Hinvalidmc''];
-              first by congruence.
+              first by (simpl in Hf'; congruence).
               specialize (Hvalidmcj' _ _ _ Hinvalidmc Hinvalidmc'' Hf').
               destruct (Hinverse _ Hvalidmcj' Hinvalidmc'') as [Hfij Hfinv].
               unfold inject_separated in Hsep.
               specialize (Hsep _ _ Hfinv Hfij).
               destruct Hsep as [Hinvalidb0 _].
-              apply (domain_invalid HsimWeak) in Hinvalidb0.
+              apply (domain_invalid (weak_tsim_data HsimWeak)) in Hinvalidb0.
+              simpl in Hf'.
               erewrite <- suspendF_lockPool with (tp := tpf) in Hres;
                 by eauto.
+          }
         }
-        }
-        }
-      { (* Proof that lockset simulation is preserved *)
-        clear - HstepF Hexec HsuspendC HsimLocks Hincr Htsim HsimWeak Hownedi_ls.
-        destruct HsimLocks as [[HLocksPerm HLocksVal] HLocksInv].
-        simpl in *.
-        assert (Hperm_eq: forall b ofs,
-                   permission_at (restrPermMap (compat_ls memCompC'')) b ofs Cur =
-                   permission_at (restrPermMap (compat_ls HmemCompC)) b ofs Cur).
-        { intros.
-          do 2 rewrite restrPermMap_Cur.
-          erewrite <- suspendC_lockSet with (tp := tpc'); eauto.
-          erewrite <- gsoLockSet_execution; eauto.
-        }
-        split.
-        constructor.
-        intros b1 b2 ofs Hfi.
-        rewrite (Hperm_eq b1 ofs).
-        do 2 rewrite restrPermMap_Cur.
-        erewrite <- suspendF_lockSet with (tp' := tpf'); eauto.
-        specialize (HsimWeak i pfc pff).
-        destruct (valid_block_dec mc b1) as [Hvalid | Hinvalid].
-        apply (domain_valid HsimWeak) in Hvalid.
-        destruct Hvalid as [b2' Hf].
-        assert (b2' = b2)
-          by (apply Hincr in Hf; rewrite Hf in Hfi; by inversion Hfi);
-          subst b2'.
-        specialize (HLocksPerm _ _ ofs Hf);
-          by do 2 rewrite restrPermMap_Cur in HLocksPerm.
-        assert (Hempty:= Mem.nextblock_noaccess _ _ ofs Max Hinvalid).
-        assert (Hlt:= (compat_ls HmemCompC) b1 ofs).
-        rewrite getMaxPerm_correct in Hlt. unfold permission_at in Hlt.
-        rewrite Hempty in Hlt. simpl in Hlt.
-        destruct ((lockSet tpc) # b1 ofs);
-          first by exfalso.
-        apply (domain_invalid HsimWeak) in Hinvalid.
-        erewrite Hownedi_ls;
-          by eauto.
-        intros b1 b2 ofs Hfi Hperm.
-        simpl.
-        unfold Mem.perm in *.
-        unfold permission_at in Hperm_eq.
-        rewrite (Hperm_eq b1 ofs) in Hperm.
-        specialize (HsimWeak _ pfc pff).
-        destruct (valid_block_dec mc b1) as [Hvalidmc | Hinvalidmc].
-        apply (domain_valid HsimWeak) in Hvalidmc.
-        destruct Hvalidmc as [b2' Hf].
-        assert (b2 = b2')
-          by (apply Hincr in Hf; rewrite Hfi in Hf; by inversion Hf);
-          subst b2'.
-        erewrite <- internal_exec_disjoint_val_lock with (Hcomp := HmemCompC)
-                                                          (m := mc) (tp := tpc);
-          eauto.
-        specialize (HLocksVal _ _ _ Hf Hperm).
-        eapply memval_obs_eq_incr;
-          by eauto.
-        assert (Hempty:= Mem.nextblock_noaccess _ _ ofs Max Hinvalidmc).
-        assert (Hlt:= (compat_ls HmemCompC) b1 ofs).
-        rewrite getMaxPerm_correct in Hlt. unfold permission_at in Hlt.
-        rewrite Hempty in Hlt. simpl in Hlt.
-        apply (domain_invalid HsimWeak) in Hinvalidmc.
-        assert (Hcontra:= restrPermMap_Cur (compat_ls HmemCompC) b1 ofs).
-        unfold permission_at in Hcontra. rewrite Hcontra in Hperm.
-        destruct ((lockSet tpc) # b1 ofs);
-          by (simpl in Hperm; exfalso).
-        intros bl2 ofs Hres.
-        erewrite <- suspendF_lockRes in Hres; eauto.
-        specialize (HLocksInv bl2 ofs Hres).
-        destruct HLocksInv as [bl1 Hfbl1].
-        apply Hincr in Hfbl1.
-        eexists;
-          by eauto.
       }
-      { (* Proof of strong simulation of resources *)
+      { (** Proof of strong simulation of resources *)
         clear - HstepF Hexec HsuspendC HsimRes Hincr Htsim
-                       HsimWeak Hownedi_ls Hownedi_lp HsimLocks.
+                       HsimWeak Hownedi_lp.
         destruct HsimRes as [HsimRes Hlock_if].
         split.
         - intros bl1 bl2 ofs rmap1 rmap2 Hfl Hl1'' Hl2'.
+          (** The [lockRes] of the DryConc machine remained unchanged*)
           assert (Hl1: lockRes tpc (bl1,ofs) = Some rmap1)
             by (erewrite <- suspendC_lockPool with (pfc := pfc') in Hl1''; eauto;
                 erewrite <- gsoLockPool_execution in Hl1''; eauto).
 
+          (** The [lockRes] of the FineConc machine remained unchanged*)
           assert (Hl2: lockRes tpf (bl2,ofs) = Some rmap2)
             by (erewrite <- suspendF_lockPool with (pff := pff) in Hl2'; eauto).
 
           assert (pff': containsThread tpf' i)
-            by (eapply suspendF_containsThread with (cnti := pff); eauto).
+            by (eapply suspendF_containsThread with (cnti := pff); eauto).          
           
-          destruct HsimLocks.
           assert (Hperm_eq: forall b ofs,
-                     permission_at (restrPermMap (compat_lp memCompC'' _ Hl1'')) b ofs Cur =
-                     permission_at (restrPermMap (compat_lp HmemCompC _ Hl1)) b ofs Cur)
-            by (intros; by do 2 rewrite restrPermMap_Cur).
+                     permission_at (restrPermMap (compat_lp memCompC'' _ Hl1'').1) b ofs Cur =
+                     permission_at (restrPermMap (compat_lp HmemCompC _ Hl1).1) b ofs Cur /\
+                     permission_at (restrPermMap (compat_lp memCompC'' _ Hl1'').2) b ofs Cur =
+                     permission_at (restrPermMap (compat_lp HmemCompC _ Hl1).2) b ofs Cur)
+            by (intros; split; by rewrite! restrPermMap_Cur).
 
+          (*TODO: Return here*)
+          
           assert (Hvalid: Mem.valid_block mc bl1)
             by (eapply ThreadPoolWF.lock_valid_block; eauto).
           specialize (HsimWeak _ pfc pff).
@@ -4411,6 +4079,7 @@ into mcj' with an extension of the id injection (fij). *)
           destruct Hvalid as [bl2' Hfl0].
           assert (bl2 = bl2')
             by (apply Hincr in Hfl0; rewrite Hfl in Hfl0; by inversion Hfl0); subst.
+              
           specialize (HsimRes _ _ _ _ _ Hfl0 Hl1 Hl2).
           destruct HsimRes as [HpermRes HvalRes].
           constructor.

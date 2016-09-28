@@ -172,7 +172,9 @@ Module Concur.
              permMapLt (getThreadR cnt).2 (getMaxPerm m);
          compat_lp : forall l pmaps, lockRes tp l = Some pmaps ->
                                 permMapLt pmaps.1 (getMaxPerm m) /\
-                                permMapLt pmaps.2 (getMaxPerm m)}.
+                                permMapLt pmaps.2 (getMaxPerm m);
+         lockRes_blocks: forall l rmap, lockRes tp l = Some rmap ->
+                                   Mem.valid_block m l.1}.
      
      Definition mem_compatible tp m : Prop := mem_compatible' tp m.
 
@@ -264,7 +266,9 @@ Module Concur.
              permMapLt (getThreadR cnt).2 (getMaxPerm m);
          compat_lp : forall l pmaps, lockRes tp l = Some pmaps ->
                                 permMapLt pmaps.1 (getMaxPerm m) /\
-                                permMapLt pmaps.2 (getMaxPerm m)}.
+                                permMapLt pmaps.2 (getMaxPerm m);
+         lockRes_blocks: forall l rmap, lockRes tp l = Some rmap ->
+                                   Mem.valid_block m l.1}.
      
      Definition mem_compatible tp m : Prop := mem_compatible' tp m.
 
