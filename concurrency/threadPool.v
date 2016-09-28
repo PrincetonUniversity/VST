@@ -62,8 +62,34 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
       | Some r => forall ofs0:Z, (ofs < ofs0 < ofs+LKSIZE)%Z -> lr (b, ofs0) = None
       | _ => True
       end.
-                         
 
+  Lemma is_pos: forall n, (0 < S n)%coq_nat.
+  Proof. move=> n; omega. Qed.
+  Definition mk_pos_S (n:nat):= mkPos (is_pos n).
+  Lemma lt_decr: forall n m: nat, S n < m -> n < m.
+  Proof. move=> m n /ltP LE.
+         assert (m < n )%coq_nat by omega.
+         by move: H => /ltP. Qed.
+  Program Fixpoint find_thread' {st:t}{filter:@ctl code -> bool} n (P: n < num_threads st):=
+    if filter (@pool st (@Ordinal (num_threads st) n P))
+    then Some n
+    else match n with
+         | S n' =>  find_thread' n' (lt_decr  n' _ P) 
+         | O => None
+         end.
+  Definition pos_pred (n:pos): nat.
+  Proof. destruct n. destruct n eqn:AA; [omega|].
+         exact n0.
+  Defined.
+                                 
+  Program Definition find_thread (st:t)(filter:@ctl code -> bool): option tid:=
+    @find_thread' st filter (pos_pred (num_threads st)) _ .
+  Next Obligation.
+    rewrite /pos_pred /=.
+    elim (num_threads st) => n N_pos /=.
+    destruct n; try omega; eauto.
+  Qed.
+      
 Require Import msl.Coqlib2.
 Import Coqlib.
 

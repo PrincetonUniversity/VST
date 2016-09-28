@@ -218,7 +218,7 @@ Section Safety.
           assumption.
   Qed.
   
-  Definition init_mem : { m |z Genv.init_mem prog = Some m } := init_m prog init_mem_not_none.
+  Definition init_mem : { m | Genv.init_mem prog = Some m } := init_m prog init_mem_not_none.
   
   Definition spr :=
     semax_prog_rule

@@ -168,7 +168,8 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
               /Machine.DryConc.valid
               /mySchedule.schedPeek /=.
       move => ? ? ? ? ? ? ? ? ? ? ? Tds' /(running_thread) /= -> U''.
-            destruct (Machine.DryConc.running_thread (Tds')); intuition.
+      destruct (Machine.DryConc.running_thread (Tds')); intuition .
+      
     }
 
     move: (MATCH) => /equivalid /= AA.

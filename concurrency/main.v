@@ -306,9 +306,10 @@ Module MainSafety .
            (X86Machines.DryConc.new_MachineSemantics sch p) gTx86 main
            vals2 = Some c2 /\
          forall sch : foo.SC.Sch,
+           X86Machines.DryConc.valid (sch, nil, c2) ->
            X86Machines.DryConc.safe_new_step gTx86 (sch, nil, c2) m2.
       Proof.
-        move=> ? c1 ? ? /= INIT.
+        move=> ? c1 vals2 ? /= INIT.
         move: (INIT)=> /core_init HH /HH [] cd [] c2 [] AA MATCH.
         move: (MATCH)=> /compilation_safety_step BB.
         exists c2; split; [assumption|].
@@ -333,39 +334,145 @@ Module MainSafety .
             rewrite INIT' => EQ; inversion EQ.
             reflexivity. }
           subst c1; apply source_safety.
-        + (*all schedules are valid for the initial state!!! *)
-          admit.
-      Admitted.
+      Qed.
 
-      Lemma compilation_safety_preservation: forall n sch m,
-        dry_context.init_mem = Some m -> 
-        DryMachine.csafe (globalenv prog) (sch, nil, ds_initial) initial_memory n ->
-        exists c, ds_initial_2 = Some c /\
-        DryConc.csafe the_ge (sch, nil, c) m n.
-    Admitted.
 
-    (** *Safety of the dry x86 concurrent semantics,*)
+      Lemma compilation_ksafety_preservation_aux:
+        forall j (c1 : ErasureProof.dstate)
+          (vals2 : seq.seq val) 
+         (m2 : mem),
+       machine_semantics.initial_machine
+         (DryMachineSource.THE_DRY_MACHINE_SOURCE.DryMachine.new_MachineSemantics
+            sch p) (globalenv prog) main nil = 
+       Some c1 ->
+       lftng.init_inv j (globalenv prog) nil initial_memory gTx86 vals2 m2 ->
+       exists 
+       (c2 : foo.FineConc.machine_state),
+         machine_semantics.initial_machine
+           (X86Machines.DryConc.new_MachineSemantics sch p) gTx86 main
+           vals2 = Some c2 /\
+         forall sch : foo.SC.Sch,
+           X86Machines.DryConc.valid (sch, nil, c2) ->
+           forall k, X86Machines.DryConc.ksafe_new_step gTx86 (sch, nil, c2) m2 k.
+      Proof.
+        move => j c vals m /compilation_safety_preservation_aux
+                 HH /HH [] cd [] AA BB.
+        exists cd. split; [exact AA|].
+          by move=> sch VAL; apply: safety.safe_ksafe'.
+      Qed.
+
+      Lemma compilation_csafety_preservation_aux:
+        forall j (c1 : ErasureProof.dstate)
+          (vals2 : seq.seq val) 
+         (m2 : mem),
+       machine_semantics.initial_machine
+         (DryMachineSource.THE_DRY_MACHINE_SOURCE.DryMachine.new_MachineSemantics
+            sch p) (globalenv prog) main nil = 
+       Some c1 ->
+       lftng.init_inv j (globalenv prog) nil initial_memory gTx86 vals2 m2 ->
+       exists 
+       (c2 : foo.FineConc.machine_state),
+         machine_semantics.initial_machine
+           (X86Machines.DryConc.new_MachineSemantics sch p) gTx86 main
+           vals2 = Some c2 /\
+         forall sch : foo.SC.Sch,
+           X86Machines.DryConc.valid (sch, nil, c2) ->
+           forall k, X86Machines.DryConc.csafe gTx86 (sch, nil, c2) m2 k.
+      Proof.
+        move => j c vals m /compilation_ksafety_preservation_aux
+                 HH /HH [] cd [] AA BB.
+        exists cd. split; [exact AA|].
+        by move=> sch VAL k; eapply X86Machines.DryConc.safety_equivalence'; auto.
+      Qed.
+
+          
+      Lemma initial_safety_reduction:
+        forall sch m c vals,
+        machine_semantics.initial_machine
+           (X86Machines.DryConc.new_MachineSemantics sch p) gTx86 main
+           vals = Some c ->
+        (forall sch : foo.SC.Sch,
+           X86Machines.DryConc.valid (sch, nil, c) ->
+           forall k, X86Machines.DryConc.csafe gTx86 (sch, nil, c) m k) ->
+        forall sch : foo.SC.Sch,
+           forall k, X86Machines.DryConc.csafe gTx86 (sch, nil, c) m k.
+      Proof.
+        rewrite /= => _.
+        rewrite /X86Machines.DryConc.init_machine'
+                /X86Machines.DryMachine.init_mach
+                /p
+                /X86Machines.DryMachine.initial_machine.
+        replace (initial_core X86Machines.DryMachine.ThreadPool.SEM.Sem)
+        with Asm_coop.Asm_initial_core by reflexivity.
+        move => m c vals;
+          destruct (Asm_coop.Asm_initial_core gTx86 main vals);
+          move=> HH IF_VAL sch k ; try solve[inversion HH].
+        move : c m HH  IF_VAL sch .
+        induction k.
+        - by constructor.
+        - move=> c m HH  IF_VAL sch.
+        destruct (X86Machines.DryConc.valid (sch, [::], c)) eqn: VAL.
+          + by apply: IF_VAL.
+          + rewrite /X86Machines.DryConc.safe_new_step /X86Machines.DryConc.new_state
+                    /X86Machines.DryConc.mk_nstate /=.
+            {
+            destruct (dry_machine.Concur.mySchedule.schedPeek sch) eqn:SCH.
+            - eapply X86Machines.DryConc.AngelSafe.
+              eapply X86Machines.DryConc.schedfail.
+              + exact SCH.
+              + simpl. move: VAL.
+                inversion HH.
+                rewrite /X86Machines.DryConc.valid SCH
+                        /X86Machines.DryConc.running_thread
+                        /X86Machines.DryMachine.ThreadPool.find_thread
+                        /X86Machines.DryMachine.ThreadPool.containsThread /=.
+                move => HHH; auto.
+                destruct (dry_machine.Concur.mySchedule.TID.eq_tid_dec 0 t0); inversion HHH.
+                move => AA; eapply n.
+                move : AA. compute; simpl.
+                destruct t0; [trivial| move=>BB; inversion BB].
+              + simpl. pose X86Machines.DryMachine.DryMachineLemmas.initial_invariant.
+                specialize (i dry_initial_perm s); simpl in i.
+                inversion HH. eapply i.
+              + reflexivity.
+              + intros. apply IHk; eauto.
+            - eapply X86Machines.DryConc.HaltedSafe.
+                by rewrite /X86Machines.DryConc.halted SCH.
+            }
+      Qed.
+
+      (** *Safety of the dry x86 concurrent semantics,*)
     (** *whit a cooperative schedule*)
-    Theorem dry_x86_coarse_safety: forall n sch m,
-        dry_context.init_mem = Some m -> 
-        exists c, ds_initial_2 = Some c /\
-             DryConc.csafe the_ge (sch, nil, c) m n.
-    Proof.
-      intros. 
-      eapply compilation_safety_preservation.
-      auto.
-      eapply dry_clight_safety.
-    Qed.
-
+      Lemma dry_x86_coarse_safety:
+        forall j (c1 : ErasureProof.dstate)
+          (vals2 : seq.seq val) 
+         (m2 : mem),
+       machine_semantics.initial_machine
+         (DryMachineSource.THE_DRY_MACHINE_SOURCE.DryMachine.new_MachineSemantics
+            sch p) (globalenv prog) main nil = 
+       Some c1 ->
+       lftng.init_inv j (globalenv prog) nil initial_memory gTx86 vals2 m2 ->
+       exists 
+       (c2 : foo.FineConc.machine_state),
+         machine_semantics.initial_machine
+           (X86Machines.DryConc.new_MachineSemantics sch p) gTx86 main
+           vals2 = Some c2 /\
+         forall sch : foo.SC.Sch,
+           forall k, X86Machines.DryConc.csafe gTx86 (sch, nil, c2) m2 k.
+      Proof.
+        move => j c vals m /compilation_csafety_preservation_aux
+                 HH /HH [] cd [] AA BB.
+        exists cd. split; [exact AA|].
+        move=> sch k.
+        apply: initial_safety_reduction; eauto.
+      Qed.
+      
     (** *Safety of the dry x86 concurrent semantics,*)
     (** *with a preemptive schedule*)
     Theorem x86_fine_safe:
-    forall U (tpf : FineConc.machine_state) m
-      (Hmem: dry_context.init_mem = Some m)
-      (Hinit: FineConcSafe.tpf_init (Vptr x Int.zero) nil = Some (U, nil, tpf))
-      (ARG: mem_obs_eq.ValueWD.valid_val_list (mem_obs_eq.Renamings.id_ren m) nil),
-    forall (sched : X86SC.Sch),
-      FineConc.fsafe the_ge tpf (DryMachine.diluteMem m) sched (seq.size sched + 1).
+    forall U tpf m,
+    forall sch,
+      X86Machines.FineConc.fsafe (globalenv prog) tpf (diluteMem m) sch (seq.size sch + 1).
     Proof.
       intros.
       replace (seq.size sched + 1) with (S (seq.size sched)) by omega.
