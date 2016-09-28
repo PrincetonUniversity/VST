@@ -10,11 +10,12 @@ Require Import msl.ageable.
 Require Import msl.functors.
 Require Import msl.predicates_hered.
 
-Module Type TY_FUNCTOR_PROP.
-  Parameter F : Type -> Type.
-  Parameter f_F : functor F.
-  Existing Instance f_F.
+Import CovariantFunctor.
+Import CovariantFunctorLemmas.
+Import CovariantFunctorGenerator.
 
+Module Type TY_FUNCTOR_PROP.
+  Parameter F : functor.
   Parameter other : Type.
 End TY_FUNCTOR_PROP.
 
@@ -36,7 +37,7 @@ Module Type KNOT_HERED.
 
   Axiom squash_unsquash : forall k:knot, squash (unsquash k) = k.
   Axiom unsquash_squash : forall (n:nat) (f:F predicate),
-    unsquash (squash (n,f)) = (n, fmap (approx n) f).
+    unsquash (squash (n,f)) = (n, fmap F (approx n) f).
 
   Axiom approx_spec : forall n p k,
     proj1_sig (approx n p) k = (level k < n /\ proj1_sig p k).
@@ -66,7 +67,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
 
   Definition guppy_step_prop (Z:guppy_ty) (xf:sinv_prod (guppy_step_ty Z)) :=
     forall (k:F (guppy_step_ty Z)) (o:other),
-      snd xf (k,o) -> snd (proj1_sig (fst xf)) (fmap (@fst _ _ oo @proj1_sig _ _) k,o).
+      snd xf (k,o) -> snd (proj1_sig (fst xf)) (fmap F (@fst _ _ oo @proj1_sig _ _) k,o).
 
   Definition guppy_step (Z:guppy_ty) : guppy_ty :=
     existT guppy_sig (guppy_step_ty Z) (guppy_step_prop Z).
@@ -95,7 +96,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     match k with
       | (existT _ 0 f) => None
       | (existT _ (S m) f) => Some
-          (existT (F oo sinv) m (fmap (@fst _ _ oo @proj1_sig _ _) f))
+          (existT (F oo sinv) m (fmap F (@fst _ _ oo @proj1_sig _ _) f))
     end.
 
   Definition k_age (k1 k2:knot) := k_age1 k1 = Some k2.
@@ -115,7 +116,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
 
   Lemma app_sinv_age : forall n (p:sinv (S (S n))) (f:F (sinv (S n)) * other),
     app_sinv (S n) p f ->
-    app_sinv n (fst (proj1_sig p)) (fmap (@fst _ _ oo @proj1_sig _ _) (fst f), snd f).
+    app_sinv n (fst (proj1_sig p)) (fmap F (@fst _ _ oo @proj1_sig _ _) (fst f), snd f).
   Proof.
     intros.
     unfold app_sinv in *.
@@ -239,7 +240,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     hnf; intros k k'; intros.
     simpl in H.
     destruct k.
-    destruct k. destruct x.
+    destruct k as [x f]. destruct x.
     discriminate.
     destruct k' as [k' o'].
     assert (o = o').
@@ -248,7 +249,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     inv H. auto.
     subst o'.
     replace k' with
-      (existT (F oo sinv) x (fmap (@fst _ _ oo @proj1_sig _ _ ) f)).
+      (existT (F oo sinv) x (fmap F (@fst _ _ oo @proj1_sig _ _ ) f)).
     2: inversion H; auto.
     clear H.
     case_eq (decompose_nat x n); intros.
@@ -402,10 +403,10 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     exist (hereditary ko_age) (unstratify n p) (unstratify_hered n p).
 
   Definition squash (x:nat * F predicate) : knot :=
-    match x with (n,f) => existT (F oo sinv) n (fmap (strat n) f) end.
+    match x with (n,f) => existT (F oo sinv) n (fmap F (strat n) f) end.
 
   Definition unsquash (k:knot) : nat * F predicate :=
-    match k with existT _ n f => (n, fmap (unstrat n) f) end.
+    match k with existT _ n f => (n, fmap F (unstrat n) f) end.
 
   Definition level (x:knot) : nat := fst (unsquash x).
   Program Definition approx (n:nat) (p:predicate) : predicate := 
@@ -483,9 +484,9 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
   Lemma squash_unsquash : forall k, squash (unsquash k) = k.
   Proof.
     intros.
-    destruct k; simpl.
+    destruct k as [x f]; simpl.
     f_equal.
-    change ((fmap (strat x) oo fmap (unstrat x)) f = f).
+    change ((fmap F (strat x) oo fmap F (unstrat x)) f = f).
     rewrite fmap_comp.
     rewrite strat_unstrat.
     rewrite fmap_id.
@@ -493,12 +494,12 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
   Qed.
 
   Lemma unsquash_squash : forall n f,
-    unsquash (squash (n,f)) = (n, fmap (approx n) f).
+    unsquash (squash (n,f)) = (n, fmap F (approx n) f).
   Proof.
     intros.
     unfold unsquash, squash.
     f_equal.
-    change ((fmap (unstrat n) oo fmap (strat n)) f = fmap (approx n) f).
+    change ((fmap F (unstrat n) oo fmap F (strat n)) f = fmap F (approx n) f).
     rewrite fmap_comp.
     rewrite unstrat_strat.
     auto.
@@ -584,14 +585,14 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     split; intros.
     unfold k_age1 in H.
     unfold unsquash in H.
-    destruct k.
+    destruct k as [x f].
     destruct x; auto.
     inv H.
     simpl.
     f_equal.
     f_equal.
-    change (fmap (strat x) (fmap (unstrat (S x)) f))
-      with ((fmap (strat x) oo fmap (unstrat (S x))) f).
+    change (fmap F (strat x) (fmap F (unstrat (S x)) f))
+      with ((fmap F (strat x) oo fmap F (unstrat (S x))) f).
     rewrite fmap_comp.
     simpl.
     f_equal.
@@ -620,7 +621,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     econstructor.
     (* unage *)
     intros.
-    case_eq (unsquash x'); intros.
+    destruct (unsquash x') as [n f] eqn:?H; intros.
     exists (squash (S n, f)). 
     rewrite knot_age_age1.
     rewrite unsquash_squash.
@@ -629,7 +630,7 @@ Module KnotHered (TF':TY_FUNCTOR_PROP) : KNOT_HERED with Module TF:=TF'.
     rewrite unsquash_squash.
     rewrite H.
     f_equal.
-    cut (f = fmap (approx n) f).
+    cut (f = fmap F (approx n) f).
     intros.
     rewrite fmap_app.
     pattern f at 2. rewrite H0.

@@ -10,14 +10,16 @@ Require Import msl.sepalg.
 Require Import msl.sepalg_generators.
 Require Import msl.sepalg_functors.
 Require Import msl.age_sepalg.
-Require Import msl.knot_sa.
 Require Import msl.knot_lemmas.
 Require Import msl.functors.
 Require Import msl.sepalg_functors.
 Require Import msl.knot_hered.
-Require Import msl.knot_hered_sa.
 
-(* This file specializes knot and sa_knot to have T = Prop *)
+Import CovariantFunctor.
+Import CovariantFunctorLemmas.
+Import CovariantFunctorGenerator.
+
+(* This file specializes knot to have T = Prop *)
 
 Open Local Scope nat_scope.
 
@@ -60,7 +62,7 @@ Module Type KNOT_PROP.
      fun w => level w < n /\ p w.
 
   Axiom squash_unsquash : forall x, squash (unsquash x) = x.
-  Axiom unsquash_squash : forall n x', unsquash (squash (n,x')) = (n,fmap (approx n) x').
+  Axiom unsquash_squash : forall n x', unsquash (squash (n,x')) = (n, fmap F (approx n) x').
 
   Axiom knot_level : forall k:knot,
     level k = fst (unsquash k).
@@ -73,44 +75,10 @@ Module Type KNOT_PROP.
     end.
 End KNOT_PROP.
 
-Module Type KNOT_SA_PROP.
-  Declare Module TFSA:TY_FUNCTOR_SA_PROP.
-  Declare Module K:KNOT_PROP with Module TF:=TFSA.TF.
-
-  Import TFSA.TF.
-  Import TFSA.
-  Import K.
-
-  Parameter Join_knot: Join knot.  Existing Instance Join_knot.
-  Parameter Sep_knot : Sep_alg knot.  Existing Instance Sep_knot.
-  Parameter Canc_knot : Canc_alg knot.  Existing Instance Canc_knot.
-  Parameter Disj_knot :  Disj_alg knot.  Existing Instance Disj_knot.
-
-  Instance Join_nat_F: Join (nat * F predicate) := 
-       Join_prod nat  (Join_equiv nat) (F predicate) _.
-
- Instance Perm_nat_F : Perm_alg (nat * F predicate) :=
-    @Perm_prod nat _ _ _ (Perm_equiv _) (Perm_F predicate _ (Perm_equiv _)).
-
- Instance Sep_nat_F (Sep_F: forall A, Sep_alg (F A)): Sep_alg (nat * F predicate) :=
-    @Sep_prod nat _ _ _ (Sep_equiv _) (Sep_F predicate).
- Instance Canc_nat_F (Canc_F: forall A, Canc_alg (F A)): Canc_alg (nat * F predicate) :=
-    @Canc_prod nat _ _ _ (Canc_equiv _) (Canc_F predicate).
- Instance Disj_nat_F (Disj_F: forall A, Disj_alg (F A)): Disj_alg (nat * F predicate) :=
-    @Disj_prod nat _ _ _ (Disj_equiv _) (Disj_F predicate).
-
-  Axiom join_unsquash : forall x1 x2 x3 : knot,
-    join x1 x2 x3 = join (unsquash x1) (unsquash x2) (unsquash x3).
-
-  Axiom asa_knot : Age_alg knot.
-End KNOT_SA_PROP.
-
 (* Coercion *)
 Module TyFunctorProp2TyFunctor (TF : TY_FUNCTOR_PROP) <: TY_FUNCTOR.
 (*  EXport TFP. Does not seem to work? *)
   Definition F := TF.F.
-  Definition f_F := TF.f_F.
-  
   Definition T: Type := Prop.
   Definition T_bot : T := False.
 
@@ -145,7 +113,7 @@ Module KnotProp (TF':TY_FUNCTOR_PROP) : KNOT_PROP with Module TF:=TF'.
     apply Knot_G.squash_unsquash.
   Qed.
 
-  Lemma unsquash_squash : forall n x', unsquash (squash (n,x')) = (n,fmap (approx n) x').
+  Lemma unsquash_squash : forall n x', unsquash (squash (n,x')) = (n,fmap F (approx n) x').
   Proof.
     replace approx with Knot_G.approx.
     apply Knot_G.unsquash_squash.
@@ -187,7 +155,7 @@ Module KnotProp2Knot (TF' : TY_FUNCTOR_PROP)
     apply K.squash_unsquash.
   Qed.
 
-  Lemma unsquash_squash : forall n x', unsquash (squash (n,x')) = (n,fmap (approx n) x').
+  Lemma unsquash_squash : forall n x', unsquash (squash (n,x')) = (n,fmap F (approx n) x').
   Proof.
     replace approx with K.approx.
     apply K.unsquash_squash.
@@ -202,110 +170,6 @@ Module KnotProp2Knot (TF' : TY_FUNCTOR_PROP)
   Definition knot_level := K.knot_level.
   Definition knot_age1 := K.knot_age1.
 End KnotProp2Knot.
-
-Module TyFunctorSaProp2TyFunctorSa (TF' : TY_FUNCTOR_SA_PROP) <: TY_FUNCTOR_SA.
-  Module TF <: TY_FUNCTOR := TyFunctorProp2TyFunctor (TF'.TF).
-  Import TF.
-
-  Instance Join_T: Join T := Join_equiv T.
-  Instance pa_T : Perm_alg T := Perm_equiv T.
-  Instance sa_T : Sep_alg T := Sep_equiv T.
-  Instance ca_T : Canc_alg T := Canc_equiv T.
-  Instance da_T : Disj_alg T := Disj_equiv T.
-  Lemma T_bot_identity : identity T_bot.
-  Proof. firstorder. Qed.
-
-  Instance Join_TF (A: Type) : Join (A -> T) := Join_fun A T Join_T.
-  Instance pa_TF (A : Type) : Perm_alg (A -> T) := Perm_fun _ _ _ pa_T.
-  Instance sa_TF (sa_T: Sep_alg T) (A : Type) : Sep_alg (A -> T) := Sep_fun _ _ _ sa_T.
-  Instance ca_TF (ca_T: Canc_alg T) (A : Type) : Canc_alg (A -> T) := Canc_fun _ _ _ _. 
-  Instance da_TF (da_T: Disj_alg T) (A : Type) : Disj_alg (A -> T) := Disj_fun _ _ _ _.
-
-  Instance J_F (A: Type) : Join (F (A -> T)) := TF'.Join_F (A -> T).
-  Instance Perm_F (A : Type) : Perm_alg (F (A -> T)) := TF'.Perm_F (A -> T) _ _.
-
-  Instance Sep_F (A : Type) : Sep_alg (F (A -> T)).
-  Proof. 
-    apply (TF'.Sep_F _ (Join_TF A)); auto with typeclass_instances.
-  Defined.
-  Instance Canc_F (A : Type) : Canc_alg (F (A -> T)).
-  Proof. 
-    apply (TF'.Canc_F _ (Join_TF A)); auto with typeclass_instances.
-  Qed.
-  Instance Disj_F (A : Type) : Disj_alg (F (A -> T)).
-  Proof. 
-    apply (TF'.Disj_F _ (Join_TF A)); auto with typeclass_instances.
-  Qed.
-
-  Lemma fmap_hom : forall A B (f: (A -> T) -> (B -> T)),
-    join_hom f -> join_hom (fmap f).
-  Proof. intros. unfold F, J_F. apply paf_join_hom. Qed.
-  Implicit Arguments fmap_hom.
-
-  Lemma F_preserves_unmaps_left : forall A B (f : (A -> T) -> (B -> T)) 
-    (Hhom : join_hom f),
-    unmap_left _ _ f ->
-    unmap_left _ _ (fmap f).
-  Proof. intros. unfold F, J_F. apply paf_preserves_unmap_left. Qed.
-  Implicit Arguments F_preserves_unmaps_left.
-
-  Lemma F_preserves_unmaps_right : forall A B (f : (A -> T) -> (B -> T)) 
-    (Hhom : join_hom f),
-    unmap_right _ _ f ->
-    unmap_right _ _ (fmap f).
-  Proof. intros. unfold F, J_F. apply paf_preserves_unmap_right. Qed.
-  Implicit Arguments F_preserves_unmaps_right.
-
-  Lemma T_bot_unit : unit_for T_bot T_bot.
-   Proof. unfold T_bot. split; auto. Qed.
-End TyFunctorSaProp2TyFunctorSa.
-
-Module KnotSaProp (TFSA':TY_FUNCTOR_SA_PROP) 
-                               (K':KNOT_PROP with Module TF:=TFSA'.TF) : 
-                                   KNOT_SA_PROP with Module TFSA:=TFSA' 
-                                                              with Module K:=K'.
-  Module TFSA <: TY_FUNCTOR_SA_PROP := TFSA'.
-  Module K <: KNOT_PROP with Module TF:=TFSA'.TF := K'.
-
-  Import TFSA.TF.
-  Import TFSA.
-  Import K.
-  
-  Module TFSA_G := TyFunctorSaProp2TyFunctorSa(TFSA').
-  Module K_G <: KNOT with Module TF := TFSA_G.TF := KnotProp2Knot TFSA'.TF K'.
-  
-  Module KnotSa_G := KnotSa TFSA_G K_G.
-
-  Instance Join_knot: Join knot := KnotSa_G.Join_knot.
-  Instance Perm_knot : Perm_alg knot := KnotSa_G.Perm_knot.
-  Instance Sep_knot : Sep_alg knot := KnotSa_G.Sep_knot _.
-  Instance Canc_knot : Canc_alg knot := KnotSa_G.Canc_knot _.
-  Instance Disj_knot : Disj_alg knot := KnotSa_G.Disj_knot _.
-
-
-  Instance Join_nat_F: Join (nat * F predicate) := 
-       Join_prod nat  (Join_equiv nat) (F predicate) _.
-
- Instance Perm_nat_F : Perm_alg (nat * F predicate) :=
-    @Perm_prod nat _ _ _ (Perm_equiv _) (Perm_F predicate _ (Perm_equiv _)).
-
- Instance Sep_nat_F (Sep_F: forall A, Sep_alg (F A)): Sep_alg (nat * F predicate) :=
-    @Sep_prod nat _ _ _ (Sep_equiv _) (Sep_F predicate).
- Instance Canc_nat_F (Canc_F: forall A, Canc_alg (F A)): Canc_alg (nat * F predicate) :=
-    @Canc_prod nat _ _ _ (Canc_equiv _) (Canc_F predicate).
- Instance Disj_nat_F (Disj_F: forall A, Disj_alg (F A)): Disj_alg (nat * F predicate) :=
-    @Disj_prod nat _ _ _ (Disj_equiv _) (Disj_F predicate).
-
-  Lemma join_unsquash : forall x1 x2 x3,
-    join x1 x2 x3 =
-    join (unsquash x1) (unsquash x2) (unsquash x3).
-  Proof.
-  apply KnotSa_G.join_unsquash.
-  Qed.
-
-  Definition asa_knot := KnotSa_G.asa_knot _.
-
-End KnotSaProp.
 
 Module KnotProp_Lemmas (K:KNOT_PROP).
   Import K.
@@ -331,7 +195,7 @@ Module KnotProp_Lemmas (K:KNOT_PROP).
   Proof.
     intros.
     remember (unsquash k).
-    destruct p.
+    destruct p as [n f].
     exists n.
     exists f.
     rewrite Heqp.
@@ -341,7 +205,7 @@ Module KnotProp_Lemmas (K:KNOT_PROP).
 
   Lemma unsquash_approx : forall k n Fp,
     unsquash k = (n, Fp) ->
-    Fp = fmap (approx n) Fp.
+    Fp = fmap F (approx n) Fp.
   Proof.
     intros.
     generalize H; intro.
@@ -376,7 +240,7 @@ Module KnotProp_Lemmas (K:KNOT_PROP).
   (* These are provided since sometimes it is tedious to break things out;
       they are not interesting except as engineering artifacts. *)
   Lemma unsquash_squash_unfolded : forall nf,
-    unsquash (squash nf) = (fst nf, fmap (approx (fst nf)) (snd nf)).
+    unsquash (squash nf) = (fst nf, fmap F (approx (fst nf)) (snd nf)).
   Proof.
     intros.
     destruct nf.
@@ -384,7 +248,7 @@ Module KnotProp_Lemmas (K:KNOT_PROP).
   Qed.
 	
   Lemma unsquash_approx_unfolded : forall k,
-    unsquash k = (fst (unsquash k), fmap (approx (fst (unsquash k))) (snd (unsquash k))).
+    unsquash k = (fst (unsquash k), fmap F (approx (fst (unsquash k))) (snd (unsquash k))).
   Proof.
     intros.
     case_eq (unsquash k); intros.

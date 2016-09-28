@@ -9,6 +9,10 @@ Require Import msl.knot.
 Require Import msl.knot_hered.
 Require Import msl.functors.
 
+Import CovariantFunctor.
+Import CovariantFunctorLemmas.
+Import CovariantFunctorGenerator.
+
 Module Knot_Lemmas (K : KNOT).
   Import K.TF.
   Import K.
@@ -30,7 +34,7 @@ Module Knot_Lemmas (K : KNOT).
   Proof.
   intros.
   remember (unsquash k).
-  destruct p.
+  destruct p as [n f].
   exists n.
   exists f.
   rewrite Heqp.
@@ -40,7 +44,7 @@ Module Knot_Lemmas (K : KNOT).
 
   Lemma unsquash_approx : forall k n Fp,
     unsquash k = (n, Fp) ->
-    Fp = fmap (approx n) Fp.
+    Fp = fmap F (approx n) Fp.
   Proof.
     intros.
     generalize H; intro.
@@ -79,7 +83,7 @@ Module Knot_Lemmas (K : KNOT).
   (* These are provided since sometimes it is tedious to break things out;
       they are not interesting except as engineering artifacts. *)
   Lemma unsquash_squash_unfolded : forall nf,
-    unsquash (squash nf) = (fst nf, fmap (approx (fst nf)) (snd nf)).
+    unsquash (squash nf) = (fst nf, fmap F (approx (fst nf)) (snd nf)).
   Proof.
     intros.
     destruct nf.
@@ -87,7 +91,7 @@ Module Knot_Lemmas (K : KNOT).
   Qed.
 	
   Lemma unsquash_approx_unfolded : forall k,
-    unsquash k = (fst (unsquash k), fmap (approx (fst (unsquash k))) (snd (unsquash k))).
+    unsquash k = (fst (unsquash k), fmap F (approx (fst (unsquash k))) (snd (unsquash k))).
   Proof.
     intros.
     case_eq (unsquash k); intros.
@@ -150,7 +154,7 @@ Module KnotHered_Lemmas (K : KNOT_HERED).
   Proof.
   intros.
   remember (unsquash k).
-  destruct p.
+  destruct p as [n f].
   exists n.
   exists f.
   rewrite Heqp.
@@ -160,7 +164,7 @@ Module KnotHered_Lemmas (K : KNOT_HERED).
 
   Lemma unsquash_approx : forall k n Fp,
     unsquash k = (n, Fp) ->
-    Fp = fmap (approx n) Fp.
+    Fp = fmap F (approx n) Fp.
   Proof.
     intros.
     generalize H; intro.
@@ -199,7 +203,7 @@ Module KnotHered_Lemmas (K : KNOT_HERED).
   (* These are provided since sometimes it is tedious to break things out;
       they are not interesting except as engineering artifacts. *)
   Lemma unsquash_squash_unfolded : forall nf,
-    unsquash (squash nf) = (fst nf, fmap (approx (fst nf)) (snd nf)).
+    unsquash (squash nf) = (fst nf, fmap F (approx (fst nf)) (snd nf)).
   Proof.
     intros.
     destruct nf.
@@ -207,7 +211,7 @@ Module KnotHered_Lemmas (K : KNOT_HERED).
   Qed.
 	
   Lemma unsquash_approx_unfolded : forall k,
-    unsquash k = (fst (unsquash k), fmap (approx (fst (unsquash k))) (snd (unsquash k))).
+    unsquash k = (fst (unsquash k), fmap F (approx (fst (unsquash k))) (snd (unsquash k))).
   Proof.
     intros.
     case_eq (unsquash k); intros.

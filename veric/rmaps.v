@@ -912,7 +912,6 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
     apply pred_ext'; intro w.
     unfold approx, compose; simpl.
     rewrite K.approx_spec.
-    unfold fidentity_fmap;
     unfold rmap_level, unsquash; simpl;
     repeat rewrite K.knot_level;
     repeat rewrite setset, setget;     intuition.
@@ -923,7 +922,6 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
     apply pred_ext'; intro w.
     unfold approx, compose; simpl.
     rewrite K.approx_spec.
-    unfold fidentity_fmap;
     unfold rmap_level, unsquash; simpl;
     repeat rewrite K.knot_level;
     repeat rewrite setset, setget;     intuition.

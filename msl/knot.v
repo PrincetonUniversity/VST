@@ -8,12 +8,14 @@ Require Import msl.ageable.
 Require Import Coq.Logic.Eqdep_dec.
 Require Import msl.functors.
 
+Import CovariantFunctor.
+Import CovariantFunctorLemmas.
+Import CovariantFunctorGenerator.
+
 Open Local Scope nat_scope.
 
 Module Type TY_FUNCTOR.
-  Parameter F : Type -> Type.
-  Parameter f_F : functor F.
-  Existing Instance f_F.
+  Parameter F : functor.
 
   Parameter T : Type.
   Parameter T_bot : T.
@@ -40,7 +42,7 @@ Module Type KNOT.
      fun w => if le_gt_dec n (level w) then T_bot else p w.
 
   Axiom squash_unsquash : forall x, squash (unsquash x) = x.
-  Axiom unsquash_squash : forall n x', unsquash (squash (n,x')) = (n,fmap (approx n) x').
+  Axiom unsquash_squash : forall n x', unsquash (squash (n,x')) = (n,fmap F (approx n) x').
 
 
   Axiom knot_level : forall k:knot,
@@ -317,10 +319,10 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
   Qed.
 
   Definition squash (x:nat * F predicate) : knot :=
-    match x with (n,y) => existT (F oo sinv) n (fmap (stratify n) y) end.
+    match x with (n,y) => existT (F oo sinv) n (fmap F (stratify n) y) end.
 
   Definition unsquash (x:knot) : (nat * F predicate) :=
-    match x with existT _ n y => (n, fmap (unstratify n) y) end.
+    match x with existT _ n y => (n, fmap F (unstratify n) y) end.
 
   Definition def_knot_level (k:knot) := fst (unsquash k).
 
@@ -340,10 +342,10 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
 
   Lemma squash_unsquash : forall x, squash (unsquash x) = x.
   Proof.
-    intros; destruct x; simpl.
+    intros; destruct x as [x f]; simpl.
     unfold compose.
-    replace (fmap (stratify x) (fmap (unstratify x) f)) with
-      ((fmap (stratify x) oo fmap (unstratify x)) f) by trivial.
+    replace (fmap F (stratify x) (fmap F (unstratify x) f)) with
+      ((fmap F (stratify x) oo fmap F (unstratify x)) f) by trivial.
     rewrite fmap_comp.
     replace (stratify x oo unstratify x) with (id (sinv x)).
     rewrite fmap_id; simpl; auto.
@@ -353,12 +355,12 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     rewrite stratify_unstratify; auto.
   Qed.
 
-  Lemma unsquash_squash : forall n x', unsquash (squash (n,x')) = (n,fmap (approx n) x').
+  Lemma unsquash_squash : forall n x', unsquash (squash (n,x')) = (n,fmap F (approx n) x').
   Proof.
     intros.
     simpl.
-    replace (fmap (unstratify n) (fmap (stratify n) x')) with
-      ((fmap (unstratify n) oo fmap (stratify n)) x') by trivial.
+    replace (fmap F  (unstratify n) (fmap F (stratify n) x')) with
+      ((fmap F (unstratify n) oo fmap F (stratify n)) x') by trivial.
     rewrite fmap_comp.
     apply injective_projections; simpl; trivial.
     replace (unstratify n oo stratify n) with (approx n); auto.
@@ -433,11 +435,11 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
    unfold def_knot_age1; unfold def_knot_level; simpl; intros x'.
     case_eq (unsquash x'); intros.
     destruct x' as [n' xx']. simpl in *. inv H.
-    exists (squash (S n, fmap (unstratify n) xx')).
+    exists (squash (S n, fmap F (unstratify n) xx')).
     rewrite unsquash_squash.
     f_equal.
     f_equal.
-    transitivity ((fmap (stratify n) oo fmap (approx (S n)) oo fmap (unstratify n)) xx'); auto.
+    transitivity ((fmap F (stratify n) oo fmap F (approx (S n)) oo fmap F (unstratify n)) xx'); auto.
     do 2 rewrite fmap_comp.
     replace (stratify n oo approx (S n) oo unstratify n) with (@id (sinv n)).
     rewrite fmap_id. auto.

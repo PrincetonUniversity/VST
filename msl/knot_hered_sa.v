@@ -16,9 +16,9 @@ Require Import msl.knot_hered.
 Require Import msl.knot_lemmas.
 Require Import msl.age_sepalg.
 
-Import MixVariantFunctor.
-Import MixVariantFunctorLemmas.
-Import MixVariantFunctorGenerator.
+Import CovariantFunctor.
+Import CovariantFunctorLemmas.
+Import CovariantFunctorGenerator.
 
 Module Type TY_FUNCTOR_SA_PROP.
   Declare Module TF:TY_FUNCTOR_PROP.

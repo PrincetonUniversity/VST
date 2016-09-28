@@ -9,6 +9,10 @@ Require Import msl.knot.
 Require Import msl.knot_lemmas.
 Require Import msl.functors.
 
+Import CovariantFunctor.
+Import CovariantFunctorLemmas.
+Import CovariantFunctorGenerator.
+
 Local Open Scope nat_scope.
 
 Definition map_pair {A B C D} (f:A -> B) (g:C -> D) (x:A * C) : B * D :=
@@ -24,10 +28,10 @@ Module Type ISOMORPHIC_KNOTS.
   Parameter g : K2.knot -> K1.knot.
 
   Definition fF : F K1.predicate -> F K2.predicate :=
-    fmap (fun p : K1.knot * other -> K1.TF.T => p oo map_pair g (@id other)).
+    fmap F (fun p : K1.knot * other -> K1.TF.T => p oo map_pair g (@id other)).
 
   Definition gF : F K2.predicate -> F K1.predicate :=
-    fmap (fun p : K2.knot * other -> K2.TF.T => p oo map_pair f (@id other)).
+    fmap F (fun p : K2.knot * other -> K2.TF.T => p oo map_pair f (@id other)).
 
   Axiom iso1 : f oo g = id K2.knot.
   Axiom iso2 : g oo f = id K1.knot.
@@ -96,10 +100,10 @@ rewrite f_level; simpl; auto.
 Qed.
 
 Definition f_F' : TF.F K1.predicate -> TF.F K2.predicate :=
-  fmap f_pred'.
+  fmap F f_pred'.
 
 Definition g_F' : TF.F K2.predicate -> TF.F K1.predicate :=
-  fmap g_pred'.
+  fmap F g_pred'.
 
 End Common.
 
@@ -113,10 +117,10 @@ Definition gZ_pred (p1 : K1.predicate) : K2.predicate :=
 fun k2 => T_bot.
 
 Definition fF_Z : TF.F K1.predicate -> TF.F K2.predicate :=
-  fmap gZ_pred.
+  fmap F gZ_pred.
 
 Definition gF_Z : TF.F K2.predicate -> TF.F K1.predicate :=
-  fmap fZ_pred.
+  fmap F fZ_pred.
 
 Definition f_Z (k1 : K1.knot) : K2.knot :=
   match K1.unsquash k1 with
@@ -155,11 +159,11 @@ rewrite K2.unsquash_squash.
 rewrite K1.knot_level in H.
 rewrite <- Hequnsq_k in H.
 simpl in H.
-replace (fmap (K2.approx n0) (fF_Z Fp)) with 
-  ((fmap (K2.approx n0) oo (fmap gZ_pred)) Fp) by trivial.
+replace (fmap F (K2.approx n0) (fF_Z Fp)) with 
+  ((fmap F (K2.approx n0) oo (fmap F gZ_pred)) Fp) by trivial.
 rewrite fmap_comp.
-replace (gF_Z (fmap (K2.approx n0 oo gZ_pred) Fp)) with
-  ((fmap fZ_pred oo fmap (K2.approx n0 oo gZ_pred)) Fp) by trivial.
+replace (gF_Z (fmap F (K2.approx n0 oo gZ_pred) Fp)) with
+  ((fmap F fZ_pred oo fmap F (K2.approx n0 oo gZ_pred)) Fp) by trivial.
 rewrite fmap_comp.
 assert (n0 = 0) by omega.
 clear H; subst n0.
@@ -179,11 +183,11 @@ remember (K2.unsquash k) as unsq_k.
 destruct unsq_k as [n0 Fp].
 rewrite K1.unsquash_squash.
 rewrite K2.knot_level in H.
-replace (fmap (K1.approx n0) (gF_Z Fp)) with 
-  ((fmap (K1.approx n0) oo (fmap fZ_pred)) Fp) by trivial.
+replace (fmap F (K1.approx n0) (gF_Z Fp)) with 
+  ((fmap F (K1.approx n0) oo (fmap F fZ_pred)) Fp) by trivial.
 rewrite fmap_comp.
-replace (fF_Z (fmap (K1.approx n0 oo fZ_pred) Fp)) with
-  ((fmap gZ_pred oo fmap (K1.approx n0 oo fZ_pred)) Fp) by trivial.
+replace (fF_Z (fmap F (K1.approx n0 oo fZ_pred) Fp)) with
+  ((fmap F gZ_pred oo fmap F (K1.approx n0 oo fZ_pred)) Fp) by trivial.
 rewrite fmap_comp.
 symmetry in Hequnsq_k.
 assert (n0 = 0).
@@ -235,7 +239,8 @@ destruct U1 as [n F1].
 simpl.
 rewrite <- H0.
 rewrite K2.unsquash_squash.
-replace (fmap (K2.approx n) (fF_Z F1)) with ((fmap (K2.approx n) oo fmap gZ_pred) F1) by trivial.
+replace (fmap F (K2.approx n) (fF_Z F1)) with
+ ((fmap F (K2.approx n) oo fmap F gZ_pred) F1) by trivial.
 rewrite fmap_comp.
 assert (K2'.approx n oo gZ_pred = gZ_pred).
 extensionality P1 k2.
@@ -405,11 +410,11 @@ rewrite K2.unsquash_squash.
 rewrite K1.knot_level in H.
 rewrite <- Hequnsq_k in H.
 simpl in H.
-replace (fmap (K2.approx n0) (f_F' g Fp)) with 
-  ((fmap (K2.approx n0) oo (fmap (f_pred' g))) Fp) by trivial.
+replace (fmap F (K2.approx n0) (f_F' g Fp)) with 
+  ((fmap F (K2.approx n0) oo (fmap F (f_pred' g))) Fp) by trivial.
 rewrite fmap_comp.
-replace (g_F' f (fmap (K2.approx n0 oo f_pred' g) Fp)) with
-  ((fmap (g_pred' f) oo fmap (K2.approx n0 oo f_pred' g)) Fp) by trivial.
+replace (g_F' f (fmap F (K2.approx n0 oo f_pred' g) Fp)) with
+  ((fmap F (g_pred' f) oo fmap F (K2.approx n0 oo f_pred' g)) Fp) by trivial.
 rewrite fmap_comp.
 symmetry in Hequnsq_k.
 rewrite predn_iso1; trivial.
@@ -430,11 +435,11 @@ simpl in H.
 rewrite K2.knot_level in H.
 rewrite <- Hequnsq_k in H.
 simpl in H.
-replace (fmap (K1.approx n0) (g_F' f Fp)) with 
-  ((fmap (K1.approx n0) oo (fmap (g_pred' f))) Fp) by trivial.
+replace (fmap F (K1.approx n0) (g_F' f Fp)) with 
+  ((fmap F (K1.approx n0) oo (fmap F (g_pred' f))) Fp) by trivial.
 rewrite fmap_comp.
-replace (f_F' g (fmap (K1.approx n0 oo g_pred' f) Fp)) with
-  ((fmap (f_pred' g) oo fmap (K1.approx n0 oo g_pred' f)) Fp) by trivial.
+replace (f_F' g (fmap F (K1.approx n0 oo g_pred' f) Fp)) with
+  ((fmap F (f_pred' g) oo fmap F (K1.approx n0 oo g_pred' f)) Fp) by trivial.
 rewrite fmap_comp.
 symmetry in Hequnsq_k.
 rewrite predn_iso2; trivial.
@@ -476,7 +481,7 @@ Variable fn_unsquash : forall k1,
 
 Lemma Fn_iso2 : forall m,
   m <= n + 1 -> 
-  g_F' f oo f_F' g oo fmap (K1.approx m) = fmap (K1.approx m).
+  g_F' f oo f_F' g oo fmap F (K1.approx m) = fmap F (K1.approx m).
 Proof.
 intros.
 unfold g_F', f_F'.
@@ -515,8 +520,8 @@ clear H1.
 symmetry in HeqU1.
 generalize (K1L.unsquash_approx HeqU1); intro.
 rewrite H1.
-replace ((g_F' f oo f_F' g) (fmap (K1'.approx m) F1)) with
-  ((g_F' f oo f_F' g oo fmap (K1.approx m)) F1) by trivial.
+replace ((g_F' f oo f_F' g) (fmap F (K1'.approx m) F1)) with
+  ((g_F' f oo f_F' g oo fmap F (K1.approx m)) F1) by trivial.
 rewrite Fn_iso2.
 trivial.
 simpl in H.
@@ -538,10 +543,10 @@ rewrite (gn_unsquash (K2'.squash (m, F2)) H0 (K2.unsquash (K2'.squash (m, F2))))
 rewrite K1.unsquash_squash.
 rewrite K2.unsquash_squash.
 simpl.
-replace (g_F' f (fmap (K2'.approx m) F2)) with 
-  ((fmap (g_pred' f) oo (fmap (K2.approx m))) F2) by trivial.
-replace (m, fmap (K1'.approx m) (g_F' f F2)) with
-  (m, (fmap (K1.approx m) oo fmap (g_pred' f)) F2) by trivial.
+replace (g_F' f (fmap F (K2'.approx m) F2)) with 
+  ((fmap F (g_pred' f) oo (fmap F (K2.approx m))) F2) by trivial.
+replace (m, fmap F (K1'.approx m) (g_F' f F2)) with
+  (m, (fmap F (K1.approx m) oo fmap F (g_pred' f)) F2) by trivial.
 do 2 rewrite fmap_comp.
 apply injective_projections; simpl; trivial.
 rewrite g_pred'_approx; trivial.
@@ -561,8 +566,8 @@ simpl.
 rewrite K2.unsquash_squash.
 apply injective_projections; simpl; trivial.
 unfold f_F'.
-replace (fmap (K2'.approx m) (fmap (f_pred' g) F1)) with
-  ((fmap (K2.approx m) oo fmap (f_pred' g)) F1) by trivial.
+replace (fmap F (K2'.approx m) (fmap F (f_pred' g) F1)) with
+  ((fmap F (K2.approx m) oo fmap F  (f_pred' g)) F1) by trivial.
 rewrite fmap_comp.
 simpl in H.
 rewrite K1.knot_level in H.
@@ -572,8 +577,8 @@ symmetry in H0.
 generalize (K1L.unsquash_approx H0); intro.
 pattern F1 at 2.
 rewrite H1.
-replace (fmap (f_pred' g_Sn) (fmap (K1'.approx m) F1)) with
-  ((fmap (f_pred' g_Sn) oo fmap (K1.approx m)) F1) by trivial.
+replace (fmap F (f_pred' g_Sn) (fmap F (K1'.approx m) F1)) with
+  ((fmap F (f_pred' g_Sn) oo fmap F (K1.approx m)) F1) by trivial.
 rewrite fmap_comp.
 assert (K2'.approx m oo f_pred' g = f_pred' g_Sn oo K1.approx m); try congruence.
 extensionality p1 k2.
@@ -721,8 +726,8 @@ symmetry in H0.
 generalize (K1L.unsquash_approx H0); intro.
 pattern F1 at 2.
 rewrite H.
-replace (fmap (f_pred' g_Z) (fmap (K1'.approx 0) F1)) with
-  ((fmap (f_pred' g_Z) oo fmap (K1.approx 0)) F1) by trivial.
+replace (fmap F (f_pred' g_Z) (fmap F (K1'.approx 0) F1)) with
+  ((fmap F (f_pred' g_Z) oo fmap F (K1.approx 0)) F1) by trivial.
 rewrite fmap_comp.
 replace (f_pred' g_Z oo K1'.approx 0) with gZ_pred; trivial.
 (* End move up *)
@@ -900,10 +905,10 @@ symmetry in H.
 generalize (K1L.unsquash_approx H); intro.
 rewrite H1.
 unfold f_F'.
-replace (fmap (f_pred' (snd (fg n))) (fmap (K1'.approx n) F1)) with
-  ((fmap (f_pred' (snd (fg n))) oo fmap (K1.approx n)) F1) by trivial.
-replace (fmap (f_pred' g) (fmap (K1'.approx n) F1)) with
-  ((fmap (f_pred' g) oo fmap (K1.approx n)) F1) by trivial.
+replace (fmap F (f_pred' (snd (fg n))) (fmap F (K1'.approx n) F1)) with
+  ((fmap F (f_pred' (snd (fg n))) oo fmap F (K1.approx n)) F1) by trivial.
+replace (fmap F (f_pred' g) (fmap F (K1'.approx n) F1)) with
+  ((fmap F (f_pred' g) oo fmap F (K1.approx n)) F1) by trivial.
 do 2 rewrite fmap_comp.
 replace (f_pred' (snd (fg n)) oo K1.approx n) with (f_pred' g oo K1'.approx n); trivial.
 extensionality P1 k2.
@@ -947,7 +952,7 @@ Qed.
 
 
 Lemma fF_approx : forall n,
-fF oo (fmap (K1.approx n)) = (fmap (K2.approx n)) oo fF.
+fF oo (fmap F (K1.approx n)) = (fmap F (K2.approx n)) oo fF.
 Proof.
 intros.
 unfold fF, f_F'.
@@ -958,7 +963,7 @@ apply g_level.
 Qed.
 
 Lemma gF_approx : forall n,
-gF oo (fmap (K2.approx n)) = (fmap (K1.approx n)) oo gF.
+gF oo (fmap F (K2.approx n)) = (fmap F (K1.approx n)) oo gF.
 Proof.
 intros.
 unfold gF, g_F'.
@@ -977,8 +982,8 @@ rewrite (f_unsquash (K1'.squash (n, F1)) (K1.unsquash (K1'.squash (n, F1)))); tr
 rewrite K1.unsquash_squash.
 rewrite K2.unsquash_squash.
 simpl.
-replace (fF (fmap (K1'.approx n) F1)) with 
-  ((fF oo (fmap (K1.approx n))) F1) by trivial.
+replace (fF (fmap F (K1'.approx n) F1)) with 
+  ((fF oo (fmap F (K1.approx n))) F1) by trivial.
 rewrite fF_approx.
 trivial.
 Qed.
@@ -992,8 +997,8 @@ rewrite (g_unsquash (K2'.squash (n, F2)) (K2.unsquash (K2'.squash (n, F2)))); tr
 rewrite K1.unsquash_squash.
 rewrite K2.unsquash_squash.
 simpl.
-replace (gF (fmap (K2'.approx n) F2)) with 
-  ((gF oo (fmap (K2.approx n))) F2) by trivial.
+replace (gF (fmap F (K2'.approx n) F2)) with 
+  ((gF oo (fmap F (K2.approx n))) F2) by trivial.
 rewrite gF_approx.
 trivial.
 Qed.
