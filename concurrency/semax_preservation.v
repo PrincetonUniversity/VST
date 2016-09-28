@@ -173,6 +173,11 @@ Proof.
   destruct r as [t0 | t0 p k0 p0 | k0 p]; simpl; try congruence.
 Qed.
 
+Lemma isSome_option_map {A B} (f : A -> B) o : ssrbool.isSome (option_map f o) = ssrbool.isSome o.
+Proof.
+  destruct o; reflexivity.
+Qed.
+
 Lemma cl_step_mem_step ge c m c' m' : cl_step ge c m c' m' -> mem_step m m'.
 Admitted.
 
@@ -528,6 +533,14 @@ Proof.
     rewrite (join_bot_bot_eq rsh3); auto.
 Qed.
 
+Lemma matchfunspec_age_to e Gamma n Phi :
+  matchfunspec e Gamma Phi ->
+  matchfunspec e Gamma (age_to n Phi).
+Proof.
+  unfold matchfunspec in *.
+  apply age_to_pred.
+Qed.
+
 Lemma resource_decay_matchfunspec {b phi phi' g Gamma} :
   resource_decay b phi phi' ->
   matchfunspec g Gamma phi ->
@@ -546,6 +559,20 @@ Proof.
   autospec M.
   destruct M as (id & Hg & HGamma).
   exists id; split; auto.
+Qed.
+
+Lemma LockRes_age_content1 js n a :
+  lockRes (age_tp_to n js) a = option_map (option_map (age_to n)) (lockRes js a).
+Proof.
+  cleanup.
+  rewrite lset_age_tp_to, AMap_find_map_option_map.
+  reflexivity.
+Qed.
+
+Lemma m_phi_jm_ m tp phi i cnti compat :
+  m_phi (@jm_ tp m phi i cnti compat) = getThreadR cnti.
+Proof.
+  reflexivity.
 Qed.
 
 (** About lock_coherence *)
@@ -2079,26 +2106,10 @@ Section Preservation.
             cleanup.
             (* rewrite lset_age_tp_to. *)
             (* rewrite AMap_find_map_option_map. *)
-            Lemma isSome_option_map {A B} (f : A -> B) o : ssrbool.isSome (option_map f o) = ssrbool.isSome o.
-            Proof.
-              destruct o; reflexivity.
-            Qed.
             (* rewrite isSome_option_map. *)
             apply juicyLocks_in_lockSet_age with (n := n) in jl.
             specialize (jl loc sh1 sh1' pp z E).
             simpl.
-            Lemma AMap_map_add {A B} (f : A -> B) m x y :
-              AMap.Equal
-                (AMap.map f (AMap.add x y m))
-                (AMap.add x (f y) (AMap.map f m)).
-            Proof.
-              intros k.
-              rewrite AMap_find_map_option_map.
-              rewrite AMap_find_add.
-              rewrite AMap_find_add.
-              rewrite AMap_find_map_option_map.
-              destruct (AMap.find (elt:=A) k m); if_tac; auto.
-            Qed.
             rewrite AMap_map_add.
             rewrite AMap_find_add.
             if_tac. reflexivity.
@@ -2136,13 +2147,6 @@ Section Preservation.
         
         + (* matchfunspec *)
           revert gam. clear.
-          Lemma matchfunspec_age_to e Gamma n Phi :
-            matchfunspec e Gamma Phi ->
-            matchfunspec e Gamma (age_to n Phi).
-          Proof.
-            unfold matchfunspec in *.
-            apply age_to_pred.
-          Qed.
           apply matchfunspec_age_to.
         
         + (* lock sparsity *)
@@ -2198,13 +2202,6 @@ Section Preservation.
                     if_tac [[H H']|H] in Hstore; [ | discriminate ].
                     apply H'.
                   * unfold tp_.
-                    Lemma LockRes_age_content1 js n a :
-                      lockRes (age_tp_to n js) a = option_map (option_map (age_to n)) (lockRes js a).
-                    Proof.
-                      cleanup.
-                      rewrite lset_age_tp_to, AMap_find_map_option_map.
-                      reflexivity.
-                    Qed.
                     rewrite LockRes_age_content1.
                     rewrite JTP.gssLockRes. simpl. congruence.
                   * congruence.
@@ -2407,11 +2404,6 @@ Section Preservation.
                   funspec_destruct "acquire"; swap 1 2.
                   { exfalso. unfold ef_id in *. congruence. }
                   intros x Pre Post.
-                  Lemma m_phi_jm_ m tp phi i cnti compat :
-                    m_phi (@jm_ tp m phi i cnti compat) = getThreadR cnti.
-                  Proof.
-                    reflexivity.
-                  Qed.
                   destruct Pre as (phi0 & phi1 & j & Pre).
                   destruct (join_assoc (join_comm j) Hadd_lock_res) as (phi0' & jphi0' & jframe).
                   exists (age_to n phi0'), (age_to n phi1).
@@ -2510,9 +2502,99 @@ Section Preservation.
             }
           
           * unshelve erewrite gsoThreadCode; auto.
-            admit.
-            (* destruct (@getThreadC j tp lj). *)
-            (* use safety, but there are [personal_mem] things involved *)
+            unfold semax_invariant.Machine.containsThread in *.
+            cut (forall c (cntj : containsThread tp j),
+                    jsafeN Jspec' ge (S n) ora c (jm_ cntj compat) ->
+                    jsafeN Jspec' ge n ora c (jm_ lj compat')).
+            { intros HH.
+              Set Printing Implicit.
+              destruct (@getThreadC j tp lj) eqn:E.
+              - unshelve eapply HH; auto.
+              - unshelve eapply HH; auto.
+              - intros c' Ec'. eapply HH; auto.
+              - constructor. }
+            intros c0 cntj Safe.
+            apply jsafeN_downward in Safe.
+            apply jsafeN_age_to with (l := n) in Safe; auto. 2:now apply Jspec'_hered.
+            revert Safe.
+            apply jsafeN_mem_equiv. 2: now apply Jspec'_juicy_mem_equiv.
+            split.
+            -- rewrite m_dry_age_to.
+               unfold jm_ in *.
+               set (@mem_compatible_forget _ _ _ _) as cmpt; clearbody cmpt.
+               set (@mem_compatible_forget _ _ _ _) as cmpt'; clearbody cmpt'.
+               Unset Printing Implicit.
+               
+               (* Temporary: I will modify the juicy_machine so that
+               it does not require such coherence properties to get a
+               personal mem *)
+               Definition simple_personal_mem i tp m cnt (pr : mem_thcohere tp m) :=
+                 personal_mem'
+                   (acc_coh (pr i cnt)) 
+                   (cont_coh (pr i cnt)) 
+                   (max_coh (pr i cnt)) 
+                   (all_coh (pr i cnt)).
+               
+               Lemma personal_mem_simple_personal_mem i tp m cnt pr :
+                 @personal_mem i tp m cnt pr =
+                 simple_personal_mem i tp m cnt (thread_mem_compatible pr).
+               Proof.
+                 unfold personal_mem in *.
+                 unfold simple_personal_mem in *.
+                 reflexivity.
+               Qed.
+               
+               Lemma simple_personal_mem_canon_proof i tp m cnt pr pr' :
+                 simple_personal_mem i tp m cnt pr' =
+                 @personal_mem i tp m cnt pr.
+               Proof.
+                 unfold personal_mem in *.
+                 unfold simple_personal_mem in *.
+                 f_equal; apply proof_irr.
+               Qed.
+               
+               rewrite personal_mem_simple_personal_mem.
+               rewrite personal_mem_simple_personal_mem.
+               
+               Lemma personal_mem_m_dry_age_tp_to n i tp m cnti cnti' cmpt cmpt' :
+                 m_dry (simple_personal_mem i (age_tp_to n tp) m cnti' cmpt') =
+                 m_dry (simple_personal_mem i tp m cnti cmpt).
+               Proof.
+               Admitted.
+               
+               Lemma personal_mem_m_dry_updLockSet loc o i tp m cnti cnti' cmpt cmpt' :
+                 m_dry (simple_personal_mem i (updLockSet tp loc o) m cnti' cmpt') =
+                 m_dry (simple_personal_mem i tp m cnti cmpt).
+               Admitted.
+               
+               Lemma personal_mem_m_dry_updThread i j tp m cntj c' phi' cnti cnti' cmpt cmpt' :
+                 m_dry (simple_personal_mem i (@updThread j tp cntj c' phi') m cnti' cmpt') =
+                 m_dry (simple_personal_mem i tp m cnti cmpt).
+               Admitted.
+               
+               unfold tp_.
+               unshelve erewrite personal_mem_m_dry_age_tp_to; auto. admit.               
+               unshelve erewrite personal_mem_m_dry_updLockSet; auto. admit.
+               unshelve erewrite personal_mem_m_dry_updThread; auto. admit.
+               fold m_ in Hstore.
+               
+               split3.
+               ++ (* loadbytes: the hardest, but should be a lemma about Mem.store *) admit.
+               ++ (* perm *) admit.
+               ++ admit.
+            
+            -- rewrite m_phi_age_to.
+               do 2 rewrite m_phi_jm_.
+               unfold tp_ in *.
+               unshelve erewrite <-getThreadR_age. auto.
+               unshelve erewrite gLockSetRes. auto.
+               unshelve erewrite gsoThreadRes; auto.
+               f_equal.
+               Unset Printing Implicit.
+               replace (level (getThreadR Htid)) with (level Phi). omega.
+               replace Htid with cnti.
+               symmetry. apply join_sub_level. apply compatible_threadRes_sub, compat.
+               apply proof_irr.
         
         + (* well_formedness *)
           intros j lj.

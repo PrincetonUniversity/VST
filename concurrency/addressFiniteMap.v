@@ -264,3 +264,16 @@ Proof.
   simpl in *. rewrite <-IHl0.
   destruct a. reflexivity.
 Qed.
+
+Lemma AMap_map_add {A B} (f : A -> B) m x y :
+  AMap.Equal
+    (AMap.map f (AMap.add x y m))
+    (AMap.add x (f y) (AMap.map f m)).
+Proof.
+  intros k.
+  rewrite AMap_find_map_option_map.
+  rewrite AMap_find_add.
+  rewrite AMap_find_add.
+  rewrite AMap_find_map_option_map.
+  destruct (AMap.find (elt:=A) k m); destruct (eq_dec x k); auto.
+Qed.
