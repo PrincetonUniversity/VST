@@ -7,7 +7,7 @@ Require Import msl.base.
 Open Local Scope nat_scope.
 
 Require Import msl.ageable.
-Require Import msl.functors_variant.
+Require Import msl.functors.
 Require Import msl.sepalg.
 Require Import msl.sepalg_functors.
 Require Import msl.sepalg_generators.

@@ -5,7 +5,7 @@
 
 Require Import msl.base.
 Require Import msl.sig_isomorphism.
-Require Import msl.functors_variant.
+Require Import msl.functors.
 Require msl.knot.
 Require msl.knot_full_variant.
 

@@ -7,7 +7,7 @@
 
 Require Import msl.base.
 Require Import msl.sepalg.
-Require Import msl.functors_variant.
+Require Import msl.functors.
 Require Import msl.sepalg_generators.
 Require Import msl.sepalg_functors.
 

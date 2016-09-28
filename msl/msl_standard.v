@@ -24,5 +24,3 @@ Require Export msl.cross_split.
 Require Export msl.psepalg.
 Require Export msl.pshares.
 Require Export msl.eq_dec.
-
-Require Export msl.functors_variant.
