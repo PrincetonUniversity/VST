@@ -276,10 +276,10 @@ Module Parching <: ErasureSig.
         (MTCH: match_st js ds)
         (Hi: JTP.containsThread js i)
         (Hi': DTP.containsThread ds i)
-        (Hcmpt: JSEM.mem_compatible js m)
+        Hcmpt
         (Hcmpt': DSEM.mem_compatible ds m),
         restrPermMap (DSEM.compat_th Hcmpt' Hi') =
-        m_dry (JSEM.personal_mem Hi Hcmpt).
+        m_dry (@JSEM.personal_mem i js m Hi Hcmpt).
     Proof.
       intros.
       inversion MTCH; subst.
@@ -289,7 +289,7 @@ Module Parching <: ErasureSig.
         erewrite <- mtch_perm.
       instantiate(1:=Hi).
       erewrite JSEM.juic2Perm_correct. reflexivity.
-      destruct (@JSEM.thread_mem_compatible _ _ Hcmpt _ Hi); assumption.
+      apply Hcmpt.
     Qed.
       
     Lemma MTCH_halted:

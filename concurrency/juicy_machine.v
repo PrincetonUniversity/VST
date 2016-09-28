@@ -828,9 +828,8 @@ Admitted.
                    (juicyRestrictMaxCoh acoh macoh)
                    (juicyRestrictAllocCoh acoh alcoh).
 
-    Definition personal_mem {tid js m}(cnt: containsThread js tid)(Hcompatible: mem_compatible js m): juicy_mem:=
-      let cohere:= (thread_mem_compatible Hcompatible cnt) in
-      personal_mem' (acc_coh cohere) (cont_coh cohere) (max_coh cohere) (all_coh cohere).
+    Definition personal_mem {i js m}(cnt: containsThread js i)(cohere: mem_thcohere js m): juicy_mem:=
+      personal_mem' (acc_coh (cohere i cnt)) (cont_coh (cohere i cnt)) (max_coh (cohere i cnt)) (all_coh (cohere i cnt)).
     
     Definition juicy_sem := (FSem.F _ _ JuicyFSem.t) _ _ the_sem.
     (* Definition juicy_step := (FSem.step _ _ JuicyFSem.t) _ _ the_sem. *)
@@ -1021,7 +1020,7 @@ Admitted.
     | step_juicy :
         forall (tp':thread_pool) c jm jm' m' (c' : code),
           forall (Hpersonal_perm:
-               personal_mem cnt Hcompatible = jm)
+               personal_mem cnt (thread_mem_compatible Hcompatible) = jm)
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt = Krun c)
             (Hcorestep: corestep juicy_sem genv c jm c' jm')
@@ -1103,7 +1102,7 @@ Admitted.
             (Hfun_sepc: vf = Vptr b ofs)
             (Hcompatible: mem_compatible tp m)
             (Hpersonal_perm: 
-               personal_mem cnt0 Hcompatible = jm)
+               personal_mem cnt0 (thread_mem_compatible Hcompatible) = jm)
             (p: veric.rmaps.listprod (JMem.AType::nil) -> pred rmap)
             (Hget_fun_spec': JMem.get_fun_spec' jm (b, Int.intval ofs) arg = Some (existT _ _ p))
             (Hget_fun_spec: JMem.get_fun_spec p = Some (P, Q))
@@ -1126,7 +1125,7 @@ Admitted.
             (Hcompatible: mem_compatible tp m)
             (Hright_juice:  m = m_dry jm)
             (Hpersonal_perm: 
-               personal_mem cnt0 Hcompatible = jm)
+               personal_mem cnt0 (thread_mem_compatible Hcompatible) = jm)
             (Hpersonal_juice: getThreadR cnt0 = phi)
             (*This the first share of the lock, 
               can/should this be different for each location? *)
@@ -1196,7 +1195,7 @@ Admitted.
                            Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
             (Hpersonal_perm: 
-               personal_mem cnt0 Hcompatible = jm)
+               personal_mem cnt0 (thread_mem_compatible Hcompatible) = jm)
             (Hrestrict_pmap:
                permissions.restrPermMap
                  (mem_compatible_locks_ltwritable Hcompatible)

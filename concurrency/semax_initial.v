@@ -82,9 +82,9 @@ Section Initial_State.
      )
     ).
   
-  Lemma personal_mem_of_same_jm tp jm (mc : mem_compatible tp (m_dry jm)) i (cnti : ThreadPool.containsThread tp i) :
+  Lemma personal_mem_of_same_jm tp jm mc i (cnti : ThreadPool.containsThread tp i) :
     (ThreadPool.getThreadR cnti = m_phi jm) ->
-    m_dry (personal_mem cnti mc) = m_dry jm.
+    m_dry (@personal_mem i tp (m_dry jm) cnti mc) = m_dry jm.
   Proof.
     unfold personal_mem in *.
     unfold personal_mem' in *.

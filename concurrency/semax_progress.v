@@ -110,7 +110,7 @@ Section Progress.
     
     (* thread[i] is running *)
     {
-      pose (jmi := personal_mem cnti (mem_compatible_forget compat)).
+      pose (jmi := jm_ cnti compat).
       (* pose (phii := m_phi jmi). *)
       (* pose (mi := m_dry jmi). *)
       
