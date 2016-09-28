@@ -2012,7 +2012,7 @@ Section Preservation.
             rewrite (maps_getthread i _ pr) in J.
             rewrite gRemLockSetRes with (cnti := Htid) in J. clear pr.
             revert Hadd_lock_res J.
-            generalize (getThreadR Htid) d_phi (m_phi jm').
+            generalize (getThreadR Htid) d_phi phi'.
             generalize (all_but i (maps (remLockSet tp (b, Int.intval ofs)))).
             cleanup.
             clear -lev.
@@ -2089,7 +2089,7 @@ Section Preservation.
               specialize (lw ofs0 inter).
               exact_eq lw. f_equal.
               set (m_ := restrPermMap _) in Hstore.
-              change (max_access_at m (b', ofs0) = max_access_at (m_dry jm') (b', ofs0)).
+              change (max_access_at m (b', ofs0) = max_access_at m' (b', ofs0)).
               transitivity (max_access_at m_ (b', ofs0)).
               * unfold m_.
                 rewrite restrPermMap_max.

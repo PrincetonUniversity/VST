@@ -566,6 +566,7 @@ Section Progress.
           clear MC (* was not true *).
           *)
           
+          (* NOT
           (* somehow the new mem and the Phi has to be a juicy memory
           -> it does NOT. The requirement will be removed from the
           juicy machine *)
@@ -599,6 +600,7 @@ Section Progress.
             - admit.
           }
           destruct Hjm' as (jm', Hjm').
+          *)
           
           (* necessary to know that we have indeed a lock *)
           assert (ex: exists sh0 psh0, phi0 @ (b, Int.intval ofs) = YES sh0 psh0 (LK LKSIZE) (pack_res_inv (approx (level phi0) (Interp Rx)))). {
@@ -615,7 +617,7 @@ Section Progress.
           pose proof (resource_at_join _ _ _ (b, Int.intval ofs) Join) as Join'.
           destruct (join_YES_l Join' ex) as (sh3 & sh3' & E3).
           
-          eexists (m_dry jm', ge, (sch, _)).
+          eexists (m', ge, (sch, _)).
           + (* taking the step *)
             apply state_step_c.
             apply JuicyMachine.sync_step
@@ -653,11 +655,9 @@ Section Progress.
               f_equal.
             * reflexivity.
             * apply LOAD.
-            * replace (m_dry jm') with m' by intuition.
-              apply Hm'.
+            * apply Hm'.
             * apply Efind.
-            * replace (m_phi jm') with phi' by intuition.
-              apply Jphi'.
+            * apply Jphi'.
       }
 
       { (* the case of release *)
@@ -813,6 +813,8 @@ Section Progress.
               apply age_by_1. replace (level phi_sat) with (level Phi). omega. join_level_tac.
           }
           
+          (* m' and phi' are NOT a not a juicy mem *)
+          (*
           (* somehow the new mem and the Phi has to be a juicy memory *)
           assert (Hjm' : exists jm', m_dry jm' = m' /\ m_phi jm' = phi'). {
             admit (* ask santiago if he can provide such coherence results on restrPermMap *).
@@ -822,8 +824,9 @@ Section Progress.
              *)
           }
           destruct Hjm' as (jm' & <- & <-).
+          *)
           
-          eexists (m_dry jm', ge, (sch, _)).
+          eexists (m', ge, (sch, _)).
           eapply state_step_c.
           eapply JuicyMachine.sync_step with (Htid := cnti); auto.
           eapply step_release

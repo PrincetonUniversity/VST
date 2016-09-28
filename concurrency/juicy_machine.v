@@ -1037,10 +1037,7 @@ Admitted.
               (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
       thread_pool -> mem -> sync_event -> Prop :=
     | step_acquire :
-        forall (tp' tp'' tp''':thread_pool) c m1 jm' b ofs d_phi psh phi,
-          (*let: phi := m_phi jm in*)
-          let: phi' := m_phi jm' in
-          let: m' := m_dry jm' in
+        forall (tp' tp'' tp''':thread_pool) c m1 b ofs d_phi psh phi phi' m',
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kblocked c)
@@ -1065,10 +1062,7 @@ Admitted.
             (Htp''': tp''' = age_tp_to (level phi - 1)%coq_nat tp''),
             syncStep' genv cnt0 Hcompat tp''' m' (acquire (b, Int.intval ofs) None)                
     | step_release :
-        forall  (tp' tp'' tp''':thread_pool) c m1 jm' b ofs psh  (phi d_phi :rmap) (R: pred rmap) ,
-          (* let: phi := m_phi jm in *)
-          let: phi' := m_phi jm' in
-          let: m' := m_dry jm' in
+        forall  (tp' tp'' tp''':thread_pool) c m1 b ofs psh  (phi d_phi :rmap) (R: pred rmap) phi' m',
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kblocked c)
@@ -1121,11 +1115,10 @@ Admitted.
             syncStep' genv cnt0 Hcompat tp' m (spawn (b, Int.intval ofs))
                      
     | step_mklock :
-        forall  (tp' tp'': thread_pool)  jm jm' c b ofs R ,
+        forall  (tp' tp'': thread_pool)  jm c b ofs R ,
           let: phi := m_phi jm in
-          let: phi' := m_phi jm' in
-          let: m' := m_dry jm' in
           forall
+            phi' m'
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kblocked c)
             (Hat_external: at_external the_sem c =
@@ -1159,9 +1152,7 @@ Admitted.
                     updLockSet tp' (b, Int.intval ofs) None ),
             syncStep' genv cnt0 Hcompat tp'' m' (mklock (b, Int.intval ofs))
     | step_freelock :
-        forall  (tp' tp'': thread_pool) c b ofs phi jm' R,
-          (*let: phi := m_phi jm in*)
-          let: phi' := m_phi jm' in
+        forall  (tp' tp'': thread_pool) c b ofs phi R phi',
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kblocked c)
@@ -1190,8 +1181,7 @@ Admitted.
             (*Check the memories are equal!*)
             (*Hm_forward:
                makeCurMax m = m1 *)
-            (Hdry_mem_no_change: m_dry jm' = m )
-            (Htp': tp' = updThread cnt0 (Kresume c Vundef) (m_phi jm'))
+            (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' =
                     remLockSet tp' (b, Int.intval ofs) ),
             syncStep' genv cnt0 Hcompat  tp'' m (freelock (b, Int.intval ofs)) (* m_dry jm' = m_dry jm = m *)

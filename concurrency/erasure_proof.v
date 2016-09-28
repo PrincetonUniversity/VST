@@ -782,14 +782,14 @@ Module Parching <: ErasureSig.
     assert (Htid':= MTCH_cnt MATCH Hi).
     pose (inflated_delta:=
             fun loc => match (d_phi @ loc ) with
-                      NO s => if Share.EqDec_share s Share.bot then None else Some ( perm_of_res ((m_phi jm') @ loc))
-                    | _ => Some (perm_of_res ((m_phi jm') @ loc))
+                      NO s => if Share.EqDec_share s Share.bot then None else Some ( perm_of_res (phi' @ loc))
+                    | _ => Some (perm_of_res (phi' @ loc))
                     end).
          pose (virtue:= PTree.map
                                       (fun (block : positive) (_ : Z -> option permission) (ofs : Z) =>
                                          (inflated_delta (block, ofs))) (snd (getCurPerm m)) ).
          assert (virtue_some: forall l p, inflated_delta l = Some p ->
-                             p = perm_of_res (m_phi jm' @ l)).
+                             p = perm_of_res (phi' @ l)).
             {
               intros l p; unfold inflated_delta.
               destruct (d_phi @ l); try solve[intros HH; inversion HH; reflexivity].
@@ -924,7 +924,7 @@ Module Parching <: ErasureSig.
                   Hadd_lock_res.
 
               
-              assert (exists sh psh X, m_phi jm' @ (b, Int.intval ofs) = YES sh psh (LK LKSIZE) X).
+              assert (exists sh psh X, phi' @ (b, Int.intval ofs) = YES sh psh (LK LKSIZE) X).
               { apply (resource_at_join _ _ _ (b, Int.intval ofs )) in 
                     Hadd_lock_res'.
                 rewrite HJcanwrite in Hadd_lock_res'.
@@ -1053,7 +1053,7 @@ Module Parching <: ErasureSig.
               inversion Lres; subst.
               rewrite empty_map_spec.
               apply permDisjoint_comm.
-              exists (perm_of_res (m_phi jm' @ (b0, ofs0))); reflexivity.
+              exists (perm_of_res (phi' @ (b0, ofs0))); reflexivity.
             * rewrite DTP.gsoLockRes in Lres; try assumption.
               assert (exists smthng, JTP.lockRes js l = Some smthng).
               { inversion MATCH. specialize (mtch_locks l).
@@ -1075,7 +1075,7 @@ Module Parching <: ErasureSig.
               (*smthng = None*)
               rewrite (mtch_locksEmpty _ _ H Lres).
               rewrite empty_map_spec. apply permDisjoint_comm.
-              exists (perm_of_res (m_phi jm' @ (b0, ofs0))); reflexivity.
+              exists (perm_of_res (phi' @ (b0, ofs0))); reflexivity.
               
           +  inversion dinv0; apply permDisjoint_comm;
             eapply lock_res_threads. eassumption.
@@ -1303,7 +1303,7 @@ Module Parching <: ErasureSig.
                  
                  apply (MTCH_compat _ _ _ MATCH) in Hcompatible.
                  rewrite (@threads_canonical _ m _ Htid'); [|eapply MTCH_compat; eassumption].
-                 replace (m_phi jm' @ (b0, ofs0)) with (NO Share.bot).
+                 replace (phi' @ (b0, ofs0)) with (NO Share.bot).
                  simpl.
                  rewrite if_true; reflexivity.
                  apply (resource_at_join _ _ _ (b0, ofs0)) in Hadd_lock_res.
@@ -1380,7 +1380,7 @@ Module Parching <: ErasureSig.
                    unfold inflated_delta in vb0.
                    destruct ((snd (getCurPerm m)) ! b0) ; inversion vb0.
                    rewrite <- H1 in oofs0. clear H1.
-                   replace o0 with (perm_of_res (m_phi jm' @ (b0, ofs0))) in H. clear oofs0.
+                   replace o0 with (perm_of_res (phi' @ (b0, ofs0))) in H. clear oofs0.
                    Lemma preservationOfReads1: forall r1 r2 r3,
                        sepalg.join r1 r2 r3 ->
                        Mem.perm_order' (perm_of_res r3) Readable ->
@@ -1448,8 +1448,8 @@ Module Parching <: ErasureSig.
     assert (Htid':= MTCH_cnt MATCH Hi).
     pose (inflated_delta:=
             fun loc => match (d_phi @ loc ) with
-                      NO s => if Share.EqDec_share s Share.bot then None else Some ( perm_of_res ((m_phi jm') @ loc))
-                    | _ => Some (perm_of_res ((m_phi jm') @ loc))
+                      NO s => if Share.EqDec_share s Share.bot then None else Some ( perm_of_res (phi' @ loc))
+                    | _ => Some (perm_of_res (phi' @ loc))
                     end).
       pose (virtue:= PTree.map
                        (fun (block : positive) (_ : Z -> option permission) (ofs : Z) =>
@@ -1460,7 +1460,7 @@ Module Parching <: ErasureSig.
     pose (ds'':= DSEM.ThreadPool.updLockSet ds' (b, Int.intval ofs)
                                             (JSEM.juice2Perm d_phi m)).
     
-    assert (virtue_spec: forall b0 ofs0, perm_of_res (m_phi jm' @ (b0, ofs0)) =
+    assert (virtue_spec: forall b0 ofs0, perm_of_res (phi' @ (b0, ofs0)) =
                                     (computeMap (DSEM.ThreadPool.getThreadR Htid') virtue) !! b0 ofs0).
     {
       intros b0 ofs0.
@@ -1471,7 +1471,7 @@ Module Parching <: ErasureSig.
              destruct ((snd (getMaxPerm m)) ! b0); inversion VIRT.
              unfold inflated_delta in H0. rewrite <- H0 in O.
              clear VIRT H0.
-             replace o0 with (perm_of_res (m_phi jm' @ (b0, ofs0))).
+             replace o0 with (perm_of_res (phi' @ (b0, ofs0))).
              + reflexivity.
              + destruct (d_phi @ (b0, ofs0)) eqn:AA; rewrite AA in O; try destruct (Share.EqDec_share t Share.bot);
                inversion O; reflexivity.
@@ -1607,7 +1607,7 @@ Module Parching <: ErasureSig.
             - inversion Hcompatible. apply JSEM.acc_coh; assumption.
             - inversion Hcompatible.
               apply join_sub_trans with (b0:=(JSEM.ThreadPool.getThreadR Hi)).
-              + exists (m_phi jm'). apply Hrem_lock_res.
+              + exists phi'. apply Hrem_lock_res.
               + apply JSEM.compatible_threadRes_sub; assumption.
           }
           { destruct (NatTID.eq_tid_dec i i0).
@@ -1619,7 +1619,7 @@ Module Parching <: ErasureSig.
                 destruct ((snd (getMaxPerm m)) ! b0) eqn:CURb0; inversion e.
                 unfold inflated_delta in H0.
                 rewrite <- H0 in e0.
-                assert (HH: p = perm_of_res (m_phi jm' @ (b0, ofs0))).
+                assert (HH: p = perm_of_res (phi' @ (b0, ofs0))).
                 { destruct (d_phi @ (b0, ofs0)); try solve[inversion e0; reflexivity].
                   destruct (proj_sumbool (Share.EqDec_share t Share.bot)); inversion e0; reflexivity. }
                 rewrite HH.
@@ -1672,7 +1672,7 @@ Module Parching <: ErasureSig.
             erewrite MTCH_perm' with (MTCH:=MATCH).
               eapply permDisjoint_sub.
               apply resource_at_join_sub.
-              exists  (m_phi jm'). eassumption.
+              exists  phi'. eassumption.
               apply joins_permDisjoint.
               apply resource_at_joins.
               eapply compatible_threadRes_join; eassumption.
@@ -1683,7 +1683,7 @@ Module Parching <: ErasureSig.
           rewrite <- JSEM.juic2Perm_correct.
           inversion MATCH. apply permDisjoint_comm.
           apply permDisjoint_sub with (r1:=(JSEM.ThreadPool.getThreadR Hi) @ (b0, ofs0)). eapply resource_at_join_sub.
-          exists (m_phi jm'); assumption.
+          exists phi'; assumption.
           rewrite mtch_perm. apply permDisjoint_comm; apply permMapsDisjoint_permDisjoint.
           inversion dinv. apply lock_set_threads.
           apply access_cohere_sub' with (phi1:= (JSEM.ThreadPool.getThreadR Hi)).
@@ -1842,7 +1842,7 @@ Module Parching <: ErasureSig.
             destruct ((snd (getMaxPerm m)) ! b0); inversion e.
             rewrite <- H1 in e0.
             unfold inflated_delta in e0.
-            replace p with (perm_of_res (m_phi jm' @ (b0, ofs0))).
+            replace p with (perm_of_res (phi' @ (b0, ofs0))).
             { inversion MATCH. rewrite <- (mtch_perm b0 ofs0 j (mtch_cnt' j cnt) _).
               apply joins_permDisjoint. apply resource_at_joins.
               eapply (join_sub_joins_trans ).
@@ -1875,7 +1875,7 @@ Module Parching <: ErasureSig.
               destruct ((snd (getMaxPerm m)) ! b0); inversion e.
               rewrite <- H0 in e0.
               unfold inflated_delta in e0.
-              replace p with (perm_of_res (m_phi jm' @ (b0, ofs0))).
+              replace p with (perm_of_res (phi' @ (b0, ofs0))).
               {
                 apply (@permDisjoint_sub ((JSEM.ThreadPool.getThreadR Hi) @ (b0, ofs0)) ).
                 apply resource_at_join_sub.
@@ -1904,7 +1904,7 @@ Module Parching <: ErasureSig.
               destruct ((snd (getMaxPerm m)) ! b0); inversion e.
               rewrite <- H1 in e0.
               unfold inflated_delta in e0.
-              replace p with (perm_of_res (m_phi jm' @ (b0, ofs0))).
+              replace p with (perm_of_res (phi' @ (b0, ofs0))).
               { inversion MATCH.
                 apply (@permDisjoint_sub ((JSEM.ThreadPool.getThreadR Hi) @ (b0, ofs0))).
                 apply resource_at_join_sub.
@@ -1938,7 +1938,7 @@ Module Parching <: ErasureSig.
       eapply JSEM.mem_cohere_sub.
       - eassumption.
       - eapply join_sub_trans.
-        + unfold join_sub. exists (m_phi jm'). eassumption.
+        + unfold join_sub. exists phi'. eassumption.
         + eapply JSEM.compatible_threadRes_sub.
       assumption. }
 
@@ -2600,7 +2600,7 @@ Module Parching <: ErasureSig.
         if eq_dec sh Share.top then Freeable else Writable.
        pose (delta_b:=
                fun ofs0 => if (Intv.In_dec ofs0 ( Int.intval ofs,  Int.intval ofs + LKSIZE)%Z) then
-                           Some (perm_of_res (m_phi jm' @ (b, ofs0)))
+                           Some (perm_of_res (phi' @ (b, ofs0)))
                         else None).
        Definition empty_delta_map: delta_map:= PTree.empty (Z -> option (option permission)).
        pose (virtue:= PTree.set b delta_b empty_delta_map).
@@ -2609,7 +2609,7 @@ Module Parching <: ErasureSig.
        pose (pmap_tid' := (computeMap pmap_tid virtue)).
 
        assert (virtue_spec: forall (b0 : block) (ofs0 : Z),
-                  perm_of_res (m_phi jm' @ (b0, ofs0)) =
+                  perm_of_res (phi' @ (b0, ofs0)) =
                   (computeMap (DTP.getThreadR Htid') virtue) !! b0 ofs0).
        { intros b0 ofs0.
          destruct (virtue ! b0) eqn:VIRT.
@@ -2675,7 +2675,7 @@ Module Parching <: ErasureSig.
               destruct (ident_eq b0 b).
               - subst b0.
                 rewrite PTree.gss in e; inversion e.
-                rewrite <- H2 in e0. unfold delta_b in e0.
+                rewrite <- H1 in e0. unfold delta_b in e0.
                 destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + LKSIZE)); inversion e0. 
 
                 inversion MATCH.
@@ -2735,12 +2735,12 @@ Module Parching <: ErasureSig.
                 unfold virtue in e. 
                 destruct (ident_eq b b0).
                 - subst b0. rewrite PTree.gss in e.
-                  inversion e. rewrite <- H1 in e0.
+                  inversion e. rewrite <- H0 in e0.
                   unfold delta_b in e0.
                   destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + LKSIZE)); inversion e0.
                   rewrite DSEM.ThreadPool.gsslockSet_rem.
                   apply permDisjoint_comm.
-                  exists (perm_of_res (m_phi jm' @ (b, ofs0)));
+                  exists (perm_of_res (phi' @ (b, ofs0)));
                     reflexivity.
                   + Lemma MTCH_lr_valid: forall js ds,
                       match_st js ds ->
@@ -2782,7 +2782,7 @@ Module Parching <: ErasureSig.
                     rewrite <- H; 
                     reflexivity.
                     - eapply jloc_in_set;
-                    rewrite <- H8; 
+                    rewrite <- H7; 
                     reflexivity. }
                 - rewrite DSEM.ThreadPool.gsolockSet_rem1. 2 : assumption.
                   unfold empty_delta_map in e.
@@ -2794,7 +2794,7 @@ Module Parching <: ErasureSig.
                 - subst b0.
                   unfold empty_delta_map in e.
                   rewrite PTree.gss in e; inversion e.
-                  rewrite <- H1 in e0. unfold delta_b in e0.
+                  rewrite <- H0 in e0. unfold delta_b in e0.
                   destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + LKSIZE)); inversion e0.
                   rewrite DSEM.ThreadPool.gsolockSet_rem2. 3: exact n.
                   unfold pmap_tid.
@@ -2846,7 +2846,7 @@ Module Parching <: ErasureSig.
                   destruct (ident_eq b0 b).
                   - subst b0.
                     rewrite PTree.gss in e; inversion e.
-                    rewrite <- H2 in e0. unfold delta_b in e0.
+                    rewrite <- H1 in e0. unfold delta_b in e0.
                     destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + LKSIZE)); inversion e0. 
                     
                     inversion MATCH.
@@ -2969,7 +2969,7 @@ Module Parching <: ErasureSig.
           intros HH; apply notIn; unfold Intv.In; simpl; xomega.
         + reflexivity.
         + do 2 (replace (MTCH_cnt MATCH Hi) with Htid' by apply proof_irrelevance); reflexivity.
-        + assumption.
+        + reflexivity.
     }
 
     (* step_acqfail *)
