@@ -1169,7 +1169,7 @@ Section Preservation.
           unfold mi.
           destruct compat_ as [_ MC _ _ _].
           destruct MC as [_ AC _ _].
-          unfold jm_, personal_mem, personal_mem'; simpl m_dry.
+          unfold jm_, personal_mem; simpl m_dry.
           rewrite (H _ _  _ (b, ofs0)).
           cut (Mem.perm_order'' (Some Nonempty) (perm_of_res (ThreadPool.getThreadR cnti @ (b, ofs0)))). {
             destruct (perm_of_res (ThreadPool.getThreadR cnti @ (b,ofs0))) as [[]|]; simpl.
@@ -1539,12 +1539,46 @@ Section Preservation.
             pose proof
                  jstep_preserves_mem_equiv_on_other_threads
                  m ge i j tp ci ci' jmi' n0
-                 (thread_mem_compatible (mem_compatible_forget compat))
-                 cnti cntj' stepi
-                 (thread_mem_compatible (mem_compatible_forget compat''))
+                 cnti cntj'
+                 (thread_mem_compatible (mem_compatible_forget compat) cnti)
+                 stepi
+                 (thread_mem_compatible (mem_compatible_forget compat) cntj')
+                 (thread_mem_compatible (mem_compatible_forget compat'') (cnt_age' cntj'))
               as H.
             exact_eq H.
             repeat f_equal.
+            
+            Lemma personal_mem_age_to m phi n pr pr' :
+              @personal_mem m (age_to n phi) pr =
+              age_to n (@personal_mem m phi pr').
+            Proof.
+              apply juicy_mem_ext; simpl.
+              - rewrite m_dry_age_to.
+                simpl.
+                Set Printing Implicit.
+                Lemma juicyRestrict_age_to m phi n pr pr' :
+                  @juicyRestrict (@age_to n rmap ag_rmap phi) m (@acc_coh m (@age_to n rmap ag_rmap phi) pr) =
+                  @juicyRestrict phi m (@acc_coh m phi pr').
+                Proof.
+                  apply mem_ext; auto.
+                  apply juicyRestrictCur_ext.
+                  intros loc.
+                  apply perm_of_age.
+                Qed.
+                unshelve erewrite juicyRestrict_age_to. auto.
+                auto.
+              - rewrite m_phi_age_to. reflexivity.
+            Qed.
+            unfold tp'' in *.
+            Lemma personal_mem_rewrite m phi phi' pr pr' :
+              phi = phi' ->
+              @personal_mem m phi pr = @personal_mem m phi' pr'.
+            Proof.
+              intros ->; f_equal. apply proof_irr.
+            Qed.
+            apply personal_mem_rewrite.
+            unfold tp' in *.
+            f_equal.
             apply proof_irr.
           
           - unfold jmj'.
@@ -1804,7 +1838,9 @@ Section Preservation.
             * apply semax_lemmas.cl_corestep_fun'.
             * exact_eq Hcorestep.
               unfold jm_.
-              do 2 f_equal; apply proof_irr.
+              f_equal.
+              apply personal_mem_ext.
+              repeat f_equal; apply proof_irr.
         
         - (* not at external *)
           jmstep_inv. getThread_inv.
@@ -1897,8 +1933,7 @@ Section Preservation.
               unfold jm_ in *.
               erewrite personal_mem_ext.
               -- apply safety.
-              -- intros i0 cnti1 cnti'.
-                 apply ThreadPool.gThreadCR.
+              -- apply ThreadPool.gThreadCR.
             * assert (cnti0 : ThreadPool.containsThread tp i0) by auto.
               unfold tp'.
               rewrite <- (@ThreadPool.gsoThreadCC _ _ tp ii0 ctn cnti0).
@@ -2525,8 +2560,21 @@ Section Preservation.
                unfold jm_ in *.
                set (@mem_compatible_forget _ _ _ _) as cmpt; clearbody cmpt.
                set (@mem_compatible_forget _ _ _ _) as cmpt'; clearbody cmpt'.
+               (* Lemma personal_mem_age_to m phi n pr pr' :
+                 @personal_mem m (age_to n phi) pr =
+                 age_to n (@personal_mem m phi pr').
+               Proof.
+                 unfold personal_mem in *.
+                 simpl.
+                 apply mem_ext; try solve [simpl; auto].
+                 apply juicyRestrictCur_ext.
+                 intros loc.
+                 unshelve erewrite <-getThreadR_age at 1.
+                 unshelve erewrite perm_of_age.
+                 reflexivity.
+               Qed. *)
                
-               Lemma personal_mem_m_dry_age_tp_to n i tp m cnti cnti' cmpt cmpt' :
+               (* Lemma personal_mem_m_dry_age_tp_to n i tp m cnti cnti' cmpt cmpt' :
                  m_dry (@personal_mem i (age_tp_to n tp) m cnti' cmpt') =
                  m_dry (@personal_mem i tp m cnti cmpt).
                Proof.
@@ -2569,9 +2617,37 @@ Section Preservation.
                  apply juicyRestrictCur_ext.
                  unshelve erewrite gsoThreadRes; auto.
                Qed.
+               *)
                
                unfold tp_.
-               unshelve erewrite personal_mem_m_dry_age_tp_to; auto. admit. (* todo lemma *)
+               Unset Printing Implicit.
+               unshelve erewrite (personal_mem_ext m_).
+               4: unshelve erewrite <-getThreadR_age; [auto|]; reflexivity.
+               set (GET := @getThreadR).
+               apply mem_cohere_age_to.
+               unshelve erewrite gLockSetRes. auto. auto.
+               Set Printing Implicit.
+               admit.
+               (* I'm lost now *)
+               (*
+               unshelve erewrite <-getThreadR_age; [auto|]; reflexivity.
+               
+               auto.
+               erewrite <-getThreadR_age.
+               unshelve erewrite personal_mem_m_dry_age_tp_to; auto.
+               
+               Lemma mem_thcohere_updLockSet tp m loc o :
+                 mem_thcohere tp m ->
+                 mem_thcohere (updLockSet tp loc o) m.
+               Proof.
+                 unfold mem_thcohere in *.
+                 intros.
+                 unshelve erewrite gLockSetRes; auto.
+               Qed.
+               unfold tp_ in *.
+               apply mem_thcohere_updLockSet.
+               
+               admit. (* todo lemma *)
                unshelve erewrite personal_mem_m_dry_updLockSet; auto. admit. (* todo lemma *)
                unshelve erewrite personal_mem_m_dry_updThread; auto. admit. (* todo lemma *)
                fold m_ in Hstore.
@@ -2580,6 +2656,8 @@ Section Preservation.
                ++ (* loadbytes: the hardest, but should be a lemma about Mem.store *) admit.
                ++ (* perm *) admit.
                ++ admit.
+                *)
+               admit.
             
             -- rewrite m_phi_age_to.
                do 2 rewrite m_phi_jm_.
@@ -2703,6 +2781,8 @@ Section Preservation.
           Admitted.
           unshelve erewrite jm_updThreadC. auto.
           unfold jm_ in *.
+          f_equal.
+          apply personal_mem_ext.
           f_equal.
           apply proof_irr.
         * assert (cnti0 : ThreadPool.containsThread tp i0) by auto.

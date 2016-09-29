@@ -314,15 +314,16 @@ Qed.
 
 Lemma jstep_preserves_mem_equiv_on_other_threads m ge i j tp ci ci' jmi'
   (other : i <> j)
-  compat
   cnti cntj
   (tp' := age_tp_to (level (m_phi jmi')) tp)
   (tp'' := @updThread i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi') : thread_pool)
-  (stepi : @jstep genv corestate cl_core_sem ge ci (@personal_mem i tp m cnti compat) ci' jmi')
-  compat' :
+  compat
+  (stepi : @jstep genv corestate cl_core_sem ge ci (@personal_mem m (@getThreadR i tp cnti) compat) ci' jmi')
+  compat'
+  compat'' :
   mem_equiv
-    (m_dry (@personal_mem j tp m cntj compat))
-    (m_dry (@personal_mem j tp'' (m_dry jmi') (cnt_age' cntj) compat')).
+    (m_dry (@personal_mem m (@getThreadR j tp cntj) compat'))
+    (m_dry (@personal_mem (m_dry jmi') (@getThreadR j tp'' (cnt_age' cntj)) compat'')).
 Admitted.
 
 Lemma PTree_xmap_ext (A B : Type) (f f' : positive -> A -> B) t :

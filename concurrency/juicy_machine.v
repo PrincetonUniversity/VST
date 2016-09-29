@@ -818,18 +818,14 @@ Admitted.
     
     (* PERSONAL MEM: Is the contents of the global memory, 
        with the juice of a single thread and the Cur that corresponds to that juice.*)
-    Definition personal_mem' {phi m}
-               (acoh: access_cohere' m phi)
-               (ccoh:contents_cohere m phi)
-               (macoh: max_access_cohere m phi)
-               (alcoh: alloc_cohere m phi) : juicy_mem :=
-      mkJuicyMem _ _ (juicyRestrictContentCoh acoh ccoh)
-                   (juicyRestrictAccCoh acoh) 
-                   (juicyRestrictMaxCoh acoh macoh)
-                   (juicyRestrictAllocCoh acoh alcoh).
-
-    Definition personal_mem {i js m}(cnt: containsThread js i)(cohere: mem_thcohere js m): juicy_mem:=
-      personal_mem' (acc_coh (cohere i cnt)) (cont_coh (cohere i cnt)) (max_coh (cohere i cnt)) (all_coh (cohere i cnt)).
+    Definition personal_mem {m phi} (pr : mem_cohere' m phi) : juicy_mem :=
+      mkJuicyMem
+        (@juicyRestrict phi m (acc_coh pr))
+        phi
+        (juicyRestrictContentCoh (acc_coh pr) (cont_coh pr))
+        (juicyRestrictAccCoh (acc_coh pr)) 
+        (juicyRestrictMaxCoh (acc_coh pr) (max_coh pr))
+        (juicyRestrictAllocCoh (acc_coh pr) (all_coh pr)).
     
     Definition juicy_sem := (FSem.F _ _ JuicyFSem.t) _ _ the_sem.
     (* Definition juicy_step := (FSem.step _ _ JuicyFSem.t) _ _ the_sem. *)
@@ -1020,7 +1016,7 @@ Admitted.
     | step_juicy :
         forall (tp':thread_pool) c jm jm' m' (c' : code),
           forall (Hpersonal_perm:
-               personal_mem cnt (thread_mem_compatible Hcompatible) = jm)
+               personal_mem (thread_mem_compatible Hcompatible cnt) = jm)
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt = Krun c)
             (Hcorestep: corestep juicy_sem genv c jm c' jm')
@@ -1102,7 +1098,7 @@ Admitted.
             (Hfun_sepc: vf = Vptr b ofs)
             (Hcompatible: mem_compatible tp m)
             (Hpersonal_perm: 
-               personal_mem cnt0 (thread_mem_compatible Hcompatible) = jm)
+               personal_mem (thread_mem_compatible Hcompatible cnt0) = jm)
             (p: veric.rmaps.listprod (JMem.AType::nil) -> pred rmap)
             (Hget_fun_spec': JMem.get_fun_spec' jm (b, Int.intval ofs) arg = Some (existT _ _ p))
             (Hget_fun_spec: JMem.get_fun_spec p = Some (P, Q))
@@ -1125,7 +1121,7 @@ Admitted.
             (Hcompatible: mem_compatible tp m)
             (Hright_juice:  m = m_dry jm)
             (Hpersonal_perm: 
-               personal_mem cnt0 (thread_mem_compatible Hcompatible) = jm)
+               personal_mem (thread_mem_compatible Hcompatible cnt0) = jm)
             (Hpersonal_juice: getThreadR cnt0 = phi)
             (*This the first share of the lock, 
               can/should this be different for each location? *)
@@ -1195,7 +1191,7 @@ Admitted.
                            Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
             (Hpersonal_perm: 
-               personal_mem cnt0 (thread_mem_compatible Hcompatible) = jm)
+               personal_mem (thread_mem_compatible Hcompatible cnt0) = jm)
             (Hrestrict_pmap:
                permissions.restrPermMap
                  (mem_compatible_locks_ltwritable Hcompatible)

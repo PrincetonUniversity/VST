@@ -279,7 +279,7 @@ Module Parching <: ErasureSig.
         Hcmpt
         (Hcmpt': DSEM.mem_compatible ds m),
         restrPermMap (DSEM.compat_th Hcmpt' Hi') =
-        m_dry (@JSEM.personal_mem i js m Hi Hcmpt).
+        m_dry (@JSEM.personal_mem m (@JTP.getThreadR i js Hi) Hcmpt).
     Proof.
       intros.
       inversion MTCH; subst.
