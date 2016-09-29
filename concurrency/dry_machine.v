@@ -383,6 +383,34 @@ Module Concur.
        rewrite Mem.setN_default. apply Mem.contents_default.
        apply Mem.contents_default.
      Qed.
+
+     (*TODO: import from file, when merged*)
+     Inductive permjoin : option permission -> option permission -> option permission -> Prop :=
+     | permjoin_None_l x : permjoin None x x
+     | permjoin_None_r x : permjoin x None x
+     (* NE + NE = NE *)
+     | permjoin_NNN : permjoin (Some Nonempty) (Some Nonempty) (Some Nonempty)
+     (* NE + R = R *)
+     | permjoin_NRR : permjoin (Some Nonempty) (Some Readable) (Some Readable)
+     | permjoin_RNR : permjoin (Some Readable) (Some Nonempty) (Some Readable)
+     (* NE + W = W or F *)
+     | permjoin_NWW : permjoin (Some Nonempty) (Some Writable) (Some Writable)
+     | permjoin_NWF : permjoin (Some Nonempty) (Some Writable) (Some Freeable)
+     | permjoin_WNW : permjoin (Some Writable) (Some Nonempty) (Some Writable)
+     | permjoin_WNF : permjoin (Some Writable) (Some Nonempty) (Some Freeable)
+     (* R + R = R or W or F *)
+     | permjoin_RRR : permjoin (Some Readable) (Some Readable) (Some Readable)
+     | permjoin_RRW : permjoin (Some Readable) (Some Readable) (Some Writable)
+     | permjoin_RRF : permjoin (Some Readable) (Some Readable) (Some Freeable)
+     (* R + W = W or F *)
+     | permjoin_RWW : permjoin (Some Readable) (Some Writable) (Some Writable)
+     | permjoin_WRW : permjoin (Some Writable) (Some Readable) (Some Writable)
+     | permjoin_RWF : permjoin (Some Readable) (Some Writable) (Some Freeable)
+     | permjoin_WRF : permjoin (Some Writable) (Some Readable) (Some Freeable).
+
+     Definition permMapJoin (pmap1 pmap2 pmap3: access_map) :=
+       forall b ofs,
+         permjoin ((pmap1 !! b) ofs) ((pmap2 !! b) ofs) ((pmap3 !! b) ofs). 
      
      Inductive ext_step (genv:G) {tid0 tp m}
                (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
@@ -390,59 +418,61 @@ Module Concur.
      | step_acquire :
          forall (tp' tp'':thread_pool) m1 c m' b ofs
            (pmap : LocksAndResources.lock_info)
-           (virtueThread : delta_map * delta_map)
-           (Hinv : invariant tp)
-           (Hcode: getThreadC cnt0 = Kblocked c)
-           (Hat_external: at_external Sem c = Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
-           (* install the thread's permissions on lock locations*)
-           (Hrestrict_pmap: restrPermMap (Hcompat tid0 cnt0).2 = m1)
-           (* check if the thread has permission to acquire the lock and the lock is free*)
-           (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.one))
-           (* acquire the lock*)
-           (Hstore: store_unsafe Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = m')
-           (HisLock: lockRes tp (b, Int.intval ofs) = Some pmap)
-           (* (Hangel: acqAngelSpec pmap (getThreadR cnt0) *)
-           (*                    empty_map *)
-           (*                    (computeMap (getThreadR cnt0) virtueThread)) *)
-           (* spec should be something like*)
-           (* newThreadPerm = join pmap ThreadPerm *)
-           (Htp': tp' = updThread cnt0 (Kresume c Vundef)
-                                  (computeMap (getThreadR cnt0).1 virtueThread.1,
-                                   computeMap (getThreadR cnt0).2 virtueThread.2))
-           (* acquiring the lock leaves empty permissions at the resource pool*)
-           (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) (empty_map, empty_map)),
-           (* the event resources need to be enriched now*)
-           ext_step genv cnt0 Hcompat tp'' m'
-                    (acquire (b, Int.intval ofs) (Some (empty_map, virtueThread.1)))
+           (virtueThread : delta_map * delta_map),
+           let newThreadPerm := (computeMap (getThreadR cnt0).1 virtueThread.1,
+                                  computeMap (getThreadR cnt0).2 virtueThread.2) in
+           forall
+             (Hinv : invariant tp)
+             (Hcode: getThreadC cnt0 = Kblocked c)
+             (Hat_external: at_external Sem c = Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
+             (* install the thread's permissions on lock locations*)
+             (Hrestrict_pmap: restrPermMap (Hcompat tid0 cnt0).2 = m1)
+             (* check if the thread has permission to acquire the lock and the lock is free*)
+             (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.one))
+             (* acquire the lock*)
+             (Hstore: store_unsafe Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = m')
+             (HisLock: lockRes tp (b, Int.intval ofs) = Some pmap)
+             (Hangel1: permMapJoin pmap.1 (getThreadR cnt0).1 newThreadPerm.1) 
+             (Hangel2: permMapJoin pmap.2 (getThreadR cnt0).2 newThreadPerm.2)
+             (Htp': tp' = updThread cnt0 (Kresume c Vundef) newThreadPerm)
+             (* acquiring the lock leaves empty permissions at the resource pool*)
+             (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) (empty_map, empty_map)),
+             (* the event resources need to be enriched now*)
+             ext_step genv cnt0 Hcompat tp'' m'
+                      (acquire (b, Int.intval ofs) (Some (empty_map, virtueThread.1)))
                     
      | step_release :
-         forall (tp' tp'':thread_pool) m1 c m' b ofs pmap virtueThread virtueLP
-           (Hinv : invariant tp)
-           (Hcode: getThreadC cnt0 = Kblocked c)
-           (*His_empty: pmap = empty_map *) (*Maybe we need this? *)
-           (Hat_external: at_external Sem c =
-                          Some (UNLOCK, ef_sig UNLOCK, Vptr b ofs::nil))
-           (* install the thread's permissions on lock locations *) 
-           (Hrestrict_pmap: restrPermMap (Hcompat tid0 cnt0).2 = m1)
-           (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero))
-           (* release the lock *)
-           (Hstore: store_unsafe Mint32 m1 b (Int.intval ofs) (Vint Int.one) = m')
-           (HisLock: lockRes tp (b, Int.intval ofs) = Some pmap)
-           (* (Hangel: relAngelSpec (getThreadR cnt0) pmap *)
-           (*                    (computeMap (getThreadR cnt0) virtueThread) *)
-           (*                    virtueLP) *)
-           (* Spec for relase would like:*)
-           (*join newThreadPerm newLPperm = ThreadPerm *)
-           (Htp': tp' = updThread cnt0 (Kresume c Vundef)
-                                  (computeMap (getThreadR cnt0).1 virtueThread.1,
-                                   computeMap (getThreadR cnt0).2 virtueThread.2))
-           (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) virtueLP),
-           (*TODO: update event type*)
-           ext_step genv cnt0 Hcompat tp'' m'
-                    (release (b, Int.intval ofs) (Some (virtueLP.1, virtueThread.1)))
+         forall (tp' tp'':thread_pool) m1 c m' b ofs virtueThread virtueLP,
+           let newThreadPerm := (computeMap (getThreadR cnt0).1 virtueThread.1,
+                                 computeMap (getThreadR cnt0).2 virtueThread.2) in
+           forall
+             (Hinv : invariant tp)
+             (Hcode: getThreadC cnt0 = Kblocked c)
+             (Hat_external: at_external Sem c =
+                            Some (UNLOCK, ef_sig UNLOCK, Vptr b ofs::nil))
+             (* install the thread's permissions on lock locations *) 
+             (Hrestrict_pmap: restrPermMap (Hcompat tid0 cnt0).2 = m1)
+             (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero))
+             (* release the lock *)
+             (Hstore: store_unsafe Mint32 m1 b (Int.intval ofs) (Vint Int.one) = m')
+             (HisLock: lockRes tp (b, Int.intval ofs) = Some (empty_map, empty_map))
+             (Hangel1: permMapJoin newThreadPerm.1 virtueLP.1 (getThreadR cnt0).1)
+             (Hangel2: permMapJoin newThreadPerm.2 virtueLP.2 (getThreadR cnt0).2)
+             (Htp': tp' = updThread cnt0 (Kresume c Vundef)
+                                    (computeMap (getThreadR cnt0).1 virtueThread.1,
+                                     computeMap (getThreadR cnt0).2 virtueThread.2))
+             (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) virtueLP),
+             (*TODO: update event type*)
+             ext_step genv cnt0 Hcompat tp'' m'
+                      (release (b, Int.intval ofs) (Some (virtueLP.1, virtueThread.1)))
                     
      | step_create :
-         forall (tp_upd tp':thread_pool) c b ofs arg virtue1 virtue2
+         forall (tp_upd tp':thread_pool) c b ofs arg virtue1 virtue2,
+           let threadPerm' := (computeMap (getThreadR cnt0).1 virtue1.1,
+                               computeMap (getThreadR cnt0).2 virtue1.2) in
+           let newThreadPerm := (computeMap empty_map virtue2.1,
+                                 computeMap empty_map virtue2.2) in
+           forall
            (Hinv : invariant tp)
            (Hcode: getThreadC cnt0 = Kblocked c)
            (Hat_external: at_external Sem c =
@@ -456,9 +486,8 @@ Module Concur.
            (*                      (Maps.PMap.get b (computeMap empty_map virtue2) *)
            (*                                     ofs)) *)
            (* loose spec: thread2' * thread1' = thread1 *)
-           (Htp_upd: tp_upd = updThread cnt0 (Kresume c Vundef)
-                                        (computeMap (getThreadR cnt0).1 virtue1.1,
-                                         computeMap (getThreadR cnt0).2 virtue1.2))
+           (Hangel: 
+           (Htp_upd: tp_upd = updThread cnt0 (Kresume c Vundef) )
            (Htp': tp' = addThread tp_upd (Vptr b ofs) arg
                                   (computeMap empty_map virtue2.1,
                                    computeMap empty_map virtue2.2)),

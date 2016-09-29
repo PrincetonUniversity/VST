@@ -1,4 +1,4 @@
-(** ** Spinlock well synchronized*)
+(** * Spinlock well synchronized*)
 Require Import compcert.lib.Axioms.
 
 Require Import concurrency.sepcomp. Import SepComp.
