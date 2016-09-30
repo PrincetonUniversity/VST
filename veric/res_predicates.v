@@ -1,5 +1,6 @@
 Require Import msl.log_normalize.
 Require Export veric.base.
+Require Import veric.rmaps.
 Require Import veric.compcert_rmaps.
 Require Import veric.slice.
 Require Import veric.Clight_lemmas.
@@ -107,14 +108,14 @@ rewrite approx_oo_approx.
 auto.
 simpl in H.
 revert H; case_eq (phi @ l); simpl; intros; inv H0.
-revert H5; destruct p0; destruct pp; simpl; intros; auto; inv H5.
+revert H5; destruct p0 as [?A ?p]; destruct pp as [?A ?p]; simpl; intros; auto; inv H5.
 clear - H.
 repeat f_equal.
 revert H; unfold resource_at.  rewrite rmap_level_eq.
 case_eq (unsquash phi); simpl; intros.
 destruct r as [f v]; simpl in *.
 assert (R.valid (fun l' => if eq_dec l' l 
-       then YES rsh sh k (SomeP A0 (approx n oo p)) else f l')).
+       then YES rsh sh k (SomeP A0 (fun i => MixVariantFunctor.fmap _ (approx n) (approx n) (p i))) else f l')).
 clear - v H0.
 unfold R.valid, compose, CompCert_AV.valid.
 intros b ofs.
@@ -157,9 +158,9 @@ subst.
 rewrite H0.
 simpl.
 do 2 apply f_equal.
-transitivity ((approx n oo approx n) oo p).
+extensionality.
+rewrite MixVariantFunctorLemmas.fmap_app.
 rewrite approx_oo_approx; auto.
-auto.
 subst phi.
 unfold phi' in H.
 rewrite unsquash_squash in H.
@@ -169,11 +170,19 @@ rewrite H0 in H2.
 clear - H2.
 unfold compose in H2. rewrite if_true in H2; auto.
 simpl in H2.
-assert (p = approx n oo (fun x => approx n (p x))).
-injection H2; clear H2; intro.
-apply inj_pair2 in H. auto.
-transitivity ((approx n oo approx n) oo p).
-apply H.
+revert H2; generalize p at 2 3.
+intros q ?H.
+apply YES_inj in H.
+match goal with
+| H: ?A = ?B |- _ =>
+  assert (snd A = snd B)
+end.
+rewrite H; auto.
+simpl in H0.
+apply SomeP_inj2 in H0.
+subst q.
+extensionality i.
+rewrite MixVariantFunctorLemmas.fmap_app.
 rewrite approx_oo_approx. auto.
 Qed.
 
@@ -1184,21 +1193,28 @@ Definition LKspec (R: pred rmap) : spec :=
    fun (rsh sh: Share.t) (l: AV.address)  =>
     allp (jam (adr_range_dec l lock_size)
                          (jam (eq_dec l) 
-                            (yesat (SomeP nil (fun _ => R)) (LK lock_size) rsh sh)
+                            (yesat (SomeP rmaps.Mpred (fun _ => R)) (LK lock_size) rsh sh)
                             (CTat l rsh sh))
                     noat).
 
-Definition boolT : Type := bool.
-Definition unitT : Type := unit.
+Definition AssertTT (A: TypeTree): TypeTree :=
+  ArrowType A (ArrowType (ConstType environ) Mpred).
 
-Definition packPQ {A: Type} (P Q: A -> environ -> pred rmap) := 
-  (fun xy : (A*(boolT*(environ * unitT))) => 
-    if fst (snd xy) then P (fst xy) (fst (snd (snd xy))) else Q (fst xy) (fst (snd (snd xy)))).
+Definition SpecTT (A: TypeTree): TypeTree :=
+  ArrowType A (ArrowType (ConstType bool) (ArrowType (ConstType environ) Mpred)).
+
+Definition packPQ {A: rmaps.TypeTree}
+  (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)):
+  forall ts, dependent_type_functor_rec ts (SpecTT A) (pred rmap) :=
+  fun ts a b => if b then P ts a else Q ts a.
 
 Definition TTat (l: address) : pred rmap := TT.
 
-Definition FUNspec (fml: funsig) cc (A: Type) (P Q: A -> environ -> pred rmap)(l: address): pred rmap :=
-          allp (jam (eq_dec l) (pureat (SomeP (A::boolT::environ::nil) (packPQ P Q)) (FUN fml cc)) TTat).
+Definition FUNspec (fml: funsig) cc (A: TypeTree)
+  (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap))
+  (l: address): pred rmap :=
+  allp (jam (eq_dec l)
+         (pureat (SomeP (SpecTT A) (packPQ P Q)) (FUN fml cc)) TTat).
 
 (***********)
 
@@ -1254,9 +1270,9 @@ exists p.
 auto.
 Qed.
 
-Lemma LKspec_parametric: forall R,
+Lemma LKspec_parametric: forall R: pred rmap,
   spec_parametric (fun l rsh sh => jam (eq_dec l) 
-                            (yesat (SomeP nil (fun _ => R)) (LK lock_size) rsh sh)
+                            (yesat (SomeP Mpred (fun _ => R)) (LK lock_size) rsh sh)
                             (CTat l rsh sh)).
 Proof.
 intros.
@@ -1265,7 +1281,7 @@ intro; intros.
 simpl.
 destruct (eq_dec l l').
 unfold yesat, yesat_raw.
-exists (SomeP nil (fun _ : unit => R)).
+exists (SomeP Mpred (fun _ => R)).
 exists (fun k => k = LK lock_size).
 intros.
 apply exists_ext; intro p.
@@ -1288,10 +1304,10 @@ subst; auto.
 Qed.
 
 Lemma FUNspec_parametric: forall fml cc A P Q, 
-   spec_parametric (fun l sh => yesat (SomeP (A::boolT::environ::nil) (packPQ P Q)) (FUN fml cc) sh).
+   spec_parametric (fun l sh => yesat (SomeP (SpecTT A) (packPQ P Q)) (FUN fml cc) sh).
 Proof.
 intros.
-exists (SomeP (A::boolT::environ::nil) (packPQ P Q)).
+exists (SomeP (SpecTT A) (packPQ P Q)).
 exists (fun k => k=FUN fml cc).
 intros.
 simpl.
@@ -1411,7 +1427,9 @@ Qed.
 Definition val2address (v: val) : option AV.address := 
   match v with Vptr b ofs => Some (b, Int.signed ofs) | _ => None end.
 
-Definition fun_assert (fml: funsig) cc (A: Type) (P Q: A -> environ -> pred rmap) (v: val)  : pred rmap :=
+Definition fun_assert (fml: funsig) cc (A: TypeTree)
+  (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap))
+  (v: val)  : pred rmap :=
  (EX b : block, !! (v = Vptr b Int.zero) && FUNspec fml cc A P Q (b, 0))%pred.
 
 Definition LK_at l w := exists n, kind_at (LK n) l w.
