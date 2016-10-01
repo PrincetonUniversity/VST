@@ -1,5 +1,6 @@
 Require Import msl.msl_standard.
 Require Import veric.base.
+Require Import veric.rmaps.
 Require Import veric.compcert_rmaps.
 Require Import veric.Clight_lemmas.
 Require Export veric.lift.
@@ -217,8 +218,16 @@ Defined.
 
 Definition mpred := pred rmap.
 
+Definition AssertTT (A: TypeTree): TypeTree :=
+  ArrowType A (ArrowType (ConstType environ) Mpred).
+
+Definition SpecTT (A: TypeTree): TypeTree :=
+  ArrowType A (ArrowType (ConstType bool) (ArrowType (ConstType environ) Mpred)).
+
 Inductive funspec :=
-   mk_funspec: funsig -> calling_convention -> forall A: Type, (A -> environ->mpred) -> (A -> environ->mpred) -> funspec.
+   mk_funspec: funsig -> calling_convention -> forall A: TypeTree,
+     (forall ts, dependent_type_functor_rec ts (AssertTT A) mpred) ->
+     (forall ts, dependent_type_functor_rec ts (AssertTT A) mpred) -> funspec.
 
 (* Causes a universe inconsistency in seplog.v! 
 Definition example_f_spec :=

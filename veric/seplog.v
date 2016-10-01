@@ -1,6 +1,7 @@
 Require Import msl.log_normalize.
 Require Import msl.alg_seplog.
 Require Export veric.base.
+Require Import veric.rmaps.
 Require Import veric.compcert_rmaps.
 Require Import veric.slice.
 Require Import veric.res_predicates.
@@ -15,7 +16,7 @@ Open Local Scope pred.
 
 Definition func_at (f: funspec): address -> pred rmap :=
   match f with
-   | mk_funspec fsig cc A P Q => pureat (SomeP (A::boolT::environ::nil) (packPQ P Q)) (FUN fsig cc)
+   | mk_funspec fsig cc A P Q => pureat (SomeP (SpecTT A) (packPQ P Q)) (FUN fsig cc)
   end.
 
 Definition func_at' (f: funspec) (loc: address) : pred rmap :=
@@ -66,7 +67,9 @@ Definition subst {A} (x: ident) (v: val) (P: environ -> A) : environ -> A :=
    fun s => P (env_set s x v).
 
 Definition fun_assert: 
-  forall (fml: funsig) cc (A: Type) (P Q: A -> environ -> pred rmap)  (v: val) , pred rmap :=
+  forall (fml: funsig) cc (A: TypeTree)
+   (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap))
+   (v: val) , pred rmap :=
   res_predicates.fun_assert.
 
 Definition eval_lvar (id: ident) (ty: type) (rho: environ) :=

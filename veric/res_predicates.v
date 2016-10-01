@@ -1197,12 +1197,6 @@ Definition LKspec (R: pred rmap) : spec :=
                             (CTat l rsh sh))
                     noat).
 
-Definition AssertTT (A: TypeTree): TypeTree :=
-  ArrowType A (ArrowType (ConstType environ) Mpred).
-
-Definition SpecTT (A: TypeTree): TypeTree :=
-  ArrowType A (ArrowType (ConstType bool) (ArrowType (ConstType environ) Mpred)).
-
 Definition packPQ {A: rmaps.TypeTree}
   (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)):
   forall ts, dependent_type_functor_rec ts (SpecTT A) (pred rmap) :=
@@ -1567,9 +1561,6 @@ revert H H1; destruct (core w0 @ l); intros; try contradiction; inv H.
 destruct (make_rmap f H (level w0)) as [phi [? ?]].
 extensionality l; unfold f, compose; simpl.
 if_tac; simpl; auto.
-f_equal.
-unfold NoneP. f_equal. unfold compose. extensionality x.
-apply pred_ext; unfold approx, FF, prop; intros ? ?;  simpl; intuition.
 rewrite <- level_core.
 apply resource_at_approx.
 exists phi.
@@ -1597,10 +1588,6 @@ if_tac.
 destruct sh; simpl in *.
 exists n.
 f_equal.
-unfold NoneP; f_equal.
-extensionality xx.  apply pred_ext; intros ? ?.
-contradiction H1.
-simpl in H1. intuition.
 rewrite <- core_resource_at.
 apply core_identity.
 Qed.
@@ -1747,8 +1734,7 @@ Proof.
          w @ b1 =
          YES rsh (mk_lifted sh p)
            (VAL (nth (nat_of_Z (snd b1 - snd l)) b0 Undef))
-           (SomeP ((Void:Type) :: nil)
-              (approx (level w) oo (fun _ : Void * unit => FF)))
+           (SomeP (ConstType unit) (fun _ => tt))
       else identity (w @ b1))).
   Focus 1. {
     intros.
@@ -1767,8 +1753,7 @@ Proof.
          w @ b1 =
          YES rsh (mk_lifted sh p)
            (VAL (nth (nat_of_Z (snd b1 - snd l)) b0 Undef))
-           (SomeP ((Void:Type) :: nil)
-              (approx (level w) oo (fun _ : Void * unit => FF))))).
+           (SomeP (ConstType unit) (fun _ => tt)))).
   Focus 1. {
     intros.
     destruct H as [b0 H].
@@ -1783,8 +1768,7 @@ Proof.
         exists (b0 : memval) (p : nonunit sh),
           w @ b =
           YES rsh (mk_lifted sh p) (VAL b0)
-            (SomeP ((Void:Type) :: nil)
-               (approx (level w) oo (fun _ : Void * unit => FF)))).
+            (SomeP (ConstType unit) (fun _ => tt))).
   Focus 1. {
     intros.
     specialize (H0 b).
@@ -1884,56 +1868,66 @@ symmetry; unfold age in H0; simpl in H0.
   exists w3; split; auto. econstructor 2; eauto.
 Qed.
 
-
+(* TODO: resume this lemma. *)
+(*
 Lemma fun_assert_contractive:
-   forall fml cc A (P Q: pred rmap -> A -> environ -> pred rmap) v, 
-       (forall x vl, nonexpansive (fun R => P R x vl)) ->
-      (forall x vl, nonexpansive (fun R => Q R x vl)) ->
+   forall fml cc (A: TypeTree)
+     (P Q: pred rmap -> forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)) v, 
+      (forall ts x rho, nonexpansive (fun R => P R ts x rho)) ->
+      (forall ts x rho, nonexpansive (fun R => Q R ts x rho)) ->
       contractive (fun R : pred rmap => fun_assert fml cc A (P R) (Q R) v).
 Proof.
-intros.
-assert (H': forall xvl: A * environ, nonexpansive (fun R => P R (fst xvl) (snd xvl)))
-  by auto; clear H; rename H' into H.
-assert (H': forall xvl: A * environ, nonexpansive (fun R => Q R (fst xvl) (snd xvl)))
-  by auto; clear H0; rename H' into H0.
-intro; intros.
-rename H0 into H'.
-intro; intros.
-intro; intros; split; intros ? ? H7; simpl in H1.
-assert (a >= level a')%nat.
- apply necR_level in H2. clear - H1 H2. apply le_trans with (level y); auto.
- clear y H1 H2. rename H3 into H2.
-hnf.
-destruct H7 as [loc H7].
-hnf in H7. destruct H7 as [H1 H3].  hnf in H1.
-exists loc.
-apply prop_andp_i; auto.
-split; auto.
-hnf in H3|-*.
-intro; spec H3 b.
-hnf in H3|-*.
-if_tac; auto.
-subst b.
-hnf in H3|-*.
-rewrite H3; clear H3.
-f_equal.
-simpl.
-f_equal.
-extensionality xy.
-unfold compose.
-destruct xy as [x [y [vl [ ] ]]].
-unfold packPQ.
-simpl.
-if_tac.
-(* P proof *)
-spec H (x,vl) P0 Q0.
-apply approx_eq_i.
-apply (later_derives (unfash_derives H)); clear H.
-rewrite later_unfash.
-unfold unfash.
-red. red. 
-apply pred_nec_hereditary with a; auto.
-apply nec_nat; auto.
+  intros.
+  (*
+  assert (H': forall xvl: A * environ, nonexpansive (fun R => P R (fst xvl) (snd xvl)))
+    by auto; clear H; rename H' into H.
+  assert (H': forall xvl: A * environ, nonexpansive (fun R => Q R (fst xvl) (snd xvl)))
+    by auto; clear H0; rename H' into H0.
+  *)
+  intro; intros.
+  rename H0 into H'.
+  intro; intros.
+  intro; intros; split; intros ? ? H7; simpl in H1.
+  + assert (a >= level a')%nat.
+    Focus 1. {
+      apply necR_level in H2. clear - H1 H2.
+      apply le_trans with (level y); auto.
+    } Unfocus.
+    clear y H1 H2. rename H3 into H2.
+    hnf.
+    destruct H7 as [loc H7].
+    hnf in H7. destruct H7 as [H1 H3].  hnf in H1.
+    exists loc.
+    apply prop_andp_i; auto.
+    split; auto.
+    hnf in H3|-*.
+    intro; spec H3 b.
+    hnf in H3|-*.
+    if_tac; auto.
+    subst b.
+    hnf in H3|-*.
+    rewrite H3; clear H3.
+    f_equal.
+    simpl.
+    f_equal.
+    extensionality ts.
+    extensionality x.
+    extensionality b.
+    extensionality rho.
+    unfold packPQ.
+    simpl.
+    if_tac.
+    - (* P proof *)
+      spec H ts x rho P0 Q0.
+Check approx_eq_i.
+      apply approx_eq_i.
+pose proof (later_derives (unfash_derives H)).
+      apply (later_derives (unfash_derives H)); clear H.
+      rewrite later_unfash.
+      unfold unfash.
+      red. red. 
+      apply pred_nec_hereditary with a; auto.
+      apply nec_nat; auto.
 (* Q proof *)
 clear H; rename H' into H.
 spec H (x,vl) P0 Q0.
@@ -1990,7 +1984,7 @@ red. red. red.
 apply pred_nec_hereditary with a; auto.
 apply nec_nat; auto.
 Qed.
-
+*)
 Lemma VALspec_range_bytes_readable:
   forall n rsh sh loc m, VALspec_range n rsh sh loc m -> bytes_readable loc n m.
 Proof.
@@ -2066,7 +2060,6 @@ hnf in H, H0. if_tac in H.
   simpl in *.
   f_equal.
   inv H0; inv H; congruence.
-  repeat rewrite preds_fmap_NoneP; auto.
 + do 3 red in H,H0.
   destruct H1.
   destruct H2.
@@ -2212,14 +2205,14 @@ Lemma is_resource_pred_YES_VAL rsh sh:
   is_resource_pred
     (fun l' => EX  v: memval, yesat NoneP (VAL v) rsh sh l')
     (fun r _ n => (exists b0 p, r = YES rsh (mk_lifted sh p) (VAL b0)
-        (SomeP ((Void:Type) :: nil) (approx n oo (fun _ : Void * unit => FF))))).
+        (SomeP (ConstType unit) (fun _ => tt)))).
 Proof. hnf; intros. reflexivity. Qed.
 
 Lemma is_resource_pred_YES_VAL' rsh sh v:
   is_resource_pred
     (fun l' => yesat NoneP (VAL (v l')) rsh sh l')
     (fun r l n => (exists p, r = YES rsh (mk_lifted sh p) (VAL (v l))
-        (SomeP ((Void:Type) :: nil) (approx n oo (fun _ : Void * unit => FF))))).
+        (SomeP (ConstType unit) (fun _ => tt)))).
 Proof. hnf; intros. reflexivity. Qed.
 
 Lemma is_resource_pred_nonlock_shareat sh:
@@ -2616,7 +2609,7 @@ apply pred_ext.
     rewrite Share.unrel_rel in H99 by apply Lsh_nonidentity.
     pose proof (join_eq RJ H99); clear H99; subst rsh3.
     hnf. rewrite <- H9; clear H9.
-    f_equal; [ | rewrite (proj2 (join_level _ _ _ H0)); reflexivity].
+    f_equal.
     assert (Share.unrel Share.Rsh sh2 = Share.unrel Share.Rsh sh).
     assert  (H98 := Share.unrel_join Share.Rsh _ _ _ H).
     assert (H97:=Share.unrel_splice_R t Share.bot); 
@@ -2631,7 +2624,7 @@ apply pred_ext.
    assert  (H99 := Share.unrel_join Share.Lsh _ _ _ H).
    assert  (H98 := Share.unrel_join Share.Rsh _ _ _ H).
    rewrite (Share.unrel_splice_L t (pshare_sh p0)) in H99.
-   f_equal; [ | | rewrite (proj2 (join_level _ _ _ H0)); reflexivity].
+   f_equal.
    eapply join_eq; eauto.
    rewrite (Share.unrel_splice_R t (pshare_sh p0)) in H98.
    clear - H2 H98.
@@ -2723,7 +2716,7 @@ apply pred_ext.
   -
    apply H0.
  +
-   intro loc; hnf. simpl. rewrite H3,H4.  simpl.
+   intro loc; hnf. simpl. rewrite H4.  simpl.
   clear dependent w1. clear dependent w2.
   specialize (H0 loc). hnf in H0.  
   if_tac in H0.

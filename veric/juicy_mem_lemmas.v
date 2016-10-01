@@ -139,12 +139,7 @@ simpl in *. unfold compose in *.
 inv H. simpl in *.
 apply EqdepFacts.eq_sigT_eq_dep in H2.
 apply Eqdep.EqdepTheory.eq_dep_eq in H2.
-f_equal.
-extensionality.
-apply exist_ext.
-extensionality.
-f_equal.
-intuition.
+auto.
 Qed.
 
 Lemma oracle_unage:
@@ -647,10 +642,6 @@ inv H.
 destruct (make_rmap f H lev) as [phi [? ?]].
 extensionality l; unfold f, compose; simpl.
 if_tac; hnf; auto.
-simpl.
-f_equal.
-unfold NoneP. f_equal. unfold compose. extensionality x.
-apply approx_FF.
 exists phi.
 split; auto.
 exists (Mem.getN (size_chunk_nat ch) (snd loc) (PMap.get (fst loc) (Mem.mem_contents m))).
@@ -668,10 +659,6 @@ if_tac.
 destruct sh; simpl in *.
 exists n.
 f_equal. 
-unfold NoneP; f_equal.
-extensionality xx.  unfold compose. symmetry.
-apply approx_FF.
-auto.
 apply NO_identity.
 Qed.
     
@@ -959,7 +946,6 @@ assert (H3 : m_phi j @ (b0, ofs0) = YES Share.top pfullshare (VAL mv) NoneP).
 rewrite H3. repeat rewrite preds_fmap_NoneP. unfold pfullshare.
 apply join_unit2. constructor. apply join_unit1; auto.
 f_equal. apply exist_ext; auto.
-unfold NoneP. f_equal. extensionality z. unfold compose. apply approx_FF.
 
 (* ~adr_range *)
  clear H0.

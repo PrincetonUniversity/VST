@@ -203,7 +203,6 @@ Next Obligation.  (* contents_cohere *)
  generalize (necR_YES _ _ _ _ _ _ _ H H1); intros.
  rewrite H0 in H2. inv H2.
  destruct (JMcontents t p v loc _ H1). subst; split; auto.
- apply preds_fmap_NoneP.
  rewrite (necR_PURE _ _ _ _ _ H H1) in H0. inv H0.
 Qed.
 Next Obligation. (* access_cohere *)
@@ -612,9 +611,10 @@ Lemma approx_map_idem: forall n (lp: preds),
   preds_fmap (approx n) (approx n) (preds_fmap (approx n) (approx n) lp) =
   preds_fmap (approx n) (approx n) lp.
 Proof.
-intros n ls; unfold preds_fmap.
-destruct ls.
-rewrite <- compose_assoc.
+intros n ls.
+change (preds_fmap (approx n) (approx n) (preds_fmap (approx n) (approx n) ls))
+with (((preds_fmap (approx n) (approx n)) oo (preds_fmap (approx n) (approx n))) ls).
+rewrite preds_fmap_comp.
 rewrite (approx_oo_approx n).
 auto.
 Qed.
@@ -1260,7 +1260,6 @@ intros.
 unfold resource_fmap, compose, mod_after_alloc'.
 extensionality loc.
 if_tac; auto.
-rewrite preds_fmap_NoneP; auto.
 case_eq (core phi @ loc); intros; auto; f_equal;
 rewrite <- level_core;
 generalize (resource_at_approx (core phi) loc); rewrite H0; intro; injection H1; auto.
@@ -1434,14 +1433,16 @@ Proof.
  replace (resource_fmap (approx (level m3)) (approx (level m3)) (m1 @ l))
     with (resource_fmap (approx (level m3)) (approx (level m3))
               (resource_fmap (approx (level m2)) (approx (level m2)) (m1 @ l)))
-  by (rewrite resource_fmap_fmap; rewrite approx_oo_approx' by auto; auto).
+  by (rewrite resource_fmap_fmap; rewrite approx_oo_approx' by auto; rewrite approx'_oo_approx by auto; auto).
 rewrite H1. auto.
  clear - Hbb H H1 H0 H2 H' H0'.
  right.
  destruct H2 as [[rsh2 [v2 [v2' [? ?]]]]|[[? [v ?]] |?]]; subst.
  left; exists rsh2,v2,v2'; split; auto.
  rewrite <- H1 in H2.
- rewrite resource_fmap_fmap in H2. rewrite approx_oo_approx' in H2 by omega.
+ rewrite resource_fmap_fmap in H2.
+ rewrite approx_oo_approx' in H2 by omega.
+ rewrite approx'_oo_approx in H2 by omega.
  assumption.
  right; left. split. xomega. exists v; auto.
  right; right; auto.
@@ -1548,8 +1549,6 @@ assert (p0 = pfullshare). {
  }
  subst p0.
  do 3 econstructor; split; try reflexivity.
- unfold resource_fmap. rewrite preds_fmap_NoneP.
- reflexivity.
 unfold inflate_store;  rewrite resource_at_make_rmap.
 rewrite H3.
 reflexivity.
@@ -1567,7 +1566,7 @@ assert (H: p0 = NoneP).
   symmetry in HeqHPHI; 
   destruct  (juicy_mem_contents jm _ _ _ _ _ HeqHPHI); auto.
 rewrite H. 
-unfold resource_fmap; f_equal; try reflexivity. apply preds_fmap_NoneP.
+unfold resource_fmap; f_equal; try reflexivity.
 assert (H: p0 = NoneP).
   symmetry in HeqHPHI;
   destruct  (juicy_mem_contents jm _ _ _ _ _ HeqHPHI); auto. 
