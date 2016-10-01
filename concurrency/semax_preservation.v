@@ -922,6 +922,130 @@ Proof.
     destruct SO as (_ & _ & <-). auto.
 Qed.
 
+(*
+Lemma mem_ext2 m m' :
+  (nextblock m = nextblock m') ->
+  (forall loc, contents_at m loc = contents_at m' loc) ->
+  (forall loc, access_at m loc Cur = access_at m' loc Cur) ->
+  (forall loc, max_access_at m loc = max_access_at m' loc) ->
+  m = m'.
+Proof.
+  intros En Ec Ecur Emax; apply mem_ext.
+  - extensionality loc.
+Qed.
+  (forall loc, contents_at m loc = contents_at m' loc) ->
+ *)
+
+Definition isYES (r : resource) :=
+  match r with
+  (* | YES _ _ (VAL _) _ => Logic.True *)
+  | YES _ _ _ _ => Logic.True
+  | _ => False
+  end.
+
+Lemma restrPermMap_Max' m p Hlt loc :
+  access_at (@restrPermMap p m Hlt) loc Max = access_at m loc Max.
+Proof.
+  pose proof restrPermMap_max Hlt as R.
+  apply equal_f with (x := loc) in R.
+  apply R.
+Qed.
+
+Lemma restrPermMap_Cur' m p Hlt loc :
+  access_at (@restrPermMap p m Hlt) loc Cur = p !! (fst loc) (snd loc).
+Proof.
+  apply (restrPermMap_Cur Hlt (fst loc) (snd loc)).
+Qed.
+
+Lemma access_at_fold m b ofs k :
+  (mem_access m) !! b ofs k = access_at m (b, ofs) k.
+Proof.
+  reflexivity.
+Qed.
+  
+Lemma personal_mem_equiv_spec m m' phi pr pr' :
+  nextblock m = nextblock m' ->
+  (forall loc, max_access_at m loc = max_access_at m' loc) ->
+  (* (forall loc, res_isVAL (phi @ loc) -> contents_at m loc = contents_at m' loc) -> *)
+  (forall loc, isYES (phi @ loc) -> contents_at m loc = contents_at m' loc) ->
+  mem_equiv
+    (m_dry (@personal_mem m phi pr))
+    (m_dry (@personal_mem m' phi pr')).
+Proof.
+  intros En Emax Econt.
+  
+  assert (same_perm :
+            forall b ofs k p,
+              perm (juicyRestrict (acc_coh pr)) b ofs k p <->
+              perm (juicyRestrict (acc_coh pr')) b ofs k p).
+  {
+    intros.
+    unfold juicyRestrict in *.
+    unfold perm in *.
+    unfold perm_order' in *.
+    match goal with |-context[PMap.get ?a ?b ?c ?d] => set (x := PMap.get a b c d) end.
+    match goal with |-context[PMap.get ?a ?b ?c ?d] => set (y := PMap.get a b c d) end.
+    cut (x = y); [ intros ->; intuition | unfold x, y; clear x y].
+    do 2 rewrite access_at_fold.
+    destruct k.
+    - do 2 rewrite restrPermMap_Max'.
+      apply Emax.
+    - do 2 rewrite restrPermMap_Cur'.
+      simpl.
+      rewrite <-juic2Perm_correct. 2: apply pr.
+      rewrite <-juic2Perm_correct. 2: apply pr'.
+      reflexivity.
+  }
+  
+  unfold personal_mem in *; simpl.
+  split3.
+  - Transparent loadbytes.
+    unfold loadbytes in *.
+    extensionality b ofs n.
+    destruct (range_perm_dec _ _ _) as [R1|R1];
+      destruct (range_perm_dec _ _ _) as [R2|R2].
+    + simpl.
+      destruct n as [ | n | ]; auto.
+      assert (Z.pos n = Z.of_nat (nat_of_Z (Z.pos n))) as R.
+      { rewrite Coqlib.nat_of_Z_eq; auto. zify. omega. }
+      rewrite R in R1, R2. remember (nat_of_Z (Z.pos n)) as k.
+      clear Heqk R n.
+      revert ofs R1 R2; induction k; intros ofs R1 R2; auto.
+      simpl.
+      do 2 f_equal.
+      * clear IHk.
+        specialize (Econt (b, ofs)).
+        apply Econt.
+        specialize (R1 ofs ltac:(zify;omega)).
+        pose proof @juicyRestrictCurEq phi m ltac:(apply pr) (b, ofs) as R.
+        unfold access_at in R.
+        simpl fst in R; simpl snd in R.
+        unfold perm in R1.
+        rewrite R in R1.
+        destruct (phi @ (b, ofs)); auto.
+        simpl in R1.
+        -- if_tac in R1; inversion R1.
+        -- constructor.
+        -- inversion R1.
+      * match goal with |- ?x = ?y => cut (Some x = Some y); [injection 1; auto | ] end.
+        apply IHk.
+        -- intros ofs' int; apply (R1 ofs' ltac:(zify; omega)).
+        -- intros ofs' int; apply (R2 ofs' ltac:(zify; omega)).
+    + exfalso.
+      apply R2; clear R2.
+      intros ofs' int; specialize (R1 ofs' int).
+      rewrite same_perm in R1; auto.
+    + exfalso.
+      apply R1; clear R1.
+      intros ofs' int; specialize (R2 ofs' int).
+      rewrite <-same_perm in R2; auto.
+    + reflexivity.
+  - extensionality b ofs k.
+    extensionality p.
+    apply prop_ext; auto.
+  - auto.
+Qed.
+
 Section Preservation.
   Variables
     (CS : compspecs)
@@ -2617,7 +2741,8 @@ Section Preservation.
                  apply juicyRestrictCur_ext.
                  unshelve erewrite gsoThreadRes; auto.
                Qed.
-               *)
+                *)
+               
                
                unfold tp_.
                Unset Printing Implicit.
