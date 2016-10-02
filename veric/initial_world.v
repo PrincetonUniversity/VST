@@ -1371,10 +1371,14 @@ change compcert_rmaps.R.rmap with rmap in *.
 rewrite lev'.
 unfold initial_core.
 rewrite level_make_rmap.
-rewrite <- compose_assoc.
-f_equal.
-apply approx_oo_approx'.
-omega.
+extensionality ts x b; extensionality rho.
+rewrite MixVariantFunctorLemmas.fmap_app.
+match goal with
+| |- ?A (?B ?C) = _ => change (A (B C)) with ((A oo B) C)
+end.
+rewrite approx_oo_approx' by omega.
+rewrite approx'_oo_approx by omega.
+auto.
 Qed.
 
 Fixpoint prog_vars' {F V} (l: list (ident * globdef F V)) : list (ident * globvar V) :=

@@ -1,3 +1,4 @@
+Require Import Coq.Logic.FunctionalExtensionality.
 Require Import veric.juicy_base.
 Require Import msl.normalize.
 Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
@@ -95,21 +96,24 @@ Proof. intros. injection H; intro. apply inj_pair2 in H0. auto. Qed.
 
 Lemma function_pointer_aux:
   forall A P P' Q Q' (w: rmap), 
-   SomeP (A::boolT::environ::nil) (approx (level w) oo packPQ P Q) =
-   SomeP (A::boolT::environ::nil) (approx (level w) oo packPQ P' Q') ->
-   ( (forall x vl, (! |> (P' x vl <=> P x vl)) w) /\
-     (forall x vl, (! |> (Q' x vl <=> Q x vl)) w)).
+   SomeP (SpecTT A) (MixVariantFunctor.fmap (MixVariantFunctorGenerator.fpi _) (approx (level w)) (approx (level w)) (packPQ P Q)) =
+   SomeP (SpecTT A) (MixVariantFunctor.fmap (MixVariantFunctorGenerator.fpi _) (approx (level w)) (approx (level w)) (packPQ P' Q')) ->
+   ( (forall ts x vl, (! |> (P' ts x vl <=> P ts x vl)) w) /\
+     (forall ts x vl, (! |> (Q' ts x vl <=> Q ts x vl)) w)).
 Proof.
 intros.
 apply someP_inj in H.
-unfold packPQ, compose in H.
+unfold packPQ in H; simpl in H.
 split; intros.
-apply equal_f with (x,(true,(vl,tt))) in H.
+apply equal_f_dep with ts in H.
+apply equal_f with x in H.
+apply equal_f with true in H.
+apply equal_f with vl in H.
 simpl in H.
 rewrite @later_fash; auto with typeclass_instances.
 intros ? ? m' ?.
 split; intros m'' ? ?;  apply f_equal with (f:= fun x => app_pred x m'') in H;
-apply prop_unext in H; apply approx_p with (level w); apply H;
+apply prop_unext in H. apply approx_p with (level w). apply H;
 apply approx_lt; auto; clear - H0 H1 H2; hnf in H1; apply laterR_level in H1;
 apply necR_level in H2; simpl in *;
 change compcert_rmaps.R.ag_rmap with ag_rmap in *;

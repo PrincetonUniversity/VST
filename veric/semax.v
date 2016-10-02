@@ -141,16 +141,20 @@ Definition make_ext_rval  (gx: genviron) (v: option val):=
   end.
 
 Definition semax_external 
-  (Hspec: OracleKind) (ids: list ident) ef (A: Type) (P Q: A -> environ -> pred rmap): 
+  (Hspec: OracleKind) (ids: list ident) ef
+  (A: TypeTree)
+  (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)):
         pred nat := 
- ALL gx: genv, ALL x: A, 
- |>  ALL F: pred rmap, ALL ts: list typ, ALL args: list val,
-   juicy_mem_op (P x (make_ext_args (filter_genv gx) ids args) * F) >=> 
+ ALL gx: genv, ALL Ts: list Type,
+ ALL x: (dependent_type_functor_rec Ts A (pred rmap)),
+   |>  ALL F: pred rmap, ALL ts: list typ,
+   ALL args: list val,
+   juicy_mem_op (P Ts x (make_ext_args (filter_genv gx) ids args) * F) >=> 
    EX x': ext_spec_type OK_spec ef,
     ALL z:_, ext_spec_pre' Hspec ef x' (Genv.genv_symb gx) ts args z &&
      ! ALL tret: option typ, ALL ret: option val, ALL z': OK_ty, 
       ext_spec_post' Hspec ef x' (Genv.genv_symb gx) tret ret z' >=>
-          juicy_mem_op (Q x (make_ext_rval (filter_genv gx) ret) * F).
+          juicy_mem_op (Q Ts x (make_ext_rval (filter_genv gx) ret) * F).
 
 Definition tc_option_val (sig: type) (ret: option val) :=
   match sig, ret with
@@ -167,15 +171,19 @@ Fixpoint zip_with_tl {A : Type} (l1 : list A) (l2 : typelist) : list (A*type) :=
   end.
 
 Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: funsig) cc
-           (A: Type) (P Q: A -> environ -> pred rmap) : pred nat :=
+  (A: TypeTree)
+  (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)):
+  pred nat :=
   match Genv.find_funct gx v with 
   | Some (External ef sigargs sigret cc') => 
       let ids := fst (split (fst fsig)) in
         !! (fsig = (zip_with_tl ids sigargs, sigret) /\ cc'=cc 
             /\ length (typelist2list sigargs)=length ids) 
         && semax_external Hspec ids ef A P Q 
-        && ! (ALL x:A, ALL ret:option val, 
-                Q x (make_ext_rval (filter_genv gx) ret) >=> !! tc_option_val sigret ret)
+        && ! (ALL ts: list Type,
+              ALL x: dependent_type_functor_rec ts A (pred rmap),
+              ALL ret:option val, 
+                Q ts x (make_ext_rval (filter_genv gx) ret) >=> !! tc_option_val sigret ret)
   | _ => FF 
   end.
 
@@ -195,18 +203,21 @@ Definition stackframe_of' (cenv: composite_env) (f: Clight.function) : assert :=
 
 Definition believe_internal_ 
   (semax:semaxArg -> pred nat)
-  (gx: genv) (Delta: tycontext) v (fsig: funsig) cc A (P Q: A -> assert) : pred nat :=
+  (gx: genv) (Delta: tycontext) v (fsig: funsig) cc (A: TypeTree)
+  (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)) : pred nat :=
   (EX b: block, EX f: function,  
    prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ Forall (fun it => complete_type (genv_cenv gx) (snd it) = true) (fn_vars f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
                  /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok (genv_cenv gx) (f.(fn_vars))
                  /\ fsig = fn_funsig f /\ f.(fn_callconv) = cc)
-  && ALL x : A, |> semax (SemaxArg  (func_tycontext' f Delta)
-                                (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P x) rho * stackframe_of' (genv_cenv gx) f rho)
+  && ALL ts: list Type,
+     ALL x : dependent_type_functor_rec ts A (pred rmap),
+           |> semax (SemaxArg  (func_tycontext' f Delta)
+                                (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P ts x) rho * stackframe_of' (genv_cenv gx) f rho)
                                              && funassert (func_tycontext' f Delta) rho)
                               (Ssequence f.(fn_body) (Sreturn None))
-           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of' (genv_cenv gx) f)))).
+           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of' (genv_cenv gx) f)))).
 
 Definition empty_environ (ge: genv) := mkEnviron (filter_genv ge) (Map.empty _) (Map.empty _).
 
@@ -217,7 +228,9 @@ Definition claims (ge: genv) (Delta: tycontext) v fsig cc A P Q : Prop :=
 Definition believepred (Espec: OracleKind) (semax: semaxArg -> pred nat)
               (Delta: tycontext) (gx: genv)  (Delta': tycontext) : pred nat :=
   ALL v:val, ALL fsig: funsig, ALL cc: calling_convention,
-         ALL A: Type, ALL P: A -> assert, ALL Q: A -> assert,
+  ALL A: TypeTree,
+  ALL P: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred,
+  ALL Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred,
        !! claims gx Delta' v fsig cc A P Q  -->
       (believe_external Espec gx v fsig cc A P Q
         || believe_internal_ semax gx Delta v fsig cc A P Q).
@@ -238,23 +251,28 @@ Definition semax'  {CS: compspecs} (Espec: OracleKind) Delta P c R : pred nat :=
      HORec (semax_  Espec) (SemaxArg Delta P c R).
 
 Definition believe_internal {CS: compspecs} (Espec:  OracleKind)
-  (gx: genv) (Delta: tycontext) v (fsig: funsig) cc A (P Q: A -> assert) : pred nat :=
+  (gx: genv) (Delta: tycontext) v (fsig: funsig) cc (A: TypeTree)
+  (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)) : pred nat :=
   (EX b: block, EX f: function,  
    prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ Forall (fun it => complete_type (genv_cenv gx) (snd it) = true) (fn_vars f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
                  /\ list_norepet (map (@fst _ _) f.(fn_vars)) /\ var_sizes_ok (genv_cenv gx) (f.(fn_vars))
                  /\ fsig = fn_funsig f /\ f.(fn_callconv) = cc)
-  && ALL x : A, |> semax' Espec (func_tycontext' f Delta)
-                                (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P x) rho * stackframe_of' (genv_cenv gx)  f rho)
+  && ALL ts: list Type,
+     ALL x : dependent_type_functor_rec ts A (pred rmap),
+        |> semax' Espec (func_tycontext' f Delta)
+                                (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P ts x) rho * stackframe_of' (genv_cenv gx)  f rho)
                                              && funassert (func_tycontext' f Delta) rho)
                                (Ssequence f.(fn_body) (Sreturn None))  
-           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of' (genv_cenv gx) f))).
+           (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of' (genv_cenv gx) f))).
 
 Definition believe {CS: compspecs} (Espec:OracleKind)
               (Delta: tycontext) (gx: genv) (Delta': tycontext): pred nat :=
   ALL v:val, ALL fsig: funsig, ALL cc: calling_convention,
-         ALL A: Type, ALL P: A -> assert, ALL Q: A -> assert,
+  ALL A: TypeTree,
+  ALL P: (forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)),
+  ALL Q: (forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)),
        !! claims gx Delta' v fsig cc A P Q  -->
       (believe_external Espec gx v fsig cc A P Q
         || believe_internal Espec gx Delta v fsig cc A P Q).
