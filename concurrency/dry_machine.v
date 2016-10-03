@@ -486,11 +486,10 @@ Module Concur.
            (*                      (Maps.PMap.get b (computeMap empty_map virtue2) *)
            (*                                     ofs)) *)
            (* loose spec: thread2' * thread1' = thread1 *)
-           (Hangel: 
-           (Htp_upd: tp_upd = updThread cnt0 (Kresume c Vundef) )
-           (Htp': tp' = addThread tp_upd (Vptr b ofs) arg
-                                  (computeMap empty_map virtue2.1,
-                                   computeMap empty_map virtue2.2)),
+           (Hangel1: permMapJoin newThreadPerm.1 threadPerm'.1 (getThreadR cnt0).1)
+           (Hangel2: permMapJoin newThreadPerm.2 threadPerm'.2 (getThreadR cnt0).2)
+           (Htp_upd: tp_upd = updThread cnt0 (Kresume c Vundef) threadPerm')
+           (Htp': tp' = addThread tp_upd (Vptr b ofs) arg newThreadPerm),
            ext_step genv cnt0 Hcompat tp' m (spawn (b, Int.intval ofs))
                     
      | step_mklock :

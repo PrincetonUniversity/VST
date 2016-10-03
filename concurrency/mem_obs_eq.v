@@ -3046,7 +3046,9 @@ Module Type CoreInjections (SEM: concurrent_machine.Semantics).
             f (Z.to_pos bz) = None)
       /\ (Mem.nextblock mc = Mem.nextblock mf ->
          (forall b1 b2, f b1 = Some b2 -> b1 = b2) ->
-         forall b1 b2, f' b1 = Some b2 -> b1 = b2).
+         forall b1 b2, f' b1 = Some b2 -> b1 = b2)
+      /\ (forall b2, (~exists b1, f' b1 = Some b2) ->
+               forall ofs, permission_at mf b2 ofs Cur = permission_at mf' b2 ofs Cur).
 
   (* Starting from a wd state, we get a new valid memory and the fact
      that there exists some renaming whose domain is the same as the
