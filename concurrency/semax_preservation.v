@@ -55,7 +55,57 @@ Require Import concurrency.semax_invariant.
 Require Import concurrency.semax_simlemmas.
 Require Import concurrency.sync_preds.
 
+Local Arguments getThreadR : clear implicits.
+Local Arguments getThreadC : clear implicits.
+Local Arguments personal_mem : clear implicits.
+Local Arguments updThread : clear implicits.
+Local Arguments updThreadR : clear implicits.
+Local Arguments updThreadC : clear implicits.
+Local Arguments juicyRestrict : clear implicits.
+
 Set Bullet Behavior "Strict Subproofs".
+
+Tactic Notation "REWR" :=
+  first
+    [ unshelve erewrite <-getThreadR_age |
+      unshelve erewrite gssThreadRes |
+      unshelve erewrite gsoThreadRes |
+      unshelve erewrite gThreadCR |
+      unshelve erewrite gssAddRes |
+      unshelve erewrite gsoAddRes |
+      unshelve erewrite gLockSetRes |
+      unshelve erewrite perm_of_age |
+      unshelve erewrite gRemLockSetRes |
+      unshelve erewrite m_phi_age_to
+    ]; auto.
+
+Tactic Notation "REWR" "in" hyp(H) :=
+  first
+    [ unshelve erewrite <-getThreadR_age in H |
+      unshelve erewrite gssThreadRes in H |
+      unshelve erewrite gsoThreadRes in H |
+      unshelve erewrite gThreadCR in H |
+      unshelve erewrite gssAddRes in H |
+      unshelve erewrite gsoAddRes in H |
+      unshelve erewrite gLockSetRes in H |
+      unshelve erewrite perm_of_age in H |
+      unshelve erewrite gRemLockSetRes in H |
+      unshelve erewrite m_phi_age_to in H
+    ]; auto.
+
+Tactic Notation "REWR" "in" "*" :=
+  first
+    [ unshelve erewrite <-getThreadR_age in * |
+      unshelve erewrite gssThreadRes in * |
+      unshelve erewrite gsoThreadRes in * |
+      unshelve erewrite gThreadCR in * |
+      unshelve erewrite gssAddRes in * |
+      unshelve erewrite gsoAddRes in * |
+      unshelve erewrite gLockSetRes in * |
+      unshelve erewrite perm_of_age in * |
+      unshelve erewrite gRemLockSetRes in * |
+      unshelve erewrite m_phi_age_to in *
+    ]; auto.
 
 Lemma rmap_bound_join {b phi1 phi2 phi3} :
   join phi1 phi2 phi3 ->
@@ -129,8 +179,8 @@ Qed.
 
 Lemma resource_decay_join_all {tp m Phi} c' {phi' i} {cnti : ThreadPool.containsThread tp i}:
   rmap_bound (Mem.nextblock m) Phi ->
-  resource_decay (Mem.nextblock m) (ThreadPool.getThreadR cnti) phi' /\
-  level (getThreadR cnti) = S (level phi') ->
+  resource_decay (Mem.nextblock m) (getThreadR i tp cnti) phi' /\
+  level (getThreadR i tp cnti) = S (level phi') ->
   join_all tp Phi ->
   exists Phi',
     join_all (@updThread i (age_tp_to (level phi') tp) (cnt_age' cnti) c' phi') Phi' /\
@@ -570,7 +620,7 @@ Proof.
 Qed.
 
 Lemma m_phi_jm_ m tp phi i cnti compat :
-  m_phi (@jm_ tp m phi i cnti compat) = getThreadR cnti.
+  m_phi (@jm_ tp m phi i cnti compat) = getThreadR i tp cnti.
 Proof.
   reflexivity.
 Qed.
@@ -922,26 +972,16 @@ Proof.
     destruct SO as (_ & _ & <-). auto.
 Qed.
 
-(*
-Lemma mem_ext2 m m' :
-  (nextblock m = nextblock m') ->
-  (forall loc, contents_at m loc = contents_at m' loc) ->
-  (forall loc, access_at m loc Cur = access_at m' loc Cur) ->
-  (forall loc, max_access_at m loc = max_access_at m' loc) ->
-  m = m'.
-Proof.
-  intros En Ec Ecur Emax; apply mem_ext.
-  - extensionality loc.
-Qed.
-  (forall loc, contents_at m loc = contents_at m' loc) ->
- *)
-
-Definition isYES (r : resource) :=
+Definition isVAL (r : resource) :=
   match r with
-  (* | YES _ _ (VAL _) _ => Logic.True *)
-  | YES _ _ _ _ => Logic.True
+  | YES _ _ (VAL _) _ => Logic.True
   | _ => False
   end.
+
+Lemma isVAL_join_sub r1 r2 : join_sub r1 r2 -> isVAL r1 -> isVAL r2.
+Proof.
+  intros (r & j); inv j; simpl; tauto.
+Qed.
 
 Lemma restrPermMap_Max' m p Hlt loc :
   access_at (@restrPermMap p m Hlt) loc Max = access_at m loc Max.
@@ -966,8 +1006,7 @@ Qed.
 Lemma personal_mem_equiv_spec m m' phi pr pr' :
   nextblock m = nextblock m' ->
   (forall loc, max_access_at m loc = max_access_at m' loc) ->
-  (* (forall loc, res_isVAL (phi @ loc) -> contents_at m loc = contents_at m' loc) -> *)
-  (forall loc, isYES (phi @ loc) -> contents_at m loc = contents_at m' loc) ->
+  (forall loc, isVAL (phi @ loc) -> contents_at m loc = contents_at m' loc) ->
   mem_equiv
     (m_dry (@personal_mem m phi pr))
     (m_dry (@personal_mem m' phi pr')).
@@ -976,8 +1015,8 @@ Proof.
   
   assert (same_perm :
             forall b ofs k p,
-              perm (juicyRestrict (acc_coh pr)) b ofs k p <->
-              perm (juicyRestrict (acc_coh pr')) b ofs k p).
+              perm (juicyRestrict _ _ (acc_coh pr)) b ofs k p <->
+              perm (juicyRestrict _ _ (acc_coh pr')) b ofs k p).
   {
     intros.
     unfold juicyRestrict in *.
@@ -1022,11 +1061,8 @@ Proof.
         simpl fst in R; simpl snd in R.
         unfold perm in R1.
         rewrite R in R1.
-        destruct (phi @ (b, ofs)); auto.
-        simpl in R1.
-        -- if_tac in R1; inversion R1.
-        -- constructor.
-        -- inversion R1.
+        destruct (phi @ (b, ofs)) as [t0 | t0 p [] p0 | k0 p]; auto; try inversion R1 || constructor.
+        simpl in R1. if_tac in R1; inversion R1.
       * match goal with |- ?x = ?y => cut (Some x = Some y); [injection 1; auto | ] end.
         apply IHk.
         -- intros ofs' int; apply (R1 ofs' ltac:(zify; omega)).
@@ -1044,6 +1080,74 @@ Proof.
     extensionality p.
     apply prop_ext; auto.
   - auto.
+Qed.
+
+Lemma juicyRestrict_ext  m phi phi' pr pr' :
+  (forall loc, perm_of_res (phi @ loc) = perm_of_res (phi' @ loc)) ->
+  juicyRestrict phi m (acc_coh pr) = juicyRestrict phi' m (acc_coh pr').
+Proof.
+  intros E.
+  unfold juicyRestrict, juice2Perm.
+  apply restrPermMap_ext; intros b.
+  extensionality ofs.
+  unfold mapmap in *.
+  unfold "!!".
+  simpl.
+  do 2 rewrite PTree.gmap.
+  unfold option_map in *.
+  destruct (PTree.map1 _) as [|].
+  - destruct (PTree.Leaf ! _) as [|]; auto.
+  - destruct ((PTree.Node _ _ _) ! _) as [|]; auto.
+Qed.
+
+Lemma m_dry_personal_mem_eq m phi phi' pr pr' :
+  (forall loc, perm_of_res (phi @ loc) = perm_of_res (phi' @ loc)) ->
+  m_dry (@personal_mem m phi pr) =
+  m_dry (@personal_mem m phi' pr').
+Proof.
+  intros E; simpl.
+  apply juicyRestrict_ext; auto.
+Qed.
+
+Lemma juicyRestrict_age_to m phi n pr pr' :
+  @juicyRestrict (@age_to n rmap ag_rmap phi) m (@acc_coh m (@age_to n rmap ag_rmap phi) pr) =
+  @juicyRestrict phi m (@acc_coh m phi pr').
+Proof.
+  apply mem_ext; auto.
+  apply juicyRestrictCur_ext.
+  intros loc.
+  apply perm_of_age.
+Qed.
+
+Lemma personal_mem_age_to m phi n pr pr' :
+  @personal_mem m (age_to n phi) pr =
+  age_to n (@personal_mem m phi pr').
+Proof.
+  apply juicy_mem_ext; simpl.
+  - rewrite m_dry_age_to. simpl.
+    unshelve erewrite juicyRestrict_age_to. auto.
+    auto.
+  - rewrite m_phi_age_to. reflexivity.
+Qed.
+
+Lemma personal_mem_rewrite m phi phi' pr pr' :
+  phi = phi' ->
+  @personal_mem m phi pr = @personal_mem m phi' pr'.
+Proof.
+  intros ->; f_equal. apply proof_irr.
+Qed.
+
+Lemma jm_updThreadC i tp ctn c' m Phi cnti pr pr' :
+  @jm_ (@updThreadC i tp ctn c') m Phi i cnti pr =
+  @jm_ tp m Phi i cnti pr'.
+Proof.
+  apply juicy_mem_ext.
+  - apply juicyRestrict_ext.
+    REWR.
+    intro; repeat f_equal. apply proof_irr.
+  - do 2 rewrite m_phi_jm_.
+    REWR.
+    repeat f_equal. apply proof_irr.
 Qed.
 
 Section Preservation.
@@ -1143,7 +1247,7 @@ Section Preservation.
         (cnti : containsThread tp i)
         (stepi : corestep (juicy_core_sem cl_core_sem) ge ci (jm_ cnti compat) ci' jmi')
         (safei' : forall ora : Z, jsafeN Jspec ge n ora ci' jmi')
-        (Eci : getThreadC cnti = Krun ci)
+        (Eci : getThreadC i tp cnti = Krun ci)
         (tp' := age_tp_to (level jmi') tp)
         (tp'' := @updThread i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi') : ThreadPool.t)
         (cm' := (m_dry jmi', ge, (i :: sch, tp''))) :
@@ -1295,8 +1399,8 @@ Section Preservation.
           destruct MC as [_ AC _ _].
           unfold jm_, personal_mem; simpl m_dry.
           rewrite (H _ _  _ (b, ofs0)).
-          cut (Mem.perm_order'' (Some Nonempty) (perm_of_res (ThreadPool.getThreadR cnti @ (b, ofs0)))). {
-            destruct (perm_of_res (ThreadPool.getThreadR cnti @ (b,ofs0))) as [[]|]; simpl.
+          cut (Mem.perm_order'' (Some Nonempty) (perm_of_res (getThreadR _ _ cnti @ (b, ofs0)))). {
+            destruct (perm_of_res (getThreadR _ _ cnti @ (b,ofs0))) as [[]|]; simpl.
             all:intros po; inversion po; subst; eauto.
           }
           clear -compat IN interval lock_coh lock_bound.
@@ -1324,7 +1428,7 @@ Section Preservation.
             + destruct lk as [p ->].
               simpl.
               constructor.
-          - cut (join_sub (ThreadPool.getThreadR cnti @ (b, ofs0)) (Phi @ (b, ofs0))).
+          - cut (join_sub (getThreadR _ _ cnti @ (b, ofs0)) (Phi @ (b, ofs0))).
             + apply po_join_sub.
             + apply resource_at_join_sub.
               eapply compatible_threadRes_sub.
@@ -1377,7 +1481,7 @@ Section Preservation.
           assert (Same: (Mem.mem_access m) !! b ofs0 Max = (Mem.mem_access mi) !! b ofs0 Max) by congruence.
           revert step Emi Same.
           generalize (m_dry jmi').
-          generalize (juicyRestrict (acc_coh (thread_mem_compatible (mem_compatible_forget compat) cnti))).
+          generalize (juicyRestrict _ _ (acc_coh (thread_mem_compatible (mem_compatible_forget compat) cnti))).
           clear.
           intros m0 m1 D Emi Same.
           match goal with |- _ ?a ?b => cut (a = b) end.
@@ -1557,8 +1661,8 @@ Section Preservation.
           simpl fst in h; simpl snd in h.
           unfold Mem.perm in *.
           rewrite h.
-          cut (Mem.perm_order'' (Some Nonempty) (perm_of_res (getThreadR cnti @ (b, ofs0)))).
-          { destruct (perm_of_res (getThreadR cnti @ (b, ofs0))); intros A B.
+          cut (Mem.perm_order'' (Some Nonempty) (perm_of_res (getThreadR _ _ cnti @ (b, ofs0)))).
+          { destruct (perm_of_res (getThreadR _ _ cnti @ (b, ofs0))); intros A B.
             all: inversion A; subst; inversion B; subst. }
           apply po_trans with (perm_of_res (Phi @ (b, ofs0))); swap 1 2.
           + eapply po_join_sub.
@@ -1601,7 +1705,7 @@ Section Preservation.
       intros j cntj ora.
       destruct (eq_dec i j) as [e|n0].
       + subst j.
-        replace (Machine.getThreadC cntj) with (Krun ci').
+        replace (getThreadC _ _ cntj) with (Krun ci').
         * specialize (safei' ora).
           exact_eq safei'.
           f_equal.
@@ -1645,7 +1749,7 @@ Section Preservation.
         clear Ecompat Hext' Hext'' J'' Jext Jext' Hext RD J' LW LJ JL.
         
         (** * Bring other thread #j's memory up to current #i's level *)
-        assert (cntj' : Machine.containsThread tp j). {
+        assert (cntj' : containsThread tp j). {
           unfold tp'', tp' in cntj.
           apply cntUpdate' in cntj.
           rewrite <-cnt_age in cntj.
@@ -1672,34 +1776,7 @@ Section Preservation.
             exact_eq H.
             repeat f_equal.
             
-            Lemma personal_mem_age_to m phi n pr pr' :
-              @personal_mem m (age_to n phi) pr =
-              age_to n (@personal_mem m phi pr').
-            Proof.
-              apply juicy_mem_ext; simpl.
-              - rewrite m_dry_age_to.
-                simpl.
-                Set Printing Implicit.
-                Lemma juicyRestrict_age_to m phi n pr pr' :
-                  @juicyRestrict (@age_to n rmap ag_rmap phi) m (@acc_coh m (@age_to n rmap ag_rmap phi) pr) =
-                  @juicyRestrict phi m (@acc_coh m phi pr').
-                Proof.
-                  apply mem_ext; auto.
-                  apply juicyRestrictCur_ext.
-                  intros loc.
-                  apply perm_of_age.
-                Qed.
-                unshelve erewrite juicyRestrict_age_to. auto.
-                auto.
-              - rewrite m_phi_age_to. reflexivity.
-            Qed.
             unfold tp'' in *.
-            Lemma personal_mem_rewrite m phi phi' pr pr' :
-              phi = phi' ->
-              @personal_mem m phi pr = @personal_mem m phi' pr'.
-            Proof.
-              intros ->; f_equal. apply proof_irr.
-            Qed.
             apply personal_mem_rewrite.
             unfold tp' in *.
             f_equal.
@@ -1708,8 +1785,8 @@ Section Preservation.
           - unfold jmj'.
             unfold jm_ in *.
             rewrite m_phi_age_to.
-            change (age_to (level (m_phi jmi')) (getThreadR cntj')
-                    = getThreadR cntj).
+            change (age_to (level (m_phi jmi')) (getThreadR _ _ cntj')
+                    = getThreadR _ _ cntj).
             unfold tp'', tp'.
             unshelve erewrite gsoThreadRes; auto.
             unshelve erewrite getThreadR_age. auto.
@@ -1782,7 +1859,6 @@ Section Preservation.
     split; auto.
   Qed.
   
-  
   Ltac jmstep_inv :=
     match goal with
     | H : JuicyMachine.start_thread _ _ _ |- _ => inversion H
@@ -1838,23 +1914,23 @@ Section Preservation.
       - apply state_invariant_c with (PHI := Phi) (mcompat := compat); auto; [].
         intros i cnti ora. simpl.
         specialize (safety i cnti ora); simpl in safety.
-        destruct (ThreadPool.getThreadC cnti); auto.
+        destruct (getThreadC cnti); auto.
         all: eapply safe_downward1; intuition.
        *)
     }
     
-    destruct (ssrnat.leq (S i) tp.(ThreadPool.num_threads).(pos.n)) eqn:Ei; swap 1 2.
+    destruct (ssrnat.leq (S i) tp.(num_threads).(pos.n)) eqn:Ei; swap 1 2.
     
     (* bad schedule *)
     {
       inversion jmstep; subst; try inversion HschedN; subst tid;
-        unfold ThreadPool.containsThread, is_true in *;
+        unfold containsThread, is_true in *;
         try congruence.
       simpl.
       
       assert (i :: sch <> sch) by (clear; induction sch; congruence).
       inversion jmstep; subst; simpl in *; try tauto;
-        unfold ThreadPool.containsThread, is_true in *;
+        unfold containsThread, is_true in *;
         try congruence.
       right. (* not consuming step level *)
       apply state_invariant_c with (PHI := Phi) (mcompat := compat); auto.
@@ -1863,7 +1939,7 @@ Section Preservation.
         specialize (safety i0 cnti0 ora); simpl in safety.
         eassert.
         * eapply safety; eauto.
-        * destruct (ThreadPool.getThreadC cnti0) as [c|c|c v|v1 v2] eqn:Ec; auto;
+        * destruct (getThreadC cnti0) as [c|c|c v|v1 v2] eqn:Ec; auto;
             intros Safe; try split; try eapply safe_downward1, Safe.
           intros c' E. eapply safe_downward1, Safe, E.
       *)
@@ -1877,9 +1953,9 @@ Section Preservation.
     }
     
     (* the schedule selected one thread *)
-    assert (cnti : ThreadPool.containsThread tp i) by apply Ei.
-    remember (ThreadPool.getThreadC cnti) as ci eqn:Eci; symmetry in Eci.
-    (* remember (ThreadPool.getThreadR cnti) as phi_i eqn:Ephi_i; symmetry in Ephi_i. *)
+    assert (cnti : containsThread tp i) by apply Ei.
+    remember (getThreadC _ _ cnti) as ci eqn:Eci; symmetry in Eci.
+    (* remember (getThreadR cnti) as phi_i eqn:Ephi_i; symmetry in Ephi_i. *)
     
     destruct ci as
         [ (* Krun *) ci
@@ -1922,14 +1998,14 @@ Section Preservation.
         }
         
         destruct next as (ci' & jmi' & stepi & safei').
-        pose (tp'' := @ThreadPool.updThread i tp cnti (Krun ci') (m_phi jmi')).
+        pose (tp'' := @updThread i tp cnti (Krun ci') (m_phi jmi')).
         pose (tp''' := age_tp_to (level jmi') tp').
         pose (cm' := (m_dry jmi', ge, (i :: sch, tp'''))).
         
         (* now, the step that has been taken in jmstep must correspond
         to this cm' *)
         inversion jmstep; subst; try inversion HschedN; subst tid;
-          unfold ThreadPool.containsThread, is_true in *;
+          unfold containsThread, is_true in *;
           try congruence.
         
         - (* not in Kinit *)
@@ -1992,7 +2068,7 @@ Section Preservation.
       (* thread[i] is running and about to call an external: Krun (at_ex c) -> Kblocked c *)
       {
         inversion jmstep; subst; try inversion HschedN; subst tid;
-          unfold ThreadPool.containsThread, is_true in *;
+          unfold containsThread, is_true in *;
           try congruence.
         
         - (* not in Kinit *)
@@ -2049,7 +2125,7 @@ Section Preservation.
             destruct (eq_dec i i0) as [ii0 | ii0].
             * subst i0.
               unfold tp'.
-              rewrite ThreadPool.gssThreadCC.
+              rewrite gssThreadCC.
               specialize (safety i cnti ora).
               rewrite Eci in safety.
               simpl.
@@ -2057,26 +2133,26 @@ Section Preservation.
               unfold jm_ in *.
               erewrite personal_mem_ext.
               -- apply safety.
-              -- apply ThreadPool.gThreadCR.
-            * assert (cnti0 : ThreadPool.containsThread tp i0) by auto.
+              -- apply gThreadCR.
+            * assert (cnti0 : containsThread tp i0) by auto.
               unfold tp'.
-              rewrite <- (@ThreadPool.gsoThreadCC _ _ tp ii0 ctn cnti0).
+              rewrite <- (@gsoThreadCC _ _ tp ii0 ctn cnti0).
               specialize (safety i0 cnti0 ora).
               clear -safety.
-              destruct (@ThreadPool.getThreadC i0 tp cnti0).
+              destruct (@getThreadC i0 tp cnti0).
               -- unfold jm_ in *.
                  erewrite personal_mem_ext.
                  ++ apply safety.
-                 ++ intros; apply ThreadPool.gThreadCR.
+                 ++ intros; apply gThreadCR.
               -- unfold jm_ in *.
                  erewrite personal_mem_ext.
                  ++ apply safety.
-                 ++ intros; apply ThreadPool.gThreadCR.
+                 ++ intros; apply gThreadCR.
               -- unfold jm_ in *.
                  intros c' E.
                  erewrite personal_mem_ext.
                  ++ apply safety, E.
-                 ++ intros; apply ThreadPool.gThreadCR.
+                 ++ intros; apply gThreadCR.
               -- constructor.
           
           + (* wellformed. *)
@@ -2084,14 +2160,14 @@ Section Preservation.
             destruct (eq_dec i i0) as [ii0 | ii0].
             * subst i0.
               unfold tp'.
-              rewrite ThreadPool.gssThreadCC.
+              rewrite gssThreadCC.
               simpl.
               congruence.
-            * assert (cnti0 : ThreadPool.containsThread tp i0) by auto.
+            * assert (cnti0 : containsThread tp i0) by auto.
               unfold tp'.
-              rewrite <- (@ThreadPool.gsoThreadCC _ _ tp ii0 ctn cnti0).
+              rewrite <- (@gsoThreadCC _ _ tp ii0 ctn cnti0).
               specialize (wellformed i0 cnti0).
-              destruct (@ThreadPool.getThreadC i0 tp cnti0).
+              destruct (@getThreadC i0 tp cnti0).
               -- constructor.
               -- apply wellformed.
               -- apply wellformed.
@@ -2103,9 +2179,9 @@ Section Preservation.
             destruct (eq_dec i i0) as [ii0 | ii0].
             * subst i0.
               unfold tp' in Eci0.
-              rewrite ThreadPool.gssThreadCC in Eci0.
+              rewrite gssThreadCC in Eci0.
               discriminate.
-            * assert (cnti0 : ThreadPool.containsThread tp i0) by auto.
+            * assert (cnti0 : containsThread tp i0) by auto.
               unfold tp' in Eci0.
               clear safety wellformed.
               rewrite <- (@gsoThreadCC _ _ tp ii0 ctn cnti0) in Eci0.
@@ -2132,7 +2208,7 @@ Section Preservation.
     (* thread[i] is in Kblocked *)
     { (* only one possible jmstep, in fact divided into 6 sync steps *)
       inversion jmstep; try inversion HschedN; subst tid;
-        unfold ThreadPool.containsThread, is_true in *;
+        unfold containsThread, is_true in *;
         try congruence; try subst;
         try solve [jmstep_inv; getThread_inv; congruence].
       
@@ -2144,7 +2220,7 @@ Section Preservation.
       jmstep_inv.
       
       cleanup.
-      assert (El : level (getThreadR Htid) - 1 = n). {
+      assert (El : level (getThreadR _ _ Htid) - 1 = n). {
         rewrite getThread_level with (Phi := Phi).
         - cleanup.
           rewrite lev.
@@ -2173,7 +2249,7 @@ Section Preservation.
             rewrite (maps_getthread i _ pr) in J.
             rewrite gRemLockSetRes with (cnti := Htid) in J. clear pr.
             revert Hadd_lock_res J.
-            generalize (getThreadR Htid) d_phi phi'.
+            generalize (@getThreadR _ _ Htid) d_phi phi'.
             generalize (all_but i (maps (remLockSet tp (b, Int.intval ofs)))).
             cleanup.
             clear -lev.
@@ -2628,7 +2704,7 @@ Section Preservation.
                        pose proof predat4 D as ERx.
                        assert (join_sub phi0 Phi).
                        { join_sub_tac.
-                         apply join_sub_trans with (getThreadR Htid). exists phi1. auto.
+                         apply join_sub_trans with (getThreadR _ _ Htid). exists phi1. auto.
                          apply compatible_threadRes_sub, compat.
                        }
                        apply (@predat_join_sub _ Phi) in ERx; auto.
@@ -2684,118 +2760,72 @@ Section Preservation.
                unfold jm_ in *.
                set (@mem_compatible_forget _ _ _ _) as cmpt; clearbody cmpt.
                set (@mem_compatible_forget _ _ _ _) as cmpt'; clearbody cmpt'.
-               (* Lemma personal_mem_age_to m phi n pr pr' :
-                 @personal_mem m (age_to n phi) pr =
-                 age_to n (@personal_mem m phi pr').
-               Proof.
-                 unfold personal_mem in *.
-                 simpl.
-                 apply mem_ext; try solve [simpl; auto].
-                 apply juicyRestrictCur_ext.
-                 intros loc.
-                 unshelve erewrite <-getThreadR_age at 1.
-                 unshelve erewrite perm_of_age.
-                 reflexivity.
-               Qed. *)
+               match goal with
+                 |- context [thread_mem_compatible ?a ?b] =>
+                 generalize (thread_mem_compatible a b); intros pr
+               end.
+               match goal with
+                 |- context [thread_mem_compatible ?a ?b] =>
+                 generalize (thread_mem_compatible a b); intros pr'
+               end.
                
-               (* Lemma personal_mem_m_dry_age_tp_to n i tp m cnti cnti' cmpt cmpt' :
-                 m_dry (@personal_mem i (age_tp_to n tp) m cnti' cmpt') =
-                 m_dry (@personal_mem i tp m cnti cmpt).
-               Proof.
-                 unfold personal_mem in *.
-                 simpl.
-                 apply mem_ext; try solve [simpl; auto].
-                 apply juicyRestrictCur_ext.
-                 intros loc.
-                 unshelve erewrite <-getThreadR_age at 1.
-                 unshelve erewrite perm_of_age.
-                 reflexivity.
-               Qed.
-               
-               Lemma personal_mem_m_dry_updLockSet loc o i tp m cnti cnti' cmpt cmpt' :
-                 m_dry (@personal_mem i (updLockSet tp loc o) m cnti' cmpt') =
-                 m_dry (@personal_mem i tp m cnti cmpt).
-               Proof.
-                 unfold personal_mem in *.
-                 simpl.
-                 apply mem_ext; try solve [simpl; auto].
-                 apply juicyRestrictCur_ext.
-                 intros a.
-                 unfold getThreadR in *.
-                 repeat f_equal. apply proof_irr.
-               Qed.
-               
-               Lemma personal_mem_m_dry_updThread i j tp m cntj c' phi' cnti cnti' cmpt cmpt' :
-                 i <> j ->
-                 m_dry (@personal_mem i (@updThread j tp cntj c' phi') m cnti' cmpt') =
-                 m_dry (@personal_mem i tp m cnti cmpt).
-               Proof.
-                 intros ij.
-                 apply mem_ext; try solve [simpl; auto].
-                 unfold personal_mem in *.
-                 unfold personal_mem' in *.
-                 do 2 match goal with
-                        |- context [m_dry (mkJuicyMem ?m _ _ _ _ _)] =>
-                        change (m_dry (mkJuicyMem m _ _ _ _ _)) with m
-                      end.
-                 apply juicyRestrictCur_ext.
-                 unshelve erewrite gsoThreadRes; auto.
-               Qed.
-                *)
-               
-               
+               eapply mem_equiv_trans.
+               ++ eapply personal_mem_equiv_spec with (m' := m').
+                  ** pose proof store_outside' _ _ _ _ _ _ Hstore as STO.
+                     simpl in STO. apply STO.
+                  ** pose proof store_outside' _ _ _ _ _ _ Hstore as STO.
+                     destruct STO as (_ & ACC & _).
+                     intros loc.
+                     apply equal_f with (x := loc) in ACC.
+                     apply equal_f with (x := Max) in ACC.
+                     rewrite restrPermMap_Max' in ACC.
+                     apply ACC.
+                  ** intros loc yes.
+                     pose proof store_outside' _ _ _ _ _ _ Hstore as STO.
+                     destruct STO as (CON & _ & _).
+                     specialize (CON (fst loc) (snd loc)).
+                     destruct CON as [CON|CON].
+                     --- exfalso.
+                         destruct loc as (b', ofs'); simpl in CON.
+                         destruct CON as (<- & int).
+                         clear safety Htstep jmstep Hload Hstore tp_ compat_ compat' lj cmpt' pr'.
+                         specialize (lock_coh (b, Int.intval ofs)).
+                         rewrite His_unlocked in lock_coh.
+                         destruct lock_coh as (_ & sh' & R' & lk & sat).
+                         apply isVAL_join_sub with (r2 := Phi @ (b, ofs')) in yes.
+                         2: now apply resource_at_join_sub; join_sub_tac.
+                         specialize (lk (b, ofs')).
+                         simpl in lk.
+                         if_tac in lk. 2: range_tac.
+                         unfold isVAL in *.
+                         if_tac in lk.
+                         +++ breakhyps.
+                             destruct (Phi @ (b, ofs')) as [t0 | t0 p [] p0 | k p]; try tauto.
+                             congruence.
+                         +++ breakhyps.
+                             destruct (Phi @ (b, ofs')) as [t0 | t0 p [] p0 | k p]; try tauto.
+                             congruence.
+                     --- rewrite restrPermMap_contents in CON.
+                         apply CON.
+               ++ apply mem_equiv_refl'.
+                  unfold m_.
+                  apply m_dry_personal_mem_eq.
+                  intros loc.
+                  unfold tp_.
+                  REWR.
+                  REWR.
+                  REWR.                  
+                  REWR.
+            -- REWR.
+               rewrite m_phi_jm_.
+               rewrite m_phi_jm_.
                unfold tp_.
-               Unset Printing Implicit.
-               unshelve erewrite (personal_mem_ext m_).
-               4: unshelve erewrite <-getThreadR_age; [auto|]; reflexivity.
-               set (GET := @getThreadR).
-               apply mem_cohere_age_to.
-               unshelve erewrite gLockSetRes. auto. auto.
-               Set Printing Implicit.
-               admit.
-               (* I'm lost now *)
-               (*
-               unshelve erewrite <-getThreadR_age; [auto|]; reflexivity.
-               
-               auto.
-               erewrite <-getThreadR_age.
-               unshelve erewrite personal_mem_m_dry_age_tp_to; auto.
-               
-               Lemma mem_thcohere_updLockSet tp m loc o :
-                 mem_thcohere tp m ->
-                 mem_thcohere (updLockSet tp loc o) m.
-               Proof.
-                 unfold mem_thcohere in *.
-                 intros.
-                 unshelve erewrite gLockSetRes; auto.
-               Qed.
-               unfold tp_ in *.
-               apply mem_thcohere_updLockSet.
-               
-               admit. (* todo lemma *)
-               unshelve erewrite personal_mem_m_dry_updLockSet; auto. admit. (* todo lemma *)
-               unshelve erewrite personal_mem_m_dry_updThread; auto. admit. (* todo lemma *)
-               fold m_ in Hstore.
-               
-               split3.
-               ++ (* loadbytes: the hardest, but should be a lemma about Mem.store *) admit.
-               ++ (* perm *) admit.
-               ++ admit.
-                *)
-               admit.
-            
-            -- rewrite m_phi_age_to.
-               do 2 rewrite m_phi_jm_.
-               unfold tp_ in *.
-               unshelve erewrite <-getThreadR_age. auto.
-               unshelve erewrite gLockSetRes. auto.
-               unshelve erewrite gsoThreadRes; auto.
+               REWR.
+               REWR.
+               REWR.
                f_equal.
-               Unset Printing Implicit.
-               replace (level (getThreadR Htid)) with (level Phi). omega.
-               replace Htid with cnti.
-               symmetry. apply join_sub_level. apply compatible_threadRes_sub, compat.
-               apply proof_irr.
+               replace (level (getThreadR i tp Htid)) with (level Phi). omega.
+               symmetry; apply join_sub_level, compatible_threadRes_sub, compat.
         
         + (* well_formedness *)
           intros j lj.
@@ -2844,12 +2874,12 @@ Section Preservation.
     { (* again, only one possible case *)
       right (* no aging *).
       inversion jmstep; try inversion HschedN; subst tid;
-        unfold ThreadPool.containsThread, is_true in *;
+        unfold containsThread, is_true in *;
         try congruence; try subst;
         try solve [jmstep_inv; getThread_inv; congruence].
       jmstep_inv.
       rename m' into m.
-      assert (compat' : mem_compatible_with (updThreadC ctn (Krun c')) m Phi).
+      assert (compat' : mem_compatible_with (updThreadC _ _ ctn (Krun c')) m Phi).
       {
         clear safety wellformed unique.
         destruct compat as [JA MC LW LC LJ].
@@ -2885,7 +2915,7 @@ Section Preservation.
         intros i0 cnti0' ora.
         destruct (eq_dec i i0) as [ii0 | ii0].
         * subst i0.
-          rewrite ThreadPool.gssThreadCC.
+          rewrite gssThreadCC.
           specialize (safety i cnti ora).
           rewrite Eci in safety.
           simpl.
@@ -2899,46 +2929,41 @@ Section Preservation.
           exact_eq safety.
           f_equal.
           Set Printing Implicit.
-          Lemma jm_updThreadC i tp ctn c' m Phi cnti pr pr' :
-            @jm_ (@updThreadC i tp ctn c') m Phi i cnti pr =
-            @jm_ tp m Phi i cnti pr'.
-          Proof.
-          Admitted.
           unshelve erewrite jm_updThreadC. auto.
           unfold jm_ in *.
           f_equal.
           apply personal_mem_ext.
           f_equal.
           apply proof_irr.
-        * assert (cnti0 : ThreadPool.containsThread tp i0) by auto.
-          rewrite <- (@ThreadPool.gsoThreadCC _ _ tp ii0 ctn cnti0).
+        * assert (cnti0 : containsThread tp i0) by auto.
+          rewrite <- (@gsoThreadCC _ _ tp ii0 ctn cnti0).
           specialize (safety i0 cnti0 ora).
           clear -safety.
-          destruct (@ThreadPool.getThreadC i0 tp cnti0).
+          destruct (@getThreadC i0 tp cnti0).
           -- unfold jm_ in *.
              erewrite personal_mem_ext.
              ++ apply safety.
-             ++ intros; apply ThreadPool.gThreadCR.
+             ++ intros; apply gThreadCR.
           -- unfold jm_ in *.
              erewrite personal_mem_ext.
              ++ apply safety.
-             ++ intros; apply ThreadPool.gThreadCR.
+             ++ intros; apply gThreadCR.
           -- unfold jm_ in *.
              erewrite personal_mem_ext.
              ++ intros c'' E; apply safety, E.
-             ++ intros; apply ThreadPool.gThreadCR.
+             ++ intros; apply gThreadCR.
           -- constructor.
       
       + (* wellformed. *)
         intros i0 cnti0'.
         destruct (eq_dec i i0) as [ii0 | ii0].
         * subst i0.
-          rewrite ThreadPool.gssThreadCC.
+          rewrite gssThreadCC.
           constructor.
-        * assert (cnti0 : ThreadPool.containsThread tp i0) by auto.
-          rewrite <- (@ThreadPool.gsoThreadCC _ _ tp ii0 ctn cnti0).
+        * assert (cnti0 : containsThread tp i0) by auto.
+          rewrite <- (@gsoThreadCC _ _ tp ii0 ctn cnti0).
           specialize (wellformed i0 cnti0).
-          destruct (@ThreadPool.getThreadC i0 tp cnti0).
+          destruct (@getThreadC i0 tp cnti0).
           -- constructor.
           -- apply wellformed.
           -- apply wellformed.
@@ -2950,7 +2975,7 @@ Section Preservation.
         destruct (eq_dec i i0) as [ii0 | ii0].
         * subst i0.
           eauto.
-        * assert (cnti0 : ThreadPool.containsThread tp i0) by auto.
+        * assert (cnti0 : containsThread tp i0) by auto.
           clear safety wellformed.
           rewrite <- (@gsoThreadCC _ _ tp ii0 ctn cnti0) in Eci0.
           destruct (unique notalone i0 cnti0 q Eci0).

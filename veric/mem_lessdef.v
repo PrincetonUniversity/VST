@@ -91,9 +91,28 @@ Proof.
   - apply N1.
 Qed.
 
+Lemma mem_equiv_refl m : mem_equiv m m.
+Proof.
+  split3; hnf; auto.
+Qed.
+
+Lemma mem_equiv_refl' m m' : m = m' -> mem_equiv m m'.
+Proof.
+  intros <-; apply mem_equiv_refl.
+Qed.
+
 Lemma mem_equiv_sym m1 m2 : mem_equiv m1 m2 -> mem_equiv m2 m1.
 Proof.
   intros []; split; intuition.
+Qed.
+
+Lemma mem_equiv_trans m1 m2 m3 :
+  mem_equiv m1 m2 ->
+  mem_equiv m2 m3 ->
+  mem_equiv m1 m3.
+Proof.
+  unfold mem_equiv in *.
+  intros (-> & -> & ->) (-> & -> & ->); auto.
 Qed.
 
 Lemma mem_equiv_lessdef m1 m2 : mem_equiv m1 m2 -> mem_lessdef m1 m2.
