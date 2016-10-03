@@ -1084,7 +1084,7 @@ Admitted.
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' =
                     updLockSet tp' (b, Int.intval ofs) (Some d_phi))
-            (Htp''': tp''' = age_tp_to (level phi - 1) tp''),
+            (Htp''': tp''' = age_tp_to (level phi - 1)%coq_nat tp''),
             syncStep' genv cnt0 Hcompat tp''' m' (release (b, Int.intval ofs) None)      
     | step_create :
         (* HAVE TO REVIEW THIS STEP LOOKING INTO THE ORACULAR SEMANTICS*)
