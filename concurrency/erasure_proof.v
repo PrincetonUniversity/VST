@@ -2522,6 +2522,7 @@ Module Parching <: ErasureSig.
         }
         
       - rewrite Htp''; unfold ds''.
+        apply match_st_age_tp_to.
         apply MTCH_updLockN.
         rewrite Htp'; unfold ds'.
         apply MTCH_update.
@@ -2910,6 +2911,7 @@ Module Parching <: ErasureSig.
         }
         
       - unfold ds''.
+        apply match_st_age_tp_to.
         apply MTCH_remLockN.
         unfold ds'.
         apply MTCH_update.
@@ -2964,9 +2966,6 @@ Module Parching <: ErasureSig.
           destruct H as [[BB notIn] | BB];
           rewrite <- (Hj_forward (b', ofs'));
           try reflexivity; [right | left]; try (simpl; assumption).
-          move notIn at bottom.
-          unfold juicy_machine.LKSIZE; simpl.
-          intros HH; apply notIn; unfold Intv.In; simpl; xomega.
         + reflexivity.
         + do 2 (replace (MTCH_cnt MATCH Hi) with Htid' by apply proof_irrelevance); reflexivity.
         + reflexivity.

@@ -1139,11 +1139,13 @@ Admitted.
             (*Check the new memory has the right continuations THIS IS REDUNDANT! *)
             (*Hcont: forall i, 0<i<LKSIZE ->   phi'@ (b, Int.intval ofs + i) = YES sh pfullshare (CT i) NoneP*)
             (*Check the two memories coincide in everything else *)
-            (Hj_forward: forall loc, b <> loc#1 \/ ~(Int.intval ofs) <loc#2<(Int.intval ofs)+LKSIZE  -> phi@loc = phi'@loc)
+            (Hj_forward: forall loc, b <> loc#1 \/ ~(Int.intval ofs) <=loc#2<(Int.intval ofs)+LKSIZE  -> phi@loc = phi'@loc)
             (*Check the memories are equal!*)
+            (levphi' : level phi' = level phi)
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' =
-                    updLockSet tp' (b, Int.intval ofs) None ),
+                    age_tp_to (level phi - 1)%coq_nat (
+                    updLockSet tp' (b, Int.intval ofs) None )),
             syncStep' genv cnt0 Hcompat tp'' m' (mklock (b, Int.intval ofs))
     | step_freelock :
         forall  (tp' tp'': thread_pool) c b ofs phi R phi',
@@ -1171,13 +1173,15 @@ Admitted.
             (*Check the old memory has the right continuations  THIS IS REDUNDANT!*)
             (*Hcont: forall i, 0<i<LKSIZE ->   phi@ (b, Int.intval ofs + i) = YES sh pfullshare (CT i) NoneP *)
             (*Check the two memories coincide in everything else *)
-            (Hj_forward: forall loc, b <> loc#1 \/ ~(Int.intval ofs)<loc#2<(Int.intval ofs)+LKSIZE  -> phi@loc = phi'@loc)
+            (Hj_forward: forall loc, b <> loc#1 \/ ~(Int.intval ofs)<=loc#2<(Int.intval ofs)+LKSIZE  -> phi@loc = phi'@loc)
             (*Check the memories are equal!*)
             (*Hm_forward:
                makeCurMax m = m1 *)
+            (levphi' : level phi' = level phi)
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' =
-                    remLockSet tp' (b, Int.intval ofs) ),
+                    age_tp_to (level phi - 1)%coq_nat (
+                    remLockSet tp' (b, Int.intval ofs) )),
             syncStep' genv cnt0 Hcompat  tp'' m (freelock (b, Int.intval ofs)) (* m_dry jm' = m_dry jm = m *)
                       
     | step_acqfail :
