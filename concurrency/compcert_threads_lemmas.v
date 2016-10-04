@@ -1776,7 +1776,11 @@ Module SimProofs (SEM: Semantics)
         intros bl ofsl rmap b1 b2 ofs Hfj Hf Hres.
         erewrite gsoLockRes_fstepI with (tp := tpf) in Hres;
           by eauto.
-        
+        (** unmapped blocks*)
+        intros b2 Hfj ofs.
+        specialize (Hunmappedj _ Hfj ofs).
+        erewrite <- gsoThreadR_fstep with (pfj := pffj) by eauto.
+        assumption.
       }
       { (** lock resources sim*)
         destruct HsimRes as [HsimRes [Hlock_mapped Hlock_if]].
@@ -1949,7 +1953,7 @@ Module SimProofs (SEM: Semantics)
       destruct H
         as (c2' & m2' & f' & Hcorestep' & Hcode_eq'
             & Hobs_eq & Hincr & Hseparated
-            & Hnextblock & Hinverse & Hid).
+            & Hnextblock & Hinverse & Hid & Hunmapped).
       exists (updThread pf1j' (Krun c2') (getCurPerm m2', (getThreadR pf1j').2)), m2', f'.
       eapply ev_step_ax2 in Hcorestep'.
       destruct Hcorestep' as [evF Hcorestep'].
@@ -2466,7 +2470,12 @@ Module SimProofs (SEM: Semantics)
           by discriminate.
     - subst. do 2 eexists; split; eauto.
   Qed.
-  
+
+  (** NOTE: this is only needed to find out if a block is in the
+    codomain of f, which is decidable *)
+  Require Import Coq.Logic.ClassicalFacts.
+  Hypothesis em : excluded_middle.
+
   Lemma sim_suspend : sim_suspend_def.
   Proof.
     unfold sim_suspend_def.
@@ -2478,7 +2487,7 @@ Module SimProofs (SEM: Semantics)
     assert (pfc: containsThread tpc i)
       by (eapply HnumThreads; eauto).
     destruct (HsimStrong i pfc pff)
-      as (tpc' & mc' & Hincr & Hsynced & Hexec & Htsim & Hownedi & Hownedi_lp);
+      as (tpc' & mc' & Hincr & Hsynced & Hexec & Htsim & Hownedi & Hownedi_lp & Hunmappedi);
       clear HsimStrong.
     (** The coarse machine is also at suspend*)
     assert (pfc': containsThread tpc' i)
@@ -2753,7 +2762,10 @@ into mcj' with an extension of the id injection (fij). *)
             by constructor.
           split; first by (intros; pf_cleanup; auto).
           split; first by congruence.
-          split; by congruence.
+          split; first by congruence.
+          intros b2 Hfi ofs.
+          erewrite <- StepLemmas.gsoThreadR_suspendF with (cntj := pff);
+            by eauto.
         }
         { (** case j <> i *)
           assert (pfc'j: containsThread tpc' j)
@@ -2792,7 +2804,7 @@ into mcj' with an extension of the id injection (fij). *)
               simulation between the coarse and fine-grained states. *)
           destruct Htsimj as
               (tpcj & mcj & Hincrj & Hsyncedj & Hexecj & Htsimj
-               & Hownedj & Hownedj_lp).
+               & Hownedj & Hownedj_lp & Hunmappedj).
           (** by the strong simulation on mc and mc'' (via id) we can
               obtain a strong simulation between mcj and mcj', where
               mcj' mc -->i --> mci -->j mcj' *)
@@ -4057,6 +4069,7 @@ into mcj' with an extension of the id injection (fij). *)
               erewrite <- gsoThreadR_suspendF with (cntj := pffk);
                 by eauto.
           }
+          split.
           { (** Block ownership with lock resources *)
             intros bl ofsl rmap b1 b2 ofs Hf' Hfi Hres.
             destruct (valid_block_dec mc b1) as [Hvalidmc | Hinvalidmc].
@@ -4077,8 +4090,68 @@ into mcj' with an extension of the id injection (fij). *)
               apply (domain_invalid (weak_tsim_data HsimWeak)) in Hinvalidb0.
               simpl in Hf'.
               erewrite <- suspendF_lockPool with (tp := tpf) in Hres;
-                by eauto.
+                eauto.
           }
+          { intros b2 Hf ofs.
+            erewrite <- gsoThreadR_suspendF with (cntj := pffj); eauto.
+            assert  (Hmappedi: (exists b1, fp j pfcj b1 = Some b2) \/ ~exists b1, fp j pfcj b1 = Some b2) by (eapply em; eauto).
+            (** We proceed by case analysis on whether b2 is mapped by a block in the domain of fj*)
+            destruct Hmappedi as [Hfj | Hfj].
+            - destruct Hfj as [b1 Hfj].
+              (** if it is mapped we can derive a contradiction by hypothesis Hf*)
+              exfalso.
+              apply Hf.
+              destruct (valid_block_dec mc b1).
+              + (** if [b1] is in mc then [f] ought to map it to [b2]*)
+                exists b1.
+                erewrite if_true by (by apply/Coqlib.proj_sumbool_is_true).
+                apply (domain_valid (weak_tsim_data HsimWeak)) in v.
+                destruct v as [b2' Hf0].
+                assert (b2 = b2') by (apply Hincrj in Hf0; rewrite Hf0 in Hfj; inversion Hfj; by subst).
+                subst; auto.
+              + (** if [b1] is not in [mc] we proceed by case analysis on Hle*)
+                apply Pos.le_lteq in Hle.
+                destruct Hle as [Hlt | Heq].
+                * rewrite Z.pos_sub_opp.
+                  erewrite Z.pos_sub_lt by eauto.
+                  (** we pick [b1] plus the difference between [mc''] and [mc]*)
+                  exists (b1 + (Mem.nextblock mc'' - Mem.nextblock mc))%positive.
+                  Definition proj_sumbool_is_false : forall (P : Prop) (a : {P} + {~ P}), ~ P -> Coqlib.proj_sumbool a = false.
+                  Proof.
+                    intros.
+                    unfold Coqlib.proj_sumbool.
+                    destruct a; auto; try by exfalso.
+                  Qed.
+                  erewrite if_false
+                    by (apply negbT;
+                        eapply proj_sumbool_is_false;
+                        intros Hcontra;
+                        clear - Hcontra Hlt n;
+                        unfold Mem.valid_block, Coqlib.Plt in *; zify; omega).
+                  erewrite if_false
+                    by (apply negbT;
+                        eapply proj_sumbool_is_false;
+                        intros Hcontra;
+                        clear - Hcontra Hlt n;
+                        unfold Mem.valid_block, Coqlib.Plt in *;
+                        zify;
+                        erewrite Pos2Z.inj_sub in Hcontra by assumption;
+                        omega).
+                  erewrite Z.pos_sub_gt by (zify; omega).
+                  rewrite Pos.add_sub.
+                  simpl.
+                  assumption.
+                * rewrite Heq.
+                  rewrite Z.pos_sub_diag. simpl.
+                  exists b1.
+                  erewrite! if_false by
+                      (apply negbT; apply proj_sumbool_is_false;
+                       unfold Mem.valid_block in *;
+                       auto; try (rewrite <- Heq; auto)).
+                  assumption.
+            - (** if it is not mapped we can use hypothesis [Hunmappedj]*)
+              apply Hunmappedj; auto.
+            } 
         }
       }
       { (** Proof of strong simulation of resources *)
@@ -4730,11 +4803,6 @@ into mcj' with an extension of the id injection (fij). *)
     }
   Qed. *)
   
-  (* NOTE: this is only needed to find out if a block is in the
-    codomain of f, which is decidable *)
-  Require Import Coq.Logic.ClassicalFacts.
-  Hypothesis em : excluded_middle.
-
   (** Maintaing the invariant through projection of the angel*)
 
   (** This lemma is for the case we are trying to establish
@@ -7269,7 +7337,7 @@ into mcj' with an extension of the id injection (fij). *)
           forall (mc mc' mf : mem) (f : memren) (b1 b2 : block) (chunk : memory_chunk) (ofs : Z) (v1 v2 : val),
             store_unsafe chunk mc b1 ofs v1 = mc' ->
             f b1 = Some b2 -> val_obs f v1 v2 -> mem_obs_eq f mc mf ->
-            exists mf' : mem, Mem.store chunk mf b2 ofs v2 = Some mf' /\ mem_obs_eq f mc' mf'.
+            exists mf' : mem, store_unsafe chunk mf b2 ofs v2 = mf' /\ mem_obs_eq f mc' mf'.
         Admitted.
         assert (HstoreF := store_unsafe_val_obs  Hstore Hfb Hval_obs ((obs_eq_locks Htsim))).
         destruct HstoreF as [mf' [HstoreF HsimLocks']].
@@ -7341,61 +7409,30 @@ into mcj' with an extension of the id injection (fij). *)
             rewrite Hperm Hperm'.
             assumption.
           - erewrite computeMap_projection_2 by eauto.
-            
-
-
-
-
-          
-          destruct (
-          destruct Hangel as [HangelIncr HangelDecr].
-          constructor.
-          { (*Angel Incr *)
-            intros b2 ofs0 Hperm.
-            (*NOTE: this is actually decidable*)
-            assert (Hb2: (exists b1, f b1 = Some b2) \/
-                         ~ (exists b1, f b1 = Some b2))
-              by eapply em.
-            destruct Htsim as [? Hmem_obs_eq].
-            erewrite computeMap_projection_1 in Hperm; eauto.
-            specialize (HangelIncr _ _ Hperm).
-            destruct HangelIncr as [Hreadable | Hreadable];
-              [destruct Hmem_obs_eq as [_ [Hperm_eq _]] | destruct HsimRes as [Hperm_eq _]];
-              specialize (Hperm_eq _ _ ofs0 Hf1);
-              do 2 rewrite restrPermMap_Cur in Hperm_eq;
-              rewrite Hperm_eq;
-                by auto.
-            erewrite computeMap_projection_2 in Hperm; eauto.
-          }
-          { (*Angel Decr*)
-            intros b2 ofs0.
-            replace (empty_map # b2 ofs0) with (@None permission)
-              by (unfold Maps.PMap.get; rewrite Maps.PTree.gempty; by simpl).
-            destruct (pmapF # b2 ofs0);
-              by simpl.
-          }
+            erewrite HpmapF by eauto.
+            constructor.
         Qed.
 
-        assert (HangelF1: permMapJoin pmapF.1 (getThreadR pff).1 (computeMap (getThreadR pff).1 virtueF.1)).
-        assert (HangelF: acqAngelSpec pmapF (getThreadR pff) (projectMap (fp i pfc)
-                                                                      empty_map)
-                                      (computeMap (getThreadR pff) virtueF))
-          by (subst; eapply acqAngelSpec_project; eauto).
-        (* and finally build the final fine-grained state*)
-        remember (updLockSet tpf' (b2, Int.intval ofs)
-                             (projectMap (fp i pfc) empty_map)) as tpf'' eqn:Htpf'';
+        destruct (HsimRes _ _ _ _ _ Hfb HisLock HisLockF) as [HsimRes1 HsimRes2].
+        assert (HangelF1: permMapJoin pmapF.1 (getThreadR pff).1 (computeMap (getThreadR pff).1 virtueF.1))
+          by (pose proof (obs_eq_data Htsim);
+              eapply permMapJoin_project; (simpl in Hangel1; eauto); admit). (* need one more invariant about unmapped blocks on lockresources*)
+        assert (HangelF2: permMapJoin pmapF.2 (getThreadR pff).2 (computeMap (getThreadR pff).2 virtueF.2))
+          by (pose proof (obs_eq_data Htsim);
+              eapply permMapJoin_project; (simpl in Hangel2; eauto); admit). (* need one more invariant about unmapped blocks on lockresources*)
+        (** and finally build the final fine-grained state*)
+        remember (updLockSet tpf' (b2, Int.intval ofs) (empty_map, empty_map)) as tpf'' eqn:Htpf'';
           symmetry in Htpf''.
         exists tpf'', mf', (fp i pfc), fp,
         (tr ++ [:: (external i (acquire (b2, Int.intval ofs)
-                                       (Some (projectMap (fp i pfc) empty_map,
-                                        virtueF))))]).
+                                       (Some (empty_map, virtueF.1))))]).
         split.
-        (* proof that the fine grained machine can step*)
+        (** proof that the fine grained machine can step*)
         intros U.
         assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf'' mf'
                                      (acquire (b2, Int.intval ofs)
-                                              (Some (projectMap (fp i pfc) empty_map,
-                                                     virtueF))))
+                                              (Some (empty_map, virtueF.1)))).
+        eapply step_acquire with (b := b2); eauto.
           by (eapply step_acquire with (b:=b2); eauto).
         econstructor; simpl;
           by eauto.
