@@ -6,12 +6,13 @@ Require Import AES256.
 Local Open Scope logic.
 
 Instance CompSpecs : compspecs.
-Proof. make_compspecs prog. Defined. 
+Proof. make_compspecs prog. Defined.
+Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
 Definition t_struct_aesctx := Tstruct _mbedtls_aes_context_struct noattr.
 Definition t_struct_tables := Tstruct _aes_tables_struct noattr.
 
-Definition tables_initialized tables := data_at Ews t_struct_tables  (map Vint sbox, 
+Definition tables_initialized (tables : val) := data_at Ews t_struct_tables (map Vint sbox, 
   (map Vint FT0, (map Vint FT1, (map Vint FT2, (map Vint FT3, (map Vint inv_sbox,
   (map Vint RT0, (map Vint RT1, (map Vint RT2, (map Vint RT3, 
   (map Vint (words_to_ints full_rcons)))))))))))) tables.
@@ -56,6 +57,73 @@ Definition zeroize_spec :=
       LOCAL ()
       SEP (data_at cont (tarray tuchar size) (list_repeat (Z.to_nat size) (Vint Int.zero)) v)
 .
+
+Definition Gprog : funspecs := augment_funspecs prog [aes_init_spec; zeroize_spec].
+
+(*
+"(Sloop body incr)" corresponds to "for (;; incr) body".
+In the body_zeroize lemma, we'll get "(Sloop body Sskip)", and also, Swhile is defined as
+Swhile = fun (e : expr) (s : statement) => Sloop (Ssequence (Sifthenelse e Sskip Sbreak) s) Sskip
+so let's prove a lemma for Sloop where incr is Sskip:
+*)
+
+Lemma semax_loop_no_incr {Espec : OracleKind} {CS: compspecs}: 
+  forall Delta Q body R,
+     @semax CS Espec Delta Q body (loop1_ret_assert Q R) ->
+     @semax CS Espec Delta Q (Sloop body Sskip) R.
+Proof.
+  intros. apply semax_loop with (Q' := Q). assumption.
+  apply semax_post with (R' := normal_ret_assert Q).
+  * intros. destruct ek; unfold normal_ret_assert; simpl; intro.
+    - apply andp_left2. apply andp_left2. apply andp_left2. apply derives_refl.
+    - apply andp_left2. apply andp_left1. apply prop_left. intro. discriminate.
+    - apply andp_left2. apply andp_left1. apply prop_left. intro. discriminate.
+    - apply andp_left2. apply andp_left1. apply prop_left. intro. discriminate.
+  * apply semax_skip.
+Qed.
+
+(* a list initialized with 0 except its last i elements *)
+Definition list_zero_except (i : Z) (size : Z) : list val :=
+  (list_repeat (Z.to_nat (size-i)) (Vint Int.zero)) ++ (list_repeat (Z.to_nat i) Vundef).
+
+Lemma list_zero_except_zero: forall size,
+  list_zero_except 0 size = list_repeat (Z.to_nat size) (Vint Int.zero).
+Proof.
+  intro. unfold list_zero_except. simpl. rewrite app_nil_r.
+  replace (size - 0) with size by omega. reflexivity.
+Qed.
+
+Lemma list_zero_except_all: forall size,
+  list_zero_except size size = default_val (tarray tuchar size).
+Proof.
+  intro. unfold list_zero_except. replace (size - size) with 0 by omega. reflexivity.
+Qed.
+
+Lemma body_zeroize: semax_body Vprog Gprog f_mbedtls_zeroize zeroize_spec.
+Proof.
+  start_function.
+  forward.
+  apply semax_seq' with (P' := PROP () LOCAL ()
+    SEP (data_at cont (tarray tuchar size) (list_zero_except 0 size) v)).
+  * apply semax_pre with (P' := EX n: Z,
+      PROP ()
+      LOCAL (temp _p (offset_val (size-n) v); temp _v v; temp _n (Vint (Int.repr n)))
+      SEP (data_at cont (tarray tuchar size) (list_zero_except n size) v)).
+    - Exists size.
+      replace (size - size) with 0 by omega.
+      rewrite list_zero_except_all.
+      entailer!.
+    - apply semax_loop_no_incr. Intros n. forward. forward.
+      forward_if (
+        PROP ( )
+        LOCAL (temp _n (Vint (Int.sub (Int.repr n) (Int.repr 1))); temp _t'1 (Vint (Int.repr n));
+               temp _p (offset_val (size - n) v); temp _v v)
+        SEP (data_at cont (tarray tuchar size) (list_zero_except n size) v)).
+      + forward. entailer.
+      + forward. entailer. (* TODO: use something like typed_false_tint but for tuint *) admit.
+      + forward. forward. admit.
+  * simpl. unfold_abbrev'. rewrite list_zero_except_zero. forward.
+Qed.
 
 Definition aes_free_spec :=
   DECLARE _mbedtls_aes_free
