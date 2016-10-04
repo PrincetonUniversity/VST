@@ -3355,27 +3355,22 @@ Section Preservation.
                         replace (level phi0d) with (level Phi) by join_level_tac. omega.
                       + revert Hsat.
                         apply pred_hered.
-                        admit.
+                        apply age_to_1.
+                        exact_eq lev. f_equal. join_level_tac.
                     - split.
-                      + admit.
+                      + rewrite level_age_to. auto with *.
+                        replace (level d_phi) with (level Phi) by join_level_tac.
+                        rewrite lev; auto with *.
                       + cut (app_pred (approx (level Phi) (Interp RRRRRRRRRRRx)) (age_to n d_phi)).
                         * intros []. auto.
                         * rewrite ER. split.
-                          -- admit.
+                          -- rewrite level_age_to. rewrite lev; auto with *.
+                             replace (level d_phi) with (level Phi) by join_level_tac.
+                             rewrite lev; auto with *.
                           -- exact_eq Hsat_lock_inv. f_equal. unfold age_to; f_equal.
                              replace (level d_phi) with (level Phi) by join_level_tac.
                              omega.
-                    - (* todo remove this (already moved to join_lemmas) *)
-                      Lemma age_to_join_sub {A} {JA: Join A} {PA: Perm_alg A} {agA: ageable A} {AgeA: Age_alg A} :
-                        forall k x1 x2,
-                          join_sub x1 x2 ->
-                          join_sub (age_to k x1) (age_to k x2).
-                      Proof.
-                        intros k x1 x3 [].
-                        eexists; apply age_to_join; eauto.
-                      Qed.
-                      
-                      apply age_to_join_sub.
+                    - apply age_to_join_sub.
                       apply join_sub_trans with phi0.
                       + exists phi0'. apply join_comm; auto.
                       + exists phi1. apply join_comm; auto.
@@ -3416,7 +3411,8 @@ Section Preservation.
                     rewrite seplog.sepcon_emp in *.
                     revert Hlockinv.
                     apply pred_hered.
-                    admit.
+                    apply age_to_1.
+                    exact_eq lev. f_equal. join_level_tac.
                 
                 + exact_eq Safe'.
                   unfold jsafeN in *.
@@ -3550,6 +3546,7 @@ Section Preservation.
         admit.
       
       - (* the case of makelock *)
+        
         admit.
       
       - (* the case of freelock *)
