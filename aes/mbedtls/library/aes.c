@@ -56,7 +56,7 @@
 
 /* Implementation that should never be optimized out by the compiler */
 static void mbedtls_zeroize( void *v, size_t n ) {
-    volatile unsigned char *p = (unsigned char*)v; while( n-- ) *p++ = 0;
+    volatile unsigned char *p = v; while( n-- ) *p++ = 0;
 }
 
 /*
@@ -65,10 +65,11 @@ static void mbedtls_zeroize( void *v, size_t n ) {
 #ifndef GET_UINT32_LE
 #define GET_UINT32_LE(n,b,i)                            \
 {                                                       \
-    (n) = ( (uint32_t) (b)[(i)    ]       )             \
-        | ( (uint32_t) (b)[(i) + 1] <<  8 )             \
-        | ( (uint32_t) (b)[(i) + 2] << 16 )             \
-        | ( (uint32_t) (b)[(i) + 3] << 24 );            \
+    uint32_t b0 = (uint32_t) (b)[(i)];                    \
+    uint32_t b1 = (uint32_t) (b)[(i) + 1];                \
+    uint32_t b2 = (uint32_t) (b)[(i) + 2];                \
+    uint32_t b3 = (uint32_t) (b)[(i) + 3];                \
+    (n) = (b0 | (b1 << 8) | (b2 << 16) | (b3 << 24));   \
 }
 #endif
 
@@ -87,45 +88,102 @@ static void mbedtls_zeroize( void *v, size_t n ) {
 static int aes_padlock_ace = -1;
 #endif
 
+/* consolidate all tables in a struct */
+typedef struct aes_tables_struct {
+    unsigned char FSb[256];
+    uint32_t FT0[256];    
+    uint32_t FT1[256];
+    uint32_t FT2[256];
+    uint32_t FT3[256];
+
+    unsigned char RSb[256];
+    uint32_t RT0[256];
+    uint32_t RT1[256];
+    uint32_t RT2[256];
+    uint32_t RT3[256];
+
+    uint32_t RCON[10];
+} aes_tables;
+
 #if defined(MBEDTLS_AES_ROM_TABLES)
 /*
  * Forward S-box
  */
-static const unsigned char FSb[256] =
-{
-    0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5,
-    0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
-    0xCA, 0x82, 0xC9, 0x7D, 0xFA, 0x59, 0x47, 0xF0,
-    0xAD, 0xD4, 0xA2, 0xAF, 0x9C, 0xA4, 0x72, 0xC0,
-    0xB7, 0xFD, 0x93, 0x26, 0x36, 0x3F, 0xF7, 0xCC,
-    0x34, 0xA5, 0xE5, 0xF1, 0x71, 0xD8, 0x31, 0x15,
-    0x04, 0xC7, 0x23, 0xC3, 0x18, 0x96, 0x05, 0x9A,
-    0x07, 0x12, 0x80, 0xE2, 0xEB, 0x27, 0xB2, 0x75,
-    0x09, 0x83, 0x2C, 0x1A, 0x1B, 0x6E, 0x5A, 0xA0,
-    0x52, 0x3B, 0xD6, 0xB3, 0x29, 0xE3, 0x2F, 0x84,
-    0x53, 0xD1, 0x00, 0xED, 0x20, 0xFC, 0xB1, 0x5B,
-    0x6A, 0xCB, 0xBE, 0x39, 0x4A, 0x4C, 0x58, 0xCF,
-    0xD0, 0xEF, 0xAA, 0xFB, 0x43, 0x4D, 0x33, 0x85,
-    0x45, 0xF9, 0x02, 0x7F, 0x50, 0x3C, 0x9F, 0xA8,
-    0x51, 0xA3, 0x40, 0x8F, 0x92, 0x9D, 0x38, 0xF5,
-    0xBC, 0xB6, 0xDA, 0x21, 0x10, 0xFF, 0xF3, 0xD2,
-    0xCD, 0x0C, 0x13, 0xEC, 0x5F, 0x97, 0x44, 0x17,
-    0xC4, 0xA7, 0x7E, 0x3D, 0x64, 0x5D, 0x19, 0x73,
-    0x60, 0x81, 0x4F, 0xDC, 0x22, 0x2A, 0x90, 0x88,
-    0x46, 0xEE, 0xB8, 0x14, 0xDE, 0x5E, 0x0B, 0xDB,
-    0xE0, 0x32, 0x3A, 0x0A, 0x49, 0x06, 0x24, 0x5C,
-    0xC2, 0xD3, 0xAC, 0x62, 0x91, 0x95, 0xE4, 0x79,
-    0xE7, 0xC8, 0x37, 0x6D, 0x8D, 0xD5, 0x4E, 0xA9,
-    0x6C, 0x56, 0xF4, 0xEA, 0x65, 0x7A, 0xAE, 0x08,
-    0xBA, 0x78, 0x25, 0x2E, 0x1C, 0xA6, 0xB4, 0xC6,
-    0xE8, 0xDD, 0x74, 0x1F, 0x4B, 0xBD, 0x8B, 0x8A,
-    0x70, 0x3E, 0xB5, 0x66, 0x48, 0x03, 0xF6, 0x0E,
-    0x61, 0x35, 0x57, 0xB9, 0x86, 0xC1, 0x1D, 0x9E,
-    0xE1, 0xF8, 0x98, 0x11, 0x69, 0xD9, 0x8E, 0x94,
-    0x9B, 0x1E, 0x87, 0xE9, 0xCE, 0x55, 0x28, 0xDF,
-    0x8C, 0xA1, 0x89, 0x0D, 0xBF, 0xE6, 0x42, 0x68,
+#define FSBOX \
+\
+    0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, \
+    0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76, \
+    0xCA, 0x82, 0xC9, 0x7D, 0xFA, 0x59, 0x47, 0xF0, \
+    0xAD, 0xD4, 0xA2, 0xAF, 0x9C, 0xA4, 0x72, 0xC0, \
+    0xB7, 0xFD, 0x93, 0x26, 0x36, 0x3F, 0xF7, 0xCC, \
+    0x34, 0xA5, 0xE5, 0xF1, 0x71, 0xD8, 0x31, 0x15, \
+    0x04, 0xC7, 0x23, 0xC3, 0x18, 0x96, 0x05, 0x9A, \
+    0x07, 0x12, 0x80, 0xE2, 0xEB, 0x27, 0xB2, 0x75, \
+    0x09, 0x83, 0x2C, 0x1A, 0x1B, 0x6E, 0x5A, 0xA0, \
+    0x52, 0x3B, 0xD6, 0xB3, 0x29, 0xE3, 0x2F, 0x84, \
+    0x53, 0xD1, 0x00, 0xED, 0x20, 0xFC, 0xB1, 0x5B, \
+    0x6A, 0xCB, 0xBE, 0x39, 0x4A, 0x4C, 0x58, 0xCF, \
+    0xD0, 0xEF, 0xAA, 0xFB, 0x43, 0x4D, 0x33, 0x85, \
+    0x45, 0xF9, 0x02, 0x7F, 0x50, 0x3C, 0x9F, 0xA8, \
+    0x51, 0xA3, 0x40, 0x8F, 0x92, 0x9D, 0x38, 0xF5, \
+    0xBC, 0xB6, 0xDA, 0x21, 0x10, 0xFF, 0xF3, 0xD2, \
+    0xCD, 0x0C, 0x13, 0xEC, 0x5F, 0x97, 0x44, 0x17, \
+    0xC4, 0xA7, 0x7E, 0x3D, 0x64, 0x5D, 0x19, 0x73, \
+    0x60, 0x81, 0x4F, 0xDC, 0x22, 0x2A, 0x90, 0x88, \
+    0x46, 0xEE, 0xB8, 0x14, 0xDE, 0x5E, 0x0B, 0xDB, \
+    0xE0, 0x32, 0x3A, 0x0A, 0x49, 0x06, 0x24, 0x5C, \
+    0xC2, 0xD3, 0xAC, 0x62, 0x91, 0x95, 0xE4, 0x79, \
+    0xE7, 0xC8, 0x37, 0x6D, 0x8D, 0xD5, 0x4E, 0xA9, \
+    0x6C, 0x56, 0xF4, 0xEA, 0x65, 0x7A, 0xAE, 0x08, \
+    0xBA, 0x78, 0x25, 0x2E, 0x1C, 0xA6, 0xB4, 0xC6, \
+    0xE8, 0xDD, 0x74, 0x1F, 0x4B, 0xBD, 0x8B, 0x8A, \
+    0x70, 0x3E, 0xB5, 0x66, 0x48, 0x03, 0xF6, 0x0E, \
+    0x61, 0x35, 0x57, 0xB9, 0x86, 0xC1, 0x1D, 0x9E, \
+    0xE1, 0xF8, 0x98, 0x11, 0x69, 0xD9, 0x8E, 0x94, \
+    0x9B, 0x1E, 0x87, 0xE9, 0xCE, 0x55, 0x28, 0xDF, \
+    0x8C, 0xA1, 0x89, 0x0D, 0xBF, 0xE6, 0x42, 0x68, \
     0x41, 0x99, 0x2D, 0x0F, 0xB0, 0x54, 0xBB, 0x16
-};
+
+#define RSBOX \
+\
+    0x52, 0x09, 0x6A, 0xD5, 0x30, 0x36, 0xA5, 0x38, \
+    0xBF, 0x40, 0xA3, 0x9E, 0x81, 0xF3, 0xD7, 0xFB, \
+    0x7C, 0xE3, 0x39, 0x82, 0x9B, 0x2F, 0xFF, 0x87, \
+    0x34, 0x8E, 0x43, 0x44, 0xC4, 0xDE, 0xE9, 0xCB, \
+    0x54, 0x7B, 0x94, 0x32, 0xA6, 0xC2, 0x23, 0x3D, \
+    0xEE, 0x4C, 0x95, 0x0B, 0x42, 0xFA, 0xC3, 0x4E, \
+    0x08, 0x2E, 0xA1, 0x66, 0x28, 0xD9, 0x24, 0xB2, \
+    0x76, 0x5B, 0xA2, 0x49, 0x6D, 0x8B, 0xD1, 0x25, \
+    0x72, 0xF8, 0xF6, 0x64, 0x86, 0x68, 0x98, 0x16, \
+    0xD4, 0xA4, 0x5C, 0xCC, 0x5D, 0x65, 0xB6, 0x92, \
+    0x6C, 0x70, 0x48, 0x50, 0xFD, 0xED, 0xB9, 0xDA, \
+    0x5E, 0x15, 0x46, 0x57, 0xA7, 0x8D, 0x9D, 0x84, \
+    0x90, 0xD8, 0xAB, 0x00, 0x8C, 0xBC, 0xD3, 0x0A, \
+    0xF7, 0xE4, 0x58, 0x05, 0xB8, 0xB3, 0x45, 0x06, \
+    0xD0, 0x2C, 0x1E, 0x8F, 0xCA, 0x3F, 0x0F, 0x02, \
+    0xC1, 0xAF, 0xBD, 0x03, 0x01, 0x13, 0x8A, 0x6B, \
+    0x3A, 0x91, 0x11, 0x41, 0x4F, 0x67, 0xDC, 0xEA, \
+    0x97, 0xF2, 0xCF, 0xCE, 0xF0, 0xB4, 0xE6, 0x73, \
+    0x96, 0xAC, 0x74, 0x22, 0xE7, 0xAD, 0x35, 0x85, \
+    0xE2, 0xF9, 0x37, 0xE8, 0x1C, 0x75, 0xDF, 0x6E, \
+    0x47, 0xF1, 0x1A, 0x71, 0x1D, 0x29, 0xC5, 0x89, \
+    0x6F, 0xB7, 0x62, 0x0E, 0xAA, 0x18, 0xBE, 0x1B, \
+    0xFC, 0x56, 0x3E, 0x4B, 0xC6, 0xD2, 0x79, 0x20, \
+    0x9A, 0xDB, 0xC0, 0xFE, 0x78, 0xCD, 0x5A, 0xF4, \
+    0x1F, 0xDD, 0xA8, 0x33, 0x88, 0x07, 0xC7, 0x31, \
+    0xB1, 0x12, 0x10, 0x59, 0x27, 0x80, 0xEC, 0x5F, \
+    0x60, 0x51, 0x7F, 0xA9, 0x19, 0xB5, 0x4A, 0x0D, \
+    0x2D, 0xE5, 0x7A, 0x9F, 0x93, 0xC9, 0x9C, 0xEF, \
+    0xA0, 0xE0, 0x3B, 0x4D, 0xAE, 0x2A, 0xF5, 0xB0, \
+    0xC8, 0xEB, 0xBB, 0x3C, 0x83, 0x53, 0x99, 0x61, \
+    0x17, 0x2B, 0x04, 0x7E, 0xBA, 0x77, 0xD6, 0x26, \
+    0xE1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0C, 0x7D
+
+#define RCONS \
+\
+    0x00000001, 0x00000002, 0x00000004, 0x00000008, \
+    0x00000010, 0x00000020, 0x00000040, 0x00000080, \
+    0x0000001B, 0x00000036
 
 /*
  * Forward tables
@@ -197,66 +255,6 @@ static const unsigned char FSb[256] =
     V(C3,41,41,82), V(B0,99,99,29), V(77,2D,2D,5A), V(11,0F,0F,1E), \
     V(CB,B0,B0,7B), V(FC,54,54,A8), V(D6,BB,BB,6D), V(3A,16,16,2C)
 
-#define V(a,b,c,d) 0x##a##b##c##d
-static const uint32_t FT0[256] = { FT };
-#undef V
-
-#define V(a,b,c,d) 0x##b##c##d##a
-static const uint32_t FT1[256] = { FT };
-#undef V
-
-#define V(a,b,c,d) 0x##c##d##a##b
-static const uint32_t FT2[256] = { FT };
-#undef V
-
-#define V(a,b,c,d) 0x##d##a##b##c
-static const uint32_t FT3[256] = { FT };
-#undef V
-
-#undef FT
-
-/*
- * Reverse S-box
- */
-static const unsigned char RSb[256] =
-{
-    0x52, 0x09, 0x6A, 0xD5, 0x30, 0x36, 0xA5, 0x38,
-    0xBF, 0x40, 0xA3, 0x9E, 0x81, 0xF3, 0xD7, 0xFB,
-    0x7C, 0xE3, 0x39, 0x82, 0x9B, 0x2F, 0xFF, 0x87,
-    0x34, 0x8E, 0x43, 0x44, 0xC4, 0xDE, 0xE9, 0xCB,
-    0x54, 0x7B, 0x94, 0x32, 0xA6, 0xC2, 0x23, 0x3D,
-    0xEE, 0x4C, 0x95, 0x0B, 0x42, 0xFA, 0xC3, 0x4E,
-    0x08, 0x2E, 0xA1, 0x66, 0x28, 0xD9, 0x24, 0xB2,
-    0x76, 0x5B, 0xA2, 0x49, 0x6D, 0x8B, 0xD1, 0x25,
-    0x72, 0xF8, 0xF6, 0x64, 0x86, 0x68, 0x98, 0x16,
-    0xD4, 0xA4, 0x5C, 0xCC, 0x5D, 0x65, 0xB6, 0x92,
-    0x6C, 0x70, 0x48, 0x50, 0xFD, 0xED, 0xB9, 0xDA,
-    0x5E, 0x15, 0x46, 0x57, 0xA7, 0x8D, 0x9D, 0x84,
-    0x90, 0xD8, 0xAB, 0x00, 0x8C, 0xBC, 0xD3, 0x0A,
-    0xF7, 0xE4, 0x58, 0x05, 0xB8, 0xB3, 0x45, 0x06,
-    0xD0, 0x2C, 0x1E, 0x8F, 0xCA, 0x3F, 0x0F, 0x02,
-    0xC1, 0xAF, 0xBD, 0x03, 0x01, 0x13, 0x8A, 0x6B,
-    0x3A, 0x91, 0x11, 0x41, 0x4F, 0x67, 0xDC, 0xEA,
-    0x97, 0xF2, 0xCF, 0xCE, 0xF0, 0xB4, 0xE6, 0x73,
-    0x96, 0xAC, 0x74, 0x22, 0xE7, 0xAD, 0x35, 0x85,
-    0xE2, 0xF9, 0x37, 0xE8, 0x1C, 0x75, 0xDF, 0x6E,
-    0x47, 0xF1, 0x1A, 0x71, 0x1D, 0x29, 0xC5, 0x89,
-    0x6F, 0xB7, 0x62, 0x0E, 0xAA, 0x18, 0xBE, 0x1B,
-    0xFC, 0x56, 0x3E, 0x4B, 0xC6, 0xD2, 0x79, 0x20,
-    0x9A, 0xDB, 0xC0, 0xFE, 0x78, 0xCD, 0x5A, 0xF4,
-    0x1F, 0xDD, 0xA8, 0x33, 0x88, 0x07, 0xC7, 0x31,
-    0xB1, 0x12, 0x10, 0x59, 0x27, 0x80, 0xEC, 0x5F,
-    0x60, 0x51, 0x7F, 0xA9, 0x19, 0xB5, 0x4A, 0x0D,
-    0x2D, 0xE5, 0x7A, 0x9F, 0x93, 0xC9, 0x9C, 0xEF,
-    0xA0, 0xE0, 0x3B, 0x4D, 0xAE, 0x2A, 0xF5, 0xB0,
-    0xC8, 0xEB, 0xBB, 0x3C, 0x83, 0x53, 0x99, 0x61,
-    0x17, 0x2B, 0x04, 0x7E, 0xBA, 0x77, 0xD6, 0x26,
-    0xE1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0C, 0x7D
-};
-
-/*
- * Reverse tables
- */
 #define RT \
 \
     V(50,A7,F4,51), V(53,65,41,7E), V(C3,A4,17,1A), V(96,5E,27,3A), \
@@ -324,65 +322,59 @@ static const unsigned char RSb[256] =
     V(71,01,A8,39), V(DE,B3,0C,08), V(9C,E4,B4,D8), V(90,C1,56,64), \
     V(61,84,CB,7B), V(70,B6,32,D5), V(74,5C,6C,48), V(42,57,B8,D0)
 
-#define V(a,b,c,d) 0x##a##b##c##d
-static const uint32_t RT0[256] = { RT };
-#undef V
+static const aes_tables tables = {
+    { FSBOX },
+    #define V(a,b,c,d) 0x##a##b##c##d
+    { FT },
+    #undef V
+    #define V(a,b,c,d) 0x##b##c##d##a
+    { FT },
+    #undef V
+    #define V(a,b,c,d) 0x##c##d##a##b
+    { FT },
+    #undef V
+    #define V(a,b,c,d) 0x##d##a##b##c
+    { FT },
+    #undef V
 
-#define V(a,b,c,d) 0x##b##c##d##a
-static const uint32_t RT1[256] = { RT };
-#undef V
+    { RSBOX },
+    #define V(a,b,c,d) 0x##a##b##c##d
+    { RT },
+    #undef V
+    #define V(a,b,c,d) 0x##b##c##d##a
+    { RT },
+    #undef V
+    #define V(a,b,c,d) 0x##c##d##a##b
+    { RT },
+    #undef V
+    #define V(a,b,c,d) 0x##d##a##b##c
+    { RT },
+    #undef V
 
-#define V(a,b,c,d) 0x##c##d##a##b
-static const uint32_t RT2[256] = { RT };
-#undef V
-
-#define V(a,b,c,d) 0x##d##a##b##c
-static const uint32_t RT3[256] = { RT };
-#undef V
-
-#undef RT
-
-/*
- * Round constants
- */
-static const uint32_t RCON[10] =
-{
-    0x00000001, 0x00000002, 0x00000004, 0x00000008,
-    0x00000010, 0x00000020, 0x00000040, 0x00000080,
-    0x0000001B, 0x00000036
+    { RCONS }
 };
+
+#undef RCONS
+#undef FSBOX
+#undef RSBOX
+#undef FT
+#undef RT
 
 #else /* MBEDTLS_AES_ROM_TABLES */
 
-/*
- * Forward S-box & tables
- */
-static unsigned char FSb[256];
-static uint32_t FT0[256];
-static uint32_t FT1[256];
-static uint32_t FT2[256];
-static uint32_t FT3[256];
-
-/*
- * Reverse S-box & tables
- */
-static unsigned char RSb[256];
-static uint32_t RT0[256];
-static uint32_t RT1[256];
-static uint32_t RT2[256];
-static uint32_t RT3[256];
-
-/*
- * Round constants
- */
-static uint32_t RCON[10];
+static aes_tables tables;
 
 /*
  * Tables generation code
  */
 #define ROTL8(x) ( ( x << 8 ) & 0xFFFFFFFF ) | ( x >> 24 )
 #define XTIME(x) ( ( x << 1 ) ^ ( ( x & 0x80 ) ? 0x1B : 0x00 ) )
-#define MUL(x,y) ( ( x && y ) ? pow[(log[x]+log[y]) % 255] : 0 )
+#define MUL(x,y,n) \
+{                    \
+    int logx = log[x];  \
+    int logy = log[y]; \
+    (n) = (x && y) ? pow[(logx + logy) % 255] : 0; \
+}
 
 static int aes_init_done = 0;
 
@@ -391,6 +383,10 @@ static void aes_gen_tables( void )
     int i, x, y, z;
     int pow[256];
     int log[256];
+
+    uint32_t rot;
+    int logi;
+    int prod1, prod2, prod3, prod4;
 
     /*
      * compute pow and log tables over GF(2^8)
@@ -407,19 +403,20 @@ static void aes_gen_tables( void )
      */
     for( i = 0, x = 1; i < 10; i++ )
     {
-        RCON[i] = (uint32_t) x;
+        tables.RCON[i] = (uint32_t) x;
         x = XTIME( x ) & 0xFF;
     }
 
     /*
      * generate the forward and reverse S-boxes
      */
-    FSb[0x00] = 0x63;
-    RSb[0x63] = 0x00;
+    tables.FSb[0x00] = 0x63;
+    tables.RSb[0x63] = 0x00;
 
     for( i = 1; i < 256; i++ )
     {
-        x = pow[255 - log[i]];
+        logi = log[i];
+        x = pow[255 - logi];
 
         y  = x; y = ( ( y << 1 ) | ( y >> 7 ) ) & 0xFF;
         x ^= y; y = ( ( y << 1 ) | ( y >> 7 ) ) & 0xFF;
@@ -427,8 +424,8 @@ static void aes_gen_tables( void )
         x ^= y; y = ( ( y << 1 ) | ( y >> 7 ) ) & 0xFF;
         x ^= y ^ 0x63;
 
-        FSb[i] = (unsigned char) x;
-        RSb[x] = (unsigned char) i;
+        tables.FSb[i] = (unsigned char) x;
+        tables.RSb[x] = (unsigned char) i;
     }
 
     /*
@@ -436,29 +433,40 @@ static void aes_gen_tables( void )
      */
     for( i = 0; i < 256; i++ )
     {
-        x = FSb[i];
+        x = tables.FSb[i];
         y = XTIME( x ) & 0xFF;
         z =  ( y ^ x ) & 0xFF;
 
-        FT0[i] = ( (uint32_t) y       ) ^
+        tables.FT0[i] = ( (uint32_t) y       ) ^
                  ( (uint32_t) x <<  8 ) ^
                  ( (uint32_t) x << 16 ) ^
                  ( (uint32_t) z << 24 );
 
-        FT1[i] = ROTL8( FT0[i] );
-        FT2[i] = ROTL8( FT1[i] );
-        FT3[i] = ROTL8( FT2[i] );
+        rot = tables.FT0[i];
+        tables.FT1[i] = ROTL8( rot );
+        rot = tables.FT1[i];
+        tables.FT2[i] = ROTL8( rot );
+        rot = tables.FT2[i];
+        tables.FT3[i] = ROTL8( rot );
 
-        x = RSb[i];
+        x = tables.RSb[i];
 
-        RT0[i] = ( (uint32_t) MUL( 0x0E, x )       ) ^
-                 ( (uint32_t) MUL( 0x09, x ) <<  8 ) ^
-                 ( (uint32_t) MUL( 0x0D, x ) << 16 ) ^
-                 ( (uint32_t) MUL( 0x0B, x ) << 24 );
+        MUL(0x0E, x, prod1);
+        MUL(0x09, x, prod2);
+        MUL(0x0D, x, prod3);
+        MUL(0x0B, x, prod4);
+        
+        tables.RT0[i] = ( (uint32_t) prod1) ^
+                 ( (uint32_t) prod2 <<  8 ) ^
+                 ( (uint32_t) prod3 << 16 ) ^
+                 ( (uint32_t) prod4 << 24 );
 
-        RT1[i] = ROTL8( RT0[i] );
-        RT2[i] = ROTL8( RT1[i] );
-        RT3[i] = ROTL8( RT2[i] );
+        rot = tables.RT0[i];
+        tables.RT1[i] = ROTL8( rot );
+        rot = tables.RT1[i];
+        tables.RT2[i] = ROTL8( rot );
+        rot = tables.RT2[i];
+        tables.RT3[i] = ROTL8( rot );
     }
 }
 
@@ -485,6 +493,7 @@ int mbedtls_aes_setkey_enc( mbedtls_aes_context *ctx, const unsigned char *key,
                     unsigned int keybits )
 {
     unsigned int i;
+    uint32_t key_word;
     uint32_t *RK;
 
 #if !defined(MBEDTLS_AES_ROM_TABLES)
@@ -492,17 +501,10 @@ int mbedtls_aes_setkey_enc( mbedtls_aes_context *ctx, const unsigned char *key,
     {
         aes_gen_tables();
         aes_init_done = 1;
-
     }
 #endif
 
-    switch( keybits )
-    {
-        case 128: ctx->nr = 10; break;
-        case 192: ctx->nr = 12; break;
-        case 256: ctx->nr = 14; break;
-        default : return( MBEDTLS_ERR_AES_INVALID_KEY_LENGTH );
-    }
+    ctx->nr = 14;
 
 #if defined(MBEDTLS_PADLOCK_C) && defined(MBEDTLS_PADLOCK_ALIGN16)
     if( aes_padlock_ace == -1 )
@@ -521,70 +523,74 @@ int mbedtls_aes_setkey_enc( mbedtls_aes_context *ctx, const unsigned char *key,
 
     for( i = 0; i < ( keybits >> 5 ); i++ )
     {
-        GET_UINT32_LE( RK[i], key, i << 2 );
+        GET_UINT32_LE( key_word, key, i << 2);
+        RK[i] = key_word;
     }
 
-    switch( ctx->nr )
+    for( i = 0; i < 7; i++, RK += 8 )
     {
-        case 10:
+        /* 
+         *    RK[8] = RK[0] ^ tables.RCON[i] ^
+         *        ( (uint32_t) tables.FSb[ ( RK[7] >>  8 ) & 0xFF ]       ) ^
+         *        ( (uint32_t) tables.FSb[ ( RK[7] >> 16 ) & 0xFF ] <<  8 ) ^
+         *        ( (uint32_t) tables.FSb[ ( RK[7] >> 24 ) & 0xFF ] << 16 ) ^
+         *        ( (uint32_t) tables.FSb[ ( RK[7]       ) & 0xFF ] << 24 );
+         */      
+        uint32_t rk0 = RK[0];
+        uint32_t rk7 = RK[7];
+        uint32_t rcon = tables.RCON[i];
+        uint32_t b0 = (uint32_t) tables.FSb[ (rk7 >>  8 ) & 0xFF ];
+        uint32_t b1 = (uint32_t) tables.FSb[ (rk7 >> 16 ) & 0xFF ];
+        uint32_t b2 = (uint32_t) tables.FSb[ (rk7 >> 24 ) & 0xFF ];
+        uint32_t b3 = (uint32_t) tables.FSb[ (rk7       ) & 0xFF ];
+        
+        RK[8] = rk0 ^ rcon ^ 
+            ( b0       ) ^
+            ( b1 <<  8 ) ^
+            ( b2 << 16 ) ^
+            ( b3 << 24 );
 
-            for( i = 0; i < 10; i++, RK += 4 )
-            {
-                RK[4]  = RK[0] ^ RCON[i] ^
-                ( (uint32_t) FSb[ ( RK[3] >>  8 ) & 0xFF ]       ) ^
-                ( (uint32_t) FSb[ ( RK[3] >> 16 ) & 0xFF ] <<  8 ) ^
-                ( (uint32_t) FSb[ ( RK[3] >> 24 ) & 0xFF ] << 16 ) ^
-                ( (uint32_t) FSb[ ( RK[3]       ) & 0xFF ] << 24 );
+        rk0 = RK[1];
+        rk7 = RK[8];
+        RK[9] = rk0 ^ rk7;
 
-                RK[5]  = RK[1] ^ RK[4];
-                RK[6]  = RK[2] ^ RK[5];
-                RK[7]  = RK[3] ^ RK[6];
-            }
-            break;
+        rk0 = RK[2];
+        rk7 = RK[9];
+        RK[10] = rk0 ^ rk7;
 
-        case 12:
+        rk0 = RK[3];
+        rk7 = RK[10];
+        RK[11] = rk0 ^ rk7;
 
-            for( i = 0; i < 8; i++, RK += 6 )
-            {
-                RK[6]  = RK[0] ^ RCON[i] ^
-                ( (uint32_t) FSb[ ( RK[5] >>  8 ) & 0xFF ]       ) ^
-                ( (uint32_t) FSb[ ( RK[5] >> 16 ) & 0xFF ] <<  8 ) ^
-                ( (uint32_t) FSb[ ( RK[5] >> 24 ) & 0xFF ] << 16 ) ^
-                ( (uint32_t) FSb[ ( RK[5]       ) & 0xFF ] << 24 );
+        /* RK[12] = RK[4] ^
+         *      ( (uint32_t) tables.FSb[ ( RK[11]       ) & 0xFF ]       ) ^
+         *      ( (uint32_t) tables.FSb[ ( RK[11] >>  8 ) & 0xFF ] <<  8 ) ^
+         *      ( (uint32_t) tables.FSb[ ( RK[11] >> 16 ) & 0xFF ] << 16 ) ^
+         *      ( (uint32_t) tables.FSb[ ( RK[11] >> 24 ) & 0xFF ] << 24 );
+         */
+        rk0 = RK[4];
+        rk7 = RK[11];
+        b0 = (uint32_t) tables.FSb[ ( rk7       ) & 0xFF ];
+        b1 = (uint32_t) tables.FSb[ ( rk7 >>  8 ) & 0xFF ];
+        b2 = (uint32_t) tables.FSb[ ( rk7 >> 16 ) & 0xFF ];
+        b3 = (uint32_t) tables.FSb[ ( rk7 >> 24 ) & 0xFF ];
+        RK[12] = rk0 ^
+            ( b0       ) ^
+            ( b1 <<  8 ) ^
+            ( b2 << 16 ) ^
+            ( b3 << 24 );
 
-                RK[7]  = RK[1] ^ RK[6];
-                RK[8]  = RK[2] ^ RK[7];
-                RK[9]  = RK[3] ^ RK[8];
-                RK[10] = RK[4] ^ RK[9];
-                RK[11] = RK[5] ^ RK[10];
-            }
-            break;
+        rk0 = RK[5];
+        rk7 = RK[12];
+        RK[13] = rk0 ^ rk7;
 
-        case 14:
+        rk0 = RK[6];
+        rk7 = RK[13];
+        RK[14] = rk0 ^ rk7;
 
-            for( i = 0; i < 7; i++, RK += 8 )
-            {
-                RK[8]  = RK[0] ^ RCON[i] ^
-                ( (uint32_t) FSb[ ( RK[7] >>  8 ) & 0xFF ]       ) ^
-                ( (uint32_t) FSb[ ( RK[7] >> 16 ) & 0xFF ] <<  8 ) ^
-                ( (uint32_t) FSb[ ( RK[7] >> 24 ) & 0xFF ] << 16 ) ^
-                ( (uint32_t) FSb[ ( RK[7]       ) & 0xFF ] << 24 );
-
-                RK[9]  = RK[1] ^ RK[8];
-                RK[10] = RK[2] ^ RK[9];
-                RK[11] = RK[3] ^ RK[10];
-
-                RK[12] = RK[4] ^
-                ( (uint32_t) FSb[ ( RK[11]       ) & 0xFF ]       ) ^
-                ( (uint32_t) FSb[ ( RK[11] >>  8 ) & 0xFF ] <<  8 ) ^
-                ( (uint32_t) FSb[ ( RK[11] >> 16 ) & 0xFF ] << 16 ) ^
-                ( (uint32_t) FSb[ ( RK[11] >> 24 ) & 0xFF ] << 24 );
-
-                RK[13] = RK[5] ^ RK[12];
-                RK[14] = RK[6] ^ RK[13];
-                RK[15] = RK[7] ^ RK[14];
-            }
-            break;
+        rk0 = RK[7];
+        rk7 = RK[14];
+        RK[15] = rk0 ^ rk7;
     }
 
     return( 0 );
@@ -602,6 +608,7 @@ int mbedtls_aes_setkey_dec( mbedtls_aes_context *ctx, const unsigned char *key,
     mbedtls_aes_context cty;
     uint32_t *RK;
     uint32_t *SK;
+    uint32_t key_word;
 
     mbedtls_aes_init( &cty );
 
@@ -632,26 +639,47 @@ int mbedtls_aes_setkey_dec( mbedtls_aes_context *ctx, const unsigned char *key,
 
     SK = cty.rk + cty.nr * 4;
 
-    *RK++ = *SK++;
-    *RK++ = *SK++;
-    *RK++ = *SK++;
-    *RK++ = *SK++;
+    key_word = *SK++;
+    *RK++ = key_word;
+    key_word = *SK++;
+    *RK++ = key_word;
+    key_word = *SK++;
+    *RK++ = key_word;
+    key_word = *SK++;
+    *RK++ = key_word;
 
     for( i = ctx->nr - 1, SK -= 8; i > 0; i--, SK -= 8 )
     {
         for( j = 0; j < 4; j++, SK++ )
         {
-            *RK++ = RT0[ FSb[ ( *SK       ) & 0xFF ] ] ^
-                    RT1[ FSb[ ( *SK >>  8 ) & 0xFF ] ] ^
-                    RT2[ FSb[ ( *SK >> 16 ) & 0xFF ] ] ^
-                    RT3[ FSb[ ( *SK >> 24 ) & 0xFF ] ];
+            /* *RK++ = tables.RT0[ tables.FSb[ ( *SK       ) & 0xFF ] ] ^
+             *      tables.RT1[ tables.FSb[ ( *SK >>  8 ) & 0xFF ] ] ^
+             *      tables.RT2[ tables.FSb[ ( *SK >> 16 ) & 0xFF ] ] ^
+             *      tables.RT3[ tables.FSb[ ( *SK >> 24 ) & 0xFF ] ];
+             */
+            
+            uint32_t sk = *SK;
+            uint32_t b0 = tables.FSb[ ( sk       ) & 0xFF ];
+            uint32_t b1 = tables.FSb[ ( sk >>  8 ) & 0xFF ];
+            uint32_t b2 = tables.FSb[ ( sk >> 16 ) & 0xFF ];
+            uint32_t b3 = tables.FSb[ ( sk >> 24 ) & 0xFF ];
+            
+            b0 = tables.RT0[ b0 ];
+            b1 = tables.RT1[ b1 ];
+            b2 = tables.RT2[ b2 ];
+            b3 = tables.RT3[ b3 ];
+            *RK++ = b0 ^ b1 ^ b2 ^ b3;
         }
     }
 
-    *RK++ = *SK++;
-    *RK++ = *SK++;
-    *RK++ = *SK++;
-    *RK++ = *SK++;
+    key_word = *SK++;
+    *RK++ = key_word;
+    key_word = *SK++;
+    *RK++ = key_word;
+    key_word = *SK++;
+    *RK++ = key_word;
+    key_word = *SK++;
+    *RK++ = key_word;
 
 exit:
     mbedtls_aes_free( &cty );
@@ -662,48 +690,64 @@ exit:
 
 #define AES_FROUND(X0,X1,X2,X3,Y0,Y1,Y2,Y3)     \
 {                                               \
-    X0 = *RK++ ^ FT0[ ( Y0       ) & 0xFF ] ^   \
-                 FT1[ ( Y1 >>  8 ) & 0xFF ] ^   \
-                 FT2[ ( Y2 >> 16 ) & 0xFF ] ^   \
-                 FT3[ ( Y3 >> 24 ) & 0xFF ];    \
-                                                \
-    X1 = *RK++ ^ FT0[ ( Y1       ) & 0xFF ] ^   \
-                 FT1[ ( Y2 >>  8 ) & 0xFF ] ^   \
-                 FT2[ ( Y3 >> 16 ) & 0xFF ] ^   \
-                 FT3[ ( Y0 >> 24 ) & 0xFF ];    \
-                                                \
-    X2 = *RK++ ^ FT0[ ( Y2       ) & 0xFF ] ^   \
-                 FT1[ ( Y3 >>  8 ) & 0xFF ] ^   \
-                 FT2[ ( Y0 >> 16 ) & 0xFF ] ^   \
-                 FT3[ ( Y1 >> 24 ) & 0xFF ];    \
-                                                \
-    X3 = *RK++ ^ FT0[ ( Y3       ) & 0xFF ] ^   \
-                 FT1[ ( Y0 >>  8 ) & 0xFF ] ^   \
-                 FT2[ ( Y1 >> 16 ) & 0xFF ] ^   \
-                 FT3[ ( Y2 >> 24 ) & 0xFF ];    \
+    uint32_t rk = *RK++;                                \
+    uint32_t b0 = tables.FT0[ ( Y0       ) & 0xFF ];    \
+    uint32_t b1 = tables.FT1[ ( Y1 >>  8 ) & 0xFF ];    \
+    uint32_t b2 = tables.FT2[ ( Y2 >> 16 ) & 0xFF ];    \
+    uint32_t b3 = tables.FT3[ ( Y3 >> 24 ) & 0xFF ];    \
+    X0 = rk ^ b0 ^ b1 ^ b2 ^ b3; \
+                                 \
+    rk = *RK++;                                         \
+    b0 = tables.FT0[ ( Y1       ) & 0xFF ];             \
+    b1 = tables.FT1[ ( Y2 >>  8 ) & 0xFF ];             \
+    b2 = tables.FT2[ ( Y3 >> 16 ) & 0xFF ];             \
+    b3 = tables.FT3[ ( Y0 >> 24 ) & 0xFF ];             \
+    X1 = rk ^ b0 ^ b1 ^ b2 ^ b3; \
+                                 \
+    rk = *RK++;                                         \
+    b0 = tables.FT0[ ( Y2       ) & 0xFF ];             \
+    b1 = tables.FT1[ ( Y3 >>  8 ) & 0xFF ];             \
+    b2 = tables.FT2[ ( Y0 >> 16 ) & 0xFF ];             \
+    b3 = tables.FT3[ ( Y1 >> 24 ) & 0xFF ];             \
+    X2 = rk ^ b0 ^ b1 ^ b2 ^ b3; \
+                                 \
+    rk = *RK++;                                         \
+    b0 = tables.FT0[ ( Y3       ) & 0xFF ];             \
+    b1 = tables.FT1[ ( Y0 >>  8 ) & 0xFF ];             \
+    b2 = tables.FT2[ ( Y1 >> 16 ) & 0xFF ];             \
+    b3 = tables.FT3[ ( Y2 >> 24 ) & 0xFF ];             \
+    X3 = rk ^ b0 ^ b1 ^ b2 ^ b3; \
 }
 
 #define AES_RROUND(X0,X1,X2,X3,Y0,Y1,Y2,Y3)     \
 {                                               \
-    X0 = *RK++ ^ RT0[ ( Y0       ) & 0xFF ] ^   \
-                 RT1[ ( Y3 >>  8 ) & 0xFF ] ^   \
-                 RT2[ ( Y2 >> 16 ) & 0xFF ] ^   \
-                 RT3[ ( Y1 >> 24 ) & 0xFF ];    \
-                                                \
-    X1 = *RK++ ^ RT0[ ( Y1       ) & 0xFF ] ^   \
-                 RT1[ ( Y0 >>  8 ) & 0xFF ] ^   \
-                 RT2[ ( Y3 >> 16 ) & 0xFF ] ^   \
-                 RT3[ ( Y2 >> 24 ) & 0xFF ];    \
-                                                \
-    X2 = *RK++ ^ RT0[ ( Y2       ) & 0xFF ] ^   \
-                 RT1[ ( Y1 >>  8 ) & 0xFF ] ^   \
-                 RT2[ ( Y0 >> 16 ) & 0xFF ] ^   \
-                 RT3[ ( Y3 >> 24 ) & 0xFF ];    \
-                                                \
-    X3 = *RK++ ^ RT0[ ( Y3       ) & 0xFF ] ^   \
-                 RT1[ ( Y2 >>  8 ) & 0xFF ] ^   \
-                 RT2[ ( Y1 >> 16 ) & 0xFF ] ^   \
-                 RT3[ ( Y0 >> 24 ) & 0xFF ];    \
+    uint32_t rk = *RK++;                        \
+    uint32_t b0 = tables.RT0[ ( Y0       ) & 0xFF ];    \
+    uint32_t b1 = tables.RT1[ ( Y3 >>  8 ) & 0xFF ];    \
+    uint32_t b2 = tables.RT2[ ( Y2 >> 16 ) & 0xFF ];    \
+    uint32_t b3 = tables.RT3[ ( Y1 >> 24 ) & 0xFF ];    \
+    X0 = rk ^ b0 ^ b1 ^ b2 ^ b3; \
+                                 \
+    rk = *RK++;                                         \
+    b0 = tables.RT0[ ( Y1       ) & 0xFF ];             \
+    b1 = tables.RT1[ ( Y0 >>  8 ) & 0xFF ];             \
+    b2 = tables.RT2[ ( Y3 >> 16 ) & 0xFF ];             \
+    b3 = tables.RT3[ ( Y2 >> 24 ) & 0xFF ];             \
+    X1 = rk ^ b0 ^ b1 ^ b2 ^ b3; \
+                                 \
+    rk = *RK++;                                         \
+    b0 = tables.RT0[ ( Y2       ) & 0xFF ];             \
+    b1 = tables.RT1[ ( Y1 >>  8 ) & 0xFF ];             \
+    b2 = tables.RT2[ ( Y0 >> 16 ) & 0xFF ];             \
+    b3 = tables.RT3[ ( Y3 >> 24 ) & 0xFF ];             \
+    X2 = rk ^ b0 ^ b1 ^ b2 ^ b3; \
+                                 \
+    rk = *RK++;                                         \
+    b0 = tables.RT0[ ( Y3       ) & 0xFF ];             \
+    b1 = tables.RT1[ ( Y2 >>  8 ) & 0xFF ];             \
+    b2 = tables.RT2[ ( Y1 >> 16 ) & 0xFF ];             \
+    b3 = tables.RT3[ ( Y0 >> 24 ) & 0xFF ];             \
+    X3 = rk ^ b0 ^ b1 ^ b2 ^ b3; \
 }
 
 /*
@@ -732,30 +776,77 @@ void mbedtls_aes_encrypt( mbedtls_aes_context *ctx,
 
     AES_FROUND( Y0, Y1, Y2, Y3, X0, X1, X2, X3 );
 
-    X0 = *RK++ ^ \
-            ( (uint32_t) FSb[ ( Y0       ) & 0xFF ]       ) ^
-            ( (uint32_t) FSb[ ( Y1 >>  8 ) & 0xFF ] <<  8 ) ^
-            ( (uint32_t) FSb[ ( Y2 >> 16 ) & 0xFF ] << 16 ) ^
-            ( (uint32_t) FSb[ ( Y3 >> 24 ) & 0xFF ] << 24 );
-
-    X1 = *RK++ ^ \
-            ( (uint32_t) FSb[ ( Y1       ) & 0xFF ]       ) ^
-            ( (uint32_t) FSb[ ( Y2 >>  8 ) & 0xFF ] <<  8 ) ^
-            ( (uint32_t) FSb[ ( Y3 >> 16 ) & 0xFF ] << 16 ) ^
-            ( (uint32_t) FSb[ ( Y0 >> 24 ) & 0xFF ] << 24 );
-
-    X2 = *RK++ ^ \
-            ( (uint32_t) FSb[ ( Y2       ) & 0xFF ]       ) ^
-            ( (uint32_t) FSb[ ( Y3 >>  8 ) & 0xFF ] <<  8 ) ^
-            ( (uint32_t) FSb[ ( Y0 >> 16 ) & 0xFF ] << 16 ) ^
-            ( (uint32_t) FSb[ ( Y1 >> 24 ) & 0xFF ] << 24 );
-
-    X3 = *RK++ ^ \
-            ( (uint32_t) FSb[ ( Y3       ) & 0xFF ]       ) ^
-            ( (uint32_t) FSb[ ( Y0 >>  8 ) & 0xFF ] <<  8 ) ^
-            ( (uint32_t) FSb[ ( Y1 >> 16 ) & 0xFF ] << 16 ) ^
-            ( (uint32_t) FSb[ ( Y2 >> 24 ) & 0xFF ] << 24 );
-
+    {
+        /* X0 = *RK++ ^ \
+         *      ( (uint32_t) tables.FSb[ ( Y0       ) & 0xFF ]       ) ^
+         *      ( (uint32_t) tables.FSb[ ( Y1 >>  8 ) & 0xFF ] <<  8 ) ^
+         *      ( (uint32_t) tables.FSb[ ( Y2 >> 16 ) & 0xFF ] << 16 ) ^
+         *      ( (uint32_t) tables.FSb[ ( Y3 >> 24 ) & 0xFF ] << 24 ); 
+         */
+        uint32_t rk = *RK++;
+        uint32_t b0 = tables.FSb[ ( Y0       ) & 0xFF ];
+        uint32_t b1 = tables.FSb[ ( Y1 >>  8 ) & 0xFF ];
+        uint32_t b2 = tables.FSb[ ( Y2 >> 16 ) & 0xFF ];
+        uint32_t b3 = tables.FSb[ ( Y3 >> 24 ) & 0xFF ];
+        X0 = rk ^ 
+            ( b0       ) ^
+            ( b1 <<  8 ) ^ 
+            ( b2 << 16 ) ^
+            ( b3 << 24 );
+        
+        /* X1 = *RK++ ^ \
+         *      ( (uint32_t) tables.FSb[ ( Y1       ) & 0xFF ]       ) ^
+         *      ( (uint32_t) tables.FSb[ ( Y2 >>  8 ) & 0xFF ] <<  8 ) ^
+         *      ( (uint32_t) tables.FSb[ ( Y3 >> 16 ) & 0xFF ] << 16 ) ^
+         *      ( (uint32_t) tables.FSb[ ( Y0 >> 24 ) & 0xFF ] << 24 );
+         */
+        rk = *RK++;
+        b0 = tables.FSb[ ( Y1       ) & 0xFF ];
+        b1 = tables.FSb[ ( Y2 >>  8 ) & 0xFF ];
+        b2 = tables.FSb[ ( Y3 >> 16 ) & 0xFF ];
+        b3 = tables.FSb[ ( Y0 >> 24 ) & 0xFF ];
+        X1 = rk ^ 
+            ( b0       ) ^
+            ( b1 <<  8 ) ^ 
+            ( b2 << 16 ) ^
+            ( b3 << 24 );
+         
+        /* X2 = *RK++ ^ \
+         *      ( (uint32_t) tables.FSb[ ( Y2       ) & 0xFF ]       ) ^
+         *      ( (uint32_t) tables.FSb[ ( Y3 >>  8 ) & 0xFF ] <<  8 ) ^
+         *      ( (uint32_t) tables.FSb[ ( Y0 >> 16 ) & 0xFF ] << 16 ) ^
+         *      ( (uint32_t) tables.FSb[ ( Y1 >> 24 ) & 0xFF ] << 24 );
+         */
+        rk = *RK++;
+        b0 = tables.FSb[ ( Y2       ) & 0xFF ];
+        b1 = tables.FSb[ ( Y3 >>  8 ) & 0xFF ];
+        b2 = tables.FSb[ ( Y0 >> 16 ) & 0xFF ];
+        b3 = tables.FSb[ ( Y1 >> 24 ) & 0xFF ];
+        X2 = rk ^ 
+            ( b0       ) ^
+            ( b1 <<  8 ) ^ 
+            ( b2 << 16 ) ^
+            ( b3 << 24 );
+        
+     
+        /* X3 = *RK++ ^ \
+         *       ( (uint32_t) tables.FSb[ ( Y3       ) & 0xFF ]       ) ^
+         *       ( (uint32_t) tables.FSb[ ( Y0 >>  8 ) & 0xFF ] <<  8 ) ^
+         *       ( (uint32_t) tables.FSb[ ( Y1 >> 16 ) & 0xFF ] << 16 ) ^
+         *       ( (uint32_t) tables.FSb[ ( Y2 >> 24 ) & 0xFF ] << 24 );
+         */
+         rk = *RK++;
+         b0 = tables.FSb[ ( Y3       ) & 0xFF ];
+         b1 = tables.FSb[ ( Y0 >>  8 ) & 0xFF ];
+         b2 = tables.FSb[ ( Y1 >> 16 ) & 0xFF ];
+         b3 = tables.FSb[ ( Y2 >> 24 ) & 0xFF ];
+         X3 = rk ^ 
+            ( b0       ) ^
+            ( b1 <<  8 ) ^ 
+            ( b2 << 16 ) ^
+            ( b3 << 24 );
+    }
+            
     PUT_UINT32_LE( X0, output,  0 );
     PUT_UINT32_LE( X1, output,  4 );
     PUT_UINT32_LE( X2, output,  8 );
@@ -789,29 +880,75 @@ void mbedtls_aes_decrypt( mbedtls_aes_context *ctx,
 
     AES_RROUND( Y0, Y1, Y2, Y3, X0, X1, X2, X3 );
 
-    X0 = *RK++ ^ \
-            ( (uint32_t) RSb[ ( Y0       ) & 0xFF ]       ) ^
-            ( (uint32_t) RSb[ ( Y3 >>  8 ) & 0xFF ] <<  8 ) ^
-            ( (uint32_t) RSb[ ( Y2 >> 16 ) & 0xFF ] << 16 ) ^
-            ( (uint32_t) RSb[ ( Y1 >> 24 ) & 0xFF ] << 24 );
+    {
+        /* X0 = *RK++ ^ \
+         *      ( (uint32_t) tables.RSb[ ( Y0       ) & 0xFF ]       ) ^
+         *      ( (uint32_t) tables.RSb[ ( Y3 >>  8 ) & 0xFF ] <<  8 ) ^
+         *      ( (uint32_t) tables.RSb[ ( Y2 >> 16 ) & 0xFF ] << 16 ) ^
+         *      ( (uint32_t) tables.RSb[ ( Y1 >> 24 ) & 0xFF ] << 24 );
+         */
+        uint32_t rk = *RK++;
+        uint32_t b0 = tables.RSb[ ( Y0       ) & 0xFF ];
+        uint32_t b1 = tables.RSb[ ( Y3 >>  8 ) & 0xFF ];
+        uint32_t b2 = tables.RSb[ ( Y2 >> 16 ) & 0xFF ];
+        uint32_t b3 = tables.RSb[ ( Y1 >> 24 ) & 0xFF ];
+        X0 = rk ^
+            ( b0       ) ^
+            ( b1 <<  8 ) ^
+            ( b2 << 16 ) ^
+            ( b3 << 24 );
+        
+        /* X1 = *RK++ ^ \
+         *      ( (uint32_t) tables.RSb[ ( Y1       ) & 0xFF ]       ) ^
+         *      ( (uint32_t) tables.RSb[ ( Y0 >>  8 ) & 0xFF ] <<  8 ) ^
+         *      ( (uint32_t) tables.RSb[ ( Y3 >> 16 ) & 0xFF ] << 16 ) ^
+         *      ( (uint32_t) tables.RSb[ ( Y2 >> 24 ) & 0xFF ] << 24 );
+         */
+        rk = *RK++;
+        b0 = tables.RSb[ ( Y1       ) & 0xFF ];
+        b1 = tables.RSb[ ( Y0 >>  8 ) & 0xFF ];
+        b2 = tables.RSb[ ( Y3 >> 16 ) & 0xFF ];
+        b3 = tables.RSb[ ( Y2 >> 24 ) & 0xFF ];
+        X1 = rk ^
+            ( b0       ) ^
+            ( b1 <<  8 ) ^
+            ( b2 << 16 ) ^
+            ( b3 << 24 );
+         
+        /* X2 = *RK++ ^ \
+         *      ( (uint32_t) tables.RSb[ ( Y2       ) & 0xFF ]       ) ^
+         *      ( (uint32_t) tables.RSb[ ( Y1 >>  8 ) & 0xFF ] <<  8 ) ^
+         *      ( (uint32_t) tables.RSb[ ( Y0 >> 16 ) & 0xFF ] << 16 ) ^
+         *      ( (uint32_t) tables.RSb[ ( Y3 >> 24 ) & 0xFF ] << 24 );
+         */
+        rk = *RK++;
+        b0 = tables.RSb[ ( Y2       ) & 0xFF ];
+        b1 = tables.RSb[ ( Y1 >>  8 ) & 0xFF ];
+        b2 = tables.RSb[ ( Y0 >> 16 ) & 0xFF ];
+        b3 = tables.RSb[ ( Y3 >> 24 ) & 0xFF ];
+        X2 = rk ^
+            ( b0       ) ^
+            ( b1 <<  8 ) ^
+            ( b2 << 16 ) ^
+            ( b3 << 24 );
 
-    X1 = *RK++ ^ \
-            ( (uint32_t) RSb[ ( Y1       ) & 0xFF ]       ) ^
-            ( (uint32_t) RSb[ ( Y0 >>  8 ) & 0xFF ] <<  8 ) ^
-            ( (uint32_t) RSb[ ( Y3 >> 16 ) & 0xFF ] << 16 ) ^
-            ( (uint32_t) RSb[ ( Y2 >> 24 ) & 0xFF ] << 24 );
-
-    X2 = *RK++ ^ \
-            ( (uint32_t) RSb[ ( Y2       ) & 0xFF ]       ) ^
-            ( (uint32_t) RSb[ ( Y1 >>  8 ) & 0xFF ] <<  8 ) ^
-            ( (uint32_t) RSb[ ( Y0 >> 16 ) & 0xFF ] << 16 ) ^
-            ( (uint32_t) RSb[ ( Y3 >> 24 ) & 0xFF ] << 24 );
-
-    X3 = *RK++ ^ \
-            ( (uint32_t) RSb[ ( Y3       ) & 0xFF ]       ) ^
-            ( (uint32_t) RSb[ ( Y2 >>  8 ) & 0xFF ] <<  8 ) ^
-            ( (uint32_t) RSb[ ( Y1 >> 16 ) & 0xFF ] << 16 ) ^
-            ( (uint32_t) RSb[ ( Y0 >> 24 ) & 0xFF ] << 24 );
+        /* X3 = *RK++ ^ \
+         *      ( (uint32_t) tables.RSb[ ( Y3       ) & 0xFF ]       ) ^
+         *      ( (uint32_t) tables.RSb[ ( Y2 >>  8 ) & 0xFF ] <<  8 ) ^
+         *      ( (uint32_t) tables.RSb[ ( Y1 >> 16 ) & 0xFF ] << 16 ) ^
+         *      ( (uint32_t) tables.RSb[ ( Y0 >> 24 ) & 0xFF ] << 24 );
+         */
+        rk = *RK++;
+        b0 = tables.RSb[ ( Y3       ) & 0xFF ];
+        b1 = tables.RSb[ ( Y2 >>  8 ) & 0xFF ];
+        b2 = tables.RSb[ ( Y1 >> 16 ) & 0xFF ];
+        b3 = tables.RSb[ ( Y0 >> 24 ) & 0xFF ];
+        X3 = rk ^
+            ( b0       ) ^
+            ( b1 <<  8 ) ^
+            ( b2 << 16 ) ^
+            ( b3 << 24 );
+    }
 
     PUT_UINT32_LE( X0, output,  0 );
     PUT_UINT32_LE( X1, output,  4 );
@@ -1222,9 +1359,7 @@ int mbedtls_aes_self_test( int verbose )
     int ret = 0, i, j, u, v;
     unsigned char key[32];
     unsigned char buf[64];
-#if defined(MBEDTLS_CIPHER_MODE_CBC) || defined(MBEDTLS_CIPHER_MODE_CFB)
     unsigned char iv[16];
-#endif
 #if defined(MBEDTLS_CIPHER_MODE_CBC)
     unsigned char prv[16];
 #endif

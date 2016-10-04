@@ -55,13 +55,11 @@ extern "C" {
  *                 - to simplify key expansion in the 256-bit case by
  *                 generating an extra round key
  */
-typedef struct
-{
+typedef struct mbedtls_aes_context_struct {
     int nr;                     /*!<  number of rounds  */
     uint32_t *rk;               /*!<  AES round keys    */
     uint32_t buf[68];           /*!<  unaligned data    */
-}
-mbedtls_aes_context;
+} mbedtls_aes_context;
 
 /**
  * \brief          Initialize AES context
