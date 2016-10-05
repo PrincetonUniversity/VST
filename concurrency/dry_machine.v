@@ -363,27 +363,6 @@ Module Concur.
        end.
      Infix "??" := option_function (at level 80, right associativity).
 
-     (*TODO: move this to memory lemmas*)
-     Definition store_unsafe (chunk : memory_chunk) (m : mem) (b : block) (ofs : Z) (v : val) : Mem.mem.
-     Proof.
-       refine({|
-               Mem.mem_contents := PMap.set b
-                                            (Mem.setN (encode_val chunk v) ofs
-                                                      (Mem.mem_contents m) !! b) 
-                                            (Mem.mem_contents m);
-               Mem.mem_access := Mem.mem_access m;
-               Mem.nextblock := Mem.nextblock m;
-               Mem.access_max := _;
-               Mem.nextblock_noaccess := _;
-               Mem.contents_default := _|}).
-       now apply Mem.access_max.
-       now apply Mem.nextblock_noaccess.
-       intros. unfold Mem.setN.
-       rewrite Maps.PMap.gsspec. destruct (Coqlib.peq b0 b).
-       rewrite Mem.setN_default. apply Mem.contents_default.
-       apply Mem.contents_default.
-     Qed.
-
      (*TODO: import from file, when merged*)
      Inductive permjoin : option permission -> option permission -> option permission -> Prop :=
      | permjoin_None_l x : permjoin None x x

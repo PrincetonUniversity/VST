@@ -254,4 +254,38 @@ Module MemoryLemmas.
     constructor.
   Qed.
   
+  Definition store_unsafe (chunk : memory_chunk) (m : mem) (b : block) (ofs : Z) (v : val) : Mem.mem.
+  Proof.
+    refine({|
+              Mem.mem_contents := PMap.set b
+                                           (Mem.setN (encode_val chunk v) ofs
+                                                     (Mem.mem_contents m) !! b) 
+                                           (Mem.mem_contents m);
+              Mem.mem_access := Mem.mem_access m;
+              Mem.nextblock := Mem.nextblock m;
+              Mem.access_max := _;
+              Mem.nextblock_noaccess := _;
+              Mem.contents_default := _|}).
+    now apply Mem.access_max.
+    now apply Mem.nextblock_noaccess.
+    intros. unfold Mem.setN.
+    rewrite Maps.PMap.gsspec. destruct (Coqlib.peq b0 b).
+    rewrite Mem.setN_default. apply Mem.contents_default.
+    apply Mem.contents_default.
+  Qed.
+    
+  Lemma mem_store_unsafe_max :
+    forall (chunk : memory_chunk) (b : block) (ofs : Z) (v : val) (m m' : mem),
+      store_unsafe chunk m b ofs v = m' ->
+      forall (b' : positive) (ofs' : Z),
+        (getMaxPerm m) # b' ofs' = (getMaxPerm m') # b' ofs'.
+  Admitted.
+
+  Lemma store_unsafe_valid_block_1:
+    forall (chunk : memory_chunk) (m1 : mem) (b : block) 
+      (ofs : Z) (v : val) (m2 : mem),
+      store_unsafe chunk m1 b ofs v = m2 ->
+      forall b' : block, Mem.valid_block m1 b' -> Mem.valid_block m2 b'. Admitted.
+
+  
 End MemoryLemmas.

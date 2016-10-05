@@ -127,6 +127,28 @@ Proof.
     by split.
 Qed.
 
+Lemma forall_and:
+  forall {A : Type} (f g : A -> Prop),
+    (forall x : A, f x /\ g x) <->
+    (forall x : A, f x) /\ (forall x : A, g x).
+Proof.
+  intros. split; intros.
+  split; intros; [eapply (H x).1 | eapply (H x).2].
+  destruct H; eauto.
+Qed.
+
+Lemma forall2_and:
+  forall {A B : Type} (f g : A -> B -> Prop),
+    (forall x y, f x y /\ g x y) <->
+    (forall x y, f x y) /\ (forall x y, g x y).
+Proof.
+  intros.
+  split; intros.
+  split; intros; [eapply (H x y).1 | eapply (H x y).2].
+  destruct H; eauto.
+Qed.
+
+
 Module BlockList.
   Import ListNotations.
 
