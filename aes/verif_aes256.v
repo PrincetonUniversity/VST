@@ -99,6 +99,31 @@ Proof.
   intro. unfold list_zero_except. replace (size - size) with 0 by omega. reflexivity.
 Qed.
 
+(* should be in client_lemmas.v *)
+Lemma typed_false_tuint:
+ forall v, typed_false tuint v -> v = nullval.
+Proof.
+  intros.
+  hnf in H. destruct v; inv H. 
+  destruct (Int.eq i Int.zero) eqn:?; inv H1.
+  apply int_eq_e in Heqb. subst. reflexivity.
+Qed.
+
+Lemma typed_false_tuint_Vint:
+  forall v, typed_false tuint (Vint v) -> v = Int.zero.
+Proof.
+  intros. apply typed_false_tuint in H. apply Vint_inj in H; auto.
+Qed.
+
+Lemma Z_repr_0_unsigned: forall n,
+  0 <= n <= Int.max_unsigned ->
+  Int.repr n = Int.zero ->
+  n = 0.
+Proof.
+  intros. assert (Int.unsigned (Int.repr n) = Int.unsigned Int.zero) by congruence.
+  rewrite Int.unsigned_repr in H1. compute in H1. assumption. assumption.
+Qed.
+
 Lemma body_zeroize: semax_body Vprog Gprog f_mbedtls_zeroize zeroize_spec.
 Proof.
   start_function.
@@ -106,7 +131,7 @@ Proof.
   apply semax_seq' with (P' := PROP () LOCAL ()
     SEP (data_at cont (tarray tuchar size) (list_zero_except 0 size) v)).
   * apply semax_pre with (P' := EX n: Z,
-      PROP ()
+      PROP (0 <= n <= Int.max_unsigned)
       LOCAL (temp _p (offset_val (size-n) v); temp _v v; temp _n (Vint (Int.repr n)))
       SEP (data_at cont (tarray tuchar size) (list_zero_except n size) v)).
     - Exists size.
@@ -120,8 +145,12 @@ Proof.
                temp _p (offset_val (size - n) v); temp _v v)
         SEP (data_at cont (tarray tuchar size) (list_zero_except n size) v)).
       + forward. entailer.
-      + forward. entailer. (* TODO: use something like typed_false_tint but for tuint *) admit.
-      + forward. forward. admit.
+      + forward.
+        apply typed_false_tuint_Vint in H1. apply Z_repr_0_unsigned in H1; [idtac | assumption]. subst.
+        entailer.
+      + forward. forward. admit. 
+        (* TODO: this won't work, because "volatile" means the value could be changed at any time
+           by an external process, so we can't prove anything about it! *)
   * simpl. unfold_abbrev'. rewrite list_zero_except_zero. forward.
 Qed.
 
