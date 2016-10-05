@@ -34,16 +34,30 @@ Definition gen_tables_spec :=
 
 Definition aes_init_spec :=
   DECLARE _mbedtls_aes_init
-    WITH ctx : val, ctx_cont : share
+    WITH ctx : val, sh : share
     PRE [ _ctx OF (tptr t_struct_aesctx)]
-      PROP (writable_share ctx_cont)
+      PROP (writable_share sh)
       LOCAL (temp _ctx ctx)
-      SEP (data_at_ ctx_cont t_struct_aesctx ctx)
+      SEP (data_at_ sh t_struct_aesctx ctx)
     POST [ tvoid ]
       PROP ()
       LOCAL ()
-      SEP (data_at ctx_cont t_struct_aesctx (Vint Int.zero, (Vint Int.zero, list_repeat 68 (Vint Int.zero))) ctx)
+      SEP (data_at sh t_struct_aesctx (Vint Int.zero, (Vint Int.zero, list_repeat 68 (Vint Int.zero))) ctx)
 .
+
+(* Copied from sha/sha_spec.v
+   Note that we just trust that the stdlib is correctly implemented! *)
+Definition memset_spec :=
+  DECLARE _memset
+   WITH sh : share, p: val, n: Z, c: int 
+   PRE [ 1%positive OF tptr tvoid, 2%positive OF tint, 3%positive OF tuint ]
+       PROP (writable_share sh; 0 <= n <= Int.max_unsigned)
+       LOCAL (temp 1%positive p; temp 2%positive (Vint c);
+                   temp 3%positive (Vint (Int.repr n)))
+       SEP (memory_block sh n p)
+    POST [ tptr tvoid ]
+       PROP() LOCAL(temp ret_temp p)
+       SEP(data_at sh (tarray tuchar n) (list_repeat (Z.to_nat n) (Vint c)) p).
 
 Definition zeroize_spec :=
   DECLARE _mbedtls_zeroize
@@ -58,7 +72,17 @@ Definition zeroize_spec :=
       SEP (data_at cont (tarray tuchar size) (list_repeat (Z.to_nat size) (Vint Int.zero)) v)
 .
 
-Definition Gprog : funspecs := augment_funspecs prog [aes_init_spec; zeroize_spec].
+Definition Gprog : funspecs := augment_funspecs prog [aes_init_spec; memset_spec; zeroize_spec].
+
+Lemma body_aes_init: semax_body Vprog Gprog f_mbedtls_aes_init aes_init_spec.
+Proof.
+  start_function.
+  forward_call (* memset( ctx, 0, sizeof( mbedtls_aes_context ) ); *)
+    (sh, ctx, 280, Int.zero).
+  + admit.
+  + split. auto. split; compute; intro; discriminate.
+  + forward. admit.
+Abort.
 
 (*
 "(Sloop body incr)" corresponds to "for (;; incr) body".
@@ -168,6 +192,25 @@ Definition aes_free_spec :=
       SEP (if Int.eq addr Int.zero then emp
            else data_at ctx_cont t_struct_aesctx (Vint Int.zero, (Vint Int.zero, list_repeat 68 (Vint Int.zero))) (Vint addr))
 .
+
+Lemma body_aes_free: semax_body Vprog Gprog f_mbedtls_aes_free aes_free_spec.
+Proof.
+  start_function.
+  forward_if (
+    PROP (Int.eq addr Int.zero = false)
+    LOCAL (temp _ctx (Vint addr))
+    SEP (if Int.eq addr Int.zero then emp else data_at_ ctx_cont t_struct_aesctx (Vint addr))).
+  + admit.
+  + forward.
+  + forward. entailer.
+  + Intros. rewrite H. forward_call ((Vint addr), Tsh, 280).
+    - subst Frame. instantiate (1 := []). (* Frame: what's unchanged by function call *)
+      unfold fold_right. cancel.
+      (* how can we cast "t_struct_aesctx" into "(tarray tuchar 280)" ? *) admit.
+    - split. auto. split; compute; intro; discriminate.
+      (* TODO why isn't this done automatically? Can we write it shorter? *)
+    - forward. rewrite H. (* TODO casting again *) admit.
+Abort.
 
 Definition key_expansion_spec :=
   DECLARE _mbedtls_aes_setkey_enc
