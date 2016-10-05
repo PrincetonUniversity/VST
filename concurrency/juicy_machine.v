@@ -30,7 +30,6 @@ Require Import veric.juicy_extspec.
 Require Import veric.jstep.
 
 
-
 (**)
 Require Import veric.res_predicates. (*For the precondition of lock make and free*)
 

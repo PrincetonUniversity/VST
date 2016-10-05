@@ -368,6 +368,24 @@ Section Safety.
   Proof.
   Admitted.
 
+  Lemma ksafe_safe':
+    (forall P: Prop, P \/ ~ P) ->
+    forall (propositional_extentionality: True),
+    forall (branches_finitely_on_the_state: forall x : ST, finite_on_x (possible_image x)),
+    forall st,
+      (forall n U, valid st U -> ksafe st U n) ->
+      (forall U, valid st U -> safe st U).
+  Proof.
+    move => EM PROP_EXT FINIT st KS U VAL.
+    apply: (Ssafe_safe' (@P_init st)) => // .
+    apply: finite_Ssafe_safe' =>//.
+      - by move => st' FINst; apply: (finite_rel_generalize _ _ PROP_EXT).
+      - apply: finite_P_init.
+      - move=> n. eapply ksafe_SsafeN'; eauto.
+        move => st0 U0 ImIn VAL0.
+        inversion ImIn as [H0].
+        subst. apply KS=> //.
+  Qed. 
   Lemma ksafe_safe:
     (forall P: Prop, P \/ ~ P) ->
     forall (propositional_extentionality: True),
@@ -380,8 +398,8 @@ Section Safety.
     move => EM PROP_EXT FINIT st all_valid SF.
     apply: Ssafe_safe =>//.
     apply: finite_Ssafe_safe=>//.
-    by move => st' FINst; apply: (finite_rel_generalize _ _ PROP_EXT).
-    by move=> n; apply: ksafe_SsafeN.
+      by move => st' FINst; apply: (finite_rel_generalize _ _ PROP_EXT).
+        by move=> n; apply: ksafe_SsafeN.
   Qed.
 
    Lemma safe_ksafe':
