@@ -1,6 +1,4 @@
-Require Import progs.verif_incr.
-Require Import progs.verif_cond.
-Require Import msl.predicates_sl.
+Require Import progs.conclib.
 Require Import floyd.proofauto.
 Require Import concurrency.semax_conc.
 Require Import progs.cond_queue.
@@ -70,8 +68,6 @@ Definition process_request_spec :=
     PROP () LOCAL () SEP (emp).
 
 Definition MAX : nat := 10.
-
-Definition complete l := l ++ repeat (Vint (Int.repr 0)) (MAX - length l).
 
 Definition add_spec :=
  DECLARE _add
@@ -185,22 +181,6 @@ Proof.
   forward.
 Qed.
 
-Lemma upd_complete : forall l x, (length l < MAX)%nat -> 
-  upd_Znth (Zlength l) (complete l) x = complete (l ++ [x]).
-Proof.
-  intros; unfold complete.
-  rewrite upd_Znth_app2, Zminus_diag.
-  rewrite app_length; simpl plus.
-  destruct (MAX - length l)%nat eqn: Hminus; [omega|].
-  replace (MAX - (length l + 1))%nat with n by omega.
-  unfold upd_Znth, sublist.sublist; simpl.
-  rewrite Zlength_cons.
-  unfold Z.succ; rewrite Z.add_simpl_r.
-  rewrite Zlength_correct, Nat2Z.id, firstn_exact_length.
-  rewrite <- app_assoc; auto.
-  { repeat rewrite Zlength_correct; omega. }
-Qed.
-
 Lemma body_add : semax_body Vprog Gprog f_add add_spec.
 Proof.
   start_function.
@@ -211,26 +191,6 @@ Proof.
   forward.
   cancel.
   rewrite upd_complete; auto.
-Qed.
-
-Lemma Znth_complete : forall n l d, n < Zlength l -> Znth n (complete l) d = Znth n l d.
-Proof.
-  intros; apply app_Znth1; auto.
-Qed.
-
-Lemma remove_complete : forall l x, (length l < MAX)%nat -> 
-  upd_Znth (Zlength l) (complete (l ++ [x])) (Vint (Int.repr 0)) = complete l.
-Proof.
-  intros; unfold complete.
-  rewrite upd_Znth_app1; [|repeat rewrite Zlength_correct; rewrite app_length; simpl; Omega0].
-  rewrite app_length; simpl plus.
-  rewrite upd_Znth_app2, Zminus_diag; [|rewrite Zlength_cons; simpl; omega].
-  unfold upd_Znth, sublist.sublist.
-  rewrite Zminus_diag; simpl firstn.
-  destruct (MAX - length l)%nat eqn: Hminus; [omega|].
-  replace (MAX - (length l + 1))%nat with n by omega.
-  simpl.
-  rewrite <- app_assoc; auto.
 Qed.
 
 Lemma body_remove : semax_body Vprog Gprog f_remove remove_spec.
@@ -250,17 +210,6 @@ Proof.
   forward.
   cancel.
   rewrite Z.add_simpl_r, remove_complete; auto.
-Qed.
-
-Lemma Forall_app : forall A (P : A -> Prop) l1 l2,
-  Forall P (l1 ++ l2) <-> Forall P l1 /\ Forall P l2.
-Proof.
-  induction l1; split; auto; intros.
-  - destruct H; auto.
-  - inversion H as [|??? H']; subst.
-    rewrite IHl1 in H'; destruct H'; split; auto.
-  - destruct H as (H & ?); inv H; constructor; auto.
-    rewrite IHl1; split; auto.
 Qed.
 
 Lemma inv_precise : forall buf len (Hbuf : isptr buf) (Hlen : isptr len),
@@ -296,14 +245,6 @@ Lemma inv_positive : forall buf len,
   positive_mpred (Interp (lock_pred buf len)).
 Proof.
 Admitted.
-
-Lemma sepcon_app : forall l1 l2, fold_right sepcon emp (l1 ++ l2) =
-  fold_right sepcon emp l1 * fold_right sepcon emp l2.
-Proof.
-  induction l1; simpl; intros.
-  - rewrite emp_sepcon; auto.
-  - rewrite IHl1, sepcon_assoc; auto.
-Qed.
 
 Lemma body_producer : semax_body Vprog Gprog f_producer producer_spec.
 Proof.
@@ -440,12 +381,6 @@ Proof.
     forward_call (last reqs0 (Vint (Int.repr 0)), data).
     { simpl; cancel. }
     unfold fold_right; entailer!.
-Qed.
-
-Lemma repeat_plus : forall A (x : A) i j, repeat x (i + j) = repeat x i ++ repeat x j.
-Proof.
-  induction i; auto; simpl; intro.
-  rewrite IHi; auto.
 Qed.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.

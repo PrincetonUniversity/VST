@@ -2,14 +2,14 @@
 //#include <stdio.h>
 #include <stdlib.h>
 
-// Derived from Example 6-11 in
-// Multithreaded Programming with Pthreads, Lewis & Berg
+// concurrent queue implemented with a circular buffer
 
-typedef struct request_t {int data;} request_t;
+typedef struct request_t {int data; int timestamp;} request_t;
 
 lock_t requests_lock;
 lock_t thread_locks[3];
 int length[1];
+int ends[2];
 cond_t requests_consumer, requests_producer;
 request_t *buf[10];
 int next[1];
@@ -17,16 +17,12 @@ int next[1];
 request_t *get_request(){
   request_t *request;
   request = (request_t *) malloc(sizeof(request_t));
-  acquire(&requests_lock);
-  int n = next[0];
-  next[0] = n + 1;
-  request->data = n;
-  release(&requests_lock);
+  request->data = 1;
   return (request);
 }
 
 int process_request(request_t *request){
-  int d = request->data;
+  int d = request->timestamp;
   free(request);
   return d;
 }
@@ -38,7 +34,12 @@ void add(request_t *request){
     wait(&requests_producer, &requests_lock);
     len = length[0];
   }
-  buf[len] = request;
+  int n = next[0];
+  request->timestamp = n;
+  next[0] = n + 1;
+  int tail = ends[1];
+  buf[tail] = request;
+  ends[1] = (tail + 1) % 10;
   length[0] = len + 1;
   signal(&requests_consumer);
   release(&requests_lock);
@@ -51,8 +52,10 @@ request_t *remove(void){
     wait(&requests_consumer, &requests_lock);
     len = length[0];
   }
-  request_t *r = buf[len - 1];
-  buf[len - 1] = NULL;
+  int head = ends[0];
+  request_t *r = buf[head];
+  buf[head] = NULL;
+  ends[0] = (head + 1) % 10;
   length[0] = len - 1;
   signal(&requests_producer);
   release(&requests_lock);
@@ -62,11 +65,10 @@ request_t *remove(void){
 void *f(void *arg){
   request_t *request;
   int res[3];
-  int j, last;
+  int j;
   lock_t *l = (lock_t *)arg;
   for(int i = 0; i < 3; i++){
     request = get_request();
-    last = request->data;
     add(request);
   }
   for(i = 0; i < 3; i++){
@@ -74,8 +76,9 @@ void *f(void *arg){
     j = process_request(request);
     res[i] = j;
   }
-  // result: last < res[0] < res[1] < res[2]
+  // result: res[0] < res[1] < res[2]
   release2(l);
+  return (void *)NULL;
 }
 
 int main(void)
@@ -83,6 +86,9 @@ int main(void)
   for(int i = 0; i < 10; i++)
     buf[i] = NULL;
   length[0] = 0;
+  ends[0] = 0;
+  ends[1] = 0;
+  next[0] = 0;
   makelock(&requests_lock);
   release(&requests_lock);
   makecond(&requests_producer);

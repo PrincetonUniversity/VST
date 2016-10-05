@@ -1,5 +1,4 @@
-Require Import progs.verif_incr.
-Require Import msl.predicates_sl.
+Require Import progs.conclib.
 Require Import floyd.proofauto.
 Require Import concurrency.semax_conc.
 Require Import progs.cond.
@@ -51,19 +50,6 @@ Definition Gprog : funspecs := augment_funspecs prog [acquire_spec; release_spec
   freelock_spec; freelock2_spec; spawn_spec; makecond_spec; freecond_spec; wait_spec; signal_spec;
   thread_func_spec; main_spec].
 
-Lemma data_at_precise : forall b o,
-  precise (data_at_ Ews (tarray tint 1) (Vptr b o)).
-Proof.
-  intros; unfold data_at_, field_at_, field_at, at_offset; simpl.
-  apply precise_andp2.
-  rewrite data_at_rec_eq; unfold withspacer, at_offset; simpl.
-  unfold array_pred, aggregate_pred.array_pred; simpl.
-  unfold Zlength, Znth; simpl.
-  apply precise_andp2.
-  rewrite data_at_rec_eq; simpl.
-  apply precise_sepcon; [apply mapsto_undef_precise | apply precise_emp]; auto.
-Qed.
-
 Lemma inv_precise : forall b o,
   precise (EX x : Z, data_at Ews (tarray tint 1) [Vint (Int.repr x)] (Vptr b o)).
 Proof.
@@ -77,30 +63,6 @@ Lemma inv_positive : forall ctr,
   positive_mpred (EX x : Z, data_at Ews (tarray tint 1) [Vint (Int.repr x)] ctr).
 Proof.
 Admitted.
-
-Lemma cond_var_precise : forall {cs} sh b o, readable_share sh ->
-  precise (@cond_var cs sh (Vptr b o)).
-Proof.
-  intros; unfold cond_var, data_at_, field_at_, field_at, at_offset; simpl.
-  apply precise_andp2.
-  rewrite data_at_rec_eq; simpl.
-  apply mapsto_undef_precise; auto.
-Qed.
-
-Lemma positive_sepcon2 : forall P Q (HQ : positive_mpred Q),
-  positive_mpred (P * Q).
-Proof.
-  repeat intro.
-  destruct H as (? & ? & ? & ? & HQ1).
-  specialize (HQ _ HQ1).
-  destruct HQ as (l & sh & rsh & k & p & HQ); exists l, sh, rsh, k, p.
-  admit.
-Admitted.
-
-Lemma cond_var_isptr : forall {cs} sh v, @cond_var cs sh v = !! isptr v && cond_var sh v.
-Proof.
-  intros; apply data_at__isptr.
-Qed.
 
 Lemma body_thread_func : semax_body Vprog Gprog f_thread_func thread_func_spec.
 Proof.
@@ -133,18 +95,6 @@ Proof.
     - apply selflock_positive, positive_sepcon2, lock_inv_positive.
     - apply selflock_rec. }
   forward.
-Qed.
-
-Lemma cond_var_almost_empty : forall {cs} sh v phi, predicates_hered.app_pred (@cond_var cs sh v) phi ->
-  juicy_machine.almost_empty phi.
-Proof.
-  admit.
-Admitted.
-
-Lemma cond_var_join : forall {cs} sh1 sh2 sh v (Hjoin : sepalg.join sh1 sh2 sh),
-  @cond_var cs sh1 v * cond_var sh2 v = cond_var sh v.
-Proof.
-  intros; unfold cond_var; apply data_at__share_join; auto.
 Qed.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
