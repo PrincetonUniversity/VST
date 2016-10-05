@@ -2315,7 +2315,7 @@ Module Parching <: ErasureSig.
                destruct HH as [SOME_RES HH]. assumption.
                apply (resource_at_join _ _ _ (b, ofs0)) in HH.
                rewrite Hpersonal_juice in HH.
-               destruct (Hct ofs0) as [val [sh' Hlock_old]].
+               destruct (Hct ofs0) as [val Hlock_old].
                { unfold juicy_machine.LKSIZE, juicy_machine.LKCHUNK. simpl (align_chunk Mint32).
                  clear - ineq. unfold LKSIZE in ineq; destruct ineq; auto. }
                rewrite Hlock_old in HH.
@@ -2344,7 +2344,7 @@ Module Parching <: ErasureSig.
             assert (ineq':Int.intval ofs <= ofs0 < Int.intval ofs + juicy_machine.LKSIZE).
             { clear - H3; destruct H3; auto. }
             apply Hct in ineq'.
-            destruct ineq' as [val [sh' MAP]].
+            destruct ineq' as [val MAP].
             rewrite <- Hpersonal_perm in MAP; rewrite MAP in HH.
             destruct HH as [? HH]; inversion HH.
             * simpl. destruct (eq_dec rsh2 Share.bot); exists (Some Writable); reflexivity.
@@ -2372,7 +2372,7 @@ Module Parching <: ErasureSig.
             replace juicy_machine.LKSIZE with LKSIZE by auto.
             xomega. }
           apply Hct in ineq'.
-          destruct ineq' as [val [sh'' MAP']].
+          destruct ineq' as [val MAP'].
           rewrite <- Hpersonal_juice in MAP'; rewrite MAP' in HH.
           destruct HH as [f HH]; inversion HH.
 
@@ -2400,7 +2400,7 @@ Module Parching <: ErasureSig.
           apply resource_at_join_sub with (l:= (b,Int.intval ofs)) in HH.
           replace juicy_machine.LKSIZE with 4 in Hct by auto.
           specialize (Hct (Int.intval ofs) ltac:(omega)).
-          destruct Hct as [val [sh'' MAP']].
+          destruct Hct as [val MAP'].
           rewrite <- Hpersonal_juice in MAP'. 
           rewrite MAP' in HH.
           destruct HH as [X HH].
@@ -2429,13 +2429,13 @@ Module Parching <: ErasureSig.
                   eassumption.
                   assumption.
                   rewrite Hpersonal_juice.
-                  destruct (Hct ofs0) as [v [sh' Hct']].
+                  destruct (Hct ofs0) as [v Hct'].
                   move i0 at bottom.
                   exact i0.
                   rewrite Hct'; simpl.
                   unfold perm_of_sh, fullshare.
                   rewrite if_true.
-                  destruct (eq_dec sh' Share.top); simpl; constructor.
+                  destruct (eq_dec sh Share.top); simpl; constructor.
                   reflexivity.
                 }
               * { rewrite setPermBlock_other_1; try assumption.
@@ -2500,12 +2500,12 @@ Module Parching <: ErasureSig.
                   inversion MATCH.
                   erewrite <- (mtch_perm _ _ _ Hi).
                   rewrite Hpersonal_juice.
-                  destruct (Hct ofs0) as [v [sh' Hct']].
+                  destruct (Hct ofs0) as [v Hct'].
                   apply i0.
                   rewrite Hct'. simpl.
                   unfold perm_of_sh, fullshare.
                   rewrite if_true.
-                  destruct (eq_dec sh' Share.top); simpl; constructor.
+                  destruct (eq_dec sh Share.top); simpl; constructor.
                   reflexivity. }
               * { rewrite setPermBlock_other_1; try assumption.
                   inversion dinv.

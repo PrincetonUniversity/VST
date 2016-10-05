@@ -53,12 +53,6 @@ Require Import concurrency.semax_simlemmas.
 
 Set Bullet Behavior "Strict Subproofs".
 
-(* Lemma resource_at_join_sub_inv (phi1 phi2 : rmap) : *)
-(*   (forall l, join_sub (phi1 @ l) (phi2 @ l)) -> *)
-(*   join_sub phi1 phi2. *)
-(* Proof. *)
-(* Qed. *)
-
 Section Progress.
   Variables
     (CS : compspecs)
@@ -943,7 +937,6 @@ Section Progress.
         destruct Pre as (phi0 & phi1 & Join & Precond & HnecR).
         simpl (and _).
         intros Post.
-        
         admit.
       }
       
