@@ -133,7 +133,7 @@ Lemma forall_and:
     (forall x : A, f x) /\ (forall x : A, g x).
 Proof.
   intros. split; intros.
-  split; intros; [eapply (H x).1 | eapply (H x).2].
+  split; intros; [eapply (proj1 (H x))| eapply (proj2 (H x))].
   destruct H; eauto.
 Qed.
 
@@ -144,7 +144,7 @@ Lemma forall2_and:
 Proof.
   intros.
   split; intros.
-  split; intros; [eapply (H x y).1 | eapply (H x y).2].
+  split; intros; [eapply (proj1 (H x y)) | eapply (proj2 (H x y))].
   destruct H; eauto.
 Qed.
 

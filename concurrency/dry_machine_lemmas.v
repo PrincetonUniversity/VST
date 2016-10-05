@@ -2676,11 +2676,7 @@ Module StepType (SEM : Semantics)
     inversion Htstep; subst.
     erewrite <- diluteMem_valid.
     eapply CoreLanguage.ev_step_validblock; eauto.
-    inversion Htstep; subst; eauto.
-    (*TODO: unsafe_store_valid_block_1 *)
     admit.
-    admit.
-    eapply Mem.store_valid_block_1; eauto.
   Admitted.
   
   End StepType.

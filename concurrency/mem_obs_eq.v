@@ -2479,6 +2479,14 @@ as big as [m] *)
     rewrite ZMap.gss. auto.
     rewrite ZMap.gso. auto. unfold ZIndexed.t in *. omega.
   Qed.
+
+  Lemma store_unsafe_val_obs :
+    forall (mc mc' mf : mem) (f : memren) (b1 b2 : block) (chunk : memory_chunk)
+      (ofs : Z) (v1 v2 : val),
+      store_unsafe chunk mc b1 ofs v1 = mc' ->
+      f b1 = Some b2 -> val_obs f v1 v2 -> mem_obs_eq f mc mf ->
+      exists mf' : mem, store_unsafe chunk mf b2 ofs v2 = mf' /\ mem_obs_eq f mc' mf'.
+  Admitted.
   
   (** Storing related values on related memories results in related memories*)
   Transparent Mem.store.

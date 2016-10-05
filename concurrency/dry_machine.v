@@ -9,6 +9,7 @@ Require Import concurrency.concurrent_machine.
 Require Import concurrency.addressFiniteMap. (*The finite maps*)
 Require Import concurrency.pos.
 Require Import concurrency.lksize.
+Require Import concurrency.memory_lemmas.
 Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
@@ -248,6 +249,7 @@ Module Concur.
      Import ThreadPool.
      Import ThreadPool.SEM ThreadPool.RES.
      Import event_semantics Events.
+     Import MemoryLemmas.
      
      Notation tid := NatTID.tid.
 

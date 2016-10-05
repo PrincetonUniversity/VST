@@ -1,4 +1,6 @@
 Require Import compcert.common.Memory.
+Require Import compcert.common.AST.
+Require Import compcert.common.Values. (*for val*)
 Require Import concurrency.permissions.
 Require Import Coq.ZArith.ZArith.
 Require Import compcert.lib.Coqlib.
@@ -272,20 +274,36 @@ Module MemoryLemmas.
     rewrite Maps.PMap.gsspec. destruct (Coqlib.peq b0 b).
     rewrite Mem.setN_default. apply Mem.contents_default.
     apply Mem.contents_default.
-  Qed.
+  Defined.
     
   Lemma mem_store_unsafe_max :
-    forall (chunk : memory_chunk) (b : block) (ofs : Z) (v : val) (m m' : mem),
+    forall chunk (b : block) (ofs : Z) (v : val) (m m' : Mem.mem),
       store_unsafe chunk m b ofs v = m' ->
       forall (b' : positive) (ofs' : Z),
         (getMaxPerm m) # b' ofs' = (getMaxPerm m') # b' ofs'.
   Admitted.
 
   Lemma store_unsafe_valid_block_1:
-    forall (chunk : memory_chunk) (m1 : mem) (b : block) 
-      (ofs : Z) (v : val) (m2 : mem),
+    forall chunk (m1 : Mem.mem) (b : block) 
+      (ofs : Z) (v : val) (m2 : Mem.mem),
       store_unsafe chunk m1 b ofs v = m2 ->
       forall b' : block, Mem.valid_block m1 b' -> Mem.valid_block m2 b'. Admitted.
 
+  Lemma store_unsafe_valid_block_2:
+    forall chunk (m1 : Mem.mem) (b : block) 
+      (ofs : Z) (v : val) (m2 : Mem.mem),
+      store_unsafe chunk m1 b ofs v = m2 ->
+      forall b' : block, Mem.valid_block m2 b' -> Mem.valid_block m1 b'. Admitted.
+
+  Lemma store_unsafe_contents:
+    forall m1 m2 chunk b ofs v
+      (Hstore: store_unsafe chunk m1 b ofs v = m2),
+      Mem.mem_contents m2 = PMap.set b (Mem.setN (encode_val chunk v) ofs (Mem.mem_contents m1) # b) (Mem.mem_contents m1).
+  Proof.
+    intros.
+    unfold store_unsafe in Hstore.
+    rewrite <- Hstore.
+    reflexivity.
+  Qed.
   
 End MemoryLemmas.
