@@ -10,7 +10,7 @@ Definition acquire_spec := DECLARE _acquire acquire_spec.
 Definition release_spec := DECLARE _release release_spec.
 Definition makelock_spec := DECLARE _makelock (makelock_spec _).
 Definition freelock_spec := DECLARE _freelock (freelock_spec _).
-Definition spawn_spec := DECLARE _spawn_thread spawn_spec.
+Definition spawn_spec := DECLARE _spawn spawn_spec.
 Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
 Definition release2_spec := DECLARE _release2 release2_spec.
 

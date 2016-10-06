@@ -10,13 +10,13 @@ Definition acquire_spec := DECLARE _acquire acquire_spec.
 Definition release_spec := DECLARE _release release_spec.
 Definition makelock_spec := DECLARE _makelock (makelock_spec _).
 (*Definition freelock_spec := DECLARE _freelock (freelock_spec _).*)
-Definition spawn_spec := DECLARE _spawn_thread spawn_spec.
+Definition spawn_spec := DECLARE _spawn spawn_spec.
 (*Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
 Definition release2_spec := DECLARE _release2 release2_spec.*)
 Definition makecond_spec := DECLARE _makecond (makecond_spec _).
 (*Definition freecond_spec := DECLARE _freecond (freecond_spec _).*)
-Definition wait_spec := DECLARE _wait (wait_spec _).
-Definition signal_spec := DECLARE _signal (signal_spec _).
+Definition wait_spec := DECLARE _waitcond (wait_spec _).
+Definition signal_spec := DECLARE _signalcond (signal_spec _).
 
 Definition malloc_spec :=
  DECLARE _malloc
@@ -75,12 +75,12 @@ Definition add_spec :=
   PRE [ _request OF (tptr trequest) ]
    PROP ((length reqs < MAX)%nat)
    LOCAL (temp _request request; gvar _buf buf; gvar _length len)
-   SEP (data_at Ews (tarray (tptr trequest) (Z.of_nat MAX)) (complete reqs) buf;
+   SEP (data_at Ews (tarray (tptr trequest) (Z.of_nat MAX)) (complete MAX reqs) buf;
         data_at Ews (tarray tint 1) [Vint (Int.repr (Zlength reqs))] len)
   POST [ tvoid ]
    PROP ()
    LOCAL ()
-   SEP (data_at Ews (tarray (tptr trequest) (Z.of_nat MAX)) (complete (reqs ++ [request])) buf;
+   SEP (data_at Ews (tarray (tptr trequest) (Z.of_nat MAX)) (complete MAX (reqs ++ [request])) buf;
         data_at Ews (tarray tint 1) [Vint (Int.repr (Zlength reqs))] len).
 
 Definition remove_spec :=
@@ -89,16 +89,16 @@ Definition remove_spec :=
   PRE [ ]
    PROP ((length reqs < MAX)%nat; isptr req)
    LOCAL (gvar _buf buf; gvar _length len)
-   SEP (data_at Ews (tarray (tptr trequest) (Z.of_nat MAX)) (complete (reqs ++ [req])) buf;
+   SEP (data_at Ews (tarray (tptr trequest) (Z.of_nat MAX)) (complete MAX (reqs ++ [req])) buf;
         data_at Ews (tarray tint 1) [Vint (Int.repr (Zlength reqs + 1))] len)
   POST [ tptr trequest ]
    PROP ()
    LOCAL (temp ret_temp req)
-   SEP (data_at Ews (tarray (tptr trequest) (Z.of_nat MAX)) (complete reqs) buf;
+   SEP (data_at Ews (tarray (tptr trequest) (Z.of_nat MAX)) (complete MAX reqs) buf;
         data_at Ews (tarray tint 1) [Vint (Int.repr (Zlength reqs + 1))] len).
 
 Definition lock_pred buf len := Exp _ (fun reqs =>
-  Pred_list (Data_at _ Ews (tarray (tptr trequest) (Z.of_nat MAX)) (complete reqs) buf ::
+  Pred_list (Data_at _ Ews (tarray (tptr trequest) (Z.of_nat MAX)) (complete MAX reqs) buf ::
              Data_at _ Ews (tarray tint 1) [Vint (Int.repr (Zlength reqs))] len ::
              Pred_prop (Forall isptr reqs /\ (length reqs <= MAX)%nat) ::
              map (fun r => Exp _ (fun data => Data_at _ Tsh trequest (Vint (Int.repr data)) r)) reqs)).
@@ -199,7 +199,7 @@ Proof.
   forward.
   assert (0 <= Zlength reqs + 1 - 1 < 10).
   { rewrite Z.add_simpl_r, Zlength_correct; unfold MAX in *; omega. }
-  assert (Znth (Zlength reqs + 1 - 1) (complete (reqs ++ [req])) Vundef = req) as Hnth.
+  assert (Znth (Zlength reqs + 1 - 1) (complete MAX (reqs ++ [req])) Vundef = req) as Hnth.
   { rewrite Z.add_simpl_r, Znth_complete;
       [|repeat rewrite Zlength_correct; rewrite app_length; simpl; Omega0].
     rewrite app_Znth2, Zminus_diag; [auto | omega]. }
@@ -268,7 +268,7 @@ Proof.
    LOCAL (temp _len (Vint (Int.repr (Zlength reqs))); temp _request r; temp _arg y; gvar _buf buf;
           gvar _length len; gvar _requests_lock lock;
           gvar _requests_producer cprod; gvar _requests_consumer ccon)
-   SEP (data_at Ews (tarray (tptr trequest) (Z.of_nat MAX)) (complete reqs) buf;
+   SEP (data_at Ews (tarray (tptr trequest) (Z.of_nat MAX)) (complete MAX reqs) buf;
         data_at Ews (tarray tint 1) [Vint (Int.repr (Zlength reqs))] len;
         fold_right sepcon emp (map Interp (map (fun r => Exp _ (fun data =>
           Data_at CompSpecs Tsh trequest (Vint (Int.repr data)) r)) reqs));
@@ -335,7 +335,7 @@ Proof.
    LOCAL (temp _len (Vint (Int.repr (Zlength reqs))); temp _arg y; gvar _buf buf;
           gvar _length len; gvar _requests_lock lock;
           gvar _requests_producer cprod; gvar _requests_consumer ccon)
-   SEP (data_at Ews (tarray (tptr trequest) (Z.of_nat MAX)) (complete reqs) buf;
+   SEP (data_at Ews (tarray (tptr trequest) (Z.of_nat MAX)) (complete MAX reqs) buf;
         data_at Ews (tarray tint 1) [Vint (Int.repr (Zlength reqs))] len;
         fold_right sepcon emp (map Interp (map (fun r => Exp _ (fun data =>
           Data_at CompSpecs Tsh trequest (Vint (Int.repr data)) r)) reqs));
@@ -415,30 +415,15 @@ Proof.
   change (globvars2pred nil) with (@emp (environ->mpred) _ _).
   repeat rewrite sepcon_emp.
   rewrite <- seq_assoc.
-  apply semax_seq' with (P' := PROP ( )
-    LOCAL (gvar _buf gvar4; gvar _requests_producer gvar3; gvar _requests_consumer gvar2;
-           gvar _length gvar1; gvar _requests_lock gvar0)
-    SEP (data_at Ews (tarray (tptr trequest) (Z.of_nat MAX)) (repeat (Vint (Int.repr 0)) MAX) gvar4;
-         data_at_ Ews tint gvar3; data_at_ Ews tint gvar2;
-         data_at_ Ews (tarray tint 1) gvar1;
-         data_at_ Ews (Tstruct 3%positive noattr) gvar0)).
-  { eapply semax_for_const_bound_const_init with (P := fun _ => [])
-      (Q := fun _ => [gvar _buf gvar4; gvar _requests_producer gvar3; gvar _requests_consumer gvar2; gvar _length gvar1; 
-                      gvar _requests_lock gvar0])
-      (R := fun i => [data_at Ews (tarray (tptr trequest) (Z.of_nat MAX))
+  forward_for_simple_bound 10 (EX i : Z, PROP ()
+    LOCAL (gvar _buf gvar4; gvar _requests_producer gvar3; gvar _requests_consumer gvar2; gvar _length gvar1; 
+                      gvar _requests_lock gvar0)
+    SEP (data_at Ews (tarray (tptr trequest) (Z.of_nat MAX))
              (repeat (Vint (Int.repr 0)) (Z.to_nat i) ++ repeat Vundef (Z.to_nat (10 - i))) gvar4;
-             data_at_ Ews tint gvar3; data_at_ Ews tint gvar2;
-             data_at_ Ews (tarray tint 1) gvar1; data_at_ Ews tlock gvar0]);
-    [reflexivity | try repable_signed | try repable_signed | reflexivity | try reflexivity; omega
-    | intro; unfold map at 1; auto 50 with closed
-    | cbv beta; simpl update_tycon
-    | intro; cbv beta; simpl update_tycon; try solve [entailer!]
-    | try apply semax_for_resolve_postcondition
-    | intro; cbv beta; simpl update_tycon; abbreviate_semax;
-      try (apply semax_extract_PROP; intro) ]; try computable.
-    { unfold tlock, semax_conc._lock_t, trequest, _request_t; entailer!. }
-    { unfold normal_ret_assert, tlock, semax_conc._lock_t; entailer!. }
-    forward.
+         data_at_ Ews tint gvar3; data_at_ Ews tint gvar2;
+         data_at_ Ews (tarray tint 1) gvar1; data_at_ Ews tlock gvar0)).
+  { unfold tlock, semax_conc._lock_t, trequest, _request_t; entailer!. }
+  { forward.
     entailer!.
     assert (Zlength (repeat (Vint (Int.repr 0)) (Z.to_nat i)) = i) as Hlen.
     { rewrite Zlength_correct, repeat_length.
@@ -457,7 +442,6 @@ Proof.
     rewrite Hminus; simpl; omega. }
   forward.
   forward_call (gvar0, Ews, lock_pred gvar4 gvar1).
-  { unfold tlock, semax_conc._lock_t; cancel. }
   rewrite (data_at_isptr _ (tarray _ _)), field_at_isptr; normalize.
   forward_call (gvar0, Ews, lock_pred gvar4 gvar1).
   { simpl.
@@ -514,7 +498,7 @@ Proof.
   forward_while (EX reqs : list val, PROP (Forall isptr reqs; (length reqs <= MAX)%nat)
    LOCAL (temp _len (Vint (Int.repr (Zlength reqs))); gvar _consumer c_; gvar _buf gvar4; gvar _requests_producer gvar3;
    gvar _requests_consumer gvar2; gvar _length gvar1; gvar _requests_lock gvar0)
-   SEP (data_at Ews (tarray (tptr trequest) (Z.of_nat MAX)) (complete reqs) gvar4;
+   SEP (data_at Ews (tarray (tptr trequest) (Z.of_nat MAX)) (complete MAX reqs) gvar4;
    data_at Ews (tarray tint 1) [Vint (Int.repr (Zlength reqs))] gvar1;
    fold_right sepcon emp
      (map Interp (map (fun r : val => Exp Z (fun data : Z => Data_at CompSpecs Tsh trequest (Vint (Int.repr data)) r)) reqs));

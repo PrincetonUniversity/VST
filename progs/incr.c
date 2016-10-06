@@ -45,7 +45,7 @@ int main(void)
   release(lockc);
   makelock(lockt);
   /* Spawn */
-  spawn_thread((void *)&thread_func, (void *)NULL);
+  spawn((void *)&thread_func, (void *)NULL);
    
   //Increment the counter
   incr();

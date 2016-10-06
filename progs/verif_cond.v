@@ -10,13 +10,13 @@ Definition acquire_spec := DECLARE _acquire acquire_spec.
 Definition release_spec := DECLARE _release release_spec.
 Definition makelock_spec := DECLARE _makelock (makelock_spec _).
 Definition freelock_spec := DECLARE _freelock (freelock_spec _).
-Definition spawn_spec := DECLARE _spawn_thread spawn_spec.
+Definition spawn_spec := DECLARE _spawn spawn_spec.
 Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
 Definition release2_spec := DECLARE _release2 release2_spec.
 Definition makecond_spec := DECLARE _makecond (makecond_spec _).
 Definition freecond_spec := DECLARE _freecond (freecond_spec _).
-Definition wait_spec := DECLARE _wait (wait_spec _).
-Definition signal_spec := DECLARE _signal (signal_spec _).
+Definition wait_spec := DECLARE _waitcond (wait_spec _).
+Definition signal_spec := DECLARE _signalcond (signal_spec _).
 
 Definition lock_pred data :=
   Exp _ (fun i => Data_at _ Ews (tarray tint 1) [Vint (Int.repr i)] data).

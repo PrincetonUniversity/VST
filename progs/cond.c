@@ -12,7 +12,7 @@ void *thread_func(void *args) {
   cond_t *c = &cond;
   acquire(l);
   data[0] = 1;
-  signal(c);
+  signalcond(c);
   release(l);
   release2(t);
   return (void *)NULL;
@@ -27,11 +27,11 @@ int main(void)
   makecond(c);
   makelock(l);
   makelock(t);
-  spawn_thread((void *)&thread_func, (void *)NULL);
+  spawn((void *)&thread_func, (void *)NULL);
 
   int v = 0;
   while(!v){
-    wait(c, l);
+    waitcond(c, l);
     v = data[0];
   }
 
