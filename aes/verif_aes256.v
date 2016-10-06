@@ -316,3 +316,44 @@ Proof.
       (* TODO why isn't this done automatically? Can we write it shorter? *)
     - forward. rewrite H. (* TODO casting again *) admit.
 Abort.
+
+Lemma body_gen_tables: semax_body Vprog Gprog f_aes_gen_tables gen_tables_spec.
+Proof.
+  start_function.
+  (* this is what seq_assoc2 does:
+  match goal with
+  |- semax ?D ?Pre (Ssequence (Ssequence (Ssequence ?Init ?Loop) ?Rest1) ?Rest2) ?Post
+  => cut (semax D Pre (Ssequence (Ssequence Init Loop) (Ssequence Rest1 Rest2)) Post)
+  end.
+  *)
+  (* Preparation step 1: *)
+  simple apply seq_assoc2.
+
+  (* Preparation step 2: *)
+  assert (forall Init Cond Body Incr, Sfor Init Cond Body Incr =
+    Ssequence Init (Sloop (Ssequence (Sifthenelse Cond Sskip Sbreak) Body) Incr)) as Eq by reflexivity.
+  rewrite <- Eq. clear Eq.
+
+  (* And now, we can finally apply forward_for_simple_bound.
+     TODO improve floyd: This should be possible without the preparation steps! *)
+  forward_for_simple_bound 256 (EX i: Z,
+    PROP ( )
+    LOCAL (temp _x (Vint (Int.repr 1)); 
+           temp _i (Vint (Int.repr i));
+           lvar _log (tarray tint 256) lvar1;
+           lvar _pow (tarray tint 256) lvar0;
+           gvar _tables tables)
+    SEP (data_at_ Tsh (tarray tint 256) lvar1; data_at_ Tsh (tarray tint 256) lvar0;
+         tables_uninitialized tables)).
+
+  { admit. (* what's locald_denote? *) }
+  { (* init *)
+    forward. forward. Exists 0. entailer!. }
+  { (* body *)
+    Time forward. (* takes ages *) 
+
+  }
+  { (* next part: round constants *)
+    admit. }
+Qed.
+
