@@ -1284,17 +1284,27 @@ Proof.
       repeat rewrite NPeano.Nat.add_1_r; simpl; cancel.
       destruct (eq_dec i 0); [|destruct (eq_dec i 1); [|assert (i = 2) by omega]]; subst; subst lockt lsh g;
         simpl; try rewrite Int.add_zero; cancel; Exists x0; rewrite interp_ghost; auto. }
-  simpl.
-  freeze [0; 1; 3; 4; 5; 6; 7; 8] FR.
+  simpl; normalize.
+  freeze [12; 13; 14; 15; 16; 17] FR.
+  eapply semax_pre with (P' := PROP ( )
+   LOCAL (temp _i__2 (Vint (Int.repr 3)); gvar _next next; gvar _buf buf; gvar _requests_producer cprod;
+   gvar _requests_consumer ccon; gvar _ends ends; gvar _length len; gvar _thread_locks (Vptr b o);
+   gvar _requests_lock lock)
+   SEP (cond_var Ews ccon; cond_var Ews cprod;
+     lock_inv Ews lock (Interp (lock_pred sh2 buf ends len next ghosts)); FRZL FR)).
+  { go_lower.
+    apply andp_right; [apply prop_right; auto|].
+    apply andp_right; [apply prop_right; repeat split; auto|].
+    rewrite <- 2(cond_var_join _ _ _ _ Hsh), <- (lock_inv_join _ _ _ _ _ Hsh).
+    rewrite <- 2(cond_var_join _ _ _ _ Hsh'), <- (lock_inv_join _ _ _ _ _ Hsh').
+    rewrite <- 2(cond_var_join _ _ _ _ Htsh), <- (lock_inv_join _ _ _ _ _ Htsh); cancel. }
   forward_call (lock, Ews, lock_pred sh2 buf ends len next ghosts).
-  { simpl; unfold fold_right at 1; cancel. }
   forward_call (lock, Ews, lock_pred sh2 buf ends len next ghosts).
   { split; auto; apply inv_positive. }
-  thaw FR.
-  freeze [0; 1; 4; 5; 6; 7; 8; 9] FR.
   forward_call (cprod, Ews).
   forward_call (ccon, Ews).
   eapply semax_pre; [|apply semax_return].
+  thaw FR.
   (* timeout 80 entailer. XX times out, go_lower also times out *)
   go_lowerx; entailer'.
   subst POSTCONDITION; unfold abbreviate, frame_ret_assert, function_body_ret_assert.
@@ -1311,33 +1321,33 @@ Lemma all_funcs_correct:
 Proof.
 unfold Gprog, prog, prog_funct; simpl.
 repeat (apply semax_func_cons_ext_vacuous; [reflexivity | ]).
-semax_func_cons_ext.
-{ admit. }
-semax_func_cons_ext.
-{ admit. }
-semax_func_cons_ext.
-{ admit. }
-semax_func_cons_ext.
-{ admit. }
-semax_func_cons_ext.
-{ admit. }
-semax_func_cons_ext.
-{ admit. }
-semax_func_cons_ext.
-{ admit. }
-semax_func_cons_ext.
-{ admit. }
-semax_func_cons_ext.
-{ admit. }
-semax_func_cons_ext.
-{ admit. }
-semax_func_cons_ext.
-{ admit. }
 eapply semax_func_cons_ext; try reflexivity.
 { admit. }
 { admit. }
 eapply semax_func_cons_ext; try reflexivity.
 { admit. }
+{ admit. }
+semax_func_cons_ext.
+{ admit. }
+semax_func_cons_ext.
+{ admit. }
+semax_func_cons_ext.
+{ admit. }
+semax_func_cons_ext.
+{ admit. }
+semax_func_cons_ext.
+{ admit. }
+semax_func_cons_ext.
+{ admit. }
+semax_func_cons_ext.
+{ admit. }
+semax_func_cons_ext.
+{ admit. }
+semax_func_cons_ext.
+{ admit. }
+semax_func_cons_ext.
+{ admit. }
+semax_func_cons_ext.
 { admit. }
 semax_func_cons body_get_request.
 semax_func_cons body_process_request.
