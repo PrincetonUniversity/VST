@@ -29,6 +29,8 @@ Require Import veric.juicy_mem_lemmas.
 Require Import veric.juicy_extspec.
 Require Import veric.jstep.
 
+Set Bullet Behavior "Strict Subproofs".
+
 
 (**)
 Require Import veric.res_predicates. (*For the precondition of lock make and free*)
