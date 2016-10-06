@@ -804,6 +804,34 @@ Proof.
   { repeat rewrite Zlength_correct; repeat rewrite map_length; omega. }
 Qed.
 
+Lemma precise_False : precise (!!False).
+Proof.
+  repeat intro.
+  inversion H.
+Qed.
+
+Lemma t_inv_precise : forall sh tsh cprod ccon lock lockt buf ends len next ghosts gsh1 gsh2 g
+  (Hsh : readable_share sh),
+  precise (Interp (t_lock_pred sh tsh cprod ccon lock lockt buf ends len next ghosts gsh1 gsh2 g)).
+Proof.
+  intros; simpl.
+  apply selflock_precise; repeat apply precise_sepcon.
+  - rewrite cond_var_isptr.
+    destruct cprod; simpl; try solve [apply precise_andp1, precise_False].
+    apply precise_andp2, cond_var_precise; auto.
+  - rewrite cond_var_isptr.
+    destruct ccon; simpl; try solve [apply precise_andp1, precise_False].
+    apply precise_andp2, cond_var_precise; auto.
+  - apply lock_inv_precise.
+  - admit.
+  - apply precise_emp.
+Admitted.
+
+Lemma t_inv_positive : forall sh tsh cprod ccon lock lockt buf ends len next ghosts gsh1 gsh2 g,
+  positive_mpred (Interp (t_lock_pred sh tsh cprod ccon lock lockt buf ends len next ghosts gsh1 gsh2 g)).
+Proof.
+Admitted.
+
 Lemma body_f : semax_body Vprog Gprog f_f f_spec.
 Proof.
   start_function.
@@ -865,7 +893,7 @@ Proof.
     rewrite selflock_eq at 2; cancel.
     Exists n'; rewrite interp_ghost; cancel.
     rewrite sepcon_comm; apply sepcon_derives; [apply lock_inv_later | cancel]. }
-  { admit. }
+  { split; auto; repeat split; [apply t_inv_precise | apply t_inv_positive | apply selflock_rec]; auto. }
   (* timeout 70 forward. XX times out, despite being just a return *)
   eapply semax_pre; [|apply semax_return].
   subst POSTCONDITION; unfold abbreviate.
@@ -1032,13 +1060,17 @@ Proof.
   { go_lower; simpl.
     apply andp_right; [apply prop_right; auto|].
     apply andp_right; [apply prop_right; repeat split; auto | cancel]. }
-  { destruct (eq_dec i 0); [|destruct (eq_dec i 1); [|assert (i = 2) by omega]]; subst; simpl.
-    - freeze [0; 1; 2; 3; 4; 5; 7; 8] FR.
-      (* timeout 90 forward_call (Vptr b o, Ews, t_lock_pred sh2 cprod ccon lock (Vptr b o) buf ends len next ghosts sh1 sh2
-        (Vint (Int.repr 1))). XX times out *)
-      eapply semax_seq'.
-(* Typechecking is taking a really long time here. *)
-Ltac forward_call_id00_wow' witness := 
+  { set (lockt := Vptr b (Int.add o (Int.repr (16 * i)))).
+    set (lsh := nth (Z.to_nat i) [sh2; tsh2; tsh3] sh0).
+    set (s0 := nth (Z.to_nat i) [Ews; sh1; sh'] sh0). 
+    set (s1 := nth (S (Z.to_nat i)) [Ews; sh1; sh'] sh0).
+    set (g := nth (Z.to_nat i) ghosts (Vint (Int.repr 0))).
+    assert (sepalg.join s1 lsh s0 /\ readable_share lsh) as (Hshi & ?).
+    { destruct (eq_dec i 0); [|destruct (eq_dec i 1); [|assert (i = 2) by omega]]; subst;
+        subst lsh s0 s1; auto. }
+(*    clearbody lsh s0 s1.*)
+    eapply semax_seq'.
+    Ltac forward_call_id00_wow' witness := 
   let Frame := fresh "Frame" in evar (Frame: list (mpred));
       eapply (semax_call_id00_wow witness Frame);
  [ check_function_name | lookup_spec_and_change_compspecs CompSpecs
@@ -1058,185 +1090,117 @@ Ltac forward_call_id00_wow' witness :=
  | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
  ].
-      forward_call_id00_wow' (Vptr b o, Ews, t_lock_pred sh2 sh2 cprod ccon lock
-                              (Vptr b o) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 1))).
-      { go_lowerx; unfold tc_exprlist; simpl.
-        unfold liftx, lift_uncurry_open, lift in *; simpl in *.
-        apply andp_right; apply prop_right.
-        - eapply eval_var_isptr; eauto.
-        - unfold gvar_denote, eval_var in *.
-          destruct (Map.get (ve_of rho) _thread_locks) as [(?, ?)|]; [contradiction|].
-          destruct (ge_of rho _thread_locks); [|contradiction].
-          unfold sem_add_pi.
-          replace (eval_id _i__1 rho) with (Vint (Int.repr 0)) by auto; auto. }
-      Intro a.
-      simpl; subst MORE_COMMANDS; unfold abbreviate.
-      get_global_function'' _f; normalize.
-      apply extract_exists_pre; intros f_.
-      match goal with |-context[func_ptr' ?P] => set (spec := P) end.
-      rewrite semax_seq_skip; eapply semax_seq'.
-      forward_call_id00_wow' (f_, Vptr b o, existT (fun ty => ty * (ty -> val -> Pred))%type
-   (share * share * Z * val * val * val * val * val * val * val * val * list val * nat * val * share * share)%type
-   ((sh2, sh2, -1, lock, buf, ends, len, next, Vptr b o, cprod, ccon, ghosts, O, Vint (Int.repr 1), sh1, sh2),
-   fun (x : (share * share * Z * val * val * val * val * val * val * val * val * list val * nat * val * share * share)) (_ : val) =>
-   let '(sh, tsh, t, lock, buf, ends, len, next, lockt, cprod, ccon, ghosts, i, g, gsh1, gsh2) := x in
-     Pred_list [Pred_prop (readable_share sh /\ Int.min_signed <= t <= Int.max_signed /\
-                           sepalg.join gsh1 gsh2 Ews /\ nth_error ghosts i = Some g);
-       Lock_inv sh lock (lock_pred gsh2 buf ends len next ghosts);
-       Lock_inv tsh lockt (t_lock_pred sh tsh cprod ccon lock lockt buf ends len next ghosts gsh1 gsh2 g);
-       Cond_var _ sh cprod; Cond_var _ sh ccon; Ghost gsh1 tint (Vint (Int.repr t)) g])).
-      + go_lowerx; unfold tc_exprlist; simpl.
-        unfold liftx, lift_uncurry_open, lift in *; simpl in *.
-        apply andp_right; apply prop_right.
-        * eapply eval_var_isptr; eauto.
-        * unfold gvar_denote, eval_var in *.
-          destruct (Map.get (ve_of rho) _thread_locks) as [(?, ?)|]; [contradiction|].
-          destruct (ge_of rho _thread_locks); [|contradiction].
-          unfold sem_add_pi.
-          replace (eval_id _i__1 rho) with (Vint (Int.repr 0)) by auto; auto.
-      + simpl.
-        Exists _arg.
-        Exists (fun x : share * share * Z * _ * _ * _ * _ * val * val * _ * _ * list val * nat * val * share * share =>
-          let '(sh, tsh, t, lock, buf, ends, len, next, lockt, cprod, ccon, ghosts, i, g, gsh1, gsh2) := x in
-          [(_buf, buf); (_ends, ends); (_length, len); (_next, next); (_requests_lock, lock);
-           (_requests_producer, cprod); (_requests_consumer, ccon)]).
-        thaw FR.
-        subst Frame; instantiate (1 := [cond_var sh1 ccon; cond_var sh1 cprod;
-          lock_inv sh1 (Vptr b o) (Interp (t_lock_pred sh2 sh2 cprod ccon lock
-                       (Vptr b o) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 1))));
-          lock_inv sh1 lock (Interp (lock_pred sh2 buf ends len next ghosts));
+    forward_call_id00_wow' (lockt, Ews, t_lock_pred lsh sh2 cprod ccon lock lockt
+      buf ends len next ghosts sh1 sh2 g).
+    { go_lowerx; unfold tc_exprlist; simpl.
+      unfold liftx, lift_uncurry_open, lift in *; simpl in *.
+      apply andp_right; apply prop_right.
+      - eapply eval_var_isptr; eauto.
+      - unfold gvar_denote, eval_var in *.
+        destruct (Map.get (ve_of rho) _thread_locks) as [(?, ?)|]; [contradiction|].
+        destruct (ge_of rho _thread_locks); [|contradiction].
+        unfold sem_add_pi.
+        replace (eval_id _i__1 rho) with (Vint (Int.repr i)) by auto; auto. }
+    { subst Frame; instantiate (1 := [cond_var s0 ccon; cond_var s0 cprod;
+        lock_inv s0 lock (Interp (lock_pred sh2 buf ends len next ghosts))] ++
+        firstn (Z.to_nat i) [lock_inv sh1 (Vptr b o)
+        (Interp (t_lock_pred sh2 sh2 cprod ccon lock (Vptr b o) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 1))));
+        lock_inv sh1 (Vptr b (Int.add o (Int.repr 16)))
+        (Interp (t_lock_pred tsh2 sh2 cprod ccon lock (Vptr b (Int.add o (Int.repr 16))) buf ends len next ghosts sh1
+             sh2 (Vint (Int.repr 2))));
+        lock_inv sh1 (Vptr b (Int.add o (Int.repr 32)))
+        (Interp (t_lock_pred tsh3 sh2 cprod ccon lock (Vptr b (Int.add o (Int.repr 32))) buf ends len next ghosts sh1
+             sh2 (Vint (Int.repr 3))))] ++
+        skipn (Z.to_nat i) (map (fun i0 : Z => ghost sh1 tint (Vint (Int.repr (-1))) (Vint (Int.repr i0))) [1; 2; 3]) ++
+        skipn (S (Z.to_nat i)) [data_at_ Ews tlock (Vptr b o);
           data_at_ Ews tlock (Vptr b (Int.add o (Int.repr 16)));
-          data_at_ Ews tlock (Vptr b (Int.add o (Int.repr 32)));
-          ghost sh1 tint (Vint (Int.repr (-1))) (Vint (Int.repr 2));
-          ghost sh1 tint (Vint (Int.repr (-1))) (Vint (Int.repr 3))]).
-          admit.
-      + admit.
-      + Intro x; forward.
-        go_lower; normalize.
-        apply andp_right; [apply prop_right; repeat split; auto; omega | cancel].
-    - freeze [0; 1; 2; 3; 4; 5; 7] FR.
-      eapply semax_seq'.
-      forward_call_id00_wow' (Vptr b (Int.add o (Int.repr 16)), Ews, t_lock_pred tsh2 sh2 cprod ccon lock
-        (Vptr b (Int.add o (Int.repr 16))) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 1))).
-      { go_lowerx; unfold tc_exprlist; simpl.
-        unfold liftx, lift_uncurry_open, lift in *; simpl in *.
-        apply andp_right; apply prop_right.
-        - eapply eval_var_isptr; eauto.
-        - unfold gvar_denote, eval_var in *.
-          destruct (Map.get (ve_of rho) _thread_locks) as [(?, ?)|]; [contradiction|].
-          destruct (ge_of rho _thread_locks); [|contradiction].
-          unfold sem_add_pi.
-          replace (eval_id _i__1 rho) with (Vint (Int.repr 1)) by auto; auto. }
-      Intro a.
-      simpl; subst MORE_COMMANDS; unfold abbreviate.
-      get_global_function'' _f; normalize.
-      apply extract_exists_pre; intros f_.
-      match goal with |-context[func_ptr' ?P] => set (spec := P) end.
-      rewrite semax_seq_skip; eapply semax_seq'.
-      forward_call_id00_wow' (f_, (Vptr b (Int.add o (Int.repr 16))), existT (fun ty => ty * (ty -> val -> Pred))%type
-   (share * share * Z * val * val * val * val * val * val * val * val * list val * nat * val * share * share)%type
-   ((tsh2, sh2, -1, lock, buf, ends, len, next, Vptr b (Int.add o (Int.repr 16)), cprod, ccon, ghosts, O, Vint (Int.repr 2), sh1, sh2),
-   fun (x : (share * share * Z * val * val * val * val * val * val * val * val * list val * nat * val * share * share)) (_ : val) =>
-   let '(sh, tsh, t, lock, buf, ends, len, next, lockt, cprod, ccon, ghosts, i, g, gsh1, gsh2) := x in
+          data_at_ Ews tlock (Vptr b (Int.add o (Int.repr 32)))]).
+      repeat rewrite sepcon_app; cancel.
+      destruct (eq_dec i 0); [|destruct (eq_dec i 1); [|assert (i = 2) by omega]]; subst; subst lockt;
+        simpl; cancel.
+      rewrite Int.add_zero; auto. }
+    Intro a.
+    simpl; subst MORE_COMMANDS; unfold abbreviate.
+    get_global_function'' _f; normalize.
+    apply extract_exists_pre; intros f_.
+    match goal with |-context[func_ptr' ?P] => set (spec := P) end.
+    rewrite semax_seq_skip; eapply semax_seq'.
+    forward_call_id00_wow' (f_, lockt, existT (fun ty => ty * (ty -> val -> Pred))%type
+      (share * share * Z * val * val * val * val * val * val * val * val * list val * nat * val * share * share)%type
+      ((lsh, sh2, -1, lock, buf, ends, len, next, lockt, cprod, ccon, ghosts, Z.to_nat i, g, sh1, sh2),
+     fun (x : (share * share * Z * val * val * val * val * val * val * val * val * list val * nat * val * share * share)) (_ : val) =>
+     let '(sh, tsh, t, lock, buf, ends, len, next, lockt, cprod, ccon, ghosts, i, g, gsh1, gsh2) := x in
      Pred_list [Pred_prop (readable_share sh /\ Int.min_signed <= t <= Int.max_signed /\
                            sepalg.join gsh1 gsh2 Ews /\ nth_error ghosts i = Some g);
        Lock_inv sh lock (lock_pred gsh2 buf ends len next ghosts);
        Lock_inv tsh lockt (t_lock_pred sh tsh cprod ccon lock lockt buf ends len next ghosts gsh1 gsh2 g);
        Cond_var _ sh cprod; Cond_var _ sh ccon; Ghost gsh1 tint (Vint (Int.repr t)) g])).
-      + go_lowerx; unfold tc_exprlist; simpl.
-        unfold liftx, lift_uncurry_open, lift in *; simpl in *.
-        apply andp_right; apply prop_right.
-        * eapply eval_var_isptr; eauto.
-        * unfold gvar_denote, eval_var in *.
-          destruct (Map.get (ve_of rho) _thread_locks) as [(?, ?)|]; [contradiction|].
-          destruct (ge_of rho _thread_locks); [|contradiction].
-          unfold sem_add_pi.
-          replace (eval_id _i__1 rho) with (Vint (Int.repr 1)) by auto; auto.
-      + simpl.
-        Exists _arg.
-        Exists (fun x : share * share * Z * _ * _ * _ * _ * val * val * _ * _ * list val * nat * val * share * share =>
-          let '(sh, tsh, t, lock, buf, ends, len, next, lockt, cprod, ccon, ghosts, i, g, gsh1, gsh2) := x in
-          [(_buf, buf); (_ends, ends); (_length, len); (_next, next); (_requests_lock, lock);
-           (_requests_producer, cprod); (_requests_consumer, ccon)]).
-        thaw FR.
-        subst Frame; instantiate (1 := [cond_var sh' ccon; cond_var sh' cprod;
+    + go_lowerx; unfold tc_exprlist; simpl.
+      unfold liftx, lift_uncurry_open, lift in *; simpl in *.
+      apply andp_right; apply prop_right.
+      * eapply eval_var_isptr; eauto.
+      * unfold gvar_denote, eval_var in *.
+        destruct (Map.get (ve_of rho) _thread_locks) as [(?, ?)|]; [contradiction|].
+        destruct (ge_of rho _thread_locks); [|contradiction].
+        unfold sem_add_pi.
+        replace (eval_id _i__1 rho) with (Vint (Int.repr i)) by auto; auto.
+    + simpl.
+      Exists _arg.
+      Exists (fun x : share * share * Z * _ * _ * _ * _ * val * val * _ * _ * list val * nat * val * share * share =>
+        let '(sh, tsh, t, lock, buf, ends, len, next, lockt, cprod, ccon, ghosts, i, g, gsh1, gsh2) := x in
+        [(_buf, buf); (_ends, ends); (_length, len); (_next, next); (_requests_lock, lock);
+         (_requests_producer, cprod); (_requests_consumer, ccon)]).
+      subst Frame; instantiate (1 := [cond_var s1 ccon; cond_var s1 cprod;
+         lock_inv s1 lock (Interp (lock_pred sh2 buf ends len next ghosts))] ++
+        firstn (Z.to_nat i) [lock_inv sh1 (Vptr b o) (Interp (t_lock_pred sh2 sh2 cprod ccon lock
+            (Vptr b o) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 1))));
           lock_inv sh1 (Vptr b (Int.add o (Int.repr 16))) (Interp (t_lock_pred tsh2 sh2 cprod ccon lock
-               (Vptr b (Int.add o (Int.repr 16))) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 2))));
-          lock_inv sh1 (Vptr b o) (Interp (t_lock_pred sh2 sh2 cprod ccon lock
-               (Vptr b o) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 1))));
-          lock_inv sh' lock (Interp (lock_pred sh2 buf ends len next ghosts));
-          data_at_ Ews tlock (Vptr b (Int.add o (Int.repr 32)));
-          ghost sh1 tint (Vint (Int.repr (-1))) (Vint (Int.repr 3))]).
-          admit.
-      + admit.
-      + Intro x; forward.
-        go_lower; normalize.
-        apply andp_right; [apply prop_right; repeat split; auto; omega | cancel].
-    - freeze [0; 1; 2; 3; 4; 5] FR.
-      eapply semax_seq'.
-      forward_call_id00_wow' (Vptr b (Int.add o (Int.repr 32)), Ews, t_lock_pred tsh3 sh2 cprod ccon lock
-        (Vptr b (Int.add o (Int.repr 32))) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 3))).
-      { go_lowerx; unfold tc_exprlist; simpl.
-        unfold liftx, lift_uncurry_open, lift in *; simpl in *.
-        apply andp_right; apply prop_right.
-        - eapply eval_var_isptr; eauto.
-        - unfold gvar_denote, eval_var in *.
-          destruct (Map.get (ve_of rho) _thread_locks) as [(?, ?)|]; [contradiction|].
-          destruct (ge_of rho _thread_locks); [|contradiction].
-          unfold sem_add_pi.
-          replace (eval_id _i__1 rho) with (Vint (Int.repr 2)) by auto; auto. }
-      Intro a.
-      simpl; subst MORE_COMMANDS; unfold abbreviate.
-      get_global_function'' _f; normalize.
-      apply extract_exists_pre; intros f_.
-      match goal with |-context[func_ptr' ?P] => set (spec := P) end.
-      rewrite semax_seq_skip; eapply semax_seq'.
-      forward_call_id00_wow' (f_, (Vptr b (Int.add o (Int.repr 32))), existT (fun ty => ty * (ty -> val -> Pred))%type
-   (share * share * Z * val * val * val * val * val * val * val * val * list val * nat * val * share * share)%type
-   ((tsh3, sh2, -1, lock, buf, ends, len, next, Vptr b (Int.add o (Int.repr 32)), cprod, ccon, ghosts, O, Vint (Int.repr 3), sh1, sh2),
-   fun (x : (share * share * Z * val * val * val * val * val * val * val * val * list val * nat * val * share * share)) (_ : val) =>
-   let '(sh, tsh, t, lock, buf, ends, len, next, lockt, cprod, ccon, ghosts, i, g, gsh1, gsh2) := x in
-     Pred_list [Pred_prop (readable_share sh /\ Int.min_signed <= t <= Int.max_signed /\
-                           sepalg.join gsh1 gsh2 Ews /\ nth_error ghosts i = Some g);
-       Lock_inv sh lock (lock_pred gsh2 buf ends len next ghosts);
-       Lock_inv tsh lockt (t_lock_pred sh tsh cprod ccon lock lockt buf ends len next ghosts gsh1 gsh2 g);
-       Cond_var _ sh cprod; Cond_var _ sh ccon; Ghost gsh1 tint (Vint (Int.repr t)) g])).
-      + go_lowerx; unfold tc_exprlist; simpl.
-        unfold liftx, lift_uncurry_open, lift in *; simpl in *.
-        apply andp_right; apply prop_right.
-        * eapply eval_var_isptr; eauto.
-        * unfold gvar_denote, eval_var in *.
-          destruct (Map.get (ve_of rho) _thread_locks) as [(?, ?)|]; [contradiction|].
-          destruct (ge_of rho _thread_locks); [|contradiction].
-          unfold sem_add_pi.
-          replace (eval_id _i__1 rho) with (Vint (Int.repr 2)) by auto; auto.
-      + simpl.
-        Exists _arg.
-        Exists (fun x : share * share * Z * _ * _ * _ * _ * val * val * _ * _ * list val * nat * val * share * share =>
-          let '(sh, tsh, t, lock, buf, ends, len, next, lockt, cprod, ccon, ghosts, i, g, gsh1, gsh2) := x in
-          [(_buf, buf); (_ends, ends); (_length, len); (_next, next); (_requests_lock, lock);
-           (_requests_producer, cprod); (_requests_consumer, ccon)]).
-        thaw FR.
-        subst Frame; instantiate (1 := [cond_var sh0 ccon; cond_var sh0 cprod;
+            (Vptr b (Int.add o (Int.repr 16))) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 2))));
           lock_inv sh1 (Vptr b (Int.add o (Int.repr 32))) (Interp (t_lock_pred tsh3 sh2 cprod ccon lock
-               (Vptr b (Int.add o (Int.repr 32))) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 3))));
-          lock_inv sh1 (Vptr b (Int.add o (Int.repr 16))) (Interp (t_lock_pred tsh2 sh2 cprod ccon lock
-               (Vptr b (Int.add o (Int.repr 16))) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 2))));
-          lock_inv sh1 (Vptr b o) (Interp (t_lock_pred sh2 sh2 cprod ccon lock
-               (Vptr b o) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 1))));
-          lock_inv sh0 lock (Interp (lock_pred sh2 buf ends len next ghosts))]).
-          admit.
-      + admit.
-      + Intro x; forward.
-        go_lower; normalize.
-        apply andp_right; [apply prop_right; repeat split; auto; omega | cancel]. }
+            (Vptr b (Int.add o (Int.repr 32))) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 3))))] ++
+        lock_inv sh1 lockt (Interp (t_lock_pred lsh sh2 cprod ccon lock lockt
+            buf ends len next ghosts sh1 sh2 g)) ::
+        skipn (S (Z.to_nat i)) (map (fun i => ghost sh1 tint (Vint (Int.repr (-1))) (Vint (Int.repr i))) [1; 2; 3]) ++
+        skipn (S (Z.to_nat i)) [data_at_ Ews tlock (Vptr b o);
+                            data_at_ Ews tlock (Vptr b (Int.add o (Int.repr 16)));
+                            data_at_ Ews tlock (Vptr b (Int.add o (Int.repr 32)))]).
+      repeat rewrite sepcon_app; simpl.
+      repeat rewrite sepcon_app; simpl.
+      repeat rewrite sepcon_assoc; apply sepcon_derives.
+      { admit. }
+      rewrite <- (sepcon_emp (_ * _)), sepcon_comm; apply sepcon_derives.
+      { apply andp_right; auto; apply prop_right; split; [|split; [|split]]; auto; try computable.
+        subst g; apply nth_error_nth.
+        subst ghosts; simpl; Omega0. }
+      rewrite interp_ghost; normalize.
+      replace (fold_right sepcon emp (skipn _ (ghost _ _ _ _ :: _))) with
+        (ghost sh1 tint (Vint (Int.repr (-1))) g * fold_right sepcon emp (skipn (Z.to_nat i)
+         [ghost sh1 tint (Vint (Int.repr (-1))) (Vint (Int.repr 2));
+          ghost sh1 tint (Vint (Int.repr (-1))) (Vint (Int.repr 3))])).
+      apply sepalg.join_comm in Hshi.
+      rewrite <- (lock_inv_join _ _ _ _ _ Hshi).
+      repeat rewrite <- (cond_var_join _ _ _ _ Hshi).
+      erewrite <- lock_inv_join; eauto; cancel.
+      rewrite sepcon_comm; apply derives_refl.
+      { destruct (eq_dec i 0); [|destruct (eq_dec i 1); [|assert (i = 2) by omega]]; subst; subst g; auto. }
+    + admit.
+    + Intro x; forward.
+      go_lower; normalize.
+      apply andp_right; [apply prop_right; repeat split; auto; omega|].
+      rewrite Z2Nat.inj_add; try omega.
+      rewrite <- firstn_app, <- firstn_1_skipn with (d := FF); [|simpl; Omega0].
+      repeat rewrite sepcon_app; simpl; rewrite sepcon_app.
+      subst s1; repeat rewrite NPeano.Nat.add_1_r; try omega; simpl; cancel.
+      destruct (eq_dec i 0); [|destruct (eq_dec i 1); [|assert (i = 2) by omega]]; subst; subst lockt;
+        simpl; try rewrite Int.add_zero; auto. }
   rewrite <- seq_assoc.
-  forward_for_simple_bound 3 (EX i : Z, let s1 := nth (Z.to_nat i) [sh0; sh'; sh1] Ews in
+  forward_for_simple_bound 3 (EX i : Z,
     PROP ()
     LOCAL (gvar _next next; gvar _buf buf; gvar _requests_producer cprod; gvar _requests_consumer ccon;
            gvar _ends ends; gvar _length len; gvar _thread_locks (Vptr b o); gvar _requests_lock lock)
-   (SEPx ([cond_var s1 ccon; cond_var s1 cprod;
-         lock_inv s1 lock (Interp (lock_pred sh2 buf ends len next ghosts))] ++
+   (SEPx (map (fun s1 => cond_var s1 ccon * cond_var s1 cprod *
+                         lock_inv s1 lock (Interp (lock_pred sh2 buf ends len next ghosts)))
+           (sh0 :: firstn (Z.to_nat i) [sh2; tsh2; tsh3]) ++
          skipn (Z.to_nat i) [lock_inv sh1 (Vptr b o) (Interp (t_lock_pred sh2 sh2 cprod ccon lock
            (Vptr b o) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 1))));
          lock_inv sh1 (Vptr b (Int.add o (Int.repr 16))) (Interp (t_lock_pred tsh2 sh2 cprod ccon lock
@@ -1249,8 +1213,77 @@ Ltac forward_call_id00_wow' witness :=
                               data_at_ Ews tlock (Vptr b (Int.add o (Int.repr 32)))]))).
   { go_lower; simpl.
     apply andp_right; [apply prop_right; auto|].
-    apply andp_right; [apply prop_right; repeat split; auto | apply derives_refl]. }
-  { admit. } (* second loop body *)
+    apply andp_right; [apply prop_right; repeat split; auto |
+      repeat rewrite sepcon_assoc; apply derives_refl]. }
+  { set (lockt := Vptr b (Int.add o (Int.repr (16 * i)))).
+    set (lsh := nth (Z.to_nat i) [sh2; tsh2; tsh3] sh0).
+(*    set (s0 := nth (Z.to_nat i) [Ews; sh1; sh'] sh0). 
+    set (s1 := nth (S (Z.to_nat i)) [Ews; sh1; sh'] sh0).*)
+    set (g := nth (Z.to_nat i) ghosts (Vint (Int.repr 0))).
+(*    assert (sepalg.join s1 lsh s0 /\ readable_share lsh) as (Hshi & ?).
+    { destruct (eq_dec i 0); [|destruct (eq_dec i 1); [|assert (i = 2) by omega]]; subst;
+        subst lsh s0 s1; auto. }*)
+    eapply semax_seq'.
+    forward_call_id00_wow' (lockt, sh1, t_lock_pred lsh sh2 cprod ccon lock lockt
+      buf ends len next ghosts sh1 sh2 g).
+    { go_lowerx; unfold tc_exprlist; simpl.
+      unfold liftx, lift_uncurry_open, lift in *; simpl in *.
+      apply andp_right; apply prop_right.
+      - eapply eval_var_isptr; eauto.
+      - unfold gvar_denote, eval_var in *.
+        destruct (Map.get (ve_of rho) _thread_locks) as [(?, ?)|]; [contradiction|].
+        destruct (ge_of rho _thread_locks); [|contradiction].
+        unfold sem_add_pi.
+        replace (eval_id _i__2 rho) with (Vint (Int.repr i)) by auto; auto. }
+    { subst Frame; instantiate (1 := map (fun s1 => cond_var s1 ccon * cond_var s1 cprod *
+         lock_inv s1 lock (Interp (lock_pred sh2 buf ends len next ghosts)))
+        (sh0 :: firstn (Z.to_nat i) [sh2; tsh2; tsh3]) ++
+        skipn (S (Z.to_nat i)) [lock_inv sh1 (Vptr b o) (Interp (t_lock_pred sh2 sh2 cprod ccon lock
+          (Vptr b o) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 1))));
+        lock_inv sh1 (Vptr b (Int.add o (Int.repr 16))) (Interp (t_lock_pred tsh2 sh2 cprod ccon lock
+          (Vptr b (Int.add o (Int.repr 16))) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 2))));
+        lock_inv sh1 (Vptr b (Int.add o (Int.repr 32))) (Interp (t_lock_pred tsh3 sh2 cprod ccon lock
+          (Vptr b (Int.add o (Int.repr 32))) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 3))))] ++
+        firstn (Z.to_nat i) (map (fun i0 : Z => EX n : Z, ghost sh1 tint (Vint (Int.repr n)) (Vint (Int.repr i0))) [1; 2; 3]) ++
+        firstn (Z.to_nat i) [data_at_ Ews tlock (Vptr b o); data_at_ Ews tlock (Vptr b (Int.add o (Int.repr 16)));
+                             data_at_ Ews tlock (Vptr b (Int.add o (Int.repr 32)))]).
+      repeat rewrite sepcon_app; cancel.
+      destruct (eq_dec i 0); [|destruct (eq_dec i 1); [|assert (i = 2) by omega]]; subst; subst lockt;
+        simpl; try rewrite Int.add_zero; apply derives_refl. }
+    Intro a.
+    simpl; subst MORE_COMMANDS; unfold abbreviate.
+    rewrite semax_seq_skip; eapply semax_seq'.
+    forward_call_id00_wow' (lockt, Ews, Later (t_lock_pred lsh sh2 cprod ccon lock
+      lockt buf ends len next ghosts sh1 sh2 g)).
+    + go_lowerx; unfold tc_exprlist; simpl.
+      unfold liftx, lift_uncurry_open, lift in *; simpl in *.
+      apply andp_right; apply prop_right.
+      * eapply eval_var_isptr; eauto.
+      * unfold gvar_denote, eval_var in *.
+        destruct (Map.get (ve_of rho) _thread_locks) as [(?, ?)|]; [contradiction|].
+        destruct (ge_of rho _thread_locks); [|contradiction].
+        unfold sem_add_pi.
+        replace (eval_id _i__2 rho) with (Vint (Int.repr i)) by auto; auto.
+    + setoid_rewrite selflock_eq at 2.
+      repeat rewrite sepcon_assoc.
+      eapply derives_trans; [apply sepcon_derives; [apply lock_inv_later | apply derives_refl]|]; simpl.
+      rewrite <- (lock_inv_join _ _ _ _ _ Hsh); cancel.
+    + split; auto; split; simpl.
+      * apply later_positive, selflock_positive.
+        apply positive_sepcon2, positive_sepcon2, positive_sepcon1, lock_inv_positive.
+      * apply later_rec, selflock_rec.
+    + Intro x; forward.
+      go_lower; normalize.
+      apply andp_right; [apply prop_right; repeat split; auto; omega|].
+      rewrite Z2Nat.inj_add; try omega.
+      assert (Z.to_nat i < 3)%nat by Omega0.
+      rewrite <- firstn_app, <- firstn_1_skipn with (d := Ews); [|auto].
+      do 2 (rewrite <- firstn_app, <- firstn_1_skipn with (d := FF); [|auto]).
+      rewrite map_app.
+      repeat rewrite sepcon_app; simpl.
+      repeat rewrite NPeano.Nat.add_1_r; simpl; cancel.
+      destruct (eq_dec i 0); [|destruct (eq_dec i 1); [|assert (i = 2) by omega]]; subst; subst lockt lsh g;
+        simpl; try rewrite Int.add_zero; cancel; Exists x0; rewrite interp_ghost; auto. }
   simpl.
   freeze [0; 1; 3; 4; 5; 6; 7; 8] FR.
   forward_call (lock, Ews, lock_pred sh2 buf ends len next ghosts).
