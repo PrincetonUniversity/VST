@@ -9,6 +9,7 @@ Require Import veric.res_predicates.
 Require Import ProofIrrelevance.
 
 (* The concurrent machinery*)
+Require Import concurrency.sync_preds.
 Require Import concurrency.scheduler.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.juicy_machine. Import Concur.
@@ -52,6 +53,7 @@ End ClightSEM.*)
       decay m m'.
 End DecayingSemantics. *)
 
+Set Bullet Behavior "Strict Subproofs".
 
 Module Parching <: ErasureSig.
   Import THE_JUICY_MACHINE.
@@ -181,16 +183,16 @@ Module Parching <: ErasureSig.
       rewrite BB; constructor.
       rewrite AA in dLR; inversion dLR.
     - destruct (JSEM.ThreadPool.lockRes_range_dec js b ofs).
-      clear e.
-      destruct e0 as [z [ineq dLR]].
-      specialize (mtch_locks (b, z)).
-      destruct (JSEM.ThreadPool.lockRes js (b, z)) eqn:AA; inversion dLR.
-      destruct ( DSEM.ThreadPool.lockRes ds (b, z)) eqn:BB; inversion mtch_locks.
-      erewrite JSEM.ThreadPool.lockSet_spec_2; eauto.
-      erewrite DSEM.ThreadPool.lockSet_spec_2; eauto.
-      rewrite BB; constructor.
-      rewrite AA in dLR; inversion dLR.
-    - erewrite JSEM.ThreadPool.lockSet_spec_3; eauto.
+      + clear e.
+        destruct e0 as [z [ineq dLR]].
+        specialize (mtch_locks (b, z)).
+        destruct (JSEM.ThreadPool.lockRes js (b, z)) eqn:AA; inversion dLR.
+        * destruct ( DSEM.ThreadPool.lockRes ds (b, z)) eqn:BB; inversion mtch_locks.
+          erewrite JSEM.ThreadPool.lockSet_spec_2; eauto.
+          erewrite DSEM.ThreadPool.lockSet_spec_2; eauto.
+          rewrite BB; constructor.
+        * rewrite AA in dLR; inversion dLR.
+      + erewrite JSEM.ThreadPool.lockSet_spec_3; eauto.
       erewrite DSEM.ThreadPool.lockSet_spec_3; eauto.
   Qed.
   
@@ -503,15 +505,14 @@ Module Parching <: ErasureSig.
       - unshelve eapply F with (lock := lock); auto.
         unfold JSEM.ThreadPool.lockRes in *.
         unfold JSEM.ThreadPool.lockGuts in *.
-        Require Import concurrency.sync_preds.
         rewrite lset_age_tp_to in H.
         rewrite AMap_find_map_option_map in H.
         unfold juicy_machine.LocksAndResources.lock_info in *.
         destruct (AMap.find (elt:=option rmap) lock (JSEM.ThreadPool.lset tp))
           as [[o|]|]; simpl in *; congruence.
-        unfold JSEM.ThreadPool.lockRes in *.
+      - unfold JSEM.ThreadPool.lockRes in *.
         unfold juicy_machine.LocksAndResources.lock_info in *.
-      - specialize (G lock).
+        specialize (G lock).
         unfold JSEM.ThreadPool.lockRes in *.
         unfold JSEM.ThreadPool.lockGuts in *.
         rewrite lset_age_tp_to in H.
@@ -547,8 +548,8 @@ Module Parching <: ErasureSig.
         unfold JTP.getThreadR; unfold JSEM.initial_machine; simpl.
         unfold DTP.getThreadR; unfold DSEM.initial_machine; simpl.
         unfold match_rmap_perm in H. apply H. 
-        unfold empty_rmap, "@"; simpl.
-      - reflexivity.
+      - unfold empty_rmap, "@"; simpl.
+        reflexivity.
       - unfold DSEM.ThreadPool.lockRes, DSEM.initial_machine; simpl.
         intros. rewrite threadPool.find_empty in H1; inversion H1.
       - unfold DSEM.ThreadPool.lockRes, DSEM.initial_machine; simpl.
@@ -633,23 +634,23 @@ Module Parching <: ErasureSig.
             rewrite HH.
             apply JSEM.ThreadPool.contains_add_latest.
             assumption.
-          + intros.
-            destruct (JTP.cntAdd' _ _ _ Htid) as [[jcnt jNLast]| jLast];
-              destruct (DTP.cntAdd' _ _ _ Htid') as [[dcnt dNLast]| dLast].
-            * erewrite JSEM.ThreadPool.gsoAddCode; try eassumption.
-              erewrite DSEM.ThreadPool.gsoAddCode; try eassumption.
-              inversion MATCH. eapply mtch_gtc.
-            * contradict jNLast.
-              rewrite <- (MTCH_latestThread js ds) in dLast.
-              rewrite dLast; reflexivity.
-              assumption.
-            * contradict dNLast.
-              rewrite (MTCH_latestThread js ds) in jLast.
-              rewrite jLast; reflexivity.
-              assumption.
-            * erewrite JSEM.ThreadPool.gssAddCode; try eassumption.
-              erewrite DSEM.ThreadPool.gssAddCode; try eassumption.
-              reflexivity.
+        - intros.
+          destruct (JTP.cntAdd' _ _ _ Htid) as [[jcnt jNLast]| jLast];
+            destruct (DTP.cntAdd' _ _ _ Htid') as [[dcnt dNLast]| dLast].
+          + erewrite JSEM.ThreadPool.gsoAddCode; try eassumption.
+            erewrite DSEM.ThreadPool.gsoAddCode; try eassumption.
+            inversion MATCH. eapply mtch_gtc.
+          + contradict jNLast.
+            rewrite <- (MTCH_latestThread js ds) in dLast.
+            rewrite dLast; reflexivity.
+            assumption.
+          + contradict dNLast.
+            rewrite (MTCH_latestThread js ds) in jLast.
+            rewrite jLast; reflexivity.
+            assumption.
+          + erewrite JSEM.ThreadPool.gssAddCode; try eassumption.
+            erewrite DSEM.ThreadPool.gssAddCode; try eassumption.
+            reflexivity.
         - intros.
           destruct (JTP.cntAdd' _ _ _ Htid) as [[jcnt jNLast]| jLast];
             destruct (DTP.cntAdd' _ _ _ Htid') as [[dcnt dNLast]| dLast].
@@ -962,7 +963,7 @@ Module Parching <: ErasureSig.
             * {erewrite DTP.gsoLockSet_1.
                eapply join_permDisjoint.
                - apply resource_at_join; eassumption.
-                 rewrite mtch_perm.
+               - rewrite mtch_perm.
                  apply permMapsDisjoint_permDisjoint; apply permMapsDisjoint_comm.
                  inversion dinv. apply lock_set_threads. 
                  
@@ -974,12 +975,12 @@ Module Parching <: ErasureSig.
                  destruct H2 as [dres H2].
                  rewrite (mtch_locksRes _ _ dres His_unlocked H2). 
                  inversion dinv. eapply lock_res_set. eassumption.
-                 apply Intv.range_notin in n. apply n. unfold LKSIZE; simpl; xomega.
+               - apply Intv.range_notin in n. apply n. unfold LKSIZE; simpl; xomega.
               }
             * { erewrite DTP.gsoLockSet_2 by assumption.
                 eapply join_permDisjoint.
                 - apply resource_at_join; eassumption.
-                  rewrite mtch_perm.
+                - rewrite mtch_perm.
                   apply permMapsDisjoint_permDisjoint; apply permMapsDisjoint_comm.
                   inversion dinv. apply lock_set_threads. 
                   
@@ -1309,10 +1310,10 @@ Module Parching <: ErasureSig.
                  apply (resource_at_join _ _ _ (b0, ofs0)) in Hadd_lock_res.
                  replace (JSEM.ThreadPool.getThreadR Hi @ (b0, ofs0)) with (NO Share.bot) in Hadd_lock_res.
                  replace (d_phi @ (b0, ofs0)) with (NO Share.bot) in Hadd_lock_res.
-                 - apply join_unit1_e in Hadd_lock_res.
+                 * apply join_unit1_e in Hadd_lock_res.
                  assumption.
                  apply NO_identity.
-                 - clear Hadd_lock_res.
+                 * clear Hadd_lock_res.
                    symmetry.
                    
                    destruct
@@ -1329,7 +1330,7 @@ Module Parching <: ErasureSig.
                    destruct (perm_of_res (d_phi @ (b0, ofs0))) eqn:AA.
                    inversion acc_coh.
                    apply blah in AA. assumption.
-                 - symmetry.
+                 * symmetry.
                    destruct
                      (JSEM.JuicyMachineLemmas.compatible_threadRes_cohere Hi
                                                   Hcmpt).
@@ -1344,124 +1345,123 @@ Module Parching <: ErasureSig.
                    inversion acc_coh.
                    apply blah in AA. assumption.
         }
-           
-           assert (H: exists l, DSEM.ThreadPool.lockRes ds (b, Int.intval ofs) = Some l).
-           { inversion MATCH; subst.
-             specialize (mtch_locks (b, (Int.intval ofs) )).
-             rewrite His_unlocked in mtch_locks.
-             destruct (DSEM.ThreadPool.lockRes ds (b, Int.intval ofs)); try solve[inversion mtch_locks]. exists l; reflexivity. }
-           destruct H as [l dlockRes].
-         - econstructor 1.
-           + assumption.
-           + eapply MTCH_getThreadC; eassumption.
-           + eassumption.
-           + eapply MTCH_compat; eassumption.
-           + instantiate(1:=(restrPermMap
-               (JSEM.mem_compatible_locks_ltwritable Hcompatible))). 
-             apply restrPermMap_ext.
-             intros b0.
-             inversion MATCH; subst.
-             extensionality ofs0.
-             symmetry; apply MTCH_lockSet. assumption.
-           + assumption.
-           + assumption.
-           + exact dlockRes.
-           + Focus 2. reflexivity.
-           + Focus 2. unfold ds'', ds'.
-             replace (MTCH_cnt MATCH Hi) with Htid'.
-             reflexivity.
-             apply proof_irrelevance.
-           + { constructor.
-               - intros b0 ofs0 H.
-                 destruct (virtue ! b0) eqn:vb0.
-                 destruct (o ofs0) eqn:oofs0.
-                 + rewrite (computeMap_1 _ _ _  _ vb0 oofs0) in H.
-                   unfold virtue in vb0. rewrite PTree.gmap in vb0.
-                   unfold inflated_delta in vb0.
-                   destruct ((snd (getCurPerm m)) ! b0) ; inversion vb0.
-                   rewrite <- H1 in oofs0. clear H1.
-                   replace o0 with (perm_of_res (phi' @ (b0, ofs0))) in H. clear oofs0.
-                   Lemma preservationOfReads1: forall r1 r2 r3,
-                       sepalg.join r1 r2 r3 ->
-                       Mem.perm_order' (perm_of_res r3) Readable ->
-                       Mem.perm_order' (perm_of_res r1) Readable \/
-                       Mem.perm_order' (perm_of_res r2) Readable.
-                   Proof. intros  ? ? ? J po.
-                          inversion J; subst; simpl in po; try inversion po; simpl.
-                          - destruct (eq_dec rsh3 Share.bot); inversion po.
-                          - destruct k; try inversion po.
-                            unfold perm_of_sh. destruct (eq_dec sh pfullshare).
-                            destruct (eq_dec rsh1 Share.top).
-                            subst; simpl. rewrite if_true. left; constructor. reflexivity.
-                            subst; simpl. rewrite if_true. left; constructor. reflexivity.
-                            subst; simpl. rewrite if_false.
-                            rewrite if_false. simpl; left; constructor.
-                            intros HH.
-                            eapply juicy_mem_ops.Abs.pshare_sh_bot. eassumption.
-                            intros HH. apply n.
-                            apply shares.top_pfullshare; assumption.
-                          - destruct k; try inversion po.
-                            unfold perm_of_sh. destruct (eq_dec sh pfullshare).
-                            destruct (eq_dec rsh2 Share.top).
-                            right; subst; simpl. rewrite if_true. constructor. reflexivity.
-                            right; subst; simpl. rewrite if_true. constructor. reflexivity.
-                            right; subst; simpl. rewrite if_false.
-                            rewrite if_false. simpl; constructor.
-                            intros HH.
-                            eapply juicy_mem_ops.Abs.pshare_sh_bot. eassumption.
-                            intros HH. apply n.
-                            apply shares.top_pfullshare; assumption.
-                          - destruct k; try inversion po.
-                            unfold perm_of_sh. destruct (eq_dec sh1 pfullshare).
-                            destruct (eq_dec rsh1 Share.top).
-                            subst; simpl. rewrite if_true. left; constructor. reflexivity.
-                            subst; simpl. rewrite if_true. left; constructor. reflexivity.
-                            subst; simpl. rewrite if_false.
-                            rewrite if_false. simpl; left; constructor.
-                            intros HH.
-                            eapply juicy_mem_ops.Abs.pshare_sh_bot. eassumption.
-                            intros HH. apply n.
-                            apply shares.top_pfullshare; assumption.
-                   Qed.
-                   inversion MATCH.
-                   erewrite <- mtch_perm. erewrite <- mtch_locksRes.
-                   eapply preservationOfReads1. apply resource_at_join. eassumption.
-                   assumption.
-                   eassumption.
-                   eassumption.
-                   { (*prove the replacement above*)
-                     clear - oofs0.
-                     destruct (d_phi @ (b0, ofs0));
-                       try ( destruct ((Share.EqDec_share t Share.bot))); (*For the no case*)
-                       inversion oofs0; try reflexivity.
-                   }
-                 + erewrite (computeMap_2) in H; try left; eassumption.
-                 + rewrite (computeMap_3) in H; try left; eassumption.
-               - intros. rewrite empty_map_spec.
-                 simpl. destruct ((l !! b0 ofs0)); constructor.
-             }
+        
+    - assert (H: exists l, DSEM.ThreadPool.lockRes ds (b, Int.intval ofs) = Some l).
+      { inversion MATCH; subst.
+        specialize (mtch_locks (b, (Int.intval ofs) )).
+        rewrite His_unlocked in mtch_locks.
+        destruct (DSEM.ThreadPool.lockRes ds (b, Int.intval ofs)); try solve[inversion mtch_locks].
+        exists l; reflexivity. }
+      destruct H as [l dlockRes].
+      + econstructor 1.
+        10: reflexivity.
+        10: now unfold ds'', ds'; repeat f_equal; apply proof_irr.
+        * assumption.
+        * eapply MTCH_getThreadC; eassumption.
+        * eassumption.
+        * eapply MTCH_compat; eassumption.
+        * instantiate(1:=(restrPermMap
+                            (JSEM.mem_compatible_locks_ltwritable Hcompatible))). 
+          apply restrPermMap_ext.
+          intros b0.
+          inversion MATCH; subst.
+          extensionality ofs0.
+          symmetry; apply MTCH_lockSet. assumption.
+        * assumption.
+        * assumption.
+        * exact dlockRes.
+        * { constructor.
+            - intros b0 ofs0 H.
+              destruct (virtue ! b0) eqn:vb0.
+              destruct (o ofs0) eqn:oofs0.
+              + rewrite (computeMap_1 _ _ _  _ vb0 oofs0) in H.
+                unfold virtue in vb0. rewrite PTree.gmap in vb0.
+                unfold inflated_delta in vb0.
+                destruct ((snd (getCurPerm m)) ! b0) ; inversion vb0.
+                rewrite <- H1 in oofs0. clear H1.
+                replace o0 with (perm_of_res (phi' @ (b0, ofs0))) in H. clear oofs0.
+                Lemma preservationOfReads1: forall r1 r2 r3,
+                    sepalg.join r1 r2 r3 ->
+                    Mem.perm_order' (perm_of_res r3) Readable ->
+                    Mem.perm_order' (perm_of_res r1) Readable \/
+                    Mem.perm_order' (perm_of_res r2) Readable.
+                Proof.
+                  intros  ? ? ? J po.
+                  inversion J; subst; simpl in po; try inversion po; simpl.
+                  - destruct (eq_dec rsh3 Share.bot); inversion po.
+                  - destruct k; try inversion po.
+                    unfold perm_of_sh. destruct (eq_dec sh pfullshare).
+                    destruct (eq_dec rsh1 Share.top).
+                    subst; simpl. rewrite if_true. left; constructor. reflexivity.
+                    subst; simpl. rewrite if_true. left; constructor. reflexivity.
+                    subst; simpl. rewrite if_false.
+                    rewrite if_false. simpl; left; constructor.
+                    intros HH.
+                    eapply juicy_mem_ops.Abs.pshare_sh_bot. eassumption.
+                    intros HH. apply n.
+                    apply shares.top_pfullshare; assumption.
+                  - destruct k; try inversion po.
+                    unfold perm_of_sh. destruct (eq_dec sh pfullshare).
+                    destruct (eq_dec rsh2 Share.top).
+                    right; subst; simpl. rewrite if_true. constructor. reflexivity.
+                    right; subst; simpl. rewrite if_true. constructor. reflexivity.
+                    right; subst; simpl. rewrite if_false.
+                    rewrite if_false. simpl; constructor.
+                    intros HH.
+                    eapply juicy_mem_ops.Abs.pshare_sh_bot. eassumption.
+                    intros HH. apply n.
+                    apply shares.top_pfullshare; assumption.
+                  - destruct k; try inversion po.
+                    unfold perm_of_sh. destruct (eq_dec sh1 pfullshare).
+                    destruct (eq_dec rsh1 Share.top).
+                    subst; simpl. rewrite if_true. left; constructor. reflexivity.
+                    subst; simpl. rewrite if_true. left; constructor. reflexivity.
+                    subst; simpl. rewrite if_false.
+                    rewrite if_false. simpl; left; constructor.
+                    intros HH.
+                    eapply juicy_mem_ops.Abs.pshare_sh_bot. eassumption.
+                    intros HH. apply n.
+                    apply shares.top_pfullshare; assumption.
+                Qed.
+                inversion MATCH.
+                erewrite <- mtch_perm. erewrite <- mtch_locksRes.
+                eapply preservationOfReads1. apply resource_at_join. eassumption.
+                assumption.
+                eassumption.
+                eassumption.
+                { (*prove the replacement above*)
+                  clear - oofs0.
+                  destruct (d_phi @ (b0, ofs0));
+                    try ( destruct ((Share.EqDec_share t Share.bot))); (*For the no case*)
+                    inversion oofs0; try reflexivity.
+                }
+              + erewrite (computeMap_2) in H; try left; eassumption.
+              + rewrite (computeMap_3) in H; try left; eassumption.
+            - intros. rewrite empty_map_spec.
+              simpl. destruct ((l !! b0 ofs0)); constructor.
+          }
     }  
     
     (* step_release *)
     {
       
-    assert (Htid':= MTCH_cnt MATCH Hi).
-    pose (inflated_delta:=
-            fun loc => match (d_phi @ loc ) with
-                      NO s => if Share.EqDec_share s Share.bot then None else Some ( perm_of_res (phi' @ loc))
-                    | _ => Some (perm_of_res (phi' @ loc))
-                    end).
+      assert (Htid':= MTCH_cnt MATCH Hi).
+      pose (inflated_delta:=
+              fun loc => match (d_phi @ loc ) with
+                        NO s => if Share.EqDec_share s Share.bot then None else Some ( perm_of_res (phi' @ loc))
+                      | _ => Some (perm_of_res (phi' @ loc))
+                      end).
       pose (virtue:= PTree.map
                        (fun (block : positive) (_ : Z -> option permission) (ofs : Z) =>
                           (inflated_delta (block, ofs))) (snd (getMaxPerm m)) ).
-    pose (ds':= DSEM.ThreadPool.updThread Htid' (Kresume c Vundef)
-                                          (computeMap
-                                             (DSEM.ThreadPool.getThreadR Htid') virtue)).
-    pose (ds'':= DSEM.ThreadPool.updLockSet ds' (b, Int.intval ofs)
-                                            (JSEM.juice2Perm d_phi m)).
-    
-    assert (virtue_spec: forall b0 ofs0, perm_of_res (phi' @ (b0, ofs0)) =
-                                    (computeMap (DSEM.ThreadPool.getThreadR Htid') virtue) !! b0 ofs0).
+      pose (ds':= DSEM.ThreadPool.updThread Htid' (Kresume c Vundef)
+                                            (computeMap
+                                               (DSEM.ThreadPool.getThreadR Htid') virtue)).
+      pose (ds'':= DSEM.ThreadPool.updLockSet ds' (b, Int.intval ofs)
+                                              (JSEM.juice2Perm d_phi m)).
+      
+      assert (virtue_spec: forall b0 ofs0, perm_of_res (phi' @ (b0, ofs0)) =
+                                      (computeMap (DSEM.ThreadPool.getThreadR Htid') virtue) !! b0 ofs0).
     {
       intros b0 ofs0.
            destruct (virtue ! b0) eqn:VIRT.
@@ -1784,14 +1784,14 @@ Module Parching <: ErasureSig.
             inversion HH.
 
             - symmetry in H.
-            apply jloc_in_set in H.
-            destruct (JSEM.ThreadPool.lockRes js (b, Int.intval ofs)) eqn:AA;
-              try solve [unfold JSEM.ThreadPool.lockRes in AA; rewrite AA in H; inversion H].
-            inversion ineq.
-            apply VALID; auto. 
-            unfold JSEM.ThreadPool.lockRes in VALID. move VALID at bottom.
-            
-            - symmetry in H5.
+              apply jloc_in_set in H.
+              destruct (JSEM.ThreadPool.lockRes js (b, Int.intval ofs)) eqn:AA;
+                try solve [unfold JSEM.ThreadPool.lockRes in AA; rewrite AA in H; inversion H].
+              inversion ineq.
+              apply VALID; auto. 
+            - unfold JSEM.ThreadPool.lockRes in VALID. move VALID at bottom.
+              
+              symmetry in H5.
               apply jloc_in_set in H5.
               destruct (JSEM.ThreadPool.lockRes js (b, Int.intval ofs)) eqn:BB;
                 try solve [unfold JSEM.ThreadPool.lockRes in BB; rewrite BB in H5; inversion H5].
@@ -1946,13 +1946,15 @@ Module Parching <: ErasureSig.
       unfold ds'.
       apply MTCH_update; auto.
 
-      assert (H: exists l, DSEM.ThreadPool.lockRes ds (b, Int.intval ofs) = Some l).
+    - assert (H: exists l, DSEM.ThreadPool.lockRes ds (b, Int.intval ofs) = Some l).
       { inversion MATCH; subst.
         specialize (mtch_locks (b, (Int.intval ofs) )).
         rewrite His_locked in mtch_locks.
         destruct (DSEM.ThreadPool.lockRes ds (b, Int.intval ofs)); try solve[inversion mtch_locks]. exists l; reflexivity. }
            destruct H as [l dlockRes].
-    - econstructor 2.
+      econstructor 2.
+      9: reflexivity.
+      9: now unfold ds'', ds'; repeat f_equal; apply proof_irr.
       + assumption.
       + eapply MTCH_getThreadC; eassumption.
       + eassumption.
@@ -1968,11 +1970,6 @@ Module Parching <: ErasureSig.
       + assumption.
       + assumption.
       + exact dlockRes.
-      + Focus 2. reflexivity.
-      + Focus 2. unfold ds'', ds'. 
-        replace (MTCH_cnt MATCH Hi) with Htid'.
-        reflexivity.
-        apply proof_irrelevance.
       + { move virtue_spec at bottom.
           constructor.
           - intros b0 ofs0.
@@ -1998,7 +1995,7 @@ Module Parching <: ErasureSig.
               apply resource_at_join; assumption.
 
               (*  JSEM.access_cohere' m d_phi *)
-              intros addr.
+            + intros addr.
               destruct Hcompatible as [all_juice Hcompatible].
               inversion Hcompatible. 
               eapply po_trans.
@@ -2765,26 +2762,26 @@ Module Parching <: ErasureSig.
                     Qed.
                     eapply MTCH_lr_valid; eauto.
                     eapply JSEM.compat_lr_valid; eauto.
-                    auto.
-                - cut (is_true (isSome( JSEM.ThreadPool.lockRes js (b, Int.intval ofs)))).
-                  { intros HH; inversion MATCH. specialize (mtch_locks (b, Int.intval ofs)).
-                    destruct (JSEM.ThreadPool.lockRes js (b, Int.intval ofs)) eqn:LR; inversion HH.
-                    destruct (DSEM.ThreadPool.lockRes ds (b, Int.intval ofs)) eqn:LR'; inversion mtch_locks.
-                    constructor.
-                  }
-                  { destruct Hcompatible as [allj Hcompatible].
-                    inversion Hcompatible. unfold JSEM.ThreadPool.lockRes.
-                    eapply JSEM.compatible_threadRes_sub with (cnt:=Hi) in juice_join.
-                    eapply resource_at_join_sub with (l:=(b, Int.intval ofs)) in juice_join.
-                    rewrite Hlock in juice_join.
-                    destruct juice_join as [X JOIN].
-                    inversion JOIN.
-                    - eapply jloc_in_set;
-                    rewrite <- H; 
-                    reflexivity.
-                    - eapply jloc_in_set;
-                    rewrite <- H7; 
-                    reflexivity. }
+                  + auto.
+                  + cut (is_true (isSome( JSEM.ThreadPool.lockRes js (b, Int.intval ofs)))).
+                    { intros HH; inversion MATCH. specialize (mtch_locks (b, Int.intval ofs)).
+                      destruct (JSEM.ThreadPool.lockRes js (b, Int.intval ofs)) eqn:LR; inversion HH.
+                      destruct (DSEM.ThreadPool.lockRes ds (b, Int.intval ofs)) eqn:LR'; inversion mtch_locks.
+                      constructor.
+                    }
+                    { destruct Hcompatible as [allj Hcompatible].
+                      inversion Hcompatible. unfold JSEM.ThreadPool.lockRes.
+                      eapply JSEM.compatible_threadRes_sub with (cnt:=Hi) in juice_join.
+                      eapply resource_at_join_sub with (l:=(b, Int.intval ofs)) in juice_join.
+                      rewrite Hlock in juice_join.
+                      destruct juice_join as [X JOIN].
+                      inversion JOIN.
+                      - eapply jloc_in_set;
+                          rewrite <- H; 
+                          reflexivity.
+                      - eapply jloc_in_set;
+                          rewrite <- H7; 
+                          reflexivity. }
                 - rewrite DSEM.ThreadPool.gsolockSet_rem1. 2 : assumption.
                   unfold empty_delta_map in e.
                   rewrite PTree.gso in e. rewrite PTree.gempty in e; inversion e.
@@ -2804,9 +2801,9 @@ Module Parching <: ErasureSig.
                   
                     eapply MTCH_lr_valid; eauto.
                     eapply JSEM.compat_lr_valid; eauto.
-                    auto.
-               - unfold empty_delta_map in e. rewrite PTree.gso in e. rewrite PTree.gempty in e; inversion e.
-                 assumption. } 
+                - auto.
+                  unfold empty_delta_map in e. rewrite PTree.gso in e. rewrite PTree.gempty in e; inversion e.
+                  assumption. } 
             + unfold virtue in e.      
               destruct (ident_eq b0 b).
               * subst; rewrite PTree.gss in e; inversion e.

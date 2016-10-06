@@ -57,6 +57,7 @@ Require Import concurrency.lifting_safety.
 (** *Target machine*)
 Require Import concurrency.x86_context.
 
+Set Bullet Behavior "Strict Subproofs".
 
 Module MainSafety .
 
@@ -250,7 +251,8 @@ Module MainSafety .
       - rewrite /DryMachine.new_valid /DryMachine.mk_nstate /DryMachine.mk_ostate;
         simpl.
         admit. (*all schedules are valid at the initial state. (I can probably carry this from the juicym)*)
-      - apply: new_dry_clight_safety.
+      - (* apply: new_dry_clight_safety. *)
+        admit.
     Admitted.
     
     Require Import concurrency.dry_context. 
