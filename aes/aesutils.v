@@ -128,7 +128,7 @@ Definition table_ff_mult (a b: int) : int :=
 Fixpoint repeat_op (op : int -> int) (times : nat) (arg : int) : int :=
   match times with
   | O => arg
-  | S n => repeat_op op n (op arg)
+  | S n => op (repeat_op op n arg)
   end.
 
 (* implement exponentiation by repeated multiplication, which we will use
