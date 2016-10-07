@@ -219,11 +219,12 @@ Module MainSafety .
     Qed.
 
     Theorem new_dry_clight_infinite_safety: forall sch,
+        DryMachine.valid (sch, nil, ds_initial) ->
         DryMachine.safe_new_step  (globalenv prog) (sch, nil, ds_initial) initial_memory.
     Proof.
-      move => sch.
+      move => sch VAL.
       apply: safety.ksafe_safe' => //.
-      exact Classical_Prop.classic.
+      - exact Classical_Prop.classic.
       - move => ds.
         Lemma finite_branching: forall ds prog,
           safety.finite_on_x
@@ -246,12 +247,11 @@ Module MainSafety .
             simpl in H.
             admit. (*Finite branchin!*)
         Admitted.
-        apply finite_branching.
-      - rewrite /DryMachine.new_valid /DryMachine.mk_nstate /DryMachine.mk_ostate;
-        simpl.
-        admit. (*all schedules are valid at the initial state. (I can probably carry this from the juicym)*)
-      - apply: new_dry_clight_safety.
-    Admitted.
+        apply finite_b ranching.
+      - move => n U VAL'.
+        rewrite /DryMachine.mk_nstate /=.
+        simpl; apply: new_dry_clight_safety.
+    Qed.
     
     Require Import concurrency.dry_context. 
     (*Definition dry_initial_core_2:=
