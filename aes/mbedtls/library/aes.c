@@ -54,9 +54,11 @@
 
 #if !defined(MBEDTLS_AES_ALT)
 
-/* Implementation that should never be optimized out by the compiler */
+/* Implementation that should never be optimized out by the compiler.
+   No "volatile" because it prevents us from reasoning about p, and
+   compcert can't optimize it out because it would result in a different final memory state. */
 static void mbedtls_zeroize( void *v, size_t n ) {
-    volatile unsigned char *p = v; while( n-- ) *p++ = 0;
+    /*volatile*/ unsigned char *p = v; while( n-- ) *p++ = 0;
 }
 
 /*
