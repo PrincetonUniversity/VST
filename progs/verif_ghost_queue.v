@@ -13,13 +13,13 @@ Definition acquire_spec := DECLARE _acquire acquire_spec.
 Definition release_spec := DECLARE _release release_spec.
 Definition makelock_spec := DECLARE _makelock (makelock_spec _).
 Definition freelock_spec := DECLARE _freelock (freelock_spec _).
-Definition spawn_spec := DECLARE _spawn_thread spawn_spec.
+Definition spawn_spec := DECLARE _spawn spawn_spec.
 Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
 Definition release2_spec := DECLARE _release2 release2_spec.
 Definition makecond_spec := DECLARE _makecond (makecond_spec _).
 Definition freecond_spec := DECLARE _freecond (freecond_spec _).
-Definition wait_spec := DECLARE _wait (wait_spec _).
-Definition signal_spec := DECLARE _signal (signal_spec _).
+Definition wait_spec := DECLARE _waitcond (wait_spec _).
+Definition signal_spec := DECLARE _signalcond (signal_spec _).
 
 Definition malloc_spec :=
  DECLARE _malloc
@@ -105,8 +105,18 @@ Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7
               x10 at level 0, x11 at level 0, x12 at level 0,  x13 at level 0, x14 at level 0, x15 at level 0,
              P at level 100, Q at level 100).
 
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 , x16 : t16 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15*t16)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16) => Q%assert end))
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
+             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+              x10 at level 0, x11 at level 0, x12 at level 0,  x13 at level 0, x14 at level 0,
+               x15 at level 0, x16 at level 0,
+             P at level 100, Q at level 100).
+
 Definition add_spec :=
- DECLARE _add
+ DECLARE _q_add
   WITH sh : share, lock : val, request : val, d : val, t : val, buf : val, ends : val, len : val, next : val,
        cprod : val, ccon : val, ghosts : list val, gsh2 : share
   PRE [ _request OF (tptr trequest) ]
@@ -120,7 +130,7 @@ Definition add_spec :=
    SEP (lock_inv sh lock (Interp (lock_pred gsh2 buf ends len next ghosts)); cond_var sh cprod; cond_var sh ccon).
 
 Definition remove_spec :=
- DECLARE _remove
+ DECLARE _q_remove
   WITH sh : share, t : Z, lock : val, buf : val, ends : val, len : val, next : val, cprod : val, ccon : val,
        ghosts : list val, i : nat, g : val, gsh1 : share, gsh2 : share
   PRE [ ]
@@ -137,22 +147,22 @@ Definition remove_spec :=
    SEP (lock_inv sh lock (Interp (lock_pred gsh2 buf ends len next ghosts)); cond_var sh cprod; cond_var sh ccon;
         data_at Tsh trequest (d, Vint (Int.repr t')) req; ghost gsh1 tint (Vint (Int.repr t')) g).
 
-Definition t_lock_pred sh cprod ccon lock lockt buf ends len next ghosts gsh1 gsh2 g :=
+Definition t_lock_pred sh tsh cprod ccon lock lockt buf ends len next ghosts gsh1 gsh2 g :=
   Self_lock (Pred_list [Cond_var _ sh cprod; Cond_var _ sh ccon;
     Lock_inv sh lock (lock_pred gsh2 buf ends len next ghosts);
-    Exp _ (fun n => Ghost gsh1 tint (Vint (Int.repr n)) g)]) sh lockt.
+    Exp _ (fun n => Ghost gsh1 tint (Vint (Int.repr n)) g)]) tsh lockt.
 
 Definition f_spec :=
  DECLARE _f
-  WITH sh : share, t : Z, lock : val, buf : val, ends : val, len : val, next : val, lockt : val,
+  WITH sh : share, tsh : share, t : Z, lock : val, buf : val, ends : val, len : val, next : val, lockt : val,
        cprod : val, ccon : val, ghosts : list val, i : nat, g : val, gsh1 : share, gsh2 : share
   PRE [ _arg OF (tptr tvoid) ]
-   PROP (readable_share sh; Int.min_signed <= t <= Int.max_signed; sepalg.join gsh1 gsh2 Ews;
-         nth_error ghosts i = Some g)
+   PROP (readable_share sh; readable_share tsh; Int.min_signed <= t <= Int.max_signed;
+         sepalg.join gsh1 gsh2 Ews; nth_error ghosts i = Some g)
    LOCAL (gvar _buf buf; gvar _ends ends; gvar _length len; gvar _next next; gvar _requests_lock lock;
           temp _arg lockt; gvar _requests_producer cprod; gvar _requests_consumer ccon)
    SEP (lock_inv sh lock (Interp (lock_pred gsh2 buf ends len next ghosts));
-        lock_inv sh lockt (Interp (t_lock_pred sh cprod ccon lock lockt buf ends len next ghosts gsh1 gsh2 g));
+        lock_inv tsh lockt (Interp (t_lock_pred sh tsh cprod ccon lock lockt buf ends len next ghosts gsh1 gsh2 g));
         cond_var sh cprod; cond_var sh ccon; ghost gsh1 tint (Vint (Int.repr t)) g)
   POST [ tptr tvoid ] PROP () LOCAL () SEP (emp).
 
@@ -429,7 +439,7 @@ Proof.
   rewrite app_length, repeat_length; omega.
 Qed.
 
-Lemma body_add : semax_body Vprog Gprog f_add add_spec.
+Lemma body_add : semax_body Vprog Gprog f_q_add add_spec.
 Proof.
   start_function.
   forward_call (lock, sh, lock_pred gsh2 buf ends len next ghosts).
@@ -444,7 +454,10 @@ Proof.
    SEP (lock_inv sh lock (Interp (lock_pred gsh2 buf ends len next ghosts));
         Interp (lock_pred' gsh2 buf ends len next ghosts reqs times head tail n ns);
         cond_var sh cprod; cond_var sh ccon; @data_at CompSpecs Tsh trequest (d, t) request)).
-  { Exists reqs times head tail n ns; go_lower.
+  { Exists reqs times head tail n ns.
+    simpl Interp.
+    (*timeout 70 entailer. XX times out *)
+    go_lower.
     apply andp_right; [apply prop_right; repeat split; auto |
       apply andp_right; [apply prop_right; repeat split; auto | normalize; cancel]]. }
   { go_lower; entailer'. }
@@ -453,33 +466,36 @@ Proof.
       Exists reqs0 times0 head0 tail0 n0 ns0; cancel. }
     simpl; Intros reqs1 times1 head1 tail1 n1 ns1.
     forward.
-    Exists (reqs1, times1, head1, tail1, n1, ns1); go_lower; unfold Znth; simpl.
+    Exists (reqs1, times1, head1, tail1, n1, ns1).
+    (* timeout 70 entailer. XX times out *)
+    go_lower; unfold Znth; simpl.
     apply andp_right; [apply prop_right; repeat split; auto |
       apply andp_right; [apply prop_right; repeat split; auto | normalize; cancel]]. }
   simpl; normalize.
   rewrite Int.signed_repr, Zlength_correct in HRE.
-  forward.
+  freeze [0; 1; 2; 4; 5; 6; 7] FR; forward.
   unfold Znth; simpl.
   forward.
-  forward.
+  forward; thaw FR.
   unfold upd_Znth; repeat rewrite sublist.sublist_nil; simpl.
-  forward.
+  freeze [2; 3; 4; 5; 6; 7; 8] FR; forward.
   unfold Znth; simpl.
-  forward.
+  time forward. (* 27s even with freeze *)
   { apply prop_right.
     replace (Z.of_nat tail0) with ((Z.of_nat head0 + Zlength reqs0) mod 10) by auto.
     apply Z_mod_lt; omega. }
   forward.
-  { repeat apply andp_right.
+  { (* timeout 70 entailer. XX times out *)
+    repeat apply andp_right.
     - go_lower; entailer'.
     - go_lower; simpl.
       apply prop_right.
       rewrite andb_false_intro2; simpl; auto.
     - go_lower; entailer'.
     - apply TT_right. }
+  thaw FR.
   forward.
   forward_call (ccon, sh).
-  { simpl; cancel. }
   assert (length reqs0 < MAX)%nat by (rewrite Nat2Z.inj_lt; auto).
   rewrite upd_rotate; auto.
   replace ((Z.of_nat tail0 - Z.of_nat head0) mod Z.of_nat MAX) with (Zlength reqs0).
@@ -487,9 +503,9 @@ Proof.
   unfold upd_Znth; simpl.
   repeat rewrite sublist.sublist_nil.
   repeat rewrite add_repr.
-  rewrite field_at_isptr, (field_at_isptr _ (tarray tint 1)), (field_at_isptr _ _ _ _ next),
+  rewrite (field_at_isptr _ _ _ _ buf), (field_at_isptr _ _ _ _ len), (field_at_isptr _ _ _ _ next),
     (field_at_isptr _ trequest); normalize.
-  forward_call (lock, sh, lock_pred gsh2 buf ends len next ghosts).
+  time forward_call (lock, sh, lock_pred gsh2 buf ends len next ghosts). (* 36s *)
   { simpl.
     Exists (reqs0 ++ [request]) (times0 ++ [n0]) head0 (Nat.modulo (tail0 + 1) MAX) (n0 + 1) ns0;
       unfold fold_right at 1; cancel.
@@ -529,7 +545,7 @@ Proof.
         split; try omega.
         transitivity (Z.of_nat MAX); simpl in *; [omega | computable]. } }
   { split; auto; split; [apply inv_precise | apply inv_positive]; auto. }
-  forward.
+  time forward.
   { cancel. }
   { replace (Z.of_nat tail0) with ((Z.of_nat head0 + Zlength reqs0) mod 10) by auto.
     rewrite Zminus_mod_idemp_l; auto.
@@ -542,7 +558,7 @@ Proof.
   { pose proof Int.min_signed_neg; rewrite Zlength_correct; split; try omega.
     match goal with H : _ /\ _ |- _ => destruct H as (? & ? & ?) end.
     transitivity (Z.of_nat MAX); [Omega0 | simpl; computable]. }
-Qed.
+Admitted.
 
 Lemma all_ptrs : forall reqs times, length times = length reqs ->
   fold_right sepcon emp (map Interp (map (fun p => Exp val (fun d =>
@@ -615,7 +631,7 @@ Proof.
   rewrite Zlength_correct; omega.
 Qed.
 
-Lemma body_remove : semax_body Vprog Gprog f_remove remove_spec.
+Lemma body_q_remove : semax_body Vprog Gprog f_q_remove remove_spec.
 Proof.
   start_function.
   forward_call (lock, sh, lock_pred gsh2 buf ends len next ghosts).
@@ -650,10 +666,13 @@ Proof.
   assert (0 <= Z.of_nat head0 < Z.of_nat MAX) by Omega0.
   forward.
   unfold Znth; simpl.
+  freeze [1; 2; 3; 4; 5; 6; 7; 8] FR.
   forward.
   { go_lower; normalize.
     rewrite Znth_head; auto.
-    do 4 rewrite sepcon_assoc; rewrite sepcon_comm.
+    thaw FR.
+    repeat rewrite <- sepcon_assoc.
+    rewrite (sepcon_comm _ (_ (map _ _))).
     rewrite map_app, sepcon_app.
     repeat rewrite sepcon_assoc; rewrite sepcon_comm.
     rewrite sepcon_assoc.
@@ -665,12 +684,16 @@ Proof.
     eapply Forall_impl; [|eauto].
     destruct a; auto. }
   forward.
-  forward.
+  thaw FR.
+  freeze [2; 3; 4; 5; 6; 7; 8] FR.
+  time forward. (* 26s *)
   { go_lower; normalize; simpl.
     apply prop_right; rewrite andb_false_intro2; simpl; auto. }
-  forward.
+  time forward.
+  thaw FR.
+  freeze [0; 1; 2; 4; 5; 6; 7; 8] FR.
   forward_call (cprod, sh).
-  { simpl; cancel. }
+  thaw FR.
   rewrite upd_rotate; auto.
   rewrite Zminus_diag, Zmod_0_l.
   destruct reqs0; [contradiction HRE; auto|].
@@ -693,13 +716,13 @@ Proof.
   replace (length ghosts) with (length ns0) in Hlt by auto.
   forward_call (lock, sh, lock_pred gsh2 buf ends len next ghosts).
   { simpl.
-    Exists reqs0 times0 (Nat.modulo (S head0) MAX) tail0 n0 (upd_Znth (Z.of_nat i) ns0 z); cancel.
+    Exists reqs0 times0 (Nat.modulo (S head0) MAX) tail0 n0 (upd_Znth (Z.of_nat i) ns0 z).
     rewrite <- Zlength_correct.
-    rewrite mod_Zmod, Nat2Z.inj_succ; simpl; [cancel | omega].
-    rewrite <- (sepcon_emp (_ * _)), sepcon_comm.
+    rewrite mod_Zmod, Nat2Z.inj_succ; simpl; [|omega].
+    normalize.
     match goal with H : Forall _ (_ :: _) |- _ => inv H end.
-    rewrite (sepcon_assoc (_ && _)); apply sepcon_derives.
-    { apply andp_right; auto; apply prop_right.
+    apply andp_right.
+    { apply prop_right.
       match goal with H : Sorted _ _ |- _ => inv H end.
       repeat split; auto; try omega.
       - rewrite Forall_forall in *; intros ? Hin.
@@ -717,6 +740,7 @@ Proof.
       - rewrite Zlength_cons in *.
         rewrite Zplus_mod_idemp_l; unfold Z.succ in *.
         rewrite <- Zplus_assoc, (Zplus_comm 1); auto. }
+    unfold fold_right at 2; cancel.
     exploit nth_ghost; eauto; intros (n2 & Hn2 & Heq); rewrite Heq.
     rewrite sepcon_comm.
     rewrite <- sepcon_assoc.
@@ -780,83 +804,69 @@ Proof.
   { repeat rewrite Zlength_correct; repeat rewrite map_length; omega. }
 Qed.
 
+Lemma precise_False : precise (!!False).
+Proof.
+  repeat intro.
+  inversion H.
+Qed.
+
+Lemma t_inv_precise : forall sh tsh cprod ccon lock lockt buf ends len next ghosts gsh1 gsh2 g
+  (Hsh : readable_share sh),
+  precise (Interp (t_lock_pred sh tsh cprod ccon lock lockt buf ends len next ghosts gsh1 gsh2 g)).
+Proof.
+  intros; simpl.
+  apply selflock_precise; repeat apply precise_sepcon.
+  - rewrite cond_var_isptr.
+    destruct cprod; simpl; try solve [apply precise_andp1, precise_False].
+    apply precise_andp2, cond_var_precise; auto.
+  - rewrite cond_var_isptr.
+    destruct ccon; simpl; try solve [apply precise_andp1, precise_False].
+    apply precise_andp2, cond_var_precise; auto.
+  - apply lock_inv_precise.
+  - admit.
+  - apply precise_emp.
+Admitted.
+
+Lemma t_inv_positive : forall sh tsh cprod ccon lock lockt buf ends len next ghosts gsh1 gsh2 g,
+  positive_mpred (Interp (t_lock_pred sh tsh cprod ccon lock lockt buf ends len next ghosts gsh1 gsh2 g)).
+Proof.
+Admitted.
+
 Lemma body_f : semax_body Vprog Gprog f_f f_spec.
 Proof.
   start_function.
   rewrite (lock_inv_isptr _ lockt); normalize.
   forward.
   destruct lockt as [| | | | |lockt o]; try contradiction; simpl.
-  apply semax_seq' with (P' := PROP ( )
-   LOCAL (temp _l (Vptr lockt o); lvar _res (tarray tint 3) lvar0; 
-   gvar _buf buf; gvar _ends ends; gvar _length len; gvar _next next; gvar _requests_lock lock;
-   temp _arg (Vptr lockt o); gvar _requests_producer cprod; gvar _requests_consumer ccon)
-   SEP (data_at_ Tsh (tarray tint 3) lvar0; lock_inv sh lock (Interp (lock_pred gsh2 buf ends len next ghosts));
-   lock_inv sh (Vptr lockt o) (Interp (t_lock_pred sh cprod ccon lock (Vptr lockt o) buf ends len next ghosts gsh1 gsh2 g));
-   cond_var sh cprod; cond_var sh ccon; ghost gsh1 tint (Vint (Int.repr t)) g)).
-  { eapply semax_for_const_bound_const_init with (P := fun _ => [])
-      (Q := fun _ => [temp _l (Vptr lockt o); lvar _res (tarray tint 3) lvar0; 
+  forward_for_simple_bound 3 (EX i : Z, PROP ()
+      LOCAL (temp _l (Vptr lockt o); lvar _res (tarray tint 3) lvar0; 
              gvar _buf buf; gvar _ends ends; gvar _length len; gvar _next next; gvar _requests_lock lock;
-             temp _arg (Vptr lockt o); gvar _requests_producer cprod; gvar _requests_consumer ccon])
-      (R := fun i => [data_at_ Tsh (tarray tint 3) lvar0;
-             lock_inv sh lock (Interp (lock_pred gsh2 buf ends len next ghosts));
-             lock_inv sh (Vptr lockt o) (Interp (t_lock_pred sh cprod ccon lock (Vptr lockt o) buf ends len next ghosts gsh1 gsh2 g));
-             cond_var sh cprod; cond_var sh ccon; ghost gsh1 tint (Vint (Int.repr t)) g]);
-    [reflexivity | try repable_signed | try repable_signed | reflexivity | try reflexivity; omega
-    | intro; unfold map at 1; auto 50 with closed
-    | cbv beta; simpl update_tycon
-    | intro; cbv beta; simpl update_tycon; try solve [entailer!]
-    | try apply semax_for_resolve_postcondition
-    | intro; cbv beta; simpl update_tycon; abbreviate_semax;
-      try (apply semax_extract_PROP; intro) ]; try computable.
-    { entailer!. }
-    { unfold normal_ret_assert; go_lower; entailer'. }
-    forward_call tt.
+             temp _arg (Vptr lockt o); gvar _requests_producer cprod; gvar _requests_consumer ccon)
+      SEP (data_at_ Tsh (tarray tint 3) lvar0;
+           lock_inv sh lock (Interp (lock_pred gsh2 buf ends len next ghosts));
+           lock_inv tsh (Vptr lockt o) (Interp (t_lock_pred sh tsh cprod ccon lock (Vptr lockt o)
+                                                            buf ends len next ghosts gsh1 gsh2 g));
+           cond_var sh cprod; cond_var sh ccon; ghost gsh1 tint (Vint (Int.repr t)) g)).
+  { entailer!. }
+  { forward_call tt.
     Intro x; destruct x as ((req, d0), t0); simpl.
     forward_call (sh, lock, req, d0, t0, buf, ends, len, next, cprod, ccon, ghosts, gsh2).
     go_lower; entailer'; cancel. }
-  subst MORE_COMMANDS; unfold abbreviate.
-  apply semax_seq' with (P' := PROP ( )
-   LOCAL (temp _l (Vptr lockt o); lvar _res (tarray tint 3) lvar0; gvar _buf buf; gvar _ends ends;
-   gvar _length len; gvar _next next; gvar _requests_lock lock; temp _arg (Vptr lockt o);
-   gvar _requests_producer cprod; gvar _requests_consumer ccon)
-   SEP ((EX d1 : Z, EX d2 : Z, EX d3 : Z, !! (d1 < d2 < d3) && data_at Tsh (tarray tint 3) [Vint (Int.repr d1);
-     Vint (Int.repr d2); Vint (Int.repr d3)] lvar0);
-   lock_inv sh lock (Interp (lock_pred gsh2 buf ends len next ghosts));
-   lock_inv sh (Vptr lockt o) (Interp (t_lock_pred sh cprod ccon lock (Vptr lockt o) buf ends len next ghosts gsh1 gsh2 g));
-   cond_var sh cprod; cond_var sh ccon;
-   EX n' : Z, !! (Int.min_signed <= n' <= Int.max_signed) && ghost gsh1 tint (Vint (Int.repr n')) g)).
-  { eapply semax_for_const_bound_const_init with (P := fun _ => [])
-      (Q := fun _ => [temp _l (Vptr lockt o); lvar _res (tarray tint 3) lvar0; 
-             gvar _buf buf; gvar _ends ends; gvar _length len; gvar _next next; gvar _requests_lock lock;
-             temp _arg (Vptr lockt o); gvar _requests_producer cprod; gvar _requests_consumer ccon])
-      (R := fun i => [EX n' : Z, EX ld : list Z, !! (Int.min_signed <= n' <= Int.max_signed /\
-             Zlength ld = i /\ Sorted Z.lt ld /\ Forall (fun z => Int.min_signed <= z <= n') ld) &&
-             data_at Tsh (tarray tint 3) (map Vint (map Int.repr ld) ++ repeat Vundef (3 - length ld)%nat) lvar0 *
-             ghost gsh1 tint (Vint (Int.repr n')) g;
-             lock_inv sh lock (Interp (lock_pred gsh2 buf ends len next ghosts));
-             lock_inv sh (Vptr lockt o) (Interp (t_lock_pred sh cprod ccon lock (Vptr lockt o) buf ends len next ghosts gsh1 gsh2 g));
-             cond_var sh cprod; cond_var sh ccon]);
-    [reflexivity | try repable_signed | try repable_signed | reflexivity | try reflexivity; omega
-    | intro; unfold map at 1; auto 50 with closed
-    | cbv beta; simpl update_tycon
-    | intro; cbv beta; simpl update_tycon; try solve [entailer!]
-    | try apply semax_for_resolve_postcondition
-    | intro; cbv beta; simpl update_tycon; abbreviate_semax;
-      try (apply semax_extract_PROP; intro) ]; try computable.
-    { entailer!.
-      Exists t ([] : list Z); simpl; entailer. }
-    { unfold normal_ret_assert; entailer!.
-      normalize.
-      destruct ld as [|d1]; [discriminate|].
-      destruct ld as [|d2]; [discriminate|].
-      destruct ld as [|d3]; [discriminate|].
-      destruct ld.
-      Exists n' d1 d2 d3.
-      inversion H3 as [|?? Hsort2 Hlt1]; inv Hlt1.
-      inversion Hsort2 as [|?? Hsort3 Hlt2]; inv Hlt2; normalize.
-      { repeat rewrite Zlength_cons in *.
-        rewrite Zlength_correct in *; omega. } }
-    Intros n1 ld; normalize.
+  forward_for_simple_bound 3 (EX i : Z, PROP ()
+    LOCAL (temp _l (Vptr lockt o); lvar _res (tarray tint 3) lvar0; 
+           gvar _buf buf; gvar _ends ends; gvar _length len; gvar _next next; gvar _requests_lock lock;
+           temp _arg (Vptr lockt o); gvar _requests_producer cprod; gvar _requests_consumer ccon)
+    SEP (EX n' : Z, EX ld : list Z, !! (Int.min_signed <= n' <= Int.max_signed /\
+           Zlength ld = i /\ Sorted Z.lt ld /\ Forall (fun z => Int.min_signed <= z <= n') ld) &&
+           data_at Tsh (tarray tint 3) (map Vint (map Int.repr ld) ++ repeat Vundef (3 - length ld)%nat) lvar0 *
+         ghost gsh1 tint (Vint (Int.repr n')) g;
+         lock_inv sh lock (Interp (lock_pred gsh2 buf ends len next ghosts));
+         lock_inv tsh (Vptr lockt o) (Interp (t_lock_pred sh tsh cprod ccon lock (Vptr lockt o)
+                                                          buf ends len next ghosts gsh1 gsh2 g));
+         cond_var sh cprod; cond_var sh ccon)).
+  { entailer!.
+    Exists t ([] : list Z); simpl; entailer. }
+  { Intros n1 ld; normalize.
     forward_call (sh, n1, lock, buf, ends, len, next, cprod, ccon, ghosts, i, g, gsh1, gsh2).
     Intro x; destruct x as ((t', req), d).
     forward_call (req, d, t').
@@ -876,13 +886,15 @@ Proof.
         specialize (H' _ H); omega end.
     - rewrite Forall_app; split; [|constructor; auto; omega].
       eapply Forall_impl; [|eauto]; intros; simpl in *; omega. }
-  Intros d1 d2 d3 n'.
-  forward_call (Vptr lockt o, sh, t_lock_pred sh cprod ccon lock (Vptr lockt o) buf ends len next ghosts gsh1 gsh2 g).
+  Intros n' ld; normalize.
+  forward_call (Vptr lockt o, tsh, t_lock_pred sh tsh cprod ccon lock (Vptr lockt o)
+                                               buf ends len next ghosts gsh1 gsh2 g).
   { simpl.
     rewrite selflock_eq at 2; cancel.
     Exists n'; rewrite interp_ghost; cancel.
     rewrite sepcon_comm; apply sepcon_derives; [apply lock_inv_later | cancel]. }
-  { admit. }
+  { split; auto; repeat split; [apply t_inv_precise | apply t_inv_positive | apply selflock_rec]; auto. }
+  (* timeout 70 forward. XX times out, despite being just a return *)
   eapply semax_pre; [|apply semax_return].
   subst POSTCONDITION; unfold abbreviate.
   go_lowerx; normalize.
@@ -944,33 +956,16 @@ Proof.
   rewrite <- seq_assoc.
   rename gvar7 into next, gvar6 into buf, gvar5 into cprod, gvar4 into ccon, gvar3 into ends, gvar2 into len,
     gvar1 into lockt, gvar0 into lock.
-  apply semax_seq' with (P' := PROP ( )
+  forward_for_simple_bound 10 (EX i : Z, PROP ()
     LOCAL (gvar _next next; gvar _buf buf; gvar _requests_producer cprod; gvar _requests_consumer ccon;
            gvar _ends ends; gvar _length len; gvar _thread_locks lockt; gvar _requests_lock lock)
     SEP (data_at_ Ews (tarray tint 1) next;
-         data_at Ews (tarray (tptr (Tstruct 6%positive noattr)) 10) (repeat (Vint (Int.repr 0)) 10) buf;
-         data_at_ Ews tint cprod; data_at_ Ews tint ccon; data_at_ Ews (tarray tint 2) ends;
-         data_at_ Ews (tarray tint 1) len; data_at_ Ews (tarray (Tstruct 3%positive noattr) 3) lockt;
-         data_at_ Ews (Tstruct 3%positive noattr) lock)).
-  { eapply semax_for_const_bound_const_init with (P := fun _ => [])
-      (Q := fun _ => [gvar _next next; gvar _buf buf; gvar _requests_producer cprod; gvar _requests_consumer ccon;
-           gvar _ends ends; gvar _length len; gvar _thread_locks lockt; gvar _requests_lock lock])
-      (R := fun i => [data_at_ Ews (tarray tint 1) next;
-         data_at Ews (tarray (tptr (Tstruct 6%positive noattr)) 10)
+         data_at Ews (tarray (tptr trequest) 10)
                (repeat (Vint (Int.repr 0)) (Z.to_nat i) ++ repeat Vundef (Z.to_nat (10 - i))) buf;
          data_at_ Ews tint cprod; data_at_ Ews tint ccon; data_at_ Ews (tarray tint 2) ends;
-         data_at_ Ews (tarray tint 1) len; data_at_ Ews (tarray (Tstruct 3%positive noattr) 3) lockt;
-         data_at_ Ews (Tstruct 3%positive noattr) lock]);
-    [reflexivity | try repable_signed | try repable_signed | reflexivity | try reflexivity; omega
-    | intro; unfold map at 1; auto 50 with closed
-    | cbv beta; simpl update_tycon
-    | intro; cbv beta; simpl update_tycon; try solve [entailer!]
-    | try apply semax_for_resolve_postcondition
-    | intro; cbv beta; simpl update_tycon; abbreviate_semax;
-      try (apply semax_extract_PROP; intro) ]; try computable.
-    { unfold tlock, semax_conc._lock_t, trequest, _request_t; entailer!. }
-    { unfold normal_ret_assert, tlock, semax_conc._lock_t; entailer!. }
-    forward.
+         data_at_ Ews (tarray tint 1) len; data_at_ Ews (tarray tlock 3) lockt; data_at_ Ews tlock lock)).
+  { unfold tlock, semax_conc._lock_t, trequest, _request_t; entailer!. }
+  { forward.
     entailer!.
     assert (Zlength (repeat (Vint (Int.repr 0)) (Z.to_nat i)) = i) as Hlen.
     { rewrite Zlength_correct, repeat_length.
@@ -998,7 +993,6 @@ Proof.
   eapply semax_pre; [apply ghost_alloc with (t := tint)(v := Vint (Int.repr (-1)))(p := Vint (Int.repr 3))|].
   set (ghosts := [Vint (Int.repr 1); Vint (Int.repr 2); Vint (Int.repr 3)]).
   forward_call (lock, Ews, lock_pred sh2 buf ends len next ghosts).
-  { unfold tlock, semax_conc._lock_t; cancel. }
   rewrite (data_at_isptr _ (tarray _ _)), (field_at_isptr _ _ _ _ len), (field_at_isptr _ _ _ _ next);
     normalize.
   forward_call (lock, Ews, lock_pred sh2 buf ends len next ghosts).
@@ -1009,33 +1003,28 @@ Proof.
     apply prop_right; repeat split; auto; try omega; try computable.
     - repeat (constructor; [computable|]); auto.
     - unfold MAX; omega. }
-  { split; auto; split.
-    - apply inv_precise; auto.
-    - apply inv_positive. }
+  { split; auto; split; [apply inv_precise | apply inv_positive]; auto. }
   forward_call (cprod, Ews).
   { unfold tcond; cancel. }
   forward_call (ccon, Ews).
   { unfold tcond; cancel. }
-  get_global_function'' _f; normalize.
-  apply extract_exists_pre; intros f_.
   rewrite <- seq_assoc.
-  match goal with |-context[func_ptr' ?P] => set (spec := P) end.
   destruct (split_readable_share _ Hr1) as (sh' & tsh2 & Hr' & ? & Hsh').
   destruct (split_readable_share _ Hr') as (sh0 & tsh3 & ? & ? & Htsh).
   (* break apart array into 3x data_at_ *)
   rewrite data_at__isptr; normalize.
   destruct lockt as [| | | | | b o]; try contradiction.
   eapply semax_pre with (P' := PROP ( )
-   LOCAL (gvar _f f_; gvar _next next; gvar _buf buf; gvar _requests_producer cprod;
-   gvar _requests_consumer ccon; gvar _ends ends; gvar _length len; gvar _thread_locks (Vptr b o);
-   gvar _requests_lock lock)
-   SEP (func_ptr' spec f_; cond_var Ews ccon; cond_var Ews cprod;
-   lock_inv Ews lock (Interp (lock_pred sh2 buf ends len next ghosts));
-   ghost sh1 tint (Vint (Int.repr (-1))) (Vint (Int.repr 3));
-   ghost sh1 tint (Vint (Int.repr (-1))) (Vint (Int.repr 2));
-   ghost sh1 tint (Vint (Int.repr (-1))) (Vint (Int.repr 1));
-   data_at_ Ews tlock (Vptr b o); data_at_ Ews tlock (Vptr b (Int.add o (Int.repr 32)));
-   data_at_ Ews tlock (Vptr b (Int.add o (Int.repr 64))))).
+    LOCAL (gvar _next next; gvar _buf buf; gvar _requests_producer cprod;
+           gvar _requests_consumer ccon; gvar _ends ends; gvar _length len; gvar _thread_locks (Vptr b o);
+           gvar _requests_lock lock)
+    SEP (cond_var Ews ccon; cond_var Ews cprod;
+         lock_inv Ews lock (Interp (lock_pred sh2 buf ends len next ghosts));
+         ghost sh1 tint (Vint (Int.repr (-1))) (Vint (Int.repr 3));
+         ghost sh1 tint (Vint (Int.repr (-1))) (Vint (Int.repr 2));
+         ghost sh1 tint (Vint (Int.repr (-1))) (Vint (Int.repr 1));
+         data_at_ Ews tlock (Vptr b o); data_at_ Ews tlock (Vptr b (Int.add o (Int.repr 16)));
+         data_at_ Ews tlock (Vptr b (Int.add o (Int.repr 32))))).
   { entailer!.
     unfold data_at_, field_at_, field_at, at_offset; simpl.
     rewrite int_add_repr_0_r.
@@ -1050,52 +1039,40 @@ Proof.
     repeat rewrite Int.unsigned_repr; unfold Int.max_unsigned; try omega.
     unfold align_attr, noattr; simpl.
     repeat split; auto; simpl in *; try omega; apply Z.divide_add_r; auto.
-    - apply Zdivide_intro with (q := 16); auto.
-    - apply Zdivide_intro with (q := 8); auto. }
-  apply semax_seq' with (P' := PROP ( )
-    LOCAL (gvar _f f_; gvar _next next; gvar _buf buf; gvar _requests_producer cprod;
-           gvar _requests_consumer ccon;
+    - apply Zdivide_intro with (q := 8); auto.
+    - apply Zdivide_intro with (q := 4); auto. }
+  forward_for_simple_bound 3 (EX i : Z, let s1 := nth (Z.to_nat i) [Ews; sh1; sh'] sh0 in
+    PROP ()
+    LOCAL (gvar _next next; gvar _buf buf; gvar _requests_producer cprod; gvar _requests_consumer ccon;
            gvar _ends ends; gvar _length len; gvar _thread_locks (Vptr b o); gvar _requests_lock lock)
-    SEP (func_ptr' spec f_; cond_var sh0 ccon; cond_var sh0 cprod;
-         lock_inv sh0 lock (Interp (lock_pred sh2 buf ends len next ghosts));
-         lock_inv sh1 (Vptr b o) (Interp (t_lock_pred sh2 cprod ccon lock
-           (Vptr b o) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 1))));
-         lock_inv sh1 (Vptr b (Int.add o (Int.repr 32))) (Interp (t_lock_pred tsh2 cprod ccon lock
-           (Vptr b (Int.add o (Int.repr 32))) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 2))));
-         lock_inv sh1 (Vptr b (Int.add o (Int.repr 64))) (Interp (t_lock_pred tsh3 cprod ccon lock
-           (Vptr b (Int.add o (Int.repr 64))) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 3)))))).
-  { eapply semax_for_const_bound_const_init with (P := fun _ => [])
-      (Q := fun _ => [gvar _f f_; gvar _next next; gvar _buf buf; gvar _requests_producer cprod; gvar _requests_consumer ccon;
-           gvar _ends ends; gvar _length len; gvar _thread_locks (Vptr b o); gvar _requests_lock lock])
-      (R := fun i => let s1 := nth (Z.to_nat i) [Ews; sh1; sh'] sh0 in
-        [func_ptr' spec f_; cond_var s1 ccon; cond_var s1 cprod;
-         lock_inv s1 lock (Interp (lock_pred sh2 buf ends len next ghosts))] ++
-         firstn (Z.to_nat i) [lock_inv sh1 (Vptr b o) (Interp (t_lock_pred sh2 cprod ccon lock
-           (Vptr b o) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 1))));
-         lock_inv sh1 (Vptr b (Int.add o (Int.repr 32))) (Interp (t_lock_pred tsh2 cprod ccon lock
-           (Vptr b (Int.add o (Int.repr 32))) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 2))));
-         lock_inv sh1 (Vptr b (Int.add o (Int.repr 64))) (Interp (t_lock_pred tsh3 cprod ccon lock
-           (Vptr b (Int.add o (Int.repr 64))) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 3))))] ++
-         skipn (Z.to_nat i) (map (fun i => ghost sh1 tint (Vint (Int.repr (-1))) (Vint (Int.repr i))) [1; 2; 3]) ++
-         skipn (Z.to_nat i) [data_at_ Ews tlock (Vptr b o);
-                             data_at_ Ews tlock (Vptr b (Int.add o (Int.repr 32)));
-                             data_at_ Ews tlock (Vptr b (Int.add o (Int.repr 64)))]);
-    [reflexivity | try repable_signed | try repable_signed | reflexivity | try reflexivity; omega
-    | intro; unfold map at 1; auto 50 with closed
-    | cbv beta; simpl update_tycon
-    | intro; cbv beta; simpl update_tycon; try solve [entailer!]
-    | try apply semax_for_resolve_postcondition
-    | intro; cbv beta; simpl update_tycon; abbreviate_semax;
-      try (apply semax_extract_PROP; intro) ]; try computable.
-    { go_lower; simpl.
-      apply andp_right; [apply prop_right; auto|].
-      apply andp_right; [apply prop_right; repeat split; auto | cancel]. }
-    { unfold normal_ret_assert; entailer!. }
-    destruct (eq_dec i 0); [|destruct (eq_dec i 1); [|assert (i = 2) by omega]]; subst; simpl.
-    - eapply semax_seq'.
-      let Frame := fresh "Frame" in evar (Frame: list (mpred));
-      eapply (semax_call_id00_wow (Vptr b o, Ews, t_lock_pred sh2 cprod ccon lock (Vptr b o) buf ends len next ghosts sh1 sh2
-        (Vint (Int.repr 1))) Frame);
+   (SEPx ([cond_var s1 ccon; cond_var s1 cprod;
+           lock_inv s1 lock (Interp (lock_pred sh2 buf ends len next ghosts))] ++
+          firstn (Z.to_nat i) [lock_inv sh1 (Vptr b o) (Interp (t_lock_pred sh2 sh2 cprod ccon lock
+              (Vptr b o) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 1))));
+            lock_inv sh1 (Vptr b (Int.add o (Int.repr 16))) (Interp (t_lock_pred tsh2 sh2 cprod ccon lock
+              (Vptr b (Int.add o (Int.repr 16))) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 2))));
+            lock_inv sh1 (Vptr b (Int.add o (Int.repr 32))) (Interp (t_lock_pred tsh3 sh2 cprod ccon lock
+              (Vptr b (Int.add o (Int.repr 32))) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 3))))] ++
+          skipn (Z.to_nat i) (map (fun i => ghost sh1 tint (Vint (Int.repr (-1))) (Vint (Int.repr i))) [1; 2; 3]) ++
+          skipn (Z.to_nat i) [data_at_ Ews tlock (Vptr b o);
+                              data_at_ Ews tlock (Vptr b (Int.add o (Int.repr 16)));
+                              data_at_ Ews tlock (Vptr b (Int.add o (Int.repr 32)))]))).
+  { go_lower; simpl.
+    apply andp_right; [apply prop_right; auto|].
+    apply andp_right; [apply prop_right; repeat split; auto | cancel]. }
+  { set (lockt := Vptr b (Int.add o (Int.repr (16 * i)))).
+    set (lsh := nth (Z.to_nat i) [sh2; tsh2; tsh3] sh0).
+    set (s0 := nth (Z.to_nat i) [Ews; sh1; sh'] sh0). 
+    set (s1 := nth (S (Z.to_nat i)) [Ews; sh1; sh'] sh0).
+    set (g := nth (Z.to_nat i) ghosts (Vint (Int.repr 0))).
+    assert (sepalg.join s1 lsh s0 /\ readable_share lsh) as (Hshi & ?).
+    { destruct (eq_dec i 0); [|destruct (eq_dec i 1); [|assert (i = 2) by omega]]; subst;
+        subst lsh s0 s1; auto. }
+(*    clearbody lsh s0 s1.*)
+    eapply semax_seq'.
+    Ltac forward_call_id00_wow' witness := 
+  let Frame := fresh "Frame" in evar (Frame: list (mpred));
+      eapply (semax_call_id00_wow witness Frame);
  [ check_function_name | lookup_spec_and_change_compspecs CompSpecs
  | find_spec_in_globals | check_result_type | check_parameter_types
  | check_prove_local2ptree
@@ -1105,7 +1082,7 @@ Proof.
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
- | (*unfold fold_right at 1 2; cancel*)
+ | unfold fold_right at 1 2; cancel
  | cbv beta iota; 
     repeat rewrite exp_uncurry;
     try rewrite no_post_exists0; 
@@ -1113,116 +1090,225 @@ Proof.
  | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
  ].
-(*
-forward_call (Vptr b o, Ews, t_lock_pred sh2 cprod ccon lock (Vptr b o) buf ends len next ghosts sh1 sh2
-        (Vint (Int.repr 1))).
-      forward_call (f_, Vptr b o, existT (fun ty => ty * (ty -> val -> Pred))%type
-   (share * Z * val * val * val * val * val * val * val * val * list val * nat * val * share * share)%type
-   ((sh2, Vint (Int.repr (-1)), lock, buf, ends, len, next, Vptr b o, cprod, ccon, ghosts, 0, Vint (Int.repr 1), sh1, sh2),
-   fun (x : (share * Z * val * val * val * val * val * val * val * val * list val * nat * val * share * share)) (_ : val) =>
-   let '(sh, t, lock, buf, ends, len, next, lockt, cprod, ccon, ghosts, i, g, gsh1, gsh2) := x in
+    forward_call_id00_wow' (lockt, Ews, t_lock_pred lsh sh2 cprod ccon lock lockt
+      buf ends len next ghosts sh1 sh2 g).
+    { go_lowerx; unfold tc_exprlist; simpl.
+      unfold liftx, lift_uncurry_open, lift in *; simpl in *.
+      apply andp_right; apply prop_right.
+      - eapply eval_var_isptr; eauto.
+      - unfold gvar_denote, eval_var in *.
+        destruct (Map.get (ve_of rho) _thread_locks) as [(?, ?)|]; [contradiction|].
+        destruct (ge_of rho _thread_locks); [|contradiction].
+        unfold sem_add_pi.
+        replace (eval_id _i__1 rho) with (Vint (Int.repr i)) by auto; auto. }
+    { subst Frame; instantiate (1 := [cond_var s0 ccon; cond_var s0 cprod;
+        lock_inv s0 lock (Interp (lock_pred sh2 buf ends len next ghosts))] ++
+        firstn (Z.to_nat i) [lock_inv sh1 (Vptr b o)
+        (Interp (t_lock_pred sh2 sh2 cprod ccon lock (Vptr b o) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 1))));
+        lock_inv sh1 (Vptr b (Int.add o (Int.repr 16)))
+        (Interp (t_lock_pred tsh2 sh2 cprod ccon lock (Vptr b (Int.add o (Int.repr 16))) buf ends len next ghosts sh1
+             sh2 (Vint (Int.repr 2))));
+        lock_inv sh1 (Vptr b (Int.add o (Int.repr 32)))
+        (Interp (t_lock_pred tsh3 sh2 cprod ccon lock (Vptr b (Int.add o (Int.repr 32))) buf ends len next ghosts sh1
+             sh2 (Vint (Int.repr 3))))] ++
+        skipn (Z.to_nat i) (map (fun i0 : Z => ghost sh1 tint (Vint (Int.repr (-1))) (Vint (Int.repr i0))) [1; 2; 3]) ++
+        skipn (S (Z.to_nat i)) [data_at_ Ews tlock (Vptr b o);
+          data_at_ Ews tlock (Vptr b (Int.add o (Int.repr 16)));
+          data_at_ Ews tlock (Vptr b (Int.add o (Int.repr 32)))]).
+      repeat rewrite sepcon_app; cancel.
+      destruct (eq_dec i 0); [|destruct (eq_dec i 1); [|assert (i = 2) by omega]]; subst; subst lockt;
+        simpl; cancel.
+      rewrite Int.add_zero; auto. }
+    Intro a.
+    simpl; subst MORE_COMMANDS; unfold abbreviate.
+    get_global_function'' _f; normalize.
+    apply extract_exists_pre; intros f_.
+    match goal with |-context[func_ptr' ?P] => set (spec := P) end.
+    rewrite semax_seq_skip; eapply semax_seq'.
+    forward_call_id00_wow' (f_, lockt, existT (fun ty => ty * (ty -> val -> Pred))%type
+      (share * share * Z * val * val * val * val * val * val * val * val * list val * nat * val * share * share)%type
+      ((lsh, sh2, -1, lock, buf, ends, len, next, lockt, cprod, ccon, ghosts, Z.to_nat i, g, sh1, sh2),
+     fun (x : (share * share * Z * val * val * val * val * val * val * val * val * list val * nat * val * share * share)) (_ : val) =>
+     let '(sh, tsh, t, lock, buf, ends, len, next, lockt, cprod, ccon, ghosts, i, g, gsh1, gsh2) := x in
      Pred_list [Pred_prop (readable_share sh /\ Int.min_signed <= t <= Int.max_signed /\
                            sepalg.join gsh1 gsh2 Ews /\ nth_error ghosts i = Some g);
        Lock_inv sh lock (lock_pred gsh2 buf ends len next ghosts);
-       Lock_inv sh lockt (t_lock_pred sh cprod ccon lock lockt buf ends len next ghosts gsh1 gsh2 g);
+       Lock_inv tsh lockt (t_lock_pred sh tsh cprod ccon lock lockt buf ends len next ghosts gsh1 gsh2 g);
        Cond_var _ sh cprod; Cond_var _ sh ccon; Ghost gsh1 tint (Vint (Int.repr t)) g])).
-  { simpl; entailer.
-    Exists _arg; entailer.
-    Exists (fun x : val * val * share * val * val * val => let '(buf, len, sh, lock, cprod, ccon) := x in
-      [(_buf, buf); (_length, len); (_requests_lock, lock); (_requests_producer, cprod);
-       (_requests_consumer, ccon)]); entailer.
-    subst Frame; instantiate (1 := [cond_var sh2 len; cond_var sh2 ends;
-      lock_inv sh2 lock (Interp (lock_pred ccon lockt))]).
-    evar (body : funspec); replace (WITH _ : _ PRE [_] _ POST [_] _) with body.
-    repeat rewrite sepcon_assoc; apply sepcon_derives; subst body; [apply derives_refl|].
-    simpl.
-    erewrite <- (sepcon_assoc (cond_var sh1 len)), cond_var_join; eauto; cancel.
-    repeat rewrite sepcon_assoc.
-    erewrite <- (sepcon_assoc (cond_var sh1 ends)), cond_var_join; eauto; cancel.
-    erewrite lock_inv_join; eauto; cancel.
-    subst body; f_equal.
-    extensionality.
-    destruct x as (?, (((((?, ?), ?), ?), ?), ?)); simpl.
-    f_equal; f_equal.
-    unfold SEPx; simpl; normalize. }
-  { simpl; intros ? Hpred.
-    destruct Hpred as (? & ? & ? & (? & ?) & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & Hemp).
-    eapply almost_empty_join; eauto; [|eapply almost_empty_join; eauto;
-      [|eapply almost_empty_join; eauto; [|eapply almost_empty_join; eauto]]].
-    - eapply prop_almost_empty; eauto.
-    - eapply lock_inv_almost_empty; eauto.
-    - eapply cond_var_almost_empty; eauto.
-    - eapply cond_var_almost_empty; eauto.
-    - eapply emp_almost_empty; eauto. }
-  forward_call (lock, sh2, lock_pred ccon lockt).
-  simpl.
-  Intro reqs; normalize.
-  forward.
-  unfold Znth; simpl.
-  forward_while (EX reqs : list val, PROP (Forall isptr reqs; (length reqs <= MAX)%nat)
-   LOCAL (temp _len (Vint (Int.repr (Zlength reqs))); gvar _consumer c_; gvar _buf ccon; gvar _requests_producer ends;
-   gvar _requests_consumer len; gvar _length lockt; gvar _requests_lock lock)
-   SEP (data_at Ews (tarray (tptr trequest) (Z.of_nat MAX)) (complete reqs) ccon;
-   data_at Ews (tarray tint 1) [Vint (Int.repr (Zlength reqs))] lockt;
-   fold_right sepcon emp
-     (map Interp (map (fun r : val => Exp Z (fun data : Z => Data_at CompSpecs Tsh trequest (Vint (Int.repr data)) r)) reqs));
-   lock_inv sh2 lock (Interp (lock_pred ccon lockt));
-   cond_var sh2 len; cond_var sh2 ends)).
-  { Exists reqs; entailer!. }
-  { entailer. }
-  { (* loop body *)
-    forward_call (ends, lock, sh2, sh2, lock_pred ccon lockt).
-    { simpl; cancel.
-      Exists reqs0; unfold fold_right at 1; cancel; entailer!. }
-    simpl; Intro reqs'; normalize.
-    forward.
-    Exists reqs'; entailer!. }
-  forward_call (lock, sh2, lock_pred ccon lockt).
-  { simpl; Exists reqs0; cancel.
-    unfold fold_right at 1; entailer!. }
-  { split; auto; split; [apply inv_precise | apply inv_positive]; auto. }
-  destruct (split_readable_share _ H0) as (sh2' & sh3 & ? & ? & Hsh').
-  get_global_function'' _producer.
-  normalize.
-  apply extract_exists_pre; intros p_.
-  forward_call (p_, Vint (Int.repr 0), existT (fun ty => ty * (ty -> val -> Pred))%type
-   (val * val * share * val * val * val)%type ((ccon, lockt, sh2', lock, ends, len),
-   fun (x : (val * val * share * val * val * val)) (_ : val) => let '(buf, len, sh, lock, cprod, ccon) := x in
-     Pred_list [Pred_prop (readable_share sh); Lock_inv sh lock (lock_pred buf len);
-                Cond_var _ sh cprod; Cond_var _ sh ccon])).
-  { simpl; entailer.
-    Exists _arg; entailer.
-    Exists (fun x : val * val * share * val * val * val => let '(buf, len, sh, lock, cprod, ccon) := x in
-      [(_buf, buf); (_length, len); (_requests_lock, lock); (_requests_producer, cprod);
-       (_requests_consumer, ccon)]); entailer.
-    subst Frame; instantiate (1 := [cond_var sh3 len; cond_var sh3 ends;
-      lock_inv sh3 lock (Interp (lock_pred ccon lockt))]).
-    evar (body : funspec); replace (WITH _ : _ PRE [_] _ POST [_] _) with body.
-    repeat rewrite sepcon_assoc; apply sepcon_derives; subst body; [apply derives_refl|].
-    simpl.
-    erewrite <- (sepcon_assoc (cond_var sh2' len)), cond_var_join; eauto; cancel.
-    repeat rewrite sepcon_assoc.
-    erewrite <- (sepcon_assoc (cond_var sh2' ends)), cond_var_join; eauto; cancel.
-    erewrite lock_inv_join; eauto; cancel.
-    subst body; f_equal.
-    extensionality.
-    destruct x as (?, (((((?, ?), ?), ?), ?), ?)); simpl.
-    f_equal; f_equal.
-    unfold SEPx; simpl; normalize. }
-  { simpl; intros ? Hpred.
-    destruct Hpred as (? & ? & ? & (? & ?) & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & Hemp).
-    eapply almost_empty_join; eauto; [|eapply almost_empty_join; eauto;
-      [|eapply almost_empty_join; eauto; [|eapply almost_empty_join; eauto]]].
-    - eapply prop_almost_empty; eauto.
-    - eapply lock_inv_almost_empty; eauto.
-    - eapply cond_var_almost_empty; eauto.
-    - eapply cond_var_almost_empty; eauto.
-    - eapply emp_almost_empty; eauto. }
+    + go_lowerx; unfold tc_exprlist; simpl.
+      unfold liftx, lift_uncurry_open, lift in *; simpl in *.
+      apply andp_right; apply prop_right.
+      * eapply eval_var_isptr; eauto.
+      * unfold gvar_denote, eval_var in *.
+        destruct (Map.get (ve_of rho) _thread_locks) as [(?, ?)|]; [contradiction|].
+        destruct (ge_of rho _thread_locks); [|contradiction].
+        unfold sem_add_pi.
+        replace (eval_id _i__1 rho) with (Vint (Int.repr i)) by auto; auto.
+    + simpl.
+      Exists _arg.
+      Exists (fun x : share * share * Z * _ * _ * _ * _ * val * val * _ * _ * list val * nat * val * share * share =>
+        let '(sh, tsh, t, lock, buf, ends, len, next, lockt, cprod, ccon, ghosts, i, g, gsh1, gsh2) := x in
+        [(_buf, buf); (_ends, ends); (_length, len); (_next, next); (_requests_lock, lock);
+         (_requests_producer, cprod); (_requests_consumer, ccon)]).
+      subst Frame; instantiate (1 := [cond_var s1 ccon; cond_var s1 cprod;
+         lock_inv s1 lock (Interp (lock_pred sh2 buf ends len next ghosts))] ++
+        firstn (Z.to_nat i) [lock_inv sh1 (Vptr b o) (Interp (t_lock_pred sh2 sh2 cprod ccon lock
+            (Vptr b o) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 1))));
+          lock_inv sh1 (Vptr b (Int.add o (Int.repr 16))) (Interp (t_lock_pred tsh2 sh2 cprod ccon lock
+            (Vptr b (Int.add o (Int.repr 16))) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 2))));
+          lock_inv sh1 (Vptr b (Int.add o (Int.repr 32))) (Interp (t_lock_pred tsh3 sh2 cprod ccon lock
+            (Vptr b (Int.add o (Int.repr 32))) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 3))))] ++
+        lock_inv sh1 lockt (Interp (t_lock_pred lsh sh2 cprod ccon lock lockt
+            buf ends len next ghosts sh1 sh2 g)) ::
+        skipn (S (Z.to_nat i)) (map (fun i => ghost sh1 tint (Vint (Int.repr (-1))) (Vint (Int.repr i))) [1; 2; 3]) ++
+        skipn (S (Z.to_nat i)) [data_at_ Ews tlock (Vptr b o);
+                            data_at_ Ews tlock (Vptr b (Int.add o (Int.repr 16)));
+                            data_at_ Ews tlock (Vptr b (Int.add o (Int.repr 32)))]).
+      repeat rewrite sepcon_app; simpl.
+      repeat rewrite sepcon_app; simpl.
+      repeat rewrite sepcon_assoc; apply sepcon_derives.
+      { admit. }
+      rewrite <- (sepcon_emp (_ * _)), sepcon_comm; apply sepcon_derives.
+      { apply andp_right; auto; apply prop_right; split; [|split; [|split]]; auto; try computable.
+        subst g; apply nth_error_nth.
+        subst ghosts; simpl; Omega0. }
+      rewrite interp_ghost; normalize.
+      replace (fold_right sepcon emp (skipn _ (ghost _ _ _ _ :: _))) with
+        (ghost sh1 tint (Vint (Int.repr (-1))) g * fold_right sepcon emp (skipn (Z.to_nat i)
+         [ghost sh1 tint (Vint (Int.repr (-1))) (Vint (Int.repr 2));
+          ghost sh1 tint (Vint (Int.repr (-1))) (Vint (Int.repr 3))])).
+      apply sepalg.join_comm in Hshi.
+      rewrite <- (lock_inv_join _ _ _ _ _ Hshi).
+      repeat rewrite <- (cond_var_join _ _ _ _ Hshi).
+      erewrite <- lock_inv_join; eauto; cancel.
+      rewrite sepcon_comm; apply derives_refl.
+      { destruct (eq_dec i 0); [|destruct (eq_dec i 1); [|assert (i = 2) by omega]]; subst; subst g; auto. }
+    + admit.
+    + Intro x; forward.
+      go_lower; normalize.
+      apply andp_right; [apply prop_right; repeat split; auto; omega|].
+      rewrite Z2Nat.inj_add; try omega.
+      rewrite <- firstn_app, <- firstn_1_skipn with (d := FF); [|simpl; Omega0].
+      repeat rewrite sepcon_app; simpl; rewrite sepcon_app.
+      subst s1; repeat rewrite NPeano.Nat.add_1_r; try omega; simpl; cancel.
+      destruct (eq_dec i 0); [|destruct (eq_dec i 1); [|assert (i = 2) by omega]]; subst; subst lockt;
+        simpl; try rewrite Int.add_zero; auto. }
   rewrite <- seq_assoc.
-  apply semax_seq' with (P' := PROP () LOCAL () SEP (FF)).
-  { match goal with |- semax _ ?P _ _ => eapply semax_loop with (Q' := P) end;
-      forward; entailer!. }
-  forward.*)
+  forward_for_simple_bound 3 (EX i : Z,
+    PROP ()
+    LOCAL (gvar _next next; gvar _buf buf; gvar _requests_producer cprod; gvar _requests_consumer ccon;
+           gvar _ends ends; gvar _length len; gvar _thread_locks (Vptr b o); gvar _requests_lock lock)
+   (SEPx (map (fun s1 => cond_var s1 ccon * cond_var s1 cprod *
+                         lock_inv s1 lock (Interp (lock_pred sh2 buf ends len next ghosts)))
+           (sh0 :: firstn (Z.to_nat i) [sh2; tsh2; tsh3]) ++
+         skipn (Z.to_nat i) [lock_inv sh1 (Vptr b o) (Interp (t_lock_pred sh2 sh2 cprod ccon lock
+           (Vptr b o) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 1))));
+         lock_inv sh1 (Vptr b (Int.add o (Int.repr 16))) (Interp (t_lock_pred tsh2 sh2 cprod ccon lock
+           (Vptr b (Int.add o (Int.repr 16))) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 2))));
+         lock_inv sh1 (Vptr b (Int.add o (Int.repr 32))) (Interp (t_lock_pred tsh3 sh2 cprod ccon lock
+           (Vptr b (Int.add o (Int.repr 32))) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 3))))] ++
+         firstn (Z.to_nat i) (map (fun i => EX n : Z, ghost sh1 tint (Vint (Int.repr n)) (Vint (Int.repr i))) [1; 2; 3]) ++
+         firstn (Z.to_nat i) [data_at_ Ews tlock (Vptr b o);
+                              data_at_ Ews tlock (Vptr b (Int.add o (Int.repr 16)));
+                              data_at_ Ews tlock (Vptr b (Int.add o (Int.repr 32)))]))).
+  { go_lower; simpl.
+    apply andp_right; [apply prop_right; auto|].
+    apply andp_right; [apply prop_right; repeat split; auto |
+      repeat rewrite sepcon_assoc; apply derives_refl]. }
+  { set (lockt := Vptr b (Int.add o (Int.repr (16 * i)))).
+    set (lsh := nth (Z.to_nat i) [sh2; tsh2; tsh3] sh0).
+(*    set (s0 := nth (Z.to_nat i) [Ews; sh1; sh'] sh0). 
+    set (s1 := nth (S (Z.to_nat i)) [Ews; sh1; sh'] sh0).*)
+    set (g := nth (Z.to_nat i) ghosts (Vint (Int.repr 0))).
+(*    assert (sepalg.join s1 lsh s0 /\ readable_share lsh) as (Hshi & ?).
+    { destruct (eq_dec i 0); [|destruct (eq_dec i 1); [|assert (i = 2) by omega]]; subst;
+        subst lsh s0 s1; auto. }*)
+    eapply semax_seq'.
+    forward_call_id00_wow' (lockt, sh1, t_lock_pred lsh sh2 cprod ccon lock lockt
+      buf ends len next ghosts sh1 sh2 g).
+    { go_lowerx; unfold tc_exprlist; simpl.
+      unfold liftx, lift_uncurry_open, lift in *; simpl in *.
+      apply andp_right; apply prop_right.
+      - eapply eval_var_isptr; eauto.
+      - unfold gvar_denote, eval_var in *.
+        destruct (Map.get (ve_of rho) _thread_locks) as [(?, ?)|]; [contradiction|].
+        destruct (ge_of rho _thread_locks); [|contradiction].
+        unfold sem_add_pi.
+        replace (eval_id _i__2 rho) with (Vint (Int.repr i)) by auto; auto. }
+    { subst Frame; instantiate (1 := map (fun s1 => cond_var s1 ccon * cond_var s1 cprod *
+         lock_inv s1 lock (Interp (lock_pred sh2 buf ends len next ghosts)))
+        (sh0 :: firstn (Z.to_nat i) [sh2; tsh2; tsh3]) ++
+        skipn (S (Z.to_nat i)) [lock_inv sh1 (Vptr b o) (Interp (t_lock_pred sh2 sh2 cprod ccon lock
+          (Vptr b o) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 1))));
+        lock_inv sh1 (Vptr b (Int.add o (Int.repr 16))) (Interp (t_lock_pred tsh2 sh2 cprod ccon lock
+          (Vptr b (Int.add o (Int.repr 16))) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 2))));
+        lock_inv sh1 (Vptr b (Int.add o (Int.repr 32))) (Interp (t_lock_pred tsh3 sh2 cprod ccon lock
+          (Vptr b (Int.add o (Int.repr 32))) buf ends len next ghosts sh1 sh2 (Vint (Int.repr 3))))] ++
+        firstn (Z.to_nat i) (map (fun i0 : Z => EX n : Z, ghost sh1 tint (Vint (Int.repr n)) (Vint (Int.repr i0))) [1; 2; 3]) ++
+        firstn (Z.to_nat i) [data_at_ Ews tlock (Vptr b o); data_at_ Ews tlock (Vptr b (Int.add o (Int.repr 16)));
+                             data_at_ Ews tlock (Vptr b (Int.add o (Int.repr 32)))]).
+      repeat rewrite sepcon_app; cancel.
+      destruct (eq_dec i 0); [|destruct (eq_dec i 1); [|assert (i = 2) by omega]]; subst; subst lockt;
+        simpl; try rewrite Int.add_zero; apply derives_refl. }
+    Intro a.
+    simpl; subst MORE_COMMANDS; unfold abbreviate.
+    rewrite semax_seq_skip; eapply semax_seq'.
+    forward_call_id00_wow' (lockt, Ews, Later (t_lock_pred lsh sh2 cprod ccon lock
+      lockt buf ends len next ghosts sh1 sh2 g)).
+    + go_lowerx; unfold tc_exprlist; simpl.
+      unfold liftx, lift_uncurry_open, lift in *; simpl in *.
+      apply andp_right; apply prop_right.
+      * eapply eval_var_isptr; eauto.
+      * unfold gvar_denote, eval_var in *.
+        destruct (Map.get (ve_of rho) _thread_locks) as [(?, ?)|]; [contradiction|].
+        destruct (ge_of rho _thread_locks); [|contradiction].
+        unfold sem_add_pi.
+        replace (eval_id _i__2 rho) with (Vint (Int.repr i)) by auto; auto.
+    + setoid_rewrite selflock_eq at 2.
+      repeat rewrite sepcon_assoc.
+      eapply derives_trans; [apply sepcon_derives; [apply lock_inv_later | apply derives_refl]|]; simpl.
+      rewrite <- (lock_inv_join _ _ _ _ _ Hsh); cancel.
+    + split; auto; split; simpl.
+      * apply later_positive, selflock_positive.
+        apply positive_sepcon2, positive_sepcon2, positive_sepcon1, lock_inv_positive.
+      * apply later_rec, selflock_rec.
+    + Intro x; forward.
+      go_lower; normalize.
+      apply andp_right; [apply prop_right; repeat split; auto; omega|].
+      rewrite Z2Nat.inj_add; try omega.
+      assert (Z.to_nat i < 3)%nat by Omega0.
+      rewrite <- firstn_app, <- firstn_1_skipn with (d := Ews); [|auto].
+      do 2 (rewrite <- firstn_app, <- firstn_1_skipn with (d := FF); [|auto]).
+      rewrite map_app.
+      repeat rewrite sepcon_app; simpl.
+      repeat rewrite NPeano.Nat.add_1_r; simpl; cancel.
+      destruct (eq_dec i 0); [|destruct (eq_dec i 1); [|assert (i = 2) by omega]]; subst; subst lockt lsh g;
+        simpl; try rewrite Int.add_zero; cancel; Exists x0; rewrite interp_ghost; auto. }
+  simpl; normalize.
+  freeze [12; 13; 14; 15; 16; 17] FR.
+  eapply semax_pre with (P' := PROP ( )
+   LOCAL (temp _i__2 (Vint (Int.repr 3)); gvar _next next; gvar _buf buf; gvar _requests_producer cprod;
+   gvar _requests_consumer ccon; gvar _ends ends; gvar _length len; gvar _thread_locks (Vptr b o);
+   gvar _requests_lock lock)
+   SEP (cond_var Ews ccon; cond_var Ews cprod;
+     lock_inv Ews lock (Interp (lock_pred sh2 buf ends len next ghosts)); FRZL FR)).
+  { go_lower.
+    apply andp_right; [apply prop_right; auto|].
+    apply andp_right; [apply prop_right; repeat split; auto|].
+    rewrite <- 2(cond_var_join _ _ _ _ Hsh), <- (lock_inv_join _ _ _ _ _ Hsh).
+    rewrite <- 2(cond_var_join _ _ _ _ Hsh'), <- (lock_inv_join _ _ _ _ _ Hsh').
+    rewrite <- 2(cond_var_join _ _ _ _ Htsh), <- (lock_inv_join _ _ _ _ _ Htsh); cancel. }
+  forward_call (lock, Ews, lock_pred sh2 buf ends len next ghosts).
+  forward_call (lock, Ews, lock_pred sh2 buf ends len next ghosts).
+  { split; auto; apply inv_positive. }
+  forward_call (cprod, Ews).
+  forward_call (ccon, Ews).
+  eapply semax_pre; [|apply semax_return].
+  thaw FR.
+  (* timeout 80 entailer. XX times out, go_lower also times out *)
+  go_lowerx; entailer'.
+  subst POSTCONDITION; unfold abbreviate, frame_ret_assert, function_body_ret_assert.
+  simpl; entailer.
 Admitted.
 
 Definition extlink := ext_link_prog prog.
@@ -1235,33 +1321,33 @@ Lemma all_funcs_correct:
 Proof.
 unfold Gprog, prog, prog_funct; simpl.
 repeat (apply semax_func_cons_ext_vacuous; [reflexivity | ]).
-semax_func_cons_ext.
-{ admit. }
-semax_func_cons_ext.
-{ admit. }
-semax_func_cons_ext.
-{ admit. }
-semax_func_cons_ext.
-{ admit. }
-semax_func_cons_ext.
-{ admit. }
-semax_func_cons_ext.
-{ admit. }
-semax_func_cons_ext.
-{ admit. }
-semax_func_cons_ext.
-{ admit. }
-semax_func_cons_ext.
-{ admit. }
-semax_func_cons_ext.
-{ admit. }
-semax_func_cons_ext.
-{ admit. }
 eapply semax_func_cons_ext; try reflexivity.
 { admit. }
 { admit. }
 eapply semax_func_cons_ext; try reflexivity.
 { admit. }
+{ admit. }
+semax_func_cons_ext.
+{ admit. }
+semax_func_cons_ext.
+{ admit. }
+semax_func_cons_ext.
+{ admit. }
+semax_func_cons_ext.
+{ admit. }
+semax_func_cons_ext.
+{ admit. }
+semax_func_cons_ext.
+{ admit. }
+semax_func_cons_ext.
+{ admit. }
+semax_func_cons_ext.
+{ admit. }
+semax_func_cons_ext.
+{ admit. }
+semax_func_cons_ext.
+{ admit. }
+semax_func_cons_ext.
 { admit. }
 semax_func_cons body_get_request.
 semax_func_cons body_process_request.

@@ -31,7 +31,7 @@ Definition _f := 1%positive.      (* alpha-convertible *)
 Definition _args := 2%positive.   (* alpha-convertible *)
 Definition _lock := 1%positive.   (* alpha-convertible *)
 Definition _cond := 2%positive.   (* alpha-convertible *)
-Definition _lock_t := 3%positive. (* 2 (* 3 -WM *) is the number given by
+Definition _lock_t := 2%positive. (* 2 (* or sometimes 3 -WM *) is the number given by
 clightgen when threads.h is included first *)
 
 Definition voidstar_funtype := Tfunction (Tcons (tptr tvoid) Tnil) (tptr tvoid) cc_default.

@@ -1,113 +1,114 @@
 
 Require Import Clightdefs.
 Local Open Scope Z_scope.
-Definition ___builtin_annot : ident := 9%positive.
-Definition ___builtin_annot_intval : ident := 10%positive.
-Definition ___builtin_bswap : ident := 33%positive.
-Definition ___builtin_bswap16 : ident := 35%positive.
-Definition ___builtin_bswap32 : ident := 34%positive.
-Definition ___builtin_clz : ident := 36%positive.
-Definition ___builtin_clzl : ident := 37%positive.
-Definition ___builtin_clzll : ident := 38%positive.
-Definition ___builtin_ctz : ident := 39%positive.
-Definition ___builtin_ctzl : ident := 40%positive.
-Definition ___builtin_ctzll : ident := 41%positive.
-Definition ___builtin_debug : ident := 54%positive.
-Definition ___builtin_fabs : ident := 7%positive.
-Definition ___builtin_fmadd : ident := 45%positive.
-Definition ___builtin_fmax : ident := 43%positive.
-Definition ___builtin_fmin : ident := 44%positive.
-Definition ___builtin_fmsub : ident := 46%positive.
-Definition ___builtin_fnmadd : ident := 47%positive.
-Definition ___builtin_fnmsub : ident := 48%positive.
-Definition ___builtin_fsqrt : ident := 42%positive.
-Definition ___builtin_membar : ident := 11%positive.
-Definition ___builtin_memcpy_aligned : ident := 8%positive.
-Definition ___builtin_nop : ident := 53%positive.
-Definition ___builtin_read16_reversed : ident := 49%positive.
-Definition ___builtin_read32_reversed : ident := 50%positive.
-Definition ___builtin_va_arg : ident := 13%positive.
-Definition ___builtin_va_copy : ident := 14%positive.
-Definition ___builtin_va_end : ident := 15%positive.
-Definition ___builtin_va_start : ident := 12%positive.
-Definition ___builtin_write16_reversed : ident := 51%positive.
-Definition ___builtin_write32_reversed : ident := 52%positive.
-Definition ___compcert_va_composite : ident := 19%positive.
-Definition ___compcert_va_float64 : ident := 18%positive.
-Definition ___compcert_va_int32 : ident := 16%positive.
-Definition ___compcert_va_int64 : ident := 17%positive.
-Definition ___i64_dtos : ident := 20%positive.
-Definition ___i64_dtou : ident := 21%positive.
-Definition ___i64_sar : ident := 32%positive.
-Definition ___i64_sdiv : ident := 26%positive.
-Definition ___i64_shl : ident := 30%positive.
-Definition ___i64_shr : ident := 31%positive.
-Definition ___i64_smod : ident := 28%positive.
-Definition ___i64_stod : ident := 22%positive.
-Definition ___i64_stof : ident := 24%positive.
-Definition ___i64_udiv : ident := 27%positive.
-Definition ___i64_umod : ident := 29%positive.
-Definition ___i64_utod : ident := 23%positive.
-Definition ___i64_utof : ident := 25%positive.
+Definition ___builtin_annot : ident := 8%positive.
+Definition ___builtin_annot_intval : ident := 9%positive.
+Definition ___builtin_bswap : ident := 32%positive.
+Definition ___builtin_bswap16 : ident := 34%positive.
+Definition ___builtin_bswap32 : ident := 33%positive.
+Definition ___builtin_clz : ident := 35%positive.
+Definition ___builtin_clzl : ident := 36%positive.
+Definition ___builtin_clzll : ident := 37%positive.
+Definition ___builtin_ctz : ident := 38%positive.
+Definition ___builtin_ctzl : ident := 39%positive.
+Definition ___builtin_ctzll : ident := 40%positive.
+Definition ___builtin_debug : ident := 53%positive.
+Definition ___builtin_fabs : ident := 6%positive.
+Definition ___builtin_fmadd : ident := 44%positive.
+Definition ___builtin_fmax : ident := 42%positive.
+Definition ___builtin_fmin : ident := 43%positive.
+Definition ___builtin_fmsub : ident := 45%positive.
+Definition ___builtin_fnmadd : ident := 46%positive.
+Definition ___builtin_fnmsub : ident := 47%positive.
+Definition ___builtin_fsqrt : ident := 41%positive.
+Definition ___builtin_membar : ident := 10%positive.
+Definition ___builtin_memcpy_aligned : ident := 7%positive.
+Definition ___builtin_nop : ident := 52%positive.
+Definition ___builtin_read16_reversed : ident := 48%positive.
+Definition ___builtin_read32_reversed : ident := 49%positive.
+Definition ___builtin_va_arg : ident := 12%positive.
+Definition ___builtin_va_copy : ident := 13%positive.
+Definition ___builtin_va_end : ident := 14%positive.
+Definition ___builtin_va_start : ident := 11%positive.
+Definition ___builtin_write16_reversed : ident := 50%positive.
+Definition ___builtin_write32_reversed : ident := 51%positive.
+Definition ___compcert_va_composite : ident := 18%positive.
+Definition ___compcert_va_float64 : ident := 17%positive.
+Definition ___compcert_va_int32 : ident := 15%positive.
+Definition ___compcert_va_int64 : ident := 16%positive.
+Definition ___i64_dtos : ident := 19%positive.
+Definition ___i64_dtou : ident := 20%positive.
+Definition ___i64_sar : ident := 31%positive.
+Definition ___i64_sdiv : ident := 25%positive.
+Definition ___i64_shl : ident := 29%positive.
+Definition ___i64_shr : ident := 30%positive.
+Definition ___i64_smod : ident := 27%positive.
+Definition ___i64_stod : ident := 21%positive.
+Definition ___i64_stof : ident := 23%positive.
+Definition ___i64_udiv : ident := 26%positive.
+Definition ___i64_umod : ident := 28%positive.
+Definition ___i64_utod : ident := 22%positive.
+Definition ___i64_utof : ident := 24%positive.
 Definition _a : ident := 1%positive.
 Definition _acquire : ident := 58%positive.
-Definition _add : ident := 83%positive.
-Definition _arg : ident := 87%positive.
-Definition _b : ident := 2%positive.
-Definition _buf : ident := 74%positive.
-Definition _d : ident := 78%positive.
-Definition _data : ident := 4%positive.
-Definition _ends : ident := 71%positive.
+Definition _arg : ident := 86%positive.
+Definition _buf : ident := 73%positive.
+Definition _d : ident := 77%positive.
+Definition _data : ident := 3%positive.
+Definition _ends : ident := 70%positive.
 Definition _f : ident := 92%positive.
-Definition _free : ident := 66%positive.
-Definition _freecond : ident := 63%positive.
-Definition _freelock : ident := 56%positive.
-Definition _freelock2 : ident := 57%positive.
-Definition _get_request : ident := 77%positive.
-Definition _head : ident := 84%positive.
-Definition _i : ident := 91%positive.
-Definition _j : ident := 89%positive.
-Definition _l : ident := 90%positive.
-Definition _len : ident := 80%positive.
-Definition _length : ident := 70%positive.
-Definition _lock_t : ident := 3%positive.
-Definition _main : ident := 93%positive.
-Definition _makecond : ident := 62%positive.
-Definition _makelock : ident := 55%positive.
-Definition _malloc : ident := 67%positive.
-Definition _n : ident := 81%positive.
-Definition _next : ident := 75%positive.
-Definition _process_request : ident := 79%positive.
-Definition _r : ident := 85%positive.
+Definition _free : ident := 54%positive.
+Definition _freecond : ident := 64%positive.
+Definition _freelock : ident := 57%positive.
+Definition _freelock2 : ident := 60%positive.
+Definition _get_request : ident := 76%positive.
+Definition _head : ident := 83%positive.
+Definition _i : ident := 90%positive.
+Definition _i__1 : ident := 91%positive.
+Definition _i__2 : ident := 93%positive.
+Definition _j : ident := 88%positive.
+Definition _l : ident := 89%positive.
+Definition _len : ident := 79%positive.
+Definition _length : ident := 69%positive.
+Definition _lock_t : ident := 2%positive.
+Definition _main : ident := 94%positive.
+Definition _makecond : ident := 63%positive.
+Definition _makelock : ident := 56%positive.
+Definition _malloc : ident := 55%positive.
+Definition _n : ident := 80%positive.
+Definition _next : ident := 74%positive.
+Definition _process_request : ident := 78%positive.
+Definition _q_add : ident := 82%positive.
+Definition _q_remove : ident := 85%positive.
+Definition _r : ident := 84%positive.
 Definition _release : ident := 59%positive.
-Definition _release2 : ident := 60%positive.
-Definition _remove : ident := 86%positive.
-Definition _request : ident := 76%positive.
-Definition _request_t : ident := 6%positive.
-Definition _requests_consumer : ident := 72%positive.
-Definition _requests_lock : ident := 68%positive.
-Definition _requests_producer : ident := 73%positive.
-Definition _res : ident := 88%positive.
-Definition _signal : ident := 65%positive.
-Definition _spawn_thread : ident := 61%positive.
-Definition _tail : ident := 82%positive.
-Definition _thread_locks : ident := 69%positive.
-Definition _timestamp : ident := 5%positive.
-Definition _wait : ident := 64%positive.
-Definition _t'1 : ident := 94%positive.
-Definition _t'2 : ident := 95%positive.
-Definition _t'3 : ident := 96%positive.
+Definition _release2 : ident := 61%positive.
+Definition _request : ident := 75%positive.
+Definition _request_t : ident := 5%positive.
+Definition _requests_consumer : ident := 71%positive.
+Definition _requests_lock : ident := 67%positive.
+Definition _requests_producer : ident := 72%positive.
+Definition _res : ident := 87%positive.
+Definition _signalcond : ident := 66%positive.
+Definition _spawn : ident := 62%positive.
+Definition _tail : ident := 81%positive.
+Definition _thread_locks : ident := 68%positive.
+Definition _timestamp : ident := 4%positive.
+Definition _waitcond : ident := 65%positive.
+Definition _t'1 : ident := 95%positive.
+Definition _t'2 : ident := 96%positive.
+Definition _t'3 : ident := 97%positive.
 
 Definition v_requests_lock := {|
   gvar_info := (Tstruct _lock_t noattr);
-  gvar_init := (Init_space 32 :: nil);
+  gvar_init := (Init_space 16 :: nil);
   gvar_readonly := false;
   gvar_volatile := false
 |}.
 
 Definition v_thread_locks := {|
   gvar_info := (tarray (Tstruct _lock_t noattr) 3);
-  gvar_init := (Init_space 96 :: nil);
+  gvar_init := (Init_space 48 :: nil);
   gvar_readonly := false;
   gvar_volatile := false
 |}.
@@ -197,7 +198,7 @@ Definition f_process_request := {|
     (Sreturn (Some (Etempvar _d tint)))))
 |}.
 
-Definition f_add := {|
+Definition f_q_add := {|
   fn_return := tvoid;
   fn_callconv := cc_default;
   fn_params := ((_request, (tptr (Tstruct _request_t noattr))) :: nil);
@@ -221,10 +222,10 @@ Definition f_add := {|
           tint)
         (Ssequence
           (Scall None
-            (Evar _wait (Tfunction
-                          (Tcons (tptr tint)
-                            (Tcons (tptr (Tstruct _lock_t noattr)) Tnil))
-                          tvoid cc_default))
+            (Evar _waitcond (Tfunction
+                              (Tcons (tptr tint)
+                                (Tcons (tptr (Tstruct _lock_t noattr)) Tnil))
+                              tvoid cc_default))
             ((Eaddrof (Evar _requests_producer tint) (tptr tint)) ::
              (Eaddrof (Evar _requests_lock (Tstruct _lock_t noattr))
                (tptr (Tstruct _lock_t noattr))) :: nil))
@@ -282,8 +283,8 @@ Definition f_add := {|
                         (Econst_int (Int.repr 1) tint) tint))
                     (Ssequence
                       (Scall None
-                        (Evar _signal (Tfunction (Tcons (tptr tint) Tnil)
-                                        tvoid cc_default))
+                        (Evar _signalcond (Tfunction (Tcons (tptr tint) Tnil)
+                                            tvoid cc_default))
                         ((Eaddrof (Evar _requests_consumer tint) (tptr tint)) ::
                          nil))
                       (Scall None
@@ -296,7 +297,7 @@ Definition f_add := {|
                            (tptr (Tstruct _lock_t noattr))) :: nil)))))))))))))
 |}.
 
-Definition f_remove := {|
+Definition f_q_remove := {|
   fn_return := (tptr (Tstruct _request_t noattr));
   fn_callconv := cc_default;
   fn_params := nil;
@@ -320,10 +321,10 @@ Definition f_remove := {|
         (Ebinop Oeq (Etempvar _len tint) (Econst_int (Int.repr 0) tint) tint)
         (Ssequence
           (Scall None
-            (Evar _wait (Tfunction
-                          (Tcons (tptr tint)
-                            (Tcons (tptr (Tstruct _lock_t noattr)) Tnil))
-                          tvoid cc_default))
+            (Evar _waitcond (Tfunction
+                              (Tcons (tptr tint)
+                                (Tcons (tptr (Tstruct _lock_t noattr)) Tnil))
+                              tvoid cc_default))
             ((Eaddrof (Evar _requests_consumer tint) (tptr tint)) ::
              (Eaddrof (Evar _requests_lock (Tstruct _lock_t noattr))
                (tptr (Tstruct _lock_t noattr))) :: nil))
@@ -371,8 +372,8 @@ Definition f_remove := {|
                     (Econst_int (Int.repr 1) tint) tint))
                 (Ssequence
                   (Scall None
-                    (Evar _signal (Tfunction (Tcons (tptr tint) Tnil) tvoid
-                                    cc_default))
+                    (Evar _signalcond (Tfunction (Tcons (tptr tint) Tnil)
+                                        tvoid cc_default))
                     ((Eaddrof (Evar _requests_producer tint) (tptr tint)) ::
                      nil))
                   (Ssequence
@@ -393,7 +394,7 @@ Definition f_f := {|
   fn_vars := ((_res, (tarray tint 3)) :: nil);
   fn_temps := ((_request, (tptr (Tstruct _request_t noattr))) ::
                (_j, tint) :: (_l, (tptr (Tstruct _lock_t noattr))) ::
-               (_i, tint) :: (_t'3, tint) ::
+               (_i, tint) :: (_i__1, tint) :: (_t'3, tint) ::
                (_t'2, (tptr (Tstruct _request_t noattr))) ::
                (_t'1, (tptr (Tstruct _request_t noattr))) :: nil);
   fn_body :=
@@ -418,28 +419,28 @@ Definition f_f := {|
               (Sset _request
                 (Etempvar _t'1 (tptr (Tstruct _request_t noattr)))))
             (Scall None
-              (Evar _add (Tfunction
-                           (Tcons (tptr (Tstruct _request_t noattr)) Tnil)
-                           tvoid cc_default))
+              (Evar _q_add (Tfunction
+                             (Tcons (tptr (Tstruct _request_t noattr)) Tnil)
+                             tvoid cc_default))
               ((Etempvar _request (tptr (Tstruct _request_t noattr))) :: nil))))
         (Sset _i
           (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
             tint))))
     (Ssequence
       (Ssequence
-        (Sset _i (Econst_int (Int.repr 0) tint))
+        (Sset _i__1 (Econst_int (Int.repr 0) tint))
         (Sloop
           (Ssequence
-            (Sifthenelse (Ebinop Olt (Etempvar _i tint)
+            (Sifthenelse (Ebinop Olt (Etempvar _i__1 tint)
                            (Econst_int (Int.repr 3) tint) tint)
               Sskip
               Sbreak)
             (Ssequence
               (Ssequence
                 (Scall (Some _t'2)
-                  (Evar _remove (Tfunction Tnil
-                                  (tptr (Tstruct _request_t noattr))
-                                  cc_default)) nil)
+                  (Evar _q_remove (Tfunction Tnil
+                                    (tptr (Tstruct _request_t noattr))
+                                    cc_default)) nil)
                 (Sset _request
                   (Etempvar _t'2 (tptr (Tstruct _request_t noattr)))))
               (Ssequence
@@ -455,10 +456,10 @@ Definition f_f := {|
                 (Sassign
                   (Ederef
                     (Ebinop Oadd (Evar _res (tarray tint 3))
-                      (Etempvar _i tint) (tptr tint)) tint)
+                      (Etempvar _i__1 tint) (tptr tint)) tint)
                   (Etempvar _j tint)))))
-          (Sset _i
-            (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
+          (Sset _i__1
+            (Ebinop Oadd (Etempvar _i__1 tint) (Econst_int (Int.repr 1) tint)
               tint))))
       (Ssequence
         (Scall None
@@ -474,7 +475,7 @@ Definition f_main := {|
   fn_callconv := cc_default;
   fn_params := nil;
   fn_vars := nil;
-  fn_temps := ((_i, tint) :: nil);
+  fn_temps := ((_i, tint) :: (_i__1, tint) :: (_i__2, tint) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -548,10 +549,10 @@ Definition f_main := {|
                        nil))
                     (Ssequence
                       (Ssequence
-                        (Sset _i (Econst_int (Int.repr 0) tint))
+                        (Sset _i__1 (Econst_int (Int.repr 0) tint))
                         (Sloop
                           (Ssequence
-                            (Sifthenelse (Ebinop Olt (Etempvar _i tint)
+                            (Sifthenelse (Ebinop Olt (Etempvar _i__1 tint)
                                            (Econst_int (Int.repr 3) tint)
                                            tint)
                               Sskip
@@ -566,22 +567,19 @@ Definition f_main := {|
                                    (Ederef
                                      (Ebinop Oadd
                                        (Evar _thread_locks (tarray (Tstruct _lock_t noattr) 3))
-                                       (Etempvar _i tint)
+                                       (Etempvar _i__1 tint)
                                        (tptr (Tstruct _lock_t noattr)))
                                      (Tstruct _lock_t noattr))
                                    (tptr (Tstruct _lock_t noattr))) :: nil))
                               (Scall None
-                                (Evar _spawn_thread (Tfunction
-                                                      (Tcons
-                                                        (tptr (Tfunction
-                                                                (Tcons
-                                                                  (tptr tvoid)
-                                                                  Tnil)
-                                                                (tptr tvoid)
-                                                                cc_default))
-                                                        (Tcons (tptr tvoid)
-                                                          Tnil)) tvoid
-                                                      cc_default))
+                                (Evar _spawn (Tfunction
+                                               (Tcons
+                                                 (tptr (Tfunction
+                                                         (Tcons (tptr tvoid)
+                                                           Tnil) (tptr tvoid)
+                                                         cc_default))
+                                                 (Tcons (tptr tvoid) Tnil))
+                                               tvoid cc_default))
                                 ((Ecast
                                    (Eaddrof
                                      (Evar _f (Tfunction
@@ -596,20 +594,20 @@ Definition f_main := {|
                                      (Ederef
                                        (Ebinop Oadd
                                          (Evar _thread_locks (tarray (Tstruct _lock_t noattr) 3))
-                                         (Etempvar _i tint)
+                                         (Etempvar _i__1 tint)
                                          (tptr (Tstruct _lock_t noattr)))
                                        (Tstruct _lock_t noattr))
                                      (tptr (Tstruct _lock_t noattr)))
                                    (tptr tvoid)) :: nil))))
-                          (Sset _i
-                            (Ebinop Oadd (Etempvar _i tint)
+                          (Sset _i__1
+                            (Ebinop Oadd (Etempvar _i__1 tint)
                               (Econst_int (Int.repr 1) tint) tint))))
                       (Ssequence
                         (Ssequence
-                          (Sset _i (Econst_int (Int.repr 0) tint))
+                          (Sset _i__2 (Econst_int (Int.repr 0) tint))
                           (Sloop
                             (Ssequence
-                              (Sifthenelse (Ebinop Olt (Etempvar _i tint)
+                              (Sifthenelse (Ebinop Olt (Etempvar _i__2 tint)
                                              (Econst_int (Int.repr 3) tint)
                                              tint)
                                 Sskip
@@ -624,7 +622,7 @@ Definition f_main := {|
                                      (Ederef
                                        (Ebinop Oadd
                                          (Evar _thread_locks (tarray (Tstruct _lock_t noattr) 3))
-                                         (Etempvar _i tint)
+                                         (Etempvar _i__2 tint)
                                          (tptr (Tstruct _lock_t noattr)))
                                        (Tstruct _lock_t noattr))
                                      (tptr (Tstruct _lock_t noattr))) :: nil))
@@ -638,12 +636,12 @@ Definition f_main := {|
                                      (Ederef
                                        (Ebinop Oadd
                                          (Evar _thread_locks (tarray (Tstruct _lock_t noattr) 3))
-                                         (Etempvar _i tint)
+                                         (Etempvar _i__2 tint)
                                          (tptr (Tstruct _lock_t noattr)))
                                        (Tstruct _lock_t noattr))
                                      (tptr (Tstruct _lock_t noattr))) :: nil))))
-                            (Sset _i
-                              (Ebinop Oadd (Etempvar _i tint)
+                            (Sset _i__2
+                              (Ebinop Oadd (Etempvar _i__2 tint)
                                 (Econst_int (Int.repr 1) tint) tint))))
                         (Ssequence
                           (Scall None
@@ -670,21 +668,17 @@ Definition f_main := {|
                                                   tvoid cc_default))
                                 ((Eaddrof (Evar _requests_producer tint)
                                    (tptr tint)) :: nil))
-                              (Ssequence
-                                (Scall None
-                                  (Evar _freecond (Tfunction
-                                                    (Tcons (tptr tint) Tnil)
-                                                    tvoid cc_default))
-                                  ((Eaddrof (Evar _requests_consumer tint)
-                                     (tptr tint)) :: nil))
-                                (Sreturn (Some (Econst_int (Int.repr 0) tint))))))))))))))))))
+                              (Scall None
+                                (Evar _freecond (Tfunction
+                                                  (Tcons (tptr tint) Tnil)
+                                                  tvoid cc_default))
+                                ((Eaddrof (Evar _requests_consumer tint)
+                                   (tptr tint)) :: nil))))))))))))))))
   (Sreturn (Some (Econst_int (Int.repr 0) tint))))
 |}.
 
 Definition composites : list composite_definition :=
-(Composite _lock_t Struct
-   ((_a, (tarray tschar 8)) :: (_b, (tarray (tptr tvoid) 6)) :: nil)
-   noattr ::
+(Composite _lock_t Struct ((_a, (tarray (tptr tvoid) 4)) :: nil) noattr ::
  Composite _request_t Struct
    ((_data, tint) :: (_timestamp, tint) :: nil)
    noattr :: nil).
@@ -918,16 +912,15 @@ prog_defs :=
                      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
      (Tcons tint Tnil) tvoid
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
+ (_free, Gfun(External EF_free (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
+ (_malloc,
+   Gfun(External EF_malloc (Tcons tuint Tnil) (tptr tvoid) cc_default)) ::
  (_makelock,
    Gfun(External (EF_external "makelock"
                    (mksignature (AST.Tint :: nil) None cc_default))
      (Tcons (tptr (Tstruct _lock_t noattr)) Tnil) tvoid cc_default)) ::
  (_freelock,
    Gfun(External (EF_external "freelock"
-                   (mksignature (AST.Tint :: nil) None cc_default))
-     (Tcons (tptr (Tstruct _lock_t noattr)) Tnil) tvoid cc_default)) ::
- (_freelock2,
-   Gfun(External (EF_external "freelock2"
                    (mksignature (AST.Tint :: nil) None cc_default))
      (Tcons (tptr (Tstruct _lock_t noattr)) Tnil) tvoid cc_default)) ::
  (_acquire,
@@ -938,12 +931,16 @@ prog_defs :=
    Gfun(External (EF_external "release"
                    (mksignature (AST.Tint :: nil) None cc_default))
      (Tcons (tptr (Tstruct _lock_t noattr)) Tnil) tvoid cc_default)) ::
+ (_freelock2,
+   Gfun(External (EF_external "freelock2"
+                   (mksignature (AST.Tint :: nil) None cc_default))
+     (Tcons (tptr (Tstruct _lock_t noattr)) Tnil) tvoid cc_default)) ::
  (_release2,
    Gfun(External (EF_external "release2"
                    (mksignature (AST.Tint :: nil) None cc_default))
      (Tcons (tptr (Tstruct _lock_t noattr)) Tnil) tvoid cc_default)) ::
- (_spawn_thread,
-   Gfun(External (EF_external "spawn_thread"
+ (_spawn,
+   Gfun(External (EF_external "spawn"
                    (mksignature (AST.Tint :: AST.Tint :: nil) None
                      cc_default))
      (Tcons
@@ -957,34 +954,32 @@ prog_defs :=
    Gfun(External (EF_external "freecond"
                    (mksignature (AST.Tint :: nil) None cc_default))
      (Tcons (tptr tint) Tnil) tvoid cc_default)) ::
- (_wait,
-   Gfun(External (EF_external "wait"
+ (_waitcond,
+   Gfun(External (EF_external "waitcond"
                    (mksignature (AST.Tint :: AST.Tint :: nil) None
                      cc_default))
      (Tcons (tptr tint) (Tcons (tptr (Tstruct _lock_t noattr)) Tnil)) tvoid
      cc_default)) ::
- (_signal,
-   Gfun(External (EF_external "signal"
+ (_signalcond,
+   Gfun(External (EF_external "signalcond"
                    (mksignature (AST.Tint :: nil) None cc_default))
      (Tcons (tptr tint) Tnil) tvoid cc_default)) ::
- (_free, Gfun(External EF_free (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
- (_malloc,
-   Gfun(External EF_malloc (Tcons tuint Tnil) (tptr tvoid) cc_default)) ::
  (_requests_lock, Gvar v_requests_lock) ::
  (_thread_locks, Gvar v_thread_locks) :: (_length, Gvar v_length) ::
  (_ends, Gvar v_ends) :: (_requests_consumer, Gvar v_requests_consumer) ::
  (_requests_producer, Gvar v_requests_producer) :: (_buf, Gvar v_buf) ::
  (_next, Gvar v_next) :: (_get_request, Gfun(Internal f_get_request)) ::
  (_process_request, Gfun(Internal f_process_request)) ::
- (_add, Gfun(Internal f_add)) :: (_remove, Gfun(Internal f_remove)) ::
- (_f, Gfun(Internal f_f)) :: (_main, Gfun(Internal f_main)) :: nil);
+ (_q_add, Gfun(Internal f_q_add)) ::
+ (_q_remove, Gfun(Internal f_q_remove)) :: (_f, Gfun(Internal f_f)) ::
+ (_main, Gfun(Internal f_main)) :: nil);
 prog_public :=
-(_main :: _f :: _remove :: _add :: _process_request :: _get_request ::
+(_main :: _f :: _q_remove :: _q_add :: _process_request :: _get_request ::
  _next :: _buf :: _requests_producer :: _requests_consumer :: _ends ::
- _length :: _thread_locks :: _requests_lock :: _malloc :: _free :: _signal ::
- _wait :: _freecond :: _makecond :: _spawn_thread :: _release2 :: _release ::
- _acquire :: _freelock2 :: _freelock :: _makelock :: ___builtin_debug ::
- ___builtin_nop :: ___builtin_write32_reversed ::
+ _length :: _thread_locks :: _requests_lock :: _signalcond :: _waitcond ::
+ _freecond :: _makecond :: _spawn :: _release2 :: _freelock2 :: _release ::
+ _acquire :: _freelock :: _makelock :: _malloc :: _free ::
+ ___builtin_debug :: ___builtin_nop :: ___builtin_write32_reversed ::
  ___builtin_write16_reversed :: ___builtin_read32_reversed ::
  ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::
  ___builtin_fmsub :: ___builtin_fmadd :: ___builtin_fmin ::

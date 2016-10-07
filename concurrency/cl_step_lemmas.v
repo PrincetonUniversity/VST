@@ -20,6 +20,7 @@ Require Import sepcomp.Address.
 Require Import sepcomp.mem_lemmas.
 Require Import concurrency.permissions.
 
+Set Bullet Behavior "Strict Subproofs".
 
 (** * Results on cl_step *)
 
