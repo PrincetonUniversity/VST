@@ -28,6 +28,7 @@ Require Import veric.semax_ext.
 Require Import veric.semax_ext_oracle.
 Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
+Require Import veric.shares.
 Require Import floyd.coqlib3.
 Require Import sepcomp.semantics.
 Require Import sepcomp.step_lemmas.
@@ -990,12 +991,77 @@ Section Progress.
         }
         
         assert (Hm' : exists m', Mem.store Mint32 (m_dry (personal_mem (thread_mem_compatible (mem_compatible_forget compat) cnti))) b (Int.intval ofs) (Vint Int.zero) = Some m'). {
-          eapply mapsto_can_store.
-          unfold address_mapsto in *.
-          
-          admit.
+          clear -AT Join Hwritable.
+          replace tlock with (Tarray (Tpointer Tvoid noattr) 4 noattr) in AT by reflexivity.
+          destruct AT as (AT1, AT2).
+          (* (* this whole block might be removed *)
+          unfold nested_field_lemmas.field_compatible in AT1. simpl in AT1.
+          unfold nested_pred_lemmas.legal_alignas_type in AT1.
+          unfold nested_pred_lemmas.nested_pred in AT1. simpl in AT1.
+          unfold local_legal_alignas_type in AT1.
+          unfold plain_alignof in AT1. simpl in AT1.
+          unfold nested_pred_lemmas.legal_cosu_type in AT1.
+          unfold nested_pred_lemmas.nested_pred in AT1. simpl in AT1.
+          unfold Int.modulus in AT1.
+          unfold Int.wordsize in AT1.
+          unfold Wordsize_32.wordsize in AT1. simpl in AT1.
+          unfold align_attr in AT1. simpl in AT1.
+          unfold two_power_nat in AT1. simpl in AT1.
+          destruct AT1 as ([] & [] & [] & [] & AT11 & AT12 & AT13 & []).
+          (* until above this line *) *)
+          destruct AT2 as [A B]. clear A. (* it is 4 = 4 *)
+          simpl in B. unfold mapsto_memory_block.at_offset in B.
+          simpl in B. unfold nested_field_lemmas.nested_field_offset in B.
+          simpl in B. unfold nested_field_lemmas.nested_field_type in B.
+          simpl in B. unfold reptype_lemmas.default_val in B.
+          simpl in B. unfold Znth in B.
+          simpl in B. repeat rewrite Int.add_assoc in B.
+          repeat rewrite add_repr in B.
+          rewrite seplog.sepcon_emp in B. simpl in B.
+          destruct B as (phi00 & phi01 & jphi0 & B & _).
+          unfold SeparationLogic.mapsto in *.
+          simpl in B.
+          destruct (readable_share_dec shx) as [n|n]. 2: now destruct n; apply writable_readable; auto.
+          destruct B as [B|B]. now destruct B as [[]].
+          destruct B as [_ (v2', Hmaps)].
+          rewrite reptype_lemmas.int_add_repr_0_r in *.
+          apply mapsto_can_store with (v := v2') (rsh := (Share.unrel Share.Lsh shx)).
+          simpl (m_phi _).
+          rewrite <-TT_sepcon_TT.
+          rewrite <-sepcon_assoc.
+          exists phi0, phi1; split; auto. split; auto.
+          exists phi00, phi01; split; auto. split; auto.
+          exact_eq Hmaps.
+          f_equal.
+          f_equal.
+          apply writable_share_right. assumption.
         }
         destruct Hm' as (m', Hm').
+        
+        clear Post.
+        
+        Definition rmap_makelock phi phi' sh loc R :=
+          (forall x, ~ adr_range loc LKSIZE x -> phi @ x = phi' @ x) /\
+          (forall x, adr_range loc LKSIZE x -> exists val, phi @ x = YES sh pfullshare (VAL val) NoneP) /\
+          (LKspec_ext R sh fullshare loc phi').
+        
+        Definition rmap_freelock phi phi' sh loc R :=
+          (forall x, ~ adr_range loc LKSIZE x -> phi @ x = phi' @ x) /\
+          (LKspec_ext R sh fullshare loc phi) /\
+          (forall x, adr_range loc LKSIZE x -> exists val, phi' @ x = YES sh pfullshare (VAL val) NoneP).
+        
+        assert (Hphi' : exists phi',
+                   level phi' = level (getThreadR cnti) /\
+                   rmap_makelock (getThreadR cnti) phi' shx (b, Int.intval ofs) (Interp Rx)
+               ). {
+          (*      pose (f' :=
+              fun loc =>
+                if adr_range_dec (b, Int.intval ofs) LKSIZE loc then
+                  if eq_dec (Int.intval ofs) (snd loc) then
+                    LK  *)
+          admit.
+        }
+        destruct Hphi' as (phi' & lev & Same & Before & After).
         
         eexists (m', ge, (sch, _)).
         constructor.
@@ -1003,14 +1069,14 @@ Section Progress.
         eapply JuicyMachine.sync_step
         with (Htid := cnti); auto.
         
-        clear Post.
-        
         eapply step_mklock
         with (c := (ExtCall (EF_external name sg) sig args lid ve te k))
                (Hcompatible := mem_compatible_forget compat)
                (sh := shx)
                (R := Interp Rx)
+               (phi' := phi')
         .
+        
         all: try match goal with |- invariant _ => now constructor end.
         all: try match goal with |- _ = age_tp_to _ _ => reflexivity end.
         all: try match goal with |- _ = updThread _ _ _ => reflexivity end.
@@ -1019,11 +1085,60 @@ Section Progress.
         - eassumption.
         - reflexivity.
         - assumption.
-        - admit (* phi/phi' spec  *).
-        - admit (* phi/phi' spec  *).
-        - admit (* phi/phi' spec  *).
-        - admit (* phi/phi' spec  *).
-        - admit (* phi/phi' spec  *).
+        - (* condition on old memory *)
+          simpl (m_phi _).
+          intros ofs' range.
+          specialize (Before (b, ofs')).
+          unfold adr_range in *.
+          autospec Before.
+          destruct Before as (val, E).
+          exists val.
+          rewrite E.
+          f_equal.
+          admit (* TODO fix the machine *).
+        - (* condition on new memory: LK *)
+          specialize (After (b, Int.intval ofs)).
+          simpl in After.
+          if_tac in After. 2:range_tac.
+          if_tac in After. 2:tauto.
+          destruct After as (p, ->).
+          f_equal.
+          + unfold pfullshare in *.
+            f_equal.
+            apply proof_irr.
+          + unfold "oo".
+            unfold pack_res_inv in *.
+            f_equal.
+            extensionality t.
+            admit (* TODO fix the machine *).
+        - (* condition on new memory: CT *)
+          intros ofs' range.
+          specialize (After (b, ofs')).
+          simpl in After.
+          replace lock_size with 4%Z in * by reflexivity.
+          replace LKSIZE with 4%Z in * by reflexivity.
+          if_tac in After. 2:range_tac.
+          if_tac in After. now replace ofs' with (Int.intval ofs) in * by congruence; omega.
+          destruct After as (p, ->).
+          f_equal.
+          + unfold pfullshare in *.
+            f_equal.
+            apply proof_irr.
+          + f_equal.
+            admit (* TODO not true. fix the machine *).
+          + admit (* TODO not true. fix the machine *).
+        - (* condition about the rest not changing *)
+          intros loc.
+          intros A.
+          simpl (m_phi _).
+          rewrite (Same loc); auto.
+          intros B.
+          unfold adr_range in *.
+          destruct loc.
+          simpl in A.
+          tauto.
+        - simpl.
+          auto.
       }
       
       { (* the case of freelock *)
