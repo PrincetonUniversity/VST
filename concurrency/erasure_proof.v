@@ -2324,17 +2324,17 @@ Module Parching <: ErasureSig.
                destruct (eq_dec x Share.bot); auto.
                assumption.
           }
-          { destruct H2 as [HH | HH]; rewrite HH; exists (Some Writable); reflexivity. }
+          { destruct H as [HH | HH]; rewrite HH; exists (Some Writable); reflexivity. }
         - intros. apply empty_disjoint'.
         - apply permMapsDisjoint_comm; apply empty_disjoint'.
         - intros. rewrite empty_map_spec. exists (Some Writable); reflexivity.
         - intros; simpl.
           assert (exists r, JSEM.ThreadPool.lockRes js l = Some r).
-          { rewrite DryMachine.SIG.ThreadPool.gsoThreadLPool in H2.
-            inversion MATCH. specialize (mtch_locks l); rewrite H2 in mtch_locks.
+          { rewrite DryMachine.SIG.ThreadPool.gsoThreadLPool in H.
+            inversion MATCH. specialize (mtch_locks l); rewrite H in mtch_locks.
             destruct (JSEM.ThreadPool.lockRes js l) eqn:AA; inversion mtch_locks.
             exists l0; reflexivity. }
-          destruct H4 as [l0 HH].
+          destruct H1 as [l0 HH].
           destruct l0.
           + inversion MATCH. erewrite <- mtch_locksRes; eauto.
             apply permDisjoint_comm.
@@ -2342,14 +2342,14 @@ Module Parching <: ErasureSig.
             apply resource_at_joins with (l:= (b, ofs0)) in HH.
             move HH at bottom.
             assert (ineq':Int.intval ofs <= ofs0 < Int.intval ofs + juicy_machine.LKSIZE).
-            { clear - H3; destruct H3; auto. }
+            { clear - H0; destruct H0; auto. }
             apply Hct in ineq'.
             destruct ineq' as [val [sh' MAP]].
-            rewrite <- Hpersonal_perm in MAP; rewrite MAP in HH.
+            rewrite MAP in HH.
             destruct HH as [? HH]; inversion HH.
             * simpl. destruct (eq_dec rsh2 Share.bot); exists (Some Writable); reflexivity.
-            * exfalso. apply join_joins in H12. apply pshare_join_full_false1 in H12.
-              exact H12.
+            * exfalso. apply join_joins in H9. apply pshare_join_full_false1 in H9.
+              exact H9.
           + inversion MATCH. replace pmap0 with empty_map.
             rewrite empty_map_spec; exists (Some Writable); reflexivity.
             symmetry; eapply mtch_locksEmpty; eauto.
@@ -2404,7 +2404,8 @@ Module Parching <: ErasureSig.
           rewrite <- Hpersonal_juice in MAP'. 
           rewrite MAP' in HH.
           destruct HH as [X HH].
-          inversion HH; rewrite <- H10 in ineq';
+          inversion HH;
+          rewrite <- H7 in ineq';
           inversion ineq'.
         }
           
@@ -2521,9 +2522,9 @@ Module Parching <: ErasureSig.
                 unfold pmap_tid. eapply lock_res_threads; eassumption. }
         }
         
-      - rewrite Htp''; unfold ds''.
+      - (*rewrite Htp''; *) unfold ds''.
         apply MTCH_updLockN.
-        rewrite Htp'; unfold ds'.
+        (*rewrite Htp';*) unfold ds'.
         apply MTCH_update.
         assumption.
 
@@ -2578,13 +2579,18 @@ Module Parching <: ErasureSig.
         + eapply MTCH_getThreadC; eassumption.
         + eassumption.
         (*      + eapply MTCH_compat; eassumption. *)
-        + instantiate(1:= m_dry jm).
+        + reflexivity.
+        + rewrite <- Hstore. f_equal.
+          erewrite <- (MTCH_restrict_personal ).
+          * reflexivity.
+          * auto.
+            (* instantiate(1:= m_dry jm).
           subst tp''.
           rewrite <- Hpersonal_perm.
           erewrite <- (MTCH_restrict_personal ).
           reflexivity.
           assumption.
-        + rewrite <- Hright_juice; assumption.
+        + rewrite <- Hright_juice; assumption. *)
         + reflexivity.
         + reflexivity.
         + replace (MTCH_cnt MATCH Hi) with Htid'.
