@@ -2105,52 +2105,6 @@ as big as [m] *)
   Proof.
   Admitted.
   
-  Definition max_inv mf := forall b ofs, Mem.valid_block mf b ->
-                                    permission_at mf b ofs Max = Some Freeable.
-
-  Lemma max_inv_store:
-    forall m m' chunk b ofs v pmap
-      (Hlt: permMapLt pmap (getMaxPerm m))
-      (Hmax: max_inv m)
-      (Hstore: Mem.store chunk (restrPermMap Hlt) b ofs v = Some m'),
-      max_inv m'.
-  Proof.
-    intros.
-    intros b0 ofs0 Hvalid0.
-    unfold permission_at.
-    erewrite Mem.store_access; eauto.
-    assert (H := restrPermMap_Max Hlt b0 ofs0).
-    eapply Mem.store_valid_block_2 in Hvalid0; eauto.
-    erewrite restrPermMap_valid in Hvalid0.
-    specialize (Hmax b0 ofs0 Hvalid0).
-    unfold permission_at in H.
-    rewrite H.
-    rewrite getMaxPerm_correct;
-      by assumption.
-  Qed.
-  
-  Lemma sim_valid_access:
-    forall (mf m1f : mem) 
-      (b1 b2 : block) (ofs : int)
-      (Hm1f: m1f = makeCurMax mf)
-      (HmaxF: max_inv mf)
-      (Hvalidb2: Mem.valid_block mf b2)
-      (Halign: (4 | Int.intval ofs)%Z),
-      Mem.valid_access m1f Mint32 b2 (Int.intval ofs) Freeable.
-  Proof.          
-    unfold Mem.valid_access. simpl. split; try assumption.
-    unfold Mem.range_perm. intros ofs0 Hbounds. subst m1f.
-    specialize (HmaxF _ ofs0 Hvalidb2).
-    unfold Mem.perm.
-    assert (Hperm := makeCurMax_correct mf b2 ofs0 Cur).
-    rewrite HmaxF in Hperm.
-    unfold permission_at in Hperm.
-    unfold Mem.perm.
-    rewrite <- Hperm.
-    simpl;
-      by constructor.
-  Qed.
-
   Lemma mf_align :
     forall (m : mem) (f : memren) (b1 b2 : block) (delta : Z) (chunk : memory_chunk)
       (ofs : Z) (p : permission),
@@ -2161,76 +2115,6 @@ as big as [m] *)
     intros.
       by apply mem_wd.align_chunk_0.
   Qed.
-
-  (* Obs_eq is a compcert injection*)
-
-    (*
-  Lemma val_obs_eq_inj :
-    forall f v1 v2,
-      val_obs f v1 v2 ->
-      val_inject f v1 v2
-  Proof.
-    intros f v1 v2 Hobs_eq.
-    inversion Hobs_eq;
-      try (split; [constructor | auto]).
-    subst.
-    split; try congruence.
-    eapply Val.inject_ptr with (delta := 0%Z); eauto.
-      by rewrite Int.add_zero.
-  Qed.
-
-  Lemma memval_obs_eq_inj :
-    forall f mv1 mv2,
-      memval_obs_eq f mv1 mv2 ->
-      memval_inject f mv1 mv2
-      /\ (mv1 = Undef -> mv2 = Undef).
-  Proof.
-    intros f mv1 mv2 Hobs_eq.
-    inversion Hobs_eq;
-      split; try constructor; try auto.
-    inversion Hval_obs; subst; try constructor.
-      by eapply val_obs_eq_inj.
-        by congruence.
-  Qed.
-  
-  Theorem mem_obs_eq_mem_inj:
-    forall mc mf f,
-      mem_obs_eq f mc mf ->
-      max_inv mf ->
-      Mem.mem_inj f mc mf.
-  Proof.
-    intros mc mf f Hobs_eq HmaxF.
-    destruct Hobs_eq as [Hweak [HpermStrong Hval]].
-    constructor.
-    - intros b1 b2 delta ofs k p Hf Hperm.
-      assert (delta = 0%Z)
-        by (eapply (weak_mem_obs_eq_f _ Hweak Hf); eauto); subst.
-      rewrite Zplus_0_r.
-      specialize (HpermStrong _ _ ofs Hf).
-      unfold Mem.perm in *.
-      unfold permission_at in HpermStrong.
-      rewrite po_oo in Hperm. rewrite po_oo.
-      destruct k.
-      apply (codomain_valid Hweak) in Hf.
-      specialize (HmaxF _ ofs Hf). unfold permission_at in HmaxF.
-      rewrite HmaxF.
-      simpl;
-        by constructor.
-      rewrite HpermStrong. eauto.
-    - intros b1 b2 delta chunk ofs p Hf _.
-      assert (delta = 0%Z)
-        by (eapply (weak_mem_obs_eq_f _ Hweak Hf); eauto);
-        subst;
-          by apply mem_wd.align_chunk_0.
-    - intros b1 ofs b2 delta Hf Hreadable.
-      assert (delta = 0%Z)
-        by (eapply (weak_mem_obs_eq_f _ Hweak Hf); eauto);
-        subst.
-      specialize (Hval _ _ _ Hf Hreadable).
-      rewrite Zplus_0_r.
-      eapply memval_obs_eq_inj; eauto.
-      
-  Qed. *)
 
   Lemma memval_obs_eq_incr:
     forall (mc mf : mem) (f f': memren) 
@@ -2480,13 +2364,6 @@ as big as [m] *)
     rewrite ZMap.gso. auto. unfold ZIndexed.t in *. omega.
   Qed.
 
-  Lemma store_unsafe_val_obs :
-    forall (mc mc' mf : mem) (f : memren) (b1 b2 : block) (chunk : memory_chunk)
-      (ofs : Z) (v1 v2 : val),
-      store_unsafe chunk mc b1 ofs v1 = mc' ->
-      f b1 = Some b2 -> val_obs f v1 v2 -> mem_obs_eq f mc mf ->
-      exists mf' : mem, store_unsafe chunk mf b2 ofs v2 = mf' /\ mem_obs_eq f mc' mf'.
-  Admitted.
   
   (** Storing related values on related memories results in related memories*)
   Transparent Mem.store.

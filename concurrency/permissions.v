@@ -663,6 +663,35 @@ Section permMapDefs.
     rewrite Maps.PMap.gso; auto.
   Qed.
 
+  Lemma permMapCoherence_increase:
+    forall pmap pmap' b ofs sz_nat sz
+      (Hsz: sz = Z.of_nat (sz_nat))
+      (Hcoh: permMapCoherence pmap pmap')
+      (Hreadable: forall ofs', Intv.In ofs' (ofs, ofs + sz)%Z ->
+                          Mem.perm_order' (pmap' !! b ofs') Readable),
+      permMapCoherence pmap (setPermBlock (Some Writable) b ofs pmap' sz_nat).
+  Proof.
+    intros.
+    intros b' ofs'.
+    specialize (Hcoh b' ofs').
+    destruct (Pos.eq_dec b b') as [Heq | Hneq].
+    - subst.
+      destruct (Intv.In_dec ofs' (ofs, ofs + Z.of_nat sz_nat)%Z).
+      + specialize (Hreadable _ i).
+        erewrite setPermBlock_same by eauto.
+        destruct (pmap' !! b' ofs') as [p|]; simpl in *;
+          try (by exfalso);
+          destruct p; inversion Hreadable; subst;
+            destruct (pmap !! b' ofs'); simpl in *; auto.
+      + destruct sz_nat; first by (simpl; eauto).
+        erewrite setPermBlock_other_1
+          by (eapply Intv.range_notin in n;
+              simpl; eauto; zify; omega).
+        assumption.
+    - erewrite setPermBlock_other_2 by eauto.
+      assumption.
+  Qed.
+
   (*setPermBlock with a function*)
   Fixpoint setPermBlockFunc (fp : Z -> option permission) (b : block)
            (ofs : Z) (pmap : access_map) (length: nat): access_map :=
@@ -1566,6 +1595,73 @@ Lemma restrPermMap_irr:
         rewrite <- H2; eauto.
       + right; intros k; specialize (H1 k); specialize (H2 k);
         rewrite H1; rewrite H2; eauto.
+  Qed.
+
+  Inductive permjoin : option permission -> option permission -> option permission -> Prop :=
+  | permjoin_None_l x : permjoin None x x
+  | permjoin_None_r x : permjoin x None x
+  (* NE + NE = NE *)
+  | permjoin_NNN : permjoin (Some Nonempty) (Some Nonempty) (Some Nonempty)
+  (* NE + R = R *)
+  | permjoin_NRR : permjoin (Some Nonempty) (Some Readable) (Some Readable)
+  | permjoin_RNR : permjoin (Some Readable) (Some Nonempty) (Some Readable)
+  (* NE + W = W or F *)
+  | permjoin_NWW : permjoin (Some Nonempty) (Some Writable) (Some Writable)
+  | permjoin_NWF : permjoin (Some Nonempty) (Some Writable) (Some Freeable)
+  | permjoin_WNW : permjoin (Some Writable) (Some Nonempty) (Some Writable)
+  | permjoin_WNF : permjoin (Some Writable) (Some Nonempty) (Some Freeable)
+  (* R + R = R or W or F *)
+  | permjoin_RRR : permjoin (Some Readable) (Some Readable) (Some Readable)
+  | permjoin_RRW : permjoin (Some Readable) (Some Readable) (Some Writable)
+  | permjoin_RRF : permjoin (Some Readable) (Some Readable) (Some Freeable)
+  (* R + W = W or F *)
+  | permjoin_RWW : permjoin (Some Readable) (Some Writable) (Some Writable)
+  | permjoin_WRW : permjoin (Some Writable) (Some Readable) (Some Writable)
+  | permjoin_RWF : permjoin (Some Readable) (Some Writable) (Some Freeable)
+  | permjoin_WRF : permjoin (Some Writable) (Some Readable) (Some Freeable).
+
+  Definition permMapJoin (pmap1 pmap2 pmap3: access_map) :=
+    forall b ofs,
+      permjoin ((pmap1 !! b) ofs) ((pmap2 !! b) ofs) ((pmap3 !! b) ofs).
+  
+  Lemma permjoin_comm:
+    forall p1 p2 p3,
+      permjoin p1 p2 p3 <-> permjoin p2 p1 p3.
+  Proof.
+    intros.
+    split; intros;
+      inversion H; subst;
+        eauto using permjoin.
+  Qed.
+
+  Lemma permjoin_readable_if:
+    forall p1 p2 p3
+      (Hjoin: permjoin p1 p2 p3)
+      (Hp1: Mem.perm_order' p1 Readable),
+      Mem.perm_order' p3 Readable.
+  Proof.
+    intros.
+    destruct p1 as [p1|]; simpl in Hp1; try (by exfalso);
+      destruct p1; inversion Hp1; subst;
+        inversion Hjoin; subst;
+          simpl;
+            by eauto using perm_order.
+  Qed.
+
+  Lemma permjoin_readable_iff:
+    forall p1 p2 p3
+      (Hjoin: permjoin p1 p2 p3),
+      Mem.perm_order' p3 Readable <-> Mem.perm_order' p1 Readable \/ Mem.perm_order' p2 Readable.
+  Proof.
+    intros.
+    split; intros Hreadable.
+    - destruct p3 as [p3|]; simpl in Hreadable; try (by exfalso);
+        destruct p3; inversion Hreadable; subst;
+          inversion Hjoin; subst; simpl;
+            eauto using perm_order.
+    - destruct Hreadable;
+        [| apply permjoin_comm in Hjoin];
+        eauto using permjoin_readable_if.
   Qed.
   
 End permMapDefs.

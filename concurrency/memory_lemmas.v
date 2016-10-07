@@ -255,55 +255,79 @@ Module MemoryLemmas.
     eapply Mem.valid_access_implies; eauto.
     constructor.
   Qed.
-  
-  Definition store_unsafe (chunk : memory_chunk) (m : mem) (b : block) (ofs : Z) (v : val) : Mem.mem.
-  Proof.
-    refine({|
-              Mem.mem_contents := PMap.set b
-                                           (Mem.setN (encode_val chunk v) ofs
-                                                     (Mem.mem_contents m) !! b) 
-                                           (Mem.mem_contents m);
-              Mem.mem_access := Mem.mem_access m;
-              Mem.nextblock := Mem.nextblock m;
-              Mem.access_max := _;
-              Mem.nextblock_noaccess := _;
-              Mem.contents_default := _|}).
-    now apply Mem.access_max.
-    now apply Mem.nextblock_noaccess.
-    intros. unfold Mem.setN.
-    rewrite Maps.PMap.gsspec. destruct (Coqlib.peq b0 b).
-    rewrite Mem.setN_default. apply Mem.contents_default.
-    apply Mem.contents_default.
-  Defined.
-    
-  Lemma mem_store_unsafe_max :
-    forall chunk (b : block) (ofs : Z) (v : val) (m m' : Mem.mem),
-      store_unsafe chunk m b ofs v = m' ->
-      forall (b' : positive) (ofs' : Z),
-        (getMaxPerm m) # b' ofs' = (getMaxPerm m') # b' ofs'.
-  Admitted.
 
-  Lemma store_unsafe_valid_block_1:
-    forall chunk (m1 : Mem.mem) (b : block) 
-      (ofs : Z) (v : val) (m2 : Mem.mem),
-      store_unsafe chunk m1 b ofs v = m2 ->
-      forall b' : block, Mem.valid_block m1 b' -> Mem.valid_block m2 b'. Admitted.
+  Definition max_inv mf := forall b ofs, Mem.valid_block mf b ->
+                                    permission_at mf b ofs Max = Some Freeable.
 
-  Lemma store_unsafe_valid_block_2:
-    forall chunk (m1 : Mem.mem) (b : block) 
-      (ofs : Z) (v : val) (m2 : Mem.mem),
-      store_unsafe chunk m1 b ofs v = m2 ->
-      forall b' : block, Mem.valid_block m2 b' -> Mem.valid_block m1 b'. Admitted.
-
-  Lemma store_unsafe_contents:
-    forall m1 m2 chunk b ofs v
-      (Hstore: store_unsafe chunk m1 b ofs v = m2),
-      Mem.mem_contents m2 = PMap.set b (Mem.setN (encode_val chunk v) ofs (Mem.mem_contents m1) # b) (Mem.mem_contents m1).
+  Lemma max_inv_store:
+    forall m m' chunk b ofs v pmap
+      (Hlt: permMapLt pmap (getMaxPerm m))
+      (Hmax: max_inv m)
+      (Hstore: Mem.store chunk (restrPermMap Hlt) b ofs v = Some m'),
+      max_inv m'.
   Proof.
     intros.
-    unfold store_unsafe in Hstore.
-    rewrite <- Hstore.
-    reflexivity.
+    intros b0 ofs0 Hvalid0.
+    unfold permission_at.
+    erewrite Mem.store_access; eauto.
+    assert (H := restrPermMap_Max Hlt b0 ofs0).
+    eapply Mem.store_valid_block_2 in Hvalid0; eauto.
+    erewrite restrPermMap_valid in Hvalid0.
+    specialize (Hmax b0 ofs0 Hvalid0).
+    unfold permission_at in H.
+    rewrite H.
+    rewrite getMaxPerm_correct;
+      by assumption.
+  Qed.
+
+   Lemma sim_valid_access:
+    forall (mf m1f : mem) 
+      (b1 b2 : block) (ofs : Z)
+      (Hm1f: m1f = makeCurMax mf)
+      (HmaxF: max_inv mf)
+      (Hvalidb2: Mem.valid_block mf b2)
+      (Halign: (4 | ofs)%Z),
+      Mem.valid_access m1f Mint32 b2 ofs Freeable.
+  Proof.          
+    unfold Mem.valid_access. simpl. split; try assumption.
+    unfold Mem.range_perm. intros ofs0 Hbounds. subst m1f.
+    specialize (HmaxF _ ofs0 Hvalidb2).
+    unfold Mem.perm.
+    assert (Hperm := makeCurMax_correct mf b2 ofs0 Cur).
+    rewrite HmaxF in Hperm.
+    unfold permission_at in Hperm.
+    unfold Mem.perm.
+    rewrite <- Hperm.
+    simpl;
+      by constructor.
+  Qed.
+
+  Lemma setPermBlock_lt:
+    forall pmap m b ofs sz p
+      (Hinv: max_inv m)
+      (Hvalid: Mem.valid_block m b)
+      (Hlt: permMapLt pmap (getMaxPerm m)),
+      permMapLt (setPermBlock p b ofs pmap sz) (getMaxPerm m).
+  Proof.
+    intros.
+    intros b' ofs'.
+    specialize (Hlt b' ofs').
+    destruct (Pos.eq_dec b b').
+    - subst.
+      destruct (Intv.In_dec ofs' (ofs, ofs + Z.of_nat sz)%Z).
+      + erewrite setPermBlock_same by eauto.
+        specialize (Hinv _ ofs' Hvalid).
+        erewrite getMaxPerm_correct in *.
+        erewrite Hinv in *.
+        simpl; destruct p; eauto using perm_order.
+      + destruct sz. simpl.
+        assumption.
+        erewrite setPermBlock_other_1.
+        assumption.
+        eapply Intv.range_notin in n; eauto.
+        simpl. zify; omega.
+    - erewrite setPermBlock_other_2 by eauto.
+      assumption.
   Qed.
   
 End MemoryLemmas.

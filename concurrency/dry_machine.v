@@ -9,7 +9,6 @@ Require Import concurrency.concurrent_machine.
 Require Import concurrency.addressFiniteMap. (*The finite maps*)
 Require Import concurrency.pos.
 Require Import concurrency.lksize.
-Require Import concurrency.memory_lemmas.
 Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
@@ -249,8 +248,7 @@ Module Concur.
      Import ThreadPool.
      Import ThreadPool.SEM ThreadPool.RES.
      Import event_semantics Events.
-     Import MemoryLemmas.
-     
+
      Notation tid := NatTID.tid.
 
      (** Memories*)
@@ -365,33 +363,6 @@ Module Concur.
        end.
      Infix "??" := option_function (at level 80, right associativity).
 
-     (*TODO: import from file, when merged*)
-     Inductive permjoin : option permission -> option permission -> option permission -> Prop :=
-     | permjoin_None_l x : permjoin None x x
-     | permjoin_None_r x : permjoin x None x
-     (* NE + NE = NE *)
-     | permjoin_NNN : permjoin (Some Nonempty) (Some Nonempty) (Some Nonempty)
-     (* NE + R = R *)
-     | permjoin_NRR : permjoin (Some Nonempty) (Some Readable) (Some Readable)
-     | permjoin_RNR : permjoin (Some Readable) (Some Nonempty) (Some Readable)
-     (* NE + W = W or F *)
-     | permjoin_NWW : permjoin (Some Nonempty) (Some Writable) (Some Writable)
-     | permjoin_NWF : permjoin (Some Nonempty) (Some Writable) (Some Freeable)
-     | permjoin_WNW : permjoin (Some Writable) (Some Nonempty) (Some Writable)
-     | permjoin_WNF : permjoin (Some Writable) (Some Nonempty) (Some Freeable)
-     (* R + R = R or W or F *)
-     | permjoin_RRR : permjoin (Some Readable) (Some Readable) (Some Readable)
-     | permjoin_RRW : permjoin (Some Readable) (Some Readable) (Some Writable)
-     | permjoin_RRF : permjoin (Some Readable) (Some Readable) (Some Freeable)
-     (* R + W = W or F *)
-     | permjoin_RWW : permjoin (Some Readable) (Some Writable) (Some Writable)
-     | permjoin_WRW : permjoin (Some Writable) (Some Readable) (Some Writable)
-     | permjoin_RWF : permjoin (Some Readable) (Some Writable) (Some Freeable)
-     | permjoin_WRF : permjoin (Some Writable) (Some Readable) (Some Freeable).
-
-     Definition permMapJoin (pmap1 pmap2 pmap3: access_map) :=
-       forall b ofs,
-         permjoin ((pmap1 !! b) ofs) ((pmap2 !! b) ofs) ((pmap3 !! b) ofs). 
      
      Inductive ext_step (genv:G) {tid0 tp m}
                (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
@@ -399,6 +370,7 @@ Module Concur.
      | step_acquire :
          forall (tp' tp'':thread_pool) m1 c m' b ofs
            (pmap : LocksAndResources.lock_info)
+           (pmap_tid' : access_map)
            (virtueThread : delta_map * delta_map),
            let newThreadPerm := (computeMap (getThreadR cnt0).1 virtueThread.1,
                                   computeMap (getThreadR cnt0).2 virtueThread.2) in
@@ -410,8 +382,12 @@ Module Concur.
              (Hrestrict_pmap: restrPermMap (Hcompat tid0 cnt0).2 = m1)
              (* check if the thread has permission to acquire the lock and the lock is free*)
              (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.one))
+             (* set the permissions on the lock location equal to the max permissions on the memory*)
+             (Hset_perm: setPermBlock (Some Writable)
+                                       b (Int.intval ofs) (getThreadR cnt0).2 LKSIZE_nat = pmap_tid')
+             (Hlt': permMapLt pmap_tid' (getMaxPerm m))
              (* acquire the lock*)
-             (Hstore: store_unsafe Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = m')
+             (Hstore: Mem.store Mint32 (restrPermMap Hlt') b (Int.intval ofs) (Vint Int.zero) = Some m')
              (HisLock: lockRes tp (b, Int.intval ofs) = Some pmap)
              (Hangel1: permMapJoin pmap.1 (getThreadR cnt0).1 newThreadPerm.1) 
              (Hangel2: permMapJoin pmap.2 (getThreadR cnt0).2 newThreadPerm.2)
@@ -423,7 +399,7 @@ Module Concur.
                       (acquire (b, Int.intval ofs) (Some (empty_map, virtueThread.1)))
                     
      | step_release :
-         forall (tp' tp'':thread_pool) m1 c m' b ofs virtueThread virtueLP,
+         forall (tp' tp'':thread_pool) m1 c m' b ofs virtueThread virtueLP pmap_tid',
            let newThreadPerm := (computeMap (getThreadR cnt0).1 virtueThread.1,
                                  computeMap (getThreadR cnt0).2 virtueThread.2) in
            forall
@@ -434,8 +410,12 @@ Module Concur.
              (* install the thread's permissions on lock locations *) 
              (Hrestrict_pmap: restrPermMap (Hcompat tid0 cnt0).2 = m1)
              (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero))
+             (* set the permissions on the lock location equal to the max permissions on the memory*)
+             (Hset_perm: setPermBlock (Some Writable)
+                                      b (Int.intval ofs) (getThreadR cnt0).2 LKSIZE_nat = pmap_tid')
+             (Hlt': permMapLt pmap_tid' (getMaxPerm m))
              (* release the lock *)
-             (Hstore: store_unsafe Mint32 m1 b (Int.intval ofs) (Vint Int.one) = m')
+             (Hstore: Mem.store Mint32 (restrPermMap Hlt') b (Int.intval ofs) (Vint Int.one) = Some m')
              (HisLock: lockRes tp (b, Int.intval ofs) = Some (empty_map, empty_map))
              (Hangel1: permMapJoin newThreadPerm.1 virtueLP.1 (getThreadR cnt0).1)
              (Hangel2: permMapJoin newThreadPerm.2 virtueLP.2 (getThreadR cnt0).2)
