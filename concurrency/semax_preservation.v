@@ -3466,10 +3466,10 @@ Section Preservation.
   (Hinv : invariant tp)
   (Hthread : getThreadC i tp Htid = Kblocked c)
   (Hat_external : at_external SEM.Sem c = Some (MKLOCK, ef_sig MKLOCK, Vptr b ofs :: nil))
-  (Hright_juice : m = m_dry jm)
+  (* (Hright_juice : m = m_dry jm) *)
   (Hpersonal_perm : personal_mem m (getThreadR i tp Htid) (thread_mem_compatible Hcompatible Htid) = jm)
   (Hpersonal_juice : getThreadR i tp Htid = m_phi jm)
-  (Hstore : store Mint32 m b (Int.intval ofs) (Vint Int.zero) = Some m')
+  (Hstore : store Mint32 (m_dry jm) b (Int.intval ofs) (Vint Int.zero) = Some m')
   (Hct : forall ofs' : Z,
         (Int.intval ofs <= ofs' < Int.intval ofs + LKSIZE)%Z ->
         exists (val : memval),
@@ -3507,6 +3507,11 @@ Section Preservation.
       (forall x, adr_range loc LKSIZE x -> exists val, phi' @ x = YES sh pfullshare (VAL val) NoneP).
     
     assert (HPhi' : exists Phi', rmap_makelock Phi Phi' sh (b, Int.intval ofs) R). {
+(*      pose (f' :=
+              fun loc =>
+                if adr_range_dec (b, Int.intval ofs) LKSIZE loc then
+                  if eq_dec (Int.intval ofs) (snd loc) then
+                    LK  *)
       admit.
     }
     destruct HPhi' as (Phi' & HPhi').

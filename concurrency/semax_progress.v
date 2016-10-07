@@ -937,10 +937,96 @@ Section Progress.
         destruct Pre as (phi0 & phi1 & Join & Precond & HnecR).
         simpl (and _).
         intros Post.
-        admit.
+        Set Printing Notations.
+        
+        assert (Ename : name = "makelock"). {
+          simpl in *.
+          injection H_makelock as Ee.
+          apply ext_link_inj in Ee; auto.
+        }
+        
+        destruct Precond as [[Hwritable _] [[B1 _] AT]].
+        
+        (* [data_at_] from the precondition *)
+        unfold canon.SEPx in *.
+        simpl in AT.
+        rewrite seplog.sepcon_emp in AT.
+        
+        (* value of [vx] *)
+        simpl in B1.
+        unfold lift, liftx in B1. simpl in B1.
+        unfold lift, liftx in B1. simpl in B1.
+        Require Import floyd.field_at.
+        rewrite data_at__isptr in AT.
+        destruct AT as (IsPtr, AT).
+        destruct vx as [ | | | | | b ofs ]; try inversion IsPtr; [ clear IsPtr ].
+        
+        assert (Ecall: Some (EF_external name sg, sig, args) =
+                       Some (MKLOCK, LOCK_SIG, Vptr b ofs :: nil)). {
+          repeat f_equal.
+          - auto.
+          - admit.
+          - admit.
+          - assert (L: length args = 1%nat) by admit.
+            (* TODO discuss with andrew for where to add this requirement *)
+            unfold expr.eval_id in *.
+            unfold expr.force_val in *.
+            match goal with H : context [Map.get ?a ?b] |- _ => destruct (Map.get a b) eqn:E end.
+            subst v. 2: discriminate.
+            pose  (gx := (filter_genv (symb2genv (Genv.genv_symb ge)))). fold gx in E.
+            destruct args as [ | arg [ | ar args ]].
+            + now inversion E.
+            + inversion E. reflexivity.
+            + inversion E. f_equal.
+              inversion L.
+        }
+        
+        assert (Eae : at_external SEM.Sem (ExtCall (EF_external name sg) sig args lid ve te k) =
+                      Some (MKLOCK, ef_sig LOCK, Vptr b ofs :: nil)). {
+          simpl.
+          unfold SEM.Sem in *.
+          rewrite SEM.CLN_msem; simpl.
+          repeat f_equal; congruence.
+        }
+        
+        assert (Hm' : exists m', Mem.store Mint32 (m_dry (personal_mem (thread_mem_compatible (mem_compatible_forget compat) cnti))) b (Int.intval ofs) (Vint Int.zero) = Some m'). {
+          eapply mapsto_can_store.
+          unfold address_mapsto in *.
+          
+          admit.
+        }
+        destruct Hm' as (m', Hm').
+        
+        eexists (m', ge, (sch, _)).
+        constructor.
+        
+        eapply JuicyMachine.sync_step
+        with (Htid := cnti); auto.
+        
+        clear Post.
+        
+        eapply step_mklock
+        with (c := (ExtCall (EF_external name sg) sig args lid ve te k))
+               (Hcompatible := mem_compatible_forget compat)
+               (sh := shx)
+               (R := Interp Rx)
+        .
+        all: try match goal with |- invariant _ => now constructor end.
+        all: try match goal with |- _ = age_tp_to _ _ => reflexivity end.
+        all: try match goal with |- _ = updThread _ _ _ => reflexivity end.
+        all: try match goal with |- personal_mem _ = _ => reflexivity end.
+        - assumption.
+        - eassumption.
+        - reflexivity.
+        - assumption.
+        - admit (* phi/phi' spec  *).
+        - admit (* phi/phi' spec  *).
+        - admit (* phi/phi' spec  *).
+        - admit (* phi/phi' spec  *).
+        - admit (* phi/phi' spec  *).
       }
       
-      { (* the case of makelock *)
+      { (* the case of freelock *)
 
         (* using the safety to prepare the precondition *)
         pose proof (safety i cnti tt) as safei.
@@ -976,7 +1062,7 @@ Section Progress.
         hnf in x.
         revert x Pre SafePost.
         
-        (* dependent destruction *)
+        (* dependent spawn *)
         funspec_destruct "acquire".
         funspec_destruct "release".
         funspec_destruct "makelock".

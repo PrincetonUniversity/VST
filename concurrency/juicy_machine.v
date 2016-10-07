@@ -1111,7 +1111,7 @@ Admitted.
             syncStep' genv cnt0 Hcompat tp' m (spawn (b, Int.intval ofs))
                      
     | step_mklock :
-        forall  (tp' tp'': thread_pool)  jm c b ofs R ,
+        forall  (tp' tp'': thread_pool)  jm c b ofs R,
           let: phi := m_phi jm in
           forall
             phi' m'
@@ -1120,7 +1120,7 @@ Admitted.
             (Hat_external: at_external the_sem c =
                            Some (MKLOCK, ef_sig MKLOCK, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
-            (Hright_juice:  m = m_dry jm)
+            (* (Hright_juice:  m = m_dry jm) *)
             (Hpersonal_perm: 
                personal_mem (thread_mem_compatible Hcompatible cnt0) = jm)
             (Hpersonal_juice: getThreadR cnt0 = phi)
@@ -1130,7 +1130,7 @@ Admitted.
             (*Check I have the right permission to mklock and the right value (i.e. 0) *)
             (*Haccess: address_mapsto LKCHUNK (Vint Int.zero) sh Share.top (b, Int.intval ofs) phi*)
             (Hstore:
-               Mem.store Mint32 m b (Int.intval ofs) (Vint Int.zero) = Some m')
+               Mem.store Mint32 (m_dry jm) b (Int.intval ofs) (Vint Int.zero) = Some m')
             (*Check the new memory has the lock*)
             (Hct: forall ofs', (Int.intval ofs) <= ofs'<(Int.intval ofs)+LKSIZE  ->
                           exists val,
