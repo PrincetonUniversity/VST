@@ -261,8 +261,8 @@ Definition f_mbedtls_zeroize := {|
   fn_callconv := cc_default;
   fn_params := ((_v, (tptr tvoid)) :: (_n, tuint) :: nil);
   fn_vars := nil;
-  fn_temps := ((_p, (tptr (tvolatile tuchar))) ::
-               (_t'2, (tptr (tvolatile tuchar))) :: (_t'1, tuint) :: nil);
+  fn_temps := ((_p, (tptr tuchar)) :: (_t'2, (tptr tuchar)) ::
+               (_t'1, tuint) :: nil);
   fn_body :=
 (Ssequence
   (Sset _p (Etempvar _v (tptr tvoid)))
@@ -277,16 +277,12 @@ Definition f_mbedtls_zeroize := {|
         (Sifthenelse (Etempvar _t'1 tuint) Sskip Sbreak))
       (Ssequence
         (Ssequence
-          (Sset _t'2 (Etempvar _p (tptr (tvolatile tuchar))))
+          (Sset _t'2 (Etempvar _p (tptr tuchar)))
           (Sset _p
-            (Ebinop Oadd (Etempvar _t'2 (tptr (tvolatile tuchar)))
-              (Econst_int (Int.repr 1) tint) (tptr (tvolatile tuchar)))))
-        (Sbuiltin None (EF_vstore Mint8unsigned)
-          (Tcons (tptr (tvolatile tuchar)) (Tcons (tvolatile tuchar) Tnil))
-          ((Eaddrof
-             (Ederef (Etempvar _t'2 (tptr (tvolatile tuchar)))
-               (tvolatile tuchar)) (tptr (tvolatile tuchar))) ::
-           (Econst_int (Int.repr 0) tint) :: nil))))
+            (Ebinop Oadd (Etempvar _t'2 (tptr tuchar))
+              (Econst_int (Int.repr 1) tint) (tptr tuchar))))
+        (Sassign (Ederef (Etempvar _t'2 (tptr tuchar)) tuchar)
+          (Econst_int (Int.repr 0) tint))))
     Sskip))
 |}.
 
