@@ -483,7 +483,7 @@ depend-concur:
 	$(COQDEP) > .depend-concur $(CONCUR_FILES:%.v=concurrency/%.v) $(PACO_FILES:%.v=concurrency/paco/src/%.v) $(CCC26x86_FILES:%.v=concurrency/%.v)
 
 depend-paco:
-	$(COQDEP) > .depend-concur $(PACO_FILES:%.v=concurrency/paco/src/%.v)
+	$(COQDEP) > .depend-paco $(PACO_FILES:%.v=concurrency/paco/src/%.v)
 
 clean:
 	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) floyd/floyd.coq .loadpath .depend
@@ -509,4 +509,3 @@ count-linking:
 # such problem, not sure exactly.  -- Andrew)
 include .depend
 -include .depend-concur
-
