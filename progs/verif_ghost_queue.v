@@ -1352,7 +1352,17 @@ semax_func_cons_ext.
 semax_func_cons body_get_request.
 semax_func_cons body_process_request.
 semax_func_cons body_add.
-semax_func_cons body_remove.
-semax_func_cons body_f.
+semax_func_cons body_q_remove.
+(* XX For some reason, precondition_closed can't prove that all the gvars
+   aren't local variables. *)
+apply semax_func_cons; 
+ [ reflexivity 
+ | repeat apply Forall_cons; try apply Forall_nil; auto; computable
+ | unfold var_sizes_ok; repeat constructor; simpl; computable | reflexivity
+ | | apply body_f | ].
+{ precondition_closed.
+  apply closed_wrtl_PROPx, closed_wrtl_LOCALx, closed_wrtl_SEPx.
+  repeat constructor; apply closed_wrtl_gvar; unfold is_a_local; simpl;
+    intros [? | ?]; try contradiction; discriminate. }
 semax_func_cons body_main.
 Admitted.
