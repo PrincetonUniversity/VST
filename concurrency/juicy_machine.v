@@ -1131,19 +1131,20 @@ Admitted.
                Mem.store Mint32 (m_dry jm) b (Int.intval ofs) (Vint Int.zero) = Some m')
             (*Check the new memory has the lock*)
             (Hct: forall ofs', (Int.intval ofs) <= ofs'<(Int.intval ofs)+LKSIZE  ->
-                          exists val sh',
-                phi@ (b, ofs') = YES sh' pfullshare (VAL val) (pack_res_inv R))
-            (Hlock: phi'@ (b, Int.intval ofs) = YES sh pfullshare (LK LKSIZE) (pack_res_inv R))
+                          exists val,
+                phi@ (b, ofs') = YES sh pfullshare (VAL val) NoneP)
+            (Hlock: phi'@ (b, Int.intval ofs) = YES sh pfullshare (LK LKSIZE) (preds_fmap (approx (level phi)) (approx (level phi)) (pack_res_inv R)))
             (Hct: forall ofs', (Int.intval ofs) <ofs'<(Int.intval ofs)+LKSIZE ->
-                phi'@ (b, ofs') = YES sh pfullshare (CT LKSIZE) (pack_res_inv R)) (*This seems wrong it's not LKSIZE, its ofs0 -ofs *)
+                phi'@ (b, ofs') = YES sh pfullshare (CT (ofs' - Int.intval ofs)%Z) NoneP) (*This seems wrong it's not LKSIZE, its ofs0 -ofs *)
             (*Check the new memory has the right continuations THIS IS REDUNDANT! *)
             (*Hcont: forall i, 0<i<LKSIZE ->   phi'@ (b, Int.intval ofs + i) = YES sh pfullshare (CT i) NoneP*)
             (*Check the two memories coincide in everything else *)
-            (Hj_forward: forall loc, b <> loc#1 \/ ~(Int.intval ofs) <loc#2<(Int.intval ofs)+LKSIZE  -> phi@loc = phi'@loc)
+            (Hj_forward: forall loc, b <> loc#1 \/ ~(Int.intval ofs) <=loc#2<(Int.intval ofs)+LKSIZE  -> phi@loc = phi'@loc)
+            (levphi' : level phi' = level phi)
             (*Check the memories are equal!*)
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
-            (Htp'': tp'' =
-                    updLockSet tp' (b, Int.intval ofs) None ),
+            (Htp'': tp'' = age_tp_to (level phi - 1)%coq_nat 
+                    (updLockSet tp' (b, Int.intval ofs) None )),
             syncStep' genv cnt0 Hcompat tp'' m' (mklock (b, Int.intval ofs))
     | step_freelock :
         forall  (tp' tp'': thread_pool) c b ofs phi R phi',
@@ -1163,21 +1164,22 @@ Admitted.
             (Haccess: address_mapsto LKCHUNK (Vint Int.zero) sh Share.top (b, Int.intval ofs) phi')
             (*Check the old memory has the lock*)
             (Hlock: phi@ (b, Int.intval ofs) = YES sh pfullshare (LK LKSIZE) (pack_res_inv R))
-            (Hlock': exists val, phi'@ (b, Int.intval ofs) = YES sh pfullshare (VAL val) (pack_res_inv R))
+            (Hlock': exists val, phi'@ (b, Int.intval ofs) = YES sh pfullshare (VAL val) NoneP)
             (Hct: forall ofs', (Int.intval ofs)< ofs'<(Int.intval ofs)+LKSIZE ->
-                          exists val sh' X, (*I*)
-                            phi@ (b, ofs') = YES sh' pfullshare (CT (Int.intval ofs)) X /\ (*<- might want to specify the X, Id ont' mind*)
-                            phi'@ (b, ofs') = YES sh' pfullshare (VAL val) (pack_res_inv R))
+                          exists val, (*I*)
+                            phi@ (b, ofs') = YES sh pfullshare (CT (ofs' - Int.intval ofs)%Z) NoneP /\
+                            phi'@ (b, ofs') = YES sh pfullshare (VAL val) NoneP)
             (*Check the old memory has the right continuations  THIS IS REDUNDANT!*)
             (*Hcont: forall i, 0<i<LKSIZE ->   phi@ (b, Int.intval ofs + i) = YES sh pfullshare (CT i) NoneP *)
             (*Check the two memories coincide in everything else *)
-            (Hj_forward: forall loc, b <> loc#1 \/ ~(Int.intval ofs)<loc#2<(Int.intval ofs)+LKSIZE  -> phi@loc = phi'@loc)
+            (Hj_forward: forall loc, b <> loc#1 \/ ~(Int.intval ofs)<=loc#2<(Int.intval ofs)+LKSIZE  -> phi@loc = phi'@loc)
+            (levphi' : level phi' = level phi)
             (*Check the memories are equal!*)
             (*Hm_forward:
                makeCurMax m = m1 *)
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
-            (Htp'': tp'' =
-                    remLockSet tp' (b, Int.intval ofs) ),
+            (Htp'': tp'' = age_tp_to (level phi - 1)%coq_nat 
+                    (remLockSet tp' (b, Int.intval ofs) )),
             syncStep' genv cnt0 Hcompat  tp'' m (freelock (b, Int.intval ofs)) (* m_dry jm' = m_dry jm = m *)
                       
     | step_acqfail :

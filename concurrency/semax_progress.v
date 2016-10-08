@@ -1095,7 +1095,6 @@ Section Progress.
           exists val.
           rewrite E.
           f_equal.
-          admit (* TODO fix the machine *).
         - (* condition on new memory: LK *)
           specialize (After (b, Int.intval ofs)).
           simpl in After.
@@ -1106,11 +1105,13 @@ Section Progress.
           + unfold pfullshare in *.
             f_equal.
             apply proof_irr.
-          + unfold "oo".
-            unfold pack_res_inv in *.
+          + unfold pack_res_inv in *.
+            simpl.
             f_equal.
             extensionality t.
-            admit (* TODO fix the machine *).
+            unfold "oo".
+            f_equal.
+            join_level_tac.
         - (* condition on new memory: CT *)
           intros ofs' range.
           specialize (After (b, ofs')).
@@ -1121,12 +1122,9 @@ Section Progress.
           if_tac in After. now replace ofs' with (Int.intval ofs) in * by congruence; omega.
           destruct After as (p, ->).
           f_equal.
-          + unfold pfullshare in *.
-            f_equal.
-            apply proof_irr.
-          + f_equal.
-            admit (* TODO not true. fix the machine *).
-          + admit (* TODO not true. fix the machine *).
+          unfold pfullshare in *.
+          f_equal.
+          apply proof_irr.
         - (* condition about the rest not changing *)
           intros loc.
           intros A.
