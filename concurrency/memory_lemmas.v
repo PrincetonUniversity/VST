@@ -329,5 +329,42 @@ Module MemoryLemmas.
     - erewrite setPermBlock_other_2 by eauto.
       assumption.
   Qed.
+
+  Lemma setN_inside: forall (vl : list memval) (c : ZMap.t memval) (ofs0 ofs: Z),
+      Intv.In ofs0 (ofs, (ofs + Z.of_nat (length vl))%Z) ->
+      ZMap.get ofs0 (Mem.setN vl ofs c) = List.nth (Z.to_nat (ofs0 - ofs)%Z) vl Undef.
+  Proof.
+    intros vl.
+    induction vl using rev_ind; intros.
+    - unfold Intv.In in H.
+      simpl in H. exfalso.
+      now omega.
+    - simpl in *.
+      unfold Intv.In in H. simpl in H.
+      rewrite Mem.setN_concat.
+      simpl.
+      rewrite ZMap.gsspec.
+      destruct (ZIndexed.eq ofs0 (ofs + Z.of_nat (length vl))). subst.
+      + assert ((Z.to_nat (ofs + Z.of_nat (length vl) - ofs)) = length vl)
+          by (rewrite <- Z.add_sub_assoc;
+              rewrite Zplus_minus, Nat2Z.id; reflexivity).
+        rewrite H0.
+        rewrite List.app_nth2.
+        rewrite NPeano.Nat.sub_diag. reflexivity.
+        omega.
+      + rewrite List.app_length in H.
+        simpl in H.
+        rewrite NPeano.Nat.add_1_r in H.
+        simpl in H.
+        rewrite Zpos_P_of_succ_nat in H.
+        apply threads_lemmas.lt_succ_neq in H; eauto.
+        rewrite List.app_nth1.
+        eapply IHvl. auto.
+        destruct H.
+        clear - H0 H.
+        zify.
+        erewrite Z2Nat.id in * by omega.
+        omega.
+  Qed.
   
 End MemoryLemmas.

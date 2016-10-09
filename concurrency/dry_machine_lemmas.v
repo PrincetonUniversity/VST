@@ -893,6 +893,23 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
           [left; eapply no_race_thr0; eauto| right; eapply (proj1 (thread_data_lock_coh0 j pfj)); eauto].
     Qed.
 
+    Corollary corestep_disjoint_locks:
+      forall (tp : thread_pool) ge (m m' : mem) i j (c c' : C) 
+        (pfi : containsThread tp i) (pfj : containsThread tp j)
+        (Hcomp : mem_compatible tp m) (b : block) (ofs : Z) 
+        (Hreadable: Mem.perm (restrPermMap (Hcomp j pfj).2) b ofs Cur Readable)
+        (Hcorestep: corestep Sem ge c (restrPermMap (Hcomp i pfi).1) c' m')
+        (Hinv: invariant tp),
+        Maps.ZMap.get ofs (Mem.mem_contents m) # b =
+        Maps.ZMap.get ofs (Mem.mem_contents m') # b.
+    Proof.
+      intros.
+      destruct Hinv.
+      eapply corestep_stable_val; eauto.
+      right; eapply (proj1 (thread_data_lock_coh0 j pfj));
+        by eauto.
+    Qed.
+
     (** If some lock has permission above [Readable] on some address then
     stepping a thread cannot change the value of that location*)
     Lemma corestep_disjoint_val_lockpool :
@@ -1791,6 +1808,94 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         + by eauto.
     Qed.
 
+    (** Locks resources are always disjoint from data resources (even for the
+    same thread)*)
+    Lemma internal_step_disjoint_locks :
+      forall tp tp' m m' i j
+        (pfi: containsThread tp i)
+        (pfj: containsThread tp j)
+        (Hcomp: mem_compatible tp m)
+        (Hcomp': mem_compatible tp' m')
+        (Hstep: internal_step pfi Hcomp tp' m') b ofs
+        (Hreadable: 
+           Mem.perm (restrPermMap (Hcomp _ pfj).2) b ofs Cur Readable),
+        Maps.ZMap.get ofs (Mem.mem_contents m) # b =
+        Maps.ZMap.get ofs (Mem.mem_contents m') # b.
+    Proof.
+      intros.
+      inversion Hstep as [[? Htstep] | [[Htstep Heq] | [Htstep Heq]]]; subst; auto.
+      inversion Htstep; subst; eapply ev_step_ax1 in Hcorestep;
+        eapply corestep_disjoint_locks;
+          by eauto.
+    Qed.
+
+    
+    Lemma internal_exec_disjoint_locks:
+      forall tp tp' m m' i j xs
+        (pfi: containsThread tp i)
+        (pfj: containsThread tp j)
+        (Hcomp: mem_compatible tp m)
+        (Hstep: internal_execution [seq x <- xs | x == i] tp m tp' m') b ofs
+        (Hreadable: Mem.perm (restrPermMap (Hcomp _ pfj).2) b ofs Cur Readable),
+        Maps.ZMap.get ofs (Mem.mem_contents m) # b =
+        Maps.ZMap.get ofs (Mem.mem_contents m') # b.
+    Proof.
+      intros.
+      generalize dependent tp.  generalize dependent m.
+      induction xs as [|x xs]; intros.
+      - simpl in Hstep; inversion Hstep; subst.
+        reflexivity.
+        simpl in HschedN. by discriminate.
+      - simpl in Hstep.
+        destruct (x == i) eqn:Heq; move/eqP:Heq=>Heq.
+        + subst x.
+          inversion Hstep; subst.
+          simpl in Htrans.
+          simpl in HschedN.
+          inversion HschedN; subst tid.
+          pf_cleanup.
+          assert (pfj0': containsThread tp'0 j) by
+              (eapply containsThread_internal_step; eauto).
+          assert (pfi0': containsThread tp'0 i) by
+              (eapply containsThread_internal_step; eauto).
+          assert(Hcomp0': mem_compatible tp'0 m'0) by
+              (eapply internal_step_compatible; eauto).
+          assert (Hreadable0':
+                    Mem.perm (restrPermMap (Hcomp0' j pfj0').2) b ofs Cur Readable).
+          { clear IHxs Htrans HschedN Hstep.
+            pose proof (internal_step_locks_eq Hstep0 pfj pfj0') as Heq_perm.
+            unfold Mem.perm in *.
+            assert (H2:= restrPermMap_Cur (Hcomp0' j pfj0').2 b ofs).
+            assert (H2':= restrPermMap_Cur (proj2 (Hcomp j pfj)) b ofs).
+            unfold permission_at in H2, H2'.
+            rewrite H2.
+            rewrite H2' in Hreadable.
+            rewrite <- Heq_perm.
+            assumption.
+          }
+          specialize (IHxs _ _  pfi0' pfj0' Hcomp0' Htrans Hreadable0').
+          rewrite <- IHxs.
+          eapply internal_step_disjoint_locks; eauto.
+        + by eauto.
+    Qed.
+
+    Lemma internal_step_stable :
+      forall tp tp' m m' i
+        (pfi: containsThread tp i)
+        (Hcomp: mem_compatible tp m)
+        (Hstep: internal_step pfi Hcomp tp' m')
+        b ofs
+        (Hvalid: Mem.valid_block m b)
+        (Hstable: ~ Mem.perm (restrPermMap (Hcomp _ pfi).1) b ofs Cur Writable),
+        Maps.ZMap.get ofs (Mem.mem_contents m) # b =
+        Maps.ZMap.get ofs (Mem.mem_contents m') # b.
+    Proof.
+      intros.
+      inversion Hstep as [[? Htstep] | [[Htstep Heq] | [Htstep Heq]]]; subst; auto.
+      inversion Htstep; subst; eapply ev_unchanged_on in Hcorestep;
+        by eauto.
+    Qed.
+
     (** Data resources of a thread that took an internal step are related by [decay]*)
     Lemma internal_step_decay:
       forall tp m tp' m' i (cnt: containsThread tp i)
@@ -1940,6 +2045,60 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         by (eapply internal_step_valid; eauto).
         by eauto.
     Qed.
+
+    Lemma internal_exec_stable:
+      forall tp tp' m m' i xs
+        (pfi: containsThread tp i)
+        (Hcomp: mem_compatible tp m)
+        (Hstep: internal_execution [seq x <- xs | x == i] tp m tp' m')
+        b ofs
+        (Hvalid: Mem.valid_block m b)
+        (Hstable:  ~ Mem.perm (restrPermMap (Hcomp _ pfi).1) b ofs Cur Writable),
+        Maps.ZMap.get ofs (Mem.mem_contents m) # b =
+        Maps.ZMap.get ofs (Mem.mem_contents m') # b.
+    Proof.
+      intros.
+      generalize dependent tp.  generalize dependent m.
+      induction xs as [|x xs]; intros.
+      - simpl in Hstep; inversion Hstep; subst.
+        reflexivity.
+        simpl in HschedN. by discriminate.
+      - simpl in Hstep.
+        destruct (x == i) eqn:Heq; move/eqP:Heq=>Heq.
+        + subst x.
+          inversion Hstep; subst.
+          simpl in Htrans.
+          simpl in HschedN.
+          inversion HschedN; subst tid.
+          pf_cleanup.
+          assert (pfi0': containsThread tp'0 i) by
+              (eapply containsThread_internal_step; eauto).
+          assert(Hcomp0': mem_compatible tp'0 m'0) by
+              (eapply internal_step_compatible; eauto).
+          assert (Hstable0':
+                    ~ Mem.perm (restrPermMap (Hcomp0' _ pfi0').1) b ofs Cur Writable).
+          { clear IHxs Htrans HschedN Hstep.
+            pose proof (internal_step_decay pfi0' Hcomp0' Hstep0) as Hdecay.
+            unfold decay in Hdecay.
+            destruct (Hdecay b ofs) as [_ Hdecay'].
+            destruct (Hdecay' Hvalid) as [Hcontra | Heq].
+            - destruct (Hcontra Cur) as [Hcontra' _].
+              unfold Mem.perm in Hstable.
+              rewrite Hcontra' in Hstable.
+              simpl in Hstable. exfalso.
+              now eauto using perm_order.
+            - specialize (Heq Cur).
+              unfold Mem.perm in *.
+              rewrite Heq in Hstable.
+              assumption.
+          }
+          pose proof Hvalid as Hvalid0'.
+          eapply internal_step_valid in Hvalid0'; eauto.
+          specialize (IHxs _ Hvalid0' _ pfi0' Hcomp0' Htrans Hstable0').
+          rewrite <- IHxs.
+          eapply internal_step_stable; eauto.
+        + by eauto.
+    Qed.
  
     Lemma internal_execution_decay:
       forall tp m tp' m' xs i (cnt: containsThread tp i)
@@ -2062,6 +2221,8 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
           eapply internal_step_disjoint_val_lockPool; eauto.
         + by eauto.
     Qed.
+
+
 
     Lemma updThread_internal_step:
       forall tp tp' m m' i j c pmap

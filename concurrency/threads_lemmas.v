@@ -70,6 +70,17 @@ Proof.
   apply HIn. simpl; by auto.
 Qed.
 
+Lemma lt_succ_neq:
+  forall x y z,
+    (x <= y < x + Z.succ z)%Z ->
+    y <> (x + z)%Z ->
+    (x <= y < x + z)%Z.
+Proof.
+  intros.
+  omega.
+Qed.
+
+
 Lemma le_sub:
   forall x y z,
     (x < z)%positive ->

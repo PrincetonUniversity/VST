@@ -8632,83 +8632,8 @@ into mcj' with an extension of the id injection (fij). *)
                     erewrite perm_obs_strong0 by eauto.
                     assumption.
             Qed.
-                    
-                      
-                  
-            Lemma setN_inside: forall (vl : seq memval) (c : ZMap.t memval) (ofs0 ofs: Z),
-                Intv.In ofs0 (ofs, (ofs + Z.of_nat (length vl))%Z) ->
-                ZMap.get ofs0 (Mem.setN vl ofs c) = List.nth (Z.to_nat (ofs0 - ofs)%Z) vl Undef.
-            Proof.
-              intros vl.
-              induction vl using last_ind; intros.
-              - unfold Intv.In in H.
-                simpl in H. exfalso.
-                now omega.
-              - simpl in *.
-                unfold Intv.In in H. simpl in H.
-                rewrite <- cats1.
-                rewrite Mem.setN_concat.
-                rewrite ZMap.gsspec.
-                destruct (ZIndexed.eq ofs0 (ofs + Z.of_nat (length vl))). subst.
-                + assert ((Z.to_nat (ofs + Z.of_nat (length vl) - ofs)) = length vl)
-                    by (rewrite <- Z.add_sub_assoc;
-                        rewrite Zplus_minus Nat2Z.id; reflexivity).
-                  rewrite H0.
-                  rewrite List.app_nth2.
-                  rewrite NPeano.Nat.sub_diag. reflexivity.
-                  omega.
-                + rewrite <-cats1 in H.
-                  rewrite List.app_length in H.
-                  simpl in H.
-                  rewrite NPeano.Nat.add_1_r in H.
-                  simpl in H.
-                  rewrite Zpos_P_of_succ_nat in H.
 
-
-                  Lemma bla:
-                    forall x y z,
-                      (x <= y < x + Z.succ z)%Z ->
-                      y <> (x + z)%Z ->
-                      (x <= y < x + z)%Z.
-                  Proof.
-                    intros.
-                    omega.
-                  Qed.
-                  apply bla in H; eauto.
-                  rewrite List.app_nth1.
-                  Focus 2.
-                  destruct H.
-                  clear - H0 H.
-                  zify.
-                  erewrite Z2Nat.id in * by omega.
-                  omega.
-                  eapply IHvl. auto.
-            Qed.
-            
-      Lemma internal_exec_disjoint_locks:
-              forall tp tp' m m' i j xs
-                (pfi: containsThread tp i)
-                (pfj: containsThread tp j)
-                (Hcomp: mem_compatible tp m)
-                (Hstep: internal_execution [seq x <- xs | x == i] tp m tp' m') b ofs
-                (Hreadable: Mem.perm (restrPermMap (Hcomp _ pfj).2) b ofs Cur Readable),
-                Maps.ZMap.get ofs (Mem.mem_contents m) # b =
-                Maps.ZMap.get ofs (Mem.mem_contents m') # b.
-            Proof.
-            Admitted.
-
-
-            Lemma internal_exec_stable:
-              forall tp tp' m m' i xs
-                (pfi: containsThread tp i)
-                (Hcomp: mem_compatible tp m)
-                (Hstep: internal_execution [seq x <- xs | x == i] tp m tp' m')
-                b ofs
-                (Hreadable:  ~ Mem.perm (restrPermMap (Hcomp _ pfi).1) b ofs Cur Writable),
-                Maps.ZMap.get ofs (Mem.mem_contents m) # b =
-                Maps.ZMap.get ofs (Mem.mem_contents m') # b.
-            Proof.
-            Admitted.
+           
 
 
             assert (HRj_eq: (getThreadR pf2j').2 = (getThreadR pfcjj).2).
@@ -8780,9 +8705,11 @@ into mcj' with an extension of the id injection (fij). *)
                                           (bl2 := b2) (sz := size_chunk Mint32); eauto.
             (** valid blocks of [mcj] are the same [m2']*)
             intros. unfold Mem.valid_block in *.
+            destruct Hnextblock' as [[p [Hnextj Hnext2]] | [Hnextj Hnext2]];
+              rewrite Hnextj Hnext2 Hnextblock;
+              split; now auto.
             
-            split.
-            (** Equality of contents on updated lock*)
+            (** [memval_obs_eq] of contents on updated lock*)
             intros ofs0 Hrange.
             (** thread i has lock access on this location by the read it
             succesfully performed, hence by coherence thread j cannot have
@@ -8816,7 +8743,11 @@ into mcj' with an extension of the id injection (fij). *)
             rewrite! Maps.PMap.gss.
             erewrite! setN_inside
               by (rewrite length_inj_bytes encode_int_length; simpl in Hrange; auto).
-            reflexivity.
+            destruct (List.nth_in_or_default (Z.to_nat (ofs0 - Int.intval ofs)) (inj_bytes (encode_int 4 (Int.unsigned Int.zero))) Undef).
+            apply inj_bytes_type in i0.
+            destruct (List.nth (Z.to_nat  (ofs0 - Int.intval ofs)) (inj_bytes (encode_int 4 (Int.unsigned Int.zero))) Undef); try by exfalso.
+            now constructor.
+            rewrite e. now constructor.
             
             (** the contents of [mcj] are equal to the contents of [mc] for locations [Readable] by locks on thread [tid]*)
             intros.
@@ -8851,13 +8782,8 @@ into mcj' with an extension of the id injection (fij). *)
               by (rewrite encode_val_length; eapply Intv.range_notin in Hofs_neq; eauto; simpl; omega).
             reflexivity.
             eauto.
-            
-
-        
-            
-            
             split.
-            (*thread ownership*)
+            (** thread ownership*)
             intros k pff2k Hjk b1 b0 ofs0 Hfj Hfi.
             destruct (i == k) eqn:Hik; move/eqP:Hik=>Hik.
             { subst k.
@@ -8867,11 +8793,12 @@ into mcj' with an extension of the id injection (fij). *)
               { intros Hcontra.
                 destruct Hcontra as [b3 Hcontra].
                 assert (Hfj' := Hincrj _ _ Hcontra).
-                assert (Heq := injective (weak_obs_eq (obs_eq Htsimj)) _ _ Hfj Hfj');
+                assert (Heq := injective (weak_obs_eq (obs_eq_data Htsimj)) _ _ Hfj Hfj');
                   subst b3.
                   by congruence.
               }
-              erewrite computeMap_projection_2;
+              simpl.
+              erewrite! computeMap_projection_2;
                 by eauto.
             }
             { rewrite gLockSetRes.
@@ -8880,33 +8807,10 @@ into mcj' with an extension of the id injection (fij). *)
                 by eauto.
             }
             split.
-            (* lockset ownership*)
-            intros b1 b0 ofs0 Hfj Hfi.
-            assert (b2 <> b0).
-            { intros ?; subst b0.
-              assert (Hfbj := Hincrj _ _ Hfb).
-              assert (Heq := injective (weak_obs_eq (obs_eq Htsimj)) _ _ Hfj Hfbj);
-                subst b.
-                by congruence.
-            }
-            replace ((lockSet
-                        (updLockSet
-                           (updThread pff (Kresume cf Vundef)
-                                      (computeMap (getThreadR pff)
-                                                  (projectAngel
-                                                     (fp i pfc) virtueThread)))
-                           (b2, Int.intval ofs)
-                           (projectMap (fp i pfc) empty_map))) # b0 ofs0) with
-            ((lockSet tpf) # b0 ofs0)
-              by (erewrite gsoLockSet_2
-                   by (intros Hcontra; inversion Hcontra; by subst);
-                   eauto).
-            eapply Hownedj_ls;
-              by eauto.
-            (* lockpool ownership*)
+            (** lockpool ownership*)
             intros bl ofsl rmap b1 b0 ofs0 Hfj Hfi Hres.
             destruct (EqDec_address (b2, Int.intval ofs) (bl, ofsl)) as [Heq | Hneq].
-            (* case rmap is the resource map updated by the angel*)
+            (** case rmap is the resource map updated by the angel*)
             inversion Heq; subst.
             rewrite gssLockRes in Hres. inversion Hres.
             assert (~ exists b, fp i pfc b = Some b0).
@@ -8914,58 +8818,69 @@ into mcj' with an extension of the id injection (fij). *)
               destruct Hcontra as [b' Hfb'].
               assert (Hfb'' := Hincrj _ _ Hfb').
               assert (b' = b1)
-                by (eapply (injective (weak_obs_eq (obs_eq Htsimj)));
+                by (eapply (injective (weak_obs_eq (obs_eq_data Htsimj)));
                      eauto). subst b'.
                 by congruence.
             }
-            rewrite projectMap_correct_2; auto.
-            (*case it is another resource map*)
+            rewrite! projectMap_correct_2; auto.
+            (** case it is another resource map*)
             rewrite gsoLockRes in Hres; auto.
             rewrite gsoThreadLPool in Hres;
               by eauto.
+            (** unmapped blocks are empty*)
+            intros b0 Hunmapped ofs0.
+            rewrite gLockSetRes.
+            erewrite gsoThreadRes with (cntj := pffj) by eauto.
+            eapply Hunmapped_j;
+              by eauto.
           }
-          (* Proof of [strong_mem_obs_eq] for lock set*)
-          specialize (HsimWeak _ pfc pff).
-          split.
-          eapply sync_locks_mem_obs_eq with (tpc := tpc) (tpf := tpf)
-                                                         (mc := mc) (mf := mf); eauto.
-          erewrite lockSet_updLockSet. reflexivity.
-          erewrite lockSet_updLockSet. reflexivity.
-          intros bl2 ofs0 Hres.
-          destruct (EqDec_address (bl2, ofs0) (b2, Int.intval ofs)) as [Heq | Hneq].
-          inversion Heq; subst.
-          eexists;
-            by eauto.
-          rewrite gsoLockRes in Hres; auto.
-          rewrite gsoThreadLPool in Hres.
-          eapply HLocksInv;
-            by eauto.
-          (* Proof of [strong_mem_obs_eq] for lock pool*)
-          (* The lock case is easy because the resources are set to empty*)
+          (** Proof of [strong_mem_obs_eq] for lock pool*)
+          (** The lock case is easy because the resources are set to empty*)
           split.
           { intros bl1 bl2 ofs0 rmap1 rmap2 Hfi Hres1 Hres2.
             destruct (EqDec_address (b, Int.intval ofs) (bl1, ofs0)) as [Heq | Hneq].
-            { (*case it is the acquired lock *)
+            { (** case it is the acquired lock *)
               inversion Heq; subst.
               assert (bl2 = b2)
                 by (rewrite Hfi in Hfb; by inversion Hfb).
               subst bl2.
-              constructor.
-              intros b1 b0 ofs0 Hf1.
-              do 2 rewrite restrPermMap_Cur.
-              rewrite gssLockRes in Hres1.
-              rewrite gssLockRes in Hres2.
-              inversion Hres1; inversion Hres2.
-              unfold Maps.PMap.get.
-              do 2 rewrite Maps.PTree.gempty;
-                by reflexivity.
-              intros b1 b0 ofs0 Hf1 Hperm.
+              assert (Hperm_eq: forall b1 b0 ofs0, fp i pfc b1 = Some b0 ->
+                                    permission_at (restrPermMap (compat_lp HmemCompF'' (b2, Int.intval ofs) Hres2)#1) b0 ofs0 Cur =
+                                    permission_at (restrPermMap (compat_lp HmemCompC' (bl1, Int.intval ofs) Hres1)#1) b1 ofs0 Cur /\
+                                    permission_at (restrPermMap (compat_lp HmemCompF'' (b2, Int.intval ofs) Hres2)#2) b0 ofs0 Cur =
+                                    permission_at (restrPermMap (compat_lp HmemCompC' (bl1, Int.intval ofs) Hres1)#2) b1 ofs0 Cur).
+              { intros.
+                rewrite! restrPermMap_Cur.
+                rewrite gssLockRes in Hres1.
+                rewrite gssLockRes in Hres2.
+                inversion Hres1; inversion Hres2.
+                unfold Maps.PMap.get.
+                rewrite! Maps.PTree.gempty;
+                  split;
+                    by reflexivity.
+              }
+              split;
+                constructor; intros;
+                  try (destruct (Hperm_eq b1 b0 ofs0 Hrenaming); by auto).
               assert (H:= restrPermMap_Cur (compat_lp HmemCompC' (bl1, Int.intval ofs)
-                                                      Hres1) b1 ofs0).
+                                                      Hres1).1 b1 ofs0).
               unfold permission_at in H.
               unfold Mem.perm in Hperm.
               rewrite H in Hperm.
-              clear H.
+              clear H Hperm_eq.
+              exfalso.
+              rewrite gssLockRes in Hres1.
+              inversion Hres1; subst.
+              unfold Maps.PMap.get in Hperm.
+              rewrite Maps.PTree.gempty in Hperm.
+              simpl in Hperm;
+                by auto.
+              assert (H:= restrPermMap_Cur (compat_lp HmemCompC' (bl1, Int.intval ofs)
+                                                      Hres1).2 b1 ofs0).
+              unfold permission_at in H.
+              unfold Mem.perm in Hperm.
+              rewrite H in Hperm.
+              clear H Hperm_eq.
               exfalso.
               rewrite gssLockRes in Hres1.
               inversion Hres1; subst.
@@ -8974,7 +8889,7 @@ into mcj' with an extension of the id injection (fij). *)
               simpl in Hperm;
                 by auto.
             }
-            { (*case it's another lock*)
+            { (** case it's another lock*)
               assert ((b2, Int.intval ofs) <> (bl2, ofs0)).
               { clear - Hneq Hfi Hf Hfb Htsim.
                 intros Hcontra; inversion Hcontra; subst.
