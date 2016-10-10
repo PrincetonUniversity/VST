@@ -1,15 +1,15 @@
-#include "threads.h"
-//#include <stdio.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include "threads.h"
 
-// Derived from Example 6-11 in
-// Multithreaded Programming with Pthreads, Lewis & Berg
+// concurrent queue implemented with a circular buffer
 
-typedef struct request_t {int data;} request_t;
+typedef struct request_t {int data; int timestamp;} request_t;
 
 lock_t requests_lock;
 lock_t thread_locks[3];
 int length[1];
+int ends[2];
 cond_t requests_consumer, requests_producer;
 request_t *buf[10];
 int next[1];
@@ -17,65 +17,69 @@ int next[1];
 request_t *get_request(){
   request_t *request;
   request = (request_t *) malloc(sizeof(request_t));
-  acquire(&requests_lock);
-  int n = next[0];
-  next[0] = n + 1;
-  request->data = n;
-  release(&requests_lock);
+  request->data = 1;
   return (request);
 }
 
 int process_request(request_t *request){
-  int d = request->data;
+  int d = request->timestamp;
   free(request);
   return d;
 }
 
-void add(request_t *request){
-  acquire(&requests_lock);
+void q_add(request_t *request){
+  acquire((void *)&requests_lock);
   int len = length[0];
   while(len >= 10){
-    wait(&requests_producer, &requests_lock);
+    waitcond(&requests_producer, (void *)&requests_lock);
     len = length[0];
   }
-  buf[len] = request;
+  int n = next[0];
+  request->timestamp = n;
+  next[0] = n + 1;
+  int tail = ends[1];
+  buf[tail] = request;
+  ends[1] = (tail + 1) % 10;
   length[0] = len + 1;
-  signal(&requests_consumer);
-  release(&requests_lock);
+  signalcond(&requests_consumer);
+  release((void *)&requests_lock);
 }
 
-request_t *remove(void){
+request_t *q_remove(void){
   acquire(&requests_lock);
   int len = length[0];
   while(len == 0){
-    wait(&requests_consumer, &requests_lock);
+    waitcond(&requests_consumer, (void *)&requests_lock);
     len = length[0];
   }
-  request_t *r = buf[len - 1];
-  buf[len - 1] = NULL;
+  int head = ends[0];
+  request_t *r = buf[head];
+  buf[head] = NULL;
+  ends[0] = (head + 1) % 10;
   length[0] = len - 1;
-  signal(&requests_producer);
-  release(&requests_lock);
+  signalcond(&requests_producer);
+  release((void *)&requests_lock);
   return r;
 }
 
 void *f(void *arg){
   request_t *request;
   int res[3];
-  int j, last;
-  lock_t *l = (lock_t *)arg;
+  int j;
   for(int i = 0; i < 3; i++){
     request = get_request();
-    last = request->data;
-    add(request);
+    q_add(request);
   }
-  for(i = 0; i < 3; i++){
-    request = remove();
+  for(int i = 0; i < 3; i++){
+    request = q_remove();
     j = process_request(request);
     res[i] = j;
+    //    scanf("%d", &j);
   }
-  // result: last < res[0] < res[1] < res[2]
-  release2(l);
+  //printf("%d %d %d\n", res[0], res[1], res[2]);
+  // result: res[0] < res[1] < res[2]
+  release2(arg);
+  return (void *)NULL;
 }
 
 int main(void)
@@ -83,25 +87,28 @@ int main(void)
   for(int i = 0; i < 10; i++)
     buf[i] = NULL;
   length[0] = 0;
-  makelock(&requests_lock);
-  release(&requests_lock);
+  ends[0] = 0;
+  ends[1] = 0;
+  next[0] = 0;
+  makelock((void *)&requests_lock);
+  release((void *)&requests_lock);
   makecond(&requests_producer);
   makecond(&requests_consumer);
   
-  for(i = 0; i < 3; i++){
-    makelock(&thread_locks[i]);
-    spawn_thread((void *)&f, (void *)&thread_locks[i]);
+  for(int i = 0; i < 3; i++){
+    makelock((void *)&thread_locks[i]);
+    spawn((void *)&f, (void *)&thread_locks[i]);
+    //printf("Spawned %d\n", i + 1);
   }
 
-  for(i = 0; i < 3; i++){
-    acquire(&thread_locks[i]);
-    freelock2(&thread_locks[i]);
+  for(int i = 0; i < 3; i++){
+    acquire((void *)&thread_locks[i]);
+    freelock2((void *)&thread_locks[i]);
+    //printf("Joined %d\n", i + 1);
   }
 
-  acquire(&requests_lock);
-  freelock(&requests_lock);
+  acquire((void *)&requests_lock);
+  freelock((void *)&requests_lock);
   freecond(&requests_producer);
   freecond(&requests_consumer);
-  
-  return 0;
 }

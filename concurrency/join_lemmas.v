@@ -360,6 +360,15 @@ Proof.
   eexists; apply age_to_join; eauto.
 Qed.
 
+Lemma age_to_join_sub {A} {JA: Join A} {PA: Perm_alg A} {agA: ageable A} {AgeA: Age_alg A} :
+  forall k x1 x2,
+    join_sub x1 x2 ->
+    join_sub (age_to k x1) (age_to k x2).
+Proof.
+  intros k x1 x3 [].
+  eexists; apply age_to_join; eauto.
+Qed.
+
 Lemma joinlist_level {A} `{agA : ageable A} {J : Join A} {_ : Perm_alg A} {_ : Age_alg A} (x : A) l Phi :
   joinlist l Phi ->
   In x l -> level x = level Phi.

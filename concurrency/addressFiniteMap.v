@@ -10,7 +10,7 @@ Require Import sepcomp.semantics_lemmas.
 Require Import concurrency.sepcomp. Import SepComp.
 Require Import concurrency.permissions.
 Require Import concurrency.lksize.
-  
+Set Bullet Behavior "Strict Subproofs".
   
   Module MiniAddressOrdered <: MiniOrderedType.
 

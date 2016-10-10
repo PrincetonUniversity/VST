@@ -34,6 +34,8 @@ From mathcomp.ssreflect Require Import ssreflect seq.
 
 Import addressFiniteMap.
 
+Set Bullet Behavior "Strict Subproofs".
+
 Module ErasureSafety.
 
   Module ErasureProof := erasure_proof.Parching.
