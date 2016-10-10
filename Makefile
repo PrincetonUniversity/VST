@@ -21,7 +21,7 @@ COMPCERT ?= compcert
 
 #Note2:  By default, the rules for converting .c files to .v files
 # are inactive.  To activate them, do something like
-CLIGHTGEN=../CompCert-2.7.1/clightgen	
+CLIGHTGEN=$(COMPCERT)/clightgen 
 
 #Note3: for SSReflect, one solution is to install MathComp 1.6
 # somewhere add this line to a CONFIGURE file
