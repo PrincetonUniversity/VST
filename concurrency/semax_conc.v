@@ -36,7 +36,8 @@ clightgen when threads.h is included first *)
 
 Definition voidstar_funtype := Tfunction (Tcons (tptr tvoid) Tnil) (tptr tvoid) cc_default.
 (* Definition tlock := Tstruct _lock_t noattr. *)
-Definition tlock := (Tarray (Tpointer Tvoid noattr) 4 noattr).
+Definition tlock := (Tpointer Tvoid noattr).
+(* Definition tlock := (Tarray (Tpointer Tvoid noattr) 4 noattr). *)
 (* Notation tlock := tuint (only parsing). *)
 
 Definition lock_inv : share -> val -> mpred -> mpred :=
