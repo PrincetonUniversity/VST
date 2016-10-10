@@ -199,9 +199,12 @@ Proof.
   start_function.
   forward_call (* memset( ctx, 0, sizeof( mbedtls_aes_context ) ); *)
     (sh, ctx, 280, Int.zero).
-  + admit.
-  + split. auto. split; compute; intro; discriminate.
-  + forward. admit.
+  + rewrite data_at__memory_block. entailer. assert ((sizeof t_struct_aesctx) = 280) by reflexivity. rewrite H0. cancel.
+  + (* TODO floyd improve: this works, but it occurs often, can I do it shorter? *)
+    split. auto. split; compute; intro; discriminate.
+  + forward. 
+    (* QQQf how to go from "data_at sh (tarray tuchar 280)" to
+                           "data_at sh t_struct_aesctx" *)
 Abort.
 
 (*
@@ -219,7 +222,8 @@ Proof.
   intros. apply semax_loop with (Q' := Q). assumption.
   apply semax_post with (R' := normal_ret_assert Q).
   * intros. destruct ek; unfold normal_ret_assert; simpl; intro.
-    - apply andp_left2. apply andp_left2. apply andp_left2. apply derives_refl.
+    - normalize. apply andp_left2. apply derives_refl.
+      (* TODO improve floyd: why does entailer! not solve it completely? *)
     - apply andp_left2. apply andp_left1. apply prop_left. intro. discriminate.
     - apply andp_left2. apply andp_left1. apply prop_left. intro. discriminate.
     - apply andp_left2. apply andp_left1. apply prop_left. intro. discriminate.
@@ -243,7 +247,7 @@ Proof.
   intro. unfold list_zero_except. replace (size - size) with 0 by omega. reflexivity.
 Qed.
 
-(* should be in client_lemmas.v *)
+(* should be in client_lemmas.v TODO floyd *)
 Lemma typed_false_tuint:
  forall v, typed_false tuint v -> v = nullval.
 Proof.
@@ -259,19 +263,24 @@ Proof.
   intros. apply typed_false_tuint in H. apply Vint_inj in H; auto.
 Qed.
 
+(* TODO add to library *)
+(* TODO generalize: special case of (replace 0 by m) *)
 Lemma Z_repr_0_unsigned: forall n,
   0 <= n <= Int.max_unsigned ->
   Int.repr n = Int.zero ->
   n = 0.
 Proof.
+  (* TODO library: does it have to be such a hack? *)
   intros. assert (Int.unsigned (Int.repr n) = Int.unsigned Int.zero) by congruence.
   rewrite Int.unsigned_repr in H1. compute in H1. assumption. assumption.
 Qed.
 
 Lemma body_zeroize: semax_body Vprog Gprog f_mbedtls_zeroize zeroize_spec.
-Proof.
+Proof. (* TODO: share with hmacdrbg/verif_hmac_drbg_other.v, where it's almost done *)
   start_function.
   forward.
+  (* Swhile takes an expr as condition, but here we have a statement, so it's not parsed as an
+     Swhile, but as a "raw" Sloop. *)
   apply semax_seq' with (P' := PROP () LOCAL ()
     SEP (data_at cont (tarray tuchar size) (list_zero_except 0 size) v)).
   * apply semax_pre with (P' := EX n: Z,
@@ -292,11 +301,12 @@ Proof.
       + forward.
         apply typed_false_tuint_Vint in H1. apply Z_repr_0_unsigned in H1; [idtac | assumption]. subst.
         entailer.
-      + forward. forward. admit. 
-        (* TODO: this won't work, because "volatile" means the value could be changed at any time
-           by an external process, so we can't prove anything about it! *)
+      + forward. forward. 
+        assert_PROP (isptr v) by entailer. destruct v; try inv H1. simpl. (* force_val goes away *)
+        admit.
+        (* forward. *) (* TODO: why does forward fail? *)
   * simpl. unfold_abbrev'. rewrite list_zero_except_zero. forward.
-Qed.
+Admitted.
 
 Lemma body_aes_free: semax_body Vprog Gprog f_mbedtls_aes_free aes_free_spec.
 Proof.
@@ -305,16 +315,16 @@ Proof.
     PROP (Int.eq addr Int.zero = false)
     LOCAL (temp _ctx (Vint addr))
     SEP (if Int.eq addr Int.zero then emp else data_at_ ctx_cont t_struct_aesctx (Vint addr))).
-  + admit.
+  + simpl in H0. subst. entailer!.
   + forward.
   + forward. entailer.
   + Intros. rewrite H. forward_call ((Vint addr), Tsh, 280).
     - subst Frame. instantiate (1 := []). (* Frame: what's unchanged by function call *)
       unfold fold_right. cancel.
-      (* how can we cast "t_struct_aesctx" into "(tarray tuchar 280)" ? *) admit.
+      (* TODO (again): how can we cast "t_struct_aesctx" into "(tarray tuchar 280)" ? *) admit.
     - split. auto. split; compute; intro; discriminate.
-      (* TODO why isn't this done automatically? Can we write it shorter? *)
-    - forward. rewrite H. (* TODO casting again *) admit.
+      (* TODO (again): Can we write it shorter? *)
+    - forward. rewrite H. (* TODO same casting again *) admit.
 Abort.
 
 Lemma body_gen_tables: semax_body Vprog Gprog f_aes_gen_tables gen_tables_spec.
@@ -328,6 +338,7 @@ Proof.
   *)
   (* Preparation step 1: *)
   simple apply seq_assoc2.
+  (* QQQ Andrew this seems to be the "canonical" Ssequence form, but why? *)
 
   (* Preparation step 2: *)
   assert (forall Init Cond Body Incr, Sfor Init Cond Body Incr =
@@ -335,23 +346,26 @@ Proof.
   rewrite <- Eq. clear Eq.
 
   (* And now, we can finally apply forward_for_simple_bound.
-     TODO improve floyd: This should be possible without the preparation steps! *)
+     TODO improve floyd: This should be possible without the preparation steps!
+     In start_function' of forward.v, generalize the condition for when Sloop is replaced by Sfor,
+     and check all usages of Sfor to make sure it doesn't break
+  *)
   forward_for_simple_bound 256 (EX i: Z,
     PROP ( )
     LOCAL (temp _x (Vint (Int.repr 1)); 
-           temp _i (Vint (Int.repr i));
+        (* TODO documentation should say that I don't need to do this *)
+        (* TODO floyd: tactic should tell me so *)
+        (* temp _i (Vint (Int.repr i)); *)
            lvar _log (tarray tint 256) lvar1;
            lvar _pow (tarray tint 256) lvar0;
            gvar _tables tables)
     SEP (data_at_ Tsh (tarray tint 256) lvar1; data_at_ Tsh (tarray tint 256) lvar0;
          tables_uninitialized tables)).
-
-  { admit. (* what's locald_denote? *) }
   { (* init *)
     forward. forward. Exists 0. entailer!. }
-  { (* body *)
-    Time forward. (* takes ages *) 
-
+  { (* body *) freeze [0; 2] Fr.
+    (* Time forward. *) (* TODO floyd: this takes ages, why? *) 
+    admit.
   }
   { (* next part: round constants *)
     admit. }

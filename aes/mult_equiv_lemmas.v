@@ -39,6 +39,9 @@ Lemma xtime_zero: forall i,
   xtime i = Int.zero -> i = Int.zero.
 Proof.
   intros. unfold xtime in H. int_zero_case_if (Int.and i (Int.repr 128)).
+  (* QQQf: H tells me that bits #6..#0 are 0, and H0 tells me that bit #7 is 0,
+     and we'll have i < 256, so i = Int.zero.
+     Are there already some proofs doing using bit-level reasoning lemmas? *)
 Admitted.
 
 Lemma fast_times3: forall (i: int),
