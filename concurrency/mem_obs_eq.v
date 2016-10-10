@@ -2516,6 +2516,172 @@ as big as [m] *)
       by auto.
   Qed.
 
+  Lemma mem_obs_eq_disjoint_lock:
+    forall f  mc mf mc' mf' pmap pmapF bl1 bl2 ofsl sz
+      (Hf: f bl1 = Some bl2)
+      (Hlt: permMapLt pmap (getMaxPerm mc))
+      (HltF: permMapLt pmapF (getMaxPerm mf))
+      (Hlt': permMapLt pmap (getMaxPerm mc'))
+      (HltF': permMapLt pmapF (getMaxPerm mf'))
+      (Hvb : forall b : block, Mem.valid_block mc b <-> Mem.valid_block mc' b)
+      (HvbF : forall b : block, Mem.valid_block mf b <-> Mem.valid_block mf' b)
+      (Hobs_eq: mem_obs_eq f (restrPermMap Hlt) (restrPermMap HltF))
+      (Hlock: forall ofs, Intv.In ofs (ofsl, ofsl + sz)%Z ->
+                     memval_obs_eq f (ZMap.get ofs (Mem.mem_contents mc') # bl1)
+                                   (ZMap.get ofs (Mem.mem_contents mf') # bl2))
+      (Hstable: forall b ofs,
+          (b <> bl1 \/ (b = bl1 /\ ~ Intv.In ofs (ofsl, ofsl + sz)%Z)) ->
+          Mem.perm (restrPermMap Hlt) b ofs Cur Readable ->
+          ZMap.get ofs (Mem.mem_contents mc) # b = ZMap.get ofs (Mem.mem_contents mc') # b)
+      (HstableF: forall b ofs,
+          (b <> bl2 \/ (b = bl2 /\  ~ Intv.In ofs (ofsl, ofsl + sz)%Z)) ->
+          Mem.perm (restrPermMap HltF) b ofs Cur Readable ->
+          ZMap.get ofs (Mem.mem_contents mf) # b = ZMap.get ofs (Mem.mem_contents mf') # b),
+      mem_obs_eq f (restrPermMap Hlt') (restrPermMap HltF').
+  Proof.
+    intros.
+    destruct Hobs_eq as [Hweak_obs_eq Hstrong_obs_eq].
+    constructor.
+    - destruct Hweak_obs_eq.
+      constructor; intros; eauto.
+      + eapply domain_invalid0.
+        erewrite restrPermMap_valid in *.
+        intro Hcontra; eapply Hvb in Hcontra.
+        now auto.
+      + erewrite restrPermMap_valid in H.
+        erewrite <- Hvb in H.
+        now eauto.
+      + erewrite restrPermMap_valid.
+        apply HvbF.
+        eapply codomain_valid0;
+          now eauto.
+      + rewrite! restrPermMap_Cur.
+        specialize (perm_obs_weak0 _ _ ofs Hrenaming).
+        rewrite! restrPermMap_Cur in perm_obs_weak0.
+        assumption.
+    - destruct Hstrong_obs_eq.
+      constructor.
+      + intros.
+        rewrite! restrPermMap_Cur.
+        specialize (perm_obs_strong0 _ _ ofs Hrenaming).
+        rewrite! restrPermMap_Cur in perm_obs_strong0.
+        assumption.
+      + intros.
+        unfold Mem.perm in *.
+        pose proof (restrPermMap_Cur Hlt b1 ofs) as Hpmap.
+        pose proof (restrPermMap_Cur Hlt' b1 ofs) as Hpmap'.
+        unfold permission_at in *.
+        rewrite Hpmap' in Hperm.
+        rewrite <- Hpmap in Hperm.
+        specialize (val_obs_eq0 _ _ ofs Hrenaming Hperm).
+        simpl in val_obs_eq0; simpl.
+        destruct (Pos.eq_dec b1 bl1).
+        * subst.
+          assert (b2 = bl2)
+            by (rewrite Hf in Hrenaming; inversion Hrenaming; by subst);
+            subst.
+          destruct (Intv.In_dec ofs (ofsl, ofsl +sz)%Z);
+            first by (eapply Hlock; eauto).
+          erewrite <- Hstable by auto.
+          erewrite <- HstableF.
+          assumption.
+          right; auto.
+          erewrite perm_obs_strong0 by eauto.
+          assumption.
+        * erewrite <- Hstable by auto.
+          erewrite <- HstableF.
+          assumption.
+          left. intro Hcontra.
+          eapply (injective Hweak_obs_eq) in Hf;
+            subst b2; eauto.
+          erewrite perm_obs_strong0 by eauto.
+          assumption.
+  Qed.
+
+  Lemma strong_mem_obs_eq_store:
+    forall mc mf mc' mf' rmap rmapF bl1 bl2 ofsl f v
+      (Hlt: permMapLt rmap (getMaxPerm mc))
+      (HltF: permMapLt rmapF (getMaxPerm mf))
+      (Hlt2: permMapLt rmap (getMaxPerm mc'))
+      (Hlt2F: permMapLt rmapF (getMaxPerm mf'))
+      (Hf: f bl1 = Some bl2)
+      (Hinjective: forall b1 b1' b2 : block, f b1 = Some b2 -> f b1' = Some b2 -> b1 = b1')
+      (Hobs_eq: strong_mem_obs_eq f (restrPermMap Hlt) (restrPermMap HltF))
+      (Hstore: Mem.mem_contents mc' = PMap.set bl1 (Mem.setN (encode_val Mint32 (Vint v)) ofsl (Mem.mem_contents mc) # bl1)
+                                               (Mem.mem_contents mc))
+      (HstoreF: Mem.mem_contents mf' = PMap.set bl2 (Mem.setN (encode_val Mint32 (Vint v)) ofsl (Mem.mem_contents mf) # bl2)
+                                                (Mem.mem_contents mf))
+      (Hvb: forall b, Mem.valid_block mc b <-> Mem.valid_block mc' b)
+      (HvbF: forall b, Mem.valid_block mf b <-> Mem.valid_block mf' b),
+      strong_mem_obs_eq f (restrPermMap Hlt2) (restrPermMap Hlt2F).
+  Proof.
+    intros.
+    assert (Hvb': forall b, ~ Mem.valid_block mc b <-> ~ Mem.valid_block mc' b)
+      by (intros; split; intros Hinvalid Hcontra;
+            by apply Hvb in Hcontra).
+    (* constructor. *)
+    (* { (** weak_obs_eq*) *)
+    (*   destruct weak_obs_eq0. *)
+    (*   constructor; *)
+    (*     try (intros b1; erewrite restrPermMap_valid); *)
+    (*     try (erewrite <- Hvb'); *)
+    (*     try (erewrite <- Hvb); *)
+    (*     try by eauto. *)
+    (*   intros b1 b2 Hf1. erewrite restrPermMap_valid. *)
+    (*   erewrite <- HvbF. *)
+    (*   specialize (codomain_valid0 _ _ Hf1); *)
+    (*     by erewrite restrPermMap_valid in codomain_valid0. *)
+    (*   intros b1 b2 ofs0 Hf1. *)
+    (*   do 2 rewrite restrPermMap_Cur. *)
+    (*   specialize (perm_obs_weak0 _ _ ofs0 Hf1). *)
+    (*   rewrite! restrPermMap_Cur in perm_obs_weak0. *)
+    (*   assumption.                     *)
+    (* } *)
+    (** proof of [strong_mem_obs_eq]*)
+    destruct Hobs_eq.
+    constructor.
+    - intros b1 b2 ofs0 Hf1.
+      specialize (perm_obs_strong0 _ _ ofs0 Hf1).
+      erewrite! restrPermMap_Cur in *.
+      assumption.
+    - intros b1 b2 ofs0 Hf1 Hperm.
+      unfold Mem.perm in *.
+      assert (Hperm_eq2 := restrPermMap_Cur Hlt2 b1 ofs0).
+      assert (Hperm_eq := restrPermMap_Cur Hlt b1 ofs0).
+      unfold permission_at in Hperm_eq, Hperm_eq2.
+      rewrite Hperm_eq2 in Hperm.
+      specialize (val_obs_eq0 _ _ ofs0 Hf1).
+      rewrite Hperm_eq in val_obs_eq0.
+      specialize (val_obs_eq0 Hperm).
+      simpl.
+      rewrite Hstore HstoreF.
+      destruct (Pos.eq_dec b1 bl1) as [Heq | Hneq];
+        [| assert (b2 <> bl2)
+           by (intros Hcontra; subst;
+               apply Hneq; eapply Hinjective; eauto);
+           subst;
+           erewrite! Maps.PMap.gso by auto;
+           assumption].
+      subst bl1.
+      assert (b2 = bl2)
+        by (rewrite Hf1 in Hf; inversion Hf; by subst); subst bl2.
+      rewrite! Maps.PMap.gss.
+      destruct (Z_lt_le_dec ofs0 ofsl) as [Hofs_lt | Hofs_ge].
+      erewrite! Mem.setN_outside by (left; auto);
+        by assumption.
+      destruct (Z_lt_ge_dec
+                  ofs0 (ofsl + (size_chunk Mint32)))
+        as [Hofs_lt | Hofs_ge'].
+
+      apply setN_obs_eq with (access := fun q => q = ofs0);
+        eauto using encode_val_obs_eq, val_obs.
+      intros; subst; assumption.
+
+      erewrite! Mem.setN_outside by (right; rewrite size_chunk_conv in Hofs_ge';
+                                       by rewrite encode_val_length);
+        by auto.
+  Qed.
+  
   Lemma alloc_perm_eq:
     forall f m m' sz m2 m2' b b'
       (Hobs_eq: mem_obs_eq f m m')
@@ -2542,13 +2708,123 @@ as big as [m] *)
       destruct v; subst; try (by exfalso).
       destruct (zle 0 ofs), (zlt ofs sz);
         [erewrite permission_at_alloc_2 by eauto;
-          erewrite permission_at_alloc_2 by eauto;
-          reflexivity | | |];
+         erewrite permission_at_alloc_2 by eauto;
+         reflexivity | | |];
         erewrite permission_at_alloc_3 by (eauto; omega);
         erewrite permission_at_alloc_3 by (eauto; omega);
         auto.
   Qed.
 
+  Lemma setPermBlock_eq:
+    forall f bl1 bl2 ofsl b1 b2 ofs pmap pmap' p
+      (Hf: f b1 = Some b2)
+      (Hfl: f bl1 = Some bl2)
+      (Hinjective: forall b1 b1' b2 : block,
+          f b1 = Some b2 -> f b1' = Some b2 -> b1 = b1')
+      (Hperm: pmap # b1 ofs = pmap' # b2 ofs),
+      (setPermBlock p bl1 ofsl pmap
+                    lksize.LKSIZE_nat) # b1 ofs =
+      (setPermBlock p bl2 ofsl pmap'
+                    lksize.LKSIZE_nat) # b2 ofs.
+  Proof.
+    intros.
+    destruct (Pos.eq_dec b1 bl1).
+    - subst.
+      assert (b2 = bl2)
+        by (rewrite Hf in Hfl; inversion Hfl; subst; auto).
+      subst.
+      destruct (Intv.In_dec ofs (ofsl, (ofsl + lksize.LKSIZE)%Z)).
+      + erewrite setPermBlock_same by eauto.
+        erewrite setPermBlock_same by eauto.
+        reflexivity.
+      + apply Intv.range_notin in n.
+        simpl in n.
+        erewrite setPermBlock_other_1 by eauto.
+        erewrite setPermBlock_other_1 by eauto.
+        eauto.
+        unfold lksize.LKSIZE. simpl. omega.
+    - erewrite setPermBlock_other_2 by eauto.
+      assert (b2 <> bl2)
+        by (intros Hcontra;
+            subst; specialize (Hinjective _ _ _ Hf Hfl); subst; auto).
+      erewrite setPermBlock_other_2 by eauto.
+      eauto.
+  Qed.
+
+  Lemma setPermBlock_obs_eq:
+    forall f bl1 bl2 ofsl pmap pmapF mc mf p
+      (Hlt: permMapLt pmap (getMaxPerm mc))
+      (HltF: permMapLt pmapF (getMaxPerm mf))
+      (Hfl: f bl1 = Some bl2)
+      (Hreadable: Mem.range_perm (restrPermMap Hlt) bl1 ofsl (ofsl + size_chunk Mint32) Cur Readable)
+      (Hobs_eq: mem_obs_eq f (restrPermMap Hlt) (restrPermMap HltF))
+      (Hlt': permMapLt (setPermBlock p bl1 ofsl pmap lksize.LKSIZE_nat) (getMaxPerm mc))
+      (HltF': permMapLt (setPermBlock p bl2 ofsl pmapF lksize.LKSIZE_nat) (getMaxPerm mf)),
+      mem_obs_eq f (restrPermMap Hlt') (restrPermMap HltF').
+  Proof.
+    intros.
+    destruct Hobs_eq.
+    constructor.
+    - destruct weak_obs_eq0.
+      constructor; eauto.
+      intros.
+      rewrite! restrPermMap_Cur.
+      specialize (perm_obs_weak0 _ _ ofs Hrenaming).
+      rewrite! restrPermMap_Cur in perm_obs_weak0.
+      destruct (Pos.eq_dec bl1 b1).
+      + subst.
+        assert (b2 = bl2) by (rewrite Hrenaming in Hfl; inversion Hfl; by subst);
+          subst.
+        destruct (Intv.In_dec ofs (ofsl, ofsl + lksize.LKSIZE)%Z).
+        * erewrite! setPermBlock_same
+            by (unfold lksize.LKSIZE in i;
+                simpl in *;
+                auto).
+          now apply po_refl.
+        * erewrite! setPermBlock_other_1
+            by (apply Intv.range_notin in n; eauto;
+                unfold lksize.LKSIZE in *; simpl in *; omega).
+          assumption.
+      + assert (bl2 <> b2)
+          by (intros ?; subst; apply n; eauto).
+        erewrite! setPermBlock_other_2 by assumption.
+        assumption.
+    - destruct strong_obs_eq0.
+      constructor.
+      + intros b1 b2 ofs Hf.
+        specialize (perm_obs_strong0 _ _ ofs Hf).
+        erewrite! restrPermMap_Cur in *.
+        pose proof (injective weak_obs_eq0).
+        erewrite <- setPermBlock_eq; eauto.
+      + intros.
+        simpl.
+        pose proof (restrPermMap_Cur Hlt' b1 ofs).
+        unfold permission_at in H.
+        unfold Mem.perm in *.
+        rewrite H in Hperm.
+        destruct (Pos.eq_dec bl1 b1).
+        * subst.
+          destruct (Intv.In_dec ofs (ofsl, ofsl + lksize.LKSIZE)%Z).
+          erewrite! setPermBlock_same in Hperm
+            by (unfold lksize.LKSIZE in i;
+                simpl in *;
+                auto).
+          apply Hreadable in i;
+            by eauto.
+          erewrite! setPermBlock_other_1 in Hperm
+            by (apply Intv.range_notin in n; eauto;
+                unfold lksize.LKSIZE in *; simpl in *; omega);
+            eapply val_obs_eq0; eauto.
+          pose proof (restrPermMap_Cur Hlt b1 ofs) as Heq.
+          unfold permission_at in Heq. rewrite Heq.
+          assumption.
+        * erewrite! setPermBlock_other_2 in Hperm by eauto.
+          eapply val_obs_eq0; eauto.
+          pose proof (restrPermMap_Cur Hlt b1 ofs) as Heq.
+          unfold permission_at in Heq. rewrite Heq.
+          assumption.
+  Qed.
+  
   Lemma mem_free_obs_perm:
     forall f m m' m2 m2' sz b1 b2
       (Hmem_obs_eq: mem_obs_eq f m m')

@@ -1239,6 +1239,123 @@ Module StepLemmas (SEM : Semantics)
            invariant (remLockSet ds a).
   Proof.
   Admitted.
+  
+  Lemma invariant_add:
+    forall tp i (cnti: containsThread tp i) c pmap1 pmap2 vf arg
+      (Hinv: invariant
+               (addThread
+                  (updThread cnti c pmap1)
+                  vf arg pmap2)),
+      invariant (updThread cnti c pmap1).
+  Proof.
+    intros.
+    constructor.
+    - intros k j cntk cntj Hneq.
+      assert (cntk' := cntAdd vf arg pmap2 cntk).
+      assert (cntj' := cntAdd vf arg pmap2 cntj).
+      pose proof ((no_race_thr Hinv) _ _ cntk' cntj' Hneq).
+      erewrite @gsoAddRes with (cntj := cntk) in H; eauto.
+      erewrite @gsoAddRes with (cntj := cntj) in H; eauto.
+    - intros laddr1 laddr2 rmap1 rmap2 Hneq Hres1 Hres2.
+      eapply (no_race_lr Hinv); eauto.
+    - intros j laddr cntj rmap Hres.
+      assert (cntj' := cntAdd vf arg pmap2 cntj).
+      erewrite <- @gsoAddRes with (cntj' := cntj').
+      eapply (no_race Hinv); eauto.
+    - intros j cntj.
+      assert (cntj' := cntAdd vf arg pmap2 cntj).
+      erewrite <- @gsoAddRes with (cntj' := cntj').
+      pose proof (thread_data_lock_coh Hinv cntj') as Hcoh.
+      split.
+      + intros k cntk.
+        assert (cntk' := cntAdd vf arg pmap2 cntk).
+        erewrite <- @gsoAddRes with (cntj' := cntk').
+        eapply (proj1 Hcoh).
+      + intros laddr rmap Hres.
+        erewrite <- gsoAddLPool
+        with (vf := vf) (arg := arg) (p := pmap2) in Hres.
+        eapply (proj2 Hcoh); eauto.
+    - intros laddr rmap Hres.
+      erewrite <- gsoAddLPool
+      with (vf := vf) (arg := arg) (p := pmap2) in Hres.
+      pose proof (locks_data_lock_coh Hinv _ Hres ) as Hcoh.
+      split.
+      + intros j cntj.
+        assert (cntj' := cntAdd vf arg pmap2 cntj).
+        erewrite <- @gsoAddRes with (cntj' := cntj').
+        eapply Hcoh.1.
+      + intros laddr' rmap' Hres'.
+        erewrite <- gsoAddLPool
+        with (vf := vf) (arg := arg) (p := pmap2) in Hres'.
+        eapply Hcoh.2; eauto.
+    - (* lr_valid *)
+      intros b0 ofs0.
+      pose proof (lockRes_valid Hinv).
+      specialize (H b0 ofs0).
+      rewrite gsoAddLPool in H. auto.
+  Qed.
+
+  Lemma safeC_invariant:
+    forall tpc mc n the_ge
+      (Hn: n > 0)
+      (Hsafe: forall (U : Sch),
+          @csafe the_ge (U,[::],tpc) mc n),
+      invariant tpc.
+  Proof.
+    intros.
+    specialize (Hsafe [:: 1]).
+    simpl in Hsafe.
+    inversion Hsafe; subst; try (by exfalso);
+      inversion Hstep; try inversion Htstep; auto;
+        try (inversion Hhalted; simpl in *; subst; auto);
+        simpl in *; subst; auto.
+  Qed.
+  
+  Lemma safeC_compatible:
+    forall tpc mc n the_ge
+      (Hn: n > 0)
+      (Hsafe: forall (U : Sch),
+          csafe the_ge (U,[::],tpc) mc n),
+      mem_compatible tpc mc.
+  Proof.
+    intros.
+    specialize (Hsafe [:: 0]).
+    simpl in Hsafe.
+    destruct Hsafe as [|Hhalted | |];
+      [by exfalso |simpl in Hhalted;
+                     by exfalso | |];
+      inversion Hstep; try inversion Htstep; auto;
+        simpl in *; subst; auto; try discriminate.
+    inversion HschedN; subst.
+    Transparent containsThread.
+    unfold containsThread in Htid.
+    exfalso.
+    clear - Htid.
+    destruct num_threads.
+    simpl in *.
+    apply Htid.
+    ssromega.
+  Qed.
+  Opaque containsThread.
+
+  Lemma step_schedule:
+    forall the_ge tpc tpc' mc mc' i U U'
+      (Hstep: DryConc.MachStep the_ge (i :: U, [::], tpc) mc (U, [::], tpc') mc'),
+      DryConc.MachStep the_ge (i :: U', [::], tpc) mc (U', [::], tpc') mc'.
+  Proof.
+    intros.
+    inversion Hstep; subst; simpl in *;
+      try match goal with
+          | [H: ?X :: ?U = ?U |- _] =>
+            exfalso; eapply list_cons_irrefl; eauto
+          | [H: Some ?X = Some ?Y |- _] =>
+            inversion H; subst; clear H
+          end.
+    econstructor 4; simpl; eauto.
+    econstructor 5; simpl; eauto.
+    econstructor 6; simpl; eauto.
+    econstructor 7; simpl; eauto.
+  Qed.
 
 End StepLemmas.
 

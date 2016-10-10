@@ -70,6 +70,15 @@ Proof.
   apply HIn. simpl; by auto.
 Qed.
 
+Lemma list_cons_irrefl:
+  forall {A: Type} (x : A) xs,
+    ~ x :: xs = xs.
+Proof.
+  intros.
+  induction xs; intro Hcontra; simpl; try discriminate.
+  inversion Hcontra; subst a; auto.
+Qed.
+
 Lemma lt_succ_neq:
   forall x y z,
     (x <= y < x + Z.succ z)%Z ->
