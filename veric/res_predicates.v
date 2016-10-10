@@ -2792,6 +2792,44 @@ Proof.
     - inversion H1.
 Qed.
 
+Lemma address_mapsto_value_cohere':
+  forall ch v1 v2 rsh1 sh1 rsh2 sh2 a r
+ (Hmaps1 : address_mapsto ch v1 rsh1 sh1 a r)
+ (Hmaps2 : address_mapsto ch v2 rsh2 sh2 a r), v1=v2.
+Proof.
+ intros.
+ destruct Hmaps1 as [b1 [[Hlen1 [? ?]] Hall1]].
+ destruct Hmaps2 as [b2 [[Hlen2 [? ?]] Hall2]].
+ assert (b1 = b2); [ | subst; auto].
+ clear - Hlen1 Hlen2 Hall1 Hall2.
+ rewrite size_chunk_conv in *.
+ forget (size_chunk_nat ch) as n. clear ch.
+ assert (forall i, nth_error b1 i = nth_error b2 i).
+ intro.
+ destruct a as [b z].
+ specialize (Hall1 (b, (z+Z.of_nat i))).
+ specialize (Hall2 (b, (z+Z.of_nat i))).
+ hnf in Hall1,Hall2. if_tac in Hall1. destruct H as [_ [_ ?]].
+ destruct Hall1 as (? & Hall1), Hall2 as (? & Hall2). simpl in Hall1, Hall2.
+ rewrite Hall1 in Hall2; inversion Hall2.
+ replace (z + Z.of_nat i - z) with (Z.of_nat i) in H3 by omega.
+ rewrite Nat2Z.id in H3.
+ rewrite nth_error_nth with (z:=Undef) by omega.
+ rewrite nth_error_nth with (z:=Undef) by omega.
+ f_equal; auto.
+ assert (~(i<n)%nat).
+ contradict H. split; auto. omega.
+ transitivity (@None memval); [ | symmetry];
+ apply nth_error_length; omega.
+ clear - H Hlen1 Hlen2.
+ revert b1 b2 Hlen1 Hlen2 H.
+ induction n; destruct b1,b2; intros; auto; inv Hlen1; inv Hlen2.
+ f_equal.
+ specialize (H O). simpl in H. inv H; auto.
+ apply IHn; auto. 
+ intro i; specialize (H (S i)); apply H.
+Qed.
+
 Lemma address_mapsto_value_cohere:
   forall ch v1 v2 rsh1 sh1 rsh2 sh2 a,
  address_mapsto ch v1 rsh1 sh1 a * address_mapsto ch v2 rsh2 sh2 a |-- !! (v1=v2).
@@ -2831,4 +2869,3 @@ Proof.
  apply IHn; auto. 
  intro i; specialize (H2 (S i)); apply H2.
 Qed.
-

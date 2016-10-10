@@ -259,6 +259,7 @@ Proof.
   forward_call tt.
   Intro x; destruct x as (r, data).
   forward_call (lock, sh, lock_pred buf len).
+  { destruct lock; try contradiction; simpl; entailer. }
   simpl.
   Intro reqs; normalize.
   forward.

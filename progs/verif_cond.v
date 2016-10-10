@@ -72,12 +72,14 @@ Proof.
   forward.
   forward.
   forward_call (lock, sh, lock_pred data).
+  { destruct lock; try contradiction; simpl; entailer. }
   simpl.
   Intro i.
   forward.
   forward_call (cond, sh).
   rewrite field_at_isptr; normalize.
   forward_call (lock, sh, lock_pred data).
+  { destruct lock; try contradiction; simpl; entailer. }
   { simpl; entailer!.
     Exists 1.
     unfold data_at_, field_at_; entailer!. }
@@ -86,6 +88,7 @@ Proof.
     - apply inv_positive. }
   rewrite cond_var_isptr; normalize.
   forward_call (lockt, sh, tlock_pred sh lockt lock cond data).
+  { destruct lockt; try contradiction; simpl; entailer. }
   { subst Frame; instantiate (1 := []); simpl.
     setoid_rewrite selflock_eq at 2; entailer!.
     apply lock_inv_later. }
@@ -134,9 +137,14 @@ Proof.
   rewrite field_at_isptr; normalize.
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
   forward_call (gvar0, Ews, lock_pred gvar3).
-  { unfold tlock, semax_conc._lock_t; entailer!. }
+  { destruct gvar0; try contradiction; simpl; entailer. }
+  { subst Frame; instantiate (1 := [cond_var Ews gvar2;
+      field_at Ews (tarray tint 1) [] [Vint (Int.repr 0)] gvar3;
+      data_at_ Ews (Tstruct 2%positive noattr) gvar1]); admit. }
   forward_call (gvar1, Ews, tlock_pred sh1 gvar1 gvar0 gvar2 gvar3).
-  { unfold tlock, semax_conc._lock_t; entailer!. }
+  { destruct gvar1; try contradiction; simpl; entailer. }
+  { subst Frame; instantiate (1 := [lock_inv Ews gvar0 (Interp (lock_pred gvar3)); cond_var Ews gvar2;
+      field_at Ews (tarray tint 1) [] [Vint (Int.repr 0)] gvar3]); admit. }
   get_global_function'' _thread_func.
   normalize.
   apply extract_exists_pre; intros f_.
@@ -188,12 +196,15 @@ Proof.
   { entailer. }
   - (* loop body *)
     forward_call (gvar2, gvar0, sh2, sh2, lock_pred gvar3).
+    { destruct gvar0; try contradiction; simpl; entailer. }
     simpl; Intro i'.
     forward.
     Exists i'; entailer.
     Exists i'; entailer!.
   - forward_call (gvar1, sh2, tlock_pred sh1 gvar1 gvar0 gvar2 gvar3).
+    { destruct gvar1; try contradiction; simpl; entailer. }
     forward_call (gvar1, Ews, Later (tlock_pred sh1 gvar1 gvar0 gvar2 gvar3)).
+    { destruct gvar1; try contradiction; simpl; entailer. }
     { subst Frame; instantiate (1 := [lock_inv Ews gvar0 (Interp (lock_pred gvar3));
         cond_var Ews gvar2; Interp (lock_pred gvar3)]); simpl; cancel.
       rewrite selflock_eq at 2.
@@ -215,10 +226,11 @@ Proof.
         apply positive_sepcon2, positive_sepcon1, lock_inv_positive.
       + apply later_rec, selflock_rec. }
     forward_call (gvar0, Ews, lock_pred gvar3).
+    { destruct gvar0; try contradiction; simpl; entailer. }
     { split; [auto | apply inv_positive]. }
     forward_call (gvar2, Ews).
     forward.
-Qed.
+Admitted.
 
 Definition extlink := ext_link_prog prog.
 

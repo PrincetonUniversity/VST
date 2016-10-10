@@ -94,6 +94,7 @@ Proof.
   start_function.
   forward.
   forward_call (lock, sh, lock_pred ctr).
+  { destruct lock; try contradiction; simpl; entailer. }
   { unfold Frame; instantiate (1 := []); entailer. }
   simpl.
   Intro z.
@@ -101,6 +102,7 @@ Proof.
   forward.
   rewrite field_at_isptr; normalize.
   forward_call (lock, sh, lock_pred ctr).
+  { destruct lock; try contradiction; simpl; entailer. }
   { simpl; unfold Frame; instantiate (1 := []); entailer.
     Exists (z + 1); entailer. }
   { destruct ctr; try contradiction.
@@ -112,12 +114,14 @@ Lemma body_read : semax_body Vprog Gprog f_read read_spec.
 Proof.
   start_function.
   forward_call (lock, sh, lock_pred ctr).
+  { destruct lock; try contradiction; simpl; entailer. }
   { unfold Frame; instantiate (1 := []); entailer. }
   simpl.
   Intro z.
   forward.
   rewrite data_at_isptr; normalize.
   forward_call (lock, sh, lock_pred ctr).
+  { destruct lock; try contradiction; simpl; entailer. }
   { simpl; unfold Frame; instantiate (1 := []); entailer.
     Exists z; entailer. }
   { destruct ctr; try contradiction.
@@ -133,6 +137,7 @@ Proof.
   forward.
   forward_call (ctr, sh, lock).
   forward_call (lockt, sh, Self_lock (Lock_inv sh lock (lock_pred ctr)) sh lockt).
+  { destruct lockt; try contradiction; simpl; entailer. }
   { subst Frame; instantiate (1 := []).
     unfold thread_lock_inv, cptr_lock_inv; simpl.
     rewrite selflock_eq at 2; entailer!.
@@ -173,17 +178,21 @@ Proof.
   forward.
   forward.
   forward_call (gvar0, Ews, lock_pred gvar2).
-  { unfold tlock, semax_conc._lock_t; entailer!. }
+  { destruct gvar0; try contradiction; simpl; entailer. }
+  { subst Frame; instantiate (1 := [field_at Ews (tarray tint 1) [] [Vint (Int.repr 0)] gvar2;
+      data_at_ Ews (Tstruct 2%positive noattr) gvar1]); admit. }
   rewrite field_at_isptr; normalize.
   forward_call (gvar0, Ews, lock_pred gvar2).
+  { destruct gvar0; try contradiction; simpl; entailer. }
   { subst Frame; instantiate (1 := [data_at_ Ews tlock gvar1]); simpl.
     unfold tlock, semax_conc._lock_t; entailer!.
-    Exists 0; entailer!. }
+    Exists 0; entailer!. admit. }
   { destruct gvar2; try contradiction.
     split; auto; split; [apply ctr_inv_precise | apply ctr_inv_positive]. }
   (* need to split off shares for the locks here *)
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
   forward_call (gvar1, Ews, thread_lock_pred sh1 gvar2 gvar0 gvar1).
+  { destruct gvar1; try contradiction; simpl; entailer. }
   get_global_function'' _thread_func.
   normalize.
   apply extract_exists_pre; intros f_.
@@ -221,11 +230,14 @@ Proof.
   { subst Frame; instantiate (1 := [lock_inv sh2 gvar1 (Interp (thread_lock_pred sh1 gvar2 gvar0 gvar1))]); simpl.
     unfold cptr_lock_inv; entailer!. }
   forward_call (gvar1, sh2, thread_lock_pred sh1 gvar2 gvar0 gvar1).
+  { destruct gvar1; try contradiction; simpl; entailer. }
   forward_call (gvar2, sh2, gvar0).
   Intro z.
   forward_call (gvar0, sh2, lock_pred gvar2).
+  { destruct gvar0; try contradiction; simpl; entailer. }
   { unfold cptr_lock_inv; simpl; entailer!. }
   forward_call (gvar1, Ews, thread_lock_pred' sh1 gvar2 gvar0 gvar1).
+  { destruct gvar1; try contradiction; simpl; entailer. }
   { subst Frame; instantiate (1 := [cptr_lock_inv gvar0 Ews gvar2; Interp (lock_pred gvar2)]); simpl; cancel.
     rewrite selflock_eq at 2.
     rewrite sepcon_assoc, <- (sepcon_assoc (lock_inv _ gvar1 _)), (sepcon_comm (lock_inv _ gvar1 _)).
@@ -239,10 +251,11 @@ Proof.
     - apply later_positive, selflock_positive, lock_inv_positive.
     - apply later_rec, selflock_rec. }
   forward_call (gvar0, Ews, lock_pred gvar2).
+  { destruct gvar0; try contradiction; simpl; entailer. }
   { unfold cptr_lock_inv; simpl; entailer!. }
   { split; [auto | apply ctr_inv_positive]. }
   forward.
-Qed.
+Admitted.
 
 Definition extlink := ext_link_prog prog.
 

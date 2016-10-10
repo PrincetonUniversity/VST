@@ -47,12 +47,23 @@ Definition free_spec :=
 Definition trequest := Tstruct _request_t noattr.
 
 Parameter ghost : forall (sh : share) (t : type) (v : reptype t) (p : val), mpred.
+Parameter ghost_store : mpred -> Prop.
+Axiom new_ghost : ghost_store G -> exists G', ghost_store G' /\ G |--
+  G' * (EX p : val, ghost Ews t v p). (* view shift *)
+
 Axiom ghost_join : forall sh1 sh2 sh t v p, sepalg.join sh1 sh2 sh ->
   ghost sh1 t v p * ghost sh2 t v p = ghost sh t v p.
 Axiom change_ghost : forall t v p v', ghost Ews t v p |-- ghost Ews t v' p.
+(* Alternatively: semax {ghost v' * R} C {Q} -> semax {ghost v * R} C {Q} *)
 Parameter Ghost : forall (sh : share) (t : type) (v : reptype t) (p : val), Pred.
 Axiom interp_ghost : forall sh t v p, Interp (Ghost sh t v p) = ghost sh t v p.
-Axiom ghost_inj : forall sh1 sh2 t v1 v2 p, ghost sh1 t v1 p * ghost sh2 t v2 p |-- !!(v1 = v2).
+Axiom ghost_inj : forall sh1 sh2 t v1 v2 p, ghost sh1 t v1 p * ghost sh2 t v2 p
+  |-- !!(v1 = v2).
+(*Axiom ghost_alloc : forall D P Q R t v, ENTAIL D, PROPx P (LOCALx Q (SEPx R)) |--
+  PROPx P (LOCALx Q (SEPx (EX p : val, ghost Ews t v p :: R))). (* view shift *)*)
+Axiom ghost_compat : forall sh1 sh2 t1 t2 v1 v2 p,
+  ghost sh1 t1 v1 p * ghost sh2 t2 v2 p |-- !!sepalg.joins sh1 sh2.
+
 
 Definition MAX : nat := 10.
 
@@ -177,12 +188,87 @@ Definition Gprog : funspecs := augment_funspecs prog [acquire_spec; release_spec
   malloc_spec; free_spec; get_request_spec; process_request_spec; add_spec; remove_spec; f_spec;
   main_spec].
 
-Lemma inv_precise : forall gsh2 buf ends len next ghosts (Hbuf : isptr buf) (Hlen : isptr len) (Hnext : isptr next),
+(*Lemma data_at_inj : forall sh1 sh2 n1 n2 v, readable_share sh1 -> readable_share sh2 ->
+  Int.min_signed <= n1 <= Int.max_signed -> Int.min_signed <= n2 <= Int.max_signed ->
+  data_at sh1 (tarray tint 1) [Vint (Int.repr n1)] v *
+  data_at sh2 (tarray tint 1) [Vint (Int.repr n2)] v |-- !!(n1 = n2).
+Proof.
+  intros.
+  unfold data_at, field_at, at_offset; entailer; simpl.
+  repeat rewrite data_at_rec_eq; simpl.
+  unfold array_pred, aggregate_pred.array_pred; simpl; entailer.
+  unfold at_offset, Znth; simpl.
+  repeat rewrite data_at_rec_eq; simpl.
+  unfold unfold_reptype; simpl.
+  destruct H3, v; try contradiction; simpl.
+  unfold mapsto; simpl.
+  destruct (readable_share_dec sh1); [|contradiction].
+  destruct (readable_share_dec sh2); [|contradiction].
+  rewrite distrib_orp_sepcon; apply orp_left; [|entailer; discriminate].
+  rewrite distrib_orp_sepcon2; apply orp_left; [|entailer; discriminate].
+  eapply derives_trans; [|apply prop_derives].
+  normalize.
+  apply res_predicates.address_mapsto_value_cohere.
+  intro X; rewrite <- (Int.signed_repr n1), <- (Int.signed_repr n2); congruence.
+Qed.*)
+
+Lemma data_at_inj : forall sh1 sh2 n1 n2 v r (Hsh1 : readable_share sh1) (Hsh2 : readable_share sh2)
+  (Hn1 : Int.min_signed <= n1 <= Int.max_signed) (Hn2 : Int.min_signed <= n2 <= Int.max_signed)
+  (Hp1 : predicates_hered.app_pred (data_at sh1 (tarray tint 1) [Vint (Int.repr n1)] v) r)
+  (Hp2 : predicates_hered.app_pred (data_at sh2 (tarray tint 1) [Vint (Int.repr n2)] v) r), n1 = n2.
+Proof.
+  intros.
+  destruct Hp1 as (? & ? & ? & ? & ? & Hat1 & ?), Hp2 as (? & ? & ? & ? & ? & Hat2 & ?); simpl in *.
+  unfold mapsto, at_offset, offset_val in *; simpl in *.
+  destruct v; try contradiction.
+  destruct (readable_share_dec sh1); [|contradiction].
+  destruct (readable_share_dec sh2); [|contradiction].
+  unfold data_at, field_at, at_offset in *.
+  repeat rewrite data_at_rec_eq; simpl.
+  unfold array_pred, aggregate_pred.array_pred; simpl; entailer.
+  unfold at_offset, Znth; simpl.
+  repeat rewrite data_at_rec_eq; simpl.
+  unfold unfold_reptype; simpl.
+  destruct H3, v; try contradiction; simpl.
+  unfold mapsto; simpl.
+  destruct (readable_share_dec sh1); [|contradiction].
+  destruct (readable_share_dec sh2); [|contradiction].
+  rewrite distrib_orp_sepcon; apply orp_left; [|entailer; discriminate].
+  rewrite distrib_orp_sepcon2; apply orp_left; [|entailer; discriminate].
+  eapply derives_trans; [|apply prop_derives].
+  normalize.
+  apply res_predicates.address_mapsto_value_cohere.
+  intro X; rewrite <- (Int.signed_repr n1), <- (Int.signed_repr n2); congruence.
+
+Lemma inv_precise : forall gsh2 buf ends len next ghosts,
   precise (Interp (lock_pred gsh2 buf ends len next ghosts)).
 Proof.
-  simpl.
-(*  intros; apply derives_precise with (Q := data_at_ Tsh (tarray (tptr trequest) 10) buf *
-    data_at_ Tsh (tarray tint 1) len * fold_right sepcon emp (map (data_at_ Tsh trequest) ).
+  intros ?????? w w1 w2 H1 H2 Hw1 Hw2; simpl in *.
+  destruct H1 as (reqs1 & times1 & head1 & tail1 & n1 & ns1 & buf1 & ? & ? & Hbuf1 & ends1 & ? & ? & Hends1 &
+    len1 & ? & ? & Hlen1 & H1),
+    H2 as (reqs2 & times2 & head2 & tail2 & n2 & ns2 & buf2 & ? & ? & Hbuf2 & ends2 & ? & ? & Hends2 &
+    len2 & ? & ? & Hlen2 & H2).
+  assert (length reqs1 = length reqs2).
+  { rewrite data_at_isptr in Hlen1; destruct Hlen1 as (? & Hlen1).
+    destruct len as [| | | | |len o]; try contradiction.
+    assert (forall v r, predicates_hered.app_pred (data_at Ews (tarray tint 1) [v] (Vptr len o)) r ->
+      predicates_hered.app_pred (data_at_ Ews (tarray tint 1) (Vptr len o)) r) as Himp.
+    { intro; apply data_at_data_at_. }
+    exploit data_at_precise.
+    { eapply Himp, Hlen1. }
+    { eapply Himp, Hlen2. }
+    { eapply sepalg.join_sub_trans; [|apply Hw1].
+      eapply sepalg.join_sub_trans; [eapply sepalg.join_join_sub; eassumption|].
+      eapply sepalg.join_sub_trans; eapply sepalg.join_join_sub, sepalg.join_comm; eassumption. }
+    { eapply sepalg.join_sub_trans; [|apply Hw2].
+      eapply sepalg.join_sub_trans; [eapply sepalg.join_join_sub; eassumption|].
+      eapply sepalg.join_sub_trans; eapply sepalg.join_join_sub, sepalg.join_comm; eassumption. }
+    intro; subst.
+    pose proof (res_predicates.address_mapsto_value_cohere' _ _ _ _ _ _ _ _ _ Hlen1 Hlen2); subst.
+
+(*  intros; apply derives_precise with (Q := EX n : nat, data_at_ Ews (tarray (tptr trequest) 10) buf *
+    data_at_ Ews (tarray tint 2) ends * data_at Ews (tarray tint 1) [Vint (Int.repr n)] len *
+    data_at_ Ews (tarray tint 1) next * fold_right sepcon emp (map (data_at_ Tsh trequest) ).
        (map Interp
           (map (fun r : val => Exp Z (fun data : Z => Data_at CompSpecs Tsh trequest (Vint (Int.repr data)) r)) x))))).
   - intros ? (? & a1 & a2 & ? & Ha1 & ? & b & Hjoinb & Ha2 & Hemp).
@@ -210,30 +296,6 @@ Lemma inv_positive : forall gsh2 buf ends len next ghosts,
   positive_mpred (Interp (lock_pred gsh2 buf ends len next ghosts)).
 Proof.
 Admitted.
-
-(*Lemma data_at_inj : forall sh1 sh2 n1 n2 v, readable_share sh1 -> readable_share sh2 ->
-  Int.min_signed <= n1 <= Int.max_signed -> Int.min_signed <= n2 <= Int.max_signed ->
-  data_at sh1 (tarray tint 1) [Vint (Int.repr n1)] v *
-  data_at sh2 (tarray tint 1) [Vint (Int.repr n2)] v |-- !!(n1 = n2).
-Proof.
-  intros.
-  unfold data_at, field_at, at_offset; entailer; simpl.
-  repeat rewrite data_at_rec_eq; simpl.
-  unfold array_pred, aggregate_pred.array_pred; simpl; entailer.
-  unfold at_offset, Znth; simpl.
-  repeat rewrite data_at_rec_eq; simpl.
-  unfold unfold_reptype; simpl.
-  destruct H3, v; try contradiction; simpl.
-  unfold mapsto; simpl.
-  destruct (readable_share_dec sh1); [|contradiction].
-  destruct (readable_share_dec sh2); [|contradiction].
-  rewrite distrib_orp_sepcon; apply orp_left; [|entailer; discriminate].
-  rewrite distrib_orp_sepcon2; apply orp_left; [|entailer; discriminate].
-  eapply derives_trans; [|apply prop_derives].
-  normalize.
-  apply res_predicates.address_mapsto_value_cohere.
-  intro X; rewrite <- (Int.signed_repr n1), <- (Int.signed_repr n2); congruence.
-Qed.*)
 
 Lemma nth_ghost : forall sh i ns ghosts g (Hlen : length ns = length ghosts)
   (Hg : nth_error ghosts i = Some g), exists n, nth_error ns i = Some n /\
@@ -901,9 +963,6 @@ Proof.
   unfold frame_ret_assert; simpl; entailer'.
   Exists lvar0; normalize; cancel.
 Admitted.
-
-Axiom ghost_alloc : forall D P Q R t v p, ENTAIL D, PROPx P (LOCALx Q (SEPx R)) |--
-  PROPx P (LOCALx Q (SEPx (ghost Ews t v p :: R))).
 
 Transparent lock_pred.
 

@@ -28,10 +28,10 @@ int process_request(request_t *request){
 }
 
 void q_add(request_t *request){
-  acquire(&requests_lock);
+  acquire((void *)&requests_lock);
   int len = length[0];
   while(len >= 10){
-    waitcond(&requests_producer, &requests_lock);
+    waitcond(&requests_producer, (void *)&requests_lock);
     len = length[0];
   }
   int n = next[0];
@@ -42,14 +42,14 @@ void q_add(request_t *request){
   ends[1] = (tail + 1) % 10;
   length[0] = len + 1;
   signalcond(&requests_consumer);
-  release(&requests_lock);
+  release((void *)&requests_lock);
 }
 
 request_t *q_remove(void){
   acquire(&requests_lock);
   int len = length[0];
   while(len == 0){
-    waitcond(&requests_consumer, &requests_lock);
+    waitcond(&requests_consumer, (void *)&requests_lock);
     len = length[0];
   }
   int head = ends[0];
@@ -58,7 +58,7 @@ request_t *q_remove(void){
   ends[0] = (head + 1) % 10;
   length[0] = len - 1;
   signalcond(&requests_producer);
-  release(&requests_lock);
+  release((void *)&requests_lock);
   return r;
 }
 
@@ -66,7 +66,6 @@ void *f(void *arg){
   request_t *request;
   int res[3];
   int j;
-  lock_t *l = (lock_t *)arg;
   for(int i = 0; i < 3; i++){
     request = get_request();
     q_add(request);
@@ -79,7 +78,7 @@ void *f(void *arg){
   }
   //printf("%d %d %d\n", res[0], res[1], res[2]);
   // result: res[0] < res[1] < res[2]
-  release2(l);
+  release2(arg);
   return (void *)NULL;
 }
 
@@ -91,25 +90,25 @@ int main(void)
   ends[0] = 0;
   ends[1] = 0;
   next[0] = 0;
-  makelock(&requests_lock);
-  release(&requests_lock);
+  makelock((void *)&requests_lock);
+  release((void *)&requests_lock);
   makecond(&requests_producer);
   makecond(&requests_consumer);
   
   for(int i = 0; i < 3; i++){
-    makelock(&thread_locks[i]);
+    makelock((void *)&thread_locks[i]);
     spawn((void *)&f, (void *)&thread_locks[i]);
     //printf("Spawned %d\n", i + 1);
   }
 
   for(int i = 0; i < 3; i++){
-    acquire(&thread_locks[i]);
-    freelock2(&thread_locks[i]);
+    acquire((void *)&thread_locks[i]);
+    freelock2((void *)&thread_locks[i]);
     //printf("Joined %d\n", i + 1);
   }
 
-  acquire(&requests_lock);
-  freelock(&requests_lock);
+  acquire((void *)&requests_lock);
+  freelock((void *)&requests_lock);
   freecond(&requests_producer);
   freecond(&requests_consumer);
 }

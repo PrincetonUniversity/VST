@@ -10,11 +10,11 @@ void *thread_func(void *args) {
   lock_t *l = &mutex;
   lock_t *t = &tlock;
   cond_t *c = &cond;
-  acquire(l);
+  acquire((void*)l);
   data[0] = 1;
   signalcond(c);
-  release(l);
-  release2(t);
+  release((void*)l);
+  release2((void*)t);
   return (void *)NULL;
 }
 
@@ -25,19 +25,19 @@ int main(void)
   lock_t *t = &tlock;
   cond_t *c = &cond;
   makecond(c);
-  makelock(l);
-  makelock(t);
+  makelock((void*)l);
+  makelock((void*)t);
   spawn((void *)&thread_func, (void *)NULL);
 
   int v = 0;
   while(!v){
-    waitcond(c, l);
+    waitcond(c, (void*)l);
     v = data[0];
   }
 
-  acquire(t);
-  freelock2(t);
-  freelock(l);
+  acquire((void*)t);
+  freelock2((void*)t);
+  freelock((void*)l);
   freecond(c);
 
   //  printf("I'm done with a final counter of: %d\n", v);

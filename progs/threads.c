@@ -4,27 +4,27 @@
 
 /* gcc -Wall -pthread */
 
-void makelock(lock_t *lock) {
+void makelock(void *lock) {
   sem_init((sem_t*)lock, 0, 0);
 }
 
-void freelock(lock_t *lock) {
+void freelock(void *lock) {
   sem_destroy((sem_t*)lock);
 }
 
-void acquire(lock_t *lock) {
+void acquire(void *lock) {
   sem_wait((sem_t*)lock);
 }
 
-void release(lock_t *lock) {
+void release(void *lock) {
   sem_post((sem_t*)lock);
 }
 
-void freelock2(lock_t *lock) {
+void freelock2(void *lock) {
   sem_destroy((sem_t*)lock);
 }
 
-void release2(lock_t *lock) {
+void release2(void *lock) {
   sem_post((sem_t*)lock);
 }
 
@@ -57,7 +57,7 @@ void freecond(cond_t *cond) {
   pthread_cond_destroy((pthread_cond_t*)cond);
 }
 
-void waitcond(cond_t *cond, lock_t *mutex) {
+void waitcond(cond_t *cond, void *mutex) {
   //  pthread_cond_wait((pthread_cond_t*)cond), (pthread_mutex_t*)mutex);
 }
 
