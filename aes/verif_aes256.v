@@ -338,7 +338,10 @@ Proof.
   *)
   (* Preparation step 1: *)
   simple apply seq_assoc2.
-  (* QQQ Andrew this seems to be the "canonical" Ssequence form, but why? *)
+  (* Note: (Ssequence (Ssequence c1 c2) (Ssequence Rest1 Rest2)) is the "canonical" Ssequence form
+     that all forward tactics expect, because many commands which look like one command in the C source
+     are actually split up into two commands, and the tactic has to see both of them without digging
+     too deep. *)
 
   (* Preparation step 2: *)
   assert (forall Init Cond Body Incr, Sfor Init Cond Body Incr =
