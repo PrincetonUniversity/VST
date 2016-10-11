@@ -782,12 +782,26 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
 
   (*Things that we must prove:*)
   Lemma sch_dec: forall (U U': Sch), {U = U'} + {U <> U'}.
-  Admitted.                                      
-  Axiom step_sch: forall {ge U tr tp m U' tr' tp' m'}, MachStep ge (U, tr, tp) m (U', tr', tp') m' -> {U=U'}+{schedSkip(U)=U'}.
-  Axiom step_trace: forall {ge U tr tp m U' tr' tp' m'}, MachStep ge (U, tr, tp) m (U', tr', tp') m' -> nil = tr'. 
-  Axiom step_valid: forall {ge st m st' m'}, MachStep ge st m st' m'  -> valid st -> valid st'. 
-  Axiom step_sch_valid: forall {ge U tr tp m U' tr' tp' m'}, MachStep ge (U, tr, tp) m (U', tr', tp') m' -> U<>U' -> forall U'', valid (U'', tr', tp').
+  Proof. apply SCH.sch_dec. Qed.                 
+  Lemma step_sch: forall {ge U tr tp m U' tr' tp' m'}, MachStep ge (U, tr, tp) m (U', tr', tp') m' -> U=U' \/ schedSkip(U)=U'.
+  Proof.
+    intros.
+    inversion H;
+      simpl in *;
+      subst; first[left; reflexivity | right; reflexivity | idtac].
+  Qed.
+  Lemma step_trace: forall {ge U tr tp m U' tr' tp' m'}, MachStep ge (U, tr, tp) m (U', tr', tp') m' -> nil = tr'.
+  Proof.
+    intros.
+    inversion H;
+      simpl in *; auto.
+  Qed.
+  Lemma step_valid: forall {ge st m st' m'}, MachStep ge st m st' m'  -> valid st -> valid st'.
+  Admitted.
+  Lemma step_sch_valid: forall {ge U tr tp m U' tr' tp' m'}, MachStep ge (U, tr, tp) m (U', tr', tp') m' -> U<>U' -> forall U'', valid (U'', tr', tp').
+  Admitted.
   Axiom skip_not_eq: forall U, U <> schedSkip U.
+  (*Dang this is not exactly true... what about the empty sch??? *)
   Lemma safety_equivalence':
     forall ge st_ m,
       (forall U n, new_valid (nil, st_, m) U -> ksafe_new_step ge (U, nil, st_) m n) ->
