@@ -781,7 +781,8 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     safe _ _ (new_step ge) new_valid (mk_nstate st m) (fst (fst st)).
 
   (*Things that we must prove:*)
-  Axiom sch_dec: forall (U U': Sch), {U = U'} + {U <> U'}.
+  Lemma sch_dec: forall (U U': Sch), {U = U'} + {U <> U'}.
+  Admitted.                                      
   Axiom step_sch: forall {ge U tr tp m U' tr' tp' m'}, MachStep ge (U, tr, tp) m (U', tr', tp') m' -> {U=U'}+{schedSkip(U)=U'}.
   Axiom step_trace: forall {ge U tr tp m U' tr' tp' m'}, MachStep ge (U, tr, tp) m (U', tr', tp') m' -> nil = tr'. 
   Axiom step_valid: forall {ge st m st' m'}, MachStep ge st m st' m'  -> valid st -> valid st'. 
