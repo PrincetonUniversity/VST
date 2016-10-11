@@ -7456,20 +7456,18 @@ relation*)
     }
   Qed.*)
 
-  (** [permMapJoin] is preserved through block renamings*)
+  (** [permMapJoin] is preserved through block renamings*)  
   Lemma permMapJoin_project:
-    forall (mc mf : mem) (f : memren)
-      pmap pmapF pmap' pmapF'
-      (Hlt: permMapLt pmap (getMaxPerm mc))
-      (HltF: permMapLt pmapF (getMaxPerm mf))
-      (Hlt': permMapLt pmap' (getMaxPerm mc))
-      (HltF': permMapLt pmapF' (getMaxPerm mf))
-      (virtue : delta_map)
-      (HpmapF: forall b, (~exists b', f b' = Some b) -> forall ofs, pmapF # b ofs = None) 
-      (Hangel: permMapJoin pmap pmap' (computeMap pmap' virtue))
-      (Hsim: strong_mem_obs_eq f (restrPermMap Hlt) (restrPermMap HltF))
-      (Hsim': mem_obs_eq f (restrPermMap Hlt') (restrPermMap HltF')),
-      permMapJoin pmapF pmapF' (computeMap pmapF' (projectAngel f virtue)).
+    forall (f : memren)
+      pmap pmapF pmap' pmapF' pmapR pmapRF
+      (HpmapF: forall b, (~exists b', f b' = Some b) ->
+                    forall ofs, (pmapF # b ofs = None /\ pmapRF # b ofs = pmapF' # b ofs) \/
+                           (pmapF' # b ofs = None /\ pmapRF # b ofs = pmapF # b ofs))
+      (Hangel: permMapJoin pmap pmap' pmapR)
+      (Hpmap: forall b1 b2 ofs, f b1 = Some b2 -> (pmap # b1) ofs = (pmapF # b2) ofs)
+      (Hpmap': forall b1 b2 ofs, f b1 = Some b2 -> (pmap' # b1) ofs = (pmapF' # b2) ofs)
+      (HpmapR: forall b1 b2 ofs, f b1 = Some b2 -> (pmapR # b1) ofs = (pmapRF # b2) ofs),
+      permMapJoin pmapF pmapF' pmapRF.
   Proof.
     intros.
     intros b2 ofs.
@@ -7479,19 +7477,13 @@ relation*)
       by eapply em.
     destruct Hb2 as [[b1 Hf1] | Hunmapped].
     - specialize (Hangel b1 ofs).
-      erewrite computeMap_projection_1 by eauto.
-      pose proof (perm_obs_strong Hsim) as Hperm.
-      pose proof (perm_obs_strong (strong_obs_eq Hsim')) as Hperm'.
-      specialize (Hperm _ _ ofs Hf1).
-      specialize (Hperm' _ _ ofs Hf1).
-      rewrite! restrPermMap_Cur in Hperm, Hperm'.
-      rewrite Hperm Hperm'.
+      erewrite <- Hpmap, <- Hpmap', <- HpmapR
+        by eassumption.
       assumption.
-    - erewrite computeMap_projection_2 by eauto.
-      erewrite HpmapF by eauto.
-      constructor.
+    - destruct (HpmapF _ Hunmapped ofs) as [[Hempty Heq] | [Hempty Heq]];
+        rewrite Hempty Heq;
+        now constructor.
   Qed.
-
   
   Lemma sim_external: sim_external_def.
   Proof.
@@ -7633,18 +7625,48 @@ relation*)
         destruct (lockRes tpf (b2, Int.intval ofs)) as [pmapF|] eqn:HisLockF;
           try by exfalso.
         clear HresF.
-        (** and then prove that the projected angel satisfies the angelSpec*)
+        (** and then prove that the projected angel satisfies [permMapJoin]*)
         destruct (HsimRes _ _ _ _ _ Hfb HisLock HisLockF) as [HsimRes1 HsimRes2].
+
         assert (HangelF1: permMapJoin pmapF.1 (getThreadR pff).1
-                                      (computeMap (getThreadR pff).1 virtueF.1))
-          by (pose proof (obs_eq_data Htsim);
-               eapply permMapJoin_project; simpl in Hangel1;
-               try (eapply HunmappedRes); eauto).
+                                      (computeMap (getThreadR pff).1 virtueF.1)).
+        { pose proof (obs_eq_data Htsim) as Hmem_obs_eq.
+          eapply permMapJoin_project with (f := fp i pfc) (pmap := pmap.1) (pmap' := (getThreadR pfc).1); eauto.
+          intros b0 Hunmapped ofs0. subst.
+          simpl. erewrite computeMap_projection_2 by eauto.
+          left; split; [eapply HunmappedRes|]; now eauto.
+          intros.
+          pose proof (perm_obs_strong HsimRes1 _ ofs0 H) as Heq.
+          rewrite! restrPermMap_Cur in Heq. now auto.
+          intros.
+          pose proof (perm_obs_strong (strong_obs_eq Hmem_obs_eq)) as Hperm_eq.
+          specialize (Hperm_eq _ _ ofs0 H).
+          rewrite! restrPermMap_Cur in Hperm_eq.
+          now auto.
+          intros. subst. simpl.
+          erewrite computeMap_projection_1 by eauto.
+          reflexivity.
+        }
         assert (HangelF2: permMapJoin pmapF.2 (getThreadR pff).2
-                                      (computeMap (getThreadR pff).2 virtueF.2))
-          by (pose proof (obs_eq_locks Htsim);
-               eapply permMapJoin_project; simpl in Hangel2;
-               try (eapply HunmappedRes); eauto).
+                                      (computeMap (getThreadR pff).2 virtueF.2)).
+        { pose proof (obs_eq_locks Htsim) as Hmem_obs_eq.
+          eapply permMapJoin_project with (f := fp i pfc) (pmap := pmap.2) (pmap' := (getThreadR pfc).2); eauto.
+          intros b0 Hunmapped ofs0. subst.
+          simpl. erewrite computeMap_projection_2 by eauto.
+          left; split; [eapply HunmappedRes|]; now eauto.
+          intros.
+          pose proof (perm_obs_strong HsimRes2 _ ofs0 H) as Heq.
+          rewrite! restrPermMap_Cur in Heq. now auto.
+          intros.
+          pose proof (perm_obs_strong (strong_obs_eq Hmem_obs_eq)) as Hperm_eq.
+          specialize (Hperm_eq _ _ ofs0 H).
+          rewrite! restrPermMap_Cur in Hperm_eq.
+          now auto.
+          intros. subst. simpl.
+          erewrite computeMap_projection_1 by eauto.
+          reflexivity.
+        }
+  
         (** and finally build the final fine-grained state*)
         pose (empty_map, empty_map) as emptyRes.
         remember (updLockSet tpf' (b2, Int.intval ofs) (projectMap (fp i pfc) emptyRes.1, projectMap (fp i pfc) emptyRes.2))
@@ -8383,53 +8405,69 @@ relation*)
             apply cntUpdate;
               by eauto.
     }
-    { (*lock release case *)
-      (* In order to construct the new memory we have to perform the
+    { (** Lock release case *)
+      (** In order to construct the new memory we have to perform the
         load and store of the lock, after setting the correct permissions*)
-      (*We prove that b is valid in m1 (and mc)*)
+      (** We prove that b is valid in m1 (and mc)*)
       assert (Hvalidb: Mem.valid_block m1 b)
-        by (eapply load_valid_block; eauto).
+          by (eapply load_valid_block; eauto).
       rewrite <- Hrestrict_pmap in Hvalidb.
-      (*  and compute the corresponding block in mf *)
-      destruct ((domain_valid (weak_obs_eq (obs_eq Htsim))) _ Hvalidb)
+      (** and compute the corresponding block in mf *)
+      destruct ((domain_valid (weak_obs_eq (obs_eq_data Htsim))) _ Hvalidb)
         as [b2 Hfb].
-      assert (Hvalidb2 := (codomain_valid (weak_obs_eq (obs_eq Htsim))) _ _ Hfb).
+      assert (Hvalidb2 := (codomain_valid (weak_obs_eq (obs_eq_data Htsim))) _ _ Hfb).
       erewrite restrPermMap_valid in Hvalidb2.
-      remember (restrPermMap (compat_ls HmemCompF)) as mf1 eqn:Hrestrict_pmapF.
+      (** we compute the [access_map] that we will use to perform the load*)
+      remember (restrPermMap (HmemCompF _ pff).2) as mf1 eqn:Hrestrict_pmapF.
       subst m1.
-      (* and prove that loading from that block in mf gives us the
+      (** and prove that loading from that block in mf gives us the
         same value as in mc, i.e. unlocked*)
       assert (HloadF: Mem.load Mint32 mf1 b2 (Int.intval ofs) = Some (Vint Int.zero)).
-      {
-        destruct (load_val_obs _ _ _ Hload Hfb Hinjective HsimLocks)
+      { subst mf1.
+        destruct (load_val_obs _ _ _ Hload Hfb Hinjective ((strong_obs_eq (obs_eq_locks Htsim))))
           as [v2 [Hloadf Hobs_eq]].
         inversion Hobs_eq; subst.
           by auto.
       }
       assert (Hval_obs: val_obs (fp i pfc) (Vint Int.one) (Vint Int.one))
         by constructor.
-      (* and then storing gives us related memories*)
-      assert (Hlocks_obs_eq: mem_obs_eq (fp i pfc)
-                                        (restrPermMap (compat_ls HmemCompC)) mf1)
-        by (subst mf1;
-             destruct Htsim as [_ [? ?]];
-             eapply mem_obs_eq_of_weak_strong; eauto).
-      assert (HstoreF := store_val_obs _ _ _ Hstore Hfb Hval_obs Hlocks_obs_eq).
+      (** we then compute the [access_map] used to perform the store*)
+      remember (setPermBlock (Some Writable) b2 (Int.intval ofs) (getThreadR pff).2 lksize.LKSIZE_nat)
+        as pmap_tidF' eqn:Hset_permF.
+      (** prove that this map is below the [Max] [access_map] of the memory*)
+      assert (HltF': permMapLt pmap_tidF' (getMaxPerm mf)).
+      { 
+        subst.
+        eapply setPermBlock_lt; eauto.
+        eapply (HmemCompF _ pff).2.
+      }
+
+      (** the updated (with [Writable] permissions on the lock location) map is in [mem_obs_eq]*)
+      assert (Hobs_eq_locks: mem_obs_eq (fp i pfc) (restrPermMap Hlt') (restrPermMap HltF')).
+      { subst.
+        apply Mem.load_valid_access in Hload.
+        destruct Hload as [Hload _]. simpl in Hload.
+        pose proof (obs_eq_locks Htsim).
+        eapply setPermBlock_obs_eq with (Hlt := (HmemCompC i pfc).2); eauto.
+      }
+
+      (** and then storing gives us related memories*)
+      assert (HstoreF := store_val_obs _ _ _ Hstore Hfb Hval_obs Hobs_eq_locks).
       destruct HstoreF as [mf' [HstoreF HsimLocks']].
-      (* We have that the code of the fine grained execution
-        is related to the one of the coarse-grained*)
+      (** We have that the core of the fine grained execution
+            is related to the one of the coarse-grained*)
       assert (Hcore_inj:= code_eq Htsim).
       rewrite Hcode in Hcore_inj.
       simpl in Hcore_inj.
       destruct (getThreadC pff) as [? | cf |? | ?] eqn:HcodeF;
         try by exfalso.
-      (* And now we can prove that cf is also at external *)
+      (** And now we can prove that cf is also at external *)
       assert (Hat_external_spec := core_inj_ext Hcore_inj).
       rewrite Hat_external in Hat_external_spec.
       destruct (at_external SEM.Sem cf) as [[[? ?] vsf]|] eqn:Hat_externalF;
         try by exfalso.
-      (* and moreover that it's the same external and their
-        arguments are related by the injection*)
+      (** and moreover that it's the same external and their
+            arguments are related by the injection*)
       destruct Hat_external_spec as [? [? Harg_obs]]; subst.
       inversion Harg_obs as [|? ? ? ? Hptr_obs Hl]; subst.
       inversion Hl; subst.
@@ -8438,43 +8476,95 @@ relation*)
       assert (bf = b2)
         by (rewrite Hf in Hfb; by inversion Hfb);
         subst bf.
-      (* To compute the new fine grained state, we apply the
+      (** To compute the new fine grained state, we apply the
         renaming to the resources the angel provided us*)
-      remember (projectAngel (fp i pfc) virtueThread) as virtueF eqn:HvirtueF.
+      pose (projectAngel (fp i pfc) virtueThread.1, projectAngel (fp i pfc) virtueThread.2) as virtueF.
       remember (updThread pff (Kresume cf Vundef)
-                          (computeMap (getThreadR pff) virtueF))
+                          (computeMap (getThreadR pff).1 virtueF.1, computeMap (getThreadR pff).2 virtueF.2))
         as tpf' eqn:Htpf'.
-      (* And also apply the renaming to the resources that go to the lockpool*)
-      remember (projectMap (fp i pfc) virtueLP) as virtueLPF eqn:HvirtueLPF.
-      (* We prove that the mapped block is a lock*)
-      assert (HisLockF: exists pmapF, lockRes tpf (b2, Int.intval ofs) = Some pmapF).
-      { specialize (fst (Hlock_if _ _ (Int.intval ofs) Hfb) ltac:(unfold isSome; rewrite HisLock; auto)).
-        intro H.
-        destruct (lockRes tpf (b2, Int.intval ofs)); try by exfalso.
-        eexists; eauto.
+      (** And also apply the renaming to the resources that go to the lockpool*)
+      remember (projectMap (fp i pfc) virtueLP.1, projectMap (fp i pfc) virtueLP.2) as virtueLPF eqn:HvirtueLPF.
+      (** We prove that the mapped block is a lock*)
+      assert (HresF: lockRes tpf (b2, Int.intval ofs))
+        by (eapply Hlock_if; eauto; rewrite HisLock; auto).
+      destruct (lockRes tpf (b2, Int.intval ofs)) as [pmapF|] eqn:HisLockF;
+        try by exfalso.
+      destruct (HsimRes _ _ _ _ _ Hfb HisLock HisLockF) as [HsimRes1 HsimRes2].
+      
+      assert (HangelF1: permMapJoin (computeMap (getThreadR pff).1 virtueF.1) virtueLPF.1 (getThreadR pff).1).
+      { assert (Hcanonical: isCanonical virtueLP.1)
+          by (destruct (@compat_lp _ _ HmemCompC' (b, Int.intval ofs) virtueLP ltac:(rewrite gsslockResUpdLock; reflexivity));
+              eapply canonical_lt; eauto).
+        pose proof (obs_eq_data Htsim) as Hmem_obs_eq.
+        pose proof (perm_obs_strong (strong_obs_eq Hmem_obs_eq)) as Hperm_eq.
+        eapply permMapJoin_project with (f := fp i pfc) (pmap := newThreadPerm.1) (pmap' := virtueLP.1); eauto.
+        unfold isCanonical in Hcanonical.
+        intros b0 Hunmapped ofs0. subst.
+        simpl. erewrite projectMap_correct_2 by eauto.
+        erewrite computeMap_projection_2 by eauto.
+        right.
+        rewrite Hcanonical. split; reflexivity.
+        subst virtueF.
+        intros. simpl.
+        erewrite computeMap_projection_1 by eauto;
+          now reflexivity.
+        intros. subst.
+        erewrite projectMap_correct by eauto;
+          now reflexivity.
+        intros b1 b0 ofs0 Hrenaming;
+          specialize (Hperm_eq _ _ ofs0 Hrenaming); rewrite! restrPermMap_Cur in Hperm_eq;
+            auto.
       }
-      destruct HisLockF as [pmapF HisLockF].
-      (* and then prove that the projected angel satisfies the angelSpec*)
-      assert (HangelF: relAngelSpec (getThreadR pff) pmapF
-                                 (computeMap (getThreadR pff) virtueF) virtueLPF).
-      { subst. eapply relAngelSpec_project; eauto.
-        destruct HmemCompC'.
-        specialize (compat_lp0 (b, Int.intval ofs) virtueLP
-                               ltac:(rewrite gssLockRes; eauto)).
-        eapply canonical_lt; eauto.
+
+      assert (HangelF2: permMapJoin (computeMap (getThreadR pff).2 virtueF.2) virtueLPF.2 (getThreadR pff).2).
+      { assert (Hcanonical: isCanonical virtueLP.2)
+          by (destruct (@compat_lp _ _ HmemCompC' (b, Int.intval ofs) virtueLP ltac:(rewrite gsslockResUpdLock; reflexivity));
+              eapply canonical_lt; eauto).
+        pose proof (obs_eq_locks Htsim) as Hmem_obs_eq.
+        pose proof (perm_obs_strong (strong_obs_eq Hmem_obs_eq)) as Hperm_eq.
+        eapply permMapJoin_project with (f := fp i pfc) (pmap := newThreadPerm.2) (pmap' := virtueLP.2); eauto.
+        unfold isCanonical in Hcanonical.
+        intros b0 Hunmapped ofs0. subst.
+        simpl. erewrite projectMap_correct_2 by eauto.
+        erewrite computeMap_projection_2 by eauto.
+        right.
+        rewrite Hcanonical. split; reflexivity.
+        subst virtueF.
+        intros. simpl.
+        erewrite computeMap_projection_1 by eauto;
+          now reflexivity.
+        intros. subst.
+        erewrite projectMap_correct by eauto;
+          now reflexivity.
+        intros b1 b0 ofs0 Hrenaming;
+          specialize (Hperm_eq _ _ ofs0 Hrenaming); rewrite! restrPermMap_Cur in Hperm_eq;
+            auto.
       }
-      (* and finally build the final fine-grained state*)
-      remember (updLockSet tpf' (b2, Int.intval ofs) virtueLPF) as tpf'' eqn:Htpf'';
+
+      (*TODO: Return here and update the things below, change semantics to require that lockres are pointwise empty.*)
+
+      assert(lockRes tpf (b2, Int.intval ofs) = Some (empty_map, empty_map)).
+ 
+
+
+      (** and finally build the final fine-grained state*)
+      remember (updLockSet tpf' (b2, Int.intval ofs) virtueLPF)
+        as tpf'' eqn:Htpf'';
         symmetry in Htpf''.
       exists tpf'', mf', (fp i pfc), fp,
       (tr ++ [:: (external i (release (b2, Int.intval ofs)
-                                     (Some (virtueLPF, virtueF))))]).
+                                     (Some (virtueLPF.1, virtueF.1))))]).
       split.
-      (* proof that the fine grained machine can step*)
+      (** proof that the fine grained machine can step*)
       intros U.
+
+
+
+      
       assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf'' mf'
                                    (release (b2, Int.intval ofs)
-                                            (Some (virtueLPF, virtueF))))
+                                            (Some (virtueLPF.1, virtueF.1)))).
+      eapply step_release with (b:=b2); eauto.
         by (eapply step_release with (b:=b2); eauto).
       econstructor; simpl;
         by eauto.
