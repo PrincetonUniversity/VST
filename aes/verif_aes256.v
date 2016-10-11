@@ -203,8 +203,10 @@ Proof.
   + (* TODO floyd improve: this works, but it occurs often, can I do it shorter? *)
     split. auto. split; compute; intro; discriminate.
   + forward. 
-    (* QQQf how to go from "data_at sh (tarray tuchar 280)" to
+    (* QQQ how to go from "data_at sh (tarray tuchar 280)" to
                            "data_at sh t_struct_aesctx" *)
+    (* Instead of assuming memset for void*, assume it for ctx directly.
+       Or do we actually need the postcondition that all is initialized to 0? *)
 Abort.
 
 (*
@@ -321,11 +323,83 @@ Proof.
   + Intros. rewrite H. forward_call ((Vint addr), Tsh, 280).
     - subst Frame. instantiate (1 := []). (* Frame: what's unchanged by function call *)
       unfold fold_right. cancel.
-      (* TODO (again): how can we cast "t_struct_aesctx" into "(tarray tuchar 280)" ? *) admit.
+      (* QQQA TODO (again): how can we cast "t_struct_aesctx" into "(tarray tuchar 280)" ? *) admit.
     - split. auto. split; compute; intro; discriminate.
       (* TODO (again): Can we write it shorter? *)
     - forward. rewrite H. (* TODO same casting again *) admit.
 Abort.
+
+Lemma ff_exp_range: forall a b,
+  0 <= a < 256 ->
+  0 <= b < 256 ->
+  0 <= Int.unsigned (ff_exp (Int.repr a) (Int.repr b)) < 256.
+Proof.
+Admitted.
+
+(* In C:  #define XTIME(x) ( ( x << 1 ) ^ ( ( x & 0x80 ) ? 0x1B : 0x00 ) )
+          y = XTIME( x ) & 0xFF; 
+
+Watch out! The usage of XTIME is slightly different in all 3 usages!
+And luckily, all three usages are in gen_tables.
+*)
+Lemma xtime_impl: forall {ES : OracleKind} {CS: compspecs} Delta _x _y _t x,
+ @semax CS ES Delta
+  (PROP () LOCAL (
+    temp _x (Vint (Int.repr x))
+  ) SEP ())
+  (Ssequence
+     (Sifthenelse (Ebinop Oand (Etempvar _x tint) (Econst_int (Int.repr 128) tint) tint)
+        (Sset _t (Ecast (Econst_int (Int.repr 27) tint) tint))
+        (Sset _t (Ecast (Econst_int (Int.repr 0) tint) tint)))
+     (Sset _x
+        (Ebinop Oand
+           (Ebinop Oxor (Etempvar _x tint)
+              (Ebinop Oxor (Ebinop Oshl (Etempvar _x tint) (Econst_int (Int.repr 1) tint) tint)
+                 (Etempvar _t tint) tint) tint) (Econst_int (Int.repr 255) tint) tint)))
+  (normal_ret_assert
+     (PROP () LOCAL (temp _x (Vint (Int.repr x)); temp _y (Vint (xtime (Int.repr x)))) SEP ())).
+Proof.
+  intros.
+(* forward *)
+(* check_Delta. *)
+(* simplify_Delta. *)
+(* Note: The tactics don't work on an abstract Delta, it has to be "fully known" *)
+Abort.
+
+(* Calls forward_if with the current precondition to which the provided conditions are added *)
+(* QQQ TODO does this already exist? Add to library? *)
+Ltac forward_if_diff add := match add with
+| (PROPx ?P2 (LOCALx ?Q2 (SEPx ?R2))) => match goal with
+  | |- semax ?Delta (PROPx ?P1 (LOCALx ?Q1 (SEPx ?R1))) _ _ =>
+    let P3 := fresh "P3" in let Q3 := fresh "Q3" in let R3 := fresh "R3" in
+    pose (P3 := P1 ++ P2); pose (Q3 := Q1 ++ Q2); pose (R3 := R1 ++ R2);
+    simpl in P3, Q3, R3;
+    forward_if (PROPx P3 (LOCALx Q3 (SEPx R3)));
+    subst P3 Q3 R3
+  end
+end.
+
+(*
+Lemma xtime_step: forall (m: nat), 
+  Int.xor (exp3 m) (xtime (exp3 m)) = exp3 (S m).
+*)
+
+(* note: does not yet do &0xFF, so the result might be bigger than 256 *)
+Definition xtime' (b : int) : int := 
+  (Int.xor (Int.shl b Int.one)
+           (if Int.eq (Int.and b (Int.repr 128)) Int.zero
+            then Int.zero
+            else Int.repr 27)).
+
+(* 3^(i+1) = (3^i XOR XTIME(3^i)) & 0xFF *)
+Lemma exp3_step: forall (i : Z),
+  0 <= i < 255 ->
+  (ff_exp (Int.repr 3) (Int.repr (i + 1))) =
+  (Int.and (Int.xor (ff_exp (Int.repr 3) (Int.repr i))
+                    (xtime' (ff_exp (Int.repr 3) (Int.repr i))))
+           (Int.repr 255)).
+Proof.
+Admitted.
 
 Lemma body_gen_tables: semax_body Vprog Gprog f_aes_gen_tables gen_tables_spec.
 Proof.
@@ -355,21 +429,43 @@ Proof.
   *)
   forward_for_simple_bound 256 (EX i: Z,
     PROP ( 0 <= i < 256 )
-    LOCAL (temp _x (Vint (Int.repr 1)); 
+    LOCAL (temp _x (Vint (ff_exp (Int.repr 3) (Int.repr i))); 
         (* TODO documentation should say that I don't need to do this *)
         (* TODO floyd: tactic should tell me so *)
         (* temp _i (Vint (Int.repr i)); *)
            lvar _log (tarray tint 256) lvar1;
            lvar _pow (tarray tint 256) lvar0;
            gvar _tables tables)
-    SEP (data_at_ Tsh (tarray tint 256) lvar1; data_at_ Tsh (tarray tint 256) lvar0;
+    SEP (data_at_ Tsh (tarray tint 256) lvar1;
+         data_at_ Tsh (tarray tint 256) lvar0;
          tables_uninitialized tables)).
   { (* init *)
     forward. forward. Exists 0. entailer!. }
   { (* body *) freeze [0; 2] Fr.
     forward.
     - entailer!.
-    - admit.
+    - (* forward. "Error: No applicable tactic." 
+         TODO floyd: error message should say that I have to thaw *)
+      thaw Fr. forward.
+      + entailer!. apply ff_exp_range; omega.
+      + (* t'1 = ( x & 0x80 ) ? 0x1B : 0x00 ) *)
+        forward_if_diff (PROP () LOCAL (temp _t'1 (Vint (
+          if Int.eq (Int.and (ff_exp (Int.repr 3) (Int.repr i)) (Int.repr 128)) Int.zero
+          then Int.zero
+          else (Int.repr 27)
+        ))) SEP ()).
+        * (* then-branch of "_ ? _ : _" *)
+          forward. rewrite Int.eq_false by assumption. entailer!.
+        * (* else-branch of "_ ? _ : _" *)
+          forward. rewrite H1. rewrite Int.eq_true by assumption. entailer!. (* TODO floyd: entailer
+            should pick up the hypothesis to get rid of the if *)
+        * (* after  "_ ? _ : _" *)
+          (* x = (x ^ ((x << 1) ^ t'1)) & 0xFF *)
+          forward.
+          assert (0 <= i < 255) by admit.
+          entailer!.
+          { f_equal. apply exp3_step. assumption. }
+          { admit. (* TODO, loop invariant on the two arrays is TODO anyways *) }
   }
   { (* next part: round constants *)
     admit. }
