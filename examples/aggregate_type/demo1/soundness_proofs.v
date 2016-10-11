@@ -56,7 +56,8 @@ Proof.
   simpl.
   intros.
   f_equal.
-  + rewrite offset_offset_val.
+  + Locate offset_offset_val.
+SearchAbout offset_val. rewrite offset_offset_val.
     clear IHfs0.
     specialize (H i0 (or_introl eq_refl)).
     specialize (H1 i0 (or_introl eq_refl)).
@@ -170,6 +171,7 @@ Proof.
   induction fs as [| [i0 t0] fs0]; auto.
   apply sepcon_derives.
   + destruct (ident_eq i0 f); auto.
+    simpl.
     rewrite proj_upd_gfield_reptype_miss by congruence.
     auto.
   + apply IHfs0.

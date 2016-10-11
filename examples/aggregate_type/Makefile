@@ -2,13 +2,13 @@ CURRENT_DIR = $(shell pwd)
 VST_DIR = $(shell cd ../..; pwd)
 -include CONFIGURE
 
-COQC=coqc
-COQDEP=coqdep -slash
+COQC=$(COQBIN)coqc
+COQDEP=$(COQBIN)coqdep
 
 DIRS = demo1 demo2
-INCLUDE_COMPCERT = -R $(COMPCERT_DIR) -as compcert
-INCLUDE_VST = -R $(VST_DIR)/msl -as msl
-INCLUDE_DEMO = $(foreach d, $(DIRS), -R $(CURRENT_DIR)/$(d) -as AggregateType.$(d))
+INCLUDE_COMPCERT = -R $(COMPCERT_DIR) compcert
+INCLUDE_VST = -R $(VST_DIR)/msl msl
+INCLUDE_DEMO = $(foreach d, $(DIRS), -R $(CURRENT_DIR)/$(d) AggregateType.$(d))
 COQ_FLAG = $(INCLUDE_COMPCERT) $(INCLUDE_VST) $(INCLUDE_DEMO)
 DEP_COMPCERT = -R $(COMPCERT_DIR) -as compcert
 DEP_VST = -R $(VST_DIR)/msl -as msl

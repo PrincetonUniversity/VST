@@ -203,8 +203,8 @@ Proof.
           | (i, t) :: m0 => fun H => prod (f t _) (reptype_fix_aux_members m0 _)
           end) _ H
     end) (typeR_spec y)).
-  + apply Forall_inv in H0; exact H0.
-  + apply Forall_inv2 in H0; exact H0.
+  + apply Forall_inv in H; exact H.
+  + apply Forall_inv2 in H; exact H.
 Defined.
 
 Definition reptype : type -> Type := Fix TypeTree.wf_typeR (fun _ => Type) reptype_fix_aux.
@@ -295,8 +295,8 @@ Proof.
             end) _ H
       end) (typeR_spec y) X)
     (reptype_eq y)).
-  + apply Forall_inv in H0; exact H0.
-  + apply Forall_inv2 in H0; exact H0.
+  + apply Forall_inv in H; exact H.
+  + apply Forall_inv2 in H; exact H.
 Defined.
 
 Definition default_val: forall (t: type), reptype t := Fix TypeTree.wf_typeR reptype default_val_fix_aux.
@@ -570,8 +570,8 @@ Proof.
           | (i, t) :: m0 => fun H => prod (f t _) (reptype_fix_aux_members m0 _)
           end) _ H
     end) (typeR_spec y)).
-  + apply Forall_inv in H0; exact H0.
-  + apply Forall_inv2 in H0; exact H0.
+  + apply Forall_inv in H; exact H.
+  + apply Forall_inv2 in H; exact H.
 Defined.
 
 Definition reptype : type -> Type := Fix wf_typeR (fun _ => Type) reptype_fix_aux.
@@ -663,8 +663,8 @@ Proof.
             end) _ H
       end) (typeR_spec y) X)
     (reptype_eq y)).
-  + apply Forall_inv in H0; exact H0.
-  + apply Forall_inv2 in H0; exact H0.
+  + apply Forall_inv in H; exact H.
+  + apply Forall_inv2 in H; exact H.
 Defined.
 
 Definition default_val: forall (t: type), reptype t := Fix wf_typeR reptype default_val_fix_aux.
