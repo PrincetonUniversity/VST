@@ -64,6 +64,41 @@ Section permMapDefs.
     | Some Nonempty | None => True
     end.
 
+  Lemma perm_coh_empty_1:
+    forall p,
+      perm_coh p None.
+  Proof.
+    destruct p as [p|]; simpl; auto;
+      destruct p; auto.
+  Qed.
+
+  Lemma perm_coh_empty_2:
+    forall p,
+      perm_coh None p.
+  Proof.
+    destruct p as [p|]; simpl; auto;
+      destruct p; auto.
+  Qed.
+
+  Lemma perm_coh_lower:
+    forall p1 p2 p3 p4
+      (Hpu: perm_coh p1 p2)
+      (Hperm2: Mem.perm_order'' p2 p4)
+      (Hperm1: Mem.perm_order'' p1 p3),
+      perm_coh p3 p4.
+  Proof.
+    intros.
+    destruct p2 as [p|];
+      try (destruct p); simpl in Hperm2;
+        destruct p4 as [p|];
+        try (destruct p); inversion Hperm2; subst;
+          destruct p1 as [p|];
+          try (destruct p); simpl in Hpu, Hperm1; try (by exfalso);
+            destruct p3; try inversion Hperm1; subst; simpl; auto.
+    destruct p; auto.
+  Qed.
+  
+
   Definition permMapCoherence (pmap1 pmap2 : access_map) :=
     forall b ofs, perm_coh (pmap1 !! b ofs) (pmap2 !! b ofs).
   
