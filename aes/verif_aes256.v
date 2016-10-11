@@ -354,7 +354,7 @@ Proof.
      and check all usages of Sfor to make sure it doesn't break
   *)
   forward_for_simple_bound 256 (EX i: Z,
-    PROP ( )
+    PROP ( 0 <= i < 256 )
     LOCAL (temp _x (Vint (Int.repr 1)); 
         (* TODO documentation should say that I don't need to do this *)
         (* TODO floyd: tactic should tell me so *)
@@ -367,8 +367,9 @@ Proof.
   { (* init *)
     forward. forward. Exists 0. entailer!. }
   { (* body *) freeze [0; 2] Fr.
-    (* Time forward. *) (* TODO floyd: this takes ages, why? *) 
-    admit.
+    forward.
+    - entailer!.
+    - admit.
   }
   { (* next part: round constants *)
     admit. }
