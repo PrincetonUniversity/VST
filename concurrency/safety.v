@@ -386,42 +386,152 @@ Section Safety.
           Ssafe (@P_init st).
   Proof. move => EM FIN P; apply: finite_Ssafe_safe'=>//. apply: finite_P_init. Qed.
   
-  Definition possible_image st st' U:= valid st U /\ exists U', STEP st U st' U'.
+  Definition possible_image {X Y} (STEP:X-> Y-> X (*-> Y*) -> Prop) (valid: X -> Y -> Prop)  st st' U:= valid st U /\ (* exists U',  *) STEP st U st' (* U' *).
   Definition finite_on_x {X Y} (A:X->Y->Prop):= 
     exists n (f: nat -> X), forall x y, A x y -> exists i, (i < n) /\ f i = x.
+  (** This lemma is actually easy. It's unique, under prop_ext. **)
+  Require Import msl.Axioms.
+  Lemma finite_rel_generalize' {X Y} (V: X -> Y -> Prop) (R: X -> X -> Y -> Prop):
+    (forall x, finite_on_x (possible_image (fun x x' y => R x y x') V x)) ->
+    forall (P:X -> Prop), finite P ->
+                 finite (fun x' => exists x y, P x /\ V x y /\ R x x' y).
+  Proof.
+    move=> FINx P [] n [] Pf FINp.
+    unfold possible_image, finite_on_x in FINx.
+    pose (PN:= fun n x => exists i, Pf i = x /\ i < n /\ P x).  
+    cut (forall n, finite (fun x' => exists x y, (PN n) x /\ V x y /\ R x x' y)).
+    { move => /(_ n) [] N [] F HH.
+      exists N, F => x' [] x [] y [] Px [] Vxy Rxx.
+      cut (exists x y, PN n x /\ V x y /\ R x x' y).
+      - by move=> /HH.
+      - exists x, y; repeat split; [ |assumption| assumption].
+        move: (Px) => /FINp [] i [] ineq Pfi.
+        exists i; repeat split=> //; by apply/ltP.
+    }
+    { (*Prove the cut condition*)
+      induction n0.
+      - exists 1, (fun _ => Pf 0) => x' [] x [] y [] PNx [] Vxy Rxx'.
+        exists 0; move : PNx => [] i []Pfi [] /ltP HH.
+        contradict HH; clear; omega.
+      - move: IHn0 => [] N [] F HH.
+        pose (new_x:= Pf n0).
+        move: (FINx new_x)=> [] nn [] fn HHH. 
+        exists (N + nn).
+        exists (fun i => if (i < N) then F i else fn (i - N)) => x' [] x [] y [][] i [] Pfi []ineqi Px.
+        destruct (Nat.eq_dec i n0) as [e|ne].
+        + rewrite e in Pfi.
+          rewrite /new_x Pfi in HHH.
+          move => /HHH [] i0 [] ineqi0 fni0 .
+          exists (N + i0); split.
+          * apply/ltP; rewrite ltn_add2l; assumption.
+          * replace (N + i0 < N) with false.
+            replace (N + i0 - N) with i0.
+            assumption.
+            rewrite /addn /addn_rec /subn /subn_rec; 
+              omega.
+            symmetry.
+            cut (~ (N + i0 < N)).
+            apply: introF; apply: idP.
+            move: ineqi0=> /ltP ineqi0 /ltP. 
+            rewrite /addn /addn_rec => NN.
+            clear - NN ineqi0. omega.
+        + move=> [] Vxy Rxxy.
+          cut ((exists (x0 : X) (y : Y), PN n0 x0 /\ V x0 y /\ R x0 x' y)).
+          move=> /HH [] i0 [] ineqi0  Fi0.
+          exists i0; split.
+          * rewrite /addn /addn_rec ;omega.
+          * by move: ineqi0=> /ltP ->.
+            
+            {
+              exists x, y; repeat split=> //.
+              exists i; repeat split=>//.
+              apply/ltP. move: ineqi=> /ltP ineqi'; omega. }
+  }          
+  Qed.        
+  Lemma power_set_finite {X}:
+    (forall P : Prop, P \/ ~ P) ->
+    forall P: X-> Prop, finite P ->
+               finite (fun A => subset A P).
+  Proof.
+    move => EM P [] n; move: P.
+    induction n.
+    - move => P [] f FINp.
+      exists 1, (fun _ _ => False).
+      move=> P'. rewrite /subset => SUB.
+      exists 0; split; [omega|].
+      apply extensionality=> x'; apply prop_ext; split.
+      move=>HH;exfalso; assumption.
+      move=>/SUB /FINp []i [] HH _. omega. (* i < 0 -> False*)
+    - move => P [] f FIN.
+      cut ((exists f0 : nat -> X,
+           forall x : X,
+           (fun x0 : X => P x0 /\ f n <> x0) x ->
+           exists i : nat, (i < n)%coq_nat /\ f0 i = x)).
+      move=> /IHn [] n' [] f' FIN'.
+      exists (2 * n').
+      exists (fun i x => if odd i then  f' ((i - 1) /2) x \/ x = f n else  f' (i/ 2) x).
+      move=> P'  SUB.
+      cut (subset (fun x : X => P' x /\ f n <> x) (fun x : X => P x /\ f n <> x)).
+      move=> /FIN' [] i [] ineqi fi'.
+      destruct (EM (P' (f n))) as [yes|no].
+      + { exists (2 * i + 1); split;
+          [rewrite /addn /addn_rec /muln /muln_rec; omega|].
+          rewrite odd_add addbC odd_mul.
+          replace ((2 * i + 1 - 1) / 2) with i.
+          - simpl; apply extensionality=> x'; apply prop_ext; rewrite fi'; split.
+            + move=> [[] | ->] //.
+            + destruct (EM (f n = x')).
+              * by move=> Px'; right.
+              * by move=> Px'; left; split.
+                rewrite /addn /addn_rec /subn /subn_rec /muln /muln_rec.
+                rewrite Nat.add_sub Nat.mul_comm Nat.div_mul; [reflexivity | omega].
+        }
+            
+      + { exists (2 * i); split.
+        rewrite /addn /addn_rec /muln /muln_rec; omega.
+        rewrite odd_mul.
+        rewrite /muln /muln_rec Nat.mul_comm Nat.div_mul /= ; [|omega].
+        apply extensionality=> x'; apply prop_ext; rewrite fi'; split.
+          * by move=> [].
+          * move => Px'; split => // EQ.
+              by apply:no; rewrite EQ.
+              
+        }
+      (*CUT: subset (fun x : X => P' x /\ f n <> x) (fun x : X => P x /\ f n <> x)*)
+        { move=> x [] Px' fnx'; split=> //.
+            by apply: SUB. }
+        { exists f => x [] /FIN [] i [] ineqi fi fnx.
+        exists i; split; [|assumption].
+        destruct (Nat.eq_dec i n) as [e|ne].
+        - subst i; contradict fnx; assumption.
+        - omega.
+        }
+  Qed.
+
+  Lemma subset_finite {X}: forall (P P': X-> Prop), finite P -> subset P' P -> finite P'.
+  Proof. move=> P P' [] n [] f HH SUB. by exists n, f => x / SUB / HH. Qed.
+  
   Lemma finite_rel_generalize {X Y} (V: X -> Y -> Prop) (R: X -> X -> Y -> Prop):
     forall (propositional_extentionality: True),
-      (forall x, finite_on_x (possible_image x)) ->
+      (forall P : Prop, P \/ ~ P) ->
+      (forall x, finite_on_x (possible_image (fun x x' y => R x y x') V x)) ->
       forall (P:X -> Prop), finite P ->
                    finite (SStep R V P).
   Proof.
-    move=> _ FINx P [] n [] Pf FINp.
-    rewrite /finite.
-    unfold possible_image in FINx.
-    (*/FINp [] n [] FALSE _. contradict FALSE; clear. omega.
-    induction n.
-    - rewrite /finite.
-      exists 1, (fun _ => P) => P' sstp.
-      exists 0.
-      split; [omega|].
-      inversion sstp.
-      apply: Axioms.extensionality => x.
-      apply: Axioms.prop_ext; split.
-      + move=> /FINp [] n [] FALSE _. contradict FALSE; clear. omega.
-      + move=> /H0 [] x0 [] y0 [] _ [] /FINp [] n [] FALSE _. contradict FALSE; clear. omega.
-    - 
-      apply AA.
-      Axiom prop_ext: ClassicalFacts.prop_extensionality.
-      Implicit Arguments prop_ext.
-      
-    pose (HALF:= fun x => @FINp x).
-    pose (F:= fun x => match FINp x with ex_intro i proofi => (i, proofi) end ). *)
-  Admitted.
+    move => _ EM /finite_rel_generalize' H P /H HH.
+    apply: subset_finite.
+    - apply: power_set_finite; [assumption|apply: HH].
+    - clear=> Pp HH x' Ppx.
+      inversion HH.
+      move: Ppx=> / H0 [] x [] y [] Rxxy [] Px Vx.
+      exists x, y; repeat split=> //.
+  Qed.
 
   Lemma ksafe_safe':
     (forall P: Prop, P \/ ~ P) ->
     forall (propositional_extentionality: True),
-    forall (branches_finitely_on_the_state: forall x : ST, finite_on_x (possible_image x)),
+    forall (branches_finitely_on_the_state: forall x : ST,
+          @finite_on_x _ _ (possible_image (fun x y x' => exists y', STEP x y x' y') valid x)),
     forall st,
       (forall n U, valid st U -> ksafe st U n) ->
       (forall U, valid st U -> safe st U).
@@ -435,11 +545,13 @@ Section Safety.
         move => st0 U0 ImIn VAL0.
         inversion ImIn as [H0].
         subst. apply KS=> //.
-  Qed. 
+  Qed.
+  
   Lemma ksafe_safe:
     (forall P: Prop, P \/ ~ P) ->
     forall (propositional_extentionality: True),
-    forall (branches_finitely_on_the_state: forall x : ST, finite_on_x (possible_image x)),
+    forall (branches_finitely_on_the_state: forall x : ST,
+          @finite_on_x _ _ (possible_image (fun x y x' => exists y', STEP x y x' y') valid x)),
     forall st,
       (forall U : SCH, valid st U) ->
       (forall n U, ksafe st U n) ->
@@ -451,7 +563,6 @@ Section Safety.
       by move => st' FINst; apply: (finite_rel_generalize _ _ PROP_EXT).
         by move=> n; apply: ksafe_SsafeN.
   Qed.
-
    Lemma safe_ksafe':
     forall st,
       (forall U, valid st U -> safe st U) ->
