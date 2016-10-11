@@ -437,14 +437,16 @@ Proof.
            lvar _pow (tarray tint 256) lvar0;
            gvar _tables tables)
     SEP (data_at_ Tsh (tarray tint 256) lvar1;
-         data_at_ Tsh (tarray tint 256) lvar0;
+         EX pow : list val,
+           !!(forall j, 0 <= j < i -> Znth j pow Vundef = Vint (ff_exp (Int.repr 3) (Int.repr j)))
+           && data_at Tsh (tarray tint 256) pow lvar0;
          tables_uninitialized tables)).
   { (* init *)
-    forward. forward. Exists 0. entailer!. }
-  { (* body *) freeze [0; 2] Fr.
-    forward.
-    - entailer!.
-    - (* forward. "Error: No applicable tactic." 
+    forward. forward. Exists 0. entailer!. Exists (repeat Vundef 256). entailer!. }
+  { (* body *) freeze [0; 2] Fr. Intro pow. Intros.
+      (* TODO floyd: "forward" should tell me to use Intros instead of just failing *)
+      forward.
+      (* forward. "Error: No applicable tactic." 
          TODO floyd: error message should say that I have to thaw *)
       thaw Fr. forward.
       + entailer!. apply ff_exp_range; omega.
@@ -457,7 +459,7 @@ Proof.
         * (* then-branch of "_ ? _ : _" *)
           forward. rewrite Int.eq_false by assumption. entailer!.
         * (* else-branch of "_ ? _ : _" *)
-          forward. rewrite H1. rewrite Int.eq_true by assumption. entailer!. (* TODO floyd: entailer
+          forward. rewrite H2. rewrite Int.eq_true by assumption. entailer!. (* TODO floyd: entailer
             should pick up the hypothesis to get rid of the if *)
         * (* after  "_ ? _ : _" *)
           (* x = (x ^ ((x << 1) ^ t'1)) & 0xFF *)
@@ -466,6 +468,21 @@ Proof.
           entailer!.
           { f_equal. apply exp3_step. assumption. }
           { admit. (* TODO, loop invariant on the two arrays is TODO anyways *) }
+
+(*
+forall j, 0 <= j < i -> nth j pow Vundef = Vint (ff_exp (Int.repr 3) (Int.repr j))
+forall j, 0 <= j < i -> nth (Z.to_nat (Int.unsigned (ff_exp (Int.repr 3) (Int.repr j)))) log Vundef = Vint (Int.repr j))
+
+
+    for( i = 0, x = 1; i < 256; i++ )
+    {
+        pow[i] = x;
+        log[x] = i;
+        x = ( x ^ XTIME( x ) ) & 0xFF;
+    }
+*)
+
+
   }
   { (* next part: round constants *)
     admit. }
