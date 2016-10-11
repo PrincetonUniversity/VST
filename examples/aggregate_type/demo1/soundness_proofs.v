@@ -56,8 +56,7 @@ Proof.
   simpl.
   intros.
   f_equal.
-  + Locate offset_offset_val.
-SearchAbout offset_val. rewrite offset_offset_val.
+  + rewrite offset_offset_val.
     clear IHfs0.
     specialize (H i0 (or_introl eq_refl)).
     specialize (H1 i0 (or_introl eq_refl)).

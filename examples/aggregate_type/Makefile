@@ -2,6 +2,7 @@ CURRENT_DIR = $(shell pwd)
 VST_DIR = $(shell cd ../..; pwd)
 -include CONFIGURE
 
+COMPCERT_DIR = $(VST_DIR)compcert/
 COQC=$(COQBIN)coqc
 COQDEP=$(COQBIN)coqdep
 
