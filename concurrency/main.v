@@ -228,8 +228,10 @@ Module MainSafety .
       - move => ds.
         Lemma finite_branching: forall ds prog,
           safety.finite_on_x
-            (safety.possible_image DryMachine.new_state
-       ErasureProof.DryMachine.Sch (DryMachine.new_step (globalenv prog))
+            (@safety.possible_image
+               DryMachine.new_state
+               ErasureProof.DryMachine.Sch
+               (fun x y x' => exists y', (DryMachine.new_step (globalenv prog) x y x' y'))
        DryMachine.new_valid ds).
         Proof.
           clear.
