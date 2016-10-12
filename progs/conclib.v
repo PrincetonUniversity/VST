@@ -184,19 +184,6 @@ Proof.
   admit.
 Admitted.
 
-Lemma data_at_precise : forall {cs} b o,
-  precise (@data_at_ cs Ews (tarray tint 1) (Vptr b o)).
-Proof.
-  intros; unfold data_at_, field_at_, field_at, at_offset; simpl.
-  apply precise_andp2.
-  rewrite data_at_rec_eq; unfold withspacer, at_offset; simpl.
-  unfold array_pred, aggregate_pred.array_pred; simpl.
-  unfold Zlength, Znth; simpl.
-  apply precise_andp2.
-  rewrite data_at_rec_eq; simpl.
-  apply precise_sepcon; [apply mapsto_undef_precise | apply precise_emp]; auto.
-Qed.
-
 Lemma cond_var_precise : forall {cs} sh b o, readable_share sh ->
   precise (@cond_var cs sh (Vptr b o)).
 Proof.
@@ -404,3 +391,241 @@ Print default_val.
 Qed.
 
 *)
+
+Definition rotate {A} (l : list A) n m := skipn (m - n) l ++ firstn (m - n) l.
+
+Lemma data_at_int_array_inj : forall {cs} sh z a1 a2 p r1 r2 r
+  (Hsh : readable_share sh)
+  (Hp1 : predicates_hered.app_pred (@data_at cs sh (tarray tint z) a1 p) r1)
+  (Hp2 : predicates_hered.app_pred (@data_at cs sh (tarray tint z) a2 p) r2)
+  (Hr1 : sepalg.join_sub r1 r) (Hr2 : sepalg.join_sub r2 r)
+  (Hdef1 : Forall (fun v => v <> Vundef) a1) (Hdef2 : Forall (fun v => v <> Vundef) a2),
+  r1 = r2 /\ a1 = a2.
+Proof.
+  intros until z.
+  remember (Z.to_nat z) as l; revert dependent z.
+  induction l; intros.
+  - destruct Hp1 as (Hf & (Hz1 & Hp1)), Hp2 as (_ & (Hz2 & Hp2)); simpl in *.
+    unfold unfold_reptype in *; simpl in *.
+    rewrite Z.sub_0_r in *.
+    destruct a1.
+    rewrite Zlength_nil in Hz1; rewrite <- Hz1 in Hz2.
+    destruct a2.
+    split; auto.
+    assert (z = 0) by auto; subst; simpl in *.
+    apply sepalg.same_identity with (a := r); auto.
+    { destruct Hr1 as (? & H); specialize (Hp1 _ _ H); subst; auto. }
+    { destruct Hr2 as (? & H); specialize (Hp2 _ _ H); subst; auto. }
+    { rewrite Zlength_cons in Hz2; rewrite Zlength_correct in Hz2.
+      assert (Z.succ (Z.of_nat (length a2)) = 0) by auto; omega. }
+    { rewrite Zlength_cons in Hz1; rewrite Zlength_correct in Hz1.
+      assert (Z.to_nat (Z.succ (Z.of_nat (length a1))) = Z.to_nat z)
+        by (rewrite Hz1; auto).
+      rewrite <- Heql, Z2Nat.inj_succ in *; omega. }
+  - assert (z = Zlength a1) as Hlen1.
+    { destruct Hp1 as (? & ? & ?).
+      rewrite Z.sub_0_r in *; auto. }
+    assert (z = Zlength a2) as Hlen2.
+    { destruct Hp2 as (? & ? & ?).
+      rewrite Z.sub_0_r in *; auto. }
+    destruct a1 as [|x1 l1].
+    { rewrite Zlength_nil in Hlen1; rewrite Hlen1 in Heql; discriminate. }
+    destruct a2 as [|x2 l2].
+    { rewrite Zlength_nil in Hlen2; rewrite Hlen2 in Heql; discriminate. }
+    unfold tarray in *.
+    rewrite Zlength_cons in *.
+    assert (0 <= 1 <= z).
+    { split; [omega|].
+      destruct (Z_le_dec z 0); [|omega].
+      destruct (eq_dec z 0); [subst; rewrite Zlength_correct in *; omega|].
+      rewrite Z2Nat_neg in Heql; omega. }
+    rewrite split2_data_at_Tarray with (t := tint)(n1 := 1)(v' := x1 :: l1)
+      (v1 := [x1])(v2 := l1) in Hp1; auto.
+    rewrite split2_data_at_Tarray with (t := tint)(n1 := 1)(v' := x2 :: l2)
+      (v1 := [x2])(v2 := l2) in Hp2; auto.
+    destruct Hp1 as (r1a & ? & ? & Hh1 & Ht1), Hp2 as (r2a & ? & ? & Hh2 & Ht2).
+    inv Hdef1; inv Hdef2.
+    unfold Z.succ in *; rewrite Z.add_simpl_r in *.
+    exploit (IHl (Zlength l1)); try assumption.
+    { rewrite Z2Nat.inj_add in *; simpl in *; omega. }
+    { apply Ht1. }
+    { apply Ht2. }
+    { eapply sepalg.join_sub_trans; [eexists; eauto | eauto]. }
+    { eapply sepalg.join_sub_trans; [eexists; eauto | eauto]. }
+    { auto. }
+    { auto. }
+    intros (? & ?); subst.
+    unfold data_at, field_at in Hh1, Hh2.
+    rewrite data_at_rec_eq in Hh1, Hh2; simpl in Hh1, Hh2.
+    unfold at_offset, array_pred, aggregate_pred.array_pred in Hh1, Hh2.
+    simpl in Hh1, Hh2.
+    destruct Hh1 as (? & ? & Hh1), Hh2 as (? & ? & Hh2).
+    rewrite sepcon_emp, by_value_data_at_rec_nonvolatile in Hh1, Hh2; auto.
+    unfold mapsto in *; simpl in *.
+    destruct p; try contradiction; simpl in *.
+    destruct (readable_share_dec sh); [|contradiction].
+    destruct Hh1 as [(? & Hmaps1) | (? & ?)];
+      [|unfold Znth in *; simpl in *; contradiction].
+    destruct Hh2 as [(? & Hmaps2) | (? & ?)];
+      [|unfold Znth in *; simpl in *; contradiction].
+    assert (r1a = r2a).
+    { eapply ex_address_mapsto_precise.
+      { exists x1; eauto. }
+      { exists x2; eauto. }
+      { eapply sepalg.join_sub_trans; [eexists; eauto | eauto]. }
+      { eapply sepalg.join_sub_trans; [eexists; eauto | eauto]. } }
+    subst; split; [eapply sepalg.join_eq; auto|].
+    f_equal.
+    eapply res_predicates.address_mapsto_value_cohere'; eauto.
+    { rewrite sublist_same; auto.
+      rewrite Zlength_cons; auto. }
+    { rewrite sublist_1_cons, sublist_same; auto.
+      rewrite Hlen2; unfold Z.succ; apply Z.add_simpl_r. }
+    { rewrite sublist_same; auto.
+      rewrite Zlength_cons; auto. }
+    { rewrite sublist_1_cons, sublist_same; auto.
+      rewrite Hlen1; unfold Z.succ; apply Z.add_simpl_r. }
+Qed.
+
+Lemma data_at_ptr_array_inj : forall {cs} sh t z a1 a2 p r1 r2 r
+  (Hsh : readable_share sh)
+  (Hp1 : predicates_hered.app_pred (@data_at cs sh (tarray (tptr t) z) a1 p) r1)
+  (Hp2 : predicates_hered.app_pred (@data_at cs sh (tarray (tptr t) z) a2 p) r2)
+  (Hr1 : sepalg.join_sub r1 r) (Hr2 : sepalg.join_sub r2 r)
+  (Hdef1 : Forall (fun v => v <> Vundef) a1) (Hdef2 : Forall (fun v => v <> Vundef) a2),
+  r1 = r2 /\ a1 = a2.
+Proof.
+  intros until z.
+  remember (Z.to_nat z) as l; revert dependent z.
+  induction l; intros.
+  - destruct Hp1 as (Hf & (Hz1 & Hp1)), Hp2 as (_ & (Hz2 & Hp2)); simpl in *.
+    unfold unfold_reptype in *; simpl in *.
+    rewrite Z.sub_0_r in *.
+    destruct a1.
+    rewrite Zlength_nil in Hz1; rewrite <- Hz1 in Hz2.
+    destruct a2.
+    split; auto.
+    assert (z = 0) by auto; subst; simpl in *.
+    apply sepalg.same_identity with (a := r); auto.
+    { destruct Hr1 as (? & H); specialize (Hp1 _ _ H); subst; auto. }
+    { destruct Hr2 as (? & H); specialize (Hp2 _ _ H); subst; auto. }
+    { rewrite Zlength_cons in Hz2; rewrite Zlength_correct in Hz2.
+      assert (Z.succ (Z.of_nat (length a2)) = 0) by auto; omega. }
+    { rewrite Zlength_cons in Hz1; rewrite Zlength_correct in Hz1.
+      assert (Z.to_nat (Z.succ (Z.of_nat (length a1))) = Z.to_nat z)
+        by (rewrite Hz1; auto).
+      rewrite <- Heql, Z2Nat.inj_succ in *; omega. }
+  - assert (z = Zlength a1) as Hlen1.
+    { destruct Hp1 as (? & ? & ?).
+      rewrite Z.sub_0_r in *; auto. }
+    assert (z = Zlength a2) as Hlen2.
+    { destruct Hp2 as (? & ? & ?).
+      rewrite Z.sub_0_r in *; auto. }
+    destruct a1 as [|x1 l1].
+    { rewrite Zlength_nil in Hlen1; rewrite Hlen1 in Heql; discriminate. }
+    destruct a2 as [|x2 l2].
+    { rewrite Zlength_nil in Hlen2; rewrite Hlen2 in Heql; discriminate. }
+    unfold tarray in *.
+    rewrite Zlength_cons in *.
+    assert (0 <= 1 <= z).
+    { split; [omega|].
+      destruct (Z_le_dec z 0); [|omega].
+      destruct (eq_dec z 0); [subst; rewrite Zlength_correct in *; omega|].
+      rewrite Z2Nat_neg in Heql; omega. }
+    rewrite split2_data_at_Tarray with (t0 := tptr t)(n1 := 1)(v' := x1 :: l1)
+      (v1 := [x1])(v2 := l1) in Hp1; auto.
+    rewrite split2_data_at_Tarray with (t0 := tptr t)(n1 := 1)(v' := x2 :: l2)
+      (v1 := [x2])(v2 := l2) in Hp2; auto.
+    destruct Hp1 as (r1a & ? & ? & Hh1 & Ht1), Hp2 as (r2a & ? & ? & Hh2 & Ht2).
+    inv Hdef1; inv Hdef2.
+    unfold Z.succ in *; rewrite Z.add_simpl_r in *.
+    exploit (IHl (Zlength l1)); try assumption.
+    { rewrite Z2Nat.inj_add in *; simpl in *; omega. }
+    { apply Ht1. }
+    { apply Ht2. }
+    { eapply sepalg.join_sub_trans; [eexists; eauto | eauto]. }
+    { eapply sepalg.join_sub_trans; [eexists; eauto | eauto]. }
+    { auto. }
+    { auto. }
+    intros (? & ?); subst.
+    unfold data_at, field_at in Hh1, Hh2.
+    rewrite data_at_rec_eq in Hh1, Hh2; simpl in Hh1, Hh2.
+    unfold at_offset, array_pred, aggregate_pred.array_pred in Hh1, Hh2.
+    simpl in Hh1, Hh2.
+    destruct Hh1 as (? & ? & Hh1), Hh2 as (? & ? & Hh2).
+    rewrite sepcon_emp, by_value_data_at_rec_nonvolatile in Hh1, Hh2; auto.
+    unfold mapsto in *; simpl in *.
+    destruct p; try contradiction; simpl in *.
+    destruct (readable_share_dec sh); [|contradiction].
+    destruct Hh1 as [(? & Hmaps1) | (? & ?)];
+      [|unfold Znth in *; simpl in *; contradiction].
+    destruct Hh2 as [(? & Hmaps2) | (? & ?)];
+      [|unfold Znth in *; simpl in *; contradiction].
+    assert (r1a = r2a).
+    { eapply ex_address_mapsto_precise.
+      { exists x1; eauto. }
+      { exists x2; eauto. }
+      { eapply sepalg.join_sub_trans; [eexists; eauto | eauto]. }
+      { eapply sepalg.join_sub_trans; [eexists; eauto | eauto]. } }
+    subst; split; [eapply sepalg.join_eq; auto|].
+    f_equal.
+    eapply res_predicates.address_mapsto_value_cohere'; eauto.
+    { rewrite sublist_same; auto.
+      rewrite Zlength_cons; auto. }
+    { rewrite sublist_1_cons, sublist_same; auto.
+      rewrite Hlen2; unfold Z.succ; apply Z.add_simpl_r. }
+    { rewrite sublist_same; auto.
+      rewrite Zlength_cons; auto. }
+    { rewrite sublist_1_cons, sublist_same; auto.
+      rewrite Hlen1; unfold Z.succ; apply Z.add_simpl_r. }
+Qed.
+
+Lemma Forall_rotate : forall {A} P (l : list A) n m, Forall P l ->
+  Forall P (rotate l m n).
+Proof.
+  intros; unfold rotate.
+  rewrite Forall_app; split; [apply Forall_skipn | apply Forall_firstn]; auto.
+Qed.
+
+Lemma Forall_repeat : forall {A} (P : A -> Prop) x n, P x -> Forall P (repeat x n).
+Proof.
+  induction n; simpl; auto.
+Qed.
+
+Lemma Forall_complete : forall P l m, Forall P l -> P (Vint (Int.repr 0)) ->
+  Forall P (complete m l).
+Proof.
+  intros; unfold complete.
+  rewrite Forall_app; split; [|apply Forall_repeat]; auto.
+Qed.
+
+Lemma app_eq_inv : forall {A} (l1 l2 l3 l4 : list A)
+  (Heq : l1 ++ l2 = l3 ++ l4) (Hlen : length l1 = length l3), l1 = l3 /\ l2 = l4.
+Proof.
+  induction l1; simpl; intros; destruct l3; try discriminate; auto.
+  inv Heq; inv Hlen.
+  exploit IHl1; eauto; intros (? & ?); subst; auto.
+Qed.
+
+Lemma rotate_inj : forall {A} (l1 l2 : list A) n m, rotate l1 n m = rotate l2 n m ->
+  length l1 = length l2 -> l1 = l2.
+Proof.
+  unfold rotate; intros.
+  destruct (app_eq_inv _ _ _ _ H) as (Hskip & Hfirst).
+  { repeat rewrite skipn_length; omega. }
+  rewrite <- (firstn_skipn (m - n) l1), <- (firstn_skipn (m - n) l2), Hfirst, Hskip;
+    auto.
+Qed.
+
+Lemma complete_inj : forall l1 l2 m, complete m l1 = complete m l2 ->
+  length l1 = length l2 -> l1 = l2.
+Proof.
+  unfold complete; intros.
+  destruct (app_eq_inv _ _ _ _ H); auto.
+Qed.
+
+Lemma length_complete : forall l m, (length l <= m)%nat -> length (complete m l) = m.
+Proof.
+  intros; unfold complete.
+  rewrite app_length, repeat_length; omega.
+Qed.

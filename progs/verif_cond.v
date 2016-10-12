@@ -50,13 +50,13 @@ Definition Gprog : funspecs := augment_funspecs prog [acquire_spec; release_spec
   freelock_spec; freelock2_spec; spawn_spec; makecond_spec; freecond_spec; wait_spec; signal_spec;
   thread_func_spec; main_spec].
 
-Lemma inv_precise : forall b o,
-  precise (EX x : Z, data_at Ews (tarray tint 1) [Vint (Int.repr x)] (Vptr b o)).
+Lemma inv_precise : forall p,
+  precise (EX x : Z, data_at Ews (tarray tint 1) [Vint (Int.repr x)] p).
 Proof.
-  intros; apply derives_precise with (Q := data_at_ Ews (tarray tint 1) (Vptr b o));
-    [|apply data_at_precise].
-  intros ? (? & ?).
-  apply (data_at_data_at_ _ _ _ _ _ H).
+  intros ???? (? & ?) (? & ?) ??.
+  eapply data_at_int_array_inj; try eassumption; auto.
+  { repeat constructor; auto; discriminate. }
+  { repeat constructor; auto; discriminate. }
 Qed.
 
 Lemma inv_positive : forall ctr,
@@ -100,6 +100,15 @@ Proof.
   forward.
 Qed.
 
+Lemma lock_struct : forall p, data_at_ Ews (Tstruct _lock_t noattr) p |-- data_at_ Ews tlock p.
+Proof.
+  intros.
+  unfold data_at_, field_at_, field_at; simpl; entailer.
+  unfold default_val; simpl.
+  rewrite data_at_rec_eq; simpl.
+  unfold struct_pred, aggregate_pred.struct_pred, at_offset, withspacer; simpl; entailer.
+Qed.
+
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
@@ -138,13 +147,10 @@ Proof.
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
   forward_call (gvar0, Ews, lock_pred gvar3).
   { destruct gvar0; try contradiction; simpl; entailer. }
-  { subst Frame; instantiate (1 := [cond_var Ews gvar2;
-      field_at Ews (tarray tint 1) [] [Vint (Int.repr 0)] gvar3;
-      data_at_ Ews (Tstruct 2%positive noattr) gvar1]); admit. }
+  { rewrite (sepcon_comm _ (fold_right _ _ _)); apply sepcon_derives; [cancel | apply lock_struct]. }
   forward_call (gvar1, Ews, tlock_pred sh1 gvar1 gvar0 gvar2 gvar3).
   { destruct gvar1; try contradiction; simpl; entailer. }
-  { subst Frame; instantiate (1 := [lock_inv Ews gvar0 (Interp (lock_pred gvar3)); cond_var Ews gvar2;
-      field_at Ews (tarray tint 1) [] [Vint (Int.repr 0)] gvar3]); admit. }
+  { rewrite (sepcon_comm _ (fold_right _ _ _)); apply sepcon_derives; [cancel | apply lock_struct]. }
   get_global_function'' _thread_func.
   normalize.
   apply extract_exists_pre; intros f_.
@@ -230,7 +236,7 @@ Proof.
     { split; [auto | apply inv_positive]. }
     forward_call (gvar2, Ews).
     forward.
-Admitted.
+Qed.
 
 Definition extlink := ext_link_prog prog.
 
