@@ -797,11 +797,24 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
       simpl in *; auto.
   Qed.
   Lemma step_valid: forall {ge st m st' m'}, MachStep ge st m st' m'  -> valid st -> valid st'.
+  Proof.
+    intros.
+    inversion H; subst.
+    unfold valid in *.
+    rewrite <- H6.
+    
+    
+    
+    inversion Htstep; subst.
+    rewrite <- Hms'.
+    unfold valid in H0.
+    inversion Htstep; subst.
+    
+
+    
   Admitted.
-  Lemma step_sch_valid: forall {ge U tr tp m U' tr' tp' m'}, MachStep ge (U, tr, tp) m (U', tr', tp') m' -> U<>U' -> forall U'', valid (U'', tr', tp').
+  Lemma step_sch_valid: forall {ge U tr tp m tr' tp' m'}, MachStep ge (U, tr, tp) m (schedSkip U, tr', tp') m' -> forall U'', valid (U'', tr', tp').
   Admitted.
-  Axiom skip_not_eq: forall U, U <> schedSkip U.
-  (*Dang this is not exactly true... what about the empty sch??? *)
   Lemma safety_equivalence':
     forall ge st_ m,
       (forall U n, new_valid (nil, st_, m) U -> ksafe_new_step ge (U, nil, st_) m n) ->
@@ -839,8 +852,9 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
               simpl in HH; rewrite -HH in H1.
               by apply: H1. 
             - rewrite /new_valid /mk_ostate=> /=. simpl in H.
+              (*destruct (sch_dec U'' U).
+              subst. *)
               apply (step_sch_valid H).
-                by apply: skip_not_eq.
           }
   Qed.
         

@@ -23,7 +23,7 @@ Module Type Scheduler.
   Parameter schedSkip: schedule -> schedule.
   Parameter buildSched: list tid -> schedule.
   Parameter sch_dec: forall (sch sch': schedule), {sch = sch'} + {sch <> sch'}.
-  (* Parameter skip_not_eq: forall U, U <> schedSkip U. *)
+  Parameter end_of_sch: forall U, U = schedSkip U <-> schedPeek U = None. 
 End Scheduler.
 
 Module ListScheduler (TID:ThreadID) <: Scheduler with Module TID:= TID.
@@ -47,7 +47,14 @@ Module ListScheduler (TID:ThreadID) <: Scheduler with Module TID:= TID.
         * subst; right. intros HH; apply n. inversion HH; auto.
         * right. intros HH; apply n. inversion HH; auto.
   Qed.
-  (*Lemma skip_not_eq: forall U, U <> schedSkip U.
-  Proof. intro sch. unfold schedSkip. *)
-          
+  Lemma end_of_sch: forall U, U = schedSkip U <-> schedPeek U = None.
+  Proof.
+    unfold schedPeek, schedSkip.
+    split; simpl; intros HH; destruct U; inversion HH; try reflexivity.
+    simpl in HH.
+    contradict HH.
+    generalize t; clear; induction U.
+    - intros t HH. apply (@List.nil_cons _ t nil). symmetry; assumption.
+    - intros t HH. inversion HH. apply (IHU a); assumption.
+  Qed.    
 End ListScheduler.
