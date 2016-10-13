@@ -393,13 +393,50 @@ Definition xtime' (b : int) : int :=
 
 (* 3^(i+1) = (3^i XOR XTIME(3^i)) & 0xFF *)
 Lemma exp3_step: forall (i : Z),
-  0 <= i < 255 ->
+  0 <= i < 256 ->
   (ff_exp (Int.repr 3) (Int.repr (i + 1))) =
   (Int.and (Int.xor (ff_exp (Int.repr 3) (Int.repr i))
                     (xtime' (ff_exp (Int.repr 3) (Int.repr i))))
            (Int.repr 255)).
 Proof.
 Admitted.
+
+Lemma pow_table_invariant
+(i : Z)
+(Hi : 0 <= i < 256)
+(pow : list val)
+(Hp : forall j : Z,
+     0 <= j < i ->
+     Znth j pow Vundef = Vint (ff_exp (Int.repr 3) (Int.repr j)))
+:
+(forall j : Z,
+     0 <= j < i + 1 ->
+     Znth j (upd_Znth i pow (Vint (ff_exp (Int.repr 3) (Int.repr i)))) Vundef
+     = Vint (ff_exp (Int.repr 3) (Int.repr j))).
+Proof.
+  intros. assert (0 <= j < i \/ j = i) as C by omega. destruct C as [C | C].
+
+Admitted.
+
+Lemma log_table_invariant
+(i : Z)
+(Hi : 0 <= i < 256)
+(log : list val)
+(Hl : forall j : Z,
+     0 <= j < i ->
+     Znth (Int.unsigned (ff_exp (Int.repr 3) (Int.repr j))) log Vundef = Vint (Int.repr j))
+:
+(forall j : Z,
+     0 <= j < i + 1 ->
+     Znth (Int.unsigned (ff_exp (Int.repr 3) (Int.repr j)))
+          (upd_Znth (Int.unsigned (ff_exp (Int.repr 3) (Int.repr i))) log (Vint (Int.repr i))) Vundef
+     = Vint (Int.repr j)).
+Admitted.
+
+(* TODO floyd put into library (note: not the same as Int.eq_true) *)
+Lemma int_eq_same: forall (x y : int),
+  x = y -> Int.eq x y = true.
+Proof. intros. subst. apply Int.eq_true. Qed.
 
 Lemma body_gen_tables: semax_body Vprog Gprog f_aes_gen_tables gen_tables_spec.
 Proof.
@@ -428,7 +465,8 @@ Proof.
      and check all usages of Sfor to make sure it doesn't break
   *)
   forward_for_simple_bound 256 (EX i: Z,
-    PROP ( 0 <= i < 256 )
+    PROP ( 0 <= i ) (* TODO floyd: why do we only get "Int.min_signed <= i < 256", instead of lo=0 ?
+                       Probably because there are 2 initialisations in the for-loop... *)
     LOCAL (temp _x (Vint (ff_exp (Int.repr 3) (Int.repr i))); 
         (* TODO documentation should say that I don't need to do this *)
         (* TODO floyd: tactic should tell me so *)
@@ -436,19 +474,26 @@ Proof.
            lvar _log (tarray tint 256) lvar1;
            lvar _pow (tarray tint 256) lvar0;
            gvar _tables tables)
-    SEP (data_at_ Tsh (tarray tint 256) lvar1;
+    SEP (EX log : list val,
+           !!(Zlength log = 256) &&
+           !!(forall j, 0 <= j < i -> Znth (Int.unsigned (ff_exp (Int.repr 3) (Int.repr j))) log Vundef = Vint (Int.repr j))
+           && data_at Tsh (tarray tint 256) log lvar1;
          EX pow : list val,
+           !!(Zlength pow = 256) &&
            !!(forall j, 0 <= j < i -> Znth j pow Vundef = Vint (ff_exp (Int.repr 3) (Int.repr j)))
            && data_at Tsh (tarray tint 256) pow lvar0;
          tables_uninitialized tables)).
   { (* init *)
-    forward. forward. Exists 0. entailer!. Exists (repeat Vundef 256). entailer!. }
-  { (* body *) freeze [0; 2] Fr. Intro pow. Intros.
-      (* TODO floyd: "forward" should tell me to use Intros instead of just failing *)
-      forward.
-      (* forward. "Error: No applicable tactic." 
-         TODO floyd: error message should say that I have to thaw *)
-      thaw Fr. forward.
+    forward. forward. Exists 0. entailer!. do 2 Exists (repeat Vundef 256). entailer!. }
+  { (* body *)
+    (* forward. TODO floyd: "forward" should tell me to use Intros instead of just failing *)
+    Intros log pow.
+    freeze [0; 2] Fr.
+    forward.
+    (* forward. "Error: No applicable tactic." 
+       TODO floyd: error message should say that I have to thaw *)
+    thaw Fr.
+    forward.
       + entailer!. apply ff_exp_range; omega.
       + (* t'1 = ( x & 0x80 ) ? 0x1B : 0x00 ) *)
         forward_if_diff (PROP () LOCAL (temp _t'1 (Vint (
@@ -459,30 +504,24 @@ Proof.
         * (* then-branch of "_ ? _ : _" *)
           forward. rewrite Int.eq_false by assumption. entailer!.
         * (* else-branch of "_ ? _ : _" *)
-          forward. rewrite H2. rewrite Int.eq_true by assumption. entailer!. (* TODO floyd: entailer
+          forward. rewrite int_eq_same by assumption. entailer!. (* TODO floyd: entailer
             should pick up the hypothesis to get rid of the if *)
         * (* after  "_ ? _ : _" *)
           (* x = (x ^ ((x << 1) ^ t'1)) & 0xFF *)
           forward.
-          assert (0 <= i < 255) by admit.
           entailer!.
-          { f_equal. apply exp3_step. assumption. }
-          { admit. (* TODO, loop invariant on the two arrays is TODO anyways *) }
-
-(*
-forall j, 0 <= j < i -> nth j pow Vundef = Vint (ff_exp (Int.repr 3) (Int.repr j))
-forall j, 0 <= j < i -> nth (Z.to_nat (Int.unsigned (ff_exp (Int.repr 3) (Int.repr j)))) log Vundef = Vint (Int.repr j))
-
-
-    for( i = 0, x = 1; i < 256; i++ )
-    {
-        pow[i] = x;
-        log[x] = i;
-        x = ( x ^ XTIME( x ) ) & 0xFF;
-    }
-*)
-
-
+          { f_equal. apply exp3_step. omega. }
+          { Exists (upd_Znth i pow (Vint (ff_exp (Int.repr 3) (Int.repr i)))).
+            Exists (upd_Znth (Int.unsigned (ff_exp (Int.repr 3) (Int.repr i))) log (Vint (Int.repr i))).
+            entailer!. repeat split.
+            - replace 256 with (Zlength log) by assumption.
+              apply upd_Znth_Zlength.
+              replace (Zlength log) with 256 by assumption.
+              apply ff_exp_range; omega.
+            - apply log_table_invariant. omega. assumption.
+            - replace 256 with (Zlength pow) by assumption.
+              apply upd_Znth_Zlength. omega.
+            - apply pow_table_invariant. omega. assumption. }
   }
   { (* next part: round constants *)
     admit. }
