@@ -223,10 +223,10 @@ Proof.
   { simpl; intros ? Hpred.
     destruct Hpred as (? & ? & ? & (? & ?) & ? & ? & ? & ? & ? & ? & ? & ? & Hemp).
     eapply almost_empty_join; eauto; [|eapply almost_empty_join; eauto; [|eapply almost_empty_join; eauto]].
-    - eapply prop_almost_empty; eauto.
+    - apply emp_almost_empty; auto.
     - eapply lock_inv_almost_empty; eauto.
     - eapply lock_inv_almost_empty; eauto.
-    - eapply emp_almost_empty; eauto. }
+    - apply emp_almost_empty; auto. }
   forward_call (gvar2, sh2, gvar0).
   { subst Frame; instantiate (1 := [lock_inv sh2 gvar1 (Interp (thread_lock_pred sh1 gvar2 gvar0 gvar1))]); simpl.
     unfold cptr_lock_inv; entailer!. }

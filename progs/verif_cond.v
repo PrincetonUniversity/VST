@@ -185,11 +185,11 @@ Proof.
     destruct Hpred as (? & ? & ? & (? & ?) & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & Hemp).
     eapply almost_empty_join; eauto; [|eapply almost_empty_join; eauto;
       [|eapply almost_empty_join; eauto; [|eapply almost_empty_join; eauto]]].
-    - eapply prop_almost_empty; eauto.
+    - apply emp_almost_empty; auto.
     - eapply cond_var_almost_empty; eauto.
     - eapply lock_inv_almost_empty; eauto.
     - eapply lock_inv_almost_empty; eauto.
-    - eapply emp_almost_empty; eauto. }
+    - apply emp_almost_empty; auto. }
   forward.
   forward_while (EX i : Z, PROP ( )
    LOCAL (temp _v (Vint (Int.repr i)); temp _c gvar2; temp _t gvar1; temp _l gvar0; gvar _data gvar3;

@@ -51,21 +51,28 @@ Proof.
   eapply ex_address_mapsto_precise; eauto.
 Qed.
 
-Lemma lock_inv_precise : forall v sh R, predicates_sl.precise (lock_inv sh v R).
+Lemma lock_inv_precise : forall v sh R, precise (lock_inv sh v R).
+Proof.
+  intros ?????? (b1 & o1 & Hv1 & Hlock1) (b2 & o2 & Hv2 & Hlock2) ??.
+  rewrite Hv2 in Hv1; inv Hv1.
+  eapply res_predicates.LKspec_precise; eauto.
+Qed.
+
+Lemma lock_inv_positive : forall sh v R,
+  positive_mpred (lock_inv sh v R).
 Proof.
   repeat intro.
-  destruct H as (b & o & ? & Hlock).
-  admit.
-Admitted.
+  destruct H as (b & o & Hv & Hlock).
+  simpl in Hlock.
+  specialize (Hlock (b, Int.unsigned o)).
+  destruct (adr_range_dec (b, Int.unsigned o) res_predicates.lock_size (b, Int.unsigned o)).
+  destruct (EqDec_address (b, Int.unsigned o) (b, Int.unsigned o)); [|contradiction n; auto].
+  destruct Hlock; eauto 6.
+  { contradiction n; unfold adr_range, res_predicates.lock_size; split; auto; omega. }
+Qed.
 
-Lemma lock_inv_positive : forall v sh R,
-  positive_mpred (lock_inv v sh R).
-Proof.
-  admit.
-Admitted.
-
-Lemma selflock_precise : forall R sh v, predicates_sl.precise R ->
-  predicates_sl.precise (selflock R v sh).
+Lemma selflock_precise : forall R sh v, precise R ->
+  precise (selflock R v sh).
 Proof.
   intros.
   rewrite selflock_eq.
@@ -79,9 +86,21 @@ Proof.
   repeat intro.
   destruct H as (? & ? & ? & HP1 & ?).
   specialize (HP _ HP1).
-  destruct HP as (l & sh & rsh & k & p & HP); exists l, sh, rsh, k, p.
-  admit.
-Admitted.
+  destruct HP as (l & sh & rsh & k & p & HP).
+  apply compcert_rmaps.RML.resource_at_join with (loc := l) in H.
+  rewrite HP in H; inversion H; eauto 6.
+Qed.
+
+Lemma positive_sepcon2 : forall P Q (HQ : positive_mpred Q),
+  positive_mpred (P * Q).
+Proof.
+  repeat intro.
+  destruct H as (? & ? & ? & ? & HQ1).
+  specialize (HQ _ HQ1).
+  destruct HQ as (l & sh & rsh & k & p & HQ).
+  apply compcert_rmaps.RML.resource_at_join with (loc := l) in H.
+  rewrite HQ in H; inversion H; eauto 6.
+Qed.
 
 Lemma selflock_positive : forall R sh v, positive_mpred R ->
   positive_mpred (selflock R v sh).
@@ -129,11 +148,48 @@ Qed.
 Ltac get_global_function'' _f :=
 eapply (semax_fun_id'' _f); try reflexivity.
 
-Lemma lock_inv_join : forall sh1 sh2 sh v R (Hjoin : sepalg.join sh1 sh2 sh),
+Lemma LKspec_nonunit : forall R rsh sh p, predicates_hered.derives (res_predicates.LKspec R rsh sh p)
+  (!!(sepalg.nonunit sh)).
+Proof.
+  repeat intro.
+  specialize (H p); simpl in H.
+  destruct (adr_range_dec p res_predicates.lock_size p).
+  destruct (EqDec_address p p).
+  destruct H; auto.
+  { contradiction n; auto. }
+  { contradiction n; unfold adr_range.
+    destruct p; split; auto.
+    unfold res_predicates.lock_size; omega. }
+Qed.
+
+Lemma lock_inv_join : forall sh1 sh2 sh v R (Hsh1 : readable_share sh1) (Hsh2 : readable_share sh2)
+  (Hjoin : sepalg.join sh1 sh2 sh),
   lock_inv sh1 v R * lock_inv sh2 v R = lock_inv sh v R.
 Proof.
-  admit.
-Admitted.
+  intros; unfold lock_inv.
+  rewrite exp_sepcon1; f_equal; extensionality b.
+  rewrite exp_sepcon1; f_equal; extensionality o.
+  destruct v; try solve [repeat rewrite prop_false_andp; try discriminate; rewrite FF_sepcon; auto].
+  destruct (eq_dec b0 b); [|repeat rewrite prop_false_andp; try (intro X; inv X; contradiction n; auto);
+    rewrite FF_sepcon; auto].
+  destruct (eq_dec i o); [subst | repeat rewrite prop_false_andp; try (intro X; inv X; contradiction n; auto);
+    rewrite FF_sepcon; auto].
+  repeat rewrite prop_true_andp; auto.
+  evar (P : mpred); replace (exp _) with P.
+  - subst P; apply res_predicates.LKspec_share_join; auto.
+    + apply readable_share_unrel_Rsh; auto.
+    + apply readable_share_unrel_Rsh; eauto.
+    + apply Share.unrel_join; eauto.
+    + apply Share.unrel_join; eauto.
+  - subst P.
+    erewrite exp_uncurry, exp_congr, <- exp_andp1, exp_prop, prop_true_andp; eauto.
+    { instantiate (1 := fun x => Vptr b o = Vptr (fst x) (snd x)); exists (b, o); auto. }
+    intros (?, ?); simpl.
+    destruct (eq_dec b0 b); [subst |
+      repeat rewrite prop_false_andp; try (intro X; inv X; contradiction n); auto].
+    destruct (eq_dec i o); [|repeat rewrite prop_false_andp; try (intro X; inv X; contradiction n); auto].
+    subst; repeat rewrite prop_true_andp; auto.
+Qed.
 
 Lemma split_readable_share sh :
   readable_share sh ->
@@ -154,21 +210,21 @@ Qed.
 
 Lemma emp_almost_empty : forall phi, predicates_hered.app_pred emp phi -> juicy_machine.almost_empty phi.
 Proof.
-  repeat intro; subst.
-(*  Check compcert_rmaps.RML.resource_at_join.*)
-  admit.
-Admitted.
-
-Lemma prop_almost_empty : forall P phi, predicates_hered.app_pred (prop P) phi -> juicy_machine.almost_empty phi.
-Proof.
-  admit.
-Admitted.
+  intros ? Hp ????? Hr ??; subst.
+  pose proof (compcert_rmaps.RML.resource_at_identity _ loc Hp) as H.
+  rewrite Hr in H.
+  destruct (compcert_rmaps.RML.identity_NO _ H) as [|(? & ? & ?)]; discriminate.
+Qed.
 
 Lemma lock_inv_almost_empty : forall sh v R phi, predicates_hered.app_pred (lock_inv sh v R) phi ->
   juicy_machine.almost_empty phi.
 Proof.
-  admit.
-Admitted.
+  intros ???? (b & o & ? & Hp) ????? Hr ??; subst.
+  specialize (Hp loc); simpl in Hp.
+  destruct (adr_range_dec _ _ _).
+  - destruct (EqDec_address _ _); destruct Hp as (? & Hp); rewrite Hp in Hr; inv Hr.
+  - rewrite Hr in Hp; destruct (compcert_rmaps.RML.identity_NO _ Hp) as [|(? & ? & ?)]; discriminate.
+Qed.
 
 Lemma almost_empty_join : forall phi1 phi2 phi
   (Hphi1 : juicy_machine.almost_empty phi1)
@@ -177,12 +233,12 @@ Lemma almost_empty_join : forall phi1 phi2 phi
   juicy_machine.almost_empty phi.
 Proof.
   repeat intro.
-  specialize (Hphi1 loc sh psh k P); specialize (Hphi2 loc sh psh k P).
-  pose proof (compcert_rmaps.RML.resource_at_join _ _ _ loc Hjoin) as Hsum.
-  rewrite H in Hsum.
-(*  SearchAbout sepalg.join compcert_rmaps.RML.R.YES.*)
-  admit.
-Admitted.
+  apply compcert_rmaps.RML.resource_at_join with (loc := loc) in Hjoin.
+  rewrite H in Hjoin; inv Hjoin.
+  - eapply Hphi1; eauto.
+  - eapply Hphi2; eauto.
+  - eapply Hphi1; eauto.
+Qed.
 
 Lemma cond_var_precise : forall {cs} sh b o, readable_share sh ->
   precise (@cond_var cs sh (Vptr b o)).
@@ -192,16 +248,6 @@ Proof.
   rewrite data_at_rec_eq; simpl.
   apply mapsto_undef_precise; auto.
 Qed.
-
-Lemma positive_sepcon2 : forall P Q (HQ : positive_mpred Q),
-  positive_mpred (P * Q).
-Proof.
-  repeat intro.
-  destruct H as (? & ? & ? & ? & HQ1).
-  specialize (HQ _ HQ1).
-  destruct HQ as (l & sh & rsh & k & p & HQ); exists l, sh, rsh, k, p.
-  admit.
-Admitted.
 
 Lemma lock_inv_isptr : forall sh v R, lock_inv sh v R = !!isptr v && lock_inv sh v R.
 Proof.
@@ -219,8 +265,21 @@ Qed.
 Lemma cond_var_almost_empty : forall {cs} sh v phi, predicates_hered.app_pred (@cond_var cs sh v) phi ->
   juicy_machine.almost_empty phi.
 Proof.
-  admit.
+  intros ???? Hp ????? Hr ??; subst.
+  unfold cond_var in Hp.
+  destruct Hp as (? & Hp); simpl in Hp.
+  rewrite data_at_rec_eq in Hp; unfold at_offset in Hp; simpl in Hp.
+  unfold mapsto in Hp; simpl in Hp.
+  destruct v; try contradiction; simpl in Hp.
+  destruct (readable_share_dec sh).
+  destruct Hp as [(? & ?) | (? & ? & ? & ? & Hp)]; [contradiction|].
+  simpl in Hp.
+  specialize (Hp loc).
+  destruct (adr_range_dec _ _ _).
+  - destruct Hp as (? & Hp); rewrite Hp in Hr; inv Hr.
 Admitted.
+(* This is currently untrue, since cond_vars are data. On the other hand, we don't want them to be locks,
+   because that means something in the underlying model. Eventually we should figure something out for this. *)
 
 Lemma cond_var_join : forall {cs} sh1 sh2 sh v (Hjoin : sepalg.join sh1 sh2 sh),
   @cond_var cs sh1 v * cond_var sh2 v = cond_var sh v.
@@ -367,30 +426,6 @@ Proof.
   - rewrite emp_sepcon; auto.
   - rewrite IHl1, sepcon_assoc; auto.
 Qed.
-
-(*Lemma lock_precise : forall {cs} sh b o, readable_share sh -> precise (@data_at_ cs sh tlock (Vptr b o)).
-Proof.
-  intros.
-  unfold data_at_, field_at_, field_at, at_offset; simpl.
-  apply precise_andp2.
-  rewrite data_at_rec_eq; unfold withspacer, at_offset; simpl.
-  unfold tlock, default_val; simpl.
-  unfold reptype_gen.
-  simpl.
-  
-Print reptype_gen.
-Print default_val.
-  rewrite data_at_rec_eq; unfold withspacer, at_offset; simpl.
-  rewrite data_at_rec_eq; unfold withspacer, at_offset; simpl.
-  unfold array_pred, aggregate_pred.array_pred; simpl.
-  unfold Zlength, Znth; simpl.
-  rewrite data_at_rec_eq; simpl.
-  rewrite data_at_rec_eq; simpl.
-  apply precise_sepcon; apply precise_andp2; repeat apply precise_sepcon; try apply precise_emp;
-    apply mapsto_undef_precise; auto.
-Qed.
-
-*)
 
 Definition rotate {A} (l : list A) n m := skipn (m - n) l ++ firstn (m - n) l.
 

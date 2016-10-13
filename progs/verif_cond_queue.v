@@ -568,11 +568,11 @@ Proof.
     destruct Hpred as (? & ? & ? & (? & ?) & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & Hemp).
     eapply almost_empty_join; eauto; [|eapply almost_empty_join; eauto;
       [|eapply almost_empty_join; eauto; [|eapply almost_empty_join; eauto]]].
-    - eapply prop_almost_empty; eauto.
+    - apply emp_almost_empty; auto.
     - eapply lock_inv_almost_empty; eauto.
     - eapply cond_var_almost_empty; eauto.
     - eapply cond_var_almost_empty; eauto.
-    - eapply emp_almost_empty; eauto. }
+    - apply emp_almost_empty; auto. }
   forward_call (gvar0, sh2, lock_pred gvar4 gvar1).
   simpl.
   Intro reqs; normalize.
