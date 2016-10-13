@@ -624,7 +624,57 @@ Proof.
   Intros log pow.
 
   (* next part: round constants *)
-  admit. 
+  simple apply seq_assoc2.
+  assert (forall Init Cond Body Incr, Sfor Init Cond Body Incr =
+    Ssequence Init (Sloop (Ssequence (Sifthenelse Cond Sskip Sbreak) Body) Incr)) as Eq by reflexivity.
+  rewrite <- Eq. clear Eq.
+
+  forward_for_simple_bound 10 (EX i: Z,
+    (PROP ( 0 <= i ) (* note: the upper bound is added by the tactic, but the lower isn't! *)
+     LOCAL (temp _x (Vint (ff_exp (Int.repr 2) (Int.repr i)));
+            lvar _log (tarray tint 256) lvar1;
+            lvar _pow (tarray tint 256) lvar0;
+            gvar _tables tables)
+     SEP (data_at Tsh (tarray tint 256) log lvar1;
+          data_at Tsh (tarray tint 256) pow lvar0;
+          tables_uninitialized tables))).
+  { (* init *)
+    forward. forward. Exists 0. entailer!. }
+  { (* body *)
+    unfold tables_uninitialized.
+    (* TODO floyd: if I don't unfold, "forward" fails with the default error message *)
+    forward. entailer!.
+    freeze [0; 1; 2] Fr.
+    (* t'2 = ( x & 0x80 ) ? 0x1B : 0x00 ) *)
+    forward_if_diff (PROP () LOCAL (temp _t'2 (Vint (
+      if Int.eq (Int.and (ff_exp (Int.repr 2) (Int.repr i)) (Int.repr 128)) Int.zero
+      then Int.zero
+      else (Int.repr 27)
+    ))) SEP ()).
+    * (* then-branch of "_ ? _ : _" *)
+      forward. rewrite Int.eq_false by assumption. entailer!.
+    * (* else-branch of "_ ? _ : _" *)
+      forward. rewrite int_eq_same by assumption. entailer!.
+    * (* after  "_ ? _ : _" *)
+      (* x = ((x << 1) ^ t'2)) & 0xFF *)
+      forward.
+      entailer!.
+      { (*
+Vint (ff_exp (Int.repr 2) (Int.repr (i + 1))) =
+Vint
+  (Int.and
+     (Int.xor (Int.shl (ff_exp (Int.repr 2) (Int.repr i)) (Int.repr 1))
+        (if Int.eq (Int.and (ff_exp (Int.repr 2) (Int.repr i)) (Int.repr 128)) Int.zero
+         then Int.zero
+         else Int.repr 27)) (Int.repr 255))
+*)
+        (* apply exp2_step. *) admit. }
+      { thaw Fr. unfold tables_uninitialized. simpl. (* TODO first make loop invariant for RCON *)
+
+    admit. }
+  }
+  { (* rest *)
+    admit. }
 }
 Qed.
 
