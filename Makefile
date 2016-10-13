@@ -135,6 +135,7 @@ CONCUR_FILES= \
   semax_simlemmas.v cl_step_lemmas.v \
   semax_progress.v semax_preservation.v \
   aging_lemmas.v resource_decay_lemmas.v \
+  rmap_locking.v \
   permjoin.v \
   resource_decay_join.v join_lemmas.v coqlib5.v age_to.v \
   konig.v safety.v \
@@ -466,6 +467,9 @@ version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FI
 
 floyd/floyd.coq: floyd/proofauto.vo
 	coqtop $(COQFLAGS) -load-vernac-object floyd/proofauto -outputstate floyd/floyd -batch
+
+dep:
+	$(COQDEP) $(shell find . -name "*.v")  > .depend
 
 .depend:
 	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
