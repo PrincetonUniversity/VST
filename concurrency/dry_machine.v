@@ -399,7 +399,7 @@ Module Concur.
                       (acquire (b, Int.intval ofs) (Some (empty_map, virtueThread.1)))
                     
      | step_release :
-         forall (tp' tp'':thread_pool) m1 c m' b ofs virtueThread virtueLP pmap_tid',
+         forall (tp' tp'':thread_pool) m1 c m' b ofs virtueThread virtueLP pmap_tid' rmap,
            let newThreadPerm := (computeMap (getThreadR cnt0).1 virtueThread.1,
                                  computeMap (getThreadR cnt0).2 virtueThread.2) in
            forall
@@ -416,7 +416,8 @@ Module Concur.
              (Hlt': permMapLt pmap_tid' (getMaxPerm m))
              (* release the lock *)
              (Hstore: Mem.store Mint32 (restrPermMap Hlt') b (Int.intval ofs) (Vint Int.one) = Some m')
-             (HisLock: lockRes tp (b, Int.intval ofs) = Some (empty_map, empty_map))
+             (HisLock: lockRes tp (b, Int.intval ofs) = Some rmap)
+             (Hrmap: forall b ofs, rmap.1 !! b ofs = None /\ rmap.2 !! b ofs = None)
              (Hangel1: permMapJoin newThreadPerm.1 virtueLP.1 (getThreadR cnt0).1)
              (Hangel2: permMapJoin newThreadPerm.2 virtueLP.2 (getThreadR cnt0).2)
              (Htp': tp' = updThread cnt0 (Kresume c Vundef)

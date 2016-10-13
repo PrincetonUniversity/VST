@@ -2470,7 +2470,7 @@ as big as [m] *)
       (Hlt': permMapLt pmap (getMaxPerm mf'))
       (Hlt2: permMapLt pmap2 (getMaxPerm mf))
       (Hstore: Mem.store chunk (restrPermMap Hlt2) b ofs v = Some mf')
-      (Hdisjoint: permMapsDisjoint pmap pmap2)
+      (Hdisjoint: permMapCoherence pmap pmap2)
       (Hobs_eq: mem_obs_eq f mc (restrPermMap Hlt)),
       mem_obs_eq f mc (restrPermMap Hlt').
   Proof.
@@ -2502,13 +2502,17 @@ as big as [m] *)
     rewrite restrPermMap_Cur in perm_obs_strong0.
     assert (Hstable: ~ Mem.perm (restrPermMap Hlt2) b2 ofs0 Cur Writable).
     { intros Hcontra.
-      assert (Hcur := restrPermMap_Cur Hlt2 b2 ofs0).     
+      assert (Hcur := restrPermMap_Cur Hlt2 b2 ofs0).
       unfold Mem.perm in *.
       unfold permission_at in *.
       rewrite <- perm_obs_strong0 in Hperm.
       rewrite Hcur in Hcontra.
       specialize (Hdisjoint b2 ofs0).
-      eapply perm_order_clash; eauto.
+      clear - Hdisjoint Hcontra Hperm.
+      destruct (pmap # b2 ofs0) as [p1|];
+        destruct (pmap2 # b2 ofs0) as [p2|];
+        simpl in *; inversion Hperm; inversion Hcontra; subst;
+          auto.
     }
     erewrite store_contents_other with (m := restrPermMap Hlt2) (m' := mf')
       by eauto.
