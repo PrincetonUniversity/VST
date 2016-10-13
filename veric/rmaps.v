@@ -1,8 +1,5 @@
 Require Import msl.msl_standard.
 Require Import msl.Coqlib2.
-Import MixVariantFunctor.
-Import MixVariantFunctorLemmas.
-Import MixVariantFunctorGenerator.
 
 Module Type ADR_VAL.
 Parameter address : Type.

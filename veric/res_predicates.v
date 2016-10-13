@@ -115,7 +115,7 @@ revert H; unfold resource_at.  rewrite rmap_level_eq.
 case_eq (unsquash phi); simpl; intros.
 destruct r as [f v]; simpl in *.
 assert (R.valid (fun l' => if eq_dec l' l 
-       then YES rsh sh k (SomeP A0 (fun i => MixVariantFunctor.fmap _ (approx n) (approx n) (p i))) else f l')).
+       then YES rsh sh k (SomeP A0 (fun i => fmap _ (approx n) (approx n) (p i))) else f l')).
 clear - v H0.
 unfold R.valid, compose, CompCert_AV.valid.
 intros b ofs.
@@ -159,7 +159,7 @@ rewrite H0.
 simpl.
 do 2 apply f_equal.
 extensionality.
-rewrite MixVariantFunctorLemmas.fmap_app.
+rewrite fmap_app.
 rewrite approx_oo_approx; auto.
 subst phi.
 unfold phi' in H.
@@ -182,7 +182,7 @@ simpl in H0.
 apply SomeP_inj2 in H0.
 subst q.
 extensionality i.
-rewrite MixVariantFunctorLemmas.fmap_app.
+rewrite fmap_app.
 rewrite approx_oo_approx. auto.
 Qed.
 

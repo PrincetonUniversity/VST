@@ -978,24 +978,24 @@ Fixpoint match_fsig_aux (bl: list expr) (tl: list (ident*type)) : bool :=
  | _::_, nil => false
  end.
 
-Definition match_fsig (fsig: funsig) (bl: list expr) (ret: option ident) : bool :=
-  andb (match_fsig_aux bl (fst fsig))
-          (match snd fsig, ret with 
+Definition match_fsig (fs: funsig) (bl: list expr) (ret: option ident) : bool :=
+  andb (match_fsig_aux bl (fst fs))
+          (match snd fs, ret with 
             | Tvoid , None => true 
             | Tvoid, Some _ => false
             | _, None => false
             | _, Some _ => true
             end).
 
-Lemma match_fsig_e: forall fsig bl ret,
-  match_fsig fsig bl ret = true ->
-  map typeof bl = map (@snd _ _) (fst fsig) /\ (snd fsig=Tvoid <-> ret=None).
+Lemma match_fsig_e: forall fs bl ret,
+  match_fsig fs bl ret = true ->
+  map typeof bl = map (@snd _ _) (fst fs) /\ (snd fs=Tvoid <-> ret=None).
 Proof.
  intros.
  apply andb_true_iff in H.
  destruct H.
  split. clear H0.
- forget (fst fsig) as tl.
+ forget (fst fs) as tl.
  revert tl H; induction bl; destruct tl; intros; inv H.
   reflexivity.
  destruct p.
@@ -1003,7 +1003,7 @@ Proof.
  apply eqb_type_true in H. subst; simpl in *. f_equal; auto.
  inv H1.
  clear H.
- destruct (snd fsig); destruct ret; intuition congruence.
+ destruct (snd fs); destruct ret; intuition congruence.
 Qed.
 
 Definition expr_closed_wrt_vars {CS: compspecs}(S: ident -> Prop) (e: expr) : Prop := 

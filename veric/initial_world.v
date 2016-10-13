@@ -420,7 +420,7 @@ Definition initial_core' (ge: Genv.t fundef type) (G: funspecs) (n: nat) (loc: a
            | Some id => 
                   match find_id id G with
                   | Some (mk_funspec fsig cc A P Q) => 
-                           PURE (FUN fsig cc) (SomeP (SpecTT A) (fun ts => MixVariantFunctor.fmap _ (approx n) (approx n) (packPQ P Q ts)))
+                           PURE (FUN fsig cc) (SomeP (SpecTT A) (fun ts => fmap _ (approx n) (approx n) (packPQ P Q ts)))
                   | None => NO Share.bot
                   end
            | None => NO Share.bot
@@ -454,7 +454,7 @@ f_equal.
 change R.approx with approx.
 extensionality i0 ts b.
 extensionality rho.
-rewrite MixVariantFunctorLemmas.fmap_app.
+rewrite fmap_app.
 pattern (approx n) at 7 8 9.
 rewrite <- approx_oo_approx.
 auto.
@@ -1372,7 +1372,7 @@ rewrite lev'.
 unfold initial_core.
 rewrite level_make_rmap.
 extensionality ts x b; extensionality rho.
-rewrite MixVariantFunctorLemmas.fmap_app.
+rewrite fmap_app.
 match goal with
 | |- ?A (?B ?C) = _ => change (A (B C)) with ((A oo B) C)
 end.

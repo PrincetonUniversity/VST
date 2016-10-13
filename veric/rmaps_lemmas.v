@@ -4,10 +4,6 @@ Require Import msl.Coqlib2.
 Require Import msl.sepalg_list.
 Require Import veric.rmaps.
 
-Import MixVariantFunctor.
-Import MixVariantFunctorLemmas.
-Import MixVariantFunctorGenerator.
-
 Module Rmaps_Lemmas (R: RMAPS).
 Module R := R. 
 Import R.
