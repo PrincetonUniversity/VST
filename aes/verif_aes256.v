@@ -1,5 +1,6 @@
 Require Import aesutils.
 Require Import aes.
+Require Import mult_equiv_lemmas.
 Require Import floyd.proofauto.
 Require Import AES256.
 
@@ -391,21 +392,79 @@ Definition xtime' (b : int) : int :=
             then Int.zero
             else Int.repr 27)).
 
+Lemma modu_and_0xFF: forall i,
+  Int.modu i (Int.repr 256) = Int.and i (Int.repr 255).
+Admitted.
+
+Lemma mask_byte: forall i,
+  0 <= Int.unsigned i < 256 -> Int.and i (Int.repr 255) = i.
+Admitted.
+
+Lemma mask_byte_l: forall i,
+  0 <= Int.unsigned i < 256 -> Int.and (Int.repr 255) i = i.
+Admitted.
+
+Lemma int_if_and_distrib: forall (c : bool) (e0 e1 e2 : int),
+  (if c then (Int.and e0 e1) else (Int.and e0 e2)) = Int.and e0 (if c then e1 else e2).
+Proof.
+  intros. destruct c; reflexivity.
+Qed.
+
+Lemma push_xor_into_else_branch: forall (c : bool) (e1 e2 : int),
+  (Int.xor e1 (if c then Int.zero else e2)) = (if c then e1 else (Int.xor e1 e2)).
+Proof.
+  intros. destruct c. apply Int.xor_zero. reflexivity. 
+Qed.
+
+(* Pulls out (_ & 0xFF), which requires that all expressions not behind a (_ & 0xFF) are smaller than
+   256, and goals for this are left open. *)
+Ltac pull_out_0xFF := repeat first [
+  reflexivity |
+  rewrite (Int.and_commut _ (Int.repr 255)) |
+  rewrite push_xor_into_else_branch |
+  lazymatch goal with
+  | |- context [ (Int.xor (Int.and (Int.repr 255) ?A) (Int.and (Int.repr 255) ?B)) ]
+         => rewrite <- (Int.and_xor_distrib (Int.repr 255) A B)
+  | |- context [ (if ?c then (Int.and ?e0 ?e1) else (Int.and ?e0 ?e2)) ]
+         => rewrite (int_if_and_distrib c e0 e1 e2)
+  | |- context [ (Int.xor (Int.and (Int.repr 255) ?A) ?B) ]
+         => replace (Int.xor (Int.and (Int.repr 255) A) B)
+               with (Int.xor (Int.and (Int.repr 255) A) (Int.and (Int.repr 255) B));
+                  [ idtac | (rewrite (mask_byte_l B); [reflexivity | idtac]) ]
+  | |- context [ (Int.xor ?B (Int.and (Int.repr 255) ?A)) ]
+         => replace (Int.xor                         B  (Int.and (Int.repr 255) A))
+               with (Int.xor (Int.and (Int.repr 255) B) (Int.and (Int.repr 255) A));
+                  [ idtac | (rewrite (mask_byte_l B); [reflexivity | idtac]) ]
+  end
+].
+
 (* 3^(i+1) = (3^i XOR XTIME(3^i)) & 0xFF *)
-Lemma exp3_step: forall (i : Z),
+Lemma exp3_step': forall (i : Z),
   0 <= i < 256 ->
   (ff_exp (Int.repr 3) (Int.repr (i + 1))) =
   (Int.and (Int.xor (ff_exp (Int.repr 3) (Int.repr i))
                     (xtime' (ff_exp (Int.repr 3) (Int.repr i))))
            (Int.repr 255)).
 Proof.
-Admitted.
+  intros. unfold xtime'. replace (i + 1) with (1 + i) by omega.
+  pose proof exp3_step as P.
+  assert (0 <= i < Int.max_signed) as B by repable_signed. specialize (P i B).
+  pose proof fast_times3 as Q.
+  specialize (Q (ff_exp (Int.repr 3) (Int.repr i))).
+  rewrite <- Q in P by (apply ff_exp_range; omega). clear Q. rewrite P. clear P.
+  unfold xtime.
+  rewrite modu_and_0xFF.
+  pull_out_0xFF.
+  - apply ff_exp_range; omega.
+  - rewrite Int.unsigned_repr; repable_signed.
+Qed.
 
 Lemma pow_table_invariant
 (i : Z)
-(Hi : 0 <= i < 256)
+(B : 0 <= i < 256)
 (pow : list val)
-(Hp : forall j : Z,
+(L : Zlength pow = 256)
+(P : forall j : Z,
      0 <= j < i ->
      Znth j pow Vundef = Vint (ff_exp (Int.repr 3) (Int.repr j)))
 :
@@ -415,23 +474,57 @@ Lemma pow_table_invariant
      = Vint (ff_exp (Int.repr 3) (Int.repr j))).
 Proof.
   intros. assert (0 <= j < i \/ j = i) as C by omega. destruct C as [C | C].
+  - rewrite upd_Znth_diff by omega. apply P. assumption.
+  - subst. rewrite upd_Znth_same by omega. reflexivity. 
+Qed.
 
+(* Lemma bijection_by_counting:
+  domain and range (=actually returned values) of function f both have n elements -> f is a bijection *)
+
+(* Definition exp3_by_table := (lookup in exponentiation table) *)
+
+(* Lemma exp3_is_exp3_by_table: equivalence of exp3 and exp3_by_table *)
+
+(* Lemma exp3_by_table_inj: exp3_by_table is an injection (proof by bijection_by_counting)
+   and bruteforcing 256 *)
+
+Lemma exp3_inj: forall (i j : Z),
+  ff_exp (Int.repr 3) (Int.repr i) = ff_exp (Int.repr 3) (Int.repr j) -> Int.eqmod 255 i j.
+Proof.
+  (* by exp3_by_table_inj and exp3_is_exp3_by_table *)
 Admitted.
 
 Lemma log_table_invariant
 (i : Z)
-(Hi : 0 <= i < 256)
+(B : 0 <= i < 256)
 (log : list val)
-(Hl : forall j : Z,
-     0 <= j < i ->
-     Znth (Int.unsigned (ff_exp (Int.repr 3) (Int.repr j))) log Vundef = Vint (Int.repr j))
+(L : Zlength log = 256)
+(P : forall j : Z,
+     1 <= j < i ->
+     Vint (Int.repr j) = Znth (Int.unsigned (ff_exp (Int.repr 3) (Int.repr j))) log Vundef)
 :
-(forall j : Z,
-     0 <= j < i + 1 ->
-     Znth (Int.unsigned (ff_exp (Int.repr 3) (Int.repr j)))
-          (upd_Znth (Int.unsigned (ff_exp (Int.repr 3) (Int.repr i))) log (Vint (Int.repr i))) Vundef
-     = Vint (Int.repr j)).
-Admitted.
+forall j : Z,
+  1 <= j < i + 1 ->
+  Vint (Int.repr j)
+  = Znth (Int.unsigned (ff_exp (Int.repr 3) (Int.repr j)))
+         (upd_Znth (Int.unsigned (ff_exp (Int.repr 3) (Int.repr i))) log (Vint (Int.repr i))) Vundef.
+Proof.
+  intros. assert (1 <= j < i \/ j = i) as C by omega. destruct C as [C | C].
+  - rewrite upd_Znth_diff.
+    + apply P. assumption.
+    + rewrite L. apply ff_exp_range; omega.
+    + rewrite L. apply ff_exp_range; omega.
+    + intro E. apply unsigned_eq_eq in E.
+      apply exp3_inj in E. unfold Int.eqmod in E. destruct E as [k E]. omega.
+  - subst. rewrite upd_Znth_same.
+    + reflexivity.
+    + rewrite L. apply ff_exp_range; omega.
+Qed.
+(*
+Note:
+log[0] is never initialized, because no 3^i equals 0
+log[1] is initialized twice, namely when i=0 and when i=255, so it will be 255 at the end
+*)
 
 (* TODO floyd put into library (note: not the same as Int.eq_true) *)
 Lemma int_eq_same: forall (x y : int),
@@ -476,7 +569,12 @@ Proof.
            gvar _tables tables)
     SEP (EX log : list val,
            !!(Zlength log = 256) &&
-           !!(forall j, 0 <= j < i -> Znth (Int.unsigned (ff_exp (Int.repr 3) (Int.repr j))) log Vundef = Vint (Int.repr j))
+           (* Note: log[1] is set to 0 in the first iteration, and overwritten with 255 in the last 
+              iteration, so we needn't assert anything about j=0, but we do about j=255.
+              And btw, log[0] remains Vundef.
+              Think "each j has to be stored in the right cell of the log array". *)
+           !!(forall j, 1 <= j < i -> Vint (Int.repr j)
+                = Znth (Int.unsigned (ff_exp (Int.repr 3) (Int.repr j))) log Vundef)
            && data_at Tsh (tarray tint 256) log lvar1;
          EX pow : list val,
            !!(Zlength pow = 256) &&
@@ -510,20 +608,23 @@ Proof.
           (* x = (x ^ ((x << 1) ^ t'1)) & 0xFF *)
           forward.
           entailer!.
-          { f_equal. apply exp3_step. omega. }
+          { f_equal. apply exp3_step'. omega. }
           { Exists (upd_Znth i pow (Vint (ff_exp (Int.repr 3) (Int.repr i)))).
             Exists (upd_Znth (Int.unsigned (ff_exp (Int.repr 3) (Int.repr i))) log (Vint (Int.repr i))).
-            entailer!. repeat split.
+            entailer!. assert (0 <= i < 256) by omega. repeat split.
             - replace 256 with (Zlength log) by assumption.
               apply upd_Znth_Zlength.
               replace (Zlength log) with 256 by assumption.
               apply ff_exp_range; omega.
-            - apply log_table_invariant. omega. assumption.
+            - apply log_table_invariant; assumption.
             - replace 256 with (Zlength pow) by assumption.
               apply upd_Znth_Zlength. omega.
-            - apply pow_table_invariant. omega. assumption. }
-  }
-  { (* next part: round constants *)
-    admit. }
+            - apply pow_table_invariant; assumption. }
+  } {
+  Intros log pow.
+
+  (* next part: round constants *)
+  admit. 
+}
 Qed.
 

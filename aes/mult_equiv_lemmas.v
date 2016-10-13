@@ -195,6 +195,7 @@ Proof.
         { apply Nat2Z.inj_lt. omega. }
 Qed.
 
+(* slow (minutes)
 Lemma exp_table_correct : forall a : nat, (a < 256)%nat -> 
   nth a ff_exp_table Int.zero = exp3 a.
 Proof.
@@ -205,7 +206,9 @@ Proof.
   replace (256 + a - 256)%nat with a in C by omega.
   apply C.
 Qed.
+*)
 
+(* slow (minutes)
 Lemma log_table_correct : forall a : nat, (1 < a < 256)%nat ->
   let pow := nth a ff_log_table Int.zero in
   ff_exp (Int.repr 3) pow = Int.repr (Z.of_nat a).
@@ -216,7 +219,9 @@ Proof.
   do 255 (destruct a as [| a]; [reflexivity | ]).
   omega.
 Qed.
+*)
 
+(* unfeasibly slow (150 hours are not enough)
 Lemma ff_mult_equiv : forall a b : nat,
   (a < 256)%nat -> (b < 256)%nat ->
   table_ff_mult (Int.repr (Z.of_nat a)) (Int.repr (Z.of_nat b)) 
@@ -226,3 +231,4 @@ Proof.
   do 256 (destruct a as [| a]; [do 256 (destruct b as [| b]; [reflexivity | ]); omega | ]).
   omega.
 Qed.
+*)
