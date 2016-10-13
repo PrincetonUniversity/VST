@@ -2995,3 +2995,6 @@ Proof.
  apply IHn; auto. 
  intro i; specialize (H2 (S i)); apply H2.
 Qed.
+
+Definition almost_empty rm: Prop:=
+  forall loc sh psh k P, rm @ loc = YES sh psh k P -> forall val, ~ k = VAL val.

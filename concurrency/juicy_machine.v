@@ -28,6 +28,7 @@ Require Import veric.juicy_mem.
 Require Import veric.juicy_mem_lemmas.
 Require Import veric.juicy_extspec.
 Require Import veric.jstep.
+Require Import veric.res_predicates.
 
 
 (**)
@@ -64,9 +65,6 @@ Notation UNLOCK := (EF_external "release" UNLOCK_SIG).
     Require Import concurrency.lksize.  *)
 Definition LKCHUNK:= Mint32.
 Definition LKSIZE:= align_chunk LKCHUNK.
-
-Definition almost_empty rm: Prop:=
-  forall loc sh psh k P, rm @ loc = YES sh psh k P -> forall val, ~ k = VAL val.
 
 Require Import (*compcert_linking*) concurrency.permissions concurrency.threadPool.
 

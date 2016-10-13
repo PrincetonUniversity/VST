@@ -22,7 +22,6 @@ Require Import floyd.reptype_lemmas.
 Require Import floyd.field_at.
 Require Import floyd.client_lemmas.
 Require Import floyd.jmeq_lemmas.
-Require Import concurrency.juicy_machine.
 
 Set Bullet Behavior "Strict Subproofs".
 

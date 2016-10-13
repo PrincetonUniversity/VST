@@ -51,6 +51,7 @@ Require Import concurrency.resource_decay_lemmas.
 Require Import concurrency.resource_decay_join.
 Require Import concurrency.semax_invariant.
 Require Import concurrency.semax_simlemmas.
+Require Import concurrency.rmap_locking.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -947,6 +948,7 @@ Section Progress.
         }
         
         destruct Precond as [[Hwritable _] [[B1 _] AT]].
+        assert (Hreadable : readable_share shx) by (apply writable_readable; auto).
         
         (* [data_at_] from the precondition *)
         unfold canon.SEPx in *.
@@ -1052,7 +1054,7 @@ Section Progress.
           (forall x, ~ adr_range loc LKSIZE x -> phi @ x = phi' @ x) /\
           (LKspec_ext R sh fullshare loc phi) /\
           (forall x, adr_range loc LKSIZE x -> exists val, phi' @ x = YES (Share.unrel Share.Lsh sh) pfullshare (VAL val) NoneP).
-
+        
         assert (Lphi : level phi0 = S n) by admit.
         assert (Hphi0' : exists phi0',
                    level phi0' = level phi0 /\
@@ -1069,7 +1071,7 @@ Section Progress.
                  else
                    phi0 @ loc).
           
-          Lemma data_at__first_word sh b ofs phi :
+          Lemma data_at_unfolding sh b ofs phi :
             readable_share sh ->
             app_pred (data_at_ sh (Tarray (Tpointer Tvoid noattr) 4 noattr) (Vptr b ofs)) phi ->
             forall loc,
@@ -1146,7 +1148,7 @@ Section Progress.
             | _ => Logic.False
             end.
           
-          Lemma data_at__first_word_is_VAL sh b ofs phi :
+          (*Lemma data_at__first_word_is_VAL sh b ofs phi :
             readable_share sh ->
             app_pred (data_at_ sh (Tarray (Tpointer Tvoid noattr) 4 noattr) (Vptr b ofs)) phi ->
             forall loc,
@@ -1156,7 +1158,7 @@ Section Progress.
             intros hr da loc range.
             pose proof data_at__first_word _ _ _ _ hr da loc range as H.
             destruct H as (p & v & ->); constructor.
-          Qed.
+          Qed. *)
           
           (*
           Lemma data_at__first_word_new sh b ofs phi :
@@ -1219,11 +1221,9 @@ Section Progress.
           assert (blank': forall loc, adr_range (b, Int.intval ofs) LKSIZE loc -> is_VAL (phi0 @ loc)).
           {
             intros loc range.
-            eapply data_at__first_word_is_VAL with (loc := loc) in AT; eauto.
-            (* fold phi in Join.
-            apply resource_at_join with (loc := loc) in Join. 
-            destruct (phi0 @ loc) as [ ? |  ? ? [] ? | ? ? ]; inversion AT.
-            inv Join; constructor. *)
+            destruct (data_at_unfold_weak _ _ _ _ _ _ _ _ Hreadable AT range) as (p & v & E).
+            now change LKSIZE with 4%Z; omega.
+            rewrite E; simpl; auto.
           }
           assert (blank: forall loc, adr_range (b, Int.intval ofs) LKSIZE loc -> ~isLK (phi0 @ loc) /\ ~isCT (phi0 @ loc)).
           {
@@ -1231,7 +1231,7 @@ Section Progress.
             destruct (phi0 @ loc) as [ ? |  ? ? [] ? | ? ? ]; inversion blank'.
             split; intros []; intros; breakhyps.
           }
-          clear -f blank blank' n En Lphi AT Join Hwritable.
+          clear -f blank blank' n En Lphi AT Join Hreadable Hwritable.
           pose proof make_rmap'' (S n) f as makef.
           assert_specialize makef. {
             clear makef.
@@ -1288,15 +1288,13 @@ Section Progress.
             rewrite resource_at_approx.
             repeat f_equal; auto.
           - intros loc range.
-            eapply data_at__first_word with (loc := loc) in AT; eauto.
-            apply resource_at_join with (loc := loc) in Join.
-            destruct AT as (p & v & E); rewrite E in Join.
+            destruct (data_at_unfold_weak _ _ _ _ _ _ _ _ Hreadable AT range) as (p & v & E).
+            now change LKSIZE with 4%Z; omega.
+            rewrite E; simpl; auto.
+            eexists; f_equal.
             revert p Join E.
             erewrite (writable_share_right Hwritable).
             intros p Join E.
-            rewrite E.
-            exists v.
-            f_equal.
             unfold pfullshare in *.
             f_equal.
             apply proof_irr.
