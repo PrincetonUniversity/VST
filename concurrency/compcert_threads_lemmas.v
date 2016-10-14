@@ -7485,9 +7485,9 @@ relation*)
     }
   Qed.
 
-  (*Lemma mem_compatible_spawn :
+  Lemma mem_compatible_spawn :
     forall (tpf : thread_pool) (mf : mem) (cf : ctl) 
-      (virtue1 virtue2 : delta_map) (f : block -> option block)
+      virtue1 virtue2 (f : block -> option block)
       vf args (i : tid) (pff : containsThread tpf i)
       (Hmax_inv: max_inv mf)
       (HmemCompF: mem_compatible tpf mf)
@@ -7495,68 +7495,89 @@ relation*)
       mem_compatible
         (addThread
            (updThread pff cf
-                      (computeMap (getThreadR pff) (projectAngel f virtue1)))
-           vf args (computeMap empty_map (projectAngel f virtue2))) mf.
+                      (computeMap (getThreadR pff).1 (projectAngel f virtue1.1),
+                       computeMap (getThreadR pff).2 (projectAngel f virtue1.2)))
+                      vf args (computeMap empty_map (projectAngel f virtue2.1),
+                               computeMap empty_map (projectAngel f virtue2.2))) mf.
   Proof.
     intros.
     constructor.
     { intros j pffj''.
       assert (pffj' := cntAdd' _ _ _ pffj'').
       destruct pffj' as [[pffj' Hneq] | Heq].
-      - (*case it's an old thread *)
+      - (** case it's an old thread *)
         erewrite gsoAddRes with (cntj := pffj') by eauto.
         destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij.
         + subst.
           rewrite gssThreadRes.
+          unfold permMapLt.
+          erewrite <- forall2_and.
           intros b2 ofs.
           assert (Hb2: (exists b', f b' = Some b2) \/
                        ~ (exists b', f b' = Some b2))
             by eapply em.
           destruct Hb2 as [Hbm | Hbu].
-          (*case b2 is mapped by f*)
+          * (** case b2 is mapped by f*)
+            destruct Hbm as [b1 Hfb1].
+            apply Hcodomain in Hfb1.
+            specialize (Hmax_inv _ ofs Hfb1).
+            rewrite getMaxPerm_correct.
+            rewrite Hmax_inv.
+            simpl.
+            split;
+              match goal with
+            | [ |- match ?Expr with _ => _ end] =>
+              destruct Expr
+              end;
+              now constructor.
+          * simpl.
+            erewrite! computeMap_projection_2 by eauto.
+            split;
+            now eapply HmemCompF.
+        + rewrite gsoThreadRes; auto.
+          split;
+            now eapply HmemCompF.
+      - (** case it's the new thread*)
+        subst.
+        erewrite gssAddRes; eauto.
+        unfold permMapLt.
+        erewrite <- forall2_and.
+        intros b2 ofs.
+        assert (Hb2: (exists b', f b' = Some b2) \/
+                     ~ (exists b', f b' = Some b2))
+          by eapply em.
+        destruct Hb2 as [Hbm | Hbu].
+        + (** case b2 is mapped by f*)
           destruct Hbm as [b1 Hfb1].
           apply Hcodomain in Hfb1.
           specialize (Hmax_inv _ ofs Hfb1).
           rewrite getMaxPerm_correct.
           rewrite Hmax_inv.
           simpl.
-          destruct ((computeMap (getThreadR pff) (projectAngel f virtue1)) # b2 ofs);
-            constructor.
-          erewrite computeMap_projection_2 by eauto.
-          eapply HmemCompF.
-        + rewrite gsoThreadRes; auto.
-          eapply HmemCompF.
-      - (*case it's the new thread*)
-        subst.
-        erewrite gssAddRes; eauto.
-        intros b2 ofs.
-        assert (Hb2: (exists b', f b' = Some b2) \/
-                     ~ (exists b', f b' = Some b2))
-          by eapply em.
-        destruct Hb2 as [Hbm | Hbu].
-        (*case b2 is mapped by f*)
-        destruct Hbm as [b1 Hfb1].
-        apply Hcodomain in Hfb1.
-        specialize (Hmax_inv _ ofs Hfb1).
-        rewrite getMaxPerm_correct.
-        rewrite Hmax_inv.
-        simpl.
-        destruct ((computeMap empty_map (projectAngel f virtue2)) # b2 ofs);
-          constructor.
-        erewrite computeMap_projection_2 by eauto.
-        rewrite empty_map_spec.
-        destruct ((getMaxPerm mf) # b2 ofs); simpl; auto.
+          split;
+            match goal with
+            | [|- match ?Expr with _ => _ end] =>
+              destruct Expr
+            end;
+            now constructor.
+        + simpl. 
+          erewrite! computeMap_projection_2 by eauto.
+          rewrite empty_map_spec.
+          split;
+            now apply po_None.
     }
     { intros (bl', ofsl') rmap Hres.
       rewrite gsoAddLPool in Hres.
       rewrite gsoThreadLPool in Hres.
       eapply HmemCompF; eauto.
     }
-    { rewrite gsoAddLock.
-      rewrite gsoThreadLock.
-      eapply (compat_ls HmemCompF).
+    { intros l rmap Hres.
+      rewrite gsoAddLPool in Hres.
+      rewrite gsoThreadLPool in Hres.
+      eapply (lockRes_blocks HmemCompF);
+        now eassumption.
     }
-  Qed.*)
+  Qed.
 
   (** [permMapJoin] is preserved through block renamings*)  
   Lemma permMapJoin_project:
@@ -9457,104 +9478,114 @@ relation*)
             apply cntUpdate;
               by eauto.
     }
-    { (* Thread Spawn *)
+    { (** Thread Spawn case *)
       subst.
-      (* We have that the core of the fine grained execution
-        is related to the one of the coarse-grained*)
+      (** We have that the core of the FineConc machine
+        is related to the one of the DryConc*)
       assert (Hcore_inj:= code_eq Htsim).
       rewrite Hcode in Hcore_inj.
       simpl in Hcore_inj.
       destruct (getThreadC pff) as [? | cf |? | ?] eqn:HcodeF;
         try by exfalso.
-      (* And now we can prove that cf is also at external *)
+      (** And now we can prove that cf is also at external *)
       assert (Hat_external_spec := core_inj_ext Hcore_inj).
       rewrite Hat_external in Hat_external_spec.
       destruct (at_external SEM.Sem cf) as [[[? ?] vsf]|] eqn:Hat_externalF;
         try by exfalso.
-      (* and moreover that it's the same external and their
+      (** and moreover that it's the same external and their
         arguments are related by the injection*)
       destruct Hat_external_spec as [? [? Harg_obs]]; subst.
       inversion Harg_obs as [|? vff argf vsf' Hptr_obs Hl]; subst.
       inversion Hl; subst.
       inversion H3; subst. clear H3.
       inversion Hptr_obs; subst.
-      (* To compute the new fine grained state, we apply the
+      (** To compute the new fine grained state, we apply the
         renaming to the resources the angel provided us*)
-      remember (projectAngel (fp i pfc) virtue1) as virtue1F eqn:Hvirtue1F.
-      remember (projectAngel (fp i pfc) virtue2) as virtue2F eqn:Hvirtue2F.
-      remember (updThread pff (Kresume cf Vundef)
-                          (computeMap (getThreadR pff) virtue1F))
+      remember (projectAngel (fp i pfc) virtue1.1, projectAngel (fp i pfc) virtue1.2)
+        as virtue1F eqn:Hvirtue1F.
+      remember (projectAngel (fp i pfc) virtue2.1, projectAngel (fp i pfc) virtue2.2)
+        as virtue2F eqn:Hvirtue2F.
+      pose (computeMap (getThreadR pff).1 virtue1F.1, computeMap (getThreadR pff).2 virtue1F.2)
+        as threadPermF'.
+      pose (computeMap empty_map virtue2F.1, computeMap empty_map virtue2F.2) as newThreadPermF.
+      remember (updThread pff (Kresume cf Vundef) threadPermF')
         as tpf_upd eqn:Htpf_upd.
-      remember (addThread tpf_upd (Vptr b2 ofs) v'
-                          (computeMap empty_map virtue2F))
+      remember (addThread tpf_upd (Vptr b2 ofs) v' newThreadPermF)
         as tpf' eqn:Htpf'.
-      (* we prove that the projected angel satisfies the angelSpec*)
-      assert (HangelDecrF: forall b ofs,
-                 Mem.perm_order'' ((getThreadR pff) # b ofs)
-                                  ((computeMap (getThreadR pff) virtue1F) # b ofs)).
-      { intros b2' ofs'.
-        subst.
-        destruct Htsim.
-        assert (Hem: (exists b, (fp i pfc) b = Some b2') \/ ~ exists b, (fp i pfc) b = Some b2')
-          by  eapply em.
-        destruct Hem as [[? Hf] | Hunmapped].
-        erewrite computeMap_projection_1; eauto.
-        destruct obs_eq0 as [_ [HpermEq _]].
-        specialize (HpermEq _ _ ofs' Hf).
-        do 2 rewrite restrPermMap_Cur in HpermEq.
-        rewrite HpermEq;
-          by eauto.
-        erewrite computeMap_projection_2; eauto.
-          by apply po_refl.
+
+      (** we prove that the projected angel satisfies [permMapJoin]*)
+      assert (HangelF1: permMapJoin newThreadPermF.1 threadPermF'.1 (getThreadR pff).1).
+      { pose proof (obs_eq_data Htsim) as Hmem_obs_eq.
+        eapply permMapJoin_project with (f := fp i pfc) (pmap := newThreadPerm.1) (pmap' := threadPerm'.1);
+          eauto.
+        intros b0 Hunmapped ofs0.
+        subst; simpl.
+        erewrite! computeMap_projection_2 by eauto.
+        left; split;
+          by eauto using empty_map_spec.
+        subst; simpl; intros;
+          by erewrite computeMap_projection_3 by eauto.
+        subst; simpl; intros;
+          by erewrite computeMap_projection_1 by eauto.
+        intros b1 b0 ofs0 Hrenaming.
+        pose proof (perm_obs_strong (strong_obs_eq Hmem_obs_eq) b1 ofs0 Hrenaming) as Hperm_eq.
+        rewrite! restrPermMap_Cur in Hperm_eq.
+        now auto.
       }
-        
-      assert (HangelIncrF: forall (b : positive) (ofs : Z),
-                 Mem.perm_order'' (Some Nonempty)
-                                  ((computeMap empty_map virtue2F) # b ofs)).
-      { intros b2' ofs'.
-        subst.
-        destruct Htsim as [_ [Hweak _]].
-        destruct Hweak.
-        assert (Hem: (exists b, (fp i pfc) b = Some b2') \/ ~ exists b, (fp i pfc) b = Some b2')
-          by  eapply em.
-        destruct Hem as [[? Hf] | Hunmapped].
-        erewrite computeMap_projection_3;
-          by eauto.
-        erewrite computeMap_projection_2; eauto.
-        simpl;
-          by rewrite empty_map_spec.
-      } 
-      (* we augment the renamings pool by assigning the ''generic''
-      renaming (fp i pfc) to the new thread *)
+
+      assert (HangelF2: permMapJoin newThreadPermF.2 threadPermF'.2 (getThreadR pff).2).
+      { pose proof (obs_eq_locks Htsim) as Hmem_obs_eq.
+        eapply permMapJoin_project with (f := fp i pfc) (pmap := newThreadPerm.2) (pmap' := threadPerm'.2);
+          eauto.
+        intros b0 Hunmapped ofs0.
+        subst; simpl.
+        erewrite! computeMap_projection_2 by eauto.
+        left; split;
+          by eauto using empty_map_spec.
+        subst; simpl; intros;
+          by erewrite computeMap_projection_3 by eauto.
+        subst; simpl; intros;
+          by erewrite computeMap_projection_1 by eauto.
+        intros b1 b0 ofs0 Hrenaming.
+        pose proof (perm_obs_strong (strong_obs_eq Hmem_obs_eq) b1 ofs0 Hrenaming) as Hperm_eq.
+        rewrite! restrPermMap_Cur in Hperm_eq.
+        now auto.
+      }
+
+       (** we augment the renamings pool by assigning the ''generic'' renaming
+      (fp i pfc) to the new thread - this is sensible as the new thread has not
+      made any allocations yet *)
       exists tpf', mf, (fp i pfc),
-      (@addFP _ fp (fp i pfc) (Vptr b ofs) arg (computeMap empty_map virtue2)),
+      (@addFP _ fp (fp i pfc) (Vptr b ofs) arg newThreadPerm),
       (tr ++ [:: (external i (spawn (b2,Int.intval ofs)))]). 
       split.
-      (* proof that the fine grained machine can step*)
+      (** proof that the fine grained machine can step*)
       intros U.
       assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf' mf
                                    (spawn (b2, Int.intval ofs)))
         by (eapply step_create; eauto).
       econstructor; simpl;
         by eauto.
-      (* Proof that the new coarse and fine state are in simulation*)
+      (** Proof that the new coarse and fine state are in simulation*)
       assert (HinvC': invariant
-                        (addThread
-                           (updThread pfc (Kresume c Vundef)
-                                      (computeMap (getThreadR pfc) virtue1))
-                           (Vptr b ofs) arg
-                           (computeMap empty_map virtue2)))
+                        (addThread (updThread pfc (Kresume c Vundef) threadPerm')
+                                   (Vptr b ofs) arg newThreadPerm))
         by  (eapply safeC_invariant with (n := fuelF.+1 + size xs); eauto).
+
+      (** The new FineConc threadPool and memory are related by [mem_compatible]*)
       assert (HmemCompF'' : mem_compatible tpf' mf)
-        by (pose proof (codomain_valid (weak_obs_eq (obs_eq Htsim))); subst;
+        by (pose proof (codomain_valid (weak_obs_eq (obs_eq_data Htsim))); subst;
             eapply mem_compatible_spawn; eauto).
       subst.
+
+      (** The two threadPools hav ethe same number of threads*)
       assert (Hnum: num_threads tpc = num_threads tpf)
           by (eapply contains_iff_num; eauto).
       eapply Build_sim with (mem_compc := HmemCompC') (mem_compf := HmemCompF'').
-        - (* containsThread *)
+        - (** containsThread *)
           clear - HnumThreads Hnum.
           intros j.
+          Transparent containsThread.
           split;
             intros cntj;
             apply cntAdd' in cntj;
@@ -9567,11 +9598,75 @@ relation*)
                   subst; simpl; rewrite Hnum;
                   simpl;
                     by ssromega).
-        - (*safety of coarse machine*)
+          Opaque containsThread.
+        - (** safety of coarse machine*)
             by assumption.
-        - (* weak simulation between the two machines*)
+        - (** weak simulation between the two machines*)
+          clear - HsimWeak HnumThreads Htsim Hnum.
           intros j pfcj' pffj'.
-          destruct (HsimWeak _ pfc pff) as [? ? ? ? _].
+          destruct (HsimWeak _ pfc pff) as [Hweak_data Hweak_locks];
+            destruct Hweak_data as [? ? ? ? _].
+          (** Permissions on DryConc are higher than permissions on FineConc *)
+          assert (Hperm: forall b1 b0 ofs0, fp i pfc b1 = Some b0 ->
+                                       Mem.perm_order'' (permission_at (restrPermMap (HmemCompC' j pfcj')#1) b1 ofs0 Cur)
+                                                        (permission_at (restrPermMap (HmemCompF'' j pffj')#1) b0 ofs0 Cur) /\
+                                       Mem.perm_order'' (permission_at (restrPermMap (HmemCompC' j pfcj')#2) b1 ofs0 Cur)
+                                                        (permission_at (restrPermMap (HmemCompF'' j pffj')#2) b0 ofs0 Cur)).
+          { (** there are three cases now, the thread that spawned, the
+            spawned thread and any other thread *)
+            intros b1 b0 ofs0 Hrenaming.
+            rewrite! restrPermMap_Cur.
+            assert (pfcj := cntAdd' _ _ _ pfcj').
+            destruct pfcj as [[pfcj _] | pfcj].
+            { (** case it's not the new thread *)
+              assert (pffj: containsThread
+                              (updThread pff (Kresume cf Vundef) threadPermF') j)
+                by (apply cntUpdate;
+                    apply cntUpdate' in pfcj;
+                      by eapply HnumThreads).
+              erewrite gsoAddRes with (cntj := pfcj); eauto.
+              erewrite gsoAddRes with (cntj := pffj); eauto.
+              (** By case analysis on whether j is the spawning thread
+                  or some other thread *)
+              destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij.
+              - subst i.
+                rewrite gssThreadRes.
+                rewrite gssThreadRes.
+                destruct Htsim.
+                simpl; subst.
+                erewrite! computeMap_projection_1 by eauto.
+                split;
+                  now apply po_refl.
+              - assert (pfcj0 := cntUpdate' _ _ _ pfcj).
+                assert (pffj0 := cntUpdate' _ _ _ pffj).
+                erewrite gsoThreadRes with (cntj := pfcj0); eauto.
+                erewrite gsoThreadRes with (cntj := pffj0); eauto.
+                specialize (HsimWeak _ pfcj0 pffj0).
+                clear - HsimWeak Hrenaming.
+                destruct HsimWeak as [Hweak_data Hweak_locks].
+                destruct Hweak_locks, Hweak_data.
+                specialize (perm_obs_weak0 _ _ ofs0 Hrenaming).
+                specialize (perm_obs_weak1 _ _ ofs0 Hrenaming).
+                rewrite! restrPermMap_Cur in perm_obs_weak0 perm_obs_weak1;
+                  split;
+                  now assumption.
+            }
+            { (** case j is the new thread *)
+              assert (pffj := cntAdd' _ _ _ pffj').
+              destruct pffj as [[_ Hcontra] | pffj].
+              subst. simpl in Hcontra.
+              rewrite Hnum in Hcontra;
+                by exfalso.
+              subst.
+              erewrite gssAddRes by eauto.
+              erewrite gssAddRes by eauto.
+              simpl; subst.
+              erewrite! computeMap_projection_3 by eauto.
+              split;
+                now apply po_refl.
+            }
+          }
+          constructor;
           constructor; intros;
           repeat
             (match goal with
@@ -9580,117 +9675,63 @@ relation*)
              | [|- Mem.valid_block (restrPermMap _) _] =>
                erewrite restrPermMap_valid
              end); eauto;
-          try by specialize (codomain_valid0 _ _ H).
-          { (* Permissions on coarse machine are higher than permissions on fine*)
-            (* there are three cases now, the thread that spawned, the
-            spawned thread and any other thread *)
-            do 2 rewrite restrPermMap_Cur.
-            assert (pfcj := cntAdd' _ _ _ pfcj').
-            destruct pfcj as [[pfcj _] | pfcj].
-
-            { (* case it's not the new thread *)
-              assert (pffj: containsThread
-                              (updThread pff (Kresume cf Vundef)
-                                         (computeMap (getThreadR pff)
-                                                     (projectAngel (fp i pfc)
-                                                                   virtue1))) j)
-                by (apply cntUpdate;
-                     apply cntUpdate' in pfcj;
-                       by eapply HnumThreads).
-              erewrite gsoAddRes with (cntj := pfcj); eauto.
-              erewrite gsoAddRes with (cntj := pffj); eauto.
-              (* By case analysis on whether j is the spawning thread
-              or some other thread *)
-              destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij.
-              - subst i.
-                rewrite gssThreadRes.
-                rewrite gssThreadRes.
-                destruct Htsim.
-                erewrite computeMap_projection_1; eauto.
-                  by apply po_refl.
-              - assert (pfcj0 := cntUpdate' _ _ _ pfcj).
-                assert (pffj0 := cntUpdate' _ _ _ pffj).
-                erewrite gsoThreadRes with (cntj := pfcj0); eauto.
-                erewrite gsoThreadRes with (cntj := pffj0); eauto.
-                specialize (HsimWeak _ pfcj0 pffj0).
-                clear - HsimWeak Hrenaming.
-                destruct HsimWeak.
-                specialize (perm_obs_weak0 _ _ ofs0 Hrenaming).
-                do 2 rewrite restrPermMap_Cur in perm_obs_weak0;
-                  by assumption.
-            }
-            { (*case j is the new thread *)
-              assert (pffj := cntAdd' _ _ _ pffj').
-              destruct pffj as [[_ Hcontra] | pffj].
-              subst. simpl in Hcontra.
-              rewrite Hnum in Hcontra;
-                by exfalso.
-              subst.
-              erewrite gssAddRes; eauto.
-              erewrite gssAddRes; eauto.
-              erewrite computeMap_projection_3; eauto.
-                by apply po_refl.
-            }
-          }
-        - (* Proof of seperation of injections *)
+            try (by specialize (codomain_valid0 _ _ H));
+            now eapply Hperm.
+        - (** Proof of seperation of injections *)
           intros k j cntk' cntj' Hkj b0 b0' b3 b3' Hf0 Hf0' Hfk' Hfj'.
-          (* By a very annoying case analyses on thread j and k*)
-          (* since thread i is already in the renamings pool we can
-              derive a contradiction*)
+          (** By a very annoying case analyses on thread j and k*)
+          (** since thread i is already in the renamings pool we can derive a
+              contradiction*)
           destruct (i == j) eqn:Hij; move/eqP:Hij=> Hij;
             first by (subst j; rewrite gsoAddFP in Hfj'; by congruence).
-          (* likewise for thread k*)
+          (** likewise for thread k*)
           destruct (i == k) eqn:Hik; move/eqP:Hik=>Hik;
             first by (subst k; rewrite gsoAddFP in Hfk'; by congruence).
-          (* we now check whether j is the new thread or not*)
+          (** we now check whether j is the new thread or not*)
           assert (cntj := cntAdd' _ _ _ cntj').
           destruct cntj as [[cntj _] | cntj].
-          + (*case j is an existing thread *)
+          + (** case j is an existing thread *)
             rewrite gsoAddFP in Hfj'.
             assert (cntk := cntAdd' _ _ _ cntk').
             destruct cntk as [[cntk _] | cntk].
-            * (* case k is an existing thread *)
+            * (** case k is an existing thread *)
               rewrite gsoAddFP in Hfk'.
               eapply (HfpSep k j cntk cntj Hkj b0 b0');
                 by eauto.
-            * (*case k is the new thread *)
+            * (** case k is the new thread *)
               subst k.
               erewrite gssAddFP in Hfk'; auto.
                 by congruence.
-          + (*case j is the new thread *)
+          + (** case j is the new thread *)
             subst.
             erewrite gssAddFP in Hfj'; auto.
               by congruence.
-        - (* Proof of strong simulations after executing some thread*)
+        - (** Proof of strong simulations after executing some thread*)
           intros j pfcj' pffj'.
-          (* we now check whether tid is the new thread or not*)
+          (** by case analysis on whether tid is the new thread or not*)
           assert (pfcj := cntAdd' _ _ _ pfcj').
           destruct pfcj as [[pfcj _] | pfcj].
-          assert (pffj: containsThread
-                          (updThread pff (Kresume cf Vundef)
-                                     (computeMap (getThreadR pff)
-                                                 (projectAngel (fp i pfc)
-                                                               virtue1))) j)
-            by (apply cntUpdate;
-                 apply cntUpdate' in pfcj;
-                 eapply HnumThreads; eauto).
-          + (*case j is an old thread*)
+          + (** case j is an old thread*)
+            assert (pffj: containsThread
+                            (updThread pff (Kresume cf Vundef) threadPermF') j)
+              by (apply cntUpdate;
+                  apply cntUpdate' in pfcj;
+                  eapply HnumThreads; eauto).
             destruct (j == i) eqn:Hj; move/eqP:Hj=>Hj; subst.
-            { (*case of strong simulation for the thread that did the spawn*)
+            { (** case j is the thread that did the spawn*)
               exists (addThread
-                   (updThread pfc (Kresume c Vundef)
-                              (computeMap (getThreadR pfc) virtue1)) (Vptr b ofs) arg
-                   (computeMap empty_map virtue2)), mc'.
+                   (updThread pfc (Kresume c Vundef) threadPerm') (Vptr b ofs)
+                   arg newThreadPerm), mc'.
               rewrite Hsynced.
               rewrite gsoAddFP.
-              repeat (split; (auto || constructor)).
               split; first by apply ren_incr_refl.
               split; first by auto.
               split; first by constructor.
               split.
               intros.
-              destruct Htsim as [HcodeEq Hmem_obs_eq].
-              constructor.
+              (** proof of [strong_tsim]*)
+              destruct Htsim as [HcodeEq Hmem_obs_eq_data Hmem_obs_eq_locks].
+             (* constructor.
               erewrite gsoAddCode with (cntj := pfcj); eauto.
               erewrite gsoAddCode with (cntj := pffj); eauto.
               rewrite Hcode HcodeF in HcodeEq.
@@ -10068,9 +10109,12 @@ relation*)
         - intros j Hin.
           specialize (Hxs _ Hin).
           apply cntAdd;
-            by apply cntUpdate.
-    }
-    { (* mklock case *)
+            by apply cntUpdate. *)
+              admit. admit. 
+    } admit. admit. admit. admit. admit. admit. admit. admit. admit. admit. admit. }
+    { (** Makelock case *)
+
+      (** [b] is valid in [m1] (and [mc])*)
       assert (Hvalidb: Mem.valid_block m1 b).
       { eapply Mem.store_valid_access_3 in Hstore.
         eapply Mem.valid_access_valid_block; eauto.
@@ -10078,32 +10122,36 @@ relation*)
         constructor.
       }
       rewrite <- Hrestrict_pmap in Hvalidb.
-      (*  and compute the corresponding block in mf *)
-      destruct ((domain_valid (weak_obs_eq (obs_eq Htsim))) _ Hvalidb)
+
+      (** We compute the corresponding block in mf *)
+      destruct ((domain_valid (weak_obs_eq (obs_eq_data Htsim))) _ Hvalidb)
         as [b2 Hfb].
-      assert (Hvalidb2 := (codomain_valid (weak_obs_eq (obs_eq Htsim))) _ _ Hfb).
+      assert (Hvalidb2 := (codomain_valid (weak_obs_eq (obs_eq_data Htsim))) _ _ Hfb).
       erewrite restrPermMap_valid in Hvalidb2.
-      remember (restrPermMap (compat_ls HmemCompF)) as mf1 eqn:Hrestrict_pmapF.
+
+      (** consider [mf] with the permissions of thread i on FineConc*)
+      remember (restrPermMap (HmemCompF _ pff).1) as mf1 eqn:Hrestrict_pmapF.
       assert (Hval_obs: val_obs (fp i pfc) (Vint Int.zero) (Vint Int.zero))
         by constructor.
-      (* and storing gives us related memories*)
+      (** [m1] and [mf1] are related by [mem_obs_eq] and storing related by
+      [val_obs] values gives us related memories*)
       subst m1.
-      destruct Htsim as [Hcore_inj Hmem_obs_eq].
-      assert (HstoreF := store_val_obs _ _ _ Hstore Hfb Hval_obs Hmem_obs_eq).
-      destruct HstoreF as [mf' [HstoreF Hmem_obs_eq']].
-      (* We have that the code of the fine grained execution
-        is related to the one of the coarse-grained*)
+      destruct Htsim as [Hcore_inj Hmem_obs_eq_data Hmem_obs_eq_locks].
+      assert (HstoreF := store_val_obs _ _ _ Hstore Hfb Hval_obs Hmem_obs_eq_data).
+      destruct HstoreF as [mf' [HstoreF Hmem_obs_eq_data']].
+      (** We have that the code of FineConc
+        is related to the one of DryConc*)
       rewrite Hcode in Hcore_inj.
       simpl in Hcore_inj.
       destruct (getThreadC pff) as [? | cf |? | ?] eqn:HcodeF;
         try by exfalso.
-      (* And now we can prove that cf is also at external *)
+      (** And now we can prove that cf is also at external *)
       assert (Hat_external_spec := core_inj_ext Hcore_inj).
       rewrite Hat_external in Hat_external_spec.
       destruct (at_external SEM.Sem cf) as [[[? ?] vsf]|] eqn:Hat_externalF;
         try by exfalso.
-      (* and moreover that it's the same external and their
-        arguments are related by the injection*)
+      (** and moreover that it's the same external and their
+        arguments are related by the renaming [fp i pfc]*)
       destruct Hat_external_spec as [? [? Harg_obs]]; subst.
       inversion Harg_obs as [|? ? ? ? Hptr_obs Hl]; subst.
       inversion Hl; subst.
@@ -10112,98 +10160,103 @@ relation*)
       assert (bf = b2)
         by (rewrite Hf in Hfb; by inversion Hfb);
         subst bf.
-      (* we compute the new permissions on the thread*)
-      remember (setPermBlock (Some Nonempty) b2 (Int.intval ofs) (getThreadR pff)
-                             lksize.LKSIZE_nat) as pmap_tidF' eqn:Hdrop_permF.
-      symmetry in Hdrop_permF.
-      (* To compute the new fine grained state, we first update the thread*)
-      remember (updThread pff (Kresume cf Vundef) pmap_tidF') as tpf' eqn:Htpf'.
-      (* And also update the lockset to build the final fine-grained
-      state*)
-      remember (updLockSet tpf' (b2, Int.intval ofs) empty_map) as tpf'' eqn:Htpf'';
+      (** we compute the new permissions on the thread*)
+      remember (setPermBlock (Some Nonempty) b2 (Int.intval ofs) (getThreadR pff).1
+                             lksize.LKSIZE_nat) as pmap_tidF' eqn:Hdata_permF.
+      symmetry in Hdata_permF.
+      remember (setPermBlock ((getThreadR pff).1 !! b2 (Int.intval ofs)) b2 (Int.intval ofs) (getThreadR pff).2
+                             lksize.LKSIZE_nat) as pmap_tidF2' eqn:Hlock_permF.
+      symmetry in Hlock_permF.
+      (** To compute the new state of the FineConc machine, we first update the thread*)
+      remember (updThread pff (Kresume cf Vundef) (pmap_tidF', pmap_tidF2')) as tpf' eqn:Htpf'.
+      (** And then update the [lockRes] with empty resources on that address. *)
+      remember (updLockSet tpf' (b2, Int.intval ofs) (empty_map, empty_map)) as tpf'' eqn:Htpf'';
         symmetry in Htpf''.
       exists tpf'', mf', (fp i pfc), fp, (tr ++ [:: (external i (mklock (b2, Int.intval ofs)))]).
       split.
-      (* proof that the fine grained machine can step*)
+      (** proof that the FineConc machine can step*)
       intros U.
       assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf'' mf' (mklock (b2, Int.intval ofs)))
-        by (eapply step_mklock with (b:=b2); eauto).
+        by (eapply step_mklock with (b:=b2); subst pmap_tidF' pmap_tidF2'; eauto; reflexivity).
       econstructor; simpl;
         by eauto.
-      (* Proof that the new coarse and fine state are in simulation*)
+
+      (** The [invariant] holds in the new DryConc state*)
       assert (HinvC':
-                invariant (updLockSet
-                          (updThread pfc (Kresume c Vundef)
-                                     (setPermBlock (Some Nonempty) b (Int.intval ofs) 
-                                                   (getThreadR pfc)
-                                                   lksize.LKSIZE_nat))
-                          (b, Int.intval ofs) empty_map))
+                invariant (updLockSet (updThread pfc (Kresume c Vundef) pmap_tid')
+                                      (b, Int.intval ofs) (empty_map, empty_map)))
         by  (eapply safeC_invariant with (n := fuelF.+1 + size xs); eauto).
+      (** The [max_inv] holds for thew new memory of FineConc*)
       assert (HmaxF': max_inv mf')
         by (eapply max_inv_store; eauto).
+      (** The updated state of FineCond and the new memory are related by [mem_compatible]*)
       assert (HmemCompF'': mem_compatible tpf'' mf').
       { subst.
-        clear - HmemCompF HmaxF' Hf Hmem_obs_eq Hvalidb2 HstoreF.
+        clear - HmemCompF HmaxF' Hf Hmem_obs_eq_data Hvalidb2 HstoreF.
         constructor.
         - intros.
           rewrite gLockSetRes.
+          unfold permMapLt.
+          erewrite <- forall2_and.
+          intros b0 ofs0.
           destruct (i == tid) eqn:Heq; move/eqP:Heq=>Heq.
           + subst. rewrite gssThreadRes.
-            intros b' ofs'.
-            destruct (Pos.eq_dec b2 b').
+            destruct (Pos.eq_dec b2 b0).
             * subst.
               assert (Hvalidb2' := Mem.store_valid_block_1 _ _ _ _ _ _
-                                                           HstoreF b' Hvalidb2).
-              specialize (HmaxF' _ ofs' Hvalidb2').
+                                                           HstoreF b0 Hvalidb2).
+              specialize (HmaxF' _ ofs0 Hvalidb2').
               rewrite getMaxPerm_correct.
               rewrite HmaxF'.
-              destruct ((setPermBlock (Some Nonempty) b' (Int.intval ofs) 
-                                      (getThreadR pff) lksize.LKSIZE_nat) # b' ofs');
-                simpl; constructor.
-            * rewrite setPermBlock_other_2; auto.
+              simpl; split;
+                match goal with
+                | [|-match ?Expr with _ => _ end] =>
+                  destruct Expr
+                end;
+                now constructor.
+            * rewrite! setPermBlock_other_2; auto.
               erewrite <- mem_store_max by eauto.
               rewrite getMax_restr.
-              eapply HmemCompF.
-          + intros b' ofs'.
-            erewrite <- mem_store_max by eauto.
+              split;
+              now eapply HmemCompF.
+          + erewrite <- mem_store_max by eauto.
             rewrite getMax_restr.
-            rewrite gsoThreadRes; auto.
-            eapply HmemCompF.
+            erewrite! gsoThreadRes with (cntj := cntUpdate' _ _ pff (cntUpdateL' _ _ cnt))  by eauto.
+            split;
+            now eapply HmemCompF.
         - intros l rmap Hres.
+          unfold permMapLt.
+          erewrite <- forall2_and.
+          intros b0 ofs0.
           destruct (EqDec_address (b2, Int.intval ofs) l).
           + inversion e; subst.
             rewrite gsslockResUpdLock in Hres.
             inversion Hres.
-            intros b' ofs'.
             rewrite empty_map_spec.
-            destruct ((getMaxPerm mf') # b' ofs'); simpl; auto.
+            destruct ((getMaxPerm mf') # b0 ofs0); simpl; auto.
           + erewrite gsolockResUpdLock in Hres by eauto.
-            intros b' ofs'.
             erewrite <- mem_store_max by eauto.
             rewrite gsoThreadLPool in Hres.
             rewrite getMax_restr.
-            eapply (compat_lp HmemCompF); eauto.
-        - intros b' ofs'.
-          destruct (Pos.eq_dec b2 b').
-          * subst.
-            assert (Hvalidb2' := Mem.store_valid_block_1 _ _ _ _ _ _
-                                                         HstoreF b' Hvalidb2).
-            specialize (HmaxF' _ ofs' Hvalidb2').
-            rewrite getMaxPerm_correct.
-            rewrite HmaxF'.
+            split;
+              eapply HmemCompF;
+              now eassumption.
+        - intros l rmap Hres.
+          destruct (EqDec_address (b2, Int.intval ofs) l).
+          + subst.
             simpl.
-            match goal with
-              [|- match ?Expr with _ => _ end] => destruct Expr
-            end; constructor.
-            rewrite gsoLockSet_2; auto.
-            rewrite gsoThreadLock.
-            erewrite <- mem_store_max by eauto.
-            rewrite getMax_restr.
-            eapply (compat_ls HmemCompF).
+            eapply Mem.store_valid_block_1;
+              now eauto.
+          + erewrite gsolockResUpdLock in Hres by eauto.
+            rewrite gsoThreadLPool in Hres.
+            eapply Mem.store_valid_block_1; eauto.
+            eapply HmemCompF;
+              now eassumption.
       }
       subst.
+      (** Proof that the DryCond and FineConc machines are in simulation*)
       eapply Build_sim with (mem_compc := HmemCompC') (mem_compf := HmemCompF'').
-      - (* containsThread *)
+      - (** containsThread *)
         clear - HnumThreads.
         intros j.
         split; intros cntj;
@@ -10212,9 +10265,9 @@ relation*)
         apply cntUpdateL' in cntj;
         apply cntUpdate' in cntj;
           by eapply HnumThreads.
-      - (*safety of coarse machine*)
+      - (** safety of coarse machine*)
           by assumption.
-      - (* weak simulation between the two machines*)
+      - (** weak simulation between the two machines*)
         intros j pfcj' pffj'.
         assert (pfcj: containsThread tpc j)
           by auto.
@@ -10224,7 +10277,7 @@ relation*)
         assert (Hvb: forall b, Mem.valid_block mc b <-> Mem.valid_block mc' b)
           by (
               intros;
-              erewrite <- restrPermMap_valid with (Hlt := HmemCompC _ pfc);
+              erewrite <- restrPermMap_valid with (Hlt := (HmemCompC _ pfc).1);
               split;
               [eapply Mem.store_valid_block_1 | eapply Mem.store_valid_block_2];
               eauto).
@@ -10234,12 +10287,163 @@ relation*)
         assert (HvbF: forall b, Mem.valid_block mf b <-> Mem.valid_block mf' b)
           by (
               intros;
-              erewrite <- restrPermMap_valid with (Hlt := HmemCompF _ pff);
+              erewrite <- restrPermMap_valid with (Hlt := (HmemCompF _ pff).1);
               split;
               [eapply Mem.store_valid_block_1 | eapply Mem.store_valid_block_2];
               eauto).
-        clear - Hvb Hvb' HvbF HstoreF Hstore HsimWeak Hsim Hfb.
+        clear - Hvb Hvb' HvbF HstoreF Hstore HsimWeak Hsim Hfb Hdata_perm Hlock_perm.
+
+        Lemma setPermBlock_weak_obs_eq:
+          forall (f : block -> option block) (bl1 bl2 : block) (ofsl : Z) (pmap pmapF : access_map) (mc mf : mem) (p : option permission) (Hlt : permMapLt pmap (getMaxPerm mc))
+            (HltF : permMapLt pmapF (getMaxPerm mf)),
+            f bl1 = Some bl2 ->
+            Mem.range_perm (restrPermMap Hlt) bl1 ofsl (ofsl + size_chunk Mint32) Cur Readable ->
+            weak_mem_obs_eq f (restrPermMap Hlt) (restrPermMap HltF) ->
+            forall (Hlt' : permMapLt (setPermBlock p bl1 ofsl pmap lksize.LKSIZE_nat) (getMaxPerm mc))
+              (HltF' : permMapLt (setPermBlock p bl2 ofsl pmapF lksize.LKSIZE_nat) (getMaxPerm mf)), weak_mem_obs_eq f (restrPermMap Hlt') (restrPermMap HltF').
+        Admitted.
+        
+        Lemma weak_mem_obs_eq_store:
+    forall mc mf mc' mf' rmap rmapF bl1 bl2 f
+      (Hlt: permMapLt rmap (getMaxPerm mc))
+      (HltF: permMapLt rmapF (getMaxPerm mf))
+      (Hlt2: permMapLt rmap (getMaxPerm mc'))
+      (Hlt2F: permMapLt rmapF (getMaxPerm mf'))
+      (Hf: f bl1 = Some bl2)
+      (Hinjective: forall b1 b1' b2 : block, f b1 = Some b2 -> f b1' = Some b2 -> b1 = b1')
+      (Hobs_eq: weak_mem_obs_eq f (restrPermMap Hlt) (restrPermMap HltF))
+      (Hvb: forall b, Mem.valid_block mc b <-> Mem.valid_block mc' b)
+      (HvbF: forall b, Mem.valid_block mf b <-> Mem.valid_block mf' b),
+      weak_mem_obs_eq f (restrPermMap Hlt2) (restrPermMap Hlt2F).
+        Admitted.
+
+        assert (Hlt1': permMapLt (getThreadR pfcj).1 (getMaxPerm mc'))
+          by (intros b0 ofs0;
+              erewrite <- mem_store_max by eauto;
+              rewrite getMaxPerm_correct;
+              rewrite restrPermMap_Max;
+              now apply HmemCompC;
+              unfold permission_at;
+              erewrite Mem.store_access by eauto).
+
+        assert (Hlt1F': permMapLt (getThreadR pffj).1 (getMaxPerm mf'))
+          by (intros b0 ofs0;
+              erewrite <- mem_store_max by eauto;
+              rewrite getMaxPerm_correct;
+              rewrite restrPermMap_Max;
+              now apply HmemCompF;
+              unfold permission_at;
+              erewrite Mem.store_access by eauto).
+
+        destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij.
+        subst.
+        pf_cleanup.
+        constructor.
+        subst.
+        assert (Hlt1: permMapLt (setPermBlock (Some Nonempty) b (Int.intval ofs) (getThreadR pfcj)#1 lksize.LKSIZE_nat) (getMaxPerm mc'))
+          by (pose proof (HmemCompC' _ pfcj') as Hlt;
+              rewrite gLockSetRes gssThreadRes in Hlt;
+              rewrite <- Hdata_perm in Hlt;
+              destruct Hlt; assumption).
+        assert (Hlt1F: permMapLt (setPermBlock (Some Nonempty) b2 (Int.intval ofs) (getThreadR pffj)#1 lksize.LKSIZE_nat) (getMaxPerm mf'))
+          by (pose proof (HmemCompF'' _ pffj') as Hlt;
+              rewrite gLockSetRes gssThreadRes in Hlt;
+              destruct Hlt; assumption).
+        erewrite restrPermMap_irr' with (Hlt' := Hlt1)
+          by (rewrite gLockSetRes gssThreadRes; rewrite <- Hdata_perm; reflexivity).
+        erewrite restrPermMap_irr' with (Hlt' := Hlt1F)
+          by (rewrite gLockSetRes gssThreadRes; reflexivity).
         destruct HsimWeak.
+        eapply weak_mem_obs_eq_store with (Hlt2 := Hlt1') (Hlt2F := Hlt1F') in weak_tsim_data0; eauto.
+        eapply setPermBlock_weak_obs_eq; eauto.
+        eapply Mem.store_valid_access_3 in Hstore; eauto.
+        eapply Mem.valid_access_implies with (p2 := Readable) in Hstore; eauto using perm_order.
+        destruct Hstore as [Hrange _].
+        unfold Mem.range_perm, Mem.perm in *.
+        intros.
+        pose proof (restrPermMap_Cur Hlt1' b ofs0) as Heq'.
+        pose proof (restrPermMap_Cur (HmemCompC j pfcj)#1 b ofs0) as Heq.
+        unfold permission_at in *.
+        specialize (Hrange _ H).
+        rewrite Heq'.
+        rewrite Heq in Hrange.
+        assumption.
+        now eapply (injective (weak_tsim_data0)).
+
+        (*TODO: same for locks, then do for other threads, then cleanup*)
+
+        (** Permissions on DryConc machine are higher than permissions on FineConc*)
+        assert (Hlt: 
+                  forall (b1 b0 : block) (ofs0 : Z),
+                    fp i pfc b1 = Some b0 ->
+                    Mem.perm_order'' (permission_at (restrPermMap (HmemCompC' j pfcj')#1) b1 ofs0 Cur)
+                                     (permission_at (restrPermMap (HmemCompF'' j pffj').1) b0 ofs0 Cur) /\
+                    Mem.perm_order'' (permission_at (restrPermMap (HmemCompC' j pfcj')#2) b1 ofs0 Cur)
+                                     (permission_at (restrPermMap (HmemCompF'' j pffj').2) b0 ofs0 Cur)).
+        { intros b1 b0 ofs0 Hrenaming.
+          pose proof (perm_obs_weak (weak_tsim_data HsimWeak)) as Hperm_data.
+          pose proof (perm_obs_weak (weak_tsim_locks HsimWeak)) as Hperm_locks.
+          specialize (Hperm_data _ _ ofs0 Hrenaming).
+          specialize (Hperm_locks _ _ ofs0 Hrenaming).
+
+
+          destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij.
+          - (** this is the case where some permissions have changed by setPermBlock*)
+            subst j.
+            pf_cleanup.
+            rewrite! restrPermMap_Cur gLockSetRes gssThreadRes;
+              rewrite! gLockSetRes gssThreadRes.
+
+            eapply setPermBlock_weak_obs_eq.
+
+            pose proof (injective (weak_tsim_data HsimWeak)).
+
+            (** by case analysis on whether the angel changed the
+              permission at this address*)
+            assert (Hproject1: Maps.PTree.get b0 (projectAngel (fp i pfc) virtueThread.1) =
+                               Maps.PTree.get b1 virtueThread.1)
+              by (symmetry; eapply projectAngel_correct; eauto).
+            assert (Hproject2: Maps.PTree.get b0 (projectAngel (fp i pfc) virtueThread.2) =
+                               Maps.PTree.get b1 virtueThread.2)
+              by (symmetry; eapply projectAngel_correct; eauto).
+            split; simpl in *.
+            + destruct (Maps.PTree.get b1 virtueThread.1) as [df|] eqn:Hdelta.
+              * destruct (df ofs0) as [pnew |] eqn:Hdf.
+                rewrite (computeMap_1 _ _ _ _ Hdelta Hdf).
+                rewrite (computeMap_1 _ _ _ _ Hproject1 Hdf);
+                  by eapply po_refl.
+                rewrite (computeMap_2 _ _ _ _ Hdelta Hdf).
+                rewrite (computeMap_2 _ _ _ _ Hproject1 Hdf);
+                  by do 2 rewrite restrPermMap_Cur in Hperm_data.
+              *  rewrite (computeMap_3 _ _ _ _ Hdelta).
+                 rewrite (computeMap_3 _ _ _ _ Hproject1);
+                   by do 2 rewrite restrPermMap_Cur in Hperm_data.
+            + destruct (Maps.PTree.get b1 virtueThread.2) as [df|] eqn:Hdelta.
+              * destruct (df ofs0) as [pnew |] eqn:Hdf.
+                rewrite (computeMap_1 _ _ _ _ Hdelta Hdf).
+                rewrite (computeMap_1 _ _ _ _ Hproject2 Hdf);
+                  by eapply po_refl.
+                rewrite (computeMap_2 _ _ _ _ Hdelta Hdf).
+                rewrite (computeMap_2 _ _ _ _ Hproject2 Hdf);
+                  by do 2 rewrite restrPermMap_Cur in Hperm_locks.
+              *  rewrite (computeMap_3 _ _ _ _ Hdelta).
+                 rewrite (computeMap_3 _ _ _ _ Hproject2);
+                   by do 2 rewrite restrPermMap_Cur in Hperm_locks.
+          - erewrite! restrPermMap_Cur.
+            assert (pfcj0: containsThread (updThread pfc (Kresume c Vundef) newThreadPerm) j)
+              by (apply cntUpdate; auto).
+            assert (pffj0: containsThread (updThread pff (Kresume cf Vundef)
+                                                     (computeMap (getThreadR pff)#1 virtueF#1, computeMap (getThreadR pff)#2 virtueF#2)) j)
+              by (apply cntUpdate; auto).
+            erewrite gLockSetRes with (cnti := pfcj0).
+            erewrite gLockSetRes with (cnti := pffj0).
+            erewrite gsoThreadRes with (cntj := pfcj); eauto.
+            erewrite gsoThreadRes with (cntj := pffj); eauto.
+            split;
+              [do 2 erewrite restrPermMap_Cur in Hperm_data |
+               do 2 erewrite restrPermMap_Cur in Hperm_locks];
+                by assumption. }
+
         constructor; intros;
         repeat
           (match goal with
