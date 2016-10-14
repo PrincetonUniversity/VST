@@ -140,87 +140,66 @@ Lemma semax_fun_id_alt {CS: compspecs}:
                     (func_ptr f (eval_var id (type_of_funspec f) rho)))
                   c Q ->
        semax Espec Delta P c Q.
-(*
-Lemma semax_fun_id {CS: compspecs}:
-      forall id fsig cc (A : TypeTree)
-        (P' Q' : forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
-              Delta P Q c
-      (GLBL: (var_types Delta) ! id = None),
-    (glob_specs Delta) ! id = Some (mk_funspec fsig cc A P' Q') ->
-    (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec fsig cc A P' Q')) ->
-       semax Espec Delta (fun rho => P rho 
-                                && fun_assert  fsig cc A P' Q' (eval_lvalue (Evar id (Tfunction (type_of_params (fst fsig)) (snd fsig) cc)) rho))
-                              c Q ->
-       semax Espec Delta P c Q.
-*)
 Proof.
-intros until 1; intro HT; intros.
-rewrite semax_unfold in H0|-*.
-rename H0 into H1; pose proof I.
-destruct f as [fsig0 cc A P' Q'].
-intros.
-specialize (H1 psi Delta' w TS HGG Prog_OK k F H2 H3).
-replace ((var_types Delta) ! id) with ((var_types Delta')!id) in GLBL 
-  by (destruct TS as [_ [? _]]; symmetry; auto).
-assert (H': (glob_specs Delta') ! id = Some (mk_funspec fsig0 cc A P' Q')). {
-clear - H HT TS.
-destruct TS as [_ [_ [_ [SUB SUBsp]]]].
-specialize (SUBsp id); hnf in SUBsp.  rewrite HT in SUBsp; auto.
-}
-assert (H'': (glob_types Delta') ! id = Some (type_of_funspec (mk_funspec fsig0 cc A P' Q'))). {
-clear - H HT TS.
-destruct TS as [_ [_ [_ [SUB SUBsp]]]]. specialize (SUB id).
- hnf in SUB; rewrite H in SUB; auto.
-}
-clear H HT TS. rename H'' into H.
-intros te ve w' ? w'' ? ?.
-apply (H1 te ve w' H4 w'' H5); clear H1.
-destruct H6; split; auto.
-destruct H1 as [H1 ?]; split; auto.
-normalize.
-split; auto.
-assert (app_pred (believe Espec Delta' psi Delta') (level w'')).
-apply pred_nec_hereditary with (level w'); eauto.
-apply nec_nat; apply necR_level; auto.
-apply pred_nec_hereditary with w; eauto.
-apply nec_nat; auto.
-hnf in H1. destruct H1.
-destruct H1 as [_ [_ [H1 SAME]]]. 
-rename GLBL into GL1.
-specialize (H1 _ _ H).
-specialize (SAME _ _ H).
-destruct SAME as [SAME | [t SAME]]; [ | congruence].
-destruct H1 as [b [? ?]].
-specialize (H8 (Vptr b Int.zero) fsig0 cc A P' Q' _ (necR_refl _)).
-spec H8.
-exists id. split; auto. exists b; auto.
-exists b. split.
-unfold eval_lvalue, eval_var.
-unfold Map.get. rewrite SAME.
-rewrite H1. reflexivity.
-intro loc.
-hnf.
-if_tac; auto.
-subst.
-hnf.
-destruct H6 as [H6 _].
-specialize (H6 _ _ _ (necR_refl _) H').
-destruct H6 as [b' [? ?]].
-do 3 red in H6. inversion2 H1 H6.
-apply H11.
-Qed.
-
-Lemma semax_fun_id_alt {CS: compspecs}:
-      forall id f    Delta (P: assert) Q c
-      (GLBL: (var_types Delta) ! id = None),
-    (glob_specs Delta) ! id = Some f ->
-    (glob_types Delta) ! id = Some (type_of_funspec f) ->
-       semax Espec Delta (fun rho => P rho && 
-                    (func_ptr f (eval_var id (type_of_funspec f) rho)))
-                  c Q ->
-       semax Espec Delta P c Q.
-Proof. 
-intros id [fsig cc A P' Q']. apply semax_fun_id. 
+  intros until 1; intro HT; intros.
+  rewrite semax_unfold in H0|-*.
+  destruct f as [fsig0 cc A P' Q'].
+  intros.
+  specialize (H0 psi Delta' w TS HGG Prog_OK k F H1 H2).
+  replace ((var_types Delta) ! id) with ((var_types Delta')!id) in GLBL 
+    by (destruct TS as [_ [? _]]; symmetry; auto).
+  assert (H': (glob_specs Delta') ! id = Some (mk_funspec fsig0 cc A P' Q')).
+  Focus 1. {
+    clear - H HT TS.
+    destruct TS as [_ [_ [_ [SUB SUBsp]]]].
+    specialize (SUBsp id); hnf in SUBsp.  rewrite HT in SUBsp; auto.
+  } Unfocus.
+  assert (H'': (glob_types Delta') ! id =
+    Some (type_of_funspec (mk_funspec fsig0 cc A P' Q'))).
+  Focus 1. {
+    clear - H HT TS.
+    destruct TS as [_ [_ [_ [SUB SUBsp]]]]. specialize (SUB id).
+    hnf in SUB; rewrite H in SUB; auto.
+  } Unfocus.
+  clear H HT TS. rename H'' into H.
+  intros te ve w' ? w'' ? ?.
+  apply (H0 te ve w' H3 w'' H4); clear H0.
+  destruct H5; split; auto.
+  destruct H0 as [H0 ?]; split; auto.
+  normalize.
+  split; auto.
+  assert (app_pred (believe Espec Delta' psi Delta') (level w'')).
+  Focus 1. {
+    apply pred_nec_hereditary with (level w'); eauto.
+    apply nec_nat; apply necR_level; auto.
+    apply pred_nec_hereditary with w; eauto.
+    apply nec_nat; auto.
+  } Unfocus.
+  hnf in H0. destruct H0.
+  destruct H0 as [_ [_ [H0 SAME]]]. 
+  rename GLBL into GL1.
+  specialize (H0 _ _ H).
+  specialize (SAME _ _ H).
+  destruct SAME as [SAME | [t SAME]]; [ | congruence].
+  destruct H0 as [b [? ?]].
+  specialize (H7 (Vptr b Int.zero) fsig0 cc A P' Q' _ (necR_refl _)).
+  spec H7.
+  Focus 1. {
+    exists id.
+    split; auto.
+    exists b; auto.
+  } Unfocus.
+  exists b.
+  split.
+  + unfold eval_lvalue, eval_var.
+    unfold Map.get. rewrite SAME.
+    rewrite H0. reflexivity.
+  + hnf.
+    destruct H5 as [H5 _].
+    specialize (H5 _ _ _ (necR_refl _) H').
+    destruct H5 as [b' [? ?]].
+    do 3 red in H5. inversion2 H0 H5.
+    apply H10.
 Qed.
 
 Import JuicyMemOps.
@@ -2669,7 +2648,7 @@ Lemma semax_call {CS: compspecs}:
           tc_fn_return Delta ret retsig ->
   semax Espec Delta
        (fun rho =>  tc_expr Delta a rho && tc_exprlist Delta (snd (split argsig)) bl rho  && 
-           (fun_assert  (argsig,retsig) cc A P Q (eval_expr a rho) && 
+           (func_ptr (mk_funspec (argsig,retsig) cc A P Q) (eval_expr a rho) && 
           (F rho * P ts x (make_args (map (@fst  _ _) argsig)
                 (eval_exprlist (snd (split argsig)) bl rho) rho ))))
          (Scall ret a bl)
@@ -2692,10 +2671,8 @@ subst w.
 
 apply extend_sepcon_andp in H3; auto.
 destruct H3 as [H2 H3].
-normalize in H3. unfold fun_assert in *. unfold res_predicates.fun_assert in *. 
+normalize in H3. unfold func_ptr in *.
 destruct H3 as [[b [H3 H6]] H5].
-specialize (H6 (b, 0)).
-rewrite jam_true in H6 by auto.
 hnf in H3.
 generalize H4; intros [_ H7].
 specialize (H7 (b) (mk_funspec (argsig,retsig) cc A P Q) _ (necR_refl _)).
@@ -2730,7 +2707,6 @@ remember (construct_rho (filter_genv psi) vx tx) as rho.
 set (args := eval_exprlist (snd (split argsig)) bl rho).
 fold args in H5.
 rename H11 into H10'.
-
 
 Lemma function_pointer_aux:
   forall A P P' Q Q' (w: rmap), 

@@ -224,10 +224,16 @@ Definition AssertTT (A: TypeTree): TypeTree :=
 Definition SpecTT (A: TypeTree): TypeTree :=
   ArrowType A (ArrowType (ConstType bool) (ArrowType (ConstType environ) Mpred)).
 
+Definition super_non_expansive {A: TypeTree}
+  (P: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred): Prop :=
+  forall n ts x rho,
+  approx n (P ts x rho) = approx n (P ts (fmap _ (approx n) (approx n) x) rho).
+
 Inductive funspec :=
-   mk_funspec: funsig -> calling_convention -> forall A: TypeTree,
-     (forall ts, dependent_type_functor_rec ts (AssertTT A) mpred) ->
-     (forall ts, dependent_type_functor_rec ts (AssertTT A) mpred) -> funspec.
+   mk_funspec: funsig -> calling_convention -> forall (A: TypeTree)
+     (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
+     (P_ne: super_non_expansive P) (Q_ne: super_non_expansive Q),
+     funspec.
 
 (* Causes a universe inconsistency in seplog.v! 
 Definition example_f_spec :=
@@ -422,7 +428,7 @@ Defined.
 *)
 
 Definition type_of_funspec (fs: funspec) : type :=  
-  match fs with mk_funspec fsig cc _ _ _ => Tfunction (type_of_params (fst fsig)) (snd fsig) cc end.
+  match fs with mk_funspec fsig cc _ _ _ _ _ => Tfunction (type_of_params (fst fsig)) (snd fsig) cc end.
 
 (** Declaration of type context for typechecking **)
 Inductive tycontext : Type := 
