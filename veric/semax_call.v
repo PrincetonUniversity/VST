@@ -93,43 +93,86 @@ Qed.
 
 Lemma someP_inj:  forall A P Q, SomeP A P = SomeP A Q -> P=Q.
 Proof. intros. injection H; intro. apply inj_pair2 in H0. auto. Qed.
-(*
+
 Lemma function_pointer_aux:
   forall A P P' Q Q' (w: rmap), 
+    super_non_expansive P ->
+    super_non_expansive Q ->
+    super_non_expansive P' ->
+    super_non_expansive Q' ->
    SomeP (SpecTT A) (fmap (fpi _) (approx (level w)) (approx (level w)) (packPQ P Q)) =
    SomeP (SpecTT A) (fmap (fpi _) (approx (level w)) (approx (level w)) (packPQ P' Q')) ->
    ( (forall ts x vl, (! |> (P' ts x vl <=> P ts x vl)) w) /\
      (forall ts x vl, (! |> (Q' ts x vl <=> Q ts x vl)) w)).
 Proof.
-intros.
-apply someP_inj in H.
-unfold packPQ in H; simpl in H.
-split; intros.
-apply equal_f_dep with ts in H.
-apply equal_f with x in H.
-apply equal_f with true in H.
-apply equal_f with vl in H.
-simpl in H.
-rewrite @later_fash; auto with typeclass_instances.
-intros ? ? m' ?.
-split; intros m'' ? ?;  apply f_equal with (f:= fun x => app_pred x m'') in H;
-apply prop_unext in H. apply approx_p with (level w). apply H;
-apply approx_lt; auto; clear - H0 H1 H2; hnf in H1; apply laterR_level in H1;
-apply necR_level in H2; simpl in *;
-change compcert_rmaps.R.ag_rmap with ag_rmap in *;
-change compcert_rmaps.R.rmap with rmap in *;
-omega.
-apply equal_f with (x,(false,(vl,tt))) in H.
-simpl in H.
-rewrite @later_fash; auto with typeclass_instances; intros ? ? m' ?;
-split; intros m'' ? ?;  apply f_equal with (f:= fun x => app_pred x m'') in H;
-apply prop_unext in H; apply approx_p with (level w); apply H;
-apply approx_lt; auto; clear - H0 H1 H2; hnf in H1; apply laterR_level in H1;
-apply necR_level in H2; simpl in *;
-change compcert_rmaps.R.ag_rmap with ag_rmap in *;
-change compcert_rmaps.R.rmap with rmap in *; omega.
+  intros ? ? ? ? ? ? NEP NEQ NEP' NEQ' H.
+  apply someP_inj in H.
+  unfold packPQ in H; simpl in H.
+  split; intros.
+  + apply equal_f_dep with ts in H.
+    apply equal_f with x in H.
+    apply equal_f with true in H.
+    apply equal_f with vl in H.
+    simpl in H.
+    rewrite @later_fash; auto with typeclass_instances.
+    intros ? ? m' ?.
+    assert (forall m'', necR m' m'' -> (level m'' < level w)%nat).
+    Focus 1. {
+      intros.
+      clear - H0 H1 H2; hnf in H1.
+      apply laterR_level in H1.
+      apply necR_level in H2; simpl in *.
+      change compcert_rmaps.R.ag_rmap with ag_rmap in *.
+      change compcert_rmaps.R.rmap with rmap in *.
+      omega.
+    } Unfocus.
+    split; intros m'' ? ?.
+    - apply f_equal with (f:= fun x => app_pred x m'') in H.
+      apply prop_unext in H.
+      apply approx_p with (level w).
+      rewrite NEP.
+      apply H.
+      rewrite <- NEP'.
+      apply approx_lt; auto.
+    - apply f_equal with (f:= fun x => app_pred x m'') in H.
+      apply prop_unext in H.
+      apply approx_p with (level w).
+      rewrite NEP'.
+      apply H.
+      rewrite <- NEP.
+      apply approx_lt; auto.
+  + apply equal_f_dep with ts in H.
+    apply equal_f with x in H.
+    apply equal_f with false in H.
+    apply equal_f with vl in H.
+    simpl in H.
+    rewrite @later_fash; auto with typeclass_instances; intros ? ? m' ?.
+    assert (forall m'', necR m' m'' -> (level m'' < level w)%nat).
+    Focus 1. {
+      intros.
+      clear - H0 H1 H2; hnf in H1.
+      apply laterR_level in H1.
+      apply necR_level in H2; simpl in *.
+      change compcert_rmaps.R.ag_rmap with ag_rmap in *.
+      change compcert_rmaps.R.rmap with rmap in *.
+      omega.
+    } Unfocus.
+    split; intros m'' ? ?.
+    - apply f_equal with (f:= fun x => app_pred x m'') in H.
+      apply prop_unext in H.
+      apply approx_p with (level w).
+      rewrite NEQ.
+      apply H.
+      rewrite <- NEQ'.
+     apply approx_lt; auto.
+    - apply f_equal with (f:= fun x => app_pred x m'') in H.
+      apply prop_unext in H.
+      apply approx_p with (level w).
+      rewrite NEQ'.
+      apply H.
+      rewrite <- NEQ.
+     apply approx_lt; auto.
 Qed.
-*)
 
 Lemma semax_fun_id_alt {CS: compspecs}:
       forall id f    Delta (P: assert) Q c
@@ -143,19 +186,19 @@ Lemma semax_fun_id_alt {CS: compspecs}:
 Proof.
   intros until 1; intro HT; intros.
   rewrite semax_unfold in H0|-*.
-  destruct f as [fsig0 cc A P' Q'].
+  destruct f as [fsig0 cc A P' Q' NEP' NEQ'].
   intros.
   specialize (H0 psi Delta' w TS HGG Prog_OK k F H1 H2).
   replace ((var_types Delta) ! id) with ((var_types Delta')!id) in GLBL 
     by (destruct TS as [_ [? _]]; symmetry; auto).
-  assert (H': (glob_specs Delta') ! id = Some (mk_funspec fsig0 cc A P' Q')).
+  assert (H': (glob_specs Delta') ! id = Some (mk_funspec fsig0 cc A P' Q' NEP' NEQ')).
   Focus 1. {
     clear - H HT TS.
     destruct TS as [_ [_ [_ [SUB SUBsp]]]].
     specialize (SUBsp id); hnf in SUBsp.  rewrite HT in SUBsp; auto.
   } Unfocus.
   assert (H'': (glob_types Delta') ! id =
-    Some (type_of_funspec (mk_funspec fsig0 cc A P' Q'))).
+    Some (type_of_funspec (mk_funspec fsig0 cc A P' Q' NEP' NEQ'))).
   Focus 1. {
     clear - H HT TS.
     destruct TS as [_ [_ [_ [SUB SUBsp]]]]. specialize (SUB id).
@@ -185,7 +228,7 @@ Proof.
   specialize (H7 (Vptr b Int.zero) fsig0 cc A P' Q' _ (necR_refl _)).
   spec H7.
   Focus 1. {
-    exists id.
+    exists id, NEP', NEQ'.
     split; auto.
     exists b; auto.
   } Unfocus.
@@ -2115,6 +2158,7 @@ Lemma semax_call_aux:
  forall {CS: compspecs} (Delta : tycontext)
   (A : TypeTree)
   (P Q Q' : forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
+  (NEP: super_non_expansive P) (NEQ': super_non_expansive Q')
   (ts: list Type) (x : dependent_type_functor_rec ts A mpred)
   (F : environ -> pred rmap)
   (F0 : assert) (ret : option ident) (fsig0 : funsig) cc (a : expr)
@@ -2138,7 +2182,7 @@ Lemma semax_call_aux:
     (funassert Delta rho) (m_phi jm) ->
     (rguard Espec psi (exit_tycon (Scall ret a bl) Delta) (frame_ret_assert R F0) k) (level (m_phi jm)) ->
     (believe Espec Delta psi Delta) (level (m_phi jm)) ->
-    (glob_specs Delta)!id = Some (mk_funspec fsig0 cc A P Q') ->
+    (glob_specs Delta)!id = Some (mk_funspec fsig0 cc A P Q' NEP NEQ') ->
     Genv.find_symbol psi id = Some b ->
     (forall vl : environ, (!|>(Q' ts x vl <=> Q ts x vl)) (m_phi jm)) ->
     (|>(F0 rho * F rho *
@@ -2148,7 +2192,7 @@ Lemma semax_call_aux:
    jsafeN (@OK_spec Espec) psi (level (m_phi jm)) ora
      (State (vx) (tx) (Kseq (Scall ret a bl) :: k)) jm.
 Proof.
-intros CS Delta A P Q Q' ts x F F0 ret fsig cc a bl R psi vx tx k rho ora jm b id.
+intros CS Delta A P Q Q' NEP NEQ' ts x F F0 ret fsig cc a bl R psi vx tx k rho ora jm b id.
 intros TC0 TCret TC1 TC2 TC3 TC5 H HR HGG H0 H3 H4 H1 Prog_OK H8 H7 H11 H14.
 pose (H6:=True); pose (H9 := True); pose (H16:=True);
 pose (H12:=True); pose (H10 := True); pose (H5:=True).
@@ -2161,7 +2205,7 @@ simpl.
 destruct (levelS_age1 _ _ H2) as [phi' H13].
 assert (LATER: laterR (level (m_phi jm)) n) by (constructor 1; rewrite H2; reflexivity).
 spec Prog_OK'.
-hnf. exists id; split; auto.
+hnf. exists id, NEP, NEQ'; split; auto.
 exists b; split; auto.
 clear H16.
 clear H10 H6 H5 H8.
@@ -2220,7 +2264,7 @@ spec H19 ; [clear H19 |]. {
  apply pred_eq_e1; apply (H11 _ _ LATER).
  destruct (fn_return f); auto.
  apply pred_eq_e1; apply (H11 _ _ LATER).
- clear Q' H11.
+ clear Q' NEQ' H11.
  pose proof I.
  pose proof I.
  
@@ -2640,6 +2684,7 @@ Qed.
 Lemma semax_call {CS: compspecs}: 
   forall Delta (A: TypeTree)
   (P Q : forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
+  (NEP: super_non_expansive P) (NEQ: super_non_expansive Q)
   (ts: list Type) (x : dependent_type_functor_rec ts A mpred)
    F ret argsig retsig cc a bl,
            Cop.classify_fun (typeof a) =
@@ -2648,14 +2693,14 @@ Lemma semax_call {CS: compspecs}:
           tc_fn_return Delta ret retsig ->
   semax Espec Delta
        (fun rho =>  tc_expr Delta a rho && tc_exprlist Delta (snd (split argsig)) bl rho  && 
-           (func_ptr (mk_funspec (argsig,retsig) cc A P Q) (eval_expr a rho) && 
+           (func_ptr (mk_funspec (argsig,retsig) cc A P Q NEP NEQ) (eval_expr a rho) && 
           (F rho * P ts x (make_args (map (@fst  _ _) argsig)
                 (eval_exprlist (snd (split argsig)) bl rho) rho ))))
          (Scall ret a bl)
          (normal_ret_assert 
           (fun rho => (EX old:val, substopt ret old F rho * maybe_retval (Q ts x) retsig ret rho))).
 Proof.
-rewrite semax_unfold. intros ? ? ? ? ? ? ? ? ? ? ? ? ? TCF TC5 TC7.
+rewrite semax_unfold. intros ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? TCF TC5 TC7.
 intros.
 rename H0 into H1.
 intros tx vx.
@@ -2675,7 +2720,7 @@ normalize in H3. unfold func_ptr in *.
 destruct H3 as [[b [H3 H6]] H5].
 hnf in H3.
 generalize H4; intros [_ H7].
-specialize (H7 (b) (mk_funspec (argsig,retsig) cc A P Q) _ (necR_refl _)).
+specialize (H7 (b) (mk_funspec (argsig,retsig) cc A P Q NEP NEQ) _ (necR_refl _)).
 spec H7.
 1: apply func_at_func_at'; apply H6.
 destruct H7 as [id [H7 H9]].
@@ -2689,7 +2734,7 @@ assert (H11: filter_genv psi = ge_of (construct_rho (filter_genv psi) vx tx)) by
 simpl in H10. simpl in H7. inversion2 H7 H10.
 unfold func_at in H13.
 (* rewrite H12 in H13.*)
-destruct fs as [fsig' cc' A' P' Q'].
+destruct fs as [fsig' cc' A' P' Q' NEP' NEQ'].
 assert (fsig' = (argsig,retsig) /\ cc' = cc).
  clear - H6 H13.
  unfold pureat in *. simpl in *. inversion2 H6 H13. auto.
@@ -2708,56 +2753,20 @@ set (args := eval_exprlist (snd (split argsig)) bl rho).
 fold args in H5.
 rename H11 into H10'.
 
-Lemma function_pointer_aux:
-  forall A P P' Q Q' (w: rmap), 
-   SomeP (SpecTT A) (fmap (fpi _) (approx (level w)) (approx (level w)) (packPQ P Q)) =
-   SomeP (SpecTT A) (fmap (fpi _) (approx (level w)) (approx (level w)) (packPQ P' Q')) ->
-   ( (forall ts x vl, (! |> (P' ts x vl <=> P ts x vl)) w) /\
-     (forall ts x vl, (! |> (Q' ts x vl <=> Q ts x vl)) w)).
-Proof.
-intros.
-apply someP_inj in H.
-unfold packPQ in H; simpl in H.
-split; intros.
-apply equal_f_dep with ts in H.
-apply equal_f with x in H.
-apply equal_f with true in H.
-apply equal_f with vl in H.
-simpl in H.
-rewrite @later_fash; auto with typeclass_instances.
-intros ? ? m' ?.
-split; intros m'' ? ?;  apply f_equal with (f:= fun x => app_pred x m'') in H;
-apply prop_unext in H. apply approx_p with (level w). apply H;
-apply approx_lt; auto; clear - H0 H1 H2; hnf in H1; apply laterR_level in H1;
-apply necR_level in H2; simpl in *;
-change compcert_rmaps.R.ag_rmap with ag_rmap in *;
-change compcert_rmaps.R.rmap with rmap in *;
-omega.
-apply equal_f with (x,(false,(vl,tt))) in H.
-simpl in H.
-rewrite @later_fash; auto with typeclass_instances; intros ? ? m' ?;
-split; intros m'' ? ?;  apply f_equal with (f:= fun x => app_pred x m'') in H;
-apply prop_unext in H; apply approx_p with (level w); apply H;
-apply approx_lt; auto; clear - H0 H1 H2; hnf in H1; apply laterR_level in H1;
-apply necR_level in H2; simpl in *;
-change compcert_rmaps.R.ag_rmap with ag_rmap in *;
-change compcert_rmaps.R.rmap with rmap in *; omega.
-Qed.
-
-destruct (function_pointer_aux A P P' Q Q' (m_phi jm)) as [H10 H11].
+destruct (function_pointer_aux A P P' Q Q' (m_phi jm) NEP NEQ NEP' NEQ') as [H10 H11].
 f_equal; auto.
 clear H15.
-specialize (H10 x (make_args (map (@fst  _ _) argsig) (eval_exprlist (snd (split argsig))bl rho) rho)).
-specialize (H11 x).
+specialize (H10 ts x (make_args (map (@fst  _ _) argsig) (eval_exprlist (snd (split argsig))bl rho) rho)).
+specialize (H11 ts x).
 rewrite <- sepcon_assoc in H5.
-assert (H14: app_pred (|> (F0 rho * F rho * P' x (make_args (map (@fst  _ _) argsig)
+assert (H14: app_pred (|> (F0 rho * F rho * P' ts x (make_args (map (@fst  _ _) argsig)
   (eval_exprlist (snd (split argsig)) bl rho) rho))) (m_phi jm)).
 Focus 1. {
   do 3 red in H10.
   apply eqp_later1 in H10.
   rewrite later_sepcon.
   apply pred_eq_e2 in H10.
-  eapply (sepcon_subp' (|>(F0 rho * F rho)) _ (|> P x (make_args (map (@fst  _ _) argsig) (eval_exprlist (snd (split argsig)) bl rho) rho)) _ (level (m_phi jm))); eauto.
+  eapply (sepcon_subp' (|>(F0 rho * F rho)) _ (|> P ts x (make_args (map (@fst  _ _) argsig) (eval_exprlist (snd (split argsig)) bl rho) rho)) _ (level (m_phi jm))); eauto.
   rewrite <- later_sepcon. apply now_later; auto.
 } Unfocus.
 assert (typecheck_environ Delta rho) as TC4.
@@ -2790,19 +2799,22 @@ auto.
 Qed.
 
 Lemma semax_call_alt {CS: compspecs}: 
-    forall Delta A (P Q: A -> assert) x F ret argsig retsig cc a bl,
+ forall Delta (A: TypeTree)
+   (P Q : forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
+   (NEP: super_non_expansive P) (NEQ: super_non_expansive Q)
+     ts x F ret argsig retsig cc a bl,
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (type_of_params argsig) retsig cc -> 
             (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   semax Espec Delta
        (fun rho =>  tc_expr Delta a rho && tc_exprlist Delta (snd (split argsig)) bl rho  && 
-           (func_ptr (mk_funspec (argsig,retsig) cc A P Q) (eval_expr a rho) && 
-          (F rho * P x (make_args (map (@fst  _ _) argsig)
+           (func_ptr (mk_funspec (argsig,retsig) cc A P Q NEP NEQ) (eval_expr a rho) && 
+          (F rho * P ts x (make_args (map (@fst  _ _) argsig)
                 (eval_exprlist (snd (split argsig)) bl rho) rho ))))
          (Scall ret a bl)
          (normal_ret_assert 
-          (fun rho => (EX old:val, substopt ret old F rho * maybe_retval (Q x) retsig ret rho))).
+          (fun rho => (EX old:val, substopt ret old F rho * maybe_retval (Q ts x) retsig ret rho))).
 Proof. exact semax_call. Qed.
 
 Lemma semax_call_ext {CS: compspecs}:

@@ -222,7 +222,7 @@ Definition believe_internal_
 Definition empty_environ (ge: genv) := mkEnviron (filter_genv ge) (Map.empty _) (Map.empty _).
 
 Definition claims (ge: genv) (Delta: tycontext) v fsig cc A P Q : Prop :=
-  exists id, (glob_specs Delta)!id = Some (mk_funspec fsig cc A P Q) /\
+  exists id HP HQ, (glob_specs Delta)!id = Some (mk_funspec fsig cc A P Q HP HQ) /\
     exists b, Genv.find_symbol ge id = Some b /\ v = Vptr b Int.zero.
 
 Definition believepred (Espec: OracleKind) (semax: semaxArg -> pred nat)

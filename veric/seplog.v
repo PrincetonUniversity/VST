@@ -16,12 +16,12 @@ Open Local Scope pred.
 
 Definition func_at (f: funspec): address -> pred rmap :=
   match f with
-   | mk_funspec fsig cc A P Q => pureat (SomeP (SpecTT A) (packPQ P Q)) (FUN fsig cc)
+   | mk_funspec fsig cc A P Q _ _ => pureat (SomeP (SpecTT A) (packPQ P Q)) (FUN fsig cc)
   end.
 
 Definition func_at' (f: funspec) (loc: address) : pred rmap :=
   match f with
-   | mk_funspec fsig cc _ _ _ => EX pp:_, pureat pp (FUN fsig cc) loc
+   | mk_funspec fsig cc _ _ _ _ _ => EX pp:_, pureat pp (FUN fsig cc) loc
   end.
 
 Definition func_ptr (f: funspec) (v: val): mpred :=

@@ -419,7 +419,7 @@ Definition initial_core' (ge: Genv.t fundef type) (G: funspecs) (n: nat) (loc: a
    then match Genv.invert_symbol ge (fst loc) with
            | Some id => 
                   match find_id id G with
-                  | Some (mk_funspec fsig cc A P Q) => 
+                  | Some (mk_funspec fsig cc A P Q _ _) => 
                            PURE (FUN fsig cc) (SomeP (SpecTT A) (fun ts => fmap _ (approx n) (approx n) (packPQ P Q ts)))
                   | None => NO Share.bot
                   end
