@@ -1204,11 +1204,18 @@ Definition packPQ {A: rmaps.TypeTree}
 
 Definition TTat (l: address) : pred rmap := TT.
 
+(*
 Definition FUNspec (fml: funsig) cc (A: TypeTree)
   (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap))
   (l: address): pred rmap :=
   allp (jam (eq_dec l)
          (pureat (SomeP (SpecTT A) (packPQ P Q)) (FUN fml cc)) TTat).
+
+Definition fun_assert (fml: funsig) cc (A: TypeTree)
+  (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap))
+  (v: val)  : pred rmap :=
+ (EX b : block, !! (v = Vptr b Int.zero) && FUNspec fml cc A P Q (b, 0))%pred.
+*)
 
 (***********)
 
@@ -1297,6 +1304,7 @@ simpl in *.
 subst; auto.
 Qed.
 
+(*
 Lemma FUNspec_parametric: forall fml cc A P Q, 
    spec_parametric (fun l sh => yesat (SomeP (SpecTT A) (packPQ P Q)) (FUN fml cc) sh).
 Proof.
@@ -1312,7 +1320,7 @@ econstructor; eauto.
 destruct H as [k [? ?]].
 subst; auto.
 Qed.
-
+*)
 Lemma address_mapsto_splittable:
       forall ch v l, splittable (fun rsh sh => address_mapsto ch v rsh sh l).
 Proof.
@@ -1420,11 +1428,6 @@ Qed.
 
 Definition val2address (v: val) : option AV.address := 
   match v with Vptr b ofs => Some (b, Int.signed ofs) | _ => None end.
-
-Definition fun_assert (fml: funsig) cc (A: TypeTree)
-  (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap))
-  (v: val)  : pred rmap :=
- (EX b : block, !! (v = Vptr b Int.zero) && FUNspec fml cc A P Q (b, 0))%pred.
 
 Definition LK_at l w := exists n, kind_at (LK n) l w.
 

@@ -24,6 +24,9 @@ Definition func_at' (f: funspec) (loc: address) : pred rmap :=
    | mk_funspec fsig cc _ _ _ => EX pp:_, pureat pp (FUN fsig cc) loc
   end.
 
+Definition func_ptr (f: funspec) (v: val): mpred :=
+  EX b: block, !! (v = Vptr b Int.zero) && func_at f (b, 0).
+
 (* Definition assert: Type := environ -> pred rmap. *)
 
 Bind Scope pred with assert.
@@ -65,13 +68,13 @@ Definition expr_false {CS: compspecs} e := lift1 (typed_false (typeof e)) (eval_
 
 Definition subst {A} (x: ident) (v: val) (P: environ -> A) : environ -> A :=
    fun s => P (env_set s x v).
-
+(*
 Definition fun_assert: 
   forall (fml: funsig) cc (A: TypeTree)
    (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap))
    (v: val) , pred rmap :=
   res_predicates.fun_assert.
-
+*)
 Definition eval_lvar (id: ident) (ty: type) (rho: environ) :=
  match Map.get (ve_of rho) id with
 | Some (b, ty') => if eqb_type ty ty' then Vptr b Int.zero else Vundef

@@ -131,6 +131,16 @@ change compcert_rmaps.R.rmap with rmap in *; omega.
 Qed.
 *)
 
+Lemma semax_fun_id_alt {CS: compspecs}:
+      forall id f    Delta (P: assert) Q c
+      (GLBL: (var_types Delta) ! id = None),
+    (glob_specs Delta) ! id = Some f ->
+    (glob_types Delta) ! id = Some (type_of_funspec f) ->
+       semax Espec Delta (fun rho => P rho && 
+                    (func_ptr f (eval_var id (type_of_funspec f) rho)))
+                  c Q ->
+       semax Espec Delta P c Q.
+(*
 Lemma semax_fun_id {CS: compspecs}:
       forall id fsig cc (A : TypeTree)
         (P' Q' : forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
@@ -142,10 +152,12 @@ Lemma semax_fun_id {CS: compspecs}:
                                 && fun_assert  fsig cc A P' Q' (eval_lvalue (Evar id (Tfunction (type_of_params (fst fsig)) (snd fsig) cc)) rho))
                               c Q ->
        semax Espec Delta P c Q.
+*)
 Proof.
 intros until 1; intro HT; intros.
 rewrite semax_unfold in H0|-*.
 rename H0 into H1; pose proof I.
+destruct f as [fsig0 cc A P' Q'].
 intros.
 specialize (H1 psi Delta' w TS HGG Prog_OK k F H2 H3).
 replace ((var_types Delta) ! id) with ((var_types Delta')!id) in GLBL 
@@ -197,9 +209,6 @@ destruct H6 as [b' [? ?]].
 do 3 red in H6. inversion2 H1 H6.
 apply H11.
 Qed.
-
-Definition func_ptr (f: funspec) : val -> mpred := 
- match f with mk_funspec fsig cc A P Q => fun_assert fsig cc A P Q end.
 
 Lemma semax_fun_id_alt {CS: compspecs}:
       forall id f    Delta (P: assert) Q c
