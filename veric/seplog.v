@@ -48,10 +48,11 @@ Definition not_a_param (params: list (ident * type)) (i : ident) : Prop :=
 Definition is_a_local (vars: list (ident * type)) (i: ident) : Prop :=
   In  i (map (@fst _ _) vars) .
 
-Definition precondition_closed (f: function) {A: Type} (P: A -> assert) : Prop :=
- forall x: A,
-  closed_wrt_vars (not_a_param (fn_params f)) (P x) /\ 
-  closed_wrt_lvars (is_a_local (fn_vars f)) (P x).
+Definition precondition_closed (f: function) {A: TypeTree}
+  (P: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred) : Prop :=
+ forall ts x,
+  closed_wrt_vars (not_a_param (fn_params f)) (P ts x) /\ 
+  closed_wrt_lvars (is_a_local (fn_vars f)) (P ts x).
 
 (*Definition expr_true (e: Clight.expr) (rho: environ): Prop := 
   bool_val (eval_expr e rho) (Clight.typeof e) = Some true.*)
@@ -144,15 +145,15 @@ destruct rho; apply H.
 Qed.
 
 Lemma close_precondition_e:
-   forall f A (P: A -> environ -> mpred),
+   forall f (A: TypeTree) (P:  forall ts, dependent_type_functor_rec ts (AssertTT A) mpred),
     precondition_closed f P ->
-  forall x rho,
-   close_precondition (fn_params f) (fn_vars f) (P x) rho |-- P x rho.
+  forall ts x rho,
+   close_precondition (fn_params f) (fn_vars f) (P ts x) rho |-- P ts x rho.
 Proof.
 intros.
 intros ? ?.
 destruct H0 as [ve' [te' [? [? ?]]]].
-destruct (H x).
+destruct (H ts x).
 rewrite (H3 _ te').
 rewrite (H4 _ ve').
 simpl.

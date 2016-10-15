@@ -56,12 +56,12 @@ Definition semax_body_params_ok f : bool :=
 
 Definition semax_body
        (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec) : Prop :=
-  match spec with (_, mk_funspec _ cc A P Q) =>
-    forall Espec x,
+  match spec with (_, mk_funspec _ cc A P Q _ _) =>
+    forall Espec ts x,
       semax Espec (func_tycontext f V G)
-          (fun rho => P x rho * stackframe_of f rho)
+          (fun rho => P ts x rho * stackframe_of f rho)
            (Ssequence f.(fn_body) (Sreturn None))
-          (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))
+          (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of f))
  end.
 
 Definition semax_func
@@ -100,7 +100,10 @@ Definition semax_prog {C: compspecs}
   cenv_cs = prog_comp_env prog /\
   @semax_func V G C (prog_funct prog) G /\
   match_globvars (prog_vars prog) V = true /\
-  In (prog.(prog_main), mk_funspec (nil,Tvoid) cc_default unit (main_pre prog ) (main_post prog)) G /\
+  In (prog.(prog_main),
+    mk_funspec (nil,Tvoid) cc_default
+     (ConstType unit) (fun _ => main_pre prog) (fun _ => main_post prog)
+       (const_super_non_expansive _ _) (const_super_non_expansive _ _)) G /\
   is_Internal prog (prog_main prog) = true.
 
 Lemma semax_func_nil: 
@@ -112,7 +115,7 @@ constructor.
 intros. rename H0 into HGG.
 intros b fsig cc ty P Q w ? ?.
 hnf in H1.
-destruct H1 as [b' [? ?]].
+destruct H1 as [b' [NEP [NEQ [? ?]]]].
 simpl in H1.
 rewrite PTree.gempty in H1. inv H1. 
 Qed.
@@ -197,15 +200,15 @@ Qed.
 Require Import Coq.Logic.JMeq.
 
 Lemma semax_func_cons_aux:
-  forall (psi: genv) id fsig1 cc1 A1 P1 Q1 fsig2 cc2 A2 P2 Q2 (V: varspecs) (G': funspecs) {C: compspecs} b fs,
+  forall (psi: genv) id fsig1 cc1 A1 P1 Q1 NEP1 NEQ1 fsig2 cc2 A2 P2 Q2 (V: varspecs) (G': funspecs) {C: compspecs} b fs,
   Genv.find_symbol psi id = Some b ->
   ~ In id (map (fst (A:=ident) (B:=fundef)) fs) ->
    match_fdecs fs G'  ->
-   claims  psi (nofunc_tycontext V ((id, mk_funspec fsig1 cc1 A1 P1 Q1) :: G')) (Vptr b Int.zero) fsig2 cc2 A2 P2 Q2 ->
+   claims  psi (nofunc_tycontext V ((id, mk_funspec fsig1 cc1 A1 P1 Q1 NEP1 NEQ1) :: G')) (Vptr b Int.zero) fsig2 cc2 A2 P2 Q2 ->
     fsig1=fsig2 /\ cc1 = cc2 /\ A1=A2 /\ JMeq P1 P2 /\ JMeq Q1 Q2.
 Proof.
 intros until fs. intros H Hin Hmf; intros.
-destruct H0 as [id' [? ?]].
+destruct H0 as [id' [NEP2 [NEQ2 [? ?]]]].
 simpl in H0.
 destruct (eq_dec id id').
 subst id'. rewrite PTree.gss in H0. inv H0.
@@ -235,7 +238,7 @@ Qed.
 
 Lemma semax_func_cons: 
    forall 
-         fs id f cc A P Q (V: varspecs) (G G': funspecs) {C: compspecs},
+         fs id f cc (A: TypeTree) P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs},
       andb (id_in_list id (map (@fst _ _) G)) 
       (andb (negb (id_in_list id (map (@fst ident fundef) fs)))
         (semax_body_params_ok f)) = true ->
@@ -246,10 +249,10 @@ Lemma semax_func_cons:
        var_sizes_ok cenv_cs (f.(fn_vars)) ->
        f.(fn_callconv) = cc ->
        precondition_closed f P ->
-      semax_body V G f (id, mk_funspec (fn_funsig f) cc A P Q) ->
+      semax_body V G f (id, mk_funspec (fn_funsig f) cc A P Q NEP NEQ) ->
       semax_func V G fs G' ->
       semax_func V G ((id, Internal f)::fs) 
-           ((id, mk_funspec (fn_funsig f) cc A P Q)  :: G').
+           ((id, mk_funspec (fn_funsig f) cc A P Q NEP NEQ)  :: G').
 Proof.
 intros until C.
 intros H' COMPLETE Hvars Hcc Hpclos H3 [Hf' Hf].
@@ -277,8 +280,7 @@ clear n.
 intros n ?.
 subst cc.
 spec H0 id (Internal f).
-destruct H0 as [b [? ?]].
-left; auto.
+destruct H0 as [b [? ?]]; [left; auto |].
 rewrite <- Genv.find_funct_find_funct_ptr in H2.
 apply negb_true_iff in Hni.
 apply id_in_list_false in Hni.
@@ -301,7 +303,7 @@ split; auto.
 split.
 rewrite HGG; auto.
 (* split; auto.*)
-destruct H1 as [id' [? [b' [? ?]]]].
+destruct H1 as [id' [NEP' [NEQ' [? [b' [? ?]]]]]].
 symmetry in H5; inv H5.
 destruct (eq_dec id id').
 subst.
@@ -310,15 +312,15 @@ rewrite PTree.gss in H1.
 inv H1; auto.
 contradiction (Genv.global_addresses_distinct ge n0 H0 H4); auto.
 (*destruct H. *)
-intro x.
+intros ts x.
 simpl in H1.
-pose proof (semax_func_cons_aux ge _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H0 Hni Hf' H1).
+pose proof (semax_func_cons_aux ge _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H0 Hni Hf' H1).
 destruct H4 as [H4' [H4 [H4a [H4b H4c]]]].
 subst A' fsig cc'.
 apply JMeq_eq in H4b.
 apply JMeq_eq in H4c.
 subst P' Q'.
-specialize (H3 Espec x).
+specialize (H3 Espec ts x).
 rename H3 into H4.
 pose proof I.
 specialize (H4 n).
@@ -345,17 +347,17 @@ apply andp_left1; auto.
 apply sepcon_derives; auto.
 unfold bind_args.
 apply andp_left2; auto.
-destruct (Hpclos x).
+destruct (Hpclos ts x).
 apply close_precondition_e; auto.
 * (***   Vptr b Int.zero <> v'  ********)
 apply (Hf n v fsig cc' A' P' Q'); auto.
-destruct H1 as [id' [? ?]].
+destruct H1 as [id' [NEP' [NEQ' [? ?]]]].
 simpl in H1.
 destruct (eq_dec id id').
 subst. rewrite PTree.gss in H1.
 destruct H5 as [? [? ?]]. congruence.
 rewrite PTree.gso in H1 by auto.
-exists id'; split; auto.
+exists id', NEP', NEQ'; split; auto.
 Qed.
 
 (* EXPERIMENT 
@@ -376,10 +378,10 @@ Proof.
  right; auto.
 Qed.
 *)
-
+Check semax_external.
 Lemma semax_external_FF:
  forall Espec ids ef A n, 
-  @semax_external Espec ids ef A (fun _ _ => FF) (fun _ _ => FF) n.
+  @semax_external Espec ids ef A (fun _ _ _ => FF) (fun _ _ _ => FF) n.
 intros.
 hnf; intros.
 simpl.
@@ -389,7 +391,7 @@ contradiction.
 Qed.
 
 Lemma semax_func_cons_ext: 
-   forall (V: varspecs) (G: funspecs) {C: compspecs} fs id ef argsig retsig A P Q 
+   forall (V: varspecs) (G: funspecs) {C: compspecs} fs id ef argsig retsig A P Q NEP NEQ
           argsig'
           (G': funspecs) cc (ids: list ident),
       ids = map fst argsig' -> (* redundant but useful for the client,
@@ -397,12 +399,12 @@ Lemma semax_func_cons_ext:
       argsig' = zip_with_tl ids argsig ->
       id_in_list id (map (@fst _ _) fs) = false ->
       length ids = length (typelist2list argsig) ->
-      (forall gx (x: A) (ret : option val),
-         (Q x (make_ext_rval gx ret) |-- !!tc_option_val retsig ret)) ->
+      (forall gx ts x (ret : option val),
+         (Q ts x (make_ext_rval gx ret) |-- !!tc_option_val retsig ret)) ->
       (forall n, semax_external Espec ids ef A P Q n) ->
       semax_func V G fs G' ->
       semax_func V G ((id, External ef argsig retsig cc)::fs) 
-           ((id, mk_funspec (argsig', retsig) cc A P Q)  :: G').
+           ((id, mk_funspec (argsig', retsig) cc A P Q NEP NEQ)  :: G').
 Proof.
 intros until ids.
 intros Hids Hargsig Hni Hlen Hretty H [Hf' Hf].
@@ -440,7 +442,7 @@ destruct (eq_dec  (Vptr b Int.zero) v') as [?H|?H].
 subst v'.
 left.
 specialize (H n).
-pose proof (semax_func_cons_aux ge _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H0 Hni Hf' H1).
+pose proof (semax_func_cons_aux ge _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H0 Hni Hf' H1).
 destruct H3 as [H4' [H4'' [H4 [H4b H4c]]]].
 subst A' fsig' cc'.
 apply JMeq_eq in H4b.
@@ -455,16 +457,16 @@ assert (Hty: map fst (zip_with_tl ids argsig) = ids).
 rewrite fst_split. simpl map. rewrite Hty.
 split; auto.
 split; auto. split; auto.
-intros x ret phi Hlev Hx Hnec. apply Hretty.
+intros ts x ret phi Hlev Hx Hnec. apply Hretty.
 
 (* **   Vptr b Int.zero <> v'  ********)
 apply (Hf n v' fsig' cc' A' P' Q'); auto.
-destruct H1 as [id' [? ?]].
+destruct H1 as [id' [NEP' [NEQ' [? ?]]]].
 simpl in H1.
 destruct (eq_dec id id').
 subst. rewrite PTree.gss in H1. inv H1.
 destruct H4 as [? [? ?]]; congruence.
-exists id'; split; auto.
+exists id', NEP', NEQ'; split; auto.
 simpl. rewrite PTree.gso in H1 by auto; auto.
 Qed.
 
@@ -564,7 +566,7 @@ destruct a. destruct p.
  unfold initial_core'.
  simpl.
  rewrite (Genv.find_invert_symbol (Genv.globalenv prog) id); auto.
- assert (H9: In (id, mk_funspec f0 cc0 A a a0) G). {
+ assert (H9: In (id, mk_funspec f0 cc0 A a a0 P_ne Q_ne) G). {
    clear - H1.
     simpl in H1. unfold make_tycontext_g in H1; simpl in H1.
     induction G; simpl in *.
@@ -578,7 +580,7 @@ destruct a. destruct p.
  eapply match_fdecs_norepet; eauto.
  apply list_norepet_prog_funct'; auto.
 *
- intros loc'  [fsig' cc' A' P' Q'].
+ intros loc'  [fsig' cc' A' P' Q' NEP' NEQ'].
  unfold func_at.
  intros w ? ?.
  destruct H2 as [pp ?].
@@ -1076,7 +1078,9 @@ Proof.
     assert (E: func.(fn_params) = nil). {
       destruct (match_fdecs_exists_Gfun
                   prog G (prog_main prog)
-                  (mk_funspec (nil, Tvoid) cc_default unit (main_pre prog) (main_post prog)))
+                  (mk_funspec (nil, Tvoid) cc_default (ConstType unit)
+                    (fun _ => main_pre prog) (fun _ => main_post prog)
+                     (const_super_non_expansive _ _) (const_super_non_expansive _ _)))
         as (fd, (Ifd, sametypes)); auto.
       {
         apply find_id_i; auto.
@@ -1104,12 +1108,13 @@ Proof.
     pose (rho := mkEnviron (filter_genv (globalenv prog)) (Map.empty (block * type)) 
                            (Map.set 1 (Vptr b Int.zero) (Map.empty val))).
     intros z.
-    eapply (semax_call_aux Espec (Delta1 V G) unit
-                           _ (fun _ => main_post prog tt) _ tt (fun _ => TT) (fun _ => TT)
-                           None (nil,Tvoid) cc_default _ _ (normal_ret_assert (fun _ => TT)) _ _ _ _ 
-                           (construct_rho (filter_genv (globalenv prog)) empty_env
-                                          (PTree.set 1 (Vptr b Int.zero) (PTree.empty val)))
-                           _ _ b (prog_main prog));
+    eapply (semax_call_aux Espec (Delta1 V G) (ConstType unit)
+              _ (fun _ => main_post prog) _ (const_super_non_expansive _ _) (const_super_non_expansive _ _)
+              nil tt (fun _ => TT) (fun _ => TT)
+              None (nil,Tvoid) cc_default _ _ (normal_ret_assert (fun _ => TT)) _ _ _ _ 
+              (construct_rho (filter_genv (globalenv prog)) empty_env
+                 (PTree.set 1 (Vptr b Int.zero) (PTree.empty val)))
+              _ _ b (prog_main prog));
       try apply H3; try eassumption; auto.
     + clear - GV H2 H0.
       split.
@@ -1150,8 +1155,8 @@ Proof.
       apply safe_loop_skip.
     + unfold glob_types, Delta1. simpl @snd.
       forget (prog_main prog) as main.
-      instantiate (1:=main_post prog). 
-      instantiate (1:=main_pre prog).
+      instantiate (1:= fun _ => main_post prog).
+      instantiate (1:= fun _ => main_pre prog).
       assert (H8: list_norepet (map (@fst _ _) (prog_funct prog))).
       clear - H0.
       unfold prog_defs_names in H0. unfold prog_funct.
@@ -1162,7 +1167,9 @@ Proof.
       destruct a; destruct g; simpl in *; auto. destruct H2; auto.
       forget (prog_funct prog) as fs.
       clear - H4 H8 H2.
-      forget (mk_funspec (nil, Tvoid) cc_default unit (main_pre prog) (main_post prog)) as fd.
+      forget (mk_funspec (nil, Tvoid) cc_default (ConstType unit)
+               (fun _ => main_pre prog) (fun _ => main_post prog)
+                 (const_super_non_expansive _ _) (const_super_non_expansive _ _)) as fd.
       revert G H2 H4 H8; induction fs; intros; inv H2.
       inv H4.
       simpl in *.
@@ -1278,15 +1285,15 @@ Definition find_params (prog : program) (f : ident) :=
   end.
 
 Lemma semax_prog_entry_point {CS: compspecs} :
-  forall V G prog id_fun id_arg arg params A P Q,
+  forall V G prog id_fun id_arg arg params A P Q NEP NEQ,
     @semax_prog CS prog V G ->
     (* is_Internal prog id_fun = true -> *)
     params = (id_arg, Tpointer Tvoid noattr) :: nil ->
     find_params prog id_fun = Some params ->
-    find_id id_fun G = Some (mk_funspec (params, Tvoid) cc_default A P Q) ->
+    find_id id_fun G = Some (mk_funspec (params, Tvoid) cc_default A P Q NEP NEQ) ->
     (* (* P is closed wrt all tempvars except 2 *) *)
     (* (forall x, closed_wrt_vars (fun n => ~eq 2%positive n) (P x)) -> *)
-    (forall a rho, Q a rho |-- FF) ->
+    (forall ts a rho, Q ts a rho |-- FF) ->
     is_pointer_or_null arg ->
     { b : block &
       (* initial environment *)
@@ -1309,12 +1316,12 @@ Lemma semax_prog_entry_point {CS: compspecs} :
           (juicy_core_sem cl_core_sem)
           (globalenv prog) (Vptr b Int.zero) (arg :: nil) = Some q /\
         
-        forall (jm : juicy_mem) (a : A),
-          app_pred (P a rho1) (m_phi jm) ->
+        forall (jm : juicy_mem) ts a,
+          app_pred (P ts a rho1) (m_phi jm) ->
           app_pred (funassert (Delta_types V G (Tpointer Tvoid noattr::nil)) rho0) (m_phi jm) ->
           forall z, jsafeN (@OK_spec Espec) (globalenv prog) (level jm) z q jm } }.
 Proof.
-  intros V G prog id_fun id_arg arg params A P Q SP (* INT *) Eparams Fparams id_in_G QFF arg_p.
+  intros V G prog id_fun id_arg arg params A P Q NEP NEQ SP (* INT *) Eparams Fparams id_in_G QFF arg_p.
   unfold find_params in Fparams.
   destruct (Genv.find_symbol (Genv.globalenv prog) id_fun) as [b|] eqn:Fid; [ | discriminate].
   destruct (Genv.find_funct_ptr (Genv.globalenv prog) b) as [[func|]|] eqn:Fb; try discriminate.
@@ -1334,7 +1341,7 @@ Proof.
   split. reflexivity.
   rewrite Eparams.
   
-  intros jm a m_sat_Pa m_funassert.
+  intros jm ts a m_sat_Pa m_funassert.
   
   destruct SP as [H0 [AL [HGG [[H2 H3] [GV _]]]]].
   apply compute_list_norepet_e in H0.
@@ -1350,10 +1357,11 @@ Proof.
   intros z.
   eapply
     (semax_call_aux
-       Espec (Delta_types V G (Tpointer Tvoid noattr::nil)) A _
-       (fun _ => Q a) _ a (fun _ => emp) (fun _ => emp)
+       Espec (Delta_types V G (Tpointer Tvoid noattr::nil)) A P
+       (fun _ _ => Q ts a) Q NEP NEQ
+       ts a (fun _ => emp) (fun _ => emp)
        None ((id_arg, Tpointer Tvoid noattr)::nil, Tvoid) cc_default _ _
-       (normal_ret_assert (fun rho => EX _ : val, emp * Q a (globals_only rho)))
+       (normal_ret_assert (fun rho => EX _ : val, emp * Q ts a (globals_only rho)))
        _ _ _ _ rho3
        _ _ b id_fun);
     try apply H3; try eassumption; auto.

@@ -229,6 +229,10 @@ Definition super_non_expansive {A: TypeTree}
   forall n ts x rho,
   approx n (P ts x rho) = approx n (P ts (fmap _ (approx n) (approx n) x) rho).
 
+Definition const_super_non_expansive: forall (T: Type) P,
+  @super_non_expansive (ConstType T) P :=
+  fun _ _ _ _ _ _ => eq_refl.
+
 Inductive funspec :=
    mk_funspec: funsig -> calling_convention -> forall (A: TypeTree)
      (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
