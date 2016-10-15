@@ -225,10 +225,11 @@ Definition not_a_param (params: list (ident * type)) (i : ident) : Prop :=
 Definition is_a_local (vars: list (ident * type)) (i: ident) : Prop :=
   In  i (map (@fst _ _) vars) .
 
-Definition precondition_closed (f: function) {A: Type} (P: A -> environ -> mpred) : Prop :=
- forall x: A,
-  closed_wrt_vars (not_a_param (fn_params f)) (P x) /\ 
-  closed_wrt_lvars (is_a_local (fn_vars f)) (P x).
+Definition precondition_closed (f: function) {A: rmaps.TypeTree}
+  (P: forall ts, functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts (AssertTT A)) mpred) : Prop :=
+ forall ts x,
+  closed_wrt_vars (not_a_param (fn_params f)) (P ts x) /\ 
+  closed_wrt_lvars (is_a_local (fn_vars f)) (P ts x).
 
 Definition typed_true (t: type) (v: val)  : Prop := strict_bool_val v t
 = Some true.
@@ -972,12 +973,12 @@ Axiom semax_extensionality_Delta:
 
 Definition semax_body
        (V: varspecs) (G: funspecs) {C: compspecs} (f: function) (spec: ident * funspec) : Prop :=
-  match spec with (_, mk_funspec _ cc A P Q) =>
-    forall Espec x,
+  match spec with (_, mk_funspec _ cc A P Q NEP NEQ) =>
+    forall Espec ts x,
       @semax C Espec (func_tycontext f V G)
-          (P x *  stackframe_of f)
+          (P ts x *  stackframe_of f)
           (Ssequence f.(fn_body) (Sreturn None))
-          (frame_ret_assert (function_body_ret_assert (fn_return f) (Q x)) (stackframe_of f))
+          (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of f))
  end.
 
 Parameter semax_func: 
@@ -992,7 +993,7 @@ Definition semax_prog
   cenv_cs = prog_comp_env prog /\
   @semax_func Espec V G C (prog_funct prog) G /\
   match_globvars (prog_vars prog) V = true /\
-  In (prog.(prog_main), mk_funspec (nil,Tvoid) cc_default unit (main_pre prog ) (main_post prog)) G /\
+  In (prog.(prog_main), mk_funspec (nil,Tvoid) cc_default (rmaps.ConstType unit) (fun _ => main_pre prog ) (fun _ => main_post prog) (const_super_non_expansive _ _) (const_super_non_expansive _ _)) G /\
   veric.semax_prog.is_Internal prog (prog_main prog) = true.
 
 Axiom semax_func_nil:   forall {Espec: OracleKind}, 
@@ -1000,7 +1001,7 @@ Axiom semax_func_nil:   forall {Espec: OracleKind},
 
 Axiom semax_func_cons: 
   forall {Espec: OracleKind},
-     forall fs id f cc A P Q (V: varspecs) (G G': funspecs) {C: compspecs},
+     forall fs id f cc A P Q NEP NEQ (V: varspecs) (G G': funspecs) {C: compspecs},
       andb (id_in_list id (map (@fst _ _) G)) 
       (andb (negb (id_in_list id (map (@fst ident fundef) fs)))
         (semax_body_params_ok f)) = true ->
@@ -1011,15 +1012,16 @@ Axiom semax_func_cons:
        var_sizes_ok (f.(fn_vars)) ->
        f.(fn_callconv) = cc ->
        precondition_closed f P ->
-      semax_body V G f (id, mk_funspec (fn_funsig f) cc A P Q) ->
+      semax_body V G f (id, mk_funspec (fn_funsig f) cc A P Q NEP NEQ) ->
       semax_func V G fs G' ->
       semax_func V G ((id, Internal f)::fs) 
-           ((id, mk_funspec (fn_funsig f) cc A P Q)  :: G').
+           ((id, mk_funspec (fn_funsig f) cc A P Q NEP NEQ)  :: G').
 
 Parameter semax_external:
-  forall {Espec: OracleKind},
-  forall (ids: list ident) (ef: external_function) 
-         (A: Type) (P Q: A -> environ->mpred),  Prop.
+  forall   (Hspec: OracleKind) (ids: list ident) (ef: external_function)
+  (A: rmaps.TypeTree)
+  (P Q: forall ts, functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts (AssertTT A)) mpred),
+     Prop.
 
 (*
 Axiom semax_func_skip: 
@@ -1032,7 +1034,7 @@ Axiom semax_func_skip:
 
 Axiom semax_func_cons_ext: 
   forall {Espec: OracleKind},
-   forall (V: varspecs) (G: funspecs) {C: compspecs} fs id ef argsig retsig A P Q 
+   forall (V: varspecs) (G: funspecs) {C: compspecs} fs id ef argsig retsig A P Q NEP NEQ 
           argsig'
           (G': funspecs) cc (ids: list ident),
       ids = map fst argsig' -> (* redundant but useful for the client,
@@ -1040,12 +1042,12 @@ Axiom semax_func_cons_ext:
       argsig' = zip_with_tl ids argsig ->
       id_in_list id (map (@fst _ _) fs) = false ->
       length ids = length (typelist2list argsig) ->
-      (forall gx (x: A) (ret : option val),
-         (Q x (make_ext_rval gx ret) |-- !!tc_option_val retsig ret)) ->
+      (forall gx ts x (ret : option val),
+         (Q ts x (make_ext_rval gx ret) |-- !!tc_option_val retsig ret)) ->
       @semax_external Espec ids ef A P Q ->
       semax_func V G fs G' ->
       semax_func V G ((id, External ef argsig retsig cc)::fs) 
-           ((id, mk_funspec (argsig', retsig) cc A P Q)  :: G').
+           ((id, mk_funspec (argsig', retsig) cc A P Q NEP NEQ)  :: G').
 
 (* THIS RULE FROM semax_congruence *)
 
@@ -1108,18 +1110,18 @@ Axiom func_ptr_isptr: forall spec f, func_ptr spec f |-- !! isptr f.
 
 Axiom semax_call : 
   forall {Espec: OracleKind}{CS: compspecs},
-    forall Delta A (P Q: A -> environ -> mpred) (x: A) (F: environ -> mpred) ret argsig retsig cc a bl,
+    forall Delta A P Q NEP NEQ ts x (F: environ -> mpred) ret argsig retsig cc a bl,
            Cop.classify_fun (typeof a) =
            Cop.fun_case_f (type_of_params argsig) retsig cc ->
            (retsig = Tvoid -> ret = None) ->
           tc_fn_return Delta ret retsig ->
   @semax CS Espec Delta
           ((tc_expr Delta a) && (tc_exprlist Delta (snd (split argsig)) bl)  && 
-         (`(func_ptr (mk_funspec  (argsig,retsig) cc A P Q)) (eval_expr a) &&   
-          (F * `(P x) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
+         (`(func_ptr (mk_funspec  (argsig,retsig) cc A P Q NEP NEQ)) (eval_expr a) &&   
+          (F * `(P ts x: environ -> mpred) (make_args' (argsig,retsig) (eval_exprlist (snd (split argsig)) bl)))))
          (Scall ret a bl)
          (normal_ret_assert  
-          (EX old:val, substopt ret (`old) F * maybe_retval (Q x) retsig ret)).
+          (EX old:val, substopt ret (`old) F * maybe_retval (Q ts x) retsig ret)).
 
 Axiom  semax_return :
   forall {Espec: OracleKind}{CS: compspecs},
@@ -1290,8 +1292,8 @@ Axiom semax_ext:
   forall  (Espec : OracleKind) 
          (ext_link: Strings.String.string -> ident)
          (id : Strings.String.string) (ids : list ident) (sig : funsig) (sig' : signature)
-         cc (A : Type) (P Q : A -> environ -> mpred) (fs : funspecs),
-  let f := mk_funspec sig cc A P Q in
+         cc A P Q NEP NEQ (fs : funspecs),
+  let f := mk_funspec sig cc A P Q NEP NEQ in
   In (ext_link id,f) fs -> 
   funspecs_norepeat fs -> 
   ids = fst (split (fst sig)) -> 
@@ -1302,8 +1304,8 @@ Axiom semax_ext_void:
   forall  (Espec : OracleKind) 
          (ext_link: Strings.String.string -> ident)
          (id : Strings.String.string) (ids : list ident) sig (sig' : signature)
-         cc (A : Type) (P Q : A -> environ -> mpred) (fs : funspecs),
-  let f := mk_funspec (sig, tvoid) cc A P Q in
+         cc A P Q NEP NEQ (fs : funspecs),
+  let f := mk_funspec (sig, tvoid) cc A P Q NEP NEQ in
   In (ext_link id,f) fs -> 
   funspecs_norepeat fs -> 
   ids = fst (split sig) -> 
