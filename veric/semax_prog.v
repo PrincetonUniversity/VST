@@ -378,7 +378,7 @@ Proof.
  right; auto.
 Qed.
 *)
-Check semax_external.
+
 Lemma semax_external_FF:
  forall Espec ids ef A n, 
   @semax_external Espec ids ef A (fun _ _ _ => FF) (fun _ _ _ => FF) n.
