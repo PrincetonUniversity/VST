@@ -54,6 +54,7 @@ Section permMapDefs.
 
   (** Coherence between permissions. This is used for the relation between data
   and lock permissions*)
+  (** Note: p1 should be data permission and p2 lock permission*)
   Definition perm_coh (p1 p2 : option permission) :=
     match p1 with
     | Some Freeable | Some Writable | Some Readable =>
@@ -790,8 +791,34 @@ Section permMapDefs.
       auto.
     rewrite Maps.PMap.gso; auto.
   Qed.
-  
 
+  Lemma setPermBlock_coherent:
+    forall pmap pmap' b ofs sz
+      (Hcoh: permMapCoherence pmap pmap')
+      (Hnonempty: forall ofs', Intv.In ofs' (ofs, ofs + Z.of_nat sz)%Z ->
+                          ~ Mem.perm_order' (pmap !! b ofs') Readable),
+      permMapCoherence pmap (setPermBlock (Some Writable) b ofs pmap' sz).
+  Proof.
+    intros.
+    intros b' ofs'.
+    specialize (Hcoh b' ofs').
+    destruct (Pos.eq_dec b b').
+    - subst.
+      destruct (Intv.In_dec ofs' (ofs, (ofs + Z.of_nat sz)%Z)).
+      + erewrite setPermBlock_same by eauto.
+        specialize (Hnonempty _ i).
+        destruct (pmap !! b' ofs') as [p|] eqn:Hpmap'; simpl; auto;
+          destruct p; simpl in Hnonempty; eauto using perm_order.
+      + destruct sz; 
+          first by (simpl; assumption).
+        erewrite setPermBlock_other_1.
+        assumption.
+        apply Intv.range_notin in n; eauto.      
+        simpl. rewrite Zpos_P_of_succ_nat. omega.
+    - erewrite setPermBlock_other_2 by eauto.
+      assumption.
+  Qed.
+  
   (** Apply a [delta_map] to an [access_map]*)
   Definition computeMap (pmap : access_map) (delta : delta_map) : access_map :=
     (pmap.1,
