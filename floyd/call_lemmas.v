@@ -32,7 +32,7 @@ Definition substopt_localdef (ret: option ident) (v: val) (P: localdef)  : local
    end.
 
 
-Lemma semax_call': forall Espec {cs: compspecs} Delta A (Pre Post: A -> environ->mpred) (x: A) ret argsig retsig cc a bl P Q R,
+Lemma semax_call': forall Espec {cs: compspecs} Delta A Pre Post NEPre NEPost ts x ret argsig retsig cc a bl P Q R,
    Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retsig cc ->
    match retsig, ret with
    | Tvoid, None => True
@@ -43,19 +43,19 @@ Lemma semax_call': forall Espec {cs: compspecs} Delta A (Pre Post: A -> environ-
   @semax cs Espec Delta
           (tc_expr Delta a && tc_exprlist Delta (argtypes argsig) bl 
            && 
-   (`(Pre x) ( (make_args' (argsig,retsig) (eval_exprlist (argtypes argsig) bl))) *
-                      `(func_ptr' (mk_funspec (argsig,retsig) cc A Pre Post)) (eval_expr a) 
+   (`(Pre ts x: environ -> mpred) ( (make_args' (argsig,retsig) (eval_exprlist (argtypes argsig) bl))) *
+                      `(func_ptr' (mk_funspec (argsig,retsig) cc A Pre Post NEPre NEPost)) (eval_expr a) 
      * PROPx P (LOCALx Q (SEPx R))))
           (Scall ret a bl)
           (normal_ret_assert 
             (EX old:val, 
-              (maybe_retval (Post x) retsig ret *
+              (maybe_retval (Post ts x) retsig ret *
                PROPx P (LOCALx (map (substopt_localdef ret old) Q) (SEPx R))))).
 Proof.
  intros. rename H1 into Hret.
  rewrite argtypes_eq.
 eapply semax_pre_post ; [ | | 
-   apply (semax_call Delta A Pre Post x (PROPx P (LOCALx Q (SEPx R))) ret argsig retsig cc a bl H); auto].
+   apply (semax_call Delta A Pre Post NEPre NEPost ts x (PROPx P (LOCALx Q (SEPx R))) ret argsig retsig cc a bl H); auto].
  Focus 3. {
  clear - H0.
  destruct retsig; destruct ret; simpl in *; try contradiction; 
@@ -88,7 +88,7 @@ normalize.
 autorewrite with norm1 norm2; normalize.
 Qed.
 
-Lemma semax_call1: forall Espec {cs: compspecs} Delta A (Pre Post: A -> environ->mpred) (x: A) id argsig retsig cc a bl P Q R,
+Lemma semax_call1: forall Espec {cs: compspecs} Delta A Pre Post NEPre NEPost ts x id argsig retsig cc a bl P Q R,
    Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retsig cc ->
    match retsig with
    | Tvoid => False
@@ -97,13 +97,13 @@ Lemma semax_call1: forall Espec {cs: compspecs} Delta A (Pre Post: A -> environ-
    tc_fn_return Delta (Some id) retsig ->
   @semax cs Espec Delta
          (tc_expr Delta a && tc_exprlist Delta (argtypes argsig) bl 
-           && (`(Pre x) ( (make_args' (argsig,retsig) (eval_exprlist (argtypes argsig) bl))) *
-                 `(func_ptr' (mk_funspec (argsig,retsig) cc A Pre Post)) (eval_expr a) *
+           && (`(Pre ts x: environ -> mpred) ( (make_args' (argsig,retsig) (eval_exprlist (argtypes argsig) bl))) *
+                 `(func_ptr' (mk_funspec (argsig,retsig) cc A Pre Post NEPre NEPost)) (eval_expr a) *
                   PROPx P (LOCALx Q (SEPx R))))
           (Scall (Some id) a bl)
           (normal_ret_assert 
             (EX old:val, 
-              `(Post x) (get_result1 id)
+              `(Post ts x: environ -> mpred) (get_result1 id)
                * PROPx P (LOCALx (map (subst_localdef id old) Q) (SEPx R)))).
 Proof.
 intros.
@@ -113,24 +113,24 @@ Qed.
 Definition ifvoid {T} t (A B: T) :=
  match t with Tvoid => A | _ => B end.
 
-Lemma semax_call0: forall Espec {cs: compspecs} Delta A (Pre Post: A -> environ->mpred) (x: A) 
+Lemma semax_call0: forall Espec {cs: compspecs} Delta A Pre Post NEPre NEPost ts x 
       argsig retty cc a bl P Q R,
    Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retty cc ->
   @semax cs Espec Delta
          (tc_expr Delta a && tc_exprlist Delta (argtypes argsig) bl 
-           && (`(Pre x) ( (make_args' (argsig,retty) (eval_exprlist (argtypes argsig) bl)))
-                 * `(func_ptr' (mk_funspec (argsig,retty) cc A Pre Post)) (eval_expr a)
+           && (`(Pre ts x: environ -> mpred) ( (make_args' (argsig,retty) (eval_exprlist (argtypes argsig) bl)))
+                 * `(func_ptr' (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost)) (eval_expr a)
                  * PROPx P (LOCALx Q (SEPx R))))
           (Scall None a bl)
           (normal_ret_assert 
-            (ifvoid retty (`(Post x) (make_args nil nil))
-                                                        (EX v:val, `(Post x) (make_args (ret_temp::nil) (v::nil)))
+            (ifvoid retty (`(Post ts x: environ -> mpred) (make_args nil nil))
+                                                        (EX v:val, `(Post ts x: environ -> mpred) (make_args (ret_temp::nil) (v::nil)))
             * PROPx P (LOCALx Q (SEPx R)))).
 Proof.
 intros.
 rewrite argtypes_eq.
 eapply semax_pre_post ; [ | | 
-   apply (semax_call Delta A Pre Post x (PROPx P (LOCALx Q (SEPx R))) None argsig retty cc a bl H)].
+   apply (semax_call Delta A Pre Post NEPre NEPost ts x (PROPx P (LOCALx Q (SEPx R))) None argsig retty cc a bl H)].
  Focus 3.
  split; intros; congruence.
  intro rho; normalize.
@@ -200,29 +200,30 @@ destruct cc; simpl.
 destruct cc_vararg, cc_unproto, cc_structret; reflexivity.
 Qed.
 
+(* TODO: Change argument order. ==> A Pre Post NEPre NEPost ts x *)
 Lemma semax_call_id0:
- forall Espec {cs: compspecs} Delta P Q R id bl argsig retty cc A x Pre Post
+ forall Espec {cs: compspecs} Delta P Q R id bl argsig retty cc A ts x Pre Post NEPre NEPost
    (GLBL: (var_types Delta) ! id = None),
-       (glob_specs Delta) ! id = Some (mk_funspec (argsig, retty) cc A Pre Post) ->
-       (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig, retty) cc A Pre Post)) ->
+       (glob_specs Delta) ! id = Some (mk_funspec (argsig, retty) cc A Pre Post NEPre NEPost) ->
+       (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig, retty) cc A Pre Post NEPre NEPost)) ->
   @semax cs Espec Delta (tc_exprlist Delta (argtypes argsig) bl
-                  && (`(Pre x) (make_args' (argsig,retty) (eval_exprlist (argtypes argsig) bl)) 
+                  && (`(Pre ts x: environ -> mpred) (make_args' (argsig,retty) (eval_exprlist (argtypes argsig) bl)) 
                          * PROPx P (LOCALx Q (SEPx R))))
     (Scall None (Evar id (Tfunction (type_of_params argsig) retty cc)) bl)
     (normal_ret_assert 
-       ((ifvoid retty (`(Post x) (make_args nil nil))
-                                                   (EX v:val, `(Post x) (make_args (ret_temp::nil) (v::nil))))
+       ((ifvoid retty (`(Post ts x: environ -> mpred) (make_args nil nil))
+                                                   (EX v:val, `(Post ts x: environ -> mpred) (make_args (ret_temp::nil) (v::nil))))
          * PROPx P (LOCALx Q (SEPx R)))).
 Proof.
 intros.
 assert (Cop.classify_fun (typeof (Evar id (Tfunction (type_of_params argsig) retty cc)))=
                Cop.fun_case_f (type_of_params argsig) retty cc).
 simpl. subst. reflexivity.
-apply (semax_fun_id' id (mk_funspec (argsig,retty) cc A Pre Post)  
+apply (semax_fun_id' id (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost)  
   (tc_exprlist Delta (argtypes argsig) bl)); auto.
 subst. 
 
-eapply semax_pre_simple; [ | apply (@semax_call0 Espec cs Delta A Pre Post x argsig _ cc _ bl P Q R)].
+eapply semax_pre_simple; [ | apply (@semax_call0 Espec cs Delta A Pre Post NEPre NEPost ts x argsig _ cc _ bl P Q R)].
 apply andp_right.
 apply andp_right.
 apply andp_left1.
@@ -248,24 +249,24 @@ auto.
 Qed.
 
 Lemma semax_call_id1:
- forall Espec {cs: compspecs} Delta P Q R ret id retty cc bl argsig A x Pre Post
+ forall Espec {cs: compspecs} Delta P Q R ret id retty cc bl argsig A ts x Pre Post NEPre NEPost
    (GLBL: (var_types Delta) ! id = None),
-       (glob_specs Delta) ! id = Some (mk_funspec (argsig, retty) cc A Pre Post) ->
-       (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig, retty) cc A Pre Post)) ->
+       (glob_specs Delta) ! id = Some (mk_funspec (argsig, retty) cc A Pre Post NEPre NEPost) ->
+       (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig, retty) cc A Pre Post NEPre NEPost)) ->
    match retty with
    | Tvoid => False
    | _ => True
    end ->
    tc_fn_return Delta (Some ret) retty ->
   @semax cs Espec Delta (tc_exprlist Delta (argtypes argsig) bl && 
-                (`(Pre x) (make_args' (argsig,Tvoid) (eval_exprlist (argtypes argsig) bl)) 
+                (`(Pre ts x: environ -> mpred) (make_args' (argsig,Tvoid) (eval_exprlist (argtypes argsig) bl)) 
                   * PROPx P (LOCALx Q (SEPx R))))
     (Scall (Some ret)
              (Evar id (Tfunction (type_of_params argsig) retty cc))
              bl)
     (normal_ret_assert 
        (EX old:val, 
-          (`(Post x) (get_result1 ret) 
+          (`(Post ts x: environ -> mpred) (get_result1 ret) 
            * PROPx P (LOCALx (map (subst_localdef ret old) Q) (SEPx R))))).
 Proof.
 intros. rename H0 into Ht. rename H1 into H0.
@@ -273,9 +274,9 @@ intros. rename H0 into Ht. rename H1 into H0.
 assert (Cop.classify_fun (typeof (Evar id (Tfunction (type_of_params argsig) retty cc)))=
                Cop.fun_case_f (type_of_params argsig) retty cc).
 subst; reflexivity.
-apply (semax_fun_id' id (mk_funspec (argsig,retty) cc A Pre Post)); auto.
+apply (semax_fun_id' id (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost)); auto.
 subst. 
-eapply semax_pre_simple; [ | apply (semax_call1 Espec Delta A Pre Post x ret argsig retty cc _ bl P Q R H1 H0); auto].
+eapply semax_pre_simple; [ | apply (semax_call1 Espec Delta A Pre Post NEPre NEPost ts x ret argsig retty cc _ bl P Q R H1 H0); auto].
 apply andp_right.
 apply andp_right.
 apply andp_left1.
@@ -711,7 +712,7 @@ Lemma semax_call_id1_wow:
              (Rpost: B -> list mpred)
              (vl : list val)
    (GLBL: (var_types Delta) ! id = None)
-   (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty) cc A Pre Post))
+   (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty) cc (ConstType A) Pre Post))
    (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty) cc A Pre Post)))
    (TYret: typeof_temp Delta ret = Some retty)
    (OKretty: check_retty retty)
