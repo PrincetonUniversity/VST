@@ -2852,11 +2852,11 @@ Proof.
     - inversion H1.
 Qed.
 
-Lemma is_resource_pred_YES_LK l R rsh sh:
+Lemma is_resource_pred_YES_LK l (R: mpred) rsh sh:
   is_resource_pred
-    (fun l' => jam (eq_dec l) (yesat (SomeP nil (fun _ => R)) (LK lock_size) rsh sh) (CTat l rsh sh) l')
+    (fun l' => jam (eq_dec l) (yesat (SomeP Mpred (fun _ => R)) (LK lock_size) rsh sh) (CTat l rsh sh) l')
     (fun r l0 n => (if eq_dec l l0 then exists p, r = YES rsh (mk_lifted sh p) (LK lock_size)
-        (SomeP nil (approx n oo (fun _ : unit => R)))
+        (SomeP Mpred (fun _ => approx n R))
        else exists p, r = YES rsh (mk_lifted sh p) (CT (snd l0 - snd l)) NoneP)).
 Proof. hnf; intros. reflexivity. Qed.
 
