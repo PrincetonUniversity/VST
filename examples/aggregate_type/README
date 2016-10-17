@@ -4,15 +4,14 @@
 systems.
   The main system is embedded in VST and is depended on MSL(Mechanized Semantic
 Library), Verifiable C and some previous automation in VST.
-  Two demo systems are dependent on CompCert 2.6 and MSL in VST.
+  Two demo systems are dependent on CompCert 2.7 and MSL in VST. They are all deeloped in Coq8.5pl2.
 
 2. How to install
-2.1. CompCert can be downloaded from http://compcert.inria.fr/.
-2.2. VST can be downloaded from https://github.com/PrincetonUniversity/VST/.
+2.1. VST can be downloaded from https://github.com/PrincetonUniversity/VST/.
+2.2. The part of CompCert we use is already inside VST. Also, it can be downloaded from http://compcert.inria.fr/.
 2.3. Create a file CONFIGURE in the current folder with the following content.
-        COMPCERT_DIR = [Your CompCert Directory]
         VST_DIR_DIR = [Your VST Directory]
-2.4. Build CompCert and VST.
+2.4. Build VST.
 2.5. Run make.
 
 3. Organization
@@ -24,7 +23,7 @@ soundness proofs.
   To be as self-contained as possible, it is only dependent on MSL which is a 
 formalization of separation logic. (We only use the Coqlib in CompCert which 
 contains some lemmas about Coq standard library). The only assumptions we made 
-about C semantics are all Coq Parameters and Coq Hypothesis in expr.v.
+about C semantics are all Coq Parameters and Coq Axioms in expr.v.
   The organization of main definitions and proofs are as follows.
   type_rec_functions.v:
     reptype, data_at_rec

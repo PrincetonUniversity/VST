@@ -170,6 +170,7 @@ Proof.
   induction fs as [| [i0 t0] fs0]; auto.
   apply sepcon_derives.
   + destruct (ident_eq i0 f); auto.
+    simpl.
     rewrite proj_upd_gfield_reptype_miss by congruence.
     auto.
   + apply IHfs0.

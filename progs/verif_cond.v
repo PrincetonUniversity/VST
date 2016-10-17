@@ -1,5 +1,4 @@
-Require Import progs.verif_incr.
-Require Import msl.predicates_sl.
+Require Import progs.conclib.
 Require Import floyd.proofauto.
 Require Import concurrency.semax_conc.
 Require Import progs.cond.
@@ -11,13 +10,13 @@ Definition acquire_spec := DECLARE _acquire acquire_spec.
 Definition release_spec := DECLARE _release release_spec.
 Definition makelock_spec := DECLARE _makelock (makelock_spec _).
 Definition freelock_spec := DECLARE _freelock (freelock_spec _).
-Definition spawn_spec := DECLARE _spawn_thread spawn_spec.
+Definition spawn_spec := DECLARE _spawn spawn_spec.
 Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
 Definition release2_spec := DECLARE _release2 release2_spec.
 Definition makecond_spec := DECLARE _makecond (makecond_spec _).
 Definition freecond_spec := DECLARE _freecond (freecond_spec _).
-Definition wait_spec := DECLARE _wait (wait_spec _).
-Definition signal_spec := DECLARE _signal (signal_spec _).
+Definition wait_spec := DECLARE _waitcond (wait_spec _).
+Definition signal_spec := DECLARE _signalcond (signal_spec _).
 
 Definition lock_pred data :=
   Exp _ (fun i => Data_at _ Ews (tarray tint 1) [Vint (Int.repr i)] data).
@@ -51,56 +50,19 @@ Definition Gprog : funspecs := augment_funspecs prog [acquire_spec; release_spec
   freelock_spec; freelock2_spec; spawn_spec; makecond_spec; freecond_spec; wait_spec; signal_spec;
   thread_func_spec; main_spec].
 
-Lemma data_at_precise : forall b o,
-  precise (data_at_ Ews (tarray tint 1) (Vptr b o)).
+Lemma inv_precise : forall p,
+  precise (EX x : Z, data_at Ews (tarray tint 1) [Vint (Int.repr x)] p).
 Proof.
-  intros; unfold data_at_, field_at_, field_at, at_offset; simpl.
-  apply precise_andp2.
-  rewrite data_at_rec_eq; unfold withspacer, at_offset; simpl.
-  unfold array_pred, aggregate_pred.array_pred; simpl.
-  unfold Zlength, Znth; simpl.
-  apply precise_andp2.
-  rewrite data_at_rec_eq; simpl.
-  apply precise_sepcon; [apply mapsto_undef_precise | apply precise_emp]; auto.
-Qed.
-
-Lemma inv_precise : forall b o,
-  precise (EX x : Z, data_at Ews (tarray tint 1) [Vint (Int.repr x)] (Vptr b o)).
-Proof.
-  intros; apply derives_precise with (Q := data_at_ Ews (tarray tint 1) (Vptr b o));
-    [|apply data_at_precise].
-  intros ? (? & ?).
-  apply (data_at_data_at_ _ _ _ _ _ H).
+  intros ???? (? & ?) (? & ?) ??.
+  eapply data_at_int_array_inj; try eassumption; auto.
+  { repeat constructor; auto; discriminate. }
+  { repeat constructor; auto; discriminate. }
 Qed.
 
 Lemma inv_positive : forall ctr,
   positive_mpred (EX x : Z, data_at Ews (tarray tint 1) [Vint (Int.repr x)] ctr).
 Proof.
 Admitted.
-
-Lemma cond_var_precise : forall {cs} sh b o, readable_share sh ->
-  precise (@cond_var cs sh (Vptr b o)).
-Proof.
-  intros; unfold cond_var, data_at_, field_at_, field_at, at_offset; simpl.
-  apply precise_andp2.
-  rewrite data_at_rec_eq; simpl.
-  apply mapsto_undef_precise; auto.
-Qed.
-
-Lemma positive_sepcon2 : forall P Q (HQ : positive_mpred Q),
-  positive_mpred (P * Q).
-Proof.
-  repeat intro.
-  destruct H as (? & ? & ? & ? & HQ1).
-  specialize (HQ _ HQ1).
-  destruct HQ as (l & sh & rsh & k & p & HQ); exists l, sh, rsh, k, p.
-  admit.
-Admitted.
-
-Lemma cond_var_isptr : forall {cs} sh v, @cond_var cs sh v = !! isptr v && cond_var sh v.
-Proof.
-  intros; apply data_at__isptr.
-Qed.
 
 Lemma body_thread_func : semax_body Vprog Gprog f_thread_func thread_func_spec.
 Proof.
@@ -110,12 +72,14 @@ Proof.
   forward.
   forward.
   forward_call (lock, sh, lock_pred data).
+  { destruct lock; try contradiction; simpl; entailer. }
   simpl.
   Intro i.
   forward.
   forward_call (cond, sh).
   rewrite field_at_isptr; normalize.
   forward_call (lock, sh, lock_pred data).
+  { destruct lock; try contradiction; simpl; entailer. }
   { simpl; entailer!.
     Exists 1.
     unfold data_at_, field_at_; entailer!. }
@@ -124,6 +88,7 @@ Proof.
     - apply inv_positive. }
   rewrite cond_var_isptr; normalize.
   forward_call (lockt, sh, tlock_pred sh lockt lock cond data).
+  { destruct lockt; try contradiction; simpl; entailer. }
   { subst Frame; instantiate (1 := []); simpl.
     setoid_rewrite selflock_eq at 2; entailer!.
     apply lock_inv_later. }
@@ -135,16 +100,13 @@ Proof.
   forward.
 Qed.
 
-Lemma cond_var_almost_empty : forall {cs} sh v phi, predicates_hered.app_pred (@cond_var cs sh v) phi ->
-  juicy_machine.almost_empty phi.
+Lemma lock_struct : forall p, data_at_ Ews (Tstruct _lock_t noattr) p |-- data_at_ Ews tlock p.
 Proof.
-  admit.
-Admitted.
-
-Lemma cond_var_join : forall {cs} sh1 sh2 sh v (Hjoin : sepalg.join sh1 sh2 sh),
-  @cond_var cs sh1 v * cond_var sh2 v = cond_var sh v.
-Proof.
-  intros; unfold cond_var; apply data_at__share_join; auto.
+  intros.
+  unfold data_at_, field_at_, field_at; simpl; entailer.
+  unfold default_val; simpl.
+  rewrite data_at_rec_eq; simpl.
+  unfold struct_pred, aggregate_pred.struct_pred, at_offset, withspacer; simpl; entailer.
 Qed.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
@@ -184,9 +146,11 @@ Proof.
   rewrite field_at_isptr; normalize.
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
   forward_call (gvar0, Ews, lock_pred gvar3).
-  { unfold tlock, semax_conc._lock_t; entailer!. }
+  { destruct gvar0; try contradiction; simpl; entailer. }
+  { rewrite (sepcon_comm _ (fold_right _ _ _)); apply sepcon_derives; [cancel | apply lock_struct]. }
   forward_call (gvar1, Ews, tlock_pred sh1 gvar1 gvar0 gvar2 gvar3).
-  { unfold tlock, semax_conc._lock_t; entailer!. }
+  { destruct gvar1; try contradiction; simpl; entailer. }
+  { rewrite (sepcon_comm _ (fold_right _ _ _)); apply sepcon_derives; [cancel | apply lock_struct]. }
   get_global_function'' _thread_func.
   normalize.
   apply extract_exists_pre; intros f_.
@@ -221,11 +185,11 @@ Proof.
     destruct Hpred as (? & ? & ? & (? & ?) & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & Hemp).
     eapply almost_empty_join; eauto; [|eapply almost_empty_join; eauto;
       [|eapply almost_empty_join; eauto; [|eapply almost_empty_join; eauto]]].
-    - eapply prop_almost_empty; eauto.
+    - apply emp_almost_empty; auto.
     - eapply cond_var_almost_empty; eauto.
     - eapply lock_inv_almost_empty; eauto.
     - eapply lock_inv_almost_empty; eauto.
-    - eapply emp_almost_empty; eauto. }
+    - apply emp_almost_empty; auto. }
   forward.
   forward_while (EX i : Z, PROP ( )
    LOCAL (temp _v (Vint (Int.repr i)); temp _c gvar2; temp _t gvar1; temp _l gvar0; gvar _data gvar3;
@@ -238,12 +202,15 @@ Proof.
   { entailer. }
   - (* loop body *)
     forward_call (gvar2, gvar0, sh2, sh2, lock_pred gvar3).
+    { destruct gvar0; try contradiction; simpl; entailer. }
     simpl; Intro i'.
     forward.
     Exists i'; entailer.
     Exists i'; entailer!.
   - forward_call (gvar1, sh2, tlock_pred sh1 gvar1 gvar0 gvar2 gvar3).
+    { destruct gvar1; try contradiction; simpl; entailer. }
     forward_call (gvar1, Ews, Later (tlock_pred sh1 gvar1 gvar0 gvar2 gvar3)).
+    { destruct gvar1; try contradiction; simpl; entailer. }
     { subst Frame; instantiate (1 := [lock_inv Ews gvar0 (Interp (lock_pred gvar3));
         cond_var Ews gvar2; Interp (lock_pred gvar3)]); simpl; cancel.
       rewrite selflock_eq at 2.
@@ -265,6 +232,7 @@ Proof.
         apply positive_sepcon2, positive_sepcon1, lock_inv_positive.
       + apply later_rec, selflock_rec. }
     forward_call (gvar0, Ews, lock_pred gvar3).
+    { destruct gvar0; try contradiction; simpl; entailer. }
     { split; [auto | apply inv_positive]. }
     forward_call (gvar2, Ews).
     forward.

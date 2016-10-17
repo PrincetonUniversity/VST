@@ -2038,7 +2038,9 @@ match goal with
     subst p;
       [ reflexivity | reflexivity | reflexivity
       | reflexivity | reflexivity | reflexivity
-      | reflexivity | exact HLE 
+      | try unfold data_at; try unfold data_at_; try unfold field_at_;
+        subst n; cbv beta iota zeta delta [nth_error]; reflexivity
+      | exact HLE
       | exact HRE
       | exact H_Denote
       | solve [subst sh; auto] (* writable share *)

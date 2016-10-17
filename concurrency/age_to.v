@@ -152,3 +152,10 @@ Proof.
   apply age1_level0 in E.
   omega.
 Qed.
+
+Lemma age_to_1 {A} {_ : ageable A} n x : level x = S n -> age x (age_to n x).
+Proof.
+  unfold age_to; intros E; rewrite E.
+  replace (S n - n) with 1 by auto with *.
+  apply age_by_1. auto with *.
+Qed.

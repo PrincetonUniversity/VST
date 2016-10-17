@@ -21,7 +21,7 @@ COMPCERT ?= compcert
 
 #Note2:  By default, the rules for converting .c files to .v files
 # are inactive.  To activate them, do something like
-CLIGHTGEN=../CompCert-2.7.1/clightgen	
+CLIGHTGEN=$(COMPCERT)/clightgen 
 
 #Note3: for SSReflect, one solution is to install MathComp 1.6
 # somewhere add this line to a CONFIGURE file
@@ -135,6 +135,7 @@ CONCUR_FILES= \
   semax_simlemmas.v cl_step_lemmas.v \
   semax_progress.v semax_preservation.v \
   aging_lemmas.v resource_decay_lemmas.v \
+  rmap_locking.v \
   permjoin.v \
   resource_decay_join.v join_lemmas.v coqlib5.v age_to.v \
   konig.v safety.v \
@@ -467,6 +468,9 @@ version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FI
 floyd/floyd.coq: floyd/proofauto.vo
 	coqtop $(COQFLAGS) -load-vernac-object floyd/proofauto -outputstate floyd/floyd -batch
 
+dep:
+	$(COQDEP) $(shell find . -name "*.v")  > .depend
+
 .depend:
 	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
 
@@ -483,7 +487,7 @@ depend-concur:
 	$(COQDEP) > .depend-concur $(CONCUR_FILES:%.v=concurrency/%.v) $(PACO_FILES:%.v=concurrency/paco/src/%.v) $(CCC26x86_FILES:%.v=concurrency/%.v)
 
 depend-paco:
-	$(COQDEP) > .depend-concur $(PACO_FILES:%.v=concurrency/paco/src/%.v)
+	$(COQDEP) > .depend-paco $(PACO_FILES:%.v=concurrency/paco/src/%.v)
 
 clean:
 	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) floyd/floyd.coq .loadpath .depend
@@ -509,4 +513,3 @@ count-linking:
 # such problem, not sure exactly.  -- Andrew)
 include .depend
 -include .depend-concur
-

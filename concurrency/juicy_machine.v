@@ -28,7 +28,7 @@ Require Import veric.juicy_mem.
 Require Import veric.juicy_mem_lemmas.
 Require Import veric.juicy_extspec.
 Require Import veric.jstep.
-
+Require Import veric.res_predicates.
 
 
 (**)
@@ -65,9 +65,6 @@ Notation UNLOCK := (EF_external "release" UNLOCK_SIG).
     Require Import concurrency.lksize.  *)
 Definition LKCHUNK:= Mint32.
 Definition LKSIZE:= align_chunk LKCHUNK.
-
-Definition almost_empty rm: Prop:=
-  forall loc sh psh k P, rm @ loc = YES sh psh k P -> forall val, ~ k = VAL val.
 
 Require Import (*compcert_linking*) concurrency.permissions concurrency.threadPool.
 
@@ -818,19 +815,14 @@ Admitted.
     
     (* PERSONAL MEM: Is the contents of the global memory, 
        with the juice of a single thread and the Cur that corresponds to that juice.*)
-    Definition personal_mem' {phi m}
-               (acoh: access_cohere' m phi)
-               (ccoh:contents_cohere m phi)
-               (macoh: max_access_cohere m phi)
-               (alcoh: alloc_cohere m phi) : juicy_mem :=
-      mkJuicyMem _ _ (juicyRestrictContentCoh acoh ccoh)
-                   (juicyRestrictAccCoh acoh) 
-                   (juicyRestrictMaxCoh acoh macoh)
-                   (juicyRestrictAllocCoh acoh alcoh).
-
-    Definition personal_mem {tid js m}(cnt: containsThread js tid)(Hcompatible: mem_compatible js m): juicy_mem:=
-      let cohere:= (thread_mem_compatible Hcompatible cnt) in
-      personal_mem' (acc_coh cohere) (cont_coh cohere) (max_coh cohere) (all_coh cohere).
+    Definition personal_mem {m phi} (pr : mem_cohere' m phi) : juicy_mem :=
+      mkJuicyMem
+        (@juicyRestrict phi m (acc_coh pr))
+        phi
+        (juicyRestrictContentCoh (acc_coh pr) (cont_coh pr))
+        (juicyRestrictAccCoh (acc_coh pr)) 
+        (juicyRestrictMaxCoh (acc_coh pr) (max_coh pr))
+        (juicyRestrictAllocCoh (acc_coh pr) (all_coh pr)).
     
     Definition juicy_sem := (FSem.F _ _ JuicyFSem.t) _ _ the_sem.
     (* Definition juicy_step := (FSem.step _ _ JuicyFSem.t) _ _ the_sem. *)
@@ -1021,7 +1013,7 @@ Admitted.
     | step_juicy :
         forall (tp':thread_pool) c jm jm' m' (c' : code),
           forall (Hpersonal_perm:
-               personal_mem cnt Hcompatible = jm)
+               personal_mem (thread_mem_compatible Hcompatible cnt) = jm)
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt = Krun c)
             (Hcorestep: corestep juicy_sem genv c jm c' jm')
@@ -1089,7 +1081,7 @@ Admitted.
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' =
                     updLockSet tp' (b, Int.intval ofs) (Some d_phi))
-            (Htp''': tp''' = age_tp_to (level phi - 1) tp''),
+            (Htp''': tp''' = age_tp_to (level phi - 1)%coq_nat tp''),
             syncStep' genv cnt0 Hcompat tp''' m' (release (b, Int.intval ofs) None)      
     | step_create :
         (* HAVE TO REVIEW THIS STEP LOOKING INTO THE ORACULAR SEMANTICS*)
@@ -1103,7 +1095,7 @@ Admitted.
             (Hfun_sepc: vf = Vptr b ofs)
             (Hcompatible: mem_compatible tp m)
             (Hpersonal_perm: 
-               personal_mem cnt0 Hcompatible = jm)
+               personal_mem (thread_mem_compatible Hcompatible cnt0) = jm)
             (p: veric.rmaps.listprod (JMem.AType::nil) -> pred rmap)
             (Hget_fun_spec': JMem.get_fun_spec' jm (b, Int.intval ofs) arg = Some (existT _ _ p))
             (Hget_fun_spec: JMem.get_fun_spec p = Some (P, Q))
@@ -1124,9 +1116,9 @@ Admitted.
             (Hat_external: at_external the_sem c =
                            Some (MKLOCK, ef_sig MKLOCK, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
-            (Hright_juice:  m = m_dry jm)
+            (*Hright_juice:  m = m_dry jm*)
             (Hpersonal_perm: 
-               personal_mem cnt0 Hcompatible = jm)
+               personal_mem (thread_mem_compatible Hcompatible cnt0) = jm)
             (Hpersonal_juice: getThreadR cnt0 = phi)
             (*This the first share of the lock, 
               can/should this be different for each location? *)
@@ -1134,22 +1126,23 @@ Admitted.
             (*Check I have the right permission to mklock and the right value (i.e. 0) *)
             (*Haccess: address_mapsto LKCHUNK (Vint Int.zero) sh Share.top (b, Int.intval ofs) phi*)
             (Hstore:
-               Mem.store Mint32 m b (Int.intval ofs) (Vint Int.zero) = Some m')
+               Mem.store Mint32 (m_dry jm) b (Int.intval ofs) (Vint Int.zero) = Some m')
             (*Check the new memory has the lock*)
             (Hct: forall ofs', (Int.intval ofs) <= ofs'<(Int.intval ofs)+LKSIZE  ->
-                          exists val sh',
-                phi@ (b, ofs') = YES sh' pfullshare (VAL val) (pack_res_inv R))
-            (Hlock: phi'@ (b, Int.intval ofs) = YES sh pfullshare (LK LKSIZE) (pack_res_inv R))
+                          exists val,
+                phi@ (b, ofs') = YES sh pfullshare (VAL val) NoneP)
+            (Hlock: phi'@ (b, Int.intval ofs) = YES sh pfullshare (LK LKSIZE) (preds_fmap (approx (level phi)) (approx (level phi)) (pack_res_inv R)))
             (Hct: forall ofs', (Int.intval ofs) <ofs'<(Int.intval ofs)+LKSIZE ->
-                phi'@ (b, ofs') = YES sh pfullshare (CT LKSIZE) (pack_res_inv R)) (*This seems wrong it's not LKSIZE, its ofs0 -ofs *)
+                phi'@ (b, ofs') = YES sh pfullshare (CT (ofs' - Int.intval ofs)%Z) NoneP) (*This seems wrong it's not LKSIZE, its ofs0 -ofs *)
             (*Check the new memory has the right continuations THIS IS REDUNDANT! *)
             (*Hcont: forall i, 0<i<LKSIZE ->   phi'@ (b, Int.intval ofs + i) = YES sh pfullshare (CT i) NoneP*)
             (*Check the two memories coincide in everything else *)
-            (Hj_forward: forall loc, b <> loc#1 \/ ~(Int.intval ofs) <loc#2<(Int.intval ofs)+LKSIZE  -> phi@loc = phi'@loc)
+            (Hj_forward: forall loc, b <> loc#1 \/ ~(Int.intval ofs) <=loc#2<(Int.intval ofs)+LKSIZE  -> phi@loc = phi'@loc)
+            (levphi' : level phi' = level phi)
             (*Check the memories are equal!*)
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
-            (Htp'': tp'' =
-                    updLockSet tp' (b, Int.intval ofs) None ),
+            (Htp'': tp'' = age_tp_to (level phi - 1)%coq_nat 
+                    (updLockSet tp' (b, Int.intval ofs) None )),
             syncStep' genv cnt0 Hcompat tp'' m' (mklock (b, Int.intval ofs))
     | step_freelock :
         forall  (tp' tp'': thread_pool) c b ofs phi R phi',
@@ -1169,21 +1162,22 @@ Admitted.
             (Haccess: address_mapsto LKCHUNK (Vint Int.zero) sh Share.top (b, Int.intval ofs) phi')
             (*Check the old memory has the lock*)
             (Hlock: phi@ (b, Int.intval ofs) = YES sh pfullshare (LK LKSIZE) (pack_res_inv R))
-            (Hlock': exists val, phi'@ (b, Int.intval ofs) = YES sh pfullshare (VAL val) (pack_res_inv R))
+            (Hlock': exists val, phi'@ (b, Int.intval ofs) = YES sh pfullshare (VAL val) NoneP)
             (Hct: forall ofs', (Int.intval ofs)< ofs'<(Int.intval ofs)+LKSIZE ->
-                          exists val sh' X, (*I*)
-                            phi@ (b, ofs') = YES sh' pfullshare (CT (Int.intval ofs)) X /\ (*<- might want to specify the X, Id ont' mind*)
-                            phi'@ (b, ofs') = YES sh' pfullshare (VAL val) (pack_res_inv R))
+                          exists val, (*I*)
+                            phi@ (b, ofs') = YES sh pfullshare (CT (ofs' - Int.intval ofs)%Z) NoneP /\
+                            phi'@ (b, ofs') = YES sh pfullshare (VAL val) NoneP)
             (*Check the old memory has the right continuations  THIS IS REDUNDANT!*)
             (*Hcont: forall i, 0<i<LKSIZE ->   phi@ (b, Int.intval ofs + i) = YES sh pfullshare (CT i) NoneP *)
             (*Check the two memories coincide in everything else *)
-            (Hj_forward: forall loc, b <> loc#1 \/ ~(Int.intval ofs)<loc#2<(Int.intval ofs)+LKSIZE  -> phi@loc = phi'@loc)
+            (Hj_forward: forall loc, b <> loc#1 \/ ~(Int.intval ofs)<=loc#2<(Int.intval ofs)+LKSIZE  -> phi@loc = phi'@loc)
+            (levphi' : level phi' = level phi)
             (*Check the memories are equal!*)
             (*Hm_forward:
                makeCurMax m = m1 *)
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
-            (Htp'': tp'' =
-                    remLockSet tp' (b, Int.intval ofs) ),
+            (Htp'': tp'' = age_tp_to (level phi - 1)%coq_nat 
+                    (remLockSet tp' (b, Int.intval ofs) )),
             syncStep' genv cnt0 Hcompat  tp'' m (freelock (b, Int.intval ofs)) (* m_dry jm' = m_dry jm = m *)
                       
     | step_acqfail :
@@ -1196,7 +1190,7 @@ Admitted.
                            Some (LOCK, ef_sig LOCK, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
             (Hpersonal_perm: 
-               personal_mem cnt0 Hcompatible = jm)
+               personal_mem (thread_mem_compatible Hcompatible cnt0) = jm)
             (Hrestrict_pmap:
                permissions.restrPermMap
                  (mem_compatible_locks_ltwritable Hcompatible)

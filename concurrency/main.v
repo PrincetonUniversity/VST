@@ -218,19 +218,52 @@ Module MainSafety .
       - intros sch0. eapply juicy_initial_safety; auto.
     Qed.
 
+    Theorem new_dry_clight_infinite_safety': forall sch,
+        DryMachine.valid (sch, nil, ds_initial) ->
+        DryMachine.safe_new_step  (globalenv prog) (sch, nil, ds_initial) initial_memory.
+    Proof.
+      move => sch VAL.
+      apply: safety.ksafe_safe' => //.
+      - exact Classical_Prop.classic.
+      - move => ds.
+        simpl.
+        eapply DryMachine.finite_branching.
+      - move => n U VAL'.
+        rewrite /DryMachine.mk_nstate /=.
+        simpl; apply: new_dry_clight_safety.
+    Qed.
+
     Theorem new_dry_clight_infinite_safety: forall sch,
         DryMachine.safe_new_step  (globalenv prog) (sch, nil, ds_initial) initial_memory.
     Proof.
-      move => sch.
-      apply: safety.ksafe_safe => //.
-      - admit. (*EM*)
-      - move => ds.
-        admit. (*Finite branchin!*)
-      - rewrite /DryMachine.new_valid /DryMachine.mk_nstate /DryMachine.mk_ostate;
+      cofix.
+      move=> U.
+      destruct (DryMachineSource.THE_DRY_MACHINE_SOURCE.SCH.schedPeek U) eqn:Us.
+      destruct (DryMachineSource.THE_DRY_MACHINE_SOURCE.SCH.TID.eq_tid_dec 0 t0) eqn:AA.
+      - eapply new_dry_clight_infinite_safety'.
+        rewrite / DryMachine.valid /=.
+          by rewrite Us AA.
+
+      - econstructor.
+        eapply DryMachine.step_with_halt.
+        rewrite /DryMachine.mk_ostate /DryMachine.mk_nstate /DryMachine.MachStep /=.
+        instantiate (2:= (nil, ds_initial, initial_memory) ).
+        eapply DryMachine.schedfail => //.
+        eassumption.
+        rewrite /DryMachineSource.THE_DRY_MACHINE_SOURCE.DSEM.ThreadPool.containsThread.
+        simpl. clear - n.
+        move => /ltP HH . apply n.
+        destruct (NPeano.Nat.lt_1_r t0) as [H H0].
+        symmetry; apply: H HH.
         simpl.
-        admit. (*all schedules are valid at the initial state. (I can probably carry this from the juicym)*)
-      - apply: new_dry_clight_safety.
-    Admitted.
+        rewrite /DryMachineSource.THE_DRY_MACHINE_SOURCE.DSEM.invariant /ds_initial.
+        eapply erasure_safety.ErasureSafety.ErasureProof.DSEM.DryMachineLemmas.initial_invariant.
+        intros. eapply new_dry_clight_infinite_safety.
+
+      -  eapply new_dry_clight_infinite_safety'.
+         rewrite / DryMachine.valid /=.
+           by rewrite Us.
+    Qed.
     
     Require Import concurrency.dry_context. 
     (*Definition dry_initial_core_2:=
@@ -468,7 +501,9 @@ Module MainSafety .
       Qed.
       
     (** *Safety of the dry x86 concurrent semantics,*)
-    (** *with a preemptive schedule*)
+      (** *with a preemptive schedule*)
+      
+(* (* commented out because does not build *)
     Theorem x86_fine_safe:
     forall U tpf m,
     forall sch,
@@ -500,6 +535,6 @@ Module MainSafety .
       - eassumption.
       - constructor.
     Qed.
-    
+*)    
 End Initil.
 End MainSafety.

@@ -52,6 +52,8 @@ Definition schedule := SCH.schedule.
 Export JuicyMachineLemmas.
 Export ThreadPool.
 
+Set Bullet Behavior "Strict Subproofs".
+
 Ltac cleanup :=
   unfold lockRes in *;
   unfold LocksAndResources.lock_info in *;
@@ -228,27 +230,14 @@ Definition jm_
   (cnti : Machine.containsThread tp i)
   (mcompat : mem_compatible_with tp m PHI)
   : juicy_mem :=
-  personal_mem cnti (mem_compatible_forget mcompat).
+  personal_mem (thread_mem_compatible (mem_compatible_forget mcompat) cnti).
 
-Lemma personal_mem_ext
-  tp tp' m
-  (compat : mem_compatible tp m)
-  (compat' : mem_compatible tp' m)
-  (same_threads_rmaps: forall i cnti cnti',
-      @Machine.getThreadR i tp cnti =
-      @Machine.getThreadR i tp' cnti')
-  i
-  (cnti : Machine.containsThread tp i)
-  (cnti' : Machine.containsThread tp' i) :
-    personal_mem cnti compat = personal_mem cnti' compat'.
+Lemma personal_mem_ext m phi phi' pr pr' :
+  phi = phi' ->
+  @personal_mem m phi pr =
+  @personal_mem m phi' pr'.
 Proof.
-  unfold jm_ in *.
-  unfold personal_mem in *; simpl. 
-  apply juicy_mem_ext.
-  - unfold juicyRestrict in *; simpl.
-    apply permissions.restrPermMap_ext.
-    intros b; repeat f_equal; auto.
-  - unfold personal_mem in *. simpl. auto.
+  intros <-; f_equal; apply proof_irr.
 Qed.
 
 (*! Invariant (= above properties + safety + uniqueness of Krun) *)

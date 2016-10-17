@@ -45,16 +45,16 @@ void *producer(void *arg){
 
   while(1){
     request = get_request();
-    acquire(&requests_lock);
+    acquire((void*)&requests_lock);
     int len = length[0];
     while(len >= 10){
-      wait(&requests_producer, &requests_lock);
+      waitcond(&requests_producer, (void*)&requests_lock);
       len = length[0];
     }
     add(request);
     length[0] = len + 1;
-    release(&requests_lock);
-    signal(&requests_consumer);
+    release((void*)&requests_lock);
+    signalcond(&requests_consumer);
   }
 }
 
@@ -62,16 +62,16 @@ void *consumer(void *arg){
   request_t *request;
 
   while(1){
-    acquire(&requests_lock);
+    acquire((void*)&requests_lock);
     int len = length[0];
     while(len == 0){
-      wait(&requests_consumer, &requests_lock);
+      waitcond(&requests_consumer, (void*)&requests_lock);
       len = length[0];
     }
     request = remove();
     length[0] = len - 1;
-    release(&requests_lock);
-    signal(&requests_producer);
+    release((void*)&requests_lock);
+    signalcond(&requests_producer);
     process_request(request);
   }
 }
@@ -81,22 +81,22 @@ int main(void)
   for(int i = 0; i < 10; i++)
     buf[i] = NULL;
   length[0] = 0;
-  makelock(&requests_lock);
-  release(&requests_lock);
+  makelock((void*)&requests_lock);
+  release((void*)&requests_lock);
   makecond(&requests_producer);
   makecond(&requests_consumer);
   
-  spawn_thread((void *)&consumer, (void *)NULL);
+  spawn((void *)&consumer, (void *)NULL);
   acquire(&requests_lock);
 
   int len = length[0];
   while(len != 0){
-    wait(&requests_producer, &requests_lock);
+    waitcond(&requests_producer, (void*)&requests_lock);
     len = length[0];
   }
 
-  release(&requests_lock);
-  spawn_thread((void *)&producer, (void *)NULL);
+  release((void*)&requests_lock);
+  spawn((void *)&producer, (void *)NULL);
 
   while(1);
   return 0;

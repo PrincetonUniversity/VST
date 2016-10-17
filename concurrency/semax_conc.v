@@ -22,7 +22,6 @@ Require Import floyd.reptype_lemmas.
 Require Import floyd.field_at.
 Require Import floyd.client_lemmas.
 Require Import floyd.jmeq_lemmas.
-Require Import concurrency.juicy_machine.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -31,11 +30,12 @@ Definition _f := 1%positive.      (* alpha-convertible *)
 Definition _args := 2%positive.   (* alpha-convertible *)
 Definition _lock := 1%positive.   (* alpha-convertible *)
 Definition _cond := 2%positive.   (* alpha-convertible *)
-Definition _lock_t := 3%positive. (* 2 (* 3 -WM *) is the number given by
+Definition _lock_t := 2%positive. (* 2 (* or sometimes 3 -WM *) is the number given by
 clightgen when threads.h is included first *)
 
 Definition voidstar_funtype := Tfunction (Tcons (tptr tvoid) Tnil) (tptr tvoid) cc_default.
-Definition tlock := Tstruct _lock_t noattr.
+(* Definition tlock := Tstruct _lock_t noattr. *)
+Definition tlock := (Tarray (Tpointer Tvoid noattr) 4 noattr).
 (* Notation tlock := tuint (only parsing). *)
 
 Definition lock_inv : share -> val -> mpred -> mpred :=
@@ -201,7 +201,7 @@ Definition Oracle := list rmap.
 
 Definition acquire_spec :=
    WITH v : val, sh : share, R : Pred
-   PRE [ _lock OF tptr tlock ]
+   PRE [ _lock OF tptr Tvoid ]
      PROP (readable_share sh)
      LOCAL (temp _lock v)
      SEP (lock_inv sh v (Interp R))
@@ -214,7 +214,7 @@ Definition acquire_oracular_spec :=
   mk_funspecOracle
     Oracle
     (* ARGS *)
-    ((_lock, tptr tlock) :: nil, tvoid)
+    ((_lock, tptr Tvoid) :: nil, tvoid)
     cc_default
     (* WITH *)
     (Prop * Oracle * val * share * Pred)
@@ -241,7 +241,7 @@ Definition acquire_oracular_spec :=
 
 Definition release_spec :=
    WITH v : val, sh : share, R : Pred
-   PRE [ _lock OF tptr tlock ]
+   PRE [ _lock OF tptr Tvoid ]
      PROP (readable_share sh; precise (Interp R); positive_mpred (Interp R))
      LOCAL (temp _lock v)
      SEP (lock_inv sh v (Interp R); Interp R)
@@ -254,7 +254,7 @@ Definition release_oracular_spec :=
   mk_funspecOracle
     Oracle
     (* ARGS *)
-    ((_lock, tptr tlock) :: nil, tvoid)
+    ((_lock, tptr Tvoid) :: nil, tvoid)
     cc_default
     (* WITH *)
     (Oracle * val * share * Pred)
@@ -277,7 +277,7 @@ Definition release_oracular_spec :=
 
 Definition makelock_spec cs :=
    WITH v : val, sh : share, R : Pred
-   PRE [ _lock OF tptr tlock ]
+   PRE [ _lock OF tptr Tvoid ]
      PROP (writable_share sh)
      LOCAL (temp _lock v)
      SEP (@data_at_ cs sh tlock v)
@@ -288,7 +288,7 @@ Definition makelock_spec cs :=
 
 Definition freelock_spec cs :=
    WITH v : val, sh : share, R : Pred
-   PRE [ _lock OF tptr tlock ]
+   PRE [ _lock OF tptr Tvoid ]
      PROP (writable_share sh; positive_mpred (Interp R))
      LOCAL (temp _lock v)
      SEP (lock_inv sh v (Interp R); Interp R)
@@ -321,7 +321,7 @@ Qed.
 
 Definition freelock2_spec cs :=
    WITH v : val, sh : share, R : Pred
-   PRE [ _lock OF tptr tlock ]
+   PRE [ _lock OF tptr Tvoid ]
      PROP (writable_share sh; positive_mpred (Interp R); rec_inv v R)
      LOCAL (temp _lock v)
      SEP (lock_inv sh v (Interp R))
@@ -332,7 +332,7 @@ Definition freelock2_spec cs :=
 
 Definition release2_spec :=
    WITH v : val, sh : share, R : Pred
-   PRE [ _lock OF tptr tlock ]
+   PRE [ _lock OF tptr Tvoid ]
      PROP (readable_share sh; precise (Interp R); positive_mpred (Interp R); rec_inv v R)
      LOCAL (temp _lock v)
      SEP (Interp R)
@@ -366,7 +366,7 @@ Definition freecond_spec cs :=
 
 Definition wait_spec cs :=
    WITH c : val, l : val, shc : share, shl : share, R : Pred
-   PRE [ _cond OF tptr tcond, _lock OF tptr tlock ]
+   PRE [ _cond OF tptr tcond, _lock OF tptr Tvoid ]
      PROP (readable_share shc)
      LOCAL (temp _cond c; temp _lock l)
      SEP (@cond_var cs shc c; lock_inv shl l (Interp R); Interp R)
