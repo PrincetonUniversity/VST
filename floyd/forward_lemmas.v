@@ -19,8 +19,8 @@ Definition cc_of_fundef (fd: fundef) : calling_convention :=
  | External _ _ _ c => c
  end.
 
-Definition vacuous_funspec (fd: fundef) := 
-   mk_funspec (funsig_of_fundef fd) (cc_of_fundef fd) unit (fun _ _ => FF) (fun _ _ => FF).
+Definition vacuous_funspec (fd: fundef): funspec := 
+   mk_funspec (funsig_of_fundef fd) (cc_of_fundef fd) (rmaps.ConstType unit) (fun _ _ => FF) (fun _ _ => FF) (const_super_non_expansive _ _) (const_super_non_expansive _ _).
 
 Lemma semax_func_cons_ext_vacuous:
      forall {Espec: OracleKind} (V : varspecs) (G : funspecs) (C : compspecs)
@@ -44,7 +44,7 @@ eapply semax_func_cons_ext; try reflexivity; auto.
   clear.
   revert i; induction argsig; simpl; intros; auto.
 *
-  intros. apply FF_left.
+  intros. simpl. apply FF_left.
 *
   apply semax_external_FF.
 Qed.
