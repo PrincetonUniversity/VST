@@ -725,11 +725,16 @@ Definition exit_tycon (c: statement) (Delta: tycontext) (ek: exitkind) : tyconte
 Definition initblocksize (V: Type)  (a: ident * globvar V)  : (ident * Z) :=
  match a with (id,l) => (id , init_data_list_size (gvar_init l)) end.
 
-Definition main_pre (prog: program) : unit -> environ->mpred := 
-  (fun tt => globvars2pred (prog_vars prog)).
+Definition main_pre (prog: program) : list Type -> unit -> environ->mpred := 
+  (fun nil tt => globvars2pred (prog_vars prog)).
 
-Definition main_post (prog: program) : unit -> environ->mpred := 
-  (fun tt => TT).
+Definition main_post (prog: program) : list Type -> unit -> environ->mpred := 
+  (fun nil tt => TT).
+
+Definition main_spec (prog: program): funspec :=
+  mk_funspec (nil,Tvoid) cc_default
+     (rmaps.ConstType unit) (main_pre prog) (main_post prog)
+       (const_super_non_expansive _ _) (const_super_non_expansive _ _).
 
 Fixpoint match_globvars (gvs: list (ident * globvar type)) (V: varspecs) : bool :=
  match V with
@@ -993,7 +998,7 @@ Definition semax_prog
   cenv_cs = prog_comp_env prog /\
   @semax_func Espec V G C (prog_funct prog) G /\
   match_globvars (prog_vars prog) V = true /\
-  In (prog.(prog_main), mk_funspec (nil,Tvoid) cc_default (rmaps.ConstType unit) (fun _ => main_pre prog ) (fun _ => main_post prog) (const_super_non_expansive _ _) (const_super_non_expansive _ _)) G /\
+  In (prog.(prog_main), main_spec prog) G /\
   veric.semax_prog.is_Internal prog (prog_main prog) = true.
 
 Axiom semax_func_nil:   forall {Espec: OracleKind}, 

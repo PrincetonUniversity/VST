@@ -71,13 +71,18 @@ Definition semax_func
           genv_cenv ge = cenv_cs ->
           forall n, believe Espec (nofunc_tycontext V G) ge (nofunc_tycontext V G1) n.
 
-Definition main_pre (prog: program) : unit -> assert :=
-(fun tt => globvars2pred (prog_vars prog)).
+Definition main_pre (prog: program) : list Type -> unit -> assert :=
+(fun nil tt => globvars2pred (prog_vars prog)).
 
 Definition Tint32s := Tint I32 Signed noattr.
 
-Definition main_post (prog: program) : unit -> assert := 
-  (fun tt _ => TT).
+Definition main_post (prog: program) : list Type -> unit -> assert := 
+  (fun nil tt _ => TT).
+
+Definition main_spec (prog: program): funspec :=
+  mk_funspec (nil,Tvoid) cc_default
+     (ConstType unit) (main_pre prog) (main_post prog)
+       (const_super_non_expansive _ _) (const_super_non_expansive _ _).
 
 Definition is_Internal (prog : program) (f : ident) :=
   match Genv.find_symbol (Genv.globalenv prog) f with
@@ -100,10 +105,7 @@ Definition semax_prog {C: compspecs}
   cenv_cs = prog_comp_env prog /\
   @semax_func V G C (prog_funct prog) G /\
   match_globvars (prog_vars prog) V = true /\
-  In (prog.(prog_main),
-    mk_funspec (nil,Tvoid) cc_default
-     (ConstType unit) (fun _ => main_pre prog) (fun _ => main_post prog)
-       (const_super_non_expansive _ _) (const_super_non_expansive _ _)) G /\
+  In (prog.(prog_main), main_spec prog) G /\
   is_Internal prog (prog_main prog) = true.
 
 Lemma semax_func_nil: 
@@ -1078,9 +1080,7 @@ Proof.
     assert (E: func.(fn_params) = nil). {
       destruct (match_fdecs_exists_Gfun
                   prog G (prog_main prog)
-                  (mk_funspec (nil, Tvoid) cc_default (ConstType unit)
-                    (fun _ => main_pre prog) (fun _ => main_post prog)
-                     (const_super_non_expansive _ _) (const_super_non_expansive _ _)))
+                  (main_spec prog))
         as (fd, (Ifd, sametypes)); auto.
       {
         apply find_id_i; auto.
@@ -1109,7 +1109,7 @@ Proof.
                            (Map.set 1 (Vptr b Int.zero) (Map.empty val))).
     intros z.
     eapply (semax_call_aux Espec (Delta1 V G) (ConstType unit)
-              _ (fun _ => main_post prog) _ (const_super_non_expansive _ _) (const_super_non_expansive _ _)
+              _ (main_post prog) _ (const_super_non_expansive _ _) (const_super_non_expansive _ _)
               nil tt (fun _ => TT) (fun _ => TT)
               None (nil,Tvoid) cc_default _ _ (normal_ret_assert (fun _ => TT)) _ _ _ _ 
               (construct_rho (filter_genv (globalenv prog)) empty_env
@@ -1155,8 +1155,8 @@ Proof.
       apply safe_loop_skip.
     + unfold glob_types, Delta1. simpl @snd.
       forget (prog_main prog) as main.
-      instantiate (1:= fun _ => main_post prog).
-      instantiate (1:= fun _ => main_pre prog).
+      instantiate (1:= main_post prog).
+      instantiate (1:= main_pre prog).
       assert (H8: list_norepet (map (@fst _ _) (prog_funct prog))).
       clear - H0.
       unfold prog_defs_names in H0. unfold prog_funct.
@@ -1167,9 +1167,8 @@ Proof.
       destruct a; destruct g; simpl in *; auto. destruct H2; auto.
       forget (prog_funct prog) as fs.
       clear - H4 H8 H2.
-      forget (mk_funspec (nil, Tvoid) cc_default (ConstType unit)
-               (fun _ => main_pre prog) (fun _ => main_post prog)
-                 (const_super_non_expansive _ _) (const_super_non_expansive _ _)) as fd.
+      fold (main_spec prog).
+      forget (main_spec prog) as fd.
       revert G H2 H4 H8; induction fs; intros; inv H2.
       inv H4.
       simpl in *.
