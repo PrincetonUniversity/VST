@@ -1,6 +1,4 @@
 Require Import progs.conclib.
-Require Import floyd.proofauto.
-Require Import concurrency.semax_conc.
 Require Import progs.cond.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -53,7 +51,8 @@ Definition Gprog : funspecs := augment_funspecs prog [acquire_spec; release_spec
 Lemma inv_precise : forall p,
   precise (EX x : Z, data_at Ews (tarray tint 1) [Vint (Int.repr x)] p).
 Proof.
-  intros ???? (? & ?) (? & ?) ??.
+  intros ???? (? & ? & ?) (? & ? & ?) ??.
+  unfold at_offset in *; simpl in *.
   eapply data_at_int_array_inj; try eassumption; auto.
   { repeat constructor; auto; discriminate. }
   { repeat constructor; auto; discriminate. }
@@ -62,7 +61,13 @@ Qed.
 Lemma inv_positive : forall ctr,
   positive_mpred (EX x : Z, data_at Ews (tarray tint 1) [Vint (Int.repr x)] ctr).
 Proof.
-Admitted.
+  intros ?? (? & ? & Hp).
+  eapply mapsto_positive with (sh := Ews); auto.
+  unfold at_offset in Hp; rewrite data_at_rec_eq in Hp; destruct Hp as (? & ? & ? & Hjoin & Hp & Hemp);
+    simpl in *.
+  unfold at_offset in Hp; rewrite by_value_data_at_rec_nonvolatile in Hp; auto.
+  specialize (Hemp _ _ (sepalg.join_comm Hjoin)); subst; eauto.
+Qed.
 
 Lemma body_thread_func : semax_body Vprog Gprog f_thread_func thread_func_spec.
 Proof.
@@ -171,25 +176,16 @@ Proof.
     simpl; entailer; cancel.
     repeat rewrite sepcon_assoc.
     rewrite <- (sepcon_assoc (lock_inv sh1 gvar1 _)).
-    erewrite lock_inv_join; eauto; cancel.
+    erewrite lock_inv_share_join; eauto; cancel.
     repeat rewrite sepcon_assoc.
     rewrite <- (sepcon_assoc (lock_inv sh1 gvar0 _)).
-    erewrite lock_inv_join; eauto; cancel.
-    erewrite cond_var_join; eauto.
+    erewrite lock_inv_share_join; eauto; cancel.
+    erewrite cond_var_share_join; eauto.
     subst body; f_equal.
     extensionality.
     destruct x as (?, ((((?, ?), ?), ?), ?)); simpl.
     f_equal; f_equal.
     unfold SEPx; simpl; normalize. }
-  { simpl; intros ? Hpred.
-    destruct Hpred as (? & ? & ? & (? & ?) & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & Hemp).
-    eapply almost_empty_join; eauto; [|eapply almost_empty_join; eauto;
-      [|eapply almost_empty_join; eauto; [|eapply almost_empty_join; eauto]]].
-    - apply emp_almost_empty; auto.
-    - eapply cond_var_almost_empty; eauto.
-    - eapply lock_inv_almost_empty; eauto.
-    - eapply lock_inv_almost_empty; eauto.
-    - apply emp_almost_empty; auto. }
   forward.
   forward_while (EX i : Z, PROP ( )
    LOCAL (temp _v (Vint (Int.repr i)); temp _c gvar2; temp _t gvar1; temp _l gvar0; gvar _data gvar3;
@@ -222,11 +218,11 @@ Proof.
         apply sepcon_derives; [apply derives_refl|].
         apply sepcon_derives; [|apply derives_refl].
         apply sepcon_derives; [apply lock_inv_later | apply derives_refl]. }
-      erewrite lock_inv_join; eauto; cancel.
+      erewrite lock_inv_share_join; eauto; cancel.
       repeat rewrite sepcon_assoc; rewrite <- (sepcon_assoc (lock_inv _ gvar0 _)).
       apply sepalg.join_comm in Hsh.
-      erewrite lock_inv_join; eauto; cancel.
-      erewrite cond_var_join; eauto. }
+      erewrite lock_inv_share_join; eauto; cancel.
+      erewrite cond_var_share_join; eauto. }
     { split; auto; split.
       + apply later_positive, selflock_positive; simpl.
         apply positive_sepcon2, positive_sepcon1, lock_inv_positive.

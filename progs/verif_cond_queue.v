@@ -1,6 +1,4 @@
 Require Import progs.conclib.
-Require Import floyd.proofauto.
-Require Import concurrency.semax_conc.
 Require Import progs.cond_queue.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -67,40 +65,40 @@ Definition process_request_spec :=
   POST [ tvoid ]
     PROP () LOCAL () SEP (emp).
 
-Definition MAX : nat := 10.
+Definition MAX := 10.
 
 Definition add_spec :=
  DECLARE _add
   WITH request : val, buf : val, len : val, reqs : list val
   PRE [ _request OF (tptr trequest) ]
-   PROP ((length reqs < MAX)%nat)
+   PROP (Zlength reqs < MAX)
    LOCAL (temp _request request; gvar _buf buf; gvar _length len)
-   SEP (data_at Ews (tarray (tptr trequest) (Z.of_nat MAX)) (complete MAX reqs) buf;
+   SEP (data_at Ews (tarray (tptr trequest) MAX) (complete MAX reqs) buf;
         data_at Ews (tarray tint 1) [Vint (Int.repr (Zlength reqs))] len)
   POST [ tvoid ]
    PROP ()
    LOCAL ()
-   SEP (data_at Ews (tarray (tptr trequest) (Z.of_nat MAX)) (complete MAX (reqs ++ [request])) buf;
+   SEP (data_at Ews (tarray (tptr trequest) MAX) (complete MAX (reqs ++ [request])) buf;
         data_at Ews (tarray tint 1) [Vint (Int.repr (Zlength reqs))] len).
 
 Definition remove_spec :=
  DECLARE _remove
   WITH buf : val, len : val, reqs : list val, req : val
   PRE [ ]
-   PROP ((length reqs < MAX)%nat; isptr req)
+   PROP (Zlength reqs < MAX; isptr req)
    LOCAL (gvar _buf buf; gvar _length len)
-   SEP (data_at Ews (tarray (tptr trequest) (Z.of_nat MAX)) (complete MAX (reqs ++ [req])) buf;
+   SEP (data_at Ews (tarray (tptr trequest) MAX) (complete MAX (reqs ++ [req])) buf;
         data_at Ews (tarray tint 1) [Vint (Int.repr (Zlength reqs + 1))] len)
   POST [ tptr trequest ]
    PROP ()
    LOCAL (temp ret_temp req)
-   SEP (data_at Ews (tarray (tptr trequest) (Z.of_nat MAX)) (complete MAX reqs) buf;
+   SEP (data_at Ews (tarray (tptr trequest) MAX) (complete MAX reqs) buf;
         data_at Ews (tarray tint 1) [Vint (Int.repr (Zlength reqs + 1))] len).
 
 Definition lock_pred buf len := Exp _ (fun reqs =>
-  Pred_list (Data_at _ Ews (tarray (tptr trequest) (Z.of_nat MAX)) (complete MAX reqs) buf ::
+  Pred_list (Data_at _ Ews (tarray (tptr trequest) MAX) (complete MAX reqs) buf ::
              Data_at _ Ews (tarray tint 1) [Vint (Int.repr (Zlength reqs))] len ::
-             Pred_prop (Forall isptr reqs /\ (length reqs <= MAX)%nat) ::
+             Pred_prop (Forall isptr reqs /\ Zlength reqs <= MAX) ::
              map (fun r => Exp _ (fun data => Data_at _ Tsh trequest (Vint (Int.repr data)) r)) reqs)).
 
 Definition producer_spec :=
@@ -187,7 +185,7 @@ Proof.
   forward.
   unfold Znth; simpl.
   forward.
-  { unfold MAX in *; entailer!; rewrite Zlength_correct; omega. }
+  { apply prop_right; split; auto; rewrite Zlength_correct; omega. }
   forward.
   cancel.
   rewrite upd_complete; auto.
@@ -198,7 +196,7 @@ Proof.
   start_function.
   forward.
   assert (0 <= Zlength reqs + 1 - 1 < 10).
-  { rewrite Z.add_simpl_r, Zlength_correct; unfold MAX in *; omega. }
+  { rewrite Z.add_simpl_r; split; auto; rewrite Zlength_correct; omega. }
   assert (Znth (Zlength reqs + 1 - 1) (complete MAX (reqs ++ [req])) Vundef = req) as Hnth.
   { rewrite Z.add_simpl_r, Znth_complete;
       [|repeat rewrite Zlength_correct; rewrite app_length; simpl; Omega0].
@@ -251,28 +249,28 @@ Proof.
     (reqs2 & ? & ? & ? & Hbuf2 & ? & ? & ? & Hlen2 & ? & ? & ? & ((? & ?) & Hemp2) & Hdata2) ??.
   exploit (data_at_int_array_inj Ews).
   { auto. }
-  { apply Hlen1. }
-  { apply Hlen2. }
-  { eapply sepalg.join_sub_trans; [eexists; eauto|].
-    eapply sepalg.join_sub_trans; [eexists; eauto | eauto]. }
-  { eapply sepalg.join_sub_trans; [eexists; eauto|].
-    eapply sepalg.join_sub_trans; [eexists; eauto | eauto]. }
+  { destruct Hlen1 as (? & Hlen1); unfold at_offset in Hlen1; apply Hlen1. }
+  { destruct Hlen2 as (? & Hlen2); unfold at_offset in Hlen2; apply Hlen2. }
+  { repeat (eapply sepalg.join_sub_trans; [eexists|]; eauto). }
+  { repeat (eapply sepalg.join_sub_trans; [eexists|]; eauto). }
   { repeat constructor; auto; discriminate. }
   { repeat constructor; auto; discriminate. }
+  { rewrite Zlength_cons, Zlength_nil; auto. }
+  { rewrite Zlength_cons, Zlength_nil; auto. }
   intros (? & Heq); subst.
   assert (Zlength reqs1 = Zlength reqs2) as Hlen.
   { rewrite <- (Int.signed_repr (Zlength reqs1)), <- (Int.signed_repr (Zlength reqs2)).
     congruence.
-    { rewrite Zlength_correct; pose proof Int.min_signed_neg; split; [omega|].
-      transitivity (Z.of_nat MAX); [Omega0 | simpl; computable]. }
-    { rewrite Zlength_correct; pose proof Int.min_signed_neg; split; [omega|].
-      transitivity (Z.of_nat MAX); [Omega0 | simpl; computable]. } }
+    { pose proof Int.min_signed_neg; split; [rewrite Zlength_correct; omega|].
+      transitivity MAX; [Omega0 | unfold MAX; computable]. }
+    { pose proof Int.min_signed_neg; split; [rewrite Zlength_correct; omega|].
+      transitivity MAX; [Omega0 | unfold MAX; computable]. } }
   pose proof (all_ptrs _ _ Hdata1) as Hptrs1.
   pose proof (all_ptrs _ _ Hdata2) as Hptrs2.
   exploit (data_at_ptr_array_inj Ews).
   { auto. }
-  { apply Hbuf1. }
-  { apply Hbuf2. }
+  { destruct Hbuf1 as (? & Hbuf1); unfold at_offset in Hbuf1; apply Hbuf1. }
+  { destruct Hbuf2 as (? & Hbuf2); unfold at_offset in Hbuf2; apply Hbuf2. }
   { eapply sepalg.join_sub_trans; [eexists; eauto | eauto]. }
   { eapply sepalg.join_sub_trans; [eexists; eauto | eauto]. }
   { apply Forall_complete; [|discriminate].
@@ -281,6 +279,8 @@ Proof.
   { apply Forall_complete; [|discriminate].
     eapply Forall_impl; [|apply Hptrs2].
     destruct a; auto; discriminate. }
+  { apply Zlength_complete; auto. }
+  { apply Zlength_complete; auto. }
   intros (? & Hbufs); subst.
   assert (reqs1 = reqs2); [|subst].
   { repeat rewrite Zlength_correct in Hlen.
@@ -288,12 +288,8 @@ Proof.
   exploit (precise_reqs reqs2).
   { apply Hdata1. }
   { apply Hdata2. }
-  { eapply sepalg.join_sub_trans; [eexists; eauto|].
-    eapply sepalg.join_sub_trans; [eexists; eauto|].
-    eapply sepalg.join_sub_trans; [eexists; eauto | eauto]. }
-  { eapply sepalg.join_sub_trans; [eexists; eauto|].
-    eapply sepalg.join_sub_trans; [eexists; eauto|].
-    eapply sepalg.join_sub_trans; [eexists; eauto | eauto]. }
+  { repeat (eapply sepalg.join_sub_trans; [eexists|]; eauto). }
+  { repeat (eapply sepalg.join_sub_trans; [eexists|]; eauto). }
   intro; subst.
   match goal with H1 : predicates_hered.app_pred emp ?a,
     H2 : predicates_hered.app_pred emp ?b |- _ => assert (a = b);
@@ -309,7 +305,14 @@ Qed.
 Lemma inv_positive : forall buf len,
   positive_mpred (Interp (lock_pred buf len)).
 Proof.
-Admitted.
+  intros; simpl.
+  apply ex_positive; intro.
+  apply positive_sepcon2, positive_sepcon1, positive_andp2.
+  unfold at_offset; rewrite data_at_rec_eq; simpl.
+  apply positive_andp2, positive_sepcon1.
+  unfold at_offset; rewrite by_value_data_at_rec_nonvolatile; auto.
+  apply mapsto_positive; auto.
+Qed.
 
 Lemma body_producer : semax_body Vprog Gprog f_producer producer_spec.
 Proof.
@@ -330,11 +333,11 @@ Proof.
   forward.
   unfold Znth; simpl.
   forward_while (EX reqs : list val,
-   PROP (Forall isptr reqs; (length reqs <= MAX)%nat)
+   PROP (Forall isptr reqs; Zlength reqs <= MAX)
    LOCAL (temp _len (Vint (Int.repr (Zlength reqs))); temp _request r; temp _arg y; gvar _buf buf;
           gvar _length len; gvar _requests_lock lock;
           gvar _requests_producer cprod; gvar _requests_consumer ccon)
-   SEP (data_at Ews (tarray (tptr trequest) (Z.of_nat MAX)) (complete MAX reqs) buf;
+   SEP (data_at Ews (tarray (tptr trequest) MAX) (complete MAX reqs) buf;
         data_at Ews (tarray tint 1) [Vint (Int.repr (Zlength reqs))] len;
         fold_right sepcon emp (map Interp (map (fun r => Exp _ (fun data =>
           Data_at CompSpecs Tsh trequest (Vint (Int.repr data)) r)) reqs));
@@ -354,10 +357,10 @@ Proof.
     Intro reqs'; normalize.
     forward.
     Exists reqs'; go_lower; entailer'; cancel.
-  - assert (length reqs0 < MAX)%nat.
-    { rewrite Nat2Z.inj_lt; rewrite Zlength_correct, Int.signed_repr in HRE; auto.
-      pose proof Int.min_signed_neg; split; [omega|].
-      transitivity (Z.of_nat MAX); Omega0. }
+  - assert (Zlength reqs0 < MAX).
+    { rewrite Int.signed_repr in HRE; auto.
+      pose proof Int.min_signed_neg; split; [rewrite Zlength_correct; omega|].
+      transitivity MAX; [auto | unfold MAX; computable]. }
     forward_call (r, buf, len, reqs0).
     { simpl; cancel. }
     forward.
@@ -376,7 +379,7 @@ Proof.
       unfold fold_right at 1; cancel; entailer'.
       Exists data; cancel.
       eapply derives_trans; [|apply prop_and_same_derives']; [cancel|].
-      split; [rewrite Forall_app; auto | omega]. }
+      split; [rewrite Forall_app; auto | rewrite Zlength_correct in *; omega]. }
     { split; auto; split; simpl.
       + apply inv_precise; auto.
       + apply inv_positive. }
@@ -400,11 +403,11 @@ Proof.
   Intro reqs; normalize.
   forward.
   unfold Znth; simpl.
-  forward_while (EX reqs : list val, PROP (Forall isptr reqs; (length reqs <= MAX)%nat)
+  forward_while (EX reqs : list val, PROP (Forall isptr reqs; Zlength reqs <= MAX)
    LOCAL (temp _len (Vint (Int.repr (Zlength reqs))); temp _arg y; gvar _buf buf;
           gvar _length len; gvar _requests_lock lock;
           gvar _requests_producer cprod; gvar _requests_consumer ccon)
-   SEP (data_at Ews (tarray (tptr trequest) (Z.of_nat MAX)) (complete MAX reqs) buf;
+   SEP (data_at Ews (tarray (tptr trequest) MAX) (complete MAX reqs) buf;
         data_at Ews (tarray tint 1) [Vint (Int.repr (Zlength reqs))] len;
         fold_right sepcon emp (map Interp (map (fun r => Exp _ (fun data =>
           Data_at CompSpecs Tsh trequest (Vint (Int.repr data)) r)) reqs));
@@ -426,7 +429,7 @@ Proof.
     rewrite (app_removelast_last (Vint (Int.repr 0)) Hreqs) in *.
     rewrite Zlength_correct, app_length; simpl.
     rewrite Nat2Z.inj_add, <- Zlength_correct; simpl.
-    rewrite app_length in *; simpl in *.
+    rewrite Zlength_app, Zlength_cons, Zlength_nil in *; simpl in *.
     match goal with H : Forall isptr (_ ++ _) |- _ =>
       rewrite Forall_app in H; destruct H as (? & Hlast); inv Hlast end.
     forward_call (buf, len, removelast reqs0, last reqs0 (Vint (Int.repr 0))).
@@ -498,7 +501,7 @@ Proof.
   forward_for_simple_bound 10 (EX i : Z, PROP ()
     LOCAL (gvar _buf gvar4; gvar _requests_producer gvar3; gvar _requests_consumer gvar2; gvar _length gvar1; 
                       gvar _requests_lock gvar0)
-    SEP (data_at Ews (tarray (tptr trequest) (Z.of_nat MAX))
+    SEP (data_at Ews (tarray (tptr trequest) MAX)
              (repeat (Vint (Int.repr 0)) (Z.to_nat i) ++ repeat Vundef (Z.to_nat (10 - i))) gvar4;
          data_at_ Ews tint gvar3; data_at_ Ews tint gvar2;
          data_at_ Ews (tarray tint 1) gvar1; data_at_ Ews tlock gvar0)).
@@ -555,33 +558,24 @@ Proof.
     evar (body : funspec); replace (WITH _ : _ PRE [_] _ POST [_] _) with body.
     repeat rewrite sepcon_assoc; apply sepcon_derives; subst body; [apply derives_refl|].
     simpl.
-    erewrite <- (sepcon_assoc (cond_var sh1 gvar2)), cond_var_join; eauto; cancel.
+    erewrite <- (sepcon_assoc (cond_var sh1 gvar2)), cond_var_share_join; eauto; cancel.
     repeat rewrite sepcon_assoc.
-    erewrite <- (sepcon_assoc (cond_var sh1 gvar3)), cond_var_join; eauto; cancel.
-    erewrite lock_inv_join; eauto; cancel.
+    erewrite <- (sepcon_assoc (cond_var sh1 gvar3)), cond_var_share_join; eauto; cancel.
+    erewrite lock_inv_share_join; eauto; cancel.
     subst body; f_equal.
     extensionality.
     destruct x as (?, (((((?, ?), ?), ?), ?), ?)); simpl.
     f_equal; f_equal.
     unfold SEPx; simpl; normalize. }
-  { simpl; intros ? Hpred.
-    destruct Hpred as (? & ? & ? & (? & ?) & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & Hemp).
-    eapply almost_empty_join; eauto; [|eapply almost_empty_join; eauto;
-      [|eapply almost_empty_join; eauto; [|eapply almost_empty_join; eauto]]].
-    - apply emp_almost_empty; auto.
-    - eapply lock_inv_almost_empty; eauto.
-    - eapply cond_var_almost_empty; eauto.
-    - eapply cond_var_almost_empty; eauto.
-    - apply emp_almost_empty; auto. }
   forward_call (gvar0, sh2, lock_pred gvar4 gvar1).
   simpl.
   Intro reqs; normalize.
   forward.
   unfold Znth; simpl.
-  forward_while (EX reqs : list val, PROP (Forall isptr reqs; (length reqs <= MAX)%nat)
+  forward_while (EX reqs : list val, PROP (Forall isptr reqs; Zlength reqs <= MAX)
    LOCAL (temp _len (Vint (Int.repr (Zlength reqs))); gvar _consumer c_; gvar _buf gvar4; gvar _requests_producer gvar3;
    gvar _requests_consumer gvar2; gvar _length gvar1; gvar _requests_lock gvar0)
-   SEP (data_at Ews (tarray (tptr trequest) (Z.of_nat MAX)) (complete MAX reqs) gvar4;
+   SEP (data_at Ews (tarray (tptr trequest) MAX) (complete MAX reqs) gvar4;
    data_at Ews (tarray tint 1) [Vint (Int.repr (Zlength reqs))] gvar1;
    fold_right sepcon emp
      (map Interp (map (fun r : val => Exp Z (fun data : Z => Data_at CompSpecs Tsh trequest (Vint (Int.repr data)) r)) reqs));
@@ -621,24 +615,15 @@ Proof.
     evar (body : funspec); replace (WITH _ : _ PRE [_] _ POST [_] _) with body.
     repeat rewrite sepcon_assoc; apply sepcon_derives; subst body; [apply derives_refl|].
     simpl.
-    erewrite <- (sepcon_assoc (cond_var sh2' gvar2)), cond_var_join; eauto; cancel.
+    erewrite <- (sepcon_assoc (cond_var sh2' gvar2)), cond_var_share_join; eauto; cancel.
     repeat rewrite sepcon_assoc.
-    erewrite <- (sepcon_assoc (cond_var sh2' gvar3)), cond_var_join; eauto; cancel.
-    erewrite lock_inv_join; eauto; cancel.
+    erewrite <- (sepcon_assoc (cond_var sh2' gvar3)), cond_var_share_join; eauto; cancel.
+    erewrite lock_inv_share_join; eauto; cancel.
     subst body; f_equal.
     extensionality.
     destruct x as (?, (((((?, ?), ?), ?), ?), ?)); simpl.
     f_equal; f_equal.
     unfold SEPx; simpl; normalize. }
-  { simpl; intros ? Hpred.
-    destruct Hpred as (? & ? & ? & (? & ?) & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & Hemp).
-    eapply almost_empty_join; eauto; [|eapply almost_empty_join; eauto;
-      [|eapply almost_empty_join; eauto; [|eapply almost_empty_join; eauto]]].
-    - eapply prop_almost_empty; eauto.
-    - eapply lock_inv_almost_empty; eauto.
-    - eapply cond_var_almost_empty; eauto.
-    - eapply cond_var_almost_empty; eauto.
-    - eapply emp_almost_empty; eauto. }
   rewrite <- seq_assoc.
   apply semax_seq' with (P' := PROP () LOCAL () SEP (FF)).
   { match goal with |- semax _ ?P _ _ => eapply semax_loop with (Q' := P) end;
