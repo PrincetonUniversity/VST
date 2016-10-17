@@ -712,8 +712,8 @@ Lemma semax_call_id1_wow:
              (Rpost: B -> list mpred)
              (vl : list val)
    (GLBL: (var_types Delta) ! id = None)
-   (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty) cc (ConstType A) Pre Post))
-   (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty) cc A Pre Post)))
+   (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty) cc (rmaps.ConstType A) (fun _ => Pre) (fun _ => Post) (const_super_non_expansive _ _) (const_super_non_expansive _ _)))
+   (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty) cc (rmaps.ConstType A) (fun _ => Pre) (fun _ => Post) (const_super_non_expansive _ _) (const_super_non_expansive _ _))))
    (TYret: typeof_temp Delta ret = Some retty)
    (OKretty: check_retty retty)
    (H: paramty = type_of_params argsig)
@@ -746,9 +746,10 @@ Lemma semax_call_id1_wow:
 Proof.
 intros.
 subst.
+Check semax_call_id1.
 eapply semax_pre_post; 
    [ | 
-   | apply semax_call_id1 with (x:=witness) (P:=P)(Q:=Q) (R := Frame)
+   | apply semax_call_id1 with (A:= rmaps.ConstType A) (ts := nil)(x:=witness)(NEPre := const_super_non_expansive A (fun _ => Pre))(NEPost := const_super_non_expansive A (fun _ => Post))(P:=P)(Q:=Q) (R := Frame)
    ];
    try eassumption; try (eapply local2ptree_OKsubst; eauto);
    [ | 
@@ -885,8 +886,8 @@ Lemma semax_call_id1_x_wow:
              (Rpost: B -> list mpred)
              (vl : list val)
    (GLBL: (var_types Delta) ! id = None)
-   (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty') cc A Pre Post))
-   (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty') cc A Pre Post)))
+   (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty') cc (rmaps.ConstType A) (fun _ => Pre) (fun _ => Post) (const_super_non_expansive _ _) (const_super_non_expansive _ _)))
+   (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty') cc (rmaps.ConstType A) (fun _ => Pre) (fun _ => Post) (const_super_non_expansive _ _) (const_super_non_expansive _ _))))
    (TYret: typeof_temp Delta ret = Some retty) 
    (RETinit: (temp_types Delta) ! ret' = Some (retty', false))
    (OKretty: check_retty retty)
@@ -921,7 +922,7 @@ Lemma semax_call_id1_x_wow:
              (Evar id (Tfunction paramty retty' cc))
              bl)
       (Sset ret (Ecast (Etempvar ret' retty') retty)))
-    (normal_ret_assert Post2).     
+    (normal_ret_assert Post2).
 Proof.
 intros.
 eapply semax_seq'.
@@ -1018,8 +1019,8 @@ Lemma semax_call_id1_y_wow:
              (Rpost: B -> list mpred)
              (vl : list val)
    (GLBL: (var_types Delta) ! id = None)
-   (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty') cc A Pre Post))
-   (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty') cc A Pre Post)))
+   (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty') cc (rmaps.ConstType A) (fun _ => Pre) (fun _ => Post) (const_super_non_expansive _ _) (const_super_non_expansive _ _)))
+   (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty') cc (rmaps.ConstType A) (fun _ => Pre) (fun _ => Post) (const_super_non_expansive _ _) (const_super_non_expansive _ _))))
    (TYret: typeof_temp Delta ret = Some retty) 
    (RETinit: (temp_types Delta) ! ret' = Some (retty', false))
    (OKretty: check_retty retty)
@@ -1054,7 +1055,7 @@ Lemma semax_call_id1_y_wow:
              (Evar id (Tfunction paramty retty' cc))
              bl)
       (Sset ret (Etempvar ret' retty')))
-    (normal_ret_assert Post2).  
+    (normal_ret_assert Post2).
 Proof.
 intros.
 eapply semax_seq'.
@@ -1144,8 +1145,8 @@ Lemma semax_call_id01_wow:
              (Rpost: B -> list mpred)
              (vl : list val)
    (GLBL: (var_types Delta) ! id = None)
-   (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty) cc A Pre Post))
-   (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty) cc A Pre Post)))
+   (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty) cc (rmaps.ConstType A) (fun _ => Pre) (fun _ => Post) (const_super_non_expansive _ _) (const_super_non_expansive _ _)))
+   (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty) cc (rmaps.ConstType A) (fun _ => Pre) (fun _ => Post) (const_super_non_expansive _ _) (const_super_non_expansive _ _))))
    (_: check_retty retty)
          (* this hypothesis is not needed for soundness, just for selectivity *)
    (H: paramty = type_of_params argsig)
@@ -1179,7 +1180,7 @@ intros.
 subst.
 eapply semax_pre_post; 
    [ | 
-   | apply semax_call_id0 with (x:=witness) (P:=P)(Q:=Q) (R := Frame)
+   | apply semax_call_id0 with (A:= rmaps.ConstType A) (ts := nil)(x:=witness) (P:=P)(Q:=Q)(NEPre :=const_super_non_expansive A (fun _ => Pre)) (NEPost := const_super_non_expansive A (fun _ => Post))(R := Frame)
    ];
    try eassumption.
 *
@@ -1290,8 +1291,8 @@ Lemma semax_call_id00_wow:
              (Rpost: B -> list mpred)
              (vl : list val)
    (GLBL: (var_types Delta) ! id = None)
-   (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,Tvoid) cc A Pre Post))
-   (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty) cc A Pre Post)))
+   (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,Tvoid) cc (rmaps.ConstType A) (fun _ => Pre) (fun _ => Post) (const_super_non_expansive _ _) (const_super_non_expansive _ _)))
+   (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty) cc (rmaps.ConstType A) (fun _ => Pre) (fun _ => Post) (const_super_non_expansive _ _) (const_super_non_expansive _ _))))
    (RETTY: retty = Tvoid)
    (H: paramty = type_of_params argsig)
    (PTREE: local2ptree Q = (Qtemp, Qvar, nil, nil))
@@ -1322,7 +1323,7 @@ intros.
 subst.
 eapply semax_pre_post; 
    [ | 
-   | apply semax_call_id0 with (x:=witness) (P:=P)(Q:=Q) (R := Frame)
+   | apply semax_call_id0 with (A:= rmaps.ConstType A) (ts := nil)(x:=witness) (P:=P)(Q:=Q)(NEPre :=const_super_non_expansive A (fun _ => Pre)) (NEPost := const_super_non_expansive A (fun _ => Post))(R := Frame)
    ];
    try eassumption.
 *
