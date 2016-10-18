@@ -313,7 +313,7 @@ HMACDRBG_FILES = \
 #  verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v verif_hmac_drbg_generate.v
 
 
-C_FILES = reverse.c queue.c queue2.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c
+C_FILES = reverse.c queue.c queue2.c sumarray.c sumarray2.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
@@ -429,6 +429,8 @@ progs/queue.v: progs/queue.c
 progs/queue2.v: progs/queue2.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/sumarray.v: progs/sumarray.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/sumarray2.v: progs/sumarray2.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/message.v: progs/message.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
