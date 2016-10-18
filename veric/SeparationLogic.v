@@ -1023,7 +1023,7 @@ Axiom semax_func_cons:
            ((id, mk_funspec (fn_funsig f) cc A P Q NEP NEQ)  :: G').
 
 Parameter semax_external:
-  forall   (Hspec: OracleKind) (ids: list ident) (ef: external_function)
+  forall {Hspec: OracleKind} (ids: list ident) (ef: external_function)
   (A: rmaps.TypeTree)
   (P Q: forall ts, functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts (AssertTT A)) mpred),
      Prop.

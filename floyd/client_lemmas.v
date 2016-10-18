@@ -1554,6 +1554,10 @@ Definition NDmk_funspec (f: base.funsig) (cc: calling_convention)
   mk_funspec f cc (rmaps.ConstType A) (fun _ => Pre) (fun _ => Post)
     (const_super_non_expansive _ _) (const_super_non_expansive _ _).
 
+Definition NDsemax_external {Hspec: OracleKind} (ids: list ident) (ef: external_function)
+  (A: Type) (P Q: A -> environ -> mpred): Prop :=
+  @semax_external Hspec ids ef (rmaps.ConstType A) (fun _ => P) (fun _ => Q).
+
 Notation "'WITH' x : tx 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (NDmk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default tx (fun x => P%assert) (fun x => Q%assert))
             (at level 200, x at level 0, P at level 100, Q at level 100).
