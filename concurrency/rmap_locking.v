@@ -96,9 +96,6 @@ Proof.
   destruct D0 as (p, ->). exists p.
   eexists.
   f_equal.
-  unfold NoneP, "oo".
-  rewrite approx_FF.
-  reflexivity.
 Qed.
 
 Ltac app_pred_unfold :=
@@ -140,7 +137,6 @@ Proof.
   f_equal.
   unfold NoneP; simpl.
   unfold "oo"; simpl.
-  rewrite approx_FF; auto.
   unfold noat in *.
   apply Sat.
 Qed.
