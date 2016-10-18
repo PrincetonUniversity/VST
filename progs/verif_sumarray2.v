@@ -57,32 +57,6 @@ start_function.  (* Always do this at the beginning of a semax_body proof *)
 (* The next two lines do forward symbolic execution through
    the first two executable statements of the function body *)
 forward.  (* s = 0; *)
-
-
-Inductive Type_of_invariant_in_forward_for_should_be_environ_arrow_mpred_but_is : Type -> Prop := .
-Inductive Type_of_bound_in_forward_for_should_be_Z_but_is : Type -> Prop := .
-
-Ltac forward_for_simple_bound n Pre :=
-  check_Delta;
- repeat match goal with |-
-      semax _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
-      apply -> seq_assoc; abbreviate_semax
- end;
- first [ 
-    match type of n with
-      ?t => first [ unify t Z | elimtype (Type_of_bound_in_forward_for_should_be_Z_but_is t)]
-    end;
-    match type of Pre with
-      ?t => first [unify t (environ -> mpred); fail 1 | elimtype (Type_of_invariant_in_forward_for_should_be_environ_arrow_mpred_but_is t)]
-    end
-  | simple eapply semax_seq'; 
-    [forward_for_simple_bound' n Pre 
-    | cbv beta; simpl update_tycon; abbreviate_semax  ]
-  | eapply semax_post_flipped'; 
-     [forward_for_simple_bound' n Pre 
-     | ]
-  ].
-
 forward_for_simple_bound size (sumarray_Inv a sh contents size).
 * (* Prove that current precondition implies loop invariant *)
 entailer!.
@@ -118,7 +92,7 @@ Qed.
 (* Contents of the extern global initialized array "_four" *)
 Definition four_contents := [1; 2; 3; 4].
 
-
+(*  discard this...
 Lemma split_array':
  forall {cs: compspecs} mid n (sh: Share.t) (t: type) 
                             v (v': list (reptype t)) v1 v2 p,
@@ -166,7 +140,7 @@ admit.
 admit.
 Admitted.
 
-Lemma split_array:
+Lemma split_arrayx:
  forall {cs: compspecs} mid n (sh: Share.t) (t: type) 
                             v (v': list (reptype t)) v1 v2 p,
     0 <= mid <= n ->
@@ -232,7 +206,30 @@ erewrite <- split_array'; try eassumption; auto.
    admit.
    split; auto. split; auto. hnf;  omega.
 Admitted.
+*)
 
+Lemma Forall_sublist: forall {A} (P: A->Prop) lo hi (al: list A),
+  Forall P al -> Forall P (sublist lo hi al).
+Proof.
+intros.
+apply Forall_forall. rewrite -> Forall_forall in H.
+intros.
+apply H; auto.
+apply sublist_In in H0. auto.
+Qed.
+
+Lemma split_array:
+ forall {cs: compspecs} mid n (sh: Share.t) (t: type) 
+                            v (v' v1' v2': list (reptype t)) v1 v2 p,
+    0 <= mid <= n ->
+    JMeq v (v1'++v2') ->
+    JMeq v1 v1' ->
+    JMeq v2 v2' ->
+    data_at sh (tarray t n) v p =
+    data_at sh (tarray t mid) v1  p *
+    data_at sh (tarray t (n-mid)) v2 
+            (field_address0 (tarray t n) [ArraySubsc mid] p).
+Admitted.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
@@ -241,33 +238,33 @@ start_function.
 change [Int.repr 1; Int.repr 2; Int.repr 3; Int.repr 4] with (map Int.repr four_contents).
 set (contents :=  map Vint (map Int.repr four_contents)).
 assert (Zlength contents = 4) by (subst contents; reflexivity).
-erewrite (split_array 2); try apply JMeq_refl; auto; try omega.
-2: reflexivity.
+assert_PROP (field_compatible (tarray tint 4) [] four) by entailer!.
+assert (Forall (fun x : Z => Int.min_signed <= x <= Int.max_signed) four_contents)
+  by (repeat constructor; computable).
+ rewrite <- (sublist_same 0 4 contents), (sublist_split 0 2 4)
+    by now autorewrite with sublist.
+erewrite (split_array 2 4); try apply JMeq_refl; auto; try omega; try reflexivity.
 forward_call (*  s = sumarray(four+2,2); *)
   (field_address0 (tarray tint 4) [ArraySubsc 2] four, Ews,
     sublist 2 4 four_contents,2).
-+
++ 
  clear - GV. unfold gvar_denote, eval_var in *.
   destruct (Map.get (ve_of rho) _four) as [[? ?]|?]; try contradiction.
   destruct (ge_of rho _four); try contradiction. apply I.
 +
  entailer!.
- unfold field_address0. rewrite if_true; auto.
- clear - H2.
-  destruct H2.
-  unfold field_address0 in H.
-  if_tac in H; try contradiction. auto.
+ rewrite field_address0_offset. reflexivity.
+ auto with field_compatible.
 +
- split; auto. split. computable.
- unfold four_contents.
-  unfold sublist; simpl.
-  repeat constructor; computable.
+ split3.
+ auto.
+ computable.
+ apply Forall_sublist; auto.
 +
- gather_SEP 1 2.
-  replace_SEP 0 (data_at Ews (tarray tint 4) contents four).
-  entailer!.
-  erewrite (split_array 2 4); try apply JMeq_refl; auto; try omega.
-  reflexivity.
+  gather_SEP 1 2.
+  erewrite <- (split_array 2 4); try apply JMeq_refl; auto; try omega; try reflexivity.
+  rewrite <- !sublist_map. fold contents. autorewrite with sublist.
+  rewrite (sublist_same 0 4) by auto.
   forward. (* return *)
 Qed.
 
