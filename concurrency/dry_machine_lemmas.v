@@ -119,13 +119,16 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
         discriminate.
   Defined. *)
 
-  (* NOTE: This is used in spawn case. It should hold as permissions and lockRes is not related anymore*)
-  (* Lemma invariant_decr:
+
+  Lemma invariant_decr:
     forall tp c pmap i (cnti: containsThread tp i)
       (Hinv: invariant tp)
-      (Hdecr: forall b ofs,
-          Mem.perm_order'' ((getThreadR cnti) # b ofs)
-                           (pmap # b ofs)),
+      (Hdecr1: forall b ofs,
+          Mem.perm_order'' ((getThreadR cnti).1 # b ofs)
+                           (pmap.1 # b ofs))
+      (Hdecr2: forall b ofs,
+          Mem.perm_order'' ((getThreadR cnti).2 # b ofs)
+                           (pmap.2 # b ofs)),
       invariant (updThread cnti c pmap).
   Proof.
     intros.
@@ -133,71 +136,347 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
     constructor.
     - intros k j cntk cntj Hkj.
       destruct (i == k) eqn:Hik; move/eqP:Hik=>Hik.
-      subst k.
-      rewrite gssThreadRes.
-      rewrite gsoThreadRes; auto.
-      intros b ofs.
-      specialize (no_race0 _ _ cnti cntj Hkj b ofs).
-      rewrite perm_union_comm.
-      rewrite perm_union_comm in no_race0;
-        by eapply perm_union_lower; eauto.
-      rewrite gsoThreadRes; auto.
-      destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij.
-      subst j.
-      rewrite gssThreadRes.
-      intros b ofs.
-      specialize (no_race0 _ _ cntk cnti Hkj b ofs);
-        by eapply perm_union_lower; eauto.
-      rewrite gsoThreadRes;
+      + subst k.
+        rewrite gssThreadRes.
+        rewrite gsoThreadRes; auto.
+        specialize (no_race_thr0 _ _ cnti cntj Hkj).
+        unfold permMapsDisjoint2, permMapsDisjoint in *.
+        erewrite <- forall2_and.
+        erewrite <- forall2_and in no_race_thr0.
+        intros b ofs.
+        destruct (no_race_thr0 b ofs) as [H1 H2].
+        split; rewrite perm_union_comm;
+          erewrite perm_union_comm in H1, H2;
+          eapply perm_union_lower;
+            by eauto.
+      + rewrite gsoThreadRes; auto.
+        destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij.
+        subst j.
+        rewrite gssThreadRes.
+        specialize (no_race_thr0 _ _ cntk cnti Hkj).
+        unfold permMapsDisjoint2, permMapsDisjoint in *.
+        erewrite <- forall2_and.
+        erewrite <- forall2_and in no_race_thr0.
+        intros b ofs.
+        destruct (no_race_thr0 b ofs) as [H1 H2].
+        split;
+          eapply perm_union_lower;
+            by eauto.
+        rewrite gsoThreadRes;
+          by auto.
+    - intros.
+      erewrite gsoThreadLPool in Hres1, Hres2.
+        by eauto.
+    - intros.
+      erewrite gsoThreadLPool in Hres.
+      destruct (i == i0) eqn:Heq; move/eqP:Heq=>Heq.
+      + subst.
+        rewrite gssThreadRes.
+        specialize (no_race0 _ _ cnti _ Hres).
+        unfold permMapsDisjoint2, permMapsDisjoint in *.
+        erewrite <- forall2_and.
+        erewrite <- forall2_and in no_race0.
+        intros b ofs.
+        destruct (no_race0 b ofs) as [H1 H2].
+        erewrite perm_union_comm in H1, H2.
+        split;
+          erewrite perm_union_comm;
+          eapply perm_union_lower;
+            by eauto.
+      + rewrite gsoThreadRes; auto.
+        eauto.
+    - intros k cntk.
+      destruct (i == k) eqn:Hik; move/eqP:Hik=>Hik.
+      + subst.
+        rewrite gssThreadRes.
+        split.
+        * intros j cntj b ofs.
+          destruct (k == j) eqn:Hkj; move/eqP:Hkj=>Hkj.
+          subst.
+          rewrite gssThreadRes.
+          pose proof ((thread_data_lock_coh0 _ cnti).1 _ cnti b ofs).
+          eauto using perm_coh_lower.
+          rewrite gsoThreadRes; auto.
+          pose proof ((thread_data_lock_coh0 _ cnti).1 _ cntj b ofs).
+          eauto using perm_coh_lower, po_refl.
+        * intros laddr rmap Hres b ofs.
+          rewrite gsoThreadLPool in Hres.
+          eapply perm_coh_lower; eauto.
+          eapply thread_data_lock_coh0; eauto.
+          now eapply po_refl.
+      + rewrite gsoThreadRes; auto.
+        split.
+        * intros j cntj b ofs.
+          destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij.
+          subst.
+          rewrite gssThreadRes.
+          destruct (thread_data_lock_coh0 k cntk).
+          eapply perm_coh_lower; eauto.
+          eapply H.
+          eapply po_refl.
+          rewrite gsoThreadRes; auto.
+          destruct (thread_data_lock_coh0 k cntk);
+            now eapply H.
+        * intros laddr rmap Hres.
+          rewrite gsoThreadLPool in Hres.
+          eapply thread_data_lock_coh0; eauto.
+    - intros laddr rmap Hres.
+      rewrite gsoThreadLPool in Hres.
+      destruct (locks_data_lock_coh0 laddr rmap Hres) as [H1 H2].
+      split.
+      + intros j cntj b ofs.
+        destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij.
+        * subst.
+          rewrite gssThreadRes.
+          eapply perm_coh_lower; eauto.
+          now apply H1.
+          now apply po_refl.
+        * rewrite gsoThreadRes; auto.
+          eapply H1.
+      + intros laddr' rmap' Hres'.
+        rewrite gsoThreadLPool in Hres'.
+        eauto.
+    - intros b ofs.
+      rewrite gsoThreadLPool.
+      specialize (lockRes_valid0 b ofs).
+      destruct (lockRes tp (b, ofs));
         by auto.
-    - intros j cntj.
-      destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij.
-      subst.
-      rewrite gssThreadRes.
-      intros b ofs.
-      specialize (lock_set_threads0 _ cnti b ofs).
-      eapply perm_union_lower;
-        by eauto.
-      rewrite gsoThreadRes;
-        by eauto.
-    - intros l rmap j cntj Hres.
-      destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij.
-      subst j.
-      rewrite gssThreadRes.
-      intros b ofs.
-      specialize (lock_res_threads0 _ _ i cnti Hres b ofs).
-      eapply perm_union_lower;
-        by eauto.
-      rewrite gsoThreadRes;
-        by eauto.
-    - by eauto.
-      eauto.
-  Qed. *)
+  Qed.
 
-  (* This lemma is probably not useful anymore.*)
-  (*Lemma lock_valid_block:
-    forall (tpc : thread_pool) (mc : mem) (bl1 : block) 
-      (ofs : Z) rmap1
-      (HmemCompC: mem_compatible tpc mc)
-      (Hinv: invariant tpc)
-      (Hl1: lockRes tpc (bl1, ofs) = Some rmap1),
-      Mem.valid_block mc bl1.
+  (** [invariant] is preserved by [updThreadC]*)
+  Lemma updThreadC_invariant:
+    forall (tp : thread_pool) i (c : ctl)
+      (ctn : containsThread tp i)
+      (Hinv : invariant tp),
+      invariant (updThreadC ctn c).
+  Proof.
+    intros. 
+    inversion Hinv;
+      constructor;
+      simpl in *;
+        by auto.
+  Qed.
+
+  Lemma updLock_inv:
+    forall tp b ofs rmap
+      (Hinv: invariant tp)
+      (Hdisjoint_res: forall laddr rmap',
+          laddr <> (b, ofs) ->
+          lockRes tp laddr = Some rmap' ->
+          permMapsDisjoint2 rmap rmap')
+      (Hdisjoint_thr: forall i (cnti: containsThread tp i),
+          permMapsDisjoint2 (getThreadR cnti) rmap)
+      (Hcoh_res: forall laddr rmap',
+          laddr <> (b, ofs) ->
+          lockRes tp laddr = Some rmap' ->
+          permMapCoherence rmap.1 rmap'.2 /\
+          permMapCoherence rmap'.1 rmap.2)
+      (Hcoh_rmap: permMapCoherence rmap.1 rmap.2)
+      (Hcoh_thr: forall i (cnti: containsThread tp i),
+          permMapCoherence rmap.1 (getThreadR cnti).2 /\
+          permMapCoherence (getThreadR cnti).1 rmap.2)
+      (Hvalid1: forall ofs0,
+          (ofs < ofs0 < ofs + lksize.LKSIZE)%Z -> lockRes tp (b, ofs0) = None)
+      (Hvalid2: forall ofs0 : Z,
+          (ofs0 < ofs < ofs0 + lksize.LKSIZE)%Z -> lockRes tp (b, ofs0) = None),
+      invariant (updLockSet tp (b, ofs) rmap).
   Proof.
     intros.
-    assert (HlockSet := lockSet_spec_1 tpc bl1 ofs ltac:(rewrite Hl1; auto)).
-    destruct (valid_block_dec mc bl1) as [? | Hinvalid]; auto.
-    exfalso.
-    apply (Mem.nextblock_noaccess) with (k:= Max) (ofs := ofs) in Hinvalid.
-    assert (H:= compat_ls HmemCompC).
-    unfold permMapLt in H.
-    specialize (H bl1 ofs).
-    rewrite getMaxPerm_correct in H.
-    unfold permission_at in H.
-    rewrite Hinvalid in H.
-    rewrite HlockSet in H;
-      by simpl in H.
-  Qed. *)
+    destruct Hinv.
+    constructor.
+    - intros. rewrite! gLockSetRes.
+      now auto.
+    - intros.
+      destruct (EqDec_address (b, ofs) laddr1).
+      + subst.
+        erewrite gssLockRes in Hres1. inversion Hres1; subst.
+        erewrite gsoLockRes in Hres2 by eauto.
+        eapply Hdisjoint_res;
+          now eauto.
+      + erewrite gsoLockRes in Hres1 by eauto.
+        destruct (EqDec_address (b, ofs) laddr2).
+        * subst.
+          erewrite gssLockRes in Hres2.
+          inversion Hres2; subst.
+          eapply permMapsDisjoint2_comm.
+          eauto.
+        * erewrite gsoLockRes in Hres2 by eauto.
+          eauto.
+    - intros.
+      destruct (EqDec_address (b, ofs) laddr).
+      + subst.
+        erewrite gssLockRes in Hres.
+        inversion Hres; subst.
+        eauto.
+      + erewrite gsoLockRes in Hres by eauto.
+        rewrite gLockSetRes.
+        eauto.
+    - intros.
+      rewrite gLockSetRes.
+      split; intros; [rewrite gLockSetRes;
+                      eapply (thread_data_lock_coh0 _ cnti).1|].
+      destruct (EqDec_address (b, ofs) laddr).
+      + subst.
+        rewrite gssLockRes in H.
+        inversion H; subst.
+        eapply Hcoh_thr.
+      + erewrite gsoLockRes in H by eauto.
+        eapply thread_data_lock_coh0; eauto.
+    - intros.
+      destruct (EqDec_address (b, ofs) laddr).
+      + subst. erewrite gssLockRes in Hres.
+        inversion Hres; subst.
+        split; intros;
+          [rewrite gLockSetRes; eapply Hcoh_thr|].
+        destruct (EqDec_address (b, ofs) laddr').
+        * subst. 
+          erewrite gssLockRes in H.
+          inversion H; subst.
+          eauto.
+        * erewrite gsoLockRes in H by eauto.
+          eapply Hcoh_res; eauto.
+      + erewrite gsoLockRes in Hres by eauto.
+        split; [intros; rewrite gLockSetRes;
+                eapply (locks_data_lock_coh0 _ _ Hres).1 |].
+        intros.
+        destruct (EqDec_address (b, ofs) laddr').
+        * subst.
+          erewrite gssLockRes in H.
+          inversion H; subst.
+          eapply Hcoh_res; eauto.
+        * erewrite gsoLockRes in H by eauto.
+          eapply locks_data_lock_coh0; eauto.
+    - intros b' ofs'.
+      destruct (EqDec_address (b,ofs) (b', ofs')).
+      + inversion e; subst.
+        rewrite gsslockResUpdLock.
+        intros ofs0 HH.
+        erewrite gsolockResUpdLock.
+        apply Hvalid1 || apply Hvalid2; auto.
+        intros Hcontra; inversion Hcontra; subst.
+        now omega.
+      + rewrite gsolockResUpdLock; auto.
+        specialize (lockRes_valid0 b' ofs').
+        destruct (lockRes tp (b', ofs')) eqn:Hres; auto.
+        intros ofs0 ineq.
+        destruct (EqDec_address (b, ofs) (b',ofs0)).
+        * inversion e; subst.
+          apply Hvalid1 in ineq || apply Hvalid2 in ineq.
+          rewrite ineq in Hres; inversion Hres.
+        * rewrite gsolockResUpdLock; auto.
+  Qed.
 
+ (** [mem_compatible] is preserved by [addThread]*)
+  (* NOTE: Strange statement, updThread doesn't need to be here probably*)
+  Lemma mem_compatible_add:
+    forall tp i (cnti: containsThread tp i) c pmap vf arg pmap2 m
+      (Hcomp: mem_compatible
+                (addThread
+                   (updThread cnti c pmap) vf arg pmap2) m),
+      mem_compatible (updThread cnti c pmap) m.
+  Proof.
+    intros.
+    split.
+    - intros j cntj.
+      assert (cntj' := cntAdd vf arg pmap2 cntj).
+      specialize (Hcomp _ cntj').
+      erewrite gsoAddRes;
+        by eauto.
+    - intros l pmap' Hres.
+      erewrite <- gsoAddLPool
+      with (vf := vf) (arg := arg) (p := pmap2) in Hres;
+        by pose proof ((compat_lp Hcomp _ Hres)).
+    - intros l rmap Hres.
+      erewrite <- gsoAddLPool
+      with (vf := vf) (arg := arg) (p := pmap2) in Hres;
+        by pose proof ((lockRes_blocks Hcomp _ Hres)).
+  Qed.
+
+  (** [mem_compatible] is preserved by [remLockSet] *)
+  Lemma mem_compatible_remlock:
+    forall tp m addr
+      (Hinv: lr_valid (lockRes tp))
+      (Hlock: lockRes tp addr)
+      (Hcomp: mem_compatible tp m),
+      mem_compatible (remLockSet tp addr) m.
+  Proof.
+    intros.
+    constructor.
+    - eapply Hcomp.
+    - intros.
+      destruct (EqDec_address addr l).
+      subst. rewrite gsslockResRemLock in H. discriminate.
+      rewrite gsolockResRemLock in H; auto.
+      eapply Hcomp; eauto.
+    - intros l rmap Hres.
+      destruct (EqDec_address addr l).
+      subst. rewrite gsslockResRemLock in Hres. discriminate.
+      rewrite gsolockResRemLock in Hres; auto.
+      eapply Hcomp; eauto.
+  Qed.
+
+  (** [invariant] is preserved by [remLockSet]*)
+  Lemma remLock_inv: forall ds a,
+           invariant ds ->
+           invariant (remLockSet ds a).
+  Proof.
+  Admitted.
+  
+  Lemma invariant_add:
+    forall tp i (cnti: containsThread tp i) c pmap1 pmap2 vf arg
+      (Hinv: invariant
+               (addThread
+                  (updThread cnti c pmap1)
+                  vf arg pmap2)),
+      invariant (updThread cnti c pmap1).
+  Proof.
+    intros.
+    constructor.
+    - intros k j cntk cntj Hneq.
+      assert (cntk' := cntAdd vf arg pmap2 cntk).
+      assert (cntj' := cntAdd vf arg pmap2 cntj).
+      pose proof ((no_race_thr Hinv) _ _ cntk' cntj' Hneq).
+      erewrite @gsoAddRes with (cntj := cntk) in H; eauto.
+      erewrite @gsoAddRes with (cntj := cntj) in H; eauto.
+    - intros laddr1 laddr2 rmap1 rmap2 Hneq Hres1 Hres2.
+      eapply (no_race_lr Hinv); eauto.
+    - intros j laddr cntj rmap Hres.
+      assert (cntj' := cntAdd vf arg pmap2 cntj).
+      erewrite <- @gsoAddRes with (cntj' := cntj').
+      eapply (no_race Hinv); eauto.
+    - intros j cntj.
+      assert (cntj' := cntAdd vf arg pmap2 cntj).
+      erewrite <- @gsoAddRes with (cntj' := cntj').
+      pose proof (thread_data_lock_coh Hinv cntj') as Hcoh.
+      split.
+      + intros k cntk.
+        assert (cntk' := cntAdd vf arg pmap2 cntk).
+        erewrite <- @gsoAddRes with (cntj' := cntk').
+        eapply (proj1 Hcoh).
+      + intros laddr rmap Hres.
+        erewrite <- gsoAddLPool
+        with (vf := vf) (arg := arg) (p := pmap2) in Hres.
+        eapply (proj2 Hcoh); eauto.
+    - intros laddr rmap Hres.
+      erewrite <- gsoAddLPool
+      with (vf := vf) (arg := arg) (p := pmap2) in Hres.
+      pose proof (locks_data_lock_coh Hinv _ Hres ) as Hcoh.
+      split.
+      + intros j cntj.
+        assert (cntj' := cntAdd vf arg pmap2 cntj).
+        erewrite <- @gsoAddRes with (cntj' := cntj').
+        eapply Hcoh.1.
+      + intros laddr' rmap' Hres'.
+        erewrite <- gsoAddLPool
+        with (vf := vf) (arg := arg) (p := pmap2) in Hres'.
+        eapply Hcoh.2; eauto.
+    - (* lr_valid *)
+      intros b0 ofs0.
+      pose proof (lockRes_valid Hinv).
+      specialize (H b0 ofs0).
+      rewrite gsoAddLPool in H. auto.
+  Qed.
+  
 End ThreadPoolWF.
 
 (** Assumptions on the threadwise semantics of the machine *)
@@ -229,67 +508,67 @@ Module Type SemanticsAxioms (SEM: Semantics).
       corestep Sem ge c m c' m' ->
       (Mem.nextblock m <= Mem.nextblock m')%positive.
 End SemanticsAxioms.
-                                          
+
 (** ** Lemmas about threadwise semantics*)
 Module CoreLanguage (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM).
   Import SEM event_semantics SemAxioms.
- 
+  
   Lemma corestep_validblock:
-      forall ge c m c' m',
-        corestep Sem ge c m c' m' ->
-        forall b, Mem.valid_block m b ->
-             Mem.valid_block m' b.
-    Proof.
-      intros.
-      eapply corestep_nextblock in H.
-      unfold Mem.valid_block, Coqlib.Plt in *.
-      zify;
-        by omega.
-    Qed.
+    forall ge c m c' m',
+      corestep Sem ge c m c' m' ->
+      forall b, Mem.valid_block m b ->
+           Mem.valid_block m' b.
+  Proof.
+    intros.
+    eapply corestep_nextblock in H.
+    unfold Mem.valid_block, Coqlib.Plt in *.
+    zify;
+      by omega.
+  Qed.
 
-    Definition ev_step_det:
-        forall (m m' m'' : mem) (ge : G) (c c' c'' : C) ev ev',
-          ev_step Sem ge c m ev c' m' ->
-          ev_step Sem ge c m ev' c'' m'' -> c' = c'' /\ m' = m'' /\ ev = ev'.
-    Proof.
-      intros.
-      assert (Hcore := ev_step_ax1 _ _ _ _ _ _ _ H).
-      assert (Hcore' := ev_step_ax1 _ _ _ _ _ _ _ H0).
-      assert (Heq := corestep_det _ _ _  _ _ _ _ Hcore Hcore').
-      destruct Heq; repeat split; auto.
-      eapply ev_step_fun; eauto.
-    Qed.
+  Definition ev_step_det:
+    forall (m m' m'' : mem) (ge : G) (c c' c'' : C) ev ev',
+      ev_step Sem ge c m ev c' m' ->
+      ev_step Sem ge c m ev' c'' m'' -> c' = c'' /\ m' = m'' /\ ev = ev'.
+  Proof.
+    intros.
+    assert (Hcore := ev_step_ax1 _ _ _ _ _ _ _ H).
+    assert (Hcore' := ev_step_ax1 _ _ _ _ _ _ _ H0).
+    assert (Heq := corestep_det _ _ _  _ _ _ _ Hcore Hcore').
+    destruct Heq; repeat split; auto.
+    eapply ev_step_fun; eauto.
+  Qed.
 
-    Lemma ev_unchanged_on:
-      forall the_ge c m c' m' b ofs ev
-        (Hstep: ev_step Sem the_ge c m ev c' m')
-        (Hvalid: Mem.valid_block m b)
-        (Hstable: ~ Mem.perm m b ofs Cur Writable),
-        Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m)) =
-        Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m')).
-    Proof.
-      intros.
-      apply ev_step_ax1 in Hstep.
-      eapply corestep_unchanged_on; eauto.
-    Qed.
+  Lemma ev_unchanged_on:
+    forall the_ge c m c' m' b ofs ev
+      (Hstep: ev_step Sem the_ge c m ev c' m')
+      (Hvalid: Mem.valid_block m b)
+      (Hstable: ~ Mem.perm m b ofs Cur Writable),
+      Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m)) =
+      Maps.ZMap.get ofs (Maps.PMap.get b (Mem.mem_contents m')).
+  Proof.
+    intros.
+    apply ev_step_ax1 in Hstep.
+    eapply corestep_unchanged_on; eauto.
+  Qed.
 
-    Lemma ev_step_decay:
-      forall ge c c' m m' ev,
-        ev_step Sem ge c m ev c' m' ->
-        decay m m'.
-    Proof.
-      intros.
-      apply ev_step_ax1 in H.
-      eapply corestep_decay; eauto.
-    Qed.
+  Lemma ev_step_decay:
+    forall ge c c' m m' ev,
+      ev_step Sem ge c m ev c' m' ->
+      decay m m'.
+  Proof.
+    intros.
+    apply ev_step_ax1 in H.
+    eapply corestep_decay; eauto.
+  Qed.
 
-    Lemma ev_step_nextblock:
-      forall ge c m ev c' m',
-        ev_step Sem ge c m ev c' m' ->
-        (Mem.nextblock m <= Mem.nextblock m')%positive.
-    Proof.
-      intros.
-      apply ev_step_ax1 in H.
+  Lemma ev_step_nextblock:
+    forall ge c m ev c' m',
+      ev_step Sem ge c m ev c' m' ->
+      (Mem.nextblock m <= Mem.nextblock m')%positive.
+  Proof.
+    intros.
+    apply ev_step_ax1 in H.
       eapply corestep_nextblock; eauto.
     Qed.
 
@@ -940,8 +1219,9 @@ parameterized by the semantics so they can be used by either
 high-level or low-level languages*)
 Module StepLemmas (SEM : Semantics)
        (Machine : MachinesSig with Module SEM := SEM).
-               
-  Import SEM event_semantics.
+
+  Module ThreadPoolWF := ThreadPoolWF SEM Machine.
+  Import SEM event_semantics ThreadPoolWF.
   Import Machine DryMachine DryConc ThreadPool.
 
   (** [mem_compatible] is preserved by [updThreadC] *)
@@ -966,20 +1246,6 @@ Module StepLemmas (SEM : Semantics)
     erewrite gsoThreadCLPool in H;
       eapply (lockRes_blocks Hcomp);
       by eauto.
-  Qed.
-
-  (** [invariant] is preserved by [updThreadC]*)
-  Lemma updThreadC_invariant:
-    forall (tp : thread_pool) i (c : ctl)
-      (ctn : containsThread tp i)
-      (Hinv : invariant tp),
-      invariant (updThreadC ctn c).
-  Proof.
-    intros. 
-    inversion Hinv;
-      constructor;
-      simpl in *;
-        by auto.
   Qed.
 
   (** ***Lemmas about suspend steps*)
@@ -1184,117 +1450,6 @@ Module StepLemmas (SEM : Semantics)
     eapply (lockRes_blocks Hcomp); eauto.
   Qed.
 
-  (** [mem_compatible] is preserved by [addThread]*)
-  (* NOTE: Strange statement, updThread doesn't need to be here probably*)
-  Lemma mem_compatible_add:
-    forall tp i (cnti: containsThread tp i) c pmap vf arg pmap2 m
-      (Hcomp: mem_compatible
-                (addThread
-                   (updThread cnti c pmap) vf arg pmap2) m),
-      mem_compatible (updThread cnti c pmap) m.
-  Proof.
-    intros.
-    split.
-    - intros j cntj.
-      assert (cntj' := cntAdd vf arg pmap2 cntj).
-      specialize (Hcomp _ cntj').
-      erewrite gsoAddRes;
-        by eauto.
-    - intros l pmap' Hres.
-      erewrite <- gsoAddLPool
-      with (vf := vf) (arg := arg) (p := pmap2) in Hres;
-        by pose proof ((compat_lp Hcomp _ Hres)).
-    - intros l rmap Hres.
-      erewrite <- gsoAddLPool
-      with (vf := vf) (arg := arg) (p := pmap2) in Hres;
-        by pose proof ((lockRes_blocks Hcomp _ Hres)).
-  Qed.
-
-  (** [mem_compatible] is preserved by [remLockSet] *)
-  Lemma mem_compatible_remlock:
-    forall tp m addr
-      (Hinv: lr_valid (lockRes tp))
-      (Hlock: lockRes tp addr)
-      (Hcomp: mem_compatible tp m),
-      mem_compatible (remLockSet tp addr) m.
-  Proof.
-    intros.
-    constructor.
-    - eapply Hcomp.
-    - intros.
-      destruct (EqDec_address addr l).
-      subst. rewrite gsslockResRemLock in H. discriminate.
-      rewrite gsolockResRemLock in H; auto.
-      eapply Hcomp; eauto.
-    - intros l rmap Hres.
-      destruct (EqDec_address addr l).
-      subst. rewrite gsslockResRemLock in Hres. discriminate.
-      rewrite gsolockResRemLock in Hres; auto.
-      eapply Hcomp; eauto.
-  Qed.
-
-  (** [invariant] is preserved by [remLockSet]*)
-  Lemma remLock_inv: forall ds a,
-           invariant ds ->
-           invariant (remLockSet ds a).
-  Proof.
-  Admitted.
-  
-  Lemma invariant_add:
-    forall tp i (cnti: containsThread tp i) c pmap1 pmap2 vf arg
-      (Hinv: invariant
-               (addThread
-                  (updThread cnti c pmap1)
-                  vf arg pmap2)),
-      invariant (updThread cnti c pmap1).
-  Proof.
-    intros.
-    constructor.
-    - intros k j cntk cntj Hneq.
-      assert (cntk' := cntAdd vf arg pmap2 cntk).
-      assert (cntj' := cntAdd vf arg pmap2 cntj).
-      pose proof ((no_race_thr Hinv) _ _ cntk' cntj' Hneq).
-      erewrite @gsoAddRes with (cntj := cntk) in H; eauto.
-      erewrite @gsoAddRes with (cntj := cntj) in H; eauto.
-    - intros laddr1 laddr2 rmap1 rmap2 Hneq Hres1 Hres2.
-      eapply (no_race_lr Hinv); eauto.
-    - intros j laddr cntj rmap Hres.
-      assert (cntj' := cntAdd vf arg pmap2 cntj).
-      erewrite <- @gsoAddRes with (cntj' := cntj').
-      eapply (no_race Hinv); eauto.
-    - intros j cntj.
-      assert (cntj' := cntAdd vf arg pmap2 cntj).
-      erewrite <- @gsoAddRes with (cntj' := cntj').
-      pose proof (thread_data_lock_coh Hinv cntj') as Hcoh.
-      split.
-      + intros k cntk.
-        assert (cntk' := cntAdd vf arg pmap2 cntk).
-        erewrite <- @gsoAddRes with (cntj' := cntk').
-        eapply (proj1 Hcoh).
-      + intros laddr rmap Hres.
-        erewrite <- gsoAddLPool
-        with (vf := vf) (arg := arg) (p := pmap2) in Hres.
-        eapply (proj2 Hcoh); eauto.
-    - intros laddr rmap Hres.
-      erewrite <- gsoAddLPool
-      with (vf := vf) (arg := arg) (p := pmap2) in Hres.
-      pose proof (locks_data_lock_coh Hinv _ Hres ) as Hcoh.
-      split.
-      + intros j cntj.
-        assert (cntj' := cntAdd vf arg pmap2 cntj).
-        erewrite <- @gsoAddRes with (cntj' := cntj').
-        eapply Hcoh.1.
-      + intros laddr' rmap' Hres'.
-        erewrite <- gsoAddLPool
-        with (vf := vf) (arg := arg) (p := pmap2) in Hres'.
-        eapply Hcoh.2; eauto.
-    - (* lr_valid *)
-      intros b0 ofs0.
-      pose proof (lockRes_valid Hinv).
-      specialize (H b0 ofs0).
-      rewrite gsoAddLPool in H. auto.
-  Qed.
-
   Lemma safeC_invariant:
     forall tpc mc n the_ge
       (Hn: n > 0)
@@ -1368,8 +1523,9 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
 
   Module CoreLanguage := CoreLanguage SEM SemAxioms.
   Module CoreLanguageDry := CoreLanguageDry SEM SemAxioms DryMachine.
+  Module ThreadPoolWF := ThreadPoolWF SEM Machine.
   Module StepLemmas := StepLemmas SEM Machine.
-  Import StepLemmas CoreLanguage CoreLanguageDry SCH.
+  Import ThreadPoolWF StepLemmas CoreLanguage CoreLanguageDry SCH.
 
   Section InternalSteps.
     Variable the_ge : G.
@@ -1556,7 +1712,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
     Proof.
       intros.
       inversion Hresume; subst;
-      eapply StepLemmas.updThreadC_compatible;
+      eapply updThreadC_compatible;
         by eauto.
     Qed.
 
@@ -1569,7 +1725,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
     Proof.
       intros.
       inversion Hstart; subst;
-      eapply StepLemmas.updThreadC_compatible;
+      eapply updThreadC_compatible;
         by eauto.
     Qed.
 
@@ -1604,7 +1760,7 @@ Module InternalSteps (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
       - destruct Hsr as [H1 | H1];
         destruct H1 as [H2 ?]; subst;
         inversion H2; subst;
-          by apply StepLemmas.updThreadC_invariant.
+          by apply updThreadC_invariant.
     Qed.
 
     Lemma internal_execution_compatible :
@@ -2619,9 +2775,10 @@ Module StepType (SEM : Semantics)
   Import SEM event_semantics SemAxioms. 
 
   Module StepLemmas := StepLemmas SEM Machine.
+  Module ThreadPoolWF := ThreadPoolWF SEM Machine.
   Module CoreLanguageDry := CoreLanguageDry SEM SemAxioms DryMachine.
   Module InternalSteps := InternalSteps SEM SemAxioms Machine.
-  Import CoreLanguageDry InternalSteps StepLemmas event_semantics.
+  Import ThreadPoolWF CoreLanguageDry InternalSteps StepLemmas event_semantics.
    (** Distinguishing the various step types of the concurrent machine *)
 
   Inductive StepType : Type :=

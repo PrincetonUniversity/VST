@@ -2703,7 +2703,8 @@ as big as [m] *)
 
   Corollary mem_obs_eq_store :
     forall (mc mf mc' mf' : mem) (rmap rmapF : access_map) (bl1 bl2 : block) (ofsl : Z) f v 
-      (Hlt : permMapLt rmap (getMaxPerm mc)) (HltF : permMapLt rmapF (getMaxPerm mf)) (Hlt2 : permMapLt rmap (getMaxPerm mc'))
+      (Hlt : permMapLt rmap (getMaxPerm mc)) (HltF : permMapLt rmapF (getMaxPerm mf))
+      (Hlt2 : permMapLt rmap (getMaxPerm mc'))
       (Hlt2F : permMapLt rmapF (getMaxPerm mf'))
       (Hfl: f bl1 = Some bl2)
       (Hinjective: forall b1 b1' b2 : block,

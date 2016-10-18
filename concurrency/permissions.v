@@ -426,6 +426,15 @@ Section permMapDefs.
     eexists; eauto.
   Qed.
 
+  Lemma permMapsDisjoint2_comm:
+    forall pmaps pmaps',
+      permMapsDisjoint2 pmaps pmaps' <-> permMapsDisjoint2 pmaps' pmaps.
+  Proof.
+    intros.
+    split; intros (? & ?); split;
+      eauto using permMapsDisjoint_comm.
+  Qed.
+  
   Lemma disjoint_norace:
     forall (mi mj : mem) (b : block) (ofs : Z)
       (Hdisjoint: permMapsDisjoint (getCurPerm mi) (getCurPerm mj))
