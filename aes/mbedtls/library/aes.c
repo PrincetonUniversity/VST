@@ -762,13 +762,14 @@ void mbedtls_aes_encrypt( mbedtls_aes_context *ctx,
 {
     int i;
     uint32_t *RK, X0, X1, X2, X3, Y0, Y1, Y2, Y3;
+    uint32_t tmp;
 
     RK = ctx->rk;
 
-    GET_UINT32_LE( X0, input,  0 ); X0 ^= *RK++;
-    GET_UINT32_LE( X1, input,  4 ); X1 ^= *RK++;
-    GET_UINT32_LE( X2, input,  8 ); X2 ^= *RK++;
-    GET_UINT32_LE( X3, input, 12 ); X3 ^= *RK++;
+    GET_UINT32_LE( X0, input,  0 ); tmp = *RK++; X0 ^= tmp;
+    GET_UINT32_LE( X1, input,  4 ); tmp = *RK++; X1 ^= tmp;
+    GET_UINT32_LE( X2, input,  8 ); tmp = *RK++; X2 ^= tmp;
+    GET_UINT32_LE( X3, input, 12 ); tmp = *RK++; X3 ^= tmp;
 
     for( i = ( ctx->nr >> 1 ) - 1; i > 0; i-- )
     {
@@ -866,13 +867,14 @@ void mbedtls_aes_decrypt( mbedtls_aes_context *ctx,
 {
     int i;
     uint32_t *RK, X0, X1, X2, X3, Y0, Y1, Y2, Y3;
+    uint32_t tmp;
 
     RK = ctx->rk;
 
-    GET_UINT32_LE( X0, input,  0 ); X0 ^= *RK++;
-    GET_UINT32_LE( X1, input,  4 ); X1 ^= *RK++;
-    GET_UINT32_LE( X2, input,  8 ); X2 ^= *RK++;
-    GET_UINT32_LE( X3, input, 12 ); X3 ^= *RK++;
+    GET_UINT32_LE( X0, input,  0 ); tmp = *RK++; X0 ^= tmp;
+    GET_UINT32_LE( X1, input,  4 ); tmp = *RK++; X1 ^= tmp;
+    GET_UINT32_LE( X2, input,  8 ); tmp = *RK++; X2 ^= tmp;
+    GET_UINT32_LE( X3, input, 12 ); tmp = *RK++; X3 ^= tmp;
 
     for( i = ( ctx->nr >> 1 ) - 1; i > 0; i-- )
     {
