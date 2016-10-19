@@ -1277,6 +1277,10 @@ Tactic Notation "forward_while" constr(Inv) :=
        ]
     ]; abbreviate_semax; autorewrite with ret_assert.
 
+
+Inductive Type_of_invariant_in_forward_for_should_be_environ_arrow_mpred_but_is : Type -> Prop := .
+Inductive Type_of_bound_in_forward_for_should_be_Z_but_is : Type -> Prop := .
+
 Ltac forward_for_simple_bound n Pre :=
   check_Delta;
  repeat match goal with |-
@@ -1284,7 +1288,13 @@ Ltac forward_for_simple_bound n Pre :=
       apply -> seq_assoc; abbreviate_semax
  end;
  first [ 
-     simple eapply semax_seq'; 
+    match type of n with
+      ?t => first [ unify t Z | elimtype (Type_of_bound_in_forward_for_should_be_Z_but_is t)]
+    end;
+    match type of Pre with
+      ?t => first [unify t (environ -> mpred); fail 1 | elimtype (Type_of_invariant_in_forward_for_should_be_environ_arrow_mpred_but_is t)]
+    end
+  | simple eapply semax_seq'; 
     [forward_for_simple_bound' n Pre 
     | cbv beta; simpl update_tycon; abbreviate_semax  ]
   | eapply semax_post_flipped'; 

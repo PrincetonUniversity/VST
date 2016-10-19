@@ -1,6 +1,4 @@
 Require Import progs.conclib.
-Require Import floyd.proofauto.
-Require Import concurrency.semax_conc.
 Require Import progs.incr.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -71,7 +69,8 @@ Definition Gprog : funspecs := augment_funspecs prog [acquire_spec; release_spec
 Lemma ctr_inv_precise : forall p,
   predicates_sl.precise (EX x : Z, data_at Ews (tarray tint 1) [Vint (Int.repr x)] p).
 Proof.
-  intros ???? (? & ?) (? & ?) ??.
+  intros ???? (? & ? & ?) (? & ? & ?) ??.
+  unfold at_offset in *; simpl in *.
   eapply data_at_int_array_inj; try eassumption; auto.
   { repeat constructor; auto; discriminate. }
   { repeat constructor; auto; discriminate. }
@@ -80,7 +79,13 @@ Qed.
 Lemma ctr_inv_positive : forall ctr,
   positive_mpred (EX x : Z, data_at Ews (tarray tint 1) [Vint (Int.repr x)] ctr).
 Proof.
-Admitted.
+  intros ?? (? & ? & Hp).
+  eapply mapsto_positive with (sh := Ews); auto.
+  unfold at_offset in Hp; rewrite data_at_rec_eq in Hp; destruct Hp as (? & ? & ? & Hjoin & Hp & Hemp);
+    simpl in *.
+  unfold at_offset in Hp; rewrite by_value_data_at_rec_nonvolatile in Hp; auto.
+  specialize (Hemp _ _ (sepalg.join_comm Hjoin)); subst; eauto.
+Qed.
 
 Lemma body_incr: semax_body Vprog Gprog f_incr incr_spec.
 Proof.
@@ -211,22 +216,15 @@ Proof.
     subst Frame; instantiate (1 := [lock_inv sh2 gvar1 (Interp (thread_lock_pred sh1 gvar2 gvar0 gvar1));
       lock_inv sh2 gvar0 (Interp (lock_pred gvar2))]).
     simpl; entailer.
-    repeat rewrite sepcon_assoc; erewrite <- (sepcon_assoc (lock_inv sh1 gvar1 _)), lock_inv_join; eauto.
+    repeat rewrite sepcon_assoc; erewrite <- (sepcon_assoc (lock_inv sh1 gvar1 _)), lock_inv_share_join; eauto.
     cancel.
-    repeat rewrite sepcon_assoc; erewrite lock_inv_join; eauto; cancel.
+    repeat rewrite sepcon_assoc; erewrite lock_inv_share_join; eauto; cancel.
     subst body; f_equal.
     extensionality.
     destruct x as (?, (((?, ?), ?), ?)); simpl.
     f_equal; f_equal.
     unfold SEPx; simpl.
     unfold thread_lock_inv, cptr_lock_inv; normalize. }
-  { simpl; intros ? Hpred.
-    destruct Hpred as (? & ? & ? & (? & ?) & ? & ? & ? & ? & ? & ? & ? & ? & Hemp).
-    eapply almost_empty_join; eauto; [|eapply almost_empty_join; eauto; [|eapply almost_empty_join; eauto]].
-    - apply emp_almost_empty; auto.
-    - eapply lock_inv_almost_empty; eauto.
-    - eapply lock_inv_almost_empty; eauto.
-    - apply emp_almost_empty; auto. }
   forward_call (gvar2, sh2, gvar0).
   { subst Frame; instantiate (1 := [lock_inv sh2 gvar1 (Interp (thread_lock_pred sh1 gvar2 gvar0 gvar1))]); simpl.
     unfold cptr_lock_inv; entailer!. }
@@ -244,10 +242,10 @@ Proof.
     rewrite sepcon_assoc, <- (sepcon_assoc (lock_inv _ gvar1 _)), (sepcon_comm (lock_inv _ gvar1 _)).
     apply sepalg.join_comm in Hsh.
     unfold cptr_lock_inv.
-    repeat rewrite <- sepcon_assoc; erewrite lock_inv_join; eauto; cancel.
+    repeat rewrite <- sepcon_assoc; erewrite lock_inv_share_join; eauto; cancel.
     eapply derives_trans.
     { apply sepcon_derives; [apply lock_inv_later | apply derives_refl]. }
-    erewrite lock_inv_join; eauto; unfold rec_inv; entailer. }
+    erewrite lock_inv_share_join; eauto; unfold rec_inv; entailer. }
   { split; auto; split.
     - apply later_positive, selflock_positive, lock_inv_positive.
     - apply later_rec, selflock_rec. }
