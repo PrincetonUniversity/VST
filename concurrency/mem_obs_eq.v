@@ -2604,6 +2604,50 @@ as big as [m] *)
           assumption.
   Qed.
 
+  Lemma mem_obs_eq_changePerm:
+    forall mc mf rmap rmapF rmap' rmapF' f
+      (Hlt: permMapLt rmap (getMaxPerm mc))
+      (HltF: permMapLt rmapF (getMaxPerm mf))
+      (Hlt': permMapLt rmap' (getMaxPerm mc))
+      (HltF': permMapLt rmapF' (getMaxPerm mf))
+      (Hrmap: forall b1 b2 ofs,
+          f b1 = Some b2 ->
+          rmap' # b1 ofs = rmapF' # b2 ofs)
+      (Hobs_eq: mem_obs_eq f (restrPermMap Hlt) (restrPermMap HltF))
+      (Hnew: forall b ofs, Mem.perm_order' (rmap' # b ofs) Readable ->
+                      Mem.perm_order' (rmap # b ofs) Readable),
+      mem_obs_eq f (restrPermMap Hlt') (restrPermMap HltF').
+  Proof.
+    intros.
+    destruct Hobs_eq.
+    constructor.
+    - destruct weak_obs_eq0.
+      constructor; eauto.
+      intros.
+      rewrite! restrPermMap_Cur.
+      erewrite Hrmap by eauto.
+      now apply po_refl.
+    - destruct strong_obs_eq0.
+      constructor.
+      intros.
+      rewrite! restrPermMap_Cur.
+      erewrite Hrmap by eauto.
+      reflexivity.
+      intros.
+      unfold Mem.perm in Hperm.
+      pose proof (restrPermMap_Cur Hlt' b1 ofs) as Heq.
+      unfold permission_at in Heq.
+      rewrite Heq in Hperm.
+      specialize (Hnew _ _ Hperm).
+      simpl.
+      eapply val_obs_eq0; eauto.
+      unfold Mem.perm.
+      pose proof (restrPermMap_Cur Hlt b1 ofs) as Heq'.
+      unfold permission_at in Heq'.
+      rewrite Heq'.
+      assumption.
+  Qed.
+
   Lemma weak_mem_obs_eq_store:
     forall mc mf mc' mf' rmap rmapF bl1 bl2 f
       (Hlt: permMapLt rmap (getMaxPerm mc))

@@ -489,9 +489,8 @@ Module Concur.
            (Hcode: getThreadC cnt0 = Kblocked c)
            (Hat_external: at_external Sem c =
                           Some (FREE_LOCK, ef_sig FREE_LOCK, Vptr b ofs::nil))
-           (* is His_lock needed? perhaps, as long as we don't maintain some
-           kind of lock - permission invariant*)
-           (His_lock: lockRes tp (b, (Int.intval ofs)))
+           (* is His_lock needed? it doesn't seme useful*)
+           (* (His_lock: lockRes tp (b, (Int.intval ofs))) *)
            (** Install the thread's lock permissions*)
            (Hrestrict_pmap: restrPermMap (Hcompat tid0 cnt0).2 = m1)
            (** To free the lock the thread must have at least Writable on it*)
@@ -500,7 +499,7 @@ Module Concur.
            (Hlock_perm: setPermBlock None b (Int.intval ofs) pmap_tid.2 LKSIZE_nat = pmap_tid'.2)
            (** lock permissions of the thread are transfered to the data
            permissions - again maybe we should do a more precise transfer*)
-           (Hlock_perm: setPermBlock (pmap_tid.2 !! b (Int.intval ofs)) b
+           (Hdata_perm: setPermBlock (pmap_tid.2 !! b (Int.intval ofs)) b
                                      (Int.intval ofs) pmap_tid.1 LKSIZE_nat = pmap_tid'.1)
            (Htp': tp' = updThread cnt0 (Kresume c Vundef) pmap_tid')
            (Htp'': tp'' = remLockSet tp' (b, Int.intval ofs)),

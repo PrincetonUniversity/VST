@@ -163,6 +163,27 @@ Section permMapDefs.
     simpl in Hperm.
     destruct p3; simpl in *; tauto.
   Qed.
+
+  Lemma perm_union_lower_2:
+    forall p1 p2 p3 p4
+      (Hpu: exists pu, perm_union p1 p2 = Some pu)
+      (Hperm: Mem.perm_order'' p1 p3)
+      (Hperm': Mem.perm_order'' p2 p4),
+    exists pu, perm_union p3 p4 = Some pu.
+  Proof.
+    intros.
+    destruct p2 as [p2|]; simpl in Hperm;
+      destruct p4 as [p4|];
+      destruct p1 as [p1 |];
+      destruct p3 as [p3|];
+      try (destruct p1);
+      simpl in *; inversion Hperm; subst;
+        destruct Hpu; try (discriminate);
+          try (destruct p2; inversion Hperm'; subst);
+          try (discriminate); try (by exfalso);
+            eexists; eauto.
+  Qed.
+
   
   Inductive not_racy : option permission -> Prop :=
   | empty : not_racy None.
