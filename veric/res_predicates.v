@@ -2098,6 +2098,52 @@ apply (derives_precise _ _ (address_mapsto_VALspec_range ch v rsh sh l)).
 apply VALspec_range_precise.
 Qed.
 
+Lemma LKspec_precise: forall R rsh sh l, precise (LKspec R rsh sh l).
+Proof.
+intros.
+intro; intros.
+assert (level w1 = level w2) as Hlevel.
+{ destruct H1,H2; apply join_level in H1; apply join_level in H2; intuition. }
+apply rmap_ext; auto; intro.
+specialize (H l0); specialize (H0 l0).
+simpl in *.
+destruct (eq_dec l l0); subst; if_tac in H.
++ destruct H as [p ?].
+  destruct H0 as [p' ?].
+  unfold yesat_raw in *.
+  generalize (resource_at_join_sub _ _ l0 H1); rewrite H; clear H1; intro.
+  generalize (resource_at_join_sub _ _ l0 H2); rewrite H0; clear H2; intro.
+  f_equal. auto with extensionality.
+  clear - H1 H2 Hlevel.
+  destruct H1; destruct H2.
+  f_equal.
+  rewrite Hlevel; auto.
++ destruct H1.
+  destruct H2.
+  apply (resource_at_join _ _ _ l0) in H1.
+  apply (resource_at_join _ _ _ l0) in H2.
+  assert (x0 @ l0 = x @ l0).
+  apply H in H1.
+  apply H0 in H2.
+  congruence.
+  rewrite H4 in *. eapply join_canc; eauto.
++ destruct H as [p ?].
+  destruct H0 as [p' ?].
+  unfold yesat_raw in *.
+  generalize (resource_at_join_sub _ _ l0 H1); rewrite H; clear H1; intro.
+  generalize (resource_at_join_sub _ _ l0 H2); rewrite H0; clear H2; intro.
+  f_equal. auto with extensionality.
++ destruct H1.
+  destruct H2.
+  apply (resource_at_join _ _ _ l0) in H1.
+  apply (resource_at_join _ _ _ l0) in H2.
+  assert (x0 @ l0 = x @ l0).
+  apply H in H1.
+  apply H0 in H2.
+  congruence.
+  rewrite H4 in *. eapply join_canc; eauto.
+Qed.
+
 Program Definition core_load (ch: memory_chunk) (l: address) (v: val): pred rmap :=
   EX bl: list memval, 
   !!(length bl = size_chunk_nat ch /\ decode_val ch bl = v /\ (align_chunk ch | snd l)) &&
@@ -2792,6 +2838,86 @@ Proof.
     - inversion H1.
 Qed.
 
+Lemma is_resource_pred_YES_LK l R rsh sh:
+  is_resource_pred
+    (fun l' => jam (eq_dec l) (yesat (SomeP nil (fun _ => R)) (LK lock_size) rsh sh) (CTat l rsh sh) l')
+    (fun r l0 n => (if eq_dec l l0 then exists p, r = YES rsh (mk_lifted sh p) (LK lock_size)
+        (SomeP nil (approx n oo (fun _ : unit => R)))
+       else exists p, r = YES rsh (mk_lifted sh p) (CT (snd l0 - snd l)) NoneP)).
+Proof. hnf; intros. reflexivity. Qed.
+
+Lemma LKspec_share_join:
+ forall rsh1 rsh2 rsh sh1 sh2 sh R p,
+  nonunit sh1 ->
+  nonunit sh2 ->
+  join sh1 sh2 sh ->
+  join rsh1 rsh2 rsh ->
+  LKspec R rsh1 sh1 p *
+  LKspec R rsh2 sh2 p =
+  LKspec R rsh sh p.
+Proof.
+  intros.
+  symmetry.
+  unfold LKspec.
+  apply allp_jam_share_split.
+  do 3 eexists.
+  exists (Share.splice rsh sh), (Share.splice rsh1 sh1), (Share.splice rsh2 sh2).
+  split; [| split; [| split; [| split; [| split]]]].
+  + apply is_resource_pred_YES_LK.
+  + apply is_resource_pred_YES_LK.
+  + apply is_resource_pred_YES_LK.
+  + apply join_splice; auto.
+  + simpl; intros.
+    destruct (eq_dec p l); subst; destruct H3; split; try solve [subst; simpl; auto];
+    split; [exists H | exists H0 | exists H | exists H0].
+    - subst. simpl.
+      rewrite Share.unrel_splice_R.
+      destruct (dec_share_identity sh1).
+      * exfalso; apply nonunit_nonidentity in H; tauto.
+      * rewrite Share.unrel_splice_L.
+        f_equal.
+        unfold mk_pshare, mk_lifted.
+        f_equal.
+        apply proof_irr.
+    - subst. simpl.
+      rewrite Share.unrel_splice_R.
+      destruct (dec_share_identity sh2).
+      * exfalso; apply nonunit_nonidentity in H0; tauto.
+      * rewrite Share.unrel_splice_L.
+        f_equal.
+        unfold mk_pshare, mk_lifted.
+        f_equal.
+        apply proof_irr.
+    - subst. simpl.
+      rewrite Share.unrel_splice_R.
+      destruct (dec_share_identity sh1).
+      * exfalso; apply nonunit_nonidentity in H; tauto.
+      * rewrite Share.unrel_splice_L.
+        f_equal.
+        unfold mk_pshare, mk_lifted.
+        f_equal.
+        apply proof_irr.
+    - subst. simpl.
+      rewrite Share.unrel_splice_R.
+      destruct (dec_share_identity sh2).
+      * exfalso; apply nonunit_nonidentity in H0; tauto.
+      * rewrite Share.unrel_splice_L.
+        f_equal.
+        unfold mk_pshare, mk_lifted.
+        f_equal.
+        apply proof_irr.
+  + simpl; intros.
+    destruct (eq_dec p l); subst; destruct H4, H5.
+    - pose proof (nonunit_join _ sh1 sh2 sh H H1); subst.
+      inversion H3; subst.
+      exists H6.
+      f_equal; eapply join_eq; eauto.
+    - pose proof (nonunit_join _ sh1 sh2 sh H H1); subst.
+      inversion H3; subst.
+      exists H6.
+      f_equal; eapply join_eq; eauto.
+Qed.
+
 Lemma address_mapsto_value_cohere':
   forall ch v1 v2 rsh1 sh1 rsh2 sh2 a r
  (Hmaps1 : address_mapsto ch v1 rsh1 sh1 a r)
@@ -2869,3 +2995,6 @@ Proof.
  apply IHn; auto. 
  intro i; specialize (H2 (S i)); apply H2.
 Qed.
+
+Definition almost_empty rm: Prop:=
+  forall loc sh psh k P, rm @ loc = YES sh psh k P -> forall val, ~ k = VAL val.

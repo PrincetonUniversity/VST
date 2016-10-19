@@ -1,6 +1,4 @@
 Require Import progs.conclib.
-Require Import floyd.proofauto.
-Require Import concurrency.semax_conc.
 Require Import progs.cond.
 
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -50,19 +48,26 @@ Definition Gprog : funspecs := augment_funspecs prog [acquire_spec; release_spec
   freelock_spec; freelock2_spec; spawn_spec; makecond_spec; freecond_spec; wait_spec; signal_spec;
   thread_func_spec; main_spec].
 
-Lemma inv_precise : forall b o,
-  precise (EX x : Z, data_at Ews (tarray tint 1) [Vint (Int.repr x)] (Vptr b o)).
+Lemma inv_precise : forall p,
+  precise (EX x : Z, data_at Ews (tarray tint 1) [Vint (Int.repr x)] p).
 Proof.
-  intros; apply derives_precise with (Q := data_at_ Ews (tarray tint 1) (Vptr b o));
-    [|apply data_at_precise].
-  intros ? (? & ?).
-  apply (data_at_data_at_ _ _ _ _ _ H).
+  intros ???? (? & ? & ?) (? & ? & ?) ??.
+  unfold at_offset in *; simpl in *.
+  eapply data_at_int_array_inj; try eassumption; auto.
+  { repeat constructor; auto; discriminate. }
+  { repeat constructor; auto; discriminate. }
 Qed.
 
 Lemma inv_positive : forall ctr,
   positive_mpred (EX x : Z, data_at Ews (tarray tint 1) [Vint (Int.repr x)] ctr).
 Proof.
-Admitted.
+  intros ?? (? & ? & Hp).
+  eapply mapsto_positive with (sh := Ews); auto.
+  unfold at_offset in Hp; rewrite data_at_rec_eq in Hp; destruct Hp as (? & ? & ? & Hjoin & Hp & Hemp);
+    simpl in *.
+  unfold at_offset in Hp; rewrite by_value_data_at_rec_nonvolatile in Hp; auto.
+  specialize (Hemp _ _ (sepalg.join_comm Hjoin)); subst; eauto.
+Qed.
 
 Lemma body_thread_func : semax_body Vprog Gprog f_thread_func thread_func_spec.
 Proof.
@@ -98,6 +103,15 @@ Proof.
     - apply selflock_positive, positive_sepcon2, lock_inv_positive.
     - apply selflock_rec. }
   forward.
+Qed.
+
+Lemma lock_struct : forall p, data_at_ Ews (Tstruct _lock_t noattr) p |-- data_at_ Ews tlock p.
+Proof.
+  intros.
+  unfold data_at_, field_at_, field_at; simpl; entailer.
+  unfold default_val; simpl.
+  rewrite data_at_rec_eq; simpl.
+  unfold struct_pred, aggregate_pred.struct_pred, at_offset, withspacer; simpl; entailer.
 Qed.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
@@ -138,13 +152,10 @@ Proof.
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
   forward_call (gvar0, Ews, lock_pred gvar3).
   { destruct gvar0; try contradiction; simpl; entailer. }
-  { subst Frame; instantiate (1 := [cond_var Ews gvar2;
-      field_at Ews (tarray tint 1) [] [Vint (Int.repr 0)] gvar3;
-      data_at_ Ews (Tstruct 2%positive noattr) gvar1]); admit. }
+  { rewrite (sepcon_comm _ (fold_right _ _ _)); apply sepcon_derives; [cancel | apply lock_struct]. }
   forward_call (gvar1, Ews, tlock_pred sh1 gvar1 gvar0 gvar2 gvar3).
   { destruct gvar1; try contradiction; simpl; entailer. }
-  { subst Frame; instantiate (1 := [lock_inv Ews gvar0 (Interp (lock_pred gvar3)); cond_var Ews gvar2;
-      field_at Ews (tarray tint 1) [] [Vint (Int.repr 0)] gvar3]); admit. }
+  { rewrite (sepcon_comm _ (fold_right _ _ _)); apply sepcon_derives; [cancel | apply lock_struct]. }
   get_global_function'' _thread_func.
   normalize.
   apply extract_exists_pre; intros f_.
@@ -165,25 +176,16 @@ Proof.
     simpl; entailer; cancel.
     repeat rewrite sepcon_assoc.
     rewrite <- (sepcon_assoc (lock_inv sh1 gvar1 _)).
-    erewrite lock_inv_join; eauto; cancel.
+    erewrite lock_inv_share_join; eauto; cancel.
     repeat rewrite sepcon_assoc.
     rewrite <- (sepcon_assoc (lock_inv sh1 gvar0 _)).
-    erewrite lock_inv_join; eauto; cancel.
-    erewrite cond_var_join; eauto.
+    erewrite lock_inv_share_join; eauto; cancel.
+    erewrite cond_var_share_join; eauto.
     subst body; f_equal.
     extensionality.
     destruct x as (?, ((((?, ?), ?), ?), ?)); simpl.
     f_equal; f_equal.
     unfold SEPx; simpl; normalize. }
-  { simpl; intros ? Hpred.
-    destruct Hpred as (? & ? & ? & (? & ?) & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & Hemp).
-    eapply almost_empty_join; eauto; [|eapply almost_empty_join; eauto;
-      [|eapply almost_empty_join; eauto; [|eapply almost_empty_join; eauto]]].
-    - eapply prop_almost_empty; eauto.
-    - eapply cond_var_almost_empty; eauto.
-    - eapply lock_inv_almost_empty; eauto.
-    - eapply lock_inv_almost_empty; eauto.
-    - eapply emp_almost_empty; eauto. }
   forward.
   forward_while (EX i : Z, PROP ( )
    LOCAL (temp _v (Vint (Int.repr i)); temp _c gvar2; temp _t gvar1; temp _l gvar0; gvar _data gvar3;
@@ -216,11 +218,11 @@ Proof.
         apply sepcon_derives; [apply derives_refl|].
         apply sepcon_derives; [|apply derives_refl].
         apply sepcon_derives; [apply lock_inv_later | apply derives_refl]. }
-      erewrite lock_inv_join; eauto; cancel.
+      erewrite lock_inv_share_join; eauto; cancel.
       repeat rewrite sepcon_assoc; rewrite <- (sepcon_assoc (lock_inv _ gvar0 _)).
       apply sepalg.join_comm in Hsh.
-      erewrite lock_inv_join; eauto; cancel.
-      erewrite cond_var_join; eauto. }
+      erewrite lock_inv_share_join; eauto; cancel.
+      erewrite cond_var_share_join; eauto. }
     { split; auto; split.
       + apply later_positive, selflock_positive; simpl.
         apply positive_sepcon2, positive_sepcon1, lock_inv_positive.
@@ -230,7 +232,7 @@ Proof.
     { split; [auto | apply inv_positive]. }
     forward_call (gvar2, Ews).
     forward.
-Admitted.
+Qed.
 
 Definition extlink := ext_link_prog prog.
 

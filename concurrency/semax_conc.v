@@ -20,9 +20,9 @@ Require Import sepcomp.semantics.
 Require Import sepcomp.extspec.
 Require Import floyd.reptype_lemmas.
 Require Import floyd.field_at.
+Require Import floyd.nested_field_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.jmeq_lemmas.
-Require Import concurrency.juicy_machine.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -169,6 +169,8 @@ Inductive Pred :=
   | Mapsto_ :  Share.t -> type -> val -> Pred
   | Data_at : forall cs : compspecs, Share.t -> forall t : type, reptype t -> val -> Pred
   | Data_at_ : forall cs : compspecs, Share.t -> type -> val -> Pred
+  | Field_at : forall cs : compspecs, Share.t ->
+      forall t : type, forall gfs : list gfield, reptype (nested_field_type t gfs) -> val -> Pred
   | Lock_inv : Share.t -> val -> Pred -> Pred
   | Self_lock : Pred -> Share.t -> val -> Pred
   | Res_inv : Pred -> Share.t -> val -> Share.t -> val -> Pred
@@ -184,6 +186,7 @@ Fixpoint Interp (p : Pred) : mpred :=
   | Mapsto_ a b c => mapsto_ a b c
   | Data_at a b c d e => @data_at a b c d e
   | Data_at_ a b c d => @data_at_ a b c d
+  | Field_at a b c d e f => @field_at a b c d e f
   | Lock_inv a b c => lock_inv a b (Interp c)
   | Self_lock a b c => selflock (Interp a) b c
   | Res_inv a b c d e => res_invariant (Interp a) b c d e
@@ -376,6 +379,17 @@ Definition wait_spec cs :=
      LOCAL ()
      SEP (cond_var shc c; lock_inv shl l (Interp R); Interp R).
 
+Definition wait2_spec cs :=
+   WITH c : val, l : val, shc : share, shl : share, R : Pred
+   PRE [ _cond OF tptr tcond, _lock OF tptr Tvoid ]
+     PROP (readable_share shc)
+     LOCAL (temp _cond c; temp _lock l)
+     SEP (lock_inv shl l (Interp R); Interp R && (@cond_var cs shc c * TT))
+   POST [ tvoid ]
+     PROP ()
+     LOCAL ()
+     SEP (lock_inv shl l (Interp R); Interp R).
+
 Definition signal_spec cs :=
    WITH c : val, shc : share
    PRE [ _cond OF tptr tcond ]
@@ -426,14 +440,7 @@ Definition spawn_spec :=
           (ty *                     (* WITH clause for spawned function *)
           (ty -> val -> Pred))%type}  (* precondition (postcondition is emp) *)
    PRE [_f OF tptr voidstar_funtype, _args OF tptr tvoid]
-     PROP (
-       match PrePost with
-         existT ty (w, pre) =>
-         forall phi,
-           app_pred (Interp (pre w b)) phi ->
-           almost_empty phi
-       end
-     )
+     PROP ( )
      LOCAL (temp _args b)
      SEP
      (match PrePost with existT ty (_, pre) =>

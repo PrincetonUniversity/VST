@@ -135,6 +135,7 @@ CONCUR_FILES= \
   semax_simlemmas.v cl_step_lemmas.v \
   semax_progress.v semax_preservation.v \
   aging_lemmas.v resource_decay_lemmas.v \
+  rmap_locking.v \
   permjoin.v \
   resource_decay_join.v join_lemmas.v coqlib5.v age_to.v \
   konig.v safety.v \
@@ -312,7 +313,7 @@ HMACDRBG_FILES = \
 #  verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v verif_hmac_drbg_generate.v
 
 
-C_FILES = reverse.c queue.c queue2.c sumarray.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c
+C_FILES = reverse.c queue.c queue2.c sumarray.c sumarray2.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
@@ -429,6 +430,8 @@ progs/queue2.v: progs/queue2.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/sumarray.v: progs/sumarray.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/sumarray2.v: progs/sumarray2.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/message.v: progs/message.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/insertionsort.v: progs/insertionsort.c
@@ -466,6 +469,9 @@ version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FI
 
 floyd/floyd.coq: floyd/proofauto.vo
 	coqtop $(COQFLAGS) -load-vernac-object floyd/proofauto -outputstate floyd/floyd -batch
+
+dep:
+	$(COQDEP) $(shell find . -name "*.v")  > .depend
 
 .depend:
 	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend

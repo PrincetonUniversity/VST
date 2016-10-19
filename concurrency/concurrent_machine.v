@@ -781,12 +781,40 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     safe _ _ (new_step ge) new_valid (mk_nstate st m) (fst (fst st)).
 
   (*Things that we must prove:*)
-  Axiom sch_dec: forall (U U': Sch), {U = U'} + {U <> U'}.
-  Axiom step_sch: forall {ge U tr tp m U' tr' tp' m'}, MachStep ge (U, tr, tp) m (U', tr', tp') m' -> {U=U'}+{schedSkip(U)=U'}.
-  Axiom step_trace: forall {ge U tr tp m U' tr' tp' m'}, MachStep ge (U, tr, tp) m (U', tr', tp') m' -> nil = tr'. 
-  Axiom step_valid: forall {ge st m st' m'}, MachStep ge st m st' m'  -> valid st -> valid st'. 
-  Axiom step_sch_valid: forall {ge U tr tp m U' tr' tp' m'}, MachStep ge (U, tr, tp) m (U', tr', tp') m' -> U<>U' -> forall U'', valid (U'', tr', tp').
-  Axiom skip_not_eq: forall U, U <> schedSkip U.
+  Lemma sch_dec: forall (U U': Sch), {U = U'} + {U <> U'}.
+  Proof. apply SCH.sch_dec. Qed.                 
+  Lemma step_sch: forall {ge U tr tp m U' tr' tp' m'}, MachStep ge (U, tr, tp) m (U', tr', tp') m' -> U=U' \/ schedSkip(U)=U'.
+  Proof.
+    intros.
+    inversion H;
+      simpl in *;
+      subst; first[left; reflexivity | right; reflexivity | idtac].
+  Qed.
+  Lemma step_trace: forall {ge U tr tp m U' tr' tp' m'}, MachStep ge (U, tr, tp) m (U', tr', tp') m' -> nil = tr'.
+  Proof.
+    intros.
+    inversion H;
+      simpl in *; auto.
+  Qed.
+  Lemma step_valid: forall {ge st m st' m'}, MachStep ge st m st' m'  -> valid st -> valid st'.
+  Proof.
+    intros.
+    inversion H; subst.
+    unfold valid in *.
+    rewrite <- H6.
+    
+    
+    
+    inversion Htstep; subst.
+    rewrite <- Hms'.
+    unfold valid in H0.
+    inversion Htstep; subst.
+    
+
+    
+  Admitted.
+  Lemma step_sch_valid: forall {ge U tr tp m tr' tp' m'}, MachStep ge (U, tr, tp) m (schedSkip U, tr', tp') m' -> forall U'', valid (U'', tr', tp').
+  Admitted.
   Lemma safety_equivalence':
     forall ge st_ m,
       (forall U n, new_valid (nil, st_, m) U -> ksafe_new_step ge (U, nil, st_) m n) ->
@@ -824,8 +852,9 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
               simpl in HH; rewrite -HH in H1.
               by apply: H1. 
             - rewrite /new_valid /mk_ostate=> /=. simpl in H.
+              (*destruct (sch_dec U'' U).
+              subst. *)
               apply (step_sch_valid H).
-                by apply: skip_not_eq.
           }
   Qed.
         
@@ -885,7 +914,6 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
       (forall U, new_valid (nil, st, m) U ->
              safe_new_step ge (U, nil, st) m).
   Proof.
-    (*
     move => ge.
     cofix.
     move =>  st m es_all U /es_all es.
@@ -895,24 +923,26 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
       + rewrite /mk_nstate /= => U'' VAL.
         apply: safety_equivalence22 => //. 
     - econstructor.
-      + econstructor 2. rewrite /mk_nstate /mk_ostate /MachStep /=. 
+      + econstructor 2.
+        instantiate(1:=(@nil machine_event, fst y', snd y')).
+        rewrite /mk_nstate /mk_ostate /MachStep /=. 
         move: H => / step_equivalence2.
-        instantiate(1:=(@nil machine_event, st', m')).
         instantiate(1:=U).
         simpl => //.
       + rewrite /mk_nstate /= => U'' VAL.
+        destruct y';
         apply: safety_equivalence22 => //.
     - econstructor.
-      + econstructor 2. rewrite /mk_nstate /mk_ostate /MachStep /=. 
+      + econstructor 2. 
+        instantiate(1:=(@nil machine_event, fst y' ,  snd y')).
+        rewrite /mk_nstate /mk_ostate /MachStep /=. 
         move: H => / step_equivalence3.
-        instantiate(1:=(@nil machine_event, st', m')).
-        instantiate(1:=U').
+        instantiate(1:=x').
         simpl => //.
       + rewrite /mk_nstate /= => U'' VAL.
-        apply: safety_equivalence22 => //. 
-     *)
-    Admitted.
-
+        destruct y';
+        apply: safety_equivalence22 => //.
+  Qed.
   Lemma safety_equivalence2: forall ge st m,
       (forall U, new_valid (nil, st, m) U ->
              safe_new_step ge (U, nil, st) m) <->
@@ -936,24 +966,6 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
                    (fun U stm => @new_valid (nil,fst stm, snd stm) U)
                    core_data core_ord
                    cd U (st,m).
-      
-    (*CoInductive explicit_safety_stutter' ge (cd:core_data) (U:Sch) (st:machine_state) (m:mem): Prop:=
-    | exp_safety : explicit_safety ge U st m -> explicit_safety_stutter' ge cd U st m
-    | stutter' cd': explicit_safety_stutter' ge cd' U st m ->
-                   core_ord cd' cd ->
-                   explicit_safety_stutter' ge cd U st m.
-
-    CoInductive explicit_safety_stutter ge (cd:core_data) (U:Sch) (st:machine_state) (m:mem): Prop:=
-    | halted_safety' : halted (U, nil, st) -> explicit_safety_stutter ge cd U st m
-    | internal_safety' st' m': @internal_step ge U st m st' m' ->
-                              (forall U', new_valid (nil, st', m') U' -> exists cd', explicit_safety_stutter ge cd' U' st' m') ->
-                              explicit_safety_stutter ge cd U st m
-    | external_safety' U' st' m': @external_step ge U nil st m U' nil st' m' ->
-                                 (forall U', new_valid (nil, st', m') U' -> exists cd', explicit_safety_stutter ge cd' U' st' m') ->
-                                 explicit_safety_stutter ge cd U st m
-    | stutter cd': explicit_safety_stutter ge cd' U st m ->
-                   core_ord cd' cd ->
-                   explicit_safety_stutter ge cd U st m.*)
 
     Variable default: core_data.
 
@@ -976,62 +988,27 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
       - by apply: base.
     Qed.
 
-
-    (*
-    Lemma safety_equivalence_stutter':
-      forall ge U st m,
-        (explicit_safety ge U st m) <-> (exists cd, stutter_stepN_safety ge cd U st m).
-    Proof.
-      split.
-      (* -> *)
-      - move => AA; exists default.
-        inversion AA. apply: exp_safety => //.
-      (* <- *)
-      - move=> [] cd; move: ge U st m.
-        eapply well_founded_ind with (a:=cd)=>//.
-        intros. inversion p=> //.
-        eapply H; eauto.
-    Qed.
-
-  Lemma safety_equivalence_stutter:
-      forall ge U st m,
-        (explicit_safety ge U st m) <-> (exists cd, stutter_stepN_safety ge cd U st m).
-    Proof.
-      split.
-      (* -> *)
-      - move => AA; exists default; move: U st m AA.
-        cofix => U st m AA.
-        inversion AA;
-          [ econstructor 1; eauto|
-            econstructor 2; eauto|
-            econstructor 3; eauto];
-          move=> U'' val; exists default => //.
-      (* <- *)
-      - move=> [] cd; move: cd U st m.
-        cofix => cd.
-
-        intros.
-
-        move: p.
-        eapply well_founded_ind with (a:=cd)=>//. intros.
-        inversion p;
-        [ econstructor 1; eauto|
-          econstructor 2; eauto|
-          econstructor 3; eauto | ].
-        + intros. apply: safety_equivalence_stutter. 
-
-        move => U'' /H1 [] cd' ess;
-            eapply safety_equivalence_stutter; eapply ess.  Guarded.
-        - move => U'' /H0 [] cd' ess;
-            eapply safety_equivalence_stutter; eapply ess.  Guarded.
-       - move: 
-
-        
-        
-        eapply H; eauto.
-    Qed. *)
     End newer_semantics_with_stutter.
 
+
+  (* Probably need to assume something about memory.
+     Such as:
+     1. Next block increases at most by one
+     2. semantics is deterministic, so we know all possible changes to memory.
+     3. it's finitely branching *)
+  
+  Lemma finite_branching: forall ds ge,
+          safety.finite_on_x
+            (@safety.possible_image
+               new_state
+               Sch
+               (fun x y x' => exists y', (new_step ge x y x' y'))
+               new_valid ds).
+  Proof.
+    move=> ds prog.
+    rewrite /safety.finite_on_x /safety.possible_image /=.
+  Admitted.
+    
   End new_safety.
 
   Lemma csafe_reduce:

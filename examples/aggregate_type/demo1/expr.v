@@ -58,7 +58,7 @@ Parameter CSLPred: CorableSepLog Pred.
 Parameter mapsto: val -> val -> Pred.
 Parameter offset_val: Z -> val -> val.
 
-Hypothesis offset_offset_val: forall ofs1 ofs2 p, offset_val ofs2 (offset_val ofs1 p) = offset_val (ofs1 + ofs2) p.
+Axiom offset_offset_val: forall ofs1 ofs2 p, offset_val ofs2 (offset_val ofs1 p) = offset_val (ofs1 + ofs2) p.
 (*
 Fixpoint sizeof (t: type): Z :=
   match t with
