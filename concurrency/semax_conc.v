@@ -382,9 +382,9 @@ Definition wait_spec cs :=
 Definition wait2_spec cs :=
    WITH c : val, l : val, shc : share, shl : share, R : Pred
    PRE [ _cond OF tptr tcond, _lock OF tptr Tvoid ]
-     PROP (readable_share shc; Interp R |-- @cond_var cs shc c * TT)
+     PROP (readable_share shc)
      LOCAL (temp _cond c; temp _lock l)
-     SEP (lock_inv shl l (Interp R); Interp R)
+     SEP (lock_inv shl l (Interp R); Interp R && (@cond_var cs shc c * TT))
    POST [ tvoid ]
      PROP ()
      LOCAL ()
