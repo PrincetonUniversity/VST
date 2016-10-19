@@ -1539,8 +1539,8 @@ Module Type CoreErasure (SEM: Semantics).
   Parameter at_external_erase:
     forall c c' (Herase: core_erasure c c'),
       match at_external Sem c, at_external Sem c' with
-      | Some (ef, sig, vs), Some (ef', sig', vs') =>
-        ef = ef' /\ sig = sig' /\ val_erasure_list vs vs'
+      | Some (ef, vs), Some (ef', vs') =>
+        ef = ef' /\ val_erasure_list vs vs'
       | None, None => True
       | _, _ => False
       end.
@@ -1765,7 +1765,7 @@ Module SCErasure (SEM: Semantics)
           rewrite H in H2;
             match goal with
             | [H3: match at_external ?E1 ?E2 with _ => _ end |- _] =>
-              destruct (at_external E1 E2) as [[[? ?] ?]|] eqn:?; try by exfalso
+              destruct (at_external E1 E2) as [[? ?]|] eqn:?; try by exfalso
             end
         end
     end;
@@ -1964,10 +1964,10 @@ Module SCErasure (SEM: Semantics)
     destruct Hthreads as [HeraseCores Heq]. subst v.
     pose proof (at_external_erase HeraseCores).
     rewrite Hat_external in H.
-    destruct X, p.
+    destruct X.
     destruct (at_external SEM.Sem c0) eqn:Hat_external'; try by exfalso.
-    destruct p as [[? ?] ?].
-    destruct H as [? [? ?]]; subst.
+    destruct p as [? ?].
+    destruct H as [? ?]; subst.
     eapply after_external_erase with (v' := Vint Int.zero) in Hafter_external;
       eauto with val_erasure erased.
     destruct Hafter_external as [c2' [Hafter_external' Hcore_erasure']].
@@ -2014,10 +2014,10 @@ Module SCErasure (SEM: Semantics)
       end; try (by exfalso).
     pose proof (at_external_erase Hthreads).
     rewrite Hat_external in H.
-    destruct X, p.
+    destruct X.
     destruct (at_external SEM.Sem c0) eqn:Hat_external'; try by exfalso.
-    destruct p as [[? ?] ?].
-    destruct H as [? [? ?]]; subst.
+    destruct p as [? ?].
+    destruct H as [? ?]; subst.
     exists (ErasedMachine.ThreadPool.updThreadC cnti' (Kblocked c0)).
     split.
     eapply SC.SuspendThread with (c := c0); simpl in *; eauto.

@@ -2059,7 +2059,7 @@ Section Preservation.
   (sh : Share.t)
   (R : pred rmap)
   (Hthread : getThreadC i tp cnti = Kblocked c)
-  (Hat_external : at_external SEM.Sem c = Some (LOCK, ef_sig LOCK, Vptr b ofs :: nil))
+  (Hat_external : at_external SEM.Sem c = Some (LOCK, (* ef_sig LOCK, *) Vptr b ofs :: nil))
   (His_unlocked : lockRes tp (b, Int.intval ofs) = SSome d_phi)
   (Hload : load Mint32 (restrPermMap (mem_compatible_locks_ltwritable Hcmpt)) b (Int.intval ofs) =
           Some (Vint Int.one))
@@ -2350,7 +2350,7 @@ Section Preservation.
           specialize (wellformed i cnti).
           rewrite Hthread in wellformed.
           intros c' Ec'.
-          inversion safety as [ | ?????? step | ???????? ae Pre Post Safe | ????? Ha]; swap 2 3.
+          inversion safety as [ | ?????? step | ??????? ae Pre Post Safe | ????? Ha]; swap 2 3.
           - (* not corestep *)
             exfalso.
             clear -Hat_external step.
@@ -2654,7 +2654,7 @@ Section Preservation.
   (phi' : rmap)
   (sh : Share.t)
   (Hthread : getThreadC i tp cnti = Kblocked c)
-  (Hat_external : at_external SEM.Sem c = Some (UNLOCK, ef_sig UNLOCK, Vptr b ofs :: nil))
+  (Hat_external : at_external SEM.Sem c = Some (UNLOCK(* , ef_sig UNLOCK *), Vptr b ofs :: nil))
   (His_locked : lockRes tp (b, Int.intval ofs) = SNone)
   (Hsat_lock_inv : R (age_by 1 d_phi))
   (Hload : load Mint32 (restrPermMap (mem_compatible_locks_ltwritable Hcmpt)) b (Int.intval ofs) =
@@ -2977,7 +2977,7 @@ Section Preservation.
           specialize (wellformed i cnti).
           rewrite Hthread in wellformed.
           intros c' Ec'.
-          inversion safety as [ | ?????? step | ???????? ae Pre Post Safe | ????? Ha]; swap 2 3.
+          inversion safety as [ | ?????? step | ??????? ae Pre Post Safe | ????? Ha]; swap 2 3.
           - (* not corestep *)
             exfalso.
             clear -Hat_external step.
@@ -3328,7 +3328,7 @@ Section Preservation.
                    Some (existT (fun A : list Type => rmaps.listprod A -> pred rmap) (JMem.AType :: nil) p))
   (Hrem_fun_res : join d_phi phi'
                    (m_phi (personal_mem m' (getThreadR i tp Htid) (thread_mem_compatible Hcompatible Htid))))
-  (Hat_external : at_external SEM.Sem c = Some (CREATE, ef_sig CREATE, Vptr b ofs :: arg :: nil))
+  (Hat_external : at_external SEM.Sem c = Some (CREATE, Vptr b ofs :: arg :: nil))
   (Hinitial : initial_core SEM.Sem ge (Vptr b ofs) (arg :: nil) = Some c_new)
   (tp_ := addThread (updThread i tp Htid (Kresume c Vundef) phi') (Vptr b ofs) arg d_phi : thread_pool)
   (compat_ := mem_compatible_with tp_ m_ (age_to n Phi) : Prop)
@@ -3386,7 +3386,7 @@ Section Preservation.
   (sh : Share.t)
   (Hinv : invariant tp)
   (Hthread : getThreadC i tp Htid = Kblocked c)
-  (Hat_external : at_external SEM.Sem c = Some (MKLOCK, ef_sig MKLOCK, Vptr b ofs :: nil))
+  (Hat_external : at_external SEM.Sem c = Some (MKLOCK, Vptr b ofs :: nil))
   (* (Hright_juice : m = m_dry jm) *)
   (Hpersonal_perm : personal_mem m (getThreadR i tp Htid) (thread_mem_compatible Hcompatible Htid) = jm)
   (Hpersonal_juice : getThreadR i tp Htid = m_phi jm)
@@ -3531,7 +3531,7 @@ Section Preservation.
   (sh : Share.t)
   (Hinv : invariant tp)
   (Hthread : getThreadC i tp Htid = Kblocked c)
-  (Hat_external : at_external SEM.Sem c = Some (FREE_LOCK, ef_sig FREE_LOCK, Vptr b ofs :: nil))
+  (Hat_external : at_external SEM.Sem c = Some (FREE_LOCK, Vptr b ofs :: nil))
   (Hcompatible : mem_compatible tp m')
   (Haccess : (address_mapsto LKCHUNK (Vint Int.zero) sh Share.top (b, Int.intval ofs)) phi')
   (Hlock' : exists val : memval, phi' @ (b, Int.intval ofs) = YES sh pfullshare (VAL val) NoneP)
@@ -3588,7 +3588,7 @@ Section Preservation.
   (psh : pshare)
   (sh : Share.t)
   (R : pred rmap)
-  (Hat_external : at_external SEM.Sem c = Some (LOCK, ef_sig LOCK, Vptr b ofs :: nil))
+  (Hat_external : at_external SEM.Sem c = Some (LOCK, Vptr b ofs :: nil))
   (sparse : lock_sparsity (lset tp'))
   (wellformed : threads_wellformed tp')
   (unique : unique_Krun tp' (i :: sch))

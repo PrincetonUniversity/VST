@@ -73,8 +73,8 @@ Qed.
 Definition at_external c := 
   match at_external sem (core c) with
     | None => None 
-    | Some (ef,dep_sig,args) => 
-      if vals_def args then Some (ef,dep_sig,args) else None
+    | Some (ef,args) => 
+      if vals_def args then Some (ef,args) else None
   end.
 
 Arguments at_external /.
@@ -166,7 +166,7 @@ Program Definition coresem : CoreSemantics (Genv.t F V) state mem :=
     corestep _ _ _.
 Next Obligation. 
 destruct (effax1 H0) as [X Y].
-case_eq (semantics.at_external sem q); auto; intros [[ef dep_sig] args] H5.
+case_eq (semantics.at_external sem q); auto; intros [ef args] H5.
 destruct (vals_def args); auto.
 apply corestep_not_at_external in X; rewrite X in H5; congruence.
 Qed.
@@ -178,7 +178,7 @@ auto.
 Qed.
 Next Obligation. 
 case_eq (at_external_halted_excl sem (core q)); auto; intros e _. 
-case_eq (semantics.at_external sem q); auto; intros [[ef dep_sig] args] H5.
+case_eq (semantics.at_external sem q); auto; intros [ef args] H5.
 destruct (vals_def args); auto.
 rewrite e in H5; congruence.
 rewrite e; auto.
@@ -259,15 +259,15 @@ Record t : Type := {
   let c'' := RC.mk c' B' in corestep rcsem ge (RC.mk c B) m c'' m' /\ I c' m' B'
 
 ; atext_ax :
-  forall c m B ef sg vs,
+  forall c m B ef vs,
   I c B m -> 
-  at_external sem c = Some (ef,sg,vs) ->
+  at_external sem c = Some (ef,vs) ->
   vals_def vs = true
 
 ; aftext_ax :
-  forall c m B ef sg vs ov c' m',
+  forall c m B ef vs ov c' m',
   I c m B ->
-  at_external sem c = Some (ef,sg,vs) -> 
+  at_external sem c = Some (ef,vs) -> 
   after_external sem ov c = Some c' -> 
   I c' m' (fun b => match ov with None => B b
                       | Some v => getBlocks (v::nil) b || B b

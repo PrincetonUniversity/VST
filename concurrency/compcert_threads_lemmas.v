@@ -282,8 +282,8 @@ Module SimProofs (SEM: Semantics)
     unfold ctlType in *;
     try assert (Hat_ext := core_inj_ext Hinj);
     try assert (Hhalted := core_inj_halted Hinj); auto.
-    destruct (at_external SEM.Sem c) as [[[? ?] ?]|]; simpl in *;
-    destruct (at_external SEM.Sem c0) as [[[? ?] ?]|]; simpl in *; auto;
+    destruct (at_external SEM.Sem c) as [[? ?]|]; simpl in *;
+    destruct (at_external SEM.Sem c0) as [[? ?]|]; simpl in *; auto;
     try (by exfalso).
     destruct (halted SEM.Sem c), (halted SEM.Sem c0); by tauto.
   Qed.
@@ -532,7 +532,7 @@ Module SimProofs (SEM: Semantics)
         pf_cleanup.
         specialize (Htp_wd _ cntj).
         rewrite Hcode in Htp_wd.
-      destruct X as [[? ?] ?].
+      destruct X as [? ?].
       simpl in *.
       destruct Htp_wd as [Hcore_wd _].
       assert (Hargs:= at_external_wd Hcore_wd Hat_external).
@@ -911,10 +911,10 @@ Module SimProofs (SEM: Semantics)
       assert (Hat_externalF_spec := core_inj_ext Hcode_eq).
       rewrite Hat_external in Hat_externalF_spec.
       simpl in Hat_externalF_spec.
-      destruct X as [[ef sig] val].
-      destruct (at_external SEM.Sem cf) as [[[ef' sig'] val']|] eqn:Hat_externalF;
+      destruct X as [ef val].
+      destruct (at_external SEM.Sem cf) as [[ef' val']|] eqn:Hat_externalF;
         try by exfalso.
-      destruct Hat_externalF_spec as [? [? Harg_obs]]; subst.                         
+      destruct Hat_externalF_spec as [?  Harg_obs]; subst.                         
       remember (updThreadC pff (Krun cf')) as tpf' eqn:Hupd.
       exists tpf', mf, fi, tr.
       split.
@@ -1773,10 +1773,10 @@ Module SimProofs (SEM: Semantics)
       inversion Hval_eq; subst.
       assert (Hat_external_spec := core_inj_ext Hcode_eq).
       rewrite Hat_external in Hat_external_spec.
-      destruct X as [[? ?] vs].
-      destruct (at_external SEM.Sem c1') as [[[? ?] ?] | ] eqn:Hat_external';
+      destruct X as [? vs].
+      destruct (at_external SEM.Sem c1') as [[? ?] | ] eqn:Hat_external';
         try by exfalso.
-      destruct Hat_external_spec as [? [? ?]]; subst.
+      destruct Hat_external_spec as [? ?]; subst.
       assert (Hvalid_val: match (Some (Vint Int.zero)) with
                           | Some v1 => valid_val f v1
                           | None => True
@@ -2120,10 +2120,10 @@ Module SimProofs (SEM: Semantics)
       try by exfalso.
     assert (Hat_external_spec := core_inj_ext Hcode_eq).
     rewrite Hat_external in Hat_external_spec.
-    destruct X as [[? ?] ?].
-    destruct (at_external SEM.Sem c') as [[[? ?] ?]|] eqn:Hat_external';
+    destruct X as [? ?].
+    destruct (at_external SEM.Sem c') as [[? ?]|] eqn:Hat_external';
       try by exfalso.
-    destruct Hat_external_spec as [? [? ?]]; subst.
+    destruct Hat_external_spec as [? ?]; subst.
     exists (updThreadC pff (Kblocked c')).
     split; first by (econstructor; eauto).
     intros.
@@ -6925,11 +6925,11 @@ Module SimProofs (SEM: Semantics)
         (* And now we can prove that cf is also at external *)
         assert (Hat_external_spec := core_inj_ext Hcore_inj).
         rewrite Hat_external in Hat_external_spec.
-        destruct (at_external SEM.Sem cf) as [[[? ?] vsf]|] eqn:Hat_externalF;
+        destruct (at_external SEM.Sem cf) as [[? vsf]|] eqn:Hat_externalF;
           try by exfalso.
         (* and moreover that it's the same external and their
         arguments are related by the injection*)
-        destruct Hat_external_spec as [? [? Harg_obs]]; subst.
+        destruct Hat_external_spec as [? Harg_obs]; subst.
         inversion Harg_obs as [|? ? ? ? Hptr_obs Hl]; subst.
         inversion Hl; subst.
         inversion Hptr_obs as [| | | |b1 bf ofs0 Hf|];
@@ -7494,11 +7494,11 @@ Module SimProofs (SEM: Semantics)
       (* And now we can prove that cf is also at external *)
       assert (Hat_external_spec := core_inj_ext Hcore_inj).
       rewrite Hat_external in Hat_external_spec.
-      destruct (at_external SEM.Sem cf) as [[[? ?] vsf]|] eqn:Hat_externalF;
+      destruct (at_external SEM.Sem cf) as [[? vsf]|] eqn:Hat_externalF;
         try by exfalso.
       (* and moreover that it's the same external and their
         arguments are related by the injection*)
-      destruct Hat_external_spec as [? [? Harg_obs]]; subst.
+      destruct Hat_external_spec as [? Harg_obs]; subst.
       inversion Harg_obs as [|? ? ? ? Hptr_obs Hl]; subst.
       inversion Hl; subst.
       inversion Hptr_obs as [| | | |b1 bf ofs0 Hf|];
@@ -8090,11 +8090,11 @@ Module SimProofs (SEM: Semantics)
       (* And now we can prove that cf is also at external *)
       assert (Hat_external_spec := core_inj_ext Hcore_inj).
       rewrite Hat_external in Hat_external_spec.
-      destruct (at_external SEM.Sem cf) as [[[? ?] vsf]|] eqn:Hat_externalF;
+      destruct (at_external SEM.Sem cf) as [[? vsf]|] eqn:Hat_externalF;
         try by exfalso.
       (* and moreover that it's the same external and their
         arguments are related by the injection*)
-      destruct Hat_external_spec as [? [? Harg_obs]]; subst.
+      destruct Hat_external_spec as [? Harg_obs]; subst.
       inversion Harg_obs as [|? vff argf vsf' Hptr_obs Hl]; subst.
       inversion Hl; subst.
       inversion H3; subst. clear H3.
@@ -8721,11 +8721,11 @@ Module SimProofs (SEM: Semantics)
       (* And now we can prove that cf is also at external *)
       assert (Hat_external_spec := core_inj_ext Hcore_inj).
       rewrite Hat_external in Hat_external_spec.
-      destruct (at_external SEM.Sem cf) as [[[? ?] vsf]|] eqn:Hat_externalF;
+      destruct (at_external SEM.Sem cf) as [[? vsf]|] eqn:Hat_externalF;
         try by exfalso.
       (* and moreover that it's the same external and their
         arguments are related by the injection*)
-      destruct Hat_external_spec as [? [? Harg_obs]]; subst.
+      destruct Hat_external_spec as [? Harg_obs]; subst.
       inversion Harg_obs as [|? ? ? ? Hptr_obs Hl]; subst.
       inversion Hl; subst.
       inversion Hptr_obs as [| | | |b1 bf ofs0 Hf|];
@@ -9287,11 +9287,11 @@ Module SimProofs (SEM: Semantics)
       (* And now we can prove that cf is also at external *)
       assert (Hat_external_spec := core_inj_ext Hcore_inj).
       rewrite Hat_external in Hat_external_spec.
-      destruct (at_external SEM.Sem cf) as [[[? ?] vsf]|] eqn:Hat_externalF;
+      destruct (at_external SEM.Sem cf) as [[? vsf]|] eqn:Hat_externalF;
         try by exfalso.
       (* and moreover that it's the same external and their
         arguments are related by the injection*)
-      destruct Hat_external_spec as [? [? Harg_obs]]; subst.
+      destruct Hat_external_spec as [? Harg_obs]; subst.
       inversion Harg_obs as [|? ? ? ? Hptr_obs Hl]; subst.
       inversion Hl; subst.
       inversion Hptr_obs as [| | | |b1 b2 ofs0 Hf|];
@@ -10136,11 +10136,11 @@ Module SimProofs (SEM: Semantics)
       (* And now we can prove that cf is also at external *)
       assert (Hat_external_spec := core_inj_ext Hcore_inj).
       rewrite Hat_external in Hat_external_spec.
-      destruct (at_external SEM.Sem cf) as [[[? ?] vsf]|] eqn:Hat_externalF;
+      destruct (at_external SEM.Sem cf) as [[? vsf]|] eqn:Hat_externalF;
         try by exfalso.
       (* and moreover that it's the same external and their
         arguments are related by the injection*)
-      destruct Hat_external_spec as [? [? Harg_obs]]; subst.
+      destruct Hat_external_spec as [? Harg_obs]; subst.
       inversion Harg_obs as [|? ? ? ? Hptr_obs Hl]; subst.
       inversion Hl; subst.
       inversion Hptr_obs as [| | | |b1 b2 ofs0 Hf|];

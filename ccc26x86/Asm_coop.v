@@ -165,11 +165,11 @@ Qed.
 End RELSEM.
 
 Definition Asm_at_external (c: state):
-          option (external_function * signature * list val) :=
+          option (external_function * list val) :=
   match c with
     Asm_CallstateOut ef args rs lf =>
       if observableEF_dec (*hf*) ef
-      then Some(ef, ef_sig ef, decode_longs (sig_args (ef_sig ef)) args)
+      then Some(ef, decode_longs (sig_args (ef_sig ef)) args)
       else None
   | _ => None
   end.

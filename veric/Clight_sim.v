@@ -515,7 +515,7 @@ Inductive match_states: forall (qm: corestate) (st: CC_core), Prop :=
  | match_states_ext: forall k f ef tyargs tyres cc args lid ve te k'
       (CUR: current_function k = Some f),
       match_cont (strip_skip k) (strip_skip' k') ->
-      match_states (ExtCall ef (signature_of_type tyargs tyres cc) args lid ve te k) 
+      match_states (ExtCall ef args lid ve te k) 
            (CC_core_Callstate (External ef tyargs tyres cc) args (CC.Kcall lid f ve te k')).
 
 Lemma Clightnew_Clight_sim_eq_noOrder_SSplusConclusion:
@@ -1006,7 +1006,7 @@ Focus 1. (* case x of y *)
  apply match_cont_strip1. auto.
 Admitted.
 
-Definition CC_at_external (c: CC_core) : option (external_function * signature * list val) :=
+Definition CC_at_external (c: CC_core) : option (external_function * list val) :=
   match c with
   | CC_core_State _ _ _ _ _ => None
   | CC_core_Callstate fd args k => 
@@ -1014,8 +1014,8 @@ Definition CC_at_external (c: CC_core) : option (external_function * signature *
       Internal _ => None
       | External ef tps tp cc => 
           match tp with 
-          | Tvoid => Some (ef, mksignature (typlist_of_typelist tps) None cc, args)
-          | _ => Some (ef, mksignature (typlist_of_typelist tps) (Some (typ_of_type tp)) cc, args)
+          | Tvoid => Some (ef, args)
+          | _ => Some (ef, args)
           end
     end
   | CC_core_Returnstate _ _ => None

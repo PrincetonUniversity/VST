@@ -104,14 +104,14 @@ Section Eff_INJ_SIMU_DIAGRAMS.
              halted Sem2 c2 = Some v2.
 
   Hypothesis inj_at_external : 
-      forall mu c1 m1 c2 m2 e vals1 ef_sig,
+      forall mu c1 m1 c2 m2 e vals1,
         match_states c1 mu c1 m1 c2 m2 ->
-        at_external Sem1 c1 = Some (e,ef_sig,vals1) ->
+        at_external Sem1 c1 = Some (e,vals1) ->
         Mem.inject (as_inj mu) m1 m2 
         /\ mem_respects_readonly ge1 m1 /\ mem_respects_readonly ge2 m2
         /\ exists vals2, 
             Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2 /\ 
-            at_external Sem2 c2 = Some (e,ef_sig,vals2)
+            at_external Sem2 c2 = Some (e,vals2)
     /\ forall
        (pubSrc' pubTgt' : block -> bool)
        (pubSrcHyp : pubSrc' =
@@ -129,12 +129,12 @@ Variable order: C1 -> C1 -> Prop.
 Hypothesis order_wf: well_founded order.
 
   Hypothesis inj_after_external:
-      forall mu st1 st2 m1 e vals1 m2 ef_sig vals2 e' ef_sig'
+      forall mu st1 st2 m1 e vals1 m2 vals2 e'
         (MemInjMu: Mem.inject (as_inj mu) m1 m2)
         (MatchMu: match_states st1 mu st1 m1 st2 m2)
-        (AtExtSrc: at_external Sem1 st1 = Some (e,ef_sig,vals1))
+        (AtExtSrc: at_external Sem1 st1 = Some (e,vals1))
 
-        (AtExtTgt: at_external Sem2 st2 = Some (e',ef_sig',vals2)) 
+        (AtExtTgt: at_external Sem2 st2 = Some (e',vals2)) 
 
         (ValInjMu: Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)  
 
@@ -240,13 +240,13 @@ clear - inj_halted. intros. destruct H; subst.
   destruct (inj_halted _ _ _ _ _ _ _ H1 H0) as [v2 [INJ [VAL HH]]].
   exists v2; intuition.
 clear - inj_at_external. intros. destruct H; subst.
-  destruct (inj_at_external _ _ _ _ _ _ _ _ H1 H0)
+  destruct (inj_at_external _ _ _ _ _ _ _ H1 H0)
     as [INJ [MRR1 [MRR2 [vals2 [VALS [AtExt2 SH]]]]]].
   intuition. exists vals2. split; trivial. split; trivial. 
     intros. split. split. trivial. eapply SH; eassumption. eapply SH; eassumption.
 clear - inj_after_external. intros. 
   destruct MatchMu as [ZZ matchMu]. subst cd.
-  destruct (inj_after_external _ _ _ _ _ _ _ _ _ _ _
+  destruct (inj_after_external _ _ _ _ _ _ _ _ _
       MemInjMu matchMu AtExtSrc AtExtTgt ValInjMu _
       pubSrcHyp _ pubTgtHyp _ NuHyp _ _ _ _ _ INC GSep
       WDnu' SMvalNu' MemInjNu' RValInjNu' FwdSrc FwdTgt RDO1 RDO2
@@ -263,12 +263,12 @@ Variable order: C1 -> C1 -> Prop.
 Hypothesis order_wf: well_founded order.
 
   Hypothesis inj_after_external:
-      forall mu st1 st2 m1 e vals1 m2 ef_sig vals2 e' ef_sig'
+      forall mu st1 st2 m1 e vals1 m2 vals2 e'
         (MemInjMu: Mem.inject (as_inj mu) m1 m2)
         (MatchMu: match_states st1 mu st1 m1 st2 m2)
-        (AtExtSrc: at_external Sem1 st1 = Some (e,ef_sig,vals1))
+        (AtExtSrc: at_external Sem1 st1 = Some (e,vals1))
 
-        (AtExtTgt: at_external Sem2 st2 = Some (e',ef_sig',vals2)) 
+        (AtExtTgt: at_external Sem2 st2 = Some (e',vals2)) 
 
         (ValInjMu: Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)  
 
@@ -373,13 +373,13 @@ clear - inj_halted. intros. destruct H; subst.
   destruct (inj_halted _ _ _ _ _ _ _ H1 H0) as [v2 [INJ [VAL HH]]].
   exists v2; intuition.
 clear - inj_at_external. intros. destruct H; subst.
-  destruct (inj_at_external _ _ _ _ _ _ _ _ H1 H0)
+  destruct (inj_at_external _ _ _ _ _ _ _ H1 H0)
     as [INJ [MRR1 [MRR2 [vals2 [VALS [AtExt2 SH]]]]]].
   intuition. exists vals2. split; trivial. split; trivial. 
     intros. split. split. trivial. eapply SH; eassumption. eapply SH; eassumption.
 clear - inj_after_external. intros. 
   destruct MatchMu as [ZZ matchMu]. subst cd.
-  destruct (inj_after_external _ _ _ _ _ _ _ _ _ _ _
+  destruct (inj_after_external _ _ _ _ _ _ _ _ _
       MemInjMu matchMu AtExtSrc AtExtTgt ValInjMu _
       pubSrcHyp _ pubTgtHyp _ NuHyp _ _ _ _ _ HasTy1 HasTy2 INC GSep
       WDnu' SMvalNu' MemInjNu' RValInjNu' FwdSrc FwdTgt RDO1 RDO2
@@ -395,12 +395,12 @@ Section EFF_INJ_SIMULATION_STAR.
   Variable measure: C1 -> nat.
 
   Hypothesis inj_after_external:
-      forall mu st1 st2 m1 e vals1 m2 ef_sig vals2 e' ef_sig'
+      forall mu st1 st2 m1 e vals1 m2 vals2 e'
         (MemInjMu: Mem.inject (as_inj mu) m1 m2)
         (MatchMu: match_states st1 mu st1 m1 st2 m2)
-        (AtExtSrc: at_external Sem1 st1 = Some (e,ef_sig,vals1))
+        (AtExtSrc: at_external Sem1 st1 = Some (e,vals1))
 
-        (AtExtTgt: at_external Sem2 st2 = Some (e',ef_sig',vals2)) 
+        (AtExtTgt: at_external Sem2 st2 = Some (e',vals2)) 
 
         (ValInjMu: Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)  
 
@@ -494,12 +494,12 @@ Section EFF_INJ_SIMULATION_STAR_TYPED.
   Variable measure: C1 -> nat.
 
   Hypothesis inj_after_external:
-      forall mu st1 st2 m1 e vals1 m2 ef_sig vals2 e' ef_sig'
+      forall mu st1 st2 m1 e vals1 m2 vals2 e'
         (MemInjMu: Mem.inject (as_inj mu) m1 m2)
         (MatchMu: match_states st1 mu st1 m1 st2 m2)
-        (AtExtSrc: at_external Sem1 st1 = Some (e,ef_sig,vals1))
+        (AtExtSrc: at_external Sem1 st1 = Some (e,vals1))
 
-        (AtExtTgt: at_external Sem2 st2 = Some (e',ef_sig',vals2)) 
+        (AtExtTgt: at_external Sem2 st2 = Some (e',vals2)) 
 
         (ValInjMu: Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)  
 
@@ -593,12 +593,12 @@ Section EFF_INJ_SIMULATION_PLUS.
   Variable measure: C1 -> nat.
 
   Hypothesis inj_after_external:
-      forall mu st1 st2 m1 e vals1 m2 ef_sig vals2 e' ef_sig'
+      forall mu st1 st2 m1 e vals1 m2 vals2 e'
         (MemInjMu: Mem.inject (as_inj mu) m1 m2)
         (MatchMu: match_states st1 mu st1 m1 st2 m2)
-        (AtExtSrc: at_external Sem1 st1 = Some (e,ef_sig,vals1))
+        (AtExtSrc: at_external Sem1 st1 = Some (e,vals1))
 
-        (AtExtTgt: at_external Sem2 st2 = Some (e',ef_sig',vals2)) 
+        (AtExtTgt: at_external Sem2 st2 = Some (e',vals2)) 
 
         (ValInjMu: Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)  
 
@@ -679,12 +679,12 @@ Section EFF_INJ_SIMULATION_PLUS_TYPED.
   Variable measure: C1 -> nat.
 
   Hypothesis inj_after_external:
-      forall mu st1 st2 m1 e vals1 m2 ef_sig vals2 e' ef_sig'
+      forall mu st1 st2 m1 e vals1 m2 vals2 e'
         (MemInjMu: Mem.inject (as_inj mu) m1 m2)
         (MatchMu: match_states st1 mu st1 m1 st2 m2)
-        (AtExtSrc: at_external Sem1 st1 = Some (e,ef_sig,vals1))
+        (AtExtSrc: at_external Sem1 st1 = Some (e,vals1))
 
-        (AtExtTgt: at_external Sem2 st2 = Some (e',ef_sig',vals2)) 
+        (AtExtTgt: at_external Sem2 st2 = Some (e',vals2)) 
 
         (ValInjMu: Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)  
 

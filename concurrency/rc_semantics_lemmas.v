@@ -71,19 +71,19 @@ by exists estep'.
   case def1: (vals_def _)=> //; case=> <-.
   case: (halt _ _ _ _ _ _ _ M hlt1)=> v2 []? []? ?.
   exists v2; split=> //. }                                         
-{ move=> cd0 mu c1 m1 c2 m2 e0 vals1 ef_sig mtch' at1.
-have at1': at_external eff_S (RC.core c1) = Some (e0, ef_sig, vals1).
+{ move=> cd0 mu c1 m1 c2 m2 e0 vals1 mtch' at1.
+have at1': at_external eff_S (RC.core c1) = Some (e0, vals1).
 { move: at1; rewrite /= /RC.at_external.
-  by case q: (at_external _ _)=> [[[? ?] ?]|//]; case r: (vals_def _). }
-case: (atext cd0 mu (RC.core c1) m1 c2 m2 e0 vals1 ef_sig mtch' at1').
+  by case q: (at_external _ _)=> [[? ?]|//]; case r: (vals_def _). }
+case: (atext cd0 mu (RC.core c1) m1 c2 m2 e0 vals1 mtch' at1').
 by move=> H H2; split. }
-{ move=> cd0 mu st1 st2 m1 e0 vals1 m2 sig vals2 e' ef_sig'.
+{ move=> cd0 mu st1 st2 m1 e0 vals1 m2 vals2 e'.
 move=> inj mtch' at1 at2 vinj pSrc' H pTgt' I nu J nu' ret1 m1' ret2 m2'.
 move=> ty1 ty2 eincr sep wd val inj' vinj' fwd fwd' rdo rdo' fS' K fT' L mu' M unch1 unch2.
-have at1': at_external eff_S (RC.core st1) = Some (e0, sig, vals1).
+have at1': at_external eff_S (RC.core st1) = Some (e0, vals1).
 { move: at1; rewrite /= /RC.at_external.
-  by case q: (at_external _ _)=> [[[? ?] ?]|//]; case r: (vals_def _). }
-case: (aftext cd0 mu (RC.core st1) st2 m1 e0 vals1 m2 sig vals2 e' ef_sig'
+  by case q: (at_external _ _)=> [[? ?]|//]; case r: (vals_def _). }
+case: (aftext cd0 mu (RC.core st1) st2 m1 e0 vals1 m2 vals2 e'
   inj mtch' at1' at2 vinj pSrc' H pTgt' I nu J nu' ret1 m1' ret2 m2'
   ty1 ty2 eincr sep wd val inj' vinj' fwd fwd' rdo rdo' fS' K fT' L mu' M unch1 unch2).
 move=> cd' []st1' []st2' []aft1' []aft2' mtch12'.

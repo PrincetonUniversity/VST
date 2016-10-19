@@ -1038,6 +1038,10 @@ Axiom semax_func_cons_ext:
       ids = map fst argsig' -> (* redundant but useful for the client,
                to calculate ids by reflexivity *)
       argsig' = zip_with_tl ids argsig ->
+      ef_sig ef =
+      mksignature
+        (typlist_of_typelist (type_of_params argsig'))
+        (opttyp_of_type retsig) cc ->
       id_in_list id (map (@fst _ _) fs) = false ->
       length ids = length (typelist2list argsig) ->
       (forall gx (x: A) (ret : option val),
