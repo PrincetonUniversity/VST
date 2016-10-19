@@ -175,12 +175,13 @@ Definition f_lock_pred lsh tsh p lock lockt ghosts gsh2 :=
 
 Definition f_spec :=
  DECLARE _f
-  WITH lockt : val, x : share * share * val * val * list val * share
+  WITH lockt : val, x : share * share * val * val * val * list val * share
   PRE [ _arg OF (tptr tvoid) ]
-   let '(sh, tsh, p, lock, ghosts, gsh2) := x in
+   let '(sh, tsh, p', p, lock, ghosts, gsh2) := x in
    PROP ()
-   LOCAL (temp _arg lockt; gvar _q0 p)
+   LOCAL (temp _arg lockt; gvar _q0 p')
    SEP (!!(readable_share sh /\ readable_share tsh) && emp;
+        data_at Ews (tptr tqueue_t) p p';
         lqueue sh gsh2 p ghosts lock;
         lock_inv tsh lockt (Interp (f_lock_pred sh tsh p lock lockt ghosts gsh2)))
   POST [ tptr tvoid ] PROP () LOCAL () SEP (emp).
@@ -192,13 +193,14 @@ Definition g_lock_pred lsh tsh p lock lockt ghosts gsh1 gsh2 g :=
 
 Definition g_spec :=
  DECLARE _g
-  WITH lockt : val, x : share * share * Z * val * val * list val * nat * val * share * share
+  WITH lockt : val, x : share * share * Z * val * val * val * list val * nat * val * share * share
   PRE [ _arg OF (tptr tvoid) ]
-   let '(sh, tsh, t, p, lock, ghosts, i, g, gsh1, gsh2) := x in
+   let '(sh, tsh, t, p', p, lock, ghosts, i, g, gsh1, gsh2) := x in
    PROP ()
-   LOCAL (temp _arg lockt; gvar _q0 p)
+   LOCAL (temp _arg lockt; gvar _q0 p')
    SEP (!!(readable_share sh /\ readable_share tsh /\ Int.min_signed <= t <= Int.max_signed /\
            sepalg.join gsh1 gsh2 Ews /\ nth_error ghosts i = Some g) && emp;
+        data_at Ews (tptr tqueue_t) p p';
         lqueue sh gsh2 p ghosts lock;
         lock_inv tsh lockt (Interp (g_lock_pred sh tsh p lock lockt ghosts gsh1 gsh2 g));
         ghost gsh1 tint (Vint (Int.repr t)) g)
@@ -1109,13 +1111,14 @@ Proof.
   simpl; apply positive_sepcon2, positive_sepcon1, lock_inv_positive.
 Qed.
 
-SearchAbout typeof_temp.
-
 Lemma body_f : semax_body Vprog Gprog f_f f_spec.
 Proof.
   start_function.
   rewrite (lock_inv_isptr _ lockt); normalize.
+  forward.
   unfold lqueue; simpl; normalize.
+  SearchAbout semax Sset. (*
+  eapply semax_seq'; [hoist_later_in_pre; load_tac | fwd_result].
   eapply semax_seq'; [hoist_later_in_pre; eapply semax_set_forward_nl | fwd_result].
   { reflexivity. }
   { go_lowerx.
@@ -1227,14 +1230,14 @@ simpl.
   subst POSTCONDITION; unfold abbreviate.
   go_lowerx; normalize.
   unfold frame_ret_assert; simpl; entailer'.
-  Exists lvar0; normalize; cancel.
-Qed.
+  Exists lvar0; normalize; cancel.*)
+Admitted.
 
 Lemma g_inv_precise : forall sh tsh p lock lockt ghosts gsh1 gsh2 g (Hsh : readable_share sh),
-  precise (Interp (f_lock_pred sh tsh p lock lockt ghosts gsh1 gsh2 g)).
+  precise (Interp (g_lock_pred sh tsh p lock lockt ghosts gsh1 gsh2 g)).
 Proof.
   intros; simpl.
-  apply selflock_precise; repeat apply precise_sepcon; auto
+  apply selflock_precise; repeat apply precise_sepcon; auto.
   - apply lock_precise; auto.
   - eapply derives_precise; [|apply ghost_precise].
     intros ? (? & ?).
@@ -1242,7 +1245,7 @@ Proof.
 Qed.
 
 Lemma g_inv_positive : forall sh tsh p lock lockt ghosts gsh1 gsh2 g,
-  positive_mpred (Interp (f_lock_pred sh tsh p lock lockt ghosts gsh1 gsh2 g)).
+  positive_mpred (Interp (g_lock_pred sh tsh p lock lockt ghosts gsh1 gsh2 g)).
 Proof.
   intros; apply selflock_positive.
   simpl; apply positive_sepcon2, positive_sepcon1, lock_inv_positive.
@@ -1349,49 +1352,6 @@ Qed.
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
-  rewrite <- (sepcon_emp (main_pre _ _)).
-  rewrite main_pre_start; unfold prog_vars, prog_vars'; simpl globvars2pred.
-  process_idstar.
-  simpl init_data2pred'.
-  rewrite <- (sepcon_emp (_ * _)).
-  simple apply move_globfield_into_SEP.
-  rewrite sepcon_emp.
-  process_idstar.
-  simpl init_data2pred'.
-  rewrite <- (sepcon_emp (_ * _)).
-  simple apply move_globfield_into_SEP.
-  rewrite sepcon_emp.
-  process_idstar.
-  simpl init_data2pred'.
-  rewrite <- (sepcon_emp (_ * _)).
-  simple apply move_globfield_into_SEP.
-  rewrite sepcon_emp.
-  process_idstar.
-  simpl init_data2pred'.
-  rewrite <- (sepcon_emp (_ * _)).
-  simple apply move_globfield_into_SEP.
-  rewrite sepcon_emp.
-  process_idstar.
-  simpl init_data2pred'.
-  rewrite <- (sepcon_emp (_ * _)).
-  simple apply move_globfield_into_SEP.
-  rewrite sepcon_emp.
-  process_idstar.
-  simpl init_data2pred'.
-  rewrite <- (sepcon_emp (_ * _)).
-  simple apply move_globfield_into_SEP.
-  rewrite sepcon_emp.
-  process_idstar.
-  simpl init_data2pred'.
-  rewrite <- (sepcon_emp (_ * _)).
-  simple apply move_globfield_into_SEP.
-  rewrite sepcon_emp.
-  process_idstar.
-  simpl init_data2pred'.
-  rewrite <- (sepcon_emp (_ * _)).
-  simple apply move_globfield_into_SEP.
-  change (globvars2pred nil) with (@emp (environ->mpred) _ _).
-  repeat rewrite sepcon_emp.
   rewrite <- seq_assoc.
   rename gvar7 into next, gvar6 into buf, gvar5 into cprod, gvar4 into ccon, gvar3 into ends, gvar2 into len,
     gvar1 into lockt, gvar0 into lock.

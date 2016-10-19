@@ -117,29 +117,6 @@ Qed.
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
   start_function.
-  rewrite <- (sepcon_emp (main_pre _ _)).
-  rewrite main_pre_start; unfold prog_vars, prog_vars'; simpl globvars2pred.
-  process_idstar.
-  simpl init_data2pred'.
-  rewrite <- (sepcon_emp (_ * _)).
-  simple apply move_globfield_into_SEP.
-  rewrite sepcon_emp.
-  process_idstar.
-  simpl init_data2pred'.
-  rewrite <- (sepcon_emp (_ * _)).
-  simple apply move_globfield_into_SEP.
-  rewrite sepcon_emp.
-  process_idstar.
-  simpl init_data2pred'.
-  rewrite <- (sepcon_emp (_ * _)).
-  simple apply move_globfield_into_SEP.
-  rewrite sepcon_emp.
-  process_idstar.
-  simpl init_data2pred'.
-  rewrite <- (sepcon_emp (_ * _)).
-  simple apply move_globfield_into_SEP.
-  change (globvars2pred nil) with (@emp (environ->mpred) _ _).
-  repeat rewrite sepcon_emp.
   forward.
   unfold default_val, upd_Znth, Zlength; simpl.
   rewrite sublist.sublist_nil.

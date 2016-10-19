@@ -991,9 +991,9 @@ Ltac process_one_globvar :=
   
 Lemma move_globfield_into_SEP:
  forall {cs: compspecs}{Espec: OracleKind} Delta P Q R 
-   (S1: mpred) (S2 S3 S4: environ -> mpred) c Post,
- semax Delta (PROPx P (LOCALx Q (SEPx (S1::R))) * S2 * S3 * S4) c Post ->
- semax Delta (PROPx P (LOCALx Q (SEPx R)) * (`S1 * S2) * S3 * S4) c Post.
+   (S1: mpred) (S2 S3 (*S4*): environ -> mpred) c Post,
+ semax Delta (PROPx P (LOCALx Q (SEPx (S1::R))) * S2 * S3(* * S4*)) c Post ->
+ semax Delta (PROPx P (LOCALx Q (SEPx R)) * (`S1 * S2) * S3(* * S4*)) c Post.
 Proof.
 intros.
 eapply semax_pre0; [ | eassumption].
@@ -1007,10 +1007,10 @@ Lemma move_globfield_into_SEP':
  forall {cs: compspecs}{Espec: OracleKind} Delta P Q R 
    (f: val -> localdef)
    (g: val -> mpred)
-   (h: val -> val) (S2 S3 S4: environ -> mpred) c Post,
+   (h: val -> val) (S2 S3 (*S4*): environ -> mpred) c Post,
   (forall x: val,
-   semax Delta (PROPx P (LOCALx (f x :: Q) (SEPx ((g (h x))::R))) * S2 * S3 * S4) c Post) ->
- semax Delta (PROPx P (LOCALx Q (SEPx R)) * ((EX x:val, local (locald_denote (f x)) && `(g (h x))) * S2) * S3 * S4) c Post.
+   semax Delta (PROPx P (LOCALx (f x :: Q) (SEPx ((g (h x))::R))) * S2 * S3(* * S4*)) c Post) ->
+ semax Delta (PROPx P (LOCALx Q (SEPx R)) * ((EX x:val, local (locald_denote (f x)) && `(g (h x))) * S2) * S3(* * S4*)) c Post.
 Proof.
 intros.
 normalize.
@@ -1071,7 +1071,7 @@ Ltac process_idstar :=
     | n: name i |- _ => process_one_globvar; clear n; intro n
     | |- _ => process_one_globvar; intros ?gvar0
     end;
-    match goal with |- semax _ (_ * ?A * _ * _) _ _ =>
+    match goal with |- semax _ (_ * (?A * _) * _) _ _ =>
          let p := fresh "p" in set (p:=A);
          simpl in p;
          unfold id2pred_star, init_data2pred' in p;
@@ -1084,7 +1084,7 @@ Ltac process_idstar :=
         | simple eapply move_globfield_into_SEP''; [ now repeat econstructor | ]
         | simple apply move_globfield_into_SEP'; intros ?gvar0
         ];
-      simple apply move_globfield_into_SEP0
+      try simple apply move_globfield_into_SEP0
    | |- _ => idtac    
    end
  end.
