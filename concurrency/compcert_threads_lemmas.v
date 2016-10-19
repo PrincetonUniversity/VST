@@ -7568,6 +7568,13 @@ relation*)
                strong_mem_obs_eq f
                                  (restrPermMap (compat_lp HmemCompC (bl1, ofs) Hl1).2)
                                  (restrPermMap (compat_lp HmemCompF (bl2, ofs) Hl2).2))
+        (Hunmapped_res: forall (bl : block) (ofsl : Z)
+                          (rmap : dry_machine.LocksAndResources.lock_info),
+            lockRes tpf (bl, ofsl) = Some rmap ->
+            forall b2 : block,
+              ~ (exists b1 : block, f b1 = Some b2) ->
+              forall ofs : Z,
+                (rmap#1) # b2 ofs = None /\ (rmap#2) # b2 ofs = None)
         (Hlock_if: forall (bl1 bl2 : block) (ofs : Z),
             f bl1 = Some bl2 ->
             lockRes tpc (bl1, ofs) <-> lockRes tpf (bl2, ofs)),
@@ -7580,6 +7587,24 @@ relation*)
     pose proof (injective (weak_obs_eq Htsim_data)) as Hinjective.
     assert (Hnum: num_threads tpc = num_threads tpf)
       by (eapply contains_iff_num; eauto).
+    Transparent containsThread.
+    assert (Hthreads: forall k, containsThread (addThread (updThread pff cf threadPermF')
+                                                     vff arg' newThreadPermF) k <->
+                 containsThread (addThread (updThread pfc c threadPerm') vf arg newThreadPerm) k)
+      by (intros j;
+          split;
+            intros cntj;
+            apply cntAdd' in cntj;
+            destruct cntj as [[cntj _] | Heq];
+            try (apply cntAdd;
+                  apply cntUpdate;
+                  apply HnumThreads;
+                    by apply cntUpdate' in cntj);
+            try (unfold containsThread;
+                  subst; simpl; rewrite Hnum;
+                  simpl;
+                    by ssromega)).
+    Opaque containsThread.
     assert (Hthread_mapped:
               forall k (pfck': containsThread (addThread (updThread pfc c threadPerm') vf arg newThreadPerm) k)
                 (pffk': containsThread (addThread (updThread pff cf threadPermF') vff arg' newThreadPermF) k),
@@ -7620,470 +7645,236 @@ relation*)
           now apply po_refl.
     }
     assert (Hthread_unmapped:
-              forall k (pffk: containsThread tpf k)
+              forall k
                 (pffk': containsThread (addThread (updThread pff cf threadPermF') vff arg' newThreadPermF) k),
                forall b2 ofs,
                  (~exists b1, f b1 = Some b2) ->
-                 ((getThreadR pffk').1 # b2 ofs = (getThreadR pffk).1 # b2 ofs) /\
-                 ((getThreadR pffk').2 # b2 ofs = (getThreadR pffk).2 # b2 ofs)).
-    { intros k pffk pffk' b0 ofs0 Hunmmaped.
-      erewrite gsoAddRes with (cntj := cntUpdate cf threadPermF' pff pffk); eauto.
-      destruct (i == k) eqn:Hik; move/eqP:Hik=>Hik.
-      - subst.
+                 (exists (pffk: containsThread tpf k),
+                  ((getThreadR pffk').1 # b2 ofs = (getThreadR pffk).1 # b2 ofs) /\
+                  ((getThreadR pffk').2 # b2 ofs = (getThreadR pffk).2 # b2 ofs)) \/
+                 ((getThreadR pffk').1 # b2 ofs = None /\ (getThreadR pffk').2 # b2 ofs = None)).
+    { intros k pffk' b0 ofs0 Hunmmaped.
+      assert (Hcnt := cntAdd' _ _ _ pffk').
+      destruct Hcnt as [[pffk Hneqk] | Hk].
+      - erewrite gsoAddRes with (cntj := pffk); eauto.
+        destruct (i == k) eqn:Hik; move/eqP:Hik=>Hik.
+        + subst.
           rewrite! gssThreadRes.
           simpl.
           pf_cleanup.
+          left. exists pff.
           erewrite! computeMap_projection_2 by eauto.
           split;
             reflexivity.
-      - erewrite! gsoThreadRes with (cntj := pffk) by eauto.
-        split; reflexivity.
-    }
-    assert (Hthread_unmapped_new:
-              forall k 
-                (pffk': containsThread (addThread (updThread pff cf threadPermF') vff arg' newThreadPermF) k),
-                k = num_threads tpf -> 
-                  forall b2 ofs,
-                (~exists b1, f b1 = Some b2) ->
-                ((getThreadR pffk').1 # b2 ofs = None) /\
-                ((getThreadR pffk').2 # b2 ofs = None).
-    { intros k pffk pffk' b0 ofs0 Hunmmaped.
-      erewrite gsoAddRes with (cntj := cntUpdate cf threadPermF' pff pffk); eauto.
-      destruct (i == k) eqn:Hik; move/eqP:Hik=>Hik.
+        + left.
+          exists pffk.
+          rewrite! gsoThreadRes;
+            by auto.
       - subst.
-        rewrite! gssThreadRes.
+        right.
+        erewrite gssAddRes
+          by (unfold latestThread; reflexivity).
         simpl.
-        pf_cleanup.
         erewrite! computeMap_projection_2 by eauto.
         split;
-          reflexivity.
-      - erewrite! gsoThreadRes with (cntj := pffk) by eauto.
-        split; reflexivity.
+          now apply empty_map_spec.
     }
-      - subst.
-        erewrite gssAddRes by
-            reflexivity.
-        simpl.
-        erewrite! computeMap_projection_2 by eauto;
-          split;
-          reflexivity.
-      
-      rewrite! gLockSetRes.
-      destruct (i == k) eqn:Hik; move/eqP:Hik=>Hik; subst.
-      - rewrite! gssThreadRes.
-        simpl.
-        erewrite! computeMap_projection_2 by eauto.
-        pf_cleanup.
-        split; reflexivity.
-      - erewrite! gsoThreadRes with (cntj := pffk) by eauto.
-        split; reflexivity.
-    }
+    destruct HinvC'.
 
-    assert (Hlock_mapped: forall laddrF rmapF (HresF: lockRes tpf' laddrF = Some rmapF),
+     Lemma perm_union_lower_2:
+          forall p1 p2 p3 p4
+            (Hpu: exists pu, perm_union p1 p2 = Some pu)
+            (Hperm: Mem.perm_order'' p1 p3)
+            (Hperm': Mem.perm_order'' p2 p4),
+          exists pu, perm_union p3 p4 = Some pu.
+        Proof.
+          intros.
+          destruct p2 as [p2|]; simpl in Hperm;
+          destruct p4 as [p4|];
+          destruct p1 as [p1 |];
+          destruct p3 as [p3|];
+          try (destruct p1);
+          simpl in *; inversion Hperm; subst;
+          destruct Hpu; try (discriminate);
+          try (destruct p2; inversion Hperm'; subst);
+          try (discriminate); try (by exfalso);
+          eexists; eauto.
+          Qed.
+        
+        assert (Hlocks: forall laddrF rmapF (HresF: lockRes tpf laddrF = Some rmapF),
                exists bc rmap,
-                 lockRes tpc' (bc, laddrF.2) = Some rmap /\ f bc = Some laddrF.1 /\
+                 lockRes tpc (bc, laddrF.2) = Some rmap /\ f bc = Some laddrF.1 /\
                  forall b1 b2 ofs,
                    f b1 = Some b2 ->
                    Mem.perm_order'' (rmap.1 # b1 ofs) (rmapF.1 # b2 ofs) /\
                    Mem.perm_order'' (rmap.2 # b1 ofs) (rmapF.2 # b2 ofs)).
     { intros.
-      subst tpf' tpc'.
-      destruct (EqDec_address (b2, ofs) laddrF).
-      - subst.
-        rewrite gsslockResUpdLock in HresF.
-        exists b1, rmap1.
-        split. rewrite gsslockResUpdLock; reflexivity.
-        split; auto.
-        intros.
-        inversion HresF.
-        simpl.
-        pose proof (injective (weak_obs_eq Htsim)).
-        erewrite <- projectMap_correct by eauto.
-        erewrite <- projectMap_correct by eauto.
+      destruct laddrF as [bl ofsl].
+      specialize (Hlock_mapped bl ofsl).
+      unfold isSome in Hlock_mapped.
+      rewrite HresF in Hlock_mapped.
+      specialize (Hlock_mapped (Logic.eq_refl _)).
+      destruct Hlock_mapped as [bl1 Hfbl1].
+      specialize (Hlock_if _ _ ofsl Hfbl1).
+      destruct (lockRes tpc (bl1, ofsl)) as [rmapC |] eqn:Hres.
+      + exists bl1, rmapC.
+        split; auto. split; auto.
+        intros b0 b3 ofs0 Hrenaming.
+        specialize (HsimRes _ _ _ _ _ Hfbl1 Hres HresF).
+        destruct HsimRes as [[Hperm1 _] [Hperm2 _]].
+        specialize (Hperm1 _ _ ofs0 Hrenaming).
+        specialize (Hperm2 _ _ ofs0 Hrenaming).
+        rewrite! restrPermMap_Cur in Hperm1 Hperm2.
+        rewrite Hperm1 Hperm2.
         split; now apply po_refl.
-      - erewrite gsolockResUpdLock in HresF by eauto.
-        erewrite gsoThreadLPool in HresF.
-        destruct laddrF as [bl ofsl].
-        specialize (Hlocks bl ofsl).
-        unfold isSome in Hlocks.
-        rewrite HresF in Hlocks.
-        specialize (Hlocks (Logic.eq_refl _)).
-        destruct Hlocks as [bl1 Hfbl1].
-        assert (Hneq: (b1, ofs) <> (bl1, ofsl))
-          by (intros Hcontra; inversion Hcontra; subst;
-              rewrite Hfbl1 in Hf; inversion Hf; subst; auto).
-        specialize (Hlock_if _ _ ofsl Hfbl1).
-        destruct (lockRes tpc (bl1, ofsl)) as [rmapC |] eqn:Hres.
-        + exists bl1, rmapC.
-          erewrite gsolockResUpdLock by eauto.
-          erewrite gsoThreadLPool by eauto.
-          split; auto. split; auto.
-          intros b0 b3 ofs0 Hrenaming.
-          specialize (HsimRes _ _ _ _ _ Hfbl1 Hres HresF).
-          destruct HsimRes as [[Hperm1 _] [Hperm2 _]].
-          specialize (Hperm1 _ _ ofs0 Hrenaming).
-          specialize (Hperm2 _ _ ofs0 Hrenaming).
-          rewrite! restrPermMap_Cur in Hperm1 Hperm2.
-          rewrite Hperm1 Hperm2.
-          split; now apply po_refl.
-        + exfalso. erewrite HresF in Hlock_if.
-          simpl in Hlock_if.
-          destruct Hlock_if; now auto.
+      + exfalso. erewrite HresF in Hlock_if.
+        simpl in Hlock_if.
+        destruct Hlock_if; now auto.
     }
-    
-    assert (Hlock_unmapped: forall laddrF rmapF (HresF: lockRes tpf' laddrF = Some rmapF),
-               lockRes tpf laddrF = Some rmapF \/
-               forall b2, ~ (exists b1, f b1 = Some b2) -> forall ofs, rmapF.1 # b2 ofs = None
-                                                       /\ rmapF.2 # b2 ofs = None).
-    { intros (bl & ofsl) rmapF HresF'.
-      subst tpf'.
-      destruct (EqDec_address (b2, ofs) (bl, ofsl)).
-      - inversion e; subst.
-        rewrite gsslockResUpdLock in HresF'.
-        right.
-        intros b2 Hunmapped ofs.
-        inversion HresF'; subst.
-        simpl.
-        erewrite! projectMap_correct_2 by eauto.
-        rewrite Hcanonical Hcanonical2;
-          split; reflexivity.
-      - erewrite gsolockResUpdLock in HresF' by eassumption.
-        erewrite gsoThreadLPool in HresF'.
-        left; assumption.
-    }
-
-
     
     constructor.
-    { (* no race for coarse-grained state*)
-      assert (Hno_raceC:= no_race HinvC').
-      intros k j pffk' pffj' Hkj.
-      assert (pfck': containsThread
-                       (addThread
-                          (updThread pfc c
-                                     (computeMap (getThreadR pfc) virtue1)) vf
-                          arg (computeMap empty_map virtue2)) k).
-      { assert (H := cntAdd' _ _ _ pffk').
-        destruct H as [[pffk Hneqj] | Hj].
-        apply cntAdd; auto.
-        apply cntUpdate; apply cntUpdate' in pffk;
-          eapply HnumThreads; eauto.
-        subst. simpl.
-        unfold containsThread in *. simpl in *.
-        erewrite <- contains_iff_num; eauto.
-      }
-      assert (pfcj': containsThread
-                       (addThread
-                          (updThread pfc c
-                                     (computeMap (getThreadR pfc) virtue1)) vf
-                          arg (computeMap empty_map virtue2)) j).
-      { assert (H := cntAdd' _ _ _ pffj').
-        destruct H as [[pffj Hneqj] | Hj].
-        apply cntAdd; auto.
-        apply cntUpdate; apply cntUpdate' in pffj;
-          eapply HnumThreads; eauto.
-        subst. simpl.
-        unfold containsThread in *. simpl in *.
-        erewrite <- contains_iff_num; eauto.
-      }
-      assert (H := cntAdd' _ _ _ pffk').
-      destruct H as [[pffk Hneqk] | Hk].
-      - erewrite gsoAddRes with (cntj := pffk); eauto.
-        assert (H := cntAdd' _ _ _ pffj').
-        destruct H as [[pffj Hneqj] | Hj].
-        + erewrite gsoAddRes with (cntj' := pffj') (cntj := pffj); eauto.
-          specialize (no_race HinvF).
-          intros H_noraceF.
-          destruct (i == k) eqn:Hik; move/eqP:Hik=>Hik;
-                                                    first by (subst;
-                                                              eapply disjoint_angel_project with (c := c);
-                                                              eauto;
-                                                              eapply invariant_add; eauto).
-          destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij;
-                                                    first by (apply permMapsDisjoint_comm; subst;
-                                                              eapply disjoint_angel_project; eauto;
-                                                              eapply invariant_add; eauto).
-          rewrite gsoThreadRes; auto.
-          rewrite gsoThreadRes; auto.
-        + (*case j is the new thread *)
-          assert (pfck: containsThread
-                          (updThread pfc c (computeMap
-                                              (getThreadR pfc) virtue1)) k)
-            by (apply cntUpdate; apply cntUpdate' in pffk;
-                eapply HnumThreads; eauto).
-          subst j.
-          erewrite gssAddRes; eauto.
-          specialize (Hno_raceC _ _ pfck' pfcj' Hneqk).
-          erewrite gssAddRes with (cnt' := pfcj') in Hno_raceC; eauto.        
-          intros b2 ofs.
-          erewrite gsoAddRes with (cntj' := pfck') (cntj := pfck)
-            in Hno_raceC; eauto.
-          destruct (i == k) eqn:Hik; move/eqP:Hik=>Hik; subst.
-          * rewrite gssThreadRes.
-            rewrite gssThreadRes in Hno_raceC.
-            assert (Hb2: (exists b1, f b1 = Some b2) \/
-                         ~ (exists b1, f b1 = Some b2))
-              by eapply em.
-            destruct Hb2 as [[b1 Hf] | Hunmapped].
-            erewrite computeMap_projection_3; eauto.
-            erewrite computeMap_projection_1;
-              by eauto.
-            erewrite computeMap_projection_2; eauto.
-            erewrite computeMap_projection_2; eauto.
-            rewrite perm_union_comm.
-            rewrite empty_map_spec.
-            eapply not_racy_union;
-              by constructor.
-          * rewrite gsoThreadRes in Hno_raceC; auto.
-            rewrite gsoThreadRes; auto.
-            assert (Hb2: (exists b1, f b1 = Some b2) \/
-                         ~ (exists b1, f b1 = Some b2))
-              by eapply em.
-            destruct Hb2 as [[b1 Hf] | Hunmapped].
-            erewrite computeMap_projection_3; eauto.
-            pose proof (perm_obs_weak (HsimWeak _ pfck pffk)) as Hlt.
-            specialize (Hno_raceC b1 ofs).
-            rewrite perm_union_comm in Hno_raceC.
-            rewrite perm_union_comm.
-            specialize (Hlt _ _ ofs Hf).
-            do 2 rewrite restrPermMap_Cur in Hlt.
-            eapply perm_union_lower;
-              by eauto.
-            erewrite computeMap_projection_2; eauto.
-            rewrite perm_union_comm.
-            rewrite empty_map_spec.
-            eapply not_racy_union;
-              by eauto.
-            unfold latestThread; symmetry; simpl;
-              erewrite contains_iff_num; eauto.
-      - (*case k is the new thread*)
-        subst k.
-        assert (H := cntAdd' _ _ _ pffj').
-        destruct H as [[pffj Hneqj] | Hj];
-          try (subst; by exfalso).
-        assert (pfcj: containsThread
-                        (updThread pfc c (computeMap
-                                            (getThreadR pfc) virtue1)) j)
-          by (apply cntUpdate; apply cntUpdate' in pffj;
-              eapply HnumThreads; eauto).
-        erewrite gssAddRes; eauto.
-        specialize (Hno_raceC _ _ pfck' pfcj' ltac:(eauto)).
-        erewrite gssAddRes with (cnt' := pfck') in Hno_raceC; eauto.
-        intros b2 ofs.
-        erewrite gsoAddRes with (cntj' := pfcj') (cntj := pfcj)
-          in Hno_raceC; eauto.
-        erewrite gsoAddRes with (cntj' := pffj') (cntj := pffj); eauto.
-        destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij; subst.
-        + rewrite gssThreadRes.
-          rewrite gssThreadRes in Hno_raceC.
-          assert (Hb2: (exists b1, f b1 = Some b2) \/
-                       ~ (exists b1, f b1 = Some b2))
-            by eapply em.
-          destruct Hb2 as [[b1 Hf] | Hunmapped].
-          erewrite computeMap_projection_3; eauto.
-          erewrite computeMap_projection_1;
-            by eauto.
-          erewrite computeMap_projection_2; eauto.
-          erewrite computeMap_projection_2; eauto.
-          rewrite empty_map_spec.
-          eapply not_racy_union;
-            by constructor.
-          * rewrite gsoThreadRes in Hno_raceC; auto.
-            rewrite gsoThreadRes; auto.
-            assert (Hb2: (exists b1, f b1 = Some b2) \/
-                         ~ (exists b1, f b1 = Some b2))
-              by eapply em.
-            destruct Hb2 as [[b1 Hf] | Hunmapped].
-            erewrite computeMap_projection_3; eauto.
-            pose proof (perm_obs_weak (HsimWeak _ pfcj pffj)) as Hlt.
-            specialize (Hno_raceC b1 ofs).
-            specialize (Hlt _ _ ofs Hf).
-            do 2 rewrite restrPermMap_Cur in Hlt.
-            eapply perm_union_lower;
-              by eauto.
-            erewrite computeMap_projection_2; eauto.
-            rewrite empty_map_spec.
-            eapply not_racy_union;
-              by eauto.
-            unfold latestThread; symmetry; simpl;
-              erewrite contains_iff_num; eauto.
-    }
-    { intros j pffj''.
-      assert (pfcj'': containsThread
-                        (addThread
-                           (updThread pfc c
-                                      (computeMap (getThreadR pfc) virtue1)) vf
-                           arg (computeMap empty_map virtue2)) j).
-      { assert (H := cntAdd' _ _ _ pffj'').
-        destruct H as [[pffj Hneqj] | Hj].
-        apply cntAdd; auto.
-        apply cntUpdate; apply cntUpdate' in pffj;
-          eapply HnumThreads; eauto.
-        subst. simpl.
-        unfold containsThread in *. simpl in *.
-        erewrite <- contains_iff_num; eauto.
-      }
-      pose proof (lock_set_threads HinvC') as Hno_raceC.
-      erewrite gsoAddLock.
-      erewrite gsoThreadLock.
-      erewrite gsoAddLock in Hno_raceC.
-      erewrite gsoThreadLock in Hno_raceC.
-      assert (H := cntAdd' _ _ _ pffj'').
-      destruct H as [[pffj Hneqj] | Hj].
-      - assert (pfcj: containsThread
-                        (updThread pfc c (computeMap
-                                            (getThreadR pfc) virtue1)) j)
-          by (apply cntUpdate; apply cntUpdate' in pffj;
-              eapply HnumThreads; eauto).
-        erewrite gsoAddRes with (cntj := pffj); eauto.
-        specialize (Hno_raceC _ pfcj'').
-        erewrite gsoAddRes with (cntj' := pfcj'') (cntj := pfcj) in Hno_raceC;
-          eauto.
-        destruct HsimLP as [HpermLP _].
-        destruct (i == j) eqn:Hij; move/eqP:Hij=>Hi; subst.
-        + rewrite gssThreadRes. rewrite gssThreadRes in Hno_raceC.
-          intros b2 ofs.
-          assert (Hb2: (exists b1, f b1 = Some b2) \/
-                       ~ (exists b1, f b1 = Some b2))
-            by eapply em.
-          destruct Hb2 as [[b1 Hf] | Hunmapped].
-          erewrite computeMap_projection_1; eauto.
-          specialize (HpermLP _ _ ofs Hf).
-          do 2 rewrite restrPermMap_Cur in HpermLP.
-          rewrite HpermLP;
-            by auto.
-          erewrite computeMap_projection_2; eauto.
-          destruct HinvF as [_ HinvF _ _];
-            eapply HinvF; eauto.
-        + rewrite gsoThreadRes; auto.
-          rewrite gsoThreadRes in Hno_raceC; auto.
-          intros b2 ofs.
-          destruct HinvF as [_ HinvF _ _].
-          eapply HinvF.
-      - (*case j is the new thread *)
-        subst j.
-        erewrite gssAddRes; eauto.
-        specialize (Hno_raceC _ pfcj'').
-        erewrite gssAddRes in Hno_raceC; eauto.
-        destruct HsimLP as [HpermLP _].
-        intros b2 ofs.
-        assert (Hb2: (exists b1, f b1 = Some b2) \/
-                     ~ (exists b1, f b1 = Some b2))
-          by eapply em.
-        destruct Hb2 as [[b1 Hf] | Hunmapped].
-        erewrite computeMap_projection_3; eauto.
-        specialize (HpermLP _ _ ofs Hf).
-        do 2 rewrite restrPermMap_Cur in HpermLP.
-        rewrite HpermLP;
-          by eauto.
-        erewrite computeMap_projection_2; eauto.
-        rewrite empty_map_spec.
-        rewrite perm_union_comm.
-        eapply not_racy_union;
-          by constructor.
-        unfold latestThread. simpl.
-        erewrite <- contains_iff_num; eauto.
-    }
-    { intros (bl2 & ofsl) rmap j pffj''.
-      assert (pfcj'': containsThread
-                        (addThread
-                           (updThread pfc c
-                                      (computeMap (getThreadR pfc) virtue1)) vf
-                           arg (computeMap empty_map virtue2)) j).
-      { assert (H := cntAdd' _ _ _ pffj'').
-        destruct H as [[pffj Hneqj] | Hj].
-        apply cntAdd; auto.
-        apply cntUpdate; apply cntUpdate' in pffj;
-          eapply HnumThreads; eauto.
-        subst. simpl.
-        unfold containsThread in *. simpl in *.
-        erewrite <- contains_iff_num; eauto.
-      }
-      erewrite gsoAddLPool.
-      erewrite gsoThreadLPool.
-      intros Hres.
-      specialize (Hlocks bl2 ofsl ltac:(rewrite Hres; auto)).
-      destruct Hlocks as [bl1 Hfl1].
-      destruct HsimLP as [HpermLP _].
-      specialize (HpermLP _ _ ofsl Hfl1).
-      do 2 rewrite restrPermMap_Cur in HpermLP.
-      assert (HresC: exists rmap1, lockRes tpc (bl1, ofsl) = Some rmap1).
-      { specialize (snd (Hlock_if _ _ ofsl Hfl1) ltac:(unfold isSome; rewrite Hres; auto)).
-        intro H.
-        destruct (lockRes tpc (bl1, ofsl)); try by exfalso.
-        eexists; eauto.
-      }
-      destruct HresC as [rmap1 HresC].
-      pose proof ((lock_res_threads HinvC') (bl1,ofsl) _ j pfcj'' HresC)
-        as Hno_raceC.
-      specialize (HsimRes _ _ _ _ _ Hfl1 HresC Hres).
-      destruct HsimRes as [HpermRes _].
-      intros b2 ofs. 
-      assert (H := cntAdd' _ _ _ pffj'').
-      destruct H as [[pffj Hneqj] | Hj].
-      - assert (pfcj: containsThread
-                        (updThread pfc c (computeMap
-                                            (getThreadR pfc) virtue1)) j)
-          by (apply cntUpdate; apply cntUpdate' in pffj;
-              eapply HnumThreads; eauto).
-        erewrite gsoAddRes with (cntj := pffj); eauto.
-        erewrite gsoAddRes with (cntj' := pfcj'') (cntj := pfcj) in Hno_raceC;
-          eauto.
-        destruct (i == j) eqn:Hij; move/eqP:Hij=>Hi; subst.
-        + rewrite gssThreadRes. rewrite gssThreadRes in Hno_raceC.
-          assert (Hb2: (exists b1, f b1 = Some b2) \/
-                       ~ (exists b1, f b1 = Some b2))
-            by eapply em.
-          destruct Hb2 as [[b1 Hf] | Hunmapped].
-          erewrite computeMap_projection_1; eauto.
-          specialize (HpermRes _ _ ofs Hf).
-          do 2 rewrite restrPermMap_Cur in HpermRes.
-          rewrite HpermRes;
-            by auto.
-          erewrite computeMap_projection_2; eauto.
-          destruct HinvF as [_ _ HinvF _];
-            eapply HinvF; eauto.
-        + rewrite gsoThreadRes; auto.
-          rewrite gsoThreadRes in Hno_raceC; auto.
-          destruct HinvF as [_ _ HinvF _].
-          eapply HinvF; eauto.
-      - (*case j is the new thread *)
-        subst j.
-        erewrite gssAddRes; eauto.
-        erewrite gssAddRes in Hno_raceC; eauto.
-        assert (Hb2: (exists b1, f b1 = Some b2) \/
-                     ~ (exists b1, f b1 = Some b2))
-          by eapply em.
-        destruct Hb2 as [[b1 Hf] | Hunmapped].
-        erewrite computeMap_projection_3; eauto.
-        specialize (HpermRes _ _ ofs Hf).
-        do 2 rewrite restrPermMap_Cur in HpermRes.
-        rewrite HpermRes;
-          by eauto.
-        erewrite computeMap_projection_2; eauto.
-        rewrite empty_map_spec.
-        rewrite perm_union_comm.
-        eapply not_racy_union;
-          by constructor.
-        unfold latestThread. simpl.
-        erewrite <- contains_iff_num; eauto.
-    }
-    { rewrite gsoAddLock gsoThreadLock.
+    { (** no_race *)
       intros.
-      rewrite gsoAddLPool in H.
-      rewrite gsoThreadLPool in H.
-      destruct HinvF as [_ _ _ HinvF].
-      eauto.
+      unfold permMapsDisjoint2, permMapsDisjoint.
+      erewrite <- forall2_and.
+      intros b2 ofs.
+      assert (Hb2: (exists b1, f b1 = Some b2) \/
+                   ~ (exists b1, f b1 = Some b2))
+        by eapply em.
+      destruct Hb2 as [[b1 Hf] | Hunmapped].
+      - pose proof ((Hthreads i0).1 cnti) as pfci0.
+        pose proof ((Hthreads j).1 cntj) as pfcj0.
+        specialize (no_race_thr0 _ _ pfci0 pfcj0 Hneq).
+        unfold permMapsDisjoint2, permMapsDisjoint in no_race_thr0.
+        erewrite <- forall2_and in no_race_thr0.
+        destruct (no_race_thr0 b1 ofs).
+        destruct (Hthread_mapped _ pfci0 cnti b1 b2 ofs Hf).
+        destruct (Hthread_mapped _ pfcj0 cntj b1 b2 ofs Hf).
+        split.
+        eapply perm_union_lower_2
+        with (p1 := ((getThreadR pfci0)#1) # b1 ofs); eauto.
+        eapply perm_union_lower_2
+        with (p1 := ((getThreadR pfci0)#2) # b1 ofs); eauto. 
+      - destruct (Hthread_unmapped i0 cnti b2 ofs Hunmapped) as [[pffi0 [Heq1 Heq2]]| [Heq1 Heq2]].
+        + destruct (Hthread_unmapped j cntj b2 ofs Hunmapped) as [[pffj0 [Heq3 Heq4]]| [Heq3 Heq4]].
+          rewrite Heq1 Heq2 Heq3 Heq4.
+          pose proof (no_race_thr HinvF pffi0 pffj0 Hneq) as Hno_race.
+          unfold permMapsDisjoint2, permMapsDisjoint in Hno_race.
+          destruct Hno_race.
+          now eauto.
+        + rewrite Heq3 Heq4.
+          split;
+            rewrite perm_union_comm;
+            apply not_racy_union;
+            now constructor.
+        + rewrite Heq1 Heq2.
+          split; apply not_racy_union;
+          now constructor.
     }
-    { intros b ofs.
-      rewrite gsoAddLPool.
-      rewrite gsoThreadLPool.
+    { (** disjointness between lock resources*)
+      intros.
+      erewrite gsoAddLPool, gsoThreadLPool in Hres1, Hres2.
+      eapply HinvF;
+        by eauto.
+    }
+    { intros.
+      rewrite gsoAddLPool gsoThreadLPool in Hres.
+      unfold permMapsDisjoint2, permMapsDisjoint.
+      erewrite <- forall2_and. intros b2 ofs.
+      assert (Hb2: (exists b1, f b1 = Some b2) \/
+                   ~ (exists b1, f b1 = Some b2))
+        by eapply em.
+      destruct Hb2 as [[b1 Hf] | Hunmapped].
+      - destruct (Hlocks _ _ Hres) as [bc [rmapC [HresC [Hfl Hperm]]]].
+        destruct (Hperm _ _ ofs Hf).
+        pose proof ((Hthreads i0).1 cnti) as pfci0.
+        destruct (Hthread_mapped _ pfci0 cnti _ _ ofs Hf).
+        pose proof (no_race0 _ _ pfci0 _ HresC) as Hno_race.
+        unfold permMapsDisjoint2, permMapsDisjoint in Hno_race.
+        erewrite <- forall2_and in Hno_race.
+        destruct (Hno_race b1 ofs).
+        split.
+        eapply perm_union_lower_2 with (p1 := (getThreadR pfci0).1 # b1 ofs); eauto.
+        eapply perm_union_lower_2 with (p1 := (getThreadR pfci0).2 # b1 ofs); eauto.
+      - destruct laddr.
+        rewrite (Hunmapped_res _ _ _ Hres _ Hunmapped ofs).1.
+        rewrite (Hunmapped_res _ _ _ Hres _ Hunmapped ofs).2.
+        split; rewrite perm_union_comm; eapply not_racy_union;
+        now constructor.
+    }
+    { (** thread locks coherence *)
+      intros.
+      split.
+      - intros.
+        intros b2 ofs.
+        assert (Hb2: (exists b1, f b1 = Some b2) \/
+                     ~ (exists b1, f b1 = Some b2))
+          by eapply em.
+        destruct Hb2 as [[b1 Hf] | Hunmapped].
+        + pose proof ((Hthreads i0).1 cnti) as pfci0.
+          pose proof ((Hthreads j).1 cntj) as pfcj0.
+          destruct (Hthread_mapped _ pfci0 cnti _ _ ofs Hf).
+          destruct (Hthread_mapped _ pfcj0 cntj _ _ ofs Hf).
+          pose proof ((thread_data_lock_coh0 _ pfci0).1 _ pfcj0 b1 ofs).
+          eapply perm_coh_lower; eauto.
+        + destruct (Hthread_unmapped i0 cnti b2 ofs Hunmapped) as [[pffi0 [Heq1 Heq2]]| [Heq1 Heq2]].
+          * destruct (Hthread_unmapped j cntj b2 ofs Hunmapped)
+              as [[pffj0 [Heq3 Heq4]]| [Heq3 Heq4]].
+            rewrite Heq2 Heq3.
+            pose proof ((thread_data_lock_coh HinvF pffi0).1 _ pffj0) as Hno_race.
+            now eauto.
+            rewrite Heq3.
+            now apply perm_coh_empty_2.
+          * rewrite Heq2.
+            now apply perm_coh_empty_1.
+      - intros.
+        intros b2 ofs.
+        rewrite gsoAddLPool gsoThreadLPool in H.
+        assert (Hb2: (exists b1, f b1 = Some b2) \/
+                     ~ (exists b1, f b1 = Some b2))
+          by eapply em.
+        destruct Hb2 as [[b1 Hf] | Hunmapped].
+        + pose proof ((Hthreads i0).1 cnti) as pfci0.
+          destruct (Hthread_mapped _ pfci0 cnti _ _ ofs Hf).
+          destruct (Hlocks _ _ H) as [bc [rmapC [HresC [Hfl Hperm]]]].
+          destruct (Hperm _ _ ofs Hf).
+          pose proof ((thread_data_lock_coh0 _ pfci0).2 _ _ HresC b1 ofs) as Hno_race.
+          eapply perm_coh_lower; eauto.
+        + destruct laddr.
+          rewrite (Hunmapped_res _ _ _ H _ Hunmapped ofs).1.
+          now apply perm_coh_empty_2.
+    }
+    { (** lock resourecs locks coherence*)
+      intros.
+      rewrite gsoAddLPool gsoThreadLPool in Hres.
+      split.
+      - intros j cntj b2 ofs.
+        pose proof ((Hthreads j).1 cntj) as pfcj0.
+        assert (Hb2: (exists b1, f b1 = Some b2) \/
+                     ~ (exists b1, f b1 = Some b2))
+          by eapply em.
+        destruct Hb2 as [[b1 Hf] | Hunmapped].
+        + destruct (Hthread_mapped _ pfcj0 cntj _ _ ofs Hf).
+          destruct (Hlocks _ _ Hres) as [bc [rmapC [HresC [Hfl Hperm]]]].
+          destruct (Hperm _ _ ofs Hf).
+          pose proof ((locks_data_lock_coh0 _ _ HresC).1 _ pfcj0 b1 ofs).
+          eapply perm_coh_lower; eauto.
+        + destruct laddr.
+          rewrite (Hunmapped_res _ _ _ Hres _ Hunmapped ofs).2.
+          now apply perm_coh_empty_1.
+      - intros laddr' rmap' Hres'.
+        rewrite gsoAddLPool gsoThreadLPool in Hres'.
+        eapply HinvF; eauto.
+    }
+    { (** lockRes valid*)
+      intros b ofs.
+      rewrite gsoAddLPool gsoThreadLPool.
       pose proof (lockRes_valid HinvF).
-      specialize (H b ofs). eauto.
+      specialize (H b ofs).
+      now eauto.
     }
   Qed.   
 
-  
   Lemma sim_external: sim_external_def.
   Proof.
     unfold sim_external_def.
@@ -10580,9 +10371,7 @@ relation*)
           eauto.
         - (** proof of invariant *)
           destruct Htsim.
-
-          
-          eapply invariant_project_spawn;
+          eapply invariant_spawn;
           eauto.
         - assumption.
         - assumption.
