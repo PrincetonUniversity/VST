@@ -644,7 +644,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
                   (fst (fst c')) (snd (fst c')) (snd c')  m'.
   
   Definition at_external (st : MachState)
-    : option (external_function * signature * list val) := None.
+    : option (external_function * list val) := None.
   
   Definition after_external (ov : option val) (st : MachState) :
     option (MachState) := None.
@@ -1161,7 +1161,7 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
                   (fst (fst c')) (snd (fst c')) (snd c')  m'.
 
   Definition at_external (st : MachState)
-    : option (external_function * signature * list val) := None.
+    : option (external_function * list val) := None.
   
   Definition after_external (ov : option val) (st : MachState) :
     option (MachState) := None.

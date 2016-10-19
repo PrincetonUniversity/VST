@@ -25,13 +25,13 @@ Section safety.
       safeN_ n z c' m' -> 
       safeN_ (S n) z c m
   | safeN_external:
-      forall n z c m e sig args x,
-      at_external Hcore c = Some (e,sig,args) ->
-      ext_spec_pre Hspec e x (genv_symb ge) (sig_args sig) args z m ->
+      forall n z c m e args x,
+      at_external Hcore c = Some (e,args) ->
+      ext_spec_pre Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z m ->
       (forall ret m' z' n',
          (n' <= n)%nat -> 
          Hrel n' m m' -> 
-         ext_spec_post Hspec e x (genv_symb ge) (sig_res sig) ret z' m' ->
+         ext_spec_post Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' m' ->
          exists c',
            after_external Hcore ret c = Some c' /\
            safeN_ n' z' c' m') -> 

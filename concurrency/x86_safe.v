@@ -112,8 +112,8 @@ Module X86CoreErasure <: CoreErasure X86SEM.
   Lemma at_external_erase:
     forall c c' (Herase: core_erasure c c'),
       match at_external Sem c, at_external Sem c' with
-      | Some (ef, sig, vs), Some (ef', sig', vs') =>
-        ef = ef' /\ sig = sig' /\ val_erasure_list vs vs'
+      | Some (ef, vs), Some (ef', vs') =>
+        ef = ef' /\ val_erasure_list vs vs'
       | None, None => True
       | _, _ => False
       end.
@@ -126,7 +126,6 @@ Module X86CoreErasure <: CoreErasure X86SEM.
            end; subst;
     unfold at_external; simpl; auto.
     destruct (BuiltinEffects.observableEF_dec f0); auto.
-    split; auto.
     split; auto.
     eapply val_erasure_list_decode; eauto.
   Qed.

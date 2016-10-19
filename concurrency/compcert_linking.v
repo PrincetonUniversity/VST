@@ -126,7 +126,7 @@ Definition atExternal (c: Core.t cores) :=
   let: V := (cores i).(V) in
   let: C := (cores i).(C) in
   let: effSem := (cores i).(sem) in
-  if at_external effSem c is Some (ef, dep_sig, args) then true
+  if at_external effSem c is Some (ef, args) then true
   else false.
 
 Definition wf_callStack (stk : Stack.t (Core.t cores)) := 
@@ -467,9 +467,9 @@ Definition fun_id (ef: external_function) : option ident :=
 (* compilation unit.                                                      *)
 
 Definition at_external (l: linker N my_cores) :=
-  if at_external0 l is Some (ef, dep_sig, args) 
+  if at_external0 l is Some (ef, args) 
     then if fun_id ef is Some id then
-         if fn_tbl l id is None then Some (ef, dep_sig, args) else None
+         if fn_tbl l id is None then Some (ef, args) else None
          else None
   else at_external0 l.
 
@@ -520,7 +520,7 @@ Definition corestep
          handles the external function id, in which case the entire linker is 
          at_external) *)
 
-      if at_external0 l is Some (ef, dep_sig, args) then
+      if at_external0 l is Some (ef, args) then
       if fun_id ef is Some id then
       if handle (ef_sig ef) id l args is Some l'' then l'=l'' else False else False
       else 
@@ -550,7 +550,7 @@ Inductive Corestep : linker N my_cores -> mem
     Corestep l m (updCore l (Core.upd (peekCore l) c')) m'
 
 | Corestep_call :
-  forall (l : linker N my_cores) m ef dep_sig args id bf d_ix d
+  forall (l : linker N my_cores) m ef args id bf d_ix d
          (pf : all (atExternal my_cores) (CallStack.callStack l)),
 
   let: c := peekCore l in
@@ -558,7 +558,7 @@ Inductive Corestep : linker N my_cores -> mem
   let: c_ge  := Modsem.ge (my_cores c_ix) in
   let: c_sem := Modsem.sem (my_cores c_ix) in
 
-  semantics.at_external c_sem (Core.c c) = Some (ef,dep_sig,args) -> 
+  semantics.at_external c_sem (Core.c c) = Some (ef,args) -> 
   fun_id ef = Some id -> 
   fn_tbl l id = Some d_ix -> 
   Genv.find_symbol (my_cores d_ix).(Modsem.ge) id = Some bf -> 
@@ -641,13 +641,13 @@ case=> c []step ->.
 by apply: Corestep_step.
 case=> <-.
 case=> nstep.
-case atext: (at_external0 _)=> [[[ef dep_sig] args]|//].
+case atext: (at_external0 _)=> [[ef args]|//].
 case funid: (fun_id ef)=> [id|//].
 case hdl:   (handle (ef_sig ef) id l args)=> [l''|//] ->.
 move: hdl; case/handleP=> pf []ix []bf []c []fntbl genv init ->.
 move: init; rewrite /initCore.
 case init: (semantics.initial_core _ _ _ _)=> [c'|//]; case=> <-. 
-by apply: (@Corestep_call _ _ ef dep_sig args id bf).
+by apply: (@Corestep_call _ _ ef args id bf).
 case inCtx: (inContext _)=> //.
 case hlt: (halted0 _)=> [rv|//].
 case pop: (popCore _)=> [c|//].
@@ -698,7 +698,7 @@ Lemma corestep_not_at_external (ge : ge_ty) m c m' c' :
 Proof.
 rewrite/corestep/at_external.
 move=> [H|[_ [_ H]]]; first by move: H; move/corestep_not_at_external0=> /= ->.
-move: H; case Heq: (at_external0 c)=>[[[ef sig] args]|//].
+move: H; case Heq: (at_external0 c)=>[[ef args]|//].
 move: Heq; case: (at_external_halted_excl0 c)=> [H|H]; first by rewrite H.
 move=> H2; case: (fun_id ef)=>// id; case hdl: (handle _ _ _)=> [a|].
 by move: hdl; case/handleP=> ? []? []? []? []->.
@@ -782,11 +782,14 @@ inversion H2; subst.
   by apply semantics.corestep_not_halted in H; rewrite H in H4. }
 { inversion H1; subst.
   by apply semantics.corestep_not_at_external in H6; rewrite H6 in H.
-  move: H0 H7 H3 H8; rewrite H6 in H; case: H=> <- _ eq0 ->; case=> eq1; subst.
-  move=> ->; case=> eq_ix; subst d_ix0.
-  rewrite H4 in H9; case: H9; move=> ?; subst.
-  rewrite H10 in H5; case: H5=> ->.
-  by split=> //; f_equal; f_equal; apply: proof_irr.
+  split; auto.
+  f_equal.
+  { assert (ef0 = ef) by congruence; subst.
+    assert (id0 = id) by congruence; subst.
+    assert (d_ix0 = d_ix) by congruence; subst.
+    assert (d0 = d) by congruence; subst.
+    reflexivity. }
+  apply proof_irr.
   case: (semantics.at_external_halted_excl 
           (Modsem.sem (my_cores (Core.i (peekCore c')))) (Core.c (peekCore c'))).
   by rewrite H. by rewrite H8. }

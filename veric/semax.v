@@ -172,7 +172,10 @@ Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: funsi
   | Some (External ef sigargs sigret cc') => 
       let ids := fst (split (fst fsig)) in
         !! (fsig = (zip_with_tl ids sigargs, sigret) /\ cc'=cc 
-            /\ length (typelist2list sigargs)=length ids) 
+           /\ ef_sig ef = mksignature
+                           (typlist_of_typelist (type_of_params (fst fsig)))
+                           (opttyp_of_type (snd fsig)) cc
+           /\ length (typelist2list sigargs)=length ids) 
         && semax_external Hspec ids ef A P Q 
         && ! (ALL x:A, ALL ret:option val, 
                 Q x (make_ext_rval (filter_genv gx) ret) >=> !! tc_option_val sigret ret)

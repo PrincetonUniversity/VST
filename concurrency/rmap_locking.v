@@ -357,8 +357,7 @@ Proof.
               change Int.modulus with 4294967296%Z in *.
               zify.
               omega.
-           ++ 
-              change (Int.unsigned Int.zero) with 0%Z in *.
+           ++ change (Int.unsigned Int.zero) with 0%Z in *.
               change (Int.unsigned Int.one) with 1%Z in *.
               change Int.modulus with 4294967296%Z in *.
               zify.

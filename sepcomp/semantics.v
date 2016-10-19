@@ -45,7 +45,7 @@ Require Import sepcomp.mem_lemmas.
 
 Record CoreSemantics {G C M : Type} : Type :=
   { initial_core : G -> val -> list val -> option C
-  ; at_external : C -> option (external_function * signature * list val)
+  ; at_external : C -> option (external_function * list val)
   ; after_external : option val -> C -> option C
   ; halted : C -> option val
   ; corestep : G -> C -> M -> C -> M -> Prop

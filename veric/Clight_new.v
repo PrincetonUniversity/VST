@@ -71,24 +71,24 @@ Fixpoint break_cont (k: cont) : cont :=
 
 Inductive corestate := 
  | State: forall (ve: env) (te: temp_env) (k: cont), corestate
- | ExtCall: forall (ef: external_function) (sig: signature) (args: list val) 
+ | ExtCall: forall (ef: external_function) (args: list val) 
                    (lid: option ident) (ve: env) (te: temp_env) (k: cont),
                 corestate.
 
 Fixpoint strip_skip (k: cont) : cont :=
  match k with Kseq Sskip :: k' => strip_skip k' | _ => k end.
 
-Definition cl_at_external (c: corestate) : option (external_function * signature *list val) :=
+Definition cl_at_external (c: corestate) : option (external_function * list val) :=
   match c with
   | State _ _ k => None
-  | ExtCall ef sig args lid ve te k => Some (ef, sig, args)
+  | ExtCall ef args lid ve te k => Some (ef, args)
  end.
 
 Definition cl_after_external (vret: option val) (c: corestate) : option corestate :=
   match vret, c with 
-  | Some v, ExtCall ef sig args (Some id) ve te k => Some (State ve (PTree.set id v te) k)
-  | Some v, ExtCall ef sig args None ve te k => Some (State ve te k)
-  | None, ExtCall ef sig args None ve te k => Some (State ve te k)
+  | Some v, ExtCall ef args (Some id) ve te k => Some (State ve (PTree.set id v te) k)
+  | Some v, ExtCall ef args None ve te k => Some (State ve te k)
+  | None, ExtCall ef args None ve te k => Some (State ve te k)
   | _, _ => None
   end.
 
@@ -167,7 +167,7 @@ le' ->
       Clight.eval_expr ge ve te m a vf ->
       Clight.eval_exprlist ge ve te m al tyargs vargs ->
       Genv.find_funct ge vf = Some (External ef tyargs tyres cc) ->
-      cl_step ge (State ve te (Kseq (Scall optid a al) :: k)) m (ExtCall ef (signature_of_type tyargs tyres cc) vargs optid ve te k) m
+      cl_step ge (State ve te (Kseq (Scall optid a al) :: k)) m (ExtCall ef vargs optid ve te k) m
 
   | step_seq: forall ve te k m s1 s2 st' m',
           cl_step ge (State ve te (Kseq s1 :: Kseq s2 :: k)) m st' m' ->
