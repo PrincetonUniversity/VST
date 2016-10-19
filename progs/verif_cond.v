@@ -243,7 +243,7 @@ Lemma all_funcs_correct:
   semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.
 unfold Gprog, prog, prog_funct; simpl.
-repeat (apply semax_func_cons_ext_vacuous; [reflexivity | ]).
+repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
 semax_func_cons_ext.
 { admit. }
 semax_func_cons_ext.
