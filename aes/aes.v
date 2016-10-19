@@ -70,56 +70,56 @@ Definition ___i64_udiv : ident := 37%positive.
 Definition ___i64_umod : ident := 39%positive.
 Definition ___i64_utod : ident := 33%positive.
 Definition ___i64_utof : ident := 35%positive.
-Definition ___stringlit_1 : ident := 167%positive.
-Definition ___stringlit_2 : ident := 168%positive.
-Definition ___stringlit_3 : ident := 169%positive.
-Definition ___stringlit_4 : ident := 170%positive.
-Definition ___stringlit_5 : ident := 171%positive.
-Definition ___stringlit_6 : ident := 172%positive.
+Definition ___stringlit_1 : ident := 168%positive.
+Definition ___stringlit_2 : ident := 169%positive.
+Definition ___stringlit_3 : ident := 170%positive.
+Definition ___stringlit_4 : ident := 171%positive.
+Definition ___stringlit_5 : ident := 172%positive.
+Definition ___stringlit_6 : ident := 173%positive.
 Definition _aes_gen_tables : ident := 94%positive.
 Definition _aes_init_done : ident := 73%positive.
 Definition _aes_tables_struct : ident := 16%positive.
-Definition _aes_test_ecb_dec : ident := 162%positive.
-Definition _aes_test_ecb_enc : ident := 163%positive.
+Definition _aes_test_ecb_dec : ident := 163%positive.
+Definition _aes_test_ecb_enc : ident := 164%positive.
 Definition _b0 : ident := 102%positive.
 Definition _b0__1 : ident := 109%positive.
-Definition _b0__2 : ident := 131%positive.
-Definition _b0__3 : ident := 135%positive.
-Definition _b0__4 : ident := 139%positive.
-Definition _b0__5 : ident := 144%positive.
-Definition _b0__6 : ident := 149%positive.
-Definition _b0__7 : ident := 154%positive.
+Definition _b0__2 : ident := 132%positive.
+Definition _b0__3 : ident := 136%positive.
+Definition _b0__4 : ident := 140%positive.
+Definition _b0__5 : ident := 145%positive.
+Definition _b0__6 : ident := 150%positive.
+Definition _b0__7 : ident := 155%positive.
 Definition _b1 : ident := 103%positive.
 Definition _b1__1 : ident := 110%positive.
-Definition _b1__2 : ident := 132%positive.
-Definition _b1__3 : ident := 136%positive.
-Definition _b1__4 : ident := 140%positive.
-Definition _b1__5 : ident := 145%positive.
-Definition _b1__6 : ident := 150%positive.
-Definition _b1__7 : ident := 155%positive.
+Definition _b1__2 : ident := 133%positive.
+Definition _b1__3 : ident := 137%positive.
+Definition _b1__4 : ident := 141%positive.
+Definition _b1__5 : ident := 146%positive.
+Definition _b1__6 : ident := 151%positive.
+Definition _b1__7 : ident := 156%positive.
 Definition _b2 : ident := 104%positive.
 Definition _b2__1 : ident := 111%positive.
-Definition _b2__2 : ident := 133%positive.
-Definition _b2__3 : ident := 137%positive.
-Definition _b2__4 : ident := 141%positive.
-Definition _b2__5 : ident := 146%positive.
-Definition _b2__6 : ident := 151%positive.
-Definition _b2__7 : ident := 156%positive.
+Definition _b2__2 : ident := 134%positive.
+Definition _b2__3 : ident := 138%positive.
+Definition _b2__4 : ident := 142%positive.
+Definition _b2__5 : ident := 147%positive.
+Definition _b2__6 : ident := 152%positive.
+Definition _b2__7 : ident := 157%positive.
 Definition _b3 : ident := 105%positive.
 Definition _b3__1 : ident := 112%positive.
-Definition _b3__2 : ident := 134%positive.
-Definition _b3__3 : ident := 138%positive.
-Definition _b3__4 : ident := 142%positive.
-Definition _b3__5 : ident := 147%positive.
-Definition _b3__6 : ident := 152%positive.
-Definition _b3__7 : ident := 157%positive.
+Definition _b3__2 : ident := 135%positive.
+Definition _b3__3 : ident := 139%positive.
+Definition _b3__4 : ident := 143%positive.
+Definition _b3__5 : ident := 148%positive.
+Definition _b3__6 : ident := 153%positive.
+Definition _b3__7 : ident := 158%positive.
 Definition _buf : ident := 3%positive.
 Definition _ctx : ident := 95%positive.
 Definition _cty : ident := 116%positive.
 Definition _exit : ident := 119%positive.
 Definition _i : ident := 74%positive.
 Definition _input : ident := 121%positive.
-Definition _iv : ident := 166%positive.
+Definition _iv : ident := 167%positive.
 Definition _j : ident := 114%positive.
 Definition _key : ident := 98%positive.
 Definition _key_word : ident := 100%positive.
@@ -134,20 +134,20 @@ Definition _logy : ident := 87%positive.
 Definition _logy__1 : ident := 89%positive.
 Definition _logy__2 : ident := 91%positive.
 Definition _logy__3 : ident := 93%positive.
-Definition _main : ident := 174%positive.
+Definition _main : ident := 175%positive.
 Definition _mbedtls_aes_context_struct : ident := 4%positive.
-Definition _mbedtls_aes_crypt_ecb : ident := 161%positive.
-Definition _mbedtls_aes_decrypt : ident := 159%positive.
-Definition _mbedtls_aes_encrypt : ident := 158%positive.
+Definition _mbedtls_aes_crypt_ecb : ident := 162%positive.
+Definition _mbedtls_aes_decrypt : ident := 160%positive.
+Definition _mbedtls_aes_encrypt : ident := 159%positive.
 Definition _mbedtls_aes_free : ident := 97%positive.
 Definition _mbedtls_aes_init : ident := 96%positive.
-Definition _mbedtls_aes_self_test : ident := 173%positive.
+Definition _mbedtls_aes_self_test : ident := 174%positive.
 Definition _mbedtls_aes_setkey_dec : ident := 120%positive.
 Definition _mbedtls_aes_setkey_enc : ident := 113%positive.
 Definition _mbedtls_zeroize : ident := 71%positive.
 Definition _memcmp : ident := 66%positive.
 Definition _memset : ident := 65%positive.
-Definition _mode : ident := 160%positive.
+Definition _mode : ident := 161%positive.
 Definition _n : ident := 69%positive.
 Definition _nr : ident := 1%positive.
 Definition _output : ident := 122%positive.
@@ -163,38 +163,39 @@ Definition _ret : ident := 115%positive.
 Definition _rk : ident := 2%positive.
 Definition _rk0 : ident := 106%positive.
 Definition _rk7 : ident := 107%positive.
-Definition _rk__1 : ident := 143%positive.
-Definition _rk__2 : ident := 148%positive.
-Definition _rk__3 : ident := 153%positive.
+Definition _rk__1 : ident := 144%positive.
+Definition _rk__2 : ident := 149%positive.
+Definition _rk__3 : ident := 154%positive.
 Definition _rot : ident := 80%positive.
 Definition _sk : ident := 118%positive.
 Definition _tables : ident := 72%positive.
-Definition _u : ident := 165%positive.
+Definition _tmp : ident := 131%positive.
+Definition _u : ident := 166%positive.
 Definition _v : ident := 68%positive.
-Definition _verbose : ident := 164%positive.
+Definition _verbose : ident := 165%positive.
 Definition _x : ident := 75%positive.
 Definition _y : ident := 76%positive.
 Definition _z : ident := 77%positive.
-Definition _t'1 : ident := 175%positive.
-Definition _t'10 : ident := 184%positive.
-Definition _t'11 : ident := 185%positive.
-Definition _t'12 : ident := 186%positive.
-Definition _t'13 : ident := 187%positive.
-Definition _t'14 : ident := 188%positive.
-Definition _t'15 : ident := 189%positive.
-Definition _t'16 : ident := 190%positive.
-Definition _t'17 : ident := 191%positive.
-Definition _t'18 : ident := 192%positive.
-Definition _t'19 : ident := 193%positive.
-Definition _t'2 : ident := 176%positive.
-Definition _t'20 : ident := 194%positive.
-Definition _t'3 : ident := 177%positive.
-Definition _t'4 : ident := 178%positive.
-Definition _t'5 : ident := 179%positive.
-Definition _t'6 : ident := 180%positive.
-Definition _t'7 : ident := 181%positive.
-Definition _t'8 : ident := 182%positive.
-Definition _t'9 : ident := 183%positive.
+Definition _t'1 : ident := 176%positive.
+Definition _t'10 : ident := 185%positive.
+Definition _t'11 : ident := 186%positive.
+Definition _t'12 : ident := 187%positive.
+Definition _t'13 : ident := 188%positive.
+Definition _t'14 : ident := 189%positive.
+Definition _t'15 : ident := 190%positive.
+Definition _t'16 : ident := 191%positive.
+Definition _t'17 : ident := 192%positive.
+Definition _t'18 : ident := 193%positive.
+Definition _t'19 : ident := 194%positive.
+Definition _t'2 : ident := 177%positive.
+Definition _t'20 : ident := 195%positive.
+Definition _t'3 : ident := 178%positive.
+Definition _t'4 : ident := 179%positive.
+Definition _t'5 : ident := 180%positive.
+Definition _t'6 : ident := 181%positive.
+Definition _t'7 : ident := 182%positive.
+Definition _t'8 : ident := 183%positive.
+Definition _t'9 : ident := 184%positive.
 
 Definition v___stringlit_3 := {|
   gvar_info := (tarray tschar 21);
@@ -1956,19 +1957,19 @@ Definition f_mbedtls_aes_encrypt := {|
   fn_temps := ((_i, tint) :: (_RK, (tptr tuint)) :: (_X0, tuint) ::
                (_X1, tuint) :: (_X2, tuint) :: (_X3, tuint) ::
                (_Y0, tuint) :: (_Y1, tuint) :: (_Y2, tuint) ::
-               (_Y3, tuint) :: (_b0, tuint) :: (_b1, tuint) ::
-               (_b2, tuint) :: (_b3, tuint) :: (_b0__1, tuint) ::
-               (_b1__1, tuint) :: (_b2__1, tuint) :: (_b3__1, tuint) ::
-               (_b0__2, tuint) :: (_b1__2, tuint) :: (_b2__2, tuint) ::
-               (_b3__2, tuint) :: (_b0__3, tuint) :: (_b1__3, tuint) ::
-               (_b2__3, tuint) :: (_b3__3, tuint) :: (_rk, tuint) ::
-               (_b0__4, tuint) :: (_b1__4, tuint) :: (_b2__4, tuint) ::
-               (_b3__4, tuint) :: (_rk__1, tuint) :: (_b0__5, tuint) ::
-               (_b1__5, tuint) :: (_b2__5, tuint) :: (_b3__5, tuint) ::
-               (_rk__2, tuint) :: (_b0__6, tuint) :: (_b1__6, tuint) ::
-               (_b2__6, tuint) :: (_b3__6, tuint) :: (_rk__3, tuint) ::
-               (_b0__7, tuint) :: (_b1__7, tuint) :: (_b2__7, tuint) ::
-               (_b3__7, tuint) :: (_t'20, (tptr tuint)) ::
+               (_Y3, tuint) :: (_tmp, tuint) :: (_b0, tuint) ::
+               (_b1, tuint) :: (_b2, tuint) :: (_b3, tuint) ::
+               (_b0__1, tuint) :: (_b1__1, tuint) :: (_b2__1, tuint) ::
+               (_b3__1, tuint) :: (_b0__2, tuint) :: (_b1__2, tuint) ::
+               (_b2__2, tuint) :: (_b3__2, tuint) :: (_b0__3, tuint) ::
+               (_b1__3, tuint) :: (_b2__3, tuint) :: (_b3__3, tuint) ::
+               (_rk, tuint) :: (_b0__4, tuint) :: (_b1__4, tuint) ::
+               (_b2__4, tuint) :: (_b3__4, tuint) :: (_rk__1, tuint) ::
+               (_b0__5, tuint) :: (_b1__5, tuint) :: (_b2__5, tuint) ::
+               (_b3__5, tuint) :: (_rk__2, tuint) :: (_b0__6, tuint) ::
+               (_b1__6, tuint) :: (_b2__6, tuint) :: (_b3__6, tuint) ::
+               (_rk__3, tuint) :: (_b0__7, tuint) :: (_b1__7, tuint) ::
+               (_b2__7, tuint) :: (_b3__7, tuint) :: (_t'20, (tptr tuint)) ::
                (_t'19, (tptr tuint)) :: (_t'18, (tptr tuint)) ::
                (_t'17, (tptr tuint)) :: (_t'16, (tptr tuint)) ::
                (_t'15, (tptr tuint)) :: (_t'14, (tptr tuint)) ::
@@ -2034,412 +2035,447 @@ Definition f_mbedtls_aes_encrypt := {|
           (Sset _RK
             (Ebinop Oadd (Etempvar _t'1 (tptr tuint))
               (Econst_int (Int.repr 1) tint) (tptr tuint))))
-        (Sset _X0
-          (Ebinop Oxor (Etempvar _X0 tuint)
-            (Ederef (Etempvar _t'1 (tptr tuint)) tuint) tuint)))
+        (Sset _tmp (Ederef (Etempvar _t'1 (tptr tuint)) tuint)))
       (Ssequence
+        (Sset _X0
+          (Ebinop Oxor (Etempvar _X0 tuint) (Etempvar _tmp tuint) tuint))
         (Ssequence
-          (Sset _b0__1
-            (Ecast
-              (Ederef
-                (Ebinop Oadd (Etempvar _input (tptr tuchar))
-                  (Econst_int (Int.repr 4) tint) (tptr tuchar)) tuchar)
-              tuint))
           (Ssequence
-            (Sset _b1__1
+            (Sset _b0__1
               (Ecast
                 (Ederef
                   (Ebinop Oadd (Etempvar _input (tptr tuchar))
-                    (Ebinop Oadd (Econst_int (Int.repr 4) tint)
-                      (Econst_int (Int.repr 1) tint) tint) (tptr tuchar))
-                  tuchar) tuint))
+                    (Econst_int (Int.repr 4) tint) (tptr tuchar)) tuchar)
+                tuint))
             (Ssequence
-              (Sset _b2__1
+              (Sset _b1__1
                 (Ecast
                   (Ederef
                     (Ebinop Oadd (Etempvar _input (tptr tuchar))
                       (Ebinop Oadd (Econst_int (Int.repr 4) tint)
-                        (Econst_int (Int.repr 2) tint) tint) (tptr tuchar))
+                        (Econst_int (Int.repr 1) tint) tint) (tptr tuchar))
                     tuchar) tuint))
               (Ssequence
-                (Sset _b3__1
+                (Sset _b2__1
                   (Ecast
                     (Ederef
                       (Ebinop Oadd (Etempvar _input (tptr tuchar))
                         (Ebinop Oadd (Econst_int (Int.repr 4) tint)
-                          (Econst_int (Int.repr 3) tint) tint) (tptr tuchar))
-                      tuchar) tuint))
-                (Sset _X1
-                  (Ebinop Oor
-                    (Ebinop Oor
-                      (Ebinop Oor (Etempvar _b0__1 tuint)
-                        (Ebinop Oshl (Etempvar _b1__1 tuint)
-                          (Econst_int (Int.repr 8) tint) tuint) tuint)
-                      (Ebinop Oshl (Etempvar _b2__1 tuint)
-                        (Econst_int (Int.repr 16) tint) tuint) tuint)
-                    (Ebinop Oshl (Etempvar _b3__1 tuint)
-                      (Econst_int (Int.repr 24) tint) tuint) tuint))))))
-        (Ssequence
-          (Ssequence
-            (Ssequence
-              (Sset _t'2 (Etempvar _RK (tptr tuint)))
-              (Sset _RK
-                (Ebinop Oadd (Etempvar _t'2 (tptr tuint))
-                  (Econst_int (Int.repr 1) tint) (tptr tuint))))
-            (Sset _X1
-              (Ebinop Oxor (Etempvar _X1 tuint)
-                (Ederef (Etempvar _t'2 (tptr tuint)) tuint) tuint)))
-          (Ssequence
-            (Ssequence
-              (Sset _b0__2
-                (Ecast
-                  (Ederef
-                    (Ebinop Oadd (Etempvar _input (tptr tuchar))
-                      (Econst_int (Int.repr 8) tint) (tptr tuchar)) tuchar)
-                  tuint))
-              (Ssequence
-                (Sset _b1__2
-                  (Ecast
-                    (Ederef
-                      (Ebinop Oadd (Etempvar _input (tptr tuchar))
-                        (Ebinop Oadd (Econst_int (Int.repr 8) tint)
-                          (Econst_int (Int.repr 1) tint) tint) (tptr tuchar))
+                          (Econst_int (Int.repr 2) tint) tint) (tptr tuchar))
                       tuchar) tuint))
                 (Ssequence
-                  (Sset _b2__2
+                  (Sset _b3__1
                     (Ecast
                       (Ederef
                         (Ebinop Oadd (Etempvar _input (tptr tuchar))
-                          (Ebinop Oadd (Econst_int (Int.repr 8) tint)
-                            (Econst_int (Int.repr 2) tint) tint)
+                          (Ebinop Oadd (Econst_int (Int.repr 4) tint)
+                            (Econst_int (Int.repr 3) tint) tint)
                           (tptr tuchar)) tuchar) tuint))
+                  (Sset _X1
+                    (Ebinop Oor
+                      (Ebinop Oor
+                        (Ebinop Oor (Etempvar _b0__1 tuint)
+                          (Ebinop Oshl (Etempvar _b1__1 tuint)
+                            (Econst_int (Int.repr 8) tint) tuint) tuint)
+                        (Ebinop Oshl (Etempvar _b2__1 tuint)
+                          (Econst_int (Int.repr 16) tint) tuint) tuint)
+                      (Ebinop Oshl (Etempvar _b3__1 tuint)
+                        (Econst_int (Int.repr 24) tint) tuint) tuint))))))
+          (Ssequence
+            (Ssequence
+              (Ssequence
+                (Sset _t'2 (Etempvar _RK (tptr tuint)))
+                (Sset _RK
+                  (Ebinop Oadd (Etempvar _t'2 (tptr tuint))
+                    (Econst_int (Int.repr 1) tint) (tptr tuint))))
+              (Sset _tmp (Ederef (Etempvar _t'2 (tptr tuint)) tuint)))
+            (Ssequence
+              (Sset _X1
+                (Ebinop Oxor (Etempvar _X1 tuint) (Etempvar _tmp tuint)
+                  tuint))
+              (Ssequence
+                (Ssequence
+                  (Sset _b0__2
+                    (Ecast
+                      (Ederef
+                        (Ebinop Oadd (Etempvar _input (tptr tuchar))
+                          (Econst_int (Int.repr 8) tint) (tptr tuchar))
+                        tuchar) tuint))
                   (Ssequence
-                    (Sset _b3__2
+                    (Sset _b1__2
                       (Ecast
                         (Ederef
                           (Ebinop Oadd (Etempvar _input (tptr tuchar))
                             (Ebinop Oadd (Econst_int (Int.repr 8) tint)
-                              (Econst_int (Int.repr 3) tint) tint)
-                            (tptr tuchar)) tuchar) tuint))
-                    (Sset _X2
-                      (Ebinop Oor
-                        (Ebinop Oor
-                          (Ebinop Oor (Etempvar _b0__2 tuint)
-                            (Ebinop Oshl (Etempvar _b1__2 tuint)
-                              (Econst_int (Int.repr 8) tint) tuint) tuint)
-                          (Ebinop Oshl (Etempvar _b2__2 tuint)
-                            (Econst_int (Int.repr 16) tint) tuint) tuint)
-                        (Ebinop Oshl (Etempvar _b3__2 tuint)
-                          (Econst_int (Int.repr 24) tint) tuint) tuint))))))
-            (Ssequence
-              (Ssequence
-                (Ssequence
-                  (Sset _t'3 (Etempvar _RK (tptr tuint)))
-                  (Sset _RK
-                    (Ebinop Oadd (Etempvar _t'3 (tptr tuint))
-                      (Econst_int (Int.repr 1) tint) (tptr tuint))))
-                (Sset _X2
-                  (Ebinop Oxor (Etempvar _X2 tuint)
-                    (Ederef (Etempvar _t'3 (tptr tuint)) tuint) tuint)))
-              (Ssequence
-                (Ssequence
-                  (Sset _b0__3
-                    (Ecast
-                      (Ederef
-                        (Ebinop Oadd (Etempvar _input (tptr tuchar))
-                          (Econst_int (Int.repr 12) tint) (tptr tuchar))
-                        tuchar) tuint))
-                  (Ssequence
-                    (Sset _b1__3
-                      (Ecast
-                        (Ederef
-                          (Ebinop Oadd (Etempvar _input (tptr tuchar))
-                            (Ebinop Oadd (Econst_int (Int.repr 12) tint)
                               (Econst_int (Int.repr 1) tint) tint)
                             (tptr tuchar)) tuchar) tuint))
                     (Ssequence
-                      (Sset _b2__3
+                      (Sset _b2__2
                         (Ecast
                           (Ederef
                             (Ebinop Oadd (Etempvar _input (tptr tuchar))
-                              (Ebinop Oadd (Econst_int (Int.repr 12) tint)
+                              (Ebinop Oadd (Econst_int (Int.repr 8) tint)
                                 (Econst_int (Int.repr 2) tint) tint)
                               (tptr tuchar)) tuchar) tuint))
                       (Ssequence
-                        (Sset _b3__3
+                        (Sset _b3__2
                           (Ecast
                             (Ederef
                               (Ebinop Oadd (Etempvar _input (tptr tuchar))
-                                (Ebinop Oadd (Econst_int (Int.repr 12) tint)
+                                (Ebinop Oadd (Econst_int (Int.repr 8) tint)
                                   (Econst_int (Int.repr 3) tint) tint)
                                 (tptr tuchar)) tuchar) tuint))
-                        (Sset _X3
+                        (Sset _X2
                           (Ebinop Oor
                             (Ebinop Oor
-                              (Ebinop Oor (Etempvar _b0__3 tuint)
-                                (Ebinop Oshl (Etempvar _b1__3 tuint)
+                              (Ebinop Oor (Etempvar _b0__2 tuint)
+                                (Ebinop Oshl (Etempvar _b1__2 tuint)
                                   (Econst_int (Int.repr 8) tint) tuint)
                                 tuint)
-                              (Ebinop Oshl (Etempvar _b2__3 tuint)
+                              (Ebinop Oshl (Etempvar _b2__2 tuint)
                                 (Econst_int (Int.repr 16) tint) tuint) tuint)
-                            (Ebinop Oshl (Etempvar _b3__3 tuint)
+                            (Ebinop Oshl (Etempvar _b3__2 tuint)
                               (Econst_int (Int.repr 24) tint) tuint) tuint))))))
                 (Ssequence
                   (Ssequence
                     (Ssequence
-                      (Sset _t'4 (Etempvar _RK (tptr tuint)))
+                      (Sset _t'3 (Etempvar _RK (tptr tuint)))
                       (Sset _RK
-                        (Ebinop Oadd (Etempvar _t'4 (tptr tuint))
+                        (Ebinop Oadd (Etempvar _t'3 (tptr tuint))
                           (Econst_int (Int.repr 1) tint) (tptr tuint))))
-                    (Sset _X3
-                      (Ebinop Oxor (Etempvar _X3 tuint)
-                        (Ederef (Etempvar _t'4 (tptr tuint)) tuint) tuint)))
+                    (Sset _tmp (Ederef (Etempvar _t'3 (tptr tuint)) tuint)))
                   (Ssequence
+                    (Sset _X2
+                      (Ebinop Oxor (Etempvar _X2 tuint) (Etempvar _tmp tuint)
+                        tuint))
                     (Ssequence
-                      (Sset _i
-                        (Ebinop Osub
-                          (Ebinop Oshr
-                            (Efield
-                              (Ederef
-                                (Etempvar _ctx (tptr (Tstruct _mbedtls_aes_context_struct noattr)))
-                                (Tstruct _mbedtls_aes_context_struct noattr))
-                              _nr tint) (Econst_int (Int.repr 1) tint) tint)
-                          (Econst_int (Int.repr 1) tint) tint))
-                      (Sloop
+                      (Ssequence
+                        (Sset _b0__3
+                          (Ecast
+                            (Ederef
+                              (Ebinop Oadd (Etempvar _input (tptr tuchar))
+                                (Econst_int (Int.repr 12) tint)
+                                (tptr tuchar)) tuchar) tuint))
                         (Ssequence
-                          (Sifthenelse (Ebinop Ogt (Etempvar _i tint)
-                                         (Econst_int (Int.repr 0) tint) tint)
-                            Sskip
-                            Sbreak)
+                          (Sset _b1__3
+                            (Ecast
+                              (Ederef
+                                (Ebinop Oadd (Etempvar _input (tptr tuchar))
+                                  (Ebinop Oadd
+                                    (Econst_int (Int.repr 12) tint)
+                                    (Econst_int (Int.repr 1) tint) tint)
+                                  (tptr tuchar)) tuchar) tuint))
                           (Ssequence
+                            (Sset _b2__3
+                              (Ecast
+                                (Ederef
+                                  (Ebinop Oadd
+                                    (Etempvar _input (tptr tuchar))
+                                    (Ebinop Oadd
+                                      (Econst_int (Int.repr 12) tint)
+                                      (Econst_int (Int.repr 2) tint) tint)
+                                    (tptr tuchar)) tuchar) tuint))
                             (Ssequence
-                              (Ssequence
-                                (Ssequence
-                                  (Sset _t'5 (Etempvar _RK (tptr tuint)))
-                                  (Sset _RK
-                                    (Ebinop Oadd (Etempvar _t'5 (tptr tuint))
-                                      (Econst_int (Int.repr 1) tint)
-                                      (tptr tuint))))
-                                (Sset _rk
-                                  (Ederef (Etempvar _t'5 (tptr tuint)) tuint)))
-                              (Ssequence
-                                (Sset _b0__4
+                              (Sset _b3__3
+                                (Ecast
                                   (Ederef
                                     (Ebinop Oadd
-                                      (Efield
-                                        (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                        _FT0 (tarray tuint 256))
-                                      (Ebinop Oand (Etempvar _X0 tuint)
-                                        (Econst_int (Int.repr 255) tint)
-                                        tuint) (tptr tuint)) tuint))
-                                (Ssequence
-                                  (Sset _b1__4
-                                    (Ederef
+                                      (Etempvar _input (tptr tuchar))
                                       (Ebinop Oadd
-                                        (Efield
-                                          (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                          _FT1 (tarray tuint 256))
-                                        (Ebinop Oand
-                                          (Ebinop Oshr (Etempvar _X1 tuint)
-                                            (Econst_int (Int.repr 8) tint)
-                                            tuint)
-                                          (Econst_int (Int.repr 255) tint)
-                                          tuint) (tptr tuint)) tuint))
-                                  (Ssequence
-                                    (Sset _b2__4
+                                        (Econst_int (Int.repr 12) tint)
+                                        (Econst_int (Int.repr 3) tint) tint)
+                                      (tptr tuchar)) tuchar) tuint))
+                              (Sset _X3
+                                (Ebinop Oor
+                                  (Ebinop Oor
+                                    (Ebinop Oor (Etempvar _b0__3 tuint)
+                                      (Ebinop Oshl (Etempvar _b1__3 tuint)
+                                        (Econst_int (Int.repr 8) tint) tuint)
+                                      tuint)
+                                    (Ebinop Oshl (Etempvar _b2__3 tuint)
+                                      (Econst_int (Int.repr 16) tint) tuint)
+                                    tuint)
+                                  (Ebinop Oshl (Etempvar _b3__3 tuint)
+                                    (Econst_int (Int.repr 24) tint) tuint)
+                                  tuint))))))
+                      (Ssequence
+                        (Ssequence
+                          (Ssequence
+                            (Sset _t'4 (Etempvar _RK (tptr tuint)))
+                            (Sset _RK
+                              (Ebinop Oadd (Etempvar _t'4 (tptr tuint))
+                                (Econst_int (Int.repr 1) tint) (tptr tuint))))
+                          (Sset _tmp
+                            (Ederef (Etempvar _t'4 (tptr tuint)) tuint)))
+                        (Ssequence
+                          (Sset _X3
+                            (Ebinop Oxor (Etempvar _X3 tuint)
+                              (Etempvar _tmp tuint) tuint))
+                          (Ssequence
+                            (Ssequence
+                              (Sset _i
+                                (Ebinop Osub
+                                  (Ebinop Oshr
+                                    (Efield
                                       (Ederef
-                                        (Ebinop Oadd
-                                          (Efield
-                                            (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                            _FT2 (tarray tuint 256))
-                                          (Ebinop Oand
-                                            (Ebinop Oshr (Etempvar _X2 tuint)
-                                              (Econst_int (Int.repr 16) tint)
-                                              tuint)
-                                            (Econst_int (Int.repr 255) tint)
-                                            tuint) (tptr tuint)) tuint))
+                                        (Etempvar _ctx (tptr (Tstruct _mbedtls_aes_context_struct noattr)))
+                                        (Tstruct _mbedtls_aes_context_struct noattr))
+                                      _nr tint)
+                                    (Econst_int (Int.repr 1) tint) tint)
+                                  (Econst_int (Int.repr 1) tint) tint))
+                              (Sloop
+                                (Ssequence
+                                  (Sifthenelse (Ebinop Ogt (Etempvar _i tint)
+                                                 (Econst_int (Int.repr 0) tint)
+                                                 tint)
+                                    Sskip
+                                    Sbreak)
+                                  (Ssequence
                                     (Ssequence
-                                      (Sset _b3__4
-                                        (Ederef
-                                          (Ebinop Oadd
-                                            (Efield
-                                              (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                              _FT3 (tarray tuint 256))
-                                            (Ebinop Oand
-                                              (Ebinop Oshr
-                                                (Etempvar _X3 tuint)
-                                                (Econst_int (Int.repr 24) tint)
-                                                tuint)
-                                              (Econst_int (Int.repr 255) tint)
-                                              tuint) (tptr tuint)) tuint))
                                       (Ssequence
-                                        (Sset _Y0
-                                          (Ebinop Oxor
-                                            (Ebinop Oxor
-                                              (Ebinop Oxor
-                                                (Ebinop Oxor
-                                                  (Etempvar _rk tuint)
-                                                  (Etempvar _b0__4 tuint)
-                                                  tuint)
-                                                (Etempvar _b1__4 tuint)
-                                                tuint)
-                                              (Etempvar _b2__4 tuint) tuint)
-                                            (Etempvar _b3__4 tuint) tuint))
                                         (Ssequence
+                                          (Sset _t'5
+                                            (Etempvar _RK (tptr tuint)))
+                                          (Sset _RK
+                                            (Ebinop Oadd
+                                              (Etempvar _t'5 (tptr tuint))
+                                              (Econst_int (Int.repr 1) tint)
+                                              (tptr tuint))))
+                                        (Sset _rk
+                                          (Ederef
+                                            (Etempvar _t'5 (tptr tuint))
+                                            tuint)))
+                                      (Ssequence
+                                        (Sset _b0__4
+                                          (Ederef
+                                            (Ebinop Oadd
+                                              (Efield
+                                                (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                _FT0 (tarray tuint 256))
+                                              (Ebinop Oand
+                                                (Etempvar _X0 tuint)
+                                                (Econst_int (Int.repr 255) tint)
+                                                tuint) (tptr tuint)) tuint))
+                                        (Ssequence
+                                          (Sset _b1__4
+                                            (Ederef
+                                              (Ebinop Oadd
+                                                (Efield
+                                                  (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                  _FT1 (tarray tuint 256))
+                                                (Ebinop Oand
+                                                  (Ebinop Oshr
+                                                    (Etempvar _X1 tuint)
+                                                    (Econst_int (Int.repr 8) tint)
+                                                    tuint)
+                                                  (Econst_int (Int.repr 255) tint)
+                                                  tuint) (tptr tuint)) tuint))
                                           (Ssequence
-                                            (Ssequence
-                                              (Sset _t'6
-                                                (Etempvar _RK (tptr tuint)))
-                                              (Sset _RK
-                                                (Ebinop Oadd
-                                                  (Etempvar _t'6 (tptr tuint))
-                                                  (Econst_int (Int.repr 1) tint)
-                                                  (tptr tuint))))
-                                            (Sset _rk
-                                              (Ederef
-                                                (Etempvar _t'6 (tptr tuint))
-                                                tuint)))
-                                          (Ssequence
-                                            (Sset _b0__4
+                                            (Sset _b2__4
                                               (Ederef
                                                 (Ebinop Oadd
                                                   (Efield
                                                     (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                    _FT0 (tarray tuint 256))
+                                                    _FT2 (tarray tuint 256))
                                                   (Ebinop Oand
-                                                    (Etempvar _X1 tuint)
+                                                    (Ebinop Oshr
+                                                      (Etempvar _X2 tuint)
+                                                      (Econst_int (Int.repr 16) tint)
+                                                      tuint)
                                                     (Econst_int (Int.repr 255) tint)
                                                     tuint) (tptr tuint))
                                                 tuint))
                                             (Ssequence
-                                              (Sset _b1__4
+                                              (Sset _b3__4
                                                 (Ederef
                                                   (Ebinop Oadd
                                                     (Efield
                                                       (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                      _FT1
+                                                      _FT3
                                                       (tarray tuint 256))
                                                     (Ebinop Oand
                                                       (Ebinop Oshr
-                                                        (Etempvar _X2 tuint)
-                                                        (Econst_int (Int.repr 8) tint)
+                                                        (Etempvar _X3 tuint)
+                                                        (Econst_int (Int.repr 24) tint)
                                                         tuint)
                                                       (Econst_int (Int.repr 255) tint)
                                                       tuint) (tptr tuint))
                                                   tuint))
                                               (Ssequence
-                                                (Sset _b2__4
-                                                  (Ederef
-                                                    (Ebinop Oadd
-                                                      (Efield
-                                                        (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                        _FT2
-                                                        (tarray tuint 256))
-                                                      (Ebinop Oand
-                                                        (Ebinop Oshr
-                                                          (Etempvar _X3 tuint)
-                                                          (Econst_int (Int.repr 16) tint)
-                                                          tuint)
-                                                        (Econst_int (Int.repr 255) tint)
-                                                        tuint) (tptr tuint))
-                                                    tuint))
-                                                (Ssequence
-                                                  (Sset _b3__4
-                                                    (Ederef
-                                                      (Ebinop Oadd
-                                                        (Efield
-                                                          (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                          _FT3
-                                                          (tarray tuint 256))
-                                                        (Ebinop Oand
-                                                          (Ebinop Oshr
-                                                            (Etempvar _X0 tuint)
-                                                            (Econst_int (Int.repr 24) tint)
-                                                            tuint)
-                                                          (Econst_int (Int.repr 255) tint)
-                                                          tuint)
-                                                        (tptr tuint)) tuint))
-                                                  (Ssequence
-                                                    (Sset _Y1
+                                                (Sset _Y0
+                                                  (Ebinop Oxor
+                                                    (Ebinop Oxor
                                                       (Ebinop Oxor
                                                         (Ebinop Oxor
-                                                          (Ebinop Oxor
-                                                            (Ebinop Oxor
-                                                              (Etempvar _rk tuint)
-                                                              (Etempvar _b0__4 tuint)
-                                                              tuint)
-                                                            (Etempvar _b1__4 tuint)
-                                                            tuint)
-                                                          (Etempvar _b2__4 tuint)
+                                                          (Etempvar _rk tuint)
+                                                          (Etempvar _b0__4 tuint)
                                                           tuint)
-                                                        (Etempvar _b3__4 tuint)
+                                                        (Etempvar _b1__4 tuint)
+                                                        tuint)
+                                                      (Etempvar _b2__4 tuint)
+                                                      tuint)
+                                                    (Etempvar _b3__4 tuint)
+                                                    tuint))
+                                                (Ssequence
+                                                  (Ssequence
+                                                    (Ssequence
+                                                      (Sset _t'6
+                                                        (Etempvar _RK (tptr tuint)))
+                                                      (Sset _RK
+                                                        (Ebinop Oadd
+                                                          (Etempvar _t'6 (tptr tuint))
+                                                          (Econst_int (Int.repr 1) tint)
+                                                          (tptr tuint))))
+                                                    (Sset _rk
+                                                      (Ederef
+                                                        (Etempvar _t'6 (tptr tuint))
+                                                        tuint)))
+                                                  (Ssequence
+                                                    (Sset _b0__4
+                                                      (Ederef
+                                                        (Ebinop Oadd
+                                                          (Efield
+                                                            (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                            _FT0
+                                                            (tarray tuint 256))
+                                                          (Ebinop Oand
+                                                            (Etempvar _X1 tuint)
+                                                            (Econst_int (Int.repr 255) tint)
+                                                            tuint)
+                                                          (tptr tuint))
                                                         tuint))
                                                     (Ssequence
+                                                      (Sset _b1__4
+                                                        (Ederef
+                                                          (Ebinop Oadd
+                                                            (Efield
+                                                              (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                              _FT1
+                                                              (tarray tuint 256))
+                                                            (Ebinop Oand
+                                                              (Ebinop Oshr
+                                                                (Etempvar _X2 tuint)
+                                                                (Econst_int (Int.repr 8) tint)
+                                                                tuint)
+                                                              (Econst_int (Int.repr 255) tint)
+                                                              tuint)
+                                                            (tptr tuint))
+                                                          tuint))
                                                       (Ssequence
-                                                        (Ssequence
-                                                          (Sset _t'7
-                                                            (Etempvar _RK (tptr tuint)))
-                                                          (Sset _RK
-                                                            (Ebinop Oadd
-                                                              (Etempvar _t'7 (tptr tuint))
-                                                              (Econst_int (Int.repr 1) tint)
-                                                              (tptr tuint))))
-                                                        (Sset _rk
-                                                          (Ederef
-                                                            (Etempvar _t'7 (tptr tuint))
-                                                            tuint)))
-                                                      (Ssequence
-                                                        (Sset _b0__4
+                                                        (Sset _b2__4
                                                           (Ederef
                                                             (Ebinop Oadd
                                                               (Efield
                                                                 (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                                _FT0
+                                                                _FT2
                                                                 (tarray tuint 256))
                                                               (Ebinop Oand
-                                                                (Etempvar _X2 tuint)
+                                                                (Ebinop Oshr
+                                                                  (Etempvar _X3 tuint)
+                                                                  (Econst_int (Int.repr 16) tint)
+                                                                  tuint)
                                                                 (Econst_int (Int.repr 255) tint)
                                                                 tuint)
                                                               (tptr tuint))
                                                             tuint))
                                                         (Ssequence
-                                                          (Sset _b1__4
+                                                          (Sset _b3__4
                                                             (Ederef
                                                               (Ebinop Oadd
                                                                 (Efield
                                                                   (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                                  _FT1
+                                                                  _FT3
                                                                   (tarray tuint 256))
                                                                 (Ebinop Oand
                                                                   (Ebinop Oshr
-                                                                    (Etempvar _X3 tuint)
-                                                                    (Econst_int (Int.repr 8) tint)
+                                                                    (Etempvar _X0 tuint)
+                                                                    (Econst_int (Int.repr 24) tint)
                                                                     tuint)
                                                                   (Econst_int (Int.repr 255) tint)
                                                                   tuint)
                                                                 (tptr tuint))
                                                               tuint))
                                                           (Ssequence
-                                                            (Sset _b2__4
-                                                              (Ederef
-                                                                (Ebinop Oadd
-                                                                  (Efield
+                                                            (Sset _Y1
+                                                              (Ebinop Oxor
+                                                                (Ebinop Oxor
+                                                                  (Ebinop Oxor
+                                                                    (Ebinop Oxor
+                                                                    (Etempvar _rk tuint)
+                                                                    (Etempvar _b0__4 tuint)
+                                                                    tuint)
+                                                                    (Etempvar _b1__4 tuint)
+                                                                    tuint)
+                                                                  (Etempvar _b2__4 tuint)
+                                                                  tuint)
+                                                                (Etempvar _b3__4 tuint)
+                                                                tuint))
+                                                            (Ssequence
+                                                              (Ssequence
+                                                                (Ssequence
+                                                                  (Sset _t'7
+                                                                    (Etempvar _RK (tptr tuint)))
+                                                                  (Sset _RK
+                                                                    (Ebinop Oadd
+                                                                    (Etempvar _t'7 (tptr tuint))
+                                                                    (Econst_int (Int.repr 1) tint)
+                                                                    (tptr tuint))))
+                                                                (Sset _rk
+                                                                  (Ederef
+                                                                    (Etempvar _t'7 (tptr tuint))
+                                                                    tuint)))
+                                                              (Ssequence
+                                                                (Sset _b0__4
+                                                                  (Ederef
+                                                                    (Ebinop Oadd
+                                                                    (Efield
+                                                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                                    _FT0
+                                                                    (tarray tuint 256))
+                                                                    (Ebinop Oand
+                                                                    (Etempvar _X2 tuint)
+                                                                    (Econst_int (Int.repr 255) tint)
+                                                                    tuint)
+                                                                    (tptr tuint))
+                                                                    tuint))
+                                                                (Ssequence
+                                                                  (Sset _b1__4
+                                                                    (Ederef
+                                                                    (Ebinop Oadd
+                                                                    (Efield
+                                                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                                    _FT1
+                                                                    (tarray tuint 256))
+                                                                    (Ebinop Oand
+                                                                    (Ebinop Oshr
+                                                                    (Etempvar _X3 tuint)
+                                                                    (Econst_int (Int.repr 8) tint)
+                                                                    tuint)
+                                                                    (Econst_int (Int.repr 255) tint)
+                                                                    tuint)
+                                                                    (tptr tuint))
+                                                                    tuint))
+                                                                  (Ssequence
+                                                                    (Sset _b2__4
+                                                                    (Ederef
+                                                                    (Ebinop Oadd
+                                                                    (Efield
                                                                     (Evar _tables (Tstruct _aes_tables_struct noattr))
                                                                     _FT2
                                                                     (tarray tuint 256))
-                                                                  (Ebinop Oand
+                                                                    (Ebinop Oand
                                                                     (Ebinop Oshr
                                                                     (Etempvar _X0 tuint)
                                                                     (Econst_int (Int.repr 16) tint)
                                                                     tuint)
                                                                     (Econst_int (Int.repr 255) tint)
                                                                     tuint)
-                                                                  (tptr tuint))
-                                                                tuint))
-                                                            (Ssequence
-                                                              (Sset _b3__4
-                                                                (Ederef
-                                                                  (Ebinop Oadd
+                                                                    (tptr tuint))
+                                                                    tuint))
+                                                                    (Ssequence
+                                                                    (Sset _b3__4
+                                                                    (Ederef
+                                                                    (Ebinop Oadd
                                                                     (Efield
                                                                     (Evar _tables (Tstruct _aes_tables_struct noattr))
                                                                     _FT3
@@ -2452,10 +2488,10 @@ Definition f_mbedtls_aes_encrypt := {|
                                                                     (Econst_int (Int.repr 255) tint)
                                                                     tuint)
                                                                     (tptr tuint))
-                                                                  tuint))
-                                                              (Ssequence
-                                                                (Sset _Y2
-                                                                  (Ebinop Oxor
+                                                                    tuint))
+                                                                    (Ssequence
+                                                                    (Sset _Y2
+                                                                    (Ebinop Oxor
                                                                     (Ebinop Oxor
                                                                     (Ebinop Oxor
                                                                     (Ebinop Oxor
@@ -2468,8 +2504,8 @@ Definition f_mbedtls_aes_encrypt := {|
                                                                     tuint)
                                                                     (Etempvar _b3__4 tuint)
                                                                     tuint))
-                                                                (Ssequence
-                                                                  (Ssequence
+                                                                    (Ssequence
+                                                                    (Ssequence
                                                                     (Ssequence
                                                                     (Sset _t'8
                                                                     (Etempvar _RK (tptr tuint)))
@@ -2482,7 +2518,7 @@ Definition f_mbedtls_aes_encrypt := {|
                                                                     (Ederef
                                                                     (Etempvar _t'8 (tptr tuint))
                                                                     tuint)))
-                                                                  (Ssequence
+                                                                    (Ssequence
                                                                     (Sset _b0__4
                                                                     (Ederef
                                                                     (Ebinop Oadd
@@ -2561,234 +2597,251 @@ Definition f_mbedtls_aes_encrypt := {|
                                                                     tuint)
                                                                     (Etempvar _b3__4 tuint)
                                                                     tuint)))))))))))))))))))))))))
-                            (Ssequence
-                              (Ssequence
-                                (Ssequence
-                                  (Sset _t'9 (Etempvar _RK (tptr tuint)))
-                                  (Sset _RK
-                                    (Ebinop Oadd (Etempvar _t'9 (tptr tuint))
-                                      (Econst_int (Int.repr 1) tint)
-                                      (tptr tuint))))
-                                (Sset _rk__1
-                                  (Ederef (Etempvar _t'9 (tptr tuint)) tuint)))
-                              (Ssequence
-                                (Sset _b0__5
-                                  (Ederef
-                                    (Ebinop Oadd
-                                      (Efield
-                                        (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                        _FT0 (tarray tuint 256))
-                                      (Ebinop Oand (Etempvar _Y0 tuint)
-                                        (Econst_int (Int.repr 255) tint)
-                                        tuint) (tptr tuint)) tuint))
-                                (Ssequence
-                                  (Sset _b1__5
-                                    (Ederef
-                                      (Ebinop Oadd
-                                        (Efield
-                                          (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                          _FT1 (tarray tuint 256))
-                                        (Ebinop Oand
-                                          (Ebinop Oshr (Etempvar _Y1 tuint)
-                                            (Econst_int (Int.repr 8) tint)
-                                            tuint)
-                                          (Econst_int (Int.repr 255) tint)
-                                          tuint) (tptr tuint)) tuint))
-                                  (Ssequence
-                                    (Sset _b2__5
-                                      (Ederef
-                                        (Ebinop Oadd
-                                          (Efield
-                                            (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                            _FT2 (tarray tuint 256))
-                                          (Ebinop Oand
-                                            (Ebinop Oshr (Etempvar _Y2 tuint)
-                                              (Econst_int (Int.repr 16) tint)
-                                              tuint)
-                                            (Econst_int (Int.repr 255) tint)
-                                            tuint) (tptr tuint)) tuint))
                                     (Ssequence
-                                      (Sset _b3__5
-                                        (Ederef
-                                          (Ebinop Oadd
-                                            (Efield
-                                              (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                              _FT3 (tarray tuint 256))
-                                            (Ebinop Oand
-                                              (Ebinop Oshr
-                                                (Etempvar _Y3 tuint)
-                                                (Econst_int (Int.repr 24) tint)
-                                                tuint)
-                                              (Econst_int (Int.repr 255) tint)
-                                              tuint) (tptr tuint)) tuint))
                                       (Ssequence
-                                        (Sset _X0
-                                          (Ebinop Oxor
-                                            (Ebinop Oxor
-                                              (Ebinop Oxor
-                                                (Ebinop Oxor
-                                                  (Etempvar _rk__1 tuint)
-                                                  (Etempvar _b0__5 tuint)
-                                                  tuint)
-                                                (Etempvar _b1__5 tuint)
-                                                tuint)
-                                              (Etempvar _b2__5 tuint) tuint)
-                                            (Etempvar _b3__5 tuint) tuint))
                                         (Ssequence
+                                          (Sset _t'9
+                                            (Etempvar _RK (tptr tuint)))
+                                          (Sset _RK
+                                            (Ebinop Oadd
+                                              (Etempvar _t'9 (tptr tuint))
+                                              (Econst_int (Int.repr 1) tint)
+                                              (tptr tuint))))
+                                        (Sset _rk__1
+                                          (Ederef
+                                            (Etempvar _t'9 (tptr tuint))
+                                            tuint)))
+                                      (Ssequence
+                                        (Sset _b0__5
+                                          (Ederef
+                                            (Ebinop Oadd
+                                              (Efield
+                                                (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                _FT0 (tarray tuint 256))
+                                              (Ebinop Oand
+                                                (Etempvar _Y0 tuint)
+                                                (Econst_int (Int.repr 255) tint)
+                                                tuint) (tptr tuint)) tuint))
+                                        (Ssequence
+                                          (Sset _b1__5
+                                            (Ederef
+                                              (Ebinop Oadd
+                                                (Efield
+                                                  (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                  _FT1 (tarray tuint 256))
+                                                (Ebinop Oand
+                                                  (Ebinop Oshr
+                                                    (Etempvar _Y1 tuint)
+                                                    (Econst_int (Int.repr 8) tint)
+                                                    tuint)
+                                                  (Econst_int (Int.repr 255) tint)
+                                                  tuint) (tptr tuint)) tuint))
                                           (Ssequence
-                                            (Ssequence
-                                              (Sset _t'10
-                                                (Etempvar _RK (tptr tuint)))
-                                              (Sset _RK
-                                                (Ebinop Oadd
-                                                  (Etempvar _t'10 (tptr tuint))
-                                                  (Econst_int (Int.repr 1) tint)
-                                                  (tptr tuint))))
-                                            (Sset _rk__1
-                                              (Ederef
-                                                (Etempvar _t'10 (tptr tuint))
-                                                tuint)))
-                                          (Ssequence
-                                            (Sset _b0__5
+                                            (Sset _b2__5
                                               (Ederef
                                                 (Ebinop Oadd
                                                   (Efield
                                                     (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                    _FT0 (tarray tuint 256))
+                                                    _FT2 (tarray tuint 256))
                                                   (Ebinop Oand
-                                                    (Etempvar _Y1 tuint)
+                                                    (Ebinop Oshr
+                                                      (Etempvar _Y2 tuint)
+                                                      (Econst_int (Int.repr 16) tint)
+                                                      tuint)
                                                     (Econst_int (Int.repr 255) tint)
                                                     tuint) (tptr tuint))
                                                 tuint))
                                             (Ssequence
-                                              (Sset _b1__5
+                                              (Sset _b3__5
                                                 (Ederef
                                                   (Ebinop Oadd
                                                     (Efield
                                                       (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                      _FT1
+                                                      _FT3
                                                       (tarray tuint 256))
                                                     (Ebinop Oand
                                                       (Ebinop Oshr
-                                                        (Etempvar _Y2 tuint)
-                                                        (Econst_int (Int.repr 8) tint)
+                                                        (Etempvar _Y3 tuint)
+                                                        (Econst_int (Int.repr 24) tint)
                                                         tuint)
                                                       (Econst_int (Int.repr 255) tint)
                                                       tuint) (tptr tuint))
                                                   tuint))
                                               (Ssequence
-                                                (Sset _b2__5
-                                                  (Ederef
-                                                    (Ebinop Oadd
-                                                      (Efield
-                                                        (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                        _FT2
-                                                        (tarray tuint 256))
-                                                      (Ebinop Oand
-                                                        (Ebinop Oshr
-                                                          (Etempvar _Y3 tuint)
-                                                          (Econst_int (Int.repr 16) tint)
-                                                          tuint)
-                                                        (Econst_int (Int.repr 255) tint)
-                                                        tuint) (tptr tuint))
-                                                    tuint))
-                                                (Ssequence
-                                                  (Sset _b3__5
-                                                    (Ederef
-                                                      (Ebinop Oadd
-                                                        (Efield
-                                                          (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                          _FT3
-                                                          (tarray tuint 256))
-                                                        (Ebinop Oand
-                                                          (Ebinop Oshr
-                                                            (Etempvar _Y0 tuint)
-                                                            (Econst_int (Int.repr 24) tint)
-                                                            tuint)
-                                                          (Econst_int (Int.repr 255) tint)
-                                                          tuint)
-                                                        (tptr tuint)) tuint))
-                                                  (Ssequence
-                                                    (Sset _X1
+                                                (Sset _X0
+                                                  (Ebinop Oxor
+                                                    (Ebinop Oxor
                                                       (Ebinop Oxor
                                                         (Ebinop Oxor
-                                                          (Ebinop Oxor
-                                                            (Ebinop Oxor
-                                                              (Etempvar _rk__1 tuint)
-                                                              (Etempvar _b0__5 tuint)
-                                                              tuint)
-                                                            (Etempvar _b1__5 tuint)
-                                                            tuint)
-                                                          (Etempvar _b2__5 tuint)
+                                                          (Etempvar _rk__1 tuint)
+                                                          (Etempvar _b0__5 tuint)
                                                           tuint)
-                                                        (Etempvar _b3__5 tuint)
+                                                        (Etempvar _b1__5 tuint)
+                                                        tuint)
+                                                      (Etempvar _b2__5 tuint)
+                                                      tuint)
+                                                    (Etempvar _b3__5 tuint)
+                                                    tuint))
+                                                (Ssequence
+                                                  (Ssequence
+                                                    (Ssequence
+                                                      (Sset _t'10
+                                                        (Etempvar _RK (tptr tuint)))
+                                                      (Sset _RK
+                                                        (Ebinop Oadd
+                                                          (Etempvar _t'10 (tptr tuint))
+                                                          (Econst_int (Int.repr 1) tint)
+                                                          (tptr tuint))))
+                                                    (Sset _rk__1
+                                                      (Ederef
+                                                        (Etempvar _t'10 (tptr tuint))
+                                                        tuint)))
+                                                  (Ssequence
+                                                    (Sset _b0__5
+                                                      (Ederef
+                                                        (Ebinop Oadd
+                                                          (Efield
+                                                            (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                            _FT0
+                                                            (tarray tuint 256))
+                                                          (Ebinop Oand
+                                                            (Etempvar _Y1 tuint)
+                                                            (Econst_int (Int.repr 255) tint)
+                                                            tuint)
+                                                          (tptr tuint))
                                                         tuint))
                                                     (Ssequence
+                                                      (Sset _b1__5
+                                                        (Ederef
+                                                          (Ebinop Oadd
+                                                            (Efield
+                                                              (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                              _FT1
+                                                              (tarray tuint 256))
+                                                            (Ebinop Oand
+                                                              (Ebinop Oshr
+                                                                (Etempvar _Y2 tuint)
+                                                                (Econst_int (Int.repr 8) tint)
+                                                                tuint)
+                                                              (Econst_int (Int.repr 255) tint)
+                                                              tuint)
+                                                            (tptr tuint))
+                                                          tuint))
                                                       (Ssequence
-                                                        (Ssequence
-                                                          (Sset _t'11
-                                                            (Etempvar _RK (tptr tuint)))
-                                                          (Sset _RK
-                                                            (Ebinop Oadd
-                                                              (Etempvar _t'11 (tptr tuint))
-                                                              (Econst_int (Int.repr 1) tint)
-                                                              (tptr tuint))))
-                                                        (Sset _rk__1
-                                                          (Ederef
-                                                            (Etempvar _t'11 (tptr tuint))
-                                                            tuint)))
-                                                      (Ssequence
-                                                        (Sset _b0__5
+                                                        (Sset _b2__5
                                                           (Ederef
                                                             (Ebinop Oadd
                                                               (Efield
                                                                 (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                                _FT0
+                                                                _FT2
                                                                 (tarray tuint 256))
                                                               (Ebinop Oand
-                                                                (Etempvar _Y2 tuint)
+                                                                (Ebinop Oshr
+                                                                  (Etempvar _Y3 tuint)
+                                                                  (Econst_int (Int.repr 16) tint)
+                                                                  tuint)
                                                                 (Econst_int (Int.repr 255) tint)
                                                                 tuint)
                                                               (tptr tuint))
                                                             tuint))
                                                         (Ssequence
-                                                          (Sset _b1__5
+                                                          (Sset _b3__5
                                                             (Ederef
                                                               (Ebinop Oadd
                                                                 (Efield
                                                                   (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                                  _FT1
+                                                                  _FT3
                                                                   (tarray tuint 256))
                                                                 (Ebinop Oand
                                                                   (Ebinop Oshr
-                                                                    (Etempvar _Y3 tuint)
-                                                                    (Econst_int (Int.repr 8) tint)
+                                                                    (Etempvar _Y0 tuint)
+                                                                    (Econst_int (Int.repr 24) tint)
                                                                     tuint)
                                                                   (Econst_int (Int.repr 255) tint)
                                                                   tuint)
                                                                 (tptr tuint))
                                                               tuint))
                                                           (Ssequence
-                                                            (Sset _b2__5
-                                                              (Ederef
-                                                                (Ebinop Oadd
-                                                                  (Efield
+                                                            (Sset _X1
+                                                              (Ebinop Oxor
+                                                                (Ebinop Oxor
+                                                                  (Ebinop Oxor
+                                                                    (Ebinop Oxor
+                                                                    (Etempvar _rk__1 tuint)
+                                                                    (Etempvar _b0__5 tuint)
+                                                                    tuint)
+                                                                    (Etempvar _b1__5 tuint)
+                                                                    tuint)
+                                                                  (Etempvar _b2__5 tuint)
+                                                                  tuint)
+                                                                (Etempvar _b3__5 tuint)
+                                                                tuint))
+                                                            (Ssequence
+                                                              (Ssequence
+                                                                (Ssequence
+                                                                  (Sset _t'11
+                                                                    (Etempvar _RK (tptr tuint)))
+                                                                  (Sset _RK
+                                                                    (Ebinop Oadd
+                                                                    (Etempvar _t'11 (tptr tuint))
+                                                                    (Econst_int (Int.repr 1) tint)
+                                                                    (tptr tuint))))
+                                                                (Sset _rk__1
+                                                                  (Ederef
+                                                                    (Etempvar _t'11 (tptr tuint))
+                                                                    tuint)))
+                                                              (Ssequence
+                                                                (Sset _b0__5
+                                                                  (Ederef
+                                                                    (Ebinop Oadd
+                                                                    (Efield
+                                                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                                    _FT0
+                                                                    (tarray tuint 256))
+                                                                    (Ebinop Oand
+                                                                    (Etempvar _Y2 tuint)
+                                                                    (Econst_int (Int.repr 255) tint)
+                                                                    tuint)
+                                                                    (tptr tuint))
+                                                                    tuint))
+                                                                (Ssequence
+                                                                  (Sset _b1__5
+                                                                    (Ederef
+                                                                    (Ebinop Oadd
+                                                                    (Efield
+                                                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                                    _FT1
+                                                                    (tarray tuint 256))
+                                                                    (Ebinop Oand
+                                                                    (Ebinop Oshr
+                                                                    (Etempvar _Y3 tuint)
+                                                                    (Econst_int (Int.repr 8) tint)
+                                                                    tuint)
+                                                                    (Econst_int (Int.repr 255) tint)
+                                                                    tuint)
+                                                                    (tptr tuint))
+                                                                    tuint))
+                                                                  (Ssequence
+                                                                    (Sset _b2__5
+                                                                    (Ederef
+                                                                    (Ebinop Oadd
+                                                                    (Efield
                                                                     (Evar _tables (Tstruct _aes_tables_struct noattr))
                                                                     _FT2
                                                                     (tarray tuint 256))
-                                                                  (Ebinop Oand
+                                                                    (Ebinop Oand
                                                                     (Ebinop Oshr
                                                                     (Etempvar _Y0 tuint)
                                                                     (Econst_int (Int.repr 16) tint)
                                                                     tuint)
                                                                     (Econst_int (Int.repr 255) tint)
                                                                     tuint)
-                                                                  (tptr tuint))
-                                                                tuint))
-                                                            (Ssequence
-                                                              (Sset _b3__5
-                                                                (Ederef
-                                                                  (Ebinop Oadd
+                                                                    (tptr tuint))
+                                                                    tuint))
+                                                                    (Ssequence
+                                                                    (Sset _b3__5
+                                                                    (Ederef
+                                                                    (Ebinop Oadd
                                                                     (Efield
                                                                     (Evar _tables (Tstruct _aes_tables_struct noattr))
                                                                     _FT3
@@ -2801,10 +2854,10 @@ Definition f_mbedtls_aes_encrypt := {|
                                                                     (Econst_int (Int.repr 255) tint)
                                                                     tuint)
                                                                     (tptr tuint))
-                                                                  tuint))
-                                                              (Ssequence
-                                                                (Sset _X2
-                                                                  (Ebinop Oxor
+                                                                    tuint))
+                                                                    (Ssequence
+                                                                    (Sset _X2
+                                                                    (Ebinop Oxor
                                                                     (Ebinop Oxor
                                                                     (Ebinop Oxor
                                                                     (Ebinop Oxor
@@ -2817,8 +2870,8 @@ Definition f_mbedtls_aes_encrypt := {|
                                                                     tuint)
                                                                     (Etempvar _b3__5 tuint)
                                                                     tuint))
-                                                                (Ssequence
-                                                                  (Ssequence
+                                                                    (Ssequence
+                                                                    (Ssequence
                                                                     (Ssequence
                                                                     (Sset _t'12
                                                                     (Etempvar _RK (tptr tuint)))
@@ -2831,7 +2884,7 @@ Definition f_mbedtls_aes_encrypt := {|
                                                                     (Ederef
                                                                     (Etempvar _t'12 (tptr tuint))
                                                                     tuint)))
-                                                                  (Ssequence
+                                                                    (Ssequence
                                                                     (Sset _b0__5
                                                                     (Ederef
                                                                     (Ebinop Oadd
@@ -2910,270 +2963,290 @@ Definition f_mbedtls_aes_encrypt := {|
                                                                     tuint)
                                                                     (Etempvar _b3__5 tuint)
                                                                     tuint)))))))))))))))))))))))))))
-                        (Sset _i
-                          (Ebinop Osub (Etempvar _i tint)
-                            (Econst_int (Int.repr 1) tint) tint))))
-                    (Ssequence
-                      (Ssequence
-                        (Ssequence
-                          (Ssequence
-                            (Sset _t'13 (Etempvar _RK (tptr tuint)))
-                            (Sset _RK
-                              (Ebinop Oadd (Etempvar _t'13 (tptr tuint))
-                                (Econst_int (Int.repr 1) tint) (tptr tuint))))
-                          (Sset _rk__2
-                            (Ederef (Etempvar _t'13 (tptr tuint)) tuint)))
-                        (Ssequence
-                          (Sset _b0__6
-                            (Ederef
-                              (Ebinop Oadd
-                                (Efield
-                                  (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                  _FT0 (tarray tuint 256))
-                                (Ebinop Oand (Etempvar _X0 tuint)
-                                  (Econst_int (Int.repr 255) tint) tuint)
-                                (tptr tuint)) tuint))
-                          (Ssequence
-                            (Sset _b1__6
-                              (Ederef
-                                (Ebinop Oadd
-                                  (Efield
-                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                    _FT1 (tarray tuint 256))
-                                  (Ebinop Oand
-                                    (Ebinop Oshr (Etempvar _X1 tuint)
-                                      (Econst_int (Int.repr 8) tint) tuint)
-                                    (Econst_int (Int.repr 255) tint) tuint)
-                                  (tptr tuint)) tuint))
+                                (Sset _i
+                                  (Ebinop Osub (Etempvar _i tint)
+                                    (Econst_int (Int.repr 1) tint) tint))))
                             (Ssequence
-                              (Sset _b2__6
-                                (Ederef
-                                  (Ebinop Oadd
-                                    (Efield
-                                      (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                      _FT2 (tarray tuint 256))
-                                    (Ebinop Oand
-                                      (Ebinop Oshr (Etempvar _X2 tuint)
-                                        (Econst_int (Int.repr 16) tint)
-                                        tuint)
-                                      (Econst_int (Int.repr 255) tint) tuint)
-                                    (tptr tuint)) tuint))
                               (Ssequence
-                                (Sset _b3__6
-                                  (Ederef
-                                    (Ebinop Oadd
-                                      (Efield
-                                        (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                        _FT3 (tarray tuint 256))
-                                      (Ebinop Oand
-                                        (Ebinop Oshr (Etempvar _X3 tuint)
-                                          (Econst_int (Int.repr 24) tint)
-                                          tuint)
-                                        (Econst_int (Int.repr 255) tint)
-                                        tuint) (tptr tuint)) tuint))
                                 (Ssequence
-                                  (Sset _Y0
-                                    (Ebinop Oxor
-                                      (Ebinop Oxor
-                                        (Ebinop Oxor
-                                          (Ebinop Oxor
-                                            (Etempvar _rk__2 tuint)
-                                            (Etempvar _b0__6 tuint) tuint)
-                                          (Etempvar _b1__6 tuint) tuint)
-                                        (Etempvar _b2__6 tuint) tuint)
-                                      (Etempvar _b3__6 tuint) tuint))
                                   (Ssequence
+                                    (Sset _t'13 (Etempvar _RK (tptr tuint)))
+                                    (Sset _RK
+                                      (Ebinop Oadd
+                                        (Etempvar _t'13 (tptr tuint))
+                                        (Econst_int (Int.repr 1) tint)
+                                        (tptr tuint))))
+                                  (Sset _rk__2
+                                    (Ederef (Etempvar _t'13 (tptr tuint))
+                                      tuint)))
+                                (Ssequence
+                                  (Sset _b0__6
+                                    (Ederef
+                                      (Ebinop Oadd
+                                        (Efield
+                                          (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                          _FT0 (tarray tuint 256))
+                                        (Ebinop Oand (Etempvar _X0 tuint)
+                                          (Econst_int (Int.repr 255) tint)
+                                          tuint) (tptr tuint)) tuint))
+                                  (Ssequence
+                                    (Sset _b1__6
+                                      (Ederef
+                                        (Ebinop Oadd
+                                          (Efield
+                                            (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                            _FT1 (tarray tuint 256))
+                                          (Ebinop Oand
+                                            (Ebinop Oshr (Etempvar _X1 tuint)
+                                              (Econst_int (Int.repr 8) tint)
+                                              tuint)
+                                            (Econst_int (Int.repr 255) tint)
+                                            tuint) (tptr tuint)) tuint))
                                     (Ssequence
-                                      (Ssequence
-                                        (Sset _t'14
-                                          (Etempvar _RK (tptr tuint)))
-                                        (Sset _RK
-                                          (Ebinop Oadd
-                                            (Etempvar _t'14 (tptr tuint))
-                                            (Econst_int (Int.repr 1) tint)
-                                            (tptr tuint))))
-                                      (Sset _rk__2
-                                        (Ederef (Etempvar _t'14 (tptr tuint))
-                                          tuint)))
-                                    (Ssequence
-                                      (Sset _b0__6
+                                      (Sset _b2__6
                                         (Ederef
                                           (Ebinop Oadd
                                             (Efield
                                               (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                              _FT0 (tarray tuint 256))
-                                            (Ebinop Oand (Etempvar _X1 tuint)
+                                              _FT2 (tarray tuint 256))
+                                            (Ebinop Oand
+                                              (Ebinop Oshr
+                                                (Etempvar _X2 tuint)
+                                                (Econst_int (Int.repr 16) tint)
+                                                tuint)
                                               (Econst_int (Int.repr 255) tint)
                                               tuint) (tptr tuint)) tuint))
                                       (Ssequence
-                                        (Sset _b1__6
+                                        (Sset _b3__6
                                           (Ederef
                                             (Ebinop Oadd
                                               (Efield
                                                 (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                _FT1 (tarray tuint 256))
+                                                _FT3 (tarray tuint 256))
                                               (Ebinop Oand
                                                 (Ebinop Oshr
-                                                  (Etempvar _X2 tuint)
-                                                  (Econst_int (Int.repr 8) tint)
+                                                  (Etempvar _X3 tuint)
+                                                  (Econst_int (Int.repr 24) tint)
                                                   tuint)
                                                 (Econst_int (Int.repr 255) tint)
                                                 tuint) (tptr tuint)) tuint))
                                         (Ssequence
-                                          (Sset _b2__6
-                                            (Ederef
-                                              (Ebinop Oadd
-                                                (Efield
-                                                  (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                  _FT2 (tarray tuint 256))
-                                                (Ebinop Oand
-                                                  (Ebinop Oshr
-                                                    (Etempvar _X3 tuint)
-                                                    (Econst_int (Int.repr 16) tint)
-                                                    tuint)
-                                                  (Econst_int (Int.repr 255) tint)
-                                                  tuint) (tptr tuint)) tuint))
-                                          (Ssequence
-                                            (Sset _b3__6
-                                              (Ederef
-                                                (Ebinop Oadd
-                                                  (Efield
-                                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                    _FT3 (tarray tuint 256))
-                                                  (Ebinop Oand
-                                                    (Ebinop Oshr
-                                                      (Etempvar _X0 tuint)
-                                                      (Econst_int (Int.repr 24) tint)
-                                                      tuint)
-                                                    (Econst_int (Int.repr 255) tint)
-                                                    tuint) (tptr tuint))
-                                                tuint))
-                                            (Ssequence
-                                              (Sset _Y1
+                                          (Sset _Y0
+                                            (Ebinop Oxor
+                                              (Ebinop Oxor
                                                 (Ebinop Oxor
                                                   (Ebinop Oxor
-                                                    (Ebinop Oxor
-                                                      (Ebinop Oxor
-                                                        (Etempvar _rk__2 tuint)
-                                                        (Etempvar _b0__6 tuint)
-                                                        tuint)
-                                                      (Etempvar _b1__6 tuint)
-                                                      tuint)
-                                                    (Etempvar _b2__6 tuint)
+                                                    (Etempvar _rk__2 tuint)
+                                                    (Etempvar _b0__6 tuint)
                                                     tuint)
-                                                  (Etempvar _b3__6 tuint)
+                                                  (Etempvar _b1__6 tuint)
+                                                  tuint)
+                                                (Etempvar _b2__6 tuint)
+                                                tuint)
+                                              (Etempvar _b3__6 tuint) tuint))
+                                          (Ssequence
+                                            (Ssequence
+                                              (Ssequence
+                                                (Sset _t'14
+                                                  (Etempvar _RK (tptr tuint)))
+                                                (Sset _RK
+                                                  (Ebinop Oadd
+                                                    (Etempvar _t'14 (tptr tuint))
+                                                    (Econst_int (Int.repr 1) tint)
+                                                    (tptr tuint))))
+                                              (Sset _rk__2
+                                                (Ederef
+                                                  (Etempvar _t'14 (tptr tuint))
+                                                  tuint)))
+                                            (Ssequence
+                                              (Sset _b0__6
+                                                (Ederef
+                                                  (Ebinop Oadd
+                                                    (Efield
+                                                      (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                      _FT0
+                                                      (tarray tuint 256))
+                                                    (Ebinop Oand
+                                                      (Etempvar _X1 tuint)
+                                                      (Econst_int (Int.repr 255) tint)
+                                                      tuint) (tptr tuint))
                                                   tuint))
                                               (Ssequence
+                                                (Sset _b1__6
+                                                  (Ederef
+                                                    (Ebinop Oadd
+                                                      (Efield
+                                                        (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                        _FT1
+                                                        (tarray tuint 256))
+                                                      (Ebinop Oand
+                                                        (Ebinop Oshr
+                                                          (Etempvar _X2 tuint)
+                                                          (Econst_int (Int.repr 8) tint)
+                                                          tuint)
+                                                        (Econst_int (Int.repr 255) tint)
+                                                        tuint) (tptr tuint))
+                                                    tuint))
                                                 (Ssequence
-                                                  (Ssequence
-                                                    (Sset _t'15
-                                                      (Etempvar _RK (tptr tuint)))
-                                                    (Sset _RK
-                                                      (Ebinop Oadd
-                                                        (Etempvar _t'15 (tptr tuint))
-                                                        (Econst_int (Int.repr 1) tint)
-                                                        (tptr tuint))))
-                                                  (Sset _rk__2
-                                                    (Ederef
-                                                      (Etempvar _t'15 (tptr tuint))
-                                                      tuint)))
-                                                (Ssequence
-                                                  (Sset _b0__6
+                                                  (Sset _b2__6
                                                     (Ederef
                                                       (Ebinop Oadd
                                                         (Efield
                                                           (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                          _FT0
+                                                          _FT2
                                                           (tarray tuint 256))
                                                         (Ebinop Oand
-                                                          (Etempvar _X2 tuint)
+                                                          (Ebinop Oshr
+                                                            (Etempvar _X3 tuint)
+                                                            (Econst_int (Int.repr 16) tint)
+                                                            tuint)
                                                           (Econst_int (Int.repr 255) tint)
                                                           tuint)
                                                         (tptr tuint)) tuint))
                                                   (Ssequence
-                                                    (Sset _b1__6
+                                                    (Sset _b3__6
                                                       (Ederef
                                                         (Ebinop Oadd
                                                           (Efield
                                                             (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                            _FT1
+                                                            _FT3
                                                             (tarray tuint 256))
                                                           (Ebinop Oand
                                                             (Ebinop Oshr
-                                                              (Etempvar _X3 tuint)
-                                                              (Econst_int (Int.repr 8) tint)
+                                                              (Etempvar _X0 tuint)
+                                                              (Econst_int (Int.repr 24) tint)
                                                               tuint)
                                                             (Econst_int (Int.repr 255) tint)
                                                             tuint)
                                                           (tptr tuint))
                                                         tuint))
                                                     (Ssequence
-                                                      (Sset _b2__6
-                                                        (Ederef
-                                                          (Ebinop Oadd
-                                                            (Efield
-                                                              (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                              _FT2
-                                                              (tarray tuint 256))
-                                                            (Ebinop Oand
-                                                              (Ebinop Oshr
-                                                                (Etempvar _X0 tuint)
-                                                                (Econst_int (Int.repr 16) tint)
-                                                                tuint)
-                                                              (Econst_int (Int.repr 255) tint)
-                                                              tuint)
-                                                            (tptr tuint))
-                                                          tuint))
-                                                      (Ssequence
-                                                        (Sset _b3__6
-                                                          (Ederef
-                                                            (Ebinop Oadd
-                                                              (Efield
-                                                                (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                                _FT3
-                                                                (tarray tuint 256))
-                                                              (Ebinop Oand
-                                                                (Ebinop Oshr
-                                                                  (Etempvar _X1 tuint)
-                                                                  (Econst_int (Int.repr 24) tint)
-                                                                  tuint)
-                                                                (Econst_int (Int.repr 255) tint)
-                                                                tuint)
-                                                              (tptr tuint))
-                                                            tuint))
-                                                        (Ssequence
-                                                          (Sset _Y2
+                                                      (Sset _Y1
+                                                        (Ebinop Oxor
+                                                          (Ebinop Oxor
                                                             (Ebinop Oxor
                                                               (Ebinop Oxor
-                                                                (Ebinop Oxor
-                                                                  (Ebinop Oxor
+                                                                (Etempvar _rk__2 tuint)
+                                                                (Etempvar _b0__6 tuint)
+                                                                tuint)
+                                                              (Etempvar _b1__6 tuint)
+                                                              tuint)
+                                                            (Etempvar _b2__6 tuint)
+                                                            tuint)
+                                                          (Etempvar _b3__6 tuint)
+                                                          tuint))
+                                                      (Ssequence
+                                                        (Ssequence
+                                                          (Ssequence
+                                                            (Sset _t'15
+                                                              (Etempvar _RK (tptr tuint)))
+                                                            (Sset _RK
+                                                              (Ebinop Oadd
+                                                                (Etempvar _t'15 (tptr tuint))
+                                                                (Econst_int (Int.repr 1) tint)
+                                                                (tptr tuint))))
+                                                          (Sset _rk__2
+                                                            (Ederef
+                                                              (Etempvar _t'15 (tptr tuint))
+                                                              tuint)))
+                                                        (Ssequence
+                                                          (Sset _b0__6
+                                                            (Ederef
+                                                              (Ebinop Oadd
+                                                                (Efield
+                                                                  (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                                  _FT0
+                                                                  (tarray tuint 256))
+                                                                (Ebinop Oand
+                                                                  (Etempvar _X2 tuint)
+                                                                  (Econst_int (Int.repr 255) tint)
+                                                                  tuint)
+                                                                (tptr tuint))
+                                                              tuint))
+                                                          (Ssequence
+                                                            (Sset _b1__6
+                                                              (Ederef
+                                                                (Ebinop Oadd
+                                                                  (Efield
+                                                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                                    _FT1
+                                                                    (tarray tuint 256))
+                                                                  (Ebinop Oand
+                                                                    (Ebinop Oshr
+                                                                    (Etempvar _X3 tuint)
+                                                                    (Econst_int (Int.repr 8) tint)
+                                                                    tuint)
+                                                                    (Econst_int (Int.repr 255) tint)
+                                                                    tuint)
+                                                                  (tptr tuint))
+                                                                tuint))
+                                                            (Ssequence
+                                                              (Sset _b2__6
+                                                                (Ederef
+                                                                  (Ebinop Oadd
+                                                                    (Efield
+                                                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                                    _FT2
+                                                                    (tarray tuint 256))
+                                                                    (Ebinop Oand
+                                                                    (Ebinop Oshr
+                                                                    (Etempvar _X0 tuint)
+                                                                    (Econst_int (Int.repr 16) tint)
+                                                                    tuint)
+                                                                    (Econst_int (Int.repr 255) tint)
+                                                                    tuint)
+                                                                    (tptr tuint))
+                                                                  tuint))
+                                                              (Ssequence
+                                                                (Sset _b3__6
+                                                                  (Ederef
+                                                                    (Ebinop Oadd
+                                                                    (Efield
+                                                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                                    _FT3
+                                                                    (tarray tuint 256))
+                                                                    (Ebinop Oand
+                                                                    (Ebinop Oshr
+                                                                    (Etempvar _X1 tuint)
+                                                                    (Econst_int (Int.repr 24) tint)
+                                                                    tuint)
+                                                                    (Econst_int (Int.repr 255) tint)
+                                                                    tuint)
+                                                                    (tptr tuint))
+                                                                    tuint))
+                                                                (Ssequence
+                                                                  (Sset _Y2
+                                                                    (Ebinop Oxor
+                                                                    (Ebinop Oxor
+                                                                    (Ebinop Oxor
+                                                                    (Ebinop Oxor
                                                                     (Etempvar _rk__2 tuint)
                                                                     (Etempvar _b0__6 tuint)
                                                                     tuint)
-                                                                  (Etempvar _b1__6 tuint)
-                                                                  tuint)
-                                                                (Etempvar _b2__6 tuint)
-                                                                tuint)
-                                                              (Etempvar _b3__6 tuint)
-                                                              tuint))
-                                                          (Ssequence
-                                                            (Ssequence
-                                                              (Ssequence
-                                                                (Sset _t'16
-                                                                  (Etempvar _RK (tptr tuint)))
-                                                                (Sset _RK
-                                                                  (Ebinop Oadd
+                                                                    (Etempvar _b1__6 tuint)
+                                                                    tuint)
+                                                                    (Etempvar _b2__6 tuint)
+                                                                    tuint)
+                                                                    (Etempvar _b3__6 tuint)
+                                                                    tuint))
+                                                                  (Ssequence
+                                                                    (Ssequence
+                                                                    (Ssequence
+                                                                    (Sset _t'16
+                                                                    (Etempvar _RK (tptr tuint)))
+                                                                    (Sset _RK
+                                                                    (Ebinop Oadd
                                                                     (Etempvar _t'16 (tptr tuint))
                                                                     (Econst_int (Int.repr 1) tint)
                                                                     (tptr tuint))))
-                                                              (Sset _rk__2
-                                                                (Ederef
-                                                                  (Etempvar _t'16 (tptr tuint))
-                                                                  tuint)))
-                                                            (Ssequence
-                                                              (Sset _b0__6
-                                                                (Ederef
-                                                                  (Ebinop Oadd
+                                                                    (Sset _rk__2
+                                                                    (Ederef
+                                                                    (Etempvar _t'16 (tptr tuint))
+                                                                    tuint)))
+                                                                    (Ssequence
+                                                                    (Sset _b0__6
+                                                                    (Ederef
+                                                                    (Ebinop Oadd
                                                                     (Efield
                                                                     (Evar _tables (Tstruct _aes_tables_struct noattr))
                                                                     _FT0
@@ -3183,10 +3256,10 @@ Definition f_mbedtls_aes_encrypt := {|
                                                                     (Econst_int (Int.repr 255) tint)
                                                                     tuint)
                                                                     (tptr tuint))
-                                                                  tuint))
-                                                              (Ssequence
-                                                                (Sset _b1__6
-                                                                  (Ederef
+                                                                    tuint))
+                                                                    (Ssequence
+                                                                    (Sset _b1__6
+                                                                    (Ederef
                                                                     (Ebinop Oadd
                                                                     (Efield
                                                                     (Evar _tables (Tstruct _aes_tables_struct noattr))
@@ -3201,8 +3274,8 @@ Definition f_mbedtls_aes_encrypt := {|
                                                                     tuint)
                                                                     (tptr tuint))
                                                                     tuint))
-                                                                (Ssequence
-                                                                  (Sset _b2__6
+                                                                    (Ssequence
+                                                                    (Sset _b2__6
                                                                     (Ederef
                                                                     (Ebinop Oadd
                                                                     (Efield
@@ -3218,7 +3291,7 @@ Definition f_mbedtls_aes_encrypt := {|
                                                                     tuint)
                                                                     (tptr tuint))
                                                                     tuint))
-                                                                  (Ssequence
+                                                                    (Ssequence
                                                                     (Sset _b3__6
                                                                     (Ederef
                                                                     (Ebinop Oadd
@@ -3249,111 +3322,60 @@ Definition f_mbedtls_aes_encrypt := {|
                                                                     tuint)
                                                                     (Etempvar _b3__6 tuint)
                                                                     tuint)))))))))))))))))))))))))
-                      (Ssequence
-                        (Ssequence
-                          (Ssequence
-                            (Ssequence
-                              (Sset _t'17 (Etempvar _RK (tptr tuint)))
-                              (Sset _RK
-                                (Ebinop Oadd (Etempvar _t'17 (tptr tuint))
-                                  (Econst_int (Int.repr 1) tint)
-                                  (tptr tuint))))
-                            (Sset _rk__3
-                              (Ederef (Etempvar _t'17 (tptr tuint)) tuint)))
-                          (Ssequence
-                            (Sset _b0__7
-                              (Ederef
-                                (Ebinop Oadd
-                                  (Efield
-                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                    _FSb (tarray tuchar 256))
-                                  (Ebinop Oand (Etempvar _Y0 tuint)
-                                    (Econst_int (Int.repr 255) tint) tuint)
-                                  (tptr tuchar)) tuchar))
-                            (Ssequence
-                              (Sset _b1__7
-                                (Ederef
-                                  (Ebinop Oadd
-                                    (Efield
-                                      (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                      _FSb (tarray tuchar 256))
-                                    (Ebinop Oand
-                                      (Ebinop Oshr (Etempvar _Y1 tuint)
-                                        (Econst_int (Int.repr 8) tint) tuint)
-                                      (Econst_int (Int.repr 255) tint) tuint)
-                                    (tptr tuchar)) tuchar))
                               (Ssequence
-                                (Sset _b2__7
-                                  (Ederef
-                                    (Ebinop Oadd
-                                      (Efield
-                                        (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                        _FSb (tarray tuchar 256))
-                                      (Ebinop Oand
-                                        (Ebinop Oshr (Etempvar _Y2 tuint)
-                                          (Econst_int (Int.repr 16) tint)
-                                          tuint)
-                                        (Econst_int (Int.repr 255) tint)
-                                        tuint) (tptr tuchar)) tuchar))
                                 (Ssequence
-                                  (Sset _b3__7
-                                    (Ederef
-                                      (Ebinop Oadd
-                                        (Efield
-                                          (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                          _FSb (tarray tuchar 256))
-                                        (Ebinop Oand
-                                          (Ebinop Oshr (Etempvar _Y3 tuint)
-                                            (Econst_int (Int.repr 24) tint)
-                                            tuint)
-                                          (Econst_int (Int.repr 255) tint)
-                                          tuint) (tptr tuchar)) tuchar))
                                   (Ssequence
-                                    (Sset _X0
-                                      (Ebinop Oxor
-                                        (Ebinop Oxor
-                                          (Ebinop Oxor
-                                            (Ebinop Oxor
-                                              (Etempvar _rk__3 tuint)
-                                              (Etempvar _b0__7 tuint) tuint)
-                                            (Ebinop Oshl
-                                              (Etempvar _b1__7 tuint)
-                                              (Econst_int (Int.repr 8) tint)
-                                              tuint) tuint)
-                                          (Ebinop Oshl
-                                            (Etempvar _b2__7 tuint)
-                                            (Econst_int (Int.repr 16) tint)
-                                            tuint) tuint)
-                                        (Ebinop Oshl (Etempvar _b3__7 tuint)
-                                          (Econst_int (Int.repr 24) tint)
-                                          tuint) tuint))
                                     (Ssequence
+                                      (Sset _t'17
+                                        (Etempvar _RK (tptr tuint)))
+                                      (Sset _RK
+                                        (Ebinop Oadd
+                                          (Etempvar _t'17 (tptr tuint))
+                                          (Econst_int (Int.repr 1) tint)
+                                          (tptr tuint))))
+                                    (Sset _rk__3
+                                      (Ederef (Etempvar _t'17 (tptr tuint))
+                                        tuint)))
+                                  (Ssequence
+                                    (Sset _b0__7
+                                      (Ederef
+                                        (Ebinop Oadd
+                                          (Efield
+                                            (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                            _FSb (tarray tuchar 256))
+                                          (Ebinop Oand (Etempvar _Y0 tuint)
+                                            (Econst_int (Int.repr 255) tint)
+                                            tuint) (tptr tuchar)) tuchar))
+                                    (Ssequence
+                                      (Sset _b1__7
+                                        (Ederef
+                                          (Ebinop Oadd
+                                            (Efield
+                                              (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                              _FSb (tarray tuchar 256))
+                                            (Ebinop Oand
+                                              (Ebinop Oshr
+                                                (Etempvar _Y1 tuint)
+                                                (Econst_int (Int.repr 8) tint)
+                                                tuint)
+                                              (Econst_int (Int.repr 255) tint)
+                                              tuint) (tptr tuchar)) tuchar))
                                       (Ssequence
-                                        (Ssequence
-                                          (Sset _t'18
-                                            (Etempvar _RK (tptr tuint)))
-                                          (Sset _RK
-                                            (Ebinop Oadd
-                                              (Etempvar _t'18 (tptr tuint))
-                                              (Econst_int (Int.repr 1) tint)
-                                              (tptr tuint))))
-                                        (Sset _rk__3
-                                          (Ederef
-                                            (Etempvar _t'18 (tptr tuint))
-                                            tuint)))
-                                      (Ssequence
-                                        (Sset _b0__7
+                                        (Sset _b2__7
                                           (Ederef
                                             (Ebinop Oadd
                                               (Efield
                                                 (Evar _tables (Tstruct _aes_tables_struct noattr))
                                                 _FSb (tarray tuchar 256))
                                               (Ebinop Oand
-                                                (Etempvar _Y1 tuint)
+                                                (Ebinop Oshr
+                                                  (Etempvar _Y2 tuint)
+                                                  (Econst_int (Int.repr 16) tint)
+                                                  tuint)
                                                 (Econst_int (Int.repr 255) tint)
                                                 tuint) (tptr tuchar)) tuchar))
                                         (Ssequence
-                                          (Sset _b1__7
+                                          (Sset _b3__7
                                             (Ederef
                                               (Ebinop Oadd
                                                 (Efield
@@ -3361,80 +3383,79 @@ Definition f_mbedtls_aes_encrypt := {|
                                                   _FSb (tarray tuchar 256))
                                                 (Ebinop Oand
                                                   (Ebinop Oshr
-                                                    (Etempvar _Y2 tuint)
-                                                    (Econst_int (Int.repr 8) tint)
+                                                    (Etempvar _Y3 tuint)
+                                                    (Econst_int (Int.repr 24) tint)
                                                     tuint)
                                                   (Econst_int (Int.repr 255) tint)
                                                   tuint) (tptr tuchar))
                                               tuchar))
                                           (Ssequence
-                                            (Sset _b2__7
-                                              (Ederef
-                                                (Ebinop Oadd
-                                                  (Efield
-                                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                    _FSb (tarray tuchar 256))
-                                                  (Ebinop Oand
-                                                    (Ebinop Oshr
-                                                      (Etempvar _Y3 tuint)
-                                                      (Econst_int (Int.repr 16) tint)
-                                                      tuint)
-                                                    (Econst_int (Int.repr 255) tint)
-                                                    tuint) (tptr tuchar))
-                                                tuchar))
-                                            (Ssequence
-                                              (Sset _b3__7
-                                                (Ederef
-                                                  (Ebinop Oadd
-                                                    (Efield
-                                                      (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                      _FSb
-                                                      (tarray tuchar 256))
-                                                    (Ebinop Oand
-                                                      (Ebinop Oshr
-                                                        (Etempvar _Y0 tuint)
-                                                        (Econst_int (Int.repr 24) tint)
-                                                        tuint)
-                                                      (Econst_int (Int.repr 255) tint)
-                                                      tuint) (tptr tuchar))
-                                                  tuchar))
-                                              (Ssequence
-                                                (Sset _X1
+                                            (Sset _X0
+                                              (Ebinop Oxor
+                                                (Ebinop Oxor
                                                   (Ebinop Oxor
                                                     (Ebinop Oxor
-                                                      (Ebinop Oxor
-                                                        (Ebinop Oxor
-                                                          (Etempvar _rk__3 tuint)
-                                                          (Etempvar _b0__7 tuint)
-                                                          tuint)
-                                                        (Ebinop Oshl
-                                                          (Etempvar _b1__7 tuint)
-                                                          (Econst_int (Int.repr 8) tint)
-                                                          tuint) tuint)
-                                                      (Ebinop Oshl
-                                                        (Etempvar _b2__7 tuint)
-                                                        (Econst_int (Int.repr 16) tint)
-                                                        tuint) tuint)
+                                                      (Etempvar _rk__3 tuint)
+                                                      (Etempvar _b0__7 tuint)
+                                                      tuint)
                                                     (Ebinop Oshl
-                                                      (Etempvar _b3__7 tuint)
-                                                      (Econst_int (Int.repr 24) tint)
-                                                      tuint) tuint))
+                                                      (Etempvar _b1__7 tuint)
+                                                      (Econst_int (Int.repr 8) tint)
+                                                      tuint) tuint)
+                                                  (Ebinop Oshl
+                                                    (Etempvar _b2__7 tuint)
+                                                    (Econst_int (Int.repr 16) tint)
+                                                    tuint) tuint)
+                                                (Ebinop Oshl
+                                                  (Etempvar _b3__7 tuint)
+                                                  (Econst_int (Int.repr 24) tint)
+                                                  tuint) tuint))
+                                            (Ssequence
+                                              (Ssequence
                                                 (Ssequence
+                                                  (Sset _t'18
+                                                    (Etempvar _RK (tptr tuint)))
+                                                  (Sset _RK
+                                                    (Ebinop Oadd
+                                                      (Etempvar _t'18 (tptr tuint))
+                                                      (Econst_int (Int.repr 1) tint)
+                                                      (tptr tuint))))
+                                                (Sset _rk__3
+                                                  (Ederef
+                                                    (Etempvar _t'18 (tptr tuint))
+                                                    tuint)))
+                                              (Ssequence
+                                                (Sset _b0__7
+                                                  (Ederef
+                                                    (Ebinop Oadd
+                                                      (Efield
+                                                        (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                        _FSb
+                                                        (tarray tuchar 256))
+                                                      (Ebinop Oand
+                                                        (Etempvar _Y1 tuint)
+                                                        (Econst_int (Int.repr 255) tint)
+                                                        tuint) (tptr tuchar))
+                                                    tuchar))
+                                                (Ssequence
+                                                  (Sset _b1__7
+                                                    (Ederef
+                                                      (Ebinop Oadd
+                                                        (Efield
+                                                          (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                          _FSb
+                                                          (tarray tuchar 256))
+                                                        (Ebinop Oand
+                                                          (Ebinop Oshr
+                                                            (Etempvar _Y2 tuint)
+                                                            (Econst_int (Int.repr 8) tint)
+                                                            tuint)
+                                                          (Econst_int (Int.repr 255) tint)
+                                                          tuint)
+                                                        (tptr tuchar))
+                                                      tuchar))
                                                   (Ssequence
-                                                    (Ssequence
-                                                      (Sset _t'19
-                                                        (Etempvar _RK (tptr tuint)))
-                                                      (Sset _RK
-                                                        (Ebinop Oadd
-                                                          (Etempvar _t'19 (tptr tuint))
-                                                          (Econst_int (Int.repr 1) tint)
-                                                          (tptr tuint))))
-                                                    (Sset _rk__3
-                                                      (Ederef
-                                                        (Etempvar _t'19 (tptr tuint))
-                                                        tuint)))
-                                                  (Ssequence
-                                                    (Sset _b0__7
+                                                    (Sset _b2__7
                                                       (Ederef
                                                         (Ebinop Oadd
                                                           (Efield
@@ -3442,13 +3463,16 @@ Definition f_mbedtls_aes_encrypt := {|
                                                             _FSb
                                                             (tarray tuchar 256))
                                                           (Ebinop Oand
-                                                            (Etempvar _Y2 tuint)
+                                                            (Ebinop Oshr
+                                                              (Etempvar _Y3 tuint)
+                                                              (Econst_int (Int.repr 16) tint)
+                                                              tuint)
                                                             (Econst_int (Int.repr 255) tint)
                                                             tuint)
                                                           (tptr tuchar))
                                                         tuchar))
                                                     (Ssequence
-                                                      (Sset _b1__7
+                                                      (Sset _b3__7
                                                         (Ederef
                                                           (Ebinop Oadd
                                                             (Efield
@@ -3457,52 +3481,119 @@ Definition f_mbedtls_aes_encrypt := {|
                                                               (tarray tuchar 256))
                                                             (Ebinop Oand
                                                               (Ebinop Oshr
-                                                                (Etempvar _Y3 tuint)
-                                                                (Econst_int (Int.repr 8) tint)
+                                                                (Etempvar _Y0 tuint)
+                                                                (Econst_int (Int.repr 24) tint)
                                                                 tuint)
                                                               (Econst_int (Int.repr 255) tint)
                                                               tuint)
                                                             (tptr tuchar))
                                                           tuchar))
                                                       (Ssequence
-                                                        (Sset _b2__7
-                                                          (Ederef
-                                                            (Ebinop Oadd
-                                                              (Efield
-                                                                (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                                _FSb
-                                                                (tarray tuchar 256))
-                                                              (Ebinop Oand
-                                                                (Ebinop Oshr
-                                                                  (Etempvar _Y0 tuint)
-                                                                  (Econst_int (Int.repr 16) tint)
+                                                        (Sset _X1
+                                                          (Ebinop Oxor
+                                                            (Ebinop Oxor
+                                                              (Ebinop Oxor
+                                                                (Ebinop Oxor
+                                                                  (Etempvar _rk__3 tuint)
+                                                                  (Etempvar _b0__7 tuint)
                                                                   tuint)
-                                                                (Econst_int (Int.repr 255) tint)
+                                                                (Ebinop Oshl
+                                                                  (Etempvar _b1__7 tuint)
+                                                                  (Econst_int (Int.repr 8) tint)
+                                                                  tuint)
                                                                 tuint)
-                                                              (tptr tuchar))
-                                                            tuchar))
+                                                              (Ebinop Oshl
+                                                                (Etempvar _b2__7 tuint)
+                                                                (Econst_int (Int.repr 16) tint)
+                                                                tuint) tuint)
+                                                            (Ebinop Oshl
+                                                              (Etempvar _b3__7 tuint)
+                                                              (Econst_int (Int.repr 24) tint)
+                                                              tuint) tuint))
                                                         (Ssequence
-                                                          (Sset _b3__7
-                                                            (Ederef
-                                                              (Ebinop Oadd
-                                                                (Efield
-                                                                  (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                                  _FSb
-                                                                  (tarray tuchar 256))
-                                                                (Ebinop Oand
-                                                                  (Ebinop Oshr
+                                                          (Ssequence
+                                                            (Ssequence
+                                                              (Sset _t'19
+                                                                (Etempvar _RK (tptr tuint)))
+                                                              (Sset _RK
+                                                                (Ebinop Oadd
+                                                                  (Etempvar _t'19 (tptr tuint))
+                                                                  (Econst_int (Int.repr 1) tint)
+                                                                  (tptr tuint))))
+                                                            (Sset _rk__3
+                                                              (Ederef
+                                                                (Etempvar _t'19 (tptr tuint))
+                                                                tuint)))
+                                                          (Ssequence
+                                                            (Sset _b0__7
+                                                              (Ederef
+                                                                (Ebinop Oadd
+                                                                  (Efield
+                                                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                                    _FSb
+                                                                    (tarray tuchar 256))
+                                                                  (Ebinop Oand
+                                                                    (Etempvar _Y2 tuint)
+                                                                    (Econst_int (Int.repr 255) tint)
+                                                                    tuint)
+                                                                  (tptr tuchar))
+                                                                tuchar))
+                                                            (Ssequence
+                                                              (Sset _b1__7
+                                                                (Ederef
+                                                                  (Ebinop Oadd
+                                                                    (Efield
+                                                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                                    _FSb
+                                                                    (tarray tuchar 256))
+                                                                    (Ebinop Oand
+                                                                    (Ebinop Oshr
+                                                                    (Etempvar _Y3 tuint)
+                                                                    (Econst_int (Int.repr 8) tint)
+                                                                    tuint)
+                                                                    (Econst_int (Int.repr 255) tint)
+                                                                    tuint)
+                                                                    (tptr tuchar))
+                                                                  tuchar))
+                                                              (Ssequence
+                                                                (Sset _b2__7
+                                                                  (Ederef
+                                                                    (Ebinop Oadd
+                                                                    (Efield
+                                                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                                    _FSb
+                                                                    (tarray tuchar 256))
+                                                                    (Ebinop Oand
+                                                                    (Ebinop Oshr
+                                                                    (Etempvar _Y0 tuint)
+                                                                    (Econst_int (Int.repr 16) tint)
+                                                                    tuint)
+                                                                    (Econst_int (Int.repr 255) tint)
+                                                                    tuint)
+                                                                    (tptr tuchar))
+                                                                    tuchar))
+                                                                (Ssequence
+                                                                  (Sset _b3__7
+                                                                    (Ederef
+                                                                    (Ebinop Oadd
+                                                                    (Efield
+                                                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                                    _FSb
+                                                                    (tarray tuchar 256))
+                                                                    (Ebinop Oand
+                                                                    (Ebinop Oshr
                                                                     (Etempvar _Y1 tuint)
                                                                     (Econst_int (Int.repr 24) tint)
                                                                     tuint)
-                                                                  (Econst_int (Int.repr 255) tint)
-                                                                  tuint)
-                                                                (tptr tuchar))
-                                                              tuchar))
-                                                          (Ssequence
-                                                            (Sset _X2
-                                                              (Ebinop Oxor
-                                                                (Ebinop Oxor
-                                                                  (Ebinop Oxor
+                                                                    (Econst_int (Int.repr 255) tint)
+                                                                    tuint)
+                                                                    (tptr tuchar))
+                                                                    tuchar))
+                                                                  (Ssequence
+                                                                    (Sset _X2
+                                                                    (Ebinop Oxor
+                                                                    (Ebinop Oxor
+                                                                    (Ebinop Oxor
                                                                     (Ebinop Oxor
                                                                     (Etempvar _rk__3 tuint)
                                                                     (Etempvar _b0__7 tuint)
@@ -3512,33 +3603,33 @@ Definition f_mbedtls_aes_encrypt := {|
                                                                     (Econst_int (Int.repr 8) tint)
                                                                     tuint)
                                                                     tuint)
-                                                                  (Ebinop Oshl
+                                                                    (Ebinop Oshl
                                                                     (Etempvar _b2__7 tuint)
                                                                     (Econst_int (Int.repr 16) tint)
                                                                     tuint)
-                                                                  tuint)
-                                                                (Ebinop Oshl
-                                                                  (Etempvar _b3__7 tuint)
-                                                                  (Econst_int (Int.repr 24) tint)
-                                                                  tuint)
-                                                                tuint))
-                                                            (Ssequence
-                                                              (Ssequence
-                                                                (Ssequence
-                                                                  (Sset _t'20
+                                                                    tuint)
+                                                                    (Ebinop Oshl
+                                                                    (Etempvar _b3__7 tuint)
+                                                                    (Econst_int (Int.repr 24) tint)
+                                                                    tuint)
+                                                                    tuint))
+                                                                    (Ssequence
+                                                                    (Ssequence
+                                                                    (Ssequence
+                                                                    (Sset _t'20
                                                                     (Etempvar _RK (tptr tuint)))
-                                                                  (Sset _RK
+                                                                    (Sset _RK
                                                                     (Ebinop Oadd
                                                                     (Etempvar _t'20 (tptr tuint))
                                                                     (Econst_int (Int.repr 1) tint)
                                                                     (tptr tuint))))
-                                                                (Sset _rk__3
-                                                                  (Ederef
+                                                                    (Sset _rk__3
+                                                                    (Ederef
                                                                     (Etempvar _t'20 (tptr tuint))
                                                                     tuint)))
-                                                              (Ssequence
-                                                                (Sset _b0__7
-                                                                  (Ederef
+                                                                    (Ssequence
+                                                                    (Sset _b0__7
+                                                                    (Ederef
                                                                     (Ebinop Oadd
                                                                     (Efield
                                                                     (Evar _tables (Tstruct _aes_tables_struct noattr))
@@ -3550,8 +3641,8 @@ Definition f_mbedtls_aes_encrypt := {|
                                                                     tuint)
                                                                     (tptr tuchar))
                                                                     tuchar))
-                                                                (Ssequence
-                                                                  (Sset _b1__7
+                                                                    (Ssequence
+                                                                    (Sset _b1__7
                                                                     (Ederef
                                                                     (Ebinop Oadd
                                                                     (Efield
@@ -3567,7 +3658,7 @@ Definition f_mbedtls_aes_encrypt := {|
                                                                     tuint)
                                                                     (tptr tuchar))
                                                                     tuchar))
-                                                                  (Ssequence
+                                                                    (Ssequence
                                                                     (Sset _b2__7
                                                                     (Ederef
                                                                     (Ebinop Oadd
@@ -3624,238 +3715,260 @@ Definition f_mbedtls_aes_encrypt := {|
                                                                     (Econst_int (Int.repr 24) tint)
                                                                     tuint)
                                                                     tuint)))))))))))))))))))))))))
-                        (Ssequence
-                          (Ssequence
-                            (Sassign
-                              (Ederef
-                                (Ebinop Oadd (Etempvar _output (tptr tuchar))
-                                  (Econst_int (Int.repr 0) tint)
-                                  (tptr tuchar)) tuchar)
-                              (Ecast
-                                (Ebinop Oand (Etempvar _X0 tuint)
-                                  (Econst_int (Int.repr 255) tint) tuint)
-                                tuchar))
-                            (Ssequence
-                              (Sassign
-                                (Ederef
-                                  (Ebinop Oadd
-                                    (Etempvar _output (tptr tuchar))
-                                    (Ebinop Oadd
-                                      (Econst_int (Int.repr 0) tint)
-                                      (Econst_int (Int.repr 1) tint) tint)
-                                    (tptr tuchar)) tuchar)
-                                (Ecast
-                                  (Ebinop Oand
-                                    (Ebinop Oshr (Etempvar _X0 tuint)
-                                      (Econst_int (Int.repr 8) tint) tuint)
-                                    (Econst_int (Int.repr 255) tint) tuint)
-                                  tuchar))
-                              (Ssequence
-                                (Sassign
-                                  (Ederef
-                                    (Ebinop Oadd
-                                      (Etempvar _output (tptr tuchar))
-                                      (Ebinop Oadd
-                                        (Econst_int (Int.repr 0) tint)
-                                        (Econst_int (Int.repr 2) tint) tint)
-                                      (tptr tuchar)) tuchar)
-                                  (Ecast
-                                    (Ebinop Oand
-                                      (Ebinop Oshr (Etempvar _X0 tuint)
-                                        (Econst_int (Int.repr 16) tint)
-                                        tuint)
-                                      (Econst_int (Int.repr 255) tint) tuint)
-                                    tuchar))
-                                (Sassign
-                                  (Ederef
-                                    (Ebinop Oadd
-                                      (Etempvar _output (tptr tuchar))
-                                      (Ebinop Oadd
-                                        (Econst_int (Int.repr 0) tint)
-                                        (Econst_int (Int.repr 3) tint) tint)
-                                      (tptr tuchar)) tuchar)
-                                  (Ecast
-                                    (Ebinop Oand
-                                      (Ebinop Oshr (Etempvar _X0 tuint)
-                                        (Econst_int (Int.repr 24) tint)
-                                        tuint)
-                                      (Econst_int (Int.repr 255) tint) tuint)
-                                    tuchar)))))
-                          (Ssequence
-                            (Ssequence
-                              (Sassign
-                                (Ederef
-                                  (Ebinop Oadd
-                                    (Etempvar _output (tptr tuchar))
-                                    (Econst_int (Int.repr 4) tint)
-                                    (tptr tuchar)) tuchar)
-                                (Ecast
-                                  (Ebinop Oand (Etempvar _X1 tuint)
-                                    (Econst_int (Int.repr 255) tint) tuint)
-                                  tuchar))
-                              (Ssequence
-                                (Sassign
-                                  (Ederef
-                                    (Ebinop Oadd
-                                      (Etempvar _output (tptr tuchar))
-                                      (Ebinop Oadd
-                                        (Econst_int (Int.repr 4) tint)
-                                        (Econst_int (Int.repr 1) tint) tint)
-                                      (tptr tuchar)) tuchar)
-                                  (Ecast
-                                    (Ebinop Oand
-                                      (Ebinop Oshr (Etempvar _X1 tuint)
-                                        (Econst_int (Int.repr 8) tint) tuint)
-                                      (Econst_int (Int.repr 255) tint) tuint)
-                                    tuchar))
                                 (Ssequence
-                                  (Sassign
-                                    (Ederef
-                                      (Ebinop Oadd
-                                        (Etempvar _output (tptr tuchar))
-                                        (Ebinop Oadd
-                                          (Econst_int (Int.repr 4) tint)
-                                          (Econst_int (Int.repr 2) tint)
-                                          tint) (tptr tuchar)) tuchar)
-                                    (Ecast
-                                      (Ebinop Oand
-                                        (Ebinop Oshr (Etempvar _X1 tuint)
-                                          (Econst_int (Int.repr 16) tint)
-                                          tuint)
-                                        (Econst_int (Int.repr 255) tint)
-                                        tuint) tuchar))
-                                  (Sassign
-                                    (Ederef
-                                      (Ebinop Oadd
-                                        (Etempvar _output (tptr tuchar))
-                                        (Ebinop Oadd
-                                          (Econst_int (Int.repr 4) tint)
-                                          (Econst_int (Int.repr 3) tint)
-                                          tint) (tptr tuchar)) tuchar)
-                                    (Ecast
-                                      (Ebinop Oand
-                                        (Ebinop Oshr (Etempvar _X1 tuint)
-                                          (Econst_int (Int.repr 24) tint)
-                                          tuint)
-                                        (Econst_int (Int.repr 255) tint)
-                                        tuint) tuchar)))))
-                            (Ssequence
-                              (Ssequence
-                                (Sassign
-                                  (Ederef
-                                    (Ebinop Oadd
-                                      (Etempvar _output (tptr tuchar))
-                                      (Econst_int (Int.repr 8) tint)
-                                      (tptr tuchar)) tuchar)
-                                  (Ecast
-                                    (Ebinop Oand (Etempvar _X2 tuint)
-                                      (Econst_int (Int.repr 255) tint) tuint)
-                                    tuchar))
-                                (Ssequence
-                                  (Sassign
-                                    (Ederef
-                                      (Ebinop Oadd
-                                        (Etempvar _output (tptr tuchar))
-                                        (Ebinop Oadd
-                                          (Econst_int (Int.repr 8) tint)
-                                          (Econst_int (Int.repr 1) tint)
-                                          tint) (tptr tuchar)) tuchar)
-                                    (Ecast
-                                      (Ebinop Oand
-                                        (Ebinop Oshr (Etempvar _X2 tuint)
-                                          (Econst_int (Int.repr 8) tint)
-                                          tuint)
-                                        (Econst_int (Int.repr 255) tint)
-                                        tuint) tuchar))
                                   (Ssequence
                                     (Sassign
                                       (Ederef
                                         (Ebinop Oadd
                                           (Etempvar _output (tptr tuchar))
-                                          (Ebinop Oadd
-                                            (Econst_int (Int.repr 8) tint)
-                                            (Econst_int (Int.repr 2) tint)
-                                            tint) (tptr tuchar)) tuchar)
+                                          (Econst_int (Int.repr 0) tint)
+                                          (tptr tuchar)) tuchar)
                                       (Ecast
-                                        (Ebinop Oand
-                                          (Ebinop Oshr (Etempvar _X2 tuint)
-                                            (Econst_int (Int.repr 16) tint)
-                                            tuint)
+                                        (Ebinop Oand (Etempvar _X0 tuint)
                                           (Econst_int (Int.repr 255) tint)
                                           tuint) tuchar))
-                                    (Sassign
-                                      (Ederef
-                                        (Ebinop Oadd
-                                          (Etempvar _output (tptr tuchar))
+                                    (Ssequence
+                                      (Sassign
+                                        (Ederef
                                           (Ebinop Oadd
-                                            (Econst_int (Int.repr 8) tint)
-                                            (Econst_int (Int.repr 3) tint)
-                                            tint) (tptr tuchar)) tuchar)
-                                      (Ecast
-                                        (Ebinop Oand
-                                          (Ebinop Oshr (Etempvar _X2 tuint)
-                                            (Econst_int (Int.repr 24) tint)
-                                            tuint)
-                                          (Econst_int (Int.repr 255) tint)
-                                          tuint) tuchar)))))
-                              (Ssequence
-                                (Sassign
-                                  (Ederef
-                                    (Ebinop Oadd
-                                      (Etempvar _output (tptr tuchar))
-                                      (Econst_int (Int.repr 12) tint)
-                                      (tptr tuchar)) tuchar)
-                                  (Ecast
-                                    (Ebinop Oand (Etempvar _X3 tuint)
-                                      (Econst_int (Int.repr 255) tint) tuint)
-                                    tuchar))
-                                (Ssequence
-                                  (Sassign
-                                    (Ederef
-                                      (Ebinop Oadd
-                                        (Etempvar _output (tptr tuchar))
-                                        (Ebinop Oadd
-                                          (Econst_int (Int.repr 12) tint)
-                                          (Econst_int (Int.repr 1) tint)
-                                          tint) (tptr tuchar)) tuchar)
-                                    (Ecast
-                                      (Ebinop Oand
-                                        (Ebinop Oshr (Etempvar _X3 tuint)
-                                          (Econst_int (Int.repr 8) tint)
-                                          tuint)
-                                        (Econst_int (Int.repr 255) tint)
-                                        tuint) tuchar))
+                                            (Etempvar _output (tptr tuchar))
+                                            (Ebinop Oadd
+                                              (Econst_int (Int.repr 0) tint)
+                                              (Econst_int (Int.repr 1) tint)
+                                              tint) (tptr tuchar)) tuchar)
+                                        (Ecast
+                                          (Ebinop Oand
+                                            (Ebinop Oshr (Etempvar _X0 tuint)
+                                              (Econst_int (Int.repr 8) tint)
+                                              tuint)
+                                            (Econst_int (Int.repr 255) tint)
+                                            tuint) tuchar))
+                                      (Ssequence
+                                        (Sassign
+                                          (Ederef
+                                            (Ebinop Oadd
+                                              (Etempvar _output (tptr tuchar))
+                                              (Ebinop Oadd
+                                                (Econst_int (Int.repr 0) tint)
+                                                (Econst_int (Int.repr 2) tint)
+                                                tint) (tptr tuchar)) tuchar)
+                                          (Ecast
+                                            (Ebinop Oand
+                                              (Ebinop Oshr
+                                                (Etempvar _X0 tuint)
+                                                (Econst_int (Int.repr 16) tint)
+                                                tuint)
+                                              (Econst_int (Int.repr 255) tint)
+                                              tuint) tuchar))
+                                        (Sassign
+                                          (Ederef
+                                            (Ebinop Oadd
+                                              (Etempvar _output (tptr tuchar))
+                                              (Ebinop Oadd
+                                                (Econst_int (Int.repr 0) tint)
+                                                (Econst_int (Int.repr 3) tint)
+                                                tint) (tptr tuchar)) tuchar)
+                                          (Ecast
+                                            (Ebinop Oand
+                                              (Ebinop Oshr
+                                                (Etempvar _X0 tuint)
+                                                (Econst_int (Int.repr 24) tint)
+                                                tuint)
+                                              (Econst_int (Int.repr 255) tint)
+                                              tuint) tuchar)))))
                                   (Ssequence
-                                    (Sassign
-                                      (Ederef
-                                        (Ebinop Oadd
-                                          (Etempvar _output (tptr tuchar))
+                                    (Ssequence
+                                      (Sassign
+                                        (Ederef
                                           (Ebinop Oadd
-                                            (Econst_int (Int.repr 12) tint)
-                                            (Econst_int (Int.repr 2) tint)
-                                            tint) (tptr tuchar)) tuchar)
-                                      (Ecast
-                                        (Ebinop Oand
-                                          (Ebinop Oshr (Etempvar _X3 tuint)
-                                            (Econst_int (Int.repr 16) tint)
-                                            tuint)
-                                          (Econst_int (Int.repr 255) tint)
-                                          tuint) tuchar))
-                                    (Sassign
-                                      (Ederef
-                                        (Ebinop Oadd
-                                          (Etempvar _output (tptr tuchar))
-                                          (Ebinop Oadd
-                                            (Econst_int (Int.repr 12) tint)
-                                            (Econst_int (Int.repr 3) tint)
-                                            tint) (tptr tuchar)) tuchar)
-                                      (Ecast
-                                        (Ebinop Oand
-                                          (Ebinop Oshr (Etempvar _X3 tuint)
-                                            (Econst_int (Int.repr 24) tint)
-                                            tuint)
-                                          (Econst_int (Int.repr 255) tint)
-                                          tuint) tuchar))))))))))))))))))))
+                                            (Etempvar _output (tptr tuchar))
+                                            (Econst_int (Int.repr 4) tint)
+                                            (tptr tuchar)) tuchar)
+                                        (Ecast
+                                          (Ebinop Oand (Etempvar _X1 tuint)
+                                            (Econst_int (Int.repr 255) tint)
+                                            tuint) tuchar))
+                                      (Ssequence
+                                        (Sassign
+                                          (Ederef
+                                            (Ebinop Oadd
+                                              (Etempvar _output (tptr tuchar))
+                                              (Ebinop Oadd
+                                                (Econst_int (Int.repr 4) tint)
+                                                (Econst_int (Int.repr 1) tint)
+                                                tint) (tptr tuchar)) tuchar)
+                                          (Ecast
+                                            (Ebinop Oand
+                                              (Ebinop Oshr
+                                                (Etempvar _X1 tuint)
+                                                (Econst_int (Int.repr 8) tint)
+                                                tuint)
+                                              (Econst_int (Int.repr 255) tint)
+                                              tuint) tuchar))
+                                        (Ssequence
+                                          (Sassign
+                                            (Ederef
+                                              (Ebinop Oadd
+                                                (Etempvar _output (tptr tuchar))
+                                                (Ebinop Oadd
+                                                  (Econst_int (Int.repr 4) tint)
+                                                  (Econst_int (Int.repr 2) tint)
+                                                  tint) (tptr tuchar))
+                                              tuchar)
+                                            (Ecast
+                                              (Ebinop Oand
+                                                (Ebinop Oshr
+                                                  (Etempvar _X1 tuint)
+                                                  (Econst_int (Int.repr 16) tint)
+                                                  tuint)
+                                                (Econst_int (Int.repr 255) tint)
+                                                tuint) tuchar))
+                                          (Sassign
+                                            (Ederef
+                                              (Ebinop Oadd
+                                                (Etempvar _output (tptr tuchar))
+                                                (Ebinop Oadd
+                                                  (Econst_int (Int.repr 4) tint)
+                                                  (Econst_int (Int.repr 3) tint)
+                                                  tint) (tptr tuchar))
+                                              tuchar)
+                                            (Ecast
+                                              (Ebinop Oand
+                                                (Ebinop Oshr
+                                                  (Etempvar _X1 tuint)
+                                                  (Econst_int (Int.repr 24) tint)
+                                                  tuint)
+                                                (Econst_int (Int.repr 255) tint)
+                                                tuint) tuchar)))))
+                                    (Ssequence
+                                      (Ssequence
+                                        (Sassign
+                                          (Ederef
+                                            (Ebinop Oadd
+                                              (Etempvar _output (tptr tuchar))
+                                              (Econst_int (Int.repr 8) tint)
+                                              (tptr tuchar)) tuchar)
+                                          (Ecast
+                                            (Ebinop Oand (Etempvar _X2 tuint)
+                                              (Econst_int (Int.repr 255) tint)
+                                              tuint) tuchar))
+                                        (Ssequence
+                                          (Sassign
+                                            (Ederef
+                                              (Ebinop Oadd
+                                                (Etempvar _output (tptr tuchar))
+                                                (Ebinop Oadd
+                                                  (Econst_int (Int.repr 8) tint)
+                                                  (Econst_int (Int.repr 1) tint)
+                                                  tint) (tptr tuchar))
+                                              tuchar)
+                                            (Ecast
+                                              (Ebinop Oand
+                                                (Ebinop Oshr
+                                                  (Etempvar _X2 tuint)
+                                                  (Econst_int (Int.repr 8) tint)
+                                                  tuint)
+                                                (Econst_int (Int.repr 255) tint)
+                                                tuint) tuchar))
+                                          (Ssequence
+                                            (Sassign
+                                              (Ederef
+                                                (Ebinop Oadd
+                                                  (Etempvar _output (tptr tuchar))
+                                                  (Ebinop Oadd
+                                                    (Econst_int (Int.repr 8) tint)
+                                                    (Econst_int (Int.repr 2) tint)
+                                                    tint) (tptr tuchar))
+                                                tuchar)
+                                              (Ecast
+                                                (Ebinop Oand
+                                                  (Ebinop Oshr
+                                                    (Etempvar _X2 tuint)
+                                                    (Econst_int (Int.repr 16) tint)
+                                                    tuint)
+                                                  (Econst_int (Int.repr 255) tint)
+                                                  tuint) tuchar))
+                                            (Sassign
+                                              (Ederef
+                                                (Ebinop Oadd
+                                                  (Etempvar _output (tptr tuchar))
+                                                  (Ebinop Oadd
+                                                    (Econst_int (Int.repr 8) tint)
+                                                    (Econst_int (Int.repr 3) tint)
+                                                    tint) (tptr tuchar))
+                                                tuchar)
+                                              (Ecast
+                                                (Ebinop Oand
+                                                  (Ebinop Oshr
+                                                    (Etempvar _X2 tuint)
+                                                    (Econst_int (Int.repr 24) tint)
+                                                    tuint)
+                                                  (Econst_int (Int.repr 255) tint)
+                                                  tuint) tuchar)))))
+                                      (Ssequence
+                                        (Sassign
+                                          (Ederef
+                                            (Ebinop Oadd
+                                              (Etempvar _output (tptr tuchar))
+                                              (Econst_int (Int.repr 12) tint)
+                                              (tptr tuchar)) tuchar)
+                                          (Ecast
+                                            (Ebinop Oand (Etempvar _X3 tuint)
+                                              (Econst_int (Int.repr 255) tint)
+                                              tuint) tuchar))
+                                        (Ssequence
+                                          (Sassign
+                                            (Ederef
+                                              (Ebinop Oadd
+                                                (Etempvar _output (tptr tuchar))
+                                                (Ebinop Oadd
+                                                  (Econst_int (Int.repr 12) tint)
+                                                  (Econst_int (Int.repr 1) tint)
+                                                  tint) (tptr tuchar))
+                                              tuchar)
+                                            (Ecast
+                                              (Ebinop Oand
+                                                (Ebinop Oshr
+                                                  (Etempvar _X3 tuint)
+                                                  (Econst_int (Int.repr 8) tint)
+                                                  tuint)
+                                                (Econst_int (Int.repr 255) tint)
+                                                tuint) tuchar))
+                                          (Ssequence
+                                            (Sassign
+                                              (Ederef
+                                                (Ebinop Oadd
+                                                  (Etempvar _output (tptr tuchar))
+                                                  (Ebinop Oadd
+                                                    (Econst_int (Int.repr 12) tint)
+                                                    (Econst_int (Int.repr 2) tint)
+                                                    tint) (tptr tuchar))
+                                                tuchar)
+                                              (Ecast
+                                                (Ebinop Oand
+                                                  (Ebinop Oshr
+                                                    (Etempvar _X3 tuint)
+                                                    (Econst_int (Int.repr 16) tint)
+                                                    tuint)
+                                                  (Econst_int (Int.repr 255) tint)
+                                                  tuint) tuchar))
+                                            (Sassign
+                                              (Ederef
+                                                (Ebinop Oadd
+                                                  (Etempvar _output (tptr tuchar))
+                                                  (Ebinop Oadd
+                                                    (Econst_int (Int.repr 12) tint)
+                                                    (Econst_int (Int.repr 3) tint)
+                                                    tint) (tptr tuchar))
+                                                tuchar)
+                                              (Ecast
+                                                (Ebinop Oand
+                                                  (Ebinop Oshr
+                                                    (Etempvar _X3 tuint)
+                                                    (Econst_int (Int.repr 24) tint)
+                                                    tuint)
+                                                  (Econst_int (Int.repr 255) tint)
+                                                  tuint) tuchar))))))))))))))))))))))))
 |}.
 
 Definition f_mbedtls_aes_decrypt := {|
@@ -3867,19 +3980,19 @@ Definition f_mbedtls_aes_decrypt := {|
   fn_temps := ((_i, tint) :: (_RK, (tptr tuint)) :: (_X0, tuint) ::
                (_X1, tuint) :: (_X2, tuint) :: (_X3, tuint) ::
                (_Y0, tuint) :: (_Y1, tuint) :: (_Y2, tuint) ::
-               (_Y3, tuint) :: (_b0, tuint) :: (_b1, tuint) ::
-               (_b2, tuint) :: (_b3, tuint) :: (_b0__1, tuint) ::
-               (_b1__1, tuint) :: (_b2__1, tuint) :: (_b3__1, tuint) ::
-               (_b0__2, tuint) :: (_b1__2, tuint) :: (_b2__2, tuint) ::
-               (_b3__2, tuint) :: (_b0__3, tuint) :: (_b1__3, tuint) ::
-               (_b2__3, tuint) :: (_b3__3, tuint) :: (_rk, tuint) ::
-               (_b0__4, tuint) :: (_b1__4, tuint) :: (_b2__4, tuint) ::
-               (_b3__4, tuint) :: (_rk__1, tuint) :: (_b0__5, tuint) ::
-               (_b1__5, tuint) :: (_b2__5, tuint) :: (_b3__5, tuint) ::
-               (_rk__2, tuint) :: (_b0__6, tuint) :: (_b1__6, tuint) ::
-               (_b2__6, tuint) :: (_b3__6, tuint) :: (_rk__3, tuint) ::
-               (_b0__7, tuint) :: (_b1__7, tuint) :: (_b2__7, tuint) ::
-               (_b3__7, tuint) :: (_t'20, (tptr tuint)) ::
+               (_Y3, tuint) :: (_tmp, tuint) :: (_b0, tuint) ::
+               (_b1, tuint) :: (_b2, tuint) :: (_b3, tuint) ::
+               (_b0__1, tuint) :: (_b1__1, tuint) :: (_b2__1, tuint) ::
+               (_b3__1, tuint) :: (_b0__2, tuint) :: (_b1__2, tuint) ::
+               (_b2__2, tuint) :: (_b3__2, tuint) :: (_b0__3, tuint) ::
+               (_b1__3, tuint) :: (_b2__3, tuint) :: (_b3__3, tuint) ::
+               (_rk, tuint) :: (_b0__4, tuint) :: (_b1__4, tuint) ::
+               (_b2__4, tuint) :: (_b3__4, tuint) :: (_rk__1, tuint) ::
+               (_b0__5, tuint) :: (_b1__5, tuint) :: (_b2__5, tuint) ::
+               (_b3__5, tuint) :: (_rk__2, tuint) :: (_b0__6, tuint) ::
+               (_b1__6, tuint) :: (_b2__6, tuint) :: (_b3__6, tuint) ::
+               (_rk__3, tuint) :: (_b0__7, tuint) :: (_b1__7, tuint) ::
+               (_b2__7, tuint) :: (_b3__7, tuint) :: (_t'20, (tptr tuint)) ::
                (_t'19, (tptr tuint)) :: (_t'18, (tptr tuint)) ::
                (_t'17, (tptr tuint)) :: (_t'16, (tptr tuint)) ::
                (_t'15, (tptr tuint)) :: (_t'14, (tptr tuint)) ::
@@ -3945,412 +4058,447 @@ Definition f_mbedtls_aes_decrypt := {|
           (Sset _RK
             (Ebinop Oadd (Etempvar _t'1 (tptr tuint))
               (Econst_int (Int.repr 1) tint) (tptr tuint))))
-        (Sset _X0
-          (Ebinop Oxor (Etempvar _X0 tuint)
-            (Ederef (Etempvar _t'1 (tptr tuint)) tuint) tuint)))
+        (Sset _tmp (Ederef (Etempvar _t'1 (tptr tuint)) tuint)))
       (Ssequence
+        (Sset _X0
+          (Ebinop Oxor (Etempvar _X0 tuint) (Etempvar _tmp tuint) tuint))
         (Ssequence
-          (Sset _b0__1
-            (Ecast
-              (Ederef
-                (Ebinop Oadd (Etempvar _input (tptr tuchar))
-                  (Econst_int (Int.repr 4) tint) (tptr tuchar)) tuchar)
-              tuint))
           (Ssequence
-            (Sset _b1__1
+            (Sset _b0__1
               (Ecast
                 (Ederef
                   (Ebinop Oadd (Etempvar _input (tptr tuchar))
-                    (Ebinop Oadd (Econst_int (Int.repr 4) tint)
-                      (Econst_int (Int.repr 1) tint) tint) (tptr tuchar))
-                  tuchar) tuint))
+                    (Econst_int (Int.repr 4) tint) (tptr tuchar)) tuchar)
+                tuint))
             (Ssequence
-              (Sset _b2__1
+              (Sset _b1__1
                 (Ecast
                   (Ederef
                     (Ebinop Oadd (Etempvar _input (tptr tuchar))
                       (Ebinop Oadd (Econst_int (Int.repr 4) tint)
-                        (Econst_int (Int.repr 2) tint) tint) (tptr tuchar))
+                        (Econst_int (Int.repr 1) tint) tint) (tptr tuchar))
                     tuchar) tuint))
               (Ssequence
-                (Sset _b3__1
+                (Sset _b2__1
                   (Ecast
                     (Ederef
                       (Ebinop Oadd (Etempvar _input (tptr tuchar))
                         (Ebinop Oadd (Econst_int (Int.repr 4) tint)
-                          (Econst_int (Int.repr 3) tint) tint) (tptr tuchar))
-                      tuchar) tuint))
-                (Sset _X1
-                  (Ebinop Oor
-                    (Ebinop Oor
-                      (Ebinop Oor (Etempvar _b0__1 tuint)
-                        (Ebinop Oshl (Etempvar _b1__1 tuint)
-                          (Econst_int (Int.repr 8) tint) tuint) tuint)
-                      (Ebinop Oshl (Etempvar _b2__1 tuint)
-                        (Econst_int (Int.repr 16) tint) tuint) tuint)
-                    (Ebinop Oshl (Etempvar _b3__1 tuint)
-                      (Econst_int (Int.repr 24) tint) tuint) tuint))))))
-        (Ssequence
-          (Ssequence
-            (Ssequence
-              (Sset _t'2 (Etempvar _RK (tptr tuint)))
-              (Sset _RK
-                (Ebinop Oadd (Etempvar _t'2 (tptr tuint))
-                  (Econst_int (Int.repr 1) tint) (tptr tuint))))
-            (Sset _X1
-              (Ebinop Oxor (Etempvar _X1 tuint)
-                (Ederef (Etempvar _t'2 (tptr tuint)) tuint) tuint)))
-          (Ssequence
-            (Ssequence
-              (Sset _b0__2
-                (Ecast
-                  (Ederef
-                    (Ebinop Oadd (Etempvar _input (tptr tuchar))
-                      (Econst_int (Int.repr 8) tint) (tptr tuchar)) tuchar)
-                  tuint))
-              (Ssequence
-                (Sset _b1__2
-                  (Ecast
-                    (Ederef
-                      (Ebinop Oadd (Etempvar _input (tptr tuchar))
-                        (Ebinop Oadd (Econst_int (Int.repr 8) tint)
-                          (Econst_int (Int.repr 1) tint) tint) (tptr tuchar))
+                          (Econst_int (Int.repr 2) tint) tint) (tptr tuchar))
                       tuchar) tuint))
                 (Ssequence
-                  (Sset _b2__2
+                  (Sset _b3__1
                     (Ecast
                       (Ederef
                         (Ebinop Oadd (Etempvar _input (tptr tuchar))
-                          (Ebinop Oadd (Econst_int (Int.repr 8) tint)
-                            (Econst_int (Int.repr 2) tint) tint)
+                          (Ebinop Oadd (Econst_int (Int.repr 4) tint)
+                            (Econst_int (Int.repr 3) tint) tint)
                           (tptr tuchar)) tuchar) tuint))
+                  (Sset _X1
+                    (Ebinop Oor
+                      (Ebinop Oor
+                        (Ebinop Oor (Etempvar _b0__1 tuint)
+                          (Ebinop Oshl (Etempvar _b1__1 tuint)
+                            (Econst_int (Int.repr 8) tint) tuint) tuint)
+                        (Ebinop Oshl (Etempvar _b2__1 tuint)
+                          (Econst_int (Int.repr 16) tint) tuint) tuint)
+                      (Ebinop Oshl (Etempvar _b3__1 tuint)
+                        (Econst_int (Int.repr 24) tint) tuint) tuint))))))
+          (Ssequence
+            (Ssequence
+              (Ssequence
+                (Sset _t'2 (Etempvar _RK (tptr tuint)))
+                (Sset _RK
+                  (Ebinop Oadd (Etempvar _t'2 (tptr tuint))
+                    (Econst_int (Int.repr 1) tint) (tptr tuint))))
+              (Sset _tmp (Ederef (Etempvar _t'2 (tptr tuint)) tuint)))
+            (Ssequence
+              (Sset _X1
+                (Ebinop Oxor (Etempvar _X1 tuint) (Etempvar _tmp tuint)
+                  tuint))
+              (Ssequence
+                (Ssequence
+                  (Sset _b0__2
+                    (Ecast
+                      (Ederef
+                        (Ebinop Oadd (Etempvar _input (tptr tuchar))
+                          (Econst_int (Int.repr 8) tint) (tptr tuchar))
+                        tuchar) tuint))
                   (Ssequence
-                    (Sset _b3__2
+                    (Sset _b1__2
                       (Ecast
                         (Ederef
                           (Ebinop Oadd (Etempvar _input (tptr tuchar))
                             (Ebinop Oadd (Econst_int (Int.repr 8) tint)
-                              (Econst_int (Int.repr 3) tint) tint)
-                            (tptr tuchar)) tuchar) tuint))
-                    (Sset _X2
-                      (Ebinop Oor
-                        (Ebinop Oor
-                          (Ebinop Oor (Etempvar _b0__2 tuint)
-                            (Ebinop Oshl (Etempvar _b1__2 tuint)
-                              (Econst_int (Int.repr 8) tint) tuint) tuint)
-                          (Ebinop Oshl (Etempvar _b2__2 tuint)
-                            (Econst_int (Int.repr 16) tint) tuint) tuint)
-                        (Ebinop Oshl (Etempvar _b3__2 tuint)
-                          (Econst_int (Int.repr 24) tint) tuint) tuint))))))
-            (Ssequence
-              (Ssequence
-                (Ssequence
-                  (Sset _t'3 (Etempvar _RK (tptr tuint)))
-                  (Sset _RK
-                    (Ebinop Oadd (Etempvar _t'3 (tptr tuint))
-                      (Econst_int (Int.repr 1) tint) (tptr tuint))))
-                (Sset _X2
-                  (Ebinop Oxor (Etempvar _X2 tuint)
-                    (Ederef (Etempvar _t'3 (tptr tuint)) tuint) tuint)))
-              (Ssequence
-                (Ssequence
-                  (Sset _b0__3
-                    (Ecast
-                      (Ederef
-                        (Ebinop Oadd (Etempvar _input (tptr tuchar))
-                          (Econst_int (Int.repr 12) tint) (tptr tuchar))
-                        tuchar) tuint))
-                  (Ssequence
-                    (Sset _b1__3
-                      (Ecast
-                        (Ederef
-                          (Ebinop Oadd (Etempvar _input (tptr tuchar))
-                            (Ebinop Oadd (Econst_int (Int.repr 12) tint)
                               (Econst_int (Int.repr 1) tint) tint)
                             (tptr tuchar)) tuchar) tuint))
                     (Ssequence
-                      (Sset _b2__3
+                      (Sset _b2__2
                         (Ecast
                           (Ederef
                             (Ebinop Oadd (Etempvar _input (tptr tuchar))
-                              (Ebinop Oadd (Econst_int (Int.repr 12) tint)
+                              (Ebinop Oadd (Econst_int (Int.repr 8) tint)
                                 (Econst_int (Int.repr 2) tint) tint)
                               (tptr tuchar)) tuchar) tuint))
                       (Ssequence
-                        (Sset _b3__3
+                        (Sset _b3__2
                           (Ecast
                             (Ederef
                               (Ebinop Oadd (Etempvar _input (tptr tuchar))
-                                (Ebinop Oadd (Econst_int (Int.repr 12) tint)
+                                (Ebinop Oadd (Econst_int (Int.repr 8) tint)
                                   (Econst_int (Int.repr 3) tint) tint)
                                 (tptr tuchar)) tuchar) tuint))
-                        (Sset _X3
+                        (Sset _X2
                           (Ebinop Oor
                             (Ebinop Oor
-                              (Ebinop Oor (Etempvar _b0__3 tuint)
-                                (Ebinop Oshl (Etempvar _b1__3 tuint)
+                              (Ebinop Oor (Etempvar _b0__2 tuint)
+                                (Ebinop Oshl (Etempvar _b1__2 tuint)
                                   (Econst_int (Int.repr 8) tint) tuint)
                                 tuint)
-                              (Ebinop Oshl (Etempvar _b2__3 tuint)
+                              (Ebinop Oshl (Etempvar _b2__2 tuint)
                                 (Econst_int (Int.repr 16) tint) tuint) tuint)
-                            (Ebinop Oshl (Etempvar _b3__3 tuint)
+                            (Ebinop Oshl (Etempvar _b3__2 tuint)
                               (Econst_int (Int.repr 24) tint) tuint) tuint))))))
                 (Ssequence
                   (Ssequence
                     (Ssequence
-                      (Sset _t'4 (Etempvar _RK (tptr tuint)))
+                      (Sset _t'3 (Etempvar _RK (tptr tuint)))
                       (Sset _RK
-                        (Ebinop Oadd (Etempvar _t'4 (tptr tuint))
+                        (Ebinop Oadd (Etempvar _t'3 (tptr tuint))
                           (Econst_int (Int.repr 1) tint) (tptr tuint))))
-                    (Sset _X3
-                      (Ebinop Oxor (Etempvar _X3 tuint)
-                        (Ederef (Etempvar _t'4 (tptr tuint)) tuint) tuint)))
+                    (Sset _tmp (Ederef (Etempvar _t'3 (tptr tuint)) tuint)))
                   (Ssequence
+                    (Sset _X2
+                      (Ebinop Oxor (Etempvar _X2 tuint) (Etempvar _tmp tuint)
+                        tuint))
                     (Ssequence
-                      (Sset _i
-                        (Ebinop Osub
-                          (Ebinop Oshr
-                            (Efield
-                              (Ederef
-                                (Etempvar _ctx (tptr (Tstruct _mbedtls_aes_context_struct noattr)))
-                                (Tstruct _mbedtls_aes_context_struct noattr))
-                              _nr tint) (Econst_int (Int.repr 1) tint) tint)
-                          (Econst_int (Int.repr 1) tint) tint))
-                      (Sloop
+                      (Ssequence
+                        (Sset _b0__3
+                          (Ecast
+                            (Ederef
+                              (Ebinop Oadd (Etempvar _input (tptr tuchar))
+                                (Econst_int (Int.repr 12) tint)
+                                (tptr tuchar)) tuchar) tuint))
                         (Ssequence
-                          (Sifthenelse (Ebinop Ogt (Etempvar _i tint)
-                                         (Econst_int (Int.repr 0) tint) tint)
-                            Sskip
-                            Sbreak)
+                          (Sset _b1__3
+                            (Ecast
+                              (Ederef
+                                (Ebinop Oadd (Etempvar _input (tptr tuchar))
+                                  (Ebinop Oadd
+                                    (Econst_int (Int.repr 12) tint)
+                                    (Econst_int (Int.repr 1) tint) tint)
+                                  (tptr tuchar)) tuchar) tuint))
                           (Ssequence
+                            (Sset _b2__3
+                              (Ecast
+                                (Ederef
+                                  (Ebinop Oadd
+                                    (Etempvar _input (tptr tuchar))
+                                    (Ebinop Oadd
+                                      (Econst_int (Int.repr 12) tint)
+                                      (Econst_int (Int.repr 2) tint) tint)
+                                    (tptr tuchar)) tuchar) tuint))
                             (Ssequence
-                              (Ssequence
-                                (Ssequence
-                                  (Sset _t'5 (Etempvar _RK (tptr tuint)))
-                                  (Sset _RK
-                                    (Ebinop Oadd (Etempvar _t'5 (tptr tuint))
-                                      (Econst_int (Int.repr 1) tint)
-                                      (tptr tuint))))
-                                (Sset _rk
-                                  (Ederef (Etempvar _t'5 (tptr tuint)) tuint)))
-                              (Ssequence
-                                (Sset _b0__4
+                              (Sset _b3__3
+                                (Ecast
                                   (Ederef
                                     (Ebinop Oadd
-                                      (Efield
-                                        (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                        _RT0 (tarray tuint 256))
-                                      (Ebinop Oand (Etempvar _X0 tuint)
-                                        (Econst_int (Int.repr 255) tint)
-                                        tuint) (tptr tuint)) tuint))
-                                (Ssequence
-                                  (Sset _b1__4
-                                    (Ederef
+                                      (Etempvar _input (tptr tuchar))
                                       (Ebinop Oadd
-                                        (Efield
-                                          (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                          _RT1 (tarray tuint 256))
-                                        (Ebinop Oand
-                                          (Ebinop Oshr (Etempvar _X3 tuint)
-                                            (Econst_int (Int.repr 8) tint)
-                                            tuint)
-                                          (Econst_int (Int.repr 255) tint)
-                                          tuint) (tptr tuint)) tuint))
-                                  (Ssequence
-                                    (Sset _b2__4
+                                        (Econst_int (Int.repr 12) tint)
+                                        (Econst_int (Int.repr 3) tint) tint)
+                                      (tptr tuchar)) tuchar) tuint))
+                              (Sset _X3
+                                (Ebinop Oor
+                                  (Ebinop Oor
+                                    (Ebinop Oor (Etempvar _b0__3 tuint)
+                                      (Ebinop Oshl (Etempvar _b1__3 tuint)
+                                        (Econst_int (Int.repr 8) tint) tuint)
+                                      tuint)
+                                    (Ebinop Oshl (Etempvar _b2__3 tuint)
+                                      (Econst_int (Int.repr 16) tint) tuint)
+                                    tuint)
+                                  (Ebinop Oshl (Etempvar _b3__3 tuint)
+                                    (Econst_int (Int.repr 24) tint) tuint)
+                                  tuint))))))
+                      (Ssequence
+                        (Ssequence
+                          (Ssequence
+                            (Sset _t'4 (Etempvar _RK (tptr tuint)))
+                            (Sset _RK
+                              (Ebinop Oadd (Etempvar _t'4 (tptr tuint))
+                                (Econst_int (Int.repr 1) tint) (tptr tuint))))
+                          (Sset _tmp
+                            (Ederef (Etempvar _t'4 (tptr tuint)) tuint)))
+                        (Ssequence
+                          (Sset _X3
+                            (Ebinop Oxor (Etempvar _X3 tuint)
+                              (Etempvar _tmp tuint) tuint))
+                          (Ssequence
+                            (Ssequence
+                              (Sset _i
+                                (Ebinop Osub
+                                  (Ebinop Oshr
+                                    (Efield
                                       (Ederef
-                                        (Ebinop Oadd
-                                          (Efield
-                                            (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                            _RT2 (tarray tuint 256))
-                                          (Ebinop Oand
-                                            (Ebinop Oshr (Etempvar _X2 tuint)
-                                              (Econst_int (Int.repr 16) tint)
-                                              tuint)
-                                            (Econst_int (Int.repr 255) tint)
-                                            tuint) (tptr tuint)) tuint))
+                                        (Etempvar _ctx (tptr (Tstruct _mbedtls_aes_context_struct noattr)))
+                                        (Tstruct _mbedtls_aes_context_struct noattr))
+                                      _nr tint)
+                                    (Econst_int (Int.repr 1) tint) tint)
+                                  (Econst_int (Int.repr 1) tint) tint))
+                              (Sloop
+                                (Ssequence
+                                  (Sifthenelse (Ebinop Ogt (Etempvar _i tint)
+                                                 (Econst_int (Int.repr 0) tint)
+                                                 tint)
+                                    Sskip
+                                    Sbreak)
+                                  (Ssequence
                                     (Ssequence
-                                      (Sset _b3__4
-                                        (Ederef
-                                          (Ebinop Oadd
-                                            (Efield
-                                              (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                              _RT3 (tarray tuint 256))
-                                            (Ebinop Oand
-                                              (Ebinop Oshr
-                                                (Etempvar _X1 tuint)
-                                                (Econst_int (Int.repr 24) tint)
-                                                tuint)
-                                              (Econst_int (Int.repr 255) tint)
-                                              tuint) (tptr tuint)) tuint))
                                       (Ssequence
-                                        (Sset _Y0
-                                          (Ebinop Oxor
-                                            (Ebinop Oxor
-                                              (Ebinop Oxor
-                                                (Ebinop Oxor
-                                                  (Etempvar _rk tuint)
-                                                  (Etempvar _b0__4 tuint)
-                                                  tuint)
-                                                (Etempvar _b1__4 tuint)
-                                                tuint)
-                                              (Etempvar _b2__4 tuint) tuint)
-                                            (Etempvar _b3__4 tuint) tuint))
                                         (Ssequence
+                                          (Sset _t'5
+                                            (Etempvar _RK (tptr tuint)))
+                                          (Sset _RK
+                                            (Ebinop Oadd
+                                              (Etempvar _t'5 (tptr tuint))
+                                              (Econst_int (Int.repr 1) tint)
+                                              (tptr tuint))))
+                                        (Sset _rk
+                                          (Ederef
+                                            (Etempvar _t'5 (tptr tuint))
+                                            tuint)))
+                                      (Ssequence
+                                        (Sset _b0__4
+                                          (Ederef
+                                            (Ebinop Oadd
+                                              (Efield
+                                                (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                _RT0 (tarray tuint 256))
+                                              (Ebinop Oand
+                                                (Etempvar _X0 tuint)
+                                                (Econst_int (Int.repr 255) tint)
+                                                tuint) (tptr tuint)) tuint))
+                                        (Ssequence
+                                          (Sset _b1__4
+                                            (Ederef
+                                              (Ebinop Oadd
+                                                (Efield
+                                                  (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                  _RT1 (tarray tuint 256))
+                                                (Ebinop Oand
+                                                  (Ebinop Oshr
+                                                    (Etempvar _X3 tuint)
+                                                    (Econst_int (Int.repr 8) tint)
+                                                    tuint)
+                                                  (Econst_int (Int.repr 255) tint)
+                                                  tuint) (tptr tuint)) tuint))
                                           (Ssequence
-                                            (Ssequence
-                                              (Sset _t'6
-                                                (Etempvar _RK (tptr tuint)))
-                                              (Sset _RK
-                                                (Ebinop Oadd
-                                                  (Etempvar _t'6 (tptr tuint))
-                                                  (Econst_int (Int.repr 1) tint)
-                                                  (tptr tuint))))
-                                            (Sset _rk
-                                              (Ederef
-                                                (Etempvar _t'6 (tptr tuint))
-                                                tuint)))
-                                          (Ssequence
-                                            (Sset _b0__4
+                                            (Sset _b2__4
                                               (Ederef
                                                 (Ebinop Oadd
                                                   (Efield
                                                     (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                    _RT0 (tarray tuint 256))
+                                                    _RT2 (tarray tuint 256))
                                                   (Ebinop Oand
-                                                    (Etempvar _X1 tuint)
+                                                    (Ebinop Oshr
+                                                      (Etempvar _X2 tuint)
+                                                      (Econst_int (Int.repr 16) tint)
+                                                      tuint)
                                                     (Econst_int (Int.repr 255) tint)
                                                     tuint) (tptr tuint))
                                                 tuint))
                                             (Ssequence
-                                              (Sset _b1__4
+                                              (Sset _b3__4
                                                 (Ederef
                                                   (Ebinop Oadd
                                                     (Efield
                                                       (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                      _RT1
+                                                      _RT3
                                                       (tarray tuint 256))
                                                     (Ebinop Oand
                                                       (Ebinop Oshr
-                                                        (Etempvar _X0 tuint)
-                                                        (Econst_int (Int.repr 8) tint)
+                                                        (Etempvar _X1 tuint)
+                                                        (Econst_int (Int.repr 24) tint)
                                                         tuint)
                                                       (Econst_int (Int.repr 255) tint)
                                                       tuint) (tptr tuint))
                                                   tuint))
                                               (Ssequence
-                                                (Sset _b2__4
-                                                  (Ederef
-                                                    (Ebinop Oadd
-                                                      (Efield
-                                                        (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                        _RT2
-                                                        (tarray tuint 256))
-                                                      (Ebinop Oand
-                                                        (Ebinop Oshr
-                                                          (Etempvar _X3 tuint)
-                                                          (Econst_int (Int.repr 16) tint)
-                                                          tuint)
-                                                        (Econst_int (Int.repr 255) tint)
-                                                        tuint) (tptr tuint))
-                                                    tuint))
-                                                (Ssequence
-                                                  (Sset _b3__4
-                                                    (Ederef
-                                                      (Ebinop Oadd
-                                                        (Efield
-                                                          (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                          _RT3
-                                                          (tarray tuint 256))
-                                                        (Ebinop Oand
-                                                          (Ebinop Oshr
-                                                            (Etempvar _X2 tuint)
-                                                            (Econst_int (Int.repr 24) tint)
-                                                            tuint)
-                                                          (Econst_int (Int.repr 255) tint)
-                                                          tuint)
-                                                        (tptr tuint)) tuint))
-                                                  (Ssequence
-                                                    (Sset _Y1
+                                                (Sset _Y0
+                                                  (Ebinop Oxor
+                                                    (Ebinop Oxor
                                                       (Ebinop Oxor
                                                         (Ebinop Oxor
-                                                          (Ebinop Oxor
-                                                            (Ebinop Oxor
-                                                              (Etempvar _rk tuint)
-                                                              (Etempvar _b0__4 tuint)
-                                                              tuint)
-                                                            (Etempvar _b1__4 tuint)
-                                                            tuint)
-                                                          (Etempvar _b2__4 tuint)
+                                                          (Etempvar _rk tuint)
+                                                          (Etempvar _b0__4 tuint)
                                                           tuint)
-                                                        (Etempvar _b3__4 tuint)
+                                                        (Etempvar _b1__4 tuint)
+                                                        tuint)
+                                                      (Etempvar _b2__4 tuint)
+                                                      tuint)
+                                                    (Etempvar _b3__4 tuint)
+                                                    tuint))
+                                                (Ssequence
+                                                  (Ssequence
+                                                    (Ssequence
+                                                      (Sset _t'6
+                                                        (Etempvar _RK (tptr tuint)))
+                                                      (Sset _RK
+                                                        (Ebinop Oadd
+                                                          (Etempvar _t'6 (tptr tuint))
+                                                          (Econst_int (Int.repr 1) tint)
+                                                          (tptr tuint))))
+                                                    (Sset _rk
+                                                      (Ederef
+                                                        (Etempvar _t'6 (tptr tuint))
+                                                        tuint)))
+                                                  (Ssequence
+                                                    (Sset _b0__4
+                                                      (Ederef
+                                                        (Ebinop Oadd
+                                                          (Efield
+                                                            (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                            _RT0
+                                                            (tarray tuint 256))
+                                                          (Ebinop Oand
+                                                            (Etempvar _X1 tuint)
+                                                            (Econst_int (Int.repr 255) tint)
+                                                            tuint)
+                                                          (tptr tuint))
                                                         tuint))
                                                     (Ssequence
+                                                      (Sset _b1__4
+                                                        (Ederef
+                                                          (Ebinop Oadd
+                                                            (Efield
+                                                              (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                              _RT1
+                                                              (tarray tuint 256))
+                                                            (Ebinop Oand
+                                                              (Ebinop Oshr
+                                                                (Etempvar _X0 tuint)
+                                                                (Econst_int (Int.repr 8) tint)
+                                                                tuint)
+                                                              (Econst_int (Int.repr 255) tint)
+                                                              tuint)
+                                                            (tptr tuint))
+                                                          tuint))
                                                       (Ssequence
-                                                        (Ssequence
-                                                          (Sset _t'7
-                                                            (Etempvar _RK (tptr tuint)))
-                                                          (Sset _RK
-                                                            (Ebinop Oadd
-                                                              (Etempvar _t'7 (tptr tuint))
-                                                              (Econst_int (Int.repr 1) tint)
-                                                              (tptr tuint))))
-                                                        (Sset _rk
-                                                          (Ederef
-                                                            (Etempvar _t'7 (tptr tuint))
-                                                            tuint)))
-                                                      (Ssequence
-                                                        (Sset _b0__4
+                                                        (Sset _b2__4
                                                           (Ederef
                                                             (Ebinop Oadd
                                                               (Efield
                                                                 (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                                _RT0
+                                                                _RT2
                                                                 (tarray tuint 256))
                                                               (Ebinop Oand
-                                                                (Etempvar _X2 tuint)
+                                                                (Ebinop Oshr
+                                                                  (Etempvar _X3 tuint)
+                                                                  (Econst_int (Int.repr 16) tint)
+                                                                  tuint)
                                                                 (Econst_int (Int.repr 255) tint)
                                                                 tuint)
                                                               (tptr tuint))
                                                             tuint))
                                                         (Ssequence
-                                                          (Sset _b1__4
+                                                          (Sset _b3__4
                                                             (Ederef
                                                               (Ebinop Oadd
                                                                 (Efield
                                                                   (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                                  _RT1
+                                                                  _RT3
                                                                   (tarray tuint 256))
                                                                 (Ebinop Oand
                                                                   (Ebinop Oshr
-                                                                    (Etempvar _X1 tuint)
-                                                                    (Econst_int (Int.repr 8) tint)
+                                                                    (Etempvar _X2 tuint)
+                                                                    (Econst_int (Int.repr 24) tint)
                                                                     tuint)
                                                                   (Econst_int (Int.repr 255) tint)
                                                                   tuint)
                                                                 (tptr tuint))
                                                               tuint))
                                                           (Ssequence
-                                                            (Sset _b2__4
-                                                              (Ederef
-                                                                (Ebinop Oadd
-                                                                  (Efield
+                                                            (Sset _Y1
+                                                              (Ebinop Oxor
+                                                                (Ebinop Oxor
+                                                                  (Ebinop Oxor
+                                                                    (Ebinop Oxor
+                                                                    (Etempvar _rk tuint)
+                                                                    (Etempvar _b0__4 tuint)
+                                                                    tuint)
+                                                                    (Etempvar _b1__4 tuint)
+                                                                    tuint)
+                                                                  (Etempvar _b2__4 tuint)
+                                                                  tuint)
+                                                                (Etempvar _b3__4 tuint)
+                                                                tuint))
+                                                            (Ssequence
+                                                              (Ssequence
+                                                                (Ssequence
+                                                                  (Sset _t'7
+                                                                    (Etempvar _RK (tptr tuint)))
+                                                                  (Sset _RK
+                                                                    (Ebinop Oadd
+                                                                    (Etempvar _t'7 (tptr tuint))
+                                                                    (Econst_int (Int.repr 1) tint)
+                                                                    (tptr tuint))))
+                                                                (Sset _rk
+                                                                  (Ederef
+                                                                    (Etempvar _t'7 (tptr tuint))
+                                                                    tuint)))
+                                                              (Ssequence
+                                                                (Sset _b0__4
+                                                                  (Ederef
+                                                                    (Ebinop Oadd
+                                                                    (Efield
+                                                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                                    _RT0
+                                                                    (tarray tuint 256))
+                                                                    (Ebinop Oand
+                                                                    (Etempvar _X2 tuint)
+                                                                    (Econst_int (Int.repr 255) tint)
+                                                                    tuint)
+                                                                    (tptr tuint))
+                                                                    tuint))
+                                                                (Ssequence
+                                                                  (Sset _b1__4
+                                                                    (Ederef
+                                                                    (Ebinop Oadd
+                                                                    (Efield
+                                                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                                    _RT1
+                                                                    (tarray tuint 256))
+                                                                    (Ebinop Oand
+                                                                    (Ebinop Oshr
+                                                                    (Etempvar _X1 tuint)
+                                                                    (Econst_int (Int.repr 8) tint)
+                                                                    tuint)
+                                                                    (Econst_int (Int.repr 255) tint)
+                                                                    tuint)
+                                                                    (tptr tuint))
+                                                                    tuint))
+                                                                  (Ssequence
+                                                                    (Sset _b2__4
+                                                                    (Ederef
+                                                                    (Ebinop Oadd
+                                                                    (Efield
                                                                     (Evar _tables (Tstruct _aes_tables_struct noattr))
                                                                     _RT2
                                                                     (tarray tuint 256))
-                                                                  (Ebinop Oand
+                                                                    (Ebinop Oand
                                                                     (Ebinop Oshr
                                                                     (Etempvar _X0 tuint)
                                                                     (Econst_int (Int.repr 16) tint)
                                                                     tuint)
                                                                     (Econst_int (Int.repr 255) tint)
                                                                     tuint)
-                                                                  (tptr tuint))
-                                                                tuint))
-                                                            (Ssequence
-                                                              (Sset _b3__4
-                                                                (Ederef
-                                                                  (Ebinop Oadd
+                                                                    (tptr tuint))
+                                                                    tuint))
+                                                                    (Ssequence
+                                                                    (Sset _b3__4
+                                                                    (Ederef
+                                                                    (Ebinop Oadd
                                                                     (Efield
                                                                     (Evar _tables (Tstruct _aes_tables_struct noattr))
                                                                     _RT3
@@ -4363,10 +4511,10 @@ Definition f_mbedtls_aes_decrypt := {|
                                                                     (Econst_int (Int.repr 255) tint)
                                                                     tuint)
                                                                     (tptr tuint))
-                                                                  tuint))
-                                                              (Ssequence
-                                                                (Sset _Y2
-                                                                  (Ebinop Oxor
+                                                                    tuint))
+                                                                    (Ssequence
+                                                                    (Sset _Y2
+                                                                    (Ebinop Oxor
                                                                     (Ebinop Oxor
                                                                     (Ebinop Oxor
                                                                     (Ebinop Oxor
@@ -4379,8 +4527,8 @@ Definition f_mbedtls_aes_decrypt := {|
                                                                     tuint)
                                                                     (Etempvar _b3__4 tuint)
                                                                     tuint))
-                                                                (Ssequence
-                                                                  (Ssequence
+                                                                    (Ssequence
+                                                                    (Ssequence
                                                                     (Ssequence
                                                                     (Sset _t'8
                                                                     (Etempvar _RK (tptr tuint)))
@@ -4393,7 +4541,7 @@ Definition f_mbedtls_aes_decrypt := {|
                                                                     (Ederef
                                                                     (Etempvar _t'8 (tptr tuint))
                                                                     tuint)))
-                                                                  (Ssequence
+                                                                    (Ssequence
                                                                     (Sset _b0__4
                                                                     (Ederef
                                                                     (Ebinop Oadd
@@ -4472,234 +4620,251 @@ Definition f_mbedtls_aes_decrypt := {|
                                                                     tuint)
                                                                     (Etempvar _b3__4 tuint)
                                                                     tuint)))))))))))))))))))))))))
-                            (Ssequence
-                              (Ssequence
-                                (Ssequence
-                                  (Sset _t'9 (Etempvar _RK (tptr tuint)))
-                                  (Sset _RK
-                                    (Ebinop Oadd (Etempvar _t'9 (tptr tuint))
-                                      (Econst_int (Int.repr 1) tint)
-                                      (tptr tuint))))
-                                (Sset _rk__1
-                                  (Ederef (Etempvar _t'9 (tptr tuint)) tuint)))
-                              (Ssequence
-                                (Sset _b0__5
-                                  (Ederef
-                                    (Ebinop Oadd
-                                      (Efield
-                                        (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                        _RT0 (tarray tuint 256))
-                                      (Ebinop Oand (Etempvar _Y0 tuint)
-                                        (Econst_int (Int.repr 255) tint)
-                                        tuint) (tptr tuint)) tuint))
-                                (Ssequence
-                                  (Sset _b1__5
-                                    (Ederef
-                                      (Ebinop Oadd
-                                        (Efield
-                                          (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                          _RT1 (tarray tuint 256))
-                                        (Ebinop Oand
-                                          (Ebinop Oshr (Etempvar _Y3 tuint)
-                                            (Econst_int (Int.repr 8) tint)
-                                            tuint)
-                                          (Econst_int (Int.repr 255) tint)
-                                          tuint) (tptr tuint)) tuint))
-                                  (Ssequence
-                                    (Sset _b2__5
-                                      (Ederef
-                                        (Ebinop Oadd
-                                          (Efield
-                                            (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                            _RT2 (tarray tuint 256))
-                                          (Ebinop Oand
-                                            (Ebinop Oshr (Etempvar _Y2 tuint)
-                                              (Econst_int (Int.repr 16) tint)
-                                              tuint)
-                                            (Econst_int (Int.repr 255) tint)
-                                            tuint) (tptr tuint)) tuint))
                                     (Ssequence
-                                      (Sset _b3__5
-                                        (Ederef
-                                          (Ebinop Oadd
-                                            (Efield
-                                              (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                              _RT3 (tarray tuint 256))
-                                            (Ebinop Oand
-                                              (Ebinop Oshr
-                                                (Etempvar _Y1 tuint)
-                                                (Econst_int (Int.repr 24) tint)
-                                                tuint)
-                                              (Econst_int (Int.repr 255) tint)
-                                              tuint) (tptr tuint)) tuint))
                                       (Ssequence
-                                        (Sset _X0
-                                          (Ebinop Oxor
-                                            (Ebinop Oxor
-                                              (Ebinop Oxor
-                                                (Ebinop Oxor
-                                                  (Etempvar _rk__1 tuint)
-                                                  (Etempvar _b0__5 tuint)
-                                                  tuint)
-                                                (Etempvar _b1__5 tuint)
-                                                tuint)
-                                              (Etempvar _b2__5 tuint) tuint)
-                                            (Etempvar _b3__5 tuint) tuint))
                                         (Ssequence
+                                          (Sset _t'9
+                                            (Etempvar _RK (tptr tuint)))
+                                          (Sset _RK
+                                            (Ebinop Oadd
+                                              (Etempvar _t'9 (tptr tuint))
+                                              (Econst_int (Int.repr 1) tint)
+                                              (tptr tuint))))
+                                        (Sset _rk__1
+                                          (Ederef
+                                            (Etempvar _t'9 (tptr tuint))
+                                            tuint)))
+                                      (Ssequence
+                                        (Sset _b0__5
+                                          (Ederef
+                                            (Ebinop Oadd
+                                              (Efield
+                                                (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                _RT0 (tarray tuint 256))
+                                              (Ebinop Oand
+                                                (Etempvar _Y0 tuint)
+                                                (Econst_int (Int.repr 255) tint)
+                                                tuint) (tptr tuint)) tuint))
+                                        (Ssequence
+                                          (Sset _b1__5
+                                            (Ederef
+                                              (Ebinop Oadd
+                                                (Efield
+                                                  (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                  _RT1 (tarray tuint 256))
+                                                (Ebinop Oand
+                                                  (Ebinop Oshr
+                                                    (Etempvar _Y3 tuint)
+                                                    (Econst_int (Int.repr 8) tint)
+                                                    tuint)
+                                                  (Econst_int (Int.repr 255) tint)
+                                                  tuint) (tptr tuint)) tuint))
                                           (Ssequence
-                                            (Ssequence
-                                              (Sset _t'10
-                                                (Etempvar _RK (tptr tuint)))
-                                              (Sset _RK
-                                                (Ebinop Oadd
-                                                  (Etempvar _t'10 (tptr tuint))
-                                                  (Econst_int (Int.repr 1) tint)
-                                                  (tptr tuint))))
-                                            (Sset _rk__1
-                                              (Ederef
-                                                (Etempvar _t'10 (tptr tuint))
-                                                tuint)))
-                                          (Ssequence
-                                            (Sset _b0__5
+                                            (Sset _b2__5
                                               (Ederef
                                                 (Ebinop Oadd
                                                   (Efield
                                                     (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                    _RT0 (tarray tuint 256))
+                                                    _RT2 (tarray tuint 256))
                                                   (Ebinop Oand
-                                                    (Etempvar _Y1 tuint)
+                                                    (Ebinop Oshr
+                                                      (Etempvar _Y2 tuint)
+                                                      (Econst_int (Int.repr 16) tint)
+                                                      tuint)
                                                     (Econst_int (Int.repr 255) tint)
                                                     tuint) (tptr tuint))
                                                 tuint))
                                             (Ssequence
-                                              (Sset _b1__5
+                                              (Sset _b3__5
                                                 (Ederef
                                                   (Ebinop Oadd
                                                     (Efield
                                                       (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                      _RT1
+                                                      _RT3
                                                       (tarray tuint 256))
                                                     (Ebinop Oand
                                                       (Ebinop Oshr
-                                                        (Etempvar _Y0 tuint)
-                                                        (Econst_int (Int.repr 8) tint)
+                                                        (Etempvar _Y1 tuint)
+                                                        (Econst_int (Int.repr 24) tint)
                                                         tuint)
                                                       (Econst_int (Int.repr 255) tint)
                                                       tuint) (tptr tuint))
                                                   tuint))
                                               (Ssequence
-                                                (Sset _b2__5
-                                                  (Ederef
-                                                    (Ebinop Oadd
-                                                      (Efield
-                                                        (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                        _RT2
-                                                        (tarray tuint 256))
-                                                      (Ebinop Oand
-                                                        (Ebinop Oshr
-                                                          (Etempvar _Y3 tuint)
-                                                          (Econst_int (Int.repr 16) tint)
-                                                          tuint)
-                                                        (Econst_int (Int.repr 255) tint)
-                                                        tuint) (tptr tuint))
-                                                    tuint))
-                                                (Ssequence
-                                                  (Sset _b3__5
-                                                    (Ederef
-                                                      (Ebinop Oadd
-                                                        (Efield
-                                                          (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                          _RT3
-                                                          (tarray tuint 256))
-                                                        (Ebinop Oand
-                                                          (Ebinop Oshr
-                                                            (Etempvar _Y2 tuint)
-                                                            (Econst_int (Int.repr 24) tint)
-                                                            tuint)
-                                                          (Econst_int (Int.repr 255) tint)
-                                                          tuint)
-                                                        (tptr tuint)) tuint))
-                                                  (Ssequence
-                                                    (Sset _X1
+                                                (Sset _X0
+                                                  (Ebinop Oxor
+                                                    (Ebinop Oxor
                                                       (Ebinop Oxor
                                                         (Ebinop Oxor
-                                                          (Ebinop Oxor
-                                                            (Ebinop Oxor
-                                                              (Etempvar _rk__1 tuint)
-                                                              (Etempvar _b0__5 tuint)
-                                                              tuint)
-                                                            (Etempvar _b1__5 tuint)
-                                                            tuint)
-                                                          (Etempvar _b2__5 tuint)
+                                                          (Etempvar _rk__1 tuint)
+                                                          (Etempvar _b0__5 tuint)
                                                           tuint)
-                                                        (Etempvar _b3__5 tuint)
+                                                        (Etempvar _b1__5 tuint)
+                                                        tuint)
+                                                      (Etempvar _b2__5 tuint)
+                                                      tuint)
+                                                    (Etempvar _b3__5 tuint)
+                                                    tuint))
+                                                (Ssequence
+                                                  (Ssequence
+                                                    (Ssequence
+                                                      (Sset _t'10
+                                                        (Etempvar _RK (tptr tuint)))
+                                                      (Sset _RK
+                                                        (Ebinop Oadd
+                                                          (Etempvar _t'10 (tptr tuint))
+                                                          (Econst_int (Int.repr 1) tint)
+                                                          (tptr tuint))))
+                                                    (Sset _rk__1
+                                                      (Ederef
+                                                        (Etempvar _t'10 (tptr tuint))
+                                                        tuint)))
+                                                  (Ssequence
+                                                    (Sset _b0__5
+                                                      (Ederef
+                                                        (Ebinop Oadd
+                                                          (Efield
+                                                            (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                            _RT0
+                                                            (tarray tuint 256))
+                                                          (Ebinop Oand
+                                                            (Etempvar _Y1 tuint)
+                                                            (Econst_int (Int.repr 255) tint)
+                                                            tuint)
+                                                          (tptr tuint))
                                                         tuint))
                                                     (Ssequence
+                                                      (Sset _b1__5
+                                                        (Ederef
+                                                          (Ebinop Oadd
+                                                            (Efield
+                                                              (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                              _RT1
+                                                              (tarray tuint 256))
+                                                            (Ebinop Oand
+                                                              (Ebinop Oshr
+                                                                (Etempvar _Y0 tuint)
+                                                                (Econst_int (Int.repr 8) tint)
+                                                                tuint)
+                                                              (Econst_int (Int.repr 255) tint)
+                                                              tuint)
+                                                            (tptr tuint))
+                                                          tuint))
                                                       (Ssequence
-                                                        (Ssequence
-                                                          (Sset _t'11
-                                                            (Etempvar _RK (tptr tuint)))
-                                                          (Sset _RK
-                                                            (Ebinop Oadd
-                                                              (Etempvar _t'11 (tptr tuint))
-                                                              (Econst_int (Int.repr 1) tint)
-                                                              (tptr tuint))))
-                                                        (Sset _rk__1
-                                                          (Ederef
-                                                            (Etempvar _t'11 (tptr tuint))
-                                                            tuint)))
-                                                      (Ssequence
-                                                        (Sset _b0__5
+                                                        (Sset _b2__5
                                                           (Ederef
                                                             (Ebinop Oadd
                                                               (Efield
                                                                 (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                                _RT0
+                                                                _RT2
                                                                 (tarray tuint 256))
                                                               (Ebinop Oand
-                                                                (Etempvar _Y2 tuint)
+                                                                (Ebinop Oshr
+                                                                  (Etempvar _Y3 tuint)
+                                                                  (Econst_int (Int.repr 16) tint)
+                                                                  tuint)
                                                                 (Econst_int (Int.repr 255) tint)
                                                                 tuint)
                                                               (tptr tuint))
                                                             tuint))
                                                         (Ssequence
-                                                          (Sset _b1__5
+                                                          (Sset _b3__5
                                                             (Ederef
                                                               (Ebinop Oadd
                                                                 (Efield
                                                                   (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                                  _RT1
+                                                                  _RT3
                                                                   (tarray tuint 256))
                                                                 (Ebinop Oand
                                                                   (Ebinop Oshr
-                                                                    (Etempvar _Y1 tuint)
-                                                                    (Econst_int (Int.repr 8) tint)
+                                                                    (Etempvar _Y2 tuint)
+                                                                    (Econst_int (Int.repr 24) tint)
                                                                     tuint)
                                                                   (Econst_int (Int.repr 255) tint)
                                                                   tuint)
                                                                 (tptr tuint))
                                                               tuint))
                                                           (Ssequence
-                                                            (Sset _b2__5
-                                                              (Ederef
-                                                                (Ebinop Oadd
-                                                                  (Efield
+                                                            (Sset _X1
+                                                              (Ebinop Oxor
+                                                                (Ebinop Oxor
+                                                                  (Ebinop Oxor
+                                                                    (Ebinop Oxor
+                                                                    (Etempvar _rk__1 tuint)
+                                                                    (Etempvar _b0__5 tuint)
+                                                                    tuint)
+                                                                    (Etempvar _b1__5 tuint)
+                                                                    tuint)
+                                                                  (Etempvar _b2__5 tuint)
+                                                                  tuint)
+                                                                (Etempvar _b3__5 tuint)
+                                                                tuint))
+                                                            (Ssequence
+                                                              (Ssequence
+                                                                (Ssequence
+                                                                  (Sset _t'11
+                                                                    (Etempvar _RK (tptr tuint)))
+                                                                  (Sset _RK
+                                                                    (Ebinop Oadd
+                                                                    (Etempvar _t'11 (tptr tuint))
+                                                                    (Econst_int (Int.repr 1) tint)
+                                                                    (tptr tuint))))
+                                                                (Sset _rk__1
+                                                                  (Ederef
+                                                                    (Etempvar _t'11 (tptr tuint))
+                                                                    tuint)))
+                                                              (Ssequence
+                                                                (Sset _b0__5
+                                                                  (Ederef
+                                                                    (Ebinop Oadd
+                                                                    (Efield
+                                                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                                    _RT0
+                                                                    (tarray tuint 256))
+                                                                    (Ebinop Oand
+                                                                    (Etempvar _Y2 tuint)
+                                                                    (Econst_int (Int.repr 255) tint)
+                                                                    tuint)
+                                                                    (tptr tuint))
+                                                                    tuint))
+                                                                (Ssequence
+                                                                  (Sset _b1__5
+                                                                    (Ederef
+                                                                    (Ebinop Oadd
+                                                                    (Efield
+                                                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                                    _RT1
+                                                                    (tarray tuint 256))
+                                                                    (Ebinop Oand
+                                                                    (Ebinop Oshr
+                                                                    (Etempvar _Y1 tuint)
+                                                                    (Econst_int (Int.repr 8) tint)
+                                                                    tuint)
+                                                                    (Econst_int (Int.repr 255) tint)
+                                                                    tuint)
+                                                                    (tptr tuint))
+                                                                    tuint))
+                                                                  (Ssequence
+                                                                    (Sset _b2__5
+                                                                    (Ederef
+                                                                    (Ebinop Oadd
+                                                                    (Efield
                                                                     (Evar _tables (Tstruct _aes_tables_struct noattr))
                                                                     _RT2
                                                                     (tarray tuint 256))
-                                                                  (Ebinop Oand
+                                                                    (Ebinop Oand
                                                                     (Ebinop Oshr
                                                                     (Etempvar _Y0 tuint)
                                                                     (Econst_int (Int.repr 16) tint)
                                                                     tuint)
                                                                     (Econst_int (Int.repr 255) tint)
                                                                     tuint)
-                                                                  (tptr tuint))
-                                                                tuint))
-                                                            (Ssequence
-                                                              (Sset _b3__5
-                                                                (Ederef
-                                                                  (Ebinop Oadd
+                                                                    (tptr tuint))
+                                                                    tuint))
+                                                                    (Ssequence
+                                                                    (Sset _b3__5
+                                                                    (Ederef
+                                                                    (Ebinop Oadd
                                                                     (Efield
                                                                     (Evar _tables (Tstruct _aes_tables_struct noattr))
                                                                     _RT3
@@ -4712,10 +4877,10 @@ Definition f_mbedtls_aes_decrypt := {|
                                                                     (Econst_int (Int.repr 255) tint)
                                                                     tuint)
                                                                     (tptr tuint))
-                                                                  tuint))
-                                                              (Ssequence
-                                                                (Sset _X2
-                                                                  (Ebinop Oxor
+                                                                    tuint))
+                                                                    (Ssequence
+                                                                    (Sset _X2
+                                                                    (Ebinop Oxor
                                                                     (Ebinop Oxor
                                                                     (Ebinop Oxor
                                                                     (Ebinop Oxor
@@ -4728,8 +4893,8 @@ Definition f_mbedtls_aes_decrypt := {|
                                                                     tuint)
                                                                     (Etempvar _b3__5 tuint)
                                                                     tuint))
-                                                                (Ssequence
-                                                                  (Ssequence
+                                                                    (Ssequence
+                                                                    (Ssequence
                                                                     (Ssequence
                                                                     (Sset _t'12
                                                                     (Etempvar _RK (tptr tuint)))
@@ -4742,7 +4907,7 @@ Definition f_mbedtls_aes_decrypt := {|
                                                                     (Ederef
                                                                     (Etempvar _t'12 (tptr tuint))
                                                                     tuint)))
-                                                                  (Ssequence
+                                                                    (Ssequence
                                                                     (Sset _b0__5
                                                                     (Ederef
                                                                     (Ebinop Oadd
@@ -4821,270 +4986,290 @@ Definition f_mbedtls_aes_decrypt := {|
                                                                     tuint)
                                                                     (Etempvar _b3__5 tuint)
                                                                     tuint)))))))))))))))))))))))))))
-                        (Sset _i
-                          (Ebinop Osub (Etempvar _i tint)
-                            (Econst_int (Int.repr 1) tint) tint))))
-                    (Ssequence
-                      (Ssequence
-                        (Ssequence
-                          (Ssequence
-                            (Sset _t'13 (Etempvar _RK (tptr tuint)))
-                            (Sset _RK
-                              (Ebinop Oadd (Etempvar _t'13 (tptr tuint))
-                                (Econst_int (Int.repr 1) tint) (tptr tuint))))
-                          (Sset _rk__2
-                            (Ederef (Etempvar _t'13 (tptr tuint)) tuint)))
-                        (Ssequence
-                          (Sset _b0__6
-                            (Ederef
-                              (Ebinop Oadd
-                                (Efield
-                                  (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                  _RT0 (tarray tuint 256))
-                                (Ebinop Oand (Etempvar _X0 tuint)
-                                  (Econst_int (Int.repr 255) tint) tuint)
-                                (tptr tuint)) tuint))
-                          (Ssequence
-                            (Sset _b1__6
-                              (Ederef
-                                (Ebinop Oadd
-                                  (Efield
-                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                    _RT1 (tarray tuint 256))
-                                  (Ebinop Oand
-                                    (Ebinop Oshr (Etempvar _X3 tuint)
-                                      (Econst_int (Int.repr 8) tint) tuint)
-                                    (Econst_int (Int.repr 255) tint) tuint)
-                                  (tptr tuint)) tuint))
+                                (Sset _i
+                                  (Ebinop Osub (Etempvar _i tint)
+                                    (Econst_int (Int.repr 1) tint) tint))))
                             (Ssequence
-                              (Sset _b2__6
-                                (Ederef
-                                  (Ebinop Oadd
-                                    (Efield
-                                      (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                      _RT2 (tarray tuint 256))
-                                    (Ebinop Oand
-                                      (Ebinop Oshr (Etempvar _X2 tuint)
-                                        (Econst_int (Int.repr 16) tint)
-                                        tuint)
-                                      (Econst_int (Int.repr 255) tint) tuint)
-                                    (tptr tuint)) tuint))
                               (Ssequence
-                                (Sset _b3__6
-                                  (Ederef
-                                    (Ebinop Oadd
-                                      (Efield
-                                        (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                        _RT3 (tarray tuint 256))
-                                      (Ebinop Oand
-                                        (Ebinop Oshr (Etempvar _X1 tuint)
-                                          (Econst_int (Int.repr 24) tint)
-                                          tuint)
-                                        (Econst_int (Int.repr 255) tint)
-                                        tuint) (tptr tuint)) tuint))
                                 (Ssequence
-                                  (Sset _Y0
-                                    (Ebinop Oxor
-                                      (Ebinop Oxor
-                                        (Ebinop Oxor
-                                          (Ebinop Oxor
-                                            (Etempvar _rk__2 tuint)
-                                            (Etempvar _b0__6 tuint) tuint)
-                                          (Etempvar _b1__6 tuint) tuint)
-                                        (Etempvar _b2__6 tuint) tuint)
-                                      (Etempvar _b3__6 tuint) tuint))
                                   (Ssequence
+                                    (Sset _t'13 (Etempvar _RK (tptr tuint)))
+                                    (Sset _RK
+                                      (Ebinop Oadd
+                                        (Etempvar _t'13 (tptr tuint))
+                                        (Econst_int (Int.repr 1) tint)
+                                        (tptr tuint))))
+                                  (Sset _rk__2
+                                    (Ederef (Etempvar _t'13 (tptr tuint))
+                                      tuint)))
+                                (Ssequence
+                                  (Sset _b0__6
+                                    (Ederef
+                                      (Ebinop Oadd
+                                        (Efield
+                                          (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                          _RT0 (tarray tuint 256))
+                                        (Ebinop Oand (Etempvar _X0 tuint)
+                                          (Econst_int (Int.repr 255) tint)
+                                          tuint) (tptr tuint)) tuint))
+                                  (Ssequence
+                                    (Sset _b1__6
+                                      (Ederef
+                                        (Ebinop Oadd
+                                          (Efield
+                                            (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                            _RT1 (tarray tuint 256))
+                                          (Ebinop Oand
+                                            (Ebinop Oshr (Etempvar _X3 tuint)
+                                              (Econst_int (Int.repr 8) tint)
+                                              tuint)
+                                            (Econst_int (Int.repr 255) tint)
+                                            tuint) (tptr tuint)) tuint))
                                     (Ssequence
-                                      (Ssequence
-                                        (Sset _t'14
-                                          (Etempvar _RK (tptr tuint)))
-                                        (Sset _RK
-                                          (Ebinop Oadd
-                                            (Etempvar _t'14 (tptr tuint))
-                                            (Econst_int (Int.repr 1) tint)
-                                            (tptr tuint))))
-                                      (Sset _rk__2
-                                        (Ederef (Etempvar _t'14 (tptr tuint))
-                                          tuint)))
-                                    (Ssequence
-                                      (Sset _b0__6
+                                      (Sset _b2__6
                                         (Ederef
                                           (Ebinop Oadd
                                             (Efield
                                               (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                              _RT0 (tarray tuint 256))
-                                            (Ebinop Oand (Etempvar _X1 tuint)
+                                              _RT2 (tarray tuint 256))
+                                            (Ebinop Oand
+                                              (Ebinop Oshr
+                                                (Etempvar _X2 tuint)
+                                                (Econst_int (Int.repr 16) tint)
+                                                tuint)
                                               (Econst_int (Int.repr 255) tint)
                                               tuint) (tptr tuint)) tuint))
                                       (Ssequence
-                                        (Sset _b1__6
+                                        (Sset _b3__6
                                           (Ederef
                                             (Ebinop Oadd
                                               (Efield
                                                 (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                _RT1 (tarray tuint 256))
+                                                _RT3 (tarray tuint 256))
                                               (Ebinop Oand
                                                 (Ebinop Oshr
-                                                  (Etempvar _X0 tuint)
-                                                  (Econst_int (Int.repr 8) tint)
+                                                  (Etempvar _X1 tuint)
+                                                  (Econst_int (Int.repr 24) tint)
                                                   tuint)
                                                 (Econst_int (Int.repr 255) tint)
                                                 tuint) (tptr tuint)) tuint))
                                         (Ssequence
-                                          (Sset _b2__6
-                                            (Ederef
-                                              (Ebinop Oadd
-                                                (Efield
-                                                  (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                  _RT2 (tarray tuint 256))
-                                                (Ebinop Oand
-                                                  (Ebinop Oshr
-                                                    (Etempvar _X3 tuint)
-                                                    (Econst_int (Int.repr 16) tint)
-                                                    tuint)
-                                                  (Econst_int (Int.repr 255) tint)
-                                                  tuint) (tptr tuint)) tuint))
-                                          (Ssequence
-                                            (Sset _b3__6
-                                              (Ederef
-                                                (Ebinop Oadd
-                                                  (Efield
-                                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                    _RT3 (tarray tuint 256))
-                                                  (Ebinop Oand
-                                                    (Ebinop Oshr
-                                                      (Etempvar _X2 tuint)
-                                                      (Econst_int (Int.repr 24) tint)
-                                                      tuint)
-                                                    (Econst_int (Int.repr 255) tint)
-                                                    tuint) (tptr tuint))
-                                                tuint))
-                                            (Ssequence
-                                              (Sset _Y1
+                                          (Sset _Y0
+                                            (Ebinop Oxor
+                                              (Ebinop Oxor
                                                 (Ebinop Oxor
                                                   (Ebinop Oxor
-                                                    (Ebinop Oxor
-                                                      (Ebinop Oxor
-                                                        (Etempvar _rk__2 tuint)
-                                                        (Etempvar _b0__6 tuint)
-                                                        tuint)
-                                                      (Etempvar _b1__6 tuint)
-                                                      tuint)
-                                                    (Etempvar _b2__6 tuint)
+                                                    (Etempvar _rk__2 tuint)
+                                                    (Etempvar _b0__6 tuint)
                                                     tuint)
-                                                  (Etempvar _b3__6 tuint)
+                                                  (Etempvar _b1__6 tuint)
+                                                  tuint)
+                                                (Etempvar _b2__6 tuint)
+                                                tuint)
+                                              (Etempvar _b3__6 tuint) tuint))
+                                          (Ssequence
+                                            (Ssequence
+                                              (Ssequence
+                                                (Sset _t'14
+                                                  (Etempvar _RK (tptr tuint)))
+                                                (Sset _RK
+                                                  (Ebinop Oadd
+                                                    (Etempvar _t'14 (tptr tuint))
+                                                    (Econst_int (Int.repr 1) tint)
+                                                    (tptr tuint))))
+                                              (Sset _rk__2
+                                                (Ederef
+                                                  (Etempvar _t'14 (tptr tuint))
+                                                  tuint)))
+                                            (Ssequence
+                                              (Sset _b0__6
+                                                (Ederef
+                                                  (Ebinop Oadd
+                                                    (Efield
+                                                      (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                      _RT0
+                                                      (tarray tuint 256))
+                                                    (Ebinop Oand
+                                                      (Etempvar _X1 tuint)
+                                                      (Econst_int (Int.repr 255) tint)
+                                                      tuint) (tptr tuint))
                                                   tuint))
                                               (Ssequence
+                                                (Sset _b1__6
+                                                  (Ederef
+                                                    (Ebinop Oadd
+                                                      (Efield
+                                                        (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                        _RT1
+                                                        (tarray tuint 256))
+                                                      (Ebinop Oand
+                                                        (Ebinop Oshr
+                                                          (Etempvar _X0 tuint)
+                                                          (Econst_int (Int.repr 8) tint)
+                                                          tuint)
+                                                        (Econst_int (Int.repr 255) tint)
+                                                        tuint) (tptr tuint))
+                                                    tuint))
                                                 (Ssequence
-                                                  (Ssequence
-                                                    (Sset _t'15
-                                                      (Etempvar _RK (tptr tuint)))
-                                                    (Sset _RK
-                                                      (Ebinop Oadd
-                                                        (Etempvar _t'15 (tptr tuint))
-                                                        (Econst_int (Int.repr 1) tint)
-                                                        (tptr tuint))))
-                                                  (Sset _rk__2
-                                                    (Ederef
-                                                      (Etempvar _t'15 (tptr tuint))
-                                                      tuint)))
-                                                (Ssequence
-                                                  (Sset _b0__6
+                                                  (Sset _b2__6
                                                     (Ederef
                                                       (Ebinop Oadd
                                                         (Efield
                                                           (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                          _RT0
+                                                          _RT2
                                                           (tarray tuint 256))
                                                         (Ebinop Oand
-                                                          (Etempvar _X2 tuint)
+                                                          (Ebinop Oshr
+                                                            (Etempvar _X3 tuint)
+                                                            (Econst_int (Int.repr 16) tint)
+                                                            tuint)
                                                           (Econst_int (Int.repr 255) tint)
                                                           tuint)
                                                         (tptr tuint)) tuint))
                                                   (Ssequence
-                                                    (Sset _b1__6
+                                                    (Sset _b3__6
                                                       (Ederef
                                                         (Ebinop Oadd
                                                           (Efield
                                                             (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                            _RT1
+                                                            _RT3
                                                             (tarray tuint 256))
                                                           (Ebinop Oand
                                                             (Ebinop Oshr
-                                                              (Etempvar _X1 tuint)
-                                                              (Econst_int (Int.repr 8) tint)
+                                                              (Etempvar _X2 tuint)
+                                                              (Econst_int (Int.repr 24) tint)
                                                               tuint)
                                                             (Econst_int (Int.repr 255) tint)
                                                             tuint)
                                                           (tptr tuint))
                                                         tuint))
                                                     (Ssequence
-                                                      (Sset _b2__6
-                                                        (Ederef
-                                                          (Ebinop Oadd
-                                                            (Efield
-                                                              (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                              _RT2
-                                                              (tarray tuint 256))
-                                                            (Ebinop Oand
-                                                              (Ebinop Oshr
-                                                                (Etempvar _X0 tuint)
-                                                                (Econst_int (Int.repr 16) tint)
-                                                                tuint)
-                                                              (Econst_int (Int.repr 255) tint)
-                                                              tuint)
-                                                            (tptr tuint))
-                                                          tuint))
-                                                      (Ssequence
-                                                        (Sset _b3__6
-                                                          (Ederef
-                                                            (Ebinop Oadd
-                                                              (Efield
-                                                                (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                                _RT3
-                                                                (tarray tuint 256))
-                                                              (Ebinop Oand
-                                                                (Ebinop Oshr
-                                                                  (Etempvar _X3 tuint)
-                                                                  (Econst_int (Int.repr 24) tint)
-                                                                  tuint)
-                                                                (Econst_int (Int.repr 255) tint)
-                                                                tuint)
-                                                              (tptr tuint))
-                                                            tuint))
-                                                        (Ssequence
-                                                          (Sset _Y2
+                                                      (Sset _Y1
+                                                        (Ebinop Oxor
+                                                          (Ebinop Oxor
                                                             (Ebinop Oxor
                                                               (Ebinop Oxor
-                                                                (Ebinop Oxor
-                                                                  (Ebinop Oxor
+                                                                (Etempvar _rk__2 tuint)
+                                                                (Etempvar _b0__6 tuint)
+                                                                tuint)
+                                                              (Etempvar _b1__6 tuint)
+                                                              tuint)
+                                                            (Etempvar _b2__6 tuint)
+                                                            tuint)
+                                                          (Etempvar _b3__6 tuint)
+                                                          tuint))
+                                                      (Ssequence
+                                                        (Ssequence
+                                                          (Ssequence
+                                                            (Sset _t'15
+                                                              (Etempvar _RK (tptr tuint)))
+                                                            (Sset _RK
+                                                              (Ebinop Oadd
+                                                                (Etempvar _t'15 (tptr tuint))
+                                                                (Econst_int (Int.repr 1) tint)
+                                                                (tptr tuint))))
+                                                          (Sset _rk__2
+                                                            (Ederef
+                                                              (Etempvar _t'15 (tptr tuint))
+                                                              tuint)))
+                                                        (Ssequence
+                                                          (Sset _b0__6
+                                                            (Ederef
+                                                              (Ebinop Oadd
+                                                                (Efield
+                                                                  (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                                  _RT0
+                                                                  (tarray tuint 256))
+                                                                (Ebinop Oand
+                                                                  (Etempvar _X2 tuint)
+                                                                  (Econst_int (Int.repr 255) tint)
+                                                                  tuint)
+                                                                (tptr tuint))
+                                                              tuint))
+                                                          (Ssequence
+                                                            (Sset _b1__6
+                                                              (Ederef
+                                                                (Ebinop Oadd
+                                                                  (Efield
+                                                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                                    _RT1
+                                                                    (tarray tuint 256))
+                                                                  (Ebinop Oand
+                                                                    (Ebinop Oshr
+                                                                    (Etempvar _X1 tuint)
+                                                                    (Econst_int (Int.repr 8) tint)
+                                                                    tuint)
+                                                                    (Econst_int (Int.repr 255) tint)
+                                                                    tuint)
+                                                                  (tptr tuint))
+                                                                tuint))
+                                                            (Ssequence
+                                                              (Sset _b2__6
+                                                                (Ederef
+                                                                  (Ebinop Oadd
+                                                                    (Efield
+                                                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                                    _RT2
+                                                                    (tarray tuint 256))
+                                                                    (Ebinop Oand
+                                                                    (Ebinop Oshr
+                                                                    (Etempvar _X0 tuint)
+                                                                    (Econst_int (Int.repr 16) tint)
+                                                                    tuint)
+                                                                    (Econst_int (Int.repr 255) tint)
+                                                                    tuint)
+                                                                    (tptr tuint))
+                                                                  tuint))
+                                                              (Ssequence
+                                                                (Sset _b3__6
+                                                                  (Ederef
+                                                                    (Ebinop Oadd
+                                                                    (Efield
+                                                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                                    _RT3
+                                                                    (tarray tuint 256))
+                                                                    (Ebinop Oand
+                                                                    (Ebinop Oshr
+                                                                    (Etempvar _X3 tuint)
+                                                                    (Econst_int (Int.repr 24) tint)
+                                                                    tuint)
+                                                                    (Econst_int (Int.repr 255) tint)
+                                                                    tuint)
+                                                                    (tptr tuint))
+                                                                    tuint))
+                                                                (Ssequence
+                                                                  (Sset _Y2
+                                                                    (Ebinop Oxor
+                                                                    (Ebinop Oxor
+                                                                    (Ebinop Oxor
+                                                                    (Ebinop Oxor
                                                                     (Etempvar _rk__2 tuint)
                                                                     (Etempvar _b0__6 tuint)
                                                                     tuint)
-                                                                  (Etempvar _b1__6 tuint)
-                                                                  tuint)
-                                                                (Etempvar _b2__6 tuint)
-                                                                tuint)
-                                                              (Etempvar _b3__6 tuint)
-                                                              tuint))
-                                                          (Ssequence
-                                                            (Ssequence
-                                                              (Ssequence
-                                                                (Sset _t'16
-                                                                  (Etempvar _RK (tptr tuint)))
-                                                                (Sset _RK
-                                                                  (Ebinop Oadd
+                                                                    (Etempvar _b1__6 tuint)
+                                                                    tuint)
+                                                                    (Etempvar _b2__6 tuint)
+                                                                    tuint)
+                                                                    (Etempvar _b3__6 tuint)
+                                                                    tuint))
+                                                                  (Ssequence
+                                                                    (Ssequence
+                                                                    (Ssequence
+                                                                    (Sset _t'16
+                                                                    (Etempvar _RK (tptr tuint)))
+                                                                    (Sset _RK
+                                                                    (Ebinop Oadd
                                                                     (Etempvar _t'16 (tptr tuint))
                                                                     (Econst_int (Int.repr 1) tint)
                                                                     (tptr tuint))))
-                                                              (Sset _rk__2
-                                                                (Ederef
-                                                                  (Etempvar _t'16 (tptr tuint))
-                                                                  tuint)))
-                                                            (Ssequence
-                                                              (Sset _b0__6
-                                                                (Ederef
-                                                                  (Ebinop Oadd
+                                                                    (Sset _rk__2
+                                                                    (Ederef
+                                                                    (Etempvar _t'16 (tptr tuint))
+                                                                    tuint)))
+                                                                    (Ssequence
+                                                                    (Sset _b0__6
+                                                                    (Ederef
+                                                                    (Ebinop Oadd
                                                                     (Efield
                                                                     (Evar _tables (Tstruct _aes_tables_struct noattr))
                                                                     _RT0
@@ -5094,10 +5279,10 @@ Definition f_mbedtls_aes_decrypt := {|
                                                                     (Econst_int (Int.repr 255) tint)
                                                                     tuint)
                                                                     (tptr tuint))
-                                                                  tuint))
-                                                              (Ssequence
-                                                                (Sset _b1__6
-                                                                  (Ederef
+                                                                    tuint))
+                                                                    (Ssequence
+                                                                    (Sset _b1__6
+                                                                    (Ederef
                                                                     (Ebinop Oadd
                                                                     (Efield
                                                                     (Evar _tables (Tstruct _aes_tables_struct noattr))
@@ -5112,8 +5297,8 @@ Definition f_mbedtls_aes_decrypt := {|
                                                                     tuint)
                                                                     (tptr tuint))
                                                                     tuint))
-                                                                (Ssequence
-                                                                  (Sset _b2__6
+                                                                    (Ssequence
+                                                                    (Sset _b2__6
                                                                     (Ederef
                                                                     (Ebinop Oadd
                                                                     (Efield
@@ -5129,7 +5314,7 @@ Definition f_mbedtls_aes_decrypt := {|
                                                                     tuint)
                                                                     (tptr tuint))
                                                                     tuint))
-                                                                  (Ssequence
+                                                                    (Ssequence
                                                                     (Sset _b3__6
                                                                     (Ederef
                                                                     (Ebinop Oadd
@@ -5160,111 +5345,60 @@ Definition f_mbedtls_aes_decrypt := {|
                                                                     tuint)
                                                                     (Etempvar _b3__6 tuint)
                                                                     tuint)))))))))))))))))))))))))
-                      (Ssequence
-                        (Ssequence
-                          (Ssequence
-                            (Ssequence
-                              (Sset _t'17 (Etempvar _RK (tptr tuint)))
-                              (Sset _RK
-                                (Ebinop Oadd (Etempvar _t'17 (tptr tuint))
-                                  (Econst_int (Int.repr 1) tint)
-                                  (tptr tuint))))
-                            (Sset _rk__3
-                              (Ederef (Etempvar _t'17 (tptr tuint)) tuint)))
-                          (Ssequence
-                            (Sset _b0__7
-                              (Ederef
-                                (Ebinop Oadd
-                                  (Efield
-                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                    _RSb (tarray tuchar 256))
-                                  (Ebinop Oand (Etempvar _Y0 tuint)
-                                    (Econst_int (Int.repr 255) tint) tuint)
-                                  (tptr tuchar)) tuchar))
-                            (Ssequence
-                              (Sset _b1__7
-                                (Ederef
-                                  (Ebinop Oadd
-                                    (Efield
-                                      (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                      _RSb (tarray tuchar 256))
-                                    (Ebinop Oand
-                                      (Ebinop Oshr (Etempvar _Y3 tuint)
-                                        (Econst_int (Int.repr 8) tint) tuint)
-                                      (Econst_int (Int.repr 255) tint) tuint)
-                                    (tptr tuchar)) tuchar))
                               (Ssequence
-                                (Sset _b2__7
-                                  (Ederef
-                                    (Ebinop Oadd
-                                      (Efield
-                                        (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                        _RSb (tarray tuchar 256))
-                                      (Ebinop Oand
-                                        (Ebinop Oshr (Etempvar _Y2 tuint)
-                                          (Econst_int (Int.repr 16) tint)
-                                          tuint)
-                                        (Econst_int (Int.repr 255) tint)
-                                        tuint) (tptr tuchar)) tuchar))
                                 (Ssequence
-                                  (Sset _b3__7
-                                    (Ederef
-                                      (Ebinop Oadd
-                                        (Efield
-                                          (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                          _RSb (tarray tuchar 256))
-                                        (Ebinop Oand
-                                          (Ebinop Oshr (Etempvar _Y1 tuint)
-                                            (Econst_int (Int.repr 24) tint)
-                                            tuint)
-                                          (Econst_int (Int.repr 255) tint)
-                                          tuint) (tptr tuchar)) tuchar))
                                   (Ssequence
-                                    (Sset _X0
-                                      (Ebinop Oxor
-                                        (Ebinop Oxor
-                                          (Ebinop Oxor
-                                            (Ebinop Oxor
-                                              (Etempvar _rk__3 tuint)
-                                              (Etempvar _b0__7 tuint) tuint)
-                                            (Ebinop Oshl
-                                              (Etempvar _b1__7 tuint)
-                                              (Econst_int (Int.repr 8) tint)
-                                              tuint) tuint)
-                                          (Ebinop Oshl
-                                            (Etempvar _b2__7 tuint)
-                                            (Econst_int (Int.repr 16) tint)
-                                            tuint) tuint)
-                                        (Ebinop Oshl (Etempvar _b3__7 tuint)
-                                          (Econst_int (Int.repr 24) tint)
-                                          tuint) tuint))
                                     (Ssequence
+                                      (Sset _t'17
+                                        (Etempvar _RK (tptr tuint)))
+                                      (Sset _RK
+                                        (Ebinop Oadd
+                                          (Etempvar _t'17 (tptr tuint))
+                                          (Econst_int (Int.repr 1) tint)
+                                          (tptr tuint))))
+                                    (Sset _rk__3
+                                      (Ederef (Etempvar _t'17 (tptr tuint))
+                                        tuint)))
+                                  (Ssequence
+                                    (Sset _b0__7
+                                      (Ederef
+                                        (Ebinop Oadd
+                                          (Efield
+                                            (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                            _RSb (tarray tuchar 256))
+                                          (Ebinop Oand (Etempvar _Y0 tuint)
+                                            (Econst_int (Int.repr 255) tint)
+                                            tuint) (tptr tuchar)) tuchar))
+                                    (Ssequence
+                                      (Sset _b1__7
+                                        (Ederef
+                                          (Ebinop Oadd
+                                            (Efield
+                                              (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                              _RSb (tarray tuchar 256))
+                                            (Ebinop Oand
+                                              (Ebinop Oshr
+                                                (Etempvar _Y3 tuint)
+                                                (Econst_int (Int.repr 8) tint)
+                                                tuint)
+                                              (Econst_int (Int.repr 255) tint)
+                                              tuint) (tptr tuchar)) tuchar))
                                       (Ssequence
-                                        (Ssequence
-                                          (Sset _t'18
-                                            (Etempvar _RK (tptr tuint)))
-                                          (Sset _RK
-                                            (Ebinop Oadd
-                                              (Etempvar _t'18 (tptr tuint))
-                                              (Econst_int (Int.repr 1) tint)
-                                              (tptr tuint))))
-                                        (Sset _rk__3
-                                          (Ederef
-                                            (Etempvar _t'18 (tptr tuint))
-                                            tuint)))
-                                      (Ssequence
-                                        (Sset _b0__7
+                                        (Sset _b2__7
                                           (Ederef
                                             (Ebinop Oadd
                                               (Efield
                                                 (Evar _tables (Tstruct _aes_tables_struct noattr))
                                                 _RSb (tarray tuchar 256))
                                               (Ebinop Oand
-                                                (Etempvar _Y1 tuint)
+                                                (Ebinop Oshr
+                                                  (Etempvar _Y2 tuint)
+                                                  (Econst_int (Int.repr 16) tint)
+                                                  tuint)
                                                 (Econst_int (Int.repr 255) tint)
                                                 tuint) (tptr tuchar)) tuchar))
                                         (Ssequence
-                                          (Sset _b1__7
+                                          (Sset _b3__7
                                             (Ederef
                                               (Ebinop Oadd
                                                 (Efield
@@ -5272,80 +5406,79 @@ Definition f_mbedtls_aes_decrypt := {|
                                                   _RSb (tarray tuchar 256))
                                                 (Ebinop Oand
                                                   (Ebinop Oshr
-                                                    (Etempvar _Y0 tuint)
-                                                    (Econst_int (Int.repr 8) tint)
+                                                    (Etempvar _Y1 tuint)
+                                                    (Econst_int (Int.repr 24) tint)
                                                     tuint)
                                                   (Econst_int (Int.repr 255) tint)
                                                   tuint) (tptr tuchar))
                                               tuchar))
                                           (Ssequence
-                                            (Sset _b2__7
-                                              (Ederef
-                                                (Ebinop Oadd
-                                                  (Efield
-                                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                    _RSb (tarray tuchar 256))
-                                                  (Ebinop Oand
-                                                    (Ebinop Oshr
-                                                      (Etempvar _Y3 tuint)
-                                                      (Econst_int (Int.repr 16) tint)
-                                                      tuint)
-                                                    (Econst_int (Int.repr 255) tint)
-                                                    tuint) (tptr tuchar))
-                                                tuchar))
-                                            (Ssequence
-                                              (Sset _b3__7
-                                                (Ederef
-                                                  (Ebinop Oadd
-                                                    (Efield
-                                                      (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                      _RSb
-                                                      (tarray tuchar 256))
-                                                    (Ebinop Oand
-                                                      (Ebinop Oshr
-                                                        (Etempvar _Y2 tuint)
-                                                        (Econst_int (Int.repr 24) tint)
-                                                        tuint)
-                                                      (Econst_int (Int.repr 255) tint)
-                                                      tuint) (tptr tuchar))
-                                                  tuchar))
-                                              (Ssequence
-                                                (Sset _X1
+                                            (Sset _X0
+                                              (Ebinop Oxor
+                                                (Ebinop Oxor
                                                   (Ebinop Oxor
                                                     (Ebinop Oxor
-                                                      (Ebinop Oxor
-                                                        (Ebinop Oxor
-                                                          (Etempvar _rk__3 tuint)
-                                                          (Etempvar _b0__7 tuint)
-                                                          tuint)
-                                                        (Ebinop Oshl
-                                                          (Etempvar _b1__7 tuint)
-                                                          (Econst_int (Int.repr 8) tint)
-                                                          tuint) tuint)
-                                                      (Ebinop Oshl
-                                                        (Etempvar _b2__7 tuint)
-                                                        (Econst_int (Int.repr 16) tint)
-                                                        tuint) tuint)
+                                                      (Etempvar _rk__3 tuint)
+                                                      (Etempvar _b0__7 tuint)
+                                                      tuint)
                                                     (Ebinop Oshl
-                                                      (Etempvar _b3__7 tuint)
-                                                      (Econst_int (Int.repr 24) tint)
-                                                      tuint) tuint))
+                                                      (Etempvar _b1__7 tuint)
+                                                      (Econst_int (Int.repr 8) tint)
+                                                      tuint) tuint)
+                                                  (Ebinop Oshl
+                                                    (Etempvar _b2__7 tuint)
+                                                    (Econst_int (Int.repr 16) tint)
+                                                    tuint) tuint)
+                                                (Ebinop Oshl
+                                                  (Etempvar _b3__7 tuint)
+                                                  (Econst_int (Int.repr 24) tint)
+                                                  tuint) tuint))
+                                            (Ssequence
+                                              (Ssequence
                                                 (Ssequence
+                                                  (Sset _t'18
+                                                    (Etempvar _RK (tptr tuint)))
+                                                  (Sset _RK
+                                                    (Ebinop Oadd
+                                                      (Etempvar _t'18 (tptr tuint))
+                                                      (Econst_int (Int.repr 1) tint)
+                                                      (tptr tuint))))
+                                                (Sset _rk__3
+                                                  (Ederef
+                                                    (Etempvar _t'18 (tptr tuint))
+                                                    tuint)))
+                                              (Ssequence
+                                                (Sset _b0__7
+                                                  (Ederef
+                                                    (Ebinop Oadd
+                                                      (Efield
+                                                        (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                        _RSb
+                                                        (tarray tuchar 256))
+                                                      (Ebinop Oand
+                                                        (Etempvar _Y1 tuint)
+                                                        (Econst_int (Int.repr 255) tint)
+                                                        tuint) (tptr tuchar))
+                                                    tuchar))
+                                                (Ssequence
+                                                  (Sset _b1__7
+                                                    (Ederef
+                                                      (Ebinop Oadd
+                                                        (Efield
+                                                          (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                          _RSb
+                                                          (tarray tuchar 256))
+                                                        (Ebinop Oand
+                                                          (Ebinop Oshr
+                                                            (Etempvar _Y0 tuint)
+                                                            (Econst_int (Int.repr 8) tint)
+                                                            tuint)
+                                                          (Econst_int (Int.repr 255) tint)
+                                                          tuint)
+                                                        (tptr tuchar))
+                                                      tuchar))
                                                   (Ssequence
-                                                    (Ssequence
-                                                      (Sset _t'19
-                                                        (Etempvar _RK (tptr tuint)))
-                                                      (Sset _RK
-                                                        (Ebinop Oadd
-                                                          (Etempvar _t'19 (tptr tuint))
-                                                          (Econst_int (Int.repr 1) tint)
-                                                          (tptr tuint))))
-                                                    (Sset _rk__3
-                                                      (Ederef
-                                                        (Etempvar _t'19 (tptr tuint))
-                                                        tuint)))
-                                                  (Ssequence
-                                                    (Sset _b0__7
+                                                    (Sset _b2__7
                                                       (Ederef
                                                         (Ebinop Oadd
                                                           (Efield
@@ -5353,13 +5486,16 @@ Definition f_mbedtls_aes_decrypt := {|
                                                             _RSb
                                                             (tarray tuchar 256))
                                                           (Ebinop Oand
-                                                            (Etempvar _Y2 tuint)
+                                                            (Ebinop Oshr
+                                                              (Etempvar _Y3 tuint)
+                                                              (Econst_int (Int.repr 16) tint)
+                                                              tuint)
                                                             (Econst_int (Int.repr 255) tint)
                                                             tuint)
                                                           (tptr tuchar))
                                                         tuchar))
                                                     (Ssequence
-                                                      (Sset _b1__7
+                                                      (Sset _b3__7
                                                         (Ederef
                                                           (Ebinop Oadd
                                                             (Efield
@@ -5368,52 +5504,119 @@ Definition f_mbedtls_aes_decrypt := {|
                                                               (tarray tuchar 256))
                                                             (Ebinop Oand
                                                               (Ebinop Oshr
-                                                                (Etempvar _Y1 tuint)
-                                                                (Econst_int (Int.repr 8) tint)
+                                                                (Etempvar _Y2 tuint)
+                                                                (Econst_int (Int.repr 24) tint)
                                                                 tuint)
                                                               (Econst_int (Int.repr 255) tint)
                                                               tuint)
                                                             (tptr tuchar))
                                                           tuchar))
                                                       (Ssequence
-                                                        (Sset _b2__7
-                                                          (Ederef
-                                                            (Ebinop Oadd
-                                                              (Efield
-                                                                (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                                _RSb
-                                                                (tarray tuchar 256))
-                                                              (Ebinop Oand
-                                                                (Ebinop Oshr
-                                                                  (Etempvar _Y0 tuint)
-                                                                  (Econst_int (Int.repr 16) tint)
+                                                        (Sset _X1
+                                                          (Ebinop Oxor
+                                                            (Ebinop Oxor
+                                                              (Ebinop Oxor
+                                                                (Ebinop Oxor
+                                                                  (Etempvar _rk__3 tuint)
+                                                                  (Etempvar _b0__7 tuint)
                                                                   tuint)
-                                                                (Econst_int (Int.repr 255) tint)
+                                                                (Ebinop Oshl
+                                                                  (Etempvar _b1__7 tuint)
+                                                                  (Econst_int (Int.repr 8) tint)
+                                                                  tuint)
                                                                 tuint)
-                                                              (tptr tuchar))
-                                                            tuchar))
+                                                              (Ebinop Oshl
+                                                                (Etempvar _b2__7 tuint)
+                                                                (Econst_int (Int.repr 16) tint)
+                                                                tuint) tuint)
+                                                            (Ebinop Oshl
+                                                              (Etempvar _b3__7 tuint)
+                                                              (Econst_int (Int.repr 24) tint)
+                                                              tuint) tuint))
                                                         (Ssequence
-                                                          (Sset _b3__7
-                                                            (Ederef
-                                                              (Ebinop Oadd
-                                                                (Efield
-                                                                  (Evar _tables (Tstruct _aes_tables_struct noattr))
-                                                                  _RSb
-                                                                  (tarray tuchar 256))
-                                                                (Ebinop Oand
-                                                                  (Ebinop Oshr
+                                                          (Ssequence
+                                                            (Ssequence
+                                                              (Sset _t'19
+                                                                (Etempvar _RK (tptr tuint)))
+                                                              (Sset _RK
+                                                                (Ebinop Oadd
+                                                                  (Etempvar _t'19 (tptr tuint))
+                                                                  (Econst_int (Int.repr 1) tint)
+                                                                  (tptr tuint))))
+                                                            (Sset _rk__3
+                                                              (Ederef
+                                                                (Etempvar _t'19 (tptr tuint))
+                                                                tuint)))
+                                                          (Ssequence
+                                                            (Sset _b0__7
+                                                              (Ederef
+                                                                (Ebinop Oadd
+                                                                  (Efield
+                                                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                                    _RSb
+                                                                    (tarray tuchar 256))
+                                                                  (Ebinop Oand
+                                                                    (Etempvar _Y2 tuint)
+                                                                    (Econst_int (Int.repr 255) tint)
+                                                                    tuint)
+                                                                  (tptr tuchar))
+                                                                tuchar))
+                                                            (Ssequence
+                                                              (Sset _b1__7
+                                                                (Ederef
+                                                                  (Ebinop Oadd
+                                                                    (Efield
+                                                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                                    _RSb
+                                                                    (tarray tuchar 256))
+                                                                    (Ebinop Oand
+                                                                    (Ebinop Oshr
+                                                                    (Etempvar _Y1 tuint)
+                                                                    (Econst_int (Int.repr 8) tint)
+                                                                    tuint)
+                                                                    (Econst_int (Int.repr 255) tint)
+                                                                    tuint)
+                                                                    (tptr tuchar))
+                                                                  tuchar))
+                                                              (Ssequence
+                                                                (Sset _b2__7
+                                                                  (Ederef
+                                                                    (Ebinop Oadd
+                                                                    (Efield
+                                                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                                    _RSb
+                                                                    (tarray tuchar 256))
+                                                                    (Ebinop Oand
+                                                                    (Ebinop Oshr
+                                                                    (Etempvar _Y0 tuint)
+                                                                    (Econst_int (Int.repr 16) tint)
+                                                                    tuint)
+                                                                    (Econst_int (Int.repr 255) tint)
+                                                                    tuint)
+                                                                    (tptr tuchar))
+                                                                    tuchar))
+                                                                (Ssequence
+                                                                  (Sset _b3__7
+                                                                    (Ederef
+                                                                    (Ebinop Oadd
+                                                                    (Efield
+                                                                    (Evar _tables (Tstruct _aes_tables_struct noattr))
+                                                                    _RSb
+                                                                    (tarray tuchar 256))
+                                                                    (Ebinop Oand
+                                                                    (Ebinop Oshr
                                                                     (Etempvar _Y3 tuint)
                                                                     (Econst_int (Int.repr 24) tint)
                                                                     tuint)
-                                                                  (Econst_int (Int.repr 255) tint)
-                                                                  tuint)
-                                                                (tptr tuchar))
-                                                              tuchar))
-                                                          (Ssequence
-                                                            (Sset _X2
-                                                              (Ebinop Oxor
-                                                                (Ebinop Oxor
-                                                                  (Ebinop Oxor
+                                                                    (Econst_int (Int.repr 255) tint)
+                                                                    tuint)
+                                                                    (tptr tuchar))
+                                                                    tuchar))
+                                                                  (Ssequence
+                                                                    (Sset _X2
+                                                                    (Ebinop Oxor
+                                                                    (Ebinop Oxor
+                                                                    (Ebinop Oxor
                                                                     (Ebinop Oxor
                                                                     (Etempvar _rk__3 tuint)
                                                                     (Etempvar _b0__7 tuint)
@@ -5423,33 +5626,33 @@ Definition f_mbedtls_aes_decrypt := {|
                                                                     (Econst_int (Int.repr 8) tint)
                                                                     tuint)
                                                                     tuint)
-                                                                  (Ebinop Oshl
+                                                                    (Ebinop Oshl
                                                                     (Etempvar _b2__7 tuint)
                                                                     (Econst_int (Int.repr 16) tint)
                                                                     tuint)
-                                                                  tuint)
-                                                                (Ebinop Oshl
-                                                                  (Etempvar _b3__7 tuint)
-                                                                  (Econst_int (Int.repr 24) tint)
-                                                                  tuint)
-                                                                tuint))
-                                                            (Ssequence
-                                                              (Ssequence
-                                                                (Ssequence
-                                                                  (Sset _t'20
+                                                                    tuint)
+                                                                    (Ebinop Oshl
+                                                                    (Etempvar _b3__7 tuint)
+                                                                    (Econst_int (Int.repr 24) tint)
+                                                                    tuint)
+                                                                    tuint))
+                                                                    (Ssequence
+                                                                    (Ssequence
+                                                                    (Ssequence
+                                                                    (Sset _t'20
                                                                     (Etempvar _RK (tptr tuint)))
-                                                                  (Sset _RK
+                                                                    (Sset _RK
                                                                     (Ebinop Oadd
                                                                     (Etempvar _t'20 (tptr tuint))
                                                                     (Econst_int (Int.repr 1) tint)
                                                                     (tptr tuint))))
-                                                                (Sset _rk__3
-                                                                  (Ederef
+                                                                    (Sset _rk__3
+                                                                    (Ederef
                                                                     (Etempvar _t'20 (tptr tuint))
                                                                     tuint)))
-                                                              (Ssequence
-                                                                (Sset _b0__7
-                                                                  (Ederef
+                                                                    (Ssequence
+                                                                    (Sset _b0__7
+                                                                    (Ederef
                                                                     (Ebinop Oadd
                                                                     (Efield
                                                                     (Evar _tables (Tstruct _aes_tables_struct noattr))
@@ -5461,8 +5664,8 @@ Definition f_mbedtls_aes_decrypt := {|
                                                                     tuint)
                                                                     (tptr tuchar))
                                                                     tuchar))
-                                                                (Ssequence
-                                                                  (Sset _b1__7
+                                                                    (Ssequence
+                                                                    (Sset _b1__7
                                                                     (Ederef
                                                                     (Ebinop Oadd
                                                                     (Efield
@@ -5478,7 +5681,7 @@ Definition f_mbedtls_aes_decrypt := {|
                                                                     tuint)
                                                                     (tptr tuchar))
                                                                     tuchar))
-                                                                  (Ssequence
+                                                                    (Ssequence
                                                                     (Sset _b2__7
                                                                     (Ederef
                                                                     (Ebinop Oadd
@@ -5535,238 +5738,260 @@ Definition f_mbedtls_aes_decrypt := {|
                                                                     (Econst_int (Int.repr 24) tint)
                                                                     tuint)
                                                                     tuint)))))))))))))))))))))))))
-                        (Ssequence
-                          (Ssequence
-                            (Sassign
-                              (Ederef
-                                (Ebinop Oadd (Etempvar _output (tptr tuchar))
-                                  (Econst_int (Int.repr 0) tint)
-                                  (tptr tuchar)) tuchar)
-                              (Ecast
-                                (Ebinop Oand (Etempvar _X0 tuint)
-                                  (Econst_int (Int.repr 255) tint) tuint)
-                                tuchar))
-                            (Ssequence
-                              (Sassign
-                                (Ederef
-                                  (Ebinop Oadd
-                                    (Etempvar _output (tptr tuchar))
-                                    (Ebinop Oadd
-                                      (Econst_int (Int.repr 0) tint)
-                                      (Econst_int (Int.repr 1) tint) tint)
-                                    (tptr tuchar)) tuchar)
-                                (Ecast
-                                  (Ebinop Oand
-                                    (Ebinop Oshr (Etempvar _X0 tuint)
-                                      (Econst_int (Int.repr 8) tint) tuint)
-                                    (Econst_int (Int.repr 255) tint) tuint)
-                                  tuchar))
-                              (Ssequence
-                                (Sassign
-                                  (Ederef
-                                    (Ebinop Oadd
-                                      (Etempvar _output (tptr tuchar))
-                                      (Ebinop Oadd
-                                        (Econst_int (Int.repr 0) tint)
-                                        (Econst_int (Int.repr 2) tint) tint)
-                                      (tptr tuchar)) tuchar)
-                                  (Ecast
-                                    (Ebinop Oand
-                                      (Ebinop Oshr (Etempvar _X0 tuint)
-                                        (Econst_int (Int.repr 16) tint)
-                                        tuint)
-                                      (Econst_int (Int.repr 255) tint) tuint)
-                                    tuchar))
-                                (Sassign
-                                  (Ederef
-                                    (Ebinop Oadd
-                                      (Etempvar _output (tptr tuchar))
-                                      (Ebinop Oadd
-                                        (Econst_int (Int.repr 0) tint)
-                                        (Econst_int (Int.repr 3) tint) tint)
-                                      (tptr tuchar)) tuchar)
-                                  (Ecast
-                                    (Ebinop Oand
-                                      (Ebinop Oshr (Etempvar _X0 tuint)
-                                        (Econst_int (Int.repr 24) tint)
-                                        tuint)
-                                      (Econst_int (Int.repr 255) tint) tuint)
-                                    tuchar)))))
-                          (Ssequence
-                            (Ssequence
-                              (Sassign
-                                (Ederef
-                                  (Ebinop Oadd
-                                    (Etempvar _output (tptr tuchar))
-                                    (Econst_int (Int.repr 4) tint)
-                                    (tptr tuchar)) tuchar)
-                                (Ecast
-                                  (Ebinop Oand (Etempvar _X1 tuint)
-                                    (Econst_int (Int.repr 255) tint) tuint)
-                                  tuchar))
-                              (Ssequence
-                                (Sassign
-                                  (Ederef
-                                    (Ebinop Oadd
-                                      (Etempvar _output (tptr tuchar))
-                                      (Ebinop Oadd
-                                        (Econst_int (Int.repr 4) tint)
-                                        (Econst_int (Int.repr 1) tint) tint)
-                                      (tptr tuchar)) tuchar)
-                                  (Ecast
-                                    (Ebinop Oand
-                                      (Ebinop Oshr (Etempvar _X1 tuint)
-                                        (Econst_int (Int.repr 8) tint) tuint)
-                                      (Econst_int (Int.repr 255) tint) tuint)
-                                    tuchar))
                                 (Ssequence
-                                  (Sassign
-                                    (Ederef
-                                      (Ebinop Oadd
-                                        (Etempvar _output (tptr tuchar))
-                                        (Ebinop Oadd
-                                          (Econst_int (Int.repr 4) tint)
-                                          (Econst_int (Int.repr 2) tint)
-                                          tint) (tptr tuchar)) tuchar)
-                                    (Ecast
-                                      (Ebinop Oand
-                                        (Ebinop Oshr (Etempvar _X1 tuint)
-                                          (Econst_int (Int.repr 16) tint)
-                                          tuint)
-                                        (Econst_int (Int.repr 255) tint)
-                                        tuint) tuchar))
-                                  (Sassign
-                                    (Ederef
-                                      (Ebinop Oadd
-                                        (Etempvar _output (tptr tuchar))
-                                        (Ebinop Oadd
-                                          (Econst_int (Int.repr 4) tint)
-                                          (Econst_int (Int.repr 3) tint)
-                                          tint) (tptr tuchar)) tuchar)
-                                    (Ecast
-                                      (Ebinop Oand
-                                        (Ebinop Oshr (Etempvar _X1 tuint)
-                                          (Econst_int (Int.repr 24) tint)
-                                          tuint)
-                                        (Econst_int (Int.repr 255) tint)
-                                        tuint) tuchar)))))
-                            (Ssequence
-                              (Ssequence
-                                (Sassign
-                                  (Ederef
-                                    (Ebinop Oadd
-                                      (Etempvar _output (tptr tuchar))
-                                      (Econst_int (Int.repr 8) tint)
-                                      (tptr tuchar)) tuchar)
-                                  (Ecast
-                                    (Ebinop Oand (Etempvar _X2 tuint)
-                                      (Econst_int (Int.repr 255) tint) tuint)
-                                    tuchar))
-                                (Ssequence
-                                  (Sassign
-                                    (Ederef
-                                      (Ebinop Oadd
-                                        (Etempvar _output (tptr tuchar))
-                                        (Ebinop Oadd
-                                          (Econst_int (Int.repr 8) tint)
-                                          (Econst_int (Int.repr 1) tint)
-                                          tint) (tptr tuchar)) tuchar)
-                                    (Ecast
-                                      (Ebinop Oand
-                                        (Ebinop Oshr (Etempvar _X2 tuint)
-                                          (Econst_int (Int.repr 8) tint)
-                                          tuint)
-                                        (Econst_int (Int.repr 255) tint)
-                                        tuint) tuchar))
                                   (Ssequence
                                     (Sassign
                                       (Ederef
                                         (Ebinop Oadd
                                           (Etempvar _output (tptr tuchar))
-                                          (Ebinop Oadd
-                                            (Econst_int (Int.repr 8) tint)
-                                            (Econst_int (Int.repr 2) tint)
-                                            tint) (tptr tuchar)) tuchar)
+                                          (Econst_int (Int.repr 0) tint)
+                                          (tptr tuchar)) tuchar)
                                       (Ecast
-                                        (Ebinop Oand
-                                          (Ebinop Oshr (Etempvar _X2 tuint)
-                                            (Econst_int (Int.repr 16) tint)
-                                            tuint)
+                                        (Ebinop Oand (Etempvar _X0 tuint)
                                           (Econst_int (Int.repr 255) tint)
                                           tuint) tuchar))
-                                    (Sassign
-                                      (Ederef
-                                        (Ebinop Oadd
-                                          (Etempvar _output (tptr tuchar))
+                                    (Ssequence
+                                      (Sassign
+                                        (Ederef
                                           (Ebinop Oadd
-                                            (Econst_int (Int.repr 8) tint)
-                                            (Econst_int (Int.repr 3) tint)
-                                            tint) (tptr tuchar)) tuchar)
-                                      (Ecast
-                                        (Ebinop Oand
-                                          (Ebinop Oshr (Etempvar _X2 tuint)
-                                            (Econst_int (Int.repr 24) tint)
-                                            tuint)
-                                          (Econst_int (Int.repr 255) tint)
-                                          tuint) tuchar)))))
-                              (Ssequence
-                                (Sassign
-                                  (Ederef
-                                    (Ebinop Oadd
-                                      (Etempvar _output (tptr tuchar))
-                                      (Econst_int (Int.repr 12) tint)
-                                      (tptr tuchar)) tuchar)
-                                  (Ecast
-                                    (Ebinop Oand (Etempvar _X3 tuint)
-                                      (Econst_int (Int.repr 255) tint) tuint)
-                                    tuchar))
-                                (Ssequence
-                                  (Sassign
-                                    (Ederef
-                                      (Ebinop Oadd
-                                        (Etempvar _output (tptr tuchar))
-                                        (Ebinop Oadd
-                                          (Econst_int (Int.repr 12) tint)
-                                          (Econst_int (Int.repr 1) tint)
-                                          tint) (tptr tuchar)) tuchar)
-                                    (Ecast
-                                      (Ebinop Oand
-                                        (Ebinop Oshr (Etempvar _X3 tuint)
-                                          (Econst_int (Int.repr 8) tint)
-                                          tuint)
-                                        (Econst_int (Int.repr 255) tint)
-                                        tuint) tuchar))
+                                            (Etempvar _output (tptr tuchar))
+                                            (Ebinop Oadd
+                                              (Econst_int (Int.repr 0) tint)
+                                              (Econst_int (Int.repr 1) tint)
+                                              tint) (tptr tuchar)) tuchar)
+                                        (Ecast
+                                          (Ebinop Oand
+                                            (Ebinop Oshr (Etempvar _X0 tuint)
+                                              (Econst_int (Int.repr 8) tint)
+                                              tuint)
+                                            (Econst_int (Int.repr 255) tint)
+                                            tuint) tuchar))
+                                      (Ssequence
+                                        (Sassign
+                                          (Ederef
+                                            (Ebinop Oadd
+                                              (Etempvar _output (tptr tuchar))
+                                              (Ebinop Oadd
+                                                (Econst_int (Int.repr 0) tint)
+                                                (Econst_int (Int.repr 2) tint)
+                                                tint) (tptr tuchar)) tuchar)
+                                          (Ecast
+                                            (Ebinop Oand
+                                              (Ebinop Oshr
+                                                (Etempvar _X0 tuint)
+                                                (Econst_int (Int.repr 16) tint)
+                                                tuint)
+                                              (Econst_int (Int.repr 255) tint)
+                                              tuint) tuchar))
+                                        (Sassign
+                                          (Ederef
+                                            (Ebinop Oadd
+                                              (Etempvar _output (tptr tuchar))
+                                              (Ebinop Oadd
+                                                (Econst_int (Int.repr 0) tint)
+                                                (Econst_int (Int.repr 3) tint)
+                                                tint) (tptr tuchar)) tuchar)
+                                          (Ecast
+                                            (Ebinop Oand
+                                              (Ebinop Oshr
+                                                (Etempvar _X0 tuint)
+                                                (Econst_int (Int.repr 24) tint)
+                                                tuint)
+                                              (Econst_int (Int.repr 255) tint)
+                                              tuint) tuchar)))))
                                   (Ssequence
-                                    (Sassign
-                                      (Ederef
-                                        (Ebinop Oadd
-                                          (Etempvar _output (tptr tuchar))
+                                    (Ssequence
+                                      (Sassign
+                                        (Ederef
                                           (Ebinop Oadd
-                                            (Econst_int (Int.repr 12) tint)
-                                            (Econst_int (Int.repr 2) tint)
-                                            tint) (tptr tuchar)) tuchar)
-                                      (Ecast
-                                        (Ebinop Oand
-                                          (Ebinop Oshr (Etempvar _X3 tuint)
-                                            (Econst_int (Int.repr 16) tint)
-                                            tuint)
-                                          (Econst_int (Int.repr 255) tint)
-                                          tuint) tuchar))
-                                    (Sassign
-                                      (Ederef
-                                        (Ebinop Oadd
-                                          (Etempvar _output (tptr tuchar))
-                                          (Ebinop Oadd
-                                            (Econst_int (Int.repr 12) tint)
-                                            (Econst_int (Int.repr 3) tint)
-                                            tint) (tptr tuchar)) tuchar)
-                                      (Ecast
-                                        (Ebinop Oand
-                                          (Ebinop Oshr (Etempvar _X3 tuint)
-                                            (Econst_int (Int.repr 24) tint)
-                                            tuint)
-                                          (Econst_int (Int.repr 255) tint)
-                                          tuint) tuchar))))))))))))))))))))
+                                            (Etempvar _output (tptr tuchar))
+                                            (Econst_int (Int.repr 4) tint)
+                                            (tptr tuchar)) tuchar)
+                                        (Ecast
+                                          (Ebinop Oand (Etempvar _X1 tuint)
+                                            (Econst_int (Int.repr 255) tint)
+                                            tuint) tuchar))
+                                      (Ssequence
+                                        (Sassign
+                                          (Ederef
+                                            (Ebinop Oadd
+                                              (Etempvar _output (tptr tuchar))
+                                              (Ebinop Oadd
+                                                (Econst_int (Int.repr 4) tint)
+                                                (Econst_int (Int.repr 1) tint)
+                                                tint) (tptr tuchar)) tuchar)
+                                          (Ecast
+                                            (Ebinop Oand
+                                              (Ebinop Oshr
+                                                (Etempvar _X1 tuint)
+                                                (Econst_int (Int.repr 8) tint)
+                                                tuint)
+                                              (Econst_int (Int.repr 255) tint)
+                                              tuint) tuchar))
+                                        (Ssequence
+                                          (Sassign
+                                            (Ederef
+                                              (Ebinop Oadd
+                                                (Etempvar _output (tptr tuchar))
+                                                (Ebinop Oadd
+                                                  (Econst_int (Int.repr 4) tint)
+                                                  (Econst_int (Int.repr 2) tint)
+                                                  tint) (tptr tuchar))
+                                              tuchar)
+                                            (Ecast
+                                              (Ebinop Oand
+                                                (Ebinop Oshr
+                                                  (Etempvar _X1 tuint)
+                                                  (Econst_int (Int.repr 16) tint)
+                                                  tuint)
+                                                (Econst_int (Int.repr 255) tint)
+                                                tuint) tuchar))
+                                          (Sassign
+                                            (Ederef
+                                              (Ebinop Oadd
+                                                (Etempvar _output (tptr tuchar))
+                                                (Ebinop Oadd
+                                                  (Econst_int (Int.repr 4) tint)
+                                                  (Econst_int (Int.repr 3) tint)
+                                                  tint) (tptr tuchar))
+                                              tuchar)
+                                            (Ecast
+                                              (Ebinop Oand
+                                                (Ebinop Oshr
+                                                  (Etempvar _X1 tuint)
+                                                  (Econst_int (Int.repr 24) tint)
+                                                  tuint)
+                                                (Econst_int (Int.repr 255) tint)
+                                                tuint) tuchar)))))
+                                    (Ssequence
+                                      (Ssequence
+                                        (Sassign
+                                          (Ederef
+                                            (Ebinop Oadd
+                                              (Etempvar _output (tptr tuchar))
+                                              (Econst_int (Int.repr 8) tint)
+                                              (tptr tuchar)) tuchar)
+                                          (Ecast
+                                            (Ebinop Oand (Etempvar _X2 tuint)
+                                              (Econst_int (Int.repr 255) tint)
+                                              tuint) tuchar))
+                                        (Ssequence
+                                          (Sassign
+                                            (Ederef
+                                              (Ebinop Oadd
+                                                (Etempvar _output (tptr tuchar))
+                                                (Ebinop Oadd
+                                                  (Econst_int (Int.repr 8) tint)
+                                                  (Econst_int (Int.repr 1) tint)
+                                                  tint) (tptr tuchar))
+                                              tuchar)
+                                            (Ecast
+                                              (Ebinop Oand
+                                                (Ebinop Oshr
+                                                  (Etempvar _X2 tuint)
+                                                  (Econst_int (Int.repr 8) tint)
+                                                  tuint)
+                                                (Econst_int (Int.repr 255) tint)
+                                                tuint) tuchar))
+                                          (Ssequence
+                                            (Sassign
+                                              (Ederef
+                                                (Ebinop Oadd
+                                                  (Etempvar _output (tptr tuchar))
+                                                  (Ebinop Oadd
+                                                    (Econst_int (Int.repr 8) tint)
+                                                    (Econst_int (Int.repr 2) tint)
+                                                    tint) (tptr tuchar))
+                                                tuchar)
+                                              (Ecast
+                                                (Ebinop Oand
+                                                  (Ebinop Oshr
+                                                    (Etempvar _X2 tuint)
+                                                    (Econst_int (Int.repr 16) tint)
+                                                    tuint)
+                                                  (Econst_int (Int.repr 255) tint)
+                                                  tuint) tuchar))
+                                            (Sassign
+                                              (Ederef
+                                                (Ebinop Oadd
+                                                  (Etempvar _output (tptr tuchar))
+                                                  (Ebinop Oadd
+                                                    (Econst_int (Int.repr 8) tint)
+                                                    (Econst_int (Int.repr 3) tint)
+                                                    tint) (tptr tuchar))
+                                                tuchar)
+                                              (Ecast
+                                                (Ebinop Oand
+                                                  (Ebinop Oshr
+                                                    (Etempvar _X2 tuint)
+                                                    (Econst_int (Int.repr 24) tint)
+                                                    tuint)
+                                                  (Econst_int (Int.repr 255) tint)
+                                                  tuint) tuchar)))))
+                                      (Ssequence
+                                        (Sassign
+                                          (Ederef
+                                            (Ebinop Oadd
+                                              (Etempvar _output (tptr tuchar))
+                                              (Econst_int (Int.repr 12) tint)
+                                              (tptr tuchar)) tuchar)
+                                          (Ecast
+                                            (Ebinop Oand (Etempvar _X3 tuint)
+                                              (Econst_int (Int.repr 255) tint)
+                                              tuint) tuchar))
+                                        (Ssequence
+                                          (Sassign
+                                            (Ederef
+                                              (Ebinop Oadd
+                                                (Etempvar _output (tptr tuchar))
+                                                (Ebinop Oadd
+                                                  (Econst_int (Int.repr 12) tint)
+                                                  (Econst_int (Int.repr 1) tint)
+                                                  tint) (tptr tuchar))
+                                              tuchar)
+                                            (Ecast
+                                              (Ebinop Oand
+                                                (Ebinop Oshr
+                                                  (Etempvar _X3 tuint)
+                                                  (Econst_int (Int.repr 8) tint)
+                                                  tuint)
+                                                (Econst_int (Int.repr 255) tint)
+                                                tuint) tuchar))
+                                          (Ssequence
+                                            (Sassign
+                                              (Ederef
+                                                (Ebinop Oadd
+                                                  (Etempvar _output (tptr tuchar))
+                                                  (Ebinop Oadd
+                                                    (Econst_int (Int.repr 12) tint)
+                                                    (Econst_int (Int.repr 2) tint)
+                                                    tint) (tptr tuchar))
+                                                tuchar)
+                                              (Ecast
+                                                (Ebinop Oand
+                                                  (Ebinop Oshr
+                                                    (Etempvar _X3 tuint)
+                                                    (Econst_int (Int.repr 16) tint)
+                                                    tuint)
+                                                  (Econst_int (Int.repr 255) tint)
+                                                  tuint) tuchar))
+                                            (Sassign
+                                              (Ederef
+                                                (Ebinop Oadd
+                                                  (Etempvar _output (tptr tuchar))
+                                                  (Ebinop Oadd
+                                                    (Econst_int (Int.repr 12) tint)
+                                                    (Econst_int (Int.repr 3) tint)
+                                                    tint) (tptr tuchar))
+                                                tuchar)
+                                              (Ecast
+                                                (Ebinop Oand
+                                                  (Ebinop Oshr
+                                                    (Etempvar _X3 tuint)
+                                                    (Econst_int (Int.repr 24) tint)
+                                                    tuint)
+                                                  (Econst_int (Int.repr 255) tint)
+                                                  tuint) tuchar))))))))))))))))))))))))
 |}.
 
 Definition f_mbedtls_aes_crypt_ecb := {|
