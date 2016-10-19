@@ -745,6 +745,73 @@ apply extract_exists_pre.
 apply H7.
 Qed.
 
+Lemma process_globvar':
+  forall {cs: compspecs} {Espec: OracleKind} Delta P Q R (i: ident)
+          gv gvs SF c Post (idata : init_data) t,
+       (var_types Delta) ! i = None ->
+       (glob_types Delta) ! i = Some t ->
+       legal_alignas_type (gvar_info gv) = true /\
+       legal_cosu_type (gvar_info gv) = true /\
+       complete_type cenv_cs (gvar_info gv) = true ->
+       gvar_volatile gv = false ->
+       gvar_info gv = t ->
+       gvar_init gv = (idata::nil) ->
+       init_data_size idata <= sizeof t ->
+       sizeof t <= Int.max_unsigned ->
+ (forall v: val,
+   semax Delta (PROPx P (LOCALx (gvar i v :: Q) (SEPx R))
+                       * id2pred_star Delta
+                         (Share.splice  extern_retainer (readonly2share (gvar_readonly gv)))
+                         t v 0 (idata ::nil) * globvars2pred gvs * SF)
+     c Post) ->
+ semax Delta (PROPx P (LOCALx Q (SEPx R)) 
+                      * globvars2pred ((i,gv)::gvs) * SF)
+     c Post.
+Proof.
+intros.
+eapply semax_pre_post; [ | intros; apply andp_left2; apply derives_refl | ].
+instantiate (1 := EX  s : val,
+           PROPx P (LOCALx (gvar i s :: Q) 
+          (SEPx R)) * id2pred_star Delta
+                         (Share.splice  extern_retainer (readonly2share (gvar_readonly gv)))
+                         t s 0 (idata ::nil)
+                *fold_right sepcon emp (map globvar2pred gvs) * SF).
+unfold globvars2pred.
+change  (fold_right sepcon emp (map globvar2pred ((i, gv) :: gvs)))
+ with (globvar2pred (i,gv) * fold_right sepcon emp (map globvar2pred gvs)).
+rewrite <- (sepcon_comm SF).
+ rewrite <- sepcon_assoc.
+rewrite <- (sepcon_comm (fold_right _ _ _)).
+ rewrite <- !sepcon_assoc.
+rewrite <- local_sepcon_assoc2.
+eapply derives_trans.
+apply sepcon_derives; [apply derives_refl | ].
+eapply unpack_globvar; try eassumption.
+normalize.
+apply exp_right with s.
+unfold id2pred_star.
+rewrite <- (sepcon_comm SF).
+rewrite ! sepcon_assoc.
+apply sepcon_derives; auto.
+rewrite <- insert_local.
+rewrite ! local_sepcon_assoc2.
+rewrite ! local_sepcon_assoc1.
+match goal with |- ?A |-- ?B => apply derives_trans with  (!!isptr s && A) end.
+apply andp_right; auto.
+apply andp_left1; auto.
+intro rho. simpl. apply prop_derives.
+unfold gvar_denote. intro; destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
+destruct (ge_of rho i); try contradiction. subst; apply I.
+apply derives_extract_prop; intro.
+rewrite isptr_offset_val_zero; auto.
+clear H8.
+apply andp_derives; auto.
+rewrite emp_sepcon.
+apply sepcon_derives; auto.
+rewrite sepcon_comm; auto.
+apply extract_exists_pre.
+apply H7.
+Qed.
 
 Lemma process_globvar_array:
   forall {cs: compspecs} {Espec: OracleKind} Delta P Q R (i: ident)
@@ -968,7 +1035,7 @@ Qed.
 
 Ltac process_one_globvar := 
  first
-  [ simple eapply process_globvar;
+  [ simple eapply process_globvar';
       [reflexivity | reflexivity | split; [| split]; reflexivity | reflexivity | reflexivity | reflexivity
       | reflexivity | compute; congruence | ]
   | simple eapply process_globvar_array;
@@ -1064,14 +1131,36 @@ Proof.
   auto.
 Qed.
 
+Lemma mapsto_data_at' {cs: compspecs} sh t v v' p :  (* not needed here *)
+  type_is_by_value t = true ->
+  type_is_volatile t = false ->
+  readable_share sh ->
+  field_compatible t nil p ->
+  (v <> Vundef -> tc_val t v) ->
+  JMeq v v' ->
+  mapsto sh t p v = data_at sh t v' p.
+Proof.
+  intros.
+  unfold data_at, field_at, at_offset, offset_val.
+  simpl.
+  rewrite prop_true_andp by auto.
+  rewrite by_value_data_at_rec_nonvolatile by auto.
+  apply (fun HH => JMeq_trans HH (JMeq_sym (repinject_JMeq _ v' H))) in H4; apply JMeq_eq in H4.
+  f_equal; auto.
+  destruct H2. destruct p; try contradiction.
+  rewrite int_add_repr_0_r. auto.
+Qed.
+
 Ltac process_idstar := 
   match goal with
   | |- semax _ (_ * globvars2pred ((?i,_)::_) * _) _ _ =>
     match goal with
-    | n: name i |- _ => process_one_globvar; clear n; intro n
-    | |- _ => process_one_globvar; intros ?gvar0
+    | n: name i |- _ => idtac
+    | |- _ => let n := fresh "gvar0" in assert (n: name i) by apply Logic.I
     end;
-    match goal with |- semax _ (_ * ?A * _ * _) _ _ =>
+    match goal with
+    | n: name i |- _ => process_one_globvar; clear n; intro n;
+     match goal with |- semax _ (_ * ?A * _ * _) _ _ =>
          let p := fresh "p" in set (p:=A);
          simpl in p;
          unfold id2pred_star, init_data2pred' in p;
@@ -1086,6 +1175,7 @@ Ltac process_idstar :=
         ];
       simple apply move_globfield_into_SEP0
    | |- _ => idtac    
+    end
    end
  end.
 
