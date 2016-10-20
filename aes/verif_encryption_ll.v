@@ -220,19 +220,15 @@ eapply semax_load_nth_ram with (t1 := tuint) (t2 := tuint) (n := 1%nat) (v := (V
 { entailer. }
 { apply SH. }
 { eapply derives_trans. 2: apply sepcon_TT.
+rewrite field_address_offset. {
+rewrite field_address0_offset. {
 unfold data_at. unfold field_at. unfold at_offset. rewrite data_at_rec_eq. simpl.
-unfold field_address. simpl. 
-destruct (field_compatible_dec t_struct_aesctx [StructField _buf] ctx).
-{ unfold field_address0.
- destruct (field_compatible0_dec (tarray tuint 60) [ArraySubsc 0] (offset_val 8 ctx)).
-{ simpl. pose (Ip := (field_compatible_isptr _ _ ctx f)).
-destruct ctx; inversion Ip. simpl.
 apply andp_left2.
-do 2 rewrite Int.add_zero.
+do 2 rewrite <- mapsto_offset_zero.
 apply derives_refl. }
-{ admit. (* contradictory "else" case *) }
+{ admit. (* field_compatible0 stuff *) }
 }
-{ admit. (* contradictory "else" case *) }
+{ admit. (* field_compatible stuff *) }
 }
 { entailer!. }
 }
