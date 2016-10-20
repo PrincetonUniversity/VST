@@ -382,7 +382,7 @@ Proof.
       f_equal.
       extensionality x.
       apply inj_pair2 in F.
-      pose proof (@equal_f _ _ _ _ F x) as E.
+      pose proof (@equal_f_dep _ _ _ _ F x) as E.
       simpl in E.
     Abort.
 Abort.
@@ -2427,8 +2427,9 @@ Section Preservation.
                 exact_eq jframe. f_equal.
                 REWR.
                 REWR.
-              * destruct x as (phix, ((vx, shx), Rx)); simpl (fst _) in *; simpl (snd _) in *.
-                simpl.
+              * destruct x as (phix, (ts, ((vx, shx), Rx))); simpl (fst _) in *; simpl (snd _) in *.
+                simpl in *.
+                clear ts.
                 cbv iota beta in Pre.
                 Unset Printing Implicit.
                 destruct Pre as [[[A B] [C D]] E].
@@ -3047,7 +3048,8 @@ Section Preservation.
               intros x Pre Post.
               destruct Pre as (phi0 & phi1 & j & Pre).
               rewrite m_phi_jm_ in j.
-              destruct x as (phix, ((vx, shx), Rx)); simpl (fst _) in *; simpl (snd _) in *.
+              destruct x as (phix, (ts, ((vx, shx), Rx))); simpl (fst _) in *; simpl (snd _) in *.
+              simpl in *; clear ts.
               cbv iota beta in Pre.
               cbv iota beta.
               destruct Pre as [[[A [Precise [Positive _]]] [C D]] E].
@@ -3116,7 +3118,7 @@ Section Preservation.
                       -- rewrite level_age_to. rewrite lev; auto with *.
                          replace (level d_phi) with (level Phi) by join_level_tac.
                          rewrite lev; auto with *.
-                      -- exact_eq Hsat_lock_inv. f_equal. unfold age_to; f_equal.
+                      -- exact_eq Hsat_lock_inv. change (age1' d_phi) with (age_by 1 d_phi). f_equal. unfold age_to; f_equal.
                          replace (level d_phi) with (level Phi) by join_level_tac.
                          omega.
                 - apply age_to_join_sub.

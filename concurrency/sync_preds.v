@@ -556,14 +556,17 @@ Proof.
   intros.
   breakhyps.
   rewr (phi @ loc) in H.
-  injection H as A B C D.
-  apply inj_pair2 in D.
-  apply equal_f with tt in D.
+  pose proof (YES_inj _ _ _ _ _ _ _ _ H).
+  assert (snd ((x, x0, LK x1, SomeP rmaps.Mpred (fun _ : list Type => R2: pred rmap))) =
+    snd  (x2, x3, LK x4, SomeP rmaps.Mpred (fun _ : list Type => R1))) by (f_equal; auto).
+  simpl in H2.
+  apply SomeP_inj in H2.
+  pose proof equal_f_dep H2 nil.
   auto.
 Qed.
 
-Lemma predat1 {phi loc R z sh psh} :
-  phi @ loc = YES sh psh (LK z) (SomeP nil (fun _ : veric.rmaps.listprod nil => R)) ->
+Lemma predat1 {phi loc} {R: mpred} {z sh psh} :
+  phi @ loc = YES sh psh (LK z) (SomeP rmaps.Mpred (fun _ => R)) ->
   predat phi loc (approx (level phi) R).
 Proof.
   intro E; hnf; eauto.
