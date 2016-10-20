@@ -28,6 +28,11 @@ Lemma semax_func_cons_ext_vacuous:
          (argsig : typelist) (retsig : type)
          (G' : funspecs) cc,
        (id_in_list id (map fst fs)) = false ->
+       ef_sig ef =
+       {|
+         sig_args := typlist_of_typelist (type_of_params (arglist 1 argsig));
+         sig_res := opttyp_of_type retsig;
+         sig_cc := cc_of_fundef (External ef argsig retsig cc) |} ->
        semax_func V G fs G' ->
        semax_func V G ((id, External ef argsig retsig cc) :: fs)
          ((id, vacuous_funspec (External ef argsig retsig cc)) :: G').

@@ -722,10 +722,10 @@ Module X86Inj <: CoreInjections X86SEM.
   
   Lemma at_external_wd :
     forall (f : memren) c
-      (ef : external_function) (sig : signature) 
+      (ef : external_function)
       (args : seq val),
       core_wd f c ->
-      at_external X86SEM.Sem c = Some (ef, sig, args) -> valid_val_list f args.
+      at_external X86SEM.Sem c = Some (ef, args) -> valid_val_list f args.
   Proof.
     intros.
     unfold core_wd in H.
@@ -759,8 +759,8 @@ Module X86Inj <: CoreInjections X86SEM.
   
   Lemma after_external_wd :
     forall (c c' : state) (f : memren) (ef : external_function)
-      (sig : signature) (args : seq val) (ov : option val)
-      (Hat_external: at_external X86SEM.Sem c = Some (ef, sig, args))
+      (args : seq val) (ov : option val)
+      (Hat_external: at_external X86SEM.Sem c = Some (ef, args))
       (Hcore_wd: core_wd f c)
       (Hvalid_list: valid_val_list f args)
       (Hafter_external: after_external X86SEM.Sem ov c = Some c')
@@ -832,10 +832,10 @@ Module X86Inj <: CoreInjections X86SEM.
     forall c c' (f : memren),
       core_inj f c c' ->
       match at_external X86SEM.Sem c with
-      | Some (ef, sig, vs) =>
+      | Some (ef, vs) =>
         match at_external X86SEM.Sem c' with
-        | Some (ef', sig', vs') =>
-          ef = ef' /\ sig = sig' /\ val_obs_list f vs vs'
+        | Some (ef', vs') =>
+          ef = ef'/\ val_obs_list f vs vs'
         | None => False
         end
       | None =>
@@ -848,8 +848,8 @@ Module X86Inj <: CoreInjections X86SEM.
     intros c c' f Hinj.
     simpl.
     unfold core_inj in Hinj.
-    destruct (Asm_at_external c) as [[[ef sig] vs]|] eqn:Hat_external;
-      destruct (Asm_at_external c') as [[[ef' sig'] vs']|] eqn:Hat_external';
+    destruct (Asm_at_external c) as [[ef vs]|] eqn:Hat_external;
+      destruct (Asm_at_external c') as [[ef' vs']|] eqn:Hat_external';
       destruct c, c'; try discriminate; auto;
       destruct Hinj as (? & ? & ? & ?);
       simpl in *; subst;
@@ -860,7 +860,6 @@ Module X86Inj <: CoreInjections X86SEM.
       inversion Hat_external;
       inversion Hat_external'; subst.
     subst.
-    split; auto.
     split; auto.
     eapply decode_longs_val_obs_list; eauto.
   Qed.

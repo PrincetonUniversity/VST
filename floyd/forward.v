@@ -239,23 +239,23 @@ Ltac semax_func_skipn :=
 *)
 
 Ltac semax_func_cons L := 
- repeat (apply semax_func_cons_ext_vacuous; [reflexivity | ]);
+ repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]);
  first [apply semax_func_cons; 
            [ reflexivity 
            | repeat apply Forall_cons; try apply Forall_nil; computable
            | unfold var_sizes_ok; repeat constructor | reflexivity | precondition_closed | apply L | 
            ]
         | eapply semax_func_cons_ext;
-             [reflexivity | reflexivity | reflexivity | reflexivity 
+             [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
              | semax_func_cons_ext_tc | apply L |
              ]
         ];
- repeat (apply semax_func_cons_ext_vacuous; [reflexivity | ]);
+ repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]);
  try apply semax_func_nil.
 
 Ltac semax_func_cons_ext :=
   eapply semax_func_cons_ext;
-    [reflexivity | reflexivity | reflexivity | reflexivity 
+    [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
     | semax_func_cons_ext_tc 
     | solve[ first [eapply semax_ext; 
           [ repeat first [reflexivity | left; reflexivity | right]
@@ -1277,6 +1277,10 @@ Tactic Notation "forward_while" constr(Inv) :=
        ]
     ]; abbreviate_semax; autorewrite with ret_assert.
 
+
+Inductive Type_of_invariant_in_forward_for_should_be_environ_arrow_mpred_but_is : Type -> Prop := .
+Inductive Type_of_bound_in_forward_for_should_be_Z_but_is : Type -> Prop := .
+
 Ltac forward_for_simple_bound n Pre :=
   check_Delta;
  repeat match goal with |-
@@ -1284,7 +1288,13 @@ Ltac forward_for_simple_bound n Pre :=
       apply -> seq_assoc; abbreviate_semax
  end;
  first [ 
-     simple eapply semax_seq'; 
+    match type of n with
+      ?t => first [ unify t Z | elimtype (Type_of_bound_in_forward_for_should_be_Z_but_is t)]
+    end;
+    match type of Pre with
+      ?t => first [unify t (environ -> mpred); fail 1 | elimtype (Type_of_invariant_in_forward_for_should_be_environ_arrow_mpred_but_is t)]
+    end
+  | simple eapply semax_seq'; 
     [forward_for_simple_bound' n Pre 
     | cbv beta; simpl update_tycon; abbreviate_semax  ]
   | eapply semax_post_flipped'; 
@@ -2325,6 +2335,20 @@ unfold overridePost, frame_ret_assert, function_body_ret_assert.
 destruct ek; normalize.
 Qed.
 
+Ltac change_mapsto_gvar_to_data_at :=
+match goal with |- semax _ (PROPx _ (LOCALx ?L (SEPx ?S))) _ _ =>
+  match S with context [mapsto ?sh ?t (offset_val ?off ?g) ?v] =>
+   match L with context [gvar _ g] =>
+    assert_PROP (field_compatible t nil (offset_val off g));
+     [ entailer!; repeat (split; [now auto | ]); now auto | ];
+    erewrite (mapsto_data_at' _ _ _ _ (offset_val _ g));
+       [ | reflexivity | reflexivity | now auto | assumption | intro; apply Logic.I | apply JMeq_refl ];
+     match goal with H: _ |- _ => clear H end;
+     rewrite <- ? data_at_offset_zero
+   end
+  end
+end.
+
 Ltac start_function' :=
  let DependedTypeList := fresh "DependedTypeList" in
  match goal with |- semax_body _ _ _ (pair _ (NDmk_funspec _ _ _ ?Pre _)) =>
@@ -2352,6 +2376,9 @@ Ltac start_function' :=
  end;
  try expand_main_pre;
  process_stackframe_of;
+ repeat change_mapsto_gvar_to_data_at;  (* should really restrict this to only in main,
+                                  but it needs to come after process_stackframe_of *)
+ repeat rewrite <- data_at__offset_zero;
  try apply start_function_aux1;
  repeat (apply semax_extract_PROP; 
               match goal with

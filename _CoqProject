@@ -3,6 +3,7 @@
 -R veric veric
 -R floyd floyd
 -R progs progs
+-R sha sha
 -R compcert compcert
 -R concurrency concurrency
 -R ccc26x86 ccc26x86

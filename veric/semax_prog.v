@@ -399,6 +399,10 @@ Lemma semax_func_cons_ext:
       ids = map fst argsig' -> (* redundant but useful for the client,
                to calculate ids by reflexivity *)
       argsig' = zip_with_tl ids argsig ->
+      ef_sig ef =
+      mksignature
+        (typlist_of_typelist (type_of_params argsig'))
+        (opttyp_of_type retsig) cc ->
       id_in_list id (map (@fst _ _) fs) = false ->
       length ids = length (typelist2list argsig) ->
       (forall gx ts x (ret : option val),
@@ -409,7 +413,7 @@ Lemma semax_func_cons_ext:
            ((id, mk_funspec (argsig', retsig) cc A P Q NEP NEQ)  :: G').
 Proof.
 intros until ids.
-intros Hids Hargsig Hni Hlen Hretty H [Hf' Hf].
+intros Hids Hargsig Hef Hni Hlen Hretty H [Hf' Hf].
 rewrite Hargsig in *.  clear Hids Hargsig argsig'.
 apply id_in_list_false in Hni.
 split.

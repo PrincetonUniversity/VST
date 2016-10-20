@@ -2849,14 +2849,14 @@ Module Type CoreInjections (SEM: concurrent_machine.Semantics).
       core_wd f' c.
   
   Parameter at_external_wd:
-    forall f c ef sig args,
+    forall f c ef args,
       core_wd f c ->
-      at_external Sem c = Some (ef, sig, args) ->
+      at_external Sem c = Some (ef, args) ->
       valid_val_list f args.
   
   Parameter after_external_wd:
-    forall c c' f ef sig args ov,
-      at_external Sem c = Some (ef, sig, args) ->
+    forall c c' f ef args ov,
+      at_external Sem c = Some (ef, args) ->
       core_wd f c ->
       valid_val_list f args ->
       after_external Sem ov c = Some c' ->
@@ -2879,8 +2879,8 @@ Module Type CoreInjections (SEM: concurrent_machine.Semantics).
   Parameter core_inj_ext: 
     forall c c' f (Hinj: core_inj f c c'),
       match at_external Sem c, at_external Sem c' with
-      | Some (ef, sig, vs), Some (ef', sig', vs') =>
-        ef = ef' /\ sig = sig' /\ val_obs_list f vs vs'
+      | Some (ef, vs), Some (ef', vs') =>
+        ef = ef' /\ val_obs_list f vs vs'
       | None, None => True
       | _, _ => False
       end.

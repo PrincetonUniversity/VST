@@ -20,6 +20,7 @@ Require Import sepcomp.semantics.
 Require Import sepcomp.extspec.
 Require Import floyd.reptype_lemmas.
 Require Import floyd.field_at.
+Require Import floyd.nested_field_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.jmeq_lemmas.
 
@@ -168,6 +169,8 @@ Inductive Pred :=
   | Mapsto_ :  Share.t -> type -> val -> Pred
   | Data_at : forall cs : compspecs, Share.t -> forall t : type, reptype t -> val -> Pred
   | Data_at_ : forall cs : compspecs, Share.t -> type -> val -> Pred
+  | Field_at : forall cs : compspecs, Share.t ->
+      forall t : type, forall gfs : list gfield, reptype (nested_field_type t gfs) -> val -> Pred
   | Lock_inv : Share.t -> val -> Pred -> Pred
   | Self_lock : Pred -> Share.t -> val -> Pred
   | Res_inv : Pred -> Share.t -> val -> Share.t -> val -> Pred
@@ -183,6 +186,7 @@ Fixpoint Interp (p : Pred) : mpred :=
   | Mapsto_ a b c => mapsto_ a b c
   | Data_at a b c d e => @data_at a b c d e
   | Data_at_ a b c d => @data_at_ a b c d
+  | Field_at a b c d e f => @field_at a b c d e f
   | Lock_inv a b c => lock_inv a b (Interp c)
   | Self_lock a b c => selflock (Interp a) b c
   | Res_inv a b c d e => res_invariant (Interp a) b c d e
@@ -375,6 +379,17 @@ Definition wait_spec cs :=
      LOCAL ()
      SEP (cond_var shc c; lock_inv shl l (Interp R); Interp R).
 
+Definition wait2_spec cs :=
+   WITH c : val, l : val, shc : share, shl : share, R : Pred
+   PRE [ _cond OF tptr tcond, _lock OF tptr Tvoid ]
+     PROP (readable_share shc)
+     LOCAL (temp _cond c; temp _lock l)
+     SEP (lock_inv shl l (Interp R); Interp R && (@cond_var cs shc c * TT))
+   POST [ tvoid ]
+     PROP ()
+     LOCAL ()
+     SEP (lock_inv shl l (Interp R); Interp R).
+
 Definition signal_spec cs :=
    WITH c : val, shc : share
    PRE [ _cond OF tptr tcond ]
@@ -425,14 +440,7 @@ Definition spawn_spec :=
           (ty *                     (* WITH clause for spawned function *)
           (ty -> val -> Pred))%type}  (* precondition (postcondition is emp) *)
    PRE [_f OF tptr voidstar_funtype, _args OF tptr tvoid]
-     PROP (
-       match PrePost with
-         existT ty (w, pre) =>
-         forall phi,
-           app_pred (Interp (pre w b)) phi ->
-           almost_empty phi
-       end
-     )
+     PROP ( )
      LOCAL (temp _args b)
      SEP
      (match PrePost with existT ty (_, pre) =>
@@ -532,7 +540,7 @@ Theorem oracular_refinement cs ext_link ge n oracle c m :
   jsafeN (Concurrent_Oracular_Espec cs ext_link).(@OK_spec) ge n oracle c m.
 Proof.
   revert oracle c m; induction n as [n InductionHypothesis] using strong_nat_ind; intros oracle c m.
-  intros Safe; induction Safe as [ | | n z_unit c m e sig args x E Pre Post | ].
+  intros Safe; induction Safe as [ | | n z_unit c m e args x E Pre Post | ].
   all: swap 3 4.
   - (* safeN_0 *)
     now eapply safeN_0; eauto.
@@ -545,8 +553,8 @@ Proof.
     now eapply safeN_halted; eauto.
   
   - (* safeN_external *)
-    destruct c as [ | ef_ sig_ args_ lid ve te k ]; [ discriminate | ].
-    simpl in E; injection E as -> -> -> .
+    destruct c as [ | ef_ args_ lid ve te k ]; [ discriminate | ].
+    simpl in E; injection E as -> -> .
     
     (* We need to know which of the externals we are talking about *)
     (* paragraph below: ef has to be an EF_external *)
@@ -598,7 +606,7 @@ Proof.
                forall x2 : T,
                  @JMeq (rmap * (Prop * list rmap * val * share * Pred)) xwith T x2 ->
                  @jsafeN (list rmap) (concurrent_oracular_ext_spec cs ext_link) ge (S n) nil
-                         (Clight_new.ExtCall (EF_external name sg) sig args lid ve te k) m)
+                         (Clight_new.ExtCall (EF_external name sg) args lid ve te k) m)
               (@ext_spec_type juicy_mem external_function (@OK_ty (Concurrent_Oracular_Espec cs ext_link))
                               (@OK_spec (Concurrent_Oracular_Espec cs ext_link)) (EF_external name sg))).
         {
@@ -674,7 +682,7 @@ Proof.
                forall x2 : T,
                  @JMeq (rmap * (Prop * list rmap * val * share * Pred)) xwith T x2 ->
                  @jsafeN (list rmap) (concurrent_oracular_ext_spec cs ext_link) ge (S n) (phi_oracle :: oracle)
-                         (Clight_new.ExtCall (EF_external name sg) sig args lid ve te k) m)
+                         (Clight_new.ExtCall (EF_external name sg) args lid ve te k) m)
               (@ext_spec_type juicy_mem external_function (@OK_ty (Concurrent_Oracular_Espec cs ext_link))
                               (@OK_spec (Concurrent_Oracular_Espec cs ext_link)) (EF_external name sg))).
         {
@@ -758,7 +766,7 @@ Proof.
              forall x2 : T,
                @JMeq (rmap * (list rmap * val * share * Pred)) xwith T x2 ->
                @jsafeN (list rmap) (concurrent_oracular_ext_spec cs ext_link) ge (S n) oracle
-                       (Clight_new.ExtCall (EF_external name sg) sig args lid ve te k) m)
+                       (Clight_new.ExtCall (EF_external name sg) args lid ve te k) m)
             (@ext_spec_type juicy_mem external_function (@OK_ty (Concurrent_Oracular_Espec cs ext_link))
                             (@OK_spec (Concurrent_Oracular_Espec cs ext_link)) (EF_external name sg))).
       {

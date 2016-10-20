@@ -212,7 +212,7 @@ Proof.
   induction S1 as
       [ z c jm1
       | n z c jm1 c' jm1' step safe IH
-      | n z c jm1 ef sig args x atex Pre Post
+      | n z c jm1 ef args x atex Pre Post
       | n z c jm1 v Halt Exit ]; intros jm2 E.
   
   - constructor 1.

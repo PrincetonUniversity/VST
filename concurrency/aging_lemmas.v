@@ -239,7 +239,7 @@ Proof.
   induction Safe as
       [ z c jm
       | n z c jm c' jm' step safe IH
-      | n z c jm ef sig args x atex Pre Post
+      | n z c jm ef args x atex Pre Post
       | n z c jm v Halt Exit ]; intros jmaged A L.
   - constructor 1.
   - simpl in step.

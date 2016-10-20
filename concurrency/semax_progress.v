@@ -110,7 +110,7 @@ Section Progress.
       (* pose (phii := m_phi jmi). *)
       (* pose (mi := m_dry jmi). *)
       
-      destruct ci as [ve te k | ef sig args lid ve te k] eqn:Heqc.
+      destruct ci as [ve te k | ef args lid ve te k] eqn:Heqc.
       
       (* thread[i] is running and some internal step *)
       {
@@ -191,7 +191,7 @@ Section Progress.
     {
       (* goes to Kresume ci' according to the rules of syncStep  *)
       
-      destruct ci as [ve te k | ef sig args lid ve te k] eqn:Heqc.
+      destruct ci as [ve te k | ef args lid ve te k] eqn:Heqc.
       
       (* internal step: impossible, because in state Kblocked *)
       {
@@ -264,10 +264,10 @@ Section Progress.
         rewrite Eci in safei.
         unfold jsafeN, juicy_safety.safeN in safei.
         inversion safei
-          as [ | ?????? bad | n0 z c m0 e sig0 args0 x at_ex Pre SafePost | ????? bad ];
+          as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
           [ now inversion bad; inversion H | subst | now inversion bad ].
         subst.
-        simpl in at_ex. injection at_ex as <- <- <- .
+        simpl in at_ex. injection at_ex as <- <- .
         hnf in x.
         revert x Pre SafePost.
         
@@ -388,20 +388,20 @@ Section Progress.
               reflexivity.
             }
             
-            assert (Ecall: Some (EF_external name sg, sig, args) =
-                           Some (LOCK, UNLOCK_SIG, Vptr b ofs :: nil)). {
+            assert (Ecall: Some (EF_external name sg, args) =
+                           Some (LOCK, Vptr b ofs :: nil)). {
               repeat f_equal.
               - auto.
-              - 
-                Unset Printing Notations.
+              - Set Printing Implicit.
+                rename ge into GEEEEEEEEEEE.
                 admit.
-              - admit.
+              (* - admit.
                  (* design decision:
                     - we can make 'safety' imply wellformedness of this signature
                     - or we can add wellformed as an hypothesis of the program *)
                  (* see with andrew: should safety require signatures
                  to be exactly something?  Maybe it should be in
-                 ext_spec_type, it'd be easy, maybe. *)
+                 ext_spec_type, it'd be easy, maybe. *) *)
               - assert (L: length args = 1%nat) by admit.
                 (* TODO discuss with andrew for where to add this requirement *)
                 clear -PREB L.
@@ -417,8 +417,8 @@ Section Progress.
                   inversion L.
             }
             
-            assert (Eae : at_external SEM.Sem (ExtCall (EF_external name sg) sig args lid ve te k) =
-                    Some (LOCK, ef_sig LOCK, Vptr b ofs :: nil)). {
+            assert (Eae : at_external SEM.Sem (ExtCall (EF_external name sg) args lid ve te k) =
+                    Some (LOCK, Vptr b ofs :: nil)). {
               simpl.
               unfold SEM.Sem in *.
               rewrite SEM.CLN_msem; simpl.
@@ -636,14 +636,14 @@ Section Progress.
               unfold SEM.Sem in *.
               rewrite SEM.CLN_msem.
               simpl.
-              repeat f_equal; [ | | | ].
+              repeat f_equal; [ | | ].
               -- simpl in H_acquire.
                  injection H_acquire as Ee.
                  apply ext_link_inj in Ee.
                  rewrite <-Ee.
                  reflexivity.
               -- admit (* same problem above *).
-              -- admit (* same problem above *).
+              (* -- admit (* same problem above *). *)
               -- admit (* same problem above *).
             * reflexivity.
             * unfold fold_right in *.
@@ -663,10 +663,10 @@ Section Progress.
         rewrite Eci in safei.
         unfold jsafeN, juicy_safety.safeN in safei.
         inversion safei
-          as [ | ?????? bad | n0 z c m0 e sig0 args0 x at_ex Pre SafePost | ????? bad ];
+          as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
           [ now inversion bad; inversion H | subst | now inversion bad ].
         subst.
-        simpl in at_ex. injection at_ex as <- <- <- .
+        simpl in at_ex. injection at_ex as <- <- .
         hnf in x.
         revert x Pre SafePost.
         
@@ -737,15 +737,15 @@ Section Progress.
             reflexivity.
           }
           
-          assert (Ecall: Some (EF_external name sg, sig, args) =
-                         Some (UNLOCK, UNLOCK_SIG, Vptr b ofs :: nil)). {
+          assert (Ecall: Some (EF_external name sg, args) =
+                         Some (UNLOCK, Vptr b ofs :: nil)). {
             admit.
             (* same problem as above. *)
             (* repeat f_equal; auto. *)
           }
           
-          assert (Eae : at_external SEM.Sem (ExtCall (EF_external name sg) sig args lid ve te k) =
-                        Some (UNLOCK, ef_sig UNLOCK, Vptr b ofs :: nil)). {
+          assert (Eae : at_external SEM.Sem (ExtCall (EF_external name sg) args lid ve te k) =
+                        Some (UNLOCK, Vptr b ofs :: nil)). {
             simpl.
             unfold SEM.Sem in *.
             rewrite SEM.CLN_msem; simpl.
@@ -826,7 +826,7 @@ Section Progress.
           eapply state_step_c.
           eapply JuicyMachine.sync_step with (Htid := cnti); auto.
           eapply step_release
-          with (c := (ExtCall (EF_external name sg) sig args lid ve te k))
+          with (c := (ExtCall (EF_external name sg) args lid ve te k))
                  (Hcompatible := mem_compatible_forget compat);
               try apply Eci;
             try apply Eae;
@@ -923,10 +923,10 @@ Section Progress.
         rewrite Eci in safei.
         unfold jsafeN, juicy_safety.safeN in safei.
         inversion safei
-          as [ | ?????? bad | n0 z c m0 e sig0 args0 x at_ex Pre SafePost | ????? bad ];
+          as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
           [ now inversion bad; inversion H | subst | now inversion bad ].
         subst.
-        simpl in at_ex. injection at_ex as <- <- <- .
+        simpl in at_ex. injection at_ex as <- <- .
         hnf in x.
         revert x Pre SafePost.
         
@@ -964,11 +964,10 @@ Section Progress.
         destruct AT as (IsPtr, AT).
         destruct vx as [ | | | | | b ofs ]; try inversion IsPtr; [ clear IsPtr ].
         
-        assert (Ecall: Some (EF_external name sg, sig, args) =
-                       Some (MKLOCK, LOCK_SIG, Vptr b ofs :: nil)). {
+        assert (Ecall: Some (EF_external name sg, args) =
+                       Some (MKLOCK, Vptr b ofs :: nil)). {
           repeat f_equal.
           - auto.
-          - admit.
           - admit.
           - assert (L: length args = 1%nat) by admit.
             (* TODO discuss with andrew for where to add this requirement *)
@@ -984,8 +983,8 @@ Section Progress.
               inversion L.
         }
         
-        assert (Eae : at_external SEM.Sem (ExtCall (EF_external name sg) sig args lid ve te k) =
-                      Some (MKLOCK, ef_sig LOCK, Vptr b ofs :: nil)). {
+        assert (Eae : at_external SEM.Sem (ExtCall (EF_external name sg) args lid ve te k) =
+                      Some (MKLOCK, Vptr b ofs :: nil)). {
           simpl.
           unfold SEM.Sem in *.
           rewrite SEM.CLN_msem; simpl.
@@ -1344,7 +1343,7 @@ Section Progress.
         with (Htid := cnti); auto.
         
         eapply step_mklock
-        with (c := (ExtCall (EF_external name sg) sig args lid ve te k))
+        with (c := (ExtCall (EF_external name sg) args lid ve te k))
                (Hcompatible := mem_compatible_forget compat)
                (sh := shx)
                (R := Interp Rx)
@@ -1421,10 +1420,10 @@ Section Progress.
         rewrite Eci in safei.
         unfold jsafeN, juicy_safety.safeN in safei.
         inversion safei
-          as [ | ?????? bad | n0 z c m0 e sig0 args0 x at_ex Pre SafePost | ????? bad ];
+          as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
           [ now inversion bad; inversion H | subst | now inversion bad ].
         subst.
-        simpl in at_ex. injection at_ex as <- <- <- .
+        simpl in at_ex. injection at_ex as <- <- .
         hnf in x.
         revert x Pre SafePost.
         
@@ -1443,10 +1442,10 @@ Section Progress.
         rewrite Eci in safei.
         unfold jsafeN, juicy_safety.safeN in safei.
         inversion safei
-          as [ | ?????? bad | n0 z c m0 e sig0 args0 x at_ex Pre SafePost | ????? bad ];
+          as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
           [ now inversion bad; inversion H | subst | now inversion bad ].
         subst.
-        simpl in at_ex. injection at_ex as <- <- <- .
+        simpl in at_ex. injection at_ex as <- <- .
         hnf in x.
         revert x Pre SafePost.
         
@@ -1465,7 +1464,7 @@ Section Progress.
     (* thread[i] is in Kresume *)
     {
       (* goes to Krun ci' with after_ex ci = ci'  *)
-      destruct ci as [ve te k | ef sig args lid ve te k] eqn:Heqc.
+      destruct ci as [ve te k | ef args lid ve te k] eqn:Heqc.
       
       - (* contradiction: has to be an extcall *)
         specialize (wellformed i cnti).

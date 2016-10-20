@@ -4,14 +4,14 @@
 
 lock_t mutex, tlock;
 cond_t cond;
-int data[1];
+int data;
 
 void *thread_func(void *args) {
   lock_t *l = &mutex;
   lock_t *t = &tlock;
   cond_t *c = &cond;
   acquire((void*)l);
-  data[0] = 1;
+  data = 1;
   signalcond(c);
   release((void*)l);
   release2((void*)t);
@@ -20,7 +20,7 @@ void *thread_func(void *args) {
 
 int main(void)
 {
-  data[0] = 0;
+  data = 0;
   lock_t *l = &mutex;
   lock_t *t = &tlock;
   cond_t *c = &cond;
@@ -32,7 +32,7 @@ int main(void)
   int v = 0;
   while(!v){
     waitcond(c, (void*)l);
-    v = data[0];
+    v = data;
   }
 
   acquire((void*)t);

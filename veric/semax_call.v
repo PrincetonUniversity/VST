@@ -1426,9 +1426,10 @@ rewrite snd_split in TC2.
 
 unfold believe_external in H15.
 destruct (Genv.find_funct psi (Vptr b Int.zero)) eqn:H22; try (contradiction H15).
-destruct f; try (contradiction H15).
+destruct f eqn:Ef; try (contradiction H15).
+
 destruct H15 as [[H5 H15] Hretty]. hnf in H5.
-destruct H5 as [H5 [H5' Hlen]]. subst c.
+destruct H5 as [H5 [H5' [Eef Hlen]]]. subst c.
 inversion H5. subst t0. rename t into tys. subst rho.
 specialize (H15 psi ts x n).
 spec H15; [constructor 1; rewrite H2; constructor | ].
@@ -1512,8 +1513,8 @@ hnf.
 destruct n as [ | n ].
 constructor.
 eapply safeN_external with (x0 := x'); eauto.
-split; eauto.
-rewrite Hty; assumption.
+reflexivity.
+rewrite Eef. subst tys. assumption.
 intros.
 specialize (H15 ret0 z').
 change ((ext_spec_post' Espec e x' (Genv.genv_symb psi) (opttyp_of_type retty) ret0 z' >=>
@@ -1529,6 +1530,7 @@ apply (pred_nec_hereditary _ _ (level m')) in H15;
  [ | apply nec_nat; omega].
 clear H6.
 rename H7 into H6.
+rewrite Eef in *.
 specialize (H15 m' (le_refl _) _ (necR_refl _) H9).
 
 pose (tx' := match ret,ret0 with 
