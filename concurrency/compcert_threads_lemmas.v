@@ -26,19 +26,6 @@ Require Import compcert.lib.Integers.
 
 Require Import Coq.ZArith.ZArith.
 
-Notation CREATE_SIG := (mksignature (AST.Tint::AST.Tint::nil) (Some AST.Tint)).
-Notation CREATE := (EF_external 2%positive CREATE_SIG).
-
-Notation MKLOCK := 
-  (EF_external 5%positive (mksignature (AST.Tint::nil) (Some AST.Tint))).
-Notation FREE_LOCK := 
-  (EF_external 6%positive (mksignature (AST.Tint::nil) (Some AST.Tint))).
-
-Notation LOCK_SIG := (mksignature (AST.Tint::nil) (Some AST.Tint)).
-Notation LOCK := (EF_external 7%positive LOCK_SIG).
-Notation UNLOCK_SIG := (mksignature (AST.Tint::nil) (Some AST.Tint)).
-Notation UNLOCK := (EF_external 8%positive UNLOCK_SIG).
-
 Require Import concurrency.threads_lemmas.
 Require Import concurrency.permissions.
 Require Import concurrency.scheduler.

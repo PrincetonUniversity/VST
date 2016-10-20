@@ -35,7 +35,7 @@ Lemma all_funcs_correct:
   semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.
 unfold Gprog, prog, prog_funct; simpl.
-repeat (apply semax_func_cons_ext_vacuous; [reflexivity | ]).
+repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
 semax_func_cons_ext. renormalize.
   apply (temp_make_ext_rval_e gx (Vint (if Z.even x then Int.one else Int.zero)) ret) in H; try congruence.
   subst; simpl; entailer.
