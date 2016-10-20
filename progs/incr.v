@@ -87,7 +87,7 @@ Definition v_thread_lock := {|
 |}.
 
 Definition v_ctr := {|
-  gvar_info := (tarray tint 1);
+  gvar_info := tint;
   gvar_init := (Init_space 4 :: nil);
   gvar_readonly := false;
   gvar_volatile := false
@@ -110,15 +110,9 @@ Definition f_incr := {|
       ((Ecast (Etempvar _l (tptr (Tstruct _lock_t noattr))) (tptr tvoid)) ::
        nil))
     (Ssequence
-      (Sset _t
-        (Ederef
-          (Ebinop Oadd (Evar _ctr (tarray tint 1))
-            (Econst_int (Int.repr 0) tint) (tptr tint)) tint))
+      (Sset _t (Evar _ctr tint))
       (Ssequence
-        (Sassign
-          (Ederef
-            (Ebinop Oadd (Evar _ctr (tarray tint 1))
-              (Econst_int (Int.repr 0) tint) (tptr tint)) tint)
+        (Sassign (Evar _ctr tint)
           (Ebinop Oadd (Etempvar _t tint) (Econst_int (Int.repr 1) tint)
             tint))
         (Scall None
@@ -142,10 +136,7 @@ Definition f_read := {|
        (Eaddrof (Evar _ctr_lock (Tstruct _lock_t noattr))
          (tptr (Tstruct _lock_t noattr))) (tptr tvoid)) :: nil))
   (Ssequence
-    (Sset _t
-      (Ederef
-        (Ebinop Oadd (Evar _ctr (tarray tint 1))
-          (Econst_int (Int.repr 0) tint) (tptr tint)) tint))
+    (Sset _t (Evar _ctr tint))
     (Ssequence
       (Scall None
         (Evar _release (Tfunction (Tcons (tptr tvoid) Tnil) tvoid cc_default))
@@ -188,11 +179,7 @@ Definition f_main := {|
   fn_body :=
 (Ssequence
   (Ssequence
-    (Sassign
-      (Ederef
-        (Ebinop Oadd (Evar _ctr (tarray tint 1))
-          (Econst_int (Int.repr 0) tint) (tptr tint)) tint)
-      (Econst_int (Int.repr 0) tint))
+    (Sassign (Evar _ctr tint) (Econst_int (Int.repr 0) tint))
     (Ssequence
       (Sset _lockc
         (Eaddrof (Evar _ctr_lock (Tstruct _lock_t noattr))

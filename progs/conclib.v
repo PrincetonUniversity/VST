@@ -40,18 +40,6 @@ Proof.
   eapply res_predicates.address_mapsto_VALspec_range; eauto.
 Qed.
 
-Lemma mapsto_undef_precise : forall sh t b o (Hsh : readable_share sh)
-  (Hval : type_is_by_value t = true) (Hvol : type_is_volatile t = false),
-  precise (mapsto sh t (Vptr b o) Vundef).
-Proof.
-  intros; unfold mapsto.
-  destruct (access_mode_by_value _ Hval) as (? & Heq); rewrite Heq, Hvol.
-  destruct (readable_share_dec _); [|contradiction].
-  pose proof (tc_val_Vundef t).
-  intros ??? [(? & _) | (_ & HP1)] [(? & _) | (_ & HP2)]; normalize.
-  eapply ex_address_mapsto_precise; eauto.
-Qed.
-
 Lemma lock_inv_precise : forall v sh R, precise (lock_inv sh v R).
 Proof.
   intros ?????? (b1 & o1 & Hv1 & Hlock1) (b2 & o2 & Hv2 & Hlock2) ??.
@@ -161,6 +149,24 @@ Proof.
   apply orp_left; entailer.
   - Exists v; eauto.
   - Exists v2'; auto.
+Qed.
+
+Corollary data_at__positive : forall {cs} sh t p (Hsh : readable_share sh)
+  (Hval : type_is_by_value t = true) (Hvol : type_is_volatile t = false),
+  positive_mpred (@data_at_ cs sh t p).
+Proof.
+  intros; unfold data_at_, field_at_, field_at, at_offset; rewrite by_value_data_at_rec_nonvolatile; auto;
+    simpl.
+  rewrite repinject_default_val.
+  apply positive_andp2, mapsto_positive; auto.
+Qed.
+
+Corollary data_at_positive : forall {cs} sh t v p (Hsh : readable_share sh)
+  (Hval : type_is_by_value t = true) (Hvol : type_is_volatile t = false),
+  positive_mpred (@data_at cs sh t v p).
+Proof.
+  intros; eapply derives_positive, data_at__positive; eauto.
+  apply data_at_data_at_.
 Qed.
 
 Lemma ex_positive : forall t P, (forall x, positive_mpred (P x)) -> positive_mpred (EX x : t, P x).
@@ -299,15 +305,73 @@ Proof.
   repeat intro; contradiction.
 Qed.
 
+Lemma mapsto_undef_precise : forall sh t p (Hsh : readable_share sh),
+  precise (mapsto sh t p Vundef).
+Proof.
+  intros; unfold mapsto.
+  destruct (access_mode t); try apply precise_FF.
+  destruct (type_is_volatile t); try apply precise_FF.
+  destruct p; try apply precise_FF.
+  destruct (readable_share_dec _); [|contradiction].
+  pose proof (tc_val_Vundef t).
+  intros ??? [(? & _) | (_ & HP1)] [(? & _) | (_ & HP2)]; normalize.
+  eapply ex_address_mapsto_precise; eauto.
+Qed.
+
+Lemma mapsto_inj : forall sh t v1 v2 p r1 r2 r
+  (Hsh : readable_share sh)
+  (Hp1 : predicates_hered.app_pred (mapsto sh t p v1) r1)
+  (Hp2 : predicates_hered.app_pred (mapsto sh t p v2) r2)
+  (Hr1 : sepalg.join_sub r1 r) (Hr2 : sepalg.join_sub r2 r)
+  (Hdef1 : v1 <> Vundef) (Hdef2 : v2 <> Vundef),
+  r1 = r2 /\ v1 = v2.
+Proof.
+  unfold mapsto; intros.
+  destruct (access_mode t); try contradiction.
+  destruct (type_is_volatile t); [contradiction|].
+  destruct p; try contradiction.
+  destruct (readable_share_dec sh); [|contradiction n; auto].
+  destruct Hp1 as [(? & ?) | (? & ?)]; [|contradiction Hdef1; auto].
+  destruct Hp2 as [(? & ?) | (? & ?)]; [|contradiction Hdef2; auto].
+  assert (r1 = r2); [|split; auto].
+  - eapply ex_address_mapsto_precise; eauto; eexists; eauto.
+  - subst; eapply res_predicates.address_mapsto_value_cohere'; eauto.
+Qed.
+
+Corollary mapsto_precise : forall sh t v p (Hsh : readable_share sh),
+  precise (mapsto sh t p v).
+Proof.
+  intros.
+  destruct (eq_dec v Vundef).
+  - subst; apply mapsto_undef_precise; auto.
+  - repeat intro; eapply mapsto_inj; eauto.
+Qed.
+
+Corollary data_at__precise : forall {cs} sh t p (Hsh : readable_share sh)
+  (Hval : type_is_by_value t = true) (Hvol : type_is_volatile t = false),
+  precise (@data_at_ cs sh t p).
+Proof.
+  intros; unfold data_at_, field_at_, field_at, at_offset; rewrite by_value_data_at_rec_nonvolatile; auto;
+    simpl.
+  rewrite repinject_default_val.
+  apply precise_andp2, mapsto_undef_precise; auto.
+Qed.
+
+Corollary data_at_precise : forall {cs} sh t v p (Hsh : readable_share sh)
+  (Hval : type_is_by_value t = true) (Hvol : type_is_volatile t = false),
+  precise (@data_at cs sh t v p).
+Proof.
+  intros; eapply derives_precise, data_at__precise; eauto.
+  apply data_at_data_at_.
+Qed.
+
 Lemma cond_var_precise : forall {cs} sh p, readable_share sh ->
   precise (@cond_var cs sh p).
 Proof.
-  intros; unfold cond_var, data_at_, field_at_, field_at, at_offset; simpl.
-  destruct p; try (rewrite prop_false_andp; [|intros (? & ?); contradiction]; apply precise_FF).
-  apply precise_andp2.
-  rewrite data_at_rec_eq; simpl.
-  apply mapsto_undef_precise; auto.
+  intros; apply data_at__precise; auto.
 Qed.
+
+
 
 Lemma cond_var_positive : forall {cs} sh p, readable_share sh ->
   positive_mpred (@cond_var cs sh p).
@@ -586,27 +650,6 @@ Proof.
   rewrite IHl1; auto.
 Qed.
 
-Lemma mapsto_inj : forall sh t v1 v2 p r1 r2 r
-  (Hsh : readable_share sh)
-  (Hp1 : predicates_hered.app_pred (mapsto sh t p v1) r1)
-  (Hp2 : predicates_hered.app_pred (mapsto sh t p v2) r2)
-  (Hval : type_is_by_value t = true)
-  (Hr1 : sepalg.join_sub r1 r) (Hr2 : sepalg.join_sub r2 r)
-  (Hdef1 : v1 <> Vundef) (Hdef2 : v2 <> Vundef),
-  r1 = r2 /\ v1 = v2.
-Proof.
-  unfold mapsto; intros.
-  destruct (access_mode_by_value _ Hval) as (? & Hby); rewrite Hby in *.
-  destruct (type_is_volatile t); [contradiction|].
-  destruct p; try contradiction.
-  destruct (readable_share_dec sh); [|contradiction n; auto].
-  destruct Hp1 as [(? & ?) | (? & ?)]; [|contradiction Hdef1; auto].
-  destruct Hp2 as [(? & ?) | (? & ?)]; [|contradiction Hdef2; auto].
-  assert (r1 = r2); [|split; auto].
-  - eapply ex_address_mapsto_precise; eauto; eexists; eauto.
-  - subst; eapply res_predicates.address_mapsto_value_cohere'; eauto.
-Qed.
-
 Lemma data_at_int_array_inj : forall {cs} sh z a1 a2 p r1 r2 r
   (Hsh : readable_share sh)
   (Hp1 : predicates_hered.app_pred (@data_at_rec cs sh (tarray tint z) a1 p) r1)
@@ -839,4 +882,5 @@ Proof.
 Qed.
 
 Hint Resolve precise_emp lock_inv_precise lock_inv_positive selflock_precise selflock_positive
-  cond_var_precise cond_var_positive precise_FF positive_FF.
+  cond_var_precise cond_var_positive precise_FF positive_FF mapsto_precise mapsto_positive
+  data_at_precise data_at_positive data_at__precise data_at__positive.

@@ -91,7 +91,7 @@ Definition v_requests_lock := {|
 |}.
 
 Definition v_length := {|
-  gvar_info := (tarray tint 1);
+  gvar_info := tint;
   gvar_init := (Init_space 4 :: nil);
   gvar_readonly := false;
   gvar_volatile := false
@@ -181,10 +181,7 @@ Definition f_add := {|
   fn_temps := ((_len, tint) :: nil);
   fn_body :=
 (Ssequence
-  (Sset _len
-    (Ederef
-      (Ebinop Oadd (Evar _length (tarray tint 1))
-        (Econst_int (Int.repr 0) tint) (tptr tint)) tint))
+  (Sset _len (Evar _length tint))
   (Ssequence
     (Sassign
       (Ederef
@@ -205,10 +202,7 @@ Definition f_remove := {|
                nil);
   fn_body :=
 (Ssequence
-  (Sset _len
-    (Ederef
-      (Ebinop Oadd (Evar _length (tarray tint 1))
-        (Econst_int (Int.repr 0) tint) (tptr tint)) tint))
+  (Sset _len (Evar _length tint))
   (Ssequence
     (Sset _r
       (Ederef
@@ -255,10 +249,7 @@ Definition f_producer := {|
              (Eaddrof (Evar _requests_lock (Tstruct _lock_t noattr))
                (tptr (Tstruct _lock_t noattr))) (tptr tvoid)) :: nil))
         (Ssequence
-          (Sset _len
-            (Ederef
-              (Ebinop Oadd (Evar _length (tarray tint 1))
-                (Econst_int (Int.repr 0) tint) (tptr tint)) tint))
+          (Sset _len (Evar _length tint))
           (Ssequence
             (Swhile
               (Ebinop Oge (Etempvar _len tint)
@@ -273,10 +264,7 @@ Definition f_producer := {|
                    (Ecast
                      (Eaddrof (Evar _requests_lock (Tstruct _lock_t noattr))
                        (tptr (Tstruct _lock_t noattr))) (tptr tvoid)) :: nil))
-                (Sset _len
-                  (Ederef
-                    (Ebinop Oadd (Evar _length (tarray tint 1))
-                      (Econst_int (Int.repr 0) tint) (tptr tint)) tint))))
+                (Sset _len (Evar _length tint))))
             (Ssequence
               (Scall None
                 (Evar _add (Tfunction
@@ -285,10 +273,7 @@ Definition f_producer := {|
                 ((Etempvar _request (tptr (Tstruct _request_t noattr))) ::
                  nil))
               (Ssequence
-                (Sassign
-                  (Ederef
-                    (Ebinop Oadd (Evar _length (tarray tint 1))
-                      (Econst_int (Int.repr 0) tint) (tptr tint)) tint)
+                (Sassign (Evar _length tint)
                   (Ebinop Oadd (Etempvar _len tint)
                     (Econst_int (Int.repr 1) tint) tint))
                 (Ssequence
@@ -327,10 +312,7 @@ Definition f_consumer := {|
            (Eaddrof (Evar _requests_lock (Tstruct _lock_t noattr))
              (tptr (Tstruct _lock_t noattr))) (tptr tvoid)) :: nil))
       (Ssequence
-        (Sset _len
-          (Ederef
-            (Ebinop Oadd (Evar _length (tarray tint 1))
-              (Econst_int (Int.repr 0) tint) (tptr tint)) tint))
+        (Sset _len (Evar _length tint))
         (Ssequence
           (Swhile
             (Ebinop Oeq (Etempvar _len tint) (Econst_int (Int.repr 0) tint)
@@ -345,10 +327,7 @@ Definition f_consumer := {|
                  (Ecast
                    (Eaddrof (Evar _requests_lock (Tstruct _lock_t noattr))
                      (tptr (Tstruct _lock_t noattr))) (tptr tvoid)) :: nil))
-              (Sset _len
-                (Ederef
-                  (Ebinop Oadd (Evar _length (tarray tint 1))
-                    (Econst_int (Int.repr 0) tint) (tptr tint)) tint))))
+              (Sset _len (Evar _length tint))))
           (Ssequence
             (Ssequence
               (Scall (Some _t'1)
@@ -358,10 +337,7 @@ Definition f_consumer := {|
               (Sset _request
                 (Etempvar _t'1 (tptr (Tstruct _request_t noattr)))))
             (Ssequence
-              (Sassign
-                (Ederef
-                  (Ebinop Oadd (Evar _length (tarray tint 1))
-                    (Econst_int (Int.repr 0) tint) (tptr tint)) tint)
+              (Sassign (Evar _length tint)
                 (Ebinop Osub (Etempvar _len tint)
                   (Econst_int (Int.repr 1) tint) tint))
               (Ssequence
@@ -415,11 +391,7 @@ Definition f_main := {|
           (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
             tint))))
     (Ssequence
-      (Sassign
-        (Ederef
-          (Ebinop Oadd (Evar _length (tarray tint 1))
-            (Econst_int (Int.repr 0) tint) (tptr tint)) tint)
-        (Econst_int (Int.repr 0) tint))
+      (Sassign (Evar _length tint) (Econst_int (Int.repr 0) tint))
       (Ssequence
         (Scall None
           (Evar _makelock (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
@@ -467,10 +439,7 @@ Definition f_main := {|
                     ((Eaddrof (Evar _requests_lock (Tstruct _lock_t noattr))
                        (tptr (Tstruct _lock_t noattr))) :: nil))
                   (Ssequence
-                    (Sset _len
-                      (Ederef
-                        (Ebinop Oadd (Evar _length (tarray tint 1))
-                          (Econst_int (Int.repr 0) tint) (tptr tint)) tint))
+                    (Sset _len (Evar _length tint))
                     (Ssequence
                       (Swhile
                         (Ebinop One (Etempvar _len tint)
@@ -488,11 +457,7 @@ Definition f_main := {|
                                  (Evar _requests_lock (Tstruct _lock_t noattr))
                                  (tptr (Tstruct _lock_t noattr)))
                                (tptr tvoid)) :: nil))
-                          (Sset _len
-                            (Ederef
-                              (Ebinop Oadd (Evar _length (tarray tint 1))
-                                (Econst_int (Int.repr 0) tint) (tptr tint))
-                              tint))))
+                          (Sset _len (Evar _length tint))))
                       (Ssequence
                         (Scall None
                           (Evar _release (Tfunction (Tcons (tptr tvoid) Tnil)

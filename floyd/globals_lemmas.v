@@ -1164,7 +1164,7 @@ Ltac process_idstar :=
          let p := fresh "p" in set (p:=A);
          simpl in p;
          unfold id2pred_star, init_data2pred' in p;
-         simpl PTree.get in p;
+         simpl PTree.get in p; simpl zeq in p;
          cbv beta iota zeta in p;
          simpl init_data_size in p; simpl Z.add in p;
          subst p;

@@ -4,19 +4,19 @@
 
 lock_t ctr_lock;
 lock_t thread_lock;
-int ctr[1];
+int ctr;
 
 void incr() {
   lock_t *l = &ctr_lock;
   acquire((void*)l);
-  int t = ctr[0];
-  ctr[0] = t + 1;
+  int t = ctr;
+  ctr = t + 1;
   release((void*)l);  
 }
 
 int read() {
   acquire( (void*)&ctr_lock );
-  int t = ctr[0];
+  int t = ctr;
   release ( (void*)&ctr_lock );
   return t;
 }
@@ -32,7 +32,7 @@ void *thread_func(void *args) {
 
 int main(void)
 {
-  ctr[0] = 0;
+  ctr = 0;
   lock_t *lockc = &ctr_lock;
   lock_t *lockt = &thread_lock;
   makelock((void*)lockc);
