@@ -251,22 +251,6 @@ simpl. rewrite Int.unsigned_repr by repable_signed.
   change Byte.max_unsigned with 255%Z. omega.
 Qed.
 
-Lemma Forall_map:
-  forall {A B} (f: B -> Prop) (g: A -> B) al,
-   Forall f (map g al) <-> Forall (f oo g) al.
-Proof.
-intros.
-induction al; simpl; intuition; inv H1; constructor; intuition.
-Qed.
-
-Lemma Forall_sublist:
-  forall {A} (f: A -> Prop) lo hi al,
-   Forall f al -> Forall f (sublist lo hi al).
-Proof.
-intros. unfold sublist.
-apply Forall_firstn. apply Forall_skipn. auto.
-Qed.
-
 Lemma Zlength_Zlist_to_intlist: 
   forall (n:Z) (l: list Z),
    (Zlength l = WORD*n)%Z -> Zlength (Zlist_to_intlist l) = n.
