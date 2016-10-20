@@ -279,6 +279,57 @@ Qed.
 (**  Here begins an alternate proof of the "for" loop.
   Instead of using forward_for_simple_bound, we use the primitive
   axioms: semax_loop, semax_seq, semax_if, etc.
+
+To understand this verification, let's take the program,
+
+  int sumarray(int a[], int n) {
+     int i,s,x;
+     s=0;
+     for (i=0; i<n; i++) {
+       x = a[i];
+       s += x;
+     }
+     return s;
+  }
+
+and break it down into the "loop" form of Clight:
+
+  int sumarray(int a[], int n) {
+     int i,s,x;
+     s=0;
+     i=0;
+     for ( ; ; i++) {
+       if (i<n) then ; else break;
+       x = a[i];
+       s += x;
+     }
+     return s;
+  }
+
+in which "Sloop c1 c2" is basically the same as 
+  "for ( ; ; c2) c1".
+
+Into this program we put these assertions:
+
+
+  int sumarray(int a[], int n) {
+     int i,s,x;
+     s=0;
+     i=0;
+     assert (sumarray_Pre);
+     for ( ; ; i++) {
+       assert (sumarray_Inv);
+       if (i<n) then ; else break;
+       assert (sumarray_PreBody);
+       x = a[i];
+       s += x;
+       assert (sumarray_PostBody);
+     }
+     assert (sumarray_Post);
+     return s;
+  }
+
+The assertions are defined in these five definitions:
 *)
 
 Definition sumarray_Pre a sh contents size :=
@@ -323,6 +374,9 @@ Definition sumarray_Post a sh contents size :=
           temp _n (Vint (Int.repr size));
           temp _s (Vint (Int.repr (sum_Z contents))))
    SEP   (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a)).
+
+(* . . . and now you can see how these assertions are used
+   in the proof, using the semax_loop rule. *)
 
 Lemma body_sumarray_alt: semax_body Vprog Gprog f_sumarray sumarray_spec.
 Proof.
