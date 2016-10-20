@@ -108,7 +108,7 @@ request_t *q_remove(queue_t *tgt){
 
 void *f(void *arg){
   request_t *request;
-  queue_t *q1 = *&q0;
+  queue_t *q1 = q0;
   for(int i = 0; i < 3; i++){
     request = get_request();
     q_add(q1, request);

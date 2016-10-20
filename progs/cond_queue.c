@@ -8,7 +8,7 @@
 typedef struct request_t {int data;} request_t;
 
 lock_t requests_lock;
-int length[1];
+int length;
 cond_t requests_consumer, requests_producer;
 request_t *buf[10];
 
@@ -28,13 +28,13 @@ void process_request(request_t *request){
 }
 
 void add(request_t *request){
-  int len = length[0];
+  int len = length;
   buf[len] = request;
   return;
 }
 
 request_t *remove(void){
-  int len = length[0];
+  int len = length;
   request_t *r = buf[len - 1];
   buf[len - 1] = NULL;
   return r;
@@ -46,13 +46,13 @@ void *producer(void *arg){
   while(1){
     request = get_request();
     acquire((void*)&requests_lock);
-    int len = length[0];
+    int len = length;
     while(len >= 10){
       waitcond(&requests_producer, (void*)&requests_lock);
-      len = length[0];
+      len = length;
     }
     add(request);
-    length[0] = len + 1;
+    length = len + 1;
     release((void*)&requests_lock);
     signalcond(&requests_consumer);
   }
@@ -63,13 +63,13 @@ void *consumer(void *arg){
 
   while(1){
     acquire((void*)&requests_lock);
-    int len = length[0];
+    int len = length;
     while(len == 0){
       waitcond(&requests_consumer, (void*)&requests_lock);
-      len = length[0];
+      len = length;
     }
     request = remove();
-    length[0] = len - 1;
+    length = len - 1;
     release((void*)&requests_lock);
     signalcond(&requests_producer);
     process_request(request);
@@ -80,7 +80,7 @@ int main(void)
 {
   for(int i = 0; i < 10; i++)
     buf[i] = NULL;
-  length[0] = 0;
+  length = 0;
   makelock((void*)&requests_lock);
   release((void*)&requests_lock);
   makecond(&requests_producer);
@@ -89,10 +89,10 @@ int main(void)
   spawn((void *)&consumer, (void *)NULL);
   acquire(&requests_lock);
 
-  int len = length[0];
+  int len = length;
   while(len != 0){
     waitcond(&requests_producer, (void*)&requests_lock);
-    len = length[0];
+    len = length;
   }
 
   release((void*)&requests_lock);

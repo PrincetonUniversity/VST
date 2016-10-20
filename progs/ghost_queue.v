@@ -632,11 +632,7 @@ Definition f_f := {|
                (_t'1, (tptr (Tstruct _request_t noattr))) :: nil);
   fn_body :=
 (Ssequence
-  (Sset _q1
-    (Ederef
-      (Eaddrof (Evar _q0 (tptr (Tstruct _queue_t noattr)))
-        (tptr (tptr (Tstruct _queue_t noattr))))
-      (tptr (Tstruct _queue_t noattr))))
+  (Sset _q1 (Evar _q0 (tptr (Tstruct _queue_t noattr))))
   (Ssequence
     (Ssequence
       (Sset _i (Econst_int (Int.repr 0) tint))

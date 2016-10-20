@@ -2335,6 +2335,20 @@ unfold overridePost, frame_ret_assert, function_body_ret_assert.
 destruct ek; normalize.
 Qed.
 
+Ltac change_mapsto_gvar_to_data_at :=
+match goal with |- semax _ (PROPx _ (LOCALx ?L (SEPx ?S))) _ _ =>
+  match S with context [mapsto ?sh ?t (offset_val ?off ?g) ?v] =>
+   match L with context [gvar _ g] =>
+    assert_PROP (field_compatible t nil (offset_val off g));
+     [ entailer!; repeat (split; [now auto | ]); now auto | ];
+    erewrite (mapsto_data_at' _ _ _ _ (offset_val _ g));
+       [ | reflexivity | reflexivity | now auto | assumption | intro; apply Logic.I | apply JMeq_refl ];
+     match goal with H: _ |- _ => clear H end;
+     rewrite <- ? data_at_offset_zero
+   end
+  end
+end.
+
 Ltac start_function' :=
  match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _)) =>
    match Pre with 
@@ -2358,6 +2372,9 @@ Ltac start_function' :=
  end;
  try expand_main_pre;
  process_stackframe_of;
+ repeat change_mapsto_gvar_to_data_at;  (* should really restrict this to only in main,
+                                  but it needs to come after process_stackframe_of *)
+ repeat rewrite <- data_at__offset_zero;
  try apply start_function_aux1;
  repeat (apply semax_extract_PROP; 
               match goal with
