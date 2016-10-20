@@ -368,6 +368,9 @@ intros; subst.
 apply semax_ext'; auto.
 Qed.
 
+(* Lemmas [semax_ext'_void] and [semax_ext_void] were needed before we
+used optyp_of_type of funsig2signature, we should be able to get rid
+of them now *)
 Lemma semax_ext'_void (ext_link: Strings.String.string -> ident) id sig cc A P Q (fs : funspecs) :
   let f := mk_funspec (sig, tvoid) cc A P Q in
   In (ext_link  id,f) fs ->
