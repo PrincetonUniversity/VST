@@ -34,7 +34,7 @@ End Semantics.
 Notation EXIT := 
   (EF_external "EXIT" (mksignature (AST.Tint::nil) None)). 
 
-Notation CREATE_SIG := (mksignature (AST.Tint::AST.Tint::nil) (Some AST.Tint) cc_default).
+Notation CREATE_SIG := (mksignature (AST.Tint::AST.Tint::nil) None cc_default).
 Notation CREATE := (EF_external "spawn" CREATE_SIG).
 
 Notation READ := 
@@ -45,13 +45,13 @@ Notation WRITE :=
                (mksignature (AST.Tint::AST.Tint::AST.Tint::nil) (Some AST.Tint) cc_default)).
 
 Notation MKLOCK := 
-  (EF_external "makelock" (mksignature (AST.Tint::nil) (Some AST.Tint) cc_default)).
+  (EF_external "makelock" (mksignature (AST.Tint::nil) None cc_default)).
 Notation FREE_LOCK := 
-  (EF_external "freelock" (mksignature (AST.Tint::nil) (Some AST.Tint) cc_default)).
+  (EF_external "freelock" (mksignature (AST.Tint::nil) None cc_default)).
 
-Notation LOCK_SIG := (mksignature (AST.Tint::nil) (Some AST.Tint) cc_default).
+Notation LOCK_SIG := (mksignature (AST.Tint::nil) None cc_default).
 Notation LOCK := (EF_external "acquire" LOCK_SIG).
-Notation UNLOCK_SIG := (mksignature (AST.Tint::nil) (Some AST.Tint) cc_default).
+Notation UNLOCK_SIG := (mksignature (AST.Tint::nil) None cc_default).
 Notation UNLOCK := (EF_external "release" UNLOCK_SIG).
 
 Notation block  := Values.block.
