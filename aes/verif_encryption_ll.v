@@ -113,6 +113,39 @@ Definition encryption_spec_ll :=
 
 Definition Gprog : funspecs := augment_funspecs prog [ encryption_spec_ll ].
 
+(* TODO move to library (if no one else has done it yet) *)
+(* copied from verif_sumarray2.v, but removed unused argument v' *)
+Lemma split_array:
+ forall {cs: compspecs} mid n (sh: Share.t) (t: type) 
+                            v (v1' v2': list (reptype t)) v1 v2 p,
+    0 <= mid <= n ->
+    JMeq v (v1'++v2') ->
+    JMeq v1 v1' ->
+    JMeq v2 v2' ->
+    data_at sh (tarray t n) v p =
+    data_at sh (tarray t mid) v1  p *
+    data_at sh (tarray t (n-mid)) v2 
+            (field_address0 (tarray t n) [ArraySubsc mid] p).
+Admitted.
+
+(* TODO generalize for the case where the original array does not start at index 0 *)
+Lemma split_array_head:
+ forall {cs: compspecs} n (sh: Share.t) (t: type) 
+                            v (v1': (reptype t)) (v2': list (reptype t)) v1 v2 p,
+    0 < n ->
+    JMeq v (v1' :: v2') ->
+    JMeq v1 v1' ->
+    JMeq v2 v2' ->
+    data_at sh (tarray t n) v p =
+    data_at sh t v1 (field_address0 (tarray t n) [ArraySubsc 0] p) *
+    data_at sh (tarray t (n-1)) v2 
+            (field_address0 (tarray t n) [ArraySubsc 1] p).
+Proof.
+  intros. replace (v1' :: v2') with ([v1'] ++ v2') in * by reflexivity.
+  erewrite (split_array 1 n sh _ v [v1'] v2').
+  - f_equal.
+Admitted.
+
 Lemma body_aes_encrypt: semax_body Vprog Gprog f_mbedtls_aes_encrypt encryption_spec_ll.
 Proof.
   start_function.
@@ -121,6 +154,23 @@ Proof.
   (* RK = ctx->rk; *)
   forward.
   { entailer!. auto with field_compatible. (* TODO floyd: why is this not done automatically? *) }
+
+  (* Bring the SEP clause about ctx into a suitable form: *)
+  unfold_data_at (1%nat).
+  rewrite (field_at_data_at ctx_sh t_struct_aesctx [StructField _buf]).
+  remember (list_repeat 8 Vundef) as Vundefs.
+  simpl.
+  erewrite (split_array 60 68 ctx_sh tuint
+                        (map Vint (map Int.repr exp_key) ++ Vundefs)
+                        (map Vint (map Int.repr exp_key))   Vundefs);
+  first [ apply JMeq_refl | omega | idtac ].
+  replace (68 - 60) with 8 by omega.
+  assert (exists k1 k2 k3 k4 exp_key_tail, exp_key = k1 :: k2 :: k3 :: k4 :: exp_key_tail) as Eq. {
+    destruct exp_key as [|k1 [| k2 [| k3 [| k4 exp_key_tail]]]];
+      try solve [compute in H0; omega]. repeat eexists.
+  }
+  destruct Eq as [k1 [k2 [k3 [k4 [exp_tail Eq]]]]]. subst exp_key. 
+  repeat rewrite map_cons.
 
   (* GET_UINT32_LE( X0, input,  0 ); X0 ^= *RK++;
      GET_UINT32_LE( X1, input,  4 ); X1 ^= *RK++;
@@ -132,146 +182,7 @@ Proof.
   ).
   GET_UINT32_LE_tac. forward. forward. forward.
 
-  unfold_data_at (1%nat).
-
-  assert (field_at ctx_sh t_struct_aesctx [StructField _buf]
-                    (map Vint (map Int.repr exp_key) ++ list_repeat 8 Vundef) ctx
-     =    array_at ctx_sh t_struct_aesctx [StructField _buf] 0 68
-                    (map Vint (map Int.repr exp_key) ++ list_repeat 8 Vundef) ctx) as Eq. {
-    eapply field_at_Tarray.
-    - admit. (* TODO QQQ how can I prove legal_nested_field after losing the semax? *)
-    - reflexivity.
-    - omega.
-    - apply eq_JMeq. reflexivity.
-  }
-  rewrite Eq. clear Eq.
-
-  assert (array_at ctx_sh t_struct_aesctx [StructField _buf] 0 68
-                   (map Vint (map Int.repr exp_key) ++ list_repeat 8 Vundef) ctx
-     =    array_at ctx_sh t_struct_aesctx [StructField _buf] 0 60
-                   (map Vint (map Int.repr exp_key)) ctx 
-       *  array_at ctx_sh t_struct_aesctx [StructField _buf] 60 68
-                   (list_repeat 8 Vundef) ctx) as Eq. {
-    rewrite split2_array_at with (mid := 60).
-    - replace (60 - 0) with 60 by omega.
-      replace (Zlength (map Vint (map Int.repr exp_key) ++ list_repeat 8 Vundef)) with 68.
-      * admit. (* TODO just rewriting *)
-      * rewrite Zlength_app. do 2 rewrite Zlength_map. rewrite Zlength_list_repeat'.
-        replace (Z.of_nat 8) with 8 by reflexivity. omega.
-    - omega.
-    - rewrite Zlength_app. do 2 rewrite Zlength_map. rewrite Zlength_list_repeat'.
-      replace (Z.of_nat 8) with 8 by reflexivity. omega.
-  }
-  rewrite Eq. clear Eq.
-
-
-Lemma split_head_array_at: forall (cs : compspecs) (sh : Share.t) (t : type) (gfs : list gfield)
-  (lo hi : Z)
-  (hd :      (reptype (nested_field_type t (gfs SUB 0))))
-  (tl : list (reptype (nested_field_type t (gfs SUB 0)))) (p : val),
-  lo < hi ->
-  Zlength (hd :: tl) = hi - lo ->
-  array_at sh t gfs lo hi (hd :: tl) p =
-  field_at sh t (gfs SUB 0 (*TODO QQQ replace this 0 by lo in a typechecking way, how? *)) hd p
-  * array_at sh t gfs (lo+1) hi tl p.
-Proof.
-Admitted.
-
-(*
-Lemma split_head_array_at: forall (cs : compspecs) (sh : Share.t) (t : type) (gfs : list gfield)
-  (lo hi : Z)
-  (hd :      (reptype (nested_field_type t (gfs SUB 0))))
-  (tl : list (reptype (nested_field_type t (gfs SUB 0)))) (p : val),
-  lo < hi ->
-  Zlength (hd :: tl) = hi - lo ->
-  array_at sh t gfs lo hi (hd :: tl) p =
-  array_at sh t gfs lo (lo+1) (hd :: nil) p * (* <-- TODO express simpler *)
-  array_at sh t gfs (lo+1) hi tl p.
-Proof.
-  intros.
-(*erewrite array_at_len_1.  by (apply eq_JMeq; reflexivity). with (v' := hd).
-
-
-field_at sh t (gfs SUB lo) ?v' p
-*)
- rewrite split2_array_at with (mid := (lo+1)); try omega.
-  replace (lo + 1 - lo) with 1 by omega. f_equal. f_equal.
-Admitted.
-
-
-Lemma split_head_array_at: forall (cs : compspecs) (sh : Share.t) (t : type) (gfs : list gfield)
-  (lo hi : Z)
-  (v : list (reptype (nested_field_type t (gfs SUB 0)))) (p : val),
-  lo < hi ->
-  Zlength v = hi - lo ->
-  array_at sh t gfs lo hi v p =
-  array_at sh t gfs lo (lo+1) (sublist 0 1 v) p * (* <-- TODO express simpler *)
-  array_at sh t gfs (lo+1) hi (sublist 1 (Zlength v) v) p.
-Proof.
-  intros. rewrite split2_array_at with (mid := (lo+1)); try omega.
-  replace (lo + 1 - lo) with 1 by omega. reflexivity.
-Qed.
-
-
- cbv [Zlength Zlength_aux]. simpl. ; omega).
-f_equal. reflexivity. simpl.
-
-
-        (map Vint (map Int.repr exp_key) ++ list_repeat 8 Vundef)) ctx
-
-*)
-  assert (exists k1 k2 k3 k4 exp_key_tail, exp_key = k1 :: k2 :: k3 :: k4 :: exp_key_tail) as Eq. {
-    destruct exp_key as [|k1 [| k2 [| k3 [| k4 exp_key_tail]]]];
-      try solve [compute in H0; omega]. repeat eexists.
-  }
-  destruct Eq as [k1 [k2 [k3 [k4 [exp_tail Eq]]]]]. subst exp_key. 
-  repeat rewrite map_cons.
-
-rewrite split_head_array_at. { simpl. 
-repeat flatten_sepcon_in_SEP.
-freeze [0; 1; 3; 4; 5; 6; 7] Fr.
-
-(* TODO move to floyd/field_at.v *)
-Lemma field_at_type_changable {cs}: forall (sh: Share.t) (t1 t2: type) gfs v1 v2,
-  t1 = t2 ->
-  JMeq v1 v2 ->
-  @field_at cs sh t1 gfs v1 = field_at sh t2 gfs v2.
-Proof. intros. subst. apply JMeq_eq in H0. subst v2. reflexivity. Qed.
-(* do we need it? *)
-
-(* Note: The tactic only works with data_at and field_at, but not array_at! *)
-
-(* data_at_type_changable *)
-
-(*
-assert ([ArraySubsc 0; StructField _buf] = [StructField _buf]) as Eq by admit. (* TODO not true!! *)
- rewrite Eq.   (error about non coercible types (but Coq is wrong)) *)
-
-(*
-The term "Vint (Int.repr k1)" has type "val" while it is expected to have type
- "reptype (nested_field_type t_struct_aesctx [StructField _buf])".
-*)
-
-(* TODO learn how I can use JMeq to work around these restrictions! *)
-
-Eval compute in reptype (nested_field_type t_struct_aesctx [StructField _buf]). (* list val *)
-
-Eval compute in reptype (nested_field_type t_struct_aesctx [ArraySubsc 0; StructField _buf]). (* val *)
-
-replace (Ebinop Oxor (Etempvar _X0 tuint) (Ederef (Etempvar _t'1 (tptr tuint)) tuint) tuint) with
-                                          (Ederef (Etempvar _t'1 (tptr tuint)) tuint). {
-
-(* Instead of changing SEP (which is good), let's change temp _t'1 *)
-assert (field_address t_struct_aesctx [StructField _buf] ctx
-      = field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx) as Eq. {
-  rewrite field_compatible_field_address.
-  rewrite field_compatible_field_address. reflexivity.
-  admit. admit. (* TODO *)
-}
-
-rewrite Eq. clear Eq.
-
-(* running load_tac until just before sc_new_instantiate gives:
+(* TODO floyd: running load_tac until just before sc_new_instantiate gives:
 e := Ederef (Etempvar _t'1 (tptr tuint)) tuint : expr
 efs := [] : list efield
 tts := [] : list type
@@ -279,8 +190,18 @@ lr := LLLL : LLRR
 p := field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx : val
 gfs := [] : list gfield
 
-some of which might be wrong (tts, gfs, ... ?)
+but these lists should not be empty.
 *)
+
+erewrite (split_array_head 60 ctx_sh tuint
+((Vint (Int.repr k1)) :: (Vint (Int.repr k2) :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail)))
+(Vint (Int.repr k1)) (Vint (Int.repr k2) :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail))
+(Vint (Int.repr k1)) (Vint (Int.repr k2) :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail)));
+  first [ apply JMeq_refl | omega | idtac ].
+
+simpl.
+repeat flatten_sepcon_in_SEP.
+freeze [0; 1; 3; 4; 5; 6; 7] Fr.
 
 eapply semax_seq'. {
 hoist_later_in_pre.
@@ -296,32 +217,28 @@ eapply (semax_SC_field_load Delta ctx_sh (*n*)) with (lr := LLLL).
 
 eapply semax_load_nth_ram with (t1 := tuint) (t2 := tuint) (n := 1%nat) (v := (Vint (Int.repr k1)));
   try reflexivity.
-{ entailer!. }
+{ entailer. }
 { apply SH. }
-{ eapply derives_trans. 2: apply sepcon_TT. 
-  unfold field_at. normalize. unfold nested_field_type, nested_field_offset. simpl.
-  unfold at_offset. rewrite data_at_rec_eq. simpl.
-
-  unfold field_address. simpl. 
-destruct (field_compatible_dec t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx).
-- apply derives_refl.
-- contradiction. }
+{ eapply derives_trans. 2: apply sepcon_TT.
+unfold data_at. unfold field_at. unfold at_offset. rewrite data_at_rec_eq. simpl.
+unfold field_address. simpl. 
+destruct (field_compatible_dec t_struct_aesctx [StructField _buf] ctx).
+{ unfold field_address0.
+ destruct (field_compatible0_dec (tarray tuint 60) [ArraySubsc 0] (offset_val 8 ctx)).
+{ simpl. pose (Ip := (field_compatible_isptr _ _ ctx f)).
+destruct ctx; inversion Ip. simpl.
+apply andp_left2.
+do 2 rewrite Int.add_zero.
+apply derives_refl. }
+{ admit. (* contradictory "else" case *) }
+}
+{ admit. (* contradictory "else" case *) }
+}
 { entailer!. }
 }
 { fwd_result. unfold MORE_COMMANDS. unfold abbreviate.
   admit. (* rest of function *)
 }
-(* 3 goals left *)
-(*
-    { uint32_t b0 = (uint32_t) (input)[(0)];
-      uint32_t b1 = (uint32_t) (input)[(0) + 1]; 
-      uint32_t b2 = (uint32_t) (input)[(0) + 2]; 
-      uint32_t b3 = (uint32_t) (input)[(0) + 3]; 
-      (X0) = (b0 | (b1 << 8) | (b2 << 16) | (b3 << 24));
-    };
-    X0 ^= *RK++;
-*)
-
 Qed.
 
 (* TODO floyd: sc_new_instantiate: distinguish between errors caused because the tactic is trying th
