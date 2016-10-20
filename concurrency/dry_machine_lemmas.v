@@ -396,7 +396,6 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
   Lemma mem_compatible_remlock:
     forall tp m addr
       (Hinv: lr_valid (lockRes tp))
-      (Hlock: lockRes tp addr)
       (Hcomp: mem_compatible tp m),
       mem_compatible (remLockSet tp addr) m.
   Proof.
