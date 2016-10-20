@@ -25,7 +25,6 @@ Require Import veric.initial_world.
 Require Import veric.juicy_extspec.
 Require Import veric.tycontext.
 Require Import veric.semax_ext.
-Require Import veric.semax_ext_oracle.
 Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
 Require Import veric.shares.
@@ -223,11 +222,11 @@ Section Progress.
       
       (* paragraph below: ef has to be an EF_external with one of those 5 names *)
       assert (which_primitive :
-                Some (ext_link "acquire") = (ef_id ext_link (EF_external name sg)) \/
-                Some (ext_link "release") = (ef_id ext_link (EF_external name sg)) \/
-                Some (ext_link "makelock") = (ef_id ext_link (EF_external name sg)) \/
-                Some (ext_link "freelock") = (ef_id ext_link (EF_external name sg)) \/
-                Some (ext_link "spawn") = (ef_id ext_link (EF_external name sg))).
+                Some (ext_link "acquire", LOCK_SIG) = (ef_id_sig ext_link (EF_external name sg)) \/
+                Some (ext_link "release", UNLOCK_SIG) = (ef_id_sig ext_link (EF_external name sg)) \/
+                Some (ext_link "makelock", ef_sig MKLOCK) = (ef_id_sig ext_link (EF_external name sg)) \/
+                Some (ext_link "freelock", ef_sig FREE_LOCK) = (ef_id_sig ext_link (EF_external name sg)) \/
+                Some (ext_link "spawn", CREATE_SIG) = (ef_id_sig ext_link (EF_external name sg))).
       {
         pose proof (safety i cnti tt) as safe_i.
         rewrite Eci in safe_i.

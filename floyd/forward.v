@@ -255,14 +255,9 @@ Ltac semax_func_cons L :=
 
 Ltac semax_func_cons_ext :=
   eapply semax_func_cons_ext;
-    [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+    [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
     | semax_func_cons_ext_tc 
     | solve[ first [eapply semax_ext; 
-          [ repeat first [reflexivity | left; reflexivity | right]
-          | apply compute_funspecs_norepeat_e; reflexivity 
-          | reflexivity 
-          | reflexivity ] || 
-                    eapply semax_ext_void; 
           [ repeat first [reflexivity | left; reflexivity | right]
           | apply compute_funspecs_norepeat_e; reflexivity 
           | reflexivity 
