@@ -2991,60 +2991,110 @@ in other cases it uses the higher-level (and more standard)
    examine the proof state in
   \file{progs/verif\_sumarray.v} immediately after \textsf{start\_function} in \textsf{Lemma body\_main}.}.  
 
-\ychapter{For loops}{}
+\ychapter{For loops (special case)}{}
 \label{refcard:for}
-The C-language \textsf{for} loop has the general form,
-\begin{lstlisting}
- for ($\mathit{init}$; $\mathit{test}$; $\mathit{incr}$) $\mathit{body}$
-\end{lstlisting}
-
-To solve a proof goal of this form (or when this is followed by other
-statements in sequence), use the tactic
-
-\begin{lstlisting}
- forward_for $~\mathit{Inv}~$ $~\mathit{PreIncr}~$ $~\mathit{PostCond}~$ 
-\end{lstlisting}
-where \textit{Inv, PreIncr, PostCond} are assertions
-(in $\PROP/ \LOCAL /\SEP$ form):
-\begin{trivlist}
-\item
-\textit{Inv} is the loop invariant,
-that holds immediately after the \textit{init} command is executed
-and before each time the \textit{test} is done;
-\textit{PreIncr}
-is the invarint that holds immediately after the loop \textit{body}
-and right before the \textit{incr};
-\item 
-\textit{PostCond}
-is the assertion that holds after the loop is complete
-(whether by a break statement, or the test evaluating to false).
-\end{trivlist}
-
-\textbf{In VST 1.6, forward\_for is slightly broken,
-  but you can use forward\_for\_simple\_bound (described below) or
-  forward\_while (since a for loop is often a special case of a while loop).}
 
 \newthought{Many for-loops have this special form},\newline
-\lstinline{ for ($\mathit{init}$; $\mathit{id}$ < $\mathit{hi}$; $\mathit{id}$++) $\mathit{body}$}~~~
+\lstinline{ for ($\mathit{init}$; i < $\mathit{hi}$; i++) $\mathit{body}$}~~~
 such that the expression \textit{hi} will evaluate to the same value
 every time around the loop.  This upper-bound expression need not
 be a literal constant, it just needs to be invariant.
-Then you can use the tactic,
+
+For these loops you can use the tactic,
 \begin{lstlisting}
  forward_for_simple_bound $n$ $~$     (EX $i$:Z, PROP($\vec{P}$) LOCAL($\vec{Q}$) SEP($\vec{R}$).
 \end{lstlisting}
 where $n$ is the upper bound: a Coq value of type $Z$ 
 such that \textit{hi} will evaluate to $n$.
+
 The loop invariant is given by the expression
 \lstinline{(EX $i$:Z, PROP($\vec{P}$) LOCAL($\vec{Q}$) SEP($\vec{R}$)},
 where $i$ is the value (in each iteration) of the loop iteration variable $\mathit{id}$.
 This tactic generates simpler subgoals than the general \lstinline{forward_for} tactic.
 
-When the loop has the form,~~~~
-\lstinline{ for ($\mathit{id}$=$\mathit{lo}$; $\mathit{id}$ < $\mathit{hi}$; $\mathit{id}$++) $\mathit{body}$}\newline
-where \textit{lo} is a literal constant, then
-the \lstinline{forward_for_simple_bound} tactic will
-generate slightly simpler subgoals.
+\textbf{You must omit} from $Q$ any mention of the loop iteration variable
+\lstinline{_i}.  The tactic will insert the binding \lstinline{temp _i $i$}.
+Similarly, you need not write $i<\mathit{hi}$ in $P$, the tactic will
+insert it.
+
+\newthought{An example} of a for-loop proof is in
+\file{progs/verif\_sumarray2.v}.
+This is an alternate implementation of \file{progs/sumarray.c}
+(see \autoref{refcard:forward-while})
+that uses a \lstinline{for} loop instead of a \lstinline{while} loop:
+\begin{lstlisting}
+int sumarray(int a[], int n) {   /* sumarray2.c */
+  int i,s,x;
+  s=0;
+  for (i=0; i<n; i++) {
+    x = a[i];
+    s += x;
+  }
+  return s;
+}
+\end{lstlisting}
+
+\ychapter{For loops (general case)}{}
+\label{refcard:for-general}
+
+The C-language \textsf{for} loop has the general form,
+\lstinline{for ($\mathit{init}$; $\mathit{test}$; $\mathit{incr}$) $\mathit{body}$}
+in which $\mathit{init}$ and $\mathit{incr}$ can be any statements
+that don't do control flow, $\mathit{test}$ can be
+any expression, and the $\mathit{body}$ can contain
+\lstinline{break} or \lstinline{continue} statements.
+
+To handle the general case, you cannot use
+\lstinline{forward_for_simple_bound}.
+Instead, you should unfold \lstinline{Sfor} into
+\lstinline{Ssequence _ $$ (Sloop _ $$ _)}, and use
+Verifiable C's \lstinline{semax_loop} rule.
+
+This is demonstrated in the lemma
+\lstinline{body_sumarray_alt} in
+the file \linebreak \file{progs/verif\_sumarray2.v}.
+The procedure there is straightforward but cumbersome,
+because you need to define assertions at each of these points:
+
+\begin{minipage}{2in}
+\begin{lstlisting}
+int sumarray(int a[], int n) {  
+  int i,s,x;
+  s=0;
+  for (i=0; i<n; i++) {
+    x = a[i];
+    s += x;
+  }
+  return s;
+}
+\end{lstlisting}
+\end{minipage}
+\qquad
+\begin{minipage}{3in}
+\begin{lstlisting}
+int sumarray(int a[], int n) {  
+  int i,s,x;
+  s=0; i=0;  $\mathit{Pre}$
+  for ( ; ; i++) { $\mathit{Inv}$
+    if (i<n) ;  else break;
+    $\mathit{PreBody}$    x = a[i]; s += x;   $\mathit{PostBody}$
+  } $\mathit{Post}$
+  return s;
+}
+\end{lstlisting}
+\end{minipage}
+
+\textit{Pre} and \textit{Post}
+are the precondition/postcondition for the loop as a whole.
+\textit{PreBody} and \textit{PostBody}
+are the precondition/postcondition for the loop body
+(not including the increment);
+and \textit{Inv} is the loop invariant.
+
+In the general case, why is the increment (\lstinline{i++}) not
+attached directly to the end of the loop body?  Answer: because the
+\lstinline{continue} statement goes to right \emph{before} the
+increment.
 
 \chapter{Manipulating preconditions}
 In some cases you cannot go \lstinline{forward} until the precondition

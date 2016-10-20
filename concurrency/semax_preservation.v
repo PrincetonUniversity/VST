@@ -26,7 +26,6 @@ Require Import veric.initial_world.
 Require Import veric.juicy_extspec.
 Require Import veric.tycontext.
 Require Import veric.semax_ext.
-Require Import veric.semax_ext_oracle.
 Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
 Require Import floyd.coqlib3.
@@ -2413,7 +2412,8 @@ Section Preservation.
               subst e.
               revert x Pre Post.
               funspec_destruct "acquire"; swap 1 2.
-              { exfalso. unfold ef_id in *. congruence. }
+              { exfalso. unfold ef_id_sig, ef_sig in *.
+                unfold funsig2signature in Heq_name; simpl in Heq_name. congruence. }
               intros x Pre Post.
               destruct Pre as (phi0 & phi1 & j & Pre).
               destruct (join_assoc (join_comm j) Hadd_lock_res) as (phi0' & jphi0' & jframe).
@@ -3041,10 +3041,11 @@ Section Preservation.
               subst e.
               revert x Pre Post.
               funspec_destruct "acquire".
-              { exfalso. unfold ef_id in *. injection Heq_name as E.
+              { exfalso. unfold ef_id_sig in *. injection Heq_name as E.
                 apply ext_link_inj in E. congruence. }
               funspec_destruct "release"; swap 1 2.
-              { exfalso. unfold ef_id in *. congruence. }
+              { exfalso. unfold ef_id_sig in *.
+                unfold funsig2signature in *. simpl in *; congruence. }
               intros x Pre Post.
               destruct Pre as (phi0 & phi1 & j & Pre).
               rewrite m_phi_jm_ in j.

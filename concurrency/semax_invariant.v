@@ -25,7 +25,6 @@ Require Import veric.initial_world.
 Require Import veric.juicy_extspec.
 Require Import veric.tycontext.
 Require Import veric.semax_ext.
-Require Import veric.semax_ext_oracle.
 Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
 Require Import floyd.coqlib3.
@@ -436,13 +435,15 @@ Qed.
 Ltac absurd_ext_link_naming :=
   exfalso;
   match goal with
-  | H : Some ((_ : string -> ident) _) = _ |- _ =>
+  | H : Some ((_ : string -> ident) _, _) = _ |- _ =>
     rewrite <-H in *
   end;
+  unfold funsig2signature in *;
   match goal with
-  | H : Some ((?ext_link : string -> ident) ?a) <> Some (?ext_link ?a) |- _ =>
-    congruence
-  | H : Some ((?ext_link : string -> ident) ?a) = Some (?ext_link ?b) |- _ =>
+  | H : Some ((?ext_link : string -> ident) ?a, ?b) <> Some (?ext_link ?a, ?b') |- _ =>
+    simpl in H; congruence
+  | H : Some ((?ext_link : string -> ident) ?a, ?c) = Some (?ext_link ?b, ?d) |- _ =>
+    simpl in H;
     match goal with
     | ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2 |- _ =>
       assert (a = b) by (apply ext_link_inj; congruence); congruence
@@ -453,7 +454,7 @@ Ltac funspec_destruct s :=
   simpl (ext_spec_pre _); simpl (ext_spec_type _); simpl (ext_spec_post _);
   unfold funspec2pre, funspec2post;
   let Heq_name := fresh "Heq_name" in
-  destruct (oi_eq_dec (Some (_ s)) (ef_id _ (EF_external _ _)))
+  destruct (oi_eq_dec (Some (_ s, _)) (ef_id_sig _ (EF_external _ _)))
     as [Heq_name | Heq_name]; try absurd_ext_link_naming.
 
 

@@ -805,7 +805,7 @@ Definition add_funspecs (Espec : OracleKind)
    veric.semax_ext.add_funspecs Espec ext_link fs.
 
 Definition funsig2signature (s : funsig) cc : signature :=
-  mksignature (map typ_of_type (map snd (fst s))) (Some (typ_of_type (snd s))) cc.
+  mksignature (map typ_of_type (map snd (fst s))) (opttyp_of_type (snd s)) cc.
 
 Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
 

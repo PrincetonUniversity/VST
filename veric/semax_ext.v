@@ -10,7 +10,7 @@ Require Import veric.semax.
 Require Import veric.semax_call.
 
 Definition funsig2signature (s : funsig) cc : signature :=
-  mksignature (map typ_of_type (map snd (fst s))) (Some (typ_of_type (snd s))) cc.
+  mksignature (map typ_of_type (map snd (fst s))) (opttyp_of_type (snd s)) cc.
 
 (* NOTE.   ext_link: Strings.String.string -> ident
    represents the mapping from the _name_ of an external function
@@ -19,8 +19,8 @@ Definition funsig2signature (s : funsig) cc : signature :=
   produced by clightgen.
 *)
 
-Definition ef_id (ext_link: Strings.String.string -> ident) ef :=
-  match ef with EF_external id sig => Some (ext_link id) | _ => None end.
+Definition ef_id_sig (ext_link: Strings.String.string -> ident) ef :=
+  match ef with EF_external id sig => Some (ext_link id, sig) | _ => None end.
 
 Section funspecs2jspec.
 
@@ -32,13 +32,17 @@ Parameter symb2genv : forall (ge_s : PTree.t block), genv. (*TODO*)
 Axiom symb2genv_ax : forall (ge_s : PTree.t block), Genv.genv_symb (symb2genv ge_s) = ge_s.
 
 (* Making this particular instance of EqDec opaque *)
-Lemma oi_eq_dec : forall a a' : option ident, { a = a' } + { a <> a' }. apply eq_dec. Qed.
+Lemma oi_eq_dec : forall a a' : option (ident * signature), { a = a' } + { a <> a' }.
+Proof.
+  intros; repeat (apply eq_dec || decide equality).
+Qed.
+
 
 Definition funspec2pre (ext_link: Strings.String.string -> ident) (A : TypeTree)
   (P: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
-  (ids: list ident) (id: ident) (ef: external_function) x ge_s
+  (ids: list ident) (id: ident) (sig : signature) (ef: external_function) x ge_s
            (tys : list typ) args (z : Z) m : Prop :=
-  match oi_eq_dec (Some id) (ef_id ext_link ef) as s
+  match oi_eq_dec (Some (id, sig)) (ef_id_sig ext_link ef) as s
   return ((if s then (rmap* (sigT (fun ts => dependent_type_functor_rec ts A mpred)))%type else ext_spec_type Espec ef) -> Prop)
   with
     | left _ => fun x' => exists phi0 phi1, join phi0 phi1 (m_phi m)
@@ -49,8 +53,8 @@ Definition funspec2pre (ext_link: Strings.String.string -> ident) (A : TypeTree)
 
 Definition funspec2post (ext_link: Strings.String.string -> ident) (A : TypeTree)
   (Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
-  id ef x ge_s (tret : option typ) ret (z : Z) m : Prop :=
-  match oi_eq_dec (Some id) (ef_id ext_link ef) as s
+  id sig ef x ge_s (tret : option typ) ret (z : Z) m : Prop :=
+  match oi_eq_dec (Some (id, sig)) (ef_id_sig ext_link ef) as s
   return ((if s then (rmap*(sigT (fun ts => dependent_type_functor_rec ts A mpred)))%type else ext_spec_type Espec ef) -> Prop)
   with
     | left _ => fun x' => exists phi0 phi1, join phi0 phi1 (m_phi m)
@@ -62,11 +66,12 @@ Definition funspec2post (ext_link: Strings.String.string -> ident) (A : TypeTree
 Definition funspec2extspec (ext_link: Strings.String.string -> ident) (f : (ident*funspec))
   : external_specification juicy_mem external_function Z :=
   match f with
-    | (id, mk_funspec (params, sigret) _ A P Q NEP NEQ) =>
+    | (id, mk_funspec ((params, sigret) as fsig) cc A P Q NEP NEQ) =>
+      let sig := funsig2signature fsig cc in
       Build_external_specification juicy_mem external_function Z
-        (fun ef => if oi_eq_dec (Some id) (ef_id ext_link ef) then (rmap* (sigT (fun ts => dependent_type_functor_rec ts A mpred)))%type else ext_spec_type Espec ef)
-        (funspec2pre ext_link A P (fst (split params)) id)
-        (funspec2post ext_link A Q id)
+        (fun ef => if oi_eq_dec (Some (id, sig)) (ef_id_sig ext_link ef) then (rmap* (sigT (fun ts => dependent_type_functor_rec ts A mpred)))%type else ext_spec_type Espec ef)
+        (funspec2pre ext_link A P (fst (split params)) id sig)
+        (funspec2post ext_link A Q id sig)
         (fun rv z m => False)
   end.
 
@@ -104,9 +109,8 @@ Program Definition funspec2jspec (ext_link: Strings.String.string -> ident) f : 
 Next Obligation.
 destruct f; simpl; unfold funspec2pre, pureat; simpl; destruct f; simpl;
   destruct f; simpl; intros.
-simpl in t; revert t.
-destruct (oi_eq_dec (Some i) (ef_id ext_link e)).
-* destruct e; try discriminate; injection e0 as E; subst i; intros t a a' Hage.
+if_tac [e0|e0].
+* destruct e; try discriminate; injection e0 as E; subst i sg; intros a a' Hage.
 intros [phi0 [phi1 [Hjoin [Hx Hy]]]].
 apply age1_juicy_mem_unpack in Hage.
 destruct Hage as [Hage Hdry].
@@ -115,16 +119,14 @@ exists x', y'; split; auto.
 destruct P. split. eapply h; eauto.
 apply (necR_trans (fst t0) phi1 y'); auto.
 unfold necR. constructor; auto.
-* intros ? ? ?; auto.
+* intros ? ?; auto.
 destruct Espec; simpl; apply JE_pre_hered.
 Qed.
 Next Obligation.
 destruct f; simpl; unfold funspec2post, pureat; simpl; destruct f; simpl;
   destruct f; simpl; intros.
-simpl in t; revert t.
-destruct (oi_eq_dec (Some i) (ef_id ext_link e)).
-* destruct e; try discriminate; injection e0 as E; subst i; intros t a a' Hage.
- destruct Q; simpl.
+if_tac [e0|e0].
+* destruct e; try discriminate; injection e0 as E; subst i sg. intros a a' Hage. destruct Q; simpl.
 intros [phi0 [phi1 [Hjoin [Hx Hy]]]].
 apply age1_juicy_mem_unpack in Hage.
 destruct Hage as [Hage Hdry].
@@ -133,7 +135,7 @@ exists x', y'; split; auto.
 split; [solve[eapply h; eauto]|].
 apply (necR_trans (fst t0) phi1 y'); auto.
 unfold necR. constructor; auto.
-* intros ? ? ?; auto.
+* intros ? ?; auto.
 destruct Espec; simpl; apply JE_post_hered.
 Qed.
 Next Obligation.
@@ -172,7 +174,7 @@ destruct H1 as [H1|H1].
 subst a; simpl in *.
 clear IHfs H; revert x H2 Hpre; unfold funspec2pre; simpl.
 destruct sig; simpl.
-destruct (oi_eq_dec (Some (ext_link id)) (Some (ext_link id))); simpl.
+if_tac [e0|e0].
 rewrite fst_split.
 intros x Hjoin Hp. exists (phi1, x). split; eauto.
 elimtype False; auto.
@@ -185,7 +187,7 @@ inversion H as [|? ? Ha Hb]; subst.
 destruct (IHfs Hb H1 H2 Hpre) as [x' H3].
 clear -Ha Hin H1 H3; revert x' Ha Hin H1 H3.
 destruct a; simpl; destruct f; simpl; destruct f; simpl; unfold funspec2pre; simpl.
-destruct (oi_eq_dec (Some i) (Some (ext_link id))).
+if_tac [e|e].
 * injection e as E; subst i; destruct fs; [solve[simpl; intros; elimtype False; auto]|].
   intros x' Ha Hb; simpl in Ha, Hb.
   elimtype False; auto.
@@ -212,8 +214,10 @@ destruct H1 as [H1|H1].
 {
 subst a; simpl in *.
 clear IHfs H; revert x H2 Hpre; unfold funspec2pre; simpl.
-destruct (oi_eq_dec (Some (ext_link id)) (Some (ext_link id))); simpl.
-intros x Hjoin Hp. exists (phi1, x). split; eauto.
+if_tac [e|e].
+intros x Hjoin Hp. exists (phi1,x). split; eauto.
+unfold funsig2signature in e.
+simpl in e.
 elimtype False; auto.
 }
 
@@ -224,7 +228,7 @@ inversion H as [|? ? Ha Hb]; subst.
 destruct (IHfs Hb H1 H2 Hpre) as [x' H3].
 clear -Ha Hin H1 H3; revert x' Ha Hin H1 H3.
 destruct a; simpl; destruct f; simpl; destruct f; simpl; unfold funspec2pre; simpl.
-destruct (oi_eq_dec (Some i) (Some (ext_link id))).
+if_tac [e|e].
 * injection e as E; subst i; destruct fs; [solve[simpl; intros; elimtype False; auto]|].
   intros x' Ha Hb; simpl in Ha, Hb.
   elimtype False; auto.
@@ -250,7 +254,7 @@ destruct H1 as [H1|H1].
 {
 subst a; simpl in *.
 clear IHfs H; revert x Hpost; unfold funspec2post; simpl.
-destruct (oi_eq_dec (Some (ext_link id)) (Some (ext_link id))); simpl.
+if_tac [e|e].
 intros x [phi0 [phi1 [Hjoin [Hq Hnec]]]].
 exists phi0, phi1, (fst x), (snd x).
 split; auto. split; auto. destruct x; simpl in *. split; destruct s; auto.
@@ -264,7 +268,7 @@ inversion H as [|? ? Ha Hb]; subst.
 clear -Ha Hin H1 Hb Hpost IHfs; revert x Ha Hin H1 Hb Hpost IHfs.
 destruct a; simpl; destruct f; simpl; unfold funspec2post; simpl.
 destruct f; simpl.
-destruct (oi_eq_dec (Some i) (Some (ext_link id))).
+if_tac [e|e].
 * injection e as E; subst i; destruct fs; [solve[simpl; intros; elimtype False; auto]|].
   intros x' Ha Hb; simpl in Ha, Hb.
   elimtype False; auto.
@@ -290,7 +294,7 @@ destruct H1 as [H1|H1].
 subst a; simpl in *.
 clear IHfs H; revert x Hpost; unfold funspec2post; simpl.
 destruct sig; simpl.
-destruct (oi_eq_dec (Some (ext_link id)) (Some (ext_link id))); simpl.
+if_tac [e|e].
 intros x [phi0 [phi1 [Hjoin [Hq Hnec]]]].
 exists phi0, phi1, (fst x), (snd x).
 split; auto. split; auto. destruct x; simpl in *. split; auto.
@@ -304,7 +308,7 @@ inversion H as [|? ? Ha Hb]; subst.
 clear -Ha Hin H1 Hb Hpost IHfs; revert x Ha Hin H1 Hb Hpost IHfs.
 destruct a; simpl; destruct f; simpl; unfold funspec2post; simpl.
 destruct f; simpl.
-destruct (oi_eq_dec (Some i) (Some (ext_link id))).
+if_tac [e|e].
 * injection e as E; subst i; destruct fs; [solve[simpl; intros; elimtype False; auto]|].
   intros x' Ha Hb; simpl in Ha, Hb.
   elimtype False; auto.
@@ -372,6 +376,9 @@ intros; subst.
 eapply semax_ext'; eauto.
 Qed.
 
+(* Lemmas [semax_ext'_void] and [semax_ext_void] were needed before we
+used optyp_of_type of funsig2signature, we should be able to get rid
+of them now *)
 Lemma semax_ext'_void (ext_link: Strings.String.string -> ident) id sig cc A P Q NEP NEQ (fs : funspecs) :
   let f := mk_funspec (sig, tvoid) cc A P Q NEP NEQ in
   In (ext_link  id,f) fs ->
