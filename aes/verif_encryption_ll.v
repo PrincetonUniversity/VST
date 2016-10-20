@@ -233,6 +233,80 @@ apply derives_refl. }
 { entailer!. }
 }
 { fwd_result. unfold MORE_COMMANDS. unfold abbreviate.
+forward.
+thaw Fr.
+
+(* TODO put this in floyd/freezer.v *)
+Ltac freeze_except' R Rs i acc name := match Rs with
+| nil => let l := fresh "l" in pose (l := rev acc); simpl in l; freeze l name
+| R :: ?Rt => freeze_except' R Rt (i+1) acc name
+| ?Rh :: ?Rt => freeze_except' R Rt (i+1) (i :: acc) name
+end.
+
+Ltac freeze_except R name := match goal with
+| |- semax _ (PROPx _ (LOCALx _ (SEPx ?Rs))) _ _ =>
+       freeze_except' R Rs 0 (@nil Z) name
+end.
+
+freeze_except (data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input) Fr.
+
+  GET_UINT32_LE_tac. forward. forward. forward.
+
+entailer!.
+(* TODO why is (isptr (field_address t_struct_aesctx [StructField _buf] ctx)) not solved automatically?*)
+admit.
+
+thaw Fr. simpl.
+
+Lemma split_array_head2:
+ forall {cs: compspecs} n start (sh: Share.t) (t: type) 
+                            v (v1': (reptype t)) (v2': list (reptype t)) v1 v2 p,
+  0 <= start < n ->
+  JMeq v (v1' :: v2') ->
+  JMeq v1 v1' ->
+  JMeq v2 v2' ->
+  data_at sh (tarray t (n-start)) v (field_address0 (tarray t n) [ArraySubsc start] p) =
+  data_at sh t v1 (field_address0 (tarray t n) [ArraySubsc start] p) *
+  data_at sh (tarray t (n-start-1)) v2 (field_address0 (tarray t n) [ArraySubsc (start+1)] p).
+Admitted.
+
+erewrite (split_array_head2 60 1 ctx_sh tuint
+(Vint (Int.repr k2) :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail))
+(Vint (Int.repr k2))   (Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail))
+(Vint (Int.repr k2))   (Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail)));
+  first [ apply JMeq_refl | omega | idtac ].
+
+simpl.
+repeat flatten_sepcon_in_SEP.
+
+freeze_except (data_at ctx_sh tuint (Vint (Int.repr k2))
+     (field_address0 (tarray tuint 60) [ArraySubsc 1]
+        (field_address t_struct_aesctx [StructField _buf] ctx))) Fr.
+
+eapply semax_seq'. {
+hoist_later_in_pre.
+
+eapply semax_load_nth_ram with (t1 := tuint) (t2 := tuint) (n := 1%nat) (v := (Vint (Int.repr k2)));
+  try reflexivity.
+{ entailer. }
+{ apply SH. }
+{ eapply derives_trans. 2: apply sepcon_TT.
+rewrite field_address_offset. {
+rewrite field_address0_offset. {
+unfold data_at. unfold field_at. unfold at_offset. rewrite data_at_rec_eq. simpl.
+apply andp_left2.
+rewrite <- mapsto_offset_zero.
+apply derives_refl. }
+{ admit. (* field_compatible0 stuff *) }
+}
+{ admit. (* field_compatible stuff *) }
+}
+{ entailer!. (* TODO isptr why not solved? *) admit. }
+}
+{ fwd_result. unfold MORE_COMMANDS. unfold abbreviate.
+forward.
+thaw Fr.
+
   admit. (* rest of function *)
 }
 Qed.
@@ -241,3 +315,10 @@ Qed.
    wrong thing and errors because of user type errors such as "tuint does not equal t_struct_aesctx" *)
 
 (* TODO floyd: compute_nested_efield should not fail silently *)
+
+(*
+Note:
+field_compatible/0 -> legal_nested_field/0 -> legal_field/0:
+  legal_field0 allows an array index to point 1 past the last array cell, legal_field disallows this
+*)
+
