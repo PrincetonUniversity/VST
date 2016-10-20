@@ -482,7 +482,7 @@ Module Concur.
              ext_step genv cnt0 Hcompat tp'' m' (mklock (b, Int.intval ofs))
                       
      | step_freelock :
-         forall  (tp' tp'': thread_pool) c b ofs pmap_tid' m1,
+         forall  (tp' tp'': thread_pool) c b ofs pmap_tid' m1 pdata,
            let: pmap_tid := getThreadR cnt0 in
            forall 
            (Hinv : invariant tp)
@@ -497,9 +497,9 @@ Module Concur.
            (Hfreeable: Mem.range_perm m1 b (Int.intval ofs) ((Int.intval ofs) + LKSIZE) Cur Writable)
            (** lock permissions of the thread are dropped to empty *)
            (Hlock_perm: setPermBlock None b (Int.intval ofs) pmap_tid.2 LKSIZE_nat = pmap_tid'.2)
-           (** lock permissions of the thread are transfered to the data
-           permissions - again maybe we should do a more precise transfer*)
-           (Hdata_perm: setPermBlock (pmap_tid.2 !! b (Int.intval ofs)) b
+           (** data permissions are computed in a non-deterministic way *)
+           (Hpdata: perm_order pdata Writable)
+           (Hdata_perm: setPermBlock (Some pdata) b
                                      (Int.intval ofs) pmap_tid.1 LKSIZE_nat = pmap_tid'.1)
            (Htp': tp' = updThread cnt0 (Kresume c Vundef) pmap_tid')
            (Htp'': tp'' = remLockSet tp' (b, Int.intval ofs)),

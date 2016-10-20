@@ -919,16 +919,21 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
         rewrite getCurPerm_correct. unfold permission_at.
         destruct (Hold Hvalid) as [Hfreed | Heq].
         + (* if b was freed*)
-          destruct (Hfreed Cur) as [_ Hnone].
-          rewrite Hnone;
-            by simpl.
+          destruct (Hfreed Cur) as [Hfree Hnone].
+          rewrite Hnone. simpl.
+          specialize (Hcoh b ofs).
+          rewrite getCurPerm_correct in Hcoh.
+          unfold permission_at in Hcoh.
+          rewrite Hfree in Hcoh.
+          simpl in Hcoh.
+          destruct (pmap # b ofs); [by exfalso | auto].
         + (* if permission on (b,ofs) remained the same*)
           specialize (Heq Cur).
           rewrite <- Heq.
           specialize (Hcoh b ofs).
           rewrite getCurPerm_correct in Hcoh; unfold permission_at in *;
             assumption.
-      - (*if was an invalid block *)
+      - (*if b was an invalid block *)
         apply Mem.nextblock_noaccess with (k := Max) (ofs := ofs) in Hinvalid.
         specialize (Hlt b ofs).
         rewrite getMaxPerm_correct in Hlt.

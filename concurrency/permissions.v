@@ -62,24 +62,12 @@ Section permMapDefs.
                                       | None => True
                                       | _ => False
                                       end
-    | Some Nonempty | None => True
+    | Some Nonempty | None =>
+                      match p2 with
+                      | Some Freeable => False
+                      | _ => True 
+                      end
     end.
-
-  Lemma perm_coh_empty_1:
-    forall p,
-      perm_coh p None.
-  Proof.
-    destruct p as [p|]; simpl; auto;
-      destruct p; auto.
-  Qed.
-
-  Lemma perm_coh_empty_2:
-    forall p,
-      perm_coh None p.
-  Proof.
-    destruct p as [p|]; simpl; auto;
-      destruct p; auto.
-  Qed.
 
   Lemma perm_coh_lower:
     forall p1 p2 p3 p4
@@ -94,12 +82,11 @@ Section permMapDefs.
         destruct p4 as [p|];
         try (destruct p); inversion Hperm2; subst;
           destruct p1 as [p|];
-          try (destruct p); simpl in Hpu, Hperm1; try (by exfalso);
+          try (destruct p); simpl in Hpu, Hperm1; try (now exfalso);
             destruct p3; try inversion Hperm1; subst; simpl; auto.
     destruct p; auto.
   Qed.
   
-
   Definition permMapCoherence (pmap1 pmap2 : access_map) :=
     forall b ofs, perm_coh (pmap1 !! b ofs) (pmap2 !! b ofs).
   
@@ -748,7 +735,8 @@ Section permMapDefs.
         destruct (pmap' !! b' ofs') as [p|]; simpl in *;
           try (by exfalso);
           destruct p; inversion Hreadable; subst;
-            destruct (pmap !! b' ofs'); simpl in *; auto.
+            destruct (pmap !! b' ofs') as [p1|];
+            try (destruct p1); simpl in *; auto.
       + destruct sz_nat; first by (simpl; eauto).
         erewrite setPermBlock_other_1
           by (eapply Intv.range_notin in n;
