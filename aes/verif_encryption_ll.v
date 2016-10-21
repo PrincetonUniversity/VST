@@ -211,6 +211,34 @@ Lemma semax_max_path_field_load_nth_ram':
                 (SEPx R)))).
 Admitted.
 
+Lemma semax_SC_field_load':
+  forall {Espec: OracleKind},
+    forall Delta sh n id P Q R (e: expr)
+      (t t_root: type) (gfs0 gfs1 gfs: list gfield)
+      (p: val) (v : val) (v' : reptype (nested_field_type t_root gfs0)),
+      typeof_temp Delta id = Some t ->
+      is_neutral_cast (typeof e) t = true ->
+      readable_share sh ->
+      type_is_volatile (typeof e) = false ->
+      gfs = gfs1 ++ gfs0 ->
+      nth_error R n = Some (field_at sh t_root gfs0 v' p) ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        local (`(eq (field_address t_root gfs p)) (eval_lvalue e)) ->
+      JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v') v ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        local `(tc_val (typeof e) v) ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        (!! legal_nested_field t_root gfs) ->
+      semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
+        (Sset id e)
+          (normal_ret_assert
+            (PROPx P 
+              (LOCALx (temp id v :: remove_localdef id Q)
+                (SEPx R)))).
+Proof.
+(* TODO prove in terms of semax_max_path_field_load_nth_ram' *)
+Admitted.
+
 simpl.
 
 freeze [1; 2; 3] Fr.
@@ -218,16 +246,18 @@ freeze [1; 2; 3] Fr.
 eapply semax_seq'. {
 hoist_later_in_pre.
 
-eapply (semax_max_path_field_load_nth_ram' 1 _ ctx_sh _ _ _ _ _ _ tuint t_struct_aesctx
-[ArraySubsc 0; StructField _buf]
+eapply (semax_SC_field_load' _ ctx_sh 1 _ _ _ _ _ tuint t_struct_aesctx
+[] [ArraySubsc 0; StructField _buf] [ArraySubsc 0; StructField _buf]
  ctx (Vint (Int.repr k1)));
   first [ apply JMeq_refl | reflexivity | assumption | idtac ].
-{ entailer!. (* doesn't help, so still use splitting lemmas? or other tactics? *) admit. }
 { entailer!.
+  (* TODO floyd why doesn't entailer do this automatically? *)
   do 2 rewrite field_compatible_field_address by auto with field_compatible.
-  reflexivity. (* TODO floyd why doesn't entailer do this automatically? *)
-}
+  reflexivity. }
 { entailer!. }
+{ entailer!.
+  (* TODO floyd why doesn't entailer do in_members? *)
+ rewrite <- compute_in_members_true_iff. reflexivity. }
 }
 
 (*
@@ -366,6 +396,10 @@ Qed.
    wrong thing and errors because of user type errors such as "tuint does not equal t_struct_aesctx" *)
 
 (* TODO floyd: compute_nested_efield should not fail silently *)
+
+(* TODO floyd: if field_address is given a gfs which doesn't match t, it should not fail silently,
+   or at least, the tactics should warn.
+   And same for nested_field_offset. *)
 
 (*
 Note:
