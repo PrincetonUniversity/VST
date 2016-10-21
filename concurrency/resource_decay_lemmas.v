@@ -46,7 +46,6 @@ Proof.
   destruct R as [N [R|[R|[R|R]]]].
   - rewrite <- R.
     unfold resource_fmap in *; f_equal.
-    apply preds_fmap_NoneP.
   - destruct R as [sh' [v [v' [R H]]]]. simpl in R. congruence.
   - destruct R as [v [v' R]]. specialize (N ltac:(auto)). congruence.
   - destruct R as [v [pp' [R H]]]. congruence.
@@ -139,10 +138,11 @@ Proof.
       rewrite E.
       f_equal.
       simpl.
-      rewrite <- compose_assoc.
-      rewrite approx_oo_approx'. 2:apply RD.
       f_equal.
       extensionality.
+      change (approx (level phi') (approx (level phi) R)) with
+       ((approx (level phi') oo approx (level phi)) R).
+      rewrite approx_oo_approx' by apply RD.
       unfold "oo".
       change (approx (level phi')   (approx (level phi')  R))
       with  ((approx (level phi') oo approx (level phi')) R).

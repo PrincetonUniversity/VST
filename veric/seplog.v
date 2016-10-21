@@ -1,6 +1,7 @@
 Require Import msl.log_normalize.
 Require Import msl.alg_seplog.
 Require Export veric.base.
+Require Import veric.rmaps.
 Require Import veric.compcert_rmaps.
 Require Import veric.slice.
 Require Import veric.res_predicates.
@@ -15,13 +16,16 @@ Open Local Scope pred.
 
 Definition func_at (f: funspec): address -> pred rmap :=
   match f with
-   | mk_funspec fsig cc A P Q => pureat (SomeP (A::boolT::environ::nil) (packPQ P Q)) (FUN fsig cc)
+   | mk_funspec fsig cc A P Q _ _ => pureat (SomeP (SpecTT A) (packPQ P Q)) (FUN fsig cc)
   end.
 
 Definition func_at' (f: funspec) (loc: address) : pred rmap :=
   match f with
-   | mk_funspec fsig cc _ _ _ => EX pp:_, pureat pp (FUN fsig cc) loc
+   | mk_funspec fsig cc _ _ _ _ _ => EX pp:_, pureat pp (FUN fsig cc) loc
   end.
+
+Definition func_ptr (f: funspec) (v: val): mpred :=
+  EX b: block, !! (v = Vptr b Int.zero) && func_at f (b, 0).
 
 (* Definition assert: Type := environ -> pred rmap. *)
 
@@ -44,10 +48,11 @@ Definition not_a_param (params: list (ident * type)) (i : ident) : Prop :=
 Definition is_a_local (vars: list (ident * type)) (i: ident) : Prop :=
   In  i (map (@fst _ _) vars) .
 
-Definition precondition_closed (f: function) {A: Type} (P: A -> assert) : Prop :=
- forall x: A,
-  closed_wrt_vars (not_a_param (fn_params f)) (P x) /\ 
-  closed_wrt_lvars (is_a_local (fn_vars f)) (P x).
+Definition precondition_closed (f: function) {A: TypeTree}
+  (P: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred) : Prop :=
+ forall ts x,
+  closed_wrt_vars (not_a_param (fn_params f)) (P ts x) /\ 
+  closed_wrt_lvars (is_a_local (fn_vars f)) (P ts x).
 
 (*Definition expr_true (e: Clight.expr) (rho: environ): Prop := 
   bool_val (eval_expr e rho) (Clight.typeof e) = Some true.*)
@@ -64,11 +69,13 @@ Definition expr_false {CS: compspecs} e := lift1 (typed_false (typeof e)) (eval_
 
 Definition subst {A} (x: ident) (v: val) (P: environ -> A) : environ -> A :=
    fun s => P (env_set s x v).
-
+(*
 Definition fun_assert: 
-  forall (fml: funsig) cc (A: Type) (P Q: A -> environ -> pred rmap)  (v: val) , pred rmap :=
+  forall (fml: funsig) cc (A: TypeTree)
+   (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap))
+   (v: val) , pred rmap :=
   res_predicates.fun_assert.
-
+*)
 Definition eval_lvar (id: ident) (ty: type) (rho: environ) :=
  match Map.get (ve_of rho) id with
 | Some (b, ty') => if eqb_type ty ty' then Vptr b Int.zero else Vundef
@@ -138,15 +145,15 @@ destruct rho; apply H.
 Qed.
 
 Lemma close_precondition_e:
-   forall f A (P: A -> environ -> mpred),
+   forall f (A: TypeTree) (P:  forall ts, dependent_type_functor_rec ts (AssertTT A) mpred),
     precondition_closed f P ->
-  forall x rho,
-   close_precondition (fn_params f) (fn_vars f) (P x) rho |-- P x rho.
+  forall ts x rho,
+   close_precondition (fn_params f) (fn_vars f) (P ts x) rho |-- P ts x rho.
 Proof.
 intros.
 intros ? ?.
 destruct H0 as [ve' [te' [? [? ?]]]].
-destruct (H x).
+destruct (H ts x).
 rewrite (H3 _ te').
 rewrite (H4 _ ve').
 simpl.

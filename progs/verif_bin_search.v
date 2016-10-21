@@ -34,8 +34,8 @@ Definition search_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH u : unit
-  PRE  [] main_pre prog u
-  POST [ tint ] main_post prog u.
+  PRE  [] main_pre prog nil u
+  POST [ tint ] main_post prog nil u.
 
 (* Packaging the API spec all together. *)
 Definition Gprog : funspecs := 

@@ -34,33 +34,6 @@ Require Import veric.res_predicates.
 (**)
 Require Import veric.res_predicates. (*For the precondition of lock make and free*)
 
-Notation EXIT := 
-  (EF_external "EXIT" (mksignature (AST.Tint::nil) None)). 
-
-Notation CREATE_SIG :=
-  (mksignature (AST.Tint::AST.Tint::nil) (Some AST.Tint) cc_default).
-Notation CREATE := (EF_external "spawn" CREATE_SIG).
-
-Notation READ := 
-  (EF_external "READ" (mksignature (AST.Tint::AST.Tint::AST.Tint::nil)
-                                   (Some AST.Tint) cc_default)).
-Notation WRITE := 
-  (EF_external "WRITE" (mksignature (AST.Tint::AST.Tint::AST.Tint::nil)
-                                    (Some AST.Tint) cc_default)).
-
-Notation MKLOCK := 
-  (EF_external "makelock" (mksignature (AST.Tint::nil)
-                                     (Some AST.Tint) cc_default)).
-Notation FREE_LOCK := 
-  (EF_external "freelock" (mksignature (AST.Tint::nil)
-                                        (Some AST.Tint) cc_default)).
-
-Notation LOCK_SIG := (mksignature (AST.Tint::nil) (Some AST.Tint) cc_default).
-Notation LOCK := (EF_external "acquire" LOCK_SIG).
-Notation UNLOCK_SIG := (mksignature (AST.Tint::nil) (Some AST.Tint) cc_default).
-Notation UNLOCK := (EF_external "release" UNLOCK_SIG).
-
-
 (*  This shoul be replaced by global: 
     Require Import concurrency.lksize.  *)
 Definition LKCHUNK:= Mint32.
@@ -118,7 +91,7 @@ End ThreadPool.
 Module JMem.
 
   
-  Definition get_fun_spec' (jm:juicy_mem) (l:address) (v : val) : option (sigT (fun A => veric.rmaps.listprod A -> pred rmap)).
+  Definition get_fun_spec' (jm:juicy_mem) (l:address) (v : val) : option (sigT (fun A => forall ts, rmaps.dependent_type_functor_rec ts A (pred rmap))).
   Proof.
     destruct jm. destruct (phi @ l) eqn:FUN.
     - exact None.
@@ -127,29 +100,29 @@ Module JMem.
       + exact None.
       + exact None.
       + exact None.
-        destruct p.
+        destruct p as [A p].
         refine (Some (existT _ _ p)).
   Defined.
   Definition AType: Type. exact bool. Defined.
-  Definition get_fun_spec (p: veric.rmaps.listprod (AType::nil) -> pred rmap) : option (pred rmap * pred rmap).
-  Proof. exact (Some (p (true, tt), p (false, tt))).
+  Definition get_fun_spec (p: forall ts: list Type, AType -> pred rmap) : option (pred rmap * pred rmap).
+  Proof. exact (Some (p nil true, p nil false)).
   Defined.
 
   (*This won't be needed, we have a better way to compute it. *)
-  Definition get_lock_inv' (jm:juicy_mem) (l:address) : option (sigT (fun A => veric.rmaps.listprod A -> pred rmap)).
+  Definition get_lock_inv' (jm:juicy_mem) (l:address) : option (sigT (fun A => forall ts, rmaps.dependent_type_functor_rec ts A (pred rmap))).
   Proof.
     destruct jm. destruct (phi @ l) eqn:FUN.
     - exact None.
     - destruct k.
       + exact None.
-      + destruct p0.
+      + destruct p0 as [A p0].
         refine (Some (existT _ _ p0)).
       + exact None.
       + exact None.
       + exact None.
   Defined.
-  Definition get_lock_inv (p: veric.rmaps.listprod (AType::nil) -> pred rmap) : option (pred rmap).
-  Proof. exact (Some (p (true, tt))).
+  Definition get_lock_inv (p: forall ts: list Type, AType -> pred rmap) : option (pred rmap).
+  Proof. exact (Some (p nil true)).
   Defined.
   
 End JMem.
@@ -1020,8 +993,8 @@ Admitted.
             (Htp': tp' = @updThread tid0 (age_tp_to (level jm') tp) (cnt_age' cnt) (Krun c') (m_phi jm'))
             (Hm': m_dry jm' = m'),
             juicy_step genv cnt Hcompatible tp' m' [::].
-    
-    Definition pack_res_inv R:= SomeP nil  (fun _ => R) .
+
+    Definition pack_res_inv (R: pred rmap) := SomeP rmaps.Mpred (fun _ => R) .
 
     Notation Kblocked := (concurrent_machine.Kblocked).
     Open Scope Z_scope.
@@ -1096,8 +1069,8 @@ Admitted.
             (Hcompatible: mem_compatible tp m)
             (Hpersonal_perm: 
                personal_mem (thread_mem_compatible Hcompatible cnt0) = jm)
-            (p: veric.rmaps.listprod (JMem.AType::nil) -> pred rmap)
-            (Hget_fun_spec': JMem.get_fun_spec' jm (b, Int.intval ofs) arg = Some (existT _ _ p))
+            (p: forall ts: list Type, JMem.AType -> pred rmap)
+            (Hget_fun_spec': JMem.get_fun_spec' jm (b, Int.intval ofs) arg = Some (existT (fun A => forall ts: list Type, rmaps.dependent_type_functor_rec ts A (pred rmap)) (rmaps.ArrowType (rmaps.ConstType JMem.AType) rmaps.Mpred) p))
             (Hget_fun_spec: JMem.get_fun_spec p = Some (P, Q))
             (Hsat_fun_spec: P d_phi)
             (Halmost_empty: almost_empty d_phi)
@@ -1105,7 +1078,6 @@ Admitted.
             (Htp': tp_upd = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp' = addThread tp_upd vf arg d_phi),
             syncStep' genv cnt0 Hcompat tp' m (spawn (b, Int.intval ofs))
-                     
     | step_mklock :
         forall  (tp' tp'': thread_pool)  jm c b ofs R ,
           let: phi := m_phi jm in

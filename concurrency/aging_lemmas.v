@@ -101,9 +101,9 @@ Lemma age_yes_sat {Phi Phi' phi phi' l z sh sh'} (R : mpred) :
   age Phi Phi' ->
   age phi phi' ->
   app_pred R phi ->
-  Phi  @ l = YES sh sh' (LK z) (SomeP nil (fun _ => R)) ->
+  Phi  @ l = YES sh sh' (LK z) (SomeP rmaps.Mpred (fun _ => R)) ->
   app_pred (approx (S (level phi')) R) phi' /\
-  Phi' @ l = YES sh sh' (LK z) (SomeP nil (fun _ => approx (level Phi') R)).
+  Phi' @ l = YES sh sh' (LK z) (SomeP rmaps.Mpred (fun _ => approx (level Phi') R)).
 Proof.
   intros L A Au SAT AT.
   pose proof (app_pred_age Au SAT) as SAT'.
@@ -140,7 +140,9 @@ Proof.
     end; swap 1 2.
     + destruct (phi @ loc); unfold "oo"; simpl; auto.
       * destruct p0; auto.
+        rewrite preds_fmap_fmap; auto.
       * destruct p; auto.
+        rewrite preds_fmap_fmap; auto.
     + f_equal. rewrite approx'_oo_approx; auto.
       rewrite approx_oo_approx'; auto.
   - generalize (age_to_ageN n phi).
@@ -168,7 +170,9 @@ Proof.
       end.
       * destruct (phi @ loc); unfold "oo"; simpl; auto.
         -- destruct p0; auto.
+           rewrite preds_fmap_fmap; auto.
         -- destruct p; auto.
+           rewrite preds_fmap_fmap; auto.
       * f_equal. rewrite approx_oo_approx'; auto.
         omega.
         rewrite approx'_oo_approx; auto.
@@ -188,7 +192,7 @@ Proof.
     rewrite S.
     rewrite preds_fmap_fmap.
     rewrite approx_oo_approx'; auto.
-  
+    rewrite approx'_oo_approx; auto.
   - destruct (phi2 @ loc) eqn:E; auto.
     revert P.
     eapply age1_PURE. auto.

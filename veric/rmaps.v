@@ -1,8 +1,5 @@
 Require Import msl.msl_standard.
 Require Import msl.Coqlib2.
-Import MixVariantFunctor.
-Import MixVariantFunctorLemmas.
-Import MixVariantFunctorGenerator.
 
 Module Type ADR_VAL.
 Parameter address : Type.
@@ -44,23 +41,40 @@ Module SimpleAdrVal (AV0: ADR_VAL0) <:
   Proof.  intros; unfold valid; auto. Qed.
 End SimpleAdrVal.
 
-Fixpoint listprod (ts: list Type) : Type :=
- match ts with
-  | nil => unit
-  | t :: ts' => prod t (listprod ts')
- end.
+Inductive TypeTree: Type :=
+  | ConstType: Type -> TypeTree
+  | Mpred: TypeTree
+  | DependentType: nat -> TypeTree
+  | ProdType: TypeTree -> TypeTree -> TypeTree
+  | ArrowType: TypeTree -> TypeTree -> TypeTree.
 
+Definition dependent_type_functor_rec (ts: list Type): TypeTree -> functor :=
+  fix dtfr (T: TypeTree): functor :=
+  match T with
+  | ConstType A => fconst A
+  | Mpred => fidentity
+  | DependentType n => fconst (nth n ts unit)
+  | ProdType T1 T2 => fpair (dtfr T1) (dtfr T2)
+  | ArrowType T1 T2 => ffunc (dtfr T1) (dtfr T2)
+  end.
+(*
+Definition dependent_type_function_rec (ts: list Type) (mpred': Type): TypeTree -> Type :=
+  fix dtfr (T: TypeTree): Type :=
+  match T with
+  | ConstType A => A
+  | Mpred => mpred'
+  | DependentType n => nth n ts unit
+  | ProdType T1 T2 => (dtfr T1 * dtfr T2)%type
+  | ArrowType T1 T2 => dtfr T1 -> dtfr T2
+  end.
+*)
 Module Type STRAT_MODEL.
   Declare Module AV : ADR_VAL.
   Import AV.
 
-  Definition preds: functor := fsig (fun A: list Type =>
-    ffunc (fconst (listprod A)) fidentity).
-
-  (*
-  Goal forall PRED, preds PRED = { A: list Type & (listprod A -> PRED) }.
-    intros. reflexivity. Qed.
-  *)
+  Definition preds: functor :=
+    fsig (fun T: TypeTree =>
+      fpi (fun ts: list Type => dependent_type_functor_rec ts T)).
 
   Inductive res (PRED : Type) : Type :=
     | NO':  Share.t -> res PRED
@@ -132,8 +146,10 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
   Module AV := AV'.
   Import AV.
 
-  Definition preds: functor := fsig (fun A: list Type =>
-    ffunc (fconst (listprod A)) fidentity).
+  Definition preds: functor :=
+    fsig (fun T: TypeTree =>
+      fpi (fun ts: list Type => dependent_type_functor_rec ts T)).
+
 
   Inductive res (PRED : Type) : Type :=
     | NO':  Share.t -> res PRED
@@ -388,9 +404,10 @@ Module Type RMAPS.
   Axiom Age_rmap: Age_alg rmap.  Existing Instance Age_rmap.
 
   Inductive preds : Type :=
-    SomeP : forall A : list Type, (listprod A -> pred rmap) -> preds.
+    SomeP : forall A : TypeTree,
+      (forall ts: list Type, dependent_type_functor_rec ts A (pred rmap)) -> preds.
 
-  Definition NoneP := SomeP ((Void:Type)::nil) (fun _ => FF).
+  Definition NoneP := SomeP (ConstType unit) (fun _ => tt).
 
   Inductive resource : Type :=
     | NO: Share.t -> resource
@@ -427,7 +444,7 @@ Module Type RMAPS.
   Axiom Disj_resource: Disj_alg resource. Existing Instance Disj_resource.
 
   Definition preds_fmap (f g: pred rmap -> pred rmap) (x:preds) : preds :=
-    match x with SomeP A Q => SomeP A (f oo Q)
+    match x with SomeP A Q => SomeP A (fmap (fpi _) f g Q)
     end.
   (* Check whether the following two can be erased. *)
   Axiom preds_fmap_id : preds_fmap (id _) (id _) = id preds.
@@ -536,9 +553,10 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
   Instance Age_rmap: Age_alg rmap := KSa.asa_knot.
 
   Inductive preds : Type :=
-    SomeP : forall A : list Type, (listprod A -> pred rmap) -> preds.
+    SomeP : forall A : TypeTree,
+    (forall ts: list Type, dependent_type_functor_rec ts A (pred rmap)) -> preds.
 
-  Definition NoneP := SomeP ((Void:Type)::nil) (fun _ => FF).
+  Definition NoneP := SomeP (ConstType unit) (fun _ => tt).
 
   Inductive resource : Type :=
     | NO: Share.t -> resource
@@ -705,19 +723,25 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
 
   Definition rmap' := sig valid.
   Definition preds_fmap (f g:(pred rmap)->(pred rmap)) (x:preds) : preds :=
-    match x with SomeP A ls => SomeP A (f oo ls) end.
+    match x with SomeP A ls => SomeP A (fmap (fpi _) f g ls) end.
 
   Lemma preds_fmap_id : preds_fmap (id (pred rmap)) (id (pred rmap)) = id preds.
   Proof.
-    intros; apply extensionality; intro x; destruct x; simpl; auto;
-    replace (id (pred rmap) oo p) with p; auto;
-    rewrite id_unit2; auto.
+    intros; apply extensionality; intro x; destruct x; simpl; auto.
+    unfold id at 3.
+    f_equal.
+    extensionality i.
+    rewrite fmap_id; auto.
   Qed.
 
   Lemma preds_fmap_comp : forall f1 f2 g1 g2,
     preds_fmap g1 g2 oo preds_fmap f1 f2 = preds_fmap (g1 oo f1) (f2 oo g2).
   Proof.
-    intros; apply extensionality; intro x; destruct x; simpl; auto.
+    intros; apply extensionality; intro x; destruct x; simpl.
+    unfold preds_fmap, compose at 1; simpl.
+    f_equal.
+    extensionality i.
+    rewrite <- fmap_comp; auto.
   Qed.
 
   Definition resource_fmap (f g:pred rmap -> pred rmap) (x:resource) : resource :=
@@ -886,6 +910,17 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
   apply pred_hereditary with a; auto.
   Qed.
   
+  Lemma approx_K_approx: approx = K.approx.
+  Proof.
+    extensionality n p.
+    apply pred_ext'; intros w.
+    unfold approx, compose; simpl.
+    rewrite K.approx_spec.
+    unfold rmap_level, unsquash; simpl;
+    repeat rewrite K.knot_level;
+    repeat rewrite setset, setget;     intuition.
+  Qed.
+
   Lemma unsquash_squash : forall n rm, (unsquash (squash (n,rm))) = (n,rmap_fmap (approx n) (approx n) rm).
   Proof.
     intros.
@@ -907,24 +942,10 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
     destruct (x l); simpl; auto.
     (* YES *)
     destruct p0; simpl.
-    f_equal. f_equal.
-    extensionality a. 
-    apply pred_ext'; intro w.
-    unfold approx, compose; simpl.
-    rewrite K.approx_spec.
-    unfold rmap_level, unsquash; simpl;
-    repeat rewrite K.knot_level;
-    repeat rewrite setset, setget;     intuition.
+    rewrite approx_K_approx; auto.
     (* PURE *)
     destruct p; simpl.
-    f_equal. f_equal.
-    extensionality a. 
-    apply pred_ext'; intro w.
-    unfold approx, compose; simpl.
-    rewrite K.approx_spec.
-    unfold rmap_level, unsquash; simpl;
-    repeat rewrite K.knot_level;
-    repeat rewrite setset, setget;     intuition.
+    rewrite approx_K_approx; auto.
   Qed.
 
   Instance Join_nat_rmap': Join (nat * rmap') := Join_prod _ (Join_equiv nat) _ _.

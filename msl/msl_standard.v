@@ -24,3 +24,7 @@ Require Export msl.cross_split.
 Require Export msl.psepalg.
 Require Export msl.pshares.
 Require Export msl.eq_dec.
+
+Export MixVariantFunctor.
+Export MixVariantFunctorLemmas.
+Export MixVariantFunctorGenerator.

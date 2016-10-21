@@ -9,8 +9,8 @@ Local Open Scope logic.
 Definition main_spec :=
  DECLARE _main
   WITH u : unit
-  PRE  [] main_pre prog u
-  POST [ tint ] main_post prog u.
+  PRE  [] main_pre prog nil u
+  POST [ tint ] main_post prog nil u.
 
 Definition t_struct_foo := Tstruct _foo noattr.
 

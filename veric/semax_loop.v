@@ -397,7 +397,7 @@ unfold believe_internal in *.
 intros v fsig cc A P Q; specialize (Prog_OK v fsig cc A P Q).
 intros ? ? ?. specialize (Prog_OK a' H).
 spec Prog_OK.
-destruct H0 as [id [? ?]]. exists id; split; auto.
+destruct H0 as [id [NEP [NEQ [? ?]]]]. exists id, NEP, NEQ; split; auto.
 rewrite glob_specs_update_tycon in H0. auto.
 destruct Prog_OK; [ left; auto | right].
 destruct H1 as [b [f ?]]; exists b,f.

@@ -26,7 +26,6 @@ Require Import veric.initial_world.
 Require Import veric.juicy_extspec.
 Require Import veric.tycontext.
 Require Import veric.semax_ext.
-Require Import veric.semax_ext_oracle.
 Require Import veric.coqlib4.
 Require Import sepcomp.semantics.
 Require Import sepcomp.step_lemmas.

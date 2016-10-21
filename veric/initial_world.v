@@ -32,8 +32,6 @@ intros.
 spec H loc.
 rewrite jam_true in H; auto.
 simpl in H.
-unfold compose in H.
-rewrite approx_FF in H.
 destruct (m @ loc); try destruct k; 
 try solve [elimtype False; destruct H as [? [? ?]]; inv H].
 assert (sh = pshare_sh p).
@@ -271,7 +269,7 @@ elimtype False; revert H1; clear; rewrite <- core_resource_at.
 destruct (w @ l); simpl; [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; intro H; inv H.
 destruct (make_rmap _ H1 (level w)) as [phi [? ?]].
 extensionality loc; unfold compose; if_tac.
-unfold resource_fmap. f_equal. apply preds_fmap_NoneP.
+unfold resource_fmap. f_equal.
 rewrite <- level_core.  apply resource_at_approx.
 exists (m_phi (initial_mem m w IOK)); exists phi; split3; auto.
 apply resource_at_join2.
@@ -360,8 +358,6 @@ simpl. rewrite H3.
 if_tac.
 exists Undef. exists top_share_nonunit.
 f_equal.
-unfold NoneP.
-f_equal. extensionality z. unfold compose. rewrite approx_FF. auto.
 rewrite <- core_resource_at.
 apply core_identity.
 Qed.
@@ -423,8 +419,8 @@ Definition initial_core' (ge: Genv.t fundef type) (G: funspecs) (n: nat) (loc: a
    then match Genv.invert_symbol ge (fst loc) with
            | Some id => 
                   match find_id id G with
-                  | Some (mk_funspec fsig cc A P Q) => 
-                           PURE (FUN fsig cc) (SomeP (A::boolT::environ::nil) (approx n oo packPQ P Q))
+                  | Some (mk_funspec fsig cc A P Q _ _) => 
+                           PURE (FUN fsig cc) (SomeP (SpecTT A) (fun ts => fmap _ (approx n) (approx n) (packPQ P Q ts)))
                   | None => NO Share.bot
                   end
            | None => NO Share.bot
@@ -454,9 +450,13 @@ destruct f.
 unfold resource_fmap.
 f_equal.
 simpl.
+f_equal.
 change R.approx with approx.
-rewrite <- compose_assoc.
- rewrite approx_oo_approx.
+extensionality i0 ts b.
+extensionality rho.
+rewrite fmap_app.
+pattern (approx n) at 7 8 9.
+rewrite <- approx_oo_approx.
 auto.
 Qed.
 
@@ -1371,10 +1371,14 @@ change compcert_rmaps.R.rmap with rmap in *.
 rewrite lev'.
 unfold initial_core.
 rewrite level_make_rmap.
-rewrite <- compose_assoc.
-f_equal.
-apply approx_oo_approx'.
-omega.
+extensionality ts x b; extensionality rho.
+rewrite fmap_app.
+match goal with
+| |- ?A (?B ?C) = _ => change (A (B C)) with ((A oo B) C)
+end.
+rewrite approx_oo_approx' by omega.
+rewrite approx'_oo_approx by omega.
+auto.
 Qed.
 
 Fixpoint prog_vars' {F V} (l: list (ident * globdef F V)) : list (ident * globvar V) :=

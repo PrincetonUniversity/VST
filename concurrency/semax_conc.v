@@ -575,12 +575,11 @@ Proof.
     revert x Pre Post.
     simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
     unfold funspec2pre, funspec2post, ext_spec_type, ext_spec_pre, ext_spec_post.
-    destruct (oi_eq_dec (Some (ext_link "acquire"%string)) (ef_id ext_link (EF_external name sg)))
-    (* destruct (ident_eq (ext_link "acquire"%string) (ef_id ext_link (EF_external name sg))) *)
-      as [ H_acquire | notacquire ].
+    if_tac [ H_acquire | notacquire ].
     
     { (* case 1 : acquire *)
-      intros [phi_x [[vx shx] Rx]] Pre Post.
+      intros [phi_x [ts [[vx shx] Rx]]] Pre Post.
+      simpl in Pre, Post; clear ts.
       destruct oracle as [ | phi_oracle oracle ].
       
       - simpl.
@@ -592,7 +591,8 @@ Proof.
                    juicy_mem external_function (@OK_ty (Concurrent_Oracular_Espec cs ext_link))
                    (@OK_spec (Concurrent_Oracular_Espec cs ext_link)) (EF_external name sg))
                )%type as EqT.
-        { simpl. rewrite H_acquire. simpl. if_tac;[ reflexivity | congruence ]. }
+        { simpl. unfold ef_sig in *.
+          rewrite H_acquire. simpl. if_tac;[ reflexivity | congruence ]. }
         
         (* getting a JMeq-copy of x of the correct type *)
         remember xwith as x2.
@@ -637,8 +637,8 @@ Proof.
           revert x2 E2.
           simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
           unfold funspecOracle2pre, funspecOracle2post, ext_spec_type, ext_spec_pre, ext_spec_post.
-          destruct (oi_eq_dec (Some (ext_link "acquire"%string)) (ef_id ext_link (EF_external name sg))).
-          2:congruence. clear e.
+          if_tac [e|e].
+          2:congruence.
           intros x2 E2. apply JMeq_eq in E2. subst x2.
           unfold xwith; simpl in Pre |- *. (* done with JMeq.. for this +bullet. *)
           
@@ -651,7 +651,7 @@ Proof.
           revert x2 E2.
           simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
           unfold funspecOracle2pre, funspecOracle2post, ext_spec_type, ext_spec_pre, ext_spec_post.
-          destruct (oi_eq_dec (Some (ext_link "acquire"%string)) (ef_id ext_link (EF_external name sg))).
+          if_tac [e|e].
           2:congruence. clear e.
           intros x2 E2. apply JMeq_eq in E2. subst x2.
           
@@ -668,7 +668,8 @@ Proof.
                    juicy_mem external_function (@OK_ty (Concurrent_Oracular_Espec cs ext_link))
                    (@OK_spec (Concurrent_Oracular_Espec cs ext_link)) (EF_external name sg))
                )%type as EqT.
-        { simpl. rewrite H_acquire. simpl. if_tac;[ reflexivity | congruence ]. }
+        { simpl. unfold ef_sig in *.
+          rewrite H_acquire. simpl. if_tac;[ reflexivity | congruence ]. }
         
         (* getting a JMeq-copy of x of the correct type *)
         remember xwith as x2.
@@ -701,7 +702,7 @@ Proof.
           revert x2 E2.
           simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
           unfold funspecOracle2pre, funspecOracle2post, ext_spec_type, ext_spec_pre, ext_spec_post.
-          destruct (oi_eq_dec (Some (ext_link "acquire"%string)) (ef_id ext_link (EF_external name sg))).
+          if_tac [e|e].
           2:congruence. clear e.
           intros x2 E2. apply JMeq_eq in E2. subst x2.
           
@@ -716,7 +717,7 @@ Proof.
           revert x2 E2.
           simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
           unfold funspecOracle2pre, funspecOracle2post, ext_spec_type, ext_spec_pre, ext_spec_post.
-          destruct (oi_eq_dec (Some (ext_link "acquire"%string)) (ef_id ext_link (EF_external name sg))).
+          if_tac [e|e].
           2:congruence. clear e.
           intros x2 E2. apply JMeq_eq in E2. subst x2.
           
@@ -734,11 +735,11 @@ Proof.
     unfold funspec2jspec, funspec2extspec.
     simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
     unfold funspec2pre, funspec2post, ext_spec_type, ext_spec_pre, ext_spec_post, release_spec.
-    
-    destruct (oi_eq_dec (Some (ext_link "release"%string)) (ef_id ext_link (EF_external name sg)))
-      as [ H_release | notrelease ].
+    simpl.
+    if_tac [ H_release | notrelease ].
     { (* case 2: release *)
-      intros [phi_x [[vx shx] Rx]] Pre Post.
+      intros [phi_x [ts [[vx shx] Rx]]] Pre Post.
+      simpl in Pre, Post; clear ts.
       simpl.
       
       (* this is the x parameter for the WITH clause, but it has the wrong type. *)
@@ -783,13 +784,13 @@ Proof.
         
         simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
         unfold funspecOracle2pre, funspecOracle2post, ext_spec_type, ext_spec_pre, ext_spec_post.
-        destruct (oi_eq_dec (Some (ext_link "acquire"%string)) (ef_id ext_link (EF_external name sg))).
+        if_tac [e|e].
         now congruence.
         simpl (JE_spec _ _).
         simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
         unfold funspecOracle2pre, funspecOracle2post, ext_spec_type, ext_spec_pre, ext_spec_post.
-        destruct (oi_eq_dec (Some (ext_link "release"%string)) (ef_id ext_link (EF_external name sg))).
-        2:congruence. clear e.
+        if_tac [e0|e0].
+        2:intros []. clear e.
         intros x2 E2. apply JMeq_eq in E2. subst x2.
         
         unfold xwith; simpl in Pre |- *.
@@ -803,13 +804,13 @@ Proof.
         revert x2 E2.
         simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
         unfold funspecOracle2pre, funspecOracle2post, ext_spec_type, ext_spec_pre, ext_spec_post.
-        destruct (oi_eq_dec (Some (ext_link "acquire"%string)) (ef_id ext_link (EF_external name sg))).
+        if_tac [e|e].
         now congruence.
         simpl (JE_spec _ _).
         simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
         unfold funspecOracle2pre, funspecOracle2post, ext_spec_type, ext_spec_pre, ext_spec_post.
-        destruct (oi_eq_dec (Some (ext_link "release"%string)) (ef_id ext_link (EF_external name sg))).
-        2:congruence. clear e.
+        if_tac [e0|e0].
+        2:intros []. clear e.
         intros x2 E2. apply JMeq_eq in E2. subst x2.
         
         intros [phi0 [phi1 [Hj [[? [? Sep]] NC]]]].

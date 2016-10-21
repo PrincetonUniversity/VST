@@ -264,8 +264,8 @@ Definition make_elem_spec :=
 Definition main_spec := 
  DECLARE _main
   WITH u : unit
-  PRE  [] main_pre prog u
-  POST [ tint ] main_post prog u.
+  PRE  [] main_pre prog nil u
+  POST [ tint ] main_post prog nil u.
 
 Definition Gprog : funspecs := 
   augment_funspecs prog [
@@ -494,7 +494,7 @@ Qed.
 Existing Instance NullExtension.Espec.
 
 Parameter body_mallocN:
- semax_external
+ NDsemax_external
   (1%positive ::nil)
   (EF_external "mallocN"
      {| sig_args := AST.Tint :: nil; sig_res := Some AST.Tint; sig_cc := cc_default |}) Z
@@ -506,7 +506,7 @@ Parameter body_mallocN:
    LOCAL  (temp ret_temp v)  SEP  (memory_block Tsh n v)).
 
 Parameter body_freeN:
-semax_external
+ NDsemax_external
   (1%positive::2%positive ::nil)
   (EF_external "freeN"
      {| sig_args := AST.Tint :: AST.Tint :: nil; sig_res := None; sig_cc := cc_default |}) (val*Z)

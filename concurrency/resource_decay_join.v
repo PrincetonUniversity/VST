@@ -114,12 +114,10 @@ Lemma resource_fmap_approx_idempotent n r :
   resource_fmap (approx n) (approx n) (resource_fmap (approx n) (approx n) r) = resource_fmap (approx n) (approx n) r.
 Proof.
   destruct r; simpl; f_equal.
-  - destruct p0; simpl.
-    rewrite <-compose_assoc.
+  - rewrite preds_fmap_fmap.
     rewrite approx_oo_approx.
     reflexivity.
-  - destruct p; simpl.
-    rewrite <-compose_assoc.
+  - rewrite preds_fmap_fmap.
     rewrite approx_oo_approx.
     reflexivity.
 Qed.
@@ -253,9 +251,7 @@ Proof.
         * intros pos; autospec bound; autospec nn. rewrite bound in *; rewrite nn in *.
           congruence.
         * right. left. simpl. exists rsh3, v, v'. split; congruence.
-        * simpl. f_equal. unfold "oo"; simpl.
-          unfold NoneP in *. simpl. f_equal. extensionality.
-          apply approx_FF.
+        * simpl. f_equal.
       + injection E1; intros; subst.
         rewr (phi1 @ loc) in J.
         apply res_join'_spec_inv in J.
@@ -275,9 +271,7 @@ Proof.
       + intros _. f_equal.
         apply join_bot_bot_eq. auto.
       + right. right. left. eauto.
-      + simpl. unfold NoneP in *. simpl. do 2 f_equal. extensionality.
-        apply approx_FF.
-    
+      + simpl. unfold NoneP in *. simpl. do 2 f_equal.
     - rewrite E1 in J.
       exists (NO Share.bot).
       rewrite E1'.

@@ -25,7 +25,6 @@ Require Import veric.initial_world.
 Require Import veric.juicy_extspec.
 Require Import veric.tycontext.
 Require Import veric.semax_ext.
-Require Import veric.semax_ext_oracle.
 Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
 Require Import veric.shares.
@@ -223,11 +222,11 @@ Section Progress.
       
       (* paragraph below: ef has to be an EF_external with one of those 5 names *)
       assert (which_primitive :
-                Some (ext_link "acquire") = (ef_id ext_link (EF_external name sg)) \/
-                Some (ext_link "release") = (ef_id ext_link (EF_external name sg)) \/
-                Some (ext_link "makelock") = (ef_id ext_link (EF_external name sg)) \/
-                Some (ext_link "freelock") = (ef_id ext_link (EF_external name sg)) \/
-                Some (ext_link "spawn") = (ef_id ext_link (EF_external name sg))).
+                Some (ext_link "acquire", LOCK_SIG) = (ef_id_sig ext_link (EF_external name sg)) \/
+                Some (ext_link "release", UNLOCK_SIG) = (ef_id_sig ext_link (EF_external name sg)) \/
+                Some (ext_link "makelock", ef_sig MKLOCK) = (ef_id_sig ext_link (EF_external name sg)) \/
+                Some (ext_link "freelock", ef_sig FREE_LOCK) = (ef_id_sig ext_link (EF_external name sg)) \/
+                Some (ext_link "spawn", CREATE_SIG) = (ef_id_sig ext_link (EF_external name sg))).
       {
         pose proof (safety i cnti tt) as safe_i.
         rewrite Eci in safe_i.
@@ -276,7 +275,9 @@ Section Progress.
         (* dependent destruction *)
         funspec_destruct "acquire".
         
-        intros (phix, ((vx, shx), Rx)) Pre. simpl in Pre.
+        intros (phix, (ts, ((vx, shx), Rx))) Pre.
+        simpl (projT2 _) in *; simpl (fst _) in *; simpl (snd _) in *; clear ts.
+        simpl in Pre.
         destruct Pre as (phi0 & phi1 & Join & Precond & HnecR).
         simpl (and _).
         intros Post.
@@ -392,16 +393,9 @@ Section Progress.
                            Some (LOCK, Vptr b ofs :: nil)). {
               repeat f_equal.
               - auto.
-              - Set Printing Implicit.
-                rename ge into GEEEEEEEEEEE.
-                admit.
-              (* - admit.
-                 (* design decision:
-                    - we can make 'safety' imply wellformedness of this signature
-                    - or we can add wellformed as an hypothesis of the program *)
-                 (* see with andrew: should safety require signatures
-                 to be exactly something?  Maybe it should be in
-                 ext_spec_type, it'd be easy, maybe. *) *)
+              - unfold funsig2signature in *.
+                simpl in Heq_name.
+                congruence.
               - assert (L: length args = 1%nat) by admit.
                 (* TODO discuss with andrew for where to add this requirement *)
                 clear -PREB L.
@@ -674,7 +668,9 @@ Section Progress.
         funspec_destruct "acquire".
         funspec_destruct "release".
         
-        intros (phix, ((vx, shx), Rx)) Pre. simpl in Pre.
+        intros (phix, (ts, ((vx, shx), Rx))) Pre.
+        simpl (projT2 _) in *; simpl (fst _) in *; simpl (snd _) in *; clear ts.
+        simpl in Pre.
         destruct Pre as (phi0 & phi1 & Join & Precond & HnecR).
         simpl (and _).
         intros Post.
@@ -935,7 +931,9 @@ Section Progress.
         funspec_destruct "release".
         funspec_destruct "makelock".
         
-        intros (phix, ((vx, shx), Rx)) Pre. simpl in Pre.
+        intros (phix, (ts, ((vx, shx), Rx))) Pre.
+        simpl (projT2 _) in *; simpl (fst _) in *; simpl (snd _) in *; clear ts.
+        simpl in Pre.
         destruct Pre as (phi0 & phi1 & Join & Precond & HnecR).
         simpl (and _).
         intros Post.
@@ -1054,7 +1052,7 @@ Section Progress.
           (LKspec_ext R sh fullshare loc phi) /\
           (forall x, adr_range loc LKSIZE x -> exists val, phi' @ x = YES (Share.unrel Share.Lsh sh) pfullshare (VAL val) NoneP).
         
-        assert (Lphi : level phi0 = S n) by admit.
+        assert (Lphi : level phi0 = S n) by join_level_tac.
         assert (Hphi0' : exists phi0',
                    level phi0' = level phi0 /\
                    rmap_makelock phi0 phi0' shx (b, Int.intval ofs) (Interp Rx)).
@@ -1069,153 +1067,12 @@ Section Progress.
                      YES shx pfullshare (CT (snd loc - Int.intval ofs)%Z) NoneP
                  else
                    phi0 @ loc).
-          
-          Lemma data_at_unfolding sh b ofs phi :
-            readable_share sh ->
-            app_pred (data_at_ sh (Tarray (Tpointer Tvoid noattr) 4 noattr) (Vptr b ofs)) phi ->
-            forall loc,
-              adr_range (b, Int.intval ofs) LKSIZE loc ->
-              exists p v,
-                phi @ loc =
-                YES
-                  (Share.unrel Share.Lsh sh)
-                  (mk_lifted (Share.unrel Share.Rsh sh) p)
-                  (VAL v) NoneP.
-          Proof.
-            intros Readable [A [B wob]].
-            destruct wob as (phi0 & phi123 & j0 & s0 & wob); simpl in *.
-            destruct wob as (phi1 & phi23 & j1 & s1 & wob); simpl in *.
-            destruct wob as (phi2 & phi3 & j2 & s2 & s3); simpl in *.
-            rewrite seplog.sepcon_emp in s3.
-            unfold mapsto_memory_block.at_offset in *.
-            simpl in *.
-            unfold nested_field_lemmas.nested_field_offset in *. simpl in *.
-            unfold reptype_lemmas.unfold_reptype in *. simpl in *.
-            unfold reptype_lemmas.default_val, Znth in *.
-            simpl in *.
-            unfold SeparationLogic.mapsto in *.
-            simpl in *.
-            unfold SeparationLogic.mapsto in *.
-            if_tac in s3. 2:tauto.
-            destruct s0 as [([], _) | (_, (v0, (vs0 & C0 & D0)))].
-            destruct s1 as [([], _) | (_, (v1, (vs1 & C1 & D1)))].
-            destruct s2 as [([], _) | (_, (v2, (vs2 & C2 & D2)))].
-            destruct s3 as [([], _) | (_, (v3, (vs3 & C3 & D3)))].
-            rewrite reptype_lemmas.int_add_repr_0_r in *. simpl in *.
-            intros (b', ofs').
-            specialize (D0 (b', ofs')).
-            specialize (D1 (b', ofs')).
-            specialize (D2 (b', ofs')).
-            specialize (D3 (b', ofs')).
-            simpl in *.
-            intros (<-, range).
-            destruct (adr_range_dec _ _ _) as [(_, a0) | n0] in D0; swap 1 2. {
-              rewrite reptype_lemmas.int_add_repr_0_r in *. simpl in *.
-              destruct n0. split; auto.
-            }
-            Local Ltac t ofs z :=
-              exfalso;
-              rewrite reptype_lemmas.int_add_repr_0_r in *; simpl in *;
-              destruct (Int.unsigned_add_either ofs (Int.repr z)) as [R|R];
-              [ rewrite Int.unsigned_repr_eq in *;
-                unfold Z.modulo in *; simpl in *;
-                omega
-              | rewrite Int.unsigned_repr_eq in *;
-                unfold Z.modulo in *; simpl in *;
-                unfold Int.modulus, two_power_nat, Int.wordsize, Wordsize_32.wordsize in *;
-                simpl in *; omega ].
-            destruct (adr_range_dec _ _ _) as [(_, a1) | n1] in D1. t ofs 4%Z.
-            destruct (adr_range_dec _ _ _) as [(_, a2) | n2] in D2. t ofs 8%Z.
-            destruct (adr_range_dec _ _ _) as [(_, a3) | n3] in D3. t ofs 12%Z.
-            apply resource_at_join with (loc := (b, ofs')) in j0.
-            apply resource_at_join with (loc := (b, ofs')) in j1.
-            apply resource_at_join with (loc := (b, ofs')) in j2.
-            rewrite <-(@join_unit2_e resource _ _ _ _ _ D3 j2) in j1.
-            rewrite <-(@join_unit2_e resource _ _ _ _ _ D2 j1) in j0.
-            rewrite <-(@join_unit2_e resource _ _ _ _ _ D1 j0).
-            destruct D0 as (p, ->). exists p.
-            eexists.
-            f_equal.
-            unfold NoneP, "oo".
-            rewrite approx_FF.
-            reflexivity.
-          Qed.
-          
+                    
           Definition is_VAL r :=
             match r with
             | YES x x0 (VAL _) x2 => Logic.True
             | _ => Logic.False
             end.
-          
-          (*Lemma data_at__first_word_is_VAL sh b ofs phi :
-            readable_share sh ->
-            app_pred (data_at_ sh (Tarray (Tpointer Tvoid noattr) 4 noattr) (Vptr b ofs)) phi ->
-            forall loc,
-              adr_range (b, Int.intval ofs) LKSIZE loc ->
-              is_VAL (phi @ loc).
-          Proof.
-            intros hr da loc range.
-            pose proof data_at__first_word _ _ _ _ hr da loc range as H.
-            destruct H as (p & v & ->); constructor.
-          Qed. *)
-          
-          (*
-          Lemma data_at__first_word_new sh b ofs phi :
-            readable_share sh ->
-            app_pred (data_at_ sh tlock (Vptr b ofs)) phi ->
-            forall loc,
-              adr_range (b, Int.intval ofs) LKSIZE loc ->
-              exists p v,
-                phi @ loc =
-                YES
-                  (Share.unrel Share.Lsh sh)
-                  (mk_lifted (Share.unrel Share.Rsh sh) p)
-                  (VAL v) NoneP.
-          Proof.
-            intros Readable [A wob].
-            unfold mapsto_memory_block.at_offset in *.
-            simpl in *.
-            unfold nested_field_lemmas.nested_field_offset in *. simpl in *.
-            unfold reptype_lemmas.unfold_reptype in *. simpl in *.
-            unfold reptype_lemmas.default_val, Znth in *.
-            unfold data_at_rec_lemmas.data_at_rec in *.
-            simpl in *.
-            unfold SeparationLogic.mapsto in *.
-            simpl in *.
-            unfold SeparationLogic.mapsto in *.
-            if_tac in wob. 2:tauto.
-            destruct wob as [([], _) | (_, (v3, (vs3 & C3 & D3)))].
-            rewrite reptype_lemmas.int_add_repr_0_r in *. simpl in *.
-            intros (b', ofs').
-            specialize (D3 (b', ofs')).
-            simpl in *.
-            intros (<-, range).
-            destruct (adr_range_dec _ _ _) as [(_, a0) | n0] in D3; swap 1 2. {
-              unfold LKSIZE in *.
-              simpl in *.
-              unfold Int.unsigned in *.
-              tauto.
-            }
-            destruct D3 as (p, ->). exists p.
-            eexists.
-            f_equal.
-            unfold NoneP, "oo".
-            rewrite approx_FF.
-            reflexivity.
-          Qed.
-          
-          Lemma data_at__first_word_is_VAL_new sh b ofs phi :
-            readable_share sh ->
-            app_pred (data_at_ sh tlock (Vptr b ofs)) phi ->
-            forall loc,
-              adr_range (b, Int.intval ofs) LKSIZE loc ->
-              is_VAL (phi @ loc).
-          Proof.
-            intros hr da loc range.
-            pose proof data_at__first_word_new _ _ _ _ hr da loc range as H.
-            destruct H as (p & v & ->); constructor.
-          Qed.
-           *)
           
           assert (blank': forall loc, adr_range (b, Int.intval ofs) LKSIZE loc -> is_VAL (phi0 @ loc)).
           {
@@ -1328,9 +1185,7 @@ Section Progress.
               simpl.
               unfold "oo".
               unfold NoneP in *.
-              repeat f_equal.
-              extensionality t.
-              apply approx_FF.
+              f_equal.
         }
         (* destruct Hphi0' as (phi0' & lev & Same & Before & After). *)
         replace phi0 with (getThreadR cnti) in Hphi0' by admit (* will have to prove lemmas about shapes and rmap_makelock *).

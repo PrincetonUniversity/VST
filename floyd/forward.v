@@ -255,14 +255,9 @@ Ltac semax_func_cons L :=
 
 Ltac semax_func_cons_ext :=
   eapply semax_func_cons_ext;
-    [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+    [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
     | semax_func_cons_ext_tc 
     | solve[ first [eapply semax_ext; 
-          [ repeat first [reflexivity | left; reflexivity | right]
-          | apply compute_funspecs_norepeat_e; reflexivity 
-          | reflexivity 
-          | reflexivity ] || 
-                    eapply semax_ext_void; 
           [ repeat first [reflexivity | left; reflexivity | right]
           | apply compute_funspecs_norepeat_e; reflexivity 
           | reflexivity 
@@ -2350,13 +2345,17 @@ match goal with |- semax _ (PROPx _ (LOCALx ?L (SEPx ?S))) _ _ =>
 end.
 
 Ltac start_function' :=
- match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _)) =>
+ let DependedTypeList := fresh "DependedTypeList" in
+ match goal with |- semax_body _ _ _ (pair _ (NDmk_funspec _ _ _ ?Pre _)) =>
    match Pre with 
-   | (fun x => match x with (a,b) => _ end) => intros Espec [a b] 
-   | (fun i => _) => intros Espec i
+   | (fun x => match x with (a,b) => _ end) => intros Espec DependedTypeList [a b] 
+   | (fun i => _) => intros Espec DependedTypeList i
    end;
    simpl fn_body; simpl fn_params; simpl fn_return
  end;
+ simpl functors.MixVariantFunctor._functor in *;
+ simpl rmaps.dependent_type_functor_rec;
+ clear DependedTypeList;
  repeat match goal with |- @semax _ _ _ (match ?p with (a,b) => _ end * _) _ _ =>
              destruct p as [a b]
            end;
@@ -2397,8 +2396,8 @@ Ltac start_function :=
  end;
  match goal with
  | |- semax_body _ _ _ (DECLARE _ WITH u : unit
-               PRE  [] main_pre _ u
-               POST [ tint ] main_post _ u) => idtac
+               PRE  [] main_pre _ nil u
+               POST [ tint ] main_post _ nil u) => idtac
  | |- semax_body _ _ _ ?spec => 
         check_canonical_funspec spec
  end;

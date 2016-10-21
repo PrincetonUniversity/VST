@@ -26,7 +26,6 @@ Require Import veric.initial_world.
 Require Import veric.juicy_extspec.
 Require Import veric.tycontext.
 Require Import veric.semax_ext.
-Require Import veric.semax_ext_oracle.
 Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
 Require Import floyd.coqlib3.
@@ -382,7 +381,7 @@ Proof.
       f_equal.
       extensionality x.
       apply inj_pair2 in F.
-      pose proof (@equal_f _ _ _ _ F x) as E.
+      pose proof (@equal_f_dep _ _ _ _ F x) as E.
       simpl in E.
     Abort.
 Abort.
@@ -2413,7 +2412,8 @@ Section Preservation.
               subst e.
               revert x Pre Post.
               funspec_destruct "acquire"; swap 1 2.
-              { exfalso. unfold ef_id in *. congruence. }
+              { exfalso. unfold ef_id_sig, ef_sig in *.
+                unfold funsig2signature in Heq_name; simpl in Heq_name. congruence. }
               intros x Pre Post.
               destruct Pre as (phi0 & phi1 & j & Pre).
               destruct (join_assoc (join_comm j) Hadd_lock_res) as (phi0' & jphi0' & jframe).
@@ -2427,8 +2427,9 @@ Section Preservation.
                 exact_eq jframe. f_equal.
                 REWR.
                 REWR.
-              * destruct x as (phix, ((vx, shx), Rx)); simpl (fst _) in *; simpl (snd _) in *.
-                simpl.
+              * destruct x as (phix, (ts, ((vx, shx), Rx)));
+                simpl (fst _) in *; simpl (snd _) in *; simpl (projT2 _) in *.
+                clear ts.
                 cbv iota beta in Pre.
                 Unset Printing Implicit.
                 destruct Pre as [[[A B] [C D]] E].
@@ -3040,14 +3041,17 @@ Section Preservation.
               subst e.
               revert x Pre Post.
               funspec_destruct "acquire".
-              { exfalso. unfold ef_id in *. injection Heq_name as E.
+              { exfalso. unfold ef_id_sig in *. injection Heq_name as E.
                 apply ext_link_inj in E. congruence. }
               funspec_destruct "release"; swap 1 2.
-              { exfalso. unfold ef_id in *. congruence. }
+              { exfalso. unfold ef_id_sig in *.
+                unfold funsig2signature in *. simpl in *; congruence. }
               intros x Pre Post.
               destruct Pre as (phi0 & phi1 & j & Pre).
               rewrite m_phi_jm_ in j.
-              destruct x as (phix, ((vx, shx), Rx)); simpl (fst _) in *; simpl (snd _) in *.
+              destruct x as (phix, (ts, ((vx, shx), Rx)));
+              simpl (fst _) in *; simpl (snd _) in *; simpl (projT2 _) in *;
+              clear ts.
               cbv iota beta in Pre.
               cbv iota beta.
               destruct Pre as [[[A [Precise [Positive _]]] [C D]] E].
@@ -3116,7 +3120,7 @@ Section Preservation.
                       -- rewrite level_age_to. rewrite lev; auto with *.
                          replace (level d_phi) with (level Phi) by join_level_tac.
                          rewrite lev; auto with *.
-                      -- exact_eq Hsat_lock_inv. f_equal. unfold age_to; f_equal.
+                      -- exact_eq Hsat_lock_inv. change (age1' d_phi) with (age_by 1 d_phi). f_equal. unfold age_to; f_equal.
                          replace (level d_phi) with (level Phi) by join_level_tac.
                          omega.
                 - apply age_to_join_sub.
@@ -3310,7 +3314,7 @@ Section Preservation.
   (ofs : int)
   (P Q : pred rmap)
   (Hcompatible : mem_compatible tp m')
-  (p : rmaps.listprod (JMem.AType :: nil) -> pred rmap)
+  (p : forall ts: list Type, JMem.AType -> pred rmap)
   (Hinv : invariant tp)
   (Hthread : getThreadC i tp Htid = Kblocked c)
   (Hget_fun_spec : JMem.get_fun_spec p = Some (P, Q))
@@ -3325,7 +3329,7 @@ Section Preservation.
   (Hget_fun_spec' : JMem.get_fun_spec'
                      (personal_mem m' (getThreadR i tp Htid) (thread_mem_compatible Hcompatible Htid))
                      (b, Int.intval ofs) arg =
-                   Some (existT (fun A : list Type => rmaps.listprod A -> pred rmap) (JMem.AType :: nil) p))
+                   Some (existT (fun A: rmaps.TypeTree => forall ts : list Type, rmaps.dependent_type_functor_rec ts A (pred rmap)) (rmaps.ArrowType (rmaps.ConstType JMem.AType) rmaps.Mpred) p))
   (Hrem_fun_res : join d_phi phi'
                    (m_phi (personal_mem m' (getThreadR i tp Htid) (thread_mem_compatible Hcompatible Htid))))
   (Hat_external : at_external SEM.Sem c = Some (CREATE, Vptr b ofs :: arg :: nil))
