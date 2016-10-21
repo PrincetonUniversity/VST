@@ -4480,12 +4480,6 @@ into mcj' with an extension of the id injection (fij). *)
                   erewrite Z.pos_sub_lt by eauto.
                   (** we pick [b1] plus the difference between [mc''] and [mc]*)
                   exists (b1 + (Mem.nextblock mc'' - Mem.nextblock mc))%positive.
-                  Definition proj_sumbool_is_false : forall (P : Prop) (a : {P} + {~ P}), ~ P -> Coqlib.proj_sumbool a = false.
-                  Proof.
-                    intros.
-                    unfold Coqlib.proj_sumbool.
-                    destruct a; auto; try by exfalso.
-                  Qed.
                   erewrite if_false
                     by (apply negbT;
                         eapply proj_sumbool_is_false;

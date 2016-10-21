@@ -168,6 +168,14 @@ Proof.
   destruct H; eauto.
 Qed.
 
+Definition proj_sumbool_is_false : forall (P : Prop) (a : {P} + {~ P}), ~ P -> Coqlib.proj_sumbool a = false.
+Proof.
+  intros.
+  unfold Coqlib.proj_sumbool.
+  destruct a; auto; try by exfalso.
+Qed.
+
+
 
 Module BlockList.
   Import ListNotations.

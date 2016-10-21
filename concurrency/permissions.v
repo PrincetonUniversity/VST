@@ -1810,8 +1810,8 @@ Lemma restrPermMap_irr:
     forall p1 p2 p3
       (Hjoin: permMapJoin p1 p2 p3),
     forall b ofs,
-      Mem.perm_order'' (p3 # b ofs) (p1 # b ofs) /\
-      Mem.perm_order'' (p3 # b ofs) (p2 # b ofs).
+      Mem.perm_order'' (p3 !! b ofs) (p1 !! b ofs) /\
+      Mem.perm_order'' (p3 !! b ofs) (p2 !! b ofs).
   Proof.
     intros.
     specialize (Hjoin b ofs);
