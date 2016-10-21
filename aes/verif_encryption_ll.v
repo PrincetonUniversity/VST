@@ -156,15 +156,19 @@ Proof.
   { entailer!. auto with field_compatible. (* TODO floyd: why is this not done automatically? *) }
 
   (* Bring the SEP clause about ctx into a suitable form: *)
+  (*
   unfold_data_at (1%nat).
   rewrite (field_at_data_at ctx_sh t_struct_aesctx [StructField _buf]).
+  *)
   remember (list_repeat 8 Vundef) as Vundefs.
+  (*
   simpl.
   erewrite (split_array 60 68 ctx_sh tuint
                         (map Vint (map Int.repr exp_key) ++ Vundefs)
                         (map Vint (map Int.repr exp_key))   Vundefs);
   first [ apply JMeq_refl | omega | idtac ].
   replace (68 - 60) with 8 by omega.
+  *)
   assert (exists k1 k2 k3 k4 exp_key_tail, exp_key = k1 :: k2 :: k3 :: k4 :: exp_key_tail) as Eq. {
     destruct exp_key as [|k1 [| k2 [| k3 [| k4 exp_key_tail]]]];
       try solve [compute in H0; omega]. repeat eexists.
@@ -182,6 +186,51 @@ Proof.
   ).
   GET_UINT32_LE_tac. forward. forward. forward.
 
+Lemma semax_max_path_field_load_nth_ram':
+  forall {Espec: OracleKind},
+    forall n Delta sh id P Q R (e: expr) Pre
+      (t t_root: type) (gfs: list gfield)
+      (p v : val) (v' : reptype (nested_field_type t_root gfs)),
+      typeof_temp Delta id = Some t ->
+      is_neutral_cast (typeof e) t = true ->
+      readable_share sh ->
+      type_is_volatile (typeof e) = false ->
+      JMeq v' v ->
+      nth_error R n = Some Pre ->
+      Pre |-- field_at sh t_root gfs v' p * TT ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        local (`(eq (field_address t_root (* was t before *) gfs p)) (eval_lvalue e)) ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        (tc_lvalue Delta e) &&
+        local `(tc_val (typeof e) v) ->
+      semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
+        (Sset id e)
+          (normal_ret_assert
+            (PROPx P 
+              (LOCALx (temp id v :: remove_localdef id Q)
+                (SEPx R)))).
+Admitted.
+
+simpl.
+
+freeze [1; 2; 3] Fr.
+
+eapply semax_seq'. {
+hoist_later_in_pre.
+
+eapply (semax_max_path_field_load_nth_ram' 1 _ ctx_sh _ _ _ _ _ _ tuint t_struct_aesctx
+[ArraySubsc 0; StructField _buf]
+ ctx (Vint (Int.repr k1)));
+  first [ apply JMeq_refl | reflexivity | assumption | idtac ].
+{ entailer!. (* doesn't help, so still use splitting lemmas? or other tactics? *) admit. }
+{ entailer!.
+  do 2 rewrite field_compatible_field_address by auto with field_compatible.
+  reflexivity. (* TODO floyd why doesn't entailer do this automatically? *)
+}
+{ entailer!. }
+}
+
+(*
 (* TODO floyd: running load_tac until just before sc_new_instantiate gives:
 e := Ederef (Etempvar _t'1 (tptr tuint)) tuint : expr
 efs := [] : list efield
@@ -303,6 +352,8 @@ apply derives_refl. }
 }
 { entailer!. (* TODO isptr why not solved? *) admit. }
 }
+*)
+
 { fwd_result. unfold MORE_COMMANDS. unfold abbreviate.
 forward.
 thaw Fr.
