@@ -475,6 +475,21 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
       specialize (H b0 ofs0).
       rewrite gsoAddLPool in H. auto.
   Qed.
+
+  Lemma invariant_not_freeable:
+    forall tp
+      (Hinv: invariant tp),
+    forall b ofs,
+      (forall i (cnti: containsThread tp i), (getThreadR cnti).2 # b ofs <> Some Freeable) /\
+      (forall laddr rmap (Hres: lockRes tp laddr = Some rmap), rmap.2 # b ofs <> Some Freeable).
+  Proof.
+    intros.
+    split; intros;
+    [pose proof ((thread_data_lock_coh Hinv cnti).1 _ cnti b ofs) |
+     pose proof ((locks_data_lock_coh Hinv _ Hres).2 _ _ Hres b ofs)];
+    apply perm_coh_not_freeable in H;
+    assumption.
+  Qed.
   
 End ThreadPoolWF.
 

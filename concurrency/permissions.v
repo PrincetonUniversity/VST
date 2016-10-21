@@ -86,6 +86,30 @@ Section permMapDefs.
             destruct p3; try inversion Hperm1; subst; simpl; auto.
     destruct p; auto.
   Qed.
+
+  Lemma perm_coh_not_freeable:
+    forall p p',
+      perm_coh p p' ->
+      p' <> Some Freeable.
+  Proof.
+    intros.
+    destruct p as [p|];
+      try (destruct p); simpl in H;
+      destruct p'; try (by exfalso);
+      intro Hcontra; try discriminate.
+    inversion Hcontra; subst; auto.
+    inversion Hcontra; subst; auto.
+  Qed.
+
+  Lemma perm_coh_empty_1:
+    forall p,
+      perm_coh p None.
+  Proof.
+    intros.
+    destruct p as [p|];
+      try (destruct p); simpl;
+      auto.
+    Qed.
   
   Definition permMapCoherence (pmap1 pmap2 : access_map) :=
     forall b ofs, perm_coh (pmap1 !! b ofs) (pmap2 !! b ofs).
@@ -715,6 +739,32 @@ Section permMapDefs.
       auto.
     rewrite Maps.PMap.gso; auto.
   Qed.
+
+  Lemma setPermBlock_or:
+    forall p b ofs sz pmap b' ofs',
+      (setPermBlock p b ofs pmap sz) !! b' ofs' = p \/
+      (setPermBlock p b ofs pmap sz) !! b' ofs' = pmap !! b' ofs'.
+  Proof.
+    induction sz; intros.
+    - simpl. right; reflexivity.
+    - simpl.
+      unfold setPerm.
+      destruct (Pos.eq_dec b b').
+      + subst.
+        erewrite Maps.PMap.gss by eauto.
+        destruct (Z.eq_dec (ofs + Z.of_nat sz) ofs').
+        * subst.
+          left.
+          erewrite if_true
+            by (now apply Coqlib.proj_sumbool_is_true).
+          reflexivity.
+        * erewrite if_false
+            by (apply Bool.negb_true_iff; now apply proj_sumbool_is_false).
+          eauto.
+      + erewrite Maps.PMap.gso by eauto.
+        eauto.
+  Qed.
+
 
   Lemma permMapCoherence_increase:
     forall pmap pmap' b ofs sz_nat sz
@@ -1743,5 +1793,30 @@ Lemma restrPermMap_irr:
         [| apply permjoin_comm in Hjoin];
         eauto using permjoin_readable_if.
   Qed.
+
+  Lemma permjoin_order:
+    forall p1 p2 p3
+      (Hjoin: permjoin p1 p2 p3),
+      Mem.perm_order'' p3 p1 /\ Mem.perm_order'' p3 p2.
+  Proof.
+    intros.
+    destruct p1 as [p1|];
+      destruct p2 as [p2|];
+      inversion Hjoin; simpl;
+      split; constructor.
+  Qed.
+
+  Lemma permMapJoin_order:
+    forall p1 p2 p3
+      (Hjoin: permMapJoin p1 p2 p3),
+    forall b ofs,
+      Mem.perm_order'' (p3 # b ofs) (p1 # b ofs) /\
+      Mem.perm_order'' (p3 # b ofs) (p2 # b ofs).
+  Proof.
+    intros.
+    specialize (Hjoin b ofs);
+      auto using permjoin_order.
+  Qed.
+  
   
 End permMapDefs.

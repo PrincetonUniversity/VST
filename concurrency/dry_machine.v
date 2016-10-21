@@ -66,79 +66,6 @@ Module ThreadPool (SEM:Semantics)  <: ThreadPoolSig
     with Module RES := LocksAndResources.
 
     Include (OrdinalPool SEM LocksAndResources).
-
-    (* given n <= m, returns the list [n-1,...,0] with proofs of < m *)
-    Program Fixpoint enum_from n m (pr : le n m) : list (ordinal m) :=
-      match n with
-        O => nil
-      | S n => (@Ordinal m n ltac:(rewrite <-Heq_n in *; apply (introT leP pr)))
-                :: @enum_from n m ltac:(rewrite <-Heq_n in *; apply le_Sn_le, pr)
-      end.
-    
-    Definition enum n := List.rev (@enum_from n n (le_refl n)).
-    
-    Lemma length_enum_from n m pr : List.length (@enum_from n m pr) = n.
-    Proof.
-      induction n; auto.
-      simpl.
-      rewrite IHn; auto.
-    Qed.
-    
-    Lemma length_enum n : List.length (enum n) = n.
-    Proof.
-      rewrite List.rev_length.
-      apply length_enum_from.
-    Qed.
-
-
-    Module EqResKey <: EQUALITY_TYPE.
-
-      Inductive resKey : Type :=
-      | Thread : nat -> resKey
-      | Lock : address -> resKey.
-
-      Definition t := resKey.
-
-      Definition eq : forall x y : t, {x = y} + {x <> y}.
-      Proof.
-        do 4 decide equality.
-      Defined.
-
-    End EqResKey.
-
-    Module Resources := EMap EqResKey.
-
-    (** Returns a map with the data resources of all threads*)
-    Definition getThreadsR init_map tp : Resources.t access_map :=
-      List.fold_right (fun pf acc => Resources.set (EqResKey.Thread (nat_of_ord pf))
-                                      (getThreadR (ltn_ord pf)).1 acc)
-            init_map (enum (num_threads tp)).
-
-    (** Returns a map with the lock resources of all threads*)
-    Definition getThreadsLR init_map tp : Resources.t access_map :=
-      List.fold_right (fun pf acc => Resources.set (EqResKey.Thread (nat_of_ord pf))
-                                      (getThreadR (ltn_ord pf)).2 acc)
-            init_map (enum (num_threads tp)).
-
-    (** Returns a map with the data resources of all locks in lockpool*)
-    Definition getLocksR init_map tp : Resources.t access_map :=
-      List.fold_right (fun elt acc => Resources.set (EqResKey.Lock elt.1)
-                                      elt.2.1 acc)
-            init_map (AMap.elements (lset tp)).
-
-    (** Returns a map with the lock resources of all locks in lockpool*)
-    Definition getLocksLR init_map tp : Resources.t access_map :=
-      List.fold_right (fun elt acc => Resources.set (EqResKey.Lock elt.1)
-                                      elt.2.2 acc)
-            init_map (AMap.elements (lset tp)).
-
-    (** Returns a map of all the data resources of the machine*)
-    Definition allDataRes tp : Resources.t access_map :=
-      getThreadsR (getLocksR (Resources.init empty_map) tp) tp.
-
-    (** Returns a map of all the lock resources of the machine*)
-    Definition allLockRes tp : Resources.t access_map :=
-      getThreadsLR (getLocksLR (Resources.init empty_map) tp) tp.
     
 End ThreadPool.
 
@@ -321,24 +248,6 @@ Module Concur.
          lockRes_valid: lr_valid (lockRes tp) (*well-formed locks*)
        }.
      Definition invariant := invariant'.
-
-     Record relAngelSpec (src tgt src' tgt' : access_map) : Prop :=
-       { relAngelIncr: forall b ofs,
-           Mem.perm_order' (Maps.PMap.get b src ofs) Readable <->
-           Mem.perm_order' (Maps.PMap.get b tgt' ofs) Readable \/
-           Mem.perm_order' (Maps.PMap.get b src' ofs) Readable;
-         relAngelDecr: forall b ofs,
-             Mem.perm_order'' (Maps.PMap.get b src ofs)
-                              (Maps.PMap.get b src' ofs)}.
-
-     Record acqAngelSpec (src tgt src' tgt' : access_map) : Prop :=
-       { acqAngelIncr: forall b ofs,
-           Mem.perm_order' (Maps.PMap.get b tgt' ofs) Readable ->
-           Mem.perm_order' (Maps.PMap.get b tgt ofs) Readable \/
-           Mem.perm_order' (Maps.PMap.get b src ofs) Readable;
-         acqAngelDecr: forall b ofs,
-             Mem.perm_order'' (Maps.PMap.get b src ofs)
-                              (Maps.PMap.get b src' ofs)}.
      
      (** Steps*)
      Inductive dry_step genv {tid0 tp m} (cnt: containsThread tp tid0)
@@ -474,7 +383,7 @@ Module Concur.
              (** thread lock permission is increased - I assume that the
              permission is equal at every offset otherwise we have to do a
              transfer. Although it shouldn't be necessary, maybe it makes erasure easier*)
-             (Hlock_perm: setPermBlock (pmap_tid.1 !! b (Int.intval ofs)) b
+             (Hlock_perm: setPermBlock (Some Writable) b
                                        (Int.intval ofs) pmap_tid.2 LKSIZE_nat = pmap_tid'.2)
              (Htp': tp' = updThread cnt0 (Kresume c Vundef) pmap_tid')
              (** the lock has no resources initially *)
