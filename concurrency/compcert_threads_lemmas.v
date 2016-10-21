@@ -1027,7 +1027,7 @@ Module SimProofs (SEM: Semantics)
                           end)
         by (by simpl).
       assert (Hafter_externalF :=
-                core_inj_after_ext (Some (Vint Int.zero)) Hcode_eq
+                core_inj_after_ext None Hcode_eq
                                    Hvalid_val Hafter_external).
       destruct Hafter_externalF as [ov2 [cf' [Hafter_externalF [Hcode_eq' Hval_obs]]]].
       destruct ov2 as [v2 |]; try by exfalso.
@@ -2022,7 +2022,7 @@ Module SimProofs (SEM: Semantics)
                           end)
         by (by simpl).
       assert (Hafter_external' :=
-                core_inj_after_ext (Some (Vint Int.zero)) 
+                core_inj_after_ext None
                                    Hcode_eq Hvalid_val Hafter_external).
       destruct Hafter_external' as [ov2 [c2' [Hafter_external'
                                                 [Hcore_inj' Hval_obs]]]].
@@ -2402,17 +2402,17 @@ Module SimProofs (SEM: Semantics)
       inversion Hval_eq; subst.
       assert (Hat_external_spec := core_inj_ext Hcode_eq).
       rewrite Hat_external in Hat_external_spec.
-      destruct X as [[? ?] vs].
-      destruct (at_external SEM.Sem c1') as [[[? ?] ?] | ] eqn:Hat_external';
+      destruct X as [? vs].
+      destruct (at_external SEM.Sem c1') as [[? ?] | ] eqn:Hat_external';
         try by exfalso.
-      destruct Hat_external_spec as [? [? ?]]; subst.
+      destruct Hat_external_spec as [? ?]; subst.
       assert (Hvalid_val: match (Some (Vint Int.zero)) with
                           | Some v1 => valid_val f v1
                           | None => True
                           end)
         by (by simpl).
       assert (Hafter_external' :=
-                core_inj_after_ext (Some (Vint Int.zero)) 
+                core_inj_after_ext None
                                    Hcode_eq Hvalid_val Hafter_external).
       destruct Hafter_external' as [ov2 [c2' [Hafter_external'
                                                 [Hcore_inj' Hval_obs]]]].
