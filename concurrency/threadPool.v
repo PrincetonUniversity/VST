@@ -1374,6 +1374,46 @@ Qed.
      lr_valid (lockRes (updThread cnti c' m')).
   Proof.
   Admitted.
+
+  Lemma contains_iff_num:
+    forall tp tp'
+      (Hcnt: forall i, containsThread tp i <-> containsThread tp' i),
+      num_threads tp = num_threads tp'.
+  Proof.
+    intros.
+    unfold containsThread in *.
+    remember (num_threads tp).
+    remember (num_threads tp').
+    destruct p, p0; simpl in *.
+    assert (n = n0).
+    clear - Hcnt.
+    generalize dependent n0.
+    induction n; intros.
+    destruct n0; auto.
+    destruct (Hcnt 0).
+    exfalso.
+    specialize (H0 ltac:(ssromega));
+      by ssromega.
+    destruct n0.
+    exfalso.
+    destruct (Hcnt 0).
+    specialize (H ltac:(ssromega));
+      by ssromega.
+    erewrite IHn; eauto.
+    intros; split; intro H.
+    assert (i.+1 < n.+1) by ssromega.
+    specialize (fst (Hcnt (i.+1)) H0).
+    intros.
+    clear -H1;
+      by ssromega.
+    assert (i.+1 < n0.+1) by ssromega.
+    specialize (snd (Hcnt (i.+1)) H0).
+    intros.
+    clear -H1;
+      by ssromega.
+    subst.
+      by erewrite proof_irr with (a1 := N_pos) (a2 := N_pos0).
+  Qed.
   
 End OrdinalPool.
   

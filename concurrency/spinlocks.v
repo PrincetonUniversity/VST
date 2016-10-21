@@ -1,4 +1,4 @@
-(** ** Spinlock well synchronized*)
+(** * Spinlock well synchronized*)
 Require Import compcert.lib.Axioms.
 
 Require Import concurrency.sepcomp. Import SepComp.
@@ -73,19 +73,37 @@ Module SpinLocks (SEM: Semantics)
       end.
 
     (** Two events compete if they access the same location, from a
-    different thread and if the events are competing based on [caction] *)
-    Definition competes (ev1 ev2 : Events.machine_event) : Prop :=
+    different thread. *)
+
+    (*this definition allows reads and writes to compete with release/acq - wrong*)
+    (*Definition competes (ev1 ev2 : Events.machine_event) : Prop :=
       thread_id ev1 <> thread_id ev2 /\
       sameLocation ev1 ev2 /\
+      caction ev1 /\ caction ev2 /\
+      (caction ev1 = Some Write \/
+       caction ev2 = Some Write \/
+       caction ev1 = Some Mklock \/
+       caction ev2 = Some Mklock \/
+       caction ev1 = Some Freelock \/
+       caction ev2 = Some Freelock). *)
+
+    (* this definition allows makelock/freelock to compete with
+    freelock/makelock, that's probably desired*)
+    Definition competes (ev1 ev2 : Events.machine_event) : Prop :=
+      thread_id ev1 <> thread_id ev2 /\ (* different threads*)
+      sameLocation ev1 ev2 /\ (* same location *)
+      caction ev1 /\ (* both are competing type*)
+      caction ev2 /\ 
       (is_internal ev1 ->
        is_internal ev2 ->
-       caction ev1 ->
-       caction ev2 ->
+       (* if they are both internal, at least one of them is a Write*)
        action ev1 = Write \/ action ev2 =  Write) /\
       (is_external ev1 \/ is_external ev2 ->
+       (* if one of them is external, then at least one of them is a Mklock or
+       freelock*)
        action ev1 = Mklock \/ action ev1 = Freelock
        \/ action ev2 = Mklock \/ action ev2 = Freelock).
-
+    
     (** Spinlock well synchronized*)
     Definition spinlock_synchronized (tr : SC.event_trace) :=
       forall i j ev1 ev2,

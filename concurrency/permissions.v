@@ -51,7 +51,69 @@ Section permMapDefs.
 
   Definition permission_at (m : mem) (b : block) (ofs : Z) (k : perm_kind) :=
     Maps.PMap.get b (Mem.mem_access m) ofs k.
- 
+
+  (** Coherence between permissions. This is used for the relation between data
+  and lock permissions*)
+  (** Note: p1 should be data permission and p2 lock permission*)
+  Definition perm_coh (p1 p2 : option permission) :=
+    match p1 with
+    | Some Freeable | Some Writable | Some Readable =>
+                                      match p2 with
+                                      | None => True
+                                      | _ => False
+                                      end
+    | Some Nonempty | None =>
+                      match p2 with
+                      | Some Freeable => False
+                      | _ => True 
+                      end
+    end.
+
+  Lemma perm_coh_lower:
+    forall p1 p2 p3 p4
+      (Hpu: perm_coh p1 p2)
+      (Hperm2: Mem.perm_order'' p2 p4)
+      (Hperm1: Mem.perm_order'' p1 p3),
+      perm_coh p3 p4.
+  Proof.
+    intros.
+    destruct p2 as [p|];
+      try (destruct p); simpl in Hperm2;
+        destruct p4 as [p|];
+        try (destruct p); inversion Hperm2; subst;
+          destruct p1 as [p|];
+          try (destruct p); simpl in Hpu, Hperm1; try (now exfalso);
+            destruct p3; try inversion Hperm1; subst; simpl; auto.
+    destruct p; auto.
+  Qed.
+
+  Lemma perm_coh_not_freeable:
+    forall p p',
+      perm_coh p p' ->
+      p' <> Some Freeable.
+  Proof.
+    intros.
+    destruct p as [p|];
+      try (destruct p); simpl in H;
+      destruct p'; try (by exfalso);
+      intro Hcontra; try discriminate.
+    inversion Hcontra; subst; auto.
+    inversion Hcontra; subst; auto.
+  Qed.
+
+  Lemma perm_coh_empty_1:
+    forall p,
+      perm_coh p None.
+  Proof.
+    intros.
+    destruct p as [p|];
+      try (destruct p); simpl;
+      auto.
+    Qed.
+  
+  Definition permMapCoherence (pmap1 pmap2 : access_map) :=
+    forall b ofs, perm_coh (pmap1 !! b ofs) (pmap2 !! b ofs).
+  
   (* Some None represents the empty permission. None is used for
   permissions that conflict/race. *)
      
@@ -112,6 +174,27 @@ Section permMapDefs.
     simpl in Hperm.
     destruct p3; simpl in *; tauto.
   Qed.
+
+  Lemma perm_union_lower_2:
+    forall p1 p2 p3 p4
+      (Hpu: exists pu, perm_union p1 p2 = Some pu)
+      (Hperm: Mem.perm_order'' p1 p3)
+      (Hperm': Mem.perm_order'' p2 p4),
+    exists pu, perm_union p3 p4 = Some pu.
+  Proof.
+    intros.
+    destruct p2 as [p2|]; simpl in Hperm;
+      destruct p4 as [p4|];
+      destruct p1 as [p1 |];
+      destruct p3 as [p3|];
+      try (destruct p1);
+      simpl in *; inversion Hperm; subst;
+        destruct Hpu; try (discriminate);
+          try (destruct p2; inversion Hperm'; subst);
+          try (discriminate); try (by exfalso);
+            eexists; eauto.
+  Qed.
+
   
   Inductive not_racy : option permission -> Prop :=
   | empty : not_racy None.
@@ -228,6 +311,7 @@ Section permMapDefs.
     intros. unfold getCurPerm. by rewrite Maps.PMap.gmap.
   Qed.
 
+
   Definition permDisjoint p1 p2:=
     exists pu : option permission,
       perm_union p1 p2 = Some pu.
@@ -331,6 +415,10 @@ Section permMapDefs.
       perm_union ((Maps.PMap.get b pmap1) ofs)
                  ((Maps.PMap.get b pmap2) ofs) = Some pu.
 
+  Definition permMapsDisjoint2 (pmap pmap': access_map * access_map) :=
+    permMapsDisjoint pmap.1 pmap'.1 /\
+    permMapsDisjoint pmap.2 pmap'.2.
+
   Lemma permDisjoint_permMapsDisjoint: forall r1 r2,
       (forall b ofs, permDisjoint (r1 !! b ofs) (r2 !! b ofs))->
       permMapsDisjoint r1 r2.
@@ -370,6 +458,15 @@ Section permMapDefs.
     eexists; eauto.
   Qed.
 
+  Lemma permMapsDisjoint2_comm:
+    forall pmaps pmaps',
+      permMapsDisjoint2 pmaps pmaps' <-> permMapsDisjoint2 pmaps' pmaps.
+  Proof.
+    intros.
+    split; intros (? & ?); split;
+      eauto using permMapsDisjoint_comm.
+  Qed.
+  
   Lemma disjoint_norace:
     forall (mi mj : mem) (b : block) (ofs : Z)
       (Hdisjoint: permMapsDisjoint (getCurPerm mi) (getCurPerm mj))
@@ -554,7 +651,23 @@ Section permMapDefs.
     unfold Maps.PMap.get in Hlt.
     rewrite Hp' in Hlt.
     destruct (p'.1 ofs); tauto.
-  Qed.  
+  Qed.
+
+   Lemma invalid_block_empty:
+    forall pmap m
+      (Hlt: permMapLt pmap (getMaxPerm m)),
+    forall b, ~ Mem.valid_block m b ->
+         forall ofs,
+           pmap !! b ofs = None.
+  Proof.
+    intros.
+    apply Mem.nextblock_noaccess with (ofs := ofs) (k := Max) in H.
+    specialize (Hlt b ofs).
+    rewrite getMaxPerm_correct in Hlt.
+    unfold permission_at in Hlt.
+    rewrite H in Hlt. simpl in Hlt.
+    destruct (pmap !! b ofs); [by exfalso | reflexivity].
+  Qed.
     
   Definition setPerm (p : option permission) (b : block)
              (ofs : Z) (pmap : access_map) : access_map :=
@@ -627,6 +740,62 @@ Section permMapDefs.
     rewrite Maps.PMap.gso; auto.
   Qed.
 
+  Lemma setPermBlock_or:
+    forall p b ofs sz pmap b' ofs',
+      (setPermBlock p b ofs pmap sz) !! b' ofs' = p \/
+      (setPermBlock p b ofs pmap sz) !! b' ofs' = pmap !! b' ofs'.
+  Proof.
+    induction sz; intros.
+    - simpl. right; reflexivity.
+    - simpl.
+      unfold setPerm.
+      destruct (Pos.eq_dec b b').
+      + subst.
+        erewrite Maps.PMap.gss by eauto.
+        destruct (Z.eq_dec (ofs + Z.of_nat sz) ofs').
+        * subst.
+          left.
+          erewrite if_true
+            by (now apply Coqlib.proj_sumbool_is_true).
+          reflexivity.
+        * erewrite if_false
+            by (apply Bool.negb_true_iff; now apply proj_sumbool_is_false).
+          eauto.
+      + erewrite Maps.PMap.gso by eauto.
+        eauto.
+  Qed.
+
+
+  Lemma permMapCoherence_increase:
+    forall pmap pmap' b ofs sz_nat sz
+      (Hsz: sz = Z.of_nat (sz_nat))
+      (Hcoh: permMapCoherence pmap pmap')
+      (Hreadable: forall ofs', Intv.In ofs' (ofs, ofs + sz)%Z ->
+                          Mem.perm_order' (pmap' !! b ofs') Readable),
+      permMapCoherence pmap (setPermBlock (Some Writable) b ofs pmap' sz_nat).
+  Proof.
+    intros.
+    intros b' ofs'.
+    specialize (Hcoh b' ofs').
+    destruct (Pos.eq_dec b b') as [Heq | Hneq].
+    - subst.
+      destruct (Intv.In_dec ofs' (ofs, ofs + Z.of_nat sz_nat)%Z).
+      + specialize (Hreadable _ i).
+        erewrite setPermBlock_same by eauto.
+        destruct (pmap' !! b' ofs') as [p|]; simpl in *;
+          try (by exfalso);
+          destruct p; inversion Hreadable; subst;
+            destruct (pmap !! b' ofs') as [p1|];
+            try (destruct p1); simpl in *; auto.
+      + destruct sz_nat; first by (simpl; eauto).
+        erewrite setPermBlock_other_1
+          by (eapply Intv.range_notin in n;
+              simpl; eauto; zify; omega).
+        assumption.
+    - erewrite setPermBlock_other_2 by eauto.
+      assumption.
+  Qed.
+
   (*setPermBlock with a function*)
   Fixpoint setPermBlockFunc (fp : Z -> option permission) (b : block)
            (ofs : Z) (pmap : access_map) (length: nat): access_map :=
@@ -690,8 +859,34 @@ Section permMapDefs.
       auto.
     rewrite Maps.PMap.gso; auto.
   Qed.
-  
 
+  Lemma setPermBlock_coherent:
+    forall pmap pmap' b ofs sz
+      (Hcoh: permMapCoherence pmap pmap')
+      (Hnonempty: forall ofs', Intv.In ofs' (ofs, ofs + Z.of_nat sz)%Z ->
+                          ~ Mem.perm_order' (pmap !! b ofs') Readable),
+      permMapCoherence pmap (setPermBlock (Some Writable) b ofs pmap' sz).
+  Proof.
+    intros.
+    intros b' ofs'.
+    specialize (Hcoh b' ofs').
+    destruct (Pos.eq_dec b b').
+    - subst.
+      destruct (Intv.In_dec ofs' (ofs, (ofs + Z.of_nat sz)%Z)).
+      + erewrite setPermBlock_same by eauto.
+        specialize (Hnonempty _ i).
+        destruct (pmap !! b' ofs') as [p|] eqn:Hpmap'; simpl; auto;
+          destruct p; simpl in Hnonempty; eauto using perm_order.
+      + destruct sz; 
+          first by (simpl; assumption).
+        erewrite setPermBlock_other_1.
+        assumption.
+        apply Intv.range_notin in n; eauto.      
+        simpl. rewrite Zpos_P_of_succ_nat. omega.
+    - erewrite setPermBlock_other_2 by eauto.
+      assumption.
+  Qed.
+  
   (** Apply a [delta_map] to an [access_map]*)
   Definition computeMap (pmap : access_map) (delta : delta_map) : access_map :=
     (pmap.1,
@@ -1531,5 +1726,97 @@ Lemma restrPermMap_irr:
       + right; intros k; specialize (H1 k); specialize (H2 k);
         rewrite H1; rewrite H2; eauto.
   Qed.
+
+  Inductive permjoin : option permission -> option permission -> option permission -> Prop :=
+  | permjoin_None_l x : permjoin None x x
+  | permjoin_None_r x : permjoin x None x
+  (* NE + NE = NE *)
+  | permjoin_NNN : permjoin (Some Nonempty) (Some Nonempty) (Some Nonempty)
+  (* NE + R = R *)
+  | permjoin_NRR : permjoin (Some Nonempty) (Some Readable) (Some Readable)
+  | permjoin_RNR : permjoin (Some Readable) (Some Nonempty) (Some Readable)
+  (* NE + W = W or F *)
+  | permjoin_NWW : permjoin (Some Nonempty) (Some Writable) (Some Writable)
+  | permjoin_NWF : permjoin (Some Nonempty) (Some Writable) (Some Freeable)
+  | permjoin_WNW : permjoin (Some Writable) (Some Nonempty) (Some Writable)
+  | permjoin_WNF : permjoin (Some Writable) (Some Nonempty) (Some Freeable)
+  (* R + R = R or W or F *)
+  | permjoin_RRR : permjoin (Some Readable) (Some Readable) (Some Readable)
+  | permjoin_RRW : permjoin (Some Readable) (Some Readable) (Some Writable)
+  | permjoin_RRF : permjoin (Some Readable) (Some Readable) (Some Freeable)
+  (* R + W = W or F *)
+  | permjoin_RWW : permjoin (Some Readable) (Some Writable) (Some Writable)
+  | permjoin_WRW : permjoin (Some Writable) (Some Readable) (Some Writable)
+  | permjoin_RWF : permjoin (Some Readable) (Some Writable) (Some Freeable)
+  | permjoin_WRF : permjoin (Some Writable) (Some Readable) (Some Freeable).
+
+  Definition permMapJoin (pmap1 pmap2 pmap3: access_map) :=
+    forall b ofs,
+      permjoin ((pmap1 !! b) ofs) ((pmap2 !! b) ofs) ((pmap3 !! b) ofs).
+  
+  Lemma permjoin_comm:
+    forall p1 p2 p3,
+      permjoin p1 p2 p3 <-> permjoin p2 p1 p3.
+  Proof.
+    intros.
+    split; intros;
+      inversion H; subst;
+        eauto using permjoin.
+  Qed.
+
+  Lemma permjoin_readable_if:
+    forall p1 p2 p3
+      (Hjoin: permjoin p1 p2 p3)
+      (Hp1: Mem.perm_order' p1 Readable),
+      Mem.perm_order' p3 Readable.
+  Proof.
+    intros.
+    destruct p1 as [p1|]; simpl in Hp1; try (by exfalso);
+      destruct p1; inversion Hp1; subst;
+        inversion Hjoin; subst;
+          simpl;
+            by eauto using perm_order.
+  Qed.
+
+  Lemma permjoin_readable_iff:
+    forall p1 p2 p3
+      (Hjoin: permjoin p1 p2 p3),
+      Mem.perm_order' p3 Readable <-> Mem.perm_order' p1 Readable \/ Mem.perm_order' p2 Readable.
+  Proof.
+    intros.
+    split; intros Hreadable.
+    - destruct p3 as [p3|]; simpl in Hreadable; try (by exfalso);
+        destruct p3; inversion Hreadable; subst;
+          inversion Hjoin; subst; simpl;
+            eauto using perm_order.
+    - destruct Hreadable;
+        [| apply permjoin_comm in Hjoin];
+        eauto using permjoin_readable_if.
+  Qed.
+
+  Lemma permjoin_order:
+    forall p1 p2 p3
+      (Hjoin: permjoin p1 p2 p3),
+      Mem.perm_order'' p3 p1 /\ Mem.perm_order'' p3 p2.
+  Proof.
+    intros.
+    destruct p1 as [p1|];
+      destruct p2 as [p2|];
+      inversion Hjoin; simpl;
+      split; constructor.
+  Qed.
+
+  Lemma permMapJoin_order:
+    forall p1 p2 p3
+      (Hjoin: permMapJoin p1 p2 p3),
+    forall b ofs,
+      Mem.perm_order'' (p3 !! b ofs) (p1 !! b ofs) /\
+      Mem.perm_order'' (p3 !! b ofs) (p2 !! b ofs).
+  Proof.
+    intros.
+    specialize (Hjoin b ofs);
+      auto using permjoin_order.
+  Qed.
+  
   
 End permMapDefs.
