@@ -55,9 +55,9 @@ Module Type AsmContext (SEM : Semantics)
   Parameter initU: mySchedule.schedule.
 
   Parameter init_mem : option Memory.Mem.mem.
-  Definition init_perm : option access_map :=
+  Definition init_perm  :=
     match init_mem with
-    | Some m => Some (getCurPerm m)
+    | Some m => Some (getCurPerm m, empty_map)
     | None => None
     end.
   
