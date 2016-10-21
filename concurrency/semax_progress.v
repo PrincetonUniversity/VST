@@ -1350,7 +1350,9 @@ Section Progress.
             -- subst.
                unfold SEM.Sem in *.
                rewrite SEM.CLN_msem in *; simpl.
-               destruct lid; reflexivity.
+               destruct lid.
+               ++ admit (* add that [lid] has to be None to the invariant *).
+               ++ reflexivity.
             -- rewrite Eci.
                subst ci.
                f_equal.

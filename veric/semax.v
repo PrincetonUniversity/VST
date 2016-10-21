@@ -186,7 +186,9 @@ Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: funsi
         && ! (ALL ts: list Type,
               ALL x: dependent_type_functor_rec ts A (pred rmap),
               ALL ret:option val, 
-                Q ts x (make_ext_rval (filter_genv gx) ret) >=> !! tc_option_val sigret ret)
+                Q ts x (make_ext_rval (filter_genv gx) ret)
+                  && !!has_opttyp ret (opttyp_of_type (snd fsig))
+                  >=> !! tc_option_val sigret ret)
   | _ => FF 
   end.
 

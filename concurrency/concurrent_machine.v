@@ -461,8 +461,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   | ResumeThread: forall tid0 ms ms' c c' X
                     (ctn: containsThread ms tid0)
                     (Hat_external: at_external Sem c = Some X)
-                    (Hafter_external: after_external Sem
-                                             (Some (Vint Int.zero)) c = Some c')
+                    (Hafter_external: after_external Sem None c = Some c')
                     (Hcode: getThreadC ctn = Kresume c Vundef)
                     (Hinv: invariant ms)
                     (Hms': updThreadC ctn (Krun c')  = ms'),
@@ -1070,8 +1069,7 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
                     (ctn: containsThread ms tid0)
                     (Hat_external: at_external Sem c = Some X)
                     (Hafter_external:
-                       after_external Sem
-                                      (Some (Vint Int.zero)) c = Some c')
+                       after_external Sem None c = Some c')
                     (Hcode: getThreadC ctn = Kresume c Vundef)
                     (Hinv: invariant ms)
                     (Hms': updThreadC ctn (Krun c')  = ms'),

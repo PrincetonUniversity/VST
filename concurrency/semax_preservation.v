@@ -2380,9 +2380,17 @@ Section Preservation.
           - (* at_external : we can now use safety *)
             subst z c0 m0.
             destruct Post with
-            (ret := Some (Vint Int.zero))
+            (ret := @None val)
               (m' := jm_ lj compat')
               (z' := ora) (n' := n) as (c'' & Ec'' & Safe').
+            
+            + assert (e = LOCK).
+              { rewrite <-Ejuicy_sem in *.
+                unfold juicy_sem in *.
+                simpl in ae.
+                congruence. }
+              subst e.
+              apply Logic.I.
             
             + auto.
               
@@ -3009,9 +3017,17 @@ Section Preservation.
           - (* at_external : we can now use safety *)
             subst z c0 m0.
             destruct Post with
-            (ret := Some (Vint Int.zero))
+            (ret := @None val)
               (m' := jm_ lj compat')
               (z' := ora) (n' := n) as (c'' & Ec'' & Safe').
+            
+            + assert (e = UNLOCK).
+              { rewrite <-Ejuicy_sem in *.
+                unfold juicy_sem in *.
+                simpl in ae.
+                congruence. }
+              subst e.
+              apply Logic.I.
             
             + auto.
               

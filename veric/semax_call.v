@@ -1551,7 +1551,7 @@ do 3 red in H5.
 specialize (H1 _ (necR_refl _)).
 
 assert (Htc: tc_option_val retty ret0).
-{clear - TCret TC3 H6 TC5 H15 Hretty H8 H10 H0.
+{clear - TCret TC3 H6 TC5 H15 Hretty Hretty0 H8 H10 H0.
  destruct H15 as [phi1 [phi2 [Ha [Hb Hc]]]].
  specialize (Hretty ts x ret0 phi1).
  spec Hretty. 
@@ -1561,7 +1561,9 @@ assert (Htc: tc_option_val retty ret0).
    apply age_level in H0. omega. 
  }
  spec Hretty phi1. 
- spec Hretty. apply rt_refl. spec Hretty Hb. simpl in Hretty. auto.
+ spec Hretty. apply rt_refl.
+ spec Hretty. split. apply Hb. apply Hretty0.
+ simpl in Hretty. auto.
 }
 
 spec H1. { clear H1.
@@ -1579,7 +1581,7 @@ split; [split; [split |] |].
  simpl. 
  destruct TC3 as [TC3 _].
  destruct ret; try apply TC3. {
- clear - TCret TC3 H6 TC5 H15 Hretty H8 H10 H0.
+ clear - TCret TC3 H6 TC5 H15 Hretty Hretty0 H8 H10 H0.
  simpl in TCret.
  destruct ((temp_types Delta) ! i) as [[? ?]|] eqn:?; try contradiction.
  subst retty.
@@ -1599,7 +1601,7 @@ split; [split; [split |] |].
    apply age_level in H0. omega. 
  }
  spec Hretty phi1.
- spec Hretty. apply rt_refl. spec Hretty Hb. simpl in Hretty.
+ spec Hretty. apply rt_refl. spec Hretty. split. apply Hb. apply Hretty0. simpl in Hretty.
  unfold typecheck_temp_environ. intros id b0 ty Hty.
  destruct (ident_eq i id). 
  + subst i.
@@ -1635,7 +1637,7 @@ assert (H15': ((!!tc_option_val retty ret0 && Q ts x (make_ext_rval (filter_genv
        F0 (construct_rho (filter_genv psi) vx tx))%pred (m_phi m')). {
 rewrite sepcon_assoc in H15|-*.
 destruct H15 as [w1 [w2 [? [? ?]]]]; exists w1; exists w2; split3; auto.
-clear - H7 H1 H10 H11 H0 Hretty.
+clear - H7 H1 H10 H11 H0 Hretty Hretty0.
 specialize (H11 (make_ext_rval (filter_genv psi) ret0) (level (m_phi jm'))).
 specialize (Hretty ts x ret0 w1).
 spec H11.
@@ -1650,7 +1652,7 @@ apply join_level in H1. destruct H1.
 rewrite H. change (S (level jm') >= level m')%nat.
 omega.
 split.
-apply Hretty; auto.
+apply Hretty; auto. split; auto.
 destruct (H11 w1) as [? _].
 apply join_level in H1. destruct H1.
 rewrite <- level_juice_level_phi in *.

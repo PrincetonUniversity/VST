@@ -373,13 +373,11 @@ semax_func_cons body_mallocN.
  rewrite (ret_temp_make_ext_rval gx ret _ (eq_refl _)) in Px0.
  auto.
 semax_func_cons body_freeN.
-  admit.  (* yuck *)
 semax_func_cons body_fifo_new.
 semax_func_cons body_fifo_put.
 semax_func_cons body_fifo_empty.
 semax_func_cons body_fifo_get.
 semax_func_cons body_make_elem.
 semax_func_cons body_main.
-Admitted.
-
+Qed.
 

@@ -8,6 +8,13 @@ Require Import sepcomp.extspec.
 Require Import sepcomp.semantics.
 Require Import sepcomp.semantics_lemmas.
 
+Definition has_opttyp (v : option val) (t : option typ) :=
+  match v, t with
+    None, None => True
+  | Some v, Some t => Val.has_type v t
+  | _, _ => False
+  end.
+
 Section safety.
   Context {G C M Z:Type}.
   Context {genv_symb: G -> PTree.t block}.
@@ -28,7 +35,8 @@ Section safety.
       forall n z c m e args x,
       at_external Hcore c = Some (e,args) ->
       ext_spec_pre Hspec e x (genv_symb ge) (sig_args (ef_sig e)) args z m ->
-      (forall ret m' z' n',
+      (forall ret m' z' n'
+         (Hretty : has_opttyp ret (ef_sig e).(sig_res)),
          (n' <= n)%nat -> 
          Hrel n' m m' -> 
          ext_spec_post Hspec e x (genv_symb ge) (sig_res (ef_sig e)) ret z' m' ->
@@ -154,8 +162,8 @@ Section safety.
     + econstructor; eauto.
     + eapply safeN_external; eauto.
       rewrite <-H; auto.
-      intros ????? H8 H9.
-      specialize (H7 _ _ _ _ H3 H8 H9).
+      intros ???? Hretty ? H8 H9.
+      specialize (H7 _ _ _ _ Hretty H3 H8 H9).
       destruct H7 as [c' [? ?]].
       exists c'; split; auto.
     + eapply safeN_halted; eauto.

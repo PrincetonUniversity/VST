@@ -213,27 +213,16 @@ Proof.
 unfold Gprog, prog, prog_funct; simpl.
 repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
 semax_func_cons_ext.
-{ admit. }
 semax_func_cons_ext.
-{ admit. }
 semax_func_cons_ext.
-{ admit. }
 semax_func_cons_ext.
-{ admit. }
 semax_func_cons_ext.
-{ admit. }
 semax_func_cons_ext.
-{ admit. }
 semax_func_cons_ext.
-{ admit. }
 semax_func_cons_ext.
-{ admit. }
 semax_func_cons_ext.
-{ admit. }
 semax_func_cons_ext.
-{ admit. }
 semax_func_cons_ext.
-{ admit. }
 semax_func_cons body_thread_func.
 semax_func_cons body_main.
-Admitted.
+Qed.

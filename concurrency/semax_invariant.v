@@ -250,7 +250,7 @@ Definition threads_safety {Z} (Jspec : juicy_ext_spec Z) m ge tp PHI (mcompat : 
       forall c',
         (* [v] is not used here. The problem is probably coming from
            the definition of JuicyMachine.resume_thread'. *)
-        cl_after_external (Some (Vint Int.zero)) c = Some c' ->
+        cl_after_external None c = Some c' ->
         semax.jsafeN Jspec ge n ora c' (jm_ cnti mcompat)
     | Kinit _ _ => Logic.True
     end.

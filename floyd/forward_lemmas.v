@@ -49,7 +49,7 @@ eapply semax_func_cons_ext; try reflexivity; auto.
   clear.
   revert i; induction argsig; simpl; intros; auto.
 *
-  intros. simpl. apply FF_left.
+  intros. simpl. apply andp_left1, FF_left.
 *
   apply semax_external_FF.
 Qed.

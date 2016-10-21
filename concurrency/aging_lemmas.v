@@ -253,8 +253,8 @@ Proof.
   - econstructor 3.
     + eauto.
     + eapply (proj1 heredspec); eauto.
-    + intros ret jm' z' n' H rel post.
-      destruct (Post ret jm' z' n' H) as (c' & atex' & safe'); eauto.
+    + intros ret jm' z' n' Hretty H rel post.
+      destruct (Post ret jm' z' n' Hretty H) as (c' & atex' & safe'); eauto.
       unfold juicy_safety.Hrel in *.
       split;[|split]; try apply rel.
       * apply age_level in A; omega.

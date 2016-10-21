@@ -1052,7 +1052,9 @@ Axiom semax_func_cons_ext:
       id_in_list id (map (@fst _ _) fs) = false ->
       length ids = length (typelist2list argsig) ->
       (forall gx ts x (ret : option val),
-         (Q ts x (make_ext_rval gx ret) |-- !!tc_option_val retsig ret)) ->
+         (Q ts x (make_ext_rval gx ret)
+            && !!step_lemmas.has_opttyp ret (opttyp_of_type retsig)
+            |-- !!tc_option_val retsig ret)) ->
       @semax_external Espec ids ef A P Q ->
       semax_func V G fs G' ->
       semax_func V G ((id, External ef argsig retsig cc)::fs) 

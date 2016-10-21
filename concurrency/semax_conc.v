@@ -645,8 +645,8 @@ Proof.
           destruct Pre as [phi0 [phi1 [Hj [[[? ?] [[? ?] ?]] ?]]]].
           exists phi0, phi1; repeat split; auto.
           
-        + intros ret m' z' n' Hn Hr.
-          specialize (Post ret m' tt n' Hn Hr).
+        + intros ret m' z' n' Hretty Hn Hr.
+          specialize (Post ret m' tt n' Hretty Hn Hr).
           
           revert x2 E2.
           simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
@@ -711,8 +711,8 @@ Proof.
           destruct Pre as [phi0 [phi1 [Hj [[[? ?] [[? ?] ?]] ?]]]].
           exists phi0, phi1; repeat split; auto.
           
-        + intros ret m' z' n' Hn Hr.
-          specialize (Post ret m' tt n' Hn Hr).
+        + intros ret m' z' n' Hretty Hn Hr.
+          specialize (Post ret m' tt n' Hretty Hn Hr).
           
           revert x2 E2.
           simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
@@ -798,8 +798,8 @@ Proof.
         destruct Pre as [phi0 [phi1 [Hj [[[? ?] [[? ?] ?]] ?]]]].
         exists phi0, phi1; repeat split; auto.
         
-      + intros ret m' z' n' Hn Hr.
-        specialize (Post ret m' tt n' Hn Hr).
+      + intros ret m' z' n' Hretty Hn Hr.
+        specialize (Post ret m' tt n' Hretty Hn Hr).
         
         revert x2 E2.
         simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
