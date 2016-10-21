@@ -275,7 +275,9 @@ Section Progress.
         (* dependent destruction *)
         funspec_destruct "acquire".
         
-        intros (phix, ((vx, shx), Rx)) Pre. simpl in Pre.
+        intros (phix, (ts, ((vx, shx), Rx))) Pre.
+        simpl (projT2 _) in *; simpl (fst _) in *; simpl (snd _) in *; clear ts.
+        simpl in Pre.
         destruct Pre as (phi0 & phi1 & Join & Precond & HnecR).
         simpl (and _).
         intros Post.
@@ -666,7 +668,9 @@ Section Progress.
         funspec_destruct "acquire".
         funspec_destruct "release".
         
-        intros (phix, ((vx, shx), Rx)) Pre. simpl in Pre.
+        intros (phix, (ts, ((vx, shx), Rx))) Pre.
+        simpl (projT2 _) in *; simpl (fst _) in *; simpl (snd _) in *; clear ts.
+        simpl in Pre.
         destruct Pre as (phi0 & phi1 & Join & Precond & HnecR).
         simpl (and _).
         intros Post.
@@ -927,7 +931,9 @@ Section Progress.
         funspec_destruct "release".
         funspec_destruct "makelock".
         
-        intros (phix, ((vx, shx), Rx)) Pre. simpl in Pre.
+        intros (phix, (ts, ((vx, shx), Rx))) Pre.
+        simpl (projT2 _) in *; simpl (fst _) in *; simpl (snd _) in *; clear ts.
+        simpl in Pre.
         destruct Pre as (phi0 & phi1 & Join & Precond & HnecR).
         simpl (and _).
         intros Post.
@@ -1179,9 +1185,7 @@ Section Progress.
               simpl.
               unfold "oo".
               unfold NoneP in *.
-              repeat f_equal.
-              extensionality t.
-              apply approx_FF.
+              f_equal.
         }
         (* destruct Hphi0' as (phi0' & lev & Same & Before & After). *)
         replace phi0 with (getThreadR cnti) in Hphi0' by admit (* will have to prove lemmas about shapes and rmap_makelock *).
