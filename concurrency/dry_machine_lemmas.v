@@ -492,6 +492,8 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
   Qed.
 
   (** ** Lemmas about initial state*)
+
+  (** The initial thread is thread 0*)
   Lemma init_thread:
     forall the_ge pmap f arg tp i
       (Hinit: init_mach pmap the_ge f arg = Some tp),
@@ -513,11 +515,13 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
     ssromega.
   Qed.
 
+  (** [getThreadR] on the initial thread returns the [access_map] that was used
+  in [init_mach] and the [empty_map]*)
   Lemma getThreadR_init:
     forall the_ge pmap f arg tp
-      (Hinit: init_mach pmap the_ge f arg = Some tp)
+      (Hinit: init_mach (Some pmap) the_ge f arg = Some tp)
       (cnt: containsThread tp 0), 
-      getThreadR cnt = (pmap, empty_map).
+      getThreadR cnt = (pmap.1, empty_map).
   Proof.
     intros.
     unfold init_mach in *.
@@ -528,13 +532,38 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
            end.
     inversion Hinit.
     subst.
-    simpl.
-    unfold init_perm in Heqo0.
-    rewrite Hmem in Heqo0.
-    inversion Heqo0; subst.
     reflexivity.
   Qed.
 
+  (** If there was no [access_map] provided [init_mach] is not defined*)
+  Lemma init_mach_none:
+    forall the_ge f arg,
+      init_mach None the_ge f arg = None.
+  Proof.
+    intros.
+    unfold init_mach.
+    destruct (initial_core (event_semantics.msem ThreadPool.SEM.Sem) the_ge f arg);
+      reflexivity.
+  Qed.
+
+  (** There are no locks in the initial machine *)
+  Lemma init_lockRes_empty:
+    forall the_ge pmap f arg tp laddr
+      (Hinit: init_mach pmap the_ge f arg = Some tp),
+      lockRes tp laddr = None.
+  Proof.
+    intros.
+    unfold init_mach in Hinit.
+    destruct (initial_core (event_semantics.msem ThreadPool.SEM.Sem) the_ge f arg); try discriminate.
+    destruct pmap; try discriminate.
+    unfold initial_machine in Hinit.
+    inversion Hinit.
+    unfold lockRes.
+    rewrite threadPool.find_empty.
+    reflexivity.
+  Qed.
+
+  (** The [invariant] holds for the initial state*)
   Lemma initial_invariant:
     forall the_ge pmap f arg tp
       (Hinit: init_mach pmap the_ge f arg = Some tp),
@@ -547,25 +576,37 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
       pose proof (init_thread _ _ _ _ Hinit cntj); subst.
       exfalso. auto.
     - intros.
-      unfold init_mach in Hinit.
-      destruct (initial_core (event_semantics.msem ThreadPool.SEM.Sem) the_ge f arg); try discriminate.
-      destruct pmap; try discriminate.
-      inversion Hinit; subst.
-      unfold initial_machine, lockRes in Hres1.
-      erewrite threadPool.find_empty in Hres1.
+      erewrite init_lockRes_empty in Hres1 by eauto.
       discriminate.
     - intros.
-      unfold init_mach in Hinit.
-      destruct (initial_core (event_semantics.msem ThreadPool.SEM.Sem) the_ge f arg); try discriminate.
-      destruct pmap; try discriminate.
-      inversion Hinit; subst.
-      unfold initial_machine, lockRes in Hres.
-      erewrite threadPool.find_empty in Hres.
+      erewrite init_lockRes_empty in Hres by eauto.
       discriminate.
     - intros.
       split.
       + intros.
-        rewrite getThreadR_init
+        destruct pmap as [pmap |];
+          [|rewrite init_mach_none in Hinit; discriminate].
+        pose proof (init_thread _ _ _ _ Hinit cnti); subst.
+        pose proof (init_thread _ _ _ _ Hinit cntj); subst.
+        pf_cleanup.
+        erewrite getThreadR_init by eauto.
+        simpl.
+        intros ? ?.
+        rewrite empty_map_spec.
+        now apply perm_coh_empty_1.
+      + intros.
+        erewrite init_lockRes_empty in H by eauto.
+        discriminate.
+    - intros.
+      erewrite init_lockRes_empty in Hres by eauto.
+      discriminate.
+    - intros b ofs.
+      destruct (lockRes tp (b, ofs)) eqn:Hres; auto.
+      erewrite init_lockRes_empty in Hres by eauto.
+      discriminate.
+  Qed.
+
+  
   
 End ThreadPoolWF.
 

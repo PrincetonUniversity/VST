@@ -72,7 +72,8 @@ Module FineConcSafe (SEM : Semantics) (SemAxioms : SemanticsAxioms SEM)
        (FineConcInitial: FineConcInitial SEM Machine AsmContext CI).
 
   Module SimProofs := SimProofs SEM SemAxioms Machine AsmContext CI.
-  Import AsmContext SimProofs SimDefs Machine DryMachine.
+  Module ThreadPoolWF := ThreadPoolWF SEM Machine.
+  Import AsmContext SimProofs SimDefs Machine DryMachine ThreadPoolWF.
   Import Renamings MemObsEq ValObsEq ValueWD CI FineConcInitial ThreadPool.
   Import SimDefs.StepType dry_machine.Concur.mySchedule.
   Import StepType.InternalSteps StepLemmas.
@@ -96,7 +97,7 @@ Module FineConcSafe (SEM : Semantics) (SemAxioms : SemanticsAxioms SEM)
     simpl.
     specialize (init_core_wd v ARGS H). rewrite Heqo; trivial. 
   Qed.
-  
+
   (** Assuming safety of cooperative concurrency*)
   Section Safety.
     Variable (f : val) (arg : list val).
@@ -106,8 +107,7 @@ Module FineConcSafe (SEM : Semantics) (SemAxioms : SemanticsAxioms SEM)
         tpc_init f arg = Some (U, [::], tpc) ->
         csafe the_ge (sched,[::],tpc) mem n.
 
-  (** If the initial state is defined then the initial memory was also
-defined*)
+  (** If the initial state is defined then the initial memory was also defined*)
   Lemma tpc_init_mem_defined:
     forall U tpc,
       tpc_init f arg = Some (U, tpc) ->
@@ -121,6 +121,33 @@ defined*)
     destruct init_mem; try discriminate.
     eexists; reflexivity.
     destruct (initial_core SEM.Sem the_ge f arg); try discriminate.
+  Qed.
+
+  (** [init_mach] and [init_mem] are related by [mem_compatible]*)
+  Lemma init_compatible:
+    forall tp m,
+      init_mem = Some m ->
+      init_mach init_perm the_ge f arg = Some tp ->
+      mem_compatible tp m.
+  Proof.
+    intros.
+    destruct init_perm as [pmap|] eqn:Hinit_perm;
+      [| rewrite init_mach_none in H0; discriminate].
+    unfold init_perm in Hinit_perm.
+    rewrite H in Hinit_perm.
+    inversion Hinit_perm; subst.
+    constructor.
+    - intros j cntj.
+      pose proof (init_thread _ _ _ _ H0 cntj); subst.
+      erewrite getThreadR_init by eauto.
+      simpl.
+      split; [intros ? ?; now apply getCur_Max |now apply empty_LT].
+    - intros.
+      erewrite init_lockRes_empty in H1 by eauto.
+      discriminate.
+    - intros.
+      erewrite init_lockRes_empty in H1 by eauto.
+      discriminate.
   Qed.
 
   (** Simulation relation with id renaming for initial memory*)
@@ -194,39 +221,6 @@ defined*)
         simpl in Hperm.
         now exfalso.
   Qed.
-  
-  Lemma init_compatible:
-    forall tp m,
-      init_mem = Some m ->
-      init_mach init_perm the_ge f arg = Some tp ->
-      mem_compatible tp m.
-  Proof.
-    intros.
-    unfold init_mach in *.
-    destruct (initial_core SEM.Sem the_ge f arg); try discriminate.
-    unfold init_perm in *. rewrite H in H0.
-    inversion H0; subst.
-    constructor.
-    - intros j cntj.
-      simpl. split; [|now apply empty_LT].
-      unfold permMapLt; intros.
-      rewrite getMaxPerm_correct getCurPerm_correct.
-      destruct m; simpl.
-      unfold permission_at; simpl.
-      apply access_max.
-    - unfold initial_machine. simpl. intros.
-      unfold lockRes in H1.
-      simpl in H1.
-      rewrite threadPool.find_empty in H1. discriminate.
-    - intros.
-      unfold initial_machine, lockRes in H1.
-      simpl in H1.
-      rewrite threadPool.find_empty in H1.
-      discriminate.
-  Qed.
-
- 
-
 
   (** The [strong_tsim] relation is reflexive under the identity renaming*)
   Lemma strong_tsim_refl:
@@ -294,9 +288,12 @@ defined*)
       split.
       intros; pf_cleanup.
       eapply strong_tsim_refl; eauto.
-      pose proof (init_thread Hinit pff); subst.
+      pose proof (init_thread _ _ _ _  Hinit pff); subst.
       repeat (split; intros); try congruence.
-      + erewrite getThreadR_init by eauto.
+      + erewrite getThreadR_init
+          by (unfold init_perm in Hinit;
+              rewrite H1 in Hinit;
+              eauto).
         simpl.
         pose proof (strong_tsim_refl pfc HmemComp HmemCompF ARG H1 Hinit).
         pf_cleanup.
@@ -312,7 +309,10 @@ defined*)
           rewrite getCurPerm_correct.
           unfold permission_at.
           assumption.
-      + erewrite getThreadR_init by eauto.
+      + erewrite getThreadR_init
+          by ( unfold init_perm in Hinit;
+               rewrite H1 in Hinit;
+               eauto).
         simpl.
         now apply empty_map_spec.
     - unfold init_mach in *.
@@ -342,11 +342,8 @@ defined*)
       unfold lockRes, initial_machine in *. simpl.
       rewrite threadPool.find_empty in H.
       discriminate.
-    - unfold init_mach, init_perm in Hinit.
-      rewrite H1 in Hinit.
-      destruct (initial_core SEM.Sem the_ge f arg); try discriminate.
-      inversion Hinit; subst.
-      apply DryMachineLemmas.initial_invariant.
+    - eapply ThreadPoolWF.initial_invariant;
+        now eauto.
     - apply setMaxPerm_inv; auto.
     - apply init_mem_wd; auto.
     - eapply init_tp_wd; eauto.
@@ -408,7 +405,7 @@ defined*)
     induction sched as [|i sched]; intros; simpl; auto.
     econstructor; simpl; eauto.
     destruct (containsThread_dec i tpf) as [cnti | invalid].
-    - (* By case analysis on the step type *)
+    - (** By case analysis on the step type *)
       destruct (getStepType cnti) eqn:Htype.
       + pose proof (sim_internal [::] cnti Htype Hsim) as
             (tpf' & m' & fp' & tr' & Hstep & Hsim').
@@ -441,8 +438,7 @@ defined*)
        Unshelve. eapply [::].
   Qed.
 
-
-  (** Safety preservation for the FineConc machine starting from the initial state*)
+  (** *** Safety preservation for the FineConc machine starting from the initial state*)
   Theorem init_fine_safe:
     forall U tpf m
       (Hmem: init_mem = Some m)
@@ -451,13 +447,12 @@ defined*)
     forall (sched : Sch),
       fsafe tpf (diluteMem m) sched (size sched).+1.
   Proof.
-    intros. (* specialize (init_sim f ARG (size sched).+1).*)
+    intros.
     assert (Hsim := init_sim (size sched).+1 ARG Hinit Hinit Hmem).
     clear - Hsim.
-    eapply fine_safe; eauto.
+    eapply fine_safe; now eauto.
   Qed.
   
-
   End Safety.
 End FineConcSafe.
 
