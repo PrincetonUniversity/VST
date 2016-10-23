@@ -225,49 +225,8 @@ defined*)
       discriminate.
   Qed.
 
-  Lemma init_thread:
-    forall tp i,
-      init_mach init_perm the_ge f arg = Some tp ->
-      containsThread tp i ->
-      i = 0.
-  Proof.
-    intros.
-    unfold init_mach in *.
-    unfold initial_machine in *.
-    repeat match goal with
-           | [H: match ?Expr with _ => _ end = _ |- _] =>
-             destruct Expr eqn:?; try discriminate
-           end.
-    simpl in H. inversion H; subst.
-    unfold containsThread in *. simpl in *.
-    clear - H0.
-    destruct i.
-    reflexivity.
-    ssromega.
-  Qed.
+ 
 
-  Lemma getThreadR_init:
-    forall tp m
-      (Hinit: init_mach init_perm the_ge f arg = Some tp)
-      (Hmem: init_mem = Some m)
-      (cnt: containsThread tp 0), 
-      getThreadR cnt = (getCurPerm m, empty_map).
-  Proof.
-    intros.
-    unfold init_mach in *.
-    unfold initial_machine in *.
-    repeat match goal with
-           | [H: match ?Expr with _ => _ end = _ |- _] =>
-             destruct Expr eqn:?; try discriminate
-           end.
-    inversion Hinit.
-    subst.
-    simpl.
-    unfold init_perm in Heqo0.
-    rewrite Hmem in Heqo0.
-    inversion Heqo0; subst.
-    reflexivity.
-  Qed.
 
   (** The [strong_tsim] relation is reflexive under the identity renaming*)
   Lemma strong_tsim_refl:
@@ -382,10 +341,7 @@ defined*)
       inversion Hinit; subst.
       unfold lockRes, initial_machine in *. simpl.
       rewrite threadPool.find_empty in H.
-      split; intros.
-      exfalso.
-      rewrite threadPool.find_empty in Hl1; discriminate.
-      split; auto.
+      discriminate.
     - unfold init_mach, init_perm in Hinit.
       rewrite H1 in Hinit.
       destruct (initial_core SEM.Sem the_ge f arg); try discriminate.
