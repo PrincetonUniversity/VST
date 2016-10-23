@@ -9,6 +9,7 @@ Require Import concurrency.concurrent_machine.
 Require Import concurrency.addressFiniteMap. (*The finite maps*)
 Require Import concurrency.pos.
 Require Import concurrency.lksize.
+Require Import concurrency.permjoin_def.
 Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
@@ -465,68 +466,7 @@ Module Concur.
        (** most of these lemmas are in DryMachinLemmas*)
 (*
        (** *Invariant Lemmas*)
-       Lemma initial_invariant: forall pmap c,
-           invariant (initial_machine pmap c).
-             unfold  invariant.
-             constructor.
-             - unfold drf, initial_machine; simpl.
-               intros. unfold allDataRes, getThreadsR, getLocksR; simpl.
-               destruct (EqResKey.eq k1 (EqResKey.Thread 0)) as [e | n].
-               + subst.
-                 do 2 rewrite Resources.gsspec. simpl.
-                 erewrite Coqlib2.if_false by (intros Hcontra; eauto).
-                 unfold Resources.get.
-                 rewrite Resources.gi.
-                 apply permMapsDisjoint_comm.
-                 apply empty_disjoint'.
-               + destruct (EqResKey.eq k2 (EqResKey.Thread 0)) as [e' | n'].
-                 * subst.
-                   do 2 rewrite Resources.gsspec; simpl.
-                   erewrite Coqlib2.if_false by (intros Hcontra; eauto).
-                   unfold Resources.get.
-                   rewrite Resources.gi.
-                   apply empty_disjoint'.
-                 * do 2 rewrite Resources.gsspec;
-                   erewrite! Coqlib2.if_false by (intros Hcontra; eauto).
-                   unfold Resources.get.
-                   rewrite! Resources.gi.
-                   apply empty_disjoint'.
-             - (* these two proofs are exactly the same, they should probably be abstracted*)
-               unfold lrf, initial_machine, allLockRes, getThreadsLR, getLocksLR;
-               simpl; intros.
-               destruct (EqResKey.eq k1 (EqResKey.Thread 0)) as [e | n].
-               + subst.
-                 do 2 rewrite Resources.gsspec. simpl.
-                 erewrite Coqlib2.if_false by (intros Hcontra; eauto).
-                 unfold Resources.get.
-                 rewrite Resources.gi.
-                 apply permMapsDisjoint_comm.
-                 apply empty_disjoint'.
-               + destruct (EqResKey.eq k2 (EqResKey.Thread 0)) as [e' | n'].
-                 * subst.
-                   do 2 rewrite Resources.gsspec; simpl.
-                   erewrite Coqlib2.if_false by (intros Hcontra; eauto).
-                   unfold Resources.get.
-                   rewrite Resources.gi.
-                   apply empty_disjoint'.
-                 * do 2 rewrite Resources.gsspec;
-                   erewrite! Coqlib2.if_false by (intros Hcontra; eauto).
-                   unfold Resources.get.
-                   rewrite! Resources.gi.
-                   apply empty_disjoint'.
-             - intros b ofs. split; simpl.
-               intros; by exfalso.
-               unfold allLockRes, initial_machine, getThreadsLR, getLocksLR;
-                 simpl; intros (k & Hcontra).
-               rewrite Resources.gsspec in Hcontra.
-               destruct (Resources.elt_eq k (EqResKey.Thread 0));
-                 [| unfold Resources.get in Hcontra; rewrite Resources.gi in Hcontra];
-                 rewrite empty_map_spec in Hcontra; simpl in Hcontra; auto.
-             - intros b ofs Hislock.
-               simpl in Hislock. by exfalso.
-             - unfold initial_machine, lockRes, empty_lset. simpl.
-               intros b ofs; unfold AMap.empty; simpl. constructor.
-       Qed.
+      
 
        (** ** Updating the machine state**)
        Lemma updCinvariant: forall {tid} ds c (cnt: containsThread ds tid),

@@ -1,4 +1,4 @@
-(** ** Safety of the FineConc Machine (generic)*)
+(** * Safety of the FineConc Machine (generic)*)
 
 Require Import compcert.lib.Axioms.
 
@@ -130,8 +130,10 @@ defined*)
       (HcompF: mem_compatible tp (diluteMem m)),
       init_mem = Some m ->
       init_mach init_perm the_ge f arg = Some tp ->
-      mem_obs_eq (id_ren m) (restrPermMap (Hcomp _ cnti))
-                 (restrPermMap (HcompF _ cnti)).
+      mem_obs_eq (id_ren m) (restrPermMap (Hcomp _ cnti).1)
+                 (restrPermMap (HcompF _ cnti).1) /\
+      mem_obs_eq (id_ren m) (restrPermMap (Hcomp _ cnti).2)
+                 (restrPermMap (HcompF _ cnti).2).
   Proof.
     intros.
     pose proof (mem_obs_eq_id (init_mem_wd H)) as Hobs_eq_id.
@@ -143,30 +145,54 @@ defined*)
     rewrite H in Hinit_perm.
     inversion Hinit_perm. subst.
     destruct Hobs_eq_id.
-    constructor.
-    - constructor;
-      destruct weak_obs_eq0; eauto.
-      intros.
-      do 2 rewrite restrPermMap_Cur.
-      simpl.
-      apply id_ren_correct in Hrenaming. subst.
-      apply po_refl.
+    split.
     - constructor.
-      intros.
-      apply id_ren_correct in Hrenaming.
-      subst.
-      do 2 rewrite restrPermMap_Cur.
-      reflexivity.
-      intros.
-      apply id_ren_correct in Hrenaming. subst.
-      eapply memval_obs_eq_id.
-      apply Mem.perm_valid_block in Hperm.
-      simpl.
-      pose proof (init_mem_wd H Hperm ofs ltac:(reflexivity)).
-      destruct (ZMap.get ofs (Mem.mem_contents m) # b2); simpl; auto.
-      rewrite <- wd_val_valid; eauto.
-      apply id_ren_domain.
-      apply id_ren_correct.
+      + constructor;
+          destruct weak_obs_eq0; eauto.
+        intros.
+        do 2 rewrite restrPermMap_Cur.
+        simpl.
+        apply id_ren_correct in Hrenaming. subst.
+        apply po_refl.
+      + constructor.
+        intros.
+        apply id_ren_correct in Hrenaming.
+        subst.
+        do 2 rewrite restrPermMap_Cur.
+        reflexivity.
+        intros.
+        apply id_ren_correct in Hrenaming. subst.
+        eapply memval_obs_eq_id.
+        apply Mem.perm_valid_block in Hperm.
+        simpl.
+        pose proof (init_mem_wd H Hperm ofs ltac:(reflexivity)).
+        destruct (ZMap.get ofs (Mem.mem_contents m) # b2); simpl; auto.
+        rewrite <- wd_val_valid; eauto.
+        apply id_ren_domain.
+        apply id_ren_correct.
+    - constructor.
+      + constructor;
+          destruct weak_obs_eq0; eauto.
+        intros.
+        do 2 rewrite restrPermMap_Cur.
+        simpl.
+        rewrite! empty_map_spec.
+        now apply po_refl.
+      + constructor.
+        intros.
+        do 2 rewrite restrPermMap_Cur.
+        simpl.
+        rewrite! empty_map_spec.
+        reflexivity.
+        intros.
+        unfold Mem.perm in Hperm.
+        pose proof (restrPermMap_Cur (Hcomp i cnti).2 b1 ofs).
+        unfold permission_at in H1.
+        rewrite H1 in Hperm.
+        simpl in Hperm.
+        rewrite empty_map_spec in Hperm.
+        simpl in Hperm.
+        now exfalso.
   Qed.
   
   Lemma init_compatible:
@@ -181,29 +207,29 @@ defined*)
     unfold init_perm in *. rewrite H in H0.
     inversion H0; subst.
     constructor.
-    intros j cntj.
-    simpl.
-    unfold permMapLt; intros.
-    rewrite getMaxPerm_correct getCurPerm_correct.
-    destruct m; simpl.
-    unfold permission_at; simpl.
-    apply access_max.
-    unfold initial_machine. simpl. intros.
-    unfold lockRes in H1.
-    simpl in H1.
-    rewrite threadPool.find_empty in H1. discriminate.
-    unfold initial_machine, lockSet.
-    simpl. unfold addressFiniteMap.A2PMap.
-    simpl.
-    intros b ofs. rewrite Maps.PMap.gi.
-    destruct ((getMaxPerm m) # b ofs); simpl; auto.
+    - intros j cntj.
+      simpl. split; [|now apply empty_LT].
+      unfold permMapLt; intros.
+      rewrite getMaxPerm_correct getCurPerm_correct.
+      destruct m; simpl.
+      unfold permission_at; simpl.
+      apply access_max.
+    - unfold initial_machine. simpl. intros.
+      unfold lockRes in H1.
+      simpl in H1.
+      rewrite threadPool.find_empty in H1. discriminate.
+    - intros.
+      unfold initial_machine, lockRes in H1.
+      simpl in H1.
+      rewrite threadPool.find_empty in H1.
+      discriminate.
   Qed.
 
   Lemma init_thread:
     forall tp i,
       init_mach init_perm the_ge f arg = Some tp ->
       containsThread tp i ->
-      containsThread tp 0.
+      i = 0.
   Proof.
     intros.
     unfold init_mach in *.
@@ -213,8 +239,34 @@ defined*)
              destruct Expr eqn:?; try discriminate
            end.
     simpl in H. inversion H; subst.
-    unfold containsThread. simpl.
+    unfold containsThread in *. simpl in *.
+    clear - H0.
+    destruct i.
+    reflexivity.
     ssromega.
+  Qed.
+
+  Lemma getThreadR_init:
+    forall tp m
+      (Hinit: init_mach init_perm the_ge f arg = Some tp)
+      (Hmem: init_mem = Some m)
+      (cnt: containsThread tp 0), 
+      getThreadR cnt = (getCurPerm m, empty_map).
+  Proof.
+    intros.
+    unfold init_mach in *.
+    unfold initial_machine in *.
+    repeat match goal with
+           | [H: match ?Expr with _ => _ end = _ |- _] =>
+             destruct Expr eqn:?; try discriminate
+           end.
+    inversion Hinit.
+    subst.
+    simpl.
+    unfold init_perm in Heqo0.
+    rewrite Hmem in Heqo0.
+    inversion Heqo0; subst.
+    reflexivity.
   Qed.
 
   (** The [strong_tsim] relation is reflexive under the identity renaming*)
@@ -228,11 +280,11 @@ defined*)
       strong_tsim (id_ren m) cnti cnti Hcomp HcompF.
   Proof.
     intros.
-    constructor.
-    - eapply ctl_inj_id; eauto.
-      apply (init_tp_wd _ ARGS H H0).
-      apply id_ren_correct.
-    - eapply init_mem_obs_eq; eauto.
+    destruct (init_mem_obs_eq cnti Hcomp HcompF H H0).
+    constructor; eauto.
+    eapply ctl_inj_id; eauto.
+    apply (init_tp_wd _ ARGS H H0).
+    apply id_ren_correct.
   Qed.
 
   Lemma setMaxPerm_inv:
@@ -272,8 +324,8 @@ defined*)
     - intros i cnti cnti'.
       pose proof (strong_tsim_refl cnti HmemComp HmemCompF ARG H1 Hinit).
       pf_cleanup.
-      destruct H. destruct obs_eq0.
-      eauto.
+      destruct H. destruct obs_eq_data0, obs_eq_locks0.
+      constructor; eauto.
     - intros; by congruence.
     - intros.
       exists tpf, m.
@@ -283,35 +335,53 @@ defined*)
       split.
       intros; pf_cleanup.
       eapply strong_tsim_refl; eauto.
-      repeat (split; intros); congruence.
+      pose proof (init_thread Hinit pff); subst.
+      repeat (split; intros); try congruence.
+      + erewrite getThreadR_init by eauto.
+        simpl.
+        pose proof (strong_tsim_refl pfc HmemComp HmemCompF ARG H1 Hinit).
+        pf_cleanup.
+        destruct H0. destruct obs_eq_data0.
+        destruct weak_obs_eq0.
+        destruct (valid_block_dec m b2).
+        * pose proof (domain_valid0 _ v) as Hmapped.
+          destruct Hmapped as [b' Hid].
+          pose proof (id_ren_correct _ _ Hid); subst.
+          exfalso. apply H.
+          eexists; eauto.
+        * apply Mem.nextblock_noaccess with (k := Cur) (ofs := ofs) in n0.
+          rewrite getCurPerm_correct.
+          unfold permission_at.
+          assumption.
+      + erewrite getThreadR_init by eauto.
+        simpl.
+        now apply empty_map_spec.
     - unfold init_mach in *.
       unfold init_perm in Hinit.
       rewrite H1 in Hinit.
       destruct (initial_core SEM.Sem the_ge f arg); try discriminate.
       inversion Hinit; subst.
       split.
-      constructor.
-      intros.
-      do 2 rewrite restrPermMap_Cur.
-      unfold initial_machine, lockSet. simpl.
-      unfold addressFiniteMap.A2PMap. simpl.
-      do 2 rewrite Maps.PMap.gi; reflexivity.
-      intros.
-      assert (Heq := restrPermMap_Cur (compat_ls HmemComp) b1 ofs).
-      unfold permission_at in Heq.
-      unfold Mem.perm in Hperm.
-      rewrite Heq in Hperm.
-      unfold lockSet, initial_machine, addressFiniteMap.A2PMap in Hperm.
-      simpl in Hperm.
-      rewrite Maps.PMap.gi in Hperm.
-      simpl in Hperm. exfalso; auto.
-      intros. unfold lockRes, initial_machine in H. simpl in H.
-        by exfalso.
-    - unfold init_mach, init_perm in Hinit.
+      + intros.
+        exfalso.
+        unfold initial_machine, lockRes in *. simpl in *.
+        erewrite threadPool.find_empty in Hl1, Hl2.
+        discriminate.
+      + split.
+        * intros.
+          unfold lockRes, initial_machine in H.
+          rewrite threadPool.find_empty in H.
+          now exfalso.
+        * intros.
+          apply id_ren_correct in H; subst.
+          split; auto.
+    - intros.
+      unfold init_mach, init_perm in Hinit.
       rewrite H1 in Hinit.
       destruct (initial_core SEM.Sem the_ge f arg); try discriminate.
       inversion Hinit; subst.
-      unfold lockRes, initial_machine. simpl.
+      unfold lockRes, initial_machine in *. simpl.
+      rewrite threadPool.find_empty in H.
       split; intros.
       exfalso.
       rewrite threadPool.find_empty in Hl1; discriminate.

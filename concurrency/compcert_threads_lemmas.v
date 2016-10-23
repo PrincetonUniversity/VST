@@ -28,9 +28,11 @@ Require Import Coq.ZArith.ZArith.
 
 Require Import concurrency.threads_lemmas.
 Require Import concurrency.permissions.
+Require Import concurrency.permjoin_def.
 Require Import concurrency.scheduler.
 Require Import concurrency.concurrent_machine.
-Require Import concurrency.dry_machine_lemmas concurrency.dry_context.
+Require Import concurrency.dry_machine_lemmas.
+Require Import concurrency.dry_context.
 Require Import concurrency.memory_lemmas.
 Require Import concurrency.mem_obs_eq.
 

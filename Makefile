@@ -1,4 +1,4 @@
-# See the file BUILD_ORGANIZATION for 
+# See the file BUILD_ORGANIZATION for
 # explanations of why this is the way it is
 
 default_target: msl veric floyd progs
@@ -124,7 +124,7 @@ CONCUR_FILES= \
   erased_machine.v erasure_proof.v erasure_safety.v erasure_signature.v \
   fineConc_safe.v inj_lemmas.v join_sm.v juicy_machine.v \
   lksize.v \
-  main.v mem_obs_eq.v memory_lemmas.v permissions.v pos.v pred_lemmas.v \
+  main.v mem_obs_eq.v memory_lemmas.v permissions.v permjoin_def.v pos.v pred_lemmas.v \
   rc_semantics.v rc_semantics_lemmas.v \
   scheduler.v sepcomp.v seq_lemmas.v ssromega.v stack.v \
   threads_lemmas.v wf_lemmas.v \

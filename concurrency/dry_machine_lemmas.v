@@ -490,6 +490,82 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
     apply perm_coh_not_freeable in H;
     assumption.
   Qed.
+
+  (** ** Lemmas about initial state*)
+  Lemma init_thread:
+    forall the_ge pmap f arg tp i
+      (Hinit: init_mach pmap the_ge f arg = Some tp),
+      containsThread tp i ->
+      i = 0.
+  Proof.
+    intros.
+    unfold init_mach in *.
+    unfold initial_machine in *.
+    repeat match goal with
+           | [H: match ?Expr with _ => _ end = _ |- _] =>
+             destruct Expr eqn:?; try discriminate
+           end.
+    simpl in Hinit; inversion Hinit; subst.
+    unfold containsThread in *. simpl in *.
+    clear - H.
+    destruct i.
+    reflexivity.
+    ssromega.
+  Qed.
+
+  Lemma getThreadR_init:
+    forall the_ge pmap f arg tp
+      (Hinit: init_mach pmap the_ge f arg = Some tp)
+      (cnt: containsThread tp 0), 
+      getThreadR cnt = (pmap, empty_map).
+  Proof.
+    intros.
+    unfold init_mach in *.
+    unfold initial_machine in *.
+    repeat match goal with
+           | [H: match ?Expr with _ => _ end = _ |- _] =>
+             destruct Expr eqn:?; try discriminate
+           end.
+    inversion Hinit.
+    subst.
+    simpl.
+    unfold init_perm in Heqo0.
+    rewrite Hmem in Heqo0.
+    inversion Heqo0; subst.
+    reflexivity.
+  Qed.
+
+  Lemma initial_invariant:
+    forall the_ge pmap f arg tp
+      (Hinit: init_mach pmap the_ge f arg = Some tp),
+      invariant tp.
+  Proof.
+    intros.
+    constructor.
+    - intros.
+      pose proof (init_thread _ _ _ _ Hinit cnti); subst.
+      pose proof (init_thread _ _ _ _ Hinit cntj); subst.
+      exfalso. auto.
+    - intros.
+      unfold init_mach in Hinit.
+      destruct (initial_core (event_semantics.msem ThreadPool.SEM.Sem) the_ge f arg); try discriminate.
+      destruct pmap; try discriminate.
+      inversion Hinit; subst.
+      unfold initial_machine, lockRes in Hres1.
+      erewrite threadPool.find_empty in Hres1.
+      discriminate.
+    - intros.
+      unfold init_mach in Hinit.
+      destruct (initial_core (event_semantics.msem ThreadPool.SEM.Sem) the_ge f arg); try discriminate.
+      destruct pmap; try discriminate.
+      inversion Hinit; subst.
+      unfold initial_machine, lockRes in Hres.
+      erewrite threadPool.find_empty in Hres.
+      discriminate.
+    - intros.
+      split.
+      + intros.
+        rewrite getThreadR_init
   
 End ThreadPoolWF.
 
