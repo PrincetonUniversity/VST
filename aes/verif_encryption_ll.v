@@ -146,6 +146,11 @@ Proof.
   - f_equal.
 Admitted.
 
+(* Simplified Hoare triple corresponding proven by this lemma:
+  {e is an lvalue pointing to p.gfs, and at p.gfs, the value v is stored}
+  id = e
+  {the local variable id stores the value v}
+*)
 Lemma semax_max_path_field_load_nth_ram':
   forall {Espec: OracleKind},
     forall n Delta sh id P Q R (e: expr) Pre
@@ -174,7 +179,17 @@ Proof.
   pose proof is_neutral_cast_by_value _ _ H0.
   assert_PROP (typeof e = nested_field_type t_root gfs). {
     eapply derives_trans; [exact H7 |].
+    unfold tc_lvalue. (* unfold typecheck_lvalue. unfold denote_tc_assert.
+
+    normalize.
+
+tc_val
+
+typecheck_lvalue
+typeof: just extracts annotation *)
+
     admit.
+   (* QQQ: Are there any lemmas about tc_lvalue or..? *)
 (*
     rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ H4)).
     normalize.
@@ -195,10 +210,7 @@ Proof.
   + eapply self_ramify_trans; [exact H5 |].
     eapply RAMIF_PLAIN.weak_ramif_spec.
     apply mapsto_field_at_ramify; [auto | rewrite <- H9; auto | auto | eauto].
-  + admit. (*
-    rewrite (add_andp _ _ H8), (add_andp _ _ H9).
-    eapply derives_trans; [| eapply tc_lvalue_nested_efield; eassumption].
-    solve_andp. *)
+  + rewrite <- H9. exact H7.
 Admitted.
 
 Lemma semax_SC_field_load':
@@ -216,6 +228,7 @@ Lemma semax_SC_field_load':
         local (`(eq (field_address t_root gfs p)) (eval_lvalue e)) ->
       JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v') v ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        (tc_lvalue Delta e) &&
         local `(tc_val (typeof e) v) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         (!! legal_nested_field t_root gfs) ->
@@ -241,7 +254,7 @@ Proof.
   exact A.
   eassumption.
   2: eassumption.
-  {
+  2: eassumption.
   eapply derives_trans; [apply nested_field_ramif' with (gfs3 := gfs1) |].
   + eapply JMeq_trans; [apply H6 |].
     rewrite H3 in A.
@@ -250,10 +263,6 @@ Proof.
   + apply sepcon_derives; [| auto].
     rewrite <- H3.
     apply derives_refl.
-  } {
-    admit.
-    (* rewrite (add_andp _ _ H9), (add_andp _ _ H11); solve_andp. *)
-  }
 Admitted.
 
 Lemma body_aes_encrypt: semax_body Vprog Gprog f_mbedtls_aes_encrypt encryption_spec_ll.
