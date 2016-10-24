@@ -83,6 +83,13 @@ Definition tables_initialized (tables : val) := data_at Ews t_struct_tables (map
   (map Vint RT0, (map Vint RT1, (map Vint RT2, (map Vint RT3, 
   (map Vint (words_to_ints full_rcons)))))))))))) tables.
 
+Definition get_uint32_le (arr: list int) (i: Z) : int :=
+ (Int.or (Int.or (Int.or
+            (Znth  i    arr Int.zero)
+   (Int.shl (Znth (i+1) arr Int.zero) (Int.repr  8)))
+   (Int.shl (Znth (i+2) arr Int.zero) (Int.repr 16)))
+   (Int.shl (Znth (i+3) arr Int.zero) (Int.repr 24))).
+
 Definition encryption_spec_ll :=
   DECLARE _mbedtls_aes_encrypt
   WITH ctx : val, input : val, output : val, (* arguments *)
@@ -264,6 +271,16 @@ Proof.
     rewrite <- H3.
     apply derives_refl.
 Admitted.
+
+Ltac simpl_Int := repeat match goal with
+| |- context [ (Int.mul (Int.repr ?A) (Int.repr ?B)) ] =>
+    let x := fresh "x" in (pose (x := (A * B)%Z)); simpl in x;
+    replace (Int.mul (Int.repr A) (Int.repr B)) with (Int.repr x); subst x; [|reflexivity]
+| |- context [ (Int.add (Int.repr ?A) (Int.repr ?B)) ] =>
+    let x := fresh "x" in (pose (x := (A + B)%Z)); simpl in x;
+    replace (Int.add (Int.repr A) (Int.repr B)) with (Int.repr x); subst x; [|reflexivity]
+end.
+
 
 Lemma body_aes_encrypt: semax_body Vprog Gprog f_mbedtls_aes_encrypt encryption_spec_ll.
 Proof.
@@ -459,6 +476,36 @@ thaw Fr.
 unfold MORE_COMMANDS. unfold abbreviate.
 forward.
 
+assert_PROP (field_compatible t_struct_aesctx [StructField _buf] ctx) as Fctx. entailer!.
+
+assert_PROP (isptr ctx) as PNctx by entailer. 
+destruct ctx; inversion PNctx. simpl. rename i into octx.
+
+repeat rewrite field_compatible_field_address by assumption. simpl.
+repeat rewrite Int.add_assoc.
+simpl.
+
+simpl_Int.
+
+match goal with
+| |- context [temp _X0 (Vint (Int.xor ?E (Int.repr k1)))] =>
+       replace E with (get_uint32_le (map Int.repr plaintext) 0) by reflexivity
+end.
+match goal with
+| |- context [temp _X1 (Vint (Int.xor ?E (Int.repr k2)))] =>
+       replace E with (get_uint32_le (map Int.repr plaintext) 4) by reflexivity
+end.
+match goal with
+| |- context [temp _X2 (Vint (Int.xor ?E (Int.repr k3)))] =>
+       replace E with (get_uint32_le (map Int.repr plaintext) 8) by reflexivity
+end.
+match goal with
+| |- context [temp _X3 (Vint (Int.xor ?E (Int.repr k4)))] =>
+       replace E with (get_uint32_le (map Int.repr plaintext) 12) by reflexivity
+end.
+
+unfold Sfor.
+
 (* beginning of for loop *)
 
 admit.
@@ -475,6 +522,8 @@ Qed.
    And same for nested_field_offset. *)
 
 (* TODO floyd: I want "omega" for int instead of Z *)
+
+(* TODO floyd: when load_tac should tell that it cannot handle memory access in subexpressions *)
 
 (*
 Note:
