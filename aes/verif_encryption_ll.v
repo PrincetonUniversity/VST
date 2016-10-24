@@ -508,7 +508,91 @@ unfold Sfor.
 
 (* beginning of for loop *)
 
+forward. forward.
+eapply semax_seq'.
+{
+apply semax_pre with (P' := 
+  (EX i: Z,   PROP ( ) LOCAL (
+     temp _RK (Vptr b (Int.add octx (Int.repr 24)));
+     temp _X3 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 12) (Int.repr k4)));
+     temp _X2 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 8) (Int.repr k3)));
+     temp _X1 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 4) (Int.repr k2)));
+     temp _X0 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 0) (Int.repr k1)));
+     temp _ctx (Vptr b octx);
+     temp _input input;
+     temp _output output;
+     gvar _tables tables
+  ) SEP (
+     data_at_ out_sh (tarray tuchar 16) output;
+     tables_initialized tables;
+     data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input; TT
+(*;TODO reptype mismatch!!
+     data_at ctx_sh t_struct_aesctx
+       (Vint (Int.repr Nr),
+       (Vptr b (Int.add octx (Int.repr 8)),
+       Vint (Int.repr k1)
+         :: Vint (Int.repr k2)
+           :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ Vundefs))
+       (Vptr b octx) 
+*)  ))).
+{ entailer!. entailer!. }
+{ apply semax_loop with (
+  (EX i: Z,   PROP ( ) LOCAL (
+     temp _RK (Vptr b (Int.add octx (Int.repr 24)));
+     temp _X3 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 12) (Int.repr k4)));
+     temp _X2 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 8) (Int.repr k3)));
+     temp _X1 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 4) (Int.repr k2)));
+     temp _X0 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 0) (Int.repr k1)));
+     temp _ctx (Vptr b octx);
+     temp _input input;
+     temp _output output;
+     gvar _tables tables
+  ) SEP (
+     data_at_ out_sh (tarray tuchar 16) output;
+     tables_initialized tables;
+     data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input; TT
+(*;TODO reptype mismatch!!
+     data_at ctx_sh t_struct_aesctx
+       (Vint (Int.repr Nr),
+       (Vptr b (Int.add octx (Int.repr 8)),
+       Vint (Int.repr k1)
+         :: Vint (Int.repr k2)
+           :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ Vundefs))
+       (Vptr b octx) 
+*)  ))).
+{ (* loop body *) 
+Intro i.
+forward_if (PROP ( ) LOCAL (
+     temp _RK (Vptr b (Int.add octx (Int.repr 24)));
+     temp _X3 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 12) (Int.repr k4)));
+     temp _X2 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 8) (Int.repr k3)));
+     temp _X1 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 4) (Int.repr k2)));
+     temp _X0 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 0) (Int.repr k1)));
+     temp _ctx (Vptr b octx);
+     temp _input input;
+     temp _output output;
+     gvar _tables tables
+  ) SEP (
+     data_at_ out_sh (tarray tuchar 16) output;
+     tables_initialized tables;
+     data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input; TT)).
+
+
 admit.
+
+}
+
+{ (* loop incr *)
+admit.
+}
+}
+
+
+}
+{
+
+admit.
+}
 
 Qed.
 
