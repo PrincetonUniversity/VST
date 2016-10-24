@@ -149,6 +149,7 @@ Definition semax_external
  ALL x: (dependent_type_functor_rec Ts A (pred rmap)),
    |>  ALL F: pred rmap, ALL ts: list typ,
    ALL args: list val,
+   !!Val.has_type_list args (sig_args (ef_sig ef)) &&
    juicy_mem_op (P Ts x (make_ext_args (filter_genv gx) ids args) * F) >=> 
    EX x': ext_spec_type OK_spec ef,
     ALL z:_, ext_spec_pre' Hspec ef x' (Genv.genv_symb gx) ts args z &&

@@ -221,8 +221,8 @@ Proof.
     apply IH, E'.
   
   - econstructor 3 with (x := x); eauto.
-    intros ret jm2' z' n' Hretty Hn [-> [lev pure]] post.
-    destruct (Post ret jm2' z' _ Hretty Hn) as (c' & atex' & safe'); auto.
+    intros ret jm2' z' n' Hargsty Hretty Hn [-> [lev pure]] post.
+    destruct (Post ret jm2' z' _ Hargsty Hretty Hn) as (c' & atex' & safe'); auto.
     + split; auto.
       destruct E as [Ed Ew].
       unfold juicy_safety.pures_eq in *.

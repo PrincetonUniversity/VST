@@ -699,6 +699,14 @@ Proof.
   intro; auto.
 Qed.
 
+Lemma tc_val_has_type (ty : type) (v : val) :
+  tc_val ty v ->
+  Val.has_type v (typ_of_type ty).
+Proof.
+  destruct ty, v; simpl; auto.
+  all: destruct f; auto.
+Qed.
+
 (* A "neutral cast" from t1 to t2 is such that
   it satisfies the neutral_cast_lemma, i.e. if v already typechecks as t1
   then it will not be modified by casting to t2. *)
