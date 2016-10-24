@@ -1744,5 +1744,4 @@ Lemma restrPermMap_irr:
       auto using permjoin_order.
   Qed.
   
-  
 End permMapDefs.

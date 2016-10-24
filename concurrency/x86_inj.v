@@ -1929,40 +1929,7 @@ Module X86Inj <: CoreInjections X86SEM.
       rewrite Hstore0' Hstore'.
       eauto.
   Qed.
-
-  Lemma permission_at_load_frame_store_args:
-    forall m stk args tys m',
-      load_frame.store_args m stk args tys = Some m' ->
-      forall b ofs, permissions.permission_at m b ofs Cur =
-                 permissions.permission_at m' b ofs Cur.
-  Proof.
-    intros m stk args.
-    generalize dependent stk.
-    generalize dependent m.
-    unfold load_frame.store_args.
-    induction args; intros.
-    - simpl in *.
-      destruct tys; inversion H; subst.
-      reflexivity.
-    - simpl in H.
-      destruct tys; try discriminate.
-      destruct t0;
-        match goal with
-        | [H: context[match ?Expr with _ => _ end] |- _] =>
-          destruct Expr eqn:?
-        end;
-        unfold load_frame.store_stack in *;
-        try discriminate.
-      match goal with
-      | [H: Mem.storev _ _ _ _ = _ |- _] =>
-        apply mem_storev_store in H;
-          destruct H as [? [? [? ?]]]
-      end.
-      rewrite <- permissions.getCurPerm_correct;
-        erewrite mem_store_cur by eauto.
-      rewrite permissions.getCurPerm_correct.
-      eapply IHargs; eauto.
-      
+ 
   Lemma load_frame_store_args_obs:
     forall f m m2 m' stk stk' args args' tys
       (Hmem_obs_eq: mem_obs_eq f m m')
@@ -1977,7 +1944,51 @@ Module X86Inj <: CoreInjections X86SEM.
     unfold load_frame.store_args in *.
     eapply load_frame_store_args_rec_obs; eauto.
   Qed.
-  
+
+  Lemma permission_at_load_frame_store_args_rec:
+    forall args (m : mem) (stk : block) (o : Z) (tys : seq typ) (m' : mem),
+      load_frame.store_args_rec m stk o args tys = Some m' ->
+      forall (b : block) (ofs : Z),
+        permissions.permission_at m b ofs Cur =
+        permissions.permission_at m' b ofs Cur.
+  Proof.
+    intro args.
+    induction args; intros.
+    - simpl in *.
+      destruct tys; inversion H; subst.
+      reflexivity.
+    - simpl in H.
+      destruct tys; try discriminate.
+      destruct t0;
+        repeat match goal with
+               | [H: context[match ?Expr with _ => _ end] |- _] =>
+                 destruct Expr eqn:?
+               end;
+        unfold load_frame.store_stack in *;
+        try discriminate;
+        repeat match goal with
+               | [H: Mem.storev _ _ _ _ = _ |- _] =>
+                 apply mem_storev_store in H;
+                   destruct H as [? [? [? ?]]]
+               end;
+        repeat (rewrite <- permissions.getCurPerm_correct;
+                 erewrite mem_store_cur by eauto;
+                 rewrite permissions.getCurPerm_correct);
+        eapply IHargs; eauto.
+  Qed.
+
+  Lemma permission_at_load_frame_store_args:
+    forall m stk args tys m',
+      load_frame.store_args m stk args tys = Some m' ->
+      forall b ofs, permissions.permission_at m b ofs Cur =
+               permissions.permission_at m' b ofs Cur.
+  Proof.
+    intros.
+    unfold load_frame.store_args in H.
+    eapply permission_at_load_frame_store_args_rec; eauto.
+  Qed.
+
+
   Lemma corestep_obs_eq:
     forall (cc cf cc' : Asm_coop.state) (mc mf mc' : mem) f fg the_ge,
       mem_obs_eq f mc mf ->
@@ -2097,7 +2108,8 @@ Module X86Inj <: CoreInjections X86SEM.
       assert (b2 <> stk')
         by (intros Hcontra; subst; eauto).
       erewrite permission_at_alloc_4 by eauto.
-
+      eapply permission_at_load_frame_store_args;
+        by eauto.
     - inversion Hcorestep; by exfalso.
   Qed.
 
