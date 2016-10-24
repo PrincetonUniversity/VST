@@ -7391,13 +7391,13 @@ relation*)
           symmetry in Htpf''.
         exists tpf'', mf' , (fp i pfc), fp,
         (tr ++ [:: (external i (acquire (b2, Int.intval ofs)
-                                       (Some (emptyRes.1, virtueF.1))))]).
+                                       (Some (getThreadR pff, virtueF)) (Some pmapF)))]).
         split.
         (** proof that the fine grained machine can step*)
         intros U.
         assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf'' mf'
                                      (acquire (b2, Int.intval ofs)
-                                              (Some (projectMap (fp i pfc) emptyRes.1, virtueF.1))))
+                                              (Some (getThreadR pff, virtueF)) (Some pmapF)))
           by (eapply step_acquire with (b:=b2); eauto).
         econstructor; simpl;
           by eauto.
@@ -8305,13 +8305,13 @@ relation*)
         symmetry in Htpf''.
       exists tpf'', mf', (fp i pfc), fp,
       (tr ++ [:: (external i (release (b2, Int.intval ofs)
-                                     (Some (virtueLPF.1, virtueF.1))))]).
+                                     (Some (getThreadR pff, virtueF)) (Some virtueLPF)))]).
       split.
       (** proof that the fine grained machine can step*)
       intros U.
       assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf'' mf'
                                    (release (b2, Int.intval ofs)
-                                            (Some (virtueLPF.1, virtueF.1))))
+                                            (Some (getThreadR pff, virtueF)) (Some virtueLPF)))
         by (eapply step_release with (b:=b2); eauto).
       econstructor; simpl;
         by eauto.
@@ -9203,12 +9203,12 @@ relation*)
       made any allocations yet *)
       exists tpf', mf, (fp i pfc),
       (@addFP _ fp (fp i pfc) (Vptr b ofs) arg newThreadPerm),
-      (tr ++ [:: (external i (spawn (b2,Int.intval ofs)))]). 
+      (tr ++ [:: (external i (spawn (b2,Int.intval ofs) (Some (getThreadR pff, virtue1F)) (Some virtue2F)))]). 
       split.
       (** proof that the fine grained machine can step*)
       intros U.
       assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf' mf
-                                   (spawn (b2, Int.intval ofs)))
+                                   (spawn (b2,Int.intval ofs) (Some (getThreadR pff, virtue1F)) (Some virtue2F)))
         by (eapply step_create; eauto).
       econstructor; simpl;
         by eauto.

@@ -278,9 +278,9 @@ Module Concur.
              (Htp': tp' = updThread cnt0 (Kresume c Vundef) newThreadPerm)
              (** acquiring the lock leaves empty permissions at the resource pool*)
              (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) (empty_map, empty_map)),
-             (** the event resources need to be enriched now*)
              ext_step genv cnt0 Hcompat tp'' m'
-                      (acquire (b, Int.intval ofs) (Some (empty_map, virtueThread.1)))
+                      (acquire (b, Int.intval ofs)
+                               (Some (getThreadR cnt0, virtueThread)) (Some pmap))
                     
      | step_release :
          forall (tp' tp'':thread_pool) m1 c m' b ofs virtueThread virtueLP pmap_tid' rmap,
@@ -308,9 +308,9 @@ Module Concur.
                                     (computeMap (getThreadR cnt0).1 virtueThread.1,
                                      computeMap (getThreadR cnt0).2 virtueThread.2))
              (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) virtueLP),
-             (*TODO: update event type*)
              ext_step genv cnt0 Hcompat tp'' m'
-                      (release (b, Int.intval ofs) (Some (virtueLP.1, virtueThread.1)))
+                      (release (b, Int.intval ofs)
+                               (Some (getThreadR cnt0, virtueThread)) (Some virtueLP))
      | step_create :
          forall (tp_upd tp':thread_pool) c b ofs arg virtue1 virtue2,
            let threadPerm' := (computeMap (getThreadR cnt0).1 virtue1.1,
@@ -327,7 +327,10 @@ Module Concur.
            (Hangel2: permMapJoin newThreadPerm.2 threadPerm'.2 (getThreadR cnt0).2)
            (Htp_upd: tp_upd = updThread cnt0 (Kresume c Vundef) threadPerm')
            (Htp': tp' = addThread tp_upd (Vptr b ofs) arg newThreadPerm),
-           ext_step genv cnt0 Hcompat tp' m (spawn (b, Int.intval ofs))
+             ext_step genv cnt0 Hcompat tp' m
+                      (spawn (b, Int.intval ofs)
+                             (Some (getThreadR cnt0, virtue1)) (Some virtue2))
+
                     
      | step_mklock :
          forall  (tp' tp'': thread_pool) m1 c m' b ofs pmap_tid',
@@ -342,9 +345,7 @@ Module Concur.
              (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
              (** The thread's data permissions are set to Nonempty*)
              (Hdata_perm: setPermBlock (Some Nonempty) b (Int.intval ofs) pmap_tid.1 LKSIZE_nat = pmap_tid'.1)
-             (** thread lock permission is increased - I assume that the
-             permission is equal at every offset otherwise we have to do a
-             transfer. Although it shouldn't be necessary, maybe it makes erasure easier*)
+             (** thread lock permission is increased *)
              (Hlock_perm: setPermBlock (Some Writable) b
                                        (Int.intval ofs) pmap_tid.2 LKSIZE_nat = pmap_tid'.2)
              (Htp': tp' = updThread cnt0 (Kresume c Vundef) pmap_tid')

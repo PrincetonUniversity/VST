@@ -747,8 +747,9 @@ Module TraceErasure.
   (** Removing the footprints from a [sync_event] *)
   Definition eraseSyncEvent ev :=
     match ev with
-    | Events.release addr _ => Events.release addr None
-    | Events.acquire addr _ => Events.acquire addr None
+    | Events.release addr _ _ => Events.release addr None None
+    | Events.acquire addr _ _ => Events.acquire addr None None
+    | Events.spawn addr _ _ => Events.spawn addr None None
     | _ => ev
     end.
   
