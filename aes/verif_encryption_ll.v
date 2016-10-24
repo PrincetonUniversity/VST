@@ -326,61 +326,6 @@ eapply (semax_SC_field_load' _ ctx_sh 1 _ _ _ _ _ tuint t_struct_aesctx
  rewrite <- compute_in_members_true_iff. reflexivity. }
 }
 
-(*
-(* TODO floyd: running load_tac until just before sc_new_instantiate gives:
-e := Ederef (Etempvar _t'1 (tptr tuint)) tuint : expr
-efs := [] : list efield
-tts := [] : list type
-lr := LLLL : LLRR
-p := field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx : val
-gfs := [] : list gfield
-
-but these lists should not be empty.
-*)
-
-erewrite (split_array_head 60 ctx_sh tuint
-((Vint (Int.repr k1)) :: (Vint (Int.repr k2) :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail)))
-(Vint (Int.repr k1)) (Vint (Int.repr k2) :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail))
-(Vint (Int.repr k1)) (Vint (Int.repr k2) :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail)));
-  first [ apply JMeq_refl | omega | idtac ].
-
-simpl.
-repeat flatten_sepcon_in_SEP.
-freeze [0; 1; 3; 4; 5; 6; 7] Fr.
-
-eapply semax_seq'. {
-hoist_later_in_pre.
-
-(*
-eapply (semax_SC_field_load Delta ctx_sh (*n*)) with (lr := LLLL). 
---> cannot unify because the rhs must be expressed as a nested_efield (TODO floyd error message),
-    but nested_efield is too simple
---> go 1 level lower: semax_max_path_field_load_nth_ram
-    still works on expression of form (Sset id (nested_efield e1 efs tts))
---> 1 lower: semax_load_nth_ram
-*)
-
-eapply semax_load_nth_ram with (t1 := tuint) (t2 := tuint) (n := 1%nat) (v := (Vint (Int.repr k1)));
-  try reflexivity.
-{ entailer. }
-{ apply SH. }
-{ eapply derives_trans. 2: apply sepcon_TT.
-rewrite field_address_offset. {
-rewrite field_address0_offset. {
-unfold data_at. unfold field_at. unfold at_offset. rewrite data_at_rec_eq. simpl.
-apply andp_left2.
-do 2 rewrite <- mapsto_offset_zero.
-apply derives_refl. }
-{ admit. (* field_compatible0 stuff *) }
-}
-{ admit. (* field_compatible stuff *) }
-}
-{ entailer!. }
-}
-{ fwd_result. unfold MORE_COMMANDS. unfold abbreviate.
-forward.
-thaw Fr.
-
 (* TODO put this in floyd/freezer.v *)
 Ltac freeze_except' R Rs i acc name := match Rs with
 | nil => let l := fresh "l" in pose (l := rev acc); simpl in l; freeze l name
@@ -393,69 +338,131 @@ Ltac freeze_except R name := match goal with
        freeze_except' R Rs 0 (@nil Z) name
 end.
 
+thaw Fr.
 freeze_except (data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input) Fr.
-
+  unfold MORE_COMMANDS. unfold abbreviate.
+forward.
   GET_UINT32_LE_tac. forward. forward. forward.
 
 entailer!.
+{
 (* TODO why is (isptr (field_address t_struct_aesctx [StructField _buf] ctx)) not solved automatically?*)
 admit.
+}
+thaw Fr.
 
-thaw Fr. simpl.
-
-Lemma split_array_head2:
- forall {cs: compspecs} n start (sh: Share.t) (t: type) 
-                            v (v1': (reptype t)) (v2': list (reptype t)) v1 v2 p,
-  0 <= start < n ->
-  JMeq v (v1' :: v2') ->
-  JMeq v1 v1' ->
-  JMeq v2 v2' ->
-  data_at sh (tarray t (n-start)) v (field_address0 (tarray t n) [ArraySubsc start] p) =
-  data_at sh t v1 (field_address0 (tarray t n) [ArraySubsc start] p) *
-  data_at sh (tarray t (n-start-1)) v2 (field_address0 (tarray t n) [ArraySubsc (start+1)] p).
-Admitted.
-
-erewrite (split_array_head2 60 1 ctx_sh tuint
-(Vint (Int.repr k2) :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail))
-(Vint (Int.repr k2))   (Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail))
-(Vint (Int.repr k2))   (Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail)));
-  first [ apply JMeq_refl | omega | idtac ].
-
-simpl.
-repeat flatten_sepcon_in_SEP.
-
-freeze_except (data_at ctx_sh tuint (Vint (Int.repr k2))
-     (field_address0 (tarray tuint 60) [ArraySubsc 1]
-        (field_address t_struct_aesctx [StructField _buf] ctx))) Fr.
+freeze_except (data_at ctx_sh t_struct_aesctx
+     (Vint (Int.repr Nr),
+     (field_address t_struct_aesctx [StructField _buf] ctx,
+     Vint (Int.repr k1)
+     :: Vint (Int.repr k2)
+        :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ Vundefs))
+     ctx) Fr.
 
 eapply semax_seq'. {
 hoist_later_in_pre.
 
-eapply semax_load_nth_ram with (t1 := tuint) (t2 := tuint) (n := 1%nat) (v := (Vint (Int.repr k2)));
-  try reflexivity.
-{ entailer. }
-{ apply SH. }
-{ eapply derives_trans. 2: apply sepcon_TT.
-rewrite field_address_offset. {
-rewrite field_address0_offset. {
-unfold data_at. unfold field_at. unfold at_offset. rewrite data_at_rec_eq. simpl.
-apply andp_left2.
-rewrite <- mapsto_offset_zero.
-apply derives_refl. }
-{ admit. (* field_compatible0 stuff *) }
+eapply (semax_SC_field_load' _ ctx_sh 1 _ _ _ _ _ tuint t_struct_aesctx
+[] [ArraySubsc 1; StructField _buf] [ArraySubsc 1; StructField _buf]
+ ctx (Vint (Int.repr k2)));
+  first [ apply JMeq_refl | reflexivity | assumption | idtac ].
+{ entailer!.
+  (* TODO floyd why doesn't entailer do this automatically? *)
+  do 2 rewrite field_compatible_field_address by auto with field_compatible. simpl.
+  destruct ctx; inversion PNctx. reflexivity. simpl. rewrite Int.add_assoc.
+  reflexivity. }
+{ entailer!. apply field_address_isptr. admit. admit. (* TODO isptr field_address *) }
+{ entailer!.
+  (* TODO floyd why doesn't entailer do in_members? *)
+ rewrite <- compute_in_members_true_iff. reflexivity. }
 }
-{ admit. (* field_compatible stuff *) }
-}
-{ entailer!. (* TODO isptr why not solved? *) admit. }
-}
-*)
 
-{ fwd_result. unfold MORE_COMMANDS. unfold abbreviate.
+thaw Fr.
+freeze_except (data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input) Fr.
+  unfold MORE_COMMANDS. unfold abbreviate.
 forward.
+  GET_UINT32_LE_tac. forward. forward. forward.
+
+entailer!.
+{
+(* TODO why is (isptr (field_address t_struct_aesctx [StructField _buf] ctx)) not solved automatically?*)
+admit.
+}
 thaw Fr.
 
-  admit. (* rest of function *)
+freeze_except (data_at ctx_sh t_struct_aesctx
+     (Vint (Int.repr Nr),
+     (field_address t_struct_aesctx [StructField _buf] ctx,
+     Vint (Int.repr k1)
+     :: Vint (Int.repr k2)
+        :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ Vundefs))
+     ctx) Fr.
+
+eapply semax_seq'. {
+hoist_later_in_pre.
+
+eapply (semax_SC_field_load' _ ctx_sh 1 _ _ _ _ _ tuint t_struct_aesctx
+[] [ArraySubsc 2; StructField _buf] [ArraySubsc 2; StructField _buf]
+ ctx (Vint (Int.repr k3)));
+  first [ apply JMeq_refl | reflexivity | assumption | idtac ].
+{ entailer!.
+  (* TODO floyd why doesn't entailer do this automatically? *)
+  do 2 rewrite field_compatible_field_address by auto with field_compatible. simpl.
+  destruct ctx; inversion PNctx. reflexivity. simpl. do 2 rewrite Int.add_assoc.
+  reflexivity. }
+{ entailer!. (* TODO isptr field_address *) admit. }
+{ entailer!.
+  (* TODO floyd why doesn't entailer do in_members? *)
+ rewrite <- compute_in_members_true_iff. reflexivity. }
 }
+
+thaw Fr.
+freeze_except (data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input) Fr.
+  unfold MORE_COMMANDS. unfold abbreviate.
+forward.
+  GET_UINT32_LE_tac. forward. forward. forward.
+
+entailer!.
+{
+(* TODO why is (isptr (field_address t_struct_aesctx [StructField _buf] ctx)) not solved automatically?*)
+admit.
+}
+thaw Fr.
+
+freeze_except (data_at ctx_sh t_struct_aesctx
+     (Vint (Int.repr Nr),
+     (field_address t_struct_aesctx [StructField _buf] ctx,
+     Vint (Int.repr k1)
+     :: Vint (Int.repr k2)
+        :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ Vundefs))
+     ctx) Fr.
+
+eapply semax_seq'. {
+hoist_later_in_pre.
+
+eapply (semax_SC_field_load' _ ctx_sh 1 _ _ _ _ _ tuint t_struct_aesctx
+[] [ArraySubsc 3; StructField _buf] [ArraySubsc 3; StructField _buf]
+ ctx (Vint (Int.repr k4)));
+  first [ apply JMeq_refl | reflexivity | assumption | idtac ].
+{ entailer!.
+  (* TODO floyd why doesn't entailer do this automatically? *)
+  do 2 rewrite field_compatible_field_address by auto with field_compatible. simpl.
+  destruct ctx; inversion PNctx. reflexivity. simpl. do 3 rewrite Int.add_assoc.
+  reflexivity. }
+{ entailer!. (* TODO isptr field_address *) admit. }
+{ entailer!.
+  (* TODO floyd why doesn't entailer do in_members? *)
+ rewrite <- compute_in_members_true_iff. reflexivity. }
+}
+
+thaw Fr.
+unfold MORE_COMMANDS. unfold abbreviate.
+forward.
+
+(* beginning of for loop *)
+
+admit.
+
 Qed.
 
 (* TODO floyd: sc_new_instantiate: distinguish between errors caused because the tactic is trying th
@@ -466,6 +473,8 @@ Qed.
 (* TODO floyd: if field_address is given a gfs which doesn't match t, it should not fail silently,
    or at least, the tactics should warn.
    And same for nested_field_offset. *)
+
+(* TODO floyd: I want "omega" for int instead of Z *)
 
 (*
 Note:
