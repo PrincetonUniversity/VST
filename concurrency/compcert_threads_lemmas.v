@@ -6800,52 +6800,52 @@ relation*)
     }
   Qed.
 
-          Lemma invariant_freelock:
-          forall tpc tpf mc mf f c cf b1 b2 ofs pdata i
-            (Hf: f b1 = Some b2)
-            (pfc: containsThread tpc i)
-            (pff: containsThread tpf i),
-            let tpc' := remLockSet
-                          (updThread pfc c
-                                  (setPermBlock (Some pdata) b1 ofs (getThreadR pfc)#1 lksize.LKSIZE_nat,
-                                   setPermBlock None b1 ofs
-                                                (getThreadR pfc)#2 lksize.LKSIZE_nat)) (b1,ofs) in
-            let tpf' := remLockSet (updThread pff cf
-                                   (setPermBlock (Some pdata) b2 ofs (getThreadR pff)#1 lksize.LKSIZE_nat,
-                                    setPermBlock None b2 ofs
-                                                 (getThreadR pff)#2 lksize.LKSIZE_nat)) (b2, ofs) in
-            forall
-            (HinvF: invariant tpf)
-            (HinvC': invariant tpc')
-            (HmemCompC: mem_compatible tpc mc)
-            (HmemCompF: mem_compatible tpf mf)
-            (HsimWeak: forall (tid : tid) (pfc0 : containsThread tpc tid)
-                         (pff0 : containsThread tpf tid),
-                weak_tsim f pfc0 pff0 HmemCompC HmemCompF)
-            (Htsim: mem_obs_eq f (restrPermMap (HmemCompC i pfc).1)
-                               (restrPermMap (HmemCompF i pff).1))
-            (HtsimL: mem_obs_eq f (restrPermMap (HmemCompC i pfc).2)
-                                (restrPermMap (HmemCompF i pff).2))
-            (Hlocks: forall (bl2 : block) (ofs : Z),
-                lockRes tpf (bl2, ofs) ->
-                exists bl1 : block, f bl1 = Some bl2)
-            (HsimRes:
-               forall (bl1 bl2 : block) (ofs : Z)
-                 (rmap1 rmap2 : dry_machine.LocksAndResources.lock_info),
-                 f bl1 = Some bl2 ->
-                 forall (Hl1 : lockRes tpc (bl1, ofs) = Some rmap1)
-                   (Hl2 : lockRes tpf (bl2, ofs) = Some rmap2),
-                   strong_mem_obs_eq f
-                                     (restrPermMap (compat_lp HmemCompC (bl1, ofs) Hl1).1)
-                                     (restrPermMap (compat_lp HmemCompF (bl2, ofs) Hl2).1) /\
-                   strong_mem_obs_eq f
-                                     (restrPermMap (compat_lp HmemCompC (bl1, ofs) Hl1).2)
-                                     (restrPermMap (compat_lp HmemCompF (bl2, ofs) Hl2).2))
-            (Hlock_if: forall (bl1 bl2 : block) (ofs : Z),
-                f bl1 = Some bl2 ->
-                lockRes tpc (bl1, ofs) <-> lockRes tpf (bl2, ofs))
-            (HnumThreads: forall i, containsThread tpc i <-> containsThread tpf i),
-            invariant tpf'.
+  Lemma invariant_freelock:
+    forall tpc tpf mc mf f c cf b1 b2 ofs pdata i
+      (Hf: f b1 = Some b2)
+      (pfc: containsThread tpc i)
+      (pff: containsThread tpf i),
+      let tpc' := remLockSet
+                    (updThread pfc c
+                               (setPermBlock (Some pdata) b1 ofs (getThreadR pfc)#1 lksize.LKSIZE_nat,
+                                setPermBlock None b1 ofs
+                                             (getThreadR pfc)#2 lksize.LKSIZE_nat)) (b1,ofs) in
+      let tpf' := remLockSet (updThread pff cf
+                                        (setPermBlock (Some pdata) b2 ofs (getThreadR pff)#1 lksize.LKSIZE_nat,
+                                         setPermBlock None b2 ofs
+                                                      (getThreadR pff)#2 lksize.LKSIZE_nat)) (b2, ofs) in
+      forall
+        (HinvF: invariant tpf)
+        (HinvC': invariant tpc')
+        (HmemCompC: mem_compatible tpc mc)
+        (HmemCompF: mem_compatible tpf mf)
+        (HsimWeak: forall (tid : tid) (pfc0 : containsThread tpc tid)
+                     (pff0 : containsThread tpf tid),
+            weak_tsim f pfc0 pff0 HmemCompC HmemCompF)
+        (Htsim: mem_obs_eq f (restrPermMap (HmemCompC i pfc).1)
+                           (restrPermMap (HmemCompF i pff).1))
+        (HtsimL: mem_obs_eq f (restrPermMap (HmemCompC i pfc).2)
+                            (restrPermMap (HmemCompF i pff).2))
+        (Hlocks: forall (bl2 : block) (ofs : Z),
+            lockRes tpf (bl2, ofs) ->
+            exists bl1 : block, f bl1 = Some bl2)
+        (HsimRes:
+           forall (bl1 bl2 : block) (ofs : Z)
+             (rmap1 rmap2 : dry_machine.LocksAndResources.lock_info),
+             f bl1 = Some bl2 ->
+             forall (Hl1 : lockRes tpc (bl1, ofs) = Some rmap1)
+               (Hl2 : lockRes tpf (bl2, ofs) = Some rmap2),
+               strong_mem_obs_eq f
+                                 (restrPermMap (compat_lp HmemCompC (bl1, ofs) Hl1).1)
+                                 (restrPermMap (compat_lp HmemCompF (bl2, ofs) Hl2).1) /\
+               strong_mem_obs_eq f
+                                 (restrPermMap (compat_lp HmemCompC (bl1, ofs) Hl1).2)
+                                 (restrPermMap (compat_lp HmemCompF (bl2, ofs) Hl2).2))
+        (Hlock_if: forall (bl1 bl2 : block) (ofs : Z),
+            f bl1 = Some bl2 ->
+            lockRes tpc (bl1, ofs) <-> lockRes tpf (bl2, ofs))
+        (HnumThreads: forall i, containsThread tpc i <-> containsThread tpf i),
+        invariant tpf'.
   Proof.
     intros.
     assert (HnumThreads': forall i, containsThread tpc' i <-> containsThread tpf' i)
@@ -7069,8 +7069,8 @@ relation*)
         destruct (H1 b ofs0).
         rewrite <- H, <- H0.
         split.
-          eapply perm_union_lower_2 with (p1 := (getThreadR pfck').1 # b ofs0); eauto using po_refl.
-          eapply perm_union_lower_2 with (p1 := (getThreadR pfck').2 # b ofs0); eauto using po_refl.
+        eapply perm_union_lower_2 with (p1 := (getThreadR pfck').1 # b ofs0); eauto using po_refl.
+        eapply perm_union_lower_2 with (p1 := (getThreadR pfck').2 # b ofs0); eauto using po_refl.
       - assert (pffk: containsThread tpf k)
           by (apply cntRemoveL' in pffk';
               apply cntUpdate' in pffk'; auto).
@@ -7155,11 +7155,11 @@ relation*)
         + assert (pffj: containsThread tpf j)
             by (apply cntRemoveL' in pffj';
                 apply cntUpdate' in pffj'; auto).
-           erewrite (Hthread_unmapped _ pffj pffj' b0 ofs0 Hbfu).1.
-           subst tpf'.
-           pose proof (Hlock_eq _ _ HresF) as Heq0.
-           pose proof ((locks_data_lock_coh HinvF _ Heq0).1 _ pffj) as Hno_race.
-           now eauto.
+          erewrite (Hthread_unmapped _ pffj pffj' b0 ofs0 Hbfu).1.
+          subst tpf'.
+          pose proof (Hlock_eq _ _ HresF) as Heq0.
+          pose proof ((locks_data_lock_coh HinvF _ Heq0).1 _ pffj) as Hno_race.
+          now eauto.
       - intros laddr2F' rmap2F' Hres2F' b0 ofs0.
         subst tpf'.
         assert (Hbf: (exists b1, f b1 = Some b0) \/
@@ -7194,8 +7194,8 @@ relation*)
           rewrite gsslockResRemLock.
           reflexivity.
         + erewrite gsolockResRemLock by eauto.
-        rewrite gsoThreadLPool.
-        now eauto.
+          rewrite gsoThreadLPool.
+          now eauto.
     }
   Qed.
 
@@ -9746,6 +9746,14 @@ relation*)
       remember (setPermBlock (Some Writable) b2 (Int.intval ofs) (getThreadR pff).2
                              lksize.LKSIZE_nat) as pmap_tidF2' eqn:Hlock_permF.
       symmetry in Hlock_permF.
+      (** We prove that [(b2, Int.intval ofs)] is in [lockRes] of FineConc*)
+      assert (hresF: lockRes tpf (b2, Int.intval ofs) = None).
+      { pose proof ((Hlock_if _ _ (Int.intval ofs) Hf).2) as Hlock.
+        rewrite HlockRes in Hlock.
+        destruct (lockRes tpf (b2, Int.intval ofs));
+          [exfalso; auto | reflexivity].
+      }
+      
       (** To compute the new state of the FineConc machine, we first update the thread*)
       remember (updThread pff (Kresume cf Vundef) (pmap_tidF', pmap_tidF2')) as tpf' eqn:Htpf'.
       (** And then update the [lockRes] with empty resources on that address. *)
@@ -10666,37 +10674,6 @@ relation*)
     { (** Freelock case*)
       subst mc'.
 
-(*
-      (** [b] is valid in [m1] (and [mc])*)
-      assert (Hvalidb: Mem.valid_block m1 b).
-      { destruct (valid_block_dec m1 b); auto.
-        subst m1.
-        erewrite restrPermMap_valid in n.
-        apply Mem.nextblock_noaccess with (ofs:= Int.intval ofs) (k := Max) in n.
-        unfold Mem.range_perm in Hfreeable.
-        specialize (Hfreeable (Int.intval ofs) ltac:(unfold lksize.LKSIZE; simpl; omega)).
-        unfold Mem.perm in Hfreeable.
-        pose proof (restrPermMap_Cur (HmemCompC i pfc).2  b (Int.intval ofs)) as Heq.
-        unfold permission_at in Heq.
-        rewrite Heq in Hfreeable.
-        pose proof ((HmemCompC _ pfc).2 b (Int.intval ofs)) as Hcontra.
-        rewrite getMaxPerm_correct in Hcontra.
-        unfold permission_at in Hcontra.
-        rewrite n in Hcontra.
-        simpl in Hcontra.
-        destruct ((getThreadR pfc).2 # b (Int.intval ofs));
-          first by exfalso.
-        simpl in Hfreeable.
-        by exfalso.
-      }
-      rewrite <- Hrestrict_pmap in Hvalidb.
-
-      (** We compute the corresponding block in mf *)
-      destruct ((domain_valid (weak_obs_eq (obs_eq_data Htsim))) _ Hvalidb)
-        as [b2 Hfb].
-      assert (Hvalidb2 := (codomain_valid (weak_obs_eq (obs_eq_data Htsim))) _ _ Hfb).
-      erewrite restrPermMap_valid in Hvalidb2. *)
-
       (** consider [mf] with the lock permissions of thread i on FineConc*)
       remember (restrPermMap (HmemCompF _ pff).2) as mf1 eqn:Hrestrict_pmapF.
             
@@ -10738,6 +10715,30 @@ relation*)
         rewrite Hperm_eq.
         now auto.
       }
+      (** And [(b2, Int.intval ofs)] is in [lockRes] of the FineConc machine*)
+      assert (Hsome_lockF: lockRes tpf (b2, Int.intval ofs))
+        by (eapply Hlock_if; eauto; rewrite His_lock; eauto).
+      destruct (lockRes tpf (b2, Int.intval ofs)) as [rmapF|] eqn:His_lockF;
+        try (by exfalso).
+
+      (** The resources of the lock are empty*)
+      assert(HrmapF: forall b ofs, rmapF.1 !! b ofs = None /\ rmapF.2 !! b ofs = None).
+      { intros b0 ofs0.
+        assert (Hb0: (exists b1, (fp i pfc) b1 = Some b0) \/
+                     ~ (exists b1, (fp i pfc) b1 = Some b0))
+          by eapply em.
+        destruct Hb0 as [[b1 Hf1] | Hunmapped].
+        - (** if b0 is mapped by some block*)
+          destruct (HsimRes _ _ _ _ _ Hf His_lock His_lockF) as [HsimRes1 HsimRes2].
+          pose proof (perm_obs_strong HsimRes1 _ ofs0 Hf1) as Hpmap1.
+          pose proof (perm_obs_strong HsimRes2 _ ofs0 Hf1) as Hpmap2.
+          rewrite! restrPermMap_Cur in Hpmap1 Hpmap2.
+          erewrite Hpmap1, Hpmap2, (Hrmap b1 ofs0).1, (Hrmap b1 ofs0).2.
+          split; reflexivity.
+        - specialize (HunmappedRes _ _ _ His_lockF _ Hunmapped ofs0).
+          assumption.
+      }
+
       remember (updThread pff (Kresume cf Vundef) (pmap_tidF', pmap_tidF2'))
         as tpf' eqn:Htpf'.
       (** Finally we remove the lock from the FineConc machine*)

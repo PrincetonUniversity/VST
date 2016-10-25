@@ -301,6 +301,7 @@ Module Concur.
              (** release the lock *)
              (Hstore: Mem.store Mint32 (restrPermMap Hlt') b (Int.intval ofs) (Vint Int.one) = Some m')
              (HisLock: lockRes tp (b, Int.intval ofs) = Some rmap)
+             (** And the lock is taken*)
              (Hrmap: forall b ofs, rmap.1 !! b ofs = None /\ rmap.2 !! b ofs = None)
              (Hangel1: permMapJoin newThreadPerm.1 virtueLP.1 (getThreadR cnt0).1)
              (Hangel2: permMapJoin newThreadPerm.2 virtueLP.2 (getThreadR cnt0).2)
@@ -320,7 +321,7 @@ Module Concur.
            forall
            (Hinv : invariant tp)
            (Hcode: getThreadC cnt0 = Kblocked c)
-           (Hat_external: at_external Sem c =     Some (CREATE, Vptr b ofs::arg::nil))
+           (Hat_external: at_external Sem c = Some (CREATE, Vptr b ofs::arg::nil))
            (** we do not need to enforce the almost empty predicate on thread
            spawn as long as it's considered a synchronizing operation *)
            (Hangel1: permMapJoin newThreadPerm.1 threadPerm'.1 (getThreadR cnt0).1)
@@ -348,20 +349,24 @@ Module Concur.
              (** thread lock permission is increased *)
              (Hlock_perm: setPermBlock (Some Writable) b
                                        (Int.intval ofs) pmap_tid.2 LKSIZE_nat = pmap_tid'.2)
+             (** Require that [(b, Int.intval ofs)] was not a lock*)
+             (HlockRes: lockRes tp (b, Int.intval ofs) = None)
              (Htp': tp' = updThread cnt0 (Kresume c Vundef) pmap_tid')
              (** the lock has no resources initially *)
              (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) (empty_map, empty_map)),
              ext_step genv cnt0 Hcompat tp'' m' (mklock (b, Int.intval ofs))
                       
      | step_freelock :
-         forall  (tp' tp'': thread_pool) c b ofs pmap_tid' m1 pdata,
+         forall  (tp' tp'': thread_pool) c b ofs pmap_tid' m1 pdata rmap,
            let: pmap_tid := getThreadR cnt0 in
            forall 
-           (Hinv : invariant tp)
+           (Hinv: invariant tp)
            (Hcode: getThreadC cnt0 = Kblocked c)
            (Hat_external: at_external Sem c = Some (FREE_LOCK, Vptr b ofs::nil))
-           (* is His_lock needed? it doesn't seme useful*)
-           (* (His_lock: lockRes tp (b, (Int.intval ofs))) *)
+           (** If this address is a lock*)
+           (His_lock: lockRes tp (b, (Int.intval ofs)) = Some rmap)
+           (** And the lock is taken *)
+           (Hrmap: forall b ofs, rmap.1 !! b ofs = None /\ rmap.2 !! b ofs = None)
            (** Install the thread's lock permissions*)
            (Hrestrict_pmap: restrPermMap (Hcompat tid0 cnt0).2 = m1)
            (** To free the lock the thread must have at least Writable on it*)

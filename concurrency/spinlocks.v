@@ -215,31 +215,143 @@ Module SpinLocks (SEM: Semantics)
           split; eauto.
       - unfold isLock in *.
         inv HschedN.
+        split.
+        destruct (EqDec_address (b, Int.intval ofs) addr); subst.
+        rewrite gssLockRes; auto.
+        erewrite gsoLockRes by eauto.
+        rewrite gsoThreadLPool; auto.
+        specialize (Hangel2 (addr.1) addr.2).
+        apply permjoin_order in Hangel2.
+        destruct Hangel2.
         destruct HisLock as [[j [cntj Hperm]] | [laddr' [rmap' [Hres Hperm]]]].
-        + specialize (Hangel2 b (Int.intval ofs)).
-          pose proof (cntUpdate (Kresume c Vundef) newThreadPerm Htid
+        + pose proof (cntUpdate (Kresume c Vundef) newThreadPerm Htid
                                 (cntUpdateL (b, Int.intval ofs) (empty_map, empty_map) cntj)) as cntj'.
           destruct (tid == j) eqn:Hij; move/eqP:Hij=>Hij.
-          * subst. pf_cleanup.
-            apply permjoin_order in Hangel2.
-            destruct Hangel2.
-            destruct (EqDec_address (b, Int.intval ofs) addr); subst.
-            rewrite gssLockRes; split; auto.
-            (*TODO: return here*)
-            
+          * subst.
+            left.
+            exists j, cntj'.
+            rewrite gLockSetRes gssThreadRes.
+            pf_cleanup.
+            now eauto using po_trans.
+          * left.
+            exists j, cntj'.
+            rewrite gLockSetRes.
+            erewrite @gsoThreadRes with (cntj := cntj) by eauto.
+            now eauto using po_trans.
+        + destruct (EqDec_address (b, Int.intval ofs) laddr').
+          * subst.
+            left.
+            pose proof (cntUpdate (Kresume c Vundef) newThreadPerm Htid
+                                  (cntUpdateL (b, Int.intval ofs) (empty_map, empty_map) Htid)) as cnti'.
+            exists tid, cnti'.
+            rewrite gLockSetRes gssThreadRes.
+            rewrite HisLock0 in Hres; inv Hres.
+            eauto using po_trans.
+          * right.
+            exists laddr', rmap'.
+            erewrite gsoLockRes by eauto.
+            rewrite gsoThreadLPool.
+            split; now eauto.
+      - unfold isLock in *.
+        inv HschedN.
+        split.
+        destruct (EqDec_address (b, Int.intval ofs) addr); subst.
+        rewrite gssLockRes; auto.
+        erewrite gsoLockRes by eauto.
+        rewrite gsoThreadLPool; auto.
+        specialize (Hangel2 (addr.1) addr.2).
+        apply permjoin_readable_iff in Hangel2.
+        destruct HisLock as [[j [cntj Hperm]] | [laddr' [rmap' [Hres Hperm]]]].
+        + destruct (tid == j) eqn:Hij; move/eqP:Hij=>Hij.
+          * subst.
+            pf_cleanup.
+            destruct (Hangel2.1 Hperm) as [Hperm' | Hperm'].
+            left.
+            exists j, cntj.
+            rewrite gLockSetRes gssThreadRes.
+            now eauto.
+            right.
+            exists (b, Int.intval ofs), virtueLP.
+            rewrite gssLockRes.
+            split;
+              now eauto.
+          * left.
+            exists j, cntj.
+            rewrite gLockSetRes.
+            erewrite @gsoThreadRes with (cntj := cntj) by eauto.
+            now eauto.
+        + destruct (EqDec_address (b, Int.intval ofs) laddr').
+          * subst.
+            rewrite HisLock0 in Hres; inv Hres.
+            destruct (Hrmap addr.1 addr.2) as [_ Hrmap2].
+            rewrite Hrmap2 in Hperm.
+            exfalso. simpl in Hperm.
+            now assumption.
+          * right.
+            exists laddr', rmap'.
+            erewrite gsoLockRes by eauto.
+            rewrite gsoThreadLPool.
+            split; now eauto.
+      - unfold isLock in *.
+        inv HschedN.
+        split;
+          first by (rewrite gsoAddLPool gsoThreadLPool;
+                    assumption).
+        specialize (Hangel2 (addr.1) addr.2).
+        apply permjoin_readable_iff in Hangel2.
+        destruct HisLock as [[j [cntj Hperm]] | [laddr' [rmap' [Hres Hperm]]]].
+        + destruct (tid == j) eqn:Hij; move/eqP:Hij=>Hij.
+          * subst.
+            pf_cleanup.
+            destruct (Hangel2.1 Hperm) as [Hperm' | Hperm'].
+            left.
+            exists (latestThread tp), (contains_add_latest (updThread cntj (Kresume c Vundef) threadPerm') (Vptr b ofs) arg newThreadPerm).
+            erewrite gssAddRes by reflexivity.
+            assumption.
+            left.
+            exists j, (cntAdd (Vptr b ofs) arg newThreadPerm cntj).
+            rewrite @gsoAddRes gssThreadRes.
+            assumption.
+          * left.
+            exists j, (cntAdd (Vptr b ofs) arg newThreadPerm cntj).
+            rewrite @gsoAddRes.
+            erewrite @gsoThreadRes with (cntj := cntj) by eauto.
+            now eauto.
+        + right.
+          exists laddr', rmap'.
+          rewrite gsoAddLPool gsoThreadLPool.
+          split;
+            now auto.
+      - (** Makelock case*)
+        inv HschedN.
+        split.
+        destruct (EqDec_address (b, Int.intval ofs) addr); subst.
+        rewrite gssLockRes; auto.
+        erewrite gsoLockRes by eauto.
+        rewrite gsoThreadLPool;
+          now auto.
+        destruct HisLock as [[j [cntj Hperm]] | [laddr' [rmap' [Hres Hperm]]]].
+        + left. exists j, cntj.
+          rewrite gLockSetRes.
+          destruct (tid == j) eqn:Hij; move/eqP:Hij=>Hij.
+          * subst.
+            pf_cleanup.
+            rewrite gssThreadRes.
+            rewrite <- Hlock_perm.
+            destruct (setPermBlock_or (Some Writable) b (Int.intval ofs) (lksize.LKSIZE_nat) (getThreadR cntj).2 addr.1 addr.2)
+              as [Heq | Heq];
+              rewrite Heq; simpl; auto using perm_order.
+          * rewrite gsoThreadRes;
+              now auto.
+        + assert ((b, Int.intval ofs) <> laddr')
+            by (intros Hcontra; subst; congruence).
+          right.
+          exists laddr', rmap'.
           erewrite gsoLockRes by eauto.
-          rewrite gsoThreadLPool; auto.
-      - destruct (EqDec_address (b, Int.intval ofs) addr); subst.
-        rewrite gssLockRes; auto.
-        erewrite gsoLockRes by eauto.
-        rewrite gsoThreadLPool; auto.
-      - rewrite gsoAddLPool; subst tp_upd.
-        rewrite gsoThreadLPool; auto.
-      - destruct (EqDec_address (b, Int.intval ofs) addr); subst.
-        rewrite gssLockRes; auto.
-        erewrite gsoLockRes by eauto.
-        rewrite gsoThreadLPool; auto.
+          rewrite gsoThreadLPool.
+          split; auto.
       - (** Interesting case: freelock *)
+        unfold isLock in *.
         apply app_inv_head in H5; subst.
         specialize (Hev 0 (external tid (freelock (b, Int.intval ofs)))
                         ltac:(reflexivity)).
@@ -247,8 +359,63 @@ Module SpinLocks (SEM: Semantics)
         destruct Hev; first by exfalso.
         erewrite gsolockResRemLock
           by (intros Hcontra; subst; auto).
-        rewrite gsoThreadLPool; auto.
-      - assumption.
+        rewrite gsoThreadLPool.
+        split; auto.
+        destruct HisLock as [[j [cntj Hperm]] | [laddr' [rmap' [Hres Hperm]]]].
+        + left.
+          exists j, cntj.
+          rewrite gRemLockSetRes.
+          destruct (tid == j) eqn:Hij; move/eqP:Hij=>Hij.
+          * subst.
+            pf_cleanup.
+            rewrite gssThreadRes.
+            rewrite <- Hlock_perm.
+            assert (Hneq: b <> addr.1 \/ (b = addr.1) /\ ((addr.2 < (Int.intval ofs))%Z \/ (addr.2 >= (Int.intval ofs) + lksize.LKSIZE)%Z)).
+            { destruct (Pos.eq_dec b (addr.1)); subst; auto.
+              destruct addr as [b' ofs']; simpl;
+                right; split; auto.
+              simpl in His_lock.
+              pose proof (lockRes_valid Hinv b' (Int.intval ofs)) as Hvalid.
+              destruct (lockRes tp (b', Int.intval ofs)); try (by exfalso).
+              specialize (Hvalid ofs').
+              destruct (Intv.In_dec ofs' (Z.succ (Int.intval ofs), Int.intval ofs + lksize.LKSIZE)%Z) as [Hin | Hout].
+              - unfold Intv.In in Hin. simpl in Hin.
+                erewrite Z.le_succ_l in Hin.
+                specialize (Hvalid Hin).
+                rewrite Hvalid in Hlock.
+                  by exfalso.
+              - apply Intv.range_notin in Hout; simpl in Hout.
+                destruct Hout as [Hout1 | Hout2];
+                  [|right; auto].
+                left.
+                erewrite Z.lt_succ_r in Hout1.
+                apply Zle_lt_or_eq in Hout1.
+                destruct Hout1; auto.
+                subst.
+                exfalso.
+                apply H; auto.
+                simpl.
+                unfold lksize.LKSIZE. simpl.
+                omega.
+            }
+            destruct Hneq as [? | [? Hintv]]; subst;
+              [rewrite setPermBlock_other_2 | rewrite setPermBlock_other_1];
+              auto.
+          * rewrite gsoThreadRes;
+              now auto.
+        + destruct (EqDec_address (b, Int.intval ofs) laddr').
+          * subst.
+            rewrite Hres in His_lock; inv His_lock.
+            exfalso.
+            destruct (Hrmap addr.1 addr.2) as [_ Hrmap2].
+            rewrite Hrmap2 in Hperm.
+            simpl in Hperm.
+            now assumption.
+          * right.
+            exists laddr', rmap'.
+            erewrite gsolockResRemLock;
+              now auto.
+      - split; assumption.
       - subst tp'; auto.
       - subst tp'; auto.
     Qed.
