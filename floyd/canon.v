@@ -130,6 +130,70 @@ Notation " 'SEP' () " := (SEPx nil) (at level 8).
 
 Delimit Scope assert with assert.
 
+Lemma SEPx_nonexpansive: forall R rho,
+  Forall (fun R0 => predicates_rec.nonexpansive R0) R ->
+  nonexpansive (fun S => SEPx (map (fun R0 => R0 S) R) rho).
+Proof.
+  intros.
+  unfold SEPx.
+  induction R.
+  + simpl.
+    apply const_nonexpansive.
+  + simpl.
+    apply sepcon_nonexpansive.
+    - inversion H; auto.
+    - apply IHR.
+      inversion H; auto.
+Qed.
+
+Lemma LOCALx_nonexpansive: forall Q R rho,
+  nonexpansive (fun S => R S rho) ->
+  nonexpansive (fun S => LOCALx Q (R S) rho).
+Proof.
+  intros.
+  unfold LOCALx.
+  apply conj_nonexpansive; [| auto].
+  apply const_nonexpansive.
+Qed.
+
+Lemma PROPx_nonexpansive: forall P Q rho,
+  Forall (fun P0 => nonexpansive (fun S => prop (P0 S))) P ->
+  nonexpansive (fun S => Q S rho) ->
+  nonexpansive (fun S => PROPx (map (fun P0 => P0 S) P) (Q S) rho).
+Proof.
+  intros.
+  unfold PROPx.
+  apply conj_nonexpansive; [| auto].
+  clear - H.
+  induction P.
+  + simpl.
+    apply const_nonexpansive.
+  + simpl.
+    replace
+      (fun P0 => (prop (a P0 /\ fold_right and True (map (fun P1 => P1 P0) P)))%logic)
+    with
+      (fun P0 => (prop (a P0) && prop (fold_right and True (map (fun P1 => P1 P0) P)))%logic).
+    Focus 2. {
+      extensionality S.
+      rewrite prop_and; auto.
+    } Unfocus.
+    apply conj_nonexpansive.
+    - inversion H; auto.
+    - apply IHP.
+      inversion H; auto.
+Qed.
+
+Lemma PROP_LOCAL_SEP_nonexpansive: forall P Q R rho,
+  Forall (fun P0 => nonexpansive (fun S => prop (P0 S))) P ->
+  Forall (fun R0 => nonexpansive R0) R ->
+  nonexpansive (fun S => PROPx (map (fun P0 => P0 S) P) (LOCALx Q (SEPx (map (fun R0 => R0 S) R))) rho).
+Proof.
+  intros.
+  apply PROPx_nonexpansive; auto.
+  apply LOCALx_nonexpansive.
+  apply SEPx_nonexpansive; auto.
+Qed.
+
 Notation "'EX'  x ':' T ',' P " := (@exp (environ->mpred) _ T (fun x:T => P%assert)) (at level 65, x at level 99) : assert.
 
 Notation " 'ENTAIL' d ',' P '|--' Q " := 

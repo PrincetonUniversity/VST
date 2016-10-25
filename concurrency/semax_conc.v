@@ -58,15 +58,26 @@ Definition selflock_fun Q sh p : (unit -> mpred) -> (unit -> mpred) :=
 Definition selflock' Q sh p : unit -> mpred := HORec (selflock_fun Q sh p).
 Definition selflock Q sh p : mpred := selflock' Q sh p tt.
 
-Definition nonexpansive F := HOnonexpansive (fun P (_ : unit) => F (P tt)).
-
-Lemma nonexpansive_entail F : nonexpansive F -> forall P Q, (P <=> Q |-- F P <=> F Q)%logic.
+Lemma nonexpansive_entail (F: pred rmap -> pred rmap) : nonexpansive F -> forall P Q, (P <=> Q |-- F P <=> F Q)%logic.
 Proof.
   intros N P Q.
-  specialize (N (fun _ => P) (fun _ => Q)).
-  eapply derives_trans; [ eapply derives_trans | ]; [ | apply N | ].
-  now apply allp_right.
-  now apply allp_left.
+  specialize (N P Q).
+  eapply derives_trans; [ eapply derives_trans | ]; [ | apply N | ];
+  apply derives_refl.
+Qed.
+
+Lemma HOnonexpansive_nonexpansive: forall F: mpred -> mpred, nonexpansive F <-> HOnonexpansive (fun P (_ : unit) => F (P tt)).
+Proof.
+  intros.
+  split; intros; hnf in H |- *.
+  + intros P Q.
+    specialize (H (P tt) (Q tt)).
+    rewrite !allp_unit.
+    auto.
+  + intros P Q.
+    specialize (H (fun x => P) (fun x => Q)).
+    rewrite !allp_unit in H.
+    auto.
 Qed.
 
 Axiom nonexpansive_lock_inv : forall sh p, nonexpansive (lock_inv sh p).
@@ -80,8 +91,9 @@ Proof.
   apply HORec_fold_unfold, prove_HOcontractive.
   intros P1 P2 u.
   apply subp_sepcon; [ apply subp_refl | ].
-  eapply derives_trans. apply (nonexpansive_lock_inv sh p).
-  apply allp_left with tt, fash_derives, andp_left1, derives_refl.
+  eapply derives_trans.
+  + apply HOnonexpansive_nonexpansive; apply (nonexpansive_lock_inv sh p).
+  + apply allp_left with tt, fash_derives, andp_left1, derives_refl.
 Qed.
 
 Lemma selflock_eq Q sh p : selflock Q sh p = (Q * lock_inv sh p (|> selflock Q sh p))%logic.
@@ -203,6 +215,110 @@ Definition Oracle := list rmap.
 
 (*+ Specification of each concurrent primitive *)
 
+Lemma approx_eq_i':
+  forall (P Q : pred rmap) n,
+  (|> (P <=> Q))%pred n -> approx n P = approx n Q.
+Proof.
+  intros.
+apply pred_ext'; extensionality m'.
+unfold approx.
+apply and_ext'; auto; intros.
+specialize (H (level m')); spec H; [simpl; apply later_nat; auto |].
+specialize (H m').
+spec H; [omega |].
+destruct H.
+specialize (H m').
+specialize (H1 m').
+apply prop_ext; split; auto.
+Qed.
+
+Lemma fash_equiv_approx: forall n (R: pred rmap),
+  (|> (R <=> approx n R))%pred n.
+Proof.
+  intros.
+  intros m ? x ?; split; intros y ? ?.
+  + apply approx_lt; auto.
+    apply necR_level in H1.
+    apply later_nat in H; omega.
+  + eapply approx_p; eauto.
+Qed.
+
+Lemma nonexpansive_super_non_expansive: forall (F: mpred -> mpred),
+  nonexpansive F ->
+  forall R n,
+  approx n (F R) = approx n (F (approx n R)).
+Proof.
+  intros.
+  apply approx_eq_i'.
+  intros m ?.
+  pose proof nonexpansive_entail _ H R (approx n R) m.
+  apply H1.
+  clear - H0.
+  apply (fash_equiv_approx n R m); auto.
+Qed.
+
+Definition acquire_arg_type: rmaps.TypeTree := rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred.
+
+Definition acquire_pre: val * share * mpred -> environ -> mpred :=
+  fun args =>
+  match args with
+  | (v, sh, R) =>
+     PROP (readable_share sh)
+     LOCAL (temp _lock v)
+     SEP (lock_inv sh v R)
+  end.
+
+Definition acquire_post: val * share * mpred -> environ -> mpred :=
+  fun args =>
+  match args with
+  | (v, sh, R) =>
+     PROP ()
+     LOCAL ()
+     SEP (lock_inv sh v R; R)
+  end.
+
+Lemma NP_acquire_pre: @super_non_expansive acquire_arg_type (fun _ => acquire_pre).
+Proof.
+  hnf.
+  intros.
+  destruct x as [[v sh] R]; simpl in *.
+  apply (nonexpansive_super_non_expansive
+   (fun R => (PROP (readable_share sh)  LOCAL (temp _lock v)  SEP (lock_inv sh v R)) rho)).
+  apply (PROP_LOCAL_SEP_nonexpansive
+          ((fun _ => readable_share sh) :: nil)
+          ((temp _lock v) :: nil)
+          ((fun R => lock_inv sh v R) :: nil));
+  repeat apply Forall_cons; try apply Forall_nil.
+  + unfold compose. apply const_nonexpansive.
+  + apply nonexpansive_lock_inv.
+Qed.
+
+Lemma NP_acquire_post: @super_non_expansive acquire_arg_type (fun _ => acquire_post).
+Proof.
+  hnf.
+  intros.
+  destruct x as [[v sh] R]; simpl in *.
+  apply (nonexpansive_super_non_expansive
+   (fun R => (PROP ()  LOCAL ()  SEP (lock_inv sh v R; R)) rho)).
+  apply (PROP_LOCAL_SEP_nonexpansive
+          nil
+          nil
+          ((fun R => lock_inv sh v R) :: (fun R => R) :: nil));
+  repeat apply Forall_cons; try apply Forall_nil.
+  + apply nonexpansive_lock_inv.
+  + apply identity_nonexpansive.
+Qed.
+
+Definition acquire_spec': funspec := mk_funspec
+  ((_lock OF tptr Tvoid)%formals :: nil, tvoid)
+  cc_default 
+  acquire_arg_type
+  (fun _ => acquire_pre)
+  (fun _ => acquire_post)
+  NP_acquire_pre
+  NP_acquire_post
+.
+
 Definition acquire_spec :=
    WITH v : val, sh : share, R : Pred
    PRE [ _lock OF tptr Tvoid ]
@@ -242,6 +358,99 @@ Definition acquire_oracular_spec :=
          LOCAL ()
          SEP (lock_inv sh v (Interp R); Interp R)
        end).
+
+Program Definition weak_positive_mpred (P: mpred): mpred :=
+  fun w => positive_mpred (approx (level w) P).
+Next Obligation.
+  intros; hnf; intros.
+  unfold positive_mpred in *.
+  intros.
+  apply H0.
+  simpl in H1 |- *.
+  destruct H1; split; auto.
+  apply age_level in H.
+  omega.
+Defined.
+
+Lemma positive_mpred_nonexpansive:
+  nonexpansive weak_positive_mpred.
+Proof.
+  intros.
+  hnf; intros.
+  intros n ?.
+  simpl in H |- *.
+  assert (forall y, (n >= level y)%nat -> (P y <-> Q y)).
+  Focus 1. {
+    intros; specialize (H y H0).
+    destruct H.
+    specialize (H y). spec H; [auto |].
+    specialize (H1 y). spec H1; [auto |].
+    tauto.
+  } Unfocus.
+  clear H.
+  intros; split; intros.
+  + hnf in H2 |- *.
+    intros.
+    apply H2; clear H2.
+    simpl in H3 |- *.
+    destruct H3; split; auto.
+    apply H0; auto.
+    apply necR_level in H1.
+    omega.
+  + hnf in H2 |- *.
+    intros.
+    apply H2; clear H2.
+    simpl in H3 |- *.
+    destruct H3; split; auto.
+    apply H0; auto.
+    apply necR_level in H1.
+    omega.
+Qed.
+
+Program Definition weak_precise_mpred (P: mpred): mpred :=
+  fun w => precise (approx (level w) P).
+Next Obligation.
+  intros; hnf; intros.
+  hnf in H0 |- *.
+  intros.
+  apply (H0 w); auto.
+  + simpl in H1 |- *; destruct H1; split; auto.
+    apply age_level in H; omega.
+  + simpl in H2 |- *; destruct H2; split; auto.
+    apply age_level in H; omega.
+Defined.
+
+Lemma precise_mpred_nonexpansive: nonexpansive weak_precise_mpred.
+Proof.
+  hnf; intros.
+  intros n ?.
+  simpl in H |- *.
+  assert (forall y, (n >= level y)%nat -> (P y <-> Q y)).
+  Focus 1. {
+    intros; specialize (H y H0).
+    destruct H.
+    specialize (H y). spec H; [auto |].
+    specialize (H1 y). spec H1; [auto |].
+    tauto.
+  } Unfocus.
+  clear H.
+  intros.
+  split; intros.
+  + hnf in H2 |- *; intros; apply (H2 w); auto.
+    - destruct H3; split; auto.
+      apply H0; auto.
+      apply necR_level in H1; omega.
+    - destruct H4; split; auto.
+      apply H0; auto.
+      apply necR_level in H1; omega.
+  + hnf in H2 |- *; intros; apply (H2 w); auto.
+    - destruct H3; split; auto.
+      apply H0; auto.
+      apply necR_level in H1; omega.
+    - destruct H4; split; auto.
+      apply H0; auto.
+      apply necR_level in H1; omega.
+Qed.
 
 Definition release_spec :=
    WITH v : val, sh : share, R : Pred

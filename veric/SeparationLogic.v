@@ -11,6 +11,8 @@ Require Export compcert.cfrontend.Clight.
 Require Export sepcomp.Address.
 Require Export msl.eq_dec.
 Require Export msl.shares.
+Require Export msl.predicates_rec.
+Require Export msl.contractive.
 Require Export msl.seplog.
 Require Export msl.alg_seplog.
 Require Export msl.log_normalize.

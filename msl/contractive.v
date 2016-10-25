@@ -126,6 +126,33 @@ Proof.
   apply eqp_subp2; auto.
 Qed.
 
+Lemma const_nonexpansive {A: Type} {H: ageable A}: forall P: pred A,
+  nonexpansive (fun _ => P).
+Proof.
+  intros.
+  hnf; intros.
+  intros w ? ? ?.
+  clear.
+  hnf; split; intros ? ? ?; auto.
+Qed.
+
+Lemma const_contractive {A: Type} {H: ageable A}: forall P: pred A,
+  contractive (fun _ => P).
+Proof.
+  intros.
+  hnf; intros.
+  intros w ? ? ?.
+  clear.
+  hnf; split; intros ? ? ?; auto.
+Qed.
+
+Lemma identity_nonexpansive {A: Type} {H: ageable A}:
+  nonexpansive (fun P: pred A => P).
+Proof.
+  hnf; intros.
+  intros ?; auto.
+Qed.
+
 (*
 Lemma box_contractive {A} `{ageable A} : forall F (M:modality),
   inclusion _ M fashionR ->
