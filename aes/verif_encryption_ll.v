@@ -513,6 +513,7 @@ eapply semax_seq'.
 {
 apply semax_pre with (P' := 
   (EX i: Z,   PROP ( ) LOCAL (
+     temp _i (Vint (Int.repr i));
      temp _RK (Vptr b (Int.add octx (Int.repr 24)));
      temp _X3 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 12) (Int.repr k4)));
      temp _X2 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 8) (Int.repr k3)));
@@ -535,9 +536,10 @@ apply semax_pre with (P' :=
            :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ Vundefs))
        (Vptr b octx) 
 *)  ))).
-{ entailer!. entailer!. }
+{ Exists 6. entailer!. }
 { apply semax_loop with (
-  (EX i: Z,   PROP ( ) LOCAL (
+  (EX i: Z,   PROP ( ) LOCAL ( 
+     temp _i (Vint (Int.repr i));
      temp _RK (Vptr b (Int.add octx (Int.repr 24)));
      temp _X3 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 12) (Int.repr k4)));
      temp _X2 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 8) (Int.repr k3)));
@@ -562,7 +564,9 @@ apply semax_pre with (P' :=
 *)  ))).
 { (* loop body *) 
 Intro i.
+
 forward_if (PROP ( ) LOCAL (
+     temp _i (Vint (Int.repr i));
      temp _RK (Vptr b (Int.add octx (Int.repr 24)));
      temp _X3 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 12) (Int.repr k4)));
      temp _X2 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 8) (Int.repr k3)));
@@ -576,12 +580,18 @@ forward_if (PROP ( ) LOCAL (
      data_at_ out_sh (tarray tuchar 16) output;
      tables_initialized tables;
      data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input; TT)).
-
-
-admit.
-
+{ (* then-branch: Sskip to body *)
+  forward. entailer!.
+ }
+{ (* else-branch: exit loop *)
+  forward. entailer!.
+ }
+{ (* rest: loop body *)
+  forward. forward.
+  (* now we need the SEP clause about ctx! *)
+  admit.
 }
-
+}
 { (* loop incr *)
 admit.
 }
@@ -608,6 +618,8 @@ Qed.
 (* TODO floyd: I want "omega" for int instead of Z *)
 
 (* TODO floyd: when load_tac should tell that it cannot handle memory access in subexpressions *)
+
+(* TODO floyd: for each tactic, test how it fails when variables are missing in Pre *)
 
 (*
 Note:
