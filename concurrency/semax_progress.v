@@ -615,7 +615,7 @@ Section Progress.
           + (* taking the step *)
             apply state_step_c.
             apply JuicyMachine.sync_step
-            with (ev := (Events.acquire (b, Int.intval ofs) None))
+            with (ev := (Events.acquire (b, Int.intval ofs) None None))
                    (tid := i)
                    (Htid := cnti)
                    (Hcmpt := mem_compatible_forget compat)

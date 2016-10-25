@@ -2073,7 +2073,7 @@ Section Preservation.
   (Htstep : syncStep ge cnti Hcmpt
              (age_tp_to n
                 (updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Int.intval ofs) None)) m'
-             (Events.acquire (b, Int.intval ofs) None)) :
+             (Events.acquire (b, Int.intval ofs) None None)) :
   (* ============================ *)
   state_invariant Jspec' Gamma n (m', ge, (sch, age_tp_to n
            (updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Int.intval ofs) None) : thread_pool)).
@@ -2692,7 +2692,7 @@ Section Preservation.
   (Htstep : syncStep ge cnti Hcmpt
              (age_tp_to n
                 (updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Int.intval ofs) (Some d_phi))) m'
-             (Events.release (b, Int.intval ofs) None)) :
+             (Events.release (b, Int.intval ofs) None None)) :
   (* ============================ *)
   state_invariant Jspec' Gamma n (m', ge, (sch, age_tp_to n
            (updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Int.intval ofs) (Some d_phi)))).
@@ -3383,7 +3383,7 @@ Section Preservation.
              (addThread (updThread i tp Htid (Kresume c Vundef) phi') (Vptr b ofs) arg d_phi) m')
   (Htstep : syncStep ge Htid Hcmpt
              (addThread (updThread i tp Htid (Kresume c Vundef) phi') (Vptr b ofs) arg d_phi) m'
-             (Events.spawn (b, Int.intval ofs))) :
+             (Events.spawn (b, Int.intval ofs) None None)) :
   (* ============================ *)
   state_invariant Jspec' Gamma n (m_, ge, (sch, tp_)).
   
