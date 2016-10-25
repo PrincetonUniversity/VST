@@ -165,6 +165,7 @@ Lemma semax_max_path_field_load_nth_ram':
       (p v : val) (v' : reptype (nested_field_type t_root gfs)),
       typeof_temp Delta id = Some t ->
       is_neutral_cast (typeof e) t = true ->
+      typeof e = nested_field_type t_root gfs ->
       readable_share sh ->
       type_is_volatile (typeof e) = false ->
       JMeq v' v ->
@@ -184,41 +185,21 @@ Lemma semax_max_path_field_load_nth_ram':
 Proof.
   intros.
   pose proof is_neutral_cast_by_value _ _ H0.
-  assert_PROP (typeof e = nested_field_type t_root gfs). {
-    eapply derives_trans; [exact H7 |].
-    unfold tc_lvalue. (* unfold typecheck_lvalue. unfold denote_tc_assert.
-
-    normalize.
-
-tc_val
-
-typecheck_lvalue
-typeof: just extracts annotation *)
-
-    admit.
-   (* QQQ: Are there any lemmas about tc_lvalue or..? *)
-(*
-    rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ H4)).
-    normalize.
-    apply prop_right; symmetry; auto.
-*)
-  }
-  rewrite H9 in H8.
+  rewrite H1 in H8.
   assert_PROP (field_compatible t_root gfs p). {
     erewrite SEP_nth_isolate, <- insert_SEP by eauto.
     apply andp_left2;
     apply derives_left_sepcon_right_corable; auto.
     intro rho; unfold_lift; simpl.
-    eapply derives_trans; [apply H5 |].
+    eapply derives_trans; [apply H6 |].
     rewrite field_at_compatible'.
     normalize.
   }
   eapply semax_load_nth_ram; try eassumption.
-  + eapply self_ramify_trans; [exact H5 |].
+  + eapply self_ramify_trans; [exact H6 |].
     eapply RAMIF_PLAIN.weak_ramif_spec.
-    apply mapsto_field_at_ramify; [auto | rewrite <- H9; auto | auto | eauto].
-  + rewrite <- H9. exact H7.
-Admitted.
+    apply mapsto_field_at_ramify; try rewrite <- H1; eauto.
+Qed.
 
 Lemma semax_SC_field_load':
   forall {Espec: OracleKind},
@@ -227,6 +208,7 @@ Lemma semax_SC_field_load':
       (p: val) (v : val) (v' : reptype (nested_field_type t_root gfs0)),
       typeof_temp Delta id = Some t ->
       is_neutral_cast (typeof e) t = true ->
+      typeof e = nested_field_type t_root gfs ->
       readable_share sh ->
       type_is_volatile (typeof e) = false ->
       gfs = gfs1 ++ gfs0 ->
@@ -247,13 +229,12 @@ Lemma semax_SC_field_load':
                 (SEPx R)))).
 Proof.
   intros.
-  eapply semax_extract_later_prop'; [exact H8 | clear H8; intro H8].
-  eapply semax_extract_later_prop' with (PP := (nested_field_type t_root gfs = typeof e)); 
-   [eapply derives_trans; [exact H7 | (*eapply typeof_nested_efield; eauto*)] | intro]. admit.
+  eapply semax_extract_later_prop'; [exact H9 | clear H9; intro H9].
   assert (JMeq (valinject (nested_field_type t_root gfs) v) v) as A. {
-    apply valinject_JMeq. apply is_neutral_cast_by_value with t. rewrite H9. assumption.
+    apply valinject_JMeq. apply is_neutral_cast_by_value with t. rewrite <- H1. assumption.
   }
   eapply semax_max_path_field_load_nth_ram'.
+  eassumption.
   eassumption.
   eassumption.
   eassumption.
@@ -263,14 +244,14 @@ Proof.
   2: eassumption.
   2: eassumption.
   eapply derives_trans; [apply nested_field_ramif' with (gfs3 := gfs1) |].
-  + eapply JMeq_trans; [apply H6 |].
-    rewrite H3 in A.
+  + eapply JMeq_trans; [apply H7 |].
+    rewrite H4 in A.
     apply @JMeq_sym, A.
-  + rewrite <- H3; auto.
+  + rewrite <- H4; auto.
   + apply sepcon_derives; [| auto].
-    rewrite <- H3.
+    rewrite <- H4.
     apply derives_refl.
-Admitted.
+Qed.
 
 Ltac simpl_Int := repeat match goal with
 | |- context [ (Int.mul (Int.repr ?A) (Int.repr ?B)) ] =>
