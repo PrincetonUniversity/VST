@@ -572,19 +572,126 @@ forward_if (PROP ( ) LOCAL (
   forward. forward.
   (* now we need the SEP clause about ctx: *) subst vv.
 
+freeze_except (data_at ctx_sh t_struct_aesctx
+     (Vint (Int.repr Nr),
+     (Vptr b (Int.add octx (Int.repr 8)),
+     Vint (Int.repr k1)
+     :: Vint (Int.repr k2)
+        :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ Vundefs))
+     (Vptr b octx)) Fr.
 
-  admit.
+eapply semax_seq'. {
+hoist_later_in_pre.
+
+match goal with
+| |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e1) _ =>
+    let HLE := fresh "H" in
+    let p := fresh "p" in evar (p: val);
+    do_compute_lvalue Delta P Q R e1 p HLE;
+    subst p
+end.
+
+Lemma semax_SC_field_load'':
+  forall {Espec: OracleKind},
+    forall Delta sh n id P Q R (e: expr) Pre
+      (t: type)
+      (a : val) (v : val) (v' : reptype t),
+      typeof_temp Delta id = Some t ->
+      is_neutral_cast (typeof e) t = true ->
+(*      typeof e = nested_field_type t_root gfs -> *)
+      readable_share sh ->
+      type_is_volatile (typeof e) = false ->
+(*      gfs = gfs1 ++ gfs0 -> *)
+      nth_error R n = Some Pre ->
+      Pre |-- data_at sh t v' a ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        local (`(eq a) (eval_lvalue e)) ->
+      JMeq v' v ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        (tc_lvalue Delta e) &&
+        local `(tc_val (typeof e) v) ->
+(*    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        (!! legal_nested_field t_root gfs) -> *)
+      semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
+        (Sset id e)
+          (normal_ret_assert
+            (PROPx P 
+              (LOCALx (temp id v :: remove_localdef id Q)
+                (SEPx R)))).
+Admitted.
+
+(* Note: different from the lower-level semax_max_path_field_load_nth_ram', because it's
+   not defined in terms of gfs *)
+
+(*  Level 0: semax_load_nth_ram
+
+eapply semax_load_nth_ram with (t1 := tuint) (t2 := tuint) (n := 1%nat) 
+(*
+(v :=
+(Znth 5
+  (Vint (Int.repr k1)
+       :: Vint (Int.repr k2)
+          :: Vint (Int.repr k3)
+             :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ list_repeat 8 Vundef) Vundef))
+*)
+; first [exact H1 | eassumption | reflexivity | idtac].
+{ (* QQQ: Can we solve this goal (which includes the evar ?v) automatically? *)
+
+instantiate (1 := (Znth 5
+  (Vint (Int.repr k1)
+       :: Vint (Int.repr k2)
+          :: Vint (Int.repr k3)
+             :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ list_repeat 8 Vundef) Vundef)).
+admit.
+ }
+{ entailer!.
+admit. (* TODO is_int *)
+}
+}
+*)
+
+
+(* Level 1: semax_max_path_field_load_nth_ram' 
+
+not what we want, because it's using gfs stuff
+ *)
+
+
+(* Level 2: semax_SC_field_load''
+(where we removed the gfs stuff)  *)
+
+eapply semax_SC_field_load'' with (n := 1%nat) (sh := ctx_sh);
+ first [exact H1 | assumption | reflexivity | eapply JMeq_refl | idtac].
+{ (* QQQ: Can we solve this goal (which includes the evar ?v') automatically? *)
+
+instantiate (1 := (Znth 5
+  (Vint (Int.repr k1)
+       :: Vint (Int.repr k2)
+          :: Vint (Int.repr k3)
+             :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ list_repeat 8 Vundef) Vundef)).
+
+entailer!.
+admit.
+ }
+{ entailer!.
+admit. (* TODO is_int *)
+}
+}
+
+{
+unfold MORE_COMMANDS, abbreviate.
+(* next command in loop body: *)
+(*     uint32_t b0 = tables.FT0[ ( Y0       ) & 0xFF ];    *)
+admit.
+}
 }
 }
 { (* loop incr *)
 admit.
 }
 }
-
-
 }
 {
-
 admit.
 }
 
@@ -599,7 +706,9 @@ Qed.
    or at least, the tactics should warn.
    And same for nested_field_offset. *)
 
-(* TODO floyd: I want "omega" for int instead of Z *)
+(* TODO floyd: I want "omega" for int instead of Z 
+   maybe "autorewrite with entailer_rewrite in *"
+*)
 
 (* TODO floyd: when load_tac should tell that it cannot handle memory access in subexpressions *)
 
