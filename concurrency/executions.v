@@ -124,6 +124,78 @@ Module Executions (SEM: Semantics)
     apply nth_error_In in H0. inversion H0; subst; auto.
     simpl in H2. by exfalso.
   Qed.
+
+  Lemma fstep_event_sched:
+    forall U tr tp m U' ev tp' m'
+      (Hstep: FineConc.MachStep the_ge (U, tr, tp) m
+                                (U', tr ++ [:: ev], tp') m'),
+      U = (thread_id ev) :: U'.
+  Proof.
+    intros.
+    inv Hstep; simpl in *;
+      try (apply app_eq_nil in H4; discriminate);
+      subst;
+      unfold dry_machine.Concur.mySchedule.schedPeek in HschedN;
+      unfold dry_machine.Concur.mySchedule.schedSkip;
+      destruct U; simpl in *; try discriminate;
+        inv HschedN.
+    apply app_inv_head in H5;
+      destruct ev0; simpl in *; try discriminate.
+    destruct ev0; simpl in *; try discriminate.
+    inv H5. reflexivity.
+    apply app_inv_head in H5.
+    inv H5. reflexivity.
+  Qed.
+
+  Lemma fstep_ev_contains:
+    forall U tr tp m U' ev tp' m'
+      (Hstep: FineConc.MachStep the_ge (U, tr, tp) m
+                                (U', tr ++ [:: ev], tp') m'),
+      containsThread tp (thread_id ev) /\ containsThread tp' (thread_id ev).
+  Proof.
+    intros.
+    pose proof (fstep_event_sched _ Hstep) as Heq.
+    inv Hstep; simpl in *;
+      try (apply app_eq_nil in H4; discriminate);
+      try subst.
+    inv HschedN.
+    inv Htstep;
+      split; eauto.
+    inv HschedN.
+    inv Htstep; split; eauto.
+    apply cntAdd.
+    apply cntUpdate.
+    assumption.
+  Qed.
+  
+  Lemma fstep_trace_monotone:
+    forall U tp m tr U' tp' m' tr'
+      (Hstep: FineConc.MachStep the_ge (U, tr, tp) m
+                                (U', tr', tp') m'),
+    exists tr'',
+      tr' = tr ++ tr''.
+  Proof.
+    intros.
+    inv Hstep; simpl in *; subst;
+      try (exists [::]; rewrite app_nil_r; reflexivity);
+      eexists; reflexivity.
+  Qed.
+
+  Lemma multi_fstep_trace_monotone:
+    forall U tr tp m U' tr' tp' m'
+      (Hexec: multi_fstep (U, tr, tp) m (U', tr', tp') m'),
+    exists tr'',
+      tr' = tr ++ tr''.
+  Proof.
+    induction U; intros.
+    - inv Hexec. exists [::]. rewrite app_nil_r. reflexivity.
+    - inv Hexec. exists [::]. rewrite app_nil_r. reflexivity.
+      eapply fstep_trace_monotone in H8.
+      destruct H8 as [tr''0 H8].
+      apply app_inv_head in H8; subst.
+      eapply IHU in H9.
+      now eauto.
+  Qed.
   
   (** Decomposing steps based on an external event*)
   Lemma multi_fstep_inv_ext:
