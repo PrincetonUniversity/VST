@@ -771,7 +771,8 @@ void mbedtls_aes_encrypt( mbedtls_aes_context *ctx,
     GET_UINT32_LE( X2, input,  8 ); tmp = *RK++; X2 ^= tmp;
     GET_UINT32_LE( X3, input, 12 ); tmp = *RK++; X3 ^= tmp;
 
-    for( i = ( ctx->nr >> 1 ) - 1; i > 0; i-- )
+    tmp = ctx->nr;
+    for( i = ( tmp >> 1 ) - 1; i > 0; i-- )
     {
         AES_FROUND( Y0, Y1, Y2, Y3, X0, X1, X2, X3 );
         AES_FROUND( X0, X1, X2, X3, Y0, Y1, Y2, Y3 );
@@ -876,7 +877,8 @@ void mbedtls_aes_decrypt( mbedtls_aes_context *ctx,
     GET_UINT32_LE( X2, input,  8 ); tmp = *RK++; X2 ^= tmp;
     GET_UINT32_LE( X3, input, 12 ); tmp = *RK++; X3 ^= tmp;
 
-    for( i = ( ctx->nr >> 1 ) - 1; i > 0; i-- )
+    tmp = ctx->nr;
+    for( i = ( tmp >> 1 ) - 1; i > 0; i-- )
     {
         AES_RROUND( Y0, Y1, Y2, Y3, X0, X1, X2, X3 );
         AES_RROUND( X0, X1, X2, X3, Y0, Y1, Y2, Y3 );
