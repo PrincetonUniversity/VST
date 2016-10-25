@@ -8,6 +8,7 @@ Require Import concurrency.scheduler.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.addressFiniteMap. (*The finite maps*)
 Require Import concurrency.threads_lemmas.
+Require Import concurrency.rmap_locking.
 Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
@@ -1092,26 +1093,15 @@ Admitted.
             (Hpersonal_perm: 
                personal_mem (thread_mem_compatible Hcompatible cnt0) = jm)
             (Hpersonal_juice: getThreadR cnt0 = phi)
-            (*This the first share of the lock, 
-              can/should this be different for each location? *)
-            (sh:Share.t)
             (*Check I have the right permission to mklock and the right value (i.e. 0) *)
             (*Haccess: address_mapsto LKCHUNK (Vint Int.zero) sh Share.top (b, Int.intval ofs) phi*)
             (Hstore:
                Mem.store Mint32 (m_dry jm) b (Int.intval ofs) (Vint Int.zero) = Some m')
-            (*Check the new memory has the lock*)
-            (Hct: forall ofs', (Int.intval ofs) <= ofs'<(Int.intval ofs)+LKSIZE  ->
-                          exists val,
-                phi@ (b, ofs') = YES sh pfullshare (VAL val) NoneP)
-            (Hlock: phi'@ (b, Int.intval ofs) = YES sh pfullshare (LK LKSIZE) (preds_fmap (approx (level phi)) (approx (level phi)) (pack_res_inv R)))
-            (Hct: forall ofs', (Int.intval ofs) <ofs'<(Int.intval ofs)+LKSIZE ->
-                phi'@ (b, ofs') = YES sh pfullshare (CT (ofs' - Int.intval ofs)%Z) NoneP) (*This seems wrong it's not LKSIZE, its ofs0 -ofs *)
-            (*Check the new memory has the right continuations THIS IS REDUNDANT! *)
-            (*Hcont: forall i, 0<i<LKSIZE ->   phi'@ (b, Int.intval ofs + i) = YES sh pfullshare (CT i) NoneP*)
-            (*Check the two memories coincide in everything else *)
-            (Hj_forward: forall loc, b <> loc#1 \/ ~(Int.intval ofs) <=loc#2<(Int.intval ofs)+LKSIZE  -> phi@loc = phi'@loc)
-            (levphi' : level phi' = level phi)
-            (*Check the memories are equal!*)
+            (* [Hrmap] replaced: [Hct], [Hlock], [Hj_forward] and [levphi'].
+               This says that phi and phi' coincide everywhere except in adr_range,
+               and specifies how phi and phi' should differ in adr_range
+               (in particular, they have equal shares, pointwise) *)
+            (Hrmap : rmap_makelock phi phi' (b, Int.unsigned ofs) R LKSIZE)
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' = age_tp_to (level phi - 1)%coq_nat 
                     (updLockSet tp' (b, Int.intval ofs) None )),

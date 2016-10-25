@@ -3390,6 +3390,7 @@ Section Preservation.
   Proof.
   Admitted.
   
+  Require Import concurrency.rmap_locking.
   Lemma preservation_makelock
   (Gamma : PTree.t funspec)
   (n : nat)
@@ -3430,7 +3431,6 @@ Section Preservation.
   (phi' : rmap)
   (m'0 : Memory.mem)
   (Hcompatible : mem_compatible tp m)
-  (sh : Share.t)
   (Hinv : invariant tp)
   (Hthread : getThreadC i tp Htid = Kblocked c)
   (Hat_external : at_external SEM.Sem c = Some (MKLOCK, Vptr b ofs :: nil))
@@ -3438,18 +3438,7 @@ Section Preservation.
   (Hpersonal_perm : personal_mem m (getThreadR i tp Htid) (thread_mem_compatible Hcompatible Htid) = jm)
   (Hpersonal_juice : getThreadR i tp Htid = m_phi jm)
   (Hstore : store Mint32 (m_dry jm) b (Int.intval ofs) (Vint Int.zero) = Some m')
-  (Hct : forall ofs' : Z,
-        (Int.intval ofs <= ofs' < Int.intval ofs + LKSIZE)%Z ->
-        exists (val : memval),
-          m_phi jm @ (b, ofs') = YES sh pfullshare (VAL val) NoneP)
-  (Hlock : phi' @ (b, Int.intval ofs) = YES sh pfullshare (LK LKSIZE) (preds_fmap (approx (level (@getThreadR i tp cnti))) (approx (level (@getThreadR i tp cnti))) (pack_res_inv R)))
-  (Hct0 : forall ofs' : Z,
-         (Int.intval ofs < ofs' < Int.intval ofs + LKSIZE)%Z ->
-         phi' @ (b, ofs') = YES sh pfullshare (CT (ofs' - Int.intval ofs)%Z) NoneP)
-  (Hj_forward : forall loc : block * Z,
-               b <> fst loc \/ ~ (Int.intval ofs <= snd loc < Int.intval ofs + LKSIZE)%Z ->
-               m_phi jm @ loc = phi' @ loc)
-  (levphi' : level phi' = level (m_phi jm))
+  (Hrmap : rmap_makelock (getThreadR i tp cnti) phi' (b, Int.unsigned ofs) R LKSIZE)
   (Htp' : tp'0 = updThread i tp Htid (Kresume c Vundef) phi')
   (Htp'' : tp' = age_tp_to (level (m_phi jm) - 1) (updLockSet tp'0 (b, Int.intval ofs) None))
   (H : tp'' = tp')
@@ -3459,6 +3448,7 @@ Section Preservation.
   state_invariant Jspec' Gamma n (m_, ge, (sch, tp_)).
   
   Proof.
+    (* now much easier with rmap_makelock.
     (* we must define the new Phi *)
     
     Definition rmap_makelock phi phi' sh loc R :=
@@ -3548,7 +3538,7 @@ Section Preservation.
                inv j2.
                ++ (* NOT THE SAME PHI *)
                  admit.
-       *)
+       *) *)
   Admitted.
   
   Lemma preservation_freelock

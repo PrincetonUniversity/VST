@@ -389,31 +389,32 @@ Section Progress.
               reflexivity.
             }
             
-            assert (Ecall: Some (EF_external name sg, args) =
-                           Some (LOCK, Vptr b ofs :: nil)). {
-              repeat f_equal.
-              - auto.
-              - unfold funsig2signature in *.
-                simpl in Heq_name.
-                congruence.
-              - assert (L: length args = 1%nat). {
-                  assert (Esg : sg = LOCK_SIG) by (unfold ef_id_sig in *; congruence).
-                  subst sg; clear -Hargsty.
-                  simpl in *.
-                  destruct args as [|? [|]]; simpl in *; tauto.
-                }
-                clear -PREB L.
-                unfold expr.eval_id in PREB.
-                unfold expr.force_val in PREB.
-                match goal with H : context [Map.get ?a ?b] |- _ => destruct (Map.get a b) eqn:E end.
-                subst v. 2: discriminate.
-                pose  (gx := (filter_genv (symb2genv (Genv.genv_symb ge)))). fold gx in E.
-                destruct args as [ | arg [ | ar args ]].
-                + now inversion E.
-                + inversion E. reflexivity.
-                + inversion E. f_equal.
-                  inversion L.
+            assert (Esg : sg = LOCK_SIG) by (unfold ef_id_sig in *; congruence).
+Lemma shape_of_args F V args b ofs ge :
+  Val.has_type_list args (AST.Tint :: nil) ->
+  Vptr b ofs = expr.eval_id _lock (make_ext_args (filter_genv (symb2genv (@Genv.genv_symb F V ge))) (_lock :: nil) args) ->
+  args = Vptr b ofs :: nil.
+Proof.
+  intros Hargsty.
+  assert (L: length args = 1%nat) by (destruct args as [|? [|]]; simpl in *; tauto).
+  unfold expr.eval_id.
+  unfold expr.force_val.
+  intros Preb.
+  match goal with H : context [Map.get ?a ?b] |- _ => destruct (Map.get a b) eqn:E end.
+  subst v. 2: discriminate.
+  pose  (gx := (filter_genv (symb2genv (Genv.genv_symb ge)))). fold gx in E.
+  destruct args as [ | arg [ | ar args ]].
+  + now inversion E.
+  + simpl in E. inversion E. reflexivity.
+  + inversion E. f_equal.
+    inversion L.
+Qed.
+            assert (Eargs : args = Vptr b ofs :: nil). {
+              subst sg.
+              eapply shape_of_args; eauto.
             }
+            
+            assert (Ecall: EF_external name sg = LOCK) by congruence.
             
             assert (Eae : at_external SEM.Sem (ExtCall (EF_external name sg) args lid ve te k) =
                     Some (LOCK, Vptr b ofs :: nil)). {
@@ -459,7 +460,6 @@ Section Progress.
           destruct sat as [sat | sat]; [ | omega ].
           
           (* changing value of lock in dry mem *)
-          Unset Printing Implicit.
           assert (Hm' : exists m', Mem.store Mint32 (restrPermMap (mem_compatible_locks_ltwritable (mem_compatible_forget compat))) b (Int.intval ofs) (Vint Int.zero) = Some m'). {
             Transparent Mem.store.
             unfold Mem.store in *.
@@ -478,123 +478,6 @@ Section Progress.
           be the thread's new rmap *)
           destruct (compatible_threadRes_lockRes_join (mem_compatible_forget compat) cnti _ Efind)
             as (phi', Jphi').
-          
-          (*
-          (* to build the new dry memory I need to use [restrPermMap]
-          which requires [mem_compatible tp''' m']. Then I have to
-          prove all the coherence things again, one of being
-          [lockSet_Writable], which is NOT true. So I must use
-          something else. *)
-          
-          (* This is silly, there is no reason that this must be a
-          juicy mem. *)
-          
-          match goal with
-            _ : _ = Kblocked ?c |- _ => pose c end.
-          pose (tp' := updThread cnti (Kresume c Vundef) phi').
-          pose (tp'' := updLockSet tp' (b, Int.intval ofs) None).
-          pose (tp''' := age_tp_to (level phi' - 1) tp'').
-          pose (Phi' := age_to (level Phi - 1) Phi).
-          
-          assert (MC : mem_compatible_with tp''' m' Phi'). {
-            constructor.
-            - unfold tp''' in *.
-              unfold Phi' in *.
-              replace (level phi') with (level Phi) by (join_level_tac; cleanup; congruence).
-              apply join_all_age_to. cleanup; omega.
-              unfold tp'' in *.
-              rewrite join_all_joinlist.
-              rewrite maps_updlock1.
-              unfold tp' in *.
-              rewrite maps_remLockSet_updThread.
-              rewrite maps_updthread.
-              pose proof juice_join compat as j.
-              rewrite join_all_joinlist in j.
-              rewrite (maps_getlock3 _ _ _ Efind) in j.
-              assert (cnti': containsThread (remLockSet tp (b, Int.unsigned ofs)) i) by auto.
-              rewrite maps_getthread with (i := i) (cnti := cnti') in j.
-              revert j.
-              apply joinlist_merge.
-              apply join_comm.
-              exact_eq Jphi'; f_equal.
-              destruct tp. simpl. f_equal. f_equal. apply proof_irr.
-            
-            - (* pfdf. *)
-              admit.
-            
-            - unfold tp''' in *.
-              apply lockSet_Writable_age.
-              unfold tp'' in *.
-              Lemma lockSet_Writable_updLockSet tp loc m o :
-                lockRes tp loc <> None ->
-                lockSet_Writable (lset tp) m ->
-                lockSet_Writable (lset (updLockSet tp loc o)) m.
-              Proof.
-                unfold lockSet_Writable in *.
-                unfold lockRes in *.
-                cleanup.
-                intros F H b ofs E.
-                apply (H b ofs).
-                destruct tp; simpl in *.
-                rewrite AMap_find_add in E.
-                unfold AMap.key in *.
-                destruct (eq_dec loc (b, ofs)); [ | now auto ].
-                subst. cleanup.
-                destruct ( AMap.find (elt:=option rmap) (b, ofs) lset0). reflexivity. tauto.
-              Qed.
-              apply lockSet_Writable_updLockSet.
-              { cleanup.
-                unfold Int.unsigned in *.
-                unfold tp' in *.
-                simpl.
-                rewrite Efind.
-                congruence. }
-              unfold tp' in *.
-              simpl.
-              (* NOW I have to prove [lockSet_Writable (lset tp) m']
-              which is not true at all. *)
-              admit.
-            - admit.
-            - admit.
-          }
-          clear MC (* was not true *).
-          *)
-          
-          (* NOT
-          (* somehow the new mem and the Phi has to be a juicy memory
-          -> it does NOT. The requirement will be removed from the
-          juicy machine *)
-          assert (Hjm' : exists jm', m_dry jm' = m' /\ m_phi jm' = phi'). {
-            unshelve eexists (mkJuicyMem m' phi' _ _ _ _); [ .. | auto ].
-            - Require Import veric.juicy_mem_lemmas.
-              apply contents_cohere_join_sub with Phi; [ | now join_sub_tac ].
-              assert (C : contents_cohere m Phi) by apply compat.
-              intros rsh sh0 v loc pp H.
-              specialize (C rsh sh0 v loc pp H).
-              destruct C as [C ?]; split; auto.
-              pose proof store_outside' _ _ _ _ _ _ Hm' as SO.
-              destruct SO as (SO & _).
-              destruct loc as (b', ofs').
-              specialize (SO b' ofs').
-              destruct SO as [SO | SO].
-              + exfalso.
-                admit (* cannot be YES *).
-              + rewrite <-SO.
-                rewrite restrPermMap_contents.
-                auto.
-            - (* this shouldn't be m', but some restrPermMap *)
-              Lemma contents_cohere_join_sub m phi1 phi2 :
-                join_sub phi1 phi2 ->
-                contents_cohere m phi2 ->
-                contents_cohere m phi1.
-              Admitted.
-              (* intros rsh sh0 v loc pp E. *)
-              admit.
-            - admit.
-            - admit.
-          }
-          destruct Hjm' as (jm', Hjm').
-          *)
           
           (* necessary to know that we have indeed a lock *)
           assert (ex: exists sh0 psh0, phi0 @ (b, Int.intval ofs) = YES sh0 psh0 (LK LKSIZE) (pack_res_inv (approx (level phi0) (Interp Rx)))). {
@@ -808,19 +691,6 @@ Section Progress.
               apply age_by_1. replace (level phi_sat) with (level Phi). omega. join_level_tac.
           }
           
-          (* m' and phi' are NOT a not a juicy mem *)
-          (*
-          (* somehow the new mem and the Phi has to be a juicy memory *)
-          assert (Hjm' : exists jm', m_dry jm' = m' /\ m_phi jm' = phi'). {
-            admit (* ask santiago if he can provide such coherence results on restrPermMap *).
-            (*unshelve eexists.
-            unshelve refine (mkJuicyMem m' phi' _ _ _ _).
-            all: try (split; reflexivity).
-             *)
-          }
-          destruct Hjm' as (jm' & <- & <-).
-          *)
-          
           eexists (m', ge, (sch, _)).
           eapply state_step_c.
           eapply JuicyMachine.sync_step with (Htid := cnti); auto.
@@ -995,23 +865,7 @@ Section Progress.
         assert (Hm' : exists m', Mem.store Mint32 (m_dry (personal_mem (thread_mem_compatible (mem_compatible_forget compat) cnti))) b (Int.intval ofs) (Vint Int.zero) = Some m'). {
           clear -AT Join Hwritable.
           replace tlock with (Tarray (Tpointer Tvoid noattr) 4 noattr) in AT by reflexivity.
-          (* replace tlock with (Tpointer Tvoid noattr) in AT by reflexivity. *)
           destruct AT as (AT1, AT2).
-          (* (* this whole block might be removed *)
-          unfold nested_field_lemmas.field_compatible in AT1. simpl in AT1.
-          unfold nested_pred_lemmas.legal_alignas_type in AT1.
-          unfold nested_pred_lemmas.nested_pred in AT1. simpl in AT1.
-          unfold local_legal_alignas_type in AT1.
-          unfold plain_alignof in AT1. simpl in AT1.
-          unfold nested_pred_lemmas.legal_cosu_type in AT1.
-          unfold nested_pred_lemmas.nested_pred in AT1. simpl in AT1.
-          unfold Int.modulus in AT1.
-          unfold Int.wordsize in AT1.
-          unfold Wordsize_32.wordsize in AT1. simpl in AT1.
-          unfold align_attr in AT1. simpl in AT1.
-          unfold two_power_nat in AT1. simpl in AT1.
-          destruct AT1 as ([] & [] & [] & [] & AT11 & AT12 & AT13 & []).
-          (* until above this line *) *)
           destruct AT2 as [A B]. clear A. (* it is 4 = 4 *)
           simpl in B. unfold mapsto_memory_block.at_offset in B.
           simpl in B. unfold nested_field_lemmas.nested_field_offset in B.
@@ -1045,154 +899,16 @@ Section Progress.
         
         clear Post.
         
-        (* Definition rmap_makelock phi phi' sh loc R :=
-          (forall x, ~ adr_range loc LKSIZE x -> phi @ x = phi' @ x) /\
-          (forall x, adr_range loc LKSIZE x -> exists val, phi @ x = YES (Share.unrel Share.Lsh sh) pfullshare (VAL val) NoneP) /\
-          (LKspec_ext R sh fullshare loc phi').
+        pose proof data_at_rmap_makelock CS as RL.
+        specialize (RL shx b ofs (Interp Rx) phi0 4%Z ltac:(omega) Hwritable AT).
+        destruct RL as (phi0' & RL0 & lkat).
         
-        Definition rmap_freelock phi phi' sh loc R :=
-          (forall x, ~ adr_range loc LKSIZE x -> phi @ x = phi' @ x) /\
-          (LKspec_ext R sh fullshare loc phi) /\
-          (forall x, adr_range loc LKSIZE x -> exists val, phi' @ x = YES (Share.unrel Share.Lsh sh) pfullshare (VAL val) NoneP). *)
-        
-        assert (Lphi : level phi0 = S n) by join_level_tac.
-        assert (Hphi0' : exists phi0',
-                   level phi0' = level phi0 /\
-                   rmap_makelock phi0 phi0' (b, Int.intval ofs) (Interp Rx)).
-        {
-          pose
-            (f :=
-               fun loc =>
-                 if adr_range_dec (b, Int.intval ofs) LKSIZE loc then
-                   if eq_dec (Int.intval ofs) (snd loc) then
-                     YES shx pfullshare (LK LKSIZE) (pack_res_inv (Interp Rx))
-                   else
-                     YES shx pfullshare (CT (snd loc - Int.intval ofs)%Z) NoneP
-                 else
-                   phi0 @ loc).
-                    
-          Definition is_VAL r :=
-            match r with
-            | YES x x0 (VAL _) x2 => Logic.True
-            | _ => Logic.False
-            end.
-          
-          assert (blank': forall loc, adr_range (b, Int.intval ofs) LKSIZE loc -> is_VAL (phi0 @ loc)).
-          {
-            intros loc range.
-            destruct (data_at_unfold_weak _ _ _ _ _ _ _ _ Hreadable AT range) as (p & v & E).
-            now change LKSIZE with 4%Z; omega.
-            rewrite E; simpl; auto.
-          }
-          assert (blank: forall loc, adr_range (b, Int.intval ofs) LKSIZE loc -> ~isLK (phi0 @ loc) /\ ~isCT (phi0 @ loc)).
-          {
-            intros loc range; specialize (blank' loc range).
-            destruct (phi0 @ loc) as [ ? |  ? ? [] ? | ? ? ]; inversion blank'.
-            split; intros []; intros; breakhyps.
-          }
-          clear -f blank blank' n En Lphi AT Join Hreadable Hwritable.
-          pose proof make_rmap'' (S n) f as makef.
-          assert_specialize makef. {
-            clear makef.
-            intros b' ofs'.
-            pose proof rmap_valid phi0 b' ofs' as V.
-            unfold "oo", f in *.
-            if_tac; simpl in *.
-            - destruct H as (<-, H).
-              if_tac; simpl in *.
-              + subst.
-                intros i0 range.
-                if_tac; simpl in *.
-                * if_tac; simpl in *.
-                  -- omega.
-                  -- repeat f_equal. omega.
-                * subst.
-                  destruct H0.
-                  split; auto.
-                  split; auto; omega.
-              + exists LKSIZE. split. omega.
-                if_tac; simpl in *.
-                * if_tac; simpl in *. auto. omega.
-                * destruct H1. split; auto. omega.
-            - destruct (_ (phi0 @ (b', ofs'))) as [[sh []] | ]; auto.
-              + intros i0 range; specialize (V i0 range).
-                specialize (blank (b', (ofs' + i0)%Z)); simpl in blank.
-                if_tac; simpl in *; [ | now auto].
-                autospec blank.
-                exfalso.
-                destruct (phi0 @ (b', (ofs' + i0)%Z)) as [t0 | t0 p [] p0 | k p]; try solve [inversion V].
-                apply (proj2 blank). hnf; eauto.
-              + destruct V as (n' & ln & E).
-                exists n'; split; auto.
-                if_tac; simpl in *; [ | now auto ].
-                specialize (blank (b', (ofs' - z)%Z)); simpl in blank.
-                autospec blank.
-                exfalso.
-                destruct (phi0 @ (b', (ofs' - z)%Z)) as [t0 | t0 p [] p0 | k p]; try solve [inversion E].
-                apply (proj1 blank). hnf; eauto.
-          }
-          (* specialize (makef (S n)).  assert_specialize makef. {
-          extensionality loc; unfold "oo", f; simpl.  if_tac.  2:
-          rewrite <-Lphi, resource_at_approx; auto.  if_tac. admit. (*
-          change something *) simpl.  unfold NoneP, "oo".  repeat
-          f_equal.  extensionality tt.  apply approx_FF.  } *)
-          destruct (makef ) as (phi0' & Lphi0' & Ephi0').
-          
-          exists phi0'; split. congruence.
-          split3.
-          - rewrite Ephi0'; unfold f, "oo".
-            intros loc nrange.
-            if_tac. tauto.
-            rewrite <-Lphi.
-            rewrite resource_at_approx.
-            repeat f_equal; auto.
-          - intros loc range.
-            destruct (data_at_unfold_weak _ _ _ _ _ _ _ _ Hreadable AT range) as (p & v & E).
-            now change LKSIZE with 4%Z; omega.
-            rewrite E; simpl; auto.
-            eexists; f_equal.
-            revert p Join E.
-            erewrite (writable_share_right Hwritable).
-            intros p Join E.
-            unfold pfullshare in *.
-            f_equal.
-            apply proof_irr.
-          - intros loc. simpl.
-            if_tac. 2:now auto.
-            if_tac.
-            + unfold "oo", f.
-              subst loc.
-              Ltac cleanup1 :=
-                change compcert_rmaps.R.resource_at with resource_at in *;
-                change compcert_rmaps.R.approx with approx in *;
-                change compcert_rmaps.R.resource_fmap with resource_fmap in *.
-              cleanup1.
-              rewrite Ephi0'.
-              unshelve eexists. apply top_share_nonunit.
-              unfold f, "oo".
-              change lock_size with LKSIZE in *.
-              if_tac. 2:tauto.
-              if_tac. 2:tauto.
-              simpl.
-              unfold "oo".
-              repeat f_equal.
-              extensionality t.
-              f_equal; auto.
-            + cleanup1.
-              rewrite Ephi0'.
-              unshelve eexists. apply top_share_nonunit.
-              unfold f, "oo".
-              change lock_size with LKSIZE in *.
-              if_tac. 2:tauto.
-              if_tac. simpl in *. destruct loc. simpl in *. subst. breakhyps.
-              simpl.
-              unfold "oo".
-              unfold NoneP in *.
-              f_equal.
-        }
-        (* destruct Hphi0' as (phi0' & lev & Same & Before & After). *)
-        replace phi0 with (getThreadR cnti) in Hphi0' by admit (* will have to prove lemmas about shapes and rmap_makelock *).
-        destruct Hphi0' as (phi' & lev & Same & Before & After).
+        pose proof rmap_makelock_join _ _ _ _ 4%Z _ _ ltac:(omega) RL0 Join as RL.
+        destruct RL as (phi' & RLphi & j').
+        assert (ji : join_sub (getThreadR cnti) Phi) by join_sub_tac.
+        destruct ji as (psi & jpsi). cleanup.
+        pose proof rmap_makelock_join _ _ _ _ 4%Z _ _ ltac:(omega) RLphi jpsi as RLPhi.
+        destruct RLPhi as (Phi' & RLPhi & J').
         
         eexists (m', ge, (sch, _)).
         constructor.
@@ -1203,7 +919,6 @@ Section Progress.
         eapply step_mklock
         with (c := (ExtCall (EF_external name sg) args lid ve te k))
                (Hcompatible := mem_compatible_forget compat)
-               (sh := shx)
                (R := Interp Rx)
                (phi' := phi')
         .
@@ -1215,60 +930,9 @@ Section Progress.
         - assumption.
         - eassumption.
         - reflexivity.
+        - assumption. (* to be removed *)
         - assumption.
-        - (* condition on old memory *)
-          simpl (m_phi _).
-          intros ofs' range.
-          specialize (Before (b, ofs')).
-          unfold adr_range in *.
-          autospec Before.
-          destruct Before as (val, E).
-          exists val.
-          rewrite E.
-          f_equal.
-          admit.
-        - (* condition on new memory: LK *)
-          specialize (After (b, Int.intval ofs)).
-          simpl in After.
-          if_tac in After. 2:range_tac.
-          if_tac in After. 2:tauto.
-          destruct After as (p, ->).
-          f_equal.
-          + unfold pfullshare in *.
-            f_equal.
-            apply proof_irr.
-          + unfold pack_res_inv in *.
-            simpl.
-            f_equal.
-            extensionality t.
-            unfold "oo".
-            f_equal.
-            join_level_tac.
-        - (* condition on new memory: CT *)
-          intros ofs' range.
-          specialize (After (b, ofs')).
-          simpl in After.
-          replace lock_size with 4%Z in * by reflexivity.
-          replace LKSIZE with 4%Z in * by reflexivity.
-          if_tac in After. 2:range_tac.
-          if_tac in After. now replace ofs' with (Int.intval ofs) in * by congruence; omega.
-          destruct After as (p, ->).
-          f_equal.
-          unfold pfullshare in *.
-          f_equal.
-          apply proof_irr.
-        - (* condition about the rest not changing *)
-          intros loc.
-          intros A.
-          simpl (m_phi _).
-          rewrite (Same loc); auto.
-          intros B.
-          unfold adr_range in *.
-          destruct loc.
-          simpl in A.
-          tauto.
-        - simpl.
-          auto.
+        - assumption.
       }
       
       { (* the case of freelock *)
