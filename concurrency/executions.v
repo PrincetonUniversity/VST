@@ -1,4 +1,4 @@
-(** ** Definitions and properties of machine executions *)
+(** * Definitions and properties of machine executions *)
 Require Import compcert.lib.Axioms.
 
 Require Import concurrency.sepcomp. Import SepComp.
@@ -34,7 +34,7 @@ Module Executions (SEM: Semantics)
   Import event_semantics.
   Import Events.
 
-  (** A number of steps of the FineConc machine*)
+  (** Reflexive-transitive closure of FineConc's step relation*)
   Inductive multi_fstep :
     FineConc.MachState -> mem -> FineConc.MachState -> mem -> Prop :=
   | fine_refl : forall ms (m : mem),

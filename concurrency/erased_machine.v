@@ -89,7 +89,7 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
          (Hload: Mem.load Mint32 m b (Int.intval ofs) = Some (Vint Int.one))
          (Hstore: Mem.store Mint32 m b (Int.intval ofs) (Vint Int.zero) = Some m')
          (Htp': tp' = updThreadC cnt0 (Kresume c Vundef)),
-         ext_step genv cnt0 Hcompat tp' m' (acquire (b, Int.intval ofs) None)
+         ext_step genv cnt0 Hcompat tp' m' (acquire (b, Int.intval ofs) None None)
                   
    | step_release :
        forall (tp':thread_pool) c m' b ofs
@@ -98,7 +98,7 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
                         Some (UNLOCK, Vptr b ofs::nil))
          (Hstore: Mem.store Mint32 m b (Int.intval ofs) (Vint Int.one) = Some m')
          (Htp': tp' = updThreadC cnt0 (Kresume c Vundef)),
-         ext_step genv cnt0 Hcompat tp' m' (release (b, Int.intval ofs) None)
+         ext_step genv cnt0 Hcompat tp' m' (release (b, Int.intval ofs) None None)
                   
    | step_create :
        forall (tp_upd tp':thread_pool) c b ofs arg
@@ -107,7 +107,7 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
                         Some (CREATE, Vptr b ofs::arg::nil))
          (Htp_upd: tp_upd = updThreadC cnt0 (Kresume c Vundef))
          (Htp': tp' = addThread tp_upd (Vptr b ofs) arg tt),
-         ext_step genv cnt0 Hcompat tp' m (spawn (b, Int.intval ofs))
+         ext_step genv cnt0 Hcompat tp' m (spawn (b, Int.intval ofs) None None)
                   
    | step_mklock :
        forall  (tp': thread_pool) c m' b ofs

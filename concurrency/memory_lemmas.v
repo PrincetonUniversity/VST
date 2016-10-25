@@ -98,7 +98,6 @@ Module MemoryLemmas.
          permissions.permission_at m' b ofs k.
   Proof.
     intros.
-    Transparent Mem.alloc.
     unfold Mem.alloc in Halloc.
     inv Halloc.
     unfold permissions.permission_at. simpl.
@@ -140,6 +139,20 @@ Module MemoryLemmas.
     omega.
   Qed.
 
+  Lemma permission_at_alloc_4:
+    forall m m' lo hi nb b ofs
+      (Halloc: Mem.alloc m lo hi = (m', nb))
+      (Hb: b <> nb),
+    forall k, permissions.permission_at m b ofs k =
+         permissions.permission_at m' b ofs k.
+  Proof.
+    intros.
+    unfold Mem.alloc in Halloc.
+    inv Halloc.
+    unfold permissions.permission_at. simpl.
+    rewrite Maps.PMap.gso; auto.
+  Qed.
+
   Lemma permission_at_free_1 :
     forall m m' (lo hi : Z) b b' ofs'
       (Hfree: Mem.free m b lo hi = Some m')
@@ -168,7 +181,24 @@ Module MemoryLemmas.
     - rewrite Maps.PMap.gso;
       auto.
   Qed.
-  
+
+  Lemma permission_at_free_2 :
+    forall m m' (lo hi : Z) b b' ofs'
+      (Hfree: Mem.free m b lo hi = Some m')
+      (Hb: b <> b'),
+    forall k : perm_kind,
+      permission_at m b' ofs' k = permission_at m' b' ofs' k.
+  Proof.
+    intros.
+    pose proof (Mem.free_result _ _ _ _ _ Hfree) as Hfree'.
+    subst.
+    unfold Mem.unchecked_free. unfold permission_at. simpl.
+    destruct (Pos.eq_dec b' b); subst.
+    - exfalso; now auto.
+    - rewrite Maps.PMap.gso;
+        auto.
+  Qed.
+
   Lemma permission_at_free_list_1:
     forall m m' l b ofs
       (Hfree: Mem.free_list m l = Some m')
@@ -242,6 +272,18 @@ Module MemoryLemmas.
     intros.
     apply Mem.store_storebytes in H.
     eapply mem_storebytes_cur; eauto.
+  Qed.
+
+  Lemma mem_storev_store:
+    forall chunk ptr v m m',
+      Mem.storev chunk m ptr v = Some m' ->
+      exists b ofs, ptr = Vptr b ofs /\
+               Mem.store chunk m b (Integers.Int.intval ofs) v = Some m'.
+  Proof.
+    intros.
+    destruct ptr; try discriminate.
+    simpl in H.
+    do 2 eexists; split; eauto.
   Qed.
   
   Lemma load_valid_block:

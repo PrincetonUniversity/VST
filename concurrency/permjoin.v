@@ -5,30 +5,7 @@ Require Import msl.pshares.
 Require Import veric.coqlib4.
 Require Import veric.juicy_mem.
 Require Import veric.juicy_mem_ops.
-Import Memtype.
-
-Inductive permjoin : option permission -> option permission -> option permission -> Prop :=
-  | permjoin_None_l x : permjoin None x x
-  | permjoin_None_r x : permjoin x None x
-  (* NE + NE = NE *)
-  | permjoin_NNN : permjoin (Some Nonempty) (Some Nonempty) (Some Nonempty)
-  (* NE + R = R *)
-  | permjoin_NRR : permjoin (Some Nonempty) (Some Readable) (Some Readable)
-  | permjoin_RNR : permjoin (Some Readable) (Some Nonempty) (Some Readable)
-  (* NE + W = W or F *)
-  | permjoin_NWW : permjoin (Some Nonempty) (Some Writable) (Some Writable)
-  | permjoin_NWF : permjoin (Some Nonempty) (Some Writable) (Some Freeable)
-  | permjoin_WNW : permjoin (Some Writable) (Some Nonempty) (Some Writable)
-  | permjoin_WNF : permjoin (Some Writable) (Some Nonempty) (Some Freeable)
-  (* R + R = R or W or F *)
-  | permjoin_RRR : permjoin (Some Readable) (Some Readable) (Some Readable)
-  | permjoin_RRW : permjoin (Some Readable) (Some Readable) (Some Writable)
-  | permjoin_RRF : permjoin (Some Readable) (Some Readable) (Some Freeable)
-  (* R + W = W or F *)
-  | permjoin_RWW : permjoin (Some Readable) (Some Writable) (Some Writable)
-  | permjoin_WRW : permjoin (Some Writable) (Some Readable) (Some Writable)
-  | permjoin_RWF : permjoin (Some Readable) (Some Writable) (Some Freeable)
-  | permjoin_WRF : permjoin (Some Writable) (Some Readable) (Some Freeable).
+Require Import concurrency.permjoin_def.
 
 Lemma join_bot_bot_eq sh :
   sepalg.join Share.bot Share.bot sh ->

@@ -70,6 +70,21 @@ Proof.
   apply HIn. simpl; by auto.
 Qed.
 
+Lemma filter_neq_eq :
+  forall {A :eqType} (xs : seq.seq A) i j (Hneq: i <> j),
+    [seq x <- [seq x <- xs | x != i] | x == j] = [seq x <- xs | x == j].
+Proof.
+  intros. induction xs.
+  - reflexivity.
+  - simpl. destruct (a != i) eqn:Hai; move/eqP:Hai=>Hai.
+    simpl.
+    destruct (a ==j) eqn:Haj; move/eqP:Haj=>Haj;
+                                             [by apply f_equal | assumption].
+    subst. erewrite if_false by (apply/eqP; auto).
+    assumption.
+Qed.
+
+
 Lemma list_cons_irrefl:
   forall {A: Type} (x : A) xs,
     ~ x :: xs = xs.

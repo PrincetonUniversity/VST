@@ -350,13 +350,16 @@ End ThreadPoolSig.
 Module Type EventSig.
   Declare Module TID: ThreadID.
   Import TID.
-  
+
+  Definition evRes := (access_map * access_map)%type.
+  Definition evDelta := (delta_map * delta_map)%type.
+
   Inductive sync_event : Type :=
-  | release : address -> option (access_map * delta_map) -> sync_event
-  | acquire : address -> option (access_map * delta_map) -> sync_event
+  | release : address -> option (evRes * evDelta) -> option evRes -> sync_event
+  | acquire : address -> option (evRes * evDelta) -> option evRes -> sync_event
   | mklock :  address -> sync_event
   | freelock : address -> sync_event
-  | spawn : address -> sync_event
+  | spawn : address -> option (evRes * evDelta) -> option evDelta -> sync_event
   | failacq: address -> sync_event.
 
   Inductive machine_event : Type :=
@@ -1221,14 +1224,17 @@ Module Events <: EventSig
  Import TID event_semantics.
 
  (** Synchronization Events.  The release/acquire cases include the
-footprints of permissions moved to the thread when applicable*)
+footprints of permissions moved  when applicable*)
+ Definition evRes := (access_map * access_map)%type.
+ Definition evDelta := (delta_map * delta_map)%type.
+
  Inductive sync_event : Type :=
-  | release : address -> option (access_map * delta_map) -> sync_event
-  | acquire : address -> option (access_map * delta_map) -> sync_event
-  | mklock :  address -> sync_event
-  | freelock : address -> sync_event
-  | spawn : address -> sync_event
-  | failacq: address -> sync_event.
+ | release : address -> option (evRes * evDelta) -> option evRes -> sync_event
+ | acquire : address -> option (evRes * evDelta) -> option evRes -> sync_event
+ | mklock :  address -> sync_event
+ | freelock : address -> sync_event
+ | spawn : address -> option (evRes * evDelta) -> option evDelta -> sync_event
+ | failacq: address -> sync_event.
  
  (** Machine Events *)
   Inductive machine_event : Type :=
@@ -1276,12 +1282,12 @@ footprints of permissions moved to the thread when applicable*)
       end
     | external _ sev =>
       match sev with
-      | release _ _ => Release
-      | acquire _ _ => Acquire
+      | release _ _ _ => Release
+      | acquire _ _ _ => Acquire
       | mklock _ => Mklock
       | freelock _ => Freelock
       | failacq _ => Failacq
-      | spawn _ => Spawn
+      | spawn _ _ _ => Spawn
       end
     end.
   
@@ -1295,24 +1301,13 @@ footprints of permissions moved to the thread when applicable*)
       end 
     | external _ sev =>
       match sev with
-      | release addr _ => Some (addr, lksize.LKSIZE_nat)
-      | acquire addr _ => Some (addr, lksize.LKSIZE_nat)
+      | release addr _ _ => Some (addr, lksize.LKSIZE_nat)
+      | acquire addr _ _ => Some (addr, lksize.LKSIZE_nat)
       | mklock addr => Some (addr, lksize.LKSIZE_nat)
       | freelock addr => Some (addr, lksize.LKSIZE_nat)
-      | spawn addr => Some (addr, lksize.LKSIZE_nat)
+      | spawn addr _ _ => Some (addr, lksize.LKSIZE_nat)
       | failacq addr => Some (addr, lksize.LKSIZE_nat)
       end
-    end.
-
-  Definition resources ev : option (access_map * delta_map) :=
-    match ev with
-    | external _ mev =>
-      match mev with
-      | release _ res => res
-      | acquire _ res => res
-      | _ => None
-      end
-    | _ => None
     end.
   
 End Events.
