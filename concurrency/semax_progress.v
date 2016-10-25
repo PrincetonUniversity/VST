@@ -1045,7 +1045,7 @@ Section Progress.
         
         clear Post.
         
-        Definition rmap_makelock phi phi' sh loc R :=
+        (* Definition rmap_makelock phi phi' sh loc R :=
           (forall x, ~ adr_range loc LKSIZE x -> phi @ x = phi' @ x) /\
           (forall x, adr_range loc LKSIZE x -> exists val, phi @ x = YES (Share.unrel Share.Lsh sh) pfullshare (VAL val) NoneP) /\
           (LKspec_ext R sh fullshare loc phi').
@@ -1053,12 +1053,12 @@ Section Progress.
         Definition rmap_freelock phi phi' sh loc R :=
           (forall x, ~ adr_range loc LKSIZE x -> phi @ x = phi' @ x) /\
           (LKspec_ext R sh fullshare loc phi) /\
-          (forall x, adr_range loc LKSIZE x -> exists val, phi' @ x = YES (Share.unrel Share.Lsh sh) pfullshare (VAL val) NoneP).
+          (forall x, adr_range loc LKSIZE x -> exists val, phi' @ x = YES (Share.unrel Share.Lsh sh) pfullshare (VAL val) NoneP). *)
         
         assert (Lphi : level phi0 = S n) by join_level_tac.
         assert (Hphi0' : exists phi0',
                    level phi0' = level phi0 /\
-                   rmap_makelock phi0 phi0' shx (b, Int.intval ofs) (Interp Rx)).
+                   rmap_makelock phi0 phi0' (b, Int.intval ofs) (Interp Rx)).
         {
           pose
             (f :=

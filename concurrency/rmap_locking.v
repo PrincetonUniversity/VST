@@ -27,6 +27,7 @@ Require Import sepcomp.step_lemmas.
 Require Import sepcomp.event_semantics.
 Require Import veric.coqlib4.
 Require Import floyd.type_induction.
+Require Import concurrency.permjoin.
 
 Local Open Scope Z_scope.
 
@@ -412,3 +413,223 @@ Proof.
   split; auto.
   rewrite Coqlib.nat_of_Z_eq; omega.
 Qed.
+
+Definition pack_res_inv (R: pred rmap) := SomeP rmaps.Mpred (fun _ => R).
+
+Definition rmap_makelock phi phi' loc R length :=
+  (level phi = level phi') /\
+  (forall x, ~ adr_range loc length x -> phi @ x = phi' @ x) /\
+  (forall x,
+      adr_range loc length x ->
+      exists val sh,
+        phi @ x = YES sh pfullshare (VAL val) NoneP /\
+        phi' @ x =
+        if eq_dec x loc then
+          YES sh pfullshare (LK length) (pack_res_inv (approx (level phi) R))
+        else
+          YES sh pfullshare (CT (snd x - snd loc)) NoneP).
+
+Definition makelock_f phi loc R length : address -> resource :=
+  fun x =>
+    if adr_range_dec loc length x then
+      match phi @ x with
+      | YES sh sh' (VAL _) _ =>
+        if eq_dec x loc then
+          YES sh sh' (LK length) (pack_res_inv (approx (level phi) R))
+        else
+          YES sh sh' (CT (snd x - snd loc)) NoneP
+      | YES _ _ _ _
+      | PURE _ _
+      | NO _ => NO Share.bot
+      end
+    else
+      phi @ x.
+
+Local Ltac pfulltac := try solve [exfalso; eapply join_pfullshare; eauto].
+
+Lemma rmap_makelock_join phi1 phi1' loc R length phi2 phi :
+  0 < length ->
+  rmap_makelock phi1 phi1' loc R length ->
+  join phi1 phi2 phi ->
+  exists phi',
+    rmap_makelock phi phi' loc R length /\
+    join phi1' phi2 phi'.
+Proof.
+  intros Hpos (Hlev & Hsame & Hchanged) j.
+  assert (L1 : level phi1 = level phi) by (eapply join_level; eauto).
+  
+  pose proof make_rmap (makelock_f phi loc R length) as Hphi'.
+  
+  (* the makelock_f function is valid *)
+  assert_specialize Hphi'. {
+    clear Hphi'.
+    pose proof rmap_valid phi as V.
+    change compcert_rmaps.R.AV.valid with AV.valid in *.
+    change compcert_rmaps.R.res_option with res_option in *.
+    change compcert_rmaps.R.resource_fmap with resource_fmap in *.
+    change compcert_rmaps.R.resource_at with resource_at in *.
+    change compcert_rmaps.R.approx with approx in *.
+    unfold "oo", makelock_f in *.
+    intros b ofs.
+    pose proof j as j0.
+    eapply resource_at_join with (loc := (b, ofs)) in j0.
+    if_tac [r|nr].
+    - destruct (Hchanged (b, ofs) r) as (val & sh & E & E').
+      rewrite E in j0.
+      inv j0; pfulltac.
+      if_tac [e|ne].
+      + simpl.
+        intros i Hi.
+        if_tac [ri|nri].
+        * destruct (Hchanged (b, ofs + i) ri) as (vali & shi & Ei & Ei').
+          pose proof j as ji.
+          eapply resource_at_join with (loc := (b, ofs + i)) in ji.
+          rewrite Ei in ji.
+          inv ji; pfulltac.
+          if_tac.
+          -- assert (ofs = ofs + i) by congruence. omega.
+          -- simpl. repeat f_equal; omega.
+        * destruct nri.
+          subst loc; split; auto. omega.
+      + simpl.
+        destruct loc as (b', ofs').
+        destruct r as (->, r). assert (ofs <> ofs') by congruence.
+        exists length; split. simpl in *; omega.
+        simpl.
+        replace (ofs - (ofs - ofs')) with ofs' by omega.
+        if_tac [r'|nr'].
+        * spec Hchanged (b, ofs') r'.
+          destruct Hchanged as (val' & sh' & Eq & Eq').
+          pose proof j as j'.
+          eapply resource_at_join with (loc := (b, ofs')) in j'.
+          rewrite Eq in j'.
+          inv j'; pfulltac.
+          if_tac; tauto.
+        * destruct nr'; split; auto.
+          split; auto; omega.
+    - spec V b ofs.
+      destruct (phi @ (b, ofs)) as [t | t p [] p0 | k p] eqn:Ephi; simpl in V |- *; auto.
+      + intros i ri. spec V i ri.
+        if_tac [ri'|nri]; [ | easy ].
+        exfalso.
+        spec Hchanged (b, ofs + i) ri'.
+        destruct Hchanged as (val & sh & E & E').
+        pose proof j as ji.
+        eapply resource_at_join with (loc := (b, ofs + i)) in ji.
+        rewrite E in ji.
+        revert V.
+        inv ji; simpl; congruence.
+      + if_tac [rz|nrz]; [ | easy ].
+        exfalso.
+        spec Hchanged (b, ofs - z) rz.
+        destruct V as (?&?&V).
+        destruct Hchanged as (?&?&?&?).
+        pose proof j as jz.
+        eapply resource_at_join with (loc := (b, ofs - z)) in jz.
+        rewr (phi1 @ (b, ofs - z)) in jz.
+        revert V.
+        inv jz; simpl; congruence.
+  }
+  
+  specialize (Hphi' (level phi1)).
+  
+  (* the makelock_f function is stable under approximation at level phi1 *)
+  assert_specialize Hphi'. {
+    pose proof approx_oo_approx as AA.
+    change compcert_rmaps.R.AV.valid with AV.valid in *.
+    change compcert_rmaps.R.res_option with res_option in *.
+    change compcert_rmaps.R.resource_fmap with resource_fmap in *.
+    change compcert_rmaps.R.resource_at with resource_at in *.
+    change compcert_rmaps.R.approx with approx in *.
+    unfold "oo", makelock_f in *.
+    extensionality x.
+    replace (level phi1) with (level phi); auto.
+    pose proof resource_at_approx phi x.
+    if_tac; [if_tac | ]; destruct (phi @ x) as [t | t p [] p0 | k p] eqn:E; auto.
+    unfold pack_res_inv in *; simpl.
+    do 2 f_equal.
+    extensionality tt.
+    etransitivity; swap 1 2.
+    rewrite <-(AA (level phi)). reflexivity.
+    reflexivity.
+  }
+  
+  destruct Hphi' as (phi' & Hlev' & Ephi').
+  exists phi'.
+  
+  (* the new rmap indeed joins *)
+  assert (j' : join phi1' phi2 phi'). {
+    apply resource_at_join2.
+    - apply join_level in j. destruct j; congruence.
+    - apply join_level in j. destruct j; congruence.
+    - intros x; rewrite Ephi'.
+      eapply resource_at_join with (loc := x) in j.
+      unfold makelock_f.
+      if_tac [r|nr].
+      + spec Hchanged x r.
+        destruct Hchanged as (val & sh & E & E').
+        rewrite E in j. rewrite E'.
+        rewrite L1 in *.
+        if_tac [e|ne].
+        * inv j.
+          -- constructor. auto.
+          -- exfalso; eapply join_pfullshare. eauto.
+        * inv j.
+          -- constructor. auto.
+          -- exfalso; eapply join_pfullshare. eauto.
+      + spec Hsame x nr.
+        congruence.
+  }
+  
+  split; auto.
+  split. apply join_level in j. destruct j; congruence.
+  split.
+  + intros x nr. spec Hsame x nr.
+    eapply resource_at_join with (loc := x) in j.
+    eapply resource_at_join with (loc := x) in j'.
+    eapply join_eq. apply j. rewrite <-Hsame in j'. eapply j'.
+  + intros x r. spec Hchanged x r.
+    destruct Hchanged as (val & sh & E & E').
+    exists val.
+    eapply resource_at_join with (loc := x) in j.
+    eapply resource_at_join with (loc := x) in j'.
+    rewrite E in j.
+    rewrite E' in j'.
+    rewrite L1 in *.
+    if_tac [e|ne].
+    * inv j; inv j'; try solve [exfalso; eapply join_pfullshare; eauto].
+      eexists; split; f_equal.
+      assert (rsh0 = rsh2) by congruence; subst.
+      eapply join_eq; eauto.
+    * inv j; inv j'; try solve [exfalso; eapply join_pfullshare; eauto].
+      eexists; split; f_equal.
+      assert (rsh0 = rsh2) by congruence; subst.
+      eapply join_eq; eauto.
+Qed.
+
+(* TODO those definitions are also in sync_preds_defs, see if we can
+include without changing the dep DAG too badly *)
+Definition LKspec_ext (R: pred rmap) lksize : spec :=
+   fun (rsh sh: Share.t) (l: AV.address)  =>
+    allp (jam (adr_range_dec l lock_size)
+                         (jam (eq_dec l) 
+                            (yesat (SomeP rmaps.Mpred (fun _ => R)) (LK lksize) rsh sh)
+                            (CTat l rsh sh))
+                         (fun _ => TT)).
+
+Definition LK_at R lksize sh :=
+  LKspec_ext R lksize (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh).
+
+Lemma data_at_rmap_makelock CS sh b ofs R phi length :
+  0 < length ->
+  writable_share sh ->
+  app_pred (@data_at_ CS sh (Tarray (Tpointer Tvoid noattr) length noattr) (Vptr b ofs)) phi ->
+  exists phi',
+    rmap_makelock phi phi' (b, Int.unsigned ofs) R length /\
+    LK_at R length sh (b, Int.unsigned ofs) phi'.
+Proof.
+  intros Hpos Hwritable Hbefore.
+  destruct (Z_of_nat_complete length) as (n, Hn). omega. subst length.
+  set (loc := (b, Int.unsigned ofs)).
+  apply data_at_unfold with (loc := loc) in Hbefore. 2:apply writable_readable_share; auto.
+Admitted.
