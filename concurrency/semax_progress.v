@@ -275,7 +275,7 @@ Section Progress.
         (* dependent destruction *)
         funspec_destruct "acquire".
         
-        intros (phix, (ts, ((vx, shx), Rx))) Pre.
+        intros (phix, (ts, ((vx, shx), Rx))) (Hargsty, Pre).
         simpl (projT2 _) in *; simpl (fst _) in *; simpl (snd _) in *; clear ts.
         simpl in Pre.
         destruct Pre as (phi0 & phi1 & Join & Precond & HnecR).
@@ -396,8 +396,12 @@ Section Progress.
               - unfold funsig2signature in *.
                 simpl in Heq_name.
                 congruence.
-              - assert (L: length args = 1%nat) by admit.
-                (* TODO discuss with andrew for where to add this requirement *)
+              - assert (L: length args = 1%nat). {
+                  assert (Esg : sg = LOCK_SIG) by (unfold ef_id_sig in *; congruence).
+                  subst sg; clear -Hargsty.
+                  simpl in *.
+                  destruct args as [|? [|]]; simpl in *; tauto.
+                }
                 clear -PREB L.
                 unfold expr.eval_id in PREB.
                 unfold expr.force_val in PREB.
@@ -636,9 +640,9 @@ Section Progress.
                  apply ext_link_inj in Ee.
                  rewrite <-Ee.
                  reflexivity.
-              -- admit (* same problem above *).
-              (* -- admit (* same problem above *). *)
-              -- admit (* same problem above *).
+              -- admit (* solved above *).
+              (* -- admit (* solved above *). *)
+              -- admit (* solved above *).
             * reflexivity.
             * unfold fold_right in *.
               rewrite E3.
@@ -668,7 +672,7 @@ Section Progress.
         funspec_destruct "acquire".
         funspec_destruct "release".
         
-        intros (phix, (ts, ((vx, shx), Rx))) Pre.
+        intros (phix, (ts, ((vx, shx), Rx))) (Hargsty, Pre).
         simpl (projT2 _) in *; simpl (fst _) in *; simpl (snd _) in *; clear ts.
         simpl in Pre.
         destruct Pre as (phi0 & phi1 & Join & Precond & HnecR).
@@ -736,8 +740,7 @@ Section Progress.
           assert (Ecall: Some (EF_external name sg, args) =
                          Some (UNLOCK, Vptr b ofs :: nil)). {
             admit.
-            (* same problem as above. *)
-            (* repeat f_equal; auto. *)
+            (* solved above *)
           }
           
           assert (Eae : at_external SEM.Sem (ExtCall (EF_external name sg) args lid ve te k) =
@@ -931,7 +934,7 @@ Section Progress.
         funspec_destruct "release".
         funspec_destruct "makelock".
         
-        intros (phix, (ts, ((vx, shx), Rx))) Pre.
+        intros (phix, (ts, ((vx, shx), Rx))) (Hargsty, Pre).
         simpl (projT2 _) in *; simpl (fst _) in *; simpl (snd _) in *; clear ts.
         simpl in Pre.
         destruct Pre as (phi0 & phi1 & Join & Precond & HnecR).
@@ -966,9 +969,9 @@ Section Progress.
                        Some (MKLOCK, Vptr b ofs :: nil)). {
           repeat f_equal.
           - auto.
-          - admit.
+          - admit (* solved above *).
           - assert (L: length args = 1%nat) by admit.
-            (* TODO discuss with andrew for where to add this requirement *)
+            (* solved above *)
             unfold expr.eval_id in *.
             unfold expr.force_val in *.
             match goal with H : context [Map.get ?a ?b] |- _ => destruct (Map.get a b) eqn:E end.

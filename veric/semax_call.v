@@ -12,6 +12,7 @@ Require Import sepcomp.step_lemmas.
 Require Import veric.juicy_safety.
 Require Import veric.juicy_extspec.
 Require Import veric.tycontext.
+Require Import veric.expr.
 Require Import veric.expr2.
 Require Import veric.expr_lemmas.
 Require Import veric.semax.
@@ -1477,6 +1478,34 @@ rewrite IHparams; auto.
 }
 simpl.
 rewrite fst_split.
+split.
+{ (* typechecking arguments *)
+  rewrite Eef; simpl.
+  clear -TC2 TC3.
+  revert bl TC2.
+  induction params. now auto.
+  destruct a as (id, ty).
+  intros [ | b bl] TC2.
+  - rewrite snd_split in *.
+    simpl in *.
+    inversion TC2.
+  - rewrite snd_split.
+    simpl in *.
+    unfold tc_exprlist in *.
+    simpl in TC2.
+    repeat rewrite denote_tc_assert_andp in TC2.
+    destruct TC2 as ((tcb & tcb') & tcbl).
+    split.
+    + pose proof typecheck_val_sem_cast _ _ _ _ _ TC3 tcb tcb' as tc.
+      apply tc_val_has_type.
+      unfold liftx, lift; simpl.
+      revert tc.
+      remember (force_val _) as v; clear.
+      rewrite tc_val_eq; auto.
+    + rewrite <-snd_split.
+      apply (IHparams bl).
+      apply tcbl.
+}
 apply H6.
 constructor 1. 
 apply age_jm_phi; auto.

@@ -388,7 +388,7 @@ intros.
 hnf; intros.
 simpl.
 intros.
-destruct H2 as [? [? [? [? ?]]]].
+destruct H2 as [? [? [? [? [? ?]]]]].
 contradiction.
 Qed.
 

@@ -578,7 +578,7 @@ Proof.
     if_tac [ H_acquire | notacquire ].
     
     { (* case 1 : acquire *)
-      intros [phi_x [ts [[vx shx] Rx]]] Pre Post.
+      intros [phi_x [ts [[vx shx] Rx]]] [Hargsty Pre] Post.
       simpl in Pre, Post; clear ts.
       destruct oracle as [ | phi_oracle oracle ].
       
@@ -645,8 +645,8 @@ Proof.
           destruct Pre as [phi0 [phi1 [Hj [[[? ?] [[? ?] ?]] ?]]]].
           exists phi0, phi1; repeat split; auto.
           
-        + intros ret m' z' n' Hretty Hn Hr.
-          specialize (Post ret m' tt n' Hretty Hn Hr).
+        + intros ret m' z' n' _ (* Hargsty *) Hretty Hn Hr.
+          specialize (Post ret m' tt n' Hargsty Hretty Hn Hr).
           
           revert x2 E2.
           simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
@@ -711,8 +711,8 @@ Proof.
           destruct Pre as [phi0 [phi1 [Hj [[[? ?] [[? ?] ?]] ?]]]].
           exists phi0, phi1; repeat split; auto.
           
-        + intros ret m' z' n' Hretty Hn Hr.
-          specialize (Post ret m' tt n' Hretty Hn Hr).
+        + intros ret m' z' n' _ (* Hargsty *) Hretty Hn Hr.
+          specialize (Post ret m' tt n' Hargsty Hretty Hn Hr).
           
           revert x2 E2.
           simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
@@ -738,7 +738,7 @@ Proof.
     simpl.
     if_tac [ H_release | notrelease ].
     { (* case 2: release *)
-      intros [phi_x [ts [[vx shx] Rx]]] Pre Post.
+      intros [phi_x [ts [[vx shx] Rx]]] [Hargsty Pre] Post.
       simpl in Pre, Post; clear ts.
       simpl.
       
@@ -798,8 +798,8 @@ Proof.
         destruct Pre as [phi0 [phi1 [Hj [[[? ?] [[? ?] ?]] ?]]]].
         exists phi0, phi1; repeat split; auto.
         
-      + intros ret m' z' n' Hretty Hn Hr.
-        specialize (Post ret m' tt n' Hretty Hn Hr).
+      + intros ret m' z' n' _ (* Hargsty *) Hretty Hn Hr.
+        specialize (Post ret m' tt n' Hargsty Hretty Hn Hr).
         
         revert x2 E2.
         simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).

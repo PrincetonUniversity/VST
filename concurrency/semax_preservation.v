@@ -1374,7 +1374,8 @@ Section Preservation.
     4:funspec_destruct "freelock".
     5:funspec_destruct "spawn".
     
-    all:intros.
+    6: solve[intros[]].
+    all:intros x (Hargsty & H); split; [apply Hargsty | ].
     all:breakhyps.
     all:agejoinhyp.
     all:breakhyps.
@@ -2389,6 +2390,19 @@ Section Preservation.
                 unfold juicy_sem in *.
                 simpl in ae.
                 congruence. }
+              assert (args = Vptr b ofs :: nil).
+              { rewrite <-Ejuicy_sem in *.
+                unfold juicy_sem in *.
+                simpl in ae.
+                congruence. }
+              subst e args; simpl.
+              auto.
+            
+            + assert (e = LOCK).
+              { rewrite <-Ejuicy_sem in *.
+                unfold juicy_sem in *.
+                simpl in ae.
+                congruence. }
               subst e.
               apply Logic.I.
             
@@ -2422,7 +2436,7 @@ Section Preservation.
               funspec_destruct "acquire"; swap 1 2.
               { exfalso. unfold ef_id_sig, ef_sig in *.
                 unfold funsig2signature in Heq_name; simpl in Heq_name. congruence. }
-              intros x Pre Post.
+              intros x (Hargsty, Pre) Post.
               destruct Pre as (phi0 & phi1 & j & Pre).
               destruct (join_assoc (join_comm j) Hadd_lock_res) as (phi0' & jphi0' & jframe).
               exists (age_to n phi0'), (age_to n phi1).
@@ -3026,11 +3040,24 @@ Section Preservation.
                 unfold juicy_sem in *.
                 simpl in ae.
                 congruence. }
+              assert (args = Vptr b ofs :: nil).
+              { rewrite <-Ejuicy_sem in *.
+                unfold juicy_sem in *.
+                simpl in ae.
+                congruence. }
+              subst e args; simpl.
+              auto.
+            
+            + assert (e = UNLOCK).
+              { rewrite <-Ejuicy_sem in *.
+                unfold juicy_sem in *.
+                simpl in ae.
+                congruence. }
               subst e.
               apply Logic.I.
             
             + auto.
-              
+            
             + (* proving Hrel *)
               hnf.
               split; [ | split].
@@ -3063,7 +3090,7 @@ Section Preservation.
               { exfalso. unfold ef_id_sig in *.
                 unfold funsig2signature in *. simpl in *; congruence. }
               intros x Pre Post.
-              destruct Pre as (phi0 & phi1 & j & Pre).
+              destruct Pre as (Hargsty & phi0 & phi1 & j & Pre).
               rewrite m_phi_jm_ in j.
               destruct x as (phix, (ts, ((vx, shx), Rx)));
               simpl (fst _) in *; simpl (snd _) in *; simpl (projT2 _) in *;
