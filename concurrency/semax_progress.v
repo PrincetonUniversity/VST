@@ -930,7 +930,6 @@ Qed.
         - assumption.
         - eassumption.
         - reflexivity.
-        - assumption. (* to be removed *)
         - assumption.
         - assumption.
       }
