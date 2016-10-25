@@ -492,6 +492,19 @@ unfold Sfor.
 forward. forward.
 eapply semax_seq'.
 {
+
+(* ugly hack to avoid type mismatch between
+   "(val * (val * list val))%type" and "reptype t_struct_aesctx" *)
+assert (exists (v: reptype t_struct_aesctx), v =
+       (Vint (Int.repr Nr),
+       (Vptr b (Int.add octx (Int.repr 8)),
+       Vint (Int.repr k1)
+         :: Vint (Int.repr k2)
+           :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ Vundefs)))
+as EE by (eexists; reflexivity).
+
+destruct EE as [vv EE].
+
 apply semax_pre with (P' := 
   (EX i: Z,   PROP ( ) LOCAL (
      temp _i (Vint (Int.repr i));
@@ -507,17 +520,10 @@ apply semax_pre with (P' :=
   ) SEP (
      data_at_ out_sh (tarray tuchar 16) output;
      tables_initialized tables;
-     data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input; TT
-(*;TODO reptype mismatch!!
-     data_at ctx_sh t_struct_aesctx
-       (Vint (Int.repr Nr),
-       (Vptr b (Int.add octx (Int.repr 8)),
-       Vint (Int.repr k1)
-         :: Vint (Int.repr k2)
-           :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ Vundefs))
-       (Vptr b octx) 
-*)  ))).
-{ Exists 6. entailer!. }
+     data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
+     data_at ctx_sh t_struct_aesctx vv (Vptr b octx) 
+  ))).
+{ subst vv. Exists 6. entailer!. }
 { apply semax_loop with (
   (EX i: Z,   PROP ( ) LOCAL ( 
      temp _i (Vint (Int.repr i));
@@ -533,16 +539,9 @@ apply semax_pre with (P' :=
   ) SEP (
      data_at_ out_sh (tarray tuchar 16) output;
      tables_initialized tables;
-     data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input; TT
-(*;TODO reptype mismatch!!
-     data_at ctx_sh t_struct_aesctx
-       (Vint (Int.repr Nr),
-       (Vptr b (Int.add octx (Int.repr 8)),
-       Vint (Int.repr k1)
-         :: Vint (Int.repr k2)
-           :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ Vundefs))
-       (Vptr b octx) 
-*)  ))).
+     data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
+     data_at ctx_sh t_struct_aesctx vv (Vptr b octx) 
+  ))).
 { (* loop body *) 
 Intro i.
 
@@ -560,7 +559,9 @@ forward_if (PROP ( ) LOCAL (
   ) SEP (
      data_at_ out_sh (tarray tuchar 16) output;
      tables_initialized tables;
-     data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input; TT)).
+     data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
+     data_at ctx_sh t_struct_aesctx vv (Vptr b octx)
+  )).
 { (* then-branch: Sskip to body *)
   forward. entailer!.
  }
@@ -569,7 +570,9 @@ forward_if (PROP ( ) LOCAL (
  }
 { (* rest: loop body *)
   forward. forward.
-  (* now we need the SEP clause about ctx! *)
+  (* now we need the SEP clause about ctx: *) subst vv.
+
+
   admit.
 }
 }
