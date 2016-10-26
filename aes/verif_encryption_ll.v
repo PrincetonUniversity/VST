@@ -682,6 +682,28 @@ admit. (* TODO is_int *)
 unfold MORE_COMMANDS, abbreviate.
 (* next command in loop body: *)
 (*     uint32_t b0 = tables.FT0[ ( Y0       ) & 0xFF ];    *)
+thaw Fr.
+freeze [0; 2] Fr.
+unfold tables_initialized.
+forward.
+{ (* TODO floyd: entailer! says 
+Ltac call to "entailer" failed.
+Error: Tactic failure: The entailer tactic works only on entailments  _ |-- _ .
+even though the goal does have the form _ |-- _ !
+*)
+admit. }
+{
+admit. (* TODO 0 <= _ < 256 bounds *)
+}
+
+forward. (* takes about half an hour! *)
+{ admit. (* entailer!. too slow *) }
+{ (* bounds *) admit. }
+
+freeze [2] Fr2.
+
+(* Time forward. aborted after 3.5 hours *)
+
 admit.
 }
 }
