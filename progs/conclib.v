@@ -396,25 +396,6 @@ Proof.
   intros; apply data_at__isptr.
 Qed.
 
-(*Lemma cond_var_almost_empty : forall {cs} sh v phi, predicates_hered.app_pred (@cond_var cs sh v) phi ->
-  juicy_machine.almost_empty phi.
-Proof.
-  intros ???? Hp ????? Hr ??; subst.
-  unfold cond_var in Hp.
-  destruct Hp as (? & Hp); simpl in Hp.
-  rewrite data_at_rec_eq in Hp; unfold at_offset in Hp; simpl in Hp.
-  unfold mapsto in Hp; simpl in Hp.
-  destruct v; try contradiction; simpl in Hp.
-  destruct (readable_share_dec sh).
-  destruct Hp as [(? & ?) | (? & ? & ? & ? & Hp)]; [contradiction|].
-  simpl in Hp.
-  specialize (Hp loc).
-  destruct (adr_range_dec _ _ _).
-  - destruct Hp as (? & Hp); rewrite Hp in Hr; inv Hr.
-Admitted.
-(* This is currently untrue, since cond_vars are data. On the other hand, we don't want them to be locks,
-   because that means something in the underlying model. Eventually we should figure something out for this. *)*)
-
 Lemma cond_var_share_join : forall {cs} sh1 sh2 sh v (Hjoin : sepalg.join sh1 sh2 sh),
   @cond_var cs sh1 v * cond_var sh2 v = cond_var sh v.
 Proof.

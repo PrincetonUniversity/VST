@@ -156,8 +156,10 @@ int main(void)
     lock_t *l = thread_locks[i];
     acquire((void *)l);
     freelock2((void *)l);
+    free(l);
     //printf("Joined %d\n", i + 1);
   }
   
-  q_del(q0);
+  queue_t *q1 = q0;
+  q_del(q1);
 }

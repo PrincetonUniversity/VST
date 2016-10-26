@@ -128,8 +128,8 @@ Definition consumer_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH u : unit
-  PRE  [] main_pre prog u
-  POST [ tint ] main_post prog u.
+  PRE  [] main_pre prog [] u
+  POST [ tint ] main_post prog [] u.
 
 Definition Gprog : funspecs := augment_funspecs prog [acquire_spec; release_spec; (*release2_spec;*) makelock_spec;
   (*freelock_spec; freelock2_spec;*) spawn_spec; makecond_spec; (*freecond_spec;*) wait_spec; signal_spec;
@@ -599,21 +599,14 @@ Proof.
 unfold Gprog, prog, prog_funct; simpl.
 repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity|]).
 semax_func_cons_ext.
-{ admit. }
 semax_func_cons_ext.
-{ admit. }
 semax_func_cons_ext.
-{ admit. }
 semax_func_cons_ext.
-{ admit. }
 semax_func_cons_ext.
-{ admit. }
 semax_func_cons_ext.
-{ admit. }
 semax_func_cons_ext.
-{ admit. }
 eapply semax_func_cons_ext; try reflexivity.
-{ admit. }
+{ intros; entailer!. }
 { admit. }
 eapply semax_func_cons_ext; try reflexivity.
 { admit. }
