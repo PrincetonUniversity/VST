@@ -53,6 +53,7 @@ Require Import concurrency.resource_decay_join.
 Require Import concurrency.semax_invariant.
 Require Import concurrency.semax_simlemmas.
 Require Import concurrency.sync_preds.
+Require Import concurrency.lksize.
 
 Local Arguments getThreadR : clear implicits.
 Local Arguments getThreadC : clear implicits.
@@ -963,7 +964,7 @@ Proof.
       * pose (ii := (ofs' - Int.intval ofs)%Z).
         assert (Hii : (0 < ii < LKSIZE)%Z).
         { unfold ii; split. omega.
-          unfold LKSIZE, LKCHUNK, align_chunk, size_chunk in *.
+          unfold LKSIZE, align_chunk, size_chunk in *.
           omega. }
         pose proof rmap_valid_e1 Phi b (Int.intval ofs) _ _ Hii sh1' as H.
         assert_specialize H.
@@ -1191,6 +1192,11 @@ Proof.
   pose proof lset_range_perm.
   do 6 autospec H.
   split; auto.
+  intros loc range.
+  apply H.
+  unfold size_chunk in *.
+  unfold LKSIZE in *.
+  omega.
 Qed.
 
 Lemma lockSet_Writable_updLockSet_updThread m m' i tp Phi 
@@ -1572,7 +1578,7 @@ Section Preservation.
             }
             destruct lk as (sh & R & lk).
             specialize (lk (b, ofs0)). simpl in lk.
-            assert (adr_range (b, ofs) lock_size (b, ofs0))
+            assert (adr_range (b, ofs) LKSIZE (b, ofs0))
               by apply interval_adr_range, interval.
             if_tac in lk; [ | tauto ].
             if_tac in lk.
@@ -1782,7 +1788,11 @@ Section Preservation.
           destruct n'.
           split.
           - apply Mem.range_perm_implies with Writable.
-            + eapply lset_range_perm; eauto.
+            + intros loc range.
+              eapply lset_range_perm with (ofs := ofs); eauto.
+              2:unfold size_chunk in *.
+              2:unfold LKSIZE in *.
+              2:omega.
               unfold tp''; simpl.
               unfold tp'; rewrite lset_age_tp_to.
               rewrite AMap_find_map_option_map.
@@ -1836,12 +1846,16 @@ Section Preservation.
             destruct lk as (R & sh & lk).
             specialize (lk (b, ofs0)).
             simpl in lk.
-            assert (adr_range (b, ofs) lock_size (b, ofs0))
+            assert (adr_range (b, ofs) 4%Z (b, ofs0))
               by apply interval_adr_range, interval.
-            if_tac in lk; [|tauto].
-            if_tac in lk.
-            * destruct lk as [pp ->]. simpl. constructor.
-            * destruct lk as [pp ->]. simpl. constructor.
+            if_tac [r|nr] in lk.
+            * if_tac in lk.
+              -- destruct lk as [pp ->]. simpl. constructor.
+              -- destruct lk as [pp ->]. simpl. constructor.
+            * destruct nr.
+              unfold LKSIZE in *.
+              unfold adr_range in *.
+              intuition.
       }
       (* end of proof of: lock values couldn't change during a corestep *)
       
@@ -2281,7 +2295,12 @@ Section Preservation.
             + exfalso.
               destruct SPA as [? | [_ SPA]]; [ tauto | ].
               eapply far_range in SPA. apply SPA; clear SPA.
-              apply OUT. omega.
+              * instantiate (1 := z).
+                unfold size_chunk in *.
+                unfold LKSIZE in *.
+                omega.
+              * unfold LKSIZE in *.
+                omega.
             + unfold contents_at in *.
               simpl in OUT.
               apply OUT.
@@ -2305,15 +2324,21 @@ Section Preservation.
             + rewrite gsoLockSet_2; auto.
               eapply lockSet_spec_2.
               * hnf; simpl. eauto.
+                instantiate (1 := ofs').
+                Ltac lkomega :=
+                  unfold LKSIZE in *;
+                  unfold size_chunk in *;
+                  try omega.
+                lkomega.
               * cleanup. rewrite Eo. reflexivity.
             + rewrite gsoLockSet_1; auto.
               * eapply lockSet_spec_2.
-                -- hnf; simpl. eauto.
+                -- hnf; simpl. eauto. instantiate (1 := ofs'). lkomega.
                 -- cleanup. rewrite Eo. reflexivity.
               * unfold far in *.
                 simpl in *.
                 zify.
-                omega.
+                lkomega.
         }
         destruct o; destruct lock_coh as (Load & sh' & R' & lks); split.
         -- now intuition.
@@ -2931,7 +2956,8 @@ Section Preservation.
             + exfalso.
               destruct SPA as [? | [_ SPA]]; [ tauto | ].
               eapply far_range in SPA. apply SPA; clear SPA.
-              apply OUT. omega.
+              instantiate (1 := z). now lkomega.
+              lkomega.
             + unfold contents_at in *.
               simpl in OUT.
               apply OUT.
@@ -2954,16 +2980,16 @@ Section Preservation.
             destruct SPA as [bOUT | [<- ofsOUT]].
             + rewrite gsoLockSet_2; auto.
               eapply lockSet_spec_2.
-              * hnf; simpl. eauto.
+              * hnf; simpl. eauto. lkomega. instantiate (1 := ofs'). lkomega.
               * cleanup. rewrite Eo. reflexivity.
             + rewrite gsoLockSet_1; auto.
               * eapply lockSet_spec_2.
-                -- hnf; simpl. eauto.
+                -- hnf; simpl. eauto. lkomega. instantiate (1 := ofs'). lkomega.
                 -- cleanup. rewrite Eo. reflexivity.
               * unfold far in *.
                 simpl in *.
                 zify.
-                omega.
+                lkomega.
         }
         destruct o; destruct lock_coh as (Load & sh' & R' & lks); split.
         -- now intuition.
@@ -3570,7 +3596,7 @@ Section Preservation.
   (Hthread : getThreadC i tp Htid = Kblocked c)
   (Hat_external : at_external SEM.Sem c = Some (FREE_LOCK, Vptr b ofs :: nil))
   (Hcompatible : mem_compatible tp m')
-  (Haccess : (address_mapsto LKCHUNK (Vint Int.zero) sh Share.top (b, Int.intval ofs)) phi')
+  (Haccess : (address_mapsto Mint32 (Vint Int.zero) sh Share.top (b, Int.intval ofs)) phi')
   (Hlock' : exists val : memval, phi' @ (b, Int.intval ofs) = YES sh pfullshare (VAL val) NoneP)
   (INV : state_invariant Jspec' Gamma (S n) (m', ge, (i :: sch, tp)))
   (compat : mem_compatible_with tp m' Phi)

@@ -9,6 +9,7 @@ Require Import concurrency.concurrent_machine.
 Require Import concurrency.addressFiniteMap. (*The finite maps*)
 Require Import concurrency.threads_lemmas.
 Require Import concurrency.rmap_locking.
+Require Import concurrency.lksize.
 Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
@@ -37,8 +38,6 @@ Require Import veric.res_predicates. (*For the precondition of lock make and fre
 
 (*  This shoul be replaced by global: 
     Require Import concurrency.lksize.  *)
-Definition LKCHUNK:= Mint32.
-Definition LKSIZE:= align_chunk LKCHUNK.
 
 Require Import (*compcert_linking*) concurrency.permissions concurrency.threadPool.
 
@@ -333,60 +332,61 @@ Module Concur.
       unfold permMapLt, lockSet_Writable. intros.
       rewrite getMaxPerm_correct.
       specialize (H b).
+      
       (*0*)
       destruct (lockRes js (b, ofs)) eqn:H0.
       unfold lockRes in H0; specialize (H ofs ltac:(rewrite H0; auto) ofs).
       assert (ineq: Intv.In ofs (ofs, (ofs + LKSIZE)%Z)).
-      replace LKSIZE with 4%Z by auto; hnf; simpl. omega.
+      unfold LKSIZE; hnf; simpl. omega.
       apply H in ineq.
       eapply po_trans; eauto.
       rewrite lockSet_spec_1. apply po_refl.
       unfold lockRes; rewrite H0; constructor.
 
-      (*1*)
-      destruct (lockRes js (b, (ofs-1)%Z)) eqn:H1.
-      unfold lockRes in H1. specialize (H (ofs-1)%Z ltac:(rewrite H1; auto) (ofs)).
-      assert (ineq: Intv.In ofs (ofs - 1, (ofs -1 + LKSIZE))%Z).
-      replace LKSIZE with 4%Z by auto; hnf; simpl. omega.
-      assert (ineq':=ineq).
-      apply H in ineq. eapply po_trans; eauto.
-      erewrite lockSet_spec_2. apply po_refl.
-      apply ineq'.
-      unfold lockRes; rewrite H1; constructor.
-
-      (*2*)
-      destruct (lockRes js (b, (ofs-2)%Z)) eqn:H2.
-      unfold lockRes in H2. specialize (H (ofs-2)%Z ltac:(rewrite H2; auto) (ofs)).
-      assert (ineq: Intv.In ofs (ofs - 2, (ofs -2 + LKSIZE))%Z).
-      replace LKSIZE with 4%Z by auto; hnf; simpl. omega.
-      assert (ineq':=ineq).
-      apply H in ineq. eapply po_trans; eauto.
-      erewrite lockSet_spec_2. apply po_refl.
-      apply ineq'.
-      unfold lockRes; rewrite H2; constructor.
-
-      (*3*)
-      destruct (lockRes js (b, (ofs-3)%Z)) eqn:H3.
-      unfold lockRes in H3. specialize (H (ofs-3)%Z ltac:(rewrite H3; auto) (ofs)).
-      assert (ineq: Intv.In ofs (ofs - 3, (ofs -3 + LKSIZE))%Z).
-      replace LKSIZE with 4%Z by auto; hnf; simpl. omega.
-      assert (ineq':=ineq).
-      apply H in ineq. eapply po_trans; eauto.
-      erewrite lockSet_spec_2. apply po_refl.
-      apply ineq'.
-      unfold lockRes; rewrite H3; constructor.
-
-      (*HERE*)
+      (* manual induction *)
+      Local Ltac t H js b ofs n :=
+        let H1 := fresh in
+        destruct (lockRes js (b, (ofs-n)%Z)) eqn:H1;
+        [ unfold lockRes in H1;
+          specialize (H (ofs-n)%Z ltac:(rewrite H1; auto) (ofs));
+          assert (ineq: Intv.In ofs (ofs-n, (ofs-n + LKSIZE))%Z)
+            by (unfold LKSIZE; hnf; simpl; omega);
+          assert (ineq':=ineq);
+          apply H in ineq; eapply po_trans; eauto;
+          erewrite lockSet_spec_2;
+          [ apply po_refl
+          | apply ineq'
+          | unfold lockRes; rewrite H1; constructor ] | ].
+      
+      t H js b ofs 1%Z.
+      t H js b ofs 2%Z.
+      t H js b ofs 3%Z.
+      t H js b ofs 4%Z.
+      t H js b ofs 5%Z.
+      t H js b ofs 6%Z.
+      t H js b ofs 7%Z.
+      t H js b ofs 8%Z.
+      t H js b ofs 9%Z.
+      t H js b ofs 10%Z.
+      t H js b ofs 11%Z.
+      t H js b ofs 12%Z.
+      t H js b ofs 13%Z.
+      t H js b ofs 14%Z.
+      t H js b ofs 15%Z.
+      
       pose (JuicyMachineShell.ThreadPool.lockSet_spec_3).
-      assert (forall z, (z <= ofs < z + 4)%Z -> lockRes js (b, z) = None).
-      { intros.
-      assert (z = ofs \/ z = ofs-1 \/ z = ofs-2 \/ z=ofs-3)%Z.
-      omega.
-      destruct H5 as [? | [? | [? | ]]]; subst; auto. }
-      apply e in H4. rewrite H4. 
+      assert (forall z, (z <= ofs < z + 16)%Z -> lockRes js (b, z) = None).
+      intros.
+      assert (O : (z = ofs \/ z = ofs-1 \/ z = ofs-2 \/ z = ofs-3 \/
+                   z = ofs-4 \/ z = ofs-5 \/ z = ofs-6 \/ z = ofs-7 \/
+                   z = ofs-8 \/ z = ofs-9 \/ z = ofs-10 \/ z = ofs-11 \/
+                   z = ofs-12 \/ z = ofs-13 \/ z = ofs-14 \/ z = ofs-15 \/
+                   z = ofs-16)%Z) by omega.
+      repeat (destruct O as [-> | O]; auto). omega.
+      
+      apply e in H16. rewrite H16.
       apply po_None.
     Qed.
-
 
     Lemma mem_compatible_locks_ltwritable:
       forall tp m, mem_compatible tp m ->
@@ -1138,7 +1138,7 @@ Admitted.
               can/should this be different for each location? *)
             (sh:Share.t)
             (*Check the new memoryI have has the right permission to mklock and the riht value (i.e. 0) *)
-            (Haccess: address_mapsto LKCHUNK (Vint Int.zero) sh Share.top (b, Int.intval ofs) phi')
+            (Haccess: address_mapsto Mint32 (Vint Int.zero) sh Share.top (b, Int.intval ofs) phi')
             (*Check the old memory has the lock*)
             (Hlock: phi@ (b, Int.intval ofs) = YES sh pfullshare (LK LKSIZE) (pack_res_inv R))
             (Hlock': exists val, phi'@ (b, Int.intval ofs) = YES sh pfullshare (VAL val) NoneP)

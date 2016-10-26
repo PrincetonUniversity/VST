@@ -13,6 +13,7 @@ Require Import veric.tycontext.
 Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
 Require Import veric.coqlib4.
+Require Import concurrency.lksize.
 Require Import concurrency.age_to.
 Require Import concurrency.aging_lemmas.
 Require Import concurrency.sync_preds_defs.
@@ -99,7 +100,7 @@ Lemma resource_decay_LK_at {b phi phi' R sh loc} :
 Proof.
   intros RD LT LKAT loc'.
   specialize (LKAT loc').
-  destruct (adr_range_dec loc lock_size loc') as [range|notrange]; swap 1 2.
+  destruct (adr_range_dec loc LKSIZE loc') as [range|notrange]; swap 1 2.
   - rewrite jam_false in *; auto.
   - rewrite jam_true in *; auto.
     destruct (eq_dec loc loc') as [<-|noteq].
@@ -126,7 +127,7 @@ Lemma resource_decay_LK_at' {b phi phi' R sh loc} :
 Proof.
   intros RD LT LKAT loc'.
   specialize (LKAT loc').
-  destruct (adr_range_dec loc lock_size loc') as [range|notrange]; swap 1 2.
+  destruct (adr_range_dec loc LKSIZE loc') as [range|notrange]; swap 1 2.
   - rewrite jam_false in *; auto.
   - rewrite jam_true in *; auto.
     destruct (eq_dec loc loc') as [<-|noteq].

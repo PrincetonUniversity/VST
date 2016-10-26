@@ -40,6 +40,7 @@ Require Import concurrency.permissions.
 Require Import concurrency.JuicyMachineModule.
 Require Import concurrency.sync_preds_defs.
 Require Import concurrency.aging_lemmas.
+Require Import concurrency.lksize.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -147,7 +148,7 @@ Lemma lset_range_perm m tp b ofs
   (Efind : AMap.find (elt:=option rmap) (b, ofs) (lset tp) <> None) :
   Mem.range_perm
     (restrPermMap (mem_compatible_locks_ltwritable compat))
-    b ofs (ofs + size_chunk Mint32) Cur Writable.
+    b ofs (ofs + LKSIZE) Cur Writable.
 Proof.
   unfold Mem.range_perm in *.
   intros ofs0 range.
@@ -638,7 +639,7 @@ Proof.
     apply H.
     unfold adr_range in *.
     intuition.
-    unfold res_predicates.lock_size.
+    unfold LKSIZE.
     omega.
   }
   if_tac in lk; [ | tauto ].

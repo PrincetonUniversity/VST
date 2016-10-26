@@ -1179,8 +1179,6 @@ auto.
 simpl; auto.
 Qed.
 
-Definition lock_size : Z := 4.
-
 Program Definition CTat (base: address) (rsh sh: Share.t) (l: address) : pred rmap :=
  fun m => exists p, m @ l = YES rsh (mk_lifted sh p) (CT (snd l - snd base)) NoneP.
  Next Obligation.
@@ -1189,7 +1187,7 @@ Program Definition CTat (base: address) (rsh sh: Share.t) (l: address) : pred rm
     apply (age1_YES a a'); auto.
   Qed.
 
-Definition LKspec (R: pred rmap) : spec :=
+Definition LKspec lock_size (R: pred rmap) : spec :=
    fun (rsh sh: Share.t) (l: AV.address)  =>
     allp (jam (adr_range_dec l lock_size)
                          (jam (eq_dec l) 
@@ -1271,7 +1269,7 @@ exists p.
 auto.
 Qed.
 
-Lemma LKspec_parametric: forall R: pred rmap,
+Lemma LKspec_parametric lock_size: forall R: pred rmap,
   spec_parametric (fun l rsh sh => jam (eq_dec l) 
                             (yesat (SomeP Mpred (fun _ => R)) (LK lock_size) rsh sh)
                             (CTat l rsh sh)).
@@ -1419,7 +1417,7 @@ apply jam_noat_splittable.
 apply VALspec_parametric.
 Qed.
 
-Lemma LKspec_splittable: forall R l, splittable (fun rsh sh => LKspec R rsh sh l).
+Lemma LKspec_splittable size: forall R l, splittable (fun rsh sh => LKspec size R rsh sh l).
 Proof.
 intro.
 apply jam_noat_splittable.
@@ -2112,7 +2110,7 @@ apply (derives_precise _ _ (address_mapsto_VALspec_range ch v rsh sh l)).
 apply VALspec_range_precise.
 Qed.
 
-Lemma LKspec_precise: forall R rsh sh l, precise (LKspec R rsh sh l).
+Lemma LKspec_precise lock_size: forall R rsh sh l, precise (LKspec lock_size R rsh sh l).
 Proof.
 intros.
 intro; intros.
@@ -2852,7 +2850,7 @@ Proof.
     - inversion H1.
 Qed.
 
-Lemma is_resource_pred_YES_LK l (R: mpred) rsh sh:
+Lemma is_resource_pred_YES_LK lock_size l (R: mpred) rsh sh:
   is_resource_pred
     (fun l' => jam (eq_dec l) (yesat (SomeP Mpred (fun _ => R)) (LK lock_size) rsh sh) (CTat l rsh sh) l')
     (fun r l0 n => (if eq_dec l l0 then exists p, r = YES rsh (mk_lifted sh p) (LK lock_size)
@@ -2860,15 +2858,15 @@ Lemma is_resource_pred_YES_LK l (R: mpred) rsh sh:
        else exists p, r = YES rsh (mk_lifted sh p) (CT (snd l0 - snd l)) NoneP)).
 Proof. hnf; intros. reflexivity. Qed.
 
-Lemma LKspec_share_join:
+Lemma LKspec_share_join lock_size:
  forall rsh1 rsh2 rsh sh1 sh2 sh R p,
   nonunit sh1 ->
   nonunit sh2 ->
   join sh1 sh2 sh ->
   join rsh1 rsh2 rsh ->
-  LKspec R rsh1 sh1 p *
-  LKspec R rsh2 sh2 p =
-  LKspec R rsh sh p.
+  LKspec lock_size R rsh1 sh1 p *
+  LKspec lock_size R rsh2 sh2 p =
+  LKspec lock_size R rsh sh p.
 Proof.
   intros.
   symmetry.

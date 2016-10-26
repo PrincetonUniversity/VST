@@ -54,10 +54,13 @@ Proof.
   destruct H as (b & o & Hv & Hlock).
   simpl in Hlock.
   specialize (Hlock (b, Int.unsigned o)).
-  destruct (adr_range_dec (b, Int.unsigned o) res_predicates.lock_size (b, Int.unsigned o)).
-  destruct (EqDec_address (b, Int.unsigned o) (b, Int.unsigned o)); [|contradiction n; auto].
-  destruct Hlock; eauto 6.
-  { contradiction n; unfold adr_range, res_predicates.lock_size; split; auto; omega. }
+  if_tac [r|nr] in Hlock.
+  - if_tac [e|ne] in Hlock.
+    + destruct Hlock; eauto 6.
+    + contradiction ne; auto.
+  - contradiction nr; unfold adr_range; split; auto.
+    unfold lksize.LKSIZE in *.
+    omega.
 Qed.
 
 Lemma selflock_precise : forall R sh v, precise R ->
@@ -208,18 +211,20 @@ Qed.
 Ltac get_global_function'' _f :=
 eapply (semax_fun_id'' _f); try reflexivity.
 
-Lemma LKspec_nonunit : forall R rsh sh p, predicates_hered.derives (res_predicates.LKspec R rsh sh p)
+Lemma LKspec_nonunit lock_size :
+  0 < lock_size ->
+  forall R rsh sh p, predicates_hered.derives (res_predicates.LKspec lock_size R rsh sh p)
   (!!(sepalg.nonunit sh)).
 Proof.
-  repeat intro.
+  intros pos R rsh sh p a H.
   specialize (H p); simpl in H.
-  destruct (adr_range_dec p res_predicates.lock_size p).
+  destruct (adr_range_dec p lock_size p).
   destruct (EqDec_address p p).
   destruct H; auto.
   { contradiction n; auto. }
   { contradiction n; unfold adr_range.
     destruct p; split; auto.
-    unfold res_predicates.lock_size; omega. }
+    omega. }
 Qed.
 
 Lemma lock_inv_share_join : forall sh1 sh2 sh v R (Hsh1 : readable_share sh1) (Hsh2 : readable_share sh2)

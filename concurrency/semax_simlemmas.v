@@ -82,7 +82,10 @@ Lemma lset_valid_access m m_any tp Phi b ofs
 Proof.
   intros C F.
   split.
-  - eapply lset_range_perm; eauto.
+  - intros ofs' r. eapply lset_range_perm; eauto.
+    unfold size_chunk in *.
+    unfold lksize.LKSIZE in *.
+    omega.
   - eapply lock_coherence_align; eauto.
 Qed.
 

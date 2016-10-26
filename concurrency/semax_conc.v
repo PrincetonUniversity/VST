@@ -23,6 +23,7 @@ Require Import floyd.field_at.
 Require Import floyd.nested_field_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.jmeq_lemmas.
+Require Import concurrency.lksize.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -43,7 +44,7 @@ Definition lock_inv : share -> val -> mpred -> mpred :=
   fun sh v R =>
     (EX b : block, EX ofs : _,
       !!(v = Vptr b ofs) &&
-      LKspec
+      LKspec LKSIZE
         R
         (Share.unrel Share.Lsh sh)
         (Share.unrel Share.Rsh sh)

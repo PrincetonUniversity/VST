@@ -4,6 +4,7 @@ Require Import msl.seplog.
 Require Import veric.compcert_rmaps.
 Require Import veric.tycontext.
 Require Import veric.res_predicates.
+Require Import concurrency.lksize.
 Require Import concurrency.addressFiniteMap.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -22,11 +23,13 @@ Qed.
 
 Definition LKspec_ext (R: pred rmap) : spec :=
    fun (rsh sh: Share.t) (l: AV.address)  =>
-    allp (jam (adr_range_dec l lock_size)
-                         (jam (eq_dec l) 
-                            (yesat (SomeP rmaps.Mpred (fun _ => R)) (LK lock_size) rsh sh)
-                            (CTat l rsh sh))
-                         (fun _ => TT)).
+     allp
+       (jam
+          (adr_range_dec l LKSIZE)
+          (jam (eq_dec l) 
+               (yesat (SomeP rmaps.Mpred (fun _ => R)) (LK LKSIZE) rsh sh)
+               (CTat l rsh sh))
+          (fun _ => TT)).
 
 Definition LK_at R sh :=
   LKspec_ext R (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh).
@@ -117,14 +120,14 @@ Ltac range_tac :=
     exfalso; apply H;
     repeat split; auto;
     try unfold Int.unsigned;
-    unfold lock_size;
+    unfold LKSIZE;
     omega
   | H : ~ adr_range ?l _ ?l |- _ =>
     destruct l;
     exfalso; apply H;
     repeat split; auto;
     try unfold Int.unsigned;
-    unfold lock_size;
+    unfold LKSIZE;
     omega
   end.
 

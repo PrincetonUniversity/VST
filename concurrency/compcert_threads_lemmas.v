@@ -7300,8 +7300,10 @@ relation*)
           pose proof (obs_eq_locks Htsim).
           eapply setPermBlock_obs_eq with (Hlt := (HmemCompC i pfc).2); eauto.
           intros.
-          eapply (val_obs_eq (strong_obs_eq H));
-            by eauto.
+          eapply (val_obs_eq (strong_obs_eq H)). now eauto.
+          apply Hload.
+          simpl in H0.
+          (* mismatch: 4 / 16 mismatch in machine *)
         }
         
 

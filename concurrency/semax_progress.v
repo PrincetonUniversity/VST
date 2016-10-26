@@ -51,8 +51,29 @@ Require Import concurrency.resource_decay_join.
 Require Import concurrency.semax_invariant.
 Require Import concurrency.semax_simlemmas.
 Require Import concurrency.rmap_locking.
+Require Import concurrency.lksize.
 
 Set Bullet Behavior "Strict Subproofs".
+
+Lemma shape_of_args F V args b ofs ge :
+  Val.has_type_list args (AST.Tint :: nil) ->
+  Vptr b ofs = expr.eval_id _lock (make_ext_args (filter_genv (symb2genv (@Genv.genv_symb F V ge))) (_lock :: nil) args) ->
+  args = Vptr b ofs :: nil.
+Proof.
+  intros Hargsty.
+  assert (L: length args = 1%nat) by (destruct args as [|? [|]]; simpl in *; tauto).
+  unfold expr.eval_id.
+  unfold expr.force_val.
+  intros Preb.
+  match goal with H : context [Map.get ?a ?b] |- _ => destruct (Map.get a b) eqn:E end.
+  subst v. 2: discriminate.
+  pose  (gx := (filter_genv (symb2genv (Genv.genv_symb ge)))). fold gx in E.
+  destruct args as [ | arg [ | ar args ]].
+  + now inversion E.
+  + simpl in E. inversion E. reflexivity.
+  + inversion E. f_equal.
+    inversion L.
+Qed.
 
 Section Progress.
   Variables
@@ -347,7 +368,7 @@ Section Progress.
           (* rewrite Eat in Ewetv. *)
           specialize (lk (b, Int.unsigned ofs)).
           rewrite jam_true in lk; swap 1 2.
-          { hnf. unfold lock_size in *; split; auto; omega. }
+          { hnf. unfold LKSIZE in *; split; auto; omega. }
           rewrite jam_true in lk; swap 1 2. now auto.
           
           unfold lock_inv in PREC.
@@ -368,7 +389,7 @@ Section Progress.
             simpl in LKSPEC.
             if_tac in LKSPEC; swap 1 2.
             { destruct H.
-              unfold lock_size; simpl.
+              unfold LKSIZE; simpl.
               split. reflexivity. omega. }
             if_tac in LKSPEC; [ | congruence ].
             destruct LKSPEC as (p & E).
@@ -390,25 +411,7 @@ Section Progress.
             }
             
             assert (Esg : sg = LOCK_SIG) by (unfold ef_id_sig in *; congruence).
-Lemma shape_of_args F V args b ofs ge :
-  Val.has_type_list args (AST.Tint :: nil) ->
-  Vptr b ofs = expr.eval_id _lock (make_ext_args (filter_genv (symb2genv (@Genv.genv_symb F V ge))) (_lock :: nil) args) ->
-  args = Vptr b ofs :: nil.
-Proof.
-  intros Hargsty.
-  assert (L: length args = 1%nat) by (destruct args as [|? [|]]; simpl in *; tauto).
-  unfold expr.eval_id.
-  unfold expr.force_val.
-  intros Preb.
-  match goal with H : context [Map.get ?a ?b] |- _ => destruct (Map.get a b) eqn:E end.
-  subst v. 2: discriminate.
-  pose  (gx := (filter_genv (symb2genv (Genv.genv_symb ge)))). fold gx in E.
-  destruct args as [ | arg [ | ar args ]].
-  + now inversion E.
-  + simpl in E. inversion E. reflexivity.
-  + inversion E. f_equal.
-    inversion L.
-Qed.
+            
             assert (Eargs : args = Vptr b ofs :: nil). {
               subst sg.
               eapply shape_of_args; eauto.
@@ -455,7 +458,7 @@ Qed.
           
           specialize (lk (b, Int.unsigned ofs)).
           rewrite jam_true in lk; swap 1 2.
-          { hnf. unfold lock_size in *; split; auto; omega. }
+          { hnf. unfold LKSIZE in *; split; auto; omega. }
           rewrite jam_true in lk; swap 1 2. now auto.
           destruct sat as [sat | sat]; [ | omega ].
           
@@ -603,7 +606,7 @@ Qed.
           (* rewrite Eat in Ewetv. *)
           specialize (lk (b, Int.unsigned ofs)).
           rewrite jam_true in lk; swap 1 2.
-          { hnf. unfold lock_size in *; split; auto; omega. }
+          { hnf. unfold LKSIZE in *; split; auto; omega. }
           rewrite jam_true in lk; swap 1 2. now auto.
           
           assert (Ename : name = "release"). {
@@ -903,11 +906,11 @@ Qed.
         specialize (RL shx b ofs (Interp Rx) phi0 4%Z ltac:(omega) Hwritable AT).
         destruct RL as (phi0' & RL0 & lkat).
         
-        pose proof rmap_makelock_join _ _ _ _ 4%Z _ _ ltac:(omega) RL0 Join as RL.
+        pose proof rmap_makelock_join _ _ _ _ 16%Z _ _ ltac:(omega) RL0 Join as RL.
         destruct RL as (phi' & RLphi & j').
         assert (ji : join_sub (getThreadR cnti) Phi) by join_sub_tac.
         destruct ji as (psi & jpsi). cleanup.
-        pose proof rmap_makelock_join _ _ _ _ 4%Z _ _ ltac:(omega) RLphi jpsi as RLPhi.
+        pose proof rmap_makelock_join _ _ _ _ 16%Z _ _ ltac:(omega) RLphi jpsi as RLPhi.
         destruct RLPhi as (Phi' & RLPhi & J').
         
         eexists (m', ge, (sch, _)).

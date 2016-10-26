@@ -42,6 +42,7 @@ Require Import concurrency.JuicyMachineModule.
 Require Import concurrency.age_to.
 Require Import concurrency.sync_preds_defs.
 Require Import concurrency.join_lemmas.
+Require Import concurrency.lksize.
 
 (*! Instantiation of modules *)
 Export THE_JUICY_MACHINE.
@@ -128,12 +129,12 @@ Definition lock_coherence (lset : AMap.t (option rmap)) (phi : rmap) (m : mem) :
         end*)
     end.
 
-Definition far (ofs1 ofs2 : Z) := (Z.abs (ofs1 - ofs2) >= 4)%Z.
+Definition far (ofs1 ofs2 : Z) := (Z.abs (ofs1 - ofs2) >= LKSIZE)%Z.
 
 Lemma far_range ofs ofs' z :
-  (0 <= z < 4)%Z ->
+  (0 <= z < LKSIZE)%Z ->
   far ofs ofs' ->
-  ~(ofs <= ofs' + z < ofs + size_chunk Mint32)%Z.
+  ~(ofs <= ofs' + z < ofs + LKSIZE)%Z.
 Proof.
   unfold far; simpl.
   intros H1 H2.
