@@ -265,6 +265,8 @@ Definition threads_wellformed tp :=
     | Kinit _ _ => Logic.True
     end.
 
+(* Havent' move this, but it's already defined in the concurrent_machien...
+   Probably in the wrong part... *)
 Definition unique_Krun tp sch :=
   (lt 1 tp.(num_threads).(pos.n) -> forall i cnti q,
       @getThreadC i tp cnti = Krun q ->

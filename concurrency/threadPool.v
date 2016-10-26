@@ -47,6 +47,7 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
                    ; perm_maps : 'I_num_threads -> res
                    ; lset : AMap.t lock_info
                  }.
+
   
   Definition t := t'.
 
@@ -182,6 +183,31 @@ Open Scope nat_scope.
   Definition getThreadC {i tp} (cnt: containsThread tp i) : ctl :=
     tp (Ordinal cnt).
   
+  Definition unique_Krun tp i :=
+  (lt 1 tp.(num_threads).(pos.n) -> forall j cnti q,
+      @getThreadC j tp cnti = Krun q ->
+      eq_tid_dec i j ).
+
+  Definition is_running tp i:= 
+    exists cnti q, @getThreadC i tp cnti = Krun q.
+
+  Lemma unique_runing_not_running:
+    forall tp i,
+      unique_Krun tp i ->
+      ~ is_running tp i ->
+      forall j, unique_Krun tp j.
+  Proof.
+    unfold unique_Krun, is_running.
+    intros.
+    specialize (H H1 _ _ _ H2).
+    destruct (eq_tid_dec i j0); try solve[inversion H].
+    subst i.
+    exfalso; apply H0 .
+    exists cnti, q; assumption.
+  Qed.
+    
+
+    
   Definition getThreadR {i tp} (cnt: containsThread tp i) : res :=
     (perm_maps tp) (Ordinal cnt).
 
@@ -1374,7 +1400,30 @@ Qed.
      lr_valid (lockRes (updThread cnti c' m')).
   Proof.
   Admitted.
-  
+
+  (*Lemma unique_runnin_is_running:
+    forall tp i,
+      unique_Krun tp i ->
+      is_running tp i \/
+      forall j, unique_Krun tp j.
+  Proof. unfold unique_Krun, is_running; intros.
+         
+
+          
+  Lemma no_running_one_running:
+    forall tp,
+      (forall j, unique_Krun tp j) ->
+      forall i cnti c, unique_Krun (@updThreadC i tp cnti (Krun c)) i.
+
+  Lemma one_running_no_running:
+    forall tp i,
+      (unique_Krun tp i) ->
+      forall j cnti c, unique_Krun (@updThreadC i tp cnti (Kblocked c)) j.
+
+  Lemma no_running_no_running:
+    forall tp,
+      (forall j, unique_Krun tp j) ->
+      forall i j cnti c, unique_Krun (@updThreadC i tp cnti (Kblocked c)) j. *)
 End OrdinalPool.
   
 

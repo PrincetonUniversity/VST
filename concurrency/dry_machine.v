@@ -125,14 +125,57 @@ Module Concur.
        forall tid0 (ms : t) (m : mem),
          containsThread ms tid0 ->
          mem_compatible ms m -> t -> mem -> seq mem_event -> Prop.
+     
+     Axiom threadStep_equal_run:
+    forall g i tp m cnt cmpt tp' m' tr, 
+      @threadStep g i tp m cnt cmpt tp' m' tr ->
+      forall j,
+        (exists cntj q, @getThreadC j tp cntj = Krun q) <->
+        (exists cntj' q', @getThreadC j tp' cntj' = Krun q').
      Parameter syncStep :
        G ->
        forall tid0 (ms : t) (m : mem),
          containsThread ms tid0 ->
          mem_compatible ms m -> t -> mem -> sync_event -> Prop.
+     
+  Axiom syncstep_equal_run:
+    forall g i tp m cnt cmpt tp' m' tr, 
+      @syncStep g i tp m cnt cmpt tp' m' tr ->
+      forall j,
+        (exists cntj q, @getThreadC j tp cntj = Krun q) <->
+        (exists cntj' q', @getThreadC j tp' cntj' = Krun q').
+  
+  Axiom syncstep_not_running:
+    forall g i tp m cnt cmpt tp' m' tr, 
+      @syncStep g i tp m cnt cmpt tp' m' tr ->
+      forall cntj q, ~ @getThreadC i tp cntj = Krun q.
+
+     
      Parameter threadHalted :
        forall tid0 (ms : t), containsThread ms tid0 -> Prop.
      Parameter init_mach : option RES.res -> G -> val -> seq val -> option t.
+
+     
+
+  Axiom threadHalt_update:
+    forall i j, i <> j ->
+      forall tp cnt cnti c' cnt',
+        (@threadHalted j tp cnt) <->
+        (@threadHalted j (@updThreadC i tp cnti c') cnt') .
+  
+  Axiom syncstep_equal_halted:
+    forall g i tp m cnti cmpt tp' m' tr, 
+      @syncStep g i tp m cnti cmpt tp' m' tr ->
+      forall j cnt cnt',
+        (@threadHalted j tp cnt) <->
+        (@threadHalted j tp' cnt').
+  
+  Axiom threadStep_not_unhalts:
+    forall g i tp m cnt cmpt tp' m' tr, 
+      @threadStep g i tp m cnt cmpt tp' m' tr ->
+      forall j cnt cnt',
+        (@threadHalted j tp cnt) ->
+        (@threadHalted j tp' cnt') .
   
   End DryMachineSig.
   
@@ -345,12 +388,147 @@ Module Concur.
          containsThread ms tid0 -> mem_compatible ms m ->
          thread_pool -> mem -> seq mem_event -> Prop:=
        @dry_step genv.
+
+     Lemma threadStep_equal_run:
+    forall g i tp m cnt cmpt tp' m' tr, 
+      @threadStep g i tp m cnt cmpt tp' m' tr ->
+      forall j,
+        (exists cntj q, @getThreadC j tp cntj = Krun q) <->
+        (exists cntj' q', @getThreadC j tp' cntj' = Krun q').
+    Proof.
+      intros. split.
+      - intros [cntj [ q running]].
+        inversion H; subst.
+        assert (cntj':=cntj).
+        eapply (cntUpdate (Krun c') (getCurPerm m') cntj) in cntj'.
+        exists cntj'.
+        destruct (NatTID.eq_tid_dec i j).
+        + subst j; exists c'.
+          rewrite gssThreadCode; reflexivity.
+        + exists q.
+          rewrite gsoThreadCode; auto.
+      - intros [cntj' [ q' running]].
+        inversion H; subst.
+        assert (cntj:=cntj').
+        eapply cntUpdate' with(c0:=Krun c')(p:=(getCurPerm m')) in cntj; eauto.
+        exists cntj.
+        destruct (NatTID.eq_tid_dec i j).
+        + subst j; exists c.
+          rewrite <- Hcode.
+          f_equal.
+          apply cnt_irr.
+        + exists q'.
+          rewrite gsoThreadCode in running; auto.
+    Qed.
      
      Definition syncStep (genv :G) :
        forall {tid0 ms m},
          containsThread ms tid0 -> mem_compatible ms m ->
          thread_pool -> mem -> sync_event -> Prop:=
        @ext_step genv.
+
+
+     
+    
+  Lemma syncstep_equal_run:
+    forall g i tp m cnt cmpt tp' m' tr, 
+      @syncStep g i tp m cnt cmpt tp' m' tr ->
+      forall j,
+        (exists cntj q, @getThreadC j tp cntj = Krun q) <->
+        (exists cntj' q', @getThreadC j tp' cntj' = Krun q').
+  Proof.
+    intros g i tp m cnt cmpt tp' m' tr H j; split.
+    - intros [cntj [ q running]].
+      destruct (NatTID.eq_tid_dec i j).
+      + subst j. generalize running; clear running.
+        inversion H; subst;
+          match goal with
+          | [ H: getThreadC ?cnt = Kblocked ?c |- _ ] =>
+            replace cnt with cntj in H by apply cnt_irr;
+              intros HH; rewrite HH in H; inversion H
+          end.
+      + (*this should be easy to automate or shorten*)
+        inversion H; subst.
+        * exists (cntUpdateL _ _ (cntUpdate (Kresume c Vundef) (computeMap (getThreadR cnt) virtueThread) _ cntj)), q.
+          rewrite gLockSetCode.
+          rewrite gsoThreadCode; assumption.
+        * exists ( (cntUpdateL _ _ (cntUpdate (Kresume c Vundef) (computeMap (getThreadR cnt) virtueThread) _ cntj))), q.
+          rewrite gLockSetCode.
+          rewrite gsoThreadCode; assumption.
+        * exists (cntAdd _ _ _ (cntUpdate (Kresume c Vundef) (computeMap (getThreadR cnt) virtue1) _ cntj)), q.
+          erewrite gsoAddCode . (*i? *)
+          rewrite gsoThreadCode; assumption.
+          eapply cntUpdate. eauto.
+        * exists ( (cntUpdateL _ _ (cntUpdate (Kresume c Vundef) (setPermBlock (Some Nonempty) b (Int.intval ofs)
+                 (getThreadR cnt) LKSIZE_nat) _ cntj))), q.
+          rewrite gLockSetCode.
+          rewrite gsoThreadCode; assumption.
+        * exists ( (cntRemoveL _ (cntUpdate (Kresume c Vundef) (computeMap (getThreadR cnt) virtue) _ cntj))), q.
+          rewrite gRemLockSetCode.
+          rewrite gsoThreadCode; assumption.
+        * exists cntj, q; assumption.
+    - intros [cntj [ q running]].
+      destruct (NatTID.eq_tid_dec i j).
+      + subst j. generalize running; clear running.
+        inversion H; subst;
+          try rewrite gLockSetCode;
+          try rewrite gRemLockSetCode;
+          try rewrite gssThreadCode;
+          try solve[intros HH; inversion HH].
+        { (*addthread*)
+          assert (cntj':=cntj).
+          eapply cntAdd' in cntj'; destruct cntj' as [ [HH HHH] | HH].
+          * erewrite gsoAddCode; eauto.
+            subst; rewrite gssThreadCode; intros AA; inversion AA.
+          * erewrite gssAddCode . intros AA; inversion AA.
+            assumption. }
+          { (*AQCUIRE*)
+            replace cntj with cnt by apply cnt_irr.
+            rewrite Hcode; intros HH; inversion HH. }
+      + generalize running; clear running.
+        inversion H; subst;
+        try erewrite <- age_getThreadCode;
+          try rewrite gLockSetCode;
+          try rewrite gRemLockSetCode;
+          try (rewrite gsoThreadCode; [|auto]);
+        try (intros HH;
+        match goal with
+        | [ H: getThreadC ?cnt = Krun ?c |- _ ] =>
+          exists cntj, c; exact H
+        end).
+      (*Add thread case*) 
+        assert (cntj':=cntj).
+        eapply cntAdd' in cntj'; destruct cntj' as [ [HH HHH] | HH].
+        * erewrite gsoAddCode; eauto.
+          destruct (NatTID.eq_tid_dec i j);
+            [subst; rewrite gssThreadCode; intros AA; inversion AA|].
+          rewrite gsoThreadCode; auto.
+          exists HH, q; assumption.
+        * erewrite gssAddCode . intros AA; inversion AA.
+          assumption.
+
+
+          
+          Grab Existential Variables.
+          eauto. eauto. eauto. 
+  Qed.
+
+  
+  Lemma syncstep_not_running:
+    forall g i tp m cnt cmpt tp' m' tr, 
+      @syncStep g i tp m cnt cmpt tp' m' tr ->
+      forall cntj q, ~ @getThreadC i tp cntj = Krun q.
+  Proof.
+    intros.
+    inversion H;
+      match goal with
+      | [ H: getThreadC ?cnt = _ |- _ ] =>
+        erewrite (cnt_irr _ cnt);
+          rewrite H; intros AA; inversion AA
+      end.
+  Qed.
+  
+     
 
      Inductive threadHalted': forall {tid0 ms},
          containsThread ms tid0 -> Prop:=
@@ -364,7 +542,48 @@ Module Concur.
      
      Definition threadHalted: forall {tid0 ms},
          containsThread ms tid0 -> Prop:= @threadHalted'.
+
+
+     Lemma updCinvariant': forall {tid} ds c (cnt: containsThread ds tid),
+         invariant (updThreadC cnt c) <-> invariant ds.
+           split.
+           { intros INV; inversion INV.
+             constructor.
+             - generalize no_race; unfold race_free.
+               simpl. intros.
+               apply no_race0; auto.
+             - simpl; assumption.
+             - simpl; assumption.
+             - simpl; assumption.
+             - simpl; assumption. }
+           
+           { intros INV; inversion INV.
+             constructor.
+             - generalize no_race; unfold race_free.
+               simpl. intros.
+               apply no_race0; auto.
+             - simpl; assumption.
+             - simpl; assumption.
+             - simpl; assumption.
+             - simpl; assumption. }
+     Qed.
+
      
+  Lemma threadHalt_update:
+    forall i j, i <> j ->
+      forall tp cnt cnti c' cnt',
+        (@threadHalted j tp cnt) <->
+        (@threadHalted j (@updThreadC i tp cnti c') cnt') .
+  Proof.
+    intros; split; intros HH; inversion HH; subst;
+    econstructor; eauto.
+    eapply updCinvariant'; assumption. 
+    erewrite <- (gsoThreadCC H); exact Hcode.
+    eapply updCinvariant'; eassumption. 
+    erewrite (gsoThreadCC H); exact Hcode.
+  Qed.
+  
+  
      Definition one_pos : pos := mkPos NPeano.Nat.lt_0_1.
      
      Definition initial_machine pmap c :=
@@ -833,8 +1052,104 @@ Module Concur.
         rewrite gsoThreadLPool; auto.
         }
     Qed.
-    
+
      End DryMachineLemmas.
+
+
+    (** *More Properties of halted thread*)
+      Lemma threadStep_not_unhalts:
+    forall g i tp m cnt cmpt tp' m' tr, 
+      @threadStep g i tp m cnt cmpt tp' m' tr ->
+      forall j cnt cnt',
+        (@threadHalted j tp cnt) ->
+        (@threadHalted j tp' cnt') .
+  Proof.
+    intros; inversion H; inversion H0; subst.
+    destruct (NatTID.eq_tid_dec i j).
+    - subst j. simpl in Hcorestep.
+      eapply ev_step_ax1 in Hcorestep.
+      eapply corestep_not_halted in Hcorestep.
+      replace cnt1 with cnt in Hcode0 by apply cnt_irr.
+      rewrite Hcode0 in Hcode; inversion Hcode;
+      subst c0.
+      rewrite Hcorestep in Hcant; inversion Hcant.
+    - econstructor; eauto.
+      + admit. (* Invariant *)
+      
+      + rewrite gsoThreadCode; auto;
+        erewrite <- age_getThreadCode; eauto.
+  Admitted.
+
+  
+  Lemma syncstep_equal_halted:
+    forall g i tp m cnti cmpt tp' m' tr, 
+      @syncStep g i tp m cnti cmpt tp' m' tr ->
+      forall j cnt cnt',
+        (@threadHalted j tp cnt) <->
+        (@threadHalted j tp' cnt').
+  Proof.
+    intros; split; intros HH; inversion HH; subst;
+    econstructor; subst; eauto.
+    - admit. (* Invariant *)
+    - destruct (NatTID.eq_tid_dec i j).
+      + subst j.
+        inversion H;
+          match goal with
+          | [ H: getThreadC ?cnt = Krun ?c,
+                 H': getThreadC ?cnt' = Kblocked ?c' |- _ ] =>
+            replace cnt with cnt' in H by apply cnt_irr;
+              rewrite H' in H; inversion H
+          end.
+      + inversion H; subst;
+        try erewrite <- age_getThreadCode;
+          try rewrite gLockSetCode;
+          try rewrite gRemLockSetCode;
+          try erewrite gsoAddCode; eauto;
+          try rewrite gsoThreadCode; try eassumption.
+        { (*AQCUIRE*)
+            replace cnt' with cnt0 by apply cnt_irr;
+          exact Hcode. }
+    - admit. (* invariant *)
+    - destruct (NatTID.eq_tid_dec i j).
+      + subst j.
+        inversion H; subst;
+        match goal with
+          | [ H: getThreadC ?cnt = Krun ?c,
+                 H': getThreadC ?cnt' = Kblocked ?c' |- _ ] =>
+            try erewrite <- age_getThreadCode in H;
+              try rewrite gLockSetCode in H;
+              try rewrite gRemLockSetCode in H;
+              try erewrite gsoAddCode in H; eauto;
+              try rewrite gssThreadCode in H;
+              try solve[inversion H]
+        end.
+        { (*AQCUIRE*)
+            replace cnt with cnt0 by apply cnt_irr;
+          exact Hcode. }
+      +
+        inversion H; subst;
+        match goal with
+          | [ H: getThreadC ?cnt = Krun ?c,
+                 H': getThreadC ?cnt' = Kblocked ?c' |- _ ] =>
+            try erewrite <- age_getThreadCode in H;
+              try rewrite gLockSetCode in H;
+              try rewrite gRemLockSetCode in H;
+              try erewrite gsoAddCode in H; eauto;
+              try rewrite gsoThreadCode in H;
+              try solve[inversion H]; eauto
+        end.
+        { (*AQCUIRE*)
+            replace cnt with cnt0 by apply cnt_irr;
+          exact Hcode. }
+        
+
+          
+          Grab Existential Variables.
+          eauto. eauto. eauto. eauto. eauto. eauto.
+          eauto. eauto. eauto. eauto. eauto. eauto.
+          eauto. eauto. eauto.
+  Admitted.
+
      
   End DryMachineShell.
   
