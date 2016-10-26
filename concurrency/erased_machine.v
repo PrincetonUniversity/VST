@@ -138,13 +138,37 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
        containsThread ms tid0 -> mem_compatible ms m ->
        thread_pool -> mem -> seq mem_event -> Prop:=
      @dry_step genv.
+
+   Lemma threadStep_equal_run:
+    forall g i tp m cnt cmpt tp' m' tr, 
+      @threadStep g i tp m cnt cmpt tp' m' tr ->
+      forall j,
+        (exists cntj q, @getThreadC j tp cntj = Krun q) <->
+        (exists cntj' q', @getThreadC j tp' cntj' = Krun q').
+   Admitted.
    
    Definition syncStep (genv :G) :
      forall {tid0 ms m},
        containsThread ms tid0 -> mem_compatible ms m ->
        thread_pool -> mem -> sync_event -> Prop:=
      @ext_step genv.
+    
+  Lemma syncstep_equal_run:
+    forall g i tp m cnt cmpt tp' m' tr, 
+      @syncStep g i tp m cnt cmpt tp' m' tr ->
+      forall j,
+        (exists cntj q, @getThreadC j tp cntj = Krun q) <->
+        (exists cntj' q', @getThreadC j tp' cntj' = Krun q').
+   Admitted.
+  
+  Lemma syncstep_not_running:
+    forall g i tp m cnt cmpt tp' m' tr, 
+      @syncStep g i tp m cnt cmpt tp' m' tr ->
+      forall cntj q, ~ @getThreadC i tp cntj = Krun q.
+   Admitted.
+  
 
+   
    Inductive threadHalted': forall {tid0 ms},
        containsThread ms tid0 -> Prop:=
    | thread_halted':
@@ -156,6 +180,30 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
    
    Definition threadHalted: forall {tid0 ms},
        containsThread ms tid0 -> Prop:= @threadHalted'.
+
+   
+  Lemma threadHalt_update:
+    forall i j, i <> j ->
+      forall tp cnt cnti c' cnt',
+        (@threadHalted j tp cnt) <->
+        (@threadHalted j (@updThreadC i tp cnti c') cnt') .
+   Admitted.
+  
+  Lemma syncstep_equal_halted:
+    forall g i tp m cnti cmpt tp' m' tr, 
+      @syncStep g i tp m cnti cmpt tp' m' tr ->
+      forall j cnt cnt',
+        (@threadHalted j tp cnt) <->
+        (@threadHalted j tp' cnt').
+   Admitted.
+  
+  Lemma threadStep_not_unhalts:
+    forall g i tp m cnt cmpt tp' m' tr, 
+      @threadStep g i tp m cnt cmpt tp' m' tr ->
+      forall j cnt cnt',
+        (@threadHalted j tp cnt) ->
+        (@threadHalted j tp' cnt') .
+   Admitted.
    
    Definition one_pos : pos := mkPos NPeano.Nat.lt_0_1.
    
