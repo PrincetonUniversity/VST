@@ -134,6 +134,13 @@ CONCUR_FILES= \
   semax_invariant.v semax_initial.v \
   semax_simlemmas.v cl_step_lemmas.v \
   semax_progress.v semax_preservation.v \
+  semax_preservation_jspec.v \
+  semax_preservation_local.v \
+  semax_preservation_acquire.v \
+  semax_preservation_release.v \
+  semax_preservation_makelock.v \
+  semax_preservation_freelock.v \
+  semax_preservation_spawn.v \
   aging_lemmas.v resource_decay_lemmas.v \
   rmap_locking.v \
   permjoin.v \

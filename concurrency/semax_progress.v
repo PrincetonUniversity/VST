@@ -867,7 +867,7 @@ Section Progress.
         
         assert (Hm' : exists m', Mem.store Mint32 (m_dry (personal_mem (thread_mem_compatible (mem_compatible_forget compat) cnti))) b (Int.intval ofs) (Vint Int.zero) = Some m'). {
           clear -AT Join Hwritable.
-          replace tlock with (Tarray (Tpointer Tvoid noattr) 4 noattr) in AT by reflexivity.
+          unfold tlock in AT.
           destruct AT as (AT1, AT2).
           destruct AT2 as [A B]. clear A. (* it is 4 = 4 *)
           simpl in B. unfold mapsto_memory_block.at_offset in B.
@@ -880,7 +880,9 @@ Section Progress.
           simpl in B.
           repeat rewrite add_repr in B.
           rewrite seplog.sepcon_emp in B. simpl in B.
+          (* if array size > 4:
           destruct B as (phi00 & phi01 & jphi0 & B & _).
+          *)
           unfold SeparationLogic.mapsto in *.
           simpl in B.
           destruct (readable_share_dec shx) as [n|n]. 2: now destruct n; apply writable_readable; auto.
@@ -889,10 +891,14 @@ Section Progress.
           rewrite reptype_lemmas.int_add_repr_0_r in *.
           apply mapsto_can_store with (v := v2') (rsh := (Share.unrel Share.Lsh shx)).
           simpl (m_phi _).
+          (* if array size > 4:
           rewrite <-TT_sepcon_TT.
-          rewrite <-sepcon_assoc.
+          rewrite <-sepcon_assoc. 
+          *)
           exists phi0, phi1; split; auto. split; auto.
+          (* if array size > 4:
           exists phi00, phi01; split; auto. split; auto.
+          *)
           exact_eq Hmaps.
           f_equal.
           f_equal.
@@ -902,15 +908,18 @@ Section Progress.
         
         clear Post.
         
+        unfold tlock in *.
+        match type of AT with context[Tarray _ ?n] => assert (Hpos : (0 < n)%Z) by omega end.
         pose proof data_at_rmap_makelock CS as RL.
-        specialize (RL shx b ofs (Interp Rx) phi0 4%Z ltac:(omega) Hwritable AT).
+        specialize (RL shx b ofs (Interp Rx) phi0 _ Hpos Hwritable AT).
         destruct RL as (phi0' & RL0 & lkat).
         
-        pose proof rmap_makelock_join _ _ _ _ 16%Z _ _ ltac:(omega) RL0 Join as RL.
+        match type of lkat with context[LK_at _ ?n] => assert (Hpos' : (0 < n)%Z) by omega end.
+        pose proof rmap_makelock_join _ _ _ _ _ _ _ Hpos' RL0 Join as RL.
         destruct RL as (phi' & RLphi & j').
         assert (ji : join_sub (getThreadR cnti) Phi) by join_sub_tac.
         destruct ji as (psi & jpsi). cleanup.
-        pose proof rmap_makelock_join _ _ _ _ 16%Z _ _ ltac:(omega) RLphi jpsi as RLPhi.
+        pose proof rmap_makelock_join _ _ _ _ _ _ _ Hpos' RLphi jpsi as RLPhi.
         destruct RLPhi as (Phi' & RLPhi & J').
         
         eexists (m', ge, (sch, _)).

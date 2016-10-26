@@ -361,7 +361,7 @@ Module Concur.
       t H js b ofs 1%Z.
       t H js b ofs 2%Z.
       t H js b ofs 3%Z.
-      t H js b ofs 4%Z.
+      (*t H js b ofs 4%Z.
       t H js b ofs 5%Z.
       t H js b ofs 6%Z.
       t H js b ofs 7%Z.
@@ -372,19 +372,19 @@ Module Concur.
       t H js b ofs 12%Z.
       t H js b ofs 13%Z.
       t H js b ofs 14%Z.
-      t H js b ofs 15%Z.
+      t H js b ofs 15%Z.*)
       
       pose (JuicyMachineShell.ThreadPool.lockSet_spec_3).
-      assert (forall z, (z <= ofs < z + 16)%Z -> lockRes js (b, z) = None).
+      assert (forall z, (z <= ofs < z + 4)%Z -> lockRes js (b, z) = None).
       intros.
       assert (O : (z = ofs \/ z = ofs-1 \/ z = ofs-2 \/ z = ofs-3 \/
-                   z = ofs-4 \/ z = ofs-5 \/ z = ofs-6 \/ z = ofs-7 \/
+                   z = ofs-4 (* \/ z = ofs-5 \/ z = ofs-6 \/ z = ofs-7 \/
                    z = ofs-8 \/ z = ofs-9 \/ z = ofs-10 \/ z = ofs-11 \/
                    z = ofs-12 \/ z = ofs-13 \/ z = ofs-14 \/ z = ofs-15 \/
-                   z = ofs-16)%Z) by omega.
+                   z = ofs-16*))%Z) by omega.
       repeat (destruct O as [-> | O]; auto). omega.
       
-      apply e in H16. rewrite H16.
+      apply e in H4. rewrite H4.
       apply po_None.
     Qed.
 
