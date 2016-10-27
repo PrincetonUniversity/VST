@@ -3,7 +3,7 @@ Require Import progs.list_dt. Import LsegSpecial.
 Require Import progs.append.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
-Instance LS: listspec _list _tail.
+Instance LS: listspec _list _tail (fun _ _ => emp).
 Proof. eapply mk_listspec; reflexivity. Defined.
 Definition t_struct_list := Tstruct _list noattr.
 
@@ -61,6 +61,7 @@ forward_if (PROP (False) LOCAL () SEP ()).
    gather_SEP 1 2 0 3.
    replace_SEP 0 (lseg LS sh (s1a++[a]) x u * lseg LS sh s1b u nullval).
    entailer.
+   rewrite <- (emp_sepcon (list_cell LS sh a t)).
    apply (lseg_cons_right_list LS); auto.
    Intros. gather_SEP 1.
    apply semax_lseg_nonnull; [ | intros a1 s4 u2 ? ?].
