@@ -101,9 +101,13 @@ Definition encryption_spec_ll :=
          tables_initialized tables)
   POST [ tvoid ]
     PROP() LOCAL()
+(* real:
     SEP (data_at out_sh (tarray tuchar 16) 
                         (map Vint (mbed_tls_aes_enc (map Int.repr plaintext) (map Int.repr exp_key)))
                          output).
+*)
+(* fake: (works with start_function) *)
+    SEP (data_at out_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) output).
 
 (* QQQ: How to know that if x is stored in a var of type tuchar, 0 <= x < 256 ? *)
 (* QQQ: Declare vars of type Z or of type int in API spec ? *)
@@ -256,6 +260,75 @@ end.
 Lemma body_aes_encrypt: semax_body Vprog Gprog f_mbedtls_aes_encrypt encryption_spec_ll.
 Proof.
   start_function.
+
+(* If we give the real specification in the postcondition, start_function tries to simplify it,
+   (but it shouldn't), because it consumes more than 14GB of memory! *)
+(*
+ match goal with |- semax_body _ _ _ ?spec =>
+          try unfold spec 
+ end.
+ match goal with
+ | |- semax_body _ _ _ (DECLARE _ WITH u : unit
+               PRE  [] main_pre _ u
+               POST [ tint ] main_post _ u) => idtac
+ | |- semax_body _ _ _ ?spec => 
+        check_canonical_funspec spec
+ end.
+(*
+ match goal with |- semax_body _ _ _ _ => start_function' 
+   | _ => idtac
+ end.
+*)
+
+ match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _)) =>
+   match Pre with 
+   | (fun x => match x with (a,b) => _ end) => intros Espec [a b] 
+   | (fun i => _) => intros Espec i
+   end;
+   simpl fn_body; simpl fn_params; simpl fn_return
+ end.
+
+ repeat match goal with |- @semax _ _ _ (match ?p with (a,b) => _ end * _) _ _ =>
+             destruct p as [a b]
+           end.
+(* simplify_func_tycontext. (* <--- this one !! *) *)
+ match goal with |- @semax _ _ ?DD ?Pre ?Body ?Post =>  
+  match DD with context [(func_tycontext ?f ?V ?G)] =>
+    let Pre' := fresh "Pre" in set (Pre':=Pre) at 1;
+    let Body' := fresh "Body" in set (Body':=Body) at 1;
+    let Post' := fresh "Post" in set (Post':=Post) at 1;
+    let D1 := fresh "D1" in let Delta := fresh "Delta" in 
+    set (Delta := func_tycontext f V G);
+    set (D1 := func_tycontext f V G) in Delta (*good*);
+    change D1 with (@abbreviate tycontext D1) in Delta;
+    unfold func_tycontext, make_tycontext in D1;
+    let S1 := fresh "S1" in let DS := fresh "Delta_specs" in
+    revert Delta (*good*);
+    set (DS := make_tycontext_s G) in D1;
+    revert D1;
+    set (S1 := make_tycontext_s G) in DS;
+    change S1 with (@abbreviate (PTree.t funspec) S1) in DS;
+    intros D1 Delta(*good*);
+    lazy beta iota zeta delta - [DS] in D1 (*good*); subst D1;
+    unfold make_tycontext_s, fold_right in S1; red in S1;
+    revert S1 DS Delta(*;
+    reduce_snd S1; (* carefully staged to avoid "simpl"       <-- culprit!!
+                 in any of the user's funspecs! *)
+    intros DS Delta; subst S1 Pre' Body' Post'*)
+   end
+ end.
+
+(*
+match goal with
+| |- context [snd ?A] =>
+   let j := fresh in set (j := snd A) at 1;
+   hnf in j
+end.
+no match *)
+
+intro S1. (* and BAM, we're gonna simpl in encryption_spec_ll !! *)
+*)
+
   (* TODO floyd: put (Sreturn None) in such a way that the code can be folded into MORE_COMMANDS *)
 
   (* RK = ctx->rk; *)
