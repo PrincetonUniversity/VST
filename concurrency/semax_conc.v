@@ -272,6 +272,13 @@ Proof.
   + specialize (H2B z H0); specialize (H3B z H0); auto.
 Qed.
 
+(*
+Lemma nonexpansive_2super_non_expansive: forall {A B: Type} (F: (A -> B -> mpred) -> mpred),
+  (forall a b, nonexpansive (fun Q => F P Q)) ->
+  (forall Q, nonexpansive (fun P => F P Q)) ->
+  forall P Q n,
+  approx n (F P Q) = approx n (F (approx n P) (approx n Q)).
+*)
 Definition acquire_arg_type: rmaps.TypeTree := rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred.
 
 Definition acquire_pre: val * share * mpred -> environ -> mpred :=
@@ -823,6 +830,63 @@ Definition freecond_spec cs :=
      LOCAL ()
      SEP (@data_at_ cs sh tcond v).
 
+Program Definition wait_spec' cs: funspec := mk_funspec
+  ((_cond OF tptr tcond)%formals :: (_lock OF tptr Tvoid)%formals :: nil, tvoid)
+  cc_default 
+  (rmaps.ProdType (rmaps.ConstType (val * val * share * share)) rmaps.Mpred)
+  (fun _ x =>
+   match x with
+   | (c, l, shc, shl, R) =>
+     PROP (readable_share shc)
+     LOCAL (temp _cond c; temp _lock l)
+     SEP (@cond_var cs shc c; lock_inv shl l R; R)
+   end)
+  (fun _ x =>
+   match x with
+   | (c, l, shc, shl, R) =>
+     PROP ()
+     LOCAL ()
+     SEP (cond_var shc c; lock_inv shl l R; R)
+   end)
+  _
+  _
+.
+Next Obligation.
+  intros cs; hnf.
+  intros.
+  destruct x as [[[[c l] shc] shl] R]; simpl in *.
+  apply (nonexpansive_super_non_expansive
+   (fun R => (PROP (readable_share shc)
+    LOCAL (temp _cond c; temp _lock l)
+    SEP (cond_var shc c; lock_inv shl l R; R)) rho)).
+  apply (PROP_LOCAL_SEP_nonexpansive
+          ((fun _ => readable_share shc) :: nil)
+          (temp _cond c :: temp _lock l :: nil)
+          ((fun R => cond_var shc c) :: (fun R => lock_inv shl l R) :: (fun R => R) :: nil));
+  repeat apply Forall_cons; try apply Forall_nil.
+  + apply const_nonexpansive.
+  + apply const_nonexpansive.
+  + apply nonexpansive_lock_inv.
+  + apply identity_nonexpansive.
+Qed.
+Next Obligation.
+  intros cs; hnf.
+  intros.
+  destruct x as [[[[c l] shc] shl] R]; simpl in *.
+  apply (nonexpansive_super_non_expansive
+   (fun R => (PROP ()
+    LOCAL ()
+    SEP (cond_var shc c; lock_inv shl l R; R)) rho)).
+  apply (PROP_LOCAL_SEP_nonexpansive
+          nil
+          nil
+          ((fun R => cond_var shc c) :: (fun R => lock_inv shl l R) :: (fun R => R) :: nil));
+  repeat apply Forall_cons; try apply Forall_nil.
+  + apply const_nonexpansive.
+  + apply nonexpansive_lock_inv.
+  + apply identity_nonexpansive.
+Qed.
+
 Definition wait_spec cs :=
    WITH c : val, l : val, shc : share, shl : share, R : Pred
    PRE [ _cond OF tptr tcond, _lock OF tptr Tvoid ]
@@ -833,6 +897,63 @@ Definition wait_spec cs :=
      PROP ()
      LOCAL ()
      SEP (cond_var shc c; lock_inv shl l (Interp R); Interp R).
+
+Program Definition wait2_spec' cs: funspec := mk_funspec
+  ((_cond OF tptr tcond)%formals :: (_lock OF tptr Tvoid)%formals :: nil, tvoid)
+  cc_default 
+  (rmaps.ProdType (rmaps.ConstType (val * val * share * share)) rmaps.Mpred)
+  (fun _ x =>
+   match x with
+   | (c, l, shc, shl, R) =>
+     PROP (readable_share shc)
+     LOCAL (temp _cond c; temp _lock l)
+     SEP (lock_inv shl l R; R && (@cond_var cs shc c * TT))
+   end)
+  (fun _ x =>
+   match x with
+   | (c, l, shc, shl, R) =>
+     PROP ()
+     LOCAL ()
+     SEP (lock_inv shl l R; R)
+   end)
+  _
+  _
+.
+Next Obligation.
+  intros cs; hnf.
+  intros.
+  destruct x as [[[[c l] shc] shl] R]; simpl in *.
+  apply (nonexpansive_super_non_expansive
+   (fun R => (PROP (readable_share shc)
+    LOCAL (temp _cond c; temp _lock l)
+    SEP (lock_inv shl l R; R && (@cond_var cs shc c * TT))) rho)).
+  apply (PROP_LOCAL_SEP_nonexpansive
+          ((fun _ => readable_share shc) :: nil)
+          (temp _cond c :: temp _lock l :: nil)
+          ((fun R => lock_inv shl l R) :: (fun R => R && (@cond_var cs shc c * TT))%logic :: nil));
+  repeat apply Forall_cons; try apply Forall_nil.
+  + apply const_nonexpansive.
+  + apply nonexpansive_lock_inv.
+  + apply (conj_nonexpansive (fun R => R) (fun _ => (cond_var shc c * TT)%logic)).
+    - apply identity_nonexpansive.
+    - apply const_nonexpansive.
+Qed.
+Next Obligation.
+  intros cs; hnf.
+  intros.
+  destruct x as [[[[c l] shc] shl] R]; simpl in *.
+  apply (nonexpansive_super_non_expansive
+   (fun R => (PROP ()
+    LOCAL ()
+    SEP (lock_inv shl l R; R)) rho)).
+  apply (PROP_LOCAL_SEP_nonexpansive
+          nil
+          nil
+          ((fun R => lock_inv shl l R) :: (fun R => R) :: nil));
+  repeat apply Forall_cons; try apply Forall_nil.
+  + apply nonexpansive_lock_inv.
+  + apply identity_nonexpansive.
+Qed.
 
 Definition wait2_spec cs :=
    WITH c : val, l : val, shc : share, shl : share, R : Pred
@@ -887,6 +1008,50 @@ using the oracle, as [acquire] is.  The postcondition would be [match
 PrePost with existT ty (w, pre, post) => thread th (Interp (post w b))
 end] *)
 
+Program Definition spawn_spec' := mk_funspec
+  ((_f OF tptr voidstar_funtype)%formals :: (_args OF tptr tvoid)%formals :: nil, tvoid)
+  cc_default 
+  (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * val)) (rmaps.DependentType 0)) (rmaps.ArrowType (rmaps.DependentType 0) (rmaps.ArrowType (rmaps.ConstType val) rmaps.Mpred)))
+  (fun ts x =>
+   match x with
+   | (f, b, w, pre) =>
+     PROP ()
+     LOCAL (temp _args b)
+     SEP (
+       EX _y : ident, EX globals : nth 0 ts unit -> list (ident * val),
+         (func_ptr'
+           (WITH y : val, x : nth 0 ts unit
+             PRE [ _y OF tptr tvoid ]
+               PROP ()
+               (LOCALx (temp _y y :: map (fun x => gvar (fst x) (snd x)) (globals x))
+               (SEP   (pre x y)))
+             POST [tptr tvoid]
+               PROP  ()
+               LOCAL ()
+               SEP   (emp))
+           f);
+         pre w b)
+   end)
+  (fun ts x =>
+   match x with
+   | (f, b, w, pre) =>
+     PROP ()
+     LOCAL ()
+     SEP (emp)
+   end)
+  _
+  _
+.
+Next Obligation.
+  hnf; intros.
+  destruct x as [[[f b] w] pre]; simpl in *.
+Admitted.
+Next Obligation.
+  hnf; intros.
+  destruct x as [[[f b] w] pre]; simpl in *.
+  auto.
+Qed.
+
 Definition spawn_spec :=
   WITH f : val,
        b : val,
@@ -923,7 +1088,6 @@ Definition spawn_spec :=
      SEP   (emp).
 
 (*+ Adding the specifications to a void ext_spec *)
-
 
 (*! The void ext_spec *)
 Definition void_spec T : external_specification juicy_mem external_function T :=
