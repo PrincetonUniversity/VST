@@ -318,6 +318,57 @@ Module Executions (SEM: Semantics)
           ssromega.
   Qed.
 
+  Lemma fstep_sched_inv:
+    forall i U tp m tr U' tp' m' tr'
+      (Hstep: FineConc.MachStep the_ge (i :: U, tr, tp) m
+                                (U', tr', tp') m'),
+      U' = U.
+  Proof.
+    intros.
+    inversion Hstep; subst; auto.
+  Qed.
+
+  Lemma multi_fstep_snoc:
+    forall U U' U'' tr tr' tr'' tp m tp' m' tp'' m''
+      (Hexec: multi_fstep (U, tr, tp) m (U', tr ++ tr', tp') m')
+      (Hstep: FineConc.MachStep the_ge (U', tr ++ tr', tp') m' (U'', tr ++ tr' ++ tr'', tp'') m''),
+      multi_fstep (U, tr, tp) m (U'', tr ++ tr' ++ tr'', tp'') m''.
+  Proof.
+    induction U; intros.
+    - inversion Hexec.
+      rewrite <- app_nil_r in H3 at 1.
+      apply app_inv_head in H3. subst.
+      simpl in *. erewrite app_nil_r in *.
+      inversion Hstep; simpl in *;
+        try discriminate.
+    - inversion Hexec.
+      + rewrite <- app_nil_r in H3 at 1.
+        apply app_inv_head in H3. subst.
+        erewrite app_nil_r in *.
+        simpl in *.
+        assert (U = U'')
+          by (erewrite fstep_sched_inv by eauto; reflexivity); subst.
+        replace (tr ++ tr'') with (tr ++ tr'' ++ [::])
+          by (rewrite app_nil_r; auto).
+        econstructor; eauto.
+        rewrite app_nil_r.
+        now econstructor.
+      + subst.
+        apply app_inv_head in H6. subst.
+        clear Hexec.
+        rewrite <- app_assoc.
+        econstructor.
+        eauto.
+        specialize (IHU U' U'' (tr ++ tr'0) tr''0 tr'' tp'0 m'0 tp' m' tp'' m'').
+        rewrite app_assoc.
+        eapply IHU.
+        rewrite <- app_assoc.
+        now eassumption.
+        rewrite! app_assoc in Hstep.
+        rewrite! app_assoc.
+        assumption.
+  Qed.
+
   (** The trace is irrelevant to further execution of the
   machine. It's just a history of the memory operations *)
   Lemma fstep_trace_irr:
