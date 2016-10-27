@@ -385,6 +385,16 @@ Proof.
   apply juicyRestrict_ext; auto.
 Qed.
 
+Lemma matchfunspec_common_join e Gamma phi phi' psi Phi Phi' :
+  join phi psi Phi ->
+  join phi' psi Phi' ->
+  matchfunspec e Gamma Phi ->
+  matchfunspec e Gamma Phi'.
+Proof.
+  intros j j' M b fs.
+  specialize (M b fs).
+Admitted.
+
 Tactic Notation "REWR" :=
   first
     [ unshelve erewrite <-getThreadR_age |

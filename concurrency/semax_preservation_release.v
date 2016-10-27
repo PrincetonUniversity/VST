@@ -341,7 +341,7 @@ Proof.
       {
         simpl.
         clear -lock_coh.
-        rewrite isLK_age_to, isCT_age_to. auto.
+        rewrite isLK_age_to(* , isCT_age_to *). auto.
       }
       set (u := load_at _ _).
       set (v := load_at _ _) in lock_coh.

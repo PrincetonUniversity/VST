@@ -208,6 +208,17 @@ Proof.
   exists id; split; auto.
 Qed.
 
+Lemma isLK_rewrite r :
+  (forall (sh : Share.t) (sh' : pshare) (z : Z) (P : preds), r <> YES sh sh' (LK z) P)
+  <->
+  ~ isLK r.
+Proof.
+  destruct r as [t0 | t0 p [] p0 | k p]; simpl; unfold isLK in *; split.
+  all: try intros H ?; intros; breakhyps.
+  intros E; injection E; intros; subst.
+  apply H; eauto.
+Qed.
+
 Lemma resource_decay_lock_coherence {b phi phi' lset m} :
   resource_decay b phi phi' ->
   lockSet_block_bound lset b ->
@@ -222,17 +233,19 @@ Proof.
   destruct (AMap.find loc lset)
     as [[unlockedphi | ] | ] eqn:Efind;
     simpl option_map; cbv iota beta; swap 1 3.
-  - rewrite <-isLKCT_rewrite.
-    rewrite <-isLKCT_rewrite in LC.
+  - (* rewrite <-isLKCT_rewrite. *)
+    (* rewrite <-isLKCT_rewrite in LC. *)
+    rewrite <-isLK_rewrite.
+    rewrite <-isLK_rewrite in LC.
     intros sh sh' z pp.
     destruct RD as [NN [R|[R|[[P [v R]]|R]]]].
-    + split; intros E; rewrite E in *;
+    + (* split; *) intros E; rewrite E in *;
         destruct (phi @ loc); try destruct k; simpl in R; try discriminate;
-          [ refine (proj1 (LC _ _ _ _) _); eauto
-          | refine (proj2 (LC _ _ _ _) _); eauto ].
-    + destruct R as (sh'' & v & v' & E & E'). split; congruence.
-    + split; congruence.
-    + destruct R as (sh'' & v & v' & R). split; congruence.
+          [ refine ((* proj1 *) (LC _ _ _ _) _); eauto
+          (* | refine (proj2 (LC _ _ _ _) _); eauto *) ].
+    + destruct R as (sh'' & v & v' & E & E'). (* split; *) congruence.
+    + (* split; *) congruence.
+    + destruct R as (sh'' & v & v' & R). (* split; *) congruence.
   
   - assert (fst loc < b)%positive.
     { apply BOUND.

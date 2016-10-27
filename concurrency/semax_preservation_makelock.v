@@ -430,8 +430,8 @@ Proof.
         unfold option_map.
         destruct (adr_range_dec (b, Int.unsigned ofs) LKSIZE loc) as [r|nr].
         
-        -- admit.
-           (* invariant too loose or too strong, here, think about fix *)
+        -- (* ok, invariant was ttoo strong here but it's fixed now *)
+           admit.
         
         -- destruct Hrmap' as (_ & outside & _).
            rewrite age_to_resource_at.

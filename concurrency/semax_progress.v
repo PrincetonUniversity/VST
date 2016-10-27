@@ -357,8 +357,20 @@ Section Progress.
           exfalso.
           destruct isl as [x [? [? EPhi]]].
           rewrite EPhi in lock_coh'.
-          rewrite <-isLKCT_rewrite in lock_coh'.
-          eapply (proj1 (lock_coh' _ _ _ _)).
+(* todo move at the same place as isLKCT_rewrite *)
+Lemma isLK_rewrite r :
+  (forall (sh : Share.t) (sh' : pshare) (z : Z) (P : preds), r <> YES sh sh' (LK z) P)
+  <->
+  ~ isLK r.
+Proof.
+  destruct r as [t0 | t0 p [] p0 | k p]; simpl; unfold isLK in *; split.
+  all: try intros H ?; intros; breakhyps.
+  intros E; injection E; intros; subst.
+  apply H; eauto.
+Qed.
+          (* rewrite <-isLKCT_rewrite in lock_coh'. *)
+          rewrite <-isLK_rewrite in lock_coh'.
+          eapply ((* proj1 *) (lock_coh' _ _ _ _)).
           reflexivity.
         
         - (* Some None: lock is locked, so [acquire] fails. *)
@@ -595,8 +607,9 @@ Section Progress.
           exfalso.
           destruct isl as [x [? [? EPhi]]].
           rewrite EPhi in lock_coh'.
-          rewrite <-isLKCT_rewrite in lock_coh'.
-          eapply (proj1 (lock_coh' _ _ _ _)).
+          rewrite <-isLK_rewrite in lock_coh'.
+          (* rewrite <-isLKCT_rewrite in lock_coh'. *)
+          eapply ((* proj1 *) (lock_coh' _ _ _ _)).
           reflexivity.
         
         - (* Some None: lock is locked, so [release] should succeed. *)
