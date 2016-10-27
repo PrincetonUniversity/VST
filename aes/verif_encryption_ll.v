@@ -420,8 +420,120 @@ freeze_except (data_at ctx_sh t_struct_aesctx
         :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ Vundefs))
      ctx) Fr.
 
+assert_PROP (field_compatible t_struct_aesctx [StructField _buf] ctx) as Fctx. entailer!.
+
+assert_PROP (isptr ctx) as PNctx by entailer. 
+destruct ctx; inversion PNctx. rename i into octx.
+
+repeat rewrite field_compatible_field_address by assumption. simpl.
+repeat rewrite Int.add_assoc.
+simpl.
+simpl_Int.
+
 eapply semax_seq'. {
 hoist_later_in_pre.
+
+assert (Eq: (Vptr b (Int.add octx (Int.repr 12)))
+    = (field_address t_struct_aesctx [ArraySubsc 1; StructField _buf] (Vptr b octx))). {
+  rewrite field_compatible_field_address by auto with field_compatible.
+  reflexivity.
+}
+assert (El: [ArraySubsc 1; StructField _buf] = [ArraySubsc 1; StructField _buf] ++ [])
+  by reflexivity.
+rewrite Eq in *. rewrite El in *.
+
+match goal with
+| |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e1) _ =>
+    let HLE := fresh "HLE" in
+    let p := fresh "p" in evar (p: val);
+    do_compute_lvalue Delta P Q R e1 p HLE;
+    subst p
+end.
+
+(* how to find the gfs'es:
+ gfs: gfs1 ++ gfs0      found from do_compute_lvalue
+ gfs0:   go through SEP clauses (knowing p) and check for matching suffix (prefix on path)
+ gfs1: rest
+ *)
+
+unfold data_at in HLE.
+
+(*
+(* Given a list l and a list l0, which is supposed to be a suffix of l,
+   find the list l1 such that l = l1 ++ l0, and assign it to result *)
+Ltac find_prefix l l0 result :=
+  pose (result := sublist 0 ((Zlength l) - (Zlength l0)) l);
+  cbv in result. (*;
+  instantiate (l1 := result);
+  subst result.
+*)
+
+find_prefix [4; 5; 6; 8] [6; 8] L1. 
+
+evar (L33: list Z). 
+instantiate (L33 := result).
+
+gfs = gfs1 ++ gfs0
+*)
+
+Ltac find_SEP_clause_for p Rs i nSH nT nGfs nV nn := match Rs with
+| ?R :: ?Rest => match R with
+  | field_at ?SH ?T ?gfs ?V p =>
+      pose (nSH := SH); pose (nT := T); pose (nGfs := gfs); pose (nV := V); pose (nn := i); cbv in nn
+  | _ => find_SEP_clause_for p Rest (i+1) nSH nT nGfs nV nn
+  end
+end.
+
+match type of HLE with
+| (ENTAIL _, PROPx _ (LOCALx _ (SEPx ?R)) 
+  |-- local (`( eq (field_address ?T ?gfs ?p)) (eval_lvalue _))) =>
+    let nSH := fresh "SH" in let nT := fresh "T" in let nGfs := fresh "gfs0" in let nV := fresh "V"
+    in let nn := fresh "n" in
+    find_SEP_clause_for p R 0 nSH nT nGfs nV nn;
+    evar (gfs1 : list gfield);
+    let H := fresh "Hgfs" in
+    assert (gfs1 = (sublist 0 (Zlength gfs - Zlength gfs0) gfs)) as H by (cbv; reflexivity)
+end.
+
+(*
+match type of HLE with
+| (ENTAIL _, PROPx _ (LOCALx _ (SEPx ?R)) 
+  |-- local (`( eq (field_address ?T ?gfs ?p)) (eval_lvalue _))) =>
+  match R with
+  | context [ field_at ?SH ?T2 ?gfs0 ?V p ] => 
+    evar (gfs1 : list gfield);
+    let H := fresh "Hgfs" in
+    assert (gfs1 = (sublist 0 (Zlength gfs - Zlength gfs0) gfs)) as H by (cbv; reflexivity)
+  end
+end.
+*)
+
+(*
+match type of HLE with
+| (ENTAIL _, PROPx _ (LOCALx _ (SEPx ?R)) 
+  |-- local (`( eq (field_address ?T ?gfs ?p)) (eval_lvalue _))) =>
+  match R with
+  | context [ field_at ?SH ?T2 ?gfs0 ?V p ] => 
+    evar (gfs1 : list gfield);
+    let H := fresh "Hgfs" in
+    assert (gfs1 = (skipn (length gfs - length gfs0) gfs)) as H by (cbv; reflexivity)
+  end
+end.
+*)
+
+eapply semax_SC_field_load' with (n := 1%nat) (sh := ctx_sh);
+ [ reflexivity
+ | reflexivity
+ | idtac (* should come after gfs instantiation *)
+ | solve [auto] (* readable share *)
+ | reflexivity
+ | idtac (* gfs equality *)
+ | idtac (* nth_error *)
+ | exact HLE
+ | idtac
+ | idtac
+ | idtac (* solve_legal_nested_field_in_entailment fails *) ].
+
 
 eapply (semax_SC_field_load' _ ctx_sh 1 _ _ _ _ _ tuint t_struct_aesctx
 [] [ArraySubsc 1; StructField _buf] [ArraySubsc 1; StructField _buf]
