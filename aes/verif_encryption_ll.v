@@ -202,13 +202,13 @@ Lemma semax_SC_field_load':
       (p: val) (v : val) (v' : reptype (nested_field_type t_root gfs0)),
       typeof_temp Delta id = Some t ->
       is_neutral_cast (typeof e) t = true ->
-      typeof e = nested_field_type t_root gfs ->
       readable_share sh ->
       type_is_volatile (typeof e) = false ->
-      gfs = gfs1 ++ gfs0 ->
-      nth_error R n = Some (field_at sh t_root gfs0 v' p) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         local (`(eq (field_address t_root gfs p)) (eval_lvalue e)) ->
+      typeof e = nested_field_type t_root gfs ->
+      gfs = gfs1 ++ gfs0 ->
+      nth_error R n = Some (field_at sh t_root gfs0 v' p) ->
       JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v') v ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         (tc_lvalue Delta e) &&
@@ -225,7 +225,7 @@ Proof.
   intros.
   eapply semax_extract_later_prop'; [exact H9 | clear H9; intro H9].
   assert (JMeq (valinject (nested_field_type t_root gfs) v) v) as A. {
-    apply valinject_JMeq. apply is_neutral_cast_by_value with t. rewrite <- H1. assumption.
+    apply valinject_JMeq. apply is_neutral_cast_by_value with t. rewrite <- H4. assumption.
   }
   eapply semax_max_path_field_load_nth_ram'.
   eassumption.
@@ -239,11 +239,11 @@ Proof.
   2: eassumption.
   eapply derives_trans; [apply nested_field_ramif' with (gfs3 := gfs1) |].
   + eapply JMeq_trans; [apply H7 |].
-    rewrite H4 in A.
+    rewrite H5 in A.
     apply @JMeq_sym, A.
-  + rewrite <- H4; auto.
+  + rewrite <- H5; auto.
   + apply sepcon_derives; [| auto].
-    rewrite <- H4.
+    rewrite <- H5.
     apply derives_refl.
 Qed.
 
@@ -484,40 +484,6 @@ Ltac find_SEP_clause_for p Rs i nSH nT nGfs nV nn := match Rs with
   end
 end.
 
-match type of HLE with
-| (ENTAIL _, PROPx _ (LOCALx _ (SEPx ?R)) 
-  |-- local (`( eq (field_address ?T ?gfs ?p)) (eval_lvalue _))) =>
-    let nSH := fresh "SH" in let nT := fresh "T" in let nGfs := fresh "gfs0" in let nV := fresh "V"
-    in let nn := fresh "n" in
-    find_SEP_clause_for p R 0%nat nSH nT nGfs nV nn;
-    evar (gfs1 : list gfield);
-    let H := fresh "Hgfs" in
-    assert (gfs1 = (sublist 0 (Zlength gfs - Zlength gfs0) gfs)) as H by (cbv; reflexivity);
-    (eapply semax_SC_field_load' with (n0 := nn) (sh := nSH) (gfs2 := nGfs) (gfs3 := gfs1);
-    subst nn nSH nGfs gfs1);
- [ reflexivity
- | reflexivity
- | idtac (* should come after gfs instantiation *)
- | solve [auto] (* readable share *)
- | reflexivity
- | idtac (* gfs equality *)
- | idtac (* nth_error *)
- | exact HLE
- | idtac
- | idtac
- | idtac (* solve_legal_nested_field_in_entailment fails *) ]
-end.
-
-reflexivity.
-
-reflexivity.
-
-cbv [nth_error]. reflexivity.
-
-eapply JMeq_refl.
-
-entailer!.
-
 Ltac solve_legal_nested_field_in_entailment' :=
 (* same as solve_legal_nested_field_in_entailment but without these lines commented out:
    match goal with
@@ -549,7 +515,30 @@ Ltac solve_legal_nested_field_in_entailment' :=
   try solve [normalize; apply prop_right; auto; omega]
   ].
 
-solve_legal_nested_field_in_entailment'.
+match type of HLE with
+| (ENTAIL _, PROPx _ (LOCALx _ (SEPx ?R)) 
+  |-- local (`( eq (field_address ?T ?gfs ?p)) (eval_lvalue _))) =>
+    let nSH := fresh "SH" in let nT := fresh "T" in let nGfs := fresh "gfs0" in let nV := fresh "V"
+    in let nn := fresh "n" in
+    find_SEP_clause_for p R 0%nat nSH nT nGfs nV nn;
+    evar (gfs1 : list gfield);
+    let H := fresh "Hgfs" in
+    assert (gfs1 = (sublist 0 (Zlength gfs - Zlength gfs0) gfs)) as H by (cbv; reflexivity);
+    (eapply semax_SC_field_load' with (n0 := nn) (sh := nSH) (gfs2 := nGfs) (gfs3 := gfs1);
+    subst nn nSH nGfs gfs1);
+    [ reflexivity
+    | reflexivity
+    | solve [auto] (* readable share *)
+    | reflexivity
+    | exact HLE
+    | reflexivity
+    | reflexivity
+    | cbv [nth_error]; reflexivity
+    | eapply JMeq_refl
+    | entailer!
+    | solve_legal_nested_field_in_entailment' ]
+end.
+
 }
 thaw Fr.
 freeze_except (data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input) Fr.
