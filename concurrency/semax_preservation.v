@@ -35,6 +35,7 @@ Require Import sepcomp.event_semantics.
 Require Import sepcomp.semantics_lemmas.
 Require Import concurrency.coqlib5.
 Require Import concurrency.permjoin.
+Require Import concurrency.semax_conc_pred.
 Require Import concurrency.semax_conc.
 Require Import concurrency.juicy_machine.
 Require Import concurrency.concurrent_machine.

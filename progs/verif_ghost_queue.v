@@ -76,8 +76,6 @@ Axiom ghost_conflict : forall sh1 sh2 t1 t2 v1 v2 p,
 
 Definition MAX := 10.
 
-Notation vint z := (Vint (Int.repr z)).
-
 (* Note that a writable share must include all readable shares. *)
 Definition lock_pred' sh d reqs head next addc remc ghosts ns := Pred_list (
     Data_at _ Tsh tqueue (rotate (complete MAX (map snd reqs)) head MAX, (vint (Zlength reqs),
@@ -230,12 +228,6 @@ Proof.
   { apply andp_left1, derives_refl. }
   { apply IHreqs; auto. }
   normalize.
-Qed.
-
-Lemma precise_fold_right : forall l, Forall precise l -> precise (fold_right sepcon emp l).
-Proof.
-  induction l; simpl; auto; intros.
-  inv H; apply precise_sepcon; auto.
 Qed.
 
 Lemma precise_request : forall sh p, readable_share sh ->
@@ -479,22 +471,6 @@ Proof.
     rewrite sepcon_assoc; setoid_rewrite IHi; auto.
 Qed.
 
-Lemma malloc_field_compatible : forall t p,
-  legal_alignas_type t = true ->
-  legal_cosu_type t = true ->
-  complete_type cenv_cs t = true ->
-  sizeof t < Int.modulus ->
-  (alignof t | natural_alignment)%Z ->
-  malloc_compatible (sizeof t) p -> field_compatible t [] p.
-Proof.
-  unfold malloc_compatible, field_compatible; intros.
-  destruct p; try contradiction.
-  match goal with H : _ /\ _ |- _ => destruct H end.
-  repeat split; auto; simpl.
-  - apply Z.lt_le_incl; auto.
-  - etransitivity; eauto.
-Qed.
-
 Lemma body_get_request : semax_body Vprog Gprog f_get_request get_request_spec.
 Proof.
   start_function.
@@ -516,15 +492,6 @@ Proof.
   { subst Frame; instantiate (1 := []); normalize.
     apply data_at_memory_block. }
   forward.
-Qed.
-
-Lemma mods_repr : forall a b, 0 <= a <= Int.max_signed -> 0 < b <= Int.max_signed ->
-  Int.mods (Int.repr a) (Int.repr b) = Int.repr (a mod b).
-Proof.
-  intros.
-  unfold Int.mods.
-  pose proof Int.min_signed_neg.
-  rewrite Zquot.Zrem_Zmod_pos; repeat rewrite Int.signed_repr; auto; omega.
 Qed.
 
 Lemma split_queue_t : forall (buf : list val) (len head tail next addc remc lock p : val) sh1 sh2
@@ -549,18 +516,6 @@ Proof.
   apply prop_ext; split; unfold field_compatible; intro; decompose [and] H; repeat split; auto; simpl in *.
   - omega.
   - unfold in_members; simpl; auto.
-Qed.
-
-Lemma repeat_list_repeat : forall {A} n (x : A), repeat x n = list_repeat n x.
-Proof.
-  induction n; auto; simpl; intro.
-  rewrite IHn; auto.
-Qed.
-
-Lemma sublist_repeat : forall {A} i j k (v : A), 0 <= i -> i <= j <= k ->
-  sublist i j (repeat v (Z.to_nat k)) = repeat v (Z.to_nat (j - i)).
-Proof.
-  intros; repeat rewrite repeat_list_repeat; apply sublist_list_repeat; auto.
 Qed.
 
 Lemma body_q_new : semax_body Vprog Gprog f_q_new q_new_spec.
@@ -831,67 +786,6 @@ Proof.
     transitivity MAX; [auto | unfold MAX; computable]. }
 Admitted.
 
-Lemma Znth_head : forall reqs head m d, Zlength reqs <= m -> 0 <= head < m ->
-  Zlength reqs > 0 ->
-  Znth head (rotate (complete m reqs) head m) d = Znth 0 reqs d.
-Proof.
-  intros; unfold rotate.
-  assert (Zlength (sublist (m - head) (Zlength (complete m reqs)) (complete m reqs)) = head) as Hlen.
-  { rewrite Zlength_sublist; rewrite Zlength_complete; omega. }
-  rewrite app_Znth2; rewrite Hlen; [|omega].
-  rewrite Zminus_diag.
-  rewrite Znth_sublist; try omega.
-  rewrite Znth_complete; auto; omega.
-Qed.
-
-Lemma Znth_repeat : forall {A} (x : A) n i, Znth i (repeat x n) x = x.
-Proof.
-  induction n; simpl; intro.
-  - apply Znth_nil.
-  - destruct (Z_lt_dec i 0); [apply Znth_underflow; auto|].
-    destruct (eq_dec i 0); [subst; apply Znth_0_cons | rewrite Znth_pos_cons; eauto; omega].
-Qed.
-
-Lemma rotate_1 : forall v l n m, 0 <= n < m -> Zlength l < m ->
-  rotate (upd_Znth 0 (complete m (v :: l)) (Vint (Int.repr 0))) n m =
-  rotate (complete m l) ((n + 1) mod m) m.
-Proof.
-  intros.
-  unfold complete at 1; simpl.
-  unfold upd_Znth; simpl.
-  rewrite Zlength_cons; simpl.
-  rewrite sublist_1_cons, sublist_same; auto; [|omega].
-  unfold rotate.
-  rewrite Zlength_cons; simpl.
-  rewrite sublist_S_cons; [|omega].
-  rewrite sublist_0_cons; [|omega].
-  destruct (eq_dec (n + 1) m).
-  - subst; rewrite Z.mod_same; [|omega].
-    autorewrite with sublist.
-    rewrite Zlength_complete, sublist_nil; [|omega].
-    rewrite sublist_same; auto; [|rewrite Zlength_complete; omega].
-    rewrite <- app_assoc; unfold complete.
-    repeat rewrite Z2Nat.inj_add; try omega.
-    rewrite NPeano.Nat.add_sub_swap with (p := length l); [|rewrite Zlength_correct in *; Omega0].
-    rewrite repeat_plus; simpl; do 3 f_equal; omega.
-  - rewrite Zmod_small; [|omega].
-    rewrite (sublist_split (m - (n + 1)) (Zlength (complete m l) - 1)); try rewrite Zlength_complete; try omega.
-    rewrite <- app_assoc, (sublist_one (m - 1)) with (d := vint 0); try rewrite Zlength_complete; try omega; simpl.
-    assert (length l < Z.to_nat m)%nat by (rewrite Zlength_correct in *; Omega0).
-    unfold complete.
-    replace (Z.to_nat m - length l)%nat with (Z.to_nat m - S (length l) + 1)%nat; [|omega].
-    rewrite repeat_plus, app_assoc; simpl.
-    repeat rewrite Zlength_app.
-    assert (m - 1 = Zlength l + Zlength (repeat (vint 0) (Z.to_nat m - S (Datatypes.length l)))) as Heq.
-    { rewrite Zlength_repeat, Nat2Z.inj_sub, Z2Nat.id, Nat2Z.inj_succ, <- Zlength_correct; omega. }
-    rewrite (sublist_app1 _ _ _ (_ ++ _)); try rewrite Zlength_app; try omega.
-    rewrite (sublist_app1 _ _ _ (_ ++ _)); try rewrite Zlength_app; try omega.
-    f_equal; f_equal; try omega.
-    + rewrite app_Znth2, Zlength_app, Heq, Zminus_diag, Znth_0_cons; auto.
-      rewrite Zlength_app; omega.
-    + f_equal; omega.
-Qed.
-
 Lemma body_q_remove : semax_body Vprog Gprog f_q_remove q_remove_spec.
 Proof.
   start_function.
@@ -1042,27 +936,6 @@ Qed.
 
 Opaque lock_pred.
 
-Lemma upd_complete' : forall l x n, (length l < n)%nat -> 
-  upd_Znth (Zlength l) (map Vint (map Int.repr l) ++ repeat Vundef (n - length l)) (Vint (Int.repr x)) =
-  map Vint (map Int.repr (l ++ [x])) ++ repeat Vundef (n - length (l ++ [x])).
-Proof.
-  intros.
-  rewrite upd_Znth_app2; [|repeat rewrite Zlength_map; repeat rewrite Zlength_correct; omega].
-  repeat rewrite Zlength_map.
-  rewrite Zminus_diag.
-  rewrite app_length; simpl plus.
-  destruct (n - length l)%nat eqn: Hminus; [omega|].
-  replace (n - (length l + 1))%nat with n0 by omega.
-  rewrite upd_Znth0, !map_app, <- app_assoc; simpl.
-  rewrite sublist_1_cons, Zlength_cons, sublist_same; auto; omega.
-Qed.
-
-Lemma precise_False : precise (!!False).
-Proof.
-  repeat intro.
-  inversion H.
-Qed.
-
 Lemma lock_precise : forall sh p lock (Hsh : readable_share sh),
   precise (field_at sh tqueue_t [StructField _lock] lock p).
 Proof.
@@ -1205,48 +1078,6 @@ Proof.
       rewrite Znth_pos_cons; try omega; replace (i - lo - 1) with (i - Z.succ lo) by omega; auto.
 Qed.
 
-Lemma Znth_indep : forall {A} i (l : list A) d d', 0 <= i < Zlength l -> Znth i l d = Znth i l d'.
-Proof.
-  intros; unfold Znth.
-  destruct (zlt i 0); [omega|].
-  apply nth_indep.
-  rewrite Zlength_correct in *; Omega0.
-Qed.
-
-Lemma split_shares : forall n sh, readable_share sh ->
-  exists shs, Zlength shs = Z.of_nat n /\ forall i, 0 <= i < Z.of_nat n ->
-  let '(a, b) := Znth i shs (sh, sh) in
-    readable_share a /\ readable_share b /\ sepalg.join a b (fst (Znth (i + 1) shs (sh, sh))).
-Proof.
-  induction n; intros.
-  - exists []; split; auto; intros; Omega0.
-  - destruct (split_readable_share _ H) as (sh1 & sh2 & H1 & ? & ?).
-    destruct (IHn _ H1) as (shs & ? & IH).
-    exists (shs ++ [(sh1, sh2)]); split;
-      [rewrite Zlength_app, Zlength_cons, Zlength_nil, Nat2Z.inj_succ; omega | intros].
-    destruct (zlt i (Z.of_nat n)).
-    + rewrite app_Znth1; [|omega].
-      specialize (IH i).
-      rewrite Znth_indep with (d' := (sh1, sh1)); [|omega].
-      destruct (Znth i shs (sh1, sh1)).
-      destruct (zlt (i + 1) (Zlength shs)).
-      * rewrite app_Znth1; auto.
-        erewrite Znth_indep; [apply IH|]; omega.
-      * replace (i + 1) with (Zlength shs) in * by omega; rewrite app_Znth2, Zminus_diag; auto; simpl.
-        rewrite Znth_overflow in IH; auto; apply IH; omega.
-    + rewrite Nat2Z.inj_succ in *.
-      assert (i = Zlength shs) by omega; subst.
-      rewrite app_Znth2, Zminus_diag; auto; simpl; [|omega].
-      rewrite Znth_overflow; auto.
-      rewrite Zlength_app, Zlength_cons, Zlength_nil; omega.
-Qed.
-
-Fixpoint upto n :=
-  match n with
-  | O => []
-  | S n' => 0 :: map Z.succ (upto n')
-  end.
-
 Lemma lqueue_share_join : forall sh1 sh2 sh gsh p ghosts lock
   (Hsh1 : readable_share sh1) (Hsh2 : readable_share sh2) (Hjoin : sepalg.join sh1 sh2 sh),
   lqueue sh1 gsh p ghosts lock * lqueue sh2 gsh p ghosts lock = lqueue sh gsh p ghosts lock.
@@ -1257,121 +1088,6 @@ Proof.
   rewrite sepcon_comm, sepcon_assoc.
   erewrite field_at_share_join; eauto.
   rewrite sepcon_comm; auto.
-Qed.
-
-Opaque Z.of_nat.
-
-Lemma upto_app : forall n m, upto (n + m) = upto n ++ map (fun i => Z.of_nat n + i) (upto m).
-Proof.
-  induction n; simpl; intro.
-  - rewrite map_id; auto.
-  - rewrite IHn, map_app, map_map, Nat2Z.inj_succ; f_equal; f_equal.
-    apply map_ext; intro; omega.
-Qed.
-
-Lemma upto_length : forall n, length (upto n) = n.
-Proof.
-  induction n; auto; simpl.
-  rewrite map_length, IHn; auto.
-Qed.
-
-Corollary Zlength_upto : forall n, Zlength (upto n) = Z.of_nat n.
-Proof.
-  intro; rewrite Zlength_correct, upto_length; auto.
-Qed.
-
-Lemma skipn_cons : forall {A} n (l : list A) d, (length l > n)%nat ->
-  skipn n l = Znth (Z.of_nat n) l d :: skipn (S n) l.
-Proof.
-  induction n; intros; simpl; destruct l; simpl in *; try omega; auto.
-  { inversion H. }
-  rewrite Nat2Z.inj_succ.
-  rewrite Znth_pos_cons; [|omega].
-  unfold Z.succ; rewrite Z.add_simpl_r.
-  erewrite IHn; auto; omega.
-Qed.
-
-Lemma Znth_map' : forall {A B} i (f : A -> B) al b, Znth i (map f al) (f b) = f (Znth i al b).
-Proof.
-  unfold Znth; intros.
-  destruct (zlt i 0); auto.
-  apply map_nth.
-Qed.
-
-Lemma Znth_upto : forall m n, 0 <= n <= Z.of_nat m -> Znth n (upto m) (Z.of_nat m) = n.
-Proof.
-  induction m; simpl; intros.
-  - rewrite Znth_nil; simpl in *; rewrite Nat2Z.inj_0 in *; omega.
-  - destruct (eq_dec n 0).
-    + subst; apply Znth_0_cons.
-    + rewrite Nat2Z.inj_succ in *.
-      erewrite Znth_pos_cons, Znth_map', IHm; try omega.
-Qed.
-
-Transparent Z.of_nat.
-
-Lemma nth_Znth : forall {A} i l (d : A), nth i l d = Znth (Z.of_nat i) l d.
-Proof.
-  intros; unfold Znth.
-  destruct (zlt (Z.of_nat i) 0); [omega|].
-  rewrite Nat2Z.id; auto.
-Qed.
-
-Lemma Znth_combine : forall {A B} i l1 l2 (a : A) (b : B), Zlength l1 = Zlength l2 ->
-  Znth i (combine l1 l2) (a, b) = (Znth i l1 a, Znth i l2 b).
-Proof.
-  intros; unfold Znth.
-  destruct (zlt i 0); auto.
-  apply combine_nth.
-  rewrite !Zlength_correct in *; Omega0.
-Qed.
-
-Lemma combine_upd_Znth1 : forall {A B} (l1 : list A) (l2 : list B) i x d, 0 <= i < Zlength l1 ->
-  Zlength l1 = Zlength l2 -> combine (upd_Znth i l1 x) l2 = upd_Znth i (combine l1 l2) (x, Znth i l2 d).
-Proof.
-  induction l1; simpl; intros; [rewrite Zlength_nil in *; omega|].
-  destruct l2; [rewrite Zlength_nil in *; omega|].
-  rewrite !Zlength_cons in *.
-  destruct (eq_dec i 0).
-  - subst; rewrite !upd_Znth0, !Zlength_cons, !sublist_1_cons, !sublist_same; try omega; simpl.
-    rewrite Znth_0_cons; auto.
-  - rewrite !upd_Znth_cons; try omega; simpl.
-    erewrite IHl1; try omega.
-    rewrite Znth_pos_cons; auto; omega.
-Qed.
-
-Lemma Zlength_combine : forall {A B} (l : list A) (l' : list B),
-  Zlength (combine l l') = Z.min (Zlength l) (Zlength l').
-Proof.
-  intros; rewrite !Zlength_correct, combine_length, Nat2Z.inj_min; auto.
-Qed.
-
-Lemma sepcon_rev : forall l, fold_right sepcon emp (rev l) = fold_right sepcon emp l.
-Proof.
-  induction l; simpl; auto.
-  rewrite sepcon_app; simpl.
-  rewrite sepcon_emp, sepcon_comm, IHl; auto.
-Qed.
-
-Lemma data_at_shares_join : forall sh t v p shs (Hsplit : forall i, 0 <= i < Zlength shs ->
-  let '(a, b) := Znth i shs (sh, sh) in
-  readable_share a /\ readable_share b /\ sepalg.join a b (fst (Znth (i + 1) shs (sh, sh)))),
-  data_at (fst (Znth 0 shs (sh, sh))) t v p *
-  fold_right sepcon emp (map (fun sh => data_at sh t v p) (map snd shs)) =
-  data_at sh t v p.
-Proof.
-  induction shs; intros.
-  - rewrite Znth_nil; simpl; normalize.
-  - rewrite Znth_0_cons; simpl.
-    rewrite Zlength_cons in Hsplit.
-    erewrite <- sepcon_assoc, data_at_share_join.
-    apply IHshs.
-    + intros; specialize (Hsplit (i + 1)).
-      rewrite !Znth_pos_cons, !Z.add_simpl_r in Hsplit; try omega.
-      apply Hsplit; omega.
-    + specialize (Hsplit 0).
-      rewrite Znth_0_cons, Znth_pos_cons, Z.add_simpl_r in Hsplit; [|omega].
-      destruct a; apply Hsplit; rewrite Zlength_correct; omega.
 Qed.
 
 Lemma lqueue_shares_join : forall sh gsh p ghosts lock shs (Hsplit : forall i, 0 <= i < Zlength shs ->

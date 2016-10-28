@@ -32,6 +32,7 @@ Require Import sepcomp.semantics.
 Require Import sepcomp.step_lemmas.
 Require Import sepcomp.event_semantics.
 Require Import concurrency.coqlib5.
+Require Import concurrency.semax_conc_pred.
 Require Import concurrency.semax_conc.
 Require Import concurrency.juicy_machine.
 Require Import concurrency.concurrent_machine.
@@ -109,7 +110,7 @@ Definition lock_coherence (lset : AMap.t (option rmap)) (phi : rmap) (m : mem) :
     match AMap.find loc lset with
     
     (* not a lock *)
-    | None => ~isLK (phi @ loc) /\ ~isCT (phi @ loc)
+    | None => ~isLK (phi @ loc) (* /\ ~isCT (phi @ loc) *)
     
     (* locked lock *)
     | Some None =>

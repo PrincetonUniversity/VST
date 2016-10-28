@@ -33,6 +33,7 @@ Require Import sepcomp.semantics.
 Require Import sepcomp.step_lemmas.
 Require Import sepcomp.event_semantics.
 Require Import concurrency.coqlib5.
+Require Import concurrency.semax_conc_pred.
 Require Import concurrency.semax_conc.
 Require Import concurrency.juicy_machine.
 Require Import concurrency.concurrent_machine.
@@ -383,6 +384,16 @@ Proof.
   intros E; simpl.
   apply juicyRestrict_ext; auto.
 Qed.
+
+Lemma matchfunspec_common_join e Gamma phi phi' psi Phi Phi' :
+  join phi psi Phi ->
+  join phi' psi Phi' ->
+  matchfunspec e Gamma Phi ->
+  matchfunspec e Gamma Phi'.
+Proof.
+  intros j j' M b fs.
+  specialize (M b fs).
+Admitted.
 
 Tactic Notation "REWR" :=
   first
