@@ -480,7 +480,7 @@ Ltac find_SEP_clause_for p Rs i nSH nT nGfs nV nn := match Rs with
 | ?R :: ?Rest => match R with
   | field_at ?SH ?T ?gfs ?V p =>
       pose (nSH := SH); pose (nT := T); pose (nGfs := gfs); pose (nV := V); pose (nn := i); cbv in nn
-  | _ => find_SEP_clause_for p Rest (i+1) nSH nT nGfs nV nn
+  | _ => find_SEP_clause_for p Rest (S i) nSH nT nGfs nV nn
   end
 end.
 
@@ -489,39 +489,12 @@ match type of HLE with
   |-- local (`( eq (field_address ?T ?gfs ?p)) (eval_lvalue _))) =>
     let nSH := fresh "SH" in let nT := fresh "T" in let nGfs := fresh "gfs0" in let nV := fresh "V"
     in let nn := fresh "n" in
-    find_SEP_clause_for p R 0 nSH nT nGfs nV nn;
+    find_SEP_clause_for p R 0%nat nSH nT nGfs nV nn;
     evar (gfs1 : list gfield);
     let H := fresh "Hgfs" in
-    assert (gfs1 = (sublist 0 (Zlength gfs - Zlength gfs0) gfs)) as H by (cbv; reflexivity)
-end.
-
-(*
-match type of HLE with
-| (ENTAIL _, PROPx _ (LOCALx _ (SEPx ?R)) 
-  |-- local (`( eq (field_address ?T ?gfs ?p)) (eval_lvalue _))) =>
-  match R with
-  | context [ field_at ?SH ?T2 ?gfs0 ?V p ] => 
-    evar (gfs1 : list gfield);
-    let H := fresh "Hgfs" in
-    assert (gfs1 = (sublist 0 (Zlength gfs - Zlength gfs0) gfs)) as H by (cbv; reflexivity)
-  end
-end.
-*)
-
-(*
-match type of HLE with
-| (ENTAIL _, PROPx _ (LOCALx _ (SEPx ?R)) 
-  |-- local (`( eq (field_address ?T ?gfs ?p)) (eval_lvalue _))) =>
-  match R with
-  | context [ field_at ?SH ?T2 ?gfs0 ?V p ] => 
-    evar (gfs1 : list gfield);
-    let H := fresh "Hgfs" in
-    assert (gfs1 = (skipn (length gfs - length gfs0) gfs)) as H by (cbv; reflexivity)
-  end
-end.
-*)
-
-eapply semax_SC_field_load' with (n := 1%nat) (sh := ctx_sh);
+    assert (gfs1 = (sublist 0 (Zlength gfs - Zlength gfs0) gfs)) as H by (cbv; reflexivity);
+    (eapply semax_SC_field_load' with (n0 := nn) (sh := nSH) (gfs2 := nGfs) (gfs3 := gfs1);
+    subst nn nSH nGfs gfs1);
  [ reflexivity
  | reflexivity
  | idtac (* should come after gfs instantiation *)
@@ -532,24 +505,52 @@ eapply semax_SC_field_load' with (n := 1%nat) (sh := ctx_sh);
  | exact HLE
  | idtac
  | idtac
- | idtac (* solve_legal_nested_field_in_entailment fails *) ].
+ | idtac (* solve_legal_nested_field_in_entailment fails *) ]
+end.
 
+reflexivity.
 
-eapply (semax_SC_field_load' _ ctx_sh 1 _ _ _ _ _ tuint t_struct_aesctx
-[] [ArraySubsc 1; StructField _buf] [ArraySubsc 1; StructField _buf]
- ctx (Vint (Int.repr k2)));
-  first [ apply JMeq_refl | reflexivity | assumption | idtac ].
-{ entailer!.
-  (* TODO floyd why doesn't entailer do this automatically? *)
-  do 2 rewrite field_compatible_field_address by auto with field_compatible. simpl.
-  destruct ctx; inversion PNctx. reflexivity. simpl. rewrite Int.add_assoc.
-  reflexivity. }
-{ entailer!. apply field_address_isptr. admit. admit. (* TODO isptr field_address *) }
-{ entailer!.
-  (* TODO floyd why doesn't entailer do in_members? *)
- rewrite <- compute_in_members_true_iff. reflexivity. }
+reflexivity.
+
+cbv [nth_error]. reflexivity.
+
+eapply JMeq_refl.
+
+entailer!.
+
+Ltac solve_legal_nested_field_in_entailment' :=
+(* same as solve_legal_nested_field_in_entailment but without these lines commented out:
+   match goal with
+   | |- _ |-- !! legal_nested_field ?t_root (?gfs1 ++ ?gfs0) =>
+    unfold t_root, gfs0, gfs1
+  end;
+*)
+  first
+  [ apply prop_right; apply compute_legal_nested_field_spec';
+    match goal with
+  | |- Forall ?F _ =>
+      let F0 := fresh "F" in
+      remember F as F0;
+      simpl;
+      subst F0
+  end;
+  repeat constructor; omega
+  |
+  apply compute_legal_nested_field_spec;
+  match goal with
+  | |- Forall ?F _ =>
+      let F0 := fresh "F" in
+      remember F as F0;
+      simpl;
+      subst F0
+  end;
+  repeat constructor;
+  try solve [apply prop_right; auto; omega];
+  try solve [normalize; apply prop_right; auto; omega]
+  ].
+
+solve_legal_nested_field_in_entailment'.
 }
-
 thaw Fr.
 freeze_except (data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input) Fr.
   unfold MORE_COMMANDS. unfold abbreviate.
