@@ -298,9 +298,6 @@ Proof.
     eapply sepalg.join_eq; auto.
 Qed.
 
-Ltac join_inj := repeat match goal with H1 : sepalg.join ?a ?b ?c, H2 : sepalg.join ?a ?b ?d |- _ =>
-    pose proof (sepalg.join_eq H1 H2); clear H1 H2; subst; auto end.
-
 Lemma tqueue_inj : forall r buf1 buf2 len1 len2 head1 head2 tail1 tail2 next1 next2 addc1 addc2 remc1 remc2
   p r1 r2
   (Hp1 : predicates_hered.app_pred(A := compcert_rmaps.R.rmap)
