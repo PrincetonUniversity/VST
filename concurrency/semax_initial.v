@@ -195,12 +195,10 @@ Section Initial_State.
     - (*! lock coherence (no locks at first) *)
       intros lock.
       rewrite threadPool.find_empty.
-      split; intros (sh & sh' & z & P & E); revert E; unfold jm;
+      (* split; *) intros (sh & sh' & z & P & E); revert E; unfold jm;
       match goal with
         |- context [proj1_sig ?x] => destruct x as (jm' & jmm & lev & S & nolocks)
-      end; simpl.
-      + apply nolocks.
-      + apply nolocks.
+      end; simpl; apply nolocks.
     
     - (*! safety of the only thread *)
       intros i cnti ora.

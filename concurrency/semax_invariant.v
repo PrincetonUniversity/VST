@@ -110,7 +110,7 @@ Definition lock_coherence (lset : AMap.t (option rmap)) (phi : rmap) (m : mem) :
     match AMap.find loc lset with
     
     (* not a lock *)
-    | None => ~isLK (phi @ loc) /\ ~isCT (phi @ loc)
+    | None => ~isLK (phi @ loc) (* /\ ~isCT (phi @ loc) *)
     
     (* locked lock *)
     | Some None =>

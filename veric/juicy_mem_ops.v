@@ -190,8 +190,6 @@ if_tac.
  left; contradict n; auto.
  +
  unfold max_access_at in *.
- pose proof (nextblock_alloc _ _ _ _ _ H).
- rewrite H4.
  destruct loc as [b' z']; simpl in *.
  rewrite <- (alloc_access_other _ _ _ _ _ H b' z' Max).
  destruct k; auto; apply Plt_trans_succ; auto.

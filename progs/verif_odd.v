@@ -36,8 +36,11 @@ Lemma all_funcs_correct:
 Proof.
 unfold Gprog, prog, prog_funct; simpl.
 repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
-semax_func_cons_ext. renormalize.
-  apply (temp_make_ext_rval_e gx (Vint (if Z.even x then Int.one else Int.zero)) ret) in H; try congruence.
-  subst; simpl; entailer.
+semax_func_cons_ext. {
+ rewrite <- insert_local.
+ rewrite lower_andp.
+ apply derives_extract_prop; intro.
+ hnf in H0. rewrite retval_ext_rval in H0. rewrite <- H0. entailer!.
+}
 semax_func_cons body_odd.
 Qed.

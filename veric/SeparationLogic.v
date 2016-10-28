@@ -199,6 +199,10 @@ Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric 
 
 Fixpoint ext_link_prog' (dl: list (ident * globdef fundef type)) (s: String.string) : ident :=
  match dl with
+ | (id, Gfun (External EF_malloc _ _ _)) :: dl' =>
+      if String.string_dec s "_malloc" then id else ext_link_prog' dl' s
+ | (id, Gfun (External EF_free _ _ _)) :: dl' =>
+      if String.string_dec s "_free" then id else ext_link_prog' dl' s
  | (id, Gfun (External (EF_external s' _) _ _ _)) :: dl' => 
       if String.string_dec s s' then id else ext_link_prog' dl' s
  | (id, Gfun (External (EF_builtin s' _) _ _ _)) :: dl' => 

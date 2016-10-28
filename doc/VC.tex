@@ -1908,6 +1908,7 @@ The postcondition (after the load) would include the new \LOCAL fact,
 \lstinline{temp _i x2}.
 
 The tactic \lstinline{(unfold_data_at 1%nat)}
+\label{refcard:unfold-data-at}
 changes the SEP part of the assertion as follows:
 \begin{lstlisting}
 SEP(field_at Ews t_struct_b (DOT _y1) (Vint y1) pb;
@@ -2067,6 +2068,8 @@ saturate-local facts for \emph{each} of the $R_i$,
 though it avoids adding duplicate hypotheses above the line.
 
 \chapter{field\_compatible, field\_address}
+\label{refcard:field-compatible}
+\label{refcard:field-address}
 CompCert C light comes with an ``address calculus.''
 Consider this example:
 \begin{lstlisting}
@@ -2111,7 +2114,7 @@ a pure proposition, independent of the \emph{contents} of memory.
 
 In order to assist with reasoning about reassembly of data structures,
 \lstinline{saturate_local} (and therefore \lstinline{entailer})
-put \lstinline{field_compatible} assertions above the line;
+puts \lstinline{field_compatible} assertions above the line;
 see \autoref{refcard:saturate-local}.
 
 Sometimes one needs to name the address of an internal field---for example,
@@ -2203,7 +2206,7 @@ TC1: 0 <= Int.unsigned c <= Byte.max_unsigned
 TC2: Byte.min_signed <= Int.signed c <= Byte.max_signed
 \end{lstlisting}
 
-\ychapter{Cancel}{(PLCC Ch.~\ref{ch:clight-auto})}
+\ychapter{cancel}{(PLCC Ch.~\ref{ch:clight-auto})}
 \label{refcard:cancel}
 
 The \lstinline{cancel} tactic proves
@@ -2297,7 +2300,7 @@ At this point, \lstinline{entailer} tries \lstinline{normalize} and (if progress
 
 The result is that either the goal is entirely solved, or a residual entailment or proposition is left for the user to prove.
 
-\chapter{Normalize}
+\chapter{normalize}
 \label{refcard:normalize}
 The \lstinline{normalize} tactic performs
 \lstinline{autorewrite with norm} and several other transformations.
@@ -3494,6 +3497,7 @@ We write this as,
 That is, given a pointer $p$ to a data structure described
 by \lstinline{(tarray tint $k$)},
 calculate the \emph{address} for subscripting the $i$th element.
+(See \autoref{refcard:field-address})
 
 As shown in the \lstinline{body_main} proof in
 \file{progs/verif\_sumarray2.v},
@@ -4119,6 +4123,19 @@ statement that can be copy-and pasted to a separate file.
 The three arguments should be copied from the 
 statement of surrounding semax-body
 lemma: $V:\mathsf{varspecs}, G:\mathsf{funspecs}, F:\mathsf{function}$. 
+
+
+\item[\textsf{unfold\_data\_at}]
+  (tactic; \autopageref{refcard:unfold-data-at})
+  When $t$ is a struct (or array) type,
+  break apart \lstinline{data_at $\mathit{sh}$ $t$ $v$ $p$} into
+  a separating conjunction of its individual fields (or array elements).
+  
+\item[\textsf{unfold\_field\_at}]
+  (tactic; \autopageref{refcard:unfold-data-at})
+  Like \lstinline{unfold_data_at}, but starts with
+  \lstinline{field_at $\mathit{sh}$ $t$ $\mathit{path}$ $v$ $p$}.
+  
 \end{description}
 
 

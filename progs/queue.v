@@ -1,7 +1,7 @@
 
 Require Import Clightdefs.
 Local Open Scope Z_scope.
-Definition _Q : ident := 58%positive.
+Definition _Q : ident := 62%positive.
 Definition ___builtin_annot : ident := 10%positive.
 Definition ___builtin_annot_intval : ident := 11%positive.
 Definition ___builtin_bswap : ident := 34%positive.
@@ -53,28 +53,51 @@ Definition ___i64_utof : ident := 26%positive.
 Definition _a : ident := 1%positive.
 Definition _b : ident := 2%positive.
 Definition _elem : ident := 3%positive.
+Definition _exit : ident := 58%positive.
 Definition _fifo : ident := 7%positive.
-Definition _fifo_empty : ident := 64%positive.
-Definition _fifo_get : ident := 66%positive.
-Definition _fifo_new : ident := 59%positive.
-Definition _fifo_put : ident := 63%positive.
-Definition _freeN : ident := 57%positive.
-Definition _h : ident := 61%positive.
+Definition _fifo_empty : ident := 67%positive.
+Definition _fifo_get : ident := 68%positive.
+Definition _fifo_new : ident := 63%positive.
+Definition _fifo_put : ident := 66%positive.
+Definition _free : ident := 57%positive.
+Definition _h : ident := 64%positive.
 Definition _head : ident := 5%positive.
-Definition _i : ident := 68%positive.
-Definition _j : ident := 69%positive.
-Definition _main : ident := 70%positive.
-Definition _make_elem : ident := 67%positive.
-Definition _mallocN : ident := 56%positive.
-Definition _n : ident := 65%positive.
+Definition _i : ident := 70%positive.
+Definition _j : ident := 71%positive.
+Definition _main : ident := 72%positive.
+Definition _make_elem : ident := 69%positive.
+Definition _malloc : ident := 56%positive.
+Definition _n : ident := 59%positive.
 Definition _next : ident := 4%positive.
 Definition _p : ident := 60%positive.
-Definition _t : ident := 62%positive.
+Definition _surely_malloc : ident := 61%positive.
+Definition _t : ident := 65%positive.
 Definition _tail : ident := 6%positive.
-Definition _t'1 : ident := 71%positive.
-Definition _t'2 : ident := 72%positive.
-Definition _t'3 : ident := 73%positive.
-Definition _t'4 : ident := 74%positive.
+Definition _t'1 : ident := 73%positive.
+Definition _t'2 : ident := 74%positive.
+Definition _t'3 : ident := 75%positive.
+Definition _t'4 : ident := 76%positive.
+
+Definition f_surely_malloc := {|
+  fn_return := (tptr tvoid);
+  fn_callconv := cc_default;
+  fn_params := ((_n, tuint) :: nil);
+  fn_vars := nil;
+  fn_temps := ((_p, (tptr tvoid)) :: (_t'1, (tptr tvoid)) :: nil);
+  fn_body :=
+(Ssequence
+  (Ssequence
+    (Scall (Some _t'1)
+      (Evar _malloc (Tfunction (Tcons tuint Tnil) (tptr tvoid) cc_default))
+      ((Etempvar _n tuint) :: nil))
+    (Sset _p (Etempvar _t'1 (tptr tvoid))))
+  (Ssequence
+    (Sifthenelse (Eunop Onotbool (Etempvar _p (tptr tvoid)) tint)
+      (Scall None (Evar _exit (Tfunction (Tcons tint Tnil) tvoid cc_default))
+        ((Econst_int (Int.repr 1) tint) :: nil))
+      Sskip)
+    (Sreturn (Some (Etempvar _p (tptr tvoid))))))
+|}.
 
 Definition f_fifo_new := {|
   fn_return := (tptr (Tstruct _fifo noattr));
@@ -87,7 +110,8 @@ Definition f_fifo_new := {|
 (Ssequence
   (Ssequence
     (Scall (Some _t'1)
-      (Evar _mallocN (Tfunction (Tcons tint Tnil) (tptr tvoid) cc_default))
+      (Evar _surely_malloc (Tfunction (Tcons tuint Tnil) (tptr tvoid)
+                             cc_default))
       ((Esizeof (Tstruct _fifo noattr) tuint) :: nil))
     (Sset _Q
       (Ecast (Etempvar _t'1 (tptr tvoid)) (tptr (Tstruct _fifo noattr)))))
@@ -211,7 +235,8 @@ Definition f_make_elem := {|
 (Ssequence
   (Ssequence
     (Scall (Some _t'1)
-      (Evar _mallocN (Tfunction (Tcons tint Tnil) (tptr tvoid) cc_default))
+      (Evar _surely_malloc (Tfunction (Tcons tuint Tnil) (tptr tvoid)
+                             cc_default))
       ((Esizeof (Tstruct _elem noattr) tuint) :: nil))
     (Sset _p (Etempvar _t'1 (tptr tvoid))))
   (Ssequence
@@ -300,11 +325,9 @@ Definition f_main := {|
                         (Tstruct _elem noattr)) _b tint))
                   (Ssequence
                     (Scall None
-                      (Evar _freeN (Tfunction
-                                     (Tcons (tptr tvoid) (Tcons tint Tnil))
-                                     tvoid cc_default))
-                      ((Etempvar _p (tptr (Tstruct _elem noattr))) ::
-                       (Esizeof (Tstruct _elem noattr) tuint) :: nil))
+                      (Evar _free (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
+                                    cc_default))
+                      ((Etempvar _p (tptr (Tstruct _elem noattr))) :: nil))
                     (Sreturn (Some (Ebinop Oadd (Etempvar _i tint)
                                      (Etempvar _j tint) tint))))))))))))
   (Sreturn (Some (Econst_int (Int.repr 0) tint))))
@@ -549,15 +572,15 @@ prog_defs :=
                      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
      (Tcons tint Tnil) tvoid
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
- (_mallocN,
-   Gfun(External (EF_external "mallocN"
-                   (mksignature (AST.Tint :: nil) (Some AST.Tint) cc_default))
-     (Tcons tint Tnil) (tptr tvoid) cc_default)) ::
- (_freeN,
-   Gfun(External (EF_external "freeN"
-                   (mksignature (AST.Tint :: AST.Tint :: nil) None
-                     cc_default)) (Tcons (tptr tvoid) (Tcons tint Tnil))
-     tvoid cc_default)) :: (_fifo_new, Gfun(Internal f_fifo_new)) ::
+ (_malloc,
+   Gfun(External EF_malloc (Tcons tuint Tnil) (tptr tvoid) cc_default)) ::
+ (_free, Gfun(External EF_free (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
+ (_exit,
+   Gfun(External (EF_external "exit"
+                   (mksignature (AST.Tint :: nil) None cc_default))
+     (Tcons tint Tnil) tvoid cc_default)) ::
+ (_surely_malloc, Gfun(Internal f_surely_malloc)) ::
+ (_fifo_new, Gfun(Internal f_fifo_new)) ::
  (_fifo_put, Gfun(Internal f_fifo_put)) ::
  (_fifo_empty, Gfun(Internal f_fifo_empty)) ::
  (_fifo_get, Gfun(Internal f_fifo_get)) ::
@@ -565,21 +588,22 @@ prog_defs :=
  (_main, Gfun(Internal f_main)) :: nil);
 prog_public :=
 (_main :: _make_elem :: _fifo_get :: _fifo_empty :: _fifo_put :: _fifo_new ::
- _freeN :: _mallocN :: ___builtin_debug :: ___builtin_nop ::
- ___builtin_write32_reversed :: ___builtin_write16_reversed ::
- ___builtin_read32_reversed :: ___builtin_read16_reversed ::
- ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::
- ___builtin_fmadd :: ___builtin_fmin :: ___builtin_fmax ::
- ___builtin_fsqrt :: ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz ::
- ___builtin_clzll :: ___builtin_clzl :: ___builtin_clz ::
- ___builtin_bswap16 :: ___builtin_bswap32 :: ___builtin_bswap ::
- ___i64_sar :: ___i64_shr :: ___i64_shl :: ___i64_umod :: ___i64_smod ::
- ___i64_udiv :: ___i64_sdiv :: ___i64_utof :: ___i64_stof :: ___i64_utod ::
- ___i64_stod :: ___i64_dtou :: ___i64_dtos :: ___compcert_va_composite ::
- ___compcert_va_float64 :: ___compcert_va_int64 :: ___compcert_va_int32 ::
- ___builtin_va_end :: ___builtin_va_copy :: ___builtin_va_arg ::
- ___builtin_va_start :: ___builtin_membar :: ___builtin_annot_intval ::
- ___builtin_annot :: ___builtin_memcpy_aligned :: ___builtin_fabs :: nil);
+ _surely_malloc :: _exit :: _free :: _malloc :: ___builtin_debug ::
+ ___builtin_nop :: ___builtin_write32_reversed ::
+ ___builtin_write16_reversed :: ___builtin_read32_reversed ::
+ ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::
+ ___builtin_fmsub :: ___builtin_fmadd :: ___builtin_fmin ::
+ ___builtin_fmax :: ___builtin_fsqrt :: ___builtin_ctzll ::
+ ___builtin_ctzl :: ___builtin_ctz :: ___builtin_clzll :: ___builtin_clzl ::
+ ___builtin_clz :: ___builtin_bswap16 :: ___builtin_bswap32 ::
+ ___builtin_bswap :: ___i64_sar :: ___i64_shr :: ___i64_shl :: ___i64_umod ::
+ ___i64_smod :: ___i64_udiv :: ___i64_sdiv :: ___i64_utof :: ___i64_stof ::
+ ___i64_utod :: ___i64_stod :: ___i64_dtou :: ___i64_dtos ::
+ ___compcert_va_composite :: ___compcert_va_float64 ::
+ ___compcert_va_int64 :: ___compcert_va_int32 :: ___builtin_va_end ::
+ ___builtin_va_copy :: ___builtin_va_arg :: ___builtin_va_start ::
+ ___builtin_membar :: ___builtin_annot_intval :: ___builtin_annot ::
+ ___builtin_memcpy_aligned :: ___builtin_fabs :: nil);
 prog_main := _main;
 prog_types := composites;
 prog_comp_env := make_composite_env composites;
