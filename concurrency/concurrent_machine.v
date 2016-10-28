@@ -1368,7 +1368,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   
 End CoarseMachine.
 
-Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module ThreadPool.TID:=SCH.TID with Module Events.TID:=SCH.TID)<: ConcurrentMachine with Module SCH:= SCH with Module SIG:= SIG.
+Module FineMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module ThreadPool.TID:=SCH.TID with Module Events.TID:=SCH.TID)<: ConcurrentMachine with Module SCH:= SCH with Module SIG:= SIG.
   Module SCH:=SCH.
   Module SIG:=SIG.
   Import SCH SIG TID ThreadPool ThreadPool.SEM Events.
@@ -1619,8 +1619,8 @@ footprints of permissions moved  when applicable*)
     match ev with
     | internal _ mev =>
       match mev with
-      | event_semantics.Write b ofs vs => Some ((b, ofs), size vs)
-      | event_semantics.Read b ofs _ vs => Some ((b, ofs), size vs)
+      | event_semantics.Write b ofs vs => Some ((b, ofs), length vs)
+      | event_semantics.Read b ofs _ vs => Some ((b, ofs), length vs)
       | _ => None
       end 
     | external _ sev =>
