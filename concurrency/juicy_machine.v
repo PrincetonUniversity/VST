@@ -639,7 +639,7 @@ Qed.
         intro H; inversion H.
     Qed.
     
-    Lemma juicyRestrictAccCoh: forall phi m (coh:access_cohere' m phi),
+    Lemma juicyRestrictAccCoh': forall phi m (coh:access_cohere' m phi),
         access_cohere (juicyRestrict coh) phi.
     Proof.
       unfold access_cohere; intros.
@@ -647,6 +647,33 @@ Qed.
       destruct ((perm_of_res (phi @ loc))) eqn:HH; try rewrite HH; simpl; reflexivity.
     Qed.
 
+    Lemma max_acc_coh_acc_coh: forall m phi,
+        max_access_cohere m phi -> access_cohere' m phi.
+    Proof.
+      move=> m phi mac loc.
+      move: mac => /(_ loc).
+      rewrite /perm_of_res /perm_of_sh.
+      destruct (phi @ loc) eqn:HH.
+      destruct (eq_dec Share.bot Share.top) as [e|n]; [exfalso; apply Share.nontrivial; symmetry; assumption|].
+      
+      
+      - move: mac.
+    
+    Lemma juicyRestrictAccCoh: forall phi m (coh:max_access_cohere m phi),
+        access_cohere (juicyRestrict coh) phi.
+    Proof.
+      unfold access_cohere; intros.
+      rewrite juicyRestrictCurEq.
+      destruct ((perm_of_res (phi @ loc))) eqn:HH; try rewrite HH; simpl; reflexivity.
+    Qed.
+
+    Lemma mem_access_coh_sub: forall phi1 phi2 m,
+          max_access_cohere m phi1 ->
+          join_sub phi2 phi1 ->
+          max_access_cohere m phi2.
+    Proof.
+    Admitted.
+    
     Lemma mem_cohere_sub: forall phi1 phi2 m,
           mem_cohere' m phi1 ->
           join_sub phi2 phi1 ->
@@ -661,37 +688,13 @@ Qed.
         inversion H0; subst.
         + symmetry in H. apply cont_coh0 in H; assumption.
         + symmetry in H6; apply cont_coh0 in H6; assumption.
-      - intros loc.
+      (* - intros loc.
         eapply resource_at_join_sub with (l:= loc) in H0.
         eapply po_join_sub  in H0.
         eapply po_trans; eauto.
-        inversion H; auto.
-      - intros loc.
-        inversion H. clear - H0 max_coh0 acc_coh0.
-        eapply resource_at_join_sub with (l:= loc) in H0.
-        destruct H0 as [X HH].
-        specialize (max_coh0 loc).
-        specialize (acc_coh0 loc).
-        destruct (phi2 @ loc) eqn: MAP2.
-        + eapply po_trans; eauto.
-          replace (perm_of_sh t0 Share.bot) with (perm_of_res (NO t0)).
-          eapply po_join_sub. eapply join_join_sub; eauto.
-          { assert (Share.bot <> Share.top).
-            { intros HHH; apply Share.nontrivial; auto. }
-            unfold perm_of_sh. rewrite if_false; auto.
-            rewrite if_true; auto.
-          }
-        + destruct k;
-          try solve[inversion HH; subst; auto;
-            match goal with [H: _ = phi1 @ _ |- _] =>
-                            rewrite <- H in max_coh0 end; auto].
-          *  replace (perm_of_sh t0 (pshare_sh p)) with (perm_of_res (YES t0 p (VAL m0) p0)) by
-                reflexivity.
-             eapply po_trans; eauto.
-             eapply po_join_sub. eapply join_join_sub; eauto.
-          * inversion HH; subst; auto;
-            match goal with [H: _ = phi1 @ _ |- _] =>
-                            rewrite <- H in max_coh0 end; auto.
+        inversion H; auto. *)
+      - inversion H.
+        eapply mem_access_coh_sub; eauto.
       - unfold alloc_cohere.
         inversion H. clear - H0 all_coh0.
         intros loc HH; apply all_coh0 in HH.
@@ -789,7 +792,13 @@ Admitted.
     
     (* PERSONAL MEM: Is the contents of the global memory, 
        with the juice of a single thread and the Cur that corresponds to that juice.*)
-    Definition personal_mem {m phi} (pr : mem_cohere' m phi) : juicy_mem :=
+    Definition personal_mem {m phi} (pr : mem_cohere' m phi) : juicy_mem.
+    Proof.
+      inversion pr.
+      eapply mkJuicyMem; eauto.
+      intros loc.
+      inversion pr; eauto.      eapply (juicyRestrictContentCoh (acc_coh0 pr) (cont_coh pr)).
+                                                                 
       mkJuicyMem
         (@juicyRestrict phi m (acc_coh pr))
         phi
