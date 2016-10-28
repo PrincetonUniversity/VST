@@ -173,6 +173,23 @@ Module Concur.
     (** The state respects the memory*)
     Definition access_cohere' m phi:= forall loc,
         Mem.perm_order'' (max_access_at m loc) (perm_of_res (phi @ loc)).
+    (*Move this*)
+     Definition lock_perm_of_res (r: resource) := 
+    (*  perm_of_sh (res_retain' r) (valshare r). *)
+    match r with
+    | NO sh => None
+    | PURE _ _ => Some Nonempty
+    | YES rsh sh (LK _) _ => perm_of_sh rsh (pshare_sh sh)
+    | YES rsh sh (CT _) _ => perm_of_sh rsh (pshare_sh sh)
+    | YES rsh sh _ _ => None
+    end.
+     Lemma lock_po_join_sub: forall r1 r2 : resource,
+       join_sub r2 r1 ->
+       Mem.perm_order'' (lock_perm_of_res r1) (lock_perm_of_res r2).
+     Proof.
+     Admitted.
+    Definition access_cohere_lock m phi:= forall loc,
+        Mem.perm_order'' (max_access_at m loc) (lock_perm_of_res (phi @ loc)).
 
     (* This is similar to the coherence of juicy memories, *
      * but for entire machines. It is slighly weaker in one way:
@@ -182,6 +199,7 @@ Module Concur.
       { cont_coh: contents_cohere m phi;
         (*acc_coh: access_cohere m phi;*)
         acc_coh: access_cohere' m phi;
+        acc_coh_loc: access_cohere_lock m phi;
         max_coh: max_access_cohere m phi;
         all_coh: alloc_cohere m phi
       }.
@@ -664,6 +682,11 @@ Qed.
       - intros loc.
         eapply resource_at_join_sub with (l:= loc) in H0.
         eapply po_join_sub  in H0.
+        eapply po_trans; eauto.
+        inversion H; auto.
+      - intros loc.
+        eapply resource_at_join_sub with (l:= loc) in H0.
+        eapply lock_po_join_sub  in H0.
         eapply po_trans; eauto.
         inversion H; auto.
       - intros loc.
@@ -1499,6 +1522,25 @@ Admitted.
       { apply po_join_sub.
         apply resource_at_join_sub. eapply compatible_lockRes_sub; eauto. }
     Qed.
+
+    Lemma compat_lockLT_locks: forall js m,
+             mem_compatible js m ->
+             forall l r,
+             ThreadPool.lockRes js l = Some (Some r) ->
+             forall b ofs,
+               Mem.perm_order'' ((getMaxPerm m) !! b ofs) (lock_perm_of_res (r @ (b, ofs))).
+    Proof.
+      intros. destruct H as [allj H].
+      inversion H.
+      cut (Mem.perm_order'' (lock_perm_of_res (allj @ (b,ofs))) (lock_perm_of_res (r @ (b, ofs)))).
+      {intros AA. eapply po_trans; eauto.
+       inversion all_cohere0.
+       specialize (acc_coh_loc0 (b, ofs)).
+       rewrite getMaxPerm_correct.
+       apply acc_coh_loc0. }
+      { apply lock_po_join_sub.
+        apply resource_at_join_sub. eapply compatible_lockRes_sub; eauto. }
+    Qed.
     
     Lemma access_cohere_sub': forall phi1 phi2 m,
         access_cohere' m phi1 ->
@@ -1513,8 +1555,10 @@ Admitted.
     Qed.
       
       
-      
-      Lemma mem_cohere'_juicy_mem jm : mem_cohere' (m_dry jm) (m_phi jm).
+      (* This lemma is not true anymore... but It should.
+         could we change the coherenece of juicy memories?
+       *)
+      (* Lemma mem_cohere'_juicy_mem jm : mem_cohere' (m_dry jm) (m_phi jm).
       Proof.
         destruct jm as [m phi C A M L]; simpl.
         constructor; auto; [].
@@ -1530,8 +1574,7 @@ Admitted.
           now auto.
           all: rewrite <- A.
           all: now apply Mem.access_max.
-      Qed.
-      
+      Qed. *)
       
       
       Lemma compatible_threadRes_join:
@@ -1770,6 +1813,22 @@ Admitted.
         rewrite perm_of_age.
         apply B.
       Qed.
+
+      Lemma lock_perm_of_age
+        : forall (rm : rmap) (age : nat) (loc : AV.address),
+          lock_perm_of_res (@age_to age rmap ag_rmap rm @ loc) =
+          lock_perm_of_res (rm @ loc).
+      Admitted.
+      Lemma access_cohere_lock_age m : hereditary age (access_cohere_lock m).
+      Proof.
+        intros x y E B.
+        intros addr.
+        destruct (age1_levelS _ _ E) as [n L].
+        eapply (age_age_to n) in E; auto.
+        rewrite <-E.
+        rewrite lock_perm_of_age.
+        apply B.
+      Qed.
       
       Lemma mem_cohere'_age m : hereditary age (mem_cohere' m).
       Proof.
@@ -1777,6 +1836,7 @@ Admitted.
         intros [A B C D]; constructor.
         - eapply contents_cohere_age; eauto.
         - eapply access_cohere'_age; eauto.
+        - eapply access_cohere_lock_age; eauto.
         - eapply max_access_cohere_age; eauto.
         - eapply alloc_cohere_age; eauto.
       Qed.

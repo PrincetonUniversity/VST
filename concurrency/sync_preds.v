@@ -276,11 +276,17 @@ Lemma mem_cohere_same_except_cur m m' phi :
   mem_cohere' m phi ->
   mem_cohere' m' phi.
 Proof.
-  intros (ECo & EMa & EN) [Co Ac Ma N]; constructor.
+  intros (ECo & EMa & EN) [Co Ac Acl Ma N]; constructor.
   - hnf in *.
     unfold contents_at in *.
     rewrite <-ECo. auto.
   - unfold access_cohere' in *.
+    unfold max_access_at in *.
+    intros.
+    apply equal_f with (x := loc) in EMa.
+    rewrite <-EMa.
+    auto.
+  - unfold access_cohere_lock in *.
     unfold max_access_at in *.
     intros.
     apply equal_f with (x := loc) in EMa.
