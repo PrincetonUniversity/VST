@@ -133,10 +133,10 @@ Module X86CoreErasure <: CoreErasure X86SEM.
   Lemma after_external_erase :
     forall v v' c c' c2
       (HeraseCores: core_erasure c c')
-      (HeraseVal: val_erasure v v')
-      (Hafter_external: after_external X86SEM.Sem (Some v) c = Some c2),
+      (HeraseVal: optionval_erasure v v')
+      (Hafter_external: after_external X86SEM.Sem v c = Some c2),
     exists (c2' : state),
-      after_external X86SEM.Sem (Some v') c' = Some c2' /\
+      after_external X86SEM.Sem v' c' = Some c2' /\
       core_erasure c2 c2'.
   Proof.
     intros.
@@ -144,16 +144,19 @@ Module X86CoreErasure <: CoreErasure X86SEM.
     simpl in *.
     unfold Asm_after_external in *.
     destruct c; try discriminate.
-    inv Hafter_external.
     unfold core_erasure in HeraseCores.
     destruct c'; try by exfalso.
     destruct HeraseCores as (? & ? & ? &?); subst.
     unfold loader_erasure in H2; subst.
-    eexists; split; eauto.
-    simpl.
-    split; [|unfold loader_erasure; auto].      
+    destruct v;
+    inv Hafter_external;
+    destruct v' as [v'|];
+      simpl in HeraseVal; try (by exfalso);
+    eexists; split; eauto;
+    simpl;
+    split; try (unfold loader_erasure; now auto);
     destruct (loc_external_result (ef_sig f0)) as [|r' regs];
-      simpl.
+      simpl;
     eauto with regs_erasure val_erasure.
     destruct (sig_res (ef_sig f0)) as [ty|];
       try destruct ty;

@@ -13,6 +13,7 @@ Require Import veric.tycontext.
 Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
 Require Import veric.coqlib4.
+Require Import concurrency.lksize.
 Require Import concurrency.age_to.
 Require Import concurrency.aging_lemmas.
 Require Import concurrency.sync_preds_defs.
@@ -46,7 +47,6 @@ Proof.
   destruct R as [N [R|[R|[R|R]]]].
   - rewrite <- R.
     unfold resource_fmap in *; f_equal.
-    apply preds_fmap_NoneP.
   - destruct R as [sh' [v [v' [R H]]]]. simpl in R. congruence.
   - destruct R as [v [v' R]]. specialize (N ltac:(auto)). congruence.
   - destruct R as [v [pp' [R H]]]. congruence.
@@ -100,7 +100,7 @@ Lemma resource_decay_LK_at {b phi phi' R sh loc} :
 Proof.
   intros RD LT LKAT loc'.
   specialize (LKAT loc').
-  destruct (adr_range_dec loc lock_size loc') as [range|notrange]; swap 1 2.
+  destruct (adr_range_dec loc LKSIZE loc') as [range|notrange]; swap 1 2.
   - rewrite jam_false in *; auto.
   - rewrite jam_true in *; auto.
     destruct (eq_dec loc loc') as [<-|noteq].
@@ -127,7 +127,7 @@ Lemma resource_decay_LK_at' {b phi phi' R sh loc} :
 Proof.
   intros RD LT LKAT loc'.
   specialize (LKAT loc').
-  destruct (adr_range_dec loc lock_size loc') as [range|notrange]; swap 1 2.
+  destruct (adr_range_dec loc LKSIZE loc') as [range|notrange]; swap 1 2.
   - rewrite jam_false in *; auto.
   - rewrite jam_true in *; auto.
     destruct (eq_dec loc loc') as [<-|noteq].
@@ -139,10 +139,11 @@ Proof.
       rewrite E.
       f_equal.
       simpl.
-      rewrite <- compose_assoc.
-      rewrite approx_oo_approx'. 2:apply RD.
       f_equal.
       extensionality.
+      change (approx (level phi') (approx (level phi) R)) with
+       ((approx (level phi') oo approx (level phi)) R).
+      rewrite approx_oo_approx' by apply RD.
       unfold "oo".
       change (approx (level phi')   (approx (level phi')  R))
       with  ((approx (level phi') oo approx (level phi')) R).

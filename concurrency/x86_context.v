@@ -1,4 +1,4 @@
-(** ** Instantiating the dry and erased machine for X86*)
+(** * Instantiating the dry and erased machine for X86*)
 
 Require Import concurrency.dry_machine.
 Require Import concurrency.erased_machine.
@@ -48,21 +48,21 @@ Module X86Context <: AsmContext X86SEM X86Machines.
   Parameter the_program: Asm.program.
   
   Definition init_mem := Genv.init_mem the_program.
-  Definition init_perm : option access_map :=
+  Definition init_perm : option (access_map * access_map) :=
     match init_mem with
-    | Some m => Some (getCurPerm m)
+    | Some m => Some (getCurPerm m, empty_map)
     | None => None
     end.
   
   Definition the_ge := Globalenvs.Genv.globalenv the_program.
   
   Definition coarse_semantics:=
-    DryConc.MachineSemantics initU init_perm.
+      DryConc.MachineSemantics initU init_perm.
   
   Definition fine_semantics:=
-    FineConc.MachineSemantics initU init_perm.
-  
-  Definition sc_semantics :=
+      FineConc.MachineSemantics initU init_perm.
+
+    Definition sc_semantics :=
     SC.MachineSemantics initU None.
 
   Definition tpc_init f arg := initial_core coarse_semantics the_ge f arg.

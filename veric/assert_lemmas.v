@@ -258,11 +258,39 @@ Proof.
   rewrite core_PURE; rewrite level_core; auto.
 Qed.
 
+Lemma corable_func_at: forall f l, corable (func_at f l).
+Proof.
+  intros.
+  unfold func_at.
+  destruct f as [fsig0 cc A P Q].
+  apply corable_pureat.
+Qed.
+
+Lemma corable_func_at': forall f l, corable (func_at' f l).
+Proof.
+  intros.
+  unfold func_at'.
+  destruct f as [fsig0 cc A P Q].
+  apply corable_exp; intro.
+  apply corable_pureat.
+Qed.
+
+Lemma corable_func_ptr : forall f v, corable (func_ptr f v).
+Proof.
+  intros.
+  unfold func_ptr.
+  apply corable_exp; intro.
+  apply corable_andp; auto.
+  apply corable_func_at.
+Qed.
+
+Hint Resolve corable_func_ptr.
+
 Lemma corable_funassert:
   forall G rho, corable (funassert G rho).
 Proof.
  intros.
- unfold funassert, func_at.
+ unfold funassert.
  repeat
  first [
    apply corable_andp|
@@ -270,12 +298,8 @@ Proof.
    apply corable_allp; intro|
    apply corable_prop|
    apply corable_imp].
- + destruct b0.
-   apply corable_pureat.
- + destruct b0.
-   simpl.
-   apply corable_exp; intro.
-   apply corable_pureat.
+ + apply corable_func_at.
+ + apply corable_func_at'.
 Qed.
 
 Hint Resolve corable_funassert.
@@ -294,6 +318,8 @@ apply H.
 apply H0.
 Qed.
 
+
+(*
 Lemma corable_fun_assert: forall v fsig cc A P Q, corable (fun_assert v fsig cc A P Q).
 Proof.
 intros.
@@ -308,7 +334,7 @@ intro w. unfold TTat. apply prop_ext; split; intros; hnf in H|-*; auto.
 Qed.
 
 Hint Resolve corable_fun_assert : normalize.
-
+*)
 Lemma prop_derives {A}{H: ageable A}: 
  forall (P Q: Prop), (P -> Q) -> prop P |-- prop Q.
 Proof.

@@ -70,6 +70,41 @@ Proof.
   apply HIn. simpl; by auto.
 Qed.
 
+Lemma filter_neq_eq :
+  forall {A :eqType} (xs : seq.seq A) i j (Hneq: i <> j),
+    [seq x <- [seq x <- xs | x != i] | x == j] = [seq x <- xs | x == j].
+Proof.
+  intros. induction xs.
+  - reflexivity.
+  - simpl. destruct (a != i) eqn:Hai; move/eqP:Hai=>Hai.
+    simpl.
+    destruct (a ==j) eqn:Haj; move/eqP:Haj=>Haj;
+                                             [by apply f_equal | assumption].
+    subst. erewrite if_false by (apply/eqP; auto).
+    assumption.
+Qed.
+
+
+Lemma list_cons_irrefl:
+  forall {A: Type} (x : A) xs,
+    ~ x :: xs = xs.
+Proof.
+  intros.
+  induction xs; intro Hcontra; simpl; try discriminate.
+  inversion Hcontra; subst a; auto.
+Qed.
+
+Lemma lt_succ_neq:
+  forall x y z,
+    (x <= y < x + Z.succ z)%Z ->
+    y <> (x + z)%Z ->
+    (x <= y < x + z)%Z.
+Proof.
+  intros.
+  omega.
+Qed.
+
+
 Lemma le_sub:
   forall x y z,
     (x < z)%positive ->
@@ -126,6 +161,36 @@ Proof.
   rewrite H0 H1.
     by split.
 Qed.
+
+Lemma forall_and:
+  forall {A : Type} (f g : A -> Prop),
+    (forall x : A, f x /\ g x) <->
+    (forall x : A, f x) /\ (forall x : A, g x).
+Proof.
+  intros. split; intros.
+  split; intros; [eapply (proj1 (H x))| eapply (proj2 (H x))].
+  destruct H; eauto.
+Qed.
+
+Lemma forall2_and:
+  forall {A B : Type} (f g : A -> B -> Prop),
+    (forall x y, f x y /\ g x y) <->
+    (forall x y, f x y) /\ (forall x y, g x y).
+Proof.
+  intros.
+  split; intros.
+  split; intros; [eapply (proj1 (H x y)) | eapply (proj2 (H x y))].
+  destruct H; eauto.
+Qed.
+
+Definition proj_sumbool_is_false : forall (P : Prop) (a : {P} + {~ P}), ~ P -> Coqlib.proj_sumbool a = false.
+Proof.
+  intros.
+  unfold Coqlib.proj_sumbool.
+  destruct a; auto; try by exfalso.
+Qed.
+
+
 
 Module BlockList.
   Import ListNotations.

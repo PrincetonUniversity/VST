@@ -82,7 +82,8 @@ Record Machine_sim  :=
 ; thread_running:
     forall cd mu c1 m1 c2 m2 ,
       match_state cd mu c1 m1 c2 m2 ->
-      runing_thread Sem1 c1 = runing_thread Sem2 c2
+      forall i, runing_thread Sem1 c1 i <-> runing_thread Sem2 c2 i
+      (* runing_thread Sem1 c1 = runing_thread Sem2 c2 *)
  }.
 
 End Machine_sim.

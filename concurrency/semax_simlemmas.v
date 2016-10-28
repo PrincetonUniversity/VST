@@ -23,6 +23,7 @@ Require Import veric.semax_ext.
 Require Import veric.juicy_extspec.
 Require Import veric.initial_world.
 Require Import veric.juicy_extspec.
+Require Import veric.juicy_safety.
 Require Import veric.tycontext.
 Require Import veric.semax_ext.
 Require Import veric.res_predicates.
@@ -44,6 +45,7 @@ Require Import concurrency.sync_preds_defs.
 Require Import concurrency.sync_preds.
 Require Import concurrency.join_lemmas.
 Require Import concurrency.aging_lemmas.
+Require Import concurrency.lksize.
 Require Import concurrency.cl_step_lemmas.
 Require Import concurrency.resource_decay_lemmas.
 Require Import concurrency.resource_decay_join.
@@ -82,8 +84,68 @@ Lemma lset_valid_access m m_any tp Phi b ofs
 Proof.
   intros C F.
   split.
-  - eapply lset_range_perm; eauto.
+  - intros ofs' r. eapply lset_range_perm; eauto.
   - eapply lock_coherence_align; eauto.
+Qed.
+
+Lemma mem_compatible_with_age {n tp m phi} :
+  mem_compatible_with tp m phi ->
+  mem_compatible_with (age_tp_to n tp) m (age_to n phi).
+Proof.
+  intros [J AC LW LJ JL]; constructor.
+  - rewrite join_all_joinlist in *.
+    rewrite maps_age_to.
+    apply joinlist_age_to, J.
+  - apply mem_cohere_age_to; easy.
+  - apply lockSet_Writable_age; easy.
+  - apply juicyLocks_in_lockSet_age. easy.
+  - apply lockSet_in_juicyLocks_age. easy.
+Qed.
+
+Lemma matchfunspec_age_to e Gamma n Phi :
+  matchfunspec e Gamma Phi ->
+  matchfunspec e Gamma (age_to n Phi).
+Proof.
+  unfold matchfunspec in *.
+  apply age_to_pred.
+Qed.
+
+Lemma restrPermMap_mem_contents p' m (Hlt: permMapLt p' (getMaxPerm m)): 
+  Mem.mem_contents (restrPermMap Hlt) = Mem.mem_contents m.
+Proof.
+  reflexivity.
+Qed.
+
+Lemma islock_valid_access tp m b ofs p
+      (compat : mem_compatible tp m) :
+  (4 | ofs) ->
+  lockRes tp (b, ofs) <> None ->
+  p <> Freeable ->
+  Mem.valid_access
+    (restrPermMap
+       (mem_compatible_locks_ltwritable compat))
+    Mint32 b ofs p.
+Proof.
+  intros div islock NE.
+  eapply Mem.valid_access_implies with (p1 := Writable).
+  2:destruct p; constructor || tauto.
+  pose proof lset_range_perm.
+  do 6 autospec H.
+  split; auto.
+  (* (* necessary if we change LKSIZE to something bigger than 4: *)
+  intros loc range.
+  apply H.
+  unfold size_chunk in *.
+  unfold LKSIZE in *.
+  omega. *)
+Qed.
+
+Lemma LockRes_age_content1 js n a :
+  lockRes (age_tp_to n js) a = option_map (option_map (age_to n)) (lockRes js a).
+Proof.
+  cleanup.
+  rewrite lset_age_tp_to, AMap_find_map_option_map.
+  reflexivity.
 Qed.
 
 Lemma join_sub_to_joining {A} {J : Join A}
@@ -121,6 +183,125 @@ Proof.
   apply join_comm in abc'.
   assert (c = c'). eapply join_eq. apply j. apply abc'. subst c'.
   apply join_comm; auto.
+Qed.
+
+Lemma Ejuicy_sem : juicy_sem = juicy_core_sem cl_core_sem.
+Proof.
+  unfold juicy_sem; simpl.
+  f_equal.
+  unfold SEM.Sem, SEM.CLN_evsem.
+  rewrite SEM.CLN_msem.
+  reflexivity.
+Qed.
+  
+Lemma level_jm_ m tp Phi (compat : mem_compatible_with tp m Phi)
+      i (cnti : containsThread tp i) :
+  level (jm_ cnti compat) = level Phi.
+Proof.
+  rewrite level_juice_level_phi.
+  apply join_sub_level.
+  unfold jm_ in *.
+  unfold personal_mem in *.
+  simpl.
+  apply compatible_threadRes_sub, compat.
+Qed.
+
+Definition pures_same phi1 phi2 := forall loc k pp, phi1 @ loc = PURE k pp <-> phi2 @ loc = PURE k pp.
+
+Lemma pures_same_sym phi1 phi2 : pures_same phi1 phi2 -> pures_same phi2 phi1.
+Proof.
+  unfold pures_same in *.
+  intros H loc k pp; rewrite (H loc k pp); intuition.
+Qed.
+
+Lemma joins_pures_same phi1 phi2 : joins phi1 phi2 -> pures_same phi1 phi2.
+Proof.
+  intros (phi3, J) loc k pp; apply resource_at_join with (loc := loc) in J.
+  split; intros E; rewrite E in J; inv J; auto.
+Qed.
+
+Lemma join_sub_pures_same phi1 phi2 : join_sub phi1 phi2 -> pures_same phi1 phi2.
+Proof.
+  intros (phi3, J) loc k pp; apply resource_at_join with (loc := loc) in J.
+  split; intros E; rewrite E in J; inv J; auto.
+Qed.
+
+Lemma pures_same_eq_l phi1 phi1' phi2 :
+  pures_same phi1 phi1' -> 
+  pures_eq phi1 phi2 -> 
+  pures_eq phi1' phi2.
+Proof.
+  intros E [M N]; split; intros loc; autospec M; autospec N; autospec E.
+  - destruct (phi1 @ loc), (phi2 @ loc), (phi1' @ loc); auto.
+    all: try solve [pose proof (proj2 (E _ _) eq_refl); congruence].
+  - destruct (phi1 @ loc), (phi2 @ loc), (phi1' @ loc); auto.
+    all: breakhyps.
+    all: try solve [pose proof (proj1 (E _ _) eq_refl); congruence].
+    injection H as <- <-.
+    exists p1. f_equal. 
+    try solve [pose proof (proj2 (E _ _) eq_refl); congruence].
+Qed.    
+
+Lemma pures_same_eq_r phi1 phi2 phi2' :
+  level phi2 = level phi2' ->
+  pures_same phi2 phi2' -> 
+  pures_eq phi1 phi2 -> 
+  pures_eq phi1 phi2'.
+Proof.
+  intros L E [M N]; split; intros loc; autospec M; autospec N; autospec E.
+  - destruct (phi1 @ loc), (phi2 @ loc), (phi2' @ loc); auto; try congruence.
+    all: try solve [pose proof (proj1 (E _ _) eq_refl); congruence].
+  - destruct (phi1 @ loc), (phi2 @ loc), (phi2' @ loc); auto.
+    all: breakhyps.
+    all: try solve [pose proof (proj2 (E _ _) eq_refl); congruence].
+    injection H as <- <-.
+    exists p. f_equal.
+    try solve [pose proof (proj2 (E _ _) eq_refl); congruence].
+Qed.
+
+Lemma pures_age_eq phi n :
+  ge (level phi) n ->
+  pures_eq phi (age_to n phi).
+Proof.
+  split; intros loc; rewrite age_to_resource_at.
+  - destruct (phi @ loc); auto; simpl; do 3 f_equal; rewrite level_age_to; auto.
+  - destruct (phi @ loc); simpl; eauto.
+Qed.
+
+Lemma pures_same_jm_ m tp Phi (compat : mem_compatible_with tp m Phi)
+      i (cnti : containsThread tp i) :
+  pures_same (m_phi (jm_ cnti compat)) Phi.
+Proof.
+  apply join_sub_pures_same, compatible_threadRes_sub, compat.
+Qed.
+
+Lemma level_m_phi jm : level (m_phi jm) = level jm.
+Proof.
+  symmetry; apply level_juice_level_phi.
+Qed.
+
+Lemma jsafeN_downward {Z} {Jspec : juicy_ext_spec Z} {ge n z c jm} :
+  jsafeN Jspec ge (S n) z c jm ->
+  jsafeN Jspec ge n z c jm.
+Proof.
+  apply safe_downward1.
+Qed.
+
+Lemma m_phi_jm_ m tp phi i cnti compat :
+  m_phi (@jm_ tp m phi i cnti compat) = @getThreadR i tp cnti.
+Proof.
+  reflexivity.
+Qed.
+
+Definition isVAL (r : resource) :=
+  match r with
+  | YES _ _ (VAL _) _ => Logic.True
+  | _ => False
+  end.
+
+Lemma isVAL_join_sub r1 r2 : join_sub r1 r2 -> isVAL r1 -> isVAL r2.
+Proof.
+  intros (r & j); inv j; simpl; tauto.
 Qed.
 
 Ltac join_sub_tac :=
@@ -161,3 +342,91 @@ Ltac join_sub_tac :=
     | j : join ?a ?b ?c |- join_sub ?c _ => try apply (join_sub_join j)
     end;
   eauto using join_sub_trans, join_sub_join.
+
+Lemma restrPermMap_Max' m p Hlt loc :
+  access_at (@restrPermMap p m Hlt) loc Max = access_at m loc Max.
+Proof.
+  pose proof restrPermMap_max Hlt as R.
+  apply equal_f with (x := loc) in R.
+  apply R.
+Qed.
+
+Lemma restrPermMap_Cur' m p Hlt loc :
+  access_at (@restrPermMap p m Hlt) loc Cur = p !! (fst loc) (snd loc).
+Proof.
+  apply (restrPermMap_Cur Hlt (fst loc) (snd loc)).
+Qed.
+
+Lemma juicyRestrict_ext  m phi phi' pr pr' :
+  (forall loc, perm_of_res (phi @ loc) = perm_of_res (phi' @ loc)) ->
+  @juicyRestrict phi m (acc_coh pr) = @juicyRestrict phi' m (acc_coh pr').
+Proof.
+  intros E.
+  unfold juicyRestrict, juice2Perm.
+  apply restrPermMap_ext; intros b.
+  extensionality ofs.
+  unfold mapmap in *.
+  unfold "!!".
+  simpl.
+  do 2 rewrite PTree.gmap.
+  unfold option_map in *.
+  destruct (PTree.map1 _) as [|].
+  - destruct (PTree.Leaf ! _) as [|]; auto.
+  - destruct ((PTree.Node _ _ _) ! _) as [|]; auto.
+Qed.
+
+Lemma m_dry_personal_mem_eq m phi phi' pr pr' :
+  (forall loc, perm_of_res (phi @ loc) = perm_of_res (phi' @ loc)) ->
+  m_dry (@personal_mem m phi pr) =
+  m_dry (@personal_mem m phi' pr').
+Proof.
+  intros E; simpl.
+  apply juicyRestrict_ext; auto.
+Qed.
+
+Tactic Notation "REWR" :=
+  first
+    [ unshelve erewrite <-getThreadR_age |
+      unshelve erewrite gssThreadRes |
+      unshelve erewrite gsoThreadRes |
+      unshelve erewrite gThreadCR |
+      unshelve erewrite gssAddRes |
+      unshelve erewrite gsoAddRes |
+      unshelve erewrite gLockSetRes |
+      unshelve erewrite perm_of_age |
+      unshelve erewrite gRemLockSetRes |
+      unshelve erewrite m_phi_age_to
+    ]; auto.
+
+Tactic Notation "REWR" "in" hyp(H) :=
+  first
+    [ unshelve erewrite <-getThreadR_age in H |
+      unshelve erewrite gssThreadRes in H |
+      unshelve erewrite gsoThreadRes in H |
+      unshelve erewrite gThreadCR in H |
+      unshelve erewrite gssAddRes in H |
+      unshelve erewrite gsoAddRes in H |
+      unshelve erewrite gLockSetRes in H |
+      unshelve erewrite perm_of_age in H |
+      unshelve erewrite gRemLockSetRes in H |
+      unshelve erewrite m_phi_age_to in H
+    ]; auto.
+
+Tactic Notation "REWR" "in" "*" :=
+  first
+    [ unshelve erewrite <-getThreadR_age in * |
+      unshelve erewrite gssThreadRes in * |
+      unshelve erewrite gsoThreadRes in * |
+      unshelve erewrite gThreadCR in * |
+      unshelve erewrite gssAddRes in * |
+      unshelve erewrite gsoAddRes in * |
+      unshelve erewrite gLockSetRes in * |
+      unshelve erewrite perm_of_age in * |
+      unshelve erewrite gRemLockSetRes in * |
+      unshelve erewrite m_phi_age_to in *
+    ]; auto.
+
+Ltac lkomega :=
+  unfold LKSIZE in *;
+  unfold size_chunk in *;
+  try omega.

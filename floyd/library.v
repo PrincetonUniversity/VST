@@ -35,7 +35,7 @@ Require Import floyd.freezer.
 Import ListNotations.
 
 Definition body_lemma_of_funspec  {Espec: OracleKind} (ef: external_function) (f: funspec) :=
-  match f with mk_funspec sig _ A P Q =>
+  match f with mk_funspec sig _ A P Q _ _ =>
     semax_external (map fst (fst sig)) ef A P Q
   end.
 
@@ -108,3 +108,22 @@ Ltac with_library prog G :=
  let x := eval hnf in (augment_funspecs prog (library_G prog ++ G))
    in exact x.
 
+Lemma semax_func_cons_malloc_aux:
+  forall (gx : genviron) (x : Z) (ret : option val),
+(EX p : val,
+ PROP ( )
+ LOCAL (temp ret_temp p)
+ SEP (if eq_dec p nullval
+      then emp
+      else malloc_token Tsh x p * memory_block Tsh x p))%assert
+  (make_ext_rval gx ret) |-- !! is_pointer_or_null (force_val ret).
+Proof.
+ intros.
+ rewrite exp_unfold. Intros p.
+ rewrite <- insert_local.
+ rewrite lower_andp.
+ apply derives_extract_prop; intro. hnf in H. rewrite retval_ext_rval in H.
+ subst p.
+ if_tac. rewrite H; entailer!.
+ renormalize. entailer!.
+Qed.

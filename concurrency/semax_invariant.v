@@ -42,6 +42,7 @@ Require Import concurrency.JuicyMachineModule.
 Require Import concurrency.age_to.
 Require Import concurrency.sync_preds_defs.
 Require Import concurrency.join_lemmas.
+Require Import concurrency.lksize.
 
 (*! Instantiation of modules *)
 Export THE_JUICY_MACHINE.
@@ -128,12 +129,12 @@ Definition lock_coherence (lset : AMap.t (option rmap)) (phi : rmap) (m : mem) :
         end*)
     end.
 
-Definition far (ofs1 ofs2 : Z) := (Z.abs (ofs1 - ofs2) >= 4)%Z.
+Definition far (ofs1 ofs2 : Z) := (Z.abs (ofs1 - ofs2) >= LKSIZE)%Z.
 
 Lemma far_range ofs ofs' z :
-  (0 <= z < 4)%Z ->
+  (0 <= z < LKSIZE)%Z ->
   far ofs ofs' ->
-  ~(ofs <= ofs' + z < ofs + size_chunk Mint32)%Z.
+  ~(ofs <= ofs' + z < ofs + LKSIZE)%Z.
 Proof.
   unfold far; simpl.
   intros H1 H2.
@@ -250,7 +251,7 @@ Definition threads_safety {Z} (Jspec : juicy_ext_spec Z) m ge tp PHI (mcompat : 
       forall c',
         (* [v] is not used here. The problem is probably coming from
            the definition of JuicyMachine.resume_thread'. *)
-        cl_after_external (Some (Vint Int.zero)) c = Some c' ->
+        cl_after_external None c = Some c' ->
         semax.jsafeN Jspec ge n ora c' (jm_ cnti mcompat)
     | Kinit _ _ => Logic.True
     end.
@@ -264,6 +265,8 @@ Definition threads_wellformed tp :=
     | Kinit _ _ => Logic.True
     end.
 
+(* Havent' move this, but it's already defined in the concurrent_machien...
+   Probably in the wrong part... *)
 Definition unique_Krun tp sch :=
   (lt 1 tp.(num_threads).(pos.n) -> forall i cnti q,
       @getThreadC i tp cnti = Krun q ->

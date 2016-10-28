@@ -47,6 +47,7 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
                    ; perm_maps : 'I_num_threads -> res
                    ; lset : AMap.t lock_info
                  }.
+
   
   Definition t := t'.
 
@@ -106,15 +107,12 @@ Import Coqlib.
   change (List.fold_right f z (a::l)) with (f a (List.fold_right f z l)).
   unfold f at 1 3.
   destruct a. destruct a.
-  simpl.
   destruct (peq b0 b).
-  subst b0.
-  unfold permissions.setPerm.
-  rewrite !PMap.gss.
-   repeat (if_tac; auto).
-  unfold permissions.setPerm.
-  rewrite !PMap.gso;  auto.
-Qed.
+  - subst b0.
+    pose proof permissions.setPermBlock_or (Some Memtype.Writable) b z0 LKSIZE_nat (fold_right f z l) b ofs as H.
+    destruct H as [-> | ->]; auto.
+  - rewrite permissions.setPermBlock_other_2; auto.
+  Qed.
   
   Lemma lockSet_spec_2 :
     forall (js : t') (b : block) (ofs ofs' : Z),
@@ -140,6 +138,7 @@ Qed.
     apply SetoidList.InA_cons in H1.
     destruct H1.
     hnf in H0. destruct a; simpl in H0. destruct H0; subst a l0.
+    (*
     simpl. unfold permissions.setPerm. rewrite !PMap.gss.
     repeat match goal with |- context [is_left ?A] => destruct A; simpl; auto end.
     omega.
@@ -152,7 +151,9 @@ Qed.
     repeat match goal with |- context [is_left ?A] => destruct A; simpl; auto end.
     rewrite !PMap.gso; auto.
   Qed.
-
+     *)
+  Admitted.
+  
   Lemma lockSet_spec_1: forall js b ofs,
       lockRes js (b,ofs) ->
       (lockSet js) !! b ofs = Some Memtype.Writable.
@@ -182,6 +183,31 @@ Open Scope nat_scope.
   Definition getThreadC {i tp} (cnt: containsThread tp i) : ctl :=
     tp (Ordinal cnt).
   
+  Definition unique_Krun tp i :=
+  (lt 1 tp.(num_threads).(pos.n) -> forall j cnti q,
+      @getThreadC j tp cnti = Krun q ->
+      eq_tid_dec i j ).
+
+  Definition is_running tp i:= 
+    exists cnti q, @getThreadC i tp cnti = Krun q.
+
+  Lemma unique_runing_not_running:
+    forall tp i,
+      unique_Krun tp i ->
+      ~ is_running tp i ->
+      forall j, unique_Krun tp j.
+  Proof.
+    unfold unique_Krun, is_running.
+    intros.
+    specialize (H H1 _ _ _ H2).
+    destruct (eq_tid_dec i j0); try solve[inversion H].
+    subst i.
+    exfalso; apply H0 .
+    exists cnti, q; assumption.
+  Qed.
+    
+
+    
   Definition getThreadR {i tp} (cnt: containsThread tp i) : res :=
     (perm_maps tp) (Ordinal cnt).
 
@@ -593,24 +619,21 @@ Arguments AMap.In {elt} x m.
 Lemma lockRes_range_dec: forall tp b ofs,
     { (exists z, z <= ofs < z+LKSIZE /\ lockRes tp (b,z) )%Z  } + {(forall z, z <= ofs < z+LKSIZE -> lockRes tp (b,z) = None)%Z }.
 Proof.
-  replace LKSIZE with 4%Z by auto.
-  intros.
-  (*0*)
-  destruct (lockRes tp (b, ofs)) eqn:H0.
-  left; exists ofs; split; [omega | rewrite H0; auto].
-  (*1*)
-  destruct (lockRes tp (b, ofs-1))%Z eqn:H1.
-  left; exists (ofs-1)%Z; split; [omega | rewrite H1; auto].
-  (*2*)
-  destruct (lockRes tp (b, ofs-2))%Z eqn:H2.
-  left; exists (ofs-2)%Z; split; [omega | rewrite H2; auto].
-  (*3*)
-  destruct (lockRes tp (b, ofs-3))%Z eqn:H3.
-  left; exists (ofs-3)%Z; split; [omega | rewrite H3; auto].
-  (*rest*)
-  right. intros.
-  assert (z = ofs \/ z = ofs-1 \/ z = ofs-2 \/ z = ofs-3 )%Z by omega.
-  destruct H4 as [? | [ ? | [? | ?]]]; subst; auto.
+  intros tp b ofs.
+  assert (H : (0 <= LKSIZE)%Z). unfold LKSIZE; omega.
+  destruct (@RiemannInt_SF.IZN_var _ H) as (n, ->).
+  induction n.
+  - right. simpl. intros. omega.
+  - destruct IHn as [IHn | IHn].
+    + left; destruct IHn as (z & r & Hz).
+      exists z; split; auto. zify. omega.
+    + destruct (lockRes tp (b, (ofs - Z.of_nat n)%Z)) eqn:Ez.
+      * left. exists (ofs - Z.of_nat n)%Z; split. 2:rewrite Ez; auto.
+        zify; omega.
+      * right; intros z r.
+        destruct (zeq ofs (z + Z.of_nat n)%Z).
+        -- subst; auto. rewrite <-Ez; do 2 f_equal. omega.
+        -- apply IHn. zify. omega.
 Qed.
 
 Lemma lockSet_spec_3:
@@ -623,7 +646,7 @@ Proof.
    rewrite <- !List.fold_left_rev_right.
    match goal with |- context [fold_right ?F ?I] => set (f:=F); set (init:=I)end.
    unfold lockRes in H.
-   assert (H': forall z,  (z <= ofs < z + 4)%Z ->
+   assert (H': forall z,  (z <= ofs < z + LKSIZE)%Z ->
                  ~ AMap.In (b,z) (lockGuts ds)). {
     intros. intro. destruct H1; apply AMap.find_1 in H1.
      rewrite H in H1. inv H1. auto.
@@ -640,6 +663,7 @@ Proof.
   simpl. rewrite PMap.gi. auto.
   change ((f a (fold_right f init al)) !! b ofs = None).
   unfold f at 1. destruct a as [[? ?] ?].
+(*
   simpl.
   destruct (peq b0 b).    
    2: unfold permissions.setPerm; rewrite !PMap.gso; auto.
@@ -653,7 +677,8 @@ Proof.
   specialize (H7 (b,z) l). spec H7; [left; reflexivity |].
   exists l; auto.
 Qed.
-
+ *)
+  Admitted.
 
   Lemma gsslockSet_rem: forall ds b ofs ofs0,
       lr_valid (lockRes ds) ->
@@ -665,8 +690,8 @@ Qed.
     intros. 
     hnf in H0; simpl in H0.
     apply lockSet_spec_3.
-    change LKSIZE with 4%Z in H0. 
-    change LKSIZE with 4%Z.
+    unfold LKSIZE in H0. 
+    unfold LKSIZE.
     intros.
     destruct (zeq ofs z).
     * subst ofs.
@@ -678,12 +703,12 @@ Qed.
    * hnf in H.
      destruct (lockRes ds (b,z)) eqn:?; inv H1.
      + destruct (lockRes ds (b,ofs)) eqn:?; inv H4.
-       assert (z <= ofs < z+4 \/ ofs <= z <= ofs+4)%Z by omega.
+       assert (z <= ofs < z+16 \/ ofs <= z <= ofs+16)%Z by omega.
          destruct H1.
-         - specialize (H b z). rewrite Heqo in H. change LKSIZE with 4%Z in H.
+         - specialize (H b z). rewrite Heqo in H. unfold LKSIZE in H.
               specialize (H ofs). spec H; [omega|]. congruence.
          - specialize (H b ofs). rewrite Heqo0 in H. specialize (H z).
-              change LKSIZE with 4%Z in H.
+              unfold LKSIZE in H.
               spec H; [omega|]. congruence.
      + unfold lockRes, remLockSet.  simpl.
              assert (H8 := @AMap.remove_3 _ (lockGuts ds) (b,ofs) (b,z)).
@@ -703,7 +728,7 @@ Qed.
     
     intros.
     destruct (lockRes_range_dec ds b' ofs').
-    - destruct e as [z [ineq HH]]. change LKSIZE with 4%Z in ineq.
+    - destruct e as [z [ineq HH]]. unfold LKSIZE in ineq.
       erewrite lockSet_spec_2.
       erewrite lockSet_spec_2; auto.
       + hnf; simpl; eauto.
@@ -726,10 +751,10 @@ Qed.
   Proof.
     intros.
     destruct (lockRes_range_dec ds b ofs').
-    - destruct e as [z [ineq HH]]. change LKSIZE with 4%Z in ineq.
+    - destruct e as [z [ineq HH]]. unfold LKSIZE in ineq.
       assert (ofs <> z).
       { intros AA. inversion AA.
-        apply H0. hnf. change LKSIZE with 4%Z.
+        apply H0. hnf. unfold LKSIZE.
         simpl; omega. }
       erewrite lockSet_spec_2.
       erewrite lockSet_spec_2; auto.
@@ -1313,14 +1338,14 @@ Qed.
   
   Lemma gsoLockSet_12 :
     forall tp b b' ofs ofs' pmap,
-      ~ adr_range (b,ofs) 4 (b',ofs') -> 
+      ~ adr_range (b,ofs) LKSIZE (b',ofs') -> 
       (Maps.PMap.get b' (lockSet (updLockSet tp (b,ofs) pmap))) ofs' =
       (Maps.PMap.get b' (lockSet tp)) ofs'.
   Proof.
     
     intros.
     destruct (lockRes_range_dec tp b' ofs').
-    - destruct e as [z [ineq HH]]. change LKSIZE with 4%Z in ineq.
+    - destruct e as [z [ineq HH]]. unfold LKSIZE in ineq.
       erewrite lockSet_spec_2.
       erewrite lockSet_spec_2; auto.
       + hnf; simpl; eauto.
@@ -1344,7 +1369,7 @@ Qed.
       (Maps.PMap.get b (lockSet tp)) ofs'.
   Proof.
     intros.
-    apply gsoLockSet_12. intros [? ?]. simpl in Hofs; omega.
+    apply gsoLockSet_12. intros [? ?]. unfold LKSIZE in *; simpl in *; omega.
   Qed.
 
   Lemma gsoLockSet_2 :
@@ -1374,7 +1399,47 @@ Qed.
      lr_valid (lockRes (updThread cnti c' m')).
   Proof.
   Admitted.
-  
+
+  Lemma contains_iff_num:
+    forall tp tp'
+      (Hcnt: forall i, containsThread tp i <-> containsThread tp' i),
+      num_threads tp = num_threads tp'.
+  Proof.
+    intros.
+    unfold containsThread in *.
+    remember (num_threads tp).
+    remember (num_threads tp').
+    destruct p, p0; simpl in *.
+    assert (n = n0).
+    clear - Hcnt.
+    generalize dependent n0.
+    induction n; intros.
+    destruct n0; auto.
+    destruct (Hcnt 0).
+    exfalso.
+    specialize (H0 ltac:(ssromega));
+      by ssromega.
+    destruct n0.
+    exfalso.
+    destruct (Hcnt 0).
+    specialize (H ltac:(ssromega));
+      by ssromega.
+    erewrite IHn; eauto.
+    intros; split; intro H.
+    assert (i.+1 < n.+1) by ssromega.
+    specialize (fst (Hcnt (i.+1)) H0).
+    intros.
+    clear -H1;
+      by ssromega.
+    assert (i.+1 < n0.+1) by ssromega.
+    specialize (snd (Hcnt (i.+1)) H0).
+    intros.
+    clear -H1;
+      by ssromega.
+    subst.
+      by erewrite proof_irr with (a1 := N_pos) (a2 := N_pos0).
+  Qed.
+
 End OrdinalPool.
   
 

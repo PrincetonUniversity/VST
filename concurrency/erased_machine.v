@@ -23,32 +23,6 @@ Require Import concurrency.threads_lemmas.
 
 Require Import Coq.ZArith.ZArith.
 
-Notation EXIT := 
-  (EF_external "EXIT" (mksignature (AST.Tint::nil) None)). 
-
-Notation CREATE_SIG :=
-  (mksignature (AST.Tint::AST.Tint::nil) (Some AST.Tint) cc_default).
-Notation CREATE := (EF_external "spawn" CREATE_SIG).
-
-Notation READ := 
-  (EF_external "READ" (mksignature (AST.Tint::AST.Tint::AST.Tint::nil)
-                                   (Some AST.Tint) cc_default)).
-Notation WRITE := 
-  (EF_external "WRITE" (mksignature (AST.Tint::AST.Tint::AST.Tint::nil)
-                                    (Some AST.Tint) cc_default)).
-
-Notation MKLOCK := 
-  (EF_external "makelock" (mksignature (AST.Tint::nil)
-                                     (Some AST.Tint) cc_default)).
-Notation FREE_LOCK := 
-  (EF_external "freelock" (mksignature (AST.Tint::nil)
-                                        (Some AST.Tint) cc_default)).
-
-Notation LOCK_SIG := (mksignature (AST.Tint::nil) (Some AST.Tint) cc_default).
-Notation LOCK := (EF_external "acquire" LOCK_SIG).
-Notation UNLOCK_SIG := (mksignature (AST.Tint::nil) (Some AST.Tint) cc_default).
-Notation UNLOCK := (EF_external "release" UNLOCK_SIG).
-
 Require Import concurrency.permissions.
 Require Import concurrency.threadPool.
 
@@ -115,7 +89,7 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
          (Hload: Mem.load Mint32 m b (Int.intval ofs) = Some (Vint Int.one))
          (Hstore: Mem.store Mint32 m b (Int.intval ofs) (Vint Int.zero) = Some m')
          (Htp': tp' = updThreadC cnt0 (Kresume c Vundef)),
-         ext_step genv cnt0 Hcompat tp' m' (acquire (b, Int.intval ofs) None)
+         ext_step genv cnt0 Hcompat tp' m' (acquire (b, Int.intval ofs) None None)
                   
    | step_release :
        forall (tp':thread_pool) c m' b ofs
@@ -124,7 +98,7 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
                         Some (UNLOCK, Vptr b ofs::nil))
          (Hstore: Mem.store Mint32 m b (Int.intval ofs) (Vint Int.one) = Some m')
          (Htp': tp' = updThreadC cnt0 (Kresume c Vundef)),
-         ext_step genv cnt0 Hcompat tp' m' (release (b, Int.intval ofs) None)
+         ext_step genv cnt0 Hcompat tp' m' (release (b, Int.intval ofs) None None)
                   
    | step_create :
        forall (tp_upd tp':thread_pool) c b ofs arg
@@ -133,7 +107,7 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
                         Some (CREATE, Vptr b ofs::arg::nil))
          (Htp_upd: tp_upd = updThreadC cnt0 (Kresume c Vundef))
          (Htp': tp' = addThread tp_upd (Vptr b ofs) arg tt),
-         ext_step genv cnt0 Hcompat tp' m (spawn (b, Int.intval ofs))
+         ext_step genv cnt0 Hcompat tp' m (spawn (b, Int.intval ofs) None None)
                   
    | step_mklock :
        forall  (tp': thread_pool) c m' b ofs
@@ -164,13 +138,37 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
        containsThread ms tid0 -> mem_compatible ms m ->
        thread_pool -> mem -> seq mem_event -> Prop:=
      @dry_step genv.
+
+   Lemma threadStep_equal_run:
+    forall g i tp m cnt cmpt tp' m' tr, 
+      @threadStep g i tp m cnt cmpt tp' m' tr ->
+      forall j,
+        (exists cntj q, @getThreadC j tp cntj = Krun q) <->
+        (exists cntj' q', @getThreadC j tp' cntj' = Krun q').
+   Admitted.
    
    Definition syncStep (genv :G) :
      forall {tid0 ms m},
        containsThread ms tid0 -> mem_compatible ms m ->
        thread_pool -> mem -> sync_event -> Prop:=
      @ext_step genv.
+    
+  Lemma syncstep_equal_run:
+    forall g i tp m cnt cmpt tp' m' tr, 
+      @syncStep g i tp m cnt cmpt tp' m' tr ->
+      forall j,
+        (exists cntj q, @getThreadC j tp cntj = Krun q) <->
+        (exists cntj' q', @getThreadC j tp' cntj' = Krun q').
+   Admitted.
+  
+  Lemma syncstep_not_running:
+    forall g i tp m cnt cmpt tp' m' tr, 
+      @syncStep g i tp m cnt cmpt tp' m' tr ->
+      forall cntj q, ~ @getThreadC i tp cntj = Krun q.
+   Admitted.
+  
 
+   
    Inductive threadHalted': forall {tid0 ms},
        containsThread ms tid0 -> Prop:=
    | thread_halted':
@@ -182,6 +180,30 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
    
    Definition threadHalted: forall {tid0 ms},
        containsThread ms tid0 -> Prop:= @threadHalted'.
+
+   
+  Lemma threadHalt_update:
+    forall i j, i <> j ->
+      forall tp cnt cnti c' cnt',
+        (@threadHalted j tp cnt) <->
+        (@threadHalted j (@updThreadC i tp cnti c') cnt') .
+   Admitted.
+  
+  Lemma syncstep_equal_halted:
+    forall g i tp m cnti cmpt tp' m' tr, 
+      @syncStep g i tp m cnti cmpt tp' m' tr ->
+      forall j cnt cnt',
+        (@threadHalted j tp cnt) <->
+        (@threadHalted j tp' cnt').
+   Admitted.
+  
+  Lemma threadStep_not_unhalts:
+    forall g i tp m cnt cmpt tp' m' tr, 
+      @threadStep g i tp m cnt cmpt tp' m' tr ->
+      forall j cnt cnt',
+        (@threadHalted j tp cnt) ->
+        (@threadHalted j tp' cnt') .
+   Admitted.
    
    Definition one_pos : pos := mkPos NPeano.Nat.lt_0_1.
    

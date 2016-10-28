@@ -802,11 +802,11 @@ Qed.
 Hint Resolve closed_wrt_globvars closed_wrtl_globvars: closed.
 
 Lemma closed_wrt_main_pre:
-  forall prog u S, closed_wrt_vars S (main_pre prog u).
+  forall prog u v S, closed_wrt_vars S (main_pre prog u v).
 Proof.
 intros. apply closed_wrt_globvars. Qed.
 Lemma closed_wrtl_main_pre:
-  forall prog u S, closed_wrt_lvars S (main_pre prog u).
+  forall prog u v S, closed_wrt_lvars S (main_pre prog u v).
 Proof.
 intros. apply closed_wrtl_globvars. Qed.
 Hint Resolve closed_wrt_main_pre closed_wrtl_main_pre : closed.

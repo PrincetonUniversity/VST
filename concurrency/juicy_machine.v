@@ -8,6 +8,8 @@ Require Import concurrency.scheduler.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.addressFiniteMap. (*The finite maps*)
 Require Import concurrency.threads_lemmas.
+Require Import concurrency.rmap_locking.
+Require Import concurrency.lksize.
 Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
@@ -34,37 +36,8 @@ Require Import veric.res_predicates.
 (**)
 Require Import veric.res_predicates. (*For the precondition of lock make and free*)
 
-Notation EXIT := 
-  (EF_external "EXIT" (mksignature (AST.Tint::nil) None)). 
-
-Notation CREATE_SIG :=
-  (mksignature (AST.Tint::AST.Tint::nil) (Some AST.Tint) cc_default).
-Notation CREATE := (EF_external "spawn" CREATE_SIG).
-
-Notation READ := 
-  (EF_external "READ" (mksignature (AST.Tint::AST.Tint::AST.Tint::nil)
-                                   (Some AST.Tint) cc_default)).
-Notation WRITE := 
-  (EF_external "WRITE" (mksignature (AST.Tint::AST.Tint::AST.Tint::nil)
-                                    (Some AST.Tint) cc_default)).
-
-Notation MKLOCK := 
-  (EF_external "makelock" (mksignature (AST.Tint::nil)
-                                     (Some AST.Tint) cc_default)).
-Notation FREE_LOCK := 
-  (EF_external "freelock" (mksignature (AST.Tint::nil)
-                                        (Some AST.Tint) cc_default)).
-
-Notation LOCK_SIG := (mksignature (AST.Tint::nil) (Some AST.Tint) cc_default).
-Notation LOCK := (EF_external "acquire" LOCK_SIG).
-Notation UNLOCK_SIG := (mksignature (AST.Tint::nil) (Some AST.Tint) cc_default).
-Notation UNLOCK := (EF_external "release" UNLOCK_SIG).
-
-
 (*  This shoul be replaced by global: 
     Require Import concurrency.lksize.  *)
-Definition LKCHUNK:= Mint32.
-Definition LKSIZE:= align_chunk LKCHUNK.
 
 Require Import (*compcert_linking*) concurrency.permissions concurrency.threadPool.
 
@@ -118,7 +91,7 @@ End ThreadPool.
 Module JMem.
 
   
-  Definition get_fun_spec' (jm:juicy_mem) (l:address) (v : val) : option (sigT (fun A => veric.rmaps.listprod A -> pred rmap)).
+  Definition get_fun_spec' (jm:juicy_mem) (l:address) (v : val) : option (sigT (fun A => forall ts, rmaps.dependent_type_functor_rec ts A (pred rmap))).
   Proof.
     destruct jm. destruct (phi @ l) eqn:FUN.
     - exact None.
@@ -127,29 +100,29 @@ Module JMem.
       + exact None.
       + exact None.
       + exact None.
-        destruct p.
+        destruct p as [A p].
         refine (Some (existT _ _ p)).
   Defined.
   Definition AType: Type. exact bool. Defined.
-  Definition get_fun_spec (p: veric.rmaps.listprod (AType::nil) -> pred rmap) : option (pred rmap * pred rmap).
-  Proof. exact (Some (p (true, tt), p (false, tt))).
+  Definition get_fun_spec (p: forall ts: list Type, AType -> pred rmap) : option (pred rmap * pred rmap).
+  Proof. exact (Some (p nil true, p nil false)).
   Defined.
 
   (*This won't be needed, we have a better way to compute it. *)
-  Definition get_lock_inv' (jm:juicy_mem) (l:address) : option (sigT (fun A => veric.rmaps.listprod A -> pred rmap)).
+  Definition get_lock_inv' (jm:juicy_mem) (l:address) : option (sigT (fun A => forall ts, rmaps.dependent_type_functor_rec ts A (pred rmap))).
   Proof.
     destruct jm. destruct (phi @ l) eqn:FUN.
     - exact None.
     - destruct k.
       + exact None.
-      + destruct p0.
+      + destruct p0 as [A p0].
         refine (Some (existT _ _ p0)).
       + exact None.
       + exact None.
       + exact None.
   Defined.
-  Definition get_lock_inv (p: veric.rmaps.listprod (AType::nil) -> pred rmap) : option (pred rmap).
-  Proof. exact (Some (p (true, tt))).
+  Definition get_lock_inv (p: forall ts: list Type, AType -> pred rmap) : option (pred rmap).
+  Proof. exact (Some (p nil true)).
   Defined.
   
 End JMem.
@@ -359,60 +332,61 @@ Module Concur.
       unfold permMapLt, lockSet_Writable. intros.
       rewrite getMaxPerm_correct.
       specialize (H b).
+      
       (*0*)
       destruct (lockRes js (b, ofs)) eqn:H0.
       unfold lockRes in H0; specialize (H ofs ltac:(rewrite H0; auto) ofs).
       assert (ineq: Intv.In ofs (ofs, (ofs + LKSIZE)%Z)).
-      replace LKSIZE with 4%Z by auto; hnf; simpl. omega.
+      unfold LKSIZE; hnf; simpl. omega.
       apply H in ineq.
       eapply po_trans; eauto.
       rewrite lockSet_spec_1. apply po_refl.
       unfold lockRes; rewrite H0; constructor.
 
-      (*1*)
-      destruct (lockRes js (b, (ofs-1)%Z)) eqn:H1.
-      unfold lockRes in H1. specialize (H (ofs-1)%Z ltac:(rewrite H1; auto) (ofs)).
-      assert (ineq: Intv.In ofs (ofs - 1, (ofs -1 + LKSIZE))%Z).
-      replace LKSIZE with 4%Z by auto; hnf; simpl. omega.
-      assert (ineq':=ineq).
-      apply H in ineq. eapply po_trans; eauto.
-      erewrite lockSet_spec_2. apply po_refl.
-      apply ineq'.
-      unfold lockRes; rewrite H1; constructor.
-
-      (*2*)
-      destruct (lockRes js (b, (ofs-2)%Z)) eqn:H2.
-      unfold lockRes in H2. specialize (H (ofs-2)%Z ltac:(rewrite H2; auto) (ofs)).
-      assert (ineq: Intv.In ofs (ofs - 2, (ofs -2 + LKSIZE))%Z).
-      replace LKSIZE with 4%Z by auto; hnf; simpl. omega.
-      assert (ineq':=ineq).
-      apply H in ineq. eapply po_trans; eauto.
-      erewrite lockSet_spec_2. apply po_refl.
-      apply ineq'.
-      unfold lockRes; rewrite H2; constructor.
-
-      (*3*)
-      destruct (lockRes js (b, (ofs-3)%Z)) eqn:H3.
-      unfold lockRes in H3. specialize (H (ofs-3)%Z ltac:(rewrite H3; auto) (ofs)).
-      assert (ineq: Intv.In ofs (ofs - 3, (ofs -3 + LKSIZE))%Z).
-      replace LKSIZE with 4%Z by auto; hnf; simpl. omega.
-      assert (ineq':=ineq).
-      apply H in ineq. eapply po_trans; eauto.
-      erewrite lockSet_spec_2. apply po_refl.
-      apply ineq'.
-      unfold lockRes; rewrite H3; constructor.
-
-      (*HERE*)
+      (* manual induction *)
+      Local Ltac t H js b ofs n :=
+        let H1 := fresh in
+        destruct (lockRes js (b, (ofs-n)%Z)) eqn:H1;
+        [ unfold lockRes in H1;
+          specialize (H (ofs-n)%Z ltac:(rewrite H1; auto) (ofs));
+          assert (ineq: Intv.In ofs (ofs-n, (ofs-n + LKSIZE))%Z)
+            by (unfold LKSIZE; hnf; simpl; omega);
+          assert (ineq':=ineq);
+          apply H in ineq; eapply po_trans; eauto;
+          erewrite lockSet_spec_2;
+          [ apply po_refl
+          | apply ineq'
+          | unfold lockRes; rewrite H1; constructor ] | ].
+      
+      t H js b ofs 1%Z.
+      t H js b ofs 2%Z.
+      t H js b ofs 3%Z.
+      (*t H js b ofs 4%Z.
+      t H js b ofs 5%Z.
+      t H js b ofs 6%Z.
+      t H js b ofs 7%Z.
+      t H js b ofs 8%Z.
+      t H js b ofs 9%Z.
+      t H js b ofs 10%Z.
+      t H js b ofs 11%Z.
+      t H js b ofs 12%Z.
+      t H js b ofs 13%Z.
+      t H js b ofs 14%Z.
+      t H js b ofs 15%Z.*)
+      
       pose (JuicyMachineShell.ThreadPool.lockSet_spec_3).
       assert (forall z, (z <= ofs < z + 4)%Z -> lockRes js (b, z) = None).
-      { intros.
-      assert (z = ofs \/ z = ofs-1 \/ z = ofs-2 \/ z=ofs-3)%Z.
-      omega.
-      destruct H5 as [? | [? | [? | ]]]; subst; auto. }
-      apply e in H4. rewrite H4. 
+      intros.
+      assert (O : (z = ofs \/ z = ofs-1 \/ z = ofs-2 \/ z = ofs-3 \/
+                   z = ofs-4 (* \/ z = ofs-5 \/ z = ofs-6 \/ z = ofs-7 \/
+                   z = ofs-8 \/ z = ofs-9 \/ z = ofs-10 \/ z = ofs-11 \/
+                   z = ofs-12 \/ z = ofs-13 \/ z = ofs-14 \/ z = ofs-15 \/
+                   z = ofs-16*))%Z) by omega.
+      repeat (destruct O as [-> | O]; auto). omega.
+      
+      apply e in H4. rewrite H4.
       apply po_None.
     Qed.
-
 
     Lemma mem_compatible_locks_ltwritable:
       forall tp m, mem_compatible tp m ->
@@ -1000,12 +974,29 @@ Admitted.
         contradict H; reflexivity.
       - simpl; constructor.
     Qed.
+
+    Lemma cnt_age {js i age} :
+        containsThread (age_tp_to age js) i ->
+        containsThread js i.
+    Proof.
+      destruct js; auto.
+    Qed.
     
     Lemma cnt_age' {js i age} :
         containsThread js i ->
         containsThread (age_tp_to age js) i.
     Proof.
       destruct js; auto.
+    Qed.
+
+    Lemma age_getThreadCode:
+      forall i tp age cnt cnt',
+        @getThreadC i tp cnt = @getThreadC i (age_tp_to age tp) cnt'.
+    Proof.
+      intros i tp age cnt cnt'.
+      destruct tp; simpl.
+      f_equal. f_equal.
+      apply cnt_irr.
     Qed.
       
     Inductive juicy_step genv {tid0 tp m} (cnt: containsThread tp tid0)
@@ -1020,8 +1011,8 @@ Admitted.
             (Htp': tp' = @updThread tid0 (age_tp_to (level jm') tp) (cnt_age' cnt) (Krun c') (m_phi jm'))
             (Hm': m_dry jm' = m'),
             juicy_step genv cnt Hcompatible tp' m' [::].
-    
-    Definition pack_res_inv R:= SomeP nil  (fun _ => R) .
+
+    Definition pack_res_inv (R: pred rmap) := SomeP rmaps.Mpred (fun _ => R) .
 
     Notation Kblocked := (concurrent_machine.Kblocked).
     Open Scope Z_scope.
@@ -1052,7 +1043,7 @@ Admitted.
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) None )
             (Htp''': tp''' = age_tp_to (level phi - 1)%coq_nat tp''),
-            syncStep' genv cnt0 Hcompat tp''' m' (acquire (b, Int.intval ofs) None)                
+            syncStep' genv cnt0 Hcompat tp''' m' (acquire (b, Int.intval ofs) None None)                
     | step_release :
         forall  (tp' tp'' tp''':thread_pool) c m1 b ofs psh  (phi d_phi :rmap) (R: pred rmap) phi' m',
           forall
@@ -1082,7 +1073,7 @@ Admitted.
             (Htp'': tp'' =
                     updLockSet tp' (b, Int.intval ofs) (Some d_phi))
             (Htp''': tp''' = age_tp_to (level phi - 1)%coq_nat tp''),
-            syncStep' genv cnt0 Hcompat tp''' m' (release (b, Int.intval ofs) None)      
+            syncStep' genv cnt0 Hcompat tp''' m' (release (b, Int.intval ofs) None None)      
     | step_create :
         (* HAVE TO REVIEW THIS STEP LOOKING INTO THE ORACULAR SEMANTICS*)
         forall  (tp_upd tp':thread_pool) c c_new vf arg jm (d_phi phi': rmap) b ofs P Q,
@@ -1096,16 +1087,15 @@ Admitted.
             (Hcompatible: mem_compatible tp m)
             (Hpersonal_perm: 
                personal_mem (thread_mem_compatible Hcompatible cnt0) = jm)
-            (p: veric.rmaps.listprod (JMem.AType::nil) -> pred rmap)
-            (Hget_fun_spec': JMem.get_fun_spec' jm (b, Int.intval ofs) arg = Some (existT _ _ p))
+            (p: forall ts: list Type, JMem.AType -> pred rmap)
+            (Hget_fun_spec': JMem.get_fun_spec' jm (b, Int.intval ofs) arg = Some (existT (fun A => forall ts: list Type, rmaps.dependent_type_functor_rec ts A (pred rmap)) (rmaps.ArrowType (rmaps.ConstType JMem.AType) rmaps.Mpred) p))
             (Hget_fun_spec: JMem.get_fun_spec p = Some (P, Q))
             (Hsat_fun_spec: P d_phi)
             (Halmost_empty: almost_empty d_phi)
             (Hrem_fun_res: join d_phi phi' (m_phi jm))
             (Htp': tp_upd = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp' = addThread tp_upd vf arg d_phi),
-            syncStep' genv cnt0 Hcompat tp' m (spawn (b, Int.intval ofs))
-                     
+            syncStep' genv cnt0 Hcompat tp' m (spawn (b, Int.intval ofs) None None)
     | step_mklock :
         forall  (tp' tp'': thread_pool)  jm c b ofs R ,
           let: phi := m_phi jm in
@@ -1120,26 +1110,15 @@ Admitted.
             (Hpersonal_perm: 
                personal_mem (thread_mem_compatible Hcompatible cnt0) = jm)
             (Hpersonal_juice: getThreadR cnt0 = phi)
-            (*This the first share of the lock, 
-              can/should this be different for each location? *)
-            (sh:Share.t)
             (*Check I have the right permission to mklock and the right value (i.e. 0) *)
             (*Haccess: address_mapsto LKCHUNK (Vint Int.zero) sh Share.top (b, Int.intval ofs) phi*)
             (Hstore:
                Mem.store Mint32 (m_dry jm) b (Int.intval ofs) (Vint Int.zero) = Some m')
-            (*Check the new memory has the lock*)
-            (Hct: forall ofs', (Int.intval ofs) <= ofs'<(Int.intval ofs)+LKSIZE  ->
-                          exists val,
-                phi@ (b, ofs') = YES sh pfullshare (VAL val) NoneP)
-            (Hlock: phi'@ (b, Int.intval ofs) = YES sh pfullshare (LK LKSIZE) (preds_fmap (approx (level phi)) (approx (level phi)) (pack_res_inv R)))
-            (Hct: forall ofs', (Int.intval ofs) <ofs'<(Int.intval ofs)+LKSIZE ->
-                phi'@ (b, ofs') = YES sh pfullshare (CT (ofs' - Int.intval ofs)%Z) NoneP) (*This seems wrong it's not LKSIZE, its ofs0 -ofs *)
-            (*Check the new memory has the right continuations THIS IS REDUNDANT! *)
-            (*Hcont: forall i, 0<i<LKSIZE ->   phi'@ (b, Int.intval ofs + i) = YES sh pfullshare (CT i) NoneP*)
-            (*Check the two memories coincide in everything else *)
-            (Hj_forward: forall loc, b <> loc#1 \/ ~(Int.intval ofs) <=loc#2<(Int.intval ofs)+LKSIZE  -> phi@loc = phi'@loc)
-            (levphi' : level phi' = level phi)
-            (*Check the memories are equal!*)
+            (* [Hrmap] replaced: [Hct], [Hlock], [Hj_forward] and [levphi'].
+               This says that phi and phi' coincide everywhere except in adr_range,
+               and specifies how phi and phi' should differ in adr_range
+               (in particular, they have equal shares, pointwise) *)
+            (Hrmap : rmap_makelock phi phi' (b, Int.unsigned ofs) R LKSIZE)
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' = age_tp_to (level phi - 1)%coq_nat 
                     (updLockSet tp' (b, Int.intval ofs) None )),
@@ -1159,7 +1138,7 @@ Admitted.
               can/should this be different for each location? *)
             (sh:Share.t)
             (*Check the new memoryI have has the right permission to mklock and the riht value (i.e. 0) *)
-            (Haccess: address_mapsto LKCHUNK (Vint Int.zero) sh Share.top (b, Int.intval ofs) phi')
+            (Haccess: address_mapsto Mint32 (Vint Int.zero) sh Share.top (b, Int.intval ofs) phi')
             (*Check the old memory has the lock*)
             (Hlock: phi@ (b, Int.intval ofs) = YES sh pfullshare (LK LKSIZE) (pack_res_inv R))
             (Hlock': exists val, phi'@ (b, Int.intval ofs) = YES sh pfullshare (VAL val) NoneP)
@@ -1204,26 +1183,275 @@ Admitted.
         containsThread ms tid0 -> mem_compatible ms m ->
         thread_pool -> mem -> list mem_event -> Prop:=
       @juicy_step genv.
-    
-    
+
+    Lemma threadStep_equal_run:
+    forall g i tp m cnt cmpt tp' m' tr, 
+      @threadStep g i tp m cnt cmpt tp' m' tr ->
+      forall j,
+        (exists cntj q, @getThreadC j tp cntj = Krun q) <->
+        (exists cntj' q', @getThreadC j tp' cntj' = Krun q').
+    Proof.
+      intros. split.
+      - intros [cntj [ q running]].
+        inversion H; subst.
+        assert (cntj':=cntj).
+        eapply cnt_age' in cntj'.
+        eapply (cntUpdate (Krun c') (m_phi jm') (cnt_age' cntj)) in cntj'.
+        exists cntj'.
+        destruct (NatTID.eq_tid_dec i j).
+        + subst j; exists c'.
+          rewrite gssThreadCode; reflexivity.
+        + exists q.
+          rewrite gsoThreadCode; auto.
+          generalize running; destruct tp; simpl.
+          intros RUN; rewrite <- RUN.
+          f_equal. f_equal.
+          apply cnt_irr.
+      - intros [cntj' [ q' running]].
+        inversion H; subst.
+        assert (cntj:=cntj').
+        eapply cnt_age in cntj.
+        eapply cntUpdate' with(c0:=Krun c')(p:=m_phi jm') in cntj; eauto.
+        exists cntj.
+        destruct (NatTID.eq_tid_dec i j).
+        + subst j; exists c.
+          rewrite <- Hthread.
+          f_equal.
+          apply cnt_irr.
+        + exists q'.
+          rewrite gsoThreadCode in running; auto.
+          rewrite <- running.
+          destruct tp; simpl.
+          f_equal. f_equal.
+          apply cnt_irr.
+    Qed.
+          
     Definition syncStep (genv:G):
       forall {tid0 ms m}, containsThread ms tid0 -> mem_compatible ms m ->
                      thread_pool -> mem -> sync_event ->  Prop:=
       @syncStep' genv.
+
     
-    Inductive threadHalted': forall {tid0 ms},
-        containsThread ms tid0 -> Prop:=
-    | thread_halted':
-        forall tp c tid0
-          (cnt: containsThread tp tid0),
-        forall
-          (Hthread: getThreadC cnt = Krun c)
-          (Hcant: halted the_sem c),
-          threadHalted' cnt. 
-    Definition threadHalted: forall {tid0 ms},
-        containsThread ms tid0 -> Prop:= @threadHalted'.
+  Lemma syncstep_equal_run:
+    forall g i tp m cnt cmpt tp' m' tr, 
+      @syncStep g i tp m cnt cmpt tp' m' tr ->
+      forall j,
+        (exists cntj q, @getThreadC j tp cntj = Krun q) <->
+        (exists cntj' q', @getThreadC j tp' cntj' = Krun q').
+  Proof.
+    intros g i tp m cnt cmpt tp' m' tr H j; split.
+    - intros [cntj [ q running]].
+      destruct (NatTID.eq_tid_dec i j).
+      + subst j. generalize running; clear running.
+        inversion H; subst;
+          match goal with
+          | [ H: getThreadC ?cnt = Kblocked ?c |- _ ] =>
+            replace cnt with cntj in H by apply cnt_irr;
+              intros HH; rewrite HH in H; inversion H
+          end.
+      + (*this should be easy to automate or shorten*)
+        inversion H; subst.
+        * exists (cnt_age' (cntUpdateL _ _ (cntUpdate (Kresume c Vundef) phi' _ cntj))), q.
+          erewrite <- age_getThreadCode.
+          rewrite gLockSetCode.
+          rewrite gsoThreadCode; assumption.
+        * exists (cnt_age' (cntUpdateL _ _ (cntUpdate (Kresume c Vundef) phi' _ cntj))), q.
+          erewrite <- age_getThreadCode.
+          rewrite gLockSetCode.
+          rewrite gsoThreadCode; assumption.
+        * exists (cntAdd _ _ _ (cntUpdate (Kresume c Vundef) phi' _ cntj)), q.
+          erewrite gsoAddCode . (*i? *)
+          rewrite gsoThreadCode; assumption.
+          eapply cntUpdate. eauto.
+        * exists (cnt_age' (cntUpdateL _ _ (cntUpdate (Kresume c Vundef) phi' _ cntj))), q.
+          erewrite <- age_getThreadCode.
+          rewrite gLockSetCode.
+          rewrite gsoThreadCode; assumption.
+        * exists (cnt_age' (cntRemoveL _ (cntUpdate (Kresume c Vundef) phi' _ cntj))), q.
+          erewrite <- age_getThreadCode.
+          rewrite gRemLockSetCode.
+          rewrite gsoThreadCode; assumption.
+        * exists cntj, q; assumption.
+    - intros [cntj [ q running]].
+      destruct (NatTID.eq_tid_dec i j).
+      + subst j. generalize running; clear running.
+        inversion H; subst;
+        try erewrite <- age_getThreadCode;
+          try rewrite gLockSetCode;
+          try rewrite gRemLockSetCode;
+          try rewrite gssThreadCode;
+          try solve[intros HH; inversion HH].
+        { (*addthread*)
+          assert (cntj':=cntj).
+          eapply cntAdd' in cntj'; destruct cntj' as [ [HH HHH] | HH].
+          * erewrite gsoAddCode; eauto.
+            subst; rewrite gssThreadCode; intros AA; inversion AA.
+          * erewrite gssAddCode . intros AA; inversion AA.
+            assumption. }
+          { (*AQCUIRE*)
+            replace cntj with cnt by apply cnt_irr;
+            rewrite Hthread; intros HH; inversion HH. }
+      + generalize running; clear running.
+        inversion H; subst;
+        try erewrite <- age_getThreadCode;
+          try rewrite gLockSetCode;
+          try rewrite gRemLockSetCode;
+          try (rewrite gsoThreadCode; [|auto]);
+        try (intros HH;
+        match goal with
+        | [ H: getThreadC ?cnt = Krun ?c |- _ ] =>
+          exists cntj, c; exact H
+        end).
+      (*Add thread case*) 
+        assert (cntj':=cntj).
+        eapply cntAdd' in cntj'; destruct cntj' as [ [HH HHH] | HH].
+        * erewrite gsoAddCode; eauto.
+          destruct (NatTID.eq_tid_dec i j);
+            [subst; rewrite gssThreadCode; intros AA; inversion AA|].
+          rewrite gsoThreadCode; auto.
+          exists HH, q; assumption.
+        * erewrite gssAddCode . intros AA; inversion AA.
+          assumption.
 
 
+          
+          Grab Existential Variables.
+          eauto. eauto. eauto. eauto. eauto. eauto.
+          eauto. eauto. eauto. eauto. eauto. eauto.
+          eauto. eauto. eauto.
+  Qed.
+
+  
+  Lemma syncstep_not_running:
+    forall g i tp m cnt cmpt tp' m' tr, 
+      @syncStep g i tp m cnt cmpt tp' m' tr ->
+      forall cntj q, ~ @getThreadC i tp cntj = Krun q.
+  Proof.
+    intros.
+    inversion H;
+      match goal with
+      | [ H: getThreadC ?cnt = _ |- _ ] =>
+        erewrite (cnt_irr _ cnt);
+          rewrite H; intros AA; inversion AA
+      end.
+  Qed.
+  
+  Inductive threadHalted': forall {tid0 ms},
+      containsThread ms tid0 -> Prop:=
+  | thread_halted':
+      forall tp c tid0
+        (cnt: containsThread tp tid0),
+      forall
+        (Hthread: getThreadC cnt = Krun c)
+        (Hcant: halted the_sem c),
+        threadHalted' cnt. 
+
+
+  Definition threadHalted: forall {tid0 ms},
+      containsThread ms tid0 -> Prop:= @threadHalted'.
+
+    
+  Lemma threadHalt_update:
+    forall i j, i <> j ->
+      forall tp cnt cnti c' cnt',
+        (@threadHalted j tp cnt) <->
+        (@threadHalted j (@updThreadC i tp cnti c') cnt') .
+  Proof.
+    intros; split; intros HH; inversion HH; subst;
+    econstructor; eauto;
+    [ erewrite <- (gsoThreadCC H) |  erewrite (gsoThreadCC H)]; exact Hthread.
+  Qed.
+  
+  Lemma syncstep_equal_halted:
+    forall g i tp m cnti cmpt tp' m' tr, 
+      @syncStep g i tp m cnti cmpt tp' m' tr ->
+      forall j cnt cnt',
+        (@threadHalted j tp cnt) <->
+        (@threadHalted j tp' cnt').
+  Proof.
+    intros; split; intros HH; inversion HH; subst;
+    econstructor; subst; eauto.
+    - destruct (NatTID.eq_tid_dec i j).
+      + subst j.
+        inversion H;
+          match goal with
+          | [ H: getThreadC ?cnt = Krun ?c,
+                 H': getThreadC ?cnt' = Kblocked ?c' |- _ ] =>
+            replace cnt with cnt' in H by apply cnt_irr;
+              rewrite H' in H; inversion H
+          end.
+      + inversion H; subst;
+        try erewrite <- age_getThreadCode;
+          try rewrite gLockSetCode;
+          try rewrite gRemLockSetCode;
+          try erewrite gsoAddCode; eauto;
+          try rewrite gsoThreadCode; try eassumption.
+        { (*AQCUIRE*)
+            replace cnt' with cnt0 by apply cnt_irr;
+          exact Hthread. }
+    - destruct (NatTID.eq_tid_dec i j).
+      + subst j.
+        inversion H; subst;
+        match goal with
+          | [ H: getThreadC ?cnt = Krun ?c,
+                 H': getThreadC ?cnt' = Kblocked ?c' |- _ ] =>
+            try erewrite <- age_getThreadCode in H;
+              try rewrite gLockSetCode in H;
+              try rewrite gRemLockSetCode in H;
+              try erewrite gsoAddCode in H; eauto;
+              try rewrite gssThreadCode in H;
+              try solve[inversion H]
+        end.
+        { (*AQCUIRE*)
+            replace cnt with cnt0 by apply cnt_irr;
+          exact Hthread. }
+      +
+        inversion H; subst;
+        match goal with
+          | [ H: getThreadC ?cnt = Krun ?c,
+                 H': getThreadC ?cnt' = Kblocked ?c' |- _ ] =>
+            try erewrite <- age_getThreadCode in H;
+              try rewrite gLockSetCode in H;
+              try rewrite gRemLockSetCode in H;
+              try erewrite gsoAddCode in H; eauto;
+              try rewrite gsoThreadCode in H;
+              try solve[inversion H]; eauto
+        end.
+        { (*AQCUIRE*)
+            replace cnt with cnt0 by apply cnt_irr;
+          exact Hthread. }
+        
+
+          
+          Grab Existential Variables.
+          eauto. eauto. eauto. eauto. eauto. eauto.
+          eauto. eauto. eauto. eauto. eauto. eauto.
+          eauto. eauto. eauto.
+  Qed.
+          
+  Lemma threadStep_not_unhalts:
+    forall g i tp m cnt cmpt tp' m' tr, 
+      @threadStep g i tp m cnt cmpt tp' m' tr ->
+      forall j cnt cnt',
+        (@threadHalted j tp cnt) ->
+        (@threadHalted j tp' cnt') .
+  Proof.
+    intros; inversion H; inversion H0; subst.
+    destruct (NatTID.eq_tid_dec i j).
+    - subst j.
+      eapply corestep_not_halted in Hcorestep.
+      unfold halted, j_halted in Hcorestep; simpl in Hcorestep.
+      unfold j_halted in Hcorestep.
+      replace cnt1 with cnt in Hthread0 by apply cnt_irr.
+      rewrite Hthread0 in Hthread; inversion Hthread;
+      subst c0.
+      rewrite Hcorestep in Hcant; inversion Hcant.
+    - econstructor; eauto.
+      Set Printing Implicit.
+      rewrite gsoThreadCode; auto;
+      erewrite <- age_getThreadCode; eauto.
+  Qed.
+    
     (* The initial machine has to be redefined.
        Right now its build by default with empty maps,
        but it should be built with the correct juice,

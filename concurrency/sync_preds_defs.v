@@ -4,6 +4,7 @@ Require Import msl.seplog.
 Require Import veric.compcert_rmaps.
 Require Import veric.tycontext.
 Require Import veric.res_predicates.
+Require Import concurrency.lksize.
 Require Import concurrency.addressFiniteMap.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -12,7 +13,7 @@ Set Bullet Behavior "Strict Subproofs".
 Notation join := sepalg.join.
 Notation join_assoc := sepalg.join_assoc.
 
-Definition islock_pred R r := exists sh sh' z, r = YES sh sh' (LK z) (SomeP nil (fun _ => R)).
+Definition islock_pred (R: pred rmap) r := exists sh sh' z, r = YES sh sh' (LK z) (SomeP rmaps.Mpred (fun _ => R)).
 
 Lemma islock_pred_join_sub {r1 r2 R} : join_sub r1 r2 -> islock_pred R r1  -> islock_pred R r2.
 Proof.
@@ -22,11 +23,13 @@ Qed.
 
 Definition LKspec_ext (R: pred rmap) : spec :=
    fun (rsh sh: Share.t) (l: AV.address)  =>
-    allp (jam (adr_range_dec l lock_size)
-                         (jam (eq_dec l) 
-                            (yesat (SomeP nil (fun _ => R)) (LK lock_size) rsh sh)
-                            (CTat l rsh sh))
-                         (fun _ => TT)).
+     allp
+       (jam
+          (adr_range_dec l LKSIZE)
+          (jam (eq_dec l) 
+               (yesat (SomeP rmaps.Mpred (fun _ => R)) (LK LKSIZE) rsh sh)
+               (CTat l rsh sh))
+          (fun _ => TT)).
 
 Definition LK_at R sh :=
   LKspec_ext R (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh).
@@ -48,8 +51,8 @@ Definition same_locks_sized phi1 phi2 :=
 Definition lockSet_block_bound lset b :=
   forall loc, isSome (AMap.find (elt:=option rmap) loc lset) -> (fst loc < b)%positive.
 
-Definition predat phi loc R :=
-  exists sh sh' z, phi @ loc = YES sh sh' (LK z) (SomeP nil (fun _ => R)).
+Definition predat phi loc (R: pred rmap) :=
+  exists sh sh' z, phi @ loc = YES sh sh' (LK z) (SomeP rmaps.Mpred (fun _ => R)).
 
 Definition rmap_bound b phi :=
   (forall loc, (fst loc >= b)%positive -> phi @ loc = NO Share.bot).
@@ -117,14 +120,14 @@ Ltac range_tac :=
     exfalso; apply H;
     repeat split; auto;
     try unfold Int.unsigned;
-    unfold lock_size;
+    unfold LKSIZE;
     omega
   | H : ~ adr_range ?l _ ?l |- _ =>
     destruct l;
     exfalso; apply H;
     repeat split; auto;
     try unfold Int.unsigned;
-    unfold lock_size;
+    unfold LKSIZE;
     omega
   end.
 

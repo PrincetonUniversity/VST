@@ -34,7 +34,7 @@ End Semantics.
 Notation EXIT := 
   (EF_external "EXIT" (mksignature (AST.Tint::nil) None)). 
 
-Notation CREATE_SIG := (mksignature (AST.Tint::AST.Tint::nil) (Some AST.Tint) cc_default).
+Notation CREATE_SIG := (mksignature (AST.Tint::AST.Tint::nil) None cc_default).
 Notation CREATE := (EF_external "spawn" CREATE_SIG).
 
 Notation READ := 
@@ -45,13 +45,13 @@ Notation WRITE :=
                (mksignature (AST.Tint::AST.Tint::AST.Tint::nil) (Some AST.Tint) cc_default)).
 
 Notation MKLOCK := 
-  (EF_external "makelock" (mksignature (AST.Tint::nil) (Some AST.Tint) cc_default)).
+  (EF_external "makelock" (mksignature (AST.Tint::nil) None cc_default)).
 Notation FREE_LOCK := 
-  (EF_external "freelock" (mksignature (AST.Tint::nil) (Some AST.Tint) cc_default)).
+  (EF_external "freelock" (mksignature (AST.Tint::nil) None cc_default)).
 
-Notation LOCK_SIG := (mksignature (AST.Tint::nil) (Some AST.Tint) cc_default).
+Notation LOCK_SIG := (mksignature (AST.Tint::nil) None cc_default).
 Notation LOCK := (EF_external "acquire" LOCK_SIG).
-Notation UNLOCK_SIG := (mksignature (AST.Tint::nil) (Some AST.Tint) cc_default).
+Notation UNLOCK_SIG := (mksignature (AST.Tint::nil) None cc_default).
 Notation UNLOCK := (EF_external "release" UNLOCK_SIG).
 
 Notation block  := Values.block.
@@ -344,19 +344,49 @@ Module Type ThreadPoolSig.
    forall tp i (cnti: containsThread tp i) c' m',
      lr_valid (lockRes tp) ->
      lr_valid (lockRes (updThread cnti c' m')).
- 
+
+
+ (*uniqueness of the running threadc*)
+  Parameter unique_Krun:  t -> tid -> Prop.
+  Definition is_running tp i:= 
+    exists cnti q, @getThreadC i tp cnti = Krun q.
+  
+  (*Axiom unique_runing_not_running:
+    forall tp i,
+      unique_Krun tp i ->
+      ~ is_running tp i ->
+      forall j, unique_Krun tp j.*)
+
+  (*Axiom no_running_one_running:
+    forall tp,
+      (forall j, unique_Krun tp j) ->
+      forall i cnti c, unique_Krun (@updThreadC i tp cnti (Krun c)) i.*)
+
+  (*Axiom one_running_no_running:
+    forall tp i,
+      (unique_Krun tp i) ->
+      forall j cnti c, unique_Krun (@updThreadC i tp cnti (Kblocked c)) j.*)
+
+  (*Axiom no_running_no_running:
+    forall tp,
+      (forall j, unique_Krun tp j) ->
+      forall i j cnti c, unique_Krun (@updThreadC i tp cnti (Kblocked c)) j.*)
+  
 End ThreadPoolSig.
 
 Module Type EventSig.
   Declare Module TID: ThreadID.
   Import TID.
-  
+
+  Definition evRes := (access_map * access_map)%type.
+  Definition evDelta := (delta_map * delta_map)%type.
+
   Inductive sync_event : Type :=
-  | release : address -> option (access_map * delta_map) -> sync_event
-  | acquire : address -> option (access_map * delta_map) -> sync_event
+  | release : address -> option (evRes * evDelta) -> option evRes -> sync_event
+  | acquire : address -> option (evRes * evDelta) -> option evRes -> sync_event
   | mklock :  address -> sync_event
   | freelock : address -> sync_event
-  | spawn : address -> sync_event
+  | spawn : address -> option (evRes * evDelta) -> option evDelta -> sync_event
   | failacq: address -> sync_event.
 
   Inductive machine_event : Type :=
@@ -391,15 +421,53 @@ Module Type ConcurrentMachineSig.
     G -> forall {tid0 ms m},
       containsThread ms tid0 -> mem_compatible ms m ->
       thread_pool -> mem -> seq mem_event -> Prop.
-
+  Axiom threadStep_equal_run:
+    forall g i tp m cnt cmpt tp' m' tr, 
+      @threadStep g i tp m cnt cmpt tp' m' tr ->
+      forall j,
+        (exists cntj q, @getThreadC j tp cntj = Krun q) <->
+        (exists cntj' q', @getThreadC j tp' cntj' = Krun q').
   Parameter syncStep:
     G -> forall {tid0 ms m},
       containsThread ms tid0 -> mem_compatible ms m ->
       thread_pool -> mem -> sync_event -> Prop.
   
+  Axiom syncstep_equal_run:
+    forall g i tp m cnt cmpt tp' m' tr, 
+      @syncStep g i tp m cnt cmpt tp' m' tr ->
+      forall j,
+        (exists cntj q, @getThreadC j tp cntj = Krun q) <->
+        (exists cntj' q', @getThreadC j tp' cntj' = Krun q').
+  
+  Axiom syncstep_not_running:
+    forall g i tp m cnt cmpt tp' m' tr, 
+      @syncStep g i tp m cnt cmpt tp' m' tr ->
+      forall cntj q, ~ @getThreadC i tp cntj = Krun q.
+  
   Parameter threadHalted:
     forall {tid0 ms},
       containsThread ms tid0 -> Prop.
+
+  Axiom threadHalt_update:
+    forall i j, i <> j ->
+      forall tp cnt cnti c' cnt',
+        (@threadHalted j tp cnt) <->
+        (@threadHalted j (@updThreadC i tp cnti c') cnt') .
+  
+  Axiom syncstep_equal_halted:
+    forall g i tp m cnti cmpt tp' m' tr, 
+      @syncStep g i tp m cnti cmpt tp' m' tr ->
+      forall j cnt cnt',
+        (@threadHalted j tp cnt) <->
+        (@threadHalted j tp' cnt').
+  
+  Axiom threadStep_not_unhalts:
+    forall g i tp m cnt cmpt tp' m' tr, 
+      @threadStep g i tp m cnt cmpt tp' m' tr ->
+      forall j cnt cnt',
+        (@threadHalted j tp cnt) ->
+        (@threadHalted j tp' cnt') .
+  
 
   (*Parameter initial_machine: C -> thread_pool.*)
   
@@ -461,8 +529,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   | ResumeThread: forall tid0 ms ms' c c' X
                     (ctn: containsThread ms tid0)
                     (Hat_external: at_external Sem c = Some X)
-                    (Hafter_external: after_external Sem
-                                             (Some (Vint Int.zero)) c = Some c')
+                    (Hafter_external: after_external Sem None c = Some c')
                     (Hcode: getThreadC ctn = Kresume c Vundef)
                     (Hinv: invariant ms)
                     (Hms': updThreadC ctn (Krun c')  = ms'),
@@ -716,7 +783,8 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
                                  @external_step ge U tr st m
                                                 U' tr' st' m'
                               )
-                              (fun A => running_thread A))
+                              unique_Krun
+                              (*fun A => running_thread A*))
          ;
     unfold at_external, halted; try reflexivity.
   - intros. inversion H; subst; rewrite HschedN; reflexivity.
@@ -767,12 +835,118 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   Definition new_step ge (st: new_state) U st' U': Prop:=
     sem_with_halt ge (mk_ostate st U) (snd st) (mk_ostate st' U') (snd st').
 
-  Definition valid (st: MachState): bool:=
+  (*Definition valid (st: MachState): Prop:=
     match (running_thread (snd st)), (schedPeek (fst (fst st))) with
-    | _, None => true
-    | None, _ => true
+    | _, None => True
+    | None, _ => True
     | Some a, Some b => eq_tid_dec a b (* || containsThread_dec b (snd st) *)
+    end.*)
+
+  Section valid_schedule.
+    
+    Definition unique_Krun tp i :=
+     forall j cnti q,
+       @getThreadC j tp cnti = Krun q ->
+       ~ @threadHalted j tp cnti  ->
+       eq_tid_dec i j.
+    
+    Definition is_running tp i:= 
+      exists cnti q, @getThreadC i tp cnti = Krun q /\ ~ @threadHalted i tp cnti.
+
+    Require Import msl.Axioms.
+    Lemma unique_runing_not_running:
+      forall tp i,
+        unique_Krun tp i ->
+        is_running tp i \/
+        forall j, unique_Krun tp j.
+    Proof.
+      unfold unique_Krun, is_running.
+      intros.
+      destruct (Classical_Prop.classic
+                  (exists (cnti : containsThread tp i) (q : C),
+                      getThreadC cnti = Krun q /\ ~ threadHalted cnti))
+        as [[cnti [q [KRUN Not_HALTED]]] | NO]; [left|right].
+      + exists cnti, q; auto.
+      + intros j j0 cnti q KRUN NOT_HALTED.
+        specialize (H _ _ _ KRUN NOT_HALTED).
+        destruct (eq_tid_dec i j0); try solve[inversion H].
+        subst i.
+        exfalso; apply NO.
+        exists cnti, q; split; assumption.
+    Qed.
+
+    Corollary unique_runing_not_running':
+      forall tp i,
+        unique_Krun tp i ->
+        ~ is_running tp i ->
+        forall j, unique_Krun tp j.
+    Proof.
+      intros. destruct (unique_runing_not_running _ _ H). 
+      - contradict H0; assumption.     
+      - apply H1.
+    Qed.
+        
+  Lemma no_running_one_running:
+    forall tp,
+      (forall j, unique_Krun tp j) ->
+      forall i cnti c, unique_Krun (@updThreadC i tp cnti (Krun c)) i.
+  Proof.
+    unfold unique_Krun.
+    intros.
+    destruct (eq_tid_dec i j); auto; exfalso; eapply n.
+    erewrite <- (gsoThreadCC _ _ (cntUpdateC' _ cnti cnti0)) in H0; auto.
+    eapply H with (j:=i) in H0.
+    destruct (eq_tid_dec i j); inversion H0; assumption.
+    intros HH; apply H1.
+    eapply threadHalt_update in HH; eauto.
+    Grab Existential Variables.
+    assumption.
+  Qed.
+  Lemma one_running_no_running:
+    forall tp i,
+      (unique_Krun tp i) ->
+      forall j cnti c, unique_Krun (@updThreadC i tp cnti (Kblocked c)) j.
+  Proof.
+    unfold unique_Krun.
+    intros.
+    destruct (eq_tid_dec i j0).
+    - subst i. 
+      rewrite (gssThreadCC cnti (Kblocked c) cnti0) in H0; inversion H0.
+    - rewrite <- (gsoThreadCC n cnti (cntUpdateC' _ cnti cnti0) (Kblocked c) cnti0) in H0.
+      eapply H with (j:=j0) in H0.
+      exfalso; apply n;
+      destruct (eq_tid_dec i j0); auto; inversion H0.
+      intros HH; apply H1.
+      eapply threadHalt_update in HH; eauto.
+  Qed.
+    
+  Lemma no_running_no_running:
+    forall tp,
+      (forall h, unique_Krun tp h ) ->
+      forall i j cnti c, unique_Krun (@updThreadC i tp cnti (Kblocked c)) j.
+  Proof.
+    unfold unique_Krun.
+    intros.
+    destruct (eq_tid_dec i j0).
+    - subst i. 
+      rewrite (gssThreadCC cnti (Kblocked c) cnti0) in H0; inversion H0.
+    - rewrite <- (gsoThreadCC n cnti (cntUpdateC' _ cnti cnti0) (Kblocked c) cnti0) in H0.
+      eapply H with (j:=j0) in H0.
+      eassumption.
+      intros HH; apply H1.
+      eapply threadHalt_update in HH; eauto.
+  Qed.
+  
+  End valid_schedule.
+    
+  Definition correct_schedule(st: MachState): Prop:=
+    match schedPeek (fst (fst st)) with
+    | Some i => unique_Krun (snd st) i
+    | None => True
     end.
+  
+  Definition valid (st: MachState): Prop:=
+    correct_schedule st.
  
   Definition new_valid st U := valid (mk_ostate st U). 
   Definition ksafe_new_step (ge : G) (st : MachState) (m : mem) : nat -> Prop :=
@@ -796,25 +970,176 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     inversion H;
       simpl in *; auto.
   Qed.
-  Lemma step_valid: forall {ge st m st' m'}, MachStep ge st m st' m'  -> valid st -> valid st'.
+  (*Most cases in this proof are similar. Should automate!*)
+  Lemma step_sch_correct: forall {ge st m st' m'}, MachStep ge st m st' m'  -> correct_schedule st -> correct_schedule st'.
   Proof.
+    unfold correct_schedule in *.
     intros.
-    inversion H; subst.
-    unfold valid in *.
-    rewrite <- H6.
-    
-    
-    
-    inversion Htstep; subst.
-    rewrite <- Hms'.
-    unfold valid in H0.
-    inversion Htstep; subst.
-    
+    destruct st as [[a b] c]; destruct st' as [[a' b' ] c'].
+    inversion H; subst; simpl in *.
+    - inversion Htstep; subst.
+      rewrite HschedN in H0; rewrite HschedN.
+      eapply no_running_one_running.
+      destruct (unique_runing_not_running _ _ H0) as [HH | HH]; auto.
+      destruct HH as [cnt' [c' [KRUN NOT_HALTED]]].
+      pose (@gLockSetCode tid0 c).
+      replace cnt' with ctn in KRUN.
+      + rewrite Hcode in KRUN; inversion KRUN.
+      + eapply msl.Axioms.proof_irr.
+    - inversion Htstep; subst.
+      rewrite HschedN in H0; rewrite HschedN.
+      eapply no_running_one_running.
+      destruct (unique_runing_not_running _ _ H0) as [HH | HH]; auto.
+      destruct HH as [cnt' [c' [KRUN NOT_HALTED]]].
+      pose (@gLockSetCode tid0 c).
+      replace cnt' with ctn in KRUN.
+      + rewrite Hcode in KRUN; inversion KRUN.
+      + eapply msl.Axioms.proof_irr.
+    - subst.
+      destruct (schedPeek a'); auto.
+      intros j cntj q j_runs j_not_halted.
+      inversion HschedN; subst tid0.
+      assert (Htstep':=Htstep).
+      apply threadStep_equal_run with (j:=j) in Htstep.
+      assert (HH: exists (cntj : containsThread c' j) (q : C),
+              getThreadC cntj = Krun q).
+      { exists cntj, q; auto. }
+      apply Htstep in HH; destruct HH as [cnt [q0 j_runs0]].
+      eapply H0; eauto.
+      intros HH; apply j_not_halted;
+      eapply threadStep_not_unhalts; eauto. 
+    - destruct (schedPeek a') eqn:SCH'; auto.
+      rewrite HschedN in H0.
+      inversion Htstep; subst.
+      eapply one_running_no_running in H0.
+      destruct (unique_runing_not_running _ _ H0) as [HH | HH]; auto.
+      destruct HH as [cnt' [c' [KRUN NOT_HALTED]]].
+      erewrite gssThreadCC in KRUN. inversion KRUN.
+    - subst.
+      rewrite HschedN in H0.
+      destruct (schedPeek (schedSkip a)) eqn:AAA; auto.
+      unfold unique_Krun in H0.
+      intros j cntj q j_runs j_not_halted.
 
+      assert (Htstep':=Htstep).
+      eapply syncstep_equal_run in Htstep'.
+      assert (HH: exists (cntj : containsThread c' j) (q : C),
+                 getThreadC cntj = Krun q).
+      { exists cntj, q; auto. }
+      apply Htstep' in HH; destruct HH as [cnt [q0 j_runs0]].
+      
+      destruct (eq_tid_dec tid0 j); subst.
+      + exfalso; eapply
+                 (syncstep_not_running _ _ _ _ _ _ _ _ _ Htstep).
+        eapply j_runs0.
+      + destruct (Classical_Prop.classic (threadHalted cnt)) as [halt | n_halt].
+        * exfalso; apply j_not_halted.
+          eapply (syncstep_equal_halted ) in Htstep; eauto.
+          eapply Htstep; eassumption.
+        * eapply H0 in j_runs0; eauto.
+          exfalso; apply n; destruct (eq_tid_dec tid0 j); auto; inversion j_runs0.
+    - destruct (schedPeek a') eqn:SCH'; auto.
+      rewrite HschedN in H0.
+      subst c'.
+      destruct (unique_runing_not_running _ _ H0) as [HH | HH]; auto.
+      intros j cnti q KRUN NOT_HALT.
+      assert (HHH:= NOT_HALT).
+      contradict HHH.
+      specialize (H0 _ _ _ KRUN NOT_HALT).
+      destruct (eq_tid_dec tid0 j); try solve[inversion H0].
+      subst tid0.
+      replace cnti with Htid; auto.
+      eapply msl.Axioms.proof_irr.
+    - destruct (schedPeek a') eqn:SCH'; auto.
+      rewrite HschedN in H0.
+      subst c'.
+      intros j cnti q KRUN NOT_HALT.
+      assert (HHH:= NOT_HALT).
+      contradict HHH.
+      specialize (H0 _ _ _ KRUN NOT_HALT).
+      destruct (eq_tid_dec tid0 j); try solve[inversion H0].
+      subst tid0.
+      contradict Htid; assumption.
+  Qed.
+  
+  Lemma step_valid: forall {ge st m st' m'},
+      MachStep ge st m st' m'  ->
+      valid st ->
+      valid st'.
+  Proof. intros ? ? ? ? ?; eapply step_sch_correct. Qed.
     
-  Admitted.
-  Lemma step_sch_valid: forall {ge U tr tp m tr' tp' m'}, MachStep ge (U, tr, tp) m (schedSkip U, tr', tp') m' -> forall U'', valid (U'', tr', tp').
-  Admitted.
+  Lemma step_correct_schedule: forall {ge U tr tp m tr' tp' m'},
+      MachStep ge (U, tr, tp) m (schedSkip U, tr', tp') m' ->
+      correct_schedule (U, tr, tp) ->
+      forall U'', correct_schedule (U'', tr', tp').
+  Proof.
+    unfold correct_schedule in *.
+    intros ? ? ? ? ? ? ? ? ?.
+    
+    inversion H; subst; simpl in *;
+    match goal with
+    | [ H: schedPeek (schedSkip ?U) = Some _, H': U = schedSkip U  |- _ ] =>
+      solve[rewrite <- H' in H; apply end_of_sch in H'; rewrite H' in H; inversion H]
+    | _ => idtac
+    end.
+    - rewrite HschedN; intros.
+      destruct (schedPeek U''); auto.
+      inversion Htstep; subst.
+      intros j cnti q KRUN NOT_HALT.
+      unfold unique_Krun in H0.
+      destruct (eq_tid_dec tid0 j).
+      + subst tid0. rewrite gssThreadCC in KRUN; inversion KRUN.
+      + erewrite <- (gsoThreadCC n ctn (cntUpdateC' _ _ cnti) _ cnti)  in KRUN; eauto.
+        eapply H0 in KRUN.
+        destruct (eq_tid_dec tid0 j) as [e|e].
+        * rewrite e in n; exfalso; apply n; auto. 
+        * inversion KRUN.
+          intros HALT; eapply NOT_HALT.
+          Set Printing Implicit. 
+          eapply threadHalt_update in HALT; eauto.
+    - rewrite HschedN.
+      intros. destruct (schedPeek U'') eqn:UUU; trivial.
+      intros j cnti q KRUN NOT_HALT.
+      assert (HH: exists (cntj : containsThread tp' j) (q : C),
+                   getThreadC cntj = Krun q).
+        { exists cnti, q; assumption. }
+        eapply syncstep_equal_run in HH; eauto.
+        destruct HH as [cntj [q0 KRUN']].
+
+        assert (HH:=KRUN').
+        eapply H0 in HH.
+        
+        assert (HH': ~ @threadHalted j tp cntj).
+        { intros HH'. apply NOT_HALT.
+          eapply syncstep_equal_halted in Htstep; eauto.
+          eapply Htstep.
+          exact HH'. }
+        apply HH in HH'.
+        
+        destruct (eq_tid_dec tid0 j); try solve[ inversion HH'].
+        subst.
+        eapply syncstep_not_running in Htstep.
+        exfalso; apply Htstep.
+        eassumption.
+    - rewrite HschedN. intros UNIQUE U''.
+      destruct (schedPeek U'') eqn:UUU; trivial.
+      intros j cnti q KRUN NOT_HALT.
+      specialize (UNIQUE _ _ _ KRUN NOT_HALT).
+      destruct (eq_tid_dec tid0 j); try solve[inversion UNIQUE]; subst tid0.
+      exfalso; apply NOT_HALT.
+      replace cnti with Htid by eapply msl.Axioms.proof_irr; auto.
+    - rewrite HschedN. intros UNIQUE U''.
+      destruct (schedPeek U'') eqn:UUU; trivial.
+      intros j cnti q KRUN NOT_HALT.
+      specialize (UNIQUE _ _ _ KRUN NOT_HALT).
+      destruct (eq_tid_dec tid0 j); try solve[inversion UNIQUE]; subst tid0.
+      exfalso; apply Htid.
+      eassumption.
+  Qed.
+  
+  Lemma step_sch_valid: forall {ge U tr tp m tr' tp' m'}, MachStep ge (U, tr, tp) m (schedSkip U, tr', tp') m' -> valid (U, tr, tp) -> forall U'', valid (U'', tr', tp').
+  Proof. intros; eapply step_correct_schedule; eauto. Qed.
+  
   Lemma safety_equivalence':
     forall ge st_ m,
       (forall U n, new_valid (nil, st_, m) U -> ksafe_new_step ge (U, nil, st_) m n) ->
@@ -855,6 +1180,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
               (*destruct (sch_dec U'' U).
               subst. *)
               apply (step_sch_valid H).
+              assumption.
           }
   Qed.
         
@@ -1070,8 +1396,7 @@ Module FineMachine  (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Threa
                     (ctn: containsThread ms tid0)
                     (Hat_external: at_external Sem c = Some X)
                     (Hafter_external:
-                       after_external Sem
-                                      (Some (Vint Int.zero)) c = Some c')
+                       after_external Sem None c = Some c')
                     (Hcode: getThreadC ctn = Kresume c Vundef)
                     (Hinv: invariant ms)
                     (Hms': updThreadC ctn (Krun c')  = ms'),
@@ -1223,14 +1548,17 @@ Module Events <: EventSig
  Import TID event_semantics.
 
  (** Synchronization Events.  The release/acquire cases include the
-footprints of permissions moved to the thread when applicable*)
+footprints of permissions moved  when applicable*)
+ Definition evRes := (access_map * access_map)%type.
+ Definition evDelta := (delta_map * delta_map)%type.
+
  Inductive sync_event : Type :=
-  | release : address -> option (access_map * delta_map) -> sync_event
-  | acquire : address -> option (access_map * delta_map) -> sync_event
-  | mklock :  address -> sync_event
-  | freelock : address -> sync_event
-  | spawn : address -> sync_event
-  | failacq: address -> sync_event.
+ | release : address -> option (evRes * evDelta) -> option evRes -> sync_event
+ | acquire : address -> option (evRes * evDelta) -> option evRes -> sync_event
+ | mklock :  address -> sync_event
+ | freelock : address -> sync_event
+ | spawn : address -> option (evRes * evDelta) -> option evDelta -> sync_event
+ | failacq: address -> sync_event.
  
  (** Machine Events *)
   Inductive machine_event : Type :=
@@ -1278,12 +1606,12 @@ footprints of permissions moved to the thread when applicable*)
       end
     | external _ sev =>
       match sev with
-      | release _ _ => Release
-      | acquire _ _ => Acquire
+      | release _ _ _ => Release
+      | acquire _ _ _ => Acquire
       | mklock _ => Mklock
       | freelock _ => Freelock
       | failacq _ => Failacq
-      | spawn _ => Spawn
+      | spawn _ _ _ => Spawn
       end
     end.
   
@@ -1297,24 +1625,13 @@ footprints of permissions moved to the thread when applicable*)
       end 
     | external _ sev =>
       match sev with
-      | release addr _ => Some (addr, lksize.LKSIZE_nat)
-      | acquire addr _ => Some (addr, lksize.LKSIZE_nat)
+      | release addr _ _ => Some (addr, lksize.LKSIZE_nat)
+      | acquire addr _ _ => Some (addr, lksize.LKSIZE_nat)
       | mklock addr => Some (addr, lksize.LKSIZE_nat)
       | freelock addr => Some (addr, lksize.LKSIZE_nat)
-      | spawn addr => Some (addr, lksize.LKSIZE_nat)
+      | spawn addr _ _ => Some (addr, lksize.LKSIZE_nat)
       | failacq addr => Some (addr, lksize.LKSIZE_nat)
       end
-    end.
-
-  Definition resources ev : option (access_map * delta_map) :=
-    match ev with
-    | external _ mev =>
-      match mev with
-      | release _ res => res
-      | acquire _ res => res
-      | _ => None
-      end
-    | _ => None
     end.
   
 End Events.

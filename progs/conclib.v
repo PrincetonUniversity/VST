@@ -54,10 +54,13 @@ Proof.
   destruct H as (b & o & Hv & Hlock).
   simpl in Hlock.
   specialize (Hlock (b, Int.unsigned o)).
-  destruct (adr_range_dec (b, Int.unsigned o) res_predicates.lock_size (b, Int.unsigned o)).
-  destruct (EqDec_address (b, Int.unsigned o) (b, Int.unsigned o)); [|contradiction n; auto].
-  destruct Hlock; eauto 6.
-  { contradiction n; unfold adr_range, res_predicates.lock_size; split; auto; omega. }
+  if_tac [r|nr] in Hlock.
+  - if_tac [e|ne] in Hlock.
+    + destruct Hlock; eauto 6.
+    + contradiction ne; auto.
+  - contradiction nr; unfold adr_range; split; auto.
+    unfold lksize.LKSIZE in *.
+    omega.
 Qed.
 
 Lemma selflock_precise : forall R sh v, precise R ->
@@ -208,18 +211,20 @@ Qed.
 Ltac get_global_function'' _f :=
 eapply (semax_fun_id'' _f); try reflexivity.
 
-Lemma LKspec_nonunit : forall R rsh sh p, predicates_hered.derives (res_predicates.LKspec R rsh sh p)
+Lemma LKspec_nonunit lock_size :
+  0 < lock_size ->
+  forall R rsh sh p, predicates_hered.derives (res_predicates.LKspec lock_size R rsh sh p)
   (!!(sepalg.nonunit sh)).
 Proof.
-  repeat intro.
+  intros pos R rsh sh p a H.
   specialize (H p); simpl in H.
-  destruct (adr_range_dec p res_predicates.lock_size p).
+  destruct (adr_range_dec p lock_size p).
   destruct (EqDec_address p p).
   destruct H; auto.
   { contradiction n; auto. }
   { contradiction n; unfold adr_range.
     destruct p; split; auto.
-    unfold res_predicates.lock_size; omega. }
+    omega. }
 Qed.
 
 Lemma lock_inv_share_join : forall sh1 sh2 sh v R (Hsh1 : readable_share sh1) (Hsh2 : readable_share sh2)
@@ -395,25 +400,6 @@ Lemma cond_var_isptr : forall {cs} sh v, @cond_var cs sh v = !! isptr v && cond_
 Proof.
   intros; apply data_at__isptr.
 Qed.
-
-(*Lemma cond_var_almost_empty : forall {cs} sh v phi, predicates_hered.app_pred (@cond_var cs sh v) phi ->
-  juicy_machine.almost_empty phi.
-Proof.
-  intros ???? Hp ????? Hr ??; subst.
-  unfold cond_var in Hp.
-  destruct Hp as (? & Hp); simpl in Hp.
-  rewrite data_at_rec_eq in Hp; unfold at_offset in Hp; simpl in Hp.
-  unfold mapsto in Hp; simpl in Hp.
-  destruct v; try contradiction; simpl in Hp.
-  destruct (readable_share_dec sh).
-  destruct Hp as [(? & ?) | (? & ? & ? & ? & Hp)]; [contradiction|].
-  simpl in Hp.
-  specialize (Hp loc).
-  destruct (adr_range_dec _ _ _).
-  - destruct Hp as (? & Hp); rewrite Hp in Hr; inv Hr.
-Admitted.
-(* This is currently untrue, since cond_vars are data. On the other hand, we don't want them to be locks,
-   because that means something in the underlying model. Eventually we should figure something out for this. *)*)
 
 Lemma cond_var_share_join : forall {cs} sh1 sh2 sh v (Hjoin : sepalg.join sh1 sh2 sh),
   @cond_var cs sh1 v * cond_var sh2 v = cond_var sh v.

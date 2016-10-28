@@ -162,13 +162,26 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
                  forall sch,
                    THE_DRY_MACHINE_SOURCE.DryMachine.valid (sch, tr, Sds)  <->
                    Machine.DryConc.valid (sch, tr, Tds) ).
-    { 
-      rewrite /THE_DRY_MACHINE_SOURCE.DryMachine.valid
+    { admit.
+      (* rewrite /THE_DRY_MACHINE_SOURCE.DryMachine.valid
+              /THE_DRY_MACHINE_SOURCE.DryMachine.correct_schedule
+              /THE_DRY_MACHINE_SOURCE.DryMachine.unique_Krun
               /THE_DRY_MACHINE_SOURCE.SCH.schedPeek
               /Machine.DryConc.valid
+              /Machine.DryConc.correct_schedule
+              /Machine.DryConc.unique_Krun
               /mySchedule.schedPeek /=.
-      move => ? ? ? ? ? ? ? ? ? ? ? Tds' /(running_thread) /= -> U''.
-      destruct (Machine.DryConc.running_thread (Tds')); intuition .
+      move => ? ? ? ? ? ? ? ? ? ? ? Tds' MATCH' sch0.
+      destruct (List.hd_error sch0); try solve[split; auto].
+      split.
+      - move => H1  j0 cntj0 q KRUN not_halted. eapply H1.
+        instantiate 
+        
+
+      /(running_thread) /=.
+      move=> ->.
+      -> U''.
+      destruct (Machine.DryConc.running_thread (Tds')); intuition .*)
       
     }
 

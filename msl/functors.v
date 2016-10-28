@@ -508,6 +508,17 @@ Definition fsig {I: Type} (F: I -> functor): functor.
     unfold compose at 1. rewrite !fmap_app; auto.
 Defined.
 
+Definition fpi {I: Type} (F: I -> functor): functor.
+  refine (@Functor
+   (fun T => forall i: I, F i T)
+   (fun _ _ f g x => fun i => fmap (F i) f g (x i)) _).
+  constructor; intros; simpl.
+  + extensionality p i; simpl.
+    rewrite !fmap_id; auto.
+  + extensionality p i; simpl.
+    unfold compose at 1. rewrite !fmap_app; auto.
+Defined.
+
 Definition fsubset (F: functor) (P: forall A, F A -> Prop)
   (Pfmap: forall A B f g x, P A x -> P B (fmap F f g x)): functor.
   refine (@Functor

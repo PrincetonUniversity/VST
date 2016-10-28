@@ -252,7 +252,7 @@ End filtered_konig.
 Section Safety.
   Context (ST:Type)(SCH:Type).
   Context (STEP:ST->SCH->ST->SCH-> Prop).
-  Context (valid: ST-> SCH -> bool).
+  Context (valid: ST-> SCH -> Prop).
   
   Axiom schedule_dec:
     forall (U U':SCH), {U=U'} + {U<>U'}.

@@ -256,8 +256,8 @@ Definition make_elem_spec :=
 Definition main_spec := 
  DECLARE _main
   WITH u : unit
-  PRE  [] main_pre prog u
-  POST [ tint ] main_post prog u.
+  PRE  [] main_pre prog nil u
+  POST [ tint ] main_post prog nil u.
 
 Definition Gprog : funspecs := 
   ltac:(with_library prog
@@ -514,33 +514,13 @@ Qed.
 
 Existing Instance NullExtension.Espec.
 
-Lemma ret_temp_make_ext_rval:
-  forall gx ret p,  
-   locald_denote (temp ret_temp p) (make_ext_rval gx ret) -> 
-    p = force_val ret.
-Proof.
-  intros.
-  hnf in H.
-  rewrite retval_ext_rval in H. auto.
-Qed.
-
 Lemma all_funcs_correct:
   semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.
 unfold Gprog, prog, prog_funct; simpl.
-repeat
-   (apply semax_func_cons_ext_vacuous;
-     [ reflexivity | reflexivity |  ]).
-semax_func_cons body_malloc. {
- renormalize.
- rewrite (ret_temp_make_ext_rval gx ret _ (eq_refl _)) in H. subst x0.
- if_tac. rewrite H; entailer!.
- entailer!.
-}
+semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
 semax_func_cons body_free.
-  admit.  (* yuck *)
 semax_func_cons body_exit.
- renormalize.
 semax_func_cons body_surely_malloc.
 semax_func_cons body_fifo_new.
 semax_func_cons body_fifo_put.
@@ -548,5 +528,6 @@ semax_func_cons body_fifo_empty.
 semax_func_cons body_fifo_get.
 semax_func_cons body_make_elem.
 semax_func_cons body_main.
-Admitted.
+Qed.
+
 

@@ -997,7 +997,7 @@ Lemma map_instantiate:
 Proof. intros. subst. reflexivity. Qed.
 
 Lemma main_pre_eq:
- forall prog u, main_pre prog u = 
+ forall prog u v, main_pre prog u v = 
   fold_right_sepcon' (map globvar2pred (prog_vars prog)).
 Proof.
 intros. rewrite fold_right_sepcon'_eq; reflexivity.
@@ -1025,8 +1025,8 @@ first [
  ].
 
 Lemma main_pre_start:
- forall prog u,
-   main_pre prog u = (PROP() LOCAL() SEP())%assert * globvars2pred (prog_vars prog).
+ forall prog u v,
+   main_pre prog u v = (PROP() LOCAL() SEP())%assert * globvars2pred (prog_vars prog).
 Proof.
 intros.
 unfold main_pre, prog_vars, prog_vars', PROPx, LOCALx, SEPx.

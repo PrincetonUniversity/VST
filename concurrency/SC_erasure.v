@@ -1,4 +1,4 @@
-(** ** Erasure from FineConc to a non-angelic SC machine*)
+(** * Erasure from FineConc to a non-angelic SC machine*)
 
 Require Import compcert.lib.Axioms.
 
@@ -47,6 +47,13 @@ Module ValErasure.
     match v1, v2 with
     | Vundef, _ => True
     | v1, v2 => v1 = v2
+    end.
+
+  Definition optionval_erasure (v1 v2 : option val) : Prop :=
+    match v1, v2 with
+    | Some v1, Some v2 => val_erasure v1 v2
+    | None, None => True
+    | _, _ => False
     end.
 
   Definition memval_erasure mv1 mv2 : Prop :=
@@ -740,8 +747,9 @@ Module TraceErasure.
   (** Removing the footprints from a [sync_event] *)
   Definition eraseSyncEvent ev :=
     match ev with
-    | Events.release addr _ => Events.release addr None
-    | Events.acquire addr _ => Events.acquire addr None
+    | Events.release addr _ _ => Events.release addr None None
+    | Events.acquire addr _ _ => Events.acquire addr None None
+    | Events.spawn addr _ _ => Events.spawn addr None None
     | _ => ev
     end.
   
@@ -1548,10 +1556,10 @@ Module Type CoreErasure (SEM: Semantics).
   Parameter after_external_erase:
     forall v v' c c' c2
       (HeraseCores: core_erasure c c')
-      (HeraseVal: val_erasure v v')
-      (Hafter_external: after_external SEM.Sem (Some v) c = Some c2),
+      (HeraseVal: optionval_erasure v v')
+      (Hafter_external: after_external SEM.Sem v c = Some c2),
     exists c2',
-      after_external SEM.Sem (Some v') c' = Some c2' /\
+      after_external SEM.Sem v' c' = Some c2' /\
       core_erasure c2 c2'.
   
   Parameter erasure_initial_core:
@@ -1968,7 +1976,8 @@ Module SCErasure (SEM: Semantics)
     destruct (at_external SEM.Sem c0) eqn:Hat_external'; try by exfalso.
     destruct p as [? ?].
     destruct H as [? ?]; subst.
-    eapply after_external_erase with (v' := Vint Int.zero) in Hafter_external;
+    eapply after_external_erase with (v' := None) in Hafter_external;
+      simpl;
       eauto with val_erasure erased.
     destruct Hafter_external as [c2' [Hafter_external' Hcore_erasure']].
     exists (ErasedMachine.ThreadPool.updThreadC cnti' (Krun c2')).
@@ -2085,7 +2094,7 @@ Module SCErasure (SEM: Semantics)
         rewrite H1 in H; simpl in H;
         destruct Expr2 eqn:?
       end; try (by exfalso).
-    eapply mem_erasure_restr with (Hlt := Hcomp1 i cnti) in Hmem_erasure.
+    eapply mem_erasure_restr with (Hlt := (Hcomp1 i cnti).1) in Hmem_erasure.
     eapply evstep_erase in Hcorestep; eauto.
     destruct Hcorestep as (c2' & m2' & ev' & Hevstep' & Hcore_erasure'
                            & Hmem_erasure' & Hev_erasure).

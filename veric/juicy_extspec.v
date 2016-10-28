@@ -283,8 +283,11 @@ Proof.
           f_equal. unfold preds_fmap. destruct p. f_equal.
           generalize (approx_oo_approx' (level m') (level jm)); intros H9.
           spec H9; [omega |].
+          generalize (approx'_oo_approx (level m') (level jm)); intros H10.
+          spec H10; [omega |].
           do 2 rewrite <-level_juice_level_phi.
-          rewrite <-compose_assoc, H9; auto.
+          rewrite fmap_app.
+          rewrite H9, H10; auto.
        ++ rewrite <-resource_at_approx, Hphi; auto.
       * intros adr. case_eq (m_phi m' @ adr); auto. intros k p Hm'.
         destruct H8 as [_ H8].

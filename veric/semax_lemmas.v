@@ -1136,7 +1136,7 @@ Proof. intros until m'. intros H0 H4 CS0 H H1.
   inv H5.
   { destruct H7 as (?&?&?). inv H5. }
   { eapply safeN_external; eauto. 
-    intros ret m'0 z'' n'' Hle H10 H11; specialize (H9 ret m'0 z'' n'' Hle H10 H11).
+    intros ret m'0 z'' n'' Hargsty Hretty Hle H10 H11; specialize (H9 ret m'0 z'' n'' Hargsty Hretty Hle H10 H11).
     destruct H9 as [c' [? ?]]. simpl in H5. unfold cl_after_external in *.
     destruct ret as [ret|]. destruct optid.
     exists (State ve (PTree.set i ret te) (l ++ ctl2)); split; auto.

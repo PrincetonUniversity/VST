@@ -40,6 +40,7 @@ Require Import concurrency.permissions.
 Require Import concurrency.JuicyMachineModule.
 Require Import concurrency.sync_preds_defs.
 Require Import concurrency.aging_lemmas.
+Require Import concurrency.lksize.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -147,7 +148,7 @@ Lemma lset_range_perm m tp b ofs
   (Efind : AMap.find (elt:=option rmap) (b, ofs) (lset tp) <> None) :
   Mem.range_perm
     (restrPermMap (mem_compatible_locks_ltwritable compat))
-    b ofs (ofs + size_chunk Mint32) Cur Writable.
+    b ofs (ofs + LKSIZE) Cur Writable.
 Proof.
   unfold Mem.range_perm in *.
   intros ofs0 range.
@@ -555,14 +556,17 @@ Proof.
   intros.
   breakhyps.
   rewr (phi @ loc) in H.
-  injection H as A B C D.
-  apply inj_pair2 in D.
-  apply equal_f with tt in D.
+  pose proof (YES_inj _ _ _ _ _ _ _ _ H).
+  assert (snd ((x, x0, LK x1, SomeP rmaps.Mpred (fun _ : list Type => R2: pred rmap))) =
+    snd  (x2, x3, LK x4, SomeP rmaps.Mpred (fun _ : list Type => R1))) by (f_equal; auto).
+  simpl in H2.
+  apply SomeP_inj in H2.
+  pose proof equal_f_dep H2 nil.
   auto.
 Qed.
 
-Lemma predat1 {phi loc R z sh psh} :
-  phi @ loc = YES sh psh (LK z) (SomeP nil (fun _ : veric.rmaps.listprod nil => R)) ->
+Lemma predat1 {phi loc} {R: mpred} {z sh psh} :
+  phi @ loc = YES sh psh (LK z) (SomeP rmaps.Mpred (fun _ => R)) ->
   predat phi loc (approx (level phi) R).
 Proof.
   intro E; hnf; eauto.
@@ -635,7 +639,7 @@ Proof.
     apply H.
     unfold adr_range in *.
     intuition.
-    unfold res_predicates.lock_size.
+    unfold LKSIZE.
     omega.
   }
   if_tac in lk; [ | tauto ].
