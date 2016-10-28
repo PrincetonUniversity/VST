@@ -256,6 +256,127 @@ Ltac simpl_Int := repeat match goal with
     replace (Int.add (Int.repr A) (Int.repr B)) with (Int.repr x); subst x; [|reflexivity]
 end.
 
+Ltac find_SEP_clause_for p Rs i nSH nT nGfs nV nn := match Rs with
+| ?R :: ?Rest => match R with
+  | field_at ?SH ?T ?gfs ?V p =>
+      pose (nSH := SH); pose (nT := T); pose (nGfs := gfs);
+      pose (nV := V); pose (nn := i); cbv in nn
+  | data_at ?SH ?T ?V p =>
+      pose (nSH := SH); pose (nT := T); pose (nGfs := (@nil gfield));
+      pose (nV := V); pose (nn := i); cbv in nn
+  | field_at_ ?SH ?T ?gfs p =>
+      pose (nSH := SH); pose (nT := T); pose (nGfs := gfs);
+      pose (nV := (default_val (nested_field_type T gfs))); pose (nn := i); cbv in nn
+  | data_at_ ?SH ?T p =>
+      pose (nSH := SH); pose (nT := T); pose (nGfs := (@nil gfield));
+      pose (nV := (default_val (nested_field_type T []))); pose (nn := i); cbv in nn
+  | _ => find_SEP_clause_for p Rest (S i) nSH nT nGfs nV nn
+  end
+end.
+
+Ltac solve_legal_nested_field_in_entailment' :=
+(* same as solve_legal_nested_field_in_entailment but without these lines commented out:
+   match goal with
+   | |- _ |-- !! legal_nested_field ?t_root (?gfs1 ++ ?gfs0) =>
+    unfold t_root, gfs0, gfs1
+  end;
+*)
+  first
+  [ apply prop_right; apply compute_legal_nested_field_spec';
+    match goal with
+  | |- Forall ?F _ =>
+      let F0 := fresh "F" in
+      remember F as F0;
+      simpl;
+      subst F0
+  end;
+  repeat constructor; omega
+  |
+  apply compute_legal_nested_field_spec;
+  match goal with
+  | |- Forall ?F _ =>
+      let F0 := fresh "F" in
+      remember F as F0;
+      simpl;
+      subst F0
+  end;
+  repeat constructor;
+  try solve [apply prop_right; auto; omega];
+  try solve [normalize; apply prop_right; auto; omega]
+  ].
+
+Ltac load_tac' :=
+ensure_normal_ret_assert;
+hoist_later_in_pre;
+match goal with
+| |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e1) _ =>
+  let HLE := fresh "HLE" in
+  let p := fresh "p" in evar (p: val);
+  do_compute_lvalue Delta P Q R e1 p HLE;
+  subst p;
+  match type of HLE with
+  | (ENTAIL _, PROPx _ (LOCALx _ (SEPx ?R)) 
+    |-- local (`( eq (field_address ?T ?gfs ?p)) (eval_lvalue _))) =>
+    let nSH := fresh "SH" in let nT := fresh "T" in let nGfs := fresh "gfs0" in let nV := fresh "V"
+    in let nn := fresh "n" in
+    find_SEP_clause_for p R 0%nat nSH nT nGfs nV nn;
+    let gfs1 := fresh "gfs1" in
+    evar (gfs1 : list gfield);
+    let H := fresh "Hgfs" in
+    assert (gfs1 = (sublist 0 (Zlength gfs - Zlength nGfs) gfs)) as H by (cbv; reflexivity);
+    (eapply semax_SC_field_load' with (n0 := nn) (sh := nSH) (gfs2 := nGfs) (gfs3 := gfs1);
+    subst nn nSH nGfs gfs1);
+    [ reflexivity
+    | reflexivity
+    | solve [auto] (* readable share *)
+    | reflexivity
+    | exact HLE
+    | reflexivity
+    | reflexivity
+    | cbv [nth_error]; reflexivity
+    | eapply JMeq_refl
+    | entailer!
+    | solve_legal_nested_field_in_entailment' ]
+  end
+end.
+
+Ltac forward1' s :=  (* Note: this should match only those commands that
+                                     can take a normal_ret_assert *)
+  lazymatch s with 
+  | Sassign _ _ => store_tac
+  | Sset _ ?e => 
+    first [no_loads_expr e false; forward_setx
+            | load_tac']
+  | Sifthenelse ?e _ _ => forward_if_complain
+  | Swhile _ _ => forward_while_complain
+  | Sloop (Ssequence (Sifthenelse _ Sskip Sbreak) _) _ => forward_for_complain
+  | Scall _ (Evar _ _) _ =>  advise_forward_call
+  | Sskip => forward_skip
+  end.
+
+Ltac fwd'' :=
+ match goal with
+ | |- semax _ _ (Ssequence (Ssequence _ _) _) _ => 
+             rewrite <- seq_assoc; fwd''
+ | |- semax _ _ (Ssequence ?c _) _ => 
+      eapply semax_seq'; [forward1' c | fwd_result]
+ | |- semax _ _ ?c _ =>
+      rewrite -> semax_seq_skip; 
+      eapply semax_seq'; [ forward1' c | fwd_result]
+ end.
+
+Ltac forward' :=
+  check_Delta;
+ repeat simple apply seq_assoc2;
+ first
+ [ fwd_last
+ | fwd_skip
+ | fwd'';
+  [ .. |
+   Intros;
+   abbreviate_semax;
+   try fwd_skip]
+ ].
 
 Lemma body_aes_encrypt: semax_body Vprog Gprog f_mbedtls_aes_encrypt encryption_spec_ll.
 Proof.
@@ -370,22 +491,33 @@ simpl.
 
 freeze [1; 2; 3] Fr.
 
-eapply semax_seq'. {
-hoist_later_in_pre.
+assert_PROP (field_compatible t_struct_aesctx [StructField _buf] ctx) as Fctx. entailer!.
 
-eapply (semax_SC_field_load' _ ctx_sh 1 _ _ _ _ _ tuint t_struct_aesctx
-[] [ArraySubsc 0; StructField _buf] [ArraySubsc 0; StructField _buf]
- ctx (Vint (Int.repr k1)));
-  first [ apply JMeq_refl | reflexivity | assumption | idtac ].
-{ entailer!.
-  (* TODO floyd why doesn't entailer do this automatically? *)
+assert ((field_address t_struct_aesctx [StructField _buf] ctx)
+      = (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx)) as Eq. {
   do 2 rewrite field_compatible_field_address by auto with field_compatible.
-  reflexivity. }
-{ entailer!. }
-{ entailer!.
-  (* TODO floyd why doesn't entailer do in_members? *)
- rewrite <- compute_in_members_true_iff. reflexivity. }
+  reflexivity.
 }
+rewrite Eq in *.
+
+assert_PROP (field_compatible t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx) as Fctx'. entailer!.
+
+assert_PROP (isptr ctx) as PNctx by entailer.
+destruct ctx; inversion PNctx. rename i into octx.
+
+(* simplify RK *)
+assert ((force_val
+            (sem_add_pi tuint
+                  (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] (Vptr b octx))
+                  (Vint (Int.repr 1))))
+      = (Vptr b (Int.add octx (Int.repr 12)))) as Eq0. {
+  (* TODO change to [ArraySubsc (something); _buf] *)
+  repeat rewrite field_compatible_field_address by assumption. simpl.
+  repeat rewrite Int.add_assoc. reflexivity.
+}
+rewrite Eq0. clear Eq0.
+
+forward'.
 
 (* TODO put this in floyd/freezer.v *)
 Ltac freeze_except' R Rs i acc name := match Rs with
@@ -405,179 +537,30 @@ freeze_except (data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintex
 forward.
   GET_UINT32_LE_tac. forward. forward. forward.
 
-entailer!.
-{
-(* TODO why is (isptr (field_address t_struct_aesctx [StructField _buf] ctx)) not solved automatically?*)
-admit.
-}
 thaw Fr.
 
 freeze_except (data_at ctx_sh t_struct_aesctx
      (Vint (Int.repr Nr),
-     (field_address t_struct_aesctx [StructField _buf] ctx,
+     (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] (Vptr b octx),
      Vint (Int.repr k1)
      :: Vint (Int.repr k2)
         :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ Vundefs))
-     ctx) Fr.
-
-assert_PROP (field_compatible t_struct_aesctx [StructField _buf] ctx) as Fctx. entailer!.
-
-assert_PROP (isptr ctx) as PNctx by entailer. 
-destruct ctx; inversion PNctx. rename i into octx.
+     (Vptr b octx)) Fr.
 
 repeat rewrite field_compatible_field_address by assumption. simpl.
 repeat rewrite Int.add_assoc.
 simpl.
 simpl_Int.
 
-eapply semax_seq'. {
-hoist_later_in_pre.
-
+clear Eq.
 assert (Eq: (Vptr b (Int.add octx (Int.repr 12)))
     = (field_address t_struct_aesctx [ArraySubsc 1; StructField _buf] (Vptr b octx))). {
   rewrite field_compatible_field_address by auto with field_compatible.
   reflexivity.
 }
-assert (El: [ArraySubsc 1; StructField _buf] = [ArraySubsc 1; StructField _buf] ++ [])
-  by reflexivity.
-rewrite Eq in *. rewrite El in *.
+rewrite Eq in *. clear Eq.
 
-match goal with
-| |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e1) _ =>
-    let HLE := fresh "HLE" in
-    let p := fresh "p" in evar (p: val);
-    do_compute_lvalue Delta P Q R e1 p HLE;
-    subst p
-end.
-
-(* how to find the gfs'es:
- gfs: gfs1 ++ gfs0      found from do_compute_lvalue
- gfs0:   go through SEP clauses (knowing p) and check for matching suffix (prefix on path)
- gfs1: rest
- *)
-
-unfold data_at in HLE.
-
-(*
-(* Given a list l and a list l0, which is supposed to be a suffix of l,
-   find the list l1 such that l = l1 ++ l0, and assign it to result *)
-Ltac find_prefix l l0 result :=
-  pose (result := sublist 0 ((Zlength l) - (Zlength l0)) l);
-  cbv in result. (*;
-  instantiate (l1 := result);
-  subst result.
-*)
-
-find_prefix [4; 5; 6; 8] [6; 8] L1. 
-
-evar (L33: list Z). 
-instantiate (L33 := result).
-
-gfs = gfs1 ++ gfs0
-*)
-
-Ltac find_SEP_clause_for p Rs i nSH nT nGfs nV nn := match Rs with
-| ?R :: ?Rest => match R with
-  | field_at ?SH ?T ?gfs ?V p =>
-      pose (nSH := SH); pose (nT := T); pose (nGfs := gfs); pose (nV := V); pose (nn := i); cbv in nn
-  | _ => find_SEP_clause_for p Rest (S i) nSH nT nGfs nV nn
-  end
-end.
-
-Ltac solve_legal_nested_field_in_entailment' :=
-(* same as solve_legal_nested_field_in_entailment but without these lines commented out:
-   match goal with
-   | |- _ |-- !! legal_nested_field ?t_root (?gfs1 ++ ?gfs0) =>
-    unfold t_root, gfs0, gfs1
-  end;
-*)
-  first
-  [ apply prop_right; apply compute_legal_nested_field_spec';
-    match goal with
-  | |- Forall ?F _ =>
-      let F0 := fresh "F" in
-      remember F as F0;
-      simpl;
-      subst F0
-  end;
-  repeat constructor; omega
-  |
-  apply compute_legal_nested_field_spec;
-  match goal with
-  | |- Forall ?F _ =>
-      let F0 := fresh "F" in
-      remember F as F0;
-      simpl;
-      subst F0
-  end;
-  repeat constructor;
-  try solve [apply prop_right; auto; omega];
-  try solve [normalize; apply prop_right; auto; omega]
-  ].
-
-match type of HLE with
-| (ENTAIL _, PROPx _ (LOCALx _ (SEPx ?R)) 
-  |-- local (`( eq (field_address ?T ?gfs ?p)) (eval_lvalue _))) =>
-    let nSH := fresh "SH" in let nT := fresh "T" in let nGfs := fresh "gfs0" in let nV := fresh "V"
-    in let nn := fresh "n" in
-    find_SEP_clause_for p R 0%nat nSH nT nGfs nV nn;
-    evar (gfs1 : list gfield);
-    let H := fresh "Hgfs" in
-    assert (gfs1 = (sublist 0 (Zlength gfs - Zlength gfs0) gfs)) as H by (cbv; reflexivity);
-    (eapply semax_SC_field_load' with (n0 := nn) (sh := nSH) (gfs2 := nGfs) (gfs3 := gfs1);
-    subst nn nSH nGfs gfs1);
-    [ reflexivity
-    | reflexivity
-    | solve [auto] (* readable share *)
-    | reflexivity
-    | exact HLE
-    | reflexivity
-    | reflexivity
-    | cbv [nth_error]; reflexivity
-    | eapply JMeq_refl
-    | entailer!
-    | solve_legal_nested_field_in_entailment' ]
-end.
-
-}
-thaw Fr.
-freeze_except (data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input) Fr.
-  unfold MORE_COMMANDS. unfold abbreviate.
-forward.
-  GET_UINT32_LE_tac. forward. forward. forward.
-
-entailer!.
-{
-(* TODO why is (isptr (field_address t_struct_aesctx [StructField _buf] ctx)) not solved automatically?*)
-admit.
-}
-thaw Fr.
-
-freeze_except (data_at ctx_sh t_struct_aesctx
-     (Vint (Int.repr Nr),
-     (field_address t_struct_aesctx [StructField _buf] ctx,
-     Vint (Int.repr k1)
-     :: Vint (Int.repr k2)
-        :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ Vundefs))
-     ctx) Fr.
-
-eapply semax_seq'. {
-hoist_later_in_pre.
-
-eapply (semax_SC_field_load' _ ctx_sh 1 _ _ _ _ _ tuint t_struct_aesctx
-[] [ArraySubsc 2; StructField _buf] [ArraySubsc 2; StructField _buf]
- ctx (Vint (Int.repr k3)));
-  first [ apply JMeq_refl | reflexivity | assumption | idtac ].
-{ entailer!.
-  (* TODO floyd why doesn't entailer do this automatically? *)
-  do 2 rewrite field_compatible_field_address by auto with field_compatible. simpl.
-  destruct ctx; inversion PNctx. reflexivity. simpl. do 2 rewrite Int.add_assoc.
-  reflexivity. }
-{ entailer!. (* TODO isptr field_address *) admit. }
-{ entailer!.
-  (* TODO floyd why doesn't entailer do in_members? *)
- rewrite <- compute_in_members_true_iff. reflexivity. }
-}
+forward'.
 
 thaw Fr.
 freeze_except (data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input) Fr.
@@ -585,53 +568,55 @@ freeze_except (data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintex
 forward.
   GET_UINT32_LE_tac. forward. forward. forward.
 
-entailer!.
-{
-(* TODO why is (isptr (field_address t_struct_aesctx [StructField _buf] ctx)) not solved automatically?*)
-admit.
-}
 thaw Fr.
-
 freeze_except (data_at ctx_sh t_struct_aesctx
      (Vint (Int.repr Nr),
-     (field_address t_struct_aesctx [StructField _buf] ctx,
+     (Vptr b (Int.add octx (Int.repr 8)),
      Vint (Int.repr k1)
      :: Vint (Int.repr k2)
         :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ Vundefs))
-     ctx) Fr.
-
-eapply semax_seq'. {
-hoist_later_in_pre.
-
-eapply (semax_SC_field_load' _ ctx_sh 1 _ _ _ _ _ tuint t_struct_aesctx
-[] [ArraySubsc 3; StructField _buf] [ArraySubsc 3; StructField _buf]
- ctx (Vint (Int.repr k4)));
-  first [ apply JMeq_refl | reflexivity | assumption | idtac ].
-{ entailer!.
-  (* TODO floyd why doesn't entailer do this automatically? *)
-  do 2 rewrite field_compatible_field_address by auto with field_compatible. simpl.
-  destruct ctx; inversion PNctx. reflexivity. simpl. do 3 rewrite Int.add_assoc.
-  reflexivity. }
-{ entailer!. (* TODO isptr field_address *) admit. }
-{ entailer!.
-  (* TODO floyd why doesn't entailer do in_members? *)
- rewrite <- compute_in_members_true_iff. reflexivity. }
-}
-
-thaw Fr.
-unfold MORE_COMMANDS. unfold abbreviate.
-forward.
-
-assert_PROP (field_compatible t_struct_aesctx [StructField _buf] ctx) as Fctx. entailer!.
-
-assert_PROP (isptr ctx) as PNctx by entailer. 
-destruct ctx; inversion PNctx. simpl. rename i into octx.
-
-repeat rewrite field_compatible_field_address by assumption. simpl.
-repeat rewrite Int.add_assoc.
-simpl.
-
+     (Vptr b octx)) Fr.
 simpl_Int.
+repeat rewrite Int.add_assoc.
+simpl_Int.
+
+assert (Eq: (Vptr b (Int.add octx (Int.repr 16)))
+    = (field_address t_struct_aesctx [ArraySubsc 2; StructField _buf] (Vptr b octx))). {
+  rewrite field_compatible_field_address by auto with field_compatible.
+  reflexivity.
+}
+rewrite Eq in *. clear Eq.
+
+forward'.
+
+thaw Fr.
+freeze_except (data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input) Fr.
+  unfold MORE_COMMANDS. unfold abbreviate.
+forward.
+  GET_UINT32_LE_tac. forward. forward. forward.
+
+thaw Fr.
+freeze_except (data_at ctx_sh t_struct_aesctx
+     (Vint (Int.repr Nr),
+     (Vptr b (Int.add octx (Int.repr 8)),
+     Vint (Int.repr k1)
+     :: Vint (Int.repr k2)
+        :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ Vundefs))
+     (Vptr b octx)) Fr.
+simpl_Int.
+repeat rewrite Int.add_assoc.
+simpl_Int.
+
+assert (Eq: (Vptr b (Int.add octx (Int.repr 20)))
+    = (field_address t_struct_aesctx [ArraySubsc 3; StructField _buf] (Vptr b octx))). {
+  rewrite field_compatible_field_address by auto with field_compatible.
+  reflexivity.
+}
+rewrite Eq in *. clear Eq.
+
+forward'.
+
+forward.
 
 match goal with
 | |- context [temp _X0 (Vint (Int.xor ?E (Int.repr k1)))] =>
@@ -658,14 +643,16 @@ forward. forward.
 eapply semax_seq'.
 {
 
+thaw Fr.
+
 (* ugly hack to avoid type mismatch between
    "(val * (val * list val))%type" and "reptype t_struct_aesctx" *)
 assert (exists (v: reptype t_struct_aesctx), v =
        (Vint (Int.repr Nr),
-       (Vptr b (Int.add octx (Int.repr 8)),
-       Vint (Int.repr k1)
-         :: Vint (Int.repr k2)
-           :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ Vundefs)))
+     (Vptr b (Int.add octx (Int.repr 8)),
+     Vint (Int.repr k1)
+     :: Vint (Int.repr k2)
+        :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ Vundefs)))
 as EE by (eexists; reflexivity).
 
 destruct EE as [vv EE].
@@ -745,106 +732,20 @@ freeze_except (data_at ctx_sh t_struct_aesctx
         :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ Vundefs))
      (Vptr b octx)) Fr.
 
-eapply semax_seq'. {
-hoist_later_in_pre.
-
-match goal with
-| |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e1) _ =>
-    let HLE := fresh "H" in
-    let p := fresh "p" in evar (p: val);
-    do_compute_lvalue Delta P Q R e1 p HLE;
-    subst p
-end.
-
-Lemma semax_SC_field_load'':
-  forall {Espec: OracleKind},
-    forall Delta sh n id P Q R (e: expr) Pre
-      (t: type)
-      (a : val) (v : val) (v' : reptype t),
-      typeof_temp Delta id = Some t ->
-      is_neutral_cast (typeof e) t = true ->
-(*      typeof e = nested_field_type t_root gfs -> *)
-      readable_share sh ->
-      type_is_volatile (typeof e) = false ->
-(*      gfs = gfs1 ++ gfs0 -> *)
-      nth_error R n = Some Pre ->
-      Pre |-- data_at sh t v' a ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-        local (`(eq a) (eval_lvalue e)) ->
-      JMeq v' v ->
-      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-        (tc_lvalue Delta e) &&
-        local `(tc_val (typeof e) v) ->
-(*    ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-        (!! legal_nested_field t_root gfs) -> *)
-      semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
-        (Sset id e)
-          (normal_ret_assert
-            (PROPx P 
-              (LOCALx (temp id v :: remove_localdef id Q)
-                (SEPx R)))).
-Admitted.
-
-(* Note: different from the lower-level semax_max_path_field_load_nth_ram', because it's
-   not defined in terms of gfs *)
-
-(*  Level 0: semax_load_nth_ram
-
-eapply semax_load_nth_ram with (t1 := tuint) (t2 := tuint) (n := 1%nat) 
-(*
-(v :=
-(Znth 5
-  (Vint (Int.repr k1)
-       :: Vint (Int.repr k2)
-          :: Vint (Int.repr k3)
-             :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ list_repeat 8 Vundef) Vundef))
-*)
-; first [exact H1 | eassumption | reflexivity | idtac].
-{ (* QQQ: Can we solve this goal (which includes the evar ?v) automatically? *)
-
-instantiate (1 := (Znth 5
-  (Vint (Int.repr k1)
-       :: Vint (Int.repr k2)
-          :: Vint (Int.repr k3)
-             :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ list_repeat 8 Vundef) Vundef)).
-admit.
- }
-{ entailer!.
-admit. (* TODO is_int *)
+assert (Eq: (Vptr b (Int.add octx (Int.repr 24)))
+    = (field_address t_struct_aesctx [ArraySubsc 4; StructField _buf] (Vptr b octx))). {
+  rewrite field_compatible_field_address by auto with field_compatible.
+  reflexivity.
 }
-}
-*)
+rewrite Eq in *. clear Eq.
 
-
-(* Level 1: semax_max_path_field_load_nth_ram' 
-
-not what we want, because it's using gfs stuff
- *)
-
-
-(* Level 2: semax_SC_field_load''
-(where we removed the gfs stuff)  *)
-
-eapply semax_SC_field_load'' with (n := 1%nat) (sh := ctx_sh);
- first [exact H1 | assumption | reflexivity | eapply JMeq_refl | idtac].
-{ (* QQQ: Can we solve this goal (which includes the evar ?v') automatically? *)
-
-instantiate (1 := (Znth 5
-  (Vint (Int.repr k1)
-       :: Vint (Int.repr k2)
-          :: Vint (Int.repr k3)
-             :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ list_repeat 8 Vundef) Vundef)).
-
-entailer!.
-admit.
- }
-{ entailer!.
-admit. (* TODO is_int *)
-}
-}
+forward'.
 
 {
-unfold MORE_COMMANDS, abbreviate.
+(* TODO simplify this earlier! *)
+admit. (* TODO is_int *)
+}
+
 (* next command in loop body: *)
 (*     uint32_t b0 = tables.FT0[ ( Y0       ) & 0xFF ];    *)
 thaw Fr.
