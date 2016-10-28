@@ -138,7 +138,6 @@ Import Coqlib.
     apply SetoidList.InA_cons in H1.
     destruct H1.
     hnf in H0. destruct a; simpl in H0. destruct H0; subst a l0.
-    (*
     simpl. unfold permissions.setPerm. rewrite !PMap.gss.
     repeat match goal with |- context [is_left ?A] => destruct A; simpl; auto end.
     omega.
@@ -151,8 +150,6 @@ Import Coqlib.
     repeat match goal with |- context [is_left ?A] => destruct A; simpl; auto end.
     rewrite !PMap.gso; auto.
   Qed.
-     *)
-  Admitted.
   
   Lemma lockSet_spec_1: forall js b ofs,
       lockRes js (b,ofs) ->
@@ -663,7 +660,6 @@ Proof.
   simpl. rewrite PMap.gi. auto.
   change ((f a (fold_right f init al)) !! b ofs = None).
   unfold f at 1. destruct a as [[? ?] ?].
-(*
   simpl.
   destruct (peq b0 b).    
    2: unfold permissions.setPerm; rewrite !PMap.gso; auto.
@@ -677,8 +673,6 @@ Proof.
   specialize (H7 (b,z) l). spec H7; [left; reflexivity |].
   exists l; auto.
 Qed.
- *)
-  Admitted.
 
   Lemma gsslockSet_rem: forall ds b ofs ofs0,
       lr_valid (lockRes ds) ->

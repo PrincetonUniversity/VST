@@ -181,7 +181,7 @@ Module Concur.
     Record mem_cohere' m phi :=
       { cont_coh: contents_cohere m phi;
         (*acc_coh: access_cohere m phi;*)
-        acc_coh: access_cohere' m phi;
+        (*acc_coh: access_cohere' m phi;*)
         max_coh: max_access_cohere m phi;
         all_coh: alloc_cohere m phi
       }.

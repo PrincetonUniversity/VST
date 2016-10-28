@@ -25,7 +25,6 @@ Definition valshare (r: resource) : share :=
       | _ => Share.bot
     end.
 
-
 Definition res_retain' (r: resource) : Share.t :=
  match r with
   | NO sh => sh
@@ -50,8 +49,7 @@ Definition max_access_at m loc := access_at m loc Max.
 Definition max_access_cohere (m: mem) (phi: rmap)  :=
  forall loc,
    match phi @ loc with
-   | YES rsh sh (VAL _) _ => perm_order'' (max_access_at m loc) (perm_of_sh rsh (pshare_sh sh))
-   | YES rsh sh _ _ => (fst loc < nextblock m)%positive
+   | YES rsh sh _ _ => perm_order'' (max_access_at m loc) (perm_of_sh rsh (pshare_sh sh))
    | NO rsh => perm_order'' (max_access_at m loc) (perm_of_sh rsh Share.bot )
    | PURE _ _ => (fst loc < nextblock m)%positive
   end.

@@ -422,17 +422,15 @@ Proof.
     + spec lock_coh loc.
       destruct (AMap.find loc _) as [o|] eqn:Eo.
       * destruct o; unfold option_map; destruct lock_coh as (load & coh); split; swap 2 3.
-        -- admit.
-        -- admit.
-        -- admit.
-        -- admit.
-      * (* we must use sparsity, here *)
-        unfold option_map.
+        -- admit. (* load *)
+        -- admit. (* load *)
+        -- admit. (* lkat *)
+        -- admit. (* lkat *)
+      * unfold option_map.
         destruct (adr_range_dec (b, Int.unsigned ofs) LKSIZE loc) as [r|nr].
-        
-        -- (* ok, invariant was ttoo strong here but it's fixed now *)
-           admit.
-        
+        -- destruct Hrmap' as (_ & _ & inside).
+           spec inside loc r. rewrite isLK_age_to.
+           if_tac in inside; intros []; intros ? ?; breakhyps.
         -- destruct Hrmap' as (_ & outside & _).
            rewrite age_to_resource_at.
            spec outside loc nr. rewrite <-outside.
