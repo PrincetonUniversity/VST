@@ -335,10 +335,10 @@ Qed.
 
 Lemma body_fifo_new: semax_body Vprog Gprog f_fifo_new fifo_new_spec.
 Proof.
-  start_function. 
+  start_function.
   forward_call (* Q = surely_malloc(sizeof ( *Q)); *)
      (sizeof t_struct_fifo).
-    subst wit; simpl; computable.
+    simpl; computable.
   Intros q.
   assert_PROP (field_compatible t_struct_fifo [] q).
    entailer!.
@@ -454,7 +454,7 @@ Proof.
 start_function. rename a into a0; rename b into b0.
 forward_call (*  p = surely_malloc(sizeof ( *p));  *) 
   (sizeof t_struct_elem).
- subst wit; simpl; computable.
+ simpl; computable.
  Intros p.
  assert_PROP (field_compatible t_struct_elem [] p). entailer!.
  rewrite memory_block_data_at_ by auto.

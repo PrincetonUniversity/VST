@@ -597,7 +597,7 @@ let wit := fresh "wit" in
  | prove_delete_temp
  | prove_delete_temp
  | unify_postcondition_exps
- | unfold fold_right_and; repeat rewrite and_True; auto
+ | unfold fold_right_and; repeat rewrite and_True; auto; subst A wit
  ] end.
 
 Ltac forward_call_id1_y_wow witness :=
@@ -633,7 +633,7 @@ let wit := fresh "wit" in
  | prove_delete_temp
  | prove_delete_temp
  | unify_postcondition_exps
- | unfold fold_right_and; repeat rewrite and_True; auto
+ | unfold fold_right_and; repeat rewrite and_True; auto; subst A wit
  ] end.
 
 Ltac forward_call_id1_wow witness :=
@@ -666,7 +666,7 @@ let wit := fresh "wit" in
            ]
  | prove_delete_temp
  | unify_postcondition_exps
- | unfold fold_right_and; repeat rewrite and_True; auto
+ | unfold fold_right_and; repeat rewrite and_True; auto; subst A wit
  ] end.
 
 Ltac forward_call_id01_wow witness :=
@@ -697,7 +697,7 @@ let wit := fresh "wit" in
            | give_EX_warning
            ]
  | unify_postcondition_exps
- | unfold fold_right_and; repeat rewrite and_True; auto
+ | unfold fold_right_and; repeat rewrite and_True; auto; subst A wit
  ] end.
 
 Ltac forward_call_id00_wow witness :=
@@ -726,7 +726,7 @@ let wit := fresh "wit" in
     try rewrite no_post_exists0; 
     first [reflexivity | extensionality; simpl; reflexivity]
  | unify_postcondition_exps
- | unfold fold_right_and; repeat rewrite and_True; auto
+ | unfold fold_right_and; repeat rewrite and_True; auto; subst A wit
  ]
  end.
 

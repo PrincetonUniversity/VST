@@ -195,7 +195,7 @@ Proof.
  forward_if.
  + (* then clause *)
  subst p1.
- forward_call (sizeof t_struct_tree). subst wit; simpl; repable_signed.
+ forward_call (sizeof t_struct_tree). simpl; repable_signed.
  Intros p'.
  rewrite memory_block_data_at_ by auto.
  forward. (* p->key=x; *)
@@ -356,7 +356,7 @@ Lemma body_treebox_new: semax_body Vprog Gprog f_treebox_new treebox_new_spec.
 Proof.
   start_function.
   forward_call (sizeof (tptr t_struct_tree)).
-  subst wit; simpl sizeof; computable.
+  simpl sizeof; computable.
   Intros p.
   rewrite memory_block_data_at_ by auto.
   forward.
