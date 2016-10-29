@@ -41,18 +41,31 @@ Definition perm_of_res (r: resource) :=
  | YES rsh sh _ _ => Some Nonempty
  end.
 
+Definition perm_of_res' (r: resource) := 
+  (*  perm_of_sh (res_retain' r) (valshare r). *)
+ match r with
+ | NO sh => if eq_dec sh Share.bot then None else Some Nonempty
+ | PURE _ _ => Some Nonempty
+ | YES rsh sh _ _ => perm_of_sh rsh (pshare_sh sh)
+ end.
+
 Definition access_cohere (m: mem)  (phi: rmap) :=
   forall loc,  access_at m loc Cur = perm_of_res (phi @ loc).
 
 Definition max_access_at m loc := access_at m loc Max.
 
 Definition max_access_cohere (m: mem) (phi: rmap)  :=
- forall loc,
+  forall loc,
+    perm_order'' (max_access_at m loc) (perm_of_res' (phi @ loc)).
+
+(*
+Definition max_access_cohere (m: mem) (phi: rmap)  :=
+  forall loc,
    match phi @ loc with
    | YES rsh sh _ _ => perm_order'' (max_access_at m loc) (perm_of_sh rsh (pshare_sh sh))
    | NO rsh => perm_order'' (max_access_at m loc) (perm_of_sh rsh Share.bot )
    | PURE _ _ => (fst loc < nextblock m)%positive
-  end.
+  end. *)
 
 Definition alloc_cohere (m: mem) (phi: rmap) :=
  forall loc,  (fst loc >= nextblock m)%positive -> phi @ loc = NO Share.bot.
@@ -787,40 +800,41 @@ revert H; case_eq (access_at m loc Cur); intros.
  reflexivity.
  rewrite !if_true; auto.
 * (* max_access_cohere *)
-generalize (perm_cur_max m (fst loc) (snd loc)); unfold perm; intros.
-case_eq (access_at m loc Cur); try destruct p; intros.
-unfold perm_order'', perm_order', max_access_at in *.
-simpl; rewrite perm_of_freeable.
-apply H.
-unfold access_at in H0. rewrite H0. constructor.
-simpl. rewrite perm_of_writable.
-unfold perm_order'', perm_order', max_access_at, access_at in *.
-rewrite H0 in *.
-specialize (H Writable). spec H. constructor.
-apply H.
-apply extern_retainer_neq_top.
-rewrite perm_of_readable.
-unfold perm_order'', perm_order', max_access_at, access_at in *.
-rewrite H0 in *.
-apply H. constructor.
-clear; unfold read_sh.
-unfold split_pshare; simpl.
-apply fst_split_fullshare_not_bot.
-apply fst_split_fullshare_not_top.
-destruct (IOK loc).
-destruct (lev @ loc).
- rewrite perm_of_nonempty by apply extern_retainer_neq_bot.
- unfold max_access_at, access_at in *.
- rewrite H0 in H.
- specialize (H Nonempty). spec H. constructor.
- apply H.
- rewrite perm_of_nonempty by apply extern_retainer_neq_bot.
- unfold max_access_at, access_at in *.
- rewrite H0 in H.
- specialize (H Nonempty). spec H. constructor.
- apply H.
-destruct H2; auto.
-rewrite perm_of_empty. destruct (max_access_at m loc); try constructor.
+  { generalize (perm_cur_max m (fst loc) (snd loc)); unfold perm; intros.
+    case_eq (access_at m loc Cur); try destruct p; intros.
+    - unfold perm_order'', perm_order', max_access_at in *.
+    simpl; rewrite perm_of_freeable.
+    apply H.
+    unfold access_at in H0. rewrite H0. constructor.
+    - simpl. rewrite perm_of_writable.
+    unfold perm_order'', perm_order', max_access_at, access_at in *.
+    rewrite H0 in *.
+    specialize (H Writable). spec H. constructor.
+    apply H.
+    apply extern_retainer_neq_top.
+     - simpl.
+    rewrite perm_of_readable.
+    unfold perm_order'', perm_order', max_access_at, access_at in *.
+    rewrite H0 in *.
+    apply H. constructor.
+    clear; unfold read_sh.
+    unfold split_pshare; simpl.
+    apply fst_split_fullshare_not_bot.
+    apply fst_split_fullshare_not_top.
+    - destruct (IOK loc).
+    (*How is this not a lemma: *)
+    assert (po_trans: forall a b c, Mem.perm_order'' a b ->  Mem.perm_order'' b c ->
+                               Mem.perm_order'' a c).
+    { clear. intros a b c H1 H2; destruct a, b, c; inversion H1; inversion H2; subst; eauto;
+             eapply perm_order_trans; eauto. }
+    eapply po_trans; [apply (access_max m (fst loc) (snd loc))|].
+    unfold access_at in H0; rewrite H0.
+    destruct (lev @ loc) ; simpl;
+    try destruct (@eq_dec Share.t Share.EqDec_share extern_retainer Share.bot); try constructor.
+    - simpl. destruct (eq_dec Share.bot Share.bot) as [e|n]; [| exfalso; apply n; reflexivity].
+      rewrite <- H0.
+      apply (access_max m).
+  }
 * (* alloc_cohere *)
 unfold access_at.
 unfold block; rewrite (nextblock_noaccess m (fst loc) (snd loc) Cur); auto.
@@ -918,7 +932,7 @@ unfold max_access_at in *.
 rewrite <- (Memory.store_access _ _ _ _ _ _ STORE).
 apply nextblock_store in STORE. 
 destruct (m_phi jm @ loc); auto.
-destruct k; simpl; try congruence.  rewrite STORE; auto.
+destruct k; simpl; try assumption.
 (* alloc_cohere *)
 hnf; intros.
 unfold inflate_store. rewrite resource_at_make_rmap.
@@ -1122,23 +1136,15 @@ destruct (free_nadr_range_eq _ _ _ _ _ _ _ n FREE) as [H2 H3].
 rewrite H2 in *. clear H2 H3.
 case_eq (m_phi jm @ (b', ofs')); intros; rewrite H2 in *; auto.
 * (* max_access_cohere *)
-intros [b' ofs']. specialize (H1 (b',ofs')).
-unfold inflate_free. unfold max_access_at. rewrite resource_at_make_rmap.
-destruct (adr_range_dec (b,lo) (hi-lo) (b',ofs')).
- + (* adr_range *)
-destruct a as [H2 H3].
-replace (lo+(hi-lo)) with hi in H3 by omega.
-subst b'.
-replace (access_at m' (b, ofs') Max) with (@None permission).
-simpl. rewrite perm_of_empty. auto.
-destruct (free_access _ _ _ _ _ FREE ofs' H3). auto.
-+ (* ~ (adr_range_dec (b,lo) (hi-lo) loc) *)
-clear PERM.
-unfold max_access_at.
-destruct (free_nadr_range_eq _ _ _ _ _ _ _ n FREE) as [H2 H3].
-rewrite <- H2.
-rewrite (nextblock_free _ _ _ _ _ FREE).
-auto.
+{ intros [b' ofs']. specialize (H1 (b',ofs')).
+  unfold inflate_free. unfold max_access_at. rewrite resource_at_make_rmap.
+  destruct (adr_range_dec (b,lo) (hi-lo) (b',ofs')).
+  - simpl; destruct (eq_dec Share.bot Share.bot) as [e|n]; [| exfalso; apply n; reflexivity].
+    destruct (access_at m' (b', ofs') Max); constructor.
+  - clear PERM.
+    unfold max_access_at.
+    destruct (free_nadr_range_eq _ _ _ _ _ _ _ n FREE) as [H2 H3].
+    rewrite <- H2. assumption. }
 * (* alloc_cohere *)
 hnf; intros.
 unfold inflate_free. rewrite resource_at_make_rmap.

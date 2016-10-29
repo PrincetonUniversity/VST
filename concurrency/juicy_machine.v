@@ -647,6 +647,55 @@ Qed.
       destruct ((perm_of_res (phi @ loc))) eqn:HH; try rewrite HH; simpl; reflexivity.
     Qed.
 
+    Lemma po_perm_of_res: forall r,
+       Mem.perm_order''  (perm_of_res' r) (perm_of_res r). 
+    Proof.
+      rewrite /perm_of_res /perm_of_res' => r.
+      destruct r; try solve[ apply po_refl].
+      assert (Mem.perm_order'' (perm_of_sh t0 (pshare_sh p)) (Some Nonempty)).
+      { destruct (perm_of_sh t0 (pshare_sh p)) eqn:HH; try solve[constructor].
+        apply perm_of_empty_inv in HH; destruct HH as [AA BB].
+        exfalso; apply (juicy_mem_ops.Abs.pshare_sh_bot _ BB). }
+      destruct k; first[ apply po_refl | assumption].
+    Qed.
+      
+      
+    Lemma max_acc_coh_acc_coh: forall m phi,
+        max_access_cohere m phi -> access_cohere' m phi.
+    Proof.
+      move=> m phi mac loc.
+      move: mac => /(_ loc) mac.
+      eapply po_trans; eauto.
+      apply po_perm_of_res.
+    Qed.
+
+    Definition juicyRestrict':=
+      fun phi m macoh => @juicyRestrict phi m (max_acc_coh_acc_coh macoh).
+
+    Lemma juicyRestrictAccCoh': forall phi m (coh:max_access_cohere m phi),
+        access_cohere (juicyRestrict' coh) phi.
+    Proof.
+      unfold access_cohere; intros.
+      rewrite juicyRestrictCurEq.
+      destruct ((perm_of_res (phi @ loc))) eqn:HH; try rewrite HH; simpl; reflexivity.
+    Qed.
+
+    Lemma po_join_sub': forall r1 r2 : resource,
+       join_sub r2 r1 ->
+       Mem.perm_order'' (perm_of_res' r1) (perm_of_res' r2).
+    Admitted.
+    
+    Lemma mem_access_coh_sub: forall phi1 phi2 m,
+          max_access_cohere m phi1 ->
+          join_sub phi2 phi1 ->
+          max_access_cohere m phi2.
+    Proof.
+      rewrite /max_access_cohere => phi1 phi2 m H H0 loc.
+      eapply po_trans; eauto.
+      eapply po_join_sub'.
+      apply resource_at_join_sub; assumption.
+    Qed.
+    
     Lemma mem_cohere_sub: forall phi1 phi2 m,
           mem_cohere' m phi1 ->
           join_sub phi2 phi1 ->
@@ -661,37 +710,13 @@ Qed.
         inversion H0; subst.
         + symmetry in H. apply cont_coh0 in H; assumption.
         + symmetry in H6; apply cont_coh0 in H6; assumption.
-      - intros loc.
+      (* - intros loc.
         eapply resource_at_join_sub with (l:= loc) in H0.
         eapply po_join_sub  in H0.
         eapply po_trans; eauto.
-        inversion H; auto.
-      - intros loc.
-        inversion H. clear - H0 max_coh0 acc_coh0.
-        eapply resource_at_join_sub with (l:= loc) in H0.
-        destruct H0 as [X HH].
-        specialize (max_coh0 loc).
-        specialize (acc_coh0 loc).
-        destruct (phi2 @ loc) eqn: MAP2.
-        + eapply po_trans; eauto.
-          replace (perm_of_sh t0 Share.bot) with (perm_of_res (NO t0)).
-          eapply po_join_sub. eapply join_join_sub; eauto.
-          { assert (Share.bot <> Share.top).
-            { intros HHH; apply Share.nontrivial; auto. }
-            unfold perm_of_sh. rewrite if_false; auto.
-            rewrite if_true; auto.
-          }
-        + destruct k;
-          try solve[inversion HH; subst; auto;
-            match goal with [H: _ = phi1 @ _ |- _] =>
-                            rewrite <- H in max_coh0 end; auto].
-          *  replace (perm_of_sh t0 (pshare_sh p)) with (perm_of_res (YES t0 p (VAL m0) p0)) by
-                reflexivity.
-             eapply po_trans; eauto.
-             eapply po_join_sub. eapply join_join_sub; eauto.
-          * inversion HH; subst; auto;
-            match goal with [H: _ = phi1 @ _ |- _] =>
-                            rewrite <- H in max_coh0 end; auto.
+        inversion H; auto. *)
+      - inversion H.
+        eapply mem_access_coh_sub; eauto.
       - unfold alloc_cohere.
         inversion H. clear - H0 all_coh0.
         intros loc HH; apply all_coh0 in HH.
@@ -789,7 +814,8 @@ Admitted.
     
     (* PERSONAL MEM: Is the contents of the global memory, 
        with the juice of a single thread and the Cur that corresponds to that juice.*)
-    Definition personal_mem {m phi} (pr : mem_cohere' m phi) : juicy_mem :=
+    Definition acc_coh:= fun m phi pr => @max_acc_coh_acc_coh m phi (max_coh pr).
+    Definition personal_mem {m phi} (pr : mem_cohere' m phi) : juicy_mem:=
       mkJuicyMem
         (@juicyRestrict phi m (acc_coh pr))
         phi
@@ -1493,9 +1519,10 @@ Admitted.
       cut (Mem.perm_order'' (perm_of_res (allj @ (b,ofs))) (perm_of_res (r @ (b, ofs)))).
       {intros AA. eapply po_trans; eauto.
        inversion all_cohere0.
-       specialize (acc_coh0 (b, ofs)).
        rewrite getMaxPerm_correct.
-       apply acc_coh0. }
+       eapply max_acc_coh_acc_coh in max_coh0.
+       specialize (max_coh0 (b,ofs)).
+       apply max_coh0. }
       { apply po_join_sub.
         apply resource_at_join_sub. eapply compatible_lockRes_sub; eauto. }
     Qed.
@@ -1517,19 +1544,7 @@ Admitted.
       Lemma mem_cohere'_juicy_mem jm : mem_cohere' (m_dry jm) (m_phi jm).
       Proof.
         destruct jm as [m phi C A M L]; simpl.
-        constructor; auto; [].
-        intros loc; specialize (A loc); specialize (M loc).
-        destruct (phi @ loc).
-        * simpl in *.
-          unfold perm_of_sh in M.
-          if_tac in M.
-          -- exfalso; unshelve eapply (Share.nontrivial _); auto.
-          -- if_tac in M. now auto. congruence.
-        * simpl in *.
-          destruct k eqn:Ek.
-          now auto.
-          all: rewrite <- A.
-          all: now apply Mem.access_max.
+        constructor; auto.
       Qed.
       
       
@@ -1774,9 +1789,9 @@ Admitted.
       Lemma mem_cohere'_age m : hereditary age (mem_cohere' m).
       Proof.
         intros x y E.
-        intros [A B C D]; constructor.
+        intros [A B C]; constructor.
         - eapply contents_cohere_age; eauto.
-        - eapply access_cohere'_age; eauto.
+       (* - eapply access_cohere'_age; eauto.*)
         - eapply max_access_cohere_age; eauto.
         - eapply alloc_cohere_age; eauto.
       Qed.

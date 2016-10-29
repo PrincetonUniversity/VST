@@ -1,4 +1,5 @@
 Require Export msl.predicates_sl.
+Require Export concurrency.semax_conc_pred.
 Require Export concurrency.semax_conc.
 Require Export floyd.proofauto.
 Require Export floyd.sublist.
@@ -1154,3 +1155,6 @@ Proof.
 Qed.
 
 Transparent Z.of_nat.
+
+Ltac join_inj := repeat match goal with H1 : sepalg.join ?a ?b ?c, H2 : sepalg.join ?a ?b ?d |- _ =>
+    pose proof (sepalg.join_eq H1 H2); clear H1 H2; subst; auto end.
