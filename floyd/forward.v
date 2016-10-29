@@ -565,24 +565,30 @@ end.
 
 Ltac forward_call_id1_x_wow witness :=
 let Frame := fresh "Frame" in
+let A := fresh "A" in
+let wit := fresh "wit" in
  evar (Frame: list (mpred));
+ evar (A: rmaps.TypeTree);
+ evar (wit: functors.MixVariantFunctor._functor
+              (rmaps.dependent_type_functor_rec nil A) mpred);
  match goal with |- @semax ?CS _ _ _ _ _ =>
- eapply (semax_call_id1_x_wow witness Frame);
+ eapply (@semax_call_id1_x_wow A wit Frame);
  [ check_function_name
- | lookup_spec_and_change_compspecs CS
+ | subst A; lookup_spec_and_change_compspecs CS
  | find_spec_in_globals | check_result_type | check_result_type
  | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity 
  | (clear; let H := fresh in intro H; inversion H)
  | check_parameter_types
  | check_prove_local2ptree
  | check_typecheck
- | check_funspec_precondition
+ | instantiate (1 := witness) in (Value of wit);
+   check_funspec_precondition
  | check_prove_local2ptree
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
- | cbv beta; extensionality rho; 
+ | subst wit; cbv beta; extensionality rho; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    first [apply exp_congr; intros ?vret; reflexivity
@@ -596,23 +602,29 @@ let Frame := fresh "Frame" in
 
 Ltac forward_call_id1_y_wow witness :=
 let Frame := fresh "Frame" in
+let A := fresh "A" in
+let wit := fresh "wit" in
  evar (Frame: list (mpred));
+ evar (A: rmaps.TypeTree);
+ evar (wit: functors.MixVariantFunctor._functor
+              (rmaps.dependent_type_functor_rec nil A) mpred);
  match goal with |- @semax ?CS _ _ _ _ _ =>
- eapply (semax_call_id1_y_wow witness Frame);
- [ check_function_name | lookup_spec_and_change_compspecs CS
+ eapply (@semax_call_id1_y_wow A wit Frame);
+ [ check_function_name | subst A; lookup_spec_and_change_compspecs CS
  | find_spec_in_globals | check_result_type | check_result_type
  | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity 
  | (clear; let H := fresh in intro H; inversion H)
  | check_parameter_types
  | check_prove_local2ptree
  | check_typecheck
- | check_funspec_precondition
+ | instantiate (1 := witness) in (Value of wit);
+   check_funspec_precondition
  | check_prove_local2ptree
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
- | cbv beta; extensionality rho; 
+ | subst wit; cbv beta; extensionality rho; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    first [apply exp_congr; intros ?vret; reflexivity
@@ -626,21 +638,27 @@ let Frame := fresh "Frame" in
 
 Ltac forward_call_id1_wow witness :=
 let Frame := fresh "Frame" in
+let A := fresh "A" in
+let wit := fresh "wit" in
  evar (Frame: list (mpred));
+ evar (A: rmaps.TypeTree);
+ evar (wit: functors.MixVariantFunctor._functor
+              (rmaps.dependent_type_functor_rec nil A) mpred);
  match goal with |- @semax ?CS _ _ _ _ _ =>
- eapply (semax_call_id1_wow witness Frame);
- [ check_function_name | lookup_spec_and_change_compspecs CS
+ eapply (@semax_call_id1_wow A wit Frame);
+ [ check_function_name | subst A; lookup_spec_and_change_compspecs CS
  | find_spec_in_globals | check_result_type
  | apply Coq.Init.Logic.I | check_parameter_types
  | check_prove_local2ptree
  | check_typecheck
- | check_funspec_precondition
+ | instantiate (1 := witness) in (Value of wit);
+   check_funspec_precondition
  | check_prove_local2ptree
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
- | cbv beta; extensionality rho; 
+ | subst wit; cbv beta; extensionality rho; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    first [apply exp_congr; intros ?vret; reflexivity
@@ -653,20 +671,26 @@ let Frame := fresh "Frame" in
 
 Ltac forward_call_id01_wow witness :=
 let Frame := fresh "Frame" in
+let A := fresh "A" in
+let wit := fresh "wit" in
  evar (Frame: list (mpred));
+ evar (A: rmaps.TypeTree);
+ evar (wit: functors.MixVariantFunctor._functor
+              (rmaps.dependent_type_functor_rec nil A) mpred);
  match goal with |- @semax ?CS _ _ _ _ _ =>
- eapply (semax_call_id01_wow witness Frame);
- [ check_function_name | lookup_spec_and_change_compspecs CS
+ eapply (@semax_call_id01_wow A wit Frame);
+ [ check_function_name | subst A; lookup_spec_and_change_compspecs CS
  | find_spec_in_globals | apply Coq.Init.Logic.I | reflexivity
  | check_prove_local2ptree
  | check_typecheck
- | check_funspec_precondition
+ | instantiate (1 := witness) in (Value of wit);
+   check_funspec_precondition
  | check_prove_local2ptree
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
- | cbv beta; extensionality rho; 
+ | subst wit; cbv beta; extensionality rho; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    first [apply exp_congr; intros ?vret; reflexivity
@@ -678,20 +702,26 @@ let Frame := fresh "Frame" in
 
 Ltac forward_call_id00_wow witness :=
 let Frame := fresh "Frame" in
+let A := fresh "A" in
+let wit := fresh "wit" in
  evar (Frame: list (mpred));
+ evar (A: rmaps.TypeTree);
+ evar (wit: functors.MixVariantFunctor._functor
+              (rmaps.dependent_type_functor_rec nil A) mpred);
  match goal with |- @semax ?CS _ _ _ _ _ =>
- eapply (semax_call_id00_wow witness Frame);
- [ check_function_name | lookup_spec_and_change_compspecs CS
+ eapply (@semax_call_id00_wow A wit Frame);
+ [ check_function_name | subst A; lookup_spec_and_change_compspecs CS
  | find_spec_in_globals | check_result_type | check_parameter_types
  | check_prove_local2ptree
  | check_typecheck
- | check_funspec_precondition
+ | instantiate (1 := witness) in (Value of wit);
+   check_funspec_precondition
  | check_prove_local2ptree
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
- | cbv beta iota; 
+ | subst wit; cbv beta iota; 
     repeat rewrite exp_uncurry;
     try rewrite no_post_exists0; 
     first [reflexivity | extensionality; simpl; reflexivity]

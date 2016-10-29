@@ -196,7 +196,7 @@ Proof.
   start_function. 
   forward_call (* Q = surely_malloc(sizeof ( *Q)); *)
      (sizeof t_struct_fifo).
-    simpl; computable.
+    subst wit; simpl; computable.
   Intros q.
   assert_PROP (field_compatible t_struct_fifo [] q).
    entailer!.
@@ -305,7 +305,7 @@ Proof.
 start_function.
 forward_call (*  p = surely_malloc(sizeof ( *p));  *) 
   (sizeof t_struct_elem).
- simpl; computable.
+ subst wit; simpl; computable.
  Intros p.
  assert_PROP (field_compatible t_struct_elem [] p). entailer!.
  rewrite memory_block_data_at_ by auto.
