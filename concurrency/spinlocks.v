@@ -26,6 +26,7 @@ Require Import concurrency.permjoin_def.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.memory_lemmas.
 Require Import concurrency.dry_context.
+Require Import concurrency.dry_machine_lemmas.
 Require Import concurrency.executions.
 Require Import Coqlib.
 Require Import msl.Coqlib2.
@@ -34,13 +35,16 @@ Set Bullet Behavior "None".
 Set Bullet Behavior "Strict Subproofs".
 
 Module SpinLocks (SEM: Semantics)
+       (SemAxioms: SemanticsAxioms SEM)
        (Machines: MachinesSig with Module SEM := SEM)
        (AsmContext: AsmContext SEM Machines).
   Import Machines DryMachine ThreadPool AsmContext.
   Import event_semantics.
   Import Events.
+  Module CoreLanguage := CoreLanguage SEM SemAxioms.
+  Module CoreLanguageDry := CoreLanguageDry SEM SemAxioms DryMachine.
   Module Executions := Executions SEM Machines AsmContext.
-  Import Executions.
+  Import Executions CoreLanguage CoreLanguageDry.
 
   Section Spinlocks.
 
@@ -760,18 +764,6 @@ Module SpinLocks (SEM: Semantics)
       destruct evi; simpl in *; auto. destruct m0; discriminate.
     Qed.
     
-    (** A location that the machine has no access to (i.e. the permission is
-  empty in all its resources) *) 
-    Inductive deadLocation tp b ofs : Prop :=
-    | Dead: forall
-        (Hthreads: forall i (cnti: containsThread tp i),
-            (getThreadR cnti).1 !! b ofs = None /\ (getThreadR cnti).2 !! b ofs = None)
-        (Hlocks: (lockSet tp) !! b ofs = None)
-        (Hresources: forall l pmap,
-            lockRes tp l = Some pmap ->
-            pmap.1 !! b ofs = None /\ pmap.2 !! b ofs = None),
-        deadLocation tp b ofs.
-
     Definition in_free_list (b : block) ofs xs :=
       exists x, List.In x xs /\
            let '(b', lo, hi) := x in
@@ -833,7 +825,7 @@ Module SpinLocks (SEM: Semantics)
         (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr ++ tr_pre ++ [:: ev] ++ tr_post, tp') m')
         (Hperm: Mem.perm_order'' ((getThreadR cnt).1 !! b ofs) ((getThreadR cnt').1 !! b ofs))
         (Hperm': (getThreadR cnt).1 !! b ofs <> (getThreadR cnt').1 !! b ofs),
-        (action ev = Free /\ deadLocation tp' b ofs) \/
+        (action ev = Free /\ deadLocation tp' m' b ofs) \/
         (action ev = Spawn) \/
         (action ev = Mklock /\
          match location ev with
@@ -1040,7 +1032,7 @@ Module SpinLocks (SEM: Semantics)
                           (U'', tr ++ tr_pre ++ [:: evu], tp_dec) m_dec /\
         fine_execution (U'', tr ++ tr_pre ++ [:: evu], tp_dec) m_dec
                        (U''', tr ++ tr',tpj) mj /\
-        ((action evu = Free /\ deadLocation tpj b ofs) \/
+        ((action evu = Free /\ deadLocation tpj mj b ofs) \/
          (action evu = Spawn) \/
          (action evu = Mklock /\
           match location evu with
@@ -1054,8 +1046,8 @@ Module SpinLocks (SEM: Semantics)
           (forall (cntu: containsThread tp_pre tidn),
               (getThreadR cntu).1 !! b ofs = (getThreadR cnti).1 !! b ofs))).
     Proof.
-      Admitted.
-      (*induction U as [|tid' U]; intros.
+    Admitted.
+    (*induction U as [|tid' U]; intros.
       - inversion Hexec. apply app_eq_nil in H3; subst.
         pf_cleanup. by congruence.
       - inversion Hexec.
@@ -1191,6 +1183,427 @@ Module SpinLocks (SEM: Semantics)
                                                        nth_error (xs ++ ys) i = Some v.
     Admitted.
 
+    Lemma app_assoc_l:
+      forall (A : Type) (l m n : seq.seq A),
+        l ++ m ++ n = l ++ (m ++ n).
+    Admitted.
+
+    Lemma free_list_cases:
+      forall l m m' b ofs
+        (Hfree: Mem.free_list m l = Some m'),
+        (permission_at m b ofs Cur = Some Freeable /\
+         permission_at m' b ofs Cur = None) \/
+        (permission_at m b ofs Cur = permission_at m' b ofs Cur).
+    Proof.
+    Admitted.
+
+    Lemma elim_perm_valid_block:
+      forall m T m' b ofs ofs' bytes
+        (Hintv: Intv.In ofs' (ofs, (ofs + Z.of_nat (length bytes))%Z))
+        (Helim: ev_elim m T m')
+        (Hvalid: Mem.valid_block m b),
+        (** Either the location was freed*)
+        (permission_at m b ofs' Cur = Some Freeable /\ permission_at m' b ofs' Cur = None) \/
+        (** or it wasn't and the operation denoted by the event implies the permission*)
+        ((List.In (event_semantics.Write b ofs bytes) T ->
+          Mem.perm_order'' (permission_at m b ofs' Cur) (Some Writable) /\
+          Mem.perm_order'' (permission_at m' b ofs' Cur) (Some Writable)) /\
+         (forall n,
+             List.In (event_semantics.Read b ofs n bytes) T ->
+             Mem.perm_order'' (permission_at m b ofs' Cur) (Some Readable) /\
+             Mem.perm_order'' (permission_at m' b ofs' Cur) (Some Readable))).
+    Proof.
+      intros.
+      generalize dependent m'.
+      generalize dependent m.
+      induction T as [| ev]; intros.
+      - inversion Helim; subst.
+        right; split; intros; simpl in H; by exfalso.
+      - simpl in Helim.
+        destruct ev.
+        + destruct Helim as [m'' [Hstore Helim']].
+          eapply Mem.storebytes_valid_block_1 in Hvalid; eauto.
+          destruct (IHT _ Hvalid _ Helim') as [? | [Hwrite Hread]].
+          * pose proof (MemoryLemmas.mem_storebytes_cur _ _ _ _ _ Hstore b ofs') as Heq.
+            rewrite! getCurPerm_correct in Heq.
+            rewrite Heq.
+            left; assumption.
+          * assert (in_free_list_trace b ofs' T \/ ~ in_free_list_trace b ofs' T) as Hfree
+                by (apply EM).
+            destruct Hfree as [Hfree | HnotFree].
+            { (** If (b, ofs') was freed in the trace T*)
+              eapply ev_elim_free_1 in Hfree; eauto.
+              destruct Hfree as [? [? ?]].
+              left.
+              pose proof (MemoryLemmas.mem_storebytes_cur _ _ _ _ _ Hstore b ofs') as Heq.
+              rewrite! getCurPerm_correct in Heq.
+              rewrite Heq. now eauto.
+            }
+            { (** If [(b,ofs')] waas not freed in [T]*)
+              right.
+              eapply ev_elim_free_2 in HnotFree; eauto.
+              rewrite <- HnotFree.
+              pose proof (MemoryLemmas.mem_storebytes_cur _ _ _ _ _ Hstore b ofs') as Heq.
+              rewrite! getCurPerm_correct in Heq.
+              rewrite <- Heq.
+              clear Heq.
+              split.
+              - intros Hin.
+                simpl in Hin.
+                destruct Hin as [Heq | Hin].
+                + inv Heq.
+                  apply Mem.storebytes_range_perm in Hstore.
+                  specialize (Hstore _ Hintv).
+                  unfold Mem.perm, permission_at in *.
+                  rewrite <- po_oo.
+                  split;
+                    now assumption.
+                + specialize (Hwrite Hin).
+                  pose proof (MemoryLemmas.mem_storebytes_cur _ _ _ _ _ Hstore b ofs') as Heq.
+                  rewrite! getCurPerm_correct in Heq.
+                  rewrite Heq.
+                  destruct Hwrite;
+                    split;
+                    now assumption.
+              - intros n Hin.
+                simpl in Hin.
+                destruct Hin as [Heq | Hin].
+                discriminate.
+                specialize (Hread _ Hin).
+                pose proof (MemoryLemmas.mem_storebytes_cur _ _ _ _ _ Hstore b ofs') as Heq.
+                rewrite! getCurPerm_correct in Heq.
+                rewrite Heq.
+                destruct Hread; split;
+                  now assumption.
+            }
+        + (** Case the new operation is a read*)
+          destruct Helim as [Hload Helim'].
+          destruct (IHT _ Hvalid _ Helim') as [? | [Hwrite Hread]].
+          * left; assumption.
+          * assert (in_free_list_trace b ofs' T \/ ~ in_free_list_trace b ofs' T) as Hfree
+                by (apply EM).
+            destruct Hfree as [Hfree | HnotFree].
+            { (** If (b, ofs') was freed in the trace T*)
+              eapply ev_elim_free_1 in Hfree; eauto.
+              destruct Hfree as [? [? ?]].
+              left.
+              now eauto.
+            }
+            { (** If [(b,ofs')] waas not freed in [T]*)
+              right.
+              eapply ev_elim_free_2 in HnotFree; eauto.
+              rewrite <- HnotFree.
+              split.
+              - intros Hin.
+                simpl in Hin.
+                destruct Hin as [Heq | Hin];
+                  first by discriminate.
+                destruct (Hwrite Hin).
+                split;
+                  now assumption.
+              - intros n0 Hin.
+                simpl in Hin.
+                destruct Hin as [Heq | Hin].
+                + inv Heq.
+                  pose proof (Mem.loadbytes_length _ _ _ _ _ Hload) as Hlength.
+                  destruct (zle n0 0).
+                  * exfalso.
+                    eapply Mem.loadbytes_empty with (m := m) (b := b) (ofs := ofs) in l.
+                    rewrite Hload in l. inv l.
+                    unfold Intv.In in Hintv. simpl in Hintv.
+                    rewrite Z.add_0_r in Hintv.
+                    ssromega.
+                  * rewrite Hlength in Hintv.
+                    erewrite nat_of_Z_eq in Hintv by omega.
+                    apply Mem.loadbytes_range_perm in Hload.
+                    specialize (Hload _ Hintv).
+                    unfold Mem.perm, permission_at in *.
+                    split;
+                      now assumption.
+                + split; eapply Hread;
+                    now eauto.
+            }
+        + (** Case thew new operation allocated memory*)
+          destruct Helim as [m'' [Halloc Helim']].
+          pose proof (Mem.valid_block_alloc _ _ _ _ _ Halloc _ Hvalid) as Hvalid'.
+          destruct (IHT _ Hvalid' _ Helim') as [Heq | [Hwrite Hread]].
+          * erewrite <- MemoryLemmas.permission_at_alloc_1 in Heq by eauto.
+            left; eauto.
+          * assert (in_free_list_trace b ofs' T \/ ~ in_free_list_trace b ofs' T) as Hfree
+                by (apply EM).
+            destruct Hfree as [Hfree | HnotFree].
+            { (** If (b, ofs') was freed in the trace T*)
+              eapply ev_elim_free_1 in Hfree; eauto.
+              destruct Hfree as [? [? ?]].
+              left.
+              erewrite MemoryLemmas.permission_at_alloc_1 by eauto.
+              now eauto.
+            }
+            { (** If [(b,ofs')] waas not freed in [T]*)
+              right.
+              eapply ev_elim_free_2 in HnotFree; eauto.
+              rewrite <- HnotFree.
+              split; intros; simpl in H;
+              destruct H; try (discriminate);
+                erewrite MemoryLemmas.permission_at_alloc_1 by eauto;
+                [split; eapply Hwrite | split; eapply Hread];
+                now eauto.
+            }
+        + (** Case the new operation freed memory*)
+          destruct Helim as [m'' [Hfree Helim']].
+          assert (Hvalid': Mem.valid_block m'' b)
+            by (unfold Mem.valid_block in *; erewrite nextblock_freelist by eauto; eauto).
+          destruct (IHT _ Hvalid' _ Helim') as [Heq | [Hwrite Hread]].
+          * assert (Hperm: Mem.perm m'' b ofs' Cur Freeable)
+              by (unfold Mem.perm; unfold permission_at in Heq;
+                  rewrite Heq.1; simpl; auto using perm_order).
+            pose proof (perm_freelist _ _ _ _ _ Cur Freeable Hfree Hperm) as Hperm'.
+            unfold Mem.perm in Hperm'.
+            destruct Heq.
+            left; split; auto.
+            unfold permission_at.
+            destruct ((Mem.mem_access m) !! b ofs' Cur) as [p|]; simpl in Hperm';
+              inv Hperm'; reflexivity.
+          * eapply free_list_cases with (b := b) (ofs := ofs') in Hfree.
+            destruct Hfree as [[Heq1 Heq2] | Heq].
+            left. split; auto.
+            erewrite <- ev_elim_stable; eauto.
+            rewrite Heq2.
+            now apply po_None.
+            rewrite Heq.
+            right; split; intros; simpl in H;
+              destruct H; try (discriminate);
+                eauto.
+    Qed.
+
+    Lemma elim_perm_invalid_block:
+      forall m T m' b ofs ofs' bytes
+        (Hintv: Intv.In ofs' (ofs, (ofs + Z.of_nat (length bytes))%Z))
+        (Helim: ev_elim m T m')
+        (Hvalid: ~ Mem.valid_block m b),
+        (** or it wasn't and the operation denoted by the event implies the permission*)
+        (List.In (event_semantics.Write b ofs bytes) T ->
+         (permission_at m' b ofs' Cur = Some Freeable \/ permission_at m' b ofs' Cur = None)
+         /\ Mem.valid_block m' b) /\
+         (forall n,
+             List.In (event_semantics.Read b ofs n bytes) T ->
+             (permission_at m' b ofs' Cur = Some Freeable \/ permission_at m' b ofs' Cur =  None) /\ Mem.valid_block m' b).
+    Proof.
+    Admitted.
+
+    Lemma fstep_ev_perm:
+      forall U tr tp m U' tr_pre tr_post tp' m' ev
+        (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr ++ tr_pre ++ [:: ev] ++ tr_post , tp') m'),
+        (action ev = Write ->
+         forall (cnt: containsThread tp (thread_id ev)) (cnt': containsThread tp' (thread_id ev)),
+           match location ev with
+           | Some (b, ofs, sz) =>
+             forall ofs', Intv.In ofs' (ofs, ofs + Z.of_nat sz)%Z ->
+                     (Mem.valid_block m b ->
+                      Mem.perm_order'' ((getThreadR cnt).1 !! b ofs') (Some Writable)) /\
+                     (Mem.perm_order'' ((getThreadR cnt').1 !! b ofs') (Some Writable) \/
+                      deadLocation tp' m' b ofs')
+           | None => False
+           end) /\
+        (action ev = Read ->
+         forall (cnt: containsThread tp (thread_id ev)) (cnt': containsThread tp' (thread_id ev)),
+           match location ev with
+           | Some (b, ofs, sz) =>
+             forall ofs', Intv.In ofs' (ofs, ofs + Z.of_nat sz)%Z ->
+                     (Mem.valid_block m b ->
+                      Mem.perm_order'' ((getThreadR cnt).1 !! b ofs') (Some Readable)) /\
+                     (Mem.perm_order'' ((getThreadR cnt').1 !! b ofs') (Some Readable) \/
+                      deadLocation tp' m' b ofs')
+           | None => False
+           end).
+    Proof.
+      intros.
+      inversion Hstep; simpl in *;
+        try (apply app_eq_nil in H4;
+             subst; destruct tr_pre;
+             simpl in H4; discriminate).
+      - (** case of internal steps*)
+        apply app_inv_head in H5; subst.
+        (** proof that the [thread_id] of the event and the head of the schedule match*)
+        assert (Hin: List.In ev (map [eta internal tid] ev0))
+          by (rewrite H5; apply in_app; right; simpl; auto).
+        apply in_map_iff in Hin.
+        destruct Hin as [mev [? Hin]].
+        subst.
+        simpl in *.
+        inversion Htstep; subst.
+        split; intros Haction Hcnt Hcnt';
+          destruct mev; try discriminate;
+            pf_cleanup.
+        + (** Write case*)
+          intros ofs' Hintv.
+          pose proof (ev_step_elim _ _ _ _ _ _ _ Hcorestep) as Helim.
+          destruct Helim as [Helim _].
+          (** By case analysis on whether [b] was a valid block or not*)
+          destruct (valid_block_dec m b).
+          { (** case [b] is a valid block in [m]*)
+            eapply elim_perm_valid_block in Helim; eauto.
+            destruct Helim as [[Hfreeable Hempty] | [Hwrite Hread]].
+            - (** case the block was freed by the internal step. This implies that
+            [(b, ofs)] is now a [deadLocation]*)
+              split.
+              + intros. rewrite restrPermMap_Cur in Hfreeable.
+                rewrite Hfreeable. simpl; now constructor.
+              + right.
+                constructor; eauto.
+                eapply ev_step_validblock with (b := b) in Hcorestep.
+                now eauto.
+                now eauto.
+                intros i cnti.
+                rewrite restrPermMap_Cur in Hfreeable.
+                pose proof (cntUpdate' _ _ _ cnti) as cnti0.
+                eapply invariant_freeable_empty_threads with (j := i) (cntj := cnti0) in Hfreeable;
+                  eauto.
+                destruct Hfreeable.
+                destruct (i == tid) eqn:Heq; move/eqP:Heq=>Heq.
+                subst. pf_cleanup.
+                rewrite! gssThreadRes.
+                simpl.
+                rewrite getCurPerm_correct.
+                split;
+                  now auto.
+                rewrite! gsoThreadRes;
+                  now auto.
+                intros.
+                rewrite gsoThreadLPool in H.
+                rewrite restrPermMap_Cur in Hfreeable.
+                apply invariant_freeable_empty_locks with (laddr := l) (rmap := pmap) in Hfreeable;
+                  now eauto.
+            - (** case the block was not freed*)
+              split.
+              + intros. 
+                rewrite! restrPermMap_Cur in Hwrite.
+                eapply Hwrite;
+                  now eauto.
+              + rewrite gssThreadRes.
+                simpl.
+                rewrite getCurPerm_correct.
+                left; eapply Hwrite;
+                  now eauto.
+          }
+          { (** case [b] is an invalid block in [m]*)
+            eapply elim_perm_invalid_block in Helim; eauto.
+            split;
+              first by (intros; exfalso; eauto).
+            destruct Helim as [Hwrite _].
+            rewrite gssThreadRes. simpl.
+            destruct (Hwrite Hin) as [[Hallocated | Hfreed] Hvalid'].
+            - left.
+              rewrite getCurPerm_correct.
+              rewrite Hallocated.
+              simpl; now constructor.
+            - right.
+              econstructor; eauto.
+              + intros.
+                pose proof (cntUpdate' _ _ _ cnti) as cnti0.              
+                destruct (i == tid) eqn:Heq; move/eqP:Heq=>Heq.
+                * subst. pf_cleanup.
+                  rewrite gssThreadRes.
+                  simpl. rewrite getCurPerm_correct.
+                  split; auto.
+                  now eapply (mem_compatible_invalid_block _ Hcmpt n).1.
+                * rewrite gsoThreadRes; auto.
+                  now eapply (mem_compatible_invalid_block _ Hcmpt n).1.
+              + intros.
+                rewrite gsoThreadLPool in H.
+                split;
+                  eapply (mem_compatible_invalid_block _ Hcmpt n).2;
+                  now eauto.
+          }
+        + (** Read case*)
+          intros ofs' Hintv.
+          pose proof (ev_step_elim _ _ _ _ _ _ _ Hcorestep) as Helim.
+          destruct Helim as [Helim _].
+          (** By case analysis on whether [b] was a valid block or not*)
+          destruct (valid_block_dec m b).
+          { (** case [b] is a valid block in [m]*)
+            eapply elim_perm_valid_block in Helim; eauto.
+            destruct Helim as [[Hfreeable Hempty] | [Hwrite Hread]].
+            - (** case the block was freed by the internal step. This implies that
+            [(b, ofs)] is now a [deadLocation]*)
+              split.
+              + intros. rewrite restrPermMap_Cur in Hfreeable.
+                rewrite Hfreeable. simpl; now constructor.
+              + right.
+                constructor; eauto.
+                eapply ev_step_validblock with (b := b) in Hcorestep.
+                now eauto.
+                now eauto.
+                intros i cnti.
+                rewrite restrPermMap_Cur in Hfreeable.
+                pose proof (cntUpdate' _ _ _ cnti) as cnti0.
+                eapply invariant_freeable_empty_threads with (j := i) (cntj := cnti0) in Hfreeable;
+                  eauto.
+                destruct Hfreeable.
+                destruct (i == tid) eqn:Heq; move/eqP:Heq=>Heq.
+                subst. pf_cleanup.
+                rewrite! gssThreadRes.
+                simpl.
+                rewrite getCurPerm_correct.
+                split;
+                  now auto.
+                rewrite! gsoThreadRes;
+                  now auto.
+                intros.
+                rewrite gsoThreadLPool in H.
+                rewrite restrPermMap_Cur in Hfreeable.
+                apply invariant_freeable_empty_locks with (laddr := l) (rmap := pmap) in Hfreeable;
+                  now eauto.
+            - (** case the block was not freed*)
+              split.
+              + intros. 
+                rewrite! restrPermMap_Cur in Hread.
+                eapply Hread;
+                  now eauto.
+              + rewrite gssThreadRes.
+                simpl.
+                rewrite getCurPerm_correct.
+                left; eapply Hread;
+                  now eauto.
+          }
+          { (** case [b] is an invalid block in [m]*)
+            eapply elim_perm_invalid_block in Helim; eauto.
+            split;
+              first by (intros; exfalso; eauto).
+            destruct Helim as [_ Hread].
+            rewrite gssThreadRes. simpl.
+            destruct (Hread _ Hin) as [[Hallocated | Hfreed] Hvalid'].
+            - left.
+              rewrite getCurPerm_correct.
+              rewrite Hallocated.
+              simpl; now constructor.
+            - right.
+              econstructor; eauto.
+              + intros.
+                pose proof (cntUpdate' _ _ _ cnti) as cnti0.              
+                destruct (i == tid) eqn:Heq; move/eqP:Heq=>Heq.
+                * subst. pf_cleanup.
+                  rewrite gssThreadRes.
+                  simpl. rewrite getCurPerm_correct.
+                  split; auto.
+                  now eapply (mem_compatible_invalid_block _ Hcmpt n0).1.
+                * rewrite gsoThreadRes; auto.
+                  now eapply (mem_compatible_invalid_block _ Hcmpt n0).1.
+              + intros.
+                rewrite gsoThreadLPool in H.
+                split;
+                  eapply (mem_compatible_invalid_block _ Hcmpt n0).2;
+                  now eauto.
+          }
+      - (** case of external steps *)
+        apply app_inv_head in H5.
+        destruct (tr_pre); simpl;
+          inv H5.
+        simpl; destruct ev0; split; intros;
+          discriminate.
+        destruct l; now inv H9.
+    Qed.
+
     (** [FineConc.MachStep] preserves [spinlock_synchronized]*)
     Lemma fineConc_step_synchronized:
       forall U0 U U'  tr tp0 m0 tp m tp' m' tr'
@@ -1232,7 +1645,7 @@ Module SpinLocks (SEM: Semantics)
         destruct (is_internal evk && is_internal evj) eqn:Hevk_evj.
         { (** If [evk] and [evj] are [internal] events *)
           move/andP:Hevk_evj=>[Hinternal_k Hinternal_j].
-          destruct Hcompetes_kj as (Hthreads_neq & Hsame_loc & Hcactionk & Hactionj & His_write & _).
+          destruct Hcompetes_kj as (Hthreads_neq & Hsame_loc & Hcactionk & Hcactionj & His_write & _).
           specialize (His_write Hinternal_k Hinternal_j).
           (** To find the state that corresponds to [evk] we break the execution
           in [multi_fstep] chunks and the [FineConc.Machstep] that produces [evk]*)
@@ -1240,193 +1653,113 @@ Module SpinLocks (SEM: Semantics)
             as (Uk & Uk' & tp_k & m_k & tr0 & pre_k & post_k & tp_k'
                 & m_k' & Hexeck & Hstepk & Hexec' & Hk_index).
           erewrite! app_nil_l in *.
-    Lemma app_assoc_l:
-      forall (A : Type) (l m n : seq.seq A),
-        l ++ m ++ n = l ++ (m ++ n).
-    Admitted.
 
-          Lemma fstep_ev_perm:
-            forall U tr tp m U' tr_pre tr_post tp' m' ev
-              (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr ++ tr_pre ++ [:: ev] ++ tr_post , tp') m'),
-              (action ev = Write ->
-               forall (cnt: containsThread tp (thread_id ev)) (cnt': containsThread tp' (thread_id ev)),
-                 match location ev with
-                 | Some (b, ofs, sz) =>
-                   forall ofs', Intv.In ofs' (ofs, ofs + Z.of_nat sz)%Z ->
-                           (Mem.valid_block m b ->
-                            Mem.perm_order'' ((getThreadR cnt).1 !! b ofs') (Some Writable)) /\
-                           (Mem.perm_order'' ((getThreadR cnt').1 !! b ofs') (Some Writable) \/
-                            deadLocation tp' b ofs')
-                 | None => False
-                 end) /\
-              (action ev = Read ->
-               forall (cnt: containsThread tp (thread_id ev)) (cnt': containsThread tp' (thread_id ev)),
-                 match location ev with
-                 | Some (b, ofs, sz) =>
-                   forall ofs', Intv.In ofs' (ofs, ofs + Z.of_nat sz)%Z ->
-                           (Mem.valid_block m b ->
-                            Mem.perm_order'' ((getThreadR cnt).1 !! b ofs') (Some Readable)) /\
-                           (Mem.perm_order'' ((getThreadR cnt').1 !! b ofs') (Some Readable) \/
-                            deadLocation tp' b ofs')
-                 | None => False
-                 end).
-          Proof.
-            intros.
-            inversion Hstep; simpl in *;
-            try (apply app_eq_nil in H4;
-                 subst; destruct tr_pre;
-                 simpl in H4; discriminate).
-            - (** case of internal steps*)
-              apply app_inv_head in H5; subst.
-              (** proof that the [thread_id] of the event and the head of the schedule match*)
-              assert (Hin: List.In ev (map [eta internal tid] ev0))
-                by (rewrite H5; apply in_app; right; simpl; auto).
-              apply in_map_iff in Hin.
-              destruct Hin as [mev [? Hin]].
-              subst.
-              simpl in *.
-              inversion Htstep; subst.
-              split; intros Haction Hcnt Hcnt';
-                destruct mev; try discriminate;
-              pf_cleanup.
-              intros ofs' Hintv.
-              apply ev_step_elim in Hcorestep.
-              destruct Hcorestep as [Helim _].
-              Lemma elim_perm_valid_block:
-                forall m T m' b ofs ofs' bytes
-                  (Hintv: Intv.In ofs' (ofs, (ofs + Z.of_nat (length bytes))%Z))
-                  (Helim: ev_elim m T m')
-                  (Hvalid: Mem.valid_block m b),
-                  (** Either the location was freed*)
-                  (permission_at m b ofs' Cur = Some Freeable /\ permission_at m' b ofs' Cur = None) \/
-                  (** or it wasn't and the operation denoted by the event implies the permission*)
-                  ((List.In (event_semantics.Write b ofs bytes) T ->
-                   Mem.perm_order'' (permission_at m b ofs' Cur) (Some Writable)) /\
-                   (forall n,
-                       List.In (event_semantics.Read b ofs n bytes) T ->
-                       Mem.perm_order'' (permission_at m b ofs' Cur) (Some Readable))).
-              Proof.
-                intros.
-                generalize dependent m'.
-                generalize dependent m.
-                induction T as [| ev]; intros.
-                - inversion Helim; subst.
-                  right; split; intros; simpl in H; by exfalso.
-                - simpl in Helim.
-                  destruct ev.
-                  + destruct Helim as [m'' [Hstore Helim']].
-                    eapply Mem.storebytes_valid_block_1 in Hvalid; eauto.
-                    destruct (IHT _ Hvalid _ Helim') as [? | [Hwrite Hread]].
-                    * pose proof (MemoryLemmas.mem_storebytes_cur _ _ _ _ _ Hstore b ofs') as Heq.
-                      rewrite! getCurPerm_correct in Heq.
-                      rewrite Heq.
-                      left; assumption.
-                    * right.
-                      split.
-                      { intros Hin.
-                        simpl in Hin.
-                        destruct Hin as [Heq | Hin].
-                        - inv Heq.
-                          apply Mem.storebytes_range_perm in Hstore.
-                          specialize (Hstore _ Hintv).
-                          unfold Mem.perm, permission_at in *.
-                          rewrite <- po_oo.
-                          now assumption.
-                        - specialize (Hwrite Hin).
-                          pose proof (MemoryLemmas.mem_storebytes_cur _ _ _ _ _ Hstore b ofs') as Heq.
-                          rewrite! getCurPerm_correct in Heq.
-                          rewrite Heq.
-                          now assumption.
-                      }
-                      { intros n Hin.
-                        simpl in Hin.
-                        destruct Hin as [Heq | Hin].
-                        discriminate.
-                        specialize (Hread _ Hin).
-                        pose proof (MemoryLemmas.mem_storebytes_cur _ _ _ _ _ Hstore b ofs') as Heq.
-                        rewrite! getCurPerm_correct in Heq.
-                        rewrite Heq.
-                        now assumption.
-                      }
-                  + (** Case the new operation is a read*)
-                    destruct Helim as [Hload Helim'].
-                    destruct (IHT _ Hvalid _ Helim') as [? | [Hwrite Hread]].
-                    * left; assumption.
-                    * right.
-                      split.
-                      { intros Hin.
-                        simpl in Hin.
-                        destruct Hin as [Heq | Hin];
-                          first by discriminate.
-                        specialize (Hwrite Hin).
-                        now assumption.
-                      }
-                      { intros n0 Hin.
-                        simpl in Hin.
-                        destruct Hin as [Heq | Hin].
-                        - inv Heq.
-                          pose proof (Mem.loadbytes_length _ _ _ _ _ Hload) as Hlength.
-                          destruct (zle n0 0).
-                          + exfalso.
-                            eapply Mem.loadbytes_empty with (m := m) (b := b) (ofs := ofs) in l.
-                            rewrite Hload in l. inv l.
-                            unfold Intv.In in Hintv. simpl in Hintv.
-                            rewrite Z.add_0_r in Hintv.
-                            ssromega.
-                          + rewrite Hlength in Hintv.
-                            erewrite nat_of_Z_eq in Hintv by omega.
-                            apply Mem.loadbytes_range_perm in Hload.
-                            specialize (Hload _ Hintv).
-                            unfold Mem.perm, permission_at in *.
-                            assumption.
-                        - eauto.
-                      }
-                  + (** Case thew new operation allocated memory*)
-                    destruct Helim as [m'' [Halloc Helim']].
-                    pose proof (Mem.valid_block_alloc _ _ _ _ _ Halloc _ Hvalid) as Hvalid'.
-                    destruct (IHT _ Hvalid' _ Helim') as [Heq | [Hwrite Hread]].
-                    * erewrite <- MemoryLemmas.permission_at_alloc_1 in Heq by eauto.
-                      left; eauto.
-                    * right; split; intros; simpl in H;
-                        destruct H; try (discriminate);
-                      erewrite MemoryLemmas.permission_at_alloc_1 by eauto;
-                      eauto.
-                  + (** Case the new operation freed memory*)
-                    destruct Helim as [m'' [Hfree Helim']].
-                    assert (Hvalid': Mem.valid_block m'' b)
-                      by (unfold Mem.valid_block in *; erewrite nextblock_freelist by eauto; eauto).
-                    destruct (IHT _ Hvalid' _ Helim') as [Heq | [Hwrite Hread]].
-                    * assert (Hperm: Mem.perm m'' b ofs' Cur Freeable)
-                        by (unfold Mem.perm; unfold permission_at in Heq;
-                            rewrite Heq.1; simpl; auto using perm_order).
-                      pose proof (perm_freelist _ _ _ _ _ Cur Freeable Hfree Hperm) as Hperm'.
-                      unfold Mem.perm in Hperm'.
-                      destruct Heq.
-                      left; split; auto.
-                      unfold permission_at.
-                      destruct ((Mem.mem_access m) !! b ofs' Cur) as [p|]; simpl in Hperm';
-                        inv Hperm'; reflexivity.
-                    *
+          (** *** Useful Results*)
+          (** tr' will be of the form tr'_pre ++ evj ++ tr'_post*)
+          assert (Htr': exists tr'_pre tr'_post, tr' = tr'_pre ++ [:: evj] ++ tr'_post).
+          { erewrite nth_error_app2 in Hj by ssromega.
+            apply nth_error_split in Hj.
+            destruct Hj as (tr'_pre & tr'_post & ? & ?).
+            subst.
+            exists tr'_pre, tr'_post.
+            reflexivity.
+          }
+          destruct Htr' as (tr'_pre & tr'_post & Heq). subst.
 
-                      Lemma free_list_cases:
-                        forall l m m' b ofs
-                          (Hfree: Mem.free_list m l = Some m'),
-                          (permission_at m b ofs Cur = Some Freeable /\
-                           permission_at m' b ofs Cur = None) \/
-                          (permission_at m b ofs Cur = permission_at m' b ofs Cur).
-                      Proof.
-                      Admitted.
-                      eapply free_list_cases with (b := b) (ofs := ofs') in Hfree.
-                      destruct Hfree as [[Heq1 Heq2] | Heq].
-                      left. split; auto.
-                      erewrite <- ev_elim_stable; eauto.
-                      rewrite Heq2.
-                      now apply po_None.
-                      rewrite Heq.
-                      right; split; intros; simpl in H;
-                        destruct H; try (discriminate);
-                          eauto.
-              Qed.
+          (** The threads that generated [evk] and [evj] are
+          valid threads in the respective thread pools*)
+          assert (cntk: containsThread tp_k (thread_id evk))
+            by admit.
+          assert (cntk': containsThread tp_k' (thread_id evk))
+            by admit.
+
+          assert (cntj: containsThread tp (thread_id evj))
+            by admit.
+          assert (cntj': containsThread tp' (thread_id evj))
+            by admit.
+
+          (** [evk] and [evj] are Read/Write events*)
+          (** evk is either a [Write] or [Read] event*)
+          assert (Hactionk: action evk = Write \/ action evk = Read).
+          { destruct evk as [tidk evk|?]; simpl in Hinternal_k; try by exfalso.
+            destruct evk; simpl in Hcactionk; try (by exfalso);
+              simpl; now auto.
+          }
+          (** evj is either a [Write] or [Read] event*)
+          assert (Hactionj: action evj = Write \/ action evj = Read).
+          { destruct evj as [tidj evj|?]; simpl in Hinternal_j; try by exfalso.
+            destruct evj; simpl in Hcactionj; try (by exfalso);
+              simpl; now auto.
+          }
+
+          (** [location] is defined for [evk] as it is a [Read] or [Write] event*)
+          assert (Hloc_k: exists bk ofsk szk, location evk = Some (bk, ofsk, szk)).
+          { destruct Hactionk; destruct evk as [? evk | ? evk];
+              destruct evk; try (discriminate);
+                simpl;
+                eexists; eauto.
+          }
+          (** [location] is defined for [evj] as it is a [Read] or [Write] event*)
+          assert (Hloc_j: exists bj ofsj szj, location evj = Some (bj, ofsj, szj)).
+          { destruct Hactionj; destruct evj as [? evj | ? evj];
+              destruct evj; try (discriminate);
+                simpl;
+                eexists; eauto.
+          }
+          destruct Hloc_k as (b & ofsk & szk & Hloc_k).
+          destruct Hloc_j as (b' & ofsj & szj & Hloc_j).
+          (** Find the competing byte*)
+          unfold sameLocation in Hsame_loc.
+          rewrite Hloc_k Hloc_j in Hsame_loc.
+          destruct Hsame_loc as [? [ofs [Hintvk Hintvj]]]; subst b'.
+
+          (** *** Proving that the permissions required for [evk] and [evj]
+              are above [Readable] and incompatible*)
+
+          assert (Mem.perm_order'' ((getThreadR cntk').1 !! b ofs) (Some Readable) /\
+                  Mem.perm_order'' ((getThreadR cntj).1 !! b ofs) (Some Readable) /\
+                  perm_union ((getThreadR cntk').1 !! b ofs) ((getThreadR cntj).1 !! b ofs) = None).
+          { destruct(fstep_ev_perm _ _ _ Hstepk) as [Hwritek Hreadk].
+            destruct(fstep_ev_perm _ _ _ Hstep) as [Hwritej Hreadj].
+            rewrite Hloc_j in Hwritej Hreadj.
+            rewrite Hloc_k in Hwritek, Hreadk.
+            pose proof (multi_fstep_trace_monotone Hexec') as Heq.
+            subst.
+            destruct Heq as [tr'' Heq]; subst.
+            (** First we prove that [(b, ofs)] cannot be a [deadLocation] *)
+            assert (Hnotdead: ~ deadLocation tp_k' m_k' b ofs).
+            { (** Suppose that it was. [deadLocation] is preserved by
+            [multi_fstep] and hence [evj] would not have sufficient permissions
+            to perform a [Read] or [Write]*)
+
+              intros Hdead.
+              (** [(b,ofs)] is [deadLocation] at [tp], [m]*)
+              eapply multi_fstep_deadLocation with (tp' := tp) (m' := m) in Hdead; eauto.
+              (** Hence [b] is a valid block in [m]*)
+              inversion Hdead.
+              (** Moreover permissions of the machine on [(b, ofs)] are None*)
+              destruct (Hthreads _ cntj) as [Hperm1 _].
+              (** The permissions of the thread [thread_id evj] must be above
+              [Readable] by the fact that [evj] is a [Read] or [Write] event,
+              which leads to a contradiction*)
+              destruct Hactionj as [Hactionj | Hactionj];
+                [destruct (Hwritej Hactionj cntj cntj' ofs Hintvj) as [Hperm _] |
+                 destruct (Hreadj Hactionj cntj cntj' ofs Hintvj) as [Hperm _]];
+                specialize (Hperm Hvalid);
+                rewrite Hperm1 in Hperm; simpl in Hperm;
+                  now auto.
+            }
+            destruct Hactionk as [Hactionk | Hactionk];
+              [destruct (Hwritek Hactionk cntk cntk' ofs Hintvk) as [_ [Hpermk | Hcontra]] |
+               destruct (Hreadk Hactionk cntk cntk' ofs Hintvk) as [_ [Hpermk | Hcontra]]];
+              try (by exfalso).
+
+
+            assert (Mem.valid_block m b).
+            eapply perm_order_valid_block; eauto.
+
+
+
 
 
 

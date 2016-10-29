@@ -388,4 +388,25 @@ Module Executions (SEM: Semantics)
     - exists [::]; erewrite cats0; econstructor 7; simpl; eauto.
   Qed.
 
+
+  (** A location that the machine has no access to (i.e. the permission is
+  empty in all its resources) *) 
+  Inductive deadLocation tp m b ofs : Prop :=
+  | Dead: forall
+      (Hvalid: Mem.valid_block m b)
+      (Hthreads: forall i (cnti: containsThread tp i),
+          (getThreadR cnti).1 !! b ofs = None /\ (getThreadR cnti).2 !! b ofs = None)
+      (Hresources: forall l pmap,
+          lockRes tp l = Some pmap ->
+          pmap.1 !! b ofs = None /\ pmap.2 !! b ofs = None),
+      deadLocation tp m b ofs.
+  
+  Lemma multi_fstep_deadLocation:
+    forall U U' tr tp m tr' tp' m' b ofs
+      (Hdead: deadLocation tp m b ofs)
+      (Hexec: multi_fstep (U, tr, tp) m (U',tr ++ tr', tp') m'),
+      deadLocation tp' m' b ofs.
+  Proof.
+  Admitted.
+  
 End Executions.

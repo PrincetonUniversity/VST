@@ -353,6 +353,7 @@ Module SimProofs (SEM: Semantics)
     exists tr.
     split.
     intros. econstructor 7; simpl; eauto.
+    eapply (mem_compf Hsim).
     eapply sim_reduce; eauto.
   Qed.
 

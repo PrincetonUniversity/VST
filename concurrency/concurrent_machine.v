@@ -1475,6 +1475,7 @@ Module FineMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thread
       forall tid U U' ms m tr
         (HschedN: schedPeek U = Some tid)
         (HschedS: schedSkip U = U')        (*Schedule Forward*)
+        (Hcmpt: mem_compatible ms m)
         (Htid: ~ containsThread ms tid),
         machine_step U tr ms m U' tr ms m.
 

@@ -491,6 +491,54 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
     assumption.
   Qed.
 
+  Lemma invariant_freeable_empty_threads:
+    forall tp i (cnti: containsThread tp i) b ofs
+      (Hinv: invariant tp)
+      (Hfreeable: (getThreadR cnti).1 !! b ofs = Some Freeable),
+    forall j (cntj: containsThread tp j),
+      (getThreadR cntj).2 !! b ofs = None /\
+      (i <> j -> (getThreadR cntj).1 !! b ofs = None).
+  Admitted.
+  
+  Lemma invariant_freeable_empty_locks:
+    forall tp i (cnti: containsThread tp i) b ofs
+      (Hinv: invariant tp)
+      (Hfreeable: (getThreadR cnti).1 !! b ofs = Some Freeable),
+    forall laddr rmap,
+      lockRes tp laddr = Some rmap ->
+      rmap.1 !! b ofs = None /\
+      rmap.2 !! b ofs = None.
+  Proof.
+  Admitted.
+
+  Lemma mem_compatible_invalid_block:
+    forall tp m b ofs
+      (Hcomp: mem_compatible tp m)
+      (Hinvalid: ~ Mem.valid_block m b),
+      (forall i (cnti: containsThread tp i),
+          (getThreadR cnti).1 !! b ofs = None /\
+          (getThreadR cnti).2 !! b ofs = None) /\
+      (forall laddr rmap,
+          lockRes tp laddr = Some rmap ->
+          rmap.1 !! b ofs = None /\
+          rmap.2 !! b ofs = None).
+  Proof.
+    intros.
+    destruct Hcomp.
+    split.
+    - intros.
+      split;
+        eapply permMapLt_invalid_block;
+        eauto;
+        eapply compat_th0.
+    - intros.
+      split;
+        eapply permMapLt_invalid_block;
+        eauto;
+        eapply compat_lp0;
+        eauto.
+  Qed.
+
   (** ** Lemmas about initial state*)
 
   (** The initial thread is thread 0*)
@@ -1584,6 +1632,18 @@ Module StepLemmas (SEM : Semantics)
            end; simpl in *;
       by auto).
     eapply (lockRes_blocks Hcomp); eauto.
+  Qed.
+
+  (** Any state that steps, requires its threadpool and memory to be
+  [mem_compatible]*)
+  Lemma fstep_mem_compatible:
+    forall the_ge U tr tp m U' tr' tp' m'
+      (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr', tp') m'),
+      mem_compatible tp m.
+  Proof.
+    intros.
+    inversion Hstep; simpl in *; subst;
+      now eauto.
   Qed.
 
   Lemma safeC_invariant:

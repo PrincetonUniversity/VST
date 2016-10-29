@@ -1743,5 +1743,37 @@ Lemma restrPermMap_irr:
     specialize (Hjoin b ofs);
       auto using permjoin_order.
   Qed.
+
+  Lemma permMapLt_invalid_block:
+    forall pmap m b ofs
+      (Hlt: permMapLt pmap (getMaxPerm m))
+      (Hinvalid: ~ Mem.valid_block m b),
+      (pmap !! b ofs) = None.
+  Proof.
+    intros.
+    apply Mem.nextblock_noaccess with (ofs := ofs) (k := Max) in Hinvalid.
+    specialize (Hlt b ofs).
+    rewrite getMaxPerm_correct in Hlt.
+    unfold permission_at in Hlt.
+    rewrite Hinvalid in Hlt.
+    simpl in Hlt. destruct (pmap !! b ofs);
+                    [by exfalso | auto].
+  Qed.
+  
+  Lemma perm_order_valid_block:
+    forall pmap m b ofs p
+      (Hperm: Mem.perm_order'' (pmap !! b ofs) (Some p))
+      (Hlt: permMapLt pmap (getMaxPerm m)),
+      Mem.valid_block m b.
+  Proof.
+    intros.
+    destruct (valid_block_dec m b);
+      auto.
+    eapply permMapLt_invalid_block with (ofs := ofs) in n;
+      eauto.
+    rewrite n in Hperm.
+    simpl in Hperm.
+      by exfalso.
+  Qed.
   
 End permMapDefs.
