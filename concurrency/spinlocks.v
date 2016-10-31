@@ -46,7 +46,7 @@ Module SpinLocks (SEM: Semantics)
   Module CoreLanguage := CoreLanguage SEM SemAxioms.
   Module CoreLanguageDry := CoreLanguageDry SEM SemAxioms DryMachine.
   Module StepLemmas := StepLemmas SEM Machines.          
-  Module Executions := Executions SEM Machines AsmContext.
+  Module Executions := Executions SEM SemAxioms Machines AsmContext.
 
   Import Executions CoreLanguage CoreLanguageDry ThreadPoolWF StepLemmas.
 
@@ -688,12 +688,16 @@ Module SpinLocks (SEM: Semantics)
       destruct evi as [|tidi evi'];
         simpl in Hmklock. destruct m0; discriminate.
       destruct evi'; try discriminate.
-      simpl in *.    
+      simpl in *.
+      rewrite <- app_nil_r with (l := [:: external tidi (mklock a)]) in Hstep;
+        rewrite <- app_nil_l with (l := [:: external tidi (mklock a)]) in Hstep; 
+        rewrite <- app_assoc in Hstep;
       assert (Hsched: U' = tidi :: U'')
-        by (eapply fstep_event_sched in Hstep; simpl in Hstep; assumption).
+        by (eapply fstep_event_sched in Hstep;
+            simpl in Hstep; assumption).
       rewrite Hsched in Hstep.
       (** The thread that executed the [mklock] operation must be in the threadpool*)
-      destruct (fstep_ev_contains _ Hstep) as [cnti cnti'].
+      destruct (fstep_ev_contains _ _ _ Hstep) as [cnti cnti'].
       (** since there was a [mklock] event, [a] will be in [lockRes] and the
       thread will have lock-permission on it*)
       apply Mklock_lockRes in Hstep.
@@ -785,17 +789,15 @@ Module SpinLocks (SEM: Semantics)
       end.
 
     (** If (b, ofs) is in the list of freed addresses then the
-          permission was Freeable and became None. The
-          [Mem.valid_block] premise ensures that the location was not
-          allocated by some event in ev, simplifying the statement and
-          proof. *)
+          permission was Freeable and became None or it was not allocated*)
     Lemma ev_elim_free_1:
       forall m ev m' b ofs,
-        Mem.valid_block m b ->
         ev_elim m ev m' ->
         in_free_list_trace b ofs ev ->
-        permission_at m b ofs Cur = Some Freeable /\
+        (permission_at m b ofs Cur = Some Freeable \/
+         ~ Mem.valid_block m b) /\
         permission_at m' b ofs Cur = None /\
+        Mem.valid_block m' b /\
         exists e, List.In e ev /\
              match e with
              | event_semantics.Free _ => True
@@ -823,15 +825,16 @@ Module SpinLocks (SEM: Semantics)
 - A makelock operation, turning data into lock
 - Releasing a lock *)
     Lemma data_permission_decrease_step:
-      forall U tr tp m U' tp' m' tr_pre ev tr_post tidn b ofs
+      forall U tr tp m U' tp' m' tr' tidn b ofs
         (cnt: containsThread tp tidn)
         (cnt': containsThread tp' tidn)
-        (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr ++ tr_pre ++ [:: ev] ++ tr_post, tp') m')
+        (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m')
         (Hperm: Mem.perm_order'' ((getThreadR cnt).1 !! b ofs) ((getThreadR cnt').1 !! b ofs))
         (Hperm': (getThreadR cnt).1 !! b ofs <> (getThreadR cnt').1 !! b ofs),
-        (action ev = Free /\ deadLocation tp' m' b ofs) \/
-        (action ev = Spawn) \/
-        (action ev = Mklock /\
+        exists ev,
+        (List.In ev tr' /\ action ev = Free /\ deadLocation tp' m' b ofs) \/
+        (tr' = [:: ev] /\ action ev = Spawn) \/
+        (tr' = [:: ev] /\ action ev = Mklock /\
          thread_id ev = tidn /\
          match location ev with
          | Some (addr, sz) =>
@@ -840,19 +843,109 @@ Module SpinLocks (SEM: Semantics)
          | None =>
            False
          end) \/
-        (action ev = Release).
+        (tr' = [:: ev] /\ action ev = Release /\ thread_id ev = tidn).
     Proof.
-      Admitted.
-      (*intros.
+      intros.
       inv Hstep; simpl in *;
         try apply app_eq_nil in H4;
         try inv Htstep;
-        inv HschedN; pf_cleanup;
-          try (left; rewrite gThreadCR; apply po_refl).
-      - (* internal step case *)
+        destruct U; inversion HschedN; subst; pf_cleanup;
+        try (inv Hhalted);
+        try (rewrite gThreadCR in Hperm');
+        try  (exfalso; by eauto).
+      - (** internal step case *)
         apply app_inv_head in H5; subst.
-        apply ev_step_elim in Hcorestep.
-        destruct Hcorestep as [Helim _].
+        destruct (ev_step_elim _ _ _ _ _ _ _ Hcorestep) as [Helim _].
+        destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
+        + pf_cleanup.
+          (* NOTE: this is decidable*)
+          destruct (EM (in_free_list_trace b ofs ev)) as [Hdead | Hlive].
+          { (** case this address was freed*)
+            eapply ev_elim_free_1 with (m := (restrPermMap (Hcmpt _ cnt).1))
+                                         (m' := m'0) in Hdead; eauto.
+            destruct Hdead as [Hinit [Hempty [Hvalid' [evf [Hin HFree]]]]].
+            destruct Hinit as [Hfreeable | Hinvalid].
+            { (** case the block was not allocated*)
+              destruct evf; try by exfalso.
+              exists (internal tidn (event_semantics.Free l)).
+              simpl. left.
+              rewrite restrPermMap_Cur in Hfreeable.
+              split; [|split; auto].
+              - apply in_map with (f := fun ev => internal tidn ev) in Hin.
+                assumption.
+              - constructor.
+                + (** [b] is a valid block*)
+                  erewrite <- diluteMem_valid.
+                  eapply ev_step_validblock; eauto.
+                  destruct (valid_block_dec m b); auto.
+                  exfalso.
+                  eapply mem_compatible_invalid_block with (ofs := ofs) in n; eauto.
+                  erewrite (n.1 _ cnt).1 in Hfreeable.
+                  discriminate.
+                + (** no thread has permission on [(b, ofs)]*)
+                  intros.
+                  destruct (i == tidn) eqn:Hij; move/eqP:Hij=>Hij; subst.
+                  * rewrite gssThreadRes.
+                    rewrite getCurPerm_correct.
+                    simpl.
+                    split; first by assumption.
+                    (** To prove that there is no lock permission on that location we use the [invariant]*)
+                    pose proof ((thread_data_lock_coh Hinv cnt).1 _ cnt b ofs) as Hcoh.
+                    rewrite Hfreeable in Hcoh.
+                    simpl in Hcoh.
+                    destruct ((getThreadR cnt).2 !! b ofs);
+                      [by exfalso | reflexivity].
+                  * (** case i is a different thread than the one that stepped*)
+                    (** by the invariant*) 
+                    assert (cnti' := cntUpdate' _ _ _ cnti).
+                    erewrite! gsoThreadRes with (cntj := cnti')
+                      by (intro Hcontra; subst; auto).
+                    split.
+                    pose proof ((no_race_thr Hinv cnti' cnt Hij).1 b ofs) as Hno_race.
+                    rewrite Hfreeable in Hno_race.
+                    rewrite perm_union_comm in Hno_race.
+                    apply no_race_racy in Hno_race.
+                    inv Hno_race. reflexivity.
+                    now constructor.
+                    pose proof ((thread_data_lock_coh Hinv cnti').1 _ cnt b ofs) as Hcoh.
+                    rewrite Hfreeable in Hcoh.
+                    simpl in Hcoh.
+                    destruct ((getThreadR cnti').2 !! b ofs);
+                      [by exfalso | reflexivity].
+                + (** no lock resource has permission on the location*)
+                  intros laddr rmap Hres.
+                  rewrite gsoThreadLPool in Hres.
+                  split.
+                  * pose proof ((no_race Hinv _ cnt Hres).1 b ofs) as Hno_race.
+                    rewrite Hfreeable in Hno_race.
+                    apply no_race_racy in Hno_race.
+                    inversion Hno_race.
+                    reflexivity.
+                    now constructor.
+                  * pose proof (((locks_data_lock_coh Hinv) _ _ Hres).1 _ cnt b ofs) as Hcoh.
+                    rewrite Hfreeable in Hcoh.
+                    simpl in Hcoh.
+                    destruct (rmap.2 !! b ofs);
+                      [by exfalso | reflexivity].
+            }
+            { destruct evf; try by exfalso.
+              exists (internal tidn (event_semantics.Free l)).
+              simpl. left.
+              split; [|split; auto].
+              - apply in_map with (f := fun ev => internal tidn ev) in Hin.
+                assumption.
+          }
+          { (* case the address was not freed *)
+            left.
+            erewrite <- restrPermMap_valid with (Hlt := Hcmpt j Htid)
+              in Hvalid.
+            eapply ev_elim_free_2 in Hlive; eauto.
+            rewrite restrPermMap_Cur in Hlive.
+            rewrite getCurPerm_correct.
+            rewrite <- Hlive.
+            pf_cleanup.
+            apply po_refl.
+          }
         destruct (tid == j) eqn:Hij; move/eqP:Hij=>Hij; subst.
         + rewrite gssThreadRes.
           (* NOTE: this is decidable*)
@@ -1047,8 +1140,8 @@ Module SpinLocks (SEM: Semantics)
             Intv.In ofs (addr.2, addr.2 + (Z.of_nat sz))%Z
           | None => False
           end) \/
-         (tru = [:: evu] /\ action evu = Release /\
-          (** and this is the first release to drop the permissions of [(b,ofs)]*)
+         (tru = [:: evu] /\ action evu = Release /\ thread_id evu = tidn /\
+          (** and this is the ''first'' release to drop the permissions of [(b,ofs)]*)
           (forall (cntu: containsThread tp_pre tidn),
               (getThreadR cntu).1 !! b ofs = (getThreadR cnti).1 !! b ofs))).
     Proof.
@@ -1062,8 +1155,7 @@ Module SpinLocks (SEM: Semantics)
             by congruence.
         + apply app_inv_head in H6; subst. *)
 
-    (** Permission increase: A thread can increase its data permissions by:
-- Allocating memory.
+    (** Permission increase: A thread can increase its data permissions on a valid block by:
 - If it is spawned
 - A freelock operation, turning a lock into data.
 - Acquiring a lock *)
@@ -1073,15 +1165,10 @@ Module SpinLocks (SEM: Semantics)
         (cnt': containsThread tp' tidn)
         (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr ++ tr_pre ++ [:: ev] ++ tr_post, tp') m')
         (Hperm: Mem.perm_order'' ((getThreadR cnt').1 !! b ofs) ((getThreadR cnt).1 !! b ofs))
-        (Hperm': (getThreadR cnt).1 !! b ofs <> (getThreadR cnt').1 !! b ofs),
-        (match ev with
-         | internal _ (event_semantics.Alloc b' lo hi) =>
-           (** we can strengthen that but no need to*)
-           b = b'
-         | _ => False
-         end) \/
+        (Hperm': (getThreadR cnt).1 !! b ofs <> (getThreadR cnt').1 !! b ofs)
+        (Hvalid: Mem.valid_block m b),
         (action ev = Spawn) \/
-        (action ev = Freelock /\
+        (action ev = Freelock /\ thread_id ev = tidn /\
          match location ev with
          | Some (addr, sz) =>
            b = addr.1 /\
@@ -1089,7 +1176,7 @@ Module SpinLocks (SEM: Semantics)
          | None =>
            False
          end) \/
-        (action ev = Acquire).
+        (action ev = Acquire /\ thread_id ev = tidn).
     Proof.
     Admitted.
     
@@ -1099,24 +1186,18 @@ Module SpinLocks (SEM: Semantics)
         (cnti: containsThread tpi tidn)
         (cntj: containsThread tpj tidn)
         (Hexec: multi_fstep (U, tr, tpi) mi (U', tr ++ tr', tpj) mj)
-        (Hperm: Mem.perm_order'' ((getThreadR cnti).1 !! b ofs)
-                                 ((getThreadR cntj).1 !! b ofs))
-        (Hperm': (getThreadR cnti).1 !! b ofs <> (getThreadR cntj).1 !! b ofs),
-        
+        (Hperm: Mem.perm_order'' ((getThreadR cntj).1 !! b ofs)
+                                 ((getThreadR cnti).1 !! b ofs))
+        (Hperm': (getThreadR cntj).1 !! b ofs <> (getThreadR cnti).1 !! b ofs)
+        (Hvalid: Mem.valid_block mi b),
       exists tr_pre evu U'' U''' tp_pre m_pre tp_dec m_dec,
-        fine_execution (U, tr, tpi) mi (U', tr ++ tr_pre, tp_pre) m_pre /\
+        multi_fstep (U, tr, tpi) mi (U', tr ++ tr_pre, tp_pre) m_pre /\
         FineConc.MachStep the_ge (U', tr ++ tr_pre, tp_pre) m_pre
                           (U'', tr ++ tr_pre ++ [:: evu], tp_dec) m_dec /\
-        fine_execution (U'', tr ++ tr_pre ++ [:: evu], tp_dec) m_dec
+        multi_fstep (U'', tr ++ tr_pre ++ [:: evu], tp_dec) m_dec
                        (U''', tr ++ tr',tpj) mj /\
-        ((match evu with
-          | internal _ (event_semantics.Alloc b' lo hi) =>
-            (** we can strengthen that but no need to*)
-            b = b'
-          | _ => False
-          end) \/
-         (action evu = Spawn) \/
-         (action evu = Freelock /\
+         ((action evu = Spawn) \/
+         (action evu = Freelock /\ thread_id evu = tidn /\
           match location evu with
           | Some (addr, sz) =>
             b = addr.1 /\
@@ -1124,7 +1205,7 @@ Module SpinLocks (SEM: Semantics)
           | None =>
             False
           end) \/
-         (action evu = Acquire)).
+         (action evu = Acquire /\ thread_id evu = tidn)).
     Proof.
     Admitted.
 
@@ -1610,41 +1691,6 @@ Module SpinLocks (SEM: Semantics)
         destruct l; now inv H9.
     Qed.
 
-    Lemma multi_fstep_mem_compatible :
-      forall U tr tp m U' tr' tp' m'
-        (Hexec: multi_fstep (U, tr, tp) m (U', tr', tp') m'),
-        mem_compatible tp m \/ tp = tp' /\ m = m' /\ U = U' /\ tr = tr'.
-    Proof.
-      intros.
-      inversion Hexec; subst.
-      right; auto.
-      eapply fstep_mem_compatible in H7.
-      left; auto.
-    Qed.
-
-    Lemma multi_fstep_invariant :
-      forall U tr tp m U' tr' tp' m'
-        (Hexec: multi_fstep (U, tr, tp) m (U', tr', tp') m'),
-        invariant tp \/ tp = tp' /\ m = m' /\ U = U' /\ tr = tr'.
-    Proof.
-      intros.
-      inversion Hexec; subst.
-      right; auto.
-      eapply fstep_invariant in H7.
-      left; auto.
-    Qed.
-
-    Lemma multi_fstep_valid_block:
-      forall U tr tp m U' tr' tp' m' b
-        (Hexec: multi_fstep (U, tr, tp) m (U', tr', tp') m')
-        (Hvalid: Mem.valid_block m b),
-        Mem.valid_block m' b.
-    Proof.
-      intros.
-      induction Hexec.
-      assumption.
-    Admitted.
-
     Lemma perm_order_incompatible:
       forall p p'
         (Hreadable: Mem.perm_order'' p (Some Readable))
@@ -1694,8 +1740,16 @@ Module SpinLocks (SEM: Semantics)
           as (k & evk & Horder & Hk & Hcompetes_kj & Hmaximal).
         (** [evk] cannot be in [tr'] because this would imply that it is from
         the same thread as [j] and hence not competing*)
-        assert (Hk_not_in_tr': (k < length tr)%coq_nat)
-          by admit.
+        assert (Hk_not_in_tr': (k < length tr)%coq_nat).
+        { destruct (lt_dec k (length tr)); auto.
+          erewrite nth_error_app2 in Hk by omega.
+          destruct Hcompetes_kj.
+          apply nth_error_In in Hk.
+          erewrite nth_error_app2 in Hj by omega.
+          apply nth_error_In in Hj.
+          eapply fstep_event_tid with (ev := evk) (ev' := evj) in Hstep; eauto.
+          exfalso; auto.
+        }
         erewrite nth_error_app1 in Hk by assumption.
         (** By case analysis on the type of the competing events [evk] and [evj]*)
         destruct (is_internal evk && is_internal evj) eqn:Hevk_evj.
@@ -1725,14 +1779,17 @@ Module SpinLocks (SEM: Semantics)
           (** The threads that generated [evk] and [evj] are
           valid threads in the respective thread pools*)
           assert (cntk: containsThread tp_k (thread_id evk))
-            by admit.
+            by (eapply fstep_ev_contains in Hstepk;
+                eapply Hstepk.1).
           assert (cntk': containsThread tp_k' (thread_id evk))
-            by admit.
-
+            by (eapply fstep_ev_contains in Hstepk;
+                eapply Hstepk.2).
           assert (cntj: containsThread tp (thread_id evj))
-            by admit.
+            by (eapply fstep_ev_contains in Hstep;
+                eapply Hstep.1).
           assert (cntj': containsThread tp' (thread_id evj))
-            by admit.
+            by (eapply fstep_ev_contains in Hstep;
+                eapply Hstep.2).
 
           (** [evk] and [evj] are Read/Write events*)
           (** evk is either a [Write] or [Read] event*)
@@ -1773,6 +1830,24 @@ Module SpinLocks (SEM: Semantics)
           subst.
           destruct Heq as [tr'' Heq]; subst.
 
+          (** [b] is valid if someone has permission on it*)
+          assert (Hvalid_mk': forall p, Mem.perm_order'' ((getThreadR cntk').1 !! b ofs) (Some p) ->
+                                 Mem.valid_block m_k' b).
+          { intros.
+            eapply perm_order_valid_block; eauto.
+            destruct (multi_fstep_mem_compatible Hexec') as [Hcompk' | Heq].
+            - destruct Hcompk'.
+              now eapply (compat_th0 _ cntk').1.
+            - destruct Heq as [? [? _]]; subst.
+              eapply fstep_mem_compatible in Hstep.
+              now eapply Hstep.
+          }
+          assert (Hvalid_m: forall p, Mem.perm_order'' ((getThreadR cntk').1 !! b ofs) (Some p) ->
+                               Mem.valid_block m b).
+          { intros.
+            eapply multi_fstep_valid_block; eauto.
+          }
+
           (** *** Proving that the permissions required for [evk] and [evj]
               are above [Readable] and incompatible*)
 
@@ -1809,19 +1884,6 @@ Module SpinLocks (SEM: Semantics)
                   now auto.
             }
 
-            assert (Hvalid: forall p, Mem.perm_order'' ((getThreadR cntk').1 !! b ofs) (Some p) ->
-                            Mem.valid_block m b).
-            { intros.
-              eapply multi_fstep_valid_block; eauto.
-              eapply perm_order_valid_block; eauto.
-              destruct (multi_fstep_mem_compatible Hexec') as [Hcompk' | Heq].
-              - destruct Hcompk'.
-                now eapply (compat_th0 _ cntk').1.
-              - destruct Heq as [? [? _]]; subst.
-                eapply fstep_mem_compatible in Hstep.
-                now eapply Hstep.
-            }
-
             destruct Hactionk as [Hactionk | Hactionk];
               [destruct (Hwritek Hactionk cntk cntk' ofs Hintvk) as [_ [Hpermk | Hcontra]] |
                destruct (Hreadk Hactionk cntk cntk' ofs Hintvk) as [_ [Hpermk | Hcontra]]];
@@ -1831,7 +1893,7 @@ Module SpinLocks (SEM: Semantics)
                 destruct Hactionj as [Hactionj | Hactionj];
               try (destruct (Hwritej Hactionj cntj cntj' ofs Hintvj) as [Hpermj _]);
               try (destruct (Hreadj Hactionj cntj cntj' ofs Hintvj) as [Hpermj _]);
-              specialize (Hpermj (Hvalid _ Hpermk));
+              specialize (Hpermj (Hvalid_m _ Hpermk));
               repeat match goal with
                      | [H1: action _ = Read, H2: action _ = Read |- _] =>
                        rewrite H1 H2 in His_write; destruct His_write; discriminate
@@ -1854,9 +1916,12 @@ Module SpinLocks (SEM: Semantics)
                 eapply fstep_invariant in Hstep.
                 now eapply Hstep.
           }
-
+          
           assert (cntk'_j: containsThread tp (thread_id evk))
-            by admit.
+            by (eapply fstep_ev_contains in Hstepk;
+                destruct Hstepk;
+                eapply multi_fstep_containsThread; eauto).
+          
           (** By the [invariant] permissions of [thread_id evk] and
           [thread_id evj] will have compatible permissions at [tp] *)
           assert (Hinv: invariant tp)
@@ -1883,7 +1948,7 @@ Module SpinLocks (SEM: Semantics)
           }
           (** Hence by [data_permission_decrease_execution] we have four cases for how the permissions of [thread_id evk] dropped*)
           destruct (data_permission_decrease_execution _ b ofs cntk' cntk'_j Hexec' Hperm_k Hdropped.1 Hdropped.2)
-            as (tre_pre_u & tru & ? & ? & tp_pre_u & m_pre_u &
+            as (tr_pre_u & tru & ? & ? & tp_pre_u & m_pre_u &
                 tp_dec & m_dec & Hexec_pre_u & Hstepu & Hexec_post_u & evu & Hspec_u).
           destruct Hspec_u as [Hfreed | [Hspawned | [Hmklock | Hrelease]]].
           { (** Case permissions dropped by a [Free] event. This leads to a
@@ -1904,7 +1969,7 @@ Module SpinLocks (SEM: Semantics)
             destruct Hexec_post_u as [? Heq].
             rewrite <- app_assoc in Heq.
             apply app_inv_head in Heq. subst.
-            exists (length ((((tr0 ++ pre_k) ++ [:: evk]) ++ post_k) ++ tre_pre_u)%list), evu.
+            exists (length ((((tr0 ++ pre_k) ++ [:: evk]) ++ post_k) ++ tr_pre_u)%list), evu.
             split. simpl.
             - apply/andP.
               split.
@@ -1926,7 +1991,7 @@ Module SpinLocks (SEM: Semantics)
               reflexivity.
               assumption.
           }
-          { (** Case permissions were dropped by a Mklock event - this leads to
+          { (** Case permissions were dropped by a [Mklock] event - this leads to
           a contradiction by the fact that [evu] will compete with [evj], while
           [evk] is the maximal competing event *)
             destruct Hmklock as [Htru [Hactionu [Hthreadu Hlocu]]].
@@ -1937,7 +2002,7 @@ Module SpinLocks (SEM: Semantics)
             destruct Hexec_post_u as [? Heq].
             rewrite <- app_assoc in Heq.
             apply app_inv_head in Heq. subst.
-            eapply (Hmaximal (length (tr0 ++ pre_k ++ [:: evk] ++ post_k ++ tre_pre_u)%list) evu).
+            eapply (Hmaximal (length (tr0 ++ pre_k ++ [:: evk] ++ post_k ++ tr_pre_u)%list) evu).
             - rewrite! app_length.
               apply/andP.
               split.
@@ -1976,6 +2041,83 @@ Module SpinLocks (SEM: Semantics)
                 left.
                 assumption.
           }
+          { (** Case permissions were dropped by a [Release] event.*)
+            destruct Hrelease as [? [Hrelease [Hthread_eq Hperm_eq]]];
+              subst.
+
+            (** We proceed by a case analysis on whether [thread_id evj] was in
+            the threadpool at this point. If not then there must have been a
+            spawn event between u and j and we are done *)
+            destruct (containsThread_dec (thread_id evj) tp_pre_u) as [cntu_j | Hnot_contained].
+            { (** Case [thread_id evj] is in the threadpool*)
+              rewrite <- app_nil_r with (l := [:: evu]) in Hstepu;
+                rewrite <- app_nil_l with (l := [:: evu]) in Hstepu;
+                rewrite! app_assoc in Hstepu;
+                rewrite <- app_assoc with (m := [:: evu]) in Hstepu;
+                rewrite <- app_assoc with (m := [::]) in Hstepu;
+                (** Permissions of [thread_id evj] are not changed by the [Release] step*)
+                assert (cntdec_j: containsThread tp_dec (thread_id evj))
+                  by (pose proof (fstep_event_sched _ _ _ Hstepu); subst;
+                      eapply fstep_containsThread; eauto).
+              (** By Hperm_eq, it must be that the permissions of thread
+            [thread_id evj] have not increased (to the required permissions for
+            evj), as that would lead to a violation of the [invariant] and hence
+            they must have increased between [evu] and [evj]*)
+              assert (Hperm_incr: Mem.perm_order'' ((getThreadR cntj).1 !! b ofs) ((getThreadR cntdec_j).1 !! b ofs) /\
+                                  (getThreadR cntj).1 !! b ofs <> (getThreadR cntdec_j).1 !! b ofs).
+              { assert (Hperm_eqj: (getThreadR cntu_j).1 !! b ofs = (getThreadR cntdec_j).1 !! b ofs).
+                { pose proof (fstep_event_sched _ _ _ Hstepu); subst.
+                  rewrite <- Hthread_eq in Hthreads_neq.
+                  erewrite gsoThreadR_fstep; eauto.
+                  now eapply (fstep_ev_contains _ _ _ Hstepu).1.
+                }
+                rewrite <- Hperm_eqj.
+                assert (cntu_k: containsThread tp_pre_u (thread_id evk)).
+                { pose proof (fstep_event_sched _ _ _ Hstepu); subst.
+                  rewrite <- Hthread_eq.
+                  now eapply (fstep_ev_contains _ _ _ Hstepu).1.
+                }
+                specialize (Hperm_eq cntu_k).
+                rewrite <- Hperm_eq in *.
+                assert (Hinvu: invariant tp_pre_u)
+                  by (eapply fstep_invariant; eauto).
+                clear - Hperm_k Hperm_j Hwritable_kj Hcompatible_j 
+                                Hinvu Hthread_eq Hthreads_neq.
+                pose proof ((no_race_thr Hinvu cntu_k cntu_j Hthreads_neq).1 b ofs) as Hcompatibleu_kj.
+                destruct Hcompatibleu_kj as [pu Hcompatibleu_kj].
+                destruct (((getThreadR cntu_k)#1) # b ofs) as [pu_k|]; simpl in Hperm_k;
+                  inv Hperm_k;
+                  destruct ((getThreadR cntj).1 !! b ofs) as [pj |]; simpl in Hperm_j;
+                    inv Hperm_j; simpl in Hwritable_kj;
+                      destruct Hwritable_kj as [Hwritable | Hwritable];
+                      try (by inversion Hwritable);
+                      simpl in Hcompatibleu_kj;
+                      destruct (((getThreadR cntu_j)#1) # b ofs) as [pu_j|]; simpl in Hcompatibleu_kj;
+                        try (destruct pu_j); inv Hcompatibleu_kj;
+                          split; try (simpl; now constructor);
+                            try (intro Hcontra; inv Hcontra).
+              }
+              pose proof (multi_fstep_trace_monotone Hexec_post_u) as [tr''0 Heq].
+              erewrite! app_assoc_reverse in Heq. 
+              do 4 apply app_inv_head in Heq. subst.
+              rewrite! app_assoc in Hexec_post_u.
+              (** By [data_permission_increase_execution] we have four cases as to how the permissions increased*)
+              destruct (data_permission_increase_execution _ ofs cntdec_j cntj Hexec_post_u Hperm_incr.1 Hperm_incr.2)
+                as (tr_pre_v & evv & ? & ? & tp_pre_v & m_pre_v &
+                    tp_inc & m_inc & Hexec_pre_v & Hstepv & Hexec_post_v & Hspec_v).
+              specialize (Hvalid_mk' _ Hperm_k).
+              rewrite app_nil_r in Hstepu. simpl in Hstepu.
+              eapply multi_fstep_valid_block with (m := m_k'); eauto.
+              eapply multi_fstep_snoc with (m' := m_pre_u);
+                eauto.
+              rewrite! app_assoc.
+              now eauto.
+              destruct Hspec_v as [Hactionv | [[Hactionv [Hthreadv Hloc_v]] | [Hactionv Hthreadv]]].
+              
+
+
+
+
 
 
     Abort.        
