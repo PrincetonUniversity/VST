@@ -251,16 +251,16 @@ Proof.
     { apply BOUND.
       rewrite Efind.
       constructor. }
-    destruct LC as (dry & sh & R & lk); split; auto.
-    eapply resource_decay_LK_at in lk; eauto.
+    destruct LC as (dry (* & sh *) & R & lk); split; auto.
+    eapply resource_decay_lkat in lk; eauto.
   
   - assert (fst loc < b)%positive.
     { apply BOUND.
       rewrite Efind.
       constructor. }
-    destruct LC as (dry & sh & R & lk & sat); split; auto.
-    exists sh, (approx (level phi') R); split.
-    + eapply resource_decay_LK_at' in lk; eauto.
+    destruct LC as (dry & (* sh &  *)R & lk & sat); split; auto.
+    exists (* sh,  *)(approx (level phi') R); split.
+    + eapply resource_decay_lkat in lk; eauto.
     + match goal with |- ?a \/ ?b => cut (~b -> a) end.
       { destruct (level phi'); auto. } intros Nz.
       split.
@@ -477,25 +477,25 @@ Proof.
         apply po_trans with (perm_of_res (Phi @ (b, ofs0))).
         - destruct compat.
           specialize (lock_coh (b, ofs)).
-          assert (lk : exists (sh : Share.t) (R : pred rmap), (LK_at R sh (b, ofs)) Phi). {
+          assert (lk : exists (R : pred rmap), (lkat R (b, ofs)) Phi). {
             destruct (AMap.find (elt:=option rmap) (b, ofs) (ThreadPool.lset tp)) as [[lockphi|]|].
-            - destruct lock_coh as [_ [sh [R [lk _]]]].
-              now eexists _, _; apply lk.
-            - destruct lock_coh as [_ [sh [R lk]]].
-              now eexists _, _; apply lk.
+            - destruct lock_coh as [_[R [lk _]]].
+              now eexists _; apply lk.
+            - destruct lock_coh as [_ [R lk]].
+              now eexists _; apply lk.
             - discriminate.
           }
-          destruct lk as (sh & R & lk).
+          destruct lk as (R & lk).
           specialize (lk (b, ofs0)). simpl in lk.
           assert (adr_range (b, ofs) LKSIZE (b, ofs0))
             by apply interval_adr_range, interval.
-          if_tac in lk; [ | tauto ].
+          spec lk. now split; auto; lkomega.
           if_tac in lk.
-          + injection H1 as <-.
-            destruct lk as [p ->].
+          + injection H0 as <-.
+            destruct lk as (? & ? & ->).
             simpl.
             constructor.
-          + destruct lk as [p ->].
+          + destruct lk as (? & ? & ->).
             simpl.
             constructor.
         - cut (join_sub (getThreadR _ _ cnti @ (b, ofs0)) (Phi @ (b, ofs0))).
@@ -747,25 +747,21 @@ Proof.
         + clear -lock_coh islock interval.
           (* todo make lemma out of this *)
           specialize (lock_coh (b, ofs)).
-          assert (lk : exists sh R, (LK_at R sh (b, ofs)) Phi). {
+          assert (lk : exists R, (lkat R (b, ofs)) Phi). {
             destruct (AMap.find (elt:=option rmap) (b, ofs) (lset tp)) as [[|]|].
-            - destruct lock_coh as [_ (? & ? & ? & ?)]; eauto.
             - destruct lock_coh as [_ (? & ? & ?)]; eauto.
+            - destruct lock_coh as [_ (? & ?)]; eauto.
             - tauto.
           }
-          destruct lk as (R & sh & lk).
+          destruct lk as (R & lk).
           specialize (lk (b, ofs0)).
           simpl in lk.
           assert (adr_range (b, ofs) 4%Z (b, ofs0))
             by apply interval_adr_range, interval.
-          if_tac [r|nr] in lk.
-          * if_tac in lk.
-            -- destruct lk as [pp ->]. simpl. constructor.
-            -- destruct lk as [pp ->]. simpl. constructor.
-          * destruct nr.
-            unfold LKSIZE in *.
-            unfold adr_range in *.
-            intuition.
+          spec lk. now split; auto.
+          if_tac in lk.
+          * destruct lk as (? & ? & ->). simpl. constructor.
+          * destruct lk as (? & ? & ->). simpl. constructor.
     }
     (* end of proof of: lock values couldn't change during a corestep *)
     

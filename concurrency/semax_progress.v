@@ -374,15 +374,14 @@ Qed.
           reflexivity.
         
         - (* Some None: lock is locked, so [acquire] fails. *)
-          destruct lock_coh' as [LOAD (sh' & R' & lk)].
+          destruct lock_coh' as [LOAD ((* sh' & *) R' & lk)].
           destruct isl as [sh [psh [z Ewetv]]].
           rewrite Ewetv in *.
           
           (* rewrite Eat in Ewetv. *)
           specialize (lk (b, Int.unsigned ofs)).
-          rewrite jam_true in lk; swap 1 2.
-          { hnf. unfold LKSIZE in *; split; auto; omega. }
-          rewrite jam_true in lk; swap 1 2. now auto.
+          spec lk. unfold LKSIZE in *; split; auto; omega.
+          if_tac in lk. 2:tauto.
           
           unfold lock_inv in PREC.
           destruct PREC as (b0 & ofs0 & EQ & LKSPEC).
@@ -400,8 +399,8 @@ Qed.
             (* factoring proofs out before the inversion/eapply *)
             specialize (LKSPEC (b, Int.unsigned ofs)).
             simpl in LKSPEC.
-            if_tac in LKSPEC; swap 1 2.
-            { destruct H.
+            if_tac [r|nr] in LKSPEC; swap 1 2.
+            { destruct nr.
               unfold LKSIZE; simpl.
               split. reflexivity. omega. }
             if_tac in LKSPEC; [ | congruence ].
@@ -417,7 +416,7 @@ Qed.
             
             assert (Ez : z = LKSIZE). {
               simpl in lk.
-              destruct lk as [psh' EPhi].
+              destruct lk as (psh' & rsh & EPhi).
               rewrite EPhi in Ewetv.
               injection Ewetv as _ _ <-.
               reflexivity.
@@ -462,7 +461,7 @@ Qed.
         
         - (* acquire succeeds *)
           destruct isl as [sh [psh [z Ewetv]]].
-          destruct lock_coh' as [LOAD (sh' & R' & lk & sat)].
+          destruct lock_coh' as [LOAD ((* sh' &  *)R' & lk & sat)].
           rewrite Ewetv in *.
           
           unfold lock_inv in PREC.
@@ -470,9 +469,8 @@ Qed.
           injection EQ as <- <-.
           
           specialize (lk (b, Int.unsigned ofs)).
-          rewrite jam_true in lk; swap 1 2.
-          { hnf. unfold LKSIZE in *; split; auto; omega. }
-          rewrite jam_true in lk; swap 1 2. now auto.
+          spec lk. hnf. unfold LKSIZE in *; split; auto; omega.
+          if_tac in lk. 2:tauto.
           destruct sat as [sat | sat]; [ | omega ].
           
           (* changing value of lock in dry mem *)
@@ -613,15 +611,16 @@ Qed.
           reflexivity.
         
         - (* Some None: lock is locked, so [release] should succeed. *)
-          destruct lock_coh' as [LOAD (sh' & R' & lk)].
+          destruct lock_coh' as [LOAD ((* sh' &  *)R' & lk)].
           destruct isl as [sh [psh [z Ewetv]]].
           rewrite Ewetv in *.
           
           (* rewrite Eat in Ewetv. *)
           specialize (lk (b, Int.unsigned ofs)).
-          rewrite jam_true in lk; swap 1 2.
+          spec lk.
           { hnf. unfold LKSIZE in *; split; auto; omega. }
-          rewrite jam_true in lk; swap 1 2. now auto.
+          if_tac in lk. 2:tauto.
+          destruct lk as (sh' & rsh & EPhi).
           
           assert (Ename : name = "release"). {
             simpl in *.
@@ -630,8 +629,6 @@ Qed.
           }
           
           assert (Ez : z = LKSIZE). {
-            simpl in lk.
-            destruct lk as [psh' EPhi].
             rewrite EPhi in Ewetv.
             injection Ewetv as _ _ <-.
             reflexivity.
@@ -727,7 +724,7 @@ Qed.
             try reflexivity.
         
         - (* Some Some: lock is unlocked, this should be impossible *)
-          destruct lock_coh' as [LOAD (sh' & R' & lk & sat)].
+          destruct lock_coh' as [LOAD (R' & lk & sat)].
           destruct sat as [sat | ?]; [ | congruence ].
           destruct isl as [sh [psh [z Ewetv]]].
           rewrite Ewetv in *.
@@ -742,7 +739,7 @@ Qed.
           simpl in PREA.
           destruct PREA as (Hreadable & Hprecise & Hpositive & []).
           
-          pose proof predat3 lk as E1.
+          pose proof predat6 lk as E1.
           pose proof predat1 Ewetv as E2.
           pose proof predat4 Hlockinv as E3.
           apply (predat_join_sub SUB) in E3.

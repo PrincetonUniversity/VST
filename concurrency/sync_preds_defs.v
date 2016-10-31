@@ -34,6 +34,23 @@ Definition LKspec_ext (R: pred rmap) : spec :=
 Definition LK_at R sh :=
   LKspec_ext R (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh).
 
+(* We used LK_at in lock_coherence before, but we it requires that all
+the LK, CT, ... have the same share, which might not be true. The
+following definition has the same structure as rmap_makelock in
+rmap_locking *)
+
+Definition pack_res_inv (R: pred rmap) := SomeP rmaps.Mpred (fun _ => R).
+
+Definition lkat (R : mpred) loc phi :=
+  (forall x,
+      adr_range loc LKSIZE x ->
+      exists sh rsh,
+        phi @ x =
+        if eq_dec x loc then
+          YES sh rsh (LK LKSIZE) (pack_res_inv (approx (level phi) R))
+        else
+          YES sh rsh (CT (snd x - snd loc)) NoneP).
+
 Definition isLK (r : resource) := exists sh sh' z P, r = YES sh sh' (LK z) P.
 
 Definition isCT (r : resource) := exists sh sh' z P, r = YES sh sh' (CT z) P.
