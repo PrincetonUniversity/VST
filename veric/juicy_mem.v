@@ -77,7 +77,9 @@ Definition perm_of_res_lock (r: resource) :=
  match r with
  | NO sh => if eq_dec sh Share.bot then None else Some Nonempty
  | PURE _ _ => Some Nonempty
- | YES rsh sh _ _ => perm_of_sh rsh (pshare_sh sh)
+ | YES rsh sh (LK _) _ => perm_of_sh rsh (pshare_sh sh)
+ | YES rsh sh (CT _) _ => perm_of_sh rsh (pshare_sh sh)
+ | YES rsh sh _ _ => Some Nonempty
  end.
 
 Lemma perm_of_res_op1:
