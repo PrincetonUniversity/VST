@@ -1646,6 +1646,27 @@ Module StepLemmas (SEM : Semantics)
       now eauto.
   Qed.
 
+  (** Any state that steps satisfies the [invariant] *)
+  Lemma fstep_invariant:
+    forall the_ge U tr tp m U' tr' tp' m'
+      (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr', tp') m'),
+      invariant tp.
+  Proof.
+    intros.
+    inversion Hstep; simpl in *; subst;
+      try (inversion Htstep; eauto).
+    inversion Hhalted; subst; eauto.
+    assumption.
+  Qed.
+
+  Lemma diluteMem_valid :
+    forall b m,
+      Mem.valid_block m b <-> Mem.valid_block (diluteMem m) b.
+  Proof.
+    intros.
+    split; auto.
+  Qed.
+  
   Lemma safeC_invariant:
     forall tpc mc n the_ge
       (Hn: n > 0)
@@ -3288,18 +3309,10 @@ Module StepType (SEM : Semantics)
         by (simpl; eauto).
   Qed.
 
-  Lemma diluteMem_valid :
-    forall b m,
-      Mem.valid_block m b <-> Mem.valid_block (diluteMem m) b.
-  Proof.
-    intros.
-    split; auto.
-  Qed.
-  
   Lemma fstep_valid_block:
-    forall tpf tpf' mf mf' i U b tr tr'
+    forall the_ge tpf tpf' mf mf' i U b tr tr'
       (Hvalid: Mem.valid_block mf b)
-      (Hstep: fmachine_step (i :: U, tr, tpf) mf (U, tr',tpf') mf'),
+      (Hstep: FineConc.MachStep the_ge (i :: U, tr, tpf) mf (U, tr',tpf') mf'),
       Mem.valid_block mf' b.
   Proof.
     intros.
@@ -3307,8 +3320,11 @@ Module StepType (SEM : Semantics)
     inversion Htstep; subst.
     erewrite <- diluteMem_valid.
     eapply CoreLanguage.ev_step_validblock; eauto.
-    admit.
-  Admitted.
+    inversion Htstep; subst; eauto.
+    eapply Mem.store_valid_block_1; eauto.
+    eapply Mem.store_valid_block_1; eauto.
+    eapply Mem.store_valid_block_1; eauto.
+  Qed.
   
   End StepType.
 
