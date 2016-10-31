@@ -353,8 +353,13 @@ Module SimProofs (SEM: Semantics)
     exists tr.
     split.
     intros. econstructor 7; simpl; eauto.
-    eapply (mem_compf Hsim).
+    eapply (mem_compf Hsim); eauto.
     eapply sim_reduce; eauto.
+    eapply sim_reduce; eauto.
+    Grab Existential Variables.
+    econstructor.
+    instantiate (1:=fuelF).
+    ssromega.
   Qed.
 
   (** Proofs about [internal_execution] and [internal_step] *)
