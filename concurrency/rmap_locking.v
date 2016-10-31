@@ -446,8 +446,6 @@ Proof.
   rewrite Coqlib.nat_of_Z_eq; omega.
 Qed.
 
-Definition pack_res_inv (R: pred rmap) := SomeP rmaps.Mpred (fun _ => R).
-
 Definition rmap_makelock phi phi' loc R length :=
   (level phi = level phi') /\
   (forall x, ~ adr_range loc length x -> phi @ x = phi' @ x) /\
@@ -768,3 +766,152 @@ Proof.
       apply writable_unique_right, Hwritable.
       Unshelve. all:rewrite <-readable_share_unrel_Rsh; apply writable_readable_share; auto.
 Qed.
+
+Require Import veric.juicy_mem.
+
+Definition noyes phi := forall x sh rsh k pp, phi @ x <> YES sh rsh k pp.
+
+Definition getYES_aux (phi : rmap) (loc : address) : resource :=
+  match phi @ loc with
+    YES sh rsh k pp => YES Share.bot rsh k pp
+  | NO sh => NO Share.bot
+  | PURE k pp => PURE k pp
+  end.
+
+Definition getNO_aux (phi : rmap) (loc : address) : resource :=
+  match phi @ loc with
+    YES sh rsh k pp => NO sh
+  | NO sh => NO sh
+  | PURE k pp => PURE k pp
+  end.
+
+Program Definition getYES (phi : rmap) := proj1_sig (make_rmap (getYES_aux phi) _ (level phi) _).
+Next Obligation.
+  intros phi.
+  pose proof juicy_mem.phi_valid phi as V.
+  intros b ofs. spec V b ofs.
+  unfold getYES_aux, "oo" in *.
+  destruct (phi @ _); simpl in *; auto.
+  destruct k; auto.
+  - intros i ri; spec V i ri. destruct (phi @ _); auto.
+  - destruct (phi @ _); auto.
+Qed.
+Next Obligation.
+  intros phi.
+  pose proof resource_at_approx phi as V.
+  extensionality l. spec V l.
+  unfold getYES_aux, "oo" in *.
+  destruct (phi @ _); simpl in *; auto.
+  congruence.
+Qed.
+
+Program Definition getNO (phi : rmap) := proj1_sig (make_rmap (getNO_aux phi) _ (level phi) _).
+Next Obligation.
+  intros phi.
+  pose proof juicy_mem.phi_valid phi as V.
+  intros b ofs. spec V b ofs.
+  unfold getNO_aux, "oo" in *.
+  destruct (phi @ _); simpl in *; auto.
+Qed.
+Next Obligation.
+  intros phi.
+  pose proof resource_at_approx phi as V.
+  extensionality l. spec V l.
+  unfold getNO_aux, "oo" in *.
+  destruct (phi @ _); simpl in *; auto.
+Qed.
+
+Lemma getYES_getNO_join phi : join (getYES phi) (getNO phi) phi.
+Proof.
+  apply resource_at_join2; try apply level_make_rmap.
+  unfold getYES, getNO; do 2 rewrite resource_at_make_rmap.
+  unfold getYES_aux, getNO_aux; intros loc.
+  destruct (phi @ loc); constructor; apply bot_join_eq.
+Qed.
+
+Lemma noyes_getNO phi : noyes (getNO phi).
+Proof.
+  intros l.
+  unfold getNO; rewrite resource_at_make_rmap; unfold getNO_aux.
+  destruct (phi @ _); congruence.
+Qed.
+
+Lemma mapsto_getYES sh t v v' phi :
+  writable_share sh ->
+  app_pred (mapsto sh t v v') phi ->
+  app_pred (mapsto Share.Rsh t v v') (getYES phi).
+Proof.
+  intros Hw At. pose proof writable_readable_share Hw as Hr.
+  assert (Hr' : readable_share Share.Rsh) by admit.
+  cut
+    (forall m v loc,
+        (address_mapsto m v (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) loc) phi ->
+        (address_mapsto m v (Share.unrel Share.Lsh Share.Rsh) (Share.unrel Share.Rsh Share.Rsh) loc) (getYES phi)).
+  { intros CUT.
+    unfold mapsto in *; destruct (access_mode t);
+      repeat if_tac;
+      repeat if_tac in At; eauto; destruct v; eauto; try tauto.
+    destruct At as [[? At]|[? At]]; [left|right]; split; try assumption.
+    - apply CUT; auto.
+    - destruct At. eexists. apply CUT; eauto. }
+  clear v v' At. intros m v loc M.
+  unfold address_mapsto in *.
+  destruct M as (bl & I & M); exists bl; split; auto.
+  intros x; spec M x.
+  simpl in *.
+  if_tac.
+  - destruct M as (p, M).
+    unfold getYES, getYES_aux in *.
+    rewrite resource_at_make_rmap.
+    destruct (phi @ x); try congruence.
+    injection M as -> -> -> ->.
+    assert (p' : nonunit (Share.unrel Share.Rsh Share.Rsh)). {
+      admit. (* ask *)
+    }
+    exists p'; f_equal.
+    + admit (* ask andrew *).
+    + pose proof writable_share_right Hw as R.
+      assert (R': Share.unrel Share.Rsh Share.Rsh = Share.top).
+      { admit. (* ask andrew *) }
+      revert p p' R R'.
+      generalize (Share.unrel Share.Rsh sh).
+      generalize (Share.unrel Share.Rsh Share.Rsh).
+      intros ? ? ? ? -> ->; f_equal; apply proof_irr.
+  - apply empty_NO in M.
+    unfold getYES, getYES_aux in *.
+    rewrite resource_at_make_rmap.
+    destruct M as [-> | (k & pp & ->)].
+    + apply NO_identity.
+    + apply PURE_identity.
+Admitted.
+
+Lemma memory_block_getYES sh z v phi :
+  writable_share sh ->
+  app_pred (memory_block sh z v) phi ->
+  app_pred (memory_block Share.Rsh z v) (getYES phi).
+Proof.
+  intros Hw At. pose proof writable_readable_share Hw as Hr.
+  assert (Hr' : readable_share Share.Rsh) by admit.
+  Transparent memory_block.
+  unfold memory_block in *. destruct v; auto.
+  unfold mapsto_memory_block.memory_block' in *.
+Admitted.
+
+
+Lemma field_at_getYES CS sh t gfs v v' phi :
+  writable_share sh ->
+  app_pred (@field_at CS sh t gfs v v') phi ->
+  app_pred (@field_at CS Share.Rsh t gfs v v') (getYES phi).
+Proof.
+  intros Hw At.
+  destruct At as (A, B). split. apply A.
+  unfold mapsto_memory_block.at_offset in *.
+  unfold data_at_rec_lemmas.data_at_rec in *.
+  simpl.
+  destruct (nested_field_lemmas.nested_field_type t gfs); simpl in *; repeat if_tac.
+  all: try (eapply mapsto_getYES; eauto).
+  all: try (eapply memory_block_getYES; eauto).
+  admit.
+  admit.
+  admit.
+Abort.
