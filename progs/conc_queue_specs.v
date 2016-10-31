@@ -67,22 +67,24 @@ Axiom ghost_inj_Tsh : forall sh1 sh2 h1 h2 p, ghost sh1 (Tsh, h1) p * ghost sh2 
 (*Axiom ghost_conflict : forall sh1 sh2 t1 t2 v1 v2 p,
   ghost sh1 t1 v1 p * ghost sh2 t2 v2 p |-- !!sepalg.joins sh1 sh2.*)
 
-Definition q_lock_pred' p vals head (addc remc : val) gsh h :=
+Definition q_lock_pred' t p vals head (addc remc : val) lock gsh h :=
   !!(Zlength vals <= MAX /\ 0 <= head < MAX /\ consistent h [] vals) &&
   (data_at Tsh tqueue (rotate (complete MAX vals) head MAX, (vint (Zlength vals),
                       (vint head, (vint ((head + Zlength vals) mod MAX), (addc, remc))))) p *
-   cond_var Tsh addc * cond_var Tsh remc * ghost gsh (Tsh, h) p *
-   fold_right sepcon emp (map (fun p => EX t : type, EX d : reptype t, data_at Tsh t d p) vals)).
+   cond_var Tsh addc * cond_var Tsh remc * malloc_token Tsh (sizeof tqueue_t) p *
+   malloc_token Tsh (sizeof tcond) addc * malloc_token Tsh (sizeof tcond) remc *
+   malloc_token Tsh (sizeof tlock) lock * ghost gsh (Tsh, h) p *
+   fold_right sepcon emp (map (fun p => EX d : reptype t, data_at Tsh t d p) vals)).
 
-Definition q_lock_pred p gsh := EX vals : list val, EX head : Z, EX addc : val, EX remc : val,
-  EX h : hist, q_lock_pred' p vals head addc remc gsh h.
+Definition q_lock_pred t p lock gsh := EX vals : list val, EX head : Z, EX addc : val, EX remc : val,
+  EX h : hist, q_lock_pred' t p vals head addc remc lock gsh h.
 
-Definition lqueue lsh p lock gsh1 gsh2 h := !!(sepalg.join gsh1 gsh2 Tsh /\ field_compatible tqueue_t [] p) &&
+Definition lqueue lsh t p lock gsh1 gsh2 h := !!(sepalg.join gsh1 gsh2 Tsh /\ field_compatible tqueue_t [] p) &&
   (field_at lsh tqueue_t [StructField _lock] lock p *
-   lock_inv lsh lock (q_lock_pred p gsh2) * ghost gsh1 (lsh, h) p).
+   lock_inv lsh lock (q_lock_pred t p lock gsh2) * ghost gsh1 (lsh, h) p).
 
 Definition q_new_spec' :=
-  WITH gsh1 : share, gsh2 : share
+  WITH t : type, gsh1 : share, gsh2 : share
   PRE [ ]
    PROP (sepalg.join gsh1 gsh2 Tsh)
    LOCAL ()
@@ -90,15 +92,15 @@ Definition q_new_spec' :=
   POST [ tptr tqueue_t ]
    EX newq : val, EX lock : val,
    PROP () LOCAL (temp ret_temp newq)
-   SEP (lqueue Tsh newq lock gsh1 gsh2 []).
+   SEP (lqueue Tsh t newq lock gsh1 gsh2 []).
 Definition q_new_spec prog := DECLARE (ext_link_prog prog "q_new") q_new_spec'.
 
 Definition q_del_spec' :=
-  WITH p : val, lock : val, gsh1 : share, gsh2 : share, h : hist
+  WITH t : type, p : val, lock : val, gsh1 : share, gsh2 : share, h : hist
   PRE [ _tgt OF (tptr tqueue_t) ]
    PROP (consistent h [] [])
    LOCAL (temp _tgt p)
-   SEP (lqueue Tsh p lock gsh1 gsh2 h)
+   SEP (lqueue Tsh t p lock gsh1 gsh2 h)
   POST [ tvoid ]
    PROP ()
    LOCAL ()
@@ -106,40 +108,40 @@ Definition q_del_spec' :=
 Definition q_del_spec prog := DECLARE (ext_link_prog prog "q_del") q_del_spec'.
 
 Definition q_add_spec' :=
-  WITH sh : share, p : val, lock : val, e : val, gsh1 : share, gsh2 : share, h : hist
+  WITH sh : share, t : type, p : val, lock : val, e : val, gsh1 : share, gsh2 : share, h : hist
   PRE [ _tgt OF (tptr tqueue_t), _r OF (tptr tvoid) ]
    PROP (readable_share sh)
    LOCAL (temp _tgt p; temp _r e)
-   SEP (lqueue sh p lock gsh1 gsh2 h; EX t : type, EX d : reptype t, data_at Tsh t d e)
+   SEP (lqueue sh t p lock gsh1 gsh2 h; EX d : reptype t, data_at Tsh t d e)
   POST [ tvoid ]
     PROP ()
     LOCAL ()
-    SEP (lqueue sh p lock gsh1 gsh2 (h ++ [QAdd e])).
+    SEP (lqueue sh t p lock gsh1 gsh2 (h ++ [QAdd e])).
 Definition q_add_spec prog := DECLARE (ext_link_prog prog "q_add") q_add_spec'.
 
 Definition q_remove_spec' :=
-  WITH sh : share, p : val, lock : val, gsh1 : share, gsh2 : share, h : hist
+  WITH sh : share, t : type, p : val, lock : val, gsh1 : share, gsh2 : share, h : hist
   PRE [ _tgt OF (tptr tqueue_t) ]
    PROP (readable_share sh)
    LOCAL (temp _tgt p)
-   SEP (lqueue sh p lock gsh1 gsh2 h)
+   SEP (lqueue sh t p lock gsh1 gsh2 h)
   POST [ tptr tvoid ]
    EX e : val, EX t : type, EX d : reptype t,
    PROP ()
    LOCAL (temp ret_temp e)
-   SEP (lqueue sh p lock gsh1 gsh2 (h ++ [QRem e]); data_at Tsh t d e).
+   SEP (lqueue sh t p lock gsh1 gsh2 (h ++ [QRem e]); data_at Tsh t d e).
 Definition q_remove_spec prog := DECLARE (ext_link_prog prog "q_remove") q_remove_spec'.
 
 Definition q_tryremove_spec' :=
-  WITH sh : share, p : val, lock : val, gsh1 : share, gsh2 : share, h : hist
+  WITH sh : share, t : type, p : val, lock : val, gsh1 : share, gsh2 : share, h : hist
   PRE [ _tgt OF (tptr tqueue_t) ]
    PROP (readable_share sh)
    LOCAL (temp _tgt p)
-   SEP (lqueue sh p lock gsh1 gsh2 h)
+   SEP (lqueue sh t p lock gsh1 gsh2 h)
   POST [ tptr tvoid ]
    EX e : val,
    PROP ()
    LOCAL (temp ret_temp e)
-   SEP ((!!(e = vint 0) && lqueue sh p lock gsh1 gsh2 h) ||
-        (EX t : type, EX d : reptype t, lqueue sh p lock gsh1 gsh2 (h ++ [QRem e]) * data_at Tsh t d e)).
+   SEP (if eq_dec p nullval then lqueue sh t p lock gsh1 gsh2 h else
+        (EX d : reptype t, lqueue sh t p lock gsh1 gsh2 (h ++ [QRem e]) * data_at Tsh t d e)).
 Definition q_tryremove_spec prog := DECLARE (ext_link_prog prog "q_tryremove") q_tryremove_spec'.

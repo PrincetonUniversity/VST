@@ -23,13 +23,50 @@ Definition q_add_spec := DECLARE _q_add q_add_spec'.
 Definition q_remove_spec := DECLARE _q_remove q_remove_spec'.
 Definition q_tryremove_spec := DECLARE _q_tryremove q_tryremove_spec'.
 
+Definition surely_malloc_spec :=
+  DECLARE _surely_malloc
+   WITH n:Z
+   PRE [ _n OF tuint ]
+       PROP (0 <= n <= Int.max_unsigned)
+       LOCAL (temp _n (Vint (Int.repr n)))
+       SEP ()
+    POST [ tptr tvoid ] EX p:_,
+       PROP ()
+       LOCAL (temp ret_temp p)
+       SEP (malloc_token Tsh n p * memory_block Tsh n p).
+
 Definition Gprog : funspecs := ltac:(with_library prog
-  [acquire_spec; release_spec; makelock_spec; freelock_spec;
+  [surely_malloc_spec; acquire_spec; release_spec; makelock_spec; freelock_spec;
    makecond_spec; freecond_spec; wait_spec; signal_spec;
    q_new_spec; q_del_spec; q_add_spec; q_remove_spec; q_tryremove_spec]).
 
-Lemma all_ptrs : forall vals,
-  fold_right sepcon emp (map (fun p => EX t : type, EX d : reptype t, data_at Tsh t d p) vals) |--
+Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_spec.
+Proof.
+  start_function. 
+  forward_call (* p = malloc(n); *)
+     n.
+  Intros p.
+  forward_if
+  (PROP ( )
+   LOCAL (temp _p p)
+   SEP (malloc_token Tsh n p * memory_block Tsh n p)).
+*
+  if_tac.
+    subst p. entailer!.
+    entailer!.
+*
+    forward_call tt.
+    contradiction.
+*
+    if_tac.
+    + forward. subst p. inv H0.
+    + Intros. forward. entailer!.
+*
+  forward. Exists p; entailer!.
+Qed.
+
+Lemma all_ptrs : forall t vals,
+  fold_right sepcon emp (map (fun p => EX d : reptype t, data_at Tsh t d p) vals) |--
   !!(Forall isptr vals).
 Proof.
   induction vals; simpl; intros; entailer.
@@ -40,65 +77,31 @@ Proof.
   normalize.
 Qed.
 
-Lemma reqs_precise : forall r vals r1 r2
+Lemma vals_precise : forall r t vals r1 r2
   (Hvals1 : predicates_hered.app_pred(A := compcert_rmaps.R.rmap) (fold_right sepcon emp
-    (map (fun p => EX t : type, EX d : reptype t, data_at Tsh t d p) vals)) r1)
+    (map (fun p => EX d : reptype t, data_at Tsh t d p) vals)) r1)
   (Hvals2 : predicates_hered.app_pred(A := compcert_rmaps.R.rmap) (fold_right sepcon emp
-    (map (fun p => EX t : type, EX d : reptype t, data_at Tsh t d p) vals)) r2)
+    (map (fun p => EX d : reptype t, data_at Tsh t d p) vals)) r2)
   (Hr1 : sepalg.join_sub r1 r) (Hr2 : sepalg.join_sub r2 r), r1 = r2.
 Proof.
   induction vals; simpl; intros.
   - apply sepalg.same_identity with (a := r); auto.
     { destruct Hr1 as (? & H); specialize (Hvals1 _ _ H); subst; auto. }
     { destruct Hr2 as (? & H); specialize (Hvals2 _ _ H); subst; auto. }
-  - destruct Hvals1 as (r1a & r1b & ? & (? & ? & Hh1) & ?), Hvals2 as (r2a & r2b & ? & (? & ? & Hh2) & ?).
+  - destruct Hvals1 as (r1a & r1b & ? & (? & Hh1) & ?), Hvals2 as (r2a & r2b & ? & (? & Hh2) & ?).
     assert (r1a = r2a); [|subst].
     { apply data_at_data_at_ in Hh1; apply data_at_data_at_ in Hh2.
-SearchAbout precise.
-(* Should the queue be restricted to holding simple (by-value and non-volatile) data? We need to be sure that
-   it's precise. Maybe we should need to prove that the data is precise when we insert it...
-   Or maybe data_at is always precise, and I just haven't figured out the conditions yet? *)
-      eapply precise_request with (sh := Tsh); auto; eauto.
+      eapply data_at__precise with (sh := Tsh); auto; eauto.
       { eapply sepalg.join_sub_trans; [eexists; eauto | eauto]. }
       { eapply sepalg.join_sub_trans; [eexists; eauto | eauto]. } }
     assert (r1b = r2b); [|subst].
-    { eapply IHreqs; eauto.
+    { eapply IHvals; eauto.
       { eapply sepalg.join_sub_trans; [eexists; eauto | eauto]. }
       { eapply sepalg.join_sub_trans; [eexists; eauto | eauto]. } }
     eapply sepalg.join_eq; auto.
 Qed.
 
-Axiom ghost_precise : forall sh t p, precise (EX v : reptype t, ghost sh t v p).
-
-Lemma ghosts_precise : forall sh r ghosts ns1 ns2 r1 r2
-  (Hghosts1 : predicates_hered.app_pred (fold_right sepcon emp
-    (map Interp (map (fun p => Ghost sh tint (Vint (Int.repr (fst p))) (snd p))
-    (combine ns1 ghosts)))) r1)
-  (Hghosts2 : predicates_hered.app_pred (fold_right sepcon emp
-    (map Interp (map (fun p => Ghost sh tint (Vint (Int.repr (fst p))) (snd p))
-    (combine ns2 ghosts)))) r2)
-  (Hlen1 : length ns1 = length ghosts) (Hlen2 : length ns2 = length ghosts)
-  (Hr1 : sepalg.join_sub r1 r) (Hr2 : sepalg.join_sub r2 r), r1 = r2.
-Proof.
-  induction ghosts; destruct ns1, ns2; try discriminate; simpl; intros.
-  - apply sepalg.same_identity with (a := r); auto.
-    { destruct Hr1 as (? & H); specialize (Hghosts1 _ _ H); subst; auto. }
-    { destruct Hr2 as (? & H); specialize (Hghosts2 _ _ H); subst; auto. }
-  - inv Hlen1; inv Hlen2.
-    destruct Hghosts1 as (r1a & r1b & ? & ? & ?), Hghosts2 as (r2a & r2b & ? & ? & ?).
-    rewrite interp_ghost in *.
-    assert (r1a = r2a); [|subst].
-    { eapply ghost_precise.
-      { eexists; eauto. }
-      { eexists; eauto. }
-      { eapply sepalg.join_sub_trans; [eexists; eauto | eauto]. }
-      { eapply sepalg.join_sub_trans; [eexists; eauto | eauto]. } }
-    assert (r1b = r2b); [|subst].
-    { eapply IHghosts; eauto.
-      { eapply sepalg.join_sub_trans; [eexists; eauto | eauto]. }
-      { eapply sepalg.join_sub_trans; [eexists; eauto | eauto]. } }
-    eapply sepalg.join_eq; auto.
-Qed.*)
+Axiom ghost_precise : forall sh p, precise (EX f : share * hist, ghost sh f p).
 
 Lemma tqueue_inj : forall r buf1 buf2 len1 len2 head1 head2 tail1 tail2 (addc1 addc2 remc1 remc2 : val)
   p r1 r2
@@ -143,22 +146,24 @@ Proof.
   exploit (data_at_ptr_array_inj _ _ _ _ _ _ _ _ r Hread Hb1 Hb2); auto.
   { repeat (eapply sepalg.join_sub_trans; [eexists|]; eauto). }
   { repeat (eapply sepalg.join_sub_trans; [eexists|]; eauto). }
-  intros (? & ?) (? & ?) (? & ?) (? & ?) (? & ?) (? & ?) (? & ?); subst; join_inj.
+  intros (? & ?) (? & ?) (? & ?) (? & ?) (? & ?) (? & ?); subst; join_inj.
   repeat split; auto; congruence.
 Qed.
 
-Lemma q_inv_precise : forall p gsh2, precise (q_lock_pred p gsh2).
+Lemma q_inv_precise : forall t p lock gsh2, precise (q_lock_pred t p lock gsh2).
 Proof.
-  unfold q_lock_pred, q_lock_pred'; intros ????? H1 H2 Hw1 Hw2.
+  unfold q_lock_pred, q_lock_pred'; intros ??????? H1 H2 Hw1 Hw2.
   destruct H1 as (vals1 & head1 & addc1 & remc1 & h1 & (? & ? & ?) & ? & ? & ? & (? & ? & ? & (? & ? & ? &
-    (? & ? & ? & Hq1 & Haddc1) & Hremc1) & Hghost1) & Hvals1),
+    (? & ? & ? & (? & ? & ? & (? & ? & ? & (? & ? & ? & (? & ? & ? & (Hq1 & Haddc1)) & Hremc1) & Htv1) & Hta1) &
+    Htr1) & Htl1) & Hghost1) & Hvals1),
   H2 as (vals2 & head2 & addc2 & remc2 & h2 & (? & ? & ?) & ? & ? & ? & (? & ? & ? & (? & ? & ? &
-    (? & ? & ? & Hq2 & Haddc2) & Hremc2) & Hghost2) & Hvals2).
-  pose proof (all_ptrs _ _ Hvals1) as Hptrs1.
-  pose proof (all_ptrs _ _ Hvals2) as Hptrs2.
-  exploit (tqueue_inj w _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ Hq1 Hq2).
-  { eapply sepalg.join_sub_trans; [eexists|]; eauto. }
-  { eapply sepalg.join_sub_trans; [eexists|]; eauto. }
+    (? & ? & ? & (? & ? & ? & (? & ? & ? & (? & ? & ? & (? & ? & ? & (Hq2 & Haddc2)) & Hremc2) & Htv2) & Hta2) &
+    Htr2) & Htl2) & Hghost2) & Hvals2).
+  pose proof (all_ptrs _ _ _ Hvals1) as Hptrs1.
+  pose proof (all_ptrs _ _ _ Hvals2) as Hptrs2.
+  exploit (tqueue_inj w _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ Hq1 Hq2).
+  { repeat (eapply sepalg.join_sub_trans; [eexists|]; eauto). }
+  { repeat (eapply sepalg.join_sub_trans; [eexists|]; eauto). }
   { apply Forall_rotate, Forall_complete; auto; [|discriminate].
     eapply Forall_impl; [|apply Hptrs1]; destruct a; try contradiction; discriminate. }
   { rewrite Zlength_rotate; try rewrite Zlength_complete; try omega; rewrite Zlength_map; auto. }
@@ -169,29 +174,27 @@ Proof.
   { rewrite cond_var_isptr in Haddc2; destruct Haddc2, addc2; try contradiction; discriminate. }
   { rewrite cond_var_isptr in Hremc1; destruct Hremc1, remc1; try contradiction; discriminate. }
   { rewrite cond_var_isptr in Hremc2; destruct Hremc2, remc2; try contradiction; discriminate. }
-  intros (? & ? & Hlen & ? & ? & ? & ? & ?); subst.
-  exploit (ghosts_precise _ w _ _ _ _ _ Hghosts1 Hghosts2).
-  { repeat rewrite Zlength_correct in *; omega. }
-  { repeat rewrite Zlength_correct in *; omega. }
+  intros (? & ? & Hlen & ? & ? & ? & ?); subst.
+  exploit (ghost_precise gsh2 p w).
+  { eexists; apply Hghost1. }
+  { eexists; apply Hghost2. }
   { repeat (eapply sepalg.join_sub_trans; [eexists|]; eauto). }
   { repeat (eapply sepalg.join_sub_trans; [eexists|]; eauto). }
   intro; subst.
-  rewrite <- (combine_eq reqs1) in Hreqs1.
-  rewrite <- (combine_eq reqs2) in Hreqs2.
   assert (head1 = head2) as ->.
   { apply repr_inj_unsigned; auto; split; try omega; transitivity MAX; try omega; unfold MAX; computable. }
-  assert (length reqs1 = length reqs2).
+  assert (length vals1 = length vals2).
   { apply repr_inj_unsigned in Hlen; rewrite Zlength_correct in Hlen.
     rewrite Zlength_correct in Hlen; Omega0.
     - split; [rewrite Zlength_correct; omega|]; transitivity MAX; try omega; unfold MAX; computable.
     - split; [rewrite Zlength_correct; omega|]; transitivity MAX; try omega; unfold MAX; computable. }
-  assert (map snd reqs1 = map snd reqs2) as Heq.
-  { eapply complete_inj; [|repeat rewrite map_length; omega].
+  assert (vals1 = vals2) as Heq.
+  { eapply complete_inj; [|omega].
     eapply rotate_inj; eauto; try omega.
-    repeat rewrite length_complete; auto; try (rewrite Zlength_map; auto).
-    rewrite Zlength_complete; try rewrite Zlength_map; omega. }
+    repeat rewrite length_complete; auto.
+    rewrite Zlength_complete; omega. }
   rewrite Heq in *.
-  exploit (reqs_precise w _ _ _ _ _ Hreqs1 Hreqs2); repeat rewrite map_length; auto.
+  exploit (vals_precise w _ _ _ _ Hvals1 Hvals2); auto.
   { repeat (eapply sepalg.join_sub_trans; [eexists|]; eauto). }
   { repeat (eapply sepalg.join_sub_trans; [eexists|]; eauto). }
   assert (readable_share Tsh) as Hread by auto.
@@ -201,33 +204,35 @@ Proof.
   exploit (cond_var_precise _ _ Hread w _ _ Hremc1 Hremc2).
   { repeat (eapply sepalg.join_sub_trans; [eexists|]; eauto). }
   { repeat (eapply sepalg.join_sub_trans; [eexists|]; eauto). }
+  exploit (malloc_token_precise _ _ _ w _ _ Hta1 Hta2).
+  { repeat (eapply sepalg.join_sub_trans; [eexists|]; eauto). }
+  { repeat (eapply sepalg.join_sub_trans; [eexists|]; eauto). }
+  exploit (malloc_token_precise _ _ _ w _ _ Htr1 Htr2).
+  { repeat (eapply sepalg.join_sub_trans; [eexists|]; eauto). }
+  { repeat (eapply sepalg.join_sub_trans; [eexists|]; eauto). }
+  exploit (malloc_token_precise _ _ _ w _ _ Htv1 Htv2).
+  { repeat (eapply sepalg.join_sub_trans; [eexists|]; eauto). }
+  { repeat (eapply sepalg.join_sub_trans; [eexists|]; eauto). }
+  exploit (malloc_token_precise _ _ _ w _ _ Htl1 Htl2).
+  { repeat (eapply sepalg.join_sub_trans; [eexists|]; eauto). }
+  { repeat (eapply sepalg.join_sub_trans; [eexists|]; eauto). }
   intros; subst; join_inj.
-  match goal with H1 : predicates_hered.app_pred emp ?a,
-    H2 : predicates_hered.app_pred emp ?b |- _ => assert (a = b);
-      [eapply sepalg.same_identity; auto;
-        [match goal with H : sepalg.join a ?x ?y |- _ =>
-           specialize (Hemp1 _ _ H); instantiate (1 := x); subst; auto end |
-         match goal with H : sepalg.join b ?x ?y |- _ =>
-           specialize (Hemp2 _ _ H); subst; auto end] | subst] end.
-  join_inj.
 Qed.
 
-Lemma q_inv_positive : forall p gsh2, positive_mpred (q_lock_pred p gsh2).
+Lemma q_inv_positive : forall t p lock gsh2, positive_mpred (q_lock_pred t p lock gsh2).
 Proof.
   intros; simpl.
   repeat (apply ex_positive; intro).
-  apply positive_sepcon2, positive_sepcon1; auto.
+  apply positive_andp2, positive_sepcon1, positive_sepcon1, positive_sepcon2; auto.
 Qed.
 
 Lemma body_q_new : semax_body Vprog Gprog f_q_new q_new_spec.
 Proof.
-  start_function.
+  unfold q_new_spec, q_new_spec'; start_function.
   forward_call (sizeof tqueue_t).
   { simpl; computable. }
   Intro p; Intros.
-  assert (align_attr noattr 4 | natural_alignment) by (exists 2; auto).
-  assert (field_compatible tqueue_t [] p).
-  { apply malloc_field_compatible; auto; simpl; computable. }
+  assert_PROP (field_compatible tqueue_t [] p) by entailer!.
   rewrite memory_block_data_at_; auto.
   forward.
   Intros.
@@ -244,7 +249,8 @@ Proof.
     apply Z.divide_add_r; auto.
     exists 15; auto. }
   forward_for_simple_bound MAX (EX i : Z, PROP () LOCAL (temp _q p; temp _newq p)
-    SEP (@data_at CompSpecs Tsh tqueue (repeat (vint 0) (Z.to_nat i) ++ repeat Vundef (Z.to_nat (MAX - i)),
+    SEP (malloc_token Tsh (sizeof tqueue_t) p;
+         @data_at CompSpecs Tsh tqueue (repeat (vint 0) (Z.to_nat i) ++ repeat Vundef (Z.to_nat (MAX - i)),
            (Vundef, (Vundef, (Vundef, (Vundef, Vundef))))) p;
          @data_at_ CompSpecs Tsh (tptr tlock) (offset_val 60 p))).
   { unfold MAX; computable. }
@@ -261,20 +267,23 @@ Proof.
     rewrite Zminus_diag, upd_Znth0, sublist_repeat; try rewrite Zlength_repeat, Z2Nat.id; try omega.
     rewrite Z2Nat.inj_add, repeat_plus; try omega; simpl.
     rewrite <- app_assoc; replace (MAX - i - 1) with (MAX - (i + 1)) by omega; cancel. }
+  rewrite Zminus_diag, app_nil_r.
   forward.
   forward.
   forward.
   forward_call (sizeof tint).
   { simpl; computable. }
   Intro addc; Intros.
-  rewrite memory_block_data_at_; [|apply malloc_field_compatible; auto; simpl; computable].
+  assert_PROP (field_compatible tcond [] addc) by entailer!.
+  rewrite memory_block_data_at_; auto.
   forward_call (addc, Tsh).
   { unfold tcond; cancel. }
   forward.
   forward_call (sizeof tint).
   { simpl; computable. }
   Intro remc; Intros.
-  rewrite memory_block_data_at_; [|apply malloc_field_compatible; auto; simpl; computable].
+  assert_PROP (field_compatible tcond [] remc) by entailer!.
+  rewrite memory_block_data_at_; auto.
   forward_call (remc, Tsh).
   { unfold tcond; cancel. }
   forward.
@@ -282,26 +291,22 @@ Proof.
   { admit. } (* lock size broken *)
   { simpl; computable. }
   Intro lock; Intros.
-  rewrite memory_block_data_at_; [|apply malloc_field_compatible; auto; simpl; try computable].
-  forward_call (lock, Tsh, q_lock_pred p gsh2).
-  eapply semax_pre with (P' := PROP () LOCAL (temp _l lock; temp _c remc; temp _i (vint MAX);
-      temp _q p; temp _newq p)
-    SEP (@data_at CompSpecs Tsh tqueue_t (repeat (vint 0) (Z.to_nat MAX),
-           (vint 0, (vint 0, (vint 0, (addc, remc)))), Vundef) p;
-         lock_inv Tsh lock (q_lock_pred p gsh2); cond_var Tsh remc; cond_var Tsh addc)).
+  assert_PROP (field_compatible tlock [] lock) by entailer!.
+  rewrite memory_block_data_at_; auto.
+  forward_call (lock, Tsh, q_lock_pred t p lock gsh2).
+  gather_SEP 7 8; replace_SEP 0 (data_at Tsh tqueue_t (repeat (vint 0) (Z.to_nat MAX),
+           (vint 0, (vint 0, (vint 0, (addc, remc)))), Vundef) p).
   { go_lower.
-    do 2 (apply andp_right; [apply prop_right; repeat split; auto|]); unfold fold_right; cancel.
     unfold_data_at 1%nat.
     unfold data_at_, field_at_, field_at, at_offset; simpl.
-    destruct addc; try contradiction.
-    destruct remc; try contradiction; simpl.
+    rewrite !sem_cast_neutral_ptr; auto.
     rewrite !field_compatible_cons; simpl; normalize.
     apply andp_right; [apply prop_right; unfold in_members; simpl; split; [|split; [|split]]; auto|].
     simple apply derives_refl. }
   apply new_ghost.
   forward.
-  forward_call (lock, Tsh, q_lock_pred p gsh2).
-  { simpl.
+  forward_call (lock, Tsh, q_lock_pred t p lock gsh2).
+  { unfold q_lock_pred, q_lock_pred'; simpl.
     Exists ([] : list val) 0 addc remc ([] : hist).
     rewrite Zlength_nil; simpl; cancel.
     normalize.
@@ -504,17 +509,6 @@ Proof.
   { pose proof Int.min_signed_neg; split; [rewrite Zlength_correct; omega|].
     transitivity MAX; [auto | unfold MAX; computable]. }
 Admitted.
-
-Lemma all_ptrs : forall vals,
-  fold_right sepcon emp (map Interp (map (fun p => Exp _ (fun t => Exp _ (fun d =>
-    Data_at _ Tsh t d p))) vals)) |-- !!(Forall isptr vals).
-Proof.
-  induction vals; simpl; intros; entailer.
-  rewrite data_at_isptr.
-  eapply derives_trans; [apply saturate_aux20; eauto|].
-  { apply andp_left1, derives_refl. }
-  normalize.
-Qed.
 
 Lemma body_q_remove : semax_body Vprog Gprog f_q_remove q_remove_spec.
 Proof.
