@@ -11,7 +11,30 @@ Definition perm_of_sh (rsh sh: Share.t): option permission :=
            then if eq_dec rsh Share.bot
                    then None
                    else Some Nonempty
-           else Some Readable.
+         else Some Readable.
+
+Lemma perm_of_sh_pshare: forall rsh (sh: pshare), 
+   exists p,  perm_of_sh rsh (pshare_sh sh) = Some p.
+Proof.
+intros sh.
+unfold perm_of_sh.
+if_tac. subst.
+if_tac.
+contradiction Share.nontrivial; auto.
+intro sh. 
+if_tac; eauto.
+if_tac; eauto.
+intros.
+if_tac; eauto.
+if_tac; eauto.
+if_tac; eauto.
+destruct sh0; simpl in *.
+subst x.
+clear - n.
+elimtype False.
+generalize bot_identity; rewrite identity_unit_equiv; intro.
+apply (n _ H).
+Qed.
 
 Definition contents_at (m: mem) (loc: address) : memval := 
   ZMap.get (snd loc) (PMap.get (fst loc) (mem_contents m)).
@@ -49,6 +72,36 @@ Definition perm_of_res' (r: resource) :=
  | YES rsh sh _ _ => perm_of_sh rsh (pshare_sh sh)
  end.
 
+Definition perm_of_res_lock (r: resource) := 
+  (*  perm_of_sh (res_retain' r) (valshare r). *)
+ match r with
+ | NO sh => if eq_dec sh Share.bot then None else Some Nonempty
+ | PURE _ _ => Some Nonempty
+ | YES rsh sh _ _ => perm_of_sh rsh (pshare_sh sh)
+ end.
+
+Lemma perm_of_res_op1:
+  forall r,
+    perm_order'' (perm_of_res' r) (perm_of_res r).
+Proof.
+  destruct r; simpl.
+  - destruct (eq_dec t Share.bot); constructor.
+  - destruct (perm_of_sh_pshare t p ) as [A HH]; rewrite HH.
+    destruct k; constructor.
+  - constructor.
+Qed.
+
+Lemma perm_of_res_op2:
+  forall r,
+    perm_order'' (perm_of_res' r) (perm_of_res_lock r).
+Proof.
+  destruct r; simpl.
+  - destruct (eq_dec t Share.bot); constructor.
+  - destruct (perm_of_sh_pshare t p ) as [A HH]; rewrite HH.
+    destruct k; constructor.
+  - constructor.
+Qed.
+    
 Definition access_cohere (m: mem)  (phi: rmap) :=
   forall loc,  access_at m loc Cur = perm_of_res (phi @ loc).
 
@@ -409,28 +462,7 @@ subst.
 f_equal; apply proof_irr.
 Qed.
 
-Lemma perm_of_sh_pshare: forall rsh (sh: pshare), 
-   exists p,  perm_of_sh rsh (pshare_sh sh) = Some p.
-Proof.
-intros sh.
-unfold perm_of_sh.
-if_tac. subst.
-if_tac.
-contradiction Share.nontrivial; auto.
-intro sh. 
-if_tac; eauto.
-if_tac; eauto.
-intros.
-if_tac; eauto.
-if_tac; eauto.
-if_tac; eauto.
-destruct sh0; simpl in *.
-subst x.
-clear - n.
-elimtype False.
-generalize bot_identity; rewrite identity_unit_equiv; intro.
-apply (n _ H).
-Qed.
+
 
 Lemma perm_of_sh_fullshare: perm_of_sh Share.top fullshare = Some Freeable.
 Proof. unfold perm_of_sh. rewrite if_true by auto. rewrite if_true by auto. auto. Qed.
