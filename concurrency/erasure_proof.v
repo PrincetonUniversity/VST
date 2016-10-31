@@ -19,7 +19,7 @@ Require Import concurrency.permissions.
 Require Import concurrency.sync_preds.
 
 (*SSReflect*)
-From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat eqtype seq.
+From mathcomp.ssreflect Require Import ssreflect ssrfun ssrbool ssrnat eqtype seq.
 Require Import Coq.ZArith.ZArith.
 Require Import PreOmega.
 Require Import concurrency.ssromega. (*omega in ssrnat *)
@@ -93,34 +93,52 @@ Module Parching <: ErasureSig.
 
 
   (** * Match relation between juicy and dry state : *)
-  (* 1/2. Same threads are contained in each state: 
+  (* 1-2. Same threads are contained in each state: 
      3.   Threads have the same c 
-     4.   Threads have the same permissions up to erasure 
-     5.   the locks are in the same addresses. 
-     6/7. Lock contents match up to erasure. *)
+     4-5.   Threads have the same permissions up to erasure 
+     6.   the locks are in the same addresses. 
+     7-8-9. Lock contents match up to erasure. *)
+  (*Definition lock_perm_of_res (r: resource) := 
+    (*  perm_of_sh (res_retain' r) (valshare r). *)
+    match r with
+    | NO sh => if eq_dec sh Share.bot then None else Some Nonempty
+    | PURE _ _ => Some Nonempty
+    | YES rsh sh (VAL _) _ => perm_of_sh rsh (pshare_sh sh)
+    | YES rsh sh _ _ => Some Nonempty
+    end.*)
+
   Inductive match_st' : jstate ->  dstate -> Prop:=
     MATCH_ST: forall (js:jstate) ds
                 (mtch_cnt: forall {tid},  JTP.containsThread js tid -> DTP.containsThread ds tid )
                 (mtch_cnt': forall {tid}, DTP.containsThread ds tid -> JTP.containsThread js tid )
                 (mtch_gtc: forall {tid} (Htid:JTP.containsThread js tid)(Htid':DTP.containsThread ds tid),
                     JTP.getThreadC Htid = DTP.getThreadC Htid' )
-                (mtch_perm: forall b ofs {tid} (Htid:JTP.containsThread js tid)(Htid':DTP.containsThread ds tid),
-                    juicy_mem.perm_of_res (resource_at (JTP.getThreadR Htid) (b, ofs)) = ((DTP.getThreadR Htid') !! b) ofs )
+                (mtch_perm1: forall b ofs {tid} (Htid:JTP.containsThread js tid)(Htid':DTP.containsThread ds tid),
+                    juicy_mem.perm_of_res (resource_at (JTP.getThreadR Htid) (b, ofs)) =
+                    ((DTP.getThreadR Htid').1 !! b) ofs )
+                (mtch_perm2: forall b ofs {tid} (Htid:JTP.containsThread js tid)(Htid':DTP.containsThread ds tid),
+                    JSEM.lock_perm_of_res (resource_at (JTP.getThreadR Htid) (b, ofs)) =
+                    ((DTP.getThreadR Htid').2 !! b) ofs )
                 (mtch_locks: forall a,
                     ssrbool.isSome (JSEM.ThreadPool.lockRes js a) = ssrbool.isSome (DSEM.ThreadPool.lockRes ds a))
                 (mtch_locksEmpty: forall lock dres,
                     JSEM.ThreadPool.lockRes js lock = Some (None) -> 
                     DSEM.ThreadPool.lockRes ds lock = Some dres ->
-                   dres = empty_map )
+                   dres = (empty_map, empty_map))
                 (mtch_locksRes: forall lock jres dres,
                     JSEM.ThreadPool.lockRes js lock = Some (Some jres) -> 
                     DSEM.ThreadPool.lockRes ds lock = Some dres ->
                      forall b ofs,
-                    juicy_mem.perm_of_res (resource_at jres (b, ofs)) = (dres !! b) ofs )
+                       juicy_mem.perm_of_res (resource_at jres (b, ofs)) = (dres.1 !! b) ofs )
+                (mtch_locksRes: forall lock jres dres,
+                    JSEM.ThreadPool.lockRes js lock = Some (Some jres) -> 
+                    DSEM.ThreadPool.lockRes ds lock = Some dres ->
+                     forall b ofs,
+                    JSEM.lock_perm_of_res (resource_at jres (b, ofs)) = (dres.2 !! b) ofs )
                 (*mtch_locks: AMap.map (fun _ => tt) (JTP.lockGuts js) = DTP.lockGuts ds*),
       match_st' js ds.
   Definition match_st:= match_st'.
-
+  
   
   (** *Match lemmas*)
   Lemma MTCH_cnt: forall {js tid ds},
@@ -136,15 +154,26 @@ Module Parching <: ErasureSig.
       forall (cnt: JSEM.ThreadPool.containsThread js i)
       (MTCH: match_st js ds),
       forall b ofs,
-        juicy_mem.perm_of_res ((JTP.getThreadR cnt) @ (b, ofs)) = ((DTP.getThreadR (MTCH_cnt MTCH cnt)) !! b) ofs.
-  Proof. intros. inversion MTCH. apply mtch_perm. Qed.
+        juicy_mem.perm_of_res ((JTP.getThreadR cnt) @ (b, ofs)) = ((DTP.getThreadR (MTCH_cnt MTCH cnt)).1 !! b) ofs.
+  Lemma MTCH_perm2: forall {js ds i},
+      forall (cnt: JSEM.ThreadPool.containsThread js i)
+      (MTCH: match_st js ds),
+      forall b ofs,
+        JSEM.lock_perm_of_res ((JTP.getThreadR cnt) @ (b, ofs)) = ((DTP.getThreadR (MTCH_cnt MTCH cnt)).2 !! b) ofs.
+  Proof. intros. inversion MTCH. apply mtch_perm2. Qed.
   Lemma MTCH_perm': forall {js ds i},
       forall (cnt: DSEM.ThreadPool.containsThread ds i)
       (MTCH: match_st js ds),
       forall b ofs,
-        ((DTP.getThreadR cnt) !! b) ofs =
+        ((DTP.getThreadR cnt).1 !! b) ofs =
         juicy_mem.perm_of_res ((JTP.getThreadR (MTCH_cnt' MTCH cnt)) @ (b, ofs)).
-  Proof. intros. inversion MTCH. symmetry; apply mtch_perm. Qed.
+  Lemma MTCH_perm2': forall {js ds i},
+      forall (cnt: DSEM.ThreadPool.containsThread ds i)
+      (MTCH: match_st js ds),
+      forall b ofs,
+        ((DTP.getThreadR cnt).2 !! b) ofs =
+        JSEM.lock_perm_of_res ((JTP.getThreadR (MTCH_cnt' MTCH cnt)) @ (b, ofs)).
+  Proof. intros. inversion MTCH. symmetry; apply mtch_perm2. Qed.
   
   Lemma cnt_irr: forall tid ds (cnt1 cnt2: DTP.containsThread ds tid),
       DTP.getThreadC cnt1 = DTP.getThreadC cnt2.
@@ -205,18 +234,23 @@ Module Parching <: ErasureSig.
     inversion MTCH; subst.
     constructor.
     -intros tid cnt.
-     unfold permMapLt; intros b ofs.
      assert (th_coh:= JSEM.thread_mem_compatible mc).
-     eapply po_trans.
      specialize (th_coh tid (mtch_cnt' _ cnt)).
      inversion th_coh.
-     specialize (acc_coh (b, ofs)).
-     rewrite getMaxPerm_correct;
-       apply acc_coh.
-     rewrite (mtch_perm _ _ _ (mtch_cnt' tid cnt) cnt).
-     unfold DTP.getThreadR.
+     unfold permMapLt; split; intros b ofs;
+     eapply po_trans.
+     + specialize (acc_coh (b, ofs)).
+       rewrite getMaxPerm_correct;
+         apply acc_coh.
+     + rewrite (mtch_perm1 _ _ _ (mtch_cnt' tid cnt) cnt).
+       unfold DTP.getThreadR.
+       apply po_refl.
+     + specialize (acc_coh_loc (b, ofs)).
+       rewrite getMaxPerm_correct.
+       apply acc_coh_loc.
+     + rewrite (mtch_perm2 _ _ _ (mtch_cnt' tid cnt) cnt).
+       unfold DTP.getThreadR.
      apply po_refl.
-
     - intros.
       assert(HH: exists jres, JSEM.ThreadPool.lockRes js l = Some jres).
       { specialize (mtch_locks  l); rewrite H in mtch_locks.
@@ -224,15 +258,21 @@ Module Parching <: ErasureSig.
       exists l0; reflexivity. }
       destruct HH as [jres HH].
       destruct jres.
-      +  specialize (mtch_locksRes _ _ _ HH H).
-         intros b ofs.
-         rewrite <- mtch_locksRes.
-         eapply JSEM.JuicyMachineLemmas.compat_lockLT;
-           eassumption.
+      + specialize (mtch_locksRes _ _ _ HH H).
+        specialize (mtch_locksRes0 _ _ _ HH H).
+        split; intros b ofs.
+        * rewrite <- mtch_locksRes.
+          eapply JSEM.JuicyMachineLemmas.compat_lockLT;
+            eassumption.
+        * rewrite <- mtch_locksRes0.
+          eapply JSEM.JuicyMachineLemmas.compat_lockLT_locks;
+            eassumption.
+          
       + specialize (mtch_locksEmpty _ _ HH H).
-         rewrite mtch_locksEmpty.
-         apply empty_LT.
+        rewrite mtch_locksEmpty.
+        split; apply empty_LT.
     - intros b ofs.
+      
       rewrite <- (MTCH_lockSet _ _ MTCH).
       apply JSEM.compat_lt_m; assumption.
   Qed.

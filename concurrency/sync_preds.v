@@ -281,15 +281,9 @@ Proof.
   - hnf in *.
     unfold contents_at in *.
     rewrite <-ECo. auto.
-  (* - unfold access_cohere' in *. *)
-  (*   unfold max_access_at in *. *)
-  (*   intros. *)
-  (*   apply equal_f with (x := loc) in EMa. *)
-  (*   rewrite <-EMa. *)
-  (*   auto. *)
   - unfold max_access_cohere in *. intros loc.
     apply equal_f with (x := loc) in EMa.
-    rewrite <-EMa(* , <-EN *).
+    rewrite <-EMa.
     apply Ma.
   - hnf in *. rewrite <-EN.
     auto.
