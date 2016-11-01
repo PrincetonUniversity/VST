@@ -1624,8 +1624,8 @@ Module SimProofs (SEM: Semantics)
             - by apply (injective (weak_obs_eq (obs_eq_data Htsimj))).
             - intros b1 b2 ofs.
               rewrite <- permission_at_fstep with
-              (ge := the_ge) (Hcomp := (mem_compf Hsim)) (U := empty)
-                             (i := i) (pfi := pff)
+              (the_ge := the_ge) (Hcomp := (mem_compf Hsim)) (U := empty)
+                             (i := i)
                              (pfj := pffj) (tr := tr) (tr' := tr')
                                         (Hcomp' := memCompF'); auto.
                 by apply (perm_obs_weak (weak_obs_eq memObsEqj)).
@@ -1633,8 +1633,8 @@ Module SimProofs (SEM: Semantics)
           constructor. (*strong_obs_eq proof *)
           { intros b1 b2 ofs.
             rewrite <- permission_at_fstep with
-            (Hcomp := (mem_compf Hsim)) (i := i) (U := empty) (ge := the_ge)
-                                        (pfi := pff) (tr := tr) (tr' := tr')
+            (Hcomp := (mem_compf Hsim)) (i := i) (U := empty) (the_ge := the_ge)
+                                        (tr := tr) (tr' := tr')
                                         (pfj := pffj) (Hcomp' := memCompF'); auto.
               by apply (perm_obs_strong (strong_obs_eq memObsEqj)).
           }
@@ -1646,8 +1646,8 @@ Module SimProofs (SEM: Semantics)
                                      b2 ofs Cur Readable).
             { specialize (HstepF empty).
               assert (Hperm_eqf :=
-                        permission_at_fstep Heq pff pffj pffj' HmemCompF memCompF'
-                                            Hinternal HstepF b2 ofs).
+                        permission_at_fstep Heq pffj pffj' HmemCompF memCompF'
+                                            HstepF b2 ofs).
               unfold permission_at in Hperm_eqf.
               assert (Hperm_weak := (perm_obs_weak (weak_obs_eq memObsEqj) b1
                                                    ofs Hfj)).
@@ -1701,8 +1701,8 @@ Module SimProofs (SEM: Semantics)
                                      b2 ofs Cur Readable).
             { specialize (HstepF empty).
               assert (Hperm_eqf :=
-                        permission_at_fstep Heq pff pffj pffj' HmemCompF memCompF'
-                                            Hinternal HstepF b2 ofs).
+                        permission_at_fstep Heq pffj pffj' HmemCompF memCompF'
+                                            HstepF b2 ofs).
               unfold permission_at in Hperm_eqf.
               assert (Hperm_weak := (perm_obs_weak (weak_obs_eq memObsEqj_locks) b1
                                                    ofs Hfj)).
@@ -1760,7 +1760,7 @@ Module SimProofs (SEM: Semantics)
         rewrite getCurPerm_correct;
           by auto.
         (** case k is another thread*)
-        erewrite <- gsoThreadR_fstep with (pfi := pff) (pfj := pffk);
+        erewrite <- gsoThreadR_fstep with (pfj := pffk);
           by eauto.
         split.
         (** block ownership for lockres*)
@@ -1850,22 +1850,6 @@ Module SimProofs (SEM: Semantics)
   Qed.
   
   (** ** Proof of simulation for stop steps *)
-
-  (*TODO : move this*)
-  Lemma filter_neq_eq :
-    forall {A :eqType} (xs : seq A) i j (Hneq: i <> j),
-      [seq x <- [seq x <- xs | x != i] | x == j] = [seq x <- xs | x == j].
-  Proof.
-    intros. induction xs.
-    - reflexivity.
-    - simpl. destruct (a != i) eqn:Hai; move/eqP:Hai=>Hai.
-      simpl.
-      destruct (a ==j) eqn:Haj; move/eqP:Haj=>Haj;
-        [by apply f_equal | assumption].
-      subst. erewrite if_false by (apply/eqP; auto).
-      assumption.
-  Qed.
-  
   Lemma suspend_step_inverse:
     forall i U U' tpc tpc' mc mc'
       (cnt: containsThread tpc i)

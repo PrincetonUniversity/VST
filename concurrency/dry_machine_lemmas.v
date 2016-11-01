@@ -1684,7 +1684,6 @@ Module StepLemmas (SEM : Semantics)
   Lemma gsoThreadR_fstep:
     forall the_ge tp tp' m m' i j U tr tr'
       (Hneq: i <> j)
-      (pfi: containsThread tp i)
       (pfj: containsThread tp j)
       (pfj': containsThread tp' j)
       (Hstep: FineConc.MachStep the_ge (i :: U,tr, tp) m (U,tr', tp') m'),
@@ -1703,7 +1702,6 @@ Module StepLemmas (SEM : Semantics)
   Lemma permission_at_fstep:
     forall the_ge tp tp' m m' i j U tr tr'
       (Hneq: i <> j)
-      (pfi: containsThread tp i)
       (pfj: containsThread tp j)
       (pfj': containsThread tp' j)
       (Hcomp: mem_compatible tp m)
