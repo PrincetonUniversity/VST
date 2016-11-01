@@ -223,8 +223,10 @@ Lemma q_inv_positive : forall t p lock gsh2, positive_mpred (q_lock_pred t p loc
 Proof.
   intros; simpl.
   repeat (apply ex_positive; intro).
-  apply positive_andp2, positive_sepcon1, positive_sepcon1, positive_sepcon2; auto.
+  apply positive_andp2.
+  do 7 apply positive_sepcon1; apply positive_sepcon2; auto.
 Qed.
+Hint Resolve q_inv_precise q_inv_positive.
 
 Lemma body_q_new : semax_body Vprog Gprog f_q_new q_new_spec.
 Proof.
@@ -306,23 +308,23 @@ Proof.
   apply new_ghost.
   forward.
   forward_call (lock, Tsh, q_lock_pred t p lock gsh2).
-  { unfold q_lock_pred, q_lock_pred'; simpl.
+  { lock_props.
+    unfold q_lock_pred, q_lock_pred'; simpl.
     Exists ([] : list val) 0 addc remc ([] : hist).
     rewrite Zlength_nil; simpl; cancel.
     normalize.
     apply andp_right; [apply prop_right|].
     { repeat split; auto; unfold MAX; try omega; try computable. }
+    cancel.
     subst Frame; instantiate (1 := [field_at Tsh tqueue_t [StructField _lock] lock p; ghost gsh1 (Tsh, []) p]);
       simpl.
     unfold_field_at 1%nat.
-    erewrite interp_ghost, <- ghost_share_join with (h1 := []); eauto.
+    erewrite <- ghost_share_join with (h1 := []); eauto.
     simpl; repeat cancel.
     unfold data_at, field_at; simpl.
-    rewrite field_compatible_cons; simpl; entailer. }
-  { split; auto; split; [apply q_inv_precise | apply q_inv_positive]. }
+    rewrite field_compatible_cons; simpl; entailer!. }
   forward.
-  Exists p lock; Intros.
-  apply andp_right; [apply prop_right; auto|].
+  Exists p lock.
   unfold lqueue; simpl; entailer!; auto.
 Admitted.
 
@@ -343,29 +345,30 @@ Qed.
 
 Lemma body_q_del : semax_body Vprog Gprog f_q_del q_del_spec.
 Proof.
-  start_function.
+  unfold q_del_spec, q_del_spec'; start_function.
   unfold lqueue; rewrite lock_inv_isptr; Intros.
   forward.
-  forward_call (lock, Tsh, q_lock_pred p gsh2).
-  forward_call (lock, Tsh, q_lock_pred p gsh2).
-  { split; auto; apply q_inv_positive. }
+  forward_call (lock, Tsh, q_lock_pred t p lock gsh2).
+  forward_call (lock, Tsh, q_lock_pred t p lock gsh2).
+  { lock_props. }
+  unfold q_lock_pred, q_lock_pred'; Intros vals head addc remc h'.
   forward_call (lock, sizeof tlock).
-  { repeat rewrite sepcon_assoc; apply sepcon_derives; [apply data_at__memory_block_cancel | cancel]. }
+  { simpl; cancel.
+    rewrite !sepcon_assoc; apply sepcon_derives; [apply data_at__memory_block_cancel | cancel]. }
   forward.
-  simpl; Intros vals head addc remc h'.
   rewrite data_at_isptr, (cond_var_isptr _ addc), (cond_var_isptr _ remc); Intros.
   rewrite isptr_offset_val_zero; auto.
   forward.
   forward_call (addc, Tsh).
-  { simpl; cancel. }
   forward_call (addc, sizeof tcond).
-  { repeat rewrite sepcon_assoc; apply sepcon_derives; [apply data_at__memory_block_cancel | cancel]. }
+  { simpl; cancel.
+    rewrite !sepcon_assoc; apply sepcon_derives; [apply data_at__memory_block_cancel | cancel]. }
   forward.
   forward_call (remc, Tsh).
   forward_call (remc, sizeof tcond).
-  { repeat rewrite sepcon_assoc; apply sepcon_derives; [apply data_at__memory_block_cancel | cancel]. }
-  rewrite interp_ghost.
-  gather_SEP 1 4; rewrite sepcon_comm.
+  { simpl; cancel.
+    repeat rewrite sepcon_assoc; apply sepcon_derives; [apply data_at__memory_block_cancel | cancel]. }
+  gather_SEP 2 5; rewrite sepcon_comm.
   replace_SEP 0 (!!(h' = h) && ghost Tsh (Tsh, h) p).
   { go_lower.
     eapply derives_trans; [apply prop_and_same_derives, ghost_inj_Tsh|].
@@ -374,13 +377,15 @@ Proof.
   Intros; subst.
   exploit (consistent_inj h [] [] vals); auto; intro; subst; simpl.
   rewrite Zlength_nil.
-  gather_SEP 1 3; replace_SEP 0 (data_at Tsh tqueue_t ((rotate (complete MAX []) head MAX,
-    (vint 0, (vint head, (vint ((head + 0) mod MAX), (addc, remc))))), lock) p).
+  gather_SEP 1 4; replace_SEP 0 (data_at Tsh tqueue_t (rotate (complete MAX []) head MAX,
+     (vint 0, (vint head, (vint ((head + 0) mod MAX), (addc, remc)))), lock) p).
   { unfold_data_at 2%nat; entailer!.
     unfold data_at, field_at; Intros; simpl.
+    apply andp_right; [|simple apply derives_refl].
     rewrite field_compatible_cons; unfold in_members; simpl; entailer!. }
   forward_call (p, sizeof tqueue_t).
-  { apply sepcon_derives; [apply data_at_memory_block | cancel]. }
+  { rewrite (sepcon_comm (malloc_token _ _ _)).
+    rewrite !sepcon_assoc; apply sepcon_derives; [apply data_at_memory_block | simpl; cancel]. }
   forward.
   (* Do we want to deallocate the ghost? *)
 Admitted.
@@ -420,44 +425,45 @@ Qed.
 
 Lemma body_q_add : semax_body Vprog Gprog f_q_add q_add_spec.
 Proof.
+  unfold q_add_spec, q_add_spec'.
   start_function.
-  Intros t d.
+  Intro d.
   unfold lqueue; rewrite lock_inv_isptr; Intros.
   forward.
-  forward_call (lock, sh, q_lock_pred p gsh2).
-  simpl; Intros vals head addc remc h'.
+  forward_call (lock, sh, q_lock_pred t p lock gsh2).
+  unfold q_lock_pred at 2; unfold q_lock_pred'; Intros vals head addc remc h'.
   forward.
   rewrite data_at_isptr; Intros; rewrite isptr_offset_val_zero; auto.
   forward.
   forward_while (EX vals : list val, EX head : Z, EX addc : val, EX remc : val, EX h' : hist, PROP ()
    LOCAL (temp _len (vint (Zlength vals)); temp _q p; temp _l lock; temp _tgt p; temp _r e)
-   SEP (lock_inv sh lock (q_lock_pred p gsh2);
-        q_lock_pred' p vals head addc remc gsh2 h';
+   SEP (lock_inv sh lock (q_lock_pred t p lock gsh2);
+        q_lock_pred' t p vals head addc remc lock gsh2 h';
         @field_at CompSpecs sh tqueue_t [StructField _lock] lock p;
         @data_at CompSpecs Tsh t d e; ghost gsh1 (sh, h) p)).
   { Exists vals head addc remc h'.
-    entailer!.
+    unfold q_lock_pred'; entailer!.
     apply derives_refl. }
   { go_lower; entailer'. }
-  { simpl; Intros.
+  { unfold q_lock_pred'; Intros.
     forward.
     { go_lower.
       rewrite cond_var_isptr; Intros; entailer'. }
-    forward_call (addc0, lock, Tsh, sh, q_lock_pred p gsh2).
-    { simpl.
+    forward_call (addc0, lock, Tsh, sh, q_lock_pred t p lock gsh2).
+    { unfold q_lock_pred at 3; unfold q_lock_pred'; simpl.
       Exists vals0 head0 addc0 remc0 h'0.
       subst Frame; instantiate (1 := [field_at sh tqueue_t [StructField _lock] lock p;
         data_at Tsh t d e; ghost gsh1 (sh, h) p]); simpl.
       repeat rewrite sepcon_assoc; repeat (apply sepcon_derives; [apply derives_refl|]).
       entailer!.
-      apply andp_right; [Intros; cancel | cancel]. }
-    simpl; Intros vals1 head1 addc1 remc1 h'1.
+      apply andp_right; [unfold fold_right; cancel | cancel]. }
+    unfold q_lock_pred at 2; unfold q_lock_pred'; Intros vals1 head1 addc1 remc1 h'1.
     forward.
     Exists (vals1, head1, addc1, remc1, h'1).
-    entailer!. }
-  simpl; Intros.
+    unfold q_lock_pred'; entailer!. }
+  unfold q_lock_pred'; Intros.
   rewrite Int.signed_repr, Zlength_correct in HRE.
-  freeze [0; 2; 3; 5; 6; 7; 8] FR; forward.
+  freeze [0; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12] FR; forward.
   exploit (Z_mod_lt (head0 + Zlength vals0) MAX); [omega | intro].
   forward.
   forward.
@@ -468,22 +474,25 @@ Proof.
   thaw FR.
   rewrite (cond_var_isptr _ remc0); Intros.
   forward.
-  freeze [0; 1; 3; 4; 5; 6; 7; 8] FR; forward_call (remc0, Tsh).
+  freeze [0; 1; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12] FR; forward_call (remc0, Tsh).
   thaw FR.
   rewrite upd_rotate; auto; try rewrite Zlength_complete; try rewrite Zlength_map; auto.
   rewrite Zminus_mod_idemp_l, Z.add_simpl_l, (Zmod_small (Zlength vals0));
     [|rewrite Zlength_correct; unfold MAX; omega].
   rewrite upd_complete; [|rewrite Zlength_correct; auto].
-  rewrite interp_ghost; gather_SEP 3 8.
+  gather_SEP 7 11.
   rewrite sepcon_comm; replace_SEP 0 (!!(list_incl h h'0) && ghost Tsh (Tsh, h'0) p).
   { go_lower.
     eapply derives_trans; [apply prop_and_same_derives, ghost_inj|].
     Intros; rewrite ghost_share_join; auto; entailer!. }
-  Intros; apply hist_add with (e := QAdd e).
+  Intros; apply hist_add with (e0 := QAdd e).
   erewrite <- ghost_share_join with (h1 := h ++ [QAdd e])(sh := sh); try apply H.
-  time forward_call (lock, sh, q_lock_pred p gsh2). (* 22s *)
-  { simpl.
-    Exists (vals0 ++ [e]) head0 addc0 remc0 (h'0 ++ [QAdd e]); unfold fold_right at 1; cancel.
+  time forward_call (lock, sh, q_lock_pred t p lock gsh2). (* 37s *)
+  { unfold q_lock_pred at 3; unfold q_lock_pred'.
+    Exists (vals0 ++ [e]) head0 addc0 remc0 (h'0 ++ [QAdd e]); unfold fold_right at 1.
+    rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
+      [repeat apply andp_right; auto; eapply derives_trans;
+       try (apply precise_weak_precise || apply positive_weak_positive || apply rec_inv_weak_rec_inv); auto |].
     rewrite data_at_isptr; Intros.
     rewrite map_app, Zlength_app, Zlength_cons, Zlength_nil.
     unfold sem_mod; simpl sem_binarith.
@@ -492,16 +501,15 @@ Proof.
     simpl force_val.
     rewrite !add_repr, mods_repr; try computable.
     repeat match goal with H : _ /\ _ |- _ => destruct H end.
-    rewrite interp_ghost; simpl; entailer!.
+    simpl; entailer!.
     { split; [rewrite Zlength_correct; unfold MAX; omega|].
       apply consistent_snoc_add; auto. }
     rewrite Zplus_mod_idemp_l, Z.add_assoc.
     repeat rewrite map_app; repeat rewrite sepcon_app; simpl.
-    Exists t d; unfold fold_right at 1; cancel.
+    Exists d; unfold fold_right at 1; cancel.
     { pose proof (Z_mod_lt (head0 + Zlength vals0) MAX).
       split; try omega.
       transitivity MAX; simpl in *; [omega | unfold MAX; computable]. } }
-  { split; auto; split; [apply q_inv_precise | apply q_inv_positive]. }
   forward.
   { unfold lqueue; simpl; entailer!; auto. }
   { apply list_incl_app; auto. }
@@ -511,42 +519,42 @@ Admitted.
 
 Lemma body_q_remove : semax_body Vprog Gprog f_q_remove q_remove_spec.
 Proof.
-  start_function.
+  unfold q_remove_spec, q_remove_spec'; start_function.
   unfold lqueue; rewrite lock_inv_isptr; Intros.
   forward.
-  forward_call (lock, sh, q_lock_pred p gsh2).
-  simpl; Intros vals head addc remc h'.
+  forward_call (lock, sh, q_lock_pred t p lock gsh2).
+  unfold q_lock_pred at 2; unfold q_lock_pred'; Intros vals head addc remc h'.
   forward.
   rewrite data_at_isptr; Intros; rewrite isptr_offset_val_zero; auto.
   forward.
   forward_while (EX vals : list val, EX head : Z, EX addc : val, EX remc : val, EX h' : hist, PROP ()
    LOCAL (temp _len (vint (Zlength vals)); temp _q p; temp _l lock; temp _tgt p)
-   SEP (lock_inv sh lock (Interp (q_lock_pred p gsh2));
-        Interp (q_lock_pred' p vals head addc remc gsh2 h');
+   SEP (lock_inv sh lock (q_lock_pred t p lock gsh2);
+        q_lock_pred' t p vals head addc remc lock gsh2 h';
         @field_at CompSpecs sh tqueue_t [StructField _lock] lock p; ghost gsh1 (sh, h) p)).
-  { Exists vals head addc remc h'; entailer!. }
+  { Exists vals head addc remc h'; unfold q_lock_pred'; entailer!. }
   { go_lower; entailer'. }
-  { simpl; rewrite (cond_var_isptr _ remc0); Intros.
+  { unfold q_lock_pred'; rewrite (cond_var_isptr _ remc0); Intros.
     forward.
-    forward_call (remc0, lock, Tsh, sh, q_lock_pred p gsh2).
-    { simpl.
+    forward_call (remc0, lock, Tsh, sh, q_lock_pred t p lock gsh2).
+    { unfold q_lock_pred at 3; unfold q_lock_pred'; simpl.
       Exists vals0 head0 addc0 remc0 h'0.
       subst Frame; instantiate (1 := [field_at sh tqueue_t [StructField _lock] lock p;
         ghost gsh1 (sh, h) p]); simpl.
       repeat rewrite sepcon_assoc; repeat (apply sepcon_derives; [apply derives_refl|]).
       entailer!.
       apply andp_right; [Intros; entailer! | entailer!]. }
-    simpl; Intros vals1 head1 addc1 remc1 h'1; Intros.
+    unfold q_lock_pred at 2; unfold q_lock_pred'; Intros vals1 head1 addc1 remc1 h'1.
     forward.
     Exists (vals1, head1, addc1, remc1, h'1).
-    entailer!. }
-  simpl; Intros.
+    unfold q_lock_pred'; entailer!. }
+  unfold q_lock_pred'; Intros.
   assert (Zlength vals0 > 0).
   { rewrite Zlength_correct in *.
     destruct (length vals0); [|rewrite Nat2Z.inj_succ; omega].
     contradiction HRE; auto. }
   evar (P : mpred).
-  replace_SEP 6 (!!(Forall isptr vals0) && P); subst P.
+  replace_SEP 9 (!!(Forall isptr vals0) && P); subst P.
   { go_lower; apply prop_and_same_derives, all_ptrs. }
   forward.
   forward.
@@ -564,7 +572,7 @@ Proof.
   forward.
   rewrite cond_var_isptr; Intros.
   forward.
-  freeze [0; 1; 3; 4; 5; 6; 7] FR; forward_call (addc0, Tsh).
+  freeze [0; 1; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12] FR; forward_call (addc0, Tsh).
   thaw FR.
   rewrite upd_rotate; try rewrite Zlength_complete; auto.
   rewrite Zminus_diag, Zmod_0_l.
@@ -576,26 +584,118 @@ Proof.
   rewrite andb_false_intro2; [|simpl; auto].
   simpl force_val.
   rewrite !add_repr, mods_repr; try computable.
-  Intros t d.
+  Intro d.
   exploit consistent_cons_rem; eauto; intro.
-  rewrite interp_ghost; gather_SEP 4 8.
+  gather_SEP 8 12.
   rewrite sepcon_comm; replace_SEP 0 (!!(list_incl h h'0) && ghost Tsh (Tsh, h'0) p).
   { go_lower.
     eapply derives_trans; [apply prop_and_same_derives, ghost_inj|].
     Intros; rewrite ghost_share_join; auto; entailer!. }
   Intros; apply hist_add with (e := QRem v).
   erewrite <- ghost_share_join with (h1 := h ++ [QRem v])(sh := sh); try apply H; try apply list_incl_app; auto.
-  forward_call (lock, sh, q_lock_pred p gsh2).
-  { simpl.
-    Exists vals0 ((head0 + 1) mod MAX) addc0 remc0 (h'0 ++ [QRem v]).
+  forward_call (lock, sh, q_lock_pred t p lock gsh2).
+  { lock_props.
+    unfold q_lock_pred, q_lock_pred'; Exists vals0 ((head0 + 1) mod MAX) addc0 remc0 (h'0 ++ [QRem v]).
     unfold Z.succ; rewrite sub_repr, Z.add_simpl_r, (Z.add_comm (Zlength vals0)), Z.add_assoc,
-      Zplus_mod_idemp_l, interp_ghost.
-    unfold fold_right at 1 2; entailer!.
+      Zplus_mod_idemp_l.
+    unfold fold_right at 1; simpl; entailer!.
     apply Z_mod_lt; omega. }
-  { split; auto; split; [apply q_inv_precise | apply q_inv_positive]. }
   forward.
-  Exists v t d; unfold lqueue; simpl; entailer!; auto.
+  Exists v d; unfold lqueue; simpl; entailer!; auto.
   rewrite Znth_head; auto; rewrite Zlength_cons; omega.
+  { split; try omega.
+    transitivity MAX; [omega | unfold MAX; computable]. }
+Qed.
+
+Lemma body_q_tryremove : semax_body Vprog Gprog f_q_tryremove q_tryremove_spec.
+Proof.
+  unfold q_tryremove_spec, q_tryremove_spec'; start_function.
+  unfold lqueue; rewrite lock_inv_isptr; Intros.
+  forward.
+  forward_call (lock, sh, q_lock_pred t p lock gsh2).
+  unfold q_lock_pred at 2; unfold q_lock_pred'; Intros vals head addc remc h'.
+  forward.
+  rewrite data_at_isptr; Intros; rewrite isptr_offset_val_zero; auto.
+  forward.
+  forward_if (PROP (Zlength vals <> 0)
+   LOCAL (temp _len (vint (Zlength vals)); temp _q p; temp _l lock; temp _tgt p)
+   SEP (lock_inv sh lock (q_lock_pred t p lock gsh2);
+   data_at Tsh tqueue
+     (rotate (complete MAX vals) head MAX,
+     (vint (Zlength vals), (vint head, (vint ((head + Zlength vals) mod MAX), (addc, remc))))) p;
+   cond_var Tsh addc; cond_var Tsh remc; malloc_token Tsh (sizeof tqueue_t) p;
+   malloc_token Tsh (sizeof tcond) addc; malloc_token Tsh (sizeof tcond) remc;
+   malloc_token Tsh (sizeof tlock) lock; ghost gsh2 (Tsh, h') p;
+   fold_right sepcon emp (map (fun p0 : val => EX d : reptype t, data_at Tsh t d p0) vals);
+   field_at sh tqueue_t [StructField _lock] lock p; ghost gsh1 (sh, h) p)).
+  { forward_call (lock, sh, q_lock_pred t p lock gsh2).
+    { simpl; lock_props.
+      unfold q_lock_pred, q_lock_pred'; Exists vals head addc remc h'; unfold fold_right at 1; simpl; entailer!. }
+    forward.
+    Exists (vint 0); entailer!.
+    destruct (Memory.EqDec_val (vint 0) nullval); [|contradiction n; auto].
+    unfold lqueue; simpl; entailer!. }
+  { forward.
+    entailer!.
+    congruence. }
+  Intros.
+  assert (Zlength vals > 0).
+  { rewrite Zlength_correct in *.
+    destruct (length vals); [omega | rewrite Nat2Z.inj_succ; omega]. }
+  evar (P : mpred).
+  replace_SEP 9 (!!(Forall isptr vals) && P); subst P.
+  { go_lower; apply prop_and_same_derives, all_ptrs. }
+  forward.
+  forward.
+  { go_lower; Intros.
+    rewrite Znth_head; try rewrite Zlength_map; try omega.
+    repeat apply andp_right; apply prop_right; auto.
+    apply Forall_Znth; [omega|].
+    eapply Forall_impl; [|eauto].
+    destruct a; auto. }
+  forward.
+  forward.
+  { go_lower; simpl.
+    repeat apply andp_right; apply prop_right; auto.
+    rewrite andb_false_intro2; simpl; auto. }
+  forward.
+  rewrite cond_var_isptr; Intros.
+  forward.
+  freeze [0; 1; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12] FR; forward_call (addc, Tsh).
+  thaw FR.
+  rewrite upd_rotate; try rewrite Zlength_complete; auto.
+  rewrite Zminus_diag, Zmod_0_l.
+  destruct vals; [rewrite Zlength_nil in *; omega|].
+  rewrite Zlength_cons in *.
+  simpl; rewrite rotate_1; try omega.
+  unfold sem_mod; simpl sem_binarith.
+  unfold both_int; simpl force_val.
+  rewrite andb_false_intro2; [|simpl; auto].
+  simpl force_val.
+  rewrite !add_repr, mods_repr; try computable.
+  Intro d.
+  exploit consistent_cons_rem; eauto; intro.
+  gather_SEP 8 12.
+  rewrite sepcon_comm; replace_SEP 0 (!!(list_incl h h') && ghost Tsh (Tsh, h') p).
+  { go_lower.
+    eapply derives_trans; [apply prop_and_same_derives, ghost_inj|].
+    Intros; rewrite ghost_share_join; auto; entailer!. }
+  Intros; apply hist_add with (e := QRem v).
+  erewrite <- ghost_share_join with (h1 := h ++ [QRem v])(sh := sh); try apply H; try apply list_incl_app; auto.
+  forward_call (lock, sh, q_lock_pred t p lock gsh2).
+  { lock_props.
+    unfold q_lock_pred, q_lock_pred'; Exists vals ((head + 1) mod MAX) addc remc (h' ++ [QRem v]).
+    unfold Z.succ; rewrite sub_repr, Z.add_simpl_r, (Z.add_comm (Zlength vals)), Z.add_assoc,
+      Zplus_mod_idemp_l.
+    unfold fold_right at 1; simpl; entailer!.
+    apply Z_mod_lt; omega. }
+  forward.
+  Exists v; entailer!.
+  { rewrite Znth_head; auto; rewrite Zlength_cons; omega. }
+  destruct (Memory.EqDec_val v nullval).
+  { rewrite data_at_isptr; Intros.
+    subst; contradiction. }
+  Exists d; unfold lqueue; simpl; entailer!; auto.
   { split; try omega.
     transitivity MAX; [omega | unfold MAX; computable]. }
 Qed.
@@ -634,28 +734,20 @@ Proof.
       rewrite Znth_pos_cons; try omega; replace (i - lo - 1) with (i - Z.succ lo) by omega; auto.
 Qed.*)
 
-Lemma lqueue_share_join : forall sh1 sh2 sh p lock gsh1 gsh2 h1 h2
+Lemma lqueue_share_join : forall t sh1 sh2 sh p lock gsh1 gsh2 h1 h2
   (Hsh1 : readable_share sh1) (Hsh2 : readable_share sh2) (Hjoin : sepalg.join sh1 sh2 sh),
-  lqueue sh1 p lock gsh1 gsh2 h1 * lqueue sh2 p lock gsh1 gsh2 h2 = lqueue sh p lock gsh1 gsh2 (h1 ++ h2).
+  lqueue sh1 t p lock gsh1 gsh2 h1 * lqueue sh2 t p lock gsh1 gsh2 h2 = lqueue sh t p lock gsh1 gsh2 (h1 ++ h2).
 Proof.
   intros; unfold lqueue; normalize.
   f_equal.
   - f_equal; apply prop_ext; tauto.
-  - erewrite <- (field_at_share_join _ _ _ _ _ _ _ Hjoin), <- (lock_inv_share_join _ _ _ _ _ _ _ Hjoin),
-      <- (hist_share_join _ _ _ _ _ Hjoin).
+  - erewrite <- (field_at_share_join _ _ _ _ _ _ _ Hjoin), <- (lock_inv_share_join sh1 sh2 sh),
+      <- (hist_share_join _ _ _ _ _ _ _ Hjoin); auto.
     rewrite <- !sepcon_assoc, !sepcon_assoc; f_equal.
     rewrite <- sepcon_assoc, sepcon_comm, sepcon_assoc; f_equal.
     rewrite sepcon_comm, sepcon_assoc; f_equal.
-  
-    SearchAbout mpred eq derives.
-Search (_ /\ _ = _).
-SearchAbout and eq.
-  normalize.
-  rewrite (sepcon_comm (field_at sh2 _ _ _ _)), sepcon_assoc, <- (sepcon_assoc (lock_inv _ _ _)).
-  erewrite lock_inv_share_join; eauto.
-  rewrite sepcon_comm, sepcon_assoc.
-  erewrite field_at_share_join; eauto.
-  rewrite sepcon_comm; auto.
+    rewrite sepcon_comm, sepcon_assoc; f_equal.
+    rewrite sepcon_comm; reflexivity.
 Qed.
 
 Lemma lqueue_shares_join : forall sh gsh p ghosts lock shs (Hsplit : forall i, 0 <= i < Zlength shs ->

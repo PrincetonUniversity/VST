@@ -81,7 +81,10 @@ void *q_tryremove(queue_t *tgt){
   acquire(l);
   queue *q = &(tgt->d);
   int len = q->length;
-  if(len == 0) return NULL;
+  if(len == 0){
+    release(l);
+    return NULL;
+  }
 
   int h = q->head;
   void *r = q->buf[h];

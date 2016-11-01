@@ -866,7 +866,7 @@ Qed.
 
 Hint Resolve lock_inv_precise lock_inv_positive selflock_precise selflock_positive
   cond_var_precise cond_var_positive positive_FF mapsto_precise mapsto_positive
-  data_at_precise data_at_positive data_at__precise data_at__positive.
+  data_at_precise data_at_positive data_at__precise data_at__positive selflock_rec.
 
 Lemma precise_fold_right : forall l, Forall precise l -> precise (fold_right sepcon emp l).
 Proof.
@@ -1141,8 +1141,10 @@ Proof.
   unfold liftx, lift, PROPx, LOCALx, SEPx; simpl; normalize.
 Qed.
 
-Ltac lock_props := repeat apply andp_right; auto; eapply derives_trans;
-      try apply precise_weak_precise; try apply positive_weak_positive; try apply rec_inv_weak_rec_inv; auto.
+Ltac lock_props := rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
+  [repeat apply andp_right; auto; eapply derives_trans;
+   try (apply precise_weak_precise || apply positive_weak_positive || apply rec_inv_weak_rec_inv); auto |
+   try timeout 20 cancel].
 
 Ltac join_inj := repeat match goal with H1 : sepalg.join ?a ?b ?c, H2 : sepalg.join ?a ?b ?d |- _ =>
     pose proof (sepalg.join_eq H1 H2); clear H1 H2; subst; auto end.

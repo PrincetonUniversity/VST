@@ -457,7 +457,12 @@ Definition f_q_tryremove := {|
         (Ssequence
           (Sifthenelse (Ebinop Oeq (Etempvar _len tint)
                          (Econst_int (Int.repr 0) tint) tint)
-            (Sreturn (Some (Econst_int (Int.repr 0) tint)))
+            (Ssequence
+              (Scall None
+                (Evar _release (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
+                                 cc_default))
+                ((Etempvar _l (tptr tvoid)) :: nil))
+              (Sreturn (Some (Econst_int (Int.repr 0) tint))))
             Sskip)
           (Ssequence
             (Sset _h

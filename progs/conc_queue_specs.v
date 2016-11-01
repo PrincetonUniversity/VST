@@ -126,7 +126,7 @@ Definition q_remove_spec' :=
    LOCAL (temp _tgt p)
    SEP (lqueue sh t p lock gsh1 gsh2 h)
   POST [ tptr tvoid ]
-   EX e : val, EX t : type, EX d : reptype t,
+   EX e : val, EX d : reptype t,
    PROP ()
    LOCAL (temp ret_temp e)
    SEP (lqueue sh t p lock gsh1 gsh2 (h ++ [QRem e]); data_at Tsh t d e).
@@ -142,6 +142,6 @@ Definition q_tryremove_spec' :=
    EX e : val,
    PROP ()
    LOCAL (temp ret_temp e)
-   SEP (if eq_dec p nullval then lqueue sh t p lock gsh1 gsh2 h else
+   SEP (if eq_dec e nullval then lqueue sh t p lock gsh1 gsh2 h else
         (EX d : reptype t, lqueue sh t p lock gsh1 gsh2 (h ++ [QRem e]) * data_at Tsh t d e)).
 Definition q_tryremove_spec prog := DECLARE (ext_link_prog prog "q_tryremove") q_tryremove_spec'.

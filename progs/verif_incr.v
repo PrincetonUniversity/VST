@@ -69,12 +69,14 @@ Proof.
   intro; eapply derives_precise, data_at__precise with (sh := Ews)(t := tint); auto.
   intros ? (? & H); apply data_at_data_at_ in H; eauto.
 Qed.
+Hint Resolve ctr_inv_precise.
 
 Lemma ctr_inv_positive : forall ctr,
   positive_mpred (cptr_lock_inv ctr).
 Proof.
   intro; apply ex_positive; auto.
 Qed.
+Hint Resolve ctr_inv_positive.
 
 Lemma body_incr: semax_body Vprog Gprog f_incr incr_spec.
 Proof.
@@ -86,12 +88,11 @@ Proof.
   Intro z.
   forward.
   forward.
-  rewrite field_at_isptr; normalize.
+  rewrite field_at_isptr; Intros.
   forward_call (lock, sh, cptr_lock_inv ctr).
   { apply prop_right; rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto. }
-  { unfold cptr_lock_inv.
-    subst Frame; instantiate (1 := []); Exists (z + 1); entailer!.
-    lock_props; [apply ctr_inv_precise | apply ctr_inv_positive]. }
+  { lock_props.
+    unfold cptr_lock_inv; Exists (z + 1); entailer!. }
   forward.
 Qed.
 
@@ -106,9 +107,8 @@ Proof.
   rewrite data_at_isptr; Intros.
   forward_call (lock, sh, cptr_lock_inv ctr).
   { apply prop_right; rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto. }
-  { unfold cptr_lock_inv.
-    subst Frame; instantiate (1 := []); Exists z; entailer!.
-    lock_props; [apply ctr_inv_precise | apply ctr_inv_positive]. }
+  { lock_props.
+    unfold cptr_lock_inv; Exists z; entailer!. }
   forward.
   Exists z; entailer!.
 Qed.
@@ -121,11 +121,9 @@ Proof.
   forward_call (ctr, sh, lock).
   forward_call (lockt, sh, lock_inv sh lock (cptr_lock_inv ctr), thread_lock_inv sh ctr lock lockt).
   { apply prop_right; rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto. }
-  { subst Frame; instantiate (1 := []).
-    unfold thread_lock_inv; simpl.
-    rewrite selflock_eq at 5; cancel.
-    eapply derives_trans; [apply lock_inv_later | cancel].
-    lock_props; apply selflock_rec. }
+  { unfold thread_lock_inv; lock_props.
+    rewrite selflock_eq at 2; cancel.
+    eapply derives_trans; [apply lock_inv_later | cancel]. }
   forward.
 Qed.
 
@@ -151,10 +149,8 @@ Proof.
   rewrite field_at_isptr; Intros.
   forward_call (lock, Ews, cptr_lock_inv ctr).
   { apply prop_right; rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto. }
-  { subst Frame; instantiate (1 := [data_at_ Ews (Tstruct 2%positive noattr) lockt]).
-    unfold cptr_lock_inv; simpl.
-    Exists 0; cancel.
-    lock_props; [apply ctr_inv_precise | apply ctr_inv_positive]. }
+  { lock_props.
+    unfold cptr_lock_inv; Exists 0; cancel. }
   (* need to split off shares for the locks here *)
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
   forward_call (lockt, Ews, thread_lock_inv sh1 ctr lock lockt).
@@ -204,25 +200,20 @@ Proof.
   { apply prop_right; rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto. }
   forward_call (lockt, Ews, sh1, |>lock_inv sh1 lock (cptr_lock_inv ctr), |>thread_lock_inv sh1 ctr lock lockt).
   { apply prop_right; rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto. }
-  { subst Frame; instantiate (1 := [lock_inv Ews lock (cptr_lock_inv ctr); cptr_lock_inv ctr]); simpl; cancel.
-    unfold thread_lock_inv.
-    rewrite selflock_eq at 2.
-    rewrite sepcon_assoc, <- (sepcon_assoc (lock_inv _ lockt _)), (sepcon_comm (lock_inv _ lockt _)).
-    apply sepalg.join_comm in Hsh.
-    repeat rewrite <- sepcon_assoc; erewrite lock_inv_share_join; eauto; cancel.
-    eapply derives_trans.
-    { apply sepcon_derives; [apply lock_inv_later | apply derives_refl]. }
-    erewrite lock_inv_share_join; eauto; cancel.
-    lock_props.
-    - apply later_positive, selflock_positive, lock_inv_positive.
+  { unfold thread_lock_inv; lock_props.
+    - apply later_positive; auto.
     - unfold rec_inv.
       rewrite selflock_eq at 1.
       rewrite later_sepcon; f_equal.
-      apply lock_inv_later_eq. }
+      apply lock_inv_later_eq.
+    - rewrite selflock_eq at 2.
+      erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto; cancel.
+      rewrite sepcon_comm, <- !sepcon_assoc, sepcon_comm.
+      apply sepcon_derives; [apply lock_inv_later | cancel]. }
   forward_call (lock, Ews, cptr_lock_inv ctr).
   { apply prop_right; rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto. }
-  { subst Frame; instantiate (1 := [data_at_ Ews tlock lockt]); simpl; cancel; lock_props.
-    apply ctr_inv_positive. }
+  { lock_props.
+    erewrite sepcon_assoc, lock_inv_share_join; eauto; cancel. }
   forward.
 Qed.
 
