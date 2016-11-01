@@ -13,7 +13,7 @@ Require Import concurrency.scheduler.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.juicy_machine. Import Concur.
 Require Import concurrency.dry_machine. Import Concur.
-(*Require Import concurrency.dry_machine_lemmas. *)
+Require Import concurrency.dry_machine_lemmas.
 Require Import concurrency.lksize.
 Require Import concurrency.permissions.
 Require Import concurrency.sync_preds.
@@ -89,6 +89,10 @@ Module Parching <: ErasureSig.
   Notation dstate:= DryMachine.SIG.ThreadPool.t.
   Notation dmachine_state:= DryMachine.MachState.
   Module DTP:=THE_DRY_MACHINE_SOURCE.DTP.
+  
+  Module SourceTPWF:= ThreadPoolWF DSEM DryMachine.
+
+  
   Import DSEM.DryMachineLemmas event_semantics.
 
 
@@ -661,9 +665,13 @@ Module Parching <: ErasureSig.
     Definition match_rmap_perm (rmap : rmap) (pmap: access_map): Prop:=
       forall b ofs, perm_of_res (rmap @ (b, ofs)) = pmap !! b ofs.
 
+     Definition no_locks_perm (rmap : rmap): Prop:=
+      forall b ofs, perm_of_res_lock (rmap @ (b, ofs)) = None.
+
     Lemma MTCH_initial:
       forall  c rmap pmap,
         match_rmap_perm rmap pmap ->
+        no_locks_perm rmap ->
         match_st (JSEM.initial_machine rmap c) (DSEM.initial_machine (*genv*) pmap c).
     Proof.
       intros.
@@ -681,181 +689,213 @@ Module Parching <: ErasureSig.
         unfold match_rmap_perm in H. apply H. 
       - intros.
         unfold JTP.getThreadR; unfold JSEM.initial_machine; simpl.
-        unfold DTP.getThreadR; unfold DSEM.initial_machine; simpl.
-        unfold match_rmap_perm in H. apply H. 
+        rewrite empty_map_spec; apply H0.
       - unfold empty_rmap, "@"; simpl.
         reflexivity.
       - unfold DSEM.ThreadPool.lockRes, DSEM.initial_machine; simpl.
-        intros. rewrite threadPool.find_empty in H1; inversion H1.
+        intros. rewrite threadPool.find_empty in H2; inversion H2.
       - unfold DSEM.ThreadPool.lockRes, DSEM.initial_machine; simpl.
-        intros. rewrite threadPool.find_empty in H1; inversion H1.
+        intros. rewrite threadPool.find_empty in H2; inversion H2.
+      - unfold DSEM.ThreadPool.lockRes, DSEM.initial_machine; simpl.
+        intros. rewrite threadPool.find_empty in H2; inversion H2.
     Qed.
 
     (*Lemma to prove MTCH_latestThread*)
-      Lemma contains_iff_num:
-        forall js ds
-          (Hcnt: forall i, JTP.containsThread js i <-> DTP.containsThread ds i),
-          JSEM.ThreadPool.num_threads js = DSEM.ThreadPool.num_threads ds.
-      Proof.
+    Lemma contains_iff_num:
+      forall js ds
+        (Hcnt: forall i, JTP.containsThread js i <-> DTP.containsThread ds i),
+        JSEM.ThreadPool.num_threads js = DSEM.ThreadPool.num_threads ds.
+    Proof.
+      intros.
+      unfold JTP.containsThread, DTP.containsThread in *.
+      remember (JSEM.ThreadPool.num_threads js).
+      remember (DSEM.ThreadPool.num_threads ds).
+      destruct p, p0; simpl in *.
+      assert (n = n0).
+      { clear - Hcnt.
+        generalize dependent n0.
+        induction n; intros.
+        destruct n0; auto.
+        destruct (Hcnt 0%nat).
+        exfalso.
+        specialize (H0 ltac:(ssromega));
+          by ssromega.
+
+        destruct n0.
+        exfalso.
+        destruct (Hcnt 0%nat).
+        specialize (H ltac:(ssromega));
+          by ssromega.
+        erewrite IHn; eauto.
+        intros; split; intro H.
+        assert (i.+1 < n.+1) by ssromega.
+        specialize (proj1 (Hcnt (i.+1)) H0).
         intros.
-        unfold JTP.containsThread, DTP.containsThread in *.
-        remember (JSEM.ThreadPool.num_threads js).
-        remember (DSEM.ThreadPool.num_threads ds).
-        destruct p, p0; simpl in *.
-        assert (n = n0).
-        { clear - Hcnt.
-          generalize dependent n0.
-          induction n; intros.
-          destruct n0; auto.
-          destruct (Hcnt 0%nat).
-          exfalso.
-          specialize (H0 ltac:(ssromega));
-            by ssromega.
+        clear -H1;
+          by ssromega.
+        assert (i.+1 < n0.+1) by ssromega.
+        specialize (proj2 (Hcnt (i.+1)) H0).
+        intros.
+        clear -H1;
+          by ssromega. }
+      subst.
+        by erewrite proof_irr with (a1 := N_pos) (a2 := N_pos0).
+    Qed.
+    
+    
+    Lemma MTCH_latestThread: forall js ds,
+        match_st js ds ->
+        JTP.latestThread js = DTP.latestThread ds.
+    Proof.
+      intros js ds MATCH.
+      unfold JTP.latestThread.
+      unfold DTP.latestThread.
+      erewrite contains_iff_num.
+      - reflexivity.
+      - split; generalize i; inversion MATCH; assumption.
+    Qed.
 
-          destruct n0.
-          exfalso.
-          destruct (Hcnt 0%nat).
-          specialize (H ltac:(ssromega));
-            by ssromega.
-          erewrite IHn; eauto.
-          intros; split; intro H.
-          assert (i.+1 < n.+1) by ssromega.
-          specialize (proj1 (Hcnt (i.+1)) H0).
-          intros.
-          clear -H1;
-            by ssromega.
-          assert (i.+1 < n0.+1) by ssromega.
-          specialize (proj2 (Hcnt (i.+1)) H0).
-          intros.
-          clear -H1;
-            by ssromega. }
-        subst.
-          by erewrite proof_irr with (a1 := N_pos) (a2 := N_pos0).
-      Qed.
-      
-      
-      Lemma MTCH_latestThread: forall js ds,
-          match_st js ds ->
-          JTP.latestThread js = DTP.latestThread ds.
-      Proof.
-        intros js ds MATCH.
-        unfold JTP.latestThread.
-        unfold DTP.latestThread.
-        erewrite contains_iff_num.
-        - reflexivity.
-        - split; generalize i; inversion MATCH; assumption.
-      Qed.
+    Lemma MTCH_addThread: forall js ds parg arg phi res lres,
+        match_st js ds ->
+        (forall b0 ofs0, perm_of_res (phi@(b0, ofs0)) = res !! b0 ofs0) ->
+        (forall b0 ofs0, perm_of_res_lock (phi@(b0, ofs0)) = lres !! b0 ofs0) ->
+        match_st
+          (JTP.addThread js parg arg phi)
+          (DTP.addThread ds parg arg (res,lres)).
+    Proof.
+      intros ? ? ? ? ? ? ? MATCH DISJ. constructor.
+      - intros tid HH.
+        apply JTP.cntAdd' in HH. destruct HH as [[HH ineq] | HH].
+        + apply DTP.cntAdd. inversion MATCH. apply mtch_cnt. assumption.
+        + 
+          erewrite MTCH_latestThread in HH.
+          rewrite HH.
+          apply DSEM.ThreadPool.contains_add_latest.
+          assumption.
+      - intros tid HH.
+        apply DTP.cntAdd' in HH. destruct HH as [[HH ineq] | HH].
+        + apply JTP.cntAdd. inversion MATCH. eapply  mtch_cnt'; assumption.
+        + erewrite <- MTCH_latestThread in HH.
+          rewrite HH.
+          apply JSEM.ThreadPool.contains_add_latest.
+          assumption.
+      - intros.
+        destruct (JTP.cntAdd' _ _ _ Htid) as [[jcnt jNLast]| jLast];
+          destruct (DTP.cntAdd' _ _ _ Htid') as [[dcnt dNLast]| dLast].
+        * erewrite JSEM.ThreadPool.gsoAddCode; try eassumption.
+          erewrite DSEM.ThreadPool.gsoAddCode; try eassumption.
+          inversion MATCH. eapply mtch_gtc.
+        * contradict jNLast.
+          rewrite <- (MTCH_latestThread js ds) in dLast.
+          rewrite dLast; reflexivity.
+          assumption.
+        * contradict dNLast.
+          rewrite (MTCH_latestThread js ds) in jLast.
+          rewrite jLast; reflexivity.
+          assumption.
+        * erewrite JSEM.ThreadPool.gssAddCode; try eassumption.
+          erewrite DSEM.ThreadPool.gssAddCode; try eassumption.
+          reflexivity.
+      - intros.
+        destruct (JTP.cntAdd' _ _ _ Htid) as [[jcnt jNLast]| jLast];
+          destruct (DTP.cntAdd' _ _ _ Htid') as [[dcnt dNLast]| dLast].
+        * erewrite JSEM.ThreadPool.gsoAddRes; try eassumption.
+          erewrite DSEM.ThreadPool.gsoAddRes; try eassumption.
+          inversion MATCH. eapply mtch_perm1.
+        * contradict jNLast.
+          rewrite <- (MTCH_latestThread js ds) in dLast.
+          rewrite dLast; reflexivity.
+          assumption.
+        * contradict dNLast.
+          rewrite (MTCH_latestThread js ds) in jLast.
+          rewrite jLast; reflexivity.
+          assumption.
+        * erewrite JSEM.ThreadPool.gssAddRes; try eassumption.
+          erewrite DSEM.ThreadPool.gssAddRes; try eassumption.
+          apply DISJ.
+      - intros.
+        destruct (JTP.cntAdd' _ _ _ Htid) as [[jcnt jNLast]| jLast];
+          destruct (DTP.cntAdd' _ _ _ Htid') as [[dcnt dNLast]| dLast].
+        * erewrite JSEM.ThreadPool.gsoAddRes; try eassumption.
+          erewrite DSEM.ThreadPool.gsoAddRes; try eassumption.
+          inversion MATCH. eapply mtch_perm2.
+        * contradict jNLast.
+          rewrite <- (MTCH_latestThread js ds) in dLast.
+          rewrite dLast; reflexivity.
+          assumption.
+        * contradict dNLast.
+          rewrite (MTCH_latestThread js ds) in jLast.
+          rewrite jLast; reflexivity.
+          assumption.
+        * erewrite JSEM.ThreadPool.gssAddRes; try eassumption.
+          erewrite DSEM.ThreadPool.gssAddRes; try eassumption.
+          simpl; apply H.  
+      - intros. rewrite JTP.gsoAddLPool DTP.gsoAddLPool.
+        inversion MATCH. apply mtch_locks.
+      - intros lock dres.
+        rewrite JTP.gsoAddLPool DTP.gsoAddLPool.
+        inversion MATCH. apply mtch_locksEmpty.
+      - intros lock jres dres .
+        rewrite JTP.gsoAddLPool DTP.gsoAddLPool.
+        inversion MATCH. apply mtch_locksRes.
+      - intros lock jres dres .
+        rewrite JTP.gsoAddLPool DTP.gsoAddLPool.
+        inversion MATCH. apply mtch_locksRes0.
+        Grab Existential Variables.
+        assumption.
+        assumption.
+        assumption.
+        assumption.
+        assumption.
+        assumption.
+    Qed.
 
-      Lemma MTCH_addThread: forall js ds parg arg phi res,
-          match_st js ds ->
-          (forall b0 ofs0, perm_of_res (phi@(b0, ofs0)) = res !! b0 ofs0) ->
-          match_st
-            (JTP.addThread js parg arg phi)
-            (DTP.addThread ds parg arg res).
-      Proof.
-        intros ? ? ? ? ? ? MATCH DISJ. constructor.
-        - intros tid HH.
-          apply JTP.cntAdd' in HH. destruct HH as [[HH ineq] | HH].
-          + apply DTP.cntAdd. inversion MATCH. apply mtch_cnt. assumption.
-          + 
-            erewrite MTCH_latestThread in HH.
-            rewrite HH.
-            apply DSEM.ThreadPool.contains_add_latest.
-            assumption.
-        - intros tid HH.
-          apply DTP.cntAdd' in HH. destruct HH as [[HH ineq] | HH].
-          + apply JTP.cntAdd. inversion MATCH. eapply  mtch_cnt'; assumption.
-          + erewrite <- MTCH_latestThread in HH.
-            rewrite HH.
-            apply JSEM.ThreadPool.contains_add_latest.
-            assumption.
-        - intros.
-            destruct (JTP.cntAdd' _ _ _ Htid) as [[jcnt jNLast]| jLast];
-              destruct (DTP.cntAdd' _ _ _ Htid') as [[dcnt dNLast]| dLast].
-            * erewrite JSEM.ThreadPool.gsoAddCode; try eassumption.
-              erewrite DSEM.ThreadPool.gsoAddCode; try eassumption.
-              inversion MATCH. eapply mtch_gtc.
-            * contradict jNLast.
-              rewrite <- (MTCH_latestThread js ds) in dLast.
-              rewrite dLast; reflexivity.
-              assumption.
-            * contradict dNLast.
-              rewrite (MTCH_latestThread js ds) in jLast.
-              rewrite jLast; reflexivity.
-              assumption.
-            * erewrite JSEM.ThreadPool.gssAddCode; try eassumption.
-              erewrite DSEM.ThreadPool.gssAddCode; try eassumption.
-              reflexivity.
-        - intros.
-          destruct (JTP.cntAdd' _ _ _ Htid) as [[jcnt jNLast]| jLast];
-            destruct (DTP.cntAdd' _ _ _ Htid') as [[dcnt dNLast]| dLast].
-          * erewrite JSEM.ThreadPool.gsoAddRes; try eassumption.
-            erewrite DSEM.ThreadPool.gsoAddRes; try eassumption.
-            inversion MATCH. eapply mtch_perm.
-          * contradict jNLast.
-            rewrite <- (MTCH_latestThread js ds) in dLast.
-            rewrite dLast; reflexivity.
-            assumption.
-          * contradict dNLast.
-            rewrite (MTCH_latestThread js ds) in jLast.
-            rewrite jLast; reflexivity.
-            assumption.
-          * erewrite JSEM.ThreadPool.gssAddRes; try eassumption.
-            erewrite DSEM.ThreadPool.gssAddRes; try eassumption.
-            apply DISJ.
-        - intros. rewrite JTP.gsoAddLPool DTP.gsoAddLPool.
-          inversion MATCH. apply mtch_locks.
-        - intros lock dres.
-          rewrite JTP.gsoAddLPool DTP.gsoAddLPool.
-          inversion MATCH. apply mtch_locksEmpty.
-        - intros lock jres dres .
-          rewrite JTP.gsoAddLPool DTP.gsoAddLPool.
-          inversion MATCH. apply mtch_locksRes.
-          Grab Existential Variables.
-          assumption.
-          assumption.
-          assumption.
-          assumption.
-      Qed.
+    Lemma MTCH_age: forall js ds age,
+        match_st js ds ->
+        match_st (JSEM.age_tp_to age js) ds. 
+    Proof.
+      intros js ds age MATCH; inversion MATCH. constructor.
+      - 
+        intros i HH. apply JSEM.JuicyMachineLemmas.cnt_age in HH.
+        apply mtch_cnt; assumption.
+      - intros i HH. apply @JSEM.JuicyMachineLemmas.cnt_age.
+        apply mtch_cnt'; assumption.
+      - intros i cnt cnt'.
+        
+        erewrite <- JSEM.JuicyMachineLemmas.gtc_age.
+        eapply mtch_gtc.
+      - intros.
+        erewrite <- JSEM.JuicyMachineLemmas.getThreadR_age. simpl.
+        rewrite JSEM.perm_of_age.
+        apply mtch_perm1.
+      - intros.
+        erewrite <- JSEM.JuicyMachineLemmas.getThreadR_age. simpl.
+        rewrite JSEM.perm_of_age_lock.
+        apply mtch_perm2.
+      - intros.
+        rewrite JSEM.JuicyMachineLemmas.LockRes_age. apply mtch_locks.
+      - intros.
+        
+        apply JSEM.JuicyMachineLemmas.LockRes_age_content1 in H1.
+        eapply mtch_locksEmpty; eassumption.
+      -
+        intros. apply JSEM.JuicyMachineLemmas.LockRes_age_content2 in H1.
+        destruct H1 as [r [AA BB]].
+        rewrite BB.
+        rewrite JSEM.perm_of_age.
+        eapply mtch_locksRes; eassumption.
+      -
+        intros. apply JSEM.JuicyMachineLemmas.LockRes_age_content2 in H1.
+        destruct H1 as [r [AA BB]].
+        rewrite BB.
+        rewrite JSEM.perm_of_age_lock.
+        eapply mtch_locksRes0; eassumption.
 
-      Lemma MTCH_age: forall js ds age,
-          match_st js ds ->
-          match_st (JSEM.age_tp_to age js) ds. 
-      Proof.
-        intros js ds age MATCH; inversion MATCH. constructor.
-        - 
-          intros i HH. apply JSEM.JuicyMachineLemmas.cnt_age in HH.
-          apply mtch_cnt; assumption.
-        - intros i HH. apply @JSEM.JuicyMachineLemmas.cnt_age.
-          apply mtch_cnt'; assumption.
-        - intros i cnt cnt'.
-          
-          erewrite <- JSEM.JuicyMachineLemmas.gtc_age.
-          eapply mtch_gtc.
-        - intros.
-          
-          erewrite <- JSEM.JuicyMachineLemmas.getThreadR_age. simpl.
-          
-          rewrite JSEM.perm_of_age.
-          apply mtch_perm.
-        - intros.
-          
-          rewrite JSEM.JuicyMachineLemmas.LockRes_age. apply mtch_locks.
-        - intros.
-          
-          apply JSEM.JuicyMachineLemmas.LockRes_age_content1 in H1.
-          eapply mtch_locksEmpty; eassumption.
-        -
-          intros. apply JSEM.JuicyMachineLemmas.LockRes_age_content2 in H1.
-          destruct H1 as [r [AA BB]].
-          rewrite BB.
-          rewrite JSEM.perm_of_age.
-          eapply mtch_locksRes; eassumption.
-
-          Grab Existential Variables.
-          eapply JSEM.JuicyMachineLemmas.cnt_age; eassumption.
-          eapply JSEM.JuicyMachineLemmas.cnt_age; eassumption.
-      Qed.
+        Grab Existential Variables.
+        eapply JSEM.JuicyMachineLemmas.cnt_age; eassumption.
+        eapply JSEM.JuicyMachineLemmas.cnt_age; eassumption.
+        eapply JSEM.JuicyMachineLemmas.cnt_age; eassumption.
+    Qed.
 
     Lemma init_diagram:
       forall (j : Values.Val.meminj) (U:schedule) (js : jstate)
@@ -865,7 +905,7 @@ Module Parching <: ErasureSig.
         initial_core (JMachineSem U (Some rmap)) genv main vals = Some (U, nil, js) ->
         exists (mu : SM_Injection) (ds : dstate),
           as_inj mu = j /\
-          initial_core (DMachineSem U (Some pmap)) genv main vals = Some (U, nil,ds) /\
+          initial_core (DMachineSem U (Some (pmap,empty_map))) genv main vals = Some (U, nil,ds) /\
           DSEM.invariant ds /\
           match_st js ds.
     Proof.
