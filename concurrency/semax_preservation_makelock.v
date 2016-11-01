@@ -310,7 +310,7 @@ Proof.
       if_tac [e | ne].
       * injection e as <- <-.
         intros _ ofs0 r.
-        pose proof all_cohere compat as C. destruct C as [_ _ C _].
+        pose proof all_cohere compat as C. destruct C as [_ C _].
         destruct Hrmap' as (_ & _ & inside).
         specialize (inside (b, ofs0)).
         spec C (b, ofs0).
@@ -319,6 +319,7 @@ Proof.
         rewrite E in C.
         unfold max_access_at in *.
         eapply po_trans. eassumption.
+        unfold perm_of_res' in *.
         unfold perm_of_sh in *.
         Ltac share_tac :=
           change (pshare_sh pfullshare) with Share.top in *;
@@ -389,9 +390,9 @@ Proof.
     clear sparse jmstep Htstep.
     intros loc found. right.
     specialize (lock_coh loc). destruct (AMap.find loc _) as [o|] eqn:Eo. clear found. 2:congruence.
-    assert (coh : exists (sh : Share.t) (R : pred rmap), (sync_preds_defs.LK_at R sh loc) Phi)
+    assert (coh : exists (R : pred rmap), (lkat R loc) Phi)
       by (destruct o; breakhyps; eauto). clear lock_coh.
-    destruct coh as (sh & R' & AT).
+    destruct coh as (R' & AT).
     specialize (AT loc).
     destruct Hrmap.
     admit (* mindless *).
@@ -548,13 +549,83 @@ Proof.
               unfold funsig2signature in *; simpl in *. congruence. }
             intros x (Hargsty, Pre) Post.
             destruct Pre as (phi0 & phi1 & j & Pre).
-            destruct (join_assoc (join_comm j) Hadd_lock_res) as (phi0' & jphi0' & jframe).
+            
+            destruct x as (phix, (ts, ((vx, shx), Rx))); simpl in Pre.
+            destruct Pre as [[[Hwritable [(*True*)]] [[B1 B2] AT]] necr].
+            unfold canon.SEPx in *.
+            unfold fold_right in *.
+            simpl in B1.
+            rewrite seplog.sepcon_emp in AT.
+            assert (args = Vptr b ofs :: nil). {
+              revert Hat_external ae; clear.
+              unfold SEM.Sem in *.
+              rewrite SEM.CLN_msem. simpl.
+              congruence.
+            }
+            assert (vx = Vptr b ofs). {
+              rewrite B1. subst args. clear.
+              simpl.
+              unfold expr.eval_id in *.
+              unfold expr.force_val in *.
+              unfold make_ext_args in *.
+              unfold te_of in *.
+              unfold filter_genv in *.
+              unfold Genv.find_symbol in *.
+              unfold expr.env_set in *.
+              rewrite Map.gss.
+              auto.
+            }
+            subst args vx.
+            pose proof data_at_rmap_makelock CS as RL.
+            unfold tlock in *.
+            simpl in B1.
+            unfold liftx in B1. simpl in B1. unfold lift in B1. simpl in B1.
+            unfold expr.eval_id in B1. simpl in B1.
+            
+            match type of AT with context[Tarray _ ?n] => assert (Hpos' : (0 < n)%Z) by omega end.
+            specialize (RL shx b ofs (Interp Rx) phi0 _ Hpos' Hwritable AT).
+            destruct RL as (phi0' & RL0 & lkat).
+            
+            match type of lkat with context[LK_at _ ?n] => assert (Hpos'' : (0 < n)%Z) by omega end.
+            pose proof rmap_makelock_join _ _ _ _ _ _ _ Hpos'' RL0 j as RL.
+            destruct RL as (phi'_ & RLphi & j').
+            rewrite m_phi_jm_ in RLphi.
+Lemma rmap_makelock_unique phi phi1 phi2 loc R len :
+  rmap_makelock phi phi1 loc R len ->
+  rmap_makelock phi phi2 loc R len ->
+  phi1 = phi2.
+Proof.
+  intros (L1 & out1 & in1) (L2 & out2 & in2).
+  apply rmap_ext. congruence.
+  intros x.
+  destruct (adr_range_dec loc len x) as [r | nr].
+  - spec in1 x r. spec in2 x r. if_tac in in1; breakhyps.
+  - spec out1 x nr. spec out2 x nr. congruence.
+Qed.
+            assert (phi'_ = phi'). {
+              eapply rmap_makelock_unique; eauto.
+              (* ok, except for one thing: it might be a different R
+              chosen by the machine *)
+              admit.
+            }
+            subst phi'_.
+            Admitted. (*
+            assert (ji : join_sub (getThreadR _ _ cnti) Phi) by join_sub_tac.
+            destruct ji as (psi & jpsi). cleanup.
+            
             exists (age_to n phi0'), (age_to n phi1).
             rewrite m_phi_jm_ in *.
             split.
             * REWR.
               cleanup.
+              rewr (m_phi jm).
+              rewrite El; auto.
               apply age_to_join.
+              REWR.
+              REWR.
+        
+              unfold rmap_makelock in *.
+              auto.
               apply join_comm in jframe.
               exact_eq jframe. f_equal.
               REWR.
@@ -849,3 +920,4 @@ Admitted.
                ++ (* NOT THE SAME PHI *)
                  admit.
        *) *)
+*)

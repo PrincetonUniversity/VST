@@ -55,6 +55,8 @@ Require Import concurrency.semax_initial.
 Require Import concurrency.semax_progress.
 Require Import concurrency.semax_preservation.
 
+Set Bullet Behavior "Strict Subproofs".
+
 Inductive jmsafe : nat -> cm_state -> Prop :=
 | jmsafe_0 m ge sch tp : jmsafe 0 (m, ge, (sch, tp))
 | jmsafe_halted n m ge tp : jmsafe n (m, ge, (nil, tp))
@@ -90,6 +92,62 @@ Proof.
   - now eapply JuicyMachine.schedfail; eauto.
 Qed.
 
+Require Import concurrency.semax_simlemmas.
+
+Lemma schstep_norun ge i sch tp m tp' m' :
+  @JuicyMachine.machine_step ge (i :: sch) nil tp m sch nil tp' m' ->
+  unique_Krun tp (i :: sch) ->
+  1 < pos.n (num_threads tp') ->
+  no_Krun tp'.
+Proof.
+  intros step uniq more.
+  assert (i :: sch <> sch) by (clear; induction sch; congruence).
+  assert (D: forall i j, containsThread tp i -> containsThread tp j -> i <> j -> 1 < pos.n tp.(num_threads)).
+  { clear. intros; eapply (different_threads_means_several_threads i j); eauto. }
+  assert (forall j cntj q, containsThread tp i -> i <> j -> @getThreadC j tp cntj <> @Krun code q).
+  { intros j cntj q cnti ne E. autospec uniq. spec uniq j cntj q E. breakhyps. }
+  
+  inversion step; try tauto.
+  all: try inversion Htstep; repeat match goal with H : ?x = ?y |- _ => subst x || subst y end.
+  all: intros j cnti q.
+  Set Printing Implicit.
+  all: assert (tid = i) by (simpl in *; congruence); subst tid.
+  all: destruct (eq_dec i j).
+  all: try subst j.
+
+  all: try (assert (cnti = Htid) by apply proof_irr; subst Htid).
+  all: try (assert (ctn = cnti) by apply proof_irr; subst cnt).
+  all: try (unshelve erewrite <-gtc_age; eauto).
+  all: try (unshelve erewrite gLockSetCode; eauto).
+  all: try (unshelve erewrite gRemLockSetCode; eauto).
+  all: try (rewrite gssThreadCode; congruence).
+  all: try (rewrite gssThreadCC; congruence).
+  all: try (unshelve erewrite gsoThreadCode; eauto).
+  all: try (unshelve erewrite <-gsoThreadCC; eauto).
+
+  destruct (cntAdd' _ _ _ cnti) as [(cnti', ne) | Ei].
+  unshelve erewrite gsoAddCode; eauto.
+  rewrite gssThreadCode; congruence.
+  rewrite gssAddCode. congruence. apply Ei.
+  
+  destruct (cntAdd' _ _ _ cnti) as [(cnti', ne) | Ei].
+  unshelve erewrite gsoAddCode; eauto.
+  unshelve erewrite gsoThreadCode; eauto.
+  rewrite gssAddCode. congruence. apply Ei.
+  
+  all: try congruence.
+  all: eauto.
+  hnf in Hhalted.
+  inversion Hhalted.
+  admit (* it is halted, but it is still running . This violates the invariant. *).
+  
+  intros E.
+  hnf in uniq.
+  autospec uniq.
+
+  spec uniq j cnti q E. breakhyps.
+Admitted.
+
 (*+ Final instantiation *)
 
 Section Safety.
@@ -109,7 +167,7 @@ Section Safety.
   statement *)
   Definition inv Gamma n state :=
     exists m, n <= m /\ state_invariant Jspec' Gamma m state.
-
+  
   Lemma inv_sch_irr Gamma n m ge i sch sch' tp :
     inv Gamma n (m, ge, (i :: sch, tp)) ->
     inv Gamma n (m, ge, (i :: sch', tp)).
@@ -117,6 +175,20 @@ Section Safety.
     intros (k & lkm & Hk).
     exists k; split; auto.
     eapply state_invariant_sch_irr, Hk.
+  Qed.
+  
+  Lemma no_Krun_inv Gamma n m ge sch sch' tp :
+    (1 < pos.n (num_threads tp) -> no_Krun tp) ->
+    inv Gamma n (m, ge, (sch, tp)) ->
+    inv Gamma n (m, ge, (sch', tp)).
+  Proof.
+    intros nokrun.
+    intros (x & lx & i).
+    exists x; split; auto.
+    inversion i as [m0 ge0 sch0 tp0 PHI mcompat lev gamma lock_sparse lock_coh safety wellformed uniqkrun H0]; subst.
+    esplit; eauto.
+    intros H. autospec nokrun. revert H.
+    apply no_Krun_unique_Krun, nokrun.
   Qed.
   
   Lemma state_invariant_step Gamma n state :
@@ -160,6 +232,29 @@ Section Safety.
     destruct (progress_inv _ _ _ inv) as (state', step).
     exists state'; split; [ now apply step | ].
     eapply preservation_inv; eauto.
+  Qed.
+  
+  Lemma invariant_safe_without_preservation Gamma n state :
+    inv Gamma n state -> jmsafe n state.
+  Proof.
+    intros INV.
+    pose proof (inv_step) as Step.
+    revert state INV.
+    induction n; intros ((m, ge), (sch, tp)) INV.
+    - apply jmsafe_0.
+    - destruct sch.
+      + apply jmsafe_halted.
+      + destruct (Step _ _ _ INV) as (state' & step & INV').
+        inversion step as [ | ge' m0 m' sch' sch'' tp0 tp' jmstep ]; subst; simpl in *.
+        inversion jmstep; subst.
+        all: try solve [ eapply jmsafe_core; eauto ].
+        all: eapply jmsafe_sch; eauto.
+        all: intros sch'; apply IHn.
+        all: simpl in *.
+        all: apply no_Krun_inv with (sch := sch); eauto.
+        all: eapply schstep_norun; eauto.
+        all: destruct INV as (? & lm & INV).
+        all: inv INV; auto.
   Qed.
   
   Lemma invariant_safe Gamma n state :
