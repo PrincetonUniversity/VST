@@ -1,6 +1,6 @@
 Require Export msl.predicates_sl.
 Require Export concurrency.semax_conc_pred.
-Require Export concurrency.semax_conc.
+Require Export concurrency.xsemax_conc.
 Require Export floyd.proofauto.
 Require Export floyd.sublist.
 
@@ -1133,6 +1133,16 @@ Proof.
 Qed.
 
 Transparent Z.of_nat.
+
+Lemma void_ret : ifvoid tvoid (` (PROP ( )  LOCAL ()  SEP (emp)) (make_args [] []))
+  (EX v : val, ` (PROP ( )  LOCAL ()  SEP (emp)) (make_args [ret_temp] [v])) = emp.
+Proof.
+  extensionality; simpl.
+  unfold liftx, lift, PROPx, LOCALx, SEPx; simpl; normalize.
+Qed.
+
+Ltac lock_props := repeat apply andp_right; auto; eapply derives_trans;
+      try apply precise_weak_precise; try apply positive_weak_positive; try apply rec_inv_weak_rec_inv; auto.
 
 Ltac join_inj := repeat match goal with H1 : sepalg.join ?a ?b ?c, H2 : sepalg.join ?a ?b ?d |- _ =>
     pose proof (sepalg.join_eq H1 H2); clear H1 H2; subst; auto end.

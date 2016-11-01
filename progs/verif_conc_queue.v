@@ -315,7 +315,6 @@ Proof.
     subst Frame; instantiate (1 := [field_at Tsh tqueue_t [StructField _lock] lock p; ghost gsh1 (Tsh, []) p]);
       simpl.
     unfold_field_at 1%nat.
-    rewrite sem_cast_neutral_ptr; [|destruct lock; simpl; auto; try contradiction].
     erewrite interp_ghost, <- ghost_share_join with (h1 := []); eauto.
     simpl; repeat cancel.
     unfold data_at, field_at; simpl.
