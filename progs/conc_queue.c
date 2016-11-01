@@ -3,27 +3,35 @@
 #include "threads.h"
 #include "conc_queue.h"
 
+extern void exit(int code);
+
 #define SIZE 10
 
 typedef struct queue {void *buf[SIZE]; int length; int head; int tail;
   cond_t *addc; cond_t *remc;} queue;
 typedef struct queue_t {queue d; lock_t *lock;} queue_t;
 
+void *surely_malloc (size_t n) {
+  void *p = malloc(n);
+  if (!p) exit(1);
+  return p;
+}
+
 queue_t *q_new(){
-  queue_t *newq = (queue_t *) malloc(sizeof(queue_t));
+  queue_t *newq = (queue_t *) surely_malloc(sizeof(queue_t));
   queue *q = &(newq->d);
   for(int i = 0; i < SIZE; i++)
     q->buf[i] = NULL;
   q->length = 0;
   q->head = 0;
   q->tail = 0;
-  cond_t *c = (cond_t *) malloc(sizeof(cond_t));
+  cond_t *c = (cond_t *) surely_malloc(sizeof(cond_t));
   makecond(c);
   q->addc = c;
-  c = (cond_t *) malloc(sizeof(cond_t));
+  c = (cond_t *) surely_malloc(sizeof(cond_t));
   makecond(c);
   q->remc = c;
-  lock_t *l = (lock_t *) malloc(sizeof(lock_t));
+  lock_t *l = (lock_t *) surely_malloc(sizeof(lock_t));
   makelock(l);
   newq->lock = l;
   release(l);

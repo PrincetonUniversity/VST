@@ -308,23 +308,51 @@ Proof.
   - eapply Hphi1; eauto.
 Qed.*)
 
+Lemma precise_emp : precise emp.
+Proof.
+  apply precise_emp.
+Qed.
+
 Lemma precise_FF : precise FF.
 Proof.
   repeat intro; contradiction.
 Qed.
 
-Lemma mapsto_undef_precise : forall sh t p (Hsh : readable_share sh),
-  precise (mapsto sh t p Vundef).
+Hint Resolve precise_emp precise_FF.
+
+Lemma mapsto_precise : forall sh t p v, precise (mapsto sh t p v).
 Proof.
   intros; unfold mapsto.
-  destruct (access_mode t); try apply precise_FF.
-  destruct (type_is_volatile t); try apply precise_FF.
-  destruct p; try apply precise_FF.
-  destruct (readable_share_dec _); [|contradiction].
-  pose proof (tc_val_Vundef t).
-  intros ??? [(? & _) | (_ & HP1)] [(? & _) | (_ & HP2)]; normalize.
-  eapply ex_address_mapsto_precise; eauto.
+  destruct (access_mode t); auto.
+  destruct (type_is_volatile t); auto.
+  destruct p; auto.
+  destruct (readable_share_dec sh).
+  - eapply derives_precise, ex_address_mapsto_precise; intros ? [(? & ?) | (? & ? & ?)]; eexists; eauto.
+  - apply precise_andp2, res_predicates.nonlock_permission_bytes_precise.
 Qed.
+Hint Resolve mapsto_precise.
+
+Corollary memory_block_precise : forall sh n v, precise (memory_block sh n v).
+Proof.
+  destruct v; auto; apply precise_andp2.
+  forget (Int.unsigned i) as o; forget (nat_of_Z n) as z; revert o; induction z; intro; simpl.
+  - apply precise_emp.
+  - apply precise_sepcon; auto.
+    apply mapsto_precise.
+Qed.
+Hint Resolve memory_block_precise.
+
+Corollary data_at__precise : forall {cs : compspecs} sh t p, precise (data_at_ sh t p).
+Proof.
+  intros; rewrite data_at__memory_block; apply precise_andp2; auto.
+Qed.
+Hint Resolve data_at__precise.
+
+Corollary data_at_precise : forall {cs : compspecs} sh t v p, precise (data_at sh t v p).
+Proof.
+  intros; eapply derives_precise, data_at__precise; apply data_at_data_at_.
+Qed.
+Hint Resolve data_at_precise.
 
 Lemma mapsto_inj : forall sh t v1 v2 p r1 r2 r
   (Hsh : readable_share sh)
@@ -346,40 +374,11 @@ Proof.
   - subst; eapply res_predicates.address_mapsto_value_cohere'; eauto.
 Qed.
 
-Corollary mapsto_precise : forall sh t v p (Hsh : readable_share sh),
-  precise (mapsto sh t p v).
-Proof.
-  intros.
-  destruct (eq_dec v Vundef).
-  - subst; apply mapsto_undef_precise; auto.
-  - repeat intro; eapply mapsto_inj; eauto.
-Qed.
-
-Corollary data_at__precise : forall {cs} sh t p (Hsh : readable_share sh)
-  (Hval : type_is_by_value t = true) (Hvol : type_is_volatile t = false),
-  precise (@data_at_ cs sh t p).
-Proof.
-  intros; unfold data_at_, field_at_, field_at, at_offset; rewrite by_value_data_at_rec_nonvolatile; auto;
-    simpl.
-  rewrite repinject_default_val.
-  apply precise_andp2, mapsto_undef_precise; auto.
-Qed.
-
-Corollary data_at_precise : forall {cs} sh t v p (Hsh : readable_share sh)
-  (Hval : type_is_by_value t = true) (Hvol : type_is_volatile t = false),
-  precise (@data_at cs sh t v p).
-Proof.
-  intros; eapply derives_precise, data_at__precise; eauto.
-  apply data_at_data_at_.
-Qed.
-
 Lemma cond_var_precise : forall {cs} sh p, readable_share sh ->
   precise (@cond_var cs sh p).
 Proof.
   intros; apply data_at__precise; auto.
 Qed.
-
-
 
 Lemma cond_var_positive : forall {cs} sh p, readable_share sh ->
   positive_mpred (@cond_var cs sh p).
@@ -865,35 +864,14 @@ Proof.
   destruct a; rewrite IHl; auto.
 Qed.
 
-Lemma precise_emp : precise emp.
-Proof.
-  apply precise_emp.
-Qed.
-
-Hint Resolve precise_emp lock_inv_precise lock_inv_positive selflock_precise selflock_positive
-  cond_var_precise cond_var_positive precise_FF positive_FF mapsto_precise mapsto_positive
+Hint Resolve lock_inv_precise lock_inv_positive selflock_precise selflock_positive
+  cond_var_precise cond_var_positive positive_FF mapsto_precise mapsto_positive
   data_at_precise data_at_positive data_at__precise data_at__positive.
 
 Lemma precise_fold_right : forall l, Forall precise l -> precise (fold_right sepcon emp l).
 Proof.
   induction l; simpl; auto; intros.
   inv H; apply precise_sepcon; auto.
-Qed.
-
-Lemma malloc_field_compatible : forall {cs : compspecs} t p,
-  legal_alignas_type t = true ->
-  legal_cosu_type t = true ->
-  complete_type cenv_cs t = true ->
-  sizeof t < Int.modulus ->
-  (alignof t | natural_alignment)%Z ->
-  malloc_compatible (sizeof t) p -> field_compatible t [] p.
-Proof.
-  unfold malloc_compatible, field_compatible; intros.
-  destruct p; try contradiction.
-  match goal with H : _ /\ _ |- _ => destruct H end.
-  repeat split; auto; simpl.
-  - apply Z.lt_le_incl; auto.
-  - etransitivity; eauto.
 Qed.
 
 Lemma mods_repr : forall a b, 0 <= a <= Int.max_signed -> 0 < b <= Int.max_signed ->

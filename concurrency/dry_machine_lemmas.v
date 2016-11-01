@@ -1659,6 +1659,65 @@ Module StepLemmas (SEM : Semantics)
     assumption.
   Qed.
 
+  Lemma fstep_containsThread :
+    forall the_ge tp tp' m m' i j U tr tr'
+      (cntj: containsThread tp j)
+      (Hstep: FineConc.MachStep the_ge (i :: U, tr, tp) m (U, tr', tp') m'),
+      containsThread tp' j.
+  Proof.
+    intros.
+    inversion Hstep; subst; try inversion Htstep;
+      simpl in *; try inversion HschedN;
+        subst; auto;
+          repeat match goal with
+                 | [ |- containsThread (updThreadC _ _) _] =>
+                   apply cntUpdateC; auto
+                 | [ |- containsThread (updThread _ _ _) _] =>
+                   apply cntUpdate; auto
+                 | [ |- containsThread (updThreadR _ _) _] =>
+                   apply cntUpdateR; auto
+                 | [ |- containsThread (addThread _ _ _ _) _] =>
+                   apply cntAdd; auto
+                 end.
+  Qed.
+
+  Lemma gsoThreadR_fstep:
+    forall the_ge tp tp' m m' i j U tr tr'
+      (Hneq: i <> j)
+      (pfi: containsThread tp i)
+      (pfj: containsThread tp j)
+      (pfj': containsThread tp' j)
+      (Hstep: FineConc.MachStep the_ge (i :: U,tr, tp) m (U,tr', tp') m'),
+      getThreadR pfj = getThreadR pfj'.
+  Proof.
+    intros.
+    inversion Hstep; simpl in *; subst;
+      try (inversion Htstep); subst; inversion HschedN; subst; pf_cleanup;
+        try (by rewrite <- gThreadCR with (cntj' := pfj'));
+        try (rewrite gLockSetRes);
+        try (rewrite @gsoThreadRes); eauto.
+    rewrite gsoAddRes gsoThreadRes; auto.
+    rewrite gRemLockSetRes gsoThreadRes; auto.
+  Qed.
+
+  Lemma permission_at_fstep:
+    forall the_ge tp tp' m m' i j U tr tr'
+      (Hneq: i <> j)
+      (pfi: containsThread tp i)
+      (pfj: containsThread tp j)
+      (pfj': containsThread tp' j)
+      (Hcomp: mem_compatible tp m)
+      (Hcomp': mem_compatible tp' m')
+      (Hstep: FineConc.MachStep the_ge (i :: U, tr, tp) m (U,tr',tp') m') b ofs,
+      permission_at (restrPermMap (Hcomp _ pfj).1) b ofs Cur =
+      permission_at (restrPermMap (Hcomp' _ pfj').1) b ofs Cur.
+  Proof.
+    intros.
+    do 2 rewrite restrPermMap_Cur;
+      erewrite gsoThreadR_fstep;
+        by eauto.
+  Qed.
+
   Lemma diluteMem_valid :
     forall b m,
       Mem.valid_block m b <-> Mem.valid_block (diluteMem m) b.
@@ -3132,28 +3191,6 @@ Module StepType (SEM : Semantics)
       
   (** Proofs about [fmachine_step]*)
   Notation fmachine_step := ((corestep fine_semantics) ge).
-  
-  Lemma fstep_containsThread :
-    forall tp tp' m m' i j U tr tr'
-      (cntj: containsThread tp j)
-      (Hstep: fmachine_step (i :: U, tr, tp) m (U, tr', tp') m'),
-      containsThread tp' j.
-  Proof.
-    intros.
-    inversion Hstep; subst; try inversion Htstep;
-    simpl in *; try inversion HschedN;
-    subst; auto;
-    repeat match goal with
-           | [ |- containsThread (updThreadC _ _) _] =>
-             apply cntUpdateC; auto
-           | [ |- containsThread (updThread _ _ _) _] =>
-             apply cntUpdate; auto
-           | [ |- containsThread (updThreadR _ _) _] =>
-             apply cntUpdateR; auto
-           | [ |- containsThread (addThread _ _ _ _) _] =>
-             apply cntAdd; auto
-           end.
-  Qed.
 
   Lemma fstep_containsThread' :
     forall tp tp' m m' i j U tr tr'
@@ -3200,42 +3237,6 @@ Module StepType (SEM : Semantics)
     eapply corestep_compatible;
       by (simpl; eauto).
     (* this holds trivially, we don't need to use corestep_compatible*)
-  Qed.
-
-  Lemma gsoThreadR_fstep:
-    forall tp tp' m m' i j U tr tr'
-      (Hneq: i <> j)
-      (pfi: containsThread tp i)
-      (pfj: containsThread tp j)
-      (pfj': containsThread tp' j)
-      (Hinternal: pfi @ I)
-      (Hstep: fmachine_step (i :: U,tr, tp) m (U,tr', tp') m'),
-      getThreadR pfj = getThreadR pfj'.
-  Proof.
-    intros.
-    absurd_internal Hstep;
-      try (by rewrite <- gThreadCR with (cntj' := pfj'));
-      erewrite <- @gsoThreadRes with (cntj' := pfj');
-        by eauto.
-  Qed.
-
-  Lemma permission_at_fstep:
-    forall tp tp' m m' i j U tr tr'
-      (Hneq: i <> j)
-      (pfi: containsThread tp i)
-      (pfj: containsThread tp j)
-      (pfj': containsThread tp' j)
-      (Hcomp: mem_compatible tp m)
-      (Hcomp': mem_compatible tp' m')
-      (Hinv: pfi @ I)
-      (Hstep: fmachine_step (i :: U, tr, tp) m (U,tr',tp') m') b ofs,
-      permission_at (restrPermMap (Hcomp _ pfj).1) b ofs Cur =
-      permission_at (restrPermMap (Hcomp' _ pfj').1) b ofs Cur.
-  Proof.
-    intros.
-    do 2 rewrite restrPermMap_Cur;
-      erewrite gsoThreadR_fstep;
-        by eauto.
   Qed.
 
   Lemma gsoThreadC_fstepI:
@@ -3310,9 +3311,9 @@ Module StepType (SEM : Semantics)
   Qed.
 
   Lemma fstep_valid_block:
-    forall the_ge tpf tpf' mf mf' i U b tr tr'
+    forall tpf tpf' mf mf' i U b tr tr'
       (Hvalid: Mem.valid_block mf b)
-      (Hstep: FineConc.MachStep the_ge (i :: U, tr, tpf) mf (U, tr',tpf') mf'),
+      (Hstep: fmachine_step (i :: U, tr, tpf) mf (U, tr',tpf') mf'),
       Mem.valid_block mf' b.
   Proof.
     intros.

@@ -63,6 +63,8 @@ Hint Resolve malloc_token_valid_pointer : valid_pointer.
 Parameter malloc_token_local_facts:
   forall sh n p, malloc_token sh n p |-- !! malloc_compatible n p.
 Hint Resolve malloc_token_local_facts : saturate_local.
+Parameter malloc_token_precise:
+  forall sh n p, predicates_sl.precise (malloc_token sh n p).
 
 Definition malloc_spec' :=
    WITH n:Z

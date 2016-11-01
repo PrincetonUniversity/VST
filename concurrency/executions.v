@@ -21,16 +21,19 @@ Require Import concurrency.threads_lemmas.
 Require Import concurrency.permissions.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.dry_context.
+Require Import concurrency.dry_machine_lemmas.
 Require Import Coqlib.
 Require Import msl.Coqlib2.
 
 Set Bullet Behavior "None".
 Set Bullet Behavior "Strict Subproofs".
 
-Module Executions (SEM: Semantics)
+Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
        (Machines: MachinesSig with Module SEM := SEM)
        (AsmContext: AsmContext SEM Machines).
-  Import Machines DryMachine ThreadPool AsmContext.
+  Module StepLemmas := StepLemmas SEM Machines.
+  Module StepType := StepType SEM SemAxioms Machines AsmContext.
+  Import Machines DryMachine StepLemmas StepType ThreadPool AsmContext.
   Import event_semantics.
   Import Events.
 
@@ -126,37 +129,42 @@ Module Executions (SEM: Semantics)
   Qed.
 
   Lemma fstep_event_sched:
-    forall U tr tp m U' ev tp' m'
+    forall U tr tp m U' ev tr_pre tr_post tp' m'
       (Hstep: FineConc.MachStep the_ge (U, tr, tp) m
-                                (U', tr ++ [:: ev], tp') m'),
+                                (U', tr ++ tr_pre ++ [:: ev] ++ tr_post, tp') m'),
       U = (thread_id ev) :: U'.
   Proof.
     intros.
     inv Hstep; simpl in *;
-      try (apply app_eq_nil in H4; discriminate);
-      subst;
-      unfold dry_machine.Concur.mySchedule.schedPeek in HschedN;
-      unfold dry_machine.Concur.mySchedule.schedSkip;
-      destruct U; simpl in *; try discriminate;
-        inv HschedN.
-    apply app_inv_head in H5;
-      destruct ev0; simpl in *; try discriminate.
-    destruct ev0; simpl in *; try discriminate.
-    inv H5. reflexivity.
+    try (apply app_eq_nil in H4; exfalso;
+         eapply app_cons_not_nil; by eauto);
     apply app_inv_head in H5.
-    inv H5. reflexivity.
+    inv Htstep.
+    pose proof (in_map_iff ([eta internal tid]) ev0 ev) as HIn.
+    rewrite H5 in HIn.
+    erewrite in_app in HIn.
+    destruct (HIn.1 ltac:(right; simpl; eauto)) as [? [? ?]].
+    subst.
+    simpl.
+    destruct U; simpl in HschedN; inv HschedN.
+    reflexivity.
+    destruct tr_pre; [| destruct tr_pre];
+      simpl in H5; inv H5.
+    destruct U; simpl in HschedN; inv HschedN.
+    reflexivity.
   Qed.
 
   Lemma fstep_ev_contains:
-    forall U tr tp m U' ev tp' m'
+    forall U tr tp m U' ev tr_pre tr_post tp' m'
       (Hstep: FineConc.MachStep the_ge (U, tr, tp) m
-                                (U', tr ++ [:: ev], tp') m'),
+                                (U', tr ++ tr_pre ++ [:: ev] ++ tr_post, tp') m'),
       containsThread tp (thread_id ev) /\ containsThread tp' (thread_id ev).
   Proof.
     intros.
-    pose proof (fstep_event_sched _ Hstep) as Heq.
+    pose proof (fstep_event_sched _ _ _ Hstep) as Heq.
     inv Hstep; simpl in *;
-      try (apply app_eq_nil in H4; discriminate);
+      try (apply app_eq_nil in H4; exfalso;
+           eapply app_cons_not_nil; by eauto);
       try subst.
     inv HschedN.
     inv Htstep;
@@ -166,6 +174,81 @@ Module Executions (SEM: Semantics)
     apply cntAdd.
     apply cntUpdate.
     assumption.
+  Qed.
+
+  Lemma fstep_event_tid:
+    forall U tr tp m U' tr' tp' m'
+      (Hstep: FineConc.MachStep the_ge (U, tr, tp) m
+                                (U', tr ++ tr', tp') m'),
+    forall ev ev', List.In ev tr' ->
+              List.In ev' tr' ->
+              thread_id ev = thread_id ev'.
+  Proof.
+    intros.
+    inv Hstep; simpl in *;
+      try (apply app_eq_nil in H6; subst);
+      simpl in H, H0;
+      try (by exfalso);
+      apply app_inv_head in H7; subst.
+    eapply in_map_iff in H.
+    destruct H as (? & ? & ?).
+    eapply in_map_iff in H0.
+    destruct H0 as (? & ? & ?); subst.
+    reflexivity.
+    simpl in H, H0; destruct H, H0; try (by exfalso);
+      subst; reflexivity.
+  Qed.
+
+  Lemma multi_fstep_mem_compatible :
+    forall U tr tp m U' tr' tp' m'
+      (Hexec: multi_fstep (U, tr, tp) m (U', tr', tp') m'),
+      mem_compatible tp m \/ tp = tp' /\ m = m' /\ U = U' /\ tr = tr'.
+  Proof.
+    intros.
+    inversion Hexec; subst.
+    right; auto.
+    eapply fstep_mem_compatible in H7.
+    left; auto.
+  Qed.
+
+  Lemma multi_fstep_invariant :
+    forall U tr tp m U' tr' tp' m'
+      (Hexec: multi_fstep (U, tr, tp) m (U', tr', tp') m'),
+      invariant tp \/ tp = tp' /\ m = m' /\ U = U' /\ tr = tr'.
+  Proof.
+    intros.
+    inversion Hexec; subst.
+    right; auto.
+    eapply fstep_invariant in H7.
+    left; auto.
+  Qed.
+
+  Lemma multi_fstep_containsThread :
+    forall U tp tr m U' tp' tr' m' i
+      (Hexec: multi_fstep (U, tr, tp) m (U', tr', tp') m'),
+      containsThread tp i -> containsThread tp' i.
+  Proof.
+    intros U.
+    induction U. intros.
+    inversion Hexec; subst; simpl in *; auto; try discriminate.
+    intros.
+    inversion Hexec; subst; eauto.
+    eapply fstep_containsThread with (j := i) in H9;
+      now eauto.
+  Qed.
+
+
+  Lemma multi_fstep_valid_block:
+    forall U tr tp m U' tr' tp' m' b
+      (Hexec: multi_fstep (U, tr, tp) m (U', tr', tp') m')
+      (Hvalid: Mem.valid_block m b),
+      Mem.valid_block m' b.
+  Proof.
+    intros.
+    induction Hexec.
+    assumption.
+    eapply IHHexec.
+    eapply fstep_valid_block; eauto.
   Qed.
   
   Lemma fstep_trace_monotone:

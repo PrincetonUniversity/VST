@@ -721,7 +721,7 @@ let wit := fresh "wit" in
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
- | subst wit; cbv beta iota; 
+ | subst wit; cbv beta iota zeta; 
     repeat rewrite exp_uncurry;
     try rewrite no_post_exists0; 
     first [reflexivity | extensionality; simpl; reflexivity]

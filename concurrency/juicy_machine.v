@@ -984,6 +984,17 @@ Admitted.
       - destruct (age1_YES' x y loc rsh sh k A) as [[p' ->] _]; eauto.
       - destruct (age1_PURE x y loc k A) as [[p' ->] _]; eauto.
     Qed.
+
+    Lemma perm_of_age_lock rm age loc :
+      perm_of_res_lock (age_to age rm @ loc) = perm_of_res_lock (rm @ loc).
+    Proof.
+      apply age_to_ind; [ | reflexivity].
+      intros x y A <- .
+      destruct (x @ loc) as [sh | rsh sh k p | k p] eqn:E.
+      - destruct (age1_NO x y loc sh A) as [[]_]; eauto.
+      - destruct (age1_YES' x y loc rsh sh k A) as [[p' ->] _]; eauto.
+      - destruct (age1_PURE x y loc k A) as [[p' ->] _]; eauto.
+    Qed.
     
     Lemma almost_empty_perm: forall rm,
         almost_empty rm ->
@@ -1505,6 +1516,25 @@ Admitted.
     
     Module JuicyMachineLemmas.
 
+
+      Lemma compat_lockLT': forall js m,
+        mem_compatible js m ->
+        forall l r,
+          ThreadPool.lockRes js l = Some (Some r) ->
+          forall b ofs,
+            Mem.perm_order'' ((getMaxPerm m) !! b ofs) (perm_of_res' (r @ (b, ofs))).
+      Proof.
+        intros. destruct H as [allj H].
+        inversion H.
+        cut (Mem.perm_order'' (perm_of_res' (allj @ (b,ofs))) (perm_of_res' (r @ (b, ofs)))).
+      {intros AA. eapply po_trans; eauto.
+       inversion all_cohere0.
+       rewrite getMaxPerm_correct.
+       specialize (max_coh0 (b,ofs)).
+       eapply max_coh0. }
+      { apply po_join_sub'.
+        apply resource_at_join_sub. eapply compatible_lockRes_sub; eauto. }
+      Qed.
       
 
       Lemma compat_lockLT: forall js m,
