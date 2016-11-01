@@ -23,13 +23,16 @@ Require Import veric.Clightnew_coop.
 Require Import sepcomp.event_semantics.
 Require Import concurrency.ClightSemantincsForMachines.
 
-Module THE_DRY_MACHINE_SOURCE.
+Module THE_DRY_MACHINE_SOURCE <: MachinesSig.
   Module SCH:= ListScheduler NatTID.            
   Module SEM:= ClightSEM.
   Import SCH SEM.
 
   Module DSEM := DryMachineShell SEM.
+  Module ESEM := ErasedMachineShell SEM.
   Module DryMachine <: ConcurrentMachine:= CoarseMachine SCH DSEM.
+  Module FineMachine := FineMachine SCH DSEM.
+  Module SC := FineMachine SCH ESEM.
   Notation DMachineSem:= DryMachine.MachineSemantics. 
   Notation new_DMachineSem:= DryMachine.new_MachineSemantics. 
   Notation dstate:= DryMachine.SIG.ThreadPool.t.

@@ -17,7 +17,6 @@ Module Type MachinesSig.
   Module ErasedMachine := ErasedMachineShell SEM.
 
   Module DryConc := CoarseMachine mySchedule DryMachine.
-  (** FineConc machine instantiated for low-level language*)
   Module FineConc := FineMachine mySchedule DryMachine.
   (** SC machine*)
   Module SC := FineMachine mySchedule ErasedMachine.

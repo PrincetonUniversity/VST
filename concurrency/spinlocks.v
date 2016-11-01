@@ -2250,6 +2250,10 @@ Module SpinLocks (SEM: Semantics)
               rewrite! app_assoc.
               now eauto.
               destruct Hspec_v as [Hactionv | [[Hactionv [Hthreadv Hloc_v]] | [Hactionv Hthreadv]]].
+              - (** Case permissions were increased by a [Spawn] event*)
+                left.
+                rewrite! app_assoc.
+                
               
 
 
