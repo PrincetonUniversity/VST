@@ -146,11 +146,13 @@ CONCUR_FILES= \
   permjoin.v \
   resource_decay_join.v join_lemmas.v coqlib5.v age_to.v \
   konig.v safety.v \
-  reach_lemmas.v \
-	reestablish.v ret_lemmas.v \
-	lifting.v lifting_safety.v linking_inv.v linking_spec.v call_lemmas.v  \
+	reestablish.v \
+	lifting.v lifting_safety.v \
+linking_spec.v	\
   machine_semantics.v machine_semantics_lemmas.v machine_simulation.v \
   coinductive_safety.v
+
+#  reach_lemmas.v linking_inv.v  call_lemmas.v ret_lemmas.v \
 
 PACO_FILES= \
   hpattern.v\
