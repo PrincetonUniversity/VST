@@ -832,7 +832,9 @@ Module SpinLocks (SEM: Semantics)
          exists rmap, match location ev with
                  | Some (laddr, _) =>
                    lockRes tp' laddr = Some rmap /\
-                   (getThreadR cnt).1 !! b ofs = rmap.1 !! b ofs 
+                   (Mem.perm_order'' ((getThreadR cnt).1 !! b ofs) (Some Readable) ->
+                     ~ Mem.perm_order'' ((getThreadR cnt').1 !! b ofs) (Some Readable) ->
+                     Mem.perm_order'' (rmap.1 !! b ofs) (Some Readable))
                  | None => False
                  end).
     Proof.
@@ -987,19 +989,20 @@ Module SpinLocks (SEM: Semantics)
         destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
         + pf_cleanup.
           eexists.
-          do 3 right. repeat (split; simpl; eauto).
+          do 3 right. repeat (split; eauto).
           exists virtueLP; split.
           rewrite gssLockRes. reflexivity.
+          intros Hperm1 Hperm2.
+          rewrite gLockSetRes gssThreadRes in Hperm2.
           specialize (Hangel1 b ofs).
-        do 3 right; repeat (split; simpl; eauto).
-        destruct (tid == tidn) eqn:Heq;
-          move/eqP:Heq=>Heq;
-                         subst;
-                         first by reflexivity.
-        exfalso.
-        rewrite gLockSetRes gsoThreadRes in Hperm';
-          now eauto.
-
+          apply permjoin_readable_iff in Hangel1.
+          rewrite! po_oo in Hangel1.
+          destruct (Hangel1.1 Hperm1);
+            first by (simpl in *; by exfalso).
+          assumption.
+        + exfalso.
+          rewrite gLockSetRes gsoThreadRes in Hperm';
+            now eauto.
       - (** thread spawn*)
         destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
         + pf_cleanup.
@@ -1104,12 +1107,12 @@ Module SpinLocks (SEM: Semantics)
             (tru = [:: evu] /\ action evu = Release /\ thread_id evu = tidn /\
              (** and this is the ''first'' release to drop the permissions of [(b,ofs)]*)
              (forall (cntu: containsThread tp_pre tidn),
-                 Mem.perm_order'' ((getThreadR cntu).1 !! b ofs)
-                                  ((getThreadR cnti).1 !! b ofs) /\
                  exists rmap, match location evu with
                          | Some (laddr, _) =>
-                           lockRes tp_dec laddr = Some rmap /\
-                           (getThreadR cntu).1 !! b ofs
+                           lockRes tp_dec laddr = Some rmap /\ 
+                           (Mem.perm_order'' ((getThreadR cnti).1 !! b ofs) (Some Readable) ->
+                            ~ Mem.perm_order'' ((getThreadR cntj).1 !! b ofs) (Some Readable) ->
+                            Mem.perm_order'' (rmap.1 !! b ofs) (Some Readable))
                          | None => False
                          end))).
     Proof.
