@@ -59,7 +59,6 @@ Require Import concurrency.semax_preservation_jspec.
 Require Import concurrency.semax_preservation_local.
 Require Import concurrency.semax_preservation_acquire.
 Require Import concurrency.semax_preservation_release.
-Require Import concurrency.semax_preservation_makelock.
 Require Import concurrency.semax_preservation_freelock.
 Require Import concurrency.semax_preservation_spawn.
 
@@ -1035,12 +1034,13 @@ Section Preservation.
   Admitted.
   
   Theorem preservation Gamma n state state' :
+    ~ blocked_at_external state MKLOCK ->
     state_step state state' ->
     state_invariant Jspec' Gamma (S n) state ->
     state_invariant Jspec' Gamma n state' \/
     state_invariant Jspec' Gamma (S n) state'.
   Proof.
-    intros STEP.
+    intros not_makelock STEP.
     inversion STEP as [ | ge m m' sch sch' tp tp' jmstep E E']. now auto.
     (* apply state_invariant_S *)
     subst state state'; clear STEP.
@@ -1340,7 +1340,7 @@ Section Preservation.
             try congruence; try subst;
             try solve [jmstep_inv; getThread_inv; congruence ] ].
       subst.
-      
+
       simpl SCH.schedSkip in *.
       clear HschedN.
       left (* TO BE CHANGED *).
@@ -1380,7 +1380,13 @@ Section Preservation.
       
       - (* the case of makelock *)
         simpl (m_phi _) in *.
-        eapply preservation_makelock with (Phi := Phi); eauto.
+        (* disregarding the case of makelock by hypothesis *)
+        exfalso; apply not_makelock.
+        repeat eexists; eauto.
+        rewrite <- Hat_external.
+        unfold SEM.Sem.
+        rewrite SEM.CLN_msem.
+        reflexivity.
       
       - (* the case of freelock *)
         simpl (m_phi _) in *.
@@ -1509,4 +1515,5 @@ Section Preservation.
       eapply preservation_Kinit; eauto.
     }
   Qed.
+  
 End Preservation.

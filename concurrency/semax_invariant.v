@@ -436,6 +436,15 @@ Proof.
   eauto.
 Qed.
 
+Definition blocked_at_external (state : cm_state) (ef : external_function) :=
+  match state with
+    (m, ge, (sch, tp)) =>
+    exists j cntj sch' c args,
+      sch = j :: sch' /\
+      @getThreadC j tp cntj = Kblocked c /\
+      cl_at_external c = Some (ef, args)
+  end.
+
 Ltac absurd_ext_link_naming :=
   exfalso;
   match goal with
@@ -460,8 +469,6 @@ Ltac funspec_destruct s :=
   let Heq_name := fresh "Heq_name" in
   destruct (oi_eq_dec (Some (_ s, _)) (ef_id_sig _ (EF_external _ _)))
     as [Heq_name | Heq_name]; try absurd_ext_link_naming.
-
-
 
 (* if a hypothesis if of the form forall a1 a2 a3 a4 ...,
 "forall_bringvar 3" will move a3 as the first variable, i.e. forall a3

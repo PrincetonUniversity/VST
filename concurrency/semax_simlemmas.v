@@ -395,9 +395,24 @@ Proof.
   specialize (M b fs).
 Admitted.
 
+(*
+assert (cnti = Htid) by apply proof_irr; subst Htid).
+assert (ctn = cnti) by apply proof_irr; subst cnt).
+destruct (cntAdd' _ _ _ cnti) as [(cnti', ne) | Ei].
+*)
+
 Tactic Notation "REWR" :=
   first
-    [ unshelve erewrite <-getThreadR_age |
+    [ unshelve erewrite <-gtc_age |
+      unshelve erewrite gLockSetCode |
+      unshelve erewrite gRemLockSetCode |
+      rewrite gssThreadCode |
+      rewrite gssThreadCC |
+      unshelve erewrite gsoThreadCode |
+      unshelve erewrite <-gsoThreadCC |
+      unshelve erewrite gsoAddCode |
+      rewrite gssAddCode |
+      unshelve erewrite <-getThreadR_age |
       unshelve erewrite gssThreadRes |
       unshelve erewrite gsoThreadRes |
       unshelve erewrite gThreadCR |
@@ -411,7 +426,16 @@ Tactic Notation "REWR" :=
 
 Tactic Notation "REWR" "in" hyp(H) :=
   first
-    [ unshelve erewrite <-getThreadR_age in H |
+    [ unshelve erewrite <-gtc_age in H |
+      unshelve erewrite gLockSetCode in H |
+      unshelve erewrite gRemLockSetCode in H |
+      rewrite gssThreadCode in H |
+      rewrite gssThreadCC in H |
+      unshelve erewrite gsoThreadCode in H |
+      unshelve erewrite <-gsoThreadCC in H |
+      unshelve erewrite gsoAddCode in H |
+      rewrite gssAddCode in H |
+      unshelve erewrite <-getThreadR_age in H |
       unshelve erewrite gssThreadRes in H |
       unshelve erewrite gsoThreadRes in H |
       unshelve erewrite gThreadCR in H |
@@ -425,7 +449,16 @@ Tactic Notation "REWR" "in" hyp(H) :=
 
 Tactic Notation "REWR" "in" "*" :=
   first
-    [ unshelve erewrite <-getThreadR_age in * |
+    [ unshelve erewrite <-gtc_age in * |
+      unshelve erewrite gLockSetCode in * |
+      unshelve erewrite gRemLockSetCode in * |
+      rewrite gssThreadCode in * |
+      rewrite gssThreadCC in * |
+      unshelve erewrite gsoThreadCode in * |
+      unshelve erewrite <-gsoThreadCC in * |
+      unshelve erewrite gsoAddCode in * |
+      rewrite gssAddCode in * |
+      unshelve erewrite <-getThreadR_age in * |
       unshelve erewrite gssThreadRes in * |
       unshelve erewrite gsoThreadRes in * |
       unshelve erewrite gThreadCR in * |

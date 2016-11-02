@@ -767,6 +767,19 @@ Proof.
       Unshelve. all:rewrite <-readable_share_unrel_Rsh; apply writable_readable_share; auto.
 Qed.
 
+Lemma rmap_makelock_unique phi phi1 phi2 loc R len :
+  rmap_makelock phi phi1 loc R len ->
+  rmap_makelock phi phi2 loc R len ->
+  phi1 = phi2.
+Proof.
+  intros (L1 & out1 & in1) (L2 & out2 & in2).
+  apply rmap_ext. congruence.
+  intros x.
+  destruct (adr_range_dec loc len x) as [r | nr].
+  - spec in1 x r. spec in2 x r. if_tac in in1; breakhyps.
+  - spec out1 x nr. spec out2 x nr. congruence.
+Qed.
+
 Require Import veric.juicy_mem.
 
 Definition noyes phi := forall x sh rsh k pp, phi @ x <> YES sh rsh k pp.
@@ -842,7 +855,11 @@ Lemma mapsto_getYES sh t v v' phi :
   app_pred (mapsto Share.Rsh t v v') (getYES phi).
 Proof.
   intros Hw At. pose proof writable_readable_share Hw as Hr.
-  assert (Hr' : readable_share Share.Rsh) by admit.
+  assert (Hw' : writable_share Share.Rsh). {
+    apply writable_Rsh || admit (* TODO remove (proved in shares.v) *).
+  }
+  assert (Hr' : readable_share Share.Rsh)
+    by (apply writable_readable_share; auto).
   cut
     (forall m v loc,
         (address_mapsto m v (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) loc) phi ->
@@ -866,13 +883,14 @@ Proof.
     destruct (phi @ x); try congruence.
     injection M as -> -> -> ->.
     assert (p' : nonunit (Share.unrel Share.Rsh Share.Rsh)). {
-      admit. (* ask *)
+      rewrite writable_share_right; auto.
+      apply top_share_nonunit.
     }
     exists p'; f_equal.
     + admit (* ask andrew *).
     + pose proof writable_share_right Hw as R.
       assert (R': Share.unrel Share.Rsh Share.Rsh = Share.top).
-      { admit. (* ask andrew *) }
+      { apply writable_share_right. auto. }
       revert p p' R R'.
       generalize (Share.unrel Share.Rsh sh).
       generalize (Share.unrel Share.Rsh Share.Rsh).

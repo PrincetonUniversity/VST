@@ -20,11 +20,11 @@ Require Import veric.Clight_new.
 Require Import veric.Clightnew_coop.
 Require Import veric.semax.
 Require Import veric.semax_ext.
+Require Import veric.semax_lemmas.
 Require Import veric.juicy_extspec.
 Require Import veric.initial_world.
 Require Import veric.juicy_extspec.
 Require Import veric.tycontext.
-Require Import veric.semax_ext.
 Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
 Require Import floyd.coqlib3.
@@ -53,6 +53,7 @@ Require Import concurrency.sync_preds.
 Require Import concurrency.semax_invariant.
 Require Import concurrency.semax_initial.
 Require Import concurrency.semax_progress.
+Require Import concurrency.semax_preservation_makelock.
 Require Import concurrency.semax_preservation.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -137,16 +138,18 @@ Proof.
   
   all: try congruence.
   all: eauto.
-  hnf in Hhalted.
+  
   inversion Hhalted.
-  admit (* it is halted, but it is still running . This violates the invariant. *).
+  unfold SEM.Sem in *.
+  rewrite SEM.CLN_msem in Hcant.
+  simpl in Hcant.
+  inversion Hcant.
   
   intros E.
   hnf in uniq.
   autospec uniq.
-
   spec uniq j cnti q E. breakhyps.
-Admitted.
+Qed.
 
 (*+ Final instantiation *)
 
@@ -191,7 +194,26 @@ Section Safety.
     apply no_Krun_unique_Krun, nokrun.
   Qed.
   
-  Lemma state_invariant_step Gamma n state :
+  Lemma blocked_at_external_dec state ef : {blocked_at_external state ef} + {~blocked_at_external state ef}.
+  Proof.
+    Local Ltac t := solve [right; intros []; intros; breakhyps].
+    Ltac t' i cnti :=
+      right; intros [i']; intros [cnti']; intros ?; breakhyps;
+      try (assert (i' = i) by congruence; subst i');
+      try (assert (cnti' = cnti) by apply proof_irr; subst cnti');
+      breakhyps.
+    
+    destruct state as ((m, ge) & [ | i sch] & tp). now t.
+    simpl.
+    destruct (containsThread_dec i tp) as [cnti | ncnti]. 2: now t.
+    destruct (@getThreadC i tp cnti) as [c | c | c v | v v0] eqn:Ei; try solve [t' i cnti]; [].
+    destruct (cl_at_external c) as [(ef', args) | ] eqn:Eo. 2: now t' i cnti.
+    destruct (eq_dec ef ef'). subst ef'. 2: now t' i cnti.
+    (* destruct (EqDec_external_function ef ef'). subst ef'. 2: now t' i cnti. *)
+    now left; repeat eexists; eauto.
+  Qed.
+
+  Lemma safety_induction Gamma n state :
     state_invariant Jspec' Gamma (S n) state ->
     exists state',
       state_step state state' /\
@@ -199,27 +221,11 @@ Section Safety.
        state_invariant Jspec' Gamma (S n) state').
   Proof.
     intros inv.
-    destruct (progress CS ext_link ext_link_inj _ _ _ inv) as (state', step).
-    exists state'; split; [ now apply step | ].
-    eapply preservation; eauto.
-  Qed.
-  
-  Theorem progress_inv Gamma n state :
-    inv Gamma (S n) state -> exists state', state_step state state'.
-  Proof.
-    intros (m & lm & i).
-    replace m with (S (m - 1)) in i by omega.
-    apply (progress CS ext_link ext_link_inj _ _ _ i).
-  Qed.
-  
-  Theorem preservation_inv Gamma n state state' :
-    state_step state state' -> inv Gamma (S n) state -> inv Gamma n state'.
-  Proof.
-    unfold inv; intros s (m & lm & i).
-    replace m with (S (m - 1)) in i by omega.
-    destruct (preservation CS ext_link ext_link_inj _ _ _ _ s i) as [H|H].
-    - exists (m - 1). split. omega. assumption.
-    - exists m. split. omega. exact_eq H; f_equal. omega.
+    destruct (blocked_at_external_dec state MKLOCK) as [ismakelock|isnot].
+    - apply safety_induction_makelock; eauto.
+    - destruct (progress CS ext_link ext_link_inj _ _ _ inv) as (state', step).
+      exists state'; split; [ now apply step | ].
+      eapply preservation; eauto.
   Qed.
   
   Lemma inv_step Gamma n state :
@@ -228,13 +234,16 @@ Section Safety.
       state_step state state' /\
       inv Gamma n state'.
   Proof.
-    intros inv.
-    destruct (progress_inv _ _ _ inv) as (state', step).
+    intros (m & lm & i).
+    replace m with (S (m - 1)) in i by omega.
+    destruct (safety_induction _ _ _ i) as (state' & step & inv').
     exists state'; split; [ now apply step | ].
-    eapply preservation_inv; eauto.
+    hnf. destruct inv'.
+    - exists (m - 1). split. omega. assumption.
+    - exists m. split. omega. exact_eq H; f_equal. omega.
   Qed.
   
-  Lemma invariant_safe_without_preservation Gamma n state :
+  Lemma invariant_safe Gamma n state :
     inv Gamma n state -> jmsafe n state.
   Proof.
     intros INV.
@@ -255,62 +264,6 @@ Section Safety.
         all: eapply schstep_norun; eauto.
         all: destruct INV as (? & lm & INV).
         all: inv INV; auto.
-  Qed.
-  
-  Lemma invariant_safe Gamma n state :
-    inv Gamma n state -> jmsafe n state.
-  Proof.
-    intros INV.
-    pose proof (progress_inv) as Progress.
-    pose proof (preservation_inv) as Preservation.
-    revert state INV.
-    induction n; intros ((m, ge), (sch, tp)) INV.
-    - apply jmsafe_0.
-    - destruct sch.
-      + apply jmsafe_halted.
-      + destruct (Progress _ _ _ INV) as (state', step).
-        pose proof (Preservation _ _ _ _ step INV).
-        inversion step as [ | ge' m0 m' sch' sch'' tp0 tp' jmstep ]; subst; simpl in *.
-        inversion jmstep; subst.
-        * eapply jmsafe_core; eauto.
-        * eapply jmsafe_core; eauto.
-        * eapply jmsafe_core; eauto.
-        * eapply jmsafe_sch; eauto.
-          intros sch'; apply IHn.
-          eapply (step_sch_irr _ _ _ sch') in jmstep.
-          simpl in *.
-          assert (step' : state_step (m', ge, (t0 :: sch', tp)) (m', ge, (sch', tp'))).
-          { constructor; auto. }
-          eapply inv_sch_irr in INV.
-          specialize (Preservation _ _ _ _ step' INV).
-          assumption.
-        * eapply jmsafe_sch; eauto.
-          intros sch'; apply IHn.
-          eapply (step_sch_irr _ _ _ sch') in jmstep.
-          simpl in *.
-          assert (step' : state_step (m, ge, (t0 :: sch', tp)) (m', ge, (sch', tp'))).
-          { constructor; auto. }
-          eapply inv_sch_irr in INV.
-          specialize (Preservation _ _ _ _ step' INV).
-          assumption.
-        * eapply jmsafe_sch; eauto.
-          intros sch'; apply IHn.
-          eapply (step_sch_irr _ _ _ sch') in jmstep.
-          simpl in *.
-          assert (step' : state_step (m', ge, (t0 :: sch', tp')) (m', ge, (sch', tp'))).
-          { constructor; auto. }
-          eapply inv_sch_irr in INV.
-          specialize (Preservation _ _ _ _ step' INV).
-          assumption.
-        * eapply jmsafe_sch; eauto.
-          intros sch'; apply IHn.
-          eapply (step_sch_irr _ _ _ sch') in jmstep.
-          simpl in *.
-          assert (step' : state_step (m', ge, (t0 :: sch', tp')) (m', ge, (sch', tp'))).
-          { constructor; auto. }
-          eapply inv_sch_irr in INV.
-          specialize (Preservation _ _ _ _ step' INV).
-          assumption.
   Qed.
   
   Definition init_mem : { m | Genv.init_mem prog = Some m } := init_m prog init_mem_not_none.
