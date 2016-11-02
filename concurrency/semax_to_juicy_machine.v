@@ -53,6 +53,7 @@ Require Import concurrency.sync_preds.
 Require Import concurrency.semax_invariant.
 Require Import concurrency.semax_initial.
 Require Import concurrency.semax_progress.
+Require Import concurrency.semax_preservation_jspec.
 Require Import concurrency.semax_preservation_makelock.
 Require Import concurrency.semax_preservation.
 
@@ -223,6 +224,12 @@ Section Safety.
     intros inv.
     destruct (blocked_at_external_dec state MKLOCK) as [ismakelock|isnot].
     - apply safety_induction_makelock; eauto.
+      + unfold Jspec'_juicy_mem_equiv_def.
+        apply Jspec'_juicy_mem_equiv.
+      + unfold Jspec'_hered_def.
+        apply Jspec'_hered.
+      + apply mem_cohere'_store.
+      + apply personal_mem_equiv_spec.
     - destruct (progress CS ext_link ext_link_inj _ _ _ inv) as (state', step).
       exists state'; split; [ now apply step | ].
       eapply preservation; eauto.

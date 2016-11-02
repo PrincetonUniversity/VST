@@ -849,6 +849,9 @@ Proof.
   destruct (phi @ _); congruence.
 Qed.
 
+Lemma unrel_lsh_rsh : Share.unrel Share.Lsh Share.Rsh = Share.bot.
+Admitted.
+
 Lemma mapsto_getYES sh t v v' phi :
   writable_share sh ->
   app_pred (mapsto sh t v v') phi ->
@@ -856,7 +859,7 @@ Lemma mapsto_getYES sh t v v' phi :
 Proof.
   intros Hw At. pose proof writable_readable_share Hw as Hr.
   assert (Hw' : writable_share Share.Rsh). {
-    apply writable_Rsh || admit (* TODO remove (proved in shares.v) *).
+    apply writable_Rsh.
   }
   assert (Hr' : readable_share Share.Rsh)
     by (apply writable_readable_share; auto).
@@ -887,7 +890,7 @@ Proof.
       apply top_share_nonunit.
     }
     exists p'; f_equal.
-    + admit (* ask andrew *).
+    + rewrite unrel_lsh_rsh; reflexivity.
     + pose proof writable_share_right Hw as R.
       assert (R': Share.unrel Share.Rsh Share.Rsh = Share.top).
       { apply writable_share_right. auto. }
@@ -901,7 +904,7 @@ Proof.
     destruct M as [-> | (k & pp & ->)].
     + apply NO_identity.
     + apply PURE_identity.
-Admitted.
+Qed.
 
 Lemma memory_block_getYES sh z v phi :
   writable_share sh ->
