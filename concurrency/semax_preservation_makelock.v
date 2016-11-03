@@ -534,7 +534,25 @@ Proof.
     if_tac.
     + split.
       * (* load_at *)
-        admit (* should be fine *).
+        unfold load_at. subst loc.
+        clear -Hstore AT.
+        apply Mem.load_store_same in Hstore.
+        Transparent Mem.load.
+        unfold Mem.load in *. simpl fst in *; simpl snd in *.
+        if_tac [va|nva];swap 1 2.
+        {
+          destruct nva. simpl.
+          apply islock_valid_access. now apply AT. 2:congruence.
+          unfold lockRes.
+          simpl.
+          rewrite AMap_find_map_option_map.
+          rewrite AMap_find_add. if_tac. 2:tauto.
+          simpl; congruence.
+        }
+        rewrite restrPermMap_mem_contents.
+        if_tac in Hstore. 2:discriminate.
+        auto.
+      
       * (* LK_at *)
         subst loc.
         exists (Interp Rx).
