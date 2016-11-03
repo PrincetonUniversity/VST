@@ -1,7 +1,9 @@
-Require Import progs.conclib.
+Require Import progs.conc_queue_specs.
 Require Import progs.verif_conc_queue.
+Require Import progs.conclib.
 Require Import progs.queue_ex.
-Require Import SetoidList.
+Require Import floyd.library.
+Require Import floyd.sublist.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -20,22 +22,26 @@ Definition freecond_spec := DECLARE _freecond (freecond_spec _).
 Definition wait_spec := DECLARE _waitcond (wait2_spec _).
 Definition signal_spec := DECLARE _signalcond (signal_spec _).
 
+Notation f_lock_inv lsh gsh gsh1 gsh2 p' p lock tid t locksp lockt resultsp :=
+  (EX p1 : val, EX p2 : val, EX p3 : val, EX i1 : Z, EX i2 : Z, EX i3 : Z, data_at gsh (tptr tqueue_t) p p' *
+     lqueue lsh tint (tc_val tint) p lock gsh1 gsh2
+       [@QRem tint p1 (vint i1); @QRem tint p2 (vint i2); @QRem tint p3 (vint i3)] *
+     data_at Tsh tint (vint t) tid *
+     field_at Ews (tarray (tptr tlock) 3) [ArraySubsc t] lockt locksp *
+     field_at Ews (tarray (tarray tint 3) 3) [ArraySubsc t] [vint i1; vint i2; vint i3] resultsp).
+
 Definition f_lock_pred lsh gsh tsh gsh1 gsh2 p' p lock tid t locksp lockt resultsp :=
-  selflock (EX v1 : val, EX v2 : val, EX v3 : val, EX h : hist, data_at gsh (tptr tqueue_t) p p' *
-            lqueue lsh tint p lock gsh1 gsh2 h * data_at Tsh tint (vint t) tid *
-            field_at Ews (tarray (tptr tlock) 3) [ArraySubsc t] lockt locksp *
-            field_at Ews (tarray (tarray tint 3) 3) [ArraySubsc t] [v1; v2; v3] resultsp *
-            ghost gsh1 (lsh, [QRem v1; QRem v2; QRem v3]) p])) tsh lockt.
+  selflock (f_lock_inv lsh gsh gsh1 gsh2 p' p lock tid t locksp lockt resultsp) tsh lockt.
 
 Definition f_spec :=
  DECLARE _f
   WITH tid : val, x : share * share * share * share * share * val * val * val * Z * val * val * val
   PRE [ _arg OF (tptr tvoid) ]
-   let '(lsh, gsh, tsh, gsh1, gsh2, p', p, lock, t, locksp, lockt, resultsp, h) := x in
-   PROP ()
+   let '(lsh, gsh, tsh, gsh1, gsh2, p', p, lock, t, locksp, lockt, resultsp) := x in
+   PROP (0 <= t < 3)
    LOCAL (temp _arg tid; gvar _q0 p'; gvar _thread_locks locksp; gvar _results resultsp)
    SEP (!!(readable_share lsh /\ readable_share gsh /\ readable_share tsh /\ sepalg.join gsh1 gsh2 Tsh) && emp;
-        data_at gsh (tptr tqueue_t) p p'; lqueue lsh tint p lock gsh1 gsh2 [];
+        data_at gsh (tptr tqueue_t) p p'; lqueue lsh tint (tc_val tint) p lock gsh1 gsh2 [];
         data_at Tsh tint (vint t) tid;
         field_at Ews (tarray (tptr tlock) 3) [ArraySubsc t] lockt locksp;
         field_at_ Ews (tarray (tarray tint 3) 3) [ArraySubsc t] resultsp;
@@ -48,45 +54,83 @@ Definition main_spec :=
   PRE  [] main_pre prog [] u
   POST [ tint ] main_post prog [] u.
 
-Definition Gprog : funspecs := augment_funspecs prog [acquire_spec; release_spec; release2_spec; makelock_spec;
-  freelock_spec; freelock2_spec; spawn_spec; makecond_spec; freecond_spec; wait_spec; signal_spec;
-  malloc_spec; free_spec;
-  q_new_spec; q_del_spec; q_add_spec; q_remove_spec; f_spec; main_spec].
+Definition Gprog : funspecs := ltac:(with_library prog [acquire_spec; release_spec; release2_spec;
+  makelock_spec; freelock_spec; freelock2_spec; spawn_spec; makecond_spec; freecond_spec; wait_spec; signal_spec;
+  surely_malloc_spec; q_new_spec; q_del_spec; q_add_spec; q_remove_spec; q_tryremove_spec; f_spec; main_spec]).
 
-Lemma f_inv_precise : forall lsh gsh tsh p' p lock lockt ghosts gsh2 (Hlsh : readable_share lsh)
-  (Hgsh : readable_share gsh),
-  precise (Interp (f_lock_pred lsh gsh tsh p' p lock lockt ghosts gsh2)).
+Lemma Gprog_sub : incl verif_conc_queue.Gprog Gprog.
 Proof.
-  intros; simpl.
-  apply selflock_precise; repeat apply precise_sepcon; auto.
-  apply lock_precise; auto.
+  unfold verif_conc_queue.Gprog, Gprog.
+  repeat apply incl_same_head.
+  do 3 apply incl_tl; repeat apply incl_same_head; auto.
 Qed.
 
-Lemma f_inv_positive : forall lsh gsh tsh p' p lock lockt ghosts gsh2,
-  positive_mpred (Interp (f_lock_pred lsh gsh tsh p' p lock lockt ghosts gsh2)).
+Lemma f_inv_precise : forall lsh gsh tsh gsh1 gsh2 p' p lock tid t locksp lockt resultsp,
+  precise (f_lock_pred lsh gsh tsh gsh1 gsh2 p' p lock tid t locksp lockt resultsp).
 Proof.
-  intros; apply selflock_positive.
-  simpl; apply positive_sepcon2, positive_sepcon2, positive_sepcon1, lock_inv_positive.
+  intros; unfold f_lock_pred.
+  apply selflock_precise.
+  apply derives_precise' with (Q := data_at gsh (tptr tqueue_t) p p' *
+    (EX h : hist tint, lqueue lsh tint (tc_val tint) p lock gsh1 gsh2 h) *
+    data_at Tsh tint (vint t) tid * field_at Ews (tarray (tptr tlock) 3) [ArraySubsc t] lockt locksp *
+    field_at_ Ews (tarray (tarray tint 3) 3) [ArraySubsc t] resultsp).
+  - Intros p1 p2 p3 i1 i2 i3; cancel.
+    Exists [@QRem tint p1 (vint i1); @QRem tint p2 (vint i2); @QRem tint p3 (vint i3)]; auto.
+  - repeat apply precise_sepcon; auto.
+Qed.
+
+Lemma f_inv_positive : forall lsh gsh tsh gsh1 gsh2 p' p lock tid t locksp lockt resultsp,
+  positive_mpred (f_lock_pred lsh gsh tsh gsh1 gsh2 p' p lock tid t locksp lockt resultsp).
+Proof.
+  intros; apply selflock_positive; repeat (apply ex_positive; intro).
+  do 2 apply positive_sepcon1; apply positive_sepcon2; auto.
 Qed.
 
 Lemma body_f : semax_body Vprog Gprog f_f f_spec.
 Proof.
   start_function.
-  rewrite (lock_inv_isptr _ lockt); Intros.
-  unfold lqueue; rewrite field_at_isptr; Intros.
+  rewrite (data_at_isptr _ tint); Intros.
+  replace_SEP 3 (data_at Tsh tint (vint t) (force_val (sem_cast_neutral tid))).
+  { rewrite sem_cast_neutral_ptr; auto; go_lowerx; cancel. }
   forward.
-  match goal with |-semax _ ?P _ _ => forward_for_simple_bound 3 (EX i : Z, P) end.
-  { entailer. }
-  { forward_call tt.
-    Intro x; destruct x as ((req, d), t).
-    forward_call (lsh, p, lock, req, d, t, ghosts, gsh2).
-    { unfold lqueue; cancel. }
-    unfold lqueue; entailer!. }
-  forward_call (lockt, tsh, f_lock_pred lsh gsh tsh p' p lock lockt ghosts gsh2).
-  { simpl.
+  rewrite lqueue_isptr; Intros.
+  forward.
+  forward_for_simple_bound 3 (EX i : Z, PROP ()
+    LOCAL (temp _q1 p; temp _t (vint t); temp _arg tid; gvar _q0 p'; gvar _thread_locks locksp;
+           gvar _results resultsp)
+    SEP (data_at gsh (tptr tqueue_t) p p';
+         data_at Tsh tint (vint t) (force_val (sem_cast_neutral tid));
+         field_at Ews (tarray (tptr tlock) 3) [ArraySubsc t] lockt locksp;
+         lock_inv tsh lockt (f_lock_pred lsh gsh tsh gsh1 gsh2 p' p lock tid t locksp lockt resultsp);
+         EX vals : _, !!(Zlength vals = i) &&
+           (lqueue lsh tint (tc_val tint) p lock gsh1 gsh2 (map (fun x => @QRem tint (fst x) (vint (snd x))) vals) *
+            fold_right sepcon emp (map (fun x => data_at Tsh tint (vint (snd x)) (fst x)) vals) *
+            field_at Ews (tarray (tarray tint 3) 3) [ArraySubsc t]
+              (map (fun x => vint (snd x)) vals ++ repeat Vundef (Z.to_nat (3 - i))) resultsp))).
+  { Exists ([] : list (val * Z)); repeat entailer!. }
+  { Intros vals.
+    forward_call (lsh, existT (fun t => ((reptype t -> Prop) * hist t)%type) tint (tc_val tint, map (fun x => @QRem tint (fst x) (vint (snd x))) vals),
+                  p, lock, gsh1, gsh2).
+    { simpl; cancel. }
+    Intros x; destruct x as (p1 & v1).
+    simpl; forward.
+    replace_SEP 1 (memory_block Tsh (sizeof tint) p1).
+    { go_lowerx; cancel.
+      apply data_at_memory_block. }
+    forward_call (p1, sizeof tint).
+    { simpl; cancel.
+      repeat rewrite sepcon_assoc; apply sepcon_derives; [apply data_at__memory_block_cancel | cancel]. }
+    forward.
+    Exists (vals ++ [p1]) (ints ++ [v1]); rewrite !Zlength_app, !Zlength_cons, !Zlength_nil; entailer!.
+    
+ }
+  Intros vals.
+  forward.
+  forward_call (lockt, tsh, tsh, f_lock_inv lsh gsh p' p lock lockt ghosts gsh2,
+                f_lock_pred lsh gsh tsh p' p lock lockt ghosts gsh2).
+  { lock_props.
     rewrite selflock_eq at 2; cancel.
     subst Frame; instantiate (1 := []); normalize; apply lock_inv_later. }
-  { split; auto; repeat split; [apply f_inv_precise | apply f_inv_positive | apply selflock_rec]; auto. }
   forward.
 Qed.
 

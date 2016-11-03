@@ -313,6 +313,11 @@ Proof.
   apply precise_emp.
 Qed.
 
+Lemma derives_precise' : forall (P Q : mpred), P |-- Q -> precise Q -> precise P.
+Proof.
+  intros; eapply derives_precise; [|eassumption]; auto.
+Qed.
+
 Lemma precise_FF : precise FF.
 Proof.
   repeat intro; contradiction.
@@ -342,15 +347,29 @@ Proof.
 Qed.
 Hint Resolve memory_block_precise.
 
+Corollary field_at__precise : forall {cs : compspecs} sh t gfs p,
+  precise (field_at_ sh t gfs p).
+Proof.
+  intros; rewrite field_at__memory_block; auto.
+Qed.
+Hint Resolve field_at__precise.
+
 Corollary data_at__precise : forall {cs : compspecs} sh t p, precise (data_at_ sh t p).
 Proof.
-  intros; rewrite data_at__memory_block; apply precise_andp2; auto.
+  intros; unfold data_at_; auto.
 Qed.
 Hint Resolve data_at__precise.
 
+Corollary field_at_precise : forall {cs : compspecs} sh t gfs v p,
+  precise (field_at sh t gfs v p).
+Proof.
+  intros; eapply derives_precise, field_at__precise; apply field_at_field_at_.
+Qed.
+Hint Resolve field_at_precise.
+
 Corollary data_at_precise : forall {cs : compspecs} sh t v p, precise (data_at sh t v p).
 Proof.
-  intros; eapply derives_precise, data_at__precise; apply data_at_data_at_.
+  intros; unfold data_at; auto.
 Qed.
 Hint Resolve data_at_precise.
 
@@ -1111,6 +1130,12 @@ Proof.
   rewrite sepcon_emp, sepcon_comm, IHl; auto.
 Qed.
 
+Lemma incl_nil : forall {A} (l : list A), incl [] l.
+Proof.
+  repeat intro; contradiction.
+Qed.
+Hint Resolve incl_nil.
+
 Lemma data_at_shares_join : forall {cs} sh t v p shs (Hsplit : forall i, 0 <= i < Zlength shs ->
   let '(a, b) := Znth i shs (sh, sh) in
   readable_share a /\ readable_share b /\ sepalg.join a b (fst (Znth (i + 1) shs (sh, sh)))),
@@ -1145,6 +1170,9 @@ Ltac lock_props := rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite se
   [repeat apply andp_right; auto; eapply derives_trans;
    try (apply precise_weak_precise || apply positive_weak_positive || apply rec_inv_weak_rec_inv); auto |
    try timeout 20 cancel].
+
+Ltac join_sub := repeat (eapply sepalg.join_sub_trans;
+  [eexists; first [eassumption | simple eapply sepalg.join_comm; eassumption]|]); eassumption.
 
 Ltac join_inj := repeat match goal with H1 : sepalg.join ?a ?b ?c, H2 : sepalg.join ?a ?b ?d |- _ =>
     pose proof (sepalg.join_eq H1 H2); clear H1 H2; subst; auto end.
