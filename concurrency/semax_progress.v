@@ -56,26 +56,6 @@ Require Import concurrency.lksize.
 
 Set Bullet Behavior "Strict Subproofs".
 
-Lemma shape_of_args F V args b ofs ge :
-  Val.has_type_list args (AST.Tint :: nil) ->
-  Vptr b ofs = expr.eval_id _lock (make_ext_args (filter_genv (symb2genv (@Genv.genv_symb F V ge))) (_lock :: nil) args) ->
-  args = Vptr b ofs :: nil.
-Proof.
-  intros Hargsty.
-  assert (L: length args = 1%nat) by (destruct args as [|? [|]]; simpl in *; tauto).
-  unfold expr.eval_id.
-  unfold expr.force_val.
-  intros Preb.
-  match goal with H : context [Map.get ?a ?b] |- _ => destruct (Map.get a b) eqn:E end.
-  subst v. 2: discriminate.
-  pose  (gx := (filter_genv (symb2genv (Genv.genv_symb ge)))). fold gx in E.
-  destruct args as [ | arg [ | ar args ]].
-  + now inversion E.
-  + simpl in E. inversion E. reflexivity.
-  + inversion E. f_equal.
-    inversion L.
-Qed.
-
 Section Progress.
   Variables
     (CS : compspecs)
