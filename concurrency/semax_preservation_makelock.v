@@ -640,9 +640,27 @@ Proof.
     assert (coh : exists (R : pred rmap), (lkat R loc) Phi)
       by (destruct o; breakhyps; eauto). clear lock_coh.
     destruct coh as (R' & AT').
-    specialize (AT' loc).
-    destruct Hrmap.
-    admit (* mindless *).
+    pose proof AT' as AT''.
+    spec AT' loc.
+    destruct Hrmap' as (_ & outside & inside).
+    spec AT'. destruct loc; split; auto; lkomega.
+    if_tac in AT'. 2:tauto.
+    spec outside loc. assert_specialize outside as nr. {
+      intros r. spec inside loc r.
+      breakhyps.
+    }
+    unfold far.
+    destruct loc as (b', ofs'). simpl. simpl in nr.
+    unfold Int.unsigned in *. unfold LKSIZE.
+    destruct (eq_dec b b') as [<- | ?]; [ | now auto ].
+    right; split; auto.
+    spec AT'' (b, Int.intval ofs).
+    spec inside (b, Int.intval ofs). spec inside. now split; auto; lkomega.
+    destruct (adr_range_dec (b, ofs') LKSIZE (b, Int.intval ofs)) as [r|nr'].
+    + autospec AT''. if_tac in AT''; breakhyps.
+    + clear -nr nr'. simpl in nr'. unfold LKSIZE in *.
+      do 2 match goal with H : ~(b = b /\ ?P) |- _ => assert (~P) by tauto; clear H end.
+      zify. omega.
   
   - (* lock coherence *)
     unfold lock_coherence'.
