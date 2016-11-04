@@ -11,6 +11,7 @@ Require Import concurrency.threads_lemmas.
 Require Import concurrency.rmap_locking.
 Require Import concurrency.lksize.
 Require Import concurrency.semantics.
+Require Import concurrency.age_to.
 Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
@@ -1910,6 +1911,18 @@ Admitted.
         apply B.
       Qed.
       
+      Lemma access_cohere'_unage m : hereditary unage (access_cohere' m).
+      Proof.
+        intros x y E B.
+        intros addr.
+        destruct (age1_levelS _ _ E) as [n L].
+        eapply (age_age_to n) in E; auto.
+        rewrite <-E in B.
+        spec B addr.
+        rewrite perm_of_age in B.
+        apply B.
+      Qed.
+      
       Lemma mem_cohere'_age m : hereditary age (mem_cohere' m).
       Proof.
         intros x y E.
@@ -1920,11 +1933,28 @@ Admitted.
         - eapply alloc_cohere_age; eauto.
       Qed.
       
+      Lemma mem_cohere'_unage m : hereditary unage (mem_cohere' m).
+      Proof.
+        intros x y E.
+        intros [A B C]; constructor.
+        - eapply contents_cohere_unage; eauto.
+        - eapply max_access_cohere_unage; eauto.
+        - eapply alloc_cohere_unage; eauto.
+      Qed.
+      
       Lemma mem_cohere_age_to n m phi :
         mem_cohere' m phi ->
         mem_cohere' m (age_to n phi).
       Proof.
         apply age_to_ind, mem_cohere'_age.
+      Qed.
+      
+      Lemma mem_cohere_age_to_opp n m phi :
+        mem_cohere' m (age_to n phi) ->
+        mem_cohere' m phi.
+      Proof.
+        apply age_by_ind_opp.
+        intros x y A. apply mem_cohere'_unage, A.
       Qed.
       
     End JuicyMachineLemmas.
@@ -1943,4 +1973,4 @@ Declare Module SEM:Semantics.
   
 End Concur.
 
-(*Erase everything bellow*)
+(*Erase everything below*)
