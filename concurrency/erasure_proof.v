@@ -1888,7 +1888,6 @@ Module Parching <: ErasureSig.
                  simpl. destruct ((l !! b0 ofs0)); constructor.
              } *)
 
-    stop here.
     (* step_release *)
     {
       
