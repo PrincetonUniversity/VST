@@ -1,5 +1,5 @@
 Require Import compcert.common.Memory.
-
+stop here.
 
 Require Import veric.compcert_rmaps.
 Require Import veric.juicy_mem.
@@ -1888,7 +1888,6 @@ Module Parching <: ErasureSig.
                  simpl. destruct ((l !! b0 ofs0)); constructor.
              } *)
 
-    stop here.
     (* step_release *)
     {
       
