@@ -5,6 +5,7 @@ Require Import compcert.common.Globalenvs.
 
 (* The concurrent machinery*)
 Require Import concurrency.concurrent_machine.
+Require Import concurrency.semantics.
 Require Import concurrency.dry_machine. Import Concur.
 Require Import concurrency.scheduler.
 
@@ -29,6 +30,7 @@ Require Import concurrency.machine_simulation. Import Machine_sim.
 Module lifting (SEMT: Semantics) (Machine: MachinesSig with Module SEM := SEMT).
   Section lifting.
     Import THE_DRY_MACHINE_SOURCE.
+    Import THE_DRY_MACHINE_SOURCE.DMS.
     Notation GS := (SEM.G).
     Notation GT := (SEMT.G).
     Variable gT : GT.

@@ -3,6 +3,7 @@ Require Import compcert.common.Memory.
 (* The concurrent machinery*)
 Require Import concurrency.scheduler.
 Require Import concurrency.concurrent_machine.
+Require Import concurrency.semantics.
 Require Import concurrency.juicy_machine. Import Concur.
 Require Import concurrency.dry_machine. Import Concur.
 
@@ -25,6 +26,7 @@ Module Type ErasureSig.
       with Module ThreadPool.SEM:= SEM.
   Declare Module JuicyMachine: ConcurrentMachine
       with Module SCH:=SCH
+      with Module TP:=JSEM.ThreadPool
       with Module SIG:= JSEM.
   Notation JMachineSem:= JuicyMachine.MachineSemantics.
   Notation jstate:= JSEM.ThreadPool.t.
@@ -35,6 +37,7 @@ Module Type ErasureSig.
       with Module ThreadPool.SEM:= SEM.
   Declare Module DryMachine: ConcurrentMachine
       with Module SCH:=SCH
+      with Module TP:=DSEM.ThreadPool
       with Module SIG:= DSEM.
   Notation DMachineSem:= DryMachine.MachineSemantics. 
   Notation dstate:= DSEM.ThreadPool.t.

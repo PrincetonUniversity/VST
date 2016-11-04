@@ -119,6 +119,7 @@ CONCUR_FILES= \
   addressFiniteMap.v cast.v compcert_imports.v \
   compcert_linking.v compcert_linking_lemmas.v \
   compcert_threads_lemmas.v threadPool.v  \
+  semantics.v \
   concurrent_machine.v disjointness.v dry_context.v dry_machine.v dry_machine_lemmas.v \
   ClightSemantincsForMachines.v JuicyMachineModule.v DryMachineSource.v \
   erased_machine.v erasure_proof.v erasure_safety.v erasure_signature.v \

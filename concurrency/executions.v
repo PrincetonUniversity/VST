@@ -1,3 +1,4 @@
+
 (** * Definitions and properties of machine executions *)
 Require Import compcert.lib.Axioms.
 
@@ -20,6 +21,7 @@ Require Import Coq.ZArith.ZArith.
 Require Import concurrency.threads_lemmas.
 Require Import concurrency.permissions.
 Require Import concurrency.concurrent_machine.
+Require Import concurrency.semantics.
 Require Import concurrency.dry_context.
 Require Import concurrency.dry_machine_lemmas.
 Require Import Coqlib.

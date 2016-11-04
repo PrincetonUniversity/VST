@@ -24,6 +24,8 @@ Require Import concurrency.threads_lemmas.
 Require Import concurrency.permissions.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.dry_context.
+Require Import concurrency.semantics.
+Import threadPool.
 
 Global Notation "a # b" := (Maps.PMap.get b a) (at level 1).
 
@@ -119,6 +121,90 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
         discriminate.
   Defined. *)
 
+  Lemma updThread_inv: forall ds i (cnt: containsThread ds i) c pmap,
+           invariant ds ->
+           (forall j (cnt: containsThread ds j),
+               i<>j -> permMapsDisjoint pmap.1 (getThreadR cnt).1 /\
+                     permMapsDisjoint pmap.2 (getThreadR cnt).2) ->
+           (forall j (cnt: containsThread ds j),
+                     permMapCoherence (getThreadR cnt).1 pmap.2)->
+           (forall j (cnt: containsThread ds j),
+                     permMapCoherence pmap.1 (getThreadR cnt).2)->
+           (forall l pmap0, lockRes ds l = Some pmap0 ->
+                       permMapsDisjoint pmap0.1 pmap.1 /\
+                       permMapsDisjoint pmap0.2 pmap.2  ) ->
+           (forall l pmap0, lockRes ds l = Some pmap0 ->
+                       permMapCoherence pmap0.1 pmap.2 /\ 
+                       permMapCoherence pmap.1 pmap0.2) ->
+           (permMapCoherence pmap#1 pmap#2) ->
+           invariant (updThread cnt c pmap).
+       Proof.
+         intros ds x cnt c pmap INV A A' A'' B B' C.
+         constructor.
+         - intros.
+           destruct (scheduler.NatTID.eq_tid_dec x i); [|destruct (scheduler.NatTID.eq_tid_dec x j)].
+           + subst i.
+             rewrite gssThreadRes.
+             rewrite gsoThreadRes; try solve[assumption].
+             assert (cntj':=cntj).
+             apply cntUpdate' in cntj'.
+             eapply (A); assumption.
+           + subst j.
+             apply permMapsDisjoint2_comm.
+             rewrite gssThreadRes.
+             rewrite gsoThreadRes; try solve[assumption].
+             apply A; assumption.
+           + rewrite gsoThreadRes; try solve[assumption].
+             rewrite gsoThreadRes; try solve[assumption].
+             inversion INV. apply no_race_thr0; assumption.
+         -  intros.
+           rewrite gsoThreadLPool in Hres1.
+           rewrite gsoThreadLPool in Hres2.
+           inversion INV. eapply no_race_lr0; eauto.
+         - intros i laddr cnti rmap.
+           rewrite gsoThreadLPool; intros Hres.
+           destruct (scheduler.NatTID.eq_tid_dec x i).
+           + subst x. rewrite gssThreadRes.
+             apply permMapsDisjoint2_comm.
+             eapply B; eassumption.
+           + rewrite gsoThreadRes; auto.
+             inversion INV. eapply no_race0; eassumption.
+         - intros i cnti.
+           destruct (scheduler.NatTID.eq_tid_dec x i).
+           + subst x; rewrite gssThreadRes; split; intros.
+             * { destruct (scheduler.NatTID.eq_tid_dec i j).
+                 - subst i. rewrite gssThreadRes. assumption.
+                 - rewrite gsoThreadRes; auto. }
+             * rewrite gsoThreadLPool in H.
+               apply B' with (l:= laddr); assumption.
+           + rewrite gsoThreadRes; auto; split ; intros.
+             * 
+               { destruct (scheduler.NatTID.eq_tid_dec x j).
+                 - subst j. rewrite gssThreadRes; apply A''.
+                 - rewrite gsoThreadRes; auto.
+                   inversion INV. destruct (thread_data_lock_coh0 i cnti) as [H1 H2].
+                   apply H1.
+               }
+             * rewrite gsoThreadLPool in H.
+               inversion INV. destruct (thread_data_lock_coh0 i cnti) as [H1 H2].
+               eapply H2; eauto.
+         - move => laddr rmap;
+             rewrite gsoThreadLPool => isLock; split.
+           + move => j cntj .
+             { destruct (scheduler.NatTID.eq_tid_dec x j).
+               - subst j. rewrite gssThreadRes.
+                 destruct (B' laddr rmap ltac:(assumption)).  assumption.
+               - rewrite gsoThreadRes; auto.
+                 inversion INV. destruct (locks_data_lock_coh0 laddr rmap ltac:(auto)) as [H1 H2].
+                 apply H1.
+             }
+           + move => laddr' rmap';
+               rewrite gsoThreadLPool => isLock'.
+                 inversion INV. destruct (locks_data_lock_coh0 laddr rmap ltac:(auto)) as [H1 H2].
+                 eapply H2; eauto.
+         - move => b' ofs'; rewrite gsoThreadLPool.
+           inversion INV. apply lockRes_valid0.
+       Qed.
 
   Lemma invariant_decr:
     forall tp c pmap i (cnti: containsThread tp i)
@@ -245,7 +331,7 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
 
   (** [invariant] is preserved by [updThreadC]*)
   Lemma updThreadC_invariant:
-    forall (tp : thread_pool) i (c : ctl)
+    forall (tp : thread_pool) i c
       (ctn : containsThread tp i)
       (Hinv : invariant tp),
       invariant (updThreadC ctn c).
@@ -801,7 +887,8 @@ Module CoreLanguageDry (SEM : Semantics) (SemAxioms: SemanticsAxioms SEM)
              assert (H1 = H2) by (by eapply cnt_irr); subst H2
            end.
 
-    (** Lemmas about containsThread and coresteps *)
+  (** Lemmas about containsThread and coresteps *)
+  
     Lemma corestep_containsThread:
       forall (tp : thread_pool) ge c c' m m' p i j ev
         (Hcnti : containsThread tp i)
@@ -1410,7 +1497,7 @@ Module StepLemmas (SEM : Semantics)
 
   (** [mem_compatible] is preserved by [updThreadC] *)
   Lemma updThreadC_compatible:
-    forall (tp : thread_pool) m i (c : ctl)
+    forall (tp : thread_pool) m i c
       (ctn : containsThread tp i)
       (Hcomp: mem_compatible tp m),
       mem_compatible (updThreadC ctn c) m.
@@ -1418,7 +1505,7 @@ Module StepLemmas (SEM : Semantics)
     intros.
     constructor.
     intros j cntj'.
-    assert (cntj := cntUpdateC' _ _ cntj').
+    assert (cntj := cntUpdateC' cntj').
     specialize (Hcomp _ cntj).
     erewrite @gThreadCR with (cntj := cntj);
       by auto.
@@ -3058,7 +3145,7 @@ Module StepType (SEM : Semantics)
   Inductive StepType : Type :=
     Internal | Concurrent | Halted | Suspend.
 
-  Definition ctlType (code : ctl) : StepType :=
+  Definition ctlType (code : threadPool.ctl) : StepType :=
     match code with
     | Kinit _ _ => Internal
     | Krun c =>

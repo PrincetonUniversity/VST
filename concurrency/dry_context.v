@@ -2,6 +2,7 @@ Require Import concurrency.dry_machine.
 Require Import concurrency.erased_machine.
 Require Import concurrency.threads_lemmas.
 Require Import concurrency.permissions.
+Require Import concurrency.semantics.
 Require Import concurrency.concurrent_machine.
 Require Import compcert.common.Globalenvs.
 Require Import compcert.lib.Axioms.
@@ -43,6 +44,7 @@ Module Type MachinesSig.
              apply cntUpdate' in H2;
                assert (H1 = H2) by (by eapply cnt_irr); subst H2
            end.
+  
   
 End MachinesSig.
 

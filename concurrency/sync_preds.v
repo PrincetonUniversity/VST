@@ -35,6 +35,7 @@ Require Import concurrency.semax_conc_pred.
 Require Import concurrency.semax_conc.
 Require Import concurrency.juicy_machine.
 Require Import concurrency.concurrent_machine.
+Require Import concurrency.semantics.
 Require Import concurrency.scheduler.
 Require Import concurrency.addressFiniteMap.
 Require Import concurrency.permissions.
@@ -42,6 +43,7 @@ Require Import concurrency.JuicyMachineModule.
 Require Import concurrency.sync_preds_defs.
 Require Import concurrency.aging_lemmas.
 Require Import concurrency.lksize.
+Import threadPool.
 
 Set Bullet Behavior "Strict Subproofs".
 

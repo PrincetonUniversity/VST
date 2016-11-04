@@ -10,6 +10,7 @@ Require Import concurrency.addressFiniteMap. (*The finite maps*)
 Require Import concurrency.threads_lemmas.
 Require Import concurrency.rmap_locking.
 Require Import concurrency.lksize.
+Require Import concurrency.semantics.
 Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
@@ -1051,7 +1052,7 @@ Admitted.
 
     Definition pack_res_inv (R: pred rmap) := SomeP rmaps.Mpred (fun _ => R) .
 
-    Notation Kblocked := (concurrent_machine.Kblocked).
+    Notation Kblocked := (threadPool.Kblocked).
     Open Scope Z_scope.
     Inductive syncStep' genv {tid0 tp m}
               (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
@@ -1080,7 +1081,7 @@ Admitted.
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) None )
             (Htp''': tp''' = age_tp_to (level phi - 1)%coq_nat tp''),
-            syncStep' genv cnt0 Hcompat tp''' m' (acquire (b, Int.intval ofs) None None)                
+            syncStep' genv cnt0 Hcompat tp''' m' (acquire (b, Int.intval ofs) None)                
     | step_release :
         forall  (tp' tp'' tp''':thread_pool) c m1 b ofs psh  (phi d_phi :rmap) (R: pred rmap) phi' m',
           forall
@@ -1110,7 +1111,7 @@ Admitted.
             (Htp'': tp'' =
                     updLockSet tp' (b, Int.intval ofs) (Some d_phi))
             (Htp''': tp''' = age_tp_to (level phi - 1)%coq_nat tp''),
-            syncStep' genv cnt0 Hcompat tp''' m' (release (b, Int.intval ofs) None None)      
+            syncStep' genv cnt0 Hcompat tp''' m' (release (b, Int.intval ofs) None)      
     | step_create :
         (* HAVE TO REVIEW THIS STEP LOOKING INTO THE ORACULAR SEMANTICS*)
         forall  (tp_upd tp':thread_pool) c c_new vf arg jm (d_phi phi': rmap) b ofs P Q,

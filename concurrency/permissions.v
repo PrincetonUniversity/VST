@@ -413,6 +413,12 @@ Section permMapDefs.
       try solve[eexists; reflexivity]; subst; try solve [congruence].
     Admitted.
 
+  Lemma joins_permDisjoint_lock: forall r1 r2,
+      joins r1 r2 ->
+      permDisjoint (perm_of_res_lock r1) (perm_of_res_lock r2).
+  Proof.
+  Admitted.
+  
   Lemma permDisjoint_sub: forall r1 r2 p,
       join_sub r2 r1 ->
       permDisjoint (perm_of_res r1) p ->
