@@ -288,7 +288,7 @@ Module Concur.
     Definition mem_compatible_with := mem_compatible_with'.
     
     Definition mem_compatible tp m := ex (mem_compatible_with tp m).
-
+        
     Lemma jlocinset_lr_valid: forall ls juice,
         lockSet_in_juicyLocks ls juice ->
         lr_valid (AMap.find (elt:=lock_info)^~ (ls)).
@@ -397,6 +397,15 @@ Module Concur.
            simpl in *.
            eapply mem_compatible_locks_ltwritable'; eassumption.
     Qed.
+    (*
+    Lemma mem_compatible_locks_lt:
+      forall {tp m}, mem_compatible tp m -> forall i cnti,
+              permMapLt (perm_of_res_lock (@getThreadR i tp cnti)) (getMaxPerm m ).
+    Proof. intros. inversion H as [all_juice M]; inversion M. inversion all_cohere0.
+           destruct tp.
+           simpl in *.
+           eapply mem_compatible_locks_ltwritable'; eassumption.
+    Qed.*)
 
     Lemma compat_lt_m: forall m js,
         mem_compatible js m ->
@@ -508,7 +517,11 @@ Qed.
     (* You need the memory, to make a finite tree. *)
     Definition juice2Perm (phi:rmap)(m:mem): access_map:=
       mapmap (fun _ => None) (fun block _ => fun ofs => perm_of_res (phi @ (block, ofs)) ) (getCurPerm m).
+    Definition juice2Perm_locks (phi:rmap)(m:mem): access_map:=
+      mapmap (fun _ => None) (fun block _ => fun ofs => perm_of_res_lock (phi @ (block, ofs)) ) (getCurPerm m).
     Lemma juice2Perm_canon: forall phi m, isCanonical (juice2Perm phi m).
+    Proof. unfold isCanonical; reflexivity. Qed.
+    Lemma juice2Perm_locks_canon: forall phi m, isCanonical (juice2Perm_locks phi m).
           Proof. unfold isCanonical; reflexivity. Qed.
     Lemma juice2Perm_nogrow: forall phi m b ofs,
         Mem.perm_order'' (perm_of_res (phi @ (b, ofs)))
@@ -522,6 +535,18 @@ Qed.
       - unfold Mem.perm_order''.
         destruct (perm_of_res (phi @ (b, ofs))); trivial.
     Qed.
+    Lemma juice2Perm_locks_nogrow: forall phi m b ofs,
+        Mem.perm_order'' (perm_of_res_lock (phi @ (b, ofs)))
+                         ((juice2Perm_locks phi m) !! b ofs).
+    Proof.
+      intros. unfold juice2Perm_locks, mapmap, PMap.get.
+      rewrite PTree.gmap.
+      destruct (((getCurPerm m)#2) ! b) eqn: inBounds; simpl.
+      - destruct ((perm_of_res_lock (phi @ (b, ofs)))) eqn:AA; rewrite AA; simpl; try reflexivity.
+        apply perm_refl.
+      - unfold Mem.perm_order''.
+        destruct (perm_of_res_lock (phi @ (b, ofs))); trivial.
+    Qed.
     Lemma juice2Perm_cohere: forall phi m,
         access_cohere' m phi ->
         permMapLt (juice2Perm phi m) (getMaxPerm m).
@@ -531,6 +556,18 @@ Qed.
       eapply (po_trans _ (perm_of_res (phi @ (b, ofs))) _) .
       - specialize (H (b, ofs)); simpl in H. apply H. unfold max_access_at in H.
       - apply juice2Perm_nogrow.
+    Qed.
+    Lemma juice2Perm_locks_cohere: forall phi m,
+        max_access_cohere m phi ->
+        permMapLt (juice2Perm_locks phi m) (getMaxPerm m).
+    Proof.
+      unfold permMapLt; intros.
+      rewrite getMaxPerm_correct; unfold permission_at.
+      eapply (po_trans _ (perm_of_res_lock (phi @ (b, ofs))) _) .
+      - specialize (H (b, ofs)); simpl in H. eapply po_trans.
+        + apply H.
+        + apply perm_of_res_op2.
+      - apply juice2Perm_locks_nogrow.
     Qed.
 
     Lemma Mem_canonical_useful: forall m loc k,
@@ -552,6 +589,27 @@ Qed.
            assumption.
     Qed.
     
+    Lemma juic2Perm_locks_correct:
+      forall r m b ofs,
+        max_access_cohere m r ->
+        perm_of_res_lock (r @ (b,ofs)) = (juice2Perm_locks r m) !! b ofs.
+    Proof.
+        intros.
+        unfold juice2Perm_locks, mapmap.
+        unfold PMap.get; simpl.
+        rewrite PTree.gmap. 
+        rewrite PTree.gmap1; simpl.
+        destruct ((snd (Mem.mem_access m)) ! b) eqn:search; simpl.
+        - auto.
+        - generalize (H (b, ofs)) => /po_trans.
+          move =>  /(_ (perm_of_res_lock (r @ (b, ofs)))) /(_ (perm_of_res_op2 _)).
+          unfold max_access_at. unfold access_at. unfold PMap.get; simpl.
+          rewrite search. rewrite Mem_canonical_useful.
+          unfold perm_of_res_lock. destruct ( r @ (b, ofs)); auto.
+          destruct k; auto;
+          destruct (perm_of_sh t0 (pshare_sh p)); auto; intro HH; inversion HH.
+    Qed.
+
     Lemma juic2Perm_correct:
       forall r m b ofs,
         access_cohere' m r ->
@@ -578,6 +636,8 @@ Qed.
     
     Definition juicyRestrict {phi:rmap}{m:Mem.mem}(coh:access_cohere' m phi): Mem.mem:=
       restrPermMap (juice2Perm_cohere coh).
+    Definition juicyRestrict_locks {phi:rmap}{m:Mem.mem}(coh:max_access_cohere m phi): Mem.mem:=
+      restrPermMap (juice2Perm_locks_cohere coh).
     Lemma juicyRestrictContents: forall phi m (coh:access_cohere' m phi),
         forall loc, contents_at m loc = contents_at (juicyRestrict coh) loc.
     Proof. unfold juicyRestrict; intros. rewrite restrPermMap_contents; reflexivity. Qed.
@@ -767,8 +827,23 @@ Qed.
     apply (IHel x) in H. apply join_sub_trans with x; auto. eexists; eauto.
     auto.
 Qed. *)
-Admitted.
-    
+      Admitted.
+
+      
+    Lemma mem_compat_thread_max_cohere {tp m} (compat: mem_compatible tp m):
+      forall {i} cnti,
+        max_access_cohere m (@getThreadR i tp cnti).
+    Proof.
+      destruct compat as [x compat] => i cnti loc.
+      apply po_trans with (b:= perm_of_res' (x @ loc)). 
+      - inversion compat. inversion all_cohere0. apply max_coh0.
+      - (*This comes from *)
+        apply po_join_sub'.
+        apply resource_at_join_sub.
+        eapply compatible_threadRes_sub.
+        inversion compat; inversion all_cohere0; assumption.
+    Qed.
+      
     Lemma thread_mem_compatible: forall tp m,
         mem_compatible tp m ->
         mem_thcohere tp m.
@@ -1070,10 +1145,12 @@ Admitted.
             (Hpersonal_juice: getThreadR cnt0 = phi)
             (sh:Share.t)(R:pred rmap)
             (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
-            (Hrestrict_pmap:
-               permissions.restrPermMap
-                 (mem_compatible_locks_ltwritable Hcompatible)
-                  = m1)
+            (*Hrestrict_pmap:
+               permissions.restrPermdoctorMap (*HERE*)
+                 (juicyRestrict_locks (Hcompatible)
+                  = m1 *)
+            (Hrestrict_map: juicyRestrict_locks
+                              (mem_compat_thread_max_cohere Hcompat cnt0) = m1)
             (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.one))
             (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
             (His_unlocked: lockRes tp (b, Int.intval ofs) = SSome d_phi )
@@ -1095,10 +1172,12 @@ Admitted.
             (Hpersonal_juice: getThreadR cnt0 = phi)
             (sh:Share.t)
             (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
-            (Hrestrict_pmap:
+            (*Hrestrict_pmap:
                permissions.restrPermMap
                  (mem_compatible_locks_ltwritable Hcompatible)
-                  = m1)
+                  = m1*)
+            (Hrestrict_map: juicyRestrict_locks
+                              (mem_compat_thread_max_cohere Hcompat cnt0) = m1)
             (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero))
             (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.one) = Some m')
             (His_locked: lockRes tp (b, Int.intval ofs) = SNone )
@@ -1208,10 +1287,12 @@ Admitted.
             (Hcompatible: mem_compatible tp m)
             (Hpersonal_perm: 
                personal_mem (thread_mem_compatible Hcompatible cnt0) = jm)
-            (Hrestrict_pmap:
+            (*Hrestrict_pmap:
                permissions.restrPermMap
                  (mem_compatible_locks_ltwritable Hcompatible)
-               = m1)
+               = m1*)
+            (Hrestrict_map: juicyRestrict_locks
+                              (mem_compat_thread_max_cohere Hcompat cnt0) = m1)
             (sh:Share.t)(R:pred rmap)
             (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
             (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero)),
@@ -1849,3 +1930,5 @@ Declare Module SEM:Semantics.
     myCoarseSemantics.MachineSemantics.*)
   
 End Concur.
+
+(*Erase everything bellow*)
