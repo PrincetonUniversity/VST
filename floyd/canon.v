@@ -130,6 +130,121 @@ Notation " 'SEP' () " := (SEPx nil) (at level 8).
 
 Delimit Scope assert with assert.
 
+Lemma approx_sepcon: forall (P Q: mpred) n,
+  compcert_rmaps.RML.R.approx n (P * Q) =
+  compcert_rmaps.RML.R.approx n P *
+  compcert_rmaps.RML.R.approx n Q.
+Proof.
+  intros.
+  change sepcon with predicates_sl.sepcon in *.
+  apply predicates_hered.pred_ext.
+  + intros w ?.
+    simpl in *.
+    destruct H as [? [y [z [? [? ?]]]]].
+    exists y, z; split; auto.
+    split; split; auto.
+    - apply age_sepalg.join_level in H0.
+      omega.
+    - apply age_sepalg.join_level in H0.
+      omega.
+  + intros w ?.
+    simpl in *.
+    destruct H as [y [z [? [[? ?] [? ?]]]]].
+    split.
+    - apply age_sepalg.join_level in H.
+      omega.
+    - exists y, z.
+      split; [| split]; auto.
+Qed.
+
+Lemma approx_andp: forall (P Q: mpred) n,
+  compcert_rmaps.RML.R.approx n (P && Q) =
+  compcert_rmaps.RML.R.approx n P &&
+  compcert_rmaps.RML.R.approx n Q.
+Proof.
+  intros.
+  change andp with (@predicates_hered.andp compcert_rmaps.RML.R.rmap _) in *.
+  apply predicates_hered.pred_ext.
+  + intros w ?.
+    simpl in *.
+    tauto.
+  + intros w ?.
+    simpl in *.
+    tauto.
+Qed.
+
+Lemma SEPx_super_non_expansive: forall A R,
+  Forall (fun R0 => @super_non_expansive A (fun ts a _ => R0 ts a)) R ->
+  @super_non_expansive A (fun ts a rho => SEPx (map (fun R0 => R0 ts a) R) rho).
+Proof.
+  intros.
+  hnf; intros.
+  unfold SEPx.
+  induction H.
+  + simpl; auto.
+  + simpl.
+    rewrite !approx_sepcon.
+    f_equal;
+    auto.
+Qed.
+
+Lemma LOCALx_super_non_expansive: forall A Q R,
+  super_non_expansive R ->
+  Forall (fun Q0 => @super_non_expansive A (fun ts a rho => prop (locald_denote (Q0 ts a) rho))) Q ->
+  @super_non_expansive A (fun ts a rho => LOCALx (map (fun Q0 => Q0 ts a) Q) (R ts a) rho).
+Proof.
+  intros.
+  hnf; intros.
+  unfold LOCALx.
+  simpl.
+  rewrite !approx_andp.
+  f_equal; auto.
+  induction H0.
+  + auto.
+  + simpl.
+    unfold local, lift1.
+    unfold_lift.
+    rewrite !prop_and.
+    rewrite !approx_andp.
+    f_equal; auto.
+    apply H0.
+Qed.
+
+Lemma PROPx_super_non_expansive: forall A P Q,
+  super_non_expansive Q ->
+  Forall (fun P0 => @super_non_expansive A (fun ts a (rho: environ) => prop (P0 ts a))) P ->
+  @super_non_expansive A (fun ts a rho => PROPx (map (fun P0 => P0 ts a) P) (Q ts a) rho).
+Proof.
+  intros.
+  hnf; intros.
+  unfold PROPx.
+  simpl.
+  rewrite !approx_andp.
+  f_equal; auto.
+  induction H0.
+  + auto.
+  + simpl.
+    rewrite !prop_and.
+    rewrite !approx_andp.
+    f_equal; auto.
+    apply H0; auto.
+Qed.
+
+Lemma PROP_LOCAL_SEP_super_non_expansive: forall A P Q R,
+  Forall (fun P0 => @super_non_expansive A (fun ts a _ => prop (P0 ts a))) P ->
+  Forall (fun Q0 => @super_non_expansive A (fun ts a rho => prop (locald_denote (Q0 ts a) rho))) Q ->
+  Forall (fun R0 => @super_non_expansive A (fun ts a _ => R0 ts a)) R ->
+  @super_non_expansive A (fun ts a rho =>
+     PROPx (map (fun P0 => P0 ts a) P)
+      (LOCALx (map (fun Q0 => Q0 ts a) Q)
+        (SEPx (map (fun R0 => R0 ts a) R))) rho).
+Proof.
+  intros.
+  apply PROPx_super_non_expansive; auto.
+  apply LOCALx_super_non_expansive; auto.
+  apply SEPx_super_non_expansive; auto.
+Qed.
+
 Lemma SEPx_nonexpansive: forall R rho,
   Forall (fun R0 => predicates_rec.nonexpansive R0) R ->
   nonexpansive (fun S => SEPx (map (fun R0 => R0 S) R) rho).
