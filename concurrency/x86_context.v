@@ -286,7 +286,7 @@ Module X86SEMAxioms <: SemanticsAxioms X86SEM.
 
     Lemma corestep_unchanged_on:
       forall the_ge c m
-        c' m' (b : block) (ofs : Z),
+        c' m' b (ofs : Z),
         corestep X86SEM.Sem the_ge c m c' m' ->
         Memory.Mem.valid_block m b ->
         ~ Memory.Mem.perm m b ofs Memtype.Cur Memtype.Writable ->

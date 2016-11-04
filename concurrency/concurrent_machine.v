@@ -7,6 +7,8 @@ Require Import compcert.lib.Integers.
 Require Import Coq.ZArith.ZArith.
 Require Import sepcomp.semantics.
 Require Import sepcomp.event_semantics.
+Require Export concurrency.semantics.
+Require Import concurrency.threadPool. Export threadPool.
 
 Require Import concurrency.machine_semantics.
 Require Import concurrency.permissions.
@@ -19,17 +21,7 @@ Require Import concurrency.safety.
 
 Require Import concurrency.coinductive_safety.
 
-(* This module represents the arguments
-   to build a CoreSemantics with 
-   compcert mem. This is used by BOTH
-   Juicy machine and dry machine. *)
-Module Type Semantics.
-  Parameter F V : Type.
-  Parameter G: Type.
-  Parameter C: Type.
-  Parameter Sem: EvSem G C.
-  Parameter getEnv : G -> Genv.t F V.
-End Semantics.
+
 
 Notation EXIT := 
   (EF_external "EXIT" (mksignature (AST.Tint::nil) None)). 
@@ -54,326 +46,6 @@ Notation LOCK := (EF_external "acquire" LOCK_SIG).
 Notation UNLOCK_SIG := (mksignature (AST.Tint::nil) None cc_default).
 Notation UNLOCK := (EF_external "release" UNLOCK_SIG).
 
-Notation block  := Values.block.
-
-Definition b_ofs2address b ofs : address:=
-  (b, Int.intval ofs).
-
-Inductive ctl {cT:Type} : Type :=
-| Krun : cT -> ctl
-| Kblocked : cT -> ctl
-| Kresume : cT -> val -> ctl (* Carries the return value. Probably a unit.*)
-| Kinit : val -> val -> ctl. (* vals correspond to vf and arg respectively. *)
-
-Definition EqDec: Type -> Type := 
-  fun A : Type => forall a a' : A, {a = a'} + {a <> a'}.
-
-Module Type Resources.
-  Parameter res : Type.
-  Parameter lock_info : Type.
-End Resources.
-
-Module Type ThreadPoolSig.
-  Declare Module TID: ThreadID.
-  Declare Module SEM: Semantics.
-  Declare Module RES : Resources.
-  
-  Import TID.
-  Import SEM.
-  Import RES.
-
-  Parameter t : Type.
-
-  Local Notation ctl := (@ctl C).
-  
-  Parameter containsThread : t -> tid -> Prop.
-  Parameter getThreadC : forall {tid tp}, containsThread tp tid -> ctl.
-  Parameter getThreadR : forall {tid tp}, containsThread tp tid -> res.
-  Parameter lockGuts : t -> AMap.t lock_info.  (* Gets the set of locks + their info    *)
-  Parameter lockSet : t -> access_map.         (* Gets the permissions for the lock set *)
-  Parameter lockRes : t -> address -> option lock_info.
-  Parameter addThread : t -> val -> val -> res -> t. (*vals are function pointer and argument respectively. *)
-  Parameter updThreadC : forall {tid tp}, containsThread tp tid -> ctl -> t.
-  Parameter updThreadR : forall {tid tp}, containsThread tp tid -> res -> t.
-  Parameter updThread : forall {tid tp}, containsThread tp tid -> ctl -> res -> t.
-  Parameter updLockSet : t -> address -> lock_info -> t.
-  Parameter remLockSet : t -> address -> t.
-  Parameter latestThread : t -> tid.
-
-  Parameter lr_valid : (address -> option lock_info) -> Prop.
-
-  (*Find the first thread i, that satisfies (filter i) *)
-  Parameter find_thread: t -> (ctl -> bool) -> option tid.
-
-  (* Decidability of containsThread *)
-  Axiom containsThread_dec:
-    forall i tp, {containsThread tp i} + { ~ containsThread tp i}.
-  
-  (*Proof Irrelevance of contains*)
-  Axiom cnt_irr: forall t tid
-                   (cnt1 cnt2: containsThread t tid),
-      cnt1 = cnt2.
-
-  (* Add Thread properties*)
-  Axiom cntAdd:
-    forall {j tp} vf arg p,
-      containsThread tp j ->
-      containsThread (addThread tp vf arg p) j.
-
-  Axiom cntAdd':
-    forall {j tp} vf arg p,
-      containsThread (addThread tp vf arg p) j ->
-      (containsThread tp j /\ j <> latestThread tp) \/ j = latestThread tp.
-  
-  (* Update properties*)
-  Axiom cntUpdateC:
-    forall {tid tid0 tp} c
-      (cnt: containsThread tp tid),
-      containsThread tp tid0->
-      containsThread (updThreadC cnt c) tid0.
-  Axiom cntUpdateC':
-    forall {tid tid0 tp} c
-      (cnt: containsThread tp tid),
-      containsThread (updThreadC cnt c) tid0 -> 
-      containsThread tp tid0.
-
-  Axiom cntUpdateR:
-    forall {i j tp} r
-      (cnti: containsThread tp i),
-      containsThread tp j->
-      containsThread (updThreadR cnti r) j.
-  Axiom cntUpdateR':
-    forall {i j tp} r
-      (cnti: containsThread tp i),
-      containsThread (updThreadR cnti r) j -> 
-      containsThread tp j.
-  
-  Axiom cntUpdate:
-    forall {i j tp} c p
-      (cnti: containsThread tp i),
-      containsThread tp j ->
-      containsThread (updThread cnti c p) j.
-  Axiom cntUpdate':
-    forall {i j tp} c p
-      (cnti: containsThread tp i),
-      containsThread (updThread cnti c p) j ->
-      containsThread tp j.
-
-  Axiom cntUpdateL:
-    forall {j tp} add lf,
-      containsThread tp j ->
-      containsThread (updLockSet tp add lf) j.
-  Axiom cntRemoveL:
-    forall {j tp} add,
-      containsThread tp j ->
-      containsThread (remLockSet tp add) j.
-
-  Axiom cntUpdateL':
-    forall {j tp} add lf,
-      containsThread (updLockSet tp add lf) j ->
-      containsThread tp j.
-  Axiom cntRemoveL':
-    forall {j tp} add,
-      containsThread (remLockSet tp add) j ->
-      containsThread tp j.
-
-  (*Axiom gssLockPool:
-    forall tp ls,
-      lockSet (updLockSet tp ls) = ls.*) (*Will change*)
-
-  Axiom gsoThreadLock:
-    forall {i tp} c p (cnti: containsThread tp i),
-      lockSet (updThread cnti c p) = lockSet tp.
-
-  Axiom gsoThreadCLock:
-    forall {i tp} c (cnti: containsThread tp i),
-      lockSet (updThreadC cnti c) = lockSet tp.
-
-  Axiom gsoThreadRLock:
-    forall {i tp} p (cnti: containsThread tp i),
-      lockSet (updThreadR cnti p) = lockSet tp.
-
-  Axiom gsoAddLock:
-    forall tp vf arg p,
-      lockSet (addThread tp vf arg p) = lockSet tp.
-
-  Axiom gssAddRes:
-    forall {tp} vf arg pmap j
-      (Heq: j = latestThread tp)
-      (cnt': containsThread (addThread tp vf arg pmap) j),
-      getThreadR cnt' = pmap.
-   
-  (*Get thread Properties*)
-  Axiom gssThreadCode :
-    forall {tid tp} (cnt: containsThread tp tid) c' p'
-      (cnt': containsThread (updThread cnt c' p') tid),
-      getThreadC cnt' = c'.
-
-  Axiom gsoThreadCode :
-    forall {i j tp} (Hneq: i <> j) (cnti: containsThread tp i)
-      (cntj: containsThread tp j) c' p'
-      (cntj': containsThread (updThread cnti c' p') j),
-      getThreadC cntj' = getThreadC cntj.
-
-  Axiom gssThreadRes:
-    forall {tid tp} (cnt: containsThread tp tid) c' p'
-      (cnt': containsThread (updThread cnt c' p') tid),
-      getThreadR cnt' = p'.
-
-  Axiom gsoThreadRes:
-    forall {i j tp} (cnti: containsThread tp i)
-            (cntj: containsThread tp j) (Hneq: i <> j) c' p'
-            (cntj': containsThread (updThread cnti c' p') j),
-    getThreadR cntj' = getThreadR cntj.
-  
-  Axiom gssThreadCC:
-    forall {tid tp} (cnt: containsThread tp tid) c'
-      (cnt': containsThread (updThreadC cnt c') tid),
-      getThreadC cnt' = c'.
-
-  Axiom gsoThreadCC:
-    forall {i j tp} (Hneq: i <> j) (cnti: containsThread tp i)
-      (cntj: containsThread tp j) c'
-      (cntj': containsThread (updThreadC cnti c') j),
-      getThreadC cntj = getThreadC cntj'.
-
-  Axiom getThreadCC:
-    forall {tp} i j
-      (cnti : containsThread tp i) (cntj : containsThread tp j)
-      c' (cntj' : containsThread (updThreadC cnti c') j),
-    getThreadC cntj' = if eq_tid_dec i j then c' else getThreadC cntj.
-
-  Axiom gThreadCR:
-    forall {i j tp} (cnti: containsThread tp i)
-      (cntj: containsThread tp j) c'
-      (cntj': containsThread (updThreadC cnti c') j),
-      getThreadR cntj' = getThreadR cntj.
-
-  Axiom gThreadRC:
-    forall {i j tp} (cnti: containsThread tp i)
-      (cntj: containsThread tp j) p
-      (cntj': containsThread (updThreadR cnti p) j),
-      getThreadC cntj' = getThreadC cntj.
-
-  Axiom gsoThreadCLPool:
-    forall {i tp} c (cnti: containsThread tp i) addr,
-      lockRes (updThreadC cnti c) addr = lockRes tp addr.
-
-  Axiom gsoThreadLPool:
-    forall {i tp} c p (cnti: containsThread tp i) addr,
-      lockRes (updThread cnti c p) addr = lockRes tp addr.
-
-  Axiom gsoAddLPool:
-    forall tp vf arg p (addr : address),
-      lockRes (addThread tp vf arg p) addr = lockRes tp addr.
-  
-  Axiom gLockSetRes:
-    forall {i tp} addr (res : lock_info) (cnti: containsThread tp i)
-      (cnti': containsThread (updLockSet tp addr res) i),
-      getThreadR cnti' = getThreadR cnti.
-
-  Axiom gLockSetCode:
-    forall {i tp} addr (res : lock_info) (cnti: containsThread tp i)
-      (cnti': containsThread (updLockSet tp addr res) i),
-      getThreadC cnti' = getThreadC cnti.
-
-  Axiom gssLockRes:
-    forall tp addr pmap,
-      lockRes (updLockSet tp addr pmap) addr = Some pmap.
-
-  Axiom gsoLockRes:
-    forall tp addr addr' pmap
-      (Hneq: addr <> addr'),
-      lockRes (updLockSet tp addr pmap) addr' =
-      lockRes tp addr'.
-
-  Axiom gssLockSet:
-    forall tp b ofs rmap ofs',
-      (ofs <= ofs' < ofs + Z.of_nat lksize.LKSIZE_nat)%Z ->
-      (Maps.PMap.get b (lockSet (updLockSet tp (b, ofs) rmap)) ofs') = Some Writable.
-    
-  Axiom gsoLockSet_1 :
-    forall tp b ofs ofs'  pmap
-      (Hofs: (ofs' < ofs)%Z \/ (ofs' >= ofs + (Z.of_nat lksize.LKSIZE_nat))%Z),
-      (Maps.PMap.get b (lockSet (updLockSet tp (b,ofs) pmap))) ofs' =
-      (Maps.PMap.get b (lockSet tp)) ofs'.
-  Axiom gsoLockSet_2 :
-    forall tp b b' ofs ofs' pmap,
-      b <> b' -> 
-      (Maps.PMap.get b' (lockSet (updLockSet tp (b,ofs) pmap))) ofs' =
-      (Maps.PMap.get b' (lockSet tp)) ofs'.
-
-  Axiom lockSet_updLockSet:
-    forall tp i (pf: containsThread tp i) c pmap addr rmap,
-      lockSet (updLockSet tp addr rmap) =
-      lockSet (updLockSet (updThread pf c pmap) addr rmap).
-
-  Axiom updThread_updThreadC_comm :
-    forall tp i j c pmap' c'
-      (Hneq: i <> j)
-      (cnti : containsThread tp i)
-      (cntj : containsThread tp j)
-      (cnti': containsThread (updThread cntj c' pmap') i)
-      (cntj': containsThread (updThreadC cnti c) j),
-      updThreadC cnti' c = updThread cntj' c' pmap'.
-
- Axiom updThread_comm :
-    forall tp i j c pmap c' pmap'
-      (Hneq: i <> j)
-      (cnti : containsThread tp i)
-      (cntj : containsThread tp j)
-      (cnti': containsThread (updThread cntj c' pmap') i)
-      (cntj': containsThread (updThread cnti c pmap) j),
-      updThread cnti' c pmap = updThread cntj' c' pmap'.
-
- Axiom add_updateC_comm:
-   forall tp i vf arg pmap c'
-     (cnti: containsThread tp i)
-     (cnti': containsThread (addThread tp vf arg pmap) i),
-     addThread (updThreadC cnti c') vf arg pmap =
-     updThreadC cnti' c'.
-
- Axiom add_update_comm:
-   forall tp i vf arg pmap c' pmap'
-     (cnti: containsThread tp i)
-     (cnti': containsThread (addThread tp vf arg pmap) i),
-     addThread (updThread cnti c' pmap') vf arg pmap =
-     updThread cnti' c' pmap'.
-
- Axiom updThread_lr_valid:
-   forall tp i (cnti: containsThread tp i) c' m',
-     lr_valid (lockRes tp) ->
-     lr_valid (lockRes (updThread cnti c' m')).
-
-
- (*uniqueness of the running threadc*)
-  Parameter unique_Krun:  t -> tid -> Prop.
-  Definition is_running tp i:= 
-    exists cnti q, @getThreadC i tp cnti = Krun q.
-  
-  (*Axiom unique_runing_not_running:
-    forall tp i,
-      unique_Krun tp i ->
-      ~ is_running tp i ->
-      forall j, unique_Krun tp j.*)
-
-  (*Axiom no_running_one_running:
-    forall tp,
-      (forall j, unique_Krun tp j) ->
-      forall i cnti c, unique_Krun (@updThreadC i tp cnti (Krun c)) i.*)
-
-  (*Axiom one_running_no_running:
-    forall tp i,
-      (unique_Krun tp i) ->
-      forall j cnti c, unique_Krun (@updThreadC i tp cnti (Kblocked c)) j.*)
-
-  (*Axiom no_running_no_running:
-    forall tp,
-      (forall j, unique_Krun tp j) ->
-      forall i j cnti c, unique_Krun (@updThreadC i tp cnti (Kblocked c)) j.*)
-  
-End ThreadPoolSig.
-
 Module Type EventSig.
   Declare Module TID: ThreadID.
   Import TID.
@@ -382,8 +54,8 @@ Module Type EventSig.
   Definition evDelta := (delta_map * delta_map)%type.
 
   Inductive sync_event : Type :=
-  | release : address -> option (evRes * evDelta) -> option evRes -> sync_event
-  | acquire : address -> option (evRes * evDelta) -> option evRes -> sync_event
+  | release : address (*-> option (evRes * evDelta)*) -> option evRes -> sync_event
+  | acquire : address (*-> option (evRes * evDelta)*) -> option evDelta -> sync_event
   | mklock :  address -> sync_event
   | freelock : address -> sync_event
   | spawn : address -> option (evRes * evDelta) -> option evDelta -> sync_event
@@ -478,10 +150,11 @@ End ConcurrentMachineSig.
 
 Module Type ConcurrentMachine.
   Declare Module SCH: Scheduler.
-  Declare Module SIG: ConcurrentMachineSig.
+  Declare Module TP: ThreadPoolSig.
+  Declare Module SIG: ConcurrentMachineSig with Module ThreadPool:= TP.
 
   Import SCH.
-  Import SIG.ThreadPool.
+  Import TP.
   Import SIG.Events.
 
   Notation event_trace := (seq machine_event).
@@ -496,8 +169,9 @@ Module Type ConcurrentMachine.
       U' = U /\ tr = nil.
 End ConcurrentMachine.
   
-Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module ThreadPool.TID:=SCH.TID with Module Events.TID :=SCH.TID) <: ConcurrentMachine with Module SCH:= SCH with Module SIG:= SIG.
+Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module ThreadPool.TID:=SCH.TID with Module Events.TID :=SCH.TID) <: ConcurrentMachine with Module SCH:= SCH with Module TP:= SIG.ThreadPool  with Module SIG:= SIG.
   Module SCH:=SCH.
+  Module TP:=SIG.ThreadPool.
   Module SIG:=SIG.
   Import SCH SIG TID ThreadPool ThreadPool.SEM Events.
   
@@ -831,7 +505,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     
   Definition new_state: Type:= seq machine_event * machine_state * mem.
   Definition mk_nstate (st:MachState) m:new_state:= (snd (fst st), snd st, m).
-  Definition mk_ostate (st:new_state) U:MachState:= (U, fst (fst st), snd (fst st)).
+  Definition mk_ostate (st:new_state) U :MachState:= (U, fst (fst st), snd (fst st)).
   Definition new_step ge (st: new_state) U st' U': Prop:=
     sem_with_halt ge (mk_ostate st U) (snd st) (mk_ostate st' U') (snd st').
 
@@ -894,7 +568,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     unfold unique_Krun.
     intros.
     destruct (eq_tid_dec i j); auto; exfalso; eapply n.
-    erewrite <- (gsoThreadCC _ _ (cntUpdateC' _ cnti cnti0)) in H0; auto.
+    erewrite <- (gsoThreadCC _ (cntUpdateC' cnti0)) in H0; auto.
     eapply H with (j:=i) in H0.
     destruct (eq_tid_dec i j); inversion H0; assumption.
     intros HH; apply H1.
@@ -911,8 +585,8 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     intros.
     destruct (eq_tid_dec i j0).
     - subst i. 
-      rewrite (gssThreadCC cnti (Kblocked c) cnti0) in H0; inversion H0.
-    - rewrite <- (gsoThreadCC n cnti (cntUpdateC' _ cnti cnti0) (Kblocked c) cnti0) in H0.
+      rewrite (gssThreadCC cnti0) in H0; inversion H0.
+    - rewrite <- (gsoThreadCC n (cntUpdateC' cnti0)) in H0.
       eapply H with (j:=j0) in H0.
       exfalso; apply n;
       destruct (eq_tid_dec i j0); auto; inversion H0.
@@ -929,8 +603,8 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     intros.
     destruct (eq_tid_dec i j0).
     - subst i. 
-      rewrite (gssThreadCC cnti (Kblocked c) cnti0) in H0; inversion H0.
-    - rewrite <- (gsoThreadCC n cnti (cntUpdateC' _ cnti cnti0) (Kblocked c) cnti0) in H0.
+      rewrite (gssThreadCC cnti0) in H0; inversion H0.
+    - rewrite <- (gsoThreadCC n (cntUpdateC' cnti0)) in H0.
       eapply H with (j:=j0) in H0.
       eassumption.
       intros HH; apply H1.
@@ -1089,7 +763,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
       unfold unique_Krun in H0.
       destruct (eq_tid_dec tid0 j).
       + subst tid0. rewrite gssThreadCC in KRUN; inversion KRUN.
-      + erewrite <- (gsoThreadCC n ctn (cntUpdateC' _ _ cnti) _ cnti)  in KRUN; eauto.
+      + erewrite <- (gsoThreadCC n (cntUpdateC' cnti))  in KRUN; eauto.
         eapply H0 in KRUN.
         destruct (eq_tid_dec tid0 j) as [e|e].
         * rewrite e in n; exfalso; apply n; auto. 
@@ -1368,8 +1042,9 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   
 End CoarseMachine.
 
-Module FineMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module ThreadPool.TID:=SCH.TID with Module Events.TID:=SCH.TID)<: ConcurrentMachine with Module SCH:= SCH with Module SIG:= SIG.
+Module FineMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module ThreadPool.TID:=SCH.TID with Module Events.TID:=SCH.TID)<: ConcurrentMachine with Module SCH:= SCH with Module TP:= SIG.ThreadPool with Module SIG:= SIG.
   Module SCH:=SCH.
+  Module TP:=SIG.ThreadPool.
   Module SIG:=SIG.
   Import SCH SIG TID ThreadPool ThreadPool.SEM Events.
   
@@ -1555,8 +1230,8 @@ footprints of permissions moved  when applicable*)
  Definition evDelta := (delta_map * delta_map)%type.
 
  Inductive sync_event : Type :=
- | release : address -> option (evRes * evDelta) -> option evRes -> sync_event
- | acquire : address -> option (evRes * evDelta) -> option evRes -> sync_event
+ | release : address (*-> option (evRes * evDelta)*) -> option evRes -> sync_event
+ | acquire : address -> option evDelta (*option (evRes * evDelta) -> option evRes*)  -> sync_event
  | mklock :  address -> sync_event
  | freelock : address -> sync_event
  | spawn : address -> option (evRes * evDelta) -> option evDelta -> sync_event
@@ -1608,8 +1283,8 @@ footprints of permissions moved  when applicable*)
       end
     | external _ sev =>
       match sev with
-      | release _ _ _ => Release
-      | acquire _ _ _ => Acquire
+      | release _ _ => Release
+      | acquire _ _ => Acquire
       | mklock _ => Mklock
       | freelock _ => Freelock
       | failacq _ => Failacq
@@ -1627,8 +1302,8 @@ footprints of permissions moved  when applicable*)
       end 
     | external _ sev =>
       match sev with
-      | release addr _ _ => Some (addr, lksize.LKSIZE_nat)
-      | acquire addr _ _ => Some (addr, lksize.LKSIZE_nat)
+      | release addr _ => Some (addr, lksize.LKSIZE_nat)
+      | acquire addr _ => Some (addr, lksize.LKSIZE_nat)
       | mklock addr => Some (addr, lksize.LKSIZE_nat)
       | freelock addr => Some (addr, lksize.LKSIZE_nat)
       | spawn addr _ _ => Some (addr, lksize.LKSIZE_nat)

@@ -38,6 +38,7 @@ Require Import concurrency.permjoin.
 Require Import concurrency.semax_conc.
 Require Import concurrency.juicy_machine.
 Require Import concurrency.concurrent_machine.
+Require Import concurrency.semantics.
 Require Import concurrency.scheduler.
 Require Import concurrency.addressFiniteMap.
 Require Import concurrency.permissions.
@@ -151,7 +152,7 @@ Lemma preservation_release
   (Htstep : syncStep ge cnti Hcmpt
              (age_tp_to n
                 (updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Int.intval ofs) (Some d_phi))) m'
-             (Events.release (b, Int.intval ofs) None None)) :
+             (Events.release (b, Int.intval ofs) None)) :
   (* ============================ *)
   state_invariant Jspec' Gamma n (m', ge, (sch, age_tp_to n
            (updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Int.intval ofs) (Some d_phi)))).
@@ -274,21 +275,23 @@ Proof.
       { subst loc.
         split; swap 1 2.
         - (* the rmap is unchanged (but we have to prove the SAT information) *)
-          cut (exists sh0 R0,
-                  (LK_at R0 sh0 (b, Int.intval ofs)) Phi /\
-                  (R0 (age_by 1 (age_to (level (getThreadR i tp cnti) - 1) d_phi))
+          cut (exists (* sh0 *) R0,
+                  (lkat R0 (* sh0 *) (b, Int.intval ofs)) Phi /\
+                  (app_pred R0 (age_by 1 (age_to (level (getThreadR i tp cnti) - 1) d_phi))
                    \/ level (age_to n Phi) = 0)
               ).
-          { intros (sh0 & R0 & AP & sat).
-            exists sh0, R0; split. apply age_to_pred, AP. cleanup. rewrite El in *. auto. }
+          { intros ((* sh0 &  *)R0 & AP & sat).
+            exists (* sh0, *) R0; split. 
+            - revert AP. apply age_to_ind, lkat_hered.
+            - cleanup. rewrite El in *. auto. }
           cleanup.
           rewrite His_locked in lock_coh.
-          destruct lock_coh as (Load & sh0 & R0 & lk).
-          exists sh0, R0; split.
+          destruct lock_coh as (Load & (* sh0 &  *)R0 & lk).
+          exists (* sh0,  *)R0; split.
           + eauto.
           + left.
             rewrite El.
-            apply predat2 in lk.
+            apply predat6 in lk.
             apply predat1 in HJcanwrite.
             apply @predat_join_sub with (phi2 := Phi) in HJcanwrite.
             2:apply compatible_threadRes_sub, compat.
@@ -425,12 +428,11 @@ Proof.
               zify.
               lkomega.
       }
-      destruct o; destruct lock_coh as (Load & sh' & R' & lks); split.
+      destruct o; destruct lock_coh as (Load (* & sh' *) & R' & lks); split.
       -- now intuition.
-      -- exists sh', R'.
+      -- exists (* sh',  *)R'.
          destruct lks as (lk, sat); split.
-         ++ revert lk.
-            apply age_to_pred.
+         ++ revert lk. apply age_to_ind, lkat_hered.
          ++ destruct sat as [sat|sat].
             ** left; revert sat.
                unfold age_to in *.
@@ -439,9 +441,9 @@ Proof.
                omega.
             ** congruence.
       -- now intuition.
-      -- exists sh', R'.
+      -- exists (* sh', *) R'.
          revert lks.
-         apply age_to_pred.
+         apply age_to_ind, lkat_hered.
          
   + (* safety *)
     intros j lj ora.
@@ -736,12 +738,12 @@ Proof.
                    specialize (lock_coh (b, Int.intval ofs)).
                    cleanup.
                    rewrite His_locked in lock_coh.
-                   destruct lock_coh as (_ & sh' & R' & lk).
+                   destruct lock_coh as (_ & (* sh' & *) R' & lk).
                    apply isVAL_join_sub with (r2 := Phi @ (b, ofs')) in yes.
                    2: now apply resource_at_join_sub; join_sub_tac.
                    specialize (lk (b, ofs')).
                    simpl in lk.
-                   if_tac in lk. 2: range_tac.
+                   spec lk. now split; auto; lkomega.
                    unfold isVAL in *.
                    if_tac in lk.
                    +++ breakhyps.

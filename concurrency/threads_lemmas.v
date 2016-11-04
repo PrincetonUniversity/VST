@@ -70,6 +70,16 @@ Proof.
   apply HIn. simpl; by auto.
 Qed.
 
+Lemma nth_error_app_inv:
+  forall (A : Type) (i : nat) (v: A) (ys xs : seq.seq A), nth_error xs i = Some v ->
+                                                   nth_error (xs ++ ys) i = Some v.
+Admitted.
+
+Lemma app_assoc_l:
+  forall (A : Type) (l m n : seq.seq A),
+    l ++ m ++ n = l ++ (m ++ n).
+Admitted.
+
 Lemma filter_neq_eq :
   forall {A :eqType} (xs : seq.seq A) i j (Hneq: i <> j),
     [seq x <- [seq x <- xs | x != i] | x == j] = [seq x <- xs | x == j].
@@ -84,6 +94,18 @@ Proof.
     assumption.
 Qed.
 
+Lemma nth_error_app:
+  forall {A:Type} i (ys xs : list A),
+    nth_error xs i = nth_error (ys ++ xs) (length ys + i).
+Proof.
+  intros A i ys.
+  generalize dependent i.
+  induction ys; intros.
+  - simpl. rewrite add0n.
+    reflexivity.
+  - simpl.
+    eauto.
+Qed.
 
 Lemma list_cons_irrefl:
   forall {A: Type} (x : A) xs,

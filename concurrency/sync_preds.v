@@ -35,6 +35,7 @@ Require Import concurrency.semax_conc_pred.
 Require Import concurrency.semax_conc.
 Require Import concurrency.juicy_machine.
 Require Import concurrency.concurrent_machine.
+Require Import concurrency.semantics.
 Require Import concurrency.scheduler.
 Require Import concurrency.addressFiniteMap.
 Require Import concurrency.permissions.
@@ -42,6 +43,7 @@ Require Import concurrency.JuicyMachineModule.
 Require Import concurrency.sync_preds_defs.
 Require Import concurrency.aging_lemmas.
 Require Import concurrency.lksize.
+Import threadPool.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -281,15 +283,9 @@ Proof.
   - hnf in *.
     unfold contents_at in *.
     rewrite <-ECo. auto.
- (* - unfold access_cohere' in *.
-    unfold max_access_at in *.
-    intros.
-    apply equal_f with (x := loc) in EMa.
-    rewrite <-EMa.
-    auto.*)
   - unfold max_access_cohere in *. intros loc.
     apply equal_f with (x := loc) in EMa.
-    rewrite <-EMa. 
+    rewrite <-EMa.
     apply Ma.
   - hnf in *. rewrite <-EN.
     auto.
@@ -614,6 +610,18 @@ Proof.
   intros H; apply H.
 Qed.
 
+Lemma predat6 {R loc phi} : lkat R loc phi -> predat phi loc (approx (level phi) R).
+Proof.
+  unfold predat in *.
+  unfold lkat in *.
+  intros H. spec H loc.
+  spec H.
+  { destruct loc. split; auto; unfold LKSIZE; omega. }
+  destruct H as (sh & rsh & ->).
+  if_tac. 2:tauto.
+  eauto.
+Qed.
+
 Lemma predat_join_sub {phi1 phi2 loc R} :
   join_sub phi1 phi2 ->
   predat phi1 loc R ->
@@ -649,4 +657,19 @@ Proof.
   do 3 eexists.
   unfold compose.
   reflexivity.
+Qed.
+
+Lemma lkat_hered R loc : hereditary age (lkat R loc).
+Proof.
+  intros phi phi' A lk a r. spec lk a r.
+  destruct lk as (sh & rsh & E); exists sh, rsh.
+  erewrite age_resource_at; eauto.
+  rewrite E.
+  if_tac; simpl; f_equal.
+  unfold sync_preds_defs.pack_res_inv in *.
+  f_equal. extensionality Ts.
+  pose proof approx_oo_approx' (level phi') (level phi) as RR.
+  spec RR. apply age_level in A. omega.
+  unfold "oo" in *.
+  apply (equal_f RR R).
 Qed.

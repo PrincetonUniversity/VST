@@ -237,6 +237,21 @@ Section permMapDefs.
       try (by inversion Hwritable);
       try (by inversion Hreadable).
   Qed.
+
+  Lemma perm_order_incompatible:
+    forall p p'
+      (Hreadable: Mem.perm_order'' p (Some Readable))
+      (Hwritable: Mem.perm_order'' p' (Some Writable)),
+      perm_union p p' = None.
+  Proof.
+    intros.
+    destruct p as [p0|], p' as [p0'|];
+      try destruct p0;
+      try destruct p0';
+      simpl in *; try (reflexivity);
+      try (by inversion Hwritable);
+      try (by inversion Hreadable).
+  Qed.
     
   Definition perm_max (p1 p2 : option permission) : option permission :=
     match p1,p2 with
@@ -398,6 +413,12 @@ Section permMapDefs.
       try solve[eexists; reflexivity]; subst; try solve [congruence].
     Admitted.
 
+  Lemma joins_permDisjoint_lock: forall r1 r2,
+      joins r1 r2 ->
+      permDisjoint (perm_of_res_lock r1) (perm_of_res_lock r2).
+  Proof.
+  Admitted.
+  
   Lemma permDisjoint_sub: forall r1 r2 p,
       join_sub r2 r1 ->
       permDisjoint (perm_of_res r1) p ->
@@ -1775,5 +1796,21 @@ Lemma restrPermMap_irr:
     simpl in Hperm.
       by exfalso.
   Qed.
+
+  Definition perm_order''_dec : forall (op op' : option permission),
+      {Mem.perm_order'' op op'} + {~ Mem.perm_order'' op op'}.
+  Proof.
+    intros.
+    destruct op, op'; simpl; auto.
+    eapply Mem.perm_order_dec.
+  Defined.
+
+  Definition perm_eq_dec: forall (op op' : option permission),
+      {op = op'} + {~ op = op'}.
+  Proof.
+    intros; destruct op as [op|], op' as [op'|]; simpl; auto;
+    try (destruct op, op'); auto;
+    right; intros Hcontra; discriminate.
+  Defined.
   
 End permMapDefs.

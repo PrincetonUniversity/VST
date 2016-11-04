@@ -22,6 +22,7 @@ Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
 Require Import compcert.lib.Integers.
 Require Import concurrency.threads_lemmas.
+Require Import concurrency.semantics.
 
 Require Import Coq.ZArith.ZArith.
 
@@ -323,7 +324,7 @@ Module Concur.
              (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) (empty_map, empty_map)),
              ext_step genv cnt0 Hcompat tp'' m'
                       (acquire (b, Int.intval ofs)
-                               (Some (getThreadR cnt0, virtueThread)) (Some pmap))
+                               (Some virtueThread))
                     
      | step_release :
          forall (tp' tp'':thread_pool) m1 c m' b ofs virtueThread virtueLP pmap_tid' rmap,
@@ -354,7 +355,7 @@ Module Concur.
              (Htp'': tp'' = updLockSet tp' (b, Int.intval ofs) virtueLP),
              ext_step genv cnt0 Hcompat tp'' m'
                       (release (b, Int.intval ofs)
-                               (Some (getThreadR cnt0, virtueThread)) (Some virtueLP))
+                               (Some virtueLP))
      | step_create :
          forall (tp_upd tp':thread_pool) c b ofs arg virtue1 virtue2,
            let threadPerm' := (computeMap (getThreadR cnt0).1 virtue1.1,
@@ -706,26 +707,19 @@ Module Concur.
                eauto using canonical_lt.
        Qed.
        (** most of these lemmas are in DryMachinLemmas*)
-(*
+
        (** *Invariant Lemmas*)
       
-
+     (*
        (** ** Updating the machine state**)
-       Lemma updCinvariant: forall {tid} ds c (cnt: containsThread ds tid),
+       (*Lemma updCinvariant: forall {tid} ds c (cnt: containsThread ds tid),
            invariant ds ->
            invariant (updThreadC cnt c).
              intros ? ? ? ? INV; inversion INV.
-             constructor.
-             - unfold drf, allDataRes, getThreadsR, getLocksR in *; simpl.
-               auto.
-             - unfold lrf, allLockRes, getThreadsLR, getLocksLR in *; simpl.
-               auto.
-             - simpl; assumption.
-             - simpl; assumption.
-             - simpl; assumption.
+             constructor; auto.
        Qed.
 
-       (* Lemma updThread_inv: forall ds i (cnt: containsThread ds i) c pmap,
+       Lemma updThread_inv: forall ds i (cnt: containsThread ds i) c pmap,
            invariant ds ->
            (forall j (cnt: containsThread ds j),
                i<>j -> permMapsDisjoint pmap.1 (getThreadR cnt).1 /\
@@ -735,9 +729,9 @@ Module Concur.
                        permMapsDisjoint pmap0.2 pmap.2) ->
            invariant (updThread cnt c pmap).
        Proof.
-         intros ? x ? ? ? INV A B C.
+         intros ds x cnt c pmap INV A B.
          constructor.
-         - unfold race_free; intros.
+         - intros.
            destruct (scheduler.NatTID.eq_tid_dec x i); [|destruct (scheduler.NatTID.eq_tid_dec x j)].
            + subst i.
              rewrite gssThreadRes.
@@ -746,13 +740,33 @@ Module Concur.
              apply cntUpdate' in cntj'.
              eapply (A); assumption.
            + subst j.
-             apply permMapsDisjoint_comm.
+             apply permMapsDisjoint2_comm.
              rewrite gssThreadRes.
              rewrite gsoThreadRes; try solve[assumption].
              apply A; assumption.
            + rewrite gsoThreadRes; try solve[assumption].
              rewrite gsoThreadRes; try solve[assumption].
-             inversion INV. apply no_race; assumption.
+             inversion INV. apply no_race_thr0; assumption.
+         -  intros.
+           rewrite gsoThreadLPool in Hres1.
+           rewrite gsoThreadLPool in Hres2.
+           inversion INV. eapply no_race_lr0; eauto.
+         - intros i laddr cnti rmap.
+           rewrite gsoThreadLPool; intros Hres.
+           destruct (scheduler.NatTID.eq_tid_dec x i).
+           + subst x. rewrite gssThreadRes.
+             apply permMapsDisjoint2_comm.
+             eapply B; eassumption.
+           + rewrite gsoThreadRes; auto.
+             inversion INV. eapply no_race0; eassumption.
+         - intros i cnti.
+           destruct (scheduler.NatTID.eq_tid_dec x i).
+           + subst x. rewrite gssThreadRes.
+
+             
+           + rewrite gsoThreadRes; auto.
+             
+           
          - intros. rewrite gsoThreadLock.
            destruct (scheduler.NatTID.eq_tid_dec x i).
            + subst x. rewrite gssThreadRes. apply B.

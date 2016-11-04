@@ -36,6 +36,7 @@ Require Import concurrency.semax_conc_pred.
 Require Import concurrency.semax_conc.
 Require Import concurrency.juicy_machine.
 Require Import concurrency.concurrent_machine.
+Require Import concurrency.semantics.
 Require Import concurrency.scheduler.
 Require Import concurrency.addressFiniteMap.
 Require Import concurrency.permissions.
@@ -44,6 +45,7 @@ Require Import concurrency.age_to.
 Require Import concurrency.sync_preds_defs.
 Require Import concurrency.join_lemmas.
 Require Import concurrency.lksize.
+Import threadPool.
 
 (*! Instantiation of modules *)
 Export THE_JUICY_MACHINE.
@@ -115,13 +117,13 @@ Definition lock_coherence (lset : AMap.t (option rmap)) (phi : rmap) (m : mem) :
     (* locked lock *)
     | Some None =>
       load_at m loc = Some (Vint Int.zero) /\
-      exists sh R, LK_at R sh loc phi
+      exists R, lkat R loc phi
     
     (* unlocked lock *)
     | Some (Some lockphi) =>
       load_at m loc = Some (Vint Int.one) /\
-      exists sh (R : mpred),
-        LK_at R sh loc phi /\
+      exists (R : mpred),
+        lkat R loc phi /\
         (app_pred R (age_by 1 lockphi) \/ level phi = O)
         (*/\
         match age1 lockphi with
@@ -436,6 +438,15 @@ Proof.
   eauto.
 Qed.
 
+Definition blocked_at_external (state : cm_state) (ef : external_function) :=
+  match state with
+    (m, ge, (sch, tp)) =>
+    exists j cntj sch' c args,
+      sch = j :: sch' /\
+      @getThreadC j tp cntj = Kblocked c /\
+      cl_at_external c = Some (ef, args)
+  end.
+
 Ltac absurd_ext_link_naming :=
   exfalso;
   match goal with
@@ -460,8 +471,6 @@ Ltac funspec_destruct s :=
   let Heq_name := fresh "Heq_name" in
   destruct (oi_eq_dec (Some (_ s, _)) (ef_id_sig _ (EF_external _ _)))
     as [Heq_name | Heq_name]; try absurd_ext_link_naming.
-
-
 
 (* if a hypothesis if of the form forall a1 a2 a3 a4 ...,
 "forall_bringvar 3" will move a3 as the first variable, i.e. forall a3

@@ -395,6 +395,12 @@ split.
 rewrite Share.lub_commute. auto.
 Qed.
 
+Lemma writable_Rsh: writable_share Share.Rsh.
+Proof.
+  unfold writable_share.
+  apply join_sub_refl.
+Qed.
+
 Hint Resolve writable_Ews.
 
 Definition Ers (* Extern read share *) := 

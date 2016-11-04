@@ -11,6 +11,7 @@ Require Import ProofIrrelevance.
 (* The concurrent machinery*)
 Require Import concurrency.scheduler.
 Require Import concurrency.concurrent_machine.
+Require Import concurrency.semantics.
 Require Import concurrency.juicy_machine. Import Concur.
 Require Import concurrency.dry_machine. Import Concur.
 (*Require Import concurrency.dry_machine_lemmas. *)
@@ -23,11 +24,11 @@ Require Import veric.Clightnew_coop.
 Require Import sepcomp.event_semantics.
 
 Module ClightSEM <: Semantics.
-  Definition F := fundef.
-  Definition V := type.
+  Definition F: Type := fundef.
+  Definition V: Type := type.
   Definition G := genv.
   Definition C := corestate.
-  Definition getEnv g := genv_genv g.
+  Definition getEnv (g:G): Genv.t F V := genv_genv g.
   (* We might want to define this properly or 
      factor the machines so we don't need events here. *)
   Parameter CLN_evsem : EvSem G C.

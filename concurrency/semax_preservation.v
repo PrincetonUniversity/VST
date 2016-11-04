@@ -59,7 +59,6 @@ Require Import concurrency.semax_preservation_jspec.
 Require Import concurrency.semax_preservation_local.
 Require Import concurrency.semax_preservation_acquire.
 Require Import concurrency.semax_preservation_release.
-Require Import concurrency.semax_preservation_makelock.
 Require Import concurrency.semax_preservation_freelock.
 Require Import concurrency.semax_preservation_spawn.
 
@@ -224,6 +223,7 @@ Proof.
   unfold Plt. zify. omega.
 Qed.
 
+(* obsolete : mem_cohere' is not redundant anymore
 Lemma mem_cohere'_redundant m phi :
   contents_cohere m phi ->
   access_cohere' m phi ->
@@ -235,6 +235,7 @@ Proof.
   intros loc. autospec B.
   destruct (phi @ loc) as [t0 | t0 p [] p0 | k p]; auto.
   { unfold perm_of_res in *.
+    unfold perm_of_res' in *.
     unfold perm_of_sh in *.
     if_tac. now destruct Share.nontrivial; auto.
     if_tac. now auto.
@@ -245,12 +246,13 @@ Proof.
   all:rewrite (nextblock_noaccess m _ (snd loc) Max n) in B.
   all:inversion B.
 Qed.
+*)
 
 Lemma mem_cohere_age_to_inv n m phi :
   mem_cohere' m (age_to n phi) ->
   mem_cohere' m phi.
 Proof.
-  intros [A B C D]; split.
+  intros [A B C]; split.
   - unfold contents_cohere in *.
     intros rsh sh v loc pp H.
     specialize (A rsh sh v loc).
@@ -290,7 +292,8 @@ Proof.
   
   destruct MC as [A B C D].
   unfold contents_cohere in *.
-  apply mem_cohere'_redundant.
+  constructor.
+  (* apply mem_cohere'_redundant. *)
   
   - (* Proving contents_cohere *)
     intros sh rsh v loc pp AT.
@@ -404,7 +407,12 @@ Proof.
            destruct Freed; congruence.
         -- unfold max_access_at in * (* same Cur and Max *).
            rewrite <-(Same Max), E'.
-           rewrite perm_of_res_resource_fmap; auto.
+           Lemma perm_of_res'_resource_fmap f g r :
+             perm_of_res' (resource_fmap f g r) = perm_of_res' r.
+           Proof.
+             destruct r; simpl; auto.
+           Qed.
+           rewrite perm_of_res'_resource_fmap; auto.
     
     + (* "Write" case *)
       destruct RD as (rsh & v & v' & E & E').
@@ -425,7 +433,7 @@ Proof.
            tauto.
         -- unfold max_access_at in * (* same Cur and Max *).
            rewrite <-(Same Max).
-           replace (perm_of_res (Phi' @ loc)) with (perm_of_res (Phi @ loc)). auto.
+           replace (perm_of_res' (Phi' @ loc)) with (perm_of_res' (Phi @ loc)). now auto.
            apply resource_at_join with (loc := loc) in J'.
            apply resource_at_join with (loc := loc) in J.
            rewrite E' in J'.
@@ -458,10 +466,10 @@ Proof.
       rewrite RD.
       simpl.
       rewrite perm_of_freeable.
-      destruct (perm_of_res (Phi' @ loc)) as [[]|]; constructor.
+      destruct (perm_of_res' (Phi' @ loc)) as [[]|]; constructor.
     
     + (* "Free" case *)
-      cut (perm_of_res (Phi' @ loc) = None).
+      cut (perm_of_res' (Phi' @ loc) = None).
       { intros ->. destruct (max_access_at (m_dry jm') loc) as [[]|]; constructor. }
       destruct RD as (v & pp & E & E').
       apply resource_at_join with (loc := loc) in J'.
@@ -507,8 +515,8 @@ Proof.
     cbv iota beta.
   all:try solve [intuition].
   destruct C as [B C]; split; auto. clear B.
-  destruct C as (sh & R & lk & sat).
-  exists sh, R; split. eauto.
+  destruct C as ((* sh &  *)R & lk & sat).
+  exists (* sh, *) R; split. eauto.
   destruct sat as [sat|?]; auto. left.
   unfold age_to.
   rewrite age_by_age_by, plus_comm, <-age_by_age_by.
@@ -548,24 +556,23 @@ Proof.
   destruct (AMap.find (elt:=option rmap) loc (lset tp)) as [o|]; [ | inversion find ].
   match goal with |- (?a < ?b)%positive => assert (D : (a >= b \/ a < b)%positive) by (zify; omega) end.
   destruct D as [D|D]; auto. exfalso.
-  assert (AT : exists (sh : Share.t) (R : pred rmap), (LK_at R sh loc) Phi). {
+  assert (AT : exists (R : pred rmap), (lkat R loc) Phi). {
     destruct o.
-    - destruct coh as [LOAD (sh' & R' & lk & sat)]; eauto.
-    - destruct coh as [LOAD (sh' & R' & lk)]; eauto.
+    - destruct coh as [LOAD ((* sh' &  *)R' & lk & sat)]; eauto.
+    - destruct coh as [LOAD ((* sh' &  *)R' & lk)]; eauto.
   }
   clear coh.
-  destruct AT as (sh & R & AT).
+  destruct AT as (R & AT).
   destruct compat.
   destruct all_cohere0.
   specialize (all_coh0 loc D).
   specialize (AT loc).
   destruct loc as (b, ofs).
   simpl in AT.
-  if_tac in AT. 2:range_tac.
+  spec AT. split; auto. lkomega.
   if_tac in AT. 2:tauto.
   rewrite all_coh0 in AT.
-  destruct AT.
-  congruence.
+  breakhyps.
 Qed.
 
 Lemma resource_decay_join_identity b phi phi' e e' :
@@ -671,12 +678,12 @@ Proof.
     rewrite restrPermMap_max.
     apply Ac.
     
-  - cut (max_access_cohere (restrPermMap (mem_compatible_locks_ltwritable Hcmpt)) Phi).
+(*  - cut (max_access_cohere (restrPermMap (mem_compatible_locks_ltwritable Hcmpt)) Phi).
     { unfold max_access_cohere in *.
       unfold max_access_at in *.
       destruct SO as (_ & <- & <-). auto. }
     intros loc; specialize (Ma loc).
-    rewrite restrPermMap_max. auto.
+    rewrite restrPermMap_max. auto. *)
 
   - unfold alloc_cohere in *.
     destruct SO as (_ & _ & <-). auto.
@@ -716,8 +723,8 @@ Proof.
       apply Emax.
     - do 2 rewrite restrPermMap_Cur'.
       simpl.
-      rewrite <-juic2Perm_correct. 2: apply pr.
-      rewrite <-juic2Perm_correct. 2: apply pr'.
+      rewrite <-juic2Perm_correct. 2: apply acc_coh, pr.
+      rewrite <-juic2Perm_correct. 2: apply acc_coh, pr'.
       reflexivity.
   }
   
@@ -741,7 +748,7 @@ Proof.
         specialize (Econt (b, ofs)).
         apply Econt.
         specialize (R1 ofs ltac:(zify;omega)).
-        pose proof @juicyRestrictCurEq phi m ltac:(apply pr) (b, ofs) as R.
+        pose proof @juicyRestrictCurEq phi m ltac:(apply acc_coh, pr) (b, ofs) as R.
         unfold access_at in R.
         simpl fst in R; simpl snd in R.
         unfold perm in R1.
@@ -1027,12 +1034,13 @@ Section Preservation.
   Admitted.
   
   Theorem preservation Gamma n state state' :
+    ~ blocked_at_external state MKLOCK ->
     state_step state state' ->
     state_invariant Jspec' Gamma (S n) state ->
     state_invariant Jspec' Gamma n state' \/
     state_invariant Jspec' Gamma (S n) state'.
   Proof.
-    intros STEP.
+    intros not_makelock STEP.
     inversion STEP as [ | ge m m' sch sch' tp tp' jmstep E E']. now auto.
     (* apply state_invariant_S *)
     subst state state'; clear STEP.
@@ -1332,7 +1340,7 @@ Section Preservation.
             try congruence; try subst;
             try solve [jmstep_inv; getThread_inv; congruence ] ].
       subst.
-      
+
       simpl SCH.schedSkip in *.
       clear HschedN.
       left (* TO BE CHANGED *).
@@ -1372,7 +1380,13 @@ Section Preservation.
       
       - (* the case of makelock *)
         simpl (m_phi _) in *.
-        eapply preservation_makelock with (Phi := Phi); eauto.
+        (* disregarding the case of makelock by hypothesis *)
+        exfalso; apply not_makelock.
+        repeat eexists; eauto.
+        rewrite <- Hat_external.
+        unfold SEM.Sem.
+        rewrite SEM.CLN_msem.
+        reflexivity.
       
       - (* the case of freelock *)
         simpl (m_phi _) in *.
@@ -1501,4 +1515,5 @@ Section Preservation.
       eapply preservation_Kinit; eauto.
     }
   Qed.
+  
 End Preservation.

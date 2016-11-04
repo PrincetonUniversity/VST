@@ -26,6 +26,7 @@ Require Import Coq.ZArith.ZArith.
 Require Import concurrency.threads_lemmas.
 Require Import concurrency.permissions.
 Require Import concurrency.dry_context.
+Require Import concurrency.semantics.
 
 (** ** Block renamings*)
 Module Renamings.
@@ -3162,7 +3163,7 @@ as big as [m] *)
       
 End MemObsEq.
 
-Module Type CoreInjections (SEM: concurrent_machine.Semantics).
+Module Type CoreInjections (SEM: Semantics).
 
   Import ValObsEq ValueWD MemoryWD Renamings MemObsEq SEM event_semantics.
 
@@ -3339,7 +3340,7 @@ Module Type CoreInjections (SEM: concurrent_machine.Semantics).
   
 End CoreInjections.
 
-Module ThreadPoolInjections (SEM: concurrent_machine.Semantics)
+Module ThreadPoolInjections (SEM: Semantics)
        (Machines: MachinesSig with Module SEM := SEM)
        (CI: CoreInjections SEM).
   
@@ -3463,7 +3464,7 @@ here*)
   Proof.
     intros.
     intros i cnti'.
-    assert (cnti := cntUpdateL' _ _ cnti').
+    assert (cnti := cntUpdateL' cnti').
     specialize (Htp_wd _ cnti).
       by rewrite gLockSetCode.
   Qed.
@@ -3475,7 +3476,7 @@ here*)
   Proof.
     intros.
     intros i cnti'.
-    assert (cnti := cntRemoveL' _ cnti').
+    assert (cnti := cntRemoveL' cnti').
     specialize (Htp_wd _ cnti);
       by rewrite gRemLockSetCode.
   Qed.

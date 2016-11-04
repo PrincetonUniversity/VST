@@ -72,7 +72,16 @@ Definition perm_of_res' (r: resource) :=
  | YES rsh sh _ _ => perm_of_sh rsh (pshare_sh sh)
  end.
 
+
 Definition perm_of_res_lock (r: resource) := 
+  (*  perm_of_sh (res_retain' r) (valshare r). *)
+ match r with
+ | YES rsh sh (LK _) _ => perm_of_sh rsh (pshare_sh sh)
+ | YES rsh sh (CT _) _ => perm_of_sh rsh (pshare_sh sh)
+ | _ => None 
+ end.
+
+(*Definition perm_of_res_lock (r: resource) := 
   (*  perm_of_sh (res_retain' r) (valshare r). *)
  match r with
  | NO sh => if eq_dec sh Share.bot then None else Some Nonempty
@@ -80,7 +89,7 @@ Definition perm_of_res_lock (r: resource) :=
  | YES rsh sh (LK _) _ => perm_of_sh rsh (pshare_sh sh)
  | YES rsh sh (CT _) _ => perm_of_sh rsh (pshare_sh sh)
  | YES rsh sh _ _ => Some Nonempty
- end.
+ end. *)
 
 Lemma perm_of_res_op1:
   forall r,
