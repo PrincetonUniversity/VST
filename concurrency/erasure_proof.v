@@ -1772,10 +1772,10 @@ Module Parching <: ErasureSig.
            destruct H as [l dlockRes].
            econstructor 1.
            
-           11: reflexivity.
-           11: now unfold ds'', ds'; repeat f_equal; apply proof_irr.
+           12: reflexivity.
+           12: now unfold ds'', ds'; repeat f_equal; apply proof_irr.
            5: eassumption.
-           stop here.
+           7: eassumption.
            + assumption.
            + eapply MTCH_getThreadC; eassumption.
            + eassumption.
@@ -1793,28 +1793,32 @@ Module Parching <: ErasureSig.
              symmetry. apply mtch_perm2.
              apply THE_JUICY_MACHINE.JSEM.mem_compat_thread_max_cohere.
              assumption.
-           + move Hload at bottom.
-             eapply Hload.
-             2: eassumption.
-           + Set Printing Implicit.
-             (*HERE*)
-             
-             instantiate(1:=
-                           juicyRestrict_locks
-                              (mem_compat_thread_max_cohere Hcompat _)).
-                           (restrPermMap
-               (JSEM.mem_compatible_locks_ltwritable Hcompatible))). 
-             apply restrPermMap_ext.
+           + reflexivity.
+           + reflexivity.
+             (* apply restrPermMap_ext;
              intros b0.
              inversion MATCH; subst.
              extensionality ofs0.
-             
-             
-             symmetry; apply MTCH_lockSet. assumption.
-           + assumption.
-           + assumption.
+             inversion MATCH; subst.
+             symmetry. apply MTCH_lockSet. assumption. *)
            + exact dlockRes.
-           + { constructor.
+           + simpl; intros b0 ofs0. inversion MATCH; subst.
+             specialize (mtch_locksRes _ _ _ His_unlocked dlockRes).
+             rewrite <- mtch_locksRes.
+             rewrite <- mtch_perm1 with (Htid:=Hi).
+             replace (MTCH_cnt MATCH Hi) with Htid' by eapply proof_irr.
+             rewrite virtue_correct1.
+             admit. (*permjoin and sepalg.join*)
+           + simpl; intros b0 ofs0. inversion MATCH; subst.
+             specialize (mtch_locksRes0 _ _ _ His_unlocked dlockRes).
+             rewrite <- mtch_locksRes0.
+             rewrite <- mtch_perm2 with (Htid:=Hi).
+             replace (MTCH_cnt MATCH Hi) with Htid' by eapply proof_irr.
+             rewrite virtue_correct2.
+             admit. (*permjoin and sepalg.join*)
+    }
+             
+         (*  + { constructor.
                - intros b0 ofs0 H.
                  destruct (virtue ! b0) eqn:vb0.
                  destruct (o ofs0) eqn:oofs0.
@@ -1882,9 +1886,9 @@ Module Parching <: ErasureSig.
                  + rewrite (computeMap_3) in H; try left; eassumption.
                - intros. rewrite empty_map_spec.
                  simpl. destruct ((l !! b0 ofs0)); constructor.
-             }
-    }  
-    
+             } *)
+
+    stop here.
     (* step_release *)
     {
       
