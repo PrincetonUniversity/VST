@@ -1133,7 +1133,7 @@ Qed. *)
               (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
       thread_pool -> mem -> sync_event -> Prop :=
     | step_acquire :
-        forall (tp' tp'' tp''':thread_pool) c m1 b ofs d_phi psh phi phi' m',
+        forall (tp' tp'' tp''':thread_pool) c m0 m1 b ofs d_phi psh phi phi' m',
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kblocked c)
@@ -1145,13 +1145,13 @@ Qed. *)
             (Hpersonal_juice: getThreadR cnt0 = phi)
             (sh:Share.t)(R:pred rmap)
             (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
-            (*Hrestrict_pmap:
-               permissions.restrPermdoctorMap (*HERE*)
-                 (juicyRestrict_locks (Hcompatible)
-                  = m1 *)
             (Hrestrict_map: juicyRestrict_locks
-                              (mem_compat_thread_max_cohere Hcompat cnt0) = m1)
-            (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.one))
+                              (mem_compat_thread_max_cohere Hcompat cnt0) = m0)
+            (Hload: Mem.load Mint32 m0 b (Int.intval ofs) = Some (Vint Int.one))
+            (Hrestrict_pmap:
+               permissions.restrPermMap
+                 (mem_compatible_locks_ltwritable Hcompatible)
+                  = m1)
             (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
             (His_unlocked: lockRes tp (b, Int.intval ofs) = SSome d_phi )
             (Hadd_lock_res: join phi d_phi  phi')  
@@ -1160,7 +1160,7 @@ Qed. *)
             (Htp''': tp''' = age_tp_to (level phi - 1)%coq_nat tp''),
             syncStep' genv cnt0 Hcompat tp''' m' (acquire (b, Int.intval ofs) None)                
     | step_release :
-        forall  (tp' tp'' tp''':thread_pool) c m1 b ofs psh  (phi d_phi :rmap) (R: pred rmap) phi' m',
+        forall  (tp' tp'' tp''':thread_pool) c m0 m1 b ofs psh  (phi d_phi :rmap) (R: pred rmap) phi' m',
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kblocked c)
@@ -1172,13 +1172,13 @@ Qed. *)
             (Hpersonal_juice: getThreadR cnt0 = phi)
             (sh:Share.t)
             (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
-            (*Hrestrict_pmap:
+            (Hrestrict_map: juicyRestrict_locks
+                              (mem_compat_thread_max_cohere Hcompat cnt0) = m0)
+            (Hload: Mem.load Mint32 m0 b (Int.intval ofs) = Some (Vint Int.zero))
+            (Hrestrict_pmap:
                permissions.restrPermMap
                  (mem_compatible_locks_ltwritable Hcompatible)
-                  = m1*)
-            (Hrestrict_map: juicyRestrict_locks
-                              (mem_compat_thread_max_cohere Hcompat cnt0) = m1)
-            (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero))
+                  = m1)
             (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.one) = Some m')
             (His_locked: lockRes tp (b, Int.intval ofs) = SNone )
             (* what does the return value denote?*)

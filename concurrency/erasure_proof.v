@@ -1774,6 +1774,8 @@ Module Parching <: ErasureSig.
            
            11: reflexivity.
            11: now unfold ds'', ds'; repeat f_equal; apply proof_irr.
+           5: eassumption.
+           stop here.
            + assumption.
            + eapply MTCH_getThreadC; eassumption.
            + eassumption.
@@ -1781,10 +1783,26 @@ Module Parching <: ErasureSig.
              rewrite -Hload; f_equal.
              eapply restrPermMap_ext.*)
              
-        (*   + eapply MTCH_compat; eassumption.*)
+           (*   + eapply MTCH_compat; eassumption.*)
+           + unfold JSEM.juicyRestrict_locks.
+             apply restrPermMap_ext;
+             intros b0.
+             inversion MATCH; subst.
+             extensionality ofs0.
+             rewrite <- JSEM.juic2Perm_locks_correct.
+             symmetry. apply mtch_perm2.
+             apply THE_JUICY_MACHINE.JSEM.mem_compat_thread_max_cohere.
+             assumption.
+           + move Hload at bottom.
+             eapply Hload.
+             2: eassumption.
            + Set Printing Implicit.
              (*HERE*)
-             instantiate(1:=(restrPermMap
+             
+             instantiate(1:=
+                           juicyRestrict_locks
+                              (mem_compat_thread_max_cohere Hcompat _)).
+                           (restrPermMap
                (JSEM.mem_compatible_locks_ltwritable Hcompatible))). 
              apply restrPermMap_ext.
              intros b0.
