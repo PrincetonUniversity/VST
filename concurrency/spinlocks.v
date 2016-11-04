@@ -72,8 +72,8 @@ Module SpinLocks (SEM: Semantics)
       | internal _ (event_semantics.Read _ _ _ _) => Some Read
       | internal _ (event_semantics.Alloc _ _ _) => None
       | internal _ (event_semantics.Free _) => None
-      | external _ (release _ _ _) => Some Release
-      | external _ (acquire _ _ _) => Some Acquire
+      | external _ (release _ _) => Some Release
+      | external _ (acquire _ _) => Some Acquire
       | external _ (mklock _) => Some Mklock
       | external _ (freelock _) => Some Freelock
       | external _ (spawn _ _ _) => None
@@ -884,7 +884,7 @@ Module SpinLocks (SEM: Semantics)
                       [by exfalso | reflexivity].
                   * (** case i is a different thread than the one that stepped*)
                     (** by the invariant*) 
-                    assert (cnti' := cntUpdate' _ _ _ cnti).
+                    assert (cnti' := cntUpdate' cnti).
                     erewrite! gsoThreadRes with (cntj := cnti')
                       by (intro Hcontra; subst; auto).
                     split.
@@ -2069,7 +2069,7 @@ Module SpinLocks (SEM: Semantics)
                 now eauto.
                 intros i cnti.
                 rewrite restrPermMap_Cur in Hfreeable.
-                pose proof (cntUpdate' _ _ _ cnti) as cnti0.
+                pose proof (cntUpdate' cnti) as cnti0.
                 eapply invariant_freeable_empty_threads with (j := i) (cntj := cnti0) in Hfreeable;
                   eauto.
                 destruct Hfreeable.
@@ -2113,7 +2113,7 @@ Module SpinLocks (SEM: Semantics)
             - right.
               econstructor; eauto.
               + intros.
-                pose proof (cntUpdate' _ _ _ cnti) as cnti0.              
+                pose proof (cntUpdate' cnti) as cnti0.              
                 destruct (i == tid) eqn:Heq; move/eqP:Heq=>Heq.
                 * subst. pf_cleanup.
                   rewrite gssThreadRes.
@@ -2149,7 +2149,7 @@ Module SpinLocks (SEM: Semantics)
                 now eauto.
                 intros i cnti.
                 rewrite restrPermMap_Cur in Hfreeable.
-                pose proof (cntUpdate' _ _ _ cnti) as cnti0.
+                pose proof (cntUpdate' cnti) as cnti0.
                 eapply invariant_freeable_empty_threads with (j := i) (cntj := cnti0) in Hfreeable;
                   eauto.
                 destruct Hfreeable.
@@ -2193,7 +2193,7 @@ Module SpinLocks (SEM: Semantics)
             - right.
               econstructor; eauto.
               + intros.
-                pose proof (cntUpdate' _ _ _ cnti) as cnti0.              
+                pose proof (cntUpdate' cnti) as cnti0.              
                 destruct (i == tid) eqn:Heq; move/eqP:Heq=>Heq.
                 * subst. pf_cleanup.
                   rewrite gssThreadRes.
@@ -2382,10 +2382,6 @@ Module SpinLocks (SEM: Semantics)
         destruct (containsThread_dec (thread_id evj) tp_k') as [cntj_k' | Hnot_contained].
         { (** Case [thread_id evj] is in the threadpool*)
 
-          (** By case analysis on the type of the competing events [evk] and
-          [evj], by [compete_cases] there are two main cases:
-- evk is of type [Read], [Acquire], [AcquireFail], [Release] and [evj] is of type [Write], [Mklock], [Freelock] or
-- evk is of type [Write], [Mklock], [Freelock] and [evj] is of any type that competes*)
 
           Inductive raction ev : Prop :=
           | read: action ev = Read ->
@@ -2431,8 +2427,10 @@ Module SpinLocks (SEM: Semantics)
                  | Some (b, ofs, sz) =>
                    forall ofs', Intv.In ofs' (ofs, ofs + Z.of_nat sz)%Z ->
                            (Mem.valid_block m b ->
-                            Mem.perm_order'' ((getThreadR cnt).1 !! b ofs') (Some Writable)) /\
-                           (Mem.perm_order'' ((getThreadR cnt').1 !! b ofs') (Some Writable) \/
+                            Mem.perm_order'' ((getThreadR cnt).1 !! b ofs') (Some Writable) \/
+                            Mem.perm_order'' ((getThreadR cnt).2 !! b ofs') (Some Writable)) /\
+                           ((Mem.perm_order'' ((getThreadR cnt').1 !! b ofs') (Some Writable) \/
+                             Mem.perm_order'' ((getThreadR cnt').2 !! b ofs') (Some Writable)) \/
                             deadLocation tp' m' b ofs')
                  | None => False
                  end) /\
@@ -2467,6 +2465,29 @@ Module SpinLocks (SEM: Semantics)
               inversion H; (auto || discriminate).
           Qed.
 
+          Lemma raction_waction:
+            forall ev,
+              raction ev -> ~ waction ev.
+          Proof.
+            intros.
+            intro Hcontra.
+            inversion H; inv Hcontra; congruence.
+          Qed.
+
+          Lemma waction_raction:
+            forall ev,
+              waction ev -> ~ raction ev.
+          Proof.
+            intros.
+            intro Hcontra.
+            inversion H; inv Hcontra; congruence.
+          Qed.
+
+          (** by [compete_cases] there are two main cases:
+- evk is of type [Read], [Acquire], [AcquireFail], [Release] and [evj] is of type [Write], [Mklock], [Freelock] or
+- evk is of type [Write], [Mklock], [Freelock] and [evj] is of any type that competes*)
+          pose proof (compete_cases Hcompetes_kj) as Hcases.
+
           (** *** Proving that the permissions required for [evk] and [evj]
               are above [Readable] and incompatible*)
 
@@ -2487,49 +2508,61 @@ Module SpinLocks (SEM: Semantics)
             { (** Suppose that it was. [deadLocation] is preserved by
                       [multi_fstep] and hence [evj] would not have sufficient permissions
                       to perform a [caction]*)
-
               intros Hdead.
               (** [(b,ofs)] is [deadLocation] at [tp], [m]*)
               eapply multi_fstep_deadLocation with (tp' := tp) (m' := m) in Hdead; eauto.
               (** Hence [b] is a valid block in [m]*)
               inversion Hdead.
               (** Moreover permissions of the machine on [(b, ofs)] are None*)
-              destruct (Hthreads _ cntj) as [Hperm1 _].
-
+              destruct (Hthreads _ cntj) as [Hperm1 Hperm2].
               (** The permissions of the thread [thread_id evj] must be above
                       [Readable] by the fact that [evj] is a [caction] event,
                       which leads to a contradiction*)
-              specialize (Hreadj Hcactionj).
-              destruct Hactionj as [Hactionj | Hactionj];
-                [destruct (Hwritej Hactionj cntj cntj' ofs Hintvj) as [Hperm _] |
-                 destruct (Hreadj Hactionj cntj cntj' ofs Hintvj) as [Hperm _]];
-                specialize (Hperm Hvalid);
-                rewrite Hperm1 in Hperm; simpl in Hperm;
-                  now auto.
+              pose proof ((Hreadj Hcactionj cntj cntj' ofs Hintvj).1 Hvalid) as Hperm.
+              rewrite Hperm1 Hperm2 in Hperm.
+              simpl in Hperm.
+              destruct Hperm;
+                now auto.
             }
-
-            destruct Hactionk as [Hactionk | Hactionk];
-              [destruct (Hwritek Hactionk cntk cntk' ofs Hintvk) as [_ [Hpermk | Hcontra]] |
-               destruct (Hreadk Hactionk cntk cntk' ofs Hintvk) as [_ [Hpermk | Hcontra]]];
+            destruct Hcases as [[Hractionk Hwactionj] | [Hwactionk Hwractionj]];
+              [ destruct (Hreadk (raction_caction Hractionk) cntk cntk' ofs Hintvk) as [_ [Hpermk | Hcontra]]
+              | destruct (Hwritek Hwactionk cntk cntk' ofs Hintvk) as [_ [Hpermk | Hcontra]]];
               try (by exfalso); split;
                 try (eapply po_trans; eauto;
                      now constructor);
-                destruct Hactionj as [Hactionj | Hactionj]; intros; try (congruence);
-                  try (destruct (Hwritej Hactionj cntj cntj' ofs Hintvj) as [Hpermj _]);
-                  try (destruct (Hreadj Hactionj cntj cntj' ofs Hintvj) as [Hpermj _]);
-                  specialize (Hpermj (Hvalid_m _ Hpermk));
-                  repeat match goal with
-                         | [H1: action _ = Read, H2: action _ = Read |- _] =>
-                           rewrite H1 H2 in His_write; destruct His_write; discriminate
-                         | [ |- _ /\ _] =>
-                           split
-                         | [H: Mem.perm_order'' ?X ?Y |- Mem.perm_order'' ?X ?Y] =>
-                           assumption
-                         | [ |- Mem.perm_order'' _ _] =>
-                           eapply po_trans; eauto; simpl; now constructor
-                         | [ |- _ -> _] => intros; try congruence
-                         end;
-                  eauto.
+                specialize (Hvalid_m _ Hpermk);
+                repeat match goal with
+                       | [H: waction evj |- _] =>
+                         destruct (Hwritej H cntj cntj' ofs Hintvj) as [Hpermj _];
+                           specialize (Hpermj Hvalid_m); clear Hwritej
+                       | [H: is_true (isSome (caction evj)) |- _] =>
+                         destruct (Hreadj H cntj cntj' ofs Hintvj) as [Hpermj _];
+                           specialize (Hpermj Hvalid_m ); clear Hreadj
+                       | [H: waction evk |- _] =>
+                         destruct (Hwritek H cntk cntk' ofs Hintvk) as [_ [Hpermk | Hcontra]];
+                           clear Hwritek
+                       | [H: is_true (isSome (caction evk)) |- _] =>
+                         destruct (Hreadk H cntk cntk' ofs Hintvk) as [_ [Hpermk | Hcontra]];
+                           clear Hreadk
+                       | [ |- _ /\ _] =>
+                         split
+                       | [H: Mem.perm_order'' ?X ?Y |- Mem.perm_order'' ?X ?Y] =>
+                         assumption
+                       | [ |- Mem.perm_order'' _ _] =>
+                         eapply po_trans; eauto; simpl; now constructor
+                       | [H: Mem.perm_order'' _ _ \/ Mem.perm_order'' _ _ |- _] =>
+                         destruct H
+                       | [H: Mem.perm_order'' ?X ?Y  |- Mem.perm_order'' ?X ?Y \/ _] =>
+                         left
+                       | [H: Mem.perm_order'' ?X ?Y  |- _ \/ Mem.perm_order'' ?X ?Y] =>
+                           right
+                       | [ |- _ -> _] => intros
+                       | [H: waction ?X, H2: raction ?X |- Mem.perm_order'' _ _] =>
+                         exfalso; eapply waction_raction
+                       | [H: deadLocation _ _ _ _, H2: ~ deadLocation _ _ _ _ |- _ ] =>
+                         exfalso; eauto
+                       end;
+                eauto.
           }
 
           destruct (compete_cases Hcompetes_kj) as [[Hr_action Hw_action] | [Hw_action Hwr_action]].
