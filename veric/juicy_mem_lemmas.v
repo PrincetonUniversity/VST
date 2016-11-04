@@ -1191,3 +1191,31 @@ Proof.
     apply po_join_sub_sh; eexists; eauto.
   - constructor.
 Qed.
+
+Lemma po_join_sub' r1 r2 :
+  join_sub r2 r1 ->
+  Mem.perm_order'' (perm_of_res' r1) (perm_of_res' r2).
+Proof.
+  intros [r J]; inversion J; subst; simpl.
+  - if_tac.
+    + subst.
+      if_tac.
+      * eauto with *.
+      * exfalso.
+        pose proof Share.lub_upper1 rsh1 rsh2.
+        inversion RJ as [_ E].
+        rewrite E in H0.
+        eauto with *.
+    + if_tac; constructor.
+  - apply po_join_sub_sh.
+    + exists rsh2; assumption.
+    + apply join_sub_refl.
+  - if_tac.
+    + destruct ((perm_of_sh rsh3 (pshare_sh sh))); try destruct p; constructor.
+    + destruct (perm_of_sh_pshare rsh3 sh) as [p' HH]; rewrite HH;
+      destruct p'; constructor.
+  - apply po_join_sub_sh.
+    + exists rsh2; assumption.
+    + exists (pshare_sh sh2); assumption.
+  - constructor.
+Qed.

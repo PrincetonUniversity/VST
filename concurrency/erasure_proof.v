@@ -1790,7 +1790,8 @@ Module Parching <: ErasureSig.
              intros b0.
              inversion MATCH; subst.
              extensionality ofs0.
-             stop here.
+             
+             
              symmetry; apply MTCH_lockSet. assumption.
            + assumption.
            + assumption.
