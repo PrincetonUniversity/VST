@@ -250,14 +250,14 @@ Definition acquire_pre: val * share * mpred -> environ -> mpred :=
      SEP (lock_inv sh v R)
   end.
 
-Notation acquire_post :=
-  (fun args =>
+Definition acquire_post: val * share * mpred -> environ -> mpred :=
+  fun args =>
   match args with
   | (v, sh, R) =>
      PROP ()
      LOCAL ()
      SEP (lock_inv sh v R; R)
-  end).
+  end.
 
 Lemma NP_acquire_pre: @super_non_expansive acquire_arg_type (fun _ => acquire_pre).
 Proof.
@@ -312,14 +312,14 @@ Definition release_pre: val * share * mpred -> environ -> mpred :=
      SEP (weak_precise_mpred R && weak_positive_mpred R && emp; lock_inv sh v R; R)
   end.
 
-Notation release_post :=
-  (fun args =>
+Definition release_post: val * share * mpred -> environ -> mpred :=
+  fun args =>
   match args with
   | (v, sh, R) =>
      PROP ()
      LOCAL ()
      SEP (lock_inv sh v R)
-  end).
+  end.
 
 Lemma NP_release_pre: @super_non_expansive release_arg_type (fun _ => release_pre).
 Proof.
@@ -486,17 +486,17 @@ Qed.
 Program Definition freelock2_spec cs: funspec := mk_funspec
   ((_lock OF tptr Tvoid)%formals :: nil, tvoid)
   cc_default 
-  (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * share * share)) rmaps.Mpred) rmaps.Mpred)
+  (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred) rmaps.Mpred)
   (fun _ x =>
    match x with
-   | (v, sh, sh', Q, R) =>
+   | (v, sh, Q, R) =>
      PROP (writable_share sh)
      LOCAL (temp _lock v)
-     SEP (weak_positive_mpred R && weak_rec_inv sh' v Q R && emp; lock_inv sh v R)
+     SEP (weak_positive_mpred R && weak_rec_inv sh v Q R && emp; lock_inv sh v R)
    end)
   (fun _ x =>
    match x with
-   | (v, sh, sh', Q, R) =>
+   | (v, sh, Q, R) =>
      PROP ()
      LOCAL ()
      SEP (@data_at_ cs sh tlock v)
@@ -507,30 +507,30 @@ Program Definition freelock2_spec cs: funspec := mk_funspec
 Next Obligation.
   intro cs; hnf.
   intros.
-  destruct x as [[[[v sh] sh'] Q] R]; simpl in *.
+  destruct x as [[[v sh] Q] R]; simpl in *.
   apply (nonexpansive2_super_non_expansive
    (fun Q R => (PROP (writable_share sh)
      LOCAL (temp _lock v)
-     SEP (weak_positive_mpred R && weak_rec_inv sh' v Q R && emp; lock_inv sh v R)) rho));
+     SEP (weak_positive_mpred R && weak_rec_inv sh v Q R && emp; lock_inv sh v R)) rho));
   [ clear Q R; intros Q;
     apply (PROP_LOCAL_SEP_nonexpansive
             ((fun _ => writable_share sh) :: nil)
             (temp _lock v :: nil)
-            ((fun R => weak_positive_mpred R && weak_rec_inv sh' v Q R && emp)%logic :: (fun R => lock_inv sh v R) :: nil))
+            ((fun R => weak_positive_mpred R && weak_rec_inv sh v Q R && emp)%logic :: (fun R => lock_inv sh v R) :: nil))
   | clear Q R; intros R;
     apply (PROP_LOCAL_SEP_nonexpansive
             ((fun _ => writable_share sh) :: nil)
             (temp _lock v :: nil)
-            ((fun Q => weak_positive_mpred R && weak_rec_inv sh' v Q R && emp)%logic :: (fun _ => lock_inv sh v R) :: nil))];
+            ((fun Q => weak_positive_mpred R && weak_rec_inv sh v Q R && emp)%logic :: (fun _ => lock_inv sh v R) :: nil))];
   repeat apply Forall_cons; try apply Forall_nil.
   + apply const_nonexpansive.
-  + apply (conj_nonexpansive (fun R => weak_positive_mpred R && weak_rec_inv sh' v Q R)%logic); [apply (conj_nonexpansive weak_positive_mpred) |].
+  + apply (conj_nonexpansive (fun R => weak_positive_mpred R && weak_rec_inv sh v Q R)%logic); [apply (conj_nonexpansive weak_positive_mpred) |].
     - apply positive_mpred_nonexpansive.
     - apply rec_inv1_nonexpansive.
     - apply const_nonexpansive.
   + apply nonexpansive_lock_inv.
   + apply const_nonexpansive.
-  + apply (conj_nonexpansive (fun Q => weak_positive_mpred R && weak_rec_inv sh' v Q R)%logic); [apply (conj_nonexpansive (fun _ => weak_positive_mpred R)) |].
+  + apply (conj_nonexpansive (fun Q => weak_positive_mpred R && weak_rec_inv sh v Q R)%logic); [apply (conj_nonexpansive (fun _ => weak_positive_mpred R)) |].
     - apply const_nonexpansive.
     - apply rec_inv2_nonexpansive.
     - apply const_nonexpansive.
@@ -539,11 +539,11 @@ Qed.
 Next Obligation.
   intro cs; hnf.
   intros.
-  destruct x as [[[[v sh] sh'] Q] R]; simpl in *.
+  destruct x as [[[v sh] Q] R]; simpl in *.
   auto.
 Qed.
 
-Program Definition release2_spec: funspec := mk_funspec
+Program Definition releaselock2_spec: funspec := mk_funspec
   ((_lock OF tptr Tvoid)%formals :: nil, tvoid)
   cc_default 
   (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred) rmaps.Mpred)
