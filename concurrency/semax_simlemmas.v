@@ -385,15 +385,157 @@ Proof.
   apply juicyRestrict_ext; auto.
 Qed.
 
+Lemma join_pures_same phi1 phi2 phi3 :
+  join phi1 phi2 phi3 ->
+  pures_same phi1 phi2 /\ pures_same phi2 phi3 /\ pures_same phi1 phi3.
+Proof.
+  intros j; split; [ | split].
+  - apply joins_pures_same. exists phi3; auto.
+  - apply join_sub_pures_same. exists phi1; auto.
+  - apply join_sub_pures_same. exists phi2; auto.
+Qed.
+
+Lemma pures_same_trans phi1 phi2 phi3 :
+  pures_same phi1 phi2 ->
+  pures_same phi2 phi3 ->
+  pures_same phi1 phi3.
+Proof.
+  intros A B.
+  intros x k p.
+  spec A x k p.
+  spec B x k p.
+  tauto.
+Qed.
+
+Lemma pures_same_necR phi1 phi2 phi1' :
+  level phi1 = level phi2 ->
+  pures_same phi1 phi2 ->
+  necR phi1 phi1' ->
+  exists phi2',
+    level phi1' = level phi2' /\
+    pures_same phi1' phi2' /\
+    necR phi2 phi2'.
+Proof.
+  intros EL E n; revert phi2 EL E. induction n.
+  - (* age *)
+    rename y into x'. rename H into A.
+    intros y L E.
+    assert (Hy' : exists y', age y y'). {
+      apply age1_levelS in A. destruct A as (n, A).
+      apply levelS_age1 with n. congruence.
+    }
+    destruct Hy' as (y', Ay).
+    assert (level x' = level y') by (apply age_level in A; apply age_level in Ay; congruence).
+    exists y'. split;[|split]. assumption. 2: constructor; assumption.
+    intros l k pp.
+    pose proof @age_resource_at _ _ l A as Hx.
+    pose proof @age_resource_at _ _ l Ay as Hy.
+    rewrite Hx, Hy.
+    spec E l.
+    destruct (x @ l), (y @ l); split; intro; simpl in *; breakhyps.
+    + spec E k0 p. destruct E as [_ E]. autospec E. discriminate.
+    + spec E k1 p1. destruct E as [_ E]. autospec E. discriminate.
+    + spec E k0 p. destruct E as [E _]. autospec E. discriminate.
+    + spec E k0 p. destruct E as [E _]. autospec E. discriminate.
+    + spec E k0 p. destruct E as [E _]. autospec E. injection E as -> ->. rewr (PURE k pp). congruence. 
+    + spec E k0 p. destruct E as [E _]. autospec E. injection E as -> ->. rewr (PURE k pp). congruence.
+  - (* reflexivity case *)
+    intuition eauto.
+  - (* transitivity case *)
+    intros x' Lx Ex.
+    spec IHn1 x' Lx Ex. destruct IHn1 as (y' & Ly & Ey & ny).
+    spec IHn2 y' Ly Ey. destruct IHn2 as (z' & Lz & Ez & nz).
+    exists z'. split; auto. split; auto. apply necR_trans with y'; auto.
+Qed.
+
+Lemma pures_same_matchfunspec e Gamma phi1 phi2 :
+  level phi1 = level phi2 ->
+  pures_same phi1 phi2 ->
+  matchfunspec e Gamma phi1 ->
+  matchfunspec e Gamma phi2.
+Proof.
+  intros EL E M b fs.
+  specialize (M b fs). destruct fs.
+  intros phi2' necr2.
+  apply pures_same_sym in E.
+  symmetry in EL.
+  destruct (pures_same_necR _ _ _ EL E necr2) as (phi1' & EL' & E' & necr1).
+  spec M phi1' necr1.
+  intros F; apply M; clear M.
+  destruct F as (pp & At). exists pp.
+  unfold app_pred in *. simpl in *.
+  spec E' (b, 0%Z). rewrite At in E'.
+  spec E' (FUN f c) (preds_fmap (approx (level phi2')) (approx (level phi2')) pp).
+  destruct E' as [E' _]. autospec E'. rewrite E'. do 3 f_equal; auto.
+Qed.
+
 Lemma matchfunspec_common_join e Gamma phi phi' psi Phi Phi' :
   join phi psi Phi ->
   join phi' psi Phi' ->
   matchfunspec e Gamma Phi ->
   matchfunspec e Gamma Phi'.
 Proof.
-  intros j j' M b fs.
-  specialize (M b fs).
-Admitted.
+  intros j j'.
+  apply pures_same_matchfunspec. now join_level_tac.
+  apply join_pures_same in j.
+  apply join_pures_same in j'.
+  apply pures_same_trans with psi; try tauto.
+  apply pures_same_sym; tauto.
+Qed.
+
+Lemma perm_of_res'_resource_fmap r f g : perm_of_res' (resource_fmap f g r) = perm_of_res' r.
+Proof.
+  destruct r; reflexivity.
+Qed.
+
+Lemma perm_of_res'_age_to n phi loc : perm_of_res' (age_to n phi @ loc) = perm_of_res' (phi @ loc).
+Proof.
+  rewrite age_to_resource_at.
+  apply perm_of_res'_resource_fmap.
+Qed.
+
+Lemma approx_approx n x : approx n (approx n x) = approx n x.
+Proof.
+  pose proof approx_oo_approx n as E.
+  apply equal_f with (x0 := x) in E.
+  apply E.
+Qed.
+
+Lemma approx'_approx n n' x : n' <= n -> approx n (approx n' x) = approx n' x.
+Proof.
+  intros l.
+  pose proof approx'_oo_approx _ _ l as E.
+  apply equal_f with (x0 := x) in E.
+  apply E.
+Qed.
+
+Lemma approx_approx' n n' x : n' <= n -> approx n' (approx n x) = approx n' x.
+Proof.
+  intros l.
+  pose proof approx_oo_approx' _ _ l as E.
+  apply equal_f with (x0 := x) in E.
+  apply E.
+Qed.
+
+Lemma shape_of_args F V args b ofs ge :
+  Val.has_type_list args (AST.Tint :: nil) ->
+  Vptr b ofs = expr.eval_id _lock (make_ext_args (filter_genv (symb2genv (@Genv.genv_symb F V ge))) (_lock :: nil) args) ->
+  args = Vptr b ofs :: nil.
+Proof.
+  intros Hargsty.
+  assert (L: length args = 1%nat) by (destruct args as [|? [|]]; simpl in *; tauto).
+  unfold expr.eval_id.
+  unfold expr.force_val.
+  intros Preb.
+  match goal with H : context [Map.get ?a ?b] |- _ => destruct (Map.get a b) eqn:E end.
+  subst v. 2: discriminate.
+  pose  (gx := (filter_genv (symb2genv (Genv.genv_symb ge)))). fold gx in E.
+  destruct args as [ | arg [ | ar args ]].
+  + now inversion E.
+  + simpl in E. inversion E. reflexivity.
+  + inversion E. f_equal.
+    inversion L.
+Qed.
 
 (*
 assert (cnti = Htid) by apply proof_irr; subst Htid).

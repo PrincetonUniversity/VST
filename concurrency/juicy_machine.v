@@ -11,6 +11,7 @@ Require Import concurrency.threads_lemmas.
 Require Import concurrency.rmap_locking.
 Require Import concurrency.lksize.
 Require Import concurrency.semantics.
+Require Import concurrency.age_to.
 Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
@@ -1133,7 +1134,7 @@ Qed. *)
               (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
       thread_pool -> mem -> sync_event -> Prop :=
     | step_acquire :
-        forall (tp' tp'' tp''':thread_pool) c m1 b ofs d_phi psh phi phi' m',
+        forall (tp' tp'' tp''':thread_pool) c m0 m1 b ofs d_phi psh phi phi' m' pmap_tid',
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kblocked c)
@@ -1145,13 +1146,19 @@ Qed. *)
             (Hpersonal_juice: getThreadR cnt0 = phi)
             (sh:Share.t)(R:pred rmap)
             (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
+            (Hrestrict_map0: juicyRestrict_locks
+                              (mem_compat_thread_max_cohere Hcompat cnt0) = m0)
+            (Hload: Mem.load Mint32 m0 b (Int.intval ofs) = Some (Vint Int.one))
             (*Hrestrict_pmap:
-               permissions.restrPermdoctorMap (*HERE*)
-                 (juicyRestrict_locks (Hcompatible)
-                  = m1 *)
-            (Hrestrict_map: juicyRestrict_locks
-                              (mem_compat_thread_max_cohere Hcompat cnt0) = m1)
-            (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.one))
+               permissions.restrPermMap
+                 (mem_compatible_locks_ltwritable Hcompatible)
+                  = m1*)
+            (Hset_perm: setPermBlock (Some Writable)
+                                       b (Int.intval ofs) (juice2Perm_locks phi m) LKSIZE_nat = pmap_tid')
+            (Hlt': permMapLt pmap_tid' (getMaxPerm m))
+            (* This following condition is not needed:
+               It should follow from the mem_compat statement... somehow... *)
+            (Hrestrict_pmap: restrPermMap Hlt' = m1)
             (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
             (His_unlocked: lockRes tp (b, Int.intval ofs) = SSome d_phi )
             (Hadd_lock_res: join phi d_phi  phi')  
@@ -1160,7 +1167,7 @@ Qed. *)
             (Htp''': tp''' = age_tp_to (level phi - 1)%coq_nat tp''),
             syncStep' genv cnt0 Hcompat tp''' m' (acquire (b, Int.intval ofs) None)                
     | step_release :
-        forall  (tp' tp'' tp''':thread_pool) c m1 b ofs psh  (phi d_phi :rmap) (R: pred rmap) phi' m',
+        forall  (tp' tp'' tp''':thread_pool) c m0 m1 b ofs psh  (phi d_phi :rmap) (R: pred rmap) phi' m' pmap_tid',
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kblocked c)
@@ -1172,13 +1179,19 @@ Qed. *)
             (Hpersonal_juice: getThreadR cnt0 = phi)
             (sh:Share.t)
             (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
+            (Hrestrict_map0: juicyRestrict_locks
+                              (mem_compat_thread_max_cohere Hcompat cnt0) = m0)
+            (Hload: Mem.load Mint32 m0 b (Int.intval ofs) = Some (Vint Int.zero))
             (*Hrestrict_pmap:
                permissions.restrPermMap
                  (mem_compatible_locks_ltwritable Hcompatible)
                   = m1*)
-            (Hrestrict_map: juicyRestrict_locks
-                              (mem_compat_thread_max_cohere Hcompat cnt0) = m1)
-            (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero))
+            (Hset_perm: setPermBlock (Some Writable)
+                                       b (Int.intval ofs) (juice2Perm_locks phi m) LKSIZE_nat = pmap_tid')
+            (Hlt': permMapLt pmap_tid' (getMaxPerm m))
+            (* This following condition is not needed:
+               It should follow from the mem_compat statement... somehow... *)
+            (Hrestrict_pmap: restrPermMap Hlt' = m1)
             (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.one) = Some m')
             (His_locked: lockRes tp (b, Int.intval ofs) = SNone )
             (* what does the return value denote?*)
@@ -1898,6 +1911,18 @@ Admitted.
         apply B.
       Qed.
       
+      Lemma access_cohere'_unage m : hereditary unage (access_cohere' m).
+      Proof.
+        intros x y E B.
+        intros addr.
+        destruct (age1_levelS _ _ E) as [n L].
+        eapply (age_age_to n) in E; auto.
+        rewrite <-E in B.
+        spec B addr.
+        rewrite perm_of_age in B.
+        apply B.
+      Qed.
+      
       Lemma mem_cohere'_age m : hereditary age (mem_cohere' m).
       Proof.
         intros x y E.
@@ -1908,11 +1933,28 @@ Admitted.
         - eapply alloc_cohere_age; eauto.
       Qed.
       
+      Lemma mem_cohere'_unage m : hereditary unage (mem_cohere' m).
+      Proof.
+        intros x y E.
+        intros [A B C]; constructor.
+        - eapply contents_cohere_unage; eauto.
+        - eapply max_access_cohere_unage; eauto.
+        - eapply alloc_cohere_unage; eauto.
+      Qed.
+      
       Lemma mem_cohere_age_to n m phi :
         mem_cohere' m phi ->
         mem_cohere' m (age_to n phi).
       Proof.
         apply age_to_ind, mem_cohere'_age.
+      Qed.
+      
+      Lemma mem_cohere_age_to_opp n m phi :
+        mem_cohere' m (age_to n phi) ->
+        mem_cohere' m phi.
+      Proof.
+        apply age_by_ind_opp.
+        intros x y A. apply mem_cohere'_unage, A.
       Qed.
       
     End JuicyMachineLemmas.
@@ -1931,4 +1973,4 @@ Declare Module SEM:Semantics.
   
 End Concur.
 
-(*Erase everything bellow*)
+(*Erase everything below*)

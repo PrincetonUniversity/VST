@@ -291,12 +291,11 @@ Module Concur.
        end.
      Infix "??" := option_function (at level 80, right associativity).
 
-     
      Inductive ext_step (genv:G) {tid0 tp m}
                (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
        thread_pool -> mem -> sync_event -> Prop :=
      | step_acquire :
-         forall (tp' tp'':thread_pool) m1 c m' b ofs
+         forall (tp' tp'':thread_pool) m0 m1 c m' b ofs
            (pmap : LocksAndResources.lock_info)
            (pmap_tid' : access_map)
            (virtueThread : delta_map * delta_map),
@@ -307,15 +306,16 @@ Module Concur.
              (Hcode: getThreadC cnt0 = Kblocked c)
              (Hat_external: at_external Sem c = Some (LOCK, Vptr b ofs::nil))
              (** install the thread's permissions on lock locations*)
-             (Hrestrict_pmap: restrPermMap (Hcompat tid0 cnt0).2 = m1)
+             (Hrestrict_pmap0: restrPermMap (Hcompat tid0 cnt0).2 = m0)
              (** check if the thread has permission to acquire the lock and the lock is free*)
-             (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.one))
+             (Hload: Mem.load Mint32 m0 b (Int.intval ofs) = Some (Vint Int.one))
              (** set the permissions on the lock location equal to the max permissions on the memory*)
              (Hset_perm: setPermBlock (Some Writable)
-                                       b (Int.intval ofs) (getThreadR cnt0).2 LKSIZE_nat = pmap_tid')
+                                       b (Int.intval ofs) ((getThreadR cnt0).2) LKSIZE_nat = pmap_tid')
              (Hlt': permMapLt pmap_tid' (getMaxPerm m))
+             (Hrestrict_pmap: restrPermMap Hlt' = m1)
              (** acquire the lock*)
-             (Hstore: Mem.store Mint32 (restrPermMap Hlt') b (Int.intval ofs) (Vint Int.zero) = Some m')
+             (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
              (HisLock: lockRes tp (b, Int.intval ofs) = Some pmap)
              (Hangel1: permMapJoin pmap.1 (getThreadR cnt0).1 newThreadPerm.1) 
              (Hangel2: permMapJoin pmap.2 (getThreadR cnt0).2 newThreadPerm.2)
@@ -327,7 +327,7 @@ Module Concur.
                                (Some virtueThread))
                     
      | step_release :
-         forall (tp' tp'':thread_pool) m1 c m' b ofs virtueThread virtueLP pmap_tid' rmap,
+         forall (tp' tp'':thread_pool) m0 m1 c m' b ofs virtueThread virtueLP pmap_tid' rmap,
            let newThreadPerm := (computeMap (getThreadR cnt0).1 virtueThread.1,
                                  computeMap (getThreadR cnt0).2 virtueThread.2) in
            forall
@@ -336,14 +336,15 @@ Module Concur.
              (Hat_external: at_external Sem c =
                             Some (UNLOCK, Vptr b ofs::nil))
              (** install the thread's permissions on lock locations *) 
-             (Hrestrict_pmap: restrPermMap (Hcompat tid0 cnt0).2 = m1)
-             (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero))
+             (Hrestrict_pmap0: restrPermMap (Hcompat tid0 cnt0).2 = m0)
+             (Hload: Mem.load Mint32 m0 b (Int.intval ofs) = Some (Vint Int.zero))
              (** set the permissions on the lock location equal to the max permissions on the memory*)
              (Hset_perm: setPermBlock (Some Writable)
-                                      b (Int.intval ofs) (getThreadR cnt0).2 LKSIZE_nat = pmap_tid')
+                                      b (Int.intval ofs) ((getThreadR cnt0).2) LKSIZE_nat = pmap_tid')
              (Hlt': permMapLt pmap_tid' (getMaxPerm m))
+             (Hrestrict_pmap: restrPermMap Hlt' = m1)
              (** release the lock *)
-             (Hstore: Mem.store Mint32 (restrPermMap Hlt') b (Int.intval ofs) (Vint Int.one) = Some m')
+             (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.one) = Some m')
              (HisLock: lockRes tp (b, Int.intval ofs) = Some rmap)
              (** And the lock is taken*)
              (Hrmap: forall b ofs, rmap.1 !! b ofs = None /\ rmap.2 !! b ofs = None)
