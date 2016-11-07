@@ -877,13 +877,38 @@ Lemma spawn_pre_nonexpansive: @super_non_expansive spawn_arg_type spawn_pre.
   + hnf; intros.
     destruct x as [[[f b] w] pre].
     simpl.
-    admit.
+    rewrite !approx_exp.
+    f_equal; extensionality _y.
+    rewrite !approx_exp.
+    f_equal; extensionality globals.
+    rewrite approx_func_ptr'.
+    symmetry.
+    rewrite approx_func_ptr'.
+    symmetry.
+    f_equal.
+    f_equal.
+    f_equal.
+    clear rho.
+    extensionality a rho. destruct a as [y x].
+    apply (nonexpansive_super_non_expansive
+       (fun R => (PROP ( )
+                  (LOCALx
+                   (temp _y y
+                     :: map (fun x0 => gvar (fst x0) (snd x0)) (globals x))
+                   SEP (R))) rho)).
+    apply (PROP_LOCAL_SEP_nonexpansive
+          nil
+          (temp _y y
+                     :: map (fun x0 => gvar (fst x0) (snd x0)) (globals x))
+          ((fun R => R) :: nil));
+    repeat apply Forall_cons; try apply Forall_nil.
+    apply identity_nonexpansive.
   + hnf; intros.
     destruct x as [[[f b] w] pre].
     simpl.
     apply (nonexpansive_super_non_expansive (fun R => R)).
     apply identity_nonexpansive.
-Admitted.
+Qed.
 
 Definition spawn_post :=
   (fun (ts: list Type) (x: val * val * nth 0 ts unit * (nth 0 ts unit -> val -> mpred)) =>

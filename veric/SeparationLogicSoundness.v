@@ -72,6 +72,8 @@ Proof.
   change (@predicates_hered.prop rmap compcert_rmaps.R.ag_rmap) with (@prop mpred Nveric).
   normalize.
 Qed.
+
+Definition approx_func_ptr := approx_func_ptr.
 Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
 
 Definition semax := @semax.

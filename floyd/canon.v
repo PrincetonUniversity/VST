@@ -136,25 +136,7 @@ Lemma approx_sepcon: forall (P Q: mpred) n,
   compcert_rmaps.RML.R.approx n Q.
 Proof.
   intros.
-  change sepcon with predicates_sl.sepcon in *.
-  apply predicates_hered.pred_ext.
-  + intros w ?.
-    simpl in *.
-    destruct H as [? [y [z [? [? ?]]]]].
-    exists y, z; split; auto.
-    split; split; auto.
-    - apply age_sepalg.join_level in H0.
-      omega.
-    - apply age_sepalg.join_level in H0.
-      omega.
-  + intros w ?.
-    simpl in *.
-    destruct H as [y [z [? [[? ?] [? ?]]]]].
-    split.
-    - apply age_sepalg.join_level in H.
-      omega.
-    - exists y, z.
-      split; [| split]; auto.
+  apply seplog.approx_sepcon.
 Qed.
 
 Lemma approx_andp: forall (P Q: mpred) n,
@@ -163,14 +145,15 @@ Lemma approx_andp: forall (P Q: mpred) n,
   compcert_rmaps.RML.R.approx n Q.
 Proof.
   intros.
-  change andp with (@predicates_hered.andp compcert_rmaps.RML.R.rmap _) in *.
-  apply predicates_hered.pred_ext.
-  + intros w ?.
-    simpl in *.
-    tauto.
-  + intros w ?.
-    simpl in *.
-    tauto.
+  apply seplog.approx_andp.
+Qed.
+
+Lemma approx_exp: forall A (P: A -> mpred) n,
+  compcert_rmaps.RML.R.approx n (exp P) =
+  EX a: A, compcert_rmaps.RML.R.approx n (P a).
+Proof.
+  intros.
+  apply seplog.approx_exp.
 Qed.
 
 Lemma SEPx_super_non_expansive: forall A R,

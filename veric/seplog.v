@@ -27,6 +27,11 @@ Definition func_at' (f: funspec) (loc: address) : pred rmap :=
 Definition func_ptr (f: funspec) (v: val): mpred :=
   EX b: block, !! (v = Vptr b Int.zero) && func_at f (b, 0).
 
+Definition NDmk_funspec (f: base.funsig) (cc: calling_convention)
+  (A: Type) (Pre Post: A -> environ -> mpred): funspec :=
+  mk_funspec f cc (rmaps.ConstType A) (fun _ => Pre) (fun _ => Post)
+    (const_super_non_expansive _ _) (const_super_non_expansive _ _).
+
 (* Definition assert: Type := environ -> pred rmap. *)
 
 Bind Scope pred with assert.
@@ -363,5 +368,100 @@ Proof.
 Qed.
 *)
 
+Lemma approx_sepcon: forall (P Q: mpred) n,
+  approx n (P * Q) =
+  approx n P *
+  approx n Q.
+Proof.
+  intros.
+  change sepcon with predicates_sl.sepcon in *.
+  apply predicates_hered.pred_ext.
+  + intros w ?.
+    simpl in *.
+    destruct H as [? [y [z [? [? ?]]]]].
+    exists y, z; split; auto.
+    split; split; auto.
+    - apply age_sepalg.join_level in H0.
+      omega.
+    - apply age_sepalg.join_level in H0.
+      omega.
+  + intros w ?.
+    simpl in *.
+    destruct H as [y [z [? [[? ?] [? ?]]]]].
+    split.
+    - apply age_sepalg.join_level in H.
+      omega.
+    - exists y, z.
+      split; [| split]; auto.
+Qed.
 
+Lemma approx_andp: forall (P Q: mpred) n,
+  approx n (P && Q) =
+  approx n P &&
+  approx n Q.
+Proof.
+  intros.
+  change andp with (@predicates_hered.andp compcert_rmaps.RML.R.rmap _) in *.
+  apply predicates_hered.pred_ext.
+  + intros w ?.
+    simpl in *.
+    tauto.
+  + intros w ?.
+    simpl in *.
+    tauto.
+Qed.
 
+Lemma approx_exp: forall A (P: A -> mpred) n,
+  approx n (exp P) =
+  EX a: A, approx n (P a).
+Proof.
+  intros.
+(*  change (@exp _ Nveric A) with (@predicates_hered.exp compcert_rmaps.RML.R.rmap _ A) in *. *)
+  apply predicates_hered.pred_ext.
+  + intros w ?.
+    simpl in *.
+    firstorder.
+  + intros w ?.
+    simpl in *.
+    firstorder.
+Qed.
+
+Lemma approx_func_ptr: forall (A: Type) fsig0 cc (P Q: A -> environ -> mpred) (v: val) (n: nat),
+  approx n (func_ptr (NDmk_funspec fsig0 cc A P Q) v) = approx n (func_ptr (NDmk_funspec fsig0 cc A (fun a rho => approx n (P a rho)) (fun a rho => approx n (Q a rho))) v).
+Proof.
+  intros.
+  unfold func_ptr.
+  rewrite !approx_exp; f_equal; extensionality b.
+  rewrite !approx_andp; f_equal.
+  unfold func_at, NDmk_funspec.
+  simpl.
+  apply pred_ext; intros w; simpl; intros [? ?]; split; auto.
+  + rewrite H0.
+    f_equal.
+    f_equal.
+    extensionality ts a.
+    extensionality prepost rho.
+    unfold packPQ; destruct prepost; simpl.
+    - change (approx (level w) (approx n (P a rho))) with
+        ((approx (level w) oo (approx n)) (P a rho)).
+      rewrite approx_oo_approx' by omega.
+      auto.
+    - change (approx (level w) (approx n (Q a rho))) with
+        ((approx (level w) oo (approx n)) (Q a rho)).
+      rewrite approx_oo_approx' by omega.
+      auto.
+  + rewrite H0.
+    f_equal.
+    f_equal.
+    extensionality ts a.
+    extensionality prepost rho.
+    unfold packPQ; destruct prepost; simpl.
+    - change (approx (level w) (approx n (P a rho))) with
+        ((approx (level w) oo (approx n)) (P a rho)).
+      rewrite approx_oo_approx' by omega.
+      auto.
+    - change (approx (level w) (approx n (Q a rho))) with
+        ((approx (level w) oo (approx n)) (Q a rho)).
+      rewrite approx_oo_approx' by omega.
+      auto.
+Qed.

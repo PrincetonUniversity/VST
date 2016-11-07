@@ -318,6 +318,15 @@ Hint Resolve (@LiftClassicalSep environ) : typeclass_instances.
 
 Definition func_ptr' f v := func_ptr f v && emp.
 
+Lemma approx_func_ptr': forall (A: Type) fsig0 cc (P Q: A -> environ -> mpred) (v: val) (n: nat),
+  compcert_rmaps.RML.R.approx n (func_ptr' (NDmk_funspec fsig0 cc A P Q) v) = compcert_rmaps.RML.R.approx n (func_ptr' (NDmk_funspec fsig0 cc A (fun a rho => compcert_rmaps.RML.R.approx n (P a rho)) (fun a rho => compcert_rmaps.RML.R.approx n (Q a rho))) v).
+Proof.
+  intros.
+  unfold func_ptr'.
+  rewrite !approx_andp; f_equal.
+  apply (approx_func_ptr A fsig0 cc P Q).
+Qed.
+
 Lemma lift0_unfold: forall {A} (f: A)  rho,  lift0 f rho = f.
 Proof. reflexivity. Qed.
 
@@ -1548,11 +1557,6 @@ Notation "'DECLARE' x s" := (x: ident, s: funspec)
 
 Notation " a 'OF' ta " := (a%type,ta%type) (at level 100, only parsing): formals.
 Delimit Scope formals with formals.
-
-Definition NDmk_funspec (f: base.funsig) (cc: calling_convention)
-  (A: Type) (Pre Post: A -> environ -> mpred): funspec :=
-  mk_funspec f cc (rmaps.ConstType A) (fun _ => Pre) (fun _ => Post)
-    (const_super_non_expansive _ _) (const_super_non_expansive _ _).
 
 Definition NDsemax_external {Hspec: OracleKind} (ids: list ident) (ef: external_function)
   (A: Type) (P Q: A -> environ -> mpred): Prop :=
