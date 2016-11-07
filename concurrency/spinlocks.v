@@ -1511,16 +1511,402 @@ Module SpinLocks (SEM: Semantics)
           }
     Qed.
 
-     Lemma lockRes_permission_decrease_step:
-       forall U tr tp m U' tp' m' tr' laddr rmap rmap' b ofs
-         (Hres: lockRes tp laddr = Some rmap)
-         (Hres': lockRes tp' laddr = Some rmap')
-         (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m')
-         (Hperm: Mem.perm_order'' (rmap.1 !! b ofs) (Some Readable))
-         (Hperm': ~ Mem.perm_order'' (rmap'.1 !! b ofs) (Some Readable)),
-       exists ev,
-         tr' = [:: ev] /\ action ev = Acquire /\
-          location ev = Some (laddr, lksize.LKSIZE_nat).
+        (** Permission increase: A thread can increase its lock permissions on a valid block by:
+- If it is spawned
+- A freelock operation, turning a lock into data.
+- Acquiring a lock *)
+    Lemma lock_permission_increase_step:
+      forall U tr tp m U' tp' m' tr' tidn b ofs
+        (cnt: containsThread tp tidn)
+        (cnt': containsThread tp' tidn)
+        (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m')
+        (Hperm': Mem.perm_order'' ((getThreadR cnt').2 !! b ofs) (Some Readable))
+        (Hperm: ~ Mem.perm_order'' ((getThreadR cnt).2 !! b ofs) (Some Readable))
+        (Hvalid: Mem.valid_block m b),
+        exists ev,
+        (tr' = [:: ev] /\ action ev = Spawn) \/
+        (tr' = [:: ev] /\ action ev = Mklock /\ thread_id ev = tidn /\
+         match location ev with
+         | Some (addr, sz) =>
+           b = addr.1 /\
+           Intv.In ofs (addr.2, addr.2 + (Z.of_nat sz))%Z
+         | None =>
+           False
+         end) \/
+        (tr' = [:: ev] /\ action ev = Acquire /\ thread_id ev = tidn /\
+          exists rmap, match location ev with
+                  | Some (laddr, sz) =>
+                    sz = lksize.LKSIZE_nat /\
+                   lockRes tp laddr = Some rmap /\
+                   Mem.perm_order'' (rmap.2 !! b ofs) (Some Readable)
+                 | None => False
+                 end).
+    Proof.
+      intros.
+      inv Hstep; simpl in *;
+        try apply app_eq_nil in H4;
+        try inv Htstep;
+        destruct U; inversion HschedN; subst; pf_cleanup;
+        try (inv Hhalted);
+        try (rewrite gThreadCR in Hperm');
+        try  (exfalso; by eauto);
+        apply app_inv_head in H5; subst.
+      - (** internal step case *)
+        destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
+        + pf_cleanup.
+          exfalso.
+          rewrite gssThreadRes in Hperm'.
+          simpl in Hperm'.
+          now auto.
+        + (** case it was another thread that stepped *)
+          exfalso.
+          erewrite gsoThreadRes with (cntj := cnt) in Hperm'
+            by assumption.
+          now eauto.
+      - (** lock acquire*)
+        (** In this case the permissions of a thread can only increase*)
+        destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
+        + pf_cleanup.
+          eexists.
+          do 2 right. repeat (split; eauto).
+          exists pmap; split.
+          reflexivity.
+          split.
+          assumption.
+          specialize (Hangel2 b ofs).
+          eapply permjoin_readable_iff in Hangel2.
+          rewrite gLockSetRes gssThreadRes in Hperm'.
+          rewrite! po_oo in Hangel2.
+          destruct (Hangel2.1 Hperm');
+            [assumption | exfalso; now auto].
+        + exfalso.
+          rewrite gLockSetRes gsoThreadRes in Hperm';
+            now eauto.
+      - (** lock release *)
+        exfalso.
+        clear - Hangel1 Hangel2 HisLock Hperm Hperm'.
+        destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
+        + rewrite gLockSetRes gssThreadRes in Hperm, Hperm'.
+          specialize (Hangel2 b ofs). pf_cleanup.
+          simpl in Hangel2.
+          apply permjoin_readable_iff in Hangel2.
+          apply Hperm.
+          eapply Hangel2.
+          now eauto.
+        + rewrite gLockSetRes gsoThreadRes in Hperm';
+            now auto.
+      - (** thread spawn*)
+        destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
+        + pf_cleanup.
+          eexists.
+          left.
+          simpl; split;
+          now eauto. 
+        + exfalso.
+          rewrite gsoAddRes gsoThreadRes in Hperm';
+            now eauto.
+      - (** MkLock *)
+        destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
+        + pf_cleanup.
+          eexists.
+          right.
+          left.
+          do 3 (split; simpl; eauto).
+          rewrite gLockSetRes gssThreadRes in Hperm'.
+          destruct (Pos.eq_dec b b0).
+          * subst.
+            split; auto.
+            destruct (Intv.In_dec ofs (Int.intval ofs0, Int.intval ofs0 + 4)%Z); auto.
+            exfalso.
+            rewrite <- Hlock_perm in Hperm'.
+            rewrite setPermBlock_other_1 in Hperm'.
+            now auto.
+            apply Intv.range_notin in n.
+            destruct n; eauto.
+            simpl. now omega.
+          * exfalso.
+            rewrite <- Hlock_perm in Hperm'.
+            erewrite setPermBlock_other_2 in Hperm' by eauto.
+            now auto.
+        + exfalso.
+          rewrite gLockSetRes gsoThreadRes in Hperm';
+            now eauto.
+      - (** Freelock*)
+        exfalso.
+        destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
+        + pf_cleanup.
+          clear - Hlock_perm Hperm Hperm' Hfreeable Hinv Hpdata.
+          rewrite gRemLockSetRes gssThreadRes in Hperm', Hperm.
+          destruct (Pos.eq_dec b b0).
+          * subst.
+            rewrite <- Hlock_perm in Hperm'.
+            destruct (Intv.In_dec ofs (Int.intval ofs0, Int.intval ofs0 + lksize.LKSIZE)%Z); auto.
+            erewrite setPermBlock_same in Hperm' by eauto.
+            simpl in Hperm';
+              now auto.
+            rewrite setPermBlock_other_1 in Hperm'.
+            now auto. 
+            apply Intv.range_notin in n.
+            destruct n; eauto.
+            unfold lksize.LKSIZE.
+            simpl. now omega.
+          * exfalso.
+            rewrite <- Hlock_perm in Hperm'.
+            erewrite setPermBlock_other_2 in Hperm' by eauto.
+            now auto.
+        + exfalso.
+          rewrite gRemLockSetRes gsoThreadRes in Hperm';
+            now eauto.
+    Qed.
+    
+    Lemma lock_permission_increase_execution:
+      forall U tr tpi mi U' tr' tpj mj
+        b ofs tidn
+        (cnti: containsThread tpi tidn)
+        (cntj: containsThread tpj tidn)
+        (Hexec: multi_fstep (U, tr, tpi) mi (U', tr ++ tr', tpj) mj)
+        (Hperm': Mem.perm_order'' ((getThreadR cntj).2 !! b ofs) (Some Readable))
+        (Hperm: ~ Mem.perm_order'' ((getThreadR cnti).2 !! b ofs) (Some Readable))
+        (Hvalid: Mem.valid_block mi b),
+      exists tr_pre evu U'' U''' tp_pre m_pre tp_inc m_inc,
+        multi_fstep (U, tr, tpi) mi (U'', tr ++ tr_pre, tp_pre) m_pre /\
+        FineConc.MachStep the_ge (U'', tr ++ tr_pre, tp_pre) m_pre
+                          (U''', tr ++ tr_pre ++ [:: evu], tp_inc) m_inc /\
+        multi_fstep (U''', tr ++ tr_pre ++ [:: evu], tp_inc) m_inc
+                       (U', tr ++ tr',tpj) mj /\
+         ((action evu = Spawn) \/
+         (action evu = Mklock /\ thread_id evu = tidn /\
+          match location evu with
+          | Some (addr, sz) =>
+            b = addr.1 /\
+            Intv.In ofs (addr.2, addr.2 + (Z.of_nat sz))%Z
+          | None =>
+            False
+          end) \/
+         (action evu = Acquire /\ thread_id evu = tidn /\
+          exists rmap, match location evu with
+                  | Some (laddr, sz) =>
+                    sz = lksize.LKSIZE_nat /\
+                    lockRes tp_pre laddr = Some rmap /\
+                    Mem.perm_order'' (rmap.2 !! b ofs) (Some Readable)
+                  | None => False
+                  end)).
+    Proof.
+      induction U as [|tid' U]; intros.
+      - inversion Hexec. apply app_eq_nil in H3; subst.
+        pf_cleanup. by congruence.
+      - inversion Hexec.
+        + apply app_eq_nil in H3; subst.
+          pf_cleanup;
+            by congruence.
+        + apply app_inv_head in H6; subst.
+          assert (cnt': containsThread tp' tidn)
+            by (eapply fstep_containsThread with (tp := tpi); eauto).
+          (** Case the permissions were changed by the inductive step. There are
+                two subcases, either they went above readable and we don't need
+                the IH or they did not and we apply the IH*)
+          destruct (perm_order''_dec ((getThreadR cnt').2 !! b ofs)
+                                     (Some Readable)) as [Hincr | Hstable].
+          { (** Case permissions increased *)
+            destruct (lock_permission_increase_step _ _ _ _ H8 Hincr Hperm Hvalid)
+              as [ev Hspec].
+            assert (tr'0 = [:: ev])
+              by (destruct Hspec as [[? _] | [[? _] | [? _]]]; subst; auto);
+              subst.
+            exists [::], ev, (tid' :: U), U, tpi, mi, tp', m'.
+            repeat split.
+            + rewrite app_nil_r.
+              now constructor.
+            + rewrite! app_nil_r.
+              simpl.
+              assumption.
+            + simpl.
+              now assumption.
+            + destruct Hspec
+                as [[Hin Haction] | [[? [Haction [Hthread_id Hloc]]]
+                                    | [? [Haction [Hthread_id Hrmap]]]]];
+              now eauto.
+          }
+          { (** Case permissions did not increase*)
+            rewrite app_assoc in H9.
+            (** And we can apply the IH*)
+            destruct (IHU _ _ _ _ _ _ _ _ _ _ _ _ H9 Hperm' Hstable)
+              as (tr_pre & evu & U'' & U''' & tp_pre & m_pre & tp_inc
+                  & m_inc & Hexec_pre & Hstep & Hexec_post & Hspec); eauto.
+            eapply StepType.fstep_valid_block; eauto.
+            destruct Hspec as [Haction | [[Haction [Hthread_id Hloc]]
+                                               | [Haction [Hthread_id Hrmap]]]].
+             + (** case the increase was by a [Spawn] event *)
+              exists (tr'0 ++ tr_pre), evu, U'', U''', tp_pre, m_pre, tp_inc, m_inc.
+              split.
+              econstructor 2; eauto.
+              rewrite app_assoc.
+              now eauto.
+              split.
+              erewrite! app_assoc in *.
+              now eauto.
+              split.
+              erewrite! app_assoc in *.
+              now eauto.
+              left; now assumption.
+            + (** case the drop was by a [Freelock] event *)
+              exists (tr'0 ++ tr_pre), evu, U'', U''', tp_pre, m_pre, tp_inc, m_inc.
+              split.
+              econstructor 2; eauto.
+              rewrite app_assoc.
+              now eauto.
+              split.
+              erewrite! app_assoc in *.
+              now eauto.
+              split.
+              erewrite! app_assoc in *.
+              now eauto.
+              right. left.
+              split;
+                now auto.
+            + (** case the drop was by a [Acquire] event*)
+              exists (tr'0 ++ tr_pre), evu, U'', U''', tp_pre, m_pre, tp_inc, m_inc.
+              split.
+              econstructor 2; eauto.
+              rewrite app_assoc.
+              now eauto.
+              split.
+              erewrite! app_assoc in *.
+              now eauto.
+              split.
+              erewrite! app_assoc in *.
+              now eauto.
+              do 2 right.
+              now eauto.
+          }
+    Qed.
+
+    Lemma permission_increase_execution:
+      forall U tr tpi mi U' tr' tpj mj
+        b ofs tidn
+        (cnti: containsThread tpi tidn)
+        (cntj: containsThread tpj tidn)
+        (Hexec: multi_fstep (U, tr, tpi) mi (U', tr ++ tr', tpj) mj)
+        (Hperm: (Mem.perm_order'' ((getThreadR cntj).1 !! b ofs) (Some Readable) /\
+                 ~ Mem.perm_order'' ((getThreadR cnti).1 !! b ofs) (Some Readable)) \/
+                (Mem.perm_order'' ((getThreadR cntj).2 !! b ofs) (Some Readable) /\
+                 ~ Mem.perm_order'' ((getThreadR cnti).2 !! b ofs) (Some Readable)))
+        (Hvalid: Mem.valid_block mi b),
+      exists tr_pre evu U'' U''' tp_pre m_pre tp_inc m_inc,
+        multi_fstep (U, tr, tpi) mi (U'', tr ++ tr_pre, tp_pre) m_pre /\
+        FineConc.MachStep the_ge (U'', tr ++ tr_pre, tp_pre) m_pre
+                          (U''', tr ++ tr_pre ++ [:: evu], tp_inc) m_inc /\
+        multi_fstep (U''', tr ++ tr_pre ++ [:: evu], tp_inc) m_inc
+                    (U', tr ++ tr',tpj) mj /\
+        ((action evu = Spawn) \/
+         (action evu = Freelock /\ thread_id evu = tidn /\
+          match location evu with
+          | Some (addr, sz) =>
+            b = addr.1 /\
+            Intv.In ofs (addr.2, addr.2 + (Z.of_nat sz))%Z
+          | None =>
+            False
+          end) \/
+         (action evu = Mklock /\ thread_id evu = tidn /\
+          match location evu with
+          | Some (addr, sz) =>
+            b = addr.1 /\
+            Intv.In ofs (addr.2, addr.2 + (Z.of_nat sz))%Z
+          | None =>
+            False
+          end) \/
+         (action evu = Acquire /\ thread_id evu = tidn /\
+          exists rmap, match location evu with
+                  | Some (laddr, sz) =>
+                    sz = lksize.LKSIZE_nat /\
+                    lockRes tp_pre laddr = Some rmap /\
+                    (Mem.perm_order'' (rmap.1 !! b ofs) (Some Readable) \/
+                     Mem.perm_order'' (rmap.2 !! b ofs) (Some Readable))
+                  | None => False
+                  end)).
+    Proof.
+      intros.
+      destruct Hperm as [[Hperm Hperm'] | [Hperm Hperm']];
+      [destruct (data_permission_increase_execution _ _ cnti cntj Hexec Hperm Hperm' Hvalid)
+        as (? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & Hspec)
+      | destruct (lock_permission_increase_execution _ _ cnti cntj Hexec Hperm Hperm' Hvalid)
+        as (? & ? & ? & ? & ? & ? & ? & ? & ? & ? & ? & Hspec)];
+      destruct Hspec as [? | [[? [? ?]] | [? [? [? ?]]]]];
+      do 8 eexists; repeat split; eauto 10;
+      destruct (location x0) as [[[? ?] ?] |]; try (by exfalso);
+      destruct H4 as [? [? ?]];
+      do 3 right;
+      repeat split; eauto.
+    Qed.
+
+    Lemma lockRes_mklock_step:
+      forall U tr tp m U' tp' m' tr' laddr rmap
+        (Hres: lockRes tp laddr = None)
+        (Hres': lockRes tp' laddr = Some rmap)
+        (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m'),
+      exists ev,
+        tr' = [:: ev] /\ action ev = Mklock /\
+        location ev = Some (laddr, lksize.LKSIZE_nat) /\
+        lockRes tp' laddr = Some (empty_map, empty_map).
+    Proof.
+    Admitted.
+
+    Lemma lockRes_mklock_execution:
+      forall U tr tpi mi U' tpj mj tr' laddr rmapj
+        (Hres: lockRes tpi laddr = None)
+        (Hres': lockRes tpj laddr = Some rmapj)
+        (Hexec: multi_fstep (U, tr, tpi) mi (U', tr ++ tr', tpj) mj),
+      exists tr_pre evu U'' U''' tp_pre m_pre tp_mk m_mk,
+        multi_fstep (U, tr, tpi) mi (U'', tr ++ tr_pre, tp_pre) m_pre /\
+        FineConc.MachStep the_ge (U'', tr ++ tr_pre, tp_pre) m_pre
+                          (U''', tr ++ tr_pre ++ [:: evu], tp_mk) m_mk /\
+        multi_fstep (U''', tr ++ tr_pre ++ [:: evu], tp_mk) m_mk
+                    (U', tr ++ tr',tpj) mj /\
+        action evu = Mklock /\
+        location evu = Some (laddr, lksize.LKSIZE_nat) /\
+        lockRes tp_mk laddr = Some (empty_map, empty_map).
+    Proof.
+    Admitted.
+
+    Lemma lockRes_freelock_step:
+      forall U tr tp m U' tp' m' tr' laddr rmap
+        (Hres: lockRes tp laddr = Some rmap)
+        (Hres': lockRes tp' laddr = None)
+        (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m'),
+      exists ev,
+        tr' = [:: ev] /\ action ev = Freelock /\
+        location ev = Some (laddr, lksize.LKSIZE_nat) /\
+        forall b ofs, rmap.1 !! b ofs = None /\ rmap.2 !! b ofs = None.
+    Proof.
+    Admitted.
+
+    Lemma lockRes_freelock_execution:
+      forall U tr tpi mi U' tpj mj tr' laddr rmapi
+        (Hres: lockRes tpi laddr = Some rmapi)
+        (Hres': lockRes tpj laddr = None)
+        (Hexec: multi_fstep (U, tr, tpi) mi (U', tr ++ tr', tpj) mj),
+      exists tr_pre evu U'' U''' tp_pre m_pre tp_mk m_mk,
+        multi_fstep (U, tr, tpi) mi (U'', tr ++ tr_pre, tp_pre) m_pre /\
+        FineConc.MachStep the_ge (U'', tr ++ tr_pre, tp_pre) m_pre
+                          (U''', tr ++ tr_pre ++ [:: evu], tp_mk) m_mk /\
+        multi_fstep (U''', tr ++ tr_pre ++ [:: evu], tp_mk) m_mk
+                    (U', tr ++ tr',tpj) mj /\
+        action evu = Freelock /\
+        location evu = Some (laddr, lksize.LKSIZE_nat) /\
+        lockRes tp_pre laddr = Some (empty_map, empty_map).
+    Proof.
+    Admitted.
+    
+    Lemma lockRes_data_permission_decrease_step:
+      forall U tr tp m U' tp' m' tr' laddr rmap rmap' b ofs
+        (Hres: lockRes tp laddr = Some rmap)
+        (Hres': lockRes tp' laddr = Some rmap')
+        (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m')
+        (Hperm: Mem.perm_order'' (rmap.1 !! b ofs) (Some Readable))
+        (Hperm': ~ Mem.perm_order'' (rmap'.1 !! b ofs) (Some Readable)),
+      exists ev,
+        tr' = [:: ev] /\ action ev = Acquire /\
+        location ev = Some (laddr, lksize.LKSIZE_nat).
     Proof.
       intros.
       inv Hstep; simpl in *;
@@ -1584,8 +1970,9 @@ Module SpinLocks (SEM: Semantics)
           rewrite Hres' in Hres; inv Hres;
           now eauto.
     Qed.
+    
 
-    Lemma lockRes_permission_decrease_execution:
+    Lemma lockRes_data_permission_decrease_execution:
       forall U tr tpi mi U' tpj mj tr' laddr rmapi rmapj b ofs
         (Hres: lockRes tpi laddr = Some rmapi)
         (Hres': lockRes tpj laddr = Some rmapj)
@@ -1596,9 +1983,195 @@ Module SpinLocks (SEM: Semantics)
         nth_error tr' v = Some ev /\ action ev = Acquire /\
         location ev = Some (laddr, lksize.LKSIZE_nat).
     Proof.
-      Admitted.
+      induction U as [|tid' U]; intros.
+      - inversion Hexec. apply app_eq_nil in H3; subst.
+        rewrite Hres in Hres'; inv Hres';
+          by congruence.
+      - inversion Hexec.
+        + apply app_eq_nil in H3; subst.
+          rewrite Hres in Hres'; inv Hres';
+            by congruence.
+        + apply app_inv_head in H6; subst.
+          destruct (lockRes tp' laddr) as [rmap'|] eqn:Hres''.
+          { (** Case the lock is still there*)
+            destruct (perm_order''_dec (rmap'.1 !! b ofs)
+                                       (Some Readable)) as [Hstable | Hdecr].
+            { (** Case permissions did not decrease*)
+              rewrite app_assoc in H9.
+              (** And we can apply the IH*)
+              destruct (IHU _ _ _ _ _ _ _ _ _ _ _ _ Hres'' Hres' H9 Hstable Hperm')
+                as (v & ev & Hnth & Hact & Hloc).
+              exists ((length tr'0) + v), ev.
+              split.
+              rewrite <- nth_error_app; auto.
+              now auto.
+            }
+            { (** Case permissions decreased *)
+              destruct (lockRes_data_permission_decrease_step _ _ _ _ Hres Hres'' H8 Hperm Hdecr)
+                as (ev & ? & Hact & Hloc); subst.
+              exists 0, ev.
+              simpl;
+                now auto.
+            }
+          }
+          { (** Case the lock is removed *)
+            exfalso.
+            eapply lockRes_freelock_step in H8; eauto.
+            destruct H8 as (? & ? & ? & ? & Hempty).
+            specialize (Hempty b ofs).
+            rewrite Hempty.1 in Hperm.
+            simpl in Hperm.
+            assumption.
+          } 
+    Qed.
 
-    Lemma lockRes_permission_increase_step:
+    Lemma lockRes_lock_permission_decrease_step:
+      forall U tr tp m U' tp' m' tr' laddr rmap rmap' b ofs
+        (Hres: lockRes tp laddr = Some rmap)
+        (Hres': lockRes tp' laddr = Some rmap')
+        (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m')
+        (Hperm: Mem.perm_order'' (rmap.2 !! b ofs) (Some Readable))
+        (Hperm': ~ Mem.perm_order'' (rmap'.2 !! b ofs) (Some Readable)),
+      exists ev,
+        tr' = [:: ev] /\ action ev = Acquire /\
+        location ev = Some (laddr, lksize.LKSIZE_nat).
+    Proof.
+      intros.
+      inv Hstep; simpl in *;
+        try apply app_eq_nil in H4;
+        try inv Htstep;
+        destruct U; inversion HschedN; subst; pf_cleanup;
+        try (inv Hhalted);
+        try (rewrite gsoThreadCLPool in Hres');
+        try (rewrite Hres in Hres'; inv Hres');
+        try  (exfalso; by eauto);
+        apply app_inv_head in H5; subst.
+      - (** internal step case *)
+        exfalso.
+        rewrite gsoThreadLPool in Hres'.
+        rewrite Hres in Hres'; inv Hres';
+        now auto.
+      - (** lock acquire*)
+        (** In this case the permissions of a lock can decrease*)
+        destruct (EqDec_address laddr (b0, Int.intval ofs0)).
+        + inv e.
+          eexists; split; eauto.
+        + exfalso.
+          erewrite gsoLockRes in Hres' by eauto.
+          rewrite gsoThreadLPool in Hres'.
+          rewrite Hres' in Hres; inv Hres;
+          now eauto.
+      - (** lock release *)
+        (** In this case the permissions of a lock can only increase; contradiction.*)
+        exfalso.
+        destruct (EqDec_address laddr (b0, Int.intval ofs0)).
+        + inv e.
+          rewrite Hres in HisLock; inv HisLock.
+          rewrite (Hrmap b ofs).2 in Hperm.
+          simpl in Hperm.
+          assumption.
+        + erewrite gsoLockRes in Hres' by eauto.
+          rewrite gsoThreadLPool in Hres'.
+          rewrite Hres' in Hres; inv Hres;
+          now eauto.
+      - (** thread spawn*)
+        rewrite gsoAddLPool gsoThreadLPool in Hres'.
+        rewrite Hres' in Hres; inv Hres;
+        now eauto.
+      - (** MkLock *)
+        exfalso.
+        destruct (EqDec_address laddr (b0, Int.intval ofs0)).
+        + inv e.
+          rewrite Hres in HlockRes.
+          discriminate.
+        + erewrite gsoLockRes in Hres' by eauto.
+          rewrite gsoThreadLPool in Hres'.
+          rewrite Hres' in Hres; inv Hres;
+          now eauto.
+      - exfalso.
+        destruct (EqDec_address laddr (b0, Int.intval ofs0)).
+        + inv e.
+          rewrite gsslockResRemLock in Hres'.
+          discriminate.
+        + erewrite gsolockResRemLock in Hres' by eauto.
+          rewrite gsoThreadLPool in Hres'.
+          rewrite Hres' in Hres; inv Hres;
+          now eauto.
+    Qed.
+
+    Lemma lockRes_lock_permission_decrease_execution:
+      forall U tr tpi mi U' tpj mj tr' laddr rmapi rmapj b ofs
+        (Hres: lockRes tpi laddr = Some rmapi)
+        (Hres': lockRes tpj laddr = Some rmapj)
+        (Hexec: multi_fstep (U, tr, tpi) mi (U', tr ++ tr', tpj) mj)
+        (Hperm: Mem.perm_order'' (rmapi.2 !! b ofs) (Some Readable))
+        (Hperm': ~ Mem.perm_order'' (rmapj.2 !! b ofs) (Some Readable)),
+      exists v ev,
+        nth_error tr' v = Some ev /\ action ev = Acquire /\
+        location ev = Some (laddr, lksize.LKSIZE_nat).
+    Proof.
+      induction U as [|tid' U]; intros.
+      - inversion Hexec. apply app_eq_nil in H3; subst.
+        rewrite Hres in Hres'; inv Hres';
+          by congruence.
+      - inversion Hexec.
+        + apply app_eq_nil in H3; subst.
+          rewrite Hres in Hres'; inv Hres';
+            by congruence.
+        + apply app_inv_head in H6; subst.
+          destruct (lockRes tp' laddr) as [rmap'|] eqn:Hres''.
+          { (** Case the lock is still there*)
+            destruct (perm_order''_dec (rmap'.2 !! b ofs)
+                                       (Some Readable)) as [Hstable | Hdecr].
+            { (** Case permissions did not decrease*)
+              rewrite app_assoc in H9.
+              (** And we can apply the IH*)
+              destruct (IHU _ _ _ _ _ _ _ _ _ _ _ _ Hres'' Hres' H9 Hstable Hperm')
+                as (v & ev & Hnth & Hact & Hloc).
+              exists ((length tr'0) + v), ev.
+              split.
+              rewrite <- nth_error_app; auto.
+              now auto.
+            }
+            { (** Case permissions decreased *)
+              destruct (lockRes_lock_permission_decrease_step _ _ _ _ Hres Hres'' H8 Hperm Hdecr)
+                as (ev & ? & Hact & Hloc); subst.
+              exists 0, ev.
+              simpl;
+                now auto.
+            }
+          }
+          { (** Case the lock is removed *)
+            exfalso.
+            eapply lockRes_freelock_step in H8; eauto.
+            destruct H8 as (? & ? & ? & ? & Hempty).
+            specialize (Hempty b ofs).
+            rewrite Hempty.2 in Hperm.
+            simpl in Hperm.
+            assumption.
+          } 
+    Qed.
+    
+    Lemma lockRes_permission_decrease_execution:
+      forall U tr tpi mi U' tpj mj tr' laddr rmapi rmapj b ofs
+        (Hres: lockRes tpi laddr = Some rmapi)
+        (Hres': lockRes tpj laddr = Some rmapj)
+        (Hexec: multi_fstep (U, tr, tpi) mi (U', tr ++ tr', tpj) mj)
+        (Hperm: (Mem.perm_order'' (rmapi.1 !! b ofs) (Some Readable) /\
+                 ~ Mem.perm_order'' (rmapj.1 !! b ofs) (Some Readable)) \/
+                (Mem.perm_order'' (rmapi.2 !! b ofs) (Some Readable) /\
+                 ~ Mem.perm_order'' (rmapj.2 !! b ofs) (Some Readable))),
+      exists v ev,
+        nth_error tr' v = Some ev /\ action ev = Acquire /\
+        location ev = Some (laddr, lksize.LKSIZE_nat).
+    Proof.
+      intros.
+      destruct Hperm as [[Hperm Hperm'] | [Hperm Hperm']];
+        eauto using lockRes_data_permission_decrease_execution,
+        lockRes_lock_permission_decrease_execution.
+    Qed.
+      
+    Lemma lockRes_data_permission_increase_step:
       forall U tr tp m U' tp' m' tr' laddr rmap rmap' b ofs
         (Hres: lockRes tp laddr = Some rmap)
         (Hres': lockRes tp' laddr = Some rmap')
@@ -1678,7 +2251,87 @@ Module SpinLocks (SEM: Semantics)
           now eauto.
     Qed.
 
-    Lemma lockRes_permission_increase_execution:
+    Lemma lockRes_lock_permission_increase_step:
+      forall U tr tp m U' tp' m' tr' laddr rmap rmap' b ofs
+        (Hres: lockRes tp laddr = Some rmap)
+        (Hres': lockRes tp' laddr = Some rmap')
+        (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m')
+        (Hperm: ~ Mem.perm_order'' (rmap.2 !! b ofs) (Some Readable))
+        (Hperm': Mem.perm_order'' (rmap'.2 !! b ofs) (Some Readable)),
+      exists ev,
+        tr' = [:: ev] /\ action ev = Release /\
+        location ev = Some (laddr, lksize.LKSIZE_nat).
+    Proof.
+      intros.
+      inv Hstep; simpl in *;
+      try apply app_eq_nil in H4;
+      try inv Htstep;
+      destruct U; inversion HschedN; subst; pf_cleanup;
+      try (inv Hhalted);
+      try (rewrite gsoThreadCLPool in Hres');
+      try (rewrite Hres in Hres'; inv Hres');
+      try  (exfalso; by eauto);
+      apply app_inv_head in H5; subst.
+      - (** internal step case *)
+        exfalso.
+        rewrite gsoThreadLPool in Hres'.
+        rewrite Hres in Hres'; inv Hres';
+        now auto.
+      - (** lock acquire*)
+        (** In this case the permissions of a lock can only decrease; contradiction*)
+        exfalso.
+        destruct (EqDec_address laddr (b0, Int.intval ofs0)).
+        + inv e.
+          rewrite Hres in HisLock; inv HisLock.
+          specialize (Hangel2 b ofs).
+          rewrite gssLockRes in Hres'.
+          inv Hres'.
+          rewrite empty_map_spec in Hperm'.
+          simpl in Hperm'.
+          assumption.
+        + exfalso.
+          erewrite gsoLockRes in Hres' by eauto.
+          rewrite gsoThreadLPool in Hres'.
+          rewrite Hres' in Hres; inv Hres;
+          now eauto.
+      - (** lock release *)
+        (** In this case the permissions of a lock can increase.*)
+        destruct (EqDec_address laddr (b0, Int.intval ofs0)).
+        + inv e.
+          rewrite Hres in HisLock; inv HisLock.
+          eexists; split;
+          now eauto.
+        + exfalso.
+          erewrite gsoLockRes in Hres' by eauto.
+          rewrite gsoThreadLPool in Hres'.
+          rewrite Hres' in Hres; inv Hres;
+          now eauto.
+      - (** thread spawn*)
+        rewrite gsoAddLPool gsoThreadLPool in Hres'.
+        rewrite Hres' in Hres; inv Hres;
+        now eauto.
+      - (** MkLock *)
+        exfalso.
+        destruct (EqDec_address laddr (b0, Int.intval ofs0)).
+        + inv e.
+          rewrite Hres in HlockRes.
+          discriminate.
+        + erewrite gsoLockRes in Hres' by eauto.
+          rewrite gsoThreadLPool in Hres'.
+          rewrite Hres' in Hres; inv Hres;
+          now eauto.
+      - exfalso.
+        destruct (EqDec_address laddr (b0, Int.intval ofs0)).
+        + inv e.
+          rewrite gsslockResRemLock in Hres'.
+          discriminate.
+        + erewrite gsolockResRemLock in Hres' by eauto.
+          rewrite gsoThreadLPool in Hres'.
+          rewrite Hres' in Hres; inv Hres;
+          now eauto.
+    Qed.
+
+    Lemma lockRes_data_permission_increase_execution:
       forall U tr tpi mi U' tpj mj tr' laddr rmapi rmapj b ofs
         (Hres: lockRes tpi laddr = Some rmapi)
         (Hres': lockRes tpj laddr = Some rmapj)
@@ -1689,63 +2342,60 @@ Module SpinLocks (SEM: Semantics)
         nth_error tr' v = Some ev /\ action ev = Release /\
         location ev = Some (laddr, lksize.LKSIZE_nat).
     Proof.
-    Admitted.
-
-    Lemma lockRes_mklock_step:
-      forall U tr tp m U' tp' m' tr' laddr rmap
-        (Hres: lockRes tp laddr = None)
-        (Hres': lockRes tp' laddr = Some rmap)
-        (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m'),
-      exists ev,
-        tr' = [:: ev] /\ action ev = Mklock /\
-        location ev = Some (laddr, lksize.LKSIZE_nat) /\
-        lockRes tp' laddr = Some (empty_map, empty_map).
-    Proof.
-    Admitted.
-
-    Lemma lockRes_mklock_execution:
-      forall U tr tpi mi U' tpj mj tr' laddr rmapj
-        (Hres: lockRes tpi laddr = None)
-        (Hres': lockRes tpj laddr = Some rmapj)
-        (Hexec: multi_fstep (U, tr, tpi) mi (U', tr ++ tr', tpj) mj),
-      exists tr_pre evu U'' U''' tp_pre m_pre tp_mk m_mk,
-        multi_fstep (U, tr, tpi) mi (U'', tr ++ tr_pre, tp_pre) m_pre /\
-        FineConc.MachStep the_ge (U'', tr ++ tr_pre, tp_pre) m_pre
-                          (U''', tr ++ tr_pre ++ [:: evu], tp_mk) m_mk /\
-        multi_fstep (U''', tr ++ tr_pre ++ [:: evu], tp_mk) m_mk
-                    (U', tr ++ tr',tpj) mj /\
-        action evu = Mklock /\
-        location evu = Some (laddr, lksize.LKSIZE_nat) /\
-        lockRes tp_mk laddr = Some (empty_map, empty_map).
-    Proof.
-    Admitted.
-
-    Lemma lockRes_freelock:
-      forall U tr tp m U' tp' m' tr' laddr rmap
-        (Hres: lockRes tp laddr = Some rmap)
-        (Hres': lockRes tp' laddr = None)
-        (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m'),
-      exists ev,
-        tr' = [:: ev] /\ action ev = Freelock /\
-        location ev = Some (laddr, lksize.LKSIZE_nat) /\
-        forall b ofs, rmap.1 !! b ofs = None /\ rmap.2 !! b ofs = None.
-    Proof.
-    Admitted.
-
-    Lemma lockRes_freelock_execution:
-      forall U tr tpi mi U' tpj mj tr' laddr rmapi
+      induction U as [|tid' U]; intros.
+      - inversion Hexec. apply app_eq_nil in H3; subst.
+        rewrite Hres in Hres'; inv Hres';
+          by congruence.
+      - inversion Hexec.
+        + apply app_eq_nil in H3; subst.
+          rewrite Hres in Hres'; inv Hres';
+            by congruence.
+        + apply app_inv_head in H6; subst.
+          destruct (lockRes tp' laddr) as [rmap'|] eqn:Hres''.
+          { (** Case the lock is still there*)
+            destruct (perm_order''_dec (rmap'.2 !! b ofs)
+                                       (Some Readable)) as [Hstable | Hdecr].
+            { (** Case permissions did not decrease*)
+              rewrite app_assoc in H9.
+              (** And we can apply the IH*)
+              destruct (IHU _ _ _ _ _ _ _ _ _ _ _ _ Hres'' Hres' H9 Hstable Hperm')
+                as (v & ev & Hnth & Hact & Hloc).
+              exists ((length tr'0) + v), ev.
+              split.
+              rewrite <- nth_error_app; auto.
+              now auto.
+            }
+            { (** Case permissions decreased *)
+              destruct (lockRes_lock_permission_decrease_step _ _ _ _ Hres Hres'' H8 Hperm Hdecr)
+                as (ev & ? & Hact & Hloc); subst.
+              exists 0, ev.
+              simpl;
+                now auto.
+            }
+          }
+          { (** Case the lock is removed *)
+            exfalso.
+            eapply lockRes_freelock_step in H8; eauto.
+            destruct H8 as (? & ? & ? & ? & Hempty).
+            specialize (Hempty b ofs).
+            rewrite Hempty.2 in Hperm.
+            simpl in Hperm.
+            assumption.
+          } 
+    Qed.
+    
+    Lemma lockRes_permission_increase_execution:
+      forall U tr tpi mi U' tpj mj tr' laddr rmapi rmapj b ofs
         (Hres: lockRes tpi laddr = Some rmapi)
-        (Hres': lockRes tpj laddr = None)
-        (Hexec: multi_fstep (U, tr, tpi) mi (U', tr ++ tr', tpj) mj),
-      exists tr_pre evu U'' U''' tp_pre m_pre tp_mk m_mk,
-        multi_fstep (U, tr, tpi) mi (U'', tr ++ tr_pre, tp_pre) m_pre /\
-        FineConc.MachStep the_ge (U'', tr ++ tr_pre, tp_pre) m_pre
-                          (U''', tr ++ tr_pre ++ [:: evu], tp_mk) m_mk /\
-        multi_fstep (U''', tr ++ tr_pre ++ [:: evu], tp_mk) m_mk
-                    (U', tr ++ tr',tpj) mj /\
-        action evu = Freelock /\
-        location evu = Some (laddr, lksize.LKSIZE_nat) /\
-        lockRes tp_pre laddr = Some (empty_map, empty_map).
+        (Hres': lockRes tpj laddr = Some rmapj)
+        (Hexec: multi_fstep (U, tr, tpi) mi (U', tr ++ tr', tpj) mj)
+        (Hperm: (~ Mem.perm_order'' (rmapi.1 !! b ofs) (Some Readable) /\
+                 Mem.perm_order'' (rmapj.1 !! b ofs) (Some Readable)) \/
+                (~ Mem.perm_order'' (rmapi.2 !! b ofs) (Some Readable) /\
+                 Mem.perm_order'' (rmapj.2 !! b ofs) (Some Readable))),
+      exists v ev,
+        nth_error tr' v = Some ev /\ action ev = Release /\
+        location ev = Some (laddr, lksize.LKSIZE_nat).
     Proof.
     Admitted.
 
@@ -2495,10 +3145,12 @@ Module SpinLocks (SEM: Semantics)
                                  Mem.perm_order'' ((getThreadR cntk').2 !! b ofs) (Some Readable)) /\
                                 (Mem.perm_order'' ((getThreadR cntj).1 !! b ofs) (Some Readable) \/
                                  Mem.perm_order'' ((getThreadR cntj).2 !! b ofs) (Some Readable)) /\
-                                (waction evk -> Mem.perm_order'' ((getThreadR cntk').1 !! b ofs) (Some Writable) \/
-                                               Mem.perm_order'' ((getThreadR cntk').2 !! b ofs) (Some Writable)) /\
-                                (waction evj -> Mem.perm_order'' ((getThreadR cntj).1 !! b ofs) (Some Writable) \/
-                                               Mem.perm_order'' ((getThreadR cntj).2 !! b ofs) (Some Writable))).
+                                (waction evk ->
+                                 Mem.perm_order'' ((getThreadR cntk').1 !! b ofs) (Some Writable) \/
+                                 Mem.perm_order'' ((getThreadR cntk').2 !! b ofs) (Some Writable)) /\
+                                (waction evj ->
+                                 Mem.perm_order'' ((getThreadR cntj).1 !! b ofs) (Some Writable) \/
+                                 Mem.perm_order'' ((getThreadR cntj).2 !! b ofs) (Some Writable))).
           { destruct(fstep_ev_perm_2 _ _ _ Hstepk) as [Hwritek Hreadk].
             destruct(fstep_ev_perm_2 _ _ _ Hstep) as [Hwritej Hreadj].
             rewrite Hloc_j in Hwritej Hreadj.
@@ -2564,294 +3216,113 @@ Module SpinLocks (SEM: Semantics)
                        end;
                 eauto.
           }
+          destruct Hpermissions as (Hperm_k & Hperm_j & Hwritablek & Hwritablej).
 
-          destruct (compete_cases Hcompetes_kj) as [[Hr_action Hw_action] | [Hw_action Hwr_action]].
-          { (** Case [evk] is an event that requires [Readable] permission*)
-
-              destruct Hpermissions as (Hperm_k & Hperm_j & Hwritable_kj).
-
-
-          
-          destruct (is_internal evk && is_internal evj) eqn:Hevk_evj.
-          { (** If [evk] and [evj] are [internal] events *)
-            move/andP:Hevk_evj=>[Hinternal_k Hinternal_j].
-            specialize (His_write Hinternal_k Hinternal_j).
-            
-            (** [evk] and [evj] are Read/Write events*)
-            (** evk is either a [Write] or [Read] event*)
-            assert (Hactionk: action evk = Write \/ action evk = Read).
-            { destruct evk as [tidk evk|?]; simpl in Hinternal_k; try by exfalso.
-              destruct evk; simpl in Hcactionk; try (by exfalso);
-                simpl; now auto.
-            }
-            (** evj is either a [Write] or [Read] event*)
-            assert (Hactionj: action evj = Write \/ action evj = Read).
-            { destruct evj as [tidj evj|?]; simpl in Hinternal_j; try by exfalso.
-              destruct evj; simpl in Hcactionj; try (by exfalso);
-                simpl; now auto.
-            }
-           
-
-
-            (** By the [invariant] permissions of [thread_id evk] and
+          (** By the [invariant] permissions of [thread_id evk] and
           [thread_id evj] will have compatible permissions at [tp] *)
-            assert (Hcompatible_j: perm_union ((getThreadR cntk'_j).1 !! b ofs) ((getThreadR cntj).1 !! b ofs))
-              by (destruct ((no_race_thr Hinv cntk'_j cntj Hthreads_neq).1 b ofs) as [pu Hcompatiblek'j];
-                  rewrite Hcompatiblek'j; auto).
+          assert (Hcompatible11_j: perm_union ((getThreadR cntk'_j).1 !! b ofs)
+                                              ((getThreadR cntj).1 !! b ofs))
+            by (destruct ((no_race_thr Hinv cntk'_j cntj Hthreads_neq).1 b ofs) as [pu Hcompatiblek'j];
+                 rewrite Hcompatiblek'j; auto).
 
-            (** There are two main cases: 1. evk is a [Write], 2. evk is a [Read]*)
-            destruct Hactionk as [Hactionk | Hactionk].
-            { (** Case evk is a [Write]*)
-              assert (Hpermj_k': ~ Mem.perm_order'' ((getThreadR cntj_k').1 !! b ofs) (Some Readable)).
-              { clear - Hperm_k Hinvk' Hwritable_kj Hactionk Hthreads_neq.
-                intros Hcontra.
-                destruct Hwritable_kj as [Hwritablek _].
-                specialize (Hwritablek Hactionk).
-                pose proof ((no_race_thr Hinvk' cntk' cntj_k' Hthreads_neq).1 b ofs) as Hcomp.
-                destruct ((getThreadR cntk').1 !! b ofs) as [p1 | ]; simpl in Hwritablek;
-                  inv Hwritablek;
-                  destruct ((getThreadR cntj_k').1 !! b ofs); simpl in Hcontra;
-                    inv Hcontra; simpl in *;
-                      destruct Hcomp; discriminate.
-              }
+          assert (Hcompatible12_j: perm_coh ((getThreadR cntk'_j).1 !! b ofs)
+                                            ((getThreadR cntj).2 !! b ofs))
+            by (pose proof ((thread_data_lock_coh Hinv cntj).1 _ cntk'_j b ofs);
+                 auto).
 
-              (** By [data_permission_increase_execution] we have four cases as to how the permissions increased*)
-              destruct (data_permission_increase_execution _ ofs cntj_k' cntj Hexec' Hperm_j Hpermj_k')
-                as (tr_pre_v & evv & ? & ? & tp_pre_v & m_pre_v &
-                    tp_inc & m_inc & Hexec_pre_v & Hstepv & Hexec_post_v & Hspec_v); eauto.
-              (** Proof of equality of traces*)
-              pose proof (multi_fstep_trace_monotone Hexec_post_v) as Heq_trace.
-              destruct Heq_trace as [tr''0 Heq_trace].
-              erewrite! app_assoc_reverse in Heq_trace.
-              do 4 apply app_inv_head in Heq_trace. subst.
-              rewrite! app_assoc.
-              destruct Hspec_v as [Hactionv | [[Hactionv [Hthreadv Hloc_v]] | [Hactionv [Hthreadv Hrmap]]]].
-              - (** Case permissions were increased by a [Spawn] event*)
-                right.
-                exists (length (((((tr0 ++ pre_k) ++ [:: evk]) ++ post_k) ++ tr_pre_v)%list)), evv.
-                repeat split.
-                + clear - Hj_not_in_tr Horder.
-                  erewrite! app_assoc in *.
-                  erewrite! app_length in *.
-                  simpl.
-                  apply/andP.
-                  split.
-                  now ssromega.
-                  erewrite <- Nat.le_ngt in Hj_not_in_tr.
-                  simpl in *.
-                  now ssromega.
-                + rewrite <- addn0.
-                  do 2 rewrite <- app_assoc.
-                  rewrite <- nth_error_app.
-                  now reflexivity.
-                + assumption.
-              - (** Case permissions were increased by a [Freelock] event*)
-                (** In this case, [evv] competes with [evk] and by the premise
-                that [tr] is [spinlock_synchronized] there will be a [Spawn] or
-                [Release]-[Acquire] pair between them and hence between [evk]
-                and [evj] as well *)
-                assert (Hcompeteskj: competes evk evv).
-                { repeat split.
-                  - rewrite Hthreadv.
-                    now auto.
-                  - unfold sameLocation.
-                    destruct (location evv) as [[[bv ofsv] szv]|]; try (by exfalso).
-                    destruct Hloc_v as [Heqb Hintvv].
-                    simpl in Heqb. subst.
-                    rewrite Hloc_k.
-                    split; auto.
-                    exists ofs.
-                    split; now auto.
-                  - destruct evk as [? evk | ? evk];
-                      destruct evk; simpl in Hactionk; simpl;
-                        try (by exfalso);
-                        now auto.
-                  - destruct evv as [? evv | ? evv];
-                      destruct evv; simpl in Hactionv; simpl;
-                        try (by exfalso);
-                        now auto.
-                  - intros.
-                    exfalso.
-                    destruct evv as [? evv | ? evv];
-                      simpl in Hactionv;
-                      destruct evv; try (discriminate);
-                        try (by exfalso).
-                  - intros.
-                    now auto.
-                }
-                rewrite! app_assoc in Hsynchronized.
-                specialize (Hsynchronized (length ((tr0 ++ pre_k)%list))
-                                          (length ((((tr0 ++ pre_k) ++ [:: evk]) ++ post_k) ++ tr_pre_v)%list)
-                                          evk evv).
-                simpl in Hsynchronized.
-                destruct (Hsynchronized ltac:(clear; erewrite! app_length in *; ssromega)
-                                               ltac:(clear; do 4 rewrite <- app_assoc;
-                                                     rewrite <- addn0;
-                                                     rewrite <- nth_error_app; reflexivity)
-                                                      ltac:(clear;
-                                                            rewrite <- addn0;
-                                                            rewrite <- app_assoc;
-                                                            rewrite <- nth_error_app; reflexivity) Hcompeteskj)
-                  as [[r [a [er [ea [Horderra [Horderra' [Hevr [Heva [Hactr [Hacta Hloc_ra]]]]]]]]]] |
-                      [s [es [Horders [Hs Hacts]]]]].
-                + (** Case there is a [Release]-[Acquire] pair between k and v*)
-                  left.
-                  exists r, a, er, ea.
-                  repeat split; auto.
-                  * clear - Horderra Horderra' Horder.
-                    rewrite! app_assoc_reverse in Horderra'.
-                    erewrite! app_length in *.
-                    apply/andP.
-                    split; now ssromega.
-                  * clear - Horderra Horderra' Horder Hj_not_in_tr.
-                    rewrite! app_assoc_reverse in Horderra'.
-                    erewrite! app_length in *.
-                    ssromega.
-                  * eapply nth_error_app_inv;
-                      eassumption.
-                  * eapply nth_error_app_inv;
-                      eassumption.
-                + (** Case there is a [Spawn] event between k and v*)
-                  right.
-                  exists s, es.
-                  repeat split; auto.
-                  * clear - Horders Horder Hj_not_in_tr.
-                    erewrite! app_assoc_reverse in *.
-                    erewrite! app_length in *.
-                    ssromega.
-                  * eapply nth_error_app_inv;
-                      now eauto.
-              - (** Case permissions were increased by an [Acquire] event*)
-                destruct Hrmap as [rmap Hlocv].
-                destruct (location evv) as [[laddr sz]|] eqn: Hloc_v; try (by exfalso).
-                destruct Hlocv as [Hsz [HlockRes_v Hperm_res]]; subst.
-                (** [rmap] at [tp_k'] will either not exist or if it exists will be below [Readable]*)
-                destruct (lockRes tp_k' laddr) as [rmap_k|] eqn:Hres_k.
-                + (** By [invariant] at [tp_k'] [rmap_k !! b ofs] will be below [Readable]*)
-                  assert (Hperm_rmap_k: ~ Mem.perm_order'' (rmap_k.1 !! b ofs) (Some Readable)).
-                  { clear - Hres_k Hinvk' Hactionk Hwritable_kj.
-                    intros Hcontra.
-                    pose proof ((no_race Hinvk' _ cntk' Hres_k).1 b ofs) as Hcomp.
-                    pose proof (Hwritable_kj.1 Hactionk) as Hperm_k.
-                    destruct ((getThreadR cntk').1 !! b ofs); simpl in Hperm_k;
-                      inv Hperm_k;
-                      destruct (rmap_k.1 !! b ofs); simpl in Hcontra;
-                        inv Hcontra; simpl in Hcomp;
-                          destruct Hcomp; discriminate.
-                  }
-                  (** Then there must have soome [Release] event on that lock to increase its permissions*)
-                  destruct (lockRes_permission_increase_execution _ _ _ _ Hres_k HlockRes_v Hexec_pre_v Hperm_rmap_k Hperm_res)
-                    as (u & evu & Hu & Hactionu & Hlocu).
-                  left.
-                  exists ((length (((tr0 ++ pre_k) ++ [:: evk]) ++ post_k)%list) + u),
-                  (length ((((tr0 ++ pre_k) ++ [:: evk]) ++ post_k) ++ tr_pre_v)%list), evu, evv.
-                  repeat split.
-                  * clear - Hu Hj_not_in_tr Horder.
-                    erewrite! app_assoc in *.
-                    erewrite! app_length in *.
-                    simpl in *.
-                    apply/andP.
-                    move/andP:Horder=>[? ?].
-                    split. now ssromega.
-                    pose proof ((nth_error_Some tr_pre_v u).1 ltac:(intros Hcontra; congruence)).
-                    simpl.
-                    now ssromega.
-                  * clear - Hj_not_in_tr.
-                    erewrite! app_assoc in *;
-                      erewrite! app_length in *.
-                    erewrite <- Nat.le_ngt in Hj_not_in_tr.
-                    simpl in *. now ssromega.
-                  * do 3 rewrite <- app_assoc.
-                    rewrite <- nth_error_app.
-                    eapply nth_error_app_inv;
-                      now eauto.
-                  * do 2 rewrite <- app_assoc.
-                    rewrite <- addn0.
-                    rewrite <- nth_error_app.
-                    reflexivity.
-                  * assumption.
-                  * assumption.
-                  * rewrite Hloc_v Hlocu.
-                    reflexivity.
-                + (** Case the lock was not created at index k*)
-                  (** Since the lock exists at v someone must have created it*)
-                  destruct (lockRes_mklock_execution _ _ Hres_k HlockRes_v Hexec_pre_v)
-                    as (tr_prew & evw & ? & ? & tp_prew & m_prew & tp_mk & m_mk
-                        & Hexec_prew & Hstep_mk & Hexec_postw & Hactionw & Hlocw & Hlock_mk).
-                  (** At that point it's resources would be empty. But later the
-                  lock has a [Readable] permission in it, hence there must be a
-                  [Release] on that lock*)
-                  assert (Hperm_mk: ~ Mem.perm_order'' ((empty_map, empty_map).1 !! b ofs) (Some Readable))
-                    by (rewrite empty_map_spec; simpl; now auto).
-                  destruct (multi_fstep_trace_monotone Hexec_postw) as [tr_post_mk Heq_tr].
-                  rewrite! app_assoc_reverse in Heq_tr.
-                  do 4 apply app_inv_head in Heq_tr; subst.
-                  rewrite! app_assoc in Hexec_postw.
-                  destruct (lockRes_permission_increase_execution _ _ _ _ Hlock_mk HlockRes_v Hexec_postw Hperm_mk Hperm_res)
-                    as (u & evu & Hu & Hactionu & Hlocu).
-                  left.
-                  exists (length (((((tr0 ++ pre_k) ++ [:: evk]) ++ post_k) ++ tr_prew ++ [:: evw])%list) + u),
-                  (length ((((tr0 ++ pre_k) ++ [:: evk]) ++ post_k) ++ tr_prew ++ [:: evw] ++ tr_post_mk) %list), evu, evv.
-                  repeat split.
-                  * clear - Hu Hj_not_in_tr Horder.
-                    erewrite! app_assoc in *.
-                    erewrite! app_length in *.
-                    simpl in *.
-                    apply/andP.
-                    move/andP:Horder=>[? ?].
-                    split. now ssromega.
-                    pose proof ((nth_error_Some tr_post_mk u).1 ltac:(intros Hcontra; congruence)).
-                    simpl.
-                    now ssromega.
-                  * clear - Hj_not_in_tr.
-                    erewrite! app_assoc in *;
-                      erewrite! app_length in *.
-                    erewrite <- Nat.le_ngt in Hj_not_in_tr.
-                    simpl in *. now ssromega.
-                  * rewrite! app_assoc.
-                    do 3 rewrite <- app_assoc.
-                    rewrite <- nth_error_app.
-                    eapply nth_error_app_inv;
-                      now eauto.
-                  * do 2 rewrite <- app_assoc.
-                    rewrite <- addn0.
-                    rewrite <- nth_error_app.
-                    reflexivity.
-                  * assumption.
-                  * assumption.
-                  * rewrite Hloc_v Hlocu.
-                    reflexivity.
+          assert (Hcompatible21_j: perm_coh ((getThreadR cntj).1 !! b ofs)
+                                              ((getThreadR cntk'_j).2 !! b ofs))
+            by (pose proof ((thread_data_lock_coh Hinv cntk'_j).1 _ cntj b ofs);
+                 auto).
+
+          assert (Hcompatible22_j: perm_union ((getThreadR cntk'_j).2 !! b ofs)
+                                              ((getThreadR cntj).2 !! b ofs))
+            by (destruct ((no_race_thr Hinv cntk'_j cntj Hthreads_neq).2 b ofs) as [pu Hcompatiblek'j];
+                 rewrite Hcompatiblek'j; auto).
+          
+          (** There are two main cases: 1. evk is a [raction], 2. evk is a [waction]*)
+          destruct Hcases as [[Hractionk Hwactionj] | [Hwactionk _]].
+          { (** Case [evk] is an [raction] and [evj] is an [waction]*)
+            specialize (Hwritablej Hwactionj).
+            assert (Hpermk'_j: ~ Mem.perm_order'' ((getThreadR cntk'_j).1 !! b ofs) (Some Readable)
+                               /\ ~ Mem.perm_order'' ((getThreadR cntk'_j).2 !! b ofs) (Some Readable)).
+            { clear - Hcompatible11_j Hcompatible12_j Hcompatible21_j
+                                      Hcompatible22_j Hwritablej Hthreads_neq.
+              destruct Hwritablej as [Hwritablej | Hwritablej];
+                [destruct ((getThreadR cntj).1 !! b ofs) as [p1 | ] |
+                  destruct ((getThreadR cntj).2 !! b ofs) as [p1 | ]]; simpl in Hwritablej;
+              inv Hwritablej;
+              destruct ((getThreadR cntk'_j).1 !! b ofs);
+              destruct ((getThreadR cntk'_j).2 !! b ofs);
+              simpl; split; intros Hcontra;
+              inv Hcontra; simpl in *;
+              now auto.
             }
-          }
-          { (** Case [evk] is a [Read] *)
-            rewrite Hactionk in His_write.
-            clear Hactionj.
-            destruct His_write as [? | Hactionj];
-              first by discriminate.
-            destruct Hwritable_kj as [_ Hwritablej].
-            specialize (Hwritablej Hactionj).
-            assert (Hpermk'_j: ~ Mem.perm_order'' ((getThreadR cntk'_j).1 !! b ofs) (Some Readable)).
-            { clear - Hcompatible_j Hwritablej Hthreads_neq.
-              intros Hcontra.
-              destruct ((getThreadR cntj).1 !! b ofs) as [p1 | ]; simpl in Hwritablej;
-                inv Hwritablej;
-                destruct ((getThreadR cntk'_j).1 !! b ofs); simpl in Hcontra;
-                  inv Hcontra; simpl in *;
-                    now auto.
-            }
-            (** Hence by [data_permission_decrease_execution] we have four cases for how the permissions of [thread_id evk] dropped*)
-            destruct (data_permission_decrease_execution _ b ofs cntk' cntk'_j Hexec' Hperm_k Hpermk'_j)
+
+            Lemma permission_decrease_execution:
+              forall U tr tpi mi U' tr' tpj mj
+                b ofs tidn
+                (cnti: containsThread tpi tidn)
+                (cntj: containsThread tpj tidn)
+                (Hexec: multi_fstep (U, tr, tpi) mi (U', tr ++ tr', tpj) mj)
+                (Hperm: (Mem.perm_order'' ((getThreadR cnti).1 !! b ofs) (Some Readable) /\
+                         ~ Mem.perm_order'' ((getThreadR cntj).1 !! b ofs) (Some Readable)) \/
+                        (Mem.perm_order'' ((getThreadR cnti).2 !! b ofs) (Some Readable) /\
+                         ~ Mem.perm_order'' ((getThreadR cntj).2 !! b ofs) (Some Readable))),
+              exists tr_pre tru U'' U''' tp_pre m_pre tp_dec m_dec,
+                multi_fstep (U, tr, tpi) mi (U'', tr ++ tr_pre, tp_pre) m_pre /\
+                FineConc.MachStep the_ge (U'', tr ++ tr_pre, tp_pre) m_pre
+                                  (U''', tr ++ tr_pre ++ tru, tp_dec) m_dec /\
+                multi_fstep (U''', tr ++ tr_pre ++ tru, tp_dec) m_dec
+                            (U', tr ++ tr',tpj) mj /\
+                (exists evu,
+                    (List.In evu tru /\ action evu = Free /\ deadLocation tpj mj b ofs) \/
+                    (tru = [:: evu] /\ action evu = Spawn) \/
+                    (tru = [:: evu] /\ action evu = Mklock /\ thread_id evu = tidn /\
+                     match location evu with
+                     | Some (addr, sz) =>
+                       b = addr.1 /\
+                       Intv.In ofs (addr.2, addr.2 + (Z.of_nat sz))%Z
+                     | None => False
+                     end) \/
+                    (tru = [:: evu] /\ action evu = Release /\ thread_id evu = tidn /\
+                     (exists rmap, match location evu with
+                              | Some (laddr, sz) =>
+                                sz = lksize.LKSIZE_nat /\
+                                lockRes tp_dec laddr = Some rmap /\ 
+                                (Mem.perm_order'' (rmap.1 !! b ofs) (Some Readable) \/
+                                 Mem.perm_order'' (rmap.2 !! b ofs) (Some Readable))
+                              | None => False
+                              end))).
+            Proof.
+            Admitted.
+
+            assert (Hperm_k_drop:
+                      (Mem.perm_order'' (((getThreadR cntk')#1) # b ofs)
+                                        (Some Readable) /\
+                       ~ Mem.perm_order'' (((getThreadR cntk'_j)#1) # b ofs)
+                         (Some Readable)) \/
+                      (Mem.perm_order'' (((getThreadR cntk')#2) # b ofs)
+                                        (Some Readable) /\
+                       ~ Mem.perm_order'' (((getThreadR cntk'_j)#2) # b ofs)
+                         (Some Readable)))
+              by (destruct Hperm_k; [left | right]; split; destruct Hpermk'_j;
+                  now auto).
+            (** Hence by [permission_decrease_execution] we have four cases
+            for how the permissions of [thread_id evk] dropped*)
+            destruct (permission_decrease_execution _ b ofs cntk' cntk'_j Hexec' Hperm_k_drop)
               as (tr_pre_u & tru & ? & ? & tp_pre_u & m_pre_u &
                   tp_dec & m_dec & Hexec_pre_u & Hstepu & Hexec_post_u & evu & Hspec_u).
             destruct Hspec_u as [Hfreed | [Hspawned | [Hmklock | Hrelease]]].
-            { (** Case permissions dropped by a [Free] event. This leads to a
-                  contradiction because it would be a [deadLocation]*)           
-              destruct Hfreed as (HIn & HFree & Hdead).
-              inversion Hdead.
-              specialize (Hthreads _ cntj).
-              rewrite Hthreads.1 in Hperm_j.
-              simpl in Hperm_j;
-                by exfalso.
+              { (** Case permissions dropped by a [Free] event. This leads to a
+                  contradiction because it would be a [deadLocation] *) 
+                destruct Hfreed as (HIn & HFree & Hdead).
+                inversion Hdead.
+                specialize (Hthreads _ cntj).
+                rewrite Hthreads.1 Hthreads.2 in Hperm_j.
+                simpl in Hperm_j;
+                  destruct Hperm_j;
+                    by exfalso.
             }
             { (** Case permissions were dropped by a spawn event - we are done*)
               destruct Hspawned as (? & Hactionu).
@@ -2947,27 +3418,43 @@ Module SpinLocks (SEM: Semantics)
               - (** Case [(bu, ofsu)] is still a lock at [tp]*)
                 (** By the [invariant] its permissions must have dropped because
                 [thread_id evj] has a Writable permission at that location*)
-                assert (Hperm_res: ~ Mem.perm_order'' (rmap'.1 !! b ofs) (Some Readable)).
+                assert (Hperm_res: ~ Mem.perm_order'' (rmap'.1 !! b ofs) (Some Readable) /\
+                                   ~ Mem.perm_order'' (rmap'.2 !! b ofs) (Some Readable)).
                 { clear - Hinv Hres Hwritablej.
-                  intros Hcontra.
                   destruct ((no_race Hinv _ cntj Hres).1 b ofs) as [pu Hcomp].
-                  destruct ((getThreadR cntj).1 !! b ofs); simpl in Hwritablej;
-                    inv Hwritablej;
-                    destruct (rmap'.1 !! b ofs); simpl in Hcontra;
-                      inv Hcontra; simpl in Hcomp;
-                        discriminate.
+                  destruct ((no_race Hinv _ cntj Hres).2 b ofs) as [pu2 Hcomp2].
+                  pose proof ((thread_data_lock_coh Hinv cntj).2 _ _ Hres b ofs) as Hcoh.
+                  pose proof ((locks_data_lock_coh Hinv _ Hres).1 _ cntj b ofs) as Hcoh2.
+                  split; intros Hcontra; destruct Hwritablej;
+                  repeat match goal with
+                         | [H: Mem.perm_order'' ?X _ |- _] =>
+                           destruct X; simpl in H; inv H; simpl in *
+                         | [H: match ?X with _ => _ end = _ |- _] =>
+                           destruct X
+                         end; simpl in *;
+                  try (discriminate || by exfalso).
                 }
                 pose proof (multi_fstep_trace_monotone Hexec_post_u) as [tr''0 Heq].
                 rewrite! app_assoc_reverse in Heq.
                 do 4 apply app_inv_head in Heq; subst.
                 rewrite! app_assoc in Hexec_post_u.
+
+                assert (Hperm_res_drop:
+                          (Mem.perm_order'' ((rmap#1) # b ofs) (Some Readable) /\
+                           ~ Mem.perm_order'' ((rmap'#1) # b ofs) (Some Readable)) \/
+                          (Mem.perm_order'' ((rmap#2) # b ofs) (Some Readable) /\
+                           ~ Mem.perm_order'' ((rmap'.2) # b ofs) (Some Readable)))
+                  by (destruct Hperm_res; destruct Hperm_rmap; [left | right];
+                      now auto).
                 (** Hence by [lockRes_permission_decrease_execution] there must
                 have been some [Acquire] event on that lock*)
-                destruct (lockRes_permission_decrease_execution _ _ _ _ Hresu Hres Hexec_post_u Hperm_rmap Hperm_res)
+                destruct (lockRes_permission_decrease_execution _ _ _ _ Hresu Hres
+                                                                Hexec_post_u Hperm_res_drop)
                   as (v & evv & Hev & Hactionv & Hlocv).
                 left.
                 exists (length ((tr0 ++ pre_k ++ [:: evk] ++ post_k) ++ tr_pre_u)%list),
-                (length ((tr0 ++ pre_k ++ [:: evk] ++ post_k) ++ tr_pre_u ++ [:: evu])%list + v), evu, evv.
+                (length ((tr0 ++ pre_k ++ [:: evk] ++ post_k) ++ tr_pre_u ++ [:: evu])%list + v),
+                evu, evv.
                 repeat split; auto.
                 + clear - Horder.
                   erewrite! app_assoc.
@@ -3003,9 +3490,23 @@ Module SpinLocks (SEM: Semantics)
                       Hexec_post_fl & Haction_fl & Hloc_fl & Hres_fl).
                 (** Hence, at some point in the trace, the permissions at [(bu,
                 ofsu)] dropped. This can only be done by an [Acquire] step*)
-                assert (Hperm_drop_rmap: ~ Mem.perm_order'' ((empty_map, empty_map).1 !! b ofs) (Some Readable))
+                assert (Hperm_rmap_empty: ~ Mem.perm_order'' ((empty_map, empty_map).1 !! b ofs)
+                                           (Some Readable) /\
+                                         ~ Mem.perm_order'' ((empty_map, empty_map).2 !! b ofs)
+                                           (Some Readable))
                   by (rewrite empty_map_spec; now auto).
-                destruct (lockRes_permission_decrease_execution _ _ _ _ Hresu Hres_fl Hexec_pre_fl Hperm_rmap Hperm_drop_rmap)
+
+                assert (Hperm_rmap_drop:
+                          (Mem.perm_order'' ((rmap#1) # b ofs) (Some Readable) /\
+                           ~ Mem.perm_order'' ((empty_map, empty_map).1 # b ofs) (Some Readable)) \/
+                          (Mem.perm_order'' ((rmap#2) # b ofs) (Some Readable) /\
+                           ~ Mem.perm_order'' ((empty_map, empty_map).2 # b ofs) (Some Readable)))
+                  by (destruct Hperm_rmap_empty; destruct Hperm_rmap; [left | right];
+                      now auto).
+                          
+                
+                destruct (lockRes_permission_decrease_execution _ _ _ _ Hresu Hres_fl
+                                                                Hexec_pre_fl Hperm_rmap_drop)
                   as (v & evv & Hv & Haction_v & Hloc_v).
                 left.
                 pose proof (multi_fstep_trace_monotone Hexec_post_fl) as [tr_fl' Heq].
@@ -3040,7 +3541,275 @@ Module SpinLocks (SEM: Semantics)
                   reflexivity.
             }
           }
-        }
+          { (** Case [evk] is a [waction] *)
+            specialize (Hwritablek Hwactionk).
+            (** [thread_id evj] must have permissions that are below [Readable]*)
+            assert (Hpermj_k': ~ Mem.perm_order'' ((getThreadR cntj_k').1 !! b ofs) (Some Readable) /\
+                               ~ Mem.perm_order'' ((getThreadR cntj_k').2 !! b ofs) (Some Readable)).
+              { clear - Hperm_k Hinvk' Hwritablek Hthreads_neq.
+                pose proof ((no_race_thr Hinvk' cntk' cntj_k' Hthreads_neq).1 b ofs) as Hcomp.
+                assert (Hcompatible12_j: perm_coh ((getThreadR cntk').1 !! b ofs)
+                                                  ((getThreadR cntj_k').2 !! b ofs))
+                  by (pose proof ((thread_data_lock_coh Hinvk' cntj_k').1 _ cntk' b ofs);
+                       auto).
+
+                assert (Hcompatible21_j: perm_coh ((getThreadR cntj_k').1 !! b ofs)
+                                                  ((getThreadR cntk').2 !! b ofs))
+                  by (pose proof ((thread_data_lock_coh Hinvk' cntk').1 _ cntj_k' b ofs);
+                       auto).
+
+                pose proof ((no_race_thr Hinvk' cntk' cntj_k' Hthreads_neq).2 b ofs) as Hcomp2.
+                destruct Hwritablek as [Hwritablek | Hwritablek];
+                  [destruct ((getThreadR cntk').1 !! b ofs) as [p1 | ] |
+                   destruct ((getThreadR cntk').2 !! b ofs) as [p1 | ]]; simpl in Hwritablek;
+                  inv Hwritablek;
+                  destruct ((getThreadR cntj_k').1 !! b ofs);
+                  destruct ((getThreadR cntj_k').2 !! b ofs);
+                  simpl; split; intros Hcontra;
+                  inv Hcontra; simpl in *;
+                  try (destruct Hcomp);
+                  try (destruct Hcomp2);
+                  try (auto || discriminate).
+              }
+
+              assert (Hperm_incr:
+                        (Mem.perm_order'' (((getThreadR cntj)#1) # b ofs) (Some Readable) /\
+                         ~ Mem.perm_order'' (((getThreadR cntj_k')#1) # b ofs) (Some Readable)) \/
+                        (Mem.perm_order'' (((getThreadR cntj)#2) # b ofs) (Some Readable) /\
+                         ~ Mem.perm_order'' (((getThreadR cntj_k')#2) # b ofs) (Some Readable)))
+              by (destruct Hpermj_k'; destruct Hperm_j; now auto).
+              (** By [permission_increase_execution] we have four cases as
+              to how the permissions increased*)
+              destruct (permission_increase_execution _ ofs cntj_k' cntj Hexec' Hperm_incr)
+                as (tr_pre_v & evv & ? & ? & tp_pre_v & m_pre_v &
+                    tp_inc & m_inc & Hexec_pre_v & Hstepv & Hexec_post_v & Hspec_v); eauto.
+              (** Proof of equality of traces*)
+              pose proof (multi_fstep_trace_monotone Hexec_post_v) as Heq_trace.
+              destruct Heq_trace as [tr''0 Heq_trace].
+              erewrite! app_assoc_reverse in Heq_trace.
+              do 4 apply app_inv_head in Heq_trace. subst.
+              rewrite! app_assoc.
+              destruct Hspec_v as [Hactionv | [[Hactionv [Hthreadv Hloc_v]] |
+                                               [Hactionv [Hthreadv Hrmap]]]].
+              - (** Case permissions were increased by a [Spawn] event*)
+                right.
+                exists (length (((((tr0 ++ pre_k) ++ [:: evk]) ++ post_k) ++ tr_pre_v)%list)), evv.
+                repeat split.
+                + clear - Hj_not_in_tr Horder.
+                  erewrite! app_assoc in *.
+                  erewrite! app_length in *.
+                  simpl.
+                  apply/andP.
+                  split.
+                  now ssromega.
+                  erewrite <- Nat.le_ngt in Hj_not_in_tr.
+                  simpl in *.
+                  now ssromega.
+                + rewrite <- addn0.
+                  do 2 rewrite <- app_assoc.
+                  rewrite <- nth_error_app.
+                  now reflexivity.
+                + assumption.
+              - (** Case permissions were increased by a [Freelock] event*)
+                (** In this case, [evv] competes with [evk] and by the premise
+                that [tr] is [spinlock_synchronized] there will be a [Spawn] or
+                [Release]-[Acquire] pair between them and hence between [evk]
+                and [evj] as well *)
+                assert (Hcompeteskj: competes evk evv).
+                { repeat split; eauto.
+                  - rewrite Hthreadv.
+                    now auto.
+                  - unfold sameLocation.
+                    destruct (location evv) as [[[bv ofsv] szv]|]; try (by exfalso).
+                    destruct Hloc_v as [Heqb Hintvv].
+                    simpl in Heqb. subst.
+                    rewrite Hloc_k.
+                    split; auto.
+                    exists ofs.
+                    split; now auto.
+                  - destruct evv as [? evv | ? evv];
+                      destruct evv; simpl in Hactionv; simpl;
+                        try (by exfalso);
+                        now auto.
+                  - intros.
+                    exfalso.
+                    destruct evv as [? evv | ? evv];
+                      simpl in Hactionv;
+                      destruct evv; try (discriminate);
+                        try (by exfalso).
+                }
+                rewrite! app_assoc in Hsynchronized.
+                specialize (Hsynchronized (length ((tr0 ++ pre_k)%list))
+                                          (length ((((tr0 ++ pre_k) ++ [:: evk]) ++ post_k) ++ tr_pre_v)%list)
+                                          evk evv).
+                simpl in Hsynchronized.
+                destruct (Hsynchronized ltac:(clear; erewrite! app_length in *; ssromega)
+                                               ltac:(clear; do 4 rewrite <- app_assoc;
+                                                     rewrite <- addn0;
+                                                     rewrite <- nth_error_app; reflexivity)
+                                                      ltac:(clear;
+                                                            rewrite <- addn0;
+                                                            rewrite <- app_assoc;
+                                                            rewrite <- nth_error_app; reflexivity) Hcompeteskj)
+                  as [[r [a [er [ea [Horderra [Horderra' [Hevr [Heva [Hactr [Hacta Hloc_ra]]]]]]]]]] |
+                      [s [es [Horders [Hs Hacts]]]]].
+                + (** Case there is a [Release]-[Acquire] pair between k and v*)
+                  left.
+                  exists r, a, er, ea.
+                  repeat split; auto.
+                  * clear - Horderra Horderra' Horder.
+                    rewrite! app_assoc_reverse in Horderra'.
+                    erewrite! app_length in *.
+                    apply/andP.
+                    split; now ssromega.
+                  * clear - Horderra Horderra' Horder Hj_not_in_tr.
+                    rewrite! app_assoc_reverse in Horderra'.
+                    erewrite! app_length in *.
+                    ssromega.
+                  * eapply nth_error_app_inv;
+                      eassumption.
+                  * eapply nth_error_app_inv;
+                      eassumption.
+                + (** Case there is a [Spawn] event between k and v*)
+                  right.
+                  exists s, es.
+                  repeat split; auto.
+                  * clear - Horders Horder Hj_not_in_tr.
+                    erewrite! app_assoc_reverse in *.
+                    erewrite! app_length in *.
+                    ssromega.
+                  * eapply nth_error_app_inv;
+                      now eauto.
+              - (** Case permissions were increased by an [Acquire] event*)
+                destruct Hrmap as [rmap Hlocv].
+                destruct (location evv) as [[laddr sz]|] eqn: Hloc_v; try (by exfalso).
+                destruct Hlocv as [Hsz [HlockRes_v Hperm_res]]; subst.
+                (** [rmap] at [tp_k'] will either not exist or if it exists will be below [Readable]*)
+                destruct (lockRes tp_k' laddr) as [rmap_k|] eqn:Hres_k.
+                + (** By [invariant] at [tp_k'] [rmap_k !! b ofs] will be below [Readable]*)
+                  assert (Hperm_rmap_k: ~ Mem.perm_order'' (rmap_k.1 !! b ofs) (Some Readable) /\
+                                        ~ Mem.perm_order'' (rmap_k.2 !! b ofs) (Some Readable)).
+                  { clear - Hres_k Hinvk' Hwritablek.
+                    pose proof ((no_race Hinvk' _ cntk' Hres_k).1 b ofs) as [? Hcomp].
+                    pose proof ((no_race Hinvk' _ cntk' Hres_k).2 b ofs) as [? Hcomp2].
+                    pose proof ((thread_data_lock_coh Hinvk' cntk').2 _ _ Hres_k b ofs) as Hcoh.
+                    pose proof ((locks_data_lock_coh Hinvk' _ Hres_k).1 _ cntk' b ofs) as Hcoh2.
+                    destruct Hwritablek;
+                    split; intros Hcontra;
+                    repeat match goal with
+                           | [H: Mem.perm_order'' ?X _ |- _] =>
+                             destruct X; simpl in H; inv H; simpl in *
+                           | [H: match ?X with _ => _ end = _ |- _] =>
+                             destruct X
+                           end; simpl in *;
+                    try (discriminate || by exfalso).
+                  }
+
+                  assert (Hperm_incr':
+                            (~ Mem.perm_order'' ((rmap_k#1) # b ofs) (Some Readable) /\
+                              Mem.perm_order'' ((rmap#1) # b ofs) (Some Readable)) \/
+                            (~ Mem.perm_order'' ((rmap_k#2) # b ofs) (Some Readable) /\
+                              Mem.perm_order'' ((rmap#2) # b ofs) (Some Readable)))
+                    by (destruct Hperm_rmap_k; destruct Hperm_res; now auto).
+                  (** Then there must have soome [Release] event on that lock to
+                  increase its permissions*)
+                  destruct (lockRes_permission_increase_execution _ _ _ _ Hres_k HlockRes_v
+                                                                  Hexec_pre_v Hperm_incr')
+                    as (u & evu & Hu & Hactionu & Hlocu).
+                  left.
+                  exists ((length (((tr0 ++ pre_k) ++ [:: evk]) ++ post_k)%list) + u),
+                  (length ((((tr0 ++ pre_k) ++ [:: evk]) ++ post_k) ++ tr_pre_v)%list), evu, evv.
+                  repeat split.
+                  * clear - Hu Hj_not_in_tr Horder.
+                    erewrite! app_assoc in *.
+                    erewrite! app_length in *.
+                    simpl in *.
+                    apply/andP.
+                    move/andP:Horder=>[? ?].
+                    split. now ssromega.
+                    pose proof ((nth_error_Some tr_pre_v u).1 ltac:(intros Hcontra; congruence)).
+                    simpl.
+                    now ssromega.
+                  * clear - Hj_not_in_tr.
+                    erewrite! app_assoc in *;
+                      erewrite! app_length in *.
+                    erewrite <- Nat.le_ngt in Hj_not_in_tr.
+                    simpl in *. now ssromega.
+                  * do 3 rewrite <- app_assoc.
+                    rewrite <- nth_error_app.
+                    eapply nth_error_app_inv;
+                      now eauto.
+                  * do 2 rewrite <- app_assoc.
+                    rewrite <- addn0.
+                    rewrite <- nth_error_app.
+                    reflexivity.
+                  * assumption.
+                  * assumption.
+                  * rewrite Hloc_v Hlocu.
+                    reflexivity.
+                + (** Case the lock was not created at index k*)
+                  (** Since the lock exists at v someone must have created it*)
+                  destruct (lockRes_mklock_execution _ _ Hres_k HlockRes_v Hexec_pre_v)
+                    as (tr_prew & evw & ? & ? & tp_prew & m_prew & tp_mk & m_mk
+                        & Hexec_prew & Hstep_mk & Hexec_postw & Hactionw & Hlocw & Hlock_mk).
+                  (** At that point it's resources would be empty. But later the
+                  lock has a [Readable] permission in it, hence there must be a
+                  [Release] on that lock*)
+                  assert (Hperm_mk:
+                            ~ Mem.perm_order'' ((empty_map, empty_map).1 !! b ofs) (Some Readable) /\
+                            ~ Mem.perm_order'' ((empty_map, empty_map).2 !! b ofs) (Some Readable))
+                    by (rewrite empty_map_spec; simpl; now auto).
+                  destruct (multi_fstep_trace_monotone Hexec_postw) as [tr_post_mk Heq_tr].
+                  rewrite! app_assoc_reverse in Heq_tr.
+                  do 4 apply app_inv_head in Heq_tr; subst.
+                  rewrite! app_assoc in Hexec_postw.
+                  assert (Hperm_res_incr':
+                            (~ Mem.perm_order'' (((empty_map, empty_map)#1) # b ofs)
+                              (Some Readable) /\
+                              Mem.perm_order'' ((rmap#1) # b ofs) (Some Readable)) \/
+                            (~ Mem.perm_order'' (((empty_map, empty_map)#2) # b ofs)
+                               (Some Readable) /\
+                              Mem.perm_order'' ((rmap#2) # b ofs) (Some Readable)))
+                    by (destruct Hperm_mk; destruct Hperm_res; now auto).
+                  destruct (lockRes_permission_increase_execution _ _ _ _ Hlock_mk HlockRes_v
+                                                                  Hexec_postw Hperm_res_incr')
+                    as (u & evu & Hu & Hactionu & Hlocu).
+                  left.
+                  exists (length (((((tr0 ++ pre_k) ++ [:: evk]) ++ post_k) ++ tr_prew ++ [:: evw])%list) + u),
+                  (length ((((tr0 ++ pre_k) ++ [:: evk]) ++ post_k) ++ tr_prew ++ [:: evw] ++
+                                                                    tr_post_mk) %list), evu, evv.
+                  repeat split.
+                  * clear - Hu Hj_not_in_tr Horder.
+                    erewrite! app_assoc in *.
+                    erewrite! app_length in *.
+                    simpl in *.
+                    apply/andP.
+                    move/andP:Horder=>[? ?].
+                    split. now ssromega.
+                    pose proof ((nth_error_Some tr_post_mk u).1 ltac:(intros Hcontra; congruence)).
+                    simpl.
+                    now ssromega.
+                  * clear - Hj_not_in_tr.
+                    erewrite! app_assoc in *;
+                      erewrite! app_length in *.
+                    erewrite <- Nat.le_ngt in Hj_not_in_tr.
+                    simpl in *. now ssromega.
+                  * rewrite! app_assoc.
+                    do 3 rewrite <- app_assoc.
+                    rewrite <- nth_error_app.
+                    eapply nth_error_app_inv;
+                      now eauto.
+                  * do 2 rewrite <- app_assoc.
+                    rewrite <- addn0.
+                    rewrite <- nth_error_app.
+                    reflexivity.
+                  * assumption.
+                  * assumption.
+                  * rewrite Hloc_v Hlocu.
+                    reflexivity.
+            }
+          }
+      
         { (** Case [thread_id evj] was not in the threadpool*)
           Lemma thread_spawn_step:
             forall U tr tp m U' tp' m' tr' tidn
@@ -3050,7 +3819,17 @@ Module SpinLocks (SEM: Semantics)
             exists ev,
               tr' = [:: ev] /\ action ev = Spawn.
           Proof.
-          Admitted.
+            intros;
+            inv Hstep; simpl in *;
+            try apply app_eq_nil in H4;
+            try inv Htstep;
+            destruct U; inversion HschedN; subst; pf_cleanup;
+            try (inv Hhalted);
+            try  (exfalso; by eauto);
+            apply app_inv_head in H5; subst.
+            eexists; simpl; split;
+            now eauto.
+          Qed.
 
           Lemma thread_spawn_execution:
             forall U tr tpi mi U' tr' tpj mj
@@ -3066,7 +3845,38 @@ Module SpinLocks (SEM: Semantics)
                           (U', tr ++ tr',tpj) mj /\
               action evu = Spawn.
           Proof.
-          Admitted.
+            induction U as [|tid' U]; intros.
+            - inversion Hexec. apply app_eq_nil in H3; subst.
+              pf_cleanup. by congruence.
+            - inversion Hexec.
+              + apply app_eq_nil in H3; subst.
+                pf_cleanup;
+                  by congruence.
+              + apply app_inv_head in H6; subst.
+                destruct (containsThread_dec tidn tp') as [cnt' | not_cnt'].
+                * destruct (thread_spawn_step _ cnti cnt' H8) as [ev [? ?]].
+                  subst.
+                  exists [:: ], ev, (tid' :: U)%SEQ, U, tpi, mi, tp', m'.
+                  split.
+                  rewrite app_nil_r. constructor.
+                  split.
+                  simpl.
+                  rewrite app_nil_r.
+                  assumption.
+                  split. simpl; assumption.
+                  assumption.
+                * erewrite! app_assoc in *.
+                  destruct (IHU _ _ _ _ _ _ _ _ not_cnt' cntj H9)
+                    as (tr_pre & evu & U'' & U''' & tp_pre & m_pre & tp_inc & m_inc
+                        & Hexec_pre & Hstep & Hexec_post).
+                  exists (tr'0 ++ tr_pre), evu, U'', U''', tp_pre, m_pre, tp_inc, m_inc.
+                  erewrite! app_assoc in *.
+                  repeat (split; eauto using multi_fstep).
+                  rewrite <- app_assoc.
+                  econstructor; eauto.
+                  rewrite! app_assoc; eauto.
+          Qed.
+            
 
           destruct (thread_spawn_execution _ Hnot_contained cntj Hexec')
             as (tr_pre_spawn & evv & ? & ? & tp_pre_spawn & m_pre_spawn &
@@ -3095,17 +3905,8 @@ Module SpinLocks (SEM: Semantics)
             now reflexivity.
           + assumption.
         }
-        { (** Case one of the competing events is an [external] event*)
-          move/nandP:Hevk_evj=>Hevk_evj.
-          
+    Qed.
 
-
-
-
-    Abort.        
-        
-   
-    
     (** FineConc is spinlock well-synchronized, strengthened version of the theorem*)
      Theorem fineConc_spinlock_strong:
       forall U U0 U' tr tr' tp m tp0 m0 tp' m'
