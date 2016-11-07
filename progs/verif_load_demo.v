@@ -337,4 +337,277 @@ unfold MORE_COMMANDS, abbreviate.
 simpl; do 2 rewrite eq_rect_r_eq. (* QQQ what's this magic?? *)
 
 forward.
+Abort.
+
+
+Lemma body_go: semax_body Vprog Gprog f_get22 get22_spec.
+Proof.
+start_function.
+(* int_pair_t* p = &pps[i].right; *)
+forward.
+(* int res = p->snd; *)
+(* forward.   fails *)
+
+Require Import floyd.simpl_reptype.
+
+eapply semax_seq'. {
+hoist_later_in_pre.
+match goal with
+| |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
+ (* Super canonical load *)
+  let e1 := fresh "e" in
+  let efs := fresh "efs" in
+  let tts := fresh "tts" in
+    construct_nested_efield e e1 efs tts;
+
+  let lr := fresh "lr" in
+    pose (compute_lr e1 efs) as lr;
+    vm_compute in lr;
+
+  let HLE := fresh "H" in
+  let p := fresh "p" in evar (p: val);
+    match goal with
+    | lr := LLLL |- _ => do_compute_lvalue Delta P Q R e1 p HLE
+    | lr := RRRR |- _ => do_compute_expr Delta P Q R e1 p HLE
+    end;
+
+  let H_Denote := fresh "H" in
+  let gfs := fresh "gfs" in
+    solve_efield_denote Delta P Q R efs gfs H_Denote;
+
+  ((
+    let sh := fresh "sh" in evar (sh: share);
+    let t_root := fresh "t_root" in evar (t_root: type);
+    let gfs0 := fresh "gfs" in evar (gfs0: list gfield);
+    let v := fresh "v" in evar (v: reptype (nested_field_type t_root gfs0));
+    let n := fresh "n" in
+    let H := fresh "H" in
+    sc_new_instantiate P Q R R Delta e1 gfs tts lr p sh t_root gfs0 v n (0%nat) H;
+    
+    let gfs1 := fresh "gfs" in
+    let len := fresh "len" in
+    pose ((length gfs - length gfs0)%nat) as len;
+    simpl in len;
+    match goal with
+    | len := ?len' |- _ =>
+      pose (firstn len' gfs) as gfs1
+    end;
+
+    clear len;
+    unfold gfs in gfs0, gfs1;
+    simpl firstn in gfs1;
+    simpl skipn in gfs0;
+
+    change gfs with (gfs1 ++ gfs0) in *;
+    subst gfs p;
+
+    let Heq := fresh "H" in
+    match type of H with
+    | (ENTAIL _, PROPx _ (LOCALx _ (SEPx (?R0 :: nil))) 
+           |-- _) => assert (nth_error R n = Some R0) as Heq by reflexivity
+    end;
+
+    eapply (semax_SC_field_load Delta sh n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
+    [ reflexivity
+    | reflexivity
+    | solve [subst sh; auto] (* readable share *)
+    | reflexivity
+    | reflexivity
+    | reflexivity
+    | reflexivity
+    | exact Heq
+    | exact HLE
+    | exact H_Denote
+    | solve_load_rule_evaluation
+    | clear Heq HLE H_Denote H;
+      subst e1 gfs0 gfs1 efs tts t_root v sh lr n;
+      repeat match goal with H := _ |- _ => clear H end;
+      try quick_typecheck3; 
+      unfold tc_efield, tc_LR, tc_LR_strong; simpl typeof;
+      try solve [entailer!]
+    | solve_legal_nested_field_in_entailment; try clear Heq HLE H_Denote H (*H_LEGAL*);
+      subst e1 gfs0 gfs1 efs tts t_root v sh lr n]
+  )
+  ||
+    (eapply semax_SC_field_load_general with (lr0 := lr);
+    [ reflexivity
+    | reflexivity
+    | reflexivity
+    | exact HLE
+    | exact H1
+    | subst e1 efs tts lr p gfs; clear HLE H_Denote
+    | subst e1 efs tts lr p gfs; clear HLE H_Denote
+    | subst e1 efs tts lr p gfs; clear HLE H_Denote
+    | subst e1 efs tts lr p gfs; clear HLE H_Denote
+    | subst e1 efs tts lr p gfs; clear HLE H_Denote
+    | subst e1 efs tts lr p gfs; clear HLE H_Denote
+    | subst e1 efs tts lr p gfs; clear HLE H_Denote
+    | subst e1 efs tts lr p gfs; clear HLE H_Denote
+    | subst e1 efs tts lr p gfs; clear HLE H_Denote ])
+  )
+
+(* try reflexivity; try exact HLE; try exact H_Denote; subst e1 efs tts lr p gfs; clear HLE H_Denote *)
+end.
+
+- entailer!. simpl.
+  instantiate (1 := pps).
+  instantiate (1 := [StructField _right; ArraySubsc i]).
+  instantiate (1 := (tarray pair_pair_t array_size)).
+  rewrite field_compatible_field_address.
+  + simpl. reflexivity.
+  + auto with field_compatible.
+- instantiate (3 := sh). instantiate (3 := O). simpl.
+  unfold data_at. instantiate (2 := [ArraySubsc i]). reflexivity.
+- assumption. (* readable share *)
+- instantiate (1 := [StructField _snd; StructField _right]).
+  reflexivity.
+- eapply JMeq_refl.
+- entailer!. simpl; do 2 rewrite eq_rect_r_eq.
+  admit. (* is_int stuff *)
+- solve_legal_nested_field_in_entailment'.
+- reflexivity.
+- reflexivity.
+}
+unfold MORE_COMMANDS, abbreviate.
+
+(* TODO simpl_proj_reptype and fwd_result don't give nice results, why? *)
+simpl; do 2 rewrite eq_rect_r_eq. (* QQQ what's this magic?? *)
+
+forward.
+
+Abort.
+
+Ltac entailer_for_load_tac := try solve [entailer!].
+(*
+Ltac entailer_for_load_tac ::= idtac.
+*)
+
+Ltac load_tac ::=
+ ensure_normal_ret_assert;
+ hoist_later_in_pre;
+ match goal with
+| |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
+  (* Super canonical load *)
+  let e1 := fresh "e" in
+  let efs := fresh "efs" in
+  let tts := fresh "tts" in
+    construct_nested_efield e e1 efs tts;
+
+  let lr := fresh "lr" in
+    pose (compute_lr e1 efs) as lr;
+    vm_compute in lr;
+
+  let HLE := fresh "H" in
+  let p := fresh "p" in evar (p: val);
+    match goal with
+    | lr := LLLL |- _ => do_compute_lvalue Delta P Q R e1 p HLE
+    | lr := RRRR |- _ => do_compute_expr Delta P Q R e1 p HLE
+    end;
+
+  let H_Denote := fresh "H" in
+  let gfs := fresh "gfs" in
+    solve_efield_denote Delta P Q R efs gfs H_Denote;
+
+  ((
+    let sh := fresh "sh" in evar (sh: share);
+    let t_root := fresh "t_root" in evar (t_root: type);
+    let gfs0 := fresh "gfs" in evar (gfs0: list gfield);
+    let v := fresh "v" in evar (v: reptype (nested_field_type t_root gfs0));
+    let n := fresh "n" in
+    let H := fresh "H" in
+    sc_new_instantiate P Q R R Delta e1 gfs tts lr p sh t_root gfs0 v n (0%nat) H;
+    
+    let gfs1 := fresh "gfs" in
+    let len := fresh "len" in
+    pose ((length gfs - length gfs0)%nat) as len;
+    simpl in len;
+    match goal with
+    | len := ?len' |- _ =>
+      pose (firstn len' gfs) as gfs1
+    end;
+
+    clear len;
+    unfold gfs in gfs0, gfs1;
+    simpl firstn in gfs1;
+    simpl skipn in gfs0;
+
+    change gfs with (gfs1 ++ gfs0) in *;
+    subst gfs p;
+
+    let Heq := fresh "H" in
+    match type of H with
+    | (ENTAIL _, PROPx _ (LOCALx _ (SEPx (?R0 :: nil))) 
+           |-- _) => assert (nth_error R n = Some R0) as Heq by reflexivity
+    end;
+
+    eapply (semax_SC_field_load Delta sh n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
+    [ reflexivity
+    | reflexivity
+    | solve [subst sh; auto] (* readable share *)
+    | reflexivity
+    | reflexivity
+    | reflexivity
+    | reflexivity
+    | exact Heq
+    | exact HLE
+    | exact H_Denote
+    | solve_load_rule_evaluation
+    | clear Heq HLE H_Denote H;
+      subst e1 gfs0 gfs1 efs tts t_root v sh lr n;
+      repeat match goal with H := _ |- _ => clear H end;
+      try quick_typecheck3; 
+      unfold tc_efield, tc_LR, tc_LR_strong; simpl typeof;
+      entailer_for_load_tac
+    | solve_legal_nested_field_in_entailment; try clear Heq HLE H_Denote H (*H_LEGAL*);
+      subst e1 gfs0 gfs1 efs tts t_root v sh lr n]
+  )
+  ||
+    (eapply semax_SC_field_load_general with (lr0 := lr);
+    [ reflexivity
+    | reflexivity
+    | reflexivity
+    | exact HLE
+    | exact H_Denote
+    | subst e1 efs tts lr p gfs; clear HLE H_Denote
+    | subst e1 efs tts lr p gfs; clear HLE H_Denote
+    | subst e1 efs tts lr p gfs; clear HLE H_Denote
+    | subst e1 efs tts lr p gfs; clear HLE H_Denote
+    | subst e1 efs tts lr p gfs; clear HLE H_Denote
+    | subst e1 efs tts lr p gfs; clear HLE H_Denote
+    | subst e1 efs tts lr p gfs; clear HLE H_Denote
+    | subst e1 efs tts lr p gfs; clear HLE H_Denote
+    | subst e1 efs tts lr p gfs; clear HLE H_Denote ])
+  )
+end.
+
+Lemma body_go: semax_body Vprog Gprog f_get22 get22_spec.
+Proof.
+start_function.
+(* int_pair_t* p = &pps[i].right; *)
+forward.
+(* int res = p->snd; *)
+forward.
+- entailer!. simpl.
+  instantiate (1 := pps).
+  instantiate (1 := [StructField _right; ArraySubsc i]).
+  instantiate (1 := (tarray pair_pair_t array_size)).
+  rewrite field_compatible_field_address.
+  + simpl. reflexivity.
+  + auto with field_compatible.
+- instantiate (3 := sh). instantiate (3 := O). simpl.
+  unfold data_at. instantiate (2 := [ArraySubsc i]). reflexivity.
+- assumption. (* readable share *)
+- instantiate (1 := [StructField _snd; StructField _right]).
+  reflexivity.
+- eapply JMeq_refl.
+- entailer!. simpl; do 2 rewrite eq_rect_r_eq.
+  admit. (* is_int stuff *)
+- solve_legal_nested_field_in_entailment'.
+- reflexivity.
+- reflexivity.
+- {
+(* return res; *)
+simpl; do 2 rewrite eq_rect_r_eq.
+forward.
 Qed.
+
