@@ -64,152 +64,6 @@ Proof.
   forward. Exists p; entailer!.
 Qed.
 
-Lemma all_ptrs : forall t P vals, fold_right sepcon emp (map (fun x => let '(p, v) := x in
-  !!(P v) && (data_at Tsh t v p * malloc_token Tsh (sizeof t) p)) vals) |--
-  !!(Forall isptr (map fst vals)).
-Proof.
-  induction vals; simpl; intros; entailer.
-  destruct a.
-  rewrite data_at_isptr.
-  eapply derives_trans; [apply saturate_aux20 with (P' := isptr v)|].
-  { Intros; apply prop_right; auto. }
-  { apply IHvals; auto. }
-  normalize.
-Qed.
-
-Lemma vals_precise : forall r t P vals1 vals2 r1 r2
-  (Hvals : map fst vals1 = map fst vals2)
-  (Hvals1 : predicates_hered.app_pred(A := compcert_rmaps.R.rmap) (fold_right sepcon emp
-    (map (fun x => let '(p, v) := x in !!(P v) && (data_at Tsh t v p * malloc_token Tsh (sizeof t) p)) vals1)) r1)
-  (Hvals2 : predicates_hered.app_pred(A := compcert_rmaps.R.rmap) (fold_right sepcon emp
-    (map (fun x => let '(p, v) := x in !!(P v) && (data_at Tsh t v p * malloc_token Tsh (sizeof t) p)) vals2)) r2)
-  (Hr1 : sepalg.join_sub r1 r) (Hr2 : sepalg.join_sub r2 r), r1 = r2.
-Proof.
-  induction vals1; simpl; intros; destruct vals2; inversion Hvals.
-  - apply sepalg.same_identity with (a := r); auto.
-    { destruct Hr1 as (? & H); specialize (Hvals1 _ _ H); subst; auto. }
-    { destruct Hr2 as (? & H); specialize (Hvals2 _ _ H); subst; auto. }
-  - destruct a, p; simpl in *; subst.
-    destruct Hvals1 as (? & r1b & ? & (? & r1a & ? & ? & Hh1 & Hm1) & ?),
-      Hvals2 as (? & r2b & ? & (? & r2a & ? & ? & Hh2 & Hm2) & ?).
-    exploit malloc_token_precise.
-    { apply Hm1. }
-    { apply Hm2. }
-    { join_sub. }
-    { join_sub. }
-    assert (r1a = r2a); [|intros; subst].
-    { apply data_at_data_at_ in Hh1; apply data_at_data_at_ in Hh2.
-      eapply data_at__precise with (sh := Tsh); auto; eauto; join_sub. }
-    assert (r1b = r2b); [|subst].
-    { eapply IHvals1; eauto; join_sub. }
-    join_inj.
-Qed.
-
-Axiom ghost_precise : forall sh {t} p, precise (EX f : share * hist t, ghost sh f p).
-
-Lemma tqueue_inj : forall r (buf1 buf2 : list val) len1 len2 head1 head2 tail1 tail2
-  (addc1 addc2 remc1 remc2 : val) p r1 r2
-  (Hp1 : predicates_hered.app_pred(A := compcert_rmaps.R.rmap)
-     (data_at Tsh tqueue (buf1, (vint len1, (vint head1, (vint tail1, (addc1, remc1))))) p) r1)
-  (Hp2 : predicates_hered.app_pred(A := compcert_rmaps.R.rmap)
-     (data_at Tsh tqueue (buf2, (vint len2, (vint head2, (vint tail2, (addc2, remc2))))) p) r2)
-  (Hr1 : sepalg.join_sub r1 r) (Hr2 : sepalg.join_sub r2 r)
-  (Hbuf1 : Forall (fun v => v <> Vundef) buf1) (Hl1 : Zlength buf1 = MAX)
-  (Hbuf2 : Forall (fun v => v <> Vundef) buf2) (Hl2 : Zlength buf2 = MAX)
-  (Haddc1 : addc1 <> Vundef) (Haddc2 : addc2 <> Vundef) (Hremc1 : remc1 <> Vundef) (Hremc2 : remc2 <> Vundef),
-  r1 = r2 /\ buf1 = buf2 /\ Int.repr len1 = Int.repr len2 /\ Int.repr head1 = Int.repr head2 /\
-  Int.repr tail1 = Int.repr tail2 /\ addc1 = addc2 /\ remc1 = remc2.
-Proof.
-  intros.
-  unfold data_at in Hp1, Hp2; erewrite field_at_Tstruct in Hp1, Hp2; try reflexivity; try apply JMeq_refl.
-  simpl in Hp1, Hp2; unfold withspacer in Hp1, Hp2; simpl in Hp1, Hp2.
-  destruct Hp1 as (? & ? & ? & (? & Hb1) & ? & ? & ? & (? & Hlen1) & ? & ? & ? & (? & Hhead1) & ? & ? & ? &
-    (? & Htail1) & ? & ? & ? & (? & Hadd1) & ? & Hrem1).
-  destruct Hp2 as (? & ? & ? & (? & Hb2) & ? & ? & ? & (? & Hlen2) & ? & ? & ? & (? & Hhead2) & ? & ? & ? &
-    (? & Htail2) & ? & ? & ? & (? & Hadd2) & ? & Hrem2); unfold at_offset in *.
-  assert (readable_share Tsh) as Hread by auto.
-  exploit (mapsto_inj _ _ _ _ _ _ _ r Hread Hrem1 Hrem2); auto; try join_sub.
-  exploit (mapsto_inj _ _ _ _ _ _ _ r Hread Hadd1 Hadd2); auto; try join_sub.
-  exploit (mapsto_inj _ _ _ _ _ _ _ r Hread Htail1 Htail2); auto; try join_sub; try discriminate.
-  exploit (mapsto_inj _ _ _ _ _ _ _ r Hread Hhead1 Hhead2); auto; try join_sub; try discriminate.
-  exploit (mapsto_inj _ _ _ _ _ _ _ r Hread Hlen1 Hlen2); auto; try join_sub; try discriminate.
-  exploit (data_at_ptr_array_inj _ _ _ _ _ _ _ _ r Hread Hb1 Hb2); auto; try join_sub.
-  unfold repinject.
-  intros (? & ?) (? & ?) (? & ?) (? & ?) (? & ?) (? & ?); subst; join_inj.
-  repeat split; auto; congruence.
-Qed.
-
-Lemma q_inv_precise : forall t P p lock gsh2, precise (q_lock_pred t P p lock gsh2).
-Proof.
-  unfold q_lock_pred, q_lock_pred'; intros ???????? H1 H2 Hw1 Hw2.
-  destruct H1 as (vals1 & head1 & addc1 & remc1 & h1 & (? & ? & ?) & ? & ? & ? & (? & ? & ? & (? & ? & ? &
-    (? & ? & ? & (? & ? & ? & (? & ? & ? & (? & ? & ? & (? & ? & ? & (Hq1 & Haddc1)) & Hremc1) & Htv1) & Hta1) &
-    Htr1) & Htl1) & Hghost1) & Hvals1),
-  H2 as (vals2 & head2 & addc2 & remc2 & h2 & (? & ? & ?) & ? & ? & ? & (? & ? & ? & (? & ? & ? &
-    (? & ? & ? & (? & ? & ? & (? & ? & ? & (? & ? & ? & (? & ? & ? & (Hq2 & Haddc2)) & Hremc2) & Htv2) & Hta2) &
-    Htr2) & Htl2) & Hghost2) & Hvals2).
-  pose proof (all_ptrs _ _ _ _ Hvals1) as Hptrs1.
-  pose proof (all_ptrs _ _ _ _ Hvals2) as Hptrs2.
-  exploit (tqueue_inj w _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ Hq1 Hq2); try join_sub.
-  { apply Forall_rotate, Forall_complete; auto; [|discriminate].
-    eapply Forall_impl; [|apply Hptrs1]; destruct a; try contradiction; discriminate. }
-  { rewrite Zlength_rotate; try rewrite Zlength_complete; try omega; rewrite Zlength_map; auto. }
-  { apply Forall_rotate, Forall_complete; auto; [|discriminate].
-    eapply Forall_impl; [|apply Hptrs2]; destruct a; try contradiction; discriminate. }
-  { rewrite Zlength_rotate; try rewrite Zlength_complete; try omega; rewrite Zlength_map; auto. }
-  { rewrite cond_var_isptr in Haddc1; destruct Haddc1, addc1; try contradiction; discriminate. }
-  { rewrite cond_var_isptr in Haddc2; destruct Haddc2, addc2; try contradiction; discriminate. }
-  { rewrite cond_var_isptr in Hremc1; destruct Hremc1, remc1; try contradiction; discriminate. }
-  { rewrite cond_var_isptr in Hremc2; destruct Hremc2, remc2; try contradiction; discriminate. }
-  intros (? & ? & Hlen & ? & ? & ? & ?); subst.
-  exploit (ghost_precise(t := t) gsh2 p w).
-  { eexists; apply Hghost1. }
-  { eexists; apply Hghost2. }
-  { join_sub. }
-  { join_sub. }
-  intro; subst.
-  assert (head1 = head2) as ->.
-  { apply repr_inj_unsigned; auto; split; try omega; transitivity MAX; try omega; unfold MAX; computable. }
-  assert (length vals1 = length vals2).
-  { apply repr_inj_unsigned in Hlen; rewrite Zlength_correct in Hlen.
-    rewrite Zlength_correct in Hlen; Omega0.
-    - split; [rewrite Zlength_correct; omega|]; transitivity MAX; try omega; unfold MAX; computable.
-    - split; [rewrite Zlength_correct; omega|]; transitivity MAX; try omega; unfold MAX; computable. }
-  assert (map fst vals1 = map fst vals2) as Heq.
-  { eapply complete_inj; [|rewrite !map_length; auto].
-    eapply rotate_inj; eauto; try omega.
-    repeat rewrite length_complete; try rewrite Zlength_map; auto.
-    rewrite Zlength_complete; try rewrite Zlength_map; omega. }
-  rewrite Heq in *.
-  exploit (vals_precise w _ _ _ _ _ _ Heq Hvals1 Hvals2); auto; try join_sub.
-  assert (readable_share Tsh) as Hread by auto.
-  exploit (cond_var_precise _ _ Hread w _ _ Haddc1 Haddc2); try join_sub.
-  exploit (cond_var_precise _ _ Hread w _ _ Hremc1 Hremc2); try join_sub.
-  exploit (malloc_token_precise _ _ _ w _ _ Hta1 Hta2); try join_sub.
-  exploit (malloc_token_precise _ _ _ w _ _ Htr1 Htr2); try join_sub.
-  exploit (malloc_token_precise _ _ _ w _ _ Htv1 Htv2); try join_sub.
-  exploit (malloc_token_precise _ _ _ w _ _ Htl1 Htl2); try join_sub.
-  intros; subst; join_inj.
-Qed.
-
-Lemma q_inv_positive : forall t P p lock gsh2, positive_mpred (q_lock_pred t P p lock gsh2).
-Proof.
-  intros; simpl.
-  repeat (apply ex_positive; intro).
-  apply positive_andp2.
-  do 7 apply positive_sepcon1; apply positive_sepcon2; auto.
-Qed.
-Hint Resolve q_inv_precise q_inv_positive.
-
-Lemma malloc_compat : forall sh t p, legal_alignas_type t = true ->
-  legal_cosu_type t = true ->
-  complete_type cenv_cs t = true -> (alignof t | natural_alignment) ->
-  malloc_token sh (sizeof t) p = !!field_compatible t [] p && malloc_token sh (sizeof t) p.
-Proof.
-  intros; rewrite andp_comm; apply add_andp; entailer!.
-  apply malloc_compatible_field_compatible; auto.
-Qed.
-
 Lemma body_q_new : semax_body Vprog Gprog f_q_new q_new_spec.
 Proof.
   unfold q_new_spec, q_new_spec'; start_function.
@@ -261,7 +115,7 @@ Proof.
   forward_call (sizeof tint).
   { simpl; computable. }
   Intros addc.
-  rewrite malloc_compat with (p := addc); auto; Intros.
+  rewrite malloc_compat with (p0 := addc); auto; Intros.
   rewrite memory_block_data_at_; auto.
   forward_call (addc, Tsh).
   { unfold tcond; cancel. }
@@ -269,7 +123,7 @@ Proof.
   forward_call (sizeof tint).
   { simpl; computable. }
   Intros remc.
-  rewrite malloc_compat with (p := remc); auto; Intros.
+  rewrite malloc_compat with (p0 := remc); auto; Intros.
   rewrite memory_block_data_at_; auto.
   forward_call (remc, Tsh).
   { unfold tcond; cancel. }
@@ -278,7 +132,7 @@ Proof.
   { admit. } (* lock size broken *)
   { simpl; computable. }
   Intros lock.
-  rewrite malloc_compat with (p := lock); auto; Intros.
+  rewrite malloc_compat with (p0 := lock); auto; Intros.
   rewrite memory_block_data_at_; auto.
   destruct Q as (t, P).
   forward_call (lock, Tsh, q_lock_pred t P p lock gsh2).
@@ -699,14 +553,6 @@ Proof.
     transitivity MAX; [omega | unfold MAX; computable]. }
 Qed.
 
-Lemma lock_precise : forall sh p lock (Hsh : readable_share sh),
-  precise (field_at sh tqueue_t [StructField _lock] lock p).
-Proof.
-  intros.
-  unfold field_at, at_offset; apply precise_andp2.
-  rewrite data_at_rec_eq; simpl; auto.
-Qed.
-
 (*Lemma lock_struct : forall p, data_at_ Tsh (Tstruct _lock_t noattr) p |-- data_at_ Tsh tlock p.
 Proof.
   intros.
@@ -732,40 +578,3 @@ Proof.
       eapply derives_trans; [apply IHl | apply aggregate_pred.rangespec_ext_derives]]; simpl; intros;
       rewrite Znth_pos_cons; try omega; replace (i - lo - 1) with (i - Z.succ lo) by omega; auto.
 Qed.*)
-
-Lemma lqueue_share_join : forall t P sh1 sh2 sh p lock gsh1 gsh2 h1 h2
-  (Hsh1 : readable_share sh1) (Hsh2 : readable_share sh2) (Hjoin : sepalg.join sh1 sh2 sh),
-  lqueue sh1 t P p lock gsh1 gsh2 h1 * lqueue sh2 t P p lock gsh1 gsh2 h2 =
-  lqueue sh t P p lock gsh1 gsh2 (h1 ++ h2).
-Proof.
-  intros; unfold lqueue; normalize.
-  f_equal.
-  - f_equal; apply prop_ext; tauto.
-  - erewrite <- (field_at_share_join _ _ _ _ _ _ _ Hjoin), <- (lock_inv_share_join sh1 sh2 sh),
-      <- (hist_share_join _ _ _ _ _ _ _ _ Hjoin); auto.
-    rewrite <- !sepcon_assoc, !sepcon_assoc; f_equal.
-    rewrite <- sepcon_assoc, sepcon_comm, sepcon_assoc; f_equal.
-    rewrite sepcon_comm, sepcon_assoc; f_equal.
-    rewrite sepcon_comm, sepcon_assoc; f_equal.
-    rewrite sepcon_comm; reflexivity.
-Qed.
-
-Lemma lqueue_precise : forall lsh t P p lock gsh1 gsh2,
-  precise (EX h : hist t, lqueue lsh t P p lock gsh1 gsh2 h).
-Proof.
-  intros; unfold lqueue.
-  apply derives_precise' with (Q := field_at lsh tqueue_t [StructField conc_queue._lock] lock p *
-    lock_inv lsh lock (q_lock_pred t P p lock gsh2) * EX f : share * hist t, ghost gsh1 f p).
-  - entailer!.
-    Exists (lsh, h); auto.
-  - repeat apply precise_sepcon; auto.
-    apply ghost_precise.
-Qed.
-Hint Resolve lqueue_precise.
-
-Lemma lqueue_isptr : forall lsh t P p lock gsh1 gsh2 h, lqueue lsh t P p lock gsh1 gsh2 h =
-  !!isptr p && lqueue lsh t P p lock gsh1 gsh2 h.
-Proof.
-  intros; eapply local_facts_isptr with (P := fun p => lqueue lsh t P p lock gsh1 gsh2 h); eauto.
-  unfold lqueue; rewrite field_at_isptr; Intros; apply prop_right; auto.
-Qed.

@@ -122,40 +122,22 @@ Proof.
   { rewrite (sepcon_comm _ (fold_right _ _ _)); apply sepcon_derives; [cancel | apply lock_struct]. }
   get_global_function'' _thread_func.
   apply extract_exists_pre; intros f_.
-
-(*  forward_call (f_, Vint (Int.repr 0), existT (fun ty => ty * (ty -> val -> Pred))%type
-   (val * share * val * val * val)%type ((data, sh1, lock, lockt, cond),
-   fun (x : (val * share * val * val * val)) (_ : val) => let '(data, sh, lock, lockt, cond) := x in
-     !!readable_share sh && emp * cond_var sh cond * lock_inv sh lock (dlock_inv data) *
-     lock_inv sh lockt (tlock_inv sh lockt lock cond data)])).*)
-  evar (Frame : list mpred).
-  rewrite <- seq_assoc; eapply semax_seq'.
-  { eapply semax_pre, semax_call_id0 with
-      (argsig := [(_f, tptr voidstar_funtype); (xsemax_conc._args, tptr tvoid)])(P := [])
-      (Q := [gvar _thread_func f_; temp _c cond; temp _t lockt; temp _l lock; gvar _data data; 
-   gvar _cond cond; gvar _tlock lockt; gvar _mutex lock])(R := Frame)(ts := [(val * share * val * val * val)%type])
-      (A := rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * val)) (rmaps.DependentType 0))
-            (rmaps.ArrowType (rmaps.DependentType 0) (rmaps.ArrowType (rmaps.ConstType val) rmaps.Mpred)))
-      (x := (f_, Vint (Int.repr 0), (data, sh1, lock, lockt, cond),
-             fun (x : (val * share * val * val * val)) (_ : val) => let '(data, sh, lock, lockt, cond) := x in
-               !!readable_share sh && emp * cond_var sh cond * lock_inv sh lock (dlock_inv data) *
-               lock_inv sh lockt (tlock_inv sh lockt lock cond data))); try reflexivity.
-    entailer!.
+  forward_spawn (val * share * val * val * val)%type (f_, Vint (Int.repr 0), (data, sh1, lock, lockt, cond),
+    fun (x : (val * share * val * val * val)) (_ : val) => let '(data, sh, lock, lockt, cond) := x in
+         !!readable_share sh && emp * cond_var sh cond * lock_inv sh lock (dlock_inv data) *
+         lock_inv sh lockt (tlock_inv sh lockt lock cond data)).
+  { simpl spawn_pre; entailer!.
     Exists _args (fun x :val * share * val * val * val => let '(data, sh, lock, lockt, cond) := x in
       [(_data, data); (_mutex, lock); (_tlock, lockt); (_cond, cond)]); entailer.
     rewrite !sepcon_assoc; apply sepcon_derives.
     { apply derives_refl'; f_equal; f_equal.
-      - extensionality.
-        destruct x as (?, ((((?, ?), ?), ?), ?)); simpl.
-        rewrite <- !sepcon_assoc; reflexivity.
-      - extensionality.
-        destruct x as (?, ((((?, ?), ?), ?), ?)); reflexivity. }
+      extensionality.
+      destruct x as (?, ((((?, ?), ?), ?), ?)); simpl.
+      rewrite <- !sepcon_assoc; reflexivity.  }
     erewrite <- lock_inv_share_join; try apply Hsh; auto.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto.
     erewrite <- cond_var_share_join; try apply Hsh; auto.
     entailer!. }
-  after_forward_call.
-  rewrite void_ret; subst Frame; normalize.
   forward.
   forward_while (EX i : Z, PROP ( )
    LOCAL (temp _v (Vint (Int.repr i)); temp _c cond; temp _t lockt; temp _l lock; gvar _data data;
