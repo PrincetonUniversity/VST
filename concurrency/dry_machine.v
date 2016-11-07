@@ -379,7 +379,7 @@ Module Concur.
 
                     
      | step_mklock :
-         forall  (tp' tp'': thread_pool) m1 c m' b ofs pmap_tid',
+         forall  (tp' tp'': thread_pool) m1 c m' b ofs pdata pmap_tid',
            let: pmap_tid := getThreadR cnt0 in
            forall
              (Hinv : invariant tp)
@@ -390,10 +390,25 @@ Module Concur.
              (** lock is created in acquired state*)
              (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero) = Some m')
              (** The thread's data permissions are set to Nonempty*)
-             (Hdata_perm: setPermBlock (Some Nonempty) b (Int.intval ofs) pmap_tid.1 LKSIZE_nat = pmap_tid'.1)
+             (Hdata_perm: setPermBlock
+                            (Some Nonempty)
+                            b
+                            (Int.intval ofs)
+                            pmap_tid.1
+                            LKSIZE_nat = pmap_tid'.1)
+             (* new permissions in the thread lock are 
+              * equal to those in the old thread        *)
+             (Hneq_perms: forall i,
+                 (0 <= Z.of_nat i < LKSIZE)%Z ->
+                 pdata i = pmap_tid.1 !! b (Int.intval ofs + Z.of_nat i)%Z
+             )
              (** thread lock permission is increased *)
-             (Hlock_perm: setPermBlock (Some Writable) b
-                                       (Int.intval ofs) pmap_tid.2 LKSIZE_nat = pmap_tid'.2)
+             (Hlock_perm: setPermBlock_var
+                            pdata
+                            b
+                            (Int.intval ofs)
+                            pmap_tid.2
+                            LKSIZE_nat = pmap_tid'.2)
              (** Require that [(b, Int.intval ofs)] was not a lock*)
              (HlockRes: lockRes tp (b, Int.intval ofs) = None)
              (Htp': tp' = updThread cnt0 (Kresume c Vundef) pmap_tid')
@@ -417,11 +432,24 @@ Module Concur.
            (** To free the lock the thread must have at least Writable on it*)
            (Hfreeable: Mem.range_perm m1 b (Int.intval ofs) ((Int.intval ofs) + LKSIZE) Cur Writable)
            (** lock permissions of the thread are dropped to empty *)
-           (Hlock_perm: setPermBlock None b (Int.intval ofs) pmap_tid.2 LKSIZE_nat = pmap_tid'.2)
+           (Hlock_perm: setPermBlock
+                          None
+                          b
+                          (Int.intval ofs)
+                          pmap_tid.2
+                          LKSIZE_nat = pmap_tid'.2)
            (** data permissions are computed in a non-deterministic way *)
-           (Hpdata: perm_order pdata Writable)
-           (Hdata_perm: setPermBlock (Some pdata) b
-                                     (Int.intval ofs) pmap_tid.1 LKSIZE_nat = pmap_tid'.1)
+           (Hneq_perms: forall i,
+                 (0 <= Z.of_nat i < LKSIZE)%Z ->
+                 pdata i = pmap_tid.2 !! b (Int.intval ofs + Z.of_nat i)%Z
+           )
+           (*Hpdata: perm_order pdata Writable*)
+           (Hdata_perm: setPermBlock_var
+                          pdata
+                          b
+                          (Int.intval ofs)
+                          pmap_tid.1
+                          LKSIZE_nat = pmap_tid'.1)
            (Htp': tp' = updThread cnt0 (Kresume c Vundef) pmap_tid')
            (Htp'': tp'' = remLockSet tp' (b, Int.intval ofs)),
            ext_step genv cnt0 Hcompat  tp'' m (freelock (b, Int.intval ofs))
@@ -1113,7 +1141,6 @@ Module Concur.
        rewrite gsoThreadLPool; auto.
        }
     Qed.  *)
-     *)    
      End DryMachineLemmas.
 
 

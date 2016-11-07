@@ -2,6 +2,7 @@ From mathcomp.ssreflect Require Import ssreflect seq ssrbool
         ssrnat ssrfun eqtype seq fintype finfun.
 
 Set Implicit Arguments.
+Require Import msl.Coqlib2.
 Require Import sepcomp.mem_lemmas.
 Require Import concurrency.threads_lemmas.
 Require Import concurrency.permjoin_def.
@@ -699,7 +700,7 @@ Section permMapDefs.
                                 Maps.PMap.get b pmap ofs')
                   pmap.
 
-  Fixpoint setPermBlock (p : option permission) (b : block)
+   Fixpoint setPermBlock (p : option permission) (b : block)
            (ofs : Z) (pmap : access_map) (length: nat): access_map :=
     match length with
       0 => pmap
@@ -711,22 +712,21 @@ Section permMapDefs.
     forall p b ofs ofs' pmap sz
       (Hofs: (ofs <= ofs' < ofs + (Z.of_nat sz))%Z),
       (Maps.PMap.get b (setPermBlock p b ofs pmap sz)) ofs' = p.
-  Proof.
-    intros.
-    generalize dependent ofs'.
-    induction sz; simpl in *; intros.
-    - unfold setPerm.
-      exfalso. destruct Hofs. omega.
-    - unfold setPerm.
-      rewrite PMap.gss.
-      destruct (Coqlib.zeq (ofs + Z.of_nat sz) ofs');
-        first by (subst; reflexivity).
-      simpl.
-      eapply IHsz.
-      destruct Hofs.
-      split; auto.
-      clear - H0 n.
-      zify. omega.
+  Proof. intros.
+         generalize dependent ofs'.
+         induction sz; simpl in *; intros.
+         - unfold setPerm.
+           exfalso. destruct Hofs. omega.
+         - unfold setPerm.
+           rewrite PMap.gss.
+           destruct (Coqlib.zeq (ofs + Z.of_nat sz) ofs');
+             first by (subst; reflexivity).
+           simpl.
+           eapply IHsz.
+           destruct Hofs.
+           split; auto.
+           clear - H0 n.
+           zify. omega.
   Qed.
 
   Lemma setPermBlock_other_1:
@@ -734,19 +734,18 @@ Section permMapDefs.
       (Hofs: (ofs' < ofs)%Z \/ (ofs' >= ofs + (Z.of_nat sz))%Z),
       (Maps.PMap.get b (setPermBlock p b ofs pmap sz)) ofs' =
       Maps.PMap.get b pmap ofs'.
-  Proof.
-    intros.
-    generalize dependent ofs'.
-    induction sz; simpl in *; intros; unfold setPerm.
-    - reflexivity.
-    - rewrite Maps.PMap.gss.
-      destruct (Coqlib.zeq (ofs + Z.of_nat sz) ofs') as [Hcontra | ?].
-      subst. exfalso.
-      destruct Hofs; zify; omega.
-      simpl. eapply IHsz.
-      destruct Hofs; auto.
-      right.
-      zify. omega.
+  Proof. intros.
+         generalize dependent ofs'.
+         induction sz; simpl in *; intros; unfold setPerm.
+         - reflexivity.
+         - rewrite Maps.PMap.gss.
+           destruct (Coqlib.zeq (ofs + Z.of_nat sz) ofs') as [Hcontra | ?].
+           subst. exfalso.
+           destruct Hofs; zify; omega.
+           simpl. eapply IHsz.
+           destruct Hofs; auto.
+           right.
+           zify. omega.
   Qed.
 
   Lemma setPermBlock_other_2:
@@ -754,12 +753,11 @@ Section permMapDefs.
       b <> b' ->
       (Maps.PMap.get b' (setPermBlock p b ofs pmap sz)) ofs' =
       Maps.PMap.get b' pmap ofs'.
-  Proof.
-    intros.
-    induction sz;
-      simpl;
-      auto.
-    rewrite Maps.PMap.gso; auto.
+  Proof. intros.
+         induction sz;
+           simpl;
+           auto.
+         rewrite Maps.PMap.gso; auto.
   Qed.
 
   Lemma setPermBlock_or:
@@ -786,6 +784,102 @@ Section permMapDefs.
       + erewrite Maps.PMap.gso by eauto.
         eauto.
   Qed.
+
+  Fixpoint setPermBlock_var (fp : nat -> option permission) (b : block)
+           (ofs : Z) (pmap : access_map) (length: nat): access_map :=
+    match length with
+      0 => pmap
+    | S len =>
+      setPerm (fp length) b (ofs + (Z_of_nat len))%Z
+              (setPermBlock_var fp b ofs pmap len)
+    end.
+
+  Lemma setPermBlock_var_other_2:
+    forall p b b' ofs ofs' pmap sz,
+      b <> b' ->
+      (Maps.PMap.get b' (setPermBlock_var p b ofs pmap sz)) ofs' =
+      Maps.PMap.get b' pmap ofs'.
+  Proof.
+    intros.
+    induction sz;
+      simpl;
+      auto.
+    rewrite Maps.PMap.gso; auto.
+  Qed.
+
+   Lemma setPermBlock_var_other_1:
+    forall p b ofs ofs' pmap sz
+      (Hofs: (ofs' < ofs)%Z \/ (ofs' >= ofs + (Z.of_nat sz))%Z),
+      (Maps.PMap.get b (setPermBlock_var p b ofs pmap sz)) ofs' =
+      Maps.PMap.get b pmap ofs'.
+  Proof.
+    intros.
+    generalize dependent ofs'.
+    induction sz; simpl in *; intros; unfold setPerm.
+    - reflexivity.
+    - rewrite Maps.PMap.gss.
+      destruct (Coqlib.zeq (ofs + Z.of_nat sz) ofs') as [Hcontra | ?].
+      subst. exfalso.
+      destruct Hofs; zify; omega.
+      simpl. eapply IHsz.
+      destruct Hofs; auto.
+      right.
+      zify. omega.
+  Qed.
+  
+  Lemma setPermBlock_var_same:
+    forall p b ofs ofs' pmap sz
+      (Hofs: (ofs <= ofs' < ofs + (Z.of_nat sz))%Z),
+      (Maps.PMap.get b (setPermBlock_var p b ofs pmap sz)) ofs' =
+      p (Coqlib.nat_of_Z (ofs' - ofs +1)).
+  Proof.
+    intros.
+    generalize dependent ofs'.
+    induction sz; simpl in *; intros.
+    - unfold setPerm.
+      exfalso. destruct Hofs. omega.
+    - unfold setPerm.
+      rewrite PMap.gss.
+      destruct (Coqlib.zeq (ofs + Z.of_nat sz) ofs'); simpl.
+      + f_equal. rewrite -e.
+        replace (ofs + Z.of_nat sz - ofs +1 )%Z with (Z.of_nat sz + 1)%Z; try omega.
+        rewrite Coqlib.nat_of_Z_plus; simpl; try omega.
+        rewrite Coqlib.nat_of_Z_of_nat Pos2Nat.inj_1; omega.
+      + apply IHsz; split; try omega.
+        move : Hofs n=> [] l.
+        rewrite Zpos_P_of_succ_nat.
+        intros; omega.
+  Qed.
+
+ 
+
+  
+
+  (*Lemma setPermBlock_var_or:
+    forall p b ofs sz pmap b' ofs',
+      (setPermBlock_var p b ofs pmap sz) !! b' ofs' = p \/
+      (setPermBlock_var p b ofs pmap sz) !! b' ofs' = pmap !! b' ofs'.
+  Proof.
+    induction sz; intros.
+    - simpl. right; reflexivity.
+    - simpl.
+      unfold setPerm.
+      destruct (Pos.eq_dec b b').
+      + subst.
+        erewrite Maps.PMap.gss by eauto.
+        destruct (Z.eq_dec (ofs + Z.of_nat sz) ofs').
+        * subst.
+          left.
+          erewrite if_true
+            by (now apply Coqlib.proj_sumbool_is_true).
+          reflexivity.
+        * erewrite if_false
+            by (apply Bool.negb_true_iff; now apply proj_sumbool_is_false).
+          eauto.
+      + erewrite Maps.PMap.gso by eauto.
+        eauto.
+  Qed. *)
+  
 
 
   Lemma permMapCoherence_increase:
