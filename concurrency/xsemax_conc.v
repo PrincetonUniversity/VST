@@ -69,8 +69,6 @@ Proof.
     auto.
 Qed.
 
-Axiom nonexpansive_lock_inv : forall sh p, nonexpansive (lock_inv sh p).
-
 Lemma lock_inv_later sh p R : lock_inv sh p R |-- lock_inv sh p (|> R)%logic.
 Admitted.
 

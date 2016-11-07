@@ -137,13 +137,13 @@ Definition rec_inv sh v (Q R: mpred): Prop :=
 Definition weak_rec_inv sh v (Q R: mpred): mpred :=
   (! (R <=> Q * lock_inv sh v (|> R)))%pred.
 
-Lemma rec_inv1_nonexpansive: forall sh v Q,
-  nonexpansive (weak_rec_inv sh v Q).
+Lemma unfash_fash_equiv: forall P Q: mpred,
+  (P <=> Q |--
+  (subtypes.unfash (subtypes.fash P): mpred) <=> (subtypes.unfash (subtypes.fash Q): mpred))%pred.
 Proof.
   intros.
-  unfold weak_rec_inv.
-  intros P1 P2 n H.
-  assert (forall y, (n >= level y)%nat -> (P1 y <-> P2 y)).
+  hnf; intros.
+  assert (forall y: rmap, (a >= level y)%nat -> (app_pred P y <-> app_pred Q y)).
   Focus 1. {
     intros; specialize (H y H0).
     destruct H.
@@ -151,25 +151,167 @@ Proof.
     specialize (H1 y). spec H1; [auto |].
     tauto.
   } Unfocus.
-  clear H.
-Admitted. (* Obviously True *)
+  hnf; intros.
+  split; simpl; hnf; intros.
+  + apply necR_level in H2.
+    rewrite <- H0 by omega.
+    auto.
+  + apply necR_level in H2.
+    rewrite H0 by omega.
+    auto.
+Qed.
+
+Lemma iffp_equiv: forall P1 Q1 P2 Q2: mpred,
+  ((P1 <=> Q1) && (P2 <=> Q2) |-- (P1 <--> P2) <=> (Q1 <--> Q2))%pred.
+Proof.
+  intros.
+  hnf; intros.
+  destruct H.
+  assert (forall y: rmap, (a >= level y)%nat -> (app_pred P1 y <-> app_pred Q1 y)).
+  Focus 1. {
+    intros; specialize (H y H1).
+    destruct H.
+    specialize (H y). spec H; [auto |].
+    specialize (H2 y). spec H2; [auto |].
+    tauto.
+  } Unfocus.
+  assert (forall y: rmap, (a >= level y)%nat -> (app_pred P2 y <-> app_pred Q2 y)).
+  Focus 1. {
+    intros; specialize (H0 y H2).
+    destruct H0.
+    specialize (H0 y). spec H0; [auto |].
+    specialize (H3 y). spec H3; [auto |].
+    tauto.
+  } Unfocus.
+  split; intros; hnf; intros.
+  + split; [destruct H5 as [? _] | destruct H5 as [_ ?]]; intros ? HH; specialize (H5 _ HH).
+    - apply necR_level in H4.
+      apply necR_level in HH.
+      rewrite <- H1, <- H2 by omega.
+      auto.
+    - apply necR_level in H4.
+      apply necR_level in HH.
+      rewrite <- H1, <- H2 by omega.
+      auto.
+  + split; [destruct H5 as [? _] | destruct H5 as [_ ?]]; intros ? HH; specialize (H5 _ HH).
+    - apply necR_level in H4.
+      apply necR_level in HH.
+      rewrite H1, H2 by omega.
+      auto.
+    - apply necR_level in H4.
+      apply necR_level in HH.
+      rewrite H1, H2 by omega.
+      auto.
+Qed.
+
+Lemma sepcon_equiv: forall P1 Q1 P2 Q2: mpred,
+  ((P1 <=> Q1) && (P2 <=> Q2) |-- (P1 * P2) <=> (Q1 * Q2))%pred.
+Proof.
+  intros.
+  hnf; intros.
+  destruct H.
+  assert (forall y: rmap, (a >= level y)%nat -> (app_pred P1 y <-> app_pred Q1 y)).
+  Focus 1. {
+    intros; specialize (H y H1).
+    destruct H.
+    specialize (H y). spec H; [auto |].
+    specialize (H2 y). spec H2; [auto |].
+    tauto.
+  } Unfocus.
+  assert (forall y: rmap, (a >= level y)%nat -> (app_pred P2 y <-> app_pred Q2 y)).
+  Focus 1. {
+    intros; specialize (H0 y H2).
+    destruct H0.
+    specialize (H0 y). spec H0; [auto |].
+    specialize (H3 y). spec H3; [auto |].
+    tauto.
+  } Unfocus.
+  split; intros; hnf; intros.
+  + destruct H5 as [w1 [w2 [? [? ?]]]].
+    exists w1, w2; split; [| split]; auto.
+    - apply necR_level in H4.
+      apply join_level in H5.
+      rewrite <- H1 by omega; auto.
+    - apply necR_level in H4.
+      apply join_level in H5.
+      rewrite <- H2 by omega; auto.
+  + destruct H5 as [w1 [w2 [? [? ?]]]].
+    exists w1, w2; split; [| split]; auto.
+    - apply necR_level in H4.
+      apply join_level in H5.
+      rewrite H1 by omega; auto.
+    - apply necR_level in H4.
+      apply join_level in H5.
+      rewrite H2 by omega; auto.
+Qed.
+
+Lemma later_equiv: forall P Q: mpred,
+  (P <=> Q |-- |> P <=> |> Q)%pred.
+Proof.
+  intros.
+  hnf; intros.
+  assert (forall y: rmap, (a >= level y)%nat -> (app_pred P y <-> app_pred Q y)).
+  Focus 1. {
+    intros; specialize (H y H0).
+    destruct H.
+    specialize (H y). spec H; [auto |].
+    specialize (H1 y). spec H1; [auto |].
+    tauto.
+  } Unfocus.
+  hnf; intros.
+  split; hnf; intros; simpl in *; intros.
+  + specialize (H3 _ H4).
+    apply necR_level in H2.
+    apply laterR_level in H4.
+    rewrite <- H0 by omega.
+    auto.
+  + specialize (H3 _ H4).
+    apply necR_level in H2.
+    apply laterR_level in H4.
+    rewrite H0 by omega.
+    auto.
+Qed.
+
+Axiom nonexpansive_lock_inv : forall sh p, nonexpansive (lock_inv sh p).
+
+Lemma rec_inv1_nonexpansive: forall sh v Q,
+  nonexpansive (weak_rec_inv sh v Q).
+Proof.
+  intros.
+  unfold weak_rec_inv.
+  intros P1 P2.
+  eapply predicates_hered.derives_trans; [| apply unfash_fash_equiv].
+  eapply predicates_hered.derives_trans; [| apply iffp_equiv].
+  apply predicates_hered.andp_right; auto.
+  eapply predicates_hered.derives_trans; [| apply sepcon_equiv].
+  apply predicates_hered.andp_right.
+  Focus 1. {
+    intros n ?.
+    split; intros; hnf; intros; auto.
+  } Unfocus.
+  eapply predicates_hered.derives_trans; [| apply nonexpansive_lock_inv].
+  apply later_equiv.
+Qed.
 
 Lemma rec_inv2_nonexpansive: forall sh v R,
   nonexpansive (fun Q => weak_rec_inv sh v Q R).
 Proof.
   intros.
   unfold weak_rec_inv.
-  intros P1 P2 n H.
-  assert (forall y, (n >= level y)%nat -> (P1 y <-> P2 y)).
+  intros P1 P2.
+  eapply predicates_hered.derives_trans; [| apply unfash_fash_equiv].
+  eapply predicates_hered.derives_trans; [| apply iffp_equiv].
+  apply predicates_hered.andp_right.
   Focus 1. {
-    intros; specialize (H y H0).
-    destruct H.
-    specialize (H y). spec H; [auto |].
-    specialize (H1 y). spec H1; [auto |].
-    tauto.
+    intros n ?.
+    split; intros; hnf; intros; auto.
   } Unfocus.
-  clear H.
-Admitted. (* Obviously True *)
+  eapply predicates_hered.derives_trans; [| apply sepcon_equiv].
+  apply predicates_hered.andp_right; auto.
+
+  intros n ?.
+  split; intros; hnf; intros; auto.
+Qed.
 
 Lemma positive_weak_positive: forall R,
   positive_mpred R ->
