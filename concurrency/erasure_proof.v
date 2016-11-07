@@ -2412,10 +2412,13 @@ Here be dragons
 *)
 
 
-            stop here.
-        - intros ofs0 ineq.
+        - intros ofs0  ineq.
           simpl. rewrite DryMachine.SIG.ThreadPool.gsoThreadLPool.
+          
+
+          
           destruct (DryMachine.SIG.ThreadPool.lockRes ds (b, ofs0)) eqn:AA;  try reflexivity.
+          
           inversion MATCH. specialize (mtch_locks (b,ofs0)).
           rewrite AA in mtch_locks.
           destruct (JSEM.ThreadPool.lockRes js (b, ofs0)) eqn:BB; inversion mtch_locks.
@@ -2427,19 +2430,24 @@ Here be dragons
           assert (HH:= JSEM.compatible_threadRes_sub Hi juice_join).
           apply resource_at_join_sub with (l:= (b,ofs0)) in HH.
           rewrite MAP in HH.
+
           assert (ineq': Int.intval ofs <= ofs0 < Int.intval ofs + LKSIZE).
           { clear - ineq.
             destruct ineq; auto. simpl in *.
             xomega.
           }
-          apply Hct in ineq'.
-          destruct ineq' as [val MAP'].
-          rewrite <- Hpersonal_juice in MAP'; rewrite MAP' in HH.
-          destruct HH as [f HH]; inversion HH.
+          assert (HH':adr_range (b, Int.unsigned ofs) LKSIZE (b,ofs0)).
+          { split; auto. }
+          move: Hrmap => /=.
+          rewrite /rmap_locking.rmap_makelock => [] [] H1 [] H2.
+          move=> /(_ _ HH') => [] [] val [] sh [] sh_before sh_after. 
+
+          rewrite sh_before in HH.
+          destruct HH as [x HH]. inversion HH.
 
         - intros ofs0 ineq.
           simpl. rewrite DryMachine.SIG.ThreadPool.gsoThreadLPool.
-          destruct (DryMachine.SIG.ThreadPool.lockRes ds (b, ofs0)) eqn:AA; rewrite AA; try reflexivity.
+          destruct (DryMachine.SIG.ThreadPool.lockRes ds (b, ofs0)) eqn:AA; try reflexivity.
           inversion MATCH. specialize (mtch_locks (b,ofs0)).
           rewrite AA in mtch_locks.
           destruct (JSEM.ThreadPool.lockRes js (b, ofs0)) eqn:BB; inversion mtch_locks.
@@ -2459,7 +2467,14 @@ Here be dragons
           apply VALID in ineq'.
           replace (ofs0 + (Int.intval ofs - ofs0)) with (Int.intval ofs) in ineq' by omega.
           apply resource_at_join_sub with (l:= (b,Int.intval ofs)) in HH.
-          replace juicy_machine.LKSIZE with 4 in Hct by auto.
+
+          move: Hrmap => /=.
+          rewrite /rmap_locking.rmap_makelock => [] [] H1 [] H2 H3. 
+          move HH at bottom.
+          move ineq at bottom.
+          rewrite MAP in HH.
+          
+          (* replace LKSIZE with 4 in Hct by auto.*)
           specialize (Hct (Int.intval ofs) ltac:(omega)).
           destruct Hct as [val MAP'].
           rewrite <- Hpersonal_juice in MAP'. 
