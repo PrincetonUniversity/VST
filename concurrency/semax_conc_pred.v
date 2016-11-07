@@ -272,7 +272,58 @@ Proof.
     auto.
 Qed.
 
-Axiom nonexpansive_lock_inv : forall sh p, nonexpansive (lock_inv sh p).
+Lemma nonexpansive_lock_inv : forall sh p, nonexpansive (lock_inv sh p).
+Proof.
+  intros.
+  unfold lock_inv.
+  apply exists_nonexpansive.
+  intros b.
+  apply exists_nonexpansive.
+  intros y.
+  apply (conj_nonexpansive (fun _ => prop (p = Vptr b y))).
+  1: apply const_nonexpansive.
+
+  unfold LKspec.
+  apply forall_nonexpansive; intros.
+  hnf; intros.
+  intros n ?.
+  assert (forall y: rmap, (n >= level y)%nat -> (app_pred P y <-> app_pred Q y)).
+  Focus 1. {
+    clear - H.
+    intros; specialize (H y H0).
+    destruct H.
+    specialize (H y). spec H; [auto |].
+    specialize (H1 y). spec H1; [auto |].
+    tauto.
+  } Unfocus.
+  simpl; split; intros.
+  + if_tac; auto.
+    if_tac; auto.
+    destruct H3 as [p0 ?].
+    exists p0.
+    rewrite H3; f_equal.
+    f_equal.
+    extensionality ts; clear ts.
+    clear H3 H4 H5 p0.
+    apply predicates_hered.pred_ext; hnf; intros ? [? ?]; split; auto.
+    - apply necR_level in H2.
+      rewrite <- H0 by omega; auto.
+    - apply necR_level in H2.
+      rewrite H0 by omega; auto.
+  + if_tac; auto.
+    if_tac; auto.
+    destruct H3 as [p0 ?].
+    exists p0.
+    rewrite H3; f_equal.
+    f_equal.
+    extensionality ts; clear ts.
+    clear H3 H4 H5 p0.
+    apply predicates_hered.pred_ext; hnf; intros ? [? ?]; split; auto.
+    - apply necR_level in H2.
+      rewrite H0 by omega; auto.
+    - apply necR_level in H2.
+      rewrite <- H0 by omega; auto.
+Qed.
 
 Lemma rec_inv1_nonexpansive: forall sh v Q,
   nonexpansive (weak_rec_inv sh v Q).
