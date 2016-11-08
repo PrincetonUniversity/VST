@@ -535,6 +535,11 @@ simpl;
 auto.
 Qed.
 
+Definition NDmk_funspec (f: funsig) (cc: calling_convention)
+  (A: Type) (Pre Post: A -> environ -> mpred): funspec :=
+  mk_funspec f cc (rmaps.ConstType A) (fun _ => Pre) (fun _ => Post)
+    (const_super_non_expansive _ _) (const_super_non_expansive _ _).
+
 Definition type_of_funsig (fsig: funsig) := 
    Tfunction (type_of_params (fst fsig)) (snd fsig) cc_default.
 Definition fn_funsig (f: function) : funsig := (fn_params f, fn_return f).
@@ -1124,6 +1129,9 @@ forall Delta Q Q' incr body R,
 Parameter func_ptr : funspec -> val ->mpred.
 Axiom corable_func_ptr: forall f v, corable (func_ptr f v).
 Axiom func_ptr_isptr: forall spec f, func_ptr spec f |-- !! isptr f.
+Locate approx.
+Axiom approx_func_ptr: forall (A: Type) fsig0 cc (P Q: A -> environ -> mpred) (v: val) (n: nat),
+  compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A P Q) v) = compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A (fun a rho => compcert_rmaps.RML.R.approx n (P a rho)) (fun a rho => compcert_rmaps.RML.R.approx n (Q a rho))) v).
 
 Axiom semax_call : 
   forall {Espec: OracleKind}{CS: compspecs},

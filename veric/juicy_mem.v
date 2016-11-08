@@ -76,8 +76,8 @@ Definition perm_of_res' (r: resource) :=
 Definition perm_of_res_lock (r: resource) := 
   (*  perm_of_sh (res_retain' r) (valshare r). *)
  match r with
- | YES rsh sh (LK _) _ => perm_of_sh rsh (pshare_sh sh)
- | YES rsh sh (CT _) _ => perm_of_sh rsh (pshare_sh sh)
+ | YES rsh sh (LK _) _ => perm_of_sh Share.bot (pshare_sh sh)
+ | YES rsh sh (CT _) _ => perm_of_sh Share.bot (pshare_sh sh)
  | _ => None 
  end.
 
@@ -109,9 +109,26 @@ Proof.
   destruct r; simpl.
   - destruct (eq_dec t Share.bot); constructor.
   - destruct (perm_of_sh_pshare t p ) as [A HH]; rewrite HH.
-    destruct k; constructor.
-  - constructor.
-Qed.
+    destruct k; try constructor; simpl.
+    + unfold perm_of_sh.
+      if_tac.
+      * subst. if_tac; [exfalso; apply Share.nontrivial; auto| ].
+        generalize HH. unfold perm_of_sh; if_tac; [| exfalso; apply H1; auto].
+        if_tac; intros AA; inversion AA; constructor.
+      * if_tac.
+        -- exfalso. destruct p.
+           assert (x =  Share.bot).
+           rewrite <-H0; reflexivity.
+           clear HH H0 H.
+           rewrite H1 in n.
+           apply n with (x:=Share.bot).
+           unfold unit_for.
+           auto.
+        -- generalize HH. unfold perm_of_sh; if_tac.
+           ++ if_tac; intros AA; inversion AA; constructor.
+           ++ if_tac; [exfalso; apply H0; auto| intros AA; inversion AA; constructor].
+    
+Admitted.
     
 Definition access_cohere (m: mem)  (phi: rmap) :=
   forall loc,  access_at m loc Cur = perm_of_res (phi @ loc).

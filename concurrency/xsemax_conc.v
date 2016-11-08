@@ -69,8 +69,6 @@ Proof.
     auto.
 Qed.
 
-Axiom nonexpansive_lock_inv : forall sh p, nonexpansive (lock_inv sh p).
-
 Lemma lock_inv_later sh p R : lock_inv sh p R |-- lock_inv sh p (|> R)%logic.
 Admitted.
 
@@ -783,11 +781,14 @@ using the oracle, as [acquire] is.  The postcondition would be [match
 PrePost with existT ty (w, pre, post) => thread th (Interp (post w b))
 end] *)
 
-Program Definition spawn_spec := mk_funspec
-  ((_f OF tptr voidstar_funtype)%formals :: (_args OF tptr tvoid)%formals :: nil, tvoid)
-  cc_default 
-  (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * val)) (rmaps.DependentType 0)) (rmaps.ArrowType (rmaps.DependentType 0) (rmaps.ArrowType (rmaps.ConstType val) rmaps.Mpred)))
-  (fun ts x =>
+
+Local Open Scope logic.
+
+Definition spawn_arg_type := 
+  (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * val)) (rmaps.DependentType 0)) (rmaps.ArrowType (rmaps.DependentType 0) (rmaps.ArrowType (rmaps.ConstType val) rmaps.Mpred))).
+
+Definition spawn_pre :=
+  (fun (ts: list Type) (x: val * val * nth 0 ts unit * (nth 0 ts unit -> val -> mpred)) =>
    match x with
    | (f, b, w, pre) =>
      PROP ()
@@ -806,26 +807,131 @@ Program Definition spawn_spec := mk_funspec
                SEP   (emp))
            f);
          pre w b)
-   end)
-  (fun ts x =>
+   end).
+
+Lemma spawn_pre_nonexpansive: @super_non_expansive spawn_arg_type spawn_pre.
+  replace spawn_pre with
+    (fun (ts: list Type) (x: val * val * nth 0 ts unit * (nth 0 ts unit -> val -> mpred)) (rho: environ) =>
+     PROP ()
+     LOCAL (
+       match x with
+       | (f, b, w, pre) => temp _args b
+       end)
+     SEP (
+       match x with
+       | (f, b, w, pre) =>
+         EX _y : ident, EX globals : nth 0 ts unit -> list (ident * val),
+         (func_ptr'
+           (WITH y : val, x : nth 0 ts unit
+             PRE [ _y OF tptr tvoid ]
+               PROP ()
+               (LOCALx (temp _y y :: map (fun x => gvar (fst x) (snd x)) (globals x))
+               (SEP   (pre x y)))
+             POST [tptr tvoid]
+               PROP  ()
+               LOCAL ()
+               SEP   (emp))
+           f)
+       end;
+       match x with
+       | (f, b, w, pre) =>
+         pre w b
+       end)
+     rho).
+  Focus 2. {
+    extensionality ts x rho.
+    destruct x as [[[f b] w] pre].
+    reflexivity.
+  } Unfocus.
+  apply (PROP_LOCAL_SEP_super_non_expansive
+   (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * val)) (rmaps.DependentType 0)) (rmaps.ArrowType (rmaps.DependentType 0) (rmaps.ArrowType (rmaps.ConstType val) rmaps.Mpred)))
+    nil
+    ((fun ts x => 
+        match x with
+        | (f, b, w, pre) => temp _args b
+        end) :: nil)
+    ((fun (ts: list Type) x => 
+       match x with
+       | (f, b, w, pre) =>
+         EX _y : ident, EX globals : nth 0 ts unit -> list (ident * val),
+           (func_ptr'
+             (WITH y : val, x : nth 0 ts unit
+               PRE [ _y OF tptr tvoid ]
+                 PROP ()
+                 (LOCALx (temp _y y :: map (fun x => gvar (fst x) (snd x)) (globals x))
+                 (SEP   (pre x y)))
+               POST [tptr tvoid]
+                 PROP  ()
+                 LOCAL ()
+                 SEP   (emp))
+             f)
+       end) ::
+     (fun ts x => 
+       match x with
+       | (f, b, w, pre) => pre w b
+       end) :: nil)); repeat constructor.
+  + hnf; intros.
+    destruct x as [[[f b] w] pre]; auto.
+  + hnf; intros.
+    destruct x as [[[f b] w] pre].
+    simpl.
+    rewrite !approx_exp.
+    f_equal; extensionality _y.
+    rewrite !approx_exp.
+    f_equal; extensionality globals.
+    rewrite approx_func_ptr'.
+    symmetry.
+    rewrite approx_func_ptr'.
+    symmetry.
+    f_equal.
+    f_equal.
+    f_equal.
+    clear rho.
+    extensionality a rho. destruct a as [y x].
+    apply (nonexpansive_super_non_expansive
+       (fun R => (PROP ( )
+                  (LOCALx
+                   (temp _y y
+                     :: map (fun x0 => gvar (fst x0) (snd x0)) (globals x))
+                   SEP (R))) rho)).
+    apply (PROP_LOCAL_SEP_nonexpansive
+          nil
+          (temp _y y
+                     :: map (fun x0 => gvar (fst x0) (snd x0)) (globals x))
+          ((fun R => R) :: nil));
+    repeat apply Forall_cons; try apply Forall_nil.
+    apply identity_nonexpansive.
+  + hnf; intros.
+    destruct x as [[[f b] w] pre].
+    simpl.
+    apply (nonexpansive_super_non_expansive (fun R => R)).
+    apply identity_nonexpansive.
+Qed.
+
+Definition spawn_post :=
+  (fun (ts: list Type) (x: val * val * nth 0 ts unit * (nth 0 ts unit -> val -> mpred)) =>
    match x with
    | (f, b, w, pre) =>
      PROP ()
      LOCAL ()
-     SEP (emp)
-   end)
-  _
-  _
-.
-Next Obligation.
+     SEP ()
+   end).
+
+Lemma spawn_post_nonexpansive: @super_non_expansive spawn_arg_type spawn_post.
+Proof.
   hnf; intros.
-  destruct x as [[[f b] w] pre]; simpl in *.
-Admitted.
-Next Obligation.
-  hnf; intros.
-  destruct x as [[[f b] w] pre]; simpl in *.
+  destruct x as [[[f b] w] pre].
   auto.
 Qed.
+
+Definition spawn_spec := mk_funspec
+  ((_f OF tptr voidstar_funtype)%formals :: (_args OF tptr tvoid)%formals :: nil, tvoid)
+  cc_default 
+  spawn_arg_type
+  spawn_pre
+  spawn_post
+  spawn_pre_nonexpansive
+  spawn_post_nonexpansive.
 
 (*+ Adding the specifications to a void ext_spec *)
 

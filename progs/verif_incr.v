@@ -158,39 +158,21 @@ Proof.
   { rewrite (sepcon_comm _ (fold_right _ _ _)); apply sepcon_derives; [cancel | apply lock_struct]. }
   get_global_function'' _thread_func.
   apply extract_exists_pre; intros f_.
-
-  (* Spawn will be tricky. *)
-(*  forward_call (f_, Vint (Int.repr 0), (ctr, sh1, lock, lockt),
-    fun (x : (val * share * val * val)) (_ : val) => let '(ctr, sh, lock, tlock) := x in
-     !!readable_share sh && emp * lock_inv sh lock (cptr_lock_inv ctr) *
-     lock_inv sh lockt (thread_lock_inv sh ctr lock lockt)).*)
-  evar (Frame : list mpred).
-  rewrite <- seq_assoc; eapply semax_seq'.
-  { eapply semax_pre, semax_call_id0 with
-      (argsig := [(_f, tptr voidstar_funtype); (xsemax_conc._args, tptr tvoid)])(P := [])
-      (Q := [gvar _thread_func f_; temp _lockt lockt; temp _lockc lock; gvar _ctr ctr; gvar _thread_lock lockt;
-             gvar _ctr_lock lock])(R := Frame)(ts := [(val * share * val * val)%type])
-      (A := rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * val)) (rmaps.DependentType 0))
-            (rmaps.ArrowType (rmaps.DependentType 0) (rmaps.ArrowType (rmaps.ConstType val) rmaps.Mpred)))
-      (x := (f_, Vint (Int.repr 0), (ctr, sh1, lock, lockt),
-             fun (x : (val * share * val * val)) (_ : val) => let '(ctr, sh, lock, lockt) := x in
-               !!readable_share sh && emp * lock_inv sh lock (cptr_lock_inv ctr) *
-               lock_inv sh lockt (thread_lock_inv sh ctr lock lockt))); try reflexivity.
-    entailer!.
+  forward_spawn (val * share * val * val)%type (f_, Vint (Int.repr 0), (ctr, sh1, lock, lockt),
+    fun (x : (val * share * val * val)) (_ : val) => let '(ctr, sh, lock, lockt) := x in
+         !!readable_share sh && emp * lock_inv sh lock (cptr_lock_inv ctr) *
+         lock_inv sh lockt (thread_lock_inv sh ctr lock lockt)).
+  { simpl spawn_pre; entailer!.
     Exists _args (fun x : val * share * val * val => let '(ctr, sh, lock, lockt) := x in
       [(_ctr, ctr); (_ctr_lock, lock); (_thread_lock, lockt)]); entailer.
     rewrite !sepcon_assoc; apply sepcon_derives.
     { apply derives_refl'; f_equal; f_equal.
-      - extensionality.
-        destruct x as (?, (((?, ?), ?), ?)); simpl.
-        rewrite <- !sepcon_assoc; reflexivity.
-      - extensionality.
-        destruct x as (?, (((?, ?), ?), ?)); reflexivity. }
+      extensionality.
+      destruct x as (?, (((?, ?), ?), ?)); simpl.
+      rewrite <- !sepcon_assoc; reflexivity. }
     erewrite <- lock_inv_share_join; try apply Hsh; auto.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto.
     entailer!. }
-  after_forward_call.
-  rewrite void_ret; subst Frame; normalize.
   forward_call (ctr, sh2, lock).
   forward_call (lockt, sh2, thread_lock_inv sh1 ctr lock lockt).
   { apply prop_right; rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto. }

@@ -23,6 +23,7 @@ Require Import compcert.lib.Integers.
 Require Import Coq.ZArith.ZArith.
 
 Require Import concurrency.dry_machine_lemmas.
+Require Import concurrency.dry_machine_step_lemmas.
 Require Import concurrency.threads_lemmas.
 Require Import concurrency.permissions.
 Require Import concurrency.concurrent_machine.

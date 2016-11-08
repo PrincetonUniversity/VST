@@ -2,6 +2,7 @@ Require Export msl.predicates_sl.
 Require Export concurrency.semax_conc_pred.
 Require Export concurrency.xsemax_conc.
 Require Export floyd.proofauto.
+Require Import floyd.library.
 Require Export floyd.sublist.
 
 Notation vint z := (Vint (Int.repr z)).
@@ -1159,11 +1160,20 @@ Qed.
 
 Transparent Z.of_nat.
 
-Lemma void_ret : ifvoid tvoid (` (PROP ( )  LOCAL ()  SEP (emp)) (make_args [] []))
-  (EX v : val, ` (PROP ( )  LOCAL ()  SEP (emp)) (make_args [ret_temp] [v])) = emp.
+Lemma void_ret : ifvoid tvoid (` (PROP ( )  LOCAL ()  SEP ()) (make_args [] []))
+  (EX v : val, ` (PROP ( )  LOCAL ()  SEP ()) (make_args [ret_temp] [v])) = emp.
 Proof.
   extensionality; simpl.
   unfold liftx, lift, PROPx, LOCALx, SEPx; simpl; normalize.
+Qed.
+
+Lemma malloc_compat : forall {cs : compspecs} sh t p, legal_alignas_type t = true ->
+  legal_cosu_type t = true ->
+  complete_type cenv_cs t = true -> (alignof t | natural_alignment) ->
+  malloc_token sh (sizeof t) p = !!field_compatible t [] p && malloc_token sh (sizeof t) p.
+Proof.
+  intros; rewrite andp_comm; apply add_andp; entailer!.
+  apply malloc_compatible_field_compatible; auto.
 Qed.
 
 Ltac lock_props := rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
@@ -1176,3 +1186,16 @@ Ltac join_sub := repeat (eapply sepalg.join_sub_trans;
 
 Ltac join_inj := repeat match goal with H1 : sepalg.join ?a ?b ?c, H2 : sepalg.join ?a ?b ?d |- _ =>
     pose proof (sepalg.join_eq H1 H2); clear H1 H2; subst; auto end.
+
+Print spawn_post.
+
+Ltac forward_spawn sig wit := let Frame := fresh "Frame" in evar (Frame : list mpred);
+  try match goal with |- semax _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip end;
+  rewrite <- ?seq_assoc; eapply semax_seq';
+  [match goal with |- semax _ (PROP () (LOCALx ?locals _)) _ _ => eapply semax_pre, semax_call_id0 with
+      (argsig := [(_f, tptr voidstar_funtype); (xsemax_conc._args, tptr tvoid)])(P := [])
+      (Q := locals)(R := Frame)(ts := [sig])
+      (A := rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * val)) (rmaps.DependentType 0))
+            (rmaps.ArrowType (rmaps.DependentType 0) (rmaps.ArrowType (rmaps.ConstType val) rmaps.Mpred)))
+      (x := wit); try reflexivity end |
+   after_forward_call; unfold spawn_post; rewrite void_ret; subst Frame; normalize].
