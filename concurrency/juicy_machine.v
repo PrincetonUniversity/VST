@@ -607,8 +607,12 @@ Qed.
           unfold max_access_at. unfold access_at. unfold PMap.get; simpl.
           rewrite search. rewrite Mem_canonical_useful.
           unfold perm_of_res_lock. destruct ( r @ (b, ofs)); auto.
-          destruct k; auto;
-          destruct (perm_of_sh t0 (pshare_sh p)); auto; intro HH; inversion HH.
+          destruct k; auto. simpl.
+          destruct (perm_of_sh Share.bot (pshare_sh p) ) eqn: HH; auto.
+          intros; exfalso; assumption.
+          destruct (perm_of_sh t0 (pshare_sh p)); auto; intro HH;
+          destruct (perm_of_sh Share.bot (pshare_sh p)); 
+          inversion HH; reflexivity.
     Qed.
 
     Lemma juic2Perm_correct:

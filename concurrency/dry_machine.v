@@ -379,7 +379,7 @@ Module Concur.
 
                     
      | step_mklock :
-         forall  (tp' tp'': thread_pool) m1 c m' b ofs pdata pmap_tid',
+         forall  (tp' tp'': thread_pool) m1 c m' b ofs pmap_tid',
            let: pmap_tid := getThreadR cnt0 in
            forall
              (Hinv : invariant tp)
@@ -396,15 +396,9 @@ Module Concur.
                             (Int.intval ofs)
                             pmap_tid.1
                             LKSIZE_nat = pmap_tid'.1)
-             (* new permissions in the thread lock are 
-              * equal to those in the old thread        *)
-             (Hneq_perms: forall i,
-                 (0 <= Z.of_nat i < LKSIZE)%Z ->
-                 pdata i = pmap_tid.1 !! b (Int.intval ofs + Z.of_nat i)%Z
-             )
              (** thread lock permission is increased *)
-             (Hlock_perm: setPermBlock_var
-                            pdata
+             (Hlock_perm: setPermBlock
+                            (Some Writable)
                             b
                             (Int.intval ofs)
                             pmap_tid.2
@@ -444,7 +438,7 @@ Module Concur.
                  pdata i = pmap_tid.2 !! b (Int.intval ofs + Z.of_nat i)%Z
            )
            (*Hpdata: perm_order pdata Writable*)
-           (Hdata_perm: setPermBlock_var
+           (Hdata_perm: setPermBlock_var (*=setPermBlockfunc*)
                           pdata
                           b
                           (Int.intval ofs)
