@@ -2317,8 +2317,8 @@ Here be dragons
                 (Int.intval ofs)
                 pmap_tid.1
                 LKSIZE_nat,
-               (setPermBlock_var
-                  pdata
+               (setPermBlock
+                  (Some Writable)
                   b
                   (Int.intval ofs)
                   pmap_tid.1
@@ -2467,27 +2467,77 @@ Here be dragons
           apply VALID in ineq'.
           replace (ofs0 + (Int.intval ofs - ofs0)) with (Int.intval ofs) in ineq' by omega.
           apply resource_at_join_sub with (l:= (b,Int.intval ofs)) in HH.
-
+          
           move: Hrmap => /=.
           rewrite /rmap_locking.rmap_makelock => [] [] H1 [] H2 H3. 
-          move HH at bottom.
-          move ineq at bottom.
-          rewrite MAP in HH.
-          
-          (* replace LKSIZE with 4 in Hct by auto.*)
-          specialize (Hct (Int.intval ofs) ltac:(omega)).
-          destruct Hct as [val MAP'].
-          rewrite <- Hpersonal_juice in MAP'. 
-          rewrite MAP' in HH.
-          destruct HH as [X HH].
-          inversion HH;
-          rewrite <- H7 in ineq';
-          inversion ineq'.
+          assert (adr_range (b, Int.unsigned ofs) LKSIZE (b, Int.unsigned ofs)).
+          { split; auto.
+            split; omega. }
+          move: (H3 _ H4)=> [] v [] sh [] HH1 HH2.
+          rewrite HH1 in HH.
+          destruct HH as [x HH].
+          inversion HH.
+          + move ineq' at bottom.
+            rewrite -H11 in ineq'.
+            inversion ineq'.
+          + move ineq' at bottom.
+            rewrite -H11 in ineq'.
+            inversion ineq'.
         }
           
         { (*DryMachine.invariant ds' *)
           apply updThread_inv.
           - eassumption.
+            
+          - move => b0 ofs0.
+            unfold pmap_tid'.
+            destruct (peq b b0); [subst b0; destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + lksize.LKSIZE)%Z ) | ].
+            + rewrite (MTCH_perm' _ MATCH).
+              replace (MTCH_cnt' MATCH Htid') with Hi by apply proof_irrelevance.
+            
+              rewrite setPermBlock_same; auto.
+              move: Hrmap => /=.
+              rewrite /rmap_locking.rmap_makelock => [] [] H1 [] H2. 
+              assert (adr_range (b, Int.unsigned ofs) LKSIZE (b, ofs0)) by (split; auto).
+              move=> /(_ _ H) [] val [] sh [] -> _.
+              simpl. destruct (eq_dec sh Share.top).
+              * subst sh; rewrite perm_of_freeable; constructor.
+              * rewrite perm_of_writable; auto; constructor.
+            + rewrite setPermBlock_other_1.
+              unfold pmap_tid;
+                apply po_refl.
+              { apply Intv.range_notin in n.
+                destruct n; auto.
+                unfold LKSIZE; simpl; xomega. }
+            + rewrite setPermBlock_other_2; auto.
+              unfold pmap_tid;
+                apply po_refl.
+          - move => b0 ofs0.
+            unfold pmap_tid'.
+            destruct (peq b b0); [subst b0; destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + lksize.LKSIZE)%Z ) | ].
+            + rewrite (MTCH_perm2' _ MATCH).
+              replace (MTCH_cnt' MATCH Htid') with Hi by apply proof_irrelevance.
+              rewrite setPermBlock_same; auto.
+              move: Hrmap => /=.
+              rewrite /rmap_locking.rmap_makelock => [] [] H1 [] H2. 
+              assert (adr_range (b, Int.unsigned ofs) LKSIZE (b, ofs0)) by (split; auto).
+              move=> /(_ _ H) [] val [] sh [] -> _.
+              simpl.
+              simpl. destruct (eq_dec sh Share.top).
+              * subst sh; rewrite perm_of_freeable; constructor.
+              * rewrite perm_of_writable; auto; constructor.
+            + rewrite setPermBlock_other_1.
+              unfold pmap_tid;
+                apply po_refl.
+              { apply Intv.range_notin in n.
+                destruct n; auto.
+                unfold LKSIZE; simpl; xomega. }
+            + rewrite setPermBlock_other_2; auto.
+              unfold pmap_tid;
+                apply po_refl.
+              
+
+            
           - intros.
            apply permDisjoint_permMapsDisjoint. intros b0 ofs0.
             unfold pmap_tid'.
