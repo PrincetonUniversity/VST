@@ -10,6 +10,7 @@ Require Import ProofIrrelevance.
 
 (* The concurrent machinery*)
 Require Import concurrency.scheduler.
+Require Import concurrency.TheSchedule.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.juicy_machine. Import Concur.
 Require Import concurrency.dry_machine. Import Concur.
@@ -58,11 +59,11 @@ Set Bullet Behavior "Strict Subproofs".
 
 Module Parching <: ErasureSig.
   Import THE_JUICY_MACHINE.
-  Module SCH:= THE_JUICY_MACHINE.SCH.
+  Module SCH:= THESCH.
   Module SEM:= THE_JUICY_MACHINE.SEM.
   Import SCH SEM.
 
-  Module JSEM := THE_JUICY_MACHINE.JSEM.
+  Module JMS := THE_JUICY_MACHINE.JSEM.
   Module JuicyMachine := THE_JUICY_MACHINE.JuicyMachine.
   Notation JMachineSem:= THE_JUICY_MACHINE.JMachineSem.
   Notation jstate:= JuicyMachine.SIG.ThreadPool.t.
@@ -75,16 +76,20 @@ Module Parching <: ErasureSig.
   
 
   Module JSEM := JuicyMachineShell SEM. (* JuicyMachineShell : Semantics -> ConcurrentSemanticsSig *)
-  Module JuicyMachine := CoarseMachine SCH JSEM. (* CoarseMachine : Schedule -> ConcurrentSemanticsSig -> ConcurrentSemantics *)
+  Module JuicyMachine := CoarseMachine SCH JSEM.
+ (* CoarseMachine : Schedule -> ConcurrentSemanticsSig -> ConcurrentSemantics *)
   Notation JMachineSem:= JuicyMachine.MachineSemantics.
   Notation jstate:= JuicyMachine.SIG.ThreadPool.t.
   Notation jmachine_state:= JuicyMachine.MachState.
   Module JTP:=JuicyMachine.SIG.ThreadPool.
   Import JSEM.JuicyMachineLemmas.*)
+  
   Import THE_DRY_MACHINE_SOURCE.
   Import DMS.
-  
-  Module DSEM := DMS.SEM. 
+
+  (*UNCOMENT THE LINE BELLOW AFTER CHANGES ARE MADE (WHENEVER THE FILE COMPILES)*)
+  (*Module DSEM := DMS.SEM*)
+  Module DMS := DryMachine. 
   Module DryMachine <: ConcurrentMachine:= DMS.DryConc.
   Notation DMachineSem:= DryMachine.MachineSemantics. 
   Notation dstate:= DMS.DTP.t.
@@ -664,8 +669,9 @@ Module Parching <: ErasureSig.
         Unshelve. auto. auto. auto.
     Qed.
     
-    Definition match_rmap_perm (rmap : rmap) (pmap: access_map): Prop:=
-      forall b ofs, perm_of_res (rmap @ (b, ofs)) = pmap !! b ofs.
+    Definition match_rmap_perm (rmap : rmap) (pmap: access_map * access_map): Prop:=
+      forall b ofs, perm_of_res (rmap @ (b, ofs)) = pmap.1 !! b ofs /\
+               pmap.2 = empty_map.
 
      Definition no_locks_perm (rmap : rmap): Prop:=
       forall b ofs, perm_of_res_lock (rmap @ (b, ofs)) = None.
@@ -674,7 +680,7 @@ Module Parching <: ErasureSig.
       forall  c rmap pmap,
         match_rmap_perm rmap pmap ->
         no_locks_perm rmap ->
-        match_st (JSEM.initial_machine rmap c) (DryMachine.initial_machine (*genv*) pmap c).
+        match_st (JSEM.initial_machine rmap c) (DryMachine.initial_machine (*genv*) pmap.1 c).
     Proof.
       intros.
       constructor.
@@ -908,7 +914,7 @@ Module Parching <: ErasureSig.
         initial_core (JMachineSem U (Some rmap)) genv main vals = Some (U, nil, js) ->
         exists (mu : SM_Injection) (ds : dstate),
           as_inj mu = j /\
-          initial_core (DMachineSem U (Some (pmap,empty_map))) genv main vals = Some (U, nil,ds) /\
+          initial_core (DMachineSem U (Some pmap)) genv main vals = Some (U, nil,ds) /\
           DryMachine.invariant ds /\
           match_st js ds.
     Proof.
@@ -923,7 +929,7 @@ Module Parching <: ErasureSig.
       unfold JSEM.init_mach in H2. simpl in H2.
       destruct ( initial_core (msem JSEM.ThreadPool.SEM.Sem) genv main vals) eqn:C; try solve[inversion H2].
       inversion H2.
-      exists (DryMachine.initial_machine pmap c).
+      exists (DryMachine.initial_machine pmap.1 c).
 
       split; [|split;[|split]].
       
@@ -3640,8 +3646,9 @@ Here be dragons
           Grab Existential Variables.
           - simpl. apply mtch_cnt. assumption.
           - assumption.
+          - admit. (*admitted before*)
           - simpl. eapply MTCH_cnt ; eauto.
-  Qed.
+  Admitted.
   
   Lemma core_diagram:
     forall (m : Mem.mem)  (U0 U U': schedule) rmap pmap 
@@ -3679,6 +3686,6 @@ Here be dragons
       corestep (DMachineSem U0 rmap) genv (U,tr,c) m (U', tr', c') m' ->
       tr = nil /\ tr' = nil.
   Proof. intros. inversion H; simpl in *; subst; auto. Qed.
-  
+  About sch_dec.
 End Parching.
 (*Export Parching.*)

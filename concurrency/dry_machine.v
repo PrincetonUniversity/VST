@@ -5,6 +5,7 @@ Require Import sepcomp.semantics_lemmas.
 
 Require Import concurrency.pos.
 Require Import concurrency.scheduler.
+Require Import concurrency.TheSchedule.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.addressFiniteMap. (*The finite maps*)
 Require Import concurrency.pos.
@@ -47,7 +48,7 @@ End ThreadPool.
 
 Module Concur.
   
-  Module mySchedule := ListScheduler NatTID.
+  Module mySchedule := THESCH.
 
   (** The type of dry machines. This is basically the same as
   [ConcurrentMachineSig] but resources are instantiated with dry

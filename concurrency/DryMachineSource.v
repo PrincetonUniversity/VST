@@ -47,10 +47,11 @@ Module THE_DRY_MACHINE_SOURCE.
 
   Module DMS  <: MachinesSig with Module SEM := ClightSEM.
      Module SEM:= ClightSEM .
-     
+
+     (*Old DSEM*)
      Module DryMachine <: DryMachineSig SEM := DryMachineShell SEM.
      Module ErasedMachine :=  ErasedMachineShell SEM.
-     
+
      Module DryConc <: ConcurrentMachine :=
       CoarseMachine SCH DryMachine.
      Notation DMachineSem:= DryConc.MachineSemantics. 

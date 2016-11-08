@@ -629,7 +629,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     safe _ _ (new_step ge) new_valid (mk_nstate st m) (fst (fst st)).
 
   (*Things that we must prove:*)
-  Lemma sch_dec: forall (U U': Sch), {U = U'} + {U <> U'}.
+  Lemma sch_dec': forall (U U': Sch), {U = U'} + {U <> U'}.
   Proof. apply SCH.sch_dec. Qed.                 
   Lemma step_sch: forall {ge U tr tp m U' tr' tp' m'}, MachStep ge (U, tr, tp) m (U', tr', tp') m' -> U=U' \/ schedSkip(U)=U'.
   Proof.

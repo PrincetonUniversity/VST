@@ -1,3 +1,27 @@
+(** *This FILE IS DEPRICATED                 *)
+(** *I'm moving some lemmas before erasing it*)
+(** * Please see: erasure_signature.v        *)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Require Import compcert.common.Memory.
 
 (* The concurrent machinery*)
@@ -20,7 +44,7 @@ Module Type ErasureSig.
   Declare Module SEM: Semantics.
   Import SCH SEM.
     
-  Declare Module JSEM: ConcurrentMachineSig
+  Declare Module JSIG: ConcurrentMachineSig
       with Module ThreadPool.TID:= NatTID
       with Module ThreadPool.SEM:= SEM.
   Declare Module JuicyMachine: ConcurrentMachine
@@ -29,8 +53,9 @@ Module Type ErasureSig.
   Notation JMachineSem:= JuicyMachine.MachineSemantics.
   Notation jstate:= JSEM.ThreadPool.t.
   Notation jmachine_state:= JuicyMachine.MachState.
+
   
-  Declare Module DSEM: ConcurrentMachineSig
+  Declare Module DSIG: ConcurrentMachineSig
       with Module ThreadPool.TID:= NatTID
       with Module ThreadPool.SEM:= SEM.
   Declare Module DryMachine: ConcurrentMachine
