@@ -24,6 +24,7 @@ Require Import concurrency.concurrent_machine.
 Require Import concurrency.semantics.
 Require Import concurrency.dry_context.
 Require Import concurrency.dry_machine_lemmas.
+Require Import concurrency.dry_machine_step_lemmas.
 Require Import Coqlib.
 Require Import msl.Coqlib2.
 
