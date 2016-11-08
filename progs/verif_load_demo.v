@@ -609,5 +609,71 @@ forward.
 (* return res; *)
 simpl; do 2 rewrite eq_rect_r_eq.
 forward.
-Qed.
+Abort.
 
+Lemma body_go: semax_body Vprog Gprog f_get22 get22_spec.
+Proof.
+start_function.
+(* int_pair_t* p = &pps[i].right; *)
+forward.
+
+rename sh into sh77.
+(* int res = p->snd; *)
+replace (offset_val 8 (force_val (sem_add_pi (Tstruct _pair_pair noattr) pps (Vint (Int.repr i)))))
+  with (field_address (tarray pair_pair_t array_size) [StructField _right; ArraySubsc i] pps). {
+eapply semax_seq'. {
+
+ hoist_later_in_pre;
+ match goal with
+| |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
+  (* Super canonical load *)
+    let e1 := fresh "e" in
+    let efs := fresh "efs" in
+    let tts := fresh "tts" in
+      construct_nested_efield e e1 efs tts;
+
+    let lr := fresh "lr" in
+      pose (compute_lr e1 efs) as lr;
+      vm_compute in lr;
+
+    let HLE := fresh "H" in
+    let p := fresh "p" in evar (p: val);
+      match goal with
+      | lr := LLLL |- _ => do_compute_lvalue Delta P Q R e1 p HLE
+      | lr := RRRR |- _ => do_compute_expr Delta P Q R e1 p HLE
+      end;
+
+    let H_Denote := fresh "H" in
+    let gfsB00 := fresh "gfsB00" in
+      solve_efield_denote Delta P Q R efs gfsB00 H_Denote;
+
+    eapply semax_SC_field_load_general with (lr0 := lr) (gfsB := gfsB00);
+    [ reflexivity
+    | reflexivity
+    | reflexivity
+    | exact HLE
+    | exact H_Denote
+    | subst e1 efs tts lr p gfsB00;
+        match goal with 
+        | |- ENTAIL _, _ |-- !! (field_address _ _ _ = field_address _ _ _) => solve [entailer!]
+        | _ => idtac
+        end
+    | let sh := fresh "sh" in evar (sh: share);
+      let t_root := fresh "t_root" in evar (t_root: type);
+      let gfs00 := fresh "gfs00" in evar (gfs00: list gfield);
+      let v := fresh "v" in evar (v: reptype (nested_field_type t_root gfs00));
+      let n := fresh "n" in
+      let H := fresh "H" in
+      sc_new_instantiate P Q R R Delta e1 gfsA00 tts lr p sh t_root gfsB00 v n (0%nat) H;
+      subst e1 efs tts lr p gfsB00; clear HLE H_Denote
+    | subst e1 efs tts lr p gfsB00; clear HLE H_Denote
+    | subst e1 efs tts lr p gfsB00; clear HLE H_Denote
+    | subst e1 efs tts lr p gfsB00; clear HLE H_Denote
+    | subst e1 efs tts lr p gfsB00; clear HLE H_Denote
+    | subst e1 efs tts lr p gfsB00; clear HLE H_Denote
+    | subst e1 efs tts lr p gfsB00; clear HLE H_Denote
+    | subst e1 efs tts lr p gfsB00; clear HLE H_Denote ]
+
+end.
+
+Qed.
