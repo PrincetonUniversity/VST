@@ -31,7 +31,7 @@ Import threadPool.
 Global Notation "a # b" := (Maps.PMap.get b a) (at level 1).
 
 (** This file holds various results about the dry machine*)
-(* Find other lemmas in dry_machine_lemmas          *)
+(* Find other lemmas in dry_machine_lemmas.v          *)
 
 (** These lemmas require the machines. But the machines are
 parameterized by the semantics so they can be used by either

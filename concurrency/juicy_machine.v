@@ -1271,6 +1271,8 @@ Qed. *)
             (*This the first share of the lock, 
               can/should this be different for each location? *)
             (sh:Share.t)
+            (*First check the lock is acquired:*)
+            (His_acq: lockRes tp (b, (Int.intval ofs)) = SNone)
             (*Check the new memoryI have has the right permission to mklock and the riht value (i.e. 0) *)
             (Haccess: address_mapsto Mint32 (Vint Int.zero) sh Share.top (b, Int.intval ofs) phi')
             (*Check the old memory has the lock*)
