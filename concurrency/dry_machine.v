@@ -1031,10 +1031,11 @@ Module Concur.
        rewrite perm_union_comm.
        eapply not_racy_union;
          by constructor.
-    Qe 
+    Qed. 
        
        paque getThreadR.
-    Le a step_decay_invariant:
+(*making this lemma again*)
+    Lemma step_decay_invariant:
        rall (tp : thread_pool) (m : mem) (i : nat)
        (pf : containsThread tp i) c m1 m1' c'
        (Hinv: invariant tp)
@@ -1043,7 +1044,7 @@ Module Concur.
        (Hdecay: decay m1 m1')
        (Hcode: getThreadC pf = Krun c),
        invariant (updThread pf (Krun c') (getCurPerm m1')).
-    Pr f.
+    Proof.
        tros.
        struct Hinv as [Hrace Hlp].
        nstructor.

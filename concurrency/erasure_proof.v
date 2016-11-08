@@ -2148,68 +2148,68 @@ Here be dragons
           (*This is a new lemma that is missing.*)
           admit.
           (*
-          { intros HH. unfold ds'.
-              eapply addThrd_inv.
-              - assumption.
-              - intros.
-                destruct (NatTID.eq_tid_dec i i0).
-                + subst i0.
-                  rewrite DryMachine.SIG.ThreadPool.gssThreadRes.
-                  apply permDisjoint_permMapsDisjoint.
-                  intros b0 ofs0.
-                  rewrite virtue_spec1 virtue_spec2.
-                  apply joins_permDisjoint.
-                  apply joins_comm.
-                  apply resource_at_joins.
-                  eapply join_joins.
-                  eassumption.
-                + rewrite DryMachine.SIG.ThreadPool.gsoThreadRes. 2: assumption.
+            { intros HH. unfold ds'.
+                eapply addThrd_inv.
+                - assumption.
+                - intros.
+                  destruct (NatTID.eq_tid_dec i i0).
+                  + subst i0.
+                    rewrite DryMachine.SIG.ThreadPool.gssThreadRes.
+                    apply permDisjoint_permMapsDisjoint.
+                    intros b0 ofs0.
+                    rewrite virtue_spec1 virtue_spec2.
+                    apply joins_permDisjoint.
+                    apply joins_comm.
+                    apply resource_at_joins.
+                    eapply join_joins.
+                    eassumption.
+                  + rewrite DryMachine.SIG.ThreadPool.gsoThreadRes. 2: assumption.
+                    apply permDisjoint_permMapsDisjoint.
+                    intros b0 ofs0.
+                    rewrite virtue_spec2.
+                    erewrite MTCH_perm' with (MTCH:=MATCH).
+                    apply joins_permDisjoint. apply joins_comm.
+                    eapply join_sub_joins_trans.
+                    eapply join_join_sub.
+                    move Hrem_fun_res at bottom.
+                    apply resource_at_join. eassumption.
+                    simpl.
+                    eapply resource_at_joins.
+                    eapply (compatible_threadRes_join).
+                    eassumption.
+                    assumption.
+                - rewrite DTP.gsoThreadLock.
                   apply permDisjoint_permMapsDisjoint.
                   intros b0 ofs0.
                   rewrite virtue_spec2.
-                  erewrite MTCH_perm' with (MTCH:=MATCH).
-                  apply joins_permDisjoint. apply joins_comm.
-                  eapply join_sub_joins_trans.
+                  apply permDisjoint_comm.
+                  eapply permDisjoint_sub.
                   eapply join_join_sub.
-                  move Hrem_fun_res at bottom.
-                  apply resource_at_join. eassumption.
-                  simpl.
-                  eapply resource_at_joins.
-                  eapply (compatible_threadRes_join).
+                  eapply resource_at_join.
                   eassumption.
-                  assumption.
-              - rewrite DTP.gsoThreadLock.
-                apply permDisjoint_permMapsDisjoint.
-                intros b0 ofs0.
-                rewrite virtue_spec2.
-                apply permDisjoint_comm.
-                eapply permDisjoint_sub.
-                eapply join_join_sub.
-                eapply resource_at_join.
-                eassumption.
-                inversion MATCH; rewrite mtch_perm.
-                apply mtch_cnt; assumption.
-                intros; apply permMapsDisjoint_permDisjoint.
-                inversion dinv.
-                apply permMapsDisjoint_comm; apply lock_set_threads.
-              - intros l lmap.
-                rewrite DTP.gsoThreadLPool.
-                intros H. 
-                apply permDisjoint_permMapsDisjoint.
-                intros b0 ofs0.
-                rewrite virtue_spec2.
-                apply permDisjoint_comm.
-                eapply permDisjoint_sub.
-                eapply join_join_sub.
-                eapply resource_at_join.
-                eassumption.
-                inversion MATCH; rewrite mtch_perm.
-                apply mtch_cnt; assumption.
-                intros; apply permMapsDisjoint_permDisjoint.
-                inversion dinv.
-                apply permMapsDisjoint_comm. eapply lock_res_threads.
-                eassumption.
-            } *)
+                  inversion MATCH; rewrite mtch_perm.
+                  apply mtch_cnt; assumption.
+                  intros; apply permMapsDisjoint_permDisjoint.
+                  inversion dinv.
+                  apply permMapsDisjoint_comm; apply lock_set_threads.
+                - intros l lmap.
+                  rewrite DTP.gsoThreadLPool.
+                  intros H. 
+                  apply permDisjoint_permMapsDisjoint.
+                  intros b0 ofs0.
+                  rewrite virtue_spec2.
+                  apply permDisjoint_comm.
+                  eapply permDisjoint_sub.
+                  eapply join_join_sub.
+                  eapply resource_at_join.
+                  eassumption.
+                  inversion MATCH; rewrite mtch_perm.
+                  apply mtch_cnt; assumption.
+                  intros; apply permMapsDisjoint_permDisjoint.
+                  inversion dinv.
+                  apply permMapsDisjoint_comm. eapply lock_res_threads.
+                  eassumption.
+              } *)
         }
 
         
@@ -3388,44 +3388,44 @@ Here be dragons
         }
 
         (*
-        
-              * inversion MATCH; split.
-                -- 
-                   rewrite -mtch_locksRes.
-                   
-                   
-              * inversion MATCH.
-                specialize (mtch_locksEmpty _ _ is_lock' is_lock).
-            + reflexivity.
-            + intros ofs0 intv.
-              instantiate (1:=virtue).
-              unfold virtue.
-              replace (MTCH_cnt MATCH Hi) with Htid' by apply proof_irrelevance.
-              erewrite <- virtue_spec.
-              destruct (zeq ofs0 (Int.intval ofs)).
-              * subst ofs0. destruct Hlock' as [val Hlock'].
-                rewrite Hlock'; simpl.
-                destruct (eq_dec sh Share.top).
-                subst sh. rewrite perm_of_sh_fullshare; constructor.
-                rewrite perm_of_writable; try assumption; constructor.
-              * destruct (Hct ofs0) as [val [Hct_old Hval_new]]. 
-                clear -intv n. unfold Intv.In in intv. simpl in intv.
-                unfold juicy_machine.LKSIZE; simpl. xomega.
-                rewrite Hval_new. simpl.
-                destruct (eq_dec sh Share.top).
-                subst sh. rewrite perm_of_sh_fullshare; constructor.
-                rewrite perm_of_writable; try assumption; constructor.
-            + intros. 
-              replace (MTCH_cnt MATCH Hi) with Htid' by apply proof_irrelevance.
-              rewrite <- virtue_spec.
-              inversion MATCH; erewrite <- mtch_perm.
-              destruct H as [[BB notIn] | BB];
-                rewrite <- (Hj_forward (b', ofs'));
-                try reflexivity; [right | left]; try (simpl; assumption).
-            + reflexivity.
-            + do 2 (replace (MTCH_cnt MATCH Hi) with Htid' by apply proof_irrelevance); reflexivity.
-            + reflexivity.
-        }
+           
+                 * inversion MATCH; split.
+                   -- 
+                      rewrite -mtch_locksRes.
+                      
+                      
+                 * inversion MATCH.
+                   specialize (mtch_locksEmpty _ _ is_lock' is_lock).
+               + reflexivity.
+               + intros ofs0 intv.
+                 instantiate (1:=virtue).
+                 unfold virtue.
+                 replace (MTCH_cnt MATCH Hi) with Htid' by apply proof_irrelevance.
+                 erewrite <- virtue_spec.
+                 destruct (zeq ofs0 (Int.intval ofs)).
+                 * subst ofs0. destruct Hlock' as [val Hlock'].
+                   rewrite Hlock'; simpl.
+                   destruct (eq_dec sh Share.top).
+                   subst sh. rewrite perm_of_sh_fullshare; constructor.
+                   rewrite perm_of_writable; try assumption; constructor.
+                 * destruct (Hct ofs0) as [val [Hct_old Hval_new]]. 
+                   clear -intv n. unfold Intv.In in intv. simpl in intv.
+                   unfold juicy_machine.LKSIZE; simpl. xomega.
+                   rewrite Hval_new. simpl.
+                   destruct (eq_dec sh Share.top).
+                   subst sh. rewrite perm_of_sh_fullshare; constructor.
+                   rewrite perm_of_writable; try assumption; constructor.
+               + intros. 
+                 replace (MTCH_cnt MATCH Hi) with Htid' by apply proof_irrelevance.
+                 rewrite <- virtue_spec.
+                 inversion MATCH; erewrite <- mtch_perm.
+                 destruct H as [[BB notIn] | BB];
+                   rewrite <- (Hj_forward (b', ofs'));
+                   try reflexivity; [right | left]; try (simpl; assumption).
+               + reflexivity.
+               + do 2 (replace (MTCH_cnt MATCH Hi) with Htid' by apply proof_irrelevance); reflexivity.
+               + reflexivity.
+           }
 
   *)
         (* step_acqfail *)
@@ -3452,10 +3452,12 @@ Here be dragons
                 assumption.
             }
         }
-  Admitted.  
+  Admitted.
+  (*
+  Grab Existential Variables.
         assumption.
         assumption.
-  Qed.
+  Qed.*)
   
   
 
@@ -3482,7 +3484,7 @@ Here be dragons
           { inversion Htstep; subst.
             pose (ds':= (DTP.updThreadC (MTCH_cnt MATCH ctn) (Krun c_new))).
             exists ds'. split; [|split].
-            - apply updCinvariant. assumption.
+            - apply updThreadC_invariant. assumption.
             - apply MTCH_updt; assumption.
             - econstructor 1.
               + eassumption.
@@ -3501,7 +3503,7 @@ Here be dragons
             exists (DTP.updThreadC (mtch_cnt _ ctn) (Krun c')).
             split;[|split].
             (*Invariant*)
-            { apply updCinvariant; assumption. }
+            { apply updThreadC_invariant; assumption. }
             (*Match *)
             { (*This should be a lemma *)
               apply MTCH_updt; assumption.
@@ -3520,16 +3522,34 @@ Here be dragons
             inversion MATCH; subst.
             inversion Htstep; subst.
             assert (Htid':=mtch_cnt _ Htid).
-            exists (DTP.updThread Htid' (Krun c') (permissions.getCurPerm (m_dry jm'))).
+            
+            exists (DTP.updThread Htid'
+                             (Krun c')
+                             (permissions.getCurPerm (m_dry jm'),
+              (DTP.getThreadR Htid').2
+              (*JSEM.juice2Perm_locks (m_phi jm') m *) )).
             split ; [|split].
             {
               inversion Hcorestep.
               eapply ev_step_ax2 in H; destruct H as [T H].
               apply SEM.step_decay in H.
-              
-              
-              eapply DSEM.DryMachineLemmas.step_decay_invariant
+              Lemma step_decay_invariant:
+                forall tp  (m : Mem.mem) i
+                     (Hi : DTP.containsThread tp i) c m1 m1' c'
+                     (Hinv: DryMachine.invariant tp)
+                     (Hcompatible: DryMachine.mem_compatible tp m)
+                     (Hrestrict_pmap :restrPermMap ((DryMachine.compat_th Hcompatible) Hi).1 = m1)
+                     (Hdecay: decay m1 m1')
+                     (Hcode: DTP.getThreadC Hi = Krun c),
+                  DryMachine.invariant
+                    (DTP.updThread Hi (Krun c')
+                                   (getCurPerm m1', (DTP.getThreadR Hi).2)).
+              Admitted.
+              eapply step_decay_invariant
               with (Hcompatible:= MTCH_compat _ _ _ MATCH Hcmpt); try eapply H; eauto.
+              
+              (*eapply DSEM.DryMachineLemmas.step_decay_invariant
+              with (Hcompatible:= MTCH_compat _ _ _ MATCH Hcmpt); try eapply H; eauto. *)
               eapply MTCH_restrict_personal.
               auto.
               inversion MATCH. erewrite <- mtch_gtc0; eassumption.
@@ -3538,11 +3558,19 @@ Here be dragons
               apply MTCH_update.
               apply MTCH_age.
               assumption.
-              intros.
-              assert (HH:= juicy_mem_access jm').
-              rewrite <- HH.
-              rewrite getCurPerm_correct.
-              reflexivity.
+              - intros.
+                assert (HH:= juicy_mem_access jm').
+                rewrite <- HH.
+                rewrite getCurPerm_correct.
+                reflexivity.
+              - intros.
+                rewrite (MTCH_perm2' _ MATCH).
+                (*is decay *)
+                inversion Hcorestep.
+                eapply ev_step_ax2 in H; destruct H as [T H].
+                apply SEM.step_decay in H.
+                admit. (*decay preserves lock permissions!!*)
+                
             }
             {  assert (Hcmpt': DryMachine.mem_compatible ds m) by
                   (eapply MTCH_compat; eassumption).
@@ -3567,7 +3595,7 @@ Here be dragons
           exists (DTP.updThreadC (mtch_cnt _ ctn) (Kblocked c)).
           split;[|split].
           (*Invariant*)
-          { apply updCinvariant; assumption. }
+          { apply updThreadC_invariant ; assumption. }
           (*Match *)
           { apply MTCH_updt; assumption.        }
           (*Step*)
