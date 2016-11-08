@@ -1850,8 +1850,31 @@ Module SpinLocks (SEM: Semantics)
         location ev = Some (laddr, lksize.LKSIZE_nat) /\
         lockRes tp' laddr = Some (empty_map, empty_map).
     Proof.
-    Admitted.
-
+      intros.
+      inv Hstep; simpl in *;
+        try apply app_eq_nil in H4;
+        try inv Htstep;
+        destruct U; inversion HschedN; subst; pf_cleanup;
+        try (inv Hhalted);
+        try (rewrite gsoThreadCLPool in Hres');
+        try (rewrite gsoThreadLPool in Hres');
+        try (rewrite gsoAddLPool gsoThreadLPool in Hres');
+        try (congruence);
+        apply app_inv_head in H5; subst;
+      try (destruct (EqDec_address (b, Int.intval ofs) laddr); subst;
+      [rewrite Hres in HisLock | erewrite gsoLockRes, gsoThreadLPool in Hres'];
+      congruence).
+      destruct (EqDec_address (b, Int.intval ofs) laddr); subst.
+      eexists; repeat split; eauto.
+      rewrite gssLockRes; reflexivity.
+      erewrite gsoLockRes, gsoThreadLPool in Hres' by eauto.
+      rewrite Hres in Hres'; discriminate.
+      destruct (EqDec_address (b, Int.intval ofs) laddr); subst;
+      first by congruence.
+      erewrite gsolockResRemLock, gsoThreadLPool in Hres' by eauto.
+        by congruence.
+    Qed.
+ 
     Lemma lockRes_mklock_execution:
       forall U tr tpi mi U' tpj mj tr' laddr rmapj
         (Hres: lockRes tpi laddr = None)
@@ -2332,8 +2355,58 @@ Module SpinLocks (SEM: Semantics)
           now eauto.
     Qed.
 
-    Lemma lockRes_data_permission_increase_execution:
-      forall U tr tpi mi U' tpj mj tr' laddr rmapi rmapj b ofs
+    Lemma  multi_fstep_contra:
+      forall U U' tr tp m tr' tp' m'
+        (HU': U' <> [::])
+        (Hexec: multi_fstep (U, tr, tp) m (U' ++ U, tr', tp') m'),
+        False.
+    Proof.
+      induction U; intros.
+      - rewrite app_nil_r in Hexec.
+        inversion Hexec.
+        subst. now eauto.
+      - inversion Hexec.
+        + destruct U'; eauto.
+          inversion H2.
+          assert (length U = length ((U' ++ (t0 :: U))%list))
+            by (erewrite <- H7; reflexivity).
+          rewrite app_length in H5. clear - H5.
+          simpl in H5. ssromega.
+        + subst.
+          eapply IHU with (U' := (U' ++ [:: a])).
+          destruct U'; simpl; intros Hcontra; inversion Hcontra.
+          replace ((U' ++ [:: a]) ++ U) with (U' ++ (a :: U)).
+          eauto.
+          rewrite <- app_assoc. simpl. reflexivity.
+    Qed. 
+    
+    Lemma  multi_fstep_refl:
+      forall U tr tp m tr' tp' m'
+        (Hexec: multi_fstep (U, tr, tp) m (U, tr', tp') m'),
+        tp = tp' /\ m = m' /\ tr = tr'.
+    Proof.
+      induction U; intros.
+      - inversion Hexec; subst; auto.
+      - inversion Hexec; subst; auto.
+        replace (a :: U) with ([:: a] ++ U) in H9
+          by (reflexivity).
+        exfalso.
+        eapply multi_fstep_contra in H9; eauto.
+        intros Hcontra; inv Hcontra.
+    Qed.
+
+    Fixpoint lockRes_data_permission_add_execution U
+             U' tr tpi mi tpj mj tr' laddr rmapj b ofs
+        (Hres: lockRes tpi laddr = None)
+        (Hres': lockRes tpj laddr = Some rmapj)
+        (Hexec: multi_fstep (U, tr, tpi) mi (U', tr ++ tr', tpj) mj)
+        (Hperm': Mem.perm_order'' (rmapj.1 !! b ofs) (Some Readable)) {struct U}:
+      exists v ev,
+        nth_error tr' v = Some ev /\ action ev = Release /\
+        location ev = Some (laddr, lksize.LKSIZE_nat)
+          with 
+          lockRes_data_permission_increase_execution U {struct U}:
+      forall U' tr tpi mi tpj mj tr' laddr rmapi rmapj b ofs
         (Hres: lockRes tpi laddr = Some rmapi)
         (Hres': lockRes tpj laddr = Some rmapj)
         (Hexec: multi_fstep (U, tr, tpi) mi (U', tr ++ tr', tpj) mj)
@@ -2343,43 +2416,185 @@ Module SpinLocks (SEM: Semantics)
         nth_error tr' v = Some ev /\ action ev = Release /\
         location ev = Some (laddr, lksize.LKSIZE_nat).
     Proof.
-      induction U as [|tid' U]; intros.
-      - inversion Hexec. apply app_eq_nil in H3; subst.
-        rewrite Hres in Hres'; inv Hres';
+      { intros.
+        destruct U.
+        - inversion Hexec. subst tpi.
           by congruence.
-      - inversion Hexec.
-        + apply app_eq_nil in H3; subst.
-          rewrite Hres in Hres'; inv Hres';
-            by congruence.
-        + apply app_inv_head in H6; subst.
+        - inversion Hexec. subst tpi.
+          by congruence.
+          subst.
+          apply app_inv_head in H6; subst. clear Hexec.
           destruct (lockRes tp' laddr) as [rmap'|] eqn:Hres''.
-          { (** Case the lock is still there*)
-            destruct (perm_order''_dec (rmap'.2 !! b ofs)
-                                       (Some Readable)) as [Hstable | Hdecr].
-            { (** Case permissions did not decrease*)
+          { (** Case the lock is there*)
+            eapply lockRes_mklock_step in H8; eauto.
+            destruct H8 as (ev & ? & ? & ? & ?); subst.
+            assert (Hperm'': ~ Mem.perm_order'' (((empty_map, empty_map)#1)
+                                                   # b ofs) (Some Readable))
+              by (rewrite empty_map_spec; simpl; intro Hcontra; auto).
+            rewrite app_assoc in H9.
+            destruct (lockRes_data_permission_increase_execution _ _ _ _ _ _ _ _ _ _ _ _ _ H2 Hres' H9 Hperm'' Hperm')
+              as (u & eu & Hnth & ? & ?).
+            exists (S u), eu.
+            repeat split; eauto.
+          }
+          { (** Case the lock is not there*)
+            rewrite app_assoc in H9.
+            destruct (lockRes_data_permission_add_execution _ _ _ _ _ _ _ _ _ _ _ _
+                                                            Hres'' Hres' H9 Hperm')
+              as (v & ev & Hnth & Hact & Hloc).
+            exists ((length tr'0) + v), ev.
+            split.
+            rewrite <- nth_error_app; auto.
+            now auto.
+          }
+      }
+      { intros.
+        destruct U.
+        - inversion Hexec. subst tpi.
+            by congruence.
+        - inversion Hexec.
+          subst tpi. by congruence.
+          subst.
+          apply app_inv_head in H6; subst.
+          clear Hexec.
+          destruct (lockRes tp' laddr) as [rmap'|] eqn:Hres''.
+          { (** Case the lock is there*)
+            destruct (perm_order''_dec (rmap'.1 !! b ofs)
+                                       (Some Readable)) as [Hincr | Hstable].
+            { (** Case permissions did increase*)
+              eapply lockRes_data_permission_increase_step in H8; eauto.
+              destruct H8 as (ev & ? & ? & ?).
+              subst.
+              exists 0, ev. repeat split; auto.
+            }
+            { (** Case permissions did not increase*)
               rewrite app_assoc in H9.
               (** And we can apply the IH*)
-              destruct (IHU _ _ _ _ _ _ _ _ _ _ _ _ Hres'' Hres' H9 Hstable Hperm')
+              destruct (lockRes_data_permission_increase_execution
+                          _ _ _ _ _ _ _ _ _ _ _ _ _ Hres'' Hres' H9 Hstable Hperm')
                 as (v & ev & Hnth & Hact & Hloc).
               exists ((length tr'0) + v), ev.
               split.
               rewrite <- nth_error_app; auto.
               now auto.
             }
-            { (** Case permissions decreased *)
-              destruct (lockRes_lock_permission_decrease_step _ _ _ _ Hres Hres'' H8 Hperm Hdecr)
-                as (ev & ? & Hact & Hloc); subst.
-              exists 0, ev.
-              simpl;
-                now auto.
+          }
+          { (** Case the lock is not there*)
+            rewrite app_assoc in H9.
+            destruct (lockRes_data_permission_add_execution _ _ _ _ _ _ _ _ _ _ _ _
+                                                            Hres'' Hres' H9 Hperm')
+              as (v & ev & Hnth & Hact & Hloc).
+            exists ((length tr'0) + v), ev.
+            split.
+            rewrite <- nth_error_app; auto.
+            now auto.
+          }
+      }
+    Qed.
+
+      Lemma lockRes_data_permission_add_execution:
+        forall U U' tr tpi mi tpj mj tr' laddr rmapj b ofs
+          (Hres: lockRes tpi laddr = None)
+          (Hres': lockRes tpj laddr = Some rmapj)
+          (Hexec: multi_fstep (U, tr, tpi) mi (U', tr ++ tr', tpj) mj)
+          (Hperm': Mem.perm_order'' (rmapj.1 !! b ofs) (Some Readable)),
+          (forall U' tr tpi mi tpj mj tr' laddr rmapi rmapj b ofs
+             (Hres: lockRes tpi laddr = Some rmapi)
+             (Hres': lockRes tpj laddr = Some rmapj)
+             (Hexec: multi_fstep (U, tr, tpi) mi (U', tr ++ tr', tpj) mj)
+             (Hperm: ~ Mem.perm_order'' (rmapi.1 !! b ofs) (Some Readable))
+             (Hperm': Mem.perm_order'' (rmapj.1 !! b ofs) (Some Readable)),
+              exists v ev,
+                nth_error tr' v = Some ev /\ action ev = Release /\
+                location ev = Some (laddr, lksize.LKSIZE_nat)) ->
+        exists v ev,
+          nth_error tr' v = Some ev /\ action ev = Release /\
+          location ev = Some (laddr, lksize.LKSIZE_nat).
+      Proof.
+        intros.
+        destruct U.
+        - inversion Hexec. subst tpi.
+          by congruence.
+        - inversion Hexec. subst tpi.
+          by congruence.
+          subst.
+          apply app_inv_head in H7; subst.
+          destruct (lockRes tp' laddr) as [rmap'|] eqn:Hres''.
+          { (** Case the lock is there*)
+            eapply lockRes_mklock_step in H9; eauto.
+          }
+          { (** Case the lock is not there*)
+            clear Hexec.
+            rewrite app_assoc in H9.
+            destruct (lockRes_data_permission_add_execution _ _ _ _ _ _ _ _ _ _ _ _
+                                                            Hres'' Hres' H9 Hperm')
+              as (v & ev & Hnth & Hact & Hloc).
+            exists ((length tr'0) + v), ev.
+            split.
+            rewrite <- nth_error_app; auto.
+            now auto.
+          }
+      }
+      { intros.
+        destruct U.
+        - inversion Hexec. subst tpi.
+            by congruence.
+        - inversion Hexec.
+          subst tpi. by congruence.
+          subst.
+          apply app_inv_head in H6; subst.
+          destruct (lockRes tp' laddr) as [rmap'|] eqn:Hres''.
+          { (** Case the lock is there*)
+            destruct (perm_order''_dec (rmap'.1 !! b ofs)
+                                       (Some Readable)) as [Hincr | Hstable].
+            { (** Case permissions did increase*)
+              eapply lockRes_data_permission_increase_step in H8; eauto.
             }
+            { (** Case permissions did not increase*)
+              rewrite app_assoc in H9.
+              (** And we can apply the IH*)
+              destruct (lockRes_data_permission_increase_execution
+                          _ _ _ _ _ _ _ _ _ _ _ _ _ Hres'' Hres' H9 Hstable Hperm')
+                as (v & ev & Hnth & Hact & Hloc).
+              exists ((length tr'0) + v), ev.
+              split.
+              rewrite <- nth_error_app; auto.
+              now auto.
+            }
+          }
+          { (** Case the lock is not there*)
+            clear Hexec.
+            rewrite app_assoc in H9.
+            destruct (lockRes_data_permission_add_execution _ _ _ _ _ _ _ _ _ _ _ _
+                                                            Hres'' Hres' H9 Hperm')
+              as (v & ev & Hnth & Hact & Hloc).
+            exists ((length tr'0) + v), ev.
+            split.
+            rewrite <- nth_error_app; auto.
+            now auto.
+          }
+      }
+    Qed.
+           
           }
           { (** Case the lock is removed *)
             exfalso.
+            rewrite! app_assoc in H9.
+            eapply lockRes_mklock_execution in H9; eauto.
+            destruct H9 as (tr_pre_mk & evmk & ? & ? & tp_pre_mk &
+                            m_pre_mk & tp_mk & m_mk & Hexec_pre_mk
+                            & Hstep_mk & Hpost_mk & Hact_mk & Hloc & Hres_mk).
+            assert (Hperm_mk: ~ Mem.perm_order'' ((empty_map, empty_map).1 # b ofs)
+                                (Some Readable))
+              by (rewrite empty_map_spec; simpl; intro Hcontra; auto).
+            erewrite! app_assoc in Hpost_mk.
+            specialize (IHU _ _ _ _ _ _ _ _ _ _ b ofs Hres_mk Hres' Hpost_mk Hperm_mk
+                            Hperm').
+                            
             eapply lockRes_freelock_step in H8; eauto.
             destruct H8 as (? & ? & ? & ? & Hempty).
             specialize (Hempty b ofs).
-            rewrite Hempty.2 in Hperm.
+            rewrite Hempty.1 in Hperm.
             simpl in Hperm.
             assumption.
           } 
