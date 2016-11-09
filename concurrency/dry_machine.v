@@ -24,6 +24,7 @@ Require Import compcert.common.Memory.
 Require Import compcert.lib.Integers.
 Require Import concurrency.threads_lemmas.
 Require Import concurrency.semantics.
+Require Import concurrency.TheSchedule. Import TheSchedule.
 
 Require Import Coq.ZArith.ZArith.
 
