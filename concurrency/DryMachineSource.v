@@ -10,6 +10,8 @@ Require Import ProofIrrelevance.
 
 (* The concurrent machinery*)
 Require Import concurrency.scheduler.
+Require Import concurrency.TheSchedule.
+
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.semantics.
 Require Import concurrency.juicy_machine. Import Concur.
@@ -31,7 +33,7 @@ Require Import concurrency.ClightSemantincsForMachines.
 Import Concur threadPool.
 
 Module THE_DRY_MACHINE_SOURCE.
-  Module SCH:= ListScheduler NatTID.         
+  Module SCH:= THESCH.         
   Module SEM:= ClightSEM.
   (*Import SCH SEM.*)
 
