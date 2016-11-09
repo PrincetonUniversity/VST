@@ -128,9 +128,11 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
                i<>j -> permMapsDisjoint pmap.1 (getThreadR cnt).1 /\
                      permMapsDisjoint pmap.2 (getThreadR cnt).2) ->
            (forall j (cnt: containsThread ds j),
-                     permMapCoherence (getThreadR cnt).1 pmap.2)->
+               i<>j ->
+               permMapCoherence (getThreadR cnt).1 pmap.2)->
            (forall j (cnt: containsThread ds j),
-                     permMapCoherence pmap.1 (getThreadR cnt).2)->
+               i<>j ->
+               permMapCoherence pmap.1 (getThreadR cnt).2)->
            (forall l pmap0, lockRes ds l = Some pmap0 ->
                        permMapsDisjoint pmap0.1 pmap.1 /\
                        permMapsDisjoint pmap0.2 pmap.2  ) ->
@@ -181,7 +183,7 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
            + rewrite gsoThreadRes; auto; split ; intros.
              * 
                { destruct (scheduler.NatTID.eq_tid_dec x j).
-                 - subst j. rewrite gssThreadRes; apply A''.
+                 - subst j. rewrite gssThreadRes; apply A''; auto.
                  - rewrite gsoThreadRes; auto.
                    inversion INV. destruct (thread_data_lock_coh0 i cnti) as [H1 H2].
                    apply H1.
