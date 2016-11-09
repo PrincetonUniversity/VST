@@ -486,6 +486,36 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
           lockRes tp l = Some pmap ->
           pmap.1 !! b ofs = None /\ pmap.2 !! b ofs = None),
       deadLocation tp m b ofs.
+
+  Lemma updThreadC_deadLocation:
+    forall tp m b ofs i (cnti: containsThread tp i) c,
+      deadLocation tp m b ofs ->
+      deadLocation (updThreadC cnti c) m b ofs.
+  Proof.
+    intros.
+    inversion H.
+    constructor; eauto.
+  Qed.
+  
+  Lemma fstep_deadLocation:
+    forall U U' tr tp m tr' tp' m' b ofs
+      (Hdead: deadLocation tp m b ofs)
+      (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U',tr ++ tr', tp') m'),
+      deadLocation tp' m' b ofs.
+  Proof.
+    intros;
+    inv Hstep; simpl in *;
+    try apply app_eq_nil in H4;
+    try inv Htstep;
+    destruct U; inversion HschedN; subst; pf_cleanup;
+    try (eapply updThreadC_deadLocation; eauto).
+    -
+    try (inv Hhalted);
+    try  (exfalso; by eauto);
+    apply app_inv_head in H5; subst.
+    eexists; simpl; split;
+    now eauto.
+  Qed.
   
   Lemma multi_fstep_deadLocation:
     forall U U' tr tp m tr' tp' m' b ofs
@@ -493,6 +523,79 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
       (Hexec: multi_fstep (U, tr, tp) m (U',tr ++ tr', tp') m'),
       deadLocation tp' m' b ofs.
   Proof.
-  Admitted.
+    induction U; intros.
+    - inversion Hexec. subst tp' m'.
+      assumption.
+    - inversion Hexec.
+      eapply app_eq_nil in H3; subst.
+      assumption.
+      apply app_inv_head in H6; subst.
+      
+
+  Lemma thread_spawn_step:
+    forall U tr tp m U' tp' m' tr' tidn
+      (cnt: ~ containsThread tp tidn)
+      (cnt': containsThread tp' tidn)
+      (Hstep: FineConc.MachStep the_ge (U, tr, tp) m (U', tr ++ tr', tp') m'),
+    exists ev,
+      tr' = [:: ev] /\ action ev = Spawn.
+  Proof.
+    intros;
+    inv Hstep; simpl in *;
+    try apply app_eq_nil in H4;
+    try inv Htstep;
+    destruct U; inversion HschedN; subst; pf_cleanup;
+    try (inv Hhalted);
+    try  (exfalso; by eauto);
+    apply app_inv_head in H5; subst.
+    eexists; simpl; split;
+    now eauto.
+  Qed.
+
+  Lemma thread_spawn_execution:
+    forall U tr tpi mi U' tr' tpj mj
+      tidn
+      (cnti: ~ containsThread tpi tidn)
+      (cntj: containsThread tpj tidn)
+      (Hexec: multi_fstep (U, tr, tpi) mi (U', tr ++ tr', tpj) mj),
+    exists tr_pre evu U'' U''' tp_pre m_pre tp_inc m_inc,
+      multi_fstep (U, tr, tpi) mi (U'', tr ++ tr_pre, tp_pre) m_pre /\
+      FineConc.MachStep the_ge (U'', tr ++ tr_pre, tp_pre) m_pre
+                        (U''', tr ++ tr_pre ++ [:: evu], tp_inc) m_inc /\
+      multi_fstep (U''', tr ++ tr_pre ++ [:: evu], tp_inc) m_inc
+                  (U', tr ++ tr',tpj) mj /\
+      action evu = Spawn.
+  Proof.
+    induction U as [|tid' U]; intros.
+    - inversion Hexec. apply app_eq_nil in H3; subst.
+      pf_cleanup. by congruence.
+    - inversion Hexec.
+      + apply app_eq_nil in H3; subst.
+        pf_cleanup;
+          by congruence.
+      + apply app_inv_head in H6; subst.
+        destruct (containsThread_dec tidn tp') as [cnt' | not_cnt'].
+        * destruct (thread_spawn_step _ cnti cnt' H8) as [ev [? ?]].
+          subst.
+          exists [:: ], ev, (tid' :: U)%SEQ, U, tpi, mi, tp', m'.
+          split.
+          rewrite app_nil_r. constructor.
+          split.
+          simpl.
+          rewrite app_nil_r.
+          assumption.
+          split. simpl; assumption.
+          assumption.
+        * erewrite! app_assoc in *.
+          destruct (IHU _ _ _ _ _ _ _ _ not_cnt' cntj H9)
+            as (tr_pre & evu & U'' & U''' & tp_pre & m_pre & tp_inc & m_inc
+                & Hexec_pre & Hstep & Hexec_post).
+          exists (tr'0 ++ tr_pre), evu, U'', U''', tp_pre, m_pre, tp_inc, m_inc.
+          erewrite! app_assoc in *.
+          repeat (split; eauto using multi_fstep).
+          rewrite <- app_assoc.
+          econstructor; eauto.
+          rewrite! app_assoc; eauto.
+  Qed.
   
 End Executions.
