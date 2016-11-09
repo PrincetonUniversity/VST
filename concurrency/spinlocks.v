@@ -4026,7 +4026,7 @@ Module SpinLocks (SEM: Semantics)
             destruct (permission_decrease_execution _ b ofs cntk' cntk'_j Hexec' Hperm_k_drop)
               as (tr_pre_u & tru & ? & ? & tp_pre_u & m_pre_u &
                   tp_dec & m_dec & Hexec_pre_u & Hstepu & Hexec_post_u & evu & Hspec_u).
-            destruct Hspec_u as [Hfreed | [Hspawned | [Hmklock | Hrelease]]].
+            destruct Hspec_u as [Hfreed | [Hspawned | [Hfreelock | [Hmklock | Hrelease]]]].
               { (** Case permissions dropped by a [Free] event. This leads to a
                   contradiction because it would be a [deadLocation] *) 
                 destruct Hfreed as (HIn & HFree & Hdead).
@@ -4067,6 +4067,56 @@ Module SpinLocks (SEM: Semantics)
                 rewrite <- nth_error_app.
                 reflexivity.
                 assumption.
+            }
+             { (** Case permissions were dropped by a [Freelock] event - this leads to
+                  a contradiction by the fact that [evu] will compete with [evj], while
+                  [evk] is the maximal competing event *)
+              destruct Hfreelock as [Htru [Hactionu [Hthreadu Hlocu]]].
+              subst.
+              exfalso.
+              remember (tr0 ++ pre_k ++ [:: evk] ++ post_k) as tr00.
+              apply multi_fstep_trace_monotone in Hexec_post_u.
+              destruct Hexec_post_u as [? Heq].
+              rewrite <- app_assoc in Heq.
+              apply app_inv_head in Heq. subst.
+              eapply (Hmaximal (length (tr0 ++ pre_k ++ [:: evk] ++ post_k ++ tr_pre_u)%list) evu).
+              - rewrite! app_length.
+                apply/andP.
+                split.
+                + simpl. ssromega.
+                + clear - Hj_not_in_tr.
+                  rewrite! app_length in Hj_not_in_tr.
+                  simpl in *.
+                  ssromega.
+              - rewrite! app_assoc.
+                rewrite <- addn0.
+                do 2 rewrite <- app_assoc.
+                rewrite <- nth_error_app.
+                reflexivity.
+              - repeat split.
+                + intros Hcontra.
+                  rewrite Hthreadu in Hcontra.
+                  now auto.
+                + destruct (location evu) as [[[bu ofsu] szu]|] eqn:Hloc_u;
+                    try (by exfalso).
+                  unfold sameLocation.
+                  rewrite Hloc_u Hloc_j.
+                  simpl in Hlocu.
+                  destruct Hlocu as [? Hintvu]; subst.
+                  split; auto.
+                  exists ofs; split; now auto.
+                + destruct evu as [? evu | ? evu];
+                    destruct evu; try discriminate.
+                  simpl. now auto.
+                + destruct evu as [? evu | ? evu];
+                    destruct evu; try discriminate.
+                  simpl. now auto.
+                + intros.
+                  destruct evu as [? evu | ? evu];
+                    destruct evu; try discriminate.
+                + intros.
+                  right; left.
+                  assumption.
             }
             { (** Case permissions were dropped by a [Mklock] event - this leads to
                   a contradiction by the fact that [evu] will compete with [evj], while
@@ -4200,7 +4250,7 @@ Module SpinLocks (SEM: Semantics)
                 destruct (lockRes_freelock_execution _ _ Hresu Hres Hexec_post_u)
                   as (tr_pre_fl & evfl & ? & ? & tp_pre_fl &
                       m_pre_fl & tp_fl & m_fl & Hexec_pre_fl & Hstep_fl &
-                      Hexec_post_fl & Haction_fl & Hloc_fl & Hres_fl).
+                      Hexec_post_fl & Haction_fl & Hloc_fl & rmap_fl & Hres_fl & Hres_fl_empty).
                 (** Hence, at some point in the trace, the permissions at [(bu,
                 ofsu)] dropped. This can only be done by an [Acquire] step*)
                 assert (Hperm_rmap_empty: ~ Mem.perm_order'' ((empty_map, empty_map).1 !! b ofs)
@@ -4211,10 +4261,13 @@ Module SpinLocks (SEM: Semantics)
 
                 assert (Hperm_rmap_drop:
                           (Mem.perm_order'' ((rmap#1) # b ofs) (Some Readable) /\
-                           ~ Mem.perm_order'' ((empty_map, empty_map).1 # b ofs) (Some Readable)) \/
+                           ~ Mem.perm_order'' (rmap_fl.1 # b ofs) (Some Readable)) \/
                           (Mem.perm_order'' ((rmap#2) # b ofs) (Some Readable) /\
-                           ~ Mem.perm_order'' ((empty_map, empty_map).2 # b ofs) (Some Readable)))
-                  by (destruct Hperm_rmap_empty; destruct Hperm_rmap; [left | right];
+                           ~ Mem.perm_order'' (rmap_fl.2 # b ofs) (Some Readable)))
+                  by (destruct Hperm_rmap_empty; destruct Hperm_rmap;
+                      erewrite (Hres_fl_empty b ofs).1;
+                      erewrite (Hres_fl_empty b ofs).2;
+                      [left | right];
                       now auto).
                           
                 
@@ -4253,7 +4306,142 @@ Module SpinLocks (SEM: Semantics)
                 * rewrite Hloc_v Hlocu.
                   reflexivity.
             }
-          }
+            }
+            { (** Case [evk] was a [Release] and it released the lock location itself*)
+              destruct Hrelease_k as [? [? [Hrelease [rmap [? [Hresk' Hperm_rmap]]]]]];
+                subst.
+              (** There are two cases: either [(b,ofs)] is a lock at [tp] or it is not*)
+              destruct (lockRes tp (b,ofsk)) as [rmap'|] eqn:Hres.
+              - (** Case [(b, ofs)] is still a lock at [tp]*)
+                (** By the [invariant] its permissions must have dropped because
+                [thread_id evj] has a Writable permission at that location*)
+                assert (Hperm_res: ~ Mem.perm_order'' (rmap'.1 !! b ofs) (Some Readable) /\
+                                   ~ Mem.perm_order'' (rmap'.2 !! b ofs) (Some Readable)).
+                { clear - Hinv Hres Hwritablej.
+                  destruct ((no_race Hinv _ cntj Hres).1 b ofs) as [pu Hcomp].
+                  destruct ((no_race Hinv _ cntj Hres).2 b ofs) as [pu2 Hcomp2].
+                  pose proof ((thread_data_lock_coh Hinv cntj).2 _ _ Hres b ofs) as Hcoh.
+                  pose proof ((locks_data_lock_coh Hinv _ Hres).1 _ cntj b ofs) as Hcoh2.
+                  split; intros Hcontra; destruct Hwritablej;
+                  repeat match goal with
+                         | [H: Mem.perm_order'' ?X _ |- _] =>
+                           destruct X; simpl in H; inv H; simpl in *
+                         | [H: match ?X with _ => _ end = _ |- _] =>
+                           destruct X
+                         end; simpl in *;
+                  try (discriminate || by exfalso).
+                }
+
+                assert (Hperm_res_drop:
+                          (Mem.perm_order'' ((rmap#1) # b ofs) (Some Readable) /\
+                           ~ Mem.perm_order'' ((rmap'#1) # b ofs) (Some Readable)) \/
+                          (Mem.perm_order'' ((rmap#2) # b ofs) (Some Readable) /\
+                           ~ Mem.perm_order'' ((rmap'.2) # b ofs) (Some Readable)))
+                  by (destruct Hperm_res; destruct Hperm_rmap; [left | right];
+                      now auto).
+                (** Hence by [lockRes_permission_decrease_execution] there must
+                have been some [Acquire] event on that lock*)
+                simpl in Hexec'.
+                destruct (lockRes_permission_decrease_execution _ _ _ _ Hresk' Hres
+                                                                Hexec' Hperm_res_drop)
+                  as (v & evv & Hev & Hactionv & Hlocv).
+                left.
+                simpl.
+                exists (length tr0),
+                (length ((tr0 ++ [:: evk]))%list + v),
+                evk, evv.
+                repeat split; auto.
+                + clear - Horder Hev Hj_not_in_tr.
+                  erewrite! app_assoc in *.
+                  erewrite! app_length in *.
+                  erewrite <- Nat.le_ngt in Hj_not_in_tr.
+                  pose proof ((nth_error_Some tr'' v).1 ltac:(intros Hcontra; congruence)).
+                  simpl in *. now ssromega.
+                + clear - Hj_not_in_tr Hev.
+                  erewrite! app_assoc in *.
+                  erewrite! app_length in *.
+                  erewrite <- Nat.le_ngt in Hj_not_in_tr.
+                  pose proof ((nth_error_Some tr'' v).1 ltac:(intros Hcontra; congruence)).
+                  simpl in *.
+                  now ssromega.
+                + do 2 rewrite <- app_assoc.
+                  rewrite <- addn0.
+                  rewrite <- nth_error_app.
+                  reflexivity.
+                + rewrite <- app_assoc.
+                  rewrite <- nth_error_app.
+                  apply nth_error_app_inv;
+                    now eauto.
+                + rewrite Hloc_k Hlocv.
+                  reflexivity.
+              - (** Case [(b, ofsk)] is no longer a lock*)
+                destruct (lockRes_freelock_execution _ _ Hresk' Hres Hexec')
+                  as (tr_pre_fl & evfl & ? & ? & tp_pre_fl &
+                      m_pre_fl & tp_fl & m_fl & Hexec_pre_fl & Hstep_fl &
+                      Hexec_post_fl & Haction_fl & Hloc_fl & rmap_fl & Hres_fl & Hres_fl_empty).
+                (** Hence, at some point in the trace, the permissions at [(b,
+                ofsk)] dropped. This can only be done by an [Acquire] step*)
+                assert (Hperm_rmap_empty: ~ Mem.perm_order'' ((empty_map, empty_map).1 !! b ofs)
+                                           (Some Readable) /\
+                                         ~ Mem.perm_order'' ((empty_map, empty_map).2 !! b ofs)
+                                           (Some Readable))
+                  by (rewrite empty_map_spec; now auto).
+
+                assert (Hperm_rmap_drop:
+                          (Mem.perm_order'' ((rmap#1) # b ofs) (Some Readable) /\
+                           ~ Mem.perm_order'' (rmap_fl.1 # b ofs) (Some Readable)) \/
+                          (Mem.perm_order'' ((rmap#2) # b ofs) (Some Readable) /\
+                           ~ Mem.perm_order'' (rmap_fl.2 # b ofs) (Some Readable)))
+                  by (destruct Hperm_rmap_empty; destruct Hperm_rmap;
+                      erewrite (Hres_fl_empty b ofs).1;
+                      erewrite (Hres_fl_empty b ofs).2;
+                      [left | right];
+                      now auto).
+                          
+                
+                destruct (lockRes_permission_decrease_execution _ _ _ _ Hresk' Hres_fl
+                                                                Hexec_pre_fl Hperm_rmap_drop)
+                  as (v & evv & Hv & Haction_v & Hloc_v).
+                left.
+                pose proof (multi_fstep_trace_monotone Hexec_post_fl) as [tr_fl' Heq].
+                rewrite! app_assoc_reverse in Heq.
+                simpl in Heq.
+                apply app_inv_head in Heq; subst.
+                inv Heq.
+                simpl.
+                exists (length tr0),
+                (length ((tr0 ++ [::evk])%list) + v),
+                evk, evv.
+                repeat split; auto.
+                * clear - Horder Hj_not_in_tr Hv.
+                  rewrite cats0 in Horder.
+                  erewrite! app_assoc in *.
+                  erewrite! app_length in *.
+                  erewrite <- Nat.le_ngt in Hj_not_in_tr.
+                  pose proof ((nth_error_Some tr_pre_fl v).1 ltac:(intros Hcontra; congruence)).
+                  simpl in *.
+                  now ssromega.
+                * clear - Hj_not_in_tr Hv.
+                  erewrite! app_assoc in *.
+                  erewrite! app_length in *.
+                  erewrite <- Nat.le_ngt in Hj_not_in_tr.
+                  pose proof ((nth_error_Some tr_pre_fl v).1 ltac:(intros Hcontra; congruence)).
+                  simpl in *.
+                  now ssromega.
+                * rewrite! app_assoc_reverse.
+                  rewrite <- addn0.
+                  rewrite <- app_assoc.
+                  rewrite <- nth_error_app.
+                  reflexivity.
+                * rewrite! app_assoc.
+                  do 2 rewrite <- app_assoc.
+                  rewrite <- nth_error_app.
+                  apply nth_error_app_inv;
+                    now eauto.
+                * rewrite Hloc_v Hloc_k.
+                  reflexivity.
+            }
+             } 
           { (** Case [evk] is a [waction] *)
             specialize (Hwritablek Hwactionk).
             (** [thread_id evj] must have permissions that are below [Readable]*)
@@ -4303,7 +4491,8 @@ Module SpinLocks (SEM: Semantics)
               do 4 apply app_inv_head in Heq_trace. subst.
               rewrite! app_assoc.
               destruct Hspec_v as [Hactionv | [[Hactionv [Hthreadv Hloc_v]] |
-                                               [Hactionv [Hthreadv Hrmap]]]].
+                                               [[Hactionv [Hthreadv Hloc_v]] |
+                                                [Hactionv [Hthreadv Hrmap]]]]].
               - (** Case permissions were increased by a [Spawn] event*)
                 right.
                 exists (length (((((tr0 ++ pre_k) ++ [:: evk]) ++ post_k) ++ tr_pre_v)%list)), evv.
@@ -4392,7 +4581,77 @@ Module SpinLocks (SEM: Semantics)
                     erewrite! app_length in *.
                     ssromega.
                   * eapply nth_error_app_inv;
-                      now eauto.
+                    now eauto.
+              - (** Case permissions were increased by a [Mklock] event*)
+                (** In this case, [evv] competes with [evk] and by the premise
+                that [tr] is [spinlock_synchronized] there will be a [Spawn] or
+                [Release]-[Acquire] pair between them and hence between [evk]
+                and [evj] as well *)
+                assert (Hcompeteskj: competes evk evv).
+                { repeat split; eauto.
+                  - rewrite Hthreadv.
+                    now auto.
+                  - unfold sameLocation.
+                    destruct (location evv) as [[[bv ofsv] szv]|]; try (by exfalso).
+                    destruct Hloc_v as [Heqb Hintvv].
+                    simpl in Heqb. subst.
+                    rewrite Hloc_k.
+                    split; auto.
+                    exists ofs.
+                    split; now auto.
+                  - destruct evv as [? evv | ? evv];
+                    destruct evv; simpl in Hactionv; simpl;
+                    try (by exfalso);
+                    now auto.
+                  - intros.
+                    exfalso.
+                    destruct evv as [? evv | ? evv];
+                      simpl in Hactionv;
+                      destruct evv; try (discriminate);
+                      try (by exfalso).
+                }
+                rewrite! app_assoc in Hsynchronized.
+                specialize (Hsynchronized (length ((tr0 ++ pre_k)%list))
+                                          (length ((((tr0 ++ pre_k) ++ [:: evk]) ++ post_k) ++ tr_pre_v)%list)
+                                          evk evv).
+                simpl in Hsynchronized.
+                destruct (Hsynchronized ltac:(clear; erewrite! app_length in *; ssromega)
+                                               ltac:(clear; do 4 rewrite <- app_assoc;
+                                                     rewrite <- addn0;
+                                                     rewrite <- nth_error_app; reflexivity)
+                                                      ltac:(clear;
+                                                             rewrite <- addn0;
+                                                             rewrite <- app_assoc;
+                                                             rewrite <- nth_error_app; reflexivity) Hcompeteskj)
+                  as [[r [a [er [ea [Horderra [Horderra' [Hevr [Heva [Hactr [Hacta Hloc_ra]]]]]]]]]] |
+                      [s [es [Horders [Hs Hacts]]]]].
+                + (** Case there is a [Release]-[Acquire] pair between k and v*)
+                  left.
+                  exists r, a, er, ea.
+                  repeat split; auto.
+                  * clear - Horderra Horderra' Horder.
+                    rewrite! app_assoc_reverse in Horderra'.
+                    erewrite! app_length in *.
+                    apply/andP.
+                    split; now ssromega.
+                  * clear - Horderra Horderra' Horder Hj_not_in_tr.
+                    rewrite! app_assoc_reverse in Horderra'.
+                    erewrite! app_length in *.
+                    ssromega.
+                  * eapply nth_error_app_inv;
+                    eassumption.
+                  * eapply nth_error_app_inv;
+                    eassumption.
+                + (** Case there is a [Spawn] event between k and v*)
+                  right.
+                  exists s, es.
+                  repeat split; auto.
+                  * clear - Horders Horder Hj_not_in_tr.
+                    erewrite! app_assoc_reverse in *.
+                    erewrite! app_length in *.
+                    ssromega.
+                  * eapply nth_error_app_inv;
+                    now eauto.
               - (** Case permissions were increased by an [Acquire] event*)
                 destruct Hrmap as [rmap Hlocv].
                 destruct (location evv) as [[laddr sz]|] eqn: Hloc_v; try (by exfalso).
