@@ -851,7 +851,19 @@ Section permMapDefs.
         intros; omega.
   Qed.
 
- 
+  Lemma setPermBlock_setPermBlock_var:
+    forall b ofs sz pmap p,
+      setPermBlock p b ofs pmap sz =
+      setPermBlock_var (fun _ => p) b ofs pmap sz.
+  Proof.
+    intros b ofs sz.
+    generalize dependent ofs.
+    induction sz; intros.
+    - reflexivity.
+    - simpl.
+      rewrite IHsz.
+      reflexivity.
+  Qed.
 
   
 
