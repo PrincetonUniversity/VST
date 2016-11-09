@@ -45,7 +45,7 @@ Module ErasureSafety.
 
   Parameters initU: DryMachine.Sch.
   Parameter init_rmap : JuicyMachine.SIG.ThreadPool.RES.res.
-  Parameter init_pmap : DSEM.perm_map.
+  Parameter init_pmap : DryMachine.SIG.ThreadPool.RES.res.
   Parameter init_rmap_perm:  match_rmap_perm init_rmap init_pmap.
 
   (*Definition local_erasure:= erasure initU init_rmap init_pmap init_rmap_perm.*)
@@ -53,7 +53,7 @@ Module ErasureSafety.
   
   Lemma erasure_safety': forall n ge sch js ds m,
       ErasureProof.match_st js ds ->
-      DSEM.invariant ds ->
+      DMS.invariant ds ->
     JuicyMachine.csafe ge (sch, nil, js) m n ->
     DryMachine.csafe ge (sch, nil, ds) m n.
   Proof.
@@ -102,16 +102,17 @@ Qed.
   Theorem initial_safety:
     forall (U : DryMachine.Sch) (js : jstate)
       (vals : seq Values.val) (m : Memory.mem) 
-      (rmap0 : rmap) (pmap : access_map) main genv,
+      (rmap0 : rmap) (pmap : access_map * access_map) main genv,
       match_rmap_perm rmap0 pmap ->
+      no_locks_perm rmap0 ->
       initial_core (JMachineSem U (Some rmap0)) genv
          main vals = Some (U, [::], js) ->
       exists (mu : SM_Injection) (ds : dstate),
         initial_core (DMachineSem U (Some pmap)) genv
                      main vals = Some (U, [::], ds) /\
-        DSEM.invariant ds /\ match_st js ds.
+        DMS.invariant ds /\ match_st js ds.
   Proof.
-    intros ? ? ? ? ? ? ? ? mtch_perms init.
+    intros ? ? ? ? ? ? ? ? mtch_perms no_locks init.
     destruct (init_diagram (fun _ => None) U js vals m rmap0 pmap main genv)
     as [mu [ds [_ [dinit [dinv MTCH]]]]]; eauto.
     unfold init_inj_ok; intros b b' ofs H. inversion H.
@@ -121,7 +122,7 @@ Qed.
   Axiom assume: forall js ds, match_st js ds -> forall sch, JuicyMachine.valid (sch, nil, js) <-> DryMachine.valid (sch, nil, ds).
   Lemma new_erasure_safety'': forall n ge js ds m,
       ErasureProof.match_st js ds ->
-      DSEM.invariant ds ->
+      DMS.invariant ds ->
       (forall sch, JuicyMachine.valid (sch, nil, js) -> JuicyMachine.ksafe_new_step ge (sch, nil, js) m n) ->
       (forall sch, DryMachine.valid (sch, nil, ds) -> DryMachine.ksafe_new_step ge (sch, nil, ds) m n).
   Proof.
@@ -180,7 +181,7 @@ Qed.
   Lemma new_erasure_safety': forall n ge js ds m,
       (forall sch, JuicyMachine.valid (sch, nil, js)) -> 
       ErasureProof.match_st js ds ->
-      DSEM.invariant ds ->
+      DMS.invariant ds ->
       (forall sch, JuicyMachine.ksafe_new_step ge (sch, nil, js) m n) ->
       forall sch, DryMachine.ksafe_new_step ge (sch, nil, ds) m n.
   Proof.
