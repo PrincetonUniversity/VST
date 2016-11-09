@@ -55,6 +55,31 @@ End ClightSEM.*)
       decay m m'.
 End DecayingSemantics. *)
 
+(* Where Does this lemma fit better? 
+ * Uses definitions from
+ * concurrency.permissions.v and     
+ * veric.juicy_mem_lemmas.v          *)
+
+Lemma perm_coh_join_sub:
+    forall a b, join_sub a b ->
+           perm_coh (perm_of_res a) (perm_of_res_lock b).
+  Proof. intros.
+         eapply perm_coh_lower.
+         apply perm_coh_self.
+         - apply po_refl.
+         - eapply juicy_mem_lemmas.po_join_sub; eauto.
+  Qed.
+
+  Lemma perm_coh_join_sub':
+    forall a b, join_sub b a ->
+           perm_coh (perm_of_res a) (perm_of_res_lock b).
+  Proof. intros.
+         eapply perm_coh_lower.
+         apply perm_coh_self.
+         apply po_join_sub_lock; eauto.
+         apply po_refl.
+  Qed.
+
 Set Bullet Behavior "Strict Subproofs".
 
 Module Parching <: ErasureSig.
@@ -1182,34 +1207,6 @@ Module Parching <: ErasureSig.
             destruct (NatTID.eq_tid_dec i j).
             + subst j.
               rewrite virtue_correct2 (MTCH_perm' _ MATCH b0 ofs0).
-              
-            Lemma perm_coh_self: forall res,
-                perm_coh (perm_of_res res)
-                         (perm_of_res_lock res).
-                  destruct res; simpl; auto.
-                  - apply perm_coh_empty_1.
-                  - destruct k; try apply perm_coh_empty_1; simpl.
-                    + destruct (perm_of_sh Share.bot (pshare_sh p)) eqn:HH;
-                      auto; destruct p1 eqn:HH'; auto.
-                      subst.
-                      apply perm_of_sh_Freeable_top in HH; inversion HH.
-                      apply Share.nontrivial; auto.
-                      
-                    + destruct (perm_of_sh Share.bot (pshare_sh p)) eqn:HH;
-                      auto; destruct p1 eqn:HH'; auto.
-                      subst.
-                      apply perm_of_sh_Freeable_top in HH; inversion HH.
-                      apply Share.nontrivial; auto.
-            Qed.
-              Lemma perm_coh_join_sub:
-                forall a b, join_sub a b ->
-                       perm_coh (perm_of_res a) (perm_of_res_lock b).
-              Proof. intros.
-                     eapply perm_coh_lower.
-                     apply perm_coh_self.
-                     - apply po_refl.
-                     - eapply juicy_mem_lemmas.po_join_sub; eauto.
-              Qed.
               apply perm_coh_join_sub.
               apply resource_at_join_sub.
               exists d_phi.
@@ -1233,51 +1230,7 @@ Module Parching <: ErasureSig.
                eapply juicy_mem_lemmas.components_join_joins; eauto;
                eapply joins_comm; auto.
               }
-              Lemma perm_coh_joins:
-                forall a b, joins a b ->
-                       perm_coh (perm_of_res a) (perm_of_res_lock b).
-              Proof.
-                intros a b H.
-                destruct H as [c H].
-                inversion H; subst; simpl.
-                - apply perm_coh_empty_1.
-                - apply perm_coh_empty_1.
-                - destruct k; try apply perm_coh_empty_1.
-                  + destruct (perm_of_sh Share.bot (pshare_sh sh)) eqn:AA;
-                    destruct (eq_dec rsh1 Share.bot) eqn:BB;
-                    try destruct p0;
-                    try constructor.
-                    * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
-                      exfalso; apply Share.nontrivial; auto.
-                    * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
-                      exfalso; apply Share.nontrivial; auto.
-                  + destruct (perm_of_sh Share.bot (pshare_sh sh)) eqn:AA;
-                    destruct (eq_dec rsh1 Share.bot) eqn:BB;
-                    try destruct p0;
-                    try constructor.
-                    * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
-                      exfalso; apply Share.nontrivial; auto.
-                    * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
-                      exfalso; apply Share.nontrivial; auto.
-                - destruct k; try apply perm_coh_empty_1.
-                  + destruct (perm_of_sh Share.bot (pshare_sh sh2)) eqn:AA;
-                    destruct (eq_dec rsh1 Share.bot) eqn:BB;
-                    try destruct p0;
-                    try constructor.
-                    * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
-                      exfalso; apply Share.nontrivial; auto.
-                    * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
-                      exfalso; apply Share.nontrivial; auto.
-                  + destruct (perm_of_sh Share.bot (pshare_sh sh2)) eqn:AA;
-                    destruct (eq_dec rsh1 Share.bot) eqn:BB;
-                    try destruct p0;
-                    try constructor.
-                    * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
-                      exfalso; apply Share.nontrivial; auto.
-                    * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
-                      exfalso; apply Share.nontrivial; auto.
-                - constructor.
-              Qed.
+              
                   
               apply perm_coh_joins.
               apply joins_comm; apply resource_at_joins;
@@ -1287,36 +1240,6 @@ Module Parching <: ErasureSig.
             destruct (NatTID.eq_tid_dec i j).
             + subst j.
               rewrite virtue_correct1 (MTCH_perm2' _ MATCH b0 ofs0).
-              Lemma po_join_sub_lock:
-                       forall r1 r2 : resource,
-                         join_sub r2 r1 ->
-                         Mem.perm_order'' (perm_of_res_lock r1) (perm_of_res_lock r2).
-              Proof.
-                intros r1 r2 H.
-                destruct H as [x H].
-                inversion H; subst; simpl; try constructor.
-                - destruct k; simpl; auto;
-                  apply po_refl.
-                - apply po_None.
-                - destruct k; try apply po_None.
-                  + apply juicy_mem_lemmas.po_join_sub_sh.
-                    * exists Share.bot. apply bot_join_eq.
-                    * exists (pshare_sh sh2); assumption.
-                  + apply juicy_mem_lemmas.po_join_sub_sh.
-                    * exists Share.bot. apply bot_join_eq.
-                    * exists (pshare_sh sh2); assumption.
-              Qed. 
-              
-              Lemma perm_coh_join_sub':
-                forall a b, join_sub b a ->
-                       perm_coh (perm_of_res a) (perm_of_res_lock b).
-              Proof. intros.
-                     eapply perm_coh_lower.
-                     apply perm_coh_self.
-                     
-                     apply po_join_sub_lock; eauto.
-                     apply po_refl.
-              Qed.
               apply perm_coh_join_sub'.
               apply resource_at_join_sub.
               exists d_phi.
@@ -1398,45 +1321,7 @@ Module Parching <: ErasureSig.
           - intros l pmap0.
             destruct (AMap.E.eq_dec l (b, Int.intval ofs)); simpl.
             + subst l; rewrite DMS.DTP.gssLockRes; simpl; intros HH; inversion HH; simpl.
-              Lemma perm_coh_empty_2:
-                  forall p : option permission,
-                    Mem.perm_order'' (Some Writable) p ->
-                    perm_coh None p.
-              Proof.
-                intros p H.
-                destruct p; try destruct p; try solve[inversion H];
-                constructor.
-              Qed.
-              Lemma permCoh_empty: forall r,
-                (forall b ofs, Mem.perm_order'' (Some Writable) (r !! b ofs)) ->
-                permMapCoherence empty_map r.
-                  intros r H b ofs.
-                  rewrite empty_map_spec.
-                  specialize (H b ofs).
-                  apply perm_coh_empty_2; assumption.
-              Qed.
-              
-              Lemma permCoh_empty': forall x,
-                  permMapCoherence x empty_map.
-              Proof.
-                intros x b ofs.
-                rewrite empty_map_spec.
-                apply perm_coh_empty_1.
-              Qed.
-              Lemma perm_of_res_lock_not_Freeable:
-                  forall r,
-                    Mem.perm_order'' (Some Writable) (perm_of_res_lock r).
-                Proof.
-                  destruct r; try constructor; destruct k ; simpl; auto.
-                  - destruct (perm_of_sh Share.bot (pshare_sh p)) eqn:HH; auto.
-                    destruct p1; try constructor.
-                    apply perm_of_sh_Freeable_top in HH; inversion HH.
-                    exfalso; apply Share.nontrivial; auto.
-                  - destruct (perm_of_sh Share.bot (pshare_sh p)) eqn:HH; auto.
-                    destruct p1; try constructor.
-                    apply perm_of_sh_Freeable_top in HH; inversion HH.
-                    exfalso; apply Share.nontrivial; auto.
-                Qed.
+              (*here*)
               split; [apply permCoh_empty | apply permCoh_empty'].
               { move=> b0 ofs0;
                   rewrite virtue_correct2.

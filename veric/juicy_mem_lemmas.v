@@ -1219,3 +1219,20 @@ Proof.
     + exists (pshare_sh sh2); assumption.
   - constructor.
 Qed.
+
+
+Lemma perm_of_res_lock_not_Freeable:
+  forall r,
+    Mem.perm_order'' (Some Writable) (perm_of_res_lock r).
+Proof.
+  destruct r; try constructor; destruct k ; simpl; auto.
+  - destruct (perm_of_sh Share.bot (pshare_sh p)) eqn:HH; auto.
+    destruct p1; try constructor.
+    apply perm_of_sh_Freeable_top in HH; inversion HH.
+    exfalso; apply Share.nontrivial; auto.
+  - destruct (perm_of_sh Share.bot (pshare_sh p)) eqn:HH; auto.
+    destruct p1; try constructor.
+    apply perm_of_sh_Freeable_top in HH; inversion HH.
+    exfalso; apply Share.nontrivial; auto.
+Qed.
+
