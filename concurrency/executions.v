@@ -1457,9 +1457,24 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
             destruct (Intv.In_dec ofs (Int.intval ofs0, Int.intval ofs0 + lksize.LKSIZE)%Z); auto.
             erewrite setPermBlock_var_same in Hperm' by eauto.
             apply Hperm'.
-            simpl.
+            assert ((0 <= Z.of_nat (nat_of_Z (ofs - Int.intval ofs0 )) < lksize.LKSIZE)%Z).
+            { rewrite nat_of_Z_eq. Focus 2.
+            unfold Intv.In, lksize.LKSIZE in i.
+            simpl in i.
+            ssromega.
+            unfold Intv.In, lksize.LKSIZE in *.
+            simpl in i.
+            split. ssromega. destruct i.
+            ssromega.
+            }
+            specialize (Hneq_perms _ H).
+            
+            
             specialize (Hneq_perms (nat_of_Z (ofs - Int.intval ofs0 + 1))).
-            rewrite nat_of_Z_eq in Hneq_perms.
+            rewrite nat_of_Z_eq in Hneq_perms. Focus 2.
+            unfold Intv.In, lksize.LKSIZE in i.
+            simpl in i.
+            ssromega.
             assert ((0 <= ofs - Int.intval ofs0 + 1 < lksize.LKSIZE)%Z).
             clear - i.
             unfold Intv.In in i.
@@ -1467,7 +1482,9 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
             unfold lksize.LKSIZE in *.
             simpl in *.
             split. simpl. 
-            ssromega. ssromega.
+            ssromega.
+            
+            
             eapply perm_order_trans;
                      now eauto using perm_order.
             rewrite setPermBlock_other_1 in Hperm'.

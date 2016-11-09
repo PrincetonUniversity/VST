@@ -436,7 +436,7 @@ Module Concur.
            (** data permissions are computed in a non-deterministic way *)
            (Hneq_perms: forall i,
                  (0 <= Z.of_nat i < LKSIZE)%Z ->
-                 Mem.perm_order'' (pdata i) (Some Writable)
+                 Mem.perm_order'' (pdata (S i)) (Some Writable)
            )
            (*Hpdata: perm_order pdata Writable*)
            (Hdata_perm: setPermBlock_var (*=setPermBlockfunc*)
