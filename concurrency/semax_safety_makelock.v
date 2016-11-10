@@ -218,7 +218,7 @@ Proof.
   destruct r. lkomega.
 Admitted.
 
-(* Weaker statement than preservation for makelock, enough to prove *)
+(* Weaker statement than preservation for makelock, enough to prove safety *)
 Lemma safety_induction_makelock Gamma n state
   (CS : compspecs)
   (ext_link : string -> ident)

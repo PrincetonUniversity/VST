@@ -1268,10 +1268,12 @@ Qed. *)
             (*Hpersonal_perm: 
                personal_mem cnt0 Hcompatible = jm*)
             (Hpersonal_juice: getThreadR cnt0 = phi)
+            (Hrmap : rmap_freelock phi phi' (b, Int.unsigned ofs) R LKSIZE)
+            (*
             (*This the first share of the lock, 
               can/should this be different for each location? *)
             (sh:Share.t)
-            (*Check the new memoryI have has the right permission to mklock and the riht value (i.e. 0) *)
+            (*Check the new memoryI have has the right permission to mklock and the right value (i.e. 0) *)
             (Haccess: address_mapsto Mint32 (Vint Int.zero) sh Share.top (b, Int.intval ofs) phi')
             (*Check the old memory has the lock*)
             (Hlock: phi@ (b, Int.intval ofs) = YES sh pfullshare (LK LKSIZE) (pack_res_inv R))
@@ -1285,6 +1287,7 @@ Qed. *)
             (*Check the two memories coincide in everything else *)
             (Hj_forward: forall loc, b <> loc#1 \/ ~(Int.intval ofs)<=loc#2<(Int.intval ofs)+LKSIZE  -> phi@loc = phi'@loc)
             (levphi' : level phi' = level phi)
+            *)
             (*Check the memories are equal!*)
             (*Hm_forward:
                makeCurMax m = m1 *)

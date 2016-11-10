@@ -55,6 +55,7 @@ Require Import concurrency.semax_initial.
 Require Import concurrency.semax_progress.
 Require Import concurrency.semax_preservation_jspec.
 Require Import concurrency.semax_safety_makelock.
+Require Import concurrency.semax_preservation_freelock.
 Require Import concurrency.semax_preservation.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -127,12 +128,12 @@ Proof.
   all: try (unshelve erewrite gsoThreadCode; eauto).
   all: try (unshelve erewrite <-gsoThreadCC; eauto).
 
-  destruct (cntAdd' _ _ _ cnti) as [(cnti', ne) | Ei].
+  destruct (@cntAdd' _ _ _ _ _ cnti) as [(cnti', ne) | Ei].
   unshelve erewrite gsoAddCode; eauto.
   rewrite gssThreadCode; congruence.
   rewrite gssAddCode. congruence. apply Ei.
   
-  destruct (cntAdd' _ _ _ cnti) as [(cnti', ne) | Ei].
+  destruct (@cntAdd' _ _ _ _ _ cnti) as [(cnti', ne) | Ei].
   unshelve erewrite gsoAddCode; eauto.
   unshelve erewrite gsoThreadCode; eauto.
   rewrite gssAddCode. congruence. apply Ei.
@@ -222,14 +223,21 @@ Section Safety.
        state_invariant Jspec' Gamma (S n) state').
   Proof.
     intros inv.
-    destruct (blocked_at_external_dec state MKLOCK) as [ismakelock|isnot].
+    destruct (blocked_at_external_dec state MKLOCK) as [ismakelock|isnotmakelock].
+    { (* the case for makelock *)
     - apply safety_induction_makelock; eauto.
-      + unfold Jspec'_juicy_mem_equiv_def.
-        apply Jspec'_juicy_mem_equiv.
-      + unfold Jspec'_hered_def.
-        apply Jspec'_hered.
+      + hnf. apply Jspec'_juicy_mem_equiv.
+      + hnf. apply Jspec'_hered.
       + apply mem_cohere'_store.
-      + apply personal_mem_equiv_spec.
+      + apply personal_mem_equiv_spec. }
+    destruct (blocked_at_external_dec state FREE_LOCK) as [isfreelock|isnotfreelock].
+    { (* the case for freelock *)
+    - apply safety_induction_freelock; eauto.
+      + hnf. apply Jspec'_juicy_mem_equiv.
+      + hnf. apply Jspec'_hered.
+      + apply mem_cohere'_store.
+      + apply personal_mem_equiv_spec. }
+    
     - destruct (progress CS ext_link ext_link_inj _ _ _ inv) as (state', step).
       exists state'; split; [ now apply step | ].
       eapply preservation; eauto.
