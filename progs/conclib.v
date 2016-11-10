@@ -1187,8 +1187,6 @@ Ltac join_sub := repeat (eapply sepalg.join_sub_trans;
 Ltac join_inj := repeat match goal with H1 : sepalg.join ?a ?b ?c, H2 : sepalg.join ?a ?b ?d |- _ =>
     pose proof (sepalg.join_eq H1 H2); clear H1 H2; subst; auto end.
 
-Print spawn_post.
-
 Ltac forward_spawn sig wit := let Frame := fresh "Frame" in evar (Frame : list mpred);
   try match goal with |- semax _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip end;
   rewrite <- ?seq_assoc; eapply semax_seq';

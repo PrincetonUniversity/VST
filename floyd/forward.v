@@ -588,7 +588,7 @@ let wit := fresh "wit" in
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
- | subst wit; cbv beta; extensionality rho; 
+ | subst wit; cbv beta iota zeta; extensionality rho; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    first [apply exp_congr; intros ?vret; reflexivity
@@ -624,7 +624,7 @@ let wit := fresh "wit" in
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
- | subst wit; cbv beta; extensionality rho; 
+ | subst wit; cbv beta iota zeta; extensionality rho; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    first [apply exp_congr; intros ?vret; reflexivity
@@ -658,7 +658,7 @@ let wit := fresh "wit" in
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
- | subst wit; cbv beta; extensionality rho; 
+ | subst wit; cbv beta iota zeta; extensionality rho; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    first [apply exp_congr; intros ?vret; reflexivity
@@ -690,7 +690,7 @@ let wit := fresh "wit" in
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
- | subst wit; cbv beta; extensionality rho; 
+ | subst wit; cbv beta iota zeta; extensionality rho; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    first [apply exp_congr; intros ?vret; reflexivity
@@ -721,9 +721,9 @@ let wit := fresh "wit" in
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right at 1 2; cancel
- | subst wit; cbv beta iota zeta; 
+ | subst wit; cbv beta iota zeta;
     repeat rewrite exp_uncurry;
-    try rewrite no_post_exists0; 
+    try rewrite no_post_exists0;
     first [reflexivity | extensionality; simpl; reflexivity]
  | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto; subst A wit
@@ -2374,7 +2374,18 @@ match goal with |- semax _ (PROPx _ (LOCALx ?L (SEPx ?S))) _ _ =>
   end
 end.
 
-Ltac start_function' :=
+Ltac start_function := 
+ match goal with |- semax_body ?V ?G ?F ?spec =>
+    let s := fresh "spec" in
+    pose (s:=spec); hnf in s;
+    match goal with
+    | s :=  (DECLARE _ WITH u : unit
+               PRE  [] main_pre _ nil u
+               POST [ tint ] main_post _ nil u) |- _ => idtac
+    | s := ?spec' |- _ => check_canonical_funspec spec'
+   end;
+   change (semax_body V G F s); subst s
+ end;
  let DependedTypeList := fresh "DependedTypeList" in
  match goal with |- semax_body _ _ _ (pair _ (NDmk_funspec _ _ _ ?Pre _)) =>
    match Pre with 
@@ -2419,21 +2430,6 @@ Ltac start_function' :=
         | eapply eliminate_extra_return; [ reflexivity | reflexivity | ]
         | idtac];
  abbreviate_semax.
-
-Ltac start_function := 
- match goal with |- semax_body _ _ _ ?spec =>
-          try unfold spec 
- end;
- match goal with
- | |- semax_body _ _ _ (DECLARE _ WITH u : unit
-               PRE  [] main_pre _ nil u
-               POST [ tint ] main_post _ nil u) => idtac
- | |- semax_body _ _ _ ?spec => 
-        check_canonical_funspec spec
- end;
- match goal with |- semax_body _ _ _ _ => start_function' 
-   | _ => idtac
- end.
 
 Opaque sepcon.
 Opaque emp.
