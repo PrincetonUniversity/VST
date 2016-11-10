@@ -128,7 +128,7 @@ CONCUR_FILES= \
   lksize.v \
   main.v mem_obs_eq.v memory_lemmas.v permissions.v permjoin_def.v pos.v pred_lemmas.v \
   rc_semantics.v rc_semantics_lemmas.v \
-  scheduler.v sepcomp.v seq_lemmas.v ssromega.v stack.v \
+  scheduler.v TheSchedule.v sepcomp.v seq_lemmas.v ssromega.v stack.v \
   threads_lemmas.v wf_lemmas.v \
   x86_inj.v x86_safe.v x86_context.v fineConc_x86.v executions.v SC_erasure.v \
   sync_preds_defs.v sync_preds.v \

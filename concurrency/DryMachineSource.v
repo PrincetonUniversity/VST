@@ -10,6 +10,8 @@ Require Import ProofIrrelevance.
 
 (* The concurrent machinery*)
 Require Import concurrency.scheduler.
+Require Import concurrency.TheSchedule.
+
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.semantics.
 Require Import concurrency.juicy_machine. Import Concur.
@@ -31,8 +33,7 @@ Require Import concurrency.ClightSemantincsForMachines.
 Import Concur threadPool.
 
 Module THE_DRY_MACHINE_SOURCE.
-  Module SCH:= mySchedule. 
-     About ClightSEM.           
+  Module SCH:= THESCH.         
   Module SEM:= ClightSEM.
   (*Import SCH SEM.*)
 
@@ -47,10 +48,12 @@ Module THE_DRY_MACHINE_SOURCE.
 
   Module DMS  <: MachinesSig with Module SEM := ClightSEM.
      Module SEM:= ClightSEM .
-     
+
+     About mySchedule.
+     (*Old DSEM*)
      Module DryMachine <: DryMachineSig SEM := DryMachineShell SEM.
      Module ErasedMachine :=  ErasedMachineShell SEM.
-     
+
      Module DryConc <: ConcurrentMachine :=
       CoarseMachine SCH DryMachine.
      Notation DMachineSem:= DryConc.MachineSemantics. 

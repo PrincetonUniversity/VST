@@ -81,11 +81,11 @@ Section permMapDefs.
     intros.
     destruct p2 as [p|];
       try (destruct p); simpl in Hperm2;
-        destruct p4 as [p|];
-        try (destruct p); inversion Hperm2; subst;
-          destruct p1 as [p|];
-          try (destruct p); simpl in Hpu, Hperm1; try (now exfalso);
-            destruct p3; try inversion Hperm1; subst; simpl; auto.
+      destruct p4 as [p|];
+      try (destruct p); inversion Hperm2; subst;
+      destruct p1 as [p|];
+      try (destruct p); simpl in Hpu, Hperm1; try (now exfalso);
+      destruct p3; try inversion Hperm1; subst; simpl; auto.
     destruct p; auto.
   Qed.
 
@@ -111,10 +111,120 @@ Section permMapDefs.
     destruct p as [p|];
       try (destruct p); simpl;
       auto.
-    Qed.
+  Qed.
+
+  Lemma perm_coh_empty_2:
+    forall p : option permission,
+      Mem.perm_order'' (Some Writable) p ->
+      perm_coh None p.
+  Proof.
+    intros p H.
+    destruct p; try destruct p; try solve[inversion H];
+    constructor.
+  Qed.
+
+  Lemma perm_coh_self: forall res,
+      perm_coh (perm_of_res res)
+               (perm_of_res_lock res).
+        destruct res; simpl; auto.
+        - apply perm_coh_empty_1.
+        - destruct k; try apply perm_coh_empty_1; simpl.
+          + destruct (perm_of_sh Share.bot (pshare_sh p)) eqn:HH;
+            auto; destruct p1 eqn:HH'; auto.
+            subst.
+            apply perm_of_sh_Freeable_top in HH; inversion HH.
+            apply Share.nontrivial; auto.
+            
+          + destruct (perm_of_sh Share.bot (pshare_sh p)) eqn:HH;
+            auto; destruct p1 eqn:HH'; auto.
+            subst.
+            apply perm_of_sh_Freeable_top in HH; inversion HH.
+            apply Share.nontrivial; auto.
+  Qed.
+
+  
+
+  Lemma perm_coh_joins:
+    forall a b, joins a b ->
+           perm_coh (perm_of_res a) (perm_of_res_lock b).
+  Proof.
+    intros a b H.
+    destruct H as [c H].
+    inversion H; subst; simpl.
+    - apply perm_coh_empty_1.
+    - apply perm_coh_empty_1.
+    - destruct k; try apply perm_coh_empty_1.
+      + destruct (perm_of_sh Share.bot (pshare_sh sh)) eqn:AA;
+        destruct (eq_dec rsh1 Share.bot) eqn:BB;
+        try destruct p0;
+        try constructor.
+        * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
+          exfalso; apply Share.nontrivial; auto.
+        * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
+          exfalso; apply Share.nontrivial; auto.
+      + destruct (perm_of_sh Share.bot (pshare_sh sh)) eqn:AA;
+        destruct (eq_dec rsh1 Share.bot) eqn:BB;
+        try destruct p0;
+        try constructor.
+        * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
+          exfalso; apply Share.nontrivial; auto.
+        * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
+          exfalso; apply Share.nontrivial; auto.
+    - destruct k; try apply perm_coh_empty_1.
+      + destruct (perm_of_sh Share.bot (pshare_sh sh2)) eqn:AA;
+        destruct (eq_dec rsh1 Share.bot) eqn:BB;
+        try destruct p0;
+        try constructor.
+        * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
+          exfalso; apply Share.nontrivial; auto.
+        * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
+          exfalso; apply Share.nontrivial; auto.
+      + destruct (perm_of_sh Share.bot (pshare_sh sh2)) eqn:AA;
+        destruct (eq_dec rsh1 Share.bot) eqn:BB;
+        try destruct p0;
+        try constructor.
+        * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
+          exfalso; apply Share.nontrivial; auto.
+        * apply perm_of_sh_Freeable_top in AA; inversion AA; subst.
+          exfalso; apply Share.nontrivial; auto.
+    - constructor.
+  Qed.
+
   
   Definition permMapCoherence (pmap1 pmap2 : access_map) :=
     forall b ofs, perm_coh (pmap1 !! b ofs) (pmap2 !! b ofs).
+
+  Lemma permCoh_empty: forall r,
+      (forall b ofs, Mem.perm_order'' (Some Writable) (r !! b ofs)) ->
+      permMapCoherence empty_map r.
+        intros r H b ofs.
+        rewrite empty_map_spec.
+        specialize (H b ofs).
+        apply perm_coh_empty_2; assumption.
+  Qed.
+  
+  Lemma permCoh_empty': forall x,
+      permMapCoherence x empty_map.
+  Proof.
+    intros x b ofs.
+    rewrite empty_map_spec.
+    apply perm_coh_empty_1.
+  Qed.
+
+  Lemma perm_of_res_lock_not_Freeable:
+    forall r,
+      Mem.perm_order'' (Some Writable) (perm_of_res_lock r).
+  Proof.
+    destruct r; try constructor; destruct k ; simpl; auto.
+    - destruct (perm_of_sh Share.bot (pshare_sh p)) eqn:HH; auto.
+      destruct p1; try constructor.
+      apply perm_of_sh_Freeable_top in HH; inversion HH.
+      exfalso; apply Share.nontrivial; auto.
+    - destruct (perm_of_sh Share.bot (pshare_sh p)) eqn:HH; auto.
+      destruct p1; try constructor.
+      apply perm_of_sh_Freeable_top in HH; inversion HH.
+      exfalso; apply Share.nontrivial; auto.
+  Qed.
   
   (* Some None represents the empty permission. None is used for
   permissions that conflict/race. *)
@@ -851,7 +961,19 @@ Section permMapDefs.
         intros; omega.
   Qed.
 
- 
+  Lemma setPermBlock_setPermBlock_var:
+    forall b ofs sz pmap p,
+      setPermBlock p b ofs pmap sz =
+      setPermBlock_var (fun _ => p) b ofs pmap sz.
+  Proof.
+    intros b ofs sz.
+    generalize dependent ofs.
+    induction sz; intros.
+    - reflexivity.
+    - simpl.
+      rewrite IHsz.
+      reflexivity.
+  Qed.
 
   
 

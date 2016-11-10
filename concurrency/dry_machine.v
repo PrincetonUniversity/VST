@@ -5,6 +5,7 @@ Require Import sepcomp.semantics_lemmas.
 
 Require Import concurrency.pos.
 Require Import concurrency.scheduler.
+Require Import concurrency.TheSchedule.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.addressFiniteMap. (*The finite maps*)
 Require Import concurrency.pos.
@@ -23,6 +24,7 @@ Require Import compcert.common.Memory.
 Require Import compcert.lib.Integers.
 Require Import concurrency.threads_lemmas.
 Require Import concurrency.semantics.
+Require Import concurrency.TheSchedule. Import TheSchedule.
 
 Require Import Coq.ZArith.ZArith.
 
@@ -47,7 +49,7 @@ End ThreadPool.
 
 Module Concur.
   
-  Module mySchedule := ListScheduler NatTID.
+  Module mySchedule := THESCH.
 
   (** The type of dry machines. This is basically the same as
   [ConcurrentMachineSig] but resources are instantiated with dry
@@ -435,7 +437,7 @@ Module Concur.
            (** data permissions are computed in a non-deterministic way *)
            (Hneq_perms: forall i,
                  (0 <= Z.of_nat i < LKSIZE)%Z ->
-                 Mem.perm_order'' (pdata i) (Some Writable)
+                 Mem.perm_order'' (pdata (S i)) (Some Writable)
            )
            (*Hpdata: perm_order pdata Writable*)
            (Hdata_perm: setPermBlock_var (*=setPermBlockfunc*)
@@ -1031,10 +1033,11 @@ Module Concur.
        rewrite perm_union_comm.
        eapply not_racy_union;
          by constructor.
-    Qe 
+    Qed. 
        
        paque getThreadR.
-    Le a step_decay_invariant:
+(*making this lemma again*)
+    Lemma step_decay_invariant:
        rall (tp : thread_pool) (m : mem) (i : nat)
        (pf : containsThread tp i) c m1 m1' c'
        (Hinv: invariant tp)
@@ -1043,7 +1046,7 @@ Module Concur.
        (Hdecay: decay m1 m1')
        (Hcode: getThreadC pf = Krun c),
        invariant (updThread pf (Krun c') (getCurPerm m1')).
-    Pr f.
+    Proof.
        tros.
        struct Hinv as [Hrace Hlp].
        nstructor.

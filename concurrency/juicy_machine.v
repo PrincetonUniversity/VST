@@ -1268,6 +1268,9 @@ Qed. *)
             (*Hpersonal_perm: 
                personal_mem cnt0 Hcompatible = jm*)
             (Hpersonal_juice: getThreadR cnt0 = phi)
+            (*First check the lock is acquired:*)
+            (His_acq: lockRes tp (b, (Int.intval ofs)) = SNone)
+            (*Relation between rmaps:*)
             (Hrmap : rmap_freelock phi phi' (b, Int.unsigned ofs) R LKSIZE)
             (*
             (*This the first share of the lock, 
