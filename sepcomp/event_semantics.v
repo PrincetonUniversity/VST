@@ -196,3 +196,227 @@ Lemma Ev_sem_cur_perm {G C} (R: @EvSem G C) g c m T c' m' b ofs (D: ev_step R g 
 Proof. eapply ev_perm. eapply ev_step_elim; eassumption. Qed.
 
 Implicit Arguments EvSem [].
+
+Require Import List.
+Import ListNotations.
+
+Definition in_free_list (b : block) ofs xs :=
+  exists x, List.In x xs /\
+       let '(b', lo, hi) := x in
+       b = b' /\
+       (lo <= ofs < hi)%Z.
+
+
+Fixpoint in_free_list_trace (b : block) ofs es :=
+  match es with
+  | Free l :: es =>
+    in_free_list b ofs l \/ in_free_list_trace b ofs es
+  | _ :: es =>
+    in_free_list_trace b ofs es
+  | nil =>
+    False
+  end.
+
+(*not needed later - not sure it's useful*)
+Lemma EFLT_char es: forall b ofs, in_free_list_trace b ofs es <->
+                             exists l lo hi, In (Free l) es /\ In ((b, lo), hi) l /\ lo <= ofs < hi.
+Proof. induction es; simpl.
+       + split; intros; try contradiction. destruct H as [? [? [? [? ?]]]]. contradiction.
+       + intros. 
+       - destruct a.
+         * destruct (IHes b ofs).
+           split; intros.
+           ++ destruct (H H1) as [? [? [? [? ?]]]]. eexists; eexists; eexists. split. right. apply H2. apply H3.
+           ++ destruct H1 as [? [? [? [? ?]]]].
+              destruct H1. discriminate. apply H0.  eexists; eexists; eexists. split. eassumption. apply H2. 
+         * destruct (IHes b ofs).
+           split; intros.
+           ++ destruct (H H1) as [? [? [? [? ?]]]]. eexists; eexists; eexists. split. right. apply H2. apply H3.
+           ++ destruct H1 as [? [? [? [? ?]]]].
+              destruct H1. discriminate. apply H0.  eexists; eexists; eexists. split. eassumption. apply H2. 
+         * destruct (IHes b ofs).
+           split; intros.
+           ++ destruct (H H1) as [? [? [? [? ?]]]]. eexists; eexists; eexists. split. right. apply H2. apply H3.
+           ++ destruct H1 as [? [? [? [? ?]]]].
+              destruct H1. discriminate. apply H0.  eexists; eexists; eexists. split. eassumption. apply H2. 
+         * destruct (IHes b ofs).
+           split; intros.
+           ++ destruct H1. destruct H1 as [[[? ?] ?] [? [? ?]]]; subst b0. exists l, z, z0. split; eauto. 
+              destruct (H H1) as [? [? [? [? ?]]]]. eexists; eexists; eexists. split. right. apply H2. apply H3.
+           ++ destruct H1 as [? [? [? [? [? ?]]]]].
+              destruct H1. inv H1. left. red. exists ((b,x0),x1). split; trivial. split; trivial.
+              right. apply H0. exists x, x0 , x1. split; trivial. split; trivial.
+Qed. 
+
+Lemma freelist_mem_access_1 b ofs p: forall l m (ACC:(Mem.mem_access m) !! b ofs Cur = Some p) 
+                                       m1 (FL: Mem.free_list m1 l = Some m), (Mem.mem_access m1) !! b ofs Cur = Some p.
+Proof. induction l; simpl; intros. inv FL; trivial.
+       destruct a. destruct p0.
+       case_eq (Mem.free m1 b0 z0 z); intros; rewrite H in FL; try discriminate.
+       eapply free_access_inv; eauto.
+Qed. 
+
+Lemma freelist_access_2 b ofs: forall l  (FL: in_free_list b ofs l)
+                                 m m' (FR : Mem.free_list m l = Some m'),
+    (Mem.mem_access m') !! b ofs Cur = None /\ Mem.valid_block m' b.
+Proof. intros l FL. destruct FL as [[[? ?] ?] [? [? ?]]]; subst b0.
+       induction l; simpl; intros.
+       - inv H. 
+       - destruct H.
+         * subst. case_eq (Mem.free m b z z0); intros; rewrite H in FR; try discriminate.
+           clear IHl. case_eq ((Mem.mem_access m') !! b ofs Cur); intros; trivial.
+           ++ exploit freelist_mem_access_1. eassumption. eassumption. intros XX.
+              exfalso. apply Mem.free_result in H. subst m0. simpl in XX.
+              rewrite PMap.gss in XX. case_eq (zle z ofs && zlt ofs z0); intros; rewrite H in *; try discriminate.
+              destruct (zle z ofs); try omega; simpl  in *. destruct ( zlt ofs z0); try omega. inv H.
+           ++ split; trivial. eapply freelist_forward; eauto.
+              exploit Mem.free_range_perm. eassumption. eassumption. intros.
+              eapply Mem.valid_block_free_1; try eassumption. eapply Mem.perm_valid_block; eauto.
+         * destruct a. destruct p.    
+           case_eq (Mem.free m b0 z2 z1); intros; rewrite H0 in FR; try discriminate. eauto.
+Qed.
+
+Lemma freelist_access_3 b ofs: forall l m (ACC: (Mem.mem_access m) !! b ofs Cur = None)
+                                 (VB: Mem.valid_block m b) m' (FL: Mem.free_list m l = Some m'),
+    (Mem.mem_access m') !! b ofs Cur = None.
+Proof. induction l; simpl; intros.
+       + inv FL; trivial.
+       + destruct a as [[? ?] ?].
+         case_eq (Mem.free m b0 z z0); intros; rewrite H in FL; try discriminate.
+         eapply (IHl m0); trivial.
+       - destruct (eq_block b0 b); subst. apply Mem.free_result in H. subst. simpl. rewrite PMap.gss, ACC. destruct (zle z ofs && zlt ofs z0); trivial.
+         apply Mem.free_result in H. subst. simpl. rewrite PMap.gso; eauto.
+       - eapply Mem.valid_block_free_1; eauto.
+Qed. 
+
+Lemma ev_elim_accessNone b ofs: forall ev m' m'' (EV:ev_elim m'' ev m')
+                                  (ACC: (Mem.mem_access m'') !! b ofs Cur = None)
+                                  (VB: Mem.valid_block m'' b), (Mem.mem_access m') !! b ofs Cur = None.
+Proof.  induction ev; simpl; intros. subst; trivial.
+        destruct a.
+        - destruct EV as [? [? EV]]. exploit Mem.storebytes_valid_block_1; eauto. intros.
+          apply Mem.storebytes_access in H. rewrite <- H in *; clear H.
+          apply (IHev _ _ EV ACC H0).
+        - destruct EV as [? EV]. eauto.
+        - destruct EV as [? [? EV]].
+          apply (IHev _ _ EV); clear IHev EV.
+          + Transparent Mem.alloc.
+             unfold Mem.alloc in H. Opaque Mem.alloc.  inv H. simpl. rewrite PMap.gso; trivial. unfold Mem.valid_block in VB. xomega.
+          + eapply Mem.valid_block_alloc; eauto.
+        - destruct EV as [? [? EV]]. apply (IHev _ _ EV); clear IHev.
+          2: eapply freelist_forward; eauto.
+          clear EV ev m'. 
+          eapply freelist_access_3; eassumption.
+Qed. 
+
+Lemma ev_elim_valid_block: forall ev m m' (EV: ev_elim m ev m') b
+                             (VB : Mem.valid_block m b), Mem.valid_block m' b.
+Proof. induction ev; simpl; intros; subst; trivial.
+       destruct a.
+       + destruct EV as [? [? EV]]. exploit Mem.storebytes_valid_block_1. apply H. eassumption. eauto.
+       + destruct EV as [? EV]. eauto.
+       + destruct EV as [? [? EV]]. exploit Mem.valid_block_alloc. apply H. eassumption. eauto.
+       + destruct EV as [? [? EV]]. exploit freelist_forward; eauto. intros [? _]. eauto.
+Qed. 
+
+
+(** If (b, ofs) is in the list of freed addresses then the
+         permission was Freeable and became None or it was not allocated*)
+Lemma ev_elim_free_1 b ofs:
+  forall ev m m',
+    ev_elim m ev m' ->
+    in_free_list_trace b ofs ev ->
+    (Mem.perm m b ofs Cur Freeable \/
+     ~ Mem.valid_block m b) /\
+    (Mem.mem_access m') !! b ofs Cur = None /\
+    Mem.valid_block m' b /\
+    exists e, List.In e ev /\
+         match e with
+         | Free _ => True
+         | _ => False
+         end.
+Proof.
+  induction ev; simpl; intros; try contradiction.
+  destruct a.
+  + destruct H as [m'' [ST EV]].
+    specialize (Mem.storebytes_access _ _ _ _ _ ST); intros ACCESS.
+    destruct (eq_block b0 b); subst. 
+  - destruct (IHev _ _ EV H0) as [IHa [IHb [IHc [e [E HE]]]]]; clear IHev.
+    split. { destruct IHa. left. eapply Mem.perm_storebytes_2; eauto.
+             right. intros N. apply H. eapply Mem.storebytes_valid_block_1; eauto. }
+           split; trivial.
+    split; trivial.
+    exists e. split; trivial. right; trivial.
+  - destruct (IHev _ _ EV H0) as [IHa [IHb [IHc [e [E HE]]]]]; clear IHev.
+    split. { destruct IHa. left. eapply Mem.perm_storebytes_2; eassumption.
+             right; intros N. apply H. eapply Mem.storebytes_valid_block_1; eauto. }
+           split. trivial.
+    split; trivial. exists e. split; trivial. right; trivial.
+    + destruct H.
+      destruct (IHev _ _ H1 H0) as [IHa [IHb [IHc [e [E HE]]]]]; clear IHev. 
+      split; trivial.
+      split; trivial.
+      split; trivial.
+      exists e. split; trivial. right; trivial.
+    + destruct H as [m'' [ALLOC EV]].
+      destruct (IHev _ _ EV H0) as [IHa [IHb [IHc [e [E HE]]]]]; clear IHev.  
+      destruct (eq_block b0 b); subst.
+  - split. right. eapply Mem.fresh_block_alloc. eauto.
+    split; trivial.
+    split; trivial.
+    exists e.
+    split; trivial. right; trivial.
+  - split. { destruct IHa. left. eapply Mem.perm_alloc_4; eauto.
+             right; intros N. apply H. eapply Mem.valid_block_alloc; eauto. }
+           split; trivial. 
+    split; trivial.
+    exists e. split; trivial. right; trivial.
+    + destruct H as [m'' [FR EV]].
+      destruct H0.
+  - clear IHev.
+    split. { destruct (valid_block_dec m b). 2: right; trivial. left.
+             clear EV m'. generalize dependent m''. generalize dependent m.
+             destruct H as [[[bb lo] hi] [X [? Y]]]; subst bb. 
+             induction l; simpl in *; intros. contradiction.
+             destruct X; subst. 
+             + case_eq (Mem.free m b lo hi); intros; rewrite H in FR; try discriminate.
+               eapply Mem.free_range_perm; eassumption.
+             + destruct a. destruct p.
+               case_eq (Mem.free m b0 z0 z); intros; rewrite H0 in FR; try discriminate. 
+               eapply Mem.perm_free_3. eassumption.
+               eapply IHl; try eassumption.
+               eapply Mem.valid_block_free_1; eauto. }
+           split. { exploit freelist_access_2. eassumption. eassumption.
+                    intros [ACC VB].  clear FR m l H.
+                    eapply ev_elim_accessNone; eauto. }
+                  split. { exploit freelist_access_2; eauto. intros [ACC VB].
+                           eapply ev_elim_valid_block; eauto. }
+                         exists (Free l). intuition. 
+  - destruct (IHev _ _ EV H) as [IHa [IHb [IHc [e [E HE]]]]]; clear IHev.  
+    split. { destruct IHa. left. eapply perm_freelist; eauto.
+             right; intros N. apply H0. eapply freelist_forward; eauto. }
+           split; trivial. 
+    split; trivial.
+    exists e. split; trivial. right; trivial. 
+Qed.
+
+(** If (b, ofs) is not in the list of freed locations then its permissions
+cannot decrease*)
+Lemma ev_elim_free_2:
+  forall m ev m' b ofs,
+    ev_elim m ev m' ->
+    ~ in_free_list_trace b ofs ev ->
+    Mem.perm_order'' ((Mem.mem_access m') !! b ofs Cur)
+                     ((Mem.mem_access m) !! b ofs Cur).
+Proof.
+Admitted.
+
+Lemma free_list_cases:
+  forall l m m' b ofs
+    (Hfree: Mem.free_list m l = Some m'),
+    ((Mem.mem_access m) !! b ofs Cur = Some Freeable /\
+     (Mem.mem_access m') !! b ofs Cur = None) \/
+    ((Mem.mem_access m) !! b ofs Cur =
+     (Mem.mem_access m') !! b ofs Cur).
+Proof.
+Admitted.
