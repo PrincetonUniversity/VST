@@ -184,6 +184,25 @@ Proof.
   
   subst args.
   
+  assert (locked : lockRes tp (b, Int.intval ofs) = Some None). {
+    (* TODO : use preciseness and positivity here *)
+    spec lock_coh (b, Int.intval ofs). cleanup.
+    destruct (AMap.find _ _) as [o|] eqn:Eo. (* 2:reflexivity. exfalso.
+    assert (C : exists (R : pred rmap), (lkat R (b, Int.intval ofs)) Phi).
+    destruct o; breakhyps; eauto. clear lock_coh.
+    destruct C as ((* sh &  *)R' & At).
+    destruct Hrmap' as (_ & _ & inside).
+    spec inside (b, Int.intval ofs).
+    spec inside. split; auto; unfold Int.unsigned in *; lkomega.
+    destruct inside as (sh'' & E & _).
+    spec At (b, Int.intval ofs). simpl in At.
+    spec At. now split; auto; lkomega.
+    if_tac in At. 2:tauto.
+    breakhyps. breakhyps. breakhyps.
+    *) admit.
+    admit.
+  }
+  
   eexists (m, ge, (sch, _)); split.
   
   { (* "progress" part of the proof *)
@@ -212,25 +231,6 @@ Proof.
   rewrite El.
   
   assert (LPhi' : level Phi' = level Phi) by (destruct Hrmap'; auto).
-  
-  assert (notfound : lockRes tp (b, Int.intval ofs) = Some None). {
-    (* TODO : use preciseness and positivity here *)
-    spec lock_coh (b, Int.intval ofs). cleanup.
-    destruct (AMap.find _ _) as [o|] eqn:Eo. (* 2:reflexivity. exfalso.
-    assert (C : exists (R : pred rmap), (lkat R (b, Int.intval ofs)) Phi).
-    destruct o; breakhyps; eauto. clear lock_coh.
-    destruct C as ((* sh &  *)R' & At).
-    destruct Hrmap' as (_ & _ & inside).
-    spec inside (b, Int.intval ofs).
-    spec inside. split; auto; unfold Int.unsigned in *; lkomega.
-    destruct inside as (sh'' & E & _).
-    spec At (b, Int.intval ofs). simpl in At.
-    spec At. now split; auto; lkomega.
-    if_tac in At. 2:tauto.
-    breakhyps. breakhyps. breakhyps.
-    *) admit.
-    admit.
-  }
   
   assert (APhi' : age Phi' (age_to n Phi')) by (apply age_to_1; congruence).
   
