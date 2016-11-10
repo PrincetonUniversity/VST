@@ -62,4 +62,3 @@ apply semax_func_cons;
  | precondition_closed | apply body_main | ].
 apply semax_func_nil.
 Admitted.
-*)
