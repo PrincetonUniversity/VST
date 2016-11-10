@@ -423,21 +423,22 @@ Qed.
             
             * eapply step_acqfail with (Hcompatible := mem_compatible_forget compat)
                                        (R := approx (level phi0) (Interp Rx)).
-              all: try solve [ constructor | eassumption | reflexivity ];
-                [ > idtac ].
+              all: try solve [ constructor | eassumption | reflexivity ].
+                (* [ > idtac ]. *)
               simpl.
               unfold Int.unsigned in *.
               rewrite <-H7.
               reflexivity.
+              admit (* MISMATCH IN LOCK PERMISSIONS *).
             
             * eapply step_acqfail with (Hcompatible := mem_compatible_forget compat)
                                        (R := approx (level phi0) (Interp Rx)).
-              all: try solve [ constructor | eassumption | reflexivity ];
-                [ > idtac ].
+              all: try solve [ constructor | eassumption | reflexivity ].
               simpl.
               unfold Int.unsigned in *.
               rewrite <-H7.
               reflexivity.
+              admit (* MISMATCH IN LOCK PERMISSIONS *).
         
         - (* acquire succeeds *)
           destruct isl as [sh [psh [z Ewetv]]].
@@ -520,12 +521,16 @@ Qed.
               -- admit (* solved above *).
               (* -- admit (* solved above *). *)
               -- admit (* solved above *).
+            * apply (mem_compatible_forget compat).
             * reflexivity.
             * unfold fold_right in *.
               rewrite E3.
               f_equal.
             * reflexivity.
-            * apply LOAD.
+            * try apply LOAD.
+              admit (* MISMATCH IN LOCK PERMISSIONS *).
+            * admit (* MISMATCH IN LOCK PERMISSIONS *).
+            * reflexivity.
             * apply Hm'.
             * apply Efind.
             * apply Jphi'.
@@ -690,7 +695,7 @@ Qed.
           eapply JuicyMachine.sync_step with (Htid := cnti); auto.
           eapply step_release
           with (c := (ExtCall (EF_external name sg) args lid ve te k))
-                 (Hcompatible := mem_compatible_forget compat);
+                 (Hcompat := mem_compatible_forget compat);
               try apply Eci;
             try apply Eae;
             try apply Eci;
@@ -702,6 +707,9 @@ Qed.
             try apply Sat;
             try apply Efind;
             try reflexivity.
+          + apply (mem_compatible_forget compat).
+          + admit (* MISMATCH IN LOCK PERMISSIONS *).
+          + admit (* MISMATCH IN LOCK PERMISSIONS *).
         
         - (* Some Some: lock is unlocked, this should be impossible *)
           destruct lock_coh' as [LOAD (R' & lk & sat)].

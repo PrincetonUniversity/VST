@@ -1035,12 +1035,13 @@ Section Preservation.
   
   Theorem preservation Gamma n state state' :
     ~ blocked_at_external state MKLOCK ->
+    ~ blocked_at_external state FREE_LOCK ->
     state_step state state' ->
     state_invariant Jspec' Gamma (S n) state ->
     state_invariant Jspec' Gamma n state' \/
     state_invariant Jspec' Gamma (S n) state'.
   Proof.
-    intros not_makelock STEP.
+    intros not_makelock not_freelock STEP.
     inversion STEP as [ | ge m m' sch sch' tp tp' jmstep E E']. now auto.
     (* apply state_invariant_S *)
     subst state state'; clear STEP.
@@ -1368,12 +1369,16 @@ Section Preservation.
         assert (Hcompatible = Hcmpt) by apply proof_irr. subst Hcompatible.
         rewrite El in *.
         eapply preservation_acquire with (Phi := Phi); eauto.
+        admit (* MISMATCH IN LOCK PERMISSIONS *).
+        admit (* MISMATCH IN LOCK PERMISSIONS *).
       
       - (* the case of release *)
         assert (Hcompatible = Hcmpt) by apply proof_irr. subst Hcompatible.
         cleanup.
         rewrite El in *.
         eapply preservation_release with (Phi := Phi); eauto.
+        admit (* MISMATCH IN LOCK PERMISSIONS *).
+        admit (* MISMATCH IN LOCK PERMISSIONS *).
       
       - (* the case of spawn *)
         eapply preservation_spawn with (Phi := Phi); eauto.
@@ -1390,11 +1395,17 @@ Section Preservation.
       
       - (* the case of freelock *)
         simpl (m_phi _) in *.
-        rewrite El in *.
-        eapply preservation_freelock with (Phi := Phi); eauto.
+        (* disregarding the case of makelock by hypothesis *)
+        exfalso; apply not_freelock.
+        repeat eexists; eauto.
+        rewrite <- Hat_external.
+        unfold SEM.Sem.
+        rewrite SEM.CLN_msem.
+        reflexivity.
       
       - (* the case of acq-fail *)
         eapply preservation_acqfail with (Phi := Phi); eauto.
+        admit (* MISMATCH IN LOCK PERMISSIONS *).
     }
     
     (*thread[i] is in Kresume *)
@@ -1514,6 +1525,6 @@ Section Preservation.
       (* still unclear how to handle safety of Kinit states *)
       eapply preservation_Kinit; eauto.
     }
-  Qed.
+  Admitted.
   
 End Preservation.
