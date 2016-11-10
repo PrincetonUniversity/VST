@@ -2982,14 +2982,91 @@ Module Parching <: ErasureSig.
    assert (pmap_spec1: forall b0 ofs0, perm_of_res (phi' @ (b0, ofs0)) =
                                     pmap_tid'.1 !! b0 ofs0).
    { move => b0 ofs0.
+     rewrite /pmap_tid'.
      destruct (peq b b0);
        [subst b0; destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + lksize.LKSIZE)%Z ) | ].
-     - admit.
-     - admit.
-     - admit. (*TODO*)
+     - rewrite setPermBlock_same.
+
+       assert (HH':adr_range (b, Int.unsigned ofs) LKSIZE (b,ofs0)).
+       { split; auto. }
+       
+       move: Hrmap => /=.
+       rewrite /rmap_locking.rmap_makelock => [] [] H1 [] H2.
+       move=> /(_ _ HH') => [] [] val [] sh [] sh_before sh_after.
+       rewrite sh_after.
+       if_tac; reflexivity.
+       auto.
+     - rewrite setPermBlock_other_1.
+       
+       assert (HH': ~ adr_range (b, Int.unsigned ofs) LKSIZE (b,ofs0)).
+        { intros [ H1 [H2 H2']]; apply n; split; auto.  }
+        move: Hrmap.
+       rewrite /rmap_locking.rmap_makelock => [] [] H1 [].
+       move=> /(_ _ HH') => <- _ /=.
+       rewrite (MTCH_perm' _ MATCH); repeat f_equal;
+       apply proof_irrelevance.
+
+       apply Intv.range_notin in n; auto.
+       unfold LKSIZE => /= . xomega.
+     - rewrite setPermBlock_other_2.
+       
+       assert (HH': ~ adr_range (b, Int.unsigned ofs) LKSIZE (b0,ofs0)).
+        { intros [ H1 [H2 H2']]; apply n. auto.  }
+        move: Hrmap.
+       rewrite /rmap_locking.rmap_makelock => [] [] H1 [].
+       move=> /(_ _ HH') => <- _ /=.
+       rewrite (MTCH_perm' _ MATCH); repeat f_equal;
+       apply proof_irrelevance.
+
+       auto.
+
+       }
+   
    assert (pmap_spec2: forall b0 ofs0, perm_of_res_lock (phi' @ (b0, ofs0)) =
                                     pmap_tid'.2 !! b0 ofs0).
-   admit. (*TODO*)
+    { move => b0 ofs0.
+     rewrite /pmap_tid'.
+     destruct (peq b b0);
+       [subst b0; destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + lksize.LKSIZE)%Z ) | ].
+     - rewrite setPermBlock_same.
+
+       assert (HH':adr_range (b, Int.unsigned ofs) LKSIZE (b,ofs0)).
+       { split; auto. }
+       
+       move: Hrmap => /=.
+       rewrite /rmap_locking.rmap_makelock => [] [] H1 [] H2.
+       move=> /(_ _ HH') => [] [] val [] sh [] sh_before sh_after.
+       rewrite sh_after.
+       if_tac; apply perm_of_writable;
+       intros HH; eapply Share.nontrivial; auto.
+
+       auto.
+       
+     - rewrite setPermBlock_other_1.
+       
+       assert (HH': ~ adr_range (b, Int.unsigned ofs) LKSIZE (b,ofs0)).
+        { intros [ H1 [H2 H2']]; apply n; split; auto.  }
+        move: Hrmap.
+       rewrite /rmap_locking.rmap_makelock => [] [] H1 [].
+       move=> /(_ _ HH') => <- _ /=.
+       rewrite (MTCH_perm2' _ MATCH); repeat f_equal;
+       apply proof_irrelevance.
+
+       apply Intv.range_notin in n; auto.
+       unfold LKSIZE => /= . xomega.
+     - rewrite setPermBlock_other_2.
+       
+       assert (HH': ~ adr_range (b, Int.unsigned ofs) LKSIZE (b0,ofs0)).
+        { intros [ H1 [H2 H2']]; apply n. auto.  }
+        move: Hrmap.
+       rewrite /rmap_locking.rmap_makelock => [] [] H1 [].
+       move=> /(_ _ HH') => <- _ /=.
+       rewrite (MTCH_perm2' _ MATCH); repeat f_equal;
+       apply proof_irrelevance.
+
+       auto.
+
+       }
      
       
 
@@ -3410,56 +3487,56 @@ Here be dragons
                                 LKSIZE_nat)).
           assert (pmap_spec1: forall b0 ofs0, perm_of_res (phi' @ (b0, ofs0)) =
                                          pmap_tid'.1 !! b0 ofs0).
-          admit. (*TODO*)
-          assert (pmap_spec2: forall b0 ofs0, perm_of_res_lock (phi' @ (b0, ofs0)) =
-                                         pmap_tid'.2 !! b0 ofs0).
-          admit. (*TODO*)
+          { move => b0 ofs0.
+            rewrite /pmap_tid'.
+            destruct (peq b b0);
+              [subst b0; destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + lksize.LKSIZE)%Z ) | ].
+            - rewrite setPermBlock_var_same; auto.
+              unfold pdata.
+              replace
+                (Int.intval ofs + Z.of_nat (nat_of_Z (ofs0 - Int.intval ofs + 1)))
+              with
+              ofs0.
+              reflexivity.
+              rewrite Coqlib.nat_of_Z_eq.
+              move: i0.
+              clear; rewrite /LKSIZE => [] [] /= A B.
+              replace (ofs0 - Int.intval ofs + 1) with
+              ((ofs0 - Int.intval ofs) + 1) by omega.
+              replace
+                ( Int.intval ofs + (ofs0 - Int.intval ofs + 1))
+              with
+              ((Int.intval ofs + ofs0) - Int.intval ofs + 1) by omega.
+              replace
+                (Int.intval ofs + ofs0 - Int.intval ofs)
+              with
+              ofs0 by omega.
+              admit. (*This is wrong*)
 
-              (*assert (virtue_spec: forall (b0 : block) (ofs0 : Z),
-                         perm_of_res (phi' @ (b0, ofs0)) =
-                           (computeMap (DTP.getThreadR Htid') virtue) !! b0 ofs0).
-                { intros b0 ofs0.
-                  destruct (virtue ! b0) eqn:VIRT.
-                  destruct (o ofs0) eqn:O.
-                  - erewrite computeMap_1; try eassumption.
-                    unfold virtue in VIRT.
-                    destruct (ident_eq b0 b).
-                    + subst b0.
-                      rewrite PTree.gss in VIRT. inversion VIRT. subst o.
-                      unfold delta_b in O.
-                      destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + LKSIZE)); inversion O.
-                     reflexivity.
-                   + rewrite PTree.gso in VIRT. unfold empty_delta_map in VIRT.
-                     rewrite PTree.gempty in VIRT; inversion VIRT.
-                     assumption.
-                 - erewrite computeMap_2; try eassumption.
-                   unfold virtue in VIRT.
-                   destruct (ident_eq b0 b).
-                   + subst b0.
-                     rewrite PTree.gss in VIRT. inversion VIRT. subst o.
-                     unfold delta_b in O.
-                     destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + LKSIZE)); inversion O.
-                       rewrite <- Hj_forward.
-                       * inversion MATCH; rewrite mtch_perm; reflexivity.
-                       * right. replace juicy_machine.LKSIZE with LKSIZE by reflexivity; simpl.
-                         intros HH; apply n. unfold Intv.In; simpl; xomega.
-                         
-                     + rewrite PTree.gso in VIRT. unfold empty_delta_map in VIRT.
-                       rewrite PTree.gempty in VIRT; inversion VIRT.
-                       assumption.
-                   - erewrite computeMap_3; try eassumption.
-                     unfold virtue in VIRT.
-                     destruct (ident_eq b0 b).
-                     + subst b0.
-                       rewrite PTree.gss in VIRT. inversion VIRT.
-                     + rewrite PTree.gso in VIRT; try assumption.
-                       unfold empty_delta_map in VIRT.
-                       rewrite PTree.gempty in VIRT; inversion VIRT.
-                       rewrite <- Hj_forward.
-                       * inversion MATCH; rewrite mtch_perm; reflexivity.
-                     * left. intros HH; apply n; symmetry; assumption.
-               } *)
+              unfold LKSIZE in i0; destruct i0 as [A B].
+              simpl in A. simpl in B.
+              assert (ofs0 - Int.intval ofs >= 0).
+              omega.
+              omega.
+            - rewrite setPermBlock_var_other_1; auto.
+              unfold Intv.In in n; simpl in n.
+              move: (Hj_forward (b,ofs0) ltac:(right; auto)) => <- .
+                rewrite (MTCH_perm' _ MATCH).
+                replace (MTCH_cnt' MATCH Htid') with Hi by
+                    apply proof_irrelevance.
+                reflexivity.
+                apply Intv.range_notin in n; auto.
+                unfold LKSIZE; simpl; omega.
+            - rewrite setPermBlock_var_other_2; auto.
+              unfold Intv.In in n; simpl in n.
+              move: (Hj_forward (b0,ofs0) ltac:(left; auto)) => <- .
+                rewrite (MTCH_perm' _ MATCH).
+                replace (MTCH_cnt' MATCH Htid') with Hi by
+                    apply proof_irrelevance.
+                reflexivity.
 
+          }
+                
           pose (ds':= DTP.updThread Htid' (Kresume c Vundef) pmap_tid').
           pose (ds'':= DTP.remLockSet ds' (b,(Int.intval ofs))).
           
