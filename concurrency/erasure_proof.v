@@ -3472,7 +3472,7 @@ Here be dragons
           pose (virtue:= PTree.set b delta_b empty_delta_map).
           
           pose (pmap_tid  := DTP.getThreadR Htid').
-          pose (pdata:= fun i:nat => perm_of_res (phi' @ (b, Int.intval ofs + Z.of_nat i))).
+          pose (pdata:= fun i:nat => perm_of_res (phi' @ (b, Int.intval ofs + Z.of_nat (i)-1))).
           pose (pmap_tid' := (setPermBlock_var (*=setPermBlockfunc*)
                                 pdata
                                 b
@@ -3494,25 +3494,13 @@ Here be dragons
             - rewrite setPermBlock_var_same; auto.
               unfold pdata.
               replace
-                (Int.intval ofs + Z.of_nat (nat_of_Z (ofs0 - Int.intval ofs + 1)))
+                (Int.intval ofs + Z.of_nat (nat_of_Z (ofs0 - Int.intval ofs + 1)) -1)
               with
               ofs0.
               reflexivity.
               rewrite Coqlib.nat_of_Z_eq.
-              move: i0.
-              clear; rewrite /LKSIZE => [] [] /= A B.
-              replace (ofs0 - Int.intval ofs + 1) with
-              ((ofs0 - Int.intval ofs) + 1) by omega.
-              replace
-                ( Int.intval ofs + (ofs0 - Int.intval ofs + 1))
-              with
-              ((Int.intval ofs + ofs0) - Int.intval ofs + 1) by omega.
-              replace
-                (Int.intval ofs + ofs0 - Int.intval ofs)
-              with
-              ofs0 by omega.
-              admit. (*This is wrong*)
-
+              xomega.
+              
               unfold LKSIZE in i0; destruct i0 as [A B].
               simpl in A. simpl in B.
               assert (ofs0 - Int.intval ofs >= 0).
@@ -3537,6 +3525,40 @@ Here be dragons
 
           }
                 
+          assert (pmap_spec2: forall b0 ofs0, perm_of_res_lock (phi' @ (b0, ofs0)) =
+                                         pmap_tid'.2 !! b0 ofs0).
+          {
+            move => b0 ofs0.
+            rewrite /pmap_tid'.
+            destruct (peq b b0);
+              [subst b0; destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + lksize.LKSIZE)%Z ) | ].
+            - rewrite setPermBlock_same; auto.
+              destruct (zeq ofs0 (Int.intval ofs)).
+              + subst.
+                move : Hlock' => [] val -> ; reflexivity.
+              + assert (HH: Int.intval ofs < ofs0 < Int.intval ofs + LKSIZE).
+                { move: i0 . rewrite /LKSIZE /= => [] [] /= i0 i1.
+                  clear - i0 i1 n;  xomega. }
+                move: (Hct _ HH) => [] val [] _ -> //.
+            - rewrite setPermBlock_other_1; auto.
+              unfold Intv.In in n; simpl in n.
+              move: (Hj_forward (b,ofs0) ltac:(right; auto)) => <- .
+                rewrite (MTCH_perm2' _ MATCH).
+                replace (MTCH_cnt' MATCH Htid') with Hi by
+                    apply proof_irrelevance.
+                reflexivity.
+                apply Intv.range_notin in n; auto.
+                unfold LKSIZE; simpl; omega.
+            - rewrite setPermBlock_other_2; auto.
+              unfold Intv.In in n; simpl in n.
+              move: (Hj_forward (b0,ofs0) ltac:(left; auto)) => <- .
+                rewrite (MTCH_perm2' _ MATCH).
+                replace (MTCH_cnt' MATCH Htid') with Hi by
+                    apply proof_irrelevance.
+                reflexivity.
+          }
+          
+
           pose (ds':= DTP.updThread Htid' (Kresume c Vundef) pmap_tid').
           pose (ds'':= DTP.remLockSet ds' (b,(Int.intval ofs))).
           
@@ -3554,6 +3576,8 @@ Here be dragons
                               joins phi' (@JTP.getThreadR j js (MTCH_cnt' MATCH cntj))).
           { (*Will use rmap_locking.rmap_makelock_join*)
             move => j cntj neq.
+            (*eapply resource_at_joins2.
+            apply resource_at_joins.*)
             admit. (*proof should follow rmap_makelock_join*)
           }
 
@@ -3778,8 +3802,10 @@ Here be dragons
               instantiate (1:=pdata).
               unfold pdata.
               destruct (zeq 0 (Z.of_nat indx)).
-              * rewrite -e.
-                replace (Int.intval ofs + 0) with (Int.intval ofs) by omega.
+              * simpl.
+                rewrite Zpos_P_of_succ_nat.
+                rewrite -e /=.
+                replace (Int.intval ofs + 1 -1) with (Int.intval ofs) by omega.
                 destruct Haccess as [bl [A B]].
                 specialize (B (b, Int.intval ofs)); simpl in B.
                 destruct (adr_range_dec (b, Int.intval ofs) 4 (b, Int.intval ofs)).
@@ -3802,6 +3828,9 @@ Here be dragons
                 { clear - n ineq; destruct ineq; split; auto;
                   omega. }
                 move: (Hct _ range_narrow) => [] val [] old_juice new_juice.
+                simpl; rewrite Zpos_P_of_succ_nat; simpl.
+                replace (  Int.intval ofs + Z.succ (Z.of_nat indx) - 1) with
+                 ( Int.intval ofs + Z.of_nat indx) by omega.
                 rewrite new_juice; simpl.
                 destruct (eq_dec sh Share.top) eqn:is_bot; subst.
                    -- rewrite perm_of_sh_fullshare. constructor. 
@@ -3814,43 +3843,7 @@ Here be dragons
 
         (*
            
-                 * inversion MATCH; split.
-                   -- 
-                      rewrite -mtch_locksRes.
-                      
-                      
-                 * inversion MATCH.
-                   specialize (mtch_locksEmpty _ _ is_lock' is_lock).
-               + reflexivity.
-               + intros ofs0 intv.
-                 instantiate (1:=virtue).
-                 unfold virtue.
-                 replace (MTCH_cnt MATCH Hi) with Htid' by apply proof_irrelevance.
-                 erewrite <- virtue_spec.
-                 destruct (zeq ofs0 (Int.intval ofs)).
-                 * subst ofs0. destruct Hlock' as [val Hlock'].
-                   rewrite Hlock'; simpl.
-                   destruct (eq_dec sh Share.top).
-                   subst sh. rewrite perm_of_sh_fullshare; constructor.
-                   rewrite perm_of_writable; try assumption; constructor.
-                 * destruct (Hct ofs0) as [val [Hct_old Hval_new]]. 
-                   clear -intv n. unfold Intv.In in intv. simpl in intv.
-                   unfold juicy_machine.LKSIZE; simpl. xomega.
-                   rewrite Hval_new. simpl.
-                   destruct (eq_dec sh Share.top).
-                   subst sh. rewrite perm_of_sh_fullshare; constructor.
-                   rewrite perm_of_writable; try assumption; constructor.
-               + intros. 
-                 replace (MTCH_cnt MATCH Hi) with Htid' by apply proof_irrelevance.
-                 rewrite <- virtue_spec.
-                 inversion MATCH; erewrite <- mtch_perm.
-                 destruct H as [[BB notIn] | BB];
-                   rewrite <- (Hj_forward (b', ofs'));
-                   try reflexivity; [right | left]; try (simpl; assumption).
-               + reflexivity.
-               + do 2 (replace (MTCH_cnt MATCH Hi) with Htid' by apply proof_irrelevance); reflexivity.
-               + reflexivity.
-           }
+                
 
   *)
         (* step_acqfail *)
