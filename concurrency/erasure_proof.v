@@ -4122,8 +4122,40 @@ Here be dragons
     inversion Hcorestep.
     eapply ev_step_ax2 in H; destruct H as [T H].
     apply SEM.step_decay in H.
-    admit. (*decay preserves lock permissions!!*)
-    
+    { (*decay preserves lock permissions!!*)
+      replace (MTCH_cnt' MATCH Htid') with Htid by apply proof_irrelevance.
+      move: H0 => [] [] _ /(_ (b,ofs)) [] A B _.
+      destruct B as [B| [B|B]].
+      - rewrite - B; simpl.
+        destruct ((JTP.getThreadR Htid @ (b, ofs))) eqn:HH;
+          try rewrite HH; simpl; eauto.
+      - destruct B as [rsh [v [v' [B1 B2]]] ].
+        rewrite B2.
+        simpl in B1.
+        destruct (JSEM.ThreadPool.getThreadR Htid @ (b, ofs)) eqn:HH;
+          try ( try destruct k; simpl in B1; inversion B1).
+        rewrite HH; simpl; auto.
+      - destruct B as [[M [v B]]|[v[pp [B1 B2]]]].
+        + rewrite B; simpl.
+          { (* address is not valid so it should be no... wiht mem compat.*)
+            destruct Hcmpt as [jall Hcmpt].
+            inversion Hcmpt.
+            inversion all_cohere.
+            
+            symmetry.
+            apply po_None1.
+            eapply po_trans;
+            [ |eapply perm_of_res_op2].
+            replace None with (max_access_at m  (b, ofs)).
+            eapply po_trans. 
+            eapply max_coh.
+            apply juicy_mem_lemmas.po_join_sub'.
+            apply resource_at_join_sub.
+            apply JMS.compatible_threadRes_sub; auto.
+            apply nextblock_access_empty.
+            apply M.
+            }
+        + rewrite B2 B1; auto. }
 }
 {  assert (Hcmpt': DryMachine.mem_compatible ds m) by
       (eapply MTCH_compat; eassumption).
@@ -4193,9 +4225,8 @@ inversion MATCH; subst.
   Grab Existential Variables.
   - simpl. apply mtch_cnt. assumption.
           - assumption.
-          - admit. (*admitted before*)
           - simpl. eapply MTCH_cnt ; eauto.
-  Admitted.
+  Qed.
   
   Lemma core_diagram:
     forall (m : Mem.mem)  (U0 U U': schedule) rmap pmap 
