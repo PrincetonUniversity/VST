@@ -60,6 +60,27 @@ End DecayingSemantics. *)
  * concurrency.permissions.v and     
  * veric.juicy_mem_lemmas.v          *)
 
+Lemma po_join_sub_lock:
+  forall r1 r2 : resource,
+    join_sub r2 r1 ->
+    Mem.perm_order'' (perm_of_res_lock r1) (perm_of_res_lock r2).
+Proof.
+  intros r1 r2 H.
+  destruct H as [x H].
+  inversion H; subst; simpl; try constructor.
+  - destruct k; simpl; auto;
+    apply po_refl.
+  - apply event_semantics.po_None.
+  - destruct k; try apply event_semantics.po_None.
+    + apply juicy_mem_lemmas.po_join_sub_sh.
+      * exists Share.bot. apply bot_join_eq.
+      * exists (pshare_sh sh2); assumption.
+    + apply juicy_mem_lemmas.po_join_sub_sh.
+      * exists Share.bot. apply bot_join_eq.
+      * exists (pshare_sh sh2); assumption.
+Qed. 
+
+
 Lemma perm_coh_join_sub:
     forall a b, join_sub a b ->
            perm_coh (perm_of_res a) (perm_of_res_lock b).
@@ -979,10 +1000,43 @@ Module Parching <: ErasureSig.
         unfold DryMachine.init_mach.
         rewrite C.
         f_equal.
-      - admit. (* apply initial_invariant.*)
+      - (* THIS COULD BE A LEMMA*)
+        pose (IM:=(DryMachine.initial_machine pmap.1 c)); fold IM.
+        assert (isZ: forall i, DTP.containsThread IM i -> (i = 0)%N).
+        { rewrite /DryMachine.ThreadPool.containsThread /IM /=.
+          move => i; destruct i; first[reflexivity | intros HH; inversion HH].
+        }
+        assert (noLock: forall l rm, 
+                   DryMachine.ThreadPool.lockRes IM l = Some rm -> False).
+        { rewrite /DryMachine.ThreadPool.lockRes /IM /=.
+          move => l rm.
+          rewrite /DryMachine.ThreadPool.lockRes
+                  /DryMachine.initial_machine
+                  /empty_lset /= find_empty => HH.
+          inversion HH.
+          }
+
+        constructor.
+        + move => i j0 cnti cntj HH.
+          exfalso; apply HH.
+          move: cnti cntj => /isZ -> /isZ ->; reflexivity.
+        + move=> l1 l2 rm1 rm2 neq /noLock contra; inversion contra. 
+        + move => i l cnt rm /noLock contra; inversion contra.
+        + move=> i cnti; split.
+          * move => j0 cntj.
+            move: (cnti) (cntj) => cnti0 cntj0;
+              move: cnti cntj => /isZ Hi /isZ Hj.
+            subst.
+            eapply permCoh_empty'.
+          * move => l rm /noLock contra; inversion contra.
+        + move => l mr /noLock contra; inversion contra.
+        + move => b ofs.
+          rewrite / IM /= //.
+          
       - apply MTCH_initial; assumption.
-    Admitted.
-   
+    Qed.
+
+    
   Lemma conc_step_diagram:
     forall m m' U js js' ds i genv ev
       (MATCH: match_st js ds)
@@ -1596,13 +1650,8 @@ Module Parching <: ErasureSig.
              rewrite <- mtch_perm2 with (Htid:=Hi).
              replace (MTCH_cnt MATCH Hi) with Htid' by eapply proof_irr.
              rewrite virtue_correct2.
-             Lemma join_permjoin_lock
-               : forall r1 r2 r3 : resource,
-                 sepalg.join r1 r2 r3 ->
-                 permjoin_def.permjoin (perm_of_res_lock r1) (perm_of_res_lock r2)
-                                       (perm_of_res_lock r3).
-                   Admitted.
-             apply join_permjoin_lock.
+             
+             apply permjoin.join_permjoin_lock.
              eapply resource_at_join.
              apply join_comm.
              assumption.
@@ -2234,7 +2283,7 @@ Module Parching <: ErasureSig.
         rewrite -virtue_spec2.
         rewrite -JSEM.juic2Perm_locks_correct.
         rewrite (MTCH_perm2' _ MATCH b0 ofs0).
-        apply join_permjoin_lock.
+        apply permjoin.join_permjoin_lock.
         apply resource_at_join.
         apply join_comm.
         replace (MTCH_cnt' MATCH Htid') with Hi by apply proof_irrelevance.
@@ -2540,73 +2589,293 @@ Module Parching <: ErasureSig.
       { (* invariant *)  
         cut (DryMachine.invariant ds_upd).
         {
+          Lemma addThrd_inv: forall ds vf arg new_perm,
+            DryMachine.invariant ds  ->
+            (forall i cnti,
+                permMapsDisjoint2 new_perm (@DTP.getThreadR i ds cnti)) ->
+            (forall l rm,  DTP.lockRes ds l = Some rm ->
+                      permMapsDisjoint2 new_perm rm) ->
+            permMapCoherence new_perm.1 new_perm.2 ->
+            (forall i cnti,
+                permMapCoherence new_perm.1 (@DTP.getThreadR i ds cnti).2) ->
+            (forall i cnti,
+                permMapCoherence (@DTP.getThreadR i ds cnti).1 new_perm.2) ->
+            (forall l rm,  DTP.lockRes ds l = Some rm ->
+                       permMapCoherence new_perm.1 rm.2) ->
+            (forall l rm,  DTP.lockRes ds l = Some rm ->
+                       permMapCoherence rm.1 new_perm.2) ->
+            DryMachine.invariant (DTP.addThread ds vf arg new_perm).
+          Proof.
+            move => ds vf arg new_perm dinv
+                      DISJ_RES DISJ_LOCK COH_SELF COH_RES1
+                      COH_RES2 COH_LOCK1 COH_LOCK2.
+            constructor.
+            - move => i j cnti cntj neq.
+              assert (cntj':=cntj).
+              assert (cnti':=cnti).
+              apply DMS.DTP.cntAdd' in cnti'.
+              apply DMS.DTP.cntAdd' in cntj'.
+              destruct cntj' as [[H1 H2] | H1];
+                destruct cnti' as [[H3 H4] | H3]; subst;
+              try solve[exfalso; apply neq; reflexivity].
+              + rewrite (DTP.gsoAddRes H1) .
+                rewrite (DTP.gsoAddRes H3).
+                inversion dinv; eauto.
+              + rewrite (DTP.gsoAddRes H1).
+                erewrite DTP.gssAddRes; auto.
+              + rewrite (DTP.gsoAddRes H3).
+                apply permMapsDisjoint2_comm.
+                erewrite DTP.gssAddRes; auto.
+            - move => l1 l2 mr1 mr2.
+              rewrite DTP.gsoAddLPool.
+              rewrite DTP.gsoAddLPool.
+              inversion dinv; eauto.
+            - move => i l cnti rm.
+              rewrite DTP.gsoAddLPool.
+              assert (cnti':=cnti).
+              apply DMS.DTP.cntAdd' in cnti'.
+              destruct cnti' as [[H1 H2] | H1].
+              + rewrite (DTP.gsoAddRes H1).
+                inversion dinv; eauto.
+              + erewrite DTP.gssAddRes; eauto.
+            - move => i cnti; split.
+              + assert (cnti':=cnti).
+                apply DMS.DTP.cntAdd' in cnti'.
+                destruct cnti' as [[H1 H2] | H1].
+                * inversion dinv.
+                  move: (thread_data_lock_coh i H1)=> [] AA _. 
+                  move => j cntj.
+                  assert (cntj':=cntj).
+                  apply DMS.DTP.cntAdd' in cntj'.
+                  destruct cntj' as [[H3 H4] | H3].
+                  -- rewrite (DTP.gsoAddRes H1) .
+                     rewrite (DTP.gsoAddRes H3).
+                     eapply AA.
+                  -- rewrite (DTP.gsoAddRes H1) .
+                     rewrite (DTP.gssAddRes); auto.
+                * move => j cntj.
+                  assert (cntj':=cntj).
+                  apply DMS.DTP.cntAdd' in cntj'.
+                  destruct cntj' as [[H3 H4] | H3].
+                  -- rewrite (DTP.gsoAddRes H3).
+                     rewrite (DTP.gssAddRes); auto.
+                  -- do 2 (rewrite (DTP.gssAddRes); auto).
+              + assert (cnti':=cnti).
+                apply DMS.DTP.cntAdd' in cnti'.
+                destruct cnti' as [[H1 H2] | H1].
+                * inversion dinv.
+                  move: (thread_data_lock_coh i H1)=> [] _ BB. 
+                  move => l rm.
+                  rewrite (DTP.gsoAddRes H1).
+                  rewrite DTP.gsoAddLPool.
+                  eauto.
+                * move => l rm.
+                  rewrite (DTP.gssAddRes); auto.
+                  rewrite DTP.gsoAddLPool.
+                  eauto.
+            - move=> l rm;
+                rewrite DTP.gsoAddLPool => isLock.
+              inversion dinv.
+              move: (locks_data_lock_coh l rm isLock)=> [] AA BB.
+              split.
+              + move => j cntj.
+                assert (cntj':=cntj).
+                apply DMS.DTP.cntAdd' in cntj'.
+                destruct cntj' as [[H3 H4] | H3].
+                -- rewrite (DTP.gsoAddRes H3).
+                   inversion dinv; eauto.
+                -- (rewrite (DTP.gssAddRes); auto).
+                   eauto.
+              + move => l2 rm2; 
+                  rewrite DTP.gsoAddLPool => isLock2.
+                eauto.
+            - move => b ofs.
+              inversion dinv; simpl; eauto.
+              apply lockRes_valid.
+          Qed.
+          
           (*This is a new lemma that is missing.*)
-          admit.
-          (*
-            { intros HH. unfold ds'.
-                eapply addThrd_inv.
-                - assumption.
-                - intros.
-                  destruct (NatTID.eq_tid_dec i i0).
-                  + subst i0.
-                    rewrite DryMachine.SIG.ThreadPool.gssThreadRes.
-                    apply permDisjoint_permMapsDisjoint.
-                    intros b0 ofs0.
-                    rewrite virtue_spec1 virtue_spec2.
-                    apply joins_permDisjoint.
-                    apply joins_comm.
-                    apply resource_at_joins.
-                    eapply join_joins.
-                    eassumption.
-                  + rewrite DryMachine.SIG.ThreadPool.gsoThreadRes. 2: assumption.
-                    apply permDisjoint_permMapsDisjoint.
-                    intros b0 ofs0.
-                    rewrite virtue_spec2.
-                    erewrite MTCH_perm' with (MTCH:=MATCH).
-                    apply joins_permDisjoint. apply joins_comm.
-                    eapply join_sub_joins_trans.
-                    eapply join_join_sub.
-                    move Hrem_fun_res at bottom.
-                    apply resource_at_join. eassumption.
-                    simpl.
-                    eapply resource_at_joins.
-                    eapply (compatible_threadRes_join).
-                    eassumption.
-                    assumption.
-                - rewrite DTP.gsoThreadLock.
-                  apply permDisjoint_permMapsDisjoint.
-                  intros b0 ofs0.
-                  rewrite virtue_spec2.
-                  apply permDisjoint_comm.
-                  eapply permDisjoint_sub.
-                  eapply join_join_sub.
-                  eapply resource_at_join.
-                  eassumption.
-                  inversion MATCH; rewrite mtch_perm.
-                  apply mtch_cnt; assumption.
-                  intros; apply permMapsDisjoint_permDisjoint.
-                  inversion dinv.
-                  apply permMapsDisjoint_comm; apply lock_set_threads.
-                - intros l lmap.
-                  rewrite DTP.gsoThreadLPool.
-                  intros H. 
-                  apply permDisjoint_permMapsDisjoint.
-                  intros b0 ofs0.
-                  rewrite virtue_spec2.
-                  apply permDisjoint_comm.
-                  eapply permDisjoint_sub.
-                  eapply join_join_sub.
-                  eapply resource_at_join.
-                  eassumption.
-                  inversion MATCH; rewrite mtch_perm.
-                  apply mtch_cnt; assumption.
-                  intros; apply permMapsDisjoint_permDisjoint.
-                  inversion dinv.
-                  apply permMapsDisjoint_comm. eapply lock_res_threads.
-                  eassumption.
-              } *)
+          intro HH; apply addThrd_inv.
+          - assumption.
+          - move=> j cntj .
+            split; 
+              apply permDisjoint_permMapsDisjoint => b0 ofs0.
+            + rewrite virtue_spec21.
+              destruct (NatTID.eq_tid_dec i j).
+              * subst. rewrite DMS.DTP.gssThreadRes.
+                rewrite virtue_spec11.
+                apply joins_permDisjoint.
+                apply resource_at_joins.
+                eexists; eassumption.
+              * rewrite DMS.DTP.gsoThreadRes; auto.
+                rewrite (MTCH_perm' _ MATCH).
+                apply joins_permDisjoint.
+                apply resource_at_joins.
+                eapply join_sub_joins_trans; eauto.
+                exists phi'; eauto.
+                simpl.
+                eapply JMS.JuicyMachineLemmas.compatible_threadRes_join; eauto.
+            + rewrite virtue_spec22.
+              destruct (NatTID.eq_tid_dec i j).
+              * subst. rewrite DMS.DTP.gssThreadRes.
+                rewrite virtue_spec12.
+                apply joins_permDisjoint_lock.
+                apply resource_at_joins.
+                eexists; eassumption.
+              * rewrite DMS.DTP.gsoThreadRes; auto.
+                rewrite (MTCH_perm2' _ MATCH).
+                apply joins_permDisjoint_lock.
+                apply resource_at_joins.
+                eapply join_sub_joins_trans; eauto.
+                exists phi'; eauto.
+                simpl.
+                eapply JMS.JuicyMachineLemmas.compatible_threadRes_join; eauto.
+          - move => l rm.
+            rewrite DMS.DTP.gsoThreadLPool => isLock2.
+            split; apply permDisjoint_permMapsDisjoint=> b0 ofs0 /=.
+            + rewrite virtue_spec21.
+            
+              assert (exists pmap1, JTP.lockRes js l = Some pmap1).
+              { inversion MATCH.
+                specialize (mtch_locks l).
+                rewrite isLock2 in mtch_locks.
+                destruct (JTP.lockRes js l).
+                - exists l0; reflexivity.
+                - inversion mtch_locks.
+              }  
+              destruct H as [rm' H].
+              destruct rm'.
+              * inversion MATCH.
+                rewrite -(mtch_locksRes _ _ _ H isLock2).
+                apply joins_permDisjoint.
+                apply resource_at_joins.
+                eapply join_sub_joins_trans.
+                exists phi'; eassumption.
+                eapply JMS.JuicyMachineLemmas.compatible_threadRes_lockRes_join;
+                  eauto.
+              * inversion MATCH.
+                specialize (mtch_locksEmpty _ _ H isLock2).
+                inversion mtch_locksEmpty.
+                rewrite empty_map_spec.
+                eapply permDisjoint_comm.
+                eapply permDisjoint_None.
+            + rewrite virtue_spec22.
+            
+              assert (exists pmap1, JTP.lockRes js l = Some pmap1).
+              { inversion MATCH.
+                specialize (mtch_locks l).
+                rewrite isLock2 in mtch_locks.
+                destruct (JTP.lockRes js l).
+                - exists l0; reflexivity.
+                - inversion mtch_locks.
+              }  
+              destruct H as [rm' H].
+              destruct rm'.
+              * inversion MATCH.
+                rewrite -(mtch_locksRes0 _ _ _ H isLock2).
+                apply joins_permDisjoint_lock.
+                apply resource_at_joins.
+                eapply join_sub_joins_trans.
+                exists phi'; eassumption.
+                eapply JMS.JuicyMachineLemmas.compatible_threadRes_lockRes_join;
+                  eauto.
+              * inversion MATCH.
+                specialize (mtch_locksEmpty _ _ H isLock2).
+                inversion mtch_locksEmpty.
+                rewrite empty_map_spec.
+                eapply permDisjoint_comm.
+                eapply permDisjoint_None.
+          - move=> b0 ofs0;
+              simpl.
+            rewrite virtue_spec21 virtue_spec22.
+            apply perm_coh_self.
+          - move=> j cntj b0 ofs0.
+            rewrite virtue_spec21.
+            destruct (NatTID.eq_tid_dec i j).
+            * subst. rewrite DMS.DTP.gssThreadRes.
+              rewrite virtue_spec12.
+              apply perm_coh_joins.
+              apply resource_at_joins.
+              eexists; eauto.
+            * rewrite DMS.DTP.gsoThreadRes; auto.
+              rewrite (MTCH_perm2' _ MATCH).
+              apply perm_coh_joins.
+              apply resource_at_joins.
+              eapply join_sub_joins_trans.
+              -- eexists; eauto.
+              --  eapply JMS.JuicyMachineLemmas.compatible_threadRes_join; eauto.
+          - move=> j cntj b0 ofs0.
+            rewrite virtue_spec22.
+            destruct (NatTID.eq_tid_dec i j).
+            * subst. rewrite DMS.DTP.gssThreadRes.
+              rewrite virtue_spec11.
+              apply perm_coh_joins.
+              apply resource_at_joins.
+              eexists; eauto.
+            * rewrite DMS.DTP.gsoThreadRes; auto.
+              rewrite (MTCH_perm' _ MATCH).
+              apply perm_coh_joins.
+              apply resource_at_joins.
+              apply joins_comm.
+              eapply join_sub_joins_trans.
+              -- eexists; eauto.
+              --  eapply JMS.JuicyMachineLemmas.compatible_threadRes_join; eauto.
+          - move => l rm .
+            rewrite DMS.DTP.gsoThreadLPool => isLock b0 ofs0.
+            rewrite virtue_spec21.
+             assert (exists pmap1, JTP.lockRes js l = Some pmap1).
+              { inversion MATCH.
+                specialize (mtch_locks l).
+                rewrite isLock in mtch_locks.
+                destruct (JTP.lockRes js l).
+                - exists l0; reflexivity.
+                - inversion mtch_locks.
+              }  
+              destruct H as [rm' H].
+              destruct rm'.
+              + inversion MATCH.
+                rewrite -(mtch_locksRes0 _ _ _ H isLock).
+                apply perm_coh_joins.
+                apply resource_at_joins.
+                eapply join_sub_joins_trans.
+                exists phi'; eassumption.
+                eapply JMS.JuicyMachineLemmas.compatible_threadRes_lockRes_join;
+                  eauto.
+              + inversion MATCH.
+                specialize (mtch_locksEmpty _ _ H isLock).
+                inversion mtch_locksEmpty.
+                rewrite empty_map_spec.
+                eapply perm_coh_empty_1.
+          - move => l rm .
+            rewrite DMS.DTP.gsoThreadLPool => isLock b0 ofs0.
+            rewrite virtue_spec22.
+             assert (exists pmap1, JTP.lockRes js l = Some pmap1).
+              { inversion MATCH.
+                specialize (mtch_locks l).
+                rewrite isLock in mtch_locks.
+                destruct (JTP.lockRes js l).
+                - exists l0; reflexivity.
+                - inversion mtch_locks.
+              }  
+              destruct H as [rm' H].
+              destruct rm'.
+              + inversion MATCH.
+                rewrite -(mtch_locksRes _ _ _ H isLock).
+                apply perm_coh_joins.
+                apply resource_at_joins.
+                apply joins_comm.
+                eapply join_sub_joins_trans.
+                
+                exists phi'; eassumption.
+                eapply JMS.JuicyMachineLemmas.compatible_threadRes_lockRes_join;
+                  eauto.
+              + inversion MATCH.
+                specialize (mtch_locksEmpty _ _ H isLock).
+                inversion mtch_locksEmpty.
+                rewrite empty_map_spec.
+                eapply perm_coh_empty_2.
+                apply juicy_mem_lemmas.perm_of_res_lock_not_Freeable.
         }
-
         
         { (*invariant ds_upd*)
           (*eapply updThread_inv.*)
@@ -2671,7 +2940,7 @@ Module Parching <: ErasureSig.
           rewrite virtue_spec12.
           rewrite virtue_spec22.
           inversion MATCH. erewrite <- MTCH_perm2.
-          eapply join_permjoin_lock. (*for _locks *)
+          eapply permjoin.join_permjoin_lock. (*for _locks *)
           apply resource_at_join.
           move Hrem_fun_res at bottom.
             replace
@@ -2712,10 +2981,92 @@ Module Parching <: ErasureSig.
            ))).
    assert (pmap_spec1: forall b0 ofs0, perm_of_res (phi' @ (b0, ofs0)) =
                                     pmap_tid'.1 !! b0 ofs0).
-   admit. (*TODO*)
+   { move => b0 ofs0.
+     rewrite /pmap_tid'.
+     destruct (peq b b0);
+       [subst b0; destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + lksize.LKSIZE)%Z ) | ].
+     - rewrite setPermBlock_same.
+
+       assert (HH':adr_range (b, Int.unsigned ofs) LKSIZE (b,ofs0)).
+       { split; auto. }
+       
+       move: Hrmap => /=.
+       rewrite /rmap_locking.rmap_makelock => [] [] H1 [] H2.
+       move=> /(_ _ HH') => [] [] val [] sh [] sh_before sh_after.
+       rewrite sh_after.
+       if_tac; reflexivity.
+       auto.
+     - rewrite setPermBlock_other_1.
+       
+       assert (HH': ~ adr_range (b, Int.unsigned ofs) LKSIZE (b,ofs0)).
+        { intros [ H1 [H2 H2']]; apply n; split; auto.  }
+        move: Hrmap.
+       rewrite /rmap_locking.rmap_makelock => [] [] H1 [].
+       move=> /(_ _ HH') => <- _ /=.
+       rewrite (MTCH_perm' _ MATCH); repeat f_equal;
+       apply proof_irrelevance.
+
+       apply Intv.range_notin in n; auto.
+       unfold LKSIZE => /= . xomega.
+     - rewrite setPermBlock_other_2.
+       
+       assert (HH': ~ adr_range (b, Int.unsigned ofs) LKSIZE (b0,ofs0)).
+        { intros [ H1 [H2 H2']]; apply n. auto.  }
+        move: Hrmap.
+       rewrite /rmap_locking.rmap_makelock => [] [] H1 [].
+       move=> /(_ _ HH') => <- _ /=.
+       rewrite (MTCH_perm' _ MATCH); repeat f_equal;
+       apply proof_irrelevance.
+
+       auto.
+
+       }
+   
    assert (pmap_spec2: forall b0 ofs0, perm_of_res_lock (phi' @ (b0, ofs0)) =
                                     pmap_tid'.2 !! b0 ofs0).
-   admit. (*TODO*)
+    { move => b0 ofs0.
+     rewrite /pmap_tid'.
+     destruct (peq b b0);
+       [subst b0; destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + lksize.LKSIZE)%Z ) | ].
+     - rewrite setPermBlock_same.
+
+       assert (HH':adr_range (b, Int.unsigned ofs) LKSIZE (b,ofs0)).
+       { split; auto. }
+       
+       move: Hrmap => /=.
+       rewrite /rmap_locking.rmap_makelock => [] [] H1 [] H2.
+       move=> /(_ _ HH') => [] [] val [] sh [] sh_before sh_after.
+       rewrite sh_after.
+       if_tac; apply perm_of_writable;
+       intros HH; eapply Share.nontrivial; auto.
+
+       auto.
+       
+     - rewrite setPermBlock_other_1.
+       
+       assert (HH': ~ adr_range (b, Int.unsigned ofs) LKSIZE (b,ofs0)).
+        { intros [ H1 [H2 H2']]; apply n; split; auto.  }
+        move: Hrmap.
+       rewrite /rmap_locking.rmap_makelock => [] [] H1 [].
+       move=> /(_ _ HH') => <- _ /=.
+       rewrite (MTCH_perm2' _ MATCH); repeat f_equal;
+       apply proof_irrelevance.
+
+       apply Intv.range_notin in n; auto.
+       unfold LKSIZE => /= . xomega.
+     - rewrite setPermBlock_other_2.
+       
+       assert (HH': ~ adr_range (b, Int.unsigned ofs) LKSIZE (b0,ofs0)).
+        { intros [ H1 [H2 H2']]; apply n. auto.  }
+        move: Hrmap.
+       rewrite /rmap_locking.rmap_makelock => [] [] H1 [].
+       move=> /(_ _ HH') => <- _ /=.
+       rewrite (MTCH_perm2' _ MATCH); repeat f_equal;
+       apply proof_irrelevance.
+
+       auto.
+
+       }
      
       
 
@@ -3136,56 +3487,56 @@ Here be dragons
                                 LKSIZE_nat)).
           assert (pmap_spec1: forall b0 ofs0, perm_of_res (phi' @ (b0, ofs0)) =
                                          pmap_tid'.1 !! b0 ofs0).
-          admit. (*TODO*)
-          assert (pmap_spec2: forall b0 ofs0, perm_of_res_lock (phi' @ (b0, ofs0)) =
-                                         pmap_tid'.2 !! b0 ofs0).
-          admit. (*TODO*)
+          { move => b0 ofs0.
+            rewrite /pmap_tid'.
+            destruct (peq b b0);
+              [subst b0; destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + lksize.LKSIZE)%Z ) | ].
+            - rewrite setPermBlock_var_same; auto.
+              unfold pdata.
+              replace
+                (Int.intval ofs + Z.of_nat (nat_of_Z (ofs0 - Int.intval ofs + 1)))
+              with
+              ofs0.
+              reflexivity.
+              rewrite Coqlib.nat_of_Z_eq.
+              move: i0.
+              clear; rewrite /LKSIZE => [] [] /= A B.
+              replace (ofs0 - Int.intval ofs + 1) with
+              ((ofs0 - Int.intval ofs) + 1) by omega.
+              replace
+                ( Int.intval ofs + (ofs0 - Int.intval ofs + 1))
+              with
+              ((Int.intval ofs + ofs0) - Int.intval ofs + 1) by omega.
+              replace
+                (Int.intval ofs + ofs0 - Int.intval ofs)
+              with
+              ofs0 by omega.
+              admit. (*This is wrong*)
 
-              (*assert (virtue_spec: forall (b0 : block) (ofs0 : Z),
-                         perm_of_res (phi' @ (b0, ofs0)) =
-                           (computeMap (DTP.getThreadR Htid') virtue) !! b0 ofs0).
-                { intros b0 ofs0.
-                  destruct (virtue ! b0) eqn:VIRT.
-                  destruct (o ofs0) eqn:O.
-                  - erewrite computeMap_1; try eassumption.
-                    unfold virtue in VIRT.
-                    destruct (ident_eq b0 b).
-                    + subst b0.
-                      rewrite PTree.gss in VIRT. inversion VIRT. subst o.
-                      unfold delta_b in O.
-                      destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + LKSIZE)); inversion O.
-                     reflexivity.
-                   + rewrite PTree.gso in VIRT. unfold empty_delta_map in VIRT.
-                     rewrite PTree.gempty in VIRT; inversion VIRT.
-                     assumption.
-                 - erewrite computeMap_2; try eassumption.
-                   unfold virtue in VIRT.
-                   destruct (ident_eq b0 b).
-                   + subst b0.
-                     rewrite PTree.gss in VIRT. inversion VIRT. subst o.
-                     unfold delta_b in O.
-                     destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + LKSIZE)); inversion O.
-                       rewrite <- Hj_forward.
-                       * inversion MATCH; rewrite mtch_perm; reflexivity.
-                       * right. replace juicy_machine.LKSIZE with LKSIZE by reflexivity; simpl.
-                         intros HH; apply n. unfold Intv.In; simpl; xomega.
-                         
-                     + rewrite PTree.gso in VIRT. unfold empty_delta_map in VIRT.
-                       rewrite PTree.gempty in VIRT; inversion VIRT.
-                       assumption.
-                   - erewrite computeMap_3; try eassumption.
-                     unfold virtue in VIRT.
-                     destruct (ident_eq b0 b).
-                     + subst b0.
-                       rewrite PTree.gss in VIRT. inversion VIRT.
-                     + rewrite PTree.gso in VIRT; try assumption.
-                       unfold empty_delta_map in VIRT.
-                       rewrite PTree.gempty in VIRT; inversion VIRT.
-                       rewrite <- Hj_forward.
-                       * inversion MATCH; rewrite mtch_perm; reflexivity.
-                     * left. intros HH; apply n; symmetry; assumption.
-               } *)
+              unfold LKSIZE in i0; destruct i0 as [A B].
+              simpl in A. simpl in B.
+              assert (ofs0 - Int.intval ofs >= 0).
+              omega.
+              omega.
+            - rewrite setPermBlock_var_other_1; auto.
+              unfold Intv.In in n; simpl in n.
+              move: (Hj_forward (b,ofs0) ltac:(right; auto)) => <- .
+                rewrite (MTCH_perm' _ MATCH).
+                replace (MTCH_cnt' MATCH Htid') with Hi by
+                    apply proof_irrelevance.
+                reflexivity.
+                apply Intv.range_notin in n; auto.
+                unfold LKSIZE; simpl; omega.
+            - rewrite setPermBlock_var_other_2; auto.
+              unfold Intv.In in n; simpl in n.
+              move: (Hj_forward (b0,ofs0) ltac:(left; auto)) => <- .
+                rewrite (MTCH_perm' _ MATCH).
+                replace (MTCH_cnt' MATCH Htid') with Hi by
+                    apply proof_irrelevance.
+                reflexivity.
 
+          }
+                
           pose (ds':= DTP.updThread Htid' (Kresume c Vundef) pmap_tid').
           pose (ds'':= DTP.remLockSet ds' (b,(Int.intval ofs))).
           

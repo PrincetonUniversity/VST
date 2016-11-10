@@ -154,3 +154,47 @@ Proof.
   all: try solve [eapply join_pshare_top_l; eauto].
   all: try solve [eapply join_pshare_top_r; eauto].
 Qed.
+
+Lemma join_permjoin_lock
+  : forall r1 r2 r3 ,
+    sepalg.join r1 r2 r3 ->
+    permjoin_def.permjoin
+      (perm_of_res_lock r1)
+      (perm_of_res_lock r2)
+      (perm_of_res_lock r3).
+Proof. 
+  destruct r1 as [t1 | t1 p1 k1 pp1 | k1 pp1];
+    destruct r2 as [t2 | t2 p2 k2 pp2 | k2 pp2];
+    destruct r3 as [t3 | t3 p3 k3 pp3 | k3 pp3].
+  all: intros j; inversion j; subst.
+  all: simpl.
+  all: repeat if_tac; try constructor.
+  all: subst.
+  all: try pose proof join_bot_bot_eq _ RJ.
+  all: try pose proof join_with_bot_l _ _ RJ.
+  all: try pose proof join_with_bot_r _ _ RJ.
+  all: try pose proof join_to_bot_l RJ.
+  all: try pose proof join_to_bot_r RJ.
+  all: subst.
+  all: try congruence.
+  all: try destruct k3.
+  all: try constructor.
+  all: unfold perm_of_sh; repeat if_tac; subst.
+  all: try pose proof @join_top_l _ _ RJ.
+  all: try pose proof @join_top_r _ _ RJ.
+  all: subst.
+  all: try constructor.
+  all: try pose proof @join_top_l _ _ RJ.
+  all: try pose proof @join_top_r _ _ RJ.
+  all: try congruence.
+  all: try pose proof join_to_bot_l RJ.
+  all: try pose proof join_to_bot_r RJ.
+  all: subst.
+  all: try congruence.
+  all: try constructor.
+  all: try solve [edestruct Share.nontrivial; eauto].
+  all: exfalso.
+  all: try solve [edestruct Abs.pshare_sh_bot; eauto].
+  all: try solve [eapply join_pshare_top_l; eauto].
+  all: try solve [eapply join_pshare_top_r; eauto].
+Qed.

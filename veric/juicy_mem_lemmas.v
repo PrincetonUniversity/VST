@@ -1220,7 +1220,6 @@ Proof.
   - constructor.
 Qed.
 
-
 Lemma perm_of_res_lock_not_Freeable:
   forall r,
     Mem.perm_order'' (Some Writable) (perm_of_res_lock r).
