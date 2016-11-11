@@ -1282,7 +1282,7 @@ Module SpinLocks (SEM: Semantics)
                   now auto).
             (** Hence by [permission_decrease_execution] we have four cases
             for how the permissions of [thread_id evk] dropped*)
-            destruct (permission_decrease_execution EM _ b ofs cntk' cntk'_j Hexec' Hperm_k_drop)
+            destruct (permission_decrease_execution _ b ofs cntk' cntk'_j Hexec' Hperm_k_drop)
               as (tr_pre_u & tru & ? & ? & tp_pre_u & m_pre_u &
                   tp_dec & m_dec & Hexec_pre_u & Hstepu & Hexec_post_u & evu & Hspec_u).
             destruct Hspec_u as [Hfreed | [Hspawned | [Hfreelock | [Hmklock | Hrelease]]]].

@@ -1230,7 +1230,11 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
       ~ in_free_list_trace b ofs ev ->
       Mem.perm_order'' (permission_at m' b ofs Cur) (permission_at m b ofs Cur).
   Proof.
-  Admitted.
+    intros.
+    unfold permission_at.
+    eapply event_semantics.ev_elim_free_2;
+      now eauto.
+  Qed.
 
   Lemma free_list_cases:
     forall l m m' b ofs
@@ -1239,12 +1243,13 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
        permission_at m' b ofs Cur = None) \/
       (permission_at m b ofs Cur = permission_at m' b ofs Cur).
   Proof.
-  Admitted.
+    intros.
+    unfold permission_at.
+    eapply event_semantics.free_list_cases;
+      now eauto.
+  Qed.
 
-  Section ExecutionsDecidable.
-
-    Hypothesis EM: ClassicalFacts.excluded_middle.
-    Lemma elim_perm_valid_block:
+  Lemma elim_perm_valid_block:
       forall m T m' b ofs ofs' bytes
         (Hintv: Intv.In ofs' (ofs, (ofs + Z.of_nat (length bytes))%Z))
         (Helim: ev_elim m T m')
@@ -1275,9 +1280,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
             rewrite! getCurPerm_correct in Heq.
             rewrite Heq.
             left; assumption.
-          * assert (in_free_list_trace b ofs' T \/ ~ in_free_list_trace b ofs' T) as Hfree
-                by (apply EM).
-            destruct Hfree as [Hfree | HnotFree].
+          * destruct (event_semantics.in_free_list_trace_dec b ofs' T) as [Hfree | HnotFree].
             { (** If (b, ofs') was freed in the trace T*)
               eapply ev_elim_free_1 in Hfree; eauto.
               destruct Hfree as [[? | ?] [? [? ?]]]; try (by exfalso).
@@ -1326,9 +1329,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
           destruct Helim as [Hload Helim'].
           destruct (IHT _ Hvalid _ Helim') as [? | [Hwrite Hread]].
           * left; assumption.
-          * assert (in_free_list_trace b ofs' T \/ ~ in_free_list_trace b ofs' T) as Hfree
-                by (apply EM).
-            destruct Hfree as [Hfree | HnotFree].
+          * destruct (event_semantics.in_free_list_trace_dec b ofs' T) as [Hfree | HnotFree].
             { (** If (b, ofs') was freed in the trace T*)
               eapply ev_elim_free_1 in Hfree; eauto.
               destruct Hfree as [[? | ?] [? [? ?]]]; try (by exfalso).
@@ -1374,9 +1375,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
           destruct (IHT _ Hvalid' _ Helim') as [Heq | [Hwrite Hread]].
           * erewrite <- MemoryLemmas.permission_at_alloc_1 in Heq by eauto.
             left; eauto.
-          * assert (in_free_list_trace b ofs' T \/ ~ in_free_list_trace b ofs' T) as Hfree
-                by (apply EM).
-            destruct Hfree as [Hfree | HnotFree].
+          * destruct (event_semantics.in_free_list_trace_dec b ofs' T) as [Hfree | HnotFree].
             { (** If (b, ofs') was freed in the trace T*)
               eapply ev_elim_free_1 in Hfree; eauto.
               destruct Hfree as [[? | ?] [? [? ?]]]; try (by exfalso).
@@ -1505,9 +1504,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
             - destruct (zlt ofs' hi).
               + assert (Hfreeable:permission_at m'' b0 ofs' Cur = Some Freeable)
                 by (eapply MemoryLemmas.permission_at_alloc_2; eauto).
-                assert (in_free_list_trace b0 ofs' T \/ ~ in_free_list_trace b0 ofs' T) as Hfree
-                    by (apply EM).
-                destruct Hfree as [Hfree | HnotFree].
+                destruct (event_semantics.in_free_list_trace_dec b0 ofs' T) as [Hfree | HnotFree].
                 * eapply ev_elim_free_1 in Hfree; eauto.
                   destruct Hfree as [[? | ?] [Hfreed [? ?]]]; try (by exfalso);
                     split; intros; eauto.
@@ -1600,7 +1597,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
         destruct (tid == tidn) eqn:Heq; move/eqP:Heq=>Heq; subst.
         + pf_cleanup.
           (* NOTE: this is decidable*)
-          destruct (EM (in_free_list_trace b ofs ev)) as [Hdead | Hlive].
+          destruct (event_semantics.in_free_list_trace_dec b ofs ev) as [Hdead | Hlive].
           { (** case this address was freed*)
             eapply ev_elim_free_1 with (m := (restrPermMap (Hcmpt _ cnt).1))
                                          (m' := m'0) in Hdead; eauto.
@@ -1703,7 +1700,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
           }
           { (** case the address was not freed *)
             exfalso.
-            clear - Hlive Helim Hperm Hperm' EM.
+            clear - Hlive Helim Hperm Hperm'.
             eapply ev_elim_free_2 in Hlive; eauto.
             rewrite restrPermMap_Cur in Hlive.
             rewrite gssThreadRes in Hperm', Hperm. simpl in *.
@@ -3803,8 +3800,6 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
         eauto using lockRes_data_permission_increase_execution,
         lockRes_lock_permission_increase_execution.
     Qed.
-
-  End ExecutionsDecidable.
 
   Lemma thread_spawn_step:
     forall U tr tp m U' tp' m' tr' tidn
