@@ -4,6 +4,7 @@ Require Import compcert.lib.Axioms.
 
 Require Import concurrency.sepcomp. Import SepComp.
 Require Import sepcomp.semantics_lemmas.
+Require Import sepcomp.event_semantics.
 
 Require Import concurrency.pos.
 
