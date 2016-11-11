@@ -760,7 +760,30 @@ Module SpinLocks (SEM: Semantics)
             eauto.
           - intros ofs' Hintv.
             pf_cleanup.
-            admit. (*the semantics of freelock changed, revisit this*)
+            split.
+            intros Hvalid. 
+            specialize (Hfreeable _ Hintv).
+            unfold Mem.perm in Hfreeable.
+            erewrite <- restrPermMap_Cur with (Hlt := (Hcmpt tid Htid)#2) by eauto.
+            unfold permission_at.
+            now eauto.
+            left. rewrite gRemLockSetRes gssThreadRes.
+            rewrite <- Hdata_perm.
+            erewrite setPermBlock_var_same by eauto.
+            left; simpl; auto using perm_order.
+            specialize (Hneq_perms (nat_of_Z (ofs' - Int.intval ofs))).
+            destruct Hintv. unfold lksize.LKSIZE_nat, lksize.LKSIZE in *.
+            erewrite nat_of_Z_eq in Hneq_perms
+              by (simpl in *; now ssromega).
+            assert ((0 <= ofs' - Int.intval ofs < 4)%Z).
+            simpl in *.  ssromega.
+            replace ((nat_of_Z (ofs' - Int.intval ofs)).+1) with
+            (nat_of_Z (ofs' - Int.intval ofs +1)) in Hneq_perms
+              by (zify;
+                  erewrite! nat_of_Z_eq
+                    by (unfold lksize.LKSIZE in *; simpl in *; ssromega);
+                  omega).
+            now eauto.
         }
         split; auto.
         intros Haction cnt cnt'.
@@ -848,9 +871,21 @@ Module SpinLocks (SEM: Semantics)
           rewrite gRemLockSetRes gssThreadRes.
           rewrite <- Hdata_perm.
           left.
-          rewrite setPermBlock_same.
-          simpl; eauto using perm_order_trans, perm_order.
-          eauto.
+          erewrite setPermBlock_var_same by eauto.
+          specialize (Hneq_perms (nat_of_Z (ofs' - Int.intval ofs))).
+          destruct Hintv. unfold lksize.LKSIZE_nat, lksize.LKSIZE in *.
+          erewrite nat_of_Z_eq in Hneq_perms
+            by (simpl in *; now ssromega).
+          assert ((0 <= ofs' - Int.intval ofs < 4)%Z).
+          simpl in *.  ssromega.
+          replace ((nat_of_Z (ofs' - Int.intval ofs)).+1) with
+          (nat_of_Z (ofs' - Int.intval ofs +1)) in Hneq_perms
+            by (zify;
+                erewrite! nat_of_Z_eq
+                  by (unfold lksize.LKSIZE in *; simpl in *; ssromega);
+                omega).
+          eapply po_trans; eauto; simpl;
+          eauto using perm_order.
         + simpl in Haction.
             by exfalso.
         + intros ofs' Hintv.
@@ -861,7 +896,7 @@ Module SpinLocks (SEM: Semantics)
           rewrite <- restrPermMap_Cur with (Hlt := (Hcmpt tid cnt').2).
           unfold permission_at, Mem.perm in *; now auto.
         + destruct l; simpl in H9; inv H9.
-    Admitted.
+    Qed.
 
     Lemma waction_caction:
       forall ev,
@@ -1247,7 +1282,7 @@ Module SpinLocks (SEM: Semantics)
                   now auto).
             (** Hence by [permission_decrease_execution] we have four cases
             for how the permissions of [thread_id evk] dropped*)
-            destruct (permission_decrease_execution _ b ofs cntk' cntk'_j Hexec' Hperm_k_drop)
+            destruct (permission_decrease_execution EM _ b ofs cntk' cntk'_j Hexec' Hperm_k_drop)
               as (tr_pre_u & tru & ? & ? & tp_pre_u & m_pre_u &
                   tp_dec & m_dec & Hexec_pre_u & Hstepu & Hexec_post_u & evu & Hspec_u).
             destruct Hspec_u as [Hfreed | [Hspawned | [Hfreelock | [Hmklock | Hrelease]]]].
@@ -2091,5 +2126,6 @@ Module SpinLocks (SEM: Semantics)
       now econstructor.
     Qed.
                                                                                       
-
+  End Spinlocks.
+End SpinLocks.
                                                                                       

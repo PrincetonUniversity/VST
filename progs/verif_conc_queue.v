@@ -171,21 +171,6 @@ Proof.
   unfold lqueue; simpl; entailer!; auto.
 Admitted.
 
-Lemma list_incl_refl : forall {A} (l : list A), list_incl l l.
-Proof.
-  induction l; auto.
-Qed.
-Hint Resolve list_incl_refl.
-
-Lemma consistent_inj : forall {t} (h : hist t) a b b' (Hb : consistent h a b) (Hb' : consistent h a b'), b = b'.
-Proof.
-  induction h; simpl; intros.
-  - subst; auto.
-  - destruct a; eauto.
-    destruct a0; [contradiction|].
-    destruct Hb, Hb'; eauto.
-Qed.
-
 Lemma body_q_del : semax_body Vprog Gprog f_q_del q_del_spec.
 Proof.
   unfold q_del_spec, q_del_spec'; start_function.
@@ -233,41 +218,6 @@ Proof.
   forward.
   (* Do we want to deallocate the ghost? *)
 Admitted.
-
-Lemma consistent_trans : forall {t} (h1 h2 : hist t) a b c, consistent h1 a b -> consistent h2 b c ->
-  consistent (h1 ++ h2) a c.
-Proof.
-  induction h1; simpl; intros; subst; auto.
-  destruct a; eauto.
-  destruct a0; [contradiction | destruct H; eauto].
-Qed.
-
-Corollary consistent_snoc_add : forall {t} (h : hist t) a b e v, consistent h a b ->
-  consistent (h ++ [QAdd e v]) a (b ++ [(e, v)]).
-Proof.
-  intros; eapply consistent_trans; simpl; eauto.
-Qed.
-
-Corollary consistent_cons_rem : forall {t} (h : hist t) a b e v, consistent h a ((e, v) :: b) ->
-  consistent (h ++ [QRem e v]) a b.
-Proof.
-  intros; eapply consistent_trans; eauto; simpl; auto.
-Qed.
-
-Lemma list_incl_app2 : forall {A} (l l1 l2 : list A), list_incl l l2 -> list_incl l (l1 ++ l2).
-Proof.
-  induction l1; auto; intros.
-  simpl; constructor; auto.
-Qed.
-
-Lemma list_incl_app : forall {A} (l1 l2 l1' l2' : list A), list_incl l1 l2 -> list_incl l1' l2' ->
-  list_incl (l1 ++ l1') (l2 ++ l2').
-Proof.
-  induction 1; intros.
-  - simpl; apply list_incl_app2; auto.
-  - simpl; constructor; auto.
-  - simpl; constructor 3; auto.
-Qed.
 
 Lemma body_q_add : semax_body Vprog Gprog f_q_add q_add_spec.
 Proof.
@@ -332,7 +282,8 @@ Proof.
   { go_lower.
     eapply derives_trans; [apply prop_and_same_derives, ghost_inj|].
     Intros; rewrite ghost_share_join; auto; entailer!. }
-  Intros; apply hist_add with (e0 := QAdd e v).
+  exploit (consistent_snoc_add h'0 [] vals0 e v); auto; intro.
+  Intros; apply hist_add with (e0 := QAdd e v); [eauto|].
   erewrite <- ghost_share_join with (h1 := h ++ [QAdd e v])(sh := sh); try eassumption.
   time forward_call (lock, sh, q_lock_pred t P p lock gsh2). (* 37s *)
   { lock_props.
@@ -348,8 +299,7 @@ Proof.
     repeat match goal with H : _ /\ _ |- _ => destruct H end.
     simpl; apply andp_right.
     { apply prop_right; split; [rewrite Zlength_correct; unfold MAX; omega|].
-      split; [omega|].
-      apply consistent_snoc_add; auto. }
+      split; [omega | auto]. }
     rewrite Zplus_mod_idemp_l, Z.add_assoc, Zlength_map.
     repeat rewrite map_app; repeat rewrite sepcon_app; simpl.
     rewrite sem_cast_neutral_ptr; auto; simpl.
@@ -440,7 +390,7 @@ Proof.
   { go_lower.
     eapply derives_trans; [apply prop_and_same_derives, ghost_inj|].
     Intros; rewrite ghost_share_join; auto; entailer!. }
-  Intros; apply hist_add with (e0 := QRem e v).
+  Intros; apply hist_add with (e0 := QRem e v); [eauto|].
   erewrite <- ghost_share_join with (h1 := h ++ [QRem e v])(sh := sh); try eassumption; try apply list_incl_app;
     auto.
   forward_call (lock, sh, q_lock_pred t P p lock gsh2).
@@ -477,7 +427,7 @@ Proof.
    cond_var Tsh addc; cond_var Tsh remc; malloc_token Tsh (sizeof tqueue_t) p;
    malloc_token Tsh (sizeof tcond) addc; malloc_token Tsh (sizeof tcond) remc;
    malloc_token Tsh (sizeof tlock) lock; ghost gsh2 (Tsh, h') p;
-   fold_right_sepcon (map (fun x => let '(p, v) := x in
+   fold_right sepcon emp (map (fun x => let '(p, v) := x in
      !!(P v) && (data_at Tsh t v p * malloc_token Tsh (sizeof t) p)) vals);
    field_at sh tqueue_t [StructField _lock] lock p; ghost gsh1 (sh, h) p)).
   { forward_call (lock, sh, q_lock_pred t P p lock gsh2).
@@ -532,7 +482,7 @@ Proof.
   { go_lower.
     eapply derives_trans; [apply prop_and_same_derives, ghost_inj|].
     Intros; rewrite ghost_share_join; auto; entailer!. }
-  Intros; apply hist_add with (e0 := QRem e v).
+  Intros; apply hist_add with (e0 := QRem e v); [eauto|].
   erewrite <- ghost_share_join with (h1 := h ++ [QRem e v])(sh := sh); try eassumption; try apply list_incl_app;
     auto.
   forward_call (lock, sh, q_lock_pred t P p lock gsh2).

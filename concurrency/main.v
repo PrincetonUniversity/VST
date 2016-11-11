@@ -1,4 +1,6 @@
-(** *Semax Imports*)
+(** * Putting Everything Together*)
+
+(** **Semax Imports*)
 From mathcomp.ssreflect Require Import ssreflect seq ssrbool ssrnat.
 Require Import Coq.Strings.String.
 
@@ -42,20 +44,25 @@ Require Import concurrency.semax_invariant.
 Require Import concurrency.semax_initial.
 Require Import concurrency.semax_to_juicy_machine.
 
-(** *Erasure Imports*)
+(** ** Erasure Imports*)
 Require Import concurrency.erasure_signature.
 Require Import concurrency.erasure_proof.
 Require Import concurrency.erasure_safety.
 
-Require Import concurrency.fineConc_safe.
 
-
-(** *Compiler simulation*)
+(** ** Compiler simulation*)
 Require Import concurrency.lifting.
 Require Import concurrency.lifting_safety.
 
-(** *Target machine*)
+(** ** Target machine*)
 Require Import concurrency.x86_context.
+
+Require Import concurrency.executions.
+Require Import concurrency.spinlocks.
+Require Import concurrency.fineConc_safe.
+Require Import concurrency.SC_erasure.
+
+
 
 
 Module MainSafety .

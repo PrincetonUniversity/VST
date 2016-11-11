@@ -166,8 +166,7 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
                  forall sch,
                    DryConc.valid (sch, tr, Sds)  <->
                    Machine.DryConc.valid (sch, tr, Tds) ).
-    { admit.
-      (* rewrite /DryConc.valid
+    { rewrite /DryConc.valid
               /DryConc.correct_schedule
               /DryConc.unique_Krun
               /THE_DRY_MACHINE_SOURCE.SCH.schedPeek
@@ -179,7 +178,7 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
       destruct (List.hd_error sch0); try solve[split; auto].
       split.
       - move => H1  j0 cntj0 q KRUN not_halted. eapply H1.
-        instantiate 
+        instantiate  
         
 
       /(running_thread) /=.

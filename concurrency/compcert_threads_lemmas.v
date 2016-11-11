@@ -6819,7 +6819,7 @@ relation*)
                             (restrPermMap (HmemCompF i pff).2))
         (Hneq_perms: forall i,
             (0 <= Z.of_nat i < lksize.LKSIZE)%Z ->
-            Mem.perm_order'' (pdata i) (Some Writable)
+            Mem.perm_order'' (pdata (S i)) (Some Writable)
         )
         (Hlocks: forall (bl2 : block) (ofs : Z),
             lockRes tpf (bl2, ofs) ->
@@ -11164,7 +11164,7 @@ relation*)
       - (** Proof of invariant preservation for fine-grained *)
         destruct pmap_tid'. simpl in Hdata_perm, Hlock_perm.
         subst.                    
-        eapply invariant_freelock; simpl; eauto. 
+        eapply invariant_freelock; simpl; eauto.
       - (** Max permission invariant*)
           by assumption.
       - (** new memory is well-defined*)
