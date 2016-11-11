@@ -2525,9 +2525,13 @@ Ltac make_compspecs prog :=
          repeat constructor)
  ].
 
-Ltac with_library prog G :=
- let x := eval hnf in (augment_funspecs prog G)
-   in exact x.
+Ltac with_library' p G :=
+  let x := eval hnf in (augment_funspecs' (prog_funct p) G) in match x with
+  | Some ?l => exact l
+  | None => fail 5 "Superfluous or missing funspecs"
+  end.
+
+Ltac with_library prog G := with_library' prog G.
 
 Lemma mk_funspec_congr:
   forall a b c d e f g a' b' c' d' e' f' g',

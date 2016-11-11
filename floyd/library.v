@@ -111,9 +111,7 @@ Parameter body_free:
 Definition library_G prog :=
   exit_spec prog ++ malloc_spec prog ++ free_spec prog.
 
-Ltac with_library prog G :=
- let x := eval hnf in (augment_funspecs prog (library_G prog ++ G))
-   in exact x.
+Ltac with_library prog G := with_library' prog (library_G prog ++ G).
 
 Lemma semax_func_cons_malloc_aux:
   forall (gx : genviron) (x : Z) (ret : option val),
