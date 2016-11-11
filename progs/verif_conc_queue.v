@@ -3,9 +3,7 @@ Require Import progs.conc_queue.
 Require Import progs.conc_queue_specs.
 Require Import floyd.library.
 
-(* This lets us use a library as a client. *)
-Axiom semax_func_mono : forall {Espec : OracleKind} {C : compspecs} V G fs G' G2,
-  semax_func V G fs G' -> incl G G2 -> semax_func V G2 fs G'.
+Set Bullet Behavior "Strict Subproofs".
 
 Definition acquire_spec := DECLARE _acquire acquire_spec.
 Definition release_spec := DECLARE _release release_spec.
@@ -16,23 +14,12 @@ Definition freecond_spec := DECLARE _freecond (freecond_spec _).
 Definition wait_spec := DECLARE _waitcond (wait2_spec _).
 Definition signal_spec := DECLARE _signalcond (signal_spec _).
 
+Definition surely_malloc_spec := DECLARE _surely_malloc surely_malloc_spec'.
 Definition q_new_spec := DECLARE _q_new q_new_spec'.
 Definition q_del_spec := DECLARE _q_del q_del_spec'.
 Definition q_add_spec := DECLARE _q_add q_add_spec'.
 Definition q_remove_spec := DECLARE _q_remove q_remove_spec'.
 Definition q_tryremove_spec := DECLARE _q_tryremove q_tryremove_spec'.
-
-Definition surely_malloc_spec :=
-  DECLARE _surely_malloc
-   WITH n:Z
-   PRE [ _n OF tuint ]
-       PROP (0 <= n <= Int.max_unsigned)
-       LOCAL (temp _n (Vint (Int.repr n)))
-       SEP ()
-    POST [ tptr tvoid ] EX p:_,
-       PROP ()
-       LOCAL (temp ret_temp p)
-       SEP (malloc_token Tsh n p * memory_block Tsh n p).
 
 Definition Gprog : funspecs := ltac:(with_library prog
   [surely_malloc_spec; acquire_spec; release_spec; makelock_spec; freelock_spec;
@@ -41,7 +28,7 @@ Definition Gprog : funspecs := ltac:(with_library prog
 
 Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_spec.
 Proof.
-  start_function. 
+  unfold surely_malloc_spec, surely_malloc_spec'; start_function. 
   forward_call (* p = malloc(n); *)
      n.
   Intros p.
@@ -96,7 +83,7 @@ Proof.
          @data_at_ CompSpecs Tsh (tptr tlock) (offset_val 60 p))).
   { unfold MAX; computable. }
   { unfold MAX; computable. }
-  { unfold fold_right; entailer!.
+  { entailer!.
     unfold data_at_, field_at_; unfold_field_at 1%nat.
     unfold data_at, field_at, at_offset; simpl; entailer. }
   { forward.
@@ -247,13 +234,13 @@ Proof.
     { go_lower.
       rewrite cond_var_isptr; Intros; entailer'. }
     forward_call (addc0, lock, Tsh, sh, q_lock_pred t P p lock gsh2).
-    { unfold q_lock_pred at 3; unfold q_lock_pred'; simpl.
+    { unfold q_lock_pred; unfold q_lock_pred'; simpl.
       Exists vals0 head0 addc0 remc0 h'0.
       subst Frame; instantiate (1 := [field_at sh tqueue_t [StructField _lock] lock p;
         data_at Tsh t v e; malloc_token Tsh (sizeof t) e; ghost gsh1 (sh, h) p]); simpl.
       repeat rewrite sepcon_assoc; repeat (apply sepcon_derives; [apply derives_refl|]).
       entailer!.
-      apply andp_right; [unfold fold_right; cancel | cancel]. }
+      apply andp_right; cancel. }
     unfold q_lock_pred at 2; unfold q_lock_pred'; Intros vals1 head1 addc1 remc1 h'1.
     forward.
     Exists (vals1, head1, addc1, remc1, h'1).
@@ -304,7 +291,7 @@ Proof.
     repeat rewrite map_app; repeat rewrite sepcon_app; simpl.
     rewrite sem_cast_neutral_ptr; auto; simpl.
     rewrite sepcon_andp_prop', !sepcon_andp_prop, sepcon_andp_prop'; apply andp_right;
-      [apply prop_right; auto | unfold fold_right at 1; cancel].
+      [apply prop_right; auto | cancel].
     { pose proof (Z_mod_lt (head0 + Zlength vals0) MAX).
       rewrite Zlength_map; split; try omega.
       transitivity MAX; simpl in *; [omega | unfold MAX; computable]. } }
@@ -336,7 +323,7 @@ Proof.
   { unfold q_lock_pred'; rewrite (cond_var_isptr _ remc0); Intros.
     forward.
     forward_call (remc0, lock, Tsh, sh, q_lock_pred t P p lock gsh2).
-    { unfold q_lock_pred at 3; unfold q_lock_pred'; simpl.
+    { unfold q_lock_pred; unfold q_lock_pred'; simpl.
       Exists vals0 head0 addc0 remc0 h'0.
       subst Frame; instantiate (1 := [field_at sh tqueue_t [StructField _lock] lock p;
         ghost gsh1 (sh, h) p]); simpl.
@@ -398,7 +385,7 @@ Proof.
     unfold q_lock_pred, q_lock_pred'; Exists vals0 ((head0 + 1) mod MAX) addc0 remc0 (h'0 ++ [QRem e v]).
     unfold Z.succ; rewrite sub_repr, Z.add_simpl_r, (Z.add_comm (Zlength vals0)), Z.add_assoc,
       Zplus_mod_idemp_l.
-    unfold fold_right at 1; simpl; entailer!.
+    simpl; entailer!.
     apply Z_mod_lt; omega. }
   forward.
   Exists e v; unfold lqueue; simpl; entailer!; auto.
@@ -432,7 +419,7 @@ Proof.
    field_at sh tqueue_t [StructField _lock] lock p; ghost gsh1 (sh, h) p)).
   { forward_call (lock, sh, q_lock_pred t P p lock gsh2).
     { simpl; lock_props.
-      unfold q_lock_pred, q_lock_pred'; Exists vals head addc remc h'; unfold fold_right at 1; simpl; entailer!. }
+      unfold q_lock_pred, q_lock_pred'; Exists vals head addc remc h'; simpl; entailer!. }
     forward.
     Exists (vint 0); entailer!.
     destruct (Memory.EqDec_val (vint 0) nullval); [|contradiction n; auto].
@@ -490,7 +477,7 @@ Proof.
     unfold q_lock_pred, q_lock_pred'; Exists vals ((head + 1) mod MAX) addc remc (h' ++ [QRem e v]).
     unfold Z.succ; rewrite sub_repr, Z.add_simpl_r, (Z.add_comm (Zlength vals)), Z.add_assoc,
       Zplus_mod_idemp_l.
-    unfold fold_right at 1; simpl; entailer!.
+    simpl; entailer!.
     apply Z_mod_lt; omega. }
   forward.
   Exists e; entailer!.
@@ -501,4 +488,25 @@ Proof.
   Exists v; unfold lqueue; simpl; entailer!; auto.
   { split; try omega.
     transitivity MAX; [omega | unfold MAX; computable]. }
+Qed.
+
+Definition extlink := ext_link_prog prog.
+
+Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
+Existing Instance Espec.
+
+Lemma all_funcs_correct:
+  semax_func Vprog Gprog (prog_funct prog) Gprog.
+Proof.
+unfold Gprog, prog, prog_funct; simpl.
+semax_func_cons body_exit.
+semax_func_cons body_free.
+semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
+repeat semax_func_cons_ext.
+semax_func_cons body_surely_malloc.
+semax_func_cons body_q_new.
+semax_func_cons body_q_del.
+semax_func_cons body_q_add.
+semax_func_cons body_q_tryremove.
+semax_func_cons body_q_remove.
 Qed.

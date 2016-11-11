@@ -278,7 +278,7 @@ Ltac thaw' name :=
 (*add simplification of the list operations inside the freezer,
    flatten the sepcon, and eliminate the emp term*)
 Ltac thaw name :=
-  thaw' name; simpl nat_of_Z; unfold my_delete_nth, my_nth, fold_right; 
+  thaw' name; simpl nat_of_Z; unfold my_delete_nth, my_nth, fold_right_sepcon; 
   repeat flatten_sepcon_in_SEP; repeat flatten_emp.
 
 (*************************** depercated auxiliary lemmas and tactics ********************

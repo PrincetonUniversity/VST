@@ -88,7 +88,7 @@ Definition q_lock_pred' (t : type) P p (vals : list (val * reptype t)) head (add
    cond_var Tsh addc * cond_var Tsh remc * malloc_token Tsh (sizeof tqueue_t) p *
    malloc_token Tsh (sizeof tcond) addc * malloc_token Tsh (sizeof tcond) remc *
    malloc_token Tsh (sizeof tlock) lock * ghost gsh (Tsh, h) p *
-   fold_right_sepcon (map (fun x => let '(p, v) := x in 
+   fold_right sepcon emp (map (fun x => let '(p, v) := x in 
      !!(P v) && (data_at Tsh t v p * malloc_token Tsh (sizeof t) p)) vals)).
 
 Definition q_lock_pred A P p lock gsh := EX vals : list (val * reptype A), EX head : Z,
@@ -136,6 +136,18 @@ Proof.
   
 (* How do we prove super_non_expansive of an existential? Use exp_approx from veric/seplog. *)
 Admitted.*)
+
+Definition surely_malloc_spec' :=
+   WITH n:Z
+   PRE [ _n OF tuint ]
+       PROP (0 <= n <= Int.max_unsigned)
+       LOCAL (temp _n (Vint (Int.repr n)))
+       SEP ()
+    POST [ tptr tvoid ] EX p:_,
+       PROP ()
+       LOCAL (temp ret_temp p)
+       SEP (malloc_token Tsh n p * memory_block Tsh n p).
+Definition surely_malloc_spec prog := DECLARE (ext_link_prog prog "surely_malloc") surely_malloc_spec'.
 
 Definition q_new_spec' :=
   WITH Q : {t : type & reptype t -> Prop}, gsh1 : share, gsh2 : share
@@ -356,7 +368,7 @@ Proof.
     eapply interleave_trans with (ls1 := [h; l]); eauto.
 Qed.
 
-Lemma all_ptrs : forall t P vals, fold_right_sepcon (map (fun x => let '(p, v) := x in
+Lemma all_ptrs : forall t P vals, fold_right sepcon emp (map (fun x => let '(p, v) := x in
   !!(P v) && (data_at Tsh t v p * malloc_token Tsh (sizeof t) p)) vals) |--
   !!(Forall isptr (map fst vals)).
 Proof.
@@ -371,9 +383,9 @@ Qed.
 
 Lemma vals_precise : forall r t P vals1 vals2 r1 r2
   (Hvals : map fst vals1 = map fst vals2)
-  (Hvals1 : predicates_hered.app_pred(A := compcert_rmaps.R.rmap) (fold_right_sepcon
+  (Hvals1 : predicates_hered.app_pred(A := compcert_rmaps.R.rmap) (fold_right sepcon emp
     (map (fun x => let '(p, v) := x in !!(P v) && (data_at Tsh t v p * malloc_token Tsh (sizeof t) p)) vals1)) r1)
-  (Hvals2 : predicates_hered.app_pred(A := compcert_rmaps.R.rmap) (fold_right_sepcon
+  (Hvals2 : predicates_hered.app_pred(A := compcert_rmaps.R.rmap) (fold_right sepcon emp
     (map (fun x => let '(p, v) := x in !!(P v) && (data_at Tsh t v p * malloc_token Tsh (sizeof t) p)) vals2)) r2)
   (Hr1 : sepalg.join_sub r1 r) (Hr2 : sepalg.join_sub r2 r), r1 = r2.
 Proof.
@@ -834,4 +846,3 @@ Proof.
     rewrite total_length_upd, Hcons in IHinterleave; auto.
     rewrite Zlength_cons in *; omega.
 Qed.
-
