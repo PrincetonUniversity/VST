@@ -310,7 +310,7 @@ Proof.
  induction n; destruct R; intros; inv H.
  simpl; rewrite emp_sepcon; auto.
  unfold replace_nth; fold @replace_nth.
- transitivity (m * fold_right sepcon emp R).
+ transitivity (m * fold_right_sepcon R).
  reflexivity.
  rewrite (IHn R H1).
  simpl.
@@ -357,7 +357,7 @@ Proof.
  induction n; destruct R; intros; inv H; intros.
  simpl; rewrite emp_sepcon; auto.
  unfold replace_nth; fold @replace_nth.
- transitivity (m * fold_right sepcon emp (replace_nth n R Rn')).
+ transitivity (m * fold_right_sepcon (replace_nth n R Rn')).
  reflexivity.
  rewrite (IHn R H1). clear IHn.
  simpl.
@@ -443,7 +443,7 @@ Proof.
     pose proof IHn R H1.
     unfold replace_nth in *.
     fold (@replace_nth mpred) in *.
-    simpl fold_right in *.
+    simpl fold_right_sepcon in *.
     rewrite H0.
     normalize.
 Qed.

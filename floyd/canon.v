@@ -102,6 +102,13 @@ Definition locald_denote (d: localdef) : environ -> Prop :=
  | localprop P => `P
  end.
 
+Fixpoint fold_right_andp rho (l: list (environ -> Prop)) : Prop :=
+ match l with 
+ | nil => True
+ | b::nil => b rho
+ | b::r => b rho /\ fold_right_andp rho r
+ end.
+
 Definition PROPx (P: list Prop): forall (Q: environ->mpred), environ->mpred := 
      andp (prop (fold_right and True P)).
 
@@ -119,7 +126,7 @@ Notation " 'LOCAL' ( x ; .. ; y )   z" := (LOCALx (cons x%type .. (cons y%type n
          (at level 9).
 
 Definition SEPx (R: list mpred) : environ->mpred := 
-    fun _ => (fold_right sepcon emp R).
+    fun _ => (fold_right_sepcon R).
 Arguments SEPx R _ : simpl never.
 
 Notation " 'SEP' ( x ; .. ; y )" := (SEPx (cons x%logic .. (cons y%logic nil) ..))
@@ -165,7 +172,7 @@ Proof.
   unfold SEPx.
   induction H.
   + simpl; auto.
-  + simpl.
+  + simpl in *.
     rewrite !approx_sepcon.
     f_equal;
     auto.
@@ -527,9 +534,9 @@ rewrite IHQ1.
 clear; apply prop_ext; intuition.
 Qed.
 
-Lemma fold_right_sepcon_app {A} {NA: NatDed A} {SL: SepLog A}{CA: ClassicalSep A}:
- forall P Q : list A, fold_right (@sepcon A NA SL) (@emp A NA SL) (P++Q) = 
-        fold_right sepcon emp P * fold_right sepcon emp Q.
+Lemma fold_right_sepcon_app :
+ forall P Q, fold_right_sepcon (P++Q) = 
+        fold_right_sepcon P * fold_right_sepcon Q.
 Proof.
 intros; induction P; simpl.
 rewrite emp_sepcon; auto.
@@ -550,16 +557,17 @@ destruct a.
 destruct xs. reflexivity.
 unfold grab_indexes'.
 fold @grab_indexes'.
-rewrite fold_right_cons.
+simpl fold_right_sepcon.
 specialize (IHks xs).
 case_eq (grab_indexes' ks xs); intros.
 rewrite H in IHks.
-rewrite fold_right_app.
-transitivity (m * fold_right sepcon emp xs); try reflexivity.
+rewrite fold_right_sepcon_app.
+(*transitivity (m * fold_right_sepcon xs); try reflexivity.*)
 rewrite IHks.
-rewrite fold_right_app.
-forget (fold_right sepcon emp l0) as P.
-transitivity (fold_right sepcon P (m::l)). reflexivity.
+rewrite fold_right_sepcon_app.
+forget (fold_right_sepcon l0) as P.
+rewrite <- sepcon_assoc. f_equal.
+(* transitivity (fold_right_sepcon P (m::l)). reflexivity. *)
 clear.
 revert l; induction n; intro l. reflexivity.
 simpl. destruct l. simpl. auto.
@@ -570,7 +578,7 @@ auto.
 destruct xs. reflexivity.
 unfold grab_indexes'.
 fold @grab_indexes'.
-rewrite fold_right_cons.
+simpl.
 specialize (IHks xs).
 case_eq (grab_indexes' ks xs); intros.
 rewrite H in IHks.
@@ -1285,7 +1293,7 @@ induction n; destruct R; intros.
 inv H.
 simpl nth_error in H. inv H.
 unfold firstn, skipn, app.
-repeat rewrite fold_right_cons.
+simpl.
 repeat rewrite <- sepcon_assoc.
 reflexivity.
 inv H.
@@ -1293,7 +1301,7 @@ specialize (IHn _ H). clear H.
 simpl firstn.
 change (m :: firstn n R) with (app (m::nil) (firstn n R)).
 rewrite app_ass. unfold app at 1.
-repeat rewrite fold_right_cons.
+simpl.
 f_equal.
 auto.
 Qed.
@@ -1670,8 +1678,8 @@ clear- H1.
 unfold SEPx.
 intro rho; simpl.
 induction H1; intuition.
-unfold fold_right; fold fold_right. apply sepcon_derives; auto.
-unfold fold_right; fold fold_right.
+unfold fold_right_sepcon; fold fold_right_sepcon. apply sepcon_derives; auto.
+unfold fold_right_sepcon; fold fold_right_sepcon.
 rewrite <- sepcon_assoc.
 rewrite (sepcon_comm y).
 rewrite sepcon_assoc; auto.

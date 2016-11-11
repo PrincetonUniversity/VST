@@ -39,7 +39,7 @@ Definition main_spec :=
 
 (* Packaging the API spec all together. *)
 Definition Gprog : funspecs := 
-      augment_funspecs prog [search_spec; main_spec].
+        ltac:(with_library prog [search_spec; main_spec]).
 
 Lemma sublist_nil1 : forall A i j (l : list A), j <= i -> sublist i j l = [].
 Proof.

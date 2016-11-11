@@ -825,8 +825,8 @@ Lemma cancel_frame0{A}{ND: NatDed A}{SL: SepLog A}:
   forall rho: environ, emp rho |-- fold_right sepcon emp nil rho.
 Proof. intro; apply derives_refl. Qed.
 
-Lemma cancel_frame0_low{A}{ND: NatDed A}{SL: SepLog A}:
-  emp |-- fold_right sepcon emp nil.
+Lemma cancel_frame0_low:
+  emp |-- fold_right_sepcon nil.
 Proof.  apply derives_refl. Qed.
 
 Lemma cancel_frame2: forall (P Q: environ->mpred) F (rho: environ),
@@ -836,9 +836,9 @@ Proof. intros. simpl. apply sepcon_derives; auto.
 Qed.
 
 Lemma cancel_frame2_low: forall (P Q: mpred) F,
-     Q  |-- fold_right sepcon emp F  ->
-    (P * Q) |-- fold_right sepcon emp (P::F).
-Proof. intros. unfold fold_right; fold @fold_right. apply sepcon_derives; auto.
+     Q  |-- fold_right_sepcon F  ->
+    (P * Q) |-- fold_right_sepcon (P::F).
+Proof. intros. apply sepcon_derives; auto.
 Qed.
 
 Lemma cancel_frame1: forall (P: environ->mpred) (rho: environ), 
@@ -847,8 +847,8 @@ Proof. intros. unfold fold_right. rewrite sepcon_emp; apply derives_refl.
 Qed.
 
 Lemma cancel_frame1_low: forall (P: mpred), 
-         P |-- fold_right sepcon emp (P::nil).
-Proof. intros. unfold fold_right. rewrite sepcon_emp; apply derives_refl.
+         P |-- fold_right_sepcon (P::nil).
+Proof. intros. unfold fold_right_sepcon. rewrite sepcon_emp; apply derives_refl.
 Qed.
 
 
@@ -874,7 +874,7 @@ match goal with
                     end; 
     try (unfold F; apply cancel_frame1);
     try (instantiate (1:=nil) in (Value of F); unfold F; apply cancel_frame0)
-| |- _ |-- fold_right sepcon emp ?F  =>
+| |- _ |-- fold_right_sepcon ?F  =>
    repeat rewrite sepcon_assoc;
    repeat apply cancel_frame2_low;
     try (unfold F; apply cancel_frame0_low);

@@ -120,8 +120,8 @@ Definition message (sh: share) {t: type} (format: message_format t) (m: val) : m
           func_ptr (deserialize_spec format) (snd fg) &&
        data_at sh t_struct_message (Vint (Int.repr (mf_size format)), (fst fg, snd fg)) m.
 
-Definition Gprog : funspecs := augment_funspecs prog [ 
-    intpair_serialize_spec; intpair_deserialize_spec; main_spec].
+Definition Gprog : funspecs :=   ltac:(with_library prog [ 
+    intpair_serialize_spec; intpair_deserialize_spec; main_spec]).
 
 Lemma body_intpair_serialize: semax_body Vprog Gprog f_intpair_serialize intpair_serialize_spec.
 Proof.

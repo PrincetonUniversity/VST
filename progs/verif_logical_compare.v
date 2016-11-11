@@ -108,7 +108,7 @@ Definition main_spec :=
 Definition Vprog : varspecs := nil.
 
 Definition Gprog : funspecs := 
-    augment_funspecs prog [do_or_spec; do_and_spec; main_spec].
+      ltac:(with_library prog [do_or_spec; do_and_spec; main_spec]).
 
 Ltac do_semax_shortcut_logical := 
  eapply semax_shortcut_logical; 

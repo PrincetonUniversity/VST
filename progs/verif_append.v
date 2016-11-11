@@ -28,7 +28,7 @@ Definition append_spec :=
      LOCAL(temp ret_temp r)
      SEP (lseg LS sh (s1++s2) r nullval).
 
-Definition Gprog : funspecs := augment_funspecs prog [ append_spec ].
+Definition Gprog : funspecs :=   ltac:(with_library prog [ append_spec ]).
 
 Lemma body_append: semax_body Vprog Gprog f_append append_spec.
 Proof.

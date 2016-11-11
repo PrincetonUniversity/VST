@@ -563,8 +563,8 @@ Proof.
     apply nth_last.
 Qed.
 
-Lemma sepcon_app : forall l1 l2, fold_right sepcon emp (l1 ++ l2) =
-  fold_right sepcon emp l1 * fold_right sepcon emp l2.
+Lemma sepcon_app : forall l1 l2, fold_right_sepcon (l1 ++ l2) =
+  fold_right_sepcon l1 * fold_right_sepcon l2.
 Proof.
   induction l1; simpl; intros.
   - rewrite emp_sepcon; auto.
@@ -888,7 +888,7 @@ Hint Resolve lock_inv_precise lock_inv_positive selflock_precise selflock_positi
   cond_var_precise cond_var_positive positive_FF mapsto_precise mapsto_positive
   data_at_precise data_at_positive data_at__precise data_at__positive selflock_rec.
 
-Lemma precise_fold_right : forall l, Forall precise l -> precise (fold_right sepcon emp l).
+Lemma precise_fold_right : forall l, Forall precise l -> precise (fold_right_sepcon l).
 Proof.
   induction l; simpl; auto; intros.
   inv H; apply precise_sepcon; auto.
@@ -1124,7 +1124,7 @@ Proof.
   intros; rewrite !Zlength_correct, combine_length, Nat2Z.inj_min; auto.
 Qed.
 
-Lemma sepcon_rev : forall l, fold_right sepcon emp (rev l) = fold_right sepcon emp l.
+Lemma sepcon_rev : forall l, fold_right_sepcon (rev l) = fold_right_sepcon l.
 Proof.
   induction l; simpl; auto.
   rewrite sepcon_app; simpl.
@@ -1141,7 +1141,7 @@ Lemma data_at_shares_join : forall {cs} sh t v p shs (Hsplit : forall i, 0 <= i 
   let '(a, b) := Znth i shs (sh, sh) in
   readable_share a /\ readable_share b /\ sepalg.join a b (fst (Znth (i + 1) shs (sh, sh)))),
   @data_at cs (fst (Znth 0 shs (sh, sh))) t v p *
-  fold_right sepcon emp (map (fun sh => data_at sh t v p) (map snd shs)) =
+  fold_right_sepcon (map (fun sh => data_at sh t v p) (map snd shs)) =
   data_at sh t v p.
 Proof.
   induction shs; intros.

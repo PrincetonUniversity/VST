@@ -75,7 +75,7 @@ Definition q_lock_pred' t P p vals head (addc remc : val) lock gsh h :=
    cond_var Tsh addc * cond_var Tsh remc * malloc_token Tsh (sizeof tqueue_t) p *
    malloc_token Tsh (sizeof tcond) addc * malloc_token Tsh (sizeof tcond) remc *
    malloc_token Tsh (sizeof tlock) lock * ghost gsh (Tsh, h) p *
-   fold_right sepcon emp (map (fun x => let '(p, v) := x in 
+   fold_right_sepcon (map (fun x => let '(p, v) := x in 
      !!(P v) && (data_at Tsh t v p * malloc_token Tsh (sizeof t) p)) vals)).
 
 Definition q_lock_pred t P p lock gsh := EX vals : list (val * reptype t), EX head : Z,
@@ -184,7 +184,7 @@ Proof.
     rewrite sepcon_comm; reflexivity.
 Qed.
 
-Lemma all_ptrs : forall t P vals, fold_right sepcon emp (map (fun x => let '(p, v) := x in
+Lemma all_ptrs : forall t P vals, fold_right_sepcon (map (fun x => let '(p, v) := x in
   !!(P v) && (data_at Tsh t v p * malloc_token Tsh (sizeof t) p)) vals) |--
   !!(Forall isptr (map fst vals)).
 Proof.
@@ -199,9 +199,9 @@ Qed.
 
 Lemma vals_precise : forall r t P vals1 vals2 r1 r2
   (Hvals : map fst vals1 = map fst vals2)
-  (Hvals1 : predicates_hered.app_pred(A := compcert_rmaps.R.rmap) (fold_right sepcon emp
+  (Hvals1 : predicates_hered.app_pred(A := compcert_rmaps.R.rmap) (fold_right_sepcon
     (map (fun x => let '(p, v) := x in !!(P v) && (data_at Tsh t v p * malloc_token Tsh (sizeof t) p)) vals1)) r1)
-  (Hvals2 : predicates_hered.app_pred(A := compcert_rmaps.R.rmap) (fold_right sepcon emp
+  (Hvals2 : predicates_hered.app_pred(A := compcert_rmaps.R.rmap) (fold_right_sepcon
     (map (fun x => let '(p, v) := x in !!(P v) && (data_at Tsh t v p * malloc_token Tsh (sizeof t) p)) vals2)) r2)
   (Hr1 : sepalg.join_sub r1 r) (Hr2 : sepalg.join_sub r2 r), r1 = r2.
 Proof.

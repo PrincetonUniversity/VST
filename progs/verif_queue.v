@@ -505,7 +505,7 @@ forward_call (*  free(p, sizeof( *p)); *)
  apply derives_trans with work_around_coq_bug; subst work_around_coq_bug.
  unfold data_at; rewrite make_unmake; cancel.
  apply derives_trans with
-   (data_at_ Tsh t_struct_elem p' * fold_right sepcon emp Frame).
+   (data_at_ Tsh t_struct_elem p' * fold_right_sepcon Frame).
  cancel.
  rewrite data_at__memory_block by reflexivity. entailer.
 }

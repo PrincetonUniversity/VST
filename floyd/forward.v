@@ -587,7 +587,7 @@ let wit := fresh "wit" in
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
- | unfold fold_right at 1 2; cancel
+ | unfold fold_right_sepcon at 1 2; cancel
  | subst wit; cbv beta iota zeta; extensionality rho; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
@@ -623,7 +623,7 @@ let wit := fresh "wit" in
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
- | unfold fold_right at 1 2; cancel
+ | unfold fold_right_sepcon at 1 2; cancel
  | subst wit; cbv beta iota zeta; extensionality rho; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
@@ -657,7 +657,7 @@ let wit := fresh "wit" in
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
- | unfold fold_right at 1 2; cancel
+ | unfold fold_right_sepcon at 1 2; cancel
  | subst wit; cbv beta iota zeta; extensionality rho; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
@@ -689,7 +689,7 @@ let wit := fresh "wit" in
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
- | unfold fold_right at 1 2; cancel
+ | unfold fold_right_sepcon at 1 2; cancel
  | subst wit; cbv beta iota zeta; extensionality rho; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
@@ -720,7 +720,7 @@ let wit := fresh "wit" in
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
- | unfold fold_right at 1 2; cancel
+ | unfold fold_right_sepcon at 1 2; cancel
  | subst wit; cbv beta iota zeta;
     repeat rewrite exp_uncurry;
     try rewrite no_post_exists0;
@@ -2524,3 +2524,20 @@ Ltac make_compspecs prog :=
  |now(red; apply (composite_env_consistent_i' composite_legal_fieldlist);
          repeat constructor)
  ].
+
+Ltac with_library prog G :=
+ let x := eval hnf in (augment_funspecs prog G)
+   in exact x.
+
+Lemma mk_funspec_congr:
+  forall a b c d e f g a' b' c' d' e' f' g',
+   a=a' -> b=b' -> c=c' -> JMeq d d' -> JMeq e e' ->
+ mk_funspec a b c d e f g = mk_funspec a' b' c' d' e' f' g'.
+Proof.
+intros.
+subst a' b' c'.
+apply JMeq_eq in H2.
+apply JMeq_eq in H3.
+subst d' e'.
+f_equal; apply proof_irr.
+Qed.

@@ -36,7 +36,7 @@ Definition main_spec :=
 
 (* Packaging the API spec all together. *)
 Definition Gprog : funspecs := 
-      augment_funspecs prog [sumarray_spec; main_spec].
+        ltac:(with_library prog [sumarray_spec; main_spec]).
 
 (** Proof that f_sumarray, the body of the sumarray() function,
  ** satisfies sumarray_spec, in the global context (Vprog,Gprog).

@@ -477,7 +477,7 @@ Proof.
    cond_var Tsh addc; cond_var Tsh remc; malloc_token Tsh (sizeof tqueue_t) p;
    malloc_token Tsh (sizeof tcond) addc; malloc_token Tsh (sizeof tcond) remc;
    malloc_token Tsh (sizeof tlock) lock; ghost gsh2 (Tsh, h') p;
-   fold_right sepcon emp (map (fun x => let '(p, v) := x in
+   fold_right_sepcon (map (fun x => let '(p, v) := x in
      !!(P v) && (data_at Tsh t v p * malloc_token Tsh (sizeof t) p)) vals);
    field_at sh tqueue_t [StructField _lock] lock p; ghost gsh1 (sh, h) p)).
   { forward_call (lock, sh, q_lock_pred t P p lock gsh2).

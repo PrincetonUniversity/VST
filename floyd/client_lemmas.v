@@ -616,36 +616,11 @@ Proof. intros.
   normalize.
 Qed.
 
-Fixpoint fold_right_sepcon rho (l: list(environ->mpred)) : mpred :=
- match l with 
- | nil => emp
- | b::nil => b rho
- | b::r => b rho * fold_right_sepcon rho r
- end.
-
-Fixpoint fold_right_andp rho (l: list (environ -> Prop)) : Prop :=
- match l with 
- | nil => True
- | b::nil => b rho
- | b::r => b rho /\ fold_right_andp rho r
- end.
-
 Fixpoint fold_right_and P0 (l: list Prop) : Prop :=
  match l with 
  | nil => P0
  | b::r => b  /\ fold_right_and P0 r
  end.
-
-Lemma refold_frame:
- forall rho (F: list(environ->mpred)) A, 
-   match F with nil => A | _ :: _ => A * fold_right_sepcon rho F end =
-             A * fold_right sepcon emp F rho.
-Proof. 
- induction F; simpl; intros; auto.
- rewrite sepcon_emp; auto.
- f_equal; auto.
-Qed.
-
 
 Lemma typed_true_isptr:
  forall t, match t with Tpointer _ _ => True | Tarray _ _ _ => True | Tfunction _ _ _ => True | _ => False end ->
@@ -2362,6 +2337,7 @@ unfold SEPx.
 simpl. extensionality rho.
 revert R H; induction n; destruct R; intros.
 unfold replace_nth, fold_right.
+simpl.
 unfold nth in H. rewrite H; clear H.
 apply pred_ext.
 apply exp_left; intro x. apply exp_right with x.
@@ -2369,10 +2345,11 @@ apply exp_right with x.
 auto.
 apply exp_left; intro x. auto.
 unfold replace_nth, nth in *. subst m.
-unfold fold_right.
-fold (fold_right sepcon emp R).
+unfold fold_right_sepcon.
+fold (fold_right_sepcon R).
 normalize.
 unfold nth in H. unfold replace_nth.
+simpl.
 rewrite H.
 simpl.
 apply pred_ext.
@@ -2382,8 +2359,7 @@ auto.
 apply exp_left; intro x. auto.
 unfold nth in H.
 fold (nth n R) in H.
-change (fold_right sepcon emp (m::R)) with
-     (m * fold_right sepcon emp R).
+simpl.
 rewrite (IHn _ H). clear.
 normalize.
 *
