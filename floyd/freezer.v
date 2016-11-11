@@ -22,8 +22,8 @@ Lemma FRZ1 p: p |-- FRZ p. trivial. Qed.
 Lemma FRZ2 p: FRZ p |-- p. trivial. Qed.
 
 Definition FRZL (ps:list mpred): mpred := fold_right sepcon emp ps.
-Lemma FRZL1 ps: (fold_right sepcon emp ps) |-- FRZL ps. trivial. Qed.
-Lemma FRZL2 ps: FRZL ps |-- fold_right sepcon emp ps. trivial. Qed.
+Lemma FRZL1 ps: (fold_right_sepcon ps) |-- FRZL ps. trivial. Qed.
+Lemma FRZL2 ps: FRZL ps |-- fold_right_sepcon ps. trivial. Qed.
 End Freezer.
 
 Notation FRZ := Freezer.FRZ.
@@ -71,11 +71,11 @@ Fixpoint freezelist_nth (l: list nat) (al: list mpred): (list mpred) * (list mpr
  | (n::l') => let (xs, ys) := freezelist_nth l' al
               in (nth n ys emp::xs, delete_nth n ys)
  end.
-Lemma FRZL_ax ps: FRZL ps = fold_right sepcon emp ps.
+Lemma FRZL_ax ps: FRZL ps = fold_right_sepcon ps.
 Proof. intros. apply pred_ext. apply Freezer.FRZL2. apply Freezer.FRZL1. Qed.
 
 Lemma fold_right_sepcon_deletenth: forall n (l: list mpred),
-  fold_right sepcon emp l = (nth n l emp * fold_right sepcon emp (delete_nth n l))%logic. 
+  fold_right_sepcon l = (nth n l emp * fold_right_sepcon (delete_nth n l))%logic. 
 Proof.
   induction n; destruct l; simpl. rewrite sepcon_emp; trivial.
   reflexivity.
@@ -211,8 +211,7 @@ induction n; destruct R; intros.
   specialize (IHn _ H1). clear H1. simpl firstn.
   change (m :: firstn n R) with (app (m::nil) (firstn n R)).
   rewrite app_ass. unfold app at 1.
-  repeat rewrite fold_right_cons.
-  f_equal. auto.
+  simpl; f_equal; auto.
 Qed.
 
 Lemma flatten_emp_in_SEP':
@@ -222,7 +221,8 @@ Lemma flatten_emp_in_SEP':
    PROPx P (LOCALx Q (SEPx R)) = PROPx P (LOCALx Q (SEPx R')).
 Proof.
 intros.
-f_equal. f_equal. subst R'. apply flatten_emp_in_mpreds'. trivial. 
+f_equal. f_equal. subst R'.
+ apply flatten_emp_in_mpreds'. trivial. 
 Qed.
 (*
 Ltac flatten_emp_in_mpreds RR :=

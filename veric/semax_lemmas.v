@@ -1136,7 +1136,7 @@ Proof. intros until m'. intros H0 H4 CS0 H H1.
   inv H5.
   { destruct H7 as (?&?&?). inv H5. }
   { eapply safeN_external; eauto. 
-    intros ret m'0 z'' n'' Hle H10 H11; specialize (H9 ret m'0 z'' n'' Hle H10 H11).
+    intros ret m'0 z'' n'' Hargsty Hretty Hle H10 H11; specialize (H9 ret m'0 z'' n'' Hargsty Hretty Hle H10 H11).
     destruct H9 as [c' [? ?]]. simpl in H5. unfold cl_after_external in *.
     destruct ret as [ret|]. destruct optid.
     exists (State ve (PTree.set i ret te) (l ++ ctl2)); split; auto.
@@ -1653,7 +1653,7 @@ Section eq_dec.
   Let eq_dec_floatsize : EqDec floatsize. t. Qed.
   Let eq_dec_Z : EqDec Z. repeat t. Qed.
   Let eq_dec_calling_convention : EqDec calling_convention. repeat t. Qed.
-  Let eq_dec_external_function : EqDec external_function. repeat t. Qed.
+  Lemma eq_dec_external_function : EqDec external_function. repeat t. Qed.
   Let eq_dec_option_ident := option_eq (ident_eq).
   Let eq_dec_option_Z : EqDec (option Z). repeat t. Qed.
   Let eq_dec_typelist : EqDec typelist. repeat t. Qed.
@@ -1699,4 +1699,8 @@ Section eq_dec.
     decide equality.
     apply eq_dec_statement.
   Qed.
+  
 End eq_dec.
+
+Instance EqDec_statement: EqDec statement := eq_dec_statement.
+Instance EqDec_external_function: EqDec external_function := eq_dec_external_function.

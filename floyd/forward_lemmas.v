@@ -19,8 +19,8 @@ Definition cc_of_fundef (fd: fundef) : calling_convention :=
  | External _ _ _ c => c
  end.
 
-Definition vacuous_funspec (fd: fundef) := 
-   mk_funspec (funsig_of_fundef fd) (cc_of_fundef fd) unit (fun _ _ => FF) (fun _ _ => FF).
+Definition vacuous_funspec (fd: fundef): funspec := 
+   mk_funspec (funsig_of_fundef fd) (cc_of_fundef fd) (rmaps.ConstType unit) (fun _ _ => FF) (fun _ _ => FF) (const_super_non_expansive _ _) (const_super_non_expansive _ _).
 
 Lemma semax_func_cons_ext_vacuous:
      forall {Espec: OracleKind} (V : varspecs) (G : funspecs) (C : compspecs)
@@ -28,6 +28,11 @@ Lemma semax_func_cons_ext_vacuous:
          (argsig : typelist) (retsig : type)
          (G' : funspecs) cc,
        (id_in_list id (map fst fs)) = false ->
+       ef_sig ef =
+       {|
+         sig_args := typlist_of_typelist (type_of_params (arglist 1 argsig));
+         sig_res := opttyp_of_type retsig;
+         sig_cc := cc_of_fundef (External ef argsig retsig cc) |} ->
        semax_func V G fs G' ->
        semax_func V G ((id, External ef argsig retsig cc) :: fs)
          ((id, vacuous_funspec (External ef argsig retsig cc)) :: G').
@@ -44,7 +49,7 @@ eapply semax_func_cons_ext; try reflexivity; auto.
   clear.
   revert i; induction argsig; simpl; intros; auto.
 *
-  intros. apply FF_left.
+  intros. simpl. apply andp_left1, FF_left.
 *
   apply semax_external_FF.
 Qed.

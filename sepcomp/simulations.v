@@ -215,14 +215,14 @@ Record SM_simulation_inject := {
 
   (** The clause that relates [at_external] call points. *)      
 ; core_at_external : 
-    forall cd mu c1 m1 c2 m2 e vals1 ef_sig,
+    forall cd mu c1 m1 c2 m2 e vals1,
     match_state cd mu c1 m1 c2 m2 ->
-    at_external Sem1 c1 = Some (e,ef_sig,vals1) ->
+    at_external Sem1 c1 = Some (e,vals1) ->
     Mem.inject (as_inj mu) m1 m2 
     /\ mem_respects_readonly ge1 m1 /\ mem_respects_readonly ge2 m2
     /\ exists vals2, 
        Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2 
-       /\ at_external Sem2 c2 = Some (e,ef_sig,vals2)
+       /\ at_external Sem2 c2 = Some (e,vals2)
 
     /\ forall
        (pubSrc' pubTgt' : block -> bool)
@@ -238,10 +238,10 @@ Record SM_simulation_inject := {
 
   (** The diagram for external steps. *)
 ; eff_after_external: 
-    forall cd mu st1 st2 m1 e vals1 m2 ef_sig vals2 e' ef_sig'
+    forall cd mu st1 st2 m1 e vals1 m2 vals2 e'
       (MemInjMu: Mem.inject (as_inj mu) m1 m2)
       (MatchMu: match_state cd mu st1 m1 st2 m2)
-      (AtExtSrc: at_external Sem1 st1 = Some (e,ef_sig,vals1))
+      (AtExtSrc: at_external Sem1 st1 = Some (e,vals1))
 
         (** We include the clause [AtExtTgt] to ensure that [vals2] is uniquely
          determined. We have [e=e'] and [ef_sig=ef_sig'] by the [at_external]
@@ -251,7 +251,7 @@ Record SM_simulation_inject := {
          which the left value is [Vundef] ([Vundef]s can be refined under memory
          injections to arbitrary values). *)
 
-      (AtExtTgt: at_external Sem2 st2 = Some (e',ef_sig',vals2)) 
+      (AtExtTgt: at_external Sem2 st2 = Some (e',vals2)) 
       (ValInjMu: Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)  
 
       pubSrc' 

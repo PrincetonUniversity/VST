@@ -140,9 +140,9 @@ I : C -> mem -> Prop
 (* When at_external, the arguments and memory passed to the environment
    must both be valid. *) 
 ; wmd_at_external :
-    forall (ge : Genv.t F V) c m ef dep_sig args,
+    forall (ge : Genv.t F V) c m ef args,
     I c m -> 
-    at_external csem c = Some (ef,dep_sig,args) -> 
+    at_external csem c = Some (ef,args) -> 
     Forall (fun v => val_valid v m) args /\ mem_wd m
 
 (* It's possible to reestablish the invariant when external calls return, 

@@ -230,36 +230,8 @@ Qed.
 Lemma intlist_to_Zlist_app:
  forall al bl, intlist_to_Zlist (al++bl) = intlist_to_Zlist al ++ intlist_to_Zlist bl.
 Proof. intros; induction al; simpl; auto. repeat f_equal; auto. Qed.
-
-Lemma firstn_app:
- forall {A} n m (al: list A), firstn n al ++ firstn m (skipn n al) =
-  firstn (n+m) al.
-Proof. induction n; destruct al; intros; simpl; auto.
-destruct m; reflexivity.
-f_equal; auto.
-Qed.
-
 Local Open Scope nat.
 
-
-Lemma Forall_app :
-forall {A} P (l1 l2 :list A),
-Forall P (l1 ++ l2) <->
-Forall P l1 /\ Forall P l2.
-intros.
-split; induction l1; intros.
-inv H. destruct l2; inv H0. auto.
-split. auto. simpl in H2. inv H2.
-constructor; auto.
-split. inv H. constructor; auto. apply IHl1 in H3.
-intuition.
-inv H. apply IHl1 in H3. intuition.
-simpl. intuition.
-simpl. constructor.
-destruct H. inv H. auto.
-apply IHl1. intuition.
-inv H0; auto.
-Qed.
 
 Local Open Scope Z.
 
@@ -394,22 +366,6 @@ induction al; simpl; intros; auto.
 repeat rewrite Zlength_cons.
 rewrite IHal.
 omega.
-Qed.
-
-Lemma Forall_firstn:
-  forall A (f: A -> Prop) n l, Forall f l -> Forall f (firstn n l).
-Proof.
-induction n; destruct l; intros.
-constructor. constructor. constructor.
-inv H. simpl. constructor; auto.
-Qed.
-
-Lemma Forall_skipn:
-  forall A (f: A -> Prop) n l, Forall f l -> Forall f (skipn n l).
-Proof.
-induction n; destruct l; intros.
-constructor. inv H; constructor; auto. constructor.
-inv H. simpl.  auto.
 Qed.
 
 Local Open Scope Z.

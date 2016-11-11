@@ -48,7 +48,7 @@ Definition dotprod_spec :=
              `(data_at Tsh (tarray tdouble n) (map Vfloat fy) y)).
 
 
-Definition Gprog : funspecs := augment_funspecs prog [add_spec; dotprod_spec].
+Definition Gprog : funspecs :=   ltac:(with_library prog [add_spec; dotprod_spec]).
 
 (*
 Lemma dotprod_one_more:

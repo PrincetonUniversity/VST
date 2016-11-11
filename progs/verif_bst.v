@@ -133,11 +133,11 @@ Definition treebox_free_spec :=
     SEP (emp).
 
 Definition Gprog : funspecs := 
-  augment_funspecs prog [
+    ltac:(with_library prog [
     mallocN_spec; freeN_spec; treebox_new_spec; 
     tree_free_spec; treebox_free_spec;
     insert_spec; lookup_spec
-  ].
+  ]).
 
 Lemma tree_rep_saturate_local:
    forall t p, tree_rep t p |-- !! is_pointer_or_null p.

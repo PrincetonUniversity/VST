@@ -1,5 +1,6 @@
 Require Import msl.msl_standard.
 Require Import veric.base.
+Require Import veric.rmaps.
 Require Import veric.compcert_rmaps.
 Require Import veric.Clight_lemmas.
 Require Export veric.lift.
@@ -217,8 +218,26 @@ Defined.
 
 Definition mpred := pred rmap.
 
+Definition AssertTT (A: TypeTree): TypeTree :=
+  ArrowType A (ArrowType (ConstType environ) Mpred).
+
+Definition SpecTT (A: TypeTree): TypeTree :=
+  ArrowType A (ArrowType (ConstType bool) (ArrowType (ConstType environ) Mpred)).
+
+Definition super_non_expansive {A: TypeTree}
+  (P: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred): Prop :=
+  forall n ts x rho,
+  approx n (P ts x rho) = approx n (P ts (fmap _ (approx n) (approx n) x) rho).
+
+Definition const_super_non_expansive: forall (T: Type) P,
+  @super_non_expansive (ConstType T) P :=
+  fun _ _ _ _ _ _ => eq_refl.
+
 Inductive funspec :=
-   mk_funspec: funsig -> calling_convention -> forall A: Type, (A -> environ->mpred) -> (A -> environ->mpred) -> funspec.
+   mk_funspec: funsig -> calling_convention -> forall (A: TypeTree)
+     (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred)
+     (P_ne: super_non_expansive P) (Q_ne: super_non_expansive Q),
+     funspec.
 
 (* Causes a universe inconsistency in seplog.v! 
 Definition example_f_spec :=
@@ -413,7 +432,7 @@ Defined.
 *)
 
 Definition type_of_funspec (fs: funspec) : type :=  
-  match fs with mk_funspec fsig cc _ _ _ => Tfunction (type_of_params (fst fsig)) (snd fsig) cc end.
+  match fs with mk_funspec fsig cc _ _ _ _ _ => Tfunction (type_of_params (fst fsig)) (snd fsig) cc end.
 
 (** Declaration of type context for typechecking **)
 Inductive tycontext : Type := 

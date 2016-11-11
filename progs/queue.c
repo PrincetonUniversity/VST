@@ -1,7 +1,8 @@
 #include <stddef.h>
 
-extern void *mallocN (int n);
-extern void freeN(void *p, int n);
+extern void *malloc (size_t n);
+extern void free(void *p);
+extern void exit(int code);
 
 struct elem {
   int a, b;
@@ -13,8 +14,14 @@ struct fifo {
   struct elem *tail;
 };
 
+void *surely_malloc (size_t n) {
+  void *p = malloc(n);
+  if (!p) exit(1);
+  return p;
+}
+
 struct fifo *fifo_new(void) {
-  struct fifo *Q = (struct fifo *)mallocN(sizeof (*Q));
+  struct fifo *Q = (struct fifo *)surely_malloc(sizeof (*Q));
   Q->head = NULL;
   Q->tail = NULL;
   return Q;
@@ -51,9 +58,9 @@ struct elem *fifo_get (struct fifo *Q) {
 
 struct elem *make_elem(int a, int b) {
   struct elem *p;
-  p = mallocN(sizeof (*p));
-  p->a=a;
-  p->b=b;
+  p = surely_malloc(sizeof (*p));
+  p->a = a;
+  p->b = b;
   return p;
 }
 
@@ -69,6 +76,6 @@ int main(void) {
   p = fifo_get(Q);
   i = p->a; 
   j = p->b;
-  freeN(p, sizeof(*p));
+  free(p);
   return i+j;
 }

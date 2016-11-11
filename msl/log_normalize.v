@@ -162,6 +162,28 @@ Proof.
   intros; apply sepcon_derives; auto.
 Qed.
 
+Lemma exp_unit: forall {A} `{NatDed A} (P: unit -> A),
+  exp P = P tt.
+Proof.
+  intros.
+  apply pred_ext.
+  + apply exp_left; intro x.
+    destruct x.
+    auto.
+  + apply (exp_right tt); auto.
+Qed.
+
+Lemma allp_unit: forall {A} `{NatDed A} (P: unit -> A),
+  allp P = P tt.
+Proof.
+  intros.
+  apply pred_ext.
+  + apply (allp_left _ tt); auto.
+  + apply allp_right; intro x.
+    destruct x.
+    auto.
+Qed.
+
 Lemma andp_is_allp {A}{ND: NatDed A}:
    forall P Q, andp P Q = allp (fun x : bool => if x then P else Q).
 Proof.

@@ -4,10 +4,6 @@ Require Import msl.Coqlib2.
 Require Import msl.sepalg_list.
 Require Import veric.rmaps.
 
-Import MixVariantFunctor.
-Import MixVariantFunctorLemmas.
-Import MixVariantFunctorGenerator.
-
 Module Rmaps_Lemmas (R: RMAPS).
 Module R := R. 
 Import R.
@@ -508,6 +504,8 @@ Lemma preds_fmap_fmap:
   forall f1 f2 g1 g2 pp, preds_fmap f1 f2 (preds_fmap g1 g2 pp) = preds_fmap (f1 oo g1) (g2 oo f2) pp.
 Proof.
 destruct pp; simpl; auto.
+f_equal; extensionality i.
+rewrite <- fmap_comp; auto.
 Qed.
 
 Lemma resource_fmap_fmap:  forall f1 f2 g1 g2 r, resource_fmap f1 f2 (resource_fmap g1 g2 r) = 
@@ -578,6 +576,7 @@ unfold compose in *.
 rewrite H1; clear H1.
 rewrite resource_fmap_fmap.
 rewrite approx_oo_approx'; auto.
+rewrite approx'_oo_approx; auto.
 Qed.
 
 Lemma necR_YES:
@@ -650,9 +649,7 @@ Lemma preds_fmap_NoneP:
 Proof.
 intros.
 unfold NoneP.
-simpl.
-f_equal. extensionality x; destruct  x.
-destruct v.
+auto.
 Qed.
 
 Lemma necR_YES': 
@@ -666,9 +663,7 @@ unfold age in H; simpl in H.
 (* revert H; case_eq (age1 phi); intros; try discriminate. *)
 inv H.
 split; intros.
-rewrite (necR_YES phi phi' loc rsh sh k NoneP); auto; [ | constructor 1; auto].
-f_equal.
-apply preds_fmap_NoneP.
+rewrite (necR_YES phi phi' loc rsh sh k NoneP); auto. constructor 1; auto.
 rewrite rmap_age1_eq in *.
 unfold resource_at in *.
 revert H1; case_eq (unsquash phi); simpl; intros.
@@ -679,8 +674,7 @@ revert H; destruct (x loc); simpl; intros; auto.
 destruct p0; inv H.
 inj_pair_tac. f_equal.
 unfold NoneP; f_equal.
-extensionality x'; destruct x'.
-destruct v0.
+auto.
 inv H.
 intuition.
 intuition.
@@ -798,6 +792,7 @@ destruct r; simpl in *.
 unfold compose; rewrite H1.
 rewrite resource_fmap_fmap.
 rewrite approx_oo_approx'; auto.
+rewrite approx'_oo_approx; auto.
 Qed.
 
 

@@ -239,30 +239,25 @@ Ltac semax_func_skipn :=
 *)
 
 Ltac semax_func_cons L := 
- repeat (apply semax_func_cons_ext_vacuous; [reflexivity | ]);
+ repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]);
  first [apply semax_func_cons; 
            [ reflexivity 
            | repeat apply Forall_cons; try apply Forall_nil; computable
            | unfold var_sizes_ok; repeat constructor | reflexivity | precondition_closed | apply L | 
            ]
         | eapply semax_func_cons_ext;
-             [reflexivity | reflexivity | reflexivity | reflexivity 
+             [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
              | semax_func_cons_ext_tc | apply L |
              ]
         ];
- repeat (apply semax_func_cons_ext_vacuous; [reflexivity | ]);
+ repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]);
  try apply semax_func_nil.
 
 Ltac semax_func_cons_ext :=
   eapply semax_func_cons_ext;
-    [reflexivity | reflexivity | reflexivity | reflexivity 
+    [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
     | semax_func_cons_ext_tc 
     | solve[ first [eapply semax_ext; 
-          [ repeat first [reflexivity | left; reflexivity | right]
-          | apply compute_funspecs_norepeat_e; reflexivity 
-          | reflexivity 
-          | reflexivity ] || 
-                    eapply semax_ext_void; 
           [ repeat first [reflexivity | left; reflexivity | right]
           | apply compute_funspecs_norepeat_e; reflexivity 
           | reflexivity 
@@ -570,24 +565,30 @@ end.
 
 Ltac forward_call_id1_x_wow witness :=
 let Frame := fresh "Frame" in
+let A := fresh "A" in
+let wit := fresh "wit" in
  evar (Frame: list (mpred));
+ evar (A: rmaps.TypeTree);
+ evar (wit: functors.MixVariantFunctor._functor
+              (rmaps.dependent_type_functor_rec nil A) mpred);
  match goal with |- @semax ?CS _ _ _ _ _ =>
- eapply (semax_call_id1_x_wow witness Frame);
+ eapply (@semax_call_id1_x_wow A wit Frame);
  [ check_function_name
- | lookup_spec_and_change_compspecs CS
+ | subst A; lookup_spec_and_change_compspecs CS
  | find_spec_in_globals | check_result_type | check_result_type
  | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity 
  | (clear; let H := fresh in intro H; inversion H)
  | check_parameter_types
  | check_prove_local2ptree
  | check_typecheck
- | check_funspec_precondition
+ | instantiate (1 := witness) in (Value of wit);
+   check_funspec_precondition
  | check_prove_local2ptree
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
- | unfold fold_right at 1 2; cancel
- | cbv beta; extensionality rho; 
+ | unfold fold_right_sepcon at 1 2; cancel
+ | subst wit; cbv beta iota zeta; extensionality rho; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    first [apply exp_congr; intros ?vret; reflexivity
@@ -596,28 +597,34 @@ let Frame := fresh "Frame" in
  | prove_delete_temp
  | prove_delete_temp
  | unify_postcondition_exps
- | unfold fold_right_and; repeat rewrite and_True; auto
+ | unfold fold_right_and; repeat rewrite and_True; auto; subst A wit
  ] end.
 
 Ltac forward_call_id1_y_wow witness :=
 let Frame := fresh "Frame" in
+let A := fresh "A" in
+let wit := fresh "wit" in
  evar (Frame: list (mpred));
+ evar (A: rmaps.TypeTree);
+ evar (wit: functors.MixVariantFunctor._functor
+              (rmaps.dependent_type_functor_rec nil A) mpred);
  match goal with |- @semax ?CS _ _ _ _ _ =>
- eapply (semax_call_id1_y_wow witness Frame);
- [ check_function_name | lookup_spec_and_change_compspecs CS
+ eapply (@semax_call_id1_y_wow A wit Frame);
+ [ check_function_name | subst A; lookup_spec_and_change_compspecs CS
  | find_spec_in_globals | check_result_type | check_result_type
  | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity 
  | (clear; let H := fresh in intro H; inversion H)
  | check_parameter_types
  | check_prove_local2ptree
  | check_typecheck
- | check_funspec_precondition
+ | instantiate (1 := witness) in (Value of wit);
+   check_funspec_precondition
  | check_prove_local2ptree
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
- | unfold fold_right at 1 2; cancel
- | cbv beta; extensionality rho; 
+ | unfold fold_right_sepcon at 1 2; cancel
+ | subst wit; cbv beta iota zeta; extensionality rho; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    first [apply exp_congr; intros ?vret; reflexivity
@@ -626,26 +633,32 @@ let Frame := fresh "Frame" in
  | prove_delete_temp
  | prove_delete_temp
  | unify_postcondition_exps
- | unfold fold_right_and; repeat rewrite and_True; auto
+ | unfold fold_right_and; repeat rewrite and_True; auto; subst A wit
  ] end.
 
 Ltac forward_call_id1_wow witness :=
 let Frame := fresh "Frame" in
+let A := fresh "A" in
+let wit := fresh "wit" in
  evar (Frame: list (mpred));
+ evar (A: rmaps.TypeTree);
+ evar (wit: functors.MixVariantFunctor._functor
+              (rmaps.dependent_type_functor_rec nil A) mpred);
  match goal with |- @semax ?CS _ _ _ _ _ =>
- eapply (semax_call_id1_wow witness Frame);
- [ check_function_name | lookup_spec_and_change_compspecs CS
+ eapply (@semax_call_id1_wow A wit Frame);
+ [ check_function_name | subst A; lookup_spec_and_change_compspecs CS
  | find_spec_in_globals | check_result_type
  | apply Coq.Init.Logic.I | check_parameter_types
  | check_prove_local2ptree
  | check_typecheck
- | check_funspec_precondition
+ | instantiate (1 := witness) in (Value of wit);
+   check_funspec_precondition
  | check_prove_local2ptree
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
- | unfold fold_right at 1 2; cancel
- | cbv beta; extensionality rho; 
+ | unfold fold_right_sepcon at 1 2; cancel
+ | subst wit; cbv beta iota zeta; extensionality rho; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    first [apply exp_congr; intros ?vret; reflexivity
@@ -653,55 +666,67 @@ let Frame := fresh "Frame" in
            ]
  | prove_delete_temp
  | unify_postcondition_exps
- | unfold fold_right_and; repeat rewrite and_True; auto
+ | unfold fold_right_and; repeat rewrite and_True; auto; subst A wit
  ] end.
 
 Ltac forward_call_id01_wow witness :=
 let Frame := fresh "Frame" in
+let A := fresh "A" in
+let wit := fresh "wit" in
  evar (Frame: list (mpred));
+ evar (A: rmaps.TypeTree);
+ evar (wit: functors.MixVariantFunctor._functor
+              (rmaps.dependent_type_functor_rec nil A) mpred);
  match goal with |- @semax ?CS _ _ _ _ _ =>
- eapply (semax_call_id01_wow witness Frame);
- [ check_function_name | lookup_spec_and_change_compspecs CS
+ eapply (@semax_call_id01_wow A wit Frame);
+ [ check_function_name | subst A; lookup_spec_and_change_compspecs CS
  | find_spec_in_globals | apply Coq.Init.Logic.I | reflexivity
  | check_prove_local2ptree
  | check_typecheck
- | check_funspec_precondition
+ | instantiate (1 := witness) in (Value of wit);
+   check_funspec_precondition
  | check_prove_local2ptree
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
- | unfold fold_right at 1 2; cancel
- | cbv beta; extensionality rho; 
+ | unfold fold_right_sepcon at 1 2; cancel
+ | subst wit; cbv beta iota zeta; extensionality rho; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    first [apply exp_congr; intros ?vret; reflexivity
            | give_EX_warning
            ]
  | unify_postcondition_exps
- | unfold fold_right_and; repeat rewrite and_True; auto
+ | unfold fold_right_and; repeat rewrite and_True; auto; subst A wit
  ] end.
 
 Ltac forward_call_id00_wow witness :=
 let Frame := fresh "Frame" in
+let A := fresh "A" in
+let wit := fresh "wit" in
  evar (Frame: list (mpred));
+ evar (A: rmaps.TypeTree);
+ evar (wit: functors.MixVariantFunctor._functor
+              (rmaps.dependent_type_functor_rec nil A) mpred);
  match goal with |- @semax ?CS _ _ _ _ _ =>
- eapply (semax_call_id00_wow witness Frame);
- [ check_function_name | lookup_spec_and_change_compspecs CS
+ eapply (@semax_call_id00_wow A wit Frame);
+ [ check_function_name | subst A; lookup_spec_and_change_compspecs CS
  | find_spec_in_globals | check_result_type | check_parameter_types
  | check_prove_local2ptree
  | check_typecheck
- | check_funspec_precondition
+ | instantiate (1 := witness) in (Value of wit);
+   check_funspec_precondition
  | check_prove_local2ptree
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
- | unfold fold_right at 1 2; cancel
- | cbv beta iota; 
+ | unfold fold_right_sepcon at 1 2; cancel
+ | subst wit; cbv beta iota zeta;
     repeat rewrite exp_uncurry;
-    try rewrite no_post_exists0; 
+    try rewrite no_post_exists0;
     first [reflexivity | extensionality; simpl; reflexivity]
  | unify_postcondition_exps
- | unfold fold_right_and; repeat rewrite and_True; auto
+ | unfold fold_right_and; repeat rewrite and_True; auto; subst A wit
  ]
  end.
 
@@ -2335,14 +2360,43 @@ unfold overridePost, frame_ret_assert, function_body_ret_assert.
 destruct ek; normalize.
 Qed.
 
-Ltac start_function' :=
- match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _)) =>
+Ltac change_mapsto_gvar_to_data_at :=
+match goal with |- semax _ (PROPx _ (LOCALx ?L (SEPx ?S))) _ _ =>
+  match S with context [mapsto ?sh ?t (offset_val ?off ?g) ?v] =>
+   match L with context [gvar _ g] =>
+    assert_PROP (field_compatible t nil (offset_val off g));
+     [ entailer!; repeat (split; [now auto | ]); now auto | ];
+    erewrite (mapsto_data_at' _ _ _ _ (offset_val _ g));
+       [ | reflexivity | reflexivity | now auto | assumption | intro; apply Logic.I | apply JMeq_refl ];
+     match goal with H: _ |- _ => clear H end;
+     rewrite <- ? data_at_offset_zero
+   end
+  end
+end.
+
+Ltac start_function := 
+ match goal with |- semax_body ?V ?G ?F ?spec =>
+    let s := fresh "spec" in
+    pose (s:=spec); hnf in s;
+    match goal with
+    | s :=  (DECLARE _ WITH u : unit
+               PRE  [] main_pre _ nil u
+               POST [ tint ] main_post _ nil u) |- _ => idtac
+    | s := ?spec' |- _ => check_canonical_funspec spec'
+   end;
+   change (semax_body V G F s); subst s
+ end;
+ let DependedTypeList := fresh "DependedTypeList" in
+ match goal with |- semax_body _ _ _ (pair _ (NDmk_funspec _ _ _ ?Pre _)) =>
    match Pre with 
-   | (fun x => match x with (a,b) => _ end) => intros Espec [a b] 
-   | (fun i => _) => intros Espec i
+   | (fun x => match x with (a,b) => _ end) => intros Espec DependedTypeList [a b] 
+   | (fun i => _) => intros Espec DependedTypeList i
    end;
    simpl fn_body; simpl fn_params; simpl fn_return
  end;
+ simpl functors.MixVariantFunctor._functor in *;
+ simpl rmaps.dependent_type_functor_rec;
+ clear DependedTypeList;
  repeat match goal with |- @semax _ _ _ (match ?p with (a,b) => _ end * _) _ _ =>
              destruct p as [a b]
            end;
@@ -2358,6 +2412,9 @@ Ltac start_function' :=
  end;
  try expand_main_pre;
  process_stackframe_of;
+ repeat change_mapsto_gvar_to_data_at;  (* should really restrict this to only in main,
+                                  but it needs to come after process_stackframe_of *)
+ repeat rewrite <- data_at__offset_zero;
  try apply start_function_aux1;
  repeat (apply semax_extract_PROP; 
               match goal with
@@ -2373,21 +2430,6 @@ Ltac start_function' :=
         | eapply eliminate_extra_return; [ reflexivity | reflexivity | ]
         | idtac];
  abbreviate_semax.
-
-Ltac start_function := 
- match goal with |- semax_body _ _ _ ?spec =>
-          try unfold spec 
- end;
- match goal with
- | |- semax_body _ _ _ (DECLARE _ WITH u : unit
-               PRE  [] main_pre _ u
-               POST [ tint ] main_post _ u) => idtac
- | |- semax_body _ _ _ ?spec => 
-        check_canonical_funspec spec
- end;
- match goal with |- semax_body _ _ _ _ => start_function' 
-   | _ => idtac
- end.
 
 Opaque sepcon.
 Opaque emp.
@@ -2482,3 +2524,20 @@ Ltac make_compspecs prog :=
  |now(red; apply (composite_env_consistent_i' composite_legal_fieldlist);
          repeat constructor)
  ].
+
+Ltac with_library prog G :=
+ let x := eval hnf in (augment_funspecs prog G)
+   in exact x.
+
+Lemma mk_funspec_congr:
+  forall a b c d e f g a' b' c' d' e' f' g',
+   a=a' -> b=b' -> c=c' -> JMeq d d' -> JMeq e e' ->
+ mk_funspec a b c d e f g = mk_funspec a' b' c' d' e' f' g'.
+Proof.
+intros.
+subst a' b' c'.
+apply JMeq_eq in H2.
+apply JMeq_eq in H3.
+subst d' e'.
+f_equal; apply proof_irr.
+Qed.

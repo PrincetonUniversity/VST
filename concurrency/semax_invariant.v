@@ -25,7 +25,6 @@ Require Import veric.initial_world.
 Require Import veric.juicy_extspec.
 Require Import veric.tycontext.
 Require Import veric.semax_ext.
-Require Import veric.semax_ext_oracle.
 Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
 Require Import floyd.coqlib3.
@@ -33,9 +32,11 @@ Require Import sepcomp.semantics.
 Require Import sepcomp.step_lemmas.
 Require Import sepcomp.event_semantics.
 Require Import concurrency.coqlib5.
+Require Import concurrency.semax_conc_pred.
 Require Import concurrency.semax_conc.
 Require Import concurrency.juicy_machine.
 Require Import concurrency.concurrent_machine.
+Require Import concurrency.semantics.
 Require Import concurrency.scheduler.
 Require Import concurrency.addressFiniteMap.
 Require Import concurrency.permissions.
@@ -43,6 +44,8 @@ Require Import concurrency.JuicyMachineModule.
 Require Import concurrency.age_to.
 Require Import concurrency.sync_preds_defs.
 Require Import concurrency.join_lemmas.
+Require Import concurrency.lksize.
+Import threadPool.
 
 (*! Instantiation of modules *)
 Export THE_JUICY_MACHINE.
@@ -109,18 +112,18 @@ Definition lock_coherence (lset : AMap.t (option rmap)) (phi : rmap) (m : mem) :
     match AMap.find loc lset with
     
     (* not a lock *)
-    | None => ~isLK (phi @ loc) /\ ~isCT (phi @ loc)
+    | None => ~isLK (phi @ loc) (* /\ ~isCT (phi @ loc) *)
     
     (* locked lock *)
     | Some None =>
       load_at m loc = Some (Vint Int.zero) /\
-      exists sh R, LK_at R sh loc phi
+      exists R, lkat R loc phi
     
     (* unlocked lock *)
     | Some (Some lockphi) =>
       load_at m loc = Some (Vint Int.one) /\
-      exists sh (R : mpred),
-        LK_at R sh loc phi /\
+      exists (R : mpred),
+        lkat R loc phi /\
         (app_pred R (age_by 1 lockphi) \/ level phi = O)
         (*/\
         match age1 lockphi with
@@ -129,12 +132,12 @@ Definition lock_coherence (lset : AMap.t (option rmap)) (phi : rmap) (m : mem) :
         end*)
     end.
 
-Definition far (ofs1 ofs2 : Z) := (Z.abs (ofs1 - ofs2) >= 4)%Z.
+Definition far (ofs1 ofs2 : Z) := (Z.abs (ofs1 - ofs2) >= LKSIZE)%Z.
 
 Lemma far_range ofs ofs' z :
-  (0 <= z < 4)%Z ->
+  (0 <= z < LKSIZE)%Z ->
   far ofs ofs' ->
-  ~(ofs <= ofs' + z < ofs + size_chunk Mint32)%Z.
+  ~(ofs <= ofs' + z < ofs + LKSIZE)%Z.
 Proof.
   unfold far; simpl.
   intros H1 H2.
@@ -251,7 +254,7 @@ Definition threads_safety {Z} (Jspec : juicy_ext_spec Z) m ge tp PHI (mcompat : 
       forall c',
         (* [v] is not used here. The problem is probably coming from
            the definition of JuicyMachine.resume_thread'. *)
-        cl_after_external (Some (Vint Int.zero)) c = Some c' ->
+        cl_after_external None c = Some c' ->
         semax.jsafeN Jspec ge n ora c' (jm_ cnti mcompat)
     | Kinit _ _ => Logic.True
     end.
@@ -265,6 +268,8 @@ Definition threads_wellformed tp :=
     | Kinit _ _ => Logic.True
     end.
 
+(* Havent' move this, but it's already defined in the concurrent_machien...
+   Probably in the wrong part... *)
 Definition unique_Krun tp sch :=
   (lt 1 tp.(num_threads).(pos.n) -> forall i cnti q,
       @getThreadC i tp cnti = Krun q ->
@@ -433,16 +438,27 @@ Proof.
   eauto.
 Qed.
 
+Definition blocked_at_external (state : cm_state) (ef : external_function) :=
+  match state with
+    (m, ge, (sch, tp)) =>
+    exists j cntj sch' c args,
+      sch = j :: sch' /\
+      @getThreadC j tp cntj = Kblocked c /\
+      cl_at_external c = Some (ef, args)
+  end.
+
 Ltac absurd_ext_link_naming :=
   exfalso;
   match goal with
-  | H : Some ((_ : string -> ident) _) = _ |- _ =>
+  | H : Some ((_ : string -> ident) _, _) = _ |- _ =>
     rewrite <-H in *
   end;
+  unfold funsig2signature in *;
   match goal with
-  | H : Some ((?ext_link : string -> ident) ?a) <> Some (?ext_link ?a) |- _ =>
-    congruence
-  | H : Some ((?ext_link : string -> ident) ?a) = Some (?ext_link ?b) |- _ =>
+  | H : Some ((?ext_link : string -> ident) ?a, ?b) <> Some (?ext_link ?a, ?b') |- _ =>
+    simpl in H; congruence
+  | H : Some ((?ext_link : string -> ident) ?a, ?c) = Some (?ext_link ?b, ?d) |- _ =>
+    simpl in H;
     match goal with
     | ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2 |- _ =>
       assert (a = b) by (apply ext_link_inj; congruence); congruence
@@ -453,10 +469,8 @@ Ltac funspec_destruct s :=
   simpl (ext_spec_pre _); simpl (ext_spec_type _); simpl (ext_spec_post _);
   unfold funspec2pre, funspec2post;
   let Heq_name := fresh "Heq_name" in
-  destruct (oi_eq_dec (Some (_ s)) (ef_id _ (EF_external _ _)))
+  destruct (oi_eq_dec (Some (_ s, _)) (ef_id_sig _ (EF_external _ _)))
     as [Heq_name | Heq_name]; try absurd_ext_link_naming.
-
-
 
 (* if a hypothesis if of the form forall a1 a2 a3 a4 ...,
 "forall_bringvar 3" will move a3 as the first variable, i.e. forall a3

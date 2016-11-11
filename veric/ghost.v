@@ -1,4 +1,5 @@
 Require Export veric.base.
+Require Import veric.rmaps.
 Require Import veric.compcert_rmaps.
 Require Import veric.res_predicates.
 Require Import veric.tycontext.
@@ -7,7 +8,7 @@ Require Import veric.expr2.
 Definition GHOSTspec (A: Type) (x: A) : spec :=
   fun rsh sh loc =>
    allp (jam (eq_dec loc) (fun loc' => 
-    yesat (SomeP (A::nil) (fun y: (A*unit) => prop(fst y = x))) 
+    yesat (SomeP (ConstType (A -> Prop)) (fun _ y => y = x)) 
              (FUN (nil,Tvoid) cc_default) rsh sh loc') noat).
 
 Definition ghostp {A: Type} (sh: share) (loc: address) (x: A) : mpred :=

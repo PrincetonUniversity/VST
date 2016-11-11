@@ -1,5 +1,6 @@
 Require Import floyd.base.
 Require Import floyd.client_lemmas.
+Require Import floyd.forward_lemmas.
 
 (* Bug: abbreviate replaces _ALL_ instances, when sometimes
   we only want just one. *)
@@ -135,7 +136,20 @@ match goal with
 | |- _ => intro S1; simpl in S1
 end.
 
+Ltac ensure_no_augment_funspecs :=
+ match goal with
+ | |- semax (func_tycontext _ _ ?Gprog) _ _ _ =>
+   let x := fresh "x" in pose (x := Gprog);
+   unfold Gprog in x;
+   match goal with
+   | x := augment_funspecs _ _ |- _ => fail 10 "Do not define Gprog with augment_funspecs,"
+                                      "use with_library instead; see the reference manual"
+   | |- _ => clear x
+   end
+ end.
+
 Ltac simplify_func_tycontext :=
+ ensure_no_augment_funspecs;
  match goal with |- @semax _ _ ?DD ?Pre ?Body ?Post =>  
   match DD with context [(func_tycontext ?f ?V ?G)] =>
     let Pre' := fresh "Pre" in set (Pre':=Pre) at 1;

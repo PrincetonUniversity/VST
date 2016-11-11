@@ -9,14 +9,14 @@ Local Open Scope logic.
 Definition main_spec :=
  DECLARE _main
   WITH u : unit
-  PRE  [] main_pre prog u
-  POST [ tint ] main_post prog u.
+  PRE  [] main_pre prog nil u
+  POST [ tint ] main_post prog nil u.
 
 Definition t_struct_foo := Tstruct _foo noattr.
 
 Definition Vprog : varspecs := (_s, t_struct_foo)::nil.
 
-Definition Gprog : funspecs := augment_funspecs prog [main_spec].
+Definition Gprog : funspecs :=   ltac:(with_library prog [main_spec]).
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.

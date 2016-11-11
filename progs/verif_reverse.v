@@ -39,7 +39,7 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
  ** field (in this case, called [tail]) and arbitrary other fields.  The [Instance]
  ** explains (and proves) how [struct list] satisfies the [listspec] pattern.
  **)
-Instance LS: listspec _list _tail.
+Instance LS: listspec _list _tail (fun _ _ => emp).
 Proof. eapply mk_listspec; reflexivity. Defined.
 
 (**  An auxiliary definition useful in the specification of [sumlist] *)
@@ -82,14 +82,14 @@ Definition reverse_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH u : unit
-  PRE  [] main_pre prog u
-  POST [ tint ] main_post prog u.
+  PRE  [] main_pre prog nil u
+  POST [ tint ] main_post prog nil u.
 
 (** Declare all the functions, in exactly the same order as they
  ** appear in reverse.c (and in reverse.v).
  **)
-Definition Gprog : funspecs := augment_funspecs prog [ 
-    sumlist_spec; reverse_spec; main_spec].
+Definition Gprog : funspecs :=   ltac:(with_library prog [ 
+    sumlist_spec; reverse_spec; main_spec]).
 
 (** A little equation about the list_cell predicate *)
 Lemma list_cell_eq: forall sh i p ,
@@ -189,7 +189,7 @@ focus_SEP 1; apply semax_lseg_nonnull;
 subst cts2.
 forward. (* t = v->tail; *)
 forward. (* v->tail = w; *)
-replace_SEP 1 (field_at sh t_struct_list (DOT _tail) w v) by entailer!.
+replace_SEP 2 (field_at sh t_struct_list (DOT _tail) w v) by entailer!.
 forward.  (*  w = v; *)
 forward.  (* v = t; *)
 (* at end of loop body, re-establish invariant *)

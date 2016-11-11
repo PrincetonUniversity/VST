@@ -27,6 +27,9 @@ Require Import concurrency.machine_simulation. Import machine_simulation.
 Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM := SEMT).
   Module lftng:= lifting SEMT Machine. Import lftng.
   Module foo:= Machine.
+  Import THE_DRY_MACHINE_SOURCE.
+  Import THE_DRY_MACHINE_SOURCE.DMS.
+  
 
   Definition match_st gT gS main p sch:=
     Machine_sim.match_state
@@ -59,12 +62,13 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
     forall cd j Sm Tm Sds Tds,
       (match_st Tg Sg main p U) cd j Sds Sm Tds Tm ->
       forall sch,
-        THE_DRY_MACHINE_SOURCE.DryMachine.valid  (sch, snd (fst Sds), snd Sds) <->
+        DryConc.valid  (sch, snd (fst Sds), snd Sds) <->
         Machine.DryConc.valid (sch, snd (fst Tds), snd Tds). *)
 
       Axiom halted_trace: forall U tr tr' st,
-          THE_DRY_MACHINE_SOURCE.DryMachine.halted (U, tr, st) ->
-          THE_DRY_MACHINE_SOURCE.DryMachine.halted (U, tr', st).
+          DryConc.halted (U, tr, st) ->
+          DryConc.halted (U, tr', st).
+      
       Axiom halted_trace': forall U tr tr' st,
           Machine.DryConc.halted (U, tr, st) ->
           Machine.DryConc.halted (U, tr', st).
@@ -145,8 +149,8 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
       
   Lemma safety_preservation'': forall main p U Sg Tg tr Sds Sm Tds Tm cd 
       (MATCH: exists j, (match_st Tg Sg main p U) cd j Sds Sm Tds Tm),
-      (forall sch, THE_DRY_MACHINE_SOURCE.DryMachine.valid (sch, tr, Sds) ->
-              THE_DRY_MACHINE_SOURCE.DryMachine.explicit_safety Sg sch Sds Sm) ->
+      (forall sch, DryConc.valid (sch, tr, Sds) ->
+              DryConc.explicit_safety Sg sch Sds Sm) ->
       (forall sch, Machine.DryConc.valid (sch, tr, Tds) ->
               Machine.DryConc.stutter_stepN_safety ( core_ord:=core_ord  Tg Sg main p U) Tg cd sch Tds Tm).
   Proof.
@@ -160,21 +164,33 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
                forall cd j Sm Tm tr Sds Tds,
                  (match_st Tg Sg main p U) cd j Sds Sm Tds Tm ->
                  forall sch,
-                   THE_DRY_MACHINE_SOURCE.DryMachine.valid (sch, tr, Sds)  <->
+                   DryConc.valid (sch, tr, Sds)  <->
                    Machine.DryConc.valid (sch, tr, Tds) ).
-    { 
-      rewrite /THE_DRY_MACHINE_SOURCE.DryMachine.valid
+    { rewrite /DryConc.valid
+              /DryConc.correct_schedule
+              /DryConc.unique_Krun
               /THE_DRY_MACHINE_SOURCE.SCH.schedPeek
               /Machine.DryConc.valid
+              /Machine.DryConc.correct_schedule
+              /Machine.DryConc.unique_Krun
               /mySchedule.schedPeek /=.
-      move => ? ? ? ? ? ? ? ? ? ? ? Tds' /(running_thread) /= -> U''.
-      destruct (Machine.DryConc.running_thread (Tds')); intuition .
+      move => ? ? ? ? ? ? ? ? ? ? ? Tds' MATCH' sch0.
+      destruct (List.hd_error sch0); try solve[split; auto].
+      split.
+      - move => H1  j0 cntj0 q KRUN not_halted. eapply H1.
+        instantiate  
+        
+
+      /(running_thread) /=.
+      move=> ->.
+      -> U''.
+      destruct (Machine.DryConc.running_thread (Tds')); intuition .*)
       
     }
 
     move: (MATCH) => /equivalid /= AA.
     move: (AA tr sch) => [A B].
-    assert (HH:THE_DRY_MACHINE_SOURCE.DryMachine.valid (sch, tr, Sds)).
+    assert (HH:DryConc.valid (sch, tr, Sds)).
     { apply: B.
       apply: H0. }
     apply H in HH.
@@ -185,10 +201,9 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
       simpl in *; subst.
       econstructor.
       move: MATCH H1 => /halt_axiom /= HHH /(halted_trace _ nil nil Sds) AAA.
-      destruct (THE_DRY_MACHINE_SOURCE.DryMachine.halted (sch, nil ,Sds)) eqn:BBB; try solve [inversion AAA].
+      destruct (DryConc.halted (sch, nil ,Sds)) eqn:BBB; try solve [inversion AAA].
       move: BBB=> /HHH [] j' [] v2 [] inv Halt.
       rewrite Halt=> //.
-      rewrite BBB in AAA; inversion AAA.
       Guarded.
       }
       
@@ -245,8 +260,8 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
            
   Lemma safety_preservation': forall main p U Sg Tg tr Sds Sm Tds Tm
                                 (MATCH: exists cd j, (match_st Tg Sg main p U) cd j Sds Sm Tds Tm),
-      (forall sch, THE_DRY_MACHINE_SOURCE.DryMachine.valid (sch, tr, Sds) ->
-              THE_DRY_MACHINE_SOURCE.DryMachine.explicit_safety Sg sch Sds Sm) ->
+      (forall sch, DryConc.valid (sch, tr, Sds) ->
+              DryConc.explicit_safety Sg sch Sds Sm) ->
       (forall sch, Machine.DryConc.valid (sch, tr, Tds) ->
               Machine.DryConc.explicit_safety Tg sch Tds Tm).
   Proof.
@@ -260,8 +275,8 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
             
   Lemma safety_preservation: forall main p U Sg Tg Sds Sm Tds Tm
                                (MATCH: exists cd j, (match_st Tg Sg main p U) cd j Sds Sm Tds Tm),
-      (forall sch, THE_DRY_MACHINE_SOURCE.DryMachine.valid (sch, nil, Sds) ->
-              THE_DRY_MACHINE_SOURCE.DryMachine.safe_new_step Sg (sch, nil, Sds) Sm) ->
+      (forall sch, DryConc.valid (sch, nil, Sds) ->
+              DryConc.safe_new_step Sg (sch, nil, Sds) Sm) ->
       (forall sch, Machine.DryConc.valid (sch, nil, Tds) ->
               Machine.DryConc.safe_new_step Tg (sch, nil, Tds) Tm).
   Proof.
@@ -270,7 +285,7 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
     intros.
     eapply safety_preservation' with (tr:=nil); eauto.
     intros.
-    eapply THE_DRY_MACHINE_SOURCE.DryMachine.safety_equivalence2; auto.
+    eapply DryConc.safety_equivalence2; auto.
   Qed.
 
 End lifting_safety.

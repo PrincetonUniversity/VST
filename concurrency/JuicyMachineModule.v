@@ -17,6 +17,8 @@ Require Import concurrency.dry_machine. Import Concur.
 Require Import concurrency.lksize.
 Require Import concurrency.permissions.
 
+Require Import concurrency.TheSchedule.
+
 (*Semantics*)
 Require Import veric.Clight_new.
 Require Import veric.Clightnew_coop.
@@ -24,12 +26,14 @@ Require Import sepcomp.event_semantics.
 Require Import concurrency.ClightSemantincsForMachines.
 
 Module THE_JUICY_MACHINE.
-  Module SCH:= ListScheduler NatTID.            
+  Module SCH:= THESCH.            
   Module SEM:= ClightSEM.
   Import SCH SEM.
 
-  Module JSEM := JuicyMachineShell SEM. (* JuicyMachineShell : Semantics -> ConcurrentSemanticsSig *)
-  Module JuicyMachine := CoarseMachine SCH JSEM. (* CoarseMachine : Schedule -> ConcurrentSemanticsSig -> ConcurrentSemantics *)
+  (* JuicyMachineShell : Semantics -> ConcurrentSemanticsSig *)
+  Module JSEM := JuicyMachineShell SEM.
+  (* CoarseMachine : Schedule -> ConcurrentSemanticsSig -> ConcurrentSemantics *)
+  Module JuicyMachine := CoarseMachine SCH JSEM. 
   Notation JMachineSem:= JuicyMachine.MachineSemantics.
   Notation jstate:= JuicyMachine.SIG.ThreadPool.t.
   Notation jmachine_state:= JuicyMachine.MachState.

@@ -5,30 +5,7 @@ Require Import msl.pshares.
 Require Import veric.coqlib4.
 Require Import veric.juicy_mem.
 Require Import veric.juicy_mem_ops.
-Import Memtype.
-
-Inductive permjoin : option permission -> option permission -> option permission -> Prop :=
-  | permjoin_None_l x : permjoin None x x
-  | permjoin_None_r x : permjoin x None x
-  (* NE + NE = NE *)
-  | permjoin_NNN : permjoin (Some Nonempty) (Some Nonempty) (Some Nonempty)
-  (* NE + R = R *)
-  | permjoin_NRR : permjoin (Some Nonempty) (Some Readable) (Some Readable)
-  | permjoin_RNR : permjoin (Some Readable) (Some Nonempty) (Some Readable)
-  (* NE + W = W or F *)
-  | permjoin_NWW : permjoin (Some Nonempty) (Some Writable) (Some Writable)
-  | permjoin_NWF : permjoin (Some Nonempty) (Some Writable) (Some Freeable)
-  | permjoin_WNW : permjoin (Some Writable) (Some Nonempty) (Some Writable)
-  | permjoin_WNF : permjoin (Some Writable) (Some Nonempty) (Some Freeable)
-  (* R + R = R or W or F *)
-  | permjoin_RRR : permjoin (Some Readable) (Some Readable) (Some Readable)
-  | permjoin_RRW : permjoin (Some Readable) (Some Readable) (Some Writable)
-  | permjoin_RRF : permjoin (Some Readable) (Some Readable) (Some Freeable)
-  (* R + W = W or F *)
-  | permjoin_RWW : permjoin (Some Readable) (Some Writable) (Some Writable)
-  | permjoin_WRW : permjoin (Some Writable) (Some Readable) (Some Writable)
-  | permjoin_RWF : permjoin (Some Readable) (Some Writable) (Some Freeable)
-  | permjoin_WRF : permjoin (Some Writable) (Some Readable) (Some Freeable).
+Require Import concurrency.permjoin_def.
 
 Lemma join_bot_bot_eq sh :
   sepalg.join Share.bot Share.bot sh ->
@@ -142,6 +119,50 @@ Lemma join_permjoin r1 r2 r3 :
   join r1 r2 r3 ->
   permjoin (perm_of_res r1) (perm_of_res r2) (perm_of_res r3).
 Proof.
+  destruct r1 as [t1 | t1 p1 k1 pp1 | k1 pp1];
+    destruct r2 as [t2 | t2 p2 k2 pp2 | k2 pp2];
+    destruct r3 as [t3 | t3 p3 k3 pp3 | k3 pp3].
+  all: intros j; inversion j; subst.
+  all: simpl.
+  all: repeat if_tac; try constructor.
+  all: subst.
+  all: try pose proof join_bot_bot_eq _ RJ.
+  all: try pose proof join_with_bot_l _ _ RJ.
+  all: try pose proof join_with_bot_r _ _ RJ.
+  all: try pose proof join_to_bot_l RJ.
+  all: try pose proof join_to_bot_r RJ.
+  all: subst.
+  all: try congruence.
+  all: try destruct k3.
+  all: try constructor.
+  all: unfold perm_of_sh; repeat if_tac; subst.
+  all: try pose proof @join_top_l _ _ RJ.
+  all: try pose proof @join_top_r _ _ RJ.
+  all: subst.
+  all: try constructor.
+  all: try pose proof @join_top_l _ _ RJ.
+  all: try pose proof @join_top_r _ _ RJ.
+  all: try congruence.
+  all: try pose proof join_to_bot_l RJ.
+  all: try pose proof join_to_bot_r RJ.
+  all: subst.
+  all: try congruence.
+  all: try constructor.
+  all: try solve [edestruct Share.nontrivial; eauto].
+  all: exfalso.
+  all: try solve [edestruct Abs.pshare_sh_bot; eauto].
+  all: try solve [eapply join_pshare_top_l; eauto].
+  all: try solve [eapply join_pshare_top_r; eauto].
+Qed.
+
+Lemma join_permjoin_lock
+  : forall r1 r2 r3 ,
+    sepalg.join r1 r2 r3 ->
+    permjoin_def.permjoin
+      (perm_of_res_lock r1)
+      (perm_of_res_lock r2)
+      (perm_of_res_lock r3).
+Proof. 
   destruct r1 as [t1 | t1 p1 k1 pp1 | k1 pp1];
     destruct r2 as [t2 | t2 p2 k2 pp2 | k2 pp2];
     destruct r3 as [t3 | t3 p3 k3 pp3 | k3 pp3].

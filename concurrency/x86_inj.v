@@ -1,3 +1,5 @@
+(** * Injections on X86 cores*)
+
 Require Import sepcomp.semantics.
 Require Import sepcomp.semantics_lemmas.
 
@@ -722,10 +724,10 @@ Module X86Inj <: CoreInjections X86SEM.
   
   Lemma at_external_wd :
     forall (f : memren) c
-      (ef : external_function) (sig : signature) 
+      (ef : external_function)
       (args : seq val),
       core_wd f c ->
-      at_external X86SEM.Sem c = Some (ef, sig, args) -> valid_val_list f args.
+      at_external X86SEM.Sem c = Some (ef, args) -> valid_val_list f args.
   Proof.
     intros.
     unfold core_wd in H.
@@ -759,8 +761,8 @@ Module X86Inj <: CoreInjections X86SEM.
   
   Lemma after_external_wd :
     forall (c c' : state) (f : memren) (ef : external_function)
-      (sig : signature) (args : seq val) (ov : option val)
-      (Hat_external: at_external X86SEM.Sem c = Some (ef, sig, args))
+      (args : seq val) (ov : option val)
+      (Hat_external: at_external X86SEM.Sem c = Some (ef, args))
       (Hcore_wd: core_wd f c)
       (Hvalid_list: valid_val_list f args)
       (Hafter_external: after_external X86SEM.Sem ov c = Some c')
@@ -832,10 +834,10 @@ Module X86Inj <: CoreInjections X86SEM.
     forall c c' (f : memren),
       core_inj f c c' ->
       match at_external X86SEM.Sem c with
-      | Some (ef, sig, vs) =>
+      | Some (ef, vs) =>
         match at_external X86SEM.Sem c' with
-        | Some (ef', sig', vs') =>
-          ef = ef' /\ sig = sig' /\ val_obs_list f vs vs'
+        | Some (ef', vs') =>
+          ef = ef'/\ val_obs_list f vs vs'
         | None => False
         end
       | None =>
@@ -848,8 +850,8 @@ Module X86Inj <: CoreInjections X86SEM.
     intros c c' f Hinj.
     simpl.
     unfold core_inj in Hinj.
-    destruct (Asm_at_external c) as [[[ef sig] vs]|] eqn:Hat_external;
-      destruct (Asm_at_external c') as [[[ef' sig'] vs']|] eqn:Hat_external';
+    destruct (Asm_at_external c) as [[ef vs]|] eqn:Hat_external;
+      destruct (Asm_at_external c') as [[ef' vs']|] eqn:Hat_external';
       destruct c, c'; try discriminate; auto;
       destruct Hinj as (? & ? & ? & ?);
       simpl in *; subst;
@@ -860,7 +862,6 @@ Module X86Inj <: CoreInjections X86SEM.
       inversion Hat_external;
       inversion Hat_external'; subst.
     subst.
-    split; auto.
     split; auto.
     eapply decode_longs_val_obs_list; eauto.
   Qed.
@@ -1601,7 +1602,11 @@ Module X86Inj <: CoreInjections X86SEM.
                end) = None) /\
       (Mem.nextblock m = Mem.nextblock m' ->
        (forall b1 b3 : block, f b1 = Some b3 -> b1 = b3) ->
-       forall b1 b0 : block, f' b1 = Some b0 -> b1 = b0).
+       forall b1 b0 : block, f' b1 = Some b0 -> b1 = b0) /\
+      (forall b2 : block,
+          ~ (exists b1 : block, f' b1 = Some b2) ->
+          forall ofs : Z,
+            permissions.permission_at m' b2 ofs Cur = permissions.permission_at m2' b2 ofs Cur).
   Proof with eauto 8 with renamings ge_renamings reg_renamings val_renamings.
     intros.
     assert (Hinjective := injective (weak_obs_eq Hmem_obs_eq)).
@@ -1696,6 +1701,15 @@ Module X86Inj <: CoreInjections X86SEM.
              | [H: _ \/ _ |- _] =>
                destruct H; try discriminate;
                try auto
+           end;
+    (* unmapped blocks*)
+    repeat match goal with
+           | [|- permissions.permission_at _ _ _ _ = _] =>
+             do 2 rewrite <- permissions.getCurPerm_correct
+           | [H: Mem.storev _ _ _ _ = _ |- _] =>
+             destruct (mem_storev_store _ _ _ _ _ H) as (? & ? & ? & ?);
+               erewrite mem_store_cur by eauto;
+               reflexivity
            end.
     (* Cleaning up some cases manually, to avoid overcomplicating automation*)
     apply regset_ren_set.
@@ -1756,6 +1770,14 @@ Module X86Inj <: CoreInjections X86SEM.
                with reg_renamings ge_renamings val_renamings
            | [|- forall _, _] => intros
            end; try (by exfalso).
+    assert (b2 <> b')
+      by (intros Hcontra; subst;
+          eauto).
+    erewrite permission_at_alloc_4 with (m := m') (m' := m0'); eauto.
+    do 2 rewrite <- permissions.getCurPerm_correct.
+    erewrite mem_store_cur by eauto.
+    erewrite mem_store_cur by eauto.
+    reflexivity.
     (* Free case *)
     pose proof (Mem.nextblock_free _ _ _ _ _ Heqo1) as Hnb.
     eapply mem_free_obs in Heqo1...
@@ -1782,6 +1804,10 @@ Module X86Inj <: CoreInjections X86SEM.
                eauto 20 with reg_renamings ge_renamings val_renamings
            | [|- forall _, _] => intros
            end; try (by exfalso).
+    assert (b2 <> b0)
+      by (intros Hcontra; subst; eauto).
+    erewrite permission_at_free_2 by eauto.
+    reflexivity.
   Qed.
 
   Lemma extcall_arg_reg:
@@ -1903,7 +1929,7 @@ Module X86Inj <: CoreInjections X86SEM.
       rewrite Hstore0' Hstore'.
       eauto.
   Qed.
-  
+ 
   Lemma load_frame_store_args_obs:
     forall f m m2 m' stk stk' args args' tys
       (Hmem_obs_eq: mem_obs_eq f m m')
@@ -1918,7 +1944,51 @@ Module X86Inj <: CoreInjections X86SEM.
     unfold load_frame.store_args in *.
     eapply load_frame_store_args_rec_obs; eauto.
   Qed.
-  
+
+  Lemma permission_at_load_frame_store_args_rec:
+    forall args (m : mem) (stk : block) (o : Z) (tys : seq typ) (m' : mem),
+      load_frame.store_args_rec m stk o args tys = Some m' ->
+      forall (b : block) (ofs : Z),
+        permissions.permission_at m b ofs Cur =
+        permissions.permission_at m' b ofs Cur.
+  Proof.
+    intro args.
+    induction args; intros.
+    - simpl in *.
+      destruct tys; inversion H; subst.
+      reflexivity.
+    - simpl in H.
+      destruct tys; try discriminate.
+      destruct t0;
+        repeat match goal with
+               | [H: context[match ?Expr with _ => _ end] |- _] =>
+                 destruct Expr eqn:?
+               end;
+        unfold load_frame.store_stack in *;
+        try discriminate;
+        repeat match goal with
+               | [H: Mem.storev _ _ _ _ = _ |- _] =>
+                 apply mem_storev_store in H;
+                   destruct H as [? [? [? ?]]]
+               end;
+        repeat (rewrite <- permissions.getCurPerm_correct;
+                 erewrite mem_store_cur by eauto;
+                 rewrite permissions.getCurPerm_correct);
+        eapply IHargs; eauto.
+  Qed.
+
+  Lemma permission_at_load_frame_store_args:
+    forall m stk args tys m',
+      load_frame.store_args m stk args tys = Some m' ->
+      forall b ofs, permissions.permission_at m b ofs Cur =
+               permissions.permission_at m' b ofs Cur.
+  Proof.
+    intros.
+    unfold load_frame.store_args in H.
+    eapply permission_at_load_frame_store_args_rec; eauto.
+  Qed.
+
+
   Lemma corestep_obs_eq:
     forall (cc cf cc' : Asm_coop.state) (mc mf mc' : mem) f fg the_ge,
       mem_obs_eq f mc mf ->
@@ -1946,7 +2016,11 @@ Module X86Inj <: CoreInjections X86SEM.
             f' (Z.to_pos bz) = Some b /\ f (Z.to_pos bz) = None) /\
         (Mem.nextblock mc = Mem.nextblock mf ->
          (forall b1 b2 : block, f b1 = Some b2 -> b1 = b2) ->
-         forall b1 b2 : block, f' b1 = Some b2 -> b1 = b2).
+         forall b1 b2 : block, f' b1 = Some b2 -> b1 = b2) /\
+        (forall b2 : block,
+            ~ (exists b1 : block, f' b1 = Some b2) ->
+            forall ofs : Z,
+              permissions.permission_at mf b2 ofs Cur = permissions.permission_at mf' b2 ofs Cur).
   Proof with (eauto with renamings reg_renamings val_renamings).
    intros cc cf cc' mc mf mc' f fg the_ge
           Hobs_eq Hcore_inj Hfg Hge_wd Hincr Hcorestep.
@@ -1960,7 +2034,7 @@ Module X86Inj <: CoreInjections X86SEM.
         assert (Hfun := find_funct_ptr_ren Hfg Hge_wd Hincr Hpc_obs H2); subst b2.
         destruct (exec_instr_ren _ _ Hobs_eq Hrs_ren Hfg Hge_wd Hincr H7)
           as (f' & rsF' & mF' & Hexec' & Hrs_ren' & Hobs_eq' & Hincr' & Hsep
-              & Hnextblocks & Hinverse & Hid_extend).
+              & Hnextblocks & Hinverse & Hid_extend & Hunmapped).
         exists (State rsF' loaderF), mF', f'.
         repeat match goal with
                | [ |- _ /\ _] =>
@@ -2030,6 +2104,12 @@ Module X86Inj <: CoreInjections X86SEM.
                split; simpl; eauto
              end.
       econstructor; eauto.
+      intros.
+      assert (b2 <> stk')
+        by (intros Hcontra; subst; eauto).
+      erewrite permission_at_alloc_4 by eauto.
+      eapply permission_at_load_frame_store_args;
+        by eauto.
     - inversion Hcorestep; by exfalso.
   Qed.
 

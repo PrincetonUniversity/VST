@@ -108,13 +108,9 @@ Proof.
  simpl in H0. 
  pose proof (alloc_result _ _ _ _ _ H).
  subst b.
- rewrite nextblock_access_empty in H0.
- destruct (m_phi jm @ (nextblock (m_dry jm), ofs)); simpl in H0.
- destruct (eq_dec t Share.bot). subst; auto.
- rewrite perm_of_nonempty in H0 by auto. contradiction.
- destruct (perm_of_sh_pshare t p). rewrite H1 in H0.
- destruct k; try contradiction; xomega.
- xomega. xomega.
+ destruct jm; simpl in *.
+ rewrite JMalloc; auto; simpl.
+ xomega. 
 Qed.
 
 (* Transparent alloc. *)
@@ -168,6 +164,7 @@ Lemma after_alloc_max_access_cohere:
  max_access_cohere m'
   (after_alloc lo hi b (m_phi jm) (juicy_mem_alloc_aux1 jm lo hi m' b H)).
 Proof.
+  
 intros; pose proof I; hnf; intros.
 unfold after_alloc. rewrite resource_at_make_rmap.
 unfold after_alloc'.
@@ -179,29 +176,19 @@ if_tac.
  rewrite (alloc_access_same _ _ _ _ _ H) by omega.
  constructor.
 *
- generalize (juicy_mem_max_access jm loc); case_eq (m_phi jm @ loc); intros; auto.
- +
- destruct loc as [b' z].
- unfold max_access_at in *.
- rewrite (alloc_access_other _ _ _ _ _ H) in H3; auto.
- destruct (eq_dec b b').
- subst b'.
- right. simpl in H1. assert (~( lo <= z < lo + (hi - lo))) by intuition. omega.
- left; contradict n; auto.
- +
- unfold max_access_at in *.
- pose proof (nextblock_alloc _ _ _ _ _ H).
- rewrite H4.
- destruct loc as [b' z']; simpl in *.
- rewrite <- (alloc_access_other _ _ _ _ _ H b' z' Max).
- destruct k; auto; apply Plt_trans_succ; auto.
- clear - H1.
- destruct (eq_block b b'). 
- right. assert (~(lo <= z' < lo + (hi - lo))) by intuition. omega. auto.
- +
- pose proof (nextblock_alloc _ _ _ _ _ H).
- forget (m_dry jm) as m.
- clear - H4 H H3. rewrite H4. xomega.
+  assert (HH:= juicy_mem_max_access jm loc).
+  
+    eapply perm_order''_trans; eauto.
+    unfold max_access_at in *.
+    destruct loc as [b' z].
+    rewrite (alloc_access_other _ _ _ _ _ H); auto.
+    
+    destruct ((access_at m' (b', z) Max)); [apply perm_refl |constructor].
+    destruct (eq_block b b'). 
+    right. assert (~(lo <= z < lo + (hi - lo))).
+    { intros HHH; apply H1. split; auto. }
+    xomega.
+    left; auto.
 Qed.
 
 Lemma after_alloc_alloc_cohere:

@@ -109,8 +109,8 @@ Definition intpair_deserialize_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH u : unit
-  PRE  [] main_pre prog u
-  POST [ tint ] main_post prog u.
+  PRE  [] main_pre prog nil u
+  POST [ tint ] main_post prog nil u.
 
 Definition Vprog : varspecs := (_intpair_message, t_struct_message)::nil.
 
@@ -120,8 +120,8 @@ Definition message (sh: share) {t: type} (format: message_format t) (m: val) : m
           func_ptr (deserialize_spec format) (snd fg) &&
        data_at sh t_struct_message (Vint (Int.repr (mf_size format)), (fst fg, snd fg)) m.
 
-Definition Gprog : funspecs := augment_funspecs prog [ 
-    intpair_serialize_spec; intpair_deserialize_spec; main_spec].
+Definition Gprog : funspecs :=   ltac:(with_library prog [ 
+    intpair_serialize_spec; intpair_deserialize_spec; main_spec]).
 
 Lemma body_intpair_serialize: semax_body Vprog Gprog f_intpair_serialize intpair_serialize_spec.
 Proof.

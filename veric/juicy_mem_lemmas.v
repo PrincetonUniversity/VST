@@ -139,12 +139,7 @@ simpl in *. unfold compose in *.
 inv H. simpl in *.
 apply EqdepFacts.eq_sigT_eq_dep in H2.
 apply Eqdep.EqdepTheory.eq_dep_eq in H2.
-f_equal.
-extensionality.
-apply exist_ext.
-extensionality.
-f_equal.
-intuition.
+auto.
 Qed.
 
 Lemma oracle_unage:
@@ -647,10 +642,6 @@ inv H.
 destruct (make_rmap f H lev) as [phi [? ?]].
 extensionality l; unfold f, compose; simpl.
 if_tac; hnf; auto.
-simpl.
-f_equal.
-unfold NoneP. f_equal. unfold compose. extensionality x.
-apply approx_FF.
 exists phi.
 split; auto.
 exists (Mem.getN (size_chunk_nat ch) (snd loc) (PMap.get (fst loc) (Mem.mem_contents m))).
@@ -668,10 +659,6 @@ if_tac.
 destruct sh; simpl in *.
 exists n.
 f_equal. 
-unfold NoneP; f_equal.
-extensionality xx.  unfold compose. symmetry.
-apply approx_FF.
-auto.
 apply NO_identity.
 Qed.
     
@@ -959,7 +946,6 @@ assert (H3 : m_phi j @ (b0, ofs0) = YES Share.top pfullshare (VAL mv) NoneP).
 rewrite H3. repeat rewrite preds_fmap_NoneP. unfold pfullshare.
 apply join_unit2. constructor. apply join_unit1; auto.
 f_equal. apply exist_ext; auto.
-unfold NoneP. f_equal. extensionality z. unfold compose. apply approx_FF.
 
 (* ~adr_range *)
  clear H0.
@@ -1205,3 +1191,47 @@ Proof.
     apply po_join_sub_sh; eexists; eauto.
   - constructor.
 Qed.
+
+Lemma po_join_sub' r1 r2 :
+  join_sub r2 r1 ->
+  Mem.perm_order'' (perm_of_res' r1) (perm_of_res' r2).
+Proof.
+  intros [r J]; inversion J; subst; simpl.
+  - if_tac.
+    + subst.
+      if_tac.
+      * eauto with *.
+      * exfalso.
+        pose proof Share.lub_upper1 rsh1 rsh2.
+        inversion RJ as [_ E].
+        rewrite E in H0.
+        eauto with *.
+    + if_tac; constructor.
+  - apply po_join_sub_sh.
+    + exists rsh2; assumption.
+    + apply join_sub_refl.
+  - if_tac.
+    + destruct ((perm_of_sh rsh3 (pshare_sh sh))); try destruct p; constructor.
+    + destruct (perm_of_sh_pshare rsh3 sh) as [p' HH]; rewrite HH;
+      destruct p'; constructor.
+  - apply po_join_sub_sh.
+    + exists rsh2; assumption.
+    + exists (pshare_sh sh2); assumption.
+  - constructor.
+Qed.
+
+Lemma perm_of_res_lock_not_Freeable:
+  forall r,
+    Mem.perm_order'' (Some Writable) (perm_of_res_lock r).
+Proof.
+  destruct r; try constructor; destruct k ; simpl; auto.
+  - destruct (perm_of_sh Share.bot (pshare_sh p)) eqn:HH; auto.
+    destruct p1; try constructor.
+    apply perm_of_sh_Freeable_top in HH; inversion HH.
+    exfalso; apply Share.nontrivial; auto.
+  - destruct (perm_of_sh Share.bot (pshare_sh p)) eqn:HH; auto.
+    destruct p1; try constructor.
+    apply perm_of_sh_Freeable_top in HH; inversion HH.
+    exfalso; apply Share.nontrivial; auto.
+Qed.
+

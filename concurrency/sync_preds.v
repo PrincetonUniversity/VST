@@ -24,7 +24,6 @@ Require Import veric.juicy_extspec.
 Require Import veric.juicy_extspec.
 Require Import veric.tycontext.
 Require Import veric.semax_ext.
-Require Import veric.semax_ext_oracle.
 Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
 Require Import veric.coqlib4.
@@ -32,15 +31,19 @@ Require Import sepcomp.semantics.
 Require Import sepcomp.step_lemmas.
 Require Import sepcomp.event_semantics.
 Require Import concurrency.age_to.
+Require Import concurrency.semax_conc_pred.
 Require Import concurrency.semax_conc.
 Require Import concurrency.juicy_machine.
 Require Import concurrency.concurrent_machine.
+Require Import concurrency.semantics.
 Require Import concurrency.scheduler.
 Require Import concurrency.addressFiniteMap.
 Require Import concurrency.permissions.
 Require Import concurrency.JuicyMachineModule.
 Require Import concurrency.sync_preds_defs.
 Require Import concurrency.aging_lemmas.
+Require Import concurrency.lksize.
+Import threadPool.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -148,7 +151,7 @@ Lemma lset_range_perm m tp b ofs
   (Efind : AMap.find (elt:=option rmap) (b, ofs) (lset tp) <> None) :
   Mem.range_perm
     (restrPermMap (mem_compatible_locks_ltwritable compat))
-    b ofs (ofs + size_chunk Mint32) Cur Writable.
+    b ofs (ofs + LKSIZE) Cur Writable.
 Proof.
   unfold Mem.range_perm in *.
   intros ofs0 range.
@@ -276,19 +279,13 @@ Lemma mem_cohere_same_except_cur m m' phi :
   mem_cohere' m phi ->
   mem_cohere' m' phi.
 Proof.
-  intros (ECo & EMa & EN) [Co Ac Ma N]; constructor.
+  intros (ECo & EMa & EN) [Co Ma N]; constructor.
   - hnf in *.
     unfold contents_at in *.
     rewrite <-ECo. auto.
-  - unfold access_cohere' in *.
-    unfold max_access_at in *.
-    intros.
-    apply equal_f with (x := loc) in EMa.
-    rewrite <-EMa.
-    auto.
   - unfold max_access_cohere in *. intros loc.
     apply equal_f with (x := loc) in EMa.
-    rewrite <-EMa, <-EN.
+    rewrite <-EMa.
     apply Ma.
   - hnf in *. rewrite <-EN.
     auto.
@@ -556,14 +553,17 @@ Proof.
   intros.
   breakhyps.
   rewr (phi @ loc) in H.
-  injection H as A B C D.
-  apply inj_pair2 in D.
-  apply equal_f with tt in D.
+  pose proof (YES_inj _ _ _ _ _ _ _ _ H).
+  assert (snd ((x, x0, LK x1, SomeP rmaps.Mpred (fun _ : list Type => R2: pred rmap))) =
+    snd  (x2, x3, LK x4, SomeP rmaps.Mpred (fun _ : list Type => R1))) by (f_equal; auto).
+  simpl in H2.
+  apply SomeP_inj in H2.
+  pose proof equal_f_dep H2 nil.
   auto.
 Qed.
 
-Lemma predat1 {phi loc R z sh psh} :
-  phi @ loc = YES sh psh (LK z) (SomeP nil (fun _ : veric.rmaps.listprod nil => R)) ->
+Lemma predat1 {phi loc} {R: mpred} {z sh psh} :
+  phi @ loc = YES sh psh (LK z) (SomeP rmaps.Mpred (fun _ => R)) ->
   predat phi loc (approx (level phi) R).
 Proof.
   intro E; hnf; eauto.
@@ -610,6 +610,18 @@ Proof.
   intros H; apply H.
 Qed.
 
+Lemma predat6 {R loc phi} : lkat R loc phi -> predat phi loc (approx (level phi) R).
+Proof.
+  unfold predat in *.
+  unfold lkat in *.
+  intros H. spec H loc.
+  spec H.
+  { destruct loc. split; auto; unfold LKSIZE; omega. }
+  destruct H as (sh & rsh & ->).
+  if_tac. 2:tauto.
+  eauto.
+Qed.
+
 Lemma predat_join_sub {phi1 phi2 loc R} :
   join_sub phi1 phi2 ->
   predat phi1 loc R ->
@@ -636,7 +648,7 @@ Proof.
     apply H.
     unfold adr_range in *.
     intuition.
-    unfold res_predicates.lock_size.
+    unfold LKSIZE.
     omega.
   }
   if_tac in lk; [ | tauto ].
@@ -645,4 +657,19 @@ Proof.
   do 3 eexists.
   unfold compose.
   reflexivity.
+Qed.
+
+Lemma lkat_hered R loc : hereditary age (lkat R loc).
+Proof.
+  intros phi phi' A lk a r. spec lk a r.
+  destruct lk as (sh & rsh & E); exists sh, rsh.
+  erewrite age_resource_at; eauto.
+  rewrite E.
+  if_tac; simpl; f_equal.
+  unfold sync_preds_defs.pack_res_inv in *.
+  f_equal. extensionality Ts.
+  pose proof approx_oo_approx' (level phi') (level phi) as RR.
+  spec RR. apply age_level in A. omega.
+  unfold "oo" in *.
+  apply (equal_f RR R).
 Qed.

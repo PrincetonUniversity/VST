@@ -25,7 +25,6 @@ Require Import veric.initial_world.
 Require Import veric.juicy_extspec.
 Require Import veric.tycontext.
 Require Import veric.semax_ext.
-Require Import veric.semax_ext_oracle.
 Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
 Require Import floyd.coqlib3.
@@ -33,6 +32,7 @@ Require Import sepcomp.semantics.
 Require Import sepcomp.step_lemmas.
 Require Import sepcomp.event_semantics.
 Require Import concurrency.coqlib5.
+Require Import concurrency.semax_conc_pred.
 Require Import concurrency.semax_conc.
 Require Import concurrency.juicy_machine.
 Require Import concurrency.concurrent_machine.
@@ -195,12 +195,10 @@ Section Initial_State.
     - (*! lock coherence (no locks at first) *)
       intros lock.
       rewrite threadPool.find_empty.
-      split; intros (sh & sh' & z & P & E); revert E; unfold jm;
+      (* split; *) intros (sh & sh' & z & P & E); revert E; unfold jm;
       match goal with
         |- context [proj1_sig ?x] => destruct x as (jm' & jmm & lev & S & nolocks)
-      end; simpl.
-      + apply nolocks.
-      + apply nolocks.
+      end; simpl; apply nolocks.
     
     - (*! safety of the only thread *)
       intros i cnti ora.

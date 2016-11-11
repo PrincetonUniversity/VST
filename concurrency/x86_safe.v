@@ -112,8 +112,8 @@ Module X86CoreErasure <: CoreErasure X86SEM.
   Lemma at_external_erase:
     forall c c' (Herase: core_erasure c c'),
       match at_external Sem c, at_external Sem c' with
-      | Some (ef, sig, vs), Some (ef', sig', vs') =>
-        ef = ef' /\ sig = sig' /\ val_erasure_list vs vs'
+      | Some (ef, vs), Some (ef', vs') =>
+        ef = ef' /\ val_erasure_list vs vs'
       | None, None => True
       | _, _ => False
       end.
@@ -127,17 +127,16 @@ Module X86CoreErasure <: CoreErasure X86SEM.
     unfold at_external; simpl; auto.
     destruct (BuiltinEffects.observableEF_dec f0); auto.
     split; auto.
-    split; auto.
     eapply val_erasure_list_decode; eauto.
   Qed.
 
   Lemma after_external_erase :
     forall v v' c c' c2
       (HeraseCores: core_erasure c c')
-      (HeraseVal: val_erasure v v')
-      (Hafter_external: after_external X86SEM.Sem (Some v) c = Some c2),
+      (HeraseVal: optionval_erasure v v')
+      (Hafter_external: after_external X86SEM.Sem v c = Some c2),
     exists (c2' : state),
-      after_external X86SEM.Sem (Some v') c' = Some c2' /\
+      after_external X86SEM.Sem v' c' = Some c2' /\
       core_erasure c2 c2'.
   Proof.
     intros.
@@ -145,16 +144,19 @@ Module X86CoreErasure <: CoreErasure X86SEM.
     simpl in *.
     unfold Asm_after_external in *.
     destruct c; try discriminate.
-    inv Hafter_external.
     unfold core_erasure in HeraseCores.
     destruct c'; try by exfalso.
     destruct HeraseCores as (? & ? & ? &?); subst.
     unfold loader_erasure in H2; subst.
-    eexists; split; eauto.
-    simpl.
-    split; [|unfold loader_erasure; auto].      
+    destruct v;
+    inv Hafter_external;
+    destruct v' as [v'|];
+      simpl in HeraseVal; try (by exfalso);
+    eexists; split; eauto;
+    simpl;
+    split; try (unfold loader_erasure; now auto);
     destruct (loc_external_result (ef_sig f0)) as [|r' regs];
-      simpl.
+      simpl;
     eauto with regs_erasure val_erasure.
     destruct (sig_res (ef_sig f0)) as [ty|];
       try destruct ty;

@@ -1692,20 +1692,18 @@ Proof.
   unfold init_data2pred in *;
   unfold mapsto, address_mapsto in *;
   destruct a; simpl in *;
-  try (destruct (readable_share_dec (Share.splice extern_retainer sh)); [| tauto]);
-   
-  try (destruct H1 as [[H1' H1]|[H1x _]]; [|solve[inv H1x]];
-        left; split; [first [apply I 
-              | apply sign_ext_range'; compute; split; congruence
-              | apply zero_ext_range'; compute; split; congruence
-              ] | ]);
-  try solve 
-  [simpl in H1 |- *;
-   destruct H1 as [bl [? H8]]; exists bl; split; [assumption | ]; intro loc; specialize (H8 loc);
-   if_tac; [destruct H8 as [p H8]; exists p; rewrite <- H4'; destruct (H4 loc) as [_ H5]; 
-               rewrite <- H5; [rewrite H8; auto| rewrite H8; apply YES_not_identity]
-            | destruct (H4 loc) as [HH _]; clear - H8 HH; intuition]].
-
+  (destruct (readable_share_dec (Share.splice extern_retainer sh)); [| tauto]);
+  try 
+  (destruct H1 as [[H1' H1]|[H1x _]]; [|solve[inv H1x]];
+        left; split;
+    [ first [ apply I 
+           | apply sign_ext_range'; compute; split; congruence
+           | apply zero_ext_range'; compute; split; congruence ]
+    | simpl in H1 |- *;
+      destruct H1 as [bl [? H8]]; exists bl; split; [assumption | ]; intro loc; specialize (H8 loc);
+      if_tac; [ destruct H8 as [p H8]; exists p; destruct (H4 loc) as [_ H5]; 
+                rewrite <- H5; [rewrite H8; auto| rewrite H8; apply YES_not_identity]
+              | destruct (H4 loc) as [HH _]; clear - H8 HH; intuition]]).
  rewrite address_mapsto_zeros_eq in H1|-*.
  rewrite nat_of_Z_max in *.
  rewrite Share.unrel_splice_L in *.
@@ -1718,6 +1716,7 @@ Proof.
  if_tac; [destruct H1 as [p H1]; exists p; hnf in H1|-*; rewrite <- H4'; destruct (H4 loc) as [_ H5]
           | destruct (H4 loc) as [HH _]; intuition].
  rewrite <- H5; auto. rewrite H1; apply YES_not_identity.
+
  destruct (ge_of rho i); try destruct p; auto. 
  destruct H1 as [[H1' H1]|[H1' H1]];  [left|right]; split; auto;
  destruct H1 as [bl [? H8]].

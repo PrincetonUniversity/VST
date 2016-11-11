@@ -5,7 +5,7 @@ Require Import progs.list_dt. Import LsegSpecial.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
-Instance LS: listspec _list _tail.
+Instance LS: listspec _list _tail (fun _ _ => emp).
 Proof. eapply mk_listspec; reflexivity. Defined.
 
 Definition t_struct_list := Tstruct _list noattr.
@@ -43,7 +43,7 @@ Definition merge_spec :=
      LOCAL (temp ret_temp pt) 
      SEP (lseg LS sh (map Vint (merge a b)) pt nullval).
 
-Definition Gprog : funspecs := augment_funspecs prog [ merge_spec ].
+Definition Gprog : funspecs :=   ltac:(with_library prog [ merge_spec ]).
 
 Fixpoint last (l : list int) :=
   match l with
@@ -136,7 +136,7 @@ Qed.
 
 Lemma list_append_null (cs : compspecs)
     (list_structid list_link : ident) (sh : share)
-    (ls : listspec list_structid list_link) (hd mid : val)
+    (ls : listspec list_structid list_link list_token) (hd mid : val)
     (ct1 ct2 : list (elemtype ls)) :
   lseg ls sh ct1 hd mid * lseg ls sh ct2 mid nullval
   |-- lseg ls sh (ct1 ++ ct2) hd nullval.
@@ -146,7 +146,7 @@ Proof.
     intros.
     eapply derives_trans; [ eapply derives_trans; [ | eassumption] | ]; cancel.
   apply AP; clear AP.
-  apply (@list_append _ _ _ sh ls _ _ _ _ _ (fun _ => emp)).
+  apply (@list_append _ _ _ _ sh ls _ _ _ _ _ (fun _ => emp)).
   intros; unfold lseg_cell.
   rewrite (entail_rewrite _ _ (field_at_ptr_neq_null _ _ _ _ _)).
   rewrite field_at_isptr.
@@ -284,7 +284,7 @@ clear hmerge tmerge Heqmerged.
 (* Command: *x = a *)
 unfold_data_at 2%nat.
 (* we replace [field_at ...tail _c] with [data_at .. (field_adress ...tail _c)] for forward*)
-focus_SEP 9.
+focus_SEP 11.
 rewrite field_at_data_at.
 forward.
 (* we put back the [field_at ...tail _c] *)
@@ -309,7 +309,7 @@ match goal with |- ?A * ?B * ?C * ?D * ?E * ?F * ?G * ?H |-- _ =>
 end.
 eapply derives_trans; [apply sepcon_derives; [ | apply derives_refl] | ].
 assert (LCR := lseg_cons_right_neq LS sh (map Vint (butlast merged)) begin (Vint (last merged)) c_ a_' a_);
-simpl in LCR. rewrite list_cell_field_at in LCR. apply LCR; auto.
+simpl in LCR. rewrite list_cell_field_at, emp_sepcon in LCR. apply LCR; auto.
 rewrite @lseg_cons_eq.
 Exists b_'.
 rewrite list_cell_field_at.
@@ -384,7 +384,7 @@ clear hmerge tmerge Heqmerged.
 (* Command: *x = b *)
 unfold_data_at 2%nat.
 (* we replace [field_at ...tail _c] with [data_at .. (field_adress ...tail _c)] for forward*)
-focus_SEP 9.
+focus_SEP 11.
 rewrite field_at_data_at.
 forward.
 (* we put back the [field_at ...tail _c] *)
@@ -408,7 +408,7 @@ Time entailer!. (* 14.3 sec *)
 pattern merged at 3; rewrite snoc by auto.
 rewrite map_app. simpl map.
 assert (LCR := lseg_cons_right_neq LS sh (map Vint (butlast merged)) begin (Vint (last merged)) c_ b_' b_).
-simpl in LCR. rewrite list_cell_field_at in LCR.
+simpl in LCR. rewrite emp_sepcon, list_cell_field_at in LCR.
 unfold_data_at 1%nat.
 match goal with |- ?A * ?B * ?C * ?D * ?E * ?F |-- _ =>
  apply derives_trans with ((F * A * E * D) * (B * C)); [cancel | ]

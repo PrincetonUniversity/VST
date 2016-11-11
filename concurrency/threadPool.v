@@ -1,9 +1,11 @@
 
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 
+Require Import compcert.common.Memory.
 Require Import compcert.common.Values. (*for val*)
 Require Import concurrency.scheduler.
-Require Import concurrency.concurrent_machine.
+Require Import concurrency.permissions.
+Require Import concurrency.semantics.
 Require Import concurrency.pos.
 Require Import concurrency.threads_lemmas.
 Require Import compcert.lib.Axioms.
@@ -15,6 +17,389 @@ Require Import Coq.ZArith.ZArith.
 Require Import concurrency.lksize.
 
 Set Implicit Arguments.
+
+
+Inductive ctl {cT:Type} : Type :=
+| Krun : cT -> ctl
+| Kblocked : cT -> ctl
+| Kresume : cT -> val -> ctl (* Carries the return value. Probably a unit.*)
+| Kinit : val -> val -> ctl. (* vals correspond to vf and arg respectively. *)
+
+Definition EqDec: Type -> Type := 
+  fun A : Type => forall a a' : A, {a = a'} + {a <> a'}.
+
+Module Type ThreadPoolSig.
+  Declare Module TID: ThreadID.
+  Declare Module SEM: Semantics.
+  Declare Module RES : Resources.
+  
+  Import TID.
+  Import SEM.
+  Import RES.
+
+  Parameter t : Type.
+
+  Local Notation ctl := (@ctl C).
+  
+  Parameter containsThread : t -> tid -> Prop.
+  Parameter getThreadC : forall {tid tp}, containsThread tp tid -> ctl.
+  Parameter getThreadR : forall {tid tp}, containsThread tp tid -> res.
+  Parameter lockGuts : t -> AMap.t lock_info.  (* Gets the set of locks + their info    *)
+  Parameter lockSet : t -> access_map.         (* Gets the permissions for the lock set *)
+  Parameter lockRes : t -> address -> option lock_info.
+  Parameter addThread : t -> val -> val -> res -> t. (*vals are function pointer and argument respectively. *)
+  Parameter updThreadC : forall {tid tp}, containsThread tp tid -> ctl -> t.
+  Parameter updThreadR : forall {tid tp}, containsThread tp tid -> res -> t.
+  Parameter updThread : forall {tid tp}, containsThread tp tid -> ctl -> res -> t.
+  Parameter updLockSet : t -> address -> lock_info -> t.
+  Parameter remLockSet : t -> address -> t.
+  Parameter latestThread : t -> tid.
+
+  Parameter lr_valid : (address -> option lock_info) -> Prop.
+
+  (*Find the first thread i, that satisfies (filter i) *)
+  Parameter find_thread: t -> (ctl -> bool) -> option tid.
+
+  (* Decidability of containsThread *)
+  Axiom containsThread_dec:
+    forall i tp, {containsThread tp i} + { ~ containsThread tp i}.
+  
+  (*Proof Irrelevance of contains*)
+  Axiom cnt_irr: forall t tid
+                   (cnt1 cnt2: containsThread t tid),
+      cnt1 = cnt2.
+
+  (* Add Thread properties*)
+  Axiom cntAdd:
+    forall {j tp} vf arg p,
+      containsThread tp j ->
+      containsThread (addThread tp vf arg p) j.
+
+  Axiom cntAdd':
+    forall {j tp} vf arg p,
+      containsThread (addThread tp vf arg p) j ->
+      (containsThread tp j /\ j <> latestThread tp) \/ j = latestThread tp.
+  
+  (* Update properties*)
+  Axiom cntUpdateC:
+    forall {tid tid0 tp} c
+      (cnt: containsThread tp tid),
+      containsThread tp tid0->
+      containsThread (updThreadC cnt c) tid0.
+  Axiom cntUpdateC':
+    forall {tid tid0 tp} c
+      (cnt: containsThread tp tid),
+      containsThread (updThreadC cnt c) tid0 -> 
+      containsThread tp tid0.
+
+  Axiom cntUpdateR:
+    forall {i j tp} r
+      (cnti: containsThread tp i),
+      containsThread tp j->
+      containsThread (updThreadR cnti r) j.
+  Axiom cntUpdateR':
+    forall {i j tp} r
+      (cnti: containsThread tp i),
+      containsThread (updThreadR cnti r) j -> 
+      containsThread tp j.
+  
+  Axiom cntUpdate:
+    forall {i j tp} c p
+      (cnti: containsThread tp i),
+      containsThread tp j ->
+      containsThread (updThread cnti c p) j.
+  Axiom cntUpdate':
+    forall {i j tp} c p
+      (cnti: containsThread tp i),
+      containsThread (updThread cnti c p) j ->
+      containsThread tp j.
+
+  Axiom cntUpdateL:
+    forall {j tp} add lf,
+      containsThread tp j ->
+      containsThread (updLockSet tp add lf) j.
+  Axiom cntRemoveL:
+    forall {j tp} add,
+      containsThread tp j ->
+      containsThread (remLockSet tp add) j.
+
+  Axiom cntUpdateL':
+    forall {j tp} add lf,
+      containsThread (updLockSet tp add lf) j ->
+      containsThread tp j.
+  Axiom cntRemoveL':
+    forall {j tp} add,
+      containsThread (remLockSet tp add) j ->
+      containsThread tp j.
+
+  (*Axiom gssLockPool:
+    forall tp ls,
+      lockSet (updLockSet tp ls) = ls.*) (*Will change*)
+
+  Axiom gsoThreadLock:
+    forall {i tp} c p (cnti: containsThread tp i),
+      lockSet (updThread cnti c p) = lockSet tp.
+
+  Axiom gsoThreadCLock:
+    forall {i tp} c (cnti: containsThread tp i),
+      lockSet (updThreadC cnti c) = lockSet tp.
+
+  Axiom gsoThreadRLock:
+    forall {i tp} p (cnti: containsThread tp i),
+      lockSet (updThreadR cnti p) = lockSet tp.
+
+  Axiom gsoAddLock:
+    forall tp vf arg p,
+      lockSet (addThread tp vf arg p) = lockSet tp.
+
+  Axiom gssAddRes:
+    forall {tp} vf arg pmap j
+      (Heq: j = latestThread tp)
+      (cnt': containsThread (addThread tp vf arg pmap) j),
+      getThreadR cnt' = pmap.
+   
+  (*Get thread Properties*)
+  Axiom gssThreadCode :
+    forall {tid tp} (cnt: containsThread tp tid) c' p'
+      (cnt': containsThread (updThread cnt c' p') tid),
+      getThreadC cnt' = c'.
+
+  Axiom gsoThreadCode :
+    forall {i j tp} (Hneq: i <> j) (cnti: containsThread tp i)
+      (cntj: containsThread tp j) c' p'
+      (cntj': containsThread (updThread cnti c' p') j),
+      getThreadC cntj' = getThreadC cntj.
+
+  Axiom gssThreadRes:
+    forall {tid tp} (cnt: containsThread tp tid) c' p'
+      (cnt': containsThread (updThread cnt c' p') tid),
+      getThreadR cnt' = p'.
+
+  Axiom gsoThreadRes:
+    forall {i j tp} (cnti: containsThread tp i)
+            (cntj: containsThread tp j) (Hneq: i <> j) c' p'
+            (cntj': containsThread (updThread cnti c' p') j),
+    getThreadR cntj' = getThreadR cntj.
+  
+  Axiom gssThreadCC:
+    forall {tid tp} (cnt: containsThread tp tid) c'
+      (cnt': containsThread (updThreadC cnt c') tid),
+      getThreadC cnt' = c'.
+
+  Axiom gsoThreadCC:
+    forall {i j tp} (Hneq: i <> j) (cnti: containsThread tp i)
+      (cntj: containsThread tp j) c'
+      (cntj': containsThread (updThreadC cnti c') j),
+      getThreadC cntj = getThreadC cntj'.
+
+  Axiom getThreadCC:
+    forall {tp} i j
+      (cnti : containsThread tp i) (cntj : containsThread tp j)
+      c' (cntj' : containsThread (updThreadC cnti c') j),
+    getThreadC cntj' = if eq_tid_dec i j then c' else getThreadC cntj.
+
+  Axiom gThreadCR:
+    forall {i j tp} (cnti: containsThread tp i)
+      (cntj: containsThread tp j) c'
+      (cntj': containsThread (updThreadC cnti c') j),
+      getThreadR cntj' = getThreadR cntj.
+
+  Axiom gThreadRC:
+    forall {i j tp} (cnti: containsThread tp i)
+      (cntj: containsThread tp j) p
+      (cntj': containsThread (updThreadR cnti p) j),
+      getThreadC cntj' = getThreadC cntj.
+
+  Axiom gsoThreadCLPool:
+    forall {i tp} c (cnti: containsThread tp i) addr,
+      lockRes (updThreadC cnti c) addr = lockRes tp addr.
+
+  Axiom gsoThreadLPool:
+    forall {i tp} c p (cnti: containsThread tp i) addr,
+      lockRes (updThread cnti c p) addr = lockRes tp addr.
+
+  Axiom gsoAddLPool:
+    forall tp vf arg p (addr : address),
+      lockRes (addThread tp vf arg p) addr = lockRes tp addr.
+  
+  Axiom gLockSetRes:
+    forall {i tp} addr (res : lock_info) (cnti: containsThread tp i)
+      (cnti': containsThread (updLockSet tp addr res) i),
+      getThreadR cnti' = getThreadR cnti.
+
+  Axiom gLockSetCode:
+    forall {i tp} addr (res : lock_info) (cnti: containsThread tp i)
+      (cnti': containsThread (updLockSet tp addr res) i),
+      getThreadC cnti' = getThreadC cnti.
+
+  Axiom gssLockRes:
+    forall tp addr pmap,
+      lockRes (updLockSet tp addr pmap) addr = Some pmap.
+
+  Axiom gsoLockRes:
+    forall tp addr addr' pmap
+      (Hneq: addr <> addr'),
+      lockRes (updLockSet tp addr pmap) addr' =
+      lockRes tp addr'.
+
+  Axiom gssLockSet:
+    forall tp b ofs rmap ofs',
+      (ofs <= ofs' < ofs + Z.of_nat lksize.LKSIZE_nat)%Z ->
+      (Maps.PMap.get b (lockSet (updLockSet tp (b, ofs) rmap)) ofs') = Some Writable.
+    
+  Axiom gsoLockSet_1 :
+    forall tp b ofs ofs'  pmap
+      (Hofs: (ofs' < ofs)%Z \/ (ofs' >= ofs + (Z.of_nat lksize.LKSIZE_nat))%Z),
+      (Maps.PMap.get b (lockSet (updLockSet tp (b,ofs) pmap))) ofs' =
+      (Maps.PMap.get b (lockSet tp)) ofs'.
+  Axiom gsoLockSet_2 :
+    forall tp b b' ofs ofs' pmap,
+      b <> b' -> 
+      (Maps.PMap.get b' (lockSet (updLockSet tp (b,ofs) pmap))) ofs' =
+      (Maps.PMap.get b' (lockSet tp)) ofs'.
+
+  Axiom lockSet_updLockSet:
+    forall tp i (pf: containsThread tp i) c pmap addr rmap,
+      lockSet (updLockSet tp addr rmap) =
+      lockSet (updLockSet (updThread pf c pmap) addr rmap).
+
+  Axiom updThread_updThreadC_comm :
+    forall tp i j c pmap' c'
+      (Hneq: i <> j)
+      (cnti : containsThread tp i)
+      (cntj : containsThread tp j)
+      (cnti': containsThread (updThread cntj c' pmap') i)
+      (cntj': containsThread (updThreadC cnti c) j),
+      updThreadC cnti' c = updThread cntj' c' pmap'.
+
+ Axiom updThread_comm :
+    forall tp i j c pmap c' pmap'
+      (Hneq: i <> j)
+      (cnti : containsThread tp i)
+      (cntj : containsThread tp j)
+      (cnti': containsThread (updThread cntj c' pmap') i)
+      (cntj': containsThread (updThread cnti c pmap) j),
+      updThread cnti' c pmap = updThread cntj' c' pmap'.
+
+ Axiom add_updateC_comm:
+   forall tp i vf arg pmap c'
+     (cnti: containsThread tp i)
+     (cnti': containsThread (addThread tp vf arg pmap) i),
+     addThread (updThreadC cnti c') vf arg pmap =
+     updThreadC cnti' c'.
+
+ Axiom add_update_comm:
+   forall tp i vf arg pmap c' pmap'
+     (cnti: containsThread tp i)
+     (cnti': containsThread (addThread tp vf arg pmap) i),
+     addThread (updThread cnti c' pmap') vf arg pmap =
+     updThread cnti' c' pmap'.
+
+ Axiom updThread_lr_valid:
+   forall tp i (cnti: containsThread tp i) c' m',
+     lr_valid (lockRes tp) ->
+     lr_valid (lockRes (updThread cnti c' m')).
+
+
+ (*uniqueness of the running threadc*)
+  Parameter unique_Krun:  t -> tid -> Prop.
+  Definition is_running tp i:= 
+    exists cnti q, @getThreadC i tp cnti = Krun q.
+  
+  (*New Axioms, to avoid breaking the modularity *)
+  Axioms lockSet_spec_2 :
+    forall (js : t) (b : block) (ofs ofs' : Z),
+      Intv.In ofs' (ofs, (ofs + Z.of_nat lksize.LKSIZE_nat)%Z) ->
+      lockRes js (b, ofs) -> (lockSet js) !! b ofs' = Some Memtype.Writable.
+
+  Axiom lockSet_spec_3:
+  forall ds b ofs,
+    (forall z, z <= ofs < z+LKSIZE -> lockRes ds (b,z) = None)%Z ->
+    (lockSet ds) !! b ofs = None.
+
+  Axiom gsslockSet_rem: forall ds b ofs ofs0,
+      lr_valid (lockRes ds) ->
+      Intv.In ofs0 (ofs, ofs + lksize.LKSIZE)%Z ->
+      isSome ((lockRes ds) (b,ofs)) ->  (*New hypothesis needed. Shouldn't be a problem *)
+      (lockSet (remLockSet ds (b, ofs))) !! b ofs0 =
+      None.
+
+  Axiom gsolockSet_rem1: forall ds b ofs b' ofs',
+      b  <> b' ->
+      (lockSet (remLockSet ds (b, ofs))) !! b' ofs' =
+      (lockSet ds)  !! b' ofs'.
+
+  Axiom gsolockSet_rem2: forall ds b ofs ofs',
+      lr_valid (lockRes ds) ->
+      ~ Intv.In ofs' (ofs, ofs + lksize.LKSIZE)%Z ->
+      (lockSet (remLockSet ds (b, ofs))) !! b ofs' =
+      (lockSet ds)  !! b ofs'.
+  Axiom gsslockResUpdLock: forall js a res,
+      lockRes (updLockSet js a res) a =
+      Some res.
+  Axiom gsolockResUpdLock: forall js loc a res,
+                 loc <> a ->
+                 lockRes (updLockSet js loc res) a =
+                 lockRes js a.
+
+  Axiom gsslockResRemLock: forall js a,
+      lockRes (remLockSet js a) a =
+      None.
+  Axiom gsolockResRemLock: forall js loc a,
+      loc <> a ->
+      lockRes (remLockSet js loc) a =
+      lockRes js a.
+
+  Axiom gRemLockSetCode:
+    forall {i tp} addr (cnti: containsThread tp i)
+      (cnti': containsThread (remLockSet tp addr) i),
+      getThreadC cnti' = getThreadC cnti.
+
+  Axiom gRemLockSetRes:
+    forall {i tp} addr (cnti: containsThread tp i)
+      (cnti': containsThread (remLockSet tp addr) i),
+      getThreadR cnti' = getThreadR cnti.
+
+  Axiom gsoAddCode:
+    forall {i tp} (cnt: containsThread tp i) vf arg pmap j
+      (cntj: containsThread tp j)
+      (cntj': containsThread (addThread tp vf arg pmap) j),
+      getThreadC cntj' = getThreadC cntj.
+
+  Axiom gssAddCode:
+    forall {tp} vf arg pmap j
+      (Heq: j = latestThread tp)
+      (cnt': containsThread (addThread tp vf arg pmap) j),
+      getThreadC cnt' = Kinit vf arg.
+
+  Axiom gsoAddRes:
+    forall {tp} vf arg pmap j
+      (cntj: containsThread tp j) (cntj': containsThread (addThread tp vf arg pmap) j),
+      getThreadR cntj' = getThreadR cntj.
+
+  Axiom updLock_updThread_comm:
+        forall ds,
+        forall i (cnti: containsThread ds i) c map l lmap,
+          forall (cnti': containsThread (updLockSet ds l lmap) i),
+          updLockSet
+            (@updThread _ ds cnti c map) l lmap = 
+          @updThread _ (updLockSet ds l lmap) cnti' c map.
+
+  Axiom remLock_updThread_comm:
+        forall ds,
+        forall i (cnti: containsThread ds i) c map l,
+          forall (cnti': containsThread (remLockSet ds l) i),
+          remLockSet
+            (updThread cnti c map)
+            l = 
+          updThread cnti' c map.
+  
+End ThreadPoolSig.
+
+
+
+
+
 
 (*TODO: Enrich Resources interface to enable access of resources*)
 
@@ -47,6 +432,7 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
                    ; perm_maps : 'I_num_threads -> res
                    ; lset : AMap.t lock_info
                  }.
+
   
   Definition t := t'.
 
@@ -106,18 +492,15 @@ Import Coqlib.
   change (List.fold_right f z (a::l)) with (f a (List.fold_right f z l)).
   unfold f at 1 3.
   destruct a. destruct a.
-  simpl.
   destruct (peq b0 b).
-  subst b0.
-  unfold permissions.setPerm.
-  rewrite !PMap.gss.
-   repeat (if_tac; auto).
-  unfold permissions.setPerm.
-  rewrite !PMap.gso;  auto.
-Qed.
+  - subst b0.
+    pose proof permissions.setPermBlock_or (Some Memtype.Writable) b z0 LKSIZE_nat (fold_right f z l) b ofs as H.
+    destruct H as [-> | ->]; auto.
+  - rewrite permissions.setPermBlock_other_2; auto.
+  Qed.
   
   Lemma lockSet_spec_2 :
-    forall (js : t') (b : block) (ofs ofs' : Z),
+    forall (js : t) (b : block) (ofs ofs' : Z),
       Intv.In ofs' (ofs, (ofs + Z.of_nat lksize.LKSIZE_nat)%Z) ->
       lockRes js (b, ofs) -> (lockSet js) !! b ofs' = Some Memtype.Writable.
   Proof.
@@ -152,7 +535,7 @@ Qed.
     repeat match goal with |- context [is_left ?A] => destruct A; simpl; auto end.
     rewrite !PMap.gso; auto.
   Qed.
-
+  
   Lemma lockSet_spec_1: forall js b ofs,
       lockRes js (b,ofs) ->
       (lockSet js) !! b ofs = Some Memtype.Writable.
@@ -182,6 +565,31 @@ Open Scope nat_scope.
   Definition getThreadC {i tp} (cnt: containsThread tp i) : ctl :=
     tp (Ordinal cnt).
   
+  Definition unique_Krun tp i :=
+  (lt 1 tp.(num_threads).(pos.n) -> forall j cnti q,
+      @getThreadC j tp cnti = Krun q ->
+      eq_tid_dec i j ).
+
+  Definition is_running tp i:= 
+    exists cnti q, @getThreadC i tp cnti = Krun q.
+
+  Lemma unique_runing_not_running:
+    forall tp i,
+      unique_Krun tp i ->
+      ~ is_running tp i ->
+      forall j, unique_Krun tp j.
+  Proof.
+    unfold unique_Krun, is_running.
+    intros.
+    specialize (H H1 _ _ _ H2).
+    destruct (eq_tid_dec i j0); try solve[inversion H].
+    subst i.
+    exfalso; apply H0 .
+    exists cnti, q; assumption.
+  Qed.
+    
+
+    
   Definition getThreadR {i tp} (cnt: containsThread tp i) : res :=
     (perm_maps tp) (Ordinal cnt).
 
@@ -593,24 +1001,21 @@ Arguments AMap.In {elt} x m.
 Lemma lockRes_range_dec: forall tp b ofs,
     { (exists z, z <= ofs < z+LKSIZE /\ lockRes tp (b,z) )%Z  } + {(forall z, z <= ofs < z+LKSIZE -> lockRes tp (b,z) = None)%Z }.
 Proof.
-  replace LKSIZE with 4%Z by auto.
-  intros.
-  (*0*)
-  destruct (lockRes tp (b, ofs)) eqn:H0.
-  left; exists ofs; split; [omega | rewrite H0; auto].
-  (*1*)
-  destruct (lockRes tp (b, ofs-1))%Z eqn:H1.
-  left; exists (ofs-1)%Z; split; [omega | rewrite H1; auto].
-  (*2*)
-  destruct (lockRes tp (b, ofs-2))%Z eqn:H2.
-  left; exists (ofs-2)%Z; split; [omega | rewrite H2; auto].
-  (*3*)
-  destruct (lockRes tp (b, ofs-3))%Z eqn:H3.
-  left; exists (ofs-3)%Z; split; [omega | rewrite H3; auto].
-  (*rest*)
-  right. intros.
-  assert (z = ofs \/ z = ofs-1 \/ z = ofs-2 \/ z = ofs-3 )%Z by omega.
-  destruct H4 as [? | [ ? | [? | ?]]]; subst; auto.
+  intros tp b ofs.
+  assert (H : (0 <= LKSIZE)%Z). unfold LKSIZE; omega.
+  destruct (@RiemannInt_SF.IZN_var _ H) as (n, ->).
+  induction n.
+  - right. simpl. intros. omega.
+  - destruct IHn as [IHn | IHn].
+    + left; destruct IHn as (z & r & Hz).
+      exists z; split; auto. zify. omega.
+    + destruct (lockRes tp (b, (ofs - Z.of_nat n)%Z)) eqn:Ez.
+      * left. exists (ofs - Z.of_nat n)%Z; split. 2:rewrite Ez; auto.
+        zify; omega.
+      * right; intros z r.
+        destruct (zeq ofs (z + Z.of_nat n)%Z).
+        -- subst; auto. rewrite <-Ez; do 2 f_equal. omega.
+        -- apply IHn. zify. omega.
 Qed.
 
 Lemma lockSet_spec_3:
@@ -623,7 +1028,7 @@ Proof.
    rewrite <- !List.fold_left_rev_right.
    match goal with |- context [fold_right ?F ?I] => set (f:=F); set (init:=I)end.
    unfold lockRes in H.
-   assert (H': forall z,  (z <= ofs < z + 4)%Z ->
+   assert (H': forall z,  (z <= ofs < z + LKSIZE)%Z ->
                  ~ AMap.In (b,z) (lockGuts ds)). {
     intros. intro. destruct H1; apply AMap.find_1 in H1.
      rewrite H in H1. inv H1. auto.
@@ -654,7 +1059,6 @@ Proof.
   exists l; auto.
 Qed.
 
-
   Lemma gsslockSet_rem: forall ds b ofs ofs0,
       lr_valid (lockRes ds) ->
       Intv.In ofs0 (ofs, ofs + lksize.LKSIZE)%Z ->
@@ -665,8 +1069,8 @@ Qed.
     intros. 
     hnf in H0; simpl in H0.
     apply lockSet_spec_3.
-    change LKSIZE with 4%Z in H0. 
-    change LKSIZE with 4%Z.
+    unfold LKSIZE in H0. 
+    unfold LKSIZE.
     intros.
     destruct (zeq ofs z).
     * subst ofs.
@@ -678,12 +1082,12 @@ Qed.
    * hnf in H.
      destruct (lockRes ds (b,z)) eqn:?; inv H1.
      + destruct (lockRes ds (b,ofs)) eqn:?; inv H4.
-       assert (z <= ofs < z+4 \/ ofs <= z <= ofs+4)%Z by omega.
+       assert (z <= ofs < z+16 \/ ofs <= z <= ofs+16)%Z by omega.
          destruct H1.
-         - specialize (H b z). rewrite Heqo in H. change LKSIZE with 4%Z in H.
+         - specialize (H b z). rewrite Heqo in H. unfold LKSIZE in H.
               specialize (H ofs). spec H; [omega|]. congruence.
          - specialize (H b ofs). rewrite Heqo0 in H. specialize (H z).
-              change LKSIZE with 4%Z in H.
+              unfold LKSIZE in H.
               spec H; [omega|]. congruence.
      + unfold lockRes, remLockSet.  simpl.
              assert (H8 := @AMap.remove_3 _ (lockGuts ds) (b,ofs) (b,z)).
@@ -703,7 +1107,7 @@ Qed.
     
     intros.
     destruct (lockRes_range_dec ds b' ofs').
-    - destruct e as [z [ineq HH]]. change LKSIZE with 4%Z in ineq.
+    - destruct e as [z [ineq HH]]. unfold LKSIZE in ineq.
       erewrite lockSet_spec_2.
       erewrite lockSet_spec_2; auto.
       + hnf; simpl; eauto.
@@ -726,10 +1130,10 @@ Qed.
   Proof.
     intros.
     destruct (lockRes_range_dec ds b ofs').
-    - destruct e as [z [ineq HH]]. change LKSIZE with 4%Z in ineq.
+    - destruct e as [z [ineq HH]]. unfold LKSIZE in ineq.
       assert (ofs <> z).
       { intros AA. inversion AA.
-        apply H0. hnf. change LKSIZE with 4%Z.
+        apply H0. hnf. unfold LKSIZE.
         simpl; omega. }
       erewrite lockSet_spec_2.
       erewrite lockSet_spec_2; auto.
@@ -1313,14 +1717,14 @@ Qed.
   
   Lemma gsoLockSet_12 :
     forall tp b b' ofs ofs' pmap,
-      ~ adr_range (b,ofs) 4 (b',ofs') -> 
+      ~ adr_range (b,ofs) LKSIZE (b',ofs') -> 
       (Maps.PMap.get b' (lockSet (updLockSet tp (b,ofs) pmap))) ofs' =
       (Maps.PMap.get b' (lockSet tp)) ofs'.
   Proof.
     
     intros.
     destruct (lockRes_range_dec tp b' ofs').
-    - destruct e as [z [ineq HH]]. change LKSIZE with 4%Z in ineq.
+    - destruct e as [z [ineq HH]]. unfold LKSIZE in ineq.
       erewrite lockSet_spec_2.
       erewrite lockSet_spec_2; auto.
       + hnf; simpl; eauto.
@@ -1344,7 +1748,7 @@ Qed.
       (Maps.PMap.get b (lockSet tp)) ofs'.
   Proof.
     intros.
-    apply gsoLockSet_12. intros [? ?]. simpl in Hofs; omega.
+    apply gsoLockSet_12. intros [? ?]. unfold LKSIZE in *; simpl in *; omega.
   Qed.
 
   Lemma gsoLockSet_2 :
@@ -1374,7 +1778,47 @@ Qed.
      lr_valid (lockRes (updThread cnti c' m')).
   Proof.
   Admitted.
-  
+
+  Lemma contains_iff_num:
+    forall tp tp'
+      (Hcnt: forall i, containsThread tp i <-> containsThread tp' i),
+      num_threads tp = num_threads tp'.
+  Proof.
+    intros.
+    unfold containsThread in *.
+    remember (num_threads tp).
+    remember (num_threads tp').
+    destruct p, p0; simpl in *.
+    assert (n = n0).
+    clear - Hcnt.
+    generalize dependent n0.
+    induction n; intros.
+    destruct n0; auto.
+    destruct (Hcnt 0).
+    exfalso.
+    specialize (H0 ltac:(ssromega));
+      by ssromega.
+    destruct n0.
+    exfalso.
+    destruct (Hcnt 0).
+    specialize (H ltac:(ssromega));
+      by ssromega.
+    erewrite IHn; eauto.
+    intros; split; intro H.
+    assert (i.+1 < n.+1) by ssromega.
+    specialize (fst (Hcnt (i.+1)) H0).
+    intros.
+    clear -H1;
+      by ssromega.
+    assert (i.+1 < n0.+1) by ssromega.
+    specialize (snd (Hcnt (i.+1)) H0).
+    intros.
+    clear -H1;
+      by ssromega.
+    subst.
+      by erewrite proof_irr with (a1 := N_pos) (a2 := N_pos0).
+  Qed.
+
 End OrdinalPool.
   
 

@@ -222,3 +222,9 @@ apply pred_ext.  apply @FF_left.
 normalize. inv H.
 Qed.
 
+Fixpoint fold_right_sepcon (l: list mpred) : mpred :=
+ match l with 
+ | nil => emp
+ | b::r => b * fold_right_sepcon r
+ end.
+

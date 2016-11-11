@@ -1,4 +1,5 @@
 Require Import floyd.proofauto.
+Require Import floyd.library.
 Require Import progs.list_dt.  Import LsegSpecial.
 Require Import progs.queue2.
 
@@ -8,8 +9,7 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Definition t_struct_elem := Tstruct _elem noattr.
 Definition t_struct_fifo := Tstruct _fifo noattr.
 
-
-Instance QS: listspec _elem _next. 
+Instance QS: listspec _elem _next (fun sh => malloc_token sh (sizeof t_struct_elem)). 
 Proof. eapply mk_listspec; reflexivity. Defined.
 
 Lemma isnil: forall {T: Type} (s: list T), {s=nil}+{s<>nil}.
@@ -33,38 +33,28 @@ intuition.
 left; auto.
 Qed.
 
-Definition mallocN_spec :=
- DECLARE _mallocN
-  WITH n: Z
-  PRE [ 1%positive OF tint]
-     PROP (4 <= n <= Int.max_unsigned) 
-     LOCAL (temp 1%positive (Vint (Int.repr n)))
-     SEP ()
-  POST [ tptr tvoid ] 
-     EX v: val,
-     PROP (malloc_compatible n v) 
-     LOCAL (temp ret_temp v) 
-     SEP (memory_block Tsh n v).
-
-Definition freeN_spec :=
- DECLARE _freeN
-  WITH p : val , n : Z
-  PRE [ 1%positive OF tptr tvoid , 2%positive OF tint]  
-     (* we should also require natural_align_compatible (eval_id 1) *)
-      PROP() LOCAL (temp 1%positive p; temp 2%positive (Vint (Int.repr n)))
-      SEP (memory_block Tsh n p)
-  POST [ tvoid ]  
-    PROP () LOCAL () SEP ().
+Definition surely_malloc_spec :=
+  DECLARE _surely_malloc
+   WITH n:Z
+   PRE [ _n OF tuint ]
+       PROP (0 <= n <= Int.max_unsigned)
+       LOCAL (temp _n (Vint (Int.repr n)))
+       SEP ()
+    POST [ tptr tvoid ] EX p:_,
+       PROP ()
+       LOCAL (temp ret_temp p)
+       SEP (malloc_token Tsh n p * memory_block Tsh n p).
 
 Definition fifo (contents: list val) (p: val) : mpred :=
   (EX ht: (val*val), let (hd,tl) := ht in
       !! is_pointer_or_null hd && !! is_pointer_or_null tl &&
-      data_at Tsh t_struct_fifo (hd, tl) p *
+      data_at Tsh t_struct_fifo (hd, tl) p * malloc_token Tsh (sizeof t_struct_fifo) p *
       if isnil contents
       then (!!(hd=nullval) && emp)
       else (EX prefix: list val, EX last: val, 
               !!(contents = prefix++last::nil)
             &&  (lseg QS Tsh prefix hd tl
+                   * malloc_token Tsh (sizeof t_struct_elem) tl
                    * data_at Tsh t_struct_elem (last, nullval) tl)))%logic.
 
 Definition fifo_new_spec :=
@@ -81,6 +71,7 @@ Definition fifo_put_spec :=
   PRE  [ _Q OF (tptr t_struct_fifo) , _p OF (tptr t_struct_elem) ]
           PROP () LOCAL (temp _Q q; temp _p p) 
           SEP (fifo contents q;
+                 malloc_token Tsh (sizeof t_struct_elem) p;
                  data_at Tsh t_struct_elem (last,Vundef) p)
   POST [ tvoid ]
           PROP() LOCAL() SEP (fifo (contents++(last :: nil)) q).
@@ -105,6 +96,7 @@ Definition fifo_get_spec :=
        PROP ()
        LOCAL(temp ret_temp p) 
        SEP (fifo contents q;
+              malloc_token Tsh (sizeof t_struct_elem) p;
               data_at Tsh t_struct_elem (first,Vundef) p).
 
 Definition make_elem_spec :=
@@ -116,18 +108,45 @@ Definition make_elem_spec :=
     EX p:val,
        PROP() 
        LOCAL (temp ret_temp p) 
-       SEP (data_at Tsh t_struct_elem (Vint i, Vundef) p).
+       SEP (malloc_token Tsh (sizeof t_struct_elem) p;
+              data_at Tsh t_struct_elem (Vint i, Vundef) p).
 
 Definition main_spec := 
  DECLARE _main
   WITH u : unit
-  PRE  [] main_pre prog u
-  POST [ tint ] main_post prog u.
+  PRE  [] main_pre prog nil u
+  POST [ tint ] main_post prog nil u.
 
 Definition Gprog : funspecs := 
-  augment_funspecs prog [
-    mallocN_spec; freeN_spec; fifo_new_spec; fifo_put_spec;
-    fifo_empty_spec; fifo_get_spec; make_elem_spec; main_spec].
+  ltac:(with_library prog
+    [surely_malloc_spec; fifo_new_spec; fifo_put_spec;
+     fifo_empty_spec; fifo_get_spec; make_elem_spec; 
+     main_spec]).
+
+Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_spec.
+Proof.
+  start_function. 
+  forward_call (* p = malloc(n); *)
+     n.
+  Intros p.
+  forward_if
+  (PROP ( )
+   LOCAL (temp _p p)
+   SEP (malloc_token Tsh n p * memory_block Tsh n p)).
+*
+  if_tac.
+    subst p. entailer!.
+    entailer!.
+*
+    forward_call tt.
+    contradiction.
+*
+    if_tac.
+    + forward. subst p. inv H0.
+    + Intros. forward. entailer!.
+*
+  forward. Exists p; entailer!.
+Qed.
 
 Lemma memory_block_fifo:
  forall p, 
@@ -169,25 +188,25 @@ destruct (isnil contents).
     entailer.
  }
  destruct hd; try contradiction.
- entailer!. entailer!.
+ entailer!. simpl sizeof. entailer!.
 Qed.
 
 Lemma body_fifo_new: semax_body Vprog Gprog f_fifo_new fifo_new_spec.
 Proof.
   start_function. 
-  forward_call (* Q = mallocN(sizeof ( *Q)); *)
-     8.
-    computable.
+  forward_call (* Q = surely_malloc(sizeof ( *Q)); *)
+     (sizeof t_struct_fifo).
+    simpl; computable.
   Intros q.
-  rewrite memory_block_fifo
-   by (eapply malloc_compatible_field_compatible; try eassumption; 
-      auto with typeclass_instances;
-      exists 2; reflexivity).
+  assert_PROP (field_compatible t_struct_fifo [] q).
+   entailer!.
+  rewrite memory_block_fifo by auto.
   forward. (* Q->head = NULL; *)
   forward. (* Q->tail = NULL; *)
   forward. (* return Q; *)
   Exists q. unfold fifo. Exists (nullval,nullval).
   rewrite if_true by auto.
+  simpl sizeof.
   entailer!.
 Qed.
 
@@ -199,7 +218,6 @@ Intros ht; destruct ht as [hd tl].
 Intros.
 forward. (* p->next = NULL; *)
 forward. (*   h = Q->head; *)
-
 forward_if
   (PROP() LOCAL () SEP (fifo (contents ++ last :: nil) q))%assert.
 * if_tac; entailer.  (* typechecking clause *)
@@ -218,11 +236,9 @@ forward_if
    + Intros prefix last0.
       destruct prefix;
       entailer!.
-      contradiction (field_compatible_isptr _ _ _ H5).
       rewrite @lseg_cons_eq by auto. simpl.
       Intros y.
       entailer!.
-      contradiction (field_compatible_isptr _ _ _ H8).
 * (* else clause *)
   forward. (*  t = Q->tail; *)
   destruct (isnil contents).
@@ -239,13 +255,14 @@ forward_if
      rewrite (field_at_list_cell Tsh last0 p).
      unfold_data_at 2%nat.
      unfold_field_at 3%nat.
+     simpl sizeof.
      match goal with
      | |- _ |-- _ * _ * (_ * ?AA) => remember AA as A
      end.     (* prevent it from canceling! *)
      cancel. subst A.
      eapply derives_trans;
         [ | apply (lseg_cons_right_neq QS Tsh prefix hd last0 tl nullval p ); auto].
-     cancel.
+     simpl sizeof.  cancel.
 * (* after the if *)
      forward. (* return ; *)
 Qed.
@@ -268,7 +285,7 @@ destruct prefix; inversion H; clear H.
    forward. (* return p; *)
    unfold fifo. Exists tl (nullval, tl).
    rewrite if_true by congruence.
-   entailer!. unfold_data_at 1%nat. unfold_data_at 1%nat. cancel.
+   entailer!. simpl sizeof. unfold_data_at 1%nat. unfold_data_at 1%nat. cancel.
 + rewrite @lseg_cons_eq by auto.
     Intros x. 
     simpl @valinject. (* can we make this automatic? *)
@@ -280,22 +297,23 @@ destruct prefix; inversion H; clear H.
     rewrite if_false by (destruct prefix; simpl; congruence).
     Exists prefix last.
     entailer!.
-    rewrite field_at_list_cell. cancel.
+    rewrite field_at_list_cell. simpl sizeof. cancel.
 Qed.
 
 Lemma body_make_elem: semax_body Vprog Gprog f_make_elem make_elem_spec.
 Proof.
 start_function.
-forward_call (*  p = mallocN(sizeof ( *p));  *) 
+forward_call (*  p = surely_malloc(sizeof ( *p));  *) 
   (sizeof t_struct_elem).
  simpl; computable.
-Intros p.
-  rewrite memory_block_data_at_ by auto.
+ Intros p.
+ assert_PROP (field_compatible t_struct_elem [] p). entailer!.
+ rewrite memory_block_data_at_ by auto.
 forward.  (*  p->data=i; *)
 simpl.
 forward. (* return p; *) 
 Exists p.
-entailer!. 
+entailer!.
 Qed.
 
 Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
@@ -320,39 +338,16 @@ simpl app.
 forward_call  (*   p' = fifo_get(Q); p = p'; *)
     ((q,[Vint (Int.repr 2)]), Vint (Int.repr 1)).
 Intros p3.
-Time forward. (*   i = p->data;  *) 
-
-forward_call (*  freeN(p, sizeof( *p)); *)
+forward. (*   i = p->data;  *) 
+forward_call (*  free(p); *)
    (p3, sizeof t_struct_elem).
  assert_PROP (field_compatible t_struct_elem [] p3) by entailer!.
- rewrite memory_block_data_at_ by auto. cancel.
-forward. (* return i; *)
+ rewrite memory_block_data_at_ by auto.
+ cancel.
+ forward. (* return i; *)
 Qed.
 
 Existing Instance NullExtension.Espec.
-
-Parameter body_mallocN:
- semax_external
-  (1%positive ::nil)
-  (EF_external "mallocN"
-     {| sig_args := AST.Tint :: nil; sig_res := Some AST.Tint; sig_cc := cc_default |}) Z
-  (fun n : Z =>
-   PROP  (4 <= n <= Int.max_unsigned)  LOCAL  (temp 1%positive (Vint (Int.repr n)))  SEP())%assert
-  (fun n : Z =>
-   EX  v : val,
-   PROP  (malloc_compatible n v)
-   LOCAL  (temp ret_temp v)  SEP  (memory_block Tsh n v)).
-
-Parameter body_freeN:
-semax_external
-  (1%positive::2%positive ::nil)
-  (EF_external "freeN"
-     {| sig_args := AST.Tint :: AST.Tint :: nil; sig_res := None; sig_cc := cc_default |}) (val*Z)
-  (fun pn : val*Z => let (p,n) := pn in
-      PROP() LOCAL (temp 1%positive p; temp 2%positive (Vint (Int.repr n)))
-      SEP (memory_block Tsh n p))
-  (fun pn => let (p,n) := pn in
-    PROP () LOCAL () SEP ()).
 
 Lemma ret_temp_make_ext_rval:
   forall gx ret p,  
@@ -368,18 +363,15 @@ Lemma all_funcs_correct:
   semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.
 unfold Gprog, prog, prog_funct; simpl.
-semax_func_cons body_mallocN.
- renormalize. entailer!.
- rewrite (ret_temp_make_ext_rval gx ret _ (eq_refl _)) in Px0.
- auto.
-semax_func_cons body_freeN.
-  admit.  (* yuck *)
+semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
+semax_func_cons body_free.
+semax_func_cons body_exit.
+semax_func_cons body_surely_malloc.
 semax_func_cons body_fifo_new.
 semax_func_cons body_fifo_put.
 semax_func_cons body_fifo_empty.
 semax_func_cons body_fifo_get.
 semax_func_cons body_make_elem.
 semax_func_cons body_main.
-Admitted.
-
+Qed.
 

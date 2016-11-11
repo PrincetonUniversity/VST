@@ -2,7 +2,9 @@ Require Import compcert.common.Memory.
 
 (* The concurrent machinery*)
 Require Import concurrency.scheduler.
+Require Import concurrency.TheSchedule.
 Require Import concurrency.concurrent_machine.
+Require Import concurrency.semantics.
 Require Import concurrency.juicy_machine. Import Concur.
 Require Import concurrency.dry_machine. Import Concur.
 
@@ -16,28 +18,30 @@ Definition init_inj_ok (j: Values.Val.meminj) m:=
 
 Module Type ErasureSig.
 
-  Declare Module SCH: Scheduler with Module TID:=NatTID.
+  Module SCH: Scheduler with Module TID:=NatTID:= THESCH.
   Declare Module SEM: Semantics.
   Import SCH SEM.
     
-  Declare Module JSEM: ConcurrentMachineSig
+  Declare Module JMS: ConcurrentMachineSig
       with Module ThreadPool.TID:= NatTID
       with Module ThreadPool.SEM:= SEM.
   Declare Module JuicyMachine: ConcurrentMachine
       with Module SCH:=SCH
-      with Module SIG:= JSEM.
+      with Module TP:=JMS.ThreadPool
+      with Module SIG:= JMS.
   Notation JMachineSem:= JuicyMachine.MachineSemantics.
-  Notation jstate:= JSEM.ThreadPool.t.
+  Notation jstate:= JMS.ThreadPool.t.
   Notation jmachine_state:= JuicyMachine.MachState.
   
-  Declare Module DSEM: ConcurrentMachineSig
+  Declare Module DMS: ConcurrentMachineSig
       with Module ThreadPool.TID:= NatTID
       with Module ThreadPool.SEM:= SEM.
   Declare Module DryMachine: ConcurrentMachine
       with Module SCH:=SCH
-      with Module SIG:= DSEM.
+      with Module TP:=DMS.ThreadPool
+      with Module SIG:= DMS.
   Notation DMachineSem:= DryMachine.MachineSemantics. 
-  Notation dstate:= DSEM.ThreadPool.t.
+  Notation dstate:= DMS.ThreadPool.t.
   Notation dmachine_state:= DryMachine.MachState.
 
   (*Parameter parch_state : jstate ->  dstate.*)
@@ -46,44 +50,49 @@ Module Type ErasureSig.
   (*match axioms*)
   Axiom MTCH_cnt: forall {js tid ds},
            match_st js ds ->
-           JSEM.ThreadPool.containsThread js tid -> DSEM.ThreadPool.containsThread ds tid.
+           JMS.ThreadPool.containsThread js tid -> DMS.ThreadPool.containsThread ds tid.
   Axiom MTCH_cnt': forall {js tid ds},
            match_st js ds ->
-           DSEM.ThreadPool.containsThread ds tid -> JSEM.ThreadPool.containsThread js tid.
+           DMS.ThreadPool.containsThread ds tid -> JMS.ThreadPool.containsThread js tid.
         
        Axiom  MTCH_getThreadC: forall js ds tid c,
-           forall (cnt: JSEM.ThreadPool.containsThread js tid)
-             (cnt': DSEM.ThreadPool.containsThread ds tid)
+           forall (cnt: JMS.ThreadPool.containsThread js tid)
+             (cnt': DMS.ThreadPool.containsThread ds tid)
              (M: match_st js ds),
-             JSEM.ThreadPool.getThreadC cnt =  c ->
-             DSEM.ThreadPool.getThreadC cnt'  =  c.
+             JMS.ThreadPool.getThreadC cnt =  c ->
+             DMS.ThreadPool.getThreadC cnt'  =  c.
         
        Axiom MTCH_compat: forall js ds m,
            match_st js ds ->
-         JSEM.mem_compatible js m ->
-         DSEM.mem_compatible ds m.
+         JMS.mem_compatible js m ->
+         DMS.mem_compatible ds m.
         
        Axiom MTCH_updt:
            forall js ds tid c
              (H0:match_st js ds)
-             (cnt: JSEM.ThreadPool.containsThread js tid)
-             (cnt': DSEM.ThreadPool.containsThread ds tid),
-             match_st (JSEM.ThreadPool.updThreadC cnt c)
-                       (DSEM.ThreadPool.updThreadC cnt' c).
+             (cnt: JMS.ThreadPool.containsThread js tid)
+             (cnt': DMS.ThreadPool.containsThread ds tid),
+             match_st (JMS.ThreadPool.updThreadC cnt c)
+                       (DMS.ThreadPool.updThreadC cnt' c).
        
   (*Variable genv: G.
   Variable main: Values.val.*)
-  Variable match_rmap_perm: JuicyMachine.SIG.ThreadPool.RES.res -> DryMachine.SIG.ThreadPool.RES.res -> Prop.
+       Variable match_rmap_perm: JuicyMachine.SIG.ThreadPool.RES.res -> DryMachine.SIG.ThreadPool.RES.res -> Prop.
+       Variable no_locks_perm: JuicyMachine.SIG.ThreadPool.RES.res ->  Prop.
   Axiom init_diagram:
     forall (j : Values.Val.meminj) (U:schedule) (js : jstate)
-      (vals : list Values.val) (m : mem) rmap pmap main genv,
+      (vals : list Values.val) (m : mem)
+      (rmap: JuicyMachine.SIG.ThreadPool.RES.res)
+      (pmap: DryMachine.SIG.ThreadPool.RES.res)
+      main genv,
       init_inj_ok j m ->
       match_rmap_perm rmap pmap ->
+      no_locks_perm rmap ->
    initial_core (JMachineSem U (Some rmap)) genv main vals = Some (U, nil, js) ->
    exists (mu : SM_Injection) (ds : dstate),
      as_inj mu = j /\
      initial_core (DMachineSem U (Some pmap)) genv main vals = Some (U, nil, ds) /\
-     DSEM.invariant ds /\
+     DMS.invariant ds /\
      match_st js ds.
 
   Axiom core_diagram:
@@ -92,9 +101,9 @@ Module Type ErasureSig.
      (m' : mem) genv,
    corestep (JMachineSem U0 rmap) genv (U, nil, js) m (U', nil, js') m' ->
    match_st js ds ->
-   DSEM.invariant ds ->
+   DMS.invariant ds ->
    exists (ds' : dstate),
-     DSEM.invariant ds' /\
+     DMS.invariant ds' /\
      match_st js' ds' /\
      corestep (DMachineSem U0 pmap) genv (U, nil, ds) m (U', nil, ds') m'.
 
@@ -151,7 +160,7 @@ Module ErasureFnctr (PC:ErasureSig).
   Inductive match_state :
     core_data ->  Values.Val.meminj -> jmachine_state ->  mem -> dmachine_state -> mem -> Prop:=
     MATCH: forall d j js ds U m,
-      DSEM.invariant ds -> (*This could better go inside the state... but it's fine here. *)
+      DMS.invariant ds -> (*This could better go inside the state... but it's fine here. *)
       match_st js ds ->
       match_state d j  (U, nil, js) m (U, nil, ds) m.
   
@@ -161,12 +170,13 @@ Module ErasureFnctr (PC:ErasureSig).
       Proof. constructor; intros y H; inversion H. Qed.
       Theorem erasure: forall U rmap pmap main genv,
           PC.match_rmap_perm rmap pmap ->
+          PC.no_locks_perm rmap ->
           Wholeprog_sim.Wholeprog_sim
             (JMachineSem U (Some rmap)) (DMachineSem U (Some pmap))
             genv genv
             main
             ge_inv init_inv halt_inv.
-  Proof. intros U rmap pmap main genv init_OK.
+  Proof. intros U rmap pmap main genv init_OK no_locks.
     apply (Wholeprog_sim.Build_Wholeprog_sim
              (JMachineSem U (Some rmap)) (DMachineSem U (Some pmap))
              genv genv
@@ -175,11 +185,11 @@ Module ErasureFnctr (PC:ErasureSig).
              core_data match_state core_ord core_ord_wf).
     - reflexivity.
     - intros until m2; intros H H0.
-      inversion H0; subst. clear - H4 H init_OK.
+      inversion H0; subst. clear - H4 H init_OK no_locks.
       destruct c1 as [[U0 tr0] js].
       assert (HH:=JuicyMachine.initial_schedule _ _ _ _ _ _ _ tr0 H).
       destruct HH. subst U0 tr0.
-      destruct (init_diagram j U js vals2 m2 rmap pmap main genv H4 init_OK H) as [mu [dms [injeq [IC [DINV MS] ]]]].
+      destruct (init_diagram j U js vals2 m2 rmap pmap main genv H4 init_OK no_locks H) as [mu [dms [injeq [IC [DINV MS] ]]]].
       exists tt, (U,nil,dms); intuition.
       constructor; assumption.
     - intros until m2; intros MTCH.

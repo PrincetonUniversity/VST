@@ -13,6 +13,7 @@ Require Import veric.tycontext.
 Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
 Require Import veric.coqlib4.
+Require Import concurrency.lksize.
 Require Import concurrency.age_to.
 Require Import concurrency.aging_lemmas.
 Require Import concurrency.sync_preds_defs.
@@ -46,7 +47,6 @@ Proof.
   destruct R as [N [R|[R|[R|R]]]].
   - rewrite <- R.
     unfold resource_fmap in *; f_equal.
-    apply preds_fmap_NoneP.
   - destruct R as [sh' [v [v' [R H]]]]. simpl in R. congruence.
   - destruct R as [v [v' R]]. specialize (N ltac:(auto)). congruence.
   - destruct R as [v [pp' [R H]]]. congruence.
@@ -100,7 +100,7 @@ Lemma resource_decay_LK_at {b phi phi' R sh loc} :
 Proof.
   intros RD LT LKAT loc'.
   specialize (LKAT loc').
-  destruct (adr_range_dec loc lock_size loc') as [range|notrange]; swap 1 2.
+  destruct (adr_range_dec loc LKSIZE loc') as [range|notrange]; swap 1 2.
   - rewrite jam_false in *; auto.
   - rewrite jam_true in *; auto.
     destruct (eq_dec loc loc') as [<-|noteq].
@@ -119,6 +119,48 @@ Proof.
       reflexivity.
 Qed.
 
+Lemma resource_decay_lkat' {b phi phi' R loc} :
+  resource_decay b phi phi' ->
+  (fst loc < b)%positive ->
+  (lkat R loc) phi ->
+  (lkat (approx (level phi) R) loc) phi'.
+Proof.
+  intros RD LT LKAT loc' r.
+  specialize (LKAT loc' r).
+  destruct LKAT as (sh & rsh & E); exists sh, rsh.
+  if_tac.
+  - apply (resource_decay_LK RD) in E. rewrite E; reflexivity.
+  - apply (resource_decay_CT RD) in E. rewrite E; reflexivity.
+Qed.
+
+Lemma resource_decay_lkat {b phi phi' R loc} :
+  resource_decay b phi phi' ->
+  (fst loc < b)%positive ->
+  (lkat R loc) phi ->
+  (lkat (approx (level phi') R) loc) phi'.
+Proof.
+  intros RD LT LKAT loc' r.
+  specialize (LKAT loc' r).
+  destruct LKAT as (sh & rsh & E); exists sh, rsh.
+  if_tac.
+  - apply (resource_decay_LK RD) in E. rewrite E. f_equal.
+    unfold preds_fmap in *.
+    unfold pack_res_inv in *.
+    f_equal.
+    unfold fmap.
+    simpl.
+    extensionality Ts.
+    destruct RD as (Hlev, _).
+    pose proof approx_oo_approx' (level phi') (level phi) as RR'.
+    pose proof approx_oo_approx (level phi') as RR.
+    autospec RR'.
+    unfold "oo" in *.
+    rewrite (equal_f RR' R).
+    rewrite (equal_f RR R).
+    reflexivity.
+  - apply (resource_decay_CT RD) in E. rewrite E; reflexivity.
+Qed.
+
 Lemma resource_decay_LK_at' {b phi phi' R sh loc} :
   resource_decay b phi phi' ->
   (fst loc < b)%positive ->
@@ -127,7 +169,7 @@ Lemma resource_decay_LK_at' {b phi phi' R sh loc} :
 Proof.
   intros RD LT LKAT loc'.
   specialize (LKAT loc').
-  destruct (adr_range_dec loc lock_size loc') as [range|notrange]; swap 1 2.
+  destruct (adr_range_dec loc LKSIZE loc') as [range|notrange]; swap 1 2.
   - rewrite jam_false in *; auto.
   - rewrite jam_true in *; auto.
     destruct (eq_dec loc loc') as [<-|noteq].
@@ -139,10 +181,11 @@ Proof.
       rewrite E.
       f_equal.
       simpl.
-      rewrite <- compose_assoc.
-      rewrite approx_oo_approx'. 2:apply RD.
       f_equal.
       extensionality.
+      change (approx (level phi') (approx (level phi) R)) with
+       ((approx (level phi') oo approx (level phi)) R).
+      rewrite approx_oo_approx' by apply RD.
       unfold "oo".
       change (approx (level phi')   (approx (level phi')  R))
       with  ((approx (level phi') oo approx (level phi')) R).

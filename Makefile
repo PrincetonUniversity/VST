@@ -1,4 +1,4 @@
-# See the file BUILD_ORGANIZATION for 
+# See the file BUILD_ORGANIZATION for
 # explanations of why this is the way it is
 
 default_target: msl veric floyd progs
@@ -119,29 +119,42 @@ CONCUR_FILES= \
   addressFiniteMap.v cast.v compcert_imports.v \
   compcert_linking.v compcert_linking_lemmas.v \
   compcert_threads_lemmas.v threadPool.v  \
-  concurrent_machine.v disjointness.v dry_context.v dry_machine.v dry_machine_lemmas.v \
+  semantics.v \
+  concurrent_machine.v disjointness.v dry_context.v dry_machine.v \
+  dry_machine_lemmas.v dry_machine_step_lemmas.v \
   ClightSemantincsForMachines.v JuicyMachineModule.v DryMachineSource.v \
   erased_machine.v erasure_proof.v erasure_safety.v erasure_signature.v \
   fineConc_safe.v inj_lemmas.v join_sm.v juicy_machine.v \
   lksize.v \
-  main.v mem_obs_eq.v memory_lemmas.v permissions.v pos.v pred_lemmas.v \
+  main.v mem_obs_eq.v memory_lemmas.v permissions.v permjoin_def.v pos.v pred_lemmas.v \
   rc_semantics.v rc_semantics_lemmas.v \
-  scheduler.v sepcomp.v seq_lemmas.v ssromega.v stack.v \
+  scheduler.v TheSchedule.v sepcomp.v seq_lemmas.v ssromega.v stack.v \
   threads_lemmas.v wf_lemmas.v \
   x86_inj.v x86_safe.v x86_context.v fineConc_x86.v executions.v SC_erasure.v \
   sync_preds_defs.v sync_preds.v \
-  semax_conc.v semax_to_juicy_machine.v \
+  semax_conc_pred.v xsemax_conc.v semax_conc.v semax_to_juicy_machine.v \
   semax_invariant.v semax_initial.v \
   semax_simlemmas.v cl_step_lemmas.v \
   semax_progress.v semax_preservation.v \
+  semax_preservation_jspec.v \
+  semax_preservation_local.v \
+  semax_preservation_acquire.v \
+  semax_preservation_release.v \
+  semax_safety_makelock.v \
+  semax_preservation_freelock.v \
+  semax_preservation_spawn.v \
   aging_lemmas.v resource_decay_lemmas.v \
   rmap_locking.v \
   permjoin.v \
   resource_decay_join.v join_lemmas.v coqlib5.v age_to.v \
   konig.v safety.v \
-  reach_lemmas.v reestablish.v ret_lemmas.v lifting.v lifting_safety.v linking_inv.v linking_spec.v call_lemmas.v \
+	reestablish.v \
+	lifting.v lifting_safety.v \
+linking_spec.v	\
   machine_semantics.v machine_semantics_lemmas.v machine_simulation.v \
   coinductive_safety.v
+
+#  reach_lemmas.v linking_inv.v  call_lemmas.v ret_lemmas.v \
 
 PACO_FILES= \
   hpattern.v\
@@ -201,7 +214,7 @@ VERIC_FILES= \
   semax_ext_oracle.v mem_lessdef.v
 
 FLOYD_FILES= \
-   coqlib3.v base.v proofauto.v computable_theorems.v \
+   coqlib3.v base.v library.v proofauto.v computable_theorems.v \
    type_induction.v reptype_lemmas.v aggregate_type.v aggregate_pred.v \
    nested_pred_lemmas.v compact_prod_sum.v zlist.v \
    sublist.v smt_test.v extract_smt.v \
@@ -221,12 +234,12 @@ PROGS_FILES= \
   bin_search.v list_dt.v verif_reverse.v verif_queue.v verif_queue2.v verif_sumarray.v \
   insertionsort.v reverse.v queue.v sumarray.v message.v string.v\
   revarray.v verif_revarray.v insertionsort.v append.v \
-  verif_float.v verif_ptr_compare.v \
+  verif_float.v verif_global.v verif_ptr_compare.v \
   verif_nest3.v verif_nest2.v \
   logical_compare.v verif_logical_compare.v field_loadstore.v  verif_field_loadstore.v \
   even.v verif_even.v odd.v verif_odd.v \
   merge.v verif_merge.v verif_append.v verif_append2.v bst.v verif_bst.v \
-  verif_bin_search.v incr.v verif_incr.v cond.v verif_cond.v
+  verif_bin_search.v incr.v verif_incr.v cond.v verif_cond.v conclib.v
 # verif_message.v verif_dotprod.v verif_insertion_sort.v 
 
 SHA_FILES= \
@@ -313,7 +326,7 @@ HMACDRBG_FILES = \
 #  verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v verif_hmac_drbg_generate.v
 
 
-C_FILES = reverse.c queue.c queue2.c sumarray.c sumarray2.c message.c insertionsort.c float.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c
+C_FILES = reverse.c queue.c queue2.c sumarray.c sumarray2.c message.c insertionsort.c float.c global.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
@@ -347,7 +360,7 @@ else
 	@$(COQC) $(COQFLAGS) $*.v
 endif
 
-COQVERSION= 8.5pl1 or-else 8.5pl2
+COQVERSION= 8.5pl1 or-else 8.5pl2 or-else 8.5pl3
 COQV=$(shell $(COQC) -v)
 ifeq ("$(filter $(COQVERSION),$(COQV))","")
 $(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
@@ -437,6 +450,8 @@ progs/message.v: progs/message.c
 progs/insertionsort.v: progs/insertionsort.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/float.v: progs/float.c
+	$(CLIGHTGEN) ${CGFLAGS} $<
+progs/global.v: progs/global.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/logical_compare.v: progs/logical_compare.c
 	$(CLIGHTGEN) ${CGFLAGS} $<

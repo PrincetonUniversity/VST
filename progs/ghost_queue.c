@@ -108,7 +108,7 @@ request_t *q_remove(queue_t *tgt){
 
 void *f(void *arg){
   request_t *request;
-  queue_t *q1 = *&q0;
+  queue_t *q1 = q0;
   for(int i = 0; i < 3; i++){
     request = get_request();
     q_add(q1, request);
@@ -125,35 +125,41 @@ void *g(void *arg){
   for(int i = 0; i < 3; i++){
     request_t *request = q_remove(q1);
     j = process_request(request);
+    res[i] = j;
   }
   release2(arg);
   return NULL;
 }
-    
+
 int main(void)
 {
   q0 = q_new();
   lock_t *thread_locks[6];
   
   for(int i = 0; i < 3; i++){
-    thread_locks[i] = (lock_t *) malloc(sizeof(lock_t));
-    makelock((void *)thread_locks[i]);
-    spawn((void *)&f, (void *)thread_locks[i]);
+    lock_t *l = (lock_t *) malloc(sizeof(lock_t));
+    thread_locks[i] = l;
+    makelock((void *)l);
+    spawn((void *)&f, (void *)l);
     //printf("Spawned producer %d\n", i + 1);
   }
 
   for(int i = 0; i < 3; i++){
-    thread_locks[i + 3] = (lock_t *) malloc(sizeof(lock_t));
-    makelock((void *)thread_locks[i+3]);
-    spawn((void *)&g, (void *)thread_locks[i+3]);
+    lock_t *l = (lock_t *) malloc(sizeof(lock_t));
+    thread_locks[i + 3] = l;
+    makelock((void *)l);
+    spawn((void *)&g, (void *)l);
     //printf("Spawned consumer %d\n", i + 1);
   }
 
   for(int i = 0; i < 6; i++){
-    acquire((void *)thread_locks[i]);
-    freelock2((void *)thread_locks[i]);
+    lock_t *l = thread_locks[i];
+    acquire((void *)l);
+    freelock2((void *)l);
+    free(l);
     //printf("Joined %d\n", i + 1);
   }
   
-  q_del(q0);
+  queue_t *q1 = q0;
+  q_del(q1);
 }

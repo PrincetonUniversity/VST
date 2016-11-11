@@ -214,41 +214,39 @@ Proof.
             apply join_comm in H; apply H1 in H.
             rewrite H in H5.
             hnf. rewrite H5. f_equal.
-            * f_equal.
-              simpl. destruct H6. simpl in H7. replace (i'-i) with 0 by omega.
-              unfold size_chunk_nat in H0. simpl in H0. 
-              unfold nat_of_P in H0. simpl in H0.
-              destruct bl; try solve [inv H0].
-              destruct bl; inv H0.
-              simpl.
-              clear - H3.
-              (* TODO: Clean up the following proof. *)
-              destruct m; try solve [inv H3].
-              rewrite decode_byte_val in H3.
-              f_equal.
-              assert (Int.zero_ext 8 (Int.repr (Byte.unsigned i)) = Int.repr 0) by
-                (forget (Int.zero_ext 8 (Int.repr (Byte.unsigned i))) as j; inv H3; auto).
-              clear H3.
-              assert (Int.unsigned (Int.zero_ext 8 (Int.repr (Byte.unsigned i))) =
-                  Int.unsigned Int.zero) by (f_equal; auto).
-              rewrite Int.unsigned_zero in H0.
-              clear H.
-              rewrite Int.zero_ext_mod in H0 by (compute; split; congruence).
-              rewrite Int.unsigned_repr in H0.
-              rewrite Zdiv.Zmod_small in H0.
-              assert (Byte.repr (Byte.unsigned i) = Byte.zero).
-              apply f_equal; auto.
-              rewrite Byte.repr_unsigned in H. auto.
-              apply Byte.unsigned_range.
-              clear.
-              pose proof (Byte.unsigned_range i).
-              destruct H; split; auto.
-              apply Z.le_trans with Byte.modulus.
-              omega.
-              clear.
-              compute; congruence.
-            * f_equal; f_equal;
-              destruct LEV; auto.
+            f_equal.
+            simpl. destruct H6. simpl in H7. replace (i'-i) with 0 by omega.
+            unfold size_chunk_nat in H0. simpl in H0. 
+            unfold nat_of_P in H0. simpl in H0.
+            destruct bl; try solve [inv H0].
+            destruct bl; inv H0.
+            simpl.
+            clear - H3.
+            (* TODO: Clean up the following proof. *)
+            destruct m; try solve [inv H3].
+            rewrite decode_byte_val in H3.
+            f_equal.
+            assert (Int.zero_ext 8 (Int.repr (Byte.unsigned i)) = Int.repr 0) by
+              (forget (Int.zero_ext 8 (Int.repr (Byte.unsigned i))) as j; inv H3; auto).
+            clear H3.
+            assert (Int.unsigned (Int.zero_ext 8 (Int.repr (Byte.unsigned i))) =
+                Int.unsigned Int.zero) by (f_equal; auto).
+            rewrite Int.unsigned_zero in H0.
+            clear H.
+            rewrite Int.zero_ext_mod in H0 by (compute; split; congruence).
+            rewrite Int.unsigned_repr in H0.
+            rewrite Zdiv.Zmod_small in H0.
+            assert (Byte.repr (Byte.unsigned i) = Byte.zero).
+            apply f_equal; auto.
+            rewrite Byte.repr_unsigned in H. auto.
+            apply Byte.unsigned_range.
+            clear.
+            pose proof (Byte.unsigned_range i).
+            destruct H; split; auto.
+            apply Z.le_trans with Byte.modulus.
+            omega.
+            clear.
+            compute; congruence.
           } Unfocus. 
           destruct H2.
           intros [? ?].
@@ -263,7 +261,7 @@ Proof.
          -- destruct H1 as [p ?]; exists p.
             hnf in H1|-*.
             rewrite H in H1; rewrite H1.
-            f_equal. f_equal; f_equal; destruct LEV; auto.
+            f_equal.
          -- contradiction H6.
             destruct H2.
             split; auto.
@@ -1098,8 +1096,10 @@ Proof.
  unfold address_mapsto, res_predicates.address_mapsto.
  simpl.
  destruct sz; auto;
- destruct sign1, sign2; auto;
- destruct v; auto; simpl Cop.cast_int_int;
+ destruct sign1, sign2;
+ [auto | | | auto | auto | |  | auto];
+ (destruct v; [auto | auto | auto | auto | auto | ]);
+ simpl Cop.cast_int_int;
  repeat rewrite (prop_true_andp (_ <= _ <= _)) by
   first [ apply (expr_lemmas3.sign_ext_range' 8 i); compute; split; congruence
           | apply (expr_lemmas3.sign_ext_range' 16 i); compute; split; congruence

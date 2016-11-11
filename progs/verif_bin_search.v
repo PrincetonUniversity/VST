@@ -34,12 +34,12 @@ Definition search_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH u : unit
-  PRE  [] main_pre prog u
-  POST [ tint ] main_post prog u.
+  PRE  [] main_pre prog nil u
+  POST [ tint ] main_post prog nil u.
 
 (* Packaging the API spec all together. *)
 Definition Gprog : funspecs := 
-      augment_funspecs prog [search_spec; main_spec].
+        ltac:(with_library prog [search_spec; main_spec]).
 
 Lemma sublist_nil1 : forall A i j (l : list A), j <= i -> sublist i j l = [].
 Proof.

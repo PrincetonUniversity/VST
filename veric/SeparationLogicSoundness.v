@@ -52,15 +52,14 @@ End SEPARATION_LOGIC_SOUNDNESS.
 Module SoundSeparationLogic : SEPARATION_LOGIC_SOUNDNESS.
 
 Module CSL <: CLIGHT_SEPARATION_LOGIC.
-Definition func_ptr (f: funspec) : val -> mpred := 
- match f with mk_funspec fsig cc A P Q => res_predicates.fun_assert fsig cc A P Q end.
+
+Definition func_ptr (f: funspec) (v: val): mpred :=
+  exp (fun b: block => andp (prop (v = Vptr b Int.zero)) (func_at f (b, 0))).
 
 Transparent mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
-Lemma corable_func_ptr: forall f v, corable (func_ptr f v).
-Proof.
-intros. destruct f; unfold func_ptr.
-apply corable_fun_assert.
-Qed.
+
+Definition corable_func_ptr: forall f v, corable (func_ptr f v) :=
+  assert_lemmas.corable_func_ptr.
 
 Lemma func_ptr_isptr:
   forall spec f, (func_ptr spec f |-- !! isptr f)%logic.
@@ -68,12 +67,13 @@ Proof.
   intros.
   unfold func_ptr.
   destruct spec.
-  unfold res_predicates.fun_assert.
   change (@predicates_hered.exp rmap compcert_rmaps.R.ag_rmap) with (@exp mpred Nveric).
   change (@predicates_hered.andp rmap compcert_rmaps.R.ag_rmap) with (@andp mpred Nveric).
   change (@predicates_hered.prop rmap compcert_rmaps.R.ag_rmap) with (@prop mpred Nveric).
   normalize.
 Qed.
+
+Definition approx_func_ptr := approx_func_ptr.
 Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
 
 Definition semax := @semax.

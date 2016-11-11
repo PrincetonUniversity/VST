@@ -1428,3 +1428,54 @@ subst.
 rewrite Znth_cons_sublist by omega. rewrite <- app_nil_end.
 auto.
 Qed.
+
+Lemma Forall_app :
+forall {A} P (l1 l2 :list A),
+Forall P (l1 ++ l2) <->
+Forall P l1 /\ Forall P l2.
+intros.
+split; induction l1; intros.
+inv H. destruct l2; inv H0. auto.
+split. auto. simpl in H2. inv H2.
+constructor; auto.
+split. inv H. constructor; auto. apply IHl1 in H3.
+intuition.
+inv H. apply IHl1 in H3. intuition.
+simpl. intuition.
+simpl. constructor.
+destruct H. inv H. auto.
+apply IHl1. intuition.
+inv H0; auto.
+Qed.
+
+Lemma Forall_firstn:
+  forall A (f: A -> Prop) n l, Forall f l -> Forall f (firstn n l).
+Proof.
+induction n; destruct l; intros.
+constructor. constructor. constructor.
+inv H. simpl. constructor; auto.
+Qed.
+
+Lemma Forall_skipn:
+  forall A (f: A -> Prop) n l, Forall f l -> Forall f (skipn n l).
+Proof.
+induction n; destruct l; intros.
+constructor. inv H; constructor; auto. constructor.
+inv H. simpl.  auto.
+Qed.
+
+Lemma Forall_map:
+  forall {A B} (f: B -> Prop) (g: A -> B) al,
+   Forall f (map g al) <-> Forall (Basics.compose f g) al.
+Proof.
+intros.
+induction al; simpl; intuition; inv H1; constructor; intuition.
+Qed.
+
+Lemma Forall_sublist:
+  forall {A} (f: A -> Prop) lo hi al,
+   Forall f al -> Forall f (sublist lo hi al).
+Proof.
+intros. unfold sublist.
+apply Forall_firstn. apply Forall_skipn. auto.
+Qed.

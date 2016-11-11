@@ -102,13 +102,13 @@ Definition do_and_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH u : unit
-  PRE  [] main_pre prog u
-  POST [ tint ] main_post prog u.
+  PRE  [] main_pre prog nil u
+  POST [ tint ] main_post prog nil u.
 
 Definition Vprog : varspecs := nil.
 
 Definition Gprog : funspecs := 
-    augment_funspecs prog [do_or_spec; do_and_spec; main_spec].
+      ltac:(with_library prog [do_or_spec; do_and_spec; main_spec]).
 
 Ltac do_semax_shortcut_logical := 
  eapply semax_shortcut_logical; 
