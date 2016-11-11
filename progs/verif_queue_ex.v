@@ -660,7 +660,9 @@ Proof.
   rewrite !map_rev, !sepcon_rev.
   change (field_at gsh' (tptr tqueue_t) [] q q0) with (data_at gsh' (tptr tqueue_t) q q0).
   gather_SEP 0 1; subst gsh'; rewrite data_at_shares_join; [|rewrite Hglen1; auto].
-  gather_SEP 1 2; replace_SEP 0 (...) by (go_lowerx; apply data_at__shares_join; rewrite Hglen1; auto).
+  gather_SEP 1 2; replace_SEP 0 (data_at Ews (tarray (tptr (Tstruct _lock_t noattr)) 3) flocks locks).
+  { go_lowerx.
+    rewrite sepcon_emp; apply data_at__shares_join; rewrite Hglen1; auto. }
   gather_SEP 4 5; replace_SEP 0 (EX h' : hist (reptype tint),
     !!(interleave (map (fun x => QAdd (fst x) (vint (snd x))) (combine ptrs (upto (Z.to_nat 9))) ::
                    map (fun vals => map (fun x => let '(p, i) := x in QRem p (Vint i)) vals) (rev vals)) h') &&
