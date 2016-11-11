@@ -10,34 +10,16 @@ Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
 Definition acquire_spec := DECLARE _acquire acquire_spec.
-Definition release_spec := DECLARE _release release_spec.
+(*Definition release_spec := DECLARE _release release_spec.*)
 Definition makelock_spec := DECLARE _makelock (makelock_spec _).
-Definition freelock_spec := DECLARE _freelock (freelock_spec _).
+(*Definition freelock_spec := DECLARE _freelock (freelock_spec _).*)
 Definition spawn_spec := DECLARE _spawn spawn_spec.
 Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
 Definition release2_spec := DECLARE _release2 release2_spec.
-Definition makecond_spec := DECLARE _makecond (makecond_spec _).
+(*Definition makecond_spec := DECLARE _makecond (makecond_spec _).
 Definition freecond_spec := DECLARE _freecond (freecond_spec _).
 Definition wait_spec := DECLARE _waitcond (wait2_spec _).
-Definition signal_spec := DECLARE _signalcond (signal_spec _).
-
-Definition surely_malloc_spec :=
-  DECLARE _surely_malloc
-   WITH n:Z
-   PRE [ _n OF tuint ]
-       PROP (0 <= n <= Int.max_unsigned)
-       LOCAL (temp _n (Vint (Int.repr n)))
-       SEP ()
-    POST [ tptr tvoid ] EX p:_,
-       PROP ()
-       LOCAL (temp ret_temp p)
-       SEP (malloc_token Tsh n p * memory_block Tsh n p).
-
-Definition q_new_spec := DECLARE _q_new q_new_spec'.
-Definition q_del_spec := DECLARE _q_del q_del_spec'.
-Definition q_add_spec := DECLARE _q_add q_add_spec'.
-Definition q_remove_spec := DECLARE _q_remove q_remove_spec'.
-Definition q_tryremove_spec := DECLARE _q_tryremove q_tryremove_spec'.
+Definition signal_spec := DECLARE _signalcond (signal_spec _).*)
 
 Notation f_lock_inv lsh gsh gsh1 gsh2 p' p lock t locksp lockt resultsp :=
   (EX p1 : val, EX p2 : val, EX p3 : val, EX i1 : int, EX i2 : int, EX i3 : int,
@@ -72,9 +54,10 @@ Definition main_spec :=
   PRE  [] main_pre prog [] u
   POST [ tint ] main_post prog [] u.
 
-Definition Gprog : funspecs := ltac:(with_library prog [acquire_spec; release_spec; release2_spec;
-  makelock_spec; freelock_spec; freelock2_spec; spawn_spec; makecond_spec; freecond_spec; wait_spec; signal_spec;
-  surely_malloc_spec; q_new_spec; q_del_spec; q_add_spec; q_remove_spec; q_tryremove_spec; f_spec; main_spec]).
+Definition Gprog : funspecs := ltac:(with_library prog [acquire_spec; (*release_spec;*) release2_spec;
+  makelock_spec; (*freelock_spec;*) freelock2_spec; spawn_spec; (*makecond_spec; freecond_spec; wait_spec; signal_spec;*)
+  surely_malloc_spec prog; q_new_spec prog; q_del_spec prog; q_add_spec prog; q_remove_spec prog;
+  (*q_tryremove_spec prog;*) f_spec; main_spec]).
 
 Lemma f_inv_precise : forall lsh gsh tsh gsh1 gsh2 p' p lock t locksp lockt resultsp,
   precise (f_lock_pred lsh gsh tsh gsh1 gsh2 p' p lock t locksp lockt resultsp).
@@ -135,6 +118,72 @@ Proof.
               (map (fun x => Vint (snd x)) vals ++ repeat Vundef (Z.to_nat (3 - i))) resultsp))).
   { Exists ([] : list (val * int)); repeat entailer!. }
   { Intros vals.
+
+rewrite <- seq_assoc; eapply semax_seq'.
+let Frame := fresh "Frame" in
+let A := fresh "A" in
+let wit := fresh "wit" in
+ evar (Frame: list (mpred));
+ evar (A: rmaps.TypeTree);
+ evar (wit: functors.MixVariantFunctor._functor
+              (rmaps.dependent_type_functor_rec nil A) mpred);
+ match goal with |- @semax ?CS _ _ _ _ _ =>
+ eapply (@semax_call_id1_wow A wit Frame) end.
+ check_function_name. subst A.
+ match goal with |- ?A = ?B => 
+      let x := fresh "x" in set (x := A);
+      let y := fresh "y" in set (y := B) end.
+      hnf in x. subst x.
+Print type.
+Print reptype.
+
+let cs' := conc_queue_specs.CompSpecs in let cs := CompSpecs in  match goal with
+  | |- context [?A conc_queue_specs.CompSpecs] => change (A conc_queue_specs.CompSpecs) with (A CompSpecs)
+  | |- context [?A conc_queue_specs.CompSpecs ?B] => idtac B
+ end.
+(* This is busted, because the compspecs aren't convertible at an arbitrary (existentially quantified) type. *)
+
+change_compspecs' CompSpecs conc_queue_specs.CompSpecs.
+timeout 20 match goal with |- context [?cs'] => 
+   match type of cs' with compspecs =>
+     try (constr_eq cs cs'; fail 1); idtac cs';
+     change_compspecs' CompSpecs cs'(*;
+     repeat change_compspecs' cs cs'*)
+   end
+end.
+
+
+; subst y; 
+      find_spec_in_globals
+ end.
+
+ lookup_spec_and_change_compspecs CompSpecs.
+ | find_spec_in_globals | check_result_type
+ | apply Coq.Init.Logic.I | check_parameter_types
+ | check_prove_local2ptree
+ | check_typecheck
+ | instantiate (1 := witness) in (Value of wit);
+   check_funspec_precondition
+ | check_prove_local2ptree
+ | check_cast_params | reflexivity
+ | Forall_pTree_from_elements
+ | Forall_pTree_from_elements
+ | unfold fold_right_sepcon at 1 2; cancel
+ | subst wit; cbv beta iota zeta; extensionality rho; 
+   repeat rewrite exp_uncurry;
+   try rewrite no_post_exists; repeat rewrite exp_unfold;
+   first [apply exp_congr; intros ?vret; reflexivity
+           | give_EX_warning
+           ]
+ | prove_delete_temp
+ | unify_postcondition_exps
+ | unfold fold_right_and; repeat rewrite and_True; auto; subst A wit
+ ] end.
+
+
+forward_call_id1_wow (lsh, existT (fun t => ((reptype t -> Prop) * hist (reptype t))%type) tint (tc_val tint,
+      map (fun x => QRem (fst x) (Vint (snd x))) vals), p, lock, gsh1, gsh2).
+
     forward_call (lsh, existT (fun t => ((reptype t -> Prop) * hist (reptype t))%type) tint (tc_val tint,
       map (fun x => QRem (fst x) (Vint (snd x))) vals), p, lock, gsh1, gsh2).
     Intros x; destruct x as (p1 & v1).
@@ -257,7 +306,6 @@ semax (initialized_list [_i; _i__1; _t'1] (func_tycontext f_main Vprog Gprog))
 Proof.
   intros.
   forward_call (sizeof tint).
-  { simpl; cancel. }
   { simpl; computable. }
   Intro t.
   rewrite malloc_compat; auto; Intros.
@@ -346,7 +394,7 @@ Proof.
   erewrite sublist_split with (mid := i)(hi := i + 1), sublist_len_1, map_app, sepcon_app;
     try rewrite Zlength_combine, Zlength_upto, Z.min_l; simpl; try omega.
   instantiate (1 := (3, Vundef)).
-  rewrite <- Znth_map' with (f := snd), combine_snd; simpl; unfold fold_right; [cancel | auto].
+  rewrite <- Znth_map' with (f := snd), combine_snd; simpl; [cancel | auto].
   replace (3 - i - 1) with (2 - i) by (clear; omega).
   unfold field_address0.
   destruct (field_compatible0_dec _ _ _).
@@ -511,7 +559,7 @@ Proof.
   rewrite Z2Nat.id, map_app, sepcon_app, Z.add_0_r; [|omega].
   simpl; replace (3 - Zlength vals - 1) with (2 - Zlength vals) by (clear; abstract omega).
   rewrite app_Znth2, Zminus_diag; [simpl | clear; omega].
-  rewrite <- lock_struct_array; unfold fold_right at 3 4 5; cancel.
+  rewrite <- lock_struct_array; cancel.
   apply sepcon_derives; [apply derives_refl|].
   apply derives_refl'; f_equal.
   rewrite Zlength_correct, Nat2Z.id; apply map_ext_in; intros.
@@ -552,7 +600,6 @@ Proof.
     unfold data_at_, field_at_; simpl; cancel. }
   { forward_call (sizeof tlock).
     { admit. (* lock size broken *) }
-    { simpl; cancel. }
     { simpl; computable. }
     Intros l flocks.
     rewrite malloc_compat; auto; Intros.
@@ -567,7 +614,7 @@ Proof.
     rewrite upd_Znth_app2, Zminus_diag, upd_Znth0, sublist_1_cons, sublist_same; auto; try rewrite Zlength_cons;
       try solve [rewrite !Zlength_correct; omega].
     rewrite Z2Nat.inj_add, upto_app, combine_app, !map_app, !sepcon_app; simpl; try omega.
-    rewrite Zlength_correct, !Z2Nat.id, Nat2Z.id, Z.add_0_r, <- app_assoc; [unfold fold_right; cancel | omega].
+    rewrite Zlength_correct, !Z2Nat.id, Nat2Z.id, Z.add_0_r, <- app_assoc; [cancel | omega].
     { rewrite upto_length, Zlength_correct, Nat2Z.id; auto. }
     { rewrite <- Z2Nat.inj_succ; f_equal; omega. }
     { exists 2; auto. } }
@@ -625,7 +672,7 @@ Proof.
     { exploit (Hlshs1 0); [computable|].
       subst lsh'; destruct (Znth 0 lshs1 (Tsh, Tsh)) eqn: Hg1; intros (? & ?); auto. }
     Exists (ptrs ++ [d]); rewrite Zlength_app, Zlength_cons, Zlength_nil; entailer!.
-    unfold fold_right; rewrite Z2Nat.inj_add, upto_app, combine_app, map_app; try omega; simpl.
+    rewrite Z2Nat.inj_add, upto_app, combine_app, map_app; try omega; simpl.
     rewrite Z2Nat.id, Z.add_0_r, Zlength_correct, Nat2Z.id; [cancel | omega].
     simple apply derives_refl.
     { rewrite upto_length, Zlength_correct, Nat2Z.id; auto. }
@@ -733,4 +780,22 @@ Proof.
   forward.
 Admitted.
 
-(* For linking, see verif_queue_ex_linking. *)
+Definition extlink := ext_link_prog prog.
+
+Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
+Existing Instance Espec.
+
+Lemma all_funcs_correct:
+  semax_func Vprog Gprog (prog_funct queue_ex.prog) Gprog.
+Proof.
+unfold Gprog, prog, prog_funct; simpl.
+semax_func_cons body_exit.
+semax_func_cons body_free.
+semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
+repeat semax_func_cons_ext.
+semax_func_cons body_f.
+semax_func_cons body_main.
+apply semax_func_nil.
+Qed.
+
+(* Linking? *)

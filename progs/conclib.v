@@ -693,6 +693,102 @@ Proof.
   intros; unfold data_at_, data_at, field_at_; auto.
 Qed.
 
+Lemma incl_cons_iff : forall A (a : A) b c, incl (a :: b) c <-> In a c /\ incl b c.
+Proof.
+  split; intro.
+  - split; [|eapply incl_cons_inv; eauto].
+    specialize (H a); apply H; simpl; auto.
+  - destruct H; intros ? [? | ?]; subst; auto.
+Qed.
+
+Lemma lookup_distinct : forall A B (f : A -> B) a l t (Ha : In a l) (Hdistinct : NoDup (map fst l)),
+  (fold_right (fun v : ident * A => PTree.set (fst v) (f (snd v))) t l) ! (fst a) =
+  Some (f (snd a)).
+Proof.
+  induction l; simpl; intros; [contradiction|].
+  inv Hdistinct.
+  rewrite PTree.gsspec.
+  destruct (peq (fst a) (fst a0)) eqn: Heq; setoid_rewrite Heq.
+  - destruct Ha; [subst; auto|].
+    contradiction H1; rewrite in_map_iff; eauto.
+  - apply IHl; auto.
+    destruct Ha; auto; subst.
+    contradiction n; auto.
+Qed.
+
+Lemma lookup_out : forall A B (f : A -> B) a l t (Ha : ~In a (map fst l)),
+  (fold_right (fun v : ident * A => PTree.set (fst v) (f (snd v))) t l) ! a = t ! a.
+Proof.
+  induction l; simpl; intros; auto.
+  rewrite PTree.gsspec.
+  destruct (peq a (fst a0)) eqn: Heq; setoid_rewrite Heq.
+  - contradiction Ha; auto.
+  - apply IHl.
+    intro; contradiction Ha; auto.
+Qed.
+
+Lemma NoDup_app : forall {A} (l1 l2 : list A), NoDup (l1 ++ l2) ->
+  NoDup l1 /\ NoDup l2 /\ forall x, In x l1 -> ~In x l2.
+Proof.
+  induction l1; intros.
+  - repeat split; auto; constructor.
+  - inv H.
+    exploit IHl1; eauto; intros (? & ? & ?).
+    rewrite in_app in *.
+    repeat split; auto.
+    + constructor; auto.
+    + intros ? [? | ?]; auto; subst; auto.
+Qed.
+
+Lemma func_tycontext_sub : forall f V G V2 G2 (HV : incl V V2) (HG : incl G G2)
+  (Hdistinct : NoDup (map fst V2 ++ map fst G2)),
+  tycontext_sub (func_tycontext f V G) (func_tycontext f V2 G2).
+Proof.
+  intros.
+  unfold func_tycontext, make_tycontext, tycontext_sub; simpl.
+  apply NoDup_app in Hdistinct; destruct Hdistinct as (? & ? & Hdistinct); auto.
+  repeat split; auto; intro.
+  - destruct (PTree.get _ _); auto.
+    destruct p; rewrite orb_comm, orb_negb_r; auto.
+  - unfold make_tycontext_g.
+    revert dependent G2; revert dependent V2; revert V; induction G; simpl.
+    + induction V; simpl; intros.
+      * rewrite PTree.gempty; simpl; auto.
+      * rewrite incl_cons_iff in HV; destruct HV.
+        rewrite PTree.gsspec.
+        destruct (peq id (fst a)); eauto; subst; simpl.
+        rewrite lookup_out.
+        apply lookup_distinct with (f := id); auto.
+        { apply Hdistinct.
+          rewrite in_map_iff; eexists; split; eauto. }
+    + intros.
+      rewrite incl_cons_iff in HG; destruct HG.
+      rewrite PTree.gsspec.
+      destruct (peq id (fst a)); eauto; subst; simpl.
+      apply lookup_distinct; auto.
+  - unfold make_tycontext_s.
+    revert dependent G2; induction G; simpl; intros.
+    + rewrite PTree.gempty; simpl; auto.
+    + intros.
+      rewrite incl_cons_iff in HG; destruct HG.
+      rewrite PTree.gsspec.
+      destruct (peq id (fst a)); eauto; subst; simpl.
+      apply lookup_distinct with (f := id); auto.
+Qed.
+
+(* This lets us use a library as a client. *)
+Lemma semax_body_mono : forall V G {cs : compspecs} f s V2 G2
+  (HV : incl V V2) (HG : incl G G2) (Hdistinct : NoDup (map fst V2 ++ map fst G2)),
+  semax_body V G f s -> semax_body V2 G2 f s.
+Proof.
+  unfold semax_body; intros.
+  destruct s, f0.
+  intros; eapply semax_extensionality_Delta, H.
+  apply func_tycontext_sub; auto.
+Qed.
+
+(* We could also consider an alpha-renaming axiom, although this may be unnecessary. *)
+
 (* precise and positive *)
 Lemma precise_sepcon : forall (P Q : mpred) (HP : precise P) (HQ : precise Q), precise (P * Q).
 Proof.
