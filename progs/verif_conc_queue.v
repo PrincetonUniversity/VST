@@ -145,12 +145,12 @@ Proof.
     rewrite !field_compatible_cons; simpl; Intros.
     apply andp_right; [apply prop_right; unfold in_members; simpl; split; [|split; [|split]]; auto|].
     rewrite sepcon_emp, !isptr_offset_val_zero; auto. }
-  apply new_ghost with (t' := t).
+  apply new_ghost with (t' := reptype t).
   forward.
   forward_call (lock, Tsh, q_lock_pred t P p lock gsh2).
   { lock_props.
     unfold q_lock_pred, q_lock_pred'; simpl.
-    Exists ([] : list (val * reptype t)) 0 addc remc ([] : hist t).
+    Exists ([] : list (val * reptype t)) 0 addc remc ([] : hist (reptype t)).
     rewrite Zlength_nil; simpl; cancel.
     rewrite sepcon_andp_prop'.
     apply andp_right; [apply prop_right|].
@@ -161,7 +161,7 @@ Proof.
     unfold_field_at 1%nat.
     erewrite <- ghost_share_join with (h1 := []); eauto.
     simpl; cancel.
-    rewrite (sepcon_comm _ (@ghost _ t _ _)), !sepcon_assoc; apply sepcon_derives; auto.
+    rewrite (sepcon_comm _ (@ghost _ (reptype t) _ _)), !sepcon_assoc; apply sepcon_derives; auto.
     unfold data_at, field_at; simpl.
     rewrite !field_compatible_cons; simpl; Intros.
     apply andp_right; [apply prop_right; unfold in_members; simpl; split; [|split]; auto|].
@@ -231,7 +231,7 @@ Proof.
   forward.
   rewrite data_at_isptr; Intros; rewrite isptr_offset_val_zero; auto.
   forward.
-  forward_while (EX vals : _, EX head : Z, EX addc : val, EX remc : val, EX h' : hist t,
+  forward_while (EX vals : _, EX head : Z, EX addc : val, EX remc : val, EX h' : hist (reptype t),
    PROP ()
    LOCAL (temp _len (vint (Zlength vals)); temp _q p; temp _l lock; temp _tgt p; temp _r e)
    SEP (lock_inv sh lock (q_lock_pred t P p lock gsh2);
@@ -326,7 +326,7 @@ Proof.
   forward.
   rewrite data_at_isptr; Intros; rewrite isptr_offset_val_zero; auto.
   forward.
-  forward_while (EX vals : list _, EX head : Z, EX addc : val, EX remc : val, EX h' : hist t, PROP ()
+  forward_while (EX vals : list _, EX head : Z, EX addc : val, EX remc : val, EX h' : hist (reptype t), PROP ()
    LOCAL (temp _len (vint (Zlength vals)); temp _q p; temp _l lock; temp _tgt p)
    SEP (lock_inv sh lock (q_lock_pred t P p lock gsh2);
         q_lock_pred' t P p vals head addc remc lock gsh2 h';
@@ -384,7 +384,7 @@ Proof.
   simpl force_val.
   rewrite !add_repr, mods_repr; try computable.
   destruct p0 as (e, v).
-  exploit (consistent_cons_rem(t := t)); eauto; intro.
+  exploit (consistent_cons_rem(t := reptype t)); eauto; intro.
   gather_SEP 8 11.
   rewrite sepcon_comm; replace_SEP 0 (!!(list_incl h h'0) && ghost Tsh (Tsh, h'0) p).
   { go_lower.
@@ -476,7 +476,7 @@ Proof.
   simpl force_val.
   rewrite !add_repr, mods_repr; try computable.
   destruct p0 as (e, v).
-  exploit (consistent_cons_rem(t := t)); eauto; intro.
+  exploit (consistent_cons_rem(t := reptype t)); eauto; intro.
   gather_SEP 8 11.
   rewrite sepcon_comm; replace_SEP 0 (!!(list_incl h h') && ghost Tsh (Tsh, h') p).
   { go_lower.
@@ -502,29 +502,3 @@ Proof.
   { split; try omega.
     transitivity MAX; [omega | unfold MAX; computable]. }
 Qed.
-
-(*Lemma lock_struct : forall p, data_at_ Tsh (Tstruct _lock_t noattr) p |-- data_at_ Tsh tlock p.
-Proof.
-  intros.
-  unfold data_at_, field_at_; unfold_field_at 1%nat; simpl.
-  unfold field_at; simpl.
-  rewrite field_compatible_cons; simpl; entailer.
-Qed.
-
-Lemma lock_struct_array : forall z p, data_at_ Tsh (tarray (Tstruct _lock_t noattr) z) p |--
-  data_at_ Tsh (tarray tlock z) p.
-Proof.
-  intros.
-  unfold data_at_, field_at_, field_at; simpl; entailer.
-  unfold default_val, at_offset; simpl.
-  do 2 rewrite data_at_rec_eq; simpl.
-  unfold array_pred, aggregate_pred.array_pred, unfold_reptype; simpl; entailer.
-  rewrite Z.sub_0_r; clear.
-  forget (Z.to_nat z) as l; forget 0 as lo; revert lo; induction l; intros; simpl; auto.
-  apply sepcon_derives.
-  - unfold at_offset; rewrite data_at_rec_eq; simpl.
-    unfold struct_pred, aggregate_pred.struct_pred, at_offset, withspacer; simpl; entailer.
-  - eapply derives_trans; [apply aggregate_pred.rangespec_ext_derives |
-      eapply derives_trans; [apply IHl | apply aggregate_pred.rangespec_ext_derives]]; simpl; intros;
-      rewrite Znth_pos_cons; try omega; replace (i - lo - 1) with (i - Z.succ lo) by omega; auto.
-Qed.*)
