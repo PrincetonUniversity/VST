@@ -39,6 +39,12 @@ Definition body_lemma_of_funspec  {Espec: OracleKind} (ef: external_function) (f
     semax_external (map fst (fst sig)) ef A P Q
   end.
 
+Definition try_spec (prog: program) (name: string) (spec: funspec) : list (ident*funspec) :=
+ match ext_link_prog' (prog_defs prog) name with
+ | Some id => [(id,spec)]
+ | None => nil
+ end.
+
 Definition exit_spec' := 
  WITH u: unit
  PRE [1%positive OF tint]
@@ -46,8 +52,7 @@ Definition exit_spec' :=
  POST [ tvoid ]
    PROP(False) LOCAL() SEP().
 
-Definition exit_spec (prog: program) :=
- DECLARE (ext_link_prog prog "exit") exit_spec'.
+Definition exit_spec (prog: program) := try_spec prog "exit" exit_spec'.
 
 Parameter body_exit:
  forall {Espec: OracleKind}, 
@@ -78,8 +83,8 @@ Definition malloc_spec' :=
        SEP (if eq_dec p nullval then emp 
             else (malloc_token Tsh n p * memory_block Tsh n p)).
 
-Definition malloc_spec (prog: program) :=
-  DECLARE (ext_link_prog prog "_malloc") malloc_spec'.
+Definition malloc_spec (prog: program) := 
+   try_spec prog "_malloc" malloc_spec'.
 
 Parameter body_malloc:
  forall {Espec: OracleKind}, 
@@ -97,14 +102,14 @@ Definition free_spec' :=
        SEP ().
 
 Definition free_spec  (prog: program) :=
-  DECLARE (ext_link_prog prog "_free") free_spec'.
+   try_spec prog "_free" free_spec'.
 
 Parameter body_free:
  forall {Espec: OracleKind}, 
   body_lemma_of_funspec EF_free free_spec'.
 
 Definition library_G prog :=
-  [exit_spec prog; malloc_spec prog; free_spec prog].
+  exit_spec prog ++ malloc_spec prog ++ free_spec prog.
 
 Ltac with_library prog G :=
  let x := eval hnf in (augment_funspecs prog (library_G prog ++ G))
