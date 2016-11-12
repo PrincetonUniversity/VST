@@ -298,6 +298,102 @@ Module THE_DRY_MACHINE_SOURCE.
             assumption.
     }
     { (*Second case when all threads are blocked, suspended or halted. *)
+      (*Preliminaries*)
+      rewrite /running_dec => HH.
+      assert (not_running: forall i cnti q,
+                 @DMS.DryMachine.ThreadPool.getThreadC i dm cnti = Krun q ->
+                 ~ DMS.DryMachine.threadHalted cnti -> False).
+      { move=> i cnti q is_running not_halted.
+        apply: HH. exists i, q, cnti; auto. }
+      clear HH.
+      simpl.
+
+      (*Introduce a bound to do induction*)
+      cut ( forall M:nat,
+            exists (n : nat) (f : nat -> DMS.DryConc.new_state),
+    forall (x : DMS.DryConc.new_state) (y : SCH.schedule),
+    match SCH.schedPeek y with
+    | Some i =>
+      (i < M) /\
+        forall (j : DMS.DryMachine.ThreadPool.TID.tid)
+          (cnti : (j < pos.n (DMS.DryMachine.ThreadPool.num_threads dm))%N)
+          (q : DMS.DryMachine.ThreadPool.SEM.C),
+        DMS.DryMachine.ThreadPool.getThreadC cnti = Krun q ->
+        ~ DMS.DryMachine.threadHalted cnti -> SCH.TID.eq_tid_dec i j
+    | None => True
+    end /\
+    (exists y' : SCH.schedule,
+       DMS.DryConc.sem_with_halt prog (y, tr, dm) m (y', x.1.1, x.1.2) x.2) ->
+    exists i : nat, (i < n)%N /\ f i = x ).
+      { simpl. move => /(_ (pos.n (DMS.DryMachine.ThreadPool.num_threads dm))) [] n [] f CUT.
+        exists (n+1)%nat, (fun n => match n with
+                          | O => (tr,dm, m)
+                          | S n' => f n'
+                          end).
+        move=> x y.
+        specialize (CUT x y).
+        destruct (SCH.schedPeek y ) eqn:PEEK.
+        Focus 2. { (*Machine is halted: end of schedule*)
+          move => [] _ [] y' steps.
+          inversion steps; simpl in*; subst.
+          - exists 0%nat; split.
+            + ssromega.
+            + destruct x as [[a b ] c]; reflexivity.
+          - inversion H; simpl in*; subst;
+            try match goal with
+                | [ H: SCH.schedPeek ?Y = Some _ ,
+                       H': SCH.schedPeek ?Y = None  |- _ ] =>
+                  rewrite H in H'; inversion H'
+                end.
+        } Unfocus.
+
+        destruct (t <  pos.n (DMS.DryMachine.ThreadPool.num_threads dm))%N eqn: within_bound.
+        - move => [] A B.
+          move: (CUT ltac:(repeat split; eauto)) => [] i [] ineq f_ok.
+          exists (S i); split; auto.
+          ssromega.
+        - clear - PEEK within_bound .
+          move => [] A [] y' B.
+          inversion B; subst.
+          + move: H5.
+            rewrite /DMS.DryConc.halted /= PEEK => H5; inversion H5.
+          + inversion H; simpl in *; subst;
+            try match goal with
+                | [ H: SCH.schedPeek ?Y = Some _ ,
+                       H': SCH.schedPeek ?Y = Some _  |- _ ] =>
+                  rewrite H in H'; inversion H'; subst
+                end;
+            try solve [exfalso;
+            unfold DMS.DryMachine.ThreadPool.containsThread in Htid;
+            assert (Htid':=Htid);
+            rewrite within_bound in Htid'; auto].
+        (*schedule fail case*)
+            exists 0%nat; split; auto.
+            -- ssromega.
+            -- destruct x as [[? ?] ?]; simpl in *; subst; auto.
+      }
+      { (*Proving th cut: a bounded version of finite_branching (bounded threads)*)
+        induction M.
+        - (*base case must be halted.*)
+          exists 1%nat, (fun _ => (tr,dm, m)).
+          move => x y.
+          destruct (SCH.schedPeek y) eqn:PEEK.
+          + move => []  [] WRONG.
+            inversion WRONG.
+          + move => []  [] [] y' STEP.
+            inversion STEP; simpl in *; subst.
+            * (*If halted is itself*)
+              exists 0%nat; split; auto.
+              destruct x as [[a b ] c]; reflexivity.
+            * inversion H; simpl in*; subst;
+            try match goal with
+                | [ H: SCH.schedPeek ?Y = Some _ ,
+                       H': SCH.schedPeek ?Y = None  |- _ ] =>
+                  rewrite H in H'; inversion H'
+                end.
+        - (*Now lets do the inductive step M ->  M+1*)
+          
+          
     admit.
     }
     
