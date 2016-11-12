@@ -269,7 +269,10 @@ Definition threads_wellformed tp :=
     end.
 
 (* Havent' move this, but it's already defined in the concurrent_machien...
-   Probably in the wrong part... *)
+ * Probably in the wrong part... 
+ * SC: I had to change unique_Krun to include ~ Halted. Because halted
+ * threads are still in Krun. (Although, ass you know right now there are no Hatled
+ * threads...)  *)
 Definition unique_Krun tp sch :=
   (lt 1 tp.(num_threads).(pos.n) -> forall i cnti q,
       @getThreadC i tp cnti = Krun q ->

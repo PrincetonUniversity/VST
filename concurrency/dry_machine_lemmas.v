@@ -121,7 +121,42 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
         rewrite Hgeti in Hcontra. destruct Hcontra.
         discriminate.
   Defined. *)
-
+  Lemma initial_invariant0: forall pmap c,
+              DryMachine.invariant (DryMachine.initial_machine pmap c).
+          Proof. intros pmap c.
+          pose (IM:=(DryMachine.initial_machine pmap c)); fold IM.
+          assert (isZ: forall i, containsThread IM i -> (i = 0)%N).
+          { rewrite /DryMachine.ThreadPool.containsThread /IM /=.
+            move => i; destruct i; first[reflexivity | intros HH; inversion HH].
+          }
+          assert (noLock: forall l rm, 
+                     DryMachine.ThreadPool.lockRes IM l = Some rm -> False).
+        { rewrite /DryMachine.ThreadPool.lockRes /IM /=.
+          move => l rm.
+          rewrite /DryMachine.ThreadPool.lockRes
+                  /DryMachine.initial_machine
+                  /empty_lset /= find_empty => HH.
+          inversion HH.
+        }
+        
+        constructor.
+          + move => i j0 cnti cntj HH.
+            exfalso; apply HH.
+            move: cnti cntj => /isZ -> /isZ ->; reflexivity.
+          + move=> l1 l2 rm1 rm2 neq /noLock contra; inversion contra. 
+        + move => i l cnt rm /noLock contra; inversion contra.
+        + move=> i cnti; split.
+          * move => j0 cntj.
+            move: (cnti) (cntj) => cnti0 cntj0;
+              move: cnti cntj => /isZ Hi /isZ Hj.
+            subst.
+            eapply permCoh_empty'.
+          * move => l rm /noLock contra; inversion contra.
+        + move => l mr /noLock contra; inversion contra.
+        + move => b ofs.
+          rewrite / IM /= //.
+          Qed.
+  
   Lemma updThread_inv: forall ds i (cnt: containsThread ds i) c pmap,
            invariant ds ->
            (forall j (cnt: containsThread ds j),

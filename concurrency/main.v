@@ -49,6 +49,7 @@ Require Import concurrency.erasure_signature.
 Require Import concurrency.erasure_proof.
 Require Import concurrency.erasure_safety.
 
+(*Require Import concurrency.fineConc_safe.*)
 
 (** ** Compiler simulation*)
 Require Import concurrency.lifting.
@@ -112,7 +113,7 @@ Module MainSafety .
     Definition initial_cstate :=
       initial_corestate CS V G ext_link prog all_safe init_mem_not_none.
     
-    Definition ds_initial := DSEM.initial_machine
+    Definition ds_initial := DMS.initial_machine
                                dry_initial_perm initial_cstate.
 
     
@@ -122,10 +123,10 @@ Module MainSafety .
            constructor.
            - intro i.
              unfold js_initial, initial_machine_state, ErasureProof.JTP.containsThread; simpl;
-             unfold ds_initial ,DSEM.initial_machine, ErasureProof.DTP.containsThread; simpl; auto.
+             unfold ds_initial ,DMS.initial_machine, ErasureProof.DTP.containsThread; simpl; auto.
            - intro i.
              unfold js_initial, initial_machine_state, ErasureProof.JTP.containsThread; simpl;
-             unfold ds_initial ,DSEM.initial_machine, ErasureProof.DTP.containsThread; simpl; auto.
+             unfold ds_initial ,DMS.initial_machine, ErasureProof.DTP.containsThread; simpl; auto.
            - unfold ErasureProof.JTP.getThreadC, ErasureProof.DTP.getThreadC; simpl.
              intros. 
              transitivity (Krun initial_cstate).
@@ -150,7 +151,7 @@ Module MainSafety .
              rewrite <- Heqspr in Heqcm.
              unfold dry_initial_perm in *.
              rewrite <- Heqspr in *.
-             destruct spr as (b' & q' & Hb & JS); simpl proj1_sig in *; simpl proj2_sig in *.
+             destruct spr as (b' & q' & Hb & JS); simpl proj1_sig in *; simpl proj2_sig in *. 
              clear Heqspr.
              simpl projT1 in *; simpl projT2 in *.
              injection Heqcm as -> -> -> -> .
@@ -164,12 +165,32 @@ Module MainSafety .
              unfold permission_at in *.
              reflexivity.
            - intros.
-             unfold ErasureProof.JSEM.ThreadPool.lockRes;
-               unfold ErasureProof.DSEM.ThreadPool.lockRes.
+             simpl. rewrite empty_map_spec.
+             unfold initial_jm; simpl.
+             destruct spr as (b' & q & [e INIT'] & f); simpl.
+             destruct f; 
+               simpl proj1_sig in *; simpl proj2_sig in *.
+             destruct a as (_ & _ & _ & nLOCKS).
+             Lemma no_locks_perm_locks: forall rm l,
+                 no_locks rm -> perm_of_res_lock (rm @ l) = None.
+             Proof.
+               move=> rm l /( _ l).
+               destruct (rm @ l); eauto.
+               destruct k; eauto;
+               move=> /(_ t0 p z p0) [] A B; exfalso.
+               - apply A; auto.
+               - apply B; auto.
+             Qed.
+             apply no_locks_perm_locks; assumption.
+           - intros.
+             unfold ErasureProof.DMS.ThreadPool.lockRes;
+               unfold ErasureProof.DMS.ThreadPool.lockRes.
              auto.
-           - unfold ErasureProof.DSEM.ThreadPool.lockRes.
+           - unfold ErasureProof.DMS.ThreadPool.lockRes.
              simpl. intros.  rewrite threadPool.find_empty in H0; inversion H0.
-           - unfold ErasureProof.DSEM.ThreadPool.lockRes.
+           - unfold ErasureProof.DMS.ThreadPool.lockRes.
+             simpl. intros.  rewrite threadPool.find_empty in H0; inversion H0.
+           - unfold ErasureProof.DMS.ThreadPool.lockRes.
              simpl. intros.  rewrite threadPool.find_empty in H0; inversion H0.
     Qed.
 
@@ -185,7 +206,8 @@ Module MainSafety .
       assert (CC:= erasure_safety' n).
       eapply CC in BB.
       - eapply BB.
-      - eapply DSEM.DryMachineLemmas.initial_invariant.
+      - unfold ds_initial.
+        eapply DryMachineSource.THE_DRY_MACHINE_SOURCE.DryMachineLemmas.initial_invariant0.
       - eapply AA.
     Qed.
 
@@ -207,9 +229,9 @@ Module MainSafety .
          initial_machine_state CS V G ext_link prog all_safe
            init_mem_not_none n)
          (proj1_sig (init_mem prog init_mem_not_none)) n.
-    Axiom juicy_initial_all_valid: forall n sch,
-        is_true
-          (JuicyMachine.valid
+
+   Axiom juicy_initial_all_valid: forall n sch,
+        (ErasureProof.JuicyMachine.valid
           (sch, nil,
          initial_machine_state CS V G ext_link prog all_safe
            init_mem_not_none n)).
@@ -221,7 +243,7 @@ Module MainSafety .
       eapply new_erasure_safety'; eauto.
       - eapply juicy_initial_all_valid.
       - eapply erasure_match.
-      - eapply DSEM.DryMachineLemmas.initial_invariant.
+      - eapply DryMachineSource.THE_DRY_MACHINE_SOURCE.DryMachineLemmas.initial_invariant0.
       - intros sch0. eapply juicy_initial_safety; auto.
     Qed.
 
@@ -234,6 +256,7 @@ Module MainSafety .
       - exact Classical_Prop.classic.
       - move => ds.
         simpl.
+        
         eapply DryMachine.finite_branching.
       - move => n U VAL'.
         rewrite /DryMachine.mk_nstate /=.

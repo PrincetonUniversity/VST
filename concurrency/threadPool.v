@@ -302,7 +302,7 @@ Module Type ThreadPoolSig.
 
 
  (*uniqueness of the running threadc*)
-  Parameter unique_Krun:  t -> tid -> Prop.
+  Parameter unique_Krun':  t -> tid -> Prop.
   Definition is_running tp i:= 
     exists cnti q, @getThreadC i tp cnti = Krun q.
   
@@ -565,8 +565,8 @@ Open Scope nat_scope.
   Definition getThreadC {i tp} (cnt: containsThread tp i) : ctl :=
     tp (Ordinal cnt).
   
-  Definition unique_Krun tp i :=
-  (lt 1 tp.(num_threads).(pos.n) -> forall j cnti q,
+  Definition unique_Krun' tp i :=
+  ( forall j cnti q,
       @getThreadC j tp cnti = Krun q ->
       eq_tid_dec i j ).
 
@@ -575,15 +575,15 @@ Open Scope nat_scope.
 
   Lemma unique_runing_not_running:
     forall tp i,
-      unique_Krun tp i ->
+      unique_Krun' tp i ->
       ~ is_running tp i ->
-      forall j, unique_Krun tp j.
+      forall j, unique_Krun' tp j.
   Proof.
-    unfold unique_Krun, is_running.
+    unfold unique_Krun', is_running.
     intros.
-    specialize (H H1 _ _ _ H2).
-    destruct (eq_tid_dec i j0); try solve[inversion H].
-    subst i.
+    specialize (H  _ _ _ H1);
+      destruct (eq_tid_dec i j0); inversion H; subst.
+    
     exfalso; apply H0 .
     exists cnti, q; assumption.
   Qed.
