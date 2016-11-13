@@ -23,10 +23,16 @@ Require Import concurrency.threadPool.
  
 Require Import compcert.common.Memory. (*for Mem.perm_order'' *)
 
-Definition map_leq {A B} (m1: PTree.t (Z -> option A))(m2: PTree.t (Z -> option B)): Prop :=
+Definition map_leq {A B} (m1: PTree.t A)(m2: PTree.t B): Prop :=
   forall p, m1 ! p -> m2 ! p.
 
-(* Lemma treemap_sub_map: forall  *)
+Lemma treemap_sub_map: forall {A B} (f: positive -> B -> A) m2,
+    map_leq (PTree.map f m2) m2.
+Proof.
+  move => A B f m2 p.
+  rewrite PTree.gmap.
+  destruct (m2 ! p) eqn:m2p; auto; intros HH; inversion HH.
+Qed.
 
 Definition map_empty_def {A} (m1: PMap.t (Z -> option A)):=
   m1.1 = fun _ => None.
