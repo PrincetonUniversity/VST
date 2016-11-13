@@ -517,9 +517,9 @@ Qed.
       (def, PTree.map f m#2).
     (* You need the memory, to make a finite tree. *)
     Definition juice2Perm (phi:rmap)(m:mem): access_map:=
-      mapmap (fun _ => None) (fun block _ => fun ofs => perm_of_res (phi @ (block, ofs)) ) (getCurPerm m).
+      mapmap (fun _ => None) (fun block _ => fun ofs => perm_of_res (phi @ (block, ofs)) ) (getMaxPerm m).
     Definition juice2Perm_locks (phi:rmap)(m:mem): access_map:=
-      mapmap (fun _ => None) (fun block _ => fun ofs => perm_of_res_lock (phi @ (block, ofs)) ) (getCurPerm m).
+      mapmap (fun _ => None) (fun block _ => fun ofs => perm_of_res_lock (phi @ (block, ofs)) ) (getMaxPerm m).
     Lemma juice2Perm_canon: forall phi m, isCanonical (juice2Perm phi m).
     Proof. unfold isCanonical; reflexivity. Qed.
     Lemma juice2Perm_locks_canon: forall phi m, isCanonical (juice2Perm_locks phi m).
@@ -530,7 +530,7 @@ Qed.
     Proof.
       intros. unfold juice2Perm, mapmap, PMap.get.
       rewrite PTree.gmap.
-      destruct (((getCurPerm m)#2) ! b) eqn: inBounds; simpl.
+      destruct (((getMaxPerm m)#2) ! b) eqn: inBounds; simpl.
       - destruct ((perm_of_res (phi @ (b, ofs)))) eqn:AA; rewrite AA; simpl; try reflexivity.
         apply perm_refl.
       - unfold Mem.perm_order''.
@@ -542,7 +542,7 @@ Qed.
     Proof.
       intros. unfold juice2Perm_locks, mapmap, PMap.get.
       rewrite PTree.gmap.
-      destruct (((getCurPerm m)#2) ! b) eqn: inBounds; simpl.
+      destruct (((getMaxPerm m)#2) ! b) eqn: inBounds; simpl.
       - destruct ((perm_of_res_lock (phi @ (b, ofs)))) eqn:AA; rewrite AA; simpl; try reflexivity.
         apply perm_refl.
       - unfold Mem.perm_order''.
@@ -689,7 +689,7 @@ Qed.
       unfold PMap.get.
       rewrite PTree.gmap; simpl.
       destruct ((PTree.map1
-             (fun f : Z -> perm_kind -> option permission => f^~ Cur)
+             (fun f : Z -> perm_kind -> option permission => f^~ Max)
              (Mem.mem_access m)#2) ! (loc#1)) as [VALUE|]  eqn:THING.
       - destruct loc; simpl.
         destruct ((perm_of_res (phi @ (b, z)))) eqn:HH; rewrite HH; reflexivity. 

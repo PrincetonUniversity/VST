@@ -121,6 +121,25 @@ Module THE_DRY_MACHINE_SOURCE.
       rewrite /DMS.DryConc.valid /DMS.DryConc.correct_schedule.
       rewrite /DMS.DryConc.unique_Krun /DMS.DryMachine.ThreadPool.containsThread.
 
+      pose (mem_compat_dec:=
+              DMS.DryMachine.mem_compatible dm m).
+      destruct (Classical_Prop.classic mem_compat_dec) as [Hcmpt|NHcmpt].
+      Focus 2. (*it can't step! *)
+      { 
+        exists 1%nat, (fun _ => (tr, dm, m)).
+        move => x y [] val [] y' stp.
+        inversion stp; subst.
+        - exists O; split.
+          + compute; reflexivity.
+          + destruct x as [[ ? ?] ?]; reflexivity.
+        - inversion H; destruct x as [[? ?] ?]; simpl in *; subst;
+          try solve [exfalso; apply NHcmpt; exact Hcmpt].
+          (*only the schedule fail is left*)
+          exists O; split.
+          + compute; reflexivity.
+          + reflexivity.
+      } Unfocus.
+      
       (*It most be at_external *)
       destruct (at_external DMS.DryMachine.ThreadPool.SEM.Sem c) eqn:AtExt.
       Focus 2. {
@@ -152,9 +171,141 @@ Module THE_DRY_MACHINE_SOURCE.
         - exfalso; apply Htid; assumption.
       } Unfocus.
 
-      (* Case analysis of the external call *)
-      destruct p as [EFUN args].
-      
+      (*the arguments can't be empty*)
+      destruct p as [FUN ARGS].
+      pose (the_args_dec:= exists b ofs ARGS', ARGS = Vptr b ofs :: ARGS').
+      destruct (Classical_Prop.classic the_args_dec) as [Hargs|NHargs].
+      Focus 2. {
+        exists 0%nat, (fun _ => (tr, dm, m)).
+        move=> x y [] [] PEEK. 
+        rewrite PEEK => VAL [] y' /(schedule_not_halted y i PEEK) STEP.
+        inversion STEP; simpl in *; try subst; (*Lets go through all possible steps*)
+         match goal with
+          | [ H: SCH.schedPeek ?Y = Some _ ,
+                 H': SCH.schedPeek ?Y = Some _  |- _ ] =>
+            rewrite H in H'; inversion H'; subst
+         end; simpl in *; try subst;
+         try (inversion Htstep;
+                match goal with
+                | [ H: DMS.DTP.getThreadC ?cnt1 = _ ,
+                       H': DMS.DTP.getThreadC ?cnt2 = _  |- _ ] =>
+                  replace cnt2 with cnt1 in H' by apply proof_irrelevance;
+                    rewrite H in H'; inversion H'
+                end; subst);
+        try (match goal with
+        | [ H: at_external ?SEM ?c = Some (FUN, ARGS),
+               H' : at_external ?SEM ?c = Some (_, ((Vptr ?b ?ofs):: ?ARGS')) |- _ ] =>
+          exfalso; apply NHargs; exists b, ofs, ARGS';
+          rewrite H in H'; inversion H'; auto; pose (2)
+        | [ H: at_external ?SEM ?c = _ ,
+               H' : at_external ?SEM ?c' =  _  |- _ ] =>
+          pose (NNNN:= c); pose (NNNNN:= c'); pose (3)
+             end).
+        - exfalso; eapply no_thread_halted; eassumption.
+        - exfalso; apply Htid; assumption.
+      } Unfocus.
+      move: Hargs => [] b [] ofs [] ARGS' HH.
+      subst ARGS. clear the_args_dec.
+
+      destruct (extfunct_eqdec FUN (EF_external "makelock" UNLOCK_SIG)).
+      { (*mklock case*)
+        subst.
+
+        (*must be able to store*)
+        pose (m1:= restrPermMap (DMS.DryMachine.compat_th Hcmpt cnti).1).
+        destruct (Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero)) as [m'|] eqn:Hstore'.
+        Focus 2. {
+        exists 0%nat, (fun _ => (tr, dm, m)).
+        move=> x y [] [] PEEK. 
+        rewrite PEEK => VAL [] y' /(schedule_not_halted y i PEEK) STEP.
+        inversion STEP; simpl in *; try subst; (*Lets go through all possible steps*)
+         match goal with
+          | [ H: SCH.schedPeek ?Y = Some _ ,
+                 H': SCH.schedPeek ?Y = Some _  |- _ ] =>
+            rewrite H in H'; inversion H'; subst
+         end; simpl in *; try subst;
+         try (inversion Htstep;
+                match goal with
+                | [ H: DMS.DTP.getThreadC ?cnt1 = _ ,
+                       H': DMS.DTP.getThreadC ?cnt2 = _  |- _ ] =>
+                  replace cnt2 with cnt1 in H' by apply proof_irrelevance;
+                    rewrite H in H'; inversion H'
+                end; subst);
+        try (match goal with
+        | [ H: at_external ?SEM ?c = Some (_, _),
+               H' : at_external ?SEM ?c = Some (_, _ ) |- _ ] =>
+          try solve[ rewrite H in H'; inversion H']
+        | [ H: at_external ?SEM ?c = Some (FUN, _),
+               H' : at_external ?SEM ?c = Some (?FUN', _ ) |- _ ] =>
+          pose (NNNN:= FUN); pose (NNNNN:= FUN'); pose (3)
+             end);
+        try solve[ exfalso; eapply no_thread_halted; eassumption];
+        try solve[ exfalso; apply Htid; assumption].
+
+        rewrite AtExt in Hat_external; inversion Hat_external; subst.
+        unfold m1 in Hstore'.
+        replace Hcmpt0 with Hcmpt in Hstore by apply proof_irrelevance. 
+        replace Htid with cnti in Hstore by apply proof_irrelevance. 
+        clear - Hstore Hstore'.
+        rewrite Hstore' in Hstore; inversion Hstore.
+        } Unfocus.
+
+        pose (pmap_tid'0:= (setPermBlock (Some Nonempty) b 
+                    (Int.intval ofs)
+                    (DMS.DryMachine.ThreadPool.getThreadR cnti).1
+                    LKSIZE_nat,
+                    setPermBlock (Some Writable) b 
+                    (Int.intval ofs)
+                    (DMS.DryMachine.ThreadPool.getThreadR cnti).2
+                    LKSIZE_nat)).       
+        pose (tp'0:= DMS.DryMachine.ThreadPool.updThread cnti
+                    (Kresume c Vundef) pmap_tid'0).
+        pose (tp''0 :=
+                  DMS.DryMachine.ThreadPool.updLockSet tp'0
+                    (b, Int.intval ofs) (empty_map, empty_map)).
+        exists 1%nat, (fun _ => ([::], tp''0, m')).
+        move=> x y [] [] PEEK. 
+        rewrite PEEK => VAL [] y' /(schedule_not_halted y i PEEK) STEP.
+        inversion STEP; simpl in *; try subst; (*Lets go through all possible steps*)
+         match goal with
+          | [ H: SCH.schedPeek ?Y = Some _ ,
+                 H': SCH.schedPeek ?Y = Some _  |- _ ] =>
+            rewrite H in H'; inversion H'; subst
+         end; simpl in *; try subst;
+         try (inversion Htstep;
+                match goal with
+                | [ H: DMS.DTP.getThreadC ?cnt1 = _ ,
+                       H': DMS.DTP.getThreadC ?cnt2 = _  |- _ ] =>
+                  replace cnt2 with cnt1 in H' by apply proof_irrelevance;
+                    rewrite H in H'; inversion H'
+                end; subst);
+        try (match goal with
+        | [ H: at_external ?SEM ?c = Some (_, _),
+               H' : at_external ?SEM ?c = Some (_, _ ) |- _ ] =>
+          rewrite H in H'; inversion H'
+        | [ H: at_external ?SEM ?c = Some (FUN, _),
+               H' : at_external ?SEM ?c = Some (?FUN', _ ) |- _ ] =>
+          pose (NNNN:= FUN); pose (NNNNN:= FUN'); pose (3)
+             end);
+        try solve[ exfalso; eapply no_thread_halted; eassumption];
+        try solve[ exfalso; apply Htid; assumption].
+
+        exists 0%nat; split; auto.
+        destruct x as [[? ?] ?]; simpl in *; subst.
+        repeat f_equal.
+        - rewrite /tp''0 /tp'0; repeat f_equal;
+          try apply proof_irrelevance.
+          destruct pmap_tid'; simpl in *; subst.
+          rewrite /pmap_tid'0.
+          repeat f_equal; apply proof_irrelevance.
+        - simpl in *; subst.
+          unfold m1 in Hstore'.
+          replace Hcmpt0 with Hcmpt in Hstore by apply proof_irrelevance. 
+          replace Htid with cnti in Hstore by apply proof_irrelevance. 
+          clear - Hstore Hstore'.
+          rewrite Hstore' in Hstore; inversion Hstore.
+          auto.
+      }
         
       
     Admitted.
