@@ -271,6 +271,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
         (HschedS: schedSkip U = U')        (*Schedule Forward*)
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
+        (Hinv: invariant ms)
         (Hhalted: threadHalted Htid),
         machine_step U [::] ms m  U' [::] ms m
   | schedfail :
@@ -336,6 +337,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
         (HschedS: schedSkip U = U')        (*Schedule Forward*)
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
+        (Hinv: invariant ms)
         (Hhalted: threadHalted Htid),
         external_step U [::] ms m  U' [::] ms m
   | schedfail':
@@ -368,7 +370,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
       @machine_step ge U tr st m U' tr' st' m'.
    Proof. move=>  ge U tr st m U' nil st' m' estp.
           inversion estp;
-            [
+          [
               solve[econstructor 1 ; eauto]|
               solve[econstructor 2 ; eauto]|
               solve[econstructor 4 ; eauto]|
@@ -1129,6 +1131,7 @@ Module FineMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thread
         (HschedS: schedSkip U = U')        (*Schedule Forward*)
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
+        (Hinv: invariant ms)
         (Hhalted: threadHalted Htid),
         machine_step U tr ms m U' tr ms m
   | schedfail :

@@ -290,7 +290,7 @@ Module StepLemmas (SEM : Semantics)
     intros.
     inversion Hstep; simpl in *; subst;
       try (inversion Htstep; eauto).
-    inversion Hhalted; subst; eauto.
+    (*inversion Hhalted; subst;*) eauto.
     assumption.
   Qed.
 

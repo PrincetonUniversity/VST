@@ -441,7 +441,7 @@ Module Parching <: ErasureSig.
       intros.
       inversion H0; subst.
       econstructor.
-      - assumption.
+     (* - assumption.*)
       - inversion H; subst. erewrite <- mtch_gtc. eassumption.
       - apply Hcant.
     Qed.
@@ -4234,6 +4234,5 @@ inversion MATCH; subst.
       corestep (DMachineSem U0 rmap) genv (U,tr,c) m (U', tr', c') m' ->
       tr = nil /\ tr' = nil.
   Proof. intros. inversion H; simpl in *; subst; auto. Qed.
-  About sch_dec.
 End Parching.
 (*Export Parching.*)
