@@ -29,6 +29,7 @@ Require Import concurrency.TheSchedule. Import TheSchedule.
 Require Import Coq.ZArith.ZArith.
 
 Require Import concurrency.permissions.
+Require Import concurrency.bounded_maps.
 Require Import concurrency.threadPool.
 
 Module LocksAndResources.
@@ -301,7 +302,12 @@ Module Concur.
          forall (tp' tp'':thread_pool) m0 m1 c m' b ofs
            (pmap : LocksAndResources.lock_info)
            (pmap_tid' : access_map)
-           (virtueThread : delta_map * delta_map),
+           (virtueThread : delta_map * delta_map)
+           (Hbounded: if isCoarse then
+                        ( map_leq virtueThread.1 (getMaxPerm m).2 /\
+                          map_leq virtueThread.2 (getMaxPerm m).2)
+                      else
+                        True ),
            let newThreadPerm := (computeMap (getThreadR cnt0).1 virtueThread.1,
                                   computeMap (getThreadR cnt0).2 virtueThread.2) in
            forall
@@ -330,7 +336,19 @@ Module Concur.
                                (Some virtueThread))
                     
      | step_release :
-         forall (tp' tp'':thread_pool) m0 m1 c m' b ofs virtueThread virtueLP pmap_tid' rmap,
+         forall (tp' tp'':thread_pool) m0 m1 c m' b ofs virtueThread virtueLP pmap_tid' rmap
+           (Hbounded: if isCoarse then
+                        ( map_leq virtueThread.1 (getMaxPerm m).2 /\
+                          map_leq virtueThread.2 (getMaxPerm m).2)
+                      else
+                        True )
+           (HboundedLP: if isCoarse then
+                        ( map_empty_def virtueLP.1 /\
+                          map_empty_def virtueLP.2 /\
+                          map_leq virtueLP.1.2 (getMaxPerm m).2 /\
+                          map_leq virtueLP.2.2 (getMaxPerm m).2)
+                      else
+                        True ),
            let newThreadPerm := (computeMap (getThreadR cnt0).1 virtueThread.1,
                                  computeMap (getThreadR cnt0).2 virtueThread.2) in
            forall
@@ -361,7 +379,17 @@ Module Concur.
                       (release (b, Int.intval ofs)
                                (Some virtueLP))
      | step_create :
-         forall (tp_upd tp':thread_pool) c b ofs arg virtue1 virtue2,
+         forall (tp_upd tp':thread_pool) c b ofs arg virtue1 virtue2
+           (Hbounded: if isCoarse then
+                        ( map_leq virtue1.1 (getMaxPerm m).2 /\
+                          map_leq virtue1.2 (getMaxPerm m).2)
+                      else
+                        True )
+             (Hbounded_new: if isCoarse then
+                        ( map_leq virtue2.1 (getMaxPerm m).2 /\
+                          map_leq virtue2.2 (getMaxPerm m).2)
+                      else
+                        True ),
            let threadPerm' := (computeMap (getThreadR cnt0).1 virtue1.1,
                                computeMap (getThreadR cnt0).2 virtue1.2) in
            let newThreadPerm := (computeMap empty_map virtue2.1,
@@ -732,409 +760,409 @@ Module Concur.
 
        (** *Invariant Lemmas*)
       
-     (*
        (** ** Updating the machine state**)
-                     (*Lemma updCinvariant: forall {tid} ds c (cnt: containsThread ds tid),
-                         invariant ds ->
-                         invariant (updThreadC cnt c).
-                           intros ? ? ? ? INV; inversion INV.
-                           constructor; auto.
-                     Qed.
-                
-                Lemma updThread_inv: forall ds i (cnt: containsThread ds i) c pmap,
-                    invariant ds ->
-                    (forall j (cnt: containsThread ds j),
-                        i<>j -> permMapsDisjoint pmap.1 (getThreadR cnt).1 /\
-                              permMapsDisjoint pmap.2 (getThreadR cnt).2)->
-                    (forall l pmap0, lockRes ds l = Some pmap0 ->
-                                permMapsDisjoint pmap0.1 pmap.1 /\
-                                permMapsDisjoint pmap0.2 pmap.2) ->
-                    invariant (updThread cnt c pmap).
-                Proof.
-                  intros ds x cnt c pmap INV A B.
-                  constructor.
-                  - intros.
-                    destruct (scheduler.NatTID.eq_tid_dec x i); [|destruct (scheduler.NatTID.eq_tid_dec x j)].
-                    + subst i.
-                      rewrite gssThreadRes.
-                      rewrite gsoThreadRes; try solve[assumption].
-                      assert (cntj':=cntj).
-                      apply cntUpdate' in cntj'.
-                      eapply (A); assumption.
-                    + subst j.
-                      apply permMapsDisjoint2_comm.
-                      rewrite gssThreadRes.
-                      rewrite gsoThreadRes; try solve[assumption].
-                      apply A; assumption.
-                    + rewrite gsoThreadRes; try solve[assumption].
-                      rewrite gsoThreadRes; try solve[assumption].
-                      inversion INV. apply no_race_thr0; assumption.
-                  -  intros.
-                    rewrite gsoThreadLPool in Hres1.
-                    rewrite gsoThreadLPool in Hres2.
-                    inversion INV. eapply no_race_lr0; eauto.
-                  - intros i laddr cnti rmap.
-                    rewrite gsoThreadLPool; intros Hres.
-                    destruct (scheduler.NatTID.eq_tid_dec x i).
-                    + subst x. rewrite gssThreadRes.
-                      apply permMapsDisjoint2_comm.
-                      eapply B; eassumption.
-                    + rewrite gsoThreadRes; auto.
-                      inversion INV. eapply no_race0; eassumption.
-                  - intros i cnti.
-                    destruct (scheduler.NatTID.eq_tid_dec x i).
-                    + subst x. rewrite gssThreadRes.
-           
-                      
-                    + rewrite gsoThreadRes; auto.
-                      
-                    
-                  - intros. rewrite gsoThreadLock.
-                    destruct (scheduler.NatTID.eq_tid_dec x i).
-                    + subst x. rewrite gssThreadRes. apply B.
-                    + rewrite gsoThreadRes; try solve[assumption].
-                      inversion INV. apply lock_set_threads0.
-                  - intros. rewrite gsoThreadLPool in H.
-                    destruct (scheduler.NatTID.eq_tid_dec x i).
-                    + subst x. rewrite gssThreadRes. 
-                      apply (C _ _ H).
-                    + rewrite gsoThreadRes; try solve[assumption].
-                      inversion INV. eapply lock_res_threads; eassumption.
-                  - intros. rewrite gsoThreadLPool in H.
-                    rewrite gsoThreadLock.
-                    inversion INV. eapply lock_res_set0. eassumption.
-                  - intros.
-                    intros b ofs. rewrite gsoThreadLPool.
-                    inversion INV. eapply lockRes_valid0.
-                Qed. *)
-           
-                (*
-                Lemma updLock_inv: forall ds a pmap,
-                    invariant ds ->
-                    (forall i (cnt: containsThread ds i) ofs0,
-                        Intv.In ofs0 (snd a, ((snd a) + LKSIZE)%Z) ->
-                        permDisjoint (Some Writable) ((getThreadR cnt) !! (fst a) ofs0) ) ->
-                 (forall i (cnt : containsThread ds i),
-                     permMapsDisjoint pmap (getThreadR cnt)) ->
-                 (permMapsDisjoint (lockSet ds) pmap) ->
-                 (forall ofs0,
-                     Intv.In ofs0 (snd a, ((snd a) + LKSIZE)%Z) ->
-                     permDisjoint (Some Writable) (pmap !! (fst a) ofs0)) ->
-                 (forall l pmap0, lockRes ds l = Some pmap0 ->
-                             forall ofs0,
-                               Intv.In ofs0 (snd a, ((snd a) + LKSIZE)%Z) ->
-                             permDisjoint (Some Writable) (pmap0 !! (fst a) ofs0))->
-                 (forall ofs0,
-                     (snd a < ofs0 < (snd a) + LKSIZE)%Z -> lockRes ds (fst a, ofs0) = None) ->
-                 (forall ofs : Z,
-                     (ofs < (snd a) < ofs + LKSIZE)%Z -> lockRes ds (fst a, ofs) = None ) ->
-                 invariant (updLockSet ds a pmap).
-             Proof.
-               intros ? ? ? INV A B C D E F G. constructor.
-               - apply updLock_raceFree. inversion INV; assumption.
-               - intros. rewrite gLockSetRes.
-                 apply permDisjoint_permMapsDisjoint; intros b0 ofs0.
-                 destruct a as [b ofs].
-                 destruct (ident_eq b b0).
-                 subst b0; destruct (Intv.In_dec ofs0 (ofs, ofs + LKSIZE)%Z).
-                 + rewrite gssLockSet; auto.
-                 + rewrite gsoLockSet_1; auto.
-                   apply permMapsDisjoint_permDisjoint.
-                   inversion INV; auto.
-                   apply Intv.range_notin in n.
-                   unfold LKSIZE in n; simpl in n; simpl; assumption.
-                   unfold LKSIZE; simpl; omega.
-                 + rewrite gsoLockSet_2; auto.
-                   apply permMapsDisjoint_permDisjoint.
-                   inversion INV; auto.
-               - intros.
-                 destruct (addressFiniteMap.AMap.E.eq_dec a l).
-                 + subst.
-                   rewrite gssLockRes in H; inversion H; subst.
-                   rewrite gLockSetRes. apply B.
-                 + rewrite gsoLockRes in H; try solve[assumption].
-                   inversion INV. eapply lock_res_threads0. apply H.
-               - intros.
-                 destruct (addressFiniteMap.AMap.E.eq_dec a l); destruct a as [b ofs].
-                 + subst.
-                   rewrite gsslockResUpdLock in H; inversion H. subst pmap0.
-                   apply permDisjoint_permMapsDisjoint; intros b0 ofs0.
-                   { destruct (ident_eq b b0).
-                     subst b; destruct (Intv.In_dec ofs0 (ofs, ofs + LKSIZE)%Z).
-                     + apply permDisjoint_comm; rewrite gssLockSet; auto.
-                     + rewrite gsoLockSet_1.
-                       apply permDisjoint_comm; apply permMapsDisjoint_permDisjoint; auto.
-                       eapply Intv.range_notin in n; unfold LKSIZE in n. auto.
-                       simpl. unfold LKSIZE; simpl; omega.
-                     + rewrite gsoLockSet_2; auto.
-                       apply permDisjoint_comm; apply permMapsDisjoint_permDisjoint; auto.
-                   }
+        (*
+                        (*Lemma updCinvariant: forall {tid} ds c (cnt: containsThread ds tid),
+                            invariant ds ->
+                            invariant (updThreadC cnt c).
+                              intros ? ? ? ? INV; inversion INV.
+                              constructor; auto.
+                        Qed.
                    
-                 + rewrite gsolockResUpdLock in H; auto.
-                   apply permDisjoint_permMapsDisjoint; intros b0 ofs0.
-                   { destruct (ident_eq b b0).
-                     subst b; destruct (Intv.In_dec ofs0 (ofs, ofs + LKSIZE)%Z).
-                     + apply permDisjoint_comm; rewrite gssLockSet; auto.
-                       eapply E; eassumption.
-                     + rewrite gsoLockSet_1.
-                       apply permMapsDisjoint_permDisjoint; auto.
-                       inversion INV. eapply lock_res_set0. eassumption. 
-                       eapply Intv.range_notin in n0; unfold LKSIZE in n0; auto.
-                       simpl. unfold LKSIZE; simpl; omega.
-                     + rewrite gsoLockSet_2; auto.
-                       apply permMapsDisjoint_permDisjoint; auto.
-                       inversion INV. eapply lock_res_set0. eassumption. 
-                   }
-               - intros b ofs.
-                 destruct (AMap.E.eq_dec a (b,ofs)).
-                 + subst a. rewrite gsslockResUpdLock.
-                   intros ofs0 HH. rewrite gsolockResUpdLock.
-                   apply F0 || apply F; auto.
-                   intros AA. inversion AA. rewrite H0 in HH.
-                   destruct HH as [H1 H2]; clear - H1.
-                   omega.
-                 + rewrite gsolockResUpdLock; auto.
-                   inversion INV. clear - lockRes_valid0 n G.
-                   specialize (lockRes_valid0 b ofs).
-                   destruct (lockRes ds (b, ofs)) eqn:MAP; auto.
-                   intros ofs0 ineq.
-                   destruct (AMap.E.eq_dec a (b,ofs0)).
-                   * subst a. apply G0 in ineq || apply G in ineq.
-                         rewrite ineq in MAP; inversion MAP.
-                   * rewrite gsolockResUpdLock; auto.
-             Qed.
-        
-             (*This probaly needs more hypothesis. 
-              *  *)
-             Lemma remLock_inv: forall ds a,
-                 invariant ds ->
-                 invariant (remLockSet ds a).
-             Proof.
-               intros ? ? INV.
-               constructor.
-               - apply remLock_raceFree. inversion INV; assumption.
-               - intros.
-                 apply permDisjoint_permMapsDisjoint.
-                 intros b ofs.
-                 (*
-                 destruct a as [a1 a2].
-                 destruct (ident_eq a1 b).
-                 (*destruct (addressFiniteMap.AMap.E.eq_dec a (b, ofs)).*)
-                 + subst. rewrite gsslockSet_rem.
-                   exists  ((getThreadR cnt) !! b ofs); reflexivity.
-                 + destruct a; rewrite (gsolockSet_rem _ ); try assumption.
-                   inversion INV. apply lock_set_threads0.
-               - intros.
-                 destruct (addressFiniteMap.AMap.E.eq_dec a l).
-                 + subst a. rewrite gsslockResRemLock in H; inversion H.
-                 + rewrite gsolockResRemLock in H. inversion INV.
-                   eapply lock_res_threads0.
-                   eassumption. exact n.
-               - intros.
-                 destruct (addressFiniteMap.AMap.E.eq_dec a l).
-                 + subst a. rewrite gsslockResRemLock in H; inversion H.
-                 + rewrite gsolockResRemLock in H.
-                   2: exact n.
-                   inversion INV.
-                   unfold permMapsDisjoint. intros b ofs.
-                   destruct (addressFiniteMap.AMap.E.eq_dec a (b, ofs)).
-                   * subst a; rewrite gsslockSet_rem;
-                     exists (pmap !! b ofs).
-                     apply perm_union_comm; reflexivity.
-                   * destruct a; rewrite gsolockSet_rem.
-                     eapply lock_res_set0. eassumption.
-                     assumption.*)
-             Admitted.
-        
-             Lemma addThrd_inv: forall ds vf arg new_perm,
-                 invariant ds ->
-                 (forall i (Hi: containsThread ds i), permMapsDisjoint (getThreadR Hi) new_perm) ->
-                 (permMapsDisjoint (lockSet ds) new_perm) ->
-                 (forall l lmap,
-                     lockRes ds l = Some lmap -> permMapsDisjoint lmap new_perm) ->
-                 invariant (addThread ds vf arg new_perm).
-             Proof.
-               intros ? ? ? ? dinv AA BB CC.
-               constructor.
-               - intros i j cnti cntj ineq.
-                 assert (cnti':=cnti); assert (cntj':=cntj).
-                 eapply cntAdd' in cnti'.
-                 eapply cntAdd' in cntj'.
-                 destruct cnti' as [[cnti0 difi]| eqi]; destruct cntj' as [[cntj0 difj]| eqj].
-                 + erewrite gsoAddRes with (cntj1:= cnti0); try eassumption.
-                   erewrite gsoAddRes with (cntj1:= cntj0); try eassumption.
-                   apply no_race; assumption. 
-                 + subst j. erewrite gsoAddRes with (cntj0:= cnti0); try eassumption.
-                  erewrite gssAddRes. apply AA.
-                  reflexivity.
-                + subst i. erewrite gsoAddRes with (cntj1:= cntj0); try eassumption.
-                  erewrite gssAddRes.
-                  apply permMapsDisjoint_comm; apply AA.
-                  reflexivity.
-                + subst. contradict ineq; reflexivity.
-              - intros.
-                assert (cnt':=cnt).
-                eapply cntAdd' in cnt'.
-                destruct cnt' as [[cnt0 dif]| eq].
-                + erewrite gsoAddRes with (cntj:= cnt0); try eassumption.
-                  rewrite gsoAddLock.
-                  apply lock_set_threads; assumption.
-                + erewrite gssAddRes; try eassumption.
-              - intros.
-                assert (cnt':=cnt).
-                eapply cntAdd' in cnt'.
-                destruct cnt' as [[cnt0 dif]| eq].
-                + erewrite gsoAddRes with (cntj:= cnt0); try eassumption.
-                  inversion dinv. eapply lock_res_threads; eassumption.
-                + erewrite gssAddRes; try eassumption.
-                  eapply CC; eassumption.
-              - intros. rewrite gsoAddLock.
-                inversion dinv. eapply lock_res_set; eassumption.
-              - intros b ofs; rewrite gsoAddLPool.
-                inversion dinv. apply lockRes_valid0.
-             ed.
+                   Lemma updThread_inv: forall ds i (cnt: containsThread ds i) c pmap,
+                       invariant ds ->
+                       (forall j (cnt: containsThread ds j),
+                           i<>j -> permMapsDisjoint pmap.1 (getThreadR cnt).1 /\
+                                 permMapsDisjoint pmap.2 (getThreadR cnt).2)->
+                       (forall l pmap0, lockRes ds l = Some pmap0 ->
+                                   permMapsDisjoint pmap0.1 pmap.1 /\
+                                   permMapsDisjoint pmap0.2 pmap.2) ->
+                       invariant (updThread cnt c pmap).
+                   Proof.
+                     intros ds x cnt c pmap INV A B.
+                     constructor.
+                     - intros.
+                       destruct (scheduler.NatTID.eq_tid_dec x i); [|destruct (scheduler.NatTID.eq_tid_dec x j)].
+                       + subst i.
+                         rewrite gssThreadRes.
+                         rewrite gsoThreadRes; try solve[assumption].
+                         assert (cntj':=cntj).
+                         apply cntUpdate' in cntj'.
+                         eapply (A); assumption.
+                       + subst j.
+                         apply permMapsDisjoint2_comm.
+                         rewrite gssThreadRes.
+                         rewrite gsoThreadRes; try solve[assumption].
+                         apply A; assumption.
+                       + rewrite gsoThreadRes; try solve[assumption].
+                         rewrite gsoThreadRes; try solve[assumption].
+                         inversion INV. apply no_race_thr0; assumption.
+                     -  intros.
+                       rewrite gsoThreadLPool in Hres1.
+                       rewrite gsoThreadLPool in Hres2.
+                       inversion INV. eapply no_race_lr0; eauto.
+                     - intros i laddr cnti rmap.
+                       rewrite gsoThreadLPool; intros Hres.
+                       destruct (scheduler.NatTID.eq_tid_dec x i).
+                       + subst x. rewrite gssThreadRes.
+                         apply permMapsDisjoint2_comm.
+                         eapply B; eassumption.
+                       + rewrite gsoThreadRes; auto.
+                         inversion INV. eapply no_race0; eassumption.
+                     - intros i cnti.
+                       destruct (scheduler.NatTID.eq_tid_dec x i).
+                       + subst x. rewrite gssThreadRes.
+              
+                         
+                       + rewrite gsoThreadRes; auto.
+                         
+                       
+                     - intros. rewrite gsoThreadLock.
+                       destruct (scheduler.NatTID.eq_tid_dec x i).
+                       + subst x. rewrite gssThreadRes. apply B.
+                       + rewrite gsoThreadRes; try solve[assumption].
+                         inversion INV. apply lock_set_threads0.
+                     - intros. rewrite gsoThreadLPool in H.
+                       destruct (scheduler.NatTID.eq_tid_dec x i).
+                       + subst x. rewrite gssThreadRes. 
+                         apply (C _ _ H).
+                       + rewrite gsoThreadRes; try solve[assumption].
+                         inversion INV. eapply lock_res_threads; eassumption.
+                     - intros. rewrite gsoThreadLPool in H.
+                       rewrite gsoThreadLock.
+                       inversion INV. eapply lock_res_set0. eassumption.
+                     - intros.
+                       intros b ofs. rewrite gsoThreadLPool.
+                       inversion INV. eapply lockRes_valid0.
+                   Qed. *)
+              
+                   (*
+                   Lemma updLock_inv: forall ds a pmap,
+                       invariant ds ->
+                       (forall i (cnt: containsThread ds i) ofs0,
+                           Intv.In ofs0 (snd a, ((snd a) + LKSIZE)%Z) ->
+                           permDisjoint (Some Writable) ((getThreadR cnt) !! (fst a) ofs0) ) ->
+                    (forall i (cnt : containsThread ds i),
+                        permMapsDisjoint pmap (getThreadR cnt)) ->
+                    (permMapsDisjoint (lockSet ds) pmap) ->
+                    (forall ofs0,
+                        Intv.In ofs0 (snd a, ((snd a) + LKSIZE)%Z) ->
+                        permDisjoint (Some Writable) (pmap !! (fst a) ofs0)) ->
+                    (forall l pmap0, lockRes ds l = Some pmap0 ->
+                                forall ofs0,
+                                  Intv.In ofs0 (snd a, ((snd a) + LKSIZE)%Z) ->
+                                permDisjoint (Some Writable) (pmap0 !! (fst a) ofs0))->
+                    (forall ofs0,
+                        (snd a < ofs0 < (snd a) + LKSIZE)%Z -> lockRes ds (fst a, ofs0) = None) ->
+                    (forall ofs : Z,
+                        (ofs < (snd a) < ofs + LKSIZE)%Z -> lockRes ds (fst a, ofs) = None ) ->
+                    invariant (updLockSet ds a pmap).
+                Proof.
+                  intros ? ? ? INV A B C D E F G. constructor.
+                  - apply updLock_raceFree. inversion INV; assumption.
+                  - intros. rewrite gLockSetRes.
+                    apply permDisjoint_permMapsDisjoint; intros b0 ofs0.
+                    destruct a as [b ofs].
+                    destruct (ident_eq b b0).
+                    subst b0; destruct (Intv.In_dec ofs0 (ofs, ofs + LKSIZE)%Z).
+                    + rewrite gssLockSet; auto.
+                    + rewrite gsoLockSet_1; auto.
+                      apply permMapsDisjoint_permDisjoint.
+                      inversion INV; auto.
+                      apply Intv.range_notin in n.
+                      unfold LKSIZE in n; simpl in n; simpl; assumption.
+                      unfold LKSIZE; simpl; omega.
+                    + rewrite gsoLockSet_2; auto.
+                      apply permMapsDisjoint_permDisjoint.
+                      inversion INV; auto.
+                  - intros.
+                    destruct (addressFiniteMap.AMap.E.eq_dec a l).
+                    + subst.
+                      rewrite gssLockRes in H; inversion H; subst.
+                      rewrite gLockSetRes. apply B.
+                    + rewrite gsoLockRes in H; try solve[assumption].
+                      inversion INV. eapply lock_res_threads0. apply H.
+                  - intros.
+                    destruct (addressFiniteMap.AMap.E.eq_dec a l); destruct a as [b ofs].
+                    + subst.
+                      rewrite gsslockResUpdLock in H; inversion H. subst pmap0.
+                      apply permDisjoint_permMapsDisjoint; intros b0 ofs0.
+                      { destruct (ident_eq b b0).
+                        subst b; destruct (Intv.In_dec ofs0 (ofs, ofs + LKSIZE)%Z).
+                        + apply permDisjoint_comm; rewrite gssLockSet; auto.
+                        + rewrite gsoLockSet_1.
+                          apply permDisjoint_comm; apply permMapsDisjoint_permDisjoint; auto.
+                          eapply Intv.range_notin in n; unfold LKSIZE in n. auto.
+                          simpl. unfold LKSIZE; simpl; omega.
+                        + rewrite gsoLockSet_2; auto.
+                          apply permDisjoint_comm; apply permMapsDisjoint_permDisjoint; auto.
+                      }
+                      
+                    + rewrite gsolockResUpdLock in H; auto.
+                      apply permDisjoint_permMapsDisjoint; intros b0 ofs0.
+                      { destruct (ident_eq b b0).
+                        subst b; destruct (Intv.In_dec ofs0 (ofs, ofs + LKSIZE)%Z).
+                        + apply permDisjoint_comm; rewrite gssLockSet; auto.
+                          eapply E; eassumption.
+                        + rewrite gsoLockSet_1.
+                          apply permMapsDisjoint_permDisjoint; auto.
+                          inversion INV. eapply lock_res_set0. eassumption. 
+                          eapply Intv.range_notin in n0; unfold LKSIZE in n0; auto.
+                          simpl. unfold LKSIZE; simpl; omega.
+                        + rewrite gsoLockSet_2; auto.
+                          apply permMapsDisjoint_permDisjoint; auto.
+                          inversion INV. eapply lock_res_set0. eassumption. 
+                      }
+                  - intros b ofs.
+                    destruct (AMap.E.eq_dec a (b,ofs)).
+                    + subst a. rewrite gsslockResUpdLock.
+                      intros ofs0 HH. rewrite gsolockResUpdLock.
+                      apply F0 || apply F; auto.
+                      intros AA. inversion AA. rewrite H0 in HH.
+                      destruct HH as [H1 H2]; clear - H1.
+                      omega.
+                    + rewrite gsolockResUpdLock; auto.
+                      inversion INV. clear - lockRes_valid0 n G.
+                      specialize (lockRes_valid0 b ofs).
+                      destruct (lockRes ds (b, ofs)) eqn:MAP; auto.
+                      intros ofs0 ineq.
+                      destruct (AMap.E.eq_dec a (b,ofs0)).
+                      * subst a. apply G0 in ineq || apply G in ineq.
+                            rewrite ineq in MAP; inversion MAP.
+                      * rewrite gsolockResUpdLock; auto.
+                Qed.
+           
+                (*This probaly needs more hypothesis. 
+                 *  *)
+                Lemma remLock_inv: forall ds a,
+                    invariant ds ->
+                    invariant (remLockSet ds a).
+                Proof.
+                  intros ? ? INV.
+                  constructor.
+                  - apply remLock_raceFree. inversion INV; assumption.
+                  - intros.
+                    apply permDisjoint_permMapsDisjoint.
+                    intros b ofs.
+                    (*
+                    destruct a as [a1 a2].
+                    destruct (ident_eq a1 b).
+                    (*destruct (addressFiniteMap.AMap.E.eq_dec a (b, ofs)).*)
+                    + subst. rewrite gsslockSet_rem.
+                      exists  ((getThreadR cnt) !! b ofs); reflexivity.
+                    + destruct a; rewrite (gsolockSet_rem _ ); try assumption.
+                      inversion INV. apply lock_set_threads0.
+                  - intros.
+                    destruct (addressFiniteMap.AMap.E.eq_dec a l).
+                    + subst a. rewrite gsslockResRemLock in H; inversion H.
+                    + rewrite gsolockResRemLock in H. inversion INV.
+                      eapply lock_res_threads0.
+                      eassumption. exact n.
+                  - intros.
+                    destruct (addressFiniteMap.AMap.E.eq_dec a l).
+                    + subst a. rewrite gsslockResRemLock in H; inversion H.
+                    + rewrite gsolockResRemLock in H.
+                      2: exact n.
+                      inversion INV.
+                      unfold permMapsDisjoint. intros b ofs.
+                      destruct (addressFiniteMap.AMap.E.eq_dec a (b, ofs)).
+                      * subst a; rewrite gsslockSet_rem;
+                        exists (pmap !! b ofs).
+                        apply perm_union_comm; reflexivity.
+                      * destruct a; rewrite gsolockSet_rem.
+                        eapply lock_res_set0. eassumption.
+                        assumption.*)
+                Admitted.
+           
+                Lemma addThrd_inv: forall ds vf arg new_perm,
+                    invariant ds ->
+                    (forall i (Hi: containsThread ds i), permMapsDisjoint (getThreadR Hi) new_perm) ->
+                    (permMapsDisjoint (lockSet ds) new_perm) ->
+                    (forall l lmap,
+                        lockRes ds l = Some lmap -> permMapsDisjoint lmap new_perm) ->
+                    invariant (addThread ds vf arg new_perm).
+                Proof.
+                  intros ? ? ? ? dinv AA BB CC.
+                  constructor.
+                  - intros i j cnti cntj ineq.
+                    assert (cnti':=cnti); assert (cntj':=cntj).
+                    eapply cntAdd' in cnti'.
+                    eapply cntAdd' in cntj'.
+                    destruct cnti' as [[cnti0 difi]| eqi]; destruct cntj' as [[cntj0 difj]| eqj].
+                    + erewrite gsoAddRes with (cntj1:= cnti0); try eassumption.
+                      erewrite gsoAddRes with (cntj1:= cntj0); try eassumption.
+                      apply no_race; assumption. 
+                    + subst j. erewrite gsoAddRes with (cntj0:= cnti0); try eassumption.
+                     erewrite gssAddRes. apply AA.
+                     reflexivity.
+                   + subst i. erewrite gsoAddRes with (cntj1:= cntj0); try eassumption.
+                     erewrite gssAddRes.
+                     apply permMapsDisjoint_comm; apply AA.
+                     reflexivity.
+                   + subst. contradict ineq; reflexivity.
+                 - intros.
+                   assert (cnt':=cnt).
+                   eapply cntAdd' in cnt'.
+                   destruct cnt' as [[cnt0 dif]| eq].
+                   + erewrite gsoAddRes with (cntj:= cnt0); try eassumption.
+                     rewrite gsoAddLock.
+                     apply lock_set_threads; assumption.
+                   + erewrite gssAddRes; try eassumption.
+                 - intros.
+                   assert (cnt':=cnt).
+                   eapply cntAdd' in cnt'.
+                   destruct cnt' as [[cnt0 dif]| eq].
+                   + erewrite gsoAddRes with (cntj:= cnt0); try eassumption.
+                     inversion dinv. eapply lock_res_threads; eassumption.
+                   + erewrite gssAddRes; try eassumption.
+                     eapply CC; eassumption.
+                 - intros. rewrite gsoAddLock.
+                   inversion dinv. eapply lock_res_set; eassumption.
+                 - intros b ofs; rewrite gsoAddLPool.
+                   inversion dinv. apply lockRes_valid0.
+                ed.
+                
+                ** *Invariant after corestep*)
+                emma decay_disjoint:
+                rall m m' p
+                (Hdecay: decay m m')
+                (Hlt: permMapLt p (getMaxPerm m))
+                (Hdisjoint: permMapsDisjoint (getCurPerm m) p),
+                permMapsDisjoint (getCurPerm m') p.
+             Pr f.
+                tros.
+                fold permMapsDisjoint in *.
+                tros.
+                struct (Hdecay b ofs) as [_ Hold].
+                ear Hdecay.
+                ecialize (Hdisjoint b ofs).
+                struct (valid_block_dec m b) as [Hvalid | Hinvalid].
+                destruct (Hold Hvalid) as [Hfree | Heq].
+                + destruct (Hfree Cur) as [_ Hm']. rewrite getCurPerm_correct.
+                  assert (not_racy (permission_at m' b ofs Cur))
+                    by (unfold permission_at; rewrite Hm'; constructor).
+                    by eapply not_racy_union.
+                + rewrite getCurPerm_correct. unfold permission_at.
+                  rewrite <- Heq. rewrite getCurPerm_correct in Hdisjoint.
+                  unfold permission_at in Hdisjoint. assumption.
+                assert (Hnone: (p !! b ofs) = None).
+                { apply Mem.nextblock_noaccess with (ofs := ofs) (k := Max) in Hinvalid.
+                  unfold permMapLt in Hlt.
+                  specialize (Hlt b ofs).
+                  rewrite getMaxPerm_correct in Hlt.
+               unfold permission_at in Hlt.
+               rewrite Hinvalid in Hlt. simpl in Hlt.
+               destruct (p !! b ofs); tauto.
+             }
+             rewrite Hnone.
+             rewrite perm_union_comm.
+             eapply not_racy_union;
+               by constructor.
+          Qed. 
              
-             ** *Invariant after corestep*)
-             emma decay_disjoint:
-             rall m m' p
-             (Hdecay: decay m m')
-             (Hlt: permMapLt p (getMaxPerm m))
-             (Hdisjoint: permMapsDisjoint (getCurPerm m) p),
-             permMapsDisjoint (getCurPerm m') p.
-          Pr f.
+             paque getThreadR.
+      (*making this lemma again*)
+          Lemma step_decay_invariant:
+             rall (tp : thread_pool) (m : mem) (i : nat)
+             (pf : containsThread tp i) c m1 m1' c'
+             (Hinv: invariant tp)
+             (Hcompatible: mem_compatible tp m)
+             (Hrestrict_pmap :restrPermMap (Hcompatible i pf) = m1)
+             (Hdecay: decay m1 m1')
+             (Hcode: getThreadC pf = Krun c),
+             invariant (updThread pf (Krun c') (getCurPerm m1')).
+          Proof.
              tros.
-             fold permMapsDisjoint in *.
-             tros.
-             struct (Hdecay b ofs) as [_ Hold].
-             ear Hdecay.
-             ecialize (Hdisjoint b ofs).
-             struct (valid_block_dec m b) as [Hvalid | Hinvalid].
-             destruct (Hold Hvalid) as [Hfree | Heq].
-             + destruct (Hfree Cur) as [_ Hm']. rewrite getCurPerm_correct.
-               assert (not_racy (permission_at m' b ofs Cur))
-                 by (unfold permission_at; rewrite Hm'; constructor).
-                 by eapply not_racy_union.
-             + rewrite getCurPerm_correct. unfold permission_at.
-               rewrite <- Heq. rewrite getCurPerm_correct in Hdisjoint.
-               unfold permission_at in Hdisjoint. assumption.
-             assert (Hnone: (p !! b ofs) = None).
-             { apply Mem.nextblock_noaccess with (ofs := ofs) (k := Max) in Hinvalid.
-               unfold permMapLt in Hlt.
-               specialize (Hlt b ofs).
-               rewrite getMaxPerm_correct in Hlt.
-            unfold permission_at in Hlt.
-            rewrite Hinvalid in Hlt. simpl in Hlt.
-            destruct (p !! b ofs); tauto.
-          }
-          rewrite Hnone.
-          rewrite perm_union_comm.
-          eapply not_racy_union;
-            by constructor.
-       Qed. 
-          
-          paque getThreadR.
-   (*making this lemma again*)
-       Lemma step_decay_invariant:
-          rall (tp : thread_pool) (m : mem) (i : nat)
-          (pf : containsThread tp i) c m1 m1' c'
-          (Hinv: invariant tp)
-          (Hcompatible: mem_compatible tp m)
-          (Hrestrict_pmap :restrPermMap (Hcompatible i pf) = m1)
-          (Hdecay: decay m1 m1')
-          (Hcode: getThreadC pf = Krun c),
-          invariant (updThread pf (Krun c') (getCurPerm m1')).
-       Proof.
-          tros.
-          struct Hinv as [Hrace Hlp].
-          nstructor.
-          (* non-interference in threads *)
-          unfold race_free in *.
-          intros j k.
-          destruct (i == j) eqn:Heqj, (i == k) eqn:Heqk; move/eqP:Heqj=>Heqj;
-            move/eqP:Heqk=>Heqk; simpl in *; intros cntj' cntk' Hneq;
-                          assert (cntk: containsThread tp k)
-                            by (eapply cntUpdate'; eauto);
-                          assert (cntj: containsThread tp j)
-                            by (eapply cntUpdate'; eauto).
-          - subst j k; exfalso; auto.
-          - subst j.
-            erewrite gssThreadRes.
-            erewrite @gsoThreadRes with (cntj := cntk); eauto.
-            specialize (Hrace _ _ pf cntk Hneq).
-            assert (Hlt := compat_th Hcompatible cntk).
-            subst m1.
-            eapply decay_disjoint; eauto.
-            unfold permMapLt in *.
-            intros b ofs.
-            rewrite getMaxPerm_correct;
-              by rewrite restrPermMap_Max.
-            intros b ofs.
-            rewrite getCurPerm_correct;
-              by rewrite restrPermMap_Cur.
-          - subst k.
-            erewrite @gsoThreadRes with (cntj := cntj); auto.
-            erewrite gssThreadRes.
-            specialize (Hrace _ _ pf cntj Heqj).
-            assert (Hlt := compat_th Hcompatible cntj).
-            subst m1.
-            eapply permMapsDisjoint_comm.
-            eapply decay_disjoint; eauto.
-            unfold permMapLt in *.
-            intros b ofs.
-            rewrite getMaxPerm_correct;
-              by rewrite restrPermMap_Max.
-            intros b ofs.
-            rewrite getCurPerm_correct;
-              by rewrite restrPermMap_Cur.
-          - erewrite @gsoThreadRes with (cntj := cntj); auto.
-            erewrite @gsoThreadRes with (cntj := cntk); auto.
-          
-          (* non-interference with lockpool*)
-          intros j cntj.
-          rewrite gsoThreadLock.
-          destruct (i == j) eqn:Hij; move/eqP:Hij=>Hik; subst.
-          - erewrite gssThreadRes. apply permMapsDisjoint_comm.
-            assert (Hlt := compat_ls Hcompatible).
-            eapply decay_disjoint; eauto.
-            intros b ofs.
-            rewrite getMaxPerm_correct;
-              by rewrite restrPermMap_Max.
-            intros b ofs. rewrite perm_union_comm.
-            rewrite getCurPerm_correct.
-            rewrite restrPermMap_Cur.
-              by eapply Hlp.
-          - erewrite @gsoThreadRes with (cntj := cntUpdate' cntj);
-              by eauto.
-          
-          intros l pmap j cntj Hres.
-          rewrite gsoThreadLPool in Hres.
-          destruct (i == j) eqn:Hij; move/eqP:Hij=>Hik; subst.
-          - erewrite gssThreadRes. apply permMapsDisjoint_comm.
-            assert (Hlt := compat_lp Hcompatible _ Hres).
-            eapply decay_disjoint; eauto.
-            intros b ofs.
-            rewrite getMaxPerm_correct;
-              by rewrite restrPermMap_Max.
-            intros b ofs. rewrite perm_union_comm.
-            rewrite getCurPerm_correct.
-            rewrite restrPermMap_Cur;
-              by (eapply lock_res_threads0; eauto).
-          - erewrite @gsoThreadRes with (cntj := cntUpdate' cntj);
-              by eauto.
-          
-          intros l pmap Hres.
-          rewrite gsoThreadLock.
-          rewrite gsoThreadLPool in Hres;
-            by eauto.
-          
-          clear - lockRes_valid0.
-          intros b ofs. rewrite gsoThreadLPool.
-          specialize (lockRes_valid0 b ofs).
-          destruct (lockRes tp (b, ofs)); try constructor.
-          intros ofs0 ineq.
-          rewrite gsoThreadLPool; auto.
-          }
-       Qed.  *)
+             struct Hinv as [Hrace Hlp].
+             nstructor.
+             (* non-interference in threads *)
+             unfold race_free in *.
+             intros j k.
+             destruct (i == j) eqn:Heqj, (i == k) eqn:Heqk; move/eqP:Heqj=>Heqj;
+               move/eqP:Heqk=>Heqk; simpl in *; intros cntj' cntk' Hneq;
+                             assert (cntk: containsThread tp k)
+                               by (eapply cntUpdate'; eauto);
+                             assert (cntj: containsThread tp j)
+                               by (eapply cntUpdate'; eauto).
+             - subst j k; exfalso; auto.
+             - subst j.
+               erewrite gssThreadRes.
+               erewrite @gsoThreadRes with (cntj := cntk); eauto.
+               specialize (Hrace _ _ pf cntk Hneq).
+               assert (Hlt := compat_th Hcompatible cntk).
+               subst m1.
+               eapply decay_disjoint; eauto.
+               unfold permMapLt in *.
+               intros b ofs.
+               rewrite getMaxPerm_correct;
+                 by rewrite restrPermMap_Max.
+               intros b ofs.
+               rewrite getCurPerm_correct;
+                 by rewrite restrPermMap_Cur.
+             - subst k.
+               erewrite @gsoThreadRes with (cntj := cntj); auto.
+               erewrite gssThreadRes.
+               specialize (Hrace _ _ pf cntj Heqj).
+               assert (Hlt := compat_th Hcompatible cntj).
+               subst m1.
+               eapply permMapsDisjoint_comm.
+               eapply decay_disjoint; eauto.
+               unfold permMapLt in *.
+               intros b ofs.
+               rewrite getMaxPerm_correct;
+                 by rewrite restrPermMap_Max.
+               intros b ofs.
+               rewrite getCurPerm_correct;
+                 by rewrite restrPermMap_Cur.
+             - erewrite @gsoThreadRes with (cntj := cntj); auto.
+               erewrite @gsoThreadRes with (cntj := cntk); auto.
+             
+             (* non-interference with lockpool*)
+             intros j cntj.
+             rewrite gsoThreadLock.
+             destruct (i == j) eqn:Hij; move/eqP:Hij=>Hik; subst.
+             - erewrite gssThreadRes. apply permMapsDisjoint_comm.
+               assert (Hlt := compat_ls Hcompatible).
+               eapply decay_disjoint; eauto.
+               intros b ofs.
+               rewrite getMaxPerm_correct;
+                 by rewrite restrPermMap_Max.
+               intros b ofs. rewrite perm_union_comm.
+               rewrite getCurPerm_correct.
+               rewrite restrPermMap_Cur.
+                 by eapply Hlp.
+             - erewrite @gsoThreadRes with (cntj := cntUpdate' cntj);
+                 by eauto.
+             
+             intros l pmap j cntj Hres.
+             rewrite gsoThreadLPool in Hres.
+             destruct (i == j) eqn:Hij; move/eqP:Hij=>Hik; subst.
+             - erewrite gssThreadRes. apply permMapsDisjoint_comm.
+               assert (Hlt := compat_lp Hcompatible _ Hres).
+               eapply decay_disjoint; eauto.
+               intros b ofs.
+               rewrite getMaxPerm_correct;
+                 by rewrite restrPermMap_Max.
+               intros b ofs. rewrite perm_union_comm.
+               rewrite getCurPerm_correct.
+               rewrite restrPermMap_Cur;
+                 by (eapply lock_res_threads0; eauto).
+             - erewrite @gsoThreadRes with (cntj := cntUpdate' cntj);
+                 by eauto.
+             
+             intros l pmap Hres.
+             rewrite gsoThreadLock.
+             rewrite gsoThreadLPool in Hres;
+               by eauto.
+             
+             clear - lockRes_valid0.
+             intros b ofs. rewrite gsoThreadLPool.
+             specialize (lockRes_valid0 b ofs).
+             destruct (lockRes tp (b, ofs)); try constructor.
+             intros ofs0 ineq.
+             rewrite gsoThreadLPool; auto.
+             }
+          Qed.  *)
      End DryMachineLemmas.
 
 

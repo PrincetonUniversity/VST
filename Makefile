@@ -127,6 +127,7 @@ CONCUR_FILES= \
   fineConc_safe.v inj_lemmas.v join_sm.v juicy_machine.v \
   lksize.v \
   main.v mem_obs_eq.v memory_lemmas.v permissions.v permjoin_def.v pos.v pred_lemmas.v \
+  bounded_maps.v \
   rc_semantics.v rc_semantics_lemmas.v \
   scheduler.v TheSchedule.v sepcomp.v seq_lemmas.v ssromega.v stack.v \
   threads_lemmas.v wf_lemmas.v \

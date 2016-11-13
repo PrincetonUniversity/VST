@@ -1529,97 +1529,102 @@ Module Parching <: ErasureSig.
         rewrite His_unlocked in mtch_locks.
         destruct (DTP.lockRes ds (b, Int.intval ofs));
           try solve[inversion mtch_locks]. exists l; reflexivity. }
-           destruct H as [l dlockRes].
-           assert (Hlt'':  permMapLt (setPermBlock (Some Writable) b (Int.intval ofs)
-                                                     (DryMachine.ThreadPool.getThreadR
-                                                        (MTCH_cnt MATCH Hi)).2 LKSIZE_nat)
-                                     (getMaxPerm m)).
-           { intros b0 ofs0.
-             move: (Hlt' b0 ofs0).
-             (*Do the cases *)
-             destruct (peq b b0);
-               [subst b0;
-                 destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + lksize.LKSIZE)%Z ) | ].
-             - do 2 (rewrite setPermBlock_same; auto).
-             - apply Intv.range_notin in n; [|simpl; unfold LKSIZE; omega].
-               do 2 (rewrite setPermBlock_other_1; auto).
-               
-               destruct Hcmpt as [jall Hcmpt];
-               inversion Hcmpt; inversion all_cohere.
-               rewrite -JSEM.juic2Perm_locks_correct.
-               rewrite -(MTCH_perm2 _ MATCH); auto.
-               apply JMS.mem_access_coh_sub with (phi1:=jall).
-               assumption.
-               eapply JMS.compatible_threadRes_sub; eauto.
-             - do 2 (rewrite setPermBlock_other_2; auto).
-               destruct Hcmpt as [jall Hcmpt];
-               inversion Hcmpt; inversion all_cohere.
-               rewrite -JSEM.juic2Perm_locks_correct.
-               rewrite -(MTCH_perm2 _ MATCH); auto.
-               apply JMS.mem_access_coh_sub with (phi1:=jall).
-               assumption.
-               eapply JMS.compatible_threadRes_sub; eauto.
-           }
-           
-           econstructor 1.
-           
-           12: reflexivity.
-           12: now unfold ds'', ds'; repeat f_equal; apply proof_irr.
-           5: eassumption.
-           7: eassumption.
-           + assumption.
-           + eapply MTCH_getThreadC; eassumption.
-           + eassumption.
-        (*   + move Hload at bottom.
+      destruct H as [l dlockRes].
+      assert (Hlt'':  permMapLt (setPermBlock (Some Writable) b (Int.intval ofs)
+                                              (DryMachine.ThreadPool.getThreadR
+                                                 (MTCH_cnt MATCH Hi)).2 LKSIZE_nat)
+                                (getMaxPerm m)).
+      { intros b0 ofs0.
+        move: (Hlt' b0 ofs0).
+        (*Do the cases *)
+        destruct (peq b b0);
+          [subst b0;
+            destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + lksize.LKSIZE)%Z ) | ].
+        - do 2 (rewrite setPermBlock_same; auto).
+        - apply Intv.range_notin in n; [|simpl; unfold LKSIZE; omega].
+          do 2 (rewrite setPermBlock_other_1; auto).
+          
+          destruct Hcmpt as [jall Hcmpt];
+            inversion Hcmpt; inversion all_cohere.
+          rewrite -JSEM.juic2Perm_locks_correct.
+          rewrite -(MTCH_perm2 _ MATCH); auto.
+          apply JMS.mem_access_coh_sub with (phi1:=jall).
+          assumption.
+          eapply JMS.compatible_threadRes_sub; eauto.
+        - do 2 (rewrite setPermBlock_other_2; auto).
+          destruct Hcmpt as [jall Hcmpt];
+            inversion Hcmpt; inversion all_cohere.
+          rewrite -JSEM.juic2Perm_locks_correct.
+          rewrite -(MTCH_perm2 _ MATCH); auto.
+          apply JMS.mem_access_coh_sub with (phi1:=jall).
+          assumption.
+          eapply JMS.compatible_threadRes_sub; eauto.
+      }
+
+      
+      econstructor 1.
+      
+      13: reflexivity.
+      13: now unfold ds'', ds'; repeat f_equal; apply proof_irr.
+      6: eassumption.
+      8: eassumption.
+      + (*boundedness*)
+        split; unfold virtue1.
+        * admit.
+        * admit.
+      + assumption.
+      + eapply MTCH_getThreadC; eassumption.
+      + eassumption.
+      (*   + move Hload at bottom.
              rewrite -Hload; f_equal.
              eapply restrPermMap_ext.*)
-             
-           (*   + eapply MTCH_compat; eassumption.*)
-           + unfold JSEM.juicyRestrict_locks.
-             apply restrPermMap_ext;
-             intros b0.
-             inversion MATCH; subst.
-             extensionality ofs0.
-             rewrite <- JSEM.juic2Perm_locks_correct.
-             symmetry. apply mtch_perm2.
-             apply THE_JUICY_MACHINE.JSEM.mem_compat_thread_max_cohere.
-             assumption.
-           + reflexivity.
-           + instantiate (1:= Hlt'').
-             apply restrPermMap_ext.
-             intros b0. 
-             extensionality ofs0.
-             destruct (ident_eq b b0); [
-                 destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + lksize.LKSIZE)%Z) |].
-             * unfold Intv.In in i0.
-               subst. repeat (rewrite setPermBlock_same; auto).
-             * subst. apply Intv.range_notin in n; auto.
-               repeat (rewrite setPermBlock_other_1; auto).
-               rewrite -JSEM.juic2Perm_locks_correct.
-               inversion MATCH. symmetry. eapply mtch_perm2.
-               eapply JSEM.mem_compat_thread_max_cohere; auto.
-               simpl; unfold LKSIZE; xomega.
-             * repeat (rewrite setPermBlock_other_2; auto).
-               rewrite -JSEM.juic2Perm_locks_correct.
-               inversion MATCH. symmetry. eapply mtch_perm2.
-               eapply JSEM.mem_compat_thread_max_cohere; auto.
-           + exact dlockRes.
-           + simpl; intros b0 ofs0. inversion MATCH; subst.
-             specialize (mtch_locksRes _ _ _ His_unlocked dlockRes).
-             rewrite <- mtch_locksRes.
-             rewrite <- mtch_perm1 with (Htid:=Hi).
-             replace (MTCH_cnt MATCH Hi) with Htid' by eapply proof_irr.
-             rewrite virtue_correct1.
-             eapply permjoin.join_permjoin.
-             eapply resource_at_join.
-             apply join_comm.
-             assumption.
-           + simpl; intros b0 ofs0. inversion MATCH; subst.
-             specialize (mtch_locksRes0 _ _ _ His_unlocked dlockRes).
-             rewrite <- mtch_locksRes0.
-             rewrite <- mtch_perm2 with (Htid:=Hi).
-             replace (MTCH_cnt MATCH Hi) with Htid' by eapply proof_irr.
-             rewrite virtue_correct2.
+        
+      (*   + eapply MTCH_compat; eassumption.*)
+      + unfold JSEM.juicyRestrict_locks.
+        apply restrPermMap_ext;
+          intros b0.
+        inversion MATCH; subst.
+        extensionality ofs0.
+        rewrite <- JSEM.juic2Perm_locks_correct.
+        symmetry. apply mtch_perm2.
+        apply THE_JUICY_MACHINE.JSEM.mem_compat_thread_max_cohere.
+        assumption.
+      + reflexivity.
+      + instantiate (1:= Hlt'').
+        apply restrPermMap_ext.
+        intros b0. 
+        extensionality ofs0.
+        destruct (ident_eq b b0); [
+            destruct (Intv.In_dec ofs0 (Int.intval ofs, Int.intval ofs + lksize.LKSIZE)%Z) |].
+        * unfold Intv.In in i0.
+          subst. repeat (rewrite setPermBlock_same; auto).
+        * subst. apply Intv.range_notin in n; auto.
+          repeat (rewrite setPermBlock_other_1; auto).
+          rewrite -JSEM.juic2Perm_locks_correct.
+          inversion MATCH. symmetry. eapply mtch_perm2.
+          eapply JSEM.mem_compat_thread_max_cohere; auto.
+          simpl; unfold LKSIZE; xomega.
+        * repeat (rewrite setPermBlock_other_2; auto).
+          rewrite -JSEM.juic2Perm_locks_correct.
+          inversion MATCH. symmetry. eapply mtch_perm2.
+          eapply JSEM.mem_compat_thread_max_cohere; auto.
+      + exact dlockRes.
+      + simpl; intros b0 ofs0. inversion MATCH; subst.
+        specialize (mtch_locksRes _ _ _ His_unlocked dlockRes).
+        rewrite <- mtch_locksRes.
+        rewrite <- mtch_perm1 with (Htid:=Hi).
+        replace (MTCH_cnt MATCH Hi) with Htid' by eapply proof_irr.
+        rewrite virtue_correct1.
+        eapply permjoin.join_permjoin.
+        eapply resource_at_join.
+        apply join_comm.
+        assumption.
+      + simpl; intros b0 ofs0. inversion MATCH; subst.
+        specialize (mtch_locksRes0 _ _ _ His_unlocked dlockRes).
+        rewrite <- mtch_locksRes0.
+        rewrite <- mtch_perm2 with (Htid:=Hi).
+        replace (MTCH_cnt MATCH Hi) with Htid' by eapply proof_irr.
+        rewrite virtue_correct2.
              
              apply permjoin.join_permjoin_lock.
              eapply resource_at_join.
@@ -2177,12 +2182,20 @@ Module Parching <: ErasureSig.
         destruct (DTP.lockRes ds (b, Int.intval ofs)); try solve[inversion mtch_locks]. exists l; reflexivity. }
            destruct H as [l dlockRes].
       econstructor 2.
-      14: reflexivity.
-      13: instantiate (2:= (virtue1, virtue2));
+      16: reflexivity.
+      15: instantiate (2:= (virtue1, virtue2));
         unfold ds'; repeat f_equal; try reflexivity; try apply proof_irrelevance.
-      5: eassumption.
       7: eassumption.
-      5: reflexivity.
+      9: eassumption.
+      7: reflexivity.
+      + (*boundedness 1*)
+        split; unfold virtue1.
+        * admit.
+        * admit.
+      + (*boundedness 2*)
+        repeat split.
+        * rewrite /JSEM.juice2Perm /JSEM.mapmap /=. admit.
+        * rewrite /JSEM.juice2Perm_locks /JSEM.mapmap /=. admit.
       + assumption.
       + eapply MTCH_getThreadC; eassumption.
       + eassumption.
@@ -2267,6 +2280,7 @@ Module Parching <: ErasureSig.
            -- unfold join_sub. exists phi'. eassumption.
            -- eapply JSEM.compatible_threadRes_sub.
               assumption.
+              
     }
    
 

@@ -256,8 +256,7 @@ Module MainSafety .
       - exact Classical_Prop.classic.
       - move => ds.
         simpl.
-        
-        eapply DryMachine.finite_branching.
+        eapply DryMachineSource.THE_DRY_MACHINE_SOURCE.FiniteBranching.finite_branching.
       - move => n U VAL'.
         rewrite /DryMachine.mk_nstate /=.
         simpl; apply: new_dry_clight_safety.
