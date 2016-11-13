@@ -4701,7 +4701,7 @@ into mcj' with an extension of the id injection (fij). *)
       (Hcomp: mem_compatible tp m)
       (Hexternal: cnti @ E)
       (Hstep: DryConc.MachStep the_ge (i :: U, [::], tp) m (U', [::], tp') m'),
-      U = U' /\ exists ev, syncStep the_ge cnti Hcomp tp' m' ev.
+      U = U' /\ exists ev, syncStep true the_ge cnti Hcomp tp' m' ev.
   Proof.
     intros.
     inversion Hstep;
@@ -7237,7 +7237,7 @@ relation*)
     assert (HinvC: invariant tpc)
       by (eapply safeC_invariant with (n := (fuelF.+2 + size xs)); eauto).
     (** An external step pops the schedule and executes a concurrent call *)
-    assert (HconcC: exists ev, syncStep the_ge pfc HmemCompC tpc' mc' ev)
+    assert (HconcC: exists ev, syncStep true the_ge pfc HmemCompC tpc' mc' ev)
       by (eapply external_step_inverse; eauto).
     destruct HconcC as [ev HconcC].
     assert (HmemCompC': mem_compatible tpc' mc')
@@ -7394,10 +7394,10 @@ relation*)
         split.
         (** proof that the fine grained machine can step*)
         intros U.
-        assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf'' mf'
+        assert (HsyncStepF: syncStep false the_ge pff HmemCompF tpf'' mf'
                                      (acquire (b2, Int.intval ofs)
                                               (Some (virtueF))))
-          by (eapply step_acquire with (b:=b2); eauto).
+          by (eapply step_acquire with (b0:=b2); eauto).
         econstructor; simpl;
           by eauto.
         (** Proof that the new coarse and fine state are in simulation*)
@@ -8308,10 +8308,10 @@ relation*)
       split.
       (** proof that the fine grained machine can step*)
       intros U.
-      assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf'' mf'
+      assert (HsyncStepF: syncStep false the_ge pff HmemCompF tpf'' mf'
                                    (release (b2, Int.intval ofs)
                                             (Some virtueLPF)))
-        by (eapply step_release with (b:=b2); eauto).
+        by (eapply step_release with (b0:=b2); eauto).
       econstructor; simpl;
         by eauto.
       (* Proof that the new coarse and fine state are in simulation*)
@@ -9206,7 +9206,7 @@ relation*)
       split.
       (** proof that the fine grained machine can step*)
       intros U.
-      assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf' mf
+      assert (HsyncStepF: syncStep false the_ge pff HmemCompF tpf' mf
                                    (spawn (b2,Int.intval ofs) (Some (getThreadR pff, virtue1F)) (Some virtue2F)))
         by (eapply step_create; eauto).
       econstructor; simpl;
@@ -9762,8 +9762,8 @@ relation*)
       split.
       (** proof that the FineConc machine can step*)
       intros U.
-      assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf'' mf' (mklock (b2, Int.intval ofs)))
-        by (eapply step_mklock with (b:=b2); subst pmap_tidF' pmap_tidF2'; eauto; reflexivity).
+      assert (HsyncStepF: syncStep false the_ge pff HmemCompF tpf'' mf' (mklock (b2, Int.intval ofs)))
+        by (eapply step_mklock with (b0:=b2); subst pmap_tidF' pmap_tidF2'; eauto; reflexivity).
       econstructor; simpl;
         by eauto.
 
@@ -10746,8 +10746,8 @@ relation*)
       split.
       (** proof that the FineConc machine can step*)
       intros U.
-      assert (HsyncStepF: syncStep the_ge pff HmemCompF tpf'' mf (freelock (b2, Int.intval ofs))).
-      eapply step_freelock with (b := b2); simpl; eauto.
+      assert (HsyncStepF: syncStep false the_ge pff HmemCompF tpf'' mf (freelock (b2, Int.intval ofs))).
+      eapply step_freelock with (b0 := b2); simpl; eauto.
       simpl; eauto.
       simpl; eauto.
       econstructor; simpl;

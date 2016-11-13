@@ -148,7 +148,7 @@ Lemma preservation_acquire
   (jmstep : @JuicyMachine.machine_step ge (i :: sch) nil tp m sch nil
              (age_tp_to n
                 (updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Int.intval ofs) None)) m')
-  (Htstep : syncStep ge cnti Hcmpt
+  (Htstep : syncStep true ge cnti Hcmpt
              (age_tp_to n
                 (updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Int.intval ofs) None)) m'
              (Events.acquire (b, Int.intval ofs) None)) :

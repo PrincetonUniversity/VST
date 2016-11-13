@@ -535,7 +535,7 @@ Qed.
             inversion J; subst.
             
             * eapply step_acqfail with (Hcompatible := mem_compatible_forget compat)
-                                       (R := approx (level phi0) (Interp Rx)).
+                                       (R0 := approx (level phi0) (Interp Rx)).
               all: try solve [ constructor | eassumption | reflexivity ].
                 (* [ > idtac ]. *)
               simpl.
@@ -544,7 +544,7 @@ Qed.
               reflexivity.
             
             * eapply step_acqfail with (Hcompatible := mem_compatible_forget compat)
-                                       (R := approx (level phi0) (Interp Rx)).
+                                       (R0 := approx (level phi0) (Interp Rx)).
               all: try solve [ constructor | eassumption | reflexivity ].
               simpl.
               unfold Int.unsigned in *.
@@ -611,7 +611,7 @@ Qed.
             ;
               [ reflexivity | reflexivity | ].
             eapply step_acquire
-            with (R := approx (level phi0) (Interp Rx))
+            with (R0 := approx (level phi0) (Interp Rx))
             (* with (sh := shx) *)
             .
             all: try match goal with |- _ = age_tp_to _ _ => reflexivity end.
@@ -1042,7 +1042,7 @@ Qed.
         with (c := (ExtCall (EF_external name sg) args lid ve te k))
                (Hcompatible := mem_compatible_forget compat)
                (R := Interp Rx)
-               (phi' := phi')
+               (phi'0 := phi')
         .
         
         all: try match goal with |- invariant _ => now constructor end.

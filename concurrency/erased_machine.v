@@ -79,7 +79,7 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
          (Htp': tp' = updThreadC cnt (Krun c')),
      dry_step genv cnt Hcompatible tp' m' ev.
 
-   Inductive ext_step (genv:G) {tid0 tp m} (*Can we remove genv from here?*)
+   Inductive ext_step {isCoarse:bool} (genv:G) {tid0 tp m} (*Can we remove genv from here?*)
              (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
      thread_pool -> mem -> sync_event -> Prop :=
    | step_acquire :
@@ -148,23 +148,23 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
         (exists cntj' q', @getThreadC j tp' cntj' = Krun q').
    Admitted.
    
-   Definition syncStep (genv :G) :
+   Definition syncStep (isCoarse:bool) (genv :G) :
      forall {tid0 ms m},
        containsThread ms tid0 -> mem_compatible ms m ->
        thread_pool -> mem -> sync_event -> Prop:=
-     @ext_step genv.
+     @ext_step isCoarse genv.
     
   Lemma syncstep_equal_run:
-    forall g i tp m cnt cmpt tp' m' tr, 
-      @syncStep g i tp m cnt cmpt tp' m' tr ->
+    forall b g i tp m cnt cmpt tp' m' tr, 
+      @syncStep b g i tp m cnt cmpt tp' m' tr ->
       forall j,
         (exists cntj q, @getThreadC j tp cntj = Krun q) <->
         (exists cntj' q', @getThreadC j tp' cntj' = Krun q').
    Admitted.
   
   Lemma syncstep_not_running:
-    forall g i tp m cnt cmpt tp' m' tr, 
-      @syncStep g i tp m cnt cmpt tp' m' tr ->
+    forall b g i tp m cnt cmpt tp' m' tr, 
+      @syncStep b g i tp m cnt cmpt tp' m' tr ->
       forall cntj q, ~ @getThreadC i tp cntj = Krun q.
    Admitted.
   
@@ -191,8 +191,8 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
    Admitted.
   
   Lemma syncstep_equal_halted:
-    forall g i tp m cnti cmpt tp' m' tr, 
-      @syncStep g i tp m cnti cmpt tp' m' tr ->
+    forall b g i tp m cnti cmpt tp' m' tr, 
+      @syncStep b g i tp m cnti cmpt tp' m' tr ->
       forall j cnt cnt',
         (@threadHalted j tp cnt) <->
         (@threadHalted j tp' cnt').

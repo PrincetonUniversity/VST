@@ -213,7 +213,7 @@ Proof.
     
     eapply step_freelock
     with (c := ci) (Hcompat := mem_compatible_forget compat)
-                   (R := Interp Rx) (phi' := phi').
+                   (R := Interp Rx) (phi'0 := phi').
     all: try reflexivity.
     all: try eassumption.
     unfold SEM.Sem in *. rewrite SEM.CLN_msem. eassumption.
@@ -366,7 +366,7 @@ Lemma preservation_freelock
   (jmstep : @JuicyMachine.machine_step ge (i :: sch) nil tp m' sch nil
              (age_tp_to n
                 (remLockSet (updThread i tp Htid (Kresume c Vundef) phi') (b, Int.intval ofs))) m')
-  (Htstep : syncStep ge Htid Hcmpt
+  (Htstep : syncStep true ge Htid Hcmpt
              (age_tp_to n
                 (remLockSet (updThread i tp Htid (Kresume c Vundef) phi') (b, Int.intval ofs))) m'
              (Events.freelock (b, Int.intval ofs))) :

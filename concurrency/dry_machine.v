@@ -143,21 +143,22 @@ Module Concur.
         (exists cntj q, @getThreadC j tp cntj = Krun q) <->
         (exists cntj' q', @getThreadC j tp' cntj' = Krun q').
      Parameter syncStep :
+       bool -> (* if it's a Coarse machine. Temp solution to propagating changes. *)
        G ->
        forall tid0 (ms : t) (m : mem),
          containsThread ms tid0 ->
          mem_compatible ms m -> t -> mem -> sync_event -> Prop.
      
   Axiom syncstep_equal_run:
-    forall g i tp m cnt cmpt tp' m' tr, 
-      @syncStep g i tp m cnt cmpt tp' m' tr ->
+    forall b g i tp m cnt cmpt tp' m' tr, 
+      @syncStep b g i tp m cnt cmpt tp' m' tr ->
       forall j,
         (exists cntj q, @getThreadC j tp cntj = Krun q) <->
         (exists cntj' q', @getThreadC j tp' cntj' = Krun q').
   
   Axiom syncstep_not_running:
-    forall g i tp m cnt cmpt tp' m' tr, 
-      @syncStep g i tp m cnt cmpt tp' m' tr ->
+    forall b g i tp m cnt cmpt tp' m' tr, 
+      @syncStep b g i tp m cnt cmpt tp' m' tr ->
       forall cntj q, ~ @getThreadC i tp cntj = Krun q.
 
      
@@ -174,8 +175,8 @@ Module Concur.
         (@threadHalted j (@updThreadC i tp cnti c') cnt') .
   
   Axiom syncstep_equal_halted:
-    forall g i tp m cnti cmpt tp' m' tr, 
-      @syncStep g i tp m cnti cmpt tp' m' tr ->
+    forall b g i tp m cnti cmpt tp' m' tr, 
+      @syncStep b g i tp m cnti cmpt tp' m' tr ->
       forall j cnt cnt',
         (@threadHalted j tp cnt) <->
         (@threadHalted j tp' cnt').
@@ -293,7 +294,7 @@ Module Concur.
        end.
      Infix "??" := option_function (at level 80, right associativity).
 
-     Inductive ext_step (genv:G) {tid0 tp m}
+     Inductive ext_step {isCoarse:bool} (genv:G) {tid0 tp m}
                (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
        thread_pool -> mem -> sync_event -> Prop :=
      | step_acquire :
@@ -497,23 +498,23 @@ Module Concur.
           rewrite gsoThreadCode in running; auto.
     Qed.
      
-     Definition syncStep (genv :G) :
+     Definition syncStep (isCoarse:bool) (genv :G) :
        forall {tid0 ms m},
          containsThread ms tid0 -> mem_compatible ms m ->
          thread_pool -> mem -> sync_event -> Prop:=
-       @ext_step genv.
+       @ext_step isCoarse genv.
 
 
      
     
   Lemma syncstep_equal_run:
-    forall g i tp m cnt cmpt tp' m' tr, 
-      @syncStep g i tp m cnt cmpt tp' m' tr ->
+    forall b g i tp m cnt cmpt tp' m' tr, 
+      @syncStep b g i tp m cnt cmpt tp' m' tr ->
       forall j,
         (exists cntj q, @getThreadC j tp cntj = Krun q) <->
         (exists cntj' q', @getThreadC j tp' cntj' = Krun q').
   Proof.
-    intros g i tp m cnt cmpt tp' m' tr H j; split.
+    intros b g i tp m cnt cmpt tp' m' tr H j; split.
     - intros [cntj [ q running]].
       destruct (NatTID.eq_tid_dec i j).
       + subst j. generalize running; clear running.
@@ -606,8 +607,8 @@ Module Concur.
 
   
   Lemma syncstep_not_running:
-    forall g i tp m cnt cmpt tp' m' tr, 
-      @syncStep g i tp m cnt cmpt tp' m' tr ->
+    forall b g i tp m cnt cmpt tp' m' tr, 
+      @syncStep b g i tp m cnt cmpt tp' m' tr ->
       forall cntj q, ~ @getThreadC i tp cntj = Krun q.
   Proof.
     intros.
@@ -1162,8 +1163,8 @@ Module Concur.
 
   
   Lemma syncstep_equal_halted:
-    forall g i tp m cnti cmpt tp' m' tr, 
-      @syncStep g i tp m cnti cmpt tp' m' tr ->
+    forall b g i tp m cnti cmpt tp' m' tr, 
+      @syncStep b g i tp m cnti cmpt tp' m' tr ->
       forall j cnt cnt',
         (@threadHalted j tp cnt) <->
         (@threadHalted j tp' cnt').

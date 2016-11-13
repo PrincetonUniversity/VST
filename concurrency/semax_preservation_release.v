@@ -149,7 +149,7 @@ Lemma preservation_release
   (jmstep : @JuicyMachine.machine_step ge (i :: sch) nil tp m sch nil
              (age_tp_to n
                 (updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Int.intval ofs) (Some d_phi))) m')
-  (Htstep : syncStep ge cnti Hcmpt
+  (Htstep : syncStep true ge cnti Hcmpt
              (age_tp_to n
                 (updLockSet (updThread i tp cnti (Kresume c Vundef) phi') (b, Int.intval ofs) (Some d_phi))) m'
              (Events.release (b, Int.intval ofs) None)) :

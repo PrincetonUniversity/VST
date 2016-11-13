@@ -1014,11 +1014,11 @@ Module Parching <: ErasureSig.
       (Hi: JSEM.ThreadPool.containsThread js i)
       (Hcmpt: JSEM.mem_compatible js m)
       (HschedN: schedPeek U = Some i)
-      (Htstep:  JSEM.syncStep genv Hi Hcmpt js' m' ev),
+      (Htstep:  JSEM.syncStep true genv Hi Hcmpt js' m' ev),
       exists ds' : dstate, exists ev',
         DryMachine.invariant ds' /\
         match_st js' ds' /\
-        DryMachine.syncStep genv (MTCH_cnt MATCH Hi) (MTCH_compat _ _ _ MATCH Hcmpt) ds' m'
+        DryMachine.syncStep true genv (MTCH_cnt MATCH Hi) (MTCH_compat _ _ _ MATCH Hcmpt) ds' m'
                       ev'.
   Proof.
 

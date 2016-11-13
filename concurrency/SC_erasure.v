@@ -1738,9 +1738,9 @@ Module SCErasure (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
       (Hmem_erasure: mem_erasure m1 m1')
       (Hcomp1: mem_compatible tp1 m1)
       (Hcomp1': ErasedMachine.mem_compatible tp1' m1')
-      (Hstep: syncStep ge cnti Hcomp1 tp2 m2 ev),
+      (Hstep: syncStep false ge cnti Hcomp1 tp2 m2 ev),
     exists tp2' m2',
-      ErasedMachine.syncStep ge cnti' Hcomp1' tp2' m2' (eraseSyncEvent ev) /\
+      ErasedMachine.syncStep false ge cnti' Hcomp1' tp2' m2' (eraseSyncEvent ev) /\
       threadPool_erasure tp2 tp2' /\ mem_erasure m2 m2'.
   Proof with eauto with val_erasure erased.
     intros.

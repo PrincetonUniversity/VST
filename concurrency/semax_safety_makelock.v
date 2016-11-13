@@ -369,7 +369,7 @@ Proof.
     
     eapply step_mklock
     with (c := ci) (Hcompatible := mem_compatible_forget compat)
-                   (R := Interp Rx) (phi' := phi').
+                   (R := Interp Rx) (phi'0 := phi').
     all: try reflexivity.
     all: try eassumption.
     unfold SEM.Sem in *. rewrite SEM.CLN_msem. assumption.

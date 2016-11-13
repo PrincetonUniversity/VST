@@ -55,7 +55,7 @@ Module Type EventSig.
 
   Inductive sync_event : Type :=
   | release : address (*-> option (evRes * evDelta)*) -> option evRes -> sync_event
-  | acquire : address (*-> option (evRes * evDelta)*) -> option evDelta -> sync_event
+  | acquire : address (*-> option (evRextes * evDelta)*) -> option evDelta -> sync_event
   | mklock :  address -> sync_event
   | freelock : address -> sync_event
   | spawn : address -> option (evRes * evDelta) -> option evDelta -> sync_event
@@ -100,20 +100,21 @@ Module Type ConcurrentMachineSig.
         (exists cntj q, @getThreadC j tp cntj = Krun q) <->
         (exists cntj' q', @getThreadC j tp' cntj' = Krun q').
   Parameter syncStep:
+    bool -> (*specifies if it's a Coarse machine. Temp solution to propagating changes. *)
     G -> forall {tid0 ms m},
       containsThread ms tid0 -> mem_compatible ms m ->
       thread_pool -> mem -> sync_event -> Prop.
   
   Axiom syncstep_equal_run:
-    forall g i tp m cnt cmpt tp' m' tr, 
-      @syncStep g i tp m cnt cmpt tp' m' tr ->
+    forall b g i tp m cnt cmpt tp' m' tr, 
+      @syncStep b g i tp m cnt cmpt tp' m' tr ->
       forall j,
         (exists cntj q, @getThreadC j tp cntj = Krun q) <->
         (exists cntj' q', @getThreadC j tp' cntj' = Krun q').
   
   Axiom syncstep_not_running:
-    forall g i tp m cnt cmpt tp' m' tr, 
-      @syncStep g i tp m cnt cmpt tp' m' tr ->
+    forall b g i tp m cnt cmpt tp' m' tr, 
+      @syncStep b g i tp m cnt cmpt tp' m' tr ->
       forall cntj q, ~ @getThreadC i tp cntj = Krun q.
   
   Parameter threadHalted:
@@ -127,8 +128,8 @@ Module Type ConcurrentMachineSig.
         (@threadHalted j (@updThreadC i tp cnti c') cnt') .
   
   Axiom syncstep_equal_halted:
-    forall g i tp m cnti cmpt tp' m' tr, 
-      @syncStep g i tp m cnti cmpt tp' m' tr ->
+    forall b g i tp m cnti cmpt tp' m' tr, 
+      @syncStep b g i tp m cnti cmpt tp' m' tr ->
       forall j cnt cnt',
         (@threadHalted j tp cnt) <->
         (@threadHalted j tp' cnt').
@@ -263,7 +264,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
         (HschedS: schedSkip U = U')        (*Schedule Forward*)
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
-        (Htstep: syncStep genv Htid Hcmpt ms' m' ev),
+        (Htstep: syncStep true genv Htid Hcmpt ms' m' ev),
         machine_step U [::] ms m  U' [::] ms' m'           
   | halted_step:
       forall tid U U' ms m
@@ -329,7 +330,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
         (HschedS: schedSkip U = U')        (*Schedule Forward*)
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
-        (Htstep: syncStep genv Htid Hcmpt ms' m' ev),
+        (Htstep: syncStep true genv Htid Hcmpt ms' m' ev),
         external_step U [::] ms m  U' [::] ms' m'           
   | halted_step':
       forall tid U U' ms m
@@ -709,7 +710,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
       
       destruct (eq_tid_dec tid0 j); subst.
       + exfalso; eapply
-                 (syncstep_not_running _ _ _ _ _ _ _ _ _ Htstep).
+                 (syncstep_not_running _ _ _ _ _ _ _ _ _ _ Htstep).
         eapply j_runs0.
       + destruct (Classical_Prop.classic (threadHalted cnt)) as [halt | n_halt].
         * exfalso; apply j_not_halted.
@@ -1123,7 +1124,7 @@ Module FineMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thread
         (HschedS: schedSkip U = U')        (*Schedule Forward*)
         (Htid: containsThread ms tid)
         (Hcmpt: mem_compatible ms m)
-        (Htstep: syncStep genv Htid Hcmpt ms' m' ev),
+        (Htstep: syncStep false genv Htid Hcmpt ms' m' ev),
         machine_step U tr ms m U' (tr ++ [:: external tid ev]) ms' m'           
   | halted_step:
       forall tid U U' ms m tr

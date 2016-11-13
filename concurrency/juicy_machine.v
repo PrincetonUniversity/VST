@@ -1134,7 +1134,7 @@ Qed. *)
 
     Notation Kblocked := (threadPool.Kblocked).
     Open Scope Z_scope.
-    Inductive syncStep' genv {tid0 tp m}
+    Inductive syncStep' {isCoarse: bool} genv {tid0 tp m}
               (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
       thread_pool -> mem -> sync_event -> Prop :=
     | step_acquire :
@@ -1368,20 +1368,20 @@ Qed. *)
           apply cnt_irr.
     Qed.
           
-    Definition syncStep (genv:G):
+    Definition syncStep (isCoarse:bool) (genv:G):
       forall {tid0 ms m}, containsThread ms tid0 -> mem_compatible ms m ->
                      thread_pool -> mem -> sync_event ->  Prop:=
-      @syncStep' genv.
+      @syncStep' isCoarse genv.
 
     
   Lemma syncstep_equal_run:
-    forall g i tp m cnt cmpt tp' m' tr, 
-      @syncStep g i tp m cnt cmpt tp' m' tr ->
+    forall b g i tp m cnt cmpt tp' m' tr, 
+      @syncStep b g i tp m cnt cmpt tp' m' tr ->
       forall j,
         (exists cntj q, @getThreadC j tp cntj = Krun q) <->
         (exists cntj' q', @getThreadC j tp' cntj' = Krun q').
   Proof.
-    intros g i tp m cnt cmpt tp' m' tr H j; split.
+    intros b g i tp m cnt cmpt tp' m' tr H j; split.
     - intros [cntj [ q running]].
       destruct (NatTID.eq_tid_dec i j).
       + subst j. generalize running; clear running.
@@ -1465,8 +1465,8 @@ Qed. *)
 
   
   Lemma syncstep_not_running:
-    forall g i tp m cnt cmpt tp' m' tr, 
-      @syncStep g i tp m cnt cmpt tp' m' tr ->
+    forall b g i tp m cnt cmpt tp' m' tr, 
+      @syncStep b g i tp m cnt cmpt tp' m' tr ->
       forall cntj q, ~ @getThreadC i tp cntj = Krun q.
   Proof.
     intros.
@@ -1505,8 +1505,8 @@ Qed. *)
   Qed.
   
   Lemma syncstep_equal_halted:
-    forall g i tp m cnti cmpt tp' m' tr, 
-      @syncStep g i tp m cnti cmpt tp' m' tr ->
+    forall b g i tp m cnti cmpt tp' m' tr, 
+      @syncStep b g i tp m cnti cmpt tp' m' tr ->
       forall j cnt cnt',
         (@threadHalted j tp cnt) <->
         (@threadHalted j tp' cnt').

@@ -931,13 +931,13 @@ Section Preservation.
   
   Ltac jmstep_inv :=
     match goal with
-    | H : JuicyMachine.start_thread _ _ _ |- _ => inversion H
-    | H : JuicyMachine.resume_thread _ _  |- _ => inversion H
-    | H : threadStep _ _ _ _ _ _          |- _ => inversion H
-    | H : JuicyMachine.suspend_thread _ _ |- _ => inversion H
-    | H : syncStep _ _ _ _ _ _            |- _ => inversion H
-    | H : threadHalted _                  |- _ => inversion H
-    | H : JuicyMachine.schedfail _        |- _ => inversion H
+    | H : JuicyMachine.start_thread _ _ _  |- _ => inversion H
+    | H : JuicyMachine.resume_thread _ _   |- _ => inversion H
+    | H : threadStep _ _ _ _ _ _           |- _ => inversion H
+    | H : JuicyMachine.suspend_thread _ _  |- _ => inversion H
+    | H : syncStep _ _ _ _ _ _ _           |- _ => inversion H
+    | H : threadHalted _                   |- _ => inversion H
+    | H : JuicyMachine.schedfail _         |- _ => inversion H
     end; try subst.
   
   Ltac getThread_inv :=
@@ -990,7 +990,7 @@ Section Preservation.
   (Hcmpt : mem_compatible tp' m')
   (jmstep : @JuicyMachine.machine_step ge (i :: sch) nil tp' m' sch nil tp' m')
   (compat_aged : mem_compatible_with (age_tp_to n tp') m' (age_to n Phi))
-  (Htstep : syncStep ge Htid Hcmpt tp' m' (Events.failacq (b, Int.intval ofs)))
+  (Htstep : syncStep true ge Htid Hcmpt tp' m' (Events.failacq (b, Int.intval ofs)))
   (Hload : load Mint32 (restrPermMap (mem_compatible_locks_ltwritable Hcompatible)) b (Int.intval ofs) =
           Some (Vint Int.zero))
   (HJcanwrite : m_phi (personal_mem m' (getThreadR i tp' Htid) (thread_mem_compatible Hcompatible Htid)) @

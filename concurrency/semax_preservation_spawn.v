@@ -155,7 +155,7 @@ Lemma preservation_spawn
   (compat_ := mem_compatible_with tp_ m_ (age_to n Phi) : Prop)
   (jmstep : @JuicyMachine.machine_step ge (i :: sch) nil tp m' sch nil
              (addThread (updThread i tp Htid (Kresume c Vundef) phi') (Vptr b ofs) arg d_phi) m')
-  (Htstep : syncStep ge Htid Hcmpt
+  (Htstep : syncStep true ge Htid Hcmpt
              (addThread (updThread i tp Htid (Kresume c Vundef) phi') (Vptr b ofs) arg d_phi) m'
              (Events.spawn (b, Int.intval ofs) None None)) :
   (* ============================ *)
