@@ -377,6 +377,7 @@ Qed.
               | ].
             
             (* factoring proofs out before the inversion/eapply *)
+            pose proof LKSPEC as LKSPEC'.
             specialize (LKSPEC (b, Int.unsigned ofs)).
             simpl in LKSPEC.
             if_tac [r|nr] in LKSPEC; swap 1 2.
@@ -418,7 +419,119 @@ Qed.
               rewrite SEM.CLN_msem; simpl.
               repeat f_equal; congruence.
             }
-            
+
+
+(* Lemma load_at_load *)
+Import Mem.
+Lemma A2PMap_found tp b ofs ofs' o :
+  AMap.find (elt:=option rmap) (b, ofs) (lset tp) = Some o ->
+  (ofs <= ofs' < ofs + 4)%Z ->
+  (A2PMap (lset tp)) !! b ofs' = Some Writable.
+Proof.
+  intros found.
+Admitted.
+
+
+Lemma load_at_phi_restrict i tp (cnti : containsThread tp i) m
+      (compat : mem_compatible tp m) b ofs v sh sh' R phi0 o :
+  (* stupid requirement because of definition of mapmap *)
+  (snd m.(mem_access)) ! b <> None ->
+  join_sub phi0 (getThreadR cnti) ->
+  (LKspec LKSIZE R sh sh' (b, ofs)) phi0 ->
+  (* typically given by lock_coherence: *)
+  AMap.find (elt:=option rmap) (b, ofs) (lset tp) = Some o ->
+  load Mint32 (restrPermMap (mem_compatible_locks_ltwritable compat)) b ofs = Some v ->
+  load Mint32 (@juicyRestrict_locks _ m (mem_compat_thread_max_cohere compat cnti)) b ofs = Some v.
+Proof.
+  intros notnone (phi1, j) lk found.
+  unfold juicyRestrict_locks in *.
+  Transparent Mem.load.
+  unfold Mem.load. simpl.
+  match goal with
+    |- (if _ ?m ?c _ _ ?r then _ else _) =_ ->
+      (if _ ?m' _ _ _ _ then _ else _) = _ =>
+    cut (valid_access m c b ofs r =
+         valid_access m' c b ofs r) end.
+  { intros E. if_tac [va|nva]; if_tac [va'|nva']; auto; exfalso; congruence. }
+  unfold valid_access in *.
+  f_equal.
+  unfold range_perm in *.
+  extensionality ofs'.
+  extensionality r.
+  unfold perm in *.
+  pose proof restrPermMap_Cur as RR.
+  unfold permission_at in *.
+  rewrite RR.
+  rewrite RR.
+  unfold lockSet in *.
+  match goal with |- ?P = ?Q => cut (P /\ Q) end.
+  { intros (?, ?). apply prop_ext; split; auto. }
+  split.
+  - erewrite A2PMap_found; eauto.
+    constructor.
+  - unfold juice2Perm_locks in *.
+    (* Lemma mapmap_get {A} f m b ofs : (mapmap (fun _ : Z => None) f m) !! b ofs = f b (m ! b) ! ofs. *)
+    unfold mapmap in *.
+    unfold getCurPerm in *.
+    unfold "!!".
+    simpl.
+    rewrite PTree.gmap.
+    unfold option_map.
+    rewrite PTree.gmap1.
+    unfold option_map.
+    simpl.
+    destruct ((snd (mem_access m)) ! b) eqn:E.
+    + unfold perm_of_res_lock in *.
+      spec lk (b, ofs'). simpl in lk.
+      if_tac [r'|nr] in lk. 2:now destruct nr; split; auto; lkomega.
+      apply resource_at_join with (loc := (b, ofs')) in j.
+      if_tac [e|ne] in lk.
+      * destruct lk as (p & E0). rewrite E0 in j. inv j.
+        -- unfold block in *.
+           (* rewr (getThreadR cnti @ (b, ofs')). *)
+           simpl.
+           unfold perm_of_sh.
+           pose proof (not_nonunit_bot sh').
+           repeat if_tac; try constructor; tauto.
+        -- unfold block in *.
+           (* rewr (getThreadR cnti @ (b, ofs')). *)
+           simpl.
+           unfold perm_of_sh.
+           repeat if_tac; try constructor;
+             edestruct juicy_mem_ops.Abs.pshare_sh_bot; eauto.
+      * destruct lk as (p & E0). rewrite E0 in j. inv j.
+        -- unfold block in *.
+           (* rewr (getThreadR cnti @ (b, ofs')). *)
+           simpl.
+           unfold perm_of_sh.
+           pose proof (not_nonunit_bot sh').
+           repeat if_tac; try constructor; tauto.
+        -- unfold block in *.
+           (* rewr (getThreadR cnti @ (b, ofs')). *)
+           simpl.
+           unfold perm_of_sh.
+           repeat if_tac; try constructor;
+             edestruct juicy_mem_ops.Abs.pshare_sh_bot; eauto.
+    + exfalso. clear -found compat E r notnone.
+      destruct compat as (Phi & [_ _ W _ _]).
+      spec W b ofs. unfold lockGuts in *. cleanup.
+      unfold block in *.
+      rewrite found in W.
+      autospec W. spec W ofs.
+      spec W. now split; simpl; auto; lkomega.
+      unfold "!!" in W. rewrite E in W.
+      destruct m.
+      simpl in *.
+      tauto.
+Qed.
+            unfold load_at in LOAD.
+            eapply load_at_phi_restrict with (phi0 := phi0) (cnti := cnti) in LOAD; swap 1 5; swap 2 4.
+            { eassumption. }
+            { eassumption. }
+            { exists phi1; eassumption. }
+            { simpl. (* there is a mismatch here, this cannot be proven *) admit. }
+                 
+
             inversion J; subst.
             
             * eapply step_acqfail with (Hcompatible := mem_compatible_forget compat)
@@ -429,7 +542,6 @@ Qed.
               unfold Int.unsigned in *.
               rewrite <-H7.
               reflexivity.
-              admit (* MISMATCH IN LOCK PERMISSIONS *).
             
             * eapply step_acqfail with (Hcompatible := mem_compatible_forget compat)
                                        (R := approx (level phi0) (Interp Rx)).
@@ -438,7 +550,6 @@ Qed.
               unfold Int.unsigned in *.
               rewrite <-H7.
               reflexivity.
-              admit (* MISMATCH IN LOCK PERMISSIONS *).
         
         - (* acquire succeeds *)
           destruct isl as [sh [psh [z Ewetv]]].

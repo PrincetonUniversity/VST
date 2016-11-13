@@ -215,7 +215,7 @@ Section Safety.
     now left; repeat eexists; eauto.
   Qed.
 
-  Lemma safety_induction Gamma n state :
+  Theorem safety_induction Gamma n state :
     state_invariant Jspec' Gamma (S n) state ->
     exists state',
       state_step state state' /\
@@ -223,24 +223,30 @@ Section Safety.
        state_invariant Jspec' Gamma (S n) state').
   Proof.
     intros inv.
+
+    (* the case for makelock *)
     destruct (blocked_at_external_dec state MKLOCK) as [ismakelock|isnotmakelock].
-    { (* the case for makelock *)
-    - apply safety_induction_makelock; eauto.
-      + hnf. apply Jspec'_juicy_mem_equiv.
-      + hnf. apply Jspec'_hered.
-      + apply mem_cohere'_store.
-      + apply personal_mem_equiv_spec. }
-    destruct (blocked_at_external_dec state FREE_LOCK) as [isfreelock|isnotfreelock].
-    { (* the case for freelock *)
-    - apply safety_induction_freelock; eauto.
-      + hnf. apply Jspec'_juicy_mem_equiv.
-      + hnf. apply Jspec'_hered.
-      + apply mem_cohere'_store.
-      + apply personal_mem_equiv_spec. }
+    {
+      apply safety_induction_makelock; eauto.
+      - hnf. apply Jspec'_juicy_mem_equiv.
+      - hnf. apply Jspec'_hered.
+      - apply mem_cohere'_store.
+      - apply personal_mem_equiv_spec.
+    }
     
-    - destruct (progress CS ext_link ext_link_inj _ _ _ inv) as (state', step).
-      exists state'; split; [ now apply step | ].
-      eapply preservation; eauto.
+    (* the case for freelock *)
+    destruct (blocked_at_external_dec state FREE_LOCK) as [isfreelock|isnotfreelock].
+    {
+      apply safety_induction_freelock; eauto.
+      - hnf. apply Jspec'_juicy_mem_equiv.
+      - hnf. apply Jspec'_hered.
+      - apply mem_cohere'_store.
+      - apply personal_mem_equiv_spec.
+    }
+    
+    destruct (progress CS ext_link ext_link_inj _ _ _ inv) as (state', step).
+    exists state'; split; [ now apply step | ].
+    eapply preservation; eauto.
   Qed.
   
   Lemma inv_step Gamma n state :
