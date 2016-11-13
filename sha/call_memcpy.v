@@ -120,7 +120,7 @@ intros. subst tb. apply JMeq_eq in H0. subst lb. auto.
 Qed.
 
  Definition fsig_of_funspec (fs: funspec)  :=  
-  match fs with mk_funspec fsig _ _ _ _ => fsig end.
+  match fs with mk_funspec fsig _ _ _ _ _ _=> fsig end.
 
 Lemma part1_splice_into_list:
   forall lo hi n al bl, 
@@ -210,8 +210,8 @@ Local Arguments nested_field_type cs t gfs : simpl never.
 Lemma semax_call_id0_alt:
  forall Espec {cs: compspecs} Delta P Q R id bl argsig tfun retty cc A x Pre Post
    (GLBL: (var_types Delta) ! id = None),
-       (glob_specs Delta) ! id = Some (mk_funspec (argsig, retty) cc A Pre Post) ->
-       (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig, retty) cc A Pre Post)) ->
+       (glob_specs Delta) ! id = Some (NDmk_funspec (argsig, retty) cc A Pre Post) ->
+       (glob_types Delta) ! id = Some (type_of_funspec (NDmk_funspec (argsig, retty) cc A Pre Post)) ->
    tfun = type_of_params argsig ->
   @semax cs Espec Delta (tc_exprlist Delta (argtypes argsig) bl
                   && (`(Pre x) (make_args' (argsig,retty) (eval_exprlist (argtypes argsig) bl)) 
@@ -224,7 +224,10 @@ Lemma semax_call_id0_alt:
 Proof.
 intros.
 subst tfun.
-apply semax_call_id0; auto.
+apply (@semax_call_id0 Espec cs Delta P Q R id bl argsig retty cc (rmaps.ConstType A) nil x
+                  (fun _ => Pre) (fun _ => Post)
+               (const_super_non_expansive _ _)
+               (const_super_non_expansive _ _)); auto.
 Qed.
 
 Lemma call_memcpy_tuchar:  (* Uses CompSpecs from sha. *)

@@ -53,6 +53,17 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
     Machine_sim.core_ord_wf
       _ _ _ _ _ _ _ _
       (concur_sim gT gS main p sch).
+  
+  Definition same_running gT gS main p sch:=
+    Machine_sim.thread_running
+      _ _ _ _ _ _ _ _
+      (concur_sim gT gS main p sch).
+
+  
+  Definition same_halted gT gS main p sch:=
+    Machine_sim.thread_halted
+      _ _ _ _ _ _ _ _
+      (concur_sim gT gS main p sch).
 
 (*  THE_DRY_MACHINE_SOURCE.dmachine_state
     Machine.DryConc.MachState
@@ -166,8 +177,7 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
                  forall sch,
                    DryConc.valid (sch, tr, Sds)  <->
                    Machine.DryConc.valid (sch, tr, Tds) ).
-    { admit.
-      (* rewrite /DryConc.valid
+    { rewrite /DryConc.valid
               /DryConc.correct_schedule
               /DryConc.unique_Krun
               /THE_DRY_MACHINE_SOURCE.SCH.schedPeek
@@ -175,18 +185,26 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
               /Machine.DryConc.correct_schedule
               /Machine.DryConc.unique_Krun
               /mySchedule.schedPeek /=.
-      move => ? ? ? ? ? ? ? ? ? ? ? Tds' MATCH' sch0.
+      
+      move => ? ? ? ? ? ? ? ? ? ? Sds' Tds' MATCH' sch0.
       destruct (List.hd_error sch0); try solve[split; auto].
       split.
-      - move => H1  j0 cntj0 q KRUN not_halted. eapply H1.
-        instantiate 
+      - move => H1  j0 cntj0 q KRUN not_halted.
         
-
-      /(running_thread) /=.
-      move=> ->.
-      -> U''.
-      destruct (Machine.DryConc.running_thread (Tds')); intuition .*)
-      
+        (*eapply H1.*)
+        (*pose (same_running Tg Sg main p U cd j Sds' Sm Tds' Tm).*)
+        pose ( machine_semantics.runing_thread (new_DMachineSem sch p)).
+        unfold new_DMachineSem  in P; simpl in P.
+        unfold DryConc.unique_Krun in P.
+        eapply (same_running) in KRUN; eauto.
+      - move => H1  j0 cntj0 q KRUN not_halted.
+        
+        (*eapply H1.*)
+        (*pose (same_running Tg Sg main p U cd j Sds' Sm Tds' Tm).*)
+        pose ( machine_semantics.runing_thread (new_DMachineSem sch p)).
+        unfold new_DMachineSem  in P; simpl in P.
+        unfold DryConc.unique_Krun in P.
+        eapply (same_running) in KRUN; eauto.
     }
 
     move: (MATCH) => /equivalid /= AA.

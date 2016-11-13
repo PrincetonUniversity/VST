@@ -22,7 +22,7 @@ Definition main_spec :=
   PRE  [] main_pre prog nil u
   POST [ tint ] main_post prog nil u.
 
-Definition Gprog : funspecs := augment_funspecs prog [reverse_spec; main_spec].
+Definition Gprog : funspecs :=   ltac:(with_library prog [reverse_spec; main_spec]).
 
 Definition flip_ends {A} lo hi (contents: list A) :=
   sublist 0 lo (rev contents)

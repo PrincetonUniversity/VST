@@ -121,7 +121,42 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
         rewrite Hgeti in Hcontra. destruct Hcontra.
         discriminate.
   Defined. *)
-
+  Lemma initial_invariant0: forall pmap c,
+              DryMachine.invariant (DryMachine.initial_machine pmap c).
+          Proof. intros pmap c.
+          pose (IM:=(DryMachine.initial_machine pmap c)); fold IM.
+          assert (isZ: forall i, containsThread IM i -> (i = 0)%N).
+          { rewrite /DryMachine.ThreadPool.containsThread /IM /=.
+            move => i; destruct i; first[reflexivity | intros HH; inversion HH].
+          }
+          assert (noLock: forall l rm, 
+                     DryMachine.ThreadPool.lockRes IM l = Some rm -> False).
+        { rewrite /DryMachine.ThreadPool.lockRes /IM /=.
+          move => l rm.
+          rewrite /DryMachine.ThreadPool.lockRes
+                  /DryMachine.initial_machine
+                  /empty_lset /= find_empty => HH.
+          inversion HH.
+        }
+        
+        constructor.
+          + move => i j0 cnti cntj HH.
+            exfalso; apply HH.
+            move: cnti cntj => /isZ -> /isZ ->; reflexivity.
+          + move=> l1 l2 rm1 rm2 neq /noLock contra; inversion contra. 
+        + move => i l cnt rm /noLock contra; inversion contra.
+        + move=> i cnti; split.
+          * move => j0 cntj.
+            move: (cnti) (cntj) => cnti0 cntj0;
+              move: cnti cntj => /isZ Hi /isZ Hj.
+            subst.
+            eapply permCoh_empty'.
+          * move => l rm /noLock contra; inversion contra.
+        + move => l mr /noLock contra; inversion contra.
+        + move => b ofs.
+          rewrite / IM /= //.
+          Qed.
+  
   Lemma updThread_inv: forall ds i (cnt: containsThread ds i) c pmap,
            invariant ds ->
            (forall j (cnt: containsThread ds j),
@@ -508,7 +543,64 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
            invariant ds ->
            invariant (remLockSet ds a).
   Proof.
-  Admitted.
+    intros.
+    inversion H.
+    econstructor; eauto.
+    - intros.
+      destruct (EqDec_address a laddr1), (EqDec_address a laddr2); subst;
+        try (subst; by exfalso);
+      try (erewrite gsslockResRemLock in Hres1);
+        try (erewrite gsslockResRemLock in Hres2);
+        try (discriminate);
+      try (erewrite gsolockResRemLock in Hres1 by eauto);
+      try (erewrite gsolockResRemLock in Hres2 by eauto);
+      now eauto.
+    - intros.
+      destruct (EqDec_address a laddr); subst;
+              try (erewrite gsslockResRemLock in Hres);
+              try (erewrite gsolockResRemLock in Hres by eauto);
+              try (discriminate);
+              rewrite gRemLockSetRes;
+              now eauto.
+    - intros.
+      pose proof (cntRemoveL' cnti) as cnti'.
+      erewrite @gRemLockSetRes with (cnti := cnti').
+      destruct (thread_data_lock_coh0 _ cnti').
+      split; intros.
+      rewrite gRemLockSetRes;
+        now eauto.
+      destruct (EqDec_address a laddr); subst;
+        try (erewrite gsslockResRemLock in H2);
+        try (erewrite gsolockResRemLock in H2 by eauto);
+        try (discriminate);
+        now eauto.
+    - intros.
+      destruct (EqDec_address a laddr); subst;
+        try (erewrite gsslockResRemLock in Hres);
+        try (erewrite gsolockResRemLock in Hres by eauto);
+        try (discriminate);
+        destruct (locks_data_lock_coh0 _ _ Hres);
+        split; intros;
+          [rewrite gRemLockSetRes; now eauto | idtac].
+      destruct (EqDec_address a laddr'); subst;
+        try (erewrite gsslockResRemLock in H2);
+        try (erewrite gsolockResRemLock in H2 by eauto);
+        try (discriminate);
+        now eauto.
+    - intros b ofs.
+      specialize (lockRes_valid0 b ofs).
+      destruct (lockRes (remLockSet ds a) (b, ofs)) eqn:Hres; auto.
+      destruct (EqDec_address a (b, ofs)); subst.
+      rewrite gsslockResRemLock in Hres. discriminate.
+      rewrite gsolockResRemLock in Hres;
+        auto.
+      rewrite Hres in lockRes_valid0.
+      intros ofs0 Hintv.
+      specialize (lockRes_valid0 ofs0 Hintv).
+      destruct (EqDec_address a (b, ofs0)); subst;
+        [rewrite gsslockResRemLock | rewrite gsolockResRemLock];
+        now auto.
+  Qed.
   
   Lemma invariant_add:
     forall tp i (cnti: containsThread tp i) c pmap1 pmap2 vf arg
@@ -587,8 +679,21 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
     forall j (cntj: containsThread tp j),
       (getThreadR cntj).2 !! b ofs = None /\
       (i <> j -> (getThreadR cntj).1 !! b ofs = None).
-  Admitted.
-  
+  Proof.
+    intros.
+    pose proof ((thread_data_lock_coh Hinv cntj).1 _ cnti b ofs) as Hcoh.
+    rewrite Hfreeable in Hcoh.
+    simpl in Hcoh.
+    split.
+    destruct ((getThreadR cntj).2 !! b ofs); auto; by exfalso.
+    intros Hneq.
+    pose proof ((no_race_thr Hinv cnti cntj Hneq).1 b ofs).
+    rewrite Hfreeable in H.
+    apply no_race_racy in H; eauto using racy.
+    inversion H;
+      now auto.
+  Qed.
+
   Lemma invariant_freeable_empty_locks:
     forall tp i (cnti: containsThread tp i) b ofs
       (Hinv: invariant tp)
@@ -598,7 +703,17 @@ Module ThreadPoolWF (SEM: Semantics) (Machines: MachinesSig with Module SEM := S
       rmap.1 !! b ofs = None /\
       rmap.2 !! b ofs = None.
   Proof.
-  Admitted.
+    intros.
+    pose proof ((locks_data_lock_coh Hinv _ H).1 _ cnti b ofs) as Hcoh.
+    pose proof ((no_race Hinv _  cnti H).1 b ofs) as Hdisjoint.
+    rewrite Hfreeable in Hdisjoint, Hcoh.
+    split.
+    apply no_race_racy in Hdisjoint; eauto using racy.
+    inversion Hdisjoint;
+      now auto.
+    simpl in Hcoh;
+      destruct (rmap.2 !! b ofs); eauto; by exfalso.
+  Qed.
 
   Lemma mem_compatible_invalid_block:
     forall tp m b ofs

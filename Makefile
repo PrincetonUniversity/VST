@@ -130,9 +130,9 @@ CONCUR_FILES= \
   rc_semantics.v rc_semantics_lemmas.v \
   scheduler.v TheSchedule.v sepcomp.v seq_lemmas.v ssromega.v stack.v \
   threads_lemmas.v wf_lemmas.v \
-  x86_inj.v x86_safe.v x86_context.v fineConc_x86.v executions.v SC_erasure.v \
+  x86_inj.v x86_safe.v x86_context.v fineConc_x86.v executions.v SC_erasure.v spinlocks.v \
   sync_preds_defs.v sync_preds.v \
-  semax_conc_pred.v semax_conc.v semax_to_juicy_machine.v \
+  semax_conc_pred.v xsemax_conc.v semax_conc.v semax_to_juicy_machine.v \
   semax_invariant.v semax_initial.v \
   semax_simlemmas.v cl_step_lemmas.v \
   semax_progress.v semax_preservation.v \
@@ -211,7 +211,7 @@ VERIC_FILES= \
   semax.v semax_lemmas.v semax_call.v semax_straight.v semax_loop.v semax_congruence.v \
   initial_world.v initialize.v semax_prog.v semax_ext.v SeparationLogic.v SeparationLogicSoundness.v  \
   NullExtension.v SequentialClight.v superprecise.v jstep.v address_conflict.v valid_pointer.v coqlib4.v \
-  semax_ext_oracle.v mem_lessdef.v
+  semax_ext_oracle.v mem_lessdef.v Clight_sim.v
 
 FLOYD_FILES= \
    coqlib3.v base.v library.v proofauto.v computable_theorems.v \

@@ -43,9 +43,9 @@ Definition main_spec :=
   PRE  [] main_pre prog nil u
   POST [ tint ] main_post prog nil u.
 
-Definition Gprog : funspecs := augment_funspecs prog [acquire_spec; release_spec; release2_spec; makelock_spec;
+Definition Gprog : funspecs :=   ltac:(with_library prog [acquire_spec; release_spec; release2_spec; makelock_spec;
   freelock_spec; freelock2_spec; spawn_spec; makecond_spec; freecond_spec; wait_spec; signal_spec;
-  thread_func_spec; main_spec].
+  thread_func_spec; main_spec]).
 
 Lemma inv_precise : forall p,
   precise (dlock_inv p).
@@ -116,10 +116,10 @@ Proof.
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
   forward_call (lock, Ews, dlock_inv data).
   { apply prop_right; rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto. }
-  { rewrite (sepcon_comm _ (fold_right _ _ _)); apply sepcon_derives; [cancel | apply lock_struct]. }
+  { rewrite (sepcon_comm _ (fold_right_sepcon _)); apply sepcon_derives; [cancel | apply lock_struct]. }
   forward_call (lockt, Ews, tlock_inv sh1 lockt lock cond data).
   { apply prop_right; rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto. }
-  { rewrite (sepcon_comm _ (fold_right _ _ _)); apply sepcon_derives; [cancel | apply lock_struct]. }
+  { rewrite (sepcon_comm _ (fold_right_sepcon _)); apply sepcon_derives; [cancel | apply lock_struct]. }
   get_global_function'' _thread_func.
   apply extract_exists_pre; intros f_.
   forward_spawn (val * share * val * val * val)%type (f_, Vint (Int.repr 0), (data, sh1, lock, lockt, cond),
@@ -130,9 +130,12 @@ Proof.
     Exists _args (fun x :val * share * val * val * val => let '(data, sh, lock, lockt, cond) := x in
       [(_data, data); (_mutex, lock); (_tlock, lockt); (_cond, cond)]); entailer.
     rewrite !sepcon_assoc; apply sepcon_derives.
-    { apply derives_refl'; f_equal; f_equal.
-      extensionality.
-      destruct x as (?, ((((?, ?), ?), ?), ?)); simpl.
+    { apply derives_refl'. f_equal.
+      unfold NDmk_funspec.
+      apply mk_funspec_congr; auto.
+      apply eq_JMeq.
+      extensionality x x0.
+      destruct x0 as (?, ((((?, ?), ?), ?), ?)); simpl.
       rewrite <- !sepcon_assoc; reflexivity.  }
     erewrite <- lock_inv_share_join; try apply Hsh; auto.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto.

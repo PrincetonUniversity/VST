@@ -3,9 +3,7 @@ Require Import progs.conc_queue.
 Require Import progs.conc_queue_specs.
 Require Import floyd.library.
 
-(* This lets us use a library as a client. *)
-Axiom semax_func_mono : forall {Espec : OracleKind} {C : compspecs} V G fs G' G2,
-  semax_func V G fs G' -> incl G G2 -> semax_func V G2 fs G'.
+Set Bullet Behavior "Strict Subproofs".
 
 Definition acquire_spec := DECLARE _acquire acquire_spec.
 Definition release_spec := DECLARE _release release_spec.
@@ -16,23 +14,12 @@ Definition freecond_spec := DECLARE _freecond (freecond_spec _).
 Definition wait_spec := DECLARE _waitcond (wait2_spec _).
 Definition signal_spec := DECLARE _signalcond (signal_spec _).
 
+Definition surely_malloc_spec := DECLARE _surely_malloc surely_malloc_spec'.
 Definition q_new_spec := DECLARE _q_new q_new_spec'.
 Definition q_del_spec := DECLARE _q_del q_del_spec'.
 Definition q_add_spec := DECLARE _q_add q_add_spec'.
 Definition q_remove_spec := DECLARE _q_remove q_remove_spec'.
 Definition q_tryremove_spec := DECLARE _q_tryremove q_tryremove_spec'.
-
-Definition surely_malloc_spec :=
-  DECLARE _surely_malloc
-   WITH n:Z
-   PRE [ _n OF tuint ]
-       PROP (0 <= n <= Int.max_unsigned)
-       LOCAL (temp _n (Vint (Int.repr n)))
-       SEP ()
-    POST [ tptr tvoid ] EX p:_,
-       PROP ()
-       LOCAL (temp ret_temp p)
-       SEP (malloc_token Tsh n p * memory_block Tsh n p).
 
 Definition Gprog : funspecs := ltac:(with_library prog
   [surely_malloc_spec; acquire_spec; release_spec; makelock_spec; freelock_spec;
@@ -41,7 +28,7 @@ Definition Gprog : funspecs := ltac:(with_library prog
 
 Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_spec.
 Proof.
-  start_function. 
+  unfold surely_malloc_spec, surely_malloc_spec'; start_function. 
   forward_call (* p = malloc(n); *)
      n.
   Intros p.
@@ -96,7 +83,7 @@ Proof.
          @data_at_ CompSpecs Tsh (tptr tlock) (offset_val 60 p))).
   { unfold MAX; computable. }
   { unfold MAX; computable. }
-  { unfold fold_right; entailer!.
+  { entailer!.
     unfold data_at_, field_at_; unfold_field_at 1%nat.
     unfold data_at, field_at, at_offset; simpl; entailer. }
   { forward.
@@ -145,12 +132,12 @@ Proof.
     rewrite !field_compatible_cons; simpl; Intros.
     apply andp_right; [apply prop_right; unfold in_members; simpl; split; [|split; [|split]]; auto|].
     rewrite sepcon_emp, !isptr_offset_val_zero; auto. }
-  apply new_ghost with (t' := t).
+  apply new_ghost with (t' := reptype t).
   forward.
   forward_call (lock, Tsh, q_lock_pred t P p lock gsh2).
   { lock_props.
     unfold q_lock_pred, q_lock_pred'; simpl.
-    Exists ([] : list (val * reptype t)) 0 addc remc ([] : hist t).
+    Exists ([] : list (val * reptype t)) 0 addc remc ([] : hist (reptype t)).
     rewrite Zlength_nil; simpl; cancel.
     rewrite sepcon_andp_prop'.
     apply andp_right; [apply prop_right|].
@@ -161,7 +148,7 @@ Proof.
     unfold_field_at 1%nat.
     erewrite <- ghost_share_join with (h1 := []); eauto.
     simpl; cancel.
-    rewrite (sepcon_comm _ (@ghost _ t _ _)), !sepcon_assoc; apply sepcon_derives; auto.
+    rewrite (sepcon_comm _ (@ghost _ (reptype t) _ _)), !sepcon_assoc; apply sepcon_derives; auto.
     unfold data_at, field_at; simpl.
     rewrite !field_compatible_cons; simpl; Intros.
     apply andp_right; [apply prop_right; unfold in_members; simpl; split; [|split]; auto|].
@@ -170,21 +157,6 @@ Proof.
   Exists p lock.
   unfold lqueue; simpl; entailer!; auto.
 Admitted.
-
-Lemma list_incl_refl : forall {A} (l : list A), list_incl l l.
-Proof.
-  induction l; auto.
-Qed.
-Hint Resolve list_incl_refl.
-
-Lemma consistent_inj : forall {t} (h : hist t) a b b' (Hb : consistent h a b) (Hb' : consistent h a b'), b = b'.
-Proof.
-  induction h; simpl; intros.
-  - subst; auto.
-  - destruct a; eauto.
-    destruct a0; [contradiction|].
-    destruct Hb, Hb'; eauto.
-Qed.
 
 Lemma body_q_del : semax_body Vprog Gprog f_q_del q_del_spec.
 Proof.
@@ -234,41 +206,6 @@ Proof.
   (* Do we want to deallocate the ghost? *)
 Admitted.
 
-Lemma consistent_trans : forall {t} (h1 h2 : hist t) a b c, consistent h1 a b -> consistent h2 b c ->
-  consistent (h1 ++ h2) a c.
-Proof.
-  induction h1; simpl; intros; subst; auto.
-  destruct a; eauto.
-  destruct a0; [contradiction | destruct H; eauto].
-Qed.
-
-Corollary consistent_snoc_add : forall {t} (h : hist t) a b e v, consistent h a b ->
-  consistent (h ++ [QAdd e v]) a (b ++ [(e, v)]).
-Proof.
-  intros; eapply consistent_trans; simpl; eauto.
-Qed.
-
-Corollary consistent_cons_rem : forall {t} (h : hist t) a b e v, consistent h a ((e, v) :: b) ->
-  consistent (h ++ [QRem e v]) a b.
-Proof.
-  intros; eapply consistent_trans; eauto; simpl; auto.
-Qed.
-
-Lemma list_incl_app2 : forall {A} (l l1 l2 : list A), list_incl l l2 -> list_incl l (l1 ++ l2).
-Proof.
-  induction l1; auto; intros.
-  simpl; constructor; auto.
-Qed.
-
-Lemma list_incl_app : forall {A} (l1 l2 l1' l2' : list A), list_incl l1 l2 -> list_incl l1' l2' ->
-  list_incl (l1 ++ l1') (l2 ++ l2').
-Proof.
-  induction 1; intros.
-  - simpl; apply list_incl_app2; auto.
-  - simpl; constructor; auto.
-  - simpl; constructor 3; auto.
-Qed.
-
 Lemma body_q_add : semax_body Vprog Gprog f_q_add q_add_spec.
 Proof.
   unfold q_add_spec, q_add_spec'.
@@ -281,7 +218,7 @@ Proof.
   forward.
   rewrite data_at_isptr; Intros; rewrite isptr_offset_val_zero; auto.
   forward.
-  forward_while (EX vals : _, EX head : Z, EX addc : val, EX remc : val, EX h' : hist t,
+  forward_while (EX vals : _, EX head : Z, EX addc : val, EX remc : val, EX h' : hist (reptype t),
    PROP ()
    LOCAL (temp _len (vint (Zlength vals)); temp _q p; temp _l lock; temp _tgt p; temp _r e)
    SEP (lock_inv sh lock (q_lock_pred t P p lock gsh2);
@@ -297,13 +234,13 @@ Proof.
     { go_lower.
       rewrite cond_var_isptr; Intros; entailer'. }
     forward_call (addc0, lock, Tsh, sh, q_lock_pred t P p lock gsh2).
-    { unfold q_lock_pred at 3; unfold q_lock_pred'; simpl.
+    { unfold q_lock_pred; unfold q_lock_pred'; simpl.
       Exists vals0 head0 addc0 remc0 h'0.
       subst Frame; instantiate (1 := [field_at sh tqueue_t [StructField _lock] lock p;
         data_at Tsh t v e; malloc_token Tsh (sizeof t) e; ghost gsh1 (sh, h) p]); simpl.
       repeat rewrite sepcon_assoc; repeat (apply sepcon_derives; [apply derives_refl|]).
       entailer!.
-      apply andp_right; [unfold fold_right; cancel | cancel]. }
+      apply andp_right; cancel. }
     unfold q_lock_pred at 2; unfold q_lock_pred'; Intros vals1 head1 addc1 remc1 h'1.
     forward.
     Exists (vals1, head1, addc1, remc1, h'1).
@@ -332,7 +269,8 @@ Proof.
   { go_lower.
     eapply derives_trans; [apply prop_and_same_derives, ghost_inj|].
     Intros; rewrite ghost_share_join; auto; entailer!. }
-  Intros; apply hist_add with (e0 := QAdd e v).
+  exploit (consistent_snoc_add h'0 [] vals0 e v); auto; intro.
+  Intros; apply hist_add with (e0 := QAdd e v); [eauto|].
   erewrite <- ghost_share_join with (h1 := h ++ [QAdd e v])(sh := sh); try eassumption.
   time forward_call (lock, sh, q_lock_pred t P p lock gsh2). (* 37s *)
   { lock_props.
@@ -348,13 +286,12 @@ Proof.
     repeat match goal with H : _ /\ _ |- _ => destruct H end.
     simpl; apply andp_right.
     { apply prop_right; split; [rewrite Zlength_correct; unfold MAX; omega|].
-      split; [omega|].
-      apply consistent_snoc_add; auto. }
+      split; [omega | auto]. }
     rewrite Zplus_mod_idemp_l, Z.add_assoc, Zlength_map.
     repeat rewrite map_app; repeat rewrite sepcon_app; simpl.
     rewrite sem_cast_neutral_ptr; auto; simpl.
     rewrite sepcon_andp_prop', !sepcon_andp_prop, sepcon_andp_prop'; apply andp_right;
-      [apply prop_right; auto | unfold fold_right at 1; cancel].
+      [apply prop_right; auto | cancel].
     { pose proof (Z_mod_lt (head0 + Zlength vals0) MAX).
       rewrite Zlength_map; split; try omega.
       transitivity MAX; simpl in *; [omega | unfold MAX; computable]. } }
@@ -376,7 +313,7 @@ Proof.
   forward.
   rewrite data_at_isptr; Intros; rewrite isptr_offset_val_zero; auto.
   forward.
-  forward_while (EX vals : list _, EX head : Z, EX addc : val, EX remc : val, EX h' : hist t, PROP ()
+  forward_while (EX vals : list _, EX head : Z, EX addc : val, EX remc : val, EX h' : hist (reptype t), PROP ()
    LOCAL (temp _len (vint (Zlength vals)); temp _q p; temp _l lock; temp _tgt p)
    SEP (lock_inv sh lock (q_lock_pred t P p lock gsh2);
         q_lock_pred' t P p vals head addc remc lock gsh2 h';
@@ -386,7 +323,7 @@ Proof.
   { unfold q_lock_pred'; rewrite (cond_var_isptr _ remc0); Intros.
     forward.
     forward_call (remc0, lock, Tsh, sh, q_lock_pred t P p lock gsh2).
-    { unfold q_lock_pred at 3; unfold q_lock_pred'; simpl.
+    { unfold q_lock_pred; unfold q_lock_pred'; simpl.
       Exists vals0 head0 addc0 remc0 h'0.
       subst Frame; instantiate (1 := [field_at sh tqueue_t [StructField _lock] lock p;
         ghost gsh1 (sh, h) p]); simpl.
@@ -434,13 +371,13 @@ Proof.
   simpl force_val.
   rewrite !add_repr, mods_repr; try computable.
   destruct p0 as (e, v).
-  exploit (consistent_cons_rem(t := t)); eauto; intro.
+  exploit (consistent_cons_rem(t := reptype t)); eauto; intro.
   gather_SEP 8 11.
   rewrite sepcon_comm; replace_SEP 0 (!!(list_incl h h'0) && ghost Tsh (Tsh, h'0) p).
   { go_lower.
     eapply derives_trans; [apply prop_and_same_derives, ghost_inj|].
     Intros; rewrite ghost_share_join; auto; entailer!. }
-  Intros; apply hist_add with (e0 := QRem e v).
+  Intros; apply hist_add with (e0 := QRem e v); [eauto|].
   erewrite <- ghost_share_join with (h1 := h ++ [QRem e v])(sh := sh); try eassumption; try apply list_incl_app;
     auto.
   forward_call (lock, sh, q_lock_pred t P p lock gsh2).
@@ -448,7 +385,7 @@ Proof.
     unfold q_lock_pred, q_lock_pred'; Exists vals0 ((head0 + 1) mod MAX) addc0 remc0 (h'0 ++ [QRem e v]).
     unfold Z.succ; rewrite sub_repr, Z.add_simpl_r, (Z.add_comm (Zlength vals0)), Z.add_assoc,
       Zplus_mod_idemp_l.
-    unfold fold_right at 1; simpl; entailer!.
+    simpl; entailer!.
     apply Z_mod_lt; omega. }
   forward.
   Exists e v; unfold lqueue; simpl; entailer!; auto.
@@ -482,7 +419,7 @@ Proof.
    field_at sh tqueue_t [StructField _lock] lock p; ghost gsh1 (sh, h) p)).
   { forward_call (lock, sh, q_lock_pred t P p lock gsh2).
     { simpl; lock_props.
-      unfold q_lock_pred, q_lock_pred'; Exists vals head addc remc h'; unfold fold_right at 1; simpl; entailer!. }
+      unfold q_lock_pred, q_lock_pred'; Exists vals head addc remc h'; simpl; entailer!. }
     forward.
     Exists (vint 0); entailer!.
     destruct (Memory.EqDec_val (vint 0) nullval); [|contradiction n; auto].
@@ -526,13 +463,13 @@ Proof.
   simpl force_val.
   rewrite !add_repr, mods_repr; try computable.
   destruct p0 as (e, v).
-  exploit (consistent_cons_rem(t := t)); eauto; intro.
+  exploit (consistent_cons_rem(t := reptype t)); eauto; intro.
   gather_SEP 8 11.
   rewrite sepcon_comm; replace_SEP 0 (!!(list_incl h h') && ghost Tsh (Tsh, h') p).
   { go_lower.
     eapply derives_trans; [apply prop_and_same_derives, ghost_inj|].
     Intros; rewrite ghost_share_join; auto; entailer!. }
-  Intros; apply hist_add with (e0 := QRem e v).
+  Intros; apply hist_add with (e0 := QRem e v); [eauto|].
   erewrite <- ghost_share_join with (h1 := h ++ [QRem e v])(sh := sh); try eassumption; try apply list_incl_app;
     auto.
   forward_call (lock, sh, q_lock_pred t P p lock gsh2).
@@ -540,7 +477,7 @@ Proof.
     unfold q_lock_pred, q_lock_pred'; Exists vals ((head + 1) mod MAX) addc remc (h' ++ [QRem e v]).
     unfold Z.succ; rewrite sub_repr, Z.add_simpl_r, (Z.add_comm (Zlength vals)), Z.add_assoc,
       Zplus_mod_idemp_l.
-    unfold fold_right at 1; simpl; entailer!.
+    simpl; entailer!.
     apply Z_mod_lt; omega. }
   forward.
   Exists e; entailer!.
@@ -553,28 +490,23 @@ Proof.
     transitivity MAX; [omega | unfold MAX; computable]. }
 Qed.
 
-(*Lemma lock_struct : forall p, data_at_ Tsh (Tstruct _lock_t noattr) p |-- data_at_ Tsh tlock p.
-Proof.
-  intros.
-  unfold data_at_, field_at_; unfold_field_at 1%nat; simpl.
-  unfold field_at; simpl.
-  rewrite field_compatible_cons; simpl; entailer.
-Qed.
+Definition extlink := ext_link_prog prog.
 
-Lemma lock_struct_array : forall z p, data_at_ Tsh (tarray (Tstruct _lock_t noattr) z) p |--
-  data_at_ Tsh (tarray tlock z) p.
+Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog.
+Existing Instance Espec.
+
+Lemma all_funcs_correct:
+  semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.
-  intros.
-  unfold data_at_, field_at_, field_at; simpl; entailer.
-  unfold default_val, at_offset; simpl.
-  do 2 rewrite data_at_rec_eq; simpl.
-  unfold array_pred, aggregate_pred.array_pred, unfold_reptype; simpl; entailer.
-  rewrite Z.sub_0_r; clear.
-  forget (Z.to_nat z) as l; forget 0 as lo; revert lo; induction l; intros; simpl; auto.
-  apply sepcon_derives.
-  - unfold at_offset; rewrite data_at_rec_eq; simpl.
-    unfold struct_pred, aggregate_pred.struct_pred, at_offset, withspacer; simpl; entailer.
-  - eapply derives_trans; [apply aggregate_pred.rangespec_ext_derives |
-      eapply derives_trans; [apply IHl | apply aggregate_pred.rangespec_ext_derives]]; simpl; intros;
-      rewrite Znth_pos_cons; try omega; replace (i - lo - 1) with (i - Z.succ lo) by omega; auto.
-Qed.*)
+unfold Gprog, prog, prog_funct; simpl.
+semax_func_cons body_exit.
+semax_func_cons body_free.
+semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
+repeat semax_func_cons_ext.
+semax_func_cons body_surely_malloc.
+semax_func_cons body_q_new.
+semax_func_cons body_q_del.
+semax_func_cons body_q_add.
+semax_func_cons body_q_tryremove.
+semax_func_cons body_q_remove.
+Qed.

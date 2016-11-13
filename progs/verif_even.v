@@ -31,7 +31,7 @@ Definition main_spec :=
 
 
 Definition Gprog : funspecs :=
-   augment_funspecs prog [odd_spec; even_spec; main_spec].
+     ltac:(with_library prog [odd_spec; even_spec; main_spec]).
 
 Lemma body_even : semax_body Vprog Gprog f_even even_spec.
 Proof.

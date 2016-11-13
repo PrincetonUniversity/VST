@@ -523,12 +523,13 @@ To prove correctness of a whole program,
 
 In \file{progs/verif\_sumarray.v}, the first step is easy:
 \begin{lstlisting}
-Definition Gprog : funspecs := sumarray_spec :: main_spec::nil.
+Definition Gprog := ltac:(wi$$th_library prog [sumarray_spec; main_spec]).
 \end{lstlisting}
 The function specs, built using \lstinline{DECLARE},
 are listed in the same order the functions appear in
 the program (in particular, the same order they appear
 in \lstinline{prog.(prog_defs)}, in \lstinline{sumarray.v}).
+\autoref{with-library} describes \lstinline{wi$$th_library}.
 
 In addition to \lstinline{Gprog},
 the API spec contains \lstinline{Vprog}, the list of
@@ -3876,6 +3877,45 @@ space to hold a value of type $t$
 at address $v$, with permission-share $\mathit{sh}$.
 
 From these primitives, \lstinline{field_at} and \lstinline{data_at} are constructed.
+
+\chapter{\textsf{with\_library}: Library functions}
+\label{with-library}
+
+A CompCert C program is implicitly linked with dozens of ``built-in'' and
+library functions.  In the .v file produced by \textsf{clightgen},
+the \lstinline{prog_defs} component of your \lstinline{prog}
+lists these as \lstinline{External} definitions, along with
+the \lstinline{Internal} definitions of your own functions.
+\emph{Every one of these needs a funspec,} of the
+form \lstinline{DECLARE...WITH...}, and this funspec must be
+\emph{proved} with a \lstinline{semax_ext} proof.
+
+Fortunately, if your program does not use a given library function $f$,
+then the funspec \lstinline{DECLARE _f WITH...PRE[...] False POST...}
+with a \textbf{False} precondition is easy to prove!  The
+tactic \lstinline{wi$$th_library $\mathit{prog}$ [$s_1; s_2; \ldots; s_n$]}
+augments your explicit funspec-list $[s_1; s_2; \ldots; s_n]$ with
+such trivial funspecs for the other functions in the program $\mathit{prog}$.
+
+\newthought{You may wish} to use standard library functions such as
+\textsf{malloc}, \textsf{free}, \textsf{exit}.  These are axiomatized
+(with external funspecs) in \lstinline{floyd.library}.  To use them,
+\lstinline{Require Import floyd.library} \emph{after} you
+import \lstinline{floyd.proofauto}.  This imports
+a (floyd.library.)\lstinline{wi$$th_library} tactic hiding the standard
+\linebreak[4]
+(floyd.forward.)\lstinline{wi$$th_library} tactic;
+the new one includes \emph{axiomatized} specifications for
+malloc, free, exit, etc.  We haven't proved the implementations
+against the axioms, so if you don't trust them, then don't
+import \lstinline{floyd.library}.
+
+The next chapters explain the specifications of certain
+standard-library functions.
+
+\chapter{Malloc, free}
+
+\chapter{exit}
 
 \chapter{Function pointers}
 \begin{lstlisting}

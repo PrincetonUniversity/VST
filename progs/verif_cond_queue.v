@@ -131,11 +131,11 @@ Definition main_spec :=
   PRE  [] main_pre prog [] u
   POST [ tint ] main_post prog [] u.
 
-Definition Gprog : funspecs := augment_funspecs prog [acquire_spec; release_spec; (*release2_spec;*) makelock_spec;
+Definition Gprog : funspecs :=   ltac:(with_library prog [acquire_spec; release_spec; (*release2_spec;*) makelock_spec;
   (*freelock_spec; freelock2_spec;*) spawn_spec; makecond_spec; (*freecond_spec;*) wait_spec; signal_spec;
   malloc_spec; free_spec;
   process_spec; get_request_spec; process_request_spec; add_spec; remove_spec; producer_spec; consumer_spec;
-  main_spec].
+  main_spec]).
 
 Lemma body_process : semax_body Vprog Gprog f_process process_spec.
 Proof.
@@ -211,7 +211,7 @@ Proof.
 Qed.
 
 Lemma all_ptrs : forall reqs,
-  fold_right sepcon emp (map Interp (map (fun r => Exp _ (fun data =>
+  fold_right_sepcon (map Interp (map (fun r => Exp _ (fun data =>
     Data_at _ Tsh trequest (Vint (Int.repr data)) r)) reqs)) |--
   !!(Forall isptr reqs).
 Proof.
@@ -223,7 +223,7 @@ Proof.
   normalize.
 Qed.
 
-Lemma precise_reqs : forall reqs, precise (fold_right sepcon emp (map Interp (map (fun r => Exp _ (fun d =>
+Lemma precise_reqs : forall reqs, precise (fold_right_sepcon (map Interp (map (fun r => Exp _ (fun d =>
   Data_at _ Tsh trequest (Vint (Int.repr d)) r)) reqs))).
 Proof.
   induction reqs; simpl; auto.
@@ -324,7 +324,7 @@ Proof.
           gvar _requests_producer cprod; gvar _requests_consumer ccon)
    SEP (data_at Ews (tarray (tptr trequest) MAX) (complete MAX reqs) buf;
         data_at Ews tint (Vint (Int.repr (Zlength reqs))) len;
-        fold_right sepcon emp (map Interp (map (fun r => Exp _ (fun data =>
+        fold_right_sepcon (map Interp (map (fun r => Exp _ (fun data =>
           Data_at CompSpecs Tsh trequest (Vint (Int.repr data)) r)) reqs));
         lock_inv sh lock (Interp (lock_pred buf len));
         @data_at CompSpecs Tsh trequest (Vint (Int.repr data)) r;
@@ -392,7 +392,7 @@ Proof.
           gvar _requests_producer cprod; gvar _requests_consumer ccon)
    SEP (data_at Ews (tarray (tptr trequest) MAX) (complete MAX reqs) buf;
         data_at Ews tint (Vint (Int.repr (Zlength reqs))) len;
-        fold_right sepcon emp (map Interp (map (fun r => Exp _ (fun data =>
+        fold_right_sepcon (map Interp (map (fun r => Exp _ (fun data =>
           Data_at CompSpecs Tsh trequest (Vint (Int.repr data)) r)) reqs));
         lock_inv sh lock (Interp (lock_pred buf len));
         cond_var sh cprod; cond_var sh ccon)).
@@ -534,7 +534,7 @@ Proof.
    gvar _requests_consumer ccon; gvar _length len; gvar _requests_lock lock)
    SEP (data_at Ews (tarray (tptr trequest) MAX) (complete MAX reqs) buf;
    data_at Ews tint (Vint (Int.repr (Zlength reqs))) len;
-   fold_right sepcon emp
+   fold_right_sepcon
      (map Interp (map (fun r : val => Exp Z (fun data : Z => Data_at CompSpecs Tsh trequest (Vint (Int.repr data)) r)) reqs));
    lock_inv sh2 lock (Interp (lock_pred buf len));
    cond_var sh2 ccon; cond_var sh2 cprod)).

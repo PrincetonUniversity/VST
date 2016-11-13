@@ -21,7 +21,7 @@ Definition main_spec :=
   POST [ tint ] main_post prog [] u.
 
 Definition Gprog : funspecs := 
-      augment_funspecs prog [f_spec; main_spec].
+        ltac:(with_library prog [f_spec; main_spec]).
 
 Lemma body_f: semax_body Vprog Gprog f_f f_spec.
 Proof.

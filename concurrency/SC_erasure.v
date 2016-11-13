@@ -25,6 +25,7 @@ Require Import concurrency.threads_lemmas.
 Require Import concurrency.permissions.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.memory_lemmas.
+Require Import concurrency.dry_machine_lemmas.
 Require Import concurrency.dry_context.
 Require Import concurrency.fineConc_safe.
 Require Import concurrency.executions.
@@ -747,8 +748,8 @@ Module TraceErasure.
   (** Removing the footprints from a [sync_event] *)
   Definition eraseSyncEvent ev :=
     match ev with
-    | Events.release addr _ _ => Events.release addr None None
-    | Events.acquire addr _ _ => Events.acquire addr None None
+    | Events.release addr _ => Events.release addr None
+    | Events.acquire addr _ => Events.acquire addr None
     | Events.spawn addr _ _ => Events.spawn addr None None
     | _ => ev
     end.
@@ -1305,34 +1306,34 @@ Module MemErasure.
         destruct (Z_le_dec 0 ofs);
           destruct (Z_lt_dec ofs sz).
         * assert (Heq:=
-                    MemoryLemmas.permission_at_alloc_2 _ _ _ _ _ Halloc' ltac:(eauto)).
+                    MemoryLemmas.permission_at_alloc_2 _ _ _ _ _ _ Halloc' ltac:(eauto)).
           unfold permission_at in Heq.
           specialize (Heq k).
           rewrite Heq.
           simpl.
           destruct ((Mem.mem_access m2) # b' ofs k); constructor; auto.
         * apply Znot_lt_ge in n.
-          assert (H1:= MemoryLemmas.permission_at_alloc_3 _ _ _ _ _ Halloc'
+          assert (H1:= MemoryLemmas.permission_at_alloc_3 _ _ _ _ _ _ Halloc'
                                                           ltac:(eauto)).
-          assert (H2:= MemoryLemmas.permission_at_alloc_3 _ _ _ _ _ Halloc ltac:(eauto)).
+          assert (H2:= MemoryLemmas.permission_at_alloc_3 _ _ _ _ _ _ Halloc ltac:(eauto)).
           unfold permission_at in H1,H2.
           specialize (H1 k). specialize (H2 k).
           rewrite H1 H2.
           simpl. auto.
         * assert (ofs < 0)
             by omega.
-          assert (H1:= MemoryLemmas.permission_at_alloc_3 _ _ _ _ ofs Halloc'
+          assert (H1:= MemoryLemmas.permission_at_alloc_3 _ _ _ _ _ ofs Halloc'
                                                           ltac:(eauto)). 
-          assert (H2:= MemoryLemmas.permission_at_alloc_3 _ _ _ _ _ Halloc ltac:(eauto)).
+          assert (H2:= MemoryLemmas.permission_at_alloc_3 _ _ _ _ _ _ Halloc ltac:(eauto)).
           unfold permission_at in H1,H2.
           specialize (H1 k). specialize (H2 k).
           rewrite H1 H2.
           simpl. auto.
         * assert (ofs < 0)
             by omega.
-          assert (H1:= MemoryLemmas.permission_at_alloc_3 _ _ _ _ ofs Halloc'
+          assert (H1:= MemoryLemmas.permission_at_alloc_3 _ _ _ _ _ ofs Halloc'
                                                           ltac:(eauto)). 
-          assert (H2:= MemoryLemmas.permission_at_alloc_3 _ _ _ _ _ Halloc ltac:(eauto)).
+          assert (H2:= MemoryLemmas.permission_at_alloc_3 _ _ _ _ _ _ Halloc ltac:(eauto)).
           unfold permission_at in H1,H2.
           specialize (H1 k). specialize (H2 k).
           rewrite H1 H2.
@@ -1680,8 +1681,8 @@ Module ThreadPoolErasure (SEM: Semantics)
     constructor.
     unfold addThread, ErasedMachine.ThreadPool.addThread; simpl. rewrite H2; auto.
     intros.
-    assert (cnti00 := cntAdd' _ _ _  cnti0).
-    assert (cnti0'0 := ErasedMachine.ThreadPool.cntAdd' _ _ _  cnti'0).
+    assert (cnti00 := cntAdd' cnti0).
+    assert (cnti0'0 := ErasedMachine.ThreadPool.cntAdd' cnti'0).
     destruct cnti00 as [[cnti00 ?] | Heq];
       destruct cnti0'0 as [[cnti0'0 ?] | ?].
     - erewrite gsoAddCode with (cntj := cnti00) by eauto.
@@ -1715,14 +1716,14 @@ Module ThreadPoolErasure (SEM: Semantics)
 End ThreadPoolErasure.
   
 (** ** Erasure from FineConc to SC*)
-Module SCErasure (SEM: Semantics)
+Module SCErasure (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
        (Machines: MachinesSig with Module SEM := SEM)
        (AsmContext: AsmContext SEM Machines)
        (CE : CoreErasure SEM).
   Module ThreadPoolErasure := ThreadPoolErasure SEM Machines CE.
   Import ValErasure MemErasure TraceErasure CE ThreadPoolErasure.
   Import Machines DryMachine ThreadPool AsmContext.
-  Module Executions := Executions SEM Machines AsmContext.
+  Module Executions := Executions SEM SemAxioms Machines AsmContext.
   Import Executions.
 
   Import event_semantics.
@@ -1795,7 +1796,7 @@ Module SCErasure (SEM: Semantics)
         rewrite ErasedMachine.ThreadPool.gssThreadCC.
         simpl; auto.
       + rewrite gsoThreadCode; auto.
-        assert (cntj0' := ErasedMachine.ThreadPool.cntUpdateC' _ _ cntj').
+        assert (cntj0' := ErasedMachine.ThreadPool.cntUpdateC' cntj').
         erewrite <- @ErasedMachine.ThreadPool.gsoThreadCC with (cntj := cntj0')
           by eauto.
         inversion HerasePool; eauto.
@@ -1810,7 +1811,7 @@ Module SCErasure (SEM: Semantics)
         rewrite ErasedMachine.ThreadPool.gssThreadCC.
         simpl; auto.
       + rewrite gsoThreadCode; auto.
-        assert (cntj0' := ErasedMachine.ThreadPool.cntUpdateC' _ _ cntj').
+        assert (cntj0' := ErasedMachine.ThreadPool.cntUpdateC' cntj').
         erewrite <- @ErasedMachine.ThreadPool.gsoThreadCC with (cntj := cntj0')
           by eauto.
         inversion HerasePool; eauto.
@@ -1820,11 +1821,11 @@ Module SCErasure (SEM: Semantics)
       split; [econstructor; eauto | split; eauto].
       constructor. simpl; eauto. rewrite Hnum. auto.
       intros j cntj cntj'.
-      assert (cntj0 := cntAdd' _ _ _ cntj).
+      assert (cntj0 := cntAdd' cntj).
       destruct cntj0 as [[cntj0 ?] | Heq].
       + (* case it's an old thread*)
         erewrite @gsoAddCode with (cntj := cntj0) by eauto.
-        assert (cntj00 := cntUpdate' _ _ _ cntj0).
+        assert (cntj00 := cntUpdate' cntj0).
         assert (cntj00': ErasedMachine.ThreadPool.containsThread tp1' j)
           by (unfold containsThread,ErasedMachine.ThreadPool.containsThread;
                rewrite <- Hnum; auto).
@@ -1859,7 +1860,7 @@ Module SCErasure (SEM: Semantics)
         rewrite ErasedMachine.ThreadPool.gssThreadCC.
         simpl; auto.
       + rewrite gsoThreadCode; auto.
-        assert (cntj0' := ErasedMachine.ThreadPool.cntUpdateC' _ _ cntj').
+        assert (cntj0' := ErasedMachine.ThreadPool.cntUpdateC' cntj').
         erewrite <- @ErasedMachine.ThreadPool.gsoThreadCC with (cntj := cntj0')
           by eauto.
         inversion HerasePool; eauto.
@@ -1874,7 +1875,7 @@ Module SCErasure (SEM: Semantics)
         rewrite ErasedMachine.ThreadPool.gssThreadCC.
         simpl; auto.
       + rewrite gsoThreadCode; auto.
-        assert (cntj0' := ErasedMachine.ThreadPool.cntUpdateC' _ _ cntj').
+        assert (cntj0' := ErasedMachine.ThreadPool.cntUpdateC' cntj').
         erewrite <- @ErasedMachine.ThreadPool.gsoThreadCC with (cntj := cntj0')
           by eauto.
         inversion HerasePool; eauto.
@@ -1941,8 +1942,8 @@ Module SCErasure (SEM: Semantics)
       rewrite ErasedMachine.ThreadPool.gssThreadCC.
       simpl. apply core_erasure_refl.
     +
-      assert (cntj0' := ErasedMachine.ThreadPool.cntUpdateC' _ _ cntj').
-      assert (cntj0 := cntUpdateC' _ _ cntj).
+      assert (cntj0' := ErasedMachine.ThreadPool.cntUpdateC' cntj').
+      assert (cntj0 := cntUpdateC' cntj).
       erewrite <- @gsoThreadCC with (cntj :=  cntj0) by eauto.
       erewrite <- @ErasedMachine.ThreadPool.gsoThreadCC with (cntj := cntj0')
         by eauto.
@@ -1993,8 +1994,8 @@ Module SCErasure (SEM: Semantics)
       rewrite ErasedMachine.ThreadPool.gssThreadCC.
       simpl; eauto.
     +
-      assert (cntj0' := ErasedMachine.ThreadPool.cntUpdateC' _ _ cntj').
-      assert (cntj0 := cntUpdateC' _ _ cntj).
+      assert (cntj0' := ErasedMachine.ThreadPool.cntUpdateC' cntj').
+      assert (cntj0 := cntUpdateC' cntj).
       erewrite <- @gsoThreadCC with (cntj :=  cntj0) by eauto.
       erewrite <- @ErasedMachine.ThreadPool.gsoThreadCC with (cntj := cntj0')
         by eauto.
@@ -2040,8 +2041,8 @@ Module SCErasure (SEM: Semantics)
       rewrite ErasedMachine.ThreadPool.gssThreadCC.
       simpl; eauto.
     +
-      assert (cntj0' := ErasedMachine.ThreadPool.cntUpdateC' _ _ cntj').
-      assert (cntj0 := cntUpdateC' _ _ cntj).
+      assert (cntj0' := ErasedMachine.ThreadPool.cntUpdateC' cntj').
+      assert (cntj0 := cntUpdateC' cntj).
       erewrite <- @gsoThreadCC with (cntj :=  cntj0) by eauto.
       erewrite <- @ErasedMachine.ThreadPool.gsoThreadCC with (cntj := cntj0')
         by eauto.
@@ -2110,8 +2111,8 @@ Module SCErasure (SEM: Semantics)
       rewrite ErasedMachine.ThreadPool.gssThreadCC.
       simpl; eauto.
     +
-      assert (cntj0' := ErasedMachine.ThreadPool.cntUpdateC' _ _ cntj').
-      assert (cntj0 := cntUpdate' _ _ _ cntj).
+      assert (cntj0' := ErasedMachine.ThreadPool.cntUpdateC' cntj').
+      assert (cntj0 := cntUpdate' cntj).
       erewrite  @gsoThreadCode with (cntj :=  cntj0) by eauto.
       erewrite <- @ErasedMachine.ThreadPool.gsoThreadCC with (cntj := cntj0')
         by eauto.

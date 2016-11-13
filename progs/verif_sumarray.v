@@ -40,7 +40,7 @@ Definition main_spec :=
 
 (* Packaging the API spec all together. *)
 Definition Gprog : funspecs := 
-      augment_funspecs prog [sumarray_spec; main_spec].
+        ltac:(with_library prog [sumarray_spec; main_spec]).
 
 (* Loop invariant, for use in body_sumarray.  *)
 Definition sumarray_Inv a0 sh contents size := 

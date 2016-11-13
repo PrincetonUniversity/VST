@@ -367,24 +367,14 @@ auto.
 f_equal; auto.
 Qed.
 
-(*
- Lemma fold_right_sepcon_liftx: 
-    forall (R: list mpred) rho, fold_right sepcon emp (map liftx R) rho =
-                    fold_right sepcon emp R.
-Proof.
- intros.
- induction R; simpl; f_equal; auto.
-Qed.
-*)
-
 Lemma isolate_LOCAL_lem1:
   forall Q, PROPx nil (LOCALx Q (SEPx (TT::nil))) = local (fold_right `and `True (map locald_denote Q)).
 Proof.
  intros.
  extensionality rho.
  unfold PROPx, LOCALx, SEPx.
+ simpl fold_right_sepcon.
  normalize.
- autorewrite with norm1 norm2; normalize.
 Qed.
 
 Lemma fold_right_and_LocalD_i {cs: compspecs}:
@@ -730,7 +720,7 @@ Lemma semax_call_id1_wow:
            |-- !! Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp))
    (CHECKVAR: ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
            |-- !! Forall (check_one_var_spec Qvar) (PTree.elements Qpre_var))
-   (FRAME: fold_right sepcon emp R |-- fold_right sepcon emp Rpre * fold_right sepcon emp Frame)
+   (FRAME: fold_right_sepcon R |-- fold_right_sepcon Rpre * fold_right_sepcon Frame)
    (POST1: Post nil witness = EX vret:B, PROPx (Ppost vret)
                               (LOCALx (temp ret_temp (F vret) :: nil) 
                               (SEPx (Rpost vret))))
@@ -906,7 +896,7 @@ Lemma semax_call_id1_x_wow:
        |-- !! Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp))
    (CHECKVAR: ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
        |-- !! Forall (check_one_var_spec Qvar) (PTree.elements Qpre_var))
-   (FRAME: fold_right sepcon emp R |-- fold_right sepcon emp Rpre * fold_right sepcon emp Frame)
+   (FRAME: fold_right_sepcon R |-- fold_right_sepcon Rpre * fold_right_sepcon Frame)
    (POST1: Post nil witness = EX vret:B, PROPx (Ppost vret)
                               (LOCALx (temp ret_temp (F vret) :: nil) 
                               (SEPx (Rpost vret))))
@@ -1039,7 +1029,7 @@ Lemma semax_call_id1_y_wow:
        |-- !! Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp))
    (CHECKVAR: ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
        |-- !! Forall (check_one_var_spec Qvar) (PTree.elements Qpre_var))
-   (FRAME: fold_right sepcon emp R |-- fold_right sepcon emp Rpre * fold_right sepcon emp Frame)
+   (FRAME: fold_right_sepcon R |-- fold_right_sepcon Rpre * fold_right_sepcon Frame)
    (POST1: Post nil witness = EX vret:B, PROPx (Ppost vret)
                               (LOCALx (temp ret_temp (F vret) :: nil) 
                               (SEPx (Rpost vret))))
@@ -1162,7 +1152,7 @@ Lemma semax_call_id01_wow:
            |-- !! Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp))
    (CHECKVAR: ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
            |-- !! Forall (check_one_var_spec Qvar) (PTree.elements Qpre_var))
-   (FRAME: fold_right sepcon emp R |-- fold_right sepcon emp Rpre * fold_right sepcon emp Frame)
+   (FRAME: fold_right_sepcon R |-- fold_right_sepcon Rpre * fold_right_sepcon Frame)
    (POST1: Post nil witness = EX vret:B, PROPx (Ppost vret)
                               (LOCALx (temp ret_temp (F vret) :: nil) 
                               (SEPx (Rpost vret))))
@@ -1307,7 +1297,7 @@ Lemma semax_call_id00_wow:
            |-- !! Forall (check_one_temp_spec Qactuals) (PTree.elements Qpre_temp))
    (CHECKVAR: ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
            |-- !! Forall (check_one_var_spec Qvar) (PTree.elements Qpre_var))
-   (FRAME: fold_right sepcon emp R |-- fold_right sepcon emp Rpre * fold_right sepcon emp Frame)
+   (FRAME: fold_right_sepcon R |-- fold_right_sepcon Rpre * fold_right_sepcon Frame)
    (POST1: Post nil witness = (EX vret:B, PROPx (Ppost vret) (LOCALx nil (SEPx (Rpost vret)))))
    (POST2: Post2 = EX vret:B, PROPx (P++ Ppost vret ) (LOCALx Q
              (SEPx (Rpost vret ++ Frame))))

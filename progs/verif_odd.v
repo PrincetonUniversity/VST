@@ -4,7 +4,7 @@ Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
 Require Import progs.verif_even.
 
-Definition Gprog : funspecs := augment_funspecs prog [even_spec; odd_spec].
+Definition Gprog : funspecs :=   ltac:(with_library prog [even_spec; odd_spec]).
 
 Lemma body_odd : semax_body Vprog Gprog f_odd odd_spec.
 Proof.

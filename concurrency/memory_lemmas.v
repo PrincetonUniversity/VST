@@ -107,36 +107,29 @@ Module MemoryLemmas.
   Qed.
 
   Lemma permission_at_alloc_2:
-    forall m m' sz nb ofs
-      (Halloc: Mem.alloc m 0 sz = (m', nb))
-      (Hofs: (0 <= ofs < sz)%Z),
+    forall m m' lo sz nb ofs
+      (Halloc: Mem.alloc m lo sz = (m', nb))
+      (Hofs: (lo <= ofs < sz)%Z),
       forall k, permissions.permission_at m' nb ofs k = Some Freeable.
   Proof.
     intros.
-    unfold Mem.alloc in Halloc.
-    inv Halloc.
-    unfold permissions.permission_at. simpl.
-    rewrite Maps.PMap.gss.
-    rewrite threads_lemmas.if_true; auto.
-    destruct (zle 0 ofs), (zlt ofs sz); auto;
-    try omega.
+    eapply Memory.alloc_access_same in Halloc; eauto.
   Qed.
 
   Lemma permission_at_alloc_3:
-    forall m m' sz nb ofs
-      (Halloc: Mem.alloc m 0 sz = (m', nb))
-      (Hofs: (ofs < 0 \/ ofs >= sz)%Z),
+    forall m m' lo sz nb ofs
+      (Halloc: Mem.alloc m lo sz = (m', nb))
+      (Hofs: (ofs < lo \/ ofs >= sz)%Z),
       forall k, permissions.permission_at m' nb ofs k = None.
   Proof.
     intros.
-    unfold Mem.alloc in Halloc.
-    inv Halloc.
-    unfold permissions.permission_at. simpl.
-    rewrite Maps.PMap.gss.
-    rewrite threads_lemmas.if_false; auto.
-    apply negb_true_iff.
-    destruct (zle 0 ofs), (zlt ofs sz); auto;
-    omega.
+    pose proof (Mem.fresh_block_alloc _ _ _ _ _ Halloc) as Hinvalid.
+    apply Mem.nextblock_noaccess with (ofs := ofs) (k := k) in Hinvalid.
+    unfold permission_at.
+    eapply Memory.alloc_access_other with (b' := nb) (k := k) in Halloc;
+      unfold Memory.access_at, permission_at in *; simpl in *; eauto.
+    rewrite <- Halloc;
+      now auto.
   Qed.
 
   Lemma permission_at_alloc_4:

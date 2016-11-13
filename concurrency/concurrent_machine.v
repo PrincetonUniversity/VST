@@ -435,7 +435,9 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     | Some c => Some (c)
     end.
 
-  (*This has to be filled in:*)
+  (*This is not used anymore:
+   * find_thread
+   * running_thread *)
   Definition find_runnin (c:@ctl C): bool :=
     match c with 
     | Krun _ => true
@@ -443,6 +445,13 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     end.
   Definition running_thread: machine_state -> option tid:=
     fun st => find_thread st find_runnin.
+
+    Definition unique_Krun tp i :=
+     forall j cnti q,
+       @getThreadC j tp cnti = Krun q ->
+       ~ @threadHalted j tp cnti  ->
+       eq_tid_dec i j.
+
   
   Program Definition new_MachineSemantics (U:schedule) (r : option RES.res):
     @ConcurSemantics G tid schedule event_trace machine_state mem.
@@ -517,12 +526,6 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     end.*)
 
   Section valid_schedule.
-    
-    Definition unique_Krun tp i :=
-     forall j cnti q,
-       @getThreadC j tp cnti = Krun q ->
-       ~ @threadHalted j tp cnti  ->
-       eq_tid_dec i j.
     
     Definition is_running tp i:= 
       exists cnti q, @getThreadC i tp cnti = Krun q /\ ~ @threadHalted i tp cnti.
@@ -990,24 +993,6 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
 
     End newer_semantics_with_stutter.
 
-
-  (* Probably need to assume something about memory.
-     Such as:
-     1. Next block increases at most by one
-     2. semantics is deterministic, so we know all possible changes to memory.
-     3. it's finitely branching *)
-  
-  Lemma finite_branching: forall ds ge,
-          safety.finite_on_x
-            (@safety.possible_image
-               new_state
-               Sch
-               (fun x y x' => exists y', (new_step ge x y x' y'))
-               new_valid ds).
-  Proof.
-    move=> ds prog.
-    rewrite /safety.finite_on_x /safety.possible_image /=.
-  Admitted.
     
   End new_safety.
 

@@ -197,23 +197,23 @@ Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric CSLveric CIveric 
 
 (* END from expr2.v *)
 
-Fixpoint ext_link_prog' (dl: list (ident * globdef fundef type)) (s: String.string) : ident :=
+Fixpoint ext_link_prog' (dl: list (ident * globdef fundef type)) (s: String.string) : option ident :=
  match dl with
  | (id, Gfun (External EF_malloc _ _ _)) :: dl' =>
-      if String.string_dec s "_malloc" then id else ext_link_prog' dl' s
+      if String.string_dec s "_malloc" then Some id else ext_link_prog' dl' s
  | (id, Gfun (External EF_free _ _ _)) :: dl' =>
-      if String.string_dec s "_free" then id else ext_link_prog' dl' s
+      if String.string_dec s "_free" then Some id else ext_link_prog' dl' s
  | (id, Gfun (External (EF_external s' _) _ _ _)) :: dl' => 
-      if String.string_dec s s' then id else ext_link_prog' dl' s
+      if String.string_dec s s' then Some id else ext_link_prog' dl' s
  | (id, Gfun (External (EF_builtin s' _) _ _ _)) :: dl' => 
-      if String.string_dec s s' then id else ext_link_prog' dl' s
+      if String.string_dec s s' then Some id else ext_link_prog' dl' s
  | _ :: dl' => 
      ext_link_prog' dl' s
- | nil => 1%positive
+ | nil => None
  end.
 
 Definition ext_link_prog (p: program) (s: String.string) : ident :=
-  ext_link_prog' (prog_defs p) s.
+  match ext_link_prog' (prog_defs p) s with Some id => id | None => 1%positive end.
 
 Definition closed_wrt_vars {B} (S: ident -> Prop) (F: environ -> B) : Prop := 
   forall rho te',  

@@ -1,9 +1,7 @@
-/*#include <stdio.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include "threads.h"
 #include "conc_queue.h"
-for now */
-#include "conc_queue.c"
 
 queue_t *q0;
 lock_t *thread_locks[3];

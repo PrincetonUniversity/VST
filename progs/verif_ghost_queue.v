@@ -126,7 +126,7 @@ Definition q_new_spec :=
   POST [ tptr tqueue_t ]
    EX newq : val, EX lock : val,
    PROP () LOCAL (temp ret_temp newq)
-   SEP (lqueue Tsh sh2 newq ghosts lock; fold_right sepcon emp (map (ghost sh1 tint (vint (-1))) ghosts)).
+   SEP (lqueue Tsh sh2 newq ghosts lock; fold_right_sepcon (map (ghost sh1 tint (vint (-1))) ghosts)).
 
 Definition q_del_spec :=
  DECLARE _q_del
@@ -135,10 +135,10 @@ Definition q_del_spec :=
    PROP (sepalg.join sh1 sh2 Ews)
    LOCAL (temp _tgt d)
    SEP (lqueue Tsh sh2 d ghosts lock;
-        fold_right sepcon emp (map (fun p => ghost sh1 tint (vint (fst p)) (snd p)) (combine ns ghosts)))
+        fold_right_sepcon (map (fun p => ghost sh1 tint (vint (fst p)) (snd p)) (combine ns ghosts)))
   POST [ tvoid ]
    PROP () LOCAL ()
-   SEP (fold_right sepcon emp (map (fun p => ghost Ews tint (vint (fst p)) (snd p)) (combine ns ghosts))).
+   SEP (fold_right_sepcon (map (fun p => ghost Ews tint (vint (fst p)) (snd p)) (combine ns ghosts))).
 
 Definition q_add_spec :=
  DECLARE _q_add
@@ -212,13 +212,13 @@ Definition main_spec :=
   PRE  [] main_pre prog [] u
   POST [ tint ] main_post prog [] u.
 
-Definition Gprog : funspecs := augment_funspecs prog [acquire_spec; release_spec; release2_spec; makelock_spec;
+Definition Gprog : funspecs :=   ltac:(with_library prog [acquire_spec; release_spec; release2_spec; makelock_spec;
   freelock_spec; freelock2_spec; spawn_spec; makecond_spec; freecond_spec; wait_spec; signal_spec;
   malloc_spec; free_spec; get_request_spec; process_request_spec;
-  q_new_spec; q_del_spec; q_add_spec; q_remove_spec; f_spec; g_spec; main_spec].
+  q_new_spec; q_del_spec; q_add_spec; q_remove_spec; f_spec; g_spec; main_spec]).
 
 Lemma all_ptrs : forall reqs,
-  fold_right sepcon emp (map Interp (map (fun p => Exp val (fun d =>
+  fold_right_sepcon (map Interp (map (fun p => Exp val (fun d =>
     Data_at _ Tsh trequest (d, Vint (Int.repr (fst p))) (snd p))) reqs)) |--
   !!(Forall isptr (map snd reqs)).
 Proof.
@@ -239,10 +239,10 @@ Proof.
 Qed.
 
 Lemma reqs_precise : forall r reqs ns1 ns2 r1 r2
-  (Hreqs1 : predicates_hered.app_pred(A := compcert_rmaps.R.rmap) (fold_right sepcon emp
+  (Hreqs1 : predicates_hered.app_pred(A := compcert_rmaps.R.rmap) (fold_right_sepcon
     (map Interp (map (fun p => Exp _ (fun d => Data_at _ Tsh trequest (d, Vint (Int.repr (fst p))) (snd p)))
     (combine ns1 reqs)))) r1)
-  (Hreqs2 : predicates_hered.app_pred(A := compcert_rmaps.R.rmap) (fold_right sepcon emp
+  (Hreqs2 : predicates_hered.app_pred(A := compcert_rmaps.R.rmap) (fold_right_sepcon
     (map Interp (map (fun p => Exp _ (fun d => Data_at _ Tsh trequest (d, Vint (Int.repr (fst p))) (snd p)))
     (combine ns2 reqs)))) r2)
   (Hlen1 : length ns1 = length reqs) (Hlen2 : length ns2 = length reqs)
@@ -269,10 +269,10 @@ Qed.
 Axiom ghost_precise : forall sh t p, precise (EX v : reptype t, ghost sh t v p).
 
 Lemma ghosts_precise : forall sh r ghosts ns1 ns2 r1 r2
-  (Hghosts1 : predicates_hered.app_pred (fold_right sepcon emp
+  (Hghosts1 : predicates_hered.app_pred (fold_right_sepcon
     (map Interp (map (fun p => Ghost sh tint (Vint (Int.repr (fst p))) (snd p))
     (combine ns1 ghosts)))) r1)
-  (Hghosts2 : predicates_hered.app_pred (fold_right sepcon emp
+  (Hghosts2 : predicates_hered.app_pred (fold_right_sepcon
     (map Interp (map (fun p => Ghost sh tint (Vint (Int.repr (fst p))) (snd p))
     (combine ns2 ghosts)))) r2)
   (Hlen1 : length ns1 = length ghosts) (Hlen2 : length ns2 = length ghosts)
@@ -428,9 +428,9 @@ Qed.
 
 Lemma nth_ghost : forall sh i ns ghosts g (Hlen : length ns = length ghosts)
   (Hg : nth_error ghosts i = Some g), exists n, nth_error ns i = Some n /\
-  fold_right sepcon emp (map Interp (map (fun p => Ghost sh tint (Vint (Int.repr (fst p))) (snd p))
+  fold_right_sepcon (map Interp (map (fun p => Ghost sh tint (Vint (Int.repr (fst p))) (snd p))
     (combine ns ghosts))) =
-  fold_right sepcon emp (map Interp (map (fun p => Ghost sh tint (Vint (Int.repr (fst p))) (snd p))
+  fold_right_sepcon (map Interp (map (fun p => Ghost sh tint (Vint (Int.repr (fst p))) (snd p))
     (combine (remove_at i ns) (remove_at i ghosts)))) * ghost sh tint (Vint (Int.repr n)) g.
 Proof.
   induction i; simpl; intros.
@@ -448,9 +448,9 @@ Qed.
 
 Lemma add_nth_ghost : forall sh i ns ghosts g n (Hlen : length ns = length ghosts)
   (Hg : nth_error ghosts i = Some g),
-  fold_right sepcon emp (map Interp (map (fun p => Ghost sh tint (Vint (Int.repr (fst p))) (snd p))
+  fold_right_sepcon (map Interp (map (fun p => Ghost sh tint (Vint (Int.repr (fst p))) (snd p))
     (combine (remove_at i ns) (remove_at i ghosts)))) * ghost sh tint (Vint (Int.repr n)) g =
-  fold_right sepcon emp (map Interp (map (fun p => Ghost sh tint (Vint (Int.repr (fst p))) (snd p))
+  fold_right_sepcon (map Interp (map (fun p => Ghost sh tint (Vint (Int.repr (fst p))) (snd p))
     (combine (upd_Znth (Z.of_nat i) ns n) ghosts))).
 Proof.
   induction i; intros.
@@ -543,7 +543,7 @@ Proof.
     SEP (@data_at CompSpecs Tsh tqueue (repeat (vint 0) (Z.to_nat i) ++ repeat Vundef (Z.to_nat (MAX - i)),
            (Vundef, (Vundef, (Vundef, (Vundef, (Vundef, Vundef)))))) p;
          @data_at_ CompSpecs Tsh (tptr tlock) (offset_val 64 p);
-         fold_right sepcon emp (map (ghost Ews tint (vint (-1))) ghosts))).
+         fold_right_sepcon (map (ghost Ews tint (vint (-1))) ghosts))).
   { unfold MAX; computable. }
   { unfold MAX; computable. }
   { unfold fold_right; entailer!.
@@ -588,7 +588,7 @@ Proof.
     SEP (lock_inv Tsh lock (Interp (lock_pred sh2 p ghosts)); cond_var Tsh remc; cond_var Tsh addc;
          @data_at CompSpecs Tsh tqueue_t (repeat (vint 0) (Z.to_nat MAX),
            (vint 0, (vint 0, (vint 0, (vint 0, (addc, remc))))), Vundef) p;
-         fold_right sepcon emp (map (ghost Ews tint (vint (-1))) ghosts))).
+         fold_right_sepcon (map (ghost Ews tint (vint (-1))) ghosts))).
   { go_lower.
     do 2 (apply andp_right; [apply prop_right; repeat split; auto|]); unfold fold_right; cancel.
     unfold_data_at 1%nat.
@@ -608,7 +608,7 @@ Proof.
     { repeat split; auto; unfold MAX; try omega; try computable.
       - apply Forall_repeat; computable.
       - rewrite Zlength_repeat, Zlength_correct; auto. }
-    rewrite sepcon_assoc, (sepcon_comm _ (fold_right sepcon emp Frame)), <- sepcon_assoc.
+    rewrite sepcon_assoc, (sepcon_comm _ (fold_right_sepcon Frame)), <- sepcon_assoc.
     rewrite app_nil_r.
     subst Frame; instantiate (1 := field_at Tsh tqueue_t [StructField _lock] lock p ::
       map (ghost sh1 tint (vint (-1))) ghosts); simpl.
@@ -659,7 +659,7 @@ Proof.
     SEP (data_at_ Tsh tqueue_t p; lock_inv Tsh lock (Interp (lock_pred sh2 p ghosts)); cond_var Tsh remc; cond_var Tsh addc;
          @data_at CompSpecs Tsh tqueue_t (repeat (vint 0) (Z.to_nat MAX),
            (vint 0, (vint 0, (vint 0, (vint 0, (addc, remc))))), Vundef) p;
-         fold_right sepcon emp (map (ghost Ews tint (vint (-1))) ghosts))).
+         fold_right_sepcon (map (ghost Ews tint (vint (-1))) ghosts))).
   { go_lower.
     do 2 (apply andp_right; [apply prop_right; repeat split; auto|]); unfold fold_right; cancel.
     unfold data_at_, field_at_, data_at, field_at; Intros; simpl.
@@ -1091,7 +1091,7 @@ Lemma lqueue_shares_join : forall sh gsh p ghosts lock shs (Hsplit : forall i, 0
   let '(a, b) := Znth i shs (sh, sh) in
   readable_share a /\ readable_share b /\ sepalg.join a b (fst (Znth (i + 1) shs (sh, sh)))),
   lqueue (fst (Znth 0 shs (sh, sh))) gsh p ghosts lock *
-  fold_right sepcon emp (map (fun sh => lqueue sh gsh p ghosts lock) (map snd shs)) =
+  fold_right_sepcon (map (fun sh => lqueue sh gsh p ghosts lock) (map snd shs)) =
   lqueue sh gsh p ghosts lock.
 Proof.
   induction shs; intros.
@@ -1131,7 +1131,7 @@ Lemma main_loop1 : forall {Espec : OracleKind} (q0 lvar0 : val) gsh1 gsh2 (Hgsh1
    EX flocks : list val,
    !! (Zlength flocks = i) &&
    (data_at Tsh (tarray (tptr (Tstruct _lock_t noattr)) 6) (flocks ++ repeat Vundef (Z.to_nat (6 - i))) lvar0 *
-    fold_right sepcon emp (map Interp (map f_lock (combine (upto (Z.to_nat i)) flocks))))))
+    fold_right_sepcon (map Interp (map f_lock (combine (upto (Z.to_nat i)) flocks))))))
   (Ssequence
      (Ssequence
         (Scall (Some _t'2) (Evar _malloc (Tfunction (Ctypes.Tcons tuint Ctypes.Tnil) (tptr tvoid) cc_default))
@@ -1166,7 +1166,7 @@ Lemma main_loop1 : forall {Espec : OracleKind} (q0 lvar0 : val) gsh1 gsh2 (Hgsh1
       EX flocks : list val,
       !! (Zlength flocks = i + 1) &&
       (data_at Tsh (tarray (tptr (Tstruct _lock_t noattr)) 6) (flocks ++ repeat Vundef (Z.to_nat (6 - (i + 1))))
-         lvar0 * fold_right sepcon emp (map Interp (map f_lock (combine (upto (Z.to_nat (i + 1))) flocks))))))).
+         lvar0 * fold_right_sepcon (map Interp (map f_lock (combine (upto (Z.to_nat (i + 1))) flocks))))))).
 Proof.
   intros.
   forward_call (sizeof tlock).
@@ -1214,7 +1214,7 @@ Proof.
       lqueue (fst (Znth (2 - i) lshs1 (Tsh, Tsh))) gsh2 p ghosts lock;
       ghost gsh1 tint (vint (-1)) g1; ghost gsh1 tint (vint (-1)) g2; ghost gsh1 tint (vint (-1)) g3;
       data_at Tsh (tarray (tptr (Tstruct _lock_t noattr)) 6) ((flocks ++ [l]) ++ repeat Vundef (Z.to_nat (6 - (i + 1)))) lvar0;
-      fold_right sepcon emp (map Interp (map f_lock (combine (upto (Z.to_nat (i + 1))) (flocks ++ [l]))))]).
+      fold_right_sepcon (map Interp (map f_lock (combine (upto (Z.to_nat (i + 1))) (flocks ++ [l]))))]).
     rewrite <- (lock_inv_share_join sh1 sh2 Tsh); auto.
     specialize (Hgshs1 (2 - i)); exploit Hgshs1; [abstract omega|].
     destruct (Znth (2 - i) gshs1 (Ews, Ews)) eqn: Hg1.
@@ -1266,12 +1266,12 @@ semax (initialized_list [_i; _i__1; _t'1] (func_tycontext f_main Vprog Gprog))
    gvar _q0 q0)
    SEP (ghost_factory; data_at (fst (Znth (3 - i) gshs2 (gsh', gsh'))) (tptr tqueue_t) p q0;
    lqueue (fst (Znth (3 - i) lshs2 (lsh', lsh'))) gsh2 p ghosts lock;
-   fold_right sepcon emp (skipn (Z.to_nat i) (map (ghost gsh1 tint (vint (-1))) ghosts));
-   fold_right sepcon emp (map Interp (map f_lock (combine (upto 3) flocks)));
+   fold_right_sepcon (skipn (Z.to_nat i) (map (ghost gsh1 tint (vint (-1))) ghosts));
+   fold_right_sepcon (map Interp (map f_lock (combine (upto 3) flocks)));
    EX glocks : list val,
    !! (Zlength glocks = i) &&
    (data_at Tsh (tarray (tptr (Tstruct _lock_t noattr)) 6) (flocks ++ glocks ++ repeat Vundef (Z.to_nat (3 - i)))
-      lvar0 * fold_right sepcon emp (map Interp (map g_lock (combine (upto (Z.to_nat i)) glocks))))))
+      lvar0 * fold_right_sepcon (map Interp (map g_lock (combine (upto (Z.to_nat i)) glocks))))))
   (Ssequence
      (Ssequence
         (Scall (Some _t'3) (Evar _malloc (Tfunction (Ctypes.Tcons tuint Ctypes.Tnil) (tptr tvoid) cc_default))
@@ -1303,13 +1303,13 @@ semax (initialized_list [_i; _i__1; _t'1] (func_tycontext f_main Vprog Gprog))
       lvar _thread_locks (tarray (tptr (Tstruct _lock_t noattr)) 6) lvar0; gvar _q0 q0)
       SEP (ghost_factory; data_at (fst (Znth (3 - (i + 1)) gshs2 (gsh', gsh'))) (tptr tqueue_t) p q0;
       lqueue (fst (Znth (3 - (i + 1)) lshs2 (lsh', lsh'))) gsh2 p ghosts lock;
-      fold_right sepcon emp (skipn (Z.to_nat (i + 1)) (map (ghost gsh1 tint (vint (-1))) ghosts));
-      fold_right sepcon emp (map Interp (map f_lock (combine (upto 3) flocks)));
+      fold_right_sepcon (skipn (Z.to_nat (i + 1)) (map (ghost gsh1 tint (vint (-1))) ghosts));
+      fold_right_sepcon (map Interp (map f_lock (combine (upto 3) flocks)));
       EX glocks : list val,
       !! (Zlength glocks = i + 1) &&
       (data_at Tsh (tarray (tptr (Tstruct _lock_t noattr)) 6)
          (flocks ++ glocks ++ repeat Vundef (Z.to_nat (3 - (i + 1)))) lvar0 *
-       fold_right sepcon emp (map Interp (map g_lock (combine (upto (Z.to_nat (i + 1))) glocks))))))).
+       fold_right_sepcon (map Interp (map g_lock (combine (upto (Z.to_nat (i + 1))) glocks))))))).
 Proof.
   intros.
   forward_call (sizeof tlock).
@@ -1357,10 +1357,10 @@ Proof.
       subst Frame; instantiate (1 := [ghost_factory;
         data_at (fst (Znth (2 - i) gshs2 (gsh', gsh'))) (tptr tqueue_t) p q0;
         lqueue (fst (Znth (2 - i) lshs2 (lsh', lsh'))) gsh2 p ghosts lock;
-        fold_right sepcon emp (skipn (Z.to_nat (i + 1)) (map (ghost gsh1 tint (vint (-1))) ghosts));
-        fold_right sepcon emp (map Interp (map f_lock (combine (upto 3) flocks)));
+        fold_right_sepcon (skipn (Z.to_nat (i + 1)) (map (ghost gsh1 tint (vint (-1))) ghosts));
+        fold_right_sepcon (map Interp (map f_lock (combine (upto 3) flocks)));
         data_at Tsh (tarray (tptr (Tstruct _lock_t noattr)) 6) (flocks ++ (glocks ++ [l]) ++ repeat Vundef (Z.to_nat (3 - (i + 1)))) lvar0;
-        fold_right sepcon emp (map Interp (map g_lock (combine (upto (Z.to_nat (i + 1))) (glocks ++ [l]))))]).
+        fold_right_sepcon (map Interp (map g_lock (combine (upto (Z.to_nat (i + 1))) (glocks ++ [l]))))]).
       rewrite <- (lock_inv_share_join sh1 sh2 Tsh); auto.
       exploit (Hgshs2 (2 - i)); [abstract omega|].
       fold gsh'; destruct (Znth (2 - i) gshs2 (gsh', gsh')) eqn: Hg1.
@@ -1423,19 +1423,19 @@ semax (initialized_list [_i; _i__1; _i__2; _t'1] (func_tycontext f_main Vprog Gp
    LOCAL (temp _i__2 (vint i); temp _t'1 p; lvar _thread_locks (tarray (tptr (Tstruct _lock_t noattr)) 6) lvar0;
    gvar _q0 q0)
    SEP (ghost_factory; data_at (fst (Znth 0 gshs2 (gsh', gsh'))) (tptr tqueue_t) p q0;
-   fold_right sepcon emp
+   fold_right_sepcon
      (firstn (Z.to_nat i)
         (map (fun sh : Share.t => data_at sh (tptr tqueue_t) p q0) (map snd (rev gshs1 ++ rev gshs2))));
    lqueue (fst (Znth 0 lshs2 (lsh', lsh'))) gsh2 p ghosts lock;
-   fold_right sepcon emp
+   fold_right_sepcon
      (firstn (Z.to_nat i)
         (map (fun sh : Share.t => lqueue sh gsh2 p ghosts lock) (map snd (rev lshs1 ++ rev lshs2))));
    EX ns : list Z,
    !! (Zlength ns = Zlength ghosts) &&
-   fold_right sepcon emp
+   fold_right_sepcon
      (firstn (Z.to_nat i - 3) (map (fun x : Z * val => ghost gsh1 tint (vint (fst x)) (snd x)) (combine ns ghosts)));
-   fold_right sepcon emp (skipn (Z.to_nat i) (map Interp (map f_lock (combine (upto 3) flocks))));
-   fold_right sepcon emp (skipn (Z.to_nat i - 3) (map Interp (map g_lock (combine (upto 3) glocks))));
+   fold_right_sepcon (skipn (Z.to_nat i) (map Interp (map f_lock (combine (upto 3) flocks))));
+   fold_right_sepcon (skipn (Z.to_nat i - 3) (map Interp (map g_lock (combine (upto 3) glocks))));
    data_at Tsh (tarray (tptr (Tstruct _lock_t noattr)) 6) (flocks ++ glocks) lvar0))
   (Ssequence
      (Sset _l__2
@@ -1455,20 +1455,20 @@ semax (initialized_list [_i; _i__1; _i__2; _t'1] (func_tycontext f_main Vprog Gp
       LOCAL (temp _i__2 (vint i); temp _t'1 p; lvar _thread_locks (tarray (tptr (Tstruct _lock_t noattr)) 6) lvar0;
       gvar _q0 q0)
       SEP (ghost_factory; data_at (fst (Znth 0 gshs2 (gsh', gsh'))) (tptr tqueue_t) p q0;
-      fold_right sepcon emp
+      fold_right_sepcon
         (firstn (Z.to_nat (i + 1))
            (map (fun sh : Share.t => data_at sh (tptr tqueue_t) p q0) (map snd (rev gshs1 ++ rev gshs2))));
       lqueue (fst (Znth 0 lshs2 (lsh', lsh'))) gsh2 p ghosts lock;
-      fold_right sepcon emp
+      fold_right_sepcon
         (firstn (Z.to_nat (i + 1))
            (map (fun sh : Share.t => lqueue sh gsh2 p ghosts lock) (map snd (rev lshs1 ++ rev lshs2))));
       EX ns : list Z,
       !! (Zlength ns = Zlength ghosts) &&
-      fold_right sepcon emp
+      fold_right_sepcon
         (firstn (Z.to_nat (i + 1) - 3)
            (map (fun x : Z * val => ghost gsh1 tint (vint (fst x)) (snd x)) (combine ns ghosts)));
-      fold_right sepcon emp (skipn (Z.to_nat (i + 1)) (map Interp (map f_lock (combine (upto 3) flocks))));
-      fold_right sepcon emp (skipn (Z.to_nat (i + 1) - 3) (map Interp (map g_lock (combine (upto 3) glocks))));
+      fold_right_sepcon (skipn (Z.to_nat (i + 1)) (map Interp (map f_lock (combine (upto 3) flocks))));
+      fold_right_sepcon (skipn (Z.to_nat (i + 1) - 3) (map Interp (map g_lock (combine (upto 3) glocks))));
       data_at Tsh (tarray (tptr (Tstruct _lock_t noattr)) 6) (flocks ++ glocks) lvar0))).
 Proof.
   intros.
@@ -1636,7 +1636,7 @@ Proof.
          ghost gsh1 tint (vint (-1)) g1; ghost gsh1 tint (vint (-1)) g2; ghost gsh1 tint (vint (-1)) g3;
          EX flocks : list val, (!!(Zlength flocks = i) &&
            (data_at Tsh (tarray (tptr (Tstruct _lock_t noattr)) 6) (flocks ++ repeat Vundef (Z.to_nat (6 - i))) lvar0 *
-            fold_right sepcon emp (map Interp (map f_lock (combine (upto (Z.to_nat i)) flocks))))))).
+            fold_right_sepcon (map Interp (map f_lock (combine (upto (Z.to_nat i)) flocks))))))).
   { go_lower; simpl.
     Exists ([] : list val); entailer!.
     do 2 (rewrite Znth_overflow; [|abstract omega]).
@@ -1663,11 +1663,11 @@ Proof.
     LOCAL (temp _t'1 p; lvar _thread_locks (tarray (tptr (Tstruct _lock_t noattr)) 6) lvar0; gvar _q0 q0)
     SEP (ghost_factory; data_at (fst (Znth (3 - i) gshs2 (gsh', gsh'))) (tptr tqueue_t) p q0;
          lqueue (fst (Znth (3 - i) lshs2 (lsh', lsh'))) gsh2 p ghosts lock;
-         fold_right sepcon emp (skipn (Z.to_nat i) (map (ghost gsh1 tint (vint (-1))) ghosts));
-         fold_right sepcon emp (map Interp (map f_lock (combine (upto 3) flocks)));
+         fold_right_sepcon (skipn (Z.to_nat i) (map (ghost gsh1 tint (vint (-1))) ghosts));
+         fold_right_sepcon (map Interp (map f_lock (combine (upto 3) flocks)));
          EX glocks : list val, (!!(Zlength glocks = i) &&
            (data_at Tsh (tarray (tptr (Tstruct _lock_t noattr)) 6) (flocks ++ glocks ++ repeat Vundef (Z.to_nat (3 - i))) lvar0 *
-            fold_right sepcon emp (map Interp (map g_lock (combine (upto (Z.to_nat i)) glocks))))))).
+            fold_right_sepcon (map Interp (map g_lock (combine (upto (Z.to_nat i)) glocks))))))).
   { go_lower; simpl.
     Exists ([] : list val); entailer!.
     do 2 (rewrite Znth_overflow with (i := 3); [simpl; cancel | abstract omega]). }
@@ -1678,13 +1678,13 @@ Proof.
     PROP (Forall isptr flocks; Forall isptr glocks)
     LOCAL (temp _t'1 p; lvar _thread_locks (tarray (tptr (Tstruct _lock_t noattr)) 6) lvar0; gvar _q0 q0)
     SEP (ghost_factory; data_at (fst (Znth 0 gshs2 (gsh', gsh'))) (tptr tqueue_t) p q0;
-         fold_right sepcon emp (firstn (Z.to_nat i) (map (fun sh => data_at sh (tptr tqueue_t) p q0) (map snd (rev gshs1 ++ rev gshs2))));
+         fold_right_sepcon (firstn (Z.to_nat i) (map (fun sh => data_at sh (tptr tqueue_t) p q0) (map snd (rev gshs1 ++ rev gshs2))));
          lqueue (fst (Znth 0 lshs2 (lsh', lsh'))) gsh2 p ghosts lock;
-         fold_right sepcon emp (firstn (Z.to_nat i) (map (fun sh => lqueue sh gsh2 p ghosts lock) (map snd (rev lshs1 ++ rev lshs2))));
+         fold_right_sepcon (firstn (Z.to_nat i) (map (fun sh => lqueue sh gsh2 p ghosts lock) (map snd (rev lshs1 ++ rev lshs2))));
          EX ns : list Z, (!!(Zlength ns = Zlength ghosts) &&
-           fold_right sepcon emp (firstn (Z.to_nat i - 3) (map (fun x => ghost gsh1 tint (vint (fst x)) (snd x)) (combine ns ghosts))));
-         fold_right sepcon emp (skipn (Z.to_nat i) (map Interp (map f_lock (combine (upto 3) flocks))));
-         fold_right sepcon emp (skipn (Z.to_nat i - 3) (map Interp (map g_lock (combine (upto 3) glocks))));
+           fold_right_sepcon (firstn (Z.to_nat i - 3) (map (fun x => ghost gsh1 tint (vint (fst x)) (snd x)) (combine ns ghosts))));
+         fold_right_sepcon (skipn (Z.to_nat i) (map Interp (map f_lock (combine (upto 3) flocks))));
+         fold_right_sepcon (skipn (Z.to_nat i - 3) (map Interp (map g_lock (combine (upto 3) glocks))));
          data_at Tsh (tarray (tptr (Tstruct _lock_t noattr)) 6) (flocks ++ glocks) lvar0)).
   { go_lower; apply andp_right; [|rewrite app_nil_r; Exists [0; 0; 0]; entailer!].
     Intros.

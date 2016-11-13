@@ -88,8 +88,8 @@ Definition main_spec :=
 (** Declare all the functions, in exactly the same order as they
  ** appear in reverse.c (and in reverse.v).
  **)
-Definition Gprog : funspecs := augment_funspecs prog [ 
-    sumlist_spec; reverse_spec; main_spec].
+Definition Gprog : funspecs :=   ltac:(with_library prog [ 
+    sumlist_spec; reverse_spec; main_spec]).
 
 (** A little equation about the list_cell predicate *)
 Lemma list_cell_eq: forall sh i p ,

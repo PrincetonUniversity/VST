@@ -60,8 +60,8 @@ Definition main_spec :=
   PRE  [] main_pre prog nil u
   POST [ tint ] main_post prog nil u.
 
-Definition Gprog : funspecs := augment_funspecs prog [acquire_spec; release_spec; release2_spec; makelock_spec;
-  freelock_spec; freelock2_spec; spawn_spec; incr_spec; read_spec; thread_func_spec; main_spec].
+Definition Gprog : funspecs :=   ltac:(with_library prog [acquire_spec; release_spec; release2_spec; makelock_spec;
+  freelock_spec; freelock2_spec; spawn_spec; incr_spec; read_spec; thread_func_spec; main_spec]).
 
 Lemma ctr_inv_precise : forall p,
   precise (cptr_lock_inv p).
@@ -145,7 +145,7 @@ Proof.
   forward.
   forward_call (lock, Ews, cptr_lock_inv ctr).
   { apply prop_right; rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto. }
-  { rewrite (sepcon_comm _ (fold_right _ _ _)); apply sepcon_derives; [cancel | apply lock_struct]. }
+  { rewrite (sepcon_comm _ (fold_right_sepcon _)); apply sepcon_derives; [cancel | apply lock_struct]. }
   rewrite field_at_isptr; Intros.
   forward_call (lock, Ews, cptr_lock_inv ctr).
   { apply prop_right; rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto. }
@@ -155,7 +155,7 @@ Proof.
   destruct split_Ews as (sh1 & sh2 & ? & ? & Hsh).
   forward_call (lockt, Ews, thread_lock_inv sh1 ctr lock lockt).
   { apply prop_right; rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto. }
-  { rewrite (sepcon_comm _ (fold_right _ _ _)); apply sepcon_derives; [cancel | apply lock_struct]. }
+  { rewrite (sepcon_comm _ (fold_right_sepcon _)); apply sepcon_derives; [cancel | apply lock_struct]. }
   get_global_function'' _thread_func.
   apply extract_exists_pre; intros f_.
   forward_spawn (val * share * val * val)%type (f_, Vint (Int.repr 0), (ctr, sh1, lock, lockt),
@@ -166,10 +166,13 @@ Proof.
     Exists _args (fun x : val * share * val * val => let '(ctr, sh, lock, lockt) := x in
       [(_ctr, ctr); (_ctr_lock, lock); (_thread_lock, lockt)]); entailer.
     rewrite !sepcon_assoc; apply sepcon_derives.
-    { apply derives_refl'; f_equal; f_equal.
-      extensionality.
-      destruct x as (?, (((?, ?), ?), ?)); simpl.
-      rewrite <- !sepcon_assoc; reflexivity. }
+    { apply derives_refl'. f_equal.
+      unfold NDmk_funspec.
+      apply mk_funspec_congr; auto.
+      apply eq_JMeq.
+      extensionality x x0.
+      destruct x0 as (?, (((?, ?), ?), ?)); simpl.
+      rewrite <- !sepcon_assoc; reflexivity.  }
     erewrite <- lock_inv_share_join; try apply Hsh; auto.
     erewrite <- (lock_inv_share_join _ _ Ews); try apply Hsh; auto.
     entailer!. }
