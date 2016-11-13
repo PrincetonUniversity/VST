@@ -561,7 +561,7 @@ Proof.
             cbv iota beta.
             destruct Pre as [[[A [Precise [Positive _]]] [C D]] E].
             destruct D as (phi0' & phi0d & jphi0 & Hlockinv & Hsat).
-            unfold fold_right in Hsat.
+            unfold base.fold_right_sepcon in Hsat.
             rewrite seplog.sepcon_emp in Hsat.
             
             assert (args = Vptr b ofs :: nil). {
