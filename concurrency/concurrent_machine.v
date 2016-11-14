@@ -4,6 +4,8 @@ Require Import compcert.common.AST.     (*for typ*)
 Require Import compcert.common.Values. (*for val*)
 Require Import compcert.common.Globalenvs. 
 Require Import compcert.lib.Integers.
+
+Require Import msl.Axioms.
 Require Import Coq.ZArith.ZArith.
 Require Import sepcomp.semantics.
 Require Import sepcomp.event_semantics.
@@ -12,6 +14,7 @@ Require Import concurrency.threadPool. Export threadPool.
 
 Require Import concurrency.machine_semantics.
 Require Import concurrency.permissions.
+Require Import concurrency.bounded_maps.
 Require Import concurrency.addressFiniteMap.
 
 Require Import concurrency.scheduler.
@@ -100,7 +103,7 @@ Module Type ConcurrentMachineSig.
         (exists cntj q, @getThreadC j tp cntj = Krun q) <->
         (exists cntj' q', @getThreadC j tp' cntj' = Krun q').
   Parameter syncStep:
-    bool -> (*specifies if it's a Coarse machine. Temp solution to propagating changes. *)
+    bool -> (* if it's a Coarse machine. Temp solution to propagating changes. *)
     G -> forall {tid0 ms m},
       containsThread ms tid0 -> mem_compatible ms m ->
       thread_pool -> mem -> sync_event -> Prop.
@@ -533,7 +536,6 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     Definition is_running tp i:= 
       exists cnti q, @getThreadC i tp cnti = Krun q /\ ~ @threadHalted i tp cnti.
 
-    Require Import msl.Axioms.
     Lemma unique_runing_not_running:
       forall tp i,
         unique_Krun tp i ->
@@ -627,8 +629,10 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   
   Definition valid (st: MachState): Prop:=
     correct_schedule st.
+
+  Definition bounded_mem (m: mem) := bounded_maps.bounded_map (snd (getMaxPerm m)) .
  
-  Definition new_valid st U := valid (mk_ostate st U). 
+  Definition new_valid st U := correct_schedule (mk_ostate st U) /\ bounded_mem (snd st). 
   Definition ksafe_new_step (ge : G) (st : MachState) (m : mem) : nat -> Prop :=
     ksafe _ _ (new_step ge) new_valid (mk_nstate st m) (fst (fst st)).
   Definition safe_new_step (ge : G) (st : MachState) (m : mem) : Prop :=
@@ -747,6 +751,22 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
       valid st ->
       valid st'.
   Proof. intros ? ? ? ? ?; eapply step_sch_correct. Qed.
+
+  Lemma step_mem_bounded:
+    forall {ge st m st' m'}, MachStep ge st m st' m'
+                        -> bounded_mem m -> bounded_mem m'.
+  Proof.
+  Admitted.
+  
+  Lemma step_new_valid: forall {ge st m st' m'},
+      MachStep ge st m st' m'  ->
+      new_valid (mk_nstate st m) (fst (fst st)) ->
+      new_valid (mk_nstate st' m') (fst (fst st')).
+  Proof. intros ? ? ? ? ? STEP [SCH_OK bounded_mem]. 
+         split; auto.
+         - eapply step_sch_correct; eauto.
+         - eapply step_mem_bounded; eauto.
+  Qed.
     
   Lemma step_correct_schedule: forall {ge U tr tp m tr' tp' m'},
       MachStep ge (U, tr, tp) m (schedSkip U, tr', tp') m' ->
@@ -819,18 +839,32 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
   
   Lemma step_sch_valid: forall {ge U tr tp m tr' tp' m'}, MachStep ge (U, tr, tp) m (schedSkip U, tr', tp') m' -> valid (U, tr, tp) -> forall U'', valid (U'', tr', tp').
   Proof. intros; eapply step_correct_schedule; eauto. Qed.
+
+  Lemma step_sch_new_valid:
+    forall {ge U tr tp m tr' tp' m'},
+      MachStep ge (U, tr, tp) m (schedSkip U, tr', tp') m' ->
+      new_valid (tr, tp, m) U ->
+      forall U'', new_valid (tr', tp', m') U''.
+  Proof. intros ? ? ? ? ? ? ? ? STEP [sch_ok bounded_mem]; split.
+         - eapply step_correct_schedule; eauto.
+         - simpl in *. eapply step_mem_bounded; eauto.
+  Qed.
   
   Lemma safety_equivalence':
     forall ge st_ m,
       (forall U n, new_valid (nil, st_, m) U -> ksafe_new_step ge (U, nil, st_) m n) ->
-      (forall U n, valid (U, nil, st_) ->  csafe ge (U, nil, st_) m n).
+      (forall U n, new_valid (nil, st_, m) U ->  csafe ge (U, nil, st_) m n).
   Proof.
     move=> ge st_ m KSF' U n VAL.
     assert (KSF: forall U, new_valid (nil, st_, m) U -> ksafe_new_step ge (U, nil, st_) m n) by (move=> U'' NV; apply: KSF'=>// ).
     clear KSF'.
-    assert (VAL_: new_valid (nil, st_, m) U) by rewrite /new_valid /mk_ostate /= //. clear VAL.
+    (* assert (VAL_: new_valid (nil, st_, m) U).
+    { rewrite /new_valid /mk_ostate /=.
+      split; auto. *)
+    (*  by rewrite /new_valid /mk_ostate /= //. clear VAL.*)
+    
     (*move: VAL_=> /(KSF _ n) KSF_new.*)
-    move: st_ m KSF U VAL_.
+    move: st_ m KSF U VAL.
     induction n.
     - constructor.
     - move => st_ m KSF U nVAL.
@@ -848,7 +882,7 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
               destruct st' as [p m0]; destruct p=> /=. simpl in HH; rewrite -HH in H1.
               apply: H1=> //.
             - rewrite /new_valid /mk_ostate=> /=.
-              apply: (step_valid H) =>//.
+              apply: (step_new_valid H) =>//.
           }
         * subst U'. apply: (AngelSafe _ _ _ (snd (fst st')) (snd st'))=>//.
           move=>U''.
@@ -856,11 +890,8 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
             - move => U0 nVAL0. rewrite /ksafe_new_step /mk_nstate=> /=.
               simpl in HH; rewrite -HH in H1.
               by apply: H1. 
-            - rewrite /new_valid /mk_ostate=> /=. simpl in H.
-              (*destruct (sch_dec U'' U).
-              subst. *)
-              apply (step_sch_valid H).
-              assumption.
+            - simpl in H.
+              eapply (step_sch_new_valid H); eauto.
           }
   Qed.
         

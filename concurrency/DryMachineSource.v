@@ -121,6 +121,14 @@ Module THE_DRY_MACHINE_SOURCE.
       rewrite /DMS.DryConc.valid /DMS.DryConc.correct_schedule.
       rewrite /DMS.DryConc.unique_Krun /DMS.DryMachine.ThreadPool.containsThread.
 
+      pose (bounded_mem_dec:= DMS.DryConc.bounded_mem m).
+      destruct (Classical_Prop.classic bounded_mem_dec) as [Hbound|NHbound].
+      Focus 2. {
+        exists 1%nat, (fun _ => (tr, dm, m)).
+        move => x y [] [] val [] sch_ok bounde [] y' stp.
+        exfalso; apply NHbound; auto.
+      } Unfocus.
+      
       pose (mem_compat_dec:=
               DMS.DryMachine.mem_compatible dm m).
       destruct (Classical_Prop.classic mem_compat_dec) as [Hcmpt|NHcmpt].
@@ -139,37 +147,65 @@ Module THE_DRY_MACHINE_SOURCE.
           + compute; reflexivity.
           + reflexivity.
       } Unfocus.
+
       
-      (*It most be at_external *)
-      destruct (at_external DMS.DryMachine.ThreadPool.SEM.Sem c) eqn:AtExt.
-      Focus 2. {
-        exists 0%nat, (fun _ => (tr, dm, m)).
-        move=> x y [] [] PEEK. 
-        rewrite PEEK => VAL [] y' /(schedule_not_halted y i PEEK) STEP.
-        inversion STEP; simpl in *; try subst; (*Lets go through all possible steps*)
+      Lemma is_syncStep:
+        forall ge tr dm m i cnti c
+        (Hcmpt: DMS.DryMachine.mem_compatible dm m),
+          @DMS.DTP.getThreadC i dm cnti = Kblocked c ->
+          forall y,
+                  SCH.schedPeek y = Some i -> DMS.DryConc.new_valid (tr, dm, m) y ->
+                forall y' tr' dm' m',
+                  DMS.DryConc.MachStep ge (y, tr, dm) m (y', tr', dm') m' ->
+                  SCH.schedPeek y = Some i /\
+                  SCH.schedSkip y = y' /\
+                  exists ev,
+                    DMS.DryMachine.syncStep true ge cnti Hcmpt dm' m' ev.
+      Proof.
+        move=> ? ? ? ? ? cnti ? Hcmpt KBLOCK ? PEEK.
+        rewrite PEEK => VAL y' tr' dm' m' STEP; split.
+        - reflexivity.
+        - inversion STEP; simpl in *; try subst; (*Lets go through all possible steps*)
          match goal with
           | [ H: SCH.schedPeek ?Y = Some _ ,
                  H': SCH.schedPeek ?Y = Some _  |- _ ] =>
             rewrite H in H'; inversion H'; subst
          end; simpl in *; try subst;
-         try (inversion Htstep;
+         try solve [inversion Htstep;
                 match goal with
                 | [ H: DMS.DTP.getThreadC ?cnt1 = _ ,
                        H': DMS.DTP.getThreadC ?cnt2 = _  |- _ ] =>
                   replace cnt2 with cnt1 in H' by apply proof_irrelevance;
                     rewrite H in H'; inversion H'
-                end; subst);
-        try (match goal with
+                end].
+          + split; auto; exists ev; auto.
+            clear - Htstep.
+            replace cnti with Htid by apply proof_irrelevance.
+            replace Hcmpt with Hcmpt0 by apply proof_irrelevance.
+            auto.
+          + exfalso; eapply no_thread_halted; eassumption.
+          + exfalso; apply Htid; assumption.
+      Qed.
+
+      pose (is_syncStep:= is_syncStep ge tr dm m i cnti c Hcmpt KRES).
+      
+      (*It most be at_external *)
+      destruct (at_external DMS.DryMachine.ThreadPool.SEM.Sem c) eqn:AtExt.
+      Focus 2. {
+        exists 0%nat, (fun _ => (tr, dm, m)).
+        move=> x y [] [] PEEK VAL [] y' /(schedule_not_halted y i PEEK).
+        move => /(is_syncStep y PEEK VAL) [] _ [] SKIP [] ev Htstep.
+        inversion Htstep;
+          match goal with
+          | [ H: DMS.DTP.getThreadC ?cnt1 = Kblocked c ,
+                 H': DMS.DTP.getThreadC ?cnt2 = _  |- _ ] =>
+            rewrite H in H'; inversion H'; subst c
+          end;
+        match goal with
         | [ H: at_external ?SEM ?c = None,
                H' : at_external ?SEM ?c = Some _|- _ ] =>
           rewrite H in H'; inversion H'
-        | [ H: at_external ?SEM ?c = _ ,
-               H' : at_external ?SEM ?c' =  _  |- _ ] =>
-          pose (NNNN:= c); pose (NNNNN:= c')
-             end).
-        - exfalso; eapply no_thread_halted; eassumption.
-        - exfalso; apply Htid; assumption.
-      } Unfocus.
+             end. } Unfocus.
 
       (*the arguments can't be empty*)
       destruct p as [FUN ARGS].
@@ -207,8 +243,9 @@ Module THE_DRY_MACHINE_SOURCE.
       move: Hargs => [] b [] ofs [] ARGS' HH.
       subst ARGS. clear the_args_dec.
 
-      destruct (extfunct_eqdec FUN (EF_external "makelock" UNLOCK_SIG)).
-      { (*mklock case*)
+      (** *MKLOCK case*)
+      destruct (extfunct_eqdec FUN (EF_external "makelock" UNLOCK_SIG)) as [? | notMKLOCK].
+      { 
         subst.
 
         (*must be able to store*)
@@ -235,7 +272,7 @@ Module THE_DRY_MACHINE_SOURCE.
         | [ H: at_external ?SEM ?c = Some (_, _),
                H' : at_external ?SEM ?c = Some (_, _ ) |- _ ] =>
           try solve[ rewrite H in H'; inversion H']
-        | [ H: at_external ?SEM ?c = Some (FUN, _),
+        | [ H: at_external ?SEM ?c = Some (?FUN, _),
                H' : at_external ?SEM ?c = Some (?FUN', _ ) |- _ ] =>
           pose (NNNN:= FUN); pose (NNNNN:= FUN'); pose (3)
              end);
@@ -283,7 +320,7 @@ Module THE_DRY_MACHINE_SOURCE.
         | [ H: at_external ?SEM ?c = Some (_, _),
                H' : at_external ?SEM ?c = Some (_, _ ) |- _ ] =>
           rewrite H in H'; inversion H'
-        | [ H: at_external ?SEM ?c = Some (FUN, _),
+        | [ H: at_external ?SEM ?c = Some (?FUN, _),
                H' : at_external ?SEM ?c = Some (?FUN', _ ) |- _ ] =>
           pose (NNNN:= FUN); pose (NNNNN:= FUN'); pose (3)
              end);
@@ -306,6 +343,196 @@ Module THE_DRY_MACHINE_SOURCE.
           rewrite Hstore' in Hstore; inversion Hstore.
           auto.
       }
+
+      (*Compute the bounds*)
+      assert (Hbound':=Hbound).
+      eapply bounded_maps.finite_sub_maps with (A:= (option permission))
+        in Hbound as bounded_delta_map.
+      eapply bounded_maps.finite_sub_maps with (A:=permission)
+        in Hbound' as bounded_access_map.
+      Lemma safety_product:
+        forall {A B}
+          {PA : A -> Prop}
+          {PB : B -> Prop},
+          konig.finite PA ->
+          konig.finite PB ->
+          konig.finite (fun ab => PA (fst ab) /\ PB (snd ab)).
+      Proof.
+      Admitted.
+
+      pose (virtue_bound:= safety_product bounded_delta_map bounded_delta_map).
+      pose (otherLP_bound:= safety_product bounded_access_map bounded_access_map).
+
+
+      (** *ACQUIRE and ACQFAIL cases*)
+      destruct (extfunct_eqdec FUN LOCK).
+      { (* **acquire AND acquire fail case*)
+        subst.
+        pose (m1:= restrPermMap (DMS.DryMachine.compat_th Hcmpt cnti).2).
+
+        (*Check if can acquire*)
+        pose (load_one_dec:=
+                Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.one)).
+        destruct (Classical_Prop.classic load_one_dec) as [Hone_zero| Nload].
+
+        (*ACQFAIL*)
+        Focus 2. {
+        exists 1%nat, (fun _ => (tr, dm, m)).
+        move=> x y [] [] PEEK. 
+        rewrite PEEK => VAL [] y' /(schedule_not_halted y i PEEK) STEP.
+        inversion STEP; simpl in *; try subst; (*Lets go through all possible steps*)
+         match goal with
+          | [ H: SCH.schedPeek ?Y = Some _ ,
+                 H': SCH.schedPeek ?Y = Some _  |- _ ] =>
+            rewrite H in H'; inversion H'; subst
+         end; simpl in *; try subst;
+         try (inversion Htstep;
+                match goal with
+                | [ H: DMS.DTP.getThreadC ?cnt1 = _ ,
+                       H': DMS.DTP.getThreadC ?cnt2 = _  |- _ ] =>
+                  replace cnt2 with cnt1 in H' by apply proof_irrelevance;
+                    rewrite H in H'; inversion H'
+                end; subst);
+        try (match goal with
+        | [ H: at_external ?SEM ?c = Some (_, _),
+               H' : at_external ?SEM ?c = Some (_, _ ) |- _ ] =>
+          rewrite H in H'; inversion H'
+        | [ H: at_external ?SEM ?c = Some (?FUN, _),
+               H' : at_external ?SEM ?c = Some (?FUN', _ ) |- _ ] =>
+          pose (NNNN:= FUN); pose (NNNNN:= FUN'); pose (3)
+             end);
+        try solve[ exfalso; eapply no_thread_halted; eassumption];
+        try solve[ exfalso; apply Htid; assumption].
+        - subst. exfalso; apply Nload.
+          rewrite /load_one_dec /m1.
+          replace Hcmpt with Hcmpt0 by apply proof_irrelevance. 
+          replace cnti with Htid by apply proof_irrelevance. 
+          auto.
+        - exists 0%nat; split; auto.
+          destruct x as [[? ?] ?]; simpl in *; subst; auto.
+        } Unfocus.
+
+        pose (pmap_tid'0:= 
+                setPermBlock (Some Writable) b 
+                             (Int.intval ofs)
+                             (DMS.DryMachine.ThreadPool.getThreadR cnti).2 LKSIZE_nat).
+        
+        pose (Hlt_dec:= permMapLt pmap_tid'0 (getMaxPerm m)).
+        destruct (Classical_Prop.classic Hlt_dec) as [Hlt| NHlt].
+        Focus 2. {
+          exists 0%nat, (fun _ => (tr, dm, m)).
+          move=> x y [] [] PEEK VAL [] y' /(schedule_not_halted y i PEEK).
+          move => /(is_syncStep y PEEK VAL) [] _ [] SKIP [] ev Htstep.
+          inversion Htstep;
+            match goal with
+            | [ H: DMS.DTP.getThreadC ?cnt1 = Kblocked c ,
+                   H': DMS.DTP.getThreadC ?cnt2 = _  |- _ ] =>
+              rewrite H in H';  inversion H'; subst c
+            end;
+            try (match goal with
+                 | [ H: at_external ?SEM ?c = Some (_, _),
+                        H' : at_external ?SEM ?c = Some (_, _ ) |- _ ] =>
+                   rewrite H in H'; pose (NN:= H'); inversion H'
+                 end; subst).
+          - exfalso; apply NHlt. auto.
+          - rewrite Hone_zero in Hload; inversion Hload.
+        } Unfocus.
+         
+        (*must be able to store*)
+        pose (m2:= restrPermMap Hlt).
+        destruct (Mem.store Mint32 m2 b (Int.intval ofs) (Vint Int.zero)) as [m'|] eqn:Hstore'.
+        Focus 2. {
+          exists 0%nat, (fun _ => (tr, dm, m)).
+          move=> x y [] [] PEEK VAL [] y' /(schedule_not_halted y i PEEK).
+          move => /(is_syncStep y PEEK VAL) [] _ [] SKIP [] ev Htstep.
+          inversion Htstep;
+            match goal with
+            | [ H: DMS.DTP.getThreadC ?cnt1 = Kblocked c ,
+                   H': DMS.DTP.getThreadC ?cnt2 = _  |- _ ] =>
+              rewrite H in H'; inversion H'; subst c
+            end;
+            try (match goal with
+                 | [ H: at_external ?SEM ?c = Some (_, _),
+                        H' : at_external ?SEM ?c = Some (_, _ ) |- _ ] =>
+                   rewrite H in H'; inversion H'
+                 end; subst);
+            try solve[rewrite Hone_zero in Hload; inversion Hload].
+          - clear - Hstore Hstore'.
+            replace Hlt' with Hlt in Hstore by apply proof_irrelevance.
+            rewrite Hstore' in Hstore; inversion Hstore.
+        } Unfocus.
+        
+        destruct virtue_bound as [N [virtue_generator virtue_gen_spec] ].
+        pose (newThreadPerm v :=
+                     (computeMap
+                        (DMS.DryMachine.ThreadPool.getThreadR cnti).1
+                        v.1,
+                     computeMap (DMS.DryMachine.ThreadPool.getThreadR cnti).2
+                       v.2)).
+        pose( tp'0 v:=
+                   DMS.DryMachine.ThreadPool.updThread cnti
+                     (Kresume c Vundef) (newThreadPerm v)).
+        pose (tp''0 v:=
+                DMS.DryMachine.ThreadPool.updLockSet (tp'0 v)
+                     (b, Int.intval ofs) (empty_map, empty_map)).
+
+        exists N.
+        exists (fun n => (nil,
+                  tp''0 (virtue_generator n),
+                  m')).
+        move=> x y [] [] PEEK VAL [] y' /(schedule_not_halted y i PEEK).
+        move => /(is_syncStep y PEEK VAL) [] _ [] SKIP [] ev Htstep.
+        inversion Htstep;
+          match goal with
+          | [ H: DMS.DTP.getThreadC ?cnt1 = Kblocked c ,
+                 H': DMS.DTP.getThreadC ?cnt2 = _  |- _ ] =>
+            rewrite H in H'; inversion H'; subst c
+          end;
+          try (match goal with
+               | [ H: at_external ?SEM ?c = Some (_, _),
+                      H' : at_external ?SEM ?c = Some (_, _ ) |- _ ] =>
+                 rewrite H in H'; inversion H'
+               end; subst);
+          try solve[rewrite Hone_zero in Hload; inversion Hload].
+        unfold tp''0, tp'0.
+        assert (bounded_maps.sub_map virtueThread.1 (getMaxPerm m).2 /\
+                    bounded_maps.sub_map virtueThread.2 (getMaxPerm m).2).
+        { destruct Hbounded as [Hbounded1 Hbounded2].
+          rewrite /bounded_maps.sub_map; split=> p f1 M1.
+          - move Hbounded1 at bottom.
+            specialize (Hbounded1 p ltac:(rewrite M1; auto)).
+            destruct (((getMaxPerm m).2) ! p) eqn:MAXp; inversion Hbounded1.
+            
+            
+            
+            rewrite /bounded_maps.map_leq in Hbounded1.
+            move => /Hbounded1.
+            replace (virtueThread.1) with (getMaxPerm m).2 by admit.
+            
+            
+          stop here.
+        }
+
+          
+          
+        - exfalso; apply Nload. right; auto.
+          unfold m1.
+          replace Hcmpt with Hcmpt0 by apply proof_irrelevance. 
+          replace cnti with Htid by apply proof_irrelevance. 
+          auto.
+
+          
+        rewrite AtExt in Hat_external; inversion Hat_external; subst.
+        unfold m1 in Hstore'.
+        replace Hcmpt0 with Hcmpt in Hstore by apply proof_irrelevance. 
+        replace Htid with cnti in Hstore by apply proof_irrelevance. 
+        clear - Hstore Hstore'.
+        rewrite Hstore' in Hstore; inversion Hstore.
+        } Unfocus.
+        
+      
+      
+      stop here.
         
       
     Admitted.
@@ -539,8 +766,9 @@ Module THE_DRY_MACHINE_SOURCE.
         rename Hruning into Hblocked.
         move: (finite_branching_sync (tr, dm, m) prog i cnti c Hblocked) => [] n [] f /= HH.
         exists n , f.
-        move=> x y [] [] PEEK VAL ESTEP.
-        eapply HH; repeat split; eauto. }
+        move=> x y [] [] PEEK [] sch_ok bounded_mem ESTEP.
+        eapply HH; repeat split; eauto.
+      }
 
       { (*Kresume*)
         (*then it must be after external*) 
@@ -700,7 +928,7 @@ Module THE_DRY_MACHINE_SOURCE.
       cut ( forall M:nat,
             exists (n : nat) (f : nat -> DMS.DryConc.new_state),
     forall (x : DMS.DryConc.new_state) (y : SCH.schedule),
-    match SCH.schedPeek y with
+    (match SCH.schedPeek y with
     | Some i =>
       (i < M) /\
         forall (j : DMS.DryMachine.ThreadPool.TID.tid)
@@ -709,7 +937,7 @@ Module THE_DRY_MACHINE_SOURCE.
         DMS.DryMachine.ThreadPool.getThreadC cnti = Krun q ->
         ~ DMS.DryMachine.threadHalted cnti -> SCH.TID.eq_tid_dec i j
     | None => True
-    end /\
+    end /\ DMS.DryConc.bounded_mem m) /\
     (exists y' : SCH.schedule,
        DMS.DryConc.sem_with_halt prog (y, tr, dm) m (y', x.1.1, x.1.2) x.2) ->
     exists i : nat, (i < n)%N /\ f i = x ).
@@ -736,7 +964,7 @@ Module THE_DRY_MACHINE_SOURCE.
         } Unfocus.
 
         destruct (t <  pos.n (DMS.DryMachine.ThreadPool.num_threads dm))%N eqn: within_bound.
-        - move => [] A B.
+        - move => [] [] A A' B.
           move: (CUT ltac:(repeat split; eauto)) => [] i [] ineq f_ok.
           exists (S i); split; auto.
           ssromega.
@@ -767,9 +995,9 @@ Module THE_DRY_MACHINE_SOURCE.
           exists 1%nat, (fun _ => (tr,dm, m)).
           move => x y.
           destruct (SCH.schedPeek y) eqn:PEEK.
-          + move => []  [] WRONG.
+          + move => []  [] [] WRONG sch_ok bound_mem.
             inversion WRONG.
-          + move => []  [] [] y' STEP.
+          + move => []  [] _ bounded_mem [] y' STEP.
             inversion STEP; simpl in *; subst.
             * (*If halted is itself*)
               exists 0%nat; split; auto.
@@ -808,11 +1036,11 @@ Module THE_DRY_MACHINE_SOURCE.
            destruct (NatTID.eq_tid_dec t M).
           + (*t = M*)
             subst.
-            move=> [] [] ineq VAL [] y' STEP .
+            move=> [] [] [] ineq VAL bounded_mem [] y' STEP .
             move : (threadM st' U).
             rewrite /safety.possible_image
                     /DMS.DryConc.new_valid /DMS.DryConc.valid /DMS.DryConc.correct_schedule /=.
-            rewrite PEEK => /(_ ltac:(eauto)) [] i [] ineq' f_eq.
+            rewrite PEEK => /(_ ltac:(split; eauto)) [] i [] ineq' f_eq.
             exists (N + i)%nat; split.
             * ssromega.
             * assert ( is_false: (N + i < N)%N = false).
@@ -822,7 +1050,7 @@ Module THE_DRY_MACHINE_SOURCE.
               replace (N + i - N)%nat with i; auto.
               ssromega.
           + (* t < M*)
-            move=> [] [] ineq VAL [] y' STEP .
+            move=> [] [] [] ineq VAL bounded_mem [] y' STEP .
             assert (ineq': (t< M)%nat).
             { clear - n ineq. apply /ltP.
               move: ineq => /ltP ineq.

@@ -6,7 +6,7 @@ Require Import concurrency.sepcomp. Import SepComp.
 Require Import concurrency.pos.
 Require Import concurrency.scheduler.
 Require Import concurrency.TheSchedule.
-Require Import concurrency.concurrent_machine.
+Require Import concurrency.konig.
 Require Import concurrency.addressFiniteMap. (*The finite maps*)
 Require Import concurrency.pos.
 Require Import concurrency.lksize.
@@ -50,7 +50,7 @@ Definition bounded_map {A} (m: PTree.t (Z -> option A)):=
 
 Definition sub_map {A B} (m1: PTree.t (Z -> option A))(m2: PTree.t (Z -> option B)):=
   forall p f1, m1 ! p = Some f1 ->
-       exists f2, m1 ! p = Some f2 /\ fun_leq f1 f2.
+       exists f2, m2 ! p = Some f2 /\ fun_leq f1 f2.
 
 
 Lemma finite_sub_maps:
