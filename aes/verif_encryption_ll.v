@@ -112,7 +112,7 @@ Definition encryption_spec_ll :=
 (* QQQ: How to know that if x is stored in a var of type tuchar, 0 <= x < 256 ? *)
 (* QQQ: Declare vars of type Z or of type int in API spec ? *)
 
-Definition Gprog : funspecs := augment_funspecs prog [ encryption_spec_ll ].
+Definition Gprog : funspecs := ltac:(with_library prog [ encryption_spec_ll ]).
 
 (* TODO move to library (if no one else has done it yet) *)
 (* copied from verif_sumarray2.v, but removed unused argument v' *)

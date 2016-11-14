@@ -183,7 +183,7 @@ Definition decryption_spec :=
              tables_initialized tables)
 .
 
-Definition Gprog : funspecs := augment_funspecs prog [
+Definition Gprog : funspecs := ltac:(with_library prog [
   memset_spec; 
   aes_init_spec; 
   zeroize_spec; 
@@ -193,7 +193,7 @@ Definition Gprog : funspecs := augment_funspecs prog [
   inv_key_expansion_spec; 
   encryption_spec; 
   decryption_spec
-].
+]).
 
 Lemma body_aes_init: semax_body Vprog Gprog f_mbedtls_aes_init aes_init_spec.
 Proof.
