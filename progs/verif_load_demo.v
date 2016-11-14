@@ -33,12 +33,13 @@ Definition Gprog : funspecs := ltac:(with_library prog [get22_spec; main_spec]).
 Lemma body_go: semax_body Vprog Gprog f_get22 get22_spec.
 Proof.
 start_function.
+
 (* int_pair_t* p = &pps[i].right; *)
 forward.
+
 (* int res = p->snd; *)
-
+(* forward. (gives hint that we prove below:) *)
 assert_PROP (isptr pps) as Ip by entailer!.
-
 (* Hint given by forward: *)
 assert_PROP (offset_val 4
      (offset_val 8 (force_val (sem_add_pi (Tstruct _pair_pair noattr) pps (Vint (Int.repr i))))) =
@@ -48,8 +49,9 @@ assert_PROP (offset_val 4
   destruct pps; inversion Ip. simpl. do 3 f_equal. omega.
   auto with field_compatible.
 }
-
 forward.
 
+(* return res; *)
 forward.
+
 Qed.

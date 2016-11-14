@@ -120,6 +120,7 @@ Inductive undo_and_first__assert_PROP: Prop -> Prop := .
 
 Require Import floyd.simpl_reptype.
 
+(*
 (* Given gfs and gfs0, pose gfs1 such that (gfs = gfs1 ++ gfs0) *)
 Ltac find_prefix gfs gfs0 gfs1 :=
   let len := fresh "len" in
@@ -152,6 +153,57 @@ match Rs with
   | _ => find_SEP_clause_for p Rest (S i) t_root gfs gfs0 gfs1 v n
   end
 end.
+*)
+
+Ltac test_legal_nested_efield TY e gfsA gfsB tts lr ::=
+  unify (legal_nested_efield (nested_field_type TY gfsA) e gfsB tts lr) true.
+
+Ltac unify_var_or_evar name val :=
+  let E := fresh "E" in assert (name = val) as E by (subst name; reflexivity); clear E.
+
+Ltac sc_try_instantiate P Q R0 Delta e gfsA gfsB tts a sh t_root gfs0 v n N H SH GFS TY V A ::=
+      assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx (R0 :: nil))) 
+         |-- `(field_at sh t_root gfs0 v a)) as H;
+      [unify_var_or_evar gfs0 GFS;
+       unify_var_or_evar t_root TY;
+       unify_var_or_evar sh SH;
+       unify_var_or_evar v V;
+       unify_var_or_evar a A;
+       unfold sh, t_root, gfs0, v, a;
+       unfold data_at_;
+       unfold data_at;
+       unify GFS (skipn (length (gfsB++gfsA) - length GFS) (gfsB++gfsA));
+       simpl skipn; subst e gfsA gfsB tts;
+       try unfold field_at_;
+       generalize V;
+       intro;
+       solve [
+             go_lowerx; rewrite sepcon_emp, <- ?field_at_offset_zero; 
+             apply derives_refl
+       ]
+      | pose N as n ].
+
+Ltac sc_new_instantiate P Q R Rnow Delta e gfsA gfsB tts lr a sh t_root gfs0 v n N H ::=
+  match Rnow with
+  | ?R0 :: ?Rnow' => 
+    match R0 with
+    | data_at ?SH ?TY ?V ?A => 
+      test_legal_nested_efield TY e gfsA gfsB tts lr;
+      sc_try_instantiate P Q R0 Delta e gfsA gfsB tts a sh t_root gfs0 v n N H SH (@nil gfield) TY V A
+    | data_at_ ?SH ?TY ?A => 
+      test_legal_nested_efield TY e gfsA gfsB tts lr;
+      sc_try_instantiate P Q R0 Delta e gfsA gfsB tts a sh t_root gfs0 v n N H SH (@nil gfield) TY
+      (default_val (nested_field_type TY nil)) A
+    | field_at ?SH ?TY ?GFS ?V ?A =>
+      test_legal_nested_efield TY e gfsA gfsB tts lr;
+      sc_try_instantiate P Q R0 Delta e gfsA gfsB tts a sh t_root gfs0 v n N H SH GFS TY V A
+    | field_at_ ?SH ?TY ?GFS ?A =>
+      test_legal_nested_efield TY e gfsA gfsB tts lr;
+      sc_try_instantiate P Q R0 Delta e gfsA gfsB tts a sh t_root gfs0 v n N H SH GFS TY
+      (default_val (nested_field_type TY GFS)) A
+    | _ => sc_new_instantiate P Q R Rnow' Delta e gfsA gfsB tts lr a sh t_root gfs0 v n (S N) H
+    end
+  end.
 
 Ltac solve_legal_nested_field_in_entailment ::=
    match goal with
@@ -283,6 +335,10 @@ Ltac load_tac ::=
     let tts := fresh "tts" in
       construct_nested_efield_no_change e e1 efs tts;
 
+    let lr := fresh "lr" in
+      pose (compute_lr e1 efs) as lr;
+      vm_compute in lr;
+
     let HLE := fresh "H" in
     let p := fresh "p" in evar (p: val);
     do_compute_lvalue Delta P Q R e p HLE; (* note: we compute lvalue of whole e, not just e1 *)
@@ -296,6 +352,72 @@ Ltac load_tac ::=
     - a.gfsA.gfsB :  a.gfsA corresponds to e1, and gfsB corresponds to efs
     - a.gfs0.gfs1 :  a.gfs0 is what we have a SEP clause for, and gfs1 goes from there to final value *)
 
+    let sh := fresh "sh" in evar (sh: share);
+    let t_root := fresh "t_root" in evar (t_root: type);
+    let gfs0 := fresh "gfs0" in evar (gfs0: list gfield);
+    let gfsA := fresh "gfsA" in evar (gfsA: list gfield);
+    let a := fresh "a" in evar (a: val);
+    let v := fresh "v" in evar (v: reptype (nested_field_type t_root gfs0));
+    let n := fresh "n" in
+    let Hf := fresh "Hf" in
+    let eq := constr:(p = field_address t_root (gfsB ++ gfsA) a) in
+    let g := constr:(ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- !! eq) in
+    let HNice := fresh "HNice" in
+
+    tryif (
+      tryif (
+        assert g as HNice by (subst p gfsA gfsB a t_root; try apply prop_right; eassumption)
+      ) then (
+        (* expected to succeed always: *)
+        sc_new_instantiate P Q R R Delta e1 gfsA gfsB tts lr a sh t_root gfs0 v n (0%nat) Hf
+      ) else (
+        instantiate (gfsA := nil);
+        (* will fail if setting gfsA to nil was a bad idea: *)
+        sc_new_instantiate P Q R R Delta e1 gfsA gfsB tts lr a sh t_root gfs0 v n (0%nat) Hf;
+        (assert g as HNice by (
+          subst p gfsA gfsB a t_root; rewrite app_nil_r;
+          go_lower; saturate_local; (* <- TODO expensive *)
+          apply prop_right;
+          rewrite field_address_offset; [reflexivity | auto with field_compatible]
+        ) || fail 15 "assert should really not have failed" )
+      )
+    ) then (
+      let len := fresh "len" in
+      pose ((length (gfsB ++ gfsA) - length gfs0)%nat) as len;
+      simpl in len;
+      let gfs1 := fresh "gfs1" in
+      match goal with
+      | len := ?len' |- _ => pose (gfs1 := (firstn len' (gfsB ++ gfsA)));
+                             cbv [app gfsB gfsA firstn] in gfs1
+      end;
+
+      let gfsEq := fresh "gfsEq" in
+      assert (gfsB ++ gfsA = gfs1 ++ gfs0) as gfsEq by reflexivity;
+
+      let Heq := fresh "Heq" in
+      match type of Hf with
+      | (ENTAIL _, PROPx _ (LOCALx _ (SEPx (?R0 :: nil))) 
+           |-- _) => assert (nth_error R n = Some R0) as Heq by reflexivity
+      end;
+
+      refine (semax_SC_field_load' _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+         HLE HNice eq_refl gfsEq Heq _ _ _ _ _ _ _); try reflexivity;
+      [ auto (* readable_share *)
+      | solve_load_rule_evaluation
+      | clear HLE H_Denote;
+        subst e1 gfs0 gfs1 gfsA gfsB efs tts t_root a v n;
+        repeat match goal with H := _ |- _ => clear H end;
+        try quick_typecheck3; 
+        unfold tc_efield, tc_LR, tc_LR_strong; simpl typeof;
+        try solve [entailer!]
+      | solve_legal_nested_field_in_entailment; try clear HLE H_Denote;
+        subst e1 gfs0 gfs1 gfsA gfsB efs tts t_root a v n ]
+    ) else (
+      assert (undo_and_first__assert_PROP eq); subst t_root gfsA gfsB a p
+    )
+
+
+(*
     let t_root := fresh "t_root" in evar (t_root: type);
     let gfsA := fresh "gfsA" in evar (gfsA: list gfield);
     let a := fresh "a" in evar (a: val);
@@ -339,4 +461,5 @@ Ltac load_tac ::=
       subst e1 gfs0 gfs1 gfsA gfsB gfsAll efs tts t_root a v n]
 
     ) else assert (undo_and_first__assert_PROP eq); subst t_root gfsA gfsB a p
+*)
 end.
