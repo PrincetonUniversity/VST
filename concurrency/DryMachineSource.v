@@ -469,6 +469,10 @@ Module THE_DRY_MACHINE_SOURCE.
                         v.1,
                      computeMap (DMS.DryMachine.ThreadPool.getThreadR cnti).2
                        v.2)).
+        (*pose (newThreadPerm
+                (v:PTree.t (Z -> option permission)*PTree.t (Z -> option permission)) :=
+                (((DMS.DTP.getThreadR cnti).1.1, v.1),
+                 ((DMS.DTP.getThreadR cnti).2.1, v.2))). *)
         pose( tp'0 v:=
                    DMS.DryMachine.ThreadPool.updThread cnti
                      (Kresume c Vundef) (newThreadPerm v)).
@@ -495,44 +499,21 @@ Module THE_DRY_MACHINE_SOURCE.
                end; subst);
           try solve[rewrite Hone_zero in Hload; inversion Hload].
         unfold tp''0, tp'0.
-        assert (bounded_maps.sub_map virtueThread.1 (getMaxPerm m).2 /\
+        assert (H: bounded_maps.sub_map virtueThread.1 (getMaxPerm m).2 /\
                     bounded_maps.sub_map virtueThread.2 (getMaxPerm m).2).
-        { destruct Hbounded as [Hbounded1 Hbounded2].
-          rewrite /bounded_maps.sub_map; split=> p f1 M1.
-          - move Hbounded1 at bottom.
-            specialize (Hbounded1 p ltac:(rewrite M1; auto)).
-            destruct (((getMaxPerm m).2) ! p) eqn:MAXp; inversion Hbounded1.
-            
-            
-            
-            rewrite /bounded_maps.map_leq in Hbounded1.
-            move => /Hbounded1.
-            replace (virtueThread.1) with (getMaxPerm m).2 by admit.
-            
-            
-          stop here.
-        }
-
-          
-          
-        - exfalso; apply Nload. right; auto.
-          unfold m1.
-          replace Hcmpt with Hcmpt0 by apply proof_irrelevance. 
-          replace cnti with Htid by apply proof_irrelevance. 
-          auto.
-
-          
-        rewrite AtExt in Hat_external; inversion Hat_external; subst.
-        unfold m1 in Hstore'.
-        replace Hcmpt0 with Hcmpt in Hstore by apply proof_irrelevance. 
-        replace Htid with cnti in Hstore by apply proof_irrelevance. 
-        clear - Hstore Hstore'.
+        { auto. }
+        move: H => /virtue_gen_spec [] j [] /ltP ineq vg_spec.
+        exists j; split; auto.
+        rewrite vg_spec.
+        destruct x as [[ ? ?] ?]; simpl in *; subst.
+        repeat f_equal.
+        rename l into BLAHBLAH. admit.
+        clear -Hstore Hstore'.
+        replace Hlt' with Hlt in Hstore by apply proof_irrelevance.
         rewrite Hstore' in Hstore; inversion Hstore.
-        } Unfocus.
-        
-      
-      
-      stop here.
+        auto.
+
+      }
         
       
     Admitted.

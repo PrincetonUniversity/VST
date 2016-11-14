@@ -304,8 +304,8 @@ Module Concur.
            (pmap_tid' : access_map)
            (virtueThread : delta_map * delta_map)
            (Hbounded: if isCoarse then
-                        ( map_leq virtueThread.1 (getMaxPerm m).2 /\
-                          map_leq virtueThread.2 (getMaxPerm m).2)
+                        ( sub_map virtueThread.1 (getMaxPerm m).2 /\
+                          sub_map virtueThread.2 (getMaxPerm m).2)
                       else
                         True ),
            let newThreadPerm := (computeMap (getThreadR cnt0).1 virtueThread.1,
@@ -338,15 +338,15 @@ Module Concur.
      | step_release :
          forall (tp' tp'':thread_pool) m0 m1 c m' b ofs virtueThread virtueLP pmap_tid' rmap
            (Hbounded: if isCoarse then
-                        ( map_leq virtueThread.1 (getMaxPerm m).2 /\
-                          map_leq virtueThread.2 (getMaxPerm m).2)
+                        ( sub_map virtueThread.1 (getMaxPerm m).2 /\
+                          sub_map virtueThread.2 (getMaxPerm m).2)
                       else
                         True )
            (HboundedLP: if isCoarse then
                         ( map_empty_def virtueLP.1 /\
                           map_empty_def virtueLP.2 /\
-                          map_leq virtueLP.1.2 (getMaxPerm m).2 /\
-                          map_leq virtueLP.2.2 (getMaxPerm m).2)
+                          sub_map virtueLP.1.2 (getMaxPerm m).2 /\
+                          sub_map virtueLP.2.2 (getMaxPerm m).2)
                       else
                         True ),
            let newThreadPerm := (computeMap (getThreadR cnt0).1 virtueThread.1,
@@ -381,13 +381,13 @@ Module Concur.
      | step_create :
          forall (tp_upd tp':thread_pool) c b ofs arg virtue1 virtue2
            (Hbounded: if isCoarse then
-                        ( map_leq virtue1.1 (getMaxPerm m).2 /\
-                          map_leq virtue1.2 (getMaxPerm m).2)
+                        ( sub_map virtue1.1 (getMaxPerm m).2 /\
+                          sub_map virtue1.2 (getMaxPerm m).2)
                       else
                         True )
              (Hbounded_new: if isCoarse then
-                        ( map_leq virtue2.1 (getMaxPerm m).2 /\
-                          map_leq virtue2.2 (getMaxPerm m).2)
+                        ( sub_map virtue2.1 (getMaxPerm m).2 /\
+                          sub_map virtue2.2 (getMaxPerm m).2)
                       else
                         True ),
            let threadPerm' := (computeMap (getThreadR cnt0).1 virtue1.1,
