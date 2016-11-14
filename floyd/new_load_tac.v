@@ -63,12 +63,11 @@ Lemma semax_SC_field_load':
   forall {Espec: OracleKind},
     forall Delta sh n id P Q R (e: expr)
       (t t_root: type) (gfs0 gfs1 gfs: list gfield)
-      (p: val) (v : val) (v' : reptype (nested_field_type t_root gfs0)),
-      typeof_temp Delta id = Some t ->
-      is_neutral_cast (typeof e) t = true ->
-      type_is_volatile (typeof e) = false ->
+      (u p: val) (v : val) (v' : reptype (nested_field_type t_root gfs0)),
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-        local (`(eq (field_address t_root gfs p)) (eval_lvalue e)) ->
+        local (`(eq u) (eval_lvalue e)) ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        !! (u = field_address t_root gfs p) ->
       typeof e = nested_field_type t_root gfs ->
       gfs = gfs1 ++ gfs0 ->
       nth_error R n = Some (field_at sh t_root gfs0 v' p) ->
@@ -79,6 +78,9 @@ Lemma semax_SC_field_load':
         local `(tc_val (typeof e) v) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         (!! legal_nested_field t_root gfs) ->
+      typeof_temp Delta id = Some t ->
+      is_neutral_cast (typeof e) t = true ->
+      type_is_volatile (typeof e) = false ->
       semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
         (Sset id e)
           (normal_ret_assert
@@ -87,9 +89,10 @@ Lemma semax_SC_field_load':
                 (SEPx R)))).
 Proof.
   intros.
-  eapply semax_extract_later_prop'; [exact H9 | clear H9; intro H9].
+  eapply semax_extract_later_prop'; [exact H0 | clear H0; intro H0]. subst u.
+  eapply semax_extract_later_prop'; [exact H7 | clear H7; intro H7].
   assert (JMeq (valinject (nested_field_type t_root gfs) v) v) as A. {
-    apply valinject_JMeq. apply is_neutral_cast_by_value with t. rewrite <- H3. assumption.
+    apply valinject_JMeq. apply is_neutral_cast_by_value with t. rewrite <- H1. assumption.
   }
   eapply semax_max_path_field_load_nth_ram'.
   eassumption.
@@ -102,12 +105,12 @@ Proof.
   2: eassumption.
   2: eassumption.
   eapply derives_trans; [apply nested_field_ramif' with (gfs3 := gfs1) |].
-  + eapply JMeq_trans; [apply H7 |].
-    rewrite H4 in A.
+  + eapply JMeq_trans; [apply H5 |].
+    rewrite H2 in A.
     apply @JMeq_sym, A.
-  + rewrite <- H4; auto.
+  + rewrite <- H2; auto.
   + apply sepcon_derives; [| auto].
-    rewrite <- H4.
+    rewrite <- H2.
     apply derives_refl.
 Qed.
 

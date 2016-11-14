@@ -546,7 +546,7 @@ Proof.
   rewrite isptr_offset_val_zero. reflexivity. eapply field_compatible_isptr. exact H.
 Qed.
 
-(* Now prove the original lemma using the new one: *)
+(* Now prove the original lemma using the new one:
 Lemma semax_SC_field_load:
   forall {Espec: OracleKind},
     forall Delta sh n id P Q R (e1: expr)
@@ -583,7 +583,9 @@ Proof.
     + admit. (* TODO = *)
     + admit. (* field_compatible *)
 Abort.
+*)
 
+(*
 Ltac solve_legal_nested_field_in_entailment ::=
 (* same as solve_legal_nested_field_in_entailment but with the first match behind a try: *)
    try match goal with
@@ -793,8 +795,80 @@ Ltac load_tac ::=
     | subst e1 efs tts lr p gfs; clear HLE H_Denote ])
   )
 end.
+*)
 
-(******)
+(*********)
+
+Require Import floyd.new_load_tac.
+Require Import floyd.simpl_reptype.
+
+(* gfs: only gfsB
+   e: root expr, not the whole
+   TY: suggested (by looking at SEP clauses) t_root
+
+equivalent to testing if TY = typeof e (if gfsA = [])
+
+we always know gfsA (either set to [], or given by user)
+
+*)
+Ltac test_legal_nested_efield TY e gfsA gfsB tts lr ::=
+  unify (legal_nested_efield (nested_field_type TY gfsA) e gfsB tts lr) true
+ (* assert (legal_nested_efield (nested_field_type TY gfsA) e gfsB tts lr = true)*).
+
+(*
+legal_nested_field: Prop
+legal_nested_efield: bool
+compute_legal_nested_field / compute_legal_nested_field_spec used by
+solve_legal_nested_field_in_entailment
+*)
+(*commented out: solve_legal_nested_field, legal_nested_field_nil_lemma, legal_nested_field_cons_lemma*)
+
+Ltac unify_var_or_evar name val :=
+  let E := fresh "E" in assert (name = val) as E by (subst name; reflexivity); clear E.
+
+Ltac sc_try_instantiate P Q R0 Delta e gfsA gfsB tts a sh t_root gfs0 v n N H SH GFS TY V A ::=
+      assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx (R0 :: nil))) 
+         |-- `(field_at sh t_root gfs0 v a)) as H;
+      [unify_var_or_evar gfs0 GFS;
+       unify_var_or_evar t_root TY;
+       unify_var_or_evar sh SH;
+       unify_var_or_evar v V;
+       unify_var_or_evar a A;
+       unfold sh, t_root, gfs0, v, a;
+       unfold data_at_;
+       unfold data_at;
+       unify GFS (skipn (length (gfsB++gfsA) - length GFS) (gfsB++gfsA));
+       simpl skipn; subst e gfsA gfsB tts;
+       try unfold field_at_;
+       generalize V;
+       intro;
+       solve [
+             go_lowerx; rewrite sepcon_emp, <- ?field_at_offset_zero; 
+             apply derives_refl
+       ]
+      | pose N as n ].
+
+Ltac sc_new_instantiate P Q R Rnow Delta e gfsA gfsB tts lr a sh t_root gfs0 v n N H ::=
+  match Rnow with
+  | ?R0 :: ?Rnow' => 
+    match R0 with
+    | data_at ?SH ?TY ?V ?A => 
+      test_legal_nested_efield TY e gfsA gfsB tts lr;
+      sc_try_instantiate P Q R0 Delta e gfsA gfsB tts a sh t_root gfs0 v n N H SH (@nil gfield) TY V A
+    | data_at_ ?SH ?TY ?A => 
+      test_legal_nested_efield TY e gfsA gfsB tts lr;
+      sc_try_instantiate P Q R0 Delta e gfsA gfsB tts a sh t_root gfs0 v n N H SH (@nil gfield) TY
+      (default_val (nested_field_type TY nil)) A
+    | field_at ?SH ?TY ?GFS ?V ?A =>
+      test_legal_nested_efield TY e gfsA gfsB tts lr;
+      sc_try_instantiate P Q R0 Delta e gfsA gfsB tts a sh t_root gfs0 v n N H SH GFS TY V A
+    | field_at_ ?SH ?TY ?GFS ?A =>
+      test_legal_nested_efield TY e gfsA gfsB tts lr;
+      sc_try_instantiate P Q R0 Delta e gfsA gfsB tts a sh t_root gfs0 v n N H SH GFS TY
+      (default_val (nested_field_type TY GFS)) A
+    | _ => sc_new_instantiate P Q R Rnow' Delta e gfsA gfsB tts lr a sh t_root gfs0 v n (S N) H
+    end
+  end.
 
 
 Lemma body_aes_encrypt: semax_body Vprog Gprog f_mbedtls_aes_encrypt encryption_spec_ll.
@@ -872,8 +946,103 @@ intro S1. (* and BAM, we're gonna simpl in encryption_spec_ll !! *)
   (* TODO floyd: put (Sreturn None) in such a way that the code can be folded into MORE_COMMANDS *)
 
   (* RK = ctx->rk; *)
-  forward.
+  (*forward. *)
+idtac.
+rewrite <- seq_assoc. eapply semax_seq'. {
+hoist_later_in_pre.
+
+match goal with
+| |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
+ (* Super canonical load *)
+    let e1 := fresh "e" in
+    let efs := fresh "efs" in
+    let tts := fresh "tts" in
+      construct_nested_efield_no_change e e1 efs tts;
+
+    let lr := fresh "lr" in
+      pose (compute_lr e1 efs) as lr;
+      vm_compute in lr;
+
+    let HLE := fresh "HLE" in
+    let p := fresh "p" in evar (p: val);
+    do_compute_lvalue Delta P Q R e p HLE (* note: we compute lvalue of whole e, not just e1 *);
+
+    let H_Denote := fresh "H_Denote" in
+    let gfsB := fresh "gfsB" in
+      solve_efield_denote Delta P Q R efs gfsB H_Denote;
+
+    (* If a is the "base pointer" of the SEP clause to be used,
+    the path to the value can be split in 2 ways:
+    - a.gfsA.gfsB :  a.gfsA corresponds to e1, and gfsB corresponds to efs
+    - a.gfs0.gfs1 :  a.gfs0 is what we have a SEP clause for, and gfs1 goes from there to final value *)
+
+    let sh := fresh "sh" in evar (sh: share);
+    let t_root := fresh "t_root" in evar (t_root: type);
+    let gfs0 := fresh "gfs0" in evar (gfs0: list gfield);
+    let gfsA := fresh "gfsA" in evar (gfsA: list gfield);
+    let a := fresh "a" in evar (a: val);
+    let v := fresh "v" in evar (v: reptype (nested_field_type t_root gfs0));
+    let n := fresh "n" in
+    let Hf := fresh "Hf" in
+    let eq := constr:(p = field_address t_root (gfsB ++ gfsA) a) in
+    let g := constr:(ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- !! eq) in
+    let HNice := fresh "HNice" in
+
+    tryif (
+      tryif (
+        assert g as HNice by (subst p gfsA gfsB a t_root; try apply prop_right; eassumption)
+      ) then (
+        (* always-succeeding call to sc_new_instantiate *)
+        idtac
+      ) else (
+        instantiate (gfsA := nil);
+        (* will fail if setting gfsA to nil was a bad idea: *)
+        sc_new_instantiate P Q R R Delta e1 gfsA gfsB tts lr a sh t_root gfs0 v n (0%nat) Hf;
+        (assert g as HNice by (
+          subst p gfsA gfsB a t_root; rewrite app_nil_r;
+          go_lower; saturate_local; (* <- TODO expensive *)
+          apply prop_right;
+          rewrite field_address_offset; [reflexivity | auto with field_compatible]
+        ) || fail 15 "assert should really not have failed" )
+      )
+    ) then (
+      let len := fresh "len" in
+      pose ((length (gfsB ++ gfsA) - length gfs0)%nat) as len;
+      simpl in len;
+      let gfs1 := fresh "gfs1" in
+      match goal with
+      | len := ?len' |- _ => pose (gfs1 := (firstn len' (gfsB ++ gfsA)));
+                             cbv [app gfsB gfsA firstn] in gfs1
+      end;
+
+      let gfsEq := fresh "gfsEq" in
+      assert (gfsB ++ gfsA = gfs1 ++ gfs0) as gfsEq by reflexivity;
+
+      let Heq := fresh "Heq" in
+      match type of Hf with
+      | (ENTAIL _, PROPx _ (LOCALx _ (SEPx (?R0 :: nil))) 
+           |-- _) => assert (nth_error R n = Some R0) as Heq by reflexivity
+      end;
+
+      refine (semax_SC_field_load' _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+         HLE HNice eq_refl gfsEq Heq _ _ _ _ _ _ _); try reflexivity;
+      [ auto (* readable_share *)
+      | solve_load_rule_evaluation
+      | clear HLE H_Denote;
+        subst e1 gfs0 gfs1 gfsA gfsB efs tts t_root a v n;
+        repeat match goal with H := _ |- _ => clear H end;
+        try quick_typecheck3; 
+        unfold tc_efield, tc_LR, tc_LR_strong; simpl typeof;
+        try solve [entailer!]
+      | solve_legal_nested_field_in_entailment; try clear HLE H_Denote;
+        subst e1 gfs0 gfs1 gfsA gfsB efs tts t_root a v n ]
+    ) else (
+      assert (undo_and_first__assert_PROP eq); subst t_root gfsA gfsB a p
+    )
+end.
+
   { entailer!. auto with field_compatible. (* TODO floyd: why is this not done automatically? *) }
+}
 
   assert_PROP (field_compatible t_struct_aesctx [StructField _buf] ctx) as Fctx. entailer!.
   assert ((field_address t_struct_aesctx [StructField _buf] ctx)
