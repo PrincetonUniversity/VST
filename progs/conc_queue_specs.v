@@ -162,6 +162,8 @@ Definition q_new_spec' :=
    SEP (lqueue Tsh t P newq lock gsh1 gsh2 []).
 Definition q_new_spec prog := DECLARE (ext_link_prog prog "q_new") q_new_spec'.
 
+Notation q_new_args t P := (existT (fun t => @reptype CompSpecs t -> Prop) t P).
+
 Definition q_del_spec' :=
   WITH Q : {t : type & ((reptype t -> Prop) * hist (reptype t))%type}, p : val, lock : val, gsh1 : share, gsh2 : share
   PRE [ _tgt OF (tptr tqueue_t) ]
@@ -174,6 +176,8 @@ Definition q_del_spec' :=
    LOCAL ()
    SEP ().
 Definition q_del_spec prog := DECLARE (ext_link_prog prog "q_del") q_del_spec'.
+
+Notation q_rem_args t P h := (existT (fun t => ((@reptype CompSpecs t -> Prop) * hist (@reptype CompSpecs t))%type) t (P, h)).
 
 Definition q_add_spec' :=
   WITH sh : share, Q : {t : type & ((reptype t -> Prop) * hist (reptype t) * reptype t)%type}, p : val, lock : val,
@@ -189,6 +193,9 @@ Definition q_add_spec' :=
    LOCAL ()
    SEP (lqueue sh t P p lock gsh1 gsh2 (h ++ [QAdd e v])).
 Definition q_add_spec prog := DECLARE (ext_link_prog prog "q_add") q_add_spec'.
+
+Notation q_add_args t P h v := (existT (fun t =>
+  ((@reptype CompSpecs t -> Prop) * hist (@reptype CompSpecs t) * @reptype CompSpecs t)%type) t (P, h, v)).
 
 Definition q_remove_spec' :=
   WITH sh : share, Q : {t : type & ((reptype t -> Prop) * hist (reptype t))%type}, p : val, lock : val, gsh1 : share, gsh2 : share

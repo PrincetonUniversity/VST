@@ -91,6 +91,71 @@ Proof.
   unfold data_at, field_at, at_offset; rewrite !data_at_rec_eq; simpl; f_equal.
 Qed.
 
+(* lookup_and_change_compspecs interacts poorly with polymorphic specs, and in particular the partially applied
+   compspecs-taking functions like reptype and data_at. *)
+Ltac forward_call_id1_wow' witness :=
+let Frame := fresh "Frame" in
+let A := fresh "A" in
+let wit := fresh "wit" in
+ evar (Frame: list (mpred));
+ evar (A: rmaps.TypeTree);
+ evar (wit: functors.MixVariantFunctor._functor
+              (rmaps.dependent_type_functor_rec nil A) mpred);
+ match goal with |- @semax ?CS _ _ _ _ _ =>
+ eapply (@semax_call_id1_wow A wit Frame);
+ [ check_function_name | subst A; reflexivity
+ | find_spec_in_globals | check_result_type
+ | apply Coq.Init.Logic.I | check_parameter_types
+ | check_prove_local2ptree
+ | check_typecheck
+ | instantiate (1 := witness) in (Value of wit);
+   check_funspec_precondition
+ | check_prove_local2ptree
+ | check_cast_params | reflexivity
+ | Forall_pTree_from_elements
+ | Forall_pTree_from_elements
+ | unfold fold_right_sepcon at 1 2; cancel
+ | subst wit; cbv beta iota zeta; extensionality rho; 
+   repeat rewrite exp_uncurry;
+   try rewrite no_post_exists; repeat rewrite exp_unfold;
+   first [apply exp_congr; intros ?vret; reflexivity
+           | give_EX_warning
+           ]
+ | prove_delete_temp
+ | unify_postcondition_exps
+ | unfold fold_right_and; repeat rewrite and_True; auto; subst A wit
+ ] end.
+
+Ltac forward_call_id00_wow' witness :=
+let Frame := fresh "Frame" in
+let A := fresh "A" in
+let wit := fresh "wit" in
+ evar (Frame: list (mpred));
+ evar (A: rmaps.TypeTree);
+ evar (wit: functors.MixVariantFunctor._functor
+              (rmaps.dependent_type_functor_rec nil A) mpred);
+ match goal with |- @semax ?CS _ _ _ _ _ =>
+ eapply (@semax_call_id00_wow A wit Frame);
+ [ check_function_name | subst A; reflexivity
+ | find_spec_in_globals | check_result_type | check_parameter_types
+ | check_prove_local2ptree
+ | check_typecheck
+ | instantiate (1 := witness) in (Value of wit);
+   check_funspec_precondition
+ | check_prove_local2ptree
+ | check_cast_params | reflexivity
+ | Forall_pTree_from_elements
+ | Forall_pTree_from_elements
+ | unfold fold_right_sepcon at 1 2; cancel
+ | subst wit; cbv beta iota zeta;
+    repeat rewrite exp_uncurry;
+    try rewrite no_post_exists0;
+    first [reflexivity | extensionality; simpl; reflexivity]
+ | unify_postcondition_exps
+ | unfold fold_right_and; repeat rewrite and_True; auto; subst A wit
+ ]
+ end.
+
 Lemma body_f : semax_body Vprog Gprog f_f f_spec.
 Proof.
   start_function.
@@ -118,76 +183,15 @@ Proof.
               (map (fun x => Vint (snd x)) vals ++ repeat Vundef (Z.to_nat (3 - i))) resultsp))).
   { Exists ([] : list (val * int)); repeat entailer!. }
   { Intros vals.
-
-rewrite <- seq_assoc; eapply semax_seq'.
-let Frame := fresh "Frame" in
-let A := fresh "A" in
-let wit := fresh "wit" in
- evar (Frame: list (mpred));
- evar (A: rmaps.TypeTree);
- evar (wit: functors.MixVariantFunctor._functor
-              (rmaps.dependent_type_functor_rec nil A) mpred);
- match goal with |- @semax ?CS _ _ _ _ _ =>
- eapply (@semax_call_id1_wow A wit Frame) end.
- check_function_name. subst A.
- match goal with |- ?A = ?B => 
-      let x := fresh "x" in set (x := A);
-      let y := fresh "y" in set (y := B) end.
-      hnf in x. subst x.
-Print type.
-Print reptype.
-
-let cs' := conc_queue_specs.CompSpecs in let cs := CompSpecs in  match goal with
-  | |- context [?A conc_queue_specs.CompSpecs] => change (A conc_queue_specs.CompSpecs) with (A CompSpecs)
-  | |- context [?A conc_queue_specs.CompSpecs ?B] => idtac B
- end.
-(* This is busted, because the compspecs aren't convertible at an arbitrary (existentially quantified) type. *)
-
-change_compspecs' CompSpecs conc_queue_specs.CompSpecs.
-timeout 20 match goal with |- context [?cs'] => 
-   match type of cs' with compspecs =>
-     try (constr_eq cs cs'; fail 1); idtac cs';
-     change_compspecs' CompSpecs cs'(*;
-     repeat change_compspecs' cs cs'*)
-   end
-end.
-
-
-; subst y; 
-      find_spec_in_globals
- end.
-
- lookup_spec_and_change_compspecs CompSpecs.
- | find_spec_in_globals | check_result_type
- | apply Coq.Init.Logic.I | check_parameter_types
- | check_prove_local2ptree
- | check_typecheck
- | instantiate (1 := witness) in (Value of wit);
-   check_funspec_precondition
- | check_prove_local2ptree
- | check_cast_params | reflexivity
- | Forall_pTree_from_elements
- | Forall_pTree_from_elements
- | unfold fold_right_sepcon at 1 2; cancel
- | subst wit; cbv beta iota zeta; extensionality rho; 
-   repeat rewrite exp_uncurry;
-   try rewrite no_post_exists; repeat rewrite exp_unfold;
-   first [apply exp_congr; intros ?vret; reflexivity
-           | give_EX_warning
-           ]
- | prove_delete_temp
- | unify_postcondition_exps
- | unfold fold_right_and; repeat rewrite and_True; auto; subst A wit
- ] end.
-
-
-forward_call_id1_wow (lsh, existT (fun t => ((reptype t -> Prop) * hist (reptype t))%type) tint (tc_val tint,
-      map (fun x => QRem (fst x) (Vint (snd x))) vals), p, lock, gsh1, gsh2).
-
-    forward_call (lsh, existT (fun t => ((reptype t -> Prop) * hist (reptype t))%type) tint (tc_val tint,
-      map (fun x => QRem (fst x) (Vint (snd x))) vals), p, lock, gsh1, gsh2).
+(*    forward_call (lsh, q_rem_args tint (tc_val tint)
+      (map (fun x => QRem (fst x) (Vint (snd x))) vals), p, lock, gsh1, gsh2).*)
+    rewrite <- seq_assoc; eapply semax_seq'; [forward_call_id1_wow' (lsh, q_rem_args tint (tc_val tint)
+      (map (fun x => QRem (fst x) (Vint (snd x))) vals), p, lock, gsh1, gsh2) | after_forward_call].
     Intros x; destruct x as (p1 & v1).
     simpl; forward.
+    rewrite data_at_isptr; Intros.
+    rewrite sem_cast_neutral_ptr; auto; simpl.
+    forward.
     replace_SEP 1 (memory_block Tsh (sizeof tint) p1).
     { go_lowerx; cancel.
       apply data_at_memory_block. }
@@ -220,32 +224,6 @@ forward_call_id1_wow (lsh, existT (fun t => ((reptype t -> Prop) * hist (reptype
     apply lock_inv_later. }
   forward.
 Qed.
-
-(*Lemma lock_struct : forall p, data_at_ Tsh (Tstruct _lock_t noattr) p |-- data_at_ Tsh tlock p.
-Proof.
-  intros.
-  unfold data_at_, field_at_; unfold_field_at 1%nat; simpl.
-  unfold field_at; simpl.
-  rewrite field_compatible_cons; simpl; entailer.
-Qed.
-
-Lemma lock_struct_array : forall z p, data_at_ Tsh (tarray (Tstruct _lock_t noattr) z) p |--
-  data_at_ Tsh (tarray tlock z) p.
-Proof.
-  intros.
-  unfold data_at_, field_at_, field_at; simpl; entailer.
-  unfold default_val, at_offset; simpl.
-  do 2 rewrite data_at_rec_eq; simpl.
-  unfold array_pred, aggregate_pred.array_pred, unfold_reptype; simpl; entailer.
-  rewrite Z.sub_0_r; clear.
-  forget (Z.to_nat z) as l; forget 0 as lo; revert lo; induction l; intros; simpl; auto.
-  apply sepcon_derives.
-  - unfold at_offset; rewrite data_at_rec_eq; simpl.
-    unfold struct_pred, aggregate_pred.struct_pred, at_offset, withspacer; simpl; entailer.
-  - eapply derives_trans; [apply aggregate_pred.rangespec_ext_derives |
-      eapply derives_trans; [apply IHl | apply aggregate_pred.rangespec_ext_derives]]; simpl; intros;
-      rewrite Znth_pos_cons; try omega; replace (i - lo - 1) with (i - Z.succ lo) by omega; auto.
-Qed.*)
 
 Opaque upto.
 
@@ -305,6 +283,7 @@ semax (initialized_list [_i; _i__1; _t'1] (func_tycontext f_main Vprog Gprog))
       fold_right sepcon emp (map (fun x : val => malloc_token Tsh (sizeof tlock) x) flocks)))).
 Proof.
   intros.
+  simpl initialized_list; unfold func_tycontext, make_tycontext.
   forward_call (sizeof tint).
   { simpl; computable. }
   Intro t.
@@ -312,8 +291,6 @@ Proof.
   rewrite memory_block_data_at_; auto.
   forward.
   get_global_function'' _f; Intros.
-  match goal with |-context[mk_funspec ?a ?b (rmaps.ConstType ?c) (fun _ => ?d) (fun _ => ?e) _ _] =>
-    change (mk_funspec _ _ _ _ _ _ _) with (NDmk_funspec a b c d e) end.
   apply extract_exists_pre; intros f_.
   specialize (Hgshs1 (2 - i)); exploit Hgshs1; [abstract omega|].
   destruct (Znth (2 - i) gshs1 (Ews, Ews)) eqn: Hg1.
@@ -505,6 +482,7 @@ semax (initialized_list [_i; _i__1; _q1; _i__2; _i__3; _t'1] (func_tycontext f_m
 Proof.
   intros.
   Intros vals.
+  simpl initialized_list; unfold func_tycontext, make_tycontext.
   forward.
   { entailer!.
     apply Forall_Znth; [omega|].
@@ -576,7 +554,8 @@ Proof.
   name q0 _q0; name locks _thread_locks; name results _results.
   start_function.
   exploit (split_readable_share Tsh); auto; intros (sh1 & sh2 & ? & ? & Hsh).
-  forward_call (existT (fun t => reptype t -> Prop) tint (tc_val tint), sh1, sh2).
+  rewrite <- !seq_assoc; eapply semax_seq'; [forward_call_id1_wow' (q_new_args tint (tc_val tint), sh1, sh2) |
+    after_forward_call].
   Intro x; destruct x as (q, lock).
   simpl; forward.
   rewrite <- seq_assoc.
@@ -596,7 +575,6 @@ Proof.
             fold_right sepcon emp (map (fun x => lock_inv Tsh (snd x) (f_lock x)) (combine (upto (Z.to_nat i)) flocks)) *
             fold_right sepcon emp (map (fun x => malloc_token Tsh (sizeof tlock) x) flocks))))).
   { Exists ([] : list val); entailer!.
-    apply sepcon_derives; [simple apply derives_refl|].
     unfold data_at_, field_at_; simpl; cancel. }
   { forward_call (sizeof tlock).
     { admit. (* lock size broken *) }
@@ -659,16 +637,19 @@ Proof.
     rewrite data_at_rec_eq; unfold unfold_reptype, default_val; simpl.
     rewrite array_pred_len_0; [entailer! | auto]. }
   { forward_call (sizeof tint).
-    { simpl; cancel. }
     { simpl; computable. }
     Intros d ptrs.
     rewrite malloc_compat; auto; Intros.
     rewrite memory_block_data_at_; auto.
     forward.
-    forward_call (lsh', existT (fun t => ((reptype t -> Prop) * hist (reptype t) * reptype t)%type) tint
+    rewrite -> semax_seq_skip; eapply semax_seq'; [forward_call_id00_wow' (lsh', q_add_args tint (tc_val tint)
+      (map (fun x => QAdd (fst x) (vint (snd x))) (combine ptrs (upto (Z.to_nat i)))) (vint i),
+      q, lock, d, sh1, sh2) | after_forward_call].
+(*    forward_call (lsh', existT (fun t => ((reptype t -> Prop) * hist (reptype t) * reptype t)%type) tint
       (is_int I32 Signed, map (fun x => QAdd (fst x) (vint (snd x))) (combine ptrs (upto (Z.to_nat i))), vint i),
-      q, lock, d, sh1, sh2).
-    { simpl; cancel. }
+      q, lock, d, sh1, sh2).*)
+    { change_compspecs CompSpecs.
+      simpl; cancel. }
     { exploit (Hlshs1 0); [computable|].
       subst lsh'; destruct (Znth 0 lshs1 (Tsh, Tsh)) eqn: Hg1; intros (? & ?); auto. }
     Exists (ptrs ++ [d]); rewrite Zlength_app, Zlength_cons, Zlength_nil; entailer!.
@@ -775,8 +756,8 @@ Proof.
     setoid_rewrite interleave_reorder with (ls1 := [_]) in Hrems.
     setoid_rewrite interleave_reorder with (ls1 := [_; _]) in Hrems.
     apply Hrems. }
-  forward_call (existT (fun t => ((reptype t -> Prop) * hist (reptype t))%type) tint (is_int I32 Signed, h'),
-                q, lock, sh1, sh2).
+  eapply semax_seq'; [forward_call_id00_wow' (q_rem_args tint (is_int I32 Signed) h', q, lock, sh1, sh2) |
+    after_forward_call].
   forward.
 Admitted.
 
@@ -786,16 +767,38 @@ Definition Espec := add_funspecs (Concurrent_Espec unit _ extlink) extlink Gprog
 Existing Instance Espec.
 
 Lemma all_funcs_correct:
-  semax_func Vprog Gprog (prog_funct queue_ex.prog) Gprog.
+  semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.
 unfold Gprog, prog, prog_funct; simpl.
-semax_func_cons body_exit.
 semax_func_cons body_free.
-semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
 repeat semax_func_cons_ext.
+{ clear H. rewrite exp_unfold. Intros p.
+  rewrite <- insert_local.
+  rewrite lower_andp.
+  apply derives_extract_prop; intro. hnf in H. rewrite retval_ext_rval in H.
+  subst p.
+  renormalize. entailer!. }
+{ destruct x as (((?, ?), ?), ?).
+  clear H.
+  rewrite exp_unfold; Intros p.
+  rewrite exp_unfold; Intros q.
+  rewrite <- insert_local.
+  rewrite lower_andp.
+  apply derives_extract_prop; intro. hnf in H. rewrite retval_ext_rval in H.
+  subst p.
+  renormalize.
+  rewrite lqueue_isptr; entailer!. }
+{ destruct x as (((((?, (?, (?, ?))), ?), ?), ?), ?).
+  clear H.
+  rewrite exp_unfold; Intros p.
+  rewrite exp_unfold; Intros q.
+  rewrite <- insert_local.
+  rewrite lower_andp.
+  apply derives_extract_prop; intro. hnf in H. rewrite retval_ext_rval in H.
+  subst p.
+  renormalize. rewrite data_at_isptr; entailer!. }
 semax_func_cons body_f.
 semax_func_cons body_main.
-apply semax_func_nil.
 Qed.
 
 (* Linking? *)

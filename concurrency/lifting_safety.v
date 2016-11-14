@@ -158,9 +158,11 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
       Proof. Admitted.*)
         
       
-  Lemma safety_preservation'': forall main p U Sg Tg tr Sds Sm Tds Tm cd 
+      Lemma safety_preservation'': forall main p U Sg Tg tr Sds Sm Tds Tm cd
+                                     (*HboundedS: DryConc.bounded_mem Sm*)
+                                     (*HboundedT: DryConc.bounded_mem Tm*)
       (MATCH: exists j, (match_st Tg Sg main p U) cd j Sds Sm Tds Tm),
-      (forall sch, DryConc.valid (sch, tr, Sds) ->
+      (forall sch, DryConc.new_valid ( tr, Sds, Sm) sch ->
               DryConc.explicit_safety Sg sch Sds Sm) ->
       (forall sch, Machine.DryConc.valid (sch, tr, Tds) ->
               Machine.DryConc.stutter_stepN_safety ( core_ord:=core_ord  Tg Sg main p U) Tg cd sch Tds Tm).
@@ -209,9 +211,12 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
 
     move: (MATCH) => /equivalid /= AA.
     move: (AA tr sch) => [A B].
-    assert (HH:DryConc.valid (sch, tr, Sds)).
-    { apply: B.
-      apply: H0. }
+    assert (HH:DryConc.new_valid (tr, Sds, Sm) sch).
+    { (* split.
+      - apply: B. auto.
+      - simpl; assumption. *)
+      apply: B; auto.
+    }
     apply H in HH.
     move: MATCH.
     inversion HH; clear HH.
@@ -243,24 +248,35 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
           + admit. (* Equate the two different stepN... or redefine one... *)
           + simpl. intros.
             eapply CIH with (Sds:=fst y') (Sm:=snd y'); eauto.
+(*            * admit. (* By steping! *) *)
+(*            * destruct H3; auto. (* By steping! *)*)
             * intros. destruct y' as [a b]; eapply H2.
-              simpl in *.
-              stop here.
+              auto.
+(*            * simpl in *.
+              destruct H3; eauto. *)
+              
         -  (*Maybe stutter.... depends on n*)
           destruct n.
           + (*Stutter case*)
             inversion stepN; subst.
             apply coinductive_safety.stutter with (cd':=cd'); auto.
             apply CIH with (tr:=tr)(Sds:= (fst y') )(Sm:=(snd y')).
+(*            * admit. (*by stepping*) *)
+(*            * auto. *)
             * exists mu'; eassumption.
             * destruct y' as [a b]; apply H2; auto.
             * assumption.
           + (*Fake stutter case*)
             apply (coinductive_safety.internal_safetyN_stut) with (cd':= cd')(y':=(st2',m2'))(n:=n).
             * admit. (* Equate the two different stepN... or redefine one... *)
-            *  {simpl. apply CIH with (Sds:=fst y') (Sm:=snd y'). Guarded.
+            *  {simpl. intros.
+                eapply CIH with (Sds:=fst y') (Sm:=snd y'). Guarded.
+(*                - admit. (*by stepping*)*)
+(*                - destruct H3; assumption.*)
                 - exists mu'; assumption.
-                - destruct y' as [a b]; eapply H2.  }
+                - destruct y' as [a b]; eapply H2.
+               - assumption.
+ }
       }
     - (*External step case *)
       assert (my_machine_diagram:= Machine_sim.machine_diagram
@@ -273,9 +289,12 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
           move: MATCH => [] st2' [] m2' [] cd' [] mu' [] MATCH' step.
           apply coinductive_safety.external_safetyN_stut with (cd':=cd')(x':=x')(y':= (st2', m2')).
           * apply step.
-          * apply CIH with (tr:=tr)(Sds:= (fst y') )(Sm:=(snd y')). 
-            exists mu'; exact MATCH'.
-        + destruct y' as [a b]; eapply H2.
+          * intros; eapply CIH with (tr:=tr)(Sds:= (fst y') )(Sm:=(snd y')).
+(*            -- admit. (*by stepping *)  *)
+(*            -- destruct H3; assumption.   *)
+            -- exists mu'; exact MATCH'.
+            -- destruct y' as [a b]; eapply H2.
+            -- assumption.
   Guarded.
   Admitted.
            
@@ -289,7 +308,8 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
     move=> main p U Sg Tg tr Sds Sm Tds Tm  [] cd  [] mu MATCH HH sch VAL.
     apply @coinductive_safety.safety_stutter_stepN_equiv
     with (core_ord:=core_ord Tg Sg main p U); auto.
-    + apply (core_ord_wf Tg Sg main p U).  
+    + apply (core_ord_wf Tg Sg main p U).
+    (* + split; auto; simpl. *)
     + exists cd.
       apply safety_preservation'' with (tr:=tr)(Sds:=Sds)(Sm:=Sm); try exists mu; assumption.
   Qed.

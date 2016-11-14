@@ -49,7 +49,7 @@ Require Import concurrency.erasure_signature.
 Require Import concurrency.erasure_proof.
 Require Import concurrency.erasure_safety.
 
-(*Require Import concurrency.fineConc_safe.*)
+Require Import concurrency.fineConc_safe.
 
 (** ** Compiler simulation*)
 Require Import concurrency.lifting.
@@ -247,9 +247,22 @@ Module MainSafety .
       - intros sch0. eapply juicy_initial_safety; auto.
     Qed.
 
+    (*Before going from ksafe to safe, we neet to show, that our execution is mem_bounded*)
+    Lemma ksafe_new_step_ksafe_new_step_bounded: forall ge ds m,
+      (forall (n : nat) (sch : ErasureProof.DryMachine.Sch),
+          DryMachine.ksafe_new_step ge 
+                                    (sch, [::], ds) m n) ->
+      forall (n : nat) (sch : ErasureProof.DryMachine.Sch),
+        safety.ksafe DryMachine.new_state ErasureProof.DryMachine.Sch
+                     (DryMachine.new_step ge) DryMachine.new_valid_bound (*Notice the stronger validity*)
+                     (DryMachine.mk_nstate (sch, nil, ds) m) sch n.
+    Proof.
+    Admitted.
+
+    
     Theorem new_dry_clight_infinite_safety': forall sch,
-        DryMachine.valid (sch, nil, ds_initial) ->
-        DryMachine.safe_new_step  (globalenv prog) (sch, nil, ds_initial) initial_memory.
+        DryMachine.new_valid_bound (nil, ds_initial, initial_memory) sch  ->
+        DryMachine.safe_new_step_bound  (globalenv prog) (sch, nil, ds_initial) initial_memory.
     Proof.
       move => sch VAL.
       apply: safety.ksafe_safe' => //.
@@ -259,9 +272,31 @@ Module MainSafety .
         eapply DryMachineSource.THE_DRY_MACHINE_SOURCE.FiniteBranching.finite_branching.
       - move => n U VAL'.
         rewrite /DryMachine.mk_nstate /=.
+        simpl; eapply ksafe_new_step_ksafe_new_step_bounded.
         simpl; apply: new_dry_clight_safety.
     Qed.
 
+    (*To use the result we must go back to the normal safety (from safety of bounded states)*)
+    Lemma safe_new_step_bound_safe_new_step: forall sch ds m,
+        DryMachine.new_valid_bound (nil, ds, m) sch ->
+        DryMachine.safe_new_step_bound  (globalenv prog) (sch, nil, ds) m ->
+            DryMachine.safe_new_step  (globalenv prog) (sch, nil, ds) m.
+    Proof.
+    Admitted.
+
+    Theorem new_dry_clight_infinite_safety_valid': forall sch,
+        DryMachine.new_valid (nil, ds_initial, initial_memory) sch  ->
+        DryMachine.safe_new_step  (globalenv prog) (sch, nil, ds_initial) initial_memory.
+    Proof.
+      intros.
+      eapply safe_new_step_bound_safe_new_step.
+      - split; eauto.
+        admit. (*Init mem bounded*)
+      - eapply new_dry_clight_infinite_safety'.
+        split; eauto.
+        admit. (*Init mem bounded*)
+    Admitted.
+    
     Theorem new_dry_clight_infinite_safety: forall sch,
         DryMachine.safe_new_step  (globalenv prog) (sch, nil, ds_initial) initial_memory.
     Proof.
@@ -269,30 +304,48 @@ Module MainSafety .
       move=> U.
       destruct (DryMachineSource.THE_DRY_MACHINE_SOURCE.SCH.schedPeek U) eqn:Us.
       destruct (DryMachineSource.THE_DRY_MACHINE_SOURCE.SCH.TID.eq_tid_dec 0 t0) eqn:AA.
-      - eapply new_dry_clight_infinite_safety'.
-        rewrite / DryMachine.valid /=.
-          by rewrite Us AA.
-
+      - eapply new_dry_clight_infinite_safety_valid'.
+        rewrite /DryMachine.new_valid /DryMachine.correct_schedule /=.
+        subst. rewrite Us.
+        rewrite /ds_initial /dry_initial_perm /initial_cstate /DMS.initial_machine /=.
+        rewrite /DryMachine.unique_Krun /=.
+        rewrite /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryMachine.ThreadPool.containsThread /= => j cntj.
+        intros.
+        move: (cntj) => /ltP /NPeano.Nat.lt_1_r -> .
+        destruct (DryMachineSource.THE_DRY_MACHINE_SOURCE.SCH.TID.eq_tid_dec 0 0); auto.
+        
       - econstructor.
         eapply DryMachine.step_with_halt.
         rewrite /DryMachine.mk_ostate /DryMachine.mk_nstate /DryMachine.MachStep /=.
         instantiate (2:= (nil, ds_initial, initial_memory) ).
         eapply DryMachine.schedfail => //.
         eassumption.
-        rewrite /DryMachineSource.THE_DRY_MACHINE_SOURCE.DSEM.ThreadPool.containsThread.
+        rewrite /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryMachine.ThreadPool.containsThread.
         simpl. clear - n.
         move => /ltP HH . apply n.
         destruct (NPeano.Nat.lt_1_r t0) as [H H0].
         symmetry; apply: H HH.
-        simpl.
-        rewrite /DryMachineSource.THE_DRY_MACHINE_SOURCE.DSEM.invariant /ds_initial.
-        eapply erasure_safety.ErasureSafety.ErasureProof.DSEM.DryMachineLemmas.initial_invariant.
-        intros. eapply new_dry_clight_infinite_safety.
 
-      -  eapply new_dry_clight_infinite_safety'.
-         rewrite / DryMachine.valid /=.
-           by rewrite Us.
-    Qed.
+        simpl.
+        rewrite /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryMachine.invariant /ds_initial.
+        eapply DryMachineSource.THE_DRY_MACHINE_SOURCE.DryMachineLemmas.initial_invariant.
+        
+        intros.
+        rewrite /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryMachine.init_mach /=.
+        rewrite /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryMachine.ThreadPool.SEM.Sem /=.
+        rewrite /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.SEM.Sem
+                ClightSemantincsForMachines.ClightSEM.CLN_msem /=.
+        (*Something about initial core!*)
+        admit.
+
+        intros.
+        eapply new_dry_clight_infinite_safety.
+
+      - eapply new_dry_clight_infinite_safety_valid'.
+        rewrite /DryMachine.new_valid /DryMachine.correct_schedule /=.
+        subst. rewrite Us.
+        auto.
+    Admitted.
     
     Require Import concurrency.dry_context. 
     (*Definition dry_initial_core_2:=
