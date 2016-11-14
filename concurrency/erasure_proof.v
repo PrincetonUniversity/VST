@@ -1570,8 +1570,10 @@ Module Parching <: ErasureSig.
       8: eassumption.
       + (*boundedness*)
         split; unfold virtue1.
-        * eapply bounded_maps.treemap_sub_map.
-        * eapply bounded_maps.treemap_sub_map.
+        * admit.
+          (*eapply bounded_maps.treemap_sub_map.*)
+        * admit.
+          (*eapply bounded_maps.treemap_sub_map.*)
       + assumption.
       + eapply MTCH_getThreadC; eassumption.
       + eassumption.
@@ -2190,14 +2192,18 @@ Module Parching <: ErasureSig.
       7: reflexivity.
       + (*boundedness 1*)
         split; unfold virtue1.
-        * eapply bounded_maps.treemap_sub_map.
-        * eapply bounded_maps.treemap_sub_map.
+        * admit.
+          (* eapply bounded_maps.treemap_sub_map. *)
+        * admit.
+          (* eapply bounded_maps.treemap_sub_map. *)
       + (*boundedness 2*)
         repeat split.
-        * rewrite /JSEM.juice2Perm /JSEM.mapmap /=.
-          eapply bounded_maps.treemap_sub_map.
-        * rewrite /JSEM.juice2Perm_locks /JSEM.mapmap /=.
-          eapply bounded_maps.treemap_sub_map.
+        * admit.
+          (* rewrite /JSEM.juice2Perm /JSEM.mapmap /=.
+          eapply bounded_maps.treemap_sub_map. *)
+        * admit.
+          (* rewrite /JSEM.juice2Perm_locks /JSEM.mapmap /=.
+          eapply bounded_maps.treemap_sub_map. *)
       + assumption.
       + eapply MTCH_getThreadC; eassumption.
       + eassumption.
@@ -2907,12 +2913,16 @@ Module Parching <: ErasureSig.
           (virtue2:=(virtue21,virtue22)).
         - (*boundedness 1*)
           split; rewrite /virtue11 /virtue12.
-          * eapply bounded_maps.treemap_sub_map.
-          * eapply bounded_maps.treemap_sub_map.
+          * admit.
+          (* eapply bounded_maps.treemap_sub_map. *)
+          * admit.
+          (*eapply bounded_maps.treemap_sub_map. *)
         - (*boundedness 2*)
-        split; rewrite /virtue21 /virtue22.
-        * eapply bounded_maps.treemap_sub_map.
-        * eapply bounded_maps.treemap_sub_map.
+          split; rewrite /virtue21 /virtue22.
+          * admit.
+            (*eapply bounded_maps.treemap_sub_map. *)
+          * admit.
+          (* eapply bounded_maps.treemap_sub_map. *)
         - assumption.
         - inversion MATCH. erewrite <- mtch_gtc; eassumption.
         - eassumption.

@@ -84,7 +84,7 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
           Machine.DryConc.halted (U, tr, st) ->
           Machine.DryConc.halted (U, tr', st).
 
-      Axiom determinismN:
+      (*Axiom determinismN:
         forall U p,
         forall ge sch st2 m2 st2' m2',
         forall n0 : nat,
@@ -93,7 +93,7 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
           forall U'0 : mySchedule.schedule,
             Machine.DryConc.valid (U'0, [::], st2) ->
             machine_semantics_lemmas.thread_stepN
-              (Machine.DryConc.new_MachineSemantics U p) ge n0 U'0 st2 m2 st2' m2'.
+              (Machine.DryConc.new_MachineSemantics U p) ge n0 U'0 st2 m2 st2' m2'.*)
 
       (*Lemma stepN_safety:
         forall U p ge st2' m2' n,
@@ -241,9 +241,11 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
           destruct step_plus as [n step_plus].
           apply (coinductive_safety.internal_safetyN_stut) with (cd':= cd')(y':=(st2',m2'))(n:=n).
           + admit. (* Equate the two different stepN... or redefine one... *)
-          + simpl. apply CIH with (Sds:=fst y') (Sm:=snd y').
-            * exists mu'; assumption.
-            * destruct y' as [a b]; eapply H2.              
+          + simpl. intros.
+            eapply CIH with (Sds:=fst y') (Sm:=snd y'); eauto.
+            * intros. destruct y' as [a b]; eapply H2.
+              simpl in *.
+              stop here.
         -  (*Maybe stutter.... depends on n*)
           destruct n.
           + (*Stutter case*)
