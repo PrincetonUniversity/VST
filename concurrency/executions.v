@@ -656,10 +656,12 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
           apply permjoin_order in Hangel1.
           apply permjoin_order in Hangel2.
           simpl in Hangel1, Hangel2.
+          destruct Hangel1 as [_ Hangel1];
+            destruct Hangel2 as [_ Hangel2].
+          
           repeat match goal with
                  | [H: context[match ?X with _ => _ end] |- _] =>
-                   destruct X
-                 | [H: _ /\ _ |- _] => destruct H
+                   destruct X eqn:?
                  end;
             try (by exfalso); auto.
         * rewrite gsoLockRes in H;
