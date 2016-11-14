@@ -112,12 +112,12 @@ Module THE_DRY_MACHINE_SOURCE.
                DMS.DryConc.new_state
                DMS.DryConc.Sch
                (fun x y x' => exists y', (DMS.DryConc.new_step ge x y x' y'))
-               (fun st y => SCH.schedPeek y = Some i /\ DMS.DryConc.new_valid st y)
+               (fun st y => SCH.schedPeek y = Some i /\ DMS.DryConc.new_valid_bound st y)
                ds).
     Proof.
       move=> [] [] tr dm m ge i cnti c KRES.
       rewrite /safety.finite_on_x /safety.possible_image /=.
-      rewrite /DMS.DryConc.new_step /DMS.DryConc.new_valid /=.
+      rewrite /DMS.DryConc.new_step /DMS.DryConc.new_valid_bound /=.
       rewrite /DMS.DryConc.valid /DMS.DryConc.correct_schedule.
       rewrite /DMS.DryConc.unique_Krun /DMS.DryMachine.ThreadPool.containsThread.
 
@@ -154,7 +154,7 @@ Module THE_DRY_MACHINE_SOURCE.
         (Hcmpt: DMS.DryMachine.mem_compatible dm m),
           @DMS.DTP.getThreadC i dm cnti = Kblocked c ->
           forall y,
-                  SCH.schedPeek y = Some i -> DMS.DryConc.new_valid (tr, dm, m) y ->
+                  SCH.schedPeek y = Some i -> DMS.DryConc.new_valid_bound (tr, dm, m) y ->
                 forall y' tr' dm' m',
                   DMS.DryConc.MachStep ge (y, tr, dm) m (y', tr', dm') m' ->
                   SCH.schedPeek y = Some i /\
@@ -524,12 +524,12 @@ Module THE_DRY_MACHINE_SOURCE.
                DMS.DryConc.new_state
                DMS.DryConc.Sch
                (fun x y x' => exists y', (DMS.DryConc.new_step ge x y x' y'))
-               (fun st y => SCH.schedPeek y = Some i /\ DMS.DryConc.new_valid st y)
+               (fun st y => SCH.schedPeek y = Some i /\ DMS.DryConc.new_valid_bound st y)
                ds).
     Proof.
       move=> [] [] tr dm m  prog i. 
       rewrite /safety.finite_on_x /safety.possible_image /=.
-      rewrite /DMS.DryConc.new_step /DMS.DryConc.new_valid /=.
+      rewrite /DMS.DryConc.new_step /DMS.DryConc.new_valid_bound /=.
       rewrite /DMS.DryConc.valid /DMS.DryConc.correct_schedule.
       rewrite /DMS.DryConc.unique_Krun /DMS.DryMachine.ThreadPool.containsThread.
       rewrite /DMS.DryConc.mk_ostate /=.
@@ -876,11 +876,11 @@ Module THE_DRY_MACHINE_SOURCE.
                DMS.DryConc.new_state
                DMS.DryConc.Sch
                (fun x y x' => exists y', (DMS.DryConc.new_step ge x y x' y'))
-               DMS.DryConc.new_valid ds).
+               DMS.DryConc.new_valid_bound ds).
   Proof.
     move=> [] [] tr dm m  prog.
     rewrite /safety.finite_on_x /safety.possible_image /=.
-    rewrite /DMS.DryConc.new_step /DMS.DryConc.new_valid /=.
+    rewrite /DMS.DryConc.new_step /DMS.DryConc.new_valid_bound /=.
     rewrite /DMS.DryConc.valid /DMS.DryConc.correct_schedule.
     rewrite /DMS.DryConc.unique_Krun /DMS.DryMachine.ThreadPool.containsThread.
     rewrite /DMS.DryConc.mk_ostate.
@@ -1020,7 +1020,7 @@ Module THE_DRY_MACHINE_SOURCE.
             move=> [] [] [] ineq VAL bounded_mem [] y' STEP .
             move : (threadM st' U).
             rewrite /safety.possible_image
-                    /DMS.DryConc.new_valid /DMS.DryConc.valid /DMS.DryConc.correct_schedule /=.
+                    /DMS.DryConc.new_valid_bound /DMS.DryConc.valid /DMS.DryConc.correct_schedule /=.
             rewrite PEEK => /(_ ltac:(split; eauto)) [] i [] ineq' f_eq.
             exists (N + i)%nat; split.
             * ssromega.
@@ -1044,7 +1044,7 @@ Module THE_DRY_MACHINE_SOURCE.
               inversion e; auto. }
             move : (other_threads st' U).
             rewrite /safety.possible_image
-                    /DMS.DryConc.new_valid /DMS.DryConc.valid /DMS.DryConc.correct_schedule /=.
+                    /DMS.DryConc.new_valid_bound /DMS.DryConc.valid /DMS.DryConc.correct_schedule /=.
             rewrite PEEK => /(_ ltac:(eauto)) [] i [] ineq'' f_eq.
             exists i%nat; split.
             * ssromega.

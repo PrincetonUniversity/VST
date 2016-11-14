@@ -53,13 +53,13 @@ Require Import concurrency.erasure_safety.
 
 (** ** Compiler simulation*)
 Require Import concurrency.lifting.
-Require Import concurrency.lifting_safety.
+(*Require Import concurrency.lifting_safety.*)
 
 (** ** Target machine*)
 Require Import concurrency.x86_context.
 
-Require Import concurrency.executions.
-Require Import concurrency.spinlocks.
+(*Require Import concurrency.executions.*)
+(*Require Import concurrency.spinlocks.*)
 Require Import concurrency.fineConc_safe.
 Require Import concurrency.SC_erasure.
 

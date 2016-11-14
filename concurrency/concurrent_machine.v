@@ -632,7 +632,9 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
 
   Definition bounded_mem (m: mem) := bounded_maps.bounded_map (snd (getMaxPerm m)) .
  
-  Definition new_valid st U := correct_schedule (mk_ostate st U) /\ bounded_mem (snd st). 
+  Definition new_valid st U := correct_schedule (mk_ostate st U). 
+  Definition new_valid_bound st U :=
+    correct_schedule (mk_ostate st U) /\ bounded_mem (snd st). 
   Definition ksafe_new_step (ge : G) (st : MachState) (m : mem) : nat -> Prop :=
     ksafe _ _ (new_step ge) new_valid (mk_nstate st m) (fst (fst st)).
   Definition safe_new_step (ge : G) (st : MachState) (m : mem) : Prop :=
@@ -762,12 +764,20 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
       MachStep ge st m st' m'  ->
       new_valid (mk_nstate st m) (fst (fst st)) ->
       new_valid (mk_nstate st' m') (fst (fst st')).
+  Proof. intros ? ? ? ? ? STEP VAL. 
+         eapply step_sch_correct; eauto.
+  Qed.
+
+  Lemma step_new_valid_bound: forall {ge st m st' m'},
+      MachStep ge st m st' m'  ->
+      new_valid_bound (mk_nstate st m) (fst (fst st)) ->
+      new_valid_bound (mk_nstate st' m') (fst (fst st')).
   Proof. intros ? ? ? ? ? STEP [SCH_OK bounded_mem]. 
          split; auto.
          - eapply step_sch_correct; eauto.
          - eapply step_mem_bounded; eauto.
   Qed.
-    
+  
   Lemma step_correct_schedule: forall {ge U tr tp m tr' tp' m'},
       MachStep ge (U, tr, tp) m (schedSkip U, tr', tp') m' ->
       correct_schedule (U, tr, tp) ->
@@ -845,6 +855,16 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
       MachStep ge (U, tr, tp) m (schedSkip U, tr', tp') m' ->
       new_valid (tr, tp, m) U ->
       forall U'', new_valid (tr', tp', m') U''.
+  Proof. intros ? ? ? ? ? ? ? ? STEP VAL.
+         eapply step_correct_schedule; eauto.
+         
+  Qed.
+
+  Lemma step_sch_new_valid_bound:
+    forall {ge U tr tp m tr' tp' m'},
+      MachStep ge (U, tr, tp) m (schedSkip U, tr', tp') m' ->
+      new_valid_bound (tr, tp, m) U ->
+      forall U'', new_valid_bound (tr', tp', m') U''.
   Proof. intros ? ? ? ? ? ? ? ? STEP [sch_ok bounded_mem]; split.
          - eapply step_correct_schedule; eauto.
          - simpl in *. eapply step_mem_bounded; eauto.
@@ -909,6 +929,12 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
                    (fun U stm stm' => @internal_step ge U (fst stm) (snd stm) (fst stm') (snd stm')) 
                    (fun U stm U' stm' => @external_step ge U nil (fst stm) (snd stm) U' nil (fst stm') (snd stm'))
                    (fun U stm => @new_valid (nil,fst stm, snd stm) U) U (st,m).
+
+  Definition explicit_safety_bounded ge (U:Sch) (st:machine_state) (m:mem): Prop:=
+    exp_safety _ _ (fun U stm => halted (U, nil, fst stm))
+                   (fun U stm stm' => @internal_step ge U (fst stm) (snd stm) (fst stm') (snd stm')) 
+                   (fun U stm U' stm' => @external_step ge U nil (fst stm) (snd stm) U' nil (fst stm') (snd stm'))
+                   (fun U stm => @new_valid_bound (nil,fst stm, snd stm) U) U (st,m).
   
   (*CoInductive explicit_safety ge (U:Sch) (st:machine_state) (m:mem): Prop:=
   | halted_safety : halted (U, nil, st) -> explicit_safety ge U st m
