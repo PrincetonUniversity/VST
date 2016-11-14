@@ -159,8 +159,8 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
         
       
       Lemma safety_preservation'': forall main p U Sg Tg tr Sds Sm Tds Tm cd
-                                     (HboundedS: DryConc.bounded_mem Sm)
-                                     (HboundedT: DryConc.bounded_mem Tm)
+                                     (*HboundedS: DryConc.bounded_mem Sm*)
+                                     (*HboundedT: DryConc.bounded_mem Tm*)
       (MATCH: exists j, (match_st Tg Sg main p U) cd j Sds Sm Tds Tm),
       (forall sch, DryConc.new_valid ( tr, Sds, Sm) sch ->
               DryConc.explicit_safety Sg sch Sds Sm) ->
@@ -212,9 +212,10 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
     move: (MATCH) => /equivalid /= AA.
     move: (AA tr sch) => [A B].
     assert (HH:DryConc.new_valid (tr, Sds, Sm) sch).
-    { split.
+    { (* split.
       - apply: B. auto.
-      - simpl; assumption.
+      - simpl; assumption. *)
+      apply: B; auto.
     }
     apply H in HH.
     move: MATCH.
@@ -247,12 +248,12 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
           + admit. (* Equate the two different stepN... or redefine one... *)
           + simpl. intros.
             eapply CIH with (Sds:=fst y') (Sm:=snd y'); eauto.
-            * admit. (* By steping! *)
-            * destruct H3; auto. (* By steping! *)
+(*            * admit. (* By steping! *) *)
+(*            * destruct H3; auto. (* By steping! *)*)
             * intros. destruct y' as [a b]; eapply H2.
               auto.
-            * simpl in *.
-              destruct H3; eauto.
+(*            * simpl in *.
+              destruct H3; eauto. *)
               
         -  (*Maybe stutter.... depends on n*)
           destruct n.
@@ -260,8 +261,8 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
             inversion stepN; subst.
             apply coinductive_safety.stutter with (cd':=cd'); auto.
             apply CIH with (tr:=tr)(Sds:= (fst y') )(Sm:=(snd y')).
-            * admit. (*by stepping*)
-            * auto.
+(*            * admit. (*by stepping*) *)
+(*            * auto. *)
             * exists mu'; eassumption.
             * destruct y' as [a b]; apply H2; auto.
             * assumption.
@@ -270,11 +271,12 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
             * admit. (* Equate the two different stepN... or redefine one... *)
             *  {simpl. intros.
                 eapply CIH with (Sds:=fst y') (Sm:=snd y'). Guarded.
-                - admit. (*by stepping*)
-                - destruct H3; assumption.
+(*                - admit. (*by stepping*)*)
+(*                - destruct H3; assumption.*)
                 - exists mu'; assumption.
                 - destruct y' as [a b]; eapply H2.
-               - destruct H3; assumption. }
+               - assumption.
+ }
       }
     - (*External step case *)
       assert (my_machine_diagram:= Machine_sim.machine_diagram
@@ -288,11 +290,11 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
           apply coinductive_safety.external_safetyN_stut with (cd':=cd')(x':=x')(y':= (st2', m2')).
           * apply step.
           * intros; eapply CIH with (tr:=tr)(Sds:= (fst y') )(Sm:=(snd y')).
-            -- admit. (*by stepping *)
-            -- destruct H3; assumption. 
+(*            -- admit. (*by stepping *)  *)
+(*            -- destruct H3; assumption.   *)
             -- exists mu'; exact MATCH'.
             -- destruct y' as [a b]; eapply H2.
-            -- destruct H3; assumption.
+            -- assumption.
   Guarded.
   Admitted.
            
@@ -307,7 +309,7 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
     apply @coinductive_safety.safety_stutter_stepN_equiv
     with (core_ord:=core_ord Tg Sg main p U); auto.
     + apply (core_ord_wf Tg Sg main p U).
-    + split; auto; simpl.
+    (* + split; auto; simpl. *)
     + exists cd.
       apply safety_preservation'' with (tr:=tr)(Sds:=Sds)(Sm:=Sm); try exists mu; assumption.
   Qed.

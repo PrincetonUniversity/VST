@@ -639,6 +639,8 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
     ksafe _ _ (new_step ge) new_valid (mk_nstate st m) (fst (fst st)).
   Definition safe_new_step (ge : G) (st : MachState) (m : mem) : Prop :=
     safe _ _ (new_step ge) new_valid (mk_nstate st m) (fst (fst st)).
+  Definition safe_new_step_bound (ge : G) (st : MachState) (m : mem) : Prop :=
+    safe _ _ (new_step ge) new_valid_bound (mk_nstate st m) (fst (fst st)).
 
   (*Things that we must prove:*)
   Lemma sch_dec': forall (U U': Sch), {U = U'} + {U <> U'}.
@@ -753,12 +755,6 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
       valid st ->
       valid st'.
   Proof. intros ? ? ? ? ?; eapply step_sch_correct. Qed.
-
-  Lemma step_mem_bounded:
-    forall {ge st m st' m'}, MachStep ge st m st' m'
-                        -> bounded_mem m -> bounded_mem m'.
-  Proof.
-  Admitted.
   
   Lemma step_new_valid: forall {ge st m st' m'},
       MachStep ge st m st' m'  ->
@@ -768,15 +764,6 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
          eapply step_sch_correct; eauto.
   Qed.
 
-  Lemma step_new_valid_bound: forall {ge st m st' m'},
-      MachStep ge st m st' m'  ->
-      new_valid_bound (mk_nstate st m) (fst (fst st)) ->
-      new_valid_bound (mk_nstate st' m') (fst (fst st')).
-  Proof. intros ? ? ? ? ? STEP [SCH_OK bounded_mem]. 
-         split; auto.
-         - eapply step_sch_correct; eauto.
-         - eapply step_mem_bounded; eauto.
-  Qed.
   
   Lemma step_correct_schedule: forall {ge U tr tp m tr' tp' m'},
       MachStep ge (U, tr, tp) m (schedSkip U, tr', tp') m' ->
@@ -860,15 +847,6 @@ Module CoarseMachine (SCH:Scheduler)(SIG : ConcurrentMachineSig with Module Thre
          
   Qed.
 
-  Lemma step_sch_new_valid_bound:
-    forall {ge U tr tp m tr' tp' m'},
-      MachStep ge (U, tr, tp) m (schedSkip U, tr', tp') m' ->
-      new_valid_bound (tr, tp, m) U ->
-      forall U'', new_valid_bound (tr', tp', m') U''.
-  Proof. intros ? ? ? ? ? ? ? ? STEP [sch_ok bounded_mem]; split.
-         - eapply step_correct_schedule; eauto.
-         - simpl in *. eapply step_mem_bounded; eauto.
-  Qed.
   
   Lemma safety_equivalence':
     forall ge st_ m,

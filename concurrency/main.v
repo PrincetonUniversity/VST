@@ -49,17 +49,17 @@ Require Import concurrency.erasure_signature.
 Require Import concurrency.erasure_proof.
 Require Import concurrency.erasure_safety.
 
-(*Require Import concurrency.fineConc_safe.*)
+Require Import concurrency.fineConc_safe.
 
 (** ** Compiler simulation*)
 Require Import concurrency.lifting.
-(*Require Import concurrency.lifting_safety.*)
+Require Import concurrency.lifting_safety.
 
 (** ** Target machine*)
 Require Import concurrency.x86_context.
 
-(*Require Import concurrency.executions.*)
-(*Require Import concurrency.spinlocks.*)
+Require Import concurrency.executions.
+Require Import concurrency.spinlocks.
 Require Import concurrency.fineConc_safe.
 Require Import concurrency.SC_erasure.
 
@@ -248,19 +248,27 @@ Module MainSafety .
     Qed.
 
     Theorem new_dry_clight_infinite_safety': forall sch,
-        DryMachine.valid (sch, nil, ds_initial) ->
-        DryMachine.safe_new_step  (globalenv prog) (sch, nil, ds_initial) initial_memory.
+        DryMachine.new_valid_bound (sch, nil, ds_initial) initial_memory ->
+        DryMachine.safe_new_step_bound  (globalenv prog) (sch, nil, ds_initial) initial_memory.
     Proof.
       move => sch VAL.
       apply: safety.ksafe_safe' => //.
       - exact Classical_Prop.classic.
       - move => ds.
         simpl.
+        
         eapply DryMachineSource.THE_DRY_MACHINE_SOURCE.FiniteBranching.finite_branching.
       - move => n U VAL'.
         rewrite /DryMachine.mk_nstate /=.
         simpl; apply: new_dry_clight_safety.
     Qed.
+
+    Lemma safe_new_step_bound_safe_new_step: forall sch ds m,
+        DryMachine.new_valid_bound (sch, nil, ds_initial) initial_memory ->
+        DryMachine.safe_new_step_bound  (globalenv prog) (sch, nil, ds_initial) initial_memory ->
+            DryMachine.safe_new_step  (globalenv prog) (sch, nil, ds_initial) initial_memory.
+    Proof.
+    Admitted.
 
     Theorem new_dry_clight_infinite_safety: forall sch,
         DryMachine.safe_new_step  (globalenv prog) (sch, nil, ds_initial) initial_memory.
