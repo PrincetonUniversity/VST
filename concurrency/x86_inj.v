@@ -1483,7 +1483,7 @@ Module X86Inj <: CoreInjections X86SEM.
       eapply Mem.valid_block_alloc_inv in Hvalid2'; eauto.
       destruct Hvalid2'; subst; try by exfalso.
       assert (Hle: (Mem.nextblock m <= Mem.nextblock m')%positive)
-        by admit.
+        by (eapply weak_mem_obs_eq_nextblock; eauto).
       (* We either need to keep this as an extra invariant or make a
       pigeon hole argument. Since f maps every valid block of memory m
       to a valid block of memory m', it has to be that memory m' is at
@@ -1551,7 +1551,7 @@ Module X86Inj <: CoreInjections X86SEM.
       apply Mem.alloc_result in Halloc'. subst.
       apply Mem.alloc_result in Halloc; subst; auto.
     }
-  Admitted. 
+  Qed.
 
     
   (** Executing an instruction in related states results in related
