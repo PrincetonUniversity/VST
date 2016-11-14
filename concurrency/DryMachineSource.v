@@ -512,7 +512,7 @@ Module THE_DRY_MACHINE_SOURCE.
 
       (** *RELEASE cases*)
       destruct (extfunct_eqdec FUN UNLOCK).
-      { (* **Release fail case*)
+      { (* **Release case*)
 
 
 
@@ -655,7 +655,78 @@ Module THE_DRY_MACHINE_SOURCE.
           auto.
       }
 
-      (*stop here.*)
+      (** *CREATE cases*)
+      destruct (extfunct_eqdec FUN CREATE).
+      { (* **CREATE/SPAWN  case*)
+
+        subst.
+
+        (*get a pair of virtues*)
+        pose (virtueXvirtue_bound:= konig.finite_product virtue_bound virtue_bound).
+        
+        destruct virtueXvirtue_bound as [N [virtue_generator virtue_gen_spec] ].
+        pose (threadPerm' virtue1 := (computeMap
+                       (DMS.DryMachine.ThreadPool.getThreadR cnti).1
+                       virtue1.1,
+                    computeMap
+                      (DMS.DryMachine.ThreadPool.getThreadR cnti).2
+                      virtue1.2)).
+        pose (newThreadPerm virtue2 :=
+                     (computeMap empty_map virtue2.1,
+                      computeMap empty_map virtue2.2)).
+        pose (tp_upd0 v:=
+                  DMS.DryMachine.ThreadPool.updThread cnti
+                                                      (Kresume c Vundef) (threadPerm' v)).
+        pose (arg:= match ARGS' with
+                    | arg::_ => arg
+                    | _ => Vundef
+             end ).
+        pose (tp'0 v :=
+                  DMS.DryMachine.ThreadPool.addThread (tp_upd0 v.1) 
+                    (Vptr b ofs) arg (newThreadPerm v.2)).
+        exists N.
+        exists (fun n => (nil,
+                  tp'0 (virtue_generator n),
+                  m)).
+        move=> x y [] [] PEEK VAL [] y' /(schedule_not_halted y i PEEK).
+        move => /(is_syncStep y PEEK VAL) [] TR [] _ [] SKIP [] ev Htstep.
+        inversion Htstep;
+          match goal with
+          | [ H: DMS.DTP.getThreadC ?cnt1 = Kblocked c ,
+                 H': DMS.DTP.getThreadC ?cnt2 = _  |- _ ] =>
+            rewrite H in H'; inversion H'; subst c
+          end;
+          try (match goal with
+               | [ H: at_external ?SEM ?c = Some (_, _),
+                      H' : at_external ?SEM ?c = Some (_, _ ) |- _ ] =>
+                 rewrite H in H'; inversion H'
+               end; simpl in *; try subst);
+          try solve[rewrite Hone_zero in Hload; inversion Hload].
+        unfold tp'0, tp_upd0.
+        assert (H: bounded_maps.sub_map virtue1.1 (getMaxPerm x.2).2 /\
+                    bounded_maps.sub_map virtue1.2 (getMaxPerm x.2).2).
+        { auto. }
+        assert (H': bounded_maps.sub_map virtue2.1 (getMaxPerm x.2).2 /\
+                    bounded_maps.sub_map virtue2.2 (getMaxPerm x.2).2).
+        { auto.  }
+        assert (HH: (bounded_maps.sub_map (virtue1,virtue2).1.1 (getMaxPerm x.2).2 /\
+                    bounded_maps.sub_map (virtue1,virtue2).1.2 (getMaxPerm x.2).2) /\
+                    (bounded_maps.sub_map (virtue1,virtue2).2.1 (getMaxPerm x.2).2 /\
+                     bounded_maps.sub_map (virtue1,virtue2).2.2 (getMaxPerm x.2).2)).
+        { split; auto. } clear H H'.
+        move virtue_gen_spec at bottom.
+        move: HH => /virtue_gen_spec [] j [] /ltP ineq vg_spec.
+        exists j; split; auto.
+        rewrite vg_spec.
+        destruct x as [[ ? ?] ?]; simpl in *; subst.
+        repeat f_equal.
+
+      }
+
+
+      
+      
+      stop here.
       
     Admitted.
     
