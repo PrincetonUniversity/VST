@@ -3899,7 +3899,9 @@ Here be dragons
             }
         }
 
-        Grab Existential Variables.
+
+  Admitted.
+(*        Grab Existential Variables.
     { (*This is side condition [Hlt'] of acquire or relese *)
        intros b0 ofs0.
              move: (Hlt' b0 ofs0).
@@ -3928,7 +3930,7 @@ Here be dragons
                eapply JMS.compatible_threadRes_sub; eauto.
     }
   Qed.
-  
+  *)
   
 
   
