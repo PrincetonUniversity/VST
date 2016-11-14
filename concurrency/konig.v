@@ -174,6 +174,48 @@ Proof.
     exists (1 + 2 * i); split. omega. apply zip_2.
 Qed.
 
+Lemma finite_product:
+  forall {A B}
+    {PA : A -> Prop}
+    {PB : B -> Prop},
+    finite PA ->
+    finite PB ->
+    finite (fun ab => PA (fst ab) /\ PB (snd ab)).
+Proof.
+  intros A B PA PB [ NA [FA FA_spec]] [ NB [FB FB_spec]].
+  exists (NB*NA)%nat.
+  exists (fun n => ( FA (Nat.modulo n NA) , FB (Nat.div n NA))). 
+  intros [x1 x2] [PAx PBx].
+  apply FA_spec in PAx. destruct PAx as [ia [ineqa funa]].
+  apply FB_spec in PBx. destruct PBx as [ib [ineqb funb]].
+  exists (ia + ib * NA); split.
+  - replace (NB * NA) with (( 1 + ( NB - 1)) * NA).
+
+    Focus 2.  f_equal.
+    symmetry. apply le_plus_minus.
+    apply lt_le_S.
+    eapply Nat.le_lt_trans; eauto. omega.
+
+    
+    rewrite Nat.mul_add_distr_r.
+    apply plus_lt_le_compat.
+    omega. 
+
+    eapply mult_le_compat_r.
+    omega.
+  - f_equal.
+    + rewrite Nat.mod_add.
+      eapply Nat.mod_small_iff in ineqa.
+      rewrite ineqa; auto.
+      omega.
+      omega.
+    + rewrite Nat.div_add.
+      eapply Nat.div_small_iff in ineqa.
+      rewrite ineqa; auto.
+      omega.
+      omega.
+Qed.
+
 (* We have a simpler characterization of finite for subsets of nat  *)
 Lemma finite_nat_bound A : @finite nat A <-> exists b, forall a, A a -> a < b.
 Proof.
