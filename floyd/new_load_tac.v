@@ -1,4 +1,22 @@
-Require Import floyd.proofauto.
+Require Import floyd.base.
+Require Import floyd.canon.
+Require Import floyd.nested_field_lemmas.
+Require Import floyd.reptype_lemmas.
+Require Import floyd.simpl_reptype.
+Require Import floyd.client_lemmas.
+Require Import floyd.entailer.
+Require Import floyd.field_at.
+Require Import floyd.loadstore_mapsto.
+Require Import floyd.loadstore_field_at.
+Require Import floyd.mapsto_memory_block.
+Require Import floyd.proj_reptype_lemmas.
+Require Import floyd.nested_loadstore.
+Require Import floyd.forward.
+Require Import floyd.efield_lemmas.
+Require Import floyd.field_compat.
+Require Import floyd.sc_set_load_store.
+
+Local Open Scope logic.
 
 Section SEMAX_SC.
 
@@ -117,8 +135,6 @@ Qed.
 End SEMAX_SC.
 
 Inductive undo_and_first__assert_PROP: Prop -> Prop := .
-
-Require Import floyd.simpl_reptype.
 
 (*
 (* Given gfs and gfs0, pose gfs1 such that (gfs = gfs1 ++ gfs0) *)
