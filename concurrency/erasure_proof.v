@@ -2631,14 +2631,19 @@ Module Parching <: ErasureSig.
              + inversion MATCH.  apply mtch_perm1.
       }
 
-      pose (inflated_delta12:= fun loc => Some (perm_of_res_lock (phi' @ loc))).
+      pose (inflated_delta12:=
+              fun loc => match (d_phi @ loc ) with
+                        NO s => if Share.EqDec_share s Share.bot then None
+                               else  Some ( perm_of_res_lock (phi' @ loc))
+                      | _ => Some ( perm_of_res_lock (phi' @ loc))
+                      end).
       pose (virtue12:= PTree.map
                        (fun (block : positive) (_ : Z -> option permission) (ofs : Z) =>
                           (inflated_delta12 (block, ofs))) (snd (getMaxPerm m')) ).
       assert (virtue_spec12: forall b0 ofs0,
                  (computeMap (DTP.getThreadR (MTCH_cnt MATCH Hi)).2 virtue12) !! b0 ofs0 =
                  perm_of_res_lock (phi' @ (b0, ofs0))).
-     { intros b0 ofs0.
+      { intros b0 ofs0.
         destruct (virtue12 ! b0) eqn:VIRT.
         destruct (o ofs0) eqn:O.
         - erewrite computeMap_1; try eassumption.
@@ -2648,6 +2653,8 @@ Module Parching <: ErasureSig.
           unfold inflated_delta12 in O.
           destruct (d_phi @ (b0, ofs0)) eqn:AA;
           try (inversion O; reflexivity).
+          destruct (Share.EqDec_share t Share.bot); inversion O.
+          reflexivity.
         - erewrite computeMap_2; try eassumption.
           unfold virtue12 in VIRT. rewrite PTree.gmap in VIRT.
           destruct ((snd (getMaxPerm m')) ! b0); inversion VIRT.
@@ -2655,10 +2662,16 @@ Module Parching <: ErasureSig.
           unfold inflated_delta12 in O.
           destruct (d_phi @ (b0, ofs0)) eqn:AA;
           try (inversion O; reflexivity).
-        - erewrite computeMap_3; try eassumption.
+          destruct (Share.EqDec_share t Share.bot); inversion O.
+          subst.
+          apply resource_at_join with (loc:= (b0,ofs0)) in Hrem_fun_res.
+          rewrite AA in Hrem_fun_res.
+          apply join_NO_bot in Hrem_fun_res; rewrite Hrem_fun_res.
           inversion MATCH.
-          
-          unfold virtue12 in VIRT. rewrite PTree.gmap in VIRT.
+          symmetry.
+          apply mtch_perm2.
+        - erewrite computeMap_3; try eassumption.
+             unfold virtue12 in VIRT. rewrite PTree.gmap in VIRT.
              destruct ((snd (getMaxPerm m')) ! b0) eqn:notInMem; inversion VIRT.
              clear VIRT.
              assert (THE_CURE: (getMaxPerm m') !! b0 = fun _ => None).
@@ -2672,26 +2685,25 @@ Module Parching <: ErasureSig.
              + assert (Hcohere':= Hcompatible).
                apply compatible_threadRes_cohere with (cnt:=Hi) in Hcohere'.
                inversion Hcohere'.
-               assert (acc_coh:=max_coh).
-               specialize (acc_coh (b0,ofs0)).
-               unfold max_access_at, access_at in acc_coh.
+               (*apply JSEM.max_acc_coh_acc_coh in max_coh as acc_coh.
+               unfold JSEM.access_cohere' in acc_coh.*)
+               specialize (max_coh (b0,ofs0)).
+               unfold max_access_at, access_at in max_coh.
                unfold permission_at in the_cure.
-               rewrite the_cure in acc_coh.
-               assert (acc_coh': Mem.perm_order''
-                              None
-                              (perm_of_res_lock (JSEM.ThreadPool.getThreadR Hi @ (b0, ofs0)))).
-               { eapply po_trans; eauto. apply perm_of_res_op2. }
-               apply po_None1 in acc_coh.
-               apply po_None1 in acc_coh'.
+               rewrite the_cure in max_coh.
+               apply po_None1 in max_coh.
                move Hrem_fun_res at bottom.
                apply join_comm in Hrem_fun_res.
                apply resource_at_join with (loc:=(b0,ofs0)) in Hrem_fun_res.
                apply join_join_sub in Hrem_fun_res.
-               assert (HH:= juicy_mem_lemmas.po_join_sub' _ _ Hrem_fun_res).
-               rewrite acc_coh in HH. rewrite acc_coh'.
-               assert (HH': Mem.perm_order'' None (perm_of_res_lock (phi' @ (b0, ofs0)))).
-               { eapply po_trans; eauto. apply perm_of_res_op2. }
-               apply po_None1 in HH'. symmetry; assumption.
+               assert (HH:= po_join_sub_lock _ _ Hrem_fun_res).
+
+               move:
+                 (perm_of_res_op2 (JSEM.ThreadPool.getThreadR Hi @ (b0, ofs0))).
+               
+               rewrite max_coh => /po_None1 is_none.
+               rewrite is_none in HH; rewrite is_none. 
+               apply po_None1 in HH. symmetry; assumption.
              + inversion MATCH.  apply mtch_perm2.
       }
 
