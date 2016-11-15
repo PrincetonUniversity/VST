@@ -1712,7 +1712,11 @@ Module Parching <: ErasureSig.
                     | _ => Some (perm_of_res (phi' @ loc))
                     end).
     pose (inflated_delta2:=
-            fun loc => Some (perm_of_res_lock (phi' @ loc))).
+            fun loc => match (d_phi @ loc ) with
+                      NO s => if Share.EqDec_share s Share.bot then None
+                             else Some ( perm_of_res_lock (phi' @ loc))
+                    | _ => Some (perm_of_res_lock (phi' @ loc))
+                    end).
     pose (virtue1:= PTree.map
                      (fun (block : positive) (_ : Z -> option permission) (ofs : Z) =>
                         (inflated_delta1 (block, ofs))) (snd (getMaxPerm m)) ).
@@ -1799,22 +1803,31 @@ Module Parching <: ErasureSig.
     assert (virtue_spec2: forall b0 ofs0, perm_of_res_lock (phi' @ (b0, ofs0)) =
                                     (computeMap (DTP.getThreadR Htid').2 virtue2) !! b0 ofs0).
     {
-      intros b0 ofs0.
+      intros b0 ofs0. simpl.
       destruct (virtue2 ! b0) eqn:VIRT.
       destruct (o ofs0) eqn:O.
-           - erewrite computeMap_1; try eassumption.
-             unfold virtue2 in VIRT. rewrite PTree.gmap in VIRT.
-             destruct ((snd (getMaxPerm m)) ! b0); simpl in VIRT; inversion VIRT.
-             unfold inflated_delta2 in H0. rewrite <- H0 in O.
-             clear VIRT H0.
-             replace o0 with (perm_of_res_lock (phi' @ (b0, ofs0))).
-             + reflexivity.
-             + inversion O; reflexivity.
+      - erewrite computeMap_1; try eassumption.
+        unfold virtue2 in VIRT. rewrite PTree.gmap in VIRT.
+        destruct ((snd (getMaxPerm m)) ! b0); inversion VIRT.
+        unfold inflated_delta2 in H0. rewrite <- H0 in O.
+        clear VIRT H0.
+        replace o0 with (perm_of_res_lock (phi' @ (b0, ofs0))).
+        + reflexivity.
+        + destruct (d_phi @ (b0, ofs0)) eqn:AA; rewrite AA in O; try destruct (Share.EqDec_share t Share.bot);
+          inversion O; reflexivity.
            - erewrite computeMap_2; try eassumption.
              unfold virtue2 in VIRT. rewrite PTree.gmap in VIRT.
              destruct ((snd (getMaxPerm m)) ! b0); inversion VIRT.
              unfold inflated_delta2 in H0. rewrite <- H0 in O.
-             inversion O.
+             apply resource_at_join with (loc:=(b0,ofs0)) in Hrem_lock_res.
+             move Hrem_lock_res at bottom.
+             replace (d_phi @ (b0, ofs0)) with (NO Share.bot) in Hrem_lock_res.
+             + inversion MATCH; rewrite <- mtch_perm2 with (Htid:= Hi).
+               f_equal.
+               apply join_NO_bot; assumption.
+             + destruct (d_phi @ (b0, ofs0)) eqn:HH; rewrite HH in O; try solve[inversion O].
+               destruct ((Share.EqDec_share t Share.bot)); try solve[ inversion O].
+               subst; reflexivity.
            - erewrite computeMap_3; try eassumption.
              unfold virtue2 in VIRT. rewrite PTree.gmap in VIRT.
              destruct ((snd (getMaxPerm m)) ! b0) eqn:notInMem; inversion VIRT.
@@ -1830,28 +1843,25 @@ Module Parching <: ErasureSig.
              + assert (Hcohere':= Hcompatible).
                apply JSEM.JuicyMachineLemmas.compatible_threadRes_cohere with (cnt:=Hi) in Hcohere'.
                inversion Hcohere'.
+               apply THE_JUICY_MACHINE.JSEM.max_acc_coh_acc_coh in max_coh as acc_coh.
+               unfold max_access_cohere in max_coh.
                specialize (max_coh (b0,ofs0)).
                unfold max_access_at, access_at in max_coh.
                unfold permission_at in the_cure.
                rewrite the_cure in max_coh.
-               apply po_None1 in max_coh.
+
+               pose (HERE:= perm_of_res_op2 (JSEM.ThreadPool.getThreadR Hi @ (b0, ofs0))).
+               eapply juicy_mem_lemmas.perm_order''_trans in HERE; eauto.
+               apply po_None1 in HERE.
                move Hrem_lock_res at bottom.
                apply join_comm in Hrem_lock_res.
                apply resource_at_join with (loc:=(b0,ofs0)) in Hrem_lock_res.
                apply join_join_sub in Hrem_lock_res.
-               assert (HH:= juicy_mem_lemmas.po_join_sub' _ _ Hrem_lock_res).
-               rewrite max_coh in HH.
-               apply po_None1 in HH.
-               assert (HH1:= perm_of_res_op2 (JSEM.ThreadPool.getThreadR Hi @ (b0, ofs0))).
-               assert (HH2:= perm_of_res_op2 (phi' @ (b0, ofs0))).
-               rewrite max_coh in HH1.
-               rewrite HH in HH2.
-               apply po_None1 in HH1.
-               apply po_None1 in HH2.
-               rewrite HH1 HH2; reflexivity.
+               assert (HH:= po_join_sub_lock _ _ Hrem_lock_res).
+               rewrite HERE in HH. rewrite HERE.
+               apply po_None1 in HH. assumption.
              + inversion MATCH; rewrite mtch_perm2; reflexivity.
-    }
-    
+}      
     (*TODO Fix the even trace*)
     exists ds'',  (JSEM.Events.release (b, Int.intval ofs)
                                   (Some (JSEM.juice2Perm d_phi m, JSEM.juice2Perm_locks d_phi m)) ).
@@ -2258,19 +2268,200 @@ Module Parching <: ErasureSig.
       9: eassumption.
       7: reflexivity.
       + (*boundedness 1*)
-        split; unfold virtue1.
-        * admit.
+        split.
+        * move=> p f1 HH.
+          assert (HH':= HH).
+          eapply bounded_maps.map_leq_apply in HH';
+            try apply bounded_maps.treemap_sub_map.
+          rewrite PTree.gmap in HH.
+          destruct HH'  as [f2 HH'].
+          rewrite HH' in HH; simpl in HH; inversion HH.
+          exists f2; split; auto.
+          move => b0 f1b0.
+          unfold inflated_delta1 in f1b0.
+          destruct (f2 b0) eqn:is_none; auto.
+          cut (perm_of_res (d_phi @ (p, b0)) = None).
+          { rewrite /perm_of_res.
+            destruct (d_phi @ (p, b0)) eqn:DELT;
+              try solve[intros delt; inversion delt].
+            destruct (eq_dec t Share.bot) eqn:DELT';
+              try solve[intros delt; inversion delt].
+            unfold eq_dec in DELT'.
+            rewrite DELT' in f1b0; inversion f1b0.
+            destruct (perm_of_sh_pshare t p0).
+            rewrite H.
+            destruct k; intros NADA; inversion NADA. }
+          {
+            apply join_join_sub in Hrem_lock_res.
+            apply resource_at_join_sub with (l:=(p,b0)) in Hrem_lock_res.
+            apply juicy_mem_lemmas.po_join_sub in Hrem_lock_res.
+            eapply juicy_mem_lemmas.perm_order''_trans in Hrem_lock_res;
+              [|eapply perm_of_res_op1].
+
+            cut ((perm_of_res'
+                    (JSEM.ThreadPool.getThreadR Hi @ (p, b0))) = None).
+            intros to_rewrite;
+              eapply po_None1; rewrite -to_rewrite; eauto.
+
+            move: (JMS.mem_compat_thread_max_cohere
+                        Hcmpt Hi (p, b0)).
+            destruct m; simpl in *.
+            rewrite  /max_access_at
+                    /access_at
+                    /PMap.get /=.
+            
+            move : HH'.
+            
+            rewrite /getMaxPerm PTree.gmap1; simpl.
+            destruct ((mem_access.2) ! p) eqn:AA;
+              try solve [simpl; intros FALSE; inversion FALSE].
+            simpl; intros TT; inversion TT.
+            rewrite -H1 in is_none.
+            rewrite is_none => /po_None1.
+            auto.
+            }
           (* eapply bounded_maps.treemap_sub_map. *)
-        * admit.
+        * move=> p f1 HH.
+          assert (HH':= HH).
+          eapply bounded_maps.map_leq_apply in HH';
+            try apply bounded_maps.treemap_sub_map.
+          rewrite PTree.gmap in HH.
+          destruct HH'  as [f2 HH'].
+          rewrite HH' in HH; simpl in HH; inversion HH.
+          exists f2; split; auto.
+          move => b0 f1b0.
+          unfold inflated_delta2 in f1b0.
+          destruct (f2 b0) eqn:is_none; auto.
+          cut (perm_of_res (d_phi @ (p, b0)) = None).
+          { rewrite /perm_of_res.
+            destruct (d_phi @ (p, b0)) eqn:DELT;
+              try solve[intros delt; inversion delt].
+            destruct (eq_dec t Share.bot) eqn:DELT';
+              try solve[intros delt; inversion delt].
+            unfold eq_dec in DELT'.
+            rewrite DELT' in f1b0; inversion f1b0.
+            destruct (perm_of_sh_pshare t p0).
+            rewrite H.
+            destruct k; intros NADA; inversion NADA. }
+          {
+            apply join_join_sub in Hrem_lock_res.
+            apply resource_at_join_sub with (l:=(p,b0)) in Hrem_lock_res.
+            apply juicy_mem_lemmas.po_join_sub in Hrem_lock_res.
+            eapply juicy_mem_lemmas.perm_order''_trans in Hrem_lock_res;
+              [|eapply perm_of_res_op1].
+
+            cut ((perm_of_res'
+                    (JSEM.ThreadPool.getThreadR Hi @ (p, b0))) = None).
+            intros to_rewrite;
+              eapply po_None1; rewrite -to_rewrite; eauto.
+
+            move: (JMS.mem_compat_thread_max_cohere
+                        Hcmpt Hi (p, b0)).
+            destruct m; simpl in *.
+            rewrite  /max_access_at
+                    /access_at
+                    /PMap.get /=.
+            
+            move : HH'.
+            
+            rewrite /getMaxPerm PTree.gmap1; simpl.
+            destruct ((mem_access.2) ! p) eqn:AA;
+              try solve [simpl; intros FALSE; inversion FALSE].
+            simpl; intros TT; inversion TT.
+            rewrite -H1 in is_none.
+            rewrite is_none => /po_None1.
+            auto.
+            }
+
+
           (* eapply bounded_maps.treemap_sub_map. *)
       + (*boundedness 2*)
         repeat split.
-        * admit.
-          (* rewrite /JSEM.juice2Perm /JSEM.mapmap /=.
-          eapply bounded_maps.treemap_sub_map. *)
-        * admit.
-          (* rewrite /JSEM.juice2Perm_locks /JSEM.mapmap /=.
-          eapply bounded_maps.treemap_sub_map. *)
+        * move=> p f1 HH.
+          assert (HH':= HH).
+          eapply bounded_maps.map_leq_apply in HH';
+            try apply bounded_maps.treemap_sub_map.
+          rewrite PTree.gmap in HH.
+          destruct HH'  as [f2 HH'].
+          rewrite HH' in HH; simpl in HH; inversion HH.
+          exists f2; split; auto.
+          move => b0 f1b0.
+          destruct (f2 b0) eqn:is_none; auto.
+          cut (perm_of_res (d_phi @ (p, b0)) = None).
+          { intros HHH; rewrite HHH in f1b0.
+            inversion f1b0.  }
+          {
+            apply join_join_sub in Hrem_lock_res.
+            apply resource_at_join_sub with (l:=(p,b0)) in Hrem_lock_res.
+            apply juicy_mem_lemmas.po_join_sub in Hrem_lock_res.
+            eapply juicy_mem_lemmas.perm_order''_trans in Hrem_lock_res;
+              [|eapply perm_of_res_op1].
+
+            cut ((perm_of_res'
+                    (JSEM.ThreadPool.getThreadR Hi @ (p, b0))) = None).
+            intros to_rewrite;
+              eapply po_None1; rewrite -to_rewrite; eauto.
+
+            move: (JMS.mem_compat_thread_max_cohere
+                        Hcmpt Hi (p, b0)).
+            destruct m; simpl in *.
+            rewrite  /max_access_at
+                    /access_at
+                    /PMap.get /=.
+            
+            move : HH'.
+            
+            rewrite /getMaxPerm PTree.gmap1; simpl.
+            destruct ((mem_access.2) ! p) eqn:AA;
+              try solve [simpl; intros FALSE; inversion FALSE].
+            simpl; intros TT; inversion TT.
+            rewrite -H1 in is_none.
+            rewrite is_none => /po_None1.
+            auto.
+            }
+          (* eapply bounded_maps.treemap_sub_map. *)
+        * move=> p f1 HH.
+          assert (HH':= HH).
+          eapply bounded_maps.map_leq_apply in HH';
+            try apply bounded_maps.treemap_sub_map.
+          rewrite PTree.gmap in HH.
+          destruct HH'  as [f2 HH'].
+          rewrite HH' in HH; simpl in HH; inversion HH.
+          exists f2; split; auto.
+          move => b0 f1b0.
+          destruct (f2 b0) eqn:is_none; auto.
+          cut (perm_of_res_lock (d_phi @ (p, b0)) = None).
+          { intros HHH; rewrite HHH in f1b0.
+            inversion f1b0.  }
+          {
+            apply join_join_sub in Hrem_lock_res.
+            apply resource_at_join_sub with (l:=(p,b0)) in Hrem_lock_res.
+            apply po_join_sub_lock in Hrem_lock_res.
+            eapply juicy_mem_lemmas.perm_order''_trans in Hrem_lock_res;
+              [|eapply perm_of_res_op2].
+
+            cut ((perm_of_res'
+                    (JSEM.ThreadPool.getThreadR Hi @ (p, b0))) = None).
+            intros to_rewrite;
+              eapply po_None1; rewrite -to_rewrite; eauto.
+
+            move: (JMS.mem_compat_thread_max_cohere
+                        Hcmpt Hi (p, b0)).
+            destruct m; simpl in *.
+            rewrite  /max_access_at
+                    /access_at
+                    /PMap.get /=.
+            
+            move : HH'.
+            
+            rewrite /getMaxPerm PTree.gmap1; simpl.
+            destruct ((mem_access.2) ! p) eqn:AA;
+              try solve [simpl; intros FALSE; inversion FALSE].
+            simpl; intros TT; inversion TT.
+            rewrite -H1 in is_none.
+            rewrite is_none => /po_None1.
+            auto.
+            }
       + assumption.
       + eapply MTCH_getThreadC; eassumption.
       + eassumption.
@@ -2440,14 +2631,19 @@ Module Parching <: ErasureSig.
              + inversion MATCH.  apply mtch_perm1.
       }
 
-      pose (inflated_delta12:= fun loc => Some (perm_of_res_lock (phi' @ loc))).
+      pose (inflated_delta12:=
+              fun loc => match (d_phi @ loc ) with
+                        NO s => if Share.EqDec_share s Share.bot then None
+                               else  Some ( perm_of_res_lock (phi' @ loc))
+                      | _ => Some ( perm_of_res_lock (phi' @ loc))
+                      end).
       pose (virtue12:= PTree.map
                        (fun (block : positive) (_ : Z -> option permission) (ofs : Z) =>
                           (inflated_delta12 (block, ofs))) (snd (getMaxPerm m')) ).
       assert (virtue_spec12: forall b0 ofs0,
                  (computeMap (DTP.getThreadR (MTCH_cnt MATCH Hi)).2 virtue12) !! b0 ofs0 =
                  perm_of_res_lock (phi' @ (b0, ofs0))).
-     { intros b0 ofs0.
+      { intros b0 ofs0.
         destruct (virtue12 ! b0) eqn:VIRT.
         destruct (o ofs0) eqn:O.
         - erewrite computeMap_1; try eassumption.
@@ -2457,6 +2653,8 @@ Module Parching <: ErasureSig.
           unfold inflated_delta12 in O.
           destruct (d_phi @ (b0, ofs0)) eqn:AA;
           try (inversion O; reflexivity).
+          destruct (Share.EqDec_share t Share.bot); inversion O.
+          reflexivity.
         - erewrite computeMap_2; try eassumption.
           unfold virtue12 in VIRT. rewrite PTree.gmap in VIRT.
           destruct ((snd (getMaxPerm m')) ! b0); inversion VIRT.
@@ -2464,10 +2662,16 @@ Module Parching <: ErasureSig.
           unfold inflated_delta12 in O.
           destruct (d_phi @ (b0, ofs0)) eqn:AA;
           try (inversion O; reflexivity).
-        - erewrite computeMap_3; try eassumption.
+          destruct (Share.EqDec_share t Share.bot); inversion O.
+          subst.
+          apply resource_at_join with (loc:= (b0,ofs0)) in Hrem_fun_res.
+          rewrite AA in Hrem_fun_res.
+          apply join_NO_bot in Hrem_fun_res; rewrite Hrem_fun_res.
           inversion MATCH.
-          
-          unfold virtue12 in VIRT. rewrite PTree.gmap in VIRT.
+          symmetry.
+          apply mtch_perm2.
+        - erewrite computeMap_3; try eassumption.
+             unfold virtue12 in VIRT. rewrite PTree.gmap in VIRT.
              destruct ((snd (getMaxPerm m')) ! b0) eqn:notInMem; inversion VIRT.
              clear VIRT.
              assert (THE_CURE: (getMaxPerm m') !! b0 = fun _ => None).
@@ -2481,26 +2685,25 @@ Module Parching <: ErasureSig.
              + assert (Hcohere':= Hcompatible).
                apply compatible_threadRes_cohere with (cnt:=Hi) in Hcohere'.
                inversion Hcohere'.
-               assert (acc_coh:=max_coh).
-               specialize (acc_coh (b0,ofs0)).
-               unfold max_access_at, access_at in acc_coh.
+               (*apply JSEM.max_acc_coh_acc_coh in max_coh as acc_coh.
+               unfold JSEM.access_cohere' in acc_coh.*)
+               specialize (max_coh (b0,ofs0)).
+               unfold max_access_at, access_at in max_coh.
                unfold permission_at in the_cure.
-               rewrite the_cure in acc_coh.
-               assert (acc_coh': Mem.perm_order''
-                              None
-                              (perm_of_res_lock (JSEM.ThreadPool.getThreadR Hi @ (b0, ofs0)))).
-               { eapply po_trans; eauto. apply perm_of_res_op2. }
-               apply po_None1 in acc_coh.
-               apply po_None1 in acc_coh'.
+               rewrite the_cure in max_coh.
+               apply po_None1 in max_coh.
                move Hrem_fun_res at bottom.
                apply join_comm in Hrem_fun_res.
                apply resource_at_join with (loc:=(b0,ofs0)) in Hrem_fun_res.
                apply join_join_sub in Hrem_fun_res.
-               assert (HH:= juicy_mem_lemmas.po_join_sub' _ _ Hrem_fun_res).
-               rewrite acc_coh in HH. rewrite acc_coh'.
-               assert (HH': Mem.perm_order'' None (perm_of_res_lock (phi' @ (b0, ofs0)))).
-               { eapply po_trans; eauto. apply perm_of_res_op2. }
-               apply po_None1 in HH'. symmetry; assumption.
+               assert (HH:= po_join_sub_lock _ _ Hrem_fun_res).
+
+               move:
+                 (perm_of_res_op2 (JSEM.ThreadPool.getThreadR Hi @ (b0, ofs0))).
+               
+               rewrite max_coh => /po_None1 is_none.
+               rewrite is_none in HH; rewrite is_none. 
+               apply po_None1 in HH. symmetry; assumption.
              + inversion MATCH.  apply mtch_perm2.
       }
 
@@ -2510,7 +2713,12 @@ Module Parching <: ErasureSig.
        *
        *
        *)
-      pose (inflated_delta21:=fun loc => Some (perm_of_res (d_phi @ loc))).
+      pose (inflated_delta21:=
+              fun loc => match (d_phi @ loc ) with
+                        NO s => if Share.EqDec_share s Share.bot then None
+                               else  Some ( perm_of_res (d_phi @ loc))
+                      | _ => Some ( perm_of_res (d_phi @ loc))
+                      end).
       pose (virtue21:= PTree.map
                        (fun (block : positive) (_ : Z -> option permission) (ofs : Z) =>
                           (inflated_delta21 (block, ofs))) (snd (getMaxPerm m')) ).
@@ -2523,102 +2731,137 @@ Module Parching <: ErasureSig.
           unfold virtue21 in VIRT. rewrite PTree.gmap in VIRT.
           destruct ((snd (getMaxPerm m')) ! b0); inversion VIRT.
           rewrite <- H0 in O.
-          inversion O; reflexivity.
+          unfold inflated_delta21 in O.
+          destruct (d_phi @ (b0, ofs0)) eqn:AA;
+          try (inversion O; reflexivity).
+          destruct (Share.EqDec_share t Share.bot); inversion O.
+          reflexivity.
         - erewrite computeMap_2; try eassumption.
-          rewrite PTree.gmap in VIRT.
+          unfold virtue21 in VIRT. rewrite PTree.gmap in VIRT.
           destruct ((snd (getMaxPerm m')) ! b0); inversion VIRT.
           rewrite <- H0 in O.
-          inversion O.
+          unfold inflated_delta21 in O.
+          destruct (d_phi @ (b0, ofs0)) eqn:AA;
+          try (inversion O; reflexivity).
+          destruct (Share.EqDec_share t Share.bot); inversion O.
+          subst; simpl.
+          destruct (eq_dec Share.bot Share.bot).
+          + rewrite empty_map_spec; auto.
+          + exfalso; apply n; auto.
         - erewrite computeMap_3; try eassumption.
-          rewrite PTree.gmap in VIRT.
-          destruct ((snd (getMaxPerm m')) ! b0) eqn:notInMem; inversion VIRT.
-          clear VIRT.
-          assert (THE_CURE: (getMaxPerm m') !! b0 = fun _ => None).
-          { unfold PMap.get. rewrite notInMem.
-            apply Max_isCanonical.
+             unfold virtue21 in VIRT. rewrite PTree.gmap in VIRT.
+             destruct ((snd (getMaxPerm m')) ! b0) eqn:notInMem; inversion VIRT.
+             clear VIRT.
+             assert (THE_CURE: (getMaxPerm m') !! b0 = fun _ => None).
+             { unfold PMap.get. rewrite notInMem.
+               apply Max_isCanonical.
              }
-          assert (the_cure:= equal_f THE_CURE ofs0).
-          rewrite getMaxPerm_correct in the_cure.
-          replace ((DTP.getThreadR (MTCH_cnt MATCH Hi)).1 !! b0 ofs0) with
-          (perm_of_res ((JSEM.ThreadPool.getThreadR Hi)@ (b0, ofs0))).
-          + assert (Hcohere':= Hcompatible).
-            apply compatible_threadRes_cohere with (cnt:=Hi) in Hcohere'.
-            inversion Hcohere'.
-            apply JSEM.max_acc_coh_acc_coh in max_coh as acc_coh.
-            unfold JSEM.access_cohere' in acc_coh.
-            specialize (acc_coh (b0,ofs0)).
-            unfold max_access_at, access_at in acc_coh.
-            unfold permission_at in the_cure.
-            rewrite the_cure in acc_coh.
-            apply po_None1 in acc_coh.
-            move Hrem_fun_res at bottom.
-            apply resource_at_join with (loc:=(b0,ofs0)) in Hrem_fun_res.
-            apply join_join_sub in Hrem_fun_res.
-            assert (HH:= juicy_mem_lemmas.po_join_sub _ _ Hrem_fun_res).
-            rewrite acc_coh in HH.
-            apply po_None1 in HH. rewrite HH.
-            rewrite empty_map_spec; reflexivity.
-          + inversion MATCH. apply mtch_perm1.
+             assert (the_cure:= equal_f THE_CURE ofs0).
+             rewrite getMaxPerm_correct in the_cure.
+             replace ((DTP.getThreadR (MTCH_cnt MATCH Hi)).1 !! b0 ofs0) with
+             (perm_of_res ((JSEM.ThreadPool.getThreadR Hi)@ (b0, ofs0))).
+             + assert (Hcohere':= Hcompatible).
+               apply compatible_threadRes_cohere with (cnt:=Hi) in Hcohere'.
+               inversion Hcohere'.
+               apply JSEM.max_acc_coh_acc_coh in max_coh as acc_coh.
+               unfold JSEM.access_cohere' in acc_coh.
+               specialize (acc_coh (b0,ofs0)).
+               unfold max_access_at, access_at in acc_coh.
+               unfold permission_at in the_cure.
+               rewrite the_cure in acc_coh.
+               apply po_None1 in acc_coh.
+               move Hrem_fun_res at bottom.
+               (*apply join_comm in Hrem_fun_res.*)
+               apply resource_at_join with (loc:=(b0,ofs0)) in Hrem_fun_res.
+               apply join_join_sub in Hrem_fun_res.
+               assert (HH:= juicy_mem_lemmas.po_join_sub _ _ Hrem_fun_res).
+               rewrite acc_coh in HH. 
+               apply po_None1 in HH.
+               rewrite empty_map_spec.
+               symmetry; assumption.
+             + inversion MATCH.  apply mtch_perm1.
       }
 
 
-      pose (inflated_delta22:=fun loc => Some (perm_of_res_lock (d_phi @ loc))).
+
+      pose (inflated_delta22:=
+              
+              fun loc => match (d_phi @ loc ) with
+                        NO s => if Share.EqDec_share s Share.bot then None
+                               else  Some ( perm_of_res_lock (d_phi @ loc))
+                      | _ => Some (perm_of_res_lock (d_phi @ loc))
+                      end).
+
       pose (virtue22:= PTree.map
                        (fun (block : positive) (_ : Z -> option permission) (ofs : Z) =>
                           (inflated_delta22 (block, ofs))) (snd (getMaxPerm m')) ).
       assert (virtue_spec22: forall b0 ofs0,
                  (computeMap empty_map virtue22) !! b0 ofs0 =
                  (perm_of_res_lock (d_phi @(b0, ofs0)))).
-      { intros b0 ofs0.
+      {intros b0 ofs0. 
         destruct (virtue22 ! b0) eqn:VIRT.
         destruct (o ofs0) eqn:O.
         - erewrite computeMap_1; try eassumption.
           unfold virtue22 in VIRT. rewrite PTree.gmap in VIRT.
           destruct ((snd (getMaxPerm m')) ! b0); inversion VIRT.
           rewrite <- H0 in O.
-          inversion O; reflexivity.
+          unfold inflated_delta22 in O.
+          destruct (d_phi @ (b0, ofs0)) eqn:AA;
+          try (inversion O; reflexivity).
+          destruct (Share.EqDec_share t Share.bot); inversion O.
+          reflexivity.
         - erewrite computeMap_2; try eassumption.
-          rewrite PTree.gmap in VIRT.
+          unfold virtue22 in VIRT. rewrite PTree.gmap in VIRT.
           destruct ((snd (getMaxPerm m')) ! b0); inversion VIRT.
           rewrite <- H0 in O.
-          inversion O.
+          unfold inflated_delta22 in O.
+          destruct (d_phi @ (b0, ofs0)) eqn:AA;
+          try (inversion O; reflexivity).
+          destruct (Share.EqDec_share t Share.bot); inversion O.
+          subst. simpl;
+            rewrite empty_map_spec; auto.
         - erewrite computeMap_3; try eassumption.
-          rewrite PTree.gmap in VIRT.
-          destruct ((snd (getMaxPerm m')) ! b0) eqn:notInMem; inversion VIRT.
-          clear VIRT.
-          assert (THE_CURE: (getMaxPerm m') !! b0 = fun _ => None).
-          { unfold PMap.get. rewrite notInMem.
-            apply Max_isCanonical.
+             unfold virtue22 in VIRT. rewrite PTree.gmap in VIRT.
+             destruct ((snd (getMaxPerm m')) ! b0) eqn:notInMem; inversion VIRT.
+             clear VIRT.
+             assert (THE_CURE: (getMaxPerm m') !! b0 = fun _ => None).
+             { unfold PMap.get. rewrite notInMem.
+               apply Max_isCanonical.
              }
-          assert (the_cure:= equal_f THE_CURE ofs0).
-          rewrite getMaxPerm_correct in the_cure.
-          assert (Hcohere':= Hcompatible).
-            apply compatible_threadRes_cohere with (cnt:=Hi) in Hcohere'.
-            inversion Hcohere'.
+             assert (the_cure:= equal_f THE_CURE ofs0).
+             rewrite getMaxPerm_correct in the_cure.
+             replace ((DTP.getThreadR (MTCH_cnt MATCH Hi)).2 !! b0 ofs0) with
+             (perm_of_res_lock ((JSEM.ThreadPool.getThreadR Hi)@ (b0, ofs0))).
+          + assert (Hcohere':= Hcompatible).
+               apply compatible_threadRes_cohere with (cnt:=Hi) in Hcohere'.
+               inversion Hcohere'.
+               (*apply JSEM.max_acc_coh_acc_coh in max_coh as acc_coh.
+               unfold JSEM.access_cohere' in acc_coh.*)
+               specialize (max_coh (b0,ofs0)).
+                unfold max_access_at, access_at in max_coh.
+               unfold permission_at in the_cure. 
+               
+               rewrite the_cure in max_coh.
+               apply po_None1 in max_coh.
+               move Hrem_fun_res at bottom.
+               (*apply join_comm in Hrem_fun_res.*)
+               apply resource_at_join with (loc:=(b0,ofs0)) in Hrem_fun_res.
+               apply join_join_sub in Hrem_fun_res.
+               assert (HH:= po_join_sub_lock _ _ Hrem_fun_res).
 
-               assert (acc_coh:=max_coh).
-            
-            unfold JSEM.access_cohere' in acc_coh.
-            specialize (acc_coh (b0,ofs0)).
-            unfold max_access_at, access_at in acc_coh.
-            unfold permission_at in the_cure.
-            rewrite the_cure in acc_coh.
-            assert (acc_coh': Mem.perm_order''
-                              None
-                              (perm_of_res_lock (JSEM.ThreadPool.getThreadR Hi @ (b0, ofs0)))).
-               { eapply po_trans; eauto. apply perm_of_res_op2. }
-            apply po_None1 in acc_coh.
-            apply po_None1 in acc_coh'.
-            move Hrem_fun_res at bottom.
-            apply resource_at_join with (loc:=(b0,ofs0)) in Hrem_fun_res.
-            apply join_join_sub in Hrem_fun_res.
-            assert (HH:= juicy_mem_lemmas.po_join_sub' _ _ Hrem_fun_res).
-            rewrite acc_coh in HH. 
-            assert (HH': Mem.perm_order'' None (perm_of_res_lock (d_phi @ (b0, ofs0)))).
-            { eapply po_trans; eauto. apply perm_of_res_op2. }
-            apply po_None1 in HH'. rewrite HH'.
-            rewrite empty_map_spec; reflexivity.
+               move:
+                 (perm_of_res_op2 (JSEM.ThreadPool.getThreadR Hi @ (b0, ofs0))).
+
+               rewrite max_coh => /po_None1 is_none.
+               rewrite empty_map_spec.
+               rewrite is_none in HH. 
+               apply po_None1 in HH. symmetry; assumption.
+             + inversion MATCH.  apply mtch_perm2.
+               
       }
+
+
+
 
 
       
@@ -2979,17 +3222,220 @@ Module Parching <: ErasureSig.
         (virtue1:=(virtue11,virtue12))
           (virtue2:=(virtue21,virtue22)).
         - (*boundedness 1*)
-          split; rewrite /virtue11 /virtue12.
-          * admit.
+          split.
+        * move=> p0 f1 HH.
+          assert (HH':= HH).
+          eapply bounded_maps.map_leq_apply in HH';
+            try apply bounded_maps.treemap_sub_map.
+          rewrite PTree.gmap in HH.
+          destruct HH'  as [f2 HH'].
+          rewrite HH' in HH; simpl in HH; inversion HH.
+          exists f2; split; auto.
+          move => b0 f1b0.
+          unfold inflated_delta11 in f1b0.
+          destruct (f2 b0) eqn:is_none; auto.
+          cut (perm_of_res (d_phi @ (p0, b0)) = None).
+          { rewrite /perm_of_res.
+            destruct (d_phi @ (p0, b0)) eqn:DELT;
+              try solve[intros delt; inversion delt].
+            destruct (eq_dec t Share.bot) eqn:DELT';
+              try solve[intros delt; inversion delt].
+            unfold eq_dec in DELT'.
+            rewrite DELT' in f1b0; inversion f1b0.
+            destruct (perm_of_sh_pshare t p1).
+            rewrite H.
+            destruct k; intros NADA; inversion NADA. }
+          {
+            apply join_join_sub in Hrem_fun_res.
+            apply resource_at_join_sub with (l:=(p0,b0)) in Hrem_fun_res.
+            apply juicy_mem_lemmas.po_join_sub in Hrem_fun_res.
+            eapply juicy_mem_lemmas.perm_order''_trans in Hrem_fun_res;
+              [|eapply perm_of_res_op1].
+
+            cut ((perm_of_res'
+                    (JSEM.ThreadPool.getThreadR Hi @ (p0, b0))) = None).
+            intros to_rewrite;
+              eapply po_None1; rewrite -to_rewrite; eauto.
+
+            move: (JMS.mem_compat_thread_max_cohere
+                        Hcmpt Hi (p0, b0)).
+            destruct m'; simpl in *.
+            rewrite  /max_access_at
+                    /access_at
+                    /PMap.get /=.
+            
+            move : HH'.
+            
+            rewrite /getMaxPerm PTree.gmap1; simpl.
+            destruct ((mem_access.2) ! p0) eqn:AA;
+              try solve [simpl; intros FALSE; inversion FALSE].
+            simpl; intros TT; inversion TT.
+            rewrite -H1 in is_none.
+            rewrite is_none => /po_None1.
+            auto.
+            }
           (* eapply bounded_maps.treemap_sub_map. *)
-          * admit.
-          (*eapply bounded_maps.treemap_sub_map. *)
+        * rename p into pp.
+          move=> p f1 HH.
+          assert (HH':= HH).
+          eapply bounded_maps.map_leq_apply in HH';
+            try apply bounded_maps.treemap_sub_map.
+          rewrite PTree.gmap in HH.
+          destruct HH'  as [f2 HH'].
+          rewrite HH' in HH; simpl in HH; inversion HH.
+          exists f2; split; auto.
+          move => b0 f1b0.
+          unfold inflated_delta12 in f1b0.
+          destruct (f2 b0) eqn:is_none; auto.
+          cut (perm_of_res (d_phi @ (p, b0)) = None).
+          { rewrite /perm_of_res.
+            destruct (d_phi @ (p, b0)) eqn:DELT;
+              try solve[intros delt; inversion delt].
+            destruct (eq_dec t Share.bot) eqn:DELT';
+              try solve[intros delt; inversion delt].
+            unfold eq_dec in DELT'.
+            rewrite DELT' in f1b0; inversion f1b0.
+            destruct (perm_of_sh_pshare t p0).
+            rewrite H.
+            destruct k; intros NADA; inversion NADA. }
+          {
+            apply join_join_sub in Hrem_fun_res.
+            apply resource_at_join_sub with (l:=(p,b0)) in Hrem_fun_res.
+            apply juicy_mem_lemmas.po_join_sub in Hrem_fun_res.
+            eapply juicy_mem_lemmas.perm_order''_trans in Hrem_fun_res;
+              [|eapply perm_of_res_op1].
+
+            cut ((perm_of_res'
+                    (JSEM.ThreadPool.getThreadR Hi @ (p, b0))) = None).
+            intros to_rewrite;
+              eapply po_None1; rewrite -to_rewrite; eauto.
+
+            move: (JMS.mem_compat_thread_max_cohere
+                        Hcmpt Hi (p, b0)).
+            destruct m'; simpl in *.
+            rewrite  /max_access_at
+                    /access_at
+                    /PMap.get /=.
+            
+            move : HH'.
+            
+            rewrite /getMaxPerm PTree.gmap1; simpl.
+            destruct ((mem_access.2) ! p) eqn:AA;
+              try solve [simpl; intros FALSE; inversion FALSE].
+            simpl; intros TT; inversion TT.
+            rewrite -H1 in is_none.
+            rewrite is_none => /po_None1.
+            auto.
+            }
+
         - (*boundedness 2*)
-          split; rewrite /virtue21 /virtue22.
-          * admit.
-            (*eapply bounded_maps.treemap_sub_map. *)
-          * admit.
+           split.
+        * move=> p0 f1 HH.
+          assert (HH':= HH).
+          eapply bounded_maps.map_leq_apply in HH';
+            try apply bounded_maps.treemap_sub_map.
+          rewrite PTree.gmap in HH.
+          destruct HH'  as [f2 HH'].
+          rewrite HH' in HH; simpl in HH; inversion HH.
+          exists f2; split; auto.
+          move => b0 f1b0.
+          unfold inflated_delta21 in f1b0.
+          destruct (f2 b0) eqn:is_none; auto.
+          cut (perm_of_res (d_phi @ (p0, b0)) = None).
+          { rewrite /perm_of_res.
+            destruct (d_phi @ (p0, b0)) eqn:DELT;
+              try solve[intros delt; inversion delt].
+            destruct (eq_dec t Share.bot) eqn:DELT';
+              try solve[intros delt; inversion delt].
+            unfold eq_dec in DELT'.
+            rewrite DELT' in f1b0; inversion f1b0.
+            destruct (perm_of_sh_pshare t p1).
+            rewrite H.
+            destruct k; intros NADA; inversion NADA. }
+          {
+            apply join_join_sub in Hrem_fun_res.
+            apply resource_at_join_sub with (l:=(p0,b0)) in Hrem_fun_res.
+            apply juicy_mem_lemmas.po_join_sub in Hrem_fun_res.
+            eapply juicy_mem_lemmas.perm_order''_trans in Hrem_fun_res;
+              [|eapply perm_of_res_op1].
+
+            cut ((perm_of_res'
+                    (JSEM.ThreadPool.getThreadR Hi @ (p0, b0))) = None).
+            intros to_rewrite;
+              eapply po_None1; rewrite -to_rewrite; eauto.
+
+            move: (JMS.mem_compat_thread_max_cohere
+                        Hcmpt Hi (p0, b0)).
+            destruct m'; simpl in *.
+            rewrite  /max_access_at
+                    /access_at
+                    /PMap.get /=.
+            
+            move : HH'.
+            
+            rewrite /getMaxPerm PTree.gmap1; simpl.
+            destruct ((mem_access.2) ! p0) eqn:AA;
+              try solve [simpl; intros FALSE; inversion FALSE].
+            simpl; intros TT; inversion TT.
+            rewrite -H1 in is_none.
+            rewrite is_none => /po_None1.
+            auto.
+            }
           (* eapply bounded_maps.treemap_sub_map. *)
+        * rename p into pp.
+          move=> p f1 HH.
+          assert (HH':= HH).
+          eapply bounded_maps.map_leq_apply in HH';
+            try apply bounded_maps.treemap_sub_map.
+          rewrite PTree.gmap in HH.
+          destruct HH'  as [f2 HH'].
+          rewrite HH' in HH; simpl in HH; inversion HH.
+          exists f2; split; auto.
+          move => b0 f1b0.
+          unfold inflated_delta22 in f1b0.
+          destruct (f2 b0) eqn:is_none; auto.
+          cut (perm_of_res (d_phi @ (p, b0)) = None).
+          { rewrite /perm_of_res.
+            destruct (d_phi @ (p, b0)) eqn:DELT;
+              try solve[intros delt; inversion delt].
+            destruct (eq_dec t Share.bot) eqn:DELT';
+              try solve[intros delt; inversion delt].
+            unfold eq_dec in DELT'.
+            rewrite DELT' in f1b0; inversion f1b0.
+            destruct (perm_of_sh_pshare t p0).
+            rewrite H.
+            destruct k; intros NADA; inversion NADA. }
+          {
+            apply join_join_sub in Hrem_fun_res.
+            apply resource_at_join_sub with (l:=(p,b0)) in Hrem_fun_res.
+            apply juicy_mem_lemmas.po_join_sub in Hrem_fun_res.
+            eapply juicy_mem_lemmas.perm_order''_trans in Hrem_fun_res;
+              [|eapply perm_of_res_op1].
+
+            cut ((perm_of_res'
+                    (JSEM.ThreadPool.getThreadR Hi @ (p, b0))) = None).
+            intros to_rewrite;
+              eapply po_None1; rewrite -to_rewrite; eauto.
+
+            move: (JMS.mem_compat_thread_max_cohere
+                        Hcmpt Hi (p, b0)).
+            destruct m'; simpl in *.
+            rewrite  /max_access_at
+                    /access_at
+                    /PMap.get /=.
+            
+            move : HH'.
+            
+            rewrite /getMaxPerm PTree.gmap1; simpl.
+            destruct ((mem_access.2) ! p) eqn:AA;
+              try solve [simpl; intros FALSE; inversion FALSE].
+            simpl; intros TT; inversion TT.
+            rewrite -H1 in is_none.
+            rewrite is_none => /po_None1.
+            auto.
+            }
+          
+
         - assumption.
         - inversion MATCH. erewrite <- mtch_gtc; eassumption.
         - eassumption.
@@ -3901,8 +4347,19 @@ Here be dragons
             + replace (MTCH_cnt MATCH Hi) with Htid' by apply proof_irrelevance.
               reflexivity.
             + intros indx ineq.
-              instantiate (1:=pdata).
+              (* instantiate (1:=pdata). *)
               unfold pdata.
+              assert ((LKSIZE_nat < indx.+1)%N = false).
+              { destruct ineq.
+                move: H0. rewrite /LKSIZE_nat /LKSIZE. 
+                simpl.
+                destruct (4 < indx.+1)%N eqn:NN; auto.
+                assert ((4 < indx.+1)%N) by
+                (rewrite NN; auto).
+                move: H0 => /ltP.
+                intros. xomega. }
+              rewrite H.
+
               move: Hrmap  => [] [] H1 [] AA. 
               assert (H3: adr_range (b, Int.unsigned ofs)
                                     LKSIZE
@@ -3929,11 +4386,6 @@ Here be dragons
               reflexivity.
         }
 
-        (*
-           
-                
-
-  *)
         (* step_acqfail *)
         {
           exists ds, (JSEM.Events.failacq (b, Int.intval ofs)).
@@ -3959,9 +4411,7 @@ Here be dragons
             }
         }
 
-
-  Admitted.
-(*        Grab Existential Variables.
+        Grab Existential Variables.
     { (*This is side condition [Hlt'] of acquire or relese *)
        intros b0 ofs0.
              move: (Hlt' b0 ofs0).
@@ -3990,7 +4440,7 @@ Here be dragons
                eapply JMS.compatible_threadRes_sub; eauto.
     }
   Qed.
-  *)
+  
   
 
   

@@ -72,33 +72,26 @@ Definition sub_map {A B} (m1: PTree.t (Z -> option A))(m2: PTree.t (Z -> option 
        exists f2, m2 ! p = Some f2 /\ fun_leq f1 f2.
 
  Lemma finite_bounded_nat_func:
-          forall A hi ,
+          forall hi ,
             konig.finite
-              ( fun f:nat -> option A => bounded_nat_func' f hi).
+              ( fun f:nat -> option permission => bounded_nat_func' f hi).
  Admitted.
  
 (*Nobody is using this righ now*)
 Lemma finite_bounded_func:
-  forall A hi lo ,
+  forall  hi lo ,
     konig.finite
-      ( fun f:Z -> option A => bounded_func' f hi lo).
+      ( fun f:Z -> option permission => bounded_func' f hi lo).
 Admitted.
     
 Lemma finite_sub_maps:
-  forall A B m2,
-    @bounded_map B m2 ->
+  forall m2,
+    @bounded_map permission m2 ->
     konig.finite
-      (fun m1 => @sub_map A B m1 m2).
+      (fun m1 => @sub_map permission permission m1 m2).
 Proof.
   intros.
 Admitted.
 
-
-
-(*Lemma leq_sub_map:
-  forall m1 m2,
-    @map_leq A B m1 m2 ->
-   (forall p f1, m1 ! p = f1  -> exists f2, m2 ! p = f2 /\ ). 
-  *)  
     
     

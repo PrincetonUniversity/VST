@@ -31,39 +31,39 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
   Import THE_DRY_MACHINE_SOURCE.DMS.
   
 
-  Definition match_st gT gS main p sch:=
+  Definition match_st gT gS main psrc ptgt sch:=
     Machine_sim.match_state
       _ _ _ _ _ _ _ _
-      (concur_sim gT gS main p sch).
+      (concur_sim gT gS main psrc ptgt sch).
 
-  Definition running_thread gT gS main p sch:=
+  Definition running_thread gT gS main psrc ptgt sch:=
     Machine_sim.thread_running
       _ _ _ _ _ _ _ _
-      (concur_sim gT gS main p sch).
+      (concur_sim gT gS main psrc ptgt sch).
 
-  Definition halt_axiom gT gS main p sch:=
+  Definition halt_axiom gT gS main psrc ptgt sch:=
     Machine_sim.thread_halted
       _ _ _ _ _ _ _ _
-      (concur_sim gT gS main p sch).
-  Definition core_ord gT gS main p sch:=
+      (concur_sim gT gS main psrc ptgt sch).
+  Definition core_ord gT gS main psrc ptgt sch:=
     Machine_sim.core_ord
       _ _ _ _ _ _ _ _
-      (concur_sim gT gS main p sch).
-  Definition core_ord_wf gT gS main p sch:=
+      (concur_sim gT gS main psrc ptgt sch).
+  Definition core_ord_wf gT gS main psrc ptgt sch:=
     Machine_sim.core_ord_wf
       _ _ _ _ _ _ _ _
-      (concur_sim gT gS main p sch).
+      (concur_sim gT gS main psrc ptgt sch).
   
-  Definition same_running gT gS main p sch:=
+  Definition same_running gT gS main psrc ptgt sch:=
     Machine_sim.thread_running
       _ _ _ _ _ _ _ _
-      (concur_sim gT gS main p sch).
+      (concur_sim gT gS main psrc ptgt sch).
 
   
-  Definition same_halted gT gS main p sch:=
+  Definition same_halted gT gS main psrc ptgt sch:=
     Machine_sim.thread_halted
       _ _ _ _ _ _ _ _
-      (concur_sim gT gS main p sch).
+      (concur_sim gT gS main psrc ptgt sch).
 
 (*  THE_DRY_MACHINE_SOURCE.dmachine_state
     Machine.DryConc.MachState
@@ -155,27 +155,27 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
        (exists cd : core_data,
            @Machine.DryConc.explicit_safety_stutter core_data core_ord ge cd U st m) ->
        Machine.DryConc.explicit_safety ge U st m.
-      Proof. Admitted.*)
+      Proof. A dmitted.*)
         
       
-      Lemma safety_preservation'': forall main p U Sg Tg tr Sds Sm Tds Tm cd
+      Lemma safety_preservation'': forall main psrc ptgt U Sg Tg tr Sds Sm Tds Tm cd
                                      (*HboundedS: DryConc.bounded_mem Sm*)
                                      (*HboundedT: DryConc.bounded_mem Tm*)
-      (MATCH: exists j, (match_st Tg Sg main p U) cd j Sds Sm Tds Tm),
+      (MATCH: exists j, (match_st Tg Sg main psrc ptgt U) cd j Sds Sm Tds Tm),
       (forall sch, DryConc.new_valid ( tr, Sds, Sm) sch ->
               DryConc.explicit_safety Sg sch Sds Sm) ->
       (forall sch, Machine.DryConc.valid (sch, tr, Tds) ->
-              Machine.DryConc.stutter_stepN_safety ( core_ord:=core_ord  Tg Sg main p U) Tg cd sch Tds Tm).
+              Machine.DryConc.stutter_stepN_safety ( core_ord:=core_ord  Tg Sg main psrc ptgt U) Tg cd sch Tds Tm).
   Proof.
-    move => main p U Sg Tg.
+    move => main psrc ptgt U Sg Tg.
     cofix CIH.
     intros.
     assert (H':=H).
     specialize (H sch).
     move: MATCH => [] j MATCH.
-    assert (equivalid: forall  Tg Sg main p U,
+    assert (equivalid: forall  Tg Sg main psrc ptgt U,
                forall cd j Sm Tm tr Sds Tds,
-                 (match_st Tg Sg main p U) cd j Sds Sm Tds Tm ->
+                 (match_st Tg Sg main psrc ptgt U) cd j Sds Sm Tds Tm ->
                  forall sch,
                    DryConc.valid (sch, tr, Sds)  <->
                    Machine.DryConc.valid (sch, tr, Tds) ).
@@ -188,14 +188,14 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
               /Machine.DryConc.unique_Krun
               /mySchedule.schedPeek /=.
       
-      move => ? ? ? ? ? ? ? ? ? ? Sds' Tds' MATCH' sch0.
+      move => ? ? ? ? ? ? ? ? ? ? ? Sds' Tds' MATCH' sch0.
       destruct (List.hd_error sch0); try solve[split; auto].
       split.
       - move => H1  j0 cntj0 q KRUN not_halted.
         
         (*eapply H1.*)
         (*pose (same_running Tg Sg main p U cd j Sds' Sm Tds' Tm).*)
-        pose ( machine_semantics.runing_thread (new_DMachineSem sch p)).
+        pose ( machine_semantics.runing_thread (new_DMachineSem sch psrc)).
         unfold new_DMachineSem  in P; simpl in P.
         unfold DryConc.unique_Krun in P.
         eapply (same_running) in KRUN; eauto.
@@ -203,7 +203,7 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
         
         (*eapply H1.*)
         (*pose (same_running Tg Sg main p U cd j Sds' Sm Tds' Tm).*)
-        pose ( machine_semantics.runing_thread (new_DMachineSem sch p)).
+        pose ( machine_semantics.runing_thread (new_DMachineSem sch psrc)).
         unfold new_DMachineSem  in P; simpl in P.
         unfold DryConc.unique_Krun in P.
         eapply (same_running) in KRUN; eauto.
@@ -235,7 +235,7 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
       { simpl in H2. pose (note2:=5). simpl in *; subst.
         assert (my_core_diagram:= Machine_sim.thread_diagram
                            _ _ _ _ _ _ _ _
-                           (concur_sim Tg Sg main p U)).
+                           (concur_sim Tg Sg main psrc ptgt U)).
         simpl in my_core_diagram.
         intros MATCH.
         eapply my_core_diagram (*with (st1':= (Tds))(m1':=Tm)*) in MATCH; eauto.
@@ -245,10 +245,33 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
         - unfold machine_semantics_lemmas.thread_step_plus in step_plus.
           destruct step_plus as [n step_plus].
           apply (coinductive_safety.internal_safetyN_stut) with (cd':= cd')(y':=(st2',m2'))(n:=n).
-          + admit. (* Equate the two different stepN... or redefine one... *)
+          +
+            Lemma thread_stepN_stepN:
+              forall Tg n sch Tds Tm st2' m2' U p,
+               machine_semantics_lemmas.thread_stepN
+                (Machine.DryConc.new_MachineSemantics U p) Tg n sch Tds
+                Tm st2' m2' ->
+                coinductive_safety.stepN
+                  SC.Sch (Machine.DryMachine.ThreadPool.t * mem)
+                  (fun (U0 : SC.Sch) (stm stm' : Machine.DryMachine.ThreadPool.t * mem)
+                   =>
+                     @Machine.DryConc.internal_step Tg U0 (fst stm) (snd stm) 
+                                                   (fst stm') (snd stm'))
+                  sch (Tds, Tm) (st2', m2') n.
+            Proof.
+              move=> Tg n.
+              induction n; simpl.
+              - move=>  sch Tds Tm st2' m2' U p HH; inversion HH; subst.
+                constructor 1; auto.
+              - move=>  sch Tds Tm st2' m2' U p [] c2 [] m2 [] step PAST. 
+                econstructor 2; eauto.
+                simpl. auto.
+            Qed.
+            
+            eapply thread_stepN_stepN; eauto.
           + simpl. intros.
             eapply CIH with (Sds:=fst y') (Sm:=snd y'); eauto.
-(*            * admit. (* By steping! *) *)
+(*            * a dmit. (* By steping! *) *)
 (*            * destruct H3; auto. (* By steping! *)*)
             * intros. destruct y' as [a b]; eapply H2.
               auto.
@@ -261,18 +284,16 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
             inversion stepN; subst.
             apply coinductive_safety.stutter with (cd':=cd'); auto.
             apply CIH with (tr:=tr)(Sds:= (fst y') )(Sm:=(snd y')).
-(*            * admit. (*by stepping*) *)
+(*            * a dmit. (*by stepping*) *)
 (*            * auto. *)
             * exists mu'; eassumption.
             * destruct y' as [a b]; apply H2; auto.
             * assumption.
           + (*Fake stutter case*)
             apply (coinductive_safety.internal_safetyN_stut) with (cd':= cd')(y':=(st2',m2'))(n:=n).
-            * admit. (* Equate the two different stepN... or redefine one... *)
+            * eapply thread_stepN_stepN; eauto.
             *  {simpl. intros.
                 eapply CIH with (Sds:=fst y') (Sm:=snd y'). Guarded.
-(*                - admit. (*by stepping*)*)
-(*                - destruct H3; assumption.*)
                 - exists mu'; assumption.
                 - destruct y' as [a b]; eapply H2.
                - assumption.
@@ -281,7 +302,7 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
     - (*External step case *)
       assert (my_machine_diagram:= Machine_sim.machine_diagram
                            _ _ _ _ _ _ _ _
-                           (concur_sim Tg Sg main p U)).
+                           (concur_sim Tg Sg main psrc ptgt U)).
         simpl in my_machine_diagram.
         intros MATCH.
         eapply my_machine_diagram with (st1':= fst y')(m1':=snd y') in MATCH; eauto.
@@ -290,32 +311,33 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
           apply coinductive_safety.external_safetyN_stut with (cd':=cd')(x':=x')(y':= (st2', m2')).
           * apply step.
           * intros; eapply CIH with (tr:=tr)(Sds:= (fst y') )(Sm:=(snd y')).
-(*            -- admit. (*by stepping *)  *)
-(*            -- destruct H3; assumption.   *)
             -- exists mu'; exact MATCH'.
             -- destruct y' as [a b]; eapply H2.
             -- assumption.
-  Guarded.
-  Admitted.
+               Guarded.
+
+               Unshelve.
+               auto.
+  Qed.
            
-  Lemma safety_preservation': forall main p U Sg Tg tr Sds Sm Tds Tm
-                                (MATCH: exists cd j, (match_st Tg Sg main p U) cd j Sds Sm Tds Tm),
+  Lemma safety_preservation': forall main psrc ptgt U Sg Tg tr Sds Sm Tds Tm
+                                (MATCH: exists cd j, (match_st Tg Sg main psrc ptgt U) cd j Sds Sm Tds Tm),
       (forall sch, DryConc.valid (sch, tr, Sds) ->
               DryConc.explicit_safety Sg sch Sds Sm) ->
       (forall sch, Machine.DryConc.valid (sch, tr, Tds) ->
               Machine.DryConc.explicit_safety Tg sch Tds Tm).
   Proof.
-    move=> main p U Sg Tg tr Sds Sm Tds Tm  [] cd  [] mu MATCH HH sch VAL.
+    move=> main psrc ptgt U Sg Tg tr Sds Sm Tds Tm  [] cd  [] mu MATCH HH sch VAL.
     apply @coinductive_safety.safety_stutter_stepN_equiv
-    with (core_ord:=core_ord Tg Sg main p U); auto.
-    + apply (core_ord_wf Tg Sg main p U).
+    with (core_ord:=core_ord Tg Sg main psrc ptgt U); auto.
+    + apply (core_ord_wf Tg Sg main psrc ptgt U).
     (* + split; auto; simpl. *)
     + exists cd.
       apply safety_preservation'' with (tr:=tr)(Sds:=Sds)(Sm:=Sm); try exists mu; assumption.
   Qed.
             
-  Lemma safety_preservation: forall main p U Sg Tg Sds Sm Tds Tm
-                               (MATCH: exists cd j, (match_st Tg Sg main p U) cd j Sds Sm Tds Tm),
+  Lemma safety_preservation: forall main psrc ptgt U Sg Tg Sds Sm Tds Tm
+                               (MATCH: exists cd j, (match_st Tg Sg main psrc ptgt U) cd j Sds Sm Tds Tm),
       (forall sch, DryConc.valid (sch, nil, Sds) ->
               DryConc.safe_new_step Sg (sch, nil, Sds) Sm) ->
       (forall sch, Machine.DryConc.valid (sch, nil, Tds) ->
