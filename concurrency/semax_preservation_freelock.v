@@ -155,8 +155,6 @@ Proof.
   simpl in B1.
   unfold lift, liftx in B1. simpl in B1.
   unfold lift, liftx in B1. simpl in B1.
-  Lemma lockinv_isptr sh v R : lock_inv sh v R = (!! expr.isptr v && lock_inv sh v R)%logic.
-  Admitted.
   rewrite lockinv_isptr in AT.
   rewrite log_normalize.sepcon_andp_prop' in AT.
   destruct AT as (IsPtr, AT).

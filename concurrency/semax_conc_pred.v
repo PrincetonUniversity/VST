@@ -137,6 +137,17 @@ Definition rec_inv sh v (Q R: mpred): Prop :=
 Definition weak_rec_inv sh v (Q R: mpred): mpred :=
   (! (R <=> Q * lock_inv sh v (|> R)))%pred.
 
+Lemma lockinv_isptr sh v R : lock_inv sh v R = (!! expr.isptr v && lock_inv sh v R)%logic.
+Proof.
+  assert (D : isptr v \/ ~isptr v) by (destruct v; simpl; auto).
+  destruct D.
+  - rewrite prop_true_andp; auto.
+  - rewrite prop_false_andp; auto.
+    apply pred_ext.
+    + unfold lock_inv. Intros b ofs. subst; simpl in *; tauto.
+    + apply FF_left.
+Qed.
+
 Lemma unfash_fash_equiv: forall P Q: mpred,
   (P <=> Q |--
   (subtypes.unfash (subtypes.fash P): mpred) <=> (subtypes.unfash (subtypes.fash Q): mpred))%pred.
