@@ -90,9 +90,44 @@ induction H; intros.
 eauto.
 Qed.
 
-Lemma CLight_step_mem_bound ge c m c' m':
+Lemma CLight_step_mem_bound' ge c m c' m':
     veric.Clight_new.cl_step ge c m c' m' -> bnd_from_init m -> bnd_from_init m'.
 Proof.
  intros. 
  apply (memsem_preserves CLN_memsem _ preserve_bnd _ _ _ _ _ H H0).
-Qed. 
+Qed.
+
+(*This proof is already in juicy_machine. 
+ * move it to a more general position.*)
+Lemma Mem_canonical_useful: forall m loc k,
+        fst (Mem.mem_access m) loc k = None.
+    Proof. intros. destruct m; simpl in *.
+           unfold PMap.get in nextblock_noaccess.
+           pose (b:= Pos.max (TreeMaxIndex (snd mem_access) + 1 )  nextblock).
+           assert (H1:  ~ Plt b nextblock).
+           { intros H. assert (HH:= Pos.le_max_r (TreeMaxIndex (snd mem_access) + 1) nextblock).
+             clear - H HH. unfold Pos.le in HH. unfold Plt in H.
+             apply HH. eapply Pos.compare_gt_iff.
+             auto. }
+           assert (H2 :( b > (TreeMaxIndex (snd mem_access)))%positive ).
+           { assert (HH:= Pos.le_max_l (TreeMaxIndex (snd mem_access) + 1) nextblock).
+             apply Pos.lt_gt. eapply Pos.lt_le_trans; eauto.
+             xomega. }
+           specialize (nextblock_noaccess b loc k H1).
+           apply max_works in H2. rewrite H2 in nextblock_noaccess.
+           assumption.
+    Qed.
+
+Lemma CLight_step_mem_bound ge c m c' m':
+  veric.Clight_new.cl_step ge c m c' m' ->
+  bounded_maps.bounded_map (snd (getMaxPerm m)) ->
+  bounded_maps.bounded_map (snd (getMaxPerm m')).
+Proof.
+  intros.
+  eapply CLight_step_mem_bound' in H.
+  destruct H; auto.
+  split; auto.
+  extensionality b.
+  extensionality k.
+  apply Mem_canonical_useful.
+Qed.

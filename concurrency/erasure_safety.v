@@ -157,7 +157,9 @@ Qed.
       destruct st as [[a b] c]; destruct st' as [[a' b'] c']; simpl in *.
       inversion H4; subst.
       (*We need to talk about traces... until now... they are empty:*)
-      assert (requirement:(a') = nil) by admit.
+      assert (requirement:(a') = nil).
+      { inversion H0; simpl in *; eauto. }
+        
       rewrite requirement in H0.
       eapply step_diagram in H0 => //.
       destruct H0 as [ ds' [ Dinv' [ match' step']]].
@@ -175,8 +177,7 @@ Qed.
           rewrite /JuicyMachine.new_valid /JuicyMachine.mk_ostate /=.
           move: DVAL match' => /assume KK /KK //.
     }
-    Admitted.
-
+  Qed.
 
   Lemma new_erasure_safety': forall n ge js ds m,
       (forall sch, JuicyMachine.valid (sch, nil, js)) -> 
