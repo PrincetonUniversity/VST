@@ -343,6 +343,22 @@ Module MainSafety .
       eapply safe_new_step_bound_safe_new_step; eauto.
       Guarded.
     Qed.
+
+    Lemma bounded_empty_mem:
+           DryMachine.bounded_mem Mem.empty.
+        Proof. intros b0 f.
+               intros HH.
+               exists 0%Z. exists 0%Z.
+               split.
+               - intros.
+                 unfold getMaxPerm, PMap.map in HH.
+                 simpl in HH.
+                 rewrite PTree.gleaf in HH; inversion HH.
+               - intros.
+                 unfold getMaxPerm, PMap.map in HH.
+                 simpl in HH.
+                 rewrite PTree.gleaf in HH; inversion HH.
+        Qed.
     
     Lemma bounded_initial_mem:
       DryMachine.bounded_mem initial_memory.
@@ -354,8 +370,9 @@ Module MainSafety .
         pose (K:= (prog_defs (Ctypes.program_of_program prog))).
         pose (m':= Mem.empty).
         assert ( DryMachine.bounded_mem m').
-        admit.
-       
+        { subst; apply bounded_empty_mem. }
+                 
+               
         move : (H).
         fold K m'.
         move: (m').
