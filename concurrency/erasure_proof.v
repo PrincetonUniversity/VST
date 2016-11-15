@@ -1034,7 +1034,11 @@ Module Parching <: ErasureSig.
                     | _ => Some (perm_of_res (phi' @ loc))
                     end).
     pose (inflated_delta2:=
-            fun loc => Some (perm_of_res_lock (phi' @ loc))).
+            fun loc =>  match (d_phi @ loc ) with
+                       NO s => if Share.EqDec_share s Share.bot then None else
+                                Some ( perm_of_res_lock (phi' @ loc))
+                    | _ => Some (perm_of_res_lock (phi' @ loc))
+                    end).
          pose (virtue1:= PTree.map
                                       (fun (block : positive) (_ : Z -> option permission) (ofs : Z) =>
                                          (inflated_delta1 (block, ofs))) (snd (getMaxPerm m)) ).
@@ -1052,8 +1056,10 @@ Module Parching <: ErasureSig.
             assert (virtue_some2: forall l p, inflated_delta2 l = Some p ->
                                         p = perm_of_res_lock (phi' @ l)).
             {
-              intros l p; unfold inflated_delta2.
-              destruct (d_phi @ l); try solve[intros HH; inversion HH; reflexivity]. }
+               intros l p; unfold inflated_delta2.
+              destruct (d_phi @ l); try solve[intros HH; inversion HH; reflexivity].
+              destruct ( proj_sumbool (Share.EqDec_share t Share.bot));
+                [congruence| intros HH; inversion HH; reflexivity]. }
 
 
             Inductive deltaMap_cases (dmap:delta_map) b ofs:=
@@ -1140,6 +1146,8 @@ Module Parching <: ErasureSig.
                  move :e0; rewrite -H0.
                  destruct (d_phi @ (b0, ofs0)); intros HH';
                  try solve[inversion HH'; reflexivity].
+                 destruct (proj_sumbool (Share.EqDec_share t Share.bot)); inversion HH'.
+                 reflexivity.
               -  rewrite (computeMap_2 _ _ _ _ e).
                  move: e.
                  rewrite /virtue2 /inflated_delta2 PTree.gmap.
@@ -1148,6 +1156,13 @@ Module Parching <: ErasureSig.
                  move :e0; rewrite -H0.
                  destruct (d_phi @ (b0, ofs0)) eqn:dphibo; intros HH';
                  try solve[inversion HH'].
+                 destruct (proj_sumbool (Share.EqDec_share t Share.bot)) eqn:isBot; inversion HH'.
+                 move: Hadd_lock_res => /(resource_at_join _ _ _ (b0, ofs0)).
+                 rewrite dphibo; 
+                   replace t with Share.bot.
+                 move => /join_comm /(@join_unit1_e _ _ _ (NO Share.bot) _ _ NO_identity) <-.
+                 symmetry. inversion MATCH; auto.
+                 destruct (Share.EqDec_share t Share.bot); inversion isBot; auto.
                  assumption.
               - rewrite (computeMap_3 _ _ _ _ e).
                 move: e.
@@ -1178,7 +1193,7 @@ Module Parching <: ErasureSig.
                   - tauto.
                 }
             }
-            
+        
                       
          pose (ds':= DTP.updThread Htid' (Kresume c Vundef)
                   (computeMap
@@ -1569,10 +1584,63 @@ Module Parching <: ErasureSig.
       6: eassumption.
       8: eassumption.
       + (*boundedness*)
-        split; unfold virtue1.
-        * admit.
-          (*eapply bounded_maps.treemap_sub_map.*)
-        * admit.
+        split.
+        * move=> p f1 HH.
+          assert (HH':= HH).
+          eapply bounded_maps.map_leq_apply in HH';
+            try apply bounded_maps.treemap_sub_map.
+          rewrite PTree.gmap in HH.
+          destruct HH'  as [f2 HH'].
+          rewrite HH' in HH; simpl in HH; inversion HH.
+          exists f2; split; auto.
+          move => b0 f1b0.
+          unfold inflated_delta1 in f1b0.
+          destruct (f2 b0) eqn:is_none; auto.
+          cut (perm_of_res (d_phi @ (p, b0)) = None).
+          { rewrite /perm_of_res.
+            destruct (d_phi @ (p, b0)) eqn:DELT;
+              try solve[intros delt; inversion delt].
+            destruct (eq_dec t Share.bot) eqn:DELT';
+              try solve[intros delt; inversion delt].
+            unfold eq_dec in DELT'.
+            rewrite DELT' in f1b0; inversion f1b0.
+            destruct (perm_of_sh_pshare t p0).
+            rewrite H.
+            destruct k; intros NADA; inversion NADA. }
+          { move: (JMS.JuicyMachineLemmas.compat_lockLT
+                        Hcmpt _ His_unlocked p b0).
+            Lemma po_None1: forall p, Mem.perm_order'' None p -> p = None.
+            Proof. intros. simpl in H. destruct p; inversion H; reflexivity. Qed.
+            
+            rewrite /PMap.get HH' is_none => /po_None1 //.
+            }
+        * move=> p f1 HH.
+          assert (HH':= HH).
+          eapply bounded_maps.map_leq_apply in HH';
+            try apply bounded_maps.treemap_sub_map.
+          rewrite PTree.gmap in HH.
+          destruct HH'  as [f2 HH'].
+          rewrite HH' in HH; simpl in HH; inversion HH.
+          exists f2; split; auto.
+          move => b0 f1b0.
+          unfold inflated_delta2 in f1b0.
+          destruct (f2 b0) eqn:is_none; auto.
+          cut (perm_of_res (d_phi @ (p, b0)) = None).
+          { rewrite /perm_of_res.
+            destruct (d_phi @ (p, b0)) eqn:DELT;
+              try solve[intros delt; inversion delt].
+            destruct (eq_dec t Share.bot) eqn:DELT';
+              try solve[intros delt; inversion delt].
+            unfold eq_dec in DELT'.
+            rewrite DELT' in f1b0; inversion f1b0.
+            destruct (perm_of_sh_pshare t p0).
+            rewrite H.
+            destruct k; intros NADA; inversion NADA. }
+          { move: (JMS.JuicyMachineLemmas.compat_lockLT
+                        Hcmpt _ His_unlocked p b0).
+            rewrite /PMap.get HH' is_none => /po_None1 //.
+            }
+
           (*eapply bounded_maps.treemap_sub_map.*)
       + assumption.
       + eapply MTCH_getThreadC; eassumption.
@@ -1716,8 +1784,7 @@ Module Parching <: ErasureSig.
                unfold max_access_at, access_at in acc_coh.
                unfold permission_at in the_cure.
                rewrite the_cure in acc_coh.
-               Lemma po_None1: forall p, Mem.perm_order'' None p -> p = None.
-               Proof. intros. simpl in H. destruct p; inversion H; reflexivity. Qed.
+               
                apply po_None1 in acc_coh.
                move Hrem_lock_res at bottom.
                apply join_comm in Hrem_lock_res.
@@ -3476,7 +3543,12 @@ Here be dragons
           pose (virtue:= PTree.set b delta_b empty_delta_map).
           
           pose (pmap_tid  := DTP.getThreadR Htid').
-          pose (pdata:= fun i:nat => perm_of_res (phi' @ (b, Int.intval ofs + Z.of_nat (i)-1))).
+          pose (pdata:= fun i:nat =>
+                          if (i > LKSIZE_nat)%N  then 
+                            None
+                          else
+                            perm_of_res (phi' @ (b, Int.intval ofs + Z.of_nat (i)-1))
+               ).
           pose (pmap_tid' := (setPermBlock_var (*=setPermBlockfunc*)
                                 pdata
                                 b
@@ -3501,6 +3573,20 @@ Here be dragons
                 (Int.intval ofs + Z.of_nat (nat_of_Z (ofs0 - Int.intval ofs + 1)) -1)
               with
               ofs0.
+              assert ((LKSIZE_nat < nat_of_Z (ofs0 - Int.intval ofs + 1) )%N = false).
+              {
+                move: i0. clear.
+                move => [] /= A B.
+                rewrite /LKSIZE_nat /nat_of_Z.
+                apply /ltP => / lt_not_le HH.
+                apply: HH.
+                (* rewrite -Z2Nat.inj_succ .*)
+                eapply Z2Nat.inj_le; eauto.
+                xomega.
+                xomega.
+                xomega.
+              }
+              rewrite H.
               reflexivity.
               rewrite Coqlib.nat_of_Z_eq.
               xomega.
@@ -3768,34 +3854,6 @@ Here be dragons
           - (*The step*)
 
             (*First get the lock rmap*)
-            (*I guess this is not needed anymore??*)
-              (*assert (exists x, JTP.lockRes js (b, Int.intval ofs) = Some x).
-              { destruct (JTP.lockRes js (b, Int.intval ofs)) eqn:is_lock'.
-                - exists l. reflexivity.
-                - destruct Hcmpt as [jall Hcmpt]. inversion Hcmpt.
-                  apply JSEM.compatible_threadRes_sub with (cnt:=Hi) in juice_join.
-                  apply (resource_at_join_sub _ _  (b, Int.intval ofs)) in juice_join.
-                  rewrite Hlock in juice_join.
-                  destruct juice_join as [X thread_sub].
-                  inversion thread_sub. 
-                  + symmetry in H.
-                    specialize (jloc_in_set (b, Int.intval ofs)
-                                            rsh3 pfullshare
-                                            (JSEM.pack_res_inv R)
-                                            LKSIZE).
-                    apply jloc_in_set in H.
-                    unfold JTP.lockRes in is_lock';
-                    rewrite is_lock' in H; inversion H.
-                  + symmetry in H5.
-                    specialize (jloc_in_set (b, Int.intval ofs)
-                                            rsh3 sh3
-                                            (JSEM.pack_res_inv R)
-                                            LKSIZE).
-                    apply jloc_in_set in H5.
-                    unfold JTP.lockRes in is_lock';
-                    rewrite is_lock' in H5; inversion H5.
-              }
-              destruct H as [lrmap is_lock'].*)
             
             destruct (DTP.lockRes ds (b, Int.intval ofs)) eqn:is_lock.
             Focus 2.
@@ -3807,10 +3865,12 @@ Here be dragons
             
             
             econstructor 5. (*The step *)
-            11: reflexivity.
-            11: reflexivity.
-            6: reflexivity.
+            12: reflexivity.
+            12: reflexivity.
+            7: reflexivity.
 
+            + instantiate (1:=pdata) => p.
+              rewrite /pdata => -> //.
             + assumption.
             + eapply MTCH_getThreadC; eassumption.
             + eassumption.

@@ -442,8 +442,12 @@ Module Concur.
              ext_step genv cnt0 Hcompat tp'' m' (mklock (b, Int.intval ofs))
                       
      | step_freelock :
-         forall  (tp' tp'': thread_pool) c b ofs pmap_tid' m1 pdata rmap,
-           let: pmap_tid := getThreadR cnt0 in
+         forall  (tp' tp'': thread_pool) c b ofs pmap_tid' m1 pdata rmap
+           (Hbounded: if isCoarse then
+                        ( bounded_maps.bounded_nat_func' pdata LKSIZE_nat)
+                      else
+                        True ),
+             let: pmap_tid := getThreadR cnt0 in
            forall 
            (Hinv: invariant tp)
            (Hcode: getThreadC cnt0 = Kblocked c)
