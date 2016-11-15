@@ -2096,16 +2096,159 @@ Module MemObsEq.
     erewrite <- perm_obs_strong0 in Hperm; eauto.
   Qed.
 
+  Lemma mapped_dec :
+    forall (f : positive -> option positive) m j
+      (Hdomain_invalid : forall b, ~ (b < m)%positive -> f b = None)
+      (Hdomain_valid : forall b, (b < m)%positive -> exists b', f b = Some b'),
+      (exists i, f i = Some j) \/ ~ exists i, f i = Some j.
+  Proof.
+    intros f m.
+    generalize dependent f.
+    induction m using Pos.peano_ind.
+    - intros.
+      right.
+      intros (i & Hcontra).
+      specialize (Hdomain_invalid i ltac:(zify; omega)).
+      now congruence.
+    - intros.
+      destruct (f m) as [last|] eqn:Hf_last.
+      + destruct (Pos.eq_dec last j); subst.
+        * left; eexists; eauto.
+        * pose (g x := if plt x m then f x else None).
+          specialize (IHm g j).
+          unfold g in IHm.
+          edestruct IHm.
+          intros.
+          destruct (plt b m); simpl; eauto.
+          intros.
+          destruct (plt b m); simpl.
+          eapply Hdomain_valid. zify; omega.
+          exfalso.
+          unfold Plt in n0.
+          now auto.
+          destruct H as [i Hfi].
+          destruct (plt i m); simpl in Hfi; try discriminate.
+          left; eexists; now eauto.
+          right.
+          intros (i & Hcontra).
+          destruct (plt i m).
+          apply H.
+          exists i.
+          destruct (plt i m); simpl; auto.
+          exfalso; auto.
+          unfold Plt in n0.
+          apply Pos.le_nlt in n0.
+          apply Pos.lt_eq_cases in n0.
+          destruct n0 as [Hlt | Heq].
+          specialize (Hdomain_invalid i ltac:(apply Pos.le_nlt; zify; omega)).
+          now congruence.
+          subst.
+          rewrite Hcontra in Hf_last.
+          inv Hf_last; now auto.
+      + exfalso.
+        destruct (Hdomain_valid m ltac:(zify; omega)).
+        congruence.
+  Qed.
+
+  Axiom EM: ClassicalFacts.excluded_middle. 
+  Lemma pigeon_positive:
+    forall (n m: positive) (f: positive -> option positive),
+      (forall i, (i < n)%positive -> 
+            exists j, (j < m)%positive /\ f i = Some j) ->
+      (forall i i' j j', 
+          f i = Some j -> f i' = Some j' ->
+          i<>i' -> j<>j') ->
+      (n <= m)%positive.
+  Proof.
+    induction n using Pos.peano_ind; intros;
+      first by (zify; omega).
+    assert (Hlast: exists last, f n = Some last /\ (last<m)%positive).
+    { destruct (H n) as [last [? ?]]. zify; omega.
+      exists last; auto.
+    }
+    destruct Hlast as [last [Hf_last Hlast_m]].
+    destruct m using Pos.peano_ind.
+    - exfalso;
+        eapply Pos.nlt_1_r;
+        now eauto.
+    - clear IHm.
+      assert (Hmapped: (exists i, f i = Some m) \/ ~ (exists i, f i = Some m))
+        by (apply EM).
+      destruct Hmapped as [Hmapped | Hunmapped].
+      + destruct Hmapped as [i Hf].
+        pose (g x := if Pos.eq_dec x i then Some last else if Pos.eq_dec x n then Some m else f x).
+        specialize (IHn m g).
+        assert ((n <= m)%positive);
+               [ | zify; omega].
+        apply IHn.
+        intros. unfold g.
+        destruct (Pos.eq_dec i0 i); subst; simpl.
+        * exists last; split; eauto.
+          assert (last <> m)
+            by (apply (H0 _ _ _ _ Hf_last Hf);
+                zify; omega).
+          zify; omega.
+          destruct (Pos.eq_dec i0 n); subst; simpl;
+            first by (zify; omega).
+          generalize (H i0); intros.
+          destruct H2 as [j [? ?]]. zify; omega.
+          exists j; split; auto.
+          assert (j <> m); [ | zify; omega].
+          apply (H0 _ _ _ _ H3 Hf); auto.
+          intros.
+          unfold g in H1, H2.
+          destruct (Pos.eq_dec i0 i); subst; simpl in *; inv H1.
+          { destruct (Pos.eq_dec i' i); subst; simpl in *; inv H2.
+            - zify; omega.
+            - destruct (Pos.eq_dec i' n); subst; simpl in *; inv H4.
+              + eapply H0; try eassumption.
+              + eapply H0; try eassumption. zify; omega.
+          }
+          { destruct (Pos.eq_dec i' i); subst; simpl in *; inv H2.
+            - destruct (Pos.eq_dec i0 n); subst; simpl in *; inv H5.
+              + eapply H0; try eauto.
+              + eapply H0; try eassumption.
+            - destruct (Pos.eq_dec i0 n); subst; simpl in *; inv H5.
+              + destruct (Pos.eq_dec i' n); subst; simpl in *; inv H4;
+                eapply H0; eauto.
+              + destruct (Pos.eq_dec i' n); subst; simpl in *; inv H4;
+                  eapply H0; eauto.
+          }
+      + assert (n <= m)%positive; [ | zify; omega].
+        apply (IHn m f).
+        intros.
+        destruct (H i). zify; omega. destruct H2; exists x; split; auto.
+        assert (x<>m). contradict Hunmapped; subst.
+        exists i; subst; auto.
+        zify; omega.
+        intros.
+        apply (H0 _ _ _ _ H1 H2).
+        now auto.
+  Qed.
+  
   (** If a memory [m] injects into a memory [m'] then [m'] is at least
 as big as [m] *)
-
   Lemma weak_mem_obs_eq_nextblock:
     forall f m m'
       (Hobs_eq: weak_mem_obs_eq f m m'),
       (Mem.nextblock m <= Mem.nextblock m')%positive.
   Proof.
-  Admitted.
-  
+    intros.
+    pose proof (domain_valid Hobs_eq).
+    pose proof (codomain_valid Hobs_eq).
+    pose proof (injective Hobs_eq).
+    eapply pigeon_positive with (f := f); eauto.
+    intros.
+    destruct (H _ H2).
+    specialize (H0 _ _ H3).
+    unfold Mem.valid_block, Plt in *.
+    eexists; split;
+      now eauto.
+    intros.
+    intro Hcontra. subst.
+    now eauto.
+  Qed.
+    
   Lemma mf_align :
     forall (m : mem) (f : memren) (b1 b2 : block) (delta : Z) (chunk : memory_chunk)
       (ofs : Z) (p : permission),

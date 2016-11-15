@@ -26,6 +26,18 @@ Require Import compcert.common.Memory. (*for Mem.perm_order'' *)
 Definition map_leq {A B} (m1: PTree.t A)(m2: PTree.t B): Prop :=
   forall p, m1 ! p -> m2 ! p.
 
+Lemma map_leq_apply:
+  forall {A B} (m1: PTree.t A)(m2: PTree.t B) p f1,
+    map_leq m1 m2 ->
+    m1 ! p = Some f1 -> exists f2, m2 ! p = Some f2. 
+Proof.
+  move => A B m1 m2 p f1.
+  rewrite /map_leq => /(_ p) Mle AA.
+  rewrite AA in Mle. specialize (Mle ltac:(auto)).
+  destruct (m2 ! p) as [f2|]; try solve[inversion Mle].
+  exists f2; auto.
+Qed.
+  
 Lemma treemap_sub_map: forall {A B} (f: positive -> B -> A) m2,
     map_leq (PTree.map f m2) m2.
 Proof.
@@ -40,6 +52,13 @@ Definition map_empty_def {A} (m1: PMap.t (Z -> option A)):=
 Definition fun_leq {A B} (f1: Z -> option A) (f2: Z -> option B): Prop :=
   forall p, f1 p -> f2 p.
 
+Definition bounded_nat_func' {A} (f: nat -> option A) hi: Prop :=
+  (forall p, (p > hi )%nat -> f p = None).
+
+Definition bounded_func' {A} (f: Z -> option A) hi lo: Prop :=
+  (forall p, (p > hi )%Z -> f p = None) /\
+  (forall p, (p < lo)%Z -> f p = None).
+
 Definition bounded_func {A} (f: Z -> option A): Prop :=
   exists hi lo,
   (forall p, (p > hi )%Z -> f p = None) /\
@@ -52,7 +71,19 @@ Definition sub_map {A B} (m1: PTree.t (Z -> option A))(m2: PTree.t (Z -> option 
   forall p f1, m1 ! p = Some f1 ->
        exists f2, m2 ! p = Some f2 /\ fun_leq f1 f2.
 
-
+ Lemma finite_bounded_nat_func:
+          forall A hi ,
+            konig.finite
+              ( fun f:nat -> option A => bounded_nat_func' f hi).
+ Admitted.
+ 
+(*Nobody is using this righ now*)
+Lemma finite_bounded_func:
+  forall A hi lo ,
+    konig.finite
+      ( fun f:Z -> option A => bounded_func' f hi lo).
+Admitted.
+    
 Lemma finite_sub_maps:
   forall A B m2,
     @bounded_map B m2 ->
