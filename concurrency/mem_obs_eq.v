@@ -2150,6 +2150,7 @@ Module MemObsEq.
         congruence.
   Qed.
 
+  Axiom EM: ClassicalFacts.excluded_middle. 
   Lemma pigeon_positive:
     forall (n m: positive) (f: positive -> option positive),
       (forall i, (i < n)%positive -> 
@@ -2171,8 +2172,8 @@ Module MemObsEq.
         eapply Pos.nlt_1_r;
         now eauto.
     - clear IHm.
-      assert (Hmapped: (exists i, f i = Some m) \/ ~ exists i, f i = Some m)
-        by  admit.
+      assert (Hmapped: (exists i, f i = Some m) \/ ~ (exists i, f i = Some m))
+        by (apply EM).
       destruct Hmapped as [Hmapped | Hunmapped].
       + destruct Hmapped as [i Hf].
         pose (g x := if Pos.eq_dec x i then Some last else if Pos.eq_dec x n then Some m else f x).
@@ -2223,7 +2224,7 @@ Module MemObsEq.
         intros.
         apply (H0 _ _ _ _ H1 H2).
         now auto.
-  Admitted.
+  Qed.
   
   (** If a memory [m] injects into a memory [m'] then [m'] is at least
 as big as [m] *)
