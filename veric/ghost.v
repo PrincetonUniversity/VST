@@ -37,25 +37,19 @@ hnf in H0,H1.
 apply (resource_at_join _ _ _ loc) in H.
 rewrite H0 in H; rewrite H1 in H.
 simpl in H.
-rewrite H3 in H. rewrite H4 in H.
-assert (SomeP (A :: nil)
-            (approx (S n) oo (fun y : A * unit => (!!(fst y = x1))%pred)) =
-           SomeP (A :: nil)
-            (approx (S n) oo (fun y : A * unit => (!!(fst y = x2))%pred))).
+(*rewrite H3 in H. rewrite H4 in H. *)
+assert (SomeP (ConstType (A -> Prop))
+            (fun (_ : list Type) (y : A) => y = x1) =
+          SomeP (ConstType (A -> Prop))
+            (fun (_ : list Type) (y : A) => y = x2))%pred.
 clear - H.
 match goal with |- ?B = ?C => forget B as b; forget C as c end.
 inversion H; auto.
 clear H.
 apply SomeP_inj in H2.
-assert ((approx (S n) oo (fun y : A * unit => (!!(fst y = x1))%pred)) (x1,tt) w' =
-     (approx (S n) oo (fun y : A * unit => (!!(fst y = x2))%pred)) (x1,tt) w').
-rewrite H2; auto.
-clear H2.
-unfold approx, compose in H.
-inv H.
-assert  ((level w' < S n)%nat /\ x1 = x1) by (split; auto).
-rewrite H5 in H.
-destruct H; auto.
+pose proof (@equal_f A Prop _ _ (@equal_f (list Type) (A->Prop) _ _ H2 nil) x1).
+simpl in H.
+rewrite <- H; auto.
 Qed.
 
 Lemma ghostp_unique_andp:
@@ -79,35 +73,31 @@ apply laterR_level in H2.
 destruct (level w). inv H2.
 hnf.
 rename H2 into Hw'.
-assert (SomeP (A :: nil)
-            (approx (S n) oo (fun y : A * unit => (!!(fst y = x1))%pred)) =
-           SomeP (A :: nil)
-            (approx (S n) oo (fun y : A * unit => (!!(fst y = x2))%pred))).
+assert (SomeP (ConstType (A -> Prop))
+            (fun (_ : list Type) (y : A) => y = x1) =
+          SomeP (ConstType (A -> Prop))
+            (fun (_ : list Type) (y : A) => y = x2))%pred.
 clear - H1.
 match goal with |- ?B = ?C => forget B as b; forget C as c end.
 inversion H1; auto.
-clear H1.
+clear - H.
 apply SomeP_inj in H.
-assert ((approx (S n) oo (fun y : A * unit => (!!(fst y = x1))%pred)) (x1,tt) w' =
-     (approx (S n) oo (fun y : A * unit => (!!(fst y = x2))%pred)) (x1,tt) w').
-rewrite H; auto.
-clear H.
-unfold approx, compose in H1.
-inv H1.
-assert  ((level w' < S n)%nat /\ x1 = x1) by (split; auto).
-rewrite H2 in H.
-destruct H; auto.
+pose proof (@equal_f A Prop _ _ (@equal_f (list Type) (A->Prop) _ _ H nil) x1).
+rewrite <- H0; auto.
 Qed.
+
 
 Definition make_GHOSTspec:
   forall A (rsh : share) (sh: pshare) loc (x: A) (lev: nat),
    exists m: rmap, GHOSTspec A x rsh (pshare_sh sh) loc m /\ level m =  lev.
 Proof.
  intros.
+unfold GHOSTspec.
  assert (AV.valid (res_option oo 
   (fun l => if eq_dec l loc 
    then YES rsh sh  (FUN(nil,Tvoid) cc_default)
-             (SomeP (A::nil) (approx lev oo (fun y: (A*unit) => prop(fst y = x))))
+             (SomeP (ConstType (A -> Prop)) 
+                  (fun _ y => (y = x)))
    else NO Share.bot))).
  intros b ofs.
  unfold res_option, compose.
@@ -116,11 +106,6 @@ Proof.
  extensionality l.
  unfold compose, resource_fmap; simpl.
  if_tac; auto.
- simpl.
- f_equal. f_equal.
- extensionality a. unfold compose.
- change ((approx lev oo approx lev) (prop (fst a = x)) = approx lev (prop (fst a = x))).
- rewrite approx_oo_approx; auto.
  exists phi.
  split; auto.
  hnf.
@@ -132,10 +117,9 @@ Proof.
  exists (pshare_nonunit sh).
  hnf.
  rewrite H1. rewrite if_true. f_equal.
- destruct sh; simpl. apply exist_ext. auto.
- simpl. f_equal.
- rewrite H0; auto. auto.
- do 3 red; rewrite H1.
+ destruct sh; simpl. apply exist_ext.
+ auto. auto.
+ do 3 red. rewrite H1.
  rewrite if_false by auto.
  apply NO_identity.
 Qed.
