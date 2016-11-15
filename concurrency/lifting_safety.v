@@ -155,7 +155,7 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
        (exists cd : core_data,
            @Machine.DryConc.explicit_safety_stutter core_data core_ord ge cd U st m) ->
        Machine.DryConc.explicit_safety ge U st m.
-      Proof. Admitted.*)
+      Proof. A dmitted.*)
         
       
       Lemma safety_preservation'': forall main p U Sg Tg tr Sds Sm Tds Tm cd
@@ -245,10 +245,33 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
         - unfold machine_semantics_lemmas.thread_step_plus in step_plus.
           destruct step_plus as [n step_plus].
           apply (coinductive_safety.internal_safetyN_stut) with (cd':= cd')(y':=(st2',m2'))(n:=n).
-          + admit. (* Equate the two different stepN... or redefine one... *)
+          +
+            Lemma thread_stepN_stepN:
+              forall Tg n sch Tds Tm st2' m2' U p,
+               machine_semantics_lemmas.thread_stepN
+                (Machine.DryConc.new_MachineSemantics U p) Tg n sch Tds
+                Tm st2' m2' ->
+                coinductive_safety.stepN
+                  SC.Sch (Machine.DryMachine.ThreadPool.t * mem)
+                  (fun (U0 : SC.Sch) (stm stm' : Machine.DryMachine.ThreadPool.t * mem)
+                   =>
+                     @Machine.DryConc.internal_step Tg U0 (fst stm) (snd stm) 
+                                                   (fst stm') (snd stm'))
+                  sch (Tds, Tm) (st2', m2') n.
+            Proof.
+              move=> Tg n.
+              induction n; simpl.
+              - move=>  sch Tds Tm st2' m2' U p HH; inversion HH; subst.
+                constructor 1; auto.
+              - move=>  sch Tds Tm st2' m2' U p [] c2 [] m2 [] step PAST. 
+                econstructor 2; eauto.
+                simpl. auto.
+            Qed.
+            
+            eapply thread_stepN_stepN; eauto.
           + simpl. intros.
             eapply CIH with (Sds:=fst y') (Sm:=snd y'); eauto.
-(*            * admit. (* By steping! *) *)
+(*            * a dmit. (* By steping! *) *)
 (*            * destruct H3; auto. (* By steping! *)*)
             * intros. destruct y' as [a b]; eapply H2.
               auto.
@@ -261,18 +284,16 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
             inversion stepN; subst.
             apply coinductive_safety.stutter with (cd':=cd'); auto.
             apply CIH with (tr:=tr)(Sds:= (fst y') )(Sm:=(snd y')).
-(*            * admit. (*by stepping*) *)
+(*            * a dmit. (*by stepping*) *)
 (*            * auto. *)
             * exists mu'; eassumption.
             * destruct y' as [a b]; apply H2; auto.
             * assumption.
           + (*Fake stutter case*)
             apply (coinductive_safety.internal_safetyN_stut) with (cd':= cd')(y':=(st2',m2'))(n:=n).
-            * admit. (* Equate the two different stepN... or redefine one... *)
+            * eapply thread_stepN_stepN; eauto.
             *  {simpl. intros.
                 eapply CIH with (Sds:=fst y') (Sm:=snd y'). Guarded.
-(*                - admit. (*by stepping*)*)
-(*                - destruct H3; assumption.*)
                 - exists mu'; assumption.
                 - destruct y' as [a b]; eapply H2.
                - assumption.
@@ -290,13 +311,14 @@ Module lifting_safety (SEMT: Semantics) (Machine: MachinesSig with Module SEM :=
           apply coinductive_safety.external_safetyN_stut with (cd':=cd')(x':=x')(y':= (st2', m2')).
           * apply step.
           * intros; eapply CIH with (tr:=tr)(Sds:= (fst y') )(Sm:=(snd y')).
-(*            -- admit. (*by stepping *)  *)
-(*            -- destruct H3; assumption.   *)
             -- exists mu'; exact MATCH'.
             -- destruct y' as [a b]; eapply H2.
             -- assumption.
-  Guarded.
-  Admitted.
+               Guarded.
+
+               Unshelve.
+               auto.
+  Qed.
            
   Lemma safety_preservation': forall main p U Sg Tg tr Sds Sm Tds Tm
                                 (MATCH: exists cd j, (match_st Tg Sg main p U) cd j Sds Sm Tds Tm),
