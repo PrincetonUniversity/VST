@@ -231,6 +231,33 @@ Proof.
       eauto.
 Qed.
 
+Lemma AMap_find_remove {A} (m : AMap.t A) x x' :
+  AMap.find x' (AMap.remove x m) =
+  if eq_dec x x' then None else AMap.find x' m.
+Proof.
+  pose proof AMap.add_1.
+  pose proof AMap.add_2.
+  pose proof AMap.add_3.
+  pose proof AMap.find_1.
+  pose proof AMap.find_2.
+  pose proof AMap.remove_1.
+  pose proof AMap.remove_2.
+  pose proof AMap.remove_3.
+  assert (SN : forall A, forall o : option A, (forall x, o <> Some x) <-> o = None).
+  { intros ? []; split; congruence. }
+  
+  destruct (eq_dec x x') as [d|d].
+  - destruct (AMap.find _ _) as [o|] eqn:Eo; auto; exfalso.
+    apply AMap.find_2 in Eo.
+    eapply H4; eauto.
+    exists o. apply Eo.
+  - destruct (AMap.find (elt:=A) x' m) eqn:E.
+    + eauto.
+    + rewrite <-SN in E |- *.
+      intros y' Ey'; eapply E.
+      eauto.
+Qed.
+
 Lemma AMap_Raw_map_app {A} (f : A -> A) l1 l2 :
   AMap.Raw.map (option_map f) (app l1 l2) =
   app (AMap.Raw.map (option_map f) l1)

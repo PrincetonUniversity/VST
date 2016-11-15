@@ -331,7 +331,7 @@ Proof.
            eapply (cont_coh (all_cohere compat)); eauto.
       
       * (* max_access_cohere' *)
-        pose proof        max_coh ( all_cohere compat) as M.
+        pose proof max_coh (all_cohere compat) as M.
         intros loc; spec M loc.
         rewrite perm_of_res'_age_to.
         clear Post.
@@ -566,6 +566,8 @@ Proof.
       
       * (* LK_at *)
         subst loc.
+        split. apply AT.
+        split. apply AT.
         exists (Interp Rx).
         intros loc r.
         destruct Hrmap' as (_ & _ & inside). spec inside loc r.
@@ -700,7 +702,10 @@ Proof.
            ++ reflexivity.
         
         -- (* lkat *)
-           destruct coh as (R & lk & sat). exists R. split.
+           destruct coh as (align & bound & R & lk & sat).
+           split; auto.
+           split; auto.
+           exists R. split.
            ++ apply age_to_ind. now apply lkat_hered.
               destruct Hrmap' as (LPhi & outside & inside).
               intros x rx. spec lk x rx.
@@ -718,7 +723,7 @@ Proof.
               apply age_by_ind. destruct R as [x h]. apply h. apply sat.
         
         -- (* lkat *)
-           destruct coh as (R & lk). exists R.
+           destruct coh as (align & bound & R & lk). repeat (split; auto). exists R.
            apply age_to_ind. now apply lkat_hered.
            destruct Hrmap' as (LPhi & outside & inside).
            intros x r. spec lk x r.

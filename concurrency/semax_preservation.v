@@ -113,7 +113,10 @@ Proof.
 Qed.
 
 Lemma cl_step_mem_step ge c m c' m' : cl_step ge c m c' m' -> mem_step m m'.
-Admitted.
+Proof.
+  intros H.
+  eapply (corestep_mem CLN_memsem), H.
+Qed.
 
 Lemma mem_step_contents_at_None m m' loc :
   Mem.valid_block m (fst loc) ->
@@ -515,7 +518,8 @@ Proof.
     cbv iota beta.
   all:try solve [intuition].
   destruct C as [B C]; split; auto. clear B.
-  destruct C as ((* sh &  *)R & lk & sat).
+  destruct C as ((* sh &  *)align & bound & R & lk & sat).
+  repeat (split; auto).
   exists (* sh, *) R; split. eauto.
   destruct sat as [sat|?]; auto. left.
   unfold age_to.
@@ -558,8 +562,8 @@ Proof.
   destruct D as [D|D]; auto. exfalso.
   assert (AT : exists (R : pred rmap), (lkat R loc) Phi). {
     destruct o.
-    - destruct coh as [LOAD ((* sh' &  *)R' & lk & sat)]; eauto.
-    - destruct coh as [LOAD ((* sh' &  *)R' & lk)]; eauto.
+    - destruct coh as [LOAD ((* sh' &  *)align & bound & R' & lk & sat)]; eauto.
+    - destruct coh as [LOAD ((* sh' &  *)align & bound & R' & lk)]; eauto.
   }
   clear coh.
   destruct AT as (R & AT).

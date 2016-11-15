@@ -354,7 +354,7 @@ Qed.
           reflexivity.
         
         - (* Some None: lock is locked, so [acquire] fails. *)
-          destruct lock_coh' as [LOAD ((* sh' & *) R' & lk)].
+          destruct lock_coh' as [LOAD ((* sh' & *) align & bound & R' & lk)].
           destruct isl as [sh [psh [z Ewetv]]].
           rewrite Ewetv in *.
           
@@ -543,7 +543,7 @@ Qed.
         
         - (* acquire succeeds *)
           destruct isl as [sh [psh [z Ewetv]]].
-          destruct lock_coh' as [LOAD ((* sh' &  *)R' & lk & sat)].
+          destruct lock_coh' as [LOAD ((* sh' &  *)align & bound & R' & lk & sat)].
           rewrite Ewetv in *.
           
           unfold lock_inv in PREC.
@@ -697,7 +697,7 @@ Qed.
           reflexivity.
         
         - (* Some None: lock is locked, so [release] should succeed. *)
-          destruct lock_coh' as [LOAD ((* sh' &  *)R' & lk)].
+          destruct lock_coh' as [LOAD ((* sh' &  *)align & bound & R' & lk)].
           destruct isl as [sh [psh [z Ewetv]]].
           rewrite Ewetv in *.
           
@@ -813,7 +813,7 @@ Qed.
           + admit (* MISMATCH IN LOCK PERMISSIONS *).
         
         - (* Some Some: lock is unlocked, this should be impossible *)
-          destruct lock_coh' as [LOAD (R' & lk & sat)].
+          destruct lock_coh' as [LOAD (align & bound & R' & lk & sat)].
           destruct sat as [sat | ?]; [ | congruence ].
           destruct isl as [sh [psh [z Ewetv]]].
           rewrite Ewetv in *.
