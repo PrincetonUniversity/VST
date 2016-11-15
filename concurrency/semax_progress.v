@@ -420,17 +420,7 @@ Qed.
               repeat f_equal; congruence.
             }
 
-
-(* Lemma load_at_load *)
 Import Mem.
-Lemma A2PMap_found tp b ofs ofs' o :
-  AMap.find (elt:=option rmap) (b, ofs) (lset tp) = Some o ->
-  (ofs <= ofs' < ofs + 4)%Z ->
-  (A2PMap (lset tp)) !! b ofs' = Some Writable.
-Proof.
-  intros found.
-Admitted.
-
 
 Lemma load_at_phi_restrict i tp (cnti : containsThread tp i) m
       (compat : mem_compatible tp m) b ofs v sh sh' R phi0 o :
