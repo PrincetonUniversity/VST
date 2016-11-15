@@ -2377,13 +2377,91 @@ Module Parching <: ErasureSig.
           (* eapply bounded_maps.treemap_sub_map. *)
       + (*boundedness 2*)
         repeat split.
-        * simpl.
-          admit.
-          (* rewrite /JSEM.juice2Perm /JSEM.mapmap /=.
-          eapply bounded_maps.treemap_sub_map. *)
-        * admit.
-          (* rewrite /JSEM.juice2Perm_locks /JSEM.mapmap /=.
-          eapply bounded_maps.treemap_sub_map. *)
+        * move=> p f1 HH.
+          assert (HH':= HH).
+          eapply bounded_maps.map_leq_apply in HH';
+            try apply bounded_maps.treemap_sub_map.
+          rewrite PTree.gmap in HH.
+          destruct HH'  as [f2 HH'].
+          rewrite HH' in HH; simpl in HH; inversion HH.
+          exists f2; split; auto.
+          move => b0 f1b0.
+          destruct (f2 b0) eqn:is_none; auto.
+          cut (perm_of_res (d_phi @ (p, b0)) = None).
+          { intros HHH; rewrite HHH in f1b0.
+            inversion f1b0.  }
+          {
+            apply join_join_sub in Hrem_lock_res.
+            apply resource_at_join_sub with (l:=(p,b0)) in Hrem_lock_res.
+            apply juicy_mem_lemmas.po_join_sub in Hrem_lock_res.
+            eapply juicy_mem_lemmas.perm_order''_trans in Hrem_lock_res;
+              [|eapply perm_of_res_op1].
+
+            cut ((perm_of_res'
+                    (JSEM.ThreadPool.getThreadR Hi @ (p, b0))) = None).
+            intros to_rewrite;
+              eapply po_None1; rewrite -to_rewrite; eauto.
+
+            move: (JMS.mem_compat_thread_max_cohere
+                        Hcmpt Hi (p, b0)).
+            destruct m; simpl in *.
+            rewrite  /max_access_at
+                    /access_at
+                    /PMap.get /=.
+            
+            move : HH'.
+            
+            rewrite /getMaxPerm PTree.gmap1; simpl.
+            destruct ((mem_access.2) ! p) eqn:AA;
+              try solve [simpl; intros FALSE; inversion FALSE].
+            simpl; intros TT; inversion TT.
+            rewrite -H1 in is_none.
+            rewrite is_none => /po_None1.
+            auto.
+            }
+          (* eapply bounded_maps.treemap_sub_map. *)
+        * move=> p f1 HH.
+          assert (HH':= HH).
+          eapply bounded_maps.map_leq_apply in HH';
+            try apply bounded_maps.treemap_sub_map.
+          rewrite PTree.gmap in HH.
+          destruct HH'  as [f2 HH'].
+          rewrite HH' in HH; simpl in HH; inversion HH.
+          exists f2; split; auto.
+          move => b0 f1b0.
+          destruct (f2 b0) eqn:is_none; auto.
+          cut (perm_of_res_lock (d_phi @ (p, b0)) = None).
+          { intros HHH; rewrite HHH in f1b0.
+            inversion f1b0.  }
+          {
+            apply join_join_sub in Hrem_lock_res.
+            apply resource_at_join_sub with (l:=(p,b0)) in Hrem_lock_res.
+            apply po_join_sub_lock in Hrem_lock_res.
+            eapply juicy_mem_lemmas.perm_order''_trans in Hrem_lock_res;
+              [|eapply perm_of_res_op2].
+
+            cut ((perm_of_res'
+                    (JSEM.ThreadPool.getThreadR Hi @ (p, b0))) = None).
+            intros to_rewrite;
+              eapply po_None1; rewrite -to_rewrite; eauto.
+
+            move: (JMS.mem_compat_thread_max_cohere
+                        Hcmpt Hi (p, b0)).
+            destruct m; simpl in *.
+            rewrite  /max_access_at
+                    /access_at
+                    /PMap.get /=.
+            
+            move : HH'.
+            
+            rewrite /getMaxPerm PTree.gmap1; simpl.
+            destruct ((mem_access.2) ! p) eqn:AA;
+              try solve [simpl; intros FALSE; inversion FALSE].
+            simpl; intros TT; inversion TT.
+            rewrite -H1 in is_none.
+            rewrite is_none => /po_None1.
+            auto.
+            }
       + assumption.
       + eapply MTCH_getThreadC; eassumption.
       + eassumption.
