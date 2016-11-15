@@ -843,27 +843,7 @@ Proof.
     (forward; repeat rewrite zlist_hint_db.Znth_map_Vint by (rewrite Zlength_map; omega));
     [ solve [ entailer! ] | idtac ]
   ).
-  GET_UINT32_LE_tac. forward. forward. forward.
-
-simpl.
-
-freeze [1; 2; 3] Fr.
-
-forward.
-- entailer!.
-- instantiate (4 := 1%nat). simpl. unfold data_at. instantiate (2 := []). reflexivity.
-- assumption.
-- rewrite app_nil_l, app_nil_r. reflexivity.
-- eapply JMeq_refl.
-- entailer!.
-- rewrite app_nil_l. solve_legal_nested_field_in_entailment.
-- reflexivity.
-- reflexivity.
-- {
-
-thaw Fr.
-forward.
-simpl; repeat rewrite eq_rect_r_eq.
+  GET_UINT32_LE_tac. forward. forward. forward. simpl. forward. forward.
 
 assert_PROP (isptr ctx) as PNctx by entailer!.
 assert_PROP (isptr (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx)). {
@@ -875,116 +855,64 @@ assert_PROP (isptr (field_address t_struct_aesctx [ArraySubsc 0; StructField _bu
 
 simpl.
 
-forward.
-- assert ((force_val
+assert ((force_val
           (sem_add_pi tuint (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx)
              (Vint (Int.repr 1)))
-  = (field_address t_struct_aesctx [ArraySubsc 1; StructField _buf] ctx))) as Eq by admit.
-  rewrite Eq.
-  entailer!.
-- instantiate (4 := 3%nat). simpl. unfold data_at. instantiate (2 := []). reflexivity.
-- assumption.
-- rewrite app_nil_l, app_nil_r. reflexivity.
-- eapply JMeq_refl.
-- entailer!.
-- rewrite app_nil_l. solve_legal_nested_field_in_entailment.
-- reflexivity.
-- reflexivity.
-- {
+  = (field_address t_struct_aesctx ([] ++ [ArraySubsc 1; StructField _buf]) ctx))) as Eq by admit.
+forward. { entailer. }
 
 forward.
-simpl; repeat rewrite eq_rect_r_eq.
 
-  GET_UINT32_LE_tac. forward. forward. forward. { entailer!. admit. (* isptr *) }
+assert_PROP (isptr (field_address t_struct_aesctx [ArraySubsc 1; StructField _buf] ctx)). {
+  destruct ctx; inversion PNctx. entailer!.
+  auto with field_compatible. (* TODO floyd why is this not integrated in entailer!? *)
+}
 
-(* TODO put this in floyd/freezer.v *)
-Ltac freeze_except' R Rs i acc name := match Rs with
-| nil => let l := fresh "l" in pose (l := rev acc); simpl in l; freeze l name
-| R :: ?Rt => freeze_except' R Rt (i+1) acc name
-| ?Rh :: ?Rt => freeze_except' R Rt (i+1) (i :: acc) name
-end.
+  GET_UINT32_LE_tac. forward. forward. 
+assert_PROP ((force_val
+               (sem_add_pi tuint
+                  (force_val
+                     (sem_add_pi tuint
+                        (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx)
+                        (Vint (Int.repr 1)))) (Vint (Int.repr 1)))) = 
+(field_address t_struct_aesctx [ArraySubsc 2; StructField _buf] ctx)) as Eq0. {
+  go_lower; saturate_local. apply prop_right.
+  rewrite sem_add_pi_ptr. rewrite sem_add_pi_ptr.
+  rewrite field_compatible_field_address.
+  rewrite field_compatible_field_address.
+  destruct ctx; inversion PNctx. simpl.
+  repeat rewrite Int.add_assoc. reflexivity.
+  auto with field_compatible.
+  auto with field_compatible.
+  auto.
+  rewrite Eq. simpl.
+  auto with field_compatible.
+}
+rewrite Eq0. clear Eq0.
 
-Ltac freeze_except R name := match goal with
-| |- semax _ (PROPx _ (LOCALx _ (SEPx ?Rs))) _ _ =>
-       freeze_except' R Rs 0 (@nil Z) name
-end.
+forward. (* no entailer needed here because we made t'3 nice looking before *) 
 
-freeze_except (data_at ctx_sh t_struct_aesctx
-     (Vint (Int.repr Nr),
-     (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx,
-     Vint (Int.repr k1)
-     :: Vint (Int.repr k2)
-        :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ Vundefs))
-     ctx) Fr.
-
-repeat rewrite field_compatible_field_address by assumption. simpl.
-repeat rewrite Int.add_assoc.
 simpl.
-simpl_Int.
 
-clear Eq.
-assert (Eq: (Vptr b (Int.add octx (Int.repr 12)))
-    = (field_address t_struct_aesctx [ArraySubsc 1; StructField _buf] ctx)). {
-  rewrite field_compatible_field_address by auto with field_compatible.
-  reflexivity.
-}
-rewrite Eq in *. clear Eq.
+   forward.
 
-forward'.
+assert ((force_val
+        (sem_add_pi tuint (field_address t_struct_aesctx [ArraySubsc 2; StructField _buf] ctx)
+           (Vint (Int.repr 1))))
+= field_address t_struct_aesctx [ArraySubsc 3; StructField _buf] ctx) as Eq0 by admit.
+rewrite Eq0. clear Eq0.
 
-thaw Fr.
-freeze_except (data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input) Fr.
-  unfold MORE_COMMANDS. unfold abbreviate.
 forward.
-  GET_UINT32_LE_tac. forward. forward. forward.
 
-thaw Fr.
-freeze_except (data_at ctx_sh t_struct_aesctx
-     (Vint (Int.repr Nr),
-     (Vptr b (Int.add octx (Int.repr 8)),
-     Vint (Int.repr k1)
-     :: Vint (Int.repr k2)
-        :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ Vundefs))
-     ctx) Fr.
-simpl_Int.
-repeat rewrite Int.add_assoc.
-simpl_Int.
+  GET_UINT32_LE_tac. forward. forward. simpl. forward.
 
-assert (Eq: (Vptr b (Int.add octx (Int.repr 16)))
-    = (field_address t_struct_aesctx [ArraySubsc 2; StructField _buf] ctx)). {
-  rewrite field_compatible_field_address by auto with field_compatible.
-  reflexivity.
-}
-rewrite Eq in *. clear Eq.
+assert ((force_val
+        (sem_add_pi tuint (field_address t_struct_aesctx [ArraySubsc 3; StructField _buf] ctx)
+           (Vint (Int.repr 1))))
+= field_address t_struct_aesctx [ArraySubsc 4; StructField _buf] ctx) as Eq0 by admit.
+rewrite Eq0. clear Eq0.
 
-forward'.
-
-thaw Fr.
-freeze_except (data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input) Fr.
-  unfold MORE_COMMANDS. unfold abbreviate.
 forward.
-  GET_UINT32_LE_tac. forward. forward. forward.
-
-thaw Fr.
-freeze_except (data_at ctx_sh t_struct_aesctx
-     (Vint (Int.repr Nr),
-     (Vptr b (Int.add octx (Int.repr 8)),
-     Vint (Int.repr k1)
-     :: Vint (Int.repr k2)
-        :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ Vundefs))
-     ctx) Fr.
-simpl_Int.
-repeat rewrite Int.add_assoc.
-simpl_Int.
-
-assert (Eq: (Vptr b (Int.add octx (Int.repr 20)))
-    = (field_address t_struct_aesctx [ArraySubsc 3; StructField _buf] ctx)). {
-  rewrite field_compatible_field_address by auto with field_compatible.
-  reflexivity.
-}
-rewrite Eq in *. clear Eq.
-
-forward'.
 
 forward.
 
@@ -1012,17 +940,16 @@ unfold Sfor.
 forward. forward.
 eapply semax_seq'.
 {
-
-thaw Fr.
-
+ 
 (* ugly hack to avoid type mismatch between
    "(val * (val * list val))%type" and "reptype t_struct_aesctx" *)
 assert (exists (v: reptype t_struct_aesctx), v =
        (Vint (Int.repr Nr),
-     (Vptr b (Int.add octx (Int.repr 8)),
-     Vint (Int.repr k1)
-     :: Vint (Int.repr k2)
-        :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ Vundefs)))
+          (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx,
+          Vint (Int.repr k1)
+          :: Vint (Int.repr k2)
+             :: Vint (Int.repr k3)
+                :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ Vundefs)))
 as EE by (eexists; reflexivity).
 
 destruct EE as [vv EE].
@@ -1030,7 +957,7 @@ destruct EE as [vv EE].
 apply semax_pre with (P' := 
   (EX i: Z,   PROP ( ) LOCAL (
      temp _i (Vint (Int.repr i));
-     temp _RK (Vptr b (Int.add octx (Int.repr 24)));
+     temp _RK (field_address t_struct_aesctx [ArraySubsc 4; StructField _buf] ctx);
      temp _X3 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 12) (Int.repr k4)));
      temp _X2 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 8) (Int.repr k3)));
      temp _X1 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 4) (Int.repr k2)));
@@ -1049,7 +976,7 @@ apply semax_pre with (P' :=
 { apply semax_loop with (
   (EX i: Z,   PROP ( ) LOCAL ( 
      temp _i (Vint (Int.repr i));
-     temp _RK (Vptr b (Int.add octx (Int.repr 24)));
+     temp _RK (field_address t_struct_aesctx [ArraySubsc 4; StructField _buf] ctx);
      temp _X3 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 12) (Int.repr k4)));
      temp _X2 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 8) (Int.repr k3)));
      temp _X1 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 4) (Int.repr k2)));
@@ -1069,7 +996,7 @@ Intro i.
 
 forward_if (PROP ( ) LOCAL (
      temp _i (Vint (Int.repr i));
-     temp _RK (Vptr b (Int.add octx (Int.repr 24)));
+     temp _RK (field_address t_struct_aesctx [ArraySubsc 4; StructField _buf] ctx);
      temp _X3 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 12) (Int.repr k4)));
      temp _X2 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 8) (Int.repr k3)));
      temp _X1 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 4) (Int.repr k2)));
@@ -1087,39 +1014,24 @@ forward_if (PROP ( ) LOCAL (
 { (* then-branch: Sskip to body *)
   forward. entailer!.
  }
-{ (* else-branch: exit loop *)
-  forward. entailer!.
+{
+ (* else-branch: exit loop *)
+  forward. admit. (* TODO spurious ?P' *)
  }
 { (* rest: loop body *)
   forward. forward.
   (* now we need the SEP clause about ctx: *) subst vv.
 
-freeze_except (data_at ctx_sh t_struct_aesctx
-     (Vint (Int.repr Nr),
-     (Vptr b (Int.add octx (Int.repr 8)),
-     Vint (Int.repr k1)
-     :: Vint (Int.repr k2)
-        :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ Vundefs))
-     ctx) Fr.
-
-assert (Eq: (Vptr b (Int.add octx (Int.repr 24)))
-    = (field_address t_struct_aesctx [ArraySubsc 4; StructField _buf] ctx)). {
-  rewrite field_compatible_field_address by auto with field_compatible.
-  reflexivity.
-}
-rewrite Eq in *. clear Eq.
-
-forward'.
+forward.
 
 {
+entailer!.
 (* TODO simplify this earlier! *)
 admit. (* TODO is_int *)
 }
 
 (* next command in loop body: *)
 (*     uint32_t b0 = tables.FT0[ ( Y0       ) & 0xFF ];    *)
-thaw Fr.
-freeze [0; 2] Fr.
 unfold tables_initialized.
 forward.
 { (* TODO floyd: entailer! says 

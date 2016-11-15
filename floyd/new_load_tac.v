@@ -278,10 +278,12 @@ Ltac load_tac ::=
     let sh := fresh "sh" in evar (sh: share);
     let t_root := fresh "t_root" in evar (t_root: type);
     let gfs0 := fresh "gfs" in evar (gfs0: list gfield);
+    let gfsA := fresh "gfsA" in pose (gfsA := @nil gfield);
     let v := fresh "v" in evar (v: reptype (nested_field_type t_root gfs0));
     let n := fresh "n" in
     let H := fresh "H" in
-    sc_new_instantiate P Q R R Delta e1 gfs tts lr p sh t_root gfs0 v n (0%nat) H;
+    (* new way of invoking sc_new_instantiate even though we're still in old code here!! *)
+    sc_new_instantiate P Q R R Delta e1 gfsA gfs tts lr p sh t_root gfs0 v n (0%nat) H;
     
     let gfs1 := fresh "gfs" in
     let len := fresh "len" in
@@ -366,7 +368,9 @@ Ltac load_tac ::=
 
     tryif (
       tryif (
-        assert g as HNice by (subst p gfsA gfsB a t_root; try apply prop_right; eassumption)
+        assert g as HNice by (
+          subst p gfsA gfsB a t_root; (eassumption || (apply prop_right; (eassumption || reflexivity)))
+        )
       ) then (
         (* expected to succeed always: *)
         sc_new_instantiate P Q R R Delta e1 gfsA gfsB tts lr a sh t_root gfs0 v n (0%nat) Hf
