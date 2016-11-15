@@ -249,16 +249,40 @@ Module MainSafety .
 
     (*Before going from ksafe to safe, we neet to show, that our execution is mem_bounded*)
     Lemma ksafe_new_step_ksafe_new_step_bounded: forall ge ds m,
-      (forall (n : nat) (sch : ErasureProof.DryMachine.Sch),
+        (forall (n : nat) (sch : ErasureProof.DryMachine.Sch),
+            DryMachine.new_valid  (DryMachine.mk_nstate (sch, nil, ds) m) sch ->
           DryMachine.ksafe_new_step ge 
                                     (sch, [::], ds) m n) ->
       forall (n : nat) (sch : ErasureProof.DryMachine.Sch),
+        DryMachine.new_valid_bound (DryMachine.mk_nstate (sch, nil, ds) m) sch ->
         safety.ksafe DryMachine.new_state ErasureProof.DryMachine.Sch
                      (DryMachine.new_step ge) DryMachine.new_valid_bound (*Notice the stronger validity*)
                      (DryMachine.mk_nstate (sch, nil, ds) m) sch n.
     Proof.
-    Admitted.
-
+      move => ge ds m KSAFE n.
+      specialize (KSAFE n).
+      move : ds m KSAFE.
+      induction n.
+      - move => ds m KSAFE sch.
+        specialize (KSAFE sch).
+        constructor 1.
+        
+      - move => ds m KSAFE sch [] VAL BOUND.
+        specialize (KSAFE sch VAL).
+        inversion KSAFE. 
+        econstructor ; eauto.
+        move => U'' [] VAL'' BOUND''.
+        unfold DryMachine.mk_nstate in IHn; simpl in IHn.
+        destruct st' as [[tr' ds'] m'].
+        cut (tr' = (@nil DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryMachine.Events.machine_event)).
+        + intros HH; subst tr'.
+          eapply IHn; eauto.
+          split; eauto.
+        + inversion H0.
+          * auto.
+          * simpl in *; subst.
+            inversion H2; simpl in *; auto.
+    Qed.
     
     Theorem new_dry_clight_infinite_safety': forall sch,
         DryMachine.new_valid_bound (nil, ds_initial, initial_memory) sch  ->
@@ -270,20 +294,62 @@ Module MainSafety .
       - move => ds.
         simpl.
         eapply DryMachineSource.THE_DRY_MACHINE_SOURCE.FiniteBranching.finite_branching.
-      - move => n U VAL'.
+      - move => n U.
         rewrite /DryMachine.mk_nstate /=.
         simpl; eapply ksafe_new_step_ksafe_new_step_bounded.
-        simpl; apply: new_dry_clight_safety.
+        + intros.
+          simpl; apply: new_dry_clight_safety.
     Qed.
 
     (*To use the result we must go back to the normal safety (from safety of bounded states)*)
+    Lemma bounded_mem_step:
+            forall ge sm m sm' m',
+          DryMachine.MachStep ge sm m sm' m' ->
+          DryMachine.bounded_mem m ->
+          DryMachine.bounded_mem m'.
+    Admitted.
+    
     Lemma safe_new_step_bound_safe_new_step: forall sch ds m,
         DryMachine.new_valid_bound (nil, ds, m) sch ->
         DryMachine.safe_new_step_bound  (globalenv prog) (sch, nil, ds) m ->
             DryMachine.safe_new_step  (globalenv prog) (sch, nil, ds) m.
     Proof.
+      rewrite /DryMachine.safe_new_step
+              /DryMachine.safe_new_step_bound
+              /DryMachine.mk_nstate /=.
+      cofix.
+      move=> sch ds m [] VAL BOUND SAFE.
+      inversion SAFE.
+      econstructor; eauto.
+      intros.
+      assert (DryMachine.new_valid_bound st' U'').
+      { split; eauto.
+        destruct st' as [[? ?] m']; simpl in *.
+        inversion H.
+        - simpl in *; subst; auto.
+        - simpl in *; subst.
+          unfold DryMachine.mk_ostate in H2; simpl in *.
+          eapply bounded_mem_step; eauto. }
+        
+      destruct st' as [[tr' ds'] m']; simpl in *.
+      
+      assert (tr' = nil).
+      { inversion H; auto.
+        simpl in *; subst.
+        inversion H3; simpl in *; subst; auto.
+      }
+      
+      subst tr'.
+      eapply safe_new_step_bound_safe_new_step; eauto.
+      Guarded.
+    Qed.
+    
+    Lemma bounded_initial_mem:
+      DryMachine.bounded_mem initial_memory.
+        rewrite /initial_memory /init_mem /init_m /Genv.init_mem.
+        
     Admitted.
-
+    
     Theorem new_dry_clight_infinite_safety_valid': forall sch,
         DryMachine.new_valid (nil, ds_initial, initial_memory) sch  ->
         DryMachine.safe_new_step  (globalenv prog) (sch, nil, ds_initial) initial_memory.
@@ -291,11 +357,12 @@ Module MainSafety .
       intros.
       eapply safe_new_step_bound_safe_new_step.
       - split; eauto.
-        admit. (*Init mem bounded*)
+        simpl.
+        apply bounded_initial_mem.
       - eapply new_dry_clight_infinite_safety'.
         split; eauto.
-        admit. (*Init mem bounded*)
-    Admitted.
+        apply bounded_initial_mem.
+    Qed.
     
     Theorem new_dry_clight_infinite_safety: forall sch,
         DryMachine.safe_new_step  (globalenv prog) (sch, nil, ds_initial) initial_memory.
@@ -328,7 +395,15 @@ Module MainSafety .
 
         simpl.
         rewrite /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryMachine.invariant /ds_initial.
-        eapply DryMachineSource.THE_DRY_MACHINE_SOURCE.DryMachineLemmas.initial_invariant.
+        
+        move : all_safe.
+        rewrite /semax_prog => [][] A [] B [] C [] D [] E [] F [] GG. 
+        eapply DryMachineSource.THE_DRY_MACHINE_SOURCE.DryMachineLemmas.initial_invariant0.
+
+        (* This comees from using the old initial_invariant lemma:
+        with (the_ge:=(globalenv prog) ) (pmap:=Some (dry_initial_perm, empty_map)).
+        
+
         
         intros.
         rewrite /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryMachine.init_mach /=.
@@ -336,7 +411,14 @@ Module MainSafety .
         rewrite /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.SEM.Sem
                 ClightSemantincsForMachines.ClightSEM.CLN_msem /=.
         (*Something about initial core!*)
-        admit.
+
+        rewrite /dry_initial_perm.
+        
+
+        /init_m /=.
+        destruct (Genv.init_mem (Ctypes.program_of_program prog)) eqn:HH.
+        instantiate (1:=(Ctypes.program_of_program prog)).
+        a dmit. *)
 
         intros.
         eapply new_dry_clight_infinite_safety.
@@ -345,7 +427,7 @@ Module MainSafety .
         rewrite /DryMachine.new_valid /DryMachine.correct_schedule /=.
         subst. rewrite Us.
         auto.
-    Admitted.
+    Qed.
     
     Require Import concurrency.dry_context. 
     (*Definition dry_initial_core_2:=
