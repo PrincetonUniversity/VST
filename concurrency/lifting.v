@@ -54,19 +54,19 @@ Module lifting (SEMT: Semantics) (Machine: MachinesSig with Module SEM := SEMT).
       Mem.mem_inj j mS mT /\
       val_inject j rv1 rv2.
 
-    Lemma concur_whole_sim main p (sch : mySchedule.schedule) :
+    Lemma concur_whole_sim main psrc ptgt (sch : mySchedule.schedule) :
       Wholeprog_sim
-        (DMachineSem sch p)
-        (Machine.DryConc.MachineSemantics sch p)
+        (DMachineSem sch psrc)
+        (Machine.DryConc.MachineSemantics sch ptgt)
         gS gT main
         ge_inv init_inv halt_inv.
     Proof.
     Admitted.
 
-    Lemma concur_sim main p (sch : mySchedule.schedule) :
+    Lemma concur_sim main psrc ptgt (sch : mySchedule.schedule) :
       Machine_sim
-        (new_DMachineSem sch p)
-        (Machine.DryConc.new_MachineSemantics sch p)
+        (new_DMachineSem sch psrc)
+        (Machine.DryConc.new_MachineSemantics sch ptgt)
         gS gT main
         ge_inv init_inv halt_inv.
     Proof.
