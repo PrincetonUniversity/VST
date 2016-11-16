@@ -2999,8 +2999,9 @@ in other cases it uses the higher-level (and more standard)
 \ychapter{For loops (special case)}{}
 \label{refcard:for}
 
-\newthought{Many for-loops have this special form},\newline
-\lstinline{ for ($\mathit{init}$; i < $\mathit{hi}$; i++) $\mathit{body}$}~~~
+\newthought{Many for-loops have the form},
+~~~\lstinline{ for ($\mathit{init}$; i < $\mathit{hi}$; i++) $\mathit{body}$}
+\newline
 such that the expression \textit{hi} will evaluate to the same value
 every time around the loop.  This upper-bound expression need not
 be a literal constant, it just needs to be invariant.
@@ -3008,18 +3009,20 @@ be a literal constant, it just needs to be invariant.
 For these loops you can use the tactic,
 \begin{lstlisting}
  forward_for_simple_bound $n$ $~$     (EX $i$:Z, PROP($\vec{P}$) LOCAL($\vec{Q}$) SEP($\vec{R}$).
+ forward_for_simple_bound $n$ $~$     (EX $i$:Z, EX $x$:$A$, PROP($\vec{P}$) LOCAL($\vec{Q}$) SEP($\vec{R}$).
 \end{lstlisting}
+\vspace{-16pt}
 where $n$ is the upper bound: a Coq value of type $Z$ 
 such that \textit{hi} will evaluate to $n$.
-
-The loop invariant is given by the expression
-\lstinline{(EX $i$:Z, PROP($\vec{P}$) LOCAL($\vec{Q}$) SEP($\vec{R}$)},
-where $i$ is the value (in each iteration) of the loop iteration variable $\mathit{id}$.
 This tactic generates simpler subgoals than the general \lstinline{forward_for} tactic.
+
+The loop invariant is 
+\lstinline{(EX $i$:Z, PROP($\vec{P}$) LOCAL($\vec{Q}$) SEP($\vec{R}$)},
+where $i$ is the value (in each iteration) of the loop iteration variable $\mathit{id}$.  You \emph{must} have an existential quantifier for the \emph{value} of the loop-iteration variable.  You \emph{may} have a second $\exists$ for a value of your choice that depends on $i$.
 
 \textbf{You must omit} from $Q$ any mention of the loop iteration variable
 \lstinline{_i}.  The tactic will insert the binding \lstinline{temp _i $i$}.
-Similarly, you need not write $i<\mathit{hi}$ in $P$, the tactic will
+You need not write $i<\mathit{hi}$ in $P$, the tactic will
 insert it.
 
 \newthought{An example} of a for-loop proof is in
@@ -3029,15 +3032,13 @@ This is an alternate implementation of \file{progs/sumarray.c}
 that uses a \lstinline{for} loop instead of a \lstinline{while} loop:
 \begin{lstlisting}
 int sumarray(int a[], int n) {   /* sumarray2.c */
-  int i,s,x;
-  s=0;
-  for (i=0; i<n; i++) {
-    x = a[i];
-    s += x;
-  }
+  int i, s=0, x;
+  for (i=0; i<n; i++) { x = a[i]; s += x; }
   return s;
 }
 \end{lstlisting}
+\vspace{-16pt}
+Also see \file{progs/verif\_min.v} for \emph{two} approaches to the specification/verification of another for-loop.
 
 \ychapter{For loops (general case)}{}
 \label{refcard:for-general}
