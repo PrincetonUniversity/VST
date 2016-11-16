@@ -163,5 +163,11 @@ Proof.
   intros.
 Admitted.
 
-    
-    
+Lemma finite_sub_maps_simpl:
+  forall m2,
+    @bounded_map permission m2 ->
+    konig.finite
+      (fun m1 => @sub_map permission permission m1 m2).
+Proof.
+  intros.
+Admitted.

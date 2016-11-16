@@ -351,7 +351,7 @@ Module THE_DRY_MACHINE_SOURCE.
       assert (Hbound':=Hbound).
       eapply bounded_maps.finite_sub_maps
         in Hbound as bounded_delta_map.
-      eapply bounded_maps.finite_sub_maps
+      eapply bounded_maps.finite_sub_maps_simpl
         in Hbound' as bounded_access_map.
 
       pose (virtue_bound:= konig.finite_product bounded_delta_map bounded_delta_map).
@@ -799,7 +799,7 @@ Module THE_DRY_MACHINE_SOURCE.
 
         subst.
 
-        destruct (bounded_maps.finite_bounded_nat_func permission LKSIZE_nat )
+        destruct (bounded_maps.finite_bounded_nat_func LKSIZE_nat )
           as [N [virtue_generator virtue_gen_spec] ].
         
         (*get a pair of virtues*)
