@@ -275,18 +275,22 @@ Proof.
       { subst loc.
         split; swap 1 2.
         - (* the rmap is unchanged (but we have to prove the SAT information) *)
-          cut (exists (* sh0 *) R0,
+          cut ((4 | snd (b, Int.intval ofs)) /\
+               (snd (b, Int.intval ofs) + 4 <= Int.modulus)%Z /\
+               exists (* sh0 *) R0,
                   (lkat R0 (* sh0 *) (b, Int.intval ofs)) Phi /\
                   (app_pred R0 (age_by 1 (age_to (level (getThreadR i tp cnti) - 1) d_phi))
                    \/ level (age_to n Phi) = 0)
               ).
-          { intros ((* sh0 &  *)R0 & AP & sat).
+          { intros (align & bound & (* sh0 &  *)R0 & AP & sat).
+            repeat (split; auto).
             exists (* sh0, *) R0; split. 
             - revert AP. apply age_to_ind, lkat_hered.
             - cleanup. rewrite El in *. auto. }
           cleanup.
           rewrite His_locked in lock_coh.
-          destruct lock_coh as (Load & (* sh0 &  *)R0 & lk).
+          destruct lock_coh as (Load & align & bound & (* sh0 &  *)R0 & lk).
+          repeat (split; auto).
           exists (* sh0,  *)R0; split.
           + eauto.
           + left.
@@ -428,9 +432,10 @@ Proof.
               zify.
               lkomega.
       }
-      destruct o; destruct lock_coh as (Load (* & sh' *) & R' & lks); split.
+      destruct o; destruct lock_coh as (Load (* & sh' *) & align & bound & R' & lks); split.
       -- now intuition.
-      -- exists (* sh',  *)R'.
+      -- repeat (split; auto).
+         exists (* sh',  *)R'.
          destruct lks as (lk, sat); split.
          ++ revert lk. apply age_to_ind, lkat_hered.
          ++ destruct sat as [sat|sat].
@@ -441,7 +446,8 @@ Proof.
                omega.
             ** congruence.
       -- now intuition.
-      -- exists (* sh', *) R'.
+      -- repeat (split; auto).
+         exists (* sh', *) R'.
          revert lks.
          apply age_to_ind, lkat_hered.
          
@@ -738,7 +744,7 @@ Proof.
                    specialize (lock_coh (b, Int.intval ofs)).
                    cleanup.
                    rewrite His_locked in lock_coh.
-                   destruct lock_coh as (_ & (* sh' & *) R' & lk).
+                   destruct lock_coh as (_ & (* sh' & *) align & bound & R' & lk).
                    apply isVAL_join_sub with (r2 := Phi @ (b, ofs')) in yes.
                    2: now apply resource_at_join_sub; join_sub_tac.
                    specialize (lk (b, ofs')).

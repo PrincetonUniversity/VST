@@ -592,7 +592,7 @@ Qed.
 Definition freelock_spec cs :=
    WITH v : val, sh : share, R : Pred
    PRE [ _lock OF tptr Tvoid ]
-     PROP (writable_share sh; positive_mpred (Interp R))
+     PROP (writable_share sh; positive_mpred (Interp R); precise (Interp R))
      LOCAL (temp _lock v)
      SEP (lock_inv sh v (Interp R); Interp R)
    POST [ tvoid ]

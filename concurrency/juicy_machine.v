@@ -3,6 +3,7 @@ Require Import compcert.lib.Axioms.
 Require Import concurrency.sepcomp. Import SepComp.
 Require Import sepcomp.semantics_lemmas.
 
+Require Import concurrency.enums_equality.
 Require Import concurrency.pos.
 Require Import concurrency.scheduler.
 Require Import concurrency.concurrent_machine.
@@ -33,6 +34,10 @@ Require Import veric.juicy_mem_lemmas.
 Require Import veric.juicy_extspec.
 Require Import veric.jstep.
 Require Import veric.res_predicates.
+
+
+Set Bullet Behavior "Strict Subproofs".
+
 
 
 (**)
@@ -102,7 +107,7 @@ Module JMem.
       + exact None.
       + exact None.
       + exact None.
-        destruct p as [A p].
+    - destruct p as [A p].
         refine (Some (existT _ _ p)).
   Defined.
   Definition AType: Type. exact bool. Defined.
@@ -121,7 +126,7 @@ Module JMem.
         refine (Some (existT _ _ p0)).
       + exact None.
       + exact None.
-      + exact None.
+    - exact None.
   Defined.
   Definition get_lock_inv (p: forall ts: list Type, AType -> pred rmap) : option (pred rmap).
   Proof. exact (Some (p nil true)).
@@ -194,31 +199,32 @@ Module Concur.
       forall loc rm, AMap.find loc ls = SSome rm -> mem_cohere' m rm.
     
     (* given n <= m, returns the list [n-1,...,0] with proofs of < m *)
-    Program Fixpoint enum_from n m (pr : le n m) : list (ordinal m) :=
+    (*Program Fixpoint enum_from n m (pr : le n m) : list (ordinal m) :=
       match n with
         O => nil
       | S n => (@Ordinal m n ltac:(rewrite <-Heq_n in *; apply (introT leP pr)))
                 :: @enum_from n m ltac:(rewrite <-Heq_n in *; apply le_Sn_le, pr)
-      end.
+      end.*)
     
-    Definition enum n := rev (@enum_from n n (le_refl n)).
+    (*Definition enum n := rev (@enum_from n n (le_refl n)).*)
     
-    Lemma length_enum_from n m pr : List.length (@enum_from n m pr) = n.
+    Lemma length_enum_from n m pr : List.length (@enums_equality.enum_from n m pr) = n.
     Proof.
       induction n; auto.
       simpl.
       rewrite IHn; auto.
     Qed.
       
-    Lemma length_enum n : List.length (enum n) = n.
+    Lemma length_enum n : List.length (enums_equality.enum n) = n.
     Proof.
-      rewrite rev_length.
+      unfold enums_equality.enum.
+      rewrite Coq.Lists.List.rev_length.
       apply length_enum_from.
     Qed.
     
     (*Join juice from all threads *)
     Definition getThreadsR tp:=
-      map (perm_maps tp) (enum (num_threads tp)).
+      map (perm_maps tp) (enums_equality.enum (num_threads tp)).
     
     Fixpoint join_list (ls: seq.seq res) r:=
       if ls is phi::ls' then exists r', join phi r' r /\ join_list ls' r' else
@@ -313,7 +319,7 @@ Module Concur.
         apply VALID in ineq'.
         replace (ofs + (ofs0 - ofs))%Z with ofs0 in ineq' by xomega.
         rewrite H' in ineq'. inversion ineq'.
-        auto.
+        - auto.
     Qed.
 
     Lemma compat_lr_valid: forall js m,
@@ -555,8 +561,9 @@ Qed.
       unfold permMapLt; intros.
       rewrite getMaxPerm_correct; unfold permission_at.
       eapply (po_trans _ (perm_of_res (phi @ (b, ofs))) _) .
-      - specialize (H (b, ofs)); simpl in H. apply H. unfold max_access_at in H.
-      - apply juice2Perm_nogrow.
+      - specialize (H (b, ofs)); simpl in H. apply H.
+      - unfold max_access_at in H.
+        apply juice2Perm_nogrow.
     Qed.
     Lemma juice2Perm_locks_cohere: forall phi m,
         max_access_cohere m phi ->
@@ -746,11 +753,84 @@ Qed.
       destruct ((perm_of_res (phi @ loc))) eqn:HH; try rewrite HH; simpl; reflexivity.
     Qed.
 
+    (*Move this to veric.juicy_mem_lemmas.v *)
     Lemma po_join_sub': forall r1 r2 : resource,
        join_sub r2 r1 ->
        Mem.perm_order'' (perm_of_res' r1) (perm_of_res' r2).
-    Admitted.
-    
+         
+         intros r1 r2[r J]; inversion J; subst; simpl.
+         - if_tac.
+           + subst.
+             if_tac.
+             * eauto with *.
+             * exfalso.
+               pose proof Share.lub_upper1 rsh1 rsh2.
+               inversion RJ as [_ E].
+               rewrite E in H0.
+               eauto with *.
+           + if_tac; constructor.
+         - destruct k; try solve [constructor].
+           + apply po_join_sub_sh.
+             * eexists; eauto.
+             * apply join_sub_refl.
+           + apply po_join_sub_sh.
+             * eexists; eauto.
+             * apply join_sub_refl.
+           + apply po_join_sub_sh.
+             * eexists; eauto.
+             * apply join_sub_refl.
+           + apply po_join_sub_sh.
+             * eexists; eauto.
+             * apply join_sub_refl.
+         - destruct k.
+           + if_tac.
+             * hnf. if_tac; apply I.
+             * apply perm_order''_trans with (perm_of_sh rsh1 (pshare_sh sh)).
+               -- apply po_join_sub_sh.
+                  ++ eexists; eauto.
+                  ++ apply join_sub_refl.
+               -- destruct  (perm_of_sh rsh1 (pshare_sh sh)) eqn:E.
+                  ++ constructor.
+                  ++ pose proof @perm_of_empty_inv _ _ E. tauto.
+                     
+           + if_tac.
+             * hnf. if_tac; apply I.
+             * apply perm_order''_trans with (perm_of_sh rsh1 (pshare_sh sh)).
+               -- apply po_join_sub_sh.
+                  ++ eexists; eauto.
+                  ++ apply join_sub_refl.
+               -- destruct  (perm_of_sh rsh1 (pshare_sh sh)) eqn:E.
+                  ++ constructor.
+                  ++ pose proof @perm_of_empty_inv _ _ E. tauto.
+                     
+           + if_tac.
+             * hnf. if_tac; apply I.
+             * apply perm_order''_trans with (perm_of_sh rsh1 (pshare_sh sh)).
+               -- apply po_join_sub_sh.
+                  ++ eexists; eauto.
+                  ++ apply join_sub_refl.
+               -- destruct  (perm_of_sh rsh1 (pshare_sh sh)) eqn:E.
+                  ++ constructor.
+                  ++ pose proof @perm_of_empty_inv _ _ E. tauto.
+                     
+           + if_tac.
+             * hnf. if_tac; apply I.
+             * apply perm_order''_trans with (perm_of_sh rsh1 (pshare_sh sh)).
+               -- apply po_join_sub_sh.
+                  ++ eexists; eauto.
+                  ++ apply join_sub_refl.
+               -- destruct  (perm_of_sh rsh1 (pshare_sh sh)) eqn:E.
+                  ++ constructor.
+                  ++ pose proof @perm_of_empty_inv _ _ E. tauto.
+                    
+         - destruct k; try constructor.
+           + apply po_join_sub_sh; eexists; eauto.
+           + apply po_join_sub_sh; eexists; eauto.
+           + apply po_join_sub_sh; eexists; eauto.
+           + apply po_join_sub_sh; eexists; eauto.
+         - constructor.
+    Qed.
+      
     Lemma mem_access_coh_sub: forall phi1 phi2 m,
           max_access_cohere m phi1 ->
           join_sub phi2 phi1 ->
@@ -810,29 +890,38 @@ Qed.
        unfold getThreadR. unfold join_threads in H0.
        unfold getThreadsR in H0.
       destruct js; simpl in *.
-     pose proof (mem_ord_enum (n:= n num_threads0)).
-     specialize (H (Ordinal (n:=n num_threads0) (m:=i) cnt)) .
-    idtac.
-    (*
-    simpl in H0.
-    forget (ord_enum (n num_threads0)) as el.
-    forget ((Ordinal (n:=n num_threads0) (m:=i) cnt)) as j.
-    revert H H0; clear; revert r0; induction el; intros. inv H.
-    unfold in_mem in H. unfold pred_of_mem in H. simpl in H.
-    pose proof @orP.
-    specialize (H1 (j == a)(pred_of_eq_seq (T:=ordinal_eqType (n num_threads0)) el j)).
+      pose proof (mem_ord_enum (n:= n num_threads0)).
+      
+      specialize (H (Ordinal (n:=n num_threads0) (m:=i) cnt)) .
+      unfold join_list in H0.
+      
+      simpl in H0.
+
+      
+      replace (enums_equality.enum num_threads0) with (ord_enum (n num_threads0)) in H0.
+      forget (ord_enum (n num_threads0)) as el.
+      forget ((Ordinal (n:=n num_threads0) (m:=i) cnt)) as j.
+      revert H H0; clear; revert r0; induction el; intros. inv H.
+      unfold in_mem in H. unfold pred_of_mem in H. simpl in H.
+      pose proof @orP.
+      specialize (H1 (j == a)(pred_of_eq_seq (T:=ordinal_eqType (n num_threads0)) el j)).
     destruct ((j == a)
-       || pred_of_eq_seq (T:=ordinal_eqType (n num_threads0)) el j); inv H.
+              || pred_of_eq_seq (T:=ordinal_eqType (n num_threads0)) el j); inv H.
     inv H1. destruct H.
     pose proof (@eqP _ j a). destruct (j==a); inv H; inv H1.
     simpl in H0. destruct H0 as [? [? ?]].
     exists x; auto.
     unfold pred_of_eq_seq in H.
     destruct H0 as [? [? ?]].
-    apply (IHel x) in H. apply join_sub_trans with x; auto. eexists; eauto.
-    auto.
-Qed. *)
-      Admitted.
+    apply (IHel x) in H; auto. apply join_sub_trans with x; auto. eexists; eauto.
+
+ (*   Lemma ord_enum_enum:
+      forall n,
+        ord_enum n = enum n.
+          Set Printing All.
+    Ad mitted.*)
+    apply ord_enum_enum.
+      Qed.
 
       
     Lemma mem_compat_thread_max_cohere {tp m} (compat: mem_compatible tp m):
@@ -1701,13 +1790,16 @@ Qed. *)
        specialize (H1 (Ordinal (n:=n (num_threads js)) (m:=i) cnti)).
     assert ((Ordinal (n:=n (num_threads js)) (m:=i) cnti) <> 
               (Ordinal (n:=n (num_threads js)) (m:=j) cntj)).
-      contradict H0. inv H0. auto.
+    contradict H0. inv H0. auto.
+
+    unfold join_list in H.
+    replace (enums_equality.enum (num_threads js)) with (ord_enum (num_threads js)) in H by apply ord_enum_enum.
     forget (Ordinal (n:=n (num_threads js)) (m:=j) cntj) as j'.
     forget (Ordinal (n:=n (num_threads js)) (m:=i) cnti) as i'.
     forget (ord_enum (num_threads js)) as el.
     clear - H2 H1 H3 H.
     revert r0 H1 H2 H; induction el; simpl; intros. inv H1.
-(*
+    
     destruct H as [r' [? ?]].
     unfold in_mem, pred_of_mem in H1, H2. simpl in H1, H2.
     match type of H1 with is_true (?A || ?B) =>
@@ -1760,9 +1852,8 @@ Qed. *)
     apply IHel in H0; auto.
     apply join_sub_trans with x; auto. eexists; eauto.
     apply IHel in H0; auto.
-Qed. 
-*)
-Admitted.
+
+      Qed. 
 
       Lemma compatible_threadRes_lockRes_join:
         forall js m,
@@ -1778,6 +1869,9 @@ Admitted.
        unfold lockRes in H0.
        apply AMap.find_2 in H0. unfold lockGuts in H0.
        apply AMap.elements_1 in H0. unfold lock_info in H1.
+
+       unfold join_threads, join_list, getThreadsR in H.
+       replace (enums_equality.enum (num_threads js)) with (ord_enum (num_threads js)) in H by apply ord_enum_enum.
        forget  (AMap.elements (elt:=option rmap) (lset js)) as el.
        match goal with |- joins ?A ?B => assert (H3: joins (Some A) (Some B)) end.
       Focus 2. destruct H3; inv H3; eexists; eauto.
@@ -1801,7 +1895,7 @@ Admitted.
     inv H1. destruct H.
     pose proof (@eqP _ j a). destruct (j==a); inv H; inv H1.
     simpl in H0.
-(* destruct H0 as [? [? ?]].
+ destruct H0 as [? [? ?]].
     exists x; auto.
     unfold pred_of_eq_seq in H.
     destruct H0 as [? [? ?]].
@@ -1816,8 +1910,6 @@ Admitted.
            eexists; eauto.
          }   
     Qed.
-*)
-Admitted.
                
       Lemma compatible_lockRes_cohere: forall js m l phi,
           ThreadPool.lockRes js l = Some (Some phi) ->

@@ -480,16 +480,76 @@ Section permMapDefs.
           try solve[exists (Some Readable); reflexivity];
           try solve[exists (Some Writable); reflexivity].
   Qed.
-  
+
+  Lemma join_sh_permDisjoint: forall rsh1 rsh2 rsh3 (sh1 sh2 sh3: pshare),
+      join rsh1 rsh2 rsh3 ->
+      join sh1 sh2 sh3 ->
+      permDisjoint (perm_of_sh rsh1 (pshare_sh sh1)) (perm_of_sh rsh2 (pshare_sh sh2)).
+  Proof.
+    intros rsh1 rsh2 rsh3 sh1 sh2 sh3.
+    intros H1.
+    intros H2.
+    move: (perm_of_sh_pshare rsh1 sh1) (perm_of_sh_pshare rsh2 sh2) =>
+    [] p1 HH1 [] p2 HH2.
+    rewrite HH1 HH2 /permDisjoint /=.
+    destruct p1.
+    - apply perm_of_sh_Freeable_top in HH1; inversion HH1; subst.
+      destruct sh1.
+      unfold join, Join_pshare, Join_lift in H2.
+      simpl in H2.
+      simpl in H3; subst x.
+      apply pshare_join_full_false4 in H2.
+      exfalso; assumption.
+    - move: HH1.
+      unfold perm_of_sh.
+      repeat if_tac; try solve[intros HH; inversion HH].
+      destruct sh1.
+      unfold join, Join_pshare, Join_lift in H2.
+      simpl in H2.
+      simpl in H; subst x.
+      apply pshare_join_full_false4 in H2.
+      exfalso; assumption.
+    - move: HH1.
+      unfold perm_of_sh.
+      repeat if_tac; try solve[intros HH; inversion HH].
+      destruct p2; try solve[eexists; reflexivity].
+      + apply perm_of_sh_Freeable_top in HH2; inversion HH2; subst.
+        destruct sh2.
+        unfold join, Join_pshare, Join_lift in H2.
+        simpl in H2.
+        simpl in H5; subst x.
+        apply pshare_join_full_false3 in H2.
+        exfalso; assumption.
+      + move: HH2.
+        unfold perm_of_sh.
+        repeat if_tac; try solve[intros HH; inversion HH].
+        destruct sh2.
+        unfold join, Join_pshare, Join_lift in H2.
+        simpl in H2.
+        simpl in H3; subst x.
+        apply pshare_join_full_false3 in H2.
+        exfalso; assumption.
+    - destruct p2; try solve[eexists; reflexivity].
+      apply perm_of_sh_Freeable_top in HH2; inversion HH2; subst.
+      destruct sh2.
+      unfold join, Join_pshare, Join_lift in H2.
+      simpl in H2.
+      simpl in H3; subst x.
+      apply pshare_join_full_false3 in H2.
+      exfalso; assumption.
+  Qed.
+    
   Lemma joins_permDisjoint: forall r1 r2,
       joins r1 r2 ->
       permDisjoint (perm_of_res r1) (perm_of_res r2).
   Proof.
     intros. unfold permDisjoint.
     destruct H as [X H]; inversion H; simpl.
-    - destruct (eq_dec rsh1 Share.bot); destruct (eq_dec rsh2 Share.bot);
+    - unfold permDisjoint.
+      destruct (eq_dec rsh1 Share.bot); destruct (eq_dec rsh2 Share.bot);
       try solve[eexists; reflexivity].
-    - destruct k; destruct (eq_dec rsh2 Share.bot); try solve[eexists; reflexivity].
+    - unfold permDisjoint.
+      destruct k; destruct (eq_dec rsh2 Share.bot); try solve[eexists; reflexivity].
       + eapply permDisjoint_comm. apply permDisjoint_None.
       + pose Share.nontrivial.
         subst; unfold perm_of_sh.
@@ -500,7 +560,8 @@ Section permMapDefs.
         try solve[eexists; reflexivity]; subst; try solve [congruence].
         clear - RJ n. inversion RJ.
         rewrite Share.glb_commute in H. rewrite Share.glb_top in H; congruence.
-    - destruct k; destruct (eq_dec rsh1 Share.bot); try solve[eexists; reflexivity].
+    - unfold permDisjoint.
+      destruct k; destruct (eq_dec rsh1 Share.bot); try solve[eexists; reflexivity].
       pose Share.nontrivial.
       subst; unfold perm_of_sh.
       destruct (@eq_dec Share.t Share.EqDec_share (pshare_sh sh) Share.top);
@@ -511,37 +572,41 @@ Section permMapDefs.
       clear - RJ n. inversion RJ.
       rewrite Share.glb_top in H; congruence.
     - destruct k; try solve[eexists; reflexivity].
-      pose Share.nontrivial.
-      unfold perm_of_sh.
-      destruct (@eq_dec Share.t Share.EqDec_share (pshare_sh sh1) Share.top);
-      destruct (eq_dec rsh1 Share.top);
-      destruct (@eq_dec Share.t Share.EqDec_share (pshare_sh sh1) Share.bot);
-      destruct (eq_dec rsh1 Share.bot);
-      destruct (@eq_dec Share.t Share.EqDec_share (pshare_sh sh2) Share.top);
-      destruct (eq_dec rsh2 Share.top);
-      destruct (@eq_dec Share.t Share.EqDec_share (pshare_sh sh2) Share.bot);
-      destruct (eq_dec rsh2 Share.bot);
-      try solve[eexists; reflexivity]; subst; try solve [congruence].
-    Admitted.
+      eapply join_sh_permDisjoint; eauto.
+      eexists; reflexivity.
+  Qed.
 
   Lemma joins_permDisjoint_lock: forall r1 r2,
       joins r1 r2 ->
       permDisjoint (perm_of_res_lock r1) (perm_of_res_lock r2).
   Proof.
-  Admitted.
+    move => r1 r2 [] r3 H.
+    destruct r1; destruct r2; simpl;
+    try solve[ eexists; reflexivity];
+    destruct k;  try solve[ eexists; reflexivity];
+    destruct ((perm_of_sh Share.bot (pshare_sh p))) eqn:AA;
+    try solve [eexists; reflexivity].
+    - rewrite -AA.
+      inversion H; subst.
+      eapply join_sh_permDisjoint; eauto.
+      (* eapply bot_join_eq. *)
+    - rewrite -AA.
+      inversion H; subst.
+      eapply join_sh_permDisjoint; eauto.
+  Qed.
   
-  Lemma permDisjoint_sub: forall r1 r2 p,
+  (*Lemma permDisjoint_sub: forall r1 r2 p,
       join_sub r2 r1 ->
       permDisjoint (perm_of_res r1) p ->
       permDisjoint (perm_of_res r2) p.
-  Admitted.
+  Proof.*)
 
-  Lemma join_permDisjoint: forall r1 r2 r3 p,
+  (*Lemma join_permDisjoint: forall r1 r2 r3 p,
       join r1 r2 r3 ->
       permDisjoint (perm_of_res r1) p ->
       permDisjoint (perm_of_res r2) p ->
       permDisjoint (perm_of_res r3) p.
-  Admitted.
+Proof.*)
   
   Definition permMapsDisjoint (pmap1 pmap2 : access_map) : Prop :=
     forall b ofs, exists pu,

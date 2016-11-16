@@ -71,34 +71,106 @@ Definition sub_map {A B} (m1: PTree.t (Z -> option A))(m2: PTree.t (Z -> option 
   forall p f1, m1 ! p = Some f1 ->
        exists f2, m2 ! p = Some f2 /\ fun_leq f1 f2.
 
+
+Definition nat_to_perm (i:nat) :=
+  match i with
+  | 0 => None
+  | 1 => Some Nonempty
+  | 2 => Some Readable
+  | 3 => Some Writable
+  | 4 => Some Freeable
+  | _ => None
+  end.
+
+Definition perm_to_nat (p: option permission) :=
+  match p with
+  | None => 0
+  | Some Nonempty => 1
+  | Some Readable => 2
+  | Some Writable => 3
+  | Some Freeable => 4
+  end.
+
  Lemma finite_bounded_nat_func:
-          forall A hi ,
+          forall hi ,
             konig.finite
-              ( fun f:nat -> option A => bounded_nat_func' f hi).
+              ( fun f:nat -> option permission => bounded_nat_func' f hi).
+ Proof.
+   (* intros hi.
+   pose (K:= perm_to_nat).
+   induction hi.
+   - exists 6.
+     exists (fun x _ => nat_to_perm x).
+     intros.
+     
+     exists (perm_to_nat(x 0)).
+     split; auto.
+     destruct (x 0); simpl; try omega .
+     destruct p; simpl; omega.
+     extensionality i.
+     
+     symmetry.
+     apply H.
+     apply leq0n.
+   - destruct IHhi as [N [FN H]].
+     exists (5*N).
+     exists (fun x i => if (Nat.eq_dec i hi) then
+                       nat_to_perm (Nat.modulo x 5)
+                else FN (Nat.div x 5) i).
+     intros f HH.
+     specialize (H (fun n => if (Nat.eq_dec n hi) then
+                            None
+                          else f n) ).
+     destruct H as [i [ineq f_spec]].
+     + intros pp pphi.
+       destruct (Nat.eq_dec pp hi).
+       * auto.
+       * simpl; eapply HH.
+         admit.
+
+         idtac.
+     + exists ((5 * i) + (perm_to_nat (f hi))).
+       split.
+       * (* 5*i <= 5 * (N-1) *)
+         (* perm_to_nat x < 5 *)
+         admit.
+
+       * { extensionality n.
+           destruct (Nat.eq_dec n hi).
+           - replace  ((5 * i + perm_to_nat (f hi)) mod 5)
+             with (perm_to_nat (f hi) mod 5).
+             replace  (( perm_to_nat (f hi)) mod 5)
+             with (perm_to_nat (f hi)).
+             replace (nat_to_perm (perm_to_nat (f hi)))
+             with (f hi).
+             subst; reflexivity.
+             admit.
+             admit.
+             admit.
+           - replace ((5 * i + perm_to_nat (f hi)) / 5)
+             with (i).
+             simpl. rewrite f_spec.
+             simpl.
+             destruct (Nat.eq_dec n hi);
+               try solve[exfalso; apply n0; auto].
+             reflexivity.
+             admit.*)
  Admitted.
- 
-(*Nobody is using this righ now*)
-Lemma finite_bounded_func:
-  forall A hi lo ,
-    konig.finite
-      ( fun f:Z -> option A => bounded_func' f hi lo).
-Admitted.
     
 Lemma finite_sub_maps:
-  forall A B m2,
-    @bounded_map B m2 ->
+  forall m2,
+    @bounded_map permission m2 ->
     konig.finite
-      (fun m1 => @sub_map A B m1 m2).
+      (fun m1 => @sub_map (option permission) permission m1 m2).
 Proof.
   intros.
 Admitted.
 
-
-
-(*Lemma leq_sub_map:
-  forall m1 m2,
-    @map_leq A B m1 m2 ->
-   (forall p f1, m1 ! p = f1  -> exists f2, m2 ! p = f2 /\ ). 
-  *)  
-    
-    
+Lemma finite_sub_maps_simpl:
+  forall m2,
+    @bounded_map permission m2 ->
+    konig.finite
+      (fun m1 => @sub_map permission permission m1 m2).
+Proof.
+  intros.
+Admitted.

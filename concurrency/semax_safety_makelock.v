@@ -38,6 +38,7 @@ Require Import sepcomp.semantics_lemmas.
 Require Import concurrency.coqlib5.
 Require Import concurrency.permjoin.
 Require Import concurrency.semax_conc.
+Require Import concurrency.addressFiniteMap.
 Require Import concurrency.juicy_machine.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.scheduler.
@@ -76,147 +77,6 @@ Definition Jspec'_juicy_mem_equiv_def CS ext_link :=
 
 Definition Jspec'_hered_def CS ext_link :=
    ext_spec_stable age (JE_spec _ ( @OK_spec (Concurrent_Espec unit CS ext_link))).
-
-Lemma AMap_Raw_add_fold_left A (EQ : A -> A -> Prop) B f k (x : B) l (e : A) :
-  (forall e, EQ e e) ->
-  (forall e e', EQ e e' -> EQ e' e) ->
-  (forall e e' e'', EQ e e' -> EQ e' e'' -> EQ e e'') ->
-  (forall a e e', EQ e e' -> EQ (f e a) (f e' a)) -> 
-  (forall a b e, fst a = fst b -> EQ (f (f e a) b) (f e a)) -> 
-  (forall a b e, EQ (f (f e a) b) (f (f e b) a)) ->
-  EQ
-    (fold_left f (AMap.Raw.add k x l) e)
-    (fold_left f ((k, x) :: l) e).
-Proof.
-  intros re sy tr congr idem comm.
-  assert (congr' : forall l e e', EQ e e' -> EQ (fold_left f l e) (fold_left f l e')). {
-    clear -congr; intros l; induction l; intros e e' E.
-    - apply E.
-    - apply IHl, congr, E.
-  }
-  revert e. induction l; intros e. apply re. simpl.
-  destruct a as (k', y).
-  destruct (AddressOrdered.compare k k').
-  - apply re.
-  - simpl. apply congr'. apply sy. apply idem. assumption.
-  - simpl. eapply tr. apply IHl. simpl. apply congr'. apply comm.
-Qed.
-
-Require Import Coq.Sorting.Permutation.
-
-Lemma AMap_Raw_add_fold_left_permut A (EQ : A -> A -> Prop) B f (l l' : list B) (e : A) :
-  (forall e, EQ e e) ->
-  (forall e e', EQ e e' -> EQ e' e) ->
-  (forall e e' e'', EQ e e' -> EQ e' e'' -> EQ e e'') ->
-  (forall a e e', EQ e e' -> EQ (f e a) (f e' a)) -> 
-  (forall a b e, EQ (f (f e a) b) (f (f e b) a)) ->
-  Permutation l l' ->
-  EQ
-    (fold_left f l e)
-    (fold_left f l' e).
-Proof.
-  intros re sy tr congr comm permut.
-  assert (congr' : forall l e e', EQ e e' -> EQ (fold_left f l e) (fold_left f l e')). {
-    clear -congr; intros l; induction l; intros e e' E.
-    - apply E.
-    - apply IHl, congr, E.
-  }
-  revert e. induction permut; intros e.
-  - apply re.
-  - apply IHpermut.
-  - simpl. eapply tr. apply congr'. 2:apply re. apply comm.
-  - eapply tr. apply IHpermut1. apply IHpermut2.
-Qed.
-
-Lemma setPerm_b_comm o b ofs1 ofs2 t :
-  setPerm o b ofs1 (setPerm o b ofs2 t) =
-  setPerm o b ofs2 (setPerm o b ofs1 t).
-Proof.
-  unfold setPerm. do 2 rewrite PMap.set2. f_equal.
-  extensionality z. do 2 rewrite PMap.gsspec.
-  destruct (zeq ofs1 z); destruct (zeq ofs2 z); simpl.
-  - auto.
-  - if_tac. 2:tauto. destruct (zeq ofs1 z); simpl; auto. tauto.
-  - if_tac. 2:tauto. destruct (zeq ofs2 z); simpl; auto. tauto.
-  - if_tac. 2:tauto. destruct (zeq ofs2 z); simpl; auto. tauto.
-    destruct (zeq ofs1 z); simpl; auto. tauto.
-Qed.
-
-Lemma setPerm_b_idem o b ofs t :
-  setPerm o b ofs (setPerm o b ofs t) =
-  setPerm o b ofs t.
-Proof.
-  unfold setPerm. rewrite PMap.set2. f_equal.
-  extensionality z. rewrite PMap.gsspec.
-  destruct (zeq ofs z); simpl; auto. if_tac. 2:tauto. destruct (zeq ofs z); auto. tauto.
-Qed.
-
-Lemma A2PMap_add_outside T b b' ofs ofs' set o :
-  (@A2PMap T (AMap.add (b, ofs) o set)) !! b' ofs' =
-  if adr_range_dec (b, ofs) LKSIZE (b', ofs') then
-    Some Writable
-  else
-    (@A2PMap T set) !! b' ofs'.
-Proof.
-  unfold A2PMap in *.
-  unfold AMap.elements in *.
-  unfold AMap.Raw.elements in *.
-  unfold AMap.add in *.
-  simpl (AMap.this _).
-  
-  etransitivity.
-  {
-    apply (AMap_Raw_add_fold_left _ (fun t t' => forall b' ofs', t !! b' ofs' = t' !! b' ofs')).
-    - reflexivity.
-    - symmetry; auto.
-    - intros ? ? ? E E' ? ?. rewrite E, E'. auto.
-    - intros ((b_, ofs_), x) e e' E b'' ofs''. simpl. unfold setPerm.
-      repeat rewrite PMap.gsspec.
-      destruct (peq b'' b_) as [-> | ne]. destruct (peq b_ b_); [ | tauto]. 2:now auto.
-      destruct (zeq (ofs_ + 3) ofs''); simpl; auto.
-      destruct (zeq (ofs_ + 2) ofs''); simpl; auto.
-      destruct (zeq (ofs_ + 1) ofs''); simpl; auto.
-      destruct (zeq (ofs_ + 0) ofs''); simpl; auto.
-    - intros ((b1, ofs1), x1) (k2, x2) e; simpl; intros <- b'' ofs''.
-
-      f_equal.
-      repeat rewrite (setPerm_b_comm _ _ _ (ofs1 + 3)). rewrite setPerm_b_idem. f_equal.
-      repeat rewrite (setPerm_b_comm _ _ _ (ofs1 + 2)). rewrite setPerm_b_idem. f_equal.
-      repeat rewrite (setPerm_b_comm _ _ _ (ofs1 + 1)). rewrite setPerm_b_idem. f_equal.
-      repeat rewrite (setPerm_b_comm _ _ _ (ofs1 + 0)). rewrite setPerm_b_idem. f_equal.
-    - intros ((b1, ofs1), x1) ((b2, ofs2), x2) e. simpl. intros b'' ofs''.
-      (* congruence lemmas *)
-      admit.
-  }
-  assert (P : Permutation ((b, ofs, o) :: AMap.this set) (AMap.this set ++ (b, ofs, o) :: nil)).
-  { apply Permutation_cons_append. }
-  etransitivity.
-  eapply (AMap_Raw_add_fold_left_permut _ (fun t t' => forall b' ofs', t !! b' ofs' = t' !! b' ofs')).
-  admit. admit. admit. admit. admit. (* those are proved above *)
-  apply P.
-  remember (AMap.this set) as l. clear set Heql.
-  do 2 rewrite fold_right_rev_left.
-  rewrite rev_app_distr. simpl (app _ _).
-  remember (rev l) as l'; clear l Heql' P.
-  rewrite canon.fold_right_cons.
-  set (fold_right _ _ _) as m; clearbody m; clear.
-  simpl.
-  unfold setPerm in *.
-  do 7 rewrite PMap.gsspec.
-  if_tac [->|ne]; swap 1 2.
-  { if_tac. destruct H. congruence. reflexivity. }
-  destruct (peq b b). 2:tauto.
-  destruct (zeq (ofs + 3) ofs') as [<- | ne3]; simpl.
-  { if_tac [r|nr]; auto. destruct nr. split; auto; lkomega. }
-  destruct (zeq (ofs + 2) ofs') as [<- | ne2]; simpl.
-  { if_tac [r|nr]; auto. destruct nr. split; auto; lkomega. }
-  destruct (zeq (ofs + 1) ofs') as [<- | ne1]; simpl.
-  { if_tac [r|nr]; auto. destruct nr. split; auto; lkomega. }
-  destruct (zeq (ofs + 0) ofs') as [<- | ne0]; simpl.
-  { if_tac [r|nr]; auto. destruct nr. split; auto; lkomega. }
-  if_tac [r|nr]; auto.
-  destruct r. lkomega.
-Admitted.
 
 (* Weaker statement than preservation for makelock, enough to prove safety *)
 Lemma safety_induction_makelock Gamma n state
@@ -471,7 +331,7 @@ Proof.
            eapply (cont_coh (all_cohere compat)); eauto.
       
       * (* max_access_cohere' *)
-        pose proof        max_coh ( all_cohere compat) as M.
+        pose proof max_coh (all_cohere compat) as M.
         intros loc; spec M loc.
         rewrite perm_of_res'_age_to.
         clear Post.
@@ -706,6 +566,8 @@ Proof.
       
       * (* LK_at *)
         subst loc.
+        split. apply AT.
+        split. apply AT.
         exists (Interp Rx).
         intros loc r.
         destruct Hrmap' as (_ & _ & inside). spec inside loc r.
@@ -840,7 +702,10 @@ Proof.
            ++ reflexivity.
         
         -- (* lkat *)
-           destruct coh as (R & lk & sat). exists R. split.
+           destruct coh as (align & bound & R & lk & sat).
+           split; auto.
+           split; auto.
+           exists R. split.
            ++ apply age_to_ind. now apply lkat_hered.
               destruct Hrmap' as (LPhi & outside & inside).
               intros x rx. spec lk x rx.
@@ -858,7 +723,7 @@ Proof.
               apply age_by_ind. destruct R as [x h]. apply h. apply sat.
         
         -- (* lkat *)
-           destruct coh as (R & lk). exists R.
+           destruct coh as (align & bound & R & lk). repeat (split; auto). exists R.
            apply age_to_ind. now apply lkat_hered.
            destruct Hrmap' as (LPhi & outside & inside).
            intros x r. spec lk x r.

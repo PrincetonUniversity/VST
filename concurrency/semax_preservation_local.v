@@ -251,14 +251,14 @@ Proof.
     { apply BOUND.
       rewrite Efind.
       constructor. }
-    destruct LC as (dry (* & sh *) & R & lk); split; auto.
+    destruct LC as (dry & align & bound (* & sh *) & R & lk); split; auto.
     eapply resource_decay_lkat in lk; eauto.
   
   - assert (fst loc < b)%positive.
     { apply BOUND.
       rewrite Efind.
       constructor. }
-    destruct LC as (dry & (* sh &  *)R & lk & sat); split; auto.
+    destruct LC as (dry & align & bound & (* sh &  *)R & lk & sat); repeat (split; auto).
     exists (* sh,  *)(approx (level phi') R); split.
     + eapply resource_decay_lkat in lk; eauto.
     + match goal with |- ?a \/ ?b => cut (~b -> a) end.
@@ -479,9 +479,9 @@ Proof.
           specialize (lock_coh (b, ofs)).
           assert (lk : exists (R : pred rmap), (lkat R (b, ofs)) Phi). {
             destruct (AMap.find (elt:=option rmap) (b, ofs) (ThreadPool.lset tp)) as [[lockphi|]|].
-            - destruct lock_coh as [_[R [lk _]]].
+            - destruct lock_coh as [_ (align & bound & R & lk & _)].
               now eexists _; apply lk.
-            - destruct lock_coh as [_ [R lk]].
+            - destruct lock_coh as [_ (align & bound & R & lk)].
               now eexists _; apply lk.
             - discriminate.
           }
@@ -749,8 +749,8 @@ Proof.
           specialize (lock_coh (b, ofs)).
           assert (lk : exists R, (lkat R (b, ofs)) Phi). {
             destruct (AMap.find (elt:=option rmap) (b, ofs) (lset tp)) as [[|]|].
-            - destruct lock_coh as [_ (? & ? & ?)]; eauto.
-            - destruct lock_coh as [_ (? & ?)]; eauto.
+            - destruct lock_coh as [_ (? & ? & ? & ? & ?)]; eauto.
+            - destruct lock_coh as [_ (? & ? & ? & ?)]; eauto.
             - tauto.
           }
           destruct lk as (R & lk).

@@ -118,6 +118,13 @@ Proof.
     eapply join_eq; eauto.
 Qed.
 
+Lemma joinlist_swap {A} {JA : Join A} {PA : Perm_alg A} (a b x : A) l :
+  joinlist (a :: b :: l) x =
+  joinlist (b :: a :: l) x.
+Proof.
+  apply prop_ext; split; apply joinlist_permutation; constructor.
+Qed.
+
 Lemma joinlist_join_sub {A} {JA : Join A} {PA : Perm_alg A} (x phi : A) l :
   joinlist l phi ->
   In x l -> join_sub x phi.
@@ -419,6 +426,7 @@ Proof.
 Qed.
 
 Require Import veric.compcert_rmaps.
+Require Import concurrency.enums_equality.
 Require Import concurrency.juicy_machine.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.scheduler.

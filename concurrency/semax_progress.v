@@ -354,7 +354,7 @@ Qed.
           reflexivity.
         
         - (* Some None: lock is locked, so [acquire] fails. *)
-          destruct lock_coh' as [LOAD ((* sh' & *) R' & lk)].
+          destruct lock_coh' as [LOAD ((* sh' & *) align & bound & R' & lk)].
           destruct isl as [sh [psh [z Ewetv]]].
           rewrite Ewetv in *.
           
@@ -420,17 +420,7 @@ Qed.
               repeat f_equal; congruence.
             }
 
-
-(* Lemma load_at_load *)
 Import Mem.
-Lemma A2PMap_found tp b ofs ofs' o :
-  AMap.find (elt:=option rmap) (b, ofs) (lset tp) = Some o ->
-  (ofs <= ofs' < ofs + 4)%Z ->
-  (A2PMap (lset tp)) !! b ofs' = Some Writable.
-Proof.
-  intros found.
-Admitted.
-
 
 Lemma load_at_phi_restrict i tp (cnti : containsThread tp i) m
       (compat : mem_compatible tp m) b ofs v sh sh' R phi0 o :
@@ -553,7 +543,7 @@ Qed.
         
         - (* acquire succeeds *)
           destruct isl as [sh [psh [z Ewetv]]].
-          destruct lock_coh' as [LOAD ((* sh' &  *)R' & lk & sat)].
+          destruct lock_coh' as [LOAD ((* sh' &  *)align & bound & R' & lk & sat)].
           rewrite Ewetv in *.
           
           unfold lock_inv in PREC.
@@ -707,7 +697,7 @@ Qed.
           reflexivity.
         
         - (* Some None: lock is locked, so [release] should succeed. *)
-          destruct lock_coh' as [LOAD ((* sh' &  *)R' & lk)].
+          destruct lock_coh' as [LOAD ((* sh' &  *)align & bound & R' & lk)].
           destruct isl as [sh [psh [z Ewetv]]].
           rewrite Ewetv in *.
           
@@ -823,7 +813,7 @@ Qed.
           + admit (* MISMATCH IN LOCK PERMISSIONS *).
         
         - (* Some Some: lock is unlocked, this should be impossible *)
-          destruct lock_coh' as [LOAD (R' & lk & sat)].
+          destruct lock_coh' as [LOAD (align & bound & R' & lk & sat)].
           destruct sat as [sat | ?]; [ | congruence ].
           destruct isl as [sh [psh [z Ewetv]]].
           rewrite Ewetv in *.

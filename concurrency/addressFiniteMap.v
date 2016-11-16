@@ -4,8 +4,10 @@ Require Import Coq.Structures.OrderedType.
 Require Import compcert.lib.Axioms.
 Require Import compcert.lib.Maps.
 Require Import compcert.lib.Coqlib.
+Require Import compcert.common.Memtype.
 
 Require Import msl.eq_dec.
+Require Import msl.Coqlib2.
 Require Import sepcomp.semantics_lemmas.
 Require Import concurrency.sepcomp. Import SepComp.
 Require Import concurrency.permissions.
@@ -229,6 +231,33 @@ Proof.
       eauto.
 Qed.
 
+Lemma AMap_find_remove {A} (m : AMap.t A) x x' :
+  AMap.find x' (AMap.remove x m) =
+  if eq_dec x x' then None else AMap.find x' m.
+Proof.
+  pose proof AMap.add_1.
+  pose proof AMap.add_2.
+  pose proof AMap.add_3.
+  pose proof AMap.find_1.
+  pose proof AMap.find_2.
+  pose proof AMap.remove_1.
+  pose proof AMap.remove_2.
+  pose proof AMap.remove_3.
+  assert (SN : forall A, forall o : option A, (forall x, o <> Some x) <-> o = None).
+  { intros ? []; split; congruence. }
+  
+  destruct (eq_dec x x') as [d|d].
+  - destruct (AMap.find _ _) as [o|] eqn:Eo; auto; exfalso.
+    apply AMap.find_2 in Eo.
+    eapply H4; eauto.
+    exists o. apply Eo.
+  - destruct (AMap.find (elt:=A) x' m) eqn:E.
+    + eauto.
+    + rewrite <-SN in E |- *.
+      intros y' Ey'; eapply E.
+      eauto.
+Qed.
+
 Lemma AMap_Raw_map_app {A} (f : A -> A) l1 l2 :
   AMap.Raw.map (option_map f) (app l1 l2) =
   app (AMap.Raw.map (option_map f) l1)
@@ -276,4 +305,294 @@ Proof.
   rewrite AMap_find_add.
   rewrite AMap_find_map_option_map.
   destruct (AMap.find (elt:=A) k m); destruct (eq_dec x k); auto.
+Qed.
+
+Lemma AMap_Raw_add_fold_left A (EQ : A -> A -> Prop) B f k (x : B) l (e : A) :
+  (forall e, EQ e e) ->
+  (forall e e', EQ e e' -> EQ e' e) ->
+  (forall e e' e'', EQ e e' -> EQ e' e'' -> EQ e e'') ->
+  (forall a e e', EQ e e' -> EQ (f e a) (f e' a)) -> 
+  (forall a b e, fst a = fst b -> EQ (f (f e a) b) (f e a)) -> 
+  (forall a b e, EQ (f (f e a) b) (f (f e b) a)) ->
+  EQ
+    (fold_left f (AMap.Raw.add k x l) e)
+    (fold_left f ((k, x) :: l) e).
+Proof.
+  intros re sy tr congr idem comm.
+  assert (congr' : forall l e e', EQ e e' -> EQ (fold_left f l e) (fold_left f l e')). {
+    clear -congr; intros l; induction l; intros e e' E.
+    - apply E.
+    - apply IHl, congr, E.
+  }
+  revert e. induction l; intros e. apply re. simpl.
+  destruct a as (k', y).
+  destruct (AddressOrdered.compare k k').
+  - apply re.
+  - simpl. apply congr'. apply sy. apply idem. assumption.
+  - simpl. eapply tr. apply IHl. simpl. apply congr'. apply comm.
+Qed.
+
+Require Import Coq.Sorting.Permutation.
+
+Lemma AMap_Raw_add_fold_left_permut A (EQ : A -> A -> Prop) B f (l l' : list B) (e : A) :
+  (forall e, EQ e e) ->
+  (forall e e', EQ e e' -> EQ e' e) ->
+  (forall e e' e'', EQ e e' -> EQ e' e'' -> EQ e e'') ->
+  (forall a e e', EQ e e' -> EQ (f e a) (f e' a)) -> 
+  (forall a b e, EQ (f (f e a) b) (f (f e b) a)) ->
+  Permutation l l' ->
+  EQ
+    (fold_left f l e)
+    (fold_left f l' e).
+Proof.
+  intros re sy tr congr comm permut.
+  assert (congr' : forall l e e', EQ e e' -> EQ (fold_left f l e) (fold_left f l e')). {
+    clear -congr; intros l; induction l; intros e e' E.
+    - apply E.
+    - apply IHl, congr, E.
+  }
+  revert e. induction permut; intros e.
+  - apply re.
+  - apply IHpermut.
+  - simpl. eapply tr. apply congr'. 2:apply re. apply comm.
+  - eapply tr. apply IHpermut1. apply IHpermut2.
+Qed.
+
+Lemma AMap_Raw_add_fold_left_right A (EQ : A -> A -> Prop) B f (l : list B) (e : A) :
+  (forall e, EQ e e) ->
+  (forall e e', EQ e e' -> EQ e' e) ->
+  (forall e e' e'', EQ e e' -> EQ e' e'' -> EQ e e'') ->
+  (forall a e e', EQ e e' -> EQ (f e a) (f e' a)) -> 
+  (forall a b e, EQ (f (f e a) b) (f (f e b) a)) ->
+  EQ
+    (fold_left f l e)
+    (fold_right (fun x y => f y x) e l).
+Proof.
+  intros re sy tr congr comm.
+  replace l with (rev (rev l)) at 2. 2:apply rev_involutive.
+  rewrite fold_left_rev_right.
+  apply AMap_Raw_add_fold_left_permut; auto.
+  apply Permutation_rev.
+Qed.
+
+Lemma setPerm_b_comm o b ofs1 ofs2 t :
+  setPerm o b ofs1 (setPerm o b ofs2 t) =
+  setPerm o b ofs2 (setPerm o b ofs1 t).
+Proof.
+  unfold setPerm. do 2 rewrite PMap.set2. f_equal.
+  extensionality z. do 2 rewrite PMap.gsspec.
+  destruct (zeq ofs1 z); destruct (zeq ofs2 z); simpl.
+  - auto.
+  - if_tac. 2:tauto. destruct (zeq ofs1 z); simpl; auto. tauto.
+  - if_tac. 2:tauto. destruct (zeq ofs2 z); simpl; auto. tauto.
+  - if_tac. 2:tauto. destruct (zeq ofs2 z); simpl; auto. tauto.
+    destruct (zeq ofs1 z); simpl; auto. tauto.
+Qed.
+
+Lemma setPerm_b_idem o b ofs t :
+  setPerm o b ofs (setPerm o b ofs t) =
+  setPerm o b ofs t.
+Proof.
+  unfold setPerm. rewrite PMap.set2. f_equal.
+  extensionality z. rewrite PMap.gsspec.
+  destruct (zeq ofs z); simpl; auto. if_tac. 2:tauto. destruct (zeq ofs z); auto. tauto.
+Qed.
+
+Definition PMap_eq {A} (m m' : PMap.t (Z -> A)) := forall b' ofs', m !! b' ofs' = m' !! b' ofs'.
+
+Lemma PMap_eq_refl {A} : reflexive _ (@PMap_eq A). intros f g. reflexivity. Qed.
+Lemma PMap_eq_sym {A} : symmetric _ (@PMap_eq A). intros f g. unfold PMap_eq; symmetry; auto. Qed.
+Lemma PMap_eq_trans {A} : transitive _ (@PMap_eq A). intros ? ? ? E E' ? ?. rewrite E, E'. auto. Qed.
+
+Definition A2P {A} :=
+ (fun (pmap : access_map) (a : address * A) =>
+      let (a0, _) := a in let (b0, ofs0) := a0 in setPermBlock (Some Writable) b0 ofs0 pmap LKSIZE_nat).
+
+Lemma A2P_congr A e e' a : PMap_eq e e' -> PMap_eq (A2P e a) (@A2P A e' a).
+Proof.
+  destruct a as ((b_, ofs_), a). intros E b'' ofs''. simpl. unfold setPerm.
+  repeat rewrite PMap.gsspec.
+  destruct (peq b'' b_) as [-> | ne]. destruct (peq b_ b_); [ | tauto]. 2:now auto.
+  destruct (zeq (ofs_ + 3) ofs''); simpl; auto.
+  destruct (zeq (ofs_ + 2) ofs''); simpl; auto.
+  destruct (zeq (ofs_ + 1) ofs''); simpl; auto.
+  destruct (zeq (ofs_ + 0) ofs''); simpl; auto.
+Qed.
+
+Lemma A2P_overwrite A : forall a b e, fst a = fst b -> PMap_eq (@A2P A (A2P e a) b) (@A2P A e a).
+Proof.
+  intros ((b1, ofs1), x1) (k2, x2) e; simpl. intros <- b'' ofs''.
+  f_equal.
+  repeat rewrite (setPerm_b_comm _ _ _ (ofs1 + 3)). rewrite setPerm_b_idem. f_equal.
+  repeat rewrite (setPerm_b_comm _ _ _ (ofs1 + 2)). rewrite setPerm_b_idem. f_equal.
+  repeat rewrite (setPerm_b_comm _ _ _ (ofs1 + 1)). rewrite setPerm_b_idem. f_equal.
+  repeat rewrite (setPerm_b_comm _ _ _ (ofs1 + 0)). rewrite setPerm_b_idem. f_equal.
+Qed.
+
+Lemma setPerm_comm b1 o1 b2 o2 e:
+  PMap_eq (setPerm (Some Writable) b1 o1 (setPerm (Some Writable) b2 o2 e))
+          (setPerm (Some Writable) b2 o2 (setPerm (Some Writable) b1 o1 e)).
+Proof.
+  intros b' o'.
+  unfold setPerm in *.
+  repeat rewrite PMap.gsspec.
+  destruct (peq b1 b2) as [B|B];
+  destruct (peq b2 b1) as [B'|B']; try tauto;
+  destruct (peq b' b1) as [B1|B1];
+  destruct (peq b' b2) as [B2|B2];
+  destruct (zeq o1 o') as [O1|O1];
+  destruct (zeq o2 o') as [O2|O2]; simpl; auto; congruence.
+Qed.
+
+Lemma setPerm_congr b o e e':
+  PMap_eq e e' ->
+  PMap_eq (setPerm (Some Writable) b o e)
+          (setPerm (Some Writable) b o e').
+Proof.
+  intros E b' o'; simpl.
+  unfold setPerm in *.
+  repeat rewrite PMap.gsspec.
+  if_tac; destruct (zeq o o'); simpl. auto.
+  all: rewrite E; auto.
+Qed.
+
+Lemma A2P_comm A e a b : PMap_eq (@A2P A (A2P e a) b) (@A2P A (A2P e b) a).
+Proof.
+  destruct a as ((b1, o1), a1), b as ((b2, o2), a2); simpl.
+  eapply PMap_eq_trans; [ do 3 apply setPerm_congr; apply setPerm_comm | ].
+  eapply PMap_eq_trans; [ do 2 apply setPerm_congr; apply setPerm_comm | ].
+  eapply PMap_eq_trans; [ do 1 apply setPerm_congr; apply setPerm_comm | ].
+  eapply PMap_eq_trans; [ do 0 apply setPerm_congr; apply setPerm_comm | ].
+  apply setPerm_congr.
+  eapply PMap_eq_trans; [ do 3 apply setPerm_congr; apply setPerm_comm | ].
+  eapply PMap_eq_trans; [ do 2 apply setPerm_congr; apply setPerm_comm | ].
+  eapply PMap_eq_trans; [ do 1 apply setPerm_congr; apply setPerm_comm | ].
+  eapply PMap_eq_trans; [ do 0 apply setPerm_congr; apply setPerm_comm | ].
+  apply setPerm_congr.
+  eapply PMap_eq_trans; [ do 3 apply setPerm_congr; apply setPerm_comm | ].
+  eapply PMap_eq_trans; [ do 2 apply setPerm_congr; apply setPerm_comm | ].
+  eapply PMap_eq_trans; [ do 1 apply setPerm_congr; apply setPerm_comm | ].
+  eapply PMap_eq_trans; [ do 0 apply setPerm_congr; apply setPerm_comm | ].
+  apply setPerm_congr.
+  eapply PMap_eq_trans; [ do 3 apply setPerm_congr; apply setPerm_comm | ].
+  eapply PMap_eq_trans; [ do 2 apply setPerm_congr; apply setPerm_comm | ].
+  eapply PMap_eq_trans; [ do 1 apply setPerm_congr; apply setPerm_comm | ].
+  eapply PMap_eq_trans; [ do 0 apply setPerm_congr; apply setPerm_comm | ].
+  apply PMap_eq_refl.
+Qed.
+
+Lemma fold_right_cons : forall A B (f : A -> B -> B) (z : B) (x : A) (y : list A),
+    fold_right f z (x :: y) = f x (fold_right f z y).
+Proof. reflexivity. Qed.
+
+Lemma setPerm_spec perm m b ofs b' ofs' :
+  (setPerm perm b ofs m) !! b' ofs' =
+  if eq_dec (b, ofs) (b', ofs') then
+    perm
+  else
+    m !! b' ofs'.
+Proof.
+  unfold setPerm. rewrite PMap.gsspec.
+  if_tac; destruct (zeq ofs ofs'); simpl; if_tac [?|ne]; try congruence.
+  destruct ne; auto.
+Qed.
+
+Lemma A2PMap_found A m b ofs ofs' o :
+  AMap.find (elt:=A) (b, ofs) m = Some o ->
+  (ofs <= ofs' < ofs + 4)%Z ->
+  (A2PMap m) !! b ofs' = Some Writable.
+Proof.
+  unfold AMap.find, A2PMap, AMap.elements, AMap.Raw.elements.
+  rewrite (AMap_Raw_add_fold_left_right (PMap.t (Z -> option permission)) PMap_eq).
+  2: now apply PMap_eq_refl.
+  2: now apply PMap_eq_sym.
+  2: now apply PMap_eq_trans.
+  2: now intros; eapply A2P_congr; auto.
+  2: now intros; eapply A2P_comm; auto.
+  
+  induction (@AMap.this A m) as [ | ((b0, ofs0), a) ]; [ discriminate | ].
+  simpl (AMap.Raw.find _ _).
+  destruct (AddressOrdered.compare (b, ofs) (b0, ofs0)) as [C|C|C].
+  - discriminate.
+  - injection 1 as <-.
+    rewrite fold_right_cons.
+    simpl.
+    repeat rewrite setPerm_spec.
+    repeat (if_tac; auto).
+    injection C as <- <- .
+    intros r.
+    exfalso.
+    do 4 match goal with H : (b, ?x) <> (b, ?y) |- _ => assert (x <> y) by (intros <-; tauto); clear H end.
+    omega.
+  - rewrite fold_right_cons.
+    simpl.
+    repeat rewrite setPerm_spec.
+    repeat (if_tac; auto).
+Qed.
+
+Lemma fold_right_rev_left:
+  forall (A B: Type) (f: A -> B -> A) (l: list B) (i: A),
+  fold_left f l i = fold_right (fun x y => f y x) i (rev l).
+Proof.
+intros. rewrite fold_left_rev_right.
+f_equal; extensionality x y; auto.
+Qed.
+
+Lemma A2PMap_add_outside T b b' ofs ofs' set o :
+  (@A2PMap T (AMap.add (b, ofs) o set)) !! b' ofs' =
+  if adr_range_dec (b, ofs) LKSIZE (b', ofs') then
+    Some Writable
+  else
+    (@A2PMap T set) !! b' ofs'.
+Proof.
+  unfold A2PMap in *.
+  unfold AMap.elements in *.
+  unfold AMap.Raw.elements in *.
+  unfold AMap.add in *.
+  simpl (AMap.this _).
+  
+  etransitivity.
+  {
+    apply (AMap_Raw_add_fold_left _ (fun t t' => forall b' ofs', t !! b' ofs' = t' !! b' ofs')).
+    - apply PMap_eq_refl.
+    - apply PMap_eq_sym.
+    - apply PMap_eq_trans.
+    - intros; eapply A2P_congr; auto.
+    - intros; eapply A2P_overwrite; auto.
+    - intros; eapply A2P_comm; auto.
+  }
+  assert (P : Permutation ((b, ofs, o) :: AMap.this set) (AMap.this set ++ (b, ofs, o) :: nil)).
+  { apply Permutation_cons_append. }
+  etransitivity.
+  {
+    eapply (AMap_Raw_add_fold_left_permut _ (fun t t' => forall b' ofs', t !! b' ofs' = t' !! b' ofs')).
+    - apply PMap_eq_refl.
+    - apply PMap_eq_sym.
+    - apply PMap_eq_trans.
+    - intros; eapply A2P_congr; auto.
+    - intros; eapply A2P_comm; auto.
+    - apply P.
+  }
+  remember (AMap.this set) as l. clear set Heql.
+  do 2 rewrite fold_right_rev_left.
+  rewrite rev_app_distr. simpl (app _ _).
+  remember (rev l) as l'; clear l Heql' P.
+  rewrite (* canon. *)fold_right_cons.
+  set (fold_right _ _ _) as m; clearbody m; clear.
+  simpl.
+  unfold setPerm in *.
+  do 7 rewrite PMap.gsspec.
+  if_tac [->|ne]; swap 1 2.
+  { if_tac. destruct H. congruence. reflexivity. }
+  destruct (peq b b). 2:tauto.
+  destruct (zeq (ofs + 3) ofs') as [<- | ne3]; simpl.
+  { if_tac [r|nr]; auto. destruct nr. split; auto; unfold LKSIZE; omega. }
+  destruct (zeq (ofs + 2) ofs') as [<- | ne2]; simpl.
+  { if_tac [r|nr]; auto. destruct nr. split; auto; unfold LKSIZE; omega. }
+  destruct (zeq (ofs + 1) ofs') as [<- | ne1]; simpl.
+  { if_tac [r|nr]; auto. destruct nr. split; auto; unfold LKSIZE; omega. }
+  destruct (zeq (ofs + 0) ofs') as [<- | ne0]; simpl.
+  { if_tac [r|nr]; auto. destruct nr. split; auto; unfold LKSIZE; omega. }
+  if_tac [r|nr]; auto.
+  destruct r. unfold LKSIZE in *; omega.
 Qed.
