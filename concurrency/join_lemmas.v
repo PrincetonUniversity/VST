@@ -426,6 +426,7 @@ Proof.
 Qed.
 
 Require Import veric.compcert_rmaps.
+Require Import concurrency.enums_equality.
 Require Import concurrency.juicy_machine.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.scheduler.

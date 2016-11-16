@@ -314,6 +314,37 @@ Module MainSafety .
           DryMachine.MachStep ge sm m sm' m' ->
           DryMachine.bounded_mem m ->
           DryMachine.bounded_mem m'.
+    Proof.
+      intros.
+      inversion H; eauto; simpl in *; subst; eauto.
+      clear - H0 Htstep.
+      inversion Htstep; subst.
+      move : Hcorestep=> /=.
+      simpl.
+      rewrite /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryMachine.ThreadPool.SEM.Sem
+              /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.SEM.Sem
+              /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.SEM.CLN_evsem.
+      
+      move=> HH.
+      eapply ev_step_ax1 in HH.
+      simpl in HH.
+      unfold corestep in HH.
+      rewrite SEM.CLN_msem in HH.
+      simpl in HH.
+      eapply Clight_bounds.CLight_step_mem_bound in HH; eauto; simpl.
+      
+      
+      rewrite SEM.CLN_msem.
+      pose ClightSemantincsForMachines.ClightSEM.CLN_msem.
+      rewrite /ev_step.
+      destruct 
+      /ClightSemantincsForMachines.ClightSEM.CLN_evsem.
+      simpl.
+      ClightSemantincsForMac
+        hines.ClightSEM.CLN_msem.
+      
+              /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryMachine.dry_step.
+      
     Admitted.
     
     Lemma safe_new_step_bound_safe_new_step: forall sch ds m,
