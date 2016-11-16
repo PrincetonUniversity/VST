@@ -795,7 +795,7 @@ end.
 
 (*********)
 
-Require Import floyd.new_load_tac.
+Require Import floyd.new_load_tac_general.
 
 Lemma body_aes_encrypt: semax_body Vprog Gprog f_mbedtls_aes_encrypt encryption_spec_ll.
 Proof.
