@@ -11,6 +11,7 @@ Require Import Coq.ZArith.ZArith.
 Require Import concurrency.permissions.
 Require Import compcert.common.Memory. (*for Mem.perm_order'' *)
 Require Import concurrency.bounded_maps.
+Require Import concurrency.permissions.
 
 Require Import sepcomp.semantics_lemmas.
 Require Import Coqlib.
@@ -118,6 +119,7 @@ Lemma Mem_canonical_useful: forall m loc k,
            assumption.
     Qed.
 
+    
 Lemma CLight_step_mem_bound ge c m c' m':
   veric.Clight_new.cl_step ge c m c' m' ->
   bounded_maps.bounded_map (snd (getMaxPerm m)) ->
@@ -131,3 +133,45 @@ Proof.
   extensionality k.
   apply Mem_canonical_useful.
 Qed.
+
+
+Definition bounded_mem (m: mem) := bounded_maps.bounded_map (snd (getMaxPerm m)) .
+
+
+Lemma mem_alloc_bounded:
+  forall m lo hi m1 b,
+    bounded_mem m ->
+    Mem.alloc m lo hi = (m1, b) ->
+    bounded_mem m1.
+Proof.
+Admitted.
+
+Lemma drop_perm_bounded:
+  forall m b lo hi P m',
+    bounded_mem m ->
+    Mem.drop_perm m b lo hi P = Some m' ->
+    bounded_mem m'.
+Proof.
+Admitted.
+Lemma store_bounded:
+  forall Mint32 m b ofs v m',
+    bounded_mem m ->
+    Mem.store Mint32 m b ofs v = Some m' ->
+    bounded_mem m'.
+Proof.
+Admitted.
+
+Lemma bounded_getMaxPerm:
+  forall m p Hlt,
+    @bounded_mem m ->
+    @bounded_mem (@restrPermMap p m Hlt).
+Proof.
+Admitted.
+
+Lemma alloc_global_bounded:
+  forall F V ge m m' a,
+    @bounded_mem m ->
+    @Globalenvs.Genv.alloc_global F V ge m a = Some m' ->
+    @bounded_mem m'.
+Proof.
+Admitted.

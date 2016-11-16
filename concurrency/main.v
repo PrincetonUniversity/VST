@@ -313,6 +313,8 @@ Module MainSafety .
     Qed.
 
     (*To use the result we must go back to the normal safety (from safety of bounded states)*)
+    
+    
     Lemma bounded_mem_step:
             forall ge sm m sm' m',
           DryMachine.MachStep ge sm m sm' m' ->
@@ -321,35 +323,28 @@ Module MainSafety .
     Proof.
       intros.
       inversion H; eauto; simpl in *; subst; eauto.
-      clear - H0 Htstep.
-      inversion Htstep; subst.
-      move : Hcorestep=> /=.
-      simpl.
-      rewrite /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryMachine.ThreadPool.SEM.Sem
+      - (*thread step *)
+        clear - H0 Htstep .
+        inversion Htstep; subst.
+        move : Hcorestep=> /=.
+        simpl.
+        rewrite /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryMachine.ThreadPool.SEM.Sem
               /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.SEM.Sem
               /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.SEM.CLN_evsem.
       
-      move=> HH.
-      eapply ev_step_ax1 in HH.
-      simpl in HH.
-      unfold corestep in HH.
-      rewrite SEM.CLN_msem in HH.
-      simpl in HH.
-      eapply Clight_bounds.CLight_step_mem_bound in HH; eauto; simpl.
-      
-      
-      (*rewrite SEM.CLN_msem.
-      pose ClightSemantincsForMachines.ClightSEM.CLN_msem.
-      rewrite /ev_step.
-      destruct 
-      /ClightSemantincsForMachines.ClightSEM.CLN_evsem.
-      simpl.
-      ClightSemantincsForMac
-        hines.ClightSEM.CLN_msem.
-      
-              /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryMachine.dry_step.*)
-      
-    Admitted.
+        move=> HH.
+        eapply ev_step_ax1 in HH.
+        simpl in HH.
+        unfold corestep in HH.
+        rewrite SEM.CLN_msem in HH.
+        simpl in HH.
+        eapply Clight_bounds.CLight_step_mem_bound in HH; eauto.
+        eapply Clight_bounds.bounded_getMaxPerm in H0; eauto.
+        
+      - inversion Htstep; eauto; simpl in *; subst; auto;
+        eapply Clight_bounds.store_bounded; try eapply Hstore;
+        eapply Clight_bounds.bounded_getMaxPerm; eauto.
+    Qed.
     
     Lemma safe_new_step_bound_safe_new_step: forall sch ds m,
         DryMachine.new_valid_bound (nil, ds, m) sch ->
@@ -401,10 +396,10 @@ Module MainSafety .
                  simpl in HH.
                  rewrite PTree.gleaf in HH; inversion HH.
         Qed.
-    
     Lemma bounded_initial_mem:
       DryMachine.bounded_mem initial_memory.
         rewrite /initial_memory /init_mem /init_m.
+
         destruct (Genv.init_mem (Ctypes.program_of_program prog)) eqn:HH;
           [ |exfalso; apply init_mem_not_none; auto].
         move: HH => /=.
@@ -423,15 +418,19 @@ Module MainSafety .
           
         - move=> M BM.
           simpl.
+
+
+          
           destruct (Genv.alloc_global (Genv.globalenv (Ctypes.program_of_program prog))
                                       M a) eqn: AA;
             try solve[intros HH; inversion HH].
-          eapply IHK.
-          move: AA.
-          destruct a.
-          rewrite / Genv.alloc_global.
-          
-    Admitted.
+          intros HH.
+          pose (@Clight_bounds.alloc_global_bounded
+                  _ _
+                  (Genv.globalenv (Ctypes.program_of_program prog))
+               M m0 a).
+          eapply b in BM; eauto.
+    Qed.
     
     Theorem new_dry_clight_infinite_safety_valid': forall sch,
         DryMachine.new_valid (nil, ds_initial, initial_memory) sch  ->
