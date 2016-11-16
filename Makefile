@@ -235,7 +235,7 @@ FLOYD_FILES= \
 PROGS_FILES= \
   bin_search.v list_dt.v verif_reverse.v verif_queue.v verif_queue2.v verif_sumarray.v \
   insertionsort.v reverse.v queue.v sumarray.v message.v string.v\
-  revarray.v verif_revarray.v insertionsort.v append.v \
+  revarray.v verif_revarray.v insertionsort.v append.v min.v verif_min.v \
   verif_float.v verif_global.v verif_ptr_compare.v \
   verif_nest3.v verif_nest2.v \
   logical_compare.v verif_logical_compare.v field_loadstore.v  verif_field_loadstore.v \
@@ -328,7 +328,7 @@ HMACDRBG_FILES = \
 #  verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v verif_hmac_drbg_generate.v
 
 
-C_FILES = reverse.c queue.c queue2.c sumarray.c sumarray2.c message.c insertionsort.c float.c global.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c
+C_FILES = reverse.c queue.c queue2.c sumarray.c sumarray2.c message.c insertionsort.c float.c global.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c min.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \

@@ -203,7 +203,8 @@ Ltac process_stackframe_of :=
     end;
   match goal with |- semax _ ?Pre _ _ =>
      let p := fresh "p" in set (p := Pre);
-     rewrite <- (emp_sepcon (fold_right _ _ _)); subst p
+     rewrite <- (@emp_sepcon (environ->mpred) _ _ _ (fold_right _ _ _));
+     subst p
   end;
   repeat (simple apply postcondition_var_block;
    [reflexivity | reflexivity | reflexivity | reflexivity | reflexivity |  ]);
