@@ -338,7 +338,7 @@ Module MainSafety .
       eapply Clight_bounds.CLight_step_mem_bound in HH; eauto; simpl.
       
       
-      rewrite SEM.CLN_msem.
+      (*rewrite SEM.CLN_msem.
       pose ClightSemantincsForMachines.ClightSEM.CLN_msem.
       rewrite /ev_step.
       destruct 
@@ -347,7 +347,7 @@ Module MainSafety .
       ClightSemantincsForMac
         hines.ClightSEM.CLN_msem.
       
-              /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryMachine.dry_step.
+              /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryMachine.dry_step.*)
       
     Admitted.
     
