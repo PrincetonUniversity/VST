@@ -53,7 +53,7 @@ Definition fun_leq {A B} (f1: Z -> option A) (f2: Z -> option B): Prop :=
   forall p, f1 p -> f2 p.
 
 Definition bounded_nat_func' {A} (f: nat -> option A) hi: Prop :=
-  (forall p, (p >= hi )%nat -> f p = None).
+  (forall p, (p > hi )%nat -> f p = None).
 
 Definition bounded_func' {A} (f: Z -> option A) hi lo: Prop :=
   (forall p, (p > hi )%Z -> f p = None) /\
@@ -96,16 +96,19 @@ Definition perm_to_nat (p: option permission) :=
             konig.finite
               ( fun f:nat -> option permission => bounded_nat_func' f hi).
  Proof.
-   intros hi.
+   (* intros hi.
    pose (K:= perm_to_nat).
    induction hi.
-   - exists 1.
-     exists (fun _ _ => None).
+   - exists 6.
+     exists (fun x _ => nat_to_perm x).
      intros.
-     exists 0%nat.
+     
+     exists (perm_to_nat(x 0)).
      split; auto.
-     unfold bounded_nat_func' in H.
+     destruct (x 0); simpl; try omega .
+     destruct p; simpl; omega.
      extensionality i.
+     
      symmetry.
      apply H.
      apply leq0n.
@@ -151,7 +154,7 @@ Definition perm_to_nat (p: option permission) :=
              destruct (Nat.eq_dec n hi);
                try solve[exfalso; apply n0; auto].
              reflexivity.
-             admit.
+             admit.*)
  Admitted.
     
 Lemma finite_sub_maps:
