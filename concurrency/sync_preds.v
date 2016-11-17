@@ -520,6 +520,17 @@ Proof.
   - intros (A & B). intros sh sh' z P; split; intros ->; eauto 40.
 Qed.
 
+Lemma isLK_rewrite r :
+  (forall (sh : Share.t) (sh' : pshare) (z : Z) (P : preds), r <> YES sh sh' (LK z) P)
+  <->
+  ~ isLK r.
+Proof.
+  destruct r as [t0 | t0 p [] p0 | k p]; simpl; unfold isLK in *; split.
+  all: try intros H ?; intros; breakhyps.
+  intros E; injection E; intros; subst.
+  apply H; eauto.
+Qed.
+
 Lemma isLK_age_to n phi loc : isLK (age_to n phi @ loc) = isLK (phi @ loc).
 Proof.
   unfold isLK in *.

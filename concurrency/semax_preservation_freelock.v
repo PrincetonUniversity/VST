@@ -86,14 +86,6 @@ Lemma safety_induction_freelock Gamma n state
   (Jspec' := @OK_spec (Concurrent_Espec unit CS ext_link))
   (Jspec'_juicy_mem_equiv : Jspec'_juicy_mem_equiv_def CS ext_link)
   (Jspec'_hered : Jspec'_hered_def CS ext_link)
-  (mem_cohere'_store : forall m tp m' b ofs i Phi
-    (Hcmpt : mem_compatible tp m),
-    lockRes tp (b, Int.intval ofs) <> None ->
-    Mem.store
-      Mint32 (restrPermMap (mem_compatible_locks_ltwritable Hcmpt))
-      b (Int.intval ofs) (Vint i) = Some m' ->
-    mem_compatible_with tp m Phi (* redundant with Hcmpt, but easier *) ->
-    mem_cohere' m' Phi)
   (personal_mem_equiv_spec :
      forall (m m' : Mem.mem') (phi : rmap) (pr : mem_cohere' m phi) (pr' : mem_cohere' m' phi),
        Mem.nextblock m = Mem.nextblock m' ->
@@ -375,7 +367,7 @@ Proof.
            (* problem here: the memory we build with rmap_freelock
            does not cohere with the dry memory, so we should change
            rmap_freelock so that it depends of the dry one. *)
-           admit.
+           admit. (* change rmap_freelock to fetch VAL from dry memory *)
         -- destruct (Phi'rev _ _ _ _ _ nr E'') as (pp' & E & ->).
            cut (contents_at m loc = v /\ pp' = NoneP).
            { intros []; split; subst pp'; auto. }
@@ -501,8 +493,7 @@ Proof.
       unfold Int.unsigned in *.
       destruct inside as (sh & -> & ?). intros HH.
       unfold isLK in *. breakhyps.
-    + (* continuing lock coh ... *)
-      admit.
+    + admit (* continuing lock coh ... *).
   
   - (* safety *)
     {
@@ -568,8 +559,7 @@ Proof.
               split. now constructor.
               simpl. rewrite seplog.sepcon_emp.
               unfold semax_conc_pred.lock_inv in *.
-              (* depend on rmap_freelock *)
-              admit.
+              admit (* depend on rmap_freelock *).
           
           + admit.
       }
