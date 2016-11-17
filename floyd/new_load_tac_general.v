@@ -23,20 +23,57 @@ Section SEMAX_SC.
 
 Context {cs: compspecs}.
 
-Lemma field_compatible_concat: forall t_root gfsA gfsB a,
-  field_compatible t_root (gfsB ++ gfsA) a <->
+Lemma legal_nested_field_shrink: forall t_root gfsB gfsA,
+  legal_nested_field t_root (gfsB ++ gfsA) ->
+  legal_nested_field t_root gfsA.
+Proof.
+  intros. induction gfsB.
+  - rewrite app_nil_l in H. assumption.
+  - apply IHgfsB. clear IHgfsB. simpl in H. destruct H. assumption.
+Qed.
+
+Lemma field_compatible_shrink: forall t_root gfsB gfsA a,
+  field_compatible t_root (gfsB ++ gfsA) a ->
+  field_compatible t_root gfsA a.
+Proof.
+  intros. unfold field_compatible in *. rename H into A. repeat destruct A as [? A].
+  repeat split; try assumption. eapply legal_nested_field_shrink. eassumption.
+Qed.
+
+Lemma field_compatible_app: forall gfsB t_root gfsA a,
+  field_compatible t_root (gfsB ++ gfsA) a ->
   field_compatible (nested_field_type t_root gfsA) gfsB (field_address t_root gfsA a).
-Admitted.
+Proof.
+  intro gfsB. induction gfsB; intros.
+  - simpl in H. rewrite field_compatible_field_address by assumption.
+    apply field_compatible_nested_field. assumption.
+  - rewrite <- app_comm_cons in H.
+    apply field_compatible_cons in H.
+    destruct (nested_field_type t_root (gfsB ++ gfsA)) eqn: E;
+    try solve [exfalso; assumption];
+    destruct a; try solve [exfalso; assumption];
+    rewrite <- nested_field_type_nested_field_type in E;
+    apply field_compatible_cons;
+    rewrite E; destruct H; auto.
+Qed.
 
-Lemma nested_field_type_concat: forall t_root gfsA gfsB,
-  nested_field_type t_root (gfsB ++ gfsA) =
-  nested_field_type (nested_field_type t_root gfsA) gfsB.
-Admitted.
-
-Lemma field_address_concat: forall t_root gfsA gfsB a,
+Lemma field_address_app: forall t_root gfsA gfsB a,
+  field_compatible t_root (gfsB ++ gfsA) a ->
   field_address t_root (gfsB ++ gfsA) a =
   field_address (nested_field_type t_root gfsA) gfsB (field_address t_root gfsA a).
-Admitted.
+Proof.
+  intros.
+  rewrite field_compatible_field_address.
+  rewrite field_compatible_field_address.
+  rewrite nested_field_offset_app.
+  rewrite field_address_offset.
+  rewrite offset_offset_val.
+  reflexivity.
+  { eapply field_compatible_shrink. eassumption. }
+  { eapply field_compatible_legal_nested_field. eassumption. }
+  { eapply field_compatible_app. assumption. }
+  { assumption. }
+Qed.
 
 Lemma semax_max_path_field_load_nth_ram_general:
   forall {Espec: OracleKind},
@@ -46,10 +83,8 @@ Lemma semax_max_path_field_load_nth_ram_general:
       typeof_temp Delta id = Some t ->
       is_neutral_cast (typeof (nested_efield e1 efs tts)) t = true ->
       readable_share sh ->
-   (* LR_of_type t_root = lr -> *)
       LR_of_type (nested_field_type t_root gfsA) = lr ->
       type_is_volatile (typeof (nested_efield e1 efs tts)) = false ->
-   (* legal_nested_efield t_root e1 gfs tts lr = true -> *)
       legal_nested_efield (nested_field_type t_root gfsA) e1 gfsB tts lr = true ->
       JMeq v' v ->
       nth_error R n = Some Pre ->
@@ -71,7 +106,7 @@ Proof.
   intros until 0. intros TId Cast Rsh EqLr Volatile Lnf JM GetR F Evale1 Tc.
   pose proof is_neutral_cast_by_value _ _ Cast as ByVal.
   assert_PROP (typeof (nested_efield e1 efs tts) = nested_field_type t_root (gfsB ++ gfsA)) as EqT. {
-    rewrite nested_field_type_concat.
+    rewrite <- nested_field_type_nested_field_type.
     eapply derives_trans; [exact Tc |].
     rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ Lnf)).
     normalize.
@@ -91,12 +126,12 @@ Proof.
   + exact EqT.
   + exact TId.
   + exact Cast.
-  + rewrite field_address_concat.
+  + rewrite field_address_app by assumption.
     rewrite (add_andp _ _ Evale1), (add_andp _ _ Tc).
     eapply derives_trans; [| apply eval_lvalue_nested_efield; try eassumption].
     - solve_andp.
-    - apply field_compatible_concat. exact Fc.
-    - rewrite <- nested_field_type_concat. exact ByVal.
+    - apply field_compatible_app. exact Fc.
+    - rewrite nested_field_type_nested_field_type. exact ByVal.
   + eassumption.
   + eassumption.
   + eapply self_ramify_trans; [exact F |].
@@ -106,10 +141,10 @@ Proof.
     - rewrite (add_andp _ _ Evale1), (add_andp _ _ Tc).
       eapply derives_trans; [| eapply tc_lvalue_nested_efield].
       * solve_andp.
-      * eapply field_compatible_concat. exact Fc.
+      * eapply field_compatible_app. exact Fc.
       * eassumption.
       * eassumption.
-      * rewrite <- nested_field_type_concat. exact ByVal.
+      * rewrite nested_field_type_nested_field_type. exact ByVal.
     - eapply derives_trans; [exact Tc |].
       rewrite EqT. solve_andp.
 Qed.
@@ -156,7 +191,7 @@ Proof.
    [eapply derives_trans; [exact Edenote | eapply typeof_nested_efield; eauto] | intro EqT].
   assert (JMeq (valinject (nested_field_type t_root (gfsB ++ gfsA)) v) v) as JM. {
     apply valinject_JMeq. apply is_neutral_cast_by_value with t.
-    rewrite nested_field_type_concat. rewrite EqT. assumption.
+    rewrite <- nested_field_type_nested_field_type. rewrite EqT. assumption.
   }
   eapply semax_max_path_field_load_nth_ram_general.
   1: eassumption.
@@ -222,13 +257,19 @@ Proof.
   intros until 0. intros TypeOf Cast Volatile Ugly Edenote Nice GetR Rsh Split Dig Tc Lnf EqLr Lnef.
   destruct Nice as [Nice | [? ?]].
   - eapply semax_SC_field_load_general; eassumption.
+  - subst. eapply semax_SC_field_load; try eassumption; try reflexivity;
+       try rewrite app_nil_r; eassumption.
+Qed.
+
+(* TODO the second case could probably also be proven without semax_SC_field_load_general,
+   so that we can replace semax_SC_field_load_general 
   - subst. eapply semax_SC_field_load_general; try eassumption; try reflexivity.
     (* We prefer to do the following lines in a lemma rather than in the load_tac: *)
     rewrite field_at_compatible' in GetR.
     eapply derives_trans with (Q0 := !! field_compatible t_root gfs0 a).
     * (* based on GetR *) admit.
     * apply prop_derives. intro. apply field_address_nil. (* TODO *) admit.
-Admitted.
+*)
 
 (* same as above except note
 Lemma semax_SC_field_load_general':
