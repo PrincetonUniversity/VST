@@ -259,18 +259,18 @@ Proof.
   spec lock_coh (b, Int.intval ofs). cleanup. rewrite locked in lock_coh.
   
   unfold tlock in *.
-  apply (lock_inv_rmap_freelock CS) in Hlockinv; auto; try apply lock_coh.
+  apply (lock_inv_rmap_freelock CS) with (m := m) in Hlockinv; auto; try apply lock_coh.
   destruct Hlockinv as (phi0lockinv' & Hrmap00 & Hlkat).
   
   assert (Hpos'' : (0 < 4)%Z) by omega.
-  pose proof rmap_freelock_join _ _ _ _ _ _ _ Hpos'' Hrmap00 jphi0 as Hrmap0.
+  pose proof rmap_freelock_join _ _ _ _ _ _ _ _ Hpos'' Hrmap00 jphi0 as Hrmap0.
   destruct Hrmap0 as (phi0' & Hrmap0 & jphi0').
-  pose proof rmap_freelock_join _ _ _ _ _ _ _ Hpos'' Hrmap0 Join as Hrmap.
+  pose proof rmap_freelock_join _ _ _ _ _ _ _ _ Hpos'' Hrmap0 Join as Hrmap.
   pose proof Hrmap as Hrmap_.
   destruct Hrmap_ as (phi' & RLphi & j').
   assert (ji : join_sub (getThreadR _ _ cnti) Phi) by join_sub_tac.
   destruct ji as (psi & jpsi). cleanup.
-  pose proof rmap_freelock_join _ _ _ _ _ _ _ Hpos'' RLphi jpsi as Hrmap'.
+  pose proof rmap_freelock_join _ _ _ _ _ _ _ _ Hpos'' RLphi jpsi as Hrmap'.
   destruct Hrmap' as (Phi' & Hrmap' & J').
   
   subst args.
@@ -347,7 +347,7 @@ Proof.
       rewrite <-joinlist_merge in j. 2: apply jphi0.
       rewrite joinlist_swap.
       destruct j as (xi_ & jxi_ & jx1).
-      pose proof rmap_freelock_join _ _ _ _ _ _ _ Hpos'' Hrmap00 jx1 as Hrmap1.
+      pose proof rmap_freelock_join _ _ _ _ _ _ _ _ Hpos'' Hrmap00 jx1 as Hrmap1.
       destruct Hrmap1 as (Phi'_ & Hrmap'_ & J).
       assert (Phi'_ = Phi') by (eapply rmap_freelock_unique; eauto). subst Phi'_.
       exists xi_. auto.
@@ -362,12 +362,6 @@ Proof.
            rewrite E' in E''. simpl in E''.
            injection E'' as <- <- <- <-.
            split; auto.
-           pose proof compat.(all_cohere).(cont_coh).
-           unfold contents_cohere in *.
-           (* problem here: the memory we build with rmap_freelock
-           does not cohere with the dry memory, so we should change
-           rmap_freelock so that it depends of the dry one. *)
-           admit. (* change rmap_freelock to fetch VAL from dry memory *)
         -- destruct (Phi'rev _ _ _ _ _ nr E'') as (pp' & E & ->).
            cut (contents_at m loc = v /\ pp' = NoneP).
            { intros []; split; subst pp'; auto. }

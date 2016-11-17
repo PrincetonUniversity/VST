@@ -19,6 +19,7 @@ Require Import veric.semax.
 Require Import veric.semax_ext.
 Require Import veric.SeparationLogic.
 Require Import veric.res_predicates.
+Require Import veric.juicy_mem.
 Require Import floyd.field_at.
 Require Import floyd.reptype_lemmas.
 Require Import sepcomp.Address.
@@ -461,15 +462,14 @@ Definition rmap_makelock phi phi' loc R length :=
           YES sh pfullshare (CT (snd x - snd loc)) NoneP).
 
 (* rmap_freelock phi phi' is ALMOST rmap_makelock phi' phi but we
-specify that the val with be Vundef, so that we stay deterministic,
-because we can. *)
-Definition rmap_freelock phi phi' loc R length :=
+specify that the VAL will be the dry memory's *)
+Definition rmap_freelock phi phi' m loc R length :=
   (level phi = level phi') /\
   (forall x, ~ adr_range loc length x -> phi @ x = phi' @ x) /\
   (forall x,
       adr_range loc length x ->
       exists sh,
-        phi' @ x = YES sh pfullshare (VAL Undef) NoneP /\
+        phi' @ x = YES sh pfullshare (VAL (contents_at m x)) NoneP /\
         phi @ x =
         if eq_dec x loc then
           YES sh pfullshare (LK length) (pack_res_inv (approx (level phi) R))
@@ -492,12 +492,12 @@ Definition makelock_f phi loc R length : address -> resource :=
     else
       phi @ x.
 
-Definition freelock_f phi loc length : address -> resource :=
+Definition freelock_f phi m loc length : address -> resource :=
   fun x =>
     if adr_range_dec loc length x then
       match phi @ x with
-      | YES sh sh' (LK _) _ => YES sh sh' (VAL Undef) NoneP
-      | YES sh sh' (CT _) _ => YES sh sh' (VAL Undef) NoneP
+      | YES sh sh' (LK _) _ => YES sh sh' (VAL (contents_at m x)) NoneP
+      | YES sh sh' (CT _) _ => YES sh sh' (VAL (contents_at m x)) NoneP
       | YES _ _ _ _
       | PURE _ _
       | NO _ => NO Share.bot
@@ -657,18 +657,18 @@ Proof.
       eapply join_eq; eauto.
 Qed.
 
-Lemma rmap_freelock_join phi1 phi1' loc R length phi2 phi :
+Lemma rmap_freelock_join phi1 phi1' m loc R length phi2 phi :
   0 < length ->
-  rmap_freelock phi1 phi1' loc R length ->
+  rmap_freelock phi1 phi1' m loc R length ->
   join phi1 phi2 phi ->
   exists phi',
-    rmap_freelock phi phi' loc R length /\
+    rmap_freelock phi phi' m loc R length /\
     join phi1' phi2 phi'.
 Proof.
   intros Hpos (Hlev & Hsame & Hchanged) j.
   assert (L1 : level phi1 = level phi) by (eapply join_level; eauto).
   
-  pose proof make_rmap (freelock_f phi loc length) as Hphi'.
+  pose proof make_rmap (freelock_f phi m loc length) as Hphi'.
   
   (* the freelock_f function is valid *)
   assert_specialize Hphi'. {
@@ -929,19 +929,26 @@ Proof.
       Unshelve. all:rewrite <-readable_share_unrel_Rsh; apply writable_readable_share; auto.
 Qed.
 
-Lemma lock_inv_rmap_freelock CS sh b ofs R phi :
+Lemma nat_of_Z_nonzero z n: n <> O -> nat_of_Z z = n -> z = Z.of_nat n.
+Proof.
+  intros nz <-.
+  symmetry; apply Coqlib.nat_of_Z_eq. unfold Z.ge.
+  destruct z; simpl in *; congruence.
+Qed.
+
+Lemma lock_inv_rmap_freelock CS sh b ofs R phi m :
   (4 | Int.unsigned ofs) ->
   Int.unsigned ofs + 4 <= Int.modulus ->
   writable_share sh ->
   app_pred (@lock_inv sh (Vptr b ofs) R) phi ->
   exists phi',
-    rmap_freelock phi phi' (b, Int.unsigned ofs) R 4 /\
+    rmap_freelock phi phi' m (b, Int.unsigned ofs) R 4 /\
     app_pred (@data_at_ CS sh (Tarray (Tpointer Tvoid noattr) 1 noattr) (Vptr b ofs)) phi'.
 Proof.
   intros Halign Hbound Hwritable Hli.
   destruct Hli as (? & ? & E & Hli). injection E as <- <- .
   
-  pose proof make_rmap (freelock_f phi (b, Int.unsigned ofs) 4) as Hphi'.
+  pose proof make_rmap (freelock_f phi m (b, Int.unsigned ofs) 4) as Hphi'.
   
   assert_specialize Hphi'. {
     intros b' ofs'.
@@ -1005,7 +1012,7 @@ Proof.
     unfold mapsto in *; simpl.
     pose proof writable_readable_share Hwritable as Hr.
     if_tac. 2:tauto. right. split; [reflexivity|].
-    exists Vundef, (Undef :: Undef :: Undef :: Undef :: nil); split.
+    eexists _, (_ :: _ :: _ :: _ :: nil); split.
     { repeat split; assumption. }
     intros x. spec Hli x. simpl in *. unfold lksize.LKSIZE in *.
     rewrite Ephi'. unfold freelock_f.
@@ -1013,9 +1020,18 @@ Proof.
     rewrite writable_share_right; auto. exists top_share_nonunit.
     if_tac [<-|ne] in Hli.
     * destruct Hli as (p & ->). f_equal. now apply writable_unique_right; auto.
-      simpl. destruct (nat_of_Z (Int.unsigned ofs - Int.unsigned ofs)) as [|[|[|[|[|]]]]]; auto.
+      simpl.
+      replace (Int.unsigned ofs - Int.unsigned ofs) with 0 by omega; simpl.
+      reflexivity.
     * destruct Hli as (p & ->). f_equal. now apply writable_unique_right; auto.
-      simpl. destruct (nat_of_Z (snd x - Int.unsigned ofs)) as [|[|[|[|[|]]]]]; auto.
+      destruct x as (b', ox); simpl in r; destruct r as (<-, r); simpl. 
+      assert (A : forall a b c, a - b = c -> a = b + c) by (intros; omega).
+      destruct (nat_of_Z (ox - Int.unsigned ofs)) as [|[|[|[|[|]]]]] eqn:Ez; auto.
+      { apply juicy_mem_lemmas.Zminus_lem in Ez. subst ox; auto. apply r. }
+      all: apply nat_of_Z_nonzero in Ez; auto; apply A in Ez; subst ox.
+      all: try reflexivity.
+      -- simpl in r; omega.
+      -- simpl in r; zify; omega.
 Qed.
 
 Lemma rmap_makelock_unique phi phi1 phi2 loc R len :
@@ -1031,9 +1047,9 @@ Proof.
   - spec out1 x nr. spec out2 x nr. congruence.
 Qed.
 
-Lemma rmap_freelock_unique phi phi1 phi2 loc R len :
-  rmap_freelock phi phi1 loc R len ->
-  rmap_freelock phi phi2 loc R len ->
+Lemma rmap_freelock_unique phi phi1 phi2 m loc R len :
+  rmap_freelock phi phi1 m loc R len ->
+  rmap_freelock phi phi2 m loc R len ->
   phi1 = phi2.
 Proof.
   intros (L1 & out1 & in1) (L2 & out2 & in2).

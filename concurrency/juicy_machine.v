@@ -1360,7 +1360,7 @@ Qed.
             (*First check the lock is acquired:*)
             (His_acq: lockRes tp (b, (Int.intval ofs)) = SNone)
             (*Relation between rmaps:*)
-            (Hrmap : rmap_freelock phi phi' (b, Int.unsigned ofs) R LKSIZE)
+            (Hrmap : rmap_freelock phi phi' m (b, Int.unsigned ofs) R LKSIZE)
             (*
             (*This the first share of the lock, 
               can/should this be different for each location? *)
