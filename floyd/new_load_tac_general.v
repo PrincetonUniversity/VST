@@ -491,8 +491,8 @@ Ltac load_tac ::=
         (sc_new_instantiate P Q R R Delta e1 gfsA gfsB tts lr a sh t_root gfs0 v n (0%nat) Hf
          || fail 15 "sc_new_instantiate should really not have failed" )
       ) else (
-        instantiate (gfsA := nil);
-        (* will fail if setting gfsA to nil was a bad idea: *)
+        instantiate (gfsA := nil); instantiate (a := p);
+        (* will fail if these instantiations were a bad idea: *)
         sc_new_instantiate P Q R R Delta e1 gfsA gfsB tts lr a sh t_root gfs0 v n (0%nat) Hf;
         (assert g as HNice by (
           subst p gfsA gfsB a t_root;
