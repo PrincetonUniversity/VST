@@ -138,7 +138,8 @@ end.
 
 Ltac ensure_no_augment_funspecs :=
  match goal with
- | |- semax (func_tycontext _ _ ?Gprog) _ _ _ =>
+ | |- semax ?D _ _ _ =>
+  match D with context [func_tycontext _ _ ?Gprog] =>
    let x := fresh "x" in pose (x := Gprog);
    unfold Gprog in x;
    match goal with
@@ -146,6 +147,7 @@ Ltac ensure_no_augment_funspecs :=
                                       "use with_library instead; see the reference manual"
    | |- _ => clear x
    end
+  end
  end.
 
 Ltac simplify_func_tycontext :=

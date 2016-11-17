@@ -1,3 +1,12 @@
+(* This file illustrates two approaches to C verification,
+  described in Section III of this paper:
+
+ Modular Verification for Computer Security,
+ by Andrew W. Appel, in IEEE Computer Security Foundations conference (CSF'16),
+ June 2016.
+ http://www.cs.princeton.edu/~appel/papers/modsec.pdf
+*)
+
 Require Import floyd.proofauto.
 Require Import progs.min.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
@@ -227,8 +236,8 @@ forward. (* j = a[i]; *) {
  +
  forward. (* skip; *)
  Exists x.
+ autorewrite with sublist.
  entailer!.
- clear H9.
  split.
  destruct (zlt 1 i).
  rewrite Z.max_r in H3 by omega. 
