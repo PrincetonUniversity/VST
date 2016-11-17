@@ -295,11 +295,104 @@ Proof.
   rewrite /getMaxPerm /= PTree.gmap1.
   destruct (((Mem.mem_access m).2) ! b)=> //.
 Qed.
-  
+
+Lemma store_init_data_bounded:
+  forall F V ge m b ofs data m',
+    bounded_mem m ->
+    @Globalenvs.Genv.store_init_data F V ge m b ofs data = Some m' ->
+    bounded_mem m'.
+Proof.
+  intros.
+  move: H0.
+  destruct data; simpl;
+  try eapply store_bounded; eauto.
+  - intros HH; inversion HH.
+    subst; auto.
+  - destruct ( Globalenvs.Genv.find_symbol ge i);
+    try solve[intros HH; inversion HH];
+    eapply store_bounded; eauto.
+Qed.
+
+Lemma store_init_data_list_bounded:
+  forall F V ge m b ofs B m',
+    bounded_mem m ->
+    @Globalenvs.Genv.store_init_data_list F V ge m b ofs B = Some m' ->
+    bounded_mem m'.
+Proof.
+  intros.
+  move: m' ofs b m H H0.
+  induction B.
+  - intros; inversion H0; subst; auto.
+  - intros; simpl in H0.
+    destruct (Globalenvs.Genv.store_init_data ge m b ofs a) eqn:STORE_INIT;
+      try solve[inversion H0].
+    eapply IHB; try apply H0.
+    eapply store_init_data_bounded; eauto.
+Qed.
+
+Lemma store_zeros_init_data_bounded:
+  forall m b ofs a m',
+    bounded_mem m ->
+    Globalenvs.store_zeros m b ofs a = Some m' ->
+    bounded_mem m'.
+Proof.
+  intros.
+  destruct (zle a 0) eqn:AA.
+  - rewrite Globalenvs.store_zeros_equation in H0.
+    rewrite AA in H0; inversion H0; subst; auto.
+  - assert (exists n, Z.of_nat n = a).
+    { exists (nat_of_Z a).
+      apply nat_of_Z_eq. omega. }
+    destruct H1 as [n H1].
+    subst a.
+    clear g AA.
+    move: n m b ofs m' H H0.
+    induction n.
+    + intros.
+      rewrite Globalenvs.store_zeros_equation in H0.
+      rewrite Nat2Z.inj_0 in H0.
+      destruct (zle 0 0); try omega.
+      inversion H0; subst; assumption.
+    + intros.
+      rewrite Globalenvs.store_zeros_equation in H0.
+      destruct (zle (Z.of_nat n.+1) 0).
+      { rewrite Nat2Z.inj_succ in l.
+        assert (HH:=coqlib4.Z_of_nat_ge_O n).
+        clear - l HH.
+        xomega.
+      }
+      destruct ( Mem.store AST.Mint8unsigned m b ofs Values.Vzero) eqn:STORE';
+        try solve[inversion H0].
+      replace (Z.of_nat n.+1 - 1) with (Z.of_nat n) in H0 by xomega.
+      eapply IHn; try eapply H0.
+      eapply store_bounded; eauto.
+Qed.
+
 Lemma alloc_global_bounded:
   forall F V ge m m' a,
     @bounded_mem m ->
     @Globalenvs.Genv.alloc_global F V ge m a = Some m' ->
     @bounded_mem m'.
 Proof.
-Admitted.
+  move => ? ? ge m m' [] ? a BND.
+  rewrite /Globalenvs.Genv.alloc_global.
+  destruct a.
+  - destruct (Mem.alloc m 0 1) eqn:ALLOC; intros DROP;
+    try solve[inversion DROP].
+    eapply drop_perm_bounded; try eapply DROP.
+    eapply mem_alloc_bounded; eauto.
+  - remember (AST.init_data_list_size (AST.gvar_init v)) as  A; clear HeqA.
+    destruct (Mem.alloc m 0 A) eqn:ALLOC.
+    destruct (Globalenvs.store_zeros m0 b 0 ) eqn:STORE;
+      try solve[intros HH; inversion HH ].
+    remember ((AST.gvar_init v)) as  B; clear HeqB.
+    destruct (Globalenvs.Genv.store_init_data_list ge m1 b 0 B) eqn:STORE_INIT;
+      try solve[intros HH; inversion HH ].
+    intros DROP.
+    eapply drop_perm_bounded; try eapply DROP. clear DROP.
+    eapply store_init_data_list_bounded;
+      try eapply STORE_INIT.
+    eapply store_zeros_init_data_bounded; try eapply STORE.
+    eapply mem_alloc_bounded; eauto.
+Qed.
+    
