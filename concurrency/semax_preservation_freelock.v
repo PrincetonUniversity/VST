@@ -86,14 +86,6 @@ Lemma safety_induction_freelock Gamma n state
   (Jspec' := @OK_spec (Concurrent_Espec unit CS ext_link))
   (Jspec'_juicy_mem_equiv : Jspec'_juicy_mem_equiv_def CS ext_link)
   (Jspec'_hered : Jspec'_hered_def CS ext_link)
-  (mem_cohere'_store : forall m tp m' b ofs i Phi
-    (Hcmpt : mem_compatible tp m),
-    lockRes tp (b, Int.intval ofs) <> None ->
-    Mem.store
-      Mint32 (restrPermMap (mem_compatible_locks_ltwritable Hcmpt))
-      b (Int.intval ofs) (Vint i) = Some m' ->
-    mem_compatible_with tp m Phi (* redundant with Hcmpt, but easier *) ->
-    mem_cohere' m' Phi)
   (personal_mem_equiv_spec :
      forall (m m' : Mem.mem') (phi : rmap) (pr : mem_cohere' m phi) (pr' : mem_cohere' m' phi),
        Mem.nextblock m = Mem.nextblock m' ->
@@ -267,18 +259,18 @@ Proof.
   spec lock_coh (b, Int.intval ofs). cleanup. rewrite locked in lock_coh.
   
   unfold tlock in *.
-  apply (lock_inv_rmap_freelock CS) in Hlockinv; auto; try apply lock_coh.
+  apply (lock_inv_rmap_freelock CS) with (m := m) in Hlockinv; auto; try apply lock_coh.
   destruct Hlockinv as (phi0lockinv' & Hrmap00 & Hlkat).
   
   assert (Hpos'' : (0 < 4)%Z) by omega.
-  pose proof rmap_freelock_join _ _ _ _ _ _ _ Hpos'' Hrmap00 jphi0 as Hrmap0.
+  pose proof rmap_freelock_join _ _ _ _ _ _ _ _ Hpos'' Hrmap00 jphi0 as Hrmap0.
   destruct Hrmap0 as (phi0' & Hrmap0 & jphi0').
-  pose proof rmap_freelock_join _ _ _ _ _ _ _ Hpos'' Hrmap0 Join as Hrmap.
+  pose proof rmap_freelock_join _ _ _ _ _ _ _ _ Hpos'' Hrmap0 Join as Hrmap.
   pose proof Hrmap as Hrmap_.
   destruct Hrmap_ as (phi' & RLphi & j').
   assert (ji : join_sub (getThreadR _ _ cnti) Phi) by join_sub_tac.
   destruct ji as (psi & jpsi). cleanup.
-  pose proof rmap_freelock_join _ _ _ _ _ _ _ Hpos'' RLphi jpsi as Hrmap'.
+  pose proof rmap_freelock_join _ _ _ _ _ _ _ _ Hpos'' RLphi jpsi as Hrmap'.
   destruct Hrmap' as (Phi' & Hrmap' & J').
   
   subst args.
@@ -355,7 +347,7 @@ Proof.
       rewrite <-joinlist_merge in j. 2: apply jphi0.
       rewrite joinlist_swap.
       destruct j as (xi_ & jxi_ & jx1).
-      pose proof rmap_freelock_join _ _ _ _ _ _ _ Hpos'' Hrmap00 jx1 as Hrmap1.
+      pose proof rmap_freelock_join _ _ _ _ _ _ _ _ Hpos'' Hrmap00 jx1 as Hrmap1.
       destruct Hrmap1 as (Phi'_ & Hrmap'_ & J).
       assert (Phi'_ = Phi') by (eapply rmap_freelock_unique; eauto). subst Phi'_.
       exists xi_. auto.
@@ -370,12 +362,6 @@ Proof.
            rewrite E' in E''. simpl in E''.
            injection E'' as <- <- <- <-.
            split; auto.
-           pose proof compat.(all_cohere).(cont_coh).
-           unfold contents_cohere in *.
-           (* problem here: the memory we build with rmap_freelock
-           does not cohere with the dry memory, so we should change
-           rmap_freelock so that it depends of the dry one. *)
-           admit.
         -- destruct (Phi'rev _ _ _ _ _ nr E'') as (pp' & E & ->).
            cut (contents_at m loc = v /\ pp' = NoneP).
            { intros []; split; subst pp'; auto. }
@@ -501,8 +487,7 @@ Proof.
       unfold Int.unsigned in *.
       destruct inside as (sh & -> & ?). intros HH.
       unfold isLK in *. breakhyps.
-    + (* continuing lock coh ... *)
-      admit.
+    + admit (* continuing lock coh ... *).
   
   - (* safety *)
     {
@@ -568,8 +553,7 @@ Proof.
               split. now constructor.
               simpl. rewrite seplog.sepcon_emp.
               unfold semax_conc_pred.lock_inv in *.
-              (* depend on rmap_freelock *)
-              admit.
+              admit (* depend on rmap_freelock *).
           
           + admit.
       }

@@ -625,16 +625,17 @@ Proof.
       reflexivity.
 Qed.
 
-Lemma mem_cohere'_store m tp m' b ofs i Phi :
-  forall Hcmpt : mem_compatible tp m,
-    lockRes tp (b, Int.intval ofs) <> None ->
-    Mem.store
-      Mint32 (restrPermMap (mem_compatible_locks_ltwritable Hcmpt))
-      b (Int.intval ofs) (Vint i) = Some m' ->
+Lemma mem_cohere'_store m tp m' b ofs j i Phi (cnti : containsThread tp i):
+  forall (Hcmpt : mem_compatible tp m)
+    (lock : lockRes tp (b, Int.intval ofs) <> None)
+    (Hlt' : permMapLt
+           (setPermBlock (Some Writable) b (Int.intval ofs) (juice2Perm_locks (getThreadR i tp cnti) m)
+              LKSIZE_nat) (getMaxPerm m))
+    (Hstore : Mem.store Mint32 (restrPermMap Hlt') b (Int.intval ofs) (Vint j) = Some m'),
     mem_compatible_with tp m Phi (* redundant with Hcmpt, but easier *) ->
     mem_cohere' m' Phi.
 Proof.
-  intros Hcmpt lock Hstore compat.
+  intros Hcmpt lock Hlt' Hstore compat.
   pose proof store_outside' _ _ _ _ _ _ Hstore as SO.
   destruct compat as [J MC LW JL LJ].
   destruct MC as [Co Ac Ma N].
@@ -668,17 +669,19 @@ Proof.
         rewrite E in H. simpl in H. congruence.
         
     + rewrite <-Out.
+      unfold juicyRestrict_locks in *.
       rewrite restrPermMap_contents.
       auto.
       
   - intros loc.
     replace (max_access_at m' loc)
-    with (max_access_at
-            (restrPermMap (mem_compatible_locks_ltwritable Hcmpt)) loc)
+    with (max_access_at (restrPermMap Hlt') loc)
     ; swap 1 2.
     { unfold max_access_at in *.
+      unfold juicyRestrict_locks in *.
       destruct SO as (_ & -> & _). reflexivity. }
     clear SO.
+    unfold juicyRestrict_locks in *.
     rewrite restrPermMap_max.
     apply Ac.
     
@@ -812,15 +815,17 @@ Proof.
     repeat f_equal. apply proof_irr.
 Qed.
 
-Lemma lockSet_Writable_updLockSet_updThread m m' i tp Phi 
-      (compat : mem_compatible_with tp m Phi)
+Lemma lockSet_Writable_updLockSet_updThread m m' i tp 
       cnti b ofs ophi ophi' c' phi' z
-      (pr : mem_compatible tp m)
+      (Hcmpt : mem_compatible tp m)
       (His_unlocked : AMap.find (elt:=option rmap) (b, Int.intval ofs) (lset tp) = Some ophi)
-      (Hstore : store Mint32 (restrPermMap (mem_compatible_locks_ltwritable pr)) b 
-                      (Int.intval ofs) (Vint z) = Some m') :
+      (Hlt' : permMapLt
+           (setPermBlock (Some Writable) b (Int.intval ofs) (juice2Perm_locks (getThreadR i tp cnti) m)
+              LKSIZE_nat) (getMaxPerm m))
+      (Hstore : Mem.store Mint32 (restrPermMap Hlt') b (Int.intval ofs) (Vint z) = Some m') :
   lockSet_Writable (lset (updLockSet (updThread i tp cnti c' phi') (b, Int.intval ofs) ophi')) m'.
 Proof.
+  destruct Hcmpt as (Phi, compat).
   pose proof (loc_writable compat) as lw.
   intros b' ofs' is; specialize (lw b' ofs').
   destruct (eq_dec (b, Int.intval ofs) (b', ofs')).
@@ -828,6 +833,7 @@ Proof.
     intros ofs0 int0.
     rewrite (Mem.store_access _ _ _ _ _ _ Hstore).
     pose proof restrPermMap_Max as RR.
+    unfold juicyRestrict_locks in *.
     unfold permission_at in RR.
     rewrite RR; clear RR.
     clear is.
@@ -856,6 +862,7 @@ Proof.
     intros ofs0 inter.
     specialize (lw ofs0 inter).
     exact_eq lw. f_equal.
+    unfold juicyRestrict_locks in *.
     set (m_ := restrPermMap _) in Hstore.
     change (max_access_at m (b', ofs0) = max_access_at m' (b', ofs0)).
     transitivity (max_access_at m_ (b', ofs0)).
@@ -870,14 +877,17 @@ Proof.
       apply SO.
 Qed.
 
-Lemma lockSet_Writable_updThread_updLockSet m m' i tp Phi 
-      (compat : mem_compatible_with tp m Phi)
+Lemma lockSet_Writable_updThread_updLockSet m m' i tp 
       b ofs ophi ophi' c' phi' z cnti
-      (pr : mem_compatible tp m)
+      (Hcmpt : mem_compatible tp m)
       (His_unlocked : AMap.find (elt:=option rmap) (b, Int.intval ofs) (lset tp) = Some ophi)
-      (Hstore : store Mint32 (restrPermMap (mem_compatible_locks_ltwritable pr)) b 
-                      (Int.intval ofs) (Vint z) = Some m') :
+      (Hlt' : permMapLt
+           (setPermBlock (Some Writable) b (Int.intval ofs) (juice2Perm_locks (getThreadR i tp cnti) m)
+              LKSIZE_nat) (getMaxPerm m))
+      (Hstore : Mem.store Mint32 (restrPermMap Hlt') b (Int.intval ofs) (Vint z) = Some m') :
   lockSet_Writable (lset (updThread i (updLockSet tp (b, Int.intval ofs) ophi') cnti c' phi')) m'.
+Proof.
+  destruct Hcmpt as (Phi, compat).
   pose proof (loc_writable compat) as lw.
   intros b' ofs' is; specialize (lw b' ofs').
   destruct (eq_dec (b, Int.intval ofs) (b', ofs')).
@@ -886,6 +896,7 @@ Lemma lockSet_Writable_updThread_updLockSet m m' i tp Phi
     rewrite (Mem.store_access _ _ _ _ _ _ Hstore).
     pose proof restrPermMap_Max as RR.
     unfold permission_at in RR.
+    unfold juicyRestrict_locks in *.
     rewrite RR; clear RR.
     clear is.
     assert_specialize lw. {
@@ -909,6 +920,7 @@ Lemma lockSet_Writable_updThread_updLockSet m m' i tp Phi
     intros ofs0 inter.
     specialize (lw ofs0 inter).
     exact_eq lw. f_equal.
+    unfold juicyRestrict_locks in *.
     set (m_ := restrPermMap _) in Hstore.
     change (max_access_at m (b', ofs0) = max_access_at m' (b', ofs0)).
     transitivity (max_access_at m_ (b', ofs0)).
@@ -995,7 +1007,7 @@ Section Preservation.
   (jmstep : @JuicyMachine.machine_step ge (i :: sch) nil tp' m' sch nil tp' m')
   (compat_aged : mem_compatible_with (age_tp_to n tp') m' (age_to n Phi))
   (Htstep : syncStep true ge Htid Hcmpt tp' m' (Events.failacq (b, Int.intval ofs)))
-  (Hload : load Mint32 (restrPermMap (mem_compatible_locks_ltwritable Hcompatible)) b (Int.intval ofs) =
+  (Hload : load Mint32 (juicyRestrict_locks (mem_compat_thread_max_cohere Hcmpt cnti)) b (Int.intval ofs) =
           Some (Vint Int.zero))
   (HJcanwrite : m_phi (personal_mem m' (getThreadR i tp' Htid) (thread_mem_compatible Hcompatible Htid)) @
                (b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R)) :
@@ -1373,16 +1385,12 @@ Section Preservation.
         assert (Hcompatible = Hcmpt) by apply proof_irr. subst Hcompatible.
         rewrite El in *.
         eapply preservation_acquire with (Phi := Phi); eauto.
-        admit (* MISMATCH IN LOCK PERMISSIONS *).
-        admit (* MISMATCH IN LOCK PERMISSIONS *).
       
       - (* the case of release *)
         assert (Hcompatible = Hcmpt) by apply proof_irr. subst Hcompatible.
         cleanup.
         rewrite El in *.
         eapply preservation_release with (Phi := Phi); eauto.
-        admit (* MISMATCH IN LOCK PERMISSIONS *).
-        admit (* MISMATCH IN LOCK PERMISSIONS *).
       
       - (* the case of spawn *)
         eapply preservation_spawn with (Phi := Phi); eauto.
@@ -1409,7 +1417,6 @@ Section Preservation.
       
       - (* the case of acq-fail *)
         eapply preservation_acqfail with (Phi := Phi); eauto.
-        admit (* MISMATCH IN LOCK PERMISSIONS *).
     }
     
     (*thread[i] is in Kresume *)
@@ -1529,6 +1536,6 @@ Section Preservation.
       (* still unclear how to handle safety of Kinit states *)
       eapply preservation_Kinit; eauto.
     }
-  Admitted.
+  Qed.
   
 End Preservation.

@@ -56,6 +56,5 @@ Set Implicit Arguments.
     
     Definition enum n := Coq.Lists.List.rev (@enum_from n n (le_refl n)).
 
-Lemma ord_enum_enum:
+Axiom ord_enum_enum:
   forall n : nat, @eq (list (ordinal n)) (ord_enum n) (enum n).
-Admitted.
