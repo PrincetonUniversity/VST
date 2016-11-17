@@ -5,6 +5,7 @@ Require Import floyd.sublist.
 
 Require Import hmacdrbg.hmac_drbg.
 Require Import hmacdrbg.spec_hmac_drbg.
+Require Import floyd.library.
 
 Axiom EmptyDissolve: forall v, 
   UNDER_SPEC.EMPTY v |-- memory_block Tsh (sizeof spec_hmac.t_struct_hmac_ctx_st) v .
@@ -22,14 +23,9 @@ Proof.
   { entailer!. eapply derives_trans. apply EmptyDissolve. 
     rewrite <- CTX_Struct. simpl. trivial. }*)
 freeze [0;1;2] FR1.
-forward_seq. 
-(*TODO: FLOYD: forward_call (Vptr b0 i0, 324) fails here*)
-eapply (semax_call_id00_wow (Vptr b0 i0, 324) [FRZL FR1]); trivial; try reflexivity.
-+ entailer!. 
-+ entailer!. constructor. constructor. constructor. 
-+ entailer!. constructor. 
-+ simpl. cancel. apply EmptyDissolve. 
-+ Intros v. simpl. forward. thaw FR1. 
+ forward_call (Vptr b0 i0, 324).
+{ rewrite sepcon_comm. apply sepcon_derives. apply EmptyDissolve. cancel. }
+forward. thaw FR1. 
   unfold_data_at 1%nat. cancel.
 Qed.
 
@@ -133,9 +129,9 @@ Proof.
 (*  unfold convert_abs.*)
 Qed.
 
-Lemma body_md_setup: semax_body HmacDrbgVarSpecs (malloc_spec::HmacDrbgFunSpecs)
+Lemma body_md_setup: semax_body HmacDrbgVarSpecs ((*malloc_spec::*)HmacDrbgFunSpecs)
        f_mbedtls_md_setup md_setup_spec.
-Proof.
+Proof. 
   start_function.
 
   forward_call (sizeof (Tstruct _hmac_ctx_st noattr)).
@@ -145,13 +141,13 @@ Proof.
    temp _ctx c; temp _hmac h) 
       SEP (!!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr)) vret &&
            memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) vret;
-           FreeBLK (sizeof (Tstruct _hmac_ctx_st noattr)) vret *
+           malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) vret *
            data_at Tsh (Tstruct _mbedtls_md_context_t noattr) md_ctx c)).
   { destruct (Memory.EqDec_val vret nullval).
     + subst vret; entailer!.
     + normalize. eapply derives_trans; try apply valid_pointer_weak.
       apply sepcon_valid_pointer1.
-      apply sepcon_valid_pointer1.
+      apply sepcon_valid_pointer2.
       apply memory_block_valid_ptr. apply top_share_nonidentity. omega.
       entailer!. 
   }

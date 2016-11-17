@@ -4,6 +4,7 @@ Require Import hmacdrbg.DRBG_functions.
 Require Import hmacdrbg.HMAC_DRBG_algorithms.
 
 Require Import sha.general_lemmas.
+Require Import sha.hmac_pure_lemmas.
 
 Lemma HMAC_DRBG_generate_helper_Z_any_prop_fst:
   forall (P: list Z -> Prop) HMAC key v z,

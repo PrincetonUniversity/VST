@@ -14,6 +14,7 @@ Require Import sha.HMAC256_functional_prog.
 
 (* mocked_md *)
 Require Import sha.spec_sha.
+Require Import floyd.library.
 
 Require Import hmacdrbg.hmac_drbg_compspecs.
 (*
@@ -71,7 +72,7 @@ apply pred_ext.
 + apply andp_right; trivial. apply UNDER_SPEC.REP_isptr.
 + entailer!.
 Qed. 
-
+(*
 Parameter FreeBLK : Z -> val -> mpred.
 Definition malloc_spec :=
   DECLARE _malloc
@@ -107,7 +108,7 @@ Definition oldfree_spec :=
        SEP (memory_block Tsh n p; FreeBLK n p)
     POST [ Tvoid ] 
        SEP (emp).
-the proof of md_free breaks*)
+the proof of md_free breaks*)*)
 
 Definition md_free_spec :=
  DECLARE _mbedtls_md_free
@@ -117,7 +118,8 @@ Definition md_free_spec :=
        LOCAL(temp _ctx ctx) 
        SEP (data_at Tsh t_struct_md_ctx_st r ctx;
             UNDER_SPEC.EMPTY (snd (snd r)); 
-            FreeBLK (sizeof (Tstruct _hmac_ctx_st noattr)) (snd (snd r)))
+(*            FreeBLK (sizeof (Tstruct _hmac_ctx_st noattr)) (snd (snd r))))*)
+            malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) (snd (snd r)))
   POST [ tvoid ] 
     SEP (data_at Tsh t_struct_md_ctx_st r ctx).
 
@@ -278,7 +280,7 @@ Definition md_setup_spec :=
               if zeq r 0
               then (EX p:_, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr)) p && 
                               memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
-                              FreeBLK (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+                              (*FreeBLK*) malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
                               data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info, (fst(snd md_ctx), p)) c)
               else data_at Tsh (Tstruct _mbedtls_md_context_t noattr) md_ctx c).
 (* end mocked_md *)
@@ -775,7 +777,7 @@ Definition hmac_drbg_free_spec :=
        SEP (da_emp Tsh t_struct_hmac256drbg_context_st CTX ctx;
             if Val.eq ctx nullval then emp else
                  (hmac256drbg_relate ABS CTX *
-                 FreeBLK 324 (snd(snd (fst CTX)))))
+                 (*FreeBLK*)malloc_token Tsh 324 (snd(snd (fst CTX)))))
     POST [ tvoid ] 
       EX vret:unit, PROP ()
        LOCAL ()
@@ -794,9 +796,26 @@ Definition hmac_drbg_free_spec :=
     POST [ tvoid ]
        SEP (if Val.eq ctx nullval then emp else data_block Tsh (list_repeat (Z.to_nat size_of_HMACDRBGCTX) 0) ctx).
 *)
+(*
+Lemma super_nonexpansive_sum {P Q} (HP:super_non_expansive P) 
+      (HQ:super_non_expansive Q):
+  super_non_expansive P. (fun x => match x with inl a => P a | inr b => Q b end).
+*)
 
 Definition HmacDrbgVarSpecs : varspecs := (sha._K256, tarray tuint 64)::nil.
+(*Check NDmk_funspec. Check const_super_non_expansive.*)
 
+Definition ndfs_merge fA cA A PA QA FSA (HFSA: FSA = NDmk_funspec fA cA A PA QA) 
+                    fB cB B PB QB FSB (HFSB: FSB = NDmk_funspec fB cB B PB QB): option funspec.
+destruct (eq_dec fA fB); subst.
++ destruct (eq_dec cA cB); subst.
+  - apply Some. eapply (NDmk_funspec fB cB (A+B) 
+         (fun x => match x with inl a => PA a | inr b => PB b end)
+         (fun x => match x with inl a => QA a | inr b => QB b end)).
+  - apply None.
++ apply None.
+Defined.
+(*
 Definition fs_merge (fA fB: funspec): option funspec :=
  match fA, fB with (mk_funspec sgA ccA A PreA PostA), (mk_funspec sgB ccB B PreB PostB) =>
   if eq_dec sgA sgB 
@@ -807,6 +826,7 @@ Definition fs_merge (fA fB: funspec): option funspec :=
        else None
   else None
  end.
+*)
 
 Definition hmac_init_funspec:=
     (WITH x : val * Z * list Z * val + val * Z * list Z * val * block * int PRE
@@ -843,15 +863,21 @@ Definition hmac_init_funspec:=
                       spec_sha.data_block Tsh key (Vptr b0 i); 
                       spec_sha.K_vector kv)
                   end).
-
+(*
 Lemma hmac_init_merge: 
   fs_merge (snd UNDER_SPEC.hmac_reset_spec)
            (snd UNDER_SPEC.hmac_starts_spec)
   = Some hmac_init_funspec.
-Proof. simpl. rewrite if_true; trivial. Qed.
+Proof. simpl. rewrite if_true; trivial. Qed.*)
 
-Definition HmacDrbgFunSpecs : funspecs := 
-  free_spec :: md_free_spec ::hmac_drbg_free_spec::mbedtls_zeroize_spec::
+Lemma hmac_init_merge: 
+  ndfs_merge _ _ _ _ _ (snd UNDER_SPEC.hmac_reset_spec) (eq_refl _)
+             _ _ _ _ _ (snd UNDER_SPEC.hmac_starts_spec) (eq_refl _)
+  = Some hmac_init_funspec.
+Proof. unfold ndfs_merge. rewrite if_true; trivial. Qed. 
+
+Definition HmacDrbgFunSpecs : funspecs :=  ltac:(with_library prog (
+  (*free_spec :: *)md_free_spec ::hmac_drbg_free_spec::mbedtls_zeroize_spec::
   hmac_drbg_setReseedInterval_spec::hmac_drbg_setEntropyLen_spec::
   hmac_drbg_setPredictionResistance_spec::hmac_drbg_random_spec::hmac_drbg_init_spec::
   hmac_drbg_update_spec::
@@ -876,6 +902,6 @@ Definition HmacDrbgFunSpecs : funspecs :=
 (*memcpy_spec::memset_spec::*)
   sha.spec_hmac.sha256init_spec::sha.spec_hmac.sha256update_spec::sha.spec_hmac.sha256final_spec::(*SHA256_spec::*)
 (*  HMAC_Init_spec:: HMAC_Update_spec::HMAC_Cleanup_spec::
-  HMAC_Final_spec:: HMAC_spec ::*) malloc_spec::nil.
+  HMAC_Final_spec:: HMAC_spec ::*)(* malloc_spec*)nil)).
 
 (*End HMACDRBG_MOD.*)
