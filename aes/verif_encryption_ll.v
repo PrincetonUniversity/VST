@@ -119,7 +119,7 @@ Ltac simpl_Int := repeat match goal with
     replace (Int.add (Int.repr A) (Int.repr B)) with (Int.repr x); subst x; [|reflexivity]
 end.
 
-Require Import floyd.new_load_tac_general.
+Require Import floyd.new_load_tac_general. --> TODO merge master, and remove this line
 
 Lemma body_aes_encrypt: semax_body Vprog Gprog f_mbedtls_aes_encrypt encryption_spec_ll.
 Proof.
@@ -197,9 +197,7 @@ unfold Sfor.
 (* beginning of for loop *)
 
 forward. forward.
-eapply semax_seq'.
-{
- 
+
 (* ugly hack to avoid type mismatch between
    "(val * (val * list val))%type" and "reptype t_struct_aesctx" *)
 assert (exists (v: reptype t_struct_aesctx), v =
@@ -213,6 +211,26 @@ as EE by (eexists; reflexivity).
 
 destruct EE as [vv EE].
 
+eapply semax_seq' with (P' :=
+  PROP ( )
+  LOCAL (
+     temp _RK (field_address t_struct_aesctx [ArraySubsc 4; StructField _buf] ctx);
+     temp _X3 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 12) (Int.repr k4)));
+     temp _X2 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 8) (Int.repr k3)));
+     temp _X1 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 4) (Int.repr k2)));
+     temp _X0 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 0) (Int.repr k1)));
+     temp _ctx ctx;
+     temp _input input;
+     temp _output output;
+     gvar _tables tables
+  ) SEP (
+     data_at_ out_sh (tarray tuchar 16) output;
+     tables_initialized tables;
+     data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
+     data_at ctx_sh t_struct_aesctx vv ctx 
+  )
+).
+{
 apply semax_pre with (P' := 
   (EX i: Z,   PROP ( ) LOCAL (
      temp _i (Vint (Int.repr i));
@@ -275,13 +293,12 @@ forward_if (PROP ( ) LOCAL (
  }
 {
  (* else-branch: exit loop *)
-  forward. admit. (* TODO spurious ?P' *)
+  forward. entailer!.
  }
 { (* rest: loop body *)
   forward. forward.
   (* now we need the SEP clause about ctx: *) subst vv.
-
-forward.
+  forward.
 
 {
 entailer!.
@@ -292,7 +309,215 @@ admit. (* TODO is_int *)
 (* next command in loop body: *)
 (*     uint32_t b0 = tables.FT0[ ( Y0       ) & 0xFF ];    *)
 unfold tables_initialized.
-forward.
+
+Ltac entailer_for_load_tac := try solve [entailer!].
+Ltac entailer_for_store_tac := try solve [entailer!].
+Require Import floyd.simpl_reptype.
+Ltac load_tac ::=
+ ensure_normal_ret_assert;
+ hoist_later_in_pre;
+ match goal with   
+| |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ (Ecast ?e _)) _ =>
+ (* Super canonical cast load *)
+    let e1 := fresh "e" in
+    let efs := fresh "efs" in
+    let tts := fresh "tts" in
+      construct_nested_efield e e1 efs tts;
+
+    let lr := fresh "lr" in
+      pose (compute_lr e1 efs) as lr;
+      vm_compute in lr;
+
+    let HLE := fresh "H" in
+    let p := fresh "p" in evar (p: val);
+      match goal with
+      | lr := LLLL |- _ => do_compute_lvalue Delta P Q R e1 p HLE
+      | lr := RRRR |- _ => do_compute_expr Delta P Q R e1 p HLE
+      end;
+
+    let H_Denote := fresh "H" in
+    let gfs := fresh "gfs" in
+      solve_efield_denote Delta P Q R efs gfs H_Denote;
+
+    let sh := fresh "sh" in evar (sh: share);
+    let t_root := fresh "t_root" in evar (t_root: type);
+    let gfs0 := fresh "gfs" in evar (gfs0: list gfield);
+    let gfsA := fresh "gfsA" in pose (gfsA := @nil gfield);
+    let v := fresh "v" in evar (v: reptype (nested_field_type t_root gfs0));
+    let n := fresh "n" in
+    let H := fresh "H" in
+    (* new way of invoking sc_new_instantiate even though we're still in old code here!! *)
+    sc_new_instantiate P Q R R Delta e1 gfsA gfs tts lr p sh t_root gfs0 v n (0%nat) H;
+    
+    let gfs1 := fresh "gfs" in
+    let len := fresh "len" in
+    pose ((length gfs - length gfs0)%nat) as len;
+    simpl in len;
+    match goal with
+    | len := ?len' |- _ =>
+      pose (firstn len' gfs) as gfs1
+    end;
+    clear len;
+    unfold gfs in gfs0, gfs1;
+    simpl firstn in gfs1;
+    simpl skipn in gfs0;
+
+    change gfs with (gfs1 ++ gfs0) in *;
+    subst gfs p;
+
+    let Heq := fresh "H" in
+    match type of H with
+    | (ENTAIL _, PROPx _ (LOCALx _ (SEPx (?R0 :: nil))) 
+           |-- _) => assert (nth_error R n = Some R0) as Heq by reflexivity
+    end;
+    eapply (semax_SC_field_cast_load Delta sh n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
+    [ reflexivity
+    | reflexivity
+    | now (clear; let H := fresh in intro H; inversion H)
+    | solve [subst sh; auto] (* readable share *)
+    | reflexivity
+    | reflexivity
+    | reflexivity
+    | reflexivity
+    | exact Heq
+    | exact HLE
+    | exact H_Denote
+    | solve_load_rule_evaluation
+    | clear Heq HLE H_Denote H;
+      subst e1 gfs0 gfs1 efs tts t_root v sh lr n;
+      repeat match goal with H := _ |- _ => clear H end;
+      try quick_typecheck3; 
+      unfold tc_efield, tc_LR, tc_LR_strong; simpl typeof;
+      entailer_for_load_tac
+    | solve_legal_nested_field_in_entailment;
+      try clear Heq HLE H_Denote H;
+      subst e1 gfs0 gfs1 efs tts t_root v sh lr n
+    ]
+
+| |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
+ (* Super canonical load *)
+    let e1 := fresh "e" in
+    let efs := fresh "efs" in
+    let tts := fresh "tts" in
+      construct_nested_efield e e1 efs tts;
+
+    let lr := fresh "lr" in
+      pose (compute_lr e1 efs) as lr;
+      vm_compute in lr;
+
+    let HLE := fresh "HLE" in
+    let p := fresh "p" in evar (p: val);
+      match goal with
+      | lr := LLLL |- _ => do_compute_lvalue Delta P Q R e1 p HLE
+      | lr := RRRR |- _ => do_compute_expr Delta P Q R e1 p HLE
+      end;
+
+    let H_Denote := fresh "H_Denote" in
+    let gfsB := fresh "gfsB" in
+      solve_efield_denote Delta P Q R efs gfsB H_Denote;
+
+    let sh := fresh "sh" in evar (sh: share);
+    let t_root := fresh "t_root" in evar (t_root: type);
+    let gfs0 := fresh "gfs0" in evar (gfs0: list gfield);
+    let gfsA := fresh "gfsA" in evar (gfsA: list gfield);
+    let a := fresh "a" in evar (a: val);
+    let v := fresh "v" in evar (v: reptype (nested_field_type t_root gfs0));
+    let n := fresh "n" in
+    let Hf := fresh "Hf" in
+    let eqL := constr:(p = field_address t_root gfsA a) in
+    let eqR := constr:(p = a /\ gfsA = nil) in
+    let g := constr:((ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- !! eqL) \/ eqR) in
+    let HNice := fresh "HNice" in
+
+    tryif (
+      tryif (
+        assert g as HNice by (
+          subst p gfsA gfsB a t_root;
+          left;
+          (eassumption || (apply prop_right; (eassumption || reflexivity)))
+        )
+      ) then (
+        (sc_new_instantiate P Q R R Delta e1 gfsA gfsB tts lr a sh t_root gfs0 v n (0%nat) Hf
+         || fail 15 "sc_new_instantiate should really not have failed" )
+      ) else (
+        instantiate (gfsA := nil); instantiate (a := p);
+        (* will fail if these instantiations were a bad idea: *)
+        sc_new_instantiate P Q R R Delta e1 gfsA gfsB tts lr a sh t_root gfs0 v n (0%nat) Hf;
+        (assert g as HNice by (
+          subst p gfsA gfsB a t_root;
+          right;
+          split; reflexivity
+        ) || fail 15 "assert should really not have failed" )
+      )
+    ) then (
+      let len := fresh "len" in
+      pose ((length (gfsB ++ gfsA) - length gfs0)%nat) as len;
+      simpl in len;
+      let gfs1 := fresh "gfs1" in
+      match goal with
+      | len := ?len' |- _ => pose (gfs1 := (firstn len' (gfsB ++ gfsA)));
+                             cbv [app gfsB gfsA firstn] in gfs1
+      end;
+
+      let gfsEq := fresh "gfsEq" in
+      assert (gfsB ++ gfsA = gfs1 ++ gfs0) as gfsEq by reflexivity;
+
+      let Heq := fresh "Heq" in
+      match type of Hf with
+      | (ENTAIL _, PROPx _ (LOCALx _ (SEPx (?R0 :: nil))) 
+           |-- _) => assert (nth_error R n = Some R0) as Heq by reflexivity
+      end;
+
+      refine (semax_SC_field_load_general' _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+         _  _ _ lr _ _ _ HLE H_Denote HNice Heq _ gfsEq _ _ _ _ _); try reflexivity;
+      [ auto (* readable_share *)
+      | solve_load_rule_evaluation
+      | clear HLE H_Denote;
+        subst lr e1 gfs0 gfs1 gfsA gfsB efs tts t_root a v n;
+        repeat match goal with H := _ |- _ => clear H end;
+        try quick_typecheck3; 
+        unfold tc_efield, tc_LR, tc_LR_strong; simpl typeof;
+        entailer_for_load_tac
+      | subst lr e1 gfs0 gfs1 gfsA gfsB efs tts t_root a v n;
+        solve_legal_nested_field_in_entailment; try clear HLE H_Denote ]
+    ) else (
+      assert (undo_and_first__assert_PROP eqL); subst t_root gfsA gfsB a p
+    )
+end.
+
+Ltac entailer_for_load_tac ::= idtac.
+(* without override: forward takes >5 min, with override: 40s *)
+Time forward.
+{ (* entailer!. takes forever *)
+  rewrite zlist_hint_db.Znth_map_Vint. {
+
+match goal with
+| |- ?H |-- (?A && ?B) && ?C => assert ((H |-- A) /\ (H |-- B) /\ (H |-- C)); repeat split
+end.
+{ (* TODO floyd entailer! takes forever, but the goal is so simple: *)
+  apply prop_right. apply I. }
+{ unfold tc_val. simpl. unfold local. unfold lift1. unfold prop. apply prop_right.
+
+ apply prop_right. entailer!.
+ unfold tc_lvalue.
+  unfold typecheck_lvalue. simpl. eapply prop_right. entailer!.
+Eval compute in (get_var_type Delta _tables).
+ unfold denote_tc_assert.
+
+entailer!.
+
+
+
+
+
+ admit. 
+replace (Zlength FT0) with 256 by reflexivity.
+
+Lemma masked_byte_range: forall i,
+  0 <= Z.land i 256 < 256.
+
+cbv [Zlength Zlength_aux FT0 words_to_ints ft_words].
+
 { (* TODO floyd: entailer! says 
 Ltac call to "entailer" failed.
 Error: Tactic failure: The entailer tactic works only on entailments  _ |-- _ .
