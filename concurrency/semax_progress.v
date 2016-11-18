@@ -1482,6 +1482,6 @@ Section Progress.
           * reflexivity.
     }
     (* end of Kinit *)
-  Admitted.
+  Admitted. (* Theorem progress *)
   
 End Progress.
