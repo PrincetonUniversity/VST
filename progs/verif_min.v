@@ -67,6 +67,13 @@ Proof.
  apply IHal.
 Qed.
 
+Lemma is_int_I32_Vint: forall s v, is_int I32 s (Vint v).
+Proof.
+intros.
+hnf. auto.
+Qed.
+Hint Resolve is_int_I32_Vint.
+
 Lemma Znth_map_map_inbounds:
  forall i a v, 0 <= i < Zlength a -> 
     Znth i (map Vint (map Int.repr a)) v = Vint (Int.repr (Znth i a 0)).
@@ -77,6 +84,19 @@ Proof.
 Qed.
 
 Hint Rewrite  Znth_map_map_inbounds using (auto; omega) : sublist.
+
+Lemma is_int_I32_Znth_map_Vint:
+ forall i s al v,
+  0 <= i < Zlength al ->
+  is_int I32 s (Znth i (map Vint al) v).
+Proof.
+intros. rewrite Znth_map with (d':= Int.zero); auto.
+Qed.
+Hint Extern 3 (is_int I32 _ (Znth _ (map Vint _) _)) =>
+  (apply  is_int_I32_Znth_map_Vint; rewrite ?Zlength_map; omega).
+
+Hint Rewrite @sublist_nil : sublist.
+Hint Rewrite Z.max_l using omega : sublist.
 
 Definition minimum_spec :=
  DECLARE _minimum
@@ -99,12 +119,9 @@ start_function.
 assert_PROP (Zlength al = n). {
   entailer!. autorewrite with sublist; auto.
 }
-forward.  (* min = a[0]; *) {
-  entailer!.
-  destruct al. 
-  autorewrite with sublist in *. omega.
-  simpl. auto.
-}
+assert (HD: hd 0 al = Znth 0 al 0) by (destruct al; reflexivity).
+forward.  (* min = a[0]; *)
+autorewrite with sublist.
 forward_for_simple_bound n 
   (EX i:Z,
     PROP() 
@@ -112,31 +129,16 @@ forward_for_simple_bound n
           temp _a a; 
           temp _n (Vint (Int.repr n)))
     SEP(data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a)).
+* (* Prove that the precondition implies the loop invariant *)
+ entailer!. rewrite HD; auto.
 *
- entailer!.
- destruct al. autorewrite with sublist in *. omega.
- reflexivity.
-*
- forward. (* j = a[i]; *) {
-   entailer!.
-   autorewrite with sublist in *.
-   apply I.
- }
- assert (repable_signed (Znth i al 0)).
-     apply Forall_Znth; auto. omega.
- assert (repable_signed (fold_right Z.min (hd 0 al) (sublist 0 i al))). {
-     apply Forall_fold_min.
-     destruct al; simpl. repable_signed.
-     destruct (zeq 0 i).
-     subst i. apply H3.
-     rewrite <- (sublist_same 0 (Zlength (z::al)) (z::al)) in H3 by auto.
-     rewrite (sublist_split 0 1 (Zlength (z::al))) in H3 by omega.
-     change (z::al) with ([z]++al) in *.
-     rewrite app_Znth2 in H3; autorewrite with sublist in *; try omega.
-     apply Forall_app in H0.
-     destruct H0 as [H0 ?]; inv H0; auto.
-     apply Forall_sublist; auto.
- }
+ forward. (* j = a[i]; *)
+ assert (repable_signed (Znth i al 0))
+     by (apply Forall_Znth; auto; omega).
+ assert (repable_signed (fold_right Z.min (hd 0 al) (sublist 0 i al)))
+   by (apply Forall_fold_min;
+          [rewrite HD; apply Forall_Znth; auto; omega
+          |apply Forall_sublist; auto]).
  autorewrite with sublist.
  subst POSTCONDITION; unfold abbreviate.
  rewrite (sublist_split 0 i (i+1)) by omega.
@@ -145,19 +147,14 @@ forward_for_simple_bound n
  forward_if. 
  +
  forward. (* min = j; *)
- entailer!.
- f_equal; f_equal.
- apply Z.min_r. omega.
+ entailer!. rewrite Z.min_r; auto; omega.
  +
  forward. (* skip; *)
- entailer!.
- f_equal; f_equal.
- apply Z.min_l.
- omega.
+ entailer!. rewrite Z.min_l; auto; omega.
 *
  forward. (* return *)
  entailer!.
- autorewrite with sublist. simpl. auto.
+ autorewrite with sublist. auto.
 Qed.
 
 
@@ -180,60 +177,47 @@ start_function.
 assert_PROP (Zlength al = n). {
   entailer!. autorewrite with sublist; auto.
 }
-forward.  (* min = a[0]; *) {
-  entailer!.
-  destruct al. 
-  autorewrite with sublist in *. omega.
-  simpl. auto.
-}
+forward.  (* min = a[0]; *) 
+autorewrite with sublist.
 forward_for_simple_bound n 
   (EX i:Z, EX j:Z,
     PROP(
          In j (sublist 0 (Z.max 1 i) al); 
-         Forall (fun x => j <= x) (sublist 0 i al)) 
+         Forall (Z.le j) (sublist 0 i al)) 
     LOCAL(
           temp _min (Vint (Int.repr j)); 
           temp _a a; 
           temp _n (Vint (Int.repr n)))
     SEP(data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a)).
 * (* Show that the precondition entails the loop invariant *)
-autorewrite with sublist.
 Exists (Znth 0 al 0).
+autorewrite with sublist.
 entailer!.
-split.
-rewrite sublist_one with (d:=0); auto; try omega.
-left; auto.
-autorewrite with sublist. constructor.
+rewrite sublist_one with (d:=0) by omega.
+constructor; auto.
 * (* Show that the loop body preserves the loop invariant *)
 Intros.
-forward. (* j = a[i]; *) {
- entailer!. clear H6. autorewrite with sublist in *.
- apply I.
- }
- assert (repable_signed (Znth i al 0)). {
-     apply Forall_Znth; auto. omega.
- }
- autorewrite with sublist in *.
- assert (repable_signed x). {
-     eapply Forall_forall. apply Forall_sublist. apply H0. eassumption.
- }
- forward_if.
- +
+forward. (* j = a[i]; *) 
+assert (repable_signed (Znth i al 0))
+   by (apply Forall_Znth; auto; omega).
+autorewrite with sublist in *.
+assert (repable_signed x) 
+   by (eapply Forall_forall; [ | eassumption]; apply Forall_sublist; auto).
+forward_if.
+ + (* Then clause *)
  forward. (* min = j; *)
  Exists (Znth i al 0).
  entailer!.
- split.
  rewrite Z.max_r by omega.
  rewrite (sublist_split 0 i (i+1)) by omega.
- apply in_app; right. rewrite (sublist_one i (i+1) al 0) by omega.
- left; auto.
- rewrite (sublist_split 0 i (i+1)) by omega.
+ rewrite (sublist_one i (i+1) al 0) by omega.
+ split.
+ apply in_app; right; constructor; auto.
  apply Forall_app; split.
  eapply Forall_impl; try apply H4.
- simpl; intros; omega.
- rewrite (sublist_one i (i+1) al 0) by omega.
+ intros; omega.
  constructor; auto. omega.
- +
+ + (* Else clause *)
  forward. (* skip; *)
  Exists x.
  autorewrite with sublist.
@@ -248,7 +232,7 @@ forward. (* j = a[i]; *) {
  apply in_app; left; auto.
  rewrite (sublist_split 0 i (i+1)) by omega.
  apply Forall_app. split; auto.
- rewrite (sublist_one i (i+1) al 0) by omega.
+ rewrite (sublist_one _ _ _ 0) by omega.
  repeat constructor. omega.
 * (* After the loop *)
  Intros x.

@@ -150,6 +150,21 @@ Ltac ensure_no_augment_funspecs :=
   end
  end.
 
+Ltac check_ground_ptree t :=
+match t with
+| @PTree.Node _ ?a _ ?b => check_ground_ptree a; check_ground_ptree b
+| @PTree.Leaf _ => idtac
+end.
+Ltac check_ground_Delta := 
+match goal with 
+|  Delta := @abbreviate _ (mk_tycontext ?A ?B _ ?D _),
+   Delta_specs := @abbreviate (PTree.t funspec) ?E  |- _ => 
+   first [check_ground_ptree A | fail 99 "Temps component of Delta not a ground PTree"];
+   first [check_ground_ptree B | fail 99 "Local Vars component of Delta not a ground PTree"];
+   first [check_ground_ptree D | fail 99 "Globals component of Delta not a ground PTree"];
+   first [check_ground_ptree E | fail 99 "Delta_specs not a ground PTree"]
+end.
+
 Ltac simplify_func_tycontext :=
  ensure_no_augment_funspecs;
  match goal with |- @semax _ _ ?DD ?Pre ?Body ?Post =>  
@@ -170,11 +185,12 @@ Ltac simplify_func_tycontext :=
     change S1 with (@abbreviate (PTree.t funspec) S1) in DS;
     intros D1 Delta;
     lazy beta iota zeta delta - [DS] in D1; subst D1;
-    unfold make_tycontext_s, fold_right in S1; red in S1;
+    hnf in S1;
     revert S1 DS Delta;
     reduce_snd S1; (* carefully staged to avoid "simpl"
                  in any of the user's funspecs! *)
-    intros DS Delta; subst S1 Pre' Body' Post'
+    intros DS Delta; subst S1 Pre' Body' Post';
+    check_ground_Delta
    end
  end.
 
