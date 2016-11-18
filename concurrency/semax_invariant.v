@@ -342,6 +342,12 @@ Proof.
   intros N; apply N.
 Qed.
 
+Lemma no_Krun_remLockSet tp loc:
+  no_Krun tp -> no_Krun (remLockSet tp loc).
+Proof.
+  intros N; apply N.
+Qed.
+
 Lemma ssr_leP_inv i n : is_true (ssrnat.leq i n) -> i <= n.
 Proof.
   pose proof @ssrnat.leP i n as H.

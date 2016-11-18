@@ -369,7 +369,7 @@ Section Progress.
         exfalso.
         pose proof (wellformed i cnti) as W.
         rewrite Eci in W.
-        apply W.
+        apply W; auto.
       }
       (* back to external step *)
       
@@ -1429,11 +1429,11 @@ Section Progress.
       - (* extcall *)
         pose (ci':=
                 match lid with
-                | Some id => State ve (Maps.PTree.set id (Vint Int.zero) te) k
+                | Some id => State ve (Maps.PTree.set id Vundef te) k
                 | None => State ve te k
                 end).
         exists (m, ge, (i :: sch, ThreadPool.updThreadC cnti (Krun ci')))(* ; split *).
-        + (* taking the step Kresum->Krun *)
+        + (* taking the step Kresume->Krun *)
           constructor.
           apply JuicyMachine.resume_step with (tid := i) (Htid := cnti).
           * reflexivity.
@@ -1450,7 +1450,8 @@ Section Progress.
                unfold SEM.Sem in *.
                rewrite SEM.CLN_msem in *; simpl.
                destruct lid.
-               ++ spec wellformed i cnti. rewrite Eci in wellformed. destruct wellformed. congruence.
+               ++ spec wellformed i cnti. rewrite Eci in wellformed. destruct wellformed.
+                  unfold ci'. reflexivity.
                ++ reflexivity.
             -- rewrite Eci.
                subst ci.
