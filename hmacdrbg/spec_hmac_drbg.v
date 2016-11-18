@@ -173,7 +173,7 @@ Definition md_get_size_SPEC :=
      PROP ()
      LOCAL (temp ret_temp (Vint (Int.repr (32 (*Z.of_nat SHA256.DigestLength*)))))
      SEP ().
-Opaque md_get_size_SPEC.
+Opaque md_get_size_SPEC. in comment
 Definition md_get_size_spec := (_mbedtls_md_get_size, md_get_size_SPEC).
 *)
 Definition md_get_size_spec :=

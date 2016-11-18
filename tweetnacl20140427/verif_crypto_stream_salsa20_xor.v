@@ -456,8 +456,6 @@ Lemma Tarray_0_emp_iff_ sh c: field_compatible (Tarray tuchar 0 noattr) [] c ->
 Proof. intros. apply pred_ext. apply Tarray_0_emp_. apply Tarray_0_emp'_; trivial.
 Qed.
 
-Definition bxorlist := combinelist _ Byte.xor. 
-
 Lemma bxorlist_app xs2 ys2: forall xs1 ys1 zs1 zs2,
       bxorlist xs1 ys1 = Some zs1 -> bxorlist xs2 ys2 = Some zs2 ->
       bxorlist (xs1 ++ xs2) (ys1 ++ ys2) = Some(zs1 ++ zs2).
@@ -475,7 +473,6 @@ Proof.
   unfold Int64.ltu; intros. if_tac in H. discriminate.
   split. apply Int64.unsigned_range. omega.
 Qed.
-Definition Bl2VL (l: list byte) := map Vint (map Int.repr (map Byte.unsigned l)).
 
 Lemma Zlength_Bl2VL l: Zlength (Bl2VL l) = Zlength l.
 Proof. unfold Bl2VL. repeat rewrite Zlength_map. trivial.
@@ -485,15 +482,6 @@ Lemma Bl2VL_app l m: Bl2VL (l ++ m) = Bl2VL l ++ Bl2VL m.
 Proof. unfold Bl2VL. repeat rewrite map_app. trivial.
 Qed.
 
-Fixpoint ZZ (zbytes: list byte) (n: nat): int * list byte :=
-  match n with
-   O => (Int.one, zbytes)
-  | S k => match ZZ zbytes k with (u,zb) => 
-             let v := (Int.unsigned u + (Byte.unsigned (Znth (Z.of_nat k+8) zb Byte.zero)))
-             in (Int.shru (Int.repr v) (Int.repr 8), 
-                 upd_Znth (Z.of_nat k+8) zb (Byte.repr (Z.modulo v 256))) end
-          
-  end.
 
 Lemma ZZ_is_byte: forall n zbytes u U, ZZ zbytes n = (u,U) ->
    0<= Int.unsigned u <256.
@@ -516,17 +504,6 @@ Proof. induction n; simpl; intros.
   rewrite Int.unsigned_repr; rewrite Int.unsigned_repr; trivial. omega.
 Qed.
 
-Lemma ZZ_Zlength: forall n zbytes u U, ZZ zbytes n = (u,U) ->
-      Zlength zbytes=16 -> Z.of_nat n <= 8 -> Zlength U = 16.
-Proof. induction n; simpl; intros.
-+ inv H. trivial.
-+ remember (ZZ zbytes n). destruct p. symmetry in Heqp. inv H.
-  rewrite Zpos_P_of_succ_nat in H1. 
-  apply IHn in Heqp; trivial; clear IHn.
-  rewrite upd_Znth_Zlength; trivial.
-  omega.
-  omega.
-Qed.
 
 Definition i_8_16_inv F x z c b m nonce k SV zbytes: environ -> mpred := 
 EX i:_,
@@ -634,13 +611,6 @@ Opaque ZZ.
 entailer!.
 Qed. 
 
-Definition message_at (mCont: list byte) (m:val): mpred :=
-  match m with
-    Vint i => !!(i=Int.zero) && emp
-  | Vptr b z => data_at Tsh (tarray tuchar (Zlength mCont)) (Bl2VL mCont) m
-  | _ => FF
-  end.
-
 Definition null_or_offset x q y :=
 match x with 
   Vint i => i=Int.zero /\ y=nullval
@@ -653,12 +623,6 @@ Definition byte_at x i mbytes :=
      Vint _ => Byte.zero
    | _ => Znth i mbytes Byte.zero
     end.
-
-Definition bytes_at x q i mbytes :=
-match x with
-  Vint _ => list_repeat (Z.to_nat i) (Byte.zero)
-| _ => sublist q (q+i) mbytes
-end.
 
 Lemma bxorlist_snoc x q y b l mbytes xbytes
         (M:null_or_offset x q y )  
@@ -911,9 +875,6 @@ rename H into I.
 apply andp_left2. apply derives_refl. 
 Qed.
 
-Parameter SIGMA: SixteenByte.
-Definition Sigma_vector : val -> mpred :=
-  data_at Tsh (tarray tuchar 16) (SixteenByte2ValList SIGMA).
 
 Definition loop2Inv F x z c mInit m b nonce k SV q xbytes mbytes cLen: environ -> mpred:=
 EX i:Z, 
@@ -1164,137 +1125,6 @@ old_go_lower. entailer!. Intros l. rewrite app_nil_r. Exists l.
  entailer!. 
 Qed.
 
-Fixpoint ZCont (r: nat) (zcont: list byte): list byte := 
-  match r with
-     O => zcont
-   | S n => let zb := ZCont n zcont in 
-            let zz := ZZ zb (8:nat) in snd zz
-  end.
-
-Lemma ZCont0 bytes: ZCont O bytes = bytes. reflexivity. Qed.
-Lemma ZContS bytes n: ZCont (S n) bytes = snd (ZZ (ZCont n bytes) 8). reflexivity. Qed.
-Opaque ZCont.
-
-Lemma Zlength_bytes_at x q i mbytes : 0<=q -> 0 <= i -> 
-  q + i <= Zlength mbytes -> Zlength (bytes_at x q i mbytes) = i.
-Proof. intros. destruct x; simpl; try rewrite Zlength_sublist; try omega.
-  rewrite Zlength_list_repeat; omega.
-Qed.
-
-Inductive CONTENT SIGMA K (mInit:val) (mCont zbytes:list byte): nat -> list byte -> list byte -> Prop :=
-  CONT_zero: CONTENT SIGMA K mInit mCont  zbytes O zbytes nil
-| CONT_succ: forall n zN resN ,
-             CONTENT SIGMA K mInit mCont zbytes n zN resN ->
-             forall d,
-             SixteenByte2ValList d = Bl2VL (ZCont n zbytes) ->
-             forall snuff srbytes Xor,
-             Snuffle20 (prepare_data (d, SIGMA, K)) = Some snuff ->
-             QuadChunks2ValList (map littleendian_invert snuff) =
-                map Vint (map Int.repr (map Byte.unsigned srbytes)) ->
-             bxorlist (bytes_at mInit (Z.of_nat n * 64) 64 mCont) srbytes = Some Xor ->
-             CONTENT SIGMA K mInit mCont zbytes (S n) (snd (ZZ zN (8:nat))) (resN++Xor).
-
-Lemma CONT_Zlength SIGMA K mInit mCont zbytes: 
-  forall n zB x,
-   CONTENT SIGMA K mInit mCont zbytes n zB x ->
-   Zlength x = (Z.of_nat n * 64)%Z.
-Proof.
-  induction n; intros; inv H. reflexivity.
-  rewrite Zlength_app. erewrite IHn. 2: eassumption.
-  unfold bxorlist in H5.
-  apply combinelist_Zlength in H5. destruct H5. rewrite H, <- H0; clear H H0.
-  apply Snuffle20_length in H3.
-  specialize (QuadChunk2ValList_ZLength(map littleendian_invert snuff)).
-  rewrite H4; clear H4. repeat rewrite Zlength_map. intros H; rewrite H; clear H.
-  rewrite Zlength_correct, H3; clear H3. simpl.
-  rewrite Pos2Z.inj_mul, Zpos_P_of_succ_nat, <- Zmult_succ_l_reverse. trivial.
-  apply prepare_data_length.
-Qed.
-
-Lemma CONTCONT SIGMA K mInit mCont zbytes: 
-  forall n zB x,
-   CONTENT SIGMA K mInit mCont zbytes n zB x ->
-   ZCont n zbytes = zB.
-Proof.
-  induction n; intros; inv H. 
-  apply ZCont0.
-  rewrite ZContS. erewrite IHn. 2: eassumption. trivial.
-Qed.
-
-Lemma Zlength_ZCont: forall n zbytes, Zlength zbytes = 16 -> Zlength (ZCont n zbytes) = 16. 
-Proof.
-  induction n; intros. rewrite ZCont0. trivial.
-  rewrite ZContS. specialize (ZZ_Zlength 8 (ZCont n zbytes)); intros.
-  remember (ZZ (ZCont n zbytes) 8). destruct p; simpl.
-  apply (H0 _ _ (eq_refl _ )).
-  apply IHn; trivial. simpl; omega.
-Qed.
-
-Lemma SixteenByte2ValList_exists bytes: Zlength bytes = 16 ->
-  exists d, SixteenByte2ValList d = map Vint (map Int.repr (map Byte.unsigned bytes)).
-Proof. intros.
-  apply listD16 in H. 
-  destruct H as [v0 [v1 [v2 [v3 [v4 [v5 [v6 [v7 [v8 
-        [v9 [v10 [v11 [v12 [v13 [v14 [v15 V]]]]]]]]]]]]]]]].
-  subst; simpl. 
-  exists ((v0, v1, v2, v3), (v4, v5, v6, v7), (v8, v9, v10, v11), (v12, v13, v14, v15)). 
-  rewrite SixteenByte2ValList_char. reflexivity.
-Qed.
-
-Definition ContSpec bInit SIGMA K mInit mCont zbytes  srbytes := 
-    let n:= (Int64.unsigned bInit) / 64 in
-    if zeq ((Int64.unsigned bInit) mod 64) 0
-    then exists zbytesR, CONTENT SIGMA K mInit mCont zbytes (Z.to_nat n) zbytesR srbytes
-    else exists zN resN d snuff bytes lastbytes(*zbytes*), 
-         CONTENT SIGMA K mInit mCont zbytes (Z.to_nat n) zN resN /\
-             SixteenByte2ValList d = Bl2VL (ZCont (Z.to_nat n) zbytes) /\
-             Snuffle20 (prepare_data (d, SIGMA, K)) = Some snuff /\
-             QuadChunks2ValList (map littleendian_invert snuff) =
-                map Vint (map Int.repr (map Byte.unsigned bytes)) /\
-             bxorlist (bytes_at mInit (n * 64) ((Int64.unsigned bInit) mod 64) mCont) 
-                                (sublist 0 ((Int64.unsigned bInit) mod 64) bytes) = Some lastbytes /\
-             (*zbytesR = (snd (ZZ zN (8:nat)))/\*) srbytes = (resN++lastbytes).
-
-(*TODO: refine non-zero-case of this spec, relating COUT to mCont and K and Nonce*)
-Definition crypto_stream_xor_postsep b (Nonce:SixteenByte) K mCont cLen nonce c m :=
-  (if Int64.eq b Int64.zero 
-   then data_at_ Tsh (Tarray tuchar cLen noattr) c
-   else (EX COUT:_, !!(exists zbytes, match Nonce with (Nnc0, Nnc1, _, _) =>
-                SixteenByte2ValList
-                  (Nnc0, Nnc1, (Byte.zero, Byte.zero, Byte.zero, Byte.zero),
-                           (Byte.zero, Byte.zero, Byte.zero, Byte.zero)) =
-                map Vint (map Int.repr (map Byte.unsigned zbytes))
-                /\  ContSpec b SIGMA K m mCont zbytes COUT end)
-           && data_at Tsh (Tarray tuchar cLen noattr) (Bl2VL COUT) c))
-                    * SByte Nonce nonce 
-                    * message_at mCont m.
-
-(*Precondition length mCont = Int64.unsigned b comes from textual spec in
-  https://download.libsodium.org/doc/advanced/salsa20.html
-  TODO: support the following part of the tetxual spec:
-      m and c can point to the same address (in-place encryption/decryption). 
-     If they don't, the regions should not overlap.*)
-Definition crypto_stream_salsa20_xor_spec :=
-  DECLARE _crypto_stream_salsa20_tweet_xor
-   WITH c : val, k:val, m:val, nonce:val, b:int64,
-        Nonce : SixteenByte, K: SixteenByte * SixteenByte,
-        mCont: list byte, SV:val
-   PRE [ _c OF tptr tuchar, _m OF tptr tuchar, _b OF tulong,
-         _n OF tptr tuchar, _k OF tptr tuchar]
-      PROP (Zlength mCont = Int64.unsigned b)
-      LOCAL (temp _c c; temp _m m; temp _b (Vlong b);
-             temp _n nonce; temp _k k; gvar _sigma SV)
-      SEP ( SByte Nonce nonce;
-            data_at_ Tsh (Tarray tuchar (Int64.unsigned b) noattr) c;
-            ThirtyTwoByte K k;
-            Sigma_vector SV;
-            message_at mCont m
-            (*data_at Tsh (tarray tuchar (Zlength mCont)) (Bl2VL mCont) m*))
-  POST [ tint ] 
-       PROP ()
-       LOCAL (temp ret_temp (Vint (Int.repr 0)))
-       SEP (Sigma_vector SV; ThirtyTwoByte K k;
-            crypto_stream_xor_postsep b Nonce K mCont (Int64.unsigned b) nonce c m). 
 
 Definition Inv cInit mInit bInit k nonce x z Nonce K SV mcont zcont:=
 (EX rounds:nat, EX m:_, EX zbytesR:list byte, EX srbytes:list byte,

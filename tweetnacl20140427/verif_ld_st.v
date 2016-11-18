@@ -15,11 +15,6 @@ Require Import tweetnacl20140427.spec_salsa.
 Opaque Snuffle20. Opaque Snuffle.Snuffle. Opaque prepare_data. 
 Opaque fcore_result.
 
-(*VST Issue: why do these two specs have to be made Opaque?
- If we delete the line, the "forward" for statement aux = x[0] in 
- the verifacation of ld32 gets stuck.*)
-Opaque crypto_core_salsa20_spec. Opaque crypto_core_hsalsa20_spec.
-
 Lemma L32_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_L32 L32_spec.
 Proof.
@@ -193,7 +188,7 @@ Time forward_for_simple_bound 4 (EX i:Z,
         omega. }
   rewrite Hl.
   Time forward. (*1.6*)
-Time Qed. (*4.9*) (*FIXME NOW: 11secs*)
+Time Qed. (*4.9*) 
 
 (*
 Definition L32_specZ :=
