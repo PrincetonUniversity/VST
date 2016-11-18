@@ -10,6 +10,7 @@ Require Import sha.HMAC256_functional_prog.
 Require Import sha.spec_sha.
 Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
 Require Import sha.general_lemmas.
+Require Import floyd.library.
 
 Lemma body_hmac_drbg_free: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
       f_mbedtls_hmac_drbg_free hmac_drbg_free_spec. 
@@ -33,7 +34,7 @@ Proof.
     forward_if (PROP ( )
        LOCAL (temp _ctx (Vptr b i))
        SEP (data_at Tsh t_struct_hmac256drbg_context_st CTX (Vptr b i);
-            hmac256drbg_relate ABS CTX; FreeBLK 324 (snd (snd (fst CTX))))).
+            hmac256drbg_relate ABS CTX; (*FreeBLK*)malloc_token Tsh 324 (snd (snd (fst CTX))))).
     + inv H.
     + forward. entailer!.
     + destruct CTX as [C1 [C2 [C3 [C4 [C5 C6]]]]]. simpl.
@@ -45,15 +46,20 @@ Proof.
       unfold md_full; simpl. replace_SEP 2 (UNDER_SPEC.EMPTY v1).
       { entailer. apply UNDER_SPEC.FULL_EMPTY. } 
       assert (exists xx:reptype t_struct_md_ctx_st, xx = (v, (v0, v1))). eexists; reflexivity.
-      destruct  H1 as [xx XX]. 
+      destruct  H1 as [xx XX].
       forward_seq.
         forward_seq.
-          { eapply (semax_call_id00_wow (Vptr b i, (v, (v0, v1))) [FRZL FR]) 
-             with (B:= (Prop*mpred)%type)(Ppost:=fun x => [fst x])(Rpost:=fun x => [data_at Tsh t_struct_md_ctx_st xx (Vptr b i)]); trivial; try reflexivity.
-            + entailer!.  
-            + entailer!. constructor. constructor. constructor. 
+          { (* forward_call (Vptr b i, (v, (v0, v1))).*)
+             eapply (@semax_call_id00_wow (rmaps.ConstType (val * reptype t_struct_md_ctx_st))
+                        (Vptr b i, xx) [FRZL FR]) 
+             with (B:= (Prop*mpred)%type)
+                  (Ppost:=fun x => [fst x])
+                  (Rpost:=fun x => [data_at Tsh t_struct_md_ctx_st xx (Vptr b i)]);
+              trivial ; try reflexivity.
+            + entailer!. 
+            + entailer!. constructor. constructor. constructor.   
             + entailer!. constructor. 
-            + simpl. cancel.
+            + subst xx. simpl. cancel.
             + extensionality x. apply pred_ext; simpl.
               - Exists (True, emp). simpl.
                 unfold PROPx, LOCALx, SEPx. simpl. entailer.
@@ -114,7 +120,8 @@ Proof.
                right; simpl. left; trivial.
             } 
             clear FR1. clear FR.
-            eapply (semax_call_id00_wow (sizeof (Tstruct _mbedtls_hmac_drbg_context noattr), Vptr b i) nil)
+            eapply (@semax_call_id00_wow (rmaps.ConstType (Z * val))
+                        (sizeof (Tstruct _mbedtls_hmac_drbg_context noattr), Vptr b i) nil)
              with (B:= (Prop*mpred)%type)(Ppost:=fun x => [fst x])
                   (Rpost:=fun x => [data_block Tsh (list_repeat 60 0) (Vptr b i)]); trivial; try reflexivity.
             + entailer!. 
@@ -210,7 +217,7 @@ Proof.
     - unfold MORE_COMMANDS, abbreviate. forward. forward.
       unfold offset_val; simpl.
       replace_SEP 0  (data_at Tsh (tarray tuchar (n - k)) (list_repeat (Z.to_nat (n-k)) Vundef) (Vptr b (Int.add i (Int.repr k)))).
-      { entailer. }
+      { entailer. } 
       admit. (*TODO erewrite (data_at_complete_split [Vundef] (list_repeat (Z.to_nat (n-k-1)) Vundef)); try reflexivity.
       * normalize. unfold Zlength. simpl. freeze [1;2;3] FR6. unfold tarray, tuchar, tint in *.
 assert (Econst_int (Int.repr 0) tint = Ecast (Econst_int (Int.repr 0) tint) tuchar). admit.
@@ -231,7 +238,7 @@ rewrite H0. forward.
 Admitted. (*Proof contains one admit, for the missing proof rule for volatile stores*)
 
 Lemma body_hmac_drbg_setPredictionResistance: 
-      semax_body HmacDrbgVarSpecs (md_free_spec::mbedtls_zeroize_spec::HmacDrbgFunSpecs) 
+      semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
       f_mbedtls_hmac_drbg_set_prediction_resistance hmac_drbg_setPredictionResistance_spec. 
 Proof. 
   start_function. 
@@ -245,7 +252,7 @@ Proof.
 Qed. 
 
 Lemma body_hmac_drbg_setEntropyLen: 
-      semax_body HmacDrbgVarSpecs (md_free_spec::mbedtls_zeroize_spec::HmacDrbgFunSpecs) 
+      semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
       f_mbedtls_hmac_drbg_set_entropy_len hmac_drbg_setEntropyLen_spec. 
 Proof. 
   start_function. 
@@ -259,7 +266,7 @@ Proof.
 Qed. 
 
 Lemma body_hmac_drbg_setReseedInterval: 
-      semax_body HmacDrbgVarSpecs (md_free_spec::mbedtls_zeroize_spec::HmacDrbgFunSpecs) 
+      semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs 
       f_mbedtls_hmac_drbg_set_reseed_interval hmac_drbg_setReseedInterval_spec. 
 Proof. 
   start_function. 

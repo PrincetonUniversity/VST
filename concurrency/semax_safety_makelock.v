@@ -86,14 +86,6 @@ Lemma safety_induction_makelock Gamma n state
   (Jspec' := @OK_spec (Concurrent_Espec unit CS ext_link))
   (Jspec'_juicy_mem_equiv : Jspec'_juicy_mem_equiv_def CS ext_link)
   (Jspec'_hered : Jspec'_hered_def CS ext_link)
-  (mem_cohere'_store : forall m tp m' b ofs i Phi
-    (Hcmpt : mem_compatible tp m),
-    lockRes tp (b, Int.intval ofs) <> None ->
-    Mem.store
-      Mint32 (restrPermMap (mem_compatible_locks_ltwritable Hcmpt))
-      b (Int.intval ofs) (Vint i) = Some m' ->
-    mem_compatible_with tp m Phi (* redundant with Hcmpt, but easier *) ->
-    mem_cohere' m' Phi)
   (personal_mem_equiv_spec :
      forall (m m' : Mem.mem') (phi : rmap) (pr : mem_cohere' m phi) (pr' : mem_cohere' m' phi),
        Mem.nextblock m = Mem.nextblock m' ->

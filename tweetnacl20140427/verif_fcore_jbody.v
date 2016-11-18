@@ -11,7 +11,7 @@ Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.verif_salsa_base.
 Require Import tweetnacl20140427.tweetnaclVerifiableC.
 Require Import tweetnacl20140427.spec_salsa. Opaque Snuffle.Snuffle.
-
+Require Import floyd.library.
 Opaque littleendian.
     Opaque littleendian_invert. Opaque Snuffle20. Opaque prepare_data. 
     Opaque QuadByte2ValList. Opaque fcore_result.

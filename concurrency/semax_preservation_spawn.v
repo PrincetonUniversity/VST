@@ -76,21 +76,25 @@ Definition Jspec'_hered_def CS ext_link :=
 
 Lemma preservation_spawn
   (lockSet_Writable_updLockSet_updThread
-     : forall (m m' : Memory.mem) (i : tid) (tp : thread_pool) (Phi : LocksAndResources.res),
-       mem_compatible_with tp m Phi ->
+     : forall (m m' : Memory.mem) (i : tid) (tp : thread_pool),
        forall (cnti : containsThread tp i) (b : block) (ofs : int) (ophi : option rmap)
          (ophi' : LocksAndResources.lock_info) (c' : ctl) (phi' : LocksAndResources.res) 
-         (z : int) (pr : mem_compatible tp m),
-       AMap.find (elt:=option rmap) (b, Int.intval ofs) (lset tp) = Some ophi ->
-       Mem.store Mint32 (restrPermMap (mem_compatible_locks_ltwritable pr)) b (Int.intval ofs) (Vint z) = Some m' ->
+         (z : int) (Hcmpt : mem_compatible tp m)
+         (Hcmpt : mem_compatible tp m)
+         (His_unlocked : AMap.find (elt:=option rmap) (b, Int.intval ofs) (lset tp) = Some ophi)
+         (Hlt' : permMapLt
+              (setPermBlock (Some Writable) b (Int.intval ofs) (juice2Perm_locks (getThreadR i tp cnti) m)
+                 LKSIZE_nat) (getMaxPerm m))
+         (Hstore : Mem.store Mint32 (restrPermMap Hlt') b (Int.intval ofs) (Vint z) = Some m'),
        lockSet_Writable (lset (updLockSet (updThread i tp cnti c' phi') (b, Int.intval ofs) ophi')) m') 
-  (mem_cohere'_store : forall m tp m' b ofs i Phi
-    (Hcmpt : mem_compatible tp m),
-    lockRes tp (b, Int.intval ofs) <> None ->
-    Mem.store
-      Mint32 (restrPermMap (mem_compatible_locks_ltwritable Hcmpt))
-      b (Int.intval ofs) (Vint i) = Some m' ->
-    mem_compatible_with tp m Phi (* redundant with Hcmpt, but easier *) ->
+  (mem_cohere'_store : forall m tp m' b ofs j i Phi (cnti : containsThread tp i)
+    (Hcmpt : mem_compatible tp m)
+    (lock : lockRes tp (b, Int.intval ofs) <> None)
+    (Hlt' : permMapLt
+           (setPermBlock (Some Writable) b (Int.intval ofs) (juice2Perm_locks (getThreadR i tp cnti) m)
+              LKSIZE_nat) (getMaxPerm m))
+    (Hstore : Mem.store Mint32 (restrPermMap Hlt') b (Int.intval ofs) (Vint j) = Some m'),
+    mem_compatible_with tp m Phi ->
     mem_cohere' m' Phi)
   (personal_mem_equiv_spec
      : forall (m m' : Mem.mem') (phi : rmap) (pr : mem_cohere' m phi) (pr' : mem_cohere' m' phi),

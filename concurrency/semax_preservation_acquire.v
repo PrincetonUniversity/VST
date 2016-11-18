@@ -77,21 +77,25 @@ Definition Jspec'_hered_def CS ext_link :=
 
 Lemma preservation_acquire
   (lockSet_Writable_updLockSet_updThread
-     : forall (m m' : Memory.mem) (i : tid) (tp : thread_pool) (Phi : LocksAndResources.res),
-       mem_compatible_with tp m Phi ->
+     : forall (m m' : Memory.mem) (i : tid) (tp : thread_pool),
        forall (cnti : containsThread tp i) (b : block) (ofs : int) (ophi : option rmap)
          (ophi' : LocksAndResources.lock_info) (c' : ctl) (phi' : LocksAndResources.res) 
-         (z : int) (pr : mem_compatible tp m),
-       AMap.find (elt:=option rmap) (b, Int.intval ofs) (lset tp) = Some ophi ->
-       Mem.store Mint32 (restrPermMap (mem_compatible_locks_ltwritable pr)) b (Int.intval ofs) (Vint z) = Some m' ->
+         (z : int) (Hcmpt : mem_compatible tp m)
+         (Hcmpt : mem_compatible tp m)
+         (His_unlocked : AMap.find (elt:=option rmap) (b, Int.intval ofs) (lset tp) = Some ophi)
+         (Hlt' : permMapLt
+              (setPermBlock (Some Writable) b (Int.intval ofs) (juice2Perm_locks (getThreadR i tp cnti) m)
+                 LKSIZE_nat) (getMaxPerm m))
+         (Hstore : Mem.store Mint32 (restrPermMap Hlt') b (Int.intval ofs) (Vint z) = Some m'),
        lockSet_Writable (lset (updLockSet (updThread i tp cnti c' phi') (b, Int.intval ofs) ophi')) m') 
-  (mem_cohere'_store : forall m tp m' b ofs i Phi
-    (Hcmpt : mem_compatible tp m),
-    lockRes tp (b, Int.intval ofs) <> None ->
-    Mem.store
-      Mint32 (restrPermMap (mem_compatible_locks_ltwritable Hcmpt))
-      b (Int.intval ofs) (Vint i) = Some m' ->
-    mem_compatible_with tp m Phi (* redundant with Hcmpt, but easier *) ->
+  (mem_cohere'_store : forall m tp m' b ofs j i Phi (cnti : containsThread tp i)
+    (Hcmpt : mem_compatible tp m)
+    (lock : lockRes tp (b, Int.intval ofs) <> None)
+    (Hlt' : permMapLt
+           (setPermBlock (Some Writable) b (Int.intval ofs) (juice2Perm_locks (getThreadR i tp cnti) m)
+              LKSIZE_nat) (getMaxPerm m))
+    (Hstore : Mem.store Mint32 (restrPermMap Hlt') b (Int.intval ofs) (Vint j) = Some m'),
+    mem_compatible_with tp m Phi ->
     mem_cohere' m' Phi)
   (personal_mem_equiv_spec
      : forall (m m' : Mem.mem') (phi : rmap) (pr : mem_cohere' m phi) (pr' : mem_cohere' m' phi),
@@ -139,10 +143,15 @@ Lemma preservation_acquire
   (Hthread : getThreadC i tp cnti = Kblocked c)
   (Hat_external : at_external SEM.Sem c = Some (LOCK, (* ef_sig LOCK, *) Vptr b ofs :: nil))
   (His_unlocked : lockRes tp (b, Int.intval ofs) = SSome d_phi)
-  (Hload : Mem.load Mint32 (restrPermMap (mem_compatible_locks_ltwritable Hcmpt)) b (Int.intval ofs) =
+  (Hload : Mem.load Mint32 (juicyRestrict_locks (mem_compat_thread_max_cohere Hcmpt cnti))
+                    b (Int.intval ofs) =
           Some (Vint Int.one))
-  (Hstore : Mem.store Mint32 (restrPermMap (mem_compatible_locks_ltwritable Hcmpt)) b 
-             (Int.intval ofs) (Vint Int.zero) = Some m')
+  (Hlt' : permMapLt
+           (setPermBlock (Some Writable) b (Int.intval ofs) (juice2Perm_locks (getThreadR i tp cnti) m)
+              LKSIZE_nat) (getMaxPerm m))
+  (Hstore : Mem.store Mint32 (restrPermMap Hlt') b (Int.intval ofs) (Vint Int.zero) = Some m')
+  (* (Hstore : Mem.store Mint32 (juicyRestrict_locks (mem_compat_thread_max_cohere Hcmpt cnti)) *)
+  (*                     b (Int.intval ofs) (Vint Int.zero) = Some m') *)
   (HJcanwrite : getThreadR i tp cnti @ (b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
   (Hadd_lock_res : join (getThreadR i tp cnti) d_phi phi')
   (jmstep : @JuicyMachine.machine_step ge (i :: sch) nil tp m sch nil
@@ -191,21 +200,13 @@ Proof.
       pose proof juice_join compat as J.
       pose proof all_cohere compat as MC.
       clear safety lock_coh jmstep.
-      eapply mem_cohere'_store with
-      (tp := tp)
-        (Hcmpt := mem_compatible_forget compat)
-        (i := Int.zero).
+      eapply (mem_cohere'_store _ tp _ _ _ (Int.zero) _ _ cnti Hcmpt).
       + cleanup.
         rewrite His_unlocked. simpl. congruence.
-      + exact_eq Hstore.
-        f_equal.
-        f_equal.
-        apply restrPermMap_ext.
-        unfold lockSet in *.
-        intros b0.
-        reflexivity.
+      + (* there is this hcmpt which is redundant, we can prove they're equal or think more to factorize it *)
+        apply Hstore.
       + auto.
-        
+    
     - (* lockSet_Writable *)
       eapply lockSet_Writable_updLockSet_updThread; eauto.
       
@@ -659,7 +660,7 @@ Proof.
                REWR in pr'.
                REWR in pr'.
                eapply mem_cohere_sub with Phi.
-               eapply mem_cohere'_store. 2:apply Hstore. cleanup; congruence. auto.
+               eapply mem_cohere'_store. apply Hcmpt. 2:apply Hstore. cleanup; congruence. auto.
                apply compatible_threadRes_sub. apply compat.
             ** pose proof store_outside' _ _ _ _ _ _ Hstore as STO.
                simpl in STO. apply STO.
@@ -668,6 +669,7 @@ Proof.
                intros loc.
                apply equal_f with (x := loc) in ACC.
                apply equal_f with (x := Max) in ACC.
+               unfold juicyRestrict_locks in *.
                rewrite restrPermMap_Max' in ACC.
                apply ACC.
             ** intros loc yes.
@@ -696,7 +698,8 @@ Proof.
                    +++ breakhyps.
                        destruct (Phi @ (b, ofs')) as [t0 | t0 p [] p0 | k p]; try tauto.
                        congruence.
-               --- rewrite restrPermMap_contents in CON.
+               --- unfold juicyRestrict_locks in *.
+                   rewrite restrPermMap_contents in CON.
                    apply CON.
          ++ apply mem_equiv_refl'.
             apply m_dry_personal_mem_eq.

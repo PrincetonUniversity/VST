@@ -4136,7 +4136,7 @@ Here be dragons
                   (unfold LKSIZE; omega).
               apply (rmap_locking.rmap_freelock_join
                        _ _ _ _
-                       _ _ _
+                       _ _ _ _
                        H0
                        Hrmap) in thread_join.
               destruct thread_join as [X [_ THEY_JOIN]].
@@ -4156,7 +4156,7 @@ Here be dragons
                   (unfold LKSIZE; omega).
               apply (rmap_locking.rmap_freelock_join
                        _ _ _ _
-                       _ _ _
+                       _ _ _ _
                        H0
                        Hrmap) in thread_lock_join.
               destruct thread_lock_join as [X [_ THEY_JOIN]].

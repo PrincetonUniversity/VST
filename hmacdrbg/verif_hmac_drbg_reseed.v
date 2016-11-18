@@ -22,7 +22,7 @@ Proof. extensionality l. induction l; auto. Qed.
 
 
 Lemma FRZL_ax' ps: FRZL ps = my_fold_right sepcon emp ps.
-Proof. rewrite FRZL_ax. rewrite <- my_fold_right_eq. trivial. Qed.
+Proof. rewrite FRZL_ax. rewrite my_fold_right_eq. trivial. Qed.
 
 (*Tactic requires the resulting goal to be normalized manually.*)
 Ltac my_thaw' name :=

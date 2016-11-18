@@ -230,7 +230,6 @@ Section Safety.
       apply safety_induction_makelock; eauto.
       - hnf. apply Jspec'_juicy_mem_equiv.
       - hnf. apply Jspec'_hered.
-      - apply mem_cohere'_store.
       - apply personal_mem_equiv_spec.
     }
     
@@ -240,7 +239,6 @@ Section Safety.
       apply safety_induction_freelock; eauto.
       - hnf. apply Jspec'_juicy_mem_equiv.
       - hnf. apply Jspec'_hered.
-      - apply mem_cohere'_store.
       - apply personal_mem_equiv_spec.
     }
     
