@@ -539,13 +539,6 @@ Proof.
               spec SparseX (b0, ofs0). spec SparseX. split; auto; lkomega.
               unfold Mem.valid_access in *.
               unfold Mem.range_perm in *.
-              (* say that "lset = ADD (REMOVE lset)" and use result about ADD? *)
-              Lemma AMap_Equal_PMap_eq {A} m m' : AMap.Equal m m' -> @A2PMap A m = @A2PMap A m'.
-              Admitted. (* proved in addressFiniteMap *)
-              Lemma AMap_remove_add {A} (m : AMap.t A) x y :
-                AMap.find x m = Some y ->
-                AMap.Equal m (AMap.add x y (AMap.remove x m)).
-              Admitted. (* proved in addressFiniteMap *)
               erewrite AMap_Equal_PMap_eq in v1.
               2: apply AMap_remove_add; eauto.
               rewrite A2PMap_add_outside in v1.
@@ -573,12 +566,7 @@ Proof.
               replace (level uphi) with (level Phi); swap 1 2.
               { symmetry. eapply join_all_level_lset. apply compat. eassumption. }
               rewrite En. replace (S n - n) with 1 by omega.
-              Lemma mpred_age1' (R : mpred) phi : app_pred R phi -> app_pred R (age1' phi).
-              Proof.
-                unfold age1'. destruct (age1 phi) as [phi' | ] eqn:Ephi'; auto.
-                destruct R as [R h]. apply h. apply Ephi'.
-              Qed.
-              apply mpred_age1', sat.
+              apply pred_age1', sat.
       
       * (* Lock found, unlocked *)
         spec sparse loc (b, Int.intval ofs). rewrite locked in sparse. rewrite Eo in sparse.
@@ -726,14 +714,63 @@ Proof.
               split. now constructor.
               simpl. rewrite seplog.sepcon_emp.
               unfold semax_conc_pred.lock_inv in *.
-              admit (* depend on rmap_freelock *).
+              exists (age_to n phi0lockinv'), (age_to n phi0sat).
+              split. now apply age_to_join; auto.
+              split. now apply age_to_pred; assumption.
+              now apply age_to_pred; auto.
           
-          + admit.
+          + exact_eq Safe'.
+            unfold jsafeN, safeN.
+            f_equal.
+            congruence.
       }
     
-    * admit.
+    * (* safety for other threads: easier, because the dry memory has not changed *)
+      REWR.
+      cut (forall c (cntj : containsThread tp j),
+              jsafeN Jspec' ge (S n) ora c (jm_ cntj compat) ->
+              jsafeN Jspec' ge n ora c (jm_ lj mcompat')).
+      {
+        intros HH.
+        destruct (@getThreadC j tp lj) eqn:E.
+        - unshelve eapply HH; auto.
+        - unshelve eapply HH; auto.
+        - intros c' Ec'. eapply HH; auto.
+        - constructor.
+      }
+      intros c0 cntj Safe.
+      apply jsafeN_downward in Safe.
+      apply jsafeN_age_to with (l := n) in Safe; auto.
+      revert Safe.
+      apply jsafeN_mem_equiv. 2: now apply Jspec'_juicy_mem_equiv.
+      split.
+      -- rewrite m_dry_age_to.
+         unfold jm_ in *.
+         set (@mem_compatible_forget _ _ _ _) as cmpt; clearbody cmpt.
+         set (@mem_compatible_forget _ _ _ _) as cmpt'; clearbody cmpt'.
+         match goal with
+           |- context [thread_mem_compatible ?a ?b] =>
+           generalize (thread_mem_compatible a b); intros pr
+         end.
+         match goal with
+           |- context [thread_mem_compatible ?a ?b] =>
+           generalize (thread_mem_compatible a b); intros pr'
+         end.
+         apply mem_equiv_refl'.
+         apply m_dry_personal_mem_eq.
+         intros loc.
+         REWR.
+         REWR.
+         REWR.                  
+         REWR.
+      -- REWR.
+         rewrite m_phi_jm_.
+         rewrite m_phi_jm_.
+         REWR.
+         REWR.
+         REWR.
     }
-    
+  
   - (* threads_wellformed *)
     intros j lj.
     specialize (wellformed j lj).
@@ -750,12 +787,9 @@ Proof.
   - (* unique_Krun *)
     apply no_Krun_unique_Krun.
     rewrite no_Krun_age_tp_to.
-    Lemma no_Krun_updLockSet tp loc:
-      no_Krun tp -> no_Krun (remLockSet tp loc).
-    Admitted.
-    apply no_Krun_updLockSet.
+    apply no_Krun_remLockSet.
     apply no_Krun_stable. congruence.
     eapply unique_Krun_no_Krun. eassumption.
     instantiate (1 := cnti). rewr (getThreadC i tp cnti).
     congruence.
-Admitted.
+Qed.

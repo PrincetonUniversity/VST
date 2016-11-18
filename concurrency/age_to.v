@@ -69,6 +69,12 @@ Proof.
   destruct P as [x h]. apply h.
 Qed.
 
+Lemma pred_age1' {A} `{agA : ageable A} (R : pred A) x : app_pred R x -> app_pred R (age1' x).
+Proof.
+  unfold age1'. destruct (age1 x) as [phi' | ] eqn:Ephi'; auto.
+  destruct R as [R h]. apply h. apply Ephi'.
+Qed.
+
 Lemma age_by_age_by_pred {A} `{agA : ageable A} (P : pred A) x n1 n2 :
   le n1 n2 ->
   app_pred P (age_by n1 x) ->
