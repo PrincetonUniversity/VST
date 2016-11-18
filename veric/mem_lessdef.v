@@ -116,7 +116,19 @@ Definition mem_equiv' m1 m2 :=
   Mem.perm m1 = Mem.perm m2 /\
   Mem.nextblock m1 = Mem.nextblock m2.
 
+Definition mem_lessalloc' m1 m2 :=
+  (forall x, Mem.perm_order' (access_at m1 x Cur) Readable -> contents_at m1 x = contents_at m2 x) /\
+  Mem.perm m1 = Mem.perm m2 /\
+  (Mem.nextblock m1 <= Mem.nextblock m2)%positive.
+
 Lemma mem_equiv'_spec m1 m2 : mem_equiv m1 m2 <-> mem_equiv' m1 m2.
+Proof.
+  split; intros (? & ? & ?); repeat split; auto.
+  rewrite <-same_loadbytes_spec; auto.
+  rewrite same_loadbytes_spec; auto.
+Qed.
+
+Lemma mem_lessalloc'_spec m1 m2 : mem_lessalloc m1 m2 <-> mem_lessalloc' m1 m2.
 Proof.
   split; intros (? & ? & ?); repeat split; auto.
   rewrite <-same_loadbytes_spec; auto.
