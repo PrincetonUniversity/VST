@@ -155,95 +155,42 @@ Proof.
     (forward; repeat rewrite zlist_hint_db.Znth_map_Vint by (rewrite Zlength_map; omega));
     [ solve [ entailer! ] | idtac ]
   ).
-  GET_UINT32_LE_tac. forward. forward. forward. simpl. forward. forward.
 
-assert_PROP (isptr ctx) as PNctx by entailer!.
-assert_PROP (isptr (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx)). {
-  destruct ctx; inversion PNctx. entailer!.
-}
+  assert_PROP (forall i, 0 <= i < 60 -> force_val (sem_add_pi tuint
+       (field_address t_struct_aesctx [ArraySubsc  i   ; StructField _buf] ctx) (Vint (Int.repr 1)))
+     = (field_address t_struct_aesctx [ArraySubsc (i+1); StructField _buf] ctx)) as Eq. {
+    entailer!. intros.
+    do 2 rewrite field_compatible_field_address by auto with field_compatible.
+    simpl. destruct ctx; inversion PNctx; try reflexivity.
+    simpl. rewrite Int.add_assoc.
+    replace (Int.mul (Int.repr 4) (Int.repr 1)) with (Int.repr 4) by reflexivity.
+    rewrite add_repr.
+    replace (8 + 4 * (i + 1)) with (8 + 4 * i + 4) by omega.
+    reflexivity.
+  }
 
-  GET_UINT32_LE_tac. forward. forward. forward. { entailer. 
-  (* TODO floyd: entailer! clears the useful H1 and thus cannot solve the goal *) }
+  Time do 4 (
+    GET_UINT32_LE_tac; simpl; forward; forward; forward;
+    rewrite Eq by omega; simpl;
+    forward; forward
+  ). (* 1308s *)
 
-simpl.
-
-assert ((force_val
-          (sem_add_pi tuint (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx)
-             (Vint (Int.repr 1)))
-  = (field_address t_struct_aesctx ([] ++ [ArraySubsc 1; StructField _buf]) ctx))) as Eq by admit.
-forward. { entailer. }
-
-forward.
-
-assert_PROP (isptr (field_address t_struct_aesctx [ArraySubsc 1; StructField _buf] ctx)). {
-  destruct ctx; inversion PNctx. entailer!.
-  auto with field_compatible. (* TODO floyd why is this not integrated in entailer!? *)
-}
-
-  GET_UINT32_LE_tac. forward. forward. 
-assert_PROP ((force_val
-               (sem_add_pi tuint
-                  (force_val
-                     (sem_add_pi tuint
-                        (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx)
-                        (Vint (Int.repr 1)))) (Vint (Int.repr 1)))) = 
-(field_address t_struct_aesctx [ArraySubsc 2; StructField _buf] ctx)) as Eq0. {
-  go_lower; saturate_local. apply prop_right.
-  rewrite sem_add_pi_ptr. rewrite sem_add_pi_ptr.
-  rewrite field_compatible_field_address.
-  rewrite field_compatible_field_address.
-  destruct ctx; inversion PNctx. simpl.
-  repeat rewrite Int.add_assoc. reflexivity.
-  auto with field_compatible.
-  auto with field_compatible.
-  auto.
-  rewrite Eq. simpl.
-  auto with field_compatible.
-}
-rewrite Eq0. clear Eq0.
-
-forward. (* no entailer needed here because we made t'3 nice looking before *) 
-
-simpl.
-
-   forward.
-
-assert ((force_val
-        (sem_add_pi tuint (field_address t_struct_aesctx [ArraySubsc 2; StructField _buf] ctx)
-           (Vint (Int.repr 1))))
-= field_address t_struct_aesctx [ArraySubsc 3; StructField _buf] ctx) as Eq0 by admit.
-rewrite Eq0. clear Eq0.
-
-forward.
-
-  GET_UINT32_LE_tac. forward. forward. simpl. forward.
-
-assert ((force_val
-        (sem_add_pi tuint (field_address t_struct_aesctx [ArraySubsc 3; StructField _buf] ctx)
-           (Vint (Int.repr 1))))
-= field_address t_struct_aesctx [ArraySubsc 4; StructField _buf] ctx) as Eq0 by admit.
-rewrite Eq0. clear Eq0.
-
-forward.
-
-forward.
-
-match goal with
-| |- context [temp _X0 (Vint (Int.xor ?E (Int.repr k1)))] =>
+  match goal with
+  | |- context [temp _X0 (Vint (Int.xor ?E (Int.repr k1)))] =>
        replace E with (get_uint32_le (map Int.repr plaintext) 0) by reflexivity
-end.
-match goal with
-| |- context [temp _X1 (Vint (Int.xor ?E (Int.repr k2)))] =>
+  end.
+  match goal with
+  | |- context [temp _X1 (Vint (Int.xor ?E (Int.repr k2)))] =>
        replace E with (get_uint32_le (map Int.repr plaintext) 4) by reflexivity
-end.
-match goal with
-| |- context [temp _X2 (Vint (Int.xor ?E (Int.repr k3)))] =>
+  end.
+  match goal with
+  | |- context [temp _X2 (Vint (Int.xor ?E (Int.repr k3)))] =>
        replace E with (get_uint32_le (map Int.repr plaintext) 8) by reflexivity
-end.
-match goal with
-| |- context [temp _X3 (Vint (Int.xor ?E (Int.repr k4)))] =>
+  end.
+  match goal with
+  | |- context [temp _X3 (Vint (Int.xor ?E (Int.repr k4)))] =>
        replace E with (get_uint32_le (map Int.repr plaintext) 12) by reflexivity
-end.
+  end.
 
 unfold Sfor.
 
