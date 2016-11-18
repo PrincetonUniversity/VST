@@ -256,6 +256,7 @@ Proof.
       inv j; hnf; eauto.
   }
   
+  pose proof lock_coh as lock_coh_.
   spec lock_coh (b, Int.intval ofs). cleanup. rewrite locked in lock_coh.
   
   unfold tlock in *.
@@ -487,8 +488,180 @@ Proof.
       unfold Int.unsigned in *.
       destruct inside as (sh & -> & ?). intros HH.
       unfold isLK in *. breakhyps.
-    + admit (* continuing lock coh ... *).
-  
+    + spec lock_coh_ loc.
+      destruct (AMap.find loc _) as [[uphi|]|] eqn:Eo; simpl.
+      
+      * (* Lock found, locked *)
+        spec sparse loc (b, Int.intval ofs). rewrite locked in sparse. rewrite Eo in sparse.
+        spec sparse. congruence.
+        spec sparse. congruence.
+        destruct sparse as [ | sparse]. congruence.
+        assert (SparseX: forall x, adr_range loc LKSIZE x -> ~adr_range (b, Int.unsigned ofs) 4 x).
+        {
+          clear -H sparse. intros x r.
+          destruct x as (b', ofs'). simpl.
+          intros [<- r'].
+          destruct loc as (b', ofs0). simpl in r. destruct r as (->, r0).
+          simpl in sparse.
+          destruct sparse as [? | [_ sparse]]. tauto. simpl in *.
+          unfold Int.unsigned in *.
+          assert (ofs0 <> Int.intval ofs) by congruence. clear H.
+          unfold far in *.
+          unfold LKSIZE in *.
+          zify.
+          omega.
+        }
+        destruct lock_coh_ as (LOAD & align & bound & R & lk & [sat | ?]). 2:omega.
+        split; [ | split; [ | split ]]; auto.
+        -- (* use sparsity to prove the load_at is the same *)
+           clear -LOAD SparseX locked.
+           unfold load_at in *.
+           destruct loc as (b0, ofs0); simpl in LOAD |- *.
+           Transparent Mem.load.
+           unfold Mem.load in *.
+           if_tac [v1|nv1] in LOAD. 2:discriminate.
+           if_tac [v2|nv2].
+           ++ rewrite restrPermMap_mem_contents in *. auto.
+           ++ destruct nv2. clear LOAD.
+              split. 2:apply v1. destruct v1 as [v1 _].
+              intros ofs1 r1. spec v1 ofs1 r1.
+              unfold Mem.perm in *.
+              pose proof restrPermMap_Cur as RR.
+              unfold permission_at in *.
+              rewrite RR in v1.
+              rewrite RR.
+              simpl.
+              unfold lockSet in *.
+              simpl.
+              cleanup.
+              rewrite A2PMap_option_map.
+              pose proof SparseX as SparseX'.
+              spec SparseX (b0, ofs0). spec SparseX. split; auto; lkomega.
+              unfold Mem.valid_access in *.
+              unfold Mem.range_perm in *.
+              (* say that "lset = ADD (REMOVE lset)" and use result about ADD? *)
+              Lemma AMap_Equal_PMap_eq {A} m m' : AMap.Equal m m' -> @A2PMap A m = @A2PMap A m'.
+              Admitted. (* proved in addressFiniteMap *)
+              Lemma AMap_remove_add {A} (m : AMap.t A) x y :
+                AMap.find x m = Some y ->
+                AMap.Equal m (AMap.add x y (AMap.remove x m)).
+              Admitted. (* proved in addressFiniteMap *)
+              erewrite AMap_Equal_PMap_eq in v1.
+              2: apply AMap_remove_add; eauto.
+              rewrite A2PMap_add_outside in v1.
+              if_tac [r|nr] in v1. 2:assumption.
+              exfalso.
+              spec SparseX' (b0, ofs1). spec SparseX'. split; auto; lkomega.
+              tauto.
+        
+        -- exists R; split.
+           ++ (* sparsity again, if easier or just the rmap_freelock *)
+              intros x r.
+              spec lk x r.
+              destruct Hrmap' as (_ & outside & inside).
+              spec outside x.
+              autospec outside.
+              rewrite age_to_resource_at.
+              rewrite <-outside. clear outside.
+              unfold sync_preds_defs.pack_res_inv in *.
+              rewrite level_age_to.
+              ** if_tac; breakhyps.
+                 all: rewr (Phi @ x); simpl; eauto.
+                 all: rewrite approx_approx'; eauto; omega.
+              ** omega.
+           ++ left. unfold age_to.
+              replace (level uphi) with (level Phi); swap 1 2.
+              { symmetry. eapply join_all_level_lset. apply compat. eassumption. }
+              rewrite En. replace (S n - n) with 1 by omega.
+              Lemma mpred_age1' (R : mpred) phi : app_pred R phi -> app_pred R (age1' phi).
+              Proof.
+                unfold age1'. destruct (age1 phi) as [phi' | ] eqn:Ephi'; auto.
+                destruct R as [R h]. apply h. apply Ephi'.
+              Qed.
+              apply mpred_age1', sat.
+      
+      * (* Lock found, unlocked *)
+        spec sparse loc (b, Int.intval ofs). rewrite locked in sparse. rewrite Eo in sparse.
+        spec sparse. congruence.
+        spec sparse. congruence.
+        destruct sparse as [ | sparse]. congruence.
+        assert (SparseX: forall x, adr_range loc LKSIZE x -> ~adr_range (b, Int.unsigned ofs) 4 x).
+        {
+          clear -H sparse. intros x r.
+          destruct x as (b', ofs'). simpl.
+          intros [<- r'].
+          destruct loc as (b', ofs0). simpl in r. destruct r as (->, r0).
+          simpl in sparse.
+          destruct sparse as [? | [_ sparse]]. tauto. simpl in *.
+          unfold Int.unsigned in *.
+          assert (ofs0 <> Int.intval ofs) by congruence. clear H.
+          unfold far in *.
+          unfold LKSIZE in *.
+          zify.
+          omega.
+        }
+        destruct lock_coh_ as (LOAD & align & bound & R & lk).
+        split; [ | split; [ | split ]]; auto.
+        -- (* use sparsity to prove the load_at is the same *)
+           clear -LOAD SparseX locked.
+           unfold load_at in *.
+           destruct loc as (b0, ofs0); simpl in LOAD |- *.
+           unfold Mem.load in *.
+           if_tac [v1|nv1] in LOAD. 2:discriminate.
+           if_tac [v2|nv2].
+           ++ rewrite restrPermMap_mem_contents in *. auto.
+           ++ destruct nv2. clear LOAD.
+              split. 2:apply v1. destruct v1 as [v1 _].
+              intros ofs1 r1. spec v1 ofs1 r1.
+              unfold Mem.perm in *.
+              pose proof restrPermMap_Cur as RR.
+              unfold permission_at in *.
+              rewrite RR in v1.
+              rewrite RR.
+              simpl.
+              unfold lockSet in *.
+              simpl.
+              cleanup.
+              rewrite A2PMap_option_map.
+              pose proof SparseX as SparseX'.
+              spec SparseX (b0, ofs0). spec SparseX. split; auto; lkomega.
+              unfold Mem.valid_access in *.
+              unfold Mem.range_perm in *.
+              (* say that "lset = ADD (REMOVE lset)" and use result about ADD? *)
+              erewrite AMap_Equal_PMap_eq in v1.
+              2: apply AMap_remove_add; eauto.
+              rewrite A2PMap_add_outside in v1.
+              if_tac [r|nr] in v1. 2:assumption.
+              exfalso.
+              spec SparseX' (b0, ofs1). spec SparseX'. split; auto; lkomega.
+              tauto.
+        
+        -- exists R.
+           (* sparsity again, if easier or just the rmap_freelock *)
+           intros x r.
+           spec lk x r.
+           destruct Hrmap' as (_ & outside & inside).
+           spec outside x.
+           autospec outside.
+           rewrite age_to_resource_at.
+           rewrite <-outside. clear outside.
+           unfold sync_preds_defs.pack_res_inv in *.
+           rewrite level_age_to.
+           ++ if_tac; breakhyps.
+              all: rewr (Phi @ x); simpl; eauto.
+              all: rewrite approx_approx'; eauto; omega.
+           ++ omega.
+      
+      * (* Lock not found, unlocked *)
+        rewrite age_to_resource_at.
+        destruct Hrmap' as (_ & inside & outside). clear Post B1 Phi'rev.
+        intros LK. spec inside loc. spec outside loc. spec inside.
+        { intros r. spec outside r. destruct LK as (sh & sh' & z & pp & E).
+          breakhyps. rewr (Phi' @ loc) in E. breakhyps. }
+        apply lock_coh_. rewrite inside. destruct LK as (sh & sh' & z & pp & E).
+        destruct (Phi' @ loc) as [t0 | t0 p [] p0 | k p]; breakhyps.
+        hnf. eauto.
+
   - (* safety *)
     {
     intros j lj ora.
@@ -571,9 +744,9 @@ Proof.
       rewrite gssThreadCode.
       replace lj with cnti in wellformed by apply proof_irr.
       rewr (getThreadC i tp cnti) in wellformed.
-      auto.
+      destruct ci; auto.
     + unshelve erewrite gsoThreadCode; auto.
-      
+  
   - (* unique_Krun *)
     apply no_Krun_unique_Krun.
     rewrite no_Krun_age_tp_to.
