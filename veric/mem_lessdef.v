@@ -254,6 +254,269 @@ Lemma cl_step_mem_lessdef_sim {ge c m1 c' m1' m2} :
     @cl_step ge c m2 c' m2'.
 Admitted.
 
+Lemma eval_expr_mem_lessaloc {ge ve te m a v}: 
+  eval_expr ge ve te m a v ->
+  forall m2 (L : mem_lessalloc m m2),
+  eval_expr ge ve te m2 a v.
+Admitted.
+
+Lemma valid_pointer_lessalloc {m m2} (M:mem_lessalloc m m2):
+      Mem.valid_pointer m = Mem.valid_pointer m2.
+Proof. unfold Mem.valid_pointer. destruct M as [M1 [M2 M3]].
+  extensionality b. extensionality i.
+  destruct (Mem.perm_dec m b i Cur Nonempty); 
+  destruct (Mem.perm_dec m2 b i Cur Nonempty); trivial.
+  exfalso. rewrite M2 in p. contradiction.
+  exfalso. rewrite M2 in n. contradiction.
+Qed.
+
+Lemma weak_valid_pointer_lessalloc {m m2} (M:mem_lessalloc m m2):
+      Mem.weak_valid_pointer m = Mem.weak_valid_pointer m2.
+Proof.
+  unfold Mem.weak_valid_pointer.
+  extensionality b. extensionality i.
+  rewrite (valid_pointer_lessalloc M); trivial.
+Qed.
+
+Lemma unaryop_mem_lessaloc {op u t m v m2}
+      (V: sem_unary_operation op u t m = Some v) 
+      (M:mem_lessalloc m m2):
+      sem_unary_operation op u t m2 = Some v.
+Proof. destruct op; simpl; inv V; try econstructor.
+unfold sem_notbool.
+remember (classify_bool t) as c.
+destruct c; trivial.
+destruct u; trivial.
+rewrite (weak_valid_pointer_lessalloc M); trivial. 
+Qed.
+
+Lemma sem_cast_mem_lessaloc {v t d m m2} (M:mem_lessalloc m m2):
+      sem_cast v t d m = sem_cast v t d m2.
+Proof.
+unfold sem_cast.
+destruct (classify_cast t d); trivial.
+destruct v; trivial.
+rewrite (weak_valid_pointer_lessalloc M); trivial.
+Qed. 
+
+Lemma sem_cmp_mem_lessalloc {f v1 t1 v2 t2 m m2} (M : mem_lessalloc m m2):
+      sem_cmp f v1 t1 v2 t2 m2 = sem_cmp f v1 t1 v2 t2 m.
+Proof. unfold sem_cmp.
+  destruct (classify_cmp t1 t2).
+  - rewrite (valid_pointer_lessalloc M); trivial.
+  - rewrite (valid_pointer_lessalloc M); trivial.
+  - rewrite (valid_pointer_lessalloc M); trivial.
+  - unfold sem_binarith.
+    do 2 rewrite (sem_cast_mem_lessaloc M); trivial.
+Qed.
+
+Lemma binaryop_mem_lessaloc {ge op v1 t1 v2 t2 m v m2}
+      (V: sem_binary_operation ge op v1 t1 v2 t2 m = Some v) 
+      (M:mem_lessalloc m m2):
+      sem_binary_operation ge op v1 t1 v2 t2 m2 = Some v.
+Proof. destruct op; simpl; inv V; try econstructor; clear -M.
++ unfold sem_add.
+  remember (classify_add t1 t2) as c.
+  destruct c.
+  - destruct v1; trivial.
+  - destruct v1; trivial.
+  - destruct v1; trivial.
+  - destruct v1; trivial.
+  - unfold sem_binarith.
+    do 2 rewrite (sem_cast_mem_lessaloc M); trivial.
++ unfold sem_sub.
+  remember (classify_sub t1 t2) as c.
+  destruct c.
+  - destruct v1; trivial.
+  - destruct v1; trivial.
+  - destruct v1; trivial.
+  - unfold sem_binarith.
+    do 2 rewrite (sem_cast_mem_lessaloc M); trivial.
++ unfold sem_mul.
+  unfold sem_binarith.
+  do 2 rewrite (sem_cast_mem_lessaloc M); trivial.
++ unfold sem_div.
+  unfold sem_binarith.
+  do 2 rewrite (sem_cast_mem_lessaloc M); trivial.
++ unfold sem_mod.
+  unfold sem_binarith.
+  do 2 rewrite (sem_cast_mem_lessaloc M); trivial.
++ unfold sem_and.
+  unfold sem_binarith.
+  do 2 rewrite (sem_cast_mem_lessaloc M); trivial.
++ unfold sem_or.
+  unfold sem_binarith.
+  do 2 rewrite (sem_cast_mem_lessaloc M); trivial.
++ unfold sem_xor.
+  unfold sem_binarith.
+  do 2 rewrite (sem_cast_mem_lessaloc M); trivial.
++ unfold sem_cmp.
+  destruct (classify_cmp t1 t2).
+  - rewrite (valid_pointer_lessalloc M); trivial.
+  - rewrite (valid_pointer_lessalloc M); trivial.
+  - rewrite (valid_pointer_lessalloc M); trivial.
+  - unfold sem_binarith.
+    do 2 rewrite (sem_cast_mem_lessaloc M); trivial.
++ apply (sem_cmp_mem_lessalloc M).
++ apply (sem_cmp_mem_lessalloc M).
++ apply (sem_cmp_mem_lessalloc M).
++ apply (sem_cmp_mem_lessalloc M).
++ apply (sem_cmp_mem_lessalloc M).
+Qed.
+
+Lemma eval_expr_eval_lvalue_mem_lessalloc ge ve te m:
+     (forall (e : expr) (v : val),
+        eval_expr ge ve te m e v ->
+        forall m2 : mem, mem_lessalloc m m2 -> eval_expr ge ve te m2 e v) /\
+     (forall (e : expr) (b : block) (i : int),
+        eval_lvalue ge ve te m e b i ->
+        forall m2 : mem, mem_lessalloc m m2 -> eval_lvalue ge ve te m2 e b i).
+Proof. apply eval_expr_lvalue_ind; intros; try solve [econstructor; eauto].
++ econstructor; eauto. eapply unaryop_mem_lessaloc; eauto. 
++ econstructor; eauto. eapply binaryop_mem_lessaloc; eauto. 
++ econstructor; eauto. rewrite <- H1. symmetry. apply sem_cast_mem_lessaloc; trivial. 
++ econstructor; eauto.
+  destruct H2 as [M1 [M2 M3]].
+  inv H1; simpl in *.
+  - eapply deref_loc_value; eauto.
+    simpl. destruct (Mem.load_loadbytes _ _ _ _ _ H3) as [vals [X Y]]; subst.
+    rewrite M1 in X. apply Mem.load_valid_access in H3. destruct H3.
+    eapply Mem.loadbytes_load; trivial.
+  - apply deref_loc_reference; trivial. 
+  - apply deref_loc_copy; trivial.
+Qed.
+
+Lemma eval_expr_mem_lessalloc {ge ve te m m2 e v} (M:mem_lessalloc m m2):
+      eval_expr ge ve te m e v -> eval_expr ge ve te m2 e v.
+Proof. intros. eapply eval_expr_eval_lvalue_mem_lessalloc; eauto. Qed.
+
+Lemma eval_exprlist_mem_lessalloc {ge ve te}:
+      forall al tyargs vargs m m2 (M:mem_lessalloc m m2)
+             (E:eval_exprlist ge ve te m al tyargs vargs),
+      eval_exprlist ge ve te m2 al tyargs vargs.
+Proof.
+  induction al; simpl; intros; inv E.
+   econstructor.
+   apply (eval_expr_mem_lessalloc M) in H1.
+   rewrite (sem_cast_mem_lessaloc M) in H2. econstructor; eauto.
+Qed.
+
+Lemma eval_lvalue_mem_lessalloc {ge ve te m m2 e b i} (M:mem_lessalloc m m2):
+      eval_lvalue ge ve te m e b i -> eval_lvalue ge ve te m2 e b i.
+Proof. intros. eapply eval_expr_eval_lvalue_mem_lessalloc; eauto. Qed.
+
+Lemma storebytes_mem_lessalloc {m loc ofs bytes m' m2} (M:mem_lessalloc m m2)
+      (ST:Mem.storebytes m loc ofs bytes = Some m'):
+      exists m2', Mem.storebytes m2 loc ofs bytes = Some m2' /\
+                  mem_lessalloc m' m2'.
+Proof.
+destruct M as [M1 [M2 M3]].
+destruct (Mem.range_perm_storebytes m2 loc ofs bytes) as [m2' ST2].
+{ red; intros. rewrite <- M2. eapply Mem.storebytes_range_perm; eassumption. }
+exists m2'; split; trivial.
+split; [| split]. 
++ extensionality b. extensionality z. extensionality n.
+  (*should hold -here's a partial proof*)
+  destruct (zlt n 0).
+  - rewrite Mem.loadbytes_empty; try omega. rewrite Mem.loadbytes_empty; try omega. trivial.
+  - destruct (eq_block loc b); subst.
+    * destruct (zle (z + n) ofs).
+      ++ rewrite (Mem.loadbytes_storebytes_other _ _ _ _ _ ST); auto.
+         rewrite (Mem.loadbytes_storebytes_other _ _ _ _ _ ST2); auto.
+         rewrite M1; trivial. 
+      ++ destruct (zle (ofs + Z.of_nat (Datatypes.length bytes)) z).
+         -- rewrite (Mem.loadbytes_storebytes_other _ _ _ _ _ ST); auto.
+            rewrite (Mem.loadbytes_storebytes_other _ _ _ _ _ ST2); auto.
+            rewrite M1; trivial.
+         -- (*should be ok specialize Z.le_exists_sub. assert (exists k, ofs = z+n-k /\ k>0).*) admit. (*rewrite (Mem.loadbytes_concat m' b z )*)
+    * rewrite (Mem.loadbytes_storebytes_other _ _ _ _ _ ST); auto. 
+      rewrite (Mem.loadbytes_storebytes_other _ _ _ _ _ ST2); auto.
+      rewrite M1; trivial.
++ apply Mem.storebytes_access in ST. apply Mem.storebytes_access in ST2.
+  extensionality b. extensionality z. extensionality k. extensionality p.
+  unfold Mem.perm. rewrite ST, ST2.
+  assert (Mem.perm m b z k p = Mem.perm m2 b z k p). rewrite M2; trivial. 
+  apply H.
++ apply Mem.nextblock_storebytes in ST. apply Mem.nextblock_storebytes in ST2.
+  rewrite ST, ST2. xomega. 
+Admitted.
+
+Lemma free_mem_lessalloc m b lo hi m' (FR:Mem.free m b lo hi = Some m')
+      m2 (M:mem_lessalloc m m2): 
+      exists m2', Mem.free m2 b lo hi = Some m2' /\ mem_lessalloc m' m2'.
+Proof.
+specialize (Mem.free_range_perm _ _ _ _ _ FR); intros RP.
+apply Mem.free_result in FR. subst m'.
+destruct M as [M1 [M2 M3]].
+destruct (Mem.range_perm_free m2 b lo hi) as [m2' FR'].
+{ red; intros. rewrite <- M2. apply RP; trivial. }
+exists m2'; split; trivial.
+apply Mem.free_result in FR'. subst m2'.
+split; [|split]; simpl; trivial.
++ admit. (*loadbytes -- should be ok*)
++ unfold Mem.unchecked_free, Mem.perm; simpl. extensionality bb.
+  extensionality z. extensionality k. extensionality p. 
+  do 2 rewrite PMap.gsspec. 
+  destruct (peq bb b); subst.
+  assert (Mem.perm m b z k p = Mem.perm m2 b z k p). rewrite M2; trivial.
+  clear M2. destruct (zle lo z && zlt z hi); trivial.
+  assert (Mem.perm m bb z k p = Mem.perm m2 bb z k p). rewrite M2; trivial.
+  trivial.
+Admitted.
+
+Lemma freelist_mem_lessalloc: forall l m m' (FR:Mem.free_list m l = Some m')
+      m2 (M:mem_lessalloc m m2), 
+      exists m2', Mem.free_list m2 l = Some m2' /\ mem_lessalloc m' m2'.
+Proof.
+  induction l; simpl; intros.
++ inv FR. exists m2; split; trivial.
++ destruct a as [[b lo] hi]. remember (Mem.free m b lo hi) as q.
+  destruct q; inv FR; symmetry in Heqq.
+  specialize (IHl _ _ H0); clear H0.
+  destruct (free_mem_lessalloc _ _ _ _ _ Heqq _ M) as [m2' [FR2 M2]].
+  rewrite FR2; eauto.
+Qed.
+
+Lemma store_mem_lessalloc {m chunk b ofs v m' m2} (M:mem_lessalloc m m2)
+      (ST:Mem.store chunk m b ofs v = Some m'):
+      exists m2', Mem.store chunk m2 b ofs v = Some m2' /\
+                  mem_lessalloc m' m2'.                  
+Proof.
+ exploit Mem.store_storebytes; eauto. intros.
+ apply Mem.store_valid_access_3 in ST. destruct ST.
+ apply (storebytes_mem_lessalloc M) in H.
+ destruct H as [m2' [ST2 M2]].
+ exists m2'; split; trivial.
+ apply Mem.storebytes_store; eauto.
+Qed.
+
+Lemma assign_loc_mem_lessalloc {ge t m loc ofs v m' m2} (M:mem_lessalloc m m2):
+      assign_loc ge t m loc ofs v m' -> 
+      exists m2', mem_lessalloc m' m2' /\ assign_loc ge t m2 loc ofs v m2'.
+Proof. destruct 1; simpl in *.
++ destruct (store_mem_lessalloc M H0) as [m2' [ST2 M2]].
+  exists m2'; split; eauto. eapply assign_loc_value; eauto.
++ destruct (storebytes_mem_lessalloc M H4) as [m2' [ST2 M2']].   
+  destruct M as [M1 [M2 M3]]. rewrite M1 in H3.
+  exists m2'; split; trivial.
+  eapply assign_loc_copy; eauto.
+Qed.
+
+Lemma alloc_variables_mem_lessalloc {ge ve}: forall vars e m m1
+      (A:alloc_variables ge e m vars ve m1) m' (M:mem_lessalloc m m'),
+      exists m1', alloc_variables ge e m' vars ve m1' /\ mem_lessalloc m1 m1'.
+Proof. intros vars e m m1 A.
+  induction A; intros.
++ exists m'; split; eauto. constructor.
++ remember (sizeof ty) as sz.
+  remember (Mem.alloc m' 0 sz). destruct p as [m1' b1']. symmetry in Heqp.
+  (*2 issues: a) mem_lessalloc m1 m1' does not necessarily hold
+              b) if b1<>b1', id will be set different in the two executions*)
+  (*Maybe it's possible to egenralize the statement of this lemma suitably...*)
+(*  destruct (IHA _ H0) as [m2' [X Y]]. subst sz.
+  exists m2'; split; trivial. econstructor. eauto. *)
+Admitted.
+
 Lemma cl_step_mem_lessalloc_sim {ge c m1 c' m1' m2} :
   mem_lessalloc m1 m2 ->
   @cl_step ge c m1 c' m1' ->
@@ -264,7 +527,54 @@ Lemma cl_step_mem_lessalloc_sim {ge c m1 c' m1' m2} :
 [mem_lessalloc] does not imply [mem_lessdef] in both
 directions. However, the proof must be simpler. *)
 Proof.
-Admitted.
+intros M STEP. generalize dependent m2.
+induction STEP; intros.
++ apply (eval_expr_mem_lessalloc M) in H1.
+  apply (eval_lvalue_mem_lessalloc M) in H0.
+  rewrite (sem_cast_mem_lessaloc M) in H2.
+  destruct (assign_loc_mem_lessalloc M H3) as [m2' [M2' ASS2]].
+  exists m2'; split; trivial. econstructor; eauto.
++ exists m2; split; trivial.
+  apply (eval_expr_mem_lessalloc M) in H. constructor; trivial. 
++ apply (eval_expr_mem_lessalloc M) in H0.
+  apply (eval_exprlist_mem_lessalloc _ _ _ _ _ M) in H1.
+  (* here - we have the same initial ve in both cases, so I think
+     it'll be difficult to generalize the alloc_variables lemma above suitably*)
+  destruct (alloc_variables_mem_lessalloc _ _ _ _ H5 _ M) as [m2' [AV' M']].
+  exists m2'; split; trivial.
+  econstructor; eauto.
++ exists m2; split; trivial. 
+  apply (eval_expr_mem_lessalloc M) in H0.
+  apply (eval_exprlist_mem_lessalloc _ _ _ _ _ M) in H1.
+  econstructor; eauto. 
++ destruct (IHSTEP _ M) as [m2' [L' STEP']].
+  exists m2'; split; trivial. econstructor; eassumption.
++ destruct (IHSTEP _ M) as [m2' [L' STEP']].
+  exists m2'; split; trivial. econstructor; eassumption.
++ destruct (IHSTEP _ M) as [m2' [L' STEP']].
+  exists m2'; split; trivial. econstructor; eassumption.
++ destruct (IHSTEP _ M) as [m2' [L' STEP']].
+  exists m2'; split; trivial. econstructor; eassumption.
++ exists m2; split; trivial.
+  apply (eval_expr_mem_lessalloc M) in H. 
+  econstructor; eauto.
+  unfold bool_val in *. destruct (classify_bool (typeof a)); trivial.
+  destruct v1; trivial. rewrite <- (weak_valid_pointer_lessalloc M); trivial.
++ exists m2; split; trivial. econstructor.
++ exists m2; split; trivial. constructor.
++ destruct (freelist_mem_lessalloc _ _ _ H0 _ M) as [m2' [FL2 M2]].
+  exists m2'; split; trivial. econstructor; eauto.
+  destruct optexp; trivial.
+  destruct H1 as [v [E SC]]. apply (eval_expr_mem_lessalloc M) in E.
+  rewrite (sem_cast_mem_lessaloc M) in SC.
+  exists v; split; trivial.
++ exists m2; split; trivial.
+  apply (eval_expr_mem_lessalloc M) in H.
+  econstructor; eauto.  
++ destruct (IHSTEP _ M) as [m2' [L' STEP']].
+  exists m2'; split; trivial. econstructor; eassumption.
++ exists m2; split; trivial. econstructor; eauto.
+Qed.
 
 Lemma cl_step_mem_equiv_sim {ge c m1 c' m1' m2} :
   mem_equiv m1 m2 ->
