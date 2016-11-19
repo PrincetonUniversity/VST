@@ -80,15 +80,30 @@ Lemma sem_cast_neutral_ptr:
 Proof. intros. destruct p; try contradiction; reflexivity. Qed.
 Hint Rewrite sem_cast_neutral_ptr using (solve [auto with norm]): norm.
 
-Lemma sem_cast_neutral_int: forall v,
-  (exists sz s, is_int sz s v) -> sem_cast_neutral v = Some v.
+Lemma sem_cast_neutral_Vint: forall v,
+  sem_cast_neutral (Vint v) = Some (Vint v).
 Proof.
-  intros.
-  destruct H as [? [? ?]].
-  destruct v; try inversion H.
-  reflexivity.
+  intros. reflexivity.
 Qed.
-Hint Rewrite sem_cast_neutral_int using (solve [eauto with norm]) : norm.
+Hint Rewrite sem_cast_neutral_Vint : norm.
+
+Definition isVint v := match v with Vint _ => True | _ => False end.
+
+Lemma is_int_is_Vint: forall i s v, is_int i s v -> isVint v.
+Proof. intros. 
+ destruct i,s,v; simpl; intros; auto.
+Qed.
+
+Lemma sem_cast_neutral_int: forall v,
+  isVint v ->
+  sem_cast_neutral v = Some v.
+Proof.
+destruct v; simpl; intros; try contradiction; auto.
+Qed.
+
+Hint Rewrite sem_cast_neutral_int using 
+  (auto; 
+   match goal with H: is_int ?i ?s ?v |- isVint ?v => apply (is_int_is_Vint i s v H) end) : norm.
 
 Lemma sizeof_tuchar: forall {cs: compspecs}, sizeof tuchar = 1%Z.
 Proof. reflexivity. Qed.

@@ -166,4 +166,4 @@ Lemma preservation_spawn
   state_invariant Jspec' Gamma n (m_, ge, (sch, tp_)).
   
 Proof.
-Admitted.
+Admitted. (* preservation_spawn *)

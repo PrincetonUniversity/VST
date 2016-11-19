@@ -321,7 +321,20 @@ Lemma jstep_preserves_mem_equiv_on_other_threads m ge i j tp ci ci' jmi'
   mem_equiv
     (m_dry (@personal_mem m (@getThreadR j tp cntj) compat'))
     (m_dry (@personal_mem (m_dry jmi') (@getThreadR j tp'' (cnt_age' cntj)) compat'')).
-Admitted.
+Proof.
+  unfold mem_equiv in *.
+  unfold personal_mem in *.
+  simpl in *.
+  
+  revert compat''.
+  rewrite eq_op_false; swap 1 2.
+  { intros E. injection E as <-. tauto. }
+  intros compat''.
+  Transparent Mem.loadbytes.
+  Transparent Mem.perm.
+  unfold Mem.loadbytes in *.
+  (* the easiest, Mem.nextblock, is not even true. *)
+Admitted. (* jstep_preserves_mem_equiv_on_other_threads : NOK *)
 
 Lemma PTree_xmap_ext (A B : Type) (f f' : positive -> A -> B) t :
   (forall a, f a = f' a) ->

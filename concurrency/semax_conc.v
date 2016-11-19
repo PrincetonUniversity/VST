@@ -70,7 +70,7 @@ Proof.
 Qed.
 
 Lemma lock_inv_later sh p R : lock_inv sh p R |-- lock_inv sh p (|> R)%logic.
-Admitted.
+Admitted. (* lock_inv_later *)
 
 Lemma selflock'_eq Q sh p : selflock' Q sh p =
   selflock_fun Q sh p (selflock' Q sh p).
@@ -610,7 +610,7 @@ Qed.
 
 Lemma lock_inv_later_eq : forall sh v R, (|> lock_inv sh v R = lock_inv sh v (|> R))%logic.
 Proof.
-Admitted.
+Abort.
 
 Lemma later_rec_lock : forall sh v (Q R: mpred), rec_inv sh v Q R -> rec_inv sh v (later Q) (later R).
 Proof.
@@ -773,7 +773,7 @@ Qed.
 
 Lemma lock_inv_later_eq : forall sh v R, (|> lock_inv sh v R = lock_inv sh v (|> R))%logic.
 Proof.
-Admitted.
+Admitted. (* lock_inv_later_eq *)
 
 Lemma later_rec : forall v R, rec_inv v R -> rec_inv v (Later R).
 Proof.
@@ -1043,7 +1043,7 @@ Program Definition spawn_spec' := mk_funspec
 Next Obligation.
   hnf; intros.
   destruct x as [[[f b] w] pre]; simpl in *.
-Admitted.
+Admitted. (* spawn_spec' Obligation *)
 Next Obligation.
   hnf; intros.
   destruct x as [[[f b] w] pre]; simpl in *.
