@@ -1585,63 +1585,153 @@ Module Parching <: ErasureSig.
       8: eassumption.
       + (*boundedness*)
         split.
-        * move=> p f1 HH.
-          assert (HH':= HH).
-          eapply bounded_maps.map_leq_apply in HH';
-            try apply bounded_maps.treemap_sub_map.
-          rewrite PTree.gmap in HH.
-          destruct HH'  as [f2 HH'].
-          rewrite HH' in HH; simpl in HH; inversion HH.
-          exists f2; split; auto.
-          move => b0 f1b0.
-          unfold inflated_delta1 in f1b0.
-          destruct (f2 b0) eqn:is_none; auto.
-          cut (perm_of_res (d_phi @ (p, b0)) = None).
+        * unfold virtue1.
+          Lemma sub_map_map:
+            forall {A B} (m : PTree.t (Z -> option B)) f,
+              (forall b, bounded_maps.fun_leq (option_map (f b) (m ! b)) (m ! b)) ->
+              @bounded_maps.sub_map A B
+                (PTree.map f m) m.
+          Proof.
+
+            Lemma sub_map_map_aux:
+            forall {A B} (m : PTree.t (Z -> option B)) f,
+              (forall b, bounded_maps.fun_leq ((PTree.map f m) !b) (m ! b)) ->
+              @bounded_maps.sub_map A B
+                (PTree.map f m) m.
+            induction m.
+            - intros; auto.
+              rewrite /bounded_maps.sub_map
+                      /bounded_maps.strong_tree_leq //.
+            - intros.
+              rewrite /bounded_maps.sub_map
+              /=.
+              split.
+              + clear - H.
+                specialize (H 1%positive).
+                simpl in H.
+                eapply H.
+              + split.
+                * pose (f1:= fun p => f (p~0)%positive).
+                  specialize (IHm1 f1).
+                  assert (AA:PTree.xmap f m1 2 = PTree.xmap f1 m1 1).
+                  {  admit.
+                     (* clear.
+                     pose (i:= 1%positive).
+                     replace 2%positive with
+                     (PTree.prev ((PTree.prev 1)~0)%positive).
+                     fold i.
+                     generalize i.
+                     induction m1; auto.
+                     intros.
+                     simpl; f_equal.
+                     - (* rewrite PTree.prev_involutive.*)
+                       specialize (IHm1_1 (i0~0)%positive).
+                       (* rewrite PTree.prev_involutive in IHm1_1.*)
+                       rewrite - IHm1_1.
+                       f_equal.
+                       induction i0; auto.
+                       simpl. *) }
+                    
+                  { rewrite AA.
+                      eapply IHm1.
+                      move => b.
+                      specialize (H (b~0)%positive).
+                      simpl in H.
+                      unfold PTree.map.
+                      rewrite - AA.
+                    eapply H.
+                  }
+                * pose (f2:= fun p => f (p~1)%positive).
+                  specialize (IHm2 f2).
+                  assert (AA:PTree.xmap f m2 3 = PTree.xmap f2 m2 1).
+                  {  admit.
+                     (* clear.
+                     pose (i:= 1%positive).
+                     replace 2%positive with
+                     (PTree.prev ((PTree.prev 1)~0)%positive).
+                     fold i.
+                     generalize i.
+                     induction m1; auto.
+                     intros.
+                     simpl; f_equal.
+                     - (* rewrite PTree.prev_involutive.*)
+                       specialize (IHm1_1 (i0~0)%positive).
+                       (* rewrite PTree.prev_involutive in IHm1_1.*)
+                       rewrite - IHm1_1.
+                       f_equal.
+                       induction i0; auto.
+                       simpl. *) }
+                    
+                  { rewrite AA.
+                      eapply IHm2.
+                      move => b.
+                      specialize (H (b~1)%positive).
+                      simpl in H.
+                      unfold PTree.map.
+                      rewrite - AA.
+                    eapply H.
+                  }
+            Admitted.
+            intros.
+            eapply sub_map_map_aux.
+            intro b.
+            rewrite PTree.gmap.
+            eapply H.
+          Qed.
+
+
+          
+          eapply sub_map_map.
+          move=> b0.
+          destruct (((getMaxPerm m).2) ! b0) eqn:AA.
+          -- simpl => p.
+             unfold inflated_delta1.
+             destruct (o p) eqn:is_none; auto.
+          cut (perm_of_res (d_phi @ (b0, p)) = None).
           { rewrite /perm_of_res.
-            destruct (d_phi @ (p, b0)) eqn:DELT;
+            destruct (d_phi @ (b0, p)) eqn:DELT;
               try solve[intros delt; inversion delt].
             destruct (eq_dec t Share.bot) eqn:DELT';
               try solve[intros delt; inversion delt].
             unfold eq_dec in DELT'.
-            rewrite DELT' in f1b0; inversion f1b0.
-            destruct (perm_of_sh_pshare t p0).
-            rewrite H.
-            destruct k; intros NADA; inversion NADA. }
+            rewrite DELT'; auto.
+            destruct k; intros NADA; inversion NADA.
+            destruct (perm_of_sh_pshare t p0) as [x H].
+            rewrite H in NADA; inversion NADA.
+          }
           { move: (JMS.JuicyMachineLemmas.compat_lockLT
-                        Hcmpt _ His_unlocked p b0).
+                        Hcmpt _ His_unlocked b0 p).
             Lemma po_None1: forall p, Mem.perm_order'' None p -> p = None.
             Proof. intros. simpl in H. destruct p; inversion H; reflexivity. Qed.
             
-            rewrite /PMap.get HH' is_none => /po_None1 //.
-            }
-        * move=> p f1 HH.
-          assert (HH':= HH).
-          eapply bounded_maps.map_leq_apply in HH';
-            try apply bounded_maps.treemap_sub_map.
-          rewrite PTree.gmap in HH.
-          destruct HH'  as [f2 HH'].
-          rewrite HH' in HH; simpl in HH; inversion HH.
-          exists f2; split; auto.
-          move => b0 f1b0.
-          unfold inflated_delta2 in f1b0.
-          destruct (f2 b0) eqn:is_none; auto.
-          cut (perm_of_res (d_phi @ (p, b0)) = None).
+            rewrite /PMap.get AA is_none => /po_None1 //.
+          }
+          -- simpl. admit.
+        * unfold virtue2.
+          eapply sub_map_map.
+          move=> b0.
+          destruct (((getMaxPerm m).2) ! b0) eqn:AA.
+          -- simpl => p.
+             unfold inflated_delta2.
+             destruct (o p) eqn:is_none; auto.
+          cut (perm_of_res (d_phi @ (b0, p)) = None).
           { rewrite /perm_of_res.
-            destruct (d_phi @ (p, b0)) eqn:DELT;
+            destruct (d_phi @ (b0, p)) eqn:DELT;
               try solve[intros delt; inversion delt].
             destruct (eq_dec t Share.bot) eqn:DELT';
               try solve[intros delt; inversion delt].
             unfold eq_dec in DELT'.
-            rewrite DELT' in f1b0; inversion f1b0.
-            destruct (perm_of_sh_pshare t p0).
-            rewrite H.
-            destruct k; intros NADA; inversion NADA. }
+            rewrite DELT'; auto.
+            destruct k; intros NADA; inversion NADA.
+            destruct (perm_of_sh_pshare t p0) as [x H].
+            rewrite H in NADA; inversion NADA.
+          }
           { move: (JMS.JuicyMachineLemmas.compat_lockLT
-                        Hcmpt _ His_unlocked p b0).
-            rewrite /PMap.get HH' is_none => /po_None1 //.
-            }
+                        Hcmpt _ His_unlocked b0 p).
+            rewrite /PMap.get AA is_none => /po_None1 //.
+          }
+          -- simpl. admit.
 
-          (*eapply bounded_maps.treemap_sub_map.*)
       + assumption.
       + eapply MTCH_getThreadC; eassumption.
       + eassumption.
