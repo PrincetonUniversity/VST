@@ -871,6 +871,281 @@ Lemma finite_sub_maps_simpl:
     konig.finite
       (fun m1 => @sub_map permission permission m1 m2).
 Proof.
-  intros.
-Admitted.
-
+  
+  induction m2.
+  - move => _.
+    exists 1%nat.
+    exists (fun _ => PTree.Leaf).
+    intros .
+    exists 0%nat.
+    split; auto.
+    destruct x; auto.
+    unfold strong_tree_leq in H;
+      simpl in H.
+    destruct o; inversion H.
+  - move => H.
+    assert (HH1:
+              forall (p : positive) (f : Z -> option permission),
+                m2_1 ! p = Some f ->
+                exists hi lo : Z,
+                  (forall p0 : Z, (p0 > hi)%Z -> f p0 = None) /\
+                  (forall p0 : Z, (p0 < lo)%Z -> f p0 = None)).
+    { clear - H.
+      move=> p f Hget.
+      move : H => /(_ (p~0)%positive f ltac:(simpl;auto)) [] hi [] lo BOUND.
+      exists hi, lo; assumption.
+    }
+    move: IHm2_1=> /(_ HH1) [] N1 [] F1 spec_F1.
+    assert (HH2:
+              forall (p : positive) (f : Z -> option permission),
+                m2_2 ! p = Some f ->
+                exists hi lo : Z,
+                  (forall p0 : Z, (p0 > hi)%Z -> f p0 = None) /\
+                  (forall p0 : Z, (p0 < lo)%Z -> f p0 = None)).
+    { clear - H.
+      move=> p f Hget.
+      move : H => /(_ (p~1)%positive f ltac:(simpl;auto)) [] hi [] lo BOUND.
+      exists hi, lo; assumption.
+    }
+    move: IHm2_2=> /(_ HH2) [] N2 [] F2 spec_F2.
+    destruct o as [f1|].
+    + move : H => /(_ 1%positive f1 ltac:(reflexivity)) [] hi [] lo BNDD.
+      move : (finite_bounded_op_func_simpl hi lo) => [] N [] F F_spec.
+      exists (S( N * N1 * N2)).
+      exists (fun n => if n == 0
+               then PTree.Leaf
+               else
+                 PTree.Node
+                   (F1 ( (n-1) mod N1))
+                   (F ((n-1) / (N1 * N2)))
+                   (F2 (((n-1) / N1 ) mod N2))).
+      intros x spec.
+      destruct x.
+      * exists 0%nat; split; auto.
+        omega.
+      * move: spec .
+        rewrite /sub_map /= => [] [] FUN_lq [] tree1 tree2.
+        assert (bounded_func_op o hi lo).
+        { Lemma fun_le_bounded_func_op_simpl:
+            forall {A} o f hi lo,
+              @bounded_func' A f hi lo ->
+              fun_leq o (Some f) ->
+              @bounded_func_op A o hi lo.
+          Proof.
+            intros.
+            destruct o; [|constructor].
+            simpl.
+            simpl in H0.
+            split; intros p.
+            - intros HH. apply H in HH.
+              unfold fun_leq' in H0.
+              specialize (H0 p).
+              destruct (o p); try solve [auto].
+              specialize (H0 ltac:(auto)).
+              rewrite HH in H0; inversion H0.
+            - intros HH. apply H in HH.
+              unfold fun_leq' in H0.
+              specialize (H0 p).
+              destruct (o p); try solve [auto].
+              specialize (H0 ltac:(auto)).
+              rewrite HH in H0; inversion H0.
+          Qed.
+          eapply fun_le_bounded_func_op_simpl ; eauto.
+          } 
+        move: F_spec => /(_ _ H) []i [] ineq fi.
+        move : spec_F1 => /(_ _ tree1) [] i1 [] ineq1 fi1.
+        move : spec_F2 => /(_ _ tree2) [] i2 [] ineq2 fi2.
+        exists (S(i1 + (i2 * N1) + (i * N1 * N2))); split.
+        { apply lt_n_S.
+          replace (N * N1 * N2) with
+          (N1 + N1 * (N2 * N -1)).
+          - eapply (NPeano.Nat.lt_le_trans).
+            + instantiate (1:= (N1 + i2 * N1 + i * N1 * N2)).
+              apply /ltP.
+              rewrite ltn_add2r;
+                rewrite ltn_add2r;
+                apply /ltP; auto.
+            + apply /leP.
+              rewrite -addnA.
+              rewrite leq_add2l.
+              apply /leP.
+              replace (i * N1 * N2) with
+              ((i * N2) * N1).
+              *
+                rewrite -mulnDl.
+                rewrite mulnC.
+                apply /leP.
+                rewrite leq_pmul2l; try (apply /ltP; omega).
+                apply /leP.
+                eapply lt_n_Sm_le.
+                rewrite - addn1.
+                rewrite subnK.
+                2:
+                  rewrite muln_gt0;
+                  apply /andP; split;
+                  try (apply /ltP; omega).
+                eapply (NPeano.Nat.lt_le_trans).
+                -- instantiate (1:= N2 + i * N2).
+                   apply /ltP.
+                   rewrite ltn_add2r.
+                   apply /leP; auto.
+                -- replace (N2 + i * N2) with
+                   (N2 * (1 + i)).
+                   apply /leP.
+                   rewrite leq_pmul2l.
+                   rewrite add1n.
+                   apply /ltP; auto.
+                   apply /ltP; omega.
+                   rewrite mulnDr.
+                   rewrite mulnC.
+                   f_equal.
+                   compute; auto.
+                   rewrite mulnC; auto.
+              * do 2 rewrite - mulnA.
+                f_equal. rewrite mulnC; auto.
+          - replace (N1 + N1 * (N2 * N - 1))
+            with (N1 * 1 + N1 * (N2 * N - 1)).
+            + rewrite -mulnDr.
+              rewrite addnC.
+              rewrite subnK.
+            
+              2:
+                rewrite muln_gt0;
+                apply /andP; split;
+                try (apply /ltP; omega).
+              rewrite -mulnA.
+              rewrite mulnA.
+              rewrite mulnC; auto.
+            + f_equal.
+              rewrite mulnC.
+              compute; auto. }
+      -- simpl; f_equal.
+         ++ rewrite - fi1.
+            f_equal.
+            rewrite -addn1.
+            rewrite -addnBA. 2: ssromega.
+            replace (i1 + i2 * N1 + i * N1 * N2 + (1 - 1)) with
+            (i1 + i2 * N1 + i * N1 * N2) by ssromega.
+            replace (i1 + i2 * N1 + i * N1 * N2) with
+            (i1 + (i2  + i *  N2) * N1).
+            2:
+            rewrite mulnDl addnA; f_equal;
+            do 2 rewrite -mulnA; f_equal; rewrite mulnC; auto.
+            rewrite NPeano.Nat.mod_add.
+            apply NPeano.Nat.mod_small; auto.
+            destruct N1; omega.
+         ++ rewrite - fi.
+            f_equal.
+            rewrite -addn1.
+            rewrite -addnBA. 2: ssromega.
+            replace (i1 + i2 * N1 + i * N1 * N2 + (1 - 1)) with
+            (i1 + i2 * N1 + i * N1 * N2) by ssromega.
+            assert (i1 + i2 * N1 + i * N1 * N2 =
+                    ((N1 * N2) * i) + (i1 + i2 * N1)).
+            { rewrite addnC. f_equal.
+              rewrite - mulnA mulnC; auto. }
+            eapply NPeano.Nat.div_unique in H0; auto.
+            eapply (NPeano.Nat.lt_le_trans).
+            ** instantiate (1:= N1 + i2 * N1).
+               apply /ltP; rewrite ltn_add2r.
+               apply /ltP; auto.
+            ** replace (N1 + i2 * N1) with ( (1 + i2) * N1).
+               rewrite add1n.
+               rewrite mulnC.
+               apply /leP; rewrite leq_pmul2l.
+               apply /ltP; auto.
+               destruct N1; ssromega.
+               rewrite mulnDl; f_equal.
+               ssromega.
+            
+         ++ rewrite - fi2.
+            f_equal.
+            rewrite -addn1.
+            rewrite -addnBA. 2: ssromega.
+            replace (i1 + i2 * N1 + i * N1 * N2 + (1 - 1)) with
+            (i1 + i2 * N1 + i * N1 * N2) by ssromega.
+            assert (i1 + i2 * N1 + i * N1 * N2 =
+                    (N1 * (i2 + i * N2)) + i1).
+            { rewrite -addnA.
+              replace (i * N1 * N2) with
+              (i  * N2 * N1). 
+              rewrite - mulnDl.
+              rewrite mulnC addnC; auto.
+              do 2 rewrite -mulnA; f_equal.
+              rewrite mulnC. auto. }
+            eapply NPeano.Nat.div_unique in H0; auto.
+            rewrite - H0.
+            rewrite NPeano.Nat.mod_add.
+            apply NPeano.Nat.mod_small; auto.
+            destruct N2; omega.
+    + exists (S( N1 * N2)).
+      exists (fun n => if n == 0
+               then PTree.Leaf
+               else
+                 PTree.Node
+                   (F1 ( (n-1) mod N1))
+                   (None )
+                   (F2 (((n-1) / N1 ) mod N2))).
+      intros x spec.
+      destruct x.
+      * exists 0%nat; split; auto.
+        omega.
+      * move: spec .
+        rewrite /sub_map /= => [] [] FUN_lq [] tree1 tree2.
+        move : spec_F1 => /(_ _ tree1) [] i1 [] ineq1 fi1.
+        move : spec_F2 => /(_ _ tree2) [] i2 [] ineq2 fi2.
+        exists (S(i1 + (i2 * N1))); split.
+        { apply lt_n_S.
+          replace (N1 * N2) with
+          (N1 + N1 * (N2 -1)).
+          - eapply (NPeano.Nat.lt_le_trans).
+            + instantiate (1:= (N1 + i2 * N1)).
+              apply /ltP.
+              rewrite ltn_add2r;
+                apply /ltP; auto.
+            + apply /leP.
+              rewrite leq_add2l.
+              apply /leP.
+              rewrite mulnC.
+              apply /leP.
+              rewrite leq_pmul2l; try (apply /ltP; omega).
+              apply /leP.
+              eapply lt_n_Sm_le.
+              rewrite - addn1.
+              rewrite subnK; auto.
+              destruct N2; ssromega.
+                 
+          - replace (N1 + N1 * (N2 - 1))
+            with (N1 * 1 + N1 * (N2 - 1)).
+            + rewrite -mulnDr.
+              rewrite addnC.
+              rewrite subnK.
+              2: ssromega.
+              rewrite mulnC; auto.
+            + f_equal.
+              rewrite mulnC.
+              compute; auto. }
+      -- simpl; f_equal.
+         ++ rewrite - fi1.
+            f_equal.
+            rewrite -addn1.
+            rewrite -addnBA. 2: ssromega.
+            replace (i1 + i2 * N1 + (1 - 1)) with
+            (i1 + i2 * N1) by ssromega.
+            rewrite NPeano.Nat.mod_add.
+            apply NPeano.Nat.mod_small; auto.
+            destruct N1; omega.
+         ++ destruct o; auto; inversion FUN_lq.
+         ++ rewrite - fi2.
+            f_equal.
+            rewrite -addn1.
+            rewrite -addnBA. 2: ssromega.
+            replace (i1 + i2 * N1 + (1 - 1)) with
+            (i1 + i2 * N1 ) by ssromega.
+            assert (i1 + i2 * N1 =
+                    (N1 * (i2) + i1)).
+            { rewrite mulnC addnC; auto. }
+            eapply NPeano.Nat.div_unique in H0; auto.
+            rewrite - H0.
+            apply NPeano.Nat.mod_small; auto.
+Qed.
