@@ -1585,7 +1585,31 @@ Module Parching <: ErasureSig.
       8: eassumption.
       + (*boundedness*)
         split.
-        * move=> p f1 HH.
+        *
+          Lemma same_shape_map:
+            forall {A B} m f,
+              @bounded_maps.same_shape A B
+                                       (PTree.map f m) m.
+          Proof.
+            intros until m.
+            unfold PTree.map.
+            pose (i:=1%positive); fold i.
+            generalize i; clear i.
+            induction m.
+            - intros;
+              unfold bounded_maps.same_shape;
+              simpl; auto.
+            - intros;
+              unfold bounded_maps.same_shape;
+              split; [| split].
+              + destruct o; simpl; auto.
+              + eapply IHm1.
+              + eapply IHm2.
+          Qed.
+          eapply bounded_maps.sub_map_and_shape;
+          [eapply same_shape_map|].
+                
+          move=> p f1 HH.
           assert (HH':= HH).
           eapply bounded_maps.map_leq_apply in HH';
             try apply bounded_maps.treemap_sub_map.
@@ -1614,7 +1638,9 @@ Module Parching <: ErasureSig.
             
             rewrite /PMap.get HH' is_none => /po_None1 //.
             }
-        * move=> p f1 HH.
+        * eapply bounded_maps.sub_map_and_shape;
+          [eapply same_shape_map|].
+          move=> p f1 HH.
           assert (HH':= HH).
           eapply bounded_maps.map_leq_apply in HH';
             try apply bounded_maps.treemap_sub_map.
@@ -2269,7 +2295,9 @@ Module Parching <: ErasureSig.
       7: reflexivity.
       + (*boundedness 1*)
         split.
-        * move=> p f1 HH.
+        * eapply bounded_maps.sub_map_and_shape;
+          [eapply same_shape_map|].
+          move=> p f1 HH.
           assert (HH':= HH).
           eapply bounded_maps.map_leq_apply in HH';
             try apply bounded_maps.treemap_sub_map.
@@ -2321,7 +2349,9 @@ Module Parching <: ErasureSig.
             auto.
             }
           (* eapply bounded_maps.treemap_sub_map. *)
-        * move=> p f1 HH.
+        * eapply bounded_maps.sub_map_and_shape;
+          [eapply same_shape_map|].
+          move=> p f1 HH.
           assert (HH':= HH).
           eapply bounded_maps.map_leq_apply in HH';
             try apply bounded_maps.treemap_sub_map.
@@ -2377,7 +2407,9 @@ Module Parching <: ErasureSig.
           (* eapply bounded_maps.treemap_sub_map. *)
       + (*boundedness 2*)
         repeat split.
-        * move=> p f1 HH.
+        * eapply bounded_maps.sub_map_and_shape;
+          [eapply same_shape_map|].
+          move=> p f1 HH.
           assert (HH':= HH).
           eapply bounded_maps.map_leq_apply in HH';
             try apply bounded_maps.treemap_sub_map.
@@ -2420,7 +2452,9 @@ Module Parching <: ErasureSig.
             auto.
             }
           (* eapply bounded_maps.treemap_sub_map. *)
-        * move=> p f1 HH.
+        * eapply bounded_maps.sub_map_and_shape;
+          [eapply same_shape_map|].
+          move=> p f1 HH.
           assert (HH':= HH).
           eapply bounded_maps.map_leq_apply in HH';
             try apply bounded_maps.treemap_sub_map.
@@ -3223,7 +3257,9 @@ Module Parching <: ErasureSig.
           (virtue2:=(virtue21,virtue22)).
         - (*boundedness 1*)
           split.
-        * move=> p0 f1 HH.
+        * eapply bounded_maps.sub_map_and_shape;
+          [eapply same_shape_map|].
+          move=> p0 f1 HH.
           assert (HH':= HH).
           eapply bounded_maps.map_leq_apply in HH';
             try apply bounded_maps.treemap_sub_map.
@@ -3275,7 +3311,9 @@ Module Parching <: ErasureSig.
             auto.
             }
           (* eapply bounded_maps.treemap_sub_map. *)
-        * rename p into pp.
+        * eapply bounded_maps.sub_map_and_shape;
+          [eapply same_shape_map|].
+          rename p into pp.
           move=> p f1 HH.
           assert (HH':= HH).
           eapply bounded_maps.map_leq_apply in HH';
@@ -3330,7 +3368,9 @@ Module Parching <: ErasureSig.
 
         - (*boundedness 2*)
            split.
-        * move=> p0 f1 HH.
+        * eapply bounded_maps.sub_map_and_shape;
+          [eapply same_shape_map|].
+          move=> p0 f1 HH.
           assert (HH':= HH).
           eapply bounded_maps.map_leq_apply in HH';
             try apply bounded_maps.treemap_sub_map.
@@ -3382,7 +3422,9 @@ Module Parching <: ErasureSig.
             auto.
             }
           (* eapply bounded_maps.treemap_sub_map. *)
-        * rename p into pp.
+        * eapply bounded_maps.sub_map_and_shape;
+          [eapply same_shape_map|].
+          rename p into pp.
           move=> p f1 HH.
           assert (HH':= HH).
           eapply bounded_maps.map_leq_apply in HH';

@@ -799,7 +799,7 @@ Module THE_DRY_MACHINE_SOURCE.
 
         subst.
 
-        destruct (bounded_maps.finite_bounded_nat_func LKSIZE_nat )
+        destruct (bounded_maps.finite_bounded_nat_func_simpl LKSIZE_nat )
           as [N [virtue_generator virtue_gen_spec] ].
         
         (*get a pair of virtues*)

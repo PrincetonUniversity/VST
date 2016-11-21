@@ -596,3 +596,105 @@ Proof.
   if_tac [r|nr]; auto.
   destruct r. unfold LKSIZE in *; omega.
 Qed.
+
+Lemma find_too_small A y a x l :
+  (AddressOrdered.lt y a \/ AddressOrdered.eq y a) ->
+  Sorted (AMap.Raw.PX.ltk (elt:=A)) l ->
+  HdRel (AMap.Raw.PX.ltk (elt:=A)) (a, x) l ->
+  AMap.Raw.find (elt:=A) y l = None.
+Proof.
+  intros toosmall.
+  induction l as [ | [b z] l]; auto.
+  intros sorted below.
+  inversion below as [ | b0 l0 Hab H ]; subst.
+  change (AddressOrdered.lt a b) in Hab.
+  simpl.
+  destruct (AddressOrdered.compare y b).
+  - reflexivity.
+  - exfalso.
+    destruct toosmall as [t|t].
+    + pose proof AddressOrdered.lt_trans t Hab.
+      eapply AddressOrdered.lt_not_eq; eauto.
+    + hnf in t. subst.
+      eapply AddressOrdered.lt_not_eq; eauto.
+  - apply IHl; auto.
+    inv sorted; eauto.
+    inv sorted; eauto.
+    eapply AMap.Raw.PX.Inf_lt; eauto.
+    simpl; auto.
+Qed.
+
+Lemma sorted_find A a x l l'
+      (sorted : Sorted (AMap.Raw.PX.ltk (elt:=A)) ((a, x) :: l))
+      (sorted' : Sorted (AMap.Raw.PX.ltk (elt:=A)) ((a, x) :: l')) :
+  (forall y : AMap.key,
+      AMap.Raw.find (elt:=A) y ((a, x) :: l) =
+      AMap.Raw.find (elt:=A) y ((a, x) :: l')) ->
+  forall y : AMap.key,
+    AMap.Raw.find (elt:=A) y l =
+    AMap.Raw.find (elt:=A) y l'.
+Proof.
+  intros E.
+  inversion sorted as [ | a0 l0 S B ]; subst. clear sorted.
+  inversion sorted' as [ | a0 l0 S' B' ]; subst. clear sorted'.
+  intros y; specialize (E y).
+  simpl in E.
+  destruct (AddressOrdered.compare y a).
+  - erewrite find_too_small; eauto.
+    erewrite find_too_small; eauto.
+  - erewrite find_too_small; eauto.
+    erewrite find_too_small; eauto.
+  - auto.
+Qed.
+
+Lemma AMap_Equal_PMap_eq {A} m m' : AMap.Equal m m' -> @A2PMap A m = @A2PMap A m'.
+Proof.
+  intros E.
+  unfold A2PMap in *.
+  f_equal.
+  unfold AMap.elements in *.
+  destruct m as [l sorted], m' as [l' sorted']; simpl in *.
+  unfold AMap.Equal in *.
+  unfold AMap.find in *.
+  unfold AMap.Raw.elements in *.
+  simpl in *.
+  revert l' sorted' E.
+  induction l as [ | [a x] l]; intros l' sorted' E.
+  - destruct l' as [ | [a' x] l']; auto. exfalso.
+    specialize (E a'). simpl in E.
+    destruct (AMap.Raw.MX.elim_compare_eq (eq_refl a')) as [p R]. rewrite R in E.
+    discriminate.
+  - destruct l' as [ | [a' x'] l'].
+    + specialize (E a). simpl in E.
+      destruct (AMap.Raw.MX.elim_compare_eq (eq_refl a)) as [p R]. rewrite R in E.
+      discriminate.
+    + assert (Ea : a = a' /\ x = x'). {
+        pose (E a) as Ea. simpl in Ea.
+        destruct (AMap.Raw.MX.elim_compare_eq (eq_refl a)) as [p R]. rewrite R in Ea.
+        pose (E a') as Ea'. simpl in Ea'.
+        destruct (AMap.Raw.MX.elim_compare_eq (eq_refl a')) as [p' R']. rewrite R' in Ea'.
+        destruct (AddressOrdered.compare a a') eqn:Ec; try (split; congruence).
+        destruct (AddressOrdered.compare a' a) eqn:Ec'; try (split; congruence).
+        exfalso. eapply (@AddressOrdered.lt_not_eq a' a); eauto.
+        exfalso. eapply (@AddressOrdered.lt_not_eq a a); auto.
+        eapply AddressOrdered.lt_trans; eauto.
+      }
+      destruct Ea as [<- <-].
+      f_equal.
+      apply IHl.
+      * inv sorted; auto.
+      * inv sorted'; auto.
+      * eapply sorted_find; eauto.
+Qed.         
+
+Lemma AMap_remove_add {A} (m : AMap.t A) x y :
+  AMap.find x m = Some y ->
+  AMap.Equal m (AMap.add x y (AMap.remove x m)).
+Proof.
+  intros find.
+  intros x'.
+  rewrite AMap_find_add, AMap_find_remove.
+  if_tac.
+  - subst x'. auto.
+  - reflexivity.
+Qed.

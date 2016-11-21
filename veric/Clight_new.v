@@ -87,6 +87,7 @@ Definition cl_at_external (c: corestate) : option (external_function * list val)
 Definition cl_after_external (vret: option val) (c: corestate) : option corestate :=
   match vret, c with 
   | Some v, ExtCall ef args (Some id) ve te k => Some (State ve (PTree.set id v te) k)
+  | None, ExtCall ef args (Some id) ve te k => Some (State ve (PTree.set id Vundef te) k)
   | Some v, ExtCall ef args None ve te k => Some (State ve te k)
   | None, ExtCall ef args None ve te k => Some (State ve te k)
   | _, _ => None

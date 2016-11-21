@@ -369,8 +369,7 @@ Section Progress.
         exfalso.
         pose proof (wellformed i cnti) as W.
         rewrite Eci in W.
-        apply W.
-        reflexivity.
+        apply W; auto.
       }
       (* back to external step *)
       
@@ -615,6 +614,37 @@ Section Progress.
           if_tac in lk. 2:tauto.
           destruct sat as [sat | sat]; [ | omega ].
 
+          assert (Ename : name = "acquire"). {
+            simpl in *.
+            injection H_acquire as Ee.
+            apply ext_link_inj in Ee; auto.
+          }
+          
+          assert (Ez : z = LKSIZE). {
+            simpl in lk.
+            destruct lk as (psh' & rsh & EPhi).
+            rewrite EPhi in Ewetv.
+            injection Ewetv as _ _ <-.
+            reflexivity.
+          }
+          
+          assert (Esg : sg = LOCK_SIG) by (unfold ef_id_sig in *; congruence).
+          
+          assert (Eargs : args = Vptr b ofs :: nil). {
+            subst sg.
+            eapply shape_of_args; eauto.
+          }
+          
+          assert (Ecall: EF_external name sg = LOCK) by congruence.
+          
+          assert (Eae : at_external SEM.Sem (ExtCall (EF_external name sg) args lid ve te k) =
+                        Some (LOCK, Vptr b ofs :: nil)). {
+            simpl.
+            unfold SEM.Sem in *.
+            rewrite SEM.CLN_msem; simpl.
+            repeat f_equal; congruence.
+          }
+          
           assert (Hlt': permMapLt
                           (setPermBlock
                              (Some Writable) b (Int.intval ofs)
@@ -637,22 +667,6 @@ Section Progress.
             eapply valid_access_restrPermMap; eauto.
           }
           destruct Hm' as (m', Hm').
-          
-          (*
-          (* changing value of lock in dry mem *)
-          assert (Hm' : exists m', Mem.store Mint32 (restrPermMap (mem_compatible_locks_ltwritable (mem_compatible_forget compat))) b (Int.intval ofs) (Vint Int.zero) = Some m'). {
-            Transparent Mem.store.
-            unfold Mem.store in *.
-            destruct (Mem.valid_access_dec _ Mint32 b (Int.intval ofs) Writable) as [N|N].
-            now eauto.
-            exfalso.
-            apply N; clear -Efind lock_coh.
-            eapply lset_valid_access; eauto.
-            unfold Int.unsigned in *.
-            congruence.
-          }
-          destruct Hm' as (m', Hm').
-          *)          
           
           (* joinability condition provided by invariant : phi' will
           be the thread's new rmap *)
@@ -703,9 +717,8 @@ Section Progress.
                  apply ext_link_inj in Ee.
                  rewrite <-Ee.
                  reflexivity.
-              -- admit (* solved above *).
-              (* -- admit (* solved above *). *)
-              -- admit (* solved above *).
+              -- auto.
+              -- auto.
             * apply (mem_compatible_forget compat).
             * reflexivity.
             * unfold fold_right in *.
@@ -804,10 +817,14 @@ Section Progress.
             reflexivity.
           }
           
-          assert (Ecall: Some (EF_external name sg, args) =
-                         Some (UNLOCK, Vptr b ofs :: nil)). {
-            admit. (* signature: solved above *)
+          assert (Esg : sg = LOCK_SIG) by (unfold ef_id_sig in *; congruence).
+          
+          assert (Eargs : args = Vptr b ofs :: nil). {
+            subst sg.
+            eapply shape_of_args; eauto.
           }
+          
+          assert (Ecall: EF_external name sg = UNLOCK) by congruence.
           
           assert (Eae : at_external SEM.Sem (ExtCall (EF_external name sg) args lid ve te k) =
                         Some (UNLOCK, Vptr b ofs :: nil)). {
@@ -1017,6 +1034,8 @@ Section Progress.
           apply ext_link_inj in Ee; auto.
         }
         
+        assert (Esg : sg = UNLOCK_SIG) by (unfold ef_id_sig, ef_sig in *; congruence).
+        
         destruct Precond as [[Hwritable _] [[B1 _] AT]].
         assert (Hreadable : readable_share shx) by (apply writable_readable; auto).
         
@@ -1034,24 +1053,12 @@ Section Progress.
         destruct AT as (IsPtr, AT).
         destruct vx as [ | | | | | b ofs ]; try inversion IsPtr; [ clear IsPtr ].
         
-        assert (Ecall: Some (EF_external name sg, args) =
-                       Some (MKLOCK, Vptr b ofs :: nil)). {
-          repeat f_equal.
-          - auto.
-          - admit (* signature: solved above *).
-          - assert (L: length args = 1%nat) by admit (* signature: solved above *).
-            (* solved above *)
-            unfold expr.eval_id in *.
-            unfold expr.force_val in *.
-            match goal with H : context [Map.get ?a ?b] |- _ => destruct (Map.get a b) eqn:E end.
-            subst v. 2: discriminate.
-            pose  (gx := (filter_genv (symb2genv (Genv.genv_symb ge)))). fold gx in E.
-            destruct args as [ | arg [ | ar args ]].
-            + now inversion E.
-            + inversion E. reflexivity.
-            + inversion E. f_equal.
-              inversion L.
+        assert (Eargs : args = Vptr b ofs :: nil). {
+          subst sg.
+          eapply shape_of_args; eauto.
         }
+        
+        assert (Ecall: EF_external name sg = MKLOCK) by congruence.
         
         assert (Eae : at_external SEM.Sem (ExtCall (EF_external name sg) args lid ve te k) =
                       Some (MKLOCK, Vptr b ofs :: nil)). {
@@ -1161,7 +1168,225 @@ Section Progress.
         funspec_destruct "release".
         funspec_destruct "makelock".
         funspec_destruct "freelock".
-        admit. (* progress: the case of freelock *)
+        
+        intros (phix, (ts, ((vx, shx), Rx))) (Hargsty, Pre).
+        simpl (projT2 _) in *; simpl (fst _) in *; simpl (snd _) in *; clear ts.
+        simpl in Pre.
+        destruct Pre as (phi0 & phi1 & Join & Precond & HnecR).
+        simpl (and _).
+        intros Post.
+        Set Printing Notations.
+        
+        assert (Ename : name = "freelock"). {
+          simpl in *.
+          injection H_freelock as Ee.
+          apply ext_link_inj in Ee; auto.
+        }
+        
+        assert (Esg : sg = UNLOCK_SIG) by (unfold ef_id_sig, ef_sig in *; congruence).
+        
+        destruct Precond as [[Hwritable [Hpositive [Hprecise _]]] [[B1 _] AT]].
+        assert (Hreadable : readable_share shx) by (apply writable_readable; auto).
+        
+        (* [data_at_] from the precondition *)
+        unfold canon.SEPx in *.
+        simpl in AT.
+        rewrite seplog.sepcon_emp in AT.
+        
+        (* value of [vx] *)
+        simpl in B1.
+        unfold lift, liftx in B1. simpl in B1.
+        unfold lift, liftx in B1. simpl in B1.
+        rewrite lockinv_isptr in AT.
+        
+        destruct AT as (phi0lockinv & phi0sat & jphi0 & (IsPtr & Hlockinv) & Hsat).
+        destruct vx as [ | | | | | b ofs ]; try inversion IsPtr; [ clear IsPtr ].
+        
+        assert (Eargs : args = Vptr b ofs :: nil). {
+          subst sg.
+          eapply shape_of_args; eauto.
+        }
+        
+        assert (Ecall: EF_external name sg = FREE_LOCK) by congruence.
+        
+        assert (Eae : at_external SEM.Sem (ExtCall (EF_external name sg) args lid ve te k) =
+                      Some (FREE_LOCK, Vptr b ofs :: nil)). {
+          simpl.
+          unfold SEM.Sem in *.
+          rewrite SEM.CLN_msem; simpl.
+          repeat f_equal; congruence.
+        }
+        
+        clear Post.
+        
+        assert (lock_not_none : lockRes tp (b, Int.intval ofs) <> None). {
+          spec lock_coh (b, Int.intval ofs). cleanup.
+          destruct (AMap.find _ _) as [|] eqn:Ephi_sat. congruence.
+          unfold lock_inv in *.
+          destruct Hlockinv as (b_ & ofs_ & E_ & HH).
+          spec HH (b, Int.intval ofs).
+          simpl in HH.
+          change Int.intval with Int.unsigned in *.
+          injection E_ as <- <- .
+          if_tac [r|nr] in HH. 2:range_tac.
+          if_tac [e|ne] in HH. 2:tauto.
+          destruct HH as (p & HH).
+          assert (j : join_sub phi0lockinv Phi). {
+            apply join_sub_trans with phi0. eexists; eauto.
+            apply join_sub_trans with (@getThreadR i tp cnti). eexists; eauto.
+            join_sub_tac.
+          }
+          destruct j as (psi' & j).
+          apply resource_at_join with (loc := (b, Int.unsigned ofs)) in j.
+          rewrite HH in j.
+          destruct lock_coh.
+          inv j; hnf; eauto.
+        }
+        
+        pose proof Hlockinv as COPY.
+        apply (lock_inv_rmap_freelock CS) with (m := m) in COPY; auto; try apply lock_coh; swap 1 2; swap 2 3.
+        { 
+          spec lock_coh (b, Int.intval ofs). cleanup.
+          remember (AMap.find (elt:=option rmap) _ _) as o in lock_coh.
+          rewrite <-Heqo in lock_not_none.
+          destruct o as [[phi_sat|]|]; [ | | ]; try solve [apply lock_coh].
+          tauto.
+        }
+        { 
+          spec lock_coh (b, Int.intval ofs). cleanup.
+          remember (AMap.find (elt:=option rmap) _ _) as o in lock_coh.
+          rewrite <-Heqo in lock_not_none.
+          destruct o as [[phi_sat|]|]; [ | | ]; try solve [apply lock_coh].
+          tauto.
+        }
+        
+        destruct COPY as (phi0lockinv' & Hrmap00 & Hlkat).
+        
+        assert (Hpos'' : (0 < 4)%Z) by omega.
+        pose proof rmap_freelock_join _ _ _ _ _ _ _ _ Hpos'' Hrmap00 jphi0 as Hrmap0.
+        destruct Hrmap0 as (phi0' & Hrmap0 & jphi0').
+        pose proof rmap_freelock_join _ _ _ _ _ _ _ _ Hpos'' Hrmap0 Join as Hrmap.
+        pose proof Hrmap as Hrmap_.
+        destruct Hrmap_ as (phi' & RLphi & j').
+        assert (ji : join_sub (@getThreadR _ _ cnti) Phi) by join_sub_tac.
+        destruct ji as (psi & jpsi). cleanup.
+        pose proof rmap_freelock_join _ _ _ _ _ _ _ _ Hpos'' RLphi jpsi as Hrmap'.
+        destruct Hrmap' as (Phi' & Hrmap' & J').
+        
+        assert (locked : lockRes tp (b, Int.intval ofs) = Some None). {
+          spec lock_coh (b, Int.intval ofs). cleanup.
+          destruct (AMap.find _ _) as [[phi_sat|]|] eqn:Ephi_sat; [ exfalso | reflexivity | exfalso ].
+          - (* positive and precise *)
+            destruct lock_coh as (_&_&_&R&lk&[sat|?]). 2:omega.
+            
+            assert (J0 : join_sub phi0 Phi). {
+              apply join_sub_trans with (@getThreadR i tp cnti). eexists; eauto.
+              join_sub_tac.
+            }
+            assert (Ja0 : join_sub phi0sat Phi).  {
+              apply join_sub_trans with phi0; eauto. eexists; eauto.
+            }
+            assert (Ja : join_sub phi_sat Phi). {
+              eapply compatible_lockRes_sub; eauto.
+              apply compat.
+            }
+            assert (J01 : join_sub phi0lockinv Phi). {
+              apply join_sub_trans with phi0. eexists; eauto.
+              apply join_sub_trans with (@getThreadR i tp cnti). eexists; eauto.
+              join_sub_tac.
+            }
+            assert (R01 : level phi0lockinv = level Phi) by join_level_tac.
+            assert (Ra : level phi_sat = level Phi) by join_level_tac.
+            assert (Ra0 : level phi0sat = level Phi) by join_level_tac.
+            pose proof predat6 lk as E1.
+            pose proof predat4 Hlockinv as E3.
+            apply (predat_join_sub J01) in E3.
+            
+            pose proof positive_precise_joins_false
+                 (approx (level Phi) (Interp Rx)) (age_by 1 phi_sat) (age_by 1 phi0sat) as PP.
+            apply PP.
+            + (* positive *)
+              apply positive_approx with (n := level Phi) in Hpositive.
+              assumption.
+              
+            + (* precise *)
+              unfold approx.
+              apply precise_approx with (n := level Phi) in Hprecise.
+              assumption.
+              
+            + (* sat 1 *)
+              split.
+              * rewrite level_age_by. rewrite Ra. omega.
+              * revert sat.
+                apply approx_eq_app_pred with (level Phi).
+                -- rewrite level_age_by. rewr (level phi_sat). omega.
+                -- eapply predat_inj; eauto.
+                   apply predat6 in lk; eauto.
+                   exact_eq E3. f_equal. f_equal. auto.
+                   
+            + (* sat 2 *)
+              split.
+              -- rewrite level_age_by. cut (level phi0sat = level Phi). omega. join_level_tac.
+              -- revert Hsat. apply age_by_ind.
+                 destruct (Interp Rx).
+                 auto.
+                
+            + (* joins *)
+              apply age_by_joins.
+              apply joins_sym.
+              eapply @join_sub_joins_trans with (c := phi0); auto. apply Perm_rmap.
+              * exists phi0lockinv. apply join_comm. auto.
+              * eapply @join_sub_joins_trans with (c := @getThreadR i tp cnti); auto. apply Perm_rmap.
+                -- exists phi1. auto.
+                -- eapply compatible_threadRes_lockRes_join. apply (mem_compatible_forget compat).
+                   apply Ephi_sat.
+                   
+          - (* not a lock: impossible *)
+            simpl in Hlockinv.
+            unfold lock_inv in *.
+            destruct Hlockinv as (b_ & ofs_ & E_ & HH).
+            spec HH (b, Int.intval ofs).
+            simpl in HH.
+            change Int.intval with Int.unsigned in *.
+            injection E_ as <- <- .
+            if_tac [r|nr] in HH. 2:range_tac.
+            if_tac [e|ne] in HH. 2:tauto.
+            destruct HH as (p & HH).
+            assert (j : join_sub phi0lockinv Phi). {
+              apply join_sub_trans with phi0. eexists; eauto.
+              apply join_sub_trans with (@getThreadR i tp cnti). eexists; eauto.
+              join_sub_tac.
+            }
+            destruct j as (psi' & j).
+            apply resource_at_join with (loc := (b, Int.unsigned ofs)) in j.
+            rewrite HH in j.
+            apply lock_coh.
+            inv j; hnf; eauto.
+        }
+        
+        eexists (m, ge, (sch, _)).
+        constructor.
+        
+        eapply JuicyMachine.sync_step
+        with (Htid := cnti); auto.
+        
+        eapply step_freelock
+        with (c := (ExtCall (EF_external name sg) args lid ve te k))
+               (Hcompat := mem_compatible_forget compat)
+               (R := Interp Rx)
+               (phi'0 := phi')
+        .
+        
+        all: try match goal with |- invariant _ => now constructor end.
+        all: try match goal with |- _ = age_tp_to _ _ => reflexivity end.
+        all: try match goal with |- _ = updThread _ _ _ => reflexivity end.
+        all: try match goal with |- personal_mem _ = _ => reflexivity end.
+        - assumption.
+        - eassumption.
+        - exists Phi; apply compat.
+        - reflexivity.
+        - assumption.
+        - assumption.
       }
       
       { (* the case of makelock *)
@@ -1204,11 +1429,11 @@ Section Progress.
       - (* extcall *)
         pose (ci':=
                 match lid with
-                | Some id => State ve (Maps.PTree.set id (Vint Int.zero) te) k
+                | Some id => State ve (Maps.PTree.set id Vundef te) k
                 | None => State ve te k
                 end).
         exists (m, ge, (i :: sch, ThreadPool.updThreadC cnti (Krun ci')))(* ; split *).
-        + (* taking the step Kresum->Krun *)
+        + (* taking the step Kresume->Krun *)
           constructor.
           apply JuicyMachine.resume_step with (tid := i) (Htid := cnti).
           * reflexivity.
@@ -1225,7 +1450,8 @@ Section Progress.
                unfold SEM.Sem in *.
                rewrite SEM.CLN_msem in *; simpl.
                destruct lid.
-               ++ admit (* add that [lid] has to be None to the invariant *).
+               ++ spec wellformed i cnti. rewrite Eci in wellformed. destruct wellformed.
+                  unfold ci'. reflexivity.
                ++ reflexivity.
             -- rewrite Eci.
                subst ci.
@@ -1257,6 +1483,6 @@ Section Progress.
           * reflexivity.
     }
     (* end of Kinit *)
-  Admitted.
+  Admitted. (* Theorem progress *)
   
 End Progress.

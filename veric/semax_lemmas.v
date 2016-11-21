@@ -1143,9 +1143,10 @@ Proof. intros until m'. intros H0 H4 CS0 H H1.
     inv H5. apply H4; auto. 
     destruct H10 as (?&?&?). inv H5. 
     exists (State ve te (l ++ ctl2)); split; auto. apply H4; auto.
-    exists (State ve te (l ++ ctl2)); split; auto.
-    destruct optid; auto. congruence. apply H4; auto.
-    destruct optid; auto. inv H5. inv H5; auto. }
+    destruct optid; auto.
+    exists (State ve (PTree.set i Vundef te) (l ++ ctl2)); split; auto.  inv H5. apply H4; auto.
+    exists (State ve te (l ++ ctl2)); split; auto. apply H4; auto.
+    inv H5. auto. }
   { simpl in H6. unfold cl_halted in H6. congruence. } }
   (* sequence  *)
   { destruct (IHcl_step (Kseq s1) (Kseq s2 :: l) 
