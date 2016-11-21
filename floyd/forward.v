@@ -1670,8 +1670,7 @@ Ltac unify_var_or_evar name val :=
   let E := fresh "E" in assert (name = val) as E by (subst name; reflexivity); clear E.
 
 Ltac sc_try_instantiate P Q R0 Delta e gfsA gfsB tts a sh t_root gfs0 v n N H SH GFS TY V A :=
-      assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx (R0 :: nil))) 
-         |-- `(field_at sh t_root gfs0 v a)) as H;
+      assert (R0 = (field_at sh t_root gfs0 v a)) as H;
       [unify_var_or_evar gfs0 GFS;
        unify_var_or_evar t_root TY;
        unify_var_or_evar sh SH;
@@ -1685,10 +1684,7 @@ Ltac sc_try_instantiate P Q R0 Delta e gfsA gfsB tts a sh t_root gfs0 v n N H SH
        try unfold field_at_;
        generalize V;
        intro;
-       solve [
-             go_lowerx; rewrite sepcon_emp, <- ?field_at_offset_zero; 
-             apply derives_refl
-       ]
+       solve [ rewrite <- ?field_at_offset_zero; reflexivity ]
       | pose N as n ].
 
 Ltac sc_new_instantiate P Q R Rnow Delta e gfsA gfsB tts lr a sh t_root gfs0 v n N H :=
@@ -1911,8 +1907,7 @@ Ltac load_tac :=
 
     let Heq := fresh "H" in
     match type of H with
-    | (ENTAIL _, PROPx _ (LOCALx _ (SEPx (?R0 :: nil))) 
-           |-- _) => assert (nth_error R n = Some R0) as Heq by reflexivity
+    | (?R0 = _) => assert (nth_error R n = Some R0) as Heq by reflexivity
     end;
     eapply (semax_SC_field_cast_load Delta sh n) with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
     [ reflexivity
@@ -2008,8 +2003,7 @@ Ltac load_tac :=
 
       let Heq := fresh "Heq" in
       match type of Hf with
-      | (ENTAIL _, PROPx _ (LOCALx _ (SEPx (?R0 :: nil))) 
-           |-- _) => assert (nth_error R n = Some R0) as Heq by reflexivity
+      | (?R0 = _) => assert (nth_error R n = Some R0) as Heq by reflexivity
       end;
 
       refine (semax_SC_field_load_general' _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
