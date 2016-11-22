@@ -426,8 +426,7 @@ Section SepAlgSigma.
   Proof. repeat intro.
        destruct a1; destruct a2; destruct b; destruct c; 
        inv H0; inv H1; subst.
-     apply inj_pair2 in H5; apply inj_pair2 in H10; apply inj_pair2 in H12;  
-     apply inj_pair2 in H4; apply inj_pair2 in H6; apply inj_pair2 in H8;  
+       repeat match goal with H: existT _ _ _ = existT _ _ _ |- _ => apply inj_pair2 in H end.
      subst.
     f_equal. apply (join_canc H3 H2).
   Qed.
