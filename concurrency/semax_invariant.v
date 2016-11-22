@@ -249,17 +249,40 @@ Qed.
 
 (*! Invariant (= above properties + safety + uniqueness of Krun) *)
 
+Definition jsafe_phi {Z} Jspec ge n ora c phi :=
+  forall jm,
+    m_phi jm = phi ->
+    @semax.jsafeN Z Jspec ge n ora c jm.
+
+Lemma jsafe_phi_jsafeN {Z} Jspec ge n ora c i tp m (cnti : containsThread tp i) Phi compat :
+  @jsafe_phi Z Jspec ge n ora c (getThreadR cnti) ->
+  @semax.jsafeN Z Jspec ge n ora c (@jm_ tp m Phi i cnti compat).
+Proof.
+  intros S; apply S, eq_refl.
+Qed.
+
+Ltac fixsafe H :=
+  unshelve eapply jsafe_phi_jsafeN in H; eauto.
+
 Definition threads_safety {Z} (Jspec : juicy_ext_spec Z) m ge tp PHI (mcompat : mem_compatible_with tp m PHI) n :=
-  forall i (cnti : Machine.containsThread tp i) (ora : Z),
-    match Machine.getThreadC cnti with
-    | Krun c
-    | Kblocked c => semax.jsafeN Jspec ge n ora c (jm_ cnti mcompat)
+  forall i (cnti : containsThread tp i) (ora : Z),
+    match getThreadC cnti with
+    | Krun c => semax.jsafeN Jspec ge n ora c (jm_ cnti mcompat)
+    | Kblocked c =>
+      (* The dry memory will change, so when we prove safety after an
+      external we must only inspect the rmap m_phi part of the juicy
+      memory.  This means more proof for each of the synchronisation
+      primitives. *)
+      jsafe_phi Jspec ge n ora c (getThreadR cnti)
+        (* semax.jsafeN Jspec ge n ora c (jm_ cnti mcompat) *)
     | Kresume c v =>
       forall c',
         (* [v] is not used here. The problem is probably coming from
            the definition of JuicyMachine.resume_thread'. *)
         cl_after_external None c = Some c' ->
-        semax.jsafeN Jspec ge n ora c' (jm_ cnti mcompat)
+        (* same quantification as in Kblocked *)
+        jsafe_phi Jspec ge n ora c' (getThreadR cnti)
+       (* semax.jsafeN Jspec ge n ora c' (jm_ cnti mcompat) *)
     | Kinit _ _ => Logic.True
     end.
 
@@ -406,6 +429,20 @@ Proof.
     specialize (uniq _ _ _ E).
     destruct uniq.
     congruence.
+Qed.
+
+Lemma unique_Krun_neq i j tp sch
+      (cnti : containsThread tp i)
+      (cntj : containsThread tp j) :
+  i <> j ->
+  unique_Krun tp (i :: sch) ->
+  forall q, @getThreadC j tp cntj <> Krun q.
+Proof.
+  intros ne U q E.
+  hnf in U.
+  spec U. now apply (different_threads_means_several_threads i j).
+  spec U j cntj q E.
+  breakhyps.
 Qed.
 
 Definition matchfunspec (ge : genviron) Gamma : forall Phi, Prop :=

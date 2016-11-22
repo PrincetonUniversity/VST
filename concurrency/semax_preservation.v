@@ -226,31 +226,6 @@ Proof.
   unfold Plt. zify. omega.
 Qed.
 
-(* obsolete : mem_cohere' is not redundant anymore
-Lemma mem_cohere'_redundant m phi :
-  contents_cohere m phi ->
-  access_cohere' m phi ->
-  alloc_cohere m phi ->
-  mem_cohere' m phi.
-Proof.
-  intros A B D; constructor; auto.
-  (* proving now max_access_cohere *)
-  intros loc. autospec B.
-  destruct (phi @ loc) as [t0 | t0 p [] p0 | k p]; auto.
-  { unfold perm_of_res in *.
-    unfold perm_of_res' in *.
-    unfold perm_of_sh in *.
-    if_tac. now destruct Share.nontrivial; auto.
-    if_tac. now auto.
-    tauto. }
-  all:destruct (plt (fst loc) (nextblock m)) as [|n]; [ assumption | exfalso ].
-  all:unfold max_access_at in *.
-  all:unfold access_at in *.
-  all:rewrite (nextblock_noaccess m _ (snd loc) Max n) in B.
-  all:inversion B.
-Qed.
-*)
-
 Lemma mem_cohere_age_to_inv n m phi :
   mem_cohere' m (age_to n phi) ->
   mem_cohere' m phi.
@@ -685,13 +660,6 @@ Proof.
     rewrite restrPermMap_max.
     apply Ac.
     
-(*  - cut (max_access_cohere (restrPermMap (mem_compatible_locks_ltwritable Hcmpt)) Phi).
-    { unfold max_access_cohere in *.
-      unfold max_access_at in *.
-      destruct SO as (_ & <- & <-). auto. }
-    intros loc; specialize (Ma loc).
-    rewrite restrPermMap_max. auto. *)
-
   - unfold alloc_cohere in *.
     destruct SO as (_ & _ & <-). auto.
 Qed.
@@ -1015,7 +983,7 @@ Section Preservation.
   state_invariant Jspec' Gamma n (m', ge, (sch, tp')).
   
   Proof.
-  Admitted.
+  Admitted. (* Lemma preservation_acqfail *)
   
   Lemma preservation_Kinit
   (Gamma : PTree.t funspec)
@@ -1047,7 +1015,7 @@ Section Preservation.
   @state_invariant (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' Gamma (S n) (m', ge, (sch', tp')).
   
   Proof.
-  Admitted.
+  Admitted. (* Lemma preservation_Kinit *)
   
   Theorem preservation Gamma n state state' :
     ~ blocked_at_external state MKLOCK ->
@@ -1269,15 +1237,20 @@ Section Preservation.
             destruct (eq_dec i i0) as [ii0 | ii0].
             * subst i0.
               unfold tp'.
-              rewrite gssThreadCC.
-              specialize (safety i cnti ora).
+              REWR. REWR.
+              spec safety i cnti ora.
               rewrite Eci in safety.
-              simpl.
+              eapply Jspec'_jsafe_phi in safety. 2:reflexivity.
               simpl in safety.
-              unfold jm_ in *.
-              erewrite personal_mem_ext.
-              -- apply safety.
-              -- apply gThreadCR.
+              replace cnti with ctn in safety by apply proof_irr.
+              exact_eq safety.
+              unfold semax_preservation_jspec.Jspec' in *.
+              unfold Jspec' in *.
+              f_equal.
+              Set Printing Implicit.
+              unfold OK_ty in *.
+              unfold Concurrent_Espec in *.
+              reflexivity.
             * assert (cnti0 : containsThread tp i0) by auto.
               unfold tp'.
               rewrite <- (@gsoThreadCC _ _ tp ii0 ctn cnti0).
@@ -1287,16 +1260,9 @@ Section Preservation.
               -- unfold jm_ in *.
                  erewrite personal_mem_ext.
                  ++ apply safety.
-                 ++ intros; apply gThreadCR.
-              -- unfold jm_ in *.
-                 erewrite personal_mem_ext.
-                 ++ apply safety.
-                 ++ intros; apply gThreadCR.
-              -- unfold jm_ in *.
-                 intros c' E.
-                 erewrite personal_mem_ext.
-                 ++ apply safety, E.
-                 ++ intros; apply gThreadCR.
+                 ++ REWR.
+              -- REWR.
+              -- REWR.
               -- constructor.
           
           + (* wellformed. *)
@@ -1459,9 +1425,7 @@ Section Preservation.
         f_equal.
         apply proof_irr.
       
-      + (* safety : the new c' is derived from "after_external", so
-           that's not so good? *)
-        intros i0 cnti0' ora.
+      + intros i0 cnti0' ora.
         destruct (eq_dec i i0) as [ii0 | ii0].
         * subst i0.
           rewrite gssThreadCC.
@@ -1475,15 +1439,10 @@ Section Preservation.
           unfold SEM.Sem in *.
           rewrite SEM.CLN_msem in *.
           specialize (safety ltac:(eauto)).
-          exact_eq safety.
-          f_equal.
-          Set Printing Implicit.
-          unshelve erewrite jm_updThreadC. auto.
-          unfold jm_ in *.
-          f_equal.
-          apply personal_mem_ext.
-          f_equal.
-          apply proof_irr.
+          apply safety.
+          rewrite m_phi_jm_.
+          REWR.
+          f_equal; apply proof_irr.
         * assert (cnti0 : containsThread tp i0) by auto.
           rewrite <- (@gsoThreadCC _ _ tp ii0 ctn cnti0).
           specialize (safety i0 cnti0 ora).
@@ -1493,14 +1452,8 @@ Section Preservation.
              erewrite personal_mem_ext.
              ++ apply safety.
              ++ intros; apply gThreadCR.
-          -- unfold jm_ in *.
-             erewrite personal_mem_ext.
-             ++ apply safety.
-             ++ intros; apply gThreadCR.
-          -- unfold jm_ in *.
-             erewrite personal_mem_ext.
-             ++ intros c'' E; apply safety, E.
-             ++ intros; apply gThreadCR.
+          -- REWR.
+          -- REWR.
           -- constructor.
       
       + (* wellformed. *)

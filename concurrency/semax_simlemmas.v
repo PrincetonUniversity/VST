@@ -288,6 +288,43 @@ Proof.
   apply safe_downward1.
 Qed.
 
+Lemma jsafe_phi_downward {Z} {Jspec : juicy_ext_spec Z} {ge n z c phi} :
+  jsafe_phi Jspec ge (S n) z c phi ->
+  jsafe_phi Jspec ge n z c phi.
+Proof.
+  intros S jm <-.
+  apply safe_downward1.
+  apply S, eq_refl.
+Qed.
+
+Lemma jsafe_phi_age Z Jspec ge ora q n phi phiaged :
+  ext_spec_stable age (JE_spec _ Jspec) ->
+  age phi phiaged ->
+  le n (level phiaged) ->
+  @jsafe_phi Z Jspec ge n ora q phi ->
+  @jsafe_phi Z Jspec ge n ora q phiaged.
+Proof.
+  intros stable A l S jm' E.
+  destruct (oracle_unage jm' phi) as (jm & Aj & <-). congruence.
+  eapply jsafeN_age; eauto.
+  exact_eq l; f_equal.
+  rewrite level_juice_level_phi.
+  congruence.
+Qed.
+
+Lemma jsafe_phi_age_to Z Jspec ge ora q n l phi :
+  ext_spec_stable age (JE_spec _ Jspec) ->
+  le n l ->
+  @jsafe_phi Z Jspec ge n ora q phi ->
+  @jsafe_phi Z Jspec ge n ora q (age_to l phi).
+Proof.
+  intros Stable nl.
+  apply age_to_ind_refined.
+  intros x y H L.
+  apply jsafe_phi_age; auto.
+  omega.
+Qed.
+
 Lemma m_phi_jm_ m tp phi i cnti compat :
   m_phi (@jm_ tp m phi i cnti compat) = @getThreadR i tp cnti.
 Proof.

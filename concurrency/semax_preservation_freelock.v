@@ -109,7 +109,7 @@ Proof.
   
   rewrite Eci in safei.
   unfold jsafeN, juicy_safety.safeN in safei.
-  
+  fixsafe safei.
   inversion safei
     as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
     [ now erewrite cl_corestep_not_at_external in atex; [ discriminate | eapply bad ]
@@ -669,9 +669,10 @@ Proof.
         rewrite Eci in wellformed.
         intros c' Ec'.
         - (* at_external : we can now use safety *)
+          intros jm' Ejm'.
           destruct Post with
           (ret := @None val)
-            (m' := jm_ lj mcompat')
+            (m' := jm')
             (z' := ora) (n' := n) as (c'' & Ec'' & Safe').
           
           + auto.
@@ -683,26 +684,32 @@ Proof.
           
           + (* proving Hrel *)
             hnf.
+            assert (n = level jm'). {
+              rewrite <-level_m_phi.
+              rewrite Ejm'.
+              REWR.
+              REWR.
+              REWR.
+              rewrite level_age_to; auto.
+              replace (level phi') with (level Phi). omega.
+              transitivity (level (getThreadR i tp cnti)); join_level_tac.
+            }
+            assert (level phi' = S n). {
+              cleanup. replace (level phi') with (S n). omega. join_level_tac.
+            }
+            
             split; [ | split].
-            * rewrite level_jm_.
-              rewrite level_age_to; auto. cleanup. omega.
-            * do 2 rewrite level_jm_.
-              rewrite level_age_to; auto. cleanup. omega.
-              cleanup. omega.
-            * eapply pures_same_eq_l.
-              apply pures_same_sym, pures_same_jm_.
-              eapply pures_same_eq_r.
-              2:apply pures_same_sym, pures_same_jm_.
-              rewrite level_m_phi.
-              rewrite level_jm_.
-              auto.
-              apply pures_same_eq_l with Phi'. 2: apply pures_age_eq; omega.
-              apply pures_same_trans with psi.
-              -- apply pures_same_sym. apply join_sub_pures_same. eexists; eauto.
-              -- apply join_sub_pures_same. eexists; eauto.
+            * auto.
+            * rewr (level jm'). rewrite level_jm_. cleanup. omega.
+            * simpl. rewrite Ejm'. do 3 REWR.
+              eapply pures_same_eq_l.
+              2:apply pures_age_eq; omega.
+              apply pures_same_trans with phi1.
+              -- apply pures_same_sym. apply join_sub_pures_same. exists phi0'. apply join_comm. assumption.
+              -- apply join_sub_pures_same. exists phi0. apply join_comm. assumption.
           
           + (* we must satisfy the post condition *)
-            rewrite m_phi_jm_.
+            rewrite Ejm'.
             exists (age_to n phi0'), (age_to n phi1).
             split.
             * REWR.
@@ -725,50 +732,12 @@ Proof.
             congruence.
       }
     
-    * (* safety for other threads: easier, because the dry memory has not changed *)
-      REWR.
-      cut (forall c (cntj : containsThread tp j),
-              jsafeN Jspec' ge (S n) ora c (jm_ cntj compat) ->
-              jsafeN Jspec' ge n ora c (jm_ lj mcompat')).
-      {
-        intros HH.
-        destruct (@getThreadC j tp lj) eqn:E.
-        - unshelve eapply HH; auto.
-        - unshelve eapply HH; auto.
-        - intros c' Ec'. eapply HH; auto.
-        - constructor.
-      }
-      intros c0 cntj Safe.
-      apply jsafeN_downward in Safe.
-      apply jsafeN_age_to with (l := n) in Safe; auto.
-      revert Safe.
-      apply jsafeN_mem_equiv. 2: now apply Jspec'_juicy_mem_equiv.
-      split.
-      -- rewrite m_dry_age_to.
-         unfold jm_ in *.
-         set (@mem_compatible_forget _ _ _ _) as cmpt; clearbody cmpt.
-         set (@mem_compatible_forget _ _ _ _) as cmpt'; clearbody cmpt'.
-         match goal with
-           |- context [thread_mem_compatible ?a ?b] =>
-           generalize (thread_mem_compatible a b); intros pr
-         end.
-         match goal with
-           |- context [thread_mem_compatible ?a ?b] =>
-           generalize (thread_mem_compatible a b); intros pr'
-         end.
-         apply mem_equiv_refl'.
-         apply m_dry_personal_mem_eq.
-         intros loc.
-         REWR.
-         REWR.
-         REWR.                  
-         REWR.
-      -- REWR.
-         rewrite m_phi_jm_.
-         rewrite m_phi_jm_.
-         REWR.
-         REWR.
-         REWR.
+    * repeat REWR.
+      destruct (getThreadC j tp lj) eqn:Ej.
+      -- edestruct (unique_Krun_neq i j); eauto.
+      -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
+      -- intros c' Ec'; spec safety c' Ec'. apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
+      -- constructor.
     }
   
   - (* threads_wellformed *)
