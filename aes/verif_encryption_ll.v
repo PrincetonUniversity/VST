@@ -308,10 +308,19 @@ admit. (* TODO is_int *)
 (*     uint32_t b0 = tables.FT0[ ( Y0       ) & 0xFF ];    *)
 unfold tables_initialized.
 
+Definition lo_byte (i : Z) : Z := (Z.land i (Int.unsigned (Int.repr 255))).
+Arguments lo_byte i : simpl never.
+
 Ltac entailer_for_load_tac ::= idtac.
 (* without override: forward takes >5 min, with override: 40s *)
 Time forward.
-{ (* entailer!. takes forever *)
+
+match goal with
+| |- context [ (Z.land ?i (Int.unsigned (Int.repr 255))) ] =>
+        change (Z.land  i (Int.unsigned (Int.repr 255))) with (lo_byte i)
+end.
+
+{ (* entailer!. takes forever, even with lo_byte and "simpl never" *)
   rewrite zlist_hint_db.Znth_map_Vint. {
 
 repeat apply andp_right.
@@ -336,30 +345,163 @@ apply masked_byte_range.
 { apply prop_right. apply masked_byte_range. }
 
 forward. admit. admit.
-forward. (* > 30min! *)
 
-{ (* TODO floyd: entailer! says 
-Ltac call to "entailer" failed.
-Error: Tactic failure: The entailer tactic works only on entailments  _ |-- _ .
-even though the goal does have the form _ |-- _ !
+Arguments Z.land _ _ : simpl never.
+
+let x := eval simpl in (Z.land
+                 (Int.unsigned
+                    (Int.shru (Int.xor (get_uint32_le (map Int.repr plaintext) 8) (Int.repr k3))
+                       (Int.repr 16))) (Int.unsigned (Int.repr 255)))
+in idtac x. (* now fast *)
+
+eapply semax_seq'. {
+eapply semax_seq'. {
+Require Import floyd.simpl_reptype.
+Time ensure_normal_ret_assert;
+ hoist_later_in_pre;
+ match goal with   
+| |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
+ (* Super canonical load *)
+    let e1 := fresh "e" in
+    let efs := fresh "efs" in
+    let tts := fresh "tts" in
+      construct_nested_efield e e1 efs tts;
+
+    let lr := fresh "lr" in
+      pose (compute_lr e1 efs) as lr;
+      vm_compute in lr;
+
+    let HLE := fresh "HLE" in
+    let p := fresh "p" in evar (p: val);
+      match goal with
+      | lr := LLLL |- _ => do_compute_lvalue Delta P Q R e1 p HLE
+      | lr := RRRR |- _ => do_compute_expr Delta P Q R e1 p HLE
+      end;
+
+    let H_Denote := fresh "H_Denote" in
+    let gfsB := fresh "gfsB" in
+      solve_efield_denote Delta P Q R efs gfsB H_Denote (* 11s until here *);
+
+    let sh := fresh "sh" in evar (sh: share);
+    let t_root := fresh "t_root" in evar (t_root: type);
+    let gfs0 := fresh "gfs0" in evar (gfs0: list gfield);
+    let gfsA := fresh "gfsA" in evar (gfsA: list gfield);
+    let a := fresh "a" in evar (a: val);
+    let v := fresh "v" in evar (v: reptype (nested_field_type t_root gfs0));
+    let n := fresh "n" in
+    let Hf := fresh "Hf" in
+    let eqL := constr:(p = field_address t_root gfsA a) in
+    let eqR := constr:(p = a /\ gfsA = nil) in
+    let g := constr:((ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- !! eqL) \/ eqR) in
+    let HNice := fresh "HNice" in
+
+    tryif (
+      tryif (
+        assert g as HNice by (
+          subst p gfsA gfsB a t_root;
+          left;
+          (eassumption || (apply prop_right; (eassumption || reflexivity)))
+        )
+      ) then (
+        (sc_new_instantiate P Q R R Delta e1 gfsA gfsB tts lr a sh t_root gfs0 v n (0%nat) Hf
+         || fail 15 "sc_new_instantiate should really not have failed" )
+      ) else (
+        instantiate (gfsA := nil); instantiate (a := p);
+        (* will fail if these instantiations were a bad idea: *)
+        sc_new_instantiate P Q R R Delta e1 gfsA gfsB tts lr a sh t_root gfs0 v n (0%nat) Hf;
+        (assert g as HNice by (
+          subst p gfsA gfsB a t_root;
+          right;
+          split; reflexivity
+        ) || fail 15 "assert should really not have failed" )
+      )
+    ) then (
+      (* 12s until here *)
+      let len := fresh "len" in
+      pose ((length (gfsB ++ gfsA) - length gfs0)%nat) as len;
+      simpl in len;
+      let gfs1 := fresh "gfs1" in
+      match goal with
+      | len := ?len' |- _ => pose (gfs1 := (firstn len' (gfsB ++ gfsA)));
+                             cbv [app gfsB gfsA firstn] in gfs1
+      end;
+
+      let gfsEq := fresh "gfsEq" in
+      assert (gfsB ++ gfsA = gfs1 ++ gfs0) as gfsEq by reflexivity;
+
+      let Heq := fresh "Heq" in
+      match type of Hf with
+      | (?R0 = _) => assert (nth_error R n = Some R0) as Heq by reflexivity
+      end;
+
+      refine (semax_SC_field_load_general' _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+         _  _ _ lr _ _ _ HLE H_Denote HNice Heq _ gfsEq _ _ _ _ _) (*12.7s until here; try reflexivity;
+      [ auto (* readable_share *)
+      | solve_load_rule_evaluation
+      | clear HLE H_Denote;
+        subst lr e1 gfs0 gfs1 gfsA gfsB efs tts t_root a v n;
+        repeat match goal with H := _ |- _ => clear H end;
+        try quick_typecheck3; 
+        unfold tc_efield, tc_LR, tc_LR_strong; simpl typeof;
+        entailer_for_load_tac
+      | subst lr e1 gfs0 gfs1 gfsA gfsB efs tts t_root a v n;
+        solve_legal_nested_field_in_entailment; try clear HLE H_Denote ] *)
+    ) else (
+      assert (undo_and_first__assert_PROP eqL); subst t_root gfsA gfsB a p
+    )
+
+end.
+
+reflexivity.
+reflexivity.
+reflexivity.
+auto.
+Time solve_load_rule_evaluation.
+(* culprit #1 for slowness: 
+clear HLE H_Denote;
+        subst lr e gfs0 gfs1 gfsA gfsB efs tts t_root a v n;
+        repeat match goal with H := _ |- _ => clear H end;
+        try quick_typecheck3; 
+        unfold tc_efield, tc_LR, tc_LR_strong; simpl typeof;
+        entailer_for_load_tac.
 *)
-admit. }
-{
-admit. (* TODO 0 <= _ < 256 bounds *)
+rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+clear HLE H_Denote;
+        subst lr e gfs0 gfs1 gfsA gfsB efs tts t_root a v n;
+        repeat match goal with H := _ |- _ => clear H end;
+        try quick_typecheck3.
+(* now quick_typecheck3 is quick again! *)
+
+(* culprit #2:
+subst lr e gfs0 gfs1 gfsA gfsB efs tts t_root a v n;
+        solve_legal_nested_field_in_entailment; try clear HLE H_Denote.
+*)
+subst lr e gfs0 gfs1 gfsA gfsB efs tts t_root a v n.
+
+Time solve_legal_nested_field_in_entailment.
+ (* now "only" takes 7.9s, because array indices are not simplified *)
+
+apply prop_right. apply masked_byte_range.
+
+reflexivity.
+reflexivity.
+
 }
 
-forward. (* takes about half an hour! *)
-{ admit. (* entailer!. too slow *) }
-{ (* bounds *) admit. }
+fwd_result.
 
-freeze [2] Fr2.
+(* b3 = ... and whole rest of 1st macro invocation *)
+admit.
 
-(* Time forward. aborted after 3.5 hours *)
+}
+
+(* 2nd macro invocation *)
+unfold MORE_COMMANDS, abbreviate.
 
 admit.
-}
-}
-}
+
+} }
+
 { (* loop incr *)
 admit.
 }
