@@ -2011,9 +2011,11 @@ Ltac load_tac :=
         repeat match goal with H := _ |- _ => clear H end;
         try quick_typecheck3; 
         unfold tc_efield, tc_LR, tc_LR_strong; simpl typeof;
-        entailer_for_load_tac
+        entailer_for_load_tac;
+        subst p sh; clear Hf HNice gfsEq Heq
       | subst lr e1 gfs0 gfs1 gfsA gfsB efs tts t_root a v n;
-        solve_legal_nested_field_in_entailment; try clear HLE H_Denote ]
+        solve_legal_nested_field_in_entailment; try clear HLE H_Denote;
+        subst p sh; clear Hf HNice gfsEq Heq ]
     ) else (
       assert (undo_and_first__assert_PROP eqL); subst t_root gfsA gfsB a p
     )
