@@ -709,6 +709,24 @@ Qed.
 Definition abbreviate {A:Type} (x:A) := x.
 Implicit Arguments abbreviate [[A][x]].
 
+Ltac clear_Delta :=
+match goal with
+| Delta := @abbreviate tycontext |- _ => 
+   first [clear Delta | clearbody Delta]
+| _ => idtac
+end;
+match goal with 
+ |  DS := @abbreviate (PTree.t funspec) _  |- _ => 
+   first [clear DS | clearbody DS]
+ | |- _ => idtac
+ end.
+
+Ltac clear_Delta_specs :=
+ lazymatch goal with 
+ |  DS := @abbreviate (PTree.t funspec) _  |- _ => clearbody DS
+ | |- _ => idtac
+ end.
+
 Ltac findvars :=
  match goal with DD: tc_environ ?Delta ?rho |- _ =>
   let H := fresh in
@@ -1019,9 +1037,8 @@ Ltac unfold_for_go_lower :=
                       denote_tc_assert (* tc_andp tc_iszero *)
     liftx LiftEnviron Tarrow Tend lift_S lift_T
     lift_prod lift_last lifted lift_uncurry_open lift_curry 
-     local lift lift0 lift1 lift2 lift3 
+     local lift lift0 lift1 lift2 lift3
    ] beta iota.
-
 
 Lemma grab_tc_environ:
   forall Delta PQR S rho,
@@ -1058,8 +1075,8 @@ Lemma lower_one_temp:
  forall t rho Delta P i v Q R S,
   (temp_types Delta) ! i = Some (t,true) ->
   (tc_val t v -> eval_id i rho = v ->
-   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S rho) ->
-  (local (tc_environ Delta) && PROPx P (LOCALx (temp i v :: Q) (SEPx R))) rho |-- S rho.
+   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S) ->
+  (local (tc_environ Delta) && PROPx P (LOCALx (temp i v :: Q) (SEPx R))) rho |-- S.
 Proof.
 intros.
 rewrite <- insert_local.
@@ -1076,8 +1093,8 @@ Lemma lower_one_temp_Vint:
  forall t rho Delta P i v Q R S,
   (temp_types Delta) ! i = Some (t,true) ->
   (tc_val t (Vint v) -> eval_id i rho = Vint v ->
-   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S rho) ->
-  (local (tc_environ Delta) && PROPx P (LOCALx (temp i (Vint v) :: Q) (SEPx R))) rho |-- S rho.
+   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S) ->
+  (local (tc_environ Delta) && PROPx P (LOCALx (temp i (Vint v) :: Q) (SEPx R))) rho |-- S.
 Proof.
 intros.
 eapply lower_one_temp; eauto.
@@ -1086,8 +1103,8 @@ Qed.
 Lemma lower_one_lvar:
  forall t rho Delta P i v Q R S,
   (isptr v -> lvar_denote i t v rho ->
-   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S rho) ->
-  (local (tc_environ Delta) && PROPx P (LOCALx (lvar i t v :: Q) (SEPx R))) rho |-- S rho.
+   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S) ->
+  (local (tc_environ Delta) && PROPx P (LOCALx (lvar i t v :: Q) (SEPx R))) rho |-- S.
 Proof.
 intros.
 rewrite <- insert_local.
@@ -1163,8 +1180,8 @@ Lemma lower_one_gvar:
   sizeof t <= Int.modulus  ->
   (isptr v -> gvar_denote i v rho ->
      size_compatible t v -> align_compatible t v ->
-   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S rho) ->
-  (local (tc_environ Delta) && PROPx P (LOCALx (gvar i v :: Q) (SEPx R))) rho |-- S rho.
+   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S) ->
+  (local (tc_environ Delta) && PROPx P (LOCALx (gvar i v :: Q) (SEPx R))) rho |-- S.
 Proof.
 intros.
 rewrite <- insert_local.
@@ -1187,8 +1204,8 @@ Lemma lower_one_sgvar:
   sizeof t <= Int.modulus  ->
   (isptr v -> sgvar_denote i v rho ->
      size_compatible t v -> align_compatible t v ->
-   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S rho) ->
-  (local (tc_environ Delta) && PROPx P (LOCALx (sgvar i v :: Q) (SEPx R))) rho |-- S rho.
+   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S) ->
+  (local (tc_environ Delta) && PROPx P (LOCALx (sgvar i v :: Q) (SEPx R))) rho |-- S.
 Proof.
 intros.
 rewrite <- insert_local.
@@ -1208,8 +1225,8 @@ Qed.
 Lemma lower_one_prop:
  forall  rho Delta P (P1: Prop) Q R S,
   (P1 ->
-   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S rho) ->
-  (local (tc_environ Delta) && PROPx P (LOCALx (localprop P1 :: Q) (SEPx R))) rho |-- S rho.
+   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S) ->
+  (local (tc_environ Delta) && PROPx P (LOCALx (localprop P1 :: Q) (SEPx R))) rho |-- S.
 Proof.
 intros.
 rewrite <- insert_local.
@@ -1224,8 +1241,8 @@ Qed.
 
 Lemma finish_lower:
   forall rho D R S,
-  fold_right_sepcon R |-- S rho ->
-  (local D && PROP() LOCAL() (SEPx R)) rho |-- S rho.
+  fold_right_sepcon R |-- S ->
+  (local D && PROP() LOCAL() (SEPx R)) rho |-- S.
 Proof.
 intros.
 simpl.
@@ -1237,8 +1254,8 @@ Lemma lower_one_temp_Vint':
  forall sz sg rho Delta P i v Q R S,
   (temp_types Delta) ! i = Some (Tint sz sg noattr, true) ->
   ((exists j, v = Vint j /\ tc_val (Tint sz sg noattr) (Vint j) /\ eval_id i rho = (Vint j)) ->
-   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S rho) ->
-  (local (tc_environ Delta) && PROPx P (LOCALx (temp i v :: Q) (SEPx R))) rho |-- S rho.
+   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S) ->
+  (local (tc_environ Delta) && PROPx P (LOCALx (temp i v :: Q) (SEPx R))) rho |-- S.
 Proof.
 intros.
 eapply lower_one_temp; eauto.
@@ -1335,8 +1352,8 @@ Lemma lower_one_temp_trivial:
  forall t rho Delta P i v Q R S,
   (temp_types Delta) ! i = Some (t,true) ->
   (tc_val t v ->
-   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S rho) ->
-  (local (tc_environ Delta) && PROPx P (LOCALx (temp i v :: Q) (SEPx R))) rho |-- S rho.
+   (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S) ->
+  (local (tc_environ Delta) && PROPx P (LOCALx (temp i v :: Q) (SEPx R))) rho |-- S.
 Proof.
 intros.
 rewrite <- insert_local.
@@ -1349,9 +1366,19 @@ apply H0; auto.
 apply tc_eval_id_i with Delta; auto.
 Qed.
 
+Lemma quick_finish_lower:
+  forall LHS,
+  emp |-- !! True ->
+  LHS |-- !! True.
+Proof.
+intros.
+apply prop_right; auto.
+Qed.
+
 Definition rho_marker := tt.
 
 Ltac go_lower :=
+clear_Delta_specs;
 intros;
 match goal with
  | |- ENTAIL ?D, normal_ret_assert _ _ _ |-- _ =>
@@ -1364,11 +1391,15 @@ repeat (simple apply derives_extract_PROP; fancy_intro true);
 let rho := fresh "rho" in 
 intro rho;
 try match goal with
-| |- _ |--  ?S rho =>  
+| |- ?LHS |--  ?S rho =>  
        unify (S rho) (S any_environ); 
-       let u := fresh "u" in pose (u := rho_marker)
+       let u := fresh "u" in pose (u := rho_marker);
+   let x := fresh "x" in set (x:=LHS);
+   unfold_for_go_lower; simpl; subst x;
+   rewrite ?(prop_true_andp True) by auto
 end;
-repeat first
+first [simple apply quick_finish_lower
+| repeat first
  [ match goal with u:=rho_marker |- _ => idtac end;
    simple eapply lower_one_temp_trivial;
      [reflexivity | unfold tc_val at 1; fancy_intro true ]
@@ -1410,8 +1441,10 @@ repeat match goal with
      rewrite (eq_True (gvar_denote i v' rho) H)
  | H: sgvar_denote ?i ?v rho |- context [sgvar_denote ?i ?v' rho] =>
      rewrite (eq_True (sgvar_denote i v' rho) H)
-end;
+end
+];
 try match goal with u := rho_marker |- _ => clear u end;
+clear_Delta;
 try clear dependent rho.
 
 Lemma raise_sepcon:

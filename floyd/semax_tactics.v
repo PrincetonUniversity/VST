@@ -155,14 +155,22 @@ match t with
 | @PTree.Node _ ?a _ ?b => check_ground_ptree a; check_ground_ptree b
 | @PTree.Leaf _ => idtac
 end.
+
 Ltac check_ground_Delta := 
 match goal with 
-|  Delta := @abbreviate _ (mk_tycontext ?A ?B _ ?D _),
-   Delta_specs := @abbreviate (PTree.t funspec) ?E  |- _ => 
+|  Delta := @abbreviate _ (mk_tycontext ?A ?B _ ?D _) |- _ => 
    first [check_ground_ptree A | fail 99 "Temps component of Delta not a ground PTree"];
    first [check_ground_ptree B | fail 99 "Local Vars component of Delta not a ground PTree"];
-   first [check_ground_ptree D | fail 99 "Globals component of Delta not a ground PTree"];
+   first [check_ground_ptree D | fail 99 "Globals component of Delta not a ground PTree"]
+end;
+match goal with
+|  Delta := @abbreviate _ (mk_tycontext ?A ?B _ ?D ?DS),
+   DS' := @abbreviate (PTree.t funspec) ?E  |- _ => 
+   constr_eq DS DS';
    first [check_ground_ptree E | fail 99 "Delta_specs not a ground PTree"]
+|  Delta := @abbreviate _ (mk_tycontext ?A ?B _ ?D ?DS),
+   DS' : (PTree.t funspec) |- _ => 
+   constr_eq DS DS'
 end.
 
 Ltac simplify_func_tycontext :=
@@ -257,7 +265,7 @@ Ltac abbreviate_semax :=
             end
         end
  | |- _ |-- _ => unfold_abbrev_ret
- | |- _ => idtac
+(*  | |- _ => idtac *)
  end;
  clear_abbrevs;
  (*build_Struct_env;*)

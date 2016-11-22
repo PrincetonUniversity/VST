@@ -67,24 +67,6 @@ Proof.
  apply IHal.
 Qed.
 
-Lemma is_int_I32_Vint: forall s v, is_int I32 s (Vint v).
-Proof.
-intros.
-hnf. auto.
-Qed.
-Hint Resolve is_int_I32_Vint.
-
-Lemma Znth_map_map_inbounds:
- forall i a v, 0 <= i < Zlength a -> 
-    Znth i (map Vint (map Int.repr a)) v = Vint (Int.repr (Znth i a 0)).
-Proof.
- intros.
- rewrite map_map in *.
- rewrite Znth_map with (d':=0); auto.
-Qed.
-
-Hint Rewrite  Znth_map_map_inbounds using (auto; omega) : sublist.
-
 Lemma is_int_I32_Znth_map_Vint:
  forall i s al v,
   0 <= i < Zlength al ->
@@ -94,9 +76,6 @@ intros. rewrite Znth_map with (d':= Int.zero); auto.
 Qed.
 Hint Extern 3 (is_int I32 _ (Znth _ (map Vint _) _)) =>
   (apply  is_int_I32_Znth_map_Vint; rewrite ?Zlength_map; omega).
-
-Hint Rewrite @sublist_nil : sublist.
-Hint Rewrite Z.max_l using omega : sublist.
 
 Definition minimum_spec :=
  DECLARE _minimum
@@ -119,25 +98,27 @@ start_function.
 assert_PROP (Zlength al = n). {
   entailer!. autorewrite with sublist; auto.
 }
-assert (HD: hd 0 al = Znth 0 al 0) by (destruct al; reflexivity).
+revert POSTCONDITION; 
+ replace (hd 0 al) with (Znth 0 al 0) by (destruct al; reflexivity);
+ intro POSTCONDITION.
 forward.  (* min = a[0]; *)
 autorewrite with sublist.
 forward_for_simple_bound n 
   (EX i:Z,
     PROP() 
-    LOCAL(temp _min (Vint (Int.repr (fold_right Z.min (hd 0 al) (sublist 0 i al)))); 
+    LOCAL(temp _min (Vint (Int.repr (fold_right Z.min (Znth 0 al 0) (sublist 0 i al)))); 
           temp _a a; 
           temp _n (Vint (Int.repr n)))
     SEP(data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a)).
 * (* Prove that the precondition implies the loop invariant *)
- entailer!. rewrite HD; auto.
+ entailer!.
 *
  forward. (* j = a[i]; *)
  assert (repable_signed (Znth i al 0))
      by (apply Forall_Znth; auto; omega).
- assert (repable_signed (fold_right Z.min (hd 0 al) (sublist 0 i al)))
+ assert (repable_signed (fold_right Z.min (Znth 0 al 0) (sublist 0 i al)))
    by (apply Forall_fold_min;
-          [rewrite HD; apply Forall_Znth; auto; omega
+          [apply Forall_Znth; auto; omega
           |apply Forall_sublist; auto]).
  autorewrite with sublist.
  subst POSTCONDITION; unfold abbreviate.

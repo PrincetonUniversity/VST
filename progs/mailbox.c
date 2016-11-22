@@ -19,36 +19,48 @@ void *memset(void *s, int c, size_t n){
 //general data
 #define N 3 //number of readers
 #define B (N + 2) //number of buffers
+#define Empty (-1)
+#define First 0
 typedef int buf_id;
-const buf_id Empty = -1;
-const buf_id First = 0;
 
 typedef struct buffer {int data;} buffer;
-buffer bufs[B];
+buffer *bufs[B];
 lock_t *lock[N];
-buf_id comm[N];
+buf_id *comm[N];
 
 //This could be replaced by an external call once we figure out the right spec.
-buf_id simulate_atomic_exchange(int r, buf_id v){
-  buf_id x;
-  lock_t *l = lock[r];
+int simulate_atomic_exchange(int *tgt, lock_t *l, int v){
+  int x;
   acquire(l);
-  x = comm[r];
-  comm[r] = v;
+  x = *tgt;
+  *tgt = v;
   release(l);
   return x;
 }
 
+//The initial state as written is slightly inconsistent:
+//last_read is First, but comm[r] is also First as if it
+//hasn't been read yet. Either last_read or comm[r] should
+//start as Empty instead. comm[r] starting Empty is a bit
+//simpler (although it implies that the readers start with
+//access to bufs[0] as if they've received the first communication).
+
 //registrar function
 void initialize_channels(){
   for(int r = 0; r < N; r++){
-    comm[r] = First;
+    buf_id *c = surely_malloc(sizeof(buf_id));
+    *c = Empty;
+    comm[r] = c;
     lock_t *l = surely_malloc(sizeof(lock_t));
     lock[r] = l;
     makelock(l);
     release(l);
   }
-  memset(&bufs[First], 0, sizeof (bufs[First]));
+  for(int i = 0; i < B; i++){
+    buffer *b = surely_malloc(sizeof(buffer));
+    bufs[i] = b;
+  }
+  memset(bufs[First], 0, sizeof(buffer));
 }
 
 //reader functions
@@ -61,8 +73,7 @@ void initialize_reader(int r){
 
 buf_id start_read(int r){
   buf_id b;
-  //  b = atomic_exchange(&comm[r], Empty);
-  b = simulate_atomic_exchange(r, Empty);
+  b = simulate_atomic_exchange(comm[r], lock[r], Empty);
   if(b >= 0 && b < B)
     last_read[r] = b;
   else
@@ -92,13 +103,16 @@ buf_id start_write(){
   int available[B];
   for(int i = 0; i < B; i++)
     available[i] = 1;
-  available[last_given] = 0;
+  buf_id last = last_given;
+  available[last] = 0;
   for(int r = 0; r < N; r++){
-    if(last_taken[r] != Empty)
-      available[last_taken[r]] = 0;
+    last = last_taken[r];
+    if(last != Empty)
+      available[last] = 0;
   }
   for(int i = 0; i < B; i++){
-    if(available[i]){
+    int avail = available[i];
+    if(avail){
       writing = i;
       return i;
     }
@@ -108,11 +122,11 @@ buf_id start_write(){
 
 void finish_write(){
   //make current buffer available to all readers
+  buf_id last = last_given;
   for(int r = 0; r < N; r++){
-    //    buf_id b = atomic_exchange(&comm[r], writing);
-    buf_id b = simulate_atomic_exchange(r, writing);
+    buf_id b = simulate_atomic_exchange(comm[r], lock[r], writing);
     if(b == Empty)
-      last_taken[r] = last_given;
+      last_taken[r] = last;
   }
   last_given = writing;
   writing = Empty;
@@ -123,7 +137,7 @@ void *reader(void *arg){
   initialize_reader(r);
   while(1){
     buf_id b = start_read(r);
-    int v = bufs[b].data;
+    int v = bufs[b]->data;
     //printf("Reader %d read %d\n", r, v);
     finish_read(r);
   }
@@ -135,8 +149,7 @@ void *writer(void *arg){
   int v = 0;
   while(1){
     buf_id b = start_write();
-    buffer buf = {.data = v};
-    bufs[b] = buf;
+    bufs[b]->data = v;
     finish_write();
     v++;
   }

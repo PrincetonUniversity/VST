@@ -132,6 +132,7 @@ Focus 2.
       destruct INV_l as [_ INV_l].
       destruct (zlt ii i).
         + destruct (INV_l ii) as [x_ii [Z_ii [y_ii [Y_iiA Y_iiB]]]]. omega.
+          autorewrite with sublist in Z_ii,Y_iiA.
           rewrite Z_ii, Y_iiA. exists x_ii; split. trivial. 
           exists y_ii; split. trivial. rewrite <- Y_iiB. clear Y_iiB. clear INV_l.
           rewrite sublist_app1.
@@ -139,6 +140,7 @@ Focus 2.
           - omega.
           - rewrite Zlength_sublist, Zminus_0_r; omega.
         + assert (IX: ii = i) by omega. subst ii. clear g INV_l.
+          autorewrite with sublist in Xi,Yi.
           exists xi. split; trivial. exists yi; split; trivial.
           rewrite sublist_app2; rewrite Zlength_sublist; try rewrite Zminus_0_r; try omega.
           rewrite Zminus_diag, Z.add_simpl_l.

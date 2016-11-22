@@ -2218,7 +2218,8 @@ try eapply semax_seq';
  | .. ].
 
 Ltac forward1 s :=  (* Note: this should match only those commands that
-                                     can take a normal_ret_assert *)
+                                     can take a normal_ret_assert AND DO NOT USE DELTA_SPECS *)
+  clear_Delta_specs;
   lazymatch s with 
   | Sassign _ _ => store_tac
   | Sset _ ?e => 
@@ -2285,8 +2286,8 @@ Ltac fwd_last :=
   match goal with 
   | |- semax _ _ (Ssequence (Sreturn _) _) _ =>
             apply semax_seq with FF; [ | apply semax_ff];
-            forward_return
-  | |- semax _ _ (Sreturn _) _ =>  forward_return
+            clear_Delta_specs; forward_return
+  | |- semax _ _ (Sreturn _) _ =>  clear_Delta_specs; forward_return
   | |- semax _ _ (Ssequence Sbreak _) _ =>
             apply semax_seq with FF; [ | apply semax_ff];
             forward_break
