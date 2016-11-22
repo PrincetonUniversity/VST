@@ -227,7 +227,6 @@ forward_for_simple_bound 8
  +
   apply prop_right.
   split.
-  rewrite Znth_map with (d':=Int.zero) by omega.
   rewrite Znth_big_endian_integer by omega.
   f_equal. simpl. f_equal. f_equal.
   rewrite BYTES. f_equal.

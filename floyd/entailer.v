@@ -3,8 +3,12 @@ Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.reptype_lemmas.
 Require Import floyd.data_at_rec_lemmas.
+Require Import floyd.sublist.
 
 Local Open Scope logic.
+
+Hint Rewrite (Znth_map Int.zero) (Znth_map Vundef)
+    using (auto; rewrite ?Zlength_map in *; omega) : sublist.
 
 Lemma FF_local_facts: forall {A}{NA: NatDed A}, (FF:A) |-- !!False.
 Proof. intros. apply FF_left. Qed.

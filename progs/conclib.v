@@ -184,50 +184,40 @@ Proof.
   subst; autorewrite with sublist.
   exploit (Z_mod_lt (i - n) (Zlength l)); [omega|].
   intro; repeat rewrite Zlength_sublist; try omega.
-  rewrite sublist_app; try omega.
+  rewrite sublist_app by (autorewrite with sublist; omega).
   autorewrite with sublist.
-  rewrite Z.min_l, sublist_sublist; try omega.
-  rewrite sublist_sublist; try omega.
-  rewrite sublist_app; try omega; repeat rewrite Zlength_sublist; try omega.
-  autorewrite with sublist.
-  rewrite (Z.min_r (n + _) n), sublist_sublist; try omega.
-  rewrite (Z.max_l (Zlength l - _) 0); [|omega].
-  rewrite sublist_app; try omega; try rewrite Zlength_cons; repeat rewrite Zlength_sublist; try omega.
-  autorewrite with sublist.
-  rewrite (Z.max_l (Z.succ _)); [|omega].
-  rewrite sublist_app; try omega; try rewrite Zlength_cons; repeat rewrite Zlength_sublist; try omega.
-  rewrite (Z.max_r (0 - _)); [|omega].
-  assert (i < n /\ (i - n) mod Zlength l = Zlength l + i - n \/
-          i >= n /\ (i - n) mod Zlength l = i - n) as Hcase.
-  { destruct (Z_lt_dec i n); [left | right]; split; try omega.
-    - rewrite Zmod_eq; [|omega].
+  destruct (Z_lt_dec i n) as [?H | ?H].
+*
+  assert (Heq: (i - n) mod Zlength l = Zlength l + i - n). {
+      rewrite Zmod_eq; [|omega].
       replace (_ / _) with (-1); try Omega0.
       replace (_ - _) with (- (n - i)); [|omega].
       rewrite Z_div_nz_opp_full, Zdiv_small; try omega.
-      rewrite Zmod_small; omega.
-    - apply Zmod_small; omega. }
-  destruct Hcase as [(? & Heq) | (? & Heq)]; rewrite Heq; autorewrite with sublist.
-  - rewrite Z.min_l, Z.min_l, Z.min_l, Z.min_r, Z.min_l; try omega.
-    autorewrite with sublist.
-    rewrite sublist_0_cons; [|omega].
-    autorewrite with sublist.
-    rewrite <- app_assoc; simpl; do 2 f_equal; try omega.
-    do 2 f_equal; omega.
-  - rewrite Z.min_r, Z.max_l, Z.min_r, Z.max_l, Z.min_r, Z.min_r, Z.max_l, Z.min_l; try omega.
-    autorewrite with sublist.
-    rewrite (sublist_nil (i - n)); simpl.
-    rewrite sublist_0_cons; [simpl | omega].
-    rewrite sublist_S_cons; [|omega].
-    autorewrite with sublist.
-    rewrite <- app_assoc; do 2 f_equal; try omega.
-    f_equal.
-    rewrite sublist_nil; simpl; f_equal; omega.
-  - split; [rewrite Z.min_glb_iff | rewrite Z.min_le_iff]; omega.
-  - split; [|rewrite Z.max_le_iff]; omega.
-  - rewrite Z.max_lub_iff; omega.
-  - split; [|rewrite Z.min_glb_iff]; omega.
-  - rewrite Z.min_le_iff; omega.
-  - repeat rewrite Zlength_sublist; omega.
+      rewrite Zmod_small; omega. }
+  rewrite Heq; clear Heq.
+  autorewrite with sublist.
+  rewrite sublist_app by (autorewrite with sublist; omega).
+  autorewrite with sublist.
+  rewrite sublist_app by (autorewrite with sublist; omega).
+  autorewrite with sublist.
+  rewrite <- app_assoc.
+  f_equal. f_equal; omega.
+  rewrite sublist_0_cons by omega.
+  simpl. f_equal. f_equal.
+  autorewrite with sublist.
+  f_equal. omega. omega.
+*
+  rewrite Zmod_small by omega.
+  autorewrite with sublist.
+  rewrite <- app_assoc.
+  rewrite sublist_S_cons by omega.
+  autorewrite with sublist.
+  f_equal. f_equal; omega.
+  rewrite sublist_app by (autorewrite with sublist; omega).
+  autorewrite with sublist.
+  rewrite sublist_0_cons by omega.
+  autorewrite with sublist.
+  f_equal. f_equal. f_equal; omega.
 Qed.
 
 Lemma combine_app : forall {A B} (l1 l2 : list A) (l1' l2' : list B), length l1 = length l1' ->

@@ -311,13 +311,15 @@ Proof. intros. abbreviate_semax.
      destruct (Znth_mapVint (hPosLoop2 (Z.to_nat i) intsums C Nonce) (6+i) Vundef) as [uj Uj].
       rewrite PL2Zlength; omega.  
      thaw FR4. thaw FR3. freeze [0;1;2;3;5] FR5.
+     autorewrite with sublist in *.
      Time forward; rewrite upd_Znth_diff; try (rewrite Zlength_map, PL2Zlength; simpl; omega). (*5.9 versus 13*)
      { Time entailer!. (*2 versus 4.6*)
        destruct (Zlength_length _ Front (Zlength Front)) as [X _]. omega.
-       rewrite X, Uj; trivial. simpl; trivial. }
+       rewrite X; trivial. autorewrite with sublist; simpl; trivial. }
      { omega. } 
      Opaque Z.mul. Opaque Z.add.
-     Time forward. (*5.8 versus 12.9*) rewrite Uj.
+     Time forward. (*5.8 versus 12.9*) 
+     autorewrite with sublist; rewrite Uj.
      Transparent Z.add. Transparent Z.mul.
 (*Issue: substitution in entailer/entailer! is a bit too eager here. Without the following assert (FLN: ...) ... destruct FLN,
   the two hypotheses are simply combined to Zlength Front = Zlength FrontN by entailer (and again by the inv H0) *)
@@ -345,18 +347,20 @@ Proof. intros. abbreviate_semax.
      + rewrite field_at_isptr. Time normalize. apply isptrD in Px. destruct Px as [xb [xoff XP]]; subst x.
        rewrite field_at_data_at.
        rewrite field_address_offset by auto with field_compatible.
-       rewrite isptr_offset_val_zero; trivial.
+       simpl. rewrite Int.add_zero.
+(*       rewrite isptr_offset_val_zero by trivial. *)
        apply data_at_ext.
        rewrite (Zplus_comm i 1), Z2Nat.inj_add; simpl; try omega.
-       rewrite Z2Nat.id.
+       rewrite Z2Nat.id by omega.
        rewrite upd_Znth_ints.
-       rewrite upd_Znth_ints. 
+       rewrite upd_Znth_ints.
+       autorewrite with sublist.
+       f_equal. 
        unfold upd_Znth.
-       assert (VJeq: vj = Znth (5 * i) intsums Int.zero). 
-       { clear - Vj SL PL2length I.
-         rewrite (Znth_map _ _ (5 * i) Vint) with (d':=Int.zero) in Vj. inv Vj.
-         2: rewrite PL2length; try omega. Focus 2. split. apply (Z2Nat.inj_le 0); omega. apply (Z2Nat.inj_lt _ 4); omega.        
-         destruct (zeq i 0); subst; simpl. trivial.
+       assert (VJeq: Znth (5 * i) (hPosLoop2 (Z.to_nat i) intsums C Nonce) Int.zero =
+                Znth (5 * i) intsums Int.zero). {
+         clear - SL PL2length I.
+         destruct (zeq i 0); subst; simpl; [ trivial | ].
          destruct (zeq i 1); subst; simpl.
                rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
                rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. trivial.
@@ -372,12 +376,10 @@ Proof. intros. abbreviate_semax.
                rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. 
                rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
                rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. trivial.
-         omega. } 
-       rewrite <- VJeq, Zlength_map. trivial.
-       assert (UJeq: uj = Znth (6 + i) intsums Int.zero).
-       { clear - Uj SL PL2length I.
-         rewrite (Znth_map _ _ (6 + i) Vint) with (d':=Int.zero) in Uj. inv Uj.
-         2: rewrite PL2length; try omega. Focus 2. split. apply (Z2Nat.inj_le 0); omega. apply (Z2Nat.inj_lt _ 4); omega.        
+         omega. }
+      assert (EQ: Znth (6 + i) (hPosLoop2 (Z.to_nat i) intsums C Nonce) Int.zero =
+                   Znth (6 + i) intsums Int.zero).  {
+         clear - SL PL2length I.
          destruct (zeq i 0); subst; simpl. trivial.
          destruct (zeq i 1); subst; simpl.
                rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
@@ -395,8 +397,8 @@ Proof. intros. abbreviate_semax.
                rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega.
                rewrite upd_Znth_diff; repeat rewrite upd_Znth_Zlength; try omega. trivial.
          omega. }
-       rewrite <- UJeq, Zlength_map. reflexivity. apply I.
-       simpl; trivial.
+        rewrite !VJeq, !EQ.
+        autorewrite with sublist. auto.
     +  omega. 
    }
   apply andp_left2; apply derives_refl. 
