@@ -30,7 +30,7 @@ Lemma field_address0_offset:
 Proof. intros. unfold field_address0; rewrite if_true by auto; reflexivity.
 Qed.
 
-(* TODO: This has already been proved in nested_field_lemmas already. *)
+(* TODO: This has already been proved in nested_field_lemmas, where it's named field_compatible_field_address. *)
 Lemma field_address_offset:
   forall {cs: compspecs} t gfs p,
     field_compatible t gfs p ->

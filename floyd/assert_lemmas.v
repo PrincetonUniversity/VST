@@ -94,6 +94,13 @@ Proof. intros.
  destruct i,s,v; simpl; intros; auto.
 Qed.
 
+Lemma is_int_I32_Vint: forall s v, is_int I32 s (Vint v).
+Proof.
+intros.
+hnf. auto.
+Qed.
+Hint Resolve is_int_I32_Vint.
+
 Lemma sem_cast_neutral_int: forall v,
   isVint v ->
   sem_cast_neutral v = Some v.

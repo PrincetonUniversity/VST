@@ -208,6 +208,112 @@ Proof.
     apply derives_refl.
 Qed.
 
+(*
+a is the "base pointer" of the SEP clause to be used, and the path to the value can be split in 2 ways:
+- a.gfsA.gfsB :  a.gfsA corresponds to e1, and gfsB corresponds to efs
+- a.gfs0.gfs1 :  a.gfs0 is what we have a field_at clause for, and gfs1 goes from there to final value
+*)
+Lemma semax_SC_field_load_general:
+  forall {Espec: OracleKind},
+    forall Delta sh n id P Q R (e1: expr)
+      (t t_root: type) (efs: list efield) (gfs0 gfs1 gfsA gfsB: list gfield) (tts: list type)
+      (p a : val) (v : val) (v' : reptype (nested_field_type t_root gfs0)) lr,
+      typeof_temp Delta id = Some t ->
+      is_neutral_cast (typeof (nested_efield e1 efs tts)) t = true ->
+      type_is_volatile (typeof (nested_efield e1 efs tts)) = false ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- efield_denote efs gfsB ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- !! (p = field_address t_root gfsA a) ->
+      nth_error R n = Some (field_at sh t_root gfs0 v' a) ->
+      readable_share sh ->
+      gfsB ++ gfsA = gfs1 ++ gfs0 ->
+      JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v') v ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+         (tc_LR Delta e1 lr) &&
+         local `(tc_val (typeof (nested_efield e1 efs tts)) v) &&
+         (tc_efield Delta efs) ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        (!! legal_nested_field t_root (gfsB ++ gfsA)) ->
+      LR_of_type (nested_field_type t_root gfsA) = lr ->
+      legal_nested_efield (nested_field_type t_root gfsA) e1 gfsB tts lr = true ->
+      semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
+        (Sset id (nested_efield e1 efs tts))
+          (normal_ret_assert
+            (PROPx P 
+              (LOCALx (temp id v :: remove_localdef id Q)
+                (SEPx R)))).
+Proof.
+  intros until 0. intros TypeOf Cast Volatile Ugly Edenote Nice GetR Rsh Split Dig Tc Lnf EqLr Lnef.
+  eapply semax_extract_later_prop'; [exact Lnf | clear Lnf; intro Lnf].
+  eapply semax_extract_later_prop'; [exact Nice | clear Nice; intro Nice]. subst p.
+  eapply semax_extract_later_prop'; 
+   [eapply derives_trans; [exact Edenote | eapply typeof_nested_efield; eauto] | intro EqT].
+  assert (JMeq (valinject (nested_field_type t_root (gfsB ++ gfsA)) v) v) as JM. {
+    apply valinject_JMeq. apply is_neutral_cast_by_value with t.
+    rewrite <- nested_field_type_nested_field_type. rewrite EqT. assumption.
+  }
+  eapply semax_max_path_field_load_nth_ram_general.
+  1: eassumption.
+  1: eassumption.
+  1: eassumption.
+  1: eassumption.
+  1: eassumption.
+  1: eassumption.
+  1: eassumption.
+  1: eassumption.
+  2: eassumption.
+  2: rewrite (add_andp _ _ Edenote), (add_andp _ _ Tc); solve_andp.
+  eapply derives_trans; [apply nested_field_ramif' with (gfs3 := gfs1) |].
+  + eapply JMeq_trans; [apply Dig |].
+    rewrite Split in JM.
+    apply @JMeq_sym, JM.
+  + rewrite <- Split. exact Lnf.
+  + apply sepcon_derives; [| auto].
+    rewrite <- Split.
+    apply derives_refl.
+Qed.
+
+(* same as above except note *)
+Lemma semax_SC_field_load_general':
+  forall {Espec: OracleKind},
+    forall Delta sh n id P Q R (e1: expr)
+      (t t_root: type) (efs: list efield) (gfs0 gfs1 gfsA gfsB: list gfield) (tts: list type)
+      (p a : val) (v : val) (v' : reptype (nested_field_type t_root gfs0)) lr,
+      typeof_temp Delta id = Some t ->
+      is_neutral_cast (typeof (nested_efield e1 efs tts)) t = true ->
+      type_is_volatile (typeof (nested_efield e1 efs tts)) = false ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- local (`(eq p) (eval_LR e1 lr)) ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- efield_denote efs gfsB ->
+      (* note: rhs of disjunction is just a special case of lhs, but does not require field_compatible,
+         so it's simpler to use *)
+      (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |-- !! (p = field_address t_root gfsA a)) 
+         \/ (p = a /\ gfsA = nil) ->
+      nth_error R n = Some (field_at sh t_root gfs0 v' a) ->
+      readable_share sh ->
+      gfsB ++ gfsA = gfs1 ++ gfs0 ->
+      JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v') v ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+         (tc_LR Delta e1 lr) &&
+         local `(tc_val (typeof (nested_efield e1 efs tts)) v) &&
+         (tc_efield Delta efs) ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        (!! legal_nested_field t_root (gfsB ++ gfsA)) ->
+      LR_of_type (nested_field_type t_root gfsA) = lr ->
+      legal_nested_efield (nested_field_type t_root gfsA) e1 gfsB tts lr = true ->
+      semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
+        (Sset id (nested_efield e1 efs tts))
+          (normal_ret_assert
+            (PROPx P 
+              (LOCALx (temp id v :: remove_localdef id Q)
+                (SEPx R)))).
+Proof.
+  intros until 0. intros TypeOf Cast Volatile Ugly Edenote Nice GetR Rsh Split Dig Tc Lnf EqLr Lnef.
+  destruct Nice as [Nice | [? ?]].
+  - eapply semax_SC_field_load_general; eassumption.
+  - subst. eapply semax_SC_field_load; try eassumption; try reflexivity;
+       try rewrite app_nil_r; eassumption.
+Qed.
+
 Lemma nth_error_SEP_sepcon_TT': forall D P Q R n Rn S,
   ENTAIL D, PROPx P (LOCALx Q (SEPx (Rn :: nil))) |-- S ->
   nth_error R n = Some Rn ->

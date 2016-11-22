@@ -94,8 +94,6 @@ forward. (* i++; *)
  entailer!.
  clear - H HRE H1.
  autorewrite with sublist in *.
- rewrite Znth_map with (d':=Int.zero) by (autorewrite with sublist; omega).
- rewrite Znth_map with (d':=0) by  (autorewrite with sublist; omega).
  simpl. 
  rewrite add_repr.
  f_equal. f_equal.

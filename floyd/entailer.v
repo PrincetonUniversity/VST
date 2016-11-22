@@ -3,8 +3,12 @@ Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.reptype_lemmas.
 Require Import floyd.data_at_rec_lemmas.
+Require Import floyd.sublist.
 
 Local Open Scope logic.
+
+Hint Rewrite (Znth_map Int.zero) (Znth_map Vundef)
+    using (auto; rewrite ?Zlength_map in *; omega) : sublist.
 
 Lemma FF_local_facts: forall {A}{NA: NatDed A}, (FF:A) |-- !!False.
 Proof. intros. apply FF_left. Qed.
@@ -446,11 +450,17 @@ Ltac entailer' :=
               | simple apply TT_right].
 
 Ltac entailer :=
+ try match goal with POSTCONDITION := @abbreviate ret_assert _ |- _ =>
+        clear POSTCONDITION
+      end;
+ try match goal with MORE_COMMANDS := @abbreviate statement _ |- _ =>
+        clear MORE_COMMANDS
+      end;
  match goal with
  | |- ?P |-- _ => 
     match type of P with
     | ?T => unify T (environ->mpred); go_lower
-    | _ => pull_out_props
+    | _ => clear_Delta; pull_out_props
     end
  | |- _ => fail "The entailer tactic works only on entailments   _ |-- _ "
  end;
@@ -534,8 +544,17 @@ Proof.
 intros. apply andp_right; auto. apply prop_right; auto.
 Qed.
 
+Lemma empTrue:
+ @derives mpred Nveric (@emp mpred Nveric Sveric) (@prop mpred Nveric True).
+Proof.
+apply prop_right; auto.
+Qed.
+
 Ltac entailer_for_return :=
- go_lower; saturate_local; ent_iter;
+ go_lower;
+ unfold main_post; simpl;
+ try simple apply empTrue;
+ saturate_local; ent_iter;
  normalize;
  repeat erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]);
  entailer';
@@ -544,7 +563,7 @@ Ltac entailer_for_return :=
 Ltac entbang := 
  intros;
  match goal with
- | |- local _ && ?P |-- _ => go_lower
+ | |- local _ && ?P |-- _ => go_lower; try simple apply empTrue
  | |- ?P |-- _ =>
     match type of P with 
     | ?T => unify T mpred; pull_out_props

@@ -1447,6 +1447,58 @@ Proof.
   auto.
 Qed.
 
+Lemma legal_nested_field_shrink: forall t_root gfsB gfsA,
+  legal_nested_field t_root (gfsB ++ gfsA) ->
+  legal_nested_field t_root gfsA.
+Proof.
+  intros. induction gfsB.
+  - rewrite app_nil_l in H. assumption.
+  - apply IHgfsB. clear IHgfsB. simpl in H. destruct H. assumption.
+Qed.
+
+Lemma field_compatible_shrink: forall t_root gfsB gfsA a,
+  field_compatible t_root (gfsB ++ gfsA) a ->
+  field_compatible t_root gfsA a.
+Proof.
+  intros. unfold field_compatible in *. rename H into A. repeat destruct A as [? A].
+  repeat split; try assumption. eapply legal_nested_field_shrink. eassumption.
+Qed.
+
+Lemma field_compatible_app: forall gfsB t_root gfsA a,
+  field_compatible t_root (gfsB ++ gfsA) a ->
+  field_compatible (nested_field_type t_root gfsA) gfsB (field_address t_root gfsA a).
+Proof.
+  intro gfsB. induction gfsB; intros.
+  - simpl in H. rewrite field_compatible_field_address by assumption.
+    apply field_compatible_nested_field. assumption.
+  - rewrite <- app_comm_cons in H.
+    apply field_compatible_cons in H.
+    destruct (nested_field_type t_root (gfsB ++ gfsA)) eqn: E;
+    try solve [exfalso; assumption];
+    destruct a; try solve [exfalso; assumption];
+    rewrite <- nested_field_type_nested_field_type in E;
+    apply field_compatible_cons;
+    rewrite E; destruct H; auto.
+Qed.
+
+Lemma field_address_app: forall t_root gfsA gfsB a,
+  field_compatible t_root (gfsB ++ gfsA) a ->
+  field_address t_root (gfsB ++ gfsA) a =
+  field_address (nested_field_type t_root gfsA) gfsB (field_address t_root gfsA a).
+Proof.
+  intros.
+  rewrite field_compatible_field_address.
+  rewrite field_compatible_field_address.
+  rewrite nested_field_offset_app.
+  rewrite field_compatible_field_address.
+  rewrite offset_offset_val.
+  reflexivity.
+  { eapply field_compatible_shrink. eassumption. }
+  { eapply field_compatible_legal_nested_field. eassumption. }
+  { eapply field_compatible_app. assumption. }
+  { assumption. }
+Qed.
+
 End COMPOSITE_ENV.
 (*
 Arguments nested_field_offset2 {cs} t gfs /.

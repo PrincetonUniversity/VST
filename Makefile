@@ -237,7 +237,7 @@ PROGS_FILES= \
   insertionsort.v reverse.v queue.v sumarray.v message.v string.v\
   revarray.v verif_revarray.v insertionsort.v append.v min.v verif_min.v \
   verif_float.v verif_global.v verif_ptr_compare.v \
-  verif_nest3.v verif_nest2.v \
+  verif_nest3.v verif_nest2.v verif_load_demo.v \
   logical_compare.v verif_logical_compare.v field_loadstore.v  verif_field_loadstore.v \
   even.v verif_even.v odd.v verif_odd.v \
   merge.v verif_merge.v verif_append.v verif_append2.v bst.v verif_bst.v \
@@ -328,7 +328,7 @@ HMACDRBG_FILES = \
 #  verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v verif_hmac_drbg_generate.v
 
 
-C_FILES = reverse.c queue.c queue2.c sumarray.c sumarray2.c message.c insertionsort.c float.c global.c nest3.c nest2.c nest3.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c min.c
+C_FILES = reverse.c queue.c queue2.c sumarray.c sumarray2.c message.c insertionsort.c float.c global.c nest3.c nest2.c nest3.c load_demo.c dotprod.c string.c field_loadstore.c ptr_compare.c merge.c append.c bst.c min.c
 
 FILES = \
  $(MSL_FILES:%=msl/%) \
@@ -362,7 +362,7 @@ else
 	@$(COQC) $(COQFLAGS) $*.v
 endif
 
-COQVERSION= 8.5pl1 or-else 8.5pl2 or-else 8.5pl3
+COQVERSION= 8.5pl1 or-else 8.5pl2 or-else 8.5pl3 or-else 8.6beta1
 COQV=$(shell $(COQC) -v)
 ifeq ("$(filter $(COQVERSION),$(COQV))","")
 $(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
@@ -488,7 +488,7 @@ floyd/floyd.coq: floyd/proofauto.vo
 	coqtop $(COQFLAGS) -load-vernac-object floyd/proofauto -outputstate floyd/floyd -batch
 
 dep:
-	$(COQDEP) $(shell find . -name "*.v")  > .depend
+	$(COQDEP) >.depend `find . -name "*.v"`
 
 .depend:
 	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend

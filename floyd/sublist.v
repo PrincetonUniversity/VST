@@ -403,7 +403,7 @@ Definition Znth {X} n (xs: list X) (default: X) :=
   if (zlt n 0) then default else nth (Z.to_nat n) xs default.
 
 Lemma Znth_map:
-  forall A B i (f: A -> B) (al: list A) (d': A) (b: B),
+  forall {A:Type} (d': A) (B:Type) i (f: A -> B) (al: list A) (b: B),
   0 <= i < Zlength al ->
   @Znth B i (map f al) b = f (Znth i al d').
 Proof.
@@ -415,6 +415,14 @@ rewrite nth_map' with (d'0 := d'); auto.
 apply Nat2Z.inj_lt. rewrite Z2Nat.id by omega.
 rewrite <- Zlength_correct; omega.
 Qed.
+
+Hint Rewrite (Znth_map 0) (Znth_map 1%positive) (Znth_map O) 
+    using (auto; rewrite ?Zlength_map in *; omega) : sublist.
+
+(* Add these in a later file where things are in scope ...
+Hint Rewrite (Znth_map Int.zero) (Znth_map Vundef)
+    using (auto; rewrite ?Zlength_map in *; omega) : sublist.
+*)
 
 Lemma Znth_succ: forall {A} i lo (v: list A), Z.succ lo <= i -> Znth (i - lo) v = Znth (i - (Z.succ lo)) (skipn 1 v).
 Proof.
@@ -1377,7 +1385,8 @@ Hint Rewrite @Zlength_map: sublist.
 Hint Rewrite @Zlength_list_repeat using (autorewrite with sublist; omega): sublist.
 Hint Rewrite Z.sub_0_r Z.add_0_l Z.add_0_r : sublist.
 Hint Rewrite @Zlength_sublist using (autorewrite with sublist; omega) : sublist.
-Hint Rewrite Z.max_r using omega : sublist.
+Hint Rewrite Z.max_r Z.max_l using omega : sublist.
+Hint Rewrite Z.min_r Z.min_l using omega : sublist.
 Hint Rewrite Z.add_simpl_r Z.sub_add Z.sub_diag : sublist.
 Hint Rewrite @sublist_sublist using (autorewrite with sublist; omega) : sublist.
 Hint Rewrite @sublist_app1 using (autorewrite with sublist; omega) : sublist.
@@ -1391,6 +1400,8 @@ Hint Rewrite Z.add_0_r : sublist.
 Hint Rewrite @app_Znth1 using (autorewrite with sublist; omega) : sublist.
 Hint Rewrite @app_Znth2 using (autorewrite with sublist; omega) : sublist.
 Hint Rewrite @Znth_sublist using (autorewrite with sublist; omega) : sublist.
+
+Hint Rewrite @sublist_nil : sublist.
 
 
 Lemma Znth_overflow: 
