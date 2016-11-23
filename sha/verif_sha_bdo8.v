@@ -244,6 +244,77 @@ autorewrite with sublist; auto.
 f_equal; omega.
 Qed.
 
+Lemma int_add_upto:
+  forall (regs atoh: list int),
+   Datatypes.length regs = 8%nat ->
+   Datatypes.length atoh = 8%nat ->
+   forall (j:nat)  (i:Z), 
+     j = Z.to_nat i ->
+     0 <= i < 8 -> 
+     is_int I32 Unsigned (Znth i (map Vint (add_upto j  regs atoh)) Vundef).
+Proof.
+intros until 2.
+  assert (ZR: Zlength regs = 8) by ( rewrite Zlength_correct, H; reflexivity).
+  induction j; intros.
+  simpl. apply Znth_is_int; omega.
+  unfold Znth.
+  rewrite if_false by omega.
+ rewrite nth_map' with (d' := Int.zero).
+  apply I.
+  rewrite length_add_upto by omega.
+  rewrite H. apply Nat2Z.inj_lt.
+  rewrite Z2Nat.id by omega. apply H2.
+Qed.
+
+Lemma add_s: 
+  forall (regs atoh: list int),
+   Datatypes.length regs = 8%nat ->
+   Datatypes.length atoh = 8%nat ->
+ forall i i',
+    (i < 8)%nat ->
+    i' = Z.of_nat i ->
+   upd_Znth i' (map Vint (add_upto i regs atoh))
+       (force_val
+              (sem_cast_neutral
+                 (force_val
+                    (sem_add_default tuint tuint
+                       (Znth i' (map Vint (add_upto i regs atoh)) Vundef)
+                       (Vint (nthi atoh i')))))) =
+     map Vint (add_upto (S i) regs atoh).
+Proof.
+intros.
+assert (is_int I32 Unsigned (Znth i' (map Vint (add_upto i regs atoh)) Vundef)).
+ apply  Znth_is_int.   rewrite Zlength_correct, length_add_upto, H.
+ change (Z.of_nat 8) with 8; omega. rewrite H,H0;  auto.
+subst i'.
+rewrite add_upto_S; try omega.
+f_equal.
+destruct (Znth (Z.of_nat i) (map Vint (add_upto i regs atoh)) Vundef) eqn:?;
+   try contradiction H3.
+simpl.
+f_equal. f_equal.
+unfold Znth in Heqv.
+rewrite if_false in Heqv.
+unfold nthi.
+rewrite Nat2Z.id in Heqv|-*.
+rewrite nth_map' with (d':=Int.zero) in Heqv.
+inv Heqv. auto.
+rewrite length_add_upto; try congruence.
+clear; omega.
+Qed.
+
+Lemma add_upto_8:
+  forall (regs atoh: list int),
+   Datatypes.length regs = 8%nat ->
+   Datatypes.length atoh = 8%nat ->
+    add_upto 8 regs atoh = map2 Int.add regs atoh.
+Proof.
+intros.
+destruct atoh as [ | a [ | b [ | c [ | d [ | e [ | f [ | g [ | h [ | ]]]]]]]]]; inv H0.
+destruct regs as [ | a' [ | b' [ | c' [ | d' [ | e' [ | f' [ | g' [ | h' [ | ]]]]]]]]]; inv H.
+simpl; auto.
+Qed.
+
 Lemma add_them_back_proof:
   forall (Espec : OracleKind)
      (regs regs': list int) (ctx: val) kv,
@@ -283,84 +354,33 @@ name ctx_ _ctx.
 rename regs' into atoh.
 unfold sequence, add_them_back.
 change regs with  (add_upto 0 regs atoh) at 1.
-
 unfold get_h, add_h.
+abbreviate_semax.
 assert (ZR: Zlength regs = 8) by (rewrite Zlength_correct, H; reflexivity).
-
-assert (INT_ADD_UPTO:
- forall (j:nat)  (i:Z), 
-     j = Z.to_nat i ->
-     0 <= i < 8 -> 
-     is_int I32 Unsigned (Znth i (map Vint (add_upto j  regs atoh)) Vundef)).
-{
-  induction j; intros.
-  simpl. apply Znth_is_int; omega.
-  unfold Znth.
-  rewrite if_false by omega.
- rewrite nth_map' with (d' := Int.zero).
-  apply I.
-  rewrite length_add_upto by omega; rewrite H. apply Nat2Z.inj_lt.
-  rewrite Z2Nat.id by omega. apply H2.
-}
-
-assert (ADD_S:
- forall i i',
-    (i < 8)%nat ->
-    i' = Z.of_nat i ->
-   upd_Znth i' (map Vint (add_upto i regs atoh))
-       (force_val
-              (sem_cast_neutral
-                 (force_val
-                    (sem_add_default tuint tuint
-                       (Znth i' (map Vint (add_upto i regs atoh)) Vundef)
-                       (Vint (nthi atoh i')))))) =
-     map Vint (add_upto (S i) regs atoh)). {
-intros.
-assert (is_int I32 Unsigned (Znth i' (map Vint (add_upto i regs atoh)) Vundef)).
- apply  Znth_is_int.   rewrite Zlength_correct, length_add_upto, H.
- change (Z.of_nat 8) with 8; omega. rewrite H,H0;  auto.
-subst i'.
-rewrite add_upto_S; try omega.
-f_equal.
-destruct (Znth (Z.of_nat i) (map Vint (add_upto i regs atoh)) Vundef) eqn:?;
-   try contradiction H3.
-simpl.
-f_equal. f_equal.
-unfold Znth in Heqv.
-rewrite if_false in Heqv.
-unfold nthi.
-rewrite Nat2Z.id in Heqv|-*.
-rewrite nth_map' with (d':=Int.zero) in Heqv.
-inv Heqv. auto.
-rewrite length_add_upto; try congruence.
-clear; omega.
-}
+assert (INT_ADD_UPTO := int_add_upto _ _ H H0).
+assert (ADD_S := add_s _ _ H H0).
 
 Opaque add_upto.
 forward.
 entailer!. apply INT_ADD_UPTO; auto; computable.
 forward.
-simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; try omega).
+simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
 forward; forward.
-simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; try omega).
+simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
 forward; forward.
-simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; try omega).
+simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
 forward; forward.
-simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; try omega).
+simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
 forward; forward.
-simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; try omega).
+simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
 forward; forward.
-simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; try omega).
+simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
 forward; forward.
-simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; try omega).
+simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
 forward; forward.
-simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; try omega).
-replace (add_upto 8 regs atoh) with  (map2 Int.add regs atoh).
-entailer!. auto.
-clear - H H0.
-destruct atoh as [ | a [ | b [ | c [ | d [ | e [ | f [ | g [ | h [ | ]]]]]]]]]; inv H0.
-destruct regs as [ | a' [ | b' [ | c' [ | d' [ | e' [ | f' [ | g' [ | h' [ | ]]]]]]]]]; inv H.
-simpl; auto.
+simpl upd_Znth; rewrite ADD_S by (try reflexivity; clear; omega).
+rewrite (add_upto_8 _ _ H H0).
+entailer!.
 Qed.
 
 

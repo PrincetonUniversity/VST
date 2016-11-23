@@ -79,7 +79,7 @@ Lemma sha256_block_data_order_loop1_proof:
 Proof.
 unfold block_data_order_loop1.
 intros.
-simpl nth; fold rearrange_regs.
+simpl nth.
 abbreviate_semax.
 name a_ _a.
 name b_ _b.
@@ -181,15 +181,16 @@ assert (i < Zlength K256)
   by (change (Zlength K256) with (LBLOCKz + 48); 
        pose proof LBLOCKz_eq; omega).
 forward.  (* Ki=K256[i]; *)
-(* 1,689,280 1,212,872 *)
-entailer!.
-rewrite Znth_nthi by omega. apply I.
+autorewrite with sublist.
+rewrite Znth_nthi by omega.
+entailer!. 
 (* 1,811,028 1,406,332 *)
+autorewrite with sublist. rewrite Znth_nthi by omega.
 subst POSTCONDITION; unfold abbreviate.
 replace (i + 1 - 1)%Z with i by omega.
 rewrite (Round_equation _ _ i).
-unfold Znth at 2. rewrite if_false by omega.
-fold (nthi b i).
+rewrite if_false by omega.
+rewrite Znth_nthi by omega.
 forget (nthi b) as M.
 replace (M i) with (W M i)
   by (rewrite W_equation; rewrite if_true by omega; auto).
@@ -200,11 +201,6 @@ match goal with |- semax _ (PROPx _ (LOCALx _ (SEPx ?R))) _ _ =>
   semax_frame [  ] R
 end.
 clear b H1 H.
-replace (Znth i (map Vint K256) Vundef) with (Vint (nthi K256 i))
-  by (unfold Znth, nthi; rewrite if_false by omega;
-        rewrite nth_map' with (d':=Int.zero); auto;
-        apply Nat2Z.inj_lt; rewrite Z2Nat.id by omega;
-        change (Z.of_nat (length K256)) with 64; omega).
 forget (nthi K256 i) as k.
 forget (W M i) as w.
 assert (length (Round regs M (i - 1)) = 8)%nat
@@ -212,16 +208,14 @@ assert (length (Round regs M (i - 1)) = 8)%nat
 forget (Round regs M (i - 1)) as regs'.
 change 16%nat with LBLOCK.
 destruct regs' as [ | a [ | b [ | c [ | d [ | e [ | f [ | g [ | h [ | ]]]]]]]]]; inv H.
-unfold rearrange_regs.
-abbreviate_semax.
 forward. (* T1 = l + h + Sigma1(e) + Ch(e,f,g) + Ki; *)
 rewrite <- Sigma_1_eq, <- Ch_eq, rearrange_aux.
 forward. (* T2 = Sigma0(a) + Maj(a,b,c); *)
  rewrite <- Sigma_0_eq, <- Maj_eq.
-do 8 forward.
-rewrite if_false by omega.
 unfold nthi; simpl nth.
+do 8 forward.
 entailer!.
+unfold nthi; simpl nth.
 split3.
 + rewrite Z.mul_add_distr_r; reflexivity.
 + f_equal.  f_equal.
@@ -232,7 +226,6 @@ split3.
    f_equal. rewrite (Int.add_commut (Int.add k _)).
    rewrite <- Int.add_assoc. auto.
 * (* loop invariant & not test implies postcondition *)
-cbv beta.
 autorewrite with sublist.
 entailer!.
 Qed.
