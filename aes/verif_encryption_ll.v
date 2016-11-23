@@ -1,6 +1,6 @@
 Require Import floyd.proofauto.
-Require Import aes.
-Require Import tablesLL.
+Require Import aes.aes.
+Require Import aes.tablesLL.
 
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.

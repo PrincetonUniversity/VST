@@ -1,6 +1,6 @@
 Require Import floyd.proofauto.
-Require Import aesutils.
-Require Import AES256.
+Require Import aes.aesutils.
+Require Import aes.AES256.
 
 Require Import Coqlib.
 Require Import msl.Coqlib2. 
