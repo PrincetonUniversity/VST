@@ -1846,7 +1846,12 @@ Ltac solve_store_rule_evaluation :=
 
 Inductive undo_and_first__assert_PROP: Prop -> Prop := .
 
-Ltac entailer_for_load_tac := try solve [entailer!].
+Ltac entailer_for_load_tac :=
+  repeat match goal with H := _ |- _ => clear H end;
+  try quick_typecheck3;
+  unfold tc_efield, tc_LR, tc_LR_strong; simpl typeof;
+  try solve [entailer!].
+
 Ltac entailer_for_store_tac := try solve [entailer!].
 
 Ltac load_tac :=
@@ -1920,9 +1925,6 @@ Ltac load_tac :=
     | solve_load_rule_evaluation
     | clear Heq HLE H_Denote H;
       subst e1 gfs0 gfs1 efs tts t_root v sh lr n;
-      repeat match goal with H := _ |- _ => clear H end;
-      try quick_typecheck3; 
-      unfold tc_efield, tc_LR, tc_LR_strong; simpl typeof;
       entailer_for_load_tac
     | solve_legal_nested_field_in_entailment;
       try clear Heq HLE H_Denote H;
@@ -2008,9 +2010,6 @@ Ltac load_tac :=
       | solve_load_rule_evaluation
       | clear HLE H_Denote;
         subst lr e1 gfs0 gfs1 gfsA gfsB efs tts t_root a v n;
-        repeat match goal with H := _ |- _ => clear H end;
-        try quick_typecheck3; 
-        unfold tc_efield, tc_LR, tc_LR_strong; simpl typeof;
         entailer_for_load_tac;
         subst p sh; clear Hf HNice gfsEq Heq
       | subst lr e1 gfs0 gfs1 gfsA gfsB efs tts t_root a v n;
