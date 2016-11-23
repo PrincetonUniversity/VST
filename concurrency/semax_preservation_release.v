@@ -472,6 +472,8 @@ Proof.
         specialize (wellformed i cnti).
         rewrite Hthread in wellformed.
         intros c' Ec'.
+        eapply jsafe_phi_jsafeN with (compat0 := compat) in safety.
+        
         inversion safety as [ | ?????? step | ??????? ae Pre Post Safe | ????? Ha]; swap 2 3.
         - (* not corestep *)
           exfalso.
@@ -502,9 +504,10 @@ Proof.
           
         - (* at_external : we can now use safety *)
           subst z c0 m0.
+          intros jm' Ejm'.
           destruct Post with
           (ret := @None val)
-            (m' := jm_ lj compat')
+            (m' := jm')
             (z' := ora) (n' := n) as (c'' & Ec'' & Safe').
           
           + assert (e = UNLOCK).
@@ -532,21 +535,32 @@ Proof.
             
           + (* proving Hrel *)
             hnf.
+            assert (n = level jm'). {
+              rewrite <-level_m_phi.
+              rewrite Ejm'.
+              REWR.
+              REWR.
+              REWR.
+              rewrite level_age_to; auto.
+              replace (level phi') with (level Phi). omega.
+              transitivity (level (getThreadR i tp cnti)); join_level_tac.
+              rewrite getThread_level with (Phi := Phi). auto. apply compat.
+            }
+            assert (level phi' = S n). {
+              cleanup. replace (level phi') with (S n). omega. join_level_tac.
+              transitivity (level (getThreadR i tp cnti)); join_level_tac.
+              rewrite getThread_level with (Phi := Phi). auto. apply compat.
+            }
+            
             split; [ | split].
-            * rewrite level_jm_.
-              rewrite level_age_to; auto. cleanup. omega.
-            * do 2 rewrite level_jm_.
-              rewrite level_age_to; auto. cleanup. omega.
-              cleanup. omega.
-            * eapply pures_same_eq_l.
-              apply pures_same_sym, pures_same_jm_.
-              eapply pures_same_eq_r.
-              2:apply pures_same_sym, pures_same_jm_.
-              rewrite level_m_phi.
-              rewrite level_jm_.
-              auto.
-              apply pures_age_eq. omega.
-              
+            * auto.
+            * rewr (level jm'). rewrite level_jm_. cleanup. omega.
+            * simpl. rewrite Ejm'. do 3 REWR.
+              eapply pures_same_eq_l.
+              2:apply pures_age_eq; omega.
+              apply join_sub_pures_same.
+              eexists. eapply join_comm. eassumption.
+          
           + (* we must satisfy the post condition *)
             assert (e = UNLOCK).
             { rewrite <-Ejuicy_sem in *.
@@ -659,13 +673,10 @@ Proof.
             (* destruct (join_assoc (join_comm j) Hrem_lock_res) as (phi0' & jphi0' & jframe). *)
             exists (age_to n phi0'), (age_to n phi1).
             
-            rewrite m_phi_jm_ in *.
+            rewrite Ejm'.
+            REWR. REWR. REWR.
             split.
-            * REWR.
-              cleanup.
-              cleanup.
-              REWR.
-              REWR.
+            * auto.
             * split. 2:eapply necR_trans; [ | apply  age_to_necR ]; auto.
               split. now auto.
               split. now auto.
@@ -687,98 +698,12 @@ Proof.
             auto.
       }
       
-    * unshelve erewrite gsoThreadCode; auto.
-      unfold semax_invariant.Machine.containsThread in *.
-      cut (forall c (cntj : containsThread tp j),
-              jsafeN Jspec' ge (S n) ora c (jm_ cntj compat) ->
-              jsafeN Jspec' ge n ora c (jm_ lj compat')).
-      {
-        intros HH.
-        destruct (@getThreadC j tp lj) eqn:E.
-        - unshelve eapply HH; auto.
-        - unshelve eapply HH; auto.
-        - intros c' Ec'. eapply HH; auto.
-        - constructor.
-      }
-      intros c0 cntj Safe.
-      apply jsafeN_downward in Safe.
-      apply jsafeN_age_to with (l := n) in Safe; auto.
-      revert Safe.
-      apply jsafeN_mem_equiv. 2: now apply Jspec'_juicy_mem_equiv.
-      split.
-      -- rewrite m_dry_age_to.
-         unfold jm_ in *.
-         set (@mem_compatible_forget _ _ _ _) as cmpt; clearbody cmpt.
-         set (@mem_compatible_forget _ _ _ _) as cmpt'; clearbody cmpt'.
-         match goal with
-           |- context [thread_mem_compatible ?a ?b] =>
-           generalize (thread_mem_compatible a b); intros pr
-         end.
-         match goal with
-           |- context [thread_mem_compatible ?a ?b] =>
-           generalize (thread_mem_compatible a b); intros pr'
-         end.
-         
-         eapply mem_equiv_trans.
-         ++ unshelve eapply personal_mem_equiv_spec with (m' := m').
-            ** REWR in pr'.
-               REWR in pr'.
-               REWR in pr'.
-               eapply mem_cohere_sub with Phi.
-               eapply mem_cohere'_store. apply Hcmpt. 2:apply Hstore. cleanup; congruence. auto.
-               apply compatible_threadRes_sub. apply compat.
-            ** pose proof store_outside' _ _ _ _ _ _ Hstore as STO.
-               simpl in STO. apply STO.
-            ** pose proof store_outside' _ _ _ _ _ _ Hstore as STO.
-               destruct STO as (_ & ACC & _).
-               intros loc.
-               apply equal_f with (x := loc) in ACC.
-               apply equal_f with (x := Max) in ACC.
-               unfold juicyRestrict_locks in *.
-               rewrite restrPermMap_Max' in ACC.
-               apply ACC.
-            ** intros loc yes.
-               pose proof store_outside' _ _ _ _ _ _ Hstore as STO.
-               destruct STO as (CON & _ & _).
-               specialize (CON (fst loc) (snd loc)).
-               destruct CON as [CON|CON].
-               --- exfalso.
-                   destruct loc as (b', ofs'); simpl in CON.
-                   destruct CON as (<- & int).
-                   clear safety Htstep jmstep Hload Hstore compat' lj cmpt' pr'.
-                   specialize (lock_coh (b, Int.intval ofs)).
-                   cleanup.
-                   rewrite His_locked in lock_coh.
-                   destruct lock_coh as (_ & (* sh' & *) align & bound & R' & lk).
-                   apply isVAL_join_sub with (r2 := Phi @ (b, ofs')) in yes.
-                   2: now apply resource_at_join_sub; join_sub_tac.
-                   specialize (lk (b, ofs')).
-                   simpl in lk.
-                   spec lk. now split; auto; lkomega.
-                   unfold isVAL in *.
-                   if_tac in lk.
-                   +++ breakhyps.
-                       destruct (Phi @ (b, ofs')) as [t0 | t0 p [] p0 | k p]; try tauto.
-                       congruence.
-                   +++ breakhyps.
-                       destruct (Phi @ (b, ofs')) as [t0 | t0 p [] p0 | k p]; try tauto.
-                       congruence.
-               --- unfold juicyRestrict_locks in *.
-                   rewrite restrPermMap_contents in CON.
-                   apply CON.
-         ++ apply mem_equiv_refl'.
-            apply m_dry_personal_mem_eq.
-            intros loc.
-            REWR.
-            REWR.
-            REWR.                  
-            REWR.
-      -- REWR.
-         rewrite m_phi_jm_.
-         rewrite m_phi_jm_.
-         REWR.
-         REWR.
-         REWR.
+    * repeat REWR.
+      destruct (getThreadC j tp lj) eqn:Ej.
+      -- edestruct (unique_Krun_neq i j); eauto.
+      -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
+      -- intros c' Ec'; spec safety c' Ec'. apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
+      -- constructor.
          
   + (* well_formedness *)
     intros j lj.

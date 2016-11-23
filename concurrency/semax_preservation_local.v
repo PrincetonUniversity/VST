@@ -823,8 +823,15 @@ Proof.
       
       clear Ecompat Hext' Hext'' J'' Jext Jext' Hext RD J' LW LJ JL.
       
+      assert (notkrun : forall c, getThreadC j (age_tp_to (level jmi') tp) cntj <> Krun c). {
+        eapply (unique_Krun_neq i j); eauto.
+        now destruct tp; auto.
+        apply unique_Krun_age_tp_to; eauto.
+      }
+      
       (** * Bring other thread #j's memory up to current #i's level *)
       assert (cntj' : containsThread tp j). {
+        clear -cntj.
         unfold tp'', tp' in cntj.
         apply cntUpdate' in cntj.
         rewrite <-cnt_age in cntj.
@@ -832,59 +839,31 @@ Proof.
       }
       pose (jmj' := age_to (level (m_phi jmi')) (@jm_ tp m Phi j cntj' compat)).
       
-      (** * #j's memory is equivalent to the one it will be started in *)
-      assert (E : juicy_mem_equiv  jmj' (jm_ cntj compat'')). {
-        split.
-        - unfold jmj'.
-          rewrite m_dry_age_to.
-          unfold jm_.
-          unfold tp'' in compat''.
-          pose proof
-               jstep_preserves_mem_equiv_on_other_threads
-               m ge i j tp ci ci' jmi' n0
-               cnti cntj'
-               (thread_mem_compatible (mem_compatible_forget compat) cnti)
-               stepi
-               (thread_mem_compatible (mem_compatible_forget compat) cntj')
-               (thread_mem_compatible (mem_compatible_forget compat'') (cnt_age' cntj'))
-            as H.
-          exact_eq H.
-          repeat f_equal.
-          
-          unfold tp'' in *.
-          apply personal_mem_rewrite.
-          unfold tp' in *.
-          f_equal.
-          apply proof_irr.
-          
-        - unfold jmj'.
-          unfold jm_ in *.
-          rewrite m_phi_age_to.
-          change (age_to (level (m_phi jmi')) (getThreadR _ _ cntj')
-                  = getThreadR _ _ cntj).
-          unfold tp'', tp'.
-          unshelve erewrite gsoThreadRes; auto.
-          unshelve erewrite getThreadR_age. auto.
-          reflexivity.
-      }
-      
       unshelve erewrite <-gtc_age; auto.
       pose proof safety _ cntj' ora as safej.
       
-      (* factoring all Krun / Kblocked / Kresume / Kinit cases in this one assert *)
-      assert (forall c, jsafeN Jspec ge (S n) ora c (jm_ cntj' compat) ->
-                   jsafeN Jspec ge n ora c (jm_ cntj compat'')) as othersafe.
-      {
-        intros c s.
-        apply jsafeN_downward in s.
-        apply jsafeN_age_to with (l := n) in s; auto.
-        refine (jsafeN_mem_equiv _ _ s); auto.
-        exact_eq E; f_equal.
-        unfold jmj'; f_equal. auto.
-      }
-      
-      destruct (@getThreadC j tp cntj') as [c | c | c v | v v0]; solve [auto].
-      
+      destruct (@getThreadC j tp cntj') as [c | c | c v | v v0] eqn:Ej.
+      * (* krun: impossible *)
+        exfalso. eapply notkrun. unshelve erewrite <-age_getThreadCode; eauto.
+      * unfold tp'', tp'.
+        REWR.
+        REWR.
+        apply jsafe_phi_age_to; auto.
+        rewrite level_juice_level_phi.
+        omega.
+        apply jsafe_phi_downward.
+        assumption.
+      * unfold tp'', tp'.
+        REWR.
+        REWR.
+        intros c' Ec'; spec safej c' Ec'.
+        apply jsafe_phi_age_to; auto.
+        rewrite level_juice_level_phi.
+        omega.
+        apply jsafe_phi_downward.
+        assumption.
+      * constructor.
+  
   - (* wellformedness *)
     intros j cntj.
     unfold tp'', tp'.
