@@ -139,4 +139,61 @@ Section Jspec'_properties.
     all:eauto.
   Qed.
   
+  Lemma Jspec'_jsafe_phi ge n ora c jm ext :
+    cl_at_external c = Some ext ->
+    jsafeN Jspec' ge n ora c jm ->
+    jsafe_phi Jspec' ge n ora c (m_phi jm).
+  Proof.
+    intros atex.
+    destruct n as [ | n]. intros; constructor.
+    intros safe.
+    inversion safe as [ | ? ? ? ? c' jm' step safe' H H2 H3 H4
+                        | ? ? ? ? ef args x atex' Pre Post | ]; subst.
+    - (* corestep: not at external *)
+      destruct step as [step rd].
+      erewrite cl_corestep_not_at_external in atex. discriminate. eauto.
+    - (* at_ex: interesting case *)
+      intros jm_ Ejm_.
+      constructor 3 with (e := ef) (args := args) (x := x).
+      + auto.
+      
+      + (* precondition only cares about phi *)
+        clear Post.
+        unfold Jspec' in *.
+        destruct (is_EF_external ef x) as (name & sg & ->).
+        revert x Pre.
+        
+        1:funspec_destruct "acquire".
+        2:funspec_destruct "release".
+        3:funspec_destruct "makelock".
+        4:funspec_destruct "freelock".
+        5:funspec_destruct "spawn".
+        6: solve[intros[]].
+        
+        all: intros x Pre.
+        all: exact_eq Pre.
+        all: rewrite Ejm_; try reflexivity.
+      
+      + (* postcondition only cares about phi *)
+        unfold Jspec' in *.
+        destruct (is_EF_external ef x) as (name & sg & ->).
+        clear Pre.
+        revert x Post.
+        1:funspec_destruct "acquire".
+        2:funspec_destruct "release".
+        3:funspec_destruct "makelock".
+        4:funspec_destruct "freelock".
+        5:funspec_destruct "spawn".
+        6: solve[intros[]].
+        
+        all: intros x Post.
+        all: exact_eq Post.
+        all: unfold Hrel in *.
+        all: do 2 rewrite level_juice_level_phi.
+        all: rewrite Ejm_; try reflexivity.
+    
+    - (* halted: not at external *)
+      destruct (Clight_new.cl_core_sem_obligation_1 c); discriminate.
+  Qed.
+  
 End Jspec'_properties.  

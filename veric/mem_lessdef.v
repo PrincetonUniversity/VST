@@ -55,8 +55,35 @@ Definition mem_equiv m1 m2 :=
   Mem.perm m1 = Mem.perm m2 /\
   Mem.nextblock m1 = Mem.nextblock m2.
 
+Lemma same_perm_spec m1 m2 :
+  Mem.perm m1 = Mem.perm m2 <->
+  (forall k x, access_at m1 x k = access_at m2 x k).
+Proof.
+  split; intros E.
+  - intros k (b, ofs).
+    match type of E with ?f = ?g => assert (S : forall b z k p, f b z k p <-> g b z k p) end.
+    { rewrite E; tauto. } clear E.
+    spec S b ofs k. revert S.
+    unfold access_at, Mem.perm. simpl.
+    set (o1 := (Mem.mem_access _) !! b ofs k).
+    set (o2 := (Mem.mem_access _) !! b ofs k). clearbody o1 o2. intros S.
+    assert (S' : forall o, Mem.perm_order'' o1 o <-> Mem.perm_order'' o2 o).
+    { intros [ o | ]. apply S. destruct o1 as [o1 | ], o2 as [o2 | ]; split; intro; constructor. }
+    clear S.
+    destruct (S' o1) as [A _]. spec A. apply perm_order_pp_refl.
+    destruct (S' o2) as [_ B]. spec B. apply perm_order_pp_refl.
+    destruct o1 as [[]|], o2 as [[]|]; auto; simpl in *.
+    all: inv A; inv B; auto.
+  - extensionality b ofs k. spec E k (b, ofs).
+    unfold access_at in *.
+    simpl in E.
+    unfold Mem.perm in *.
+    rewrite E.
+    auto.
+Qed.
+
 Lemma same_loadbytes_spec m1 m2 :
-  Mem.perm m1 = Mem.perm m2 ->
+  Mem.perm m1 = Mem.perm m2 ->  (* TODO change this to only need same Cur *)
   Mem.loadbytes m1 = Mem.loadbytes m2 <->
   (forall x, Mem.perm_order' (access_at m1 x Cur) Readable -> contents_at m1 x = contents_at m2 x).
 Proof.

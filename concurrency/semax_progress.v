@@ -378,6 +378,7 @@ Section Progress.
       {
         pose proof (safety i cnti tt) as safe_i.
         rewrite Eci in safe_i.
+        fixsafe safe_i.
         inversion safe_i; subst; [ now inversion H0; inversion H | | now inversion H ].
         inversion H0; subst; [].
         match goal with x : ext_spec_type _ _  |- _ => clear -x end.
@@ -401,6 +402,7 @@ Section Progress.
       {
         pose proof (safety i cnti tt) as safe_i.
         rewrite Eci in safe_i.
+        fixsafe safe_i.
         inversion safe_i; subst; [ now inversion H0; inversion H | | now inversion H ].
         inversion H0; subst; [].
         match goal with H : ext_spec_type _ _  |- _ => clear -H end.
@@ -433,6 +435,7 @@ Section Progress.
         pose proof (safety i cnti tt) as safei.
         rewrite Eci in safei.
         unfold jsafeN, juicy_safety.safeN in safei.
+        fixsafe safei.
         inversion safei
           as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
           [ now inversion bad; inversion H | subst | now inversion bad ].
@@ -739,6 +742,7 @@ Section Progress.
         (* using the safety to prepare the precondition *)
         pose proof (safety i cnti tt) as safei.
         rewrite Eci in safei.
+        fixsafe safei.
         unfold jsafeN, juicy_safety.safeN in safei.
         inversion safei
           as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
@@ -1006,6 +1010,7 @@ Section Progress.
         (* using the safety to prepare the precondition *)
         pose proof (safety i cnti tt) as safei.
         rewrite Eci in safei.
+        fixsafe safei.
         unfold jsafeN, juicy_safety.safeN in safei.
         inversion safei
           as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
@@ -1154,6 +1159,7 @@ Section Progress.
         (* using the safety to prepare the precondition *)
         pose proof (safety i cnti tt) as safei.
         rewrite Eci in safei.
+        fixsafe safei.
         unfold jsafeN, juicy_safety.safeN in safei.
         inversion safei
           as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
@@ -1394,6 +1400,7 @@ Section Progress.
         (* using the safety to prepare the precondition *)
         pose proof (safety i cnti tt) as safei.
         rewrite Eci in safei.
+        fixsafe safei.
         unfold jsafeN, juicy_safety.safeN in safei.
         inversion safei
           as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];

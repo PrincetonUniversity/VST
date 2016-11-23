@@ -1,8 +1,8 @@
-Require Import aesutils.
-Require Import aes.
-Require Import mult_equiv_lemmas.
 Require Import floyd.proofauto.
-Require Import AES256.
+Require Import aes.aesutils.
+Require Import aes.aes.
+Require Import aes.mult_equiv_lemmas.
+Require Import aes.AES256.
 
 Local Open Scope logic.
 

@@ -426,6 +426,30 @@ Proof.
     firstorder.
 Qed.
 
+Lemma approx_allp: forall A (P: A -> mpred) n,
+  A ->
+  approx n (allp P) =
+  ALL a: A, approx n (P a).
+Proof.
+  intros.
+  apply predicates_hered.pred_ext.
+  + intros w ?.
+    simpl in *.
+    firstorder.
+  + intros w ?.
+    simpl in *.
+    firstorder.
+Qed.
+
+Lemma approx_jam {B: Type} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) (P Q: B -> mpred) n (b : B) :
+  approx n (jam S P Q b) =
+  jam S (approx n oo P) (approx n oo Q) b.
+Proof.
+  apply predicates_hered.pred_ext.
+  + intros w ?. simpl in *. if_tac; firstorder.
+  + intros w ?. simpl in *. if_tac; firstorder.
+Qed.
+
 Lemma approx_func_ptr: forall (A: Type) fsig0 cc (P Q: A -> environ -> mpred) (v: val) (n: nat),
   approx n (func_ptr (NDmk_funspec fsig0 cc A P Q) v) = approx n (func_ptr (NDmk_funspec fsig0 cc A (fun a rho => approx n (P a rho)) (fun a rho => approx n (Q a rho))) v).
 Proof.

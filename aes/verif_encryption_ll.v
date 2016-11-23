@@ -1,6 +1,6 @@
 Require Import floyd.proofauto.
-Require Import aes.
-Require Import tablesLL.
+Require Import aes.aes.
+Require Import aes.tablesLL.
 
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
@@ -308,60 +308,43 @@ admit. (* TODO is_int *)
 (*     uint32_t b0 = tables.FT0[ ( Y0       ) & 0xFF ];    *)
 unfold tables_initialized.
 
-Ltac entailer_for_load_tac ::= idtac.
-(* without override: forward takes >5 min, with override: 40s *)
-Time forward.
-{ (* entailer!. takes forever *)
-  rewrite zlist_hint_db.Znth_map_Vint. {
-
-repeat apply andp_right.
-{ (* TODO floyd entailer! takes forever, but the goal is so simple: *)
-  apply prop_right. apply I. }
-{ unfold tc_val. apply local_True_right. }
-{ match goal with
-| |- _ |-- ?E1 => let E2 := eval cbv in E1 in replace E1 with E2 by reflexivity
-end.
-apply local_True_right.
-}
-{ apply prop_right. apply I. }
-}
-{ 
-
 Lemma masked_byte_range: forall i,
   0 <= Z.land i 255 < 256. Admitted.
 
-apply masked_byte_range.
+Ltac entailer_for_load_tac ::=
+  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range;
+  quick_typecheck3.
+
+forward. { apply prop_right. apply masked_byte_range. }
+forward. { apply prop_right. apply masked_byte_range. }
+forward. { apply prop_right. apply masked_byte_range. }
+forward. { apply prop_right. apply masked_byte_range. }
+
+rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+
+replace (Vint (Int.repr k1)
+         :: Vint (Int.repr k2)
+            :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ Vundefs)
+with (map Vint ((Int.repr k1) :: (Int.repr k2) :: (Int.repr k3) :: (Int.repr k4) ::
+  (map Int.repr exp_tail) ++ [Int.zero;Int.zero;Int.zero;Int.zero;Int.zero;Int.zero;Int.zero;Int.zero]))
+by admit. (* TODO Vundefs vs zeros not correct *)
+rewrite ?Znth_map with (d' := Int.zero) by admit.
+(* now all arguments of "X0 = rk ^ b0 ^ b1 ^ b2 ^ b3" are Vint *)
+
+Ltac entailer_for_load_tac ::= idtac.
+
+Arguments Znth _ _ _ _ : simpl never.
+
+(* forward. (* <-- takes forever *) *)
+admit.
+
 }
 }
-{ apply prop_right. apply masked_byte_range. }
-
-forward. admit. admit.
-forward. (* > 30min! *)
-
-{ (* TODO floyd: entailer! says 
-Ltac call to "entailer" failed.
-Error: Tactic failure: The entailer tactic works only on entailments  _ |-- _ .
-even though the goal does have the form _ |-- _ !
-*)
-admit. }
 {
-admit. (* TODO 0 <= _ < 256 bounds *)
-}
 
-forward. (* takes about half an hour! *)
-{ admit. (* entailer!. too slow *) }
-{ (* bounds *) admit. }
-
-freeze [2] Fr2.
-
-(* Time forward. aborted after 3.5 hours *)
-
+{ (* loop decr *)
 admit.
 }
-}
-}
-{ (* loop incr *)
-admit.
 }
 }
 }
@@ -393,3 +376,6 @@ Note:
 field_compatible/0 -> legal_nested_field/0 -> legal_field/0:
   legal_field0 allows an array index to point 1 past the last array cell, legal_field disallows this
 *)
+
+Definition lo_byte (i : Z) : Z := (Z.land i (Int.unsigned (Int.repr 255))).
+Arguments lo_byte i : simpl never.

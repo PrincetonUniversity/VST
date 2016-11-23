@@ -1305,7 +1305,66 @@ Proof.
   apply split_readable_share; auto.
 Qed.
 
+Definition remove_Znth {A} i (al : list A) := sublist 0 i al ++ sublist (i + 1) (Zlength al) al.
+
+Lemma remove_Znth0 : forall {A} (l : list A), remove_Znth 0 l = sublist 1 (Zlength l) l.
+Proof.
+  intros; unfold remove_Znth.
+  rewrite sublist_nil; auto.
+Qed.
+
+Lemma remove_Znth_cons : forall {A} i a (l : list A), i > 0 ->
+  remove_Znth i (a :: l) = a :: remove_Znth (i - 1) l.
+Proof.
+  intros; unfold remove_Znth.
+  rewrite sublist_0_cons, sublist_S_cons, Zlength_cons; auto; try omega.
+  simpl; f_equal; f_equal; f_equal; omega.
+Qed.
+
+Lemma join_shares_nth : forall shs sh1 sh i, sepalg_list.list_join sh1 shs sh -> 0 <= i < Zlength shs ->
+  exists sh', sepalg_list.list_join (Znth i shs Share.bot) (remove_Znth i shs) sh' /\ sepalg.join sh1 sh' sh.
+Proof.
+  induction shs; simpl; intros.
+  { rewrite Zlength_nil in *; omega. }
+  inv H.
+  destruct (eq_dec i 0).
+  - subst; rewrite remove_Znth0, sublist_1_cons, Zlength_cons, sublist_same, Znth_0_cons; auto; try omega.
+    eapply sepalg_list.list_join_assoc1; eauto.
+  - rewrite Zlength_cons in *; exploit (IHshs w1 sh (i - 1)); auto; try omega.
+    intros (sh2 & ? & ?).
+    rewrite Znth_pos_cons, remove_Znth_cons; try omega.
+    exploit (sepalg.join_sub_joins_trans(a := a)(b := sh2)(c := w1)); eauto.
+    { eexists; eapply sepalg.join_comm; eauto. }
+    intros (sh' & ?); exists sh'; split.
+    + exploit (sepalg_list.list_join_assoc2(a := a)(b := Znth (i - 1) shs Share.bot)
+        (cl := remove_Znth (i - 1) shs)(e := sh')(f := sh2)); auto.
+      intros (d & ? & ?).
+      econstructor; eauto.
+    + pose proof (sepalg.join_assoc(a := sh1)(b := a)(c := sh2)(d := w1)(e := sh)) as X.
+      repeat match goal with X : ?a -> _, H : ?a |- _ => specialize (X H) end.
+      destruct X as (f & Ha' & ?).
+      assert (f = sh') by (eapply sepalg.join_eq; eauto).
+      subst; auto.
+Qed.
+
 (* Split a share into an arbitrary number of subshares. *)
+Lemma split_shares : forall n sh, readable_share sh ->
+  exists sh1 shs, Zlength shs = Z.of_nat n /\ readable_share sh1 /\ Forall readable_share shs /\
+                  sepalg_list.list_join sh1 shs sh.
+Proof.
+  induction n; intros.
+  - exists sh, []; repeat split; auto.
+    apply sepalg_list.fold_rel_nil.
+  - destruct (split_readable_share _ H) as (sh1 & sh2 & H1 & ? & ?).
+    destruct (IHn _ H1) as (sh1' & shs & ? & ? & ? & ?).
+    exists sh1', (shs ++ [sh2]).
+    rewrite Nat2Z.inj_succ, Zlength_app, Zlength_cons, Zlength_nil; split; [omega|].
+    rewrite Forall_app; repeat split; auto.
+    eapply sepalg_list.list_join_app; eauto.
+    rewrite <- sepalg_list.list_join_1; auto.
+Qed.
+
+(*(* Split a share into an arbitrary number of subshares. *)
 Lemma split_shares : forall n sh, readable_share sh ->
   exists shs, Zlength shs = Z.of_nat n /\ forall i, 0 <= i < Z.of_nat n ->
   let '(a, b) := Znth i shs (sh, sh) in
@@ -1332,27 +1391,17 @@ Proof.
       rewrite app_Znth2, Zminus_diag; auto; simpl; [|omega].
       rewrite Znth_overflow; auto.
       rewrite Zlength_app, Zlength_cons, Zlength_nil; omega.
-Qed.
+Qed.*)
 
-Lemma data_at_shares_join : forall {cs} sh t v p shs (Hsplit : forall i, 0 <= i < Zlength shs ->
-  let '(a, b) := Znth i shs (sh, sh) in
-  readable_share a /\ readable_share b /\ sepalg.join a b (fst (Znth (i + 1) shs (sh, sh)))),
-  @data_at cs (fst (Znth 0 shs (sh, sh))) t v p *
-  fold_right_sepcon (map (fun sh => data_at sh t v p) (map snd shs)) =
+Lemma data_at_shares_join : forall {cs} sh t v p shs sh1 (Hsplit : sepalg_list.list_join sh1 shs sh),
+  @data_at cs sh1 t v p * fold_right_sepcon (map (fun sh => data_at sh t v p) shs) =
   data_at sh t v p.
 Proof.
-  induction shs; intros.
-  - rewrite Znth_nil; simpl; normalize.
-  - rewrite Znth_0_cons; simpl.
-    rewrite Zlength_cons in Hsplit.
-    erewrite <- sepcon_assoc, data_at_share_join.
-    apply IHshs.
-    + intros; specialize (Hsplit (i + 1)).
-      rewrite !Znth_pos_cons, !Z.add_simpl_r in Hsplit; try omega.
-      apply Hsplit; omega.
-    + specialize (Hsplit 0).
-      rewrite Znth_0_cons, Znth_pos_cons, Z.add_simpl_r in Hsplit; [|omega].
-      destruct a; apply Hsplit; rewrite Zlength_correct; omega.
+  induction shs; intros; simpl.
+  - inv Hsplit.
+    rewrite sepcon_emp; auto.
+  - inv Hsplit.
+    erewrite <- sepcon_assoc, data_at_share_join; eauto.
 Qed.
 
 (* These lemmas should probably be in veric. *)
@@ -1427,28 +1476,21 @@ Proof.
   intros; rewrite data_at__eq; apply data_at_value_cohere; auto.
 Qed.
 
-Lemma data_at__shares_join : forall {cs} sh t v p shs
-  (Hsplit : forall i, 0 <= i < Zlength shs ->
-    let '(a, b) := Znth i shs (sh, sh) in
-    readable_share a /\ readable_share b /\ sepalg.join a b (fst (Znth (i + 1) shs (sh, sh)))),
-  @data_at cs (fst (Znth 0 shs (sh, sh))) t v p *
-  fold_right sepcon emp (map (fun sh => data_at_ sh t p) (map snd shs)) |--
+Lemma data_at__shares_join : forall {cs} sh t v p shs sh1 (Hsplit : sepalg_list.list_join sh1 shs sh)
+  (Hreadable1 : readable_share sh1) (Hreadable : Forall readable_share shs),
+  @data_at cs sh1 t v p * fold_right sepcon emp (map (fun sh => data_at_ sh t p) shs) |--
   data_at sh t v p.
 Proof.
-  induction shs; intros.
-  - rewrite Znth_nil; simpl; normalize.
-  - rewrite Znth_0_cons; simpl.
-    rewrite Zlength_cons in Hsplit.
-    exploit (Hsplit 0); [rewrite Zlength_correct; omega|].
-    rewrite Znth_0_cons, Znth_pos_cons, Z.add_simpl_r; [|omega].
-    destruct a; intros (? & ? & ?).
+  induction shs; intros; simpl.
+  - inv Hsplit.
+    rewrite sepcon_emp; auto.
+  - inv Hsplit.
+    inv Hreadable.
     rewrite <- sepcon_assoc; eapply derives_trans; [apply sepcon_derives;
       [apply data_at__cohere; auto | apply derives_refl]|].
     erewrite data_at_share_join; eauto.
-    apply IHshs.
-    intros; specialize (Hsplit (i + 1)).
-    rewrite !Znth_pos_cons, !Z.add_simpl_r in Hsplit; try omega.
-    apply Hsplit; omega.
+    apply IHshs; auto.
+    eapply readable_share_join; eauto.
 Qed.
 
 (* tactics *)

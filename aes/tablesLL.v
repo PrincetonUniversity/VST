@@ -3,7 +3,7 @@ Require Import ZArith.
 Local Open Scope Z_scope.
 Require Import Integers.
 Require Import floyd.sublist.
-Require Import sbox.
+Require Import aes.sbox.
 
 (* TODO replace these definitions by low-level definitions which match exactly the C-code *)
 

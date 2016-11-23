@@ -163,6 +163,25 @@ Proof.
   apply seplog.approx_exp.
 Qed.
 
+Lemma approx_allp: forall A (P: A -> mpred) n,
+  A ->
+  compcert_rmaps.RML.R.approx n (allp P) =
+  ALL a: A, compcert_rmaps.RML.R.approx n (P a).
+Proof.
+  intros.
+  eapply seplog.approx_allp; auto.
+Qed.
+
+Lemma approx_jam {B: Type} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) (P Q: B -> mpred) n (b : B) :
+  compcert_rmaps.RML.R.approx n (res_predicates.jam S P Q b) =
+  res_predicates.jam
+    S (base.compose (compcert_rmaps.RML.R.approx n) P)
+    (base.compose (compcert_rmaps.RML.R.approx n) Q) b.
+Proof.
+  intros.
+  eapply seplog.approx_jam; auto.
+Qed.
+
 Lemma SEPx_super_non_expansive: forall A R,
   Forall (fun R0 => @super_non_expansive A (fun ts a _ => R0 ts a)) R ->
   @super_non_expansive A (fun ts a rho => SEPx (map (fun R0 => R0 ts a) R) rho).
@@ -360,13 +379,17 @@ Lemma go_lower_lem20:
     PROPx nil QR |-- QR'.
 Proof. unfold PROPx; intros; intro rho; normalize. Qed.
 
-Ltac go_lowerx :=
-   unfold PROPx, LOCALx,SEPx, local, lift1; unfold_lift; intro rho; simpl;
+Ltac go_lowerx' simpl_tac :=
+   unfold PROPx, LOCALx,SEPx, local, lift1; unfold_lift; intro rho; simpl_tac;
    repeat rewrite andp_assoc;
    repeat ((simple apply go_lower_lem1 || apply derives_extract_prop || apply derives_extract_prop'); intro);
    try apply prop_left;
    repeat rewrite prop_true_andp by assumption;
    try apply derives_refl.
+
+Ltac go_lowerx := go_lowerx' simpl.
+
+Ltac go_lowerx_no_simpl := go_lowerx' idtac.
 
 (*
 Lemma grab_tc_environ:
