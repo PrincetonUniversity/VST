@@ -40,8 +40,8 @@ Definition byte2 (x : int) : Z :=
 Definition byte3 (x : int) : Z :=
   (Z.land (Int.unsigned (Int.shru x (Int.repr 24))) (Int.unsigned (Int.repr 255))).
 
-Definition mbed_tls_fround_col (col0 col1 col2 col3 : int) (rk : int) : int :=
-  (Int.xor (Int.xor (Int.xor (Int.xor rk
+Definition mbed_tls_fround_col (col0 col1 col2 col3 : int) (rk : Z) : int :=
+  (Int.xor (Int.xor (Int.xor (Int.xor (Int.repr rk)
     (Znth (byte0 col0) FT0 Int.zero))
     (Znth (byte1 col1) FT1 Int.zero))
     (Znth (byte2 col2) FT2 Int.zero))
@@ -49,31 +49,42 @@ Definition mbed_tls_fround_col (col0 col1 col2 col3 : int) (rk : int) : int :=
 
 Definition four_ints := (int * (int * (int * int)))%type.
 
-Definition mbed_tls_fround (cols : four_ints) (rks : list int) (i : Z) : four_ints :=
-match cols with (col0, (col1, (col2, col3))) =>
-  ((mbed_tls_fround_col col0 col1 col2 col3 (Znth  i    rks Int.zero)),
-  ((mbed_tls_fround_col col1 col2 col3 col0 (Znth (i+1) rks Int.zero)),
-  ((mbed_tls_fround_col col2 col3 col0 col1 (Znth (i+2) rks Int.zero)),
-   (mbed_tls_fround_col col3 col0 col1 col2 (Znth (i+3) rks Int.zero)))))
+Definition col (i : Z) (s : four_ints) : int := match i with
+| 0 => fst s
+| 1 => fst (snd s)
+| 2 => fst (snd (snd s))
+| 3 => snd (snd (snd s))
+| _ => Int.zero (* should not happen *)
 end.
 
-Fixpoint mbed_tls_enc_rounds (n : nat) (state : four_ints) (rks : list int) (i : Z) : four_ints :=
+Definition mbed_tls_initial_add_round_key_col (col_id : Z) (plaintext : list Z) (rks : list Z) :=
+  Int.xor (get_uint32_le plaintext (col_id * 4)) (Int.repr (Znth col_id rks 0)).
+
+Definition mbed_tls_fround (cols : four_ints) (rks : list Z) (i : Z) : four_ints :=
+match cols with (col0, (col1, (col2, col3))) =>
+  ((mbed_tls_fround_col col0 col1 col2 col3 (Znth  i    rks 0)),
+  ((mbed_tls_fround_col col1 col2 col3 col0 (Znth (i+1) rks 0)),
+  ((mbed_tls_fround_col col2 col3 col0 col1 (Znth (i+2) rks 0)),
+   (mbed_tls_fround_col col3 col0 col1 col2 (Znth (i+3) rks 0)))))
+end.
+
+Fixpoint mbed_tls_enc_rounds (n : nat) (state : four_ints) (rks : list Z) (i : Z) : four_ints :=
 match n with
 | O => state
 | S m => mbed_tls_enc_rounds m (mbed_tls_fround state rks i) rks (i+4)
 end.
 
-Definition mbed_tls_final_enc_round (state : four_ints) (rks : list int) : four_ints := state. (* TODO *)
+Definition mbed_tls_final_enc_round (state : four_ints) (rks : list Z) : four_ints := state. (* TODO *)
 
 (* plaintext: array of bytes
    rks: expanded round keys, array of Int32 *)
-Definition mbed_tls_initial_add_round_key (plaintext : list Z) (rks : list int) : four_ints :=
-((Int.xor (get_uint32_le plaintext  0) (Znth 0 rks Int.zero)),
-((Int.xor (get_uint32_le plaintext  4) (Znth 1 rks Int.zero)),
-((Int.xor (get_uint32_le plaintext  8) (Znth 2 rks Int.zero)),
- (Int.xor (get_uint32_le plaintext 12) (Znth 3 rks Int.zero))))).
+Definition mbed_tls_initial_add_round_key (plaintext : list Z) (rks : list Z) : four_ints :=
+((mbed_tls_initial_add_round_key_col 0 plaintext rks),
+((mbed_tls_initial_add_round_key_col 1 plaintext rks),
+((mbed_tls_initial_add_round_key_col 2 plaintext rks),
+((mbed_tls_initial_add_round_key_col 3 plaintext rks))))).
 
-Definition mbed_tls_aes_enc (plaintext : list Z) (rks : list int) : list int :=
+Definition mbed_tls_aes_enc (plaintext : list Z) (rks : list Z) : list int :=
   let state0 := mbed_tls_initial_add_round_key plaintext rks in
   match (mbed_tls_final_enc_round (mbed_tls_enc_rounds 13 state0 rks 0) rks) with
   | (col0, (col1, (col2, col3))) => 
@@ -105,7 +116,7 @@ Definition encryption_spec_ll :=
   POST [ tvoid ]
     PROP() LOCAL()
     SEP (data_at out_sh (tarray tuchar 16) 
-                        (map Vint (mbed_tls_aes_enc plaintext (map Int.repr exp_key)))
+                        (map Vint (mbed_tls_aes_enc plaintext exp_key))
                          output).
 
 (* QQQ: How to know that if x is stored in a var of type tuchar, 0 <= x < 256 ? *)
@@ -177,13 +188,14 @@ Proof.
     GET_UINT32_LE_tac; simpl; forward; forward; forward;
     rewrite Eq by omega; simpl;
     forward2; forward
-  ). (* 556s *)
+  ). (* 515s *)
 
-  do 4 match goal with
-  | |- context [temp _ (Vint (Int.xor ?E (Int.repr (Znth ?i buf 0))))] =>
-    let i4 := eval simpl in (4 * i)%Z in
-    progress change E with (get_uint32_le plaintext i4)
-  end.
+  pose (S0 := mbed_tls_initial_add_round_key plaintext buf).
+
+  match goal with |- context [temp _X0 (Vint ?E)] => change E with (col 0 S0) end.
+  match goal with |- context [temp _X1 (Vint ?E)] => change E with (col 1 S0) end.
+  match goal with |- context [temp _X2 (Vint ?E)] => change E with (col 2 S0) end.
+  match goal with |- context [temp _X3 (Vint ?E)] => change E with (col 3 S0) end.
 
 unfold Sfor.
 
@@ -205,10 +217,10 @@ eapply semax_seq' with (P' :=
   PROP ( )
   LOCAL (
      temp _RK (field_address t_struct_aesctx [ArraySubsc 4; StructField _buf] ctx);
-     temp _X3 (Vint (Int.xor (get_uint32_le plaintext 12) (Int.repr (Znth 3 buf 0))));
-     temp _X2 (Vint (Int.xor (get_uint32_le plaintext 8) (Int.repr (Znth 2 buf 0))));
-     temp _X1 (Vint (Int.xor (get_uint32_le plaintext 4) (Int.repr (Znth 1 buf 0))));
-     temp _X0 (Vint (Int.xor (get_uint32_le plaintext 0) (Int.repr (Znth 0 buf 0))));
+     temp _X3 (Vint (col 3 S0));
+     temp _X2 (Vint (col 2 S0));
+     temp _X1 (Vint (col 1 S0));
+     temp _X0 (Vint (col 0 S0));
      temp _ctx ctx;
      temp _input input;
      temp _output output;
@@ -225,10 +237,10 @@ apply semax_pre with (P' :=
   (EX i: Z,   PROP ( ) LOCAL (
      temp _i (Vint (Int.repr i));
      temp _RK (field_address t_struct_aesctx [ArraySubsc 4; StructField _buf] ctx);
-     temp _X3 (Vint (Int.xor (get_uint32_le plaintext 12) (Int.repr (Znth 3 buf 0))));
-     temp _X2 (Vint (Int.xor (get_uint32_le plaintext 8) (Int.repr (Znth 2 buf 0))));
-     temp _X1 (Vint (Int.xor (get_uint32_le plaintext 4) (Int.repr (Znth 1 buf 0))));
-     temp _X0 (Vint (Int.xor (get_uint32_le plaintext 0) (Int.repr (Znth 0 buf 0))));
+     temp _X3 (Vint (col 3 S0));
+     temp _X2 (Vint (col 2 S0));
+     temp _X1 (Vint (col 1 S0));
+     temp _X0 (Vint (col 0 S0));
      temp _ctx ctx;
      temp _input input;
      temp _output output;
@@ -244,10 +256,10 @@ apply semax_pre with (P' :=
   (EX i: Z,   PROP ( ) LOCAL ( 
      temp _i (Vint (Int.repr i));
      temp _RK (field_address t_struct_aesctx [ArraySubsc 4; StructField _buf] ctx);
-     temp _X3 (Vint (Int.xor (get_uint32_le plaintext 12) (Int.repr (Znth 3 buf 0))));
-     temp _X2 (Vint (Int.xor (get_uint32_le plaintext 8) (Int.repr (Znth 2 buf 0))));
-     temp _X1 (Vint (Int.xor (get_uint32_le plaintext 4) (Int.repr (Znth 1 buf 0))));
-     temp _X0 (Vint (Int.xor (get_uint32_le plaintext 0) (Int.repr (Znth 0 buf 0))));
+     temp _X3 (Vint (col 3 S0));
+     temp _X2 (Vint (col 2 S0));
+     temp _X1 (Vint (col 1 S0));
+     temp _X0 (Vint (col 0 S0));
      temp _ctx ctx;
      temp _input input;
      temp _output output;
@@ -264,10 +276,10 @@ Intro i.
 forward_if (PROP ( ) LOCAL (
      temp _i (Vint (Int.repr i));
      temp _RK (field_address t_struct_aesctx [ArraySubsc 4; StructField _buf] ctx);
-     temp _X3 (Vint (Int.xor (get_uint32_le plaintext 12) (Int.repr (Znth 3 buf 0))));
-     temp _X2 (Vint (Int.xor (get_uint32_le plaintext 8) (Int.repr (Znth 2 buf 0))));
-     temp _X1 (Vint (Int.xor (get_uint32_le plaintext 4) (Int.repr (Znth 1 buf 0))));
-     temp _X0 (Vint (Int.xor (get_uint32_le plaintext 0) (Int.repr (Znth 0 buf 0))));
+     temp _X3 (Vint (col 3 S0));
+     temp _X2 (Vint (col 2 S0));
+     temp _X1 (Vint (col 1 S0));
+     temp _X0 (Vint (col 0 S0));
      temp _ctx ctx;
      temp _input input;
      temp _output output;
@@ -332,83 +344,9 @@ Ltac entailer_for_load_tac ::=
   remember_temp_Vints (@nil localdef).
   forward.
 
-  repeat subst.
+  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
 
-  match goal with
-  | |- context [ Z.land (Int.unsigned (Int.shru ?x (Int.repr 24))) (Int.unsigned (Int.repr 255)) ] =>
-    change (Z.land (Int.unsigned (Int.shru ?x (Int.repr 24))) (Int.unsigned (Int.repr 255)))
-    with (byte3 x)
-  end.
-  match goal with
-  | |- context [ Z.land (Int.unsigned (Int.shru ?x (Int.repr 16))) (Int.unsigned (Int.repr 255)) ] =>
-    change (Z.land (Int.unsigned (Int.shru ?x (Int.repr 16))) (Int.unsigned (Int.repr 255)))
-    with (byte2 x)
-  end.
-  match goal with
-  | |- context [ Z.land (Int.unsigned (Int.shru ?x (Int.repr 8))) (Int.unsigned (Int.repr 255)) ] =>
-    change (Z.land (Int.unsigned (Int.shru ?x (Int.repr 8))) (Int.unsigned (Int.repr 255)))
-    with (byte1 x)
-  end.
-  do 4 match goal with
-  | |- context [ Z.land (Int.unsigned ?x) (Int.unsigned (Int.repr 255)) ] =>
-    change (Z.land (Int.unsigned x) (Int.unsigned (Int.repr 255))) with (byte0 x)
-  end.
-
-Definition mbed_tls_fround_colCORRECT (col0 col1 col2 col3 : int) (rk : Z) : int :=
-  (Int.xor (Int.xor (Int.xor (Int.xor (Int.repr rk)
-    (Znth (byte0 col0) FT0 Int.zero))
-    (Znth (byte1 col1) FT1 Int.zero))
-    (Znth (byte2 col2) FT2 Int.zero))
-    (Znth (byte3 col3) FT3 Int.zero)).
-
-  do 4 match goal with
-  | |- context [ temp _ (Vint ?E) ] =>
-    evar (col0: int); evar (col1: int); evar (col2: int); evar (col3: int); evar (rk: Z); 
-    assert (E = mbed_tls_fround_colCORRECT col0 col1 col2 col3 rk) as EqY;
-    subst col0 col1 col2 col3 rk; [reflexivity | progress rewrite EqY; clear EqY]
-  end.
-
-Definition mbed_tls_initial_add_round_key_col (col_id : Z) (plaintext : list Z) (rks : list Z) :=
-  Int.xor (get_uint32_le plaintext (col_id * 4)) (Int.repr (Znth col_id rks 0)).
-
-  remember (exp_key ++ list_repeat 8 0) as buf. (* TODO when did this go lost? *)
-
-  (* TODO do this earlier *)
-  do 4 match goal with
-  | |- context [temp _ (Vint (Int.xor (get_uint32_le plaintext ?i4) (Int.repr (Znth ?i buf 0))))] =>
-       change (Int.xor (get_uint32_le plaintext i4) (Int.repr (Znth i buf 0)))
-        with (mbed_tls_initial_add_round_key_col i plaintext buf)
-  end.
-
-Definition mbed_tls_initial_add_round_keyCORRECT (plaintext : list Z) (rks : list Z) : four_ints :=
-((mbed_tls_initial_add_round_key_col 0 plaintext rks),
-((mbed_tls_initial_add_round_key_col 1 plaintext rks),
-((mbed_tls_initial_add_round_key_col 2 plaintext rks),
-((mbed_tls_initial_add_round_key_col 3 plaintext rks))))).
-
-  pose (S0 := mbed_tls_initial_add_round_keyCORRECT plaintext buf).
-Definition col (i : Z) (s : four_ints) : int := match i with
-| 0 => fst s
-| 1 => fst (snd s)
-| 2 => fst (snd (snd s))
-| 3 => snd (snd (snd s))
-| _ => Int.zero (* should not happen *)
-end.
-
-  match goal with |- context [temp _X0 (Vint ?E)] => change E with (col 0 S0) end.
-  match goal with |- context [temp _X1 (Vint ?E)] => change E with (col 1 S0) end.
-  match goal with |- context [temp _X2 (Vint ?E)] => change E with (col 2 S0) end.
-  match goal with |- context [temp _X3 (Vint ?E)] => change E with (col 3 S0) end.
-
-Definition mbed_tls_froundCORRECT (cols : four_ints) (rks : list Z) (i : Z) : four_ints :=
-match cols with (col0, (col1, (col2, col3))) =>
-  ((mbed_tls_fround_col col0 col1 col2 col3 (Znth  i    rks Int.zero)),
-  ((mbed_tls_fround_col col1 col2 col3 col0 (Znth (i+1) rks Int.zero)),
-  ((mbed_tls_fround_col col2 col3 col0 col1 (Znth (i+2) rks Int.zero)),
-   (mbed_tls_fround_col col3 col0 col1 col2 (Znth (i+3) rks Int.zero)))))
-end.
-
-  pose (S1 := mbed_tls_froundCORRECT S0 buf).
+  pose (S1 := mbed_tls_fround S0 buf 4).
 
   match goal with |- context [temp _Y0 (Vint ?E)] => change E with (col 0 S1) end.
   match goal with |- context [temp _Y1 (Vint ?E)] => change E with (col 1 S1) end.
