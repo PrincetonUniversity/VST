@@ -17,12 +17,12 @@ Definition tables_initialized (tables : val) := data_at Ews t_struct_tables
   (map Vint RCON))))))))))) tables.
 
 (* arr: list of 4 bytes *)
-Definition get_uint32_le (arr: list int) (i: Z) : int :=
+Definition get_uint32_le (arr: list Z) (i: Z) : int :=
  (Int.or (Int.or (Int.or
-            (Znth  i    arr Int.zero)
-   (Int.shl (Znth (i+1) arr Int.zero) (Int.repr  8)))
-   (Int.shl (Znth (i+2) arr Int.zero) (Int.repr 16)))
-   (Int.shl (Znth (i+3) arr Int.zero) (Int.repr 24))).
+            (Int.repr (Znth  i    arr 0))
+   (Int.shl (Int.repr (Znth (i+1) arr 0)) (Int.repr  8)))
+   (Int.shl (Int.repr (Znth (i+2) arr 0)) (Int.repr 16)))
+   (Int.shl (Int.repr (Znth (i+3) arr 0)) (Int.repr 24))).
 
 (* outputs a list of 4 bytes *)
 Definition put_uint32_le (x : int) : list int :=
@@ -67,13 +67,13 @@ Definition mbed_tls_final_enc_round (state : four_ints) (rks : list int) : four_
 
 (* plaintext: array of bytes
    rks: expanded round keys, array of Int32 *)
-Definition mbed_tls_initial_add_round_key (plaintext : list int) (rks : list int) : four_ints :=
+Definition mbed_tls_initial_add_round_key (plaintext : list Z) (rks : list int) : four_ints :=
 ((Int.xor (get_uint32_le plaintext  0) (Znth 0 rks Int.zero)),
 ((Int.xor (get_uint32_le plaintext  4) (Znth 1 rks Int.zero)),
 ((Int.xor (get_uint32_le plaintext  8) (Znth 2 rks Int.zero)),
  (Int.xor (get_uint32_le plaintext 12) (Znth 3 rks Int.zero))))).
 
-Definition mbed_tls_aes_enc (plaintext : list int) (rks : list int) : list int :=
+Definition mbed_tls_aes_enc (plaintext : list Z) (rks : list int) : list int :=
   let state0 := mbed_tls_initial_add_round_key plaintext rks in
   match (mbed_tls_final_enc_round (mbed_tls_enc_rounds 13 state0 rks 0) rks) with
   | (col0, (col1, (col2, col3))) => 
@@ -94,7 +94,10 @@ Definition encryption_spec_ll :=
     SEP (data_at ctx_sh (t_struct_aesctx) (
           (Vint (Int.repr Nr)), 
           ((field_address t_struct_aesctx [StructField _buf] ctx),
-          ((map Vint (map Int.repr exp_key)) ++ (list_repeat (8%nat) Vundef)))
+          (map Vint (map Int.repr (exp_key ++ (list_repeat (8%nat) 0)))))
+          (* The following weaker precondition would also be provable, but less conveniently, and   *)
+          (* since mbedtls_aes_init zeroes the whole buffer, we exploit this to simplify the proof  *)
+          (* ((map Vint (map Int.repr exp_key)) ++ (list_repeat (8%nat) Vundef))) *)
          ) ctx;
          data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
          data_at_ out_sh (tarray tuchar 16) output;
@@ -102,7 +105,7 @@ Definition encryption_spec_ll :=
   POST [ tvoid ]
     PROP() LOCAL()
     SEP (data_at out_sh (tarray tuchar 16) 
-                        (map Vint (mbed_tls_aes_enc (map Int.repr plaintext) (map Int.repr exp_key)))
+                        (map Vint (mbed_tls_aes_enc plaintext (map Int.repr exp_key)))
                          output).
 
 (* QQQ: How to know that if x is stored in a var of type tuchar, 0 <= x < 256 ? *)
@@ -118,6 +121,9 @@ Ltac simpl_Int := repeat match goal with
     let x := fresh "x" in (pose (x := (A + B)%Z)); simpl in x;
     replace (Int.add (Int.repr A) (Int.repr B)) with (Int.repr x); subst x; [|reflexivity]
 end.
+
+Lemma masked_byte_range: forall i,
+  0 <= Z.land i 255 < 256. Admitted.
 
 Lemma body_aes_encrypt: semax_body Vprog Gprog f_mbedtls_aes_encrypt encryption_spec_ll.
 Proof.
@@ -135,24 +141,24 @@ Proof.
     reflexivity.
   }
   rewrite Eq in *. clear Eq.
-
-  (* Bring the SEP clause about ctx into a suitable form: *)
-  remember (list_repeat 8 Vundef) as Vundefs.
-  assert (exists k1 k2 k3 k4 exp_key_tail, exp_key = k1 :: k2 :: k3 :: k4 :: exp_key_tail) as Eq. {
-    destruct exp_key as [|k1 [| k2 [| k3 [| k4 exp_key_tail]]]];
-      try solve [compute in H0; omega]. repeat eexists.
+  remember (exp_key ++ list_repeat 8 0) as buf.
+  (* TODO floyd: This is important for automatic rewriting of (Znth (map Vint ...)), and if
+     it's not done, the tactics might become very slow, especially if they try to simplify complex
+     terms that they would never attempt to simplify if the rewriting had succeeded.
+     How should the user be told to put prove such assertions before continuing? *)
+  assert (Zlength buf = 68) as LenBuf. {
+    subst. rewrite Zlength_app. rewrite H0. reflexivity.
   }
-  destruct Eq as [k1 [k2 [k3 [k4 [exp_tail Eq]]]]]. subst exp_key. 
-  repeat rewrite map_cons.
+
+  Ltac forward2 :=
+    (forward; autorewrite with sublist); (* TODO floyd why doesn't entailer do the autorewrite? *)
+    [ solve [ entailer! ] | idtac ].
 
   (* GET_UINT32_LE( X0, input,  0 ); X0 ^= *RK++;
      GET_UINT32_LE( X1, input,  4 ); X1 ^= *RK++;
      GET_UINT32_LE( X2, input,  8 ); X2 ^= *RK++;
      GET_UINT32_LE( X3, input, 12 ); X3 ^= *RK++; *)
-  Ltac GET_UINT32_LE_tac := do 4 (
-    (forward; repeat rewrite zlist_hint_db.Znth_map_Vint by (rewrite Zlength_map; omega));
-    [ solve [ entailer! ] | idtac ]
-  ).
+  Ltac GET_UINT32_LE_tac := do 4 forward2.
 
   assert_PROP (forall i, 0 <= i < 60 -> force_val (sem_add_pi tuint
        (field_address t_struct_aesctx [ArraySubsc  i   ; StructField _buf] ctx) (Vint (Int.repr 1)))
@@ -170,24 +176,13 @@ Proof.
   Time do 4 (
     GET_UINT32_LE_tac; simpl; forward; forward; forward;
     rewrite Eq by omega; simpl;
-    forward; forward
-  ). (* 1308s *)
+    forward2; forward
+  ). (* 556s *)
 
-  match goal with
-  | |- context [temp _X0 (Vint (Int.xor ?E (Int.repr k1)))] =>
-       replace E with (get_uint32_le (map Int.repr plaintext) 0) by reflexivity
-  end.
-  match goal with
-  | |- context [temp _X1 (Vint (Int.xor ?E (Int.repr k2)))] =>
-       replace E with (get_uint32_le (map Int.repr plaintext) 4) by reflexivity
-  end.
-  match goal with
-  | |- context [temp _X2 (Vint (Int.xor ?E (Int.repr k3)))] =>
-       replace E with (get_uint32_le (map Int.repr plaintext) 8) by reflexivity
-  end.
-  match goal with
-  | |- context [temp _X3 (Vint (Int.xor ?E (Int.repr k4)))] =>
-       replace E with (get_uint32_le (map Int.repr plaintext) 12) by reflexivity
+  do 4 match goal with
+  | |- context [temp _ (Vint (Int.xor ?E (Int.repr (Znth ?i buf 0))))] =>
+    let i4 := eval simpl in (4 * i)%Z in
+    progress change E with (get_uint32_le plaintext i4)
   end.
 
 unfold Sfor.
@@ -201,10 +196,7 @@ forward. forward.
 assert (exists (v: reptype t_struct_aesctx), v =
        (Vint (Int.repr Nr),
           (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx,
-          Vint (Int.repr k1)
-          :: Vint (Int.repr k2)
-             :: Vint (Int.repr k3)
-                :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ Vundefs)))
+          map Vint (map Int.repr buf))))
 as EE by (eexists; reflexivity).
 
 destruct EE as [vv EE].
@@ -213,10 +205,10 @@ eapply semax_seq' with (P' :=
   PROP ( )
   LOCAL (
      temp _RK (field_address t_struct_aesctx [ArraySubsc 4; StructField _buf] ctx);
-     temp _X3 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 12) (Int.repr k4)));
-     temp _X2 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 8) (Int.repr k3)));
-     temp _X1 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 4) (Int.repr k2)));
-     temp _X0 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 0) (Int.repr k1)));
+     temp _X3 (Vint (Int.xor (get_uint32_le plaintext 12) (Int.repr (Znth 3 buf 0))));
+     temp _X2 (Vint (Int.xor (get_uint32_le plaintext 8) (Int.repr (Znth 2 buf 0))));
+     temp _X1 (Vint (Int.xor (get_uint32_le plaintext 4) (Int.repr (Znth 1 buf 0))));
+     temp _X0 (Vint (Int.xor (get_uint32_le plaintext 0) (Int.repr (Znth 0 buf 0))));
      temp _ctx ctx;
      temp _input input;
      temp _output output;
@@ -233,10 +225,10 @@ apply semax_pre with (P' :=
   (EX i: Z,   PROP ( ) LOCAL (
      temp _i (Vint (Int.repr i));
      temp _RK (field_address t_struct_aesctx [ArraySubsc 4; StructField _buf] ctx);
-     temp _X3 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 12) (Int.repr k4)));
-     temp _X2 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 8) (Int.repr k3)));
-     temp _X1 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 4) (Int.repr k2)));
-     temp _X0 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 0) (Int.repr k1)));
+     temp _X3 (Vint (Int.xor (get_uint32_le plaintext 12) (Int.repr (Znth 3 buf 0))));
+     temp _X2 (Vint (Int.xor (get_uint32_le plaintext 8) (Int.repr (Znth 2 buf 0))));
+     temp _X1 (Vint (Int.xor (get_uint32_le plaintext 4) (Int.repr (Znth 1 buf 0))));
+     temp _X0 (Vint (Int.xor (get_uint32_le plaintext 0) (Int.repr (Znth 0 buf 0))));
      temp _ctx ctx;
      temp _input input;
      temp _output output;
@@ -252,10 +244,10 @@ apply semax_pre with (P' :=
   (EX i: Z,   PROP ( ) LOCAL ( 
      temp _i (Vint (Int.repr i));
      temp _RK (field_address t_struct_aesctx [ArraySubsc 4; StructField _buf] ctx);
-     temp _X3 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 12) (Int.repr k4)));
-     temp _X2 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 8) (Int.repr k3)));
-     temp _X1 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 4) (Int.repr k2)));
-     temp _X0 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 0) (Int.repr k1)));
+     temp _X3 (Vint (Int.xor (get_uint32_le plaintext 12) (Int.repr (Znth 3 buf 0))));
+     temp _X2 (Vint (Int.xor (get_uint32_le plaintext 8) (Int.repr (Znth 2 buf 0))));
+     temp _X1 (Vint (Int.xor (get_uint32_le plaintext 4) (Int.repr (Znth 1 buf 0))));
+     temp _X0 (Vint (Int.xor (get_uint32_le plaintext 0) (Int.repr (Znth 0 buf 0))));
      temp _ctx ctx;
      temp _input input;
      temp _output output;
@@ -272,10 +264,10 @@ Intro i.
 forward_if (PROP ( ) LOCAL (
      temp _i (Vint (Int.repr i));
      temp _RK (field_address t_struct_aesctx [ArraySubsc 4; StructField _buf] ctx);
-     temp _X3 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 12) (Int.repr k4)));
-     temp _X2 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 8) (Int.repr k3)));
-     temp _X1 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 4) (Int.repr k2)));
-     temp _X0 (Vint (Int.xor (get_uint32_le (map Int.repr plaintext) 0) (Int.repr k1)));
+     temp _X3 (Vint (Int.xor (get_uint32_le plaintext 12) (Int.repr (Znth 3 buf 0))));
+     temp _X2 (Vint (Int.xor (get_uint32_le plaintext 8) (Int.repr (Znth 2 buf 0))));
+     temp _X1 (Vint (Int.xor (get_uint32_le plaintext 4) (Int.repr (Znth 1 buf 0))));
+     temp _X0 (Vint (Int.xor (get_uint32_le plaintext 0) (Int.repr (Znth 0 buf 0))));
      temp _ctx ctx;
      temp _input input;
      temp _output output;
@@ -294,41 +286,21 @@ forward_if (PROP ( ) LOCAL (
   forward. entailer!.
  }
 { (* rest: loop body *)
-  forward. forward.
+  unfold tables_initialized.
+  forward. forward. rewrite Eq by omega. simpl.
   (* now we need the SEP clause about ctx: *) subst vv.
-  forward.
-
-{
-entailer!.
-(* TODO simplify this earlier! *)
-admit. (* TODO is_int *)
-}
+  forward2.
 
 (* next command in loop body: *)
 (*     uint32_t b0 = tables.FT0[ ( Y0       ) & 0xFF ];    *)
-unfold tables_initialized.
-
-Lemma masked_byte_range: forall i,
-  0 <= Z.land i 255 < 256. Admitted.
 
 Ltac entailer_for_load_tac ::=
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range;
   quick_typecheck3.
 
-forward. { apply prop_right. apply masked_byte_range. }
-forward. { apply prop_right. apply masked_byte_range. }
-forward. { apply prop_right. apply masked_byte_range. }
-forward. { apply prop_right. apply masked_byte_range. }
-
+do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
 rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
 
-replace (Vint (Int.repr k1)
-         :: Vint (Int.repr k2)
-            :: Vint (Int.repr k3) :: Vint (Int.repr k4) :: map Vint (map Int.repr exp_tail) ++ Vundefs)
-with (map Vint ((Int.repr k1) :: (Int.repr k2) :: (Int.repr k3) :: (Int.repr k4) ::
-  (map Int.repr exp_tail) ++ [Int.zero;Int.zero;Int.zero;Int.zero;Int.zero;Int.zero;Int.zero;Int.zero]))
-by admit. (* TODO Vundefs vs zeros not correct *)
-rewrite ?Znth_map with (d' := Int.zero) by admit.
 (* now all arguments of "X0 = rk ^ b0 ^ b1 ^ b2 ^ b3" are Vint *)
 
 Ltac entailer_for_load_tac ::= idtac.
