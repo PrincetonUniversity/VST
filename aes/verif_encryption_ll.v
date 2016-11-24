@@ -38,14 +38,14 @@ Definition byte1 (x : int) : Z :=
 Definition byte2 (x : int) : Z :=
   (Z.land (Int.unsigned (Int.shru x (Int.repr 16))) (Int.unsigned (Int.repr 255))).
 Definition byte3 (x : int) : Z :=
-  (Z.land (Int.unsigned (Int.shru x (Int.repr 8))) (Int.unsigned (Int.repr 255))).
+  (Z.land (Int.unsigned (Int.shru x (Int.repr 24))) (Int.unsigned (Int.repr 255))).
 
 Definition mbed_tls_fround_col (col0 col1 col2 col3 : int) (rk : int) : int :=
-  (Int.xor (Int.xor (Int.xor (Int.xor rk 
-    (force_int (Znth (byte0 col0) (map Vint FT0) Vundef)))
-    (force_int (Znth (byte1 col1) (map Vint FT1) Vundef)))
-    (force_int (Znth (byte2 col2) (map Vint FT2) Vundef)))
-    (force_int (Znth (byte3 col3) (map Vint FT3) Vundef))).
+  (Int.xor (Int.xor (Int.xor (Int.xor rk
+    (Znth (byte0 col0) FT0 Int.zero))
+    (Znth (byte1 col1) FT1 Int.zero))
+    (Znth (byte2 col2) FT2 Int.zero))
+    (Znth (byte3 col3) FT3 Int.zero)).
 
 Definition four_ints := (int * (int * (int * int)))%type.
 
@@ -286,37 +286,140 @@ forward_if (PROP ( ) LOCAL (
   forward. entailer!.
  }
 { (* rest: loop body *)
-  unfold tables_initialized.
-  forward. forward. rewrite Eq by omega. simpl.
-  (* now we need the SEP clause about ctx: *) subst vv.
-  forward2.
+  unfold tables_initialized. subst vv.
 
-(* next command in loop body: *)
-(*     uint32_t b0 = tables.FT0[ ( Y0       ) & 0xFF ];    *)
+Ltac remember_temp_Vints done :=
+  lazymatch goal with
+  | |- context [ ?T :: done ] => match T with
+    | temp ?Id (Vint ?V) =>
+      let V0 := fresh "V" in remember V as V0;
+      remember_temp_Vints ((temp Id (Vint V0)) :: done)
+    | _ => remember_temp_Vints (T :: done)
+    end
+  | |- semax _ (PROPx _ (LOCALx done (SEPx _))) _ _ => idtac
+  | _ => fail 100 "assertion failure: did not find" done
+  end.
 
 Ltac entailer_for_load_tac ::=
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range;
-  quick_typecheck3.
+  try quick_typecheck3.
 
-do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  forward. forward. rewrite Eq by omega. simpl.
+  forward2.
+  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
+  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  remember_temp_Vints (@nil localdef).
+  forward.
 
-(* now all arguments of "X0 = rk ^ b0 ^ b1 ^ b2 ^ b3" are Vint *)
+  forward. forward. rewrite Eq by omega. simpl.
+  forward2.
+  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
+  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  remember_temp_Vints (@nil localdef).
+  forward.
 
-Ltac entailer_for_load_tac ::= idtac.
+  forward. forward. rewrite Eq by omega. simpl.
+  forward2.
+  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
+  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  remember_temp_Vints (@nil localdef).
+  forward.
 
-Arguments Znth _ _ _ _ : simpl never.
+  forward. forward. rewrite Eq by omega. simpl.
+  forward2.
+  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
+  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  remember_temp_Vints (@nil localdef).
+  forward.
 
-(* forward. (* <-- takes forever *) *)
-admit.
+  repeat subst.
 
+  match goal with
+  | |- context [ Z.land (Int.unsigned (Int.shru ?x (Int.repr 24))) (Int.unsigned (Int.repr 255)) ] =>
+    change (Z.land (Int.unsigned (Int.shru ?x (Int.repr 24))) (Int.unsigned (Int.repr 255)))
+    with (byte3 x)
+  end.
+  match goal with
+  | |- context [ Z.land (Int.unsigned (Int.shru ?x (Int.repr 16))) (Int.unsigned (Int.repr 255)) ] =>
+    change (Z.land (Int.unsigned (Int.shru ?x (Int.repr 16))) (Int.unsigned (Int.repr 255)))
+    with (byte2 x)
+  end.
+  match goal with
+  | |- context [ Z.land (Int.unsigned (Int.shru ?x (Int.repr 8))) (Int.unsigned (Int.repr 255)) ] =>
+    change (Z.land (Int.unsigned (Int.shru ?x (Int.repr 8))) (Int.unsigned (Int.repr 255)))
+    with (byte1 x)
+  end.
+  do 4 match goal with
+  | |- context [ Z.land (Int.unsigned ?x) (Int.unsigned (Int.repr 255)) ] =>
+    change (Z.land (Int.unsigned x) (Int.unsigned (Int.repr 255))) with (byte0 x)
+  end.
+
+Definition mbed_tls_fround_colCORRECT (col0 col1 col2 col3 : int) (rk : Z) : int :=
+  (Int.xor (Int.xor (Int.xor (Int.xor (Int.repr rk)
+    (Znth (byte0 col0) FT0 Int.zero))
+    (Znth (byte1 col1) FT1 Int.zero))
+    (Znth (byte2 col2) FT2 Int.zero))
+    (Znth (byte3 col3) FT3 Int.zero)).
+
+  do 4 match goal with
+  | |- context [ temp _ (Vint ?E) ] =>
+    evar (col0: int); evar (col1: int); evar (col2: int); evar (col3: int); evar (rk: Z); 
+    assert (E = mbed_tls_fround_colCORRECT col0 col1 col2 col3 rk) as EqY;
+    subst col0 col1 col2 col3 rk; [reflexivity | progress rewrite EqY; clear EqY]
+  end.
+
+Definition mbed_tls_initial_add_round_key_col (col_id : Z) (plaintext : list Z) (rks : list Z) :=
+  Int.xor (get_uint32_le plaintext (col_id * 4)) (Int.repr (Znth col_id rks 0)).
+
+  remember (exp_key ++ list_repeat 8 0) as buf. (* TODO when did this go lost? *)
+
+  (* TODO do this earlier *)
+  do 4 match goal with
+  | |- context [temp _ (Vint (Int.xor (get_uint32_le plaintext ?i4) (Int.repr (Znth ?i buf 0))))] =>
+       change (Int.xor (get_uint32_le plaintext i4) (Int.repr (Znth i buf 0)))
+        with (mbed_tls_initial_add_round_key_col i plaintext buf)
+  end.
+
+Definition mbed_tls_initial_add_round_keyCORRECT (plaintext : list Z) (rks : list Z) : four_ints :=
+((mbed_tls_initial_add_round_key_col 0 plaintext rks),
+((mbed_tls_initial_add_round_key_col 1 plaintext rks),
+((mbed_tls_initial_add_round_key_col 2 plaintext rks),
+((mbed_tls_initial_add_round_key_col 3 plaintext rks))))).
+
+  pose (S0 := mbed_tls_initial_add_round_keyCORRECT plaintext buf).
+Definition col (i : Z) (s : four_ints) : int := match i with
+| 0 => fst s
+| 1 => fst (snd s)
+| 2 => fst (snd (snd s))
+| 3 => snd (snd (snd s))
+| _ => Int.zero (* should not happen *)
+end.
+
+  match goal with |- context [temp _X0 (Vint ?E)] => change E with (col 0 S0) end.
+  match goal with |- context [temp _X1 (Vint ?E)] => change E with (col 1 S0) end.
+  match goal with |- context [temp _X2 (Vint ?E)] => change E with (col 2 S0) end.
+  match goal with |- context [temp _X3 (Vint ?E)] => change E with (col 3 S0) end.
+
+Definition mbed_tls_froundCORRECT (cols : four_ints) (rks : list Z) (i : Z) : four_ints :=
+match cols with (col0, (col1, (col2, col3))) =>
+  ((mbed_tls_fround_col col0 col1 col2 col3 (Znth  i    rks Int.zero)),
+  ((mbed_tls_fround_col col1 col2 col3 col0 (Znth (i+1) rks Int.zero)),
+  ((mbed_tls_fround_col col2 col3 col0 col1 (Znth (i+2) rks Int.zero)),
+   (mbed_tls_fround_col col3 col0 col1 col2 (Znth (i+3) rks Int.zero)))))
+end.
+
+  pose (S1 := mbed_tls_froundCORRECT S0 buf).
+
+  match goal with |- context [temp _Y0 (Vint ?E)] => change E with (col 0 S1) end.
+  match goal with |- context [temp _Y1 (Vint ?E)] => change E with (col 1 S1) end.
+  match goal with |- context [temp _Y2 (Vint ?E)] => change E with (col 2 S1) end.
+  match goal with |- context [temp _Y3 (Vint ?E)] => change E with (col 3 S1) end.
+
+  admit.
 }
 }
-{
-
 { (* loop decr *)
 admit.
-}
 }
 }
 }
@@ -348,6 +451,3 @@ Note:
 field_compatible/0 -> legal_nested_field/0 -> legal_field/0:
   legal_field0 allows an array index to point 1 past the last array cell, legal_field disallows this
 *)
-
-Definition lo_byte (i : Z) : Z := (Z.land i (Int.unsigned (Int.repr 255))).
-Arguments lo_byte i : simpl never.
