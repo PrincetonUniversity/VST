@@ -4,16 +4,6 @@ Require Import sha.sha.
 Require Import sha.spec_sha.
 Require Import sha.sha_lemmas.
 
-Lemma force_lengthn_firstn:
-  forall {A} n b (v:A), (n <= length b)%nat -> 
-         force_lengthn n b v = firstn n b.
-Proof.
-induction n; intros; simpl.
-reflexivity.
-destruct b. inv H.
-simpl in H. f_equal. apply IHn. omega.
-Qed.
-
 Lemma Zland_15:
  forall i, Z.land i 15 = i mod 16.
 Proof.
@@ -25,28 +15,23 @@ Qed.
 
 Lemma Znth_nthi:
   forall i b,
-  (0 <= i < Zlength b)%Z -> Znth i (map Vint b) Vundef = Vint (nthi b i).
+  (0 <= i < Zlength b)%Z -> Znth i b Int.zero = nthi b i.
 Proof.
 intros; unfold Znth.
 rewrite if_false by omega.
-rewrite (@nth_map' int val _ _ Int.zero).
 reflexivity.
-rewrite Zlength_correct in H.
-apply Nat2Z.inj_lt. rewrite Z2Nat.id by omega. omega.
 Qed.
 
 Lemma Znth_nthi':
  forall i b,
   Zlength b = 16%Z ->
-  Znth (Z.land i 15) (map Vint b) Vundef = Vint (nthi b (i mod 16)).
+  Znth (Z.land i 15) b Int.zero = nthi b (i mod 16).
 Proof.
  intros.
- rewrite Zland_15.
- apply Znth_nthi.
- rewrite H.
- apply Z.mod_pos_bound.
- computable.
+ rewrite Zland_15. apply Znth_nthi.
+ exploit (Z.mod_pos_bound i 16). computable. intros; omega.
 Qed.
+
 
 Lemma Zland_in_range:
   forall i, (0 <= Z.land i 15 < 16)%Z.
@@ -181,102 +166,6 @@ apply Int.unsigned_range. clear; omega. clear; omega.
 rewrite Int.signed_repr; auto.
 repable_signed.
 Qed.
-
-Definition rearrange_regs :=
-(Ssequence
-     (Sset _T1
-        (Ebinop Oadd
-           (Ebinop Oadd
-              (Ebinop Oadd
-                 (Ebinop Oadd (Etempvar _l tuint) (Etempvar _h tuint) tuint)
-                 (Ebinop Oxor
-                    (Ebinop Oxor
-                       (Ebinop Oor
-                          (Ebinop Oshl (Etempvar _e tuint)
-                             (Econst_int (Int.repr 26) tint) tuint)
-                          (Ebinop Oshr
-                             (Ebinop Oand (Etempvar _e tuint)
-                                (Econst_int (Int.repr (-1)) tuint) tuint)
-                             (Ebinop Osub (Econst_int (Int.repr 32) tint)
-                                (Econst_int (Int.repr 26) tint) tint) tuint)
-                          tuint)
-                       (Ebinop Oor
-                          (Ebinop Oshl (Etempvar _e tuint)
-                             (Econst_int (Int.repr 21) tint) tuint)
-                          (Ebinop Oshr
-                             (Ebinop Oand (Etempvar _e tuint)
-                                (Econst_int (Int.repr (-1)) tuint) tuint)
-                             (Ebinop Osub (Econst_int (Int.repr 32) tint)
-                                (Econst_int (Int.repr 21) tint) tint) tuint)
-                          tuint) tuint)
-                    (Ebinop Oor
-                       (Ebinop Oshl (Etempvar _e tuint)
-                          (Econst_int (Int.repr 7) tint) tuint)
-                       (Ebinop Oshr
-                          (Ebinop Oand (Etempvar _e tuint)
-                             (Econst_int (Int.repr (-1)) tuint) tuint)
-                          (Ebinop Osub (Econst_int (Int.repr 32) tint)
-                             (Econst_int (Int.repr 7) tint) tint) tuint)
-                       tuint) tuint) tuint)
-              (Ebinop Oxor
-                 (Ebinop Oand (Etempvar _e tuint) (Etempvar _f tuint) tuint)
-                 (Ebinop Oand (Eunop Onotint (Etempvar _e tuint) tuint)
-                    (Etempvar _g tuint) tuint) tuint) tuint)
-           (Etempvar _Ki tuint) tuint))
-     (Ssequence
-        (Sset _T2
-           (Ebinop Oadd
-              (Ebinop Oxor
-                 (Ebinop Oxor
-                    (Ebinop Oor
-                       (Ebinop Oshl (Etempvar _a tuint)
-                          (Econst_int (Int.repr 30) tint) tuint)
-                       (Ebinop Oshr
-                          (Ebinop Oand (Etempvar _a tuint)
-                             (Econst_int (Int.repr (-1)) tuint) tuint)
-                          (Ebinop Osub (Econst_int (Int.repr 32) tint)
-                             (Econst_int (Int.repr 30) tint) tint) tuint)
-                       tuint)
-                    (Ebinop Oor
-                       (Ebinop Oshl (Etempvar _a tuint)
-                          (Econst_int (Int.repr 19) tint) tuint)
-                       (Ebinop Oshr
-                          (Ebinop Oand (Etempvar _a tuint)
-                             (Econst_int (Int.repr (-1)) tuint) tuint)
-                          (Ebinop Osub (Econst_int (Int.repr 32) tint)
-                             (Econst_int (Int.repr 19) tint) tint) tuint)
-                       tuint) tuint)
-                 (Ebinop Oor
-                    (Ebinop Oshl (Etempvar _a tuint)
-                       (Econst_int (Int.repr 10) tint) tuint)
-                    (Ebinop Oshr
-                       (Ebinop Oand (Etempvar _a tuint)
-                          (Econst_int (Int.repr (-1)) tuint) tuint)
-                       (Ebinop Osub (Econst_int (Int.repr 32) tint)
-                          (Econst_int (Int.repr 10) tint) tint) tuint) tuint)
-                 tuint)
-              (Ebinop Oxor
-                 (Ebinop Oxor
-                    (Ebinop Oand (Etempvar _a tuint) (Etempvar _b tuint)
-                       tuint)
-                    (Ebinop Oand (Etempvar _a tuint) (Etempvar _c tuint)
-                       tuint) tuint)
-                 (Ebinop Oand (Etempvar _b tuint) (Etempvar _c tuint) tuint)
-                 tuint) tuint))
-        (Ssequence (Sset _h (Etempvar _g tuint))
-           (Ssequence (Sset _g (Etempvar _f tuint))
-              (Ssequence (Sset _f (Etempvar _e tuint))
-                 (Ssequence
-                    (Sset _e
-                       (Ebinop Oadd (Etempvar _d tuint) (Etempvar _T1 tuint)
-                          tuint))
-                    (Ssequence (Sset _d (Etempvar _c tuint))
-                       (Ssequence (Sset _c (Etempvar _b tuint))
-                          (Ssequence (Sset _b (Etempvar _a tuint))
-                             (Sset _a
-                                (Ebinop Oadd (Etempvar _T1 tuint)
-                                   (Etempvar _T2 tuint) tuint))))))))))).
-
 
 Definition Delta_loop1 : tycontext.
 simplify_Delta_from
