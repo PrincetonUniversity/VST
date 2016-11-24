@@ -85,11 +85,13 @@ Definition mbed_tls_initial_add_round_key (plaintext : list Z) (rks : list Z) : 
 ((mbed_tls_initial_add_round_key_col 3 plaintext rks))))).
 
 Definition mbed_tls_aes_enc (plaintext : list Z) (rks : list Z) : list int :=
-  let state0 := mbed_tls_initial_add_round_key plaintext rks in
-  match (mbed_tls_final_enc_round (mbed_tls_enc_rounds 13 state0 rks 0) rks) with
-  | (col0, (col1, (col2, col3))) => 
-       (put_uint32_le col0) ++ (put_uint32_le col1) ++ (put_uint32_le col2) ++ (put_uint32_le col3)
-  end.
+  let state0  := mbed_tls_initial_add_round_key plaintext rks in
+  let state13 := mbed_tls_enc_rounds 13 state0 rks 4 in
+  let state14 := mbed_tls_final_enc_round state13 rks in
+  (put_uint32_le (col 0 state14)) ++
+  (put_uint32_le (col 1 state14)) ++
+  (put_uint32_le (col 2 state14)) ++
+  (put_uint32_le (col 3 state14)).
 
 Definition encryption_spec_ll :=
   DECLARE _mbedtls_aes_encrypt
