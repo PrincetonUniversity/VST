@@ -202,3 +202,8 @@ Definition RSb := map Int.repr inv_sbox.
 (* matches aes_tables_struct *)
 Definition tables_content := (FSb, (FT0, (FT1, (FT2, (FT3, (RSb, (RT0, (RT1, (RT2, (RT3, RCON)))))))))).
 
+(* If entailer! and go_lower unfold these, they become too slow *)
+Global Opaque FSb FT0 FT1 FT2 FT3 RSb RT0 RT1 RT2 RT3 RCON.
+
+(* TODO Can we achieve the same with "Arguments"?
+   "Arguments FSb : simpl never." (etc) does not seem to work *)
