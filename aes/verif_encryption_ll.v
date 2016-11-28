@@ -335,30 +335,33 @@ Ltac entailer_for_load_tac ::=
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range;
   try quick_typecheck3.
 
-  forward. forward. rewrite Eq by omega. simpl.
+  forward. forward. rewrite Eq by omega.
   forward2.
-  (* ok until here, then out of memory *)
+  remember_temp_Vints (@nil localdef).
   do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
   remember_temp_Vints (@nil localdef).
   forward.
 
-  forward. forward. rewrite Eq by omega. simpl.
+  forward. forward. rewrite Eq by omega.
   forward2.
+  remember_temp_Vints (@nil localdef).
   do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
   remember_temp_Vints (@nil localdef).
   forward.
 
-  forward. forward. rewrite Eq by omega. simpl.
+  forward. forward. rewrite Eq by omega.
   forward2.
+  remember_temp_Vints (@nil localdef).
   do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
   remember_temp_Vints (@nil localdef).
   forward.
 
-  forward. forward. rewrite Eq by omega. simpl.
+  forward. forward. rewrite Eq by omega.
   forward2.
+  remember_temp_Vints (@nil localdef).
   do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
   remember_temp_Vints (@nil localdef).
