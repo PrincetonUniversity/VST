@@ -215,14 +215,16 @@ as EE by (eexists; reflexivity).
 
 destruct EE as [vv EE].
 
+pose (S12 := mbed_tls_enc_rounds 12 S0 exp_key 4).
+
 eapply semax_seq' with (P' :=
   PROP ( )
   LOCAL (
-     temp _RK (field_address t_struct_aesctx [ArraySubsc 4; StructField _buf] ctx);
-     temp _X3 (Vint (col 3 S0));
-     temp _X2 (Vint (col 2 S0));
-     temp _X1 (Vint (col 1 S0));
-     temp _X0 (Vint (col 0 S0));
+     temp _RK (field_address t_struct_aesctx [ArraySubsc 52; StructField _buf] ctx);
+     temp _X3 (Vint (col 3 S12));
+     temp _X2 (Vint (col 2 S12));
+     temp _X1 (Vint (col 1 S12));
+     temp _X0 (Vint (col 0 S12));
      temp _ctx ctx;
      temp _input input;
      temp _output output;
@@ -236,13 +238,15 @@ eapply semax_seq' with (P' :=
 ).
 {
 apply semax_pre with (P' := 
-  (EX i: Z,   PROP ( ) LOCAL (
+  (EX i: Z, PROP ( 
+     0 <= i <= 6
+  ) LOCAL (
      temp _i (Vint (Int.repr i));
-     temp _RK (field_address t_struct_aesctx [ArraySubsc 4; StructField _buf] ctx);
-     temp _X3 (Vint (col 3 S0));
-     temp _X2 (Vint (col 2 S0));
-     temp _X1 (Vint (col 1 S0));
-     temp _X0 (Vint (col 0 S0));
+     temp _RK (field_address t_struct_aesctx [ArraySubsc (52 - i*8); StructField _buf] ctx);
+     temp _X3 (Vint (col 3 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 exp_key 4)));
+     temp _X2 (Vint (col 2 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 exp_key 4)));
+     temp _X1 (Vint (col 1 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 exp_key 4)));
+     temp _X0 (Vint (col 0 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 exp_key 4)));
      temp _ctx ctx;
      temp _input input;
      temp _output output;
@@ -255,13 +259,15 @@ apply semax_pre with (P' :=
   ))).
 { subst vv. Exists 6. entailer!. }
 { apply semax_loop with (
-  (EX i: Z,   PROP ( ) LOCAL ( 
+  (EX i: Z, PROP ( 
+     0 <= i <= 6
+  ) LOCAL (
      temp _i (Vint (Int.repr i));
-     temp _RK (field_address t_struct_aesctx [ArraySubsc 4; StructField _buf] ctx);
-     temp _X3 (Vint (col 3 S0));
-     temp _X2 (Vint (col 2 S0));
-     temp _X1 (Vint (col 1 S0));
-     temp _X0 (Vint (col 0 S0));
+     temp _RK (field_address t_struct_aesctx [ArraySubsc (52 - i*8); StructField _buf] ctx);
+     temp _X3 (Vint (col 3 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 exp_key 4)));
+     temp _X2 (Vint (col 2 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 exp_key 4)));
+     temp _X1 (Vint (col 1 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 exp_key 4)));
+     temp _X0 (Vint (col 0 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 exp_key 4)));
      temp _ctx ctx;
      temp _input input;
      temp _output output;
@@ -273,15 +279,15 @@ apply semax_pre with (P' :=
      data_at ctx_sh t_struct_aesctx vv ctx 
   ))).
 { (* loop body *) 
-Intro i.
+Intro i. Intros. (* TODO floyd why is "Intros" alone not enough? *)
 
 forward_if (PROP ( ) LOCAL (
      temp _i (Vint (Int.repr i));
-     temp _RK (field_address t_struct_aesctx [ArraySubsc 4; StructField _buf] ctx);
-     temp _X3 (Vint (col 3 S0));
-     temp _X2 (Vint (col 2 S0));
-     temp _X1 (Vint (col 1 S0));
-     temp _X0 (Vint (col 0 S0));
+     temp _RK (field_address t_struct_aesctx [ArraySubsc (52 - i*8); StructField _buf] ctx);
+     temp _X3 (Vint (col 3 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 exp_key 4)));
+     temp _X2 (Vint (col 2 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 exp_key 4)));
+     temp _X1 (Vint (col 1 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 exp_key 4)));
+     temp _X0 (Vint (col 0 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 exp_key 4)));
      temp _ctx ctx;
      temp _input input;
      temp _output output;
@@ -297,7 +303,18 @@ forward_if (PROP ( ) LOCAL (
  }
 {
  (* else-branch: exit loop *)
-  forward. entailer!.
+  forward. assert (i = 0) by omega. subst i.
+  change (52 - 0 * 8) with 52.
+  change (12 - 2 * Z.to_nat 0)%nat with 12%nat.
+  replace (mbed_tls_enc_rounds 12 S0 exp_key 4) with S12 by reflexivity. (* interestingly, if we use
+     "change" instead of "replace", it takes much longer *)
+  (* simpl. <- takes forever. *)
+  (* entailer!. <- takes >60s, because it calls go_lower, which calls simpl
+    TODO floyd make entailer! usable here *)
+
+  apply drop_LOCAL' with (n := O). cbv [delete_nth].
+  eapply derives_trans; [ apply drop_tc_environ | ].
+  apply derives_refl.
  }
 { (* rest: loop body *)
   unfold tables_initialized. subst vv.
@@ -320,6 +337,7 @@ Ltac entailer_for_load_tac ::=
 
   forward. forward. rewrite Eq by omega. simpl.
   forward2.
+  (* ok until here, then out of memory *)
   do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
   remember_temp_Vints (@nil localdef).
