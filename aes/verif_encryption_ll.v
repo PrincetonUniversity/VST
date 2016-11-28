@@ -215,7 +215,7 @@ as EE by (eexists; reflexivity).
 
 destruct EE as [vv EE].
 
-pose (S12 := mbed_tls_enc_rounds 12 S0 exp_key 4).
+pose (S12 := mbed_tls_enc_rounds 12 S0 buf 4).
 
 eapply semax_seq' with (P' :=
   PROP ( )
@@ -243,10 +243,10 @@ apply semax_pre with (P' :=
   ) LOCAL (
      temp _i (Vint (Int.repr i));
      temp _RK (field_address t_struct_aesctx [ArraySubsc (52 - i*8); StructField _buf] ctx);
-     temp _X3 (Vint (col 3 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 exp_key 4)));
-     temp _X2 (Vint (col 2 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 exp_key 4)));
-     temp _X1 (Vint (col 1 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 exp_key 4)));
-     temp _X0 (Vint (col 0 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 exp_key 4)));
+     temp _X3 (Vint (col 3 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 buf 4)));
+     temp _X2 (Vint (col 2 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 buf 4)));
+     temp _X1 (Vint (col 1 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 buf 4)));
+     temp _X0 (Vint (col 0 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 buf 4)));
      temp _ctx ctx;
      temp _input input;
      temp _output output;
@@ -264,10 +264,10 @@ apply semax_pre with (P' :=
   ) LOCAL (
      temp _i (Vint (Int.repr i));
      temp _RK (field_address t_struct_aesctx [ArraySubsc (52 - i*8); StructField _buf] ctx);
-     temp _X3 (Vint (col 3 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 exp_key 4)));
-     temp _X2 (Vint (col 2 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 exp_key 4)));
-     temp _X1 (Vint (col 1 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 exp_key 4)));
-     temp _X0 (Vint (col 0 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 exp_key 4)));
+     temp _X3 (Vint (col 3 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 buf 4)));
+     temp _X2 (Vint (col 2 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 buf 4)));
+     temp _X1 (Vint (col 1 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 buf 4)));
+     temp _X0 (Vint (col 0 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 buf 4)));
      temp _ctx ctx;
      temp _input input;
      temp _output output;
@@ -284,10 +284,10 @@ Intro i. Intros. (* TODO floyd why is "Intros" alone not enough? *)
 forward_if (PROP ( ) LOCAL (
      temp _i (Vint (Int.repr i));
      temp _RK (field_address t_struct_aesctx [ArraySubsc (52 - i*8); StructField _buf] ctx);
-     temp _X3 (Vint (col 3 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 exp_key 4)));
-     temp _X2 (Vint (col 2 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 exp_key 4)));
-     temp _X1 (Vint (col 1 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 exp_key 4)));
-     temp _X0 (Vint (col 0 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 exp_key 4)));
+     temp _X3 (Vint (col 3 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 buf 4)));
+     temp _X2 (Vint (col 2 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 buf 4)));
+     temp _X1 (Vint (col 1 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 buf 4)));
+     temp _X0 (Vint (col 0 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 buf 4)));
      temp _ctx ctx;
      temp _input input;
      temp _output output;
@@ -306,7 +306,7 @@ forward_if (PROP ( ) LOCAL (
   forward. assert (i = 0) by omega. subst i.
   change (52 - 0 * 8) with 52.
   change (12 - 2 * Z.to_nat 0)%nat with 12%nat.
-  replace (mbed_tls_enc_rounds 12 S0 exp_key 4) with S12 by reflexivity. (* interestingly, if we use
+  replace (mbed_tls_enc_rounds 12 S0 buf 4) with S12 by reflexivity. (* interestingly, if we use
      "change" instead of "replace", it takes much longer *)
   (* simpl. <- takes forever. *)
   (* entailer!. <- takes >60s, because it calls go_lower, which calls simpl
@@ -368,13 +368,78 @@ Ltac entailer_for_load_tac ::=
   forward.
 
   repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
+  replace (52 - i * 8 + 1 + 1 + 1 + 1) with (52 - i * 8 + 4) by omega.
+  replace (52 - i * 8 + 1 + 1 + 1)     with (52 - i * 8 + 3) by omega.
+  replace (52 - i * 8 + 1 + 1)         with (52 - i * 8 + 2) by omega.
 
-  pose (S1 := mbed_tls_fround S0 buf 4).
+  pose (S' := mbed_tls_fround (mbed_tls_enc_rounds (12-2*Z.to_nat i) S0 buf 4) buf (52-i*8)).
 
-  match goal with |- context [temp _Y0 (Vint ?E)] => change E with (col 0 S1) end.
-  match goal with |- context [temp _Y1 (Vint ?E)] => change E with (col 1 S1) end.
-  match goal with |- context [temp _Y2 (Vint ?E)] => change E with (col 2 S1) end.
-  match goal with |- context [temp _Y3 (Vint ?E)] => change E with (col 3 S1) end.
+Lemma split_four_ints: forall (S: four_ints),
+  S = (col 0 S, (col 1 S, (col 2 S, col 3 S))).
+Proof.
+  intros. destruct S as [c1 [c2 [c3 c4]]]. reflexivity.
+Qed.
+
+  match goal with |- context [temp _Y0 (Vint ?E0)] =>
+    match goal with |- context [temp _Y1 (Vint ?E1)] =>
+      match goal with |- context [temp _Y2 (Vint ?E2)] =>
+        match goal with |- context [temp _Y3 (Vint ?E3)] =>
+          assert (S' = (E0, (E1, (E2, E3)))) as Eq2
+        end
+      end
+    end
+  end.
+  {
+    subst S'.
+    rewrite (split_four_ints (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4)).
+    reflexivity.
+  }
+
+Lemma split_four_ints_eq: forall S c0 c1 c2 c3,
+  S = (c0, (c1, (c2, c3))) -> c0 = col 0 S /\ c1 = col 1 S /\ c2 = col 2 S /\ c3 = col 3 S.
+Proof.
+  intros. destruct S as [d0 [d1 [d2 d3]]]. inv H. auto.
+Qed.
+
+apply split_four_ints_eq in Eq2. destruct Eq2 as [EqY0 [EqY1 [EqY2 EqY3]]].
+rewrite EqY0. rewrite EqY1. rewrite EqY2. rewrite EqY3.
+clear EqY0 EqY1 EqY2 EqY3.
+
+  forward. forward. rewrite Eq by omega.
+  forward2.
+  remember_temp_Vints (@nil localdef).
+  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
+  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  remember_temp_Vints (@nil localdef).
+  forward.
+
+  forward. forward. rewrite Eq by omega.
+  forward2.
+  remember_temp_Vints (@nil localdef).
+  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
+  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  remember_temp_Vints (@nil localdef).
+  forward.
+
+  forward. forward. rewrite Eq by omega.
+  forward2.
+  remember_temp_Vints (@nil localdef).
+  (* ok until here, then out of memory *)
+  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
+  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  remember_temp_Vints (@nil localdef).
+  forward.
+
+  forward. forward. rewrite Eq by omega.
+  forward2.
+  remember_temp_Vints (@nil localdef).
+  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
+  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  remember_temp_Vints (@nil localdef).
+  forward.
+
+  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
+
 
   admit.
 }
