@@ -335,51 +335,59 @@ Definition f_start_read := {|
   fn_callconv := cc_default;
   fn_params := ((_r, tint) :: nil);
   fn_vars := nil;
-  fn_temps := ((_b, tint) :: (_t'2, tint) :: (_t'1, tint) :: nil);
+  fn_temps := ((_b, tint) :: (_c, (tptr tint)) ::
+               (_l, (tptr (Tstruct _lock_t noattr))) :: (_t'2, tint) ::
+               (_t'1, tint) :: nil);
   fn_body :=
 (Ssequence
+  (Sset _c
+    (Ederef
+      (Ebinop Oadd (Evar _comm (tarray (tptr tint) 3)) (Etempvar _r tint)
+        (tptr (tptr tint))) (tptr tint)))
   (Ssequence
-    (Scall (Some _t'1)
-      (Evar _simulate_atomic_exchange (Tfunction
-                                        (Tcons (tptr tint)
-                                          (Tcons
-                                            (tptr (Tstruct _lock_t noattr))
-                                            (Tcons tint Tnil))) tint
-                                        cc_default))
-      ((Ederef
-         (Ebinop Oadd (Evar _comm (tarray (tptr tint) 3)) (Etempvar _r tint)
-           (tptr (tptr tint))) (tptr tint)) ::
-       (Ederef
-         (Ebinop Oadd (Evar _lock (tarray (tptr (Tstruct _lock_t noattr)) 3))
-           (Etempvar _r tint) (tptr (tptr (Tstruct _lock_t noattr))))
-         (tptr (Tstruct _lock_t noattr))) ::
-       (Eunop Oneg (Econst_int (Int.repr 1) tint) tint) :: nil))
-    (Sset _b (Etempvar _t'1 tint)))
-  (Ssequence
+    (Sset _l
+      (Ederef
+        (Ebinop Oadd (Evar _lock (tarray (tptr (Tstruct _lock_t noattr)) 3))
+          (Etempvar _r tint) (tptr (tptr (Tstruct _lock_t noattr))))
+        (tptr (Tstruct _lock_t noattr))))
     (Ssequence
-      (Sifthenelse (Ebinop Oge (Etempvar _b tint)
-                     (Econst_int (Int.repr 0) tint) tint)
-        (Sset _t'2
-          (Ecast
-            (Ebinop Olt (Etempvar _b tint)
-              (Ebinop Oadd (Econst_int (Int.repr 3) tint)
-                (Econst_int (Int.repr 2) tint) tint) tint) tbool))
-        (Sset _t'2 (Econst_int (Int.repr 0) tint)))
-      (Sifthenelse (Etempvar _t'2 tint)
-        (Sassign
-          (Ederef
-            (Ebinop Oadd (Evar _last_read (tarray tint 3)) (Etempvar _r tint)
-              (tptr tint)) tint) (Etempvar _b tint))
-        (Sset _b
-          (Ederef
-            (Ebinop Oadd (Evar _last_read (tarray tint 3)) (Etempvar _r tint)
-              (tptr tint)) tint))))
-    (Ssequence
-      (Sassign
-        (Ederef
-          (Ebinop Oadd (Evar _reading (tarray tint 3)) (Etempvar _r tint)
-            (tptr tint)) tint) (Etempvar _b tint))
-      (Sreturn (Some (Etempvar _b tint))))))
+      (Ssequence
+        (Scall (Some _t'1)
+          (Evar _simulate_atomic_exchange (Tfunction
+                                            (Tcons (tptr tint)
+                                              (Tcons
+                                                (tptr (Tstruct _lock_t noattr))
+                                                (Tcons tint Tnil))) tint
+                                            cc_default))
+          ((Etempvar _c (tptr tint)) ::
+           (Etempvar _l (tptr (Tstruct _lock_t noattr))) ::
+           (Eunop Oneg (Econst_int (Int.repr 1) tint) tint) :: nil))
+        (Sset _b (Etempvar _t'1 tint)))
+      (Ssequence
+        (Ssequence
+          (Sifthenelse (Ebinop Oge (Etempvar _b tint)
+                         (Econst_int (Int.repr 0) tint) tint)
+            (Sset _t'2
+              (Ecast
+                (Ebinop Olt (Etempvar _b tint)
+                  (Ebinop Oadd (Econst_int (Int.repr 3) tint)
+                    (Econst_int (Int.repr 2) tint) tint) tint) tbool))
+            (Sset _t'2 (Econst_int (Int.repr 0) tint)))
+          (Sifthenelse (Etempvar _t'2 tint)
+            (Sassign
+              (Ederef
+                (Ebinop Oadd (Evar _last_read (tarray tint 3))
+                  (Etempvar _r tint) (tptr tint)) tint) (Etempvar _b tint))
+            (Sset _b
+              (Ederef
+                (Ebinop Oadd (Evar _last_read (tarray tint 3))
+                  (Etempvar _r tint) (tptr tint)) tint))))
+        (Ssequence
+          (Sassign
+            (Ederef
+              (Ebinop Oadd (Evar _reading (tarray tint 3)) (Etempvar _r tint)
+                (tptr tint)) tint) (Etempvar _b tint))
+          (Sreturn (Some (Etempvar _b tint))))))))
 |}.
 
 Definition f_finish_read := {|
@@ -537,8 +545,9 @@ Definition f_finish_write := {|
   fn_callconv := cc_default;
   fn_params := nil;
   fn_vars := nil;
-  fn_temps := ((_last, tint) :: (_r, tint) :: (_b, tint) :: (_t'1, tint) ::
-               nil);
+  fn_temps := ((_last, tint) :: (_r, tint) :: (_c, (tptr tint)) ::
+               (_l, (tptr (Tstruct _lock_t noattr))) :: (_b, tint) ::
+               (_t'1, tint) :: nil);
   fn_body :=
 (Ssequence
   (Sset _last (Evar _last_given tint))
@@ -552,34 +561,40 @@ Definition f_finish_write := {|
             Sskip
             Sbreak)
           (Ssequence
+            (Sset _c
+              (Ederef
+                (Ebinop Oadd (Evar _comm (tarray (tptr tint) 3))
+                  (Etempvar _r tint) (tptr (tptr tint))) (tptr tint)))
             (Ssequence
-              (Scall (Some _t'1)
-                (Evar _simulate_atomic_exchange (Tfunction
-                                                  (Tcons (tptr tint)
-                                                    (Tcons
-                                                      (tptr (Tstruct _lock_t noattr))
-                                                      (Tcons tint Tnil)))
-                                                  tint cc_default))
-                ((Ederef
-                   (Ebinop Oadd (Evar _comm (tarray (tptr tint) 3))
-                     (Etempvar _r tint) (tptr (tptr tint))) (tptr tint)) ::
-                 (Ederef
-                   (Ebinop Oadd
-                     (Evar _lock (tarray (tptr (Tstruct _lock_t noattr)) 3))
-                     (Etempvar _r tint)
-                     (tptr (tptr (Tstruct _lock_t noattr))))
-                   (tptr (Tstruct _lock_t noattr))) ::
-                 (Evar _writing tint) :: nil))
-              (Sset _b (Etempvar _t'1 tint)))
-            (Sifthenelse (Ebinop Oeq (Etempvar _b tint)
-                           (Eunop Oneg (Econst_int (Int.repr 1) tint) tint)
-                           tint)
-              (Sassign
+              (Sset _l
                 (Ederef
-                  (Ebinop Oadd (Evar _last_taken (tarray tint 3))
-                    (Etempvar _r tint) (tptr tint)) tint)
-                (Etempvar _last tint))
-              Sskip)))
+                  (Ebinop Oadd
+                    (Evar _lock (tarray (tptr (Tstruct _lock_t noattr)) 3))
+                    (Etempvar _r tint)
+                    (tptr (tptr (Tstruct _lock_t noattr))))
+                  (tptr (Tstruct _lock_t noattr))))
+              (Ssequence
+                (Ssequence
+                  (Scall (Some _t'1)
+                    (Evar _simulate_atomic_exchange (Tfunction
+                                                      (Tcons (tptr tint)
+                                                        (Tcons
+                                                          (tptr (Tstruct _lock_t noattr))
+                                                          (Tcons tint Tnil)))
+                                                      tint cc_default))
+                    ((Etempvar _c (tptr tint)) ::
+                     (Etempvar _l (tptr (Tstruct _lock_t noattr))) ::
+                     (Evar _writing tint) :: nil))
+                  (Sset _b (Etempvar _t'1 tint)))
+                (Sifthenelse (Ebinop Oeq (Etempvar _b tint)
+                               (Eunop Oneg (Econst_int (Int.repr 1) tint)
+                                 tint) tint)
+                  (Sassign
+                    (Ederef
+                      (Ebinop Oadd (Evar _last_taken (tarray tint 3))
+                        (Etempvar _r tint) (tptr tint)) tint)
+                    (Etempvar _last tint))
+                  Sskip)))))
         (Sset _r
           (Ebinop Oadd (Etempvar _r tint) (Econst_int (Int.repr 1) tint)
             tint))))
