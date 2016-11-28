@@ -711,7 +711,7 @@ Implicit Arguments abbreviate [[A][x]].
 
 Ltac clear_Delta :=
 match goal with
-| Delta := @abbreviate tycontext |- _ => 
+| Delta := @abbreviate tycontext _ |- _ => 
    first [clear Delta | clearbody Delta]
 | _ => idtac
 end;
