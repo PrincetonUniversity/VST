@@ -57,6 +57,18 @@ Definition col (i : Z) (s : four_ints) : int := match i with
 | _ => Int.zero (* should not happen *)
 end.
 
+Lemma split_four_ints: forall (S: four_ints),
+  S = (col 0 S, (col 1 S, (col 2 S, col 3 S))).
+Proof.
+  intros. destruct S as [c1 [c2 [c3 c4]]]. reflexivity.
+Qed.
+
+Lemma split_four_ints_eq: forall S c0 c1 c2 c3,
+  S = (c0, (c1, (c2, c3))) -> c0 = col 0 S /\ c1 = col 1 S /\ c2 = col 2 S /\ c3 = col 3 S.
+Proof.
+  intros. destruct S as [d0 [d1 [d2 d3]]]. inv H. auto.
+Qed.
+
 Definition mbed_tls_initial_add_round_key_col (col_id : Z) (plaintext : list Z) (rks : list Z) :=
   Int.xor (get_uint32_le plaintext (col_id * 4)) (Int.repr (Znth col_id rks 0)).
 
@@ -71,7 +83,7 @@ end.
 Fixpoint mbed_tls_enc_rounds (n : nat) (state : four_ints) (rks : list Z) (i : Z) : four_ints :=
 match n with
 | O => state
-| S m => mbed_tls_enc_rounds m (mbed_tls_fround state rks i) rks (i+4)
+| S m => mbed_tls_fround (mbed_tls_enc_rounds m state rks i) rks (i+4*Z.of_nat m)
 end.
 
 Definition mbed_tls_final_enc_round (state : four_ints) (rks : list Z) : four_ints := state. (* TODO *)
@@ -203,6 +215,7 @@ unfold Sfor.
 
 (* beginning of for loop *)
 
+(* initialisation of i is two steps: *)
 forward. forward.
 
 (* ugly hack to avoid type mismatch between
@@ -217,26 +230,6 @@ destruct EE as [vv EE].
 
 pose (S12 := mbed_tls_enc_rounds 12 S0 buf 4).
 
-eapply semax_seq' with (P' :=
-  PROP ( )
-  LOCAL (
-     temp _RK (field_address t_struct_aesctx [ArraySubsc 52; StructField _buf] ctx);
-     temp _X3 (Vint (col 3 S12));
-     temp _X2 (Vint (col 2 S12));
-     temp _X1 (Vint (col 1 S12));
-     temp _X0 (Vint (col 0 S12));
-     temp _ctx ctx;
-     temp _input input;
-     temp _output output;
-     gvar _tables tables
-  ) SEP (
-     data_at_ out_sh (tarray tuchar 16) output;
-     tables_initialized tables;
-     data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
-     data_at ctx_sh t_struct_aesctx vv ctx 
-  )
-).
-{
 apply semax_pre with (P' := 
   (EX i: Z, PROP ( 
      0 <= i <= 6
@@ -258,16 +251,36 @@ apply semax_pre with (P' :=
      data_at ctx_sh t_struct_aesctx vv ctx 
   ))).
 { subst vv. Exists 6. entailer!. }
+
+eapply semax_seq' with (P' :=
+  PROP ( )
+  LOCAL (
+     temp _RK (field_address t_struct_aesctx [ArraySubsc 52; StructField _buf] ctx);
+     temp _X3 (Vint (col 3 S12));
+     temp _X2 (Vint (col 2 S12));
+     temp _X1 (Vint (col 1 S12));
+     temp _X0 (Vint (col 0 S12));
+     temp _ctx ctx;
+     temp _input input;
+     temp _output output;
+     gvar _tables tables
+  ) SEP (
+     data_at_ out_sh (tarray tuchar 16) output;
+     tables_initialized tables;
+     data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
+     data_at ctx_sh t_struct_aesctx vv ctx 
+  )
+).
 { apply semax_loop with (
   (EX i: Z, PROP ( 
-     0 <= i <= 6
+     0 < i <= 6
   ) LOCAL (
      temp _i (Vint (Int.repr i));
-     temp _RK (field_address t_struct_aesctx [ArraySubsc (52 - i*8); StructField _buf] ctx);
-     temp _X3 (Vint (col 3 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 buf 4)));
-     temp _X2 (Vint (col 2 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 buf 4)));
-     temp _X1 (Vint (col 1 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 buf 4)));
-     temp _X0 (Vint (col 0 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 buf 4)));
+     temp _RK (field_address t_struct_aesctx [ArraySubsc (52 - (i-1)*8); StructField _buf] ctx);
+     temp _X3 (Vint (col 3 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat (i-1))) S0 buf 4)));
+     temp _X2 (Vint (col 2 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat (i-1))) S0 buf 4)));
+     temp _X1 (Vint (col 1 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat (i-1))) S0 buf 4)));
+     temp _X0 (Vint (col 0 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat (i-1))) S0 buf 4)));
      temp _ctx ctx;
      temp _input input;
      temp _output output;
@@ -279,9 +292,12 @@ apply semax_pre with (P' :=
      data_at ctx_sh t_struct_aesctx vv ctx 
   ))).
 { (* loop body *) 
-Intro i. Intros. (* TODO floyd why is "Intros" alone not enough? *)
+Intro i.
 
-forward_if (PROP ( ) LOCAL (
+forward_if
+  (EX i: Z, PROP ( 
+     0 < i <= 6
+  ) LOCAL (
      temp _i (Vint (Int.repr i));
      temp _RK (field_address t_struct_aesctx [ArraySubsc (52 - i*8); StructField _buf] ctx);
      temp _X3 (Vint (col 3 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 buf 4)));
@@ -299,10 +315,13 @@ forward_if (PROP ( ) LOCAL (
      data_at ctx_sh t_struct_aesctx vv ctx
   )).
 { (* then-branch: Sskip to body *)
-  forward. entailer!.
- }
-{
- (* else-branch: exit loop *)
+  Intros. forward. Exists i.
+  rewrite Int.signed_repr in *; [ | repable_signed ]. (* TODO floyd why is this not automatic? *)
+  entailer!.
+}
+{ (* else-branch: exit loop *)
+  Intros.
+  rewrite Int.signed_repr in *; [ | repable_signed ]. (* TODO floyd why is this not automatic? *)
   forward. assert (i = 0) by omega. subst i.
   change (52 - 0 * 8) with 52.
   change (12 - 2 * Z.to_nat 0)%nat with 12%nat.
@@ -315,8 +334,9 @@ forward_if (PROP ( ) LOCAL (
   apply drop_LOCAL' with (n := O). cbv [delete_nth].
   eapply derives_trans; [ apply drop_tc_environ | ].
   apply derives_refl.
- }
+}
 { (* rest: loop body *)
+  clear i. Intro i. Intros. 
   unfold tables_initialized. subst vv.
 
 Ltac remember_temp_Vints done :=
@@ -374,12 +394,6 @@ Ltac entailer_for_load_tac ::=
 
   pose (S' := mbed_tls_fround (mbed_tls_enc_rounds (12-2*Z.to_nat i) S0 buf 4) buf (52-i*8)).
 
-Lemma split_four_ints: forall (S: four_ints),
-  S = (col 0 S, (col 1 S, (col 2 S, col 3 S))).
-Proof.
-  intros. destruct S as [c1 [c2 [c3 c4]]]. reflexivity.
-Qed.
-
   match goal with |- context [temp _Y0 (Vint ?E0)] =>
     match goal with |- context [temp _Y1 (Vint ?E1)] =>
       match goal with |- context [temp _Y2 (Vint ?E2)] =>
@@ -395,11 +409,6 @@ Qed.
     reflexivity.
   }
 
-Lemma split_four_ints_eq: forall S c0 c1 c2 c3,
-  S = (c0, (c1, (c2, c3))) -> c0 = col 0 S /\ c1 = col 1 S /\ c2 = col 2 S /\ c3 = col 3 S.
-Proof.
-  intros. destruct S as [d0 [d1 [d2 d3]]]. inv H. auto.
-Qed.
 
 apply split_four_ints_eq in Eq2. destruct Eq2 as [EqY0 [EqY1 [EqY2 EqY3]]].
 rewrite EqY0. rewrite EqY1. rewrite EqY2. rewrite EqY3.
@@ -470,15 +479,8 @@ apply split_four_ints_eq in Eq2. destruct Eq2 as [EqX0 [EqX1 [EqX2 EqX3]]].
 rewrite EqX0. rewrite EqX1. rewrite EqX2. rewrite EqX3.
 clear EqX0 EqX1 EqX2 EqX3.
 
-assert (i >= 1) by admit. (* TODO fix this in "if" where we don't exit loop *)
-
-Fixpoint mbed_tls_enc_rounds' (n : nat) (state : four_ints) (rks : list Z) (i : Z) : four_ints :=
-match n with
-| O => state
-| S m => mbed_tls_fround (mbed_tls_enc_rounds' m state rks i) rks (i+4*Z.of_nat m)
-end.
-
-Exists (i-1).
+Exists i.
+replace (52 - i * 8 + 4 + 4) with (52 - (i - 1) * 8) by omega.
 subst S' S''.
 (* TODO put into separate lemma: *)
   assert (
@@ -489,26 +491,49 @@ subst S' S''.
          (52 - i * 8))
       buf
       (52 - i * 8 + 4))
-  = (mbed_tls_enc_rounds' (12 - 2 * Z.to_nat (i - 1)) S0 buf 4)) as Eq2. {
+  = (mbed_tls_enc_rounds (12 - 2 * Z.to_nat (i - 1)) S0 buf 4)) as Eq2. {
     replace (12 - 2 * Z.to_nat (i - 1))%nat with (S (S (12 - 2 * Z.to_nat i))).
-    unfold mbed_tls_enc_rounds' (*at 2*). fold mbed_tls_enc_rounds'.
-    f_equal. f_equal. admit. (* because of primed vs unprimed version *)
-    (* "52 - i * 8" = "4 + 4 * Z.of_nat (12 - 2 * Z.to_nat i)" *) admit.
-    admit.
-    admit.
+    - unfold mbed_tls_enc_rounds (*at 2*). fold mbed_tls_enc_rounds.
+      f_equal.
+      * f_equal.
+        rewrite Nat2Z.inj_sub. {
+          change (Z.of_nat 12) with 12.
+          rewrite Nat2Z.inj_mul.
+          change (Z.of_nat 2) with 2.
+          rewrite Z2Nat.id; omega.
+        }
+        assert (Z.to_nat i <= 6)%nat. {
+          change 6%nat with (Z.to_nat 6).
+          apply Z2Nat.inj_le; omega.
+        }
+        omega.
+      * rewrite Nat2Z.inj_succ.
+        change 2%nat with (Z.to_nat 2) at 2.
+        rewrite <- Z2Nat.inj_mul; [ | omega | omega ].
+        change 12%nat with (Z.to_nat 12).
+        rewrite <- Z2Nat.inj_sub; [ | omega ].
+        rewrite Z2Nat.id; omega.
+    - rewrite Z2Nat.inj_sub; [ | omega ].
+      change (Z.to_nat 1) with 1%nat.
+      assert (Z.to_nat i <= 6)%nat. {
+        change 6%nat with (Z.to_nat 6).
+        apply Z2Nat.inj_le; omega.
+      }
+      assert (0 < Z.to_nat i)%nat. {
+        change 0%nat with (Z.to_nat 0).
+        apply Z2Nat.inj_lt; omega.
+      }
+      omega.
   }
   rewrite Eq2. clear Eq2.
   remember (mbed_tls_enc_rounds (12 - 2 * Z.to_nat (i - 1)) S0 buf 4) as S''.
   remember (mbed_tls_fround (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4) buf (52 - i * 8)) as S'.
   replace (52 - i * 8 + 4 + 4) with (52 - (i - 1) * 8) by omega.
   entailer!.
-  admit. (* TODO very wrong, i <> (i-1) ! *)
 }
 }
 { (* loop decr *)
-  Intro i. forward. unfold loop2_ret_assert. Exists i. entailer!.
-  admit. (* TODO very wrong, i <> (i-1) ! *)
-}
+  Intro i. forward. unfold loop2_ret_assert. Exists (i-1). entailer!.
 }
 }
 {
