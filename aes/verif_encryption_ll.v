@@ -150,6 +150,10 @@ end.
 Lemma masked_byte_range: forall i,
   0 <= Z.land i 255 < 256. Admitted.
 
+Lemma FSb_range: forall i,
+  Int.unsigned (Znth i FSb Int.zero) <= Byte.max_unsigned.
+Admitted.
+
 Lemma body_aes_encrypt: semax_body Vprog Gprog f_mbedtls_aes_encrypt encryption_spec_ll.
 Proof.
   start_function.
@@ -536,8 +540,215 @@ subst S' S''.
   Intro i. forward. unfold loop2_ret_assert. Exists (i-1). entailer!.
 }
 }
-{
-admit.
+{ abbreviate_semax. subst vv. unfold tables_initialized.
+
+  (* 2nd-to-last AES round: just a normal AES round, but not inside the loop *)
+
+  forward. forward. rewrite Eq by omega.
+  forward2.
+  remember_temp_Vints (@nil localdef).
+  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
+  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  remember_temp_Vints (@nil localdef).
+  forward.
+
+  forward. forward. rewrite Eq by omega.
+  forward2.
+  remember_temp_Vints (@nil localdef).
+  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
+  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  remember_temp_Vints (@nil localdef).
+  forward.
+
+  forward. forward. rewrite Eq by omega.
+  forward2.
+  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
+  remember_temp_Vints (@nil localdef).
+  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
+  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  remember_temp_Vints (@nil localdef).
+  forward.
+
+  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
+  remember_temp_Vints (@nil localdef).
+
+  forward. forward. rewrite Eq by omega.
+  forward2.
+  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
+  remember_temp_Vints (@nil localdef).
+  (* out of memory here *)
+  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
+  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  remember_temp_Vints (@nil localdef).
+  forward.
+
+  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
+
+  pose (S13 := mbed_tls_fround S12 buf 52).
+
+  match goal with |- context [temp _Y0 (Vint ?E0)] =>
+    match goal with |- context [temp _Y1 (Vint ?E1)] =>
+      match goal with |- context [temp _Y2 (Vint ?E2)] =>
+        match goal with |- context [temp _Y3 (Vint ?E3)] =>
+          assert (S13 = (E0, (E1, (E2, E3)))) as Eq2
+        end
+      end
+    end
+  end.
+  {
+    subst S13.
+    rewrite (split_four_ints S12).
+    forget 12%nat as N.
+    reflexivity.
+  }
+
+apply split_four_ints_eq in Eq2. destruct Eq2 as [EqY0 [EqY1 [EqY2 EqY3]]].
+rewrite EqY0. rewrite EqY1. rewrite EqY2. rewrite EqY3.
+clear EqY0 EqY1 EqY2 EqY3.
+
+  (* last AES round: special (uses S-box instead of forwarding tables) *)
+
+Ltac entailer_for_load_tac ::=
+  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range;
+  try (
+    match goal with
+    | |- context [ (tc_val _ (Vint (Znth ?i FSb Int.zero))) ] => 
+      assert (Int.unsigned (Znth i FSb Int.zero) <= Byte.max_unsigned) by apply FSb_range
+    end;
+    solve [ entailer! ]
+  ).
+
+  forward. forward. rewrite Eq by omega.
+  forward2.
+  remember_temp_Vints (@nil localdef).
+  do 1 (forward; [apply prop_right; apply masked_byte_range | ]).
+  do 1 (forward; [apply prop_right; apply masked_byte_range | ]).
+  do 1 (forward; [apply prop_right; apply masked_byte_range | ]).
+
+Ltac entailer_for_load_tac ::= idtac.
+  forward.
+
+  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+match goal with
+    | |- context [ (tc_val _ (Vint (Znth ?i FSb Int.zero))) ] => 
+      assert (Int.unsigned (Znth i FSb Int.zero) <= Byte.max_unsigned) by apply FSb_range
+    end.
+remember 24 as twentyfour. rewrite Heqtwentyfour at 3.
+entailer!.
+apply prop_right; apply masked_byte_range.
+  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  remember_temp_Vints (@nil localdef).
+  forward.
+
+  forward. forward. rewrite Eq by omega.
+  forward2.
+  remember_temp_Vints (@nil localdef).
+
+Ltac entailer_for_load_tac ::=
+  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range;
+  try (
+    match goal with
+    | |- context [ (tc_val _ (Vint (Znth ?i FSb Int.zero))) ] => 
+      assert (Int.unsigned (Znth i FSb Int.zero) <= Byte.max_unsigned) by apply FSb_range
+    end;
+    try (let Eqq := fresh "Eqq" in remember 24 as twentyfour eqn: Eqq; rewrite Eqq at 3);
+    solve [ entailer! ]
+  ).
+
+  forward; [apply prop_right; apply masked_byte_range | ].
+  forward; [apply prop_right; apply masked_byte_range | ].
+  forward; [apply prop_right; apply masked_byte_range | ].
+  forward; [apply prop_right; apply masked_byte_range | ].
+  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  remember_temp_Vints (@nil localdef).
+  forward.
+
+  forward. forward. rewrite Eq by omega.
+  forward2.
+  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
+  remember_temp_Vints (@nil localdef).
+  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
+  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  remember_temp_Vints (@nil localdef).
+  forward.
+
+  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
+  remember_temp_Vints (@nil localdef).
+
+  forward. forward. rewrite Eq by omega.
+  forward2.
+  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
+  remember_temp_Vints (@nil localdef).
+  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
+  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  remember_temp_Vints (@nil localdef).
+  forward.
+
+  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
+
+Definition mbed_tls_final_fround_col_CORRECT (col0 col1 col2 col3 : int) (rk : Z) : int :=
+  (Int.xor (Int.xor (Int.xor (Int.xor (Int.repr rk)
+             (Znth (byte0 col0) FSb Int.zero)              )
+    (Int.shl (Znth (byte1 col1) FSb Int.zero) (Int.repr 8)))
+    (Int.shl (Znth (byte2 col2) FSb Int.zero) (Int.repr 16)))
+    (Int.shl (Znth (byte3 col3) FSb Int.zero) (Int.repr 24))).
+
+Definition mbed_tls_final_fround (cols : four_ints) (rks : list Z) (i : Z) : four_ints :=
+match cols with (col0, (col1, (col2, col3))) =>
+  ((mbed_tls_final_fround_col_CORRECT col0 col1 col2 col3 (Znth  i    rks 0)),
+  ((mbed_tls_final_fround_col_CORRECT col1 col2 col3 col0 (Znth (i+1) rks 0)),
+  ((mbed_tls_final_fround_col_CORRECT col2 col3 col0 col1 (Znth (i+2) rks 0)),
+   (mbed_tls_final_fround_col_CORRECT col3 col0 col1 col2 (Znth (i+3) rks 0)))))
+end.
+
+  pose (S14 := mbed_tls_final_fround S13 buf 56).
+
+  match goal with |- context [temp _X0 (Vint ?E0)] =>
+    match goal with |- context [temp _X1 (Vint ?E1)] =>
+      match goal with |- context [temp _X2 (Vint ?E2)] =>
+        match goal with |- context [temp _X3 (Vint ?E3)] =>
+          assert (S14 = (E0, (E1, (E2, E3)))) as Eq2
+        end
+      end
+    end
+  end.
+  {
+    subst S14.
+    rewrite (split_four_ints S13).
+    forget 12%nat as N.
+    reflexivity.
+  }
+
+apply split_four_ints_eq in Eq2. destruct Eq2 as [EqX0 [EqX1 [EqX2 EqX3]]].
+rewrite EqX0. rewrite EqX1. rewrite EqX2. rewrite EqX3.
+clear EqX0 EqX1 EqX2 EqX3.
+
+Ltac entailer_for_load_tac ::= idtac.
+  remember_temp_Vints (@nil localdef).
+  forward.
+
+match goal with
+| |- context [ (upd_Znth ?i ?l ?d) ] => let a := eval cbv in (upd_Znth i l d) in idtac a
+end.
+
+let v := constr:(default_val (nested_field_type (tarray tuchar 16) [])) in
+let res := eval cbv in v in
+change v with res.
+cbv [upd_Znth app sublist firstn skipn Z.to_nat Zlength Z.add Z.sub].
+
+
+
+
+ forward. forward. forward.
+
+let v := constr:(default_val (nested_field_type (tarray tuchar 16) [])) in
+let res := eval cbv in v in
+change v with res.
+cbv [upd_Znth app sublist firstn skipn Z.to_nat].
+  forward. forward. forward. forward.
+  forward. forward. forward. forward.
+  forward. forward. forward. forward.
+
 }
 
 Qed.
