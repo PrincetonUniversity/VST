@@ -206,7 +206,7 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
       simpl; rewrite Int.add_zero. 
       change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
       thaw FR4. thaw FR3. thaw FR2. 
-      Time cancel. (*1.6 versus 0.7*) apply derives_refl.
+      Time cancel. (*1.6 versus 0.7*)
   }
 
   { (*k is Vptr, key!=NULL*)
@@ -264,7 +264,6 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
     simpl; rewrite Int.add_zero. 
     thaw FR8. thaw FR7. thaw FR6. thaw FR5.
     Time cancel. (*1.7 versus 1.2 penalty when melting*) 
-    apply derives_refl. 
   }
 } 
 Time Qed. (*25 versus 49*)
