@@ -14,9 +14,7 @@ unfold data_at_.
 (* BEGIN: without these lines, the "do 8 forward" takes 40 times as long. *)
 unfold field_at_.
 unfold_field_at 1%nat.
-match goal with |- context [field_at _ _ _ ?D _] => 
-  set (d:=D); hnf in d; simpl in d; subst d
-end.
+simpl fst; simpl snd.
 (* END: without these lines *)
 Time do 8 (forward; unfold upd_Znth, sublist; simpl app). (* 21 sec *)
 Time repeat forward. (* 14 sec *)

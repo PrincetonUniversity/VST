@@ -73,7 +73,9 @@ void initialize_reader(int r){
 
 buf_id start_read(int r){
   buf_id b;
-  b = simulate_atomic_exchange(comm[r], lock[r], Empty);
+  buf_id *c = comm[r];
+  lock_t *l = lock[r];
+  b = simulate_atomic_exchange(c, l, Empty);
   if(b >= 0 && b < B)
     last_read[r] = b;
   else
@@ -124,7 +126,9 @@ void finish_write(){
   //make current buffer available to all readers
   buf_id last = last_given;
   for(int r = 0; r < N; r++){
-    buf_id b = simulate_atomic_exchange(comm[r], lock[r], writing);
+    buf_id *c = comm[r];
+    lock_t *l = lock[r];
+    buf_id b = simulate_atomic_exchange(c, l, writing);
     if(b == Empty)
       last_taken[r] = last;
   }
