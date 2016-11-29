@@ -738,3 +738,22 @@ rewrite Zlength_sublist.
  apply round_range; apply CBLOCKz_gt.
 Qed.
 
+Lemma array_at_memory_block:
+ forall {cs: compspecs} sh t gfs lo hi v p n,
+  sizeof (nested_field_array_type t gfs lo hi) = n ->
+  lo <= hi ->
+  array_at sh t gfs lo hi v p |-- 
+  memory_block sh n (field_address0 t (ArraySubsc lo :: gfs) p).
+Proof.
+intros.
+rewrite  array_at_data_at by auto.
+normalize.
+unfold at_offset.
+rewrite field_address0_offset by auto.
+subst n.
+apply data_at_memory_block.
+Qed.
+
+Hint Extern 2 (array_at _ _ _ _ _ _ _ |-- memory_block _ _ _) =>
+   (apply array_at_memory_block; try reflexivity; try omega) : cancel.
+

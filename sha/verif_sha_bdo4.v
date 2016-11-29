@@ -122,7 +122,6 @@ forward_for_simple_bound 16
  rewrite Round_equation. rewrite if_true by (compute; auto).
  change 16 with LBLOCKz.
  entailer!.
- apply derives_refl.
 * (* loop body & loop condition preserves loop invariant *)
 
 assert_PROP (data_block sh (intlist_to_Zlist b) data =

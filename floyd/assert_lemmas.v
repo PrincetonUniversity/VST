@@ -884,8 +884,54 @@ Ltac fixup_lifts :=
  | |- appcontext [@lift4 ?A ?B ?C ?D] => change (@lift4 A B C D mpred) with (@liftx (Tarrow A (Tarrow B (Tarrow C (Tarrow D (LiftEnviron mpred))))))
  end.
 
+Fixpoint fold_right_sepconx (l: list mpred) : mpred :=
+match l with
+| nil => emp
+| a::nil => a
+| a::b => a * fold_right_sepconx b
+end.
+
+Lemma fold_right_sepconx_eq:
+  forall l, fold_right_sepconx l = fold_right_sepcon l.
+Proof.
+induction l; simpl; auto.
+rewrite IHl.
+destruct l; simpl; auto. rewrite sepcon_emp; auto.
+Qed.
+
+Lemma fold_right_sepconx_eqx:
+  forall A B, A |-- fold_right_sepconx B -> A |-- fold_right_sepcon B.
+Proof.
+intros.
+rewrite <- fold_right_sepconx_eq; auto.
+Qed.
+
+Ltac unfold_right_sepcon A :=
+ lazymatch A with
+ | (?B * ?C)%logic => let x := unfold_right_sepcon C
+                               in let y := constr:(B :: x)
+                               in y
+ | ?D => let y := constr:(D::nil) in y
+end.
+
 Ltac cancel_frame := 
-match goal with
+match goal with 
+| |- _ |-- fold_right_sepcon _  => (* setup *)
+   rewrite !sepcon_assoc; cancel_frame
+| F := ?v |- ?A |-- fold_right_sepcon ?F  => (* fast way *)
+   is_evar v;
+   apply fold_right_sepconx_eqx;
+   let w := unfold_right_sepcon A
+    in instantiate (1:=w) in (Value of F);
+    unfold F;
+    unfold fold_right_sepconx;
+    simple apply derives_refl
+(*
+| |- _ |-- fold_right_sepcon ?F  =>  (* slow way *)
+   repeat apply cancel_frame2_low;
+    try (unfold F; apply cancel_frame0_low);
+    try (unfold F; apply cancel_frame1_low)
+*)
 | |- ?P |-- fold_right _ _ ?F ?rho  =>
      let P' := abstract_env rho P in  
        change ( P' rho |-- fold_right sepcon emp F rho);
@@ -896,12 +942,8 @@ match goal with
                     end; 
     try (unfold F; apply cancel_frame1);
     try (instantiate (1:=nil) in (Value of F); unfold F; apply cancel_frame0)
-| |- _ |-- fold_right_sepcon ?F  =>
-   repeat rewrite sepcon_assoc;
-   repeat apply cancel_frame2_low;
-    try (unfold F; apply cancel_frame0_low);
-    try (unfold F; apply cancel_frame1_low)
  end.
+  
 
 Ltac pull_left A :=
  (* For some reason in Coq 8.4pl3 and perhaps other versions,
@@ -930,7 +972,7 @@ match goal with
  end;
   repeat first [rewrite emp_sepcon | rewrite sepcon_emp];
   pull_left (@TT mpred _);
-  first [ match goal with |- ?A |-- ?A => apply derives_refl end
+  first [ simple apply derives_refl (* match goal with |- ?A |-- ?A => apply derives_refl end *)
           | apply TT_right
           | apply sepcon_TT 
           | apply TT_sepcon

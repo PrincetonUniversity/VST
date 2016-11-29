@@ -397,7 +397,7 @@ Time forward_for_simple_bound 4 (EX i:Z,
   Time entailer!. (*2 versus 2.8  - penalty*) 
     clear - X0cont I. apply XcontUpdate; trivial.
 
-  thaw FR11. Time cancel. (*0.3*) apply derives_refl.
+  thaw FR11. Time cancel. (*0.3*)
  }
 apply andp_left2; apply derives_refl.
 Time Qed. (*75*)

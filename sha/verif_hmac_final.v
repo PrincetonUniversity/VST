@@ -101,7 +101,6 @@ apply semax_pre with (P':=
       rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _md_ctx]).
       rewrite field_address_offset by auto with field_compatible. 
       simpl. rewrite Int.add_zero. Time cancel. (*0.9*)
-      apply derives_refl.
 }
 subst l'. clear FR1.
 
