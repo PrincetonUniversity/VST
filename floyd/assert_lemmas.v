@@ -972,7 +972,11 @@ match goal with
  end;
   repeat first [rewrite emp_sepcon | rewrite sepcon_emp];
   pull_left (@TT mpred _);
-  first [ simple apply derives_refl (* match goal with |- ?A |-- ?A => apply derives_refl end *)
+  first [ simple apply derives_refl'; repeat f_equal; reflexivity (* this is NOT a _complete_ tactic;
+                 for example, "simple apply derives_refl" would be more complete.  But that
+                 tactic can sometimes take minutes to discover that something doesn't unify;
+                 what I have here is a compromise between reliable speed, and (in)completeness.
+               *)
           | apply TT_right
           | apply sepcon_TT 
           | apply TT_sepcon

@@ -455,13 +455,10 @@ eapply semax_pre_post.
   3: apply (updatebodyproof Espec c d (Zlength data1) data1 kv (hmacUpdate data (hmacInit key))).
 
   apply andp_left2. old_go_lower. entailer!.
-  unfold REP, hmacstate_. Intros r. Exists r. entailer!.
 
   intros. apply andp_left2. apply frame_ret_assert_derives.
   apply function_body_ret_assert_derives. 
   rewrite hmacUpdate_app. old_go_lower. entailer!.
-  unfold REP, hmacstate_.
-  Intros r. Exists r. entailer!.
 
   split; trivial. split; trivial. simpl.
   unfold innerShaInit, s256a_len.
