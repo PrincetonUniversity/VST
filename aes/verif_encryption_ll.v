@@ -423,15 +423,7 @@ clear EqY0 EqY1 EqY2 EqY3.
 
   forward. forward. rewrite Eq by omega.
   forward2.
-  remember_temp_Vints (@nil localdef).
-  (* ok until here, then out of memory *)
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
-  forward.
-
-  forward. forward. rewrite Eq by omega.
-  forward2.
+  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
   remember_temp_Vints (@nil localdef).
   do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
@@ -439,13 +431,83 @@ clear EqY0 EqY1 EqY2 EqY3.
   forward.
 
   repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
+  remember_temp_Vints (@nil localdef).
 
+  forward. forward. rewrite Eq by omega.
+  forward2.
+  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
+  remember_temp_Vints (@nil localdef).
+  (* out of memory here *)
+  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
+  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  remember_temp_Vints (@nil localdef).
+  forward.
 
-  admit.
+  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
+
+  pose (S'' := mbed_tls_fround S' buf (52-i*8+4)).
+
+  replace (52 - i * 8 + 4 + 1 + 1 + 1 + 1) with (52 - i * 8 + 4 + 4) by omega.
+  replace (52 - i * 8 + 4 + 1 + 1 + 1)     with (52 - i * 8 + 4 + 3) by omega.
+  replace (52 - i * 8 + 4 + 1 + 1)         with (52 - i * 8 + 4 + 2) by omega.
+
+  match goal with |- context [temp _X0 (Vint ?E0)] =>
+    match goal with |- context [temp _X1 (Vint ?E1)] =>
+      match goal with |- context [temp _X2 (Vint ?E2)] =>
+        match goal with |- context [temp _X3 (Vint ?E3)] =>
+          assert (S'' = (E0, (E1, (E2, E3)))) as Eq2
+        end
+      end
+    end
+  end.
+  {
+    subst S''.
+    rewrite (split_four_ints S').
+    reflexivity.
+  }
+
+apply split_four_ints_eq in Eq2. destruct Eq2 as [EqX0 [EqX1 [EqX2 EqX3]]].
+rewrite EqX0. rewrite EqX1. rewrite EqX2. rewrite EqX3.
+clear EqX0 EqX1 EqX2 EqX3.
+
+assert (i >= 1) by admit. (* TODO fix this in "if" where we don't exit loop *)
+
+Fixpoint mbed_tls_enc_rounds' (n : nat) (state : four_ints) (rks : list Z) (i : Z) : four_ints :=
+match n with
+| O => state
+| S m => mbed_tls_fround (mbed_tls_enc_rounds' m state rks i) rks (i+4*Z.of_nat m)
+end.
+
+Exists (i-1).
+subst S' S''.
+(* TODO put into separate lemma: *)
+  assert (
+    (mbed_tls_fround
+      (mbed_tls_fround 
+         (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4)
+         buf
+         (52 - i * 8))
+      buf
+      (52 - i * 8 + 4))
+  = (mbed_tls_enc_rounds' (12 - 2 * Z.to_nat (i - 1)) S0 buf 4)) as Eq2. {
+    replace (12 - 2 * Z.to_nat (i - 1))%nat with (S (S (12 - 2 * Z.to_nat i))).
+    unfold mbed_tls_enc_rounds' (*at 2*). fold mbed_tls_enc_rounds'.
+    f_equal. f_equal. admit. (* because of primed vs unprimed version *)
+    (* "52 - i * 8" = "4 + 4 * Z.of_nat (12 - 2 * Z.to_nat i)" *) admit.
+    admit.
+    admit.
+  }
+  rewrite Eq2. clear Eq2.
+  remember (mbed_tls_enc_rounds (12 - 2 * Z.to_nat (i - 1)) S0 buf 4) as S''.
+  remember (mbed_tls_fround (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4) buf (52 - i * 8)) as S'.
+  replace (52 - i * 8 + 4 + 4) with (52 - (i - 1) * 8) by omega.
+  entailer!.
+  admit. (* TODO very wrong, i <> (i-1) ! *)
 }
 }
 { (* loop decr *)
-admit.
+  Intro i. forward. unfold loop2_ret_assert. Exists i. entailer!.
+  admit. (* TODO very wrong, i <> (i-1) ! *)
 }
 }
 }
