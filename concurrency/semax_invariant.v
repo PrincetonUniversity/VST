@@ -283,7 +283,10 @@ Definition threads_safety {Z} (Jspec : juicy_ext_spec Z) m ge tp PHI (mcompat : 
         (* same quantification as in Kblocked *)
         jsafe_phi Jspec ge n ora c' (getThreadR cnti)
        (* semax.jsafeN Jspec ge n ora c' (jm_ cnti mcompat) *)
-    | Kinit _ _ => Logic.True
+    | Kinit v1 v2 =>
+      exists b func,
+      v1 = Vptr b Int.zero /\
+      Genv.find_funct_ptr ge b = Some (Internal func)
     end.
 
 Definition threads_wellformed tp :=
@@ -500,14 +503,14 @@ Definition blocked_at_external (state : cm_state) (ef : external_function) :=
 Ltac absurd_ext_link_naming :=
   exfalso;
   match goal with
-  | H : Some ((_ : string -> ident) _, _) = _ |- _ =>
+  | H : Some (_ _, _) = _ |- _ =>
     rewrite <-H in *
   end;
   unfold funsig2signature in *;
   match goal with
-  | H : Some ((?ext_link : string -> ident) ?a, ?b) <> Some (?ext_link ?a, ?b') |- _ =>
+  | H : Some (?ext_link ?a, ?b) <> Some (?ext_link ?a, ?b') |- _ =>
     simpl in H; congruence
-  | H : Some ((?ext_link : string -> ident) ?a, ?c) = Some (?ext_link ?b, ?d) |- _ =>
+  | H : Some (?ext_link ?a, ?c) = Some (?ext_link ?b, ?d) |- _ =>
     simpl in H;
     match goal with
     | ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2 |- _ =>

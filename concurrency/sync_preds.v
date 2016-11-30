@@ -336,183 +336,30 @@ Qed.
 Lemma same_perm_spec m1 m2 :
   Mem.perm m1 = Mem.perm m2 <->
   (forall k x, access_at m1 x k = access_at m2 x k).
-Abort. (* true but unused *)
-
-Lemma jstep_preserves_mem_equiv_on_other_threads m ge i j tp ci ci' jmi'
-  (other : i <> j)
-  cnti cntj cntj'
-  (tp' := age_tp_to (level (m_phi jmi')) tp)
-  (tp'' := @updThread i tp' (cnt_age' cnti) (Krun ci') (m_phi jmi') : thread_pool)
-  compat
-  (stepi :
-     @jstep genv corestate cl_core_sem ge
-            ci (@personal_mem m (@getThreadR i tp cnti) compat)
-            ci' jmi')
-  compat'
-  compat'' :
-  mem_equiv
-    (m_dry (@personal_mem m (@getThreadR j tp cntj) compat'))
-    (m_dry (@personal_mem (m_dry jmi') (@getThreadR j tp'' cntj') compat'')).
 Proof.
-  unfold mem_equiv in *.
-  unfold personal_mem in *.
-  simpl in *.
-  
-  revert compat''.
-  rewrite eq_op_false; swap 1 2.
-  { intros E. injection E as <-. tauto. }
-  intros compat''.
-  
-  match goal with
-    |- ?P /\ ?Q /\ ?R =>
-    cut (Q /\ (Q -> P /\ R)); [ intuition | ]
-  end.
-  
-  rewrite same_perm_spec.
-  split; [ | intros Eperm].
-  {
-    intros k (b, ofs).
-    unfold access_at.
-    destruct k.
-    - do 2 rewrite juicyRestrict_Max. simpl.
-      (* not true *)
-      admit.
-    - do 2 rewrite juicyRestrict_Cur.
-      simpl.
-      unfold tp'.
-      simpl.
-      transitivity (perm_of_res (getThreadR (@cnt_age' _ _ (level (m_phi jmi')) cntj') @ (b, ofs))); swap 1 2.
-      unfold getThreadR in *.
-      simpl.
-      unfold "oo".
-      rewrite eq_op_false; swap 1 2.
-      { clear -other. intros E. injection E as <-. tauto. }
-      rewrite perm_of_age.
-      simpl.
-      unfold tp'.
-      f_equal.
-      f_equal.
-      f_equal.
-      f_equal.
-      apply proof_irr.
-
-      unfold tp''.
-      Local Arguments getThreadR : clear implicits.
-      unshelve erewrite <-getThreadR_age; auto.
-      rewrite perm_of_age.
-      unshelve erewrite gsoThreadRes; auto.
-      unshelve erewrite <-getThreadR_age; auto.
-      rewrite perm_of_age.
-      reflexivity.
-  }
-  
-  spec Eperm Cur.  (* WE COULD NOT PROVE IT FOR MAX *)
-  
-  split; [ | admit ]. (* not true *)
-  
-  rewrite same_loadbytes_spec. 2: admit (* almost true *).
-
-  intros x Rx.
-  do 2 rewrite <-juicyRestrictContents.
-  rewrite juicyRestrictContents with (coh := acc_coh compat).
-  rewrite juicyRestrictCurEq in Rx.
-
-  destruct stepi as (drystep, (Dj, _)).
-  simpl in drystep, Dj.
-  
-  (* destruct Dj as (_, Dj). *)
-  assert (notWritable : ~ Mem.perm_order' (perm_of_res (getThreadR i tp cnti @ x)) Writable). {
-    intros Wx.
-    assert (J : joins (getThreadR i tp cnti) (getThreadR j tp cntj)) by admit.
-    clear -Rx Wx J.
-    apply resource_at_joins with (loc := x) in J.
-    apply joins_permDisjoint in J.
-    remember (perm_of_res _) as pj in Rx.
-    remember (perm_of_res _) as pi in Wx.
-    rewrite <-Heqpi, <-Heqpj in J.
-    destruct J as (p, E).
-    destruct pi as [[]|], pj as [[]|]; inv Rx; inv Wx; discriminate.
-  }
-  
-  Require Import concurrency.cl_step_lemmas.
-  Set Bullet Behavior "Strict Subproofs".
-  
-  (* pose proof (cl_step_decay _ _ _ _ _ drystep) as D. *)
-  assert (nw : ~ Mem.perm_order' (access_at (juicyRestrict (acc_coh compat)) x Cur) Writable). {
+  split.
+  - intros E k (b, ofs).
+    apply equal_f with (x := b) in E.
+    apply equal_f with (x := ofs) in E.
+    apply equal_f with (x := k) in E.
+    match type of E with ?a = ?b => assert (L : forall p, a p -> b p) by congruence end.
+    match type of E with ?a = ?b => assert (R : forall p, b p -> a p) by congruence end. clear E.
+    unfold Mem.perm in *.
     unfold access_at in *.
-    rewrite juicyRestrict_Cur.
-    destruct x; apply notWritable.
-  }
-  assert (V : Mem.valid_block m (fst x)). {
-    pose proof compat'.(max_coh) as A. spec A x.
-    destruct (valid_block_dec m (fst x)) as [v|nv]. apply v. exfalso. clear -Rx A nv.
-    destruct m as [cc ac nb am no cd].
-    unfold Mem.valid_block in *.
-    unfold max_access_at in *.
-    unfold access_at in *.
-    simpl in *.
-    spec no (fst x) (snd x) Max nv.
-    rewrite no in A.
-    simpl in A.
-    destruct (getThreadR j tp cntj @ x).
-    - simpl in Rx. if_tac in Rx; inv Rx.
-    - simpl in A.
-      unfold perm_of_sh in *. repeat destruct (eq_dec _ _) as [?|?] in A; auto.
-      edestruct juicy_mem_ops.Abs.pshare_sh_bot; eauto.
-    - simpl in A. auto.
-  }
-  set (m_ := juicyRestrict _).
-  assert (V_ : Mem.valid_block m_ (fst x)). apply V.
-  pose proof (cl_step_unchanged_on _ _ _ _ _ (fst x) (snd x) drystep V_ nw) as U.
-  apply U.
-  
-  (* We are done, here, but we could not prove:
-     - equality of Max
-     - equality of Nextblock
-     both of which do NOT hold.
-   *)
-
-  (*
-  (* below we try to use resource decay -- but that's not the best way *)
-  destruct D as (Dno & [Same | [Write | [(outNextBlock, Alloc) | Free]]]).
-  - (* use contents_cohere *)
-    clear -Same compat. set (phi := @getThreadR _ _ _) in compat. fold phi in Same. clearbody phi.
-    unfold LocksAndResources.res in *.
-    destruct compat as [cc _ _].
-    destruct jmi' as [m' phi' cc' A B C]; simpl in *; clear A B C.
-    destruct (phi @ x) as [t0 | t0 p k p0 | k p] eqn:E.
-    unfold contents_cohere in *.
-    admit.
-  - (* impossible because cannot be writable *)
-    exfalso.
-    destruct Write as (rsh & v & v' & E & E').
-    apply notWritable; revert E; clear.
-    set (_ @ x) as r; destruct r; try discriminate. simpl.
-    injection 1 as -> -> -> E. simpl.
-    unfold perm_of_sh in *.
-    if_tac; if_tac; try constructor.
-    + unfold fullshare in *. tauto.
-    + unfold fullshare in *. tauto.
-  - (* impossible because cannot be more than nextblock *)
-    exfalso.
-    clear -Rx compat' outNextBlock.
-    destruct compat' as [_ _ all].
-    spec all x outNextBlock.
-    rewrite all in Rx.
-    simpl in Rx.
-    if_tac in Rx; inv Rx.
-  - (* impossible because cannot be freeable *)
-    exfalso.
-    destruct Free as (v & pp & E & E').
-    rewrite E in notWritable.
-    apply notWritable; clear.
     simpl.
-    unfold perm_of_sh in *.
-    if_tac; if_tac; try constructor.
-    + unfold fullshare in *. tauto.
-    + unfold fullshare in *. tauto.
-  *)
-Abort. (* jstep_preserves_mem_equiv_on_other_threads : NOK, but unused *)
+    destruct ((Mem.mem_access m1) !! b ofs k) as [[]|], ((Mem.mem_access m2) !! b ofs k) as [[]|].
+    all: simpl in *.
+    all: auto || exfalso.
+    all: try specialize (L _ (perm_refl _)).
+    all: try specialize (R _ (perm_refl _)).
+    all: try inv L; inv R.
+  - unfold access_at in *.
+    intros E. extensionality b ofs k. extensionality p.
+    unfold Mem.perm.
+    spec E k (b, ofs); simpl in E.
+    rewrite E.
+    auto.
+Qed.
 
 Lemma PTree_xmap_ext (A B : Type) (f f' : positive -> A -> B) t :
   (forall a, f a = f' a) ->

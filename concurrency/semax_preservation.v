@@ -934,56 +934,7 @@ Section Preservation.
       pose proof (getThreadR_fun _ _ _ _ _ _ H H2)
     end.
   
-  Lemma preservation_acqfail
-  (Gamma : PTree.t funspec)
-  (n : nat)
-  (ge : SEM.G)
-  (m' : Memory.mem)
-  (i : tid)
-  (sch : list tid)
-  (tp' : thread_pool)
-  (Phi : rmap)
-  (lev : level Phi = S n)
-  (gam : matchfunspec (filter_genv ge) Gamma Phi)
-  (ci : code)
-  (HschedN : SCH.schedPeek (i :: sch) = Some i)
-  (tp_ := tp' : thread_pool)
-  (m_ := m' : Memory.mem)
-  (compat_ := mem_compatible_with tp_ m_ (age_to n Phi) : Prop)
-  (c : code)
-  (b : block)
-  (ofs : int)
-  (psh : pshare)
-  (sh : Share.t)
-  (R : pred rmap)
-  (Hat_external : at_external SEM.Sem c = Some (LOCK, Vptr b ofs :: nil))
-  (sparse : lock_sparsity (lset tp'))
-  (wellformed : threads_wellformed tp')
-  (unique : unique_Krun tp' (i :: sch))
-  (Ei cnti : ssrnat.leq (S i) (pos.n (num_threads tp')) = true)
-  (Eci : getThreadC i tp' cnti = Kblocked ci)
-  (Htid : ssrnat.leq (S i) (pos.n (num_threads tp')) = true)
-  (El : Logic.True -> level (getThreadR i tp' Htid) - 1 = n)
-  (Hcompatible : mem_compatible tp' m')
-  (Hinv : invariant tp')
-  (Hthread : getThreadC i tp' Htid = Kblocked c)
-  (INV : state_invariant Jspec' Gamma (S n) (m', ge, (i :: sch, tp')))
-  (compat : mem_compatible_with tp' m' Phi)
-  (lock_coh : lock_coherence' tp' Phi m' compat)
-  (safety : threads_safety Jspec' m' ge tp' Phi compat (S n))
-  (Hcmpt : mem_compatible tp' m')
-  (jmstep : @JuicyMachine.machine_step ge (i :: sch) nil tp' m' sch nil tp' m')
-  (compat_aged : mem_compatible_with (age_tp_to n tp') m' (age_to n Phi))
-  (Htstep : syncStep true ge Htid Hcmpt tp' m' (Events.failacq (b, Int.intval ofs)))
-  (Hload : load Mint32 (juicyRestrict_locks (mem_compat_thread_max_cohere Hcmpt cnti)) b (Int.intval ofs) =
-          Some (Vint Int.zero))
-  (HJcanwrite : m_phi (personal_mem m' (getThreadR i tp' Htid) (thread_mem_compatible Hcompatible Htid)) @
-               (b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R)) :
-  (* ============================ *)
-  state_invariant Jspec' Gamma n (m', ge, (sch, tp')).
-  
-  Proof.
-  Admitted. (* Lemma preservation_acqfail *)
+  Ltac substwith x y := assert (x = y) by apply proof_irr; subst x.
   
   Lemma preservation_Kinit
   (Gamma : PTree.t funspec)
@@ -1015,9 +966,93 @@ Section Preservation.
   @state_invariant (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' Gamma (S n) (m', ge, (sch', tp')).
   
   Proof.
+    inversion jmstep; subst; try inversion HschedN; subst tid;
+      unfold containsThread, is_true in *;
+      try congruence.
+    {
+      inv Htstep.
+      replace (initial_core SEM.Sem) with cl_initial_core in Hinitial
+        by (unfold SEM.Sem; rewrite SEM.CLN_msem; reflexivity).
+      rename m' into m.
+      unfold cl_initial_core in Hinitial.
+      pose proof safety as safety'.
+      spec safety i cnti tt. rewr (getThreadC i tp cnti) in safety.
+      destruct safety as (b & func & Ev1 & Find).
+      substwith ctn Htid.
+      substwith Htid cnti.
+      rewrite Eci in Hcode. injection Hcode as -> -> .
+      rewrite Ev1 in Hinitial.
+      if_tac in Hinitial. 2:tauto.
+      rewrite Find in Hinitial.
+      injection Hinitial as <-.
+      
+      right.
+      
+      unshelve eapply state_invariant_c with (PHI := Phi) (mcompat := _).
+      2:assumption.
+      2:assumption.
+      2:assumption.
+      
+      - split.
+        + (* is trivial, but the rmap needs to change in the juicy
+          machine (not almost empty anymore, and even almost empty would
+          need to do that) *)
+          (* The rest of the proof below probably needs to change a
+          lot too after this modification *)
+          rewrite join_all_joinlist.
+          Lemma maps_updthreadc i tp cnti c : maps (updThreadC i tp cnti c) = maps tp.
+          Proof.
+            reflexivity.
+          Qed.
+          rewrite maps_updthreadc.
+          rewrite <-join_all_joinlist.
+          apply compat.
+        + apply compat.
+        + apply compat.
+        + apply compat.
+        + apply compat.
+      - exact_eq lock_coh.
+        unfold lock_coherence'; simpl.
+        f_equal.
+        f_equal.
+        f_equal.
+        apply proof_irr.
+      - simpl.
+        intros j cntj [].
+        destruct (eq_dec i j) as [<-|ne].
+        + REWR.
+          (* we already got what we could from the safety, but let's try again *)
+          spec safety' i cnti tt. rewrite Eci in safety'.
+          
+          admit. (* in lemma for kinit *)
+        + REWR.
+          spec safety' j cntj tt.
+          simpl.
+          destruct (getThreadC j tp cntj) eqn: Ej.
+          * exact_eq safety'. f_equal. unfold jm_. simpl. unfold getThreadR. f_equal.
+            f_equal. apply proof_irr.
+          * apply safety'.
+          * apply safety'.
+          * apply safety'.
+      - intros j cntj.
+        destruct (eq_dec i j) as [<-|ne]; REWR.
+        spec wellformed j cntj. auto.
+      - intros more j cntj q.
+        destruct (eq_dec i j) as [<-|ne]; REWR.
+        + injection 1 as <-. eauto.
+        + intros Ej. spec unique more j cntj q Ej. auto.
+    }
+    
+    
+    all: jmstep_inv.
+    all: try substwith ctn Htid.
+    all: try substwith cnti Htid.
+    all: try substwith cnt Htid.
+    all: try congruence.
   Admitted. (* Lemma preservation_Kinit *)
   
   Theorem preservation Gamma n state state' :
+    ~ blocked_at_external state CREATE ->
     ~ blocked_at_external state MKLOCK ->
     ~ blocked_at_external state FREE_LOCK ->
     state_step state state' ->
@@ -1025,7 +1060,7 @@ Section Preservation.
     state_invariant Jspec' Gamma n state' \/
     state_invariant Jspec' Gamma (S n) state'.
   Proof.
-    intros not_makelock not_freelock STEP.
+    intros not_spawn not_makelock not_freelock STEP.
     inversion STEP as [ | ge m m' sch sch' tp tp' jmstep E E']. now auto.
     (* apply state_invariant_S *)
     subst state state'; clear STEP.
@@ -1263,7 +1298,7 @@ Section Preservation.
                  ++ REWR.
               -- REWR.
               -- REWR.
-              -- constructor.
+              -- auto.
           
           + (* wellformed. *)
             intros i0 cnti0'.
@@ -1326,7 +1361,7 @@ Section Preservation.
 
       simpl SCH.schedSkip in *.
       clear HschedN.
-      left (* TO BE CHANGED *).
+      (* left (* TO BE CHANGED *). *)
       (* left (* we need aging, because we're using the safety of the call *). *)
       cleanup.
       assert (Htid = cnti) by apply proof_irr. subst Htid.
@@ -1348,20 +1383,31 @@ Section Preservation.
       (* match goal with |- _ _ _ (?M, _, (_, ?TP)) => set (tp_ := TP); set (m_ := M) end. *)
       
       - (* the case of acquire *)
+        left.
         assert (Hcompatible = Hcmpt) by apply proof_irr. subst Hcompatible.
         rewrite El in *.
         eapply preservation_acquire with (Phi := Phi); eauto.
       
       - (* the case of release *)
+        left.
         assert (Hcompatible = Hcmpt) by apply proof_irr. subst Hcompatible.
         cleanup.
         rewrite El in *.
         eapply preservation_release with (Phi := Phi); eauto.
       
       - (* the case of spawn *)
-        eapply preservation_spawn with (Phi := Phi); eauto.
+        left.
+        simpl (m_phi _) in *.
+        (* disregarding the case of makelock by hypothesis *)
+        exfalso; apply not_spawn.
+        repeat eexists; eauto.
+        rewrite <- Hat_external.
+        unfold SEM.Sem.
+        rewrite SEM.CLN_msem.
+        reflexivity.
       
       - (* the case of makelock *)
+        left.
         simpl (m_phi _) in *.
         (* disregarding the case of makelock by hypothesis *)
         exfalso; apply not_makelock.
@@ -1372,6 +1418,7 @@ Section Preservation.
         reflexivity.
       
       - (* the case of freelock *)
+        left.
         simpl (m_phi _) in *.
         (* disregarding the case of makelock by hypothesis *)
         exfalso; apply not_freelock.
@@ -1382,7 +1429,11 @@ Section Preservation.
         reflexivity.
       
       - (* the case of acq-fail *)
-        eapply preservation_acqfail with (Phi := Phi); eauto.
+        right.
+        eapply state_invariant_c with (PHI := Phi); eauto.
+        apply no_Krun_unique_Krun.
+        eapply unique_Krun_no_Krun; eauto.
+        rewrite Eci. congruence.
     }
     
     (*thread[i] is in Kresume *)
@@ -1454,7 +1505,7 @@ Section Preservation.
              ++ intros; apply gThreadCR.
           -- REWR.
           -- REWR.
-          -- constructor.
+          -- auto.
       
       + (* wellformed. *)
         intros i0 cnti0'.
