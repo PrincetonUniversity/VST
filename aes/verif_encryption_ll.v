@@ -142,9 +142,16 @@ Definition encryption_spec_ll :=
          tables_initialized tables)
   POST [ tvoid ]
     PROP() LOCAL()
-    SEP (data_at out_sh (tarray tuchar 16) 
-                        (map Vint (mbed_tls_aes_enc plaintext exp_key))
-                         output).
+    SEP (data_at ctx_sh (t_struct_aesctx) (
+          (Vint (Int.repr Nr)), 
+          ((field_address t_struct_aesctx [StructField _buf] ctx),
+          (map Vint (map Int.repr (exp_key ++ (list_repeat (8%nat) 0)))))
+         ) ctx;
+         data_at in_sh  (tarray tuchar 16)
+                 (map Vint (map Int.repr plaintext)) input;
+         data_at out_sh (tarray tuchar 16) 
+                 (map Vint (mbed_tls_aes_enc plaintext (exp_key ++ (list_repeat (8%nat) 0)))) output;
+         tables_initialized tables).
 
 (* QQQ: How to know that if x is stored in a var of type tuchar, 0 <= x < 256 ? *)
 (* QQQ: Declare vars of type Z or of type int in API spec ? *)
@@ -161,10 +168,15 @@ Ltac simpl_Int := repeat match goal with
 end.
 
 Lemma masked_byte_range: forall i,
-  0 <= Z.land i 255 < 256. Admitted.
+  0 <= Z.land i 255 < 256.
+Admitted.
 
 Lemma FSb_range: forall i,
   Int.unsigned (Znth i FSb Int.zero) <= Byte.max_unsigned.
+Admitted.
+
+Lemma zero_ext_mask: forall i,
+  Int.zero_ext 8 i = Int.and i (Int.repr 255).
 Admitted.
 
 Lemma body_aes_encrypt: semax_body Vprog Gprog f_mbedtls_aes_encrypt encryption_spec_ll.
@@ -734,9 +746,6 @@ simpl_upd_Znth.
   do 4 (forward; simpl_upd_Znth).
   do 4 (forward; simpl_upd_Znth).
 
-Lemma zero_ext_mask: forall i,
-  Int.zero_ext 8 i = Int.and i (Int.repr 255).
-Admitted.
 rewrite zero_ext_mask in *.
 rewrite zero_ext_mask in *.
 rewrite Int.and_assoc in *.
@@ -766,19 +775,24 @@ rewrite Eq3. clear Eq3.
 
 remember_temp_Vints (@nil localdef).
 Ltac entailer_for_return ::= idtac.
+
+  (* TODO don't clear Eq in the beginning *)
+  assert ((field_address t_struct_aesctx [StructField _buf] ctx)
+        = (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx)) as Eq0buf. {
+    do 2 rewrite field_compatible_field_address by auto with field_compatible.
+    reflexivity.
+  }
+  rewrite <- Eq0buf in *.
+
 (* return None *)
 forward.
-Lemma Eq1: forall exp_key plaintext buf,
-  ((mbed_tls_aes_enc plaintext exp_key) = (mbed_tls_aes_enc plaintext buf)).
-Admitted. (* TODO we won't prove this, but change spec *)
-rewrite (Eq1 exp_key plaintext buf).
 remember (mbed_tls_aes_enc plaintext buf) as Res.
+unfold tables_initialized.
 entailer!.
-(* TODO mention everything in postcondition *)
-Lemma GarbageCollected: forall R, R |-- emp. Admitted.
-apply GarbageCollected.
 }
-Qed. (* runs out of memory on Qed *)
+(* verifying until here takes about 1 hour and 4.5 GB of memory *)
+
+Time Qed. (* increases memory usage from 4.5 GB to 6.7 GB and then says "Out of memory" *)
 
 (* TODO floyd: sc_new_instantiate: distinguish between errors caused because the tactic is trying th
    wrong thing and errors because of user type errors such as "tuint does not equal t_struct_aesctx" *)
