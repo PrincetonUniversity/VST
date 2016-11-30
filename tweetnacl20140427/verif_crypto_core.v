@@ -28,7 +28,6 @@ unfold fcore_result in H.
   destruct d. 2: inv H. rewrite Int.eq_true in H.
 Exists l.
 Time entailer!. 
-apply derives_refl. 
 Time Qed. (*4.3*)
 
 Lemma Snuffle_sub_simpl data x:
