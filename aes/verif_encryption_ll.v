@@ -47,6 +47,13 @@ Definition mbed_tls_fround_col (col0 col1 col2 col3 : int) (rk : Z) : int :=
     (Znth (byte2 col2) FT2 Int.zero))
     (Znth (byte3 col3) FT3 Int.zero)).
 
+Definition mbed_tls_final_fround_col (col0 col1 col2 col3 : int) (rk : Z) : int :=
+  (Int.xor (Int.xor (Int.xor (Int.xor (Int.repr rk)
+             (Znth (byte0 col0) FSb Int.zero)              )
+    (Int.shl (Znth (byte1 col1) FSb Int.zero) (Int.repr 8)))
+    (Int.shl (Znth (byte2 col2) FSb Int.zero) (Int.repr 16)))
+    (Int.shl (Znth (byte3 col3) FSb Int.zero) (Int.repr 24))).
+
 Definition four_ints := (int * (int * (int * int)))%type.
 
 Definition col (i : Z) (s : four_ints) : int := match i with
@@ -80,13 +87,19 @@ match cols with (col0, (col1, (col2, col3))) =>
    (mbed_tls_fround_col col3 col0 col1 col2 (Znth (i+3) rks 0)))))
 end.
 
+Definition mbed_tls_final_fround (cols : four_ints) (rks : list Z) (i : Z) : four_ints :=
+match cols with (col0, (col1, (col2, col3))) =>
+  ((mbed_tls_final_fround_col col0 col1 col2 col3 (Znth  i    rks 0)),
+  ((mbed_tls_final_fround_col col1 col2 col3 col0 (Znth (i+1) rks 0)),
+  ((mbed_tls_final_fround_col col2 col3 col0 col1 (Znth (i+2) rks 0)),
+   (mbed_tls_final_fround_col col3 col0 col1 col2 (Znth (i+3) rks 0)))))
+end.
+
 Fixpoint mbed_tls_enc_rounds (n : nat) (state : four_ints) (rks : list Z) (i : Z) : four_ints :=
 match n with
 | O => state
 | S m => mbed_tls_fround (mbed_tls_enc_rounds m state rks i) rks (i+4*Z.of_nat m)
 end.
-
-Definition mbed_tls_final_enc_round (state : four_ints) (rks : list Z) : four_ints := state. (* TODO *)
 
 (* plaintext: array of bytes
    rks: expanded round keys, array of Int32 *)
@@ -99,7 +112,7 @@ Definition mbed_tls_initial_add_round_key (plaintext : list Z) (rks : list Z) : 
 Definition mbed_tls_aes_enc (plaintext : list Z) (rks : list Z) : list int :=
   let state0  := mbed_tls_initial_add_round_key plaintext rks in
   let state13 := mbed_tls_enc_rounds 13 state0 rks 4 in
-  let state14 := mbed_tls_final_enc_round state13 rks in
+  let state14 := mbed_tls_final_fround state13 rks 56 in
   (put_uint32_le (col 0 state14)) ++
   (put_uint32_le (col 1 state14)) ++
   (put_uint32_le (col 2 state14)) ++
@@ -450,7 +463,6 @@ clear EqY0 EqY1 EqY2 EqY3.
   forward2.
   repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
   remember_temp_Vints (@nil localdef).
-  (* out of memory here *)
   do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
   remember_temp_Vints (@nil localdef).
@@ -486,7 +498,6 @@ clear EqX0 EqX1 EqX2 EqX3.
 Exists i.
 replace (52 - i * 8 + 4 + 4) with (52 - (i - 1) * 8) by omega.
 subst S' S''.
-(* TODO put into separate lemma: *)
   assert (
     (mbed_tls_fround
       (mbed_tls_fround 
@@ -576,7 +587,6 @@ subst S' S''.
   forward2.
   repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
   remember_temp_Vints (@nil localdef).
-  (* out of memory here *)
   do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
   remember_temp_Vints (@nil localdef).
@@ -686,21 +696,6 @@ Ltac entailer_for_load_tac ::=
 
   repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
 
-Definition mbed_tls_final_fround_col_CORRECT (col0 col1 col2 col3 : int) (rk : Z) : int :=
-  (Int.xor (Int.xor (Int.xor (Int.xor (Int.repr rk)
-             (Znth (byte0 col0) FSb Int.zero)              )
-    (Int.shl (Znth (byte1 col1) FSb Int.zero) (Int.repr 8)))
-    (Int.shl (Znth (byte2 col2) FSb Int.zero) (Int.repr 16)))
-    (Int.shl (Znth (byte3 col3) FSb Int.zero) (Int.repr 24))).
-
-Definition mbed_tls_final_fround (cols : four_ints) (rks : list Z) (i : Z) : four_ints :=
-match cols with (col0, (col1, (col2, col3))) =>
-  ((mbed_tls_final_fround_col_CORRECT col0 col1 col2 col3 (Znth  i    rks 0)),
-  ((mbed_tls_final_fround_col_CORRECT col1 col2 col3 col0 (Znth (i+1) rks 0)),
-  ((mbed_tls_final_fround_col_CORRECT col2 col3 col0 col1 (Znth (i+2) rks 0)),
-   (mbed_tls_final_fround_col_CORRECT col3 col0 col1 col2 (Znth (i+3) rks 0)))))
-end.
-
   pose (S14 := mbed_tls_final_fround S13 buf 56).
 
   match goal with |- context [temp _X0 (Vint ?E0)] =>
@@ -727,31 +722,63 @@ Ltac entailer_for_load_tac ::= idtac.
   remember_temp_Vints (@nil localdef).
   forward.
 
-match goal with
-| |- context [ (upd_Znth ?i ?l ?d) ] => let a := eval cbv in (upd_Znth i l d) in idtac a
+Ltac simpl_upd_Znth := match goal with
+| |- context [ (upd_Znth ?i ?l (Vint ?v)) ] =>
+  let vv := fresh "vv" in remember v as vv;
+  let a := eval cbv in (upd_Znth i l (Vint vv)) in change (upd_Znth i l (Vint vv)) with a
 end.
 
-let v := constr:(default_val (nested_field_type (tarray tuchar 16) [])) in
-let res := eval cbv in v in
-change v with res.
-cbv [upd_Znth app sublist firstn skipn Z.to_nat Zlength Z.add Z.sub].
+simpl_upd_Znth.
+  forward. simpl_upd_Znth. forward. simpl_upd_Znth. forward. simpl_upd_Znth.
+  do 4 (forward; simpl_upd_Znth).
+  do 4 (forward; simpl_upd_Znth).
+  do 4 (forward; simpl_upd_Znth).
 
+Lemma zero_ext_mask: forall i,
+  Int.zero_ext 8 i = Int.and i (Int.repr 255).
+Admitted.
+rewrite zero_ext_mask in *.
+rewrite zero_ext_mask in *.
+rewrite Int.and_assoc in *.
+rewrite Int.and_assoc in *.
+rewrite Int.and_idem in *.
+rewrite Int.and_idem in *.
+repeat subst.  remember (exp_key ++ list_repeat 8 0) as buf.
 
-
-
- forward. forward. forward.
-
-let v := constr:(default_val (nested_field_type (tarray tuchar 16) [])) in
-let res := eval cbv in v in
-change v with res.
-cbv [upd_Znth app sublist firstn skipn Z.to_nat].
-  forward. forward. forward. forward.
-  forward. forward. forward. forward.
-  forward. forward. forward. forward.
-
+match goal with
+| |- context [ field_at _ _ _ ?res output ] =>
+   assert (res = (map Vint (mbed_tls_aes_enc plaintext buf))) as Eq3
+end. {
+  unfold mbed_tls_aes_enc. unfold put_uint32_le.
+  repeat match goal with
+  | |- context [ Int.and ?a ?b ] => let va := fresh "va" in remember (Int.and a b) as va
+  end.
+  cbv.
+  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
+  subst S0 S12 S13 S14.
+  remember 12%nat as twelve.
+  unfold mbed_tls_enc_rounds. fold mbed_tls_enc_rounds.
+  assert (4 + 4 * Z.of_nat twelve = 52) as Eq4. { subst twelve. reflexivity. }
+  rewrite Eq4. clear Eq4.
+  reflexivity.
 }
+rewrite Eq3. clear Eq3.
 
-Qed.
+remember_temp_Vints (@nil localdef).
+Ltac entailer_for_return ::= idtac.
+(* return None *)
+forward.
+Lemma Eq1: forall exp_key plaintext buf,
+  ((mbed_tls_aes_enc plaintext exp_key) = (mbed_tls_aes_enc plaintext buf)).
+Admitted. (* TODO we won't prove this, but change spec *)
+rewrite (Eq1 exp_key plaintext buf).
+remember (mbed_tls_aes_enc plaintext buf) as Res.
+entailer!.
+(* TODO mention everything in postcondition *)
+Lemma GarbageCollected: forall R, R |-- emp. Admitted.
+apply GarbageCollected.
+}
+Qed. (* runs out of memory on Qed *)
 
 (* TODO floyd: sc_new_instantiate: distinguish between errors caused because the tactic is trying th
    wrong thing and errors because of user type errors such as "tuint does not equal t_struct_aesctx" *)
