@@ -792,7 +792,9 @@ entailer!.
 }
 (* verifying until here takes about 1 hour and 4.5 GB of memory *)
 
-Time Qed. (* increases memory usage from 4.5 GB to 6.7 GB and then says "Out of memory" *)
+Time Qed. (* Increases memory usage from 4.5 GB to 8.5 GB within 5min using 1 CPU fully,
+  and then continues running for >2h, with no more memory consumption, using 25% of 1 CPU.
+  After that, I canceled it, so we don't know how long it would take in total. *)
 
 (* TODO floyd: sc_new_instantiate: distinguish between errors caused because the tactic is trying th
    wrong thing and errors because of user type errors such as "tuint does not equal t_struct_aesctx" *)
