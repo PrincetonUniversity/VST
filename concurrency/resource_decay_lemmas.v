@@ -1,6 +1,7 @@
 Require Import msl.Coqlib2.
 Require Import msl.eq_dec.
 Require Import msl.seplog.
+Require Import msl.age_to.
 Require Import veric.juicy_mem.
 Require Import veric.juicy_mem_lemmas.
 Require Import veric.compcert_rmaps.
@@ -14,7 +15,6 @@ Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
 Require Import veric.coqlib4.
 Require Import concurrency.lksize.
-Require Import concurrency.age_to.
 Require Import concurrency.aging_lemmas.
 Require Import concurrency.sync_preds_defs.
 

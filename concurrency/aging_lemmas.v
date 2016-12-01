@@ -1,6 +1,7 @@
 Require Import msl.Coqlib2.
 Require Import msl.eq_dec.
 Require Import msl.seplog.
+Require Import msl.age_to.
 Require Import veric.juicy_mem.
 Require Import veric.semax_prog.
 Require Import veric.compcert_rmaps.
@@ -11,8 +12,6 @@ Require Import veric.juicy_extspec.
 Require Import veric.tycontext.
 Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
-Require Import sepcomp.semantics.
-Require Import concurrency.age_to.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -200,7 +199,7 @@ Qed.
 
 (** * Aging and operational steps *)
 
-Lemma jstep_age_sim {G C} {csem : CoreSemantics G C mem} {ge c c' jm1 jm2 jm1'} :
+Lemma jstep_age_sim {G C} {csem : semantics.CoreSemantics G C mem} {ge c c' jm1 jm2 jm1'} :
   age jm1 jm2 ->
   jstep csem ge c jm1 c' jm1' ->
   level jm2 <> O ->

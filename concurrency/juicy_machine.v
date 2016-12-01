@@ -1,5 +1,6 @@
 Require Import compcert.lib.Axioms.
 
+Require Import msl.age_to.
 Require Import concurrency.sepcomp. Import SepComp.
 Require Import sepcomp.semantics_lemmas.
 
@@ -12,7 +13,6 @@ Require Import concurrency.threads_lemmas.
 Require Import concurrency.rmap_locking.
 Require Import concurrency.lksize.
 Require Import concurrency.semantics.
-Require Import concurrency.age_to.
 Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
