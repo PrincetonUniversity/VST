@@ -329,7 +329,7 @@ Exists prefix.
     rewrite lseg_cons_eq by auto. Intros y. subst v. 
     entailer.
  destruct hd; try contradiction.
- entailer!. entailer!. simpl; cancel.
+ entailer!. entailer!.
 Qed.
 
 
@@ -350,7 +350,7 @@ Proof.
   (* goal_5 *)
   Exists q. unfold fifo. Exists (nullval,nullval).
   rewrite if_true by auto.
-  entailer!. simpl. cancel.
+  entailer!.
 Qed.
 
 Lemma body_fifo_put: semax_body Vprog Gprog f_fifo_put fifo_put_spec.
@@ -446,7 +446,6 @@ destruct prefix; inversion H; clear H.
     rewrite if_false by (destruct prefix; simpl; congruence).
     Exists prefix.
     entailer!.
-    apply derives_refl.
 Qed.
 
 Lemma body_make_elem: semax_body Vprog Gprog f_make_elem make_elem_spec.

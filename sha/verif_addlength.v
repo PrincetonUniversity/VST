@@ -112,6 +112,41 @@ destruct H as [x ?].
  apply Z.mod_pos_bound; auto.
 Qed.
 
+ Lemma addlength_aux2:
+     forall len n, 
+          0 <= len < Int.modulus -> 
+          Int.unsigned (Int.repr (n + len * 8)) < Int.unsigned (lo_part n) ->
+Int.unsigned (hi_part n) +
+  (Int.unsigned (lo_part n) + (len * 8) mod Int.modulus -
+   (Int.unsigned (lo_part n) + len * 8) mod Int.modulus) / Int.modulus
+   = Int.unsigned (hi_part n) + 1.
+Proof.
+intros.
+assert (MN: Int.modulus <> 0) by (intro Hx; inv Hx).
+rename H0 into H1.
+
+ assert (Int.unsigned (Int.add (lo_part n) (Int.repr (len * 8))) <
+     Int.unsigned (lo_part n)) by normalize.
+ clear H1.
+ destruct (Int.unsigned_add_either (lo_part n) (Int.repr (len*8))) as [H9|H9].
+ elimtype False; rewrite H9 in H0; clear H9.
+ destruct (Int.unsigned_range (Int.repr (len*8))) as [? _]; omega.
+ clear H0.
+ unfold Int.add in H9.
+ rewrite (Int.unsigned_repr_eq (len*8)) in H9.
+ replace (Int.unsigned (lo_part n) + (len * 8) mod Int.modulus)
+  with (Int.unsigned (Int.repr (Int.unsigned (lo_part n) + (len * 8) mod Int.modulus)) +
+           Int.modulus) by omega.
+ clear - MN.
+ rewrite Int.unsigned_repr_eq.
+ rewrite (Z.add_mod (Int.unsigned (lo_part n)) (len*8)) by assumption.
+ rewrite int_unsigned_mod.
+ replace ((Int.unsigned (lo_part n) + (len * 8) mod Int.modulus) mod Int.modulus + Int.modulus -
+ (Int.unsigned (lo_part n) + (len * 8) mod Int.modulus) mod Int.modulus)
+   with Int.modulus by omega.
+ reflexivity.
+Qed.
+
 Lemma body_SHA256_addlength: semax_body Vprog Gtot f_SHA256_addlength SHA256_addlength_spec.
 Proof.
 start_function.
@@ -123,8 +158,8 @@ name Nh _cNh.
 rename H into BOUND.
 rename H1 into Hn.
 assert (MN: Int.modulus <> 0) by (intro Hx; inv Hx).
-forward.
-forward.
+forward. (* cNl=c->Nl; *) 
+forward. (* cNh=c->Nh; *)
 forward. (* l=(cNl+(((SHA_LONG)len)<<3))&0xffffffffUL; *)
 assert (0 <= len < Int.modulus) 
  by (change Int.modulus with (Int.max_unsigned + 1); omega).
@@ -148,44 +183,22 @@ forward_if (
 * (* then-clause *)
  rewrite <- add_repr in H1.
  rewrite Int.repr_unsigned in H1.
- forward.
+ forward. (* cNh ++; *)
  entailer!.
  rewrite <- (Int.repr_unsigned (hi_part n)) at 2.
  rewrite add_repr.
  f_equal.
  f_equal.
- unfold carry.
-  
- clear - MN H1 H.
- assert (Int.unsigned (Int.add (lo_part n) (Int.repr (len * 8))) <
-     Int.unsigned (lo_part n)) by normalize.
- clear H1.
- destruct (Int.unsigned_add_either (lo_part n) (Int.repr (len*8))) as [H9|H9].
- elimtype False; rewrite H9 in H0; clear H9.
- destruct (Int.unsigned_range (Int.repr (len*8))) as [? _]; omega.
- clear H0.
- unfold Int.add in H9.
- rewrite (Int.unsigned_repr_eq (len*8)) in H9.
- replace (Int.unsigned (lo_part n) + (len * 8) mod Int.modulus)
-  with (Int.unsigned (Int.repr (Int.unsigned (lo_part n) + (len * 8) mod Int.modulus)) +
-           Int.modulus) by omega.
- clear - MN.
- rewrite Int.unsigned_repr_eq.
- rewrite (Z.add_mod (Int.unsigned (lo_part n)) (len*8)) by assumption.
- rewrite int_unsigned_mod.
- replace ((Int.unsigned (lo_part n) + (len * 8) mod Int.modulus) mod Int.modulus + Int.modulus -
- (Int.unsigned (lo_part n) + (len * 8) mod Int.modulus) mod Int.modulus)
-   with Int.modulus by omega.
- reflexivity.
+ apply addlength_aux2; auto.
 * (* else clause *)
  rewrite <- add_repr in H1.
  rewrite Int.repr_unsigned in H1.
  forward.  (* skip; *)
  entailer!.
- unfold carry; clear carry.
- clear H0.
+ subst carry.
+ f_equal.
  clear - MN H1 H.
- assert (Int.unsigned (Int.add (lo_part n) (Int.repr (len * 8))) >=
+ assert (H0: Int.unsigned (Int.add (lo_part n) (Int.repr (len * 8))) >=
      Int.unsigned (lo_part n)) by normalize.
  clear H1.
  destruct (Int.unsigned_add_either (lo_part n) (Int.repr (len*8))) as [H9|H9];
@@ -199,13 +212,13 @@ forward_if (
  rewrite Z.sub_diag.
  rewrite Z.div_0_l by auto.
  rewrite Z.add_0_r.
- f_equal. apply Int.repr_unsigned.
+ apply Int.repr_unsigned.
 * (* after the if *)
  forward. (* cNh += (len>>29); *)
  forward. (* c->Nl=l; *)
  forward. (* c->Nh=cNh; *)
  forward. (* return; *)
- unfold carry; clear carry H4.
+ subst carry.
  clear - MN BOUND H Hn.
  apply derives_refl'; f_equal.
  + f_equal. f_equal.
@@ -240,12 +253,6 @@ replace (len/two_p 29) with (len * two_p 3 / two_p 32)
  change (two_p 35) with (two_p 32 * two_p 3).
  apply Zmult_lt_compat_r; [compute; congruence | omega].
  clear H.
- forget (len * two_p 3) as b.
- change (two_p 64) with (two_p 32 * two_p 32) in BOUND, Hn.
- change (two_p 35) with (two_p 32 * two_p 3) in H1.
- change (two_p 32) with Int.modulus in *.
- clear H0.
- rename n into a.
  apply Int.eqm_samerepr.
 apply addlength_assist; auto.
 Qed.

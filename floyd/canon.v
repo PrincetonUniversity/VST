@@ -379,13 +379,17 @@ Lemma go_lower_lem20:
     PROPx nil QR |-- QR'.
 Proof. unfold PROPx; intros; intro rho; normalize. Qed.
 
-Ltac go_lowerx :=
-   unfold PROPx, LOCALx,SEPx, local, lift1; unfold_lift; intro rho; simpl;
+Ltac go_lowerx' simpl_tac :=
+   unfold PROPx, LOCALx,SEPx, local, lift1; unfold_lift; intro rho; simpl_tac;
    repeat rewrite andp_assoc;
    repeat ((simple apply go_lower_lem1 || apply derives_extract_prop || apply derives_extract_prop'); intro);
    try apply prop_left;
    repeat rewrite prop_true_andp by assumption;
    try apply derives_refl.
+
+Ltac go_lowerx := go_lowerx' simpl.
+
+Ltac go_lowerx_no_simpl := go_lowerx' idtac.
 
 (*
 Lemma grab_tc_environ:
