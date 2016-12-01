@@ -737,7 +737,7 @@ Proof.
       -- edestruct (unique_Krun_neq i j); eauto.
       -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
       -- intros c' Ec'; spec safety c' Ec'. apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
-      -- constructor.
+      -- auto.
     }
   
   - (* threads_wellformed *)

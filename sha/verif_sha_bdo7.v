@@ -212,6 +212,7 @@ match goal with
       fold (Sfor s1 e s2 s3)
  end.
 abbreviate_semax.
+(*
 name a_ _a.
 name b_ _b.
 name c_ _c.
@@ -224,6 +225,7 @@ name t_ _t.
 name Ki _Ki.
 name ctx_ _ctx.
 name i_ _i.
+*)
 change 16%nat with LBLOCK.
 
 forward_for_simple_bound 64%Z 
@@ -259,21 +261,21 @@ change LBLOCKz with 16%Z in H0.
 change (tarray tuint LBLOCKz) with (tarray tuint 16).
 change LBLOCKz with 16%Z in H.
 forward.	(*s0 = X[(i+1)&0x0f]; *)
-entailer!. autorewrite with sublist. auto.
-autorewrite with sublist. rewrite Znth_nthi' by reflexivity.
+autorewrite with sublist. entailer!.
+autorewrite with sublist. rewrite Zland_15.
 forward. (* s0 = sigma0(s0); *)
 rewrite extract_from_b by auto; rewrite Int.and_mone; rewrite <- sigma_0_eq.
 
 forward. (* s1 = X[(i+14)&0x0f]; *)
-entailer!. autorewrite with sublist. auto.
-autorewrite with sublist. rewrite Znth_nthi' by reflexivity.
+autorewrite with sublist. entailer!.
+autorewrite with sublist. rewrite Zland_15.
 
 forward. (* s1 = sigma1(s1); *)
 rewrite extract_from_b by auto; rewrite Int.and_mone; rewrite <- sigma_1_eq.
 
 forward. (* T1 = X[i&0xf]; *)
-entailer!. autorewrite with sublist. auto.
-autorewrite with sublist. rewrite Znth_nthi' by reflexivity.
+autorewrite with sublist. entailer!.
+autorewrite with sublist. rewrite Zland_15.
 replace (nthi (Xarray b (Z.to_nat i)) (i mod 16))
   with (W (nthi b) (i - 16 + 0))
  by (replace (i mod 16) with ((i + 0) mod 16) 
@@ -281,8 +283,8 @@ replace (nthi (Xarray b (Z.to_nat i)) (i mod 16))
       rewrite extract_from_b; try omega; auto).
 
 forward. (* t = X[(i+9)&0xf]; *)
-entailer!. autorewrite with sublist. auto.
-autorewrite with sublist. rewrite Znth_nthi' by reflexivity.
+autorewrite with sublist. entailer!.
+autorewrite with sublist. rewrite Zland_15.
 rewrite extract_from_b by (try assumption; try omega).
 
 forward.  (* T1 += s0 + s1 + t; *)
@@ -296,9 +298,8 @@ unfold K_vector.
 change CBLOCKz with 64%Z.
 assert (LEN: Zlength K256 = 64%Z) by reflexivity.
 forward.  (* Ki=K256[i]; *)
- {entailer!. autorewrite with sublist. auto. }
+autorewrite with sublist. entailer!.
 autorewrite with sublist.
-rewrite Znth_nthi by omega.
 rename b into bb.
 assert (Hregs' := length_Round _ (nthi bb) (i-1) Hregs).
 remember (Round regs (nthi bb) (i - 1)) as regs' eqn:H1.
@@ -331,6 +332,5 @@ repeat split; try reflexivity.
  +
   f_equal. f_equal. rewrite Int.add_commut. f_equal.
 *
- change (64-1)%Z with 63%Z.
  entailer!.
 Qed.

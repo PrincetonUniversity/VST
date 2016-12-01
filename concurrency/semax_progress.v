@@ -237,11 +237,12 @@ Section Progress.
   Open Scope string_scope.
   
   Theorem progress Gamma n state :
+    ~ blocked_at_external state CREATE ->
     state_invariant Jspec' Gamma (S n) state ->
     exists state',
       state_step state state'.
   Proof.
-    intros I.
+    intros not_spawn I.
     inversion I as [m ge sch tp Phi En gam compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
     destruct sch as [ | i sch ].
     
@@ -592,7 +593,7 @@ Section Progress.
                 (* [ > idtac ]. *)
               simpl.
               unfold Int.unsigned in *.
-              rewrite <-H7.
+              rewr (getThreadR cnti @ (b, Int.intval ofs)).
               reflexivity.
             
             * eapply step_acqfail with (Hcompatible := mem_compatible_forget compat)
@@ -600,7 +601,7 @@ Section Progress.
               all: try solve [ constructor | eassumption | reflexivity ].
               simpl.
               unfold Int.unsigned in *.
-              rewrite <-H7.
+              rewr (getThreadR cnti @ (b, Int.intval ofs)).
               reflexivity.
         
         - (* acquire succeeds *)
@@ -1395,7 +1396,7 @@ Section Progress.
         - assumption.
       }
       
-      { (* the case of makelock *)
+      { (* the case of spawn *)
 
         (* using the safety to prepare the precondition *)
         pose proof (safety i cnti tt) as safei.
@@ -1416,8 +1417,18 @@ Section Progress.
         funspec_destruct "makelock".
         funspec_destruct "freelock".
         funspec_destruct "spawn".
-        admit. (* progress: the case of spawn *)
-        (* no obligation after "release" yet *)
+        
+        (* disregarding the case of makelock by hypothesis *)
+        exfalso; apply not_spawn.
+        repeat eexists; eauto.
+        simpl.
+        simpl in H_spawn.
+        f_equal.
+        f_equal.
+        injection H_spawn. intros <- E.
+        apply ext_link_inj in E.
+        subst name.
+        reflexivity.
       }
     }
     (* end of Kblocked *)
@@ -1474,6 +1485,8 @@ Section Progress.
     
     (* thread[i] is in Kinit *)
     {
+      spec safety i cnti tt. rewrite Eci in safety.
+      destruct safety as (b & func & Ev1 & FindFun).
       eexists(* ; split *).
       - constructor.
         apply JuicyMachine.start_step with (tid := i) (Htid := cnti).
@@ -1482,14 +1495,21 @@ Section Progress.
         + eapply JuicyMachine.StartThread.
           * apply Eci.
           * simpl.
-            (* WE SAID THAT THIS SHOULD NOT BE IN THE MACHINE? *) 
-            (* Maybe this is impossible and I have to do all the spawn
-               work by myself. *)
-           admit (* progress: Kinit *).
+            unfold initial_core in *.
+            unfold the_sem.
+            unfold SEM.Sem in *.
+            rewrite SEM.CLN_msem.
+            simpl.
+            unfold cl_initial_core in *.
+            rewrite Ev1.
+            if_tac. 2:tauto.
+            rewrite FindFun.
+            reflexivity.
           * constructor.
           * reflexivity.
     }
     (* end of Kinit *)
-  Admitted. (* Theorem progress *)
+    Unshelve. eexists; eauto.
+  Qed. (* Theorem progress *)
   
 End Progress.

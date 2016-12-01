@@ -862,7 +862,7 @@ Proof.
         omega.
         apply jsafe_phi_downward.
         assumption.
-      * constructor.
+      * auto.
   
   - (* wellformedness *)
     intros j cntj.

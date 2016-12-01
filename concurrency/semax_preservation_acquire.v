@@ -639,8 +639,9 @@ Proof.
       destruct (getThreadC j tp lj) eqn:Ej.
       -- edestruct (unique_Krun_neq i j); eauto.
       -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
-      -- intros c' Ec'; spec safety c' Ec'. apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
-      -- constructor.
+      -- intros c' Ec'; spec safety c' Ec'. apply jsafe_phi_age_to; auto.
+         apply jsafe_phi_downward. assumption.
+      -- auto.
   
   + (* well_formedness *)
     intros j lj.
@@ -649,11 +650,11 @@ Proof.
     unshelve erewrite gLockSetCode; auto.
     destruct (eq_dec i j).
     * subst j.
-      rewrite gssThreadCode.
+      REWR.
       replace lj with cnti in wellformed by apply proof_irr.
       rewrite Hthread in wellformed.
       auto.
-    * unshelve erewrite gsoThreadCode; auto.
+    * REWR.
       
   + (* uniqueness *)
     apply no_Krun_unique_Krun.

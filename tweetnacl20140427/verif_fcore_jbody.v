@@ -634,7 +634,7 @@ Time forward_for_simple_bound 4
             && data_at Tsh (tarray tuint 4) l t; 
        data_at Tsh (tarray tuint 16) (map Vint xs) x))); try reflexivity; try auto with closed; try repable_signed.
   (*1.3*)
-  { Exists (list_repeat 4 Vundef). Time entailer!. (*2.2*) }
+  { Exists (list_repeat 4 Vundef). Time entailer!. (*2.2*)  intros; omega. }
   { rename i0 into m. rename H into M. Intros T.
     rename H into HT.
     Time assert_PROP (Zlength T = 4) as TL by entailer!. (*2.2 versus 5.7*)

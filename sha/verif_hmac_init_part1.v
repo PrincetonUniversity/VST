@@ -183,9 +183,9 @@ Proof. intros. abbreviate_semax.
  forward_call now takes much longer: 18secs        change_compspecs CompSpecs.  (* this should not be needed *)*)
         Time cancel. (*0.1*)
       }
-      { clear Frame HeqPostIf_j_Len (*HeqPostKeyNull*).
+      { clear HeqPostIf_j_Len (*HeqPostKeyNull*).
         specialize Int.max_signed_unsigned.
-        subst l. intuition.
+        subst l. intro; split; [ | split3]; auto; omega.
       }
       rewrite sublist_same; trivial.
 
