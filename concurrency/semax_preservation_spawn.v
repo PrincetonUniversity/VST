@@ -166,4 +166,146 @@ Lemma preservation_spawn
   state_invariant Jspec' Gamma n (m_, ge, (sch, tp_)).
   
 Proof.
-Admitted. (* preservation_spawn *)
+Abort. (* preservation_spawn *)
+
+Lemma shape_of_args2 (F V : Type) (args : list val) v (ge : Genv.t F V) :
+  Val.has_type_list args (AST.Tint :: nil) ->
+  v <> Vundef ->
+  v =
+  expr.eval_id _args (make_ext_args (filter_genv (symb2genv (Genv.genv_symb ge))) (_f :: _args :: nil) args) ->
+  exists arg1, args = arg1 :: v (* which one is not v? *) :: nil.
+Proof.
+  intros Hargsty Nu.
+  assert (L: length args = 1%nat) by (destruct args as [|? [|]]; simpl in *; tauto).
+  unfold expr.eval_id.
+  unfold expr.force_val.
+  intros Preb.
+  match goal with H : context [Map.get ?a ?b] |- _ => destruct (Map.get a b) eqn:E end.
+  subst v. 2: tauto.
+  pose  (gx := (filter_genv (symb2genv (Genv.genv_symb ge)))). fold gx in E.
+  destruct args as [ | arg [ | ar [ | ar2 args ] ]].
+  + now inversion E.
+  + now inversion E.
+  + simpl in E. inversion E. eauto.
+  + inversion E. f_equal.
+    inversion L.
+Qed.
+
+Lemma safety_induction_spawn Gamma n state
+  (CS : compspecs)
+  (ext_link : string -> ident)
+  (ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2)
+  (Jspec' := @OK_spec (Concurrent_Espec unit CS ext_link))
+  (Jspec'_juicy_mem_equiv : Jspec'_juicy_mem_equiv_def CS ext_link)
+  (Jspec'_hered : Jspec'_hered_def CS ext_link)
+  (personal_mem_equiv_spec :
+     forall (m m' : Mem.mem') (phi : rmap) (pr : mem_cohere' m phi) (pr' : mem_cohere' m' phi),
+       Mem.nextblock m = Mem.nextblock m' ->
+       (forall loc : address, max_access_at m loc = max_access_at m' loc) ->
+       (forall loc : AV.address, isVAL (phi @ loc) -> contents_at m loc = contents_at m' loc) ->
+       mem_equiv (m_dry (personal_mem m phi pr)) (m_dry (personal_mem m' phi pr'))) :
+  blocked_at_external state CREATE ->
+  state_invariant Jspec' Gamma (S n) state ->
+  exists state',
+    state_step state state' /\
+    (state_invariant Jspec' Gamma n state' \/
+     state_invariant Jspec' Gamma (S n) state').
+Proof.
+  intros isspawn I.
+  inversion I as [m ge sch_ tp Phi En gam compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
+  unfold blocked_at_external in *.
+  destruct isspawn as (i & cnti & sch & ci & args & -> & Eci & atex).
+  pose proof (safety i cnti tt) as safei.
+  
+    
+  rewrite Eci in safei.
+  unfold jsafeN, juicy_safety.safeN in safei.
+  
+  fixsafe safei.
+  inversion safei
+    as [ | ?????? bad | n0 z c m0 e args0 x at_ex Pre SafePost | ????? bad ];
+    [ now erewrite cl_corestep_not_at_external in atex; [ discriminate | eapply bad ]
+    | subst | now inversion bad ].
+  subst.
+  simpl in at_ex. assert (args0 = args) by congruence; subst args0.
+  assert (e = CREATE) by congruence; subst e.
+  hnf in x.
+  revert x Pre SafePost.
+  
+  assert (H_spawn : Some (ext_link "spawn", ef_sig CREATE) = ef_id_sig ext_link CREATE). reflexivity.
+  
+  (* dependent destruction *)
+  funspec_destruct "acquire".
+  funspec_destruct "release".
+  funspec_destruct "makelock".
+  funspec_destruct "freelock".
+  funspec_destruct "spawn".
+  
+  intros (phix, (ts, ((xf, xarg), (f_with_ty & f_with_x & f_with_Pre)))) (Hargsty, Pre).
+  intros Post.
+  simpl in Pre. clear Post.
+  destruct Pre as (phi0 & phi1 & jphi & A).
+  destruct A as ((PreA & (PreB1 & PreB2) & phi00 & phi01 & jphi0 & (_y & Glob & Func) & fPRE) & necr).
+  simpl in fPRE.
+  rewrite seplog.sepcon_emp in fPRE.
+  simpl in PreA. clear PreA.
+  simpl in PreB1.
+  unfold liftx in PreB1. simpl in PreB1. unfold lift in PreB1.
+  unfold liftx in PreB2. simpl in PreB2. unfold lift in PreB2. clear PreB2.
+  apply shape_of_args2 in PreB1.
+  destruct PreB1 as (arg1, Eargs).
+  rewrite Eargs in Hargsty.
+  simpl in Hargsty.
+  destruct Func as (Func, emp00).
+  Import SeparationLogicSoundness.SoundSeparationLogic.CSL.
+  pose proof
+       (* SeparationLogicSoundness.SoundSeparationLogic.CSL. *)func_ptr_isptr
+       _ _ _
+       Func as isp.
+  unfold expr.isptr in *.
+  destruct xf as [ | | | | | f_b f_ofs]; try contradiction.
+  
+  (* done above
+  spec safety i cnti tt. rewrite Eci in safety.
+  destruct ci as [ | ef args0 lid ve te k] eqn:Heqci. discriminate.
+  assert (args0 = args) by (simpl in atex; congruence). subst args0.
+  *)
+  
+  eexists.
+  split.
+  {
+    apply state_step_c.
+    unshelve eapply JuicyMachine.sync_step
+    with (tid := i) (Htid := cnti)
+                    (ev := Events.spawn (f_b, Int.intval f_ofs) None None).
+    { eexists; eauto. }
+    { reflexivity. }
+    { reflexivity. }
+    econstructor.
+    now constructor.
+    eassumption.
+    { unfold SEM.Sem in *.
+      rewrite SEM.CLN_msem.
+      simpl.
+      (* rewrite <-Heqci in Eci. *)
+      simpl in atex.
+      rewrite atex, Eargs.
+      reflexivity. }
+    { replace (initial_core SEM.Sem) with cl_initial_core
+        by (unfold SEM.Sem; rewrite SEM.CLN_msem; reflexivity).
+      unfold cl_initial_core in *.
+      simpl.
+      (* pose proof @semax_call. *)
+      (* all this work around safety is already done above. Try to deal with Func *)
+      (* apply jsafe_phi_jsafeN with (compat0 := compat) in safety. *)
+      simpl.
+      subst args.
+      simpl.
+      admit. (* unclear how to relate arg1/args (which come from the
+      syntax) to anything. The juicy machine uses "initial_core" but
+      it's not that simple. *)
+    }
+    admit. (* same problem *)
+    reflexivity.
+    all:try reflexivity.
+Admitted. (* safety_induction_spawn *)

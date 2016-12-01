@@ -164,10 +164,30 @@ Section Initial_State.
     
     apply state_invariant_c with (PHI := m_phi jm) (mcompat := compat); auto.
     
-    - pose proof semax_prog_entry_point (Concurrent_Espec unit CS ext_link) V G prog.
+    - intros b SPEC phi NECR FU.
+      (* pose proof semax_prog_entry_point (Concurrent_Espec unit CS ext_link) V G prog. *)
+      destruct SPEC as [f c A P Q P_ne Q_ne].
+      simpl in FU.
+      destruct FU as (pp, E).
+      
+      (*
+      missing:
+        (id_fun id_arg : ident) (arg : val) (params : list (ident * type)) 
+        (A : rmaps.TypeTree)
+        (P Q : forall ts : list Type, (rmaps.dependent_type_functor_rec ts (AssertTT A)) mpred)
+        (NEP : super_non_expansive P) (NEQ : super_non_expansive Q),
+      semax_prog (Concurrent_Espec unit CS ext_link) prog V G ->
+      params = (id_arg, Tpointer Tvoid noattr) :: nil ->
+      find_params prog id_fun = Some params ->
+      find_id id_fun G = Some (mk_funspec (params, Tvoid) cc_default A P Q NEP NEQ) ->
+      (forall (ts : list Type) (a : (rmaps.dependent_type_functor_rec ts A) mpred)
+         (rho : (rmaps.dependent_type_functor_rec ts (rmaps.ConstType environ)) mpred), 
+       Q ts a rho |-- FF) ->
+      expr.is_pointer_or_null arg ->
+       *)
+      
       unfold matchfunspec in *.
       simpl.
-      intros b SPEC phi NECR FU.
       (* argh *)
       (*
       exists (prog_main prog). (* no, it can be anything *)
@@ -183,7 +203,7 @@ Section Initial_State.
       simpl snd in jm.
       destruct (spr n) as (jm' & jmm & lev & S & nolocks). simpl in jm.
       unfold jm in *; clear jm; rename jm' into jm. clear spr.
-       *)      
+       *)    
       admit.
       (* we need to relate the [jm] given by [semax_prog_rule]  *)
     

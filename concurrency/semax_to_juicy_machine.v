@@ -55,6 +55,7 @@ Require Import concurrency.semax_initial.
 Require Import concurrency.semax_progress.
 Require Import concurrency.semax_preservation_jspec.
 Require Import concurrency.semax_safety_makelock.
+Require Import concurrency.semax_preservation_spawn.
 Require Import concurrency.semax_preservation_freelock.
 Require Import concurrency.semax_preservation.
 
@@ -242,7 +243,16 @@ Section Safety.
       - apply personal_mem_equiv_spec.
     }
     
-    destruct (progress CS ext_link ext_link_inj _ _ _ inv) as (state', step).
+    (* the case for spawn *)
+    destruct (blocked_at_external_dec state CREATE) as [isspawn|isnotspawn].
+    {
+      apply safety_induction_spawn; eauto.
+      - hnf. apply Jspec'_juicy_mem_equiv.
+      - hnf. apply Jspec'_hered.
+      - apply personal_mem_equiv_spec.
+    }
+    
+    destruct (progress CS ext_link ext_link_inj _ _ _ isnotspawn inv) as (state', step).
     exists state'; split; [ now apply step | ].
     eapply preservation; eauto.
   Qed.
