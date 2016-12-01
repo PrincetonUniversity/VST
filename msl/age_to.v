@@ -51,6 +51,39 @@ Proof.
   apply age_by_necR.
 Qed.
 
+Lemma necR_age_by {A} `{agA : ageable A} x x' : necR x x' -> x' = age_by (level x - level x') x.
+Proof.
+  intros N; induction N.
+  - rewrite (age_level _ _ H).
+    replace (S _ - _) with 1. 2:omega.
+    simpl. unfold age1'. rewrite H; auto.
+  - replace (_ - _) with 0. 2:omega. reflexivity.
+  - rewrite IHN2, IHN1.
+    rewrite age_by_age_by.
+    repeat rewrite level_age_by.
+    f_equal.
+    apply necR_level in N1.
+    apply necR_level in N2.
+    replace (_ x - (_ x - _ y)) with (level y) by omega.
+    replace (_ y - _ z + (_ x - _ y)) with (level x - level z) by omega.
+    omega.
+Qed.
+
+Lemma necR_age_to {A} `{agA : ageable A} x x' : necR x x' -> x' = age_to (level x') x.
+Proof.
+  apply necR_age_by.
+Qed.
+
+Lemma necR_age_by_iff {A} `{agA : ageable A} x x' : necR x x' <-> x' = age_by (level x - level x') x.
+Proof.
+  split. apply necR_age_by. intros ->. apply age_by_necR.
+Qed.
+
+Lemma necR_age_to_iff {A} `{agA : ageable A} x x' : necR x x' <-> x' = age_to (level x') x.
+Proof.
+  apply necR_age_by_iff.
+Qed.
+
 Require Import msl.predicates_hered.
 
 Lemma age_to_pred {A} `{agA : ageable A} (P : pred A) x n :
