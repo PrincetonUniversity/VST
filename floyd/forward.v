@@ -599,7 +599,8 @@ let wit := fresh "wit" in
  | prove_delete_temp
  | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto; subst A wit
- ] end.
+ ] end;
+ try clear Frame; try subst A; try clear wit; try simpl in (type of wit).
 
 Ltac forward_call_id1_y_wow witness :=
 let Frame := fresh "Frame" in
@@ -635,7 +636,8 @@ let wit := fresh "wit" in
  | prove_delete_temp
  | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto; subst A wit
- ] end.
+ ] end;
+ try clear Frame; try subst A; try clear wit; try simpl in (type of wit).
 
 Ltac forward_call_id1_wow witness :=
 let Frame := fresh "Frame" in
@@ -668,7 +670,8 @@ let wit := fresh "wit" in
  | prove_delete_temp
  | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto; subst A wit
- ] end.
+ ] end;
+ try clear Frame; try subst A; try clear wit; try simpl in (type of wit).
 
 Ltac forward_call_id01_wow witness :=
 let Frame := fresh "Frame" in
@@ -699,7 +702,8 @@ let wit := fresh "wit" in
            ]
  | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto; subst A wit
- ] end.
+ ] end;
+ try clear Frame; try subst A; try clear wit; try simpl in (type of wit).
 
 Ltac forward_call_id00_wow witness :=
 let Frame := fresh "Frame" in
@@ -729,7 +733,8 @@ let wit := fresh "wit" in
  | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto; subst A wit
  ]
- end.
+ end;
+ try clear Frame; try subst A; try clear wit; try simpl in (type of wit).
 
 Ltac simpl_strong_cast :=
 try match goal with |- context [strong_cast ?t1 ?t2 ?v] =>
@@ -821,8 +826,15 @@ Ltac after_forward_call :=
     abbreviate_semax;
     try fwd_skip.
 
+Ltac clear_MORE_POST :=
+ try match goal with POSTCONDITION := @abbreviate ret_assert _ |- _ =>
+        clear POSTCONDITION
+      end;
+ try match goal with MORE_COMMANDS := @abbreviate statement _ |- _ =>
+        clear MORE_COMMANDS
+      end.
+
 Ltac fwd_call witness :=
-  (* find_postcond_binder_names; *)
  try match goal with
       | |- semax _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip
       end;
@@ -831,14 +843,14 @@ Ltac fwd_call witness :=
      match goal with |- let _ := ?A in _ => intro; fwd_call A 
      end
    | eapply semax_seq';
-     [first [forward_call_id1_wow witness
+     [clear_MORE_POST;
+      first [forward_call_id1_wow witness
            | forward_call_id1_x_wow witness
            | forward_call_id1_y_wow witness
-           | forward_call_id01_wow witness ]
+           | forward_call_id01_wow witness 
+           | forward_call_id00_wow witness ]
      | after_forward_call
      ]
-  |  eapply semax_seq'; [forward_call_id00_wow witness 
-          | after_forward_call ]
   | rewrite <- seq_assoc; fwd_call witness
   ].
 

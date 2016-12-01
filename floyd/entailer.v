@@ -15,6 +15,25 @@ Proof. intros. apply FF_left. Qed.
 Hint Resolve @FF_local_facts: saturate_local. 
 
 (*** Omega stuff ***)
+
+Ltac omegable' A := 
+lazymatch A with
+| @eq nat _ _ => idtac
+| @eq Z _ _ => idtac
+| Z.lt _ _ => idtac
+| Z.le _ _ => idtac
+| Z.gt _ _ => idtac
+| Z.ge _ _ => idtac
+| Peano.lt _ _ => idtac
+| Peano.le _ _ => idtac
+| Peano.gt _ _ => idtac
+| Peano.ge _ _ => idtac
+| ~ ?A => omegable' A
+| ?A /\ ?B => omegable' A; omegable' B
+end.
+
+Ltac omegable := match goal with |- ?A => omegable' A end.
+
 Ltac  add_nonredundant' F T G :=
    match G with
         | T -> _ => fail 1
@@ -107,7 +126,7 @@ Ltac Omega'' L :=
      ];
   Omega' L.
 
-Tactic Notation "Omega" tactic(L) := Omega'' L.
+Tactic Notation "Omega" tactic(L) := (omegable; Omega'' L).
 
 Ltac helper1 := 
  match goal with

@@ -273,7 +273,8 @@ destruct data as [[? ?] [? ?]].
 Exists snuffleRes l.
 rewrite H0, <- H1, H. clear - H2.
 Time normalize. (*1.4*)
-Exists intsums. old_go_lower. Time entailer!. (*6.8*) (*TODO: eliminate old_go_lower*)
+Exists intsums. old_go_lower. (*TODO: eliminate old_go_lower*)
+ Time entailer!; split; auto. (*6.8*) 
 Qed.
 
 Lemma HFalsePOST F t y x w nonce out c k h snuffleRes l data OUT: 
@@ -374,7 +375,7 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
         rewrite overridePost_overridePost, normal_ret_assert_eq.
         Intros. subst ek vl. rewrite overridePost_normal'.      
         apply HFalsePOST; trivial. rewrite H. trivial. subst; trivial.
-        thaw FR6. cancel. apply derives_refl. 
+        thaw FR6. cancel.
     - intros ? ?. apply andp_left2.
       unfold POSTCONDITION, abbreviate. 
       rewrite overridePost_overridePost. apply derives_refl.  
