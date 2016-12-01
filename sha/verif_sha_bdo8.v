@@ -67,33 +67,11 @@ Proof.
 intros.
 unfold load8.
 abbreviate_semax.
-normalize.
-simpl.
-normalize.
-name a_ _a.
-name b_ _b.
-name c_ _c.
-name d_ _d.
-name e_ _e.
-name f_ _f.
-name g_ _g.
-name h_ _h.
-name l_ _l.
-name Ki _Ki.
-name in_ _in.
-name ctx_ _ctx.
-name i_ _i.
-name data_ _data.
-abbreviate_semax.
-assert (H5': Zlength r_h = 8%Z).
-rewrite Zlength_correct; rewrite H5; reflexivity.
+assert (H5': Zlength r_h = 8%Z)
+  by (rewrite Zlength_correct; rewrite H5; reflexivity).
 do 8 (forward; [ entailer!; apply Znth_is_int; omega | ]).
+autorewrite with sublist.
 entailer!.
-rewrite <- H, <- H0, <- H1, <- H2, <- H3, <- H4, <- H6, <- H7.
-repeat (rewrite Znth_map with (d':=Int.zero); [ | omega]).
-unfold Znth.
-repeat rewrite if_false by (apply Zle_not_lt; computable).
-repeat split; reflexivity.
 Qed.
 
 Definition get_h (n: Z) :=
@@ -341,16 +319,6 @@ Lemma add_them_back_proof:
                 (map Vint (map2 Int.add regs regs')) ctx))).
 Proof.
 intros.
-name a_ _a.
-name b_ _b.
-name c_ _c.
-name d_ _d.
-name e_ _e.
-name f_ _f.
-name g_ _g.
-name h_ _h.
-name t_ _t.
-name ctx_ _ctx.
 rename regs' into atoh.
 unfold sequence, add_them_back.
 change regs with  (add_upto 0 regs atoh) at 1.

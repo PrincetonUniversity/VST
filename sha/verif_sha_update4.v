@@ -105,21 +105,21 @@ weak_normalize_postcondition.
 normalize. change (16*4)%Z with 64.
 simple apply (update_inner_if_proof Espec hashed dd data c d sh len kv);
   try assumption.
-Time forward. (*0.2*) 
+forward.
 apply andp_left2; auto.
 * (* else clause *)
-Time forward.  (* skip; *) (*0.3*)
-apply exp_right with nil. rewrite <- app_nil_end.
+forward.  (* skip; *)
+Exists (@nil int). rewrite <- app_nil_end.
 apply repr_inj_unsigned in H0; try Omega1. rename H0 into H1.
 rewrite H1 in *.
 rewrite Zlength_correct in H1;  destruct dd; inv H1.
 autorewrite with sublist.
-simpl app; simpl intlist_to_Zlist.
+simpl intlist_to_Zlist.
 Time entailer!.  (* 4.6; was: 139 sec -> 3.27 sec *)
 split.
 apply Z.divide_0_r.
 rewrite field_address0_offset by auto with field_compatible.
-simpl. Time normalize. (*0.1*)
+simpl. normalize.
 
 (* TODO:  see if a "stronger" proof system could work here
   rewrite data_at_field_at.
@@ -154,10 +154,8 @@ Lemma update_while_proof:
 Proof.
 intros.
 abbreviate_semax.
-unfold POSTCONDITION, abbreviate; clear POSTCONDITION.
 unfold sha_update_inv.
-Intro blocks.
-repeat (apply semax_extract_PROP; intro).
+Intros blocks.
 rewrite semax_seq_skip. (* should be part of forward_while *)
 forward_while
     (sha_update_inv sh hashed len c d dd data kv false);
@@ -167,10 +165,11 @@ forward_while
 *
   entailer!.
 *
+ clear H8.
  normalize_postcondition.
  clear dependent blocks.
  rename blocks' into blocks.
- pose proof (Hblocks_lem H8).
+ pose proof (Hblocks_lem H7).
  assert (H0': (Zlength dd <= Zlength blocks * 4)%Z) by Omega1.
  clear H0; rename H0' into H0.
  rewrite Int.unsigned_repr in HRE by omega.
@@ -184,9 +183,8 @@ assert (Zlength bl = LBLOCKz). {
   autorewrite with sublist. reflexivity.
 }
  {
-  rename H7 into Hdiv. rename H0 into H7.
-  assert (H0:=True). rename H8 into Hblocks. rename HRE into Hlen_ge.
-  clear H6.
+  rename H6 into Hdiv. rename H7 into Hblocks. rename H0 into H7.
+  rename HRE into Hlen_ge.  clear H5.
   assert (H6: sublist (Zlength blocks * 4 - Zlength dd) 
                     (Zlength blocks * 4 - Zlength dd + CBLOCKz) data =
         intlist_to_Zlist bl).
@@ -196,7 +194,7 @@ assert (Zlength bl = LBLOCKz). {
   rename dd into frag. 
   clear H7; rename H1 into H7.
   rename HBOUND into LEN64.
-  clear - Hsh H H0 Hdiv H4 Hblocks H3 Hlen Hlen_ge H6 H7 LEN64.
+  clear - Hsh H Hdiv H4 Hblocks H3 Hlen Hlen_ge H6 H7 LEN64.
   unfold sha_update_loop_body.
   assert (Hblocks' := Hblocks_lem Hblocks).
   Time assert_PROP (field_compatible (tarray tuchar (Zlength data)) [] d) as FC by entailer!. (*1.8*)
@@ -255,11 +253,11 @@ assert (Zlength bl = LBLOCKz). {
 *
  assert  (Zlength blocks' * 4 >= Zlength dd).
    rewrite <- (Zlength_intlist_to_Zlist blocks').
-   rewrite H8. autorewrite with sublist. Omega1.
+   rewrite H7. autorewrite with sublist. Omega1.
  normalize in HRE.
  unfold sha_update_inv.
  clear dependent blocks.
- Time forward. (*0.2*)
+ forward.
  Exists blocks'.
  Time entailer!. (*2.9*)
 Time Qed. (*31.3 *)
