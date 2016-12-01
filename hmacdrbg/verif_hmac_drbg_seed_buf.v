@@ -17,6 +17,7 @@ Require Import hmacdrbg.HMAC_DRBG_pure_lemmas.
 Require Import hmacdrbg.spec_hmac_drbg.
 Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
 Require Import hmacdrbg.spec_hmac_drbg_pure_lemmas.
+Require Import floyd.library.
 
 Definition hmac_drbg_seed_buf_spec :=
   DECLARE _mbedtls_hmac_drbg_seed_buf
@@ -53,7 +54,7 @@ Definition hmac_drbg_seed_buf_spec :=
                               HMAC256DRBGabs key V RC EL PR RI 
                          => EX KEY:list Z, EX VAL:list Z, EX p:val,
                           !!(HMAC256_DRBG_update (contents_with_add data d_len Data) V (list_repeat 32 1) = (KEY, VAL))
-                             && md_full key mds * FreeBLK (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+                             && md_full key mds * malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
                                 data_at Tsh t_struct_hmac256drbg_context_st ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI'))))) ctx *
                                 hmac256drbg_relate (HMAC256DRBGabs KEY VAL RC EL PR RI) ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI'))))) 
                         end))
@@ -75,7 +76,7 @@ Proof.
   rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial. rewrite int_add_repr_0_r. 
   freeze [0;2;3;4;5] FR0.
   Time forward_call ((M1,(M2,M3)), Vptr b i, Vint (Int.repr 1), info).
-   (*8.5pl2: without FR0, this akes about 5mins but succeeds*)
+   (*without FR0, this akes about 5mins but succeeds*)
   
   Intros v. rename H into Hv.
   forward.
@@ -86,7 +87,7 @@ Proof.
    temp _data data; gvar sha._K256 kv)
    SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr))p && 
             memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
-            FreeBLK (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+            malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
             data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info,(M2,p)) (Vptr b i));
             FRZL FR0)).
   { destruct Hv; try omega. rewrite if_false; trivial.
@@ -227,7 +228,7 @@ Definition hmac_drbg_seed_buf_spec2 :=
                               HMAC256DRBGabs key V RC EL PR RI 
                          => EX KEY:list Z, EX VAL:list Z, EX p:val,
                           !!(HMAC256_DRBG_update (contents_with_add data d_len Data) V (list_repeat 32 1) = (KEY, VAL))
-                             && md_full key mds * FreeBLK (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+                             && md_full key mds * malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
                                 data_at Tsh t_struct_hmac256drbg_context_st ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI'))))) ctx *
                                 hmac256drbg_relate (HMAC256DRBGabs KEY VAL RC EL PR RI) ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI'))))) * 
                                data_at Tsh t_struct_mbedtls_md_info Info info *
@@ -252,7 +253,7 @@ Proof.
   rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial. rewrite int_add_repr_0_r. 
   freeze [0;2;3;4;5] FR0.
   Time forward_call ((M1,(M2,M3)), Vptr b i, Vint (Int.repr 1), info).
-   (*8.5pl2: without FR0, this takes about 5mins but succeeds*)
+   (*without FR0, this takes about 5mins but succeeds*)
   
   Intros v. rename H into Hv.  
   forward.
@@ -263,7 +264,7 @@ Proof.
    temp _data data; gvar sha._K256 kv)
    SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr))p &&
             memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
-            FreeBLK (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+            malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
           data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info,(M2,p)) (Vptr b i));
          FRZL FR0)).
   { destruct Hv; try omega. rewrite if_false; trivial.
@@ -367,4 +368,4 @@ Proof.
   Exists VALUE p. normalize. 
   apply andp_right. apply prop_right. repeat split; trivial. 
   cancel.
-Time Qed. (*27.702 secs (27.656u,0.s) successful*)
+Time Qed. (*Finished transaction in 31.687 secs (28.578u,0.s) (successful)*)
