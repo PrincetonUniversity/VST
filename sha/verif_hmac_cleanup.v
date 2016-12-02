@@ -50,6 +50,7 @@ Lemma cleanupbodyproof1 Espec c h :
             (list_repeat (Z.to_nat (sizeof t_struct_hmac_ctx_st)) 0)
             c))) emp).
 Proof. abbreviate_semax.
+set (x := fn_body f_HMAC_cleanup); hnf in x; subst x.
 Intros key.
 unfold hmacstate_PreInitNull, hmac_relate_PreInitNull.
 Intros hst X.
