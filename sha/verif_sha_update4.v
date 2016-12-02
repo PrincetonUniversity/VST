@@ -222,6 +222,7 @@ assert (Zlength bl = LBLOCKz). {
   }
  split3; auto. apply divide_length_app; auto.
  Time forward. (* data += SHA_CBLOCK; *) (*5*)
+ simpl (temp _data _).
  Time forward. (* len  -= SHA_CBLOCK; *) (*6*)
  Exists (blocks++ bl).
  Time entailer!. (*17.4 SLOW*)

@@ -107,6 +107,7 @@ replace_SEP 0 (data_at Tsh t_struct_SHA256state_st
 (* end of TODO *)
 forward. (* n = c->num; *)
 forward. (* p=c->data; *)
+simpl (temp _p _).
     (* TODO: should this produce field_address instead of (Int.repr 40) ? *)
 assert_PROP (field_address t_struct_SHA256state_st [StructField _data] c = offset_val 40 c).
   unfold_data_at 1%nat.

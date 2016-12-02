@@ -365,6 +365,7 @@ forward_if.
      | rewrite Forall_app; split; auto; apply Forall_firstn; auto
     ].
   change 64%Z with CBLOCKz.
+  simpl (temp _data _).
   entailer!.
   rewrite field_address0_offset
     by (pose proof LBLOCKz_eq; subst k; auto with field_compatible).

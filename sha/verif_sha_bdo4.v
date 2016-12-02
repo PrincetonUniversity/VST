@@ -156,6 +156,7 @@ gather_SEP 3 0 4.
  clear H1.
 rewrite <- Znth_big_endian_integer by omega.
 forward. (* data := data + 4; *)
+rewrite LBE.
 forward. (* X[i]=l; *)
 simpl.
 rewrite loop1_aux_lemma1 by Omega1.
