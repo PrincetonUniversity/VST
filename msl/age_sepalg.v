@@ -253,15 +253,6 @@ subst.
 unfold age in *. congruence.
 Qed.
 
-Lemma age_to_identy {A} `{asaA: Age_alg A}: forall k phi,
-    identity phi -> identity (age_to k phi).
-Proof.
-  intros k phi. unfold age_to. generalize (level phi - k); intros n; revert phi.
-  induction n; intros phi id; simpl; auto. unfold age1'.
-  destruct (age1 (age_by n phi)) eqn:E; auto.
-  eapply age_identity. apply E. auto.
-Qed.
-
 Lemma age_comparable {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A} {agA: ageable A}{asaA: Age_alg A}:
     forall phi1 phi2 phi1' phi2', age phi1 phi1' -> age phi2 phi2' ->
       comparable phi1 phi2 -> comparable phi1' phi2'.
@@ -462,31 +453,6 @@ Qed.
 Lemma strong_nat_ind (P : nat -> Prop) (IH : forall n, (forall i, lt i n -> P i) -> P n) n : P n.
 Proof.
   apply IH; induction n; intros i li; inversion li; eauto.
-Qed.
-
-Lemma age_to_join_eq {A}  {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A} : forall k x1 x2 x3,
-    join x1 x2 x3 ->
-    k <= level x3 ->
-    join (age_to k x1) (age_to k x2) (age_to k x3).
-Proof.
-  intros k x1 x2 x3 J.
-  remember (level x3) as l3 eqn:e3; symmetry in e3.
-  pose proof join_level _ _ _ J as [e1 e2]; rewrite e3 in e1, e2.
-  revert l3 x1 x2 x3 e1 e2 e3 J.
-  intros n; induction n as [ n IHn ] using strong_nat_ind. intros x1 x2 x3 e1 e2 e3 J L.
-  destruct (le_lt_eq_dec _ _ L) as [Lt | ->]; swap 1 2.
-  now do 3 (rewrite age_to_eq at 1; auto).
-  assert (l1 : k < level x1) by auto with *.
-  assert (l2 : k < level x2) by auto with *.
-  assert (l3 : k < level x3) by auto with *.
-  destruct (age_to_lt _ x1 l1) as [x1' [E1 ->]].
-  destruct (age_to_lt _ x2 l2) as [x2' [E2 ->]].
-  destruct (age_to_lt _ x3 l3) as [x3' [E3 ->]].
-  pose proof @age1_join_eq A _ _ _ _ _ _ _ J _ E1 _ E2 _ E3.
-  pose proof @af_level2 A level age1 (@age_facts _ agA) _ _ E1.
-  pose proof @af_level2 A level age1 (@age_facts _ agA) _ _ E2.
-  pose proof @af_level2 A level age1 (@age_facts _ agA) _ _ E3.
-  apply IHn with (level x1'); omega || auto.
 Qed.
 
 Lemma age_core {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{agA: ageable A}{AgeA: Age_alg A}:

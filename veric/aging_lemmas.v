@@ -1,24 +1,19 @@
+Require Import compcert.common.Memory.
 Require Import msl.Coqlib2.
 Require Import msl.eq_dec.
 Require Import msl.seplog.
+Require Import msl.ageable.
 Require Import msl.age_to.
+Require Import veric.coqlib4.
 Require Import veric.juicy_mem.
-Require Import veric.semax_prog.
 Require Import veric.compcert_rmaps.
-Require Import veric.Clight_new.
 Require Import veric.semax.
-Require Import veric.semax_ext.
 Require Import veric.juicy_extspec.
 Require Import veric.tycontext.
-Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
+Require Import veric.age_to_resource_at.
 
 Set Bullet Behavior "Strict Subproofs".
-
-Lemma pred_hered {A} {_ : ageable A} (P : pred A) : hereditary age (app_pred P).
-Proof.
-  destruct P; auto.
-Qed.
 
 Ltac hered :=
   match goal with
@@ -46,7 +41,6 @@ Ltac agehyps :=
       try apply predicates_hered.exactly_obligation_1]
   end.
 
-
 (** * Aging and predicates *)
 
 Lemma hereditary_func_at' loc fs :
@@ -66,116 +60,6 @@ Proof.
   rewrite <-H.
   exists pp'.
   reflexivity.
-Qed.
-
-Lemma hereditary_necR {phi phi' : rmap} {P} :
-  necR phi phi' ->
-  hereditary age P ->
-  P phi -> P phi'.
-Proof.
-  intros N H; induction N; auto.
-  apply H; auto.
-Qed.
-
-Lemma anti_hereditary_necR {phi phi' : rmap} {P} :
-  necR phi phi' ->
-  hereditary (fun x y => age y x) P ->
-  P phi' -> P phi.
-Proof.
-  intros N H; induction N; auto.
-  apply H; auto.
-Qed.
-
-Lemma app_pred_age {R} {phi phi' : rmap} :
-  age phi phi' ->
-  app_pred R phi ->
-  app_pred R phi'.
-Proof.
-  destruct R as [R HR]; simpl.
-  apply HR.
-Qed.
-
-Lemma age_yes_sat {Phi Phi' phi phi' l z sh sh'} (R : mpred) :
-  level Phi = level phi ->
-  age Phi Phi' ->
-  age phi phi' ->
-  app_pred R phi ->
-  Phi  @ l = YES sh sh' (LK z) (SomeP rmaps.Mpred (fun _ => R)) ->
-  app_pred (approx (S (level phi')) R) phi' /\
-  Phi' @ l = YES sh sh' (LK z) (SomeP rmaps.Mpred (fun _ => approx (level Phi') R)).
-Proof.
-  intros L A Au SAT AT.
-  pose proof (app_pred_age Au SAT) as SAT'.
-  split.
-  - split.
-    + apply age_level in A; apply age_level in Au. omega.
-    + apply SAT'.
-  - apply (necR_YES _ Phi') in AT.
-    + rewrite AT.
-      reflexivity.
-    + constructor. assumption.
-Qed.
-
-Lemma age_resource_at {phi phi' loc} :
-  age phi phi' ->
-  phi' @ loc = resource_fmap (approx (level phi')) (approx (level phi')) (phi @ loc).
-Proof.
-  intros A.
-  rewrite <- (age1_resource_at _ _ A loc (phi @ loc)).
-  - reflexivity.
-  - rewrite resource_at_approx. reflexivity.
-Qed.
-
-Lemma age_to_resource_at phi n loc : age_to n phi @ loc = resource_fmap (approx n) (approx n) (phi @ loc).
-Proof.
-  assert (D : (n <= level phi \/ n >= level phi)%nat) by omega.
-  destruct D as [D | D]; swap 1 2.
-  - rewrite age_to_ge; auto.
-    rewrite <-resource_at_approx.
-    change compcert_rmaps.R.resource_fmap with resource_fmap.
-    change compcert_rmaps.R.approx with approx.
-    match goal with
-      |- _ = ?map ?f1 ?f2 (?map ?g1 ?g2 ?r) => transitivity (map (f1 oo g1) (g2 oo f2) r)
-    end; swap 1 2.
-    + destruct (phi @ loc); unfold "oo"; simpl; auto.
-      * destruct p0; auto.
-        rewrite preds_fmap_fmap; auto.
-      * destruct p; auto.
-        rewrite preds_fmap_fmap; auto.
-    + f_equal. rewrite approx'_oo_approx; auto.
-      rewrite approx_oo_approx'; auto.
-  - generalize (age_to_ageN n phi).
-    generalize (age_to n phi); intros phi'.
-    replace n with (level phi - (level phi - n))%nat at 2 3 by omega.
-    generalize (level phi - n)%nat; intros k. clear n D.
-    revert phi phi'; induction k; intros phi phi'.
-    + unfold ageN in *; simpl.
-      injection 1 as <-.
-      simpl; replace (level phi - 0)%nat with (level phi) by omega.
-      symmetry.
-      apply resource_at_approx.
-    + change (ageN (S k) phi) with
-      (match age1 phi with Some w' => ageN k w' | None => None end).
-      destruct (age1 phi) as [o|] eqn:Eo. 2:congruence.
-      intros A; specialize (IHk _ _ A).
-      rewrite IHk.
-      pose proof age_resource_at Eo (loc := loc) as R.
-      rewrite R.
-      clear A R.
-      rewrite (age_level _ _ Eo).
-      simpl.
-      match goal with
-        |- ?map ?f1 ?f2 (?map ?g1 ?g2 ?r) = _ => transitivity (map (f1 oo g1) (g2 oo f2) r)
-      end.
-      * destruct (phi @ loc); unfold "oo"; simpl; auto.
-        -- destruct p0; auto.
-           rewrite preds_fmap_fmap; auto.
-        -- destruct p; auto.
-           rewrite preds_fmap_fmap; auto.
-      * f_equal. rewrite approx_oo_approx'; auto.
-        omega.
-        rewrite approx'_oo_approx; auto.
-        omega.
 Qed.
 
 Lemma pures_eq_unage {phi1 phi1' phi2}:

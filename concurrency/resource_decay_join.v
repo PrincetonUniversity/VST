@@ -15,6 +15,7 @@ Require Import veric.tycontext.
 Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
 Require Import veric.coqlib4.
+Require Import veric.age_to_resource_at.
 Require Import concurrency.permjoin.
 Require Import concurrency.sync_preds_defs.
 

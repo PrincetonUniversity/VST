@@ -3,8 +3,138 @@ moved here from msl/ageable.v.  Alternatively, this can be moved to
 msl/ageable.v (or this file to msl/) eventually, but we keep it here
 for now to reduce compilation time. *)
 
-Require Import msl.ageable.
 Require Import Coq.omega.Omega.
+Require Import msl.ageable.
+Require Import msl.predicates_hered.
+Require Import msl.sepalg.
+Require Import msl.age_sepalg.
+Require Import msl.sepalg_generators.
+
+(* Apply [age1] n times (meaningful when [n <= level x] *)
+
+Definition age1' {A} `{agA : ageable A} : A -> A :=
+  fun x => match age1 x with Some y => y | None => x end.
+
+Definition age_by n {A} `{agA : ageable A} : A -> A := Nat.iter n age1'.
+
+Lemma level_age1' {A} `{agA : ageable A} x : level (age1' x) = level x - 1.
+Proof.
+  unfold age1'. destruct (age1 x) eqn:E.
+  - apply age_level in E. omega.
+  - apply age1_level0 in E. omega.
+Qed.
+
+Lemma level_age_by n {A} `{agA : ageable A} x : level (age_by n x) = level x - n.
+Proof.
+  revert x; induction n; intros x; simpl.
+  - omega.
+  - simpl. rewrite level_age1'. rewrite IHn. omega.
+Qed.
+
+Lemma age_age_by n {A} `{agA : ageable A} (x y : A) : age x y -> age_by (S n) x = age_by n y.
+Proof.
+  intros E.
+  induction n.
+  - simpl.
+    unfold age1' in *.
+    rewrite E. auto.
+  - change (age1' (age_by (S n) x) = age_by (S n) y).
+    rewrite IHn.
+    reflexivity.
+Qed.
+
+(* Age [x] to the level [k] (meaningul when [k <= level x] *)
+Definition age_to k {A} `{agA : ageable A} (x : A) : A := age_by (level x - k) x.
+
+Lemma level_age_to k {A} `{agA : ageable A} x : k <= level x -> level (age_to k x) = k.
+Proof.
+  intros L. unfold age_to.
+  rewrite level_age_by; omega.
+Qed.
+
+(* Proof techniques for age_to *)
+Lemma age_to_lt k {A} `{agA : ageable A} (x : A) : k < level x -> exists y, age x y /\ age_to k x = age_to k y.
+Proof.
+  intros L.
+  destruct (age1 x) as [y|] eqn:Ex; swap 1 2.
+  - rewrite age1_level0 in Ex. omega.
+  - exists y; split; auto.
+    unfold age_to.
+    pose proof age_level _ _ Ex as E.
+    replace (level x - k) with (S (level y - k)) by omega.
+    generalize (level y - k).
+    clear E L.
+    intros.
+    apply age_age_by, Ex.
+Qed.
+
+Lemma age_to_ge k {A} `{agA : ageable A} (x : A) : k >= level x -> age_to k x = x.
+Proof.
+  intros E. unfold age_to.
+  replace (level x - k) with 0 by auto with *.
+  reflexivity.
+Qed.
+
+Lemma age_to_eq k {A} `{agA : ageable A} (x : A) : k = level x -> age_to k x = x.
+Proof.
+  intros ->; apply age_to_ge, le_refl.
+Qed.
+
+Lemma age_age_to n {A} `{agA : ageable A} x y : level x = S n -> age x y -> age_to n x = y.
+Proof.
+  intros E Y.
+  assert (L : (n < level x)%nat) by omega.
+  unfold age_to. rewrite E. replace (S n - n) with 1 by omega.
+  simpl. unfold age1'. rewrite Y. reflexivity.
+Qed.
+
+Lemma age_by_ind {A} `{agA : ageable A} (P : A -> Prop) : 
+  (forall x y, age x y -> P x -> P y) ->
+  forall x n, P x -> P (age_by n x).
+Proof.
+  intros IH x n.
+  unfold age_by.
+  induction n; intros Px.
+  - auto.
+  - simpl. unfold age1' at 1.
+    destruct (age1 (Nat.iter n age1' x)) as [y|] eqn:Ey; auto.
+    eapply IH; eauto.
+Qed.
+
+Lemma age_to_ind {A} `{agA : ageable A} (P : A -> Prop) : 
+  (forall x y, age x y -> P x -> P y) ->
+  forall x n, P x -> P (age_to n x).
+Proof.
+  intros IH x n.
+  apply age_by_ind, IH.
+Qed.
+
+Lemma age_to_ind_refined n {A} `{agA : ageable A} (P : A -> Prop) : 
+  (forall x y, age x y -> n <= level y -> P x -> P y) ->
+  forall x, P x -> P (age_to n x).
+Proof.
+  intros IH x Px.
+  assert (dec : n >= level x \/ n <= level x) by omega.
+  destruct dec as [Ge|Le].
+  - rewrite age_to_ge; auto.
+  - eapply (age_to_ind (fun x => n <= level x -> P x)); auto.
+    + intros x0 y H H0 H1.
+      eapply IH; eauto.
+      apply age_level in H.
+      apply H0.
+      omega.
+    + rewrite level_age_to; auto.
+Qed.
+
+Lemma iter_iter n m {A} f (x : A) : Nat.iter n f (Nat.iter m f x) = Nat.iter (n + m) f x.
+Proof.
+  induction n; auto; simpl. rewrite IHn; auto.
+Qed.
+
+Lemma age_by_age_by n m  {A} `{agA : ageable A} (x : A) : age_by n (age_by m x) = age_by (n + m) x.
+Proof.
+  apply iter_iter.
+Qed.
 
 Lemma age_by_ind_opp {A} `{agA : ageable A} (P : A -> Prop) :
   (forall x y, age x y -> P y -> P x) ->
@@ -34,6 +164,12 @@ Proof.
   intros IH x n; split.
   - apply age_to_ind. intros; rewrite <-IH; eauto.
   - apply age_to_ind_opp. intros; rewrite IH; eauto.
+Qed.
+
+Lemma level_age_to_le k {A} `{agA : ageable A} x : level (age_to k x) <= level x.
+Proof.
+  destruct (le_lt_dec k (level x)) as [l|l]. rewrite level_age_to; auto.
+  rewrite age_to_ge; omega.
 Qed.
 
 Lemma age_by_necR {A} `{agA : ageable A} n x : necR x (age_by n x).
@@ -83,8 +219,6 @@ Lemma necR_age_to_iff {A} `{agA : ageable A} x x' : necR x x' <-> x' = age_to (l
 Proof.
   apply necR_age_by_iff.
 Qed.
-
-Require Import msl.predicates_hered.
 
 Lemma age_to_pred {A} `{agA : ageable A} (P : pred A) x n :
   app_pred P x ->
@@ -197,4 +331,39 @@ Proof.
   unfold age_to; intros E; rewrite E.
   replace (S n - n) with 1 by auto with *.
   apply age_by_1. auto with *.
+Qed.
+
+Lemma age_to_identy {A} `{asaA: Age_alg A}: forall k phi,
+    identity phi -> identity (age_to k phi).
+Proof.
+  intros k phi. unfold age_to. generalize (level phi - k); intros n; revert phi.
+  induction n; intros phi id; simpl; auto. unfold age1'.
+  destruct (age1 (age_by n phi)) eqn:E; auto.
+  eapply age_identity. apply E. auto.
+Qed.
+
+Lemma age_to_join_eq {A}  {JA: Join A}{PA: Perm_alg A}{agA: ageable A}{AgeA: Age_alg A} :
+  forall k x1 x2 x3,
+    join x1 x2 x3 ->
+    k <= level x3 ->
+    join (age_to k x1) (age_to k x2) (age_to k x3).
+Proof.
+  intros k x1 x2 x3 J.
+  remember (level x3) as l3 eqn:e3; symmetry in e3.
+  pose proof join_level _ _ _ J as [e1 e2]; rewrite e3 in e1, e2.
+  revert l3 x1 x2 x3 e1 e2 e3 J.
+  intros n; induction n as [ n IHn ] using strong_nat_ind. intros x1 x2 x3 e1 e2 e3 J L.
+  destruct (le_lt_eq_dec _ _ L) as [Lt | ->]; swap 1 2.
+  now do 3 (rewrite age_to_eq at 1; auto).
+  assert (l1 : k < level x1) by auto with *.
+  assert (l2 : k < level x2) by auto with *.
+  assert (l3 : k < level x3) by auto with *.
+  destruct (age_to_lt _ x1 l1) as [x1' [E1 ->]].
+  destruct (age_to_lt _ x2 l2) as [x2' [E2 ->]].
+  destruct (age_to_lt _ x3 l3) as [x3' [E3 ->]].
+  pose proof @age1_join_eq A _ _ _ _ _ _ _ J _ E1 _ E2 _ E3.
+  pose proof @af_level2 A level age1 (@age_facts _ agA) _ _ E1.
+  pose proof @af_level2 A level age1 (@age_facts _ agA) _ _ E2.
+  pose proof @af_level2 A level age1 (@age_facts _ agA) _ _ E3.
+  apply IHn with (level x1'); omega || auto.
 Qed.

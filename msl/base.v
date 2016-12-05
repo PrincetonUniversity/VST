@@ -22,6 +22,11 @@ Proof.
   intros; apply extensionality; intro x; unfold compose; auto.
 Qed.
 
+Lemma compose_rewr {A B C} (f : B -> C) (g : A -> B) x : f (g x) = (f oo g) x.
+Proof.
+  reflexivity.
+Qed.
+
 Definition id (A:Type) := fun x:A => x.
 
 Lemma id_unit1 : forall A B (f:A->B), f oo id A = f.
