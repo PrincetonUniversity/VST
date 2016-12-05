@@ -28,6 +28,7 @@ Require Import veric.tycontext.
 Require Import veric.semax_ext.
 Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
+Require Import veric.age_to_resource_at.
 Require Import veric.coqlib4.
 Require Import sepcomp.semantics.
 Require Import sepcomp.step_lemmas.

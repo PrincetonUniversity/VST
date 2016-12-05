@@ -27,11 +27,46 @@ Export EqdepTh.
 Tactic Notation "extensionality" := 
  let x := fresh "x" in extensionality x.
 
-Tactic Notation "extensionality" ident(x) ident(y) := 
-    extensionality x; extensionality y.
+Tactic Notation "extensionality" ident(x0) ident(x1) :=
+  extensionality x0; extensionality x1.
 
-Tactic Notation "extensionality" ident(x) ident(y) ident(z):= 
-    extensionality x; extensionality y z.
+Tactic Notation "extensionality" ident(x0) ident(x1) ident(x2) :=
+  extensionality x0; extensionality x1; extensionality x2.
+
+Tactic Notation "extensionality" ident(x0) ident(x1) ident(x2) ident(x3) :=
+  extensionality x0; extensionality x1; extensionality x2; extensionality x3.
+
+Tactic Notation "extensionality" ident(x0) ident(x1) ident(x2) ident(x3)
+  ident(x4) :=
+  extensionality x0; extensionality x1; extensionality x2; extensionality x3;
+  extensionality x4.
+
+Tactic Notation "extensionality" ident(x0) ident(x1) ident(x2) ident(x3)
+  ident(x4) ident(x5) :=
+  extensionality x0; extensionality x1; extensionality x2; extensionality x3;
+  extensionality x4; extensionality x5.
+
+Tactic Notation "extensionality" ident(x0) ident(x1) ident(x2) ident(x3)
+  ident(x4) ident(x5) ident(x6) :=
+  extensionality x0; extensionality x1; extensionality x2; extensionality x3;
+  extensionality x4; extensionality x5; extensionality x6.
+
+Tactic Notation "extensionality" ident(x0) ident(x1) ident(x2) ident(x3)
+  ident(x4) ident(x5) ident(x6) ident(x7) :=
+  extensionality x0; extensionality x1; extensionality x2; extensionality x3;
+  extensionality x4; extensionality x5; extensionality x6; extensionality x7.
+
+Tactic Notation "extensionality" ident(x0) ident(x1) ident(x2) ident(x3)
+  ident(x4) ident(x5) ident(x6) ident(x7) ident(x8) :=
+  extensionality x0; extensionality x1; extensionality x2; extensionality x3;
+  extensionality x4; extensionality x5; extensionality x6; extensionality x7;
+  extensionality x8.
+
+Tactic Notation "extensionality" ident(x0) ident(x1) ident(x2) ident(x3)
+  ident(x4) ident(x5) ident(x6) ident(x7) ident(x8) ident(x9) :=
+  extensionality x0; extensionality x1; extensionality x2; extensionality x3;
+  extensionality x4; extensionality x5; extensionality x6; extensionality x7;
+  extensionality x8; extensionality x9.
 
 Lemma imp_ext: forall (A A' B B' : Prop), (A=A') -> (A -> (B=B')) -> ((A->B)=(A'->B')).
 Proof.
