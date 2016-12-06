@@ -17,6 +17,7 @@ Require Import hmacdrbg.HMAC_DRBG_pure_lemmas.
 Require Import hmacdrbg.spec_hmac_drbg.
 Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
 Require Import hmacdrbg.spec_hmac_drbg_pure_lemmas.
+Require Import floyd.library.
 
 Definition hmac_drbg_seed_buf_spec :=
   DECLARE _mbedtls_hmac_drbg_seed_buf
@@ -53,7 +54,7 @@ Definition hmac_drbg_seed_buf_spec :=
                               HMAC256DRBGabs key V RC EL PR RI 
                          => EX KEY:list Z, EX VAL:list Z, EX p:val,
                           !!(HMAC256_DRBG_update (contents_with_add data d_len Data) V (list_repeat 32 1) = (KEY, VAL))
-                             && md_full key mds * FreeBLK (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+                             && md_full key mds * malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
                                 data_at Tsh t_struct_hmac256drbg_context_st ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI'))))) ctx *
                                 hmac256drbg_relate (HMAC256DRBGabs KEY VAL RC EL PR RI) ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI'))))) 
                         end))
@@ -86,7 +87,7 @@ Proof.
    temp _data data; gvar sha._K256 kv)
    SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr))p && 
             memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
-            FreeBLK (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+            malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
             data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info,(M2,p)) (Vptr b i));
             FRZL FR0)).
   { destruct Hv; try omega. rewrite if_false; trivial.
@@ -227,7 +228,7 @@ Definition hmac_drbg_seed_buf_spec2 :=
                               HMAC256DRBGabs key V RC EL PR RI 
                          => EX KEY:list Z, EX VAL:list Z, EX p:val,
                           !!(HMAC256_DRBG_update (contents_with_add data d_len Data) V (list_repeat 32 1) = (KEY, VAL))
-                             && md_full key mds * FreeBLK (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+                             && md_full key mds * malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
                                 data_at Tsh t_struct_hmac256drbg_context_st ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI'))))) ctx *
                                 hmac256drbg_relate (HMAC256DRBGabs KEY VAL RC EL PR RI) ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI'))))) * 
                                data_at Tsh t_struct_mbedtls_md_info Info info *
@@ -263,7 +264,7 @@ Proof.
    temp _data data; gvar sha._K256 kv)
    SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr))p &&
             memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
-            FreeBLK (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+            malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
           data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info,(M2,p)) (Vptr b i));
          FRZL FR0)).
   { destruct Hv; try omega. rewrite if_false; trivial.

@@ -17,6 +17,7 @@ Require Import hmacdrbg.HMAC_DRBG_pure_lemmas.
 Require Import hmacdrbg.spec_hmac_drbg.
 Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
 Require Import hmacdrbg.spec_hmac_drbg_pure_lemmas.
+Require Import floyd.library.
 
 Axiom Entropy_addSuccess1: forall n m s s1 l1 s2 l2, 
         ENTROPY.get_bytes n s = ENTROPY.success l1 s1 ->
@@ -256,7 +257,7 @@ Definition hmac_drbg_seed_spec :=
             then data_at Tsh t_struct_hmac256drbg_context_st Ctx ctx *
                  preseed_relate dp rc pr_flag ri Ctx * Stream s
             else md_empty (fst Ctx) * 
-                 EX p:val, FreeBLK (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+                 EX p:val, malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
                  match (fst Ctx) with (M1, (M2, M3)) =>
                    if (zlt 256 (Zlength Data) || (zlt 384 (48 + Zlength Data)))%bool
                    then !!(ret_value = Int.repr (-5)) && 
@@ -317,7 +318,7 @@ Proof.
    temp _custom data; gvar sha._K256 kv)
    SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr)) p && 
           memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p * 
-          FreeBLK (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+          malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
           data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info,(M2,p)) (Vptr b i));
          FRZL FR0)).
   { destruct Hv; try omega. rewrite if_false; trivial. clear H. subst v.
@@ -381,16 +382,17 @@ Proof.
    temp _len (Vint (Int.repr (Zlength Data))); temp _custom data; gvar sha._K256 kv;
    temp _t'4 (Vint (Int.repr 32)))
    SEP (FRZL ALLSEP)).
-  { forward. entailer. }
-  { forward_if 
+  { elim H; trivial. }
+  { clear H. 
+    forward_if 
      (PROP ( )
       LOCAL (temp _md_size (Vint (Int.repr 32)); 
              temp _ctx (Vptr b i); temp _md_info info;
              temp _len (Vint (Int.repr (Zlength Data))); temp _custom data; gvar sha._K256 kv;
              temp _t'4 (Vint (Int.repr 32)))  
       SEP (FRZL ALLSEP)).
-    { forward. forward. entailer. }
-    { forward. forward. entailer. }
+    { elim H; trivial. }
+    { clear H. forward. forward. entailer. }
     { intros. (*FLOYD ERROR: entailer FAILS HERE*) 
       unfold overridePost.
       destruct (eq_dec ek EK_normal).
