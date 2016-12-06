@@ -78,6 +78,12 @@ Lemma zero_ext_mask: forall i,
   Int.zero_ext 8 i = Int.and i (Int.repr 255).
 Admitted.
 
+(* This is to make sure do_compute_expr (invoked by load_tac and others), which calls hnf on the
+   expression it's computing, does not unfold field_address.
+   TODO floyd: Ideally, we'd have "Global Opaque field_address field_address0" in the library,
+   but some proofs want to unfold field_address (they shouldn't, though). *)
+Opaque field_address.
+
 Lemma body_aes_encrypt: semax_body Vprog Gprog f_mbedtls_aes_encrypt encryption_spec_ll.
 Proof.
   start_function.
@@ -126,8 +132,78 @@ Proof.
     reflexivity.
   }
 
+(*
+  GET_UINT32_LE_tac. simpl. forward. forward. forward. simpl.
+
+change ((if field_compatible_dec t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx
+          then offset_val (nested_field_offset t_struct_aesctx [ArraySubsc 0; StructField _buf]) ctx
+          else Vundef))
+with (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx).
+Locate "_ ! _".
+
+Definition nosimpl {T: Type} (x: T) := x.
+Lemma nosimpl_def: forall {T: Type} (x: T), nosimpl x = x. Proof. intros. reflexivity. Qed.
+
+Global Opaque nosimpl.
+
+Eval simpl in (nosimpl (4 + (5 * 3))).
+
+
+Ltac my_hnf e := let e' := eval hnf in e in idtac e'.
+
+my_hnf (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx).
+
+Opaque field_address.
+
+my_hnf (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx).
+
+Arguments nosimpl _ _ : simpl never.
+
+Notation "'nosimpl' t" := (match tt with tt => t end)
+ (at level 10).
+
+
+
+eval_var
+eval_id
+eval_lvalue
+eval_unop
+typeof
+liftx
+eval_binop
+eval_cast
+eval_field
+sizeof
+alignof
+
+
+
+
+
+Global Opaque field_address.
+unfold field_address.
+
+
+eval_expr
+
+Eval hnf in (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx).
+
+
+ entailer!.
+change ((if field_compatible_dec t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx
+          then offset_val (nested_field_offset t_struct_aesctx [ArraySubsc 0; StructField _buf]) ctx
+          else Vundef))
+with (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx).
+
+
+ simpl.
+
+    rewrite Eq by omega; simpl.
+    forward2. forward.
+*)
+
   Time do 4 (
-    GET_UINT32_LE_tac; simpl; forward; forward; forward;
+    GET_UINT32_LE_tac; simpl; forward; forward; forward; simpl;
     rewrite Eq by omega; simpl;
     forward2; forward
   ). (* 515s *)
@@ -298,39 +374,30 @@ Ltac entailer_for_load_tac ::=
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range;
   try quick_typecheck3.
 
-  forward. forward. rewrite Eq by omega.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega.
   forward2.
-  remember_temp_Vints (@nil localdef).
   do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
   forward.
 
-  forward. forward. rewrite Eq by omega.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega.
   forward2.
-  remember_temp_Vints (@nil localdef).
   do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
   forward.
 
-  forward. forward. rewrite Eq by omega.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega.
   forward2.
-  remember_temp_Vints (@nil localdef).
   do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
-  forward.
 
-  forward. forward. rewrite Eq by omega.
+  forward.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega.
   forward2.
-  remember_temp_Vints (@nil localdef).
   do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
   forward.
 
-  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
   replace (52 - i * 8 + 1 + 1 + 1 + 1) with (52 - i * 8 + 4) by omega.
   replace (52 - i * 8 + 1 + 1 + 1)     with (52 - i * 8 + 3) by omega.
   replace (52 - i * 8 + 1 + 1)         with (52 - i * 8 + 2) by omega.
@@ -359,44 +426,29 @@ apply split_four_ints_eq in Eq2. destruct Eq2 as [EqY0 [EqY1 [EqY2 EqY3]]].
 rewrite EqY0. rewrite EqY1. rewrite EqY2. rewrite EqY3.
 clear EqY0 EqY1 EqY2 EqY3.
 
-  forward. forward. rewrite Eq by omega.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega.
   forward2.
-  remember_temp_Vints (@nil localdef).
   do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
   forward.
 
-  forward. forward. rewrite Eq by omega.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega.
   forward2.
-  remember_temp_Vints (@nil localdef).
   do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
   forward.
 
-  forward. forward. rewrite Eq by omega.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega.
   forward2.
-  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
-  remember_temp_Vints (@nil localdef).
   do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
   forward.
 
-  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
-  remember_temp_Vints (@nil localdef).
-
-  forward. forward. rewrite Eq by omega.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega.
   forward2.
-  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
-  remember_temp_Vints (@nil localdef).
   do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
   forward.
-
-  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
 
   pose (S'' := mbed_tls_fround S' buf (52-i*8+4)).
 
@@ -416,10 +468,12 @@ clear EqY0 EqY1 EqY2 EqY3.
   {
     subst S''.
     rewrite (split_four_ints S').
-    rewrite mbed_tls_fround_def.
-    rewrite mbed_tls_fround_col_def.
-    rewrite byte0_def. rewrite byte1_def. rewrite byte2_def. rewrite byte3_def.
-    reflexivity.
+    etransitivity.
+    - rewrite mbed_tls_fround_def.
+      rewrite mbed_tls_fround_col_def.
+      rewrite byte0_def. rewrite byte1_def. rewrite byte2_def. rewrite byte3_def.
+      reflexivity.
+    - reflexivity.
   }
 
 apply split_four_ints_eq in Eq2. destruct Eq2 as [EqX0 [EqX1 [EqX2 EqX3]]].
@@ -486,44 +540,29 @@ subst S' S''.
 
   (* 2nd-to-last AES round: just a normal AES round, but not inside the loop *)
 
-  forward. forward. rewrite Eq by omega.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega.
   forward2.
-  remember_temp_Vints (@nil localdef).
   do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
   forward.
 
-  forward. forward. rewrite Eq by omega.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega.
   forward2.
-  remember_temp_Vints (@nil localdef).
   do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
   forward.
 
-  forward. forward. rewrite Eq by omega.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega.
   forward2.
-  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
-  remember_temp_Vints (@nil localdef).
   do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
   forward.
 
-  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
-  remember_temp_Vints (@nil localdef).
-
-  forward. forward. rewrite Eq by omega.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega.
   forward2.
-  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
-  remember_temp_Vints (@nil localdef).
   do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
   forward.
-
-  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
 
   pose (S13 := mbed_tls_fround S12 buf 52).
 
@@ -562,9 +601,8 @@ Ltac entailer_for_load_tac ::=
     solve [ entailer! ]
   ).
 
-  forward. forward. rewrite Eq by omega.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega.
   forward2.
-  remember_temp_Vints (@nil localdef).
   do 1 (forward; [apply prop_right; apply masked_byte_range | ]).
   do 1 (forward; [apply prop_right; apply masked_byte_range | ]).
   do 1 (forward; [apply prop_right; apply masked_byte_range | ]).
@@ -577,16 +615,14 @@ match goal with
     | |- context [ (tc_val _ (Vint (Znth ?i FSb Int.zero))) ] => 
       assert (Int.unsigned (Znth i FSb Int.zero) <= Byte.max_unsigned) by apply FSb_range
     end.
-remember 24 as twentyfour. rewrite Heqtwentyfour at 3.
+remember 24 as twentyfour. rewrite Heqtwentyfour at 4.
 entailer!.
 apply prop_right; apply masked_byte_range.
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
   forward.
 
-  forward. forward. rewrite Eq by omega.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega.
   forward2.
-  remember_temp_Vints (@nil localdef).
 
 Ltac entailer_for_load_tac ::=
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range;
@@ -595,40 +631,47 @@ Ltac entailer_for_load_tac ::=
     | |- context [ (tc_val _ (Vint (Znth ?i FSb Int.zero))) ] => 
       assert (Int.unsigned (Znth i FSb Int.zero) <= Byte.max_unsigned) by apply FSb_range
     end;
-    try (let Eqq := fresh "Eqq" in remember 24 as twentyfour eqn: Eqq; rewrite Eqq at 3);
+    try (let Eqq := fresh "Eqq" in remember 24 as twentyfour eqn: Eqq; rewrite Eqq at 4);
     solve [ entailer! ]
   ).
 
+Ltac entailer_for_load_tac ::= idtac.
+
+  forward.
+
+rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+
+    match goal with
+    | |- context [ (tc_val _ (Vint (Znth ?i FSb Int.zero))) ] => 
+      assert (Int.unsigned (Znth i FSb Int.zero) <= Byte.max_unsigned) by apply FSb_range
+    end.
+    let Eqq := fresh "Eqq" in remember 24 as twentyfour eqn: Eqq.
+Time rewrite Eqq at 4.
+
+(* now 24 occurs in more temps which were "remember"ed before, that's why the "at" index changes *)
+
+    solve [ entailer! ]
+  ).
+
+
   forward; [apply prop_right; apply masked_byte_range | ].
   forward; [apply prop_right; apply masked_byte_range | ].
   forward; [apply prop_right; apply masked_byte_range | ].
   forward; [apply prop_right; apply masked_byte_range | ].
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
   forward.
 
-  forward. forward. rewrite Eq by omega.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega.
   forward2.
-  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
-  remember_temp_Vints (@nil localdef).
   do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
   forward.
 
-  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
-  remember_temp_Vints (@nil localdef).
-
-  forward. forward. rewrite Eq by omega.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega.
   forward2.
-  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
-  remember_temp_Vints (@nil localdef).
   do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
   forward.
-
-  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
 
   pose (S14 := mbed_tls_final_fround S13 buf 56).
 
@@ -677,7 +720,6 @@ rewrite Int.and_assoc in *.
 rewrite Int.and_assoc in *.
 rewrite Int.and_idem in *.
 rewrite Int.and_idem in *.
-repeat subst.  remember (exp_key ++ list_repeat 8 0) as buf.
 
 match goal with
 | |- context [ field_at _ _ _ ?res output ] =>
@@ -694,7 +736,6 @@ end. {
 }
 rewrite Eq3. clear Eq3.
 
-remember_temp_Vints (@nil localdef).
 Ltac entailer_for_return ::= idtac.
 
   (* TODO don't clear Eq in the beginning *)

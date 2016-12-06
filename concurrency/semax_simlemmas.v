@@ -11,6 +11,8 @@ Require Import compcert.common.Values.
 Require Import msl.Coqlib2.
 Require Import msl.eq_dec.
 Require Import msl.seplog.
+Require Import msl.age_to.
+Require Import veric.aging_lemmas.
 Require Import veric.initial_world.
 Require Import veric.juicy_mem.
 Require Import veric.juicy_mem_lemmas.
@@ -28,6 +30,7 @@ Require Import veric.tycontext.
 Require Import veric.semax_ext.
 Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
+Require Import veric.age_to_resource_at.
 Require Import floyd.coqlib3.
 Require Import sepcomp.semantics.
 Require Import sepcomp.step_lemmas.
@@ -41,17 +44,14 @@ Require Import concurrency.scheduler.
 Require Import concurrency.addressFiniteMap.
 Require Import concurrency.permissions.
 Require Import concurrency.JuicyMachineModule.
-Require Import concurrency.age_to.
 Require Import concurrency.sync_preds_defs.
 Require Import concurrency.sync_preds.
 Require Import concurrency.join_lemmas.
-Require Import concurrency.aging_lemmas.
 Require Import concurrency.lksize.
 Require Import concurrency.cl_step_lemmas.
 Require Import concurrency.resource_decay_lemmas.
 Require Import concurrency.resource_decay_join.
 Require Import concurrency.semax_invariant.
-(* Require Import concurrency.sync_preds. *)
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -103,12 +103,126 @@ Proof.
   - apply lockSet_in_juicyLocks_age. easy.
 Qed.
 
-Lemma matchfunspec_age_to e Gamma n Phi :
-  matchfunspec e Gamma Phi ->
-  matchfunspec e Gamma (age_to n Phi).
+Lemma PURE_SomeP_inj1 k A1 A2 pp1 pp2 : PURE k (SomeP A1 pp1) = PURE k (SomeP A2 pp2) -> A1 = A2.
 Proof.
-  unfold matchfunspec in *.
-  apply age_to_pred.
+  intros.
+  congruence.
+Qed.
+
+Lemma PURE_SomeP_inj2 k A pp1 pp2 : PURE k (SomeP A pp1) = PURE k (SomeP A pp2) -> pp1 = pp2.
+Proof.
+  intros.
+  apply SomeP_inj2.
+  congruence.
+Qed.
+
+(* Most general lemma about preservation of matchfunspecs *)
+Lemma pures_eq_matchfunspecs e Gamma Phi Phi' :
+  (level Phi' <= level Phi) ->
+  pures_eq Phi Phi' ->
+  matchfunspecs e Gamma Phi ->
+  matchfunspecs e Gamma Phi'.
+Proof.
+  intros lev (PS, SP) MFS b fsig cc A P Q E.
+  simpl in E.
+  spec PS (b, Z0). spec SP (b, Z0). rewrite E in PS, SP.
+  spec MFS b fsig cc A.
+  simpl (func_at'' _ _ _ _ _ _ _) in MFS.
+  destruct SP as (pp, EPhi).
+  destruct pp as (A', pp').
+  pose proof resource_at_approx Phi (b, Z0) as RA. symmetry in RA. rewrite EPhi in RA.
+  rewrite EPhi in PS.
+  simpl in PS.
+  assert (A' = SpecTT A) by (injection PS; auto). subst A'.
+  apply PURE_SomeP_inj2 in PS.
+  simpl in RA. injection RA as RA. apply inj_pair2 in RA.
+  
+  edestruct MFS with (P := fun i a e' => pp' i
+    (fmap (rmaps.dependent_type_functor_rec i A) (compcert_rmaps.R.approx (level Phi))
+          (compcert_rmaps.R.approx (level Phi)) a) true e')
+                       (Q := fun i a e' => pp' i
+    (fmap (rmaps.dependent_type_functor_rec i A) (compcert_rmaps.R.approx (level Phi))
+          (compcert_rmaps.R.approx (level Phi)) a) false e')
+    as (id & P' & Q' & P'_ne & Q'_ne & Ee & EG & EP' & EQ').
+  { rewrite EPhi.
+    f_equal. f_equal. rewrite RA. extensionality i a b' e'.
+    apply equal_f_dep with (x := i) in PS.
+    apply equal_f_dep with (x := (fmap (rmaps.dependent_type_functor_rec i A) (approx (level Phi)) (approx (level Phi)) a)) in PS.
+    apply equal_f_dep with (x := b') in PS.
+    apply equal_f_dep with (x := e') in PS.
+    destruct b'.
+    all:simpl.
+    all:change compcert_rmaps.R.approx with approx in *.
+    all:repeat rewrite (compose_rewr (fmap _ _ _) (fmap _ _ _)).
+    all:repeat rewrite fmap_comp.
+    all:rewrite (compose_rewr (approx _) (approx _)).
+    all:repeat rewrite approx_oo_approx.
+    all:rewrite (compose_rewr (fmap _ _ _) (fmap _ _ _)).
+    all:rewrite fmap_comp.
+    all:rewrite approx_oo_approx.
+    all:change compcert_rmaps.R.approx with approx in *.
+    all:reflexivity. }
+  
+  exists id, P', Q', P'_ne, Q'_ne. split; auto. split; auto.
+  split.
+  all: eapply cond_approx_eq_trans; [ | eapply cond_approx_eq_weakening; eauto ].
+  all: intros ts.
+  all: extensionality a e'; simpl.
+  all: apply equal_f_dep with (x := ts) in PS.
+  all: apply equal_f_dep with (x := a) in PS.
+  
+  1: apply equal_f_dep with (x := true) in PS.
+  2: apply equal_f_dep with (x := false) in PS.
+  
+  all: apply equal_f_dep with (x := e') in PS.
+  all: simpl in PS.
+  all: change compcert_rmaps.R.approx with approx in *.
+  all: rewrite (compose_rewr (fmap _ _ _) (fmap _ _ _)), fmap_comp.
+  all: rewrite approx'_oo_approx; auto.
+  all: rewrite approx_oo_approx'; auto.
+  all: change compcert_rmaps.R.approx with approx in *.
+  all: rewrite PS.
+  all: rewrite level_age_to; auto.
+Qed.
+
+Lemma pures_eq_age_to phi n :
+  (level phi >= n)%nat ->
+  pures_eq phi (age_to n phi).
+Proof.
+  split; intros loc; rewrite age_to_resource_at.
+  - destruct (phi @ loc); auto; simpl; do 3 f_equal; rewrite level_age_to; auto.
+  - destruct (phi @ loc); simpl; eauto.
+Qed.
+
+Lemma matchfunspecs_age_to e Gamma n Phi :
+  (n <= level Phi) ->
+  matchfunspecs e Gamma Phi ->
+  matchfunspecs e Gamma (age_to n Phi).
+Proof.
+  intros lev. apply pures_eq_matchfunspecs. apply level_age_to_le.
+  apply pures_eq_age_to; auto.
+Qed.
+
+Lemma resource_decay_pures_eq b phi phi' :
+  resource_decay b phi phi' ->
+  pures_eq phi phi'.
+Proof.
+  intros rd; split; intros loc.
+  - destruct (phi @ loc) as [ | | k p] eqn:E; auto.
+    apply (resource_decay_PURE rd loc k p E).
+  - destruct (phi' @ loc) as [ | | k p] eqn:E; auto.
+    destruct (resource_decay_PURE_inv rd loc k p E) as (p' & -> & _).
+    eauto.
+Qed.
+
+Lemma resource_decay_matchfunspecs e Gamma b Phi Phi' :
+  level Phi' <= level Phi ->
+  resource_decay b Phi Phi' ->
+  matchfunspecs e Gamma Phi ->
+  matchfunspecs e Gamma Phi'.
+Proof.
+  intros l rd; apply pures_eq_matchfunspecs; auto.
+  eapply resource_decay_pures_eq; eauto.
 Qed.
 
 Lemma restrPermMap_mem_contents p' m (Hlt: permMapLt p' (getMaxPerm m)): 
@@ -258,15 +372,6 @@ Proof.
     injection H as <- <-.
     exists p. f_equal.
     try solve [pose proof (proj2 (E _ _) eq_refl); congruence].
-Qed.
-
-Lemma pures_age_eq phi n :
-  ge (level phi) n ->
-  pures_eq phi (age_to n phi).
-Proof.
-  split; intros loc; rewrite age_to_resource_at.
-  - destruct (phi @ loc); auto; simpl; do 3 f_equal; rewrite level_age_to; auto.
-  - destruct (phi @ loc); simpl; eauto.
 Qed.
 
 Lemma pures_same_jm_ m tp Phi (compat : mem_compatible_with tp m Phi)
@@ -485,35 +590,29 @@ Proof.
     exists z'. split; auto. split; auto. apply necR_trans with y'; auto.
 Qed.
 
-Lemma pures_same_matchfunspec e Gamma phi1 phi2 :
+(* todo remove (in juicy_safety) *)
+Lemma pures_eq_refl phi : pures_eq phi phi.
+Proof.
+Admitted.
+
+Lemma pures_same_matchfunspecs e Gamma phi1 phi2 :
   level phi1 = level phi2 ->
   pures_same phi1 phi2 ->
-  matchfunspec e Gamma phi1 ->
-  matchfunspec e Gamma phi2.
+  matchfunspecs e Gamma phi1 ->
+  matchfunspecs e Gamma phi2.
 Proof.
-  intros EL E M b fs.
-  specialize (M b fs). destruct fs.
-  intros phi2' necr2.
-  apply pures_same_sym in E.
-  symmetry in EL.
-  destruct (pures_same_necR _ _ _ EL E necr2) as (phi1' & EL' & E' & necr1).
-  spec M phi1' necr1.
-  intros F; apply M; clear M.
-  destruct F as (pp & At). exists pp.
-  unfold app_pred in *. simpl in *.
-  spec E' (b, 0%Z). rewrite At in E'.
-  spec E' (FUN f c) (preds_fmap (approx (level phi2')) (approx (level phi2')) pp).
-  destruct E' as [E' _]. autospec E'. rewrite E'. do 3 f_equal; auto.
+  intros EL E. apply pures_eq_matchfunspecs. rewrite EL; auto.
+  eapply pures_same_eq_r; eauto. apply pures_eq_refl.
 Qed.
 
-Lemma matchfunspec_common_join e Gamma phi phi' psi Phi Phi' :
+Lemma matchfunspecs_common_join e Gamma phi phi' psi Phi Phi' :
   join phi psi Phi ->
   join phi' psi Phi' ->
-  matchfunspec e Gamma Phi ->
-  matchfunspec e Gamma Phi'.
+  matchfunspecs e Gamma Phi ->
+  matchfunspecs e Gamma Phi'.
 Proof.
   intros j j'.
-  apply pures_same_matchfunspec. now join_level_tac.
+  apply pures_same_matchfunspecs. now join_level_tac.
   apply join_pures_same in j.
   apply join_pures_same in j'.
   apply pures_same_trans with psi; try tauto.

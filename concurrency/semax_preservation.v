@@ -11,6 +11,8 @@ Require Import compcert.common.Values.
 Require Import msl.Coqlib2.
 Require Import msl.eq_dec.
 Require Import msl.seplog.
+Require Import msl.age_to.
+Require Import veric.aging_lemmas.
 Require Import veric.initial_world.
 Require Import veric.juicy_mem.
 Require Import veric.juicy_mem_lemmas.
@@ -28,6 +30,7 @@ Require Import veric.tycontext.
 Require Import veric.semax_ext.
 Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
+Require Import veric.age_to_resource_at.
 Require Import floyd.coqlib3.
 Require Import sepcomp.semantics.
 Require Import sepcomp.step_lemmas.
@@ -44,11 +47,9 @@ Require Import concurrency.addressFiniteMap.
 Require Import concurrency.permissions.
 Require Import concurrency.JuicyMachineModule.
 Require Import concurrency.lksize.
-Require Import concurrency.age_to.
 Require Import concurrency.sync_preds_defs.
 Require Import concurrency.sync_preds.
 Require Import concurrency.join_lemmas.
-Require Import concurrency.aging_lemmas.
 Require Import concurrency.cl_step_lemmas.
 Require Import concurrency.resource_decay_lemmas.
 Require Import concurrency.resource_decay_join.
@@ -951,7 +952,7 @@ Section Preservation.
   (Phi : rmap)
   (compat : mem_compatible_with tp m Phi)
   (lev : @level rmap ag_rmap Phi = S n)
-  (gam : matchfunspec (filter_genv ge) Gamma Phi)
+  (gam : matchfunspecs (filter_genv ge) Gamma Phi)
   (sparse : @lock_sparsity LocksAndResources.lock_info (lset tp))
   (lock_coh : lock_coherence' tp Phi m compat)
   (safety : @threads_safety (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' m ge tp Phi compat (S n))
@@ -1254,7 +1255,7 @@ Section Preservation.
           apply state_invariant_c with (PHI := Phi) (mcompat := compat').
           + assumption.
           
-          + (* matchfunspec *)
+          + (* matchfunspecs *)
             assumption.
           
           + (* lock sparsity *)
@@ -1463,7 +1464,7 @@ Section Preservation.
       + (* level *)
         assumption.
       
-      + (* matchfunspec *)
+      + (* matchfunspecs *)
         assumption.
       
       + (* lock sparsity *)

@@ -62,6 +62,7 @@ assert_PROP (Zlength r_data = CBLOCKz
 rewrite H7. clear H7.
 subst r_h r_Nh r_Nl r_num.
 forward. (* p = c->data;  *)
+simpl (temp _p _).
 assert_PROP (field_address t_struct_SHA256state_st [StructField _data] c = offset_val 40 c).
  entailer!.
 rewrite <- H0; clear H0.
@@ -132,6 +133,7 @@ assert_PROP (force_val
   rewrite !field_address_offset by auto with field_compatible.
   simpl. normalize.
  }
+ simpl (temp _p _).
  rewrite H2. clear H2.
  eapply semax_pre_post; [ | | 
   change Delta with Delta_final_if1;

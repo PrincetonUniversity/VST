@@ -382,16 +382,17 @@ Proof.
    temp _len (Vint (Int.repr (Zlength Data))); temp _custom data; gvar sha._K256 kv;
    temp _t'4 (Vint (Int.repr 32)))
    SEP (FRZL ALLSEP)).
-  { forward. entailer. }
-  { forward_if 
+  { elim H; trivial. }
+  { clear H. 
+    forward_if 
      (PROP ( )
       LOCAL (temp _md_size (Vint (Int.repr 32)); 
              temp _ctx (Vptr b i); temp _md_info info;
              temp _len (Vint (Int.repr (Zlength Data))); temp _custom data; gvar sha._K256 kv;
              temp _t'4 (Vint (Int.repr 32)))  
       SEP (FRZL ALLSEP)).
-    { forward. forward. entailer. }
-    { forward. forward. entailer. }
+    { elim H; trivial. }
+    { clear H. forward. forward. entailer. }
     { intros. (*FLOYD ERROR: entailer FAILS HERE*) 
       unfold overridePost.
       destruct (eq_dec ek EK_normal).

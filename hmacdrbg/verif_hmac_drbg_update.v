@@ -385,8 +385,8 @@ Proof. intros. simpl.
     (*rewrite Hiuchar.*)
 
     (* mbedtls_md_hmac_update( &ctx->md_ctx, sep, 1 ); *)
-    thaw FR4. rewrite Hiuchar; clear Hiuchar. freeze [2;4;5;6;7] FR5.
-    unfold upd_Znth, sublist. simpl.
+    thaw FR4. (*rewrite Hiuchar; clear Hiuchar.*) freeze [2;4;5;6;7] FR5.
+    unfold upd_Znth, sublist. simpl. rewrite Hiuchar; clear Hiuchar.
     Time forward_call (key, field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
                        (*md_ctx*)(IS1a, (IS1b, IS1c)), sep, V, [i], kv). (*LENB: 8, Naphat: 62 *)
     (*{
@@ -396,7 +396,7 @@ Proof. intros. simpl.
       unfold upd_Znth, sublist. simpl.  
       change (Zlength [i]) with 1. rewrite Hiuchar. cancel. 
     }*)
-    {
+    { 
       (* prove the PROP clauses *)
       rewrite H9.
       change (Zlength [i]) with 1.
@@ -618,6 +618,8 @@ Proof. intros. simpl.
     rewrite (field_at_data_at _ _ [StructField _md_ctx]);
     rewrite (field_at_data_at _ _ [StructField _V]). cancel.
 Time Qed. (* 266 secs (42u,0.015s) in Coq8.5pl2*)
+ (*Dec 3rd, 2016: 1128secs (347u, 3.5s) in 8.5pl2 on laptop; laptop-make: 234s, (234u), total processing time for file: 8m17s*)
+ (*Dec 6th, 2016: 1217.59 secs (435.912u,7.552s) in 8.5pl2 on laptop; laptop-make: 249.252 secs (249.328u,0.051s), 8m33s for file*)
 
 Lemma body_hmac_drbg_update: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs 
        f_mbedtls_hmac_drbg_update hmac_drbg_update_spec.
@@ -838,4 +840,4 @@ Proof.
   + simpl. destruct (initial_world.EqDec_Z add_len 0); simpl; trivial.
     destruct H1; try solve[omega].
     subst add_len. destruct contents; simpl; trivial. elim n. apply Zlength_nil.
-Time Qed. (*15secs*)
+Time Qed. (*Dec 6th: 24s (laptop)*)

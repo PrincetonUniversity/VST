@@ -875,18 +875,40 @@ Ltac do_compute_expr Delta P Q R e v H :=
   let rho := fresh "rho" in
   assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
     local (`(eq v) (eval_expr e))) as H by
-  (first [ assumption |
+  (assumption || (
     eapply derives_trans; [| apply msubst_eval_expr_eq];
     [apply andp_left2; apply derives_refl'; apply local2ptree_soundness; try assumption;
      let HH := fresh "H" in
      construct_local2ptree Q HH;
      exact HH |
      unfold v;
-     simpl;
-     cbv beta iota zeta delta [force_val2 force_val1];
-     simpl;
+     match goal with
+     | |- ?E = Some _ => let E' := eval hnf in E in change E with E'
+     end;
+     match goal with
+     | |- Some ?E = Some _ => let E' := eval hnf in E in
+       match E' with
+       | (match ?E'' with
+         | Some _ => _
+         | None => Vundef
+         end)
+         => change E with (force_val E'')
+       | (match ?E'' with
+         | Vundef => Vundef
+         | Vint _ => Vundef
+         | Vlong _ => Vundef
+         | Vfloat _ => Vundef
+         | Vsingle _ => Vundef
+         | Vptr _ _ => Vptr _ (Int.add _ (Int.repr ?ofs))
+         end)
+         => change E with (offset_val ofs E'')
+       | _ => change E with E'
+       end
+     | |- ?NotSome = Some _ => fail 1000 "Please make sure hnf can simplify"
+                                         NotSome "to an expression of the form (Some _)"
+     end;
      reflexivity]
-  ]).
+  )).
 
 Ltac ignore x := idtac.
 

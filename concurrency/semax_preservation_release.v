@@ -11,6 +11,8 @@ Require Import compcert.common.Values.
 Require Import msl.Coqlib2.
 Require Import msl.eq_dec.
 Require Import msl.seplog.
+Require Import msl.age_to.
+Require Import veric.aging_lemmas.
 Require Import veric.initial_world.
 Require Import veric.juicy_mem.
 Require Import veric.juicy_mem_lemmas.
@@ -28,6 +30,7 @@ Require Import veric.tycontext.
 Require Import veric.semax_ext.
 Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
+Require Import veric.age_to_resource_at.
 Require Import floyd.coqlib3.
 Require Import sepcomp.semantics.
 Require Import sepcomp.step_lemmas.
@@ -43,11 +46,9 @@ Require Import concurrency.scheduler.
 Require Import concurrency.addressFiniteMap.
 Require Import concurrency.permissions.
 Require Import concurrency.JuicyMachineModule.
-Require Import concurrency.age_to.
 Require Import concurrency.sync_preds_defs.
 Require Import concurrency.sync_preds.
 Require Import concurrency.join_lemmas.
-Require Import concurrency.aging_lemmas.
 Require Import concurrency.cl_step_lemmas.
 Require Import concurrency.resource_decay_lemmas.
 Require Import concurrency.resource_decay_join.
@@ -120,7 +121,7 @@ Lemma preservation_release
   (Phi : rmap)
   (compat : mem_compatible_with tp m Phi)
   (lev : level Phi = S n)
-  (gam : matchfunspec (filter_genv ge) Gamma Phi)
+  (gam : matchfunspecs (filter_genv ge) Gamma Phi)
   (sparse : lock_sparsity (lset tp))
   (lock_coh : lock_coherence' tp Phi m compat)
   (safety : threads_safety Jspec' m ge tp Phi compat (S n))
@@ -251,9 +252,9 @@ Proof.
   + (* level *)
     apply level_age_to. cleanup. omega.
     
-  + (* matchfunspec *)
-    revert gam. clear.
-    apply matchfunspec_age_to.
+  + (* matchfunspecs *)
+    revert gam.
+    apply matchfunspecs_age_to. omega.
     
   + (* lock sparsity *)
     simpl.
@@ -557,7 +558,7 @@ Proof.
             * rewr (level jm'). rewrite level_jm_. cleanup. omega.
             * simpl. rewrite Ejm'. do 3 REWR.
               eapply pures_same_eq_l.
-              2:apply pures_age_eq; omega.
+              2:apply pures_eq_age_to; omega.
               apply join_sub_pures_same.
               eexists. eapply join_comm. eassumption.
           

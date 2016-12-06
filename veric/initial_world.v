@@ -1,5 +1,8 @@
+Require Import msl.age_to.
 Require Import veric.juicy_base.
-Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
+Require Import veric.juicy_mem.
+Require Import veric.juicy_mem_lemmas.
+Require Import veric.juicy_mem_ops.
 Require Import veric.res_predicates.
 Require Import veric.extend_tc.
 Require Import veric.seplog.
@@ -7,6 +10,7 @@ Require Import veric.assert_lemmas.
 Require Import veric.tycontext.
 Require Import veric.expr2.
 Require Import veric.expr_lemmas.
+Require Import veric.age_to_resource_at.
 
 Open Local Scope pred.
 
@@ -1406,4 +1410,139 @@ Proof.
   destruct p; try (split; congruence).
   destruct (proj1_sig (snd (unsquash (initial_core (Genv.globalenv prog) G n))) addr);
     split; try congruence.
+Qed.
+
+Lemma make_tycontext_s_find_id i G : (make_tycontext_s G) ! i = find_id i G.
+Proof.
+  induction G as [| (j, fs) f IHf]. destruct i; reflexivity.
+  simpl.
+  rewrite PTree.gsspec.
+  rewrite IHf.
+  reflexivity.
+Qed.
+
+(* How to relate Gamma to funspecs in memory, once we are outside the
+   semax proofs?  We define 'matchfunspecs' which will be satisfied by
+   the initial memory, and preserved under resource_decay / pures_eq /
+   aging. *)
+
+Definition cond_approx_eq n A P1 P2 :=
+  (forall ts,
+      fmap (dependent_type_functor_rec ts (AssertTT A)) (approx n) (approx n) (P1 ts) =
+      fmap (dependent_type_functor_rec ts (AssertTT A)) (approx n) (approx n) (P2 ts)).
+
+Lemma cond_approx_eq_trans n A P1 P2 P3 :
+  cond_approx_eq n A P1 P2 ->
+  cond_approx_eq n A P2 P3 ->
+  cond_approx_eq n A P1 P3.
+Proof.
+  unfold cond_approx_eq in *.
+  intros E1 E2 ts; rewrite E1, E2. reflexivity.
+Qed.
+
+Lemma cond_approx_eq_weakening n n' A P1 P2 :
+  (n' <= n)%nat ->
+  cond_approx_eq n A P1 P2 ->
+  cond_approx_eq n' A P1 P2.
+Proof.
+  intros l.
+  intros E ts; spec E ts.
+  rewrite <-approx_oo_approx' with (n' := n) at 1; try omega.
+  rewrite <-approx'_oo_approx with (n' := n) at 2; try omega. 
+  rewrite <-approx_oo_approx' with (n' := n) at 3; try omega.
+  rewrite <-approx'_oo_approx with (n' := n) at 4; try omega.
+  rewrite <-fmap_comp. unfold compose.
+  change compcert_rmaps.R.approx with approx.
+  rewrite E.
+  reflexivity.
+Qed.
+
+Lemma level_initial_core ge G n : level (initial_core ge G n) = n.
+Proof.
+  apply level_make_rmap.
+Qed.
+
+(* func_at'': func_at without requiring a proof of non-expansiveness *)
+Definition func_at'' fsig cc A P Q :=
+  pureat (SomeP (SpecTT A) (packPQ P Q)) (FUN fsig cc).
+
+Definition matchfunspecs (ge : genviron) (Gamma : PTree.t funspec) (Phi : rmap) : Prop :=
+  forall (b : block) fsig cc A P Q,
+    func_at'' fsig cc A P Q (b, 0%Z) Phi ->
+    exists id P' Q' P'_ne Q'_ne,
+      ge id = Some b /\
+      Gamma ! id = Some (mk_funspec fsig cc A P' Q' P'_ne Q'_ne) /\
+      cond_approx_eq (level Phi) A P P' /\
+      cond_approx_eq (level Phi) A Q Q'.
+
+Lemma initial_jm_matchfunspecs prog m G n H H1 H2:
+  matchfunspecs (filter_genv (globalenv prog)) (make_tycontext_s G)
+                (m_phi (initial_jm prog m G n H H1 H2)).
+Proof.
+  simpl.
+  unfold inflate_initial_mem; simpl.
+  match goal with |- context [ proj1_sig ?a ] => destruct a as (phi & lev & E) end; simpl.
+  unfold inflate_initial_mem' in E.
+  unfold compcert_rmaps.R.resource_at in E.
+  intros b fsig cc A P Q FAT.
+  unfold func_at'' in *.
+  rewrite level_initial_core in lev.
+  
+  set (pp := SomeP _ _) in FAT.
+  assert (Pi :
+            initial_core (Genv.globalenv prog) G n @ (b, 0)
+            = PURE (FUN fsig cc) (preds_fmap (approx n) (approx n) pp)).
+  {
+    simpl in FAT.
+    pose proof FAT as E2.
+    unfold "@" in *.
+    rewrite E in FAT.
+    destruct (access_at m (b, 0)) as [[]|]; simpl in E2; try congruence.
+    set (r := proj1_sig _ _) in FAT at 2.
+    destruct (proj1_sig (snd (unsquash (initial_core (Genv.globalenv prog) G n))) (b, 0))
+      as [t | t p k p0 | k p] eqn:E'''; simpl in E2; try congruence.
+    subst r.
+    injection FAT as -> ->; f_equal. subst pp. f_equal.
+    simpl. f_equal.
+    repeat extensionality.
+    repeat (f_equal; auto).
+  }
+  
+  clear -Pi lev.
+  
+  unfold initial_core in *.
+  rewrite resource_at_make_rmap in Pi.
+  unfold initial_core' in *.
+  if_tac in Pi. 2:tauto.
+  simpl fst in Pi.
+  unfold fundef in *.
+  destruct (Genv.invert_symbol (Genv.globalenv prog) b) as [i|] eqn:Eb. 2: congruence.
+  destruct (find_id i G) as [f0 |] eqn:Ei. 2:congruence.
+  destruct f0 as [f1 c0 A0 P0 Q0 P_ne0 Q_ne0].
+  
+  subst pp.
+  injection Pi as <- -> -> EE.
+  apply inj_pair2 in EE.
+  apply Genv.invert_find_symbol in Eb.
+  unfold filter_genv in *.
+  exists i, P0, Q0, P_ne0, Q_ne0.
+  rewrite make_tycontext_s_find_id.
+  split. assumption.
+  split. assumption.
+  subst n.
+  
+  constructor.
+  all: intros ts.
+  all: apply equal_f_dep with (x := ts) in EE.
+  all: extensionality a.
+  all: apply equal_f_dep with (x := a) in EE.
+  
+  1: apply equal_f_dep with (x := true) in EE.
+  2: apply equal_f_dep with (x := false) in EE.
+  
+  all: extensionality ge.
+  all: apply equal_f_dep with (x := ge) in EE.
+  all: simpl in *.
+  all: symmetry; rewrite (* Epp',  *)<-EE.
+  all: reflexivity.
 Qed.

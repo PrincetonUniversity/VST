@@ -181,7 +181,7 @@ Module MainSafety .
              destruct spr as (b' & q & [e INIT'] & f); simpl.
              destruct f; 
                simpl proj1_sig in *; simpl proj2_sig in *.
-             destruct a as (_ & _ & _ & nLOCKS).
+             destruct a as (_ & _ & _ & nLOCKS & _).
              Lemma no_locks_perm_locks: forall rm l,
                  no_locks rm -> perm_of_res_lock (rm @ l) = None.
              Proof.

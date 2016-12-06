@@ -11,6 +11,8 @@ Require Import compcert.common.Values.
 Require Import msl.Coqlib2.
 Require Import msl.eq_dec.
 Require Import msl.seplog.
+Require Import msl.age_to.
+Require Import veric.aging_lemmas.
 Require Import veric.initial_world.
 Require Import veric.juicy_mem.
 Require Import veric.juicy_mem_lemmas.
@@ -29,6 +31,7 @@ Require Import veric.semax_ext.
 Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
 Require Import veric.shares.
+Require Import veric.age_to_resource_at.
 Require Import floyd.coqlib3.
 Require Import floyd.field_at.
 Require Import sepcomp.semantics.
@@ -45,11 +48,9 @@ Require Import concurrency.scheduler.
 Require Import concurrency.addressFiniteMap.
 Require Import concurrency.permissions.
 Require Import concurrency.JuicyMachineModule.
-Require Import concurrency.age_to.
 Require Import concurrency.sync_preds_defs.
 Require Import concurrency.sync_preds.
 Require Import concurrency.join_lemmas.
-Require Import concurrency.aging_lemmas.
 Require Import concurrency.cl_step_lemmas.
 Require Import concurrency.resource_decay_lemmas.
 Require Import concurrency.resource_decay_join.
@@ -518,9 +519,9 @@ Proof.
   - (* level *)
     apply level_age_to. omega.
   
-  - (* matchfunspec *)
-    apply matchfunspec_age_to.
-    eapply matchfunspec_common_join with (Phi := Phi); eauto.
+  - (* matchfunspecs *)
+    apply matchfunspecs_age_to. omega.
+    eapply matchfunspecs_common_join with (Phi := Phi); eauto.
   
   - (* lock sparsity *)
     apply sparse'.
@@ -792,7 +793,7 @@ Proof.
             * rewr (level jm'). rewrite level_jm_. cleanup. omega.
             * simpl. rewrite Ejm'. do 3 REWR.
               eapply pures_same_eq_l.
-              2:apply pures_age_eq; omega.
+              2:apply pures_eq_age_to; omega.
               apply pures_same_trans with phi1.
               -- apply pures_same_sym. apply join_sub_pures_same. exists phi0'. apply join_comm. assumption.
               -- apply join_sub_pures_same. exists phi0. apply join_comm. assumption.

@@ -159,6 +159,7 @@ Proof. intros. unfold array_copy1_statement. abbreviate_semax.
           rewrite Int.signed_repr in IS. omega. rewrite int_max_signed_eq, int_min_signed_eq; omega. }
     (*Time*) forward. (*2.5*)
     { (*Time*) entailer!. (*1.9 versus 6.6*) rewrite <- Heqb. simpl; trivial. }
+    simpl [eval_binop].
     unfold sem_mod, sem_binarith, both_int; simpl. rewrite ?mul_repr, ?add_repr, <- Heqb. simpl.
     unfold Int.mods. repeat rewrite Int.signed_repr.
       2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
@@ -532,6 +533,7 @@ Ltac compute_upd_Znth :=
     rewrite client_lemmas.int_min_signed_eq, client_lemmas.int_max_signed_eq; omega. }
   (*Time*) forward. (*2.2 versus 6*)
   { (*Time*) entailer!. (*1.6 versus 5.5*) rewrite NEQ; simpl; trivial. }
+  simpl [eval_binop].
   unfold force_val, sem_mod, both_int; simpl.
               unfold sem_cast_neutral, both_int; simpl.
               rewrite mul_repr, add_repr.

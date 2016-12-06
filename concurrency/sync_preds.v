@@ -11,6 +11,8 @@ Require Import compcert.common.Values.
 Require Import msl.Coqlib2.
 Require Import msl.eq_dec.
 Require Import msl.seplog.
+Require Import msl.age_to.
+Require Import veric.aging_lemmas.
 Require Import veric.initial_world.
 Require Import veric.juicy_mem.
 Require Import veric.juicy_mem_lemmas.
@@ -26,11 +28,11 @@ Require Import veric.tycontext.
 Require Import veric.semax_ext.
 Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
+Require Import veric.age_to_resource_at.
 Require Import veric.coqlib4.
 Require Import sepcomp.semantics.
 Require Import sepcomp.step_lemmas.
 Require Import sepcomp.event_semantics.
-Require Import concurrency.age_to.
 Require Import concurrency.semax_conc_pred.
 Require Import concurrency.semax_conc.
 Require Import concurrency.juicy_machine.
@@ -41,7 +43,6 @@ Require Import concurrency.addressFiniteMap.
 Require Import concurrency.permissions.
 Require Import concurrency.JuicyMachineModule.
 Require Import concurrency.sync_preds_defs.
-Require Import concurrency.aging_lemmas.
 Require Import concurrency.lksize.
 Import threadPool.
 
@@ -354,7 +355,7 @@ Proof.
     all: try specialize (R _ (perm_refl _)).
     all: try inv L; inv R.
   - unfold access_at in *.
-    intros E. extensionality b ofs k. extensionality p.
+    intros E. extensionality b ofs k p.
     unfold Mem.perm.
     spec E k (b, ofs); simpl in E.
     rewrite E.

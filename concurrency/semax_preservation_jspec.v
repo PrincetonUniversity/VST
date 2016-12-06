@@ -11,6 +11,7 @@ Require Import compcert.common.Values.
 Require Import msl.Coqlib2.
 Require Import msl.eq_dec.
 Require Import msl.seplog.
+Require Import veric.aging_lemmas.
 Require Import veric.initial_world.
 Require Import veric.juicy_mem.
 Require Import veric.juicy_mem_lemmas.
@@ -39,7 +40,6 @@ Require Import concurrency.permjoin.
 Require Import concurrency.semax_conc.
 Require Import concurrency.semax_invariant.
 Require Import concurrency.sync_preds_defs.
-Require Import concurrency.aging_lemmas.
 
 Set Bullet Behavior "Strict Subproofs".
 

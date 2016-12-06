@@ -201,7 +201,6 @@ Proof.
   thaw FIELDS1. forward.
   freeze [0;4;5;6;7] FIELDS2.
   freeze [0;1;2;3;4;5;6;7;8;9] ALLSEP.
-
 (*  set (ent_len := new_ent_len (Zlength V0)) in *.*)
 
   forward_if 
@@ -209,21 +208,22 @@ Proof.
    LOCAL (temp _md_size (Vint (Int.repr 32)); temp _ctx (Vptr b i); temp _md_info info;
    temp _len (Vint (Int.repr (Zlength Data))); temp _custom data; gvar sha._K256 kv;
    temp _t'4 (Vint (Int.repr 32)))
-   SEP (FRZL ALLSEP)).
-  { forward. entailer. }
-  { forward_if 
+   SEP (FRZL ALLSEP)). 
+  { elim H; trivial. }
+  { clear H.
+    forward_if 
      (PROP ( )
       LOCAL (temp _md_size (Vint (Int.repr 32)); 
              temp _ctx (Vptr b i); temp _md_info info;
              temp _len (Vint (Int.repr (Zlength Data))); temp _custom data; gvar sha._K256 kv;
              temp _t'4 (Vint (Int.repr 32)))  
       SEP (FRZL ALLSEP)).
-    { forward. forward. entailer. }
-    { forward. forward. entailer. }
-    { intros. (*FLOYD ERROR: entailer FAILS HERE*) 
+    { elim H; trivial. }
+    { clear H. forward. forward. entailer. }
+    { intros.  (*FLOYD ERROR: entailer FAILS HERE*) 
       unfold overridePost.
       destruct (eq_dec ek EK_normal).
-      { subst ek. (*entailer. STILL FAILS*) unfold POSTCONDITION, abbreviate.
+      { subst ek.  (*entailer. STILL FAILS*) unfold POSTCONDITION, abbreviate.
         normalize. (*simpl. intros.*) apply andp_left2. normalize.
         old_go_lower.
         normalize. Time entailer. }

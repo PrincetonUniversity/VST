@@ -11,6 +11,8 @@ Require Import compcert.common.Values.
 Require Import msl.Coqlib2.
 Require Import msl.eq_dec.
 Require Import msl.seplog.
+Require Import msl.age_to.
+Require Import veric.aging_lemmas.
 Require Import veric.initial_world.
 Require Import veric.juicy_mem.
 Require Import veric.juicy_mem_lemmas.
@@ -28,6 +30,7 @@ Require Import veric.tycontext.
 Require Import veric.semax_ext.
 Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
+Require Import veric.age_to_resource_at.
 Require Import floyd.coqlib3.
 Require Import sepcomp.semantics.
 Require Import sepcomp.step_lemmas.
@@ -42,11 +45,9 @@ Require Import concurrency.scheduler.
 Require Import concurrency.addressFiniteMap.
 Require Import concurrency.permissions.
 Require Import concurrency.JuicyMachineModule.
-Require Import concurrency.age_to.
 Require Import concurrency.sync_preds_defs.
 Require Import concurrency.sync_preds.
 Require Import concurrency.join_lemmas.
-Require Import concurrency.aging_lemmas.
 Require Import concurrency.cl_step_lemmas.
 Require Import concurrency.resource_decay_lemmas.
 Require Import concurrency.resource_decay_join.
@@ -117,7 +118,7 @@ Lemma preservation_spawn
   (tp : thread_pool)
   (Phi : rmap)
   (lev : level Phi = S n)
-  (gam : matchfunspec (filter_genv ge) Gamma Phi)
+  (gam : matchfunspecs (filter_genv ge) Gamma Phi)
   (sparse : lock_sparsity (lset tp))
   (wellformed : threads_wellformed tp)
   (unique : unique_Krun tp (i :: sch))
@@ -169,14 +170,37 @@ Proof.
 Abort. (* preservation_spawn *)
 
 Lemma shape_of_args2 (F V : Type) (args : list val) v (ge : Genv.t F V) :
-  Val.has_type_list args (AST.Tint :: nil) ->
+  Val.has_type_list args (sig_args (ef_sig CREATE)) ->
   v <> Vundef ->
   v =
   expr.eval_id _args (make_ext_args (filter_genv (symb2genv (Genv.genv_symb ge))) (_f :: _args :: nil) args) ->
-  exists arg1, args = arg1 :: v (* which one is not v? *) :: nil.
+  exists arg1, args = arg1 :: v :: nil.
 Proof.
   intros Hargsty Nu.
-  assert (L: length args = 1%nat) by (destruct args as [|? [|]]; simpl in *; tauto).
+  assert (L: length args = 2%nat) by (destruct args as [|? [|? [|]]]; simpl in *; tauto).
+  unfold expr.eval_id.
+  unfold expr.force_val.
+  intros Preb.
+  match goal with H : context [Map.get ?a ?b] |- _ => destruct (Map.get a b) eqn:E end.
+  subst v. 2: tauto.
+  pose  (gx := (filter_genv (symb2genv (Genv.genv_symb ge)))). fold gx in E.
+  destruct args as [ | arg [ | ar [ | ar2 args ] ]].
+  + now inversion E.
+  + now inversion E.
+  + simpl in E. inversion E. eauto.
+  + inversion E. f_equal.
+    inversion L.
+Qed.
+
+Lemma shape_of_args3 (F V : Type) (args : list val) v (ge : Genv.t F V) :
+  Val.has_type_list args (sig_args (ef_sig CREATE)) ->
+  v <> Vundef ->
+  v =
+  expr.eval_id _f (make_ext_args (filter_genv (symb2genv (Genv.genv_symb ge))) (_f :: _args :: nil) args) ->
+  exists arg2, args = v :: arg2 :: nil.
+Proof.
+  intros Hargsty Nu.
+  assert (L: length args = 2%nat) by (destruct args as [|? [|? [|]]]; simpl in *; tauto).
   unfold expr.eval_id.
   unfold expr.force_val.
   intros Preb.
@@ -251,19 +275,20 @@ Proof.
   simpl in PreA. clear PreA.
   simpl in PreB1.
   unfold liftx in PreB1. simpl in PreB1. unfold lift in PreB1.
-  unfold liftx in PreB2. simpl in PreB2. unfold lift in PreB2. clear PreB2.
-  apply shape_of_args2 in PreB1.
-  destruct PreB1 as (arg1, Eargs).
-  rewrite Eargs in Hargsty.
-  simpl in Hargsty.
-  destruct Func as (Func, emp00).
+  unfold liftx in PreB2. simpl in PreB2. unfold lift in PreB2. destruct PreB2 as [PreB2 _].
+  
   Import SeparationLogicSoundness.SoundSeparationLogic.CSL.
-  pose proof
-       (* SeparationLogicSoundness.SoundSeparationLogic.CSL. *)func_ptr_isptr
-       _ _ _
-       Func as isp.
+  destruct Func as (Func, emp00).
+  pose proof func_ptr_isptr _ _ _ Func as isp.
   unfold expr.isptr in *.
   destruct xf as [ | | | | | f_b f_ofs]; try contradiction.
+  
+  apply shape_of_args2 in PreB1; auto. 2: admit (* extra goal: xarg <> Vundef *).
+  apply shape_of_args3 in PreB2; auto. 2: clear; congruence.
+  destruct PreB1 as (arg1, Eargs).
+  destruct PreB2 as (arg2, Eargs').
+  rewrite Eargs in Eargs'. injection Eargs' as -> <-. subst args.
+  simpl in Hargsty.
   
   (* done above
   spec safety i cnti tt. rewrite Eci in safety.
@@ -286,22 +311,47 @@ Proof.
     eassumption.
     { unfold SEM.Sem in *.
       rewrite SEM.CLN_msem.
-      simpl.
-      (* rewrite <-Heqci in Eci. *)
-      simpl in atex.
-      rewrite atex, Eargs.
-      reflexivity. }
+      apply atex. }
     { replace (initial_core SEM.Sem) with cl_initial_core
         by (unfold SEM.Sem; rewrite SEM.CLN_msem; reflexivity).
       unfold cl_initial_core in *.
       simpl.
+      Transparent func_ptr.
+      
+      assert (RR:
+      func_ptr = 
+      fun (f : funspec) (v : val) =>
+        (EX b : block, !! (v = Vptr b Int.zero) && seplog.func_at f (b, 0%Z))%logic).
+      admit (* we can add that to the CSL interface, but maybe it's better to change statements of lemmas *).
+      rewrite RR in Func; clear RR.
+      destruct Func as (b' & E' & FAT). injection E' as <- ->.
+      if_tac [_|?]. 2:tauto.
+      
+      admit (* later : I have modified matchfunspecs in the meantime *).
+      (*
+      match type of FAT with _ (seplog.func_at ?FS _) _ => pose (fs := FS) end.
+      spec gam f_b fs.
+      
+      unfold filter_genv in *.
+      unfold Genv.find_symbol in *.
+      unfold Genv.find_funct_ptr in *.
+      unfold Genv.find_def in *.
+      unfold Genv.genv_defs in *.
+      unfold Genv.genv_symb in *.
+      unfold genv_genv in *.
+      Search Genv.find_funct_ptr.
+      SearchHead Genv.find_funct_ptr.
+      unfold Genv.find_funct_ptr in *.
+      unfold filter_genv in *.
+      unfold Genv.find_def in *.
+      unfold Genv.genv_defs in *.
+      unfold Genv.find_symbol in *.
+      
       (* pose proof @semax_call. *)
       (* all this work around safety is already done above. Try to deal with Func *)
       (* apply jsafe_phi_jsafeN with (compat0 := compat) in safety. *)
-      simpl.
-      subst args.
-      simpl.
-      admit. (* unclear how to relate arg1/args (which come from the
+      *)
+      (* unclear how to relate arg1/args (which come from the
       syntax) to anything. The juicy machine uses "initial_core" but
       it's not that simple. *)
     }

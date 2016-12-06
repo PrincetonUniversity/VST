@@ -153,7 +153,7 @@ Proof.
   }
   { (*null*) 
     subst vret. simpl. forward.
-    Exists (-20864). entailer!. simpl. cancel.
+    Exists (-20864). entailer!. 
   }
   { destruct (eq_dec vret nullval); subst. elim H; trivial. clear n.
     forward. entailer!.
