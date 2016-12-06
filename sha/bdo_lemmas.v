@@ -22,16 +22,7 @@ rewrite if_false by omega.
 reflexivity.
 Qed.
 
-Lemma Znth_nthi':
- forall i b,
-  Zlength b = 16%Z ->
-  Znth (Z.land i 15) b Int.zero = nthi b (i mod 16).
-Proof.
- intros.
- rewrite Zland_15. apply Znth_nthi.
- exploit (Z.mod_pos_bound i 16). computable. intros; omega.
-Qed.
-
+Hint Rewrite Znth_nthi using (auto; omega) : sublist.
 
 Lemma Zland_in_range:
   forall i, (0 <= Z.land i 15 < 16)%Z.

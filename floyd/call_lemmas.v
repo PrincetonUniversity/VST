@@ -686,10 +686,27 @@ induction Q; simpl; auto. f_equal; auto.
 Qed.
 Hint Rewrite PROP_LOCAL_SEP_f: norm2.
 
+Definition global_funspec Delta id argsig retty cc A Pre Post NEPre NEPost :=
+   (var_types Delta) ! id = None /\
+   (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost) /\
+   (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost)).
+
+Lemma lookup_funspec:
+  forall Delta id argsig retty cc A Pre Post NEPre NEPost,
+   (var_types Delta) ! id = None ->
+   (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost) ->
+   (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost)) ->
+   global_funspec Delta id argsig retty cc A Pre Post NEPre NEPost.
+Proof.
+intros.
+split3; auto.
+Qed.
+
 Lemma semax_call_id1_wow:
- forall  {A: rmaps.TypeTree} (witness: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec nil A) mpred) (Frame: list mpred) 
-           Espec {cs: compspecs} Delta P Q R ret id (paramty: typelist) (retty: type) cc (bl: list expr)
-                  (argsig: list (ident * type)) (Pre Post: forall ts, functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts (AssertTT A)) mpred) NEPre NEPost
+ forall  {A: rmaps.TypeTree} (witness: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec nil A) mpred) (Frame: list mpred)
+            Delta id argsig retty cc Pre Post NEPre NEPost
+           (GLOB: global_funspec  Delta id argsig retty cc A Pre Post NEPre NEPost)
+           Espec {cs: compspecs} P Q R ret (paramty: typelist) (bl: list expr)
              (Post2: environ -> mpred)
              (Ppre: list Prop)
              (Qpre Qnew: list localdef)
@@ -701,9 +718,6 @@ Lemma semax_call_id1_wow:
              (Rpre: list mpred)
              (Rpost: B -> list mpred)
              (vl : list val)
-   (GLBL: (var_types Delta) ! id = None)
-   (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost))
-   (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost)))
    (TYret: typeof_temp Delta ret = Some retty)
    (OKretty: check_retty retty)
    (H: paramty = type_of_params argsig)
@@ -734,7 +748,8 @@ Lemma semax_call_id1_wow:
              bl)
     (normal_ret_assert Post2).
 Proof.
-intros.
+intros. 
+destruct GLOB as [GLBL [GLOBS GLOBT]].
 subst.
 eapply semax_pre_post; 
    [ | 
@@ -861,8 +876,9 @@ Qed.
 
 Lemma semax_call_id1_x_wow:
  forall  {A: rmaps.TypeTree} (witness: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec nil A) mpred) (Frame: list mpred) 
-           Espec {cs: compspecs} Delta P Q R ret ret' id (paramty: typelist) (retty retty': type) (bl: list expr)
-                  (argsig: list (ident * type)) cc (Pre Post: forall ts, functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts (AssertTT A)) mpred) NEPre NEPost
+            Delta id argsig retty' cc Pre Post NEPre NEPost
+           (GLOB: global_funspec Delta id argsig retty' cc A Pre Post NEPre NEPost)
+           Espec {cs: compspecs} P Q R ret ret' (paramty: typelist) (retty: type) (bl: list expr)
              (Post2: environ -> mpred)
              (Ppre: list Prop)
              (Qpre Qnew: list localdef)
@@ -874,9 +890,6 @@ Lemma semax_call_id1_x_wow:
              (Rpre: list mpred)
              (Rpost: B -> list mpred)
              (vl : list val)
-   (GLBL: (var_types Delta) ! id = None)
-   (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty') cc A Pre Post NEPre NEPost))
-   (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty') cc A Pre Post NEPre NEPost)))
    (TYret: typeof_temp Delta ret = Some retty) 
    (RETinit: (temp_types Delta) ! ret' = Some (retty', false))
    (OKretty: check_retty retty)
@@ -994,8 +1007,9 @@ Qed.
 
 Lemma semax_call_id1_y_wow:
  forall  {A: rmaps.TypeTree} (witness: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec nil A) mpred) (Frame: list mpred) 
-           Espec {cs: compspecs} Delta P Q R ret ret' id (paramty: typelist) (retty retty': type) (bl: list expr)
-                  (argsig: list (ident * type)) cc (Pre Post: forall ts, functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts (AssertTT A)) mpred) NEPre NEPost
+            Delta id argsig retty' cc Pre Post NEPre NEPost
+           (GLOB: global_funspec Delta id argsig retty' cc A Pre Post NEPre NEPost)
+           Espec {cs: compspecs} P Q R ret ret' (paramty: typelist) (retty: type) (bl: list expr)
              (Post2: environ -> mpred)
              (Ppre: list Prop)
              (Qpre Qnew: list localdef)
@@ -1007,9 +1021,6 @@ Lemma semax_call_id1_y_wow:
              (Rpre: list mpred)
              (Rpost: B -> list mpred)
              (vl : list val)
-   (GLBL: (var_types Delta) ! id = None)
-   (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty') cc A Pre Post NEPre NEPost))
-   (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty') cc A Pre Post NEPre NEPost)))
    (TYret: typeof_temp Delta ret = Some retty) 
    (RETinit: (temp_types Delta) ! ret' = Some (retty', false))
    (OKretty: check_retty retty)
@@ -1120,9 +1131,10 @@ Qed.
 
 Lemma semax_call_id01_wow:
  forall  {A: rmaps.TypeTree} (witness: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec nil A) mpred) (Frame: list mpred) 
-           Espec {cs: compspecs} Delta P Q R id (paramty: typelist) (retty: type) (bl: list expr)
-                  (argsig: list (ident * type)) cc (Pre Post: forall ts, functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts (AssertTT A)) mpred) NEPre NEPost
-             (Post2: environ -> mpred)
+            Delta id argsig retty cc Pre Post NEPre NEPost
+           (GLOB: global_funspec Delta id argsig retty cc A Pre Post NEPre NEPost)
+           Espec {cs: compspecs} P Q R (paramty: typelist)  (bl: list expr)
+              (Post2: environ -> mpred)
              (Ppre: list Prop)
              (Qpre: list localdef)
              (Qtemp Qactuals Qpre_temp : PTree.t _)
@@ -1133,9 +1145,6 @@ Lemma semax_call_id01_wow:
              (Rpre: list mpred)
              (Rpost: B -> list mpred)
              (vl : list val)
-   (GLBL: (var_types Delta) ! id = None)
-   (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost))
-   (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost)))
    (_: check_retty retty)
          (* this hypothesis is not needed for soundness, just for selectivity *)
    (H: paramty = type_of_params argsig)
@@ -1166,6 +1175,7 @@ Lemma semax_call_id01_wow:
     (normal_ret_assert Post2).
 Proof.
 intros.
+destruct GLOB as [GLBL [GLOBS GLOBT]].
 subst.
 eapply semax_pre_post; 
    [ | 
@@ -1267,8 +1277,9 @@ Qed.
 
 Lemma semax_call_id00_wow:
  forall  {A: rmaps.TypeTree} (witness: functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec nil A) mpred) (Frame: list mpred) 
-           Espec {cs: compspecs} Delta P Q R id (paramty: typelist) (bl: list expr)
-                  (argsig: list (ident * type)) (retty: type) cc (Pre Post: forall ts, functors.MixVariantFunctor._functor (rmaps.dependent_type_functor_rec ts (AssertTT A)) mpred) NEPre NEPost
+            Delta id argsig retty cc Pre Post NEPre NEPost
+           (GLOB: global_funspec Delta id argsig retty cc A Pre Post NEPre NEPost)
+           Espec {cs: compspecs} P Q R (paramty: typelist) (bl: list expr)
              (Post2: environ -> mpred)
              (Ppre: list Prop)
              (Qpre: list localdef)
@@ -1279,9 +1290,6 @@ Lemma semax_call_id00_wow:
              (Rpre: list mpred)
              (Rpost: B -> list mpred)
              (vl : list val)
-   (GLBL: (var_types Delta) ! id = None)
-   (GLOBS: (glob_specs Delta) ! id = Some (mk_funspec (argsig,Tvoid) cc A Pre Post NEPre NEPost))
-   (GLOBT: (glob_types Delta) ! id = Some (type_of_funspec (mk_funspec (argsig,retty) cc A Pre Post NEPre NEPost)))
    (RETTY: retty = Tvoid)
    (H: paramty = type_of_params argsig)
    (PTREE: local2ptree Q = (Qtemp, Qvar, nil, nil))
@@ -1309,6 +1317,7 @@ Lemma semax_call_id00_wow:
     (normal_ret_assert Post2).
 Proof.
 intros.
+destruct GLOB as [GLBL [GLOBS GLOBT]].
 subst.
 eapply semax_pre_post; 
    [ | 

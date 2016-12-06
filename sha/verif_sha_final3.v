@@ -316,6 +316,7 @@ intuition.
     by  (subst N32; change WORD with 4; omega).
   change 64 with CBLOCKz.
   set (vbytes := map Vint bytes).
+  simpl (temp _md _).
   entailer!.
   f_equal. omega.
    unfold data_at.
@@ -447,6 +448,7 @@ Proof.
   split; auto.
   clear; compute; congruence.
   Time forward. (* p += 4; *) (*11 secs*)
+  simpl (temp _p _).
   Time forward. (* cNl=c->Nl; *) (*12*)
   Time forward_call (* (void)HOST_l2c(cNl,p); *)
     (field_address0 t_struct_SHA256state_st

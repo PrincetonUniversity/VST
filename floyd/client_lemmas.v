@@ -234,13 +234,14 @@ Ltac fancy_intro aggressive :=
  | _ => try solve [discriminate H]
  end.
 
+
 Ltac fancy_intros aggressive :=
  repeat match goal with
   | |- (_ <= _ < _) -> _ => fancy_intro aggressive
   | |- (_ < _ <= _) -> _ => fancy_intro aggressive
   | |- (_ <= _ <= _) -> _ => fancy_intro aggressive
   | |- (_ < _ < _) -> _ => fancy_intro aggressive
-  | |- (_ /\ _) -> _ => simple apply and_ind
+  | |- (?A /\ ?B) -> ?C => apply (@and_ind A B C) (* For some reason "apply and_ind" doesn't work the same *)
   | |- _ -> _ => fancy_intro aggressive
   end.
 
@@ -2247,6 +2248,24 @@ Ltac already_saturated :=
 end || auto with nocore saturate_local)
  || simple apply prop_True_right.
 
+
+Ltac saturate_local :=
+simple eapply saturate_aux21x;
+ [repeat simple apply saturate_aux20;
+   (* use already_saturated if want to be fancy,
+         otherwise the next lines *)
+    auto with nocore saturate_local;
+    simple apply prop_True_right
+(* | cbv beta; reflexivity    this line only for use with saturate_aux21 *)
+ | simple apply derives_extract_prop;
+   match goal with |- _ -> ?A => 
+       let P := fresh "P" in set (P := A); 
+       fancy_intros true;
+       subst P
+      end
+ ].
+
+(* old version: 
 Ltac saturate_local := 
 simple eapply saturate_aux21x;
  [repeat simple apply saturate_aux20;
@@ -2261,6 +2280,7 @@ simple eapply saturate_aux21x;
               rewrite -> ?and_assoc; fancy_intros true;  subst P
       end
  ].
+*)
 
 (*********************************************************)
 

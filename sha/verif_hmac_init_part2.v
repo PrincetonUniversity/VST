@@ -358,6 +358,7 @@ Focus 2.
         rewrite Int.unsigned_repr. 2: rewrite int_max_unsigned_eq; omega.
         exploit (isbyteZ_xor 54 qb); trivial. split; omega.
         intros isbyteXOR.
+        cbv [cast_int_int].
         rewrite <- (isbyte_zeroExt8 qb); trivial.
         rewrite Int.unsigned_repr. 2: destruct isbyteZQb; rewrite int_max_unsigned_eq; omega.
         rewrite Z.lxor_comm. remember (Vint (Int.repr (Z.lxor qb 54))) as xorval.
@@ -791,7 +792,7 @@ Qed.*)
       unfold data_block. rewrite  ZLI, HeqIPADcont. unfold HMAC_SHA256.mkArgZ.  
       simpl. Time entailer!. (*0.9*) apply isbyte_map_ByteUnsigned.
     } 
-    { clear Frame HeqPostResetBranch HeqOPADcont(*; subst IPADcont*).
+    { clear HeqPostResetBranch HeqOPADcont(*; subst IPADcont*).
         rewrite Zlength_mkArgZ. repeat rewrite map_length. rewrite mkKey_length. intuition. 
     }
     simpl.

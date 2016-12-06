@@ -36,7 +36,9 @@ rewrite map_app.
 rewrite app_ass.
 f_equal.
 rewrite (sublist_singleton i _ Int.zero) by omega.
-simpl. f_equal. f_equal. f_equal. omega.
+simpl.
+autorewrite with sublist.
+f_equal. f_equal. f_equal. omega.
 Qed.
 
 Definition block_data_order_loop1 := 
@@ -81,22 +83,7 @@ unfold block_data_order_loop1.
 intros.
 simpl nth.
 abbreviate_semax.
-name a_ _a.
-name b_ _b.
-name c_ _c.
-name d_ _d.
-name e_ _e.
-name f_ _f.
-name g_ _g.
-name h_ _h.
-name l_ _l.
-name Ki _Ki.
-name in_ _in.
-name ctx_ _ctx.
-name i_ _i.
-name data_ _data.
 assert (LBE := LBLOCKz_eq).
-unfold MORE_COMMANDS, abbreviate.
 
 forward_for_simple_bound 16
    (EX i:Z,
@@ -123,7 +110,6 @@ forward_for_simple_bound 16
  change 16 with LBLOCKz.
  entailer!.
 * (* loop body & loop condition preserves loop invariant *)
-
 assert_PROP (data_block sh (intlist_to_Zlist b) data =
    array_at sh (tarray tuchar (Zlength b * 4)) [] 0 (i * 4)
        (sublist 0 (i * 4) (map Vint (map Int.repr (intlist_to_Zlist b))))
@@ -138,8 +124,8 @@ assert_PROP (data_block sh (intlist_to_Zlist b) data =
  entailer!.
  unfold data_block. rewrite prop_true_andp by auto.
  unfold data_at at 1. 
-   erewrite field_at_Tarray; try reflexivity; auto; try omega.
-  2: autorewrite with sublist; Omega1.
+   erewrite field_at_Tarray
+   by (try reflexivity; auto; autorewrite with sublist; Omega1).
    rewrite (split2_array_at _ _ _ 0 (i*4)) by (autorewrite with sublist; omega).
    rewrite (split2_array_at _ _ _ (i*4) (i*4+4)) by (autorewrite with sublist; omega).
    autorewrite with sublist.
@@ -170,6 +156,7 @@ gather_SEP 3 0 4.
  clear H1.
 rewrite <- Znth_big_endian_integer by omega.
 forward. (* data := data + 4; *)
+rewrite LBE.
 forward. (* X[i]=l; *)
 simpl.
 rewrite loop1_aux_lemma1 by Omega1.
@@ -177,19 +164,16 @@ rewrite loop1_aux_lemma1 by Omega1.
 (* 1,506,948 1,134,576 *)
 unfold K_vector.
 assert (i < Zlength K256)
-  by (change (Zlength K256) with (LBLOCKz + 48); 
-       pose proof LBLOCKz_eq; omega).
+  by (change (Zlength K256) with 64; omega).
 forward.  (* Ki=K256[i]; *)
 autorewrite with sublist.
-rewrite Znth_nthi by omega.
 entailer!. 
 (* 1,811,028 1,406,332 *)
-autorewrite with sublist. rewrite Znth_nthi by omega.
+autorewrite with sublist.
 subst POSTCONDITION; unfold abbreviate.
 replace (i + 1 - 1)%Z with i by omega.
 rewrite (Round_equation _ _ i).
 rewrite if_false by omega.
-rewrite Znth_nthi by omega.
 forget (nthi b) as M.
 replace (M i) with (W M i)
   by (rewrite W_equation; rewrite if_true by omega; auto).
