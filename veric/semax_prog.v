@@ -1021,7 +1021,8 @@ Lemma semax_prog_rule {CS: compspecs} :
          { jm |
            m_dry jm = m /\ level jm = n /\
            (forall z, jsafeN (@OK_spec Espec) (globalenv prog) n z q jm) /\
-           no_locks (m_phi jm)
+           no_locks (m_phi jm) /\
+           matchfunspecs (filter_genv (globalenv prog)) (make_tycontext_s G) (m_phi jm)
      } } }%type.
 Proof.
   intros until m.
@@ -1205,6 +1206,7 @@ Proof.
       apply level_make_rmap.
   - apply initial_jm_without_locks.
   - apply initial_jm_without_locks.
+  - apply initial_jm_matchfunspecs.
 Qed.
 
 Definition Delta_types V G {C: compspecs} (tys : list type) : tycontext := 

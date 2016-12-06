@@ -30,6 +30,7 @@ Require Import veric.tycontext.
 Require Import veric.semax_ext.
 Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
+Require Import veric.age_to_resource_at.
 Require Import floyd.coqlib3.
 Require Import sepcomp.semantics.
 Require Import sepcomp.step_lemmas.
@@ -188,26 +189,6 @@ Proof.
     eauto.
 Qed.
 
-Lemma resource_decay_matchfunspec {b phi phi' g Gamma} :
-  resource_decay b phi phi' ->
-  matchfunspec g Gamma phi ->
-  matchfunspec g Gamma phi'.
-Proof.
-  intros RD M.
-  unfold matchfunspec in *.
-  intros b0 fs psi' necr' FUN.
-  specialize (M b0 fs phi ltac:(constructor 2)).
-  apply (hereditary_necR necr').
-  { clear.
-    intros phi phi' A (id & hg & hgam); exists id; split; auto. }
-  apply (anti_hereditary_necR necr') in FUN; swap 1 2.
-  { intros x y a. apply anti_hereditary_func_at', a. }
-  apply (resource_decay_func_at'_inv RD) in FUN.
-  autospec M.
-  destruct M as (id & Hg & HGamma).
-  exists id; split; auto.
-Qed.
-
 Lemma isLK_rewrite r :
   (forall (sh : Share.t) (sh' : pshare) (z : Z) (P : preds), r <> YES sh sh' (LK z) P)
   <->
@@ -305,7 +286,7 @@ Lemma invariant_thread_step
   n m ge i sch tp Phi ci ci' jmi'
   (Stable : ext_spec_stable age Jspec)
   (Stable' : ext_spec_stable juicy_mem_equiv Jspec)
-  (gam : matchfunspec (filter_genv ge) Gamma Phi)
+  (gam : matchfunspecs (filter_genv ge) Gamma Phi)
   (compat : mem_compatible_with tp m Phi)
   (En : level Phi = S n)
   (lock_bound : lockSet_block_bound (ThreadPool.lset tp) (Mem.nextblock m))
@@ -632,7 +613,7 @@ Proof.
   
   apply state_invariant_c with (PHI := Phi'') (mcompat := compat''); auto.
   - (* matchfunspecs *)
-    eapply resource_decay_matchfunspec; eauto.
+    eapply resource_decay_matchfunspecs with (Phi := Phi); eauto. omega.
     
   - (* lock coherence: own rmap has changed, but we prove it did not affect locks *)
     unfold tp''; simpl.

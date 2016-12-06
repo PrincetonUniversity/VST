@@ -448,13 +448,6 @@ Proof.
   breakhyps.
 Qed.
 
-Definition matchfunspec (ge : genviron) Gamma : forall Phi, Prop :=
-  (ALL b : block,
-    (ALL fs : funspec,
-      seplog.func_at' fs (b, 0%Z) -->
-      (EX id : ident,
-        !! (ge id = Some b) && !! (Gamma ! id = Some fs))))%pred.
-
 Definition lock_coherence' tp PHI m (mcompat : mem_compatible_with tp m PHI) :=
   lock_coherence
     (lset tp) PHI
@@ -466,7 +459,7 @@ Inductive state_invariant {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat) : cm_st
   | state_invariant_c
       (m : mem) (ge : genv) (sch : schedule) (tp : ThreadPool.t) (PHI : rmap)
       (lev : level PHI = n)
-      (gamma : matchfunspec (filter_genv ge) Gamma PHI)
+      (gamma : matchfunspecs (filter_genv ge) Gamma PHI)
       (mcompat : mem_compatible_with tp m PHI)
       (lock_sparse : lock_sparsity (lset tp))
       (lock_coh : lock_coherence' tp PHI m mcompat)

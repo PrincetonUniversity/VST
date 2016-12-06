@@ -1723,7 +1723,7 @@ Lemma age_jm_phi: forall {jm jm'}, age jm jm' -> age (m_phi jm) (m_phi jm').
 Proof. intros; destruct (age1_juicy_mem_unpack _ _ H); auto. 
 Qed.
 
-(** * Results about aging in juicy memory conherence properties *)
+(** * Results about aging in juicy memory coherence properties *)
 
 Lemma age1_YES'_1 {phi phi' l rsh sh k P} :
   age1 phi = Some phi' ->

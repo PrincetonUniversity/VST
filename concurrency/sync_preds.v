@@ -355,7 +355,7 @@ Proof.
     all: try specialize (R _ (perm_refl _)).
     all: try inv L; inv R.
   - unfold access_at in *.
-    intros E. extensionality b ofs k. extensionality p.
+    intros E. extensionality b ofs k p.
     unfold Mem.perm.
     spec E k (b, ofs); simpl in E.
     rewrite E.

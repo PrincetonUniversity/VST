@@ -142,7 +142,8 @@ Section Initial_State.
         unfold tp in Ephi; simpl in Ephi.
         discriminate.
       + intros loc sh psh P z L.
-        destruct (snd (projT2 (projT2 spr))) as [jm' [D [H [A NL]]]]; unfold jm in *; clear jm; simpl in L |- *.
+        destruct (snd (projT2 (projT2 spr))) as (jm' & D  & H  & A & NL & MFS).
+        unfold jm in *; clear jm; simpl in L |- *.
         pose proof (NL loc) as NL'.
         rewrite L in NL'.
         edestruct NL as [lk ct].
@@ -164,48 +165,8 @@ Section Initial_State.
     
     apply state_invariant_c with (PHI := m_phi jm) (mcompat := compat); auto.
     
-    - intros b SPEC phi NECR FU.
-      (* pose proof semax_prog_entry_point (Concurrent_Espec unit CS ext_link) V G prog. *)
-      destruct SPEC as [f c A P Q P_ne Q_ne].
-      simpl in FU.
-      destruct FU as (pp, E).
-      
-      (*
-      missing:
-        (id_fun id_arg : ident) (arg : val) (params : list (ident * type)) 
-        (A : rmaps.TypeTree)
-        (P Q : forall ts : list Type, (rmaps.dependent_type_functor_rec ts (AssertTT A)) mpred)
-        (NEP : super_non_expansive P) (NEQ : super_non_expansive Q),
-      semax_prog (Concurrent_Espec unit CS ext_link) prog V G ->
-      params = (id_arg, Tpointer Tvoid noattr) :: nil ->
-      find_params prog id_fun = Some params ->
-      find_id id_fun G = Some (mk_funspec (params, Tvoid) cc_default A P Q NEP NEQ) ->
-      (forall (ts : list Type) (a : (rmaps.dependent_type_functor_rec ts A) mpred)
-         (rho : (rmaps.dependent_type_functor_rec ts (rmaps.ConstType environ)) mpred), 
-       Q ts a rho |-- FF) ->
-      expr.is_pointer_or_null arg ->
-       *)
-      
-      unfold matchfunspec in *.
-      simpl.
-      (* argh *)
-      (*
-      exists (prog_main prog). (* no, it can be anything *)
-      clear tp compat.
-      rewrite find_id_maketycontext_s.
-      destruct spr as (b' & q' & (Symb, init) & spr);
-        simpl (projT2 _) in *; simpl (projT1 _) in *.
-      unfold filter_genv in *.
-      rewrite Symb. unfold q in *; clear q.
-      unfold seplog.func_at' in *.
-      destruct SPEC as [f c A m0 m1].
-      destruct FU as [pp PA].
-      simpl snd in jm.
-      destruct (spr n) as (jm' & jmm & lev & S & nolocks). simpl in jm.
-      unfold jm in *; clear jm; rename jm' into jm. clear spr.
-       *)    
-      admit.
-      (* we need to relate the [jm] given by [semax_prog_rule]  *)
+    - destruct (snd (projT2 (projT2 spr))) as (jm' & D  & H  & A & NL & MFS).
+      apply MFS.
     
     - (*! lock sparsity (no locks at first) *)
       intros l1 l2.
@@ -251,6 +212,6 @@ Section Initial_State.
       
     - (* only one thread running *)
       intros F; exfalso. simpl in F. omega.
-  Admitted.
+  Qed.
   
 End Initial_State.
