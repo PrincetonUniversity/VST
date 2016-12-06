@@ -848,18 +848,21 @@ Proof.
       change (Int.signed (Int.repr 10000)) with 10000.
     destruct (zlt 10000 reseed_counter) as [Hlt | Hlt].
     {
-      (* reseed_interval < reseed_counter *)
+      (* reseed_interval < reseed_counter *) 
+      unfold Int.lt; simpl in *.
       subst initial_state_abs.
       assert (Hltb: 10000 <? reseed_counter = true) by (rewrite Z.ltb_lt; assumption).
-      rewrite Hltb.
+      rewrite Hltb. 
       rewrite zlt_true; [reflexivity | ].
-      rewrite Int.signed_repr; change Int.min_signed with (-2147483648); change Int.max_signed with (2147483647) in *; try omega. 
+      repeat rewrite Int.signed_repr; trivial; change Int.min_signed with (-2147483648); change Int.max_signed with (2147483647) in *; try omega. 
     }
-    { subst initial_state_abs.
+    {
+      unfold Int.lt; simpl in *. 
+      subst initial_state_abs. simpl in *.
       assert (Hltb: 10000 <? reseed_counter = false) by (rewrite Z.ltb_nlt; assumption).
       rewrite Hltb.
       rewrite zlt_false; [reflexivity | ].
-      rewrite Int.signed_repr; change Int.min_signed with (-2147483648); change Int.max_signed with (2147483647) in *; try omega.
+      repeat rewrite Int.signed_repr; trivial; change Int.min_signed with (-2147483648); change Int.max_signed with (2147483647) in *; try omega.
     }
   }
 
@@ -1154,7 +1157,7 @@ Proof.
          { subst Frame; reflexivity. }
          subst Frame.
          subst after_reseed_add_len add_len initial_state. cancel.
-         clear POSTCONDITION. thaw FR3.
+         thaw FR3.
          unfold hmac256drbg_relate, hmac256drbgstate_md_info_pointer; simpl.
          subst initial_state_abs. normalize.
          apply andp_right. apply prop_right. repeat split; trivial.
@@ -1297,18 +1300,17 @@ apply semax_pre with (P':=
       destruct M; try contradiction. 
       destruct d as [[[[AA BB] CC] DD] EE]. subst BB s0 (*ctx1*).
       unfold hmac256drbgabs_reseed in Heqh. subst initial_state_abs. subst add_len. rewrite <- HeqM in Heqh. 
-      subst h. unfold hmac256drbgabs_reseed. rewrite <- HeqM. simpl. cancel. 
-      unfold  postReseedCtx in CTX1. rewrite <- HeqM in CTX1. subst ctx1. cancel.
+      subst h. unfold hmac256drbgabs_reseed. rewrite <- HeqM. simpl.
+      unfold  postReseedCtx in CTX1. rewrite <- HeqM in CTX1. subst ctx1.
+      cancel. entailer!. 
       { unfold mbedtls_HMAC256_DRBG_reseed_function, HMAC256_DRBG_reseed_function, DRBG_reseed_function in HeqM.
         subst contents'. rewrite andb_negb_r, ZLa in HeqM. 
-        destruct (get_entropy 32(*256*) entropy_len entropy_len prediction_resistance s); inv HeqM. normalize. 
+        destruct (get_entropy 32(*256*) entropy_len entropy_len prediction_resistance s); inv HeqM.
         remember(HMAC_DRBG_update HMAC256
            (l ++ contents_with_add additional (Zlength contents) contents) key V) as h.
-        destruct h; inv H10. 
-        apply andp_right. apply prop_right. repeat split; trivial.
+        destruct h; inv H10. split; trivial.
            eapply HMAC_DRBG_update_value; eassumption. 
            eapply HMAC_DRBG_update_value; eassumption.
-        cancel. 
       }
     - subst stream1 key1 initial_state_abs h ctx1 IS. simpl. cancel. entailer!.
 }
@@ -1362,7 +1364,7 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
     rewrite Hafter_update.
     (*entailer!.*) go_lower. normalize. apply andp_right. apply prop_right; repeat split; trivial. omega. omega.
     left; exists 0; omega.
-    cancel. apply derives_refl. 
+    cancel. 
   }
   {
     (* prove the type checking of the loop condition *)
@@ -2135,3 +2137,7 @@ Transparent HMAC256_DRBG_generate_function.
        unfold_data_at 1%nat. cancel.
 Time Qed. (*157.766 secs (138.203u,0.093s) if loopbody is solved by exfalso; apply FALSE*)
 (*189.172 secs (159.14u,0.171s) (successful), and 12m30s compilation time when loopbody proof is inlined*)
+(*Dec 6th (laptop): 
+  CoqIde: 214.165 secs (214.071u,0.168s) (successful)
+  make: 167.261 secs (165.971u,1.323s) (successful), 
+        File processing time: real 15m9s, user 15m7s *)

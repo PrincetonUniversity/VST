@@ -47,6 +47,10 @@ int simulate_atomic_exchange(int *tgt, lock_t *l, int v){
 
 //registrar function
 void initialize_channels(){
+  for(int i = 0; i < B; i++){
+    buffer *b = surely_malloc(sizeof(buffer));
+    bufs[i] = b;
+  }
   for(int r = 0; r < N; r++){
     buf_id *c = surely_malloc(sizeof(buf_id));
     *c = Empty;
@@ -56,11 +60,8 @@ void initialize_channels(){
     makelock(l);
     release(l);
   }
-  for(int i = 0; i < B; i++){
-    buffer *b = surely_malloc(sizeof(buffer));
-    bufs[i] = b;
-  }
-  memset(bufs[First], 0, sizeof(buffer));
+  buffer *b = bufs[First];
+  memset(b, 0, sizeof(buffer));
 }
 
 //reader functions
