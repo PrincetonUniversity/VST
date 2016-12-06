@@ -1059,7 +1059,7 @@ Definition spawn_spec :=
           (ty -> val -> Pred))%type}  (* precondition (postcondition is emp) *)
    PRE [_f OF tptr voidstar_funtype, _args OF tptr tvoid]
      PROP ( )
-     LOCAL (temp _args b)
+     LOCAL (temp _args b; temp _f f)
      SEP
      (match PrePost with existT ty (_, pre) =>
       EX _y : ident, EX globals : ty -> list (ident * val),
