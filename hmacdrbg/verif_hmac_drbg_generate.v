@@ -1362,7 +1362,7 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
     rewrite Hafter_update.
     (*entailer!.*) go_lower. normalize. apply andp_right. apply prop_right; repeat split; trivial. omega. omega.
     left; exists 0; omega.
-    cancel. apply derives_refl. 
+    cancel.
   }
   {
     (* prove the type checking of the loop condition *)
