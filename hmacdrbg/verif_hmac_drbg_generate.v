@@ -851,15 +851,15 @@ Proof.
       (* reseed_interval < reseed_counter *)
       subst initial_state_abs.
       assert (Hltb: 10000 <? reseed_counter = true) by (rewrite Z.ltb_lt; assumption).
-      rewrite Hltb.
+      rewrite Hltb. unfold Int.lt.
       rewrite zlt_true; [reflexivity | ].
-      rewrite Int.signed_repr; change Int.min_signed with (-2147483648); change Int.max_signed with (2147483647) in *; try omega. 
+      rewrite !Int.signed_repr; change Int.min_signed with (-2147483648); change Int.max_signed with (2147483647) in *; try omega. 
     }
     { subst initial_state_abs.
       assert (Hltb: 10000 <? reseed_counter = false) by (rewrite Z.ltb_nlt; assumption).
-      rewrite Hltb.
+      rewrite Hltb. unfold Int.lt.
       rewrite zlt_false; [reflexivity | ].
-      rewrite Int.signed_repr; change Int.min_signed with (-2147483648); change Int.max_signed with (2147483647) in *; try omega.
+      rewrite !Int.signed_repr; change Int.min_signed with (-2147483648); change Int.max_signed with (2147483647) in *; try omega.
     }
   }
 
@@ -1154,7 +1154,7 @@ Proof.
          { subst Frame; reflexivity. }
          subst Frame.
          subst after_reseed_add_len add_len initial_state. cancel.
-         clear POSTCONDITION. thaw FR3.
+         thaw FR3.
          unfold hmac256drbg_relate, hmac256drbgstate_md_info_pointer; simpl.
          subst initial_state_abs. normalize.
          apply andp_right. apply prop_right. repeat split; trivial.
