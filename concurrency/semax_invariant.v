@@ -274,7 +274,6 @@ Definition threads_safety {Z} (Jspec : juicy_ext_spec Z) m ge tp PHI (mcompat : 
       memory.  This means more proof for each of the synchronisation
       primitives. *)
       jsafe_phi Jspec ge n ora c (getThreadR cnti)
-        (* semax.jsafeN Jspec ge n ora c (jm_ cnti mcompat) *)
     | Kresume c v =>
       forall c',
         (* [v] is not used here. The problem is probably coming from
@@ -282,11 +281,10 @@ Definition threads_safety {Z} (Jspec : juicy_ext_spec Z) m ge tp PHI (mcompat : 
         cl_after_external None c = Some c' ->
         (* same quantification as in Kblocked *)
         jsafe_phi Jspec ge n ora c' (getThreadR cnti)
-       (* semax.jsafeN Jspec ge n ora c' (jm_ cnti mcompat) *)
     | Kinit v1 v2 =>
-      exists b func,
-      v1 = Vptr b Int.zero /\
-      Genv.find_funct_ptr ge b = Some (Internal func)
+      exists q_new,
+      cl_initial_core ge v1 (v2 :: nil) = Some q_new /\
+      jsafe_phi Jspec ge n ora q_new (getThreadR cnti)
     end.
 
 Definition threads_wellformed tp :=

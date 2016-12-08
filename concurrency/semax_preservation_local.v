@@ -844,7 +844,15 @@ Proof.
         omega.
         apply jsafe_phi_downward.
         assumption.
-      * auto.
+      * destruct safej as (q_new & Einit & safej). exists q_new; split; auto.
+        unfold tp'', tp'.
+        REWR.
+        REWR.
+        apply jsafe_phi_age_to; auto.
+        rewrite level_juice_level_phi.
+        omega.
+        apply jsafe_phi_downward.
+        assumption.
   
   - (* wellformedness *)
     intros j cntj.

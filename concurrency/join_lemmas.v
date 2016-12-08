@@ -956,6 +956,19 @@ Proof.
   apply Permutation_cons_app; auto.
 Qed.
 
+Lemma maps_addthread tp v1 v2 phi :
+  Permutation (maps (addThread tp v1 v2 phi))
+              (phi :: maps tp).
+Proof.
+  unfold maps.
+  change (phi :: getThreadsR tp ++ getLocksR tp)
+  with ((phi :: getThreadsR tp) ++ getLocksR tp).
+  apply Permutation_app_tail.
+  rewrite Permutation_cons_append.
+  rewrite getThreadsR_addThread.
+  apply Permutation_refl.
+Qed.
+
 Lemma maps_age_to i tp :
   maps (age_tp_to i tp) = map (age_to i) (maps tp).
 Proof.

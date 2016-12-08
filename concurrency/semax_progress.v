@@ -1487,24 +1487,17 @@ Section Progress.
     (* thread[i] is in Kinit *)
     {
       spec safety i cnti tt. rewrite Eci in safety.
-      destruct safety as (b & func & Ev1 & FindFun).
+      destruct safety as (q_new & Einit & safety).
       eexists(* ; split *).
       - constructor.
         apply JuicyMachine.start_step with (tid := i) (Htid := cnti).
         + reflexivity.
         + eapply mem_compatible_forget. eauto.
-        + eapply JuicyMachine.StartThread.
+        + eapply JuicyMachine.StartThread with (c_new := q_new).
           * apply Eci.
-          * simpl.
-            unfold initial_core in *.
-            unfold the_sem.
-            unfold SEM.Sem in *.
+          * replace (initial_core SEM.Sem) with cl_initial_core. auto.
+            unfold the_sem, SEM.Sem.
             rewrite SEM.CLN_msem.
-            simpl.
-            unfold cl_initial_core in *.
-            rewrite Ev1.
-            if_tac. 2:tauto.
-            rewrite FindFun.
             reflexivity.
           * constructor.
           * reflexivity.

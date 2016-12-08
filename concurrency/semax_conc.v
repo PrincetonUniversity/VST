@@ -1023,10 +1023,10 @@ Program Definition spawn_spec' := mk_funspec
                PROP ()
                (LOCALx (temp _y y :: map (fun x => gvar (fst x) (snd x)) (globals x))
                (SEP   (pre x y)))
-             POST [tptr tvoid]
+             POST [tvoid]
                PROP  ()
                LOCAL ()
-               SEP   (emp))
+               SEP   (FF))
            f);
          pre w b)
    end)
@@ -1058,7 +1058,7 @@ Definition spawn_spec :=
           (ty *                     (* WITH clause for spawned function *)
           (ty -> val -> Pred))%type}  (* precondition (postcondition is emp) *)
    PRE [_f OF tptr voidstar_funtype, _args OF tptr tvoid]
-     PROP ( )
+     PROP (expr.tc_val (tptr Tvoid) b)
      LOCAL (temp _args b; temp _f f)
      SEP
      (match PrePost with existT ty (_, pre) =>
@@ -1069,10 +1069,10 @@ Definition spawn_spec :=
             PROP ()
             (LOCALx (temp _y y :: map (fun x => gvar (fst x) (snd x)) (globals x))
             (SEP   (Interp (pre x y))))
-          POST [tptr tvoid]
+          POST [tvoid]
             PROP  ()
             LOCAL ()
-            SEP   (emp))
+            SEP   (FF))
        f)
       end;
         match PrePost with

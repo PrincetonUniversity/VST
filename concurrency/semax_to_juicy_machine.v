@@ -128,12 +128,16 @@ Proof.
   all: try (unshelve erewrite gsoThreadCode; eauto).
   all: try (unshelve erewrite <-gsoThreadCC; eauto).
 
-  destruct (@cntAdd' _ _ _ _ _ cnti) as [(cnti', ne) | Ei].
+  pose proof cnti as cnti_.
+  apply cnt_age in cnti_.
+  destruct (@cntAdd' _ _ _ _ _ cnti_) as [(cnti', ne) | Ei].
   unshelve erewrite gsoAddCode; eauto.
   rewrite gssThreadCode; congruence.
   rewrite gssAddCode. congruence. apply Ei.
   
-  destruct (@cntAdd' _ _ _ _ _ cnti) as [(cnti', ne) | Ei].
+  pose proof cnti as cnti_.
+  apply cnt_age in cnti_.
+  destruct (@cntAdd' _ _ _ _ _ cnti_) as [(cnti', ne) | Ei].
   unshelve erewrite gsoAddCode; eauto.
   unshelve erewrite gsoThreadCode; eauto.
   rewrite gssAddCode. congruence. apply Ei.

@@ -1430,6 +1430,13 @@ Definition cond_approx_eq n A P1 P2 :=
       fmap (dependent_type_functor_rec ts (AssertTT A)) (approx n) (approx n) (P1 ts) =
       fmap (dependent_type_functor_rec ts (AssertTT A)) (approx n) (approx n) (P2 ts)).
 
+Lemma cond_approx_eq_sym n A P1 P2 :
+  cond_approx_eq n A P1 P2 ->
+  cond_approx_eq n A P2 P1.
+Proof.
+  unfold cond_approx_eq; auto.
+Qed.
+
 Lemma cond_approx_eq_trans n A P1 P2 P3 :
   cond_approx_eq n A P1 P2 ->
   cond_approx_eq n A P2 P3 ->
@@ -1468,9 +1475,8 @@ Definition func_at'' fsig cc A P Q :=
 Definition matchfunspecs (ge : genv) (G : funspecs) (Phi : rmap) : Prop :=
   forall (b : block) fsig cc A P Q,
     func_at'' fsig cc A P Q (b, 0%Z) Phi ->
-    exists id (* func *) P' Q' P'_ne Q'_ne,
+    exists id P' Q' P'_ne Q'_ne,
       Genv.find_symbol ge id = Some b /\
-      (* Genv.find_funct_ptr ge b = Some ( func) /\ *)
       find_id id G = Some (mk_funspec fsig cc A P' Q' P'_ne Q'_ne) /\
       cond_approx_eq (level Phi) A P P' /\
       cond_approx_eq (level Phi) A Q Q'.

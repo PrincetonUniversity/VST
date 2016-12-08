@@ -3243,6 +3243,7 @@ Module Parching <: ErasureSig.
       }
       
       { (*match_st*)
+        apply match_st_age_tp_to.
         apply MTCH_addThread.
         - apply MTCH_update.
           + assumption.
@@ -3278,7 +3279,7 @@ Module Parching <: ErasureSig.
               try solve[intros delt; inversion delt].
             unfold eq_dec in DELT'.
             rewrite DELT' in f1b0; inversion f1b0.
-            destruct (perm_of_sh_pshare t p1).
+            destruct (perm_of_sh_pshare t p).
             rewrite H.
             destruct k; intros NADA; inversion NADA. }
           {
@@ -3313,7 +3314,6 @@ Module Parching <: ErasureSig.
           (* eapply bounded_maps.treemap_sub_map. *)
         * eapply bounded_maps.sub_map_and_shape;
           [eapply same_shape_map|].
-          rename p into pp.
           move=> p f1 HH.
           assert (HH':= HH).
           eapply bounded_maps.map_leq_apply in HH';
@@ -3389,7 +3389,7 @@ Module Parching <: ErasureSig.
               try solve[intros delt; inversion delt].
             unfold eq_dec in DELT'.
             rewrite DELT' in f1b0; inversion f1b0.
-            destruct (perm_of_sh_pshare t p1).
+            destruct (perm_of_sh_pshare t p).
             rewrite H.
             destruct k; intros NADA; inversion NADA. }
           {
@@ -3424,7 +3424,6 @@ Module Parching <: ErasureSig.
           (* eapply bounded_maps.treemap_sub_map. *)
         * eapply bounded_maps.sub_map_and_shape;
           [eapply same_shape_map|].
-          rename p into pp.
           move=> p f1 HH.
           assert (HH':= HH).
           eapply bounded_maps.map_leq_apply in HH';

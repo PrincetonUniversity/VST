@@ -974,17 +974,19 @@ Section Preservation.
       replace (initial_core SEM.Sem) with cl_initial_core in Hinitial
         by (unfold SEM.Sem; rewrite SEM.CLN_msem; reflexivity).
       rename m' into m.
-      unfold cl_initial_core in Hinitial.
       pose proof safety as safety'.
       spec safety i cnti tt. rewr (getThreadC i tp cnti) in safety.
-      destruct safety as (b & func & Ev1 & Find).
+      destruct safety as (c_new_ & E_c_new & safety).
       substwith ctn Htid.
       substwith Htid cnti.
       rewrite Eci in Hcode. injection Hcode as -> -> .
+      rewrite Hinitial in E_c_new. injection E_c_new as <-.
+      (*
       rewrite Ev1 in Hinitial.
       if_tac in Hinitial. 2:tauto.
       rewrite Find in Hinitial.
       injection Hinitial as <-.
+       *)
       
       right.
       
@@ -1018,14 +1020,14 @@ Section Preservation.
         f_equal.
         f_equal.
         apply proof_irr.
-      - simpl.
-        intros j cntj [].
+      - intros j cntj [].
         destruct (eq_dec i j) as [<-|ne].
         + REWR.
-          (* we already got what we could from the safety, but let's try again *)
-          spec safety' i cnti tt. rewrite Eci in safety'.
-          
-          admit. (* in lemma for kinit *)
+          apply safety.
+          rewrite m_phi_jm_.
+          REWR.
+          f_equal.
+          apply proof_irr.
         + REWR.
           spec safety' j cntj tt.
           simpl.
@@ -1044,13 +1046,12 @@ Section Preservation.
         + intros Ej. spec unique more j cntj q Ej. auto.
     }
     
-    
     all: jmstep_inv.
     all: try substwith ctn Htid.
     all: try substwith cnti Htid.
     all: try substwith cnt Htid.
     all: try congruence.
-  Admitted. (* Lemma preservation_Kinit *)
+  Qed. (* Lemma preservation_Kinit *)
   
   Theorem preservation Gamma n state state' :
     ~ blocked_at_external state CREATE ->
@@ -1302,7 +1303,7 @@ Section Preservation.
                  ++ REWR.
               -- REWR.
               -- REWR.
-              -- auto.
+              -- destruct safety as (q_new & Einit & safety). exists q_new; split; auto. REWR.
           
           + (* wellformed. *)
             intros i0 cnti0'.
@@ -1512,7 +1513,7 @@ Section Preservation.
              ++ intros; apply gThreadCR.
           -- REWR.
           -- REWR.
-          -- auto.
+          -- destruct safety as (q_new & Einit & safety). exists q_new; split; auto. REWR.
       
       + (* wellformed. *)
         intros i0 cnti0'.

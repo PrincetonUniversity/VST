@@ -172,6 +172,12 @@ Proof.
   rewrite age_to_ge; omega.
 Qed.
 
+Lemma level_age_to_le' k {A} `{agA : ageable A} x : level (age_to k x) <= k.
+Proof.
+  destruct (le_lt_dec k (level x)) as [l|l]. rewrite level_age_to; auto.
+  rewrite age_to_ge; omega.
+Qed.
+
 Lemma age_by_necR {A} `{agA : ageable A} n x : necR x (age_by n x).
 Proof.
   generalize (necR_refl x).

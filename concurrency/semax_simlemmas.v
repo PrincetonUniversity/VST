@@ -590,11 +590,6 @@ Proof.
     exists z'. split; auto. split; auto. apply necR_trans with y'; auto.
 Qed.
 
-(* todo remove (in juicy_safety) *)
-Lemma pures_eq_refl phi : pures_eq phi phi.
-Proof.
-Admitted.
-
 Lemma pures_same_matchfunspecs e Gamma phi1 phi2 :
   level phi1 = level phi2 ->
   pures_same phi1 phi2 ->
