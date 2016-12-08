@@ -478,8 +478,6 @@ Module MainSafety .
         simpl.
         rewrite /DryMachineSource.THE_DRY_MACHINE_SOURCE.DMS.DryMachine.invariant /ds_initial.
         
-        move : all_safe.
-        rewrite /semax_prog => [][] A [] B [] C [] D [] E [] F [] GG. 
         eapply DryMachineSource.THE_DRY_MACHINE_SOURCE.DryMachineLemmas.initial_invariant0.
 
         (* This comees from using the old initial_invariant lemma:
