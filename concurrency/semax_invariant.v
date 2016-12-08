@@ -459,7 +459,8 @@ Inductive state_invariant {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat) : cm_st
   | state_invariant_c
       (m : mem) (ge : genv) (sch : schedule) (tp : ThreadPool.t) (PHI : rmap)
       (lev : level PHI = n)
-      (gamma : matchfunspecs (filter_genv ge) Gamma PHI)
+      (semaxprog : exists prog CS V, @semax_prog {|OK_spec := Jspec|} CS prog V Gamma /\ ge = globalenv prog)
+      (gamma : matchfunspecs ge Gamma PHI)
       (mcompat : mem_compatible_with tp m PHI)
       (lock_sparse : lock_sparsity (lset tp))
       (lock_coh : lock_coherence' tp PHI m mcompat)
@@ -474,9 +475,9 @@ Lemma state_invariant_sch_irr {Z} (Jspec : juicy_ext_spec Z) Gamma n m ge i sch 
   state_invariant Jspec Gamma n (m, ge, (i :: sch', tp)).
 Proof.
   intros INV.
-  inversion INV as [m0 ge0 sch0 tp0 PHI lev gam compat sparse lock_coh safety wellformed uniqkrun H0];
+  inversion INV as [m0 ge0 sch0 tp0 PHI lev SP gam compat sparse lock_coh safety wellformed uniqkrun H0];
     subst m0 ge0 sch0 tp0.
-  refine (state_invariant_c Jspec Gamma n m ge (i :: sch') tp PHI lev gam compat sparse lock_coh safety wellformed _).
+  refine (state_invariant_c Jspec Gamma n m ge (i :: sch') tp PHI lev SP gam compat sparse lock_coh safety wellformed _).
   clear -uniqkrun.
   intros H i0 cnti q H0.
   destruct (uniqkrun H i0 cnti q H0) as [sch'' E].

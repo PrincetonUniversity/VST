@@ -103,7 +103,7 @@ Proof.
   assert (Hpos : (0 < LKSIZE)%Z) by reflexivity.
   intros ismakelock.
   intros I.
-  inversion I as [m ge sch_ tp Phi En gam compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
+  inversion I as [m ge sch_ tp Phi En gam SP compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
   unfold blocked_at_external in *.
   destruct ismakelock as (i & cnti & sch & ci & args & -> & Eci & atex).
   pose proof (safety i cnti tt) as safei.
@@ -518,6 +518,9 @@ Proof.
   unshelve eapply state_invariant_c with (PHI := age_to n Phi') (mcompat := mcompat').
   - (* level *)
     apply level_age_to. omega.
+  
+  - (* semaxprog *)
+    inv I; auto.
   
   - (* matchfunspecs *)
     apply matchfunspecs_age_to. omega.

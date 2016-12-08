@@ -110,7 +110,7 @@ Lemma preservation_acquire
   (Jspec' := @OK_spec (Concurrent_Espec unit CS ext_link))
   (Jspec'_juicy_mem_equiv : Jspec'_juicy_mem_equiv_def CS ext_link)
   (Jspec'_hered : Jspec'_hered_def CS ext_link)
-  (Gamma : PTree.t funspec)
+  (Gamma : funspecs)
   (n : nat)
   (ge : SEM.G)
   (m m' : Memory.mem)
@@ -121,7 +121,7 @@ Lemma preservation_acquire
   (Phi : rmap)
   (compat : mem_compatible_with tp m Phi)
   (lev : level Phi = S n)
-  (gam : matchfunspecs (filter_genv ge) Gamma Phi)
+  (gam : matchfunspecs ge Gamma Phi)
   (sparse : lock_sparsity (lset tp))
   (lock_coh : lock_coherence' tp Phi m compat)
   (safety : threads_safety Jspec' m ge tp Phi compat (S n))
@@ -247,6 +247,9 @@ Proof.
   apply state_invariant_c with (mcompat := compat').
   + (* level *)
     apply level_age_to. cleanup. omega.
+    
+  + (* semaxprog *)
+    inv INV; auto.
     
   + (* matchfunspecs *)
     revert gam.

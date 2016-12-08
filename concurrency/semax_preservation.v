@@ -744,8 +744,7 @@ Proof.
       intros ofs' int; specialize (R2 ofs' int).
       rewrite <-same_perm in R2; auto.
     + reflexivity.
-  - extensionality b ofs k.
-    extensionality p.
+  - extensionality b ofs k p.
     apply prop_ext; auto.
   - auto.
 Qed.
@@ -938,7 +937,7 @@ Section Preservation.
   Ltac substwith x y := assert (x = y) by apply proof_irr; subst x.
   
   Lemma preservation_Kinit
-  (Gamma : PTree.t funspec)
+  (Gamma : funspecs)
   (n : nat)
   (ge : SEM.G)
   (m m' : Memory.mem)
@@ -952,7 +951,7 @@ Section Preservation.
   (Phi : rmap)
   (compat : mem_compatible_with tp m Phi)
   (lev : @level rmap ag_rmap Phi = S n)
-  (gam : matchfunspecs (filter_genv ge) Gamma Phi)
+  (gam : matchfunspecs ge Gamma Phi)
   (sparse : @lock_sparsity LocksAndResources.lock_info (lset tp))
   (lock_coh : lock_coherence' tp Phi m compat)
   (safety : @threads_safety (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' m ge tp Phi compat (S n))
@@ -991,6 +990,7 @@ Section Preservation.
       
       unshelve eapply state_invariant_c with (PHI := Phi) (mcompat := _).
       2:assumption.
+      2:inv INV; assumption.
       2:assumption.
       2:assumption.
       
@@ -1066,7 +1066,7 @@ Section Preservation.
     (* apply state_invariant_S *)
     subst state state'; clear STEP.
     intros INV.
-    inversion INV as [m0 ge0 sch0 tp0 Phi lev gam compat sparse lock_coh safety wellformed unique E].
+    inversion INV as [m0 ge0 sch0 tp0 Phi lev SP gam compat sparse lock_coh safety wellformed unique E].
     subst m0 ge0 sch0 tp0.
     
     destruct sch as [ | i sch ].
@@ -1257,6 +1257,9 @@ Section Preservation.
           
           + (* matchfunspecs *)
             assumption.
+          
+          + (* semaxprog *)
+            auto.
           
           + (* lock sparsity *)
             auto.
@@ -1462,6 +1465,9 @@ Section Preservation.
       
       apply state_invariant_c with (PHI := Phi) (mcompat := compat').
       + (* level *)
+        assumption.
+      
+      + (* semaxprog *)
         assumption.
       
       + (* matchfunspecs *)

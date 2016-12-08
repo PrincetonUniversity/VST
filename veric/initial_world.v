@@ -456,8 +456,7 @@ f_equal.
 simpl.
 f_equal.
 change R.approx with approx.
-extensionality i0 ts b.
-extensionality rho.
+extensionality i0 ts b rho.
 rewrite fmap_app.
 pattern (approx n) at 7 8 9.
 rewrite <- approx_oo_approx.
@@ -1375,7 +1374,7 @@ change compcert_rmaps.R.rmap with rmap in *.
 rewrite lev'.
 unfold initial_core.
 rewrite level_make_rmap.
-extensionality ts x b; extensionality rho.
+extensionality ts x b rho.
 rewrite fmap_app.
 match goal with
 | |- ?A (?B ?C) = _ => change (A (B C)) with ((A oo B) C)
@@ -1466,18 +1465,18 @@ Qed.
 Definition func_at'' fsig cc A P Q :=
   pureat (SomeP (SpecTT A) (packPQ P Q)) (FUN fsig cc).
 
-Definition matchfunspecs (ge : genviron) (Gamma : PTree.t funspec) (Phi : rmap) : Prop :=
+Definition matchfunspecs (ge : genv) (G : funspecs) (Phi : rmap) : Prop :=
   forall (b : block) fsig cc A P Q,
     func_at'' fsig cc A P Q (b, 0%Z) Phi ->
-    exists id P' Q' P'_ne Q'_ne,
-      ge id = Some b /\
-      Gamma ! id = Some (mk_funspec fsig cc A P' Q' P'_ne Q'_ne) /\
+    exists id (* func *) P' Q' P'_ne Q'_ne,
+      Genv.find_symbol ge id = Some b /\
+      (* Genv.find_funct_ptr ge b = Some ( func) /\ *)
+      find_id id G = Some (mk_funspec fsig cc A P' Q' P'_ne Q'_ne) /\
       cond_approx_eq (level Phi) A P P' /\
       cond_approx_eq (level Phi) A Q Q'.
 
 Lemma initial_jm_matchfunspecs prog m G n H H1 H2:
-  matchfunspecs (filter_genv (globalenv prog)) (make_tycontext_s G)
-                (m_phi (initial_jm prog m G n H H1 H2)).
+  matchfunspecs (globalenv prog) G (m_phi (initial_jm prog m G n H H1 H2)).
 Proof.
   simpl.
   unfold inflate_initial_mem; simpl.
@@ -1526,7 +1525,6 @@ Proof.
   apply Genv.invert_find_symbol in Eb.
   unfold filter_genv in *.
   exists i, P0, Q0, P_ne0, Q_ne0.
-  rewrite make_tycontext_s_find_id.
   split. assumption.
   split. assumption.
   subst n.

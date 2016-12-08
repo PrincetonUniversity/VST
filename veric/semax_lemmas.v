@@ -381,7 +381,7 @@ Lemma semax_unfold {CS: compspecs}:
        guard Espec psi Delta' (fun rho => F rho * P rho) (Kseq c :: k) w.
 Proof.
 unfold semax; rewrite semax_fold_unfold.
-extensionality Delta P; extensionality c R.
+extensionality Delta P c R.
 apply prop_ext; split; intros.
 eapply (H w); eauto.
 split; auto. split; auto.

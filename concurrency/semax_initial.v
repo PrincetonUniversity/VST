@@ -96,7 +96,7 @@ Section Initial_State.
     destruct jm; simpl; auto.
   Qed.
   
-  Theorem initial_invariant n sch : state_invariant Jspec (make_tycontext_s G) n (initial_state n sch).
+  Theorem initial_invariant n sch : state_invariant Jspec G n (initial_state n sch).
   Proof.
     unfold initial_state.
     destruct init_m as [m Hm]; simpl proj1_sig; simpl proj2_sig.
@@ -164,6 +164,7 @@ Section Initial_State.
     }
     
     apply state_invariant_c with (PHI := m_phi jm) (mcompat := compat); auto.
+    - exists prog, CS, V; auto.
     
     - destruct (snd (projT2 (projT2 spr))) as (jm' & D  & H  & A & NL & MFS).
       apply MFS.

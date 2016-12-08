@@ -99,9 +99,9 @@ End ThreadPool.
 Module JMem.
 
   
-  Definition get_fun_spec' (jm:juicy_mem) (l:address) (v : val) : option (sigT (fun A => forall ts, rmaps.dependent_type_functor_rec ts A (pred rmap))).
+  Definition get_fun_spec' (phi:rmap) (l:address) (v : val) : option (sigT (fun A => forall ts, rmaps.dependent_type_functor_rec ts A (pred rmap))).
   Proof.
-    destruct jm. destruct (phi @ l) eqn:FUN.
+    destruct (phi @ l) eqn:FUN.
     - exact None.
     - destruct k.
       + exact None.
@@ -1312,7 +1312,7 @@ Qed.
             (Hpersonal_perm: 
                personal_mem (thread_mem_compatible Hcompatible cnt0) = jm)
             (p: forall ts: list Type, JMem.AType -> pred rmap)
-            (Hget_fun_spec': JMem.get_fun_spec' jm (b, Int.intval ofs) arg = Some (existT (fun A => forall ts: list Type, rmaps.dependent_type_functor_rec ts A (pred rmap)) (rmaps.ArrowType (rmaps.ConstType JMem.AType) rmaps.Mpred) p))
+            (Hget_fun_spec': JMem.get_fun_spec' (m_phi jm) (b, Int.intval ofs) arg = Some (existT (fun A => forall ts: list Type, rmaps.dependent_type_functor_rec ts A (pred rmap)) (rmaps.ArrowType (rmaps.ConstType JMem.AType) rmaps.Mpred) p))
             (Hget_fun_spec: JMem.get_fun_spec p = Some (P, Q))
             (Hsat_fun_spec: P d_phi)
             (Halmost_empty: almost_empty d_phi)

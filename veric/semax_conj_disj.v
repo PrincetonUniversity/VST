@@ -148,7 +148,7 @@ Lemma semax_unfold' {CS: compspecs}:
 Proof.
   intros.
   rewrite semax_unfold.
-  extensionality Delta P; extensionality c R.
+  extensionality Delta P c R.
   apply prop_ext; split; intros; rename w into n.
   1: apply H; auto.
   specialize (H psi Delta' n TS HGG Prog_OK k).

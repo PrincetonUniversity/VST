@@ -1009,8 +1009,7 @@ Definition semax_prog
   cenv_cs = prog_comp_env prog /\
   @semax_func Espec V G C (prog_funct prog) G /\
   match_globvars (prog_vars prog) V = true /\
-  In (prog.(prog_main), main_spec prog) G /\
-  veric.semax_prog.is_Internal prog (prog_main prog) = true.
+  In (prog.(prog_main), main_spec prog) G.
 
 Axiom semax_func_nil:   forall {Espec: OracleKind}, 
         forall V G C, @semax_func Espec V G C nil nil.

@@ -97,7 +97,7 @@ Lemma yesat_raw_eq: yesat_raw =
    (yesat_raw_eq_aux pp k rsh sh l)) : pred rmap).
 Proof.
 unfold yesat_raw.
-extensionality pp k; extensionality rsh sh l.
+extensionality pp k rsh sh l.
 apply exist_ext.
 extensionality phi.
 apply prop_ext; split; intros.
@@ -212,7 +212,7 @@ Lemma yesat_eq: yesat = fun pp k rsh sh l =>
    (yesat_eq_aux pp k rsh sh l).
 Proof.
 unfold yesat.
-extensionality pp k; extensionality rsh sh l.
+extensionality pp k rsh sh l.
 apply exist_ext. extensionality w.
 apply exists_ext; intro p.
 rewrite yesat_raw_eq.

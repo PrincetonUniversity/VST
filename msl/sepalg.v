@@ -764,9 +764,7 @@ Lemma PermAlg_ext:
 Proof. intros.
 destruct sa1, sa2.
 f_equal; try apply proof_irr.
-extensionality a b c.
-extensionality d e.
-extensionality H1 H2.
+extensionality a b c d e H1 H2.
 destruct (join_assoc1 a b c d e H1 H2) as [f [? ?]].
 destruct (join_assoc0 a b c d e H1 H2) as [f0 [? ?]].
 apply existT_ext.

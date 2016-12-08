@@ -246,32 +246,46 @@ Definition Tint32s := Tint I32 Signed noattr.
 Definition true_expr : Clight.expr := Clight.Econst_int Int.one Tint32s.
 
 Fixpoint typed_params (i: positive) (n: nat) : list (ident * type) :=
- match n with
- | O => nil
- | S n' => (i, Tint32s) :: typed_params (i+1)%positive n'
- end.
+  match n with
+  | O => nil
+  | S n' => (i, Tint32s) :: typed_params (i+1)%positive n'
+  end.
 
 Fixpoint params_of_types (i: positive) (l : list type) : list (ident * type) :=
- match l with
- | nil => nil
- | t :: l => (i, t) :: params_of_types (i+1)%positive l
- end.
+  match l with
+  | nil => nil
+  | t :: l => (i, t) :: params_of_types (i+1)%positive l
+  end.
+
+Fixpoint typelist2list (tl: typelist) : list type :=
+  match tl with
+  | Tcons t r => t::typelist2list r
+  | Tnil => nil
+  end.
+
+Definition params_of_fundef (f: fundef) : list type :=
+  match f with
+  | Internal {| fn_params := fn_params |} => map snd fn_params
+  | External _ t _ _ => typelist2list t
+  end.
 
 Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option corestate := 
   match v with
     Vptr b i =>
     if Int.eq_dec i Int.zero then
       match Genv.find_funct_ptr ge b with
-          Some (Internal func) =>
-          Some (State empty_env (temp_bindings 1%positive (v::args))
-                      (Kseq (Scall None 
-                                   (Etempvar 1%positive (Tfunction (type_of_params func.(fn_params)) Tvoid cc_default))
-                                   (map (fun x => Etempvar (fst x) (snd x))
-                                        (params_of_types 2%positive (map snd func.(fn_params))))) ::
-                            Kseq (Sloop Sskip Sskip) :: nil))
+        Some f =>
+        Some (State empty_env (temp_bindings 1%positive (v::args))
+                    (Kseq (Scall None
+                                 (Etempvar 1%positive (type_of_fundef f))
+                                 (map (fun x => Etempvar (fst x) (snd x))
+                                      (params_of_types 2%positive 
+                                                       (params_of_fundef f)))) ::
+                          Kseq (Sloop Sskip Sskip) :: nil))
       | _ => None end
-    else  None
-  | _ => None end.
+    else None
+  | _ => None
+  end.
 
 Lemma cl_corestep_not_at_external:
   forall ge m q m' q', cl_step ge q m q' m' -> cl_at_external q = None.
