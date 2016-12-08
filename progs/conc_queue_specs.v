@@ -237,14 +237,6 @@ Proof.
   rewrite data_at_rec_eq; simpl; auto.
 Qed.
 
-Lemma Znth_inbounds : forall {A} i (l : list A) d, Znth i l d <> d -> 0 <= i < Zlength l.
-Proof.
-  intros.
-  destruct (zlt i 0); [contradiction H; apply Znth_underflow; auto|].
-  destruct (Z_lt_dec i (Zlength l)); [omega|].
-  rewrite Znth_overflow in H; [contradiction H; auto | omega].
-Qed.
-
 Lemma interleave_single : forall {A} (l l' : list A), interleave [l] l' = (l' = l).
 Proof.
   intros; apply prop_ext; split; intro; subst.

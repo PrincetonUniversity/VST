@@ -17,6 +17,7 @@ Require Import hmacdrbg.HMAC_DRBG_pure_lemmas.
 Require Import hmacdrbg.spec_hmac_drbg.
 Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
 Require Import hmacdrbg.spec_hmac_drbg_pure_lemmas.
+Require Import floyd.library.
 
 Lemma ReseedRes: forall X r v, @return_value_relate_result X r (Vint v) -> Int.eq v (Int.repr (-20864)) = false.
 Proof. intros.
@@ -73,7 +74,7 @@ Definition hmac_drbg_seed_spec :=
                   (*hmac256drbg_relate CTX Ctx *) preseed_relate VV rc pr ri Ctx * 
                   Stream s
             else md_empty (fst Ctx) * 
-                 EX p:val, FreeBLK (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+                 EX p:val, malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
                  match (fst Ctx) with (M1, (M2, M3)) =>
                    if (zlt 256 (Zlength Data) || (zlt 384 ((*hmac256drbgabs_entropy_len initial_state_abs*)48 + Zlength Data)))%bool
                    then !!(ret_value = Int.repr (-5)) && 
@@ -137,7 +138,7 @@ Proof.
    temp _custom data; gvar sha._K256 kv)
    SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr))p && 
           memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
-          FreeBLK (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+          malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
           data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info,(M2,p)) (Vptr b i));
          FRZL FR0)).
   { destruct Hv; try omega. rewrite if_false; trivial. clear H. subst v.
@@ -200,7 +201,6 @@ Proof.
   thaw FIELDS1. forward.
   freeze [0;4;5;6;7] FIELDS2.
   freeze [0;1;2;3;4;5;6;7;8;9] ALLSEP.
-
 (*  set (ent_len := new_ent_len (Zlength V0)) in *.*)
 
   forward_if 
@@ -208,21 +208,22 @@ Proof.
    LOCAL (temp _md_size (Vint (Int.repr 32)); temp _ctx (Vptr b i); temp _md_info info;
    temp _len (Vint (Int.repr (Zlength Data))); temp _custom data; gvar sha._K256 kv;
    temp _t'4 (Vint (Int.repr 32)))
-   SEP (FRZL ALLSEP)).
-  { forward. entailer. }
-  { forward_if 
+   SEP (FRZL ALLSEP)). 
+  { elim H; trivial. }
+  { clear H.
+    forward_if 
      (PROP ( )
       LOCAL (temp _md_size (Vint (Int.repr 32)); 
              temp _ctx (Vptr b i); temp _md_info info;
              temp _len (Vint (Int.repr (Zlength Data))); temp _custom data; gvar sha._K256 kv;
              temp _t'4 (Vint (Int.repr 32)))  
       SEP (FRZL ALLSEP)).
-    { forward. forward. entailer. }
-    { forward. forward. entailer. }
-    { intros. (*FLOYD ERROR: entailer FAILS HERE*) 
+    { elim H; trivial. }
+    { clear H. forward. forward. entailer. }
+    { intros.  (*FLOYD ERROR: entailer FAILS HERE*) 
       unfold overridePost.
       destruct (eq_dec ek EK_normal).
-      { subst ek. (*entailer. STILL FAILS*) unfold POSTCONDITION, abbreviate.
+      { subst ek.  (*entailer. STILL FAILS*) unfold POSTCONDITION, abbreviate.
         normalize. (*simpl. intros.*) apply andp_left2. normalize.
         old_go_lower.
         normalize. Time entailer. }
@@ -351,4 +352,4 @@ Proof.
   Exists p. normalize.
   apply andp_right. apply prop_right; repeat split; trivial. 
   unfold_data_at 1%nat. cancel.
-Time Qed. (*64.171 secs (54.5u,0.031s) (successful)*)
+Time Qed. (*Finished transaction in 65.157 secs (57.171u,0.031s) (successful)*)

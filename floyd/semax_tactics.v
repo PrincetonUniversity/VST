@@ -173,6 +173,63 @@ match goal with
    constr_eq DS DS'
 end.
 
+
+  Fixpoint ptree_set {A : Type} (i : positive) (v : A) (m : PTree.t A) {struct i} : PTree.t A :=
+    match m with
+    | PTree.Leaf =>
+        match i with
+        | xH => PTree.Node PTree.Leaf (Some v) PTree.Leaf
+        | xO ii => PTree.Node (ptree_set ii v PTree.Leaf) None PTree.Leaf
+        | xI ii => PTree.Node PTree.Leaf None (ptree_set ii v PTree.Leaf)
+        end
+    | PTree.Node l o r =>
+        match i with
+        | xH => PTree.Node l (Some v) r
+        | xO ii => PTree.Node (ptree_set ii v l) o r
+        | xI ii => PTree.Node l o (ptree_set ii v r)
+        end
+    end.
+
+Ltac simplify_func_tycontext_core :=
+ match goal with |- @semax _ _ ?DD ?Pre ?Body ?Post =>  
+  match DD with context [(func_tycontext ?f ?V ?G)] =>
+    let Pre' := fresh "Pre" in set (Pre':=Pre) at 1;
+    let Body' := fresh "Body" in set (Body':=Body) at 1;
+    let Post' := fresh "Post" in set (Post':=Post) at 1;
+    let D1 := fresh "D1" in let Delta := fresh "Delta" in 
+    set (Delta := func_tycontext f V G);
+    set (D1 := func_tycontext f V G) in Delta;
+    change D1 with (@abbreviate tycontext D1) in Delta;
+    unfold func_tycontext, make_tycontext in D1;
+    let S1 := fresh "S1" in let DS := fresh "Delta_specs" in
+    revert Delta;
+    set (DS := make_tycontext_s G) in D1;
+    revert D1;
+    set (S1 := make_tycontext_s G) in DS;
+    change S1 with (@abbreviate (PTree.t funspec) S1) in DS;
+    intros D1 Delta;
+    lazy beta iota zeta delta - [DS] in D1; subst D1;
+    hnf in S1;
+    revert S1 DS Delta;
+    repeat match goal with |- let _ := ?A in _ =>
+      match A with context [@snd ident funspec ?B] =>
+          cbv delta [B]
+     end
+    end;
+    intros S1 DS Delta;
+    change (@snd ident funspec) with 
+           (fun (p: ident*funspec) => let (_,y):=p in y) in S1;
+    change (@PTree.set funspec) with (@ptree_set funspec) in S1;
+    cbv beta iota delta [ptree_set] in S1;
+    subst S1 Pre' Body' Post'
+   end
+ end.
+
+Ltac simplify_func_tycontext := 
+ ensure_no_augment_funspecs;
+ simplify_func_tycontext_core;
+ check_ground_Delta.
+(*
 Ltac simplify_func_tycontext :=
  ensure_no_augment_funspecs;
  match goal with |- @semax _ _ ?DD ?Pre ?Body ?Post =>  
@@ -201,6 +258,7 @@ Ltac simplify_func_tycontext :=
     check_ground_Delta
    end
  end.
+*)
 
 Ltac simplify_Delta :=
 match goal with 
@@ -218,7 +276,7 @@ match goal with
      change e with (@abbreviate (PTree.t funspec) e) in DS;
      let D := fresh "Delta" in set (D := mk_tycontext a b c d DS);
      change (mk_tycontext a b c d DS) with (@abbreviate _ (mk_tycontext a b c d DS)) in D
- | |- _ => simplify_func_tycontext; simplify_Delta
+ | |- _ => simplify_func_tycontext_core; simplify_Delta
  | |- semax ?D _ _ _ =>
      match D with
      | context [initialized ?i (mk_tycontext ?a ?b ?c ?d ?e)] =>

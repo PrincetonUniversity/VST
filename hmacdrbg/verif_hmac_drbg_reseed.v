@@ -311,11 +311,11 @@ Proof.
     {
       (* match up SEP clauses *)
       change (fst (Tsh, Tsh)) with Tsh;
-      change (snd (Tsh, Tsh)) with Tsh.
+      change (snd (Tsh, Tsh)) with Tsh. 
       (*change (@data_at spec_sha.CompSpecs Tsh (tarray tuchar (@Zlength Z contents))
          (@map int val Vint (@map Z int Int.repr contents)) additional) with (@data_at hmac_drbg_compspecs.CompSpecs Tsh (tarray tuchar (@Zlength Z contents))
          (@map int val Vint (@map Z int Int.repr contents)) additional).*)
-      clear POSTCONDITION. cancel. my_thaw FR6.
+      cancel. my_thaw FR6.
       rewrite XH1; cancel.
     }
     {

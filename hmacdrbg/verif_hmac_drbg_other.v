@@ -35,8 +35,8 @@ Proof.
        LOCAL (temp _ctx (Vptr b i))
        SEP (data_at Tsh t_struct_hmac256drbg_context_st CTX (Vptr b i);
             hmac256drbg_relate ABS CTX; (*FreeBLK*)malloc_token Tsh 324 (snd (snd (fst CTX))))).
-    + inv H.
-    + forward. entailer!.
+    + elim H; trivial. 
+    + clear H. forward. entailer!.
     + destruct CTX as [C1 [C2 [C3 [C4 [C5 C6]]]]]. simpl.
       assert_PROP (field_compatible t_struct_hmac256drbg_context_st [] (Vptr b i)) as FC by entailer!.
       unfold_data_at 1%nat.
@@ -49,14 +49,18 @@ Proof.
       destruct  H1 as [xx XX].
       forward_seq.
         forward_seq.
-          { (* forward_call (Vptr b i, (v, (v0, v1))).*)
+          { (*forward_call (Vptr b i, (v, (v0, v1))).*)
              eapply (@semax_call_id00_wow (rmaps.ConstType (val * reptype t_struct_md_ctx_st))
                         (Vptr b i, xx) [FRZL FR]) 
              with (B:= (Prop*mpred)%type)
                   (Ppost:=fun x => [fst x])
                   (Rpost:=fun x => [data_at Tsh t_struct_md_ctx_st xx (Vptr b i)]);
-              trivial ; try reflexivity.
+              trivial ; try reflexivity. constructor; try reflexivity. simpl. split. reflexivity. reflexivity.
+              reflexivity.
             + entailer!. 
+            + reflexivity.
+            + reflexivity.
+            + reflexivity.
             + entailer!. constructor. constructor. constructor.   
             + entailer!. constructor. 
             + subst xx. simpl. cancel.
@@ -65,6 +69,7 @@ Proof.
                 unfold PROPx, LOCALx, SEPx. simpl. entailer.
               - Intros z. destruct z as [P M]. simpl. 
                 unfold PROPx, LOCALx, SEPx. simpl. entailer.
+            + simpl; trivial.
           }
           { Intros q. destruct q as [P M]. simpl. Intros. 
             replace_SEP 0 (memory_block Tsh 12 (Vptr b i)).
@@ -124,7 +129,12 @@ Proof.
                         (sizeof (Tstruct _mbedtls_hmac_drbg_context noattr), Vptr b i) nil)
              with (B:= (Prop*mpred)%type)(Ppost:=fun x => [fst x])
                   (Rpost:=fun x => [data_block Tsh (list_repeat 60 0) (Vptr b i)]); trivial; try reflexivity.
+            + constructor; try reflexivity. split; reflexivity.
+            + reflexivity.
             + entailer!. 
+            + reflexivity.
+            + reflexivity.
+            + reflexivity.
             + entailer!. repeat constructor. 
             + entailer!. constructor. 
             + simpl. cancel. 
@@ -134,8 +144,8 @@ Proof.
               - Intros z. destruct z as [PP MM]. simpl. 
                 unfold PROPx, LOCALx, SEPx. simpl. entailer.
             + simpl; split; trivial. rewrite int_max_unsigned_eq. omega. 
-          }
-          normalize. apply extract_exists_pre. intros z. destruct z as [PP MM]. simpl.
+          } 
+          Intros z; destruct z as [PP MM]; simpl.
           forward. apply tt. 
         }
 Qed. 
