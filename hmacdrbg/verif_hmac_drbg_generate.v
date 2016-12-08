@@ -989,9 +989,7 @@ Proof.
     forward. subst after_reseed_add_len. rewrite H2, HIS in *. clear H2 HIS.
     Exists initial_state. entailer!. thaw FR2. cancel.
   }
-
-  Intros ctx1. (*normalize. (*FAILS*)
-  Intros. (*FAILS*)*)
+  clear FR2. Intros ctx1. 
 
   assert (HIC: exists IC: reptype t_struct_mbedtls_md_info, IC = info_contents).
   { exists info_contents; trivial. }
@@ -1021,13 +1019,11 @@ Proof.
             prediction_resistance reseed_interval)
          (contents_with_add additional (Zlength contents) contents)) as RS.
       destruct RS.
-      - destruct d as [[[[Val1 Key1] ?] ?] ? ?]. Exists Key1. normalize.
-        apply andp_right. apply prop_right; repeat split; trivial. subst IC.
-        cancel.
+      - destruct d as [[[[Val1 Key1] ?] ?] ? ?]. Exists Key1. subst IC. clear. normalize.
+        apply andp_right. apply prop_right; repeat split; trivial. cancel.
       - normalize. (*contradiction -- FF on LHS*)
-    + Exists key; unfold mkKEY1. normalize.
-      apply andp_right. apply prop_right; repeat split; trivial. subst IC.
-      cancel.
+    + Exists key; unfold mkKEY1. subst IC. normalize.
+      apply andp_right. apply prop_right; repeat split; trivial. cancel.
   }
   Intros key1. rename H2 into KEY1.
 
@@ -1069,7 +1065,6 @@ Proof.
   }
   Intros stream1. rename H2 into STREAM1.
 
-  clear FR2.
   freeze [1;3;6] FR3.
   freeze [0;1;3;4] FR4.
 
@@ -1154,13 +1149,9 @@ Proof.
          { subst Frame; reflexivity. }
          subst Frame.
          subst after_reseed_add_len add_len initial_state. cancel.
-         thaw FR3.
-         unfold hmac256drbg_relate, hmac256drbgstate_md_info_pointer; simpl.
-         subst initial_state_abs. normalize.
-         apply andp_right. apply prop_right. repeat split; trivial.
-         cancel. subst IS IC. cancel.
+         thaw FR3. subst IS IC.
+         unfold hmac256drbg_relate, hmac256drbgstate_md_info_pointer; simpl. cancel. entailer!. 
        }
-(*       { repeat split; trivial; omega. }*)
        { (*subst na.*)subst after_reseed_add_len.  entailer. Exists b0 i0.
          apply andp_right. entailer!.
          cancel. 
@@ -1172,7 +1163,7 @@ Proof.
          thaw FR3. cancel. 
        }
      }
-     { forward. rewrite H2 in *. entailer. cancel. }
+     { clear - H2. forward. rewrite H2 in *. entailer. cancel. }
 
 (* IT'S PATHETIC THAT WE NEED TO INTRDUCE ctx2' AND a predicate CTXeq to wotk around FLOYD'S typechecker!!*)
 apply semax_pre with (P' := EX ctx2:reptype t_struct_hmac256drbg_context_st, EX key2:list Z,
@@ -1194,8 +1185,7 @@ apply semax_pre with (P' := EX ctx2:reptype t_struct_hmac256drbg_context_st, EX 
    temp _prediction_resistance (Val.of_bool prediction_resistance); temp _out output;
    temp _left (Vint (Int.repr out_len)); temp _ctx (Vptr b i); temp _p_rng (Vptr b i);
    temp _output output; temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
-   temp _add_len (Vint (Int.repr after_reseed_add_len)); gvar sha._K256 kv;
-   temp _t'4 (Val.of_bool should_reseed); temp _t'5 (Val.of_bool na))
+   temp _add_len (Vint (Int.repr after_reseed_add_len)); gvar sha._K256 kv)
    SEP (FRZL FR3; K_vector kv;
    da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional;
    data_at Tsh t_struct_hmac256drbg_context_st ctx2 (Vptr b i) * md_full key2 (mc1, (mc2, mc3)))).
@@ -1248,8 +1238,7 @@ apply semax_pre with (P':=
    temp _out output; temp _left (Vint (Int.repr out_len)); 
    temp _ctx (Vptr b i); temp _p_rng (Vptr b i); temp _output output;
    temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
-   temp _add_len (Vint (Int.repr after_reseed_add_len)); gvar sha._K256 kv;
-   temp _t'4 (Val.of_bool should_reseed); temp _t'5 (Val.of_bool na))
+   temp _add_len (Vint (Int.repr after_reseed_add_len)); gvar sha._K256 kv)
    SEP (data_at_ Tsh (tarray tuchar out_len) output; Stream stream1; 
      K_vector kv;
      da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional;
@@ -1297,18 +1286,17 @@ apply semax_pre with (P':=
       destruct M; try contradiction. 
       destruct d as [[[[AA BB] CC] DD] EE]. subst BB s0 (*ctx1*).
       unfold hmac256drbgabs_reseed in Heqh. subst initial_state_abs. subst add_len. rewrite <- HeqM in Heqh. 
-      subst h. unfold hmac256drbgabs_reseed. rewrite <- HeqM. simpl. cancel. 
-      unfold  postReseedCtx in CTX1. rewrite <- HeqM in CTX1. subst ctx1. cancel.
+      subst h. unfold hmac256drbgabs_reseed. rewrite <- HeqM. simpl.
+      unfold  postReseedCtx in CTX1. rewrite <- HeqM in CTX1. subst ctx1.
+      cancel. entailer!. 
       { unfold mbedtls_HMAC256_DRBG_reseed_function, HMAC256_DRBG_reseed_function, DRBG_reseed_function in HeqM.
         subst contents'. rewrite andb_negb_r, ZLa in HeqM. 
-        destruct (get_entropy 32(*256*) entropy_len entropy_len prediction_resistance s); inv HeqM. normalize. 
+        destruct (get_entropy 32(*256*) entropy_len entropy_len prediction_resistance s); inv HeqM.
         remember(HMAC_DRBG_update HMAC256
            (l ++ contents_with_add additional (Zlength contents) contents) key V) as h.
-        destruct h; inv H10. 
-        apply andp_right. apply prop_right. repeat split; trivial.
+        destruct h; inv H6. split; trivial.
            eapply HMAC_DRBG_update_value; eassumption. 
            eapply HMAC_DRBG_update_value; eassumption.
-        cancel. 
       }
     - subst stream1 key1 initial_state_abs h ctx1 IS. simpl. cancel. entailer!.
 }
@@ -2133,5 +2121,8 @@ Transparent HMAC256_DRBG_generate_function.
        unfold HMAC_DRBG_update in Heqq. inv Heqq. simpl. normalize.
        apply andp_right. apply prop_right. repeat split; trivial. cancel.
        unfold_data_at 1%nat. cancel.
-Time Qed. (*157.766 secs (138.203u,0.093s) if loopbody is solved by exfalso; apply FALSE*)
-(*189.172 secs (159.14u,0.171s) (successful), and 12m30s compilation time when loopbody proof is inlined*)
+Time Qed. 
+(*Coq8.5pl2, Dec7th: 
+  CoqIde(Windows): 152.187 secs (152.u,0.156s) (successful) 1.87GB memory use
+  coqc(Windows):  147.858 secs (147.64u,0.14s) (successful),
+                  10m36s compilation time; 1.7GB memory use*)
