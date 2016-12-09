@@ -1,4 +1,5 @@
 Require Import floyd.proofauto.
+Require Import floyd.reassoc_seq.
 Require Import aes.aes.
 Require Import aes.tablesLL.
 Require Import aes.aes_spec_ll.
@@ -87,7 +88,7 @@ Opaque field_address.
 Lemma body_aes_encrypt: semax_body Vprog Gprog f_mbedtls_aes_encrypt encryption_spec_ll.
 Proof.
   start_function.
-  (* TODO floyd: put (Sreturn None) in such a way that the code can be folded into MORE_COMMANDS *)
+  reassoc_seq.
 
   (* RK = ctx->rk; *)
   forward.
@@ -132,76 +133,6 @@ Proof.
     reflexivity.
   }
 
-(*
-  GET_UINT32_LE_tac. simpl. forward. forward. forward. simpl.
-
-change ((if field_compatible_dec t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx
-          then offset_val (nested_field_offset t_struct_aesctx [ArraySubsc 0; StructField _buf]) ctx
-          else Vundef))
-with (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx).
-Locate "_ ! _".
-
-Definition nosimpl {T: Type} (x: T) := x.
-Lemma nosimpl_def: forall {T: Type} (x: T), nosimpl x = x. Proof. intros. reflexivity. Qed.
-
-Global Opaque nosimpl.
-
-Eval simpl in (nosimpl (4 + (5 * 3))).
-
-
-Ltac my_hnf e := let e' := eval hnf in e in idtac e'.
-
-my_hnf (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx).
-
-Opaque field_address.
-
-my_hnf (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx).
-
-Arguments nosimpl _ _ : simpl never.
-
-Notation "'nosimpl' t" := (match tt with tt => t end)
- (at level 10).
-
-
-
-eval_var
-eval_id
-eval_lvalue
-eval_unop
-typeof
-liftx
-eval_binop
-eval_cast
-eval_field
-sizeof
-alignof
-
-
-
-
-
-Global Opaque field_address.
-unfold field_address.
-
-
-eval_expr
-
-Eval hnf in (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx).
-
-
- entailer!.
-change ((if field_compatible_dec t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx
-          then offset_val (nested_field_offset t_struct_aesctx [ArraySubsc 0; StructField _buf]) ctx
-          else Vundef))
-with (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx).
-
-
- simpl.
-
-    rewrite Eq by omega; simpl.
-    forward2. forward.
-*)
-
   Time do 4 (
     GET_UINT32_LE_tac; simpl; forward; forward; forward; simpl;
     rewrite Eq by omega; simpl;
@@ -230,12 +161,14 @@ with (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx).
   rewrite EqX0. rewrite EqX1. rewrite EqX2. rewrite EqX3.
   clear EqX0 EqX1 EqX2 EqX3.
 
+  forward. (* here, the goal is huge, because the first command is an Sfor *)
+
 unfold Sfor.
 
 (* beginning of for loop *)
 
-(* initialisation of i is two steps: *)
-forward. forward.
+(* initialisation of i: *)
+forward.
 
 (* ugly hack to avoid type mismatch between
    "(val * (val * list val))%type" and "reptype t_struct_aesctx" *)
@@ -312,6 +245,7 @@ eapply semax_seq' with (P' :=
   ))).
 { (* loop body *) 
 Intro i.
+reassoc_seq.
 
 forward_if
   (EX i: Z, PROP ( 
