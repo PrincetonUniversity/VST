@@ -644,9 +644,11 @@ remember (mbed_tls_aes_enc plaintext buf) as Res.
 unfold tables_initialized.
 entailer!.
 }
-(* verifying until here takes about 1 hour and 4.5 GB of memory *)
+(* verifying until here takes about 1 hour and 3.1 GB of memory *)
 
-Time Qed. (* Increases memory usage from 4.5 GB to 7.6 GB, then out of memory *)
+Time Qed. (* Increases memory usage from 3.1 GB to 6.7 GB, and finishes in 448s *)
+
+Print Assumptions body_aes_encrypt.
 
 (* TODO floyd: sc_new_instantiate: distinguish between errors caused because the tactic is trying th
    wrong thing and errors because of user type errors such as "tuint does not equal t_struct_aesctx" *)
