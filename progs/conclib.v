@@ -574,6 +574,23 @@ Proof.
   rewrite IHl1; auto.
 Qed.
 
+Lemma combine_const1 : forall {A B} (l1 : list A) (x : B) n, Z.of_nat n >= Zlength l1 ->
+  combine l1 (repeat x n) = map (fun a => (a, x)) l1.
+Proof.
+  induction l1; auto; simpl; intros.
+  rewrite Zlength_cons in *; destruct n; [rewrite Zlength_correct in *; simpl in *; omega | simpl].
+  rewrite IHl1; auto.
+  rewrite Nat2Z.inj_succ in *; omega.
+Qed.
+
+Lemma combine_const2 : forall {A B} (x : A) n (l2 : list B), Z.of_nat n >= Zlength l2 ->
+  combine (repeat x n) l2 = map (fun b => (x, b)) l2.
+Proof.
+  induction n; destruct l2; auto; intros; rewrite ?Nat2Z.inj_succ, ?Zlength_nil, ?Zlength_cons in *;
+    simpl in *; try (rewrite Zlength_correct in *; omega).
+  rewrite IHn; auto; omega.
+Qed.
+
 Lemma upd_Znth_triv : forall {A} i (l : list A) x d (Hi : 0 <= i < Zlength l),
   Znth i l d = x -> upd_Znth i l x = l.
 Proof.
@@ -782,6 +799,22 @@ Proof.
   - rewrite !upd_Znth_diff; rewrite upd_Znth_Zlength in Hj; auto; omega.
 Qed.
 
+Lemma upd_Znth_twice : forall {A} i l (x y : A), 0 <= i < Zlength l ->
+  upd_Znth i (upd_Znth i l x) y = upd_Znth i l y.
+Proof.
+  intros; unfold upd_Znth.
+  rewrite !sublist_app; rewrite ?Zlength_app, ?Zlength_cons, ?Zlength_sublist; try omega.
+  rewrite 2Z.min_l, 2Z.min_r, 2Z.max_r, 2Z.max_l; try omega.
+  rewrite !sublist_nil, app_nil_r; simpl.
+  rewrite sublist_S_cons, !sublist_sublist; try omega.
+  f_equal; f_equal; [|f_equal]; omega.
+Qed.
+
+Lemma hd_Znth : forall {A} d (l : list A), hd d l = Znth 0 l d.
+Proof.
+  destruct l; auto.
+Qed.
+
 Lemma NoDup_filter : forall {A} (f : A -> bool) l, NoDup l -> NoDup (filter f l).
 Proof.
   induction l; simpl; intros; auto.
@@ -918,6 +951,14 @@ Proof.
   induction b; intros; inv Hc; inv Hc'; auto.
   assert (w0 = w1) by (eapply sepalg.join_eq; eauto).
   subst; eapply IHb; eauto.
+Qed.
+
+Lemma readable_share_list_join : forall sh shs sh', sepalg_list.list_join sh shs sh' ->
+  readable_share sh \/ Exists readable_share shs -> readable_share sh'.
+Proof.
+  induction 1; intros [? | Hexists]; try inv Hexists; auto.
+  - apply IHfold_rel; left; eapply readable_share_join; eauto.
+  - apply IHfold_rel; left; eapply readable_share_join; eauto.
 Qed.
 
 Lemma sublist_0_cons' : forall {A} i j (x : A) l, i <= 0 -> j > i -> sublist i j (x :: l) =
@@ -1783,6 +1824,14 @@ Proof.
   rewrite <- sepcon_assoc, (sepcon_comm _ (Znth i l FF)).
   unfold upd_Znth; rewrite sepcon_app, sepcon_assoc; simpl.
   rewrite emp_sepcon; auto.
+Qed.
+
+Lemma replace_nth_sepcon : forall P l i, P * fold_right sepcon emp (upd_Znth i l emp) =
+  fold_right sepcon emp (upd_Znth i l P).
+Proof.
+  intros; unfold upd_Znth.
+  rewrite !sepcon_app; simpl.
+  rewrite emp_sepcon, <- !sepcon_assoc, (sepcon_comm P); auto.
 Qed.
 
 Lemma sepcon_derives_prop : forall P Q R, P |-- !!R -> P * Q |-- !!R.
