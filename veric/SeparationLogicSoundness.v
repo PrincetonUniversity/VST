@@ -76,6 +76,8 @@ Proof.
 Qed.
 
 Definition approx_func_ptr := approx_func_ptr.
+Definition func_ptr_def := eq_refl func_ptr.
+
 Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
 
 Definition semax := @semax.

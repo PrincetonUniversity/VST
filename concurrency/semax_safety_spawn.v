@@ -223,17 +223,17 @@ Proof.
   funspec_destruct "freelock".
   funspec_destruct "spawn".
   
-  intros (phix, (ts, ((xf, xarg), (f_with_ty & f_with_x & f_with_Pre)))) (Hargsty, Pre).
+  intros (phix, (ts, (((xf, xarg), globals), (f_with_ty & f_with_x & f_with_Pre)))) (Hargsty, Pre).
   intros Post.
   simpl in Pre.
   destruct Pre as (phi0 & phi1 & jphi & A).
-  destruct A as ((PreA & (PreB1 & PreB2) & phi00 & phi01 & jphi0 & (_y & Glob & Func) & fPRE) & necr).
+  destruct A as ((PreA & (PreB1 & PreB2 & PreB3) & phi00 & phi01 & jphi0 & (_y & Func) & fPRE) & necr).
   simpl in fPRE.
   rewrite seplog.sepcon_emp in fPRE.
   simpl in PreA. destruct PreA as [PreA _].
   simpl in PreB1.
   unfold liftx in PreB1. simpl in PreB1. unfold lift in PreB1.
-  unfold liftx in PreB2. simpl in PreB2. unfold lift in PreB2. destruct PreB2 as [PreB2 _].
+  unfold liftx in PreB2. simpl in PreB2. unfold lift in PreB2.
   
   assert (li : level (getThreadR i tp cnti) = S n).
   { rewrite <-En. apply join_sub_level, compatible_threadRes_sub, compat. }
@@ -285,15 +285,7 @@ Proof.
   }
   
   spec gam0 f_b ((_y, Tpointer Tvoid noattr) :: nil, Tvoid) cc_default .
-  Import SeparationLogicSoundness.SoundSeparationLogic.CSL.
-  assert (RR:
-            func_ptr = 
-            fun (f : funspec) (v : val) =>
-              (EX b : block, !! (v = Vptr b Int.zero) && seplog.func_at f (b, 0%Z))%logic).
-  clear.
-  Transparent func_ptr.
-  admit (* func_ptr we can add that to the CSL interface, but maybe it's better to change statements of lemmas *).
-  rewrite RR in Func.
+  rewrite func_ptr_def in Func.
   
   destruct Func as (b' & E' & FAT). injection E' as <- ->.
   
@@ -471,7 +463,7 @@ Proof.
         now constructor.
         
         split.
-        apply prop_app_pred.
+        unfold SeparationLogic.local, expr.lift1.
         
         split.
         
@@ -487,8 +479,19 @@ Proof.
         rewrite PTree.gss.
         reflexivity.
         
-        (* LOCAL 2 : denotation of global variables *)
-        admit. (* globals *)
+        (* LOCAL 2 : locald_denote of global variables *)
+        clear -PreB3.
+        induction globals. constructor.
+        split; [ | now apply IHglobals; destruct PreB3; auto ].
+        destruct PreB3 as [WOB _]. clear IHglobals.
+        simpl in *.
+        unfold canon.gvar_denote in *. simpl in *.
+        unfold make_venv, Map.get, empty_env. rewrite PTree.gempty.
+        unfold Genv.find_symbol in *.
+        rewrite symb2genv_ax in *.
+        assumption.
+        
+        (* SEP: only precondition of spawned condition *)
         unfold canon.SEPx in *.
         simpl.
         rewrite seplog.sepcon_emp.
@@ -574,4 +577,4 @@ Proof.
       eapply unique_Krun_no_Krun. eassumption.
       instantiate (1 := cnti). rewr (getThreadC i tp cnti).
       congruence.
-Admitted. (* safety_induction_spawn *)
+Qed. (* safety_induction_spawn *)

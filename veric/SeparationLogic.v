@@ -1131,6 +1131,8 @@ Axiom func_ptr_isptr: forall spec f, func_ptr spec f |-- !! isptr f.
 Locate approx.
 Axiom approx_func_ptr: forall (A: Type) fsig0 cc (P Q: A -> environ -> mpred) (v: val) (n: nat),
   compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A P Q) v) = compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A (fun a rho => compcert_rmaps.RML.R.approx n (P a rho)) (fun a rho => compcert_rmaps.RML.R.approx n (Q a rho))) v).
+Axiom func_ptr_def :
+  func_ptr = fun f v => EX b : block, !!(v = Vptr b Int.zero) && seplog.func_at f (b, 0).
 
 Axiom semax_call : 
   forall {Espec: OracleKind}{CS: compspecs},

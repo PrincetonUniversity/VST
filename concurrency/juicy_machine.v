@@ -196,7 +196,7 @@ Module Concur.
     Lemma getThreadsR_addThread tp v1 v2 phi :
       getThreadsR (addThread tp v1 v2 phi) = getThreadsR tp ++ phi :: nil.
     Proof.
-    Admitted.
+    Admitted. (* getThreadsR_addThread *)
     
     (*Join juice from all locks*)
     Fixpoint join_list' (ls: seq.seq (option res)) (r:option res):=
