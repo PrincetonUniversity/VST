@@ -54,8 +54,8 @@ Require Import concurrency.semax_initial.
 Require Import concurrency.semax_progress.
 Require Import concurrency.semax_preservation_jspec.
 Require Import concurrency.semax_safety_makelock.
-Require Import concurrency.semax_preservation_spawn.
-Require Import concurrency.semax_preservation_freelock.
+Require Import concurrency.semax_safety_spawn.
+Require Import concurrency.semax_safety_freelock.
 Require Import concurrency.semax_preservation.
 
 Set Bullet Behavior "Strict Subproofs".

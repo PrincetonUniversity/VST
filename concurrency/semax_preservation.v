@@ -60,8 +60,6 @@ Require Import concurrency.semax_preservation_jspec.
 Require Import concurrency.semax_preservation_local.
 Require Import concurrency.semax_preservation_acquire.
 Require Import concurrency.semax_preservation_release.
-Require Import concurrency.semax_preservation_freelock.
-Require Import concurrency.semax_preservation_spawn.
 
 Local Arguments getThreadR : clear implicits.
 Local Arguments getThreadC : clear implicits.
@@ -1052,6 +1050,12 @@ Section Preservation.
     all: try congruence.
   Qed. (* Lemma preservation_Kinit *)
   
+  (* We prove preservation for most states of the machine, including
+  Kblocked at release and acquire, but preservation does not hold for
+  makelock, so, we make an exception and will use safety induction in
+  the safety theorem.  Because it's faster to prove safety induction,
+  we don't prove preservation for freelock and spawn, either, because
+  we did those two last. *)
   Theorem preservation Gamma n state state' :
     ~ blocked_at_external state CREATE ->
     ~ blocked_at_external state MKLOCK ->
