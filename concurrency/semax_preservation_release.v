@@ -38,6 +38,7 @@ Require Import sepcomp.event_semantics.
 Require Import sepcomp.semantics_lemmas.
 Require Import concurrency.coqlib5.
 Require Import concurrency.permjoin.
+Require Import concurrency.semax_conc_pred.
 Require Import concurrency.semax_conc.
 Require Import concurrency.juicy_machine.
 Require Import concurrency.concurrent_machine.
@@ -581,12 +582,21 @@ Proof.
             destruct x as (phix, (ts, ((vx, shx), Rx)));
               simpl (fst _) in *; simpl (snd _) in *; simpl (projT2 _) in *;
                 clear ts.
-            cbv iota beta in Pre.
-            cbv iota beta.
-            destruct Pre as [[[A [Precise [Positive _]]] [C D]] E].
-            destruct D as (phi0' & phi0d & jphi0 & Hlockinv & Hsat).
-            unfold base.fold_right_sepcon in Hsat.
-            rewrite seplog.sepcon_emp in Hsat.
+            unfold release_pre in Pre.
+            destruct Pre as [((Hreadable & PreA2) & (PreB1 & PreB2) & PreC) necr].
+            change (Logic.True) in PreA2. clear PreA2.
+            change (Logic.True) in PreB2. clear PreB2.
+            unfold canon.SEPx in PreC.
+            unfold base.fold_right_sepcon in *.
+            rewrite seplog.sepcon_emp in PreC.
+            rewrite seplog.corable_andp_sepcon1 in PreC; swap 1 2.
+            { apply seplog.corable_andp.
+              apply corable_weak_precise.
+              apply corable_weak_positive. }
+            rewrite seplog.sepcon_comm in PreC.
+            rewrite seplog.sepcon_emp in PreC.
+            destruct PreC as ((Hprecise & Hpositive), PreC).
+            destruct PreC as (phi0' & phi0d & jphi0 & Hlockinv & Hsat).
             
             assert (args = Vptr b ofs :: nil). {
               revert Hat_external ae; clear.
@@ -596,8 +606,7 @@ Proof.
             }
             subst args.
             assert (vx = Vptr b ofs). {
-              destruct C as [-> _].
-              clear.
+              hnf in PreB1. subst vx. clear.
               unfold expr.eval_id in *.
               unfold expr.force_val in *.
               unfold make_ext_args in *.
@@ -630,20 +639,22 @@ Proof.
               replace (level (getThreadR i tp cnti)) with (level Phi) in HJcanwrite by join_level_tac.
               apply @predat_join_sub with (phi2 := Phi) in HJcanwrite; [ | now auto].                    unfold Int.unsigned in *.
               pose proof predat_inj Hlockinv HJcanwrite as ER.
-              apply precise_approx with (n := S n) in Precise.
-              apply Precise with (age_to n (getThreadR i tp cnti)).
+              (* apply precise_approx with (n := S n) in Precise. *)
+              apply Hprecise with (age_to n (getThreadR i tp cnti)).
               - split.
-                + rewrite level_age_to. omega.
+                + rewrite level_age_to. replace (level phi0) with (S n). omega.
+                  replace (level phi0) with (level Phi) by join_level_tac. omega.
                   replace (level phi0d) with (level Phi) by join_level_tac. omega.
                 + revert Hsat.
                   apply pred_hered.
                   apply age_to_1.
                   exact_eq lev. f_equal. join_level_tac.
               - split.
-                + rewrite level_age_to. auto with *.
+                + rewrite level_age_to. replace (level phi0) with (S n). omega.
+                  replace (level phi0) with (level Phi) by join_level_tac. omega.
                   replace (level d_phi) with (level Phi) by join_level_tac.
                   rewrite lev; auto with *.
-                + cut (app_pred (approx (level Phi) (Interp RRRRRRRRRRRx)) (age_to n d_phi)).
+                + cut (app_pred (approx (level Phi) RRRRRRRRRRRx) (age_to n d_phi)).
                   * intros []. auto.
                   * rewrite ER. split.
                     -- rewrite level_age_to. rewrite lev; auto with *.

@@ -136,7 +136,7 @@ Proof.
   simpl (and _).
   intros Post.
   
-  destruct Precond as [[Hwritable [Hpositive [Hprecise _]]] [[B1 _] AT]].
+  destruct Precond as [[Hwritable _] [[B1 _] AT]].
   assert (Hreadable : readable_share shx) by (apply writable_readable; auto).
   
   (* [data_at_] from the precondition *)
@@ -150,6 +150,13 @@ Proof.
   unfold lift, liftx in B1. simpl in B1.
   rewrite lockinv_isptr in AT.
   rewrite log_normalize.sepcon_andp_prop' in AT.
+  rewrite seplog.corable_andp_sepcon1 in AT; swap 1 2.
+  { apply seplog.corable_andp.
+    apply corable_weak_precise.
+    apply corable_weak_positive. }
+  destruct AT as ((Hprecise, Hpositive), AT).
+  rewrite seplog.sepcon_comm in AT.
+  rewrite seplog.sepcon_emp in AT.
   destruct AT as (IsPtr, AT).
   destruct vx as [ | | | | | b ofs ]; try inversion IsPtr; [ clear IsPtr ].
   
@@ -159,7 +166,6 @@ Proof.
   destruct AT as (phi0lockinv & phi0sat & jphi0 & Hlockinv & Hsat).
   
   assert (locked : lockRes tp (b, Int.intval ofs) = Some None). {
-    (* TODO : use preciseness and positivity here *)
     spec lock_coh (b, Int.intval ofs). cleanup.
     destruct (AMap.find _ _) as [[phi_sat|]|] eqn:Ephi_sat; [ exfalso | reflexivity | exfalso ].
     - (* positive and precise *)
@@ -189,16 +195,21 @@ Proof.
       apply (predat_join_sub J01) in E3.
       
       pose proof positive_precise_joins_false
-           (approx (level Phi) (Interp Rx)) (age_by 1 phi_sat) (age_by 1 phi0sat) as PP.
+           (approx (level Phi) Rx) (age_by 1 phi_sat) (age_by 1 phi0sat) as PP.
       apply PP.
       + (* positive *)
         apply positive_approx with (n := level Phi) in Hpositive.
-        assumption.
-        
+        rewrite (compose_rewr (approx _) (approx _)) in Hpositive.
+        replace (level phi0) with (level Phi) in Hpositive. 2:join_level_tac.
+        exact_eq Hpositive; f_equal.
+        rewrite approx_oo_approx'. auto. omega.
+      
       + (* precise *)
-        unfold approx.
         apply precise_approx with (n := level Phi) in Hprecise.
-        assumption.
+        rewrite (compose_rewr (approx _) (approx _)) in Hprecise.
+        replace (level phi0) with (level Phi) in Hprecise. 2:join_level_tac.
+        exact_eq Hprecise; f_equal.
+        rewrite approx_oo_approx'. auto. omega.
       
       + (* sat 1 *)
         split.
@@ -221,7 +232,7 @@ Proof.
                  omega.
            ++ *)
            revert Hsat. apply age_by_ind.
-           destruct (Interp Rx).
+           destruct Rx.
            auto.
               
       + (* joins *)
@@ -287,7 +298,7 @@ Proof.
     
     eapply step_freelock
     with (c := ci) (Hcompat := mem_compatible_forget compat)
-                   (R := Interp Rx) (phi'0 := phi').
+                   (R := Rx) (phi'0 := phi').
     all: try reflexivity.
     all: try eassumption.
     unfold SEM.Sem in *. rewrite SEM.CLN_msem. eassumption.

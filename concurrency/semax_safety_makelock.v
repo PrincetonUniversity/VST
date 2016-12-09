@@ -199,7 +199,7 @@ Proof.
   unfold tlock in *.
   match type of AT with context[Tarray _ ?n] => assert (Hpos' : (0 < n)%Z) by omega end.
   pose proof data_at_rmap_makelock CS as RL.
-  specialize (RL shx b ofs (Interp Rx) phi0 _ Hpos' Hwritable AT).
+  specialize (RL shx b ofs Rx phi0 _ Hpos' Hwritable AT).
   destruct RL as (phi0' & RL0 & Hlkat).
   
   match type of Hlkat with context[LK_at _ ?n] => assert (Hpos'' : (0 < n)%Z) by omega end.
@@ -223,7 +223,7 @@ Proof.
     
     eapply step_mklock
     with (c := ci) (Hcompatible := mem_compatible_forget compat)
-                   (R := Interp Rx) (phi'0 := phi').
+                   (R := Rx) (phi'0 := phi').
     all: try reflexivity.
     all: try eassumption.
     unfold SEM.Sem in *. rewrite SEM.CLN_msem. assumption.
@@ -564,7 +564,7 @@ Proof.
         subst loc.
         split. apply AT.
         split. apply AT.
-        exists (Interp Rx).
+        exists Rx.
         intros loc r.
         destruct Hrmap' as (_ & _ & inside). spec inside loc r.
         rewrite age_to_resource_at.

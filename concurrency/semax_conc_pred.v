@@ -41,6 +41,10 @@ Next Obligation.
   omega.
 Defined.
 
+Lemma corable_weak_positive R : seplog.corable (weak_positive_mpred R).
+Proof.
+Admitted. (* corable_weak_positive *)
+
 Lemma positive_mpred_nonexpansive:
   nonexpansive weak_positive_mpred.
 Proof.
@@ -88,6 +92,10 @@ Next Obligation.
   + simpl in H2 |- *; destruct H2; split; auto.
     apply age_level in H; omega.
 Defined.
+
+Lemma corable_weak_precise R : seplog.corable (weak_precise_mpred R).
+Proof.
+Admitted. (* corable_weak_precise *)
 
 Lemma precise_mpred_nonexpansive: nonexpansive weak_precise_mpred.
 Proof.

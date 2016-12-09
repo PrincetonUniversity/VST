@@ -540,6 +540,34 @@ Proof.
   eapply self_join_pshare_false; eauto.
 Qed.
 
+Lemma weak_positive_precise_joins_false R phi phi1 phi2 :
+  level phi = level phi1 ->
+  app_pred (weak_positive_mpred R) phi ->
+  app_pred (weak_precise_mpred R) phi ->
+  app_pred R phi1 ->
+  app_pred R phi2 ->
+  joins phi1 phi2 ->
+  False.
+Proof.
+  intros lev pos prec S1 S2 j.
+  assert (phi1 = phi2). {
+    destruct j as (phi3, j).
+    eapply prec; auto.
+    - split. omega. auto.
+    - split. apply join_level in j. omega. auto.
+    - exists phi2; apply j.
+    - exists phi1. apply join_comm, j.
+  }
+  subst phi2.
+  spec pos phi1. spec pos. split. omega. auto.
+  destruct pos as (l & sh & rsh & k & pp & E).
+  apply resource_at_joins with (loc := l) in j.
+  rewrite E in j.
+  destruct j as (r3, j).
+  inv j.
+  eapply self_join_pshare_false; eauto.
+Qed.
+
 Lemma isLKCT_rewrite r :
   (forall sh sh' z P,
       r <> YES sh sh' (LK z) P /\

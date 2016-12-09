@@ -32,6 +32,7 @@ Require Import veric.mem_lessdef.
 Require Import veric.shares.
 Require Import veric.age_to_resource_at.
 Require Import floyd.coqlib3.
+Require Import floyd.field_at.
 Require Import sepcomp.semantics.
 Require Import sepcomp.step_lemmas.
 Require Import sepcomp.event_semantics.
@@ -452,7 +453,7 @@ Section Progress.
         funspec_destruct "acquire".
         
         intros (phix, (ts, ((vx, shx), Rx))) (Hargsty, Pre).
-        simpl (projT2 _) in *; simpl (fst _) in *; simpl (snd _) in *; clear ts.
+        simpl (projT2 _) in *; simpl (fst _) in *; simpl (snd _) in *.
         simpl in Pre.
         destruct Pre as (phi0 & phi1 & Join & Precond & HnecR).
         simpl (and _).
@@ -589,7 +590,7 @@ Section Progress.
             inversion J; subst.
             
             * eapply step_acqfail with (Hcompatible := mem_compatible_forget compat)
-                                       (R0 := approx (level phi0) (Interp Rx)).
+                                       (R0 := approx (level phi0) Rx).
               all: try solve [ constructor | eassumption | reflexivity ].
                 (* [ > idtac ]. *)
               simpl.
@@ -598,7 +599,7 @@ Section Progress.
               reflexivity.
             
             * eapply step_acqfail with (Hcompatible := mem_compatible_forget compat)
-                                       (R0 := approx (level phi0) (Interp Rx)).
+                                       (R0 := approx (level phi0) Rx).
               all: try solve [ constructor | eassumption | reflexivity ].
               simpl.
               unfold Int.unsigned in *.
@@ -679,7 +680,7 @@ Section Progress.
             as (phi', Jphi').
           
           (* necessary to know that we have indeed a lock *)
-          assert (ex: exists sh0 psh0, phi0 @ (b, Int.intval ofs) = YES sh0 psh0 (LK LKSIZE) (pack_res_inv (approx (level phi0) (Interp Rx)))). {
+          assert (ex: exists sh0 psh0, phi0 @ (b, Int.intval ofs) = YES sh0 psh0 (LK LKSIZE) (pack_res_inv (approx (level phi0) Rx))). {
             clear -LKSPEC.
             specialize (LKSPEC (b, Int.intval ofs)).
             simpl in LKSPEC.
@@ -704,7 +705,7 @@ Section Progress.
             ;
               [ reflexivity | reflexivity | ].
             eapply step_acquire
-            with (R0 := approx (level phi0) (Interp Rx))
+            with (R0 := approx (level phi0) Rx)
             (* with (sh := shx) *)
             .
             all: try match goal with |- _ = age_tp_to _ _ => reflexivity end.
@@ -766,12 +767,20 @@ Section Progress.
         intros Post.
         
         (* relate lset to val *)
-        destruct Precond as [PREA [[PREB _] PREC]].
-        hnf in PREB.
-        unfold canon.SEPx in PREC.
-        simpl in PREC.
-        rewrite seplog.sepcon_emp in PREC.
-        destruct PREC as (phi_lockinv & phi_sat & jphi & Hlockinv & SAT).
+        destruct Precond as ((Hreadable & PreA2) & (PreB1 & PreB2) & PreC).
+        change Logic.True in PreA2. clear PreA2.
+        change Logic.True in PreB2. clear PreB2.
+        unfold canon.SEPx in PreC.
+        unfold base.fold_right_sepcon in *.
+        rewrite seplog.sepcon_emp in PreC.
+        rewrite seplog.corable_andp_sepcon1 in PreC; swap 1 2.
+        { apply seplog.corable_andp.
+          apply corable_weak_precise.
+          apply corable_weak_positive. }
+        rewrite seplog.sepcon_comm in PreC.
+        rewrite seplog.sepcon_emp in PreC.
+        destruct PreC as ((Hprecise & Hpositive), PreC).
+        destruct PreC as (phi_lockinv & phi_sat & jphi & Hlockinv & SAT).
         pose proof Hlockinv as islock.
         apply lock_inv_at in islock.
         
@@ -827,6 +836,7 @@ Section Progress.
           
           assert (Eargs : args = Vptr b ofs :: nil). {
             subst sg.
+            hnf in PreB1.
             eapply shape_of_args; eauto.
           }
           
@@ -893,7 +903,7 @@ Section Progress.
           destruct Hphi' as (phi' & Ephi' & Join_with_sat).
           
           assert (Sat : R (age_by 1 phi_sat)). {
-            clear Post Hm' safei PREA Eci Heq_name Heq_name0 LOAD Eae.
+            clear Post Hm' safei Eci Heq_name Heq_name0 LOAD Eae.
             apply predat4 in Hlockinv.
             apply predat5 in islock.
             pose proof predat_inj islock Hlockinv.
@@ -944,8 +954,6 @@ Section Progress.
           (* - [phi_sat] satisfies R *)
           (* - [unlockedphi] and [phi_sat] join *)
           (* - but R is positive and precise so that's impossible *)
-          simpl in PREA.
-          destruct PREA as (Hreadable & Hprecise & Hpositive & []).
           
           pose proof predat6 lk as E1.
           pose proof predat1 Ewetv as E2.
@@ -962,20 +970,29 @@ Section Progress.
           }
           assert (level phi_sat = level Phi) by (apply join_sub_level; auto).
           
-          pose proof positive_precise_joins_false
-               (approx (level Phi) R) (age_by 1 unlockedphi) (age_by 1 phi_sat) as PP.
+          pose proof (* weak_ *)positive_precise_joins_false
+               (approx (level Phi) R) (age_by 1 unlockedphi) (age_by 1 phi_sat) (* phi0 *) as PP.
           apply PP.
+          (* + (* level *) *)
+          (*   rewrite !level_age_by. f_equal. join_level_tac. *)
+          
           + (* positive *)
             apply positive_approx with (n := level Phi) in Hpositive.
+            rewrite (compose_rewr (approx _) (approx _)) in Hpositive.
+            replace (level phi0) with (level Phi) in Hpositive. 2:join_level_tac.
             exact_eq Hpositive; f_equal.
             eapply predat_inj; eauto.
+            rewrite approx_oo_approx'. auto. omega.
           
           + (* precise *)
             unfold approx.
             apply precise_approx with (n := level Phi) in Hprecise.
+            rewrite (compose_rewr (approx _) (approx _)) in Hprecise.
+            replace (level phi0) with (level Phi) in Hprecise. 2:join_level_tac.
             exact_eq Hprecise; f_equal.
             eapply predat_inj; eauto.
-          
+            rewrite approx_oo_approx'. auto. omega.
+           
           + (* sat 1 *)
             split.
             * rewrite level_age_by. rewr (level unlockedphi). omega.
@@ -987,13 +1004,13 @@ Section Progress.
           + (* sat 2 *)
             split.
             -- rewrite level_age_by. rewr (level phi_sat). omega.
-            -- cut (app_pred (Interp Rx) (age_by 1 phi_sat)).
+            -- cut (app_pred Rx (age_by 1 phi_sat)).
                ++ apply approx_eq_app_pred with (S n).
                   ** rewrite level_age_by. rewr (level phi_sat). omega.
                   ** pose proof (predat_inj E3 E2) as G.
                      exact_eq G; do 2 f_equal; auto.
                ++ revert SAT. apply age_by_ind.
-                  destruct (Interp Rx).
+                  destruct Rx.
                   auto.
           
           + (* joins *)
@@ -1055,7 +1072,6 @@ Section Progress.
         simpl in B1.
         unfold lift, liftx in B1. simpl in B1.
         unfold lift, liftx in B1. simpl in B1.
-        Require Import floyd.field_at.
         rewrite data_at__isptr in AT.
         destruct AT as (IsPtr, AT).
         destruct vx as [ | | | | | b ofs ]; try inversion IsPtr; [ clear IsPtr ].
@@ -1121,7 +1137,7 @@ Section Progress.
         unfold tlock in *.
         match type of AT with context[Tarray _ ?n] => assert (Hpos : (0 < n)%Z) by omega end.
         pose proof data_at_rmap_makelock CS as RL.
-        specialize (RL shx b ofs (Interp Rx) phi0 _ Hpos Hwritable AT).
+        specialize (RL shx b ofs Rx phi0 _ Hpos Hwritable AT).
         destruct RL as (phi0' & RL0 & lkat).
         
         match type of lkat with context[LK_at _ ?n] => assert (Hpos' : (0 < n)%Z) by omega end.
@@ -1141,7 +1157,7 @@ Section Progress.
         eapply step_mklock
         with (c := (ExtCall (EF_external name sg) args lid ve te k))
                (Hcompatible := mem_compatible_forget compat)
-               (R := Interp Rx)
+               (R := Rx)
                (phi'0 := phi')
         .
         
@@ -1193,13 +1209,26 @@ Section Progress.
         
         assert (Esg : sg = UNLOCK_SIG) by (unfold ef_id_sig, ef_sig in *; congruence).
         
-        destruct Precond as [[Hwritable [Hpositive [Hprecise _]]] [[B1 _] AT]].
+        destruct Precond as ((Hwritable & PreA2) & (B1 & PreB2) & PreC).
+        change Logic.True in PreA2. clear PreA2.
+        change Logic.True in PreB2. clear PreB2.
+        unfold canon.SEPx in PreC.
+        unfold base.fold_right_sepcon in *.
+        rewrite seplog.sepcon_emp in PreC.
+        rewrite seplog.corable_andp_sepcon1 in PreC; swap 1 2.
+        { apply seplog.corable_andp.
+          apply corable_weak_precise.
+          apply corable_weak_positive. }
+        rewrite seplog.sepcon_comm in PreC.
+        rewrite seplog.sepcon_emp in PreC.
+        destruct PreC as ((Hprecise & Hpositive), AT).
+        (* pose proof AT as islock. *)
+        (* apply lock_inv_at in islock. *)
         assert (Hreadable : readable_share shx) by (apply writable_readable; auto).
         
         (* [data_at_] from the precondition *)
         unfold canon.SEPx in *.
         simpl in AT.
-        rewrite seplog.sepcon_emp in AT.
         
         (* value of [vx] *)
         simpl in B1.
@@ -1311,17 +1340,22 @@ Section Progress.
             apply (predat_join_sub J01) in E3.
             
             pose proof positive_precise_joins_false
-                 (approx (level Phi) (Interp Rx)) (age_by 1 phi_sat) (age_by 1 phi0sat) as PP.
+                 (approx (level Phi) Rx) (age_by 1 phi_sat) (age_by 1 phi0sat) as PP.
             apply PP.
             + (* positive *)
               apply positive_approx with (n := level Phi) in Hpositive.
-              assumption.
-              
+              rewrite (compose_rewr (approx _) (approx _)) in Hpositive.
+              rewrite approx_oo_approx' in Hpositive. auto.
+              replace (level phi0) with (level Phi). 2:join_level_tac.
+              omega.
+            
             + (* precise *)
-              unfold approx.
               apply precise_approx with (n := level Phi) in Hprecise.
-              assumption.
-              
+              rewrite (compose_rewr (approx _) (approx _)) in Hprecise.
+              rewrite approx_oo_approx' in Hprecise. auto.
+              replace (level phi0) with (level Phi). 2:join_level_tac.
+              omega.
+            
             + (* sat 1 *)
               split.
               * rewrite level_age_by. rewrite Ra. omega.
@@ -1336,9 +1370,9 @@ Section Progress.
               split.
               -- rewrite level_age_by. cut (level phi0sat = level Phi). omega. join_level_tac.
               -- revert Hsat. apply age_by_ind.
-                 destruct (Interp Rx).
+                 destruct Rx.
                  auto.
-                
+                 
             + (* joins *)
               apply age_by_joins.
               apply joins_sym.
@@ -1381,7 +1415,7 @@ Section Progress.
         eapply step_freelock
         with (c := (ExtCall (EF_external name sg) args lid ve te k))
                (Hcompat := mem_compatible_forget compat)
-               (R := Interp Rx)
+               (R := Rx)
                (phi'0 := phi')
         .
         
