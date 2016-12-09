@@ -685,6 +685,7 @@ Ltac sync D :=
   first
     [ split; [destruct D as [D _] | destruct D as [_ D]]
     | destruct D as [D|D]; [left|right]
+    | let x := fresh in destruct D as (x, D); exists x
     | let x := fresh in intro x; spec D x
     ].
 

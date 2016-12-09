@@ -286,8 +286,7 @@ Lemma invariant_thread_step
   n m ge i sch tp Phi ci ci' jmi'
   (Stable : ext_spec_stable age Jspec)
   (Stable' : ext_spec_stable juicy_mem_equiv Jspec)
-  (semaxprog : exists prog CS V, @semax_prog {|OK_spec := Jspec|} CS prog V Gamma /\ ge = globalenv prog)
-  (gam : matchfunspecs ge Gamma Phi)
+  (envcoh : env_coherence Jspec ge Gamma Phi)
   (compat : mem_compatible_with tp m Phi)
   (En : level Phi = S n)
   (lock_bound : lockSet_block_bound (ThreadPool.lset tp) (Mem.nextblock m))
@@ -612,9 +611,12 @@ Proof.
           changed.
    *)
   
-  apply state_invariant_c with (PHI := Phi'') (mcompat := compat''); auto.
-  - (* matchfunspecs *)
-    eapply resource_decay_matchfunspecs with (Phi := Phi); eauto. omega.
+  apply state_invariant_c with (PHI := Phi'') (mcompat := compat'').
+  - (* level *)
+    assumption.
+    
+  - (* env_coherence *)
+    eapply env_coherence_resource_decay with _ Phi; eauto. omega.
     
   - (* lock coherence: own rmap has changed, but we prove it did not affect locks *)
     unfold tp''; simpl.

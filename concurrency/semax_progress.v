@@ -244,7 +244,7 @@ Section Progress.
       state_step state state'.
   Proof.
     intros not_spawn I.
-    inversion I as [m ge sch tp Phi En _ gam compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
+    inversion I as [m ge sch tp Phi En envcoh compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
     destruct sch as [ | i sch ].
     
     (* empty schedule: we loop in the same state *)

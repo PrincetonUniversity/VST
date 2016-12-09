@@ -195,7 +195,7 @@ Lemma safety_induction_spawn Gamma n state
      state_invariant Jspec' Gamma (S n) state').
 Proof.
   intros isspawn I.
-  inversion I as [m ge sch_ tp Phi En SP gam compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
+  inversion I as [m ge sch_ tp Phi En envcoh compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
   unfold blocked_at_external in *.
   destruct isspawn as (i & cnti & sch & ci & args & -> & Eci & atex).
   pose proof (safety i cnti tt) as safei.
@@ -264,7 +264,8 @@ Proof.
   rewrite Eargs in Eargs'. injection Eargs' as -> <-. subst args.
   simpl in Hargsty.
   
-  destruct SP as (prog & CS_ & V & semaxprog & Ege).
+  destruct ((fun x => x) envcoh) as (gam, SP).
+  destruct SP as (prog & CS_ & V & semaxprog & Ege & FA).
   
   unfold SeparationLogic.NDmk_funspec in Func.
   match type of Func with
@@ -289,6 +290,8 @@ Proof.
             func_ptr = 
             fun (f : funspec) (v : val) =>
               (EX b : block, !! (v = Vptr b Int.zero) && seplog.func_at f (b, 0%Z))%logic).
+  clear.
+  Transparent func_ptr.
   admit (* func_ptr we can add that to the CSL interface, but maybe it's better to change statements of lemmas *).
   rewrite RR in Func.
   
@@ -343,6 +346,15 @@ Proof.
   
   change (initial_core (juicy_core_sem cl_core_sem)) with cl_initial_core in Initcore.
   
+  apply join_comm in jphi0.
+  destruct (join_assoc jphi0 jphi) as (phi1' & jphi1' & jphi').
+  assert (phi1 = phi1'). {
+    clear -emp00 jphi1'.
+    eapply join_unit1_e; eauto.
+    apply emp00.
+  }
+  subst phi1'.
+  
   eexists.
   split.
   {
@@ -370,7 +382,7 @@ Proof.
       unfold code in *.
       rewrite <-Initcore.
       reflexivity. }
-    { simpl. auto. subst phi01. assumption. }
+    { simpl. auto. }
   }
   (* "progress" part finished. *)
   
@@ -402,12 +414,8 @@ Proof.
   - (* level *)
     apply level_age_to. cleanup. omega.
   
-  - (* semaxprog *)
-    inv I; auto.
-  
-  - (* matchfunspecs *)
-    apply matchfunspecs_age_to. cleanup. omega.
-    auto.
+  - (* env_coherence *)
+    apply env_coherence_age_to; auto.
   
   - (* lock sparsity *)
     apply lock_sparsity_age_to.
@@ -487,15 +495,14 @@ Proof.
         assumption.
         
       * (* funnassert *)
-        (*
-        @andrew: to prove this, can I add just funnassert 
-
-(funassert (Delta_types V Gamma (Tpointer Tvoid noattr :: nil))
-     (construct_rho (filter_genv (globalenv prog)) empty_env  **EMPTY** )
- 
-        to my invariant?
-         *)
-        admit. (* funnassert (to be added in invariant) *)
+        rewrite Ejm.
+        apply funassert_pures_eq with Phi.
+        { rewrite level_age_to. omega. cleanup. omega. }
+        { apply pures_same_eq_l with phi01. 2: now apply pures_eq_age_to; omega.
+          apply join_sub_pures_same. subst.
+          apply join_sub_trans with (getThreadR i tp cnti). exists phi1; auto.
+          apply compatible_threadRes_sub, compat. }
+        apply FA.
     
     + (* safety of spawning thread *)
       subst j.
@@ -513,10 +520,7 @@ Proof.
       
       spec Post. (* Postcondition *)
       { exists (age_to n phi00), (age_to n phi1); split3.
-        - rewrite Ejm. apply age_to_join.
-          (* @andrew: I can probably prove this using associativity,
-          but is there simpler, maybe using core? *)
-          admit. (* join phi00 phi1 phi1 *)
+        - rewrite Ejm. apply age_to_join. auto.
         - split; auto. split; auto.
           unfold canon.SEPx in *. simpl.
           rewrite seplog.sepcon_emp.
@@ -571,170 +575,3 @@ Proof.
       instantiate (1 := cnti). rewr (getThreadC i tp cnti).
       congruence.
 Admitted. (* safety_induction_spawn *)
-
-
-
-(*
-  
-      f_equal.
-      unfold cl_initial_core in *.
-      simpl.
-      Transparent func_ptr.
-      assert (prog : Clight.program) by admit.
-      unfold threads_safety in *.
-      (* maybe keep fdecs instead of Gamma (and Gamma = make_tycontext_s fdecs) *)
-      pose (fdecs := PTree.elements Gamma).
-      assert (semaxprog : @semax_prog (Concurrent_Espec unit CS ext_link) CS prog nil fdecs) by admit.
-      assert (FA : forall ve te, app_pred (seplog.funassert (nofunc_tycontext nil fdecs)
-                                     (mkEnviron (filter_genv (globalenv prog)) ve te))
-                                     Phi). admit.
-      specialize (FA (fun _ => None) (fun _ => None)).
-      destruct FA as (FA1, FA2).
-      
-      assert (RR:
-      func_ptr = 
-      fun (f : funspec) (v : val) =>
-        (EX b : block, !! (v = Vptr b Int.zero) && seplog.func_at f (b, 0%Z))%logic).
-      admit (* we can add that to the CSL interface, but maybe it's better to change statements of lemmas *).
-      
-      rewrite RR in Func; clear RR.
-      
-      destruct Func as (b' & E' & FAT). injection E' as <- ->.
-      if_tac [_|?]. 2:tauto.
-      
-      assert (gam0 : matchfunspecs (filter_genv ge) Gamma phi00). {
-        revert gam. apply pures_same_matchfunspecs.
-        join_level_tac.
-        apply pures_same_sym, join_sub_pures_same.
-        apply join_sub_trans with phi0. exists phi01. auto.
-        apply join_sub_trans with (getThreadR i tp cnti). exists phi1. auto.
-        join_sub_tac.
-      }
-      
-      spec gam0 f_b ((_y, tptr tvoid) :: nil, tptr tvoid) cc_default .
-      Lemma func_at_func_at'' fs loc phi :
-        seplog.func_at fs loc phi =
-        match fs with mk_funspec fsig cc A P Q _ _ => func_at'' fsig cc A P Q loc phi end.
-      Proof.
-        destruct fs; auto.
-      Qed.
-      pose proof FAT as FAT'.
-      replace phi00 with Phi in FAT.
-      
-      apply semax_call.func_at_func_at' in FAT.
-      specialize (FA2 _ _ _ (necR_refl _) FAT).
-      destruct FA2 as (id & Eid & fs' & Efs).
-      specialize (FA1 id fs' _ (necR_refl _) Efs).
-      destruct FA1 as (b_ & Eb & Efs').
-      hnf in Eb, Eid.
-      inversion2 Eid Eb.
-      simpl in Eid.
-      
-      (* go back, use semax_prog_entry_point (but still prove ...params with find_funct_ptr) *)
-      
-      rewrite func_at_func_at' in FAT.
-      unfold SeparationLogic.NDmk_funspec in *.
-      specialize (gam0 _ _ _ FAT).
-      destruct gam0 as (id & P' & Q' & ? & ? & Eb & Eid & EP & EQ).
-      
-      (* filter_genv is about genv_symb, but we want genv_defs ? *)
-      
-      (* they seem to have nothing in common
-      unfold filter_genv in *.
-      unfold Genv.find_symbol in *.
-      unfold Genv.find_funct_ptr in *.
-      unfold Genv.find_def in *.
-      destruct ge.
-      simpl.
-      simpl in Eb.
-      destruct genv_genv. simpl.
-      simpl in Eb.
-       *)
-
-(* 
-Q: filter_genv and find_funct_ptr seem very different
-A: probably add it to matchfunspecs
-
-Q: what about find_params (in precondition of semax_prog_entry_point): is it the same?
-
-Q: I will add prog and semax_prog prog ??? Gamma to invariant?
-
-Q: is the environment correct? it assigns something (1?) to xargs, and something (2?) to (b, 0), but maybe it should only assign 2?
-*)
-      
-      
-      (* we compare what we have with the precondition of semax_prog_entry_point *)
-      (* prog and semax_prog CS V G : can be added to invariant
-
- find_params : similar to what we need to prove here
-
-
-
-    @semax_prog CS prog V G ->
-
-    params = (id_arg, Tpointer Tvoid noattr) :: nil ->
-
-    find_params prog id_fun = Some params ->
-
-    find_id id_fun G = Some (mk_funspec (params, Tvoid) cc_default A P Q NEP NEQ) ->
-    (* (* P is closed wrt all tempvars except 2 *) *)
-    (* (forall x, closed_wrt_vars (fun n => ~eq 2%positive n) (P x)) -> *)
-    (forall ts a rho, Q ts a rho |-- FF) ->
-    is_pointer_or_null arg ->
-
-
-*)
-      
-      
-      unfold filter_genv in *.
-      apply Genv.find_invert_symbol in Eb.
-      unfold Genv.find_funct_ptr in *.
-      unfold Genv.find_def in *.
-      
-      unfold Genv.find_funct_ptr in *.
-      unfold Genv.find_def in *.
-      unfold Genv.genv_defs in *.
-      unfold ge in *.
-      unfold genv_defs in *.
-      
-      unfold Genv.invert_symbol in *.
-      
-      unfold Genv.find_funct_ptr in *.
-      
-      unfold Genv.find_funct_ptr in *.
-      unfold Genv.find_def in *.
-      simpl in FAT.
-      spec gam0 
-      
-      admit (* later : I have modified matchfunspecs in the meantime *).
-      (*
-      match type of FAT with _ (seplog.func_at ?FS _) _ => pose (fs := FS) end.
-      spec gam f_b fs.
-      
-      unfold filter_genv in *.
-      unfold Genv.find_symbol in *.
-      unfold Genv.find_funct_ptr in *.
-      unfold Genv.find_def in *.
-      unfold Genv.genv_defs in *.
-      unfold Genv.genv_symb in *.
-      unfold genv_genv in *.
-      Search Genv.find_funct_ptr.
-      SearchHead Genv.find_funct_ptr.
-      unfold Genv.find_funct_ptr in *.
-      unfold filter_genv in *.
-      unfold Genv.find_def in *.
-      unfold Genv.genv_defs in *.
-      unfold Genv.find_symbol in *.
-      
-      (* pose proof @semax_call. *)
-      (* all this work around safety is already done above. Try to deal with Func *)
-      (* apply jsafe_phi_jsafeN with (compat0 := compat) in safety. *)
-      *)
-      (* unclear how to relate arg1/args (which come from the
-      syntax) to anything. The juicy machine uses "initial_core" but
-      it's not that simple. *)
-    }
-    admit. (* same problem *)
-    reflexivity.
-    all:try reflexivity.
-*)

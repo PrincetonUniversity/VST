@@ -103,7 +103,7 @@ Proof.
   assert (Hpos : (0 < LKSIZE)%Z) by reflexivity.
   intros isfreelock.
   intros I.
-  inversion I as [m ge sch_ tp Phi En SP gam compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
+  inversion I as [m ge sch_ tp Phi En envcoh compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
   unfold blocked_at_external in *.
   destruct isfreelock as (i & cnti & sch & ci & args & -> & Eci & atex).
   pose proof (safety i cnti tt) as safei.
@@ -465,12 +465,11 @@ Proof.
   - (* level *)
     apply level_age_to. omega.
   
-  - (* semaxprog *)
-    inv I; auto.
-  
-  - (* matchfunspecs *)
-    apply matchfunspecs_age_to. omega.
-    eapply matchfunspecs_common_join with (Phi := Phi); eauto.
+  - (* env_coherence *)
+    apply env_coherence_age_to.
+    apply env_coherence_pures_eq with Phi; auto. omega.
+    apply pures_same_pures_eq. auto.
+    eapply rmap_freelock_pures_same; eauto.
   
   - (* lock sparsity *)
     apply lock_sparsity_age_to.

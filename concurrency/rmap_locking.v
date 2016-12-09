@@ -1060,6 +1060,28 @@ Proof.
   - spec out1 x nr. spec out2 x nr. congruence.
 Qed.
 
+Definition pures_same phi1 phi2 := forall loc k pp, phi1 @ loc = PURE k pp <-> phi2 @ loc = PURE k pp.
+
+Lemma rmap_freelock_pures_same phi phi' m loc R length :
+  rmap_freelock phi phi' m loc R length ->
+  pures_same phi phi'.
+Proof.
+  intros (lev & before & after); intros l.
+  destruct (adr_range_dec loc length l) as  [r|n].
+  - spec after l r. destruct after as (sh & -> & ->). if_tac; intros; split; congruence.
+  - spec before l n. rewrite before. tauto.
+Qed.
+
+Lemma rmap_makelock_pures_same phi phi' loc R length :
+  rmap_makelock phi phi' loc R length ->
+  pures_same phi phi'.
+Proof.
+  intros (lev & before & after); intros l.
+  destruct (adr_range_dec loc length l) as  [r|n].
+  - spec after l r. destruct after as (val & sh & -> & ->). if_tac; intros; split; congruence.
+  - spec before l n. rewrite before. tauto.
+Qed.
+
 Require Import veric.juicy_mem.
 
 Definition noyes phi := forall x sh rsh k pp, phi @ x <> YES sh rsh k pp.

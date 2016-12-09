@@ -524,7 +524,7 @@ auto.
 Qed.
 
 Lemma funassert_initial_core:
-  forall (prog: program) ve te V G {C: compspecs} n, 
+  forall (prog: program) ve te V G n, 
       list_norepet (prog_defs_names prog) ->
       match_fdecs (prog_funct prog) G ->
       app_pred (funassert (nofunc_tycontext V G) (mkEnviron (filter_genv (globalenv prog)) ve te))
@@ -1031,6 +1031,22 @@ Proof.
   repeat (hnf; decide equality; auto).
 Qed.
 
+Lemma initial_jm_funassert V (prog : Clight.program) m G n H H1 H2 :
+  (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)))
+    (m_phi (initial_jm prog m G n H H1 H2)).
+Proof.
+  unfold initial_jm.
+  assert (FA: app_pred (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)))
+    (initial_world.initial_core (Genv.globalenv prog) G n)
+         ).
+  apply funassert_initial_core; auto.
+  revert FA.
+  pose proof assert_lemmas.corable_funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)) as CO.
+  rewrite corable_spec in CO. apply CO.
+  pose proof initial_mem_core as E.
+  unfold juicy_mem_core in *. erewrite E; try reflexivity.
+Qed.
+
 Lemma semax_prog_rule {CS: compspecs} :
   forall V G prog m,
      @semax_prog CS prog V G ->
@@ -1044,7 +1060,8 @@ Lemma semax_prog_rule {CS: compspecs} :
            m_dry jm = m /\ level jm = n /\
            (forall z, jsafeN (@OK_spec Espec) (globalenv prog) n z q jm) /\
            no_locks (m_phi jm) /\
-           matchfunspecs (globalenv prog) G (m_phi jm)
+           matchfunspecs (globalenv prog) G (m_phi jm) /\
+           (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))) (m_phi jm)
      } } }%type.
 Proof.
   intros until m.
@@ -1069,7 +1086,7 @@ Proof.
   pose proof I.
   destruct EXx as [b [? ?]]; auto.
   exists b.
-  unfold semantics.initial_core; simpl.
+  unfold semantics.initial_core. simpl (_ = Some _).
   unfold fundef in *; rewrite H7.
   rewrite if_true by auto.
   (* unfold is_Internal in HInt. *)
@@ -1211,6 +1228,8 @@ Proof.
   - apply initial_jm_without_locks.
   - apply initial_jm_without_locks.
   - apply initial_jm_matchfunspecs.
+  - apply initial_jm_funassert.
+  - apply initial_jm_funassert.
 Qed.
 
 Definition Delta_types V G {C: compspecs} (tys : list type) : tycontext := 

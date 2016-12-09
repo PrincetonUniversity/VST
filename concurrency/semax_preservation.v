@@ -951,7 +951,7 @@ Section Preservation.
   (Phi : rmap)
   (compat : mem_compatible_with tp m Phi)
   (lev : @level rmap ag_rmap Phi = S n)
-  (gam : matchfunspecs ge Gamma Phi)
+  (envcoh : env_coherence Jspec' ge Gamma Phi)
   (sparse : @lock_sparsity LocksAndResources.lock_info (lset tp))
   (lock_coh : lock_coherence' tp Phi m compat)
   (safety : @threads_safety (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' m ge tp Phi compat (S n))
@@ -992,7 +992,6 @@ Section Preservation.
       
       unshelve eapply state_invariant_c with (PHI := Phi) (mcompat := _).
       2:assumption.
-      2:inv INV; assumption.
       2:assumption.
       2:assumption.
       
@@ -1067,7 +1066,7 @@ Section Preservation.
     (* apply state_invariant_S *)
     subst state state'; clear STEP.
     intros INV.
-    inversion INV as [m0 ge0 sch0 tp0 Phi lev SP gam compat sparse lock_coh safety wellformed unique E].
+    inversion INV as [m0 ge0 sch0 tp0 Phi lev envcoh compat sparse lock_coh safety wellformed unique E].
     subst m0 ge0 sch0 tp0.
     
     destruct sch as [ | i sch ].
@@ -1256,11 +1255,8 @@ Section Preservation.
           apply state_invariant_c with (PHI := Phi) (mcompat := compat').
           + assumption.
           
-          + (* matchfunspecs *)
+          + (* env_coherence *)
             assumption.
-          
-          + (* semaxprog *)
-            auto.
           
           + (* lock sparsity *)
             auto.
@@ -1468,14 +1464,11 @@ Section Preservation.
       + (* level *)
         assumption.
       
-      + (* semaxprog *)
+      + (* env_coherence *)
         assumption.
       
-      + (* matchfunspecs *)
+      + (* sparsity *)
         assumption.
-      
-      + (* lock sparsity *)
-        auto.
       
       + (* lock coherence *)
         unfold lock_coherence' in *.

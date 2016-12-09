@@ -121,7 +121,7 @@ Lemma preservation_acquire
   (Phi : rmap)
   (compat : mem_compatible_with tp m Phi)
   (lev : level Phi = S n)
-  (gam : matchfunspecs ge Gamma Phi)
+  (envcoh : env_coherence Jspec' ge Gamma Phi)
   (sparse : lock_sparsity (lset tp))
   (lock_coh : lock_coherence' tp Phi m compat)
   (safety : threads_safety Jspec' m ge tp Phi compat (S n))
@@ -248,12 +248,8 @@ Proof.
   + (* level *)
     apply level_age_to. cleanup. omega.
     
-  + (* semaxprog *)
-    inv INV; auto.
-    
-  + (* matchfunspecs *)
-    revert gam.
-    apply matchfunspecs_age_to. omega.
+  + (* env_coherence *)
+    apply env_coherence_age_to. auto.
     
   + (* lock sparsity *)
     simpl.

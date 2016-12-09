@@ -28,6 +28,8 @@ Require Import veric.tycontext.
 Require Import veric.semax_ext.
 Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
+Require Import veric.seplog.
+Require Import veric.juicy_safety.
 Require Import floyd.coqlib3.
 Require Import sepcomp.semantics.
 Require Import sepcomp.step_lemmas.
@@ -163,11 +165,16 @@ Section Initial_State.
       auto.
     }
     
-    apply state_invariant_c with (PHI := m_phi jm) (mcompat := compat); auto.
-    - exists prog, CS, V; auto.
+    apply state_invariant_c with (PHI := m_phi jm) (mcompat := compat).
+    - (*! level *)
+      auto.
     
-    - destruct (snd (projT2 (projT2 spr))) as (jm' & D  & H  & A & NL & MFS).
-      apply MFS.
+    - (*! env_coherence *)
+      destruct (snd (projT2 (projT2 spr))) as (jm' & D  & H  & A & NL & MFS & FA).
+      simpl in jm. unfold jm.
+      split.
+      + apply MFS.
+      + exists prog, CS, V. auto.
     
     - (*! lock sparsity (no locks at first) *)
       intros l1 l2.
