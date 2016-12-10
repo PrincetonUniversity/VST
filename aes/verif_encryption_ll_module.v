@@ -1,7 +1,9 @@
 Require Import floyd.proofauto.
+Require Import floyd.reassoc_seq.
 Require Import aes.aes.
 Require Import aes.tablesLL.
 Require Import aes.aes_spec_ll.
+Require Import aes.ZOpsSimplNever.
 
 Instance CompSpecs : compspecs.
 Proof. make_compspecs prog. Defined.
@@ -87,7 +89,7 @@ Opaque field_address.
 Lemma body_aes_encrypt: semax_body Vprog Gprog f_mbedtls_aes_encrypt encryption_spec_ll.
 Proof.
   start_function.
-  (* TODO floyd: put (Sreturn None) in such a way that the code can be folded into MORE_COMMANDS *)
+  reassoc_seq.
 
   (* RK = ctx->rk; *)
   forward.
@@ -95,11 +97,11 @@ Proof.
 
   assert_PROP (field_compatible t_struct_aesctx [StructField _buf] ctx) as Fctx. entailer!.
   assert ((field_address t_struct_aesctx [StructField _buf] ctx)
-        = (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx)) as Eq. {
+        = (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx)) as Eq0buf. {
     do 2 rewrite field_compatible_field_address by auto with field_compatible.
     reflexivity.
   }
-  rewrite Eq in *. clear Eq.
+  rewrite Eq0buf in *.
   remember (exp_key ++ list_repeat 8 0) as buf.
   (* TODO floyd: This is important for automatic rewriting of (Znth (map Vint ...)), and if
      it's not done, the tactics might become very slow, especially if they try to simplify complex
@@ -128,79 +130,8 @@ Proof.
     simpl. rewrite Int.add_assoc.
     replace (Int.mul (Int.repr 4) (Int.repr 1)) with (Int.repr 4) by reflexivity.
     rewrite add_repr.
-    replace (8 + 4 * (i + 1)) with (8 + 4 * i + 4) by omega.
-    reflexivity.
+    do 3 f_equal. omega.
   }
-
-(*
-  GET_UINT32_LE_tac. simpl. forward. forward. forward. simpl.
-
-change ((if field_compatible_dec t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx
-          then offset_val (nested_field_offset t_struct_aesctx [ArraySubsc 0; StructField _buf]) ctx
-          else Vundef))
-with (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx).
-Locate "_ ! _".
-
-Definition nosimpl {T: Type} (x: T) := x.
-Lemma nosimpl_def: forall {T: Type} (x: T), nosimpl x = x. Proof. intros. reflexivity. Qed.
-
-Global Opaque nosimpl.
-
-Eval simpl in (nosimpl (4 + (5 * 3))).
-
-
-Ltac my_hnf e := let e' := eval hnf in e in idtac e'.
-
-my_hnf (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx).
-
-Opaque field_address.
-
-my_hnf (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx).
-
-Arguments nosimpl _ _ : simpl never.
-
-Notation "'nosimpl' t" := (match tt with tt => t end)
- (at level 10).
-
-
-
-eval_var
-eval_id
-eval_lvalue
-eval_unop
-typeof
-liftx
-eval_binop
-eval_cast
-eval_field
-sizeof
-alignof
-
-
-
-
-
-Global Opaque field_address.
-unfold field_address.
-
-
-eval_expr
-
-Eval hnf in (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx).
-
-
- entailer!.
-change ((if field_compatible_dec t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx
-          then offset_val (nested_field_offset t_struct_aesctx [ArraySubsc 0; StructField _buf]) ctx
-          else Vundef))
-with (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx).
-
-
- simpl.
-
-    rewrite Eq by omega; simpl.
-    forward2. forward.
-*)
 
   Time do 4 (
     GET_UINT32_LE_tac; simpl; forward; forward; forward; simpl;
@@ -230,12 +161,14 @@ with (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx).
   rewrite EqX0. rewrite EqX1. rewrite EqX2. rewrite EqX3.
   clear EqX0 EqX1 EqX2 EqX3.
 
+  forward. (* here, the goal is huge, because the first command is an Sfor *)
+
 unfold Sfor.
 
 (* beginning of for loop *)
 
-(* initialisation of i is two steps: *)
-forward. forward.
+(* initialisation of i: *)
+forward.
 
 (* ugly hack to avoid type mismatch between
    "(val * (val * list val))%type" and "reptype t_struct_aesctx" *)
@@ -312,6 +245,7 @@ eapply semax_seq' with (P' :=
   ))).
 { (* loop body *) 
 Intro i.
+reassoc_seq.
 
 forward_if
   (EX i: Z, PROP ( 
@@ -344,15 +278,9 @@ forward_if
   forward. assert (i = 0) by omega. subst i.
   change (52 - 0 * 8) with 52.
   change (12 - 2 * Z.to_nat 0)%nat with 12%nat.
-  replace (mbed_tls_enc_rounds 12 S0 buf 4) with S12 by reflexivity. (* interestingly, if we use
+  change (mbed_tls_enc_rounds 12 S0 buf 4) with S12. (* without the module approach, if we use
      "change" instead of "replace", it takes much longer *)
-  (* simpl. <- takes forever. *)
-  (* entailer!. <- takes >60s, because it calls go_lower, which calls simpl
-    TODO floyd make entailer! usable here *)
-
-  apply drop_LOCAL' with (n := O). cbv [delete_nth].
-  eapply derives_trans; [ apply drop_tc_environ | ].
-  apply derives_refl.
+  entailer!. (* Note: simpl, and thus entailer!, used to time out here before *)
 }
 { (* rest: loop body *)
   clear i. Intro i. Intros. 
@@ -558,6 +486,8 @@ subst S' S''.
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
   forward.
 
+(*Require Import aes.ZOpsSimplNever.*)
+
   forward. forward. simpl (temp _RK _). rewrite Eq by omega.
   forward2.
   do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
@@ -606,54 +536,18 @@ Ltac entailer_for_load_tac ::=
   do 1 (forward; [apply prop_right; apply masked_byte_range | ]).
   do 1 (forward; [apply prop_right; apply masked_byte_range | ]).
   do 1 (forward; [apply prop_right; apply masked_byte_range | ]).
-
-Ltac entailer_for_load_tac ::= idtac.
-  forward.
-
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-match goal with
-    | |- context [ (tc_val _ (Vint (Znth ?i FSb Int.zero))) ] => 
-      assert (Int.unsigned (Znth i FSb Int.zero) <= Byte.max_unsigned) by apply FSb_range
-    end.
-remember 24 as twentyfour. rewrite Heqtwentyfour at 4.
-entailer!.
-apply prop_right; apply masked_byte_range.
+  do 1 (forward; [apply prop_right; apply masked_byte_range | ]).
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
   forward.
+
+Ltac entailer_for_load_tac :=
+  repeat match goal with H := _ |- _ => clear H end;
+  try quick_typecheck3;
+  unfold tc_efield, tc_LR, tc_LR_strong; simpl typeof;
+  try solve [entailer!].
 
   forward. forward. simpl (temp _RK _). rewrite Eq by omega.
   forward2.
-
-Ltac entailer_for_load_tac ::=
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range;
-  try (
-    match goal with
-    | |- context [ (tc_val _ (Vint (Znth ?i FSb Int.zero))) ] => 
-      assert (Int.unsigned (Znth i FSb Int.zero) <= Byte.max_unsigned) by apply FSb_range
-    end;
-    try (let Eqq := fresh "Eqq" in remember 24 as twentyfour eqn: Eqq; rewrite Eqq at 4);
-    solve [ entailer! ]
-  ).
-
-Ltac entailer_for_load_tac ::= idtac.
-
-  forward.
-
-rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-
-    match goal with
-    | |- context [ (tc_val _ (Vint (Znth ?i FSb Int.zero))) ] => 
-      assert (Int.unsigned (Znth i FSb Int.zero) <= Byte.max_unsigned) by apply FSb_range
-    end.
-    let Eqq := fresh "Eqq" in remember 24 as twentyfour eqn: Eqq.
-Time rewrite Eqq at 4.
-
-(* now 24 occurs in more temps which were "remember"ed before, that's why the "at" index changes *)
-
-    solve [ entailer! ]
-  ).
-
-
   forward; [apply prop_right; apply masked_byte_range | ].
   forward; [apply prop_right; apply masked_byte_range | ].
   forward; [apply prop_right; apply masked_byte_range | ].
@@ -714,12 +608,16 @@ simpl_upd_Znth.
   do 4 (forward; simpl_upd_Znth).
   do 4 (forward; simpl_upd_Znth).
 
+simpl cast_int_int in *.
+
 rewrite zero_ext_mask in *.
 rewrite zero_ext_mask in *.
 rewrite Int.and_assoc in *.
 rewrite Int.and_assoc in *.
 rewrite Int.and_idem in *.
 rewrite Int.and_idem in *.
+
+repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
 
 match goal with
 | |- context [ field_at _ _ _ ?res output ] =>
@@ -738,12 +636,6 @@ rewrite Eq3. clear Eq3.
 
 Ltac entailer_for_return ::= idtac.
 
-  (* TODO don't clear Eq in the beginning *)
-  assert ((field_address t_struct_aesctx [StructField _buf] ctx)
-        = (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx)) as Eq0buf. {
-    do 2 rewrite field_compatible_field_address by auto with field_compatible.
-    reflexivity.
-  }
   rewrite <- Eq0buf in *.
 
 (* return None *)
@@ -752,9 +644,11 @@ remember (mbed_tls_aes_enc plaintext buf) as Res.
 unfold tables_initialized.
 entailer!.
 }
-(* verifying until here takes about 1 hour and 4.5 GB of memory *)
+(* verifying until here takes about 1 hour and 3.1 GB of memory *)
 
-Time Qed. (* Increases memory usage from 4.5 GB to 7.6 GB, then out of memory *)
+Time Qed. (* Increases memory usage from 3.1 GB to 6.7 GB, and finishes in 448s *)
+
+Print Assumptions body_aes_encrypt.
 
 (* TODO floyd: sc_new_instantiate: distinguish between errors caused because the tactic is trying th
    wrong thing and errors because of user type errors such as "tuint does not equal t_struct_aesctx" *)
