@@ -1010,29 +1010,31 @@ using the oracle, as [acquire] is.  The postcondition would be [match
 PrePost with existT ty (w, pre, post) => thread th (Interp (post w b))
 end] *)
 
+Definition gvars := map (fun x => gvar (fst x) (snd x)).
+
 Program Definition spawn_spec' := mk_funspec
   ((_f OF tptr voidstar_funtype)%formals :: (_args OF tptr tvoid)%formals :: nil, tvoid)
   cc_default 
-  (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * val)) (rmaps.DependentType 0)) (rmaps.ArrowType (rmaps.DependentType 0) (rmaps.ArrowType (rmaps.ConstType val) rmaps.Mpred)))
+  (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * val * list (ident * val))) (rmaps.DependentType 0)) (rmaps.ArrowType (rmaps.DependentType 0) (rmaps.ArrowType (rmaps.ConstType val) rmaps.Mpred)))
   (fun ts x =>
    match x with
-   | (f, b, w, pre) =>
-     PROP ()
-     LOCAL (temp _args b)
-     SEP (
-       EX _y : ident, EX globals : nth 0 ts unit -> list (ident * val),
+   | (f, b, globals, w, pre) =>
+     PROP (expr.tc_val (tptr Tvoid) b)
+     (LOCALx (temp _args b :: temp _f f :: gvars globals)
+     (SEP (
+       EX _y : ident,
          (func_ptr'
            (WITH y : val, x : nth 0 ts unit
              PRE [ _y OF tptr tvoid ]
                PROP ()
-               (LOCALx (temp _y y :: map (fun x => gvar (fst x) (snd x)) (globals x))
+               (LOCALx (temp _y y :: gvars globals)
                (SEP   (pre x y)))
              POST [tvoid]
                PROP  ()
                LOCAL ()
                SEP   (FF))
            f);
-         pre w b)
+         pre w b)))
    end)
   (fun ts x =>
    match x with
@@ -1053,8 +1055,6 @@ Next Obligation.
   destruct x as [[[f b] w] pre]; simpl in *.
   auto.
 Qed.
-
-Definition gvars := map (fun x => gvar (fst x) (snd x)).
 
 Definition spawn_spec :=
   WITH f : val,
@@ -1488,7 +1488,7 @@ Definition concurrent_specs (cs : compspecs) (ext_link : string -> ident) :=
   (ext_link "release"%string, release_spec') ::
   (ext_link "makelock"%string, makelock_spec' cs) ::
   (ext_link "freelock"%string, freelock_spec' cs) ::
-  (ext_link "spawn"%string, spawn_spec) ::
+  (ext_link "spawn"%string, spawn_spec') ::
   nil.
 
 Definition concurrent_ext_spec Z (cs : compspecs) (ext_link : string -> ident) :=

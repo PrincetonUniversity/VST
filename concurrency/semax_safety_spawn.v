@@ -222,18 +222,18 @@ Proof.
   funspec_destruct "makelock".
   funspec_destruct "freelock".
   funspec_destruct "spawn".
-  
-  intros (phix, (ts, (((xf, xarg), globals), (f_with_ty & f_with_x & f_with_Pre)))) (Hargsty, Pre).
+
+  intros (phix, (ts, ((((xf, xarg), globals), f_with_x), f_with_Pre))) (Hargsty, Pre).
   intros Post.
   simpl in Pre.
+  simpl (and _) in Post.
   destruct Pre as (phi0 & phi1 & jphi & A).
-  destruct A as ((PreA & (PreB1 & PreB2 & PreB3) & phi00 & phi01 & jphi0 & (_y & Func) & fPRE) & necr).
+  destruct A as (((PreA & PreA') & (PreB1 & PreB2 & PreB3) & phi00 & phi01 & jphi0 & (_y & Func) & fPRE) & necr).
+(*destruct A as ((PreA & (PreB1 & PreB2 & PreB3) & phi00 & phi01 & jphi0 & (_y & Func) & fPRE) & necr).*)
   simpl in fPRE.
   rewrite seplog.sepcon_emp in fPRE.
-  simpl in PreA. destruct PreA as [PreA _].
-  simpl in PreB1.
-  unfold liftx in PreB1. simpl in PreB1. unfold lift in PreB1.
-  unfold liftx in PreB2. simpl in PreB2. unfold lift in PreB2.
+  change Logic.True in PreA'. clear PreA'.
+  hnf in PreB1.
   
   assert (li : level (getThreadR i tp cnti) = S n).
   { rewrite <-En. apply join_sub_level, compatible_threadRes_sub, compat. }
@@ -318,7 +318,7 @@ Proof.
     make do with {emp}, but we leave that for later *)
     intros ts0 a rho phi ff. hnf.
     apply cond_approx_eq_sym in Heq_Q.
-    pose proof @cond_approx_eq_app _ (rmaps.ConstType (val * f_with_ty)) _ _ (age_to n phi) Heq_Q as HQ.
+    pose proof @cond_approx_eq_app _ (rmaps.ConstType (val * nth 0 ts unit)) _ _ (age_to n phi) Heq_Q as HQ.
     spec HQ. eapply le_lt_trans with n. 2:omega.
     { apply level_age_to_le'. }
     spec HQ ts0 a rho.
@@ -446,7 +446,7 @@ Proof.
       
       eapply Safety.
       * rewrite Ejm.
-        eapply cond_approx_eq_app with (A := rmaps.ConstType (val * f_with_ty)) (y := (xarg, f_with_x)).
+        eapply cond_approx_eq_app with (A := rmaps.ConstType (val * nth 0 ts unit)) (y := (xarg, f_with_x)).
         
         (* cond_approx_eq *)
         eauto.
