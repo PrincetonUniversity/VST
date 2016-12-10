@@ -524,7 +524,7 @@ auto.
 Qed.
 
 Lemma funassert_initial_core:
-  forall (prog: program) ve te V G {C: compspecs} n, 
+  forall (prog: program) ve te V G n, 
       list_norepet (prog_defs_names prog) ->
       match_fdecs (prog_funct prog) G ->
       app_pred (funassert (nofunc_tycontext V G) (mkEnviron (filter_genv (globalenv prog)) ve te))
@@ -1031,6 +1031,22 @@ Proof.
   repeat (hnf; decide equality; auto).
 Qed.
 
+Lemma initial_jm_funassert V (prog : Clight.program) m G n H H1 H2 :
+  (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)))
+    (m_phi (initial_jm prog m G n H H1 H2)).
+Proof.
+  unfold initial_jm.
+  assert (FA: app_pred (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)))
+    (initial_world.initial_core (Genv.globalenv prog) G n)
+         ).
+  apply funassert_initial_core; auto.
+  revert FA.
+  pose proof assert_lemmas.corable_funassert (nofunc_tycontext V G) (empty_environ (globalenv prog)) as CO.
+  rewrite corable_spec in CO. apply CO.
+  pose proof initial_mem_core as E.
+  unfold juicy_mem_core in *. erewrite E; try reflexivity.
+Qed.
+
 Lemma semax_prog_rule {CS: compspecs} :
   forall V G prog m,
      @semax_prog CS prog V G ->
@@ -1044,7 +1060,8 @@ Lemma semax_prog_rule {CS: compspecs} :
            m_dry jm = m /\ level jm = n /\
            (forall z, jsafeN (@OK_spec Espec) (globalenv prog) n z q jm) /\
            no_locks (m_phi jm) /\
-           matchfunspecs (globalenv prog) G (m_phi jm)
+           matchfunspecs (globalenv prog) G (m_phi jm) /\
+           (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))) (m_phi jm)
      } } }%type.
 Proof.
   intros until m.
@@ -1069,7 +1086,7 @@ Proof.
   pose proof I.
   destruct EXx as [b [? ?]]; auto.
   exists b.
-  unfold semantics.initial_core; simpl.
+  unfold semantics.initial_core. simpl (_ = Some _).
   unfold fundef in *; rewrite H7.
   rewrite if_true by auto.
   (* unfold is_Internal in HInt. *)
@@ -1211,6 +1228,8 @@ Proof.
   - apply initial_jm_without_locks.
   - apply initial_jm_without_locks.
   - apply initial_jm_matchfunspecs.
+  - apply initial_jm_funassert.
+  - apply initial_jm_funassert.
 Qed.
 
 Definition Delta_types V G {C: compspecs} (tys : list type) : tycontext := 
@@ -1281,59 +1300,16 @@ Proof.
     do 2 if_tac; congruence.
 Qed.
 
-
-(* Lemma believe_split CS Espe ge tc v fsig cc A P Q x :
-    (believe_external Espe ge    v fsig cc A P Q ||
-     @believe_internal CS Espe ge tc v fsig cc A P Q) x ->
-    {believe_external Espe ge    v fsig cc A P Q x} +
-    {believe_internal Espe ge tc v fsig cc A P Q x}.
-  Proof.
-    destruct (Genv.find_funct ge v) as [ [ | ] | ] eqn:Ev.
-    - intros H; right.
-      destruct H as [H|H]; [exfalso | apply H].
-      unfold believe_external in *.
-      rewrite Ev in H. auto.
-    - intros H; left.
-      destruct H as [H|H]; [apply H | exfalso].
-      destruct H as (b & fu & (? & WOB & ASD) & WOBk). subst v. simpl in Ev.
-      if_tac in Ev; congruence.
-    - intros H; exfalso; destruct H as [H|H].
-      unfold believe_external in *.
-      + rewrite Ev in H; auto.
-      + destruct H as (b & fu & (? & WOB & ASD) & WOBk). subst v. simpl in Ev.
-      if_tac in Ev; congruence.
-  Qed. *)
-
-Definition find_params (prog : program) (f : ident) :=
-  match Genv.find_symbol (Genv.globalenv prog) f with
-    None => None
-  | Some b =>
-    match Genv.find_funct_ptr (Genv.globalenv prog) b with
-    | None => None
-    | Some f =>
-      match f with
-      | External _ _ _ _ => None
-      | Internal func => Some func.(fn_params)
-      end
-    end
-  end.
-
 (* note: because hypotheses changed several times, this proof has a lot of redundancy *)
 
 Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun id_arg arg A P Q NEP NEQ :
   @semax_prog CS prog V G ->
-  (* is_Internal prog id_fun = true -> *)
   Genv.find_symbol (globalenv prog) id_fun = Some b ->
-  (* find_params prog id_fun = Some params -> *)
   find_id id_fun G =
     Some (mk_funspec ((id_arg, Tpointer Tvoid noattr) :: nil, Tvoid)
                      cc_default A P Q NEP NEQ) ->
-  (* (* P is closed wrt all tempvars except 2 *) *)
-  (* (forall x, closed_wrt_vars (fun n => ~eq 2%positive n) (P x)) -> *)
   (forall ts a rho, Q ts a rho |-- FF) ->
   is_pointer_or_null arg ->
-  (* we already know the b, why should we put it here? *)
-  (* { b : block & *)
   (* initial environment *)
   let rho0 : environ :=
       construct_rho
@@ -1356,22 +1332,13 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun id_arg arg A P Q 
     forall (jm : juicy_mem) ts a,
       app_pred (P ts a rho1) (m_phi jm) ->
       app_pred (funassert (Delta_types V G (Tpointer Tvoid noattr::nil)) rho0) (m_phi jm) ->
-      forall z, jsafeN (@OK_spec Espec) (globalenv prog) (level jm) z q jm } (* } *).
+      forall z, jsafeN (@OK_spec Espec) (globalenv prog) (level jm) z q jm }.
 Proof.
-  intros SP (* INT *) (* Eparams  *)(* Fparams *) Findb
-         id_in_G QFF arg_p.
+  intros SP Findb id_in_G QFF arg_p.
   destruct ((fun x => x) SP) as (_ & _ & _ & (MatchFdecs & Believe) & _).
   specialize (Believe (globalenv prog)).
   spec Believe. now apply prog_contains_prog_funct, compute_list_norepet_e, SP.
   spec Believe. now symmetry; apply SP.
-  
-(*
-  pose proof (find_funct_ptr_exists prog (prog_main prog) id_fun) as EXx.
-  (* Genv.find_funct_ptr_exists is a Prop existential, we use constructive epsilon and
-     decidability on a countable set to transform it to a Type existential *)
-  apply find_symbol_funct_ptr_ex_sig in EXx; auto.
-  (* pose proof match_fdecs_exists_Gfun _ _ _ _ id_in_G MatchFdecs. *)
-*)
   
   pose proof Believe as Believe_.
   spec Believe 5%nat.
@@ -1379,51 +1346,6 @@ Proof.
   unfold nofunc_tycontext in *.
   simpl glob_specs in Believe.
   rewrite <-find_id_maketycontext_s in id_in_G.
-
-  (*
-  assert (Hb : Genv.find_symbol (globalenv prog) id_fun = Some b).  auto. (* {
-    (* this cannot be proven by believe, but it can probably be proven
-    by funassert, if we add it to the invariant? *)
-    set (rho0 :=
-          construct_rho
-            (filter_genv (globalenv prog)) empty_env
-            (PTree.empty _)).
-    
-    (* trying assuming we have funassert *)
-    assert (Genv.find_symbol (globalenv prog) id_fun = Some b). {
-      
-      assert (FA : exists phi fs,
-                 func_at' fs (b, 0) phi /\
-                 app_pred (funassert (Delta_types V G (Tpointer Tvoid noattr::nil)) rho0) phi)
-        by admit.
-      
-      destruct FA as (phi & fs & FAT & FA1 & FA2).
-      (* funassert cannot help with this: it says SOME b' corresponds to
-       id_fun, and that some id corresponds to b. *)
-      
-      destruct (FA1 id_fun _ _ (necR_refl _) id_in_G) as (b' & geb' & fat).
-      destruct (FA2 b fs _ (necR_refl _) FAT) as (id' & geb & fs' & fat').
-      
-      admit. (* find_symbol is in fact NEEDED by believe ? *)
-    } clear H.
-    
-    (* use find_funct_ptr_exists? it assumes (id, Gfun f) is in
-    prog_degs and find a block, which we know is b
-    
-    add "claims" to hyp?
-    *)
-    
-    (* I can add 
-
-    func_at'' fsig cc A P Q (b, 0%Z) Phi ->
-    exists id (* func *) P' Q' P'_ne Q'_ne,
-      Genv.find_symbol ge id = Some b /\
-      Gamma ! id = Some (mk_funspec fsig cc A P' Q' P'_ne Q'_ne) /\ ....
-     
-     to my invariant, but then there is still the problem of relating _f to the rest?
-   *)
-  } *)
-  *)
   
   specialize (Believe (Vptr b Int.zero)
                       ((id_arg, Tpointer Tvoid noattr) :: nil, Tvoid)
@@ -1535,13 +1457,6 @@ Proof.
   simpl in *; subst.
   now apply safe_loop_skip.
   
-  (*
-  (* globspecs *)
-  simpl.
-  rewrite id_in_G.
-  subst params. reflexivity.
-  *)
-  
   (* equivalence between Q and Q' *)
   intros vl; split; apply derives_imp; apply derives_refl'; reflexivity.
   
@@ -1566,231 +1481,4 @@ Proof.
   now destruct i; reflexivity.
 Qed.
 
-
-(* DONE *)
-  
-    
-
-  (*
-  destruct Believe as [BelExt | BelInt].
-
-  - (* external *)
-    unfold believe_external in *.
-    unfold Genv.find_funct in *.
-    if_tac [_|?] in BelExt. 2:tauto.
-    destruct (Genv.find_funct_ptr (globalenv prog) b)
-      as [[[ef sigargs sigret c'']|]|] eqn:Eb; try solve [inv BelExt].
-    eexists. split; auto. split. reflexivity.
-    intros jm ts a m_sat_Pa m_funassert.
-    admit.
-  
-  - (* internal *)
-    unfold believe_internal in BelInt.
-    destruct (Genv.find_funct_ptr (globalenv prog) b) as [f|] eqn:Eb; swap 1 2.
-    { exfalso.
-      destruct BelInt as (b' & fu & (? & WOB & ASD) & WOBk).
-      assert (b' = b) by congruence. subst b'. congruence. }
-    eexists. split; auto. split. reflexivity.
-    destruct BelInt as (b' & fu & (? & WOB & Hcomp & Hnr1 & Hnr2 & Hok & Hsig & Hcc) & Hsemax).
-    simpl in Hsig. injection Hsig as Hparams Hreturn.
-    assert (b' = b) by congruence. subst b'.
-    assert (f = Internal fu) by congruence. subst f. clear WOB.
-
-    intros jm ts a m_sat_Pa m_funassert.
-    
-
-    pose (rho3 := 
-            construct_rho
-              (filter_genv (globalenv prog)) empty_env
-              (PTree.set 1 (Vptr b Int.zero)
-                         (temp_bindings 2 (map fst ((arg, Tpointer Tvoid noattr) :: nil))))).
-    
-
-    pose proof I.
-    intros z.
-    eapply
-      (semax_call_aux
-         Espec (Delta_types V G (Tpointer Tvoid noattr::nil)) A P
-         (fun _ _ => Q ts a) Q NEP NEQ
-         ts a (fun _ => emp) (fun _ => emp)
-         None ((id_arg, Tpointer Tvoid noattr)::nil, Tvoid) cc_default _ _
-         (normal_ret_assert (fun rho => EX _ : val, emp * Q ts a (globals_only rho)))
-         _ _ _ _ rho3
-         _ _ b id_fun);
-      try apply H3; try eassumption; auto.
-    
-    (* classify_fun *)
-    unfold classify_fun in *.
-    simpl.
-    rewrite <-Hparams, <-Hreturn, Hcc.
-    subst params. simpl. reflexivity.
-    replace (params_of_fundef (Internal fu)) with (map snd (fn_params fu)).
-    2: destruct fu; reflexivity.
-    rewrite <-Hparams. subst params. now auto.
-    
-    (* guard_environ *)
-    split; try apply I.
-    eapply semax_prog_typecheck_aux_types; eauto.
-    apply compute_list_norepet_e. apply SP. apply SP.
-    now destruct arg; inversion arg_p; reflexivity.
-    
-    (* closed_wrt_modvars *)
-    simpl.
-    hnf; intros; intuition.
-    hnf; intros; intuition.
-    unfold normal_ret_assert; simpl.
-    extensionality rho'.
-    now normalize.
-    
-    (* globalenv prog = cenv_cs *)
-    destruct SP as [? [AL [HGG [[H2 H3] [GV _]]]]].
-    rewrite HGG. reflexivity.
-    
-    (* guard_environ: we conclude because Q=>False *)
-    repeat intro.
-    repeat match goal with H : context [ Q ] |- _ => destruct H end.
-    now repeat match goal with H : context [ Q ] |- _ => apply QFF in H; inversion H end.
-    
-    (* globspecs *)
-    simpl.
-    rewrite id_in_G.
-    subst params. reflexivity.
-    
-    (* equivalence between Q and Q' *)
-    intros vl; split; apply derives_imp; apply derives_refl'; reflexivity.
-    
-    (* precondition *)
-    refine (derives_e _ _ _ _ m_sat_Pa).
-    normalize.
-    eapply derives_trans; [|apply now_later].
-    apply derives_refl'; f_equal.
-    replace (params_of_fundef (Internal fu)) with (map snd (fn_params fu)).
-    2: destruct fu; reflexivity.
-    rewrite <-Hparams. subst params.
-    simpl.
-    unfold globals_only, env_set, construct_rho.
-    simpl.
-    f_equal.
-    extensionality i; destruct i; reflexivity.
-    unfold make_tenv, force_val, sem_cast_neutral, eval_id.
-    extensionality i.
-    rewrite PTree.gsspec.
-    unfold Map.set.
-    if_tac; if_tac; try congruence; subst.
-    unfold liftx, lift; simpl.
-    now destruct arg; inversion arg_p; auto.
-    now destruct i; reflexivity.
-    
-    
-    
-  pose proof find_funct_ptr_exists prog id_fun.
-  
-  specialize (Believe (ex_intro
-  
-  unfold match_fdecs in *.
-  hnf in MatchFdecs.
-  destruct SP.
-  spec 
-  clear.
-  Focus 1.
-  destruct prog; simpl.
-  unfold prog_comp_env in *.
-  unfold globalenv in *.
-  unfold Genv.globalenv in *.
-  
-  hnf in SF.
-  (* unfold find_params in Fparams. *)
-  (* destruct (Genv.find_symbol (Genv.globalenv prog) id_fun) as [b|] eqn:Fid; [ | discriminate]. *)
-  (* destruct (Genv.find_funct_ptr (Genv.globalenv prog) b) as [[func|]|] eqn:Fb; try discriminate. *)
-  (* subst params; injection Fparams as Eparams. *)
-  
-  exists b.
-  intros rho0 rho1.
-  simpl (semantics.initial_core _).
-  unfold cl_initial_core.
-  if_tac;[|tauto]. match goal with H : ?a = ?a |- _ => clear H end.
-  replace (Genv.find_funct_ptr (globalenv prog)) with
-  (Genv.find_funct_ptr (Genv.globalenv prog))
-    by reflexivity.
-  rewrite Fb.
-  econstructor.
-  split. apply Fid.
-  split. reflexivity.
-  (* rewrite Eparams. *)
-  
-  intros jm ts a m_sat_Pa m_funassert.
-  
-  destruct SP as [H0 [AL [HGG [[H2 H3] [GV _]]]]].
-  apply compute_list_norepet_e in H0.
-  specialize (H3 (globalenv prog) (prog_contains_prog_funct _ H0)).
-
-  pose (rho3 := 
-          construct_rho
-            (filter_genv (globalenv prog)) empty_env
-            (PTree.set 1 (Vptr b Int.zero)
-                       (temp_bindings 2 (map fst ((arg, Tpointer Tvoid noattr) :: nil))))).
-  
-  pose proof I.
-  intros z.
-  eapply
-    (semax_call_aux
-       Espec (Delta_types V G (Tpointer Tvoid noattr::nil)) A P
-       (fun _ _ => Q ts a) Q NEP NEQ
-       ts a (fun _ => emp) (fun _ => emp)
-       None ((id_arg, Tpointer Tvoid noattr)::nil, Tvoid) cc_default _ _
-       (normal_ret_assert (fun rho => EX _ : val, emp * Q ts a (globals_only rho)))
-       _ _ _ _ rho3
-       _ _ b id_fun);
-    try apply H3; try eassumption; auto.
-  
-  (* guard_environ *)
-  split; try apply I.
-  eapply semax_prog_typecheck_aux_types; eauto.
-  now destruct arg; inversion arg_p; reflexivity.
-  
-  (* closed_wrt_modvars *)
-  simpl.
-  hnf; intros; intuition.
-  hnf; intros; intuition.
-  unfold normal_ret_assert; simpl.
-  extensionality rho'.
-  now normalize.
-  
-  (* funassert: not a goal anymore (in the hypotheses) *)
-  
-  (* guard_environ: we conclude because Q=>False *)
-  repeat intro.
-  repeat match goal with H : context [ Q ] |- _ => destruct H end.
-  now repeat match goal with H : context [ Q ] |- _ => apply QFF in H; inversion H end.
-  
-  (* globspecs *)
-  simpl.
-  rewrite find_id_maketycontext_s.
-  eassumption.
-
-  (* equivalence between Q and Q' *)
-  intros vl; split; apply derives_imp; apply derives_refl'; reflexivity.
-  
-  (* precondition *)
-  refine (derives_e _ _ _ _ m_sat_Pa).
-  normalize.
-  simpl.
-  eapply derives_trans; [|apply now_later].
-  unfold rho1.
-  simpl.
-  apply derives_refl'; f_equal.
-  unfold globals_only, env_set, rho0, construct_rho.
-  simpl.
-  f_equal.
-  extensionality i; destruct i; reflexivity.
-  unfold make_tenv, force_val, sem_cast_neutral, eval_id.
-  extensionality i.
-  rewrite PTree.gsspec.
-  unfold Map.set.
-  if_tac; if_tac; try congruence; subst.
-  unfold liftx, lift; simpl.
-  now destruct arg; inversion arg_p; auto.
-  now destruct i; reflexivity.
-Qed.
-*)
 End semax_prog.

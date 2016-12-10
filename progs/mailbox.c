@@ -46,48 +46,57 @@ int simulate_atomic_exchange(int *tgt, lock_t *l, int v){
 //access to bufs[0] as if they've received the first communication).
 
 //registrar function
+buf_id *reading[N], *last_read[N];
+
 void initialize_channels(){
   for(int i = 0; i < B; i++){
     buffer *b = surely_malloc(sizeof(buffer));
+    memset(b, 0, sizeof(buffer)); //for now, we initialize all buffers to maintain
+                                  //the invariant that buffers contain integers
     bufs[i] = b;
   }
   for(int r = 0; r < N; r++){
     buf_id *c = surely_malloc(sizeof(buf_id));
     *c = Empty;
     comm[r] = c;
+    c = surely_malloc(sizeof(buf_id));
+    reading[r] = c;
+    c = surely_malloc(sizeof(buf_id));
+    last_read[r] = c;
     lock_t *l = surely_malloc(sizeof(lock_t));
     lock[r] = l;
     makelock(l);
     release(l);
   }
-  buffer *b = bufs[First];
-  memset(b, 0, sizeof(buffer));
 }
 
 //reader functions
-buf_id reading[N], last_read[N]; //these should actually be separate and private to each reader
-
 void initialize_reader(int r){
-  reading[r] = Empty;
-  last_read[r] = First;
+  buf_id *rr = reading[r];
+  buf_id *lr = last_read[r];
+  *rr = Empty;
+  *lr = First;
 }
 
 buf_id start_read(int r){
   buf_id b;
   buf_id *c = comm[r];
   lock_t *l = lock[r];
+  buf_id *rr = reading[r];
+  buf_id *lr = last_read[r];
   b = simulate_atomic_exchange(c, l, Empty);
   if(b >= 0 && b < B)
-    last_read[r] = b;
+    *lr = b;
   else
-    b = last_read[r];
-  reading[r] = b;
+    b = *lr;
+  *rr = b;
   return b;
 }
 
 void finish_read(int r){
   //r is no longer using the buffer
-  reading[r] = Empty;
+  buf_id *rr = reading[r];
+  *rr = Empty;
 }
 
 //writer functions
@@ -143,7 +152,8 @@ void *reader(void *arg){
   initialize_reader(r);
   while(1){
     buf_id b = start_read(r);
-    int v = bufs[b]->data;
+    buffer *buf = bufs[b];
+    int v = buf->data;
     //printf("Reader %d read %d\n", r, v);
     finish_read(r);
   }
@@ -155,7 +165,8 @@ void *writer(void *arg){
   int v = 0;
   while(1){
     buf_id b = start_write();
-    bufs[b]->data = v;
+    buffer *buf = bufs[b];
+    buf->data = v;
     finish_write();
     v++;
   }

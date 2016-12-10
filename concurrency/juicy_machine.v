@@ -96,45 +96,6 @@ Module ThreadPool (SEM:Semantics) <: ThreadPoolSig
    
 End ThreadPool.
 
-Module JMem.
-
-  
-  Definition get_fun_spec' (phi:rmap) (l:address) (v : val) : option (sigT (fun A => forall ts, rmaps.dependent_type_functor_rec ts A (pred rmap))).
-  Proof.
-    destruct (phi @ l) eqn:FUN.
-    - exact None.
-    - destruct k.
-      + exact None.
-      + exact None.
-      + exact None.
-      + exact None.
-    - destruct p as [A p].
-        refine (Some (existT _ _ p)).
-  Defined.
-  Definition AType: Type. exact bool. Defined.
-  Definition get_fun_spec (p: forall ts: list Type, AType -> pred rmap) : option (pred rmap * pred rmap).
-  Proof. exact (Some (p nil true, p nil false)).
-  Defined.
-
-  (*This won't be needed, we have a better way to compute it. *)
-  Definition get_lock_inv' (jm:juicy_mem) (l:address) : option (sigT (fun A => forall ts, rmaps.dependent_type_functor_rec ts A (pred rmap))).
-  Proof.
-    destruct jm. destruct (phi @ l) eqn:FUN.
-    - exact None.
-    - destruct k.
-      + exact None.
-      + destruct p0 as [A p0].
-        refine (Some (existT _ _ p0)).
-      + exact None.
-      + exact None.
-    - exact None.
-  Defined.
-  Definition get_lock_inv (p: forall ts: list Type, AType -> pred rmap) : option (pred rmap).
-  Proof. exact (Some (p nil true)).
-  Defined.
-  
-End JMem.
-
 Module Concur.
 
   
@@ -232,6 +193,11 @@ Module Concur.
         app_pred emp r.  (*Or is is just [amp r]?*)
     Definition join_threads tp r:= join_list (getThreadsR tp) r.
 
+    Lemma getThreadsR_addThread tp v1 v2 phi :
+      getThreadsR (addThread tp v1 v2 phi) = getThreadsR tp ++ phi :: nil.
+    Proof.
+    Admitted. (* getThreadsR_addThread *)
+    
     (*Join juice from all locks*)
     Fixpoint join_list' (ls: seq.seq (option res)) (r:option res):=
       if ls is phi::ls' then exists (r':option res),
@@ -1288,9 +1254,6 @@ Qed.
             (Hrestrict_pmap: restrPermMap Hlt' = m1)
             (Hstore: Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.one) = Some m')
             (His_locked: lockRes tp (b, Int.intval ofs) = SNone )
-            (* what does the return value denote?*)
-            (*p: veric.rmaps.listprod (JMem.AType::nil) -> pred rmap*)
-            (*Hget_lock_inv': JMem.get_lock_inv' jm (b, Int.intval ofs) = Some (existT _ _ p) *)
             (Hsat_lock_inv: R (age_by 1 d_phi))
             (Hrem_lock_res: join d_phi phi' phi)
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
@@ -1299,8 +1262,7 @@ Qed.
             (Htp''': tp''' = age_tp_to (level phi - 1)%coq_nat tp''),
             syncStep' genv cnt0 Hcompat tp''' m' (release (b, Int.intval ofs) None)      
     | step_create :
-        (* HAVE TO REVIEW THIS STEP LOOKING INTO THE ORACULAR SEMANTICS*)
-        forall  (tp_upd tp':thread_pool) c c_new vf arg jm (d_phi phi': rmap) b ofs P Q,
+        forall  (tp_upd tp':thread_pool) c c_new vf arg jm (d_phi phi': rmap) b ofs (* P Q *),
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kblocked c)
@@ -1311,14 +1273,9 @@ Qed.
             (Hcompatible: mem_compatible tp m)
             (Hpersonal_perm: 
                personal_mem (thread_mem_compatible Hcompatible cnt0) = jm)
-            (p: forall ts: list Type, JMem.AType -> pred rmap)
-            (Hget_fun_spec': JMem.get_fun_spec' (m_phi jm) (b, Int.intval ofs) arg = Some (existT (fun A => forall ts: list Type, rmaps.dependent_type_functor_rec ts A (pred rmap)) (rmaps.ArrowType (rmaps.ConstType JMem.AType) rmaps.Mpred) p))
-            (Hget_fun_spec: JMem.get_fun_spec p = Some (P, Q))
-            (Hsat_fun_spec: P d_phi)
-            (Halmost_empty: almost_empty d_phi)
             (Hrem_fun_res: join d_phi phi' (m_phi jm))
             (Htp': tp_upd = updThread cnt0 (Kresume c Vundef) phi')
-            (Htp'': tp' = addThread tp_upd vf arg d_phi),
+            (Htp'': tp' = age_tp_to (level (m_phi jm) - 1)%coq_nat (addThread tp_upd vf arg d_phi)),
             syncStep' genv cnt0 Hcompat tp' m (spawn (b, Int.intval ofs) None None)
     | step_mklock :
         forall  (tp' tp'': thread_pool)  jm c b ofs R ,
@@ -1355,39 +1312,15 @@ Qed.
             (Hat_external: at_external the_sem c =
                            Some (FREE_LOCK, Vptr b ofs::nil))
             (Hcompatible: mem_compatible tp m)
-            (*Hpersonal_perm: 
-               personal_mem cnt0 Hcompatible = jm*)
             (Hpersonal_juice: getThreadR cnt0 = phi)
             (*First check the lock is acquired:*)
             (His_acq: lockRes tp (b, (Int.intval ofs)) = SNone)
             (*Relation between rmaps:*)
             (Hrmap : rmap_freelock phi phi' m (b, Int.unsigned ofs) R LKSIZE)
-            (*
-            (*This the first share of the lock, 
-              can/should this be different for each location? *)
-            (sh:Share.t)
-            (*Check the new memoryI have has the right permission to mklock and the right value (i.e. 0) *)
-            (Haccess: address_mapsto Mint32 (Vint Int.zero) sh Share.top (b, Int.intval ofs) phi')
-            (*Check the old memory has the lock*)
-            (Hlock: phi@ (b, Int.intval ofs) = YES sh pfullshare (LK LKSIZE) (pack_res_inv R))
-            (Hlock': exists val, phi'@ (b, Int.intval ofs) = YES sh pfullshare (VAL val) NoneP)
-            (Hct: forall ofs', (Int.intval ofs)< ofs'<(Int.intval ofs)+LKSIZE ->
-                          exists val, (*I*)
-                            phi@ (b, ofs') = YES sh pfullshare (CT (ofs' - Int.intval ofs)%Z) NoneP /\
-                            phi'@ (b, ofs') = YES sh pfullshare (VAL val) NoneP)
-            (*Check the old memory has the right continuations  THIS IS REDUNDANT!*)
-            (*Hcont: forall i, 0<i<LKSIZE ->   phi@ (b, Int.intval ofs + i) = YES sh pfullshare (CT i) NoneP *)
-            (*Check the two memories coincide in everything else *)
-            (Hj_forward: forall loc, b <> loc#1 \/ ~(Int.intval ofs)<=loc#2<(Int.intval ofs)+LKSIZE  -> phi@loc = phi'@loc)
-            (levphi' : level phi' = level phi)
-            *)
-            (*Check the memories are equal!*)
-            (*Hm_forward:
-               makeCurMax m = m1 *)
             (Htp': tp' = updThread cnt0 (Kresume c Vundef) phi')
             (Htp'': tp'' = age_tp_to (level phi - 1)%coq_nat 
                     (remLockSet tp' (b, Int.intval ofs) )),
-            syncStep' genv cnt0 Hcompat  tp'' m (freelock (b, Int.intval ofs)) (* m_dry jm' = m_dry jm = m *)
+            syncStep' genv cnt0 Hcompat  tp'' m (freelock (b, Int.intval ofs))
                       
     | step_acqfail :
         forall  c b ofs jm psh m1,
@@ -1400,10 +1333,6 @@ Qed.
             (Hcompatible: mem_compatible tp m)
             (Hpersonal_perm: 
                personal_mem (thread_mem_compatible Hcompatible cnt0) = jm)
-            (*Hrestrict_pmap:
-               permissions.restrPermMap
-                 (mem_compatible_locks_ltwritable Hcompatible)
-               = m1*)
             (Hrestrict_map: juicyRestrict_locks
                               (mem_compat_thread_max_cohere Hcompat cnt0) = m1)
             (sh:Share.t)(R:pred rmap)
@@ -1491,7 +1420,8 @@ Qed.
           erewrite <- age_getThreadCode.
           rewrite gLockSetCode.
           rewrite gsoThreadCode; assumption.
-        * exists (cntAdd _ _ _ (cntUpdate (Kresume c Vundef) phi' _ cntj)), q.
+        * exists (cnt_age' (cntAdd _ _ _ (cntUpdate (Kresume c Vundef) phi' _ cntj))), q.
+          erewrite <- age_getThreadCode.
           erewrite gsoAddCode . (*i? *)
           rewrite gsoThreadCode; assumption.
           eapply cntUpdate. eauto.
@@ -1515,7 +1445,8 @@ Qed.
           try solve[intros HH; inversion HH].
         { (*addthread*)
           assert (cntj':=cntj).
-          eapply cntAdd' in cntj'; destruct cntj' as [ [HH HHH] | HH].
+          eapply cnt_age in cntj'.
+          eapply cntAdd' in cntj'. destruct cntj' as [ [HH HHH] | HH].
           * erewrite gsoAddCode; eauto.
             subst; rewrite gssThreadCode; intros AA; inversion AA.
           * erewrite gssAddCode . intros AA; inversion AA.
@@ -1536,6 +1467,7 @@ Qed.
         end).
       (*Add thread case*) 
         assert (cntj':=cntj).
+        eapply cnt_age in cntj'.
         eapply cntAdd' in cntj'; destruct cntj' as [ [HH HHH] | HH].
         * erewrite gsoAddCode; eauto.
           destruct (NatTID.eq_tid_dec i j);
@@ -1550,7 +1482,8 @@ Qed.
           Grab Existential Variables.
           eauto. eauto. eauto. eauto. eauto. eauto.
           eauto. eauto. eauto. eauto. eauto. eauto.
-          eauto. eauto. eauto.
+          eauto. eauto. eauto. apply cntAdd. eauto.
+          eauto. eauto. 
   Qed.
 
   
@@ -1658,7 +1591,8 @@ Qed.
           Grab Existential Variables.
           eauto. eauto. eauto. eauto. eauto. eauto.
           eauto. eauto. eauto. eauto. eauto. eauto.
-          eauto. eauto. eauto.
+          eauto. eauto. eauto. eapply cntAdd. eauto.
+          eauto. eauto.
   Qed.
           
   Lemma threadStep_not_unhalts:

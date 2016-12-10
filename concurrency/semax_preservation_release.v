@@ -121,7 +121,7 @@ Lemma preservation_release
   (Phi : rmap)
   (compat : mem_compatible_with tp m Phi)
   (lev : level Phi = S n)
-  (gam : matchfunspecs ge Gamma Phi)
+  (envcoh : env_coherence Jspec' ge Gamma Phi)
   (sparse : lock_sparsity (lset tp))
   (lock_coh : lock_coherence' tp Phi m compat)
   (safety : threads_safety Jspec' m ge tp Phi compat (S n))
@@ -252,12 +252,8 @@ Proof.
   + (* level *)
     apply level_age_to. cleanup. omega.
     
-  + (* semaxprog *)
-    inv INV; auto.
-  
-  + (* matchfunspecs *)
-    revert gam.
-    apply matchfunspecs_age_to. omega.
+  + (* env_coherence *)
+    apply env_coherence_age_to. auto.
     
   + (* lock sparsity *)
     simpl.
@@ -707,7 +703,8 @@ Proof.
       -- edestruct (unique_Krun_neq i j); eauto.
       -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
       -- intros c' Ec'; spec safety c' Ec'. apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
-      -- auto.
+      -- destruct safety as (q_new & Einit & safety). exists q_new; split; auto.
+         apply jsafe_phi_age_to; auto. apply jsafe_phi_downward, safety.
          
   + (* well_formedness *)
     intros j lj.

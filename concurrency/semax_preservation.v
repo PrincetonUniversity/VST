@@ -60,8 +60,6 @@ Require Import concurrency.semax_preservation_jspec.
 Require Import concurrency.semax_preservation_local.
 Require Import concurrency.semax_preservation_acquire.
 Require Import concurrency.semax_preservation_release.
-Require Import concurrency.semax_preservation_freelock.
-Require Import concurrency.semax_preservation_spawn.
 
 Local Arguments getThreadR : clear implicits.
 Local Arguments getThreadC : clear implicits.
@@ -951,7 +949,7 @@ Section Preservation.
   (Phi : rmap)
   (compat : mem_compatible_with tp m Phi)
   (lev : @level rmap ag_rmap Phi = S n)
-  (gam : matchfunspecs ge Gamma Phi)
+  (envcoh : env_coherence Jspec' ge Gamma Phi)
   (sparse : @lock_sparsity LocksAndResources.lock_info (lset tp))
   (lock_coh : lock_coherence' tp Phi m compat)
   (safety : @threads_safety (@OK_ty (Concurrent_Espec unit CS ext_link)) Jspec' m ge tp Phi compat (S n))
@@ -974,23 +972,24 @@ Section Preservation.
       replace (initial_core SEM.Sem) with cl_initial_core in Hinitial
         by (unfold SEM.Sem; rewrite SEM.CLN_msem; reflexivity).
       rename m' into m.
-      unfold cl_initial_core in Hinitial.
       pose proof safety as safety'.
       spec safety i cnti tt. rewr (getThreadC i tp cnti) in safety.
-      destruct safety as (b & func & Ev1 & Find).
+      destruct safety as (c_new_ & E_c_new & safety).
       substwith ctn Htid.
       substwith Htid cnti.
       rewrite Eci in Hcode. injection Hcode as -> -> .
+      rewrite Hinitial in E_c_new. injection E_c_new as <-.
+      (*
       rewrite Ev1 in Hinitial.
       if_tac in Hinitial. 2:tauto.
       rewrite Find in Hinitial.
       injection Hinitial as <-.
+       *)
       
       right.
       
       unshelve eapply state_invariant_c with (PHI := Phi) (mcompat := _).
       2:assumption.
-      2:inv INV; assumption.
       2:assumption.
       2:assumption.
       
@@ -1018,14 +1017,14 @@ Section Preservation.
         f_equal.
         f_equal.
         apply proof_irr.
-      - simpl.
-        intros j cntj [].
+      - intros j cntj [].
         destruct (eq_dec i j) as [<-|ne].
         + REWR.
-          (* we already got what we could from the safety, but let's try again *)
-          spec safety' i cnti tt. rewrite Eci in safety'.
-          
-          admit. (* in lemma for kinit *)
+          apply safety.
+          rewrite m_phi_jm_.
+          REWR.
+          f_equal.
+          apply proof_irr.
         + REWR.
           spec safety' j cntj tt.
           simpl.
@@ -1044,14 +1043,19 @@ Section Preservation.
         + intros Ej. spec unique more j cntj q Ej. auto.
     }
     
-    
     all: jmstep_inv.
     all: try substwith ctn Htid.
     all: try substwith cnti Htid.
     all: try substwith cnt Htid.
     all: try congruence.
-  Admitted. (* Lemma preservation_Kinit *)
+  Qed. (* Lemma preservation_Kinit *)
   
+  (* We prove preservation for most states of the machine, including
+  Kblocked at release and acquire, but preservation does not hold for
+  makelock, so, we make an exception and will use safety induction in
+  the safety theorem.  Because it's faster to prove safety induction,
+  we don't prove preservation for freelock and spawn, either, because
+  we did those two last. *)
   Theorem preservation Gamma n state state' :
     ~ blocked_at_external state CREATE ->
     ~ blocked_at_external state MKLOCK ->
@@ -1066,7 +1070,7 @@ Section Preservation.
     (* apply state_invariant_S *)
     subst state state'; clear STEP.
     intros INV.
-    inversion INV as [m0 ge0 sch0 tp0 Phi lev SP gam compat sparse lock_coh safety wellformed unique E].
+    inversion INV as [m0 ge0 sch0 tp0 Phi lev envcoh compat sparse lock_coh safety wellformed unique E].
     subst m0 ge0 sch0 tp0.
     
     destruct sch as [ | i sch ].
@@ -1255,11 +1259,8 @@ Section Preservation.
           apply state_invariant_c with (PHI := Phi) (mcompat := compat').
           + assumption.
           
-          + (* matchfunspecs *)
+          + (* env_coherence *)
             assumption.
-          
-          + (* semaxprog *)
-            auto.
           
           + (* lock sparsity *)
             auto.
@@ -1302,7 +1303,7 @@ Section Preservation.
                  ++ REWR.
               -- REWR.
               -- REWR.
-              -- auto.
+              -- destruct safety as (q_new & Einit & safety). exists q_new; split; auto. REWR.
           
           + (* wellformed. *)
             intros i0 cnti0'.
@@ -1467,14 +1468,11 @@ Section Preservation.
       + (* level *)
         assumption.
       
-      + (* semaxprog *)
+      + (* env_coherence *)
         assumption.
       
-      + (* matchfunspecs *)
+      + (* sparsity *)
         assumption.
-      
-      + (* lock sparsity *)
-        auto.
       
       + (* lock coherence *)
         unfold lock_coherence' in *.
@@ -1512,7 +1510,7 @@ Section Preservation.
              ++ intros; apply gThreadCR.
           -- REWR.
           -- REWR.
-          -- auto.
+          -- destruct safety as (q_new & Einit & safety). exists q_new; split; auto. REWR.
       
       + (* wellformed. *)
         intros i0 cnti0'.

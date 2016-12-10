@@ -143,8 +143,8 @@ CONCUR_FILES= \
   semax_preservation_acquire.v \
   semax_preservation_release.v \
   semax_safety_makelock.v \
-  semax_preservation_freelock.v \
-  semax_preservation_spawn.v \
+  semax_safety_freelock.v \
+  semax_safety_spawn.v \
   resource_decay_lemmas.v \
   rmap_locking.v \
   permjoin.v \

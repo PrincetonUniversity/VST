@@ -10,7 +10,6 @@ Require Import compcert.common.Values.
 
 Require Import msl.Coqlib2.
 Require Import msl.eq_dec.
-Require Import msl.seplog.
 Require Import msl.age_to.
 Require Import veric.initial_world.
 Require Import veric.juicy_mem.
@@ -28,6 +27,7 @@ Require Import veric.tycontext.
 Require Import veric.semax_ext.
 Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
+Require Import veric.seplog.
 Require Import floyd.coqlib3.
 Require Import sepcomp.semantics.
 Require Import sepcomp.step_lemmas.
@@ -274,7 +274,6 @@ Definition threads_safety {Z} (Jspec : juicy_ext_spec Z) m ge tp PHI (mcompat : 
       memory.  This means more proof for each of the synchronisation
       primitives. *)
       jsafe_phi Jspec ge n ora c (getThreadR cnti)
-        (* semax.jsafeN Jspec ge n ora c (jm_ cnti mcompat) *)
     | Kresume c v =>
       forall c',
         (* [v] is not used here. The problem is probably coming from
@@ -282,11 +281,10 @@ Definition threads_safety {Z} (Jspec : juicy_ext_spec Z) m ge tp PHI (mcompat : 
         cl_after_external None c = Some c' ->
         (* same quantification as in Kblocked *)
         jsafe_phi Jspec ge n ora c' (getThreadR cnti)
-       (* semax.jsafeN Jspec ge n ora c' (jm_ cnti mcompat) *)
     | Kinit v1 v2 =>
-      exists b func,
-      v1 = Vptr b Int.zero /\
-      Genv.find_funct_ptr ge b = Some (Internal func)
+      exists q_new,
+      cl_initial_core ge v1 (v2 :: nil) = Some q_new /\
+      jsafe_phi Jspec ge n ora q_new (getThreadR cnti)
     end.
 
 Definition threads_wellformed tp :=
@@ -455,12 +453,20 @@ Definition lock_coherence' tp PHI m (mcompat : mem_compatible_with tp m PHI) :=
        (mem_compatible_locks_ltwritable
           (mem_compatible_forget mcompat))).
 
+Definition env_coherence {Z} Jspec (ge : genv) (Gamma : funspecs) PHI :=
+  matchfunspecs ge Gamma PHI /\
+  exists prog CS V,
+    @semax_prog {|OK_ty := Z; OK_spec := Jspec|} CS prog V Gamma /\
+    ge = globalenv prog /\
+    app_pred
+      (funassert (Delta_types V Gamma (Tpointer Tvoid noattr :: nil))
+                 (empty_environ ge)) PHI.
+
 Inductive state_invariant {Z} (Jspec : juicy_ext_spec Z) Gamma (n : nat) : cm_state -> Prop :=
   | state_invariant_c
       (m : mem) (ge : genv) (sch : schedule) (tp : ThreadPool.t) (PHI : rmap)
       (lev : level PHI = n)
-      (semaxprog : exists prog CS V, @semax_prog {|OK_spec := Jspec|} CS prog V Gamma /\ ge = globalenv prog)
-      (gamma : matchfunspecs ge Gamma PHI)
+      (envcoh : env_coherence Jspec ge Gamma PHI)
       (mcompat : mem_compatible_with tp m PHI)
       (lock_sparse : lock_sparsity (lset tp))
       (lock_coh : lock_coherence' tp PHI m mcompat)
@@ -475,9 +481,9 @@ Lemma state_invariant_sch_irr {Z} (Jspec : juicy_ext_spec Z) Gamma n m ge i sch 
   state_invariant Jspec Gamma n (m, ge, (i :: sch', tp)).
 Proof.
   intros INV.
-  inversion INV as [m0 ge0 sch0 tp0 PHI lev SP gam compat sparse lock_coh safety wellformed uniqkrun H0];
+  inversion INV as [m0 ge0 sch0 tp0 PHI lev envcoh compat sparse lock_coh safety wellformed uniqkrun H0];
     subst m0 ge0 sch0 tp0.
-  refine (state_invariant_c Jspec Gamma n m ge (i :: sch') tp PHI lev SP gam compat sparse lock_coh safety wellformed _).
+  refine (state_invariant_c Jspec Gamma n m ge (i :: sch') tp PHI lev envcoh compat sparse lock_coh safety wellformed _).
   clear -uniqkrun.
   intros H i0 cnti q H0.
   destruct (uniqkrun H i0 cnti q H0) as [sch'' E].

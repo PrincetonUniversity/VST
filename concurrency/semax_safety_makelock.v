@@ -103,7 +103,7 @@ Proof.
   assert (Hpos : (0 < LKSIZE)%Z) by reflexivity.
   intros ismakelock.
   intros I.
-  inversion I as [m ge sch_ tp Phi En gam SP compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
+  inversion I as [m ge sch_ tp Phi En envcoh compat sparse lock_coh safety wellformed unique E]. rewrite <-E in *.
   unfold blocked_at_external in *.
   destruct ismakelock as (i & cnti & sch & ci & args & -> & Eci & atex).
   pose proof (safety i cnti tt) as safei.
@@ -519,12 +519,11 @@ Proof.
   - (* level *)
     apply level_age_to. omega.
   
-  - (* semaxprog *)
-    inv I; auto.
-  
-  - (* matchfunspecs *)
-    apply matchfunspecs_age_to. omega.
-    eapply matchfunspecs_common_join with (Phi := Phi); eauto.
+  - (* env_coherence *)
+    apply env_coherence_age_to.
+    apply env_coherence_pures_eq with Phi; auto. omega.
+    apply pures_same_pures_eq. auto.
+    eapply rmap_makelock_pures_same; eauto.
   
   - (* lock sparsity *)
     apply sparse'.
@@ -866,9 +865,10 @@ Proof.
       -- edestruct (unique_Krun_neq i j); eauto.
       -- apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
       -- intros c' Ec'; spec safety c' Ec'. apply jsafe_phi_age_to; auto. apply jsafe_phi_downward. assumption.
-      -- auto.
+      -- destruct safety as (q_new & Einit & safety). exists q_new; split; auto.
+         apply jsafe_phi_age_to; auto. apply jsafe_phi_downward, safety.
     }
-  
+    
   - (* threads_wellformed *)
     intros j lj.
     specialize (wellformed j lj).

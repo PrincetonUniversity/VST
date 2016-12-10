@@ -31,6 +31,7 @@ Require Import veric.semax_ext.
 Require Import veric.res_predicates.
 Require Import veric.mem_lessdef.
 Require Import veric.age_to_resource_at.
+Require Import veric.seplog.
 Require Import floyd.coqlib3.
 Require Import sepcomp.semantics.
 Require Import sepcomp.step_lemmas.
@@ -203,6 +204,20 @@ Proof.
   apply pures_eq_age_to; auto.
 Qed.
 
+Lemma age_pures_eq phi phi' : age phi phi' -> pures_eq phi phi'.
+Proof.
+  intros A. rewrite (necR_age_to phi phi'). apply pures_eq_age_to. apply age_level in A. omega.
+  constructor; auto.
+Qed.
+
+Lemma matchfunspecs_hered e Gamma :
+  hereditary age (matchfunspecs e Gamma).
+Proof.
+  intros phi phi' A. apply pures_eq_matchfunspecs.
+  apply age_level in A. omega.
+  apply age_pures_eq, A.
+Qed.
+
 Lemma resource_decay_pures_eq b phi phi' :
   resource_decay b phi phi' ->
   pures_eq phi phi'.
@@ -222,6 +237,81 @@ Lemma resource_decay_matchfunspecs e Gamma b Phi Phi' :
   matchfunspecs e Gamma Phi'.
 Proof.
   intros l rd; apply pures_eq_matchfunspecs; auto.
+  eapply resource_decay_pures_eq; eauto.
+Qed.
+
+Lemma funassert_pures_eq G rho phi1 phi2 :
+  level phi1 >= level phi2 ->
+  pures_eq phi1 phi2 ->
+  app_pred (funassert G rho) phi1 ->
+  app_pred (funassert G rho) phi2.
+Proof.
+  intros lev (PS, SP) (FA1, FA2); split.
+  - intros id fs phi2' necr Gid.
+    spec FA1 id fs phi1 (necR_refl phi1) Gid.
+    destruct FA1 as (b & ? & FAT). exists b; split; auto.
+    apply pred_nec_hereditary with phi2; auto.
+    clear -lev PS FAT. destruct fs; simpl in *.
+    spec PS (b, Z0). rewrite FAT in PS.
+    exact_eq PS. f_equal. f_equal.
+    simpl. f_equal. extensionality i a b' a1.
+    rewrite (compose_rewr (fmap _ _ _) (fmap _ _ _)), fmap_comp.
+    rewrite !(compose_rewr (approx _) (approx _)).
+    rewrite approx_oo_approx'; auto.
+    rewrite approx'_oo_approx; auto.
+  - intros b fs phi2' necr. destruct fs eqn:Efs. intros [pp pat].
+    spec FA2 b fs phi1 (necR_refl phi1). subst fs.
+    spec FA2; [ | auto]. simpl. clear -pat necr SP.
+    simpl in pat. spec SP (b, Z0).
+    destruct (necR_PURE' _ _ _ _ _ necr pat) as (pp', E). 
+    rewrite E in SP. destruct SP as (pp'', SP). exists pp''.
+    rewrite <-resource_at_approx, SP. reflexivity.
+Qed.
+
+Lemma env_coherence_hered Z Jspec ge G :
+  hereditary age (@env_coherence Z Jspec ge G).
+Proof.
+  intros phi phi' A C.
+  sync C; eauto. eapply matchfunspecs_hered; eauto.
+  sync C; eauto.
+  sync C; eauto.
+  sync C; eauto.
+  sync C; eauto.
+  sync C; eauto.
+  revert C. apply pred_hered, A.
+Qed.
+
+Lemma env_coherence_age_to Z Jspec ge G phi n :
+  @env_coherence Z Jspec ge G phi ->
+  @env_coherence Z Jspec ge G (age_to n phi).
+Proof.
+  apply age_to_ind, env_coherence_hered.
+Qed.
+
+Lemma env_coherence_pures_eq Z Jspec ge G phi phi' :
+  level phi >= level phi' ->
+  pures_eq phi phi' ->
+  @env_coherence Z Jspec ge G phi ->
+  @env_coherence Z Jspec ge G phi'.
+Proof.
+  intros L E C.
+  pose proof pures_eq_matchfunspecs.
+  sync C; eauto.
+  sync C; eauto.
+  sync C; eauto.
+  sync C; eauto.
+  sync C; eauto.
+  sync C; eauto.
+  apply funassert_pures_eq with phi; auto.
+Qed.
+
+Lemma env_coherence_resource_decay Z Jspec ge G b phi phi' :
+  level phi >= level phi' ->
+  resource_decay b phi phi' ->
+  @env_coherence Z Jspec ge G phi ->
+  @env_coherence Z Jspec ge G phi'.
+Proof.
+  intros l r. apply env_coherence_pures_eq; auto.
   eapply resource_decay_pures_eq; eauto.
 Qed.
 
@@ -372,6 +462,16 @@ Proof.
     injection H as <- <-.
     exists p. f_equal.
     try solve [pose proof (proj2 (E _ _) eq_refl); congruence].
+Qed.
+
+Lemma pures_same_pures_eq phi1 phi2 :
+  level phi1 = level phi2 ->
+  pures_same phi1 phi2 -> 
+  pures_eq phi1 phi2.
+Proof.
+  intros L E.
+  apply pures_same_eq_r with phi1; auto.
+  apply pures_eq_refl.
 Qed.
 
 Lemma pures_same_jm_ m tp Phi (compat : mem_compatible_with tp m Phi)
@@ -589,11 +689,6 @@ Proof.
     spec IHn2 y' Ly Ey. destruct IHn2 as (z' & Lz & Ez & nz).
     exists z'. split; auto. split; auto. apply necR_trans with y'; auto.
 Qed.
-
-(* todo remove (in juicy_safety) *)
-Lemma pures_eq_refl phi : pures_eq phi phi.
-Proof.
-Admitted.
 
 Lemma pures_same_matchfunspecs e Gamma phi1 phi2 :
   level phi1 = level phi2 ->

@@ -54,8 +54,8 @@ Require Import concurrency.semax_initial.
 Require Import concurrency.semax_progress.
 Require Import concurrency.semax_preservation_jspec.
 Require Import concurrency.semax_safety_makelock.
-Require Import concurrency.semax_preservation_spawn.
-Require Import concurrency.semax_preservation_freelock.
+Require Import concurrency.semax_safety_spawn.
+Require Import concurrency.semax_safety_freelock.
 Require Import concurrency.semax_preservation.
 
 Set Bullet Behavior "Strict Subproofs".
@@ -128,12 +128,16 @@ Proof.
   all: try (unshelve erewrite gsoThreadCode; eauto).
   all: try (unshelve erewrite <-gsoThreadCC; eauto).
 
-  destruct (@cntAdd' _ _ _ _ _ cnti) as [(cnti', ne) | Ei].
+  pose proof cnti as cnti_.
+  apply cnt_age in cnti_.
+  destruct (@cntAdd' _ _ _ _ _ cnti_) as [(cnti', ne) | Ei].
   unshelve erewrite gsoAddCode; eauto.
   rewrite gssThreadCode; congruence.
   rewrite gssAddCode. congruence. apply Ei.
   
-  destruct (@cntAdd' _ _ _ _ _ cnti) as [(cnti', ne) | Ei].
+  pose proof cnti as cnti_.
+  apply cnt_age in cnti_.
+  destruct (@cntAdd' _ _ _ _ _ cnti_) as [(cnti', ne) | Ei].
   unshelve erewrite gsoAddCode; eauto.
   unshelve erewrite gsoThreadCode; eauto.
   rewrite gssAddCode. congruence. apply Ei.

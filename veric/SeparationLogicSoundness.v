@@ -45,7 +45,8 @@ Axiom semax_prog_rule :
        m_dry jm = m /\ level jm = n /\
        (forall z, jsafeN (@OK_spec Espec) (globalenv prog) n z q jm) /\
        no_locks (m_phi jm) /\
-       matchfunspecs (globalenv prog) G (m_phi jm)
+       matchfunspecs (globalenv prog) G (m_phi jm) /\
+       app_pred (funassert (nofunc_tycontext V G) (empty_environ (globalenv prog))) (m_phi jm)
      } } }%type.
 
 End SEPARATION_LOGIC_SOUNDNESS.
@@ -75,6 +76,8 @@ Proof.
 Qed.
 
 Definition approx_func_ptr := approx_func_ptr.
+Definition func_ptr_def := eq_refl func_ptr.
+
 Opaque mpred Nveric Sveric Cveric Iveric Rveric Sveric SIveric SRveric.
 
 Definition semax := @semax.
