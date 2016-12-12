@@ -1841,6 +1841,29 @@ Proof.
   - apply prop_left; intros (? & ?); apply prop_right; auto.
 Qed.
 
+Lemma sepcon_map : forall {A} P Q (l : list A), fold_right sepcon emp (map (fun x => P x * Q x) l) =
+  fold_right sepcon emp (map P l) * fold_right sepcon emp (map Q l).
+Proof.
+  induction l; simpl.
+  - rewrite sepcon_emp; auto.
+  - rewrite !sepcon_assoc, <- (sepcon_assoc (fold_right _ _ _) (Q a)), (sepcon_comm (fold_right _ _ _) (Q _)).
+    rewrite IHl; rewrite sepcon_assoc; auto.
+Qed.
+
+Lemma sepcon_list_derives : forall l1 l2 (Hlen : Zlength l1 = Zlength l2)
+  (Heq : forall i, 0 <= i < Zlength l1 -> Znth i l1 FF |-- Znth i l2 FF),
+  fold_right sepcon emp l1 |-- fold_right sepcon emp l2.
+Proof.
+  induction l1; destruct l2; auto; simpl; intros; rewrite ?Zlength_nil, ?Zlength_cons in *;
+    try (rewrite Zlength_correct in *; omega).
+  apply sepcon_derives.
+  - specialize (Heq 0); rewrite !Znth_0_cons in Heq; apply Heq.
+    rewrite Zlength_correct; omega.
+  - apply IHl1; [omega|].
+    intros; specialize (Heq (i + 1)); rewrite !Znth_pos_cons, !Z.add_simpl_r in Heq; try omega.
+    apply Heq; omega.
+Qed.
+
 Lemma field_at_array_inbounds : forall {cs : compspecs} sh t z a i v p,
   field_at sh (Tarray t z a) [ArraySubsc i] v p |-- !!(0 <= i < z).
 Proof.
