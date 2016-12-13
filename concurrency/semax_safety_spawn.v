@@ -528,7 +528,6 @@ Proof.
         - rewrite Ejm. apply age_to_join. auto.
         - split; auto. split; auto.
           unfold canon.SEPx in *. simpl.
-          rewrite seplog.sepcon_emp.
           apply age_to_pred. auto.
         - simpl.
           apply necR_trans with phi1; auto.

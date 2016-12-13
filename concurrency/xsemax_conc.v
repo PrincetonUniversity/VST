@@ -11,7 +11,6 @@ Require Import veric.expr2.
 Require Import veric.semax.
 Require Import veric.semax_call.
 Require Import veric.semax_ext.
-Require Import veric.semax_ext_oracle.
 Require Import veric.juicy_safety.
 Require Import veric.Clight_new.
 Require Import veric.res_predicates.
@@ -781,6 +780,7 @@ using the oracle, as [acquire] is.  The postcondition would be [match
 PrePost with existT ty (w, pre, post) => thread th (Interp (post w b))
 end] *)
 
+Definition gvars := map (fun x => gvar (fst x) (snd x)).
 
 Local Open Scope logic.
 

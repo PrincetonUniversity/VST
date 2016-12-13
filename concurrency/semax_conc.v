@@ -11,7 +11,6 @@ Require Import veric.expr2.
 Require Import veric.semax.
 Require Import veric.semax_call.
 Require Import veric.semax_ext.
-Require Import veric.semax_ext_oracle.
 Require Import veric.juicy_safety.
 Require Import veric.Clight_new.
 Require Import veric.res_predicates.
@@ -160,46 +159,6 @@ Definition tcond := tint.
 (* Does this need to be anything special? *)
 Definition cond_var {cs} sh v := @data_at_ cs sh tcond v.
 
-
-(*+ Deep embedding of [mpred]s *)
-
-Inductive Pred :=
-  | Mapsto :  Share.t -> type -> val -> val -> Pred
-  | Mapsto_ :  Share.t -> type -> val -> Pred
-  | Data_at : forall cs : compspecs, Share.t -> forall t : type, reptype t -> val -> Pred
-  | Data_at_ : forall cs : compspecs, Share.t -> type -> val -> Pred
-  | Field_at : forall cs : compspecs, Share.t ->
-      forall t : type, forall gfs : list gfield, reptype (nested_field_type t gfs) -> val -> Pred
-  | Lock_inv : Share.t -> val -> Pred -> Pred
-  | Self_lock : Pred -> Share.t -> val -> Pred
-  | Res_inv : Pred -> Share.t -> val -> Share.t -> val -> Pred
-  | Cond_var : forall cs : compspecs, Share.t -> val -> Pred
-  | Pred_prop : Prop -> Pred
-  | Exp : forall A : Type, (A -> Pred) -> Pred
-  | Later : Pred -> Pred
-  | Pred_list : list Pred -> Pred.
-
-Fixpoint Interp (p : Pred) : mpred :=
-  match p with
-  | Mapsto a b c d => mapsto a b c d
-  | Mapsto_ a b c => mapsto_ a b c
-  | Data_at a b c d e => @data_at a b c d e
-  | Data_at_ a b c d => @data_at_ a b c d
-  | Field_at a b c d e f => @field_at a b c d e f
-  | Lock_inv a b c => lock_inv a b (Interp c)
-  | Self_lock a b c => selflock (Interp a) b c
-  | Res_inv a b c d e => res_invariant (Interp a) b c d e
-  | Cond_var a b c => @cond_var a b c
-  | Pred_prop a => (!!a && emp)%logic
-  | Exp a b => exp (fun x => Interp (b x))
-  | Later a => later (Interp a)
-  | Pred_list l => fold_right sepcon emp (map Interp l)
-  end.
-
-(*+ Type of the oracle *)
-
-Definition Oracle := list rmap.
-
 (*+ Specification of each concurrent primitive *)
 
 Lemma approx_eq_i':
@@ -288,14 +247,14 @@ Definition acquire_pre: val * share * mpred -> environ -> mpred :=
      SEP (lock_inv sh v R)
   end.
 
-Definition acquire_post: val * share * mpred -> environ -> mpred :=
-  fun args =>
+Notation acquire_post :=
+  (fun args =>
   match args with
   | (v, sh, R) =>
      PROP ()
      LOCAL ()
      SEP (lock_inv sh v R; R)
-  end.
+  end).
 
 Lemma NP_acquire_pre: @super_non_expansive acquire_arg_type (fun _ => acquire_pre).
 Proof.
@@ -329,7 +288,7 @@ Proof.
   + apply identity_nonexpansive.
 Qed.
 
-Definition acquire_spec': funspec := mk_funspec
+Definition acquire_spec: funspec := mk_funspec
   ((_lock OF tptr Tvoid)%formals :: nil, tvoid)
   cc_default 
   acquire_arg_type
@@ -338,46 +297,6 @@ Definition acquire_spec': funspec := mk_funspec
   NP_acquire_pre
   NP_acquire_post
 .
-
-Definition acquire_spec :=
-   WITH v : val, sh : share, R : Pred
-   PRE [ _lock OF tptr Tvoid ]
-     PROP (readable_share sh)
-     LOCAL (temp _lock v)
-     SEP (lock_inv sh v (Interp R))
-   POST [ tvoid ]
-     PROP ()
-     LOCAL ()
-     SEP (lock_inv sh v (Interp R); Interp R).
-
-Definition acquire_oracular_spec :=
-  mk_funspecOracle
-    Oracle
-    (* ARGS *)
-    ((_lock, tptr Tvoid) :: nil, tvoid)
-    cc_default
-    (* WITH *)
-    (Prop * Oracle * val * share * Pred)
-    (* PRE *)
-    (fun (x : Prop * Oracle * val * share * Pred) (oracle : Oracle) =>
-       match x with
-       | (ok, oracle_x, v, sh, R) =>
-         PROP (readable_share sh;
-                 (match oracle with
-                  | nil => ~ok
-                  | cons mlock oracle' => oracle' = oracle_x /\ (app_pred (Interp R) mlock <-> ok)
-                  end))
-         LOCAL (temp _lock v)
-         SEP (lock_inv sh v (Interp R))
-       end)
-    (* POST *)
-    (fun (x : Prop * Oracle * val * share * Pred) (oracle : Oracle) =>
-       match x with
-         (ok, oracle_x, v, sh, R) =>
-         PROP (oracle = oracle_x; ok)
-         LOCAL ()
-         SEP (lock_inv sh v (Interp R); Interp R)
-       end).
 
 Definition release_arg_type: rmaps.TypeTree := rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred.
 
@@ -390,14 +309,14 @@ Definition release_pre: val * share * mpred -> environ -> mpred :=
      SEP (weak_precise_mpred R && weak_positive_mpred R && emp; lock_inv sh v R; R)
   end.
 
-Definition release_post: val * share * mpred -> environ -> mpred :=
-  fun args =>
+Notation release_post :=
+  (fun args =>
   match args with
   | (v, sh, R) =>
      PROP ()
      LOCAL ()
      SEP (lock_inv sh v R)
-  end.
+  end).
 
 Lemma NP_release_pre: @super_non_expansive release_arg_type (fun _ => release_pre).
 Proof.
@@ -435,7 +354,7 @@ Proof.
   apply nonexpansive_lock_inv.
 Qed.
 
-Definition release_spec': funspec := mk_funspec
+Definition release_spec: funspec := mk_funspec
   ((_lock OF tptr Tvoid)%formals :: nil, tvoid)
   cc_default 
   release_arg_type
@@ -445,43 +364,7 @@ Definition release_spec': funspec := mk_funspec
   NP_release_post
 .
 
-Definition release_spec :=
-   WITH v : val, sh : share, R : Pred
-   PRE [ _lock OF tptr Tvoid ]
-     PROP (readable_share sh; precise (Interp R); positive_mpred (Interp R))
-     LOCAL (temp _lock v)
-     SEP (lock_inv sh v (Interp R); Interp R)
-   POST [ tvoid ]
-     PROP ()
-     LOCAL ()
-     SEP (lock_inv sh v (Interp R)).
-
-Definition release_oracular_spec :=
-  mk_funspecOracle
-    Oracle
-    (* ARGS *)
-    ((_lock, tptr Tvoid) :: nil, tvoid)
-    cc_default
-    (* WITH *)
-    (Oracle * val * share * Pred)
-    (* PRE *)
-    (fun (x : Oracle * val * share * Pred) (oracle : Oracle) =>
-       match x with
-         (oracle_x, v, sh, R) =>
-         PROP (oracle = oracle_x; readable_share sh)
-         LOCAL (temp _lock v)
-         SEP (lock_inv sh v (Interp R); Interp R)
-       end)
-    (* POST *)
-    (fun (x : Oracle * val * share * Pred) (oracle : Oracle) =>
-       match x with
-         (oracle_x, v, sh, R) =>
-         PROP (oracle = oracle_x; readable_share sh)
-         LOCAL ()
-         SEP (lock_inv sh v (Interp R))
-       end).
-
-Program Definition makelock_spec' cs: funspec := mk_funspec
+Program Definition makelock_spec cs: funspec := mk_funspec
   ((_lock OF tptr Tvoid)%formals :: nil, tvoid)
   cc_default 
   (rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred)
@@ -522,18 +405,7 @@ Next Obligation.
   apply nonexpansive_lock_inv.
 Qed.
 
-Definition makelock_spec cs :=
-   WITH v : val, sh : share, R : Pred
-   PRE [ _lock OF tptr Tvoid ]
-     PROP (writable_share sh)
-     LOCAL (temp _lock v)
-     SEP (@data_at_ cs sh tlock v)
-   POST [ tvoid ]
-     PROP ()
-     LOCAL ()
-     SEP (lock_inv sh v (Interp R)).
-
-Program Definition freelock_spec' cs: funspec := mk_funspec
+Program Definition freelock_spec cs: funspec := mk_funspec
   ((_lock OF tptr Tvoid)%formals :: nil, tvoid)
   cc_default 
   (rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred)
@@ -593,19 +465,8 @@ Next Obligation.
   + apply identity_nonexpansive.
 Qed.
 
-Definition freelock_spec cs :=
-   WITH v : val, sh : share, R : Pred
-   PRE [ _lock OF tptr Tvoid ]
-     PROP (writable_share sh; positive_mpred (Interp R); precise (Interp R))
-     LOCAL (temp _lock v)
-     SEP (lock_inv sh v (Interp R); Interp R)
-   POST [ tvoid ]
-     PROP ()
-     LOCAL ()
-     SEP (@data_at_ cs sh tlock v; Interp R).
-
 (* versions that give away all their resources *)
-(*
+
 Lemma selflock_rec : forall sh v R, rec_inv sh v R (selflock R sh v).
 Proof.
   intros; unfold rec_inv.
@@ -614,7 +475,7 @@ Qed.
 
 Lemma lock_inv_later_eq : forall sh v R, (|> lock_inv sh v R = lock_inv sh v (|> R))%logic.
 Proof.
-Abort.
+Admitted.
 
 Lemma later_rec_lock : forall sh v (Q R: mpred), rec_inv sh v Q R -> rec_inv sh v (later Q) (later R).
 Proof.
@@ -622,21 +483,21 @@ Proof.
   rewrite H at 1.
   rewrite later_sepcon, lock_inv_later_eq; auto.
 Qed.
-*)
-Program Definition freelock2_spec' cs: funspec := mk_funspec
+
+Program Definition freelock2_spec cs: funspec := mk_funspec
   ((_lock OF tptr Tvoid)%formals :: nil, tvoid)
   cc_default 
-  (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred) rmaps.Mpred)
+  (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * share * share)) rmaps.Mpred) rmaps.Mpred)
   (fun _ x =>
    match x with
-   | (v, sh, Q, R) =>
+   | (v, sh, sh', Q, R) =>
      PROP (writable_share sh)
      LOCAL (temp _lock v)
-     SEP (weak_positive_mpred R && weak_rec_inv sh v Q R && emp; lock_inv sh v R)
+     SEP (weak_positive_mpred R && weak_rec_inv sh' v Q R && emp; lock_inv sh v R)
    end)
   (fun _ x =>
    match x with
-   | (v, sh, Q, R) =>
+   | (v, sh, sh', Q, R) =>
      PROP ()
      LOCAL ()
      SEP (@data_at_ cs sh tlock v)
@@ -647,30 +508,30 @@ Program Definition freelock2_spec' cs: funspec := mk_funspec
 Next Obligation.
   intro cs; hnf.
   intros.
-  destruct x as [[[v sh] Q] R]; simpl in *.
+  destruct x as [[[[v sh] sh'] Q] R]; simpl in *.
   apply (nonexpansive2_super_non_expansive
    (fun Q R => (PROP (writable_share sh)
      LOCAL (temp _lock v)
-     SEP (weak_positive_mpred R && weak_rec_inv sh v Q R && emp; lock_inv sh v R)) rho));
+     SEP (weak_positive_mpred R && weak_rec_inv sh' v Q R && emp; lock_inv sh v R)) rho));
   [ clear Q R; intros Q;
     apply (PROP_LOCAL_SEP_nonexpansive
             ((fun _ => writable_share sh) :: nil)
             (temp _lock v :: nil)
-            ((fun R => weak_positive_mpred R && weak_rec_inv sh v Q R && emp)%logic :: (fun R => lock_inv sh v R) :: nil))
+            ((fun R => weak_positive_mpred R && weak_rec_inv sh' v Q R && emp)%logic :: (fun R => lock_inv sh v R) :: nil))
   | clear Q R; intros R;
     apply (PROP_LOCAL_SEP_nonexpansive
             ((fun _ => writable_share sh) :: nil)
             (temp _lock v :: nil)
-            ((fun Q => weak_positive_mpred R && weak_rec_inv sh v Q R && emp)%logic :: (fun _ => lock_inv sh v R) :: nil))];
+            ((fun Q => weak_positive_mpred R && weak_rec_inv sh' v Q R && emp)%logic :: (fun _ => lock_inv sh v R) :: nil))];
   repeat apply Forall_cons; try apply Forall_nil.
   + apply const_nonexpansive.
-  + apply (conj_nonexpansive (fun R => weak_positive_mpred R && weak_rec_inv sh v Q R)%logic); [apply (conj_nonexpansive weak_positive_mpred) |].
+  + apply (conj_nonexpansive (fun R => weak_positive_mpred R && weak_rec_inv sh' v Q R)%logic); [apply (conj_nonexpansive weak_positive_mpred) |].
     - apply positive_mpred_nonexpansive.
     - apply rec_inv1_nonexpansive.
     - apply const_nonexpansive.
   + apply nonexpansive_lock_inv.
   + apply const_nonexpansive.
-  + apply (conj_nonexpansive (fun Q => weak_positive_mpred R && weak_rec_inv sh v Q R)%logic); [apply (conj_nonexpansive (fun _ => weak_positive_mpred R)) |].
+  + apply (conj_nonexpansive (fun Q => weak_positive_mpred R && weak_rec_inv sh' v Q R)%logic); [apply (conj_nonexpansive (fun _ => weak_positive_mpred R)) |].
     - apply const_nonexpansive.
     - apply rec_inv2_nonexpansive.
     - apply const_nonexpansive.
@@ -679,22 +540,11 @@ Qed.
 Next Obligation.
   intro cs; hnf.
   intros.
-  destruct x as [[[v sh] Q] R]; simpl in *.
+  destruct x as [[[[v sh] sh'] Q] R]; simpl in *.
   auto.
 Qed.
 
-Definition freelock2_spec'' cs :=
-   WITH v : val, sh : share, Q: Pred, R : Pred
-   PRE [ _lock OF tptr Tvoid ]
-     PROP (writable_share sh; positive_mpred (Interp R); rec_inv sh v (Interp Q) (Interp R))
-     LOCAL (temp _lock v)
-     SEP (lock_inv sh v (Interp R))
-   POST [ tvoid ]
-     PROP ()
-     LOCAL ()
-     SEP (@data_at_ cs sh tlock v).
-
-Program Definition releaselock2_spec': funspec := mk_funspec
+Program Definition release2_spec: funspec := mk_funspec
   ((_lock OF tptr Tvoid)%formals :: nil, tvoid)
   cc_default 
   (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred) rmaps.Mpred)
@@ -755,60 +605,6 @@ Next Obligation.
   auto.
 Qed.
 
-Definition release2_spec'' :=
-   WITH v : val, sh : share, Q: Pred, R : Pred
-   PRE [ _lock OF tptr Tvoid ]
-     PROP (readable_share sh)
-     LOCAL (temp _lock v)
-     SEP (weak_precise_mpred (Interp R) && weak_positive_mpred (Interp R) && weak_rec_inv sh v (Interp Q) (Interp R) && emp; Interp R)
-   POST [ tvoid ]
-     PROP ()
-     LOCAL ()
-     SEP (emp).
-
-Definition rec_inv v R := exists Q sh, Interp R = (Q * lock_inv sh v (Interp (Later R)))%logic.
-
-Lemma selflock_rec : forall sh v R, rec_inv v (Self_lock R sh v).
-Proof.
-  intros; unfold rec_inv.
-  exists (Interp R), sh; simpl.
-  apply selflock_eq.
-Qed.
-
-Lemma lock_inv_later_eq : forall sh v R, (|> lock_inv sh v R = lock_inv sh v (|> R))%logic.
-Proof.
-Admitted. (* lock_inv_later_eq *)
-
-Lemma later_rec : forall v R, rec_inv v R -> rec_inv v (Later R).
-Proof.
-  unfold rec_inv; intros.
-  destruct H as (Q & sh & H); exists (|> Q)%logic, sh; simpl.
-  rewrite H at 1.
-  rewrite later_sepcon, lock_inv_later_eq; auto.
-Qed.
-
-Definition freelock2_spec cs :=
-   WITH v : val, sh : share, R : Pred
-   PRE [ _lock OF tptr Tvoid ]
-     PROP (writable_share sh; positive_mpred (Interp R); rec_inv v R)
-     LOCAL (temp _lock v)
-     SEP (lock_inv sh v (Interp R))
-   POST [ tvoid ]
-     PROP ()
-     LOCAL ()
-     SEP (@data_at_ cs sh tlock v).
-
-Definition release2_spec :=
-   WITH v : val, sh : share, R : Pred
-   PRE [ _lock OF tptr Tvoid ]
-     PROP (readable_share sh; precise (Interp R); positive_mpred (Interp R); rec_inv v R)
-     LOCAL (temp _lock v)
-     SEP (Interp R)
-   POST [ tvoid ]
-     PROP ()
-     LOCAL ()
-     SEP (emp).
-
 (* condition variables *)
 Definition makecond_spec cs :=
    WITH v : val, sh : share
@@ -832,7 +628,7 @@ Definition freecond_spec cs :=
      LOCAL ()
      SEP (@data_at_ cs sh tcond v).
 
-Program Definition wait_spec' cs: funspec := mk_funspec
+Program Definition wait_spec cs: funspec := mk_funspec
   ((_cond OF tptr tcond)%formals :: (_lock OF tptr Tvoid)%formals :: nil, tvoid)
   cc_default 
   (rmaps.ProdType (rmaps.ConstType (val * val * share * share)) rmaps.Mpred)
@@ -889,18 +685,7 @@ Next Obligation.
   + apply identity_nonexpansive.
 Qed.
 
-Definition wait_spec cs :=
-   WITH c : val, l : val, shc : share, shl : share, R : Pred
-   PRE [ _cond OF tptr tcond, _lock OF tptr Tvoid ]
-     PROP (readable_share shc)
-     LOCAL (temp _cond c; temp _lock l)
-     SEP (@cond_var cs shc c; lock_inv shl l (Interp R); Interp R)
-   POST [ tvoid ]
-     PROP ()
-     LOCAL ()
-     SEP (cond_var shc c; lock_inv shl l (Interp R); Interp R).
-
-Program Definition wait2_spec' cs: funspec := mk_funspec
+Program Definition wait2_spec cs: funspec := mk_funspec
   ((_cond OF tptr tcond)%formals :: (_lock OF tptr Tvoid)%formals :: nil, tvoid)
   cc_default 
   (rmaps.ProdType (rmaps.ConstType (val * val * share * share)) rmaps.Mpred)
@@ -957,17 +742,6 @@ Next Obligation.
   + apply identity_nonexpansive.
 Qed.
 
-Definition wait2_spec cs :=
-   WITH c : val, l : val, shc : share, shl : share, R : Pred
-   PRE [ _cond OF tptr tcond, _lock OF tptr Tvoid ]
-     PROP (readable_share shc)
-     LOCAL (temp _cond c; temp _lock l)
-     SEP (lock_inv shl l (Interp R); Interp R && (@cond_var cs shc c * TT))
-   POST [ tvoid ]
-     PROP ()
-     LOCAL ()
-     SEP (lock_inv shl l (Interp R); Interp R).
-
 Definition signal_spec cs :=
    WITH c : val, shc : share
    PRE [ _cond OF tptr tcond ]
@@ -1012,11 +786,23 @@ end] *)
 
 Definition gvars := map (fun x => gvar (fst x) (snd x)).
 
-Program Definition spawn_spec' := mk_funspec
-  ((_f OF tptr voidstar_funtype)%formals :: (_args OF tptr tvoid)%formals :: nil, tvoid)
-  cc_default 
-  (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * val * list (ident * val))) (rmaps.DependentType 0)) (rmaps.ArrowType (rmaps.DependentType 0) (rmaps.ArrowType (rmaps.ConstType val) rmaps.Mpred)))
-  (fun ts x =>
+Local Open Scope logic.
+
+(* @Qinxiang: it would be great to complete the annotation *)
+
+Definition spawn_arg_type := 
+  (rmaps.ProdType
+     (rmaps.ProdType
+        (rmaps.ConstType
+           (val *              (* f: pointer to spawned function *)
+            val *              (* b: argument given to spawned function *)
+            list (ident * val) (* globals: list of globals variables and their values *)
+        ))
+        (rmaps.DependentType 0))
+     (rmaps.ArrowType (rmaps.DependentType 0) (rmaps.ArrowType (rmaps.ConstType val) rmaps.Mpred))).
+
+Definition spawn_pre :=
+  (fun (ts: list Type) (x: val * val * list (ident * val) * nth 0 ts unit * (nth 0 ts unit -> val -> mpred)) =>
    match x with
    | (f, b, globals, w, pre) =>
      PROP (expr.tc_val (tptr Tvoid) b)
@@ -1032,65 +818,139 @@ Program Definition spawn_spec' := mk_funspec
              POST [tvoid]
                PROP  ()
                LOCAL ()
-               SEP   (emp))
+               SEP   ())
            f);
          pre w b)))
-   end)
-  (fun ts x =>
+   end).
+
+Definition spawn_post :=
+  (fun (ts: list Type) (x: val * val * list (ident * val) * nth 0 ts unit * (nth 0 ts unit -> val -> mpred)) =>
    match x with
-   | (f, b, w, pre) =>
+   | (f, b, globals, w, pre) =>
      PROP ()
      LOCAL ()
-     SEP (emp)
-   end)
-  _
-  _
-.
-Next Obligation.
+     SEP ()
+   end).
+
+Lemma spawn_pre_nonexpansive: @super_non_expansive spawn_arg_type spawn_pre.
+Proof.
+  replace spawn_pre with
+    (fun (ts: list Type) (x: val * val * list (ident * val) * nth 0 ts unit * (nth 0 ts unit -> val -> mpred)) (rho: environ) =>
+     PROP (
+       match x with
+       | (f, b, globals, w, pre) => expr.tc_val (tptr Tvoid) b
+       end)
+     (LOCALx
+       match x with
+       | (f, b, globals, w, pre) => temp _args b :: temp _f f :: gvars globals
+       end
+     (SEP (
+       match x with
+       | (f, b, globals, w, pre) =>
+         EX _y : ident,
+         (func_ptr'
+           (WITH y : val, x : nth 0 ts unit
+             PRE [ _y OF tptr tvoid ]
+               PROP ()
+               (LOCALx (temp _y y :: gvars globals)
+               (SEP   (pre x y)))
+             POST [tvoid]
+               PROP  ()
+               LOCAL ()
+               SEP   ())
+           f)
+       end;
+       match x with
+       | (f, b, globals, w, pre) =>
+         pre w b
+       end)))
+     rho).
+  Focus 2. {
+    extensionality ts x rho.
+    destruct x as [[[[f b] globals] w] pre].
+    reflexivity.
+  } Unfocus.
+Admitted.
+  (*
+  apply (PROP_LOCAL_SEP_super_non_expansive
+   (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * val)) (rmaps.DependentType 0)) (rmaps.ArrowType (rmaps.DependentType 0) (rmaps.ArrowType (rmaps.ConstType val) rmaps.Mpred)))
+    nil
+    ((fun ts x => 
+        match x with
+        | (f, b, w, pre) => temp _args b
+        end) :: nil)
+    ((fun (ts: list Type) x => 
+       match x with
+       | (f, b, w, pre) =>
+         EX _y : ident, EX globals : nth 0 ts unit -> list (ident * val),
+           (func_ptr'
+             (WITH y : val, x : nth 0 ts unit
+               PRE [ _y OF tptr tvoid ]
+                 PROP ()
+                 (LOCALx (temp _y y :: map (fun x => gvar (fst x) (snd x)) (globals x))
+                 (SEP   (pre x y)))
+               POST [tptr tvoid]
+                 PROP  ()
+                 LOCAL ()
+                 SEP   (emp))
+             f)
+       end) ::
+     (fun ts x => 
+       match x with
+       | (f, b, w, pre) => pre w b
+       end) :: nil)); repeat constructor.
+  + hnf; intros.
+    destruct x as [[[f b] w] pre]; auto.
+  + hnf; intros.
+    destruct x as [[[f b] w] pre].
+    simpl.
+    rewrite !approx_exp.
+    f_equal; extensionality _y.
+    rewrite !approx_exp.
+    f_equal; extensionality globals.
+    rewrite approx_func_ptr'.
+    symmetry.
+    rewrite approx_func_ptr'.
+    symmetry.
+    f_equal.
+    f_equal.
+    f_equal.
+    clear rho.
+    extensionality a rho. destruct a as [y x].
+    apply (nonexpansive_super_non_expansive
+       (fun R => (PROP ( )
+                  (LOCALx
+                   (temp _y y
+                     :: map (fun x0 => gvar (fst x0) (snd x0)) (globals x))
+                   SEP (R))) rho)).
+    apply (PROP_LOCAL_SEP_nonexpansive
+          nil
+          (temp _y y
+                     :: map (fun x0 => gvar (fst x0) (snd x0)) (globals x))
+          ((fun R => R) :: nil));
+    repeat apply Forall_cons; try apply Forall_nil.
+    apply identity_nonexpansive.
+  + hnf; intros.
+    destruct x as [[[f b] w] pre].
+    simpl.
+    apply (nonexpansive_super_non_expansive (fun R => R)).
+    apply identity_nonexpansive.
+*)
+
+Lemma spawn_post_nonexpansive: @super_non_expansive spawn_arg_type spawn_post.
+Proof.
   hnf; intros.
-  destruct x as [[[f b] w] pre]; simpl in *.
-Admitted. (* super_non_expansive obligation of spawn_spec' *)
-Next Obligation.
-  hnf; intros.
-  destruct x as [[[f b] w] pre]; simpl in *.
-  auto.
+  destruct x as [[] pre]; auto.
 Qed.
 
-Definition spawn_spec :=
-  WITH f : val,
-       b : val,
-       globals : list (ident * val),
-       PrePost :
-         { ty : Type &
-          (ty *                     (* WITH clause for spawned function *)
-          (ty -> val -> Pred))%type}  (* precondition (postcondition is emp) *)
-   PRE [_f OF tptr voidstar_funtype, _args OF tptr tvoid]
-     PROP (expr.tc_val (tptr Tvoid) b)
-     (LOCALx (temp _args b :: temp _f f :: gvars globals)
-     (SEP
-     (match PrePost with existT ty (_, pre) =>
-      EX _y : ident,
-      (func_ptr'
-        (WITH y : val, x : ty
-          PRE [ _y OF tptr tvoid ]
-            PROP ()
-            (LOCALx (temp _y y :: gvars globals)
-            (SEP   (Interp (pre x y))))
-          POST [tvoid]
-            PROP  ()
-            LOCAL ()
-            SEP   (emp))
-       f)
-      end;
-        match PrePost with
-          existT ty (w, pre) =>
-          Interp (pre w b)
-      end
-     )))
-   POST [ tvoid  ]
-     PROP  ()
-     LOCAL ()
-     SEP   (emp).
+Program Definition spawn_spec := mk_funspec
+  ((_f OF tptr voidstar_funtype)%formals :: (_args OF tptr tvoid)%formals :: nil, tvoid)
+  cc_default
+  spawn_arg_type
+  spawn_pre
+  spawn_post
+  spawn_pre_nonexpansive
+  spawn_post_nonexpansive.
 
 (*+ Adding the specifications to a void ext_spec *)
 
@@ -1111,22 +971,10 @@ Proof.
   simpl; intros; intros ? ? ? ?; contradiction.
 Defined.
 
-Definition concurrent_oracular_specs (cs : compspecs) (ext_link : string -> ident) := 
-  (ext_link "acquire"%string, acquire_oracular_spec) ::
-  (ext_link "release"%string, release_oracular_spec) ::
-  nil.
-
 Definition concurrent_simple_specs (cs : compspecs) (ext_link : string -> ident) :=
   (ext_link "acquire"%string, acquire_spec) ::
   (ext_link "release"%string, release_spec) ::
   nil.
-
-Definition concurrent_oracular_ext_spec (cs : compspecs) (ext_link : string -> ident) :=
-  add_funspecsOracle_rec
-    ext_link
-    (ok_void_spec (list rmap)).(@OK_ty)
-    (ok_void_spec (list rmap)).(@OK_spec)
-    (concurrent_oracular_specs cs ext_link).
 
 Definition concurrent_simple_ext_spec Z (cs : compspecs) (ext_link : string -> ident) :=
   add_funspecs_rec
@@ -1134,11 +982,6 @@ Definition concurrent_simple_ext_spec Z (cs : compspecs) (ext_link : string -> i
     (ok_void_spec Z).(@OK_ty)
     (ok_void_spec Z).(@OK_spec)
     (concurrent_simple_specs cs ext_link).
-
-Definition Concurrent_Oracular_Espec cs ext_link :=
-  Build_OracleKind
-    (list rmap)
-    (concurrent_oracular_ext_spec cs ext_link).
 
 Definition Concurrent_Simple_Espec Z cs ext_link :=
   Build_OracleKind
@@ -1151,7 +994,6 @@ Proof.
 Qed.
 
 Set Printing Implicit.
-Require Import sepcomp.step_lemmas.
 
 Lemma at_external_not_halted (G C M : Type) (csem : semantics.CoreSemantics G C M) (q : C) :
   semantics.at_external csem q <> None -> semantics.halted csem q = None.
@@ -1159,336 +1001,12 @@ Proof.
   destruct (@semantics.at_external_halted_excl G C _ csem q); tauto.
 Qed.
 
-Theorem oracular_refinement cs ext_link ge n oracle c m :
-  jsafeN (Concurrent_Simple_Espec unit cs ext_link).(@OK_spec) ge n tt c m ->
-  jsafeN (Concurrent_Oracular_Espec cs ext_link).(@OK_spec) ge n oracle c m.
-Proof.
-  revert oracle c m; induction n as [n InductionHypothesis] using strong_nat_ind; intros oracle c m.
-  intros Safe; induction Safe as [ | | n z_unit c m e args x E Pre Post | ].
-  all: swap 3 4.
-  - (* safeN_0 *)
-    now eapply safeN_0; eauto.
-  
-  - (* safeN_step *)
-    eapply safeN_step; eauto.
-    now apply InductionHypothesis; auto.
-  
-  - (* safeN_halted *)
-    now eapply safeN_halted; eauto.
-  
-  - (* safeN_external *)
-    destruct c as [ | ef_ args_ lid ve te k ]; [ discriminate | ].
-    simpl in E; injection E as -> -> .
-    
-    (* We need to know which of the externals we are talking about *)
-    (* paragraph below: ef has to be an EF_external *)
-    assert (Hef : match e with EF_external _ _ => True | _ => False end).
-    {
-      match goal with x : ext_spec_type _ _  |- _ => clear -x end.
-      destruct e eqn:Ee; [ apply I | .. ]; simpl in x;
-        repeat match goal with
-                 _ : context [ oi_eq_dec ?x ?y ] |- _ =>
-                 destruct (oi_eq_dec x y); try discriminate; try tauto
-               end.
-    }
-    
-    assert (Ex : exists name sig, e = EF_external name sig) by (destruct e; eauto; tauto).
-    destruct Ex as (name & sg & ->); clear Hef.
-    
-    Unset Printing Implicit.
-    revert x Pre Post.
-    simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
-    unfold funspec2pre, funspec2post, ext_spec_type, ext_spec_pre, ext_spec_post.
-    if_tac [ H_acquire | notacquire ].
-    
-    { (* case 1 : acquire *)
-      intros [phi_x [ts [[vx shx] Rx]]] [Hargsty Pre] Post.
-      simpl in Pre, Post; clear ts.
-      destruct oracle as [ | phi_oracle oracle ].
-      
-      - simpl.
-        
-        (* this is the x parameter for the WITH clause, but it has the wrong type. *)
-        pose (xwith := (phi_x, (False, @nil rmap, vx, shx, Rx))).
-        assert ((rmap * (Prop * list rmap * val * share * Pred) =
-                 @ext_spec_type
-                   juicy_mem external_function (@OK_ty (Concurrent_Oracular_Espec cs ext_link))
-                   (@OK_spec (Concurrent_Oracular_Espec cs ext_link)) (EF_external name sg))
-               )%type as EqT.
-        { simpl. unfold ef_sig in *.
-          rewrite H_acquire. simpl. if_tac;[ reflexivity | congruence ]. }
-        
-        (* getting a JMeq-copy of x of the correct type *)
-        remember xwith as x2.
-        assert (JMeq xwith x2). subst. apply JMeq_refl.
-        clear Heqx2.
-        revert x2 H.
-        pattern (rmap * (Prop * list rmap * val * share * Pred))%type at 1 3.
-        cut (
-            (fun T : Type =>
-               forall x2 : T,
-                 @JMeq (rmap * (Prop * list rmap * val * share * Pred)) xwith T x2 ->
-                 @jsafeN (list rmap) (concurrent_oracular_ext_spec cs ext_link) ge (S n) nil
-                         (Clight_new.ExtCall (EF_external name sg) args lid ve te k) m)
-              (@ext_spec_type juicy_mem external_function (@OK_ty (Concurrent_Oracular_Espec cs ext_link))
-                              (@OK_spec (Concurrent_Oracular_Espec cs ext_link)) (EF_external name sg))).
-        {
-          assert (APP : forall P Q  : Prop, P = Q -> P -> Q) by (intros ? ? -> ; auto).
-          apply APP.
-          rewrite <- EqT.
-          reflexivity.
-        }
-        intros x2 E2.
-        
-        Set Printing All.
-        (* The following is strange, it fails to typecheck even though
-        it is provided as a quote from one of the types. *)
-        Fail apply safeN_external with
-          (e := EF_external name sg)
-          (x := x2).
-        Fail 
-          set (qwdq := @ext_spec_type juicy_mem external_function (list rmap)
-                                      (JE_spec (list rmap) (concurrent_oracular_ext_spec cs ext_link))
-                                      acquire_oracular_spec).
-        Unset Printing All.
-        
-        eapply safeN_external with
-          (e := EF_external name sg)
-            (x := x2).
-        + reflexivity.
-        + simpl.
-          
-          revert x2 E2.
-          simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
-          unfold funspecOracle2pre, funspecOracle2post, ext_spec_type, ext_spec_pre, ext_spec_post.
-          if_tac [e|e].
-          2:congruence.
-          intros x2 E2. apply JMeq_eq in E2. subst x2.
-          unfold xwith; simpl in Pre |- *. (* done with JMeq.. for this +bullet. *)
-          
-          destruct Pre as [phi0 [phi1 [Hj [[[? ?] [[? ?] ?]] ?]]]].
-          exists phi0, phi1; repeat split; auto.
-          
-        + intros ret m' z' n' _ (* Hargsty *) Hretty Hn Hr.
-          specialize (Post ret m' tt n' Hargsty Hretty Hn Hr).
-          
-          revert x2 E2.
-          simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
-          unfold funspecOracle2pre, funspecOracle2post, ext_spec_type, ext_spec_pre, ext_spec_post.
-          if_tac [e|e].
-          2:congruence. clear e.
-          intros x2 E2. apply JMeq_eq in E2. subst x2.
-          
-          intros [phi0 [phi1 [Hj PLS]]].
-          destruct PLS as [[[? [FALSE ?]] ?] ?].
-          exfalso; tauto.
-      
-      - simpl.
-        
-        (* this is the x parameter for the WITH clause, but it has the wrong type. *)
-        pose (xwith := (phi_x, (app_pred (Interp Rx) phi_oracle, oracle, vx, shx, Rx))).
-        assert ((rmap * (Prop * list rmap * val * share * Pred) =
-                 @ext_spec_type
-                   juicy_mem external_function (@OK_ty (Concurrent_Oracular_Espec cs ext_link))
-                   (@OK_spec (Concurrent_Oracular_Espec cs ext_link)) (EF_external name sg))
-               )%type as EqT.
-        { simpl. unfold ef_sig in *.
-          rewrite H_acquire. simpl. if_tac;[ reflexivity | congruence ]. }
-        
-        (* getting a JMeq-copy of x of the correct type *)
-        remember xwith as x2.
-        assert (JMeq xwith x2). subst. apply JMeq_refl.
-        clear Heqx2.
-        revert x2 H.
-        pattern (rmap * (Prop * list rmap * val * share * Pred))%type at 1 3.
-        cut (
-            (fun T : Type =>
-               forall x2 : T,
-                 @JMeq (rmap * (Prop * list rmap * val * share * Pred)) xwith T x2 ->
-                 @jsafeN (list rmap) (concurrent_oracular_ext_spec cs ext_link) ge (S n) (phi_oracle :: oracle)
-                         (Clight_new.ExtCall (EF_external name sg) args lid ve te k) m)
-              (@ext_spec_type juicy_mem external_function (@OK_ty (Concurrent_Oracular_Espec cs ext_link))
-                              (@OK_spec (Concurrent_Oracular_Espec cs ext_link)) (EF_external name sg))).
-        {
-          assert (APP : forall P Q  : Prop, P = Q -> P -> Q) by (intros ? ? -> ; auto).
-          apply APP.
-          rewrite <- EqT.
-          reflexivity.
-        }
-        intros x2 E2.
-        
-        eapply safeN_external with
-          (e := EF_external name sg)
-            (x := x2).
-        + reflexivity.
-        + simpl.
-          
-          revert x2 E2.
-          simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
-          unfold funspecOracle2pre, funspecOracle2post, ext_spec_type, ext_spec_pre, ext_spec_post.
-          if_tac [e|e].
-          2:congruence. clear e.
-          intros x2 E2. apply JMeq_eq in E2. subst x2.
-          
-          unfold xwith; simpl in Pre |- *.
-          
-          destruct Pre as [phi0 [phi1 [Hj [[[? ?] [[? ?] ?]] ?]]]].
-          exists phi0, phi1; repeat split; auto.
-          
-        + intros ret m' z' n' _ (* Hargsty *) Hretty Hn Hr.
-          specialize (Post ret m' tt n' Hargsty Hretty Hn Hr).
-          
-          revert x2 E2.
-          simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
-          unfold funspecOracle2pre, funspecOracle2post, ext_spec_type, ext_spec_pre, ext_spec_post.
-          if_tac [e|e].
-          2:congruence. clear e.
-          intros x2 E2. apply JMeq_eq in E2. subst x2.
-          
-          intros [phi0 [phi1 [Hj [[? [? Sep]] NC]]]].
-          destruct Post as [c' [Ae Post]].
-          { exists phi0, phi1; repeat split; auto. }
-          exists c'; split; [ now auto | ].
-          apply InductionHypothesis. omega.
-          hnf.
-          destruct z_unit. (* only unit (can be replaced with a universal quantification) *)
-          apply Post.
-    }
-    
-    unfold JE_spec.
-    unfold funspec2jspec, funspec2extspec.
-    simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
-    unfold funspec2pre, funspec2post, ext_spec_type, ext_spec_pre, ext_spec_post, release_spec.
-    simpl.
-    if_tac [ H_release | notrelease ].
-    { (* case 2: release *)
-      intros [phi_x [ts [[vx shx] Rx]]] [Hargsty Pre] Post.
-      simpl in Pre, Post; clear ts.
-      simpl.
-      
-      (* this is the x parameter for the WITH clause, but it has the wrong type. *)
-      pose (xwith := (phi_x, (oracle, vx, shx, Rx))).
-      assert ((rmap * (list rmap * val * share * Pred) =
-               @ext_spec_type
-                 juicy_mem external_function (@OK_ty (Concurrent_Oracular_Espec cs ext_link))
-                 (@OK_spec (Concurrent_Oracular_Espec cs ext_link)) (EF_external name sg))
-             )%type as EqT.
-      simpl in *.
-      { rewrite H_release. simpl. if_tac. congruence. if_tac. reflexivity. congruence. }
-      
-      (* getting a JMeq-copy of x of the correct type *)
-      remember xwith as x2.
-      assert (JMeq xwith x2). subst. apply JMeq_refl.
-      clear Heqx2.
-      revert x2 H.
-      simpl OK_ty.
-      pattern (rmap * (list rmap * val * share * Pred))%type at 1 3.
-      cut (
-          (fun T : Type =>
-             forall x2 : T,
-               @JMeq (rmap * (list rmap * val * share * Pred)) xwith T x2 ->
-               @jsafeN (list rmap) (concurrent_oracular_ext_spec cs ext_link) ge (S n) oracle
-                       (Clight_new.ExtCall (EF_external name sg) args lid ve te k) m)
-            (@ext_spec_type juicy_mem external_function (@OK_ty (Concurrent_Oracular_Espec cs ext_link))
-                            (@OK_spec (Concurrent_Oracular_Espec cs ext_link)) (EF_external name sg))).
-      {
-        assert (APP : forall P Q  : Prop, P = Q -> P -> Q) by (intros ? ? -> ; auto).
-        apply APP.
-        rewrite <- EqT.
-        reflexivity.
-      }
-      intros x2 E2.
-      
-      eapply safeN_external with
-      (e := EF_external name sg)
-        (x := x2).
-      + reflexivity.
-      + simpl.
-        revert x2 E2.
-        
-        simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
-        unfold funspecOracle2pre, funspecOracle2post, ext_spec_type, ext_spec_pre, ext_spec_post.
-        if_tac [e|e].
-        now congruence.
-        simpl (JE_spec _ _).
-        simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
-        unfold funspecOracle2pre, funspecOracle2post, ext_spec_type, ext_spec_pre, ext_spec_post.
-        if_tac [e0|e0].
-        2:intros []. clear e.
-        intros x2 E2. apply JMeq_eq in E2. subst x2.
-        
-        unfold xwith; simpl in Pre |- *.
-        
-        destruct Pre as [phi0 [phi1 [Hj [[[? ?] [[? ?] ?]] ?]]]].
-        exists phi0, phi1; repeat split; auto.
-        
-      + intros ret m' z' n' _ (* Hargsty *) Hretty Hn Hr.
-        specialize (Post ret m' tt n' Hargsty Hretty Hn Hr).
-        
-        revert x2 E2.
-        simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
-        unfold funspecOracle2pre, funspecOracle2post, ext_spec_type, ext_spec_pre, ext_spec_post.
-        if_tac [e|e].
-        now congruence.
-        simpl (JE_spec _ _).
-        simpl (ext_spec_pre _); simpl (ext_spec_post _); simpl (ext_spec_type _).
-        unfold funspecOracle2pre, funspecOracle2post, ext_spec_type, ext_spec_pre, ext_spec_post.
-        if_tac [e0|e0].
-        2:intros []. clear e.
-        intros x2 E2. apply JMeq_eq in E2. subst x2.
-        
-        intros [phi0 [phi1 [Hj [[? [? Sep]] NC]]]].
-        destruct Post as [c' [Ae Post]].
-        { exists phi0, phi1; repeat split; auto. }
-        exists c'; split; [ now auto | ].
-        apply InductionHypothesis. omega.
-        hnf.
-        destruct z_unit.
-        apply Post.
-    }
-    
-    { (* remaining of cases *)
-      intros x; exfalso; tauto.
-    }
-Qed.
-
-
-(*
-Lemma semax_conc' cs (ext_link: string -> ident) id sig cc A P Q :
-  let fs := threadspecs cs ext_link in
-  let f := mk_funspecOracle Oracle sig cc A P Q in
-  In (ext_link id, f) fs ->
-  list_norepet (map fst fs) ->
-  (forall n,
-      semax_external_oracle
-        (Concurrent_Espec cs ext_link) (fst (split (fst sig)))
-        (EF_external id (funsig2signature sig cc)) _ P Q n).
-Proof.
-  intros.
-  apply semax_ext'_oracle; auto.
-Qed.
-
-Lemma semax_conc cs (ext_link: string -> ident) id ids sig sig' cc A P Q :
-  let fs := threadspecs cs ext_link in
-  let f := mk_funspecOracle Oracle sig  cc A P Q in
-  In (ext_link id,f) fs ->
-  list_norepet (map fst fs) ->
-  ids = fst (split (fst sig)) ->
-  sig' = funsig2signature sig cc ->
-  (forall n, semax_external_oracle (Concurrent_Espec cs ext_link) ids (EF_external id sig') _ P Q n).
-Proof.
-  intros.
-  subst.
-  apply semax_conc'; hnf; auto.
-Qed.
- *)
-
 Definition concurrent_specs (cs : compspecs) (ext_link : string -> ident) :=
-  (ext_link "acquire"%string, acquire_spec') ::
-  (ext_link "release"%string, release_spec') ::
-  (ext_link "makelock"%string, makelock_spec' cs) ::
-  (ext_link "freelock"%string, freelock_spec' cs) ::
-  (ext_link "spawn"%string, spawn_spec') ::
+  (ext_link "acquire"%string, acquire_spec) ::
+  (ext_link "release"%string, release_spec) ::
+  (ext_link "makelock"%string, makelock_spec cs) ::
+  (ext_link "freelock"%string, freelock_spec cs) ::
+  (ext_link "spawn"%string, spawn_spec) ::
   nil.
 
 Definition concurrent_ext_spec Z (cs : compspecs) (ext_link : string -> ident) :=
