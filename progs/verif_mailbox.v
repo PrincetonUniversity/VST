@@ -348,6 +348,7 @@ Definition initialize_channels_spec :=
           lock_inv Tsh (Znth r locks Vundef) (comm_inv (Znth r comms Vundef) bufs (Znth r shs Tsh) gsh2))
           (upto (Z.to_nat N)));
         fold_right sepcon emp (map (ghost gsh1 (-1) (Tsh, [])) comms);
+        fold_right sepcon emp (map (ghost_var gsh1 tint (vint 0)) comms);
         fold_right sepcon emp (map (fun c => ghost_var gsh1 tint (vint 0) (offset_val 1 c) *
           ghost_var gsh1 tint (vint (-1)) (offset_val 2 c)) comms);
         fold_right sepcon emp (map (malloc_token Tsh (sizeof tint)) comms);
@@ -832,7 +833,7 @@ Proof.
     forward.
     forward_call (l, Tsh, comm_inv c bufs (Znth i shs Tsh) gsh2).
     (* make ghost vars here *)
-    gather_SEP 3; eapply new_ghost with (i := -1).
+    gather_SEP 7; eapply new_ghost with (i := -1).
     (* Actually, i should probably be forced to match the current value in general. *)
     erewrite <- ghost_share_join with (sh := Tsh); eauto.
     forward_call (l, Tsh, comm_inv c bufs (Znth i shs Tsh) gsh2).
@@ -850,8 +851,9 @@ Proof.
     rewrite !Zlength_app, !Zlength_cons, !Zlength_nil; rewrite <- !app_assoc.
     go_lower.
     apply andp_right; [apply prop_right; split; auto; omega|].
-    apply andp_right; [apply prop_right; auto|].
+    apply andp_right; [apply prop_right; repeat split; auto|].
     rewrite !sepcon_andp_prop'; apply andp_right; [apply prop_right; rewrite Forall_app; repeat split; auto; omega|].
+    rewrite !sepcon_andp_prop; repeat (apply andp_right; [apply prop_right; omega|]).
     rewrite Z2Nat.inj_add, upto_app, !map_app, !sepcon_app; try omega; simpl.
     rewrite Z2Nat.id, Z.add_0_r; [|omega].
     rewrite !Znth_app1; auto.
@@ -862,7 +864,10 @@ Proof.
     intros; rewrite In_upto, <- Zlength_correct in *.
     rewrite !app_Znth1; try omega; reflexivity.
     { exists 2; auto. }
+    { exists 2; auto. }
+    { exists 2; auto. }
     { exists 2; auto. } }
+  Intros locks comms reads lasts.
   forward.
   rewrite !app_nil_r.
   Exists comms locks bufs reads lasts; entailer!.
@@ -2424,29 +2429,6 @@ Proof.
   replace N with (Zlength h) by auto; symmetry; eapply mem_lemmas.Forall2_Zlength; eauto.
 Qed.
 
-Lemma sepcon_map : forall {A} P Q (l : list A), fold_right sepcon emp (map (fun x => P x * Q x) l) =
-  fold_right sepcon emp (map P l) * fold_right sepcon emp (map Q l).
-Proof.
-  induction l; simpl.
-  - rewrite sepcon_emp; auto.
-  - rewrite !sepcon_assoc, <- (sepcon_assoc (fold_right _ _ _) (Q a)), (sepcon_comm (fold_right _ _ _) (Q _)).
-    rewrite IHl; rewrite sepcon_assoc; auto.
-Qed.
-
-Lemma sepcon_list_derives : forall l1 l2 (Hlen : Zlength l1 = Zlength l2)
-  (Heq : forall i, 0 <= i < Zlength l1 -> Znth i l1 FF |-- Znth i l2 FF),
-  fold_right sepcon emp l1 |-- fold_right sepcon emp l2.
-Proof.
-  induction l1; destruct l2; auto; simpl; intros; rewrite ?Zlength_nil, ?Zlength_cons in *;
-    try (rewrite Zlength_correct in *; omega).
-  apply sepcon_derives.
-  - specialize (Heq 0); rewrite !Znth_0_cons in Heq; apply Heq.
-    rewrite Zlength_correct; omega.
-  - apply IHl1; [omega|].
-    intros; specialize (Heq (i + 1)); rewrite !Znth_pos_cons, !Z.add_simpl_r in Heq; try omega.
-    apply Heq; omega.
-Qed.
-
 Lemma interleave_remove_nil : forall {A} ls (l' : list A),
   interleave ([] :: ls) l' <-> interleave ls l'.
 Proof.
@@ -2591,13 +2573,14 @@ Proof.
    LOCAL (gvar _last_given last_given; gvar _writing writing; gvar _last_taken last_taken;
           gvar _last_read last_read; gvar _reading reading; gvar _comm comm; gvar _lock lock; gvar _bufs buf)
    SEP (EX sh' : share, !!(sepalg_list.list_join sh1 (sublist i N shs1) sh') &&
-          data_at_ sh' (tarray (tptr tint) N) last_read * data_at_ sh' (tarray (tptr tint) N) reading;
+          data_at sh' (tarray (tptr tint) N) lasts last_read * data_at sh' (tarray (tptr tint) N) reads reading;
         fold_right sepcon emp (map (fun sh => data_at sh (tarray (tptr tint) N) comms comm) (sublist i N shs1));
         fold_right sepcon emp (map (fun sh => data_at sh (tarray (tptr tlock) N) locks lock) (sublist i N shs1));
         fold_right sepcon emp (map (fun sh => data_at sh (tarray (tptr tbuffer) B) bufs buf) (sublist i N shs1));
         fold_right sepcon emp (map (fun x => lock_inv gsh2 (Znth x locks Vundef)
           (comm_inv (Znth x comms Vundef) bufs (Znth x shs Tsh) gsh2)) (sublist i N (upto (Z.to_nat N))));
         fold_right sepcon emp (map (ghost gsh1 (-1) (gsh2, [])) (sublist i N comms));
+        fold_right sepcon emp (map (ghost_var gsh1 tint (vint 0)) (sublist i N comms));
         fold_right sepcon emp (map (data_at_ Tsh tint) (sublist i N reads));
         fold_right sepcon emp (map (data_at_ Tsh tint) (sublist i N lasts));
         fold_right sepcon emp (map (malloc_token Tsh 4) comms);
@@ -2618,6 +2601,10 @@ Proof.
     Intros sh'.
     get_global_function'' _reader; Intros.
     apply extract_exists_pre; intros reader_.
+    match goal with H : sepalg_list.list_join sh1 _ sh' |- _ => rewrite sublist_next with (d0 := Tsh) in H;
+      auto; [inversion H as [|????? Hj1 Hj2]; subst |
+      match goal with H : Zlength shs1 = _ |- _ => setoid_rewrite H; rewrite Z2Nat.id; omega end] end.
+    apply sepalg.join_comm in Hj1; destruct (sepalg_list.list_join_assoc1 Hj1 Hj2) as (sh1' & ? & Hj').
     forward_spawn (Z * val * val * val * val * val * list val * list val * list val * list val * list val *
                    share * share * share * share * share)%type
       (reader_, d, (i, reading, last_read, lock, comm, buf, reads, lasts, locks, comms, bufs,
@@ -2645,57 +2632,36 @@ Proof.
       apply andp_right; [apply prop_right|].
       { unfold liftx; simpl; unfold lift, make_args'; simpl.
         rewrite eval_id_other, eval_id_same; [|discriminate].
-        rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto.
-        admit. admit. admit. }
-      admit.
-(*      Exists _arg (fun x : (Z * val * val * val * val * val * list val * list val * list val * list val * list val *
+        assert (isptr d) by (match goal with H : field_compatible _ _ d |- _ => destruct H;
+          destruct d; auto; contradiction end).
+        replace (eval_id _d rho) with d by auto.
+        rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto. }
+      Exists _arg (fun x : (Z * val * val * val * val * val * list val * list val * list val * list val * list val *
                 share * share * share * share * share) =>
-      let '(writing, last_given, last_taken, lock, comm, buf, locks, comms, bufs, sh1, lsh, sh0, shs, gsh1, gsh2) := x in
-      [(_writing, writing); (_last_given, last_given); (_last_taken, last_taken);
-       (_lock, lock); (_comm, comm); (_bufs, buf)]).
-    rewrite !sepcon_assoc; apply sepcon_derives.
-    { apply derives_refl'.
-      f_equal; f_equal; extensionality; destruct x as (?, x); repeat destruct x as (x, ?); simpl.
-      rewrite !sepcon_andp_prop'; extensionality.
-      rewrite <- andp_assoc, prop_true_andp with (P := True); auto.
-      rewrite (andp_comm (!! _) (!! _)), andp_assoc; f_equal; f_equal.
-      rewrite emp_sepcon, !sepcon_emp; auto. }
-    rewrite sepcon_andp_prop'.
-    apply andp_right; [apply prop_right; repeat (split; auto)|].
-    erewrite map_ext; [|intro; erewrite <- lock_inv_share_join; try apply H1; auto; reflexivity].
-    erewrite (map_ext (ghost gsh1 (-1) (Tsh, []))
-      (fun x => ghost gsh1 (-1) (gsh1, []) x * ghost gsh1 (-1) (gsh2, []) x)).
-    rewrite !sepcon_map.
-    assert_PROP (Zlength bufs = B) by entailer!.
-    do 3 (erewrite <- (data_at_shares_join Ews); eauto).
-    rewrite (extract_nth_sepcon (map (data_at _ _ _) bufs) 0), Znth_map with (d' := Vundef);
-      rewrite ?Zlength_map; try (unfold B, N in *; omega).
-    erewrite <- (data_at_shares_join Tsh); eauto.
-    rewrite (sepcon_comm (data_at sh0 _ _ _)), (sepcon_assoc _ (data_at sh0 _ _ _)), replace_nth_sepcon.
-    unfold N; cancel.
-    rewrite 2sepcon_assoc, sepcon_comm.
-    rewrite !sepcon_assoc; apply sepcon_derives; [|cancel].
-    assert (Zlength (upd_Znth 0 (map (data_at Tsh tbuffer (vint 0)) bufs)
-      (data_at sh0 tbuffer (vint 0) (Znth 0 bufs Vundef))) = B) as Hlen.
-    { rewrite upd_Znth_Zlength; rewrite !Zlength_map; auto.
-      unfold B, N in *; omega. }
-    apply sepcon_list_derives.
-    { rewrite Hlen, Zlength_map; auto. }
-    intros; rewrite Hlen in *.
-    erewrite Znth_map, Znth_upto; auto; [|unfold B, N in *; simpl; omega].
-    destruct (eq_dec i 0).
-    - subst; rewrite upd_Znth_same; [|rewrite Zlength_map; omega].
-      Exists sh0 0; entailer'.
-    - rewrite upd_Znth_diff; auto; rewrite ?Zlength_map; try omega.
-      erewrite Znth_map; [|omega].
-      Exists Tsh 0; entailer'.
-    - intro; erewrite hist_share_join; eauto.
-      apply mpred_ext.
-      + intros ??; exists []; split; auto.
-        apply interleave_nil; auto.
-      + intros ? (? & Hnil & ?).
-        rewrite interleave_remove_nil, interleave_single in Hnil; replace [] with x; auto.*)
-    - admit.
+        let '(r, reading, last_read, lock, comm, buf, reads, lasts, locks, comms, bufs, sh1, sh2, sh, gsh1, gsh2) := x in
+        [(_reading, reading); (_last_read, last_read); (_lock, lock); (_comm, comm); (_bufs, buf)]).
+      rewrite !sepcon_assoc; apply sepcon_derives.
+      { apply derives_refl'.
+        f_equal; f_equal; extensionality; destruct x as (?, x); repeat destruct x as (x, ?); simpl.
+        rewrite !sepcon_andp_prop'; extensionality.
+        rewrite <- andp_assoc, prop_true_andp with (P := True); auto.
+        rewrite (andp_comm (!! _) (!! _)), andp_assoc; f_equal; f_equal.
+        rewrite emp_sepcon, !sepcon_emp; auto. }
+      rewrite sepcon_andp_prop'.
+      apply andp_right; [apply prop_right; repeat (split; auto)|].
+      { apply Forall_Znth; auto; match goal with H : Zlength shs = _ |- _ => setoid_rewrite H; auto end. }
+      { apply Forall_Znth; auto; match goal with H : Zlength shs1 = _ |- _ => setoid_rewrite H; auto end. }
+      { apply Forall_Znth; auto; match goal with H : Zlength comms = _ |- _ => setoid_rewrite H; auto end. }
+      rewrite <- !(data_at_share_join _ _ _ _ _ _ Hj').
+      rewrite sublist_next with (d0 := Tsh); auto;
+        [simpl | match goal with H : Zlength shs1 = _ |- _ => setoid_rewrite H; rewrite Z2Nat.id; omega end].
+      rewrite !sublist_next with (i0 := i)(d0 := Vundef); auto; try omega; simpl.
+      rewrite sublist_next with (d0 := N); rewrite ?Znth_upto; auto; rewrite? Zlength_upto; simpl;
+        try (unfold N in *; omega).
+      rewrite sublist_next with (i0 := i)(d0 := Tsh); auto;
+        [simpl | match goal with H : Zlength shs = _ |- _ => setoid_rewrite H; rewrite Z2Nat.id; omega end].
+      Exists 0; cancel.
+    - Exists sh1'; entailer!.
     - exists 2; auto. }
   eapply semax_seq'; [|apply semax_ff].
   eapply semax_loop; [|forward; apply drop_tc_environ].
@@ -2712,42 +2678,32 @@ Lemma all_funcs_correct:
   semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.
 unfold Gprog, prog, prog_funct; simpl.
-semax_func_cons body_free.
+repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
 repeat semax_func_cons_ext.
-{ clear H. rewrite exp_unfold. Intros p.
-  rewrite <- insert_local.
-  rewrite lower_andp.
-  apply derives_extract_prop; intro. hnf in H. rewrite retval_ext_rval in H.
-  subst p.
-  renormalize. entailer!. }
-{ destruct x as (((?, ?), ?), ?).
-  clear H.
-  rewrite exp_unfold; Intros p.
-  rewrite exp_unfold; Intros q.
-  rewrite <- insert_local.
-  rewrite lower_andp.
-  apply derives_extract_prop; intro. hnf in H. rewrite retval_ext_rval in H.
-  subst p.
-  renormalize.
-  rewrite lqueue_isptr; entailer!. }
-{ destruct x as (((((?, (?, (?, ?))), ?), ?), ?), ?).
-  clear H.
-  rewrite exp_unfold; Intros p.
-  rewrite exp_unfold; Intros q.
-  rewrite <- insert_local.
-  rewrite lower_andp.
-  apply derives_extract_prop; intro. hnf in H. rewrite retval_ext_rval in H.
-  subst p.
-  renormalize. rewrite data_at_isptr; entailer!. }
+semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
+repeat semax_func_cons_ext.
 semax_func_cons body_surely_malloc.
 semax_func_cons body_memset.
-semax_func_cons body_simulate_atomic_exchange.
+semax_func_cons body_atomic_exchange.
+{ simpl in *.
+  destruct x0 as ((((((((((((?, ?), ?), ?), ?), ?), ?), ?), ?), ?), ?), ?), ?).
+  (* This could probably be done automatically with a slight modification to precondition_closed. *)
+  simpl not_a_param; auto 50 with closed. }
+{ simpl in *.
+  destruct x0 as ((((((((((((?, ?), ?), ?), ?), ?), ?), ?), ?), ?), ?), ?), ?).
+  simpl is_a_local; auto 50 with closed. }
 semax_func_cons body_initialize_channels.
 semax_func_cons body_initialize_reader.
 semax_func_cons body_start_read.
 semax_func_cons body_finish_read.
-semax_func_cons body_initialize_write.
-semax_func_cons body_start_write.
+semax_func_cons body_initialize_writer.
+eapply semax_func_cons; [ reflexivity
+           | repeat apply Forall_cons; try apply Forall_nil; simpl; auto; computable
+           | unfold var_sizes_ok; repeat constructor; simpl; computable | reflexivity | precondition_closed
+           | apply body_start_write |].
+{ apply closed_wrtl_PROPx, closed_wrtl_LOCALx, closed_wrtl_SEPx.
+  repeat constructor; apply closed_wrtl_gvar; unfold is_a_local; simpl; intros [? | ?];
+    try contradiction; discriminate. }
 semax_func_cons body_finish_write.
 semax_func_cons body_reader.
 semax_func_cons body_writer.
