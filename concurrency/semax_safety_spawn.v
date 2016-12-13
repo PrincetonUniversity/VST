@@ -308,6 +308,7 @@ Proof.
     apply make_tycontext_s_find_id.
   }
   
+  (*
   spec HEP. {
     (* here Q' is related to Q through Heq_Q, and Q is "emp". *)
     (* obviously emp does not imply false, so we'll have to change that in semax_conc *)
@@ -331,6 +332,7 @@ Proof.
     rewrite seplog.sepcon_emp in HQ.
     destruct HQ as (_ & _ & []).
   }
+  *)
   
   spec HEP. auto.
   

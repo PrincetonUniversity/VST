@@ -1032,7 +1032,7 @@ Program Definition spawn_spec' := mk_funspec
              POST [tvoid]
                PROP  ()
                LOCAL ()
-               SEP   (FF))
+               SEP   (emp))
            f);
          pre w b)))
    end)
@@ -1079,7 +1079,7 @@ Definition spawn_spec :=
           POST [tvoid]
             PROP  ()
             LOCAL ()
-            SEP   (FF))
+            SEP   (emp))
        f)
       end;
         match PrePost with

@@ -1308,7 +1308,6 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun id_arg arg A P Q 
   find_id id_fun G =
     Some (mk_funspec ((id_arg, Tpointer Tvoid noattr) :: nil, Tvoid)
                      cc_default A P Q NEP NEQ) ->
-  (forall ts a rho, Q ts a rho |-- FF) ->
   is_pointer_or_null arg ->
   (* initial environment *)
   let rho0 : environ :=
@@ -1334,7 +1333,7 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun id_arg arg A P Q 
       app_pred (funassert (Delta_types V G (Tpointer Tvoid noattr::nil)) rho0) (m_phi jm) ->
       forall z, jsafeN (@OK_spec Espec) (globalenv prog) (level jm) z q jm }.
 Proof.
-  intros SP Findb id_in_G QFF arg_p.
+  intros SP Findb id_in_G arg_p.
   destruct ((fun x => x) SP) as (_ & _ & _ & (MatchFdecs & Believe) & _).
   specialize (Believe (globalenv prog)).
   spec Believe. now apply prog_contains_prog_funct, compute_list_norepet_e, SP.
@@ -1448,13 +1447,10 @@ Proof.
   destruct SP as [? [AL [HGG [[H2 H3] [GV _]]]]].
   rewrite HGG. reflexivity.
   
-  (* guard_environ: we conclude because Q=>False *)
-  repeat intro.
-  repeat match goal with H : context [ Q ] |- _ => destruct H end.
-  now repeat match goal with H : context [ Q ] |- _ => apply QFF in H; inversion H end.
-  
-  (* safety *)
-  simpl in *; subst.
+  (* safety: we conclude as we add an infinite loop at the end *)
+  intros ek ret te env phi lev phi' necr [[Guard FrameRA] FunAssert] ora jm0 Heq <-.
+  simpl in FrameRA.
+  destruct FrameRA as (? & ? & ? & (-> & -> & ?) & WOB).
   now apply safe_loop_skip.
   
   (* equivalence between Q and Q' *)
