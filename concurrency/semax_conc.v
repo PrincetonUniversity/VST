@@ -815,7 +815,7 @@ Definition spawn_pre :=
                PROP ()
                (LOCALx (temp _y y :: gvars globals)
                (SEP   (pre x y)))
-             POST [tvoid]
+             POST [tptr tvoid]
                PROP  ()
                LOCAL ()
                SEP   ())
@@ -854,7 +854,7 @@ Proof.
                PROP ()
                (LOCALx (temp _y y :: gvars globals)
                (SEP   (pre x y)))
-             POST [tvoid]
+             POST [tptr tvoid]
                PROP  ()
                LOCAL ()
                SEP   ())
@@ -943,7 +943,7 @@ Proof.
   destruct x as [[] pre]; auto.
 Qed.
 
-Program Definition spawn_spec := mk_funspec
+Definition spawn_spec := mk_funspec
   ((_f OF tptr voidstar_funtype)%formals :: (_args OF tptr tvoid)%formals :: nil, tvoid)
   cc_default
   spawn_arg_type

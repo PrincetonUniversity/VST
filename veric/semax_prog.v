@@ -1306,7 +1306,7 @@ Lemma semax_prog_entry_point {CS: compspecs} V G prog b id_fun id_arg arg A P Q 
   @semax_prog CS prog V G ->
   Genv.find_symbol (globalenv prog) id_fun = Some b ->
   find_id id_fun G =
-    Some (mk_funspec ((id_arg, Tpointer Tvoid noattr) :: nil, Tvoid)
+    Some (mk_funspec ((id_arg, Tpointer Tvoid noattr) :: nil, tptr Tvoid)
                      cc_default A P Q NEP NEQ) ->
   is_pointer_or_null arg ->
   (* initial environment *)
@@ -1347,7 +1347,7 @@ Proof.
   rewrite <-find_id_maketycontext_s in id_in_G.
   
   specialize (Believe (Vptr b Int.zero)
-                      ((id_arg, Tpointer Tvoid noattr) :: nil, Tvoid)
+                      ((id_arg, Tpointer Tvoid noattr) :: nil, tptr Tvoid)
                       cc_default A P Q _ (necR_refl _)).
   spec Believe.
   { exists id_fun, NEP, NEQ. split; auto. exists b; split; auto. }
@@ -1366,7 +1366,7 @@ Proof.
   
   intros jm ts a m_sat_Pa m_funassert.
   
-  assert (Ef : type_of_fundef f = Tfunction (Tcons (Tpointer Tvoid noattr) Tnil) Tvoid cc_default). {
+  assert (Ef : type_of_fundef f = Tfunction (Tcons (Tpointer Tvoid noattr) Tnil) (tptr Tvoid) cc_default). {
     (* I think this can be proved using believe_internal / believe_external ? *)
     destruct Believe as [BE|BI].
     - unfold believe_external in *.
@@ -1409,13 +1409,14 @@ Proof.
   
   pose proof I.
   intros z.
+  evar (R : environ -> mpred).
   eapply
     (semax_call_aux
        Espec (Delta_types V G (Tpointer Tvoid noattr::nil)) A P
        (fun _ _ => Q ts a) Q NEP NEQ
        ts a (fun _ => emp) (fun _ => emp)
-       None ((id_arg, Tpointer Tvoid noattr)::nil, Tvoid) cc_default _ _
-       (normal_ret_assert (fun rho => EX _ : val, emp * Q ts a (globals_only rho)))
+       None ((id_arg, Tpointer Tvoid noattr)::nil, tptr Tvoid) cc_default _ _
+       (normal_ret_assert R)
        _ _ _ _ rho3
        _ _ b id_fun);
     try apply H3; try eassumption; auto.
@@ -1436,12 +1437,15 @@ Proof.
   now destruct arg; inversion arg_p; reflexivity.
   
   (* closed_wrt_modvars *)
-  simpl.
-  hnf; intros; intuition.
-  hnf; intros; intuition.
+  intro.
+  reflexivity.
+
+  (* equality of normal_ret_assert *)
+  unfold R.
   unfold normal_ret_assert; simpl.
   extensionality rho'.
-  now normalize.
+  normalize.
+  reflexivity.
   
   (* globalenv prog = cenv_cs *)
   destruct SP as [? [AL [HGG [[H2 H3] [GV _]]]]].

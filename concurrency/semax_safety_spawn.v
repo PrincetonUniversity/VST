@@ -284,7 +284,7 @@ Proof.
     join_sub_tac.
   }
   
-  spec gam0 f_b ((_y, Tpointer Tvoid noattr) :: nil, Tvoid) cc_default .
+  spec gam0 f_b ((_y, Tpointer Tvoid noattr) :: nil, tptr Tvoid) cc_default .
   rewrite func_ptr_def in Func.
   
   destruct Func as (b' & E' & FAT). injection E' as <- ->.
