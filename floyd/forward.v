@@ -1776,8 +1776,8 @@ Ltac solve_efield_denote Delta P Q R efs gfs H :=
           instantiate (1 := StructField i :: gfs0');
           apply efield_denote_cons_struct, H0
         | eUnionField ?i =>
-          instantiate (1 := StructField i :: gfs0');
-          apply efield_denote_cons_struct, H0
+          instantiate (1 := UnionField i :: gfs0');
+          apply efield_denote_cons_union, H0
         end
       end
     end

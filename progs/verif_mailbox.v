@@ -641,14 +641,6 @@ Proof.
     rewrite Zminus_diag, app_nil_r; apply derives_refl.
 Qed.
 
-Lemma lock_struct_array_sub : forall sh z i (v : val) p,
-  field_at sh (tarray (tptr (Tstruct _lock_t noattr)) z) [ArraySubsc i] v p =
-  field_at sh (tarray (tptr tlock) z) [ArraySubsc i] v p.
-Proof.
-  intros.
-  unfold field_at, at_offset; rewrite !data_at_rec_eq; simpl; f_equal.
-Qed.
-
 Lemma body_atomic_exchange : semax_body Vprog Gprog f_simulate_atomic_exchange atomic_exchange_spec.
 Proof.
  match goal with |- semax_body ?V ?G ?F ?spec =>
