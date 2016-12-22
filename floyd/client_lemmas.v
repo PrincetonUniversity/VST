@@ -74,20 +74,23 @@ unfold typed_true in H; simpl in H.
 destruct (Int.cmp op (Int.repr i) (Int.repr j)); inv H; auto.
 Qed.
 
-Lemma int_min_signed_eq: Int.min_signed = -2147483648.
-Proof. reflexivity. Qed.
-
-Lemma int_max_signed_eq: Int.max_signed = 2147483647.
-Proof. reflexivity. Qed.
-
-Lemma int_max_unsigned_eq: Int.max_unsigned = 4294967295.
-Proof. reflexivity. Qed.
-
+(* Equality proofs for all constants from the Compcert Int module: *)
+Definition int_wordsize_eq : Int.wordsize = 32%nat := eq_refl.
+Definition int_zwordsize_eq : Int.zwordsize = 32 := eq_refl.
+Definition int_modulus_eq : Int.modulus = 4294967296 := eq_refl.
+Definition int_half_modulus_eq : Int.half_modulus = 2147483648 := eq_refl.
+Definition int_max_unsigned_eq : Int.max_unsigned = 4294967295 := eq_refl.
+Definition int_max_signed_eq : Int.max_signed = 2147483647 := eq_refl.
+Definition int_min_signed_eq : Int.min_signed = -2147483648 := eq_refl.
 
 Ltac repable_signed := 
-   pose proof int_min_signed_eq; 
-   pose proof int_max_signed_eq; 
-   pose proof int_max_unsigned_eq; 
+   pose proof int_wordsize_eq;
+   pose proof int_zwordsize_eq;
+   pose proof int_modulus_eq;
+   pose proof int_half_modulus_eq;
+   pose proof int_max_unsigned_eq;
+   pose proof int_max_signed_eq;
+   pose proof int_min_signed_eq;
    unfold repable_signed in *;
    omega.
 
