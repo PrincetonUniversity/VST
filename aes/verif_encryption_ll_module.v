@@ -644,9 +644,14 @@ remember (mbed_tls_aes_enc plaintext buf) as Res.
 unfold tables_initialized.
 entailer!.
 }
-(* verifying until here takes about 1 hour and 3.1 GB of memory *)
+(* Verifying until here takes about 1 hour.
+   In 64bit Coq: 3.1 GB of memory
+   In 32bit Coq: 1.5 GB of memory *)
 
-Time Qed. (* Increases memory usage from 3.1 GB to 6.7 GB, and finishes in 448s *)
+Time Qed.
+
+(* In 64bit Coq: Increases memory usage from 3.1 GB to 6.7 GB, and finishes in 448s *)
+(* In 32bit Coq: Increases memory usage from 1.5 GB to 2.6 GB, and finishes in 403s *)
 
 Print Assumptions body_aes_encrypt.
 
