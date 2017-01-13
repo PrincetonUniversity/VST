@@ -1745,10 +1745,10 @@ Ltac canon_load_result Hresult :=
 
 Ltac find_load_result Hresult t_root gfs0 v gfs1 :=
   let result := fresh "result" in evar (result: val);
-  assert (Hresult: JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v) result)
-    by (solve_load_rule_evaluation || fail 1000 "solve_load_rule_evaluation failed");
+  assert (Hresult: JMeq (proj_reptype (nested_field_type t_root gfs0) gfs1 v) result);
   subst result;
-  canon_load_result Hresult.
+  [ (solve_load_rule_evaluation || fail 1000 "solve_load_rule_evaluation' failed")
+  | canon_load_result Hresult ].
 
 Ltac solve_efield_denote Delta P Q R efs gfs H :=
   evar (gfs : list gfield);
