@@ -21,7 +21,7 @@ Require Import veric.initial_world.
 Require Import veric.initialize.
 Require Import veric.coqlib4.
 
-Open Local Scope pred.
+Local Open Scope pred.
 
 Fixpoint match_globvars (gvs: list (ident * globvar type)) (V: varspecs) : bool :=
  match V with

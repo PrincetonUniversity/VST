@@ -20,7 +20,7 @@ Require Import sepcomp.semantics_lemmas.
 
 Record EffectSem {G C} :=
   { (** [sem] is a memory semantics. *)
-    sem :> MemSem G C
+    sem :> @MemSem G C
 
     (** The step relation of the new semantics. *)
   ; effstep: G -> (block -> Z -> bool) -> C -> mem -> C -> mem -> Prop
@@ -38,9 +38,9 @@ Record EffectSem {G C} :=
        effstep g M c m c' m' ->
        forall b z, M b z = true -> Mem.perm m b z Cur Writable
   }.
-
-Implicit Arguments EffectSem [].
-
+(*
+Arguments EffectSem [].
+*)
 (** * Lemmas and auxiliary definitions *)
 
 Section effsemlemmas.

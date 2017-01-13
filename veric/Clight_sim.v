@@ -1105,7 +1105,7 @@ Lemma CC_corestep_not_halted :
     destruct o; inv H0; trivial.
   Qed.
 
-Definition CC_core_sem : CoreSemantics genv CC_core mem.
+Definition CC_core_sem : @CoreSemantics genv CC_core mem.
  apply (Build_CoreSemantics _ _ _ (*_*) (*cl_init_mem*)
                 CC_initial_core CC_at_external CC_after_external CC_safely_halted CC_step).
        apply CC_corestep_not_at_external.
@@ -1841,9 +1841,9 @@ Admitted.
 
 Definition MS (_:corestate)(c: corestate) (C: CC_core): Prop := match_states c C.
 
-Definition coresem_extract_cenv {M} {core} (CS: CoreSemantics genv core M)
+Definition coresem_extract_cenv {M} {core} (CS: @CoreSemantics genv core M)
                          (cenv: composite_env) :
-            CoreSemantics (Genv.t fundef type) core M :=
+            @CoreSemantics (Genv.t fundef type) core M :=
   Build_CoreSemantics _ _ _
              (fun ge => CS.(initial_core) (Build_genv ge cenv))
              CS.(at_external)

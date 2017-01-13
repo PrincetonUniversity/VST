@@ -107,7 +107,7 @@ Definition te_of (rho: environ) : tenviron :=
 
 Definition opt2list (A: Type) (x: option A) :=
   match x with Some a => a::nil | None => nil end.
-Implicit Arguments opt2list.
+Arguments opt2list [A] _.
 
 Fixpoint typelist2list (tl: typelist) : list type :=
  match tl with Tcons t r => t::typelist2list r | Tnil => nil end.

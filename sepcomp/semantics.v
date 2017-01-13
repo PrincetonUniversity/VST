@@ -57,7 +57,7 @@ Record CoreSemantics {G C M : Type} : Type :=
   ; at_external_halted_excl:
       forall q, at_external q = None \/ halted q = None }.
 
-Implicit Arguments CoreSemantics [].
+Arguments CoreSemantics : clear implicits.
 
 Inductive mem_step m m' : Prop :=
     mem_step_storebytes: forall b ofs bytes,
@@ -95,4 +95,4 @@ Record MemSem {G C} :=
          exists m1', corestep csem g c m1 c' m1' /\ perm_lesseq m' m1'*)
   }.
 
-Implicit Arguments MemSem [].
+Arguments MemSem : clear implicits.

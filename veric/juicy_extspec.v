@@ -21,30 +21,30 @@ Class OracleKind := {
   OK_spec: juicy_ext_spec OK_ty
 }.
 
-Definition jstep {G C} (csem: CoreSemantics G C mem)
+Definition jstep {G C} (csem: @CoreSemantics G C mem)
   (ge: G)  (q: C) (jm: juicy_mem) (q': C) (jm': juicy_mem) : Prop :=
  corestep csem ge q (m_dry jm) q' (m_dry jm') /\
  resource_decay (nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
  level jm = S (level jm').
 
-Definition j_halted {G C} (csem: CoreSemantics G C mem)
+Definition j_halted {G C} (csem: @CoreSemantics G C mem)
        (c: C) : option val :=
      halted csem c.
 
-Lemma jstep_not_at_external {G C} (csem: CoreSemantics G C mem):
+Lemma jstep_not_at_external {G C} (csem: @CoreSemantics G C mem):
   forall ge m q m' q', jstep csem ge q m q' m' -> at_external csem q = None.
 Proof.
   intros.
   destruct H. eapply corestep_not_at_external; eauto.
 Qed.
 
-Lemma jstep_not_halted  {G C} (csem: CoreSemantics G C mem):
+Lemma jstep_not_halted  {G C} (csem: @CoreSemantics G C mem):
   forall ge m q m' q', jstep csem ge q m q' m' -> j_halted csem q = None.
 Proof.
   intros. destruct H. eapply corestep_not_halted; eauto.
 Qed.
 
-Lemma j_at_external_halted_excl {G C} (csem: CoreSemantics G C mem):
+Lemma j_at_external_halted_excl {G C} (csem: @CoreSemantics G C mem):
   forall (q : C),
   at_external csem q = None \/ j_halted csem q = None.
 Proof.
@@ -67,8 +67,8 @@ Definition init_jmem {G} (ge: G) (jm: juicy_mem) (d: jm_init_package) :=
          (jminit_init_mem d) (jminit_defs_no_dups d) (jminit_fdecs_match d).
 
 Definition juicy_core_sem
-  {G C} (csem: CoreSemantics G C mem) :
-   CoreSemantics G C juicy_mem :=
+  {G C} (csem: @CoreSemantics G C mem) :
+   @CoreSemantics G C juicy_mem :=
   @Build_CoreSemantics _ _ _
     (semantics.initial_core csem)
     (at_external csem)
@@ -220,7 +220,7 @@ Proof.
 Qed.
 
 Lemma age_safe {G C}
-  (csem: CoreSemantics G C mem) {Z}
+  (csem: @CoreSemantics G C mem) {Z}
       (genv_symb: G -> PTree.t block) (Hspec : juicy_ext_spec Z):
   forall jm jm0, age jm0 jm ->
   forall ge ora c,
@@ -302,7 +302,7 @@ Proof.
 Qed.
 
 Lemma juicy_core_sem_preserves_corestep_fun
-  {G C} (csem: CoreSemantics G C mem) :
+  {G C} (csem: @CoreSemantics G C mem) :
   corestep_fun csem ->
   corestep_fun (juicy_core_sem csem).
 Proof.

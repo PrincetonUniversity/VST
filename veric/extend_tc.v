@@ -7,7 +7,7 @@ Require Import veric.tycontext.
 Require Import veric.expr2.
 Require Import veric.binop_lemmas2.
 
-Open Local Scope pred.
+Local Open Scope pred.
 
 Definition tc_expr {CS: compspecs}  (Delta: tycontext) (e: expr) : environ -> mpred:=
   fun rho => denote_tc_assert (typecheck_expr Delta e) rho.

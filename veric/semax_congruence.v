@@ -16,8 +16,8 @@ Require Import veric.semax_lemmas.
 Require Import veric.Clight_lemmas.
 Require Import Coq.Classes.RelationClasses.
 
-Open Local Scope pred.
-Open Local Scope nat_scope.
+Local Open Scope pred.
+Local Open Scope nat_scope.
 
 Lemma pred_ext'': forall {A} {agA: ageable A} (P Q: pred A),
   (forall w: A, P w <-> Q w) <-> P = Q.

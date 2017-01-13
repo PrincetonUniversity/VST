@@ -2,7 +2,7 @@ Require Import veric.base.
 Require Import msl.msl_standard.
 Require Import veric.compcert_rmaps.
 
-Open Local Scope pred.
+Local Open Scope pred.
 
 Definition slice_resource (rsh: share) (sh: pshare) (r: resource) :=
   match r with

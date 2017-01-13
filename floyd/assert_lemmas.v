@@ -877,11 +877,11 @@ Qed.
 Ltac fixup_lifts :=
  repeat
  match goal with
- | |- appcontext [@lift0 mpred] => change (@lift0 mpred) with (@liftx (LiftEnviron mpred))
- | |- appcontext [@lift1 ?A] => change (@lift1 A mpred) with (@liftx (Tarrow A (LiftEnviron mpred)))
- | |- appcontext [@lift2 ?A ?B] =>  change (@lift2 A B mpred) with (@liftx (Tarrow A (Tarrow B (LiftEnviron mpred))))
- | |- appcontext [@lift3 ?A ?B ?C] => change (@lift3 A B C mpred) with (@liftx (Tarrow A (Tarrow B (Tarrow C (LiftEnviron mpred)))))
- | |- appcontext [@lift4 ?A ?B ?C ?D] => change (@lift4 A B C D mpred) with (@liftx (Tarrow A (Tarrow B (Tarrow C (Tarrow D (LiftEnviron mpred))))))
+ | |- context[@lift0 mpred] => change (@lift0 mpred) with (@liftx (LiftEnviron mpred))
+ | |- context[@lift1 ?A] => change (@lift1 A mpred) with (@liftx (Tarrow A (LiftEnviron mpred)))
+ | |- context[@lift2 ?A ?B] =>  change (@lift2 A B mpred) with (@liftx (Tarrow A (Tarrow B (LiftEnviron mpred))))
+ | |- context[@lift3 ?A ?B ?C] => change (@lift3 A B C mpred) with (@liftx (Tarrow A (Tarrow B (Tarrow C (LiftEnviron mpred)))))
+ | |- context[@lift4 ?A ?B ?C ?D] => change (@lift4 A B C D mpred) with (@liftx (Tarrow A (Tarrow B (Tarrow C (Tarrow D (LiftEnviron mpred))))))
  end.
 
 Fixpoint fold_right_sepconx (l: list mpred) : mpred :=

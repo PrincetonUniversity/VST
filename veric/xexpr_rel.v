@@ -216,7 +216,7 @@ apply (rel_LR_value'_sch _ rho (m_phi jm)
  intros; subst rho;
  match goal with
  | _: compute_r_value _ = R_byref _ |- _ => idtac
- | _: appcontext [mapsto] |- _ => idtac
+ | _: context[mapsto] |- _ => idtac
  | _ =>
  destruct e';
  match goal with

@@ -14,7 +14,7 @@ Require Import veric.juicy_extspec.
 Require Import veric.semax.
 Require Import veric.Clight_lemmas.
 
-Open Local Scope pred.
+Local Open Scope pred.
 
 Hint Resolve @now_later @andp_derives @sepcon_derives.
 
@@ -443,7 +443,7 @@ Qed.
 
 Fixpoint list_drop (A: Type) (n: nat) (l: list A) {struct n} : list A :=
   match n with O => l | S i => match l with nil => nil | _ :: l' => list_drop A i l' end end.
-Implicit Arguments list_drop.
+Arguments list_drop [A] _ _.
 
 Definition straightline (c: Clight.statement) :=
  forall ge ve te k m ve' te' k' m',
@@ -954,7 +954,7 @@ Proof.
    destruct s; simpl in *; congruence. }
 Qed.
 
-Open Local Scope nat_scope.
+Local Open Scope nat_scope.
 
 Definition control_as_safe ge n ctl1 ctl2 :=
  forall (ora : OK_ty) (ve : env) (te : temp_env) (m : juicy_mem) (n' : nat),

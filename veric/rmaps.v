@@ -57,7 +57,7 @@ Definition dependent_type_functor_rec (ts: list Type): TypeTree -> functor :=
   | ProdType T1 T2 => fpair (dtfr T1) (dtfr T2)
   | ArrowType T1 T2 => ffunc (dtfr T1) (dtfr T2)
   end.
-(*
+
 Definition dependent_type_function_rec (ts: list Type) (mpred': Type): TypeTree -> Type :=
   fix dtfr (T: TypeTree): Type :=
   match T with
@@ -388,7 +388,7 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
 
 End StratModel.
 
-Open Local Scope nat_scope.
+Local Open Scope nat_scope.
 
 Module Type RMAPS.
   Declare Module AV:ADR_VAL.
@@ -1015,9 +1015,9 @@ Qed.
     + constructor; auto.
     + apply inj_pair2 in H10. subst p0. constructor; auto.
     + apply inj_pair2 in H10. subst p0. constructor; auto.
-    + subst x1. apply inj_pair2 in H14. subst p1. apply inj_pair2 in H9; subst p0.
+    + apply inj_pair2 in H14. subst p1. apply inj_pair2 in H9; subst p0.
       constructor; auto.
-    + subst x1. apply inj_pair2 in H8. subst p1. apply inj_pair2 in H5. subst p0.
+    + apply inj_pair2 in H8. subst p1. apply inj_pair2 in H5. subst p0.
       constructor; auto.
 Qed.
 

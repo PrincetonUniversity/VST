@@ -849,7 +849,7 @@ Qed.
 
 (*************************************************************************)
 
-Definition corestep_fun {G C M : Type} (sem : CoreSemantics G C M) :=
+Definition corestep_fun {G C M : Type} (sem : @CoreSemantics G C M) :=
   forall (m m' m'' : M) ge c c' c'',
   corestep sem ge c m c' m' ->
   corestep sem ge c m c'' m'' ->
@@ -858,7 +858,7 @@ Definition corestep_fun {G C M : Type} (sem : CoreSemantics G C M) :=
 (**  Multistepping *)
 
 Section corestepN.
-  Context {G C M E:Type} (Sem:CoreSemantics G C M) (ge:G).
+  Context {G C M E:Type} (Sem:@CoreSemantics G C M) (ge:G).
 
   Fixpoint corestepN (n:nat) : C -> M -> C -> M -> Prop :=
     match n with

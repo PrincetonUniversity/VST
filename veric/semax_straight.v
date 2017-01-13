@@ -17,7 +17,7 @@ Require Import veric.semax_lemmas.
 Require Import veric.Clight_lemmas.
 Require Import veric.binop_lemmas.
 
-Open Local Scope pred.
+Local Open Scope pred.
 
 Section extensions.
 Context (Espec: OracleKind).

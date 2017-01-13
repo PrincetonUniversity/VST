@@ -28,6 +28,7 @@ Require Import msl.Coqlib2.
 Require Import veric.juicy_extspec.
 Require Import veric.valid_pointer.
 Require veric.semax_prog.
+Require veric.semax_ext.
 
 Instance Nveric: NatDed mpred := algNatDed compcert_rmaps.RML.R.rmap.
 Instance Sveric: SepLog mpred := algSepLog compcert_rmaps.RML.R.rmap.
@@ -1128,7 +1129,7 @@ forall Delta Q Q' incr body R,
 Parameter func_ptr : funspec -> val ->mpred.
 Axiom corable_func_ptr: forall f v, corable (func_ptr f v).
 Axiom func_ptr_isptr: forall spec f, func_ptr spec f |-- !! isptr f.
-Locate approx.
+(* Locate approx. *)
 Axiom approx_func_ptr: forall (A: Type) fsig0 cc (P Q: A -> environ -> mpred) (v: val) (n: nat),
   compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A P Q) v) = compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A (fun a rho => compcert_rmaps.RML.R.approx n (P a rho)) (fun a rho => compcert_rmaps.RML.R.approx n (Q a rho))) v).
 Axiom func_ptr_def :
@@ -1309,8 +1310,6 @@ Axiom semax_extract_later_prop:
            @semax CS Espec Delta (|> (!!PP && P)) c Q.
 
 (* THESE RULES FROM semax_ext *)
-
-Require veric.semax_ext.
 
 (*TODO: What's the preferred way to expose these defs in the SL interface?*)
 

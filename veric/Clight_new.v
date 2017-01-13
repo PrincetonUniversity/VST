@@ -312,7 +312,7 @@ destruct lid; try congruence; inv H; auto.
 Qed.
 
 Program Definition cl_core_sem :
-  CoreSemantics genv corestate mem :=
+  @CoreSemantics genv corestate mem :=
   @Build_CoreSemantics _ _ _
     (*deprecated cl_init_mem*)
     cl_initial_core

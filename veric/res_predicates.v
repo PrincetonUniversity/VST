@@ -11,7 +11,7 @@ Require Import veric.address_conflict.
 
 
 Import RML. Import R.
-Open Local Scope pred.
+Local Open Scope pred.
 
 Lemma empty_rmap_valid:
   forall ephi,
@@ -476,8 +476,9 @@ extensionality l; apply pred_ext'; extensionality w.
 unfold jam.
 simpl; rewrite if_false; auto.
 Qed.
+(*
 Implicit Arguments jam_vacuous.
-
+*)
 Lemma make_sub_rmap: forall w (P: address -> Prop) (P_DEC: forall l, {P l} + {~ P l}),
   (forall l sh k, P l -> res_option (w @ l) = Some (sh, k) -> isVAL k \/ isFUN k) ->
   {w' | level w' = level w /\ compcert_rmaps.R.resource_at w' =

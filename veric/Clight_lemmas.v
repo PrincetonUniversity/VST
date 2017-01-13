@@ -24,7 +24,7 @@ Definition var_name (V: Type) (bdec: ident * globvar V) : ident :=
 
 Definition no_dups (F V: Type) (fdecs: list (ident * F)) (bdecs: list (ident * globvar V)) : Prop :=
   list_norepet (map (@fst ident F) fdecs ++ map (@var_name V) bdecs).
-Implicit Arguments no_dups.
+Arguments no_dups [F V].
 
 Lemma no_dups_inv:
   forall  (A V: Type) id f fdecs bdecs,
@@ -40,7 +40,7 @@ apply H3.
 intro; contradiction H2; apply in_or_app; auto.
 intro; contradiction H2; apply in_or_app; auto.
 Qed.
-Implicit Arguments no_dups_inv.
+Arguments no_dups_inv [A V].
 
 
 Lemma of_bool_Int_eq_e:
@@ -99,14 +99,14 @@ Proof.
 intros.
 rewrite <- H; auto.
 Qed.
-Implicit Arguments equiv_e1.
+Arguments equiv_e1 [A B] _ _.
 
 Lemma equiv_e2 : forall A B: Prop, A=B -> B -> A.
 Proof.
 intros.
 rewrite H; auto.
 Qed.
-Implicit Arguments equiv_e2.
+Arguments equiv_e2 [A B] _ _.
 
 Lemma deref_loc_fun: forall {ty m b z v v'},
    Clight.deref_loc ty m b z v -> Clight.deref_loc ty m b z v' -> v=v'.

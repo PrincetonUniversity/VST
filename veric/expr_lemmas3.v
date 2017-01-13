@@ -462,9 +462,9 @@ destruct (classify_cast (typeof e) t)
     end);
     try apply andb_zleb; try rewrite Z.leb_le;
    try match goal with
-     | |- appcontext [Int.sign_ext ?n ?x] =>
+     | |- context[Int.sign_ext ?n ?x] =>
       apply (sign_ext_range' n x); compute; split; congruence
-     | |- appcontext [Int.zero_ext ?n ?x] =>
+     | |- context[Int.zero_ext ?n ?x] =>
       apply (zero_ext_range' n x); compute; try split; congruence
    end;
   try (first [ erewrite float_to_int_ok | erewrite float_to_intu_ok
@@ -478,9 +478,9 @@ destruct (classify_cast (typeof e) t)
     try reflexivity;
     try apply andb_zleb; try rewrite Z.leb_le;
     match goal with
-     | |- appcontext [Int.sign_ext ?n ?x] =>
+     | |- context[Int.sign_ext ?n ?x] =>
       apply (sign_ext_range' n x); compute; split; congruence
-     | |- appcontext [Int.zero_ext ?n ?x] =>
+     | |- context[Int.zero_ext ?n ?x] =>
       apply (zero_ext_range' n x); compute; try split; congruence
    end);
  try match goal with |- Int.eq (if ?A then _ else _) _ || _ = _ =>

@@ -12,7 +12,7 @@ Require Import veric.expr2.
 Require Import veric.expr_lemmas.
 Require Import veric.age_to_resource_at.
 
-Open Local Scope pred.
+Local Open Scope pred.
 
 Obligation Tactic := idtac.
 
@@ -822,6 +822,12 @@ Proof.
   rewrite Pplus_one_succ_r. symmetry; apply Pos.add_assoc.
 Qed.
 
+Lemma Zpos_Posofnat: forall n, (n>0)%nat -> Z.pos (Pos.of_nat n) = Z.of_nat n.
+Proof.
+ intros. destruct n. omega. simpl  Z.of_nat. f_equal.
+ symmetry; apply Pos.of_nat_succ.
+Qed.
+
 Lemma add_globals_hack:
    forall vl gev prog_pub,
     list_norepet (map fst vl) ->
@@ -892,20 +898,6 @@ Focus 2. {
      split; intro.
       assert (H': b = Pos.of_nat (S (length (rev vl)))) by congruence. clear H; rename H' into H.
     subst b.
-
-
-
-Lemma Zpos_Posofnat: forall n, (n>0)%nat -> Z.pos (Pos.of_nat n) = Z.of_nat n.
-Proof.
- intros. destruct n. omega. simpl  Z.of_nat. f_equal.
- symmetry; apply Pos.of_nat_succ.
-Qed.
-(*
- rewrite Zpos_Posofnat by omega.
-  unfold nat_of_Z. rewrite Nat2Z.inj_succ. simpl. unfold Z.succ.
-  rewrite <- Z.add_sub_assoc. simpl. rewrite Z.add_0_r.
-  rewrite Nat2Z.id.
-*)
 
  elimtype False; apply n; clear.
   rewrite <- Zlength_rev. rewrite Zlength_correct. forget (length (rev vl)) as i.

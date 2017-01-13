@@ -19,7 +19,7 @@ Section safety.
   Context {G C M Z:Type}.
   Context {genv_symb: G -> PTree.t block}.
   Context {Hrel: nat -> M -> M -> Prop}.
-  Context (Hcore:CoreSemantics G C M).
+  Context (Hcore:@CoreSemantics G C M).
   Variable (Hspec:external_specification M external_function Z).
 
   Variable ge : G.
@@ -185,7 +185,7 @@ End safety.
 Section dry_safety.
   Context {G C M Z:Type}.
   Context {genv_symb: G -> PTree.t block}.
-  Context (Hcore:CoreSemantics G C M).
+  Context (Hcore:@CoreSemantics G C M).
   Variable (Hspec:external_specification M external_function Z).
   Definition dry_safeN := @safeN_ G C M Z genv_symb (fun n' m m' => True) Hcore Hspec.
 End dry_safety.

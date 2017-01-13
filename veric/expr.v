@@ -1122,11 +1122,14 @@ clear Wj.
 assert (W = Z.to_nat j + 1 + (W-Z.to_nat j-1))%nat by omega.
 forget (W - Z.to_nat j - 1)%nat as K.
 subst W.
+
 clear H3.
-rewrite <- (Z2Nat.id n) in * by omega.
+rewrite <- (Z2Nat.id n) in H by omega.
+rewrite <- (Z2Nat.id n) in H0 by omega.
 rewrite <- two_power_nat_two_p in H.
 assert (Z.to_nat n <= Z.to_nat j)%nat.
-apply Nat2Z.inj_le; omega. clear H0.
+  apply Nat2Z.inj_le; omega.
+clear H0.
 forget (Z.to_nat n) as n'; clear n; rename n' into n.
 forget (Z.to_nat j) as j'; clear j; rename j' into j.
 destruct H as [H _].

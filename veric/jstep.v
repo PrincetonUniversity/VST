@@ -5,7 +5,7 @@ Require Import sepcomp.semantics.
 
 Module FSem.
 Record t M TM := mk {
-    F : forall G C, CoreSemantics G C M -> CoreSemantics G C TM
+    F : forall G C, @CoreSemantics G C M -> @CoreSemantics G C TM
   ; E : TM -> M
   ; P : TM -> TM -> Prop
   ; step  : forall G C sem ge c m c' m',

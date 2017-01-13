@@ -16,7 +16,7 @@ Require Import sepcomp.effect_semantics.
 Require Import sepcomp.structured_injections.
 Require Import sepcomp.reach.
 Require Export sepcomp.globalSep.
-
+Require Import sepcomp.semantics_lemmas.
 
 (** * Structured Simulations *)
 
@@ -308,8 +308,6 @@ Record SM_simulation_inject := {
           after_external Sem1 (Some ret1) st1 = Some st1' /\
           after_external Sem2 (Some ret2) st2 = Some st2' /\
           match_state cd' mu' st1' m1' st2' m2' }.
-
-Require Import sepcomp.semantics_lemmas.
 
 (** Derive an effectless internal step diagram clause from the effectful diagram
   above. *)

@@ -17,8 +17,8 @@ Require Import veric.semax_lemmas.
 Require Import veric.semax_congruence.
 Require Import veric.Clight_lemmas.
 
-Open Local Scope pred.
-Open Local Scope nat_scope.
+Local Open Scope pred.
+Local Open Scope nat_scope.
 
 Section extensions.
 Context (Espec : OracleKind).

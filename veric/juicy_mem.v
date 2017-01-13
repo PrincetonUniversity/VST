@@ -846,7 +846,7 @@ revert H; case_eq (access_at m loc Cur); intros.
  destruct (max_access_at m loc); try destruct p; try congruence.
 * (* access_cohere *)
  symmetry.
- destruct (access_at m loc) _eqn:?; try destruct p; auto; simpl.
+ destruct (access_at m loc) eqn:?; try destruct p; auto; simpl.
  apply perm_of_freeable.
  apply perm_of_writable.
  apply extern_retainer_neq_top.

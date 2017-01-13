@@ -72,7 +72,7 @@ Qed.
 Section juicy_safety.
   Context {G C Z:Type}.
   Context (genv_symb: G -> PTree.t block).
-  Context (Hcore:CoreSemantics G C juicy_mem).
+  Context (Hcore:@CoreSemantics G C juicy_mem).
   Variable (Hspec:external_specification juicy_mem external_function Z).
   Definition Hrel n' m m' :=
     n' = level m' /\

@@ -12,7 +12,7 @@ Require Import veric.address_conflict.
 Require Export veric.shares.
 Require Export veric.mapsto_memory_block.
 
-Open Local Scope pred.
+Local Open Scope pred.
 
 Definition func_at (f: funspec): address -> pred rmap :=
   match f with

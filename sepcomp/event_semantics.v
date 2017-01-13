@@ -169,7 +169,7 @@ Qed.
 
 Record EvSem {G C} :=
   { (** [sem] is a memory semantics. *)
-    msem :> MemSem G C
+    msem :> @MemSem G C
 
     (** The step relation of the new semantics. *)
   ; ev_step: G -> C -> mem -> list mem_event -> C -> mem -> Prop
@@ -194,8 +194,9 @@ Record EvSem {G C} :=
 Lemma Ev_sem_cur_perm {G C} (R: @EvSem G C) g c m T c' m' b ofs (D: ev_step R g c m T c' m'):
       Mem.perm_order'' ((Mem.mem_access m) !! b ofs Cur) (cur_perm (b,ofs) T).
 Proof. eapply ev_perm. eapply ev_step_elim; eassumption. Qed.
-
-Implicit Arguments EvSem [].
+(*
+Arguments EvSem G C.
+*)
 
 Require Import List.
 Import ListNotations.
