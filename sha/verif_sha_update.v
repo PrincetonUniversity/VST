@@ -105,26 +105,6 @@ replace_SEP 0 (data_at Tsh t_struct_SHA256state_st
      [ cancel | apply derives_refl].
 }
 (* end of TODO *)
-
-(*
-Ltac canon_load_result Hresult ::= idtac.
-
-(*Ltac find_load_result Hresult t_SEP gfs0 v gfs1 ::= fail 1000 "here..".*)
-
-Ltac solve_legal_nested_field_in_entailment ::= idtac.
-*)
-
-(* Ltac canon_load_result Hresult ::= fail 1234 Hresult. *)
-
-(*Ltac load_tac_without_hint Delta P Q R gfs e_root efs tts p_root sh t_SEP
-                              gfs0 gfs1 v n Hroot Hnth H_Denote lr ::= fail 1421.*)
-
-Require Import floyd.simpl_reptype.
-Ltac solve_load_rule_evaluation ::= admit.
-
-Timeout 10 forward.
-(* TODO solve_load_rule_evaluation consumes unbounded amounts of memory! *)
-
 forward. (* n = c->num; *)
 forward. (* p=c->data; *)
 simpl (temp _p _).

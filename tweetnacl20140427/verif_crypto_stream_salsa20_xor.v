@@ -812,18 +812,10 @@ rename H into I.
     destruct (field_compatible0_dec (Tarray tuchar (Zlength mbytes) noattr)
            [ArraySubsc q] (Vptr b0 i0)).
     Focus 2. elim n; clear n. apply field_compatible0_cons. simpl. split; trivial. omega.
-    assert (X: 0 + 1 * q = q) by omega. rewrite X; clear X. 
-    destruct (Znth_mapVint (map Int.repr (map Byte.unsigned mbytes)) (i+q) Vundef) as [mi Mi]. 
-      repeat rewrite Zlength_map; omega. 
-    forward; unfold Bl2VL; rewrite Znth_sublist, Mi; try omega; entailer!. 
-    clear H3 H4 H5 H6.
-    rewrite Znth_map with (d':=Int.zero) in Mi. inversion Mi.
-      rewrite Znth_map with (d':=Z0). 
-      rewrite Znth_map with (d':=Byte.zero); trivial. omega.
-      rewrite Zlength_map; omega.
-      repeat rewrite Zlength_map; omega. 
- 
-      erewrite (split2_data_at_Tarray_tuchar _ (Zlength mbytes) q).
+    assert (X: 0 + 1 * q = q) by omega. rewrite X; clear X.
+    forward; unfold Bl2VL; autorewrite with sublist; entailer!.
+    + rewrite Znth_map with (d' := Byte.zero) by omega. reflexivity.
+    + erewrite (split2_data_at_Tarray_tuchar _ (Zlength mbytes) q).
       2: omega. 2: unfold Bl2VL; repeat rewrite Zlength_map; trivial. 
       unfold field_address0. simpl. autorewrite with sublist in *. 
          if_tac; try contradiction.
@@ -1055,25 +1047,14 @@ Focus 2.
     destruct (field_compatible0_dec (Tarray tuchar (Zlength mbytes) noattr)
            [ArraySubsc q] (Vptr b0 i0)).
     Focus 2. elim n; clear n. apply field_compatible0_cons. simpl. split; trivial. omega.
-    assert (X: 0 + 1 * q = q) by omega. rewrite X; clear X. 
-    destruct (Znth_mapVint (map Int.repr (map Byte.unsigned mbytes)) (i+q) Vundef) as [mi Mi]. 
-      repeat rewrite Zlength_map; omega. 
-    forward. 
-    { entailer!. rewrite Znth_sublist. unfold Bl2VL. rewrite Mi. simpl. trivial. omega. omega. }
-    rewrite Znth_sublist. unfold Bl2VL. rewrite Mi.
-    entailer!. 
-      rewrite Znth_map with (d':=Int.zero) in Mi. inversion Mi.
-      rewrite Znth_map with (d':=Z0). 
-      rewrite Znth_map with (d':=Byte.zero); trivial. omega.
-      rewrite Zlength_map; omega.
-      repeat rewrite Zlength_map; omega. 
- 
-      erewrite (split2_data_at_Tarray_tuchar _ (Zlength mbytes) q).
+    assert (X: 0 + 1 * q = q) by omega. rewrite X; clear X.
+    forward; unfold Bl2VL; autorewrite with sublist; entailer!.
+    + rewrite Znth_map with (d' := Byte.zero) by omega. reflexivity.
+    + erewrite (split2_data_at_Tarray_tuchar _ (Zlength mbytes) q).
       2: omega. 2: unfold Bl2VL; repeat rewrite Zlength_map; trivial. 
       unfold field_address0. simpl. autorewrite with sublist in *. 
          if_tac; try contradiction.
       rewrite Z.mul_1_l. cancel.
-      omega. omega.
   }
   { rewrite H in *; simpl in *. 
     destruct mInit; simpl in M; try contradiction.
