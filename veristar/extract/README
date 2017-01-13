@@ -38,21 +38,21 @@ are accepted:
   -help            Display usage message
 
 See the EXAMPLES directory for some sample programs.  For instance:
-    $ ./smallfoot EXAMPLES/parallel_tree_deallocate.sf 
+    $ ./smallfoot EXAMPLES/parallel_tree_deallocate.sf
 
     Function tree_deallocate
 
     Valid
     $
 indicates a successful verification, while:
-    $ ./smallfoot EXAMPLES/heap_race.sf 
+    $ ./smallfoot EXAMPLES/heap_race.sf
 
     Function update
 
     Function heap_race
     File "EXAMPLES/heap_race.sf", line 9, characters 2-31:
     ERROR cannot find frame: parallel call
-    0!=c * c |-> tl:0 |- c |->  * c |-> 
+    0!=c * c |-> tl:0 |- c |->  * c |->
 
     NOT Valid
     $

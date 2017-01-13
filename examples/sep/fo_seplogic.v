@@ -26,12 +26,12 @@ Definition subst (x y: var) (P: pred world) : pred world :=
    fun w => P (fun_set (fst w) x (fst w y), snd w).
 
 Definition mapsto (x y: var) : pred world :=
- fun w => 
+ fun w =>
     exists ax, fst w x = Some ax /\
     exists ay, fst w y = Some ay /\
     forall a, if eq_dec a ax then snd w a = Some ay else snd w a = None.
 
-Definition equal (x y: var) : pred world := 
+Definition equal (x y: var) : pred world :=
             fun w => fst w x = fst w y.
 
 Inductive modvars : command -> var -> Prop :=
@@ -41,9 +41,9 @@ Inductive modvars : command -> var -> Prop :=
 | mod_seq2: forall x c1 c2, modvars c2 x -> modvars (Seq c1 c2) x.
 
 Definition nonfreevars (P: pred world) (x: var) : Prop :=
-  forall stk hp v, P (stk,hp) -> P (fun_set stk x v, hp). 
+  forall stk hp v, P (stk,hp) -> P (fun_set stk x v, hp).
 
-Definition subset (S1 S2: var -> Prop) := 
+Definition subset (S1 S2: var -> Prop) :=
   forall x, S1 x -> S2 x.
 
 Inductive safe: (list command * state) -> Prop :=
@@ -89,7 +89,7 @@ Proof.
  destruct H1 as [[? ?] ?]; simpl in *; subst.
  apply safe_step with  (k, (table_set x ay stk, hp)).
  econstructor; eauto.
- generalize (H4 ax); intros. 
+ generalize (H4 ax); intros.
  destruct (eq_dec ax ax); [ | contradiction n; auto].
  generalize (H7 ax).  rewrite H1; intro. inv H6; auto.  destruct H11.
  apply H0.

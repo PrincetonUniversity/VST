@@ -25,7 +25,7 @@ Fixpoint nested_efield (e: expr) (efs: list efield) (tts: list type) : expr :=
 
 Fixpoint compute_nested_efield e : expr * list efield * list type :=
   match e with
-  | Efield e' id t => 
+  | Efield e' id t =>
     match compute_nested_efield e', typeof e' with
     | (e'', efs, tts), Tstruct _ _ => (e'', eStructField id :: efs, t :: tts)
     | (e'', efs, tts), Tunion _ _ => (e'', eUnionField id :: efs, t :: tts)
@@ -50,7 +50,7 @@ Definition compute_lr e (efs: list efield) :=
 Fixpoint efield_denote {cs: compspecs} (efs: list efield) (gfs: list gfield) : environ -> mpred :=
   match efs, gfs with
   | nil, nil => TT
-  | eArraySubsc ei :: efs', ArraySubsc i :: gfs' => 
+  | eArraySubsc ei :: efs', ArraySubsc i :: gfs' =>
     local (`(eq (Vint (Int.repr i))) (eval_expr ei)) &&
     !! (match typeof ei with | Tint _ _ _ => True | _ => False end) &&
     efield_denote efs' gfs'
@@ -64,7 +64,7 @@ Fixpoint efield_denote {cs: compspecs} (efs: list efield) (gfs: list gfield) : e
 Fixpoint tc_efield {cs: compspecs} (Delta: tycontext) (efs: list efield) : environ -> mpred :=
   match efs with
   | nil => TT
-  | eArraySubsc ei :: efs' => 
+  | eArraySubsc ei :: efs' =>
     tc_expr Delta ei && tc_efield Delta efs'
   | eStructField i :: efs' =>
     tc_efield Delta efs'
@@ -210,7 +210,7 @@ Qed.
 Lemma By_reference_eval_expr: forall Delta e rho,
   access_mode (typeof e) = By_reference ->
   tc_environ Delta rho ->
-  tc_lvalue Delta e rho |-- 
+  tc_lvalue Delta e rho |--
   !! (eval_expr e rho = eval_lvalue e rho).
 Proof.
   intros.
@@ -475,7 +475,7 @@ Proof.
     assert (offset_val (nested_field_offset t_root (gfs SUB i0))
             (eval_LR e (LR_of_type t_root) rho) =
             force_val
-               (sem_add (typeof (nested_efield e efs tts)) 
+               (sem_add (typeof (nested_efield e efs tts))
                   (typeof i) (eval_expr (nested_efield e efs tts) rho)
                   (eval_expr i rho)));
      [| repeat apply andp_right; try apply prop_right; auto].

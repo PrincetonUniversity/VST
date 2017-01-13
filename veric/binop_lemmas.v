@@ -7,7 +7,7 @@ Require Import veric.expr2.
 Require Import veric.Cop2.
 Require Import veric.binop_lemmas2.
 Import Cop.
- 
+
 Lemma denote_tc_nonzero_e:
  forall i m, app_pred (denote_tc_nonzero (Vint i)) m -> Int.eq i Int.zero = false.
 Proof.
@@ -15,7 +15,7 @@ simpl; intros . destruct (Int.eq i Int.zero); auto; contradiction.
 Qed.
 
 Lemma denote_tc_nodivover_e:
- forall i j m, app_pred (denote_tc_nodivover (Vint i) (Vint j)) m -> 
+ forall i j m, app_pred (denote_tc_nodivover (Vint i) (Vint j)) m ->
    Int.eq i (Int.repr Int.min_signed) && Int.eq j Int.mone = false.
 Proof.
 simpl; intros.
@@ -23,7 +23,7 @@ destruct (Int.eq i (Int.repr Int.min_signed) && Int.eq j Int.mone); try reflexiv
 Qed.
 
 Lemma Int64_eq_repr_signed32_nonzero:
-  forall i, Int.eq i Int.zero = false -> 
+  forall i, Int.eq i Int.zero = false ->
              Int64.eq (Int64.repr (Int.signed i)) Int64.zero = false.
 Proof.
 intros.
@@ -51,7 +51,7 @@ Qed.
 
 
 Lemma Int64_eq_repr_unsigned32_nonzero:
-  forall i, Int.eq i Int.zero = false -> 
+  forall i, Int.eq i Int.zero = false ->
              Int64.eq (Int64.repr (Int.unsigned i)) Int64.zero = false.
 Proof.
 intros.
@@ -64,7 +64,7 @@ rewrite Int64.unsigned_repr in H.
 rewrite Int64.unsigned_repr in H.
 rewrite <- (Int.repr_unsigned i).
 rewrite H. reflexivity.
-split; compute; congruence. 
+split; compute; congruence.
 pose proof (Int.unsigned_range i).
 clear - H1.
 destruct H1.
@@ -84,7 +84,7 @@ hnf in H. destruct (Int.ltu i j); auto; contradiction.
 Qed.
 
 Lemma denote_tc_iszero_long_e:
- forall m i, 
+ forall m i,
   app_pred (denote_tc_iszero (Vlong i)) m ->
   Int.eq (Int.repr (Int64.unsigned i)) Int.zero = true.
 Proof.
@@ -129,7 +129,7 @@ Lemma sem_cmp_pp_ppx:
   | None => Vundef
   end (Tint ii ss aa) = true.
 Proof.
-intros; unfold sem_cmp_pp; simpl. 
+intros; unfold sem_cmp_pp; simpl.
 subst i. rewrite Int.eq_true.
  destruct ii,ss; simpl; reflexivity.
 Qed.
@@ -143,7 +143,7 @@ Lemma sem_cmp_pp_ppx':
   | None => Vundef
   end (Tint ii ss aa) = true.
 Proof.
-intros; unfold sem_cmp_pp; simpl. 
+intros; unfold sem_cmp_pp; simpl.
 subst i. rewrite Int.eq_true.
  destruct ii,ss; simpl; reflexivity.
 Qed.
@@ -157,7 +157,7 @@ Lemma sem_cmp_pp_ppy:
   | None => Vundef
   end (Tint ii ss aa) = true.
 Proof.
-intros; unfold sem_cmp_pp; simpl. 
+intros; unfold sem_cmp_pp; simpl.
 subst i. rewrite Int.eq_true.
  destruct ii,ss; simpl; reflexivity.
 Qed.
@@ -171,7 +171,7 @@ Lemma sem_cmp_pp_ppy':
   | None => Vundef
   end (Tint ii ss aa) = true.
 Proof.
-intros; unfold sem_cmp_pp; simpl. 
+intros; unfold sem_cmp_pp; simpl.
 subst i. rewrite Int.eq_true.
  destruct ii,ss; simpl; reflexivity.
 Qed.
@@ -187,30 +187,30 @@ forall op {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
 Proof.
 Time (* reduced from 548.6 sec to 192 sec *)
 destruct op;
-try abstract ( 
-  intros; 
+try abstract (
+  intros;
   rewrite den_isBinOpR in IBR; simpl in IBR;
- unfold binarithType in IBR; 
+ unfold binarithType in IBR;
  destruct (typeof e1) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ] eqn:TE1;
  try contradiction IBR;
  destruct (typeof e2) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ] eqn:TE2;
  simpl in IBR;
  rewrite ?TE1, ?TE2 in IBR; simpl in IBR; clear TE1 TE2;
  match type of IBR with context [@liftx] => unfold_lift in IBR | _ => idtac end;
- try contradiction IBR; 
- try simple apply tc_bool_e in IBR;  try discriminate IBR; 
+ try contradiction IBR;
+ try simple apply tc_bool_e in IBR;  try discriminate IBR;
  destruct (eval_expr e1 rho); try discriminate TV1; clear TV1;
  destruct (eval_expr e2 rho); try discriminate TV2; clear TV2;
  clear - IBR;
- destruct t as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ]; 
- try contradiction IBR; try discriminate IBR; 
- simpl; unfold Cop2.sem_div, Cop2.sem_mod, 
+ destruct t as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
+ try contradiction IBR; try discriminate IBR;
+ simpl; unfold Cop2.sem_div, Cop2.sem_mod,
  Cop2.sem_binarith, Cop2.sem_cast, Cop2.sem_shift,
- force_val, sem_shift_ii, both_int, both_long, both_float; simpl; 
- repeat (let H := fresh in revert IBR; intros [IBR H]; 
+ force_val, sem_shift_ii, both_int, both_long, both_float; simpl;
+ repeat (let H := fresh in revert IBR; intros [IBR H];
                 try contradiction IBR;
                 try contradiction H;
-                try (simple apply tc_bool_e in IBR; try discriminate IBR); 
+                try (simple apply tc_bool_e in IBR; try discriminate IBR);
                 try (simple apply denote_tc_nonzero_e in IBR; try rewrite IBR);
                 try (simple apply denote_tc_nodivover_e in H; try rewrite H);
                 try (simple apply tc_bool_e in H; try discriminate H));

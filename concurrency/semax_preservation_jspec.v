@@ -52,7 +52,7 @@ Section Jspec'_properties.
     (ext_link_inj : forall s1 s2, ext_link s1 = ext_link s2 -> s1 = s2).
 
   Definition Jspec' := (@OK_spec (Concurrent_Espec unit CS ext_link)).
-  
+
   Lemma is_EF_external ef : ext_spec_type Jspec' ef -> exists name sg, ef = EF_external name sg.
   Proof.
     destruct ef as [name sg | | | | | | | | | | | ].
@@ -69,58 +69,58 @@ Section Jspec'_properties.
     - simpl; do 5 (if_tac; [ now breakhyps | ]); now intros [].
     - simpl; do 5 (if_tac; [ now breakhyps | ]); now intros [].
   Qed.
-  
+
   Open Scope string_scope.
-  
+
   Lemma Jspec'_juicy_mem_equiv : ext_spec_stable juicy_mem_equiv (JE_spec _ Jspec').
   Proof.
     split; [ | easy ].
     intros e x b tl vl z m1 m2 E.
-    
+
     destruct (is_EF_external e x) as (name & sg & ->).
-    
+
     (* dependent destruction *)
     revert x.
-    
+
     (** * the case of acquire *)
     funspec_destruct "acquire".
     rewrite (proj2 E).
     exact (fun x y => y).
-    
+
     (** * the case of release *)
     funspec_destruct "release".
     rewrite (proj2 E).
     exact (fun x y => y).
-    
+
     (** * the case of makelock *)
     funspec_destruct "makelock".
     rewrite (proj2 E).
     exact (fun x y => y).
-    
+
     (** * the case of freelock *)
     funspec_destruct "freelock".
     rewrite (proj2 E).
     exact (fun x y => y).
-    
+
     (** * the case of spawn *)
     funspec_destruct "spawn".
     rewrite (proj2 E).
     exact (fun x y => y).
-    
+
     (** * no more cases *)
     simpl; tauto.
   Qed.
-  
+
   Lemma Jspec'_hered : ext_spec_stable age (JE_spec _ Jspec').
   Proof.
     split; [ | easy ].
     intros e x b tl vl z m1 m2 A.
-    
+
     unfold Jspec' in *.
     destruct (is_EF_external e x) as (name & sg & ->).
-    
+
     apply age_jm_phi in A.
-    
+
     (* dependent destruction *)
     revert x.
     1:funspec_destruct "acquire".
@@ -128,7 +128,7 @@ Section Jspec'_properties.
     3:funspec_destruct "makelock".
     4:funspec_destruct "freelock".
     5:funspec_destruct "spawn".
-    
+
     6: solve[intros[]].
     all:intros x (Hargsty & H); split; [apply Hargsty | ].
     all:breakhyps.
@@ -138,7 +138,7 @@ Section Jspec'_properties.
     all:agehyps.
     all:eauto.
   Qed.
-  
+
   Lemma Jspec'_jsafe_phi ge n ora c jm ext :
     cl_at_external c = Some ext ->
     jsafeN Jspec' ge n ora c jm ->
@@ -156,24 +156,24 @@ Section Jspec'_properties.
       intros jm_ Ejm_.
       constructor 3 with (e := ef) (args := args) (x := x).
       + auto.
-      
+
       + (* precondition only cares about phi *)
         clear Post.
         unfold Jspec' in *.
         destruct (is_EF_external ef x) as (name & sg & ->).
         revert x Pre.
-        
+
         1:funspec_destruct "acquire".
         2:funspec_destruct "release".
         3:funspec_destruct "makelock".
         4:funspec_destruct "freelock".
         5:funspec_destruct "spawn".
         6: solve[intros[]].
-        
+
         all: intros x Pre.
         all: exact_eq Pre.
         all: rewrite Ejm_; try reflexivity.
-      
+
       + (* postcondition only cares about phi *)
         unfold Jspec' in *.
         destruct (is_EF_external ef x) as (name & sg & ->).
@@ -185,15 +185,15 @@ Section Jspec'_properties.
         4:funspec_destruct "freelock".
         5:funspec_destruct "spawn".
         6: solve[intros[]].
-        
+
         all: intros x Post.
         all: exact_eq Post.
         all: unfold Hrel in *.
         all: do 2 rewrite level_juice_level_phi.
         all: rewrite Ejm_; try reflexivity.
-    
+
     - (* halted: not at external *)
       destruct (Clight_new.cl_core_sem_obligation_1 c); discriminate.
   Qed.
-  
-End Jspec'_properties.  
+
+End Jspec'_properties.

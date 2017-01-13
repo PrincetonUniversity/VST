@@ -28,7 +28,7 @@ Definition Gprog : funspecs := ltac:(with_library prog
 
 Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_spec.
 Proof.
-  unfold surely_malloc_spec, surely_malloc_spec'; start_function. 
+  unfold surely_malloc_spec, surely_malloc_spec'; start_function.
   forward_call (* p = malloc(n); *)
      n.
   Intros p.

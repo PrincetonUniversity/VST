@@ -25,7 +25,7 @@ Proof.
   pattern n; apply (well_founded_induction lt_wf); clear n.
   intros n Hind; intros.
   destruct st'.
-  rewrite expr_type_eqn in H.  
+  rewrite expr_type_eqn in H.
   spec H (k,v).
   detach H.
   spec H m.

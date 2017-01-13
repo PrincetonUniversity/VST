@@ -66,7 +66,7 @@ Program Definition funptr (l:label) (A:Type) (P Q: A -> pred world) : pred world
   fun prt =>
     match prt with (p,(_,t)) =>
       exists i,  prog_lookup p l = Some i /\
-        (forall stk p' n t' (x:A), 
+        (forall stk p' n t' (x:A),
           termMeasure_incr t t' ->
            laterR p p' ->
            (forall r', guards n (Q x) stk (p',(r' ,t'))) ->
@@ -159,7 +159,7 @@ Proof.
   destruct H1. simpl in *.
   destruct H0 as [i [? ?]].
   exists i; split; auto.
-  intros. 
+  intros.
   spec H3 stk p' n t' x. spec H3; auto.
   do 2 intro. destruct (H2 l0 r0); auto.
   rewrite H9; auto.
@@ -419,7 +419,7 @@ Proof.
   econstructor.
   eapply step_if_nil1; auto.
   auto.
-  
+
   (* cons case *)
   spec H1 t' H2 p n k.
   spec H1 stk.
@@ -443,7 +443,7 @@ Proof.
 Qed.
 
 Lemma hoare_call : forall t x G R v Q,
-  let wp := 
+  let wp :=
     EX l:label, EX A:Type, EX lP:(A->pred world), EX lQ:(A -> pred world), EX n':nat, EX a:A,
       store_op (fun r => r#v = Some (value_label l) /\ t l r = Some n' /\ n' < x) &&
       (G --> funptr l A lP lQ) &&
@@ -491,7 +491,7 @@ Proof.
   destruct (H l r). congruence.
   rewrite <- H14 in H12.
   rewrite H8 in H12. inv H12. clear H14.
-  
+
   destruct H13. split.
   repeat intro.
   inv H14.
@@ -511,7 +511,7 @@ Proof.
   econstructor.
   econstructor; eauto.
   auto.
-  
+
   split.
   clear -H11.
   repeat intro.
@@ -628,7 +628,7 @@ Lemma verify_func : forall psi l (G:pred world) (A:Type) (P Q:A -> pred world) i
 
   (forall a p r t', termMeasure_incr t t' -> proj1_sig (P a) (p,(r,t')) -> exists n, t l r = Some n) ->
 
-  (forall a n, 
+  (forall a n,
     let Pr  := P a && store_op (fun r' => t l r' = Some n) in
     let Pr' a' := P a' && store_op (fun r' => exists n', t l r' = Some n' /\ n' < n) in
     hoare t n (funptr l A Pr' Q && G) (Q a) Pr i FF) ->
@@ -672,7 +672,7 @@ Proof.
   replace n with (level (K.squash (n,psi))).
   apply nec_level. simpl in H3. rewrite worldNec_unfold in H3; intuition.
   rewrite K.knot_level. rewrite K.unsquash_squash; auto.
-  
+
   simpl.
   exists (fmap_instr (K.approx (level k)) i).
   split. auto.
@@ -709,11 +709,11 @@ Proof.
   destruct (H5 l r0); congruence.
 
   spec H1 x n' t'.
-  spec H1. eapply termMeasure_incr_trans; eauto. 
+  spec H1. eapply termMeasure_incr_trans; eauto.
   spec H1 p' n0 (instr_nil K.assert) stk.
   spec H1.
 
-    repeat intro. 
+    repeat intro.
     split.
     exists (fmap_instr (K.approx (level p')) i).
     split.
@@ -851,7 +851,7 @@ Proof.
   apply IHn with (stk:= (i'0;;instr_nil _)::i0::stk) in H2.
   intuition. econstructor. econstructor; eauto. auto.
   apply IHn with (stk:= (instr_call v;;i0)::stk) in H2. intuition.
-  apply IHn with (stk:=stk) in H2.  
+  apply IHn with (stk:=stk) in H2.
   intuition. econstructor. econstructor. auto.
 Qed.
 
@@ -867,7 +867,7 @@ Lemma verify_totally_correct : forall t G A P Q psi l x
   forall r,
     (forall n, P x (K.squash (n,psi),(r#(L 0) <- (value_label l),t))) ->
     exists n, exists p', exists r',
-      stepstar t (K.squash (n,psi)) p' 
+      stepstar t (K.squash (n,psi)) p'
         r ((instr_getlabel l (L 0) ;; instr_call (L 0) ;; instr_return ;; instr_nil _)::nil)
         r' nil /\
       Q x (p',(r',t)).

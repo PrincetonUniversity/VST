@@ -4,7 +4,7 @@ Require Import sepcomp.semantics.
 
 
 Module FSem.
-Record t M TM := mk { 
+Record t M TM := mk {
     F : forall G C, CoreSemantics G C M -> CoreSemantics G C TM
   ; E : TM -> M
   ; P : TM -> TM -> Prop
@@ -21,7 +21,7 @@ End FSem.
 Module IdFSem.
 Program Definition t M : FSem.t M M :=
   FSem.mk M M (fun G C sem => sem) id (fun _ _ => True) _ _ _ _ _.
-Next Obligation. 
+Next Obligation.
 apply prop_ext.
 split; intros H.
 split; auto.
@@ -34,8 +34,8 @@ Require Import veric.juicy_extspec.
 
 Module JuicyFSem.
 Program Definition t : FSem.t mem juicy_mem :=
-  FSem.mk mem juicy_mem (@juicy_core_sem) m_dry 
-    (fun jm jm' => 
+  FSem.mk mem juicy_mem (@juicy_core_sem) m_dry
+    (fun jm jm' =>
        resource_decay (Mem.nextblock (m_dry jm)) (m_phi jm) (m_phi jm') /\
        ageable.level jm = S (ageable.level jm'))
     _ _ _ _ _.

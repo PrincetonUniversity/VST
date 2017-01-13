@@ -45,7 +45,7 @@ Proof.
   apply T_Abs.
   apply T_Prim; intros.
   unfold val_to_exp, v_Nat; simpl.
-  apply T_Nat.  
+  apply T_Nat.
   apply T_Var; auto.
   apply T_Var; auto.
 Qed.
@@ -342,7 +342,7 @@ Definition e_fac : expr :=
             (Nat 1)
 
             (* recursive case *)
-            (App (App (bin_primop mult) (Var 1)) 
+            (App (App (bin_primop mult) (Var 1))
                  (App (Var 2) (App (unary_primop Peano.pred) (Var 1)))))).
 
 Lemma e_fac_typ :

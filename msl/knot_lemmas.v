@@ -27,8 +27,8 @@ Module Knot_Lemmas (K : KNOT).
     rewrite H.
     trivial.
   Qed.
-  Implicit Arguments unsquash_inj.
-  
+  Arguments unsquash_inj [k1 k2].
+
   Lemma squash_surj : forall k, exists n, exists Fp,
     squash (n, Fp) = k.
   Proof.
@@ -56,8 +56,8 @@ Module Knot_Lemmas (K : KNOT).
     symmetry.
     trivial.
   Qed.
-  Implicit Arguments unsquash_approx.
-  
+  Arguments unsquash_approx [k n Fp].
+
   Lemma approx_approx1 : forall m n,
     approx n = approx n oo approx (m+n).
   Proof.
@@ -89,7 +89,7 @@ Module Knot_Lemmas (K : KNOT).
     destruct nf.
     apply unsquash_squash.
   Qed.
-	
+
   Lemma unsquash_approx_unfolded : forall k,
     unsquash k = (fst (unsquash k), fmap F (approx (fst (unsquash k))) (snd (unsquash k))).
   Proof.
@@ -101,7 +101,7 @@ Module Knot_Lemmas (K : KNOT).
   Qed.
 
 (*
-  Lemma unsquash_not_surj : 
+  Lemma unsquash_not_surj :
     (exists rbot : rhs, rbot <> rhs_top) ->
     (exists Fp : F predicate, True) ->
     forall n, exists Fp, forall k, unsquash k <> (n, Fp).
@@ -147,8 +147,8 @@ Module KnotHered_Lemmas (K : KNOT_HERED).
     rewrite H.
     trivial.
   Qed.
-  Implicit Arguments unsquash_inj.
-  
+  Arguments unsquash_inj [k1 k2].
+
   Lemma squash_surj : forall k, exists n, exists Fp,
     squash (n, Fp) = k.
   Proof.
@@ -176,8 +176,8 @@ Module KnotHered_Lemmas (K : KNOT_HERED).
     symmetry.
     trivial.
   Qed.
-  Implicit Arguments unsquash_approx.
-  
+  Arguments unsquash_approx [k n Fp].
+
   Lemma approx_approx1 : forall m n,
     approx n = approx n oo approx (m+n).
   Proof.
@@ -209,7 +209,7 @@ Module KnotHered_Lemmas (K : KNOT_HERED).
     destruct nf.
     apply unsquash_squash.
   Qed.
-	
+
   Lemma unsquash_approx_unfolded : forall k,
     unsquash k = (fst (unsquash k), fmap F (approx (fst (unsquash k))) (snd (unsquash k))).
   Proof.

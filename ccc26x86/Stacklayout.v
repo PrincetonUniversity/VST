@@ -72,7 +72,7 @@ Local Opaque Z.add Z.mul sepconj range.
   generalize b.(bound_local_pos) b.(bound_outgoing_pos) b.(bound_stack_data_pos); intros.
   assert (0 <= olink) by (unfold olink; omega).
   assert (olink + 4 <= ocs) by (unfold ocs; omega).
-  assert (ocs <= size_callee_save_area b ocs) by (apply size_callee_save_area_incr). 
+  assert (ocs <= size_callee_save_area b ocs) by (apply size_callee_save_area_incr).
   assert (size_callee_save_area b ocs <= ol) by (apply align_le; omega).
   assert (ol + 4 * b.(bound_local) <= ostkdata) by (apply align_le; omega).
   assert (ostkdata + bound_stack_data b <= oretaddr) by (apply align_le; omega).
@@ -94,7 +94,7 @@ Local Opaque Z.add Z.mul sepconj range.
   apply range_drop_right with ostkdata. omega.
   rewrite sep_swap.
   apply range_drop_left with (ostkdata + bound_stack_data b). omega.
-  rewrite sep_swap. 
+  rewrite sep_swap.
   exact H.
 Qed.
 
@@ -112,11 +112,11 @@ Proof.
   generalize b.(bound_local_pos) b.(bound_outgoing_pos) b.(bound_stack_data_pos); intros.
   assert (0 <= olink) by (unfold olink; omega).
   assert (olink + 4 <= ocs) by (unfold ocs; omega).
-  assert (ocs <= size_callee_save_area b ocs) by (apply size_callee_save_area_incr). 
+  assert (ocs <= size_callee_save_area b ocs) by (apply size_callee_save_area_incr).
   assert (size_callee_save_area b ocs <= ol) by (apply align_le; omega).
   assert (ol + 4 * b.(bound_local) <= ostkdata) by (apply align_le; omega).
   assert (ostkdata + bound_stack_data b <= oretaddr) by (apply align_le; omega).
-  split. omega. omega. 
+  split. omega. omega.
 Qed.
 
 Lemma frame_env_aligned:

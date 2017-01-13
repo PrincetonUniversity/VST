@@ -88,7 +88,7 @@ Proof.
   simpl. unfold age1'. rewrite Y. reflexivity.
 Qed.
 
-Lemma age_by_ind {A} `{agA : ageable A} (P : A -> Prop) : 
+Lemma age_by_ind {A} `{agA : ageable A} (P : A -> Prop) :
   (forall x y, age x y -> P x -> P y) ->
   forall x n, P x -> P (age_by n x).
 Proof.
@@ -101,7 +101,7 @@ Proof.
     eapply IH; eauto.
 Qed.
 
-Lemma age_to_ind {A} `{agA : ageable A} (P : A -> Prop) : 
+Lemma age_to_ind {A} `{agA : ageable A} (P : A -> Prop) :
   (forall x y, age x y -> P x -> P y) ->
   forall x n, P x -> P (age_to n x).
 Proof.
@@ -109,7 +109,7 @@ Proof.
   apply age_by_ind, IH.
 Qed.
 
-Lemma age_to_ind_refined n {A} `{agA : ageable A} (P : A -> Prop) : 
+Lemma age_to_ind_refined n {A} `{agA : ageable A} (P : A -> Prop) :
   (forall x y, age x y -> n <= level y -> P x -> P y) ->
   forall x, P x -> P (age_to n x).
 Proof.

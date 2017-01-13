@@ -12,11 +12,11 @@ Require Import compcert.common.Memory.
 Require Import sepcomp.mem_lemmas.
 Record CoopCoreSem {G C} :=
   { coopsem :> CoreSemantics G C mem
-  ; corestep_fwd : 
-      forall g c m c' m' (CS: corestep coopsem g c m c' m'), 
+  ; corestep_fwd :
+      forall g c m c' m' (CS: corestep coopsem g c m c' m'),
       mem_forward m m'
-  ; corestep_rdonly: 
-      forall g c m c' m' (CS: corestep coopsem g c m c' m') b, 
+  ; corestep_rdonly:
+      forall g c m c' m' (CS: corestep coopsem g c m c' m') b,
       Mem.valid_block m b -> readonly m b m'}.
 
 Implicit Arguments CoopCoreSem [].
@@ -34,7 +34,7 @@ Context {G C: Type}.
 Variable coopsem: CoopCoreSem G C.
 
 Lemma corestepN_fwd: forall ge c m c' m' n,
-  corestepN coopsem ge n c m c' m' -> 
+  corestepN coopsem ge n c m c' m' ->
   mem_forward m m'.
 Proof.
 intros until n; revert c m.
@@ -47,16 +47,16 @@ eapply IHn; eauto.
 Qed.
 
 Lemma corestep_star_fwd: forall g c m c' m'
-  (CS:corestep_star coopsem g c m c' m'), 
+  (CS:corestep_star coopsem g c m c' m'),
   mem_forward m m'.
-Proof. 
-  intros. destruct CS. 
-  eapply corestepN_fwd. 
+Proof.
+  intros. destruct CS.
+  eapply corestepN_fwd.
   apply H.
 Qed.
 
 Lemma corestep_plus_fwd: forall g c m c' m'
-  (CS:corestep_plus coopsem g c m c' m'), 
+  (CS:corestep_plus coopsem g c m c' m'),
   mem_forward m m'.
 Proof.
    intros. destruct CS.
@@ -81,14 +81,14 @@ Lemma corestep_plus_rdonly ge c m c' m'
   (CS: corestep_plus coopsem ge c m c' m') b
   (VB: Mem.valid_block m b): readonly m b m'.
 Proof.
-  destruct CS. eapply corestepN_rdonly; eauto. 
+  destruct CS. eapply corestepN_rdonly; eauto.
 Qed.
 
 Lemma corestep_star_rdonly ge c m c' m'
   (CS: corestep_star coopsem ge c m c' m') b
   (VB: Mem.valid_block m b): readonly m b m'.
 Proof.
-  destruct CS. eapply corestepN_rdonly; eauto. 
+  destruct CS. eapply corestepN_rdonly; eauto.
 Qed.
 
 End CoopCoreSemLemmas.

@@ -29,10 +29,10 @@ Proof.
   intros step.
   induction step
     as [ ve te k m a1 a2 b ofs v2 v m' H H0 H1 H2 ASS | |
-         ve te k m optid a al tyagrs tyres cc vf vargs f m'  ve' le' H H0 H1 H2 H3 H4 NRV ALLOC H6 
+         ve te k m optid a al tyagrs tyres cc vf vargs f m'  ve' le' H H0 H1 H2 H3 H4 NRV ALLOC H6
          | | | | | | | | | f ve te optexp optid k m v' m' ve' te'' k' H H0 FREE H2 H3 | | | ];
     try apply decay_refl || apply IHstep.
-  
+
   - (* assign: no change in permission *)
     intros b' ofs'.
     split.
@@ -57,12 +57,12 @@ Proof.
          2:discriminate.
          injection STO as <-. simpl.
          reflexivity.
-  
+
   - (* internal call : allocations *)
     clear -ALLOC.
     induction ALLOC. now apply decay_refl.
     apply decay_trans with m1. 3:apply IHALLOC.
-    
+
     + clear -H.
       Transparent Mem.alloc.
       unfold Mem.alloc in *.
@@ -70,7 +70,7 @@ Proof.
       intros b V.
       unfold Mem.valid_block in *. simpl.
       apply Coqlib.Plt_trans_succ, V.
-      
+
     + clear -H.
       unfold Mem.alloc in *.
       injection H as E <-.
@@ -95,7 +95,7 @@ Proof.
         if_tac.
         -- subst b. inversion V. rewrite Pos.compare_lt_iff in *. edestruct Pos.lt_irrefl; eauto.
         -- reflexivity.
-  
+
   - (* return: free_list *)
     revert FREE; clear.
     generalize (blocks_of_env ge ve); intros l.
@@ -115,7 +115,7 @@ Proof.
         unfold Mem.unchecked_free, Mem.valid_block in *.
         simpl in *.
         assumption.
-      
+
       * injection F as <-.
         clear -G.
         unfold Mem.unchecked_free in *.
@@ -159,10 +159,10 @@ Proof.
   intros step.
   induction step
     as [ ve te k m a1 a2 b0 ofs0 v2 v m' H H0 H1 H2 ASS | |
-         ve te k m optid a al tyagrs tyres cc vf vargs f m'  ve' le' H H0 H1 H2 H3 H4 NRV ALLOC H6 
+         ve te k m optid a al tyagrs tyres cc vf vargs f m'  ve' le' H H0 H1 H2 H3 H4 NRV ALLOC H6
          | | | | | | | | | f ve te optexp optid k m v' m' ve' te'' k' H H0 FREE H2 H3 | | | ];
     intros V NW; auto.
-  
+
   - (* assign: some things are updated, but not the chunk in non-writable permission *)
     inversion ASS; subst.
     + inversion H4.
@@ -194,7 +194,7 @@ Proof.
             intros.
             omega.
         }
-    
+
     + (* still the case of assignment (copying) *)
       unfold Mem.storebytes in *.
       destruct (Mem.range_perm_dec m b0 (Int.unsigned ofs0) (Int.unsigned ofs0 + Z.of_nat (Datatypes.length bytes)) Cur Writable); [ | discriminate ].
@@ -218,7 +218,7 @@ Proof.
             intros.
             omega.
         }
-  
+
   - (* internal call : things are allocated -- each time in a new block *)
     clear -V ALLOC.
     induction ALLOC. easy.
@@ -236,7 +236,7 @@ Proof.
       rewrite PMap.gso. auto.
       unfold Mem.valid_block in *.
       auto with *.
-  
+
   - (* return: free_list *)
     revert FREE NW V; clear.
     generalize (blocks_of_env ge ve); intros l.

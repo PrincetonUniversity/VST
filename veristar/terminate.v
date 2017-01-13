@@ -1,6 +1,6 @@
 Load loadpath.
 (* make sure to fix loadpath to point to Ssreflect theories *)
-Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq 
+Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq
                fintype finfun finset fingraph path.
 (* as well as AF libraries on your machine *)
 Require Import AlmostFull AFConstructions.
@@ -10,7 +10,7 @@ Unset Strict Implicit.
 Import Prenex Implicits.
 
 Module TRANS.
-Record Sig 
+Record Sig
   (clause: finType) (* clause is some finite type *)
   (entails: {set clause} -> clause -> bool) (* clauseset s entails clause c *)
   (redund: {set clause} -> clause -> bool) (* clause c is redundant in s *)
@@ -28,7 +28,7 @@ redundU: forall (c: clause) (s1 s2: {set clause}),
 redundU2: forall (c: clause) (s: {set clause}),
   redund (c |: s) c -> redund s c;
 
-(* when redundant clause c2 is removed, c remains redundant -- this axiom 
+(* when redundant clause c2 is removed, c remains redundant -- this axiom
    encodes a sort of transitivity condition on the redundancy criteria *)
 redundD: forall (c c2: clause) (s: {set clause}),
   redund s c -> redund s c2 -> redund (s :\ c2) c
@@ -37,16 +37,16 @@ End TRANS.
 
 (* here we prove that the following transition relation terminates:
 Definition trans (s s': clauseset) :=
-  [exists c: clause, 
-    if [&& c \in add s & c \notin s] then s' == c |: s 
-    else if [&& c \in rem s & c \in s] then s' == s :\ c 
+  [exists c: clause,
+    if [&& c \in add s & c \notin s] then s' == c |: s
+    else if [&& c \in rem s & c \in s] then s' == s :\ c
          else false].
 *)
 
-Module Terminate. Section Terminate. 
-Variable (clause: finType) 
-         (entails: {set clause} -> clause -> bool) 
-         (redund: {set clause} -> clause -> bool) 
+Module Terminate. Section Terminate.
+Variable (clause: finType)
+         (entails: {set clause} -> clause -> bool)
+         (redund: {set clause} -> clause -> bool)
          (Trans: TRANS.Sig entails redund).
 
 Notation redundU := (TRANS.redundU Trans).
@@ -57,8 +57,8 @@ Notation redundD := (TRANS.redundD Trans).
 Definition clauseset := set_finType clause.
 
 (* set of clauses addable to s *)
-Definition add (s: clauseset) : clauseset := 
-  [set c | [&& ~~redund s c & 
+Definition add (s: clauseset) : clauseset :=
+  [set c | [&& ~~redund s c &
     [exists s0: clauseset, [&& s0 \subset s & entails s0 c]]]].
 
 (* set of clauses removable from s *)
@@ -66,9 +66,9 @@ Definition rem (s: clauseset) : clauseset := [set c | redund s c].
 
 (* the transition relation, expressed as a function to bool *)
 Definition trans (s s': clauseset) :=
-  [exists c: clause, 
-    if [&& c \in add s & c \notin s] then s' == c |: s 
-    else if [&& c \in rem s & c \in s] then s' == s :\ c 
+  [exists c: clause,
+    if [&& c \in add s & c \notin s] then s' == c |: s
+    else if [&& c \in rem s & c \in s] then s' == s :\ c
          else false].
 
 (* a derivation is the graph induced by the refl. transitive closure of trans *)
@@ -77,7 +77,7 @@ Notation deriv := (connect trans).
 Lemma deriv0 (s: clauseset) : deriv s s.
 Proof. by apply: connect0. Qed.
 
-Lemma deriv1 {s s'' s': clauseset} : 
+Lemma deriv1 {s s'' s': clauseset} :
   trans s s'' -> deriv s'' s' -> deriv s s'.
 Proof. by move/connect1=>H1 H2; apply: (connect_trans H1 H2). Qed.
 
@@ -85,7 +85,7 @@ Lemma deriv_trans {s s'' s': clauseset} :
   deriv s s'' -> deriv s'' s' -> deriv s s'.
 Proof. by move=>H1 H2; apply: (connect_trans H1 H2). Qed.
 
-Definition deriv_plus (s1 s3: clauseset) := 
+Definition deriv_plus (s1 s3: clauseset) :=
   [exists s2: clauseset, [&& trans s1 s2 & deriv s2 s3]].
 
 Lemma deriv_plus1 {s s'' s': clauseset} :
@@ -112,7 +112,7 @@ elim: p x Hp => [|y p Hrec] x //=; move/andP=> [Hxp Hp].
 by move=> Hax; apply: Hrec=>//; apply: (Ha _ _ Hxp).
 Qed.
 
-Lemma remU (c: clause) (s1 s2: clauseset) : 
+Lemma remU (c: clause) (s1 s2: clauseset) :
   c \in rem s1 -> c \in rem (s1 :|: s2).
 Proof. by rewrite/rem !inE=> H1; apply: redundU. Qed.
 
@@ -150,7 +150,7 @@ have H6: c \in x |: s by rewrite setUC; apply: set1Ul.
 by move: (negP H2).
 case: ifP.
 - move/andP=> [H4] H5 H3; move/eqP=> H6; rewrite H6 in H2.
-rewrite in_setD1 negb_and in H2. 
+rewrite in_setD1 negb_and in H2.
 move: (orP H2); case; first by move/negbNE/eqP=> ->.
 by move/negP.
 done.
@@ -196,12 +196,12 @@ Lemma removed_not_added (c: clause) (s s'': clauseset) (step: trans s s'') :
 Proof. by move/(@removed_rem _); apply: rem_not_added. Qed.
 
 (* main lemma 1: removed clauses are never re-added by a later step *)
-Lemma removed_never_added 
-  (c: clause) (s1 s2 s3 s4: clauseset) 
+Lemma removed_never_added
+  (c: clause) (s1 s2 s3 s4: clauseset)
   (step1: trans s1 s2) (trace: deriv s2 s3) (step2: trans s3 s4) :
   removed c step1 -> ~~added c step2.
 Proof.
-move/(@removed_rem _). 
+move/(@removed_rem _).
 move/(@rem_trans_closed _ _ s2 step1).
 move/(@rem_deriv_closed _ _ s3 trace).
 by apply: rem_not_added.
@@ -211,7 +211,7 @@ Lemma removed_notin
   (c: clause) (s s': clauseset) (trace: deriv s s') :
   c \notin s -> c \in rem s -> c \notin s'.
 Proof.
-move=> H1 H2; move: (connectP trace)=> [p]. 
+move=> H1 H2; move: (connectP trace)=> [p].
 elim: p s s' H1 H2 trace; first by move=> s s' H1 H2 trace /= _ ->.
 move=> s2 p IH s s' H1 H2 trace /= /andP [H3] H4 Heq; move: Heq trace=> -> trace.
 apply: (IH s2)=>//.
@@ -258,13 +258,13 @@ by move: (negP H7) H8; rewrite !inE=> ?; move/andP=>[].
 done.
 Qed.
 
-(* main lemma 2 as we proved it on paper: if a clause is added to set s, 
-   then later removed to produce set s', s != s'.  
+(* main lemma 2 as we proved it on paper: if a clause is added to set s,
+   then later removed to produce set s', s != s'.
 
-   unfortunately, this lemma is not strong enough to prove our main theorem. 
+   unfortunately, this lemma is not strong enough to prove our main theorem.
    redund_sub below proves the required (stronger) property. *)
-Lemma added_removed_neq 
-  (c: clause) (s1 s2 s3 s4: clauseset) 
+Lemma added_removed_neq
+  (c: clause) (s1 s2 s3 s4: clauseset)
   (step1: trans s1 s2) (trace: deriv s2 s3) (step2: trans s3 s4) :
   added c step1 -> removed c step2 -> s1 != s4.
 Proof.
@@ -307,33 +307,33 @@ have: s :\ c2 = s.
 by move=> <-.
 Qed.
 
-(*main lemma 2' (redund_sub): 
-   if c \in s, c is not redundant in s and s -->* s', 
-   then either: 
+(*main lemma 2' (redund_sub):
+   if c \in s, c is not redundant in s and s -->* s',
+   then either:
      (1) c \in s', or
      (2) c \notin s' and there exists a clauseset t such that
      t is a subset of s' but not a subset of the first set s
 
-  as a corollary, we have that when c is added in some step s --> s'' 
+  as a corollary, we have that when c is added in some step s --> s''
   and s'' -->* s', then s != s'.
 
   proof sketch:
-  since c is added in s --> s'', c is not redundant in s''.  
+  since c is added in s --> s'', c is not redundant in s''.
   also, we know that c \notin s and c \in s'' (since c was just added).
 
-  by lemma 2', either c \in s' (in which case s != s' since c \notin s), 
-  or there exists a clauseset t such that t is a subset of s' but not of s''.  
+  by lemma 2', either c \in s' (in which case s != s' since c \notin s),
+  or there exists a clauseset t such that t is a subset of s' but not of s''.
   since s'' = s \cup {c}, t is not a subset of s either, so s != s'.
 *)
 Lemma redund_sub (c: clause) (s s': clauseset) :
-  c \in s -> ~redund s c -> deriv s s' -> 
-  (c \in s') \/ 
+  c \in s -> ~redund s c -> deriv s s' ->
+  (c \in s') \/
   (c \notin s' /\ exists t: clauseset, t \subset s' /\ ~t \subset s).
 Proof.
 move=> H1 H2; move/connectP=> [p] [H3] ->; elim: p c s H1 H2 H3.
 by move=> c s H1 H2 H3; left.
 move=> s2 p IH c s H1 /= H2 /andP [H3] H4.
-move: (H3); rewrite/trans; move/existsP=> [x]; case: ifP. 
+move: (H3); rewrite/trans; move/existsP=> [x]; case: ifP.
 (*add*)
 case Hin: (c \in last s2 p); first by left.
 case H5: (x == c); first by move: (eqP H5)=> ->; move/andP=> [H6]; move/negP.
@@ -341,11 +341,11 @@ move/andP=> [H6] H7 /eqP=> Heq; move: Heq H3 H4 Hin=> -> H3 H4 Hin.
 case H8: (redund (x |: s) c).
 - (*redund*) right; split=>//.
 have H12: ~redund (x |: s) x.
- move: H6; rewrite/add !inE; move/andP=> [H13]. 
+ move: H6; rewrite/add !inE; move/andP=> [H13].
  by move: (negP H13)=> H14 _ H15; apply: H14; apply: redundU2.
 move: (IH x (x |: s) (@setU11 _ x _) H12 H4); case.
 move=> Hin2; exists [set x]; split; first by rewrite sub1set.
-by rewrite sub1set=> H13; apply: (negP H7). 
+by rewrite sub1set=> H13; apply: (negP H7).
 move=> [H9] [t] [H10] H11.
 exists t; split=>//.
 by move=> H13; apply: H11; rewrite -(set0U t); apply: setUSS=>//; apply: sub0set.
@@ -369,16 +369,16 @@ move: H5; rewrite/rem !inE=> H5.
 move: (IH c (s :\ x) H8 H7 H4); case; first by move=> ?; left.
 move=>[H9] [t] [H10] H11.
 right; split=>//.
-exists t. 
-split=>//. 
+exists t.
+split=>//.
 have H12: x \notin t.
  have H13: x \notin last (s :\ x) p.
-  have H14: removed x H3 
+  have H14: removed x H3
    by rewrite/removed; apply/andP; split=>//; rewrite setD11.
   have H15: deriv (s :\ x) (last (s :\ x) p) by apply/connectP; exists p.
   apply: (@removed_notin x (s :\ x) (last (s :\ x) p) H15).
   by rewrite setD11.
-  by rewrite/rem !inE; apply: redundD2.  
+  by rewrite/rem !inE; apply: redundD2.
  by apply/negP=> H14; apply: (negP H13); move: (subsetP H10); apply.
 by move=> H13; apply: H11; rewrite subsetD1; apply/andP; split.
 Qed.
@@ -409,28 +409,28 @@ Qed.
 Definition adds (c: clause) (s s': clauseset) (trace: deriv s s') :=
   [&& c \notin s & c \in s'].
 
-Lemma deriv_plus_eq_removed 
+Lemma deriv_plus_eq_removed
   (c: clause) (s1 s2: clauseset) (step1: trans s1 s2) (trace: deriv s2 s1) :
   removed c step1 -> adds c trace.
 Proof. by rewrite/removed/adds; move/andP=> [H1] H2; apply/andP; split. Qed.
 
 Lemma adds_added (c: clause) (s1 s4: clauseset) (trace: deriv s1 s4) :
-  adds c trace -> 
-  exists s2, exists s3, exists step: trans s2 s3, 
+  adds c trace ->
+  exists s2, exists s3, exists step: trans s2 s3,
     [&& deriv s1 s2, added c step & deriv s3 s4].
 Proof.
 rewrite/adds; move/andP=> [H1] H2.
 move: (connectP trace)=> [p]; move: trace=> _; elim: p s1 s4 H1 H2.
-by move=> ? ? H1 H2 /= H3 H4; move: H4 H1 H2=> ->; move/negP. 
+by move=> ? ? H1 H2 /= H3 H4; move: H4 H1 H2=> ->; move/negP.
 move=> s p IH s1 s4 H1 /= H2 /andP=> [[H3]] H4 H5; move: H5 H2=> -> H2.
 (*FIXME*) generalize H3 as H3'; intro.
 move: H3; rewrite{1}/trans; move/existsP=> [x]; case: ifP.
 (*add*) move/andP=> [H5] H6; move/eqP=> H7; rewrite H7 in H2 H3' H4.
 case Heq: (x == c).
 (*c added*) move: {Heq} (eqP Heq)=> Heq; rewrite Heq in H2 H3' H4 H5 H6.
-exists s1; exists (c |: s1); exists H3'. 
+exists s1; exists (c |: s1); exists H3'.
 apply/andP; split; first by apply: connect0.
-apply/andP; split. 
+apply/andP; split.
 - by rewrite/added; apply/andP; split; last by apply: setU11.
 - by apply/connectP; exists p=>//; rewrite H7 Heq.
 have H8: c \notin (x |: s1).
@@ -467,21 +467,21 @@ Qed.
 Definition removes (c: clause) (s s': clauseset) (trace: deriv s s') :=
   [&& c \in s & c \notin s'].
 
-Lemma deriv_plus_eq_added 
+Lemma deriv_plus_eq_added
   (c: clause) (s1 s2: clauseset) (step1: trans s1 s2) (trace: deriv s2 s1) :
   added c step1 -> removes c trace.
 Proof. by rewrite/added/removes; move/andP=> [H1] H2; apply/andP; split. Qed.
 
-Definition unique (s: clauseset) := 
+Definition unique (s: clauseset) :=
   [forall s': clauseset, deriv_plus s s' ==> (s != s')].
 
-(* main theorem: every clauseset s is distinguishable from every s' 
+(* main theorem: every clauseset s is distinguishable from every s'
    reachable from s under deriv^{+} *)
 Lemma deriv_unique : forall (s: clauseset), unique s.
 Proof.
 move=> s; rewrite/uniq/deriv_plus; apply/forallP=> s'; apply/implyP.
 move/existsP=> [s'']; move/andP=> [H1] H2; apply/negP.
-move: {H2} (connectP H2)=> [p] H2 ->; elim: p s s'' s' H1 H2=>/=. 
+move: {H2} (connectP H2)=> [p] H2 ->; elim: p s s'' s' H1 H2=>/=.
 by move=> ? ? ? H1 _; move/eqP=> H2; move: H2 H1=> ->; move/trans_neq.
 move=> s2 p IH s s'' _ H1 /andP=> [[H2]] H3 Heq.
 move: {Heq} (eqP Heq)=> Heq; move: Heq H1=> -> H1.
@@ -489,7 +489,7 @@ move: H2; rewrite/trans; move/existsP=> [c]; case: ifP.
 move/andP; rewrite/add !inE=> [[H4]] H5 H6.
 move: (andP H4)=> [H7] _.
 have H8: ~redund (c |: s'') c.
- by move=> H9; move: H7; move/negP; apply; apply: redundU2. 
+ by move=> H9; move: H7; move/negP; apply; apply: redundU2.
 have H9: c \in c |: s'' by apply: setU11.
 have H10: deriv (c |: s'') s''.
  move: (eqP H6) H1 H3=> -> H1 H3.
@@ -507,11 +507,11 @@ have H5: deriv (s'' :\ c) s''.
 have H6: adds c H5.
  rewrite/adds; apply/andP; split=>//; apply/negP=> H6.
  by rewrite setD11 in H6.
-move: (adds_added H6)=> [s3] [s4] [step] /andP [H7] /andP [H8] H9. 
+move: (adds_added H6)=> [s3] [s4] [step] /andP [H7] /andP [H8] H9.
 have H10: trans s'' (s'' :\ c).
  rewrite/trans; apply/existsP; exists c; case: ifP.
  by move/andP=> [_] /negP=> H10.
- move=> _; case: ifP; first by done. 
+ move=> _; case: ifP; first by done.
  by move/andP=> H10; exfalso; apply: H10; split.
 have H11: removed c H10.
  rewrite/removed; apply/andP; split=>//.
@@ -541,7 +541,7 @@ by move/eqP=> H2; move: H2 Heq=> ->; rewrite eq_refl.
 Qed.
 
 Lemma subpath_prop {T: finType} (e: rel T) (x y: T) (p: seq T) :
-  path e x p -> y \in p -> 
+  path e x p -> y \in p ->
   exists p', path e x p' /\ last x p' = y.
 Proof.
 move=> H1 H2; exists (take ((index y p).+1) p); split.
@@ -576,23 +576,23 @@ Qed.
 (* now we prove that equality on clausesets is AF *)
 
 (* cs2id: an injection from clausesets to values of type Finite #|clauseset|.
-   enum_rank produces a value of type 'I_(#|clauseset|), where 'I_n is the 
+   enum_rank produces a value of type 'I_(#|clauseset|), where 'I_n is the
    type of ordinals < n. *)
-Program Definition cs2id (s: clauseset) : Finite #|clauseset| := 
+Program Definition cs2id (s: clauseset) : Finite #|clauseset| :=
   @FinIntro #|clauseset| (enum_rank s) _.
 Next Obligation. by apply: (ltP (ltn_ord (enum_rank s))). Qed.
 
 Lemma af_rank_clauseset : almost_full (@eq_op clauseset).
-move: (af_cofmap cs2id (af_finite #|clauseset|)). 
+move: (af_cofmap cs2id (af_finite #|clauseset|)).
 rewrite/almost_full; move=> [p] H1; exists p.
 apply: (@sec_strengthen _ _ (fun x y => eq_fin (cs2id x) (cs2id y)))=> // x y.
-rewrite/cs2id=> /=; case=> H2; apply/eqP. 
+rewrite/cs2id=> /=; case=> H2; apply/eqP.
 by apply: enum_rank_inj; apply: (ord_inj H2).
 Qed.
 
 Lemma clos_trans_1n_deriv_plus (s1 s2: clauseset) :
-  Relation_Operators.clos_trans_1n clauseset 
-    (fun s s' : clauseset => trans s s') s1 s2 -> 
+  Relation_Operators.clos_trans_1n clauseset
+    (fun s s' : clauseset => trans s s') s1 s2 ->
   deriv_plus s1 s2.
 Proof.
 elim=> x y; first by move=> H1; apply/existsP; exists y; apply/andP.
@@ -604,7 +604,7 @@ Qed.
 Lemma wf_trans : well_founded trans.
 Proof.
 elim: af_rank_clauseset=> p H1; apply: (wf_from_af _ H1).
-move=> x y [H2] /eqP H3; move: (clos_trans_1n_deriv_plus H2)=> H4. 
+move=> x y [H2] /eqP H3; move: (clos_trans_1n_deriv_plus H2)=> H4.
 move: (deriv_unique x); rewrite/unique; move/forallP /(_ y).
 by move/implyP /(_ H4); rewrite H3; move/negP.
 Qed.
@@ -621,13 +621,13 @@ Variable clause: finType.
 (* The entailment relation should satisfy the following two properties. *)
 Variable entails: {set clause} -> clause -> bool.
 (* entails is closed under set union *)
-Variable entailsU: 
+Variable entailsU:
   forall c s1 s2,
   entails s1 c -> entails (s1 :|: s2) c.
 (* entails satisfies a sort of "cut" property *)
 Variable entailsT:
   forall c d s1 s2,
-  entails s2 d -> entails (d |: s1) c -> entails (s1 :|: s2) c. 
+  entails s2 d -> entails (d |: s1) c -> entails (s1 :|: s2) c.
 
 Notation clauseset := ({set clause}).
 
@@ -655,7 +655,7 @@ rewrite/redund/smaller_than.
 have H1: [set d in c |: s | ord d c] \subset [set d in s | ord d c].
  apply/subsetP=> x; rewrite !inE; move/andP=> [H1] H2; apply/andP; split=> //.
  move: (orP H1); case=> //.
- move/eqP=> H3; move: H3 H2=> -> H2. 
+ move/eqP=> H3; move: H3 H2=> -> H2.
  by move: (@irr clause_ordType); move/(_ c); rewrite H2.
 by move: (setUidPr H1)=> <-; apply: entailsU.
 Qed.
@@ -663,13 +663,13 @@ Qed.
 Lemma redundD c c2 s : redund s c -> redund s c2 -> redund (s :\ c2) c.
 Proof.
 rewrite/redund/smaller_than.
-case Hin: (c2 \in s). 
+case Hin: (c2 \in s).
 case Hord: (ord c2 c).
 (*c2 \in s /\ c2 < c*)
 move=> H1 H2.
 have H3: [set d in s | ord d c2] \subset [set d in s :\ c2 | ord d c].
- apply/subsetP=> x; rewrite !inE; move/andP=> [H3] H4; apply/andP; split=> //. 
- apply/andP; split=> //. 
+ apply/subsetP=> x; rewrite !inE; move/andP=> [H3] H4; apply/andP; split=> //.
+ apply/andP; split=> //.
  apply/negP=> Heq; move: (eqP Heq) H4=> -> H4.
  by move: (@irr clause_ordType); move/(_ c2); rewrite H4.
  by move: (@trans clause_ordType); move/(_ c2 x c H4 Hord).
@@ -685,7 +685,7 @@ by rewrite H4 in H1; move: (entailsT H2 H1); move: (setUidPl H3)=> ->.
 (*c2 \in s /\ c2 >= c*)
 have H1: [set d in s :\ c2 | ord d c] = [set d in s | ord d c].
  apply/eqP; rewrite eqEsubset; apply/andP; split.
- apply/subsetP=> x; rewrite !inE; move/andP=> [H1] H2. 
+ apply/subsetP=> x; rewrite !inE; move/andP=> [H1] H2.
  by move: {H1} (andP H1)=> [H3] H4; apply/andP.
  apply/subsetP=> x; rewrite !inE; move/andP=> [H1] H2.
  apply/andP; split=> //; apply/andP; split=> //.
@@ -695,7 +695,7 @@ by rewrite H1.
 have H1: s :\ c2 = s.
  apply/eqP; rewrite eqEsubset; apply/andP; split.
  by apply/subsetP=> x; rewrite !inE; move/andP=> [H1] H2.
- apply/subsetP=> x; rewrite !inE=> H1; apply/andP; split=> //. 
+ apply/subsetP=> x; rewrite !inE=> H1; apply/andP; split=> //.
  by apply/negP=> H3; move: (eqP H3) H1=> ->; rewrite Hin.
 by rewrite H1.
 Qed.

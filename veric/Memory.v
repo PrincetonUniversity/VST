@@ -53,8 +53,8 @@ Lemma perm_access: forall m b ofs k p,
     Mem.perm m b ofs k p <-> (Mem.perm_order'' (access_at m (b,ofs) k) (Some p)).
 Proof. reflexivity. Qed.
 
-Lemma access_perm: forall m b ofs k p, 
-  access_at m (b, ofs) k = Some p -> 
+Lemma access_perm: forall m b ofs k p,
+  access_at m (b, ofs) k = Some p ->
   Mem.perm m b ofs k p.
 Proof.
 intros.
@@ -64,7 +64,7 @@ rewrite H; auto.
 constructor.
 Qed.
 
-Lemma access_cur_max: forall m a, 
+Lemma access_cur_max: forall m a,
            Mem.perm_order'' (access_at m a Max)  (access_at m a Cur).
 Proof.
  destruct a as [b z].
@@ -80,8 +80,8 @@ Lemma invalid_noaccess: forall m b ofs k,
 Proof. intros; apply Mem.nextblock_noaccess. assumption. Qed.
 
 Lemma access_empty: forall a k, access_at Mem.empty a k = None.
-Proof. 
-  intros. unfold access_at, Mem.empty; simpl. rewrite PMap.gi. reflexivity. 
+Proof.
+  intros. unfold access_at, Mem.empty; simpl. rewrite PMap.gi. reflexivity.
 Qed.
 
 Transparent Mem.alloc.
@@ -89,7 +89,7 @@ Transparent Mem.alloc.
 Theorem alloc_access_other:
   forall m1 lo hi m2 b, Mem.alloc m1 lo hi = (m2, b) ->
   forall b' ofs k,
-  b'<>b \/ (ofs < lo \/ ofs >= hi) -> 
+  b'<>b \/ (ofs < lo \/ ofs >= hi) ->
   access_at m1 (b', ofs) k = access_at m2 (b', ofs) k.
 Proof.
  intros.
@@ -99,7 +99,7 @@ unfold access_at; inversion H; clear H; subst; simpl.
 destruct (eq_block b' (Mem.nextblock m1)).
 destruct H0; try contradiction.
 subst b'.
-rewrite PMap.gss. 
+rewrite PMap.gss.
 destruct (zle lo ofs), (zlt ofs hi); try omega; simpl; apply H1; apply Plt_strict.
 rewrite PMap.gso by auto. auto.
 Qed.
@@ -111,7 +111,7 @@ Theorem alloc_access_same:
 Proof.
  intros.
  inversion H; clear H; subst. unfold access_at; simpl.
- rewrite PMap.gss. 
+ rewrite PMap.gss.
 destruct (zle lo ofs), (zlt ofs hi); try omega; simpl; auto.
 Qed.
 
@@ -134,7 +134,7 @@ Qed.
 
 Lemma free_access:
   forall m1 b lo hi m2, Mem.free m1 b lo hi = Some m2 ->
-  (forall ofs, lo <= ofs < hi -> 
+  (forall ofs, lo <= ofs < hi ->
       access_at m1 (b,ofs) Cur = Some Freeable /\ access_at m2 (b,ofs) Max = None).
 Proof.
  intros.
@@ -172,11 +172,11 @@ Opaque Mem.free.
 Lemma access_drop_1:
   forall m b lo hi p m', Mem.drop_perm m b lo hi p = Some m' ->
   (forall ofs, lo <= ofs < hi ->
-     forall k,  
+     forall k,
      access_at m (b, ofs) k = Some Freeable /\ access_at m' (b, ofs) k = Some p).
 Proof.
  intros.
- unfold Mem.drop_perm in H. 
+ unfold Mem.drop_perm in H.
  destruct (Mem.range_perm_dec m b lo hi Cur Freeable); inversion H; clear H; subst.
  unfold access_at; simpl.
  rewrite PMap.gss.
@@ -187,7 +187,7 @@ Proof.
  pose proof (Mem.access_max m b ofs).
  rewrite Heqo in H.
  destruct k; auto.
- destruct ((Mem.mem_access m) !! b ofs Max); inv H; auto. 
+ destruct ((Mem.mem_access m) !! b ofs Max); inv H; auto.
 Qed.
 
 Lemma access_drop_2:
@@ -206,11 +206,11 @@ Qed.
 
 Lemma access_drop_3:
   forall m b lo hi p m', Mem.drop_perm m b lo hi p = Some m' ->
-  forall b' ofs k, b' <> b \/ ofs < lo \/ hi <= ofs -> 
+  forall b' ofs k, b' <> b \/ ofs < lo \/ hi <= ofs ->
     access_at m (b', ofs) k = access_at m' (b',ofs) k.
 Proof.
  intros.
- unfold Mem.drop_perm in H. 
+ unfold Mem.drop_perm in H.
  destruct (Mem.range_perm_dec m b lo hi Cur Freeable); inversion H; clear H; subst.
  unfold access_at; simpl.
  destruct (eq_block b' b).
@@ -247,7 +247,7 @@ Lemma perm_order'_dec_fiddle:
   forall y x, y = Some x ->
      proj_sumbool (Mem.perm_order'_dec y Nonempty) = true.
 Proof.
-intros. subst. simpl. 
+intros. subst. simpl.
 unfold Mem.perm_order_dec. destruct x; reflexivity.
 Qed.
 

@@ -18,7 +18,7 @@ Definition xtime (b: int) : int :=
 
 (* Finite field multiplication using xtime operation and xor for finite field addition
  * (Russian peasant multiplication), not described directly but suggested in section 4.2.1. *)
- 
+
 (* Repeatedly double b using xtime as per Russian peasant multiplication. Add b to accumulator
  * if there is a "remainder," i.e., the tested bit of a is 1 *)
 Definition ff_checkbit (a b : int) (acc : int) : int :=
@@ -29,7 +29,7 @@ Definition ff_checkbit (a b : int) (acc : int) : int :=
 Fixpoint xtime_test (a b : int) (acc : int) (shifts : nat) : int :=
   if Int.eq a Int.zero then acc (* if a or b are zero, nothing to do *)
   else if Int.eq b Int.zero then acc
-  else 
+  else
     (* check lowest bit of a, add b to acc if it is positive. Shift a
      * right for next iteration unless we're finished *)
     match shifts with
@@ -102,8 +102,8 @@ Definition ff_log_table := gen_log_table 256 Int.one.
 
 (* We will show that GF(256) arithmetic done by peasant multiplication
  * is equivalent to the method used by the implementation, namely using
- * log and exponentiation tables. The implementation takes log of a and b, 
- * adds them mod 255 (not mod 256) and returns exp of that, 
+ * log and exponentiation tables. The implementation takes log of a and b,
+ * adds them mod 255 (not mod 256) and returns exp of that,
  * returning 0 if a or b is 0 *)
 Definition table_ff_mult (a b: int) : int :=
   if Int.eq a Int.zero then Int.zero
@@ -149,7 +149,7 @@ Fixpoint rotate (n : nat) (w : word) : word :=
   end.
 
 Fixpoint little_endian_integer (contents: list int) : int :=
- match contents with 
+ match contents with
  | nil => Int.zero
  | c::cr => Int.or (Int.shl (little_endian_integer cr) (Int.repr 8)) c
 end.
@@ -172,7 +172,7 @@ Fixpoint generate_reverse_table (table : list int) : list word :=
   let c_d := Int.repr 13 in (* 0x0d *)
   let c_9 := Int.repr 9 in (* 0x09 *)
   match table with
-  | hd :: tl => 
+  | hd :: tl =>
     (ff_mult c_e hd, ff_mult c_9 hd, ff_mult c_d hd, ff_mult c_b hd) :: generate_reverse_table tl
   | [] => []
   end.

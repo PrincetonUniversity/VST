@@ -49,7 +49,7 @@ Inductive RTL_effstep (ge:genv):  (block -> Z -> bool) ->
       (fn_code f)!pc = Some(Icall sig ros args res pc') ->
       find_function ge ros rs = Some fd ->
       funsig fd = sig ->
-      RTL_effstep ge EmptyEffect 
+      RTL_effstep ge EmptyEffect
         (RTL_State s f sp pc rs) m
         (RTL_Callstate (Stackframe res f sp pc' rs :: s) fd rs##args) m
   | rtl_effstep_exec_Itailcall:
@@ -62,12 +62,12 @@ Inductive RTL_effstep (ge:genv):  (block -> Z -> bool) ->
         (RTL_State s f (Vptr stk Int.zero) pc rs) m
         (RTL_Callstate s fd rs##args) m'
 
-(* WE DO NOT TREAT BUILTINS 
+(* WE DO NOT TREAT BUILTINS
   | rtl_effstep_exec_Ibuiltin:
       forall s f sp pc rs m ef args res pc' t v m',
       (fn_code f)!pc = Some(Ibuiltin ef args res pc') ->
       external_call ef ge rs##args m t v m' ->
-      RTL_effstep ge 
+      RTL_effstep ge
          (BuiltinEffect ge (ef_sig ef) (rs##args) m)
          (RTL_State s f sp pc rs) m
          (RTL_State s f sp pc' (rs#res <- v)) m'
@@ -77,7 +77,7 @@ Inductive RTL_effstep (ge:genv):  (block -> Z -> bool) ->
       (fn_code f)!pc = Some(Icond cond args ifso ifnot) ->
       eval_condition cond rs##args m = Some b ->
       pc' = (if b then ifso else ifnot) ->
-      RTL_effstep ge EmptyEffect 
+      RTL_effstep ge EmptyEffect
         (RTL_State s f sp pc rs) m
         (RTL_State s f sp pc' rs) m
   | rtl_effstep_exec_Ijumptable:
@@ -85,7 +85,7 @@ Inductive RTL_effstep (ge:genv):  (block -> Z -> bool) ->
       (fn_code f)!pc = Some(Ijumptable arg tbl) ->
       rs#arg = Vint n ->
       list_nth_z tbl (Int.unsigned n) = Some pc' ->
-      RTL_effstep ge EmptyEffect 
+      RTL_effstep ge EmptyEffect
         (RTL_State s f sp pc rs) m
         (RTL_State s f sp pc' rs) m
   | rtl_effstep_exec_Ireturn:
@@ -146,46 +146,46 @@ Lemma rtl_eff_exec_Iop':
     (RTL_State s f sp pc' rs') m.
 Proof.
   intros. subst rs'. eapply rtl_effstep_exec_Iop; eauto.
-Qed. 
+Qed.
 
 Lemma rtl_effax1: forall (M : block -> Z -> bool) g c m c' m',
       RTL_effstep g M c m c' m' ->
       (corestep rtl_coop_sem g c m c' m' /\
        Mem.unchanged_on (fun (b : block) (ofs : Z) => M b ofs = false) m m').
-Proof. 
+Proof.
 intros.
   induction H.
   split. unfold corestep, coopsem; simpl.
          eapply rtl_corestep_exec_Inop; eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. 
-         eapply rtl_corestep_exec_Iop; eassumption. 
+  split. unfold corestep, coopsem; simpl.
+         eapply rtl_corestep_exec_Iop; eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. 
-         eapply rtl_corestep_exec_Iload; eassumption. 
+  split. unfold corestep, coopsem; simpl.
+         eapply rtl_corestep_exec_Iload; eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. 
-         eapply rtl_corestep_exec_Istore; eassumption. 
+  split. unfold corestep, coopsem; simpl.
+         eapply rtl_corestep_exec_Istore; eassumption.
          eapply StoreEffect_Storev; eassumption.
-  split. unfold corestep, coopsem; simpl. 
-         eapply rtl_corestep_exec_Icall; eassumption. 
+  split. unfold corestep, coopsem; simpl.
+         eapply rtl_corestep_exec_Icall; eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. 
-         eapply rtl_corestep_exec_Itailcall; eassumption. 
-         eapply FreeEffect_free; eassumption. 
-(*  split. unfold corestep, coopsem; simpl. 
+  split. unfold corestep, coopsem; simpl.
+         eapply rtl_corestep_exec_Itailcall; eassumption.
+         eapply FreeEffect_free; eassumption.
+(*  split. unfold corestep, coopsem; simpl.
          eapply rtl_corestep_exec_Ibuiltin; eassumption.
          eapply ec_builtinEffectPolymorphic; eassumption.*)
-  split. unfold corestep, coopsem; simpl. 
-         eapply rtl_corestep_exec_Icond; eassumption. 
+  split. unfold corestep, coopsem; simpl.
+         eapply rtl_corestep_exec_Icond; eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. 
-         eapply rtl_corestep_exec_Ijumptable; eassumption. 
+  split. unfold corestep, coopsem; simpl.
+         eapply rtl_corestep_exec_Ijumptable; eassumption.
          apply Mem.unchanged_on_refl.
-  split. unfold corestep, coopsem; simpl. 
-         eapply rtl_corestep_exec_Ireturn; eassumption. 
-         eapply FreeEffect_free; eassumption. 
-  split. unfold corestep, coopsem; simpl. 
+  split. unfold corestep, coopsem; simpl.
+         eapply rtl_corestep_exec_Ireturn; eassumption.
+         eapply FreeEffect_free; eassumption.
+  split. unfold corestep, coopsem; simpl.
          eapply rtl_corestep_exec_function_internal; eassumption.
          eapply Mem.alloc_unchanged_on; eassumption.
   split. unfold corestep, coopsem; simpl.
@@ -226,12 +226,12 @@ Lemma RTL_effstep_sub: forall g U V c m c' m'
 Qed.
 *)
 (*
-Definition cmin_effstep ge (E:block -> Z -> bool) 
+Definition cmin_effstep ge (E:block -> Z -> bool)
    (c : RTL_core) m (c' : RTL_core) m': Prop :=
    coopstep g c m c' m' /\ Mem.unchanged_on (fun b ofs => E b ofs = false) m m'.
 *)
 
-Program Definition rtl_eff_sem : 
+Program Definition rtl_eff_sem :
   @EffectSem genv RTL_core.
 eapply Build_EffectSem with (sem := rtl_coop_sem)(effstep:=RTL_effstep).
 apply rtl_effax1.

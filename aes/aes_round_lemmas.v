@@ -2,7 +2,7 @@ Require Import aes.aesutils.
 Require Import aes.AES256.
 
 Require Import Coqlib.
-Require Import msl.Coqlib2. 
+Require Import msl.Coqlib2.
 Require Import floyd.coqlib3.
 Require Import Integers.
 Require Import List. Import ListNotations.
@@ -49,7 +49,7 @@ Qed.
 
 (* FIPS 197 section 5.3.5 mentions that MixColumns and InvMixColumns are linear over
  * XOR (i.e., AddRoundKey) *)
- 
+
 (*
 Lemma mixcolumns_xor_linear: forall s : state, rk : block,
     block_in_bounds s -> block_in_bounds rk ->

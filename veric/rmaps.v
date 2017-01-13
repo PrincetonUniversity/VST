@@ -23,7 +23,7 @@ Parameter some_address:address.
 Parameter kind: Type.
 End ADR_VAL0.
 
-Module SimpleAdrVal (AV0: ADR_VAL0) <: 
+Module SimpleAdrVal (AV0: ADR_VAL0) <:
    ADR_VAL with Definition address := AV0.address
                    with Definition kind := AV0.kind.
   Import AV0.
@@ -89,15 +89,15 @@ Module Type STRAT_MODEL.
     end.
   Axiom ff_res : functorFacts res res_fmap.
   Definition f_res : functor := Functor ff_res.
-  
+
   Inductive res_join (PRED : Type) : f_res PRED -> f_res PRED -> f_res PRED -> Prop :=
     | res_join_NO1 : forall rsh1 rsh2 rsh3,
                                join rsh1 rsh2 rsh3 ->
                                res_join PRED (NO' PRED rsh1) (NO' PRED rsh2) (NO' PRED rsh3)
-    | res_join_NO2 : forall rsh1 rsh2 rsh3 sh k p, 
+    | res_join_NO2 : forall rsh1 rsh2 rsh3 sh k p,
                                join rsh1 rsh2 rsh3 ->
                                res_join PRED (NO' PRED rsh1) (YES' PRED rsh2 sh k p) (YES' PRED rsh3 sh k p)
-    | res_join_NO3 : forall rsh1 rsh2 rsh3 sh k p, 
+    | res_join_NO3 : forall rsh1 rsh2 rsh3 sh k p,
                                join rsh1 rsh2 rsh3 ->
                                res_join PRED (YES' PRED rsh1 sh k p) (NO' PRED rsh2 ) (YES' PRED rsh3 sh k p)
     | res_join_YES : forall (rsh1 rsh2 rsh3: Share.t) (sh1 sh2 sh3:pshare) k p,
@@ -110,14 +110,14 @@ Module Type STRAT_MODEL.
   Axiom ca_rj : forall PRED, @Canc_alg _ (res_join PRED).
   Axiom da_rj : forall PRED, @Disj_alg _ (res_join PRED).
   Axiom paf_res : @pafunctor f_res res_join.
-  
+
   Definition res_option (PRED : Type) (r: res PRED) :=
     match r with
       | NO' _ => None
       | YES' _ sh k _ => Some (sh,k)
       | PURE' _ _ => None (* PUREs cannot be split in any interesting way, which is what valid is about. *)
     end.
-  
+
   Definition valid' A (w: address -> res A) : Prop :=
     AV.valid (fun l => res_option A (w l)).
 
@@ -165,21 +165,21 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
 
   Lemma ff_res : functorFacts res res_fmap.
   Proof with auto.
-    constructor; intros; extensionality rs; icase rs; unfold res_fmap. 
+    constructor; intros; extensionality rs; icase rs; unfold res_fmap.
     rewrite fmap_id... rewrite fmap_id...
     rewrite <- fmap_comp... rewrite <- fmap_comp...
   Qed.
 
   Definition f_res : functor := Functor ff_res.
-  
+
   Inductive res_join (PRED : Type) : f_res PRED -> f_res PRED -> f_res PRED -> Prop :=
     | res_join_NO1 : forall rsh1 rsh2 rsh3,
                                join rsh1 rsh2 rsh3 ->
                                res_join PRED (NO' PRED rsh1) (NO' PRED rsh2) (NO' PRED rsh3)
-    | res_join_NO2 : forall rsh1 rsh2 rsh3 sh k p, 
+    | res_join_NO2 : forall rsh1 rsh2 rsh3 sh k p,
                                join rsh1 rsh2 rsh3 ->
                                res_join PRED (NO' PRED rsh1) (YES' PRED rsh2 sh k p) (YES' PRED rsh3 sh k p)
-    | res_join_NO3 : forall rsh1 rsh2 rsh3 sh k p, 
+    | res_join_NO3 : forall rsh1 rsh2 rsh3 sh k p,
                                join rsh1 rsh2 rsh3 ->
                                res_join PRED (YES' PRED rsh1 sh k p) (NO' PRED rsh2 ) (YES' PRED rsh3 sh k p)
     | res_join_YES : forall (rsh1 rsh2 rsh3: Share.t) (sh1 sh2 sh3:pshare) k p,
@@ -195,7 +195,7 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
 
       (* saf_eq *)
       intros x y z z' H1 H2; inv H1; inv H2; repeat f_equal; eapply join_eq; eauto.
-  
+
       (* saf_assoc *)
       intros a b c d e H1 H2.
       destruct d as [rd | rd sd kd pd | kd pd].
@@ -283,7 +283,7 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
    destruct z as [ rz | rz sz kz pz | kz pz ].
    destruct x' as [ rx' | rx' sx' kx' px' | kx' px' ]; try solve [elimtype False; inv H].
    destruct y as [ ry | ry sy ky py | ky py ]; try solve [elimtype False; inv H].
-   exists (NO' _ rx'); exists (NO' _ ry); inv H; split; constructor; tauto.    
+   exists (NO' _ rx'); exists (NO' _ ry); inv H; split; constructor; tauto.
    destruct x' as [ rx' | rx' sx' kx' px' | kx' px' ]; try solve [elimtype False; inv H].
    destruct y as [ ry | ry sy ky py | ky py ]; try solve [elimtype False; inv H].
     exists (NO' _ rx'); exists (YES' _ ry sy kz pz); inv H; split; constructor; auto. simpl in *; f_equal; auto.
@@ -305,14 +305,14 @@ Module StratModel (AV' : ADR_VAL) : STRAT_MODEL with Module AV:=AV'.
    exists (YES' _ ry sy kx px); exists (YES' _ rz sz kx px); inv H; split; constructor; auto. simpl; f_equal; auto.
    exists (PURE' _ kx px); exists (PURE' _ kx px); inv H; split; constructor; auto.
   Qed.
-  
+
   Definition res_option (PRED : Type) (r: res PRED) :=
     match r with
       | NO' _ => None
       | YES' _ sh k _ => Some (sh,k)
       | PURE' _ _ => None (* PUREs cannot be split in any interesting way, which is what valid is about. *)
     end.
-  
+
   Definition valid' A (w: address -> res A) : Prop :=
     AV.valid (fun l => res_option A (w l)).
 
@@ -426,16 +426,16 @@ Module Type RMAPS.
                                (RJ: join rsh1 rsh2 rsh3),
                                res_join (NO rsh1) (NO rsh2) (NO rsh3)
    | res_join_NO2 : forall rsh1 rsh2 rsh3 sh k p
-                               (RJ: join rsh1 rsh2 rsh3), 
-                               res_join (YES rsh1 sh k p) (NO rsh2) (YES rsh3 sh k p) 
+                               (RJ: join rsh1 rsh2 rsh3),
+                               res_join (YES rsh1 sh k p) (NO rsh2) (YES rsh3 sh k p)
    | res_join_NO3 : forall rsh1 rsh2 rsh3 sh k p
                                (RJ: join rsh1 rsh2 rsh3),
-                               res_join (NO rsh1) (YES rsh2 sh k p) (YES rsh3 sh k p) 
+                               res_join (NO rsh1) (YES rsh2 sh k p) (YES rsh3 sh k p)
    | res_join_YES : forall rsh1 rsh2 rsh3 (sh1 sh2 sh3:pshare) k p
                                (RJ: join rsh1 rsh2 rsh3),
-                               join sh1 sh2 sh3 -> 
+                               join sh1 sh2 sh3 ->
         res_join (YES rsh1 sh1 k p) (YES rsh2 sh2 k p) (YES rsh3 sh3 k p)
-   | res_join_PURE : forall k p, res_join (PURE k p) (PURE k p) (PURE k p). 
+   | res_join_PURE : forall k p, res_join (PURE k p) (PURE k p) (PURE k p).
 
   Instance Join_resource: Join resource := res_join.
   Axiom Perm_resource: Perm_alg resource. Existing Instance Perm_resource.
@@ -469,7 +469,7 @@ Module Type RMAPS.
     join x y z -> valid x -> valid y -> valid z.
   Axiom rmapj_valid_core: forall x: address -> resource, valid x -> valid (core x).
 
-  Definition rmap' := sig valid. 
+  Definition rmap' := sig valid.
 
   Definition rmap_fmap (f g: pred rmap -> pred rmap) (x:rmap') : rmap' :=
     match x with exist m H => exist (fun m => valid m) (resource_fmap f g oo m) (valid_res_map f g m H) end.
@@ -482,7 +482,7 @@ Module Type RMAPS.
 
 
   Axiom rmap_level_eq: @level rmap _ = fun x => fst (unsquash x).
-  Axiom rmap_age1_eq: @age1 _ _ = 
+  Axiom rmap_age1_eq: @age1 _ _ =
      fun k => match unsquash k with
     | (O,_) => None
     | (S n,x) => Some (squash (n,x))
@@ -502,7 +502,7 @@ Module Type RMAPS.
     | (n,x) => squash (S n, x)
     end.
 
-  Program Definition approx (n:nat) (p: pred rmap) : pred rmap := 
+  Program Definition approx (n:nat) (p: pred rmap) : pred rmap :=
     fun w => level w < n /\ p w.
   Next Obligation.
   destruct H0.
@@ -546,7 +546,7 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
   Definition rmap := K.knot.
   Instance Join_rmap: Join rmap := KSa.Join_knot.
   Instance Perm_rmap : Perm_alg rmap:= KSa.Perm_knot.
-  Instance Sep_rmap : Sep_alg rmap:= KSa.Sep_knot. 
+  Instance Sep_rmap : Sep_alg rmap:= KSa.Sep_knot.
   Instance Canc_rmap : Canc_alg rmap:= KSa.Canc_knot.
   Instance Disj_rmap : Disj_alg rmap:= KSa.Disj_knot.
   Instance ag_rmap : ageable rmap := K.ageable_knot.
@@ -600,16 +600,16 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
                                (RJ: join rsh1 rsh2 rsh3),
                                res_join (NO rsh1) (NO rsh2) (NO rsh3)
    | res_join_NO2 : forall rsh1 rsh2 rsh3 sh k p
-                               (RJ: join rsh1 rsh2 rsh3), 
-                               res_join (YES rsh1 sh k p) (NO rsh2) (YES rsh3 sh k p) 
+                               (RJ: join rsh1 rsh2 rsh3),
+                               res_join (YES rsh1 sh k p) (NO rsh2) (YES rsh3 sh k p)
    | res_join_NO3 : forall rsh1 rsh2 rsh3 sh k p
                                (RJ: join rsh1 rsh2 rsh3),
-                               res_join (NO rsh1) (YES rsh2 sh k p) (YES rsh3 sh k p) 
+                               res_join (NO rsh1) (YES rsh2 sh k p) (YES rsh3 sh k p)
    | res_join_YES : forall rsh1 rsh2 rsh3 (sh1 sh2 sh3:pshare) k p
                                (RJ: join rsh1 rsh2 rsh3),
-                               join sh1 sh2 sh3 -> 
+                               join sh1 sh2 sh3 ->
         res_join (YES rsh1 sh1 k p) (YES rsh2 sh2 k p) (YES rsh3 sh3 k p)
-   | res_join_PURE : forall k p, res_join (PURE k p) (PURE k p) (PURE k p). 
+   | res_join_PURE : forall k p, res_join (PURE k p) (PURE k p) (PURE k p).
 
   Instance Join_resource: Join resource := res_join.
   Instance Perm_resource: Perm_alg resource.
@@ -617,7 +617,7 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
 
       (* saf_eq *)
       intros x y z z' H1 H2; inv H1; inv H2; repeat f_equal; eapply join_eq; eauto.
-  
+
       (* saf_assoc *)
       intros a b c d e H1 H2.
       destruct d as [rd | rd sd kd pd | kd pd].
@@ -702,11 +702,11 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
 
   Lemma rmapj_valid_core: forall x : address -> resource, valid x -> valid (core x).
   Proof.
-     unfold valid, compose; intros. red. red. 
+     unfold valid, compose; intros. red. red.
      replace (fun x0 => res_option (core x x0)) with (fun _ : address => @None (pshare * kind)).
      apply AV.valid_empty.
      extensionality a. simpl. icase (x a).
-  Qed. 
+  Qed.
 
   Lemma rmapj_valid_join : forall (x y z : address -> resource),
     join x y z ->
@@ -882,7 +882,7 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
   Definition resource_at (phi:rmap) : address -> resource := proj1_sig (snd (unsquash phi)).
   Infix "@" := resource_at (at level 50, no associativity).
 
-  Lemma pred_ext': forall {A} `{agA: ageable A} P Q, 
+  Lemma pred_ext': forall {A} `{agA: ageable A} P Q,
                 (forall x, app_pred P x <-> app_pred Q x) -> P = Q.
   Proof. intros; apply pred_ext; intro; apply H; auto. Qed.
 
@@ -900,7 +900,7 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
     rewrite K.squash_unsquash; auto.
   Qed.
 
-  Program Definition approx (n:nat) (p: (pred rmap)) : (pred rmap) := 
+  Program Definition approx (n:nat) (p: (pred rmap)) : (pred rmap) :=
     fun w => level w < n /\ p w.
   Next Obligation.
   destruct H0.
@@ -909,7 +909,7 @@ Module Rmaps (AV':ADR_VAL) : RMAPS with Module AV:=AV'.
   simpl in *. omega.
   apply pred_hereditary with a; auto.
   Qed.
-  
+
   Lemma approx_K_approx: approx = K.approx.
   Proof.
     extensionality n p.
@@ -1058,7 +1058,7 @@ Qed.
    unfold KSa.K.ageable_knot. unfold unsquash.
    rewrite K.knot_level. destruct (K.unsquash x); simpl. auto.
   Qed.
- 
+
   Lemma unevolve_identity_rmap :
    (* REMARK:  This may not be needed for anything, so for now it's removed
      from the Module Type *)
@@ -1076,7 +1076,7 @@ Qed.
    destruct (unsquash x).
    destruct n. inv H.
     assert (y = squash (n,r)).
-    inv H; auto. 
+    inv H; auto.
     subst y.
     rewrite unsquash_squash in H0.
     destruct H0; split;  simpl fst in *; simpl snd in *; try split; auto.

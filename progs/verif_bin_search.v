@@ -38,7 +38,7 @@ Definition main_spec :=
   POST [ tint ] main_post prog nil u.
 
 (* Packaging the API spec all together. *)
-Definition Gprog : funspecs := 
+Definition Gprog : funspecs :=
         ltac:(with_library prog [search_spec; main_spec]).
 
 Lemma sublist_nil1 : forall A i j (l : list A), j <= i -> sublist i j l = [].
@@ -67,7 +67,7 @@ Proof.
   - rewrite Zlength_correct; omega.
   - destruct (zlt (Z.of_nat n) 0); [omega|].
     rewrite Nat2Z.id; auto.
-Qed.  
+Qed.
 
 Lemma sublist_of_nil : forall A i j, sublist i j (nil : list A) = [].
 Proof.
@@ -212,7 +212,7 @@ Proof.
   rewrite Zlength_correct, firstn_length, skipn_length.
   rewrite Min.min_l, Z2Nat.id; try omega.
   rewrite Zlength_correct, Z2Nat.inj_sub in *; Omega0.
-Qed.  
+Qed.
 
 Lemma Znth_In_sublist : forall A i (l : list A) d lo hi
   (Hlo : 0 <= lo <= i) (Hhi : i < hi <= Zlength l),
@@ -269,13 +269,13 @@ Proof.
 (*Ltac forward_if_tac post :=
   check_Delta;
   repeat (apply -> seq_assoc; abbreviate_semax);
-first [ignore (post: environ->mpred) 
+first [ignore (post: environ->mpred)
       | fail 1 "Invariant (first argument to forward_if) must have type (environ->mpred)"];
 match goal with
  | |- semax _ _ (Sifthenelse _ _ _) (overridePost post _) =>
-       forward_if'_new 
+       forward_if'_new
  | |- semax _ _ (Sifthenelse _ _ _) ?P =>
-      apply (semax_post_flipped (overridePost post P)); 
+      apply (semax_post_flipped (overridePost post P));
       [ forward_if'_new
       | try (intros; apply entail_post; simpl); try solve [normalize]
       ]
@@ -290,10 +290,10 @@ match goal with |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sifthenelse ?e
     do_compute_expr Delta P Q R e v HRE;
     simpl in v;
     apply (semax_ifthenelse_PQR' _ v);
-     [ reflexivity | entailer | assumption 
-     | clear HRE; subst v; apply semax_extract_PROP; intro HRE; 
+     [ reflexivity | entailer | assumption
+     | clear HRE; subst v; apply semax_extract_PROP; intro HRE;
        do_repr_inj HRE; abbreviate_semax
-     | clear HRE; subst v; apply semax_extract_PROP; intro HRE; 
+     | clear HRE; subst v; apply semax_extract_PROP; intro HRE;
        do_repr_inj HRE; abbreviate_semax
      ]
 end.
@@ -324,15 +324,15 @@ forward_if_tac (while_Inv contents tgt sh a).
       * eapply In_sorted_lt; eauto; omega.
       * eapply sublist_In_sublist; try apply Hin'; omega.
 (*  - intros.
-    
+
     unfold while_Inv.
-    
+
     intros; unfold POSTCONDITION, abbreviate, overridePost.
     destruct ek; entailer!.
     unfold overri
     intros.
     unfold exit_tycon.
-    
+
     unfold PROPx, LOCALx, SEPx, local, lift1; unfold_lift; simpl; entailer!.
     unfold overridePost; destruct (eq_dec ek EK_normal); auto.
     subst; simpl; normalize.

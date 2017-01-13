@@ -11,7 +11,7 @@ Require Import fcf.Fold.
 Require Import Permutation.
 Require Import Omega.
 
-Local Open Scope list_scope. 
+Local Open Scope list_scope.
 Local Open Scope comp_scope.
 
 (* A type for keeping track of the state of the evaluation. *)
@@ -50,12 +50,12 @@ Qed.
 Fixpoint evalDet_step(A : Set)(c : Comp A)(s : Blist) : comp_state A :=
   match c in Comp A return comp_state A with
     | Ret pf a => cs_done a s
-    | Rnd n  => 
+    | Rnd n  =>
       match (shiftOut s n) with
         | Some (v, s') => cs_more (Ret (@Bvector_eq_dec n) v) s'
         | None => (@cs_eof (Bvector n))
       end
-    | Bind c1 c2 =>     
+    | Bind c1 c2 =>
       match (evalDet_step c1 s) with
         | cs_eof _ => (@cs_eof _)
         | cs_done b s' => cs_more (c2 b) s'
@@ -68,7 +68,7 @@ Fixpoint evalDet_step(A : Set)(c : Comp A)(s : Blist) : comp_state A :=
 Inductive evalDet_steps(A : Set) : comp_state A -> comp_state A -> Prop :=
   | evalDet_steps_refl : forall ans,
     evalDet_steps ans ans
-  | evalDet_steps_step : 
+  | evalDet_steps_step :
     forall c s ans ans',
       (evalDet_step c s) = ans ->
       evalDet_steps ans ans' ->
@@ -83,11 +83,11 @@ Inductive evalDet(A : Set)(c : Comp A)(s : Blist) : comp_answer A -> Prop :=
   | evalDet_eof :
     evalDet_steps (cs_more c s) (@cs_eof A) ->
     evalDet c s (@ca_eof A).
-    
+
 
 Theorem evalDet_steps_trans : forall (A : Set)(x y : comp_state A),
   evalDet_steps x y ->
-  forall z, 
+  forall z,
   evalDet_steps y z ->
   evalDet_steps x z.
 
@@ -153,7 +153,7 @@ Qed.
 Lemma evalDet_steps_done_inv_h : forall (A : Set)(x y : comp_state A),
   evalDet_steps x y ->
   forall (c : Comp A)(a : A) s s',
-  x = (cs_more c s) -> 
+  x = (cs_more c s) ->
   y = (cs_done a s') ->
   exists c'' s'', evalDet_steps (cs_more c s) (cs_more c'' s'') /\ evalDet_step c'' s'' = (cs_done a s').
 
@@ -164,7 +164,7 @@ Lemma evalDet_steps_done_inv_h : forall (A : Set)(x y : comp_state A),
   inversion H0; clear H0; subst.
   econstructor. econstructor.
   intuition.
-  
+
   destruct (IHevalDet_steps c a s s'); eauto.
   destruct H0; intuition.
   exists x.
@@ -187,7 +187,7 @@ Qed.
 Lemma evalDet_steps_eof_inv_h : forall (A : Set)(x y : comp_state A),
   evalDet_steps x y ->
   forall (c : Comp A) s,
-  x = (cs_more c s) -> 
+  x = (cs_more c s) ->
   y = (@cs_eof A) ->
   exists c'' s'', evalDet_steps (cs_more c s) (cs_more c'' s'') /\ evalDet_step c'' s'' = (@cs_eof A).
 
@@ -197,7 +197,7 @@ Lemma evalDet_steps_eof_inv_h : forall (A : Set)(x y : comp_state A),
   inversion H0; clear H0; subst.
   econstructor. econstructor.
   intuition.
-  
+
   destruct (IHevalDet_steps c s); eauto.
   destruct H0; intuition.
   exists x.
@@ -257,12 +257,12 @@ Theorem evalDet_bind_eof : forall(A B : Set)(c1 : Comp B)(c2 : B -> Comp A) s,
 Qed.
 
 Inductive comp_state_eq(A : Set) : comp_state A -> comp_state A -> Prop :=
-  | cse_done : 
-    forall a s, 
+  | cse_done :
+    forall a s,
       comp_state_eq (cs_done a s) (cs_done a s)
-  | cse_eof : 
+  | cse_eof :
     comp_state_eq (@cs_eof A) (@cs_eof A)
-  | cse_more : 
+  | cse_more :
     forall c1 c2 s,
       Comp_eq c1 c2 ->
       comp_state_eq (cs_more c1 s) (cs_more c2 s).
@@ -359,7 +359,7 @@ Definition evalDet_equiv(A : Set)(c1 c2 : Comp A) :=
 Lemma evalDet_equiv_symm : forall (A : Set)(c1 c2 : Comp A),
   evalDet_equiv c1 c2 ->
   evalDet_equiv c2 c1.
-  
+
   unfold evalDet_equiv. intuition.
   eapply H; trivial.
   eapply H; trivial.
@@ -399,7 +399,7 @@ Theorem evalDet_steps_bind_done_inv_h : forall (A : Set)(x y : comp_state A),
   eauto.
   destruct H.
   intuition.
-  
+
   econstructor. econstructor. intuition.
   econstructor.
   eapply H0.
@@ -417,14 +417,14 @@ Theorem evalDet_steps_bind_done_inv : forall (A B : Set)(c1 : Comp B)(c2 : B -> 
 
 Qed.
 
-Theorem evalDet_steps_bind_eof_inv_h : 
+Theorem evalDet_steps_bind_eof_inv_h :
   forall (A : Set)(x y : comp_state A),
     evalDet_steps x y ->
     forall (B : Set)(c1 : Comp B)(c2 : B -> Comp A) s,
       x = (cs_more (Bind c1 c2) s) ->
       y = (@cs_eof A) ->
       evalDet_steps (cs_more c1 s) (@cs_eof B) \/
-      exists b s', evalDet_steps (cs_more c1 s) (cs_done b s') /\ 
+      exists b s', evalDet_steps (cs_more c1 s) (cs_done b s') /\
         evalDet_steps (cs_more (c2 b) s') (@cs_eof A).
 
   induction 1; intuition; subst.
@@ -453,9 +453,9 @@ Theorem evalDet_steps_bind_eof_inv_h :
   econstructor.
   eauto.
   trivial.
-  
+
   discriminate.
-  
+
   inversion H; clear H; subst.
   edestruct (IHevalDet_steps).
   simpl.
@@ -471,11 +471,11 @@ Theorem evalDet_steps_bind_eof_inv_h :
   trivial.
 
 Qed.
-  
+
 Theorem evalDet_steps_bind_eof_inv : forall (A B : Set)(c1 : Comp B)(c2 : B -> Comp A) s,
   evalDet_steps (cs_more (Bind c1 c2) s) (@cs_eof A) ->
   evalDet_steps (cs_more c1 s) (@cs_eof B) \/
-  exists b s', evalDet_steps (cs_more c1 s) (cs_done b s') /\ 
+  exists b s', evalDet_steps (cs_more c1 s) (cs_done b s') /\
     evalDet_steps (cs_more (c2 b) s') (@cs_eof A).
 
   intuition.
@@ -555,7 +555,7 @@ Qed.
 Theorem evalDet_done_eof_func:
   forall (A : Set) (c : Comp A) (a : A) (s : Blist),
     evalDet c s (ca_done a) -> evalDet c s (@ca_eof A) -> False.
-  
+
   intuition.
   inversion H; clear H; subst.
   inversion H0; clear H0; subst.
@@ -565,14 +565,14 @@ Qed.
 Lemma getSupport_In_evalDet_step_done : forall (A : Set)(c : Comp A) a s s',
   evalDet_step c s = cs_done a s' ->
   In a (getSupport c).
-  
+
   induction c; intuition; simpl in *.
-  
+
   inversion H; clear H; subst.
   intuition.
-  
+
   destruct (evalDet_step c s); try discriminate.
-  
+
   eapply in_getAllBvectors.
 
   discriminate.
@@ -582,10 +582,10 @@ Lemma getSupport_In_evalDet_step_more : forall (A : Set)(c c' : Comp A) s s' a,
   evalDet_step c s = cs_more c' s' ->
   In a (getSupport c') ->
   In a (getSupport c).
-  
+
   induction c; intuition; simpl in *.
   discriminate.
-  
+
   case_eq (evalDet_step c s); intuition;
     rewrite H2 in H0.
   inversion H0; clear H0; subst.
@@ -594,12 +594,12 @@ Lemma getSupport_In_evalDet_step_more : forall (A : Set)(c c' : Comp A) s s' a,
   exists (getSupport (c0 b)).
   intuition.
   eapply in_map_iff.
-  exists b. 
+  exists b.
   intuition.
   eapply getSupport_In_evalDet_step_done; eauto.
-  
+
   discriminate.
-  
+
   inversion H0; clear H0; subst.
   simpl in *.
   apply in_getUnique_if in H1.
@@ -616,7 +616,7 @@ Lemma getSupport_In_evalDet_step_more : forall (A : Set)(c c' : Comp A) s s' a,
   exists x0.
   intuition.
   eapply IHc; eauto.
-  
+
   eapply in_getAllBvectors.
 
   inversion H; clear H; subst.
@@ -634,24 +634,24 @@ Lemma getSupport_In_evalDet_step_more : forall (A : Set)(c c' : Comp A) s s' a,
   intuition; subst.
   eapply filter_In; eauto.
   trivial.
-  
+
 Qed.
 
 Lemma getSupport_In_evalDet_steps_h : forall (A : Set)(x y : comp_state A),
   evalDet_steps x y ->
   forall (c : Comp A) a s s',
     x = (cs_more c s)  ->
-    y = (cs_done a s') -> 
+    y = (cs_done a s') ->
     In a (getSupport c).
-  
+
   induction 1; intuition; subst.
   discriminate.
-  
+
   inversion H1; clear H1; subst.
   inversion H0; clear H0; subst.
-  
+
   eapply getSupport_In_evalDet_step_done; eauto.
-  
+
   eapply getSupport_In_evalDet_step_more.
   eauto.
   eapply IHevalDet_steps.
@@ -660,27 +660,27 @@ Lemma getSupport_In_evalDet_steps_h : forall (A : Set)(x y : comp_state A),
 Qed.
 
 Lemma getSupport_In_evalDet_steps : forall (A : Set)(c : Comp A) a s s',
-  evalDet_steps (cs_more c s) (cs_done a s') -> 
+  evalDet_steps (cs_more c s) (cs_done a s') ->
   In a (getSupport c).
-  
+
   intuition.
   eapply getSupport_In_evalDet_steps_h; eauto.
 Qed.
 
 Theorem getSupport_In_evalDet : forall (A : Set)(c : Comp A) a s,
-  evalDet c s (ca_done a) -> 
+  evalDet c s (ca_done a) ->
   In a (getSupport c).
-  
+
   intuition.
   inversion H; clear H; subst.
-  
+
   eapply getSupport_In_evalDet_steps; eauto.
-  
+
 Qed.
 
 (* The following predicate makes it easier for us to do induction on the number of loop iterations. *)
 Inductive evalDet_repeat_steps (A : Set)(P : A -> bool) : comp_state A -> comp_state A -> Prop :=
-| evalDet_repeat_steps_done : 
+| evalDet_repeat_steps_done :
   forall c s a s',
     evalDet_steps (cs_more c s) (cs_done a s') ->
     P a = true ->
@@ -705,7 +705,7 @@ Inductive evalDet_repeat(A : Set)(P : A -> bool)(c : Comp A)(s : Blist) : comp_a
     evalDet_repeat P c s (@ca_eof A).
 
 Lemma list_skipn_strong_ind_h : forall (A : Type) l (P : list A -> Prop) ,
-  P nil -> 
+  P nil ->
   (forall x, (forall n, n > 0 -> P (skipn n x)) -> P x) ->
   (forall n, P (skipn n l)).
 
@@ -713,7 +713,7 @@ Lemma list_skipn_strong_ind_h : forall (A : Type) l (P : list A -> Prop) ,
   intuition; simpl in *.
 
   destruct n; simpl in *; trivial.
-  
+
   destruct n; simpl in *.
   eapply H0.
   intuition.
@@ -724,7 +724,7 @@ Lemma list_skipn_strong_ind_h : forall (A : Type) l (P : list A -> Prop) ,
 Qed.
 
 Lemma list_skipn_strong_ind : forall (A : Type) l (P : list A -> Prop) ,
-  P nil -> 
+  P nil ->
   (forall x, (forall n, n > 0 -> P (skipn n x)) -> P x) ->
   P l.
 
@@ -750,23 +750,23 @@ Lemma evalDet_step_nil_inv : forall (A : Set)(c : Comp A)(a1 a2 : A) s2,
   destruct (evalDet_step c nil); discriminate.
 
   destruct n; try discriminate.
-  
+
   discriminate.
-  
+
 Qed.
 
 Lemma evalDet_step_done_nil_inv : forall (A : Set)(c : Comp A) a ls,
   evalDet_step c nil = (cs_done a ls) ->
   ls = nil.
-  
+
   induction c; intuition; simpl in *.
   inversion H; clear H; subst.
   trivial.
-  
+
   case_eq (evalDet_step c nil); intuition;
     rewrite H1 in H0;
       discriminate.
-  
+
   destruct n;
     discriminate.
 
@@ -776,10 +776,10 @@ Qed.
 Lemma evalDet_step_more_nil_inv : forall (A : Set)(c c' : Comp A) ls,
   evalDet_step c nil = (cs_more c' ls) ->
   ls = nil.
-  
+
   induction c; intuition; simpl in *.
   discriminate.
-  
+
   case_eq (evalDet_step c nil); intuition;
     rewrite H1 in H0.
   inversion H0; clear H0; subst.
@@ -787,7 +787,7 @@ Lemma evalDet_step_more_nil_inv : forall (A : Set)(c c' : Comp A) ls,
   discriminate.
   inversion H0; clear H0; subst.
   eauto.
-  
+
   destruct n.
   inversion H; clear H; subst.
   trivial.
@@ -801,13 +801,13 @@ Qed.
 Lemma evalDet_step_done_support_singleton : forall (A : Set)(c : Comp A) s a,
   evalDet_step c s = cs_done a s ->
   getSupport c = (a :: nil).
-  
+
   induction c; intuition; simpl in *.
   inversion H; clear H; subst.
   trivial.
-  
+
   destruct (evalDet_step c s); discriminate.
-  
+
   destruct (shiftOut s n).
   destruct p.
   discriminate.
@@ -862,7 +862,7 @@ Lemma getUnique_Permutation : forall (A : Set)(eqd1 eqd2 : eq_dec A)(ls1 ls2 : l
 
   eapply NoDup_Permutation; eauto using getUnique_NoDup; intuition;
     eauto using in_getUnique, in_getUnique_if.
-  
+
   exfalso.
   eauto using in_getUnique, in_getUnique_if.
   exfalso.
@@ -878,7 +878,7 @@ Lemma getUnique_Permutation : forall (A : Set)(eqd1 eqd2 : eq_dec A)(ls1 ls2 : l
   simpl in *. intuition.
   exfalso.
   eauto using in_getUnique, in_getUnique_if.
-  
+
   destruct (in_dec eqd1 y (x :: getUnique l eqd1)).
   destruct (in_dec eqd2 y (getUnique l eqd2)).
   destruct (in_dec eqd2 x (getUnique l eqd2)).
@@ -961,7 +961,7 @@ Qed.
 Lemma to_list_nil_inv : forall (A : Type)(n : nat)(v : Vector.t A n),
   Vector.to_list v = nil ->
   n = O.
-  
+
   intuition.
   destruct v; simpl in *.
   trivial.
@@ -974,7 +974,7 @@ Lemma app_second_eq :
     ls1 = ls2 ++ ls3 -> length ls1 = length ls3 -> ls1 = ls3 /\ ls2 = nil.
 
   induction ls2; simpl in *; intuition;
-  
+
   subst;
   simpl in *;
   rewrite app_length in H0;
@@ -985,7 +985,7 @@ Qed.
 Lemma shiftOut_same_inv : forall s n v,
   shiftOut s n = Some (v, s) ->
   n = O.
-  
+
   intuition.
   eapply to_list_nil_inv.
   eapply app_second_eq.
@@ -997,13 +997,13 @@ Qed.
 Lemma filter_Permutation : forall (A : Set)(ls1 ls2 : list A)(P : A -> bool),
   Permutation ls1 ls2 ->
   Permutation (filter P ls1) (filter P ls2).
-  
+
   induction 1; intuition; simpl in *.
   destruct (P x).
   eapply perm_skip.
   trivial.
   trivial.
-  
+
   destruct (P x).
   destruct (P y).
   eapply perm_swap.
@@ -1011,7 +1011,7 @@ Lemma filter_Permutation : forall (A : Set)(ls1 ls2 : list A)(P : A -> bool),
   destruct (P y).
   eapply Permutation_refl.
   eapply Permutation_refl.
-  
+
   eapply perm_trans;
     eauto.
 Qed.
@@ -1096,14 +1096,14 @@ Lemma evalDet_step_more_support_preserved : forall (A : Set)(c c' : Comp A) s,
   eapply filter_In; eauto.
   simpl in *.
   trivial.
-  
+
 Qed.
 
 
 Lemma evalDet_steps_nil_eq_h : forall (A : Set)(x y : comp_state A),
   evalDet_steps x y ->
   forall (c : Comp A)(a1 a2 : A) s2,
-  x = (cs_more c nil) -> 
+  x = (cs_more c nil) ->
   y = (cs_done a2 s2) ->
   In a1 (getSupport c) ->
   a1 = a2.
@@ -1149,7 +1149,7 @@ Lemma evalDet_step_done_val_eq : forall (A : Set)(c : Comp A)(a1 a2 : A) s1 s2,
   destruct (evalDet_step c s1); discriminate.
 
   destruct (shiftOut s1 n); [ destruct p ; discriminate | discriminate ].
-  
+
   discriminate.
 Qed.
 
@@ -1164,7 +1164,7 @@ Lemma evalDet_step_done_ls_eq : forall (A : Set)(c : Comp A)(a2 : A) s1 s2,
   destruct (evalDet_step c s1); discriminate.
 
   destruct (shiftOut s1 n); [ destruct p ; discriminate | discriminate ].
-  
+
   discriminate.
 
 Qed.
@@ -1172,16 +1172,16 @@ Qed.
 Lemma shiftOut_skipn : forall n (v : Bvector n) s s',
   shiftOut s n = Some (v, s') ->
   s' = skipn n s.
-  
+
   induction n; intuition; simpl in *.
   rewrite shiftOut_0 in H.
   inversion H; clear H; subst.
   trivial.
-  
+
   destruct s;
     simpl in *.
   discriminate.
-  
+
   case_eq (shiftOut s n); intuition;
     rewrite H0 in H.
   destruct p.
@@ -1205,7 +1205,7 @@ Lemma evalDet_step_more_skipn_eq : forall (A : Set)(c c' : Comp A)(a1 : A) s1 s2
   eauto.
   discriminate.
   inversion H0; clear H0; subst.
-  
+
   eapply in_getUnique_if in H1.
   apply in_flatten in H1.
   destruct H1.
@@ -1215,7 +1215,7 @@ Lemma evalDet_step_more_skipn_eq : forall (A : Set)(c c' : Comp A)(a1 : A) s1 s2
   eapply (IHc).
   eauto.
   eauto.
- 
+
   case_eq (shiftOut s1 n); intuition;
   rewrite H1 in H.
   destruct p.
@@ -1231,19 +1231,19 @@ Lemma evalDet_step_more_skipn_eq : forall (A : Set)(c c' : Comp A)(a1 : A) s1 s2
 
   eapply shiftOut_skipn.
   eauto.
-  
+
   discriminate.
 
   inversion H; clear H; subst.
-  intuition.  
+  intuition.
 Qed.
 
 Lemma evalDet_step_done_skipn : forall (A : Set)(c : Comp A) s a s',
   evalDet_step  c s = (cs_done a s') ->
   exists n, s' = skipn n s.
-  
+
   induction c; intuition; simpl in *.
-  
+
   inversion H; clear H; subst.
   exists O.
   simpl.
@@ -1257,14 +1257,14 @@ Lemma evalDet_step_done_skipn : forall (A : Set)(c : Comp A) s a s',
   discriminate.
 
   discriminate.
- 
+
 Qed.
 
 Lemma skipn_sum : forall (A : Type)(n2 n1 : nat)(ls : list A),
   skipn n1 (skipn n2 ls) = skipn (n2 + n1) ls.
-  
+
   induction n2; intuition; simpl in *.
-  
+
   destruct ls.
   destruct n1; trivial.
   trivial.
@@ -1304,7 +1304,7 @@ Qed.
 
 Lemma evalDet_steps_done_skipn_h : forall (A : Set)(x y : comp_state A),
   evalDet_steps x y ->
-  forall (c : Comp A) s a s', 
+  forall (c : Comp A) s a s',
     x = (cs_more c s) ->
     y = (cs_done a s') ->
   exists n, s' = skipn n s.
@@ -1315,7 +1315,7 @@ Lemma evalDet_steps_done_skipn_h : forall (A : Set)(x y : comp_state A),
   inversion H1; clear H1; subst.
   inversion H0; clear H0; subst.
   eapply evalDet_step_done_skipn; eauto.
-  
+
   symmetry in H.
   specialize (evalDet_step_more_skipn _  _ H); intuition.
   destruct H0.
@@ -1336,13 +1336,13 @@ Lemma evalDet_steps_done_skipn : forall (A : Set)(c : Comp A) s a s',
 
   intuition.
   eapply evalDet_steps_done_skipn_h; eauto.
-  
+
 Qed.
 
 Lemma evalDet_steps_skipn_h : forall (A : Set) a1 (x y : comp_state A),
   evalDet_steps x y ->
   forall (c : Comp A)(a2 : A) s1 s2,
-  x = (cs_more c s1) -> 
+  x = (cs_more c s1) ->
   y = (cs_done a2 s2) ->
   In a1 (getSupport c) ->
   (a1 = a2 \/ (exists n, n > 0 /\ s2 = skipn n s1)).
@@ -1351,7 +1351,7 @@ Lemma evalDet_steps_skipn_h : forall (A : Set) a1 (x y : comp_state A),
   discriminate.
 
   inversion H; clear H; subst.
-  
+
   inversion H0; clear H0; subst.
   left.
   eapply evalDet_step_done_val_eq; eauto.
@@ -1375,13 +1375,13 @@ Lemma evalDet_steps_skipn_h : forall (A : Set) a1 (x y : comp_state A),
   intuition.
   subst.
   right.
-  
+
   case_eq (evalDet_step c (skipn x s1)); intuition;
   rewrite H0 in H3.
   edestruct (evalDet_step_done_skipn).
   eauto.
   subst.
-  
+
   inversion H3; clear H3; subst.
 
   exists (x + x0).
@@ -1461,12 +1461,12 @@ Lemma evalDet_repeat_steps_dec : forall (s : Blist)(A : Set)(c : Comp A)(P : A -
 
   econstructor.
   eapply evalDet_repeat_steps_eof; eauto.
-Qed.   
+Qed.
 
 Lemma evalDet_repeat_steps_done_inv_h : forall (A : Set)(P : A -> bool) x y,
   evalDet_repeat_steps P x y ->
   forall c s,
-  x = (cs_more c s) -> 
+  x = (cs_more c s) ->
   evalDet_steps (cs_more (Repeat c P) s) y.
 
   induction 1; intuition; subst.
@@ -1490,7 +1490,7 @@ Lemma evalDet_repeat_steps_done_inv_h : forall (A : Set)(P : A -> bool) x y,
   simpl.
   eapply evalDet_bind_eof.
   trivial.
-  
+
   inversion H2; clear H2; subst.
   econstructor.
   eauto.
@@ -1500,7 +1500,7 @@ Lemma evalDet_repeat_steps_done_inv_h : forall (A : Set)(P : A -> bool) x y,
   eauto.
   rewrite H0.
   eauto.
-  
+
 Qed.
 
 Lemma evalDet_repeat_steps_done_inv : forall (A : Set)(c : Comp A)(P : A -> bool) s y,
@@ -1531,19 +1531,19 @@ Qed.
 (* The result of evaluation is decidable. *)
 Lemma evalDet_steps_dec : forall (A : Set)(c : Comp A),
   well_formed_comp c ->
-  forall s, 
-  (exists a s', evalDet_steps (cs_more c s) (cs_done a s')) \/ 
+  forall s,
+  (exists a s', evalDet_steps (cs_more c s) (cs_done a s')) \/
   (evalDet_steps (cs_more c s) (@cs_eof A)).
-  
+
   induction 1; intros.
-  
+
   left.
   exists a. exists s.
   econstructor.
   simpl.
   eauto.
   econstructor.
-  
+
   destruct (IHwell_formed_comp s).
   destruct H2. destruct H2.
   edestruct (H1 x).
@@ -1557,15 +1557,15 @@ Lemma evalDet_steps_dec : forall (A : Set)(c : Comp A),
   eapply evalDet_steps_trans.
   eapply evalDet_steps_bind_done; eauto.
   eauto.
-  
+
   right.
   eapply evalDet_steps_trans.
   eapply evalDet_steps_bind_done; eauto.
   trivial.
-  
+
   right.
   eapply evalDet_bind_eof; eauto.
-  
+
   case_eq (shiftOut s n); intuition.
   left.
   destruct p.
@@ -1579,7 +1579,7 @@ Lemma evalDet_steps_dec : forall (A : Set)(c : Comp A),
   simpl.
   eauto.
   econstructor.
-  
+
   right.
   econstructor.
   simpl.
@@ -1604,13 +1604,13 @@ Lemma evalDet_steps_dec : forall (A : Set)(c : Comp A),
 
   exfalso.
   eauto using evalDet_repeat_steps_more_inv.
-    
+
 Qed.
 
 Lemma evalDet_dec : forall (A : Set)(c : Comp A)(s : Blist),
   well_formed_comp c ->
   (exists a, evalDet c s (ca_done a)) \/ (evalDet c s (@ca_eof A)).
-  
+
   intuition.
   edestruct (@evalDet_steps_dec _ c).
   trivial.
@@ -1624,21 +1624,21 @@ Lemma evalDet_dec : forall (A : Set)(c : Comp A)(s : Blist),
   right.
   econstructor.
   eauto.
-  
+
 Qed.
 
 
 Lemma evalDet_step_app_done_eq : forall (A : Set)(c : Comp A) s s' s'' a,
   evalDet_step c s = (cs_done a s'') ->
   evalDet_step c (s ++ s') = (cs_done a (s'' ++ s')).
-  
+
   induction c; intuition; simpl in *.
   inversion H; clear H; subst.
   trivial.
-  
+
   case_eq (evalDet_step c s); intuition;
     rewrite H1 in H0; try discriminate.
-  
+
   case_eq (shiftOut s n); intuition;
     rewrite H0 in H.
   destruct p.
@@ -1652,11 +1652,11 @@ Qed.
 Lemma evalDet_step_app_more_eq : forall (A : Set)(c c': Comp A) s s' s'',
   evalDet_step c s = (cs_more c' s'') ->
   evalDet_step c (s ++ s') = (cs_more c' (s'' ++ s')).
-  
+
   induction c; intuition; simpl in *.
   discriminate.
-  
-  case_eq (evalDet_step c s); intuition; 
+
+  case_eq (evalDet_step c s); intuition;
     rewrite H1 in H0; try discriminate.
   inversion H0; clear H0; subst.
   erewrite evalDet_step_app_done_eq;
@@ -1665,7 +1665,7 @@ Lemma evalDet_step_app_more_eq : forall (A : Set)(c c': Comp A) s s' s'',
   erewrite IHc.
   eauto.
   trivial.
-  
+
   case_eq (shiftOut s n); intuition;
     rewrite H0 in H.
   destruct p.
@@ -1683,20 +1683,20 @@ Lemma evalDet_steps_app_eq_h : forall (A : Set)(x y : comp_state A),
     x = (cs_more c s) ->
     y = (cs_done a s'') ->
     evalDet_steps (cs_more c (s ++ s')) (cs_done a (s'' ++ s')).
-  
+
   induction 1; intuition; subst.
   discriminate.
-  
+
   inversion H1; clear H1; subst.
   inversion H0; clear H0; subst.
-  
+
   econstructor.
   eapply evalDet_step_app_done_eq.
   eauto.
   econstructor.
-  
+
   econstructor.
-  
+
   eauto.
   erewrite evalDet_step_app_more_eq.
   eapply IHevalDet_steps.
@@ -1708,16 +1708,16 @@ Qed.
 Lemma evalDet_steps_app_eq : forall (A : Set)(c : Comp A) s s' s'' a,
   evalDet_steps (cs_more c s) (cs_done a s'') ->
   evalDet_steps (cs_more c (s ++ s')) (cs_done a (s'' ++ s')).
-  
+
   intuition.
   eapply evalDet_steps_app_eq_h; eauto.
-  
+
 Qed.
 
 Lemma evalDet_app_eq : forall (A : Set)(c : Comp A) s s' a,
   evalDet c s (ca_done a) ->
   evalDet c (s ++ s') (ca_done a).
-  
+
   intuition.
   inversion H; clear H; subst.
   econstructor.
@@ -1732,10 +1732,10 @@ Lemma evalDet_steps_done_nil_inv_h : forall (A : Set)(x y : comp_state A),
     x = (cs_more c nil) ->
     y = (cs_done a ls) ->
     ls = nil.
-  
+
   induction 1; intuition; subst.
   discriminate.
-  
+
   inversion H1; clear H1; subst.
   inversion H0; clear H0; subst.
   eapply evalDet_step_done_nil_inv; eauto.
@@ -1748,7 +1748,7 @@ Qed.
 Lemma evalDet_steps_done_nil_inv : forall (A : Set)(c : Comp A) a ls,
   evalDet_steps (cs_more c nil) (cs_done a ls) ->
   ls = nil.
-  
+
   intuition.
   eapply evalDet_steps_done_nil_inv_h; eauto.
 Qed.
@@ -1757,10 +1757,10 @@ Lemma app_eq_nil_inv : forall (A : Set)(ls2 ls1 ls3 : list A),
   ls1 = ls2 ++ ls3 ->
   length ls1 = length ls2 ->
   ls3 = nil.
-  
+
   induction ls2; intuition; simpl in *; subst.
   destruct ls3; simpl in *; trivial. omega.
-  
+
   simpl in *.
   eapply IHls2.
   eauto.
@@ -1809,13 +1809,13 @@ Qed.
 Lemma evalDet_steps_repeat_done_inv : forall (A : Set)(P : A -> bool)(c : Comp A) s a s',
   evalDet_steps (cs_more (Repeat c P) s) (cs_done a s') ->
   evalDet_repeat_steps P (cs_more c s) (cs_done a s').
-  
+
   intuition.
   eapply evalDet_steps_repeat_done_inv_h.
   eapply H.
   econstructor.
   trivial.
-  
+
 Qed.
 
 Lemma evalDet_steps_repeat_eof_inv_h : forall (A : Set)(x y : comp_state A),
@@ -1851,7 +1851,7 @@ Lemma evalDet_steps_repeat_eof_inv_h : forall (A : Set)(x y : comp_state A),
   rewrite H.
   econstructor.
   trivial.
-  
+
   eauto.
 
 Qed.
@@ -1859,7 +1859,7 @@ Qed.
 Lemma evalDet_steps_repeat_eof_inv : forall (A : Set)(P : A -> bool)(c : Comp A) s,
   evalDet_steps (cs_more (Repeat c P) s) (cs_eof A)->
   evalDet_repeat_steps P (cs_more c s) (cs_eof A).
-  
+
   intuition.
   eapply evalDet_steps_repeat_eof_inv_h.
   eauto.
@@ -1875,7 +1875,7 @@ Lemma evalDet_repeat_steps_nil_inv_h : forall (A : Set) P (x y : comp_state A),
   ls' = nil.
 
   induction 1; intuition; subst.
-  
+
   inversion H2; clear H2; subst.
   inversion H3; clear H3; subst.
   eapply evalDet_steps_done_nil_inv.
@@ -1912,7 +1912,7 @@ Lemma evalDet_repeat_steps_app_nil_h : forall (A : Set) P (x y : comp_state A),
       evalDet_steps (cs_more c (s ++ b :: nil)) (cs_done a s') ->
       s' = nil) ->
     ls2 = nil.
-  
+
   induction 1; intuition; subst.
 
   discriminate.
@@ -1923,7 +1923,7 @@ Lemma evalDet_repeat_steps_app_nil_h : forall (A : Set) P (x y : comp_state A),
 
   assert (s' = nil).
   eapply H3; eauto.
-  subst.  
+  subst.
 
   eapply evalDet_repeat_steps_nil_inv.
   eauto.
@@ -1965,7 +1965,7 @@ Lemma evalDet_repeat_steps_app_nil : forall (A : Set)(c : Comp A) P ls1 ls2 b a,
   trivial.
   eauto.
   trivial.
-  
+
 Qed.
 
 Lemma evalDet_app_nil : forall (A : Set)(c : Comp A),
@@ -1974,9 +1974,9 @@ Lemma evalDet_app_nil : forall (A : Set)(c : Comp A),
   evalDet c ls1 (ca_eof A) ->
   evalDet_steps (cs_more c (ls1 ++ b :: nil)) (cs_done a ls2) ->
   ls2 = nil.
-  
+
   induction 1; intuition; simpl in *.
-  
+
   exfalso.
   eapply evalDet_done_eof_func; eauto.
   econstructor.
@@ -1987,7 +1987,7 @@ Lemma evalDet_app_nil : forall (A : Set)(c : Comp A),
 
   apply evalDet_steps_bind_done_inv in H3.
   destruct H3. destruct H3. intuition.
-  
+
   edestruct (@evalDet_dec _ c1 ls1).
   trivial.
   destruct H3.
@@ -1997,7 +1997,7 @@ Lemma evalDet_app_nil : forall (A : Set)(c : Comp A),
   eauto.
   specialize (evalDet_steps_done_func H4 H3); intuition. subst.
   clear H3.
-  
+
   edestruct (@evalDet_dec _ (c2 x1) s').
   eapply H0.
   eapply getSupport_In_evalDet_steps.
@@ -2010,19 +2010,19 @@ Lemma evalDet_app_nil : forall (A : Set)(c : Comp A),
   eapply evalDet_steps_trans.
   eapply evalDet_steps_bind_done; eauto.
   eauto.
- 
+
   eapply H1; eauto.
   eapply getSupport_In_evalDet_steps.
   eauto.
-  
+
   assert (x0 = nil).
   eapply IHwell_formed_comp.
   eauto.
   eauto.
   subst.
-  
+
   eapply evalDet_steps_done_nil_inv; eauto.
-  
+
   case_eq (shiftOut ls1 n); intuition.
   destruct p.
   exfalso.
@@ -2036,7 +2036,7 @@ Lemma evalDet_app_nil : forall (A : Set)(c : Comp A),
   eauto.
   simpl.
   econstructor.
-  
+
   inversion H0; clear H0; subst.
   simpl in *.
   apply shiftOut_None_inv in H1.
@@ -2048,13 +2048,13 @@ Lemma evalDet_app_nil : forall (A : Set)(c : Comp A),
   inversion H7; clear H7; subst.
   specialize (shiftOut_Some_inv _ H0); intuition.
   apply shiftOut_correct_inv in H0.
-  
+
   eapply app_eq_nil_inv.
   eapply H0.
   rewrite to_list_length.
   rewrite app_length in *; simpl in *.
   omega.
-  
+
   rewrite H0 in H6.
   inversion H6.
 
@@ -2073,41 +2073,41 @@ Qed.
 
 Lemma evalDet_step_done_inv : forall (A : Set)(c : Comp A) a ls ls',
   evalDet_step c ls = cs_done a ls' ->
-  exists eqd, 
+  exists eqd,
     c = Ret eqd a.
-  
+
   intuition.
   destruct c; simpl in *.
   inversion H; clear H; subst.
   econstructor; eauto.
-  
+
   case_eq (evalDet_step c ls); intuition; rewrite H0 in H; discriminate.
-  
+
   destruct (shiftOut ls n). destruct p. discriminate.
   discriminate.
 
   discriminate.
-  
+
 Qed.
 
 Lemma evalDet_step_more_sublist : forall (A : Set)(c : Comp A) c' ls ls',
   evalDet_step c ls = (cs_more c' ls') ->
   exists ls'', ls = ls'' ++ ls'.
-  
+
   induction c; intuition; simpl in *; try discriminate.
-  
+
   case_eq (evalDet_step c ls); intuition; rewrite H1 in H0.
   inversion H0; clear H0; subst.
   destruct (evalDet_step_done_inv _ _ H1); subst; simpl in *.
   inversion H1; clear H1; subst.
   exists nil. trivial.
-  
+
   discriminate.
-  
+
   inversion H0; clear H0; subst.
   eapply IHc.
   eauto.
-  
+
   case_eq (shiftOut ls n); intuition; rewrite H0 in H.
   destruct p.
   inversion H; clear H; subst.
@@ -2120,53 +2120,53 @@ Lemma evalDet_step_more_sublist : forall (A : Set)(c : Comp A) c' ls ls',
   exists nil.
   simpl.
   trivial.
-      
+
 Qed.
-    
+
 Lemma evalDet_sublist_h : forall (A : Set)(x y : comp_state A),
   evalDet_steps x y ->
   forall (c : Comp A) a ls ls' ,
     x = (cs_more c ls) ->
     y = (cs_done a ls') ->
     exists ls'', ls = ls'' ++ ls'.
-  
+
   induction 1; intuition; subst; try discriminate.
-  
+
   inversion H1; clear H1; subst.
   inversion H0; clear H0; subst.
-  
+
   destruct (evalDet_step_done_inv _ _ H2). subst.
   simpl in *.
   inversion H2; clear H2; subst.
   exists nil. trivial.
-  
+
   edestruct (IHevalDet_steps).
   symmetry. eauto.
   eauto.
   subst.
-  
+
   symmetry in H.
   apply evalDet_step_more_sublist in H.
   destruct H.
   subst.
   exists (x0 ++ x).
   apply app_assoc.
-  
+
 Qed.
 
 Lemma evalDet_sublist : forall (A : Set)(c : Comp A) a ls ls',
   evalDet_steps (cs_more c ls) (cs_done a ls') ->
   exists ls'', ls = ls'' ++ ls'.
-  
-  intuition. 
+
+  intuition.
   eapply evalDet_sublist_h; eauto.
-  
+
 Qed.
 
 Lemma evalDet_nil : forall (A : Set)(c : Comp A) a ls,
   evalDet_steps (cs_more c nil) (cs_done a ls) ->
   ls = nil.
-  
+
   intuition.
   apply evalDet_sublist in H.
   destruct H.
@@ -2185,33 +2185,33 @@ Lemma evalDet_left_total : forall (A : Set)(c : Comp A) s,
   destruct H0.
   econstructor.
   eauto.
-  econstructor. 
+  econstructor.
   eauto.
 Qed.
-  
+
 Lemma evalDet_steps_done_support_singleton_h : forall (A : Set)(x1 x2 : comp_state A),
   evalDet_steps x1 x2 ->
   forall (c : Comp A) a s,
     x1 = (cs_more c nil) ->
     x2 = (cs_done a s) ->
     getSupport c = a :: nil.
-  
+
   induction 1; intuition; subst.
   discriminate.
   inversion H1; clear H1; subst.
-  
+
   inversion H0; clear H0; subst.
   assert (s0 = nil).
   eapply evalDet_step_done_nil_inv.
   eauto.
   subst.
   eapply evalDet_step_done_support_singleton.
-  eauto. 
+  eauto.
   assert (s = nil).
   eapply evalDet_step_more_nil_inv.
   eauto.
   subst.
-  
+
   assert (Permutation (getSupport c0) (getSupport c)).
   eapply evalDet_step_more_support_preserved.
   symmetry.
@@ -2224,16 +2224,16 @@ Lemma evalDet_steps_done_support_singleton_h : forall (A : Set)(x1 x2 : comp_sta
   apply Permutation_sym in H0.
   apply Permutation_length_1_inv in H0.
   trivial.
-  
+
 Qed.
 
 Lemma evalDet_steps_done_support_singleton : forall (A : Set)(c : Comp A) a s,
   evalDet_steps (cs_more c nil) (cs_done a s) ->
   getSupport c = a :: nil.
-  
+
   intuition.
   eapply evalDet_steps_done_support_singleton_h; eauto.
-  
+
 Qed.
 
 
@@ -2242,11 +2242,11 @@ Lemma evalDet_step_well_formed_comp_preserved : forall (A : Set)(c : Comp A),
   forall c' s s',
     evalDet_step c s = (cs_more c' s') ->
     well_formed_comp c'.
-  
+
   induction 1; intuition; simpl in *.
-  
+
   discriminate.
-  
+
   case_eq (evalDet_step c1 s); intuition;
     rewrite H3 in H2; try discriminate.
   inversion H2; clear H2; subst.
@@ -2259,13 +2259,13 @@ Lemma evalDet_step_well_formed_comp_preserved : forall (A : Set)(c : Comp A),
   intuition.
   eapply H0.
   eapply getSupport_In_evalDet_step_more; eauto.
-  
+
   case_eq (shiftOut s n); intuition;
       rewrite H0 in H; try discriminate.
   destruct p.
   inversion H; clear H; subst.
   econstructor.
-  
+
   inversion H1; clear H1; subst.
   econstructor.
   trivial.
@@ -2276,63 +2276,63 @@ Lemma evalDet_step_well_formed_comp_preserved : forall (A : Set)(c : Comp A),
   trivial.
   trivial.
   eauto.
-  
+
 Qed.
 
 
 (*
 Print OracleComp.
 
-Definition OracleStep (A B S : Set) := 
+Definition OracleStep (A B S : Set) :=
   (S -> A -> Blist -> comp_state (B * S) -> Prop).
 
 Inductive oracle_comp_state(A B C S : Set) :=
-| ocs_oracle_running : 
-  OracleComp A B C -> 
+| ocs_oracle_running :
+  OracleComp A B C ->
   OracleStep A B S ->
   comp_state (B * S) ->
   oracle_comp_state A B C S
-| ocs_oracle_done : 
-  OracleComp A B C -> 
+| ocs_oracle_done :
+  OracleComp A B C ->
   OracleStep A B S ->
   B * S ->
   Blist ->
   oracle_comp_state A B C S
-| ocs_more : 
-  OracleComp A B C -> 
+| ocs_more :
+  OracleComp A B C ->
   OracleStep A B S ->
   S ->
-  Blist -> 
+  Blist ->
   oracle_comp_state A B C S
-| ocs_done : 
+| ocs_done :
   C * S ->
-  Blist -> 
+  Blist ->
   oracle_comp_state A B C S
-| ocs_eof : 
+| ocs_eof :
   oracle_comp_state A B C S.
-    
+
 Print OracleComp.
 
 Inductive oc_det_step : forall (A B C S : Set), oracle_comp_state A B C S -> oracle_comp_state A B C S -> Prop :=
-| oc_det_oracle_step : 
+| oc_det_oracle_step :
   forall (A B C S : Set)(c : OracleComp A B C)(o : OracleStep A B S)(c_o : Comp (B * S))(x : Blist) cs',
     evalDet_step c_o x = cs' ->
     oc_det_step (ocs_oracle_running c o (cs_more c_o x)) (ocs_oracle_running c o cs')
-| oc_det_oracle_eof : 
+| oc_det_oracle_eof :
   forall (A B C S : Set)(c : OracleComp A B C)(o : OracleStep A B S)(c_o : Comp (B * S))(x : Blist),
     oc_det_step (ocs_oracle_running c o (cs_eof _)) (ocs_eof A B C S)
-| oc_det_query_start : 
+| oc_det_query_start :
   forall (A B S: Set)(a : A)(o : OracleStep A B S) (s : S) (r : Blist) cs_o,
-    o s a r cs_o -> 
+    o s a r cs_o ->
     oc_det_step (ocs_more (@OC_Query A B a) o s r) (ocs_oracle_running (@OC_Query A B a) o cs_o)
-| oc_det_query_finish : 
+| oc_det_query_finish :
   forall (A B S: Set)(a : A)(o : OracleStep A B S) (r : Blist) z,
-    oc_det_step (ocs_oracle_running (@OC_Query A B a) o (cs_done z r)) (ocs_done _ _ z r) 
-| oc_det_run_start : 
+    oc_det_step (ocs_oracle_running (@OC_Query A B a) o (cs_done z r)) (ocs_done _ _ z r)
+| oc_det_run_start :
   forall (A A' B B' C S S' : Set)
     (eqds : EqDec S)(eqdb : EqDec B)(eqda : EqDec A)(c : OracleComp A B C)(o : S -> A -> OracleComp A' B' (B * S))(s : S)(o' : OracleStep A' B' S')(s' : S')(r : Blist),
-    oc_det_step 
-    (ocs_more (OC_Run c _ _ _ o s) o' s' r) 
+    oc_det_step
+    (ocs_more (OC_Run c _ _ _ o s) o' s' r)
     (ocs_more c (fun x y z => oc_det_step (ocs_more (o (fst x) y) o' (snd x) z)) (s, s') r).
-    
+
 *)

@@ -135,7 +135,7 @@ int main(void)
 {
   q0 = q_new();
   lock_t *thread_locks[6];
-  
+
   for(int i = 0; i < 3; i++){
     lock_t *l = (lock_t *) malloc(sizeof(lock_t));
     thread_locks[i] = l;
@@ -159,7 +159,7 @@ int main(void)
     free(l);
     //printf("Joined %d\n", i + 1);
   }
-  
+
   queue_t *q1 = q0;
   q_del(q1);
 }

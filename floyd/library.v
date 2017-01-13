@@ -45,7 +45,7 @@ Definition try_spec (prog: program) (name: string) (spec: funspec) : list (ident
  | None => nil
  end.
 
-Definition exit_spec' := 
+Definition exit_spec' :=
  WITH u: unit
  PRE [1%positive OF tint]
    PROP () LOCAL() SEP()
@@ -55,8 +55,8 @@ Definition exit_spec' :=
 Definition exit_spec (prog: program) := try_spec prog "exit" exit_spec'.
 
 Parameter body_exit:
- forall {Espec: OracleKind}, 
-  body_lemma_of_funspec 
+ forall {Espec: OracleKind},
+  body_lemma_of_funspec
     (EF_external "exit"
        {| sig_args := AST.Tint :: nil; sig_res := None; sig_cc := cc_default |})
    exit_spec'.
@@ -80,14 +80,14 @@ Definition malloc_spec' :=
     POST [ tptr tvoid ] EX p:_,
        PROP ()
        LOCAL (temp ret_temp p)
-       SEP (if eq_dec p nullval then emp 
+       SEP (if eq_dec p nullval then emp
             else (malloc_token Tsh n p * memory_block Tsh n p)).
 
-Definition malloc_spec (prog: program) := 
+Definition malloc_spec (prog: program) :=
    try_spec prog "_malloc" malloc_spec'.
 
 Parameter body_malloc:
- forall {Espec: OracleKind}, 
+ forall {Espec: OracleKind},
   body_lemma_of_funspec EF_malloc malloc_spec'.
 
 Definition free_spec' :=
@@ -96,7 +96,7 @@ Definition free_spec' :=
        PROP ()
        LOCAL (temp 1%positive p)
        SEP (malloc_token Tsh n p; memory_block Tsh n p)
-    POST [ Tvoid ] 
+    POST [ Tvoid ]
        PROP ()
        LOCAL ()
        SEP ().
@@ -105,7 +105,7 @@ Definition free_spec  (prog: program) :=
    try_spec prog "_free" free_spec'.
 
 Parameter body_free:
- forall {Espec: OracleKind}, 
+ forall {Espec: OracleKind},
   body_lemma_of_funspec EF_free free_spec'.
 
 Definition library_G prog :=

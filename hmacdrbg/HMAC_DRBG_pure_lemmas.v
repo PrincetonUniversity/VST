@@ -39,7 +39,7 @@ Proof.
   {
     rewrite (Z_div_mod_eq z 32); try omega.
     rewrite <- Heqn.
-    assert (Hn: 32 * Z.of_nat (S n0) + z mod 32 = 32 * Z.of_nat n0 + z mod 32 + 32). 
+    assert (Hn: 32 * Z.of_nat (S n0) + z mod 32 = 32 * Z.of_nat n0 + z mod 32 + 32).
     {
       rewrite Nat2Z.inj_succ.
       rewrite <- Zmult_succ_r_reverse.
@@ -94,7 +94,7 @@ Proof.
     {
       simpl.
       apply H.
-    }    
+    }
     {
       (* this case is bogus. z mod 32 - 32 cannot be bigger than 0 *)
       rewrite Z.geb_leb in Heqzero_geb_z_minus_32.

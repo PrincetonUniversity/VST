@@ -11,13 +11,13 @@ Require Import veric.extend_tc.
 Require Import veric.seplog.
 
 Inductive rel_expr' {CS: compspecs} (rho: environ) (phi: rmap): expr -> val -> Prop :=
- | rel_expr'_const_int: forall i ty, 
+ | rel_expr'_const_int: forall i ty,
                  rel_expr' rho phi (Econst_int i ty) (Vint i)
- | rel_expr'_const_float: forall f ty, 
+ | rel_expr'_const_float: forall f ty,
                  rel_expr' rho phi (Econst_float f ty) (Vfloat f)
- | rel_expr'_const_single: forall f ty, 
+ | rel_expr'_const_single: forall f ty,
                  rel_expr' rho phi (Econst_single f ty) (Vsingle f)
- | rel_expr'_const_long: forall i ty, 
+ | rel_expr'_const_long: forall i ty,
                  rel_expr' rho phi (Econst_long i ty) (Vlong i)
  | rel_expr'_tempvar: forall id ty v,
                  Map.get (te_of rho) id = Some v ->
@@ -163,12 +163,12 @@ apply (rel_lvalue'_expr'_sch _ rho (m_phi jm)
   apply core_load_load'.
   destruct H4 as [bl ?]; exists bl.
   destruct H4 as [H3' ?]; split; auto.
-  clear H3'. 
+  clear H3'.
   intro b'; specialize (H4 b'). hnf in H4|-*.
   if_tac; auto.
   + destruct H4 as [p ?].
     hnf in H4. rewrite preds_fmap_NoneP in H4.
-    apply (resource_at_join _ _ _ b') in H0.  
+    apply (resource_at_join _ _ _ b') in H0.
     rewrite H4 in H0; clear H4.
     inv H0.
     - symmetry in H12.
@@ -182,7 +182,7 @@ apply (rel_lvalue'_expr'_sch _ rho (m_phi jm)
   eapply Clight.eval_Elvalue; eauto.
     eapply deref_loc_reference; try eassumption.
 * (* Efield *)
-  econstructor; eauto. 
+  econstructor; eauto.
   + eapply Clight.eval_Elvalue; eauto.
     apply deref_loc_copy.
     rewrite H3; auto.
@@ -260,7 +260,7 @@ intros.
 destruct t as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
  inv H0; inversion2 H H1; inv H; unfold Mem.loadv in *;
  apply Mem.load_result in H2; subst; simpl;
- match goal with 
+ match goal with
   | |- context [decode_val _ (?x :: nil)] => destruct x; try reflexivity
   | |- context [decode_val _ (?x :: ?y :: nil)] => destruct x,y; try reflexivity
   | |- context [decode_val ?ch ?a] => destruct (decode_val ch a) eqn:?; try reflexivity

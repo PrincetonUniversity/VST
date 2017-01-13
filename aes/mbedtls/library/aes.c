@@ -93,7 +93,7 @@ static int aes_padlock_ace = -1;
 /* consolidate all tables in a struct */
 typedef struct aes_tables_struct {
     unsigned char FSb[256];
-    uint32_t FT0[256];    
+    uint32_t FT0[256];
     uint32_t FT1[256];
     uint32_t FT2[256];
     uint32_t FT3[256];
@@ -457,7 +457,7 @@ static void aes_gen_tables( void )
         MUL(0x09, x, prod2);
         MUL(0x0D, x, prod3);
         MUL(0x0B, x, prod4);
-        
+
         tables.RT0[i] = ( (uint32_t) prod1) ^
                  ( (uint32_t) prod2 <<  8 ) ^
                  ( (uint32_t) prod3 << 16 ) ^
@@ -531,13 +531,13 @@ int mbedtls_aes_setkey_enc( mbedtls_aes_context *ctx, const unsigned char *key,
 
     for( i = 0; i < 7; i++, RK += 8 )
     {
-        /* 
+        /*
          *    RK[8] = RK[0] ^ tables.RCON[i] ^
          *        ( (uint32_t) tables.FSb[ ( RK[7] >>  8 ) & 0xFF ]       ) ^
          *        ( (uint32_t) tables.FSb[ ( RK[7] >> 16 ) & 0xFF ] <<  8 ) ^
          *        ( (uint32_t) tables.FSb[ ( RK[7] >> 24 ) & 0xFF ] << 16 ) ^
          *        ( (uint32_t) tables.FSb[ ( RK[7]       ) & 0xFF ] << 24 );
-         */      
+         */
         uint32_t rk0 = RK[0];
         uint32_t rk7 = RK[7];
         uint32_t rcon = tables.RCON[i];
@@ -545,8 +545,8 @@ int mbedtls_aes_setkey_enc( mbedtls_aes_context *ctx, const unsigned char *key,
         uint32_t b1 = (uint32_t) tables.FSb[ (rk7 >> 16 ) & 0xFF ];
         uint32_t b2 = (uint32_t) tables.FSb[ (rk7 >> 24 ) & 0xFF ];
         uint32_t b3 = (uint32_t) tables.FSb[ (rk7       ) & 0xFF ];
-        
-        RK[8] = rk0 ^ rcon ^ 
+
+        RK[8] = rk0 ^ rcon ^
             ( b0       ) ^
             ( b1 <<  8 ) ^
             ( b2 << 16 ) ^
@@ -659,13 +659,13 @@ int mbedtls_aes_setkey_dec( mbedtls_aes_context *ctx, const unsigned char *key,
              *      tables.RT2[ tables.FSb[ ( *SK >> 16 ) & 0xFF ] ] ^
              *      tables.RT3[ tables.FSb[ ( *SK >> 24 ) & 0xFF ] ];
              */
-            
+
             uint32_t sk = *SK;
             uint32_t b0 = tables.FSb[ ( sk       ) & 0xFF ];
             uint32_t b1 = tables.FSb[ ( sk >>  8 ) & 0xFF ];
             uint32_t b2 = tables.FSb[ ( sk >> 16 ) & 0xFF ];
             uint32_t b3 = tables.FSb[ ( sk >> 24 ) & 0xFF ];
-            
+
             b0 = tables.RT0[ b0 ];
             b1 = tables.RT1[ b1 ];
             b2 = tables.RT2[ b2 ];
@@ -785,19 +785,19 @@ void mbedtls_aes_encrypt( mbedtls_aes_context *ctx,
          *      ( (uint32_t) tables.FSb[ ( Y0       ) & 0xFF ]       ) ^
          *      ( (uint32_t) tables.FSb[ ( Y1 >>  8 ) & 0xFF ] <<  8 ) ^
          *      ( (uint32_t) tables.FSb[ ( Y2 >> 16 ) & 0xFF ] << 16 ) ^
-         *      ( (uint32_t) tables.FSb[ ( Y3 >> 24 ) & 0xFF ] << 24 ); 
+         *      ( (uint32_t) tables.FSb[ ( Y3 >> 24 ) & 0xFF ] << 24 );
          */
         uint32_t rk = *RK++;
         uint32_t b0 = tables.FSb[ ( Y0       ) & 0xFF ];
         uint32_t b1 = tables.FSb[ ( Y1 >>  8 ) & 0xFF ];
         uint32_t b2 = tables.FSb[ ( Y2 >> 16 ) & 0xFF ];
         uint32_t b3 = tables.FSb[ ( Y3 >> 24 ) & 0xFF ];
-        X0 = rk ^ 
+        X0 = rk ^
             ( b0       ) ^
-            ( b1 <<  8 ) ^ 
+            ( b1 <<  8 ) ^
             ( b2 << 16 ) ^
             ( b3 << 24 );
-        
+
         /* X1 = *RK++ ^ \
          *      ( (uint32_t) tables.FSb[ ( Y1       ) & 0xFF ]       ) ^
          *      ( (uint32_t) tables.FSb[ ( Y2 >>  8 ) & 0xFF ] <<  8 ) ^
@@ -809,12 +809,12 @@ void mbedtls_aes_encrypt( mbedtls_aes_context *ctx,
         b1 = tables.FSb[ ( Y2 >>  8 ) & 0xFF ];
         b2 = tables.FSb[ ( Y3 >> 16 ) & 0xFF ];
         b3 = tables.FSb[ ( Y0 >> 24 ) & 0xFF ];
-        X1 = rk ^ 
+        X1 = rk ^
             ( b0       ) ^
-            ( b1 <<  8 ) ^ 
+            ( b1 <<  8 ) ^
             ( b2 << 16 ) ^
             ( b3 << 24 );
-         
+
         /* X2 = *RK++ ^ \
          *      ( (uint32_t) tables.FSb[ ( Y2       ) & 0xFF ]       ) ^
          *      ( (uint32_t) tables.FSb[ ( Y3 >>  8 ) & 0xFF ] <<  8 ) ^
@@ -826,13 +826,13 @@ void mbedtls_aes_encrypt( mbedtls_aes_context *ctx,
         b1 = tables.FSb[ ( Y3 >>  8 ) & 0xFF ];
         b2 = tables.FSb[ ( Y0 >> 16 ) & 0xFF ];
         b3 = tables.FSb[ ( Y1 >> 24 ) & 0xFF ];
-        X2 = rk ^ 
+        X2 = rk ^
             ( b0       ) ^
-            ( b1 <<  8 ) ^ 
+            ( b1 <<  8 ) ^
             ( b2 << 16 ) ^
             ( b3 << 24 );
-        
-     
+
+
         /* X3 = *RK++ ^ \
          *       ( (uint32_t) tables.FSb[ ( Y3       ) & 0xFF ]       ) ^
          *       ( (uint32_t) tables.FSb[ ( Y0 >>  8 ) & 0xFF ] <<  8 ) ^
@@ -844,13 +844,13 @@ void mbedtls_aes_encrypt( mbedtls_aes_context *ctx,
          b1 = tables.FSb[ ( Y0 >>  8 ) & 0xFF ];
          b2 = tables.FSb[ ( Y1 >> 16 ) & 0xFF ];
          b3 = tables.FSb[ ( Y2 >> 24 ) & 0xFF ];
-         X3 = rk ^ 
+         X3 = rk ^
             ( b0       ) ^
-            ( b1 <<  8 ) ^ 
+            ( b1 <<  8 ) ^
             ( b2 << 16 ) ^
             ( b3 << 24 );
     }
-            
+
     PUT_UINT32_LE( X0, output,  0 );
     PUT_UINT32_LE( X1, output,  4 );
     PUT_UINT32_LE( X2, output,  8 );
@@ -903,7 +903,7 @@ void mbedtls_aes_decrypt( mbedtls_aes_context *ctx,
             ( b1 <<  8 ) ^
             ( b2 << 16 ) ^
             ( b3 << 24 );
-        
+
         /* X1 = *RK++ ^ \
          *      ( (uint32_t) tables.RSb[ ( Y1       ) & 0xFF ]       ) ^
          *      ( (uint32_t) tables.RSb[ ( Y0 >>  8 ) & 0xFF ] <<  8 ) ^
@@ -920,7 +920,7 @@ void mbedtls_aes_decrypt( mbedtls_aes_context *ctx,
             ( b1 <<  8 ) ^
             ( b2 << 16 ) ^
             ( b3 << 24 );
-         
+
         /* X2 = *RK++ ^ \
          *      ( (uint32_t) tables.RSb[ ( Y2       ) & 0xFF ]       ) ^
          *      ( (uint32_t) tables.RSb[ ( Y1 >>  8 ) & 0xFF ] <<  8 ) ^

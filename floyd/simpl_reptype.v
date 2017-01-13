@@ -108,8 +108,8 @@ Ltac solve_load_rule_evaluation :=
   clear;
   repeat
   match goal with
-  | A : _ |- _ => clear A 
-  | A := _ |- _ => clear A 
+  | A : _ |- _ => clear A
+  | A := _ |- _ => clear A
   end;
   match goal with
   | |- JMeq (@proj_reptype _ _ ?name_of_gfs ?name_of_v) _ =>
@@ -140,7 +140,7 @@ Ltac solve_load_rule_evaluation :=
       let opaque_function := fresh "opaque_function" in
       let opaque_v := fresh "v" in
       pose (proj_reptype (nested_field_type t gfs_compute) gfs_opaque) as opaque_function;
-      set (opaque_v := v);    
+      set (opaque_v := v);
       lazy beta zeta iota delta - [opaque_function opaque_v sublist.Znth Int.repr];
       subst opaque_v opaque_function; subst; apply JMeq_refl
     end

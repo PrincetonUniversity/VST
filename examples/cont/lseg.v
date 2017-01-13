@@ -10,10 +10,10 @@ Require Import msl.eq_dec.
 Local Open Scope logic.
 
 
-Declare Module Semax : SEMAX.  
+Declare Module Semax : SEMAX.
  (* Remark:  "Declare Module" is a hack.
   We want to emphasize that the client proofs (in lseg.v, client_lemmas.v,
-   and sample_program.v) can be done independently of the 
+   and sample_program.v) can be done independently of the
    model.v that implements the Module Semax.  The correct way to do
    this in Coq is to use a parameterized Module (that is, a Functor),
    which is not difficult but in this example we wanted to avoid
@@ -23,7 +23,7 @@ Import Semax.
 
 Definition next e1 e2: mpred := !! (e1 > 0) && mapsto e1 e2.
 
-Lemma next_gt_0: 
+Lemma next_gt_0:
   forall x y, next x y = !! (x>0) && next x y.
 Proof.
  intros. unfold next.
@@ -40,7 +40,7 @@ Definition listcons' (R: (adr * adr) -> mpred) (lp: adr * adr) : mpred :=
 
 Definition listempty (lp: adr*adr) : mpred :=
              !! (fst lp = snd lp) && emp.
- 
+
 Definition listrep' (R: adr*adr -> mpred) (lp: adr*adr) : mpred :=
         listcons' R lp || listempty lp.
 
@@ -48,7 +48,7 @@ Definition listrep : adr*adr -> mpred := HORec listrep'.
 
 Definition lseg (e1 e2: adr) : mpred := listrep (e1,e2).
 
-Lemma lseg_unfold: forall e1 e2, 
+Lemma lseg_unfold: forall e1 e2,
    (lseg e1 e2 = (!! (e1<> e2)  && EX tail:adr, next e1 tail * |> lseg tail e2)
                         || (!! (e1=e2) && emp)).
 Proof.
@@ -59,7 +59,7 @@ Proof.
  apply prove_HOcontractive. auto 50 with contractive typeclass_instances.
 Qed.
 
-Lemma lseg_neq: forall p q: adr, p<>q -> 
+Lemma lseg_neq: forall p q: adr, p<>q ->
         lseg p q = EX y:adr, next p y *  |> lseg y q.
 Proof.
  intros.
@@ -98,7 +98,7 @@ Qed.
 
 Lemma lseg_neq_0:  forall y, lseg 0 y |-- !! (y=0).  (* W2 *)
 Proof.
-  intros. 
+  intros.
   rewrite lseg_unfold.
  apply orp_left.
  apply andp_left2.
@@ -136,7 +136,7 @@ Qed.
   rewrite distrib_orp_sepcon.
   apply orp_left.
   normalize.
-  rewrite sepcon_comm. 
+  rewrite sepcon_comm.
   rewrite <- sepcon_assoc.
   eapply derives_trans with (FF * TT).
   apply sepcon_derives; normalize.
@@ -158,7 +158,7 @@ Proof.
   rewrite exp_sepcon1; apply exp_left; intro.
   rewrite (lseg_neq x z); auto.
   rewrite exp_sepcon2; apply exp_left; intro.
-  rewrite sepcon_assoc. 
+  rewrite sepcon_assoc.
   rewrite <- (sepcon_assoc (|> _)).
   rewrite (sepcon_comm (|> _)).
   repeat rewrite <- sepcon_assoc. rewrite sepcon_assoc.
@@ -166,7 +166,7 @@ Proof.
   rewrite FF_sepcon. normalize.
 Qed.
 
-Lemma unfash_andp_distrib: 
+Lemma unfash_andp_distrib:
         forall {A}{ND: NatDed A}{IA: Indir A}{RA: RecIndir A} (P: Triv) (Q R: A),
                !P && (Q && R) = (!P && Q) && (!P && R).
 Proof.
@@ -185,7 +185,7 @@ Proof.
   intros.
   apply derives_trans with (((lseg x y * next y z) && (ewand (next z v) TT)) *  next z v).
   apply exclude_elsewhere.
-  generalize (goedel_loeb (ALL x:adr,  
+  generalize (goedel_loeb (ALL x:adr,
     lseg x y * next y z && ewand (next z v) TT >=> lseg x z) TT) ; intro.
   spec H.
 Focus 2.
@@ -213,7 +213,7 @@ Focus 2.
   rewrite sepcon_comm.
   rewrite <- sepcon_assoc.
   apply derives_trans with (FF * TT); [ | normalize].
-  apply sepcon_derives; auto. 
+  apply sepcon_derives; auto.
   apply next_conflict.
 
    normalize.
@@ -221,14 +221,14 @@ Focus 2.
    rewrite (lseg_unfold x y).
    rewrite andp_comm.
   rewrite distrib_orp_sepcon.
-  rewrite distrib_orp_andp. 
-  rewrite distrib_orp_andp. 
+  rewrite distrib_orp_andp.
+  rewrite distrib_orp_andp.
   apply orp_left. normalize. apply exp_right with tail.
   apply derives_trans with (next x tail * (|>lseg tail y * next y z && ewand (next z v) TT && !S)).
   rewrite andp_comm. rewrite <- andp_assoc.
   rewrite sepcon_assoc.
   rewrite unfash_sepcon_distrib.
-  eapply derives_trans; [eapply ewand_TT_sepcon | ].  
+  eapply derives_trans; [eapply ewand_TT_sepcon | ].
   apply sepcon_derives; auto.
   apply andp_left1. apply andp_left2; auto.
   subst S.
@@ -246,7 +246,7 @@ Focus 2.
   rewrite <- later_andp. apply later_derives.
   apply derives_trans with (lseg tail y * next y z && ewand (next z v) TT &&
            !( lseg tail y * next y z && ewand (next z v) TT >=> lseg tail z)).
- apply andp_derives; auto. 
+ apply andp_derives; auto.
  apply unfash_derives.
  apply allp_left with tail. auto.
  eapply derives_trans; [ eapply andp_derives; [ apply derives_refl | apply unfash_fash] | ].
@@ -262,7 +262,7 @@ Qed.
    allp P && Q = ALL x:B, P x && Q.
 Proof. intros. apply pred_ext. apply allp_right; intro x.
    apply andp_derives; auto. apply allp_left with x; auto.
-   apply andp_right. apply allp_right; intro x; apply allp_left with x. 
+   apply andp_right. apply allp_right; intro x; apply allp_left with x.
   apply andp_left1; auto. apply allp_left with any. apply andp_left2; auto.
 Qed.
 
@@ -285,7 +285,7 @@ Proof.
   apply derives_trans with (next z tail * |> (lseg tail y * lseg y 0) && !|>S).
   apply andp_derives; auto.
   rewrite sepcon_assoc; apply sepcon_derives; auto.
-  rewrite later_sepcon; apply sepcon_derives; auto. apply now_later. 
+  rewrite later_sepcon; apply sepcon_derives; auto. apply now_later.
   rewrite (lseg_unfold z 0). apply orp_right1.
   apply andp_right.
   unfold next. normalize. apply prop_right. omega.
@@ -314,12 +314,12 @@ Proof.
  apply lseg_cons_in_next_context.
 Qed.
 
-Lemma lseg_cons_in_list_context: 
+Lemma lseg_cons_in_list_context:
     forall x y z, lseg x y * next y z * lseg z 0 |-- lseg x z * lseg z 0.
 Proof.
   intros.
   destruct (eq_dec z 0).
-  subst. rewrite lseg_eq. repeat  rewrite sepcon_emp. 
+  subst. rewrite lseg_eq. repeat  rewrite sepcon_emp.
   eapply derives_trans; try apply list_append.
   apply sepcon_derives; eauto.
   rewrite next_gt_0. normalize.

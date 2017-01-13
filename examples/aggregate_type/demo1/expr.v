@@ -46,9 +46,9 @@ Fixpoint members_no_replicate (fs: fieldlist): Prop :=
   match fs with
   | Fnil => True
   | Fcons (i, t) fs_tl =>
-      ~ in_members i fs_tl /\ members_no_replicate fs_tl 
+      ~ in_members i fs_tl /\ members_no_replicate fs_tl
   end.
-  
+
 Parameter Pred: Type.
 Parameter NPred: NatDed Pred.
 Parameter SPred: SepLog Pred.

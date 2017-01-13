@@ -10,28 +10,28 @@ Set Implicit Arguments.
 
 Class Join (t: Type) : Type := join: t -> t -> t -> Prop.
 
-(* "Permission Algebra": commutative semigroup, 
+(* "Permission Algebra": commutative semigroup,
    such that if units exist, they must have certain properties. *)
 Class Perm_alg (t: Type) {J: Join t} : Type :=
   mkPerm   {
-   join_eq: forall {x y z z'}, join x y z -> join x y z' -> z = z';   
+   join_eq: forall {x y z z'}, join x y z -> join x y z' -> z = z';
    join_assoc: forall {a b c d e}, join a b d -> join d c e ->
                     {f : t & join b c f /\ join a f e};
    join_comm: forall {a b c}, join a b c -> join b a c;
    join_positivity: forall {a a' b b'}, join a a' b -> join b b' a -> a=b
 }.
-Implicit Arguments Perm_alg [[J]].
+Arguments Perm_alg _ [J].
 
 Definition unit_for {t}{J: Join t} (e a: t) := join e a a.
 Definition identity {t} {J: Join t} (e: t) := forall a b, join e a b -> a=b.
 
-Hint Extern 2 (@join _ _ _ _ _) => 
-   (eapply join_comm; trivial; 
+Hint Extern 2 (@join _ _ _ _ _) =>
+   (eapply join_comm; trivial;
      try eassumption;
      (* This next line looks superfluous, but it is not: it catches the
       case where H is join at a function type, where the goal is
       join at an applied function. *)
-     match goal with H: @join _ _ _ _ _ |- _ => apply H end).     
+     match goal with H: @join _ _ _ _ _ |- _ => apply H end).
  (* Hint Immediate @join_comm. *)
 
 Hint Unfold unit_for.
@@ -58,7 +58,7 @@ Qed.
       core_unit: forall t, unit_for (core t) t;
       join_core: forall {a b c}, join a b c -> core a = core c
     }.
-Implicit Arguments Sep_alg [[J]].
+Arguments Sep_alg _ [J].
 
 Lemma core_duplicable {A}{J: Join A}{SA: Sep_alg A}:
   forall a, join (core a) (core a) (core a).
@@ -80,7 +80,7 @@ Qed.
 Lemma core_idem {A}{J: Join A}{SA: Sep_alg A}:
   forall a, core (core a) = core a.
 Proof.
- intros. 
+ intros.
  generalize (core_unit a); unfold unit_for; intro.
  apply (join_core H).
 Qed.
@@ -123,16 +123,16 @@ Proof.
  destruct (join_assoc ( H4) H2) as [g [? ?]].
  destruct (join_assoc H5 (join_comm H2)) as [h [? ?]].
  generalize (join_eq H6 (join_comm H8)); intro. rewrite <- H10 in *; clear dependent h.
- generalize (@join_core _ _ SA1 _ _ _ H4); intro. 
- generalize (@join_core _ _ SA1 _ _ _ H0); intro. 
- generalize (@join_core _ _ SA2 _ _ _ H0); intro. 
+ generalize (@join_core _ _ SA1 _ _ _ H4); intro.
+ generalize (@join_core _ _ SA1 _ _ _ H0); intro.
+ generalize (@join_core _ _ SA2 _ _ _ H0); intro.
  rewrite H11 in *. rewrite H12 in *. rewrite H10 in *.
  apply join_comm in H4.
  apply (join_eq H4 H5).
 Qed.
 
 Lemma join_core2 {A}{J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
-  forall a b c, join a b c -> core a = core b. 
+  forall a b c, join a b c -> core a = core b.
 Proof.
 intros. generalize H; intro.
 apply join_comm in H.
@@ -142,9 +142,9 @@ Qed.
 (* Canc_alg: makes a Permission Algebra into a cancellative Perm.Alg. *)
 Class Canc_alg (t: Type) {J: Join t} :=
     join_canc: forall {a1 a2 b c}, join a1 b c -> join a2 b c -> a1 = a2.
-Implicit Arguments Canc_alg [[J]].
+Arguments Canc_alg _ [J].
 
-Lemma   unit_identity {A}{J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A} : 
+Lemma   unit_identity {A}{J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A} :
         forall {e} b, unit_for e b -> identity e.
 Proof.
  pose proof I. (* hack: shift up auto-named hyps *)
@@ -187,27 +187,27 @@ Qed.
 (* Disj_alg: adds the property that no nonempty element can join with itself. *)
 Class Disj_alg  (t: Type) {J: Join t} :=
    join_self: forall {a b}, join a a b -> a = b.
-Implicit Arguments Disj_alg [[J]].
+Arguments Disj_alg _ [J].
 
   (* Sing_alg: adds the property that makes the Permission Algebra
      into a single-unit Separation Algebra.  (this is the "traditional"
      kind of Separation Algebra).   *)
 Class Sing_alg A {J: Join A}{SA: Sep_alg A} :=
-    mkSing { 
+    mkSing {
       the_unit: A;
-      the_unit_core: forall a, core a = the_unit 
+      the_unit_core: forall a, core a = the_unit
     }.
-Implicit Arguments Sing_alg [[J][SA]].
-Implicit Arguments mkSing [[A] [J][SA]].
+Arguments Sing_alg _ [J] [SA].
+Arguments mkSing [A] [J] [SA].
 
   (* Positive Permission Algebra: there are no units, every element is nonempty *)
   Class Pos_alg  {A} {J: Join A} :=
     no_units: forall e a, ~unit_for e a.
-Implicit Arguments Pos_alg [[J]].
+Arguments Pos_alg _ [J].
 
 (* Has the "cross-split" property described in Dockins et al,
     "A fresh look at separation algebras and share accounting", 2009 *)
-Class Cross_alg (t: Type)  `{J: Join t} := 
+Class Cross_alg (t: Type)  `{J: Join t} :=
    cross_split :
       forall a b c d z : t,
        join a b z ->
@@ -216,18 +216,18 @@ Class Cross_alg (t: Type)  `{J: Join t} :=
          join ac ad a /\ join bc bd b /\ join ac bc c /\ join ad bd d
        end
     }.
-Implicit Arguments Cross_alg [J].
+Arguments Cross_alg _ [J].
 
 (* Has the "triple join" property  *)
 Class Trip_alg {A} {J: Join A} :=
   triple_join_exists:
   forall (a b c ab bc ac : A), join a b ab -> join b c bc -> join a c ac ->
        {abc | join ab c abc}.
-Implicit Arguments Trip_alg [J].
+Arguments Trip_alg _ [J].
 
 (* We do NOT yet introduce "emp" as a notation or synonym for "identity".
   This is because "emp" is a predicate of Separation Logic, but this file
-  contains only Separation Algebras.  Some separation logics have 
+  contains only Separation Algebras.  Some separation logics have
   predicates that are not just "t -> Prop", and therefore it is premature
   in this file to define "emp".
 *)
@@ -281,7 +281,7 @@ Qed.
   Lemma join_joins' {A} {J: Join A} {PA: Perm_alg A}: forall {a b c},
     join a b c -> joins b a.
   Proof.
-    intros; econstructor. eauto. 
+    intros; econstructor. eauto.
   Qed.
 
   Lemma joins_sym {A}  {J: Join A} {PA: Perm_alg A}: forall a b,
@@ -306,14 +306,14 @@ Qed.
     join a b c ->
     join_sub a c.
   Proof.
-    intros; econstructor; eauto. 
+    intros; econstructor; eauto.
   Qed.
 
   Lemma join_join_sub' {A} `{Perm_alg A}: forall {a b c},
     join a b c ->
     join_sub b c.
   Proof.
-    intros; econstructor; eauto. 
+    intros; econstructor; eauto.
   Qed.
 
   Lemma join_sub_refl {A} {J: Join A}{PA: Perm_alg A}{SA: Sep_alg A}: forall a,
@@ -332,7 +332,7 @@ Qed.
     join_sub a c.
   Proof.
  pose proof I. (* hack: shift up auto-named hyps *)
-    intros. destruct H0; destruct H1. 
+    intros. destruct H0; destruct H1.
     destruct (join_assoc H0 H1) as [f [? ?]].
     econstructor; eauto.
   Qed.
@@ -352,7 +352,7 @@ Proof.
    generalize (join_eq H4 (join_comm H7)); intro.
    rewrite <- H9 in *; clear dependent g.
    apply same_identity with c; auto.
-Qed.  
+Qed.
 
   Lemma join_sub_joins {A} `{HA: Perm_alg A}: forall {a b},
     join_sub a b -> joins a b -> joins a a.
@@ -407,12 +407,12 @@ Qed.
 
   Lemma same_silhouette_sym {A} `{Perm_alg A}: forall a b,
     same_silhouette a b -> same_silhouette b a.
-  Proof.  unfold same_silhouette; intros; split; apply H0; auto. 
+  Proof.  unfold same_silhouette; intros; split; apply H0; auto.
   Qed.
 
   Lemma same_silhouette_trans {A} `{Perm_alg A}: forall a b c,
     same_silhouette a b -> same_silhouette b c -> same_silhouette a c.
- Proof. unfold same_silhouette; intros; split; intros; 
+ Proof. unfold same_silhouette; intros; split; intros;
              destruct (H0 c0); destruct (H1 c0);   auto. Qed.
 
   Lemma same_silhouette_sub1{A} `{Perm_alg A}: forall a b,
@@ -445,7 +445,7 @@ Qed.
     specialize (H H7).
     clear H5 H6 H7.
     destruct H as [phix' ?].
-    destruct (join_assoc (join_comm H3) H) as [phig [? ?]]. 
+    destruct (join_assoc (join_comm H3) H) as [phig [? ?]].
     generalize (join_eq H1 (join_comm H5)); intro.
     rewrite <- H7 in *. clear phig H7 H5.
     exists phix'.
@@ -479,11 +479,11 @@ Hint Resolve @join_joins @join_joins' @join_join_sub @join_join_sub'.
   Proof.
     unfold unit_for.
     intros.
-    destruct H. 
+    destruct H.
     destruct (join_assoc H0 H) as [f [? ?]].
     generalize (join_eq H H2); intro.
     rewrite <- H4 in *; clear f H4 H2.
-    eapply same_unit; eauto. 
+    eapply same_unit; eauto.
   Qed.
 
   Lemma unit_core{A} {JA: Join A}{SA: Sep_alg A}{CA: Canc_alg A}:
@@ -496,7 +496,7 @@ Hint Resolve @join_joins @join_joins' @join_join_sub @join_join_sub'.
   Qed.
 
   (** A unit for an element is a unit for itself (is idempotent). *)
-  Lemma unit_self_unit {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A} : 
+  Lemma unit_self_unit {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A} :
    forall a ea,   unit_for ea a ->  unit_for ea ea.
   Proof.
     intros.
@@ -644,7 +644,7 @@ Definition full {A} {JA: Join A}(sigma : A) : Prop :=
 Definition maximal {A} {JA: Join A} (sigma : A) : Prop :=
   forall sigma', join_sub sigma sigma' -> sigma = sigma'.
 
-Lemma full_maximal {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A} : 
+Lemma full_maximal {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A} :
        forall a, full a <-> maximal a.
 Proof with auto.
  pose proof I. (* hack: shift up auto-named hyps *)
@@ -743,7 +743,7 @@ Proof.
 intros. rewrite  H1 in *;  clear x H1. apply join_comm; auto.
 Qed.
 
-Lemma join_unit1_e {A} `{Perm_alg A}: 
+Lemma join_unit1_e {A} `{Perm_alg A}:
   forall x y z, identity x -> join x y z -> y = z.
 Proof.
 intros.
@@ -751,7 +751,7 @@ eapply join_eq; eauto.
 apply identity_unit; eauto.
 Qed.
 
-Lemma join_unit2_e {A} `{Perm_alg A}: 
+Lemma join_unit2_e {A} `{Perm_alg A}:
   forall x y z, identity y -> join x y z -> x = z.
 Proof.
 intros.
@@ -771,7 +771,7 @@ apply existT_ext.
 eapply join_eq0; eauto.
 Qed.
 
-Lemma Sep_alg_ext {T} {J} {PA: @Perm_alg _ J}: 
+Lemma Sep_alg_ext {T} {J} {PA: @Perm_alg _ J}:
    forall (sa1 sa2: @Sep_alg T J), sa1=sa2.
 Proof.
 intros.

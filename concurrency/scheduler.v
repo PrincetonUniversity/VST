@@ -23,7 +23,7 @@ Module Type Scheduler.
   Parameter schedSkip: schedule -> schedule.
   Parameter buildSched: list tid -> schedule.
   Parameter sch_dec: forall (sch sch': schedule), {sch = sch'} + {sch <> sch'}.
-  Parameter end_of_sch: forall U, U = schedSkip U <-> schedPeek U = None. 
+  Parameter end_of_sch: forall U, U = schedSkip U <-> schedPeek U = None.
 End Scheduler.
 
 Module ListScheduler (TID:ThreadID) <: Scheduler with Module TID:= TID.
@@ -56,5 +56,5 @@ Module ListScheduler (TID:ThreadID) <: Scheduler with Module TID:= TID.
     generalize t; clear; induction U.
     - intros t HH. apply (@List.nil_cons _ t nil). symmetry; assumption.
     - intros t HH. inversion HH. apply (IHU a); assumption.
-  Qed.    
+  Qed.
 End ListScheduler.

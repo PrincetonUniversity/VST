@@ -14,7 +14,7 @@ COQ_FLAG = $(INCLUDE_COMPCERT) $(INCLUDE_VST) $(INCLUDE_DEMO)
 DEP_COMPCERT = -R $(COMPCERT_DIR) -as compcert
 DEP_VST = -R $(VST_DIR)/msl -as msl
 DEP_DEMO = -R $(CURRENT_DIR) -as AggregateType
-DEP_FLAG = $(DEP_COMPCERT) $(DEP_VST) $(DEP_DEMO) 
+DEP_FLAG = $(DEP_COMPCERT) $(DEP_VST) $(DEP_DEMO)
 
 DEMO1_FILES = \
   expr.v type_rec_functions.v path_rec_functions.v soundness_proofs.v

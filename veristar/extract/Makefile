@@ -3,7 +3,7 @@ export OCAMLYACC = ocamlyacc -v
 export OCAMLC = ocamlc -dtypes
 export OCAMLOPT = ocamlopt -dtypes
 
-INCLUDES = 
+INCLUDES =
 
 PARSING = misc.mli misc.ml location.mli location.ml parsetree.mli parsetree.ml config.mli config.ml symbtree.mli symbtree.ml error.mli error.ml parser.mly lexer.mll
 PARSING_TRASH = parser.output

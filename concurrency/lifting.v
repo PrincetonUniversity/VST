@@ -35,7 +35,7 @@ Module lifting (SEMT: Semantics) (Machine: MachinesSig with Module SEM := SEMT).
     Notation GT := (SEMT.G).
     Variable gT : GT.
     Variable gS : GS.
-    
+
     Notation semS := (SEM.Sem).
     Notation semT := (SEMT.Sem).
 
@@ -74,7 +74,7 @@ Module lifting (SEMT: Semantics) (Machine: MachinesSig with Module SEM := SEMT).
 
   End lifting.
 End lifting.
-      
-                  
+
+
 
 

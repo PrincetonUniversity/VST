@@ -12,7 +12,7 @@ Import CovariantFunctor.
 Import CovariantFunctorLemmas.
 Import CovariantFunctorGenerator.
 
-Open Local Scope nat_scope.
+Local Open Scope nat_scope.
 
 Module Type TY_FUNCTOR.
   Parameter F : functor.
@@ -38,7 +38,7 @@ Module Type KNOT.
   Parameter squash : (nat * F predicate) -> knot.
   Parameter unsquash : knot -> (nat * F predicate).
 
-  Definition approx (n:nat) (p:predicate) : predicate := 
+  Definition approx (n:nat) (p:predicate) : predicate :=
      fun w => if le_gt_dec n (level w) then T_bot else p w.
 
   Axiom squash_unsquash : forall x, squash (unsquash x) = x.
@@ -116,7 +116,7 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     end.
 
   Definition proof_irr_nat := eq_proofs_unicity dec_eq_nat.
-  Implicit Arguments proof_irr_nat.
+  Arguments proof_irr_nat [x] [y] _ _.
 
   Lemma floor_shuffle:
     forall (m1 n : nat)
@@ -191,7 +191,7 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     induction n.
 
     intros; destruct p; auto.
-    
+
     simpl; intros [p f].
     apply injective_projections; simpl; trivial.
 
@@ -272,13 +272,13 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     case_eq w; intros [m rm] e Hw.
     assert (projT1 (fst w) = m).
     rewrite Hw; auto.
-    
+
     destruct (decompose_nat m (S n)) as [[r Hr]|?].
     destruct r; simpl.
 
     assert (n = m) by omega.
     move H0 after H1.
-    subst m. fold sinv. simpl in Hr. rewrite (proof_irr_nat Hr (refl_equal _)). clear Hr. 
+    subst m. fold sinv. simpl in Hr. rewrite (proof_irr_nat Hr (refl_equal _)). clear Hr.
     simpl.
     unfold compose.
     rewrite <- Hw.
@@ -337,7 +337,7 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     | (n,x) => squash (S n,x)
     end.
 
-  Definition approx (n:nat) (p:predicate) : predicate := 
+  Definition approx (n:nat) (p:predicate) : predicate :=
      fun w => if le_gt_dec n (def_knot_level (fst w)) then T_bot else p w.
 
   Lemma squash_unsquash : forall x, squash (unsquash x) = x.
@@ -426,7 +426,7 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     rewrite H.
     trivial.
   Qed.
-  Implicit Arguments unsquash_inj.
+  Arguments unsquash_inj [k1 k2].
 
   Lemma ag_knot_facts : ageable_facts knot def_knot_level def_knot_age1.
   Proof.

@@ -113,7 +113,7 @@ Lemma loc_result_pair:
   | Twolong r1 r2 => r1 <> r2 /\ sg.(sig_res) = Some Tlong /\ subtype Tint (mreg_type r1) = true /\ subtype Tint (mreg_type r2) = true
   end.
 Proof.
-  intros; unfold loc_result; destruct (sig_res sg) as [[]|]; auto. intuition congruence. 
+  intros; unfold loc_result; destruct (sig_res sg) as [[]|]; auto. intuition congruence.
 Qed.
 
 (** ** Location of function arguments *)

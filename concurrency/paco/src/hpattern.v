@@ -11,13 +11,13 @@ Set Implicit Arguments.
 Definition hresolve_arg (A:Type) (a:A) := True.
 
 Ltac hresolve_pre C T tac_resolve :=
- (let hT := fresh "_temp_" in 
+ (let hT := fresh "_temp_" in
     assert (hT : hresolve_arg T) by (exact I);
   let hx := fresh "hx" in
     set (hx := C) in hT;
-    lazymatch goal with [ _ : @hresolve_arg _ ?T' |- _ ] => tac_resolve hx T' end; 
+    lazymatch goal with [ _ : @hresolve_arg _ ?T' |- _ ] => tac_resolve hx T' end;
     clear hT ;
-  let hf := fresh "hf" in 
+  let hf := fresh "hf" in
     intro hf).
 
 Ltac hresolve_post tac :=
@@ -37,16 +37,16 @@ Ltac get_concl := lazymatch goal with [ |- ?G ] => G end.
 
 Ltac get_hyp H := match goal with [ Hcrr : ?G |- _ ] => match Hcrr with H => G end end.
 
-Tactic Notation "hresolve" constr(C) "at" int_or_var(occ) := 
+Tactic Notation "hresolve" constr(C) "at" int_or_var(occ) :=
  (let G := get_concl in hresolve_constr C at occ in G; hresolve_post ltac:(fun G' hx => change G')).
 
-Tactic Notation "hresolve" constr(C) := 
+Tactic Notation "hresolve" constr(C) :=
  (let G := get_concl in hresolve_constr C in G; hresolve_post ltac:(fun G' hx => change G')).
 
-Tactic Notation "hresolve" constr(C) "at" int_or_var(occ) "in" hyp(H) := 
+Tactic Notation "hresolve" constr(C) "at" int_or_var(occ) "in" hyp(H) :=
  (let G := get_hyp H in hresolve_constr C at occ in G; hresolve_post ltac:(fun G' hx => change G' in H)).
 
-Tactic Notation "hresolve" constr(C) "in" hyp(H) := 
+Tactic Notation "hresolve" constr(C) "in" hyp(H) :=
  (let G := get_hyp H in hresolve_constr C in G; hresolve_post ltac:(fun G' hx => change G' in H)).
 
 (**
@@ -55,47 +55,47 @@ Tactic Notation "hresolve" constr(C) "in" hyp(H) :=
    the same as pattern, but abstracts the occ-th and its dependent occurrencies of C in the conclusion (or in the hypothesis H).
 *)
 
-Tactic Notation "hpattern" constr(C) "at" int_or_var(occ) := 
+Tactic Notation "hpattern" constr(C) "at" int_or_var(occ) :=
  (let G := get_concl in hresolve_constr C at occ in G; hresolve_post ltac:(fun G' hx => change G'; pattern hx; change hx with C)).
 
-Tactic Notation "hpattern" constr(C) := 
+Tactic Notation "hpattern" constr(C) :=
  (let G := get_concl in hresolve_constr C in G; hresolve_post ltac:(fun G' hx => change G'; pattern hx; change hx with C)).
 
-Tactic Notation "hpattern" constr(C) "at" int_or_var(occ) "in" hyp(H) := 
+Tactic Notation "hpattern" constr(C) "at" int_or_var(occ) "in" hyp(H) :=
  (let G := get_hyp H in hresolve_constr C at occ in G; hresolve_post ltac:(fun G' hx => change G' in H; pattern hx in H; change hx with C in H)).
 
-Tactic Notation "hpattern" constr(C) "in" hyp(H) := 
+Tactic Notation "hpattern" constr(C) "in" hyp(H) :=
  (let G := get_hyp H in hresolve_constr C in G; hresolve_post ltac:(fun G' hx => change G' in H; pattern hx in H; change hx with C in H)).
 
 (**
-  [*] hgeneralize C ( at occ ) as id 
+  [*] hgeneralize C ( at occ ) as id
 
   generalizes the occ-th and its dependent occurrences of C
 *)
 
-Tactic Notation "hgeneralize" constr(C) "at" int_or_var(occ) "as" ident(id) := 
+Tactic Notation "hgeneralize" constr(C) "at" int_or_var(occ) "as" ident(id) :=
  (let G := get_concl in hresolve_constr C at occ in G; hresolve_post ltac:(fun G' hx => change G'; generalize hx as id)).
 
-Tactic Notation "hgeneralize" constr(C) "as" ident(id) := 
+Tactic Notation "hgeneralize" constr(C) "as" ident(id) :=
  (let G := get_concl in hresolve_constr C in G; hresolve_post ltac:(fun G' hx => change G'; generalize hx as id)).
 
-Tactic Notation "hgeneralize_simpl" constr(C) "at" int_or_var(occ) "as" ident(id) := 
+Tactic Notation "hgeneralize_simpl" constr(C) "at" int_or_var(occ) "as" ident(id) :=
  (hgeneralize C at occ as id; intro; lazymatch goal with [ H : _ |- _ ] => simpl in H; revert H end).
 
-Tactic Notation "hgeneralize_simpl" constr(C) "as" ident(id) := 
+Tactic Notation "hgeneralize_simpl" constr(C) "as" ident(id) :=
  (hgeneralize C as id; intro; lazymatch goal with [ H : _ |- _ ] => simpl in H; revert H end).
 
 (**
-   [*] hrewrite ( <- ) eqn ( at occ ) 
+   [*] hrewrite ( <- ) eqn ( at occ )
 
    rewrites the occ-th and its dependent occurrences of lhs of eqn to rhs of eqn
 *)
 
 Ltac hrewrite_with eqn tac_res :=
- (lazymatch (type of eqn) with @eq _ ?X ?Y => 
-    let G := get_concl in 
+ (lazymatch (type of eqn) with @eq _ ?X ?Y =>
+    let G := get_concl in
       tac_res X G;
-      hresolve_post ltac:(fun G' hx => 
+      hresolve_post ltac:(fun G' hx =>
         change G'; let Heqn := fresh "_temp_" in assert (Heqn : hx = Y) by (apply eqn); rewrite Heqn; clear Heqn)
   end).
 

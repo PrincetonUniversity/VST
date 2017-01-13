@@ -29,7 +29,7 @@ Definition flip_ends {A} lo hi (contents: list A) :=
   ++ sublist lo hi contents
   ++ sublist hi (Zlength contents) (rev contents).
 
-Definition reverse_Inv a0 sh contents size := 
+Definition reverse_Inv a0 sh contents size :=
  (EX j:Z,
   (PROP  (0 <= j; j <= size-j)
    LOCAL  (temp _a a0; temp _lo (Vint (Int.repr j)); temp _hi (Vint (Int.repr (size-j))))
@@ -59,7 +59,7 @@ Proof.
       by (autorewrite with sublist; omega).
   rewrite !sublist_rev by (autorewrite with sublist; omega).
  rewrite <- !rev_app_distr, ?H.
- autorewrite with sublist; auto. 
+ autorewrite with sublist; auto.
 Qed.
 
 Lemma flip_fact_3:

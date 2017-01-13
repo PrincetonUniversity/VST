@@ -9,13 +9,13 @@ Require Import fcf.NotationV1.
 
 (* stuff that needs to go somewhere else *)
 
-Theorem ratSubtract_leRat_same_r : 
+Theorem ratSubtract_leRat_same_r :
   forall r1 r2 r3,
     r3 <= r1 ->
     r3 <= r2 ->
     ratSubtract r1 r3 <= ratSubtract r2 r3 ->
     r1 <= r2.
-  
+
   intuition.
   apply (ratAdd_leRat_compat_l r3) in H1.
   assert (ratSubtract r1 r3 + r3 == r1).
@@ -29,7 +29,7 @@ Theorem ratSubtract_leRat_same_r :
 
 Qed.
 
-Theorem sumList_filter_complement : 
+Theorem sumList_filter_complement :
   forall (A : Set){eqd : EqDec A}(c : Comp A)(a : A),
     well_formed_comp c ->
     sumList (filter (fun x => negb (eqb a x)) (getSupport c)) (evalDist c) ==
@@ -61,17 +61,17 @@ Theorem sumList_filter_complement :
   apply filter_In in H0; intuition.
   rewrite eqb_leibniz in H3; subst.
   intuition.
-  
+
   eapply evalDist_le_1.
 Qed.
 
 
 
-Theorem evalDist_Repeat_0 : 
+Theorem evalDist_Repeat_0 :
   forall (A : Set)(c : Comp A)(P : A -> bool) a,
     (forall x, In x (getSupport c) -> P x = true -> x <> a) ->
     evalDist (Repeat c P) a == 0.
-  
+
   intuition.
   simpl.
   unfold indicator.
@@ -83,13 +83,13 @@ Theorem evalDist_Repeat_0 :
   intuition.
   eapply H;
     eauto.
-  
+
   rewrite ratMult_0_l.
   eapply ratMult_0_l.
-  
+
 Qed.
 
-Theorem evalDist_event_equiv : 
+Theorem evalDist_event_equiv :
   forall (A : Set){eqd : EqDec A}(c : Comp A) a,
     evalDist c a == Pr[x <-$ c; ret (eqb a x)].
 
@@ -104,7 +104,7 @@ Theorem evalDist_event_equiv :
   trivial.
   intuition.
   dist_compute.
-  
+
   rewrite evalDist_seq_step.
   assert (evalDist c a == 0).
   eapply getSupport_not_In_evalDist; trivial.
@@ -119,13 +119,13 @@ Qed.
 Theorem filter_ext : forall (A : Set)(ls : list A)(f1 f2 : A -> bool),
   (forall a, f1 a = f2 a) ->
   filter f1 ls = filter f2 ls.
-  
+
   induction ls; intuition; simpl in *.
   rewrite H.
   destruct (f2 a); eauto.
   f_equal;
   eauto.
-  
+
 Qed.
 
 (* definitions related to the program logic *)
@@ -136,13 +136,13 @@ Definition marginal_l(A B : Set){eqd : EqDec A}(c : Comp (A * B))(a : A) :=
 Definition marginal_r(A B : Set){eqd : EqDec B}(c : Comp (A * B))(b : B) :=
   Pr[x <-$ c; ret eqb (snd x) b].
 
-Theorem in_support_marginal_l : 
+Theorem in_support_marginal_l :
   forall (A B : Set){eqd: EqDec A}(c1 : Comp (A * B))(c2 : Comp A),
     (forall a, evalDist c2 a == marginal_l c1 a) ->
     forall p,
       In p (getSupport c1) ->
       In (fst p) (getSupport c2).
-  
+
   intuition.
   eapply getSupport_In_evalDist.
   intuition.
@@ -155,17 +155,17 @@ Theorem in_support_marginal_l :
   intuition.
   eapply getSupport_In_evalDist;
     eauto.
-  dist_compute.    
-  
+  dist_compute.
+
 Qed.
 
-Theorem in_support_marginal_r : 
+Theorem in_support_marginal_r :
   forall (A B : Set){eqd: EqDec B}(c1 : Comp (A * B))(c2 : Comp B),
     (forall b, evalDist c2 b == marginal_r c1 b) ->
     forall p,
       In p (getSupport c1) ->
       In (snd p) (getSupport c2).
-  
+
   intuition.
   eapply getSupport_In_evalDist.
   intuition.
@@ -178,8 +178,8 @@ Theorem in_support_marginal_r :
   intuition.
   eapply getSupport_In_evalDist;
     eauto.
-  dist_compute.    
-  
+  dist_compute.
+
 Qed.
 
 Definition comp_spec (R1 R2 : Set)
@@ -190,9 +190,9 @@ Definition comp_spec (R1 R2 : Set)
     (forall r2, evalDist c2 r2 == marginal_r c r2) /\
     (forall p, In p (getSupport c) -> post (fst p) (snd p)).
 
-Theorem list_choice : 
+Theorem list_choice :
   forall (A B : Type)(eqd : forall (a1 a2 : A), {a1 = a2} + {a1 <> a2}) P (ls : list A) (b : B),
-    (forall a, In a ls -> exists (b : B), P a b) -> 
+    (forall a, In a ls -> exists (b : B), P a b) ->
     exists (f : A -> B), (forall a, In a ls -> P a (f a)).
 
   induction ls; intuition.
@@ -213,7 +213,7 @@ Theorem list_choice :
 Qed.
 
 
-Theorem comp_spec_seq : 
+Theorem comp_spec_seq :
   forall {A B : Set} P' {C D : Set} P{eqda : EqDec A}{eqdb : EqDec B}{eqdc : EqDec C}{eqdd : EqDec D}(c1 : Comp A)(c2 : Comp B) (c : C) (d : D)
     (f1 : A -> Comp C)(f2 : B -> Comp D),
     comp_spec P' c1 c2 ->
@@ -234,7 +234,7 @@ Theorem comp_spec_seq :
   pose proof H2.
   apply (list_choice) in H2.
   destruct H2.
- 
+
   exists (Bind x x0).
   intuition.
 
@@ -246,14 +246,14 @@ Theorem comp_spec_seq :
   eauto.
   eapply eqRat_refl.
   unfold marginal_l.
-  
+
   eapply eqRat_trans.
   eapply sumList_body_eq.
   intros.
   eapply ratMult_eqRat_compat.
   eapply evalDist_seq_step.
   eapply eqRat_refl.
-  
+
   eapply eqRat_trans.
   eapply sumList_body_eq.
   intros.
@@ -276,14 +276,14 @@ Theorem comp_spec_seq :
   specialize (H2 a).
   intuition.
   rewrite H2.
-  
+
   unfold marginal_l.
   intuition.
 
   eapply getSupport_NoDup.
 
   eapply in_support_marginal_l; eauto.
-  
+
   intuition.
   dist_compute.
 
@@ -295,14 +295,14 @@ Theorem comp_spec_seq :
   eauto.
   eapply eqRat_refl.
   unfold marginal_r.
-  
+
   eapply eqRat_trans.
   eapply sumList_body_eq.
   intros.
   eapply ratMult_eqRat_compat.
   eapply evalDist_seq_step.
   eapply eqRat_refl.
-  
+
   eapply eqRat_trans.
   eapply sumList_body_eq.
   intros.
@@ -341,12 +341,12 @@ Theorem comp_spec_seq :
 Qed.
 
 
-Ltac despec := 
+Ltac despec :=
   match goal with
     | [H : comp_spec _ _ _  |- _] => destruct H
   end.
 
-Theorem comp_spec_consequence : 
+Theorem comp_spec_consequence :
   forall (A B : Set){eqda1 eqda2 : EqDec A}{eqdb1 eqdb2 : EqDec B}(p1 p2 : A -> B -> Prop) c1 c2,
     (@comp_spec _ _ eqda1 eqdb1 p1 c1 c2) ->
     (forall a b, p1 a b -> p2 a b) ->
@@ -358,7 +358,7 @@ Theorem comp_spec_consequence :
 
   rewrite H1.
   unfold marginal_l.
- 
+
   dist_skip.
   eapply evalDist_ret_eq.
   case_eq (eqb (fst x0) r1); intuition.
@@ -374,7 +374,7 @@ Theorem comp_spec_consequence :
 
   rewrite H.
   unfold marginal_r.
- 
+
   dist_skip.
   eapply evalDist_ret_eq.
   case_eq (eqb (snd x0) r2); intuition.
@@ -390,7 +390,7 @@ Theorem comp_spec_consequence :
 
 Qed.
 
-Theorem comp_spec_symm : 
+Theorem comp_spec_symm :
   forall (A B : Set){eqda : EqDec A}{eqdb : EqDec B}(p : A -> B -> Prop) c1 c2,
     comp_spec p c1 c2 ->
     comp_spec (fun b a => p a b) c2 c1.
@@ -410,14 +410,14 @@ Theorem comp_spec_symm :
   dist_inline_first.
   dist_skip.
   dist_compute.
- 
+
   repeat simp_in_support.
   simpl.
   eauto.
 Qed.
 
 (* completeness theorems *)
-Theorem eq_impl_comp_spec : 
+Theorem eq_impl_comp_spec :
   forall (A B : Set){eqda : EqDec A}{eqdb : EqDec B}(c1 : Comp A)(c2 : Comp B) x y,
     well_formed_comp c1 ->
     well_formed_comp c2 ->
@@ -425,7 +425,7 @@ Theorem eq_impl_comp_spec :
     comp_spec (fun a b => a = x <-> b = y) c1 c2.
 
   intuition.
-  
+
   (* special case: the events have probability 0 *)
   destruct (eq_Rat_dec (evalDist c1 x) 0).
 
@@ -500,14 +500,14 @@ Theorem eq_impl_comp_spec :
 
   erewrite (evalDist_1) in H3; eauto.
   simpl in *; intuition.
-  
+
   (* general case *)
 
   exists (a <-$ c1;
     b <-$ if (eqb a x) then (ret y) else (Repeat c2 (fun b => negb (eqb b y)));
       ret (a, b)).
 
-  split.  
+  split.
   intuition.
   unfold marginal_l.
   dist_inline_first.
@@ -557,7 +557,7 @@ Theorem eq_impl_comp_spec :
   intuition.
 
   dist_compute.
-  
+
   split.
   intuition.
   unfold marginal_r.
@@ -579,7 +579,7 @@ Theorem eq_impl_comp_spec :
   dist_inline_first.
   unfold snd.
   eapply eqRat_refl.
-  
+
   eapply sumList_body_eq; intuition.
   apply filter_In in H2.
   intuition.
@@ -596,7 +596,7 @@ Theorem eq_impl_comp_spec :
   subst.
   rewrite eqb_refl in H2.
   discriminate.
-  
+
   eapply ratMult_eqRat_compat.
   eapply eqRat_refl.
   eapply evalDist_seq_eq.
@@ -637,7 +637,7 @@ Theorem eq_impl_comp_spec :
   subst.
   rewrite eqb_refl in H5.
   simpl in *; discriminate.
-  
+
   assert (Pr [ret false] == 0).
   dist_compute.
   rewrite H3.
@@ -676,7 +676,7 @@ Theorem eq_impl_comp_spec :
   eapply ratInverse_eqRat_compat.
   intuition.
 
-  assert ( (filter (fun b : B => negb (eqb b y)) (getSupport c2)) = 
+  assert ( (filter (fun b : B => negb (eqb b y)) (getSupport c2)) =
      (filter (fun b : B => negb (eqb y b)) (getSupport c2))).
   eapply filter_ext; intuition.
   rewrite eqb_symm.
@@ -692,7 +692,7 @@ Theorem eq_impl_comp_spec :
   intuition.
   trivial.
 
-  assert ((filter (fun b : B => negb (eqb b y)) (getSupport c2)) = 
+  assert ((filter (fun b : B => negb (eqb b y)) (getSupport c2)) =
     (filter (fun b : B => negb (eqb y b)) (getSupport c2))).
   eapply filter_ext.
   intuition.
@@ -700,7 +700,7 @@ Theorem eq_impl_comp_spec :
   intuition.
   rewrite H4.
   clear H4.
-  
+
   eapply sumList_filter_complement.
   trivial.
 
@@ -713,7 +713,7 @@ Theorem eq_impl_comp_spec :
   eapply ratSubtract_0_inv.
   rewrite H1.
   intuition.
-  
+
   eapply getSupport_NoDup.
   simpl.
   eapply filter_In; intuition.
@@ -746,7 +746,7 @@ Theorem eq_impl_comp_spec :
 
   eapply filter_NoDup.
   eapply getSupport_NoDup.
-  
+
   eapply filter_In; intuition.
   eapply getSupport_In_evalDist; intuition.
 
@@ -757,7 +757,7 @@ Theorem eq_impl_comp_spec :
   intuition.
   rewrite eqb_leibniz in H5.
   intuition.
-  
+
   intros.
   repeat simp_in_support;
   simpl in *; intuition.
@@ -775,7 +775,7 @@ Theorem eq_impl_comp_spec :
   simpl in *.
   discriminate.
 
-  Grab Existential Variables. 
+  Grab Existential Variables.
   unfold eq_dec; intuition.
   eapply (EqDec_dec _).
   unfold eq_dec; intuition.
@@ -790,11 +790,11 @@ Theorem eq_impl_comp_spec :
 Qed.
 
 
-Theorem le_impl_comp_spec : 
+Theorem le_impl_comp_spec :
   forall (A B : Set){eqda : EqDec A}{eqdb : EqDec B}(c1 : Comp A)(c2 : Comp B),
     well_formed_comp c1 ->
     well_formed_comp c2 ->
-    forall x y, 
+    forall x y,
       evalDist c1 x <= evalDist c2 y ->
       comp_spec (fun a b => a = x -> b = y) c1 c2.
 
@@ -812,7 +812,7 @@ Theorem le_impl_comp_spec :
   dist_inline_first.
   dist_irr_r.
   dist_compute.
-  
+
   unfold marginal_l; intuition.
   dist_inline_first.
   rewrite <- evalDist_right_ident.
@@ -838,7 +838,7 @@ Theorem le_impl_comp_spec :
   dist_inline_first.
   dist_irr_r.
   dist_compute.
-  
+
   unfold marginal_l; intuition.
   dist_inline_first.
   rewrite <- evalDist_right_ident.
@@ -846,7 +846,7 @@ Theorem le_impl_comp_spec :
   dist_inline_first.
   dist_skip.
   dist_compute.
-  
+
   repeat simp_in_support.
   simpl in *.
   exfalso.
@@ -954,7 +954,7 @@ Theorem le_impl_comp_spec :
   dist_inline_first.
   unfold snd.
   eapply eqRat_refl.
-  
+
   eapply sumList_body_eq; intuition.
   apply filter_In in H2.
   intuition.
@@ -1001,7 +1001,7 @@ Theorem le_impl_comp_spec :
   eapply ratSubtract_leRat.
   eapply evalDist_le_1.
   intuition.
-  
+
   eapply ratFraction_le_1.
   eapply ratSubtract_leRat.
   eapply evalDist_le_1.
@@ -1036,7 +1036,7 @@ Theorem le_impl_comp_spec :
   destruct b; intuition.
   apply filter_In in H5.
   intuition.
-  
+
   eapply filter_NoDup.
   eapply getSupport_NoDup.
 
@@ -1118,7 +1118,7 @@ Theorem le_impl_comp_spec :
   eapply leRat_trans; eauto.
   apply ratSubtract_0_inv.
   trivial.
-  
+
   eapply eqRat_refl.
 
   case_eq (eqb y r2); intuition.
@@ -1203,8 +1203,8 @@ Theorem le_impl_comp_spec :
   eapply evalDist_le_1.
   eapply ratSubtract_0_inv.
   trivial.
-  
-  assert ((filter (fun z : B => negb (eqb z y)) (getSupport c2)) = 
+
+  assert ((filter (fun z : B => negb (eqb z y)) (getSupport c2)) =
     (filter (fun z : B => negb (eqb y z)) (getSupport c2))).
 
   eapply filter_ext.
@@ -1232,7 +1232,7 @@ Theorem le_impl_comp_spec :
   intuition.
   eapply ratSubtract_0_inv.
   trivial.
-  
+
   eapply filter_NoDup.
   eapply getSupport_NoDup.
 
@@ -1268,7 +1268,7 @@ Theorem le_impl_comp_spec :
   symmetry.
   eapply getSupport_not_In_evalDist.
   intuition.
-  
+
   eapply filter_NoDup.
   eapply getSupport_NoDup.
 
@@ -1304,9 +1304,9 @@ Qed.
 
 (* soundness theorems *)
 
-Theorem comp_spec_impl_le : 
+Theorem comp_spec_impl_le :
   forall (A B : Set){eqda : EqDec A}{eqdb : EqDec B}(c1 : Comp A)(c2 : Comp B),
-    forall x y, 
+    forall x y,
       comp_spec (fun a b => a = x -> b = y) c1 c2 ->
       evalDist c1 x <= evalDist c2 y.
 
@@ -1329,11 +1329,11 @@ Theorem comp_spec_impl_le :
   eapply n.
   specialize (H2 x1).
   intuition.
-  
+
   eapply rat0_le_all.
 Qed.
 
-Theorem comp_spec_eq_symm: 
+Theorem comp_spec_eq_symm:
   forall (A : Set){eqda : EqDec A}(c1 c2 : Comp A),
       comp_spec eq c1 c2 ->
       comp_spec eq c2 c1.
@@ -1344,9 +1344,9 @@ Theorem comp_spec_eq_symm:
 
 Qed.
 
-Theorem comp_spec_impl_eq : 
+Theorem comp_spec_impl_eq :
   forall (A B : Set){eqda : EqDec A}{eqdb : EqDec B}(c1 : Comp A)(c2 : Comp B),
-    forall x y, 
+    forall x y,
       comp_spec (fun a b => a = x <-> b = y) c1 c2 ->
       evalDist c1 x == evalDist c2 y.
 
@@ -1371,28 +1371,28 @@ Qed.
 
 
 (* facts about basic language constructs *)
-Theorem comp_spec_ret : 
+Theorem comp_spec_ret :
   forall (A B : Set){eqda1 : EqDec A}{eqdb1 : EqDec B}(eqda2 : eq_dec A)(eqdb2 : eq_dec B)(P : A -> B -> Prop) a b,
     P a b ->
     @comp_spec _ _ eqda1 eqdb1 P (Ret eqda2 a) (Ret eqdb2 b).
-  
+
   intuition.
   exists (ret (a, b)).
   intuition.
   unfold marginal_l.
   dist_compute.
-  
+
   unfold marginal_r.
   dist_compute.
-  
+
   simp_in_support.
   trivial.
-  
+
 Qed.
 
-Theorem comp_spec_rnd : 
+Theorem comp_spec_rnd :
   forall n x y,
-  comp_spec (fun a b : Vector.t bool n => a = x <-> b = y) 
+  comp_spec (fun a b : Vector.t bool n => a = x <-> b = y)
      ({ 0 , 1 }^n) ({ 0 , 1 }^n).
 
   intuition.
@@ -1403,7 +1403,7 @@ Qed.
 
 
 (* facts about equality specifications *)
-Theorem eq_impl_comp_spec_eq : 
+Theorem eq_impl_comp_spec_eq :
   forall (A : Set){eqd1 eqd2 : EqDec A}(c1 c2 : Comp A),
     (forall x, evalDist c1 x == evalDist c2 x) ->
     @comp_spec _ _ eqd1 eqd2 eq c1 c2.
@@ -1432,10 +1432,10 @@ Theorem eq_impl_comp_spec_eq :
   Grab Existential Variables.
   intuition.
   intuition.
-  
+
 Qed.
 
-Theorem comp_spec_eq_refl : 
+Theorem comp_spec_eq_refl :
   forall (A : Set){eqd : EqDec A}(c : Comp A),
     comp_spec eq c c.
 
@@ -1444,7 +1444,7 @@ Theorem comp_spec_eq_refl :
 
 Qed.
 
-Theorem comp_spec_eq_impl_eq : 
+Theorem comp_spec_eq_impl_eq :
   forall (A : Set){eqd1 eqd2 : EqDec A}(c1 c2 : Comp A),
     @comp_spec _ _ eqd1 eqd2 eq c1 c2 ->
     (forall x, evalDist c1 x == evalDist c2 x).
@@ -1480,8 +1480,8 @@ Theorem comp_spec_eq_impl_eq :
   trivial.
 
 Qed.
-  
-Theorem comp_spec_eq_trans_l : 
+
+Theorem comp_spec_eq_trans_l :
   forall (A B : Set){eqd : EqDec A}{eqd : EqDec B}(c1 c2 : Comp A)(c3 : Comp B) P,
     comp_spec eq c1 c2 ->
     comp_spec P c2 c3 ->
@@ -1493,14 +1493,14 @@ Theorem comp_spec_eq_trans_l :
   intuition.
   exists x.
   intuition.
- 
+
   eapply comp_spec_eq_impl_eq in H; intuition.
   rewrite H.
   trivial.
 
 Qed.
 
-Theorem comp_spec_eq_trans : 
+Theorem comp_spec_eq_trans :
   forall (A : Set){eqd : EqDec A}(c1 c2 c3 : Comp A),
     comp_spec eq c1 c2 ->
     comp_spec eq c2 c3 ->
@@ -1512,7 +1512,7 @@ Theorem comp_spec_eq_trans :
 
 Qed.
 
-Theorem comp_spec_eq_trans_r : 
+Theorem comp_spec_eq_trans_r :
   forall (A B : Set){eqd : EqDec A}{eqd : EqDec B}(c1 : Comp A)(c2 c3 : Comp B) P,
     comp_spec P c1 c2 ->
     comp_spec eq c2 c3 ->
@@ -1524,39 +1524,39 @@ Theorem comp_spec_eq_trans_r :
   intuition.
   exists x.
   intuition.
- 
+
   eapply comp_spec_eq_impl_eq in H0; intuition.
   rewrite <- H0.
   trivial.
 
 Qed.
 
-Theorem comp_spec_seq_eq : 
+Theorem comp_spec_seq_eq :
   forall (A B C : Set){eqda : EqDec A}{eqdb : EqDec B}{eqdc : EqDec C}(c1 c2 : Comp A)(f1 : A -> Comp B)(f2 : A -> Comp C) P (b : B) (c : C),
     comp_spec eq c1 c2 ->
     (forall a, comp_spec P (f1 a) (f2 a)) ->
     comp_spec P (Bind c1 f1) (Bind c2 f2).
-  
+
   intuition.
   eapply comp_spec_seq; trivial.
   eauto.
   intuition; subst; intuition.
-  
+
 Qed.
 
-Theorem comp_spec_eq_swap : 
+Theorem comp_spec_eq_swap :
   forall (A B C : Set){eqdc : EqDec C}(c1 : Comp A)(c2 : Comp B)(f : A -> B -> Comp C),
     comp_spec eq (x <-$ c1; y <-$ c2; f x y) (y <-$ c2; x <-$ c1; f x y).
-  
+
   intuition.
   eapply eq_impl_comp_spec_eq.
   intuition.
   eapply evalDist_commute_eq.
-  
+
 Qed.
 
-Theorem comp_spec_right_ident : 
-  forall (A : Set){eqd : EqDec A}(c1 : Comp A), 
+Theorem comp_spec_right_ident :
+  forall (A : Set){eqd : EqDec A}(c1 : Comp A),
     comp_spec eq (x <-$ c1; ret x) c1.
 
   intuition.
@@ -1564,19 +1564,19 @@ Theorem comp_spec_right_ident :
   eapply evalDist_right_ident.
 Qed.
 
-Theorem comp_spec_left_ident : 
-  forall (A B : Set){eqda : EqDec A}{eqdb : EqDec B}(c1 : A -> Comp B) a, 
+Theorem comp_spec_left_ident :
+  forall (A B : Set){eqda : EqDec A}{eqdb : EqDec B}(c1 : A -> Comp B) a,
     comp_spec eq (x <-$ ret a; c1 x) (c1 a).
 
   intuition.
   eapply eq_impl_comp_spec_eq.
   intuition.
-  
+
   specialize (@evalDist_left_ident eqRat); intuition.
 Qed.
 
-Theorem comp_spec_assoc : 
-  forall (A B C : Set){eqd : EqDec C}(c1 : Comp A)(c2 : A -> Comp B)(c3 : B -> Comp C), 
+Theorem comp_spec_assoc :
+  forall (A B C : Set){eqd : EqDec C}(c1 : Comp A)(c2 : A -> Comp B)(c3 : B -> Comp C),
     comp_spec eq (x <-$ (y <-$ c1; c2 y); c3 x) (y <-$ c1; x <-$ c2 y; c3 x).
 
   intuition.
@@ -1587,13 +1587,13 @@ Qed.
 
 
 (* other facts *)
-Theorem comp_spec_event_equiv : 
+Theorem comp_spec_event_equiv :
   forall (A B : Set){eqda : EqDec A}{eqdb : EqDec B}(c1 : Comp A)(c2 : Comp B)(f1 : A -> bool)(f2 : B -> bool)(P : bool -> bool -> Prop),
     comp_spec (fun a b => P (f1 a) (f2 b)) c1 c2 ->
     comp_spec P (x <-$ c1; ret (f1 x)) (x <-$ c2; ret (f2 x)).
-  
+
   intuition.
-  
+
   eapply comp_spec_seq.
   apply true.
   apply true.
@@ -1601,15 +1601,15 @@ Theorem comp_spec_event_equiv :
   intuition.
   eapply comp_spec_ret.
   trivial.
-  
+
 Qed.
 
-Theorem comp_spec_iso : 
+Theorem comp_spec_iso :
   forall (A B : Set){eqda : EqDec A}{eqdb : EqDec B}(c1 : Comp A)(c2 : Comp B)(f : A -> B)(f_inv : B -> A),
     (forall x : B, In x (getSupport c2) -> f (f_inv x) = x) ->
     (forall x : A, In x (getSupport c1) -> f_inv (f x) = x) ->
     (forall x : B, In x (getSupport c2) -> In (f_inv x) (getSupport c1)) ->
-    (forall x : A, In x (getSupport c1) -> comp_spec (fun a b => a = (f x) <-> b = x) c2 c1) -> 
+    (forall x : A, In x (getSupport c1) -> comp_spec (fun a b => a = (f x) <-> b = x) c2 c1) ->
     comp_spec (fun a b => f a = b) c1 c2.
 
   intuition.
@@ -1633,7 +1633,7 @@ Theorem comp_spec_iso :
   intuition.
   intuition.
   intuition.
-  
+
   rewrite evalDist_event_equiv.
   symmetry.
   rewrite evalDist_event_equiv.
@@ -1681,7 +1681,7 @@ Theorem comp_spec_iso :
 
 Qed.
 
-Theorem comp_spec_irr_r : 
+Theorem comp_spec_irr_r :
   forall (A B C : Set){eqda : EqDec A}{eqdb : EqDec B}{eqdc : EqDec C}(c1 : Comp A)(c2 : Comp B)(f2 : B -> Comp C) P,
     well_formed_comp c2 ->
     (forall b, In b (getSupport c2) -> comp_spec P c1 (f2 b)) ->
@@ -1697,7 +1697,7 @@ Theorem comp_spec_irr_r :
   dist_irr_r.
   specialize (H0 x0); intuition.
   eapply H0.
-  
+
   unfold marginal_r.
   dist_inline_first.
   dist_skip.
@@ -1710,7 +1710,7 @@ Theorem comp_spec_irr_r :
   apply (x <-$ c1; y <-$ c2; z <-$ f2 y; ret (x, z)).
 Qed.
 
-Theorem comp_spec_irr_l : 
+Theorem comp_spec_irr_l :
   forall (A B C : Set){eqda : EqDec A}{eqdb : EqDec B}{eqdc : EqDec C}(c1 : Comp A)(c2 : Comp B)(f1 : A -> Comp C) P,
     well_formed_comp c1 ->
     (forall a, In a (getSupport c1) -> comp_spec P (f1 a) c2) ->
@@ -1726,7 +1726,7 @@ Theorem comp_spec_irr_l :
   dist_skip.
   specialize (H0 x0); intuition.
   eapply H0.
-  
+
   unfold marginal_r.
   dist_inline_first.
   dist_irr_r.
@@ -1745,14 +1745,14 @@ Transparent evalDist.
 Transparent getSupport.
 
 
-Theorem oc_comp_spec_eq : 
+Theorem oc_comp_spec_eq :
   forall (A B C : Set)(c : OracleComp A B C), forall (*(eqda : EqDec A)*) (eqdb : EqDec B) (eqdc : EqDec C)(S1 S2 : Set)(o1 : S1 -> A -> Comp (B * S1))(o2 : S2 -> A -> Comp (B * S2)) eqds1 eqds2 s1 s2 (P : S1 -> S2 -> Prop),
     P s1 s2 ->
     (forall a x1 x2, P x1 x2 -> comp_spec (fun y1 y2 => fst y1 = fst y2 /\ P (snd y1) (snd y2)) (o1 x1 a) (o2 x2 a)) ->
     comp_spec (fun a b => fst a = fst b /\ P (snd a) (snd b))
     (c _ eqds1 o1 s1)
     (c _ eqds2 o2 s2).
-  
+
   (* We have to do this by induction on the computation, since it may make an arbitary number of calls to the oracle. *)
 
   induction c; intuition; simpl in *.
@@ -1791,15 +1791,15 @@ Theorem oc_comp_spec_eq :
   eauto.
   intuition.
   intuition.
-  
+
   eapply comp_spec_consequence.
   eapply (IHc _ _ _ _ _ _ _ _ _ _ (fun p1 p2 => fst p1 = fst p2 /\ P (snd p1) (snd p2))).
   simpl; intuition.
-  
+
   intuition.
   simpl in *.
   subst.
-       
+
   eapply comp_spec_seq.
   intuition.
   assert (B * S).
@@ -1811,7 +1811,7 @@ Theorem oc_comp_spec_eq :
   eapply o1; intuition.
   intuition.
   intuition.
-  
+
   intuition.
   assert (B * S).
   eapply oc_base_exists.
@@ -1822,7 +1822,7 @@ Theorem oc_comp_spec_eq :
   eapply o1; intuition.
   intuition.
   intuition.
-  
+
   eapply H.
   eauto.
   intuition.
@@ -1837,7 +1837,7 @@ Theorem oc_comp_spec_eq :
   subst.
   simpl.
   intuition.
-        
+
   intuition.
   intuition.
   simpl in *.
@@ -1852,7 +1852,7 @@ Theorem oc_comp_spec_eq :
   eapply comp_base_exists; intuition.
   eapply comp_spec_eq_refl.
   eapply comp_spec_ret; simpl; intuition.
-  
+
   assert (EqDec C).
   eapply oc_EqDec.
   eapply c.
@@ -1865,7 +1865,7 @@ Theorem oc_comp_spec_eq :
   intuition.
 
   eapply comp_spec_seq.
-  
+
   intuition.
   eapply oc_base_exists.
   eapply o.
@@ -1883,7 +1883,7 @@ Theorem oc_comp_spec_eq :
   eapply comp_base_exists.
   eapply o1; intuition.
   intuition.
-  
+
   intuition.
   eapply oc_base_exists.
   eapply o.
@@ -1901,7 +1901,7 @@ Theorem oc_comp_spec_eq :
   eapply comp_base_exists.
   eapply o1; intuition.
   intuition.
-  
+
   eapply IHc.
   eauto.
   intuition.
@@ -1911,23 +1911,23 @@ Theorem oc_comp_spec_eq :
   destruct b0.
   simpl.
   eapply H; intuition.
-  
+
 Qed.
 
 Opaque evalDist.
 
 
-Theorem oc_comp_spec_eq_until_bad : 
-  forall (A B C : Set)(c : OracleComp A B C), 
+Theorem oc_comp_spec_eq_until_bad :
+  forall (A B C : Set)(c : OracleComp A B C),
     well_formed_oc c ->
-    forall (eqdb : EqDec B) (eqdc : EqDec C)(S1 S2 : Set)(o1 : S1 -> A -> Comp (B * S1))(o2 : S2 -> A -> Comp (B * S2)) eqds1 eqds2 
+    forall (eqdb : EqDec B) (eqdc : EqDec C)(S1 S2 : Set)(o1 : S1 -> A -> Comp (B * S1))(o2 : S2 -> A -> Comp (B * S2)) eqds1 eqds2
     (bad1 : S1 -> bool)(bad2 : S2 -> bool)(inv : S1 -> S2 -> Prop),
     (forall a b, bad1 a = true -> well_formed_comp (o1 a b)) ->
     (forall a b, bad2 a = true -> well_formed_comp (o2 a b)) ->
     (forall x1 x2 a,
       inv x1 x2 ->
       bad1 x1 = bad2 x2 ->
-      comp_spec 
+      comp_spec
       (fun y1 y2 => (bad1 (snd y1) = bad2 (snd y2)) /\ (bad1 (snd y1) = false -> (inv (snd y1) (snd y2) /\ fst y1 = fst y2)))
       (o1 x1 a) (o2 x2 a)) ->
     (forall a b c d,
@@ -1936,7 +1936,7 @@ Theorem oc_comp_spec_eq_until_bad :
     (forall a b c d,
       bad2 c = true ->
       In (a, b) (getSupport (o2 c d)) -> bad2 b = true) ->
-    ((forall s1 s2, 
+    ((forall s1 s2,
       inv s1 s2 ->
       bad1 s1 = bad2 s2 ->
       comp_spec
@@ -1959,14 +1959,14 @@ Theorem oc_comp_spec_eq_until_bad :
   assert C.
   eapply oc_base_exists; eauto.
   eapply (fun a => fst (oc_base_exists (o s a) (fun a' => fst (comp_base_exists (o1 s1 a'))))).
-  
-  eapply (@comp_spec_seq _ _ 
+
+  eapply (@comp_spec_seq _ _
     (fun x y => (bad1 (snd (snd x)) = bad2 (snd (snd y))) /\ (bad1 (snd (snd x)) = false -> (fst (snd x) = fst (snd y) /\ fst x = fst y /\ inv (snd (snd x)) (snd (snd y)))))).
   intuition.
   intuition.
 
   eapply comp_spec_consequence.
-  eapply (@IHwell_formed_oc _ _ (S * S1) (S * S2) _ _ _ _ 
+  eapply (@IHwell_formed_oc _ _ (S * S1) (S * S2) _ _ _ _
      (fun a => bad1 (snd a)) (fun a => bad2 (snd a)) (fun a b => bad1 (snd a) = false -> (inv (snd a) (snd b) /\ fst a = fst b)))%type.
 
   (* ---- *)
@@ -1980,7 +1980,7 @@ Theorem oc_comp_spec_eq_until_bad :
        forall (S : Set) (P : S -> Prop)(eqds : EqDec S) (o : S -> A -> Comp (B * S)) (s : S),
        (forall (a : S) (b : A), P a -> well_formed_comp (o a b)) ->
        (forall a b s s', P s -> In (b, s') (getSupport (o s a)) -> P s') ->
-       P s -> 
+       P s ->
        well_formed_comp (c S eqds o s).
 
     induction 1; intuition; simpl in *.
@@ -2002,9 +2002,9 @@ Theorem oc_comp_spec_eq_until_bad :
     eauto.
     eauto.
     trivial.
-    
+
     wftac.
-    
+
     wftac.
     eapply H1; intuition.
     eapply H2; eauto.
@@ -2065,7 +2065,7 @@ Theorem oc_comp_spec_eq_until_bad :
   eapply comp_spec_ret; simpl in *; intuition.
 
   destruct a2; simpl in *.
-  assert (bad1 s0 = true). 
+  assert (bad1 s0 = true).
   eapply (oc_comp_invariant_f).
   intuition.
   eapply H5; eauto.
@@ -2081,7 +2081,7 @@ Theorem oc_comp_spec_eq_until_bad :
   eauto.
   eauto.
   eauto.
-  
+
   (*contradiction *)
   destruct a2.
   simpl in *.
@@ -2180,7 +2180,7 @@ Theorem oc_comp_spec_eq_until_bad :
   eapply comp_spec_ret.
   simpl in *; intuition.
 
- 
+
   (* Bind case *)
   assert (A -> B).
   intuition.
@@ -2190,7 +2190,7 @@ Theorem oc_comp_spec_eq_until_bad :
   eapply oc_base_exists.
   eauto.
   intuition.
-  
+
   assert C'.
   eapply oc_base_exists.
   eapply f.
@@ -2202,7 +2202,7 @@ Theorem oc_comp_spec_eq_until_bad :
   eauto.
   intuition.
   intuition.
-  
+
   eapply comp_spec_seq;
   intuition.
   eapply (@IHwell_formed_oc _ _ _ _ _ _ _ _ bad1 bad2 inv).
@@ -2246,7 +2246,7 @@ Theorem oc_comp_spec_eq_until_bad :
   simpl.
   rewrite <- H17.
   trivial.
-  
+
   eapply comp_spec_ret.
   simpl in *; intuition.
   destruct a. destruct b0; simpl in *.
@@ -2262,7 +2262,7 @@ Theorem oc_comp_spec_eq_until_bad :
   assert (bad2 s = true).
   rewrite <- H17.
   trivial.
-  
+
   eapply (oc_comp_invariant_f (f c0) bad2); intuition.
   eapply H6.
   eapply H23.
@@ -2297,7 +2297,7 @@ Theorem oc_comp_spec_eq_until_bad :
   subst.
   eapply H1;
   intuition.
- 
+
 Qed.
 
 Require Import Setoid.

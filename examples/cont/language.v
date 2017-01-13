@@ -36,7 +36,7 @@ Opaque adr.
 Definition locals := table var adr.
 Definition heap := adr -> option adr.
 
-Inductive expr := 
+Inductive expr :=
  | Const: adr -> expr
  | Var: var -> expr
  | Offset: expr -> nat -> expr
@@ -46,7 +46,7 @@ Coercion Var : var >-> expr.
 Coercion Const: adr >-> expr.
 Notation " a '.+' n " := (Offset a n) (at level 87, no associativity).
 
-Inductive control := 
+Inductive control :=
 | Assign: expr -> expr -> control -> control
 | IfThenElse: expr -> control -> control -> control
 | Go: expr -> list expr -> control.
@@ -63,7 +63,7 @@ Notation "'do1' X '<-' A ';' B" := (bind_option A (fun X => B))
 
 Definition emptyheap : heap := fun _ => None.
 Definition heap_get (h: heap) (a: adr) : option adr := h a.
-Definition heap_set (a v: adr) (h: heap) := 
+Definition heap_set (a v: adr) (h: heap) :=
    fun i => if eq_dec i a then Some v else h i.
 
 Lemma heap_gss: forall h x v, heap_get (heap_set x v h) x = Some v.
@@ -88,8 +88,8 @@ Fixpoint expr_get (s: locals)(h: heap) (e: expr) : option adr :=
  end.
 
 Fixpoint get_list s h (xs: list expr) : option (list adr) :=
-  match xs with 
-  | nil => Some nil 
+  match xs with
+  | nil => Some nil
   | e :: es => do1 v <- expr_get s h e; do1 vs <- get_list s h es; Some (v::vs)
  end.
 
@@ -98,20 +98,20 @@ Definition mk_locals  (xs: list var) (ys: list adr) : locals := combine xs ys.
 Definition state := (locals * heap * control)%type.
 
 
-Definition step (p: program) (sk: state) : option state := 
+Definition step (p: program) (sk: state) : option state :=
  match sk with
- | ((stk,hp), Assign (Var x) y c) => 
-                           do1 v <- expr_get stk hp y; 
+ | ((stk,hp), Assign (Var x) y c) =>
+                           do1 v <- expr_get stk hp y;
                            Some ((table_set x v stk, hp), c)
- | ((stk,hp), Assign (Mem x) y c) => 
+ | ((stk,hp), Assign (Mem x) y c) =>
                            do1 v <- expr_get stk hp y;
                            do1 p <- expr_get stk hp x;
                            Some ((stk, heap_set p v hp), c)
  | (_, Assign _ y c) => None
- | ((stk,hp), IfThenElse x c1 c2) => 
+ | ((stk,hp), IfThenElse x c1 c2) =>
                            do1 v <- expr_get stk hp x;
                            Some (if eq_dec v 0 then ((stk,hp), c2) else ((stk,hp), c1))
- | ((stk, hp), Go x ys) =>   
+ | ((stk, hp), Go x ys) =>
                            do1 v <- expr_get stk hp x;
                            do1 k <- table_get p v;
                            do1 vs <- get_list stk hp ys;
@@ -119,7 +119,7 @@ Definition step (p: program) (sk: state) : option state :=
  end.
 
 Fixpoint stepN (p: program) (sk: state) (n: nat) : option state :=
-  match n with O => Some sk 
+  match n with O => Some sk
   | S n' => match step p sk with Some sk' => stepN p sk' n' | _ => None end
   end.
 
@@ -131,7 +131,7 @@ Definition initial_locals (p: program) : locals := (0, boundary p)::nil.
 Definition initial_heap (p: program) : heap :=
     fun i => if lt_dec i (boundary p) then None else Some 0.
 
-Definition run (p: program) (n: nat) : option state := 
+Definition run (p: program) (n: nat) : option state :=
     stepN p (nil, initial_heap p, Go (Const 0) (Const (boundary p) :: nil)) n.
 
 Notation "'Do' x ':=' v ';' c" := (Assign x v c) (at level 200, x at level 1, v at level 90, c at level 200).
@@ -153,7 +153,7 @@ Lemma env_gso: forall s x y z, x<>z -> env_set s x y z = s z.
 Proof. unfold env_set; intros. destruct (eq_dec z x); auto. congruence.
 Qed.
 
-Definition locals2env (s: locals) : env := 
+Definition locals2env (s: locals) : env :=
    fun x => match table_get s x with Some a => a | None => 0 end.
 
 Fixpoint eval (e: expr) : env -> adr :=
@@ -171,7 +171,7 @@ Lemma offset_zero:  forall a, eval (a .+ 0) = eval a.
 Proof. intros. extensionality s; simpl; destruct (eval a s); simpl; f_equal; auto.
 Qed.
 
-Lemma offset_offset: forall a n m, 
+Lemma offset_offset: forall a n m,
   eval ((a .+ n) .+ m) = eval (a .+ (n+m)).
 Proof.
  intros.
@@ -185,7 +185,7 @@ Definition arguments (vars: list var) (vl: list adr) : env :=
 Opaque arguments.
 
 
-Lemma locals2env_table_set: 
+Lemma locals2env_table_set:
   forall x y s, locals2env (table_set x y s) = env_set (locals2env s) x y.
 Proof. intros; extensionality i. unfold locals2env, env_set, table_set.
   simpl. destruct (eq_dec i x); auto.
@@ -215,33 +215,33 @@ Fixpoint expcheck (vars: varset) (e: expr) :=
   end.
 
 Fixpoint typecheck (vars: varset) (c: control) : bool :=
- match c with 
+ match c with
   | Assign (Var v) (Mem e) c' => andb (expcheck vars e)
                                          (typecheck (vs_add v vars) c')
   | Assign (Var v) e c' => andb (expcheck vars e)
                                          (typecheck (vs_add v vars) c')
   | Assign (Mem e1) e2 c' => andb (andb (expcheck vars e1)  (expcheck vars e2))
                                          (typecheck vars c')
-  | IfThenElse e c1 c2 => andb (expcheck vars e) 
+  | IfThenElse e c1 c2 => andb (expcheck vars e)
                                             (andb (typecheck vars c1) (typecheck vars c2))
   | Go e el => andb (expcheck vars e)  (forallb (expcheck vars) el)
   | _ => false
   end.
 
 Lemma eval_expr_get:
-  forall vars s h e, 
+  forall vars s h e,
               expcheck vars e = true ->
               varcompat vars s ->
               expr_get s h e = Some (eval e (locals2env s)).
 Proof. induction e; simpl; auto; intros.
-  apply H0 in H. unfold locals2env. 
+  apply H0 in H. unfold locals2env.
  destruct (table_get s v); auto. congruence.
-  specialize (IHe H H0). rewrite IHe. simpl.   f_equal; omega. 
+  specialize (IHe H H0). rewrite IHe. simpl.   f_equal; omega.
   inv H.
 Qed.
 
 Lemma eval_expr_get_list:
-  forall vars s h el, 
+  forall vars s h el,
               forallb (expcheck vars) el = true ->
               varcompat vars s ->
               get_list s h el = Some (eval_list el (locals2env s)).
@@ -257,7 +257,7 @@ Proof.
  intros. intros i ?. specialize (H i).
  unfold vs_mem, vs_add in *.
  apply ListSet.set_mem_correct1 in H0.
- destruct (eq_dec i x). 
+ destruct (eq_dec i x).
  subst. rewrite table_gss. congruence.
  rewrite table_gso; auto. apply H.
  apply ListSet.set_add_elim2 in H0; auto.
@@ -266,7 +266,7 @@ Qed.
 
 Lemma varcompat_mk_locals:
   forall xl vl, length xl <= length vl -> varcompat xl (mk_locals xl vl).
-Proof. 
+Proof.
  unfold varcompat, vs_mem, mk_locals. intros.
  revert vl H H0; induction xl; destruct vl; intros.
  apply ListSet.set_mem_correct1 in H0. inv H0.
@@ -277,7 +277,7 @@ Proof.
  subst. simpl.
 destruct (eq_dec i i); auto. congruence.
  simpl. destruct (eq_dec i a). congruence.
- apply IHxl. 
+ apply IHxl.
  apply ListSet.set_mem_correct2. auto.
 Qed.
 
@@ -290,7 +290,7 @@ Proof.
   induction vl; simpl; intros; intuition.
   subst. destruct (eq_dec x x); auto. inv H.
   destruct (eq_dec x a). inv H. simpl in H. auto.
-Qed. 
+Qed.
 
 Fixpoint list_nodups {A: Type}{EA: EqDec A} (vl: list A) : bool :=
   match vl with
@@ -309,7 +309,7 @@ Lemma nodups_norepet  {A: Type}{EA: EqDec A} :
     forall l, list_nodups l = true -> list_norepet l.
 Proof. induction l; intros.
   constructor.
-  simpl in H. apply andb_true_iff in H. 
+  simpl in H. apply andb_true_iff in H.
   destruct H.
   constructor; auto.
   apply inlist_notIn. destruct (inlist a l); auto; inv H.
@@ -324,7 +324,7 @@ Lemma stepN_plus: forall p sk1 n1 n2 sk3,
    stepN p sk1 (n1+n2) = Some sk3 <->
    (exists sk2, stepN p sk1 n1 = Some sk2 /\ stepN p sk2 n2 = Some sk3).
 Proof.
- induction n1; intros. 
+ induction n1; intros.
  simpl; split; eauto. intros [sk2 [? ?]]. inv H; auto.
  replace (S n1 + n2) with (n1 + S n2) by omega.
  rewrite (IHn1 (S n2) sk3).
@@ -335,7 +335,7 @@ Proof.
  rewrite (IHn1 1). exists sk2; split; simpl; auto. rewrite H0; auto.
  replace (S n1) with (n1 + 1) in H by omega.
  rewrite (IHn1 1) in H. destruct H as [sk4 [? ?]].
- exists sk4; split; simpl; auto. simpl in H1.  invSome. auto. 
+ exists sk4; split; simpl; auto. simpl in H1.  invSome. auto.
 Qed.
 
 Lemma safeN_less: forall p sk n1 n2, n1 <= n2 -> safeN p sk n2 -> safeN p sk n1.

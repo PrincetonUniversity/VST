@@ -8,8 +8,8 @@ Require Import sha.HMAC_common_defs.
 Require Import sha.HMAC_spec_pad.
 
 (*The sha-specific imports*)
-Require Import sha.SHA256. 
-Require Import sha.HMAC_functional_prog. 
+Require Import sha.SHA256.
+Require Import sha.HMAC_functional_prog.
 Require Import sha.HMAC256_functional_prog.
 Require Import sha.hmac_common_lemmas.
 Require Import sha.sha_padding_lemmas. (*for pad_len_64_nat*)
@@ -22,7 +22,7 @@ Lemma front_equiv_SHA256 :
     (length FRONT)%nat = 16%nat ->
     front ++ back = convert (FRONT ++ BACK) ->
     front = convert FRONT.
-Proof. intros. eapply front_equiv; try eassumption. omega. Qed. 
+Proof. intros. eapply front_equiv; try eassumption. omega. Qed.
 
 Lemma back_equiv_SHA256 :
   forall (back : Blist) (BACK : list int) (front : Blist) (FRONT : list int),
@@ -30,7 +30,7 @@ Lemma back_equiv_SHA256 :
     (length FRONT)%nat = 16%nat ->
     front ++ back = convert (FRONT ++ BACK) ->
     back = convert BACK.
-Proof. intros. eapply back_equiv; try eassumption. omega. Qed. 
+Proof. intros. eapply back_equiv; try eassumption. omega. Qed.
 *)
 
 (*Lemma fold_equiv_blocks_SHA256 :
@@ -67,7 +67,7 @@ Lemma gap_divide16 bits: NPeano.Nat.divide 16 (length (generate_and_pad' (bitsTo
 Proof.
     unfold generate_and_pad'.
     destruct (pad_len_64_nat (bitsToBytes bits)).
-     rewrite pure_lemmas.length_Zlist_to_intlist with (n:=(x*16)%nat). 
+     rewrite pure_lemmas.length_Zlist_to_intlist with (n:=(x*16)%nat).
        exists x. trivial.
      rewrite H. unfold WORD. rewrite (mult_comm (Z.to_nat 4)). rewrite mult_comm.
         rewrite <- mult_assoc. reflexivity.
@@ -120,7 +120,7 @@ eapply PAD.HMAC_pad_concrete with (c:=c)(p:=p)(IP:=IP)(OP:=OP)(B:=B)(ip:=ip)(op:
 - intros. rewrite <- pad_compose_equal. apply gap_divide16.
 - intros; unfold SHA256.Hash.
   rewrite functional_prog.SHA_256'_eq; reflexivity.
-- unfold SHA256.BlockSize. 
+- unfold SHA256.BlockSize.
   unfold c, p in H0. omega.
 Qed.
 
@@ -132,12 +132,12 @@ Theorem HMAC_pad_concrete' (K : list byte) (M : list Z) (OP IP : Z)
   bytes_bits_lists m M ->
   bytes_bits_lists op (HMAC_SHA256.sixtyfour OP) ->
   bytes_bits_lists ip (HMAC_SHA256.sixtyfour IP) ->
-  sha.HMAC_spec_pad.HMAC c p B sha_h sha_iv sha_splitandpad op ip k m = 
+  sha.HMAC_spec_pad.HMAC c p B sha_h sha_iv sha_splitandpad op ip k m =
   bytesToBits (HMAC_SHA256.HmacCore (Byte.repr IP) (Byte.repr OP) M K).
-Proof. intros.  
+Proof. intros.
   eapply bits_bytes_ind_comp.
     apply isbyte_hmaccore.
-    eapply (HMAC_pad_concrete _ ipByte opByte); try reflexivity; trivial. 
+    eapply (HMAC_pad_concrete _ ipByte opByte); try reflexivity; trivial.
 Qed.
 
 (*earlier /additional proofs
@@ -154,7 +154,7 @@ Locate equiv_pad.
   reflexivity.
   reflexivity.
   apply gap_divide16.
-  intros. unfold sha_splitandpad. f_equal. 
+  intros. unfold sha_splitandpad. f_equal.
     apply bytes_bits_ind_comp in H.
     { subst bytes. unfold generate_and_pad'.
       rewrite pure_lemmas.Zlist_to_intlist_to_Zlist; trivial.
@@ -191,7 +191,7 @@ Proof.
 
   { apply equiv_pad_SHA256.
     apply bytes_bits_lists_append.
-    apply xor_equiv_byte; trivial. 
+    apply xor_equiv_byte; trivial.
 
     apply equiv_pad_SHA256.
     apply bytes_bits_lists_append.

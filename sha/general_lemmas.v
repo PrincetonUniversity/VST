@@ -16,14 +16,14 @@ Fixpoint map2 {A B C: Type} (f: A -> B -> C) (al: list A) (bl: list B) : list C 
 
 Lemma length_map2:
  forall A B C (f: A -> B -> C) al bl n,
-  length al = n -> length bl = n -> 
+  length al = n -> length bl = n ->
   length (map2 f al bl) = n.
 Proof.
 induction al; destruct bl,n; simpl; intros; auto.
 inv H.
 Qed.
 
-Lemma list_repeat_injective {A} (a a':A) n: (0<n)%nat -> 
+Lemma list_repeat_injective {A} (a a':A) n: (0<n)%nat ->
       list_repeat n a = list_repeat n a' -> a=a'.
   Proof. intros.
     destruct n. omega. simpl in H0. inversion H0. trivial.
@@ -108,10 +108,10 @@ Proof. reflexivity. Qed.
 Lemma int_max_unsigned_eq: Int.max_unsigned = 4294967295.
 Proof. reflexivity. Qed.
 
-Ltac repable_signed := 
-   pose proof int_min_signed_eq; 
-   pose proof int_max_signed_eq; 
-   pose proof int_max_unsigned_eq; 
+Ltac repable_signed :=
+   pose proof int_min_signed_eq;
+   pose proof int_max_signed_eq;
+   pose proof int_max_unsigned_eq;
    omega.
 
 Hint Rewrite Int.bits_or using omega : testbit.
@@ -154,7 +154,7 @@ Qed.
 Lemma map_swap_involutive:
  forall l, map swap (map swap l)  = l.
 Proof. intros.
- rewrite map_map. 
+ rewrite map_map.
  replace (fun x => swap (swap x)) with (@Datatypes.id int).
  apply map_id. extensionality x. symmetry; apply swap_swap.
 Qed.
@@ -168,9 +168,9 @@ Qed.
 
 
 Lemma intlist_to_Zlist_Z_to_int_cons:
-  forall a b c d l, 
+  forall a b c d l,
       isbyteZ a -> isbyteZ b -> isbyteZ c -> isbyteZ d ->
-     intlist_to_Zlist (Z_to_Int a b c d :: l) = 
+     intlist_to_Zlist (Z_to_Int a b c d :: l) =
      a::b::c::d:: intlist_to_Zlist l.
 Proof.
 intros. simpl.
@@ -247,7 +247,7 @@ change (Int.size  (Int.repr (Z.ones 8))) with 8.
 rewrite Zmin_spec.
 if_tac.
 eapply Z.le_trans with (two_p 8).
-apply two_p_monotone. 
+apply two_p_monotone.
 split; [ | omega].
 apply Int.size_range.
 compute; congruence.
@@ -297,7 +297,7 @@ Qed.
 Lemma map_unsigned_repr_isbyte:
   forall l : list Z , Forall isbyteZ l -> map Int.unsigned (map Int.repr l) = l.
 Proof. induction l; simpl; intros; auto.
-  inv H. f_equal; auto. unfold isbyteZ in H2; apply Int.unsigned_repr. 
+  inv H. f_equal; auto. unfold isbyteZ in H2; apply Int.unsigned_repr.
  assert (Int.max_unsigned > 256)%Z by (compute; congruence).
  omega.
 Qed.
@@ -379,13 +379,13 @@ apply IHForall.
 Qed.
 
 Lemma divide_length_app:
- forall {A} n (al bl: list A), 
-      (n | Zlength al) -> 
+ forall {A} n (al bl: list A),
+      (n | Zlength al) ->
       (n | Zlength bl) ->
       (n | Zlength (al++bl)).
 Proof.
  intros. destruct H,H0. exists (x+x0)%Z.
- rewrite Zlength_app,H,H0;  
+ rewrite Zlength_app,H,H0;
  rewrite Z.mul_add_distr_r; omega.
 Qed.
 

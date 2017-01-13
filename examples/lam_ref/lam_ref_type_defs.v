@@ -20,8 +20,8 @@ Definition forces (psi : mtype) (v : value) (tau : pred world) :=
   tau (psi, v).
 
 (* Section 4.1, equation 17 *)
-Program Definition ty_nat : pred world := 
-  fun w => match w with (k, v) => 
+Program Definition ty_nat : pred world :=
+  fun w => match w with (k, v) =>
     exists n, v = v_Nat n
   end.
 Next Obligation.
@@ -139,7 +139,7 @@ Next Obligation.
   rewrite H1 in H0.
   rewrite unsquash_squash; simpl; intros.
   spec H0 a.
-  case_eq (f a); simpl; intros. 
+  case_eq (f a); simpl; intros.
   rewrite H in H0.
   intuition.
   unfold fidentity_fmap. red.
@@ -155,11 +155,11 @@ Next Obligation.
   destruct H0; subst.
   simpl; auto.
   eapply pred_nec_hereditary.
-  apply Rt_Rft; auto.  apply H4.  
+  apply Rt_Rft; auto.  apply H4.
   assert ((%|> p) (m0,deref m a)); auto.
   rewrite later_commute in H5.
   eapply H5.
-  hnf; apply t_step. 
+  hnf; apply t_step.
   unfold age, age1; simpl.
   rewrite knot_age1.
   rewrite H1; auto.
@@ -203,7 +203,7 @@ Proof.
   simpl; intuition.
 Qed.
 
-Lemma sub_extend : 
+Lemma sub_extend :
   forall G P Q,
     G |-- P >=> Q  ->
     G |-- %P >=> %Q.
@@ -492,7 +492,7 @@ Proof.
   apply subp_eqp; apply subp_type_at; apply box_positive.
   apply H.
   apply subp_eqp; [ apply eqp_subp2 | apply eqp_subp ]; apply H.
-Qed.  
+Qed.
 
 Lemma ty_ref_contractive : forall F,
   nonexpansive F ->

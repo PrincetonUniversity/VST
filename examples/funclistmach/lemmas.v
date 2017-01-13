@@ -80,7 +80,7 @@ Proof.
   auto.
 Qed.
 
-Lemma step_approx : 
+Lemma step_approx :
   forall n t t' p1 p2 s1 s1' s2 r1 r1' r2,
     level p2 < n ->
     termMeasure_incr t t' ->
@@ -174,7 +174,7 @@ Proof.
   rewrite get_set_other in H2; auto.
   rewrite get_set_other; auto.
   constructor; auto.
-  
+
   (* step cons *)
   hnf in H4; destruct i'; inv H4.
   destruct i'1; inv H3.
@@ -219,7 +219,7 @@ Proof.
     econstructor; eauto.
   constructor; auto.
   hnf; simpl; f_equal; auto.
-  
+
   (* step call *)
   hnf in H4; destruct i'; inv H4.
   destruct i'1; inv H3.
@@ -273,7 +273,7 @@ Proof.
   eapply step_prog_levels; eauto.
 Qed.
 
-Lemma stepstar_approx : 
+Lemma stepstar_approx :
   forall n t t' p1 p2 s1 s1' s2 r1 r1' r2,
     level p1 < n ->
     termMeasure_incr t t' ->
@@ -337,7 +337,7 @@ Proof.
   inv H2.
   constructor.
   apply H3; constructor.
-  
+
   inv H4.
   cut (step_or_halt t p r s).
   intros.
@@ -430,7 +430,7 @@ Qed.
 
 
 Program Definition world_op (Pp : pred prog) (Pr : store -> Prop) (Pt: terminationMeasure -> Prop) : pred world :=
-  fun prt => 
+  fun prt =>
     match prt with (p,(r,t)) =>
       Pp p /\ Pr r /\ Pt t
     end.
@@ -463,7 +463,7 @@ Lemma worldNec_unfold : forall p r t p' r' t',
   @necR world _ (p,(r,t)) (p',(r',t')) <->
   necR p p' /\ r = r' /\ t = t'.
 Proof.
-  intros; split; intro H. 
+  intros; split; intro H.
   remember (p,(r,t)) as w1.
   remember (p',(r',t')) as w2.
   revert p r t p' r' t' Heqw1 Heqw2.

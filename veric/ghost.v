@@ -7,8 +7,8 @@ Require Import veric.expr2.
 
 Definition GHOSTspec (A: Type) (x: A) : spec :=
   fun rsh sh loc =>
-   allp (jam (eq_dec loc) (fun loc' => 
-    yesat (SomeP (ConstType (A -> Prop)) (fun _ y => y = x)) 
+   allp (jam (eq_dec loc) (fun loc' =>
+    yesat (SomeP (ConstType (A -> Prop)) (fun _ y => y = x))
              (FUN (nil,Tvoid) cc_default) rsh sh loc') noat).
 
 Definition ghostp {A: Type} (sh: share) (loc: address) (x: A) : mpred :=
@@ -16,7 +16,7 @@ Definition ghostp {A: Type} (sh: share) (loc: address) (x: A) : mpred :=
 
 
 Lemma ghostp_unique_sepcon:
-    forall {A: Type} sh1 sh2 loc (x1 x2: A), 
+    forall {A: Type} sh1 sh2 loc (x1 x2: A),
      ghostp sh1 loc x1 * ghostp sh2 loc x2 |-- |> !! (x1=x2).
 Proof.
 intros.
@@ -53,7 +53,7 @@ rewrite <- H; auto.
 Qed.
 
 Lemma ghostp_unique_andp:
-    forall {A: Type} sh loc (x1 x2: A), 
+    forall {A: Type} sh loc (x1 x2: A),
      ghostp sh loc x1 && ghostp sh loc x2 |-- |> !! (x1=x2).
 Proof.
 intros.
@@ -93,10 +93,10 @@ Definition make_GHOSTspec:
 Proof.
  intros.
 unfold GHOSTspec.
- assert (AV.valid (res_option oo 
-  (fun l => if eq_dec l loc 
+ assert (AV.valid (res_option oo
+  (fun l => if eq_dec l loc
    then YES rsh sh  (FUN(nil,Tvoid) cc_default)
-             (SomeP (ConstType (A -> Prop)) 
+             (SomeP (ConstType (A -> Prop))
                   (fun _ y => (y = x)))
    else NO Share.bot))).
  intros b ofs.

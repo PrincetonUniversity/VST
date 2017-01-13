@@ -4,7 +4,7 @@ Require Import floyd.assert_lemmas.
 
 Local Open Scope logic.
 
-Fixpoint power_later (n:nat) P := 
+Fixpoint power_later (n:nat) P :=
     match n with
     | 0%nat => P
     | S n' => later (power_later n' P)
@@ -30,7 +30,7 @@ Proof.
    rewrite -> IHn. apply later_andp.
 Qed.
 
-Lemma power_later_exp': forall (n:nat) T (any:T) F, 
+Lemma power_later_exp': forall (n:nat) T (any:T) F,
      power_later n (EX x:T, F x) = EX x:T, (power_later n (F x)).
 Proof.
    induction n; intros; simpl.
@@ -101,7 +101,7 @@ Proof.
   assumption.
 Qed.
 
-Lemma power_prop_andp_sepcon: 
+Lemma power_prop_andp_sepcon:
   forall (n:nat) P Q R, ((power_later n (!! P)) && Q) * R = (power_later n (!! P)) && (Q * R).
 Proof.
   intros.

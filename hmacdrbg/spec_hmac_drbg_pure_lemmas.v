@@ -1,7 +1,7 @@
 Require Import Coqlib.
 Require Import List. Import ListNotations.
 
-Require Import sha.general_lemmas. 
+Require Import sha.general_lemmas.
 Require Import sha.HMAC256_functional_prog.
 
 Require Import hmacdrbg.entropy.
@@ -15,7 +15,7 @@ Require Import sha.funspec_hmacNK.
 Require Import sha.spec_hmac.
 Require Import sha.protocol_spec_hmac.*)
 
-Lemma isbyteZ_initialKey: Forall isbyteZ initial_key. 
+Lemma isbyteZ_initialKey: Forall isbyteZ initial_key.
 Proof. apply Forall_list_repeat; split; omega. Qed.
 
 Lemma hmac256drbgabs_hmac_drbg_update_any_prop_key:
@@ -26,7 +26,7 @@ Proof.
   intros.
   destruct a; simpl.
   unfold HMAC256_DRBG_update, HMAC_DRBG_update.
-  destruct additional_data; apply H.  
+  destruct additional_data; apply H.
 Qed.
 
 Lemma hmac256drbgabs_hmac_drbg_update_any_prop_V:
@@ -37,7 +37,7 @@ Proof.
   intros.
   destruct a; simpl.
   unfold HMAC256_DRBG_update, HMAC_DRBG_update.
-  destruct additional_data; apply H.  
+  destruct additional_data; apply H.
 Qed.
 
 Lemma hmac256drbgabs_hmac_drbg_update_Zlength_key:
@@ -176,7 +176,7 @@ Qed.
 Lemma isbyteZ_HMAC256 V K: Forall isbyteZ (HMAC256 V K).
 Proof. apply hmac_common_lemmas.isbyte_hmac. Qed.
 
-Lemma HMAC_DRBG_update_value l key V key' V' 
+Lemma HMAC_DRBG_update_value l key V key' V'
   (P:(key', V') = HMAC_DRBG_update HMAC256 l key V):
   Zlength V' = 32 /\ Forall isbyteZ V'.
 Proof. unfold HMAC_DRBG_update in P.
@@ -222,13 +222,13 @@ Qed.
 Lemma Zlength_hmac256drbgabs_update_value abs c:
   Zlength (hmac256drbgabs_value (hmac256drbgabs_hmac_drbg_update abs c)) = 32.
 Proof. unfold hmac256drbgabs_hmac_drbg_update. destruct abs.
-  remember (HMAC256_DRBG_update c key V) as d. 
+  remember (HMAC256_DRBG_update c key V) as d.
   destruct d; simpl. eapply HMAC_DRBG_update_value; eassumption.
 Qed.
 
 Lemma isbyteZ_hmac256drbgabs_update_value abs c:
   Forall isbyteZ (hmac256drbgabs_value (hmac256drbgabs_hmac_drbg_update abs c)).
 Proof. unfold hmac256drbgabs_hmac_drbg_update. destruct abs.
-  remember (HMAC256_DRBG_update c key V) as d. 
+  remember (HMAC256_DRBG_update c key V) as d.
   destruct d; simpl. eapply HMAC_DRBG_update_value; eassumption.
 Qed.

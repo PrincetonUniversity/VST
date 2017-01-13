@@ -5,7 +5,7 @@ Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
 
 Require Import tweetnacl20140427.split_array_lemmas.
-Require Import ZArith. 
+Require Import ZArith.
 
 Lemma Zlength_list_repeat' {A} n (v:A): Zlength (list_repeat n v) = Z.of_nat n.
 Proof. rewrite Zlength_correct, length_list_repeat; trivial. Qed.
@@ -25,7 +25,7 @@ Proof. intros.
        rewrite Zlength_correct, Nat2Z.inj_sub; trivial.
 Qed.
 
-Lemma map_cons_inv {A B} (f:A -> B) a l fT: 
+Lemma map_cons_inv {A B} (f:A -> B) a l fT:
  (f a:: fT) = map f l -> exists b T, l = b :: T /\ f a = f b /\ fT = map f T.
 Proof. destruct l; simpl; intros; inv H.
   exists a0, l. auto. Qed.
@@ -42,7 +42,7 @@ Lemma force_lengthn_map {A B} (f:A->B) n: forall l d fd,
       fd = f d ->
       force_lengthn n (map f l) fd =
       map f (force_lengthn n l d).
-Proof. 
+Proof.
   induction n; simpl; intros. trivial. subst.
   destruct l; simpl; f_equal. erewrite (IHn nil); reflexivity.
   apply IHn; trivial.
@@ -51,19 +51,19 @@ Lemma force_lengthn_mapN {A B} (f:A->B) n: forall l d fd,
       (n < length l)%nat ->
       force_lengthn n (map f l) fd =
       map f (force_lengthn n l d).
-Proof. 
+Proof.
   induction n; simpl; intros. trivial.
   destruct l; simpl in *. omega.
   f_equal. apply IHn; trivial. omega.
 Qed.
 
 Lemma In_force_lengthn {A} d u: forall n l, @In A u (force_lengthn n l d) -> In u l \/ u=d.
-  Proof. induction n; simpl; intros. contradiction. 
+  Proof. induction n; simpl; intros. contradiction.
     destruct l. destruct H. subst. right; trivial. apply IHn in H. trivial.
     destruct H. left; left; trivial. apply IHn in H. destruct H. left; right; trivial. right; trivial.
   Qed.
 Lemma In_force_lengthn_n {A} d u: forall n l (L:(length l >=n)%nat), @In A u (force_lengthn n l d) -> In u l.
-  Proof. induction n; simpl; intros. contradiction. 
+  Proof. induction n; simpl; intros. contradiction.
     destruct l; simpl in *. omega.
     destruct H. left; trivial. apply IHn in H. right; trivial. omega.
   Qed.
@@ -71,14 +71,14 @@ Lemma In_skipn {A} (u:A): forall n l, In u (skipn n l) -> In u l.
   Proof. Transparent skipn.
     induction n; simpl; intros. apply H.
     destruct l. trivial. apply IHn in H. right; trivial.
-Qed. 
+Qed.
 
 Lemma nth_force_lengthn':
   forall (A : Type) (n i : nat) (xs : list A) (default d: A) (N: (n < length xs)%nat),
   (0 <= i < n)%nat ->
   @nth A i (@force_lengthn A n xs default) d = @nth A i xs d.
 Proof. intros A.
-  induction n; simpl; intros. omega. 
+  induction n; simpl; intros. omega.
   destruct xs; simpl in *. omega. destruct i. trivial.
   rewrite IHn. trivial. omega. omega.
 Qed.
@@ -91,7 +91,7 @@ Proof. intros. unfold Znth. destruct (zlt n 0). trivial.
          omega.
          apply Zlength_nonneg.
 Qed.
-         
+
 Lemma app_Znth2: forall (A : Type) (l l' : list A) (d : A) (n : Z),
                (Zlength l <= n) -> Znth n (l ++ l') d = Znth (n - Zlength l) l' d.
 Proof. intros. specialize (Zlength_nonneg l); intros. unfold Znth.
@@ -107,13 +107,13 @@ Qed.
 Lemma nth_extensional {A}: forall l1 l2 (L:length l1 = length l2) (d:A)
          (N: forall i, (0<=i<length l1)%nat -> nth i l1 d = nth i l2 d), l1=l2.
 induction l1; intros.
-  destruct l2; simpl in L. trivial. omega. 
+  destruct l2; simpl in L. trivial. omega.
   destruct l2; simpl in L. omega.
   rewrite (IHl1 l2) with (d:=d).
     specialize (N O). simpl in N. rewrite N; trivial. omega.
     omega.
     intros. apply (N (S i)). simpl; omega.
-Qed. 
+Qed.
 
 Lemma Znth_extensional {A} (l1 l2 : list A):
        Zlength l1 = Zlength l2 -> forall d,
@@ -124,7 +124,7 @@ Proof. intros.
     rewrite H; trivial.
   do 2 rewrite Zlength_correct, Nat2Z.id in HH.
   eapply nth_extensional with (d0:=d). trivial.
-  intros. 
+  intros.
   assert (I: 0 <= (Z.of_nat i) < Zlength l1).
     split. apply (Nat2Z.inj_le 0). apply H1. rewrite Zlength_correct. apply Nat2Z.inj_lt. apply H1.
   specialize (H0 _ I). unfold Znth in H0.
@@ -135,8 +135,8 @@ Qed.
 Lemma force_lengthn_app1 {A}: forall n l1 l2 (d:A), length l1 =n -> force_lengthn n (l1 ++ l2) d = l1.
 Proof.
   induction n; simpl; intros. destruct l1; simpl in *; trivial. omega.
-  destruct l1; simpl in *. omega. rewrite IHn; trivial. omega. 
-Qed.   
+  destruct l1; simpl in *. omega. rewrite IHn; trivial. omega.
+Qed.
 Lemma map_Znth {A B : Type} (f : A -> B) l d n:
       Znth n (map f l) (f d) = f (Znth n l d).
 Proof. unfold Znth. destruct (zlt n 0); simpl. trivial. apply map_nth. Qed.
@@ -148,7 +148,7 @@ Proof. unfold Znth; intros. destruct (zlt i 0); simpl. omega. apply nth_map'.
    rewrite Nat2Z.id in H0. assumption. assumption. omega.
 Qed.
 
-Lemma listD16 {A} (l:list A): Zlength l = 16 -> 
+Lemma listD16 {A} (l:list A): Zlength l = 16 ->
   exists v0 v1 v2 v3 v4 v5 v6 v7 v8 v9 v10 v11 v12 v13 v14 v15,
   l = [v0; v1; v2; v3; v4; v5; v6; v7; v8; v9; v10; v11; v12; v13; v14; v15].
 Proof. intros.
@@ -177,7 +177,7 @@ Lemma listGE16 {A} (l:list A): 16 <= Zlength l ->
   l = [v0; v1; v2; v3; v4; v5; v6; v7; v8; v9; v10; v11; v12; v13; v14; v15] ++ t
   /\ Zlength t = Zlength l - 16.
 Proof. intros.
-destruct (listD16 (firstn 16 l)) as 
+destruct (listD16 (firstn 16 l)) as
   [v0 [v1 [v2 [v3 [v4 [v5 [v6 [v7 [v8 [v9 [v10 [v11 [v12 [v13 [v14 [v15 V]]]]]]]]]]]]]]]].
   rewrite (Zlength_firstn 16), Z.max_r, Z.min_l; omega.
   exists v0, v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, (skipn 16 l).
@@ -206,7 +206,7 @@ Proof.
   split; trivial.
   unfold bind in *.
   remember (combinelist xs ys). symmetry in Heqo.
-  destruct o; inv H1. destruct (IHxs _ _ Heqo). repeat rewrite Zlength_cons'. 
+  destruct o; inv H1. destruct (IHxs _ _ Heqo). repeat rewrite Zlength_cons'.
   rewrite H, H0. split; trivial.
 Qed.
 
@@ -220,7 +220,7 @@ Proof.
    destruct (IHxs _ H1). rewrite H. simpl. eexists; reflexivity.
 Qed.
 
-Lemma combinelist_SomeInv: forall xs ys l, combinelist xs ys = Some l -> 
+Lemma combinelist_SomeInv: forall xs ys l, combinelist xs ys = Some l ->
       Zlength xs = Zlength ys.
 Proof.
   induction xs; simpl; intros.
@@ -228,7 +228,7 @@ Proof.
     destruct ys; simpl in *. inversion H.
     remember (combinelist xs ys). destruct o; symmetry in Heqo; simpl in H.
       inversion H; clear H. apply IHxs in Heqo. do 2 rewrite Zlength_cons'; rewrite Heqo. trivial.
-    inversion H.  
+    inversion H.
 Qed.
 
 Lemma combinelist_length:
@@ -239,7 +239,7 @@ Proof. induction xs; intros; destruct ys; simpl in *.
   inv H.
 Qed.
 
-Lemma combinelist_symm (C: forall a b, f a b = f b a): 
+Lemma combinelist_symm (C: forall a b, f a b = f b a):
       forall xs ys, combinelist xs ys = combinelist ys xs.
 Proof. induction xs; intros.
   destruct ys; simpl; trivial.
@@ -248,7 +248,7 @@ Qed.
 
 Lemma combinelist_char_nth: forall xs ys l, combinelist xs ys = Some l ->
   forall i d, (0 <= i < length l)%nat -> nth i l d = f (nth i xs d) (nth i ys d).
-Proof. 
+Proof.
   induction xs; simpl; intros.
   destruct ys; inv H; simpl in *. omega.
   destruct ys; inv H; simpl in *.
@@ -261,10 +261,10 @@ Qed.
 Lemma combinelist_char_Znth xs ys l (C: combinelist xs ys = Some l)
       i d (L:0 <= i < Zlength l): Znth i l d = f (Znth i xs d) (Znth i ys d).
 Proof.
-  unfold Znth. 
+  unfold Znth.
   destruct (zlt i 0). omega.
-  rewrite (combinelist_char_nth _ _ _ C); trivial. 
-  split. omega. destruct (Z2Nat.inj_lt i (Zlength l)). omega. omega. 
+  rewrite (combinelist_char_nth _ _ _ C); trivial.
+  split. omega. destruct (Z2Nat.inj_lt i (Zlength l)). omega. omega.
   rewrite ZtoNat_Zlength in H; apply H. omega.
 Qed.
 End CombineList.
@@ -276,7 +276,7 @@ Lemma shift_two_8 z:
  | Z.neg y' => Z.neg y'~0~0~0~0~0~0~0~0
  end = (z * two_p 8)%Z.
  destruct z; simpl; trivial. f_equal.
-  (*rewrite shift_pos_equiv.*) simpl; xomega. 
+  (*rewrite shift_pos_equiv.*) simpl; xomega.
   (*rewrite shift_pos_equiv.*) simpl; xomega.
 Qed.
 Lemma shift_two_8_2 z:
@@ -286,7 +286,7 @@ Lemma shift_two_8_2 z:
   | Z.neg y' => Z.neg y'~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0
   end = (z * two_p 8 * two_p 8)%Z.
  destruct z; simpl; trivial. f_equal.
-  (*rewrite shift_pos_equiv.*) simpl; xomega. 
+  (*rewrite shift_pos_equiv.*) simpl; xomega.
   (*rewrite shift_pos_equiv.*) simpl; xomega.
 Qed.
 Lemma shift_two_8_3 z:
@@ -296,7 +296,7 @@ Lemma shift_two_8_3 z:
   | Z.neg y' => Z.neg y'~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0~0
   end = (z * two_p 8 * two_p 8 * two_p 8)%Z.
  destruct z; simpl; trivial. f_equal.
-  (*rewrite shift_pos_equiv.*) simpl; xomega. 
+  (*rewrite shift_pos_equiv.*) simpl; xomega.
   (*rewrite shift_pos_equiv.*) simpl; xomega.
 Qed.
 
@@ -311,10 +311,10 @@ Proof. unfold Znth.
   rewrite Zlength_correct in H; simpl in *. omega.
   destruct (zlt i 0); subst; simpl in *. omega. clear g.
   remember (Z.to_nat i). destruct n. exists a; trivial.
-  rewrite Zlength_cons in H. 
+  rewrite Zlength_cons in H.
   destruct (zeq i 0); subst.  simpl in Heqn. omega.
   destruct (IHl (i-1) v). omega.
   destruct (zlt (i - 1) 0). subst;  omega.
-  rewrite Z2Nat.inj_sub in H0. rewrite <- Heqn in H0. simpl in H0. rewrite <- minus_n_O in H0. 
+  rewrite Z2Nat.inj_sub in H0. rewrite <- Heqn in H0. simpl in H0. rewrite <- minus_n_O in H0.
      rewrite H0. exists x; trivial. omega.
 Qed.

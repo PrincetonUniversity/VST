@@ -60,7 +60,7 @@ Qed.
 
 Definition jsafeN_equiv c1 c2 :=
   forall k1 k2, filter_seq k1 = filter_seq k2 ->
-   (forall gx vx tx n ora jm, 
+   (forall gx vx tx n ora jm,
      (jsafeN OK_spec gx n ora (State vx tx k1) jm <->
       jsafeN OK_spec gx n ora (State vx tx k2) jm)) ->
    (forall gx vx tx n ora jm,

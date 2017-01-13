@@ -18,8 +18,8 @@ Require Import msl.psepalg.
 Section join_hom2.
   Variables (A B C: Type)
             (JA: Join A)
-            (JB: Join B) 
-            (JC: Join C) 
+            (JB: Join B)
+            (JC: Join C)
             (f: A -> B -> C).
 
   Definition join_hom2 := forall (a1 a2 a3: A)(b1 b2 b3: B),
@@ -33,8 +33,8 @@ Section join_hom2.
       -> join (f a1 b1) (f a2 b2) (f a3 b3).
 End join_hom2.
 
-Implicit Arguments join_hom2 [A B C JA JB JC].
-Implicit Arguments join_hom2' [A B C JA].
+Arguments join_hom2 [A B C JA JB JC].
+Arguments join_hom2' [A B C JA].
 
 (* [id] is join hom *)
   Lemma join_hom_id (A: Type) (JA: Join A) : join_hom (fun x => x).
@@ -44,7 +44,7 @@ Implicit Arguments join_hom2' [A B C JA].
    Join hom functions on products *)
 Section join_hom_prod.
   Variables (A A' B B': Type)
-            (JA: Join A) (JA': Join A') 
+            (JA: Join A) (JA': Join A')
             (JB: Join B)  (JB': Join B')
             (f: A -> A') (g: B -> B')
             (join_hom_f: join_hom f)
@@ -56,12 +56,12 @@ Section join_hom_prod.
   Lemma join_hom2_pair' : join_hom2 (fun (a: A) (b: B) => (a, b)).
   Proof. firstorder. Qed.
 
-  (* The function from [(a,b)] to [(a',b')] *)  
+  (* The function from [(a,b)] to [(a',b')] *)
   Lemma join_hom_prod : join_hom (fun p => (f (fst p), g (snd p))).
   Proof. unfold join_hom; firstorder. Qed.
 
   (* The function from [a] to [(a', e)] *)
-  Lemma join_hom_prodA 
+  Lemma join_hom_prodA
     : forall e: B', join e e e -> join_hom (fun a :A => (f a, e)).
   Proof.
     unfold join_hom in *; intros; simpl; split; auto.
@@ -97,14 +97,14 @@ Section join_hom_prod.
   Proof. unfold join_hom; firstorder. Qed.
 End join_hom_prod.
 
-Implicit Arguments join_hom2_pair [A A' B B' JA JA' JB JB'].
-Implicit Arguments join_hom2_pair' [A B JA JB].
-Implicit Arguments join_hom_prodA [A B' JA JB'].
-Implicit Arguments join_hom_prodA' [A' B JA' JB].
-Implicit Arguments join_hom_prodB [A' B JA' JB].
-Implicit Arguments join_hom_prodB' [A B' JA JB'].
-Implicit Arguments join_hom_proj1 [A B JA JB].
-Implicit Arguments join_hom_proj2 [A B JA JB].
+Arguments join_hom2_pair [A A' B B' JA JA' JB JB'].
+Arguments join_hom2_pair' [A B JA JB].
+Arguments join_hom_prodA [A] _ [B' JA] _ [JB'].
+Arguments join_hom_prodA' [A' B JA' JB].
+Arguments join_hom_prodB [A' B] _ [JA' JB].
+Arguments join_hom_prodB' [A B' JA JB'].
+Arguments join_hom_proj1 [A B JA JB].
+Arguments join_hom_proj2 [A B JA JB].
 
 (* Disjoint Sum SA *)
 Section join_hom_disjoint_sum.
@@ -119,34 +119,34 @@ Section join_hom_disjoint_sum.
   Definition saA'orB' := sa_sum saA' saB'.
 *)
   Lemma join_hom_sum
-    : join_hom (fun s: A+B => 
+    : join_hom (fun s: A+B =>
         match s with
           | inl x => inl _ (f x)
           | inr y => inr _ (g y)
         end).
-  Proof. 
+  Proof.
     unfold join_hom.
     destruct x; destruct y; destruct z; firstorder.
   Qed.
 
   Lemma join_hom_sum_l
-    : join_hom (fun s: A+B => 
+    : join_hom (fun s: A+B =>
         match s with
           | inl x => inl _ (f x)
           | inr y => inr _ y
         end).
-  Proof. 
+  Proof.
     unfold join_hom.
     destruct x; destruct y; destruct z; firstorder.
   Qed.
 
   Lemma join_hom_sum_r
-    : join_hom (fun s: A+B => 
+    : join_hom (fun s: A+B =>
         match s with
           | inl x => inl _ x
           | inr y => inr _ (g y)
         end).
-  Proof. 
+  Proof.
     unfold join_hom.
     destruct x; destruct y; destruct z; firstorder.
   Qed.
@@ -161,12 +161,12 @@ Section join_hom_disjoint_sum.
 
   (* Bijection between [A+unit] and [option A], for convenience later on *)
   Definition sa_sum_option (s: A+unit): option A :=
-    match s with 
+    match s with
       | inl s' => Some s'
       | inr _ => None
     end.
 
-  Definition option_sa_sum (s: option A): A+unit := 
+  Definition option_sa_sum (s: option A): A+unit :=
     match s with
       | Some s' => inl _ s'
       | None => inr _ tt
@@ -179,7 +179,7 @@ Section join_hom_disjoint_sum.
   Proof. destruct s; firstorder; destruct u; firstorder. Qed.
 
   Definition bij_sa_sum_option : bijection (A+unit) (option A) :=
-    Bijection _ _ sa_sum_option option_sa_sum sa_sum__option option__sa_sum.    
+    Bijection _ _ sa_sum_option option_sa_sum sa_sum__option option__sa_sum.
 End join_hom_disjoint_sum.
 
 (* List SA *)
@@ -188,8 +188,8 @@ Section join_hom_list.
 
   Lemma join_hom_list_nil
     : join_hom (fun a => a :: nil).
-  Proof. 
-    unfold join_hom; 
+  Proof.
+    unfold join_hom;
       solve [constructor; auto || constructor].
   Qed.
 
@@ -208,7 +208,7 @@ Section join_hom_fun.
   Variables (Key A: Type)
             (Key_dec_eq: forall k1 k2: Key, {k1=k2}+{~k1=k2})
             (JA: Join A).
-(*  
+(*
   Definition saKey := sa_equiv Key.
   Definition saKeyA := sa_prod saKey saA.
   Definition saKeyAList := sa_list saKeyA.
@@ -219,20 +219,20 @@ Section join_hom_fun.
   Fixpoint lookup k (rho: list (Key*A)) :=
     match rho with
       | nil => None
-      | (k', a) :: rho' => 
+      | (k', a) :: rho' =>
           if Key_dec_eq k k' then Some a else lookup k rho'
     end.
 
   Instance Join_Key : Join Key := @Join_equiv Key.
 
-  Lemma join_hom_fun 
+  Lemma join_hom_fun
     : join_hom (fun env k => lookup k env).
   Proof.
-    unfold join_hom; intros x y z H. 
+    unfold join_hom; intros x y z H.
     induction H.
 
     (* env is nil *)
-    simpl; auto. intro. constructor. 
+    simpl; auto. intro. constructor.
 
     (* env is cons *)
     simpl; intro x0.
@@ -241,7 +241,7 @@ Section join_hom_fun.
     destruct (Key_dec_eq x0 k1); auto. constructor; auto.
   Qed.
 End join_hom_fun.
-Implicit Arguments lookup [Key A].
+Arguments lookup [Key A].
 
 Lemma join_hom_bij {A: Type} `{Perm_alg A}
             {B: Type}
@@ -255,7 +255,7 @@ Lemma join_hom_bij {A: Type} `{Perm_alg A}
 (* Some simple properties preserved by join homs *)
   Lemma join_hom_join_sub {A}{B}`{Join A}`{Join B}:
      forall (f: A -> B) a1 a2, join_sub a1 a2 -> join_hom f -> join_sub (f a1) (f a2).
-  Proof. 
+  Proof.
     intros.
     destruct H1 as [b H1].
     exists (f b).  auto.
@@ -276,7 +276,7 @@ Lemma join_hom_bij {A: Type} `{Perm_alg A}
           `{Perm_alg C}{SC: Sep_alg C}{CC: Canc_alg C}:
    forall (g: A -> B -> C) a1 b1,
       identity a1 -> identity b1 -> join_hom2 g -> identity (g a1 b1).
-  Proof. 
+  Proof.
    intros.
     unfold join_hom2 in *.
     rewrite identity_unit_equiv in H2.
@@ -298,23 +298,23 @@ Lemma join_hom_bij {A: Type} `{Perm_alg A}
   Lemma join_hom2_comparable {A}{B}{C}
           `{Perm_alg A}{SA: Sep_alg A}`{Perm_alg B}{SB: Sep_alg B}`{Perm_alg C}{SC: Sep_alg C}:
    forall (g: A -> B -> C) a1 a2 b1 b2,
-     comparable a1 a2 
-      -> comparable b1 b2 
+     comparable a1 a2
+      -> comparable b1 b2
       -> join_hom2 g
       -> comparable (g a1 b1) (g a2 b2).
   Proof.
     intros.
     unfold join_hom2 in *.
     destruct (comparable_common_unit H2) as [ea [? ?]].
-    destruct (comparable_common_unit H3) as [eb [? ?]]. 
+    destruct (comparable_common_unit H3) as [eb [? ?]].
     apply common_unit_comparable.
     exists (g ea eb); auto.
   Qed.
 
 (* EXamples: *)
 
-(*  This example doesn't make so much sense, as "comparable" 
-  is not so well-defined for Pos_algs 
+(*  This example doesn't make so much sense, as "comparable"
+  is not so well-defined for Pos_algs
 (* Finite Partial Maps from [nat]s to [option]s *)
 Section fpm_ex.
   Variables (A: Type)

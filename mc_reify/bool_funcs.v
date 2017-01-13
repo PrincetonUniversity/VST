@@ -8,7 +8,7 @@ Require Import Coq.Lists.List.
 Require Import mc_reify.clight_expr_eq.
 
 Fixpoint denote_tc_assert_b_norho a:=
-match a with 
+match a with
 | tc_TT => true
 | tc_andp' a b => andb (denote_tc_assert_b_norho a) (denote_tc_assert_b_norho b)
 | tc_orp' a b => orb (denote_tc_assert_b_norho a) (denote_tc_assert_b_norho b)
@@ -16,7 +16,7 @@ match a with
 end.
 
 Fixpoint denote_tc_assert_b_norho_forgive_isptr a e:=
-match a with 
+match a with
 | tc_TT => true
 | tc_andp' a b => andb (denote_tc_assert_b_norho_forgive_isptr a e)
                        (denote_tc_assert_b_norho_forgive_isptr b e)
@@ -63,7 +63,7 @@ Definition tc_lvalue_b_norho' Delta e :=
   | _ => denote_tc_assert_b_norho (typecheck_lvalue Delta e)
   end.
 
-Lemma tc_lvalue_b_sound : 
+Lemma tc_lvalue_b_sound :
 forall e Delta rho,
 tc_lvalue_b_norho Delta e = true ->
 tc_lvalue Delta e rho .
@@ -72,7 +72,7 @@ intros.
 apply denote_tc_assert_b_norho_sound; auto.
 Qed.
 
-Lemma tc_expr_b_sound : 
+Lemma tc_expr_b_sound :
 forall e Delta rho,
 tc_expr_b_norho Delta e = true ->
 tc_expr Delta e rho .
@@ -81,7 +81,7 @@ intros.
 apply denote_tc_assert_b_norho_sound; auto.
 Qed.
 
-Lemma tc_temp_id_b_sound : 
+Lemma tc_temp_id_b_sound :
 forall id t Delta e rho,
 tc_temp_id_b_norho id t Delta e= true ->
 tc_temp_id id t Delta e rho .
@@ -90,7 +90,7 @@ intros.
 apply denote_tc_assert_b_norho_sound; auto.
 Qed.
 
-Lemma tc_lvalue_b'_sound : 
+Lemma tc_lvalue_b'_sound :
 forall e Delta rho,
 tc_lvalue_b_norho' Delta e = true ->
 isptr (expr.eval_lvalue e rho) ->

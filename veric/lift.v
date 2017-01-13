@@ -4,23 +4,23 @@
 
 Structure Lift := mkLift {
          lift_S: Type;
-         lift_T: Type; 
+         lift_T: Type;
          lift_prod : Type;
          lift_last: Type;
          lifted:> Type;
          lift_curry: lift_T -> lift_prod -> lift_last;
          lift_uncurry_open: ((lift_S -> lift_prod) -> (lift_S -> lift_last)) -> lifted
 }.
-          
-Definition Tend (S: Type) (A: Type) := 
-    mkLift S A unit A 
+
+Definition Tend (S: Type) (A: Type) :=
+    mkLift S A unit A
           (S -> A)
           (fun f _ => f)
           (fun f => f (fun _: S => tt)).
 
-Canonical Structure Tarrow (A: Type) (H: Lift) := 
+Canonical Structure Tarrow (A: Type) (H: Lift) :=
     mkLift (lift_S H)
-      (A -> lift_T H) 
+      (A -> lift_T H)
       (prod A (lift_prod H))
       (lift_last H)
       ((lift_S H -> A) -> lifted H)
@@ -41,11 +41,11 @@ Arguments liftx H f : simpl never.
   Thus we have avoided using any library functions to implement lifting, so that
   we can unfold all of it without interfering with other things the user might be doing. *)
 
-Tactic Notation "unfold_lift" := 
+Tactic Notation "unfold_lift" :=
   unfold liftx;
   repeat match goal with(* This unfolds instances of Tend *)
-  | |- context [lift_uncurry_open (?F _)] => unfold F 
-  | |- context [Tarrow _ (?F _)] => unfold F 
+  | |- context [lift_uncurry_open (?F _)] => unfold F
+  | |- context [Tarrow _ (?F _)] => unfold F
   end;
   cbv delta [Tarrow Tend lift_S lift_T lift_prod lift_last lifted lift_uncurry_open lift_curry lift] beta iota.
 
@@ -61,11 +61,11 @@ Tactic Notation "unfold_lift" "in" "*" :=
   unfold liftx in *;
   repeat match goal with (* This unfolds instances of Tend *)
              | H: context [lift_uncurry_open (?F _)] |- _ => unfold F in H
-             | |- context [Tarrow _ (?F _)] => unfold F 
-             end; 
+             | |- context [Tarrow _ (?F _)] => unfold F
+             end;
   cbv delta [Tarrow Tend lift_S lift_T lift_prod lift_last lifted lift_uncurry_open lift_curry lift] beta iota in *.
 
-(* The reason for writing   liftx(x : _) instead 
+(* The reason for writing   liftx(x : _) instead
   of just (liftx x)  is to get the case  `(fun v => ..v...) to work *)
 Notation "'`' x" := (liftx x) (at level 9).
 Notation "'`(' x ')'" := (liftx (x : _)).
@@ -99,7 +99,7 @@ Check (`plus f).
 Check (`plus f f).
 Check (`(@cons nat)).
 Check (`(@cons nat) (`plus f f) `nil).
-Check (`(@cons _) (`plus f f) `nil).     (* HA!  This line would not have worked using typeclasses for Lift; 
+Check (`(@cons _) (`plus f f) `nil).     (* HA!  This line would not have worked using typeclasses for Lift;
             it does work using canonical structures *)
 (* Check (`cons (`plus f f) `nil).     (* this line fails, which is OK; however, using the old 'coerce' appoach,
                                                            this would have worked.  *) *)
@@ -107,7 +107,7 @@ Check (`(@cons _) (`plus f f) `nil).     (* HA!  This line would not have worked
 
 Example test_plus (s : environ) : (`plus `(4) `3) s = (`(7)) s.
   simpl.  (* doesn't unfold the backtick; this is a good thing, I think. *)
- unfold_lift. (* optional -- proof works with or without it *)  
+ unfold_lift. (* optional -- proof works with or without it *)
   reflexivity.
 Qed.
 
@@ -128,7 +128,7 @@ Goal forall rho, `add `(3) rho = (fun y => plus 3 y).
  reflexivity.
 Qed.
 
-(* Goal `add `3 = `plus `3.   (* This fails.  Indeed, it should fail.  
+(* Goal `add `3 = `plus `3.   (* This fails.  Indeed, it should fail.
        But the error message is reasonably informative! *)  *)
 
 END EXAMPLES OF USE *)

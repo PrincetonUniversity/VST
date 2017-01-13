@@ -28,9 +28,9 @@ Definition hmac_drbg_seed_buf_spec :=
     PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
          _md_info OF (tptr (Tstruct _mbedtls_md_info_t noattr)),
          _data OF tptr tuchar, _data_len OF tuint ]
-       PROP ( (d_len = Zlength Data \/ d_len=0) /\ 
+       PROP ( (d_len = Zlength Data \/ d_len=0) /\
               0 <= d_len <= Int.max_unsigned /\ Forall isbyteZ Data)
-       LOCAL (temp _ctx ctx; temp _md_info info; 
+       LOCAL (temp _ctx ctx; temp _md_info info;
               temp _data_len (Vint (Int.repr d_len)); temp _data data; gvar sha._K256 kv)
        SEP (
          data_at Tsh t_struct_hmac256drbg_context_st Ctx ctx;
@@ -48,21 +48,21 @@ Definition hmac_drbg_seed_buf_spec :=
             orp ( !!(ret_value = Vint (Int.repr (-20864))) &&
                   data_at Tsh t_struct_hmac256drbg_context_st Ctx ctx *
                   hmac256drbg_relate CTX Ctx)
-                ( !!(ret_value <> Vint (Int.repr (-20864))) && 
+                ( !!(ret_value <> Vint (Int.repr (-20864))) &&
   (                      match Ctx, CTX
-                         with (mds, (V', (RC', (EL', (PR', RI'))))), 
-                              HMAC256DRBGabs key V RC EL PR RI 
+                         with (mds, (V', (RC', (EL', (PR', RI'))))),
+                              HMAC256DRBGabs key V RC EL PR RI
                          => EX KEY:list Z, EX VAL:list Z, EX p:val,
                           !!(HMAC256_DRBG_update (contents_with_add data d_len Data) V (list_repeat 32 1) = (KEY, VAL))
                              && md_full key mds * malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
                                 data_at Tsh t_struct_hmac256drbg_context_st ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI'))))) ctx *
-                                hmac256drbg_relate (HMAC256DRBGabs KEY VAL RC EL PR RI) ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI'))))) 
+                                hmac256drbg_relate (HMAC256DRBGabs KEY VAL RC EL PR RI) ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI')))))
                         end))
        ).
 
-Lemma body_hmac_drbg_seed_buf: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs 
-      f_mbedtls_hmac_drbg_seed_buf hmac_drbg_seed_buf_spec. 
-Proof. 
+Lemma body_hmac_drbg_seed_buf: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
+      f_mbedtls_hmac_drbg_seed_buf hmac_drbg_seed_buf_spec.
+Proof.
   start_function.
   abbreviate_semax.
   destruct H as [HDlen1 [HDlen2 HData]].
@@ -73,37 +73,37 @@ Proof.
   destruct MdCTX as [M1 [M2 M3]].
   freeze [1;2;3;4;5] FIELDS.
   rewrite field_at_compatible'. Intros. rename H into FC_mdx.
-  rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial. rewrite int_add_repr_0_r. 
+  rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial. rewrite int_add_repr_0_r.
   freeze [0;2;3;4;5] FR0.
   Time forward_call ((M1,(M2,M3)), Vptr b i, Vint (Int.repr 1), info).
    (*without FR0, this akes about 5mins but succeeds*)
-  
+
   Intros v. rename H into Hv.
   forward.
   forward_if (
      PROP (v=0)
-   LOCAL (temp _ret (Vint (Int.repr v)); temp _t'2 (Vint (Int.repr v)); 
-   temp _ctx (Vptr b i); temp _md_info info; temp _data_len (Vint (Int.repr d_len)); 
+   LOCAL (temp _ret (Vint (Int.repr v)); temp _t'2 (Vint (Int.repr v));
+   temp _ctx (Vptr b i); temp _md_info info; temp _data_len (Vint (Int.repr d_len));
    temp _data data; gvar sha._K256 kv)
-   SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr))p && 
+   SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr))p &&
             memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
             malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
             data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info,(M2,p)) (Vptr b i));
             FRZL FR0)).
   { destruct Hv; try omega. rewrite if_false; trivial.
-    forward. Exists (Vint (Int.repr (-20864))). 
+    forward. Exists (Vint (Int.repr (-20864))).
     entailer!. thaw FR0. cancel. apply orp_right1. cancel.
     unfold_data_at 2%nat. thaw FIELDS. cancel. rewrite field_at_data_at. simpl.
     unfold field_address. rewrite if_true; simpl; trivial. rewrite int_add_repr_0_r; trivial. }
-  { subst v; clear Hv. rewrite if_true; trivial. 
-    forward. entailer!. 
+  { subst v; clear Hv. rewrite if_true; trivial.
+    forward. entailer!.
   }
   Intros. subst v. clear Hv. Intros p. rename H into MCp.
 
   forward_call tt.
- 
+
   thaw FR0. unfold hmac256drbg_relate. destruct CTX. normalize.
-  thaw FIELDS. 
+  thaw FIELDS.
   freeze [4;5;6;7] FIELDS1.
   rewrite field_at_compatible'. Intros. rename H1 into FC_V.
   rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial.
@@ -114,28 +114,28 @@ Proof.
     clear - Pp MCp. destruct p; try contradiction. destruct MCp.
     repeat split; simpl in *; trivial.
     + omega.
-    + unfold natural_alignment in H. unfold align_attr. simpl. 
-      destruct H. exists (x * 2)%Z. omega. 
+    + unfold natural_alignment in H. unfold align_attr. simpl.
+      destruct H. exists (x * 2)%Z. omega.
   }
   forward_call (Vptr b i, (((*M1*)info,(M2,p)):mdstate), 32, V0, kv, b, Int.add i (Int.repr 12)).
   { rewrite H, int_add_repr_0_r; simpl.
     apply prop_right; repeat split; trivial.
   }
   { simpl. cancel. }
-  { split; trivial. red. simpl. rewrite int_max_signed_eq, H. 
+  { split; trivial. red. simpl. rewrite int_max_signed_eq, H.
     split. trivial. split. omega. rewrite two_power_pos_equiv.
     replace (2^64) with 18446744073709551616. omega. reflexivity.
   }
   Intros.
- 
+
   forward_call tt.
-  
+
   freeze [0;1;3;4] FR3.
   forward_call (Tsh, Vptr b (Int.add i (Int.repr 12)), 32, Int.one).
   { rewrite sepcon_comm. apply sepcon_derives. 2: cancel.
-    eapply derives_trans. apply data_at_memory_block. 
+    eapply derives_trans. apply data_at_memory_block.
     rewrite H. simpl. cancel.
-  } 
+  }
 
   thaw FR3. thaw FR2. unfold md_relate. simpl.
   freeze [1;3;5;6;7;8] OTHER.
@@ -148,14 +148,14 @@ Proof.
       (Vint (Int.repr entropy_len),
        (Val.of_bool prediction_resistance,
         (Vint (Int.repr reseed_interval)))))))). eexists; reflexivity.
-  destruct H1 as [xx XX]. 
+  destruct H1 as [xx XX].
 
   replace_SEP 0
     (data_at Tsh t_struct_hmac256drbg_context_st xx (Vptr b i)).
   { entailer. unfold_data_at 1%nat.
     thaw INI.
     rewrite field_at_data_at. unfold field_address. rewrite if_true. 2: assumption.
-    simpl. rewrite int_add_repr_0_r. 
+    simpl. rewrite int_add_repr_0_r.
     unfold t_struct_md_ctx_st. cancel.
     clear OTHER. thaw FIELDS1. cancel.
     rewrite field_at_data_at. simpl.
@@ -168,9 +168,9 @@ Proof.
   { entailer!. subst ABS; unfold md_full. simpl.
     apply andp_right. apply prop_right. repeat split; trivial. apply IB1. split; omega.
     apply UNDER_SPEC.REP_FULL.
-  }  
+  }
 
-  forward_call (Data, data, d_len, Vptr b i, xx, ABS, kv, Info). 
+  forward_call (Data, data, d_len, Vptr b i, xx, ABS, kv, Info).
   { subst xx. unfold hmac256drbgstate_md_info_pointer; simpl. cancel. (*thanks to "M1==info"*)
   }
   { subst ABS; simpl. repeat split; trivial; try omega. apply IB1. split; omega.
@@ -178,18 +178,18 @@ Proof.
 
   forward. Exists (Vint (Int.repr 0)). normalize.
   apply andp_right. apply prop_right; split; trivial.
-  cancel. 
-  unfold hmac256drbgabs_common_mpreds. 
+  cancel.
+  unfold hmac256drbgabs_common_mpreds.
   remember(HMAC256_DRBG_update (contents_with_add data d_len Data) V0
              [1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1;
              1; 1; 1; 1; 1; 1; 1; 1; 1; 1]) as HH.
   destruct HH as [KEY VALUE]. simpl. normalize. cancel.
   apply orp_right2.
-  Exists KEY. 
+  Exists KEY.
   apply andp_right. apply prop_right. intros N. inv N.
 (*  unfold hmac256drbgstate_md_info_pointer. simpl.*)
-  Exists VALUE p. normalize. 
-  apply andp_right. apply prop_right. repeat split; trivial. 
+  Exists VALUE p. normalize.
+  apply andp_right. apply prop_right. repeat split; trivial.
   cancel.
 Time Qed. (*26.657 secs (26.656u,0.s) (successful)*)
 
@@ -202,9 +202,9 @@ Definition hmac_drbg_seed_buf_spec2 :=
     PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
          _md_info OF (tptr (Tstruct _mbedtls_md_info_t noattr)),
          _data OF tptr tuchar, _data_len OF tuint ]
-       PROP ( (d_len = Zlength Data \/ d_len=0) /\ 
+       PROP ( (d_len = Zlength Data \/ d_len=0) /\
               0 <= d_len <= Int.max_unsigned /\ Forall isbyteZ Data)
-       LOCAL (temp _ctx ctx; temp _md_info info; 
+       LOCAL (temp _ctx ctx; temp _md_info info;
               temp _data_len (Vint (Int.repr d_len)); temp _data data; gvar sha._K256 kv)
        SEP (
          data_at Tsh t_struct_hmac256drbg_context_st Ctx ctx;
@@ -222,24 +222,24 @@ Definition hmac_drbg_seed_buf_spec2 :=
                   data_at Tsh t_struct_mbedtls_md_info Info info *
                   da_emp Tsh (tarray tuchar (Zlength Data)) (map Vint (map Int.repr Data)) data *
                   K_vector kv)
-                ( !!(ret_value <> Vint (Int.repr (-20864))) && 
+                ( !!(ret_value <> Vint (Int.repr (-20864))) &&
   (                      match Ctx, CTX
-                         with (mds, (V', (RC', (EL', (PR', RI'))))), 
-                              HMAC256DRBGabs key V RC EL PR RI 
+                         with (mds, (V', (RC', (EL', (PR', RI'))))),
+                              HMAC256DRBGabs key V RC EL PR RI
                          => EX KEY:list Z, EX VAL:list Z, EX p:val,
                           !!(HMAC256_DRBG_update (contents_with_add data d_len Data) V (list_repeat 32 1) = (KEY, VAL))
                              && md_full key mds * malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
                                 data_at Tsh t_struct_hmac256drbg_context_st ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI'))))) ctx *
-                                hmac256drbg_relate (HMAC256DRBGabs KEY VAL RC EL PR RI) ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI'))))) * 
+                                hmac256drbg_relate (HMAC256DRBGabs KEY VAL RC EL PR RI) ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI'))))) *
                                data_at Tsh t_struct_mbedtls_md_info Info info *
                                da_emp Tsh (tarray tuchar (Zlength Data)) (map Vint (map Int.repr Data)) data *
                                K_vector kv
                         end))
        ).
 
-Lemma body_hmac_drbg_seed_buf2: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs 
-      f_mbedtls_hmac_drbg_seed_buf hmac_drbg_seed_buf_spec2. 
-Proof. 
+Lemma body_hmac_drbg_seed_buf2: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
+      f_mbedtls_hmac_drbg_seed_buf hmac_drbg_seed_buf_spec2.
+Proof.
   start_function.
   abbreviate_semax.
   destruct H as [HDlen1 [HDlen2 HData]].
@@ -250,17 +250,17 @@ Proof.
   destruct MdCTX as [M1 [M2 M3]].
   freeze [1;2;3;4;5] FIELDS.
   rewrite field_at_compatible'. Intros. rename H into FC_mdx.
-  rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial. rewrite int_add_repr_0_r. 
+  rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial. rewrite int_add_repr_0_r.
   freeze [0;2;3;4;5] FR0.
   Time forward_call ((M1,(M2,M3)), Vptr b i, Vint (Int.repr 1), info).
    (*without FR0, this takes about 5mins but succeeds*)
-  
-  Intros v. rename H into Hv.  
+
+  Intros v. rename H into Hv.
   forward.
   forward_if (
      PROP (v=0)
-   LOCAL (temp _ret (Vint (Int.repr v)); temp _t'2 (Vint (Int.repr v)); 
-   temp _ctx (Vptr b i); temp _md_info info; temp _data_len (Vint (Int.repr d_len)); 
+   LOCAL (temp _ret (Vint (Int.repr v)); temp _t'2 (Vint (Int.repr v));
+   temp _ctx (Vptr b i); temp _md_info info; temp _data_len (Vint (Int.repr d_len));
    temp _data data; gvar sha._K256 kv)
    SEP ( (EX p : val, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr))p &&
             memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
@@ -268,17 +268,17 @@ Proof.
           data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info,(M2,p)) (Vptr b i));
          FRZL FR0)).
   { destruct Hv; try omega. rewrite if_false; trivial.
-    forward. Exists (Vint (Int.repr (-20864))). 
+    forward. Exists (Vint (Int.repr (-20864))).
     entailer!. thaw FR0. cancel. apply orp_right1. cancel.
     unfold_data_at 2%nat. thaw FIELDS. cancel. rewrite field_at_data_at. simpl.
     unfold field_address. rewrite if_true; simpl; trivial. rewrite int_add_repr_0_r; trivial. }
-  { subst v; clear Hv. rewrite if_true; trivial. 
-    forward. entailer!. 
+  { subst v; clear Hv. rewrite if_true; trivial.
+    forward. entailer!.
   }
   Intros. subst v. clear Hv. Intros p. rename H into MCp.
 
   forward_call tt.
- 
+
   thaw FR0. unfold hmac256drbg_relate. destruct CTX. normalize.
   thaw FIELDS.
   freeze [4;5;6;7] FIELDS1.
@@ -291,28 +291,28 @@ Proof.
     clear - Pp MCp. destruct p; try contradiction. destruct MCp.
     repeat split; simpl in *; trivial.
     + omega.
-    + unfold natural_alignment in H. unfold align_attr. simpl. 
-      destruct H. exists (x * 2)%Z. omega. 
+    + unfold natural_alignment in H. unfold align_attr. simpl.
+      destruct H. exists (x * 2)%Z. omega.
   }
   forward_call (Vptr b i, (((*M1*)info,(M2,p)):mdstate), 32, V0, kv, b, Int.add i (Int.repr 12)).
   { rewrite H, int_add_repr_0_r; simpl.
     apply prop_right; repeat split; trivial.
   }
   { simpl. cancel. }
-  { split; trivial. red. simpl. rewrite int_max_signed_eq, H. 
+  { split; trivial. red. simpl. rewrite int_max_signed_eq, H.
     split. trivial. split. omega. rewrite two_power_pos_equiv.
     replace (2^64) with 18446744073709551616. omega. reflexivity.
   }
   Intros.
- 
+
   forward_call tt.
-  
+
   freeze [0;1;3;4] FR3.
   forward_call (Tsh, Vptr b (Int.add i (Int.repr 12)), 32, Int.one).
   { rewrite sepcon_comm. apply sepcon_derives. 2: cancel.
-    eapply derives_trans. apply data_at_memory_block. 
+    eapply derives_trans. apply data_at_memory_block.
     rewrite H. simpl. cancel.
-  } 
+  }
 
   thaw FR3. thaw FR2. unfold md_relate. simpl.
   freeze [1;3;5;6;7;8] OTHER.
@@ -325,7 +325,7 @@ Proof.
       (Vint (Int.repr entropy_len),
        (Val.of_bool prediction_resistance,
         (Vint (Int.repr reseed_interval)))))))). eexists; reflexivity.
-  destruct H1 as [xx XX]. 
+  destruct H1 as [xx XX].
 
 
   replace_SEP 0
@@ -333,7 +333,7 @@ Proof.
   { entailer. unfold_data_at 1%nat.
     thaw INI.
     rewrite field_at_data_at. unfold field_address. rewrite if_true. 2: assumption.
-    simpl. rewrite int_add_repr_0_r. 
+    simpl. rewrite int_add_repr_0_r.
     unfold t_struct_md_ctx_st. cancel.
     clear OTHER. thaw FIELDS1. cancel.
     rewrite field_at_data_at. simpl.
@@ -346,9 +346,9 @@ Proof.
   { entailer!. subst ABS; unfold md_full. simpl.
     apply andp_right. apply prop_right. repeat split; trivial. apply IB1. split; omega.
     apply UNDER_SPEC.REP_FULL.
-  }  
+  }
 
-  forward_call (Data, data, d_len, Vptr b i, xx, ABS, kv, Info). 
+  forward_call (Data, data, d_len, Vptr b i, xx, ABS, kv, Info).
   { subst xx. unfold hmac256drbgstate_md_info_pointer; simpl. cancel. (*thanks to "M1==info"*)
   }
   { subst ABS; simpl. repeat split; trivial; try omega. apply IB1. split; omega.
@@ -357,15 +357,15 @@ Proof.
   forward. Exists (Vint (Int.repr 0)). normalize.
   apply andp_right. apply prop_right; split; trivial.
   apply orp_right2.
-  unfold hmac256drbgabs_common_mpreds. 
+  unfold hmac256drbgabs_common_mpreds.
   remember(HMAC256_DRBG_update (contents_with_add data d_len Data) V0
     [1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1;
      1; 1; 1; 1; 1; 1; 1; 1]) as HH.
   destruct HH as [KEY VALUE]. simpl. normalize.
-  Exists KEY. 
+  Exists KEY.
   apply andp_right. apply prop_right. intros N. inv N.
   unfold hmac256drbgstate_md_info_pointer. simpl.
-  Exists VALUE p. normalize. 
-  apply andp_right. apply prop_right. repeat split; trivial. 
+  Exists VALUE p. normalize.
+  apply andp_right. apply prop_right. repeat split; trivial.
   cancel.
 Time Qed. (*Finished transaction in 31.687 secs (28.578u,0.s) (successful)*)

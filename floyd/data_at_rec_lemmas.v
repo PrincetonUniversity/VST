@@ -90,7 +90,7 @@ Lemma data_at_rec_eq: forall t v,
   | Tint _ _ _
   | Tfloat _ _
   | Tlong _ _
-  | Tpointer _ _ => fun v p => 
+  | Tpointer _ _ => fun v p =>
                       if type_is_volatile t
                       then memory_block sh (sizeof t) p
                       else mapsto sh t p v
@@ -114,7 +114,7 @@ Proof.
   try solve [destruct (readable_share_dec sh); reflexivity];
   try solve [
   match goal with
-  | |- appcontext [repinject ?tt] => 
+  | |- appcontext [repinject ?tt] =>
     rewrite (repinject_unfold_reptype tt); auto
   end].
   + rewrite <- struct_data_at_rec_aux_spec; reflexivity.
@@ -148,7 +148,7 @@ Proof.
   reflexivity.
 Qed.
 *)
-Lemma by_value_default_val: forall t:type, 
+Lemma by_value_default_val: forall t:type,
   type_is_by_value t = true -> JMeq (default_val t) Vundef.
 Proof.
   intros.
@@ -175,7 +175,7 @@ Proof.
   intros.
   rewrite data_at_rec_eq; destruct t; try solve [inversion H];
   match goal with
-  | |- appcontext [type_is_volatile ?tt] => 
+  | |- appcontext [type_is_volatile ?tt] =>
     destruct (type_is_volatile tt) eqn:HH; auto;
     rewrite <- (repinject_unfold_reptype tt); auto
   end;
@@ -190,7 +190,7 @@ Proof.
   intros.
   rewrite data_at_rec_eq; destruct t; try solve [inversion H]; rewrite H0;
   match goal with
-  | |- appcontext [repinject ?tt] => 
+  | |- appcontext [repinject ?tt] =>
     rewrite (repinject_unfold_reptype tt); auto
   end.
 Qed.
@@ -207,7 +207,7 @@ Proof.
   + apply by_value_data_at_rec_volatile; auto.
   + rewrite data_at_rec_eq; destruct t; try solve [inversion H]; rewrite H3;
     symmetry;
-    rewrite memory_block_mapsto_ by auto; unfold mapsto_; 
+    rewrite memory_block_mapsto_ by auto; unfold mapsto_;
     try rewrite if_true by auto; auto.
 Qed.
 
@@ -224,7 +224,7 @@ Proof.
   destruct (type_is_volatile t) eqn:?H.
   + apply by_value_data_at_rec_volatile; auto.
   + rewrite by_value_data_at_rec_nonvolatile by auto.
-    symmetry; 
+    symmetry;
     apply nonreadable_memory_block_mapsto; auto.
 Qed.
 
@@ -289,7 +289,7 @@ between field_at and data_at.
 ************************************************)
 
 Lemma lower_sepcon_val':
-  forall (P Q: val->mpred) v, 
+  forall (P Q: val->mpred) v,
   ((P*Q) v) = (P v * Q v).
 Proof. reflexivity. Qed.
 
@@ -395,7 +395,7 @@ Ltac AUTO_IND :=
     |- (alignof (field_type ?i (co_members (get_co ?id))) | ?ofs + _) =>
     apply Z.divide_add_r;
     [ eapply Z.divide_trans; [apply alignof_field_type_divide_alignof; auto |];
-      eapply Z.divide_trans; [apply legal_alignas_type_Tstruct; eauto | auto] 
+      eapply Z.divide_trans; [apply legal_alignas_type_Tstruct; eauto | auto]
     | apply field_offset_aligned]
   | H: legal_alignas_type (Tunion ?id ?a) = true |-
     legal_alignas_type (field_type ?i (co_members (get_co ?id))) = true =>
@@ -424,7 +424,7 @@ intros.
     unfold local_legal_alignas_type in H; simpl in H.
     rewrite andb_true_iff in H; destruct H as [_ H].
     destruct (attr_alignas (attr_of_type t)); inv H.
-    apply Zle_bool_imp_le; auto. 
+    apply Zle_bool_imp_le; auto.
 Qed.
 
 Lemma nth_list_repeat: forall A i n (x :A),
@@ -434,10 +434,10 @@ Proof.
 Qed.
 
 Lemma nth_list_repeat': forall A i n (x y :A),
-    (i < n)%nat -> 
+    (i < n)%nat ->
     nth i (list_repeat n x) y = x.
 Proof.
- induction i; destruct n; simpl; intros; auto. 
+ induction i; destruct n; simpl; intros; auto.
  omega. omega.
  apply IHi; auto. omega.
 Qed.
@@ -483,7 +483,7 @@ Proof.
     rewrite unfold_fold_reptype.
     rewrite struct_pred_ext with
      (P1 := fun it _ p =>
-              memory_block sh 
+              memory_block sh
                (field_offset_next cenv_cs (fst it) (co_members (get_co id)) (co_sizeof (get_co id)) -
                   field_offset cenv_cs (fst it) (co_members (get_co id)))
                (offset_val (field_offset cenv_cs (fst it) (co_members (get_co id))) p))
@@ -493,7 +493,7 @@ Proof.
       * rewrite sizeof_Tstruct; auto.
       * apply get_co_members_nil_sizeof_0.
       * apply get_co_members_no_replicate.
-      * rewrite sizeof_Tstruct in H0. 
+      * rewrite sizeof_Tstruct in H0.
         pose proof co_consistent_sizeof cenv_cs (get_co id) (get_co_consistent id).
         erewrite legal_cosu_type_Tstruct in H2 by eauto.
         unfold sizeof_composite in H2.
@@ -698,8 +698,8 @@ Definition value_fits: forall t, reptype t -> Prop :=
     (fun id a P v => union_value_fits_aux (co_members (get_co id)) (co_members (get_co id)) P (unfold_reptype v)).
 
 Lemma value_fits_eq:
-  forall t v, 
-  value_fits t v = 
+  forall t v,
+  value_fits t v =
   match t as t0 return (reptype t0 -> Prop)  with
   | Tarray t' n a => fun v0 : reptype (Tarray t' n a) =>
     (fun v1 : list (reptype t') =>
@@ -766,7 +766,7 @@ Proof.
     - rewrite Forall_forall in IH.
       intros; apply IH.
       apply in_members_field_type; auto.
-Qed.    
+Qed.
 
 Lemma data_at_rec_value_fits: forall sh t v p,
   data_at_rec sh t v p |-- !! value_fits t v.
@@ -926,7 +926,7 @@ Proof.
       pose_size_mult cenv_cs t (0 :: i :: i + 1 :: z :: nil); omega.
   + rewrite struct_pred_ext with
      (P1 := fun it _ p =>
-              memory_block sh 
+              memory_block sh
                (field_offset_next cenv_cs (fst it) (co_members (get_co id)) (co_sizeof (get_co id)) -
                   field_offset cenv_cs (fst it) (co_members (get_co id)))
                (offset_val (field_offset cenv_cs (fst it) (co_members (get_co id))) p))
@@ -936,7 +936,7 @@ Proof.
       * rewrite sizeof_Tstruct; auto.
       * apply get_co_members_nil_sizeof_0.
       * apply get_co_members_no_replicate.
-      * rewrite sizeof_Tstruct in H0. 
+      * rewrite sizeof_Tstruct in H0.
         pose proof co_consistent_sizeof cenv_cs (get_co id) (get_co_consistent id).
         erewrite legal_cosu_type_Tstruct in H4 by eauto.
         unfold sizeof_composite in H4.
@@ -1072,7 +1072,7 @@ Lemma value_fits_Tstruct:
   t = Tstruct i a ->
   m = co_members (get_co i)  ->
   JMeq (@unfold_reptype cs t v) v2 ->
-  r =struct_Prop m 
+  r =struct_Prop m
           (fun it => value_fits (field_type (fst it) m))  v2 ->
   value_fits t v = r.
 Proof.
@@ -1087,12 +1087,12 @@ Qed.
 
 Lemma value_fits_by_value_defined:
   forall {cs: compspecs} t t' v r,
-   type_is_by_value t = true ->  
+   type_is_by_value t = true ->
    repinject t v <> Vundef  ->
    t = t' ->
    (r = if type_is_volatile t' then True
        else tc_val t' (repinject t v)) ->
-   value_fits t v = r. 
+   value_fits t v = r.
 Proof.
 intros. subst t' r.
 rewrite value_fits_eq.
@@ -1103,9 +1103,9 @@ Qed.
 
 Lemma value_fits_by_value_Vundef:
   forall {cs: compspecs} t v,
-   type_is_by_value t = true ->  
+   type_is_by_value t = true ->
    repinject t v = Vundef  ->
-   value_fits t v = True. 
+   value_fits t v = True.
 Proof.
 intros.
 rewrite value_fits_eq.
@@ -1117,10 +1117,10 @@ Qed.
 Lemma value_fits_by_value:
   forall {cs: compspecs} t t' v r,
    type_is_by_value t = true ->
-   t = t' ->  
+   t = t' ->
    (r = if type_is_volatile t then True
        else tc_val' t' (repinject t v)) ->
-   value_fits t v = r. 
+   value_fits t v = r.
 Proof.
 intros. subst r t'.
 rewrite value_fits_eq.
@@ -1130,7 +1130,7 @@ destruct t; inv H;
 Qed.
 
 Lemma value_fits_Tarray:
-  forall {cs: compspecs} t (v: reptype t) t' n a 
+  forall {cs: compspecs} t (v: reptype t) t' n a
     (v' : list (reptype t')) r,
   t = (Tarray t' n a) ->
   JMeq (unfold_reptype v) v' ->
@@ -1152,7 +1152,7 @@ Ltac cleanup_unfold_reptype :=
 Ltac simplify_value_fits' :=
 first
  [erewrite value_fits_Tstruct;
-    [ | reflexivity 
+    [ | reflexivity
     | simpl; reflexivity
     | cleanup_unfold_reptype
     | simpl; reflexivity]
@@ -1169,7 +1169,7 @@ first
    | simpl; reflexivity
    ]
  | rewrite value_fits_by_value_Vundef;
-   [ | reflexivity | reflexivity 
+   [ | reflexivity | reflexivity
    ]
  | erewrite value_fits_by_value;
    [ | reflexivity
@@ -1186,11 +1186,11 @@ Tactic Notation "simplify_value_fits" :=
   simplify_value_fits'.
 
 Tactic Notation "simplify_value_fits" "in" hyp(H) :=
-  match type of H with ?A => 
+  match type of H with ?A =>
   let a := fresh "a" in set (a:=A) in H;
    let H1 := fresh in assert (H1: a = A) by (apply eq_refl);
    clearbody a;
-   match goal with |- ?B => 
+   match goal with |- ?B =>
     let BB := fresh "BB" in set (BB:=B);
    revert H1; simplify_value_fits'; intro H1; subst a; subst BB
   end
@@ -1198,7 +1198,7 @@ Tactic Notation "simplify_value_fits" "in" hyp(H) :=
 
 Tactic Notation "simplify_value_fits" "in" "*" :=
 repeat match goal with
- | H: context [value_fits _ _ _] |- _ => 
+ | H: context [value_fits _ _ _] |- _ =>
   simplify_value_fits in H
 end;
  repeat simplify_value_fits'.

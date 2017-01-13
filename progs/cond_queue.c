@@ -85,7 +85,7 @@ int main(void)
   release((void*)&requests_lock);
   makecond(&requests_producer);
   makecond(&requests_consumer);
-  
+
   spawn((void *)&consumer, (void *)NULL);
   acquire(&requests_lock);
 

@@ -1,7 +1,7 @@
 (* THESE PROOFS are discussed in the book chapter entitled "Normalization
     of separation logic formulas" *)
 
-Goal forall (P Q R: nat -> Prop),  
+Goal forall (P Q R: nat -> Prop),
     (forall z, P z -> Q (S z)) ->
          (exists z, P z) /\ R 0 -> (exists y, Q y).
 Proof.

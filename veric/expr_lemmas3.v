@@ -4,7 +4,7 @@ Require Import veric.compcert_rmaps.
 Require Import veric.Clight_lemmas.
 Require Import veric.tycontext.
 Require Import veric.expr2.
-Require Export veric.environ_lemmas. 
+Require Export veric.environ_lemmas.
 Require Import veric.binop_lemmas2.
 (*Require Import veric.binop_lemmas.*)
 Require Import veric.expr_lemmas2.
@@ -40,16 +40,16 @@ Transparent Float32.to_int.
 Transparent Float32.to_intu.
 
 
-Lemma isCastR: forall {CS: compspecs} tfrom tto a, 
+Lemma isCastR: forall {CS: compspecs} tfrom tto a,
   denote_tc_assert (isCastResultType tfrom tto a) =
- denote_tc_assert 
+ denote_tc_assert
 match Cop.classify_cast tfrom tto with
 | Cop.cast_case_default => tc_FF  (invalid_cast tfrom tto)
-| Cop.cast_case_f2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed) 
-| Cop.cast_case_s2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed) 
+| Cop.cast_case_f2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed)
+| Cop.cast_case_s2i _ Signed => tc_andp (tc_Zge a Int.min_signed ) (tc_Zle a Int.max_signed)
 | Cop.cast_case_f2i _ Unsigned => tc_andp (tc_Zge a 0) (tc_Zle a Int.max_unsigned)
 | Cop.cast_case_s2i _ Unsigned => tc_andp (tc_Zge a 0) (tc_Zle a Int.max_unsigned)
-| Cop.cast_case_neutral  => if eqb_type tfrom tto then tc_TT else 
+| Cop.cast_case_neutral  => if eqb_type tfrom tto then tc_TT else
                             (if orb  (andb (is_pointer_type tto) (is_pointer_type tfrom)) (andb (is_int_type tto) (is_int_type tfrom)) then tc_TT
                                 else tc_iszero' a)
 | Cop.cast_case_i2l _ => tc_bool (is_int_type tfrom) (invalid_cast_result tfrom tto)
@@ -60,10 +60,10 @@ match Cop.classify_cast tfrom tto with
                                                 (tc_bool (orb (is_int_type tfrom) (is_pointer_type tfrom)) (invalid_cast_result tfrom tto))
 | Cop.cast_case_l2bool => tc_bool (is_long_type tfrom) (invalid_cast_result tfrom tto)
 | Cop.cast_case_void => tc_noproof
-| _ => match tto with 
-      | Tint _ _ _  => tc_bool (is_int_type tfrom) (invalid_cast_result tto tto) 
-      | Tfloat F64 _  => tc_bool (is_float_type tfrom) (invalid_cast_result tto tto) 
-      | Tfloat F32 _  => tc_bool (is_single_type tfrom) (invalid_cast_result tto tto) 
+| _ => match tto with
+      | Tint _ _ _  => tc_bool (is_int_type tfrom) (invalid_cast_result tto tto)
+      | Tfloat F64 _  => tc_bool (is_float_type tfrom) (invalid_cast_result tto tto)
+      | Tfloat F32 _  => tc_bool (is_single_type tfrom) (invalid_cast_result tto tto)
       | _ => tc_FF (invalid_cast tfrom tto)
       end
 end.
@@ -75,7 +75,7 @@ Proof. intros; extensionality rho.
 Qed.
 
 Lemma Z2R_pow_0_lt:
-  forall e, 
+  forall e,
   0 <= e ->
   Rdefinitions.Rlt 0 (Fcore_Raux.Z2R (2 ^ e)).
 Proof.
@@ -136,7 +136,7 @@ reflexivity.
 Qed.
 
 Lemma general_float_to_int_ok:
-  forall prec emax lo hi f z, 
+  forall prec emax lo hi f z,
     general_offloat prec emax f = Some z ->
     lo <= z <= hi ->
     general_float_to_int prec emax lo hi f = Some (Int.repr z).
@@ -172,7 +172,7 @@ assert (z = Fcore_Zaux.cond_Zopp b (Z.pos m) * Z.pow 2 e). {
 }
 clear H3. subst z.
 rewrite Fappli_IEEE_extra.ZofB_range_correct.
-replace 
+replace
    (Fcore_Raux.Ztrunc
       (Fappli_IEEE.B2R prec emax (Fappli_IEEE.B754_finite prec emax b m e e0)))
   with (Fcore_Zaux.cond_Zopp b (Z.pos m) * 2^e).
@@ -200,7 +200,7 @@ simpl.
 rewrite <- Fcore_Raux.Z2R_Zpower by auto.
 reflexivity.
 match goal with |- _ ?A ?B => replace B with A; [apply RIneq.Rle_refl | ] end.
-unfold Fcore_defs.F2R. 
+unfold Fcore_defs.F2R.
 rewrite Fcore_Raux.Z2R_mult.
 simpl.
 rewrite <- Fcore_Raux.Z2R_Zpower by auto.
@@ -226,7 +226,7 @@ unfold Fappli_IEEE.B2R.
 unfold Fcore_Zaux.cond_Zopp.
 symmetry; apply Fcore_Raux.Zfloor_imp; split.
 match goal with |- _ ?A ?B => replace B with A; [apply RIneq.Rle_refl | ] end.
-unfold Fcore_defs.F2R. 
+unfold Fcore_defs.F2R.
 rewrite Fcore_Raux.Z2R_mult.
 simpl.
 rewrite <- Fcore_Raux.Z2R_Zpower by auto.
@@ -277,7 +277,7 @@ assert (z = Fcore_Zaux.cond_Zopp b (Z.pos m / Z.pow 2 (- e))). {
 }
 clear H3. subst z.
 rewrite Fappli_IEEE_extra.ZofB_range_correct.
-replace 
+replace
    (Fcore_Raux.Ztrunc
       (Fappli_IEEE.B2R prec emax (Fappli_IEEE.B754_finite prec emax b m e e0)))
   with (Fcore_Zaux.cond_Zopp b (Z.pos m / 2^(-e))).
@@ -338,7 +338,7 @@ Qed.
 
 
 Lemma float_to_int_ok:
-  forall f z, 
+  forall f z,
     Zoffloat f = Some z ->
     Int.min_signed <= z <= Int.max_signed ->
     Float.to_int f = Some (Int.repr z).
@@ -347,7 +347,7 @@ apply general_float_to_int_ok.
 Qed.
 
 Lemma float_to_intu_ok:
-  forall f z, 
+  forall f z,
     Zoffloat f = Some z ->
     0 <= z <= Int.max_unsigned ->
     Float.to_intu f = Some (Int.repr z).
@@ -356,7 +356,7 @@ apply general_float_to_int_ok.
 Qed.
 
 Lemma single_to_int_ok:
-  forall f z, 
+  forall f z,
     Zofsingle f = Some z ->
     Int.min_signed <= z <= Int.max_signed ->
     Float32.to_int f = Some (Int.repr z).
@@ -365,7 +365,7 @@ apply general_float_to_int_ok.
 Qed.
 
 Lemma single_to_intu_ok:
-  forall f z, 
+  forall f z,
     Zofsingle f = Some z ->
     0 <= z <= Int.max_unsigned ->
     Float32.to_intu f = Some (Int.repr z).
@@ -408,7 +408,7 @@ intros.
  pose proof (Int.zero_ext_range n x H); omega.
 Qed.
 
-Lemma typecheck_cast_sound: 
+Lemma typecheck_cast_sound:
  forall {CS: compspecs} Delta rho m e t,
  typecheck_environ Delta rho ->
 (denote_tc_assert (typecheck_expr Delta e) rho m ->
@@ -450,7 +450,7 @@ destruct (classify_cast (typeof e) t)
   simpl;
   try solve [destruct (Int.eq i Int.zero); reflexivity];
   try (rewrite andb_true_iff in H1; destruct H1 as [H1 H1']);
-  try rewrite Z.leb_le in H1; 
+  try rewrite Z.leb_le in H1;
   try rewrite Z.leb_le in H1';
   try (
    simpl in H2a,H2b;

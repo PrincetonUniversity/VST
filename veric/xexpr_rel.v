@@ -60,7 +60,7 @@ Fixpoint compute_r_value {cs: compspecs} (e: expr) : r_value :=
   | Esizeof t ty => R_const (Vint (Int.repr (sizeof t)))
   | Ealignof t ty => R_const (Vint (Int.repr (alignof t)))
   end
-with compute_l_value {cs: compspecs} (e:expr) : l_value := 
+with compute_l_value {cs: compspecs} (e:expr) : l_value :=
   match e with
   | Evar id ty => L_var id ty
   | Ederef a ty => L_deref (compute_r_value a)
@@ -69,7 +69,7 @@ with compute_l_value {cs: compspecs} (e:expr) : l_value :=
   end.
 
 Inductive rel_r_value' {CS: compspecs} (rho: environ) (phi: rmap): r_value -> val -> Prop :=
- | rel_r_value'_const: forall v, 
+ | rel_r_value'_const: forall v,
                  rel_r_value' rho phi (R_const v) v
  | rel_r_value'_tempvar: forall id v,
                  Map.get (te_of rho) id = Some v ->
@@ -264,7 +264,7 @@ apply (rel_LR_value'_sch _ rho (m_phi jm)
   if_tac; auto.
   + destruct H5 as [p ?].
     hnf in H5. rewrite preds_fmap_NoneP in H5.
-    apply (resource_at_join _ _ _ b') in H3.  
+    apply (resource_at_join _ _ _ b') in H3.
     rewrite H5 in H3; clear H5.
     inv H3.
     - symmetry in H15.
@@ -274,7 +274,7 @@ apply (rel_LR_value'_sch _ rho (m_phi jm)
       destruct sh3 as [sh3 p3].  exists rsh3, sh3, p3; auto.
   + apply I.
 * (* Efield *)
-  econstructor; eauto. 
+  econstructor; eauto.
   + eapply Clight.eval_Elvalue; eauto.
     apply deref_loc_copy.
     rewrite H8; auto.
@@ -351,7 +351,7 @@ intros.
 destruct t as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
  inv H0; inversion2 H H1; inv H; unfold Mem.loadv in *;
  apply Mem.load_result in H2; subst; simpl;
- match goal with 
+ match goal with
   | |- context [decode_val _ (?x :: nil)] => destruct x; try reflexivity
   | |- context [decode_val _ (?x :: ?y :: nil)] => destruct x,y; try reflexivity
   | |- context [decode_val ?ch ?a] => destruct (decode_val ch a) eqn:?; try reflexivity

@@ -7,11 +7,11 @@ Local Open Scope logic.
 
 (*Some definitions needed from the example file (verif_reverse.v) *)
 Instance LS: listspec t_struct_list _tail.
-Proof. eapply mk_listspec; reflexivity. Defined. 
+Proof. eapply mk_listspec; reflexivity. Defined.
 
 Definition sum_int := fold_right Int.add Int.zero.
 Check var_types.
-Definition Delta : tycontext := 
+Definition Delta : tycontext :=
 mk_tycontext
              (PTree.Node
                 (PTree.Node PTree.Leaf None
@@ -78,13 +78,13 @@ mk_tycontext
                          (PTree.Node
                             (PTree.Node PTree.Leaf
                                (Some
-                                  (WITH x : share * list val * val PRE 
+                                  (WITH x : share * list val * val PRE
                                    [(_p, tptr t_struct_list)]
                                    (let (p0, p1) := x in
                                     let (sh0, contents0) := p0 in
                                     PROP  (writable_share sh0)
                                     LOCAL  (temp _p p1)
-                                    SEP 
+                                    SEP
                                     (`(lseg LS sh0 contents0 p1 nullval)))
                                    POST  [tptr t_struct_list]
                                    (let (p0, _) := x in
@@ -107,14 +107,14 @@ mk_tycontext
                          (PTree.Node
                             (PTree.Node PTree.Leaf
                                (Some
-                                  (WITH x : share * list int * val PRE 
+                                  (WITH x : share * list int * val PRE
                                    [(_p, tptr t_struct_list)]
                                    (let (p0, p1) := x in
                                     let (sh0, contents0) := p0 in
                                     PROP  ()
                                     LOCAL  (temp _p p1)
-                                    SEP 
-                                    (`(lseg LS sh0 
+                                    SEP
+                                    (`(lseg LS sh0
                                          (map Vint contents0) p1 nullval)))
                                    POST  [tint]
                                    (let (p0, _) := x in
@@ -124,13 +124,13 @@ mk_tycontext
                                          retval)))) PTree.Leaf) None
                             PTree.Leaf)) None PTree.Leaf) None PTree.Leaf)).
 
-Definition Struct_env := (@PTree.Node type (@PTree.Leaf type) 
+Definition Struct_env := (@PTree.Node type (@PTree.Leaf type)
                      (@None type)
                      (@PTree.Node type
                         (@PTree.Node type
                            (@PTree.Node type
                               (@PTree.Node type
-                                 (@PTree.Node type 
+                                 (@PTree.Node type
                                     (@PTree.Leaf type)
                                     (@Some type
                                        (Tstruct _struct_list
@@ -138,10 +138,10 @@ Definition Struct_env := (@PTree.Node type (@PTree.Leaf type)
                                              (Fcons _tail
                                                 (Tcomp_ptr _struct_list
                                                   noattr) Fnil)) noattr))
-                                    (@PTree.Leaf type)) 
+                                    (@PTree.Leaf type))
                                  (@None type) (@PTree.Leaf type))
-                              (@None type) (@PTree.Leaf type)) 
-                           (@None type) (@PTree.Leaf type)) 
+                              (@None type) (@PTree.Leaf type))
+                           (@None type) (@PTree.Leaf type))
                         (@None type) (@PTree.Leaf type))).
 (*
 Definition Delta2 : tycontext :=
@@ -170,7 +170,7 @@ Definition Delta2 : tycontext :=
                    (Some
                       (Global_func
                          (WITH _ : unit PRE  [(1%positive, tptr tvoid),
-                          (2%positive, tptr tvoid), 
+                          (2%positive, tptr tvoid),
                           (3%positive, tuint), (4%positive, tuint)]
                           (fun _ : environ => !!False) POST  [tvoid]
                           (fun _ : environ => !!False)))) PTree.Leaf) None
@@ -180,13 +180,13 @@ Definition Delta2 : tycontext :=
                    (PTree.Node PTree.Leaf
                       (Some
                          (Global_func
-                            (WITH x : share * list int * val PRE 
+                            (WITH x : share * list int * val PRE
                              [(_p, tptr t_struct_list)]
                              (let (p0, p) := x in
                               let (sh0, contents0) := p0 in
                               PROP  ()
                               LOCAL  (`(eq p) (eval_id _p))
-                              SEP 
+                              SEP
                               (`(lseg LS sh0 (map Vint contents0) p nullval)))
                              POST  [tint]
                              (let (p0, _) := x in
@@ -206,7 +206,7 @@ Definition Delta2 : tycontext :=
                    (PTree.Node PTree.Leaf
                       (Some
                          (Global_func
-                            (WITH x : share * list val * val PRE 
+                            (WITH x : share * list val * val PRE
                              [(_p, tptr t_struct_list)]
                              (let (p0, p) := x in
                               let (sh0, contents0) := p0 in
@@ -230,6 +230,6 @@ Definition Delta2 : tycontext :=
                    (PTree.Node PTree.Leaf
                       (Some
                          (Global_func
-                            (WITH u : unit PRE  []main_pre prog u POST 
+                            (WITH u : unit PRE  []main_pre prog u POST
                              [tint]main_post prog u))) PTree.Leaf) None
-                   PTree.Leaf)))).*)*) 
+                   PTree.Leaf)))).*)*)

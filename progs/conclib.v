@@ -28,7 +28,7 @@ Qed.
 
 Definition complete MAX l := l ++ repeat (vint 0) (Z.to_nat MAX - length l).
 
-Lemma upd_complete : forall l x MAX, Zlength l < MAX -> 
+Lemma upd_complete : forall l x MAX, Zlength l < MAX ->
   upd_Znth (Zlength l) (complete MAX l) x = complete MAX (l ++ [x]).
 Proof.
   intros; unfold complete.
@@ -50,7 +50,7 @@ Proof.
   intros; apply app_Znth1; auto.
 Qed.
 
-Lemma remove_complete : forall l x MAX, Zlength l < MAX -> 
+Lemma remove_complete : forall l x MAX, Zlength l < MAX ->
   upd_Znth (Zlength l) (complete MAX (l ++ [x])) (vint 0) = complete MAX l.
 Proof.
   intros; unfold complete.
@@ -403,7 +403,7 @@ Proof.
     + f_equal; omega.
 Qed.
 
-Lemma upd_complete' : forall l x n, (length l < n)%nat -> 
+Lemma upd_complete' : forall l x n, (length l < n)%nat ->
   upd_Znth (Zlength l) (map Vint (map Int.repr l) ++ repeat Vundef (n - length l)) (Vint (Int.repr x)) =
   map Vint (map Int.repr (l ++ [x])) ++ repeat Vundef (n - length (l ++ [x])).
 Proof.

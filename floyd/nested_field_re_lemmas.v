@@ -44,7 +44,7 @@ data_at_with_mexception * [field_at] = data_at
 (*** reptype level ***)
 
 (*
-Fixpoint proj_reptype_structlist id f ofs (v: reptype_structlist f) : 
+Fixpoint proj_reptype_structlist id f ofs (v: reptype_structlist f) :
   reptype (match field_offset_rec id f ofs, field_type id f with
            | Errors.OK _, Errors.OK t0 => t0
            | _, _ => Tvoid
@@ -55,7 +55,7 @@ Fixpoint proj_reptype_structlist id f ofs (v: reptype_structlist f) :
                                              | _, _ => Tvoid
                                              end) with
   | Fnil => fun _ => default_val _
-  | Fcons i0 t0 flds0 => 
+  | Fcons i0 t0 flds0 =>
     if is_Fnil flds0 as b
       return ((if b then reptype t0 else reptype t0 * reptype_structlist flds0) ->
               reptype (match (if ident_eq id i0
@@ -78,7 +78,7 @@ Fixpoint proj_reptype_structlist id f ofs (v: reptype_structlist f) :
                        end)
       then v
       else default_val _
-    else fun v => 
+    else fun v =>
       if ident_eq id i0 as b0
         return reptype (match (if b0
                              then Errors.OK (align ofs (alignof t0))
@@ -92,7 +92,7 @@ Fixpoint proj_reptype_structlist id f ofs (v: reptype_structlist f) :
       else proj_reptype_structlist id flds0 (align ofs (alignof t0) + sizeof t0) (snd v)
   end v.
 
-Fixpoint proj_reptype_unionlist id f (v: reptype_unionlist f) : 
+Fixpoint proj_reptype_unionlist id f (v: reptype_unionlist f) :
   reptype (match field_type id f with
            | Errors.OK t0 => t0
            | _ => Tvoid
@@ -103,7 +103,7 @@ Fixpoint proj_reptype_unionlist id f (v: reptype_unionlist f) :
                                             | _ => Tvoid
                                             end) with
   | Fnil => fun _ => default_val _
-  | Fcons i0 t0 flds0 => 
+  | Fcons i0 t0 flds0 =>
     if is_Fnil flds0 as b
       return ((if b then reptype t0 else reptype t0 + reptype_unionlist flds0) ->
               reptype (match (if ident_eq id i0 then Errors.OK t0 else field_type id flds0) with
@@ -118,7 +118,7 @@ Fixpoint proj_reptype_unionlist id f (v: reptype_unionlist f) :
                         end)
       then v
       else default_val _
-    else fun v => 
+    else fun v =>
       if ident_eq id i0 as b0
         return reptype (match (if b0 then Errors.OK t0 else field_type id flds0) with
                         | Errors.OK t0 => t0
@@ -141,7 +141,7 @@ Definition proj_except_reptype (t: type) (g
 Lemma gupd_reptype_structlist_aux: forall f i0 t0,
   all_fields_replace_one2 f i0 t0 = match f with
                                     | Fnil => Fnil
-                                    | Fcons i1 t1 flds0 => 
+                                    | Fcons i1 t1 flds0 =>
                                       if ident_eq i0 i1
                                       then Fcons i1 t0 flds0
                                       else Fcons i1 t1 (all_fields_replace_one2 flds0 i0 t0)
@@ -152,8 +152,8 @@ Proof.
 Defined.
 
 Definition gupd_reptype_array t1 n a (i: Z) (t0: type) (v: list (reptype t1)) (v0: reptype t0) : reptype_structlist (ArrayField t1 n a i t0) :=
-  if Z.eqb i 0 as b 
-    return reptype_structlist 
+  if Z.eqb i 0 as b
+    return reptype_structlist
              (if b
               then Fcons 1002%positive t0
                      (Fcons 1003%positive (Tarray t1 (n - 1) a) Fnil)
@@ -180,10 +180,10 @@ Definition gupd_reptype_array t1 n a (i: Z) (t0: type) (v: list (reptype t1)) (v
 Fixpoint gupd_reptype_structlist f (i0: ident) (t0: type) (v: reptype_structlist f) (v0: reptype t0) : reptype_structlist (all_fields_replace_one2 f i0 t0) :=
   let res :=
   match f as f'
-    return reptype_structlist f' -> 
+    return reptype_structlist f' ->
            reptype_structlist (match f' with
                                | Fnil => Fnil
-                               | Fcons i1 t1 flds0 => 
+                               | Fcons i1 t1 flds0 =>
                                  if ident_eq i0 i1
                                  then Fcons i1 t0 flds0
                                  else Fcons i1 t1 (all_fields_replace_one2 flds0 i0 t0)
@@ -205,19 +205,19 @@ Fixpoint gupd_reptype_structlist f (i0: ident) (t0: type) (v: reptype_structlist
     else
      (if is_Fnil flds0 as b0
         return (if b0 then reptype t1 else reptype t1 * reptype_structlist flds0) ->
-               (if is_Fnil (all_fields_replace_one2 flds0 i0 t0) then reptype t1 else reptype t1 * 
+               (if is_Fnil (all_fields_replace_one2 flds0 i0 t0) then reptype t1 else reptype t1 *
                    reptype_structlist (all_fields_replace_one2 flds0 i0 t0))
       then
         if is_Fnil (all_fields_replace_one2 flds0 i0 t0) as b1
           return reptype t1 ->
-                 (if b1 then reptype t1 else reptype t1 * 
+                 (if b1 then reptype t1 else reptype t1 *
                      reptype_structlist (all_fields_replace_one2 flds0 i0 t0))
         then fun v => v
         else fun _ => (default_val _, struct_default_val _) (* impossible situation *)
       else
         if is_Fnil (all_fields_replace_one2 flds0 i0 t0) as b1
           return reptype t1 * reptype_structlist flds0 ->
-                 (if b1 then reptype t1 else reptype t1 * 
+                 (if b1 then reptype t1 else reptype t1 *
                      reptype_structlist (all_fields_replace_one2 flds0 i0 t0))
         then fun _ => default_val _
         else fun v => (fst v, gupd_reptype_structlist flds0 i0 t0 (snd v) v0)
@@ -229,14 +229,14 @@ Fixpoint gupd_reptype_structlist f (i0: ident) (t0: type) (v: reptype_structlist
 
 Definition gupd_reptype_unionlist (i0: ident) (t0: type) (v0: reptype t0) : reptype_unionlist (Fcons i0 t0 Fnil) := v0.
 
-Fixpoint gupd_reptype (t: type) (gfs: list gfield) (t0: type) (v: reptype t) (v0: reptype t0): reptype (nf_replace2 t gfs t0) := 
+Fixpoint gupd_reptype (t: type) (gfs: list gfield) (t0: type) (v: reptype t) (v0: reptype t0): reptype (nf_replace2 t gfs t0) :=
   match gfs as gfs' return reptype (nf_replace2 t gfs' t0) with
   | nil => v0
   | ArraySubsc i :: gfs0 =>
-      match nested_field_type2 t gfs0 as T 
+      match nested_field_type2 t gfs0 as T
         return reptype T ->
                reptype (match T with
-                        | Tarray t1 n a => 
+                        | Tarray t1 n a =>
                           nf_replace2 t gfs0
                             (Tstruct 1000%positive (ArrayField t1 n a i t0) noattr)
                         | _ => t
@@ -248,34 +248,34 @@ Fixpoint gupd_reptype (t: type) (gfs: list gfield) (t0: type) (v: reptype t) (v0
       | _ => fun _ => default_val _
       end (proj_reptype t gfs0 v)
   | StructField i :: gfs0 =>
-    match nested_field_type2 t gfs0 as T 
+    match nested_field_type2 t gfs0 as T
       return reptype T -> reptype (match T with
-                                   | Tstruct i0 f a => nf_replace2 t gfs0 
+                                   | Tstruct i0 f a => nf_replace2 t gfs0
                                      (Tstruct i0 (all_fields_replace_one2 f i t0) a)
                                    | _ => t
                                    end)
     with
-    | Tstruct i0 f a => fun v1 => gupd_reptype t gfs0 (Tstruct i0 (all_fields_replace_one2 f i t0) a) v 
+    | Tstruct i0 f a => fun v1 => gupd_reptype t gfs0 (Tstruct i0 (all_fields_replace_one2 f i t0) a) v
                                  (gupd_reptype_structlist f i t0 v1 v0)
     | _ => fun _ => default_val _
     end (proj_reptype t gfs0 v)
   | UnionField i :: gfs0 =>
-    match nested_field_type2 t gfs0 as T 
+    match nested_field_type2 t gfs0 as T
       return reptype T -> reptype (match T with
-                                   | Tunion i0 f a => nf_replace2 t gfs0 
+                                   | Tunion i0 f a => nf_replace2 t gfs0
                                      (Tunion i0 (Fcons i t0 Fnil) a)
                                    | _ => t
                                    end)
     with
-    | Tunion i0 f a => fun _ => gupd_reptype t gfs0 (Tunion i0 (Fcons i t0 Fnil)a) v 
+    | Tunion i0 f a => fun _ => gupd_reptype t gfs0 (Tunion i0 (Fcons i t0 Fnil)a) v
                                  (gupd_reptype_unionlist i t0 v0)
     | _ => fun _ => default_val _
     end (proj_reptype t gfs0 v)
   end.
 
 Definition proj_except_reptype_array t1 n a (i: Z) (v: list (reptype t1)) : reptype_structlist (all_fields_except_one2 (ArrayField t1 n a i Tvoid) 1002%positive):=
-  if Z.eqb i 0 as b 
-    return reptype_structlist (all_fields_except_one2 
+  if Z.eqb i 0 as b
+    return reptype_structlist (all_fields_except_one2
              (if b
               then Fcons 1002%positive Tvoid
                      (Fcons 1003%positive (Tarray t1 (n - 1) a) Fnil)
@@ -290,7 +290,7 @@ Definition proj_except_reptype_array t1 n a (i: Z) (v: list (reptype t1)) : rept
   then skipn 1%nat v
   else
     if Z.eqb i (n - 1) as b0
-      return reptype_structlist (all_fields_except_one2 
+      return reptype_structlist (all_fields_except_one2
                (if b0
                 then Fcons 1001%positive (Tarray t1 (n - 1) a)
                        (Fcons 1002%positive Tvoid Fnil)
@@ -304,7 +304,7 @@ Definition proj_except_reptype_array t1 n a (i: Z) (v: list (reptype t1)) : rept
 Fixpoint proj_except_reptype_structlist (f: fieldlist) (id: ident) (v: reptype_structlist f): reptype_structlist (all_fields_except_one2 f id) :=
   let res :=
   match f as f'
-    return reptype_structlist f' -> 
+    return reptype_structlist f' ->
            reptype_structlist (match f' with
                                | Fnil => Fnil
                                | Fcons i t f0 =>
@@ -314,7 +314,7 @@ Fixpoint proj_except_reptype_structlist (f: fieldlist) (id: ident) (v: reptype_s
                                end)
   with
   | Fnil => fun v => v
-  | Fcons i t f0 => fun v => 
+  | Fcons i t f0 => fun v =>
      if ident_eq id i as b
        return reptype_structlist (if b
                                   then f0
@@ -326,18 +326,18 @@ Fixpoint proj_except_reptype_structlist (f: fieldlist) (id: ident) (v: reptype_s
        else fun v => snd v) v
      else
       (if (is_Fnil f0) as b0
-         return (if b0 then reptype t else reptype t * reptype_structlist f0) -> 
-                (if is_Fnil (all_fields_except_one2 f0 id) then reptype t else 
+         return (if b0 then reptype t else reptype t * reptype_structlist f0) ->
+                (if is_Fnil (all_fields_except_one2 f0 id) then reptype t else
                  reptype t * reptype_structlist (all_fields_except_one2 f0 id))
-       then fun v => 
+       then fun v =>
          if is_Fnil (all_fields_except_one2 f0 id) as b1
-           return if b1 then reptype t else 
+           return if b1 then reptype t else
                   reptype t * reptype_structlist (all_fields_except_one2 f0 id)
          then v
          else (v, struct_default_val _)
        else fun v =>
          if is_Fnil (all_fields_except_one2 f0 id) as b1
-           return if b1 then reptype t else 
+           return if b1 then reptype t else
                   reptype t * reptype_structlist (all_fields_except_one2 f0 id)
          then fst v
          else (fst v, proj_except_reptype_structlist f0 id (snd v))
@@ -385,9 +385,9 @@ Definition proj_except_reptype (t: type) (gf: gfield) (gfs: list gfield) (v: rep
                      end
     with
     | Tarray t0 n a =>
-      fun v0 => gupd_reptype t gfs 
+      fun v0 => gupd_reptype t gfs
             (Tstruct 1000%positive
-              (all_fields_except_one2 (ArrayField t0 n a i Tvoid) 1002%positive) noattr) v 
+              (all_fields_except_one2 (ArrayField t0 n a i Tvoid) 1002%positive) noattr) v
                              (proj_except_reptype_array t0 n a i v0)
     | _ => fun _ => default_val _
     end
@@ -400,7 +400,7 @@ Definition proj_except_reptype (t: type) (gf: gfield) (gfs: list gfield) (v: rep
                      | _ => t
                      end
     with
-    | Tstruct i0 f a => fun v0 => gupd_reptype t gfs (Tstruct i0 (all_fields_except_one2 f i) a) v 
+    | Tstruct i0 f a => fun v0 => gupd_reptype t gfs (Tstruct i0 (all_fields_except_one2 f i) a) v
                           (proj_except_reptype_structlist f i v0)
     | _ => fun _ => default_val _
     end
@@ -542,7 +542,7 @@ Fixpoint upd_reptype (t: type) (gfs: list gfield) (v: reptype t) (v0: reptype (n
              reptype (nested_field_type2 t gfs0)
     with
     | ArraySubsc i =>
-      match nested_field_type2 t gfs0 as T 
+      match nested_field_type2 t gfs0 as T
         return reptype T ->
                reptype (match T with
                         | Tarray t0 n a => t0
@@ -554,7 +554,7 @@ Fixpoint upd_reptype (t: type) (gfs: list gfield) (v: reptype t) (v0: reptype (n
       | _ => fun _ _=> default_val _
       end
     | StructField i =>
-      match nested_field_type2 t gfs0 as T 
+      match nested_field_type2 t gfs0 as T
         return reptype T ->
                reptype (match T with
                         | Tstruct i0 f a =>
@@ -570,7 +570,7 @@ Fixpoint upd_reptype (t: type) (gfs: list gfield) (v: reptype t) (v0: reptype (n
       | _ => fun _ _ => default_val _
       end
     | UnionField i =>
-      match nested_field_type2 t gfs0 as T 
+      match nested_field_type2 t gfs0 as T
         return reptype T ->
                reptype (match T with
                         | Tunion i0 f a =>
@@ -591,7 +591,7 @@ Fixpoint upd_reptype (t: type) (gfs: list gfield) (v: reptype t) (v0: reptype (n
 
 (*
 Fixpoint pair_reptype_structlist (id: ident) (f: fieldlist) (ofs: Z)
-  (v: reptype_structlist (all_fields_except_one2 f id)) 
+  (v: reptype_structlist (all_fields_except_one2 f id))
   (v0: reptype match field_offset_rec id f ofs, field_type id f with
                | Errors.OK _, Errors.OK t0 => t0
                | _, _ => Tvoid
@@ -605,7 +605,7 @@ Fixpoint pair_reptype_structlist (id: ident) (f: fieldlist) (ofs: Z)
            reptype_structlist f'
   with
   | Fnil => fun v _ => v
-  | Fcons i t flds0 => 
+  | Fcons i t flds0 =>
     if ident_eq id i as b
       return reptype_structlist (if b then flds0 else Fcons i t (all_fields_except_one2 flds0 id)) ->
              reptype match (if b
@@ -617,7 +617,7 @@ Fixpoint pair_reptype_structlist (id: ident) (f: fieldlist) (ofs: Z)
                      | _, _ => Tvoid
                      end ->
              if is_Fnil flds0 then reptype t else reptype t * reptype_structlist flds0
-    then 
+    then
       if is_Fnil flds0 as b0
         return reptype_structlist flds0 -> reptype t ->
                (if b0 then reptype t else reptype t * reptype_structlist flds0)
@@ -626,7 +626,7 @@ Fixpoint pair_reptype_structlist (id: ident) (f: fieldlist) (ofs: Z)
     else
       if is_Fnil flds0 as b0
         return (if is_Fnil (all_fields_except_one2 flds0 id)
-                then reptype t else reptype t * 
+                then reptype t else reptype t *
                   reptype_structlist (all_fields_except_one2 flds0 id)) ->
                reptype match field_offset_rec id flds0 (align ofs (alignof t) + sizeof t),
                              field_type id flds0 with
@@ -636,7 +636,7 @@ Fixpoint pair_reptype_structlist (id: ident) (f: fieldlist) (ofs: Z)
                (if b0 then reptype t else reptype t * reptype_structlist flds0)
       then
         if is_Fnil (all_fields_except_one2 flds0 id) as b1
-          return (if b1 then reptype t else reptype t * 
+          return (if b1 then reptype t else reptype t *
                   reptype_structlist (all_fields_except_one2 flds0 id)) ->
                   reptype match field_offset_rec id flds0 (align ofs (alignof t) + sizeof t),
                              field_type id flds0 with
@@ -647,16 +647,16 @@ Fixpoint pair_reptype_structlist (id: ident) (f: fieldlist) (ofs: Z)
         else fun v v0 => fst v
       else
         if is_Fnil (all_fields_except_one2 flds0 id) as b1
-          return (if b1 then reptype t else reptype t * 
+          return (if b1 then reptype t else reptype t *
                   reptype_structlist (all_fields_except_one2 flds0 id)) ->
                   reptype match field_offset_rec id flds0 (align ofs (alignof t) + sizeof t),
                              field_type id flds0 with
                           | Errors.OK _, Errors.OK t0 => t0
                           | _, _ => Tvoid
                           end -> reptype t * reptype_structlist flds0
-        then fun v v0 => (v, pair_reptype_structlist id flds0 (align ofs (alignof t) + sizeof t) 
+        then fun v v0 => (v, pair_reptype_structlist id flds0 (align ofs (alignof t) + sizeof t)
                              (struct_default_val _) v0)
-        else fun v v0 => (fst v, pair_reptype_structlist id flds0 (align ofs (alignof t) + sizeof t) 
+        else fun v v0 => (fst v, pair_reptype_structlist id flds0 (align ofs (alignof t) + sizeof t)
                                 (snd v) v0)
   end v v0.
 
@@ -699,7 +699,7 @@ Fixpoint pair_reptype (t: type) (id: ident) (gfs: list ident) (v: reptype (nf_su
            t = nf_replace2 (nf_sub2 t id gfs) gfs T ->
            reptype t
   with
-  | Tstruct i f a => fun v1 v0 H => eq_rect_r reptype 
+  | Tstruct i f a => fun v1 v0 H => eq_rect_r reptype
                        (gupd_reptype _ gfs (Tstruct i f a) v (pair_reptype_structlist id f 0 v1 v0)) H
   | _ => fun _ _ _ => default_val _
   end
@@ -740,13 +740,13 @@ Module Test.
   Definition T3 := Tstruct 3%positive (Fcons 301%positive T2 (Fcons 302%positive T2 Fnil)) noattr.
 
   Definition v : reptype T3 :=
-   (((Vint (Int.repr 1), Vint (Int.repr 2)), (Vint (Int.repr 3), Vint (Int.repr 4))), 
+   (((Vint (Int.repr 1), Vint (Int.repr 2)), (Vint (Int.repr 3), Vint (Int.repr 4))),
     ((Vint (Int.repr 5), Vint (Int.repr 6)), (Vint (Int.repr 7), Vint (Int.repr 8)))).
 
   Arguments eq_rect_r / {A} {x} P H {y} H0.
   Arguments proj_except_reptype / t gf gfs v.
 
-  Lemma Test1: 
+  Lemma Test1:
     JMeq (proj_reptype T3 (StructField 201%positive :: StructField 302%positive :: nil) v) (Vint (Int.repr 5), Vint (Int.repr 6)).
   Proof.
     simpl.
@@ -754,9 +754,9 @@ Module Test.
   Qed.
 
   Lemma Test2:
-    JMeq (upd_reptype T3 (StructField 201%positive :: StructField 302%positive :: nil) v 
-    (Vint (Int.repr 15), Vint (Int.repr 16))) 
-    (((Vint (Int.repr 1), Vint (Int.repr 2)), (Vint (Int.repr 3), Vint (Int.repr 4))), 
+    JMeq (upd_reptype T3 (StructField 201%positive :: StructField 302%positive :: nil) v
+    (Vint (Int.repr 15), Vint (Int.repr 16)))
+    (((Vint (Int.repr 1), Vint (Int.repr 2)), (Vint (Int.repr 3), Vint (Int.repr 4))),
     ((Vint (Int.repr 15), Vint (Int.repr 16)), (Vint (Int.repr 7), Vint (Int.repr 8)))).
   Proof.
     simpl.
@@ -764,8 +764,8 @@ Module Test.
   Qed.
 
   Lemma Test3:
-    JMeq (proj_except_reptype T3 (StructField 201%positive) (StructField 302%positive :: nil) v) 
-    (((Vint (Int.repr 1), Vint (Int.repr 2)), (Vint (Int.repr 3), Vint (Int.repr 4))), 
+    JMeq (proj_except_reptype T3 (StructField 201%positive) (StructField 302%positive :: nil) v)
+    (((Vint (Int.repr 1), Vint (Int.repr 2)), (Vint (Int.repr 3), Vint (Int.repr 4))),
     ((Vint (Int.repr 7), Vint (Int.repr 8)))).
   Proof.
     simpl.
@@ -895,10 +895,10 @@ Proof.
         exists (fun v => (fst v, snd (F0 (snd v)))).
         exists (fun v => (fst v, G0 (struct_default_val _, snd v))).
         intros.
-        assert (proj_except_reptype_structlist f i (snd v) = 
+        assert (proj_except_reptype_structlist f i (snd v) =
           struct_default_val (all_fields_except_one2 f i)).
         Focus 1. {
-          match goal with 
+          match goal with
           | |- ?A = ?B => generalize A B; intros
           end.
           clear - H3.
@@ -1056,14 +1056,14 @@ Proof.
     Focus 1. {
       intros ?H.
       destruct H0 as [F0 [G0 ?H]].
-      exists (fun v => 
+      exists (fun v =>
              let r := F0 (eq_rect_r reptype v
                (nf_replace2_is_nf_replace2_1_nf_replace2 t gf gfs' t0 H))
              in
-             (eq_rect_r reptype (fst r) 
+             (eq_rect_r reptype (fst r)
                (eq_sym (nf_sub2_is_nf_sub2_1_nf_replace2 t gf gfs' H)), snd r))
              .
-      exists (fun v => 
+      exists (fun v =>
              let l := G0 (eq_rect_r reptype (fst v)
                (nf_sub2_is_nf_sub2_1_nf_replace2 t gf gfs' H), snd v)
              in
@@ -1086,7 +1086,7 @@ Proof.
         (eq_rect_r reptype
           (gupd_reptype t gfs'
             (nf_replace2 (nested_field_type2 t gfs') (gf :: nil) t0) v
-            (gupd_reptype (nested_field_type2 t gfs') 
+            (gupd_reptype (nested_field_type2 t gfs')
                (gf :: nil) t0 (proj_reptype t gfs' v) v0))
           (eq_sym (nf_replace2_is_nf_replace2_1_nf_replace2 t gf gfs' t0 H))).
       Focus 2. {
@@ -1108,7 +1108,7 @@ Proof.
     pose proof (IHgfs a (nf_replace2 (nested_field_type2 t gfs') (gf :: nil) t0)) as HH0.
     spec HH0; [subst gfs'; solve_legal_nested_field_cons H; auto|].
     pose proof (IHgfs a (nf_sub2 (nested_field_type2 t gfs') gf nil)) as HH1.
-    spec HH1; [subst gfs'; solve_legal_nested_field_cons H; auto|].    
+    spec HH1; [subst gfs'; solve_legal_nested_field_cons H; auto|].
     destruct HH0 as [F0 [G0 ?H]].
     destruct HH1 as [F1 [G1 ?H]].
     destruct (gupd_reptype1_is_pair (nested_field_type2 t gfs') gf t0) as [F2 [G2 ?H]].
@@ -1141,7 +1141,7 @@ Qed.
 
 Definition proj_except_reptype_cons_is_pair: forall t gf gf0 gfs,
   legal_nested_field t (gf :: gf0 :: gfs) ->
-  sigT (fun F => sigT (fun G => 
+  sigT (fun F => sigT (fun G =>
     forall v,
     F (proj_except_reptype t gf (gf0 :: gfs) v) =
       (proj_except_reptype t gf0 gfs v,
@@ -1151,7 +1151,7 @@ Definition proj_except_reptype_cons_is_pair: forall t gf gf0 gfs,
         proj_except_reptype _ gf nil (proj_reptype t (gf0 :: gfs) v)))).
 Proof.
   intros.
-  cut (sigT (fun F => sigT (fun G => 
+  cut (sigT (fun F => sigT (fun G =>
          forall v,
          F (gupd_reptype t (gf0 :: gfs) _ v
              (proj_except_reptype _ gf nil (proj_reptype t (gf0 :: gfs) v))) =

@@ -44,9 +44,9 @@ Next Obligation.
   destruct (eq_dec i v1).
   apply (age1_YES _ _ _ _ _ H); auto.
   destruct (identity_resource (a @ i)) as [? _]. specialize (H1 H0).
-  apply identity_resource. 
+  apply identity_resource.
   generalize (age1_resource_at _ _ H i (a @ i)); intro.
-  generalize (resource_at_approx a i); intro. 
+  generalize (resource_at_approx a i); intro.
   destruct (a @ i); try contradiction.
   rewrite H2; simpl in *; auto.
   rewrite H2; simpl in *; auto.
@@ -64,27 +64,27 @@ Lemma mapsto_conflict:
     pfullshare_join.
  Qed.
 
-Lemma singleton_rmap_OK: 
-   forall v v' m,  
+Lemma singleton_rmap_OK:
+   forall v v' m,
        resource_fmap (approx (level m))
             oo (fun i => if eq_dec i v then YES pfullshare (VAL v') NoneP else core m @  i) =
     (fun i => if eq_dec i v then YES pfullshare (VAL v') NoneP else core m @ i).
 Proof.
   intros; extensionality i; unfold compose; simpl.
-  destruct (eq_dec i v). 
+  destruct (eq_dec i v).
   unfold resource_fmap. f_equal. apply preds_fmap_NoneP.
   rewrite <- level_core.
   symmetry; apply resource_at_approx.
 Qed.
 
 Definition singleton_rmap  (v v': adr) (m: rmap) : rmap :=
-  proj1_sig 
-  (make_rmap (fun i => if eq_dec i v then YES pfullshare (VAL v') NoneP  else core m @ i ) 
+  proj1_sig
+  (make_rmap (fun i => if eq_dec i v then YES pfullshare (VAL v') NoneP  else core m @ i )
     I (level m) (singleton_rmap_OK _ _ m)).
 
 Lemma singleton_rmap_level: forall x y m,
       level (singleton_rmap x y m) = level m.
-Proof. 
+Proof.
   intros.  apply level_make_rmap.
 Qed.
 
@@ -107,7 +107,7 @@ Proof.
  apply rmap_ext.
  assert (level (core w) = level (core w')) by congruence.
  do 2 rewrite level_core in H2. auto.
- intro. 
+ intro.
  specialize (H0 l); specialize (H1 l).
  destruct (@eq_dec adr _ l x); try congruence.
  apply identity_unit_equiv in H0.
@@ -141,14 +141,14 @@ Program Definition cohere (concrete: heap) : pred rmap :=
                  w @ p = YES pfullshare (VAL v) NoneP.
 Next Obligation.
   unfold hereditary; intros.
-  rewrite H0. 
+  rewrite H0.
   apply age1_YES; auto.
 Qed.
 
 
-Program Definition assert_safe 
+Program Definition assert_safe
      (p: program) (vars: varset) (ctl: control) : assert :=
-  fun s w => forall s' h, varcompat vars s' -> 
+  fun s w => forall s' h, varcompat vars s' ->
                    locals2env s' = s -> cohere h w -> safeN p (s',h,ctl) (level w).
  Next Obligation.
   unfold hereditary; intros.
@@ -159,8 +159,8 @@ Program Definition assert_safe
   intuition.
  Qed.
 
-Lemma assert_safe0: 
-        forall p vars k s w, 
+Lemma assert_safe0:
+        forall p vars k s w,
            (forall w', age w w' -> app_pred (assert_safe p vars k s) w) ->
             app_pred (assert_safe p vars k s) w.
 Proof.
@@ -178,25 +178,25 @@ Definition funspecs := table adr funspec.
 
 Definition unpack (P: list adr -> pred rmap) (vl: listprod (@cons Type (list adr) nil)):  pred rmap := P (fst vl).
 
-Definition call (P: list var * assert) (vl: list adr) : pred rmap := 
+Definition call (P: list var * assert) (vl: list adr) : pred rmap :=
      (!! (length vl = length (fst P)) && snd P (arguments (fst P) vl)).
 
 Program Definition cont (nP: funspec)  (v: adr) : pred rmap :=
-  fun w => w @ v = PURE (FUN (fst nP)) (preds_fmap (approx (level w)) (SomeP (list adr::nil) 
+  fun w => w @ v = PURE (FUN (fst nP)) (preds_fmap (approx (level w)) (SomeP (list adr::nil)
              (unpack (call nP)))).
 Next Obligation.
  intros; intro; intros.
   apply (age1_resource_at a a' H v (PURE (FUN (fst nP)) _));   simpl; auto.
 Qed.
 
-Definition funassert (G: funspecs) : pred rmap := 
-   (ALL  i:_, ALL P:_,  !! (table_get G i = Some P) --> cont P i)  && 
+Definition funassert (G: funspecs) : pred rmap :=
+   (ALL  i:_, ALL P:_,  !! (table_get G i = Some P) --> cont P i)  &&
    (ALL  i:_, ALL P:_,  cont P i --> !! exists P', table_get G i = Some P').
 
 Definition make_world_aux (G: funspecs) (h: heap) (n: nat) (a: adr) : resource :=
    match table_get G a with
    | Some P => PURE (FUN (fst P))
-                               (preds_fmap (approx n) 
+                               (preds_fmap (approx n)
                                       (SomeP (@cons Type (list adr) nil) (unpack (call P))))
    | None => match heap_get h a with
                      | Some v => YES pfullshare (VAL v) NoneP
@@ -205,18 +205,18 @@ Definition make_world_aux (G: funspecs) (h: heap) (n: nat) (a: adr) : resource :
    end.
 
 Lemma make_world_aux_OK:
-  forall G h n, 
+  forall G h n,
          resource_fmap (approx n) oo make_world_aux G h n =  make_world_aux G h n.
 Proof.
  intros.
- extensionality v; 
+ extensionality v;
  unfold make_world_aux, compose.
  destruct (table_get G v). destruct f as [nargs P]. simpl.
  f_equal. f_equal. rewrite <- compose_assoc. rewrite approx_oo_approx. auto.
  destruct (heap_get h v); auto.
  unfold resource_fmap.
  f_equal. apply preds_fmap_NoneP.
-Qed.  
+Qed.
 
 Definition make_world (G: funspecs) (h: heap) (n: nat) : rmap :=
     proj1_sig (make_rmap (make_world_aux G h n) I n (make_world_aux_OK _ _ _)).
@@ -237,11 +237,11 @@ Inductive match_specs: forall (p: program) (G: funspecs), Prop :=
          match_specs ((i,(vars,f))::p') ((i,P)::G').
 
 Lemma match_specs_boundary:
-   forall p G i, 
+   forall p G i,
    match_specs p G -> i >= boundary p -> table_get G i = None.
 Proof.
   induction 1. intros. reflexivity.
-  intros. simpl in *. 
+  intros. simpl in *.
   destruct (@eq_dec adr _ i i0). subst.
   clear - H2. destruct (boundary p'). elimtype False; omega.
  generalize (Max.le_max_l i0 n); intro. elimtype False. omega.
@@ -251,7 +251,7 @@ Proof.
 Qed.
 
 Lemma funassert_e:  forall G i f,
-      table_get G i = Some f -> 
+      table_get G i = Some f ->
       funassert G |-- cont f i.
 Proof.
   intros.
@@ -288,8 +288,8 @@ Proof.
  rewrite H1 in H2. destruct (heap_get h i); inv H2.
 Qed.
 
-Lemma cohere_make_world: 
-  forall p G n,  
+Lemma cohere_make_world:
+  forall p G n,
       match_specs p G ->
      app_pred (cohere (initial_heap p)) (make_world G (initial_heap p) n).
 Proof.
@@ -323,15 +323,15 @@ Proof.
  hnf in H99,H97. rewrite H99 in H97.  apply PURE_inj in H97. destruct H97 as [H H97].
  simpl in H. destruct nP as [na P]. inv H.
  intro vl. intros w' ? w'' ?.
-  assert (level w'' < level w). do 3 red in H. apply laterR_level in H. 
+  assert (level w'' < level w). do 3 red in H. apply laterR_level in H.
        apply le_lt_trans with (level w'); auto.
  simpl fst.
-  split; intros w''' ? ?.  
+  split; intros w''' ? ?.
  match type of H97 with ?A = _ => assert (app_pred (A (vl,tt)) w''') end.
   rewrite H97.
  split.
   change rmap with R.rmap in *.
-  change ag_rmap with R.ag_rmap in *. 
+  change ag_rmap with R.ag_rmap in *.
   apply necR_level in H2; omega.
  apply H3.
   destruct H4. apply H5.
@@ -339,7 +339,7 @@ Proof.
   rewrite <- H97.
  split.
   change rmap with R.rmap in *.
-  change ag_rmap with R.ag_rmap in *. 
+  change ag_rmap with R.ag_rmap in *.
   apply necR_level in H2; omega.
  apply H3.
   destruct H4. apply H5.
@@ -426,7 +426,7 @@ Proof.
   rename H into H'.
  unfold initial_locals,initial_heap  in *.
  split.
- destruct p; simpl. omega. destruct p. destruct (boundary p0); omega. 
+ destruct p; simpl. omega. destruct p. destruct (boundary p0); omega.
  intro loc.
  destruct (make_rmap
         (make_world_aux G
@@ -446,9 +446,9 @@ Lemma alloc: forall b, allocpool b = ((!! (b > 0) && mapsto b 0) * allocpool (S 
 Proof.
  intros. apply pred_ext.
   intros w ?.
- destruct H as [H' H]. 
-  destruct (deallocate w 
-                   (fun i => if lt_dec b i then NO else w @ i) 
+ destruct H as [H' H].
+  destruct (deallocate w
+                   (fun i => if lt_dec b i then NO else w @ i)
                    (fun i => if eq_dec b i then NO else w @ i)
                I I) as [w1 [w2 [? ?]]].
  intro l; specialize (H l).
@@ -511,9 +511,9 @@ Record semaxArg :Type := SemaxArg {
  sa_c: control
 }.
 
-Definition believe (semax: semaxArg -> pred nat) 
+Definition believe (semax: semaxArg -> pred nat)
       (p: program) (P: funspec) (f: adr) : pred nat :=
-      EX k: list var * control, 
+      EX k: list var * control,
         !!(table_get p f = Some k /\ length (fst k) = length (fst P) /\ list_norepet (fst k)) &&
       |> semax (SemaxArg (fst k) (fun s => call P (map s (fst k))) (snd k)).
 
@@ -527,7 +527,7 @@ Definition semax_ (semax: semaxArg -> pred nat) (a: semaxArg) : pred nat :=
      ALL p: program, ALL G: funspecs, believe_all semax G p G --> guard p G vars P c
   end.
 
-Lemma prop_imp {A}{agA: ageable A}: 
+Lemma prop_imp {A}{agA: ageable A}:
   forall (P: Prop) (Q: pred A) w, (P -> app_pred Q w) -> app_pred (!!P --> Q) w.
 Proof. repeat intro. specialize (H H1). eapply pred_nec_hereditary; eauto.
 Qed.
@@ -541,25 +541,25 @@ Qed.
 Definition semax'  := HORec semax_.
 
 Lemma semax'_unfold: forall vars P c,
-     semax' (SemaxArg vars P c) = 
+     semax' (SemaxArg vars P c) =
          ALL p: program, ALL G:funspecs, believe_all semax' G p G --> guard p G vars P c.
 Proof.
-  intros. 
+  intros.
   unfold semax' at 1. rewrite HORec_fold_unfold; auto.
   apply HOcontractive_semax_.
 Qed.
 
-Definition semax vars (G: funspecs) (P: assert) (k: control) : Prop := 
+Definition semax vars (G: funspecs) (P: assert) (k: control) : Prop :=
        typecheck vars k = true /\ forall n,  semax' (SemaxArg vars (fun s => P s && funassert G) k) n.
 
 Definition semax_func (G: funspecs) (p: program) (G': funspecs) :=
-    match_specs p G' /\ 
+    match_specs p G' /\
     forall n, believe_all semax' G p G' n.
 
 Lemma semax_func_nil: forall G, semax_func G nil nil.
 Proof. split; repeat intro. constructor. inv H0. Qed.
 
-Lemma semax_func_cons: 
+Lemma semax_func_cons:
    forall  fs id f vars P (G G': funspecs),
       inlist id (map (@fst adr (list var * control)) fs) = false ->
       list_nodups vars = true ->
@@ -620,7 +620,7 @@ Qed.
 
 Lemma semax_G:
    forall vars G P c, semax vars G (fun s => P s && funassert G) c -> semax vars G P c.
-Proof. 
+Proof.
   intros. destruct H; split; auto.
   intro; specialize (H0 n).
   replace (fun s : env => P s && funassert G) with (fun s : env => P s && funassert G && funassert G);
@@ -629,7 +629,7 @@ Proof.
   rewrite andp_assoc. f_equal. apply andp_dup.
 Qed.
 
-Lemma semax_go:  forall vars G (P: funspec) x ys,   
+Lemma semax_go:  forall vars G (P: funspec) x ys,
     typecheck vars (Go x ys) = true ->
     semax vars G (fun s => cont P (eval x s) && call P (eval_list ys s)) (Go x ys) .
 Proof.
@@ -649,7 +649,7 @@ Proof.
   destruct (funassert_get G v' P w') as [P' [H2 H2']].
   split; auto.
   generalize (H0 _ _ _ _ (necR_refl _) H2'); intro. clear H2'.
-  destruct H6 as [[formals k] [[H6 [H6' H6'']] ?]]. 
+  destruct H6 as [[formals k] [[H6 [H6' H6'']] ?]].
   hnf in H6.
  rewrite semax'_unfold in H7.
   apply assert_safe0; intros w'' Hw''.
@@ -673,7 +673,7 @@ Proof.
   simpl typecheck in TC.
   rewrite andb_true_iff in TC; destruct TC as [TC1 TC2].
   rewrite (eval_expr_get vars s h x); auto. rewrite <- Heqv'.
-  simpl. rewrite H6.  simpl. 
+  simpl. rewrite H6.  simpl.
   rewrite (eval_expr_get_list vars s h ys); auto.
   rename Hw'' into H12.
   rewrite (age_level _ _ H12).
@@ -686,7 +686,7 @@ Proof.
   split.
   hnf. rewrite map_length. simpl fst. auto.
   split; auto.
-  destruct H2 as [? _]. 
+  destruct H2 as [? _].
   specialize (H1 _ (necR_refl _) H5).
   simpl.
   unfold call in H1. simpl in H1.
@@ -718,7 +718,7 @@ Qed.
 
 Lemma semax_assign: forall x y c vars G P,
     expcheck vars y = true ->
-    semax (vs_add x vars) G P c -> 
+    semax (vs_add x vars) G P c ->
     semax vars G (fun s => |> subst x (eval y s) P s) (Do x := y ; c).
 Proof.
  intros until P; intros TC [TC' ?].
@@ -748,10 +748,10 @@ Proof.
  specialize (H (locals2env (@table_set var _ EqDec_var x (eval y (locals2env s)) s))).
  specialize (H w''). spec H; [rewrite H9; omega | ].
  specialize (H _ (necR_refl _)).
- spec H. split; auto. 
+ spec H. split; auto.
  replace  (locals2env (table_set x (eval y (locals2env s)) s))
    with (env_set (locals2env s) x (eval y (locals2env s))); auto.
-  split; [ auto | eapply pred_hereditary; eauto]. 
+  split; [ auto | eapply pred_hereditary; eauto].
   clear.
    extensionality i. unfold env_set. unfold locals2env at 3.
    destruct (eq_dec i x). subst. rewrite table_gss; auto. rewrite table_gso; auto.
@@ -803,7 +803,7 @@ Proof.
  rewrite andp_assoc; split; [ |  apply H5].
  hnf; auto.
  apply H; auto.
- apply (pred_nec_hereditary _ _ _ (rt_step _ _ _ _ H7)); auto. 
+ apply (pred_nec_hereditary _ _ _ (rt_step _ _ _ _ H7)); auto.
  (* nonzero *)
  subst.
  assert (step p ((s,h), If x Then c1 Else c2) = Some ((s,h), c1)).
@@ -823,12 +823,12 @@ Proof.
  rewrite andp_assoc; split; [ |  apply H5].
  hnf; auto.
  apply H; auto.
- apply (pred_nec_hereditary _ _ _ (rt_step _ _ _ _ H7)); auto. 
+ apply (pred_nec_hereditary _ _ _ (rt_step _ _ _ _ H7)); auto.
 Qed.
 
 Lemma semax_load: forall x y z c vars G P,
     expcheck vars y = true ->
-    semax (vs_add x vars) G P c -> 
+    semax (vs_add x vars) G P c ->
     semax vars G (fun s => ((mapsto (eval y s) z) * TT) && |> subst x z P s)
                (Do x := Mem y ; c).
 Proof.
@@ -856,7 +856,7 @@ Proof.
  apply nec_nat. auto. apply necR_level'. auto.
  specialize (H p G' _ H9 (pred_nec_hereditary _ _ _ H9 H1)).
  specialize (H (locals2env (@table_set _ _ EqDec_var x z s)) w'').
- spec H.    unfold R.rmap in *; omega. 
+ spec H.    unfold R.rmap in *; omega.
  specialize (H _ (necR_refl _)).
  spec H. split; [split|].
   rewrite locals2env_table_set. eauto.
@@ -897,7 +897,7 @@ Proof.
  clear H1; pose (H1:=True). clear n H0. pose (H0:=True).
  clear n' H2 H11. pose (H2:=True). pose (H11:=True).
  simpl in H8.
-clear w' H7 H9 H3. 
+clear w' H7 H9 H3.
  pose (H7:=True); pose (H9:=True); pose (H3:=True).
  clear H0 H1.
  destruct H5 as [wa [wb [H0 [HP H1]]]].
@@ -914,8 +914,8 @@ clear w' H7 H9 H3.
  destruct (eq_dec i (eval x (locals2env s))). subst; rewrite if_true in HP; auto.
  exists (YES pfullshare (VAL (eval y (locals2env s))) NoneP).
  rewrite HP in *. inv H0; try pfullshare_join. constructor.
- rewrite if_false in HP by auto. 
- exists (wb @ i). 
+ rewrite if_false in HP by auto.
+ exists (wb @ i).
  apply HP in H0. rewrite H0.
  rewrite <- core_resource_at. apply core_unit.
  destruct H5 as [ww H12].
@@ -938,7 +938,7 @@ clear w' H7 H9 H3.
  split; apply funassert_core; rewrite H0; auto.
  destruct H as [wa' [wb' [? [? ?]]]].
  assert (wa' = wa). eapply mapsto_uniq; eauto.
- apply join_core in H0; apply join_core in H. rewrite H0; rewrite H. auto. 
+ apply join_core in H0; apply join_core in H. rewrite H0; rewrite H. auto.
  subst wa'. generalize (join_canc (join_comm H0) (join_comm H)); intro; subst wb'.
   generalize (singleton_rmap_mapsto (eval x (locals2env s)) (eval y (locals2env s)) w''); intro.
  assert (app_pred (mapsto (eval x (locals2env s)) (eval y (locals2env s)) * (TT && (funassert G && funassert G'))) ww).
@@ -960,22 +960,22 @@ clear w' H7 H9 H3.
  unfold singleton_rmap in H12.
  rewrite resource_at_make_rmap in H12.
  change AV.address with adr in H12.
-  specialize (H8 i v0). simpl in H8. 
+  specialize (H8 i v0). simpl in H8.
 
-  destruct (eq_dec i (eval x (locals2env s))). 
+  destruct (eq_dec i (eval x (locals2env s))).
   subst. rewrite heap_gss.
   apply join_unit2_e in H12. rewrite <- H12.
   split; intro Hx; inv Hx; auto.
   apply YES_join_full in H12; auto.
   rewrite H12. apply NO_identity.
   apply join_unit1_e in H12; [ | rewrite <- core_resource_at; apply core_identity].
-  rewrite heap_gso; auto. 
+  rewrite heap_gso; auto.
  apply (resource_at_join _ _ _ i) in H0.
  rewrite <- H12.
  apply HP in H0. rewrite H0; auto.
 Qed.
 
-Lemma semax_pre: 
+Lemma semax_pre:
   forall P P' vars G c, (forall s, P s |-- P' s) -> semax vars G P' c -> semax vars G P c.
 Proof.
  intros. destruct H0 as [TC H0]; split; auto.
@@ -995,7 +995,7 @@ Lemma semax_exp: forall {A} vars G (P: A -> assert) c,
     semax vars G (fun s => EX v:A, (P v s)) c.
 Proof.
  intros ? ? ? ? ? TC ?.
- split; auto. 
+ split; auto.
  intro.
  rewrite semax'_unfold.
  intros p G'. intros n' ? ?.
@@ -1009,7 +1009,7 @@ Lemma semax_exp': forall {A} (any: A) vars G (P: A -> assert) c,
     semax vars G (fun s => EX v:A, (P v s)) c.
 Proof.
  intros ? ? ? ? ? ?.
- split; auto. 
+ split; auto.
  destruct (H any); auto.
  intro.
  rewrite semax'_unfold.
@@ -1035,7 +1035,7 @@ Qed.
 Definition program_proved (p: program) :=
    exists G, semax_func G p G  /\ table_get G 0 = Some (0::nil, fun s => allocpool (eval (Var 0) s)).
 
-Lemma semax_sound: 
+Lemma semax_sound:
   forall p, program_proved p -> forall n, run p n <> None.
 Proof.
   intros.
@@ -1045,7 +1045,7 @@ Proof.
                 (Const 0) (Const (boundary p) :: nil) (eq_refl _)) as [_ ?].
   specialize (H3 n).
   rewrite semax'_unfold in H3.
-  specialize (H3 p G _ (necR_refl _) (H0 _) (locals2env nil) 
+  specialize (H3 p G _ (necR_refl _) (H0 _) (locals2env nil)
                     (make_world G (initial_heap p) n)).
   spec H3. rewrite level_make_world. auto.
   specialize (H3 _ (necR_refl _)).
@@ -1067,7 +1067,7 @@ Proof.
   spec H3. apply cohere_make_world; auto.
   unfold run; intro.
   destruct H3 as [sk' ?].
-  rewrite level_make_world in H3. 
+  rewrite level_make_world in H3.
  unfold locals,table, var,adr in H3,H4. rewrite H3 in H4; inv H4.
 Qed.
 

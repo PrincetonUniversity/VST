@@ -21,7 +21,7 @@ Fixpoint oc_compMap(A B C D : Set)(eqdb : EqDec B)(c : A -> OracleComp C D B)(ls
       b <--$ c a;
       lsb' <--$ oc_compMap _ c ls';
       $ (ret (b :: lsb'))
-  end. 
+  end.
 
 Section Encryption_SecretKey_concrete.
 
@@ -31,7 +31,7 @@ Section Encryption_SecretKey_concrete.
   Variable Decrypt : Key -> Ciphertext -> Plaintext.
 
   Section IND_CPA_SecretKey_concrete.
-    
+
     Variable State : Set.
     Variable A1 : OracleComp Plaintext Ciphertext (Plaintext * Plaintext * State).
     Variable A2 : State -> Ciphertext -> OracleComp Plaintext Ciphertext bool.
@@ -43,11 +43,11 @@ Section Encryption_SecretKey_concrete.
       c <-$ Encrypt k p;
       ret (c, tt).
 
-    Hypothesis Encrypt_wf : 
+    Hypothesis Encrypt_wf :
       forall k p,
         well_formed_comp (Encrypt k p).
 
-    Theorem EncryptOracle_wf : 
+    Theorem EncryptOracle_wf :
       forall k x p,
         well_formed_comp (EncryptOracle k x p).
 
@@ -56,10 +56,10 @@ Section Encryption_SecretKey_concrete.
       wftac.
 
     Qed.
- 
+
     Definition IND_CPA_SecretKey_G :=
       key <-$ KeyGen ;
-      [b, _] <-$2 
+      [b, _] <-$2
       (
         [p0, p1, s_A] <--$3 A1;
         b <--$$ {0, 1};
@@ -70,19 +70,19 @@ Section Encryption_SecretKey_concrete.
       )
       _ _ (EncryptOracle key) tt;
       ret b.
-    
+
     Definition IND_CPA_SecretKey_Advantage := | Pr[IND_CPA_SecretKey_G] - 1 / 2 |.
-     
+
   End IND_CPA_SecretKey_concrete.
 
   Section IND_CPA_SecretKey_O_concrete.
-    
+
     Variable A : OracleComp Plaintext Ciphertext bool.
 
     Hypothesis Ciphertext_EqDec : EqDec Ciphertext.
     Variable ptDefault : Plaintext.
 
-    Definition EncryptNothingOracle (k : Key)(x : unit)(p : Plaintext)  := 
+    Definition EncryptNothingOracle (k : Key)(x : unit)(p : Plaintext)  :=
       c <-$ Encrypt k ptDefault;
       ret (c, tt).
 
@@ -97,12 +97,12 @@ Section Encryption_SecretKey_concrete.
       ret b.
 
     Definition IND_CPA_SecretKey_O_Advantage := | Pr[IND_CPA_SecretKey_O_G0] - Pr[IND_CPA_SecretKey_O_G1]  |.
-     
+
   End IND_CPA_SecretKey_O_concrete.
 
   (* The reduction from iterated IND-CPA goes through the following definition.  There is probably no reason to use this definition in a security proof.  *)
   Section IND_CPA_SecretKey_O_concrete_3Proc.
-    
+
     Variable A B State : Set.
     Hypothesis B_EqDec : EqDec B.
     Variable A1 : Comp (A * State).
@@ -131,8 +131,8 @@ Section Encryption_SecretKey_concrete.
       x <--$ A2 a;
       $ A3 s_A x.
 
-    Theorem IND_CPA_SecretKey_2Proc_impl_O : 
-      IND_CPA_SecretKey_O_3Proc_Advantage == IND_CPA_SecretKey_O_Advantage A_c _ ptDefault.  
+    Theorem IND_CPA_SecretKey_2Proc_impl_O :
+      IND_CPA_SecretKey_O_3Proc_Advantage == IND_CPA_SecretKey_O_Advantage A_c _ ptDefault.
 
       unfold IND_CPA_SecretKey_O_3Proc_Advantage, IND_CPA_SecretKey_O_Advantage.
       unfold IND_CPA_SecretKey_O_3Proc_G0, IND_CPA_SecretKey_O_3Proc_G1.
@@ -173,12 +173,12 @@ Section Encryption_SecretKey_concrete.
       comp_skip.
       comp_simp.
       reflexivity.
-    Qed.                                                     
-     
+    Qed.
+
   End IND_CPA_SecretKey_O_concrete_3Proc.
 
   Section IND_CPA_SecretKey_OI_concrete.
-    
+
     Variable A B S_A: Set.
     Variable defA : A.
     Variable A1 : Comp (list A * S_A).
@@ -193,49 +193,49 @@ Section Encryption_SecretKey_concrete.
 
     Definition IND_CPA_SecretKey_OI_G0 :=
       [lsa, s_A] <-$2 A1;
-      lsb <-$ compMap _ 
-               (fun x => 
-                 key <-$ KeyGen; 
-                 [b, _] <-$2 (A2 x) _ _ (EncryptOracle _ key) tt; 
+      lsb <-$ compMap _
+               (fun x =>
+                 key <-$ KeyGen;
+                 [b, _] <-$2 (A2 x) _ _ (EncryptOracle _ key) tt;
                  ret b
                ) lsa;
       A3 s_A lsb.
 
      Definition IND_CPA_SecretKey_OI_G1 :=
       [lsa, s_A] <-$2 A1;
-      lsb <-$ compMap _ 
-               (fun x => 
-                 key <-$ KeyGen; 
-                 [b, _] <-$2 (A2 x) _ _ (EncryptNothingOracle _ ptDefault key) tt; 
+      lsb <-$ compMap _
+               (fun x =>
+                 key <-$ KeyGen;
+                 [b, _] <-$2 (A2 x) _ _ (EncryptNothingOracle _ ptDefault key) tt;
                  ret b
                ) lsa;
       A3 s_A lsb.
 
-    Definition IND_CPA_SecretKey_OI_Advantage := 
-    | Pr[IND_CPA_SecretKey_OI_G0] - Pr[IND_CPA_SecretKey_OI_G1]  |.    
+    Definition IND_CPA_SecretKey_OI_Advantage :=
+    | Pr[IND_CPA_SecretKey_OI_G0] - Pr[IND_CPA_SecretKey_OI_G1]  |.
 
   Require Export fcf.Hybrid.
 
   Section IND_CPA_SecretKey_OI_impl_O.
 
-    Hypothesis KeyGen_wf : 
+    Hypothesis KeyGen_wf :
       well_formed_comp KeyGen.
-    Hypothesis A2_wf : 
+    Hypothesis A2_wf :
       forall a,
         well_formed_oc (A2 a).
 
     Variable maxA : nat.
-    Hypothesis maxA_correct : 
+    Hypothesis maxA_correct :
       forall ls s_A,
         In (ls, s_A) (getSupport A1) ->
         length ls <= maxA.
 
     Variable IND_CPA_Adv : Rat.
-    
-    Hypothesis IND_CPA_Adv_correct : 
+
+    Hypothesis IND_CPA_Adv_correct :
       (forall i,
-      IND_CPA_SecretKey_O_Advantage (A_c 
-        (B1 defA _ _ A1 i) 
+      IND_CPA_SecretKey_O_Advantage (A_c
+        (B1 defA _ _ A1 i)
         A2
          (B2
           (fun x : A =>
@@ -250,38 +250,38 @@ Section Encryption_SecretKey_concrete.
              (EncryptNothingOracle Ciphertext_EqDec ptDefault key) tt;
            [b, _]<-2 z; ret b) B_EqDec A3)
          )
-         _ 
+         _
          ptDefault
       <= IND_CPA_Adv)%rat.
-     
 
-    Theorem IND_CPA_SecretKey_OI_G0_Hybrid : 
+
+    Theorem IND_CPA_SecretKey_OI_G0_Hybrid :
       Pr[IND_CPA_SecretKey_OI_G0] == Pr[ListHybrid_G _ A1 A3
-                                       (fun x => 
-                 key <-$ KeyGen; 
-                 [b, _] <-$2 (A2 x) _ _ (EncryptOracle _ key) tt; 
+                                       (fun x =>
+                 key <-$ KeyGen;
+                 [b, _] <-$2 (A2 x) _ _ (EncryptOracle _ key) tt;
                  ret b
                )].
 
       reflexivity.
     Qed.
 
-    Theorem IND_CPA_SecretKey_OI_G1_Hybrid : 
+    Theorem IND_CPA_SecretKey_OI_G1_Hybrid :
       Pr[IND_CPA_SecretKey_OI_G1] == Pr[ListHybrid_G _ A1 A3
-                                       (fun x => 
-                 key <-$ KeyGen; 
-                 [b, _] <-$2 (A2 x) _ _ (EncryptNothingOracle _ ptDefault key) tt; 
+                                       (fun x =>
+                 key <-$ KeyGen;
+                 [b, _] <-$2 (A2 x) _ _ (EncryptNothingOracle _ ptDefault key) tt;
                  ret b
                )].
 
       reflexivity.
     Qed.
 
-    Hypothesis Encrypt_wf : 
+    Hypothesis Encrypt_wf :
       forall k p,
         well_formed_comp (Encrypt k p).
 
-    Theorem IND_CPA_OI_impl_O : 
+    Theorem IND_CPA_OI_impl_O :
       (IND_CPA_SecretKey_OI_Advantage <= maxA / 1 * IND_CPA_Adv)%rat.
 
       unfold IND_CPA_SecretKey_OI_Advantage.
@@ -290,7 +290,7 @@ Section Encryption_SecretKey_concrete.
       eapply leRat_trans.
       eapply Single_impl_ListHybrid.
       intuition.
-      
+
       wftac.
       eapply oc_comp_wf_inv.
       eauto.
@@ -302,7 +302,7 @@ Section Encryption_SecretKey_concrete.
       eapply H3.
       simpl.
       trivial.
-      
+
       Focus 4.
       reflexivity.
 
@@ -320,7 +320,7 @@ Section Encryption_SecretKey_concrete.
       simpl.
       trivial.
       intuition.
-  
+
       intuition.
       eapply leRat_trans.
       Focus 2.
@@ -370,7 +370,7 @@ Section Encryption_SecretKey.
         admissible_A1 A1 ->
         admissible_A2 A2 ->
         (forall n, EqDec (State n)) ->
-      negligible 
+      negligible
       (fun n => IND_CPA_SecretKey_Advantage (KeyGen n) (@Encrypt n) (A1 n) (A2 n) _).
 
 End Encryption_SecretKey.

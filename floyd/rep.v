@@ -11,7 +11,7 @@ Local Open Scope logic.
 (** A representation predicate.  Two things:
     -We assert the existence of an abstract representation [x] of the module state
     using [ghostp sh loc x].
-    -This abstract representation is related to the heap layout via the 
+    -This abstract representation is related to the heap layout via the
     representation invariant [R]. *)
 
 Definition rep {A: Type} (r: ident) (x: A) (R: ident -> A -> environ -> mpred) : environ -> mpred :=
@@ -19,19 +19,19 @@ Definition rep {A: Type} (r: ident) (x: A) (R: ident -> A -> environ -> mpred) :
 
 (** An abstract specification in usual Hoare style. *)
 
-Record aspec {A: Type} := mk_aspec 
+Record aspec {A: Type} := mk_aspec
   { Pspec: A -> environ -> Prop
   ; Qspec: A -> environ -> val -> Prop }.
 
-(** Rspecs: lift rep-style predicates above to operate on sets of abstract states (given 
-    by some predicate P,Q,...).  
+(** Rspecs: lift rep-style predicates above to operate on sets of abstract states (given
+    by some predicate P,Q,...).
 
-    In addition to (P,Q), we specify a module initialization function that establishes 
+    In addition to (P,Q), we specify a module initialization function that establishes
     the representation invariant at the outset. [r] is a "root pointer" into the data
     structure.  E.g., in a linked list [r] is a pointer to the first cons cell. *)
 
 Section rspec.
-Context {A: Type} (argsig: list (ident*type)) (retty: type). 
+Context {A: Type} (argsig: list (ident*type)) (retty: type).
 Context (R: ident -> A -> environ -> mpred) (p: @aspec A).
 
 Definition rspec_init (r: ident) (init: A) : unit -> environ -> mpred :=
@@ -46,7 +46,7 @@ Definition rspec_post (r: ident) : unit -> environ -> mpred :=
 Definition init_rspec (r: ident) (init: A) : funspec :=
   mk_funspec (argsig,Tvoid) cc_default unit TT (rspec_init r init * TT).
 
-Definition rspec (r: ident) : funspec := 
+Definition rspec (r: ident) : funspec :=
   mk_funspec (argsig,retty) cc_default unit (rspec_pre r) (rspec_post r).
 
 End rspec.
@@ -82,25 +82,25 @@ Record rfun := mk_rfun
   ; argsig: list (ident*type)
   ; retty: nonvoidty
   ; a_spec: aspec
-  ; f_spec := rspec argsig retty R a_spec r 
+  ; f_spec := rspec argsig retty R a_spec r
   ; ok: (glob_types Delta) ! f_id = Some (Global_func f_spec) }.
 
 End rfun.
 
-(** A module is: 
-    -An existentially quantified representation invariant 
+(** A module is:
+    -An existentially quantified representation invariant
     -A module initialization function, for establishing the invariant initially, and
     -A set of rfuns. *)
 
 Record module (Delta: tycontext) (A: Type) (r: ident) := mk_module
-  { Rinv: ident -> A -> environ -> mpred 
+  { Rinv: ident -> A -> environ -> mpred
   ; module_init: init_rfun Delta Rinv r
   ; methods: list (rfun Delta Rinv r) }.
 
 Section module_defs.
-Context {Delta: tycontext} {A r} (my_module: module Delta A r). 
+Context {Delta: tycontext} {A r} (my_module: module Delta A r).
 
-Definition identlist_of_module : list ident := 
+Definition identlist_of_module : list ident :=
   map (fun x => f_id (R:=Rinv my_module) x) my_module.(methods).
 
 Definition exported (id: ident) := id_in_list id identlist_of_module.
@@ -111,9 +111,9 @@ Definition get_ident : xident -> ident := @proj1_sig _ (fun id => exported id=tr
 
 Coercion get_ident : xident >-> ident.
 
-Fixpoint rfun_of_ident (id: ident) (l: list (rfun Delta my_module.(Rinv) r)) 
-  : option (rfun Delta my_module.(Rinv) r) := 
-  match l with 
+Fixpoint rfun_of_ident (id: ident) (l: list (rfun Delta my_module.(Rinv) r))
+  : option (rfun Delta my_module.(Rinv) r) :=
+  match l with
     nil   => None
   | f::l' => if eq_dec id f.(f_id) then Some f else rfun_of_ident id l'
   end.
@@ -153,21 +153,21 @@ Lemma client_call:
         (SPEC: rfun_of_xident f_id = Some f),
  let Pre  := rspec_pre  my_module.(Rinv) f.(a_spec) r in
  let Post := rspec_post my_module.(Rinv) f.(a_spec) r in
- @semax Espec Delta 
- (PROPx P 
+ @semax Espec Delta
+ (PROPx P
   (LOCALx (tc_exprlist Delta (snd (split f.(argsig))) bl :: Q)
-  (SEPx (`(Pre x) (make_args' (f.(argsig),Tvoid) (eval_exprlist 
+  (SEPx (`(Pre x) (make_args' (f.(argsig),Tvoid) (eval_exprlist
                           (snd (split f.(argsig))) bl)) :: R))))
              (Scall (Some ret)
                     (Evar f_id (Tfunction (type_of_params f.(argsig)) f.(retty)))
                     bl)
- (normal_ret_assert (EX old:val, 
-  PROPx P 
+ (normal_ret_assert (EX old:val,
+  PROPx P
    (LOCALx (map (subst ret (`old)) Q)
    (SEPx (`(Post x) (get_result1 ret) :: map (subst ret (`old)) R))))).
 Proof.
 move=> ? ? ? ? ? ? ? ? f H1 H2; apply: semax_call_id1=>//.
-by move: (rfun_of_xident_eq H2)=> <-; move: (f.(ok))=> ->. 
+by move: (rfun_of_xident_eq H2)=> <-; move: (f.(ok))=> ->.
 by apply: (nonvoid_nonvoidty $ retty f).
 Qed.
 

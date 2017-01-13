@@ -11,7 +11,7 @@ Definition odd_spec :=
   WITH z : Z, b: unit
   PRE [ _n OF tuint]
     PROP(0 <= z <= Int.max_signed) LOCAL(temp _n (Vint (Int.repr z))) SEP()
-  POST [ tint ] 
+  POST [ tint ]
     PROP() LOCAL(temp ret_temp (Vint (if Z.odd z then Int.one else Int.zero))) SEP().
 
 Definition even_spec :=
@@ -19,14 +19,14 @@ Definition even_spec :=
   WITH z : Z
   PRE [ _n OF tuint]
     PROP(0 <= z <= Int.max_signed) LOCAL(temp _n (Vint (Int.repr z))) SEP()
-  POST [ tint ] 
+  POST [ tint ]
     PROP() LOCAL(temp ret_temp (Vint (if Z.even z then Int.one else Int.zero))) SEP().
 
 Definition main_spec :=
  DECLARE _main
   WITH z : Z, v : val
   PRE [ ] PROP() LOCAL() SEP ()
-  POST [ tint ] 
+  POST [ tint ]
     PROP() LOCAL(temp ret_temp (Vint (if Z.even 42 then Int.one else Int.zero))) SEP().
 
 
@@ -48,13 +48,13 @@ forward_if (PROP (z > 0) LOCAL (temp _n (Vint (Int.repr z))) SEP ()).
   (* After the call *)
   forward.
   entailer!.
-  rewrite Z.odd_sub; simpl. 
+  rewrite Z.odd_sub; simpl.
   case_eq (Z.odd z); rewrite Zodd_even_bool; destruct (Z.even z); simpl; try congruence.
 Qed.
 
 Lemma body_main : semax_body Vprog Gprog f_main main_spec.
 Proof.
-start_function. 
+start_function.
 forward_call (42).
 repable_signed.
 forward.
@@ -64,7 +64,7 @@ Definition Espec := add_funspecs NullExtension.Espec (ext_link_prog prog) Gprog.
 Existing Instance Espec.
 
 Lemma temp_make_ext_rval_e:
-  forall gx v v', 
+  forall gx v v',
    locald_denote (temp ret_temp v) (make_ext_rval gx v') ->
    v <> Vundef ->
    v' = Some v.

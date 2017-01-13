@@ -44,8 +44,8 @@ Opaque type_cast.
 
 
 Definition AFTER_SET_LOAD : rtac typ (expr typ func) :=
-fun tus tvs n m c s e => 
-  match e with 
+fun tus tvs n m c s e =>
+  match e with
 | (App (App (Inj (inr (Other (feq ty)))) l) r) =>
   match l with
   | App
@@ -64,7 +64,7 @@ fun tus tvs n m c s e =>
     in
     match @exprUnify (ctx_subst c) typ func _ _ _ _ _ 3
                                  tus tvs 0 l' r ty s with
-    | Some s => RTac.Core.Solved s 
+    | Some s => RTac.Core.Solved s
     | None =>  RTac.Core.Fail
     end
   | _ => RTac.Core.Fail
@@ -79,7 +79,7 @@ intros.
 unfold AFTER_SET_LOAD in *.
 repeat (destruct_match H; try solve [subst; apply rtac_spec_Fail]; try congruence).
 pose proof (exprUnify_sound).
-specialize (H0 (ctx_subst ctx) typ func  _ _ _ _ _ _ _ _ 
+specialize (H0 (ctx_subst ctx) typ func  _ _ _ _ _ _ _ _
 
 _ _ 3).
 subst.
@@ -90,7 +90,7 @@ destruct Heqo1.
 
 split. auto.
 forward. simpl in *.
-unfold propD in H4. unfold exprD'_typ0 in H4. 
+unfold propD in H4. unfold exprD'_typ0 in H4.
 simpl in H4.
 solve_exprD.
 unfold exprT_App. simpl.
@@ -100,16 +100,16 @@ edestruct (H2 ( (fun (us0 : HList.hlist types.typD (getUVars ctx))
              (vs0 : HList.hlist types.typD (getVars ctx)) =>
            local2ptree.assertD (e14 us0 vs0)
              (local2ptree.localD
-                (Maps.PTree.set p (e13 us0 vs0) (e11 us0 vs0)) 
-                (e8 us0 vs0)) (e5 us0 vs0)))); eauto. 
+                (Maps.PTree.set p (e13 us0 vs0) (e11 us0 vs0))
+                (e8 us0 vs0)) (e5 us0 vs0)))); eauto.
 
-solve_exprD. 
+solve_exprD.
 edestruct set_reif_exprD. apply Heqo14.
-eauto. 
+eauto.
 instantiate (1 := p) in H6.
 pose_types tbl. fold func in *. unfold RSym_sym in *.
  progress_match. solve_funcAs.
-solve_exprD. unfold exprT_App. simpl. 
+solve_exprD. unfold exprT_App. simpl.
 erewrite <- set_reif_eq2 in H6; eauto.
 solve_exprD.
 forward_reason.
@@ -118,16 +118,16 @@ forward_reason.
 forward. inv_some.
 split. admit. (*what is this*)
 intros.  gather_facts.
-eapply Pure_pctxD. eauto. 
+eapply Pure_pctxD. eauto.
 intros. simpl in *.
 edestruct H7; eauto.
 specialize (H11 HList.Hnil).
-apply H11. 
+apply H11.
 Admitted.
 
 Definition AFTER_STORE : rtac typ (expr typ func) :=
-fun tus tvs n m c s e => 
-  match e with 
+fun tus tvs n m c s e =>
+  match e with
 | (App (App (Inj (inr (Other (feq ty)))) l) r) =>
   match l with
   | App
@@ -141,7 +141,7 @@ fun tus tvs n m c s e =>
     in
     match @exprUnify (ctx_subst c) typ func _ _ _ _ _ 3
                                  tus tvs 0 l' r ty s with
-    | Some s => RTac.Core.Solved s 
+    | Some s => RTac.Core.Solved s
     | None =>  RTac.Core.Fail
     end
   | _ => RTac.Core.Fail
@@ -149,14 +149,14 @@ fun tus tvs n m c s e =>
 | _ => RTac.Core.Fail
 end.
 
-Lemma AFTER_STORE_sound : rtac_sound AFTER_STORE. 
+Lemma AFTER_STORE_sound : rtac_sound AFTER_STORE.
 Proof.
 unfold rtac_sound.
 intros.
 unfold AFTER_STORE in *.
 repeat (destruct_match H; try solve [subst; apply rtac_spec_Fail]; try congruence).
 pose proof (exprUnify_sound).
-specialize (H0 (ctx_subst ctx) typ func  _ _ _ _ _ _ _ _ 
+specialize (H0 (ctx_subst ctx) typ func  _ _ _ _ _ _ _ _
 
 _ _ 3).
 subst.
@@ -167,7 +167,7 @@ destruct Heqo1.
 
 split. auto.
 forward. simpl in *.
-unfold propD in H4. unfold exprD'_typ0 in H4. 
+unfold propD in H4. unfold exprD'_typ0 in H4.
 simpl in H4.
 solve_exprD.
 unfold exprT_App. simpl.
@@ -176,7 +176,7 @@ destruct H4.
 edestruct (H2 ( (fun (us0 : HList.hlist types.typD (getUVars ctx))
              (vs0 : HList.hlist types.typD (getVars ctx)) =>
            local2ptree.assertD (e11 us0 vs0) (e9 us0 vs0)
-             (canon.replace_nth n (e7 us0 vs0) (e6 us0 vs0))))); eauto. 
+             (canon.replace_nth n (e7 us0 vs0) (e6 us0 vs0))))); eauto.
 admit.
 forward_reason.
 destruct (substD_pctxD _ H0 H3 H6).
@@ -184,20 +184,20 @@ forward_reason.
 forward. inv_some.
 split. admit. (*what is this*)
 intros.  gather_facts.
-eapply Pure_pctxD. eauto. 
+eapply Pure_pctxD. eauto.
 intros. simpl in *.
 edestruct H7; eauto.
 specialize (H11 HList.Hnil).
-apply H11. 
+apply H11.
 Admitted.
 
 Definition REFLEXIVITYTAC : rtac typ (expr typ func) :=
-fun tus tvs n m c s e => 
-  match e with 
+fun tus tvs n m c s e =>
+  match e with
 | (App (App (Inj (inr (Other (feq ty)))) l) r) =>
   match @exprUnify (ctx_subst c) typ func _ _ _ _ _ 3
                                  tus tvs 0 l r ty s with
-    | Some su => RTac.Core.Solved su 
+    | Some su => RTac.Core.Solved su
     | None =>  RTac.Core.Fail
   end
 | _ => RTac.Core.Fail
@@ -210,11 +210,11 @@ intros.
 unfold REFLEXIVITYTAC in H.
 do 7 (match type of H with
           | match ?g with _ => _ end = _ => destruct g eqn:?;
-                      try solve [simpl in H; subst; 
+                      try solve [simpl in H; subst;
                       try apply rtac_spec_Fail]
         end).
 pose proof (exprUnify_sound).
-specialize (H0 (ctx_subst ctx) typ func  _ _ _ _ _ _ _ _ 
+specialize (H0 (ctx_subst ctx) typ func  _ _ _ _ _ _ _ _
 
 _ _ 3).
 subst.
@@ -225,45 +225,45 @@ destruct Heqo1.
 
 split. auto.
 forward. simpl in *.
-unfold propD in H4. unfold exprD'_typ0 in H4. 
+unfold propD in H4. unfold exprD'_typ0 in H4.
 simpl in H4.
 
 solve_exprD.
 unfold exprT_App. simpl.
 destruct (pctxD_substD H1 H3).
 destruct H4.
-edestruct H2; eauto. 
+edestruct H2; eauto.
 forward_reason.
 destruct (substD_pctxD _ H0 H3 H6).
 forward_reason.
 forward. inv_some.
 split. admit. (*what is this*)
 intros.  gather_facts.
-eapply Pure_pctxD. eauto. 
+eapply Pure_pctxD. eauto.
 intros. simpl in *.
 edestruct H7; eauto.
 specialize (H11 HList.Hnil).
-apply H11. 
+apply H11.
 Admitted.
 
 Definition REFLEXIVITY := REFLEXIVITYTAC.
 
 
 Definition REFLEXIVITYTAC_msubst : rtac typ (expr typ func) :=
-fun tus tvs n m c s e => 
-  match e with 
+fun tus tvs n m c s e =>
+  match e with
 | (App (App (Inj (inr (Other (feq ty)))) l) r) =>
   match l with
   | App
       (App
          (App
-            (App (Inj (inr (Smx fmsubst_eval_LR))) T1) T2) 
+            (App (Inj (inr (Smx fmsubst_eval_LR))) T1) T2)
          (Inj (inr (Const (fCexpr e1)))))
       (Inj (inr (Const (fllrr lr)))) =>
     let l' := rmsubst_eval_LR T1 T2 e1 lr in
     match @exprUnify (ctx_subst c) typ func _ _ _ _ _ 3
                                  tus tvs 0 l' r ty s with
-    | Some s => RTac.Core.Solved s 
+    | Some s => RTac.Core.Solved s
     | None =>  RTac.Core.Fail
     end
   | _ => RTac.Core.Fail
@@ -274,15 +274,15 @@ end.
 Definition REFLEXIVITY_MSUBST := REFLEXIVITYTAC_msubst.
 
 Definition REFLEXIVITYTAC_msubst_efield : rtac typ (expr typ func) :=
-fun tus tvs n m c s e => 
-  match e with 
+fun tus tvs n m c s e =>
+  match e with
 | (App (App (Inj (inr (Other (feq ty)))) l) r) =>
   match l with
   | App (App (Inj (inr (Smx (fmsubst_efield_denote e)))) T1) T2 =>
     let l' := rmsubst_efield_denote T1 T2 e in
     match @exprUnify (ctx_subst c) typ func _ _ _ _ _ 3
                                  tus tvs 0 l' r ty s with
-    | Some s => RTac.Core.Solved s 
+    | Some s => RTac.Core.Solved s
     | None =>  RTac.Core.Fail
     end
   | _ => RTac.Core.Fail
@@ -293,15 +293,15 @@ end.
 Definition REFLEXIVITY_MSUBST_EFIELD := REFLEXIVITYTAC_msubst_efield.
 
 Definition REFLEXIVITYTAC_nth_error : rtac typ (expr typ func) :=
-fun tus tvs n m c s e => 
-  match e with 
+fun tus tvs n m c s e =>
+  match e with
 | (App (App (Inj (inr (Other (feq ty)))) l) r) =>
   match l with
   | App (Inj (inr (Data (fnth_error ty n)))) xs =>
     let l' := rnth_error ty xs n in
     match @exprUnify (ctx_subst c) typ func _ _ _ _ _ 3
                                  tus tvs 0 l' r ty s with
-    | Some s => RTac.Core.Solved s 
+    | Some s => RTac.Core.Solved s
     | None =>  RTac.Core.Fail
     end
   | _ => RTac.Core.Fail
@@ -312,7 +312,7 @@ end.
 Definition REFLEXIVITY_NTH_ERROR := REFLEXIVITYTAC_nth_error.
 
 Definition REFLEXIVITY_DENOTE (rtype : typ) {H: @RelDec.RelDec (typD rtype) eq}
-{H0: RelDec.RelDec_Correct H} tbl : rtac typ (expr typ func) := 
+{H0: RelDec.RelDec_Correct H} tbl : rtac typ (expr typ func) :=
    fun tus tvs lus lvs c s e => (
 match e with
 | (App (App (Inj (inr (Other (feq _)))) l) r) =>
@@ -324,22 +324,22 @@ match e with
 end).
 
 Lemma REFLEXIVITY_DENOTE_sound (rtype : typ) {H: @RelDec.RelDec (typD rtype) eq}
-{H0: RelDec.RelDec_Correct H}: 
+{H0: RelDec.RelDec_Correct H}:
 rtac_sound (REFLEXIVITY_DENOTE rtype tbl).
 unfold rtac_sound.
 intros.
 unfold REFLEXIVITY_DENOTE in H1.
 repeat (match type of H1 with
           | match ?g with _ => _ end = _ => destruct g eqn:?;
-                      try solve [simpl in H; subst; 
+                      try solve [simpl in H; subst;
                       try apply rtac_spec_Fail]
         end).
-subst. simpl. intros. 
+subst. simpl. intros.
 split.
 unfold func_defs.reflect, exprD in *. simpl in *.
-solve_exprD. 
+solve_exprD.
 forward. split. reflexivity.
-intros. 
+intros.
 unfold propD, exprD'_typ0 in *.  simpl in H4.
 solve_exprD.
 unfold exprT_App. simpl.
@@ -353,8 +353,8 @@ generalize (ExprFacts.exprD'_weaken    _ _ _ (getUVars ctx) (getVars ctx)  H5).
 intros.
 destruct H6, H7. simpl  in *. destruct H6, H7.
 fold func in *. unfold RSym_sym in *.
-solve_exprD. 
-specialize (H8 HList.Hnil HList.Hnil). 
+solve_exprD.
+specialize (H8 HList.Hnil HList.Hnil).
 specialize (H9 HList.Hnil HList.Hnil).
 simpl in *.
 solve_exprD.

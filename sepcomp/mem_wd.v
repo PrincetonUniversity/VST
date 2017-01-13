@@ -16,12 +16,12 @@ Notation val_inject:=Val.inject.
 (*A value that is (if its a pointer) not dangling wrt m - a condition
  like this will probably be need to imposed on after-external return
  values (and thus also on the values returned by halted)*)
-Definition val_valid (v:val) (m:mem):Prop := 
-     match v with Vptr b ofs => Mem.valid_block m b | _ => True 
+Definition val_valid (v:val) (m:mem):Prop :=
+     match v with Vptr b ofs => Mem.valid_block m b | _ => True
      end.
 
 (*In fact val_valid is a slight relaxtion of valid_pointer*)
-Lemma valid_ptr_val_valid: forall b ofs m, 
+Lemma valid_ptr_val_valid: forall b ofs m,
     Mem.valid_pointer m b ofs = true -> val_valid (Vptr b (Int.repr ofs)) m.
 Proof. intros.
   apply Mem.valid_pointer_nonempty_perm in H. eapply Mem.perm_valid_block. apply H.
@@ -31,7 +31,7 @@ Lemma extends_valvalid: forall m1 m2 (Ext: Mem.extends m1 m2) v,
         val_valid v m1 <-> val_valid v m2.
 Proof. intros.
   split; intros. destruct v; simpl in *; try econstructor.
-     eapply (Mem.valid_block_extends _ _ _ Ext). apply H. 
+     eapply (Mem.valid_block_extends _ _ _ Ext). apply H.
   destruct v; simpl in *; try econstructor.
      eapply (Mem.valid_block_extends _ _ _ Ext). apply H.
 Qed.
@@ -40,16 +40,16 @@ Lemma inject_valvalid: forall j m1 m2 (Inj: Mem.inject j m1 m2) v2 (V:val_valid 
              val_inject j v1 v2 -> val_valid v1 m1.
 Proof. intros.
   inv H; repeat constructor.
-     simpl in *. eapply Mem.valid_block_inject_1; eassumption. 
+     simpl in *. eapply Mem.valid_block_inject_1; eassumption.
 Qed.
 
-(*Preservation of val_valid along an injection only holds 
-  if the LHS value is defined*) 
+(*Preservation of val_valid along an injection only holds
+  if the LHS value is defined*)
 Lemma inject_valvalid_1:
   forall (j : meminj) (m1 m2 : mem),
   Mem.inject j m1 m2 ->
   forall v1 : val,
-  val_valid v1 m1 -> forall v2 : val, val_inject j v1 v2 -> 
+  val_valid v1 m1 -> forall v2 : val, val_inject j v1 v2 ->
   match v1 with Vundef => True
       | _ => val_valid v2 m2
   end.
@@ -69,26 +69,26 @@ Qed.
 
 Lemma mem_wdI: forall m,
   (forall (b:block) ofs  (R:Mem.perm m b ofs Cur Readable),
-    memval_inject  (Mem.flat_inj (Mem.nextblock m)) 
+    memval_inject  (Mem.flat_inj (Mem.nextblock m))
     (ZMap.get ofs (PMap.get b (Mem.mem_contents m)))
     (ZMap.get ofs (PMap.get b (Mem.mem_contents m)))) -> mem_wd m.
 Proof. intros.
   split; intros.
-     apply flatinj_E in  H0. destruct H0 as [? [? ?]]; subst. rewrite Zplus_0_r. trivial. 
+     apply flatinj_E in  H0. destruct H0 as [? [? ?]]; subst. rewrite Zplus_0_r. trivial.
      apply flatinj_E in  H0. destruct H0 as [? [? ?]]; subst. apply align_chunk_0.
      apply flatinj_E in  H0. destruct H0 as [? [? ?]]; subst. rewrite Zplus_0_r.
         apply H. apply H1.
 Qed.
-        
+
 Lemma mem_wd_E: forall m, mem_wd m ->  Mem.inject (Mem.flat_inj (Mem.nextblock m)) m m.
 Proof. intros. apply Mem.neutral_inject. apply H. Qed.
 
-Lemma meminj_split_flatinjR: forall j m m' (J:Mem.inject j m' m), mem_wd m -> 
+Lemma meminj_split_flatinjR: forall j m m' (J:Mem.inject j m' m), mem_wd m ->
      j = compose_meminj j (Mem.flat_inj (Mem.nextblock m)).
 Proof. intros. apply mem_wd_E in H.
    unfold  compose_meminj.
-   apply extensionality. intro b. 
-   remember (j b). 
+   apply extensionality. intro b.
+   remember (j b).
    destruct o; trivial. destruct p. unfold Mem.flat_inj in *.
    destruct (plt b0 (Mem.nextblock m)).
      rewrite Zplus_0_r. trivial.
@@ -96,11 +96,11 @@ Proof. intros. apply mem_wd_E in H.
                exfalso. unfold Mem.valid_block in mi_mappedblocks. xomega.
 Qed.
 
-Lemma meminj_split_flatinjL: forall j m m' (J:Mem.inject j m m'), mem_wd m -> 
+Lemma meminj_split_flatinjL: forall j m m' (J:Mem.inject j m m'), mem_wd m ->
      j = compose_meminj (Mem.flat_inj (Mem.nextblock m)) j.
 Proof. intros. apply mem_wd_E in H.
    unfold  compose_meminj.
-   apply extensionality. intro b. 
+   apply extensionality. intro b.
    unfold Mem.flat_inj in *.
    destruct (plt b (Mem.nextblock m)).
      remember (j b). destruct o. destruct p0.  rewrite Zplus_0_l. trivial. trivial.
@@ -109,19 +109,19 @@ Qed.
 
 Lemma mem_wd_inject_splitL: forall j m1 m2
               (J:Mem.inject j m1 m2)  (WD: mem_wd m1),
-     Mem.inject (Mem.flat_inj (Mem.nextblock m1)) m1 m1 
+     Mem.inject (Mem.flat_inj (Mem.nextblock m1)) m1 m1
      /\ j = compose_meminj (Mem.flat_inj (Mem.nextblock m1)) j.
 Proof. intros.
-    split. apply mem_wd_E. apply WD.  
+    split. apply mem_wd_E. apply WD.
     eapply (meminj_split_flatinjL _ _ _ J WD).
 Qed.
 
 Lemma mem_wd_inject_splitR: forall j m1 m2
               (J:Mem.inject j m1 m2)  (WD: mem_wd m2),
-     Mem.inject (Mem.flat_inj (Mem.nextblock m2)) m2 m2 
+     Mem.inject (Mem.flat_inj (Mem.nextblock m2)) m2 m2
      /\ j = compose_meminj j (Mem.flat_inj (Mem.nextblock m2)).
 Proof. intros.
-    split. apply mem_wd_E. apply WD.  
+    split. apply mem_wd_E. apply WD.
     eapply (meminj_split_flatinjR _ _ _ J WD).
 Qed.
 
@@ -134,8 +134,8 @@ Lemma  mem_wd_alloc: forall m b lo hi m' (ALL: Mem.alloc m lo hi = (m',b))
 Proof. intros. unfold mem_wd in *.
   rewrite (Mem.nextblock_alloc _ _ _ _ _ ALL).
   eapply (Mem.alloc_inject_neutral _ _ _ _ _ _ ALL); try omega.
-  inv WDm. 
-         split; intros. 
+  inv WDm.
+         split; intros.
              apply flatinj_E in H. destruct H as [? [? ?]]; subst. rewrite Zplus_0_r. assumption.
              apply flatinj_E in H. destruct H as [? [? ?]]; subst. apply align_chunk_0.
              apply flatinj_E in H. destruct H as [? [? ?]]; subst. rewrite Zplus_0_r.
@@ -146,7 +146,7 @@ Proof. intros. unfold mem_wd in *.
                        intros bb; intros.
                         eapply flatinj_mono; try eassumption; xomega.
        xomega.
-Qed. 
+Qed.
 
 Lemma  mem_wd_drop: forall m b lo hi p m' (DROP: Mem.drop_perm m b lo hi p = Some m')
      (WDm: mem_wd m), Mem.valid_block m b -> mem_wd m'.
@@ -154,18 +154,18 @@ Proof. intros. unfold mem_wd in *.
   rewrite (Mem.nextblock_drop _ _ _ _ _ _ DROP).
   eapply (Mem.drop_inject_neutral _ _ _ _ _ _ _ DROP); trivial.
 Qed.
-  
+
 Lemma free_neutral: forall (thr : block) (m : mem) (lo hi : Z) (b : block) (m' : Mem.mem')
   (FREE: Mem.free m b lo hi = Some m'),
   Mem.inject_neutral thr m -> Mem.inject_neutral thr m'.
-Proof. intros. inv H. 
+Proof. intros. inv H.
   split; intros.
      apply flatinj_E in H. destruct H as [? [? ?]]; subst. rewrite Zplus_0_r. assumption.
      apply flatinj_E in H. destruct H as [? [? ?]]; subst. apply align_chunk_0.
      apply flatinj_E in H. destruct H as [? [? ?]]; subst. rewrite Zplus_0_r.
         assert (X: Mem.flat_inj thr b1 = Some (b1,0)). apply flatinj_I. assumption.
         assert (Y:= Mem.perm_free_3 _ _ _ _ _ FREE _ _ _ _ H0).
-         specialize (mi_memval _ _ _ _ X Y). rewrite Zplus_0_r in *.    
+         specialize (mi_memval _ _ _ _ X Y). rewrite Zplus_0_r in *.
          rewrite (Mem.free_result _ _ _ _ _ FREE) in *. simpl in *. apply mi_memval.
 Qed.
 
@@ -183,31 +183,31 @@ Proof. intros. unfold mem_wd in *.
   eapply Mem.store_inject_neutral. apply ST.
       rewrite (Mem.nextblock_store _ _ _ _ _ _ ST). assumption.
       assert (X:= Mem.store_valid_access_3 _ _ _ _ _ _ ST).
-          rewrite (Mem.nextblock_store _ _ _ _ _ _ ST). 
+          rewrite (Mem.nextblock_store _ _ _ _ _ _ ST).
            apply (Mem.valid_access_implies _ _ _ _ _  Nonempty) in X.
                 apply Mem.valid_access_valid_block in X. apply X.
             constructor.
-      rewrite (Mem.nextblock_store _ _ _ _ _ _ ST). 
+      rewrite (Mem.nextblock_store _ _ _ _ _ _ ST).
           destruct v; try solve [constructor].
-            econstructor. eapply flatinj_I. apply V. 
+            econstructor. eapply flatinj_I. apply V.
                           rewrite Int.add_zero. trivial.
 Qed.
 
-Lemma extends_memwd: 
+Lemma extends_memwd:
 forall m1 m2 (Ext: Mem.extends m1 m2), mem_wd m2 -> mem_wd m1.
 Proof.
   intros. eapply mem_wdI. intros.
   assert (Mem.perm m2 b ofs Cur Readable).
     eapply (Mem.perm_extends _ _ _ _ _ _ Ext R).
   assert (Mem.valid_block m2 b).
-     apply (Mem.perm_valid_block _ _ _ _ _ H0). 
+     apply (Mem.perm_valid_block _ _ _ _ _ H0).
   destruct Ext. rewrite mext_next.
   assert (Mem.flat_inj (Mem.nextblock m2) b = Some (b,0)).
     apply flatinj_I. apply H1.
-  destruct mext_inj. specialize (mi_memval b ofs b 0 (eq_refl _) R). 
+  destruct mext_inj. specialize (mi_memval b ofs b 0 (eq_refl _) R).
   rewrite Zplus_0_r in mi_memval.
-  destruct H. specialize (mi_memval0 b ofs b 0 H2 H0). 
-  rewrite Zplus_0_r in mi_memval0. 
+  destruct H. specialize (mi_memval0 b ofs b 0 H2 H0).
+  rewrite Zplus_0_r in mi_memval0.
   remember (ZMap.get ofs (PMap.get b (Mem.mem_contents m1))) as v.
   destruct v. repeat econstructor.
   econstructor.
@@ -215,19 +215,19 @@ Proof.
   destruct v; try constructor.
   econstructor.
     eapply flatinj_I. inv mi_memval.
-    inv H3. inv H5. rewrite Int.add_zero in H6. 
+    inv H3. inv H5. rewrite Int.add_zero in H6.
       rewrite <- H6 in mi_memval0. simpl in mi_memval0.
-     inv mi_memval0. inversion H3.       
-      apply flatinj_E in H7. apply H7. 
+     inv mi_memval0. inversion H3.
+      apply flatinj_E in H7. apply H7.
    rewrite Int.add_zero. reflexivity.
-Qed. 
+Qed.
 
 Require Import sepcomp.reach.
 
-Inductive valid_genv {F V:Type} (ge:Genv.t F V) (m:mem) : Type := 
-  mk_valid_genv : 
-    (forall b, isGlobalBlock ge b=true -> val_valid (Vptr b Int.zero) m) -> 
-    (forall b f, Genv.find_funct_ptr ge b = Some f -> val_valid (Vptr b Int.zero) m) -> 
+Inductive valid_genv {F V:Type} (ge:Genv.t F V) (m:mem) : Type :=
+  mk_valid_genv :
+    (forall b, isGlobalBlock ge b=true -> val_valid (Vptr b Int.zero) m) ->
+    (forall b f, Genv.find_funct_ptr ge b = Some f -> val_valid (Vptr b Int.zero) m) ->
     valid_genv ge m.
 
 Lemma valid_genv_alloc: forall {F V:Type} (ge:Genv.t F V) (m m1:mem) lo hi b
@@ -240,7 +240,7 @@ Proof. intros. case G; intros. constructor; intros.
 Qed.
 
 Lemma valid_genv_store: forall {F V:Type} (ge:Genv.t F V) m m1 b ofs v chunk
-    (STORE: Mem.store chunk m b ofs v = Some m1) 
+    (STORE: Mem.store chunk m b ofs v = Some m1)
      (G: valid_genv ge m), valid_genv ge m1.
 Proof. intros. case G; intros. constructor; intros.
   apply (Mem.store_valid_block_1 _ _ _ _ _ _ STORE).
@@ -249,17 +249,17 @@ Proof. intros. case G; intros. constructor; intros.
   apply (v1 _ _ H).
 Qed.
 
-Lemma valid_genv_store_zeros: forall {F V:Type} (ge:Genv.t F V) m m1 b y z 
+Lemma valid_genv_store_zeros: forall {F V:Type} (ge:Genv.t F V) m m1 b y z
     (STORE_ZERO: store_zeros m b y z = Some m1)
     (G: valid_genv ge m), valid_genv ge m1.
 Proof. intros. case G; intros. constructor; intros.
   apply Genv.store_zeros_nextblock in STORE_ZERO.
-  specialize (v _ H); simpl in *. 
-  unfold Mem.valid_block in *. 
+  specialize (v _ H); simpl in *.
+  unfold Mem.valid_block in *.
   rewrite STORE_ZERO. apply G; auto.
-  specialize (v0 _ _ H); simpl in *. 
+  specialize (v0 _ _ H); simpl in *.
   apply Genv.store_zeros_nextblock in STORE_ZERO.
-  unfold Mem.valid_block in *. 
+  unfold Mem.valid_block in *.
   rewrite STORE_ZERO. auto.
 Qed.
 
@@ -273,7 +273,7 @@ Proof. intros until n. functional induction (store_zeros m b p n); intros.
 Qed.
 
 Lemma valid_genv_drop: forall {F V:Type} (ge:Genv.t F V) (m m1:mem) b lo hi p
-    (DROP: Mem.drop_perm m b lo hi p = Some m1) (G: valid_genv ge m), 
+    (DROP: Mem.drop_perm m b lo hi p = Some m1) (G: valid_genv ge m),
     valid_genv ge m1.
 Proof. intros. case G; intros. constructor; intros.
   apply (Mem.drop_perm_valid_block_1 _ _ _ _ _ _ DROP).
@@ -282,7 +282,7 @@ Proof. intros. case G; intros. constructor; intros.
   apply (v0 _ _ H); auto.
 Qed.
 
-Lemma mem_wd_store_init_data: forall {F V} (ge: Genv.t F V) a (b:block) (z:Z) 
+Lemma mem_wd_store_init_data: forall {F V} (ge: Genv.t F V) a (b:block) (z:Z)
   m1 m2 (SID:Genv.store_init_data ge m1 b z a = Some m2),
   valid_genv ge m1 -> mem_wd m1 -> mem_wd m2.
 Proof. intros F V ge a.
@@ -292,17 +292,17 @@ Proof. intros F V ge a.
    remember (Genv.find_symbol ge i) as d.
      destruct d; inv SID.
      eapply (mem_wd_store _ _ _ _ _ _ H0 H2).
-    apply eq_sym in Heqd. 
+    apply eq_sym in Heqd.
     destruct H.
     apply v.
-    unfold isGlobalBlock. 
+    unfold isGlobalBlock.
     rewrite orb_true_iff.
     unfold genv2blocksBool; simpl.
     apply Genv.find_invert_symbol in Heqd.
     rewrite Heqd; left; auto.
 Qed.
 
-Lemma valid_genv_store_init_data: 
+Lemma valid_genv_store_init_data:
   forall {F V}  (ge: Genv.t F V) a (b:block) (z:Z) m1 m2
   (SID: Genv.store_init_data ge m1 b z a = Some m2),
   valid_genv ge m1 -> valid_genv ge m2.
@@ -324,30 +324,30 @@ Proof. intros F V ge a.
   eapply H1; eauto.
 Qed.
 
-Lemma mem_wd_store_init_datalist: forall {F V} (ge: Genv.t F V) l (b:block) 
+Lemma mem_wd_store_init_datalist: forall {F V} (ge: Genv.t F V) l (b:block)
   (z:Z) m1 m2 (SID: Genv.store_init_data_list ge m1 b z l = Some m2),
   valid_genv ge m1 -> mem_wd m1 -> mem_wd m2.
 Proof. intros F V ge l.
-  induction l; simpl; intros. 
+  induction l; simpl; intros.
     inv SID. trivial.
   remember (Genv.store_init_data ge m1 b z a) as d.
   destruct d; inv SID; apply eq_sym in Heqd.
   apply (IHl _ _ _ _ H2); clear IHl H2.
-     eapply valid_genv_store_init_data. apply Heqd. apply H. 
+     eapply valid_genv_store_init_data. apply Heqd. apply H.
   eapply mem_wd_store_init_data. apply Heqd. apply H. apply H0.
-Qed. 
+Qed.
 
 Lemma valid_genv_store_init_datalist: forall {F V} (ge: Genv.t F V) l (b:block)
   (z:Z) m1 m2 (SID: Genv.store_init_data_list ge m1 b z l = Some m2),
    valid_genv ge m1 -> valid_genv ge m2.
 Proof. intros F V ge l.
-  induction l; simpl; intros. 
+  induction l; simpl; intros.
     inv SID. trivial.
   remember (Genv.store_init_data ge m1 b z a) as d.
   destruct d; inv SID; apply eq_sym in Heqd.
   apply (IHl _ _ _ _ H1); clear IHl H1.
-     eapply valid_genv_store_init_data. apply Heqd. apply H. 
-Qed. 
+     eapply valid_genv_store_init_data. apply Heqd. apply H.
+Qed.
 
 Lemma mem_wd_alloc_global: forall  {F V} (ge: Genv.t F V) a m0 m1
    (GA: Genv.alloc_global ge m0 a = Some m1),
@@ -355,16 +355,16 @@ Lemma mem_wd_alloc_global: forall  {F V} (ge: Genv.t F V) a m0 m1
 Proof. intros F V ge a.
 destruct a; simpl. intros.
 destruct g.
-  remember (Mem.alloc m0 0 1) as mm. destruct mm. 
-    apply eq_sym in Heqmm. 
-    specialize (mem_wd_alloc _ _ _ _ _ Heqmm). intros. 
+  remember (Mem.alloc m0 0 1) as mm. destruct mm.
+    apply eq_sym in Heqmm.
+    specialize (mem_wd_alloc _ _ _ _ _ Heqmm). intros.
      eapply (mem_wd_drop _ _ _ _ _  _ GA).
-    apply (H1 H). 
+    apply (H1 H).
     apply (Mem.valid_new_block _ _ _ _ _ Heqmm).
 remember (Mem.alloc m0 0 (init_data_list_size (AST.gvar_init v)) ) as mm.
   destruct mm. apply eq_sym in Heqmm.
   remember (store_zeros m b 0 (init_data_list_size (AST.gvar_init v)))
-           as d. 
+           as d.
   destruct d; inv GA; apply eq_sym in Heqd.
   remember (Genv.store_init_data_list ge m2 b 0 (AST.gvar_init v)) as dd.
   destruct dd; inv H2; apply eq_sym in Heqdd.
@@ -387,15 +387,15 @@ Lemma valid_genv_alloc_global: forall  {F V} (ge: Genv.t F V) a m0 m1
 Proof. intros F V ge a.
 destruct a; simpl. intros.
 destruct g.
-  remember (Mem.alloc m0 0 1) as d. destruct d. 
+  remember (Mem.alloc m0 0 1) as d. destruct d.
     apply eq_sym in Heqd.
     apply (valid_genv_drop _ _ _ _ _ _ _ GA).
     apply (valid_genv_alloc _ _ _ _ _ _ Heqd H).
 remember (Mem.alloc m0 0 (init_data_list_size (AST.gvar_init v)) )
          as Alloc.
   destruct Alloc. apply eq_sym in HeqAlloc.
-  remember (store_zeros m b 0 
-           (init_data_list_size (AST.gvar_init v))) as SZ. 
+  remember (store_zeros m b 0
+           (init_data_list_size (AST.gvar_init v))) as SZ.
   destruct SZ; inv GA; apply eq_sym in HeqSZ.
   remember (Genv.store_init_data_list ge m2 b 0 (AST.gvar_init v)) as Drop.
   destruct Drop; inv H1; apply eq_sym in HeqDrop.
@@ -437,7 +437,7 @@ Lemma decode_val_pointer_inv:
   forall chunk mvl b ofs,
   decode_val chunk mvl = Vptr b ofs ->
   chunk = Mint32 /\ mvl = inj_value Q32 (Vptr b ofs).
- A version of this lemma is in 
+ A version of this lemma is in
   CompCert 2.3, Memdata.v,
  but missing from CompCert 2.4.  I'm not even sure
  it's true in CompCert 2.4.  -A.W.A.
@@ -466,11 +466,11 @@ Qed.
 Lemma mem_wd_storebytes: forall m b ofs bytes m' (WDm: mem_wd m)
   (ST: Mem.storebytes m b ofs bytes = Some m')
   (BytesValid: forall v, In v bytes ->
-               memval_inject (Mem.flat_inj (Mem.nextblock m)) v v), 
+               memval_inject (Mem.flat_inj (Mem.nextblock m)) v v),
    mem_wd m'.
 Proof. intros. apply mem_wdI. intros.
   assert (F: Mem.flat_inj (Mem.nextblock m) b0 = Some (b0, 0)).
-        apply flatinj_I. 
+        apply flatinj_I.
         apply (Mem.storebytes_valid_block_2 _ _ _ _ _ ST).
         eapply Mem.perm_valid_block; eassumption.
   apply mem_wd_E in WDm.
@@ -482,19 +482,19 @@ Proof. intros. apply mem_wdI. intros.
   rewrite (Mem.storebytes_mem_contents _ _ _ _ _ ST).
   remember (eq_block b0 b).
   destruct s; subst; clear Heqs.
-  (*case b0=b*) 
+  (*case b0=b*)
     rewrite PMap.gss.
     remember (zlt ofs0 ofs) as d.
     destruct d; clear Heqd.
-    (*case ofs0 < ofs*) 
+    (*case ofs0 < ofs*)
       rewrite Mem.setN_outside; try (left; assumption).
       assumption.
     (*case ofs0 >= ofs*)
       remember (zlt ofs0 (ofs + (Z.of_nat (length bytes)))) as d.
       destruct d; clear Heqd.
-      (*case <*) 
+      (*case <*)
         apply BytesValid; clear BytesValid.
-        apply Mem.setN_in. omega. 
+        apply Mem.setN_in. omega.
       (*case >= *)
          rewrite Mem.setN_outside; try (right; assumption).
       assumption.
@@ -505,22 +505,22 @@ Qed.
 Lemma getN_aux: forall n p c B1 v B2, Mem.getN n p c = B1 ++ v::B2 ->
     v = ZMap.get (p + Z.of_nat (length B1)) c.
 Proof. intros n.
-  induction n; simpl; intros. 
+  induction n; simpl; intros.
     destruct B1; simpl in *. inv H. inv H.
-    destruct B1; simpl in *. 
+    destruct B1; simpl in *.
       inv H. rewrite Zplus_0_r. trivial.
       inv H. specialize (IHn _ _ _ _ _ H2). subst.
-        rewrite Zpos_P_of_succ_nat. 
+        rewrite Zpos_P_of_succ_nat.
         remember (Z.of_nat (length B1)) as m. clear Heqm H2. rewrite <- Z.add_1_l.
-         rewrite Zplus_assoc. trivial. 
-Qed. 
+         rewrite Zplus_assoc. trivial.
+Qed.
 
 Lemma getN_range: forall n ofs M bytes1 v bytes2,
   Mem.getN n ofs M = bytes1 ++ v::bytes2 ->
   (length bytes1 < n)%nat.
 Proof. intros n.
   induction n; simpl; intros.
-    destruct bytes1; inv H. 
+    destruct bytes1; inv H.
     destruct bytes1; simpl in *; inv H.
       omega.
     specialize (IHn _ _ _ _ _ H2). omega.
@@ -543,10 +543,10 @@ Lemma loadbytes_valid: forall m (WD: mem_wd m) b ofs' n bytes
       v (B: In v bytes),
       memval_inject (Mem.flat_inj (Mem.nextblock m)) v v.
 Proof. intros.
-  destruct (loadbytes_D _ _ _ _ _ LD) as [Range BB]; subst. 
+  destruct (loadbytes_D _ _ _ _ _ LD) as [Range BB]; subst.
   assert (L:= Mem.loadbytes_length _ _ _ _ _ LD).
   apply In_split in B. destruct B as [bytes1 [bytes2 B]]. subst.
-  assert (I: Int.unsigned ofs' <= (Int.unsigned ofs') + Z.of_nat (length bytes1) < 
+  assert (I: Int.unsigned ofs' <= (Int.unsigned ofs') + Z.of_nat (length bytes1) <
                   Int.unsigned ofs' + n).
     assert (II:= getN_range _ _ _ _ _ _ B).
     clear Range LD B L.
@@ -557,7 +557,7 @@ Proof. intros.
      unfold nat_of_Z in II.
         destruct n. omega. specialize (Pos2Z.is_pos p); omega.
         rewrite Z2Nat.inj_neg in II. destruct bytes1; simpl in II; inv II.
-  specialize (Range _ I). 
+  specialize (Range _ I).
   assert (F: Mem.flat_inj (Mem.nextblock m) b = Some (b, 0)).
     apply flatinj_I. apply Mem.perm_valid_block in Range. apply Range.
     specialize (Mem.mi_memval _ _ _ WD _ _ _ _ F Range).
@@ -575,5 +575,5 @@ Proof. intros l.
   remember (Mem.free m b z0 z) as d.
   destruct d; inv M; apply eq_sym in Heqd.
   apply (IHl _ _ H0).
-  eapply mem_wd_free; eassumption. 
+  eapply mem_wd_free; eassumption.
 Qed.

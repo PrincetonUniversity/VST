@@ -3,8 +3,8 @@ Require Import msl.sepalg.
 
 Require Import Coq.funind.Recdef.
 Require Coq.Wellfounded.Wellfounded. (* Can't Import this, because that brings the identifier B into
-           scope, which breaks things like `{ageable B}  in this file. 
-          Stupid feature of Coq, that the B in `{ageable B} is not unambiguously a 
+           scope, which breaks things like `{ageable B}  in this file.
+          Stupid feature of Coq, that the B in `{ageable B} is not unambiguously a
         binding occurrence of B.  *)
 Delimit Scope pred with pred.
 Local Open Scope pred.
@@ -13,7 +13,7 @@ Definition pred (A:Type) := A -> Prop.
 Bind Scope pred with pred.
 
 Definition derives (A:Type) (P Q:pred A) := forall a:A, P a -> Q a.
-Implicit Arguments derives.
+Arguments derives [A] _ _.
 
 Lemma pred_ext : forall A (P Q:pred A),
   derives P Q -> derives Q P -> P = Q.
@@ -77,7 +77,7 @@ Definition precise2  {A} {JA: Join A}{PA: Perm_alg A}  (P: pred A) : Prop :=
      forall Q R, P * (Q && R) = (P * Q) && (P * R).
 
 Lemma precise_eq {A}  {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}:
-     precise = 
+     precise =
                  fun P : pred A => forall Q R, P * (Q && R) = (P * Q) && (P * R).
 Proof.
 extensionality P.
@@ -112,7 +112,7 @@ destruct H4 as [w1 [w2 [? [? [? ?]]]]].
 unfold fa,fb in *.
 subst.
 generalize (join_canc H2 H4); intro.
-subst w1a w2b.
+subst.
 eapply join_canc; eauto.
 Qed.
 
@@ -125,7 +125,7 @@ Qed.
 Lemma prop_true_and:
   forall (P: Prop) A (Q: pred A), P -> (!! P && Q = Q).
 Proof.
-intros. unfold prop, andp; 
+intros. unfold prop, andp;
 extensionality w; apply prop_ext; split; intuition.
 Qed.
 
@@ -159,7 +159,7 @@ intros.
 intros w [? ?]; split; auto.
 Qed.
 
-Lemma sepcon_assoc {A} {JA: Join A}{PA: Perm_alg A}: 
+Lemma sepcon_assoc {A} {JA: Join A}{PA: Perm_alg A}:
   forall p q r, (((p * q) * r) = (p * (q * r))).
 Proof.
 pose proof I.
@@ -226,7 +226,7 @@ destruct H0 as [? [? [? [? ?]]]].
 subst. eapply join_eq; eauto.
 subst w3.
 exists w1; exists w2; split; auto.
-Qed.     
+Qed.
 
 
 Lemma exists_and1 {A: Type} : forall {T: Type} (P: T -> pred A) (Q: pred A),
@@ -246,11 +246,11 @@ Lemma andp_comm {A: Type}: forall (P Q: pred A), P && Q = Q && P.
 Proof.
 intros.
 extensionality w.
-unfold andp; 
+unfold andp;
 apply prop_ext; split; intuition.
 Qed.
 
-Lemma andp_assoc {A}: forall (P Q R: pred A), 
+Lemma andp_assoc {A}: forall (P Q R: pred A),
                  ((P && Q) && R = P && (Q && R)).
 Proof.
 intros.
@@ -378,7 +378,7 @@ Proof.
 auto.
 Qed.
 
-Lemma exp_derives {A} : 
+Lemma exp_derives {A} :
        forall B (P: B -> pred A) Q , (forall x:B, P x |-- Q x) -> (exp P |-- exp Q).
 Proof.
 intros.
@@ -409,7 +409,7 @@ destruct H1 as [w1 [w2 [? [? ?]]]].
 unfold ewand in H3.
 destruct H3 as [w1' [w3 [? [? ?]]]].
 assert (w1'=w1).
-  apply H0; auto. 
+  apply H0; auto.
   apply comparable_trans with w2. eapply join_comparable2; eauto.
   apply comparable_sym.  eapply join_comparable2; eauto.
   subst.
@@ -543,8 +543,8 @@ Hint Resolve @superprecise_exactly.
 
 Lemma find_overlap {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
      Cross_alg A ->
-     forall S P Q R, (S * P) && (Q * R) |-- 
-                          EX SQ:_, EX SR:_, EX PQ:_, EX PR:_, 
+     forall S P Q R, (S * P) && (Q * R) |--
+                          EX SQ:_, EX SR:_, EX PQ:_, EX PR:_,
                             (((SQ* SR) && S)*((PQ* PR) && P)) &&
                             (((SQ* PQ) && Q)*((SR* PR) && R)) &&
                             !! (superprecise SQ /\ superprecise SR /\ superprecise PQ /\ superprecise PR).
@@ -648,7 +648,7 @@ Proof.
   eapply H; eauto.
 Qed.
 
-Lemma ewand_sepcon {A} {JA: Join A}{PA: Perm_alg A}: forall P Q R, 
+Lemma ewand_sepcon {A} {JA: Join A}{PA: Perm_alg A}: forall P Q R,
       (ewand (P * Q) R = ewand P (ewand Q R))%pred.
 Proof.
 intros; apply pred_ext; intros w ?.
@@ -658,7 +658,7 @@ exists w3.
 destruct (join_assoc (join_comm H0) H) as [wf [? ?]].
 exists wf.
 split; [|split]; auto.
-exists w4. exists w2. split; auto. 
+exists w4. exists w2. split; auto.
 destruct H as [w1 [w2 [? [? ?]]]].
 destruct H1 as [w3 [w4 [? [? ?]]]].
 destruct (join_assoc (join_comm H) (join_comm H1)) as [wf [? ?]].
@@ -689,15 +689,15 @@ Lemma orp_left{A}: forall P Q R: pred A,  P |-- R -> Q |-- R -> P || Q |-- R.
 Proof. repeat intro. destruct H1; auto.
 Qed.
 
-Lemma orp_right1{A}: forall P Q R: pred A,  P |-- Q -> P |-- Q || R. 
+Lemma orp_right1{A}: forall P Q R: pred A,  P |-- Q -> P |-- Q || R.
 Proof. repeat intro. left; auto.
 Qed.
 
-Lemma orp_right2{A}: forall P Q R: pred A,  P |-- R -> P |-- Q || R. 
+Lemma orp_right2{A}: forall P Q R: pred A,  P |-- R -> P |-- Q || R.
 Proof. repeat intro. right; auto.
 Qed.
 
-Lemma exp_right: 
+Lemma exp_right:
   forall {B A: Type}(x:B) p (q: B -> pred A),
     p |-- q x ->
     p |-- exp q.
@@ -726,7 +726,7 @@ Proof.
  intros. intros w ? v; apply (H v); auto.
 Qed.
 
-Lemma allp_left {B}{A}: 
+Lemma allp_left {B}{A}:
    forall (P: B -> pred A) x Q, P x |-- Q -> allp P |-- Q.
  Proof.
    intros. intros ? ?. apply H. apply H0.
@@ -774,10 +774,10 @@ Lemma sepcon_pure_andp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}:
  forall P Q, pure P -> pure Q -> ((P * Q) = (P && Q)).
 Proof.
 intros.
-apply pred_ext; intros w ?. 
+apply pred_ext; intros w ?.
 destruct H1 as [w1 [w2 [? [? ?]]]].
 unfold pure in *.
-assert (unit_for w1 w2). apply H in H2; simpl in H2; 
+assert (unit_for w1 w2). apply H in H2; simpl in H2;
 apply identity_unit; auto. exists w; auto.
 unfold unit_for in H4.
 assert (w2=w) by (apply (join_eq H4 H1)).

@@ -116,7 +116,7 @@ destruct (w @ loc); simpl; constructor; auto.
 Qed.
 
 Definition split_resource r :=
-  match r with YES rsh sh k pp => (YES (fst (Share.split rsh)) (fst (split_pshare sh)) k pp , 
+  match r with YES rsh sh k pp => (YES (fst (Share.split rsh)) (fst (split_pshare sh)) k pp ,
                                                        YES (snd (Share.split rsh)) (snd (split_pshare sh)) k pp)
                      | PURE k pp => (PURE k pp, PURE k pp)
                      | NO rsh => (NO (fst (Share.split rsh)) ,NO (snd (Share.split rsh)))

@@ -7,7 +7,7 @@ Require Import hoare_total.
 
 (* rule for if in weakest precondition form *)
 Lemma wp_if : forall t x v s1 s2 P1 P2 G R Q,
-  let wp := 
+  let wp :=
     EX val:value,
       store_op (fun r => r#v = Some val) &&
     (
@@ -34,7 +34,7 @@ Proof.
   subst val.
   split; auto. hnf; auto.
   rewrite H1. split; auto.
-  destruct H2. 
+  destruct H2.
   destruct H2 as [x1 [x2 ?]].
   simpl in H2.
   subst val.
@@ -67,7 +67,7 @@ Qed.
 Section wp.
   Variable t:terminationMeasure.
   Variables G R:pred world.
-  
+
   Fixpoint is_basic (i:instruction) : bool :=
     match i with
     | instr_call _ => false
@@ -75,7 +75,7 @@ Section wp.
     | _ => true
     end.
 
-  Fixpoint wp (x:nat) (i:instruction) (POST:pred world) { struct i } : pred world := 
+  Fixpoint wp (x:nat) (i:instruction) (POST:pred world) { struct i } : pred world :=
     match i with
     | instr_return => R
 
@@ -91,12 +91,12 @@ Section wp.
         EX x1:value, EX x2:value,
           store_op (fun r => r#v1 = Some (value_cons x1 x2)) && box (setM v2 x2) POST
 
-    | instr_cons v1 v2 v3 => 
+    | instr_cons v1 v2 v3 =>
       (EX x1:value, EX x2:value,
         store_op (fun r => r#v1 = Some x1 /\ r#v2 = Some x2) &&
           box (setM v3 (value_cons x1 x2)) POST)
-     
-    | instr_if_nil v s1 s2 => 
+
+    | instr_if_nil v s1 s2 =>
 
     EX val:value,
       store_op (fun r => r#v = Some val) &&
@@ -116,7 +116,7 @@ Section wp.
     | instr_seq s1 s2 =>
         if is_basic s1 then wp 0 s1 (wp x s2 POST) else
         if is_basic s2 then wp x s1 (wp 0 s2 POST) else
-        EX n:nat, EX m:nat, 
+        EX n:nat, EX m:nat,
            wp n s1 (wp m s2 POST) && !!(n+m = x)
 
     | _ => FF
@@ -141,7 +141,7 @@ Proof.
   eapply hoare_weaken_pre.
   2: eapply hoare_getlabel. auto.
   destruct n.
-  
+
   apply hoare_weaken_time with 0. omega.
   eapply hoare_weaken_pre.
   apply H0.
@@ -164,7 +164,7 @@ Proof.
   apply hoare_ex_pre. intro x1.
   apply hoare_ex_pre. intro x2.
   apply hoare_cons.
-  
+
   eapply hoare_weaken_pre.
   apply H0.
   destruct (is_basic i1).
@@ -188,7 +188,7 @@ Proof.
   apply wp_if.
   apply IHi1; auto. hnf; auto.
   apply IHi2; auto. hnf; auto.
-  
+
   eapply hoare_weaken_pre.
   apply H0.
   apply hoare_call.

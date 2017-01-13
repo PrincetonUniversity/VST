@@ -7,12 +7,12 @@ Require Import fcf.CompFold.
 
 Local Open Scope list_scope.
 
-Theorem skipn_S : 
+Theorem skipn_S :
   forall (A: Type)(defA : A)(ls : list A)(n : nat),
     n < length ls ->
-    skipn n ls = 
+    skipn n ls =
     nth n ls defA :: skipn (S n) ls.
-  
+
   induction ls; intuition; simpl in *.
   destruct n; try omega.
 
@@ -25,12 +25,12 @@ Theorem skipn_S :
   omega.
 Qed.
 
-Theorem firstn_S : 
+Theorem firstn_S :
   forall (A: Type)(defA : A)(n : nat)(ls : list A),
     n < length ls ->
-    firstn (S n) ls = 
+    firstn (S n) ls =
     (firstn n ls) ++ ((nth n ls defA) :: nil).
-  
+
   induction n; intuition; simpl in *.
   destruct ls; simpl in *.
   omega.
@@ -43,9 +43,9 @@ Theorem firstn_S :
   omega.
 Qed.
 
-  
+
 Section ListHybrid.
-  
+
   Variable A B C S_A : Set.
   Hypothesis eqdb : EqDec B.
   Variable defA : A.
@@ -60,7 +60,7 @@ Section ListHybrid.
   Hypothesis A2'_wf : forall x y, well_formed_comp (A2' x y).
 
   Variable numA : nat.
-  Hypothesis numA_correct : 
+  Hypothesis numA_correct :
     forall lsa s,
       In (lsa, s) (getSupport A1) ->
       length lsa = numA.
@@ -104,13 +104,13 @@ Section ListHybrid.
     A3 s_A (lsb1 ++ (b :: lsb2)).
 
   Variable F : nat -> Rat.
-  
-  Theorem list_hybrid_close_h : 
+
+  Theorem list_hybrid_close_h :
     (forall n c, | (evalDist (LH_Gn n) c) - (evalDist (LH_Gn (S n)) c) | <= F n) ->
   forall x n c,
   | (evalDist (LH_Gn n) c) - (evalDist (LH_Gn (n + x)) c) | <= sumList (map (plus n) (allNatsLt x)) F.
 
-    
+
     Local Opaque evalDist.
 
     induction x; intuition; simpl in *.
@@ -132,7 +132,7 @@ Section ListHybrid.
 
     rewrite map_app.
     simpl.
-    
+
 
 
     eapply eqRat_impl_leRat.
@@ -141,14 +141,14 @@ Section ListHybrid.
     eapply ratAdd_eqRat_compat; intuition.
     symmetry.
     eapply ratMult_1_l.
-    
+
   Qed.
 
-  Theorem list_hybrid_close : 
+  Theorem list_hybrid_close :
     forall k c,
       (forall n c, n < numA -> | (evalDist (LH_G_0 n) c) - (evalDist (LH_G_1 n) c) | <= k) ->
   | (evalDist (LH_G0) c) - (evalDist (LH_G1) c) | <= (numA)/1 * k.
-    
+
     intuition.
 
     assert (evalDist (LH_G0) c == evalDist (LH_Gn 0) c).
@@ -183,7 +183,7 @@ Section ListHybrid.
     intuition.
     inline_first.
 
-    Theorem skipn_length_nil : 
+    Theorem skipn_length_nil :
       forall (A : Type)(ls : list A)(n : nat),
         n >= length ls ->
         skipn n ls = nil.
@@ -196,14 +196,14 @@ Section ListHybrid.
       eapply IHls.
       omega.
     Qed.
-             
+
     repeat rewrite skipn_length_nil.
     simpl.
     comp_simp.
     intuition.
     erewrite numA_correct; intuition; eauto.
     intuition.
-    
+
     rewrite H0.
     clear H0.
 
@@ -215,7 +215,7 @@ Section ListHybrid.
     eapply leRat_refl.
     intuition.
 
-    Theorem LH_Gn_0_equiv : 
+    Theorem LH_Gn_0_equiv :
       forall (n : nat) c,
         n < numA ->
         evalDist (LH_Gn n) c == evalDist (LH_G_0 n) c.
@@ -233,10 +233,10 @@ Section ListHybrid.
       inline_first.
       comp_skip.
       erewrite numA_correct; intuition; eauto.
-   
+
     Qed.
 
-    Theorem LH_Gn_1_equiv : 
+    Theorem LH_Gn_1_equiv :
       forall (n : nat) c,
         n < numA ->
         evalDist (LH_Gn (S n)) c == evalDist (LH_G_1 n) c.
@@ -268,7 +268,7 @@ Section ListHybrid.
 
       comp_skip.
       reflexivity.
-      
+
       rewrite <- app_assoc.
       rewrite <- app_comm_cons.
       simpl.
@@ -280,7 +280,7 @@ Section ListHybrid.
     destruct (ge_dec n numA).
     unfold LH_Gn.
     eapply evalDist_bind_distance; intuition.
-    
+
     comp_simp.
     repeat rewrite firstn_ge_all; try omega.
     eapply evalDist_bind_distance; intuition.
@@ -329,11 +329,11 @@ Section ListEncrypt.
 
   Definition LE_G0 :=
     [ls, s_A] <-$2 A1;
-    lsc <-$ compMap _ (fun x => 
-                         k <-$ KeyGen; 
+    lsc <-$ compMap _ (fun x =>
+                         k <-$ KeyGen;
                        [b, _] <-$2 (A2 s_A x) _ _ (EncryptOracle Enc _ k) tt;
                       ret b) ls;
     A3 s_A lsc.
-  
+
 
 End ListEncrypt.

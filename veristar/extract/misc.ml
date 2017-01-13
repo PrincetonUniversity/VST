@@ -84,7 +84,7 @@ let create_ident s =
     {status=ORIGINAL; stamp=0; name=name; kind=kind}
 
 let string_of_ident id =
-  (if id.kind = EXISTENTIAL_VAR then "_" else "") ^ 
+  (if id.kind = EXISTENTIAL_VAR then "_" else "") ^
     (if id.status=GARBAGE then "" (* "%" *) else "") ^
     id.name ^
     (if id.stamp = 0 then "" else "_" ^ string_of_int (-1 - id.stamp))

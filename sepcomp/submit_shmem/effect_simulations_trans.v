@@ -44,10 +44,10 @@ Lemma initial_inject_split: forall j m1 m3 (Inj:Mem.inject j m1 m3),
                    compose_meminj j1 j2 (Mem.nextblock Mem.empty + m)%positive =
                    Some (b3, ofs3))).
 Proof. intros.
-  destruct (EFFAX.interpolate_II_strongHeqMKI _ _ _ 
+  destruct (EFFAX.interpolate_II_strongHeqMKI _ _ _
      Forward_simulation_trans.empty_inj _ (Forward_simulation_trans.empty_fwd m1) _ _ Forward_simulation_trans.empty_inj _ (Forward_simulation_trans.empty_fwd m3) _ Inj)
   as [m2 [j1 [j2 [J [X [Y [Inc1 [Inc2 [Inj12 [_ [Inj23 AA]]]]]]]]]]].
-intros b; intros. 
+intros b; intros.
   destruct (compose_meminjD_Some _ _ _ _ _ H) as [? [? [? [? [? ?]]]]].
     subst. destruct (flatinj_E _ _ _ _ H0) as [? [? ?]]. subst.
          exfalso. xomega.
@@ -112,7 +112,7 @@ Lemma initial_inject_split: forall j m1 m3 (Inj:Mem.inject j m1 m3),
 Proof. intros.
   destruct (EFFAX.interpolate_II_strong _ _ _ Forward_simulation_trans.empty_inj _ (Forward_simulation_trans.empty_fwd m1) _ _ Forward_simulation_trans.empty_inj _ (Forward_simulation_trans.empty_fwd m3) _ Inj)
   as [m2 [j1 [j2 [J [X [Y [Inc1 [Inc2 [Inj12 [_ [Inj23 _]]]]]]]]]]].
-intros b; intros. 
+intros b; intros.
   destruct (compose_meminjD_Some _ _ _ _ _ H) as [? [? [? [? [? ?]]]]].
     subst. destruct (flatinj_E _ _ _ _ H0) as [? [? ?]]. subst.
          exfalso. xomega.
@@ -143,7 +143,7 @@ split; intros.
   destruct (X _ _ _ H) as [AA | AA].
     apply flatinj_E in AA.
       destruct AA as [? [? ?]]; subst. intuition.
-   
+
 Qed.
 *)
 
@@ -154,41 +154,41 @@ Context {F1 V1 C1 F2 V2 C2 F3 V3 C3:Type}
         (Sem3 : @EffectSem (Genv.t F3 V3) C3)
         (g1 : Genv.t F1 V1)
         (g2 : Genv.t F2 V2)
-        (g3 : Genv.t F3 V3) 
+        (g3 : Genv.t F3 V3)
         epts12 epts23 epts13
         (EPC : entrypoints_compose epts12 epts23 epts13).
 
-Theorem eff_sim_trans: forall 
+Theorem eff_sim_trans: forall
         (SIM12: @SM_simulation_inject _ _ _ _ _ _ Sem1 Sem2 g1 g2 epts12)
         (SIM23: @SM_simulation_inject _ _ _ _ _ _ Sem2 Sem3 g2 g3 epts23),
         @SM_simulation_inject _ _ _ _ _ _ Sem1 Sem3 g1 g3 epts13.
 Proof. (*follows structure of forward_simulations_trans.injinj*)
   intros.
-  destruct SIM12 
-    as [core_data12 match_core12 core_ord12 core_ord_wf12 
+  destruct SIM12
+    as [core_data12 match_core12 core_ord12 core_ord_wf12
       match_sm_wd12 genvs_dom_eq12 match_genv12
-      match_visible12 match_restrict12 
-      match_sm_valid12 (*match_protected12*) core_initial12 
+      match_visible12 match_restrict12
+      match_sm_valid12 (*match_protected12*) core_initial12
       core_diagram12 effcore_diagram12
-      core_halted12 core_at_external12 eff_after_external12].  
-  destruct SIM23 
-    as [core_data23 match_core23 core_ord23 core_ord_wf23 
+      core_halted12 core_at_external12 eff_after_external12].
+  destruct SIM23
+    as [core_data23 match_core23 core_ord23 core_ord_wf23
       match_sm_wd23 genvs_dom_eq23 match_genv23
       match_visible23 match_restrict23
-      match_sm_valid23 (*match_protected23*) core_initial23 
+      match_sm_valid23 (*match_protected23*) core_initial23
       core_diagram23 effcore_diagram23
       core_halted23 core_at_external23 eff_after_external23].
   eapply Build_SM_simulation_inject with
     (core_ord := clos_trans _ (sem_compose_ord_eq_eq core_ord12 core_ord23 C2))
-    (match_state := fun d mu c1 m1 c3 m3 => 
-      match d with (d1,X,d2) => 
-        exists c2, exists m2, exists mu1, exists mu2, 
+    (match_state := fun d mu c1 m1 c3 m3 =>
+      match d with (d1,X,d2) =>
+        exists c2, exists m2, exists mu1, exists mu2,
           X=Some c2 /\ mu = compose_sm mu1 mu2 /\
           (locBlocksTgt mu1 = locBlocksSrc mu2 /\
            extBlocksTgt mu1 = extBlocksSrc mu2 /\
            (forall b, pubBlocksTgt mu1 b = true -> pubBlocksSrc mu2 b = true) /\
-           (forall b, frgnBlocksTgt mu1 b = true -> frgnBlocksSrc mu2 b = true)) /\ 
-          match_core12 d1 mu1 c1 m1 c2 m2 /\ match_core23 d2 mu2 c2 m2 c3 m3 
+           (forall b, frgnBlocksTgt mu1 b = true -> frgnBlocksSrc mu2 b = true)) /\
+          match_core12 d1 mu1 c1 m1 c2 m2 /\ match_core23 d2 mu2 c2 m2 c3 m3
       end).
  (*well_founded*)
   eapply wf_clos_trans. eapply well_founded_sem_compose_ord_eq_eq; assumption.
@@ -235,7 +235,7 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
     intros. rename c2 into c3. rename m2 into m3.
       destruct d as [[d12 cc2] d23].
       destruct H as [c2 [m2 [mu12 [mu23 [X [J [INV [MC12 MC23]]]]]]]]; subst.
-      simpl. rewrite vis_compose_sm. eapply match_visible12. eassumption. 
+      simpl. rewrite vis_compose_sm. eapply match_visible12. eassumption.
  (*match_restrict*)
     clear - match_restrict12.
     intros. rename c2 into c3. rename m2 into m3.
@@ -278,17 +278,17 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
     simpl. apply (match_protected12 _ _ _ _ _ _ MC12 _ H0 H1).*)
  (*initial_core*)
    (*version where envirnment delivers structured injection:
-     to complete this proof, we'd have to replace the call to 
-     initial_inject_split 3 line down to one to variant that merges 
+     to complete this proof, we'd have to replace the call to
+     initial_inject_split 3 line down to one to variant that merges
      the results of the two lemmas in effect_interpolants, namely
-     effect_interp_II and interpolate_II_strongHeqMKI. That should be possible 
+     effect_interp_II and interpolate_II_strongHeqMKI. That should be possible
      but is left as future work.
    clear - EPC genvs_dom_eq12 core_initial12 genvs_dom_eq23 core_initial23.
-   intros. rename m2 into m3. rename v2 into v3. rename vals2 into vals3. 
+   intros. rename m2 into m3. rename v2 into v3. rename vals2 into vals3.
     rewrite (EPC v1 v3 sig) in H. destruct H as [v2 [EP12 EP23]].
-    (*assert (HT: Forall2 Val.has_type vals1 (sig_args sig)). 
+    (*assert (HT: Forall2 Val.has_type vals1 (sig_args sig)).
       eapply forall_valinject_hastype; eassumption.*)
-    destruct (initial_inject_split _ _ _ H1) 
+    destruct (initial_inject_split _ _ _ H1)
        as [m2 [j1 [j2 [J [Inj12 [Inj23 [X [Y [XX YY]]]]]]]]].
     subst. rewrite J in *.
     destruct (Forward_simulation_trans.forall_val_inject_split _ _ _ _ H2)
@@ -346,7 +346,7 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
          rewrite J. eassumption.
          rewrite J. eassumption.
          (*eapply forall_valinject_hastype; eassumption.*)
-         intros. eapply H6. 
+         intros. eapply H6.
               rewrite (genvs_domain_eq_isGlobal _ _ genvs_dom_eq23) in H.
               assumption.
        intros [d12 [c2 [Ini2 MC12]]].
@@ -355,14 +355,14 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
          rewrite J. eassumption.
          rewrite J. eassumption.
          (*eapply forall_valinject_hastype; eassumption.*)
-         intros. eapply H6. 
+         intros. eapply H6.
               rewrite (genvs_domain_eq_isGlobal _ _ genvs_dom_eq23) in H.
               assumption.
 
         assert (Q: forall b,  isGlobalBlock g2 b || getBlocks vals2 b = true ->
-                   exists jb d, j2 b = Some (jb, d) /\ 
+                   exists jb d, j2 b = Some (jb, d) /\
                            isGlobalBlock g3 jb || getBlocks vals3 jb = true).
-          intros b' Hb'. apply orb_true_iff in Hb'. 
+          intros b' Hb'. apply orb_true_iff in Hb'.
           destruct Hb' as [Hb' | Hb'].
             rewrite (meminj_preserves_globals_isGlobalBlock _ _ PG2 _ Hb').
               exists b', 0.
@@ -370,7 +370,7 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
               rewrite Hb'. intuition.
           destruct (getBlocks_inject _ _ _  ValsInj23 _ Hb') as [bb [ofs [J2 GB2]]].
               exists bb, ofs. intuition.
-        specialize (REACH_inject _ _ _ Inj23 
+        specialize (REACH_inject _ _ _ Inj23
             (fun b' : block => isGlobalBlock g2 b' || getBlocks vals2 b')
             (fun b' : block => isGlobalBlock g3 b' || getBlocks vals3 b')
             Q). intros. as [b3 [d2 [J2 R3]]].
@@ -381,7 +381,7 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
         destruct d; inv Hb2; apply eq_sym in Heqd. destruct p.
         eapply Mem.valid_block_inject_1; eassumption.
       (*eapply forall_valinject_hastype; eassumption.*)
-      intros. destruct (X b1) as [_ J1Comp]. 
+      intros. destruct (X b1) as [_ J1Comp].
               destruct J1Comp as [b3 [dd COMP]]. exists b2, d; trivial.
               specialize (H4 _ _ _ COMP).
               destruct (compose_meminjD_Some _ _ _ _ _ COMP)
@@ -390,11 +390,11 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
       intros.*)
  (*initial_core*)
    clear - EPC genvs_dom_eq12 core_initial12 genvs_dom_eq23 core_initial23.
-   intros. rename m2 into m3. rename v2 into v3. rename vals2 into vals3. 
+   intros. rename m2 into m3. rename v2 into v3. rename vals2 into vals3.
     rewrite (EPC v1 v3 sig) in H. destruct H as [v2 [EP12 EP23]].
-    (*assert (HT: Forall2 Val.has_type vals1 (sig_args sig)). 
+    (*assert (HT: Forall2 Val.has_type vals1 (sig_args sig)).
       eapply forall_valinject_hastype; eassumption.*)
-    destruct (initial_inject_split _ _ _ H1) 
+    destruct (initial_inject_split _ _ _ H1)
        as [m2 [j1 [j2 [J [Inj12 [Inj23 [X [Y [XX YY]]]]]]]]].
     subst.
     destruct (Forward_simulation_trans.forall_val_inject_split _ _ _ _ H2)
@@ -447,11 +447,11 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
              apply (CC _ _ _ H1 H4).
            destruct XX as [mm [? ?]]; subst.
              apply (CC _ _ _ H1 H4).
-    destruct (core_initial12 _ _ _ EP12 _ _ _ _ vals2 _ 
+    destruct (core_initial12 _ _ _ EP12 _ _ _ _ vals2 _
        DomS (fun b => match j2 b with None => false | Some (b3,d) => DomT b3 end) H0 Inj12)
      as [d12 [c2 [Ini2 MC12]]]; try assumption.
       (*eapply forall_valinject_hastype; eassumption.*)
-      intros. destruct (X b1) as [_ J1Comp]. 
+      intros. destruct (X b1) as [_ J1Comp].
               destruct J1Comp as [b3 [dd COMP]]. exists b2, d; trivial.
               specialize (H4 _ _ _ COMP).
               destruct (compose_meminjD_Some _ _ _ _ _ COMP)
@@ -459,9 +459,9 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
               rewrite J1 in H; inv H. rewrite J2. apply H4.
       intros.
         assert (Q: forall b,  isGlobalBlock g2 b || getBlocks vals2 b = true ->
-                   exists jb d, j2 b = Some (jb, d) /\ 
+                   exists jb d, j2 b = Some (jb, d) /\
                            isGlobalBlock g3 jb || getBlocks vals3 jb = true).
-          intros b' Hb'. apply orb_true_iff in Hb'. 
+          intros b' Hb'. apply orb_true_iff in Hb'.
           destruct Hb' as [Hb' | Hb'].
             rewrite (meminj_preserves_globals_isGlobalBlock _ _ PG2 _ Hb').
               exists b', 0.
@@ -469,7 +469,7 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
               rewrite Hb'. intuition.
           destruct (getBlocks_inject _ _ _  ValsInj23 _ Hb') as [bb [ofs [J2 GB2]]].
               exists bb, ofs. intuition.
-        destruct (REACH_inject _ _ _ Inj23 
+        destruct (REACH_inject _ _ _ Inj23
             (fun b' : block => isGlobalBlock g2 b' || getBlocks vals2 b')
             (fun b' : block => isGlobalBlock g3 b' || getBlocks vals3 b')
             Q _ H) as [b3 [d2 [J2 R3]]].
@@ -479,9 +479,9 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
       intros b2 Hb2. remember (j2 b2) as d.
         destruct d; inv Hb2; apply eq_sym in Heqd. destruct p.
         eapply Mem.valid_block_inject_1; eassumption.
-    destruct (core_initial23 _ _ _ EP23 _ _ _ _ vals3 _ 
+    destruct (core_initial23 _ _ _ EP23 _ _ _ _ vals3 _
        (fun b => match j2 b with None => false | Some (b3,d) => DomT b3 end) DomT Ini2 Inj23)
-     as [d23 [c3 [Ini3 MC23]]]; try assumption. 
+     as [d23 [c3 [Ini3 MC23]]]; try assumption.
        intros b2 b3 d2 J2. rewrite J2.
          destruct (Y _ _ _ J2) as [b1 [d COMP]].
          destruct (H4 _ _ _ COMP). split; trivial.
@@ -505,23 +505,23 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
                        (REACH m3 (fun b => isGlobalBlock g3 b || getBlocks vals3 b))
              j2) as mu2.
   exists (d12,Some c2,d23).
-  exists c3. 
-  split; trivial. 
+  exists c3.
+  split; trivial.
   exists c2, m2, mu1, mu2.
   split; trivial.
   split. subst. unfold initial_SM, compose_sm; simpl.
            f_equal.
   split. subst; simpl. repeat (split; trivial).
-  split; trivial. 
+  split; trivial.
  (*core_diagram*)
-  clear - match_sm_wd12 match_sm_valid12 core_diagram12 
+  clear - match_sm_wd12 match_sm_valid12 core_diagram12
           match_sm_wd23 match_sm_valid23 core_diagram23.
   intros. rename st2 into st3. rename m2 into m3.
   destruct cd as [[d12 cc2] d23].
   destruct H0 as [c2 [m2 [mu12 [mu23 [X [J [INV [MC12 MC23]]]]]]]]; subst.
   eapply core_diagram_trans; try eassumption.
  (*effcore_diagram*)
-  clear - match_sm_wd12 match_sm_valid12 effcore_diagram12 
+  clear - match_sm_wd12 match_sm_valid12 effcore_diagram12
           match_sm_wd23 match_sm_valid23 effcore_diagram23.
   intros. rename st2 into st3. rename m2 into m3.
   destruct cd as [[d12 cc2] d23].
@@ -529,20 +529,20 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
   eapply effcore_diagram_trans; eassumption.
 (*halted*)
   clear - match_sm_wd12 core_halted12 match_sm_wd23 core_halted23.
-  intros. rename c2 into c3. rename m2 into m3.  
+  intros. rename c2 into c3. rename m2 into m3.
   destruct cd as [[d12 cc2] d23].
   destruct H as [c2 [m2 [mu12 [mu23 [X [J [INV [MC12 MC23]]]]]]]]; subst.
   destruct (core_halted12 _ _ _ _ _ _ _ MC12 H0) as
-     [v2 [MInj12 [RValsInject12 HaltedMid]]]. 
+     [v2 [MInj12 [RValsInject12 HaltedMid]]].
   destruct (core_halted23 _ _ _ _ _ _ _ MC23 HaltedMid) as
      [v3 [MInj23 [RValsInject23 HaltedTgt]]].
   exists v3.
   assert (WDmu12:= match_sm_wd12 _ _ _ _ _ _ MC12).
   assert (WDmu23:= match_sm_wd23 _ _ _ _ _ _ MC23).
   destruct INV as [INVa [INVb [INVc INVd]]].
-          
+
   split. rewrite compose_sm_as_inj; trivial.
-           eapply Mem.inject_compose; eassumption.   
+           eapply Mem.inject_compose; eassumption.
   split. rewrite compose_sm_as_inj; trivial.
          rewrite restrict_compose, vis_compose_sm; simpl.
          eapply val_inject_compose; try eassumption.
@@ -552,28 +552,28 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
 (*at_external*)
   clear - match_sm_wd12 core_at_external12 match_sm_wd23 core_at_external23.
   intros. rename c2 into c3. rename m2 into m3.
-  rename H0 into AtExtSrc. 
-  destruct cd as [[d12 cc2] d23]. 
-  destruct H as [st2 [m2 [mu12 [mu23 [Hst2 [HMu [GLUEINV [MC12 MC23]]]]]]]]. 
-  subst. 
+  rename H0 into AtExtSrc.
+  destruct cd as [[d12 cc2] d23].
+  destruct H as [st2 [m2 [mu12 [mu23 [Hst2 [HMu [GLUEINV [MC12 MC23]]]]]]]].
+  subst.
   destruct (core_at_external12 _ _ _ _ _ _ _ _ _ MC12 AtExtSrc)
     as [MInj12 [vals2 [ArgsInj12 (*[ArgsHT2*) AtExt2(*]*)]]]; clear core_at_external12.
   destruct (core_at_external23 _ _ _ _ _ _ _ _ _ MC23 AtExt2)
     as [MInj23 [vals3 [ArgsInj23 (*[ArgsHTTgt*) AtExtTgt(*]*)]]]; clear core_at_external23.
-  rewrite compose_sm_as_inj; try eauto.   
+  rewrite compose_sm_as_inj; try eauto.
     split. eapply Mem.inject_compose; eassumption.
     exists vals3.
     split. rewrite restrict_compose, vis_compose_sm; simpl.
            eapply forall_val_inject_compose; try eassumption.
            eapply forall_vals_inject_restrictD; eassumption.
     (*split;*) assumption.
-  eapply GLUEINV. 
+  eapply GLUEINV.
   eapply GLUEINV.
 (*after_external*)
-  clear - match_sm_wd12 match_sm_valid12 core_at_external12 eff_after_external12 
+  clear - match_sm_wd12 match_sm_valid12 core_at_external12 eff_after_external12
           match_visible12 match_restrict12
           match_sm_wd23 match_sm_valid23 core_at_external23 eff_after_external23.
-  intros. rename st2 into st3. rename m2 into m3. 
+  intros. rename st2 into st3. rename m2 into m3.
           rename vals2 into vals3'. rename m2' into m3'.
           rename UnchLOOR into UnchLOOR13.
   destruct cd as [[d12 cc2] d23].
@@ -587,11 +587,11 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
      subst RESTR. clear. intuition.
      subst RESTR.
      clear UnchLOOR13 UnchPrivSrc Mu'Hyp mu' frgnTgtHyp frgnTgt'
-              frgnSrcHyp frgnSrc' FwdTgt FwdSrc RValInjNu' MemInjNu' 
+              frgnSrcHyp frgnSrc' FwdTgt FwdSrc RValInjNu' MemInjNu'
               SMvalNu' WDnu' SEP INC m3' ret2 m1' ret1 nu' NuHyp nu
-              pubTgtHyp pubTgt' pubSrcHyp pubSrc' ValInjMu AtExtTgt 
-              AtExtSrc eff_after_external23 core_at_external23 
-              eff_after_external12 core_at_external12. 
+              pubTgtHyp pubTgt' pubSrcHyp pubSrc' ValInjMu AtExtTgt
+              AtExtSrc eff_after_external23 core_at_external23
+              eff_after_external12 core_at_external12.
      subst. intros b Hb. rewrite REACHAX in Hb.
       destruct Hb as [L HL].
       generalize dependent b.
@@ -609,18 +609,18 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
   remember (restrict_sm mu12 RESTR) as nmu12.
   assert (HmuNorm: mu = compose_sm nmu12 mu23).
      clear UnchLOOR13 UnchPrivSrc Mu'Hyp mu' frgnTgtHyp frgnTgt'
-              frgnSrcHyp frgnSrc' FwdTgt FwdSrc RValInjNu' MemInjNu' 
+              frgnSrcHyp frgnSrc' FwdTgt FwdSrc RValInjNu' MemInjNu'
               SMvalNu' WDnu' SEP INC m3' ret2 m1' ret1 nu' NuHyp nu
-              pubTgtHyp pubTgt' pubSrcHyp pubSrc' ValInjMu AtExtTgt 
-              AtExtSrc eff_after_external23 core_at_external23 
-              eff_after_external12 core_at_external12. 
+              pubTgtHyp pubTgt' pubSrcHyp pubSrc' ValInjMu AtExtTgt
+              AtExtSrc eff_after_external23 core_at_external23
+              eff_after_external12 core_at_external12.
       subst nmu12 mu RESTR. unfold compose_sm; simpl.
           rewrite restrict_sm_extern.
           rewrite (restrict_sm_local' _ WDmu12).
           Focus 2. clear. intuition.
-          unfold restrict_sm; simpl. 
+          unfold restrict_sm; simpl.
           destruct mu12; simpl in *.
-          f_equal. 
+          f_equal.
           extensionality b. unfold compose_meminj, restrict, mapped, as_inj, join; simpl.
           remember (extern_of b) as d.
           specialize (disjoint_extern_local _ WDmu12 b); simpl; intros DD.
@@ -634,16 +634,16 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
             remember (frgnBlocksSrc b) as q.
             destruct q; apply eq_sym in Heqq; simpl in *. reflexivity.
             remember (StructuredInjections.extern_of mu23 b2) as w.
-            destruct w; trivial. destruct p. rewrite <- Heqw. trivial.    
-         remember (locBlocksSrc b) as q. 
+            destruct w; trivial. destruct p. rewrite <- Heqw. trivial.
+         remember (locBlocksSrc b) as q.
          destruct q; simpl; trivial.
          remember (frgnBlocksSrc b) as w.
          destruct w; trivial; simpl; apply eq_sym in Heqw.
          remember (local_of b) as t.
          destruct t; simpl; trivial.
          destruct p; apply eq_sym in Heqt.
-         destruct (local_DomRng _ WDmu12 _ _ _ Heqt); simpl in *. congruence.  
-  clear MC12. 
+         destruct (local_DomRng _ WDmu12 _ _ _ Heqt); simpl in *. congruence.
+  clear MC12.
   assert (WDnmu12:= match_sm_wd12 _ _ _ _ _ _ NormMC12).
   clear HMu.
   assert (WDmu: SM_wd (compose_sm nmu12 mu23)).
@@ -653,13 +653,13 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
   clear match_restrict12 match_visible12.
   assert (mu12_valid:= match_sm_valid12 _ _ _ _ _ _ NormMC12).
   assert (mu23_valid:= match_sm_valid23 _ _ _ _ _ _ MC23).
-  rename ret2 into ret3.  
+  rename ret2 into ret3.
   destruct (core_at_external12 _ _ _ _ _ _ _ _ _ NormMC12 AtExtSrc)
    as [MInj12 [vals2 [ArgsInj12 (*[ArgsHT2*) AtExt2(*]*)]]]; clear core_at_external12.
   destruct (core_at_external23 _ _ _ _ _ _ _ _ _ MC23 AtExt2)
    as [MInj23 [vals3 [ArgsInj23 (*[ArgsHT3*) AtExt3(*]*)]]]; clear core_at_external23.
-  
-  (*Prove uniqueness of e, ef_sig, vals3. We do this by hand, instead of 
+
+  (*Prove uniqueness of e, ef_sig, vals3. We do this by hand, instead of
      rewrite AtExtTgt in AtExt3; inv Atext3 in order to avoid the subst
      taht's inherent in inv AtExt3. Probably there's a better way to do this..*)
   assert (e' = e /\ ef_sig' = ef_sig /\ vals3'=vals3).
@@ -668,43 +668,43 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
   rewrite HH1, HH2, HH3 in *. clear HH1 HH2 HH3 e' ef_sig' vals3' AtExt3.
 
   (*clear MemInjMu. follows from MInj12 MInj23*)
-  specialize (eff_after_external12 _ _ _ _ _ _ _ _ _ _ _ _ MInj12 
+  specialize (eff_after_external12 _ _ _ _ _ _ _ _ _ _ _ _ MInj12
         NormMC12 AtExtSrc AtExt2 ArgsInj12
-        _ (eq_refl _) _ (eq_refl _) _ (eq_refl _)). 
-  specialize (eff_after_external23 _ _ _ _ _ _ _ _ _ 
-      _ _ _ MInj23 MC23 AtExt2 AtExtTgt ArgsInj23 _ (eq_refl _) 
+        _ (eq_refl _) _ (eq_refl _) _ (eq_refl _)).
+  specialize (eff_after_external23 _ _ _ _ _ _ _ _ _
+      _ _ _ MInj23 MC23 AtExt2 AtExtTgt ArgsInj23 _ (eq_refl _)
       _ (eq_refl _) _ (eq_refl _)).
   assert (LeakedCompSrc: locBlocksSrc mu = locBlocksSrc nmu12 /\
                          extBlocksSrc mu = extBlocksSrc nmu12 /\
-                        exportedSrc mu vals1 = exportedSrc nmu12 vals1). 
-     subst. clear - WDnmu12 WDmu. simpl.  
+                        exportedSrc mu vals1 = exportedSrc nmu12 vals1).
+     subst. clear - WDnmu12 WDmu. simpl.
         rewrite restrict_sm_locBlocksSrc.
         rewrite restrict_sm_extBlocksSrc.
-        unfold exportedSrc. 
-        rewrite sharedSrc_iff_frgnpub; trivial. simpl. 
+        unfold exportedSrc.
+        rewrite sharedSrc_iff_frgnpub; trivial. simpl.
         rewrite sharedSrc_iff_frgnpub; trivial.
         rewrite restrict_sm_frgnBlocksSrc, restrict_sm_pubBlocksSrc.
         intuition.
-  destruct LeakedCompSrc as [LSa [LSb LSc]]. 
+  destruct LeakedCompSrc as [LSa [LSb LSc]].
     rewrite LSa, LSc in *. clear LSa LSb LSc.
-  assert (LeakedCompTgt: locBlocksTgt mu = locBlocksTgt mu23 
-                       /\ extBlocksTgt mu = extBlocksTgt mu23 
+  assert (LeakedCompTgt: locBlocksTgt mu = locBlocksTgt mu23
+                       /\ extBlocksTgt mu = extBlocksTgt mu23
                        /\ exportedTgt mu vals3 = exportedTgt mu23 vals3).
-     subst. clear - WDmu23 WDmu. simpl.  
-        unfold exportedTgt, sharedTgt. simpl. intuition. 
-  destruct LeakedCompTgt as [LTa [LTb LTc]]. 
+     subst. clear - WDmu23 WDmu. simpl.
+        unfold exportedTgt, sharedTgt. simpl. intuition.
+  destruct LeakedCompTgt as [LTa [LTb LTc]].
     rewrite LTa, LTc in *. clear LTa LTb LTc.
-   remember (fun b => locBlocksTgt nmu12 b && 
+   remember (fun b => locBlocksTgt nmu12 b &&
              REACH m2 (exportedTgt nmu12 vals2) b) as pubTgtMid'.
-   remember (fun b => locBlocksSrc mu23 b && 
+   remember (fun b => locBlocksSrc mu23 b &&
              REACH m2 (exportedSrc mu23 vals2) b) as pubSrcMid'.
    assert (MID: forall b, pubTgtMid' b = true -> pubSrcMid' b = true).
         clear eff_after_external12 match_sm_valid23 eff_after_external23.
-        rewrite HeqpubTgtMid', HeqpubSrcMid'. 
+        rewrite HeqpubTgtMid', HeqpubSrcMid'.
         destruct GLUEINV as [GlueA [GlueB [GlueC GlueD]]].
         subst.
         clear UnchLOOR13 UnchPrivSrc SEP INC MemInjMu ArgsInj12 MInj12.
-              
+
         rewrite restrict_sm_locBlocksTgt. (*sm_extern_normalize_exportedTgt; trivial.*)
            rewrite GlueA. intros b Hb. rewrite andb_true_iff in *.
         destruct Hb. split; trivial.
@@ -726,7 +726,7 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
      rewrite replace_locals_extern, replace_locals_local.
      rewrite restrict_sm_extBlocksSrc, restrict_sm_locBlocksSrc,
              restrict_sm_local, restrict_sm_extern.
-     f_equal. 
+     f_equal.
 
   clear NuHyp.
   (*produce all the hypothesis necessary for applying interpolation*)
@@ -751,20 +751,20 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
           unfold vis in H1. rewrite restrict_sm_locBlocksSrc, restrict_sm_frgnBlocksSrc in H1.
           apply restrictI_Some; intuition.
     intros. rewrite effect_properties.vis_restrict_sm in H.
-      unfold vis in H. intuition. 
+      unfold vis in H. intuition.
   clear ArgsInj12.
   assert (WDnu12: SM_wd (replace_locals nmu12 pubSrc' pubTgtMid')).
        subst.
        eapply replace_locals_wd; try eassumption.
          intros. apply andb_true_iff in H.
            destruct H as [locB R].
-           destruct (REACH_local_REACH _ WDnmu12 _ _ _ _ 
+           destruct (REACH_local_REACH _ WDnmu12 _ _ _ _
               MInj12 ArgsInj12R _ R locB) as [b2 [d1 [LOC12 R2]]].
            exists b2, d1; split; trivial.
            rewrite andb_true_iff, R2.
            split; trivial.
            eapply local_locBlocks; eassumption.
-         intros. apply andb_true_iff in H. apply H. 
+         intros. apply andb_true_iff in H. apply H.
   assert (ArgsInj23R: Forall2 (val_inject (as_inj mu23)) vals2 vals3).
        eapply val_list_inject_forall_inject.
        apply forall_inject_val_list_inject in ArgsInj23.
@@ -772,12 +772,12 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
        apply restrict_incr.
   clear ArgsInj23.
   assert (WDnu23: SM_wd (replace_locals mu23 pubSrcMid' pubTgt')).
-       subst. 
+       subst.
        eapply replace_locals_wd; try eassumption.
-       destruct GLUEINV as [GIa [GIb [GIc GId]]]. subst. 
+       destruct GLUEINV as [GIa [GIb [GIc GId]]]. subst.
        intros b2; intros. apply andb_true_iff in H.
            destruct H as [locB R].
-           destruct (REACH_local_REACH _ WDmu23 _ _ _ _ 
+           destruct (REACH_local_REACH _ WDmu23 _ _ _ _
               MInj23 ArgsInj23R _ R locB) as [b3 [d2 [LOC23 R3]]].
            exists b3, d2; split; trivial.
            rewrite andb_true_iff, R3.
@@ -799,7 +799,7 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
         [nu23'valid [GLUEINV' [Norm' [UnchMidA UnchMidB]]]]]]]]]]]]]]]]; simpl in *.
     (*discharge the unchOn application conditions*)
        subst; apply UnchPrivSrc.
-       subst. apply UnchLOOR13. 
+       subst. apply UnchLOOR13.
     (*discharge the GLUE application condition*)
       rewrite replace_locals_extBlocksSrc, replace_locals_extBlocksTgt,
             replace_locals_locBlocksSrc, replace_locals_locBlocksTgt,
@@ -816,11 +816,11 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
       intros. destruct (restrictD_Some _ _ _ _ _ H) as [EX12 RR]; clear H.
       subst RESTR nmu12.
      clear UnchLOOR13 UnchPrivSrc Mu'Hyp mu' frgnTgtHyp frgnTgt'
-              frgnSrcHyp frgnSrc' FwdTgt FwdSrc RValInjNu' MemInjNu' 
-              SMvalNu' WDnu' SEP INC m3' m1' ret1 nu' 
-              pubTgtHyp pubSrcHyp ValInjMu AtExtTgt 
-              AtExtSrc eff_after_external23 
-              eff_after_external12 MinjNu23. 
+              frgnSrcHyp frgnSrc' FwdTgt FwdSrc RValInjNu' MemInjNu'
+              SMvalNu' WDnu' SEP INC m3' m1' ret1 nu'
+              pubTgtHyp pubSrcHyp ValInjMu AtExtTgt
+              AtExtSrc eff_after_external23
+              eff_after_external12 MinjNu23.
       destruct (extern_DomRng _ WDmu12 _ _ _ EX12).
       rewrite (extBlocksSrc_locBlocksSrc _ WDmu12 _ H) in RR; simpl in *.
       remember (frgnBlocksSrc mu12 b1) as d.
@@ -862,9 +862,9 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
     unfold local_out_of_reach.
     split; intros; rename b into b3.
       destruct H as[locTgt3 LOOR23].
-      eapply UnchLOOR13; trivial; simpl. 
+      eapply UnchLOOR13; trivial; simpl.
         split; simpl; trivial.
-        intros b1; intros; simpl in *. 
+        intros b1; intros; simpl in *.
         remember (pubBlocksSrc kappa12 b1) as d.
         destruct d; try (right; reflexivity).
         left. apply eq_sym in Heqd.
@@ -880,7 +880,7 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
           eapply MinjNu12. eapply pub_in_all; try eassumption. apply N.
         rewrite H in PubTgt2. discriminate.
     destruct H as[locTgt3 LOOR23].
-      eapply UnchLOOR13; trivial; simpl. 
+      eapply UnchLOOR13; trivial; simpl.
         split; trivial.
         intros b1; intros; simpl in *.
         remember (pubBlocksSrc kappa12 b1) as d.
@@ -899,21 +899,21 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
         rewrite H in PubTgt2. discriminate.
   (*next, prepare for application of eff_after_external12*)
   destruct GLUEINV' as [WDnu12' [WDnu23' [GLUEa' [GLUEb' [GLUEc' GLUEd']]]]].
-  assert (exists ret2, val_inject (as_inj nu12') ret1 ret2 /\ 
+  assert (exists ret2, val_inject (as_inj nu12') ret1 ret2 /\
                        val_inject (as_inj nu23') ret2 ret3 (*/\
-                       Val.has_type ret2 (proj_sig_res ef_sig)*)). 
+                       Val.has_type ret2 (proj_sig_res ef_sig)*)).
     subst. rewrite compose_sm_as_inj in RValInjNu'; trivial.
     destruct (val_inject_split _ _ _ _ RValInjNu')
-      as [ret2 [RValInjNu12' RValInjNu23']].  
+      as [ret2 [RValInjNu12' RValInjNu23']].
     exists ret2. repeat (split; trivial).
     (*eapply valinject_hastype; eassumption.*)
   destruct H as [ret2 [RValInjNu12' (*[*)RValInjNu23' (*RetType2]*)]].
-  subst. 
-  specialize (eff_after_external12 nu12' ret1 
+  subst.
+  specialize (eff_after_external12 nu12' ret1
      m1' ret2 m2' Incr12 Sep12 WDnu12' nu12'valid MInj12' RValInjNu12'
      FwdSrc Fwd2 (*RetType2*)).
 
-  destruct (eff_after_external12 _ (eq_refl _) 
+  destruct (eff_after_external12 _ (eq_refl _)
       _ (eq_refl _) _ (eq_refl _))
     as [d12' [c1' [c2' [AftExt1 [AftExt2 MC12']]]]]; clear eff_after_external12.
    (*discharge unchangedOn-application conditions*)
@@ -922,7 +922,7 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
 
   (*next, apply eff_after_external23*)
   specialize (eff_after_external23 nu23').
-  destruct (eff_after_external23 ret2 m2' 
+  destruct (eff_after_external23 ret2 m2'
        ret3 m3' Incr23 Sep23 WDnu23' nu23'valid
        MInj23' RValInjNu23' Fwd2 FwdTgt (*RetTypeTgt*)
      _ (eq_refl _) _ (eq_refl _) _ (eq_refl _)) as
@@ -941,31 +941,31 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
   split. assumption.
   exists c2'. exists m2'.
   exists (replace_externs nu12'
-            (fun b => DomSrc nu12' b && (negb (locBlocksSrc nu12' b) 
+            (fun b => DomSrc nu12' b && (negb (locBlocksSrc nu12' b)
                                      && REACH m1' (exportedSrc nu12' (ret1::nil)) b))
-            (fun b => DomTgt nu12' b && (negb (locBlocksTgt nu12' b) 
+            (fun b => DomTgt nu12' b && (negb (locBlocksTgt nu12' b)
                                      && REACH m2' (exportedTgt nu12' (ret2::nil)) b))).
   exists (replace_externs nu23'
-            (fun b => DomSrc nu23' b && (negb (locBlocksSrc nu23' b) 
+            (fun b => DomSrc nu23' b && (negb (locBlocksSrc nu23' b)
                                      && REACH m2' (exportedSrc nu23' (ret2::nil)) b))
-            (fun b => DomTgt nu23' b && (negb (locBlocksTgt nu23' b) 
+            (fun b => DomTgt nu23' b && (negb (locBlocksTgt nu23' b)
                                      && REACH m3' (exportedTgt nu23' (ret3::nil)) b))).
   split. reflexivity.
   unfold compose_sm. simpl.
-         repeat rewrite replace_externs_extBlocksSrc, replace_externs_extBlocksTgt, 
+         repeat rewrite replace_externs_extBlocksSrc, replace_externs_extBlocksTgt,
                  replace_externs_locBlocksSrc, replace_externs_locBlocksTgt,
-                 replace_externs_pubBlocksSrc, replace_externs_pubBlocksTgt,  
+                 replace_externs_pubBlocksSrc, replace_externs_pubBlocksTgt,
                  replace_externs_frgnBlocksSrc, replace_externs_frgnBlocksTgt.
         rewrite replace_externs_extern, replace_externs_local.
         rewrite replace_externs_extern, replace_externs_local.
-  split. f_equal; trivial. 
+  split. f_equal; trivial.
          unfold exportedSrc; simpl.
            rewrite sharedSrc_iff_frgnpub; trivial.
            rewrite sharedSrc_iff_frgnpub; trivial.
-  clear UnchLOOR13 UnchPrivSrc SEP INC MID UnchMidB Incr12 
+  clear UnchLOOR13 UnchPrivSrc SEP INC MID UnchMidB Incr12
         Sep12 WDnu12 nu12_valid MinjNu12 UnchMidC UnchMidA Sep23
         Incr23 nu23_valid WDnu23 MinjNu23 MemInjMu ValInjMu.
-  split. 
+  split.
     clear MC23' MC12'.
     repeat (split; trivial). unfold DomTgt, DomSrc.
     rewrite GLUEa', GLUEb'.
@@ -980,7 +980,7 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
                    left; trivial.
                    right. unfold sharedTgt in H.
                           rewrite sharedSrc_iff_frgnpub.
-                          apply orb_true_intro. 
+                          apply orb_true_intro.
                           apply orb_prop in H.
                           destruct H.
                             left. intuition.
@@ -989,4 +989,4 @@ Proof. (*follows structure of forward_simulations_trans.injinj*)
    split; assumption.
 Qed.
 
-End Eff_sim_trans. 
+End Eff_sim_trans.

@@ -11,11 +11,11 @@ Require Import concurrency.pos.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 
-(*NOTE: because of redefinition of [val], these imports must appear 
+(*NOTE: because of redefinition of [val], these imports must appear
   after Ssreflect eqtype.*)
 Require Import compcert.common.AST.     (*for typ*)
 Require Import compcert.common.Values. (*for val*)
-Require Import compcert.common.Globalenvs. 
+Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
 Require Import compcert.lib.Integers.
@@ -51,7 +51,7 @@ Module Type FineConcInitial (SEM : Semantics)
   (** The initial core is well-defined*)
   Parameter init_core_wd:
     forall v args m (ARGS:valid_val_list (id_ren m) args),
-      init_mem = Some m -> 
+      init_mem = Some m ->
       match initial_core SEM.Sem the_ge v args with
       | Some c => core_wd (id_ren m) c
       | None => True
@@ -62,7 +62,7 @@ Module Type FineConcInitial (SEM : Semantics)
     forall m,
       init_mem = Some m ->
       ge_wd (id_ren m) the_ge.
-  
+
 End FineConcInitial.
 
 (** ** Safety for FineConc (interleaving) semantics *)
@@ -80,13 +80,13 @@ Module FineConcSafe (SEM : Semantics) (SemAxioms : SemanticsAxioms SEM)
   Import StepType.InternalSteps StepLemmas.
 
   Import MemoryWD ThreadPoolInjections event_semantics.
- 
+
   (** Excluded middle is required, but can be easily lifted*)
   Axiom em : ClassicalFacts.excluded_middle.
 
   Lemma init_tp_wd:
     forall v args m tp (ARGS:valid_val_list (id_ren m) args),
-      init_mem = Some m -> 
+      init_mem = Some m ->
       init_mach init_perm the_ge v args = Some tp ->
       tp_wd (id_ren m) tp.
   Proof.
@@ -96,7 +96,7 @@ Module FineConcSafe (SEM : Semantics) (SemAxioms : SemanticsAxioms SEM)
     destruct (initial_core SEM.Sem the_ge v args) eqn:?, init_perm; try discriminate.
     inversion H0; subst.
     simpl.
-    specialize (init_core_wd v ARGS H). rewrite Heqo; trivial. 
+    specialize (init_core_wd v ARGS H). rewrite Heqo; trivial.
   Qed.
 
   (** Assuming safety of cooperative concurrency*)
@@ -453,7 +453,7 @@ Module FineConcSafe (SEM : Semantics) (SemAxioms : SemanticsAxioms SEM)
     clear - Hsim.
     eapply fine_safe; now eauto.
   Qed.
-  
+
   End Safety.
 End FineConcSafe.
 

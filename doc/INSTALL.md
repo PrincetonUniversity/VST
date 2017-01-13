@@ -1,4 +1,4 @@
-# Installing [VST](https://github.com/PrincetonUniversity/VST/) 
+# Installing [VST](https://github.com/PrincetonUniversity/VST/)
 
 1. [Instructions for Linux](#instructions-for-linux)
 2. [Instructions for OS X](#instructions-for-os-x)
@@ -209,7 +209,7 @@ If it still does not work, add the following lines to your .emacs file:
 
     ;VST coqpaths
     (custom-set-variables '(coq-prog-args '(
-    "-R" "/Users/scuellar/Projects/compcert-2.5" "-as" "compcert" 
+    "-R" "/Users/scuellar/Projects/compcert-2.5" "-as" "compcert"
     "-R" "/Users/scuellar/Projects/VST/msl" "-as" "msl"
     "-R" "/Users/scuellar/Projects/VST/veric" "-as" "veric"
     "-R" "/Users/scuellar/Projects/VST/floyd" "-as" "floyd"

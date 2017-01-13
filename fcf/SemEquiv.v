@@ -21,7 +21,7 @@ Local Open Scope list_scope.
 Lemma evalDet_step_done_evalDist : forall (A : Set)(eqd : eq_dec A)(c : Comp A) a a' s,
   evalDet_step c nil = (cs_done a s) ->
   evalDist c a' == if (eqd a a') then 1 else 0.
-  
+
   induction c; intuition; simpl in *.
   inversion H; clear H; subst.
   destruct (e a0 a'); subst.
@@ -31,21 +31,21 @@ Lemma evalDet_step_done_evalDist : forall (A : Set)(eqd : eq_dec A)(c : Comp A) 
   destruct (eqd a0 a'); subst.
   congruence.
   intuition.
-  
+
   destruct (evalDet_step c nil); discriminate.
-  
+
   destruct n; discriminate.
-  
+
   congruence.
-  
+
 Qed.
 
 Lemma evalDet_step_nil_dist_preserved : forall (A : Set)(c : Comp A),
   well_formed_comp c ->
-  forall c' a, 
+  forall c' a,
     evalDet_step c nil = cs_more c' nil ->
     evalDist c a == evalDist c' a.
-  
+
   induction 1; intuition; simpl in *.
   discriminate.
   case_eq (evalDet_step c1 nil); intuition;
@@ -58,7 +58,7 @@ Lemma evalDet_step_nil_dist_preserved : forall (A : Set)(c : Comp A),
   destruct (comp_eq_dec c1 b b).
   eapply ratMult_1_l.
   congruence.
-  
+
   inversion H2; clear H2; subst.
   simpl.
   rewrite sumList_permutation.
@@ -68,23 +68,23 @@ Lemma evalDet_step_nil_dist_preserved : forall (A : Set)(c : Comp A),
   eapply sumList_body_eq.
   intuition.
   eapply ratMult_eqRat_compat; intuition.
-  
+
   destruct n.
   inversion H; clear H; subst.
   simpl.
-  
+
   rewrite (vector_0 a).
   destruct (Bvector_eq_dec [] [] ).
   eapply eqRat_terms; intuition.
   congruence.
-  
+
   discriminate.
-  
+
   inversion H1; clear H1; subst.
   simpl.
-  
+
   destruct (in_dec (comp_eq_dec c) a (getSupport c)).
-  
+
   symmetry.
   eapply eqRat_trans.
   eapply (sumList_filter_partition P).
@@ -108,14 +108,14 @@ Lemma evalDet_step_nil_dist_preserved : forall (A : Set)(c : Comp A),
   rewrite H2.
   simpl.
   eapply eqRat_refl.
-  
+
   case_eq (P a); intuition.
   unfold indicator.
   rewrite H1.
   rewrite ratMult_1_l.
   assert (sumList (filter P (getSupport c))
     (fun a0 : A => evalDist c a0 * (if comp_eq_dec c a0 a then 1 else 0)) == evalDist c a).
-  
+
   rewrite (@sumList_exactly_one _ a).
   destruct (comp_eq_dec c a a); try congruence.
   eapply ratMult_1_r.
@@ -150,7 +150,7 @@ Lemma evalDet_step_nil_dist_preserved : forall (A : Set)(c : Comp A),
   eapply ratMult_leRat_compat; intuition.
 
   eapply ratInverse_1_swap.
-  
+
   intuition.
   eapply sumList_0 in H4.
   eapply getSupport_In_evalDist.
@@ -158,13 +158,13 @@ Lemma evalDet_step_nil_dist_preserved : forall (A : Set)(c : Comp A),
   eapply H0.
   eapply H4.
   trivial.
-  
+
   eapply leRat_trans.
   eapply sumList_filter_le.
   rewrite evalDist_lossless.
   intuition.
   trivial.
-  
+
   intuition.
   eapply sumList_0 in H4.
   eapply getSupport_In_evalDist.
@@ -199,7 +199,7 @@ Lemma evalDet_step_nil_dist_preserved : forall (A : Set)(c : Comp A),
   rewrite <- ratAdd_0_l.
   symmetry.
   eapply ratMult_0_l.
-  
+
   assert (evalDist c a == 0).
   eapply getSupport_not_In_evalDist.
   trivial.
@@ -222,19 +222,19 @@ Qed.
 Lemma evalDet_steps_done_evalDist_h : forall (A : Set)(x y : comp_state A),
   evalDet_steps x y ->
   forall (eqd : eq_dec A)(c : Comp A) a a' s,
-    x = (cs_more c nil) -> 
-    y = (cs_done a s) -> 
+    x = (cs_more c nil) ->
+    y = (cs_done a s) ->
     well_formed_comp c ->
     evalDist c a' == if (eqd a a') then 1 else 0.
-  
+
   induction 1; intuition; subst.
   discriminate.
-  
+
   inversion H1; clear H1; subst.
   inversion H0; clear H0; subst.
-  
+
   eapply evalDet_step_done_evalDist; eauto.
-  
+
   assert (s = nil).
   eapply evalDet_step_more_nil_inv.
   eauto.
@@ -242,18 +242,18 @@ Lemma evalDet_steps_done_evalDist_h : forall (A : Set)(x y : comp_state A),
   rewrite <- IHevalDet_steps; eauto.
   erewrite evalDet_step_nil_dist_preserved; eauto.
   intuition.
-  
+
   eapply evalDet_step_well_formed_comp_preserved;
     eauto.
-  
+
 Qed.
-  
+
 
 Lemma evalDet_steps_done_evalDist : forall (A : Set)(eqd : eq_dec A)(c : Comp A) a a' s,
   well_formed_comp c ->
   evalDet_steps (cs_more c nil) (cs_done a s) ->
   evalDist c a' == if (eqd a a') then 1 else 0.
-  
+
   intuition.
   eapply evalDet_steps_done_evalDist_h; eauto.
 Qed.
@@ -267,7 +267,7 @@ Definition lowDistApprox (A : Set)(c : Comp A)(a : A)(n : nat)(v : Rat) :=
 Lemma map_Ret_repeat : forall (A : Set)(eqd : eq_dec A)(a : A) ls ls',
   rel_map (evalDet (Ret eqd a)) ls ls' ->
   ls' = listRepeat (ca_done a) (length ls).
-  
+
   induction ls; inversion 1; intuition; subst; simpl in *.
   f_equal.
   inversion H4; clear H4; subst.
@@ -275,10 +275,10 @@ Lemma map_Ret_repeat : forall (A : Set)(eqd : eq_dec A)(a : A) ls ls',
   simpl in *.
   inversion H6; clear H6; subst.
   trivial.
-  
+
   inversion H0; clear H0; subst; simpl in *.
   inversion H6.
-  
+
   inversion H; clear H; subst.
   eapply IHls.
   trivial.
@@ -291,7 +291,7 @@ Theorem lowDistApprox_Ret_inv : forall (A : Set)(eqd : eq_dec A)(a a' : A) n v,
   intuition.
   destruct H.
   destruct H.
-  intuition. 
+  intuition.
 
   specialize (map_Ret_repeat H0); intuition.
   subst.
@@ -314,10 +314,10 @@ Theorem lowDistApprox_Ret_inv : forall (A : Set)(eqd : eq_dec A)(a a' : A) n v,
   intuition.
   trivial.
 
-Qed. 
+Qed.
 
 Inductive lowDistApprox_bind (A B : Set)(c1 : Comp B)(c2 : B -> Comp A)(a : A)(n : nat) : Rat -> Prop :=
-| lda_b_intro : 
+| lda_b_intro :
   forall v,
     sumList_rel (fun (b : B) r => forall r1 r2, lowDistApprox c1 b n r1 -> lowDistApprox (c2 b) a n r2 -> r == r1 * r2) (getSupport c1) v ->
     lowDistApprox_bind c1 c2  a n v.
@@ -331,14 +331,14 @@ Inductive DistApproxTree(A : Set) :=
 (* dat_correct is an inductive predicate that lets us conclude that some tree produces a correct approximation for some computation. *)
 Inductive dat_correct_h(A : Set)(c : Comp A)(s : Blist) : nat -> DistApproxTree A -> Prop :=
     | dat_correct_h_leaf_Some :
-      forall a n, 
+      forall a n,
         evalDet c s (ca_done a) ->
         dat_correct_h c s n (dat_leaf (Some a))
     | dat_correct_h_leaf_None :
         (forall a, ~ evalDet c s (ca_done a)) ->
         dat_correct_h c s 0 (dat_leaf None)
     | dat_correct_h_internal :
-      forall t1 t2 n, 
+      forall t1 t2 n,
         (forall a, ~ evalDet c s (ca_done a)) ->
         dat_correct_h c (s ++ (true :: nil)) n t1 ->
         dat_correct_h c (s ++ (false :: nil)) n t2 ->
@@ -349,10 +349,10 @@ Definition dat_correct(A : Set)(c : Comp A)(n : nat) :=
 
 Lemma dat_correct_func : forall (A : Set)(c : Comp A) ls n t1,
   dat_correct_h c ls n t1 ->
-  forall t2, 
+  forall t2,
     dat_correct_h c ls n t2 ->
     t1 = t2.
-  
+
   induction 1; intuition.
   inversion H0; clear H0; subst.
   assert (ca_done a = ca_done a0).
@@ -364,12 +364,12 @@ Lemma dat_correct_func : forall (A : Set)(c : Comp A) ls n t1,
   intuition.
   specialize (H1 a).
   intuition.
-  
+
   inversion H0; clear H0; subst.
   specialize (H a).
   intuition.
   trivial.
-  
+
   inversion H2; clear H2; subst.
   specialize (H a).
   intuition.
@@ -395,22 +395,22 @@ Lemma getTreeSupport_in : forall (A : Set)(eqd : eq_dec A)(c : Comp A)(t : DistA
   forall a,
     In a (getTreeSupport eqd t) ->
     In a (getSupport c).
-  
+
   induction 1; intuition; simpl in *.
   intuition; subst.
   eapply getSupport_In_evalDet; eauto.
   intuition.
-  
+
   unfold getTreeSupport in *.
   eapply in_getUnique_if in H2.
   simpl in *.
   eapply in_app_or in H2.
   intuition.
-  
+
   eapply IHdat_correct_h1.
   eapply in_getUnique.
   eauto.
-  
+
   eauto using in_getUnique.
 Qed.
 
@@ -418,7 +418,7 @@ Lemma getTreeSupport_not_in : forall (A : Set)(eqd : eq_dec A)(c : Comp A)(t : D
   dat_correct c n t ->
   ~In a (getSupport c) ->
   ~In a (getTreeSupport eqd t).
-  
+
   intuition.
   eapply H0.
   eauto using getTreeSupport_in.
@@ -428,7 +428,7 @@ Lemma dat_exists_h : forall n s (A : Set)(c : Comp A),
   well_formed_comp c ->
   exists t : DistApproxTree A,
     dat_correct_h c s n t.
-  
+
   induction n; intuition.
 
   destruct (@evalDet_dec _ c s).
@@ -441,14 +441,14 @@ Lemma dat_exists_h : forall n s (A : Set)(c : Comp A),
   intuition.
 
   eapply evalDet_done_eof_func; eauto.
-  
+
   destruct (@evalDet_dec _ c s).
   trivial.
   destruct H0.
   exists (dat_leaf (Some x)).
   econstructor.
   trivial.
-  
+
   destruct (IHn (s ++ (true :: nil)) _ c).
   trivial.
   destruct (IHn (s ++ (false :: nil)) _ c).
@@ -457,14 +457,14 @@ Lemma dat_exists_h : forall n s (A : Set)(c : Comp A),
   econstructor; eauto.
   intuition.
   eapply evalDet_done_eof_func; eauto.
-  
+
 Qed.
 
 Theorem dat_exists : forall n (A : Set)(c : Comp A),
   well_formed_comp c ->
   exists t : DistApproxTree A,
     dat_correct c n t.
-  
+
   intuition.
   eapply dat_exists_h.
   trivial.
@@ -490,13 +490,13 @@ Definition lowDistApprox_ls (A : Set)(c : Comp A) a n (ls : Blist) r :=
 Lemma lowDistApprox_ls_impl : forall n (A : Set)(c : Comp A) a r,
   lowDistApprox c a n r ->
   lowDistApprox_ls c a n nil r.
-  
+
   intuition.
   destruct H.
   destruct H.
   intuition.
   econstructor.
-  econstructor. 
+  econstructor.
   intuition.
   simpl.
   eapply rel_map_eq.
@@ -511,12 +511,12 @@ Lemma evalDet_lowDistApprox_ls_done_inv : forall (A : Set)(eqd : eq_dec A)(c : C
   evalDet c s (ca_done a1) ->
   lowDistApprox_ls c a2 n s r ->
   r == if (eqd a2 a1) then 1 else 0.
-  
+
   intuition.
   destruct H0.
   destruct H0.
   intuition.
-  
+
   destruct (eqd a2 a1); subst.
   rewrite <- H3.
   erewrite pred_count_eq_all_inv at 1.
@@ -528,17 +528,17 @@ Lemma evalDet_lowDistApprox_ls_done_inv : forall (A : Set)(eqd : eq_dec A)(c : C
   eauto.
   eapply H1.
   eauto.
-  
+
   intuition.
-  
+
   eapply rel_map_unary_pred.
   eapply H1.
   intuition.
-  
+
   eapply evalDet_app_eq in H.
   eapply evalDet_func; eauto.
   trivial.
-  
+
   rewrite <- H3.
   erewrite pred_count_eq_0 at 1.
   apply rat_num_0.
@@ -556,31 +556,31 @@ Lemma evalDet_lowDistApprox_ls_done_inv : forall (A : Set)(eqd : eq_dec A)(c : C
   eauto.
   inversion H5.
   trivial.
-  
+
 Qed.
 
 (* The approximation from the tree is the same as the standard approximation. *)
 Theorem low_tree_approx_same_inv : forall n (A : Set)(eqd : eq_dec A)(c : Comp A)(t : DistApproxTree A) (a : A) r,
-    dat_correct c n t -> 
+    dat_correct c n t ->
     lowDistApprox c a n r ->
-    lowDistApproxFromTree eqd t a == r.   
+    lowDistApproxFromTree eqd t a == r.
 
-   
+
   Lemma low_tree_approx_same_inv_h : forall n (A : Set)(eqd : eq_dec A)(c : Comp A) ls t,
-    dat_correct_h c ls n t -> 
-    forall a r, 
+    dat_correct_h c ls n t ->
+    forall a r,
       lowDistApprox_ls c a n ls r ->
       lowDistApproxFromTree eqd t a == r.
-    
+
     induction 1; intuition; simpl in *.
-    
+
     symmetry.
     eapply evalDet_lowDistApprox_ls_done_inv; eauto.
-    
+
     inversion H0; clear H0; subst.
     destruct H1; intuition.
     simpl in *.
-    
+
     rewrite <- H3.
     erewrite pred_count_eq_0 at 1.
     apply eqRat_symm.
@@ -595,26 +595,26 @@ Theorem low_tree_approx_same_inv : forall n (A : Set)(eqd : eq_dec A)(c : Comp A
     subst.
     rewrite app_nil_r in *.
     eapply H; eauto.
-    
+
     destruct H2.
     destruct H2.
     intuition.
     simpl in *.
-    
+
     apply rel_map_app_inv in H3.
     intuition.
-    
+
     apply rel_map_map_inv in H4.
     apply rel_map_map_inv in H6.
-    
+
     eapply (pred_count_first_skip) in H2.
     destruct H2.
     destruct H2.
     intuition.
-    
+
     rewrite IHdat_correct_h1.
     Focus 2.
-      
+
     econstructor.
     econstructor.
     intuition.
@@ -627,10 +627,10 @@ Theorem low_tree_approx_same_inv : forall n (A : Set)(eqd : eq_dec A)(c : Comp A
     trivial.
     eapply H3.
     eapply eqRat_refl.
-    
+
     rewrite IHdat_correct_h2.
     Focus 2.
-    
+
     econstructor.
     econstructor.
     intuition.
@@ -643,7 +643,7 @@ Theorem low_tree_approx_same_inv : forall n (A : Set)(eqd : eq_dec A)(c : Comp A
     trivial.
     eapply H2.
     eapply eqRat_refl.
-    
+
     rewrite <- ratMult_distrib_r.
     rewrite <- ratAdd_den_same.
     rewrite H8.
@@ -657,42 +657,42 @@ Theorem low_tree_approx_same_inv : forall n (A : Set)(eqd : eq_dec A)(c : Comp A
     rewrite mult_comm.
     simpl.
     trivial.
-  Qed.    
-  
+  Qed.
+
   intuition.
   eapply low_tree_approx_same_inv_h.
   eauto.
-  
-  
+
+
   eapply lowDistApprox_ls_impl.
   trivial.
-  
+
 Qed.
 
 Theorem getSupport_not_In_lowDistApprox : forall n (A : Set)(c : Comp A)(a : A) r,
   ~In a (getSupport c) ->
   lowDistApprox c a n r ->
   r == 0.
-  
+
   intuition.
   destruct H0.
   destruct H0.
   intuition.
-  
-  
+
+
   specialize (@pred_count_eq_0 (comp_answer A) Blist (getAllBlists n) x (evalDet c) (eq (ca_done a)) x0); intuition.
   rewrite H2 in H3.
   rewrite H3.
   apply rat_num_0.
   intuition.
   subst.
-  
-  
+
+
   eapply H.
   eapply getSupport_In_evalDet; eauto.
   trivial.
   trivial.
-  
+
 Qed.
 
 Definition getSupport_bind (A B : Set)(c1 : Comp B)(c2 : B -> Comp A) : list (B * (list A)) :=
@@ -709,9 +709,9 @@ Theorem in_flattenPair : forall (A B : Type)(ls : list (A * (list B))) a b entry
   In (a, entryList) ls ->
   In b entryList ->
   In (a, b) (flattenPair ls).
-  
+
   induction ls; intuition; simpl in *.
-  
+
   intuition.
   inversion H1; clear H1; subst.
   eapply in_or_app.
@@ -719,7 +719,7 @@ Theorem in_flattenPair : forall (A B : Type)(ls : list (A * (list B))) a b entry
   eapply in_map_iff.
   econstructor.
   intuition.
-  
+
   eapply in_or_app.
   right.
   eapply IHls; eauto.
@@ -732,24 +732,24 @@ Lemma In_getSupport_bind_cp : forall (A B : Set)(c1 : Comp B)(c2 : B -> Comp A) 
   In b (getSupport c1) ->
   In a (getSupport (c2 b)) ->
   In (b, a) (getSupport_bind_cp c1 c2).
-  
+
   intuition.
   unfold getSupport_bind_cp, getSupport_bind.
- 
+
   eapply in_flattenPair.
   eapply in_map_iff.
   econstructor; intuition.
   trivial.
-  
+
 Qed.
 
 Lemma not_In_getSupport_bind_cp : forall (A B : Set)(eqda : eq_dec A)(eqdb : eq_dec B)(c1 : Comp B)(c2 : B -> Comp A) b a,
   ~ In (b, a) (getSupport_bind_cp c1 c2) ->
-  ~ In b (getSupport c1) \/ 
+  ~ In b (getSupport c1) \/
   ~ In a (getSupport (c2 b)).
-  
+
   intuition.
-  
+
   destruct (in_dec eqdb b (getSupport c1)); intuition.
   destruct (in_dec eqda a (getSupport (c2 b))); intuition.
   exfalso.
@@ -768,15 +768,15 @@ trivial.
 Qed.
 
 Lemma evalDet_lowDistApprox_ls_done:
-  forall (A : Set) (eqd : eq_dec A) (c : Comp A) (s : Blist) 
+  forall (A : Set) (eqd : eq_dec A) (c : Comp A) (s : Blist)
     (a1 a2 : A) (n : nat),
     evalDet c s (ca_done a1) ->
     lowDistApprox_ls c a2 n s (if eqd a2 a1 then 1 else 0).
-  
+
   unfold lowDistApprox_ls.
   intuition.
   exists (listRepeat (ca_done a1) (length (getAllBlists n))).
-  
+
   destruct (eqd a1 a2); subst.
   exists (length (getAllBlists n)).
   intuition.
@@ -784,7 +784,7 @@ Lemma evalDet_lowDistApprox_ls_done:
   intuition.
   eapply evalDet_app_eq.
   trivial.
-  
+
   eapply pred_count_eq_all; intuition.
   symmetry.
   eapply in_listRepeat_inv.
@@ -796,15 +796,15 @@ Lemma evalDet_lowDistApprox_ls_done:
   apply num_dem_same_rat1.
   unfold natToPosnat, posnatToNat.
   trivial.
-  
+
   exists O.
   intuition.
-  
+
   eapply rel_map_listRepeat.
   intuition.
   eapply evalDet_app_eq.
   trivial.
-  
+
   eapply pred_count_eq_none; intuition.
   subst.
   assert (ca_done a2 = ca_done a1).
@@ -812,18 +812,18 @@ Lemma evalDet_lowDistApprox_ls_done:
   eauto.
   inversion H1; subst; clear H1.
   intuition.
-  
+
   destruct (eqd a2 a1); subst; try congruence.
   apply rat_num_0.
 Qed.
 
 Lemma evalDet_lowDistApprox_ls_not_done:
-  forall (A : Set) (c : Comp A) (s : Blist) 
+  forall (A : Set) (c : Comp A) (s : Blist)
     (a2 : A) (n : nat),
     well_formed_comp c ->
     (forall s' (a : A), In s' (getAllBlists n) -> evalDet c (s ++ s') (ca_done a) -> False) ->
     lowDistApprox_ls c a2 n s 0.
-  
+
   intuition.
   unfold lowDistApprox_ls.
   exists (listRepeat (@ca_eof A) (length (getAllBlists n))).
@@ -838,7 +838,7 @@ Lemma evalDet_lowDistApprox_ls_not_done:
   eauto.
   eauto.
   trivial.
-  
+
   eapply pred_count_eq_none; intuition.
   assert (a = (ca_eof A)).
   eapply in_listRepeat_inv.
@@ -846,20 +846,20 @@ Lemma evalDet_lowDistApprox_ls_not_done:
   subst.
   discriminate.
   eapply rat_num_0.
-  
+
 Qed.
 
 Lemma low_tree_approx_same_h : forall n (A : Set)(eqd : eq_dec A)(c : Comp A)(t : DistApproxTree A) ls,
                                  dat_correct_h c ls n t ->
-                                 forall a, 
+                                 forall a,
                                    well_formed_comp c ->
                                    lowDistApprox_ls c a n ls (lowDistApproxFromTree eqd t a).
-  
+
   induction 1; intuition; simpl in *.
-  
+
   eapply evalDet_lowDistApprox_ls_done.
   trivial.
-  
+
   eapply evalDet_lowDistApprox_ls_not_done.
   trivial.
   intuition.
@@ -868,22 +868,22 @@ Lemma low_tree_approx_same_h : forall n (A : Set)(eqd : eq_dec A)(c : Comp A)(t 
   subst.
   rewrite app_nil_r in *.
   eauto.
-  
+
   destruct (IHdat_correct_h1 a).
   trivial.
   destruct H3.
-  
+
   destruct (IHdat_correct_h2 a).
   trivial.
   destruct H4.
-  
+
   intuition.
-  
+
   unfold lowDistApprox_ls.
   econstructor. econstructor.
   intuition.
   simpl.
-  
+
   eapply rel_map_app.
   eapply rel_map_map.
   eapply rel_map_eq.
@@ -901,7 +901,7 @@ Lemma low_tree_approx_same_h : forall n (A : Set)(eqd : eq_dec A)(c : Comp A)(t 
   rewrite <- app_assoc in H11.
   simpl in *.
   trivial.
-  
+
   eapply pred_count_app; eauto.
   simpl.
   rewrite <- H8.
@@ -919,12 +919,12 @@ Qed.
 
 Theorem low_tree_approx_same : forall n (A : Set)(eqd : eq_dec A)(c : Comp A)(t : DistApproxTree A),
   well_formed_comp c ->
-  dat_correct c n t -> 
-  forall a, 
+  dat_correct c n t ->
+  forall a,
     lowDistApprox c a n (lowDistApproxFromTree eqd t a).
-  
+
   intuition.
-  
+
   unfold dat_correct in *.
   edestruct low_tree_approx_same_h.
   eauto.
@@ -938,16 +938,16 @@ Theorem low_tree_approx_same : forall n (A : Set)(eqd : eq_dec A)(c : Comp A)(t 
   eauto.
   rewrite H4.
   eapply eqRat_refl.
-  
+
 Qed.
 
 Lemma lowDistApprox_left_total : forall (A : Set)(eqd : eq_dec A)(c : Comp A) a,
   well_formed_comp c ->
   left_total (lowDistApprox c a).
-  
+
   unfold left_total.
   intuition.
-  
+
   destruct (@dat_exists n _ c).
   trivial.
   exists (lowDistApproxFromTree eqd x a).
@@ -959,11 +959,11 @@ Qed.
 Inductive datMap(A B : Set)(f : A -> DistApproxTree B -> Prop) : DistApproxTree A -> DistApproxTree B  -> Prop :=
 | datMap_leaf_None :
     datMap f (dat_leaf None) (dat_leaf None)
-| datMap_leaf_Some : 
+| datMap_leaf_Some :
   forall a t,
     f a t ->
     datMap f (dat_leaf (Some a)) t
-| datMap_internal : 
+| datMap_internal :
   forall t1a t2a t1b t2b,
     datMap f t1a t1b ->
     datMap f t2a t2b ->
@@ -972,7 +972,7 @@ Inductive datMap(A B : Set)(f : A -> DistApproxTree B -> Prop) : DistApproxTree 
   (* a variant of datMap that builds a tree of a maximum depth *)
 Inductive datMap_depth(A B : Set)(f : nat -> A -> DistApproxTree B -> Prop) : nat -> DistApproxTree A -> DistApproxTree B -> Prop :=
 | datMap_depth_leaf_None :
-  forall n, 
+  forall n,
     datMap_depth f n (dat_leaf None) (dat_leaf None)
 | datMap_depth_leaf_Some :
   forall n a t,
@@ -995,10 +995,10 @@ Definition dat_correct_bind2(A B : Set)(c1 : Comp B)(c2 : B -> Comp A)(n : nat)(
 Lemma lowDistApproxFromTree_eq_0 : forall (A : Set)(eqd : eq_dec A)(t : DistApproxTree A) a,
   ~In a (getTreeSupport eqd t) ->
   lowDistApproxFromTree eqd t a == 0.
-  
+
   induction t; intuition; simpl in *.
   destruct o.
-  
+
   destruct (eqd a a0); subst.
   exfalso.
   eapply H.
@@ -1006,13 +1006,13 @@ Lemma lowDistApproxFromTree_eq_0 : forall (A : Set)(eqd : eq_dec A)(t : DistAppr
   intuition.
   intuition.
   intuition.
-  
+
   rewrite IHt1.
   rewrite IHt2.
   rewrite ratMult_0_l.
   rewrite <- ratAdd_0_r.
   intuition.
-  
+
   intuition.
   eapply H.
   unfold getTreeSupport in *.
@@ -1022,7 +1022,7 @@ Lemma lowDistApproxFromTree_eq_0 : forall (A : Set)(eqd : eq_dec A)(t : DistAppr
   right.
   eapply in_getUnique_if.
   eauto.
-  
+
   intuition.
   eapply H.
   unfold getTreeSupport in *.
@@ -1032,24 +1032,24 @@ Lemma lowDistApproxFromTree_eq_0 : forall (A : Set)(eqd : eq_dec A)(t : DistAppr
   left.
   eapply in_getUnique_if.
   eauto.
-  
+
 Qed.
 
 Lemma lowDistApproxFromTree_datMap_inv : forall (A B : Set)(eqda : eq_dec A)(eqdb : eq_dec B)(tb : DistApproxTree B)(ta : DistApproxTree A)(mapRel : B -> DistApproxTree A -> Prop),
   datMap mapRel tb ta ->
   (forall b, In b (getTreeSupport eqdb tb) -> exists t,  mapRel b t) ->
-  (forall b t1 t2, mapRel b t1 -> mapRel b t2 -> t1 = t2) -> 
-  forall a r, 
-    sumList_rel 
-    (fun b r' => 
-      forall ta', mapRel b ta' ->  
+  (forall b t1 t2, mapRel b t1 -> mapRel b t2 -> t1 = t2) ->
+  forall a r,
+    sumList_rel
+    (fun b r' =>
+      forall ta', mapRel b ta' ->
         lowDistApproxFromTree eqdb tb b * lowDistApproxFromTree eqda ta' a == r')
     (getTreeSupport eqdb tb)
     r ->
     lowDistApproxFromTree eqda ta a == r.
-  
+
   induction 1; intuition; simpl in *.
-  
+
   apply sumList_rel_all_0_inv in H1;
     intuition.
   simpl in *.
@@ -1086,11 +1086,11 @@ Lemma lowDistApproxFromTree_datMap_inv : forall (A B : Set)(eqda : eq_dec A)(eqd
       forall ta' : DistApproxTree A,
         mapRel b ta' ->
         ((lowDistApproxFromTree eqdb t1a b * (1 / 2) * lowDistApproxFromTree eqda ta' a) +
-          (lowDistApproxFromTree eqdb t2a b * (1 / 2) * lowDistApproxFromTree eqda ta' a) 
+          (lowDistApproxFromTree eqdb t2a b * (1 / 2) * lowDistApproxFromTree eqda ta' a)
           == r'))
     (getUnique (getTreeSupport_dups t1a ++ getTreeSupport_dups t2a) eqdb)
     r).
-  
+
   eapply sumList_rel_body_eq.
   eapply H3.
   intuition.
@@ -1099,12 +1099,12 @@ Lemma lowDistApproxFromTree_datMap_inv : forall (A B : Set)(eqda : eq_dec A)(eqd
   intuition.
   trivial.
   clear H3.
-  
-  remember (fun b r' => forall ta', 
+
+  remember (fun b r' => forall ta',
     (mapRel b ta' -> lowDistApproxFromTree eqdb t1a b * lowDistApproxFromTree eqda ta' a == r')) as rel1.
-  remember (fun b r' => forall ta', 
+  remember (fun b r' => forall ta',
     (mapRel b ta' -> lowDistApproxFromTree eqdb t2a b * lowDistApproxFromTree eqda ta' a == r')) as rel2.
-  
+
   edestruct (sumList_rel_left_total rel1).
   intuition.
   destruct (H1 a0).
@@ -1120,7 +1120,7 @@ Lemma lowDistApproxFromTree_datMap_inv : forall (A B : Set)(eqda : eq_dec A)(eqd
   eauto.
   subst.
   intuition.
-  
+
   edestruct (sumList_rel_left_total rel2).
   intuition.
   subst.
@@ -1170,7 +1170,7 @@ Lemma lowDistApproxFromTree_datMap_inv : forall (A B : Set)(eqda : eq_dec A)(eqd
   eapply num_dem_same_rat1.
   trivial.
   trivial.
-  
+
   clear H3.
 
   assert (sumList_rel
@@ -1204,7 +1204,7 @@ Lemma lowDistApproxFromTree_datMap_inv : forall (A B : Set)(eqda : eq_dec A)(eqd
   trivial.
 
   clear H5.
-  
+
   assert (sumList_rel
     (fun (b : B) (r' : Rat) =>
       forall ta' : DistApproxTree A,
@@ -1220,7 +1220,7 @@ Lemma lowDistApproxFromTree_datMap_inv : forall (A B : Set)(eqda : eq_dec A)(eqd
   trivial.
 
   intuition.
-  destruct (H1 a0). 
+  destruct (H1 a0).
   eapply in_getUnique.
   eapply in_or_app.
   left.
@@ -1233,7 +1233,7 @@ Lemma lowDistApproxFromTree_datMap_inv : forall (A B : Set)(eqda : eq_dec A)(eqd
   eapply eqRat_refl.
   eauto.
   eauto.
-  
+
   eapply ratMult_same_r_inv.
   eauto.
   intuition.
@@ -1246,7 +1246,7 @@ Lemma lowDistApproxFromTree_datMap_inv : forall (A B : Set)(eqda : eq_dec A)(eqd
   left.
   eapply in_getUnique_if.
   eauto.
-  
+
   intuition.
   rewrite ratMult_0_l.
   eapply ratMult_0.
@@ -1255,9 +1255,9 @@ Lemma lowDistApproxFromTree_datMap_inv : forall (A B : Set)(eqda : eq_dec A)(eqd
   eapply lowDistApproxFromTree_eq_0.
   unfold getTreeSupport.
   intuition.
-  
+
   clear H6.
-  
+
   assert (sumList_rel
     (fun (b : B) (r' : Rat) =>
       forall ta' : DistApproxTree A,
@@ -1265,13 +1265,13 @@ Lemma lowDistApproxFromTree_datMap_inv : forall (A B : Set)(eqda : eq_dec A)(eqd
         lowDistApproxFromTree eqdb t2a b * lowDistApproxFromTree eqda ta' a ==
         r' * (2 / 1)) (getUnique (getTreeSupport_dups t1a ++ getTreeSupport_dups t2a) eqdb)
     (x0 * (1 / 2))).
-  
+
   eapply sumList_rel_ls_intersect.
   eapply H3.
   eapply getUnique_NoDup.
   eapply getUnique_NoDup.
   trivial.
-  
+
   intuition.
   destruct (H1 a0).
   eapply in_getUnique.
@@ -1286,11 +1286,11 @@ Lemma lowDistApproxFromTree_datMap_inv : forall (A B : Set)(eqda : eq_dec A)(eqd
   eapply eqRat_refl.
   eauto.
   trivial.
-  
+
   eapply ratMult_same_r_inv.
   eauto.
   intuition.
-  
+
   intuition.
   exfalso.
   eapply H7.
@@ -1299,16 +1299,16 @@ Lemma lowDistApproxFromTree_datMap_inv : forall (A B : Set)(eqda : eq_dec A)(eqd
   right.
   eapply in_getUnique_if.
   eauto.
-  
+
   intuition.
   rewrite ratMult_0_l.
   eapply ratMult_0.
   left.
   eapply lowDistApproxFromTree_eq_0.
   intuition.
-  
+
   clear H3.
- 
+
   symmetry.
   eapply sumList_rel_plus_inv.
   Focus 3.
@@ -1325,12 +1325,12 @@ Lemma lowDistApproxFromTree_datMap_inv : forall (A B : Set)(eqda : eq_dec A)(eqd
   eapply ratMult_inverse_nat in H8.
   eapply ratMult_inverse_nat in H9.
   eapply ratAdd_eqRat_compat.
-  
+
   rewrite ratMult_assoc.
   rewrite (ratMult_comm (1/2)).
   rewrite <- ratMult_assoc.
   eapply H8.
-  
+
   rewrite ratMult_assoc.
   rewrite (ratMult_comm (1/2)).
   rewrite <- ratMult_assoc.
@@ -1361,20 +1361,20 @@ Qed.
 Lemma getTreeSupport_approx_0: forall (A : Set)(eqd : eq_dec A)(t : DistApproxTree A) a,
   ~In a (getTreeSupport eqd t) ->
   lowDistApproxFromTree eqd t a == 0.
-  
+
   induction t; intuition; simpl in *.
   destruct o.
   simpl in *.
   intuition.
   destruct (eqd a a0); subst; intuition.
   intuition.
-  
+
   rewrite IHt1.
   rewrite IHt2.
   rewrite ratMult_0_l.
   rewrite <- ratAdd_0_r.
   intuition.
-  
+
   intuition.
   eapply H.
   unfold getTreeSupport in *.
@@ -1384,7 +1384,7 @@ Lemma getTreeSupport_approx_0: forall (A : Set)(eqd : eq_dec A)(t : DistApproxTr
   right.
   eapply in_getUnique_if.
   eauto.
-  
+
   intuition.
   eapply H.
   unfold getTreeSupport in *.
@@ -1394,13 +1394,13 @@ Lemma getTreeSupport_approx_0: forall (A : Set)(eqd : eq_dec A)(t : DistApproxTr
   left.
   eapply in_getUnique_if.
   eauto.
-  
+
 Qed.
 
 Lemma lowDistApprox_le_1 : forall (A : Set)(c : Comp A) a n r,
   lowDistApprox c a n r ->
   r <= 1.
-  
+
   intuition.
   unfold lowDistApprox in *.
   destruct H.
@@ -1408,11 +1408,11 @@ Lemma lowDistApprox_le_1 : forall (A : Set)(c : Comp A) a n r,
   intuition.
   rewrite H2.
   eapply rat_le_1.
-  
+
   eapply le_trans.
   eapply pred_count_le_length.
   eapply H.
-  
+
   erewrite <- rel_map_length; eauto.
   rewrite getAllBlists_length.
   rattac.
@@ -1426,9 +1426,9 @@ Theorem bind_low_tree_approx_same_inv : forall (A B : Set)(eqda : eq_dec A)(c1 :
   lowDistApprox_bind c1 c2 a n r ->
   dat_correct_bind2 c1 c2 n t ->
   r == lowDistApproxFromTree eqda t a.
-  
+
   intuition.
-  
+
   destruct H2. (*dat_correct_bind2 *)
   intuition.
   inversion H1; clear H1; subst. (*lowDistApprox_bind *)
@@ -1443,17 +1443,17 @@ Theorem bind_low_tree_approx_same_inv : forall (A B : Set)(eqda : eq_dec A)(c1 :
   eauto.
   econstructor.
   eauto.
-  
+
   simpl in *.
   eapply dat_correct_func; eauto.
-  
+
   eapply sumList_rel_ls_intersect.
   eapply sumList_rel_body_eq_strong.
   eapply H2.
   intuition.
   erewrite H5.
   eapply eqRat_refl.
-  
+
   eapply low_tree_approx_same.
   trivial.
   eapply H3.
@@ -1463,11 +1463,11 @@ Theorem bind_low_tree_approx_same_inv : forall (A B : Set)(eqda : eq_dec A)(c1 :
   eapply H6.
   intuition.
   eauto.
-  
+
   eapply getSupport_NoDup.
   eapply getUnique_NoDup.
   eapply comp_eq_dec; eauto.
-  
+
   intuition.
   destruct (@dat_exists n _ (c2 a0)).
   eapply H0.
@@ -1477,14 +1477,14 @@ Theorem bind_low_tree_approx_same_inv : forall (A B : Set)(eqda : eq_dec A)(c1 :
   intuition.
   eauto.
   eauto.
-  
+
   intuition.
   eapply ratMult_0.
   left.
-  
+
   eapply getTreeSupport_approx_0.
   eauto.
-  
+
   intuition.
   eapply ratMult_0.
   left.
@@ -1492,7 +1492,7 @@ Theorem bind_low_tree_approx_same_inv : forall (A B : Set)(eqda : eq_dec A)(c1 :
   intuition.
   eapply H5.
   eapply getTreeSupport_in; eauto.
-  
+
   Grab Existential Variables.
   eapply comp_eq_dec; eauto.
 Qed.
@@ -1501,10 +1501,10 @@ Lemma in_flattenPair_inv : forall (A B : Set)(ls : list (A * list B)) a b,
   In (a, b) (flattenPair ls) ->
   exists lsb,
     In b lsb /\ In (a , lsb) ls.
-  
+
   induction ls; intuition; simpl in *.
   intuition.
-  
+
   apply in_app_or in H.
   intuition.
   apply in_map_iff in H0.
@@ -1516,7 +1516,7 @@ Lemma in_flattenPair_inv : forall (A B : Set)(ls : list (A * list B)) a b,
   eauto.
   left.
   trivial.
-  
+
   edestruct IHls.
   eauto.
   intuition.
@@ -1528,12 +1528,12 @@ Lemma in_flattenPair_inv : forall (A B : Set)(ls : list (A * list B)) a b,
 Qed.
 
 Lemma in_getSupport_bind_cp_fst : forall (A B : Set)(c1 : Comp B)(c2 : B -> Comp A) a0,
-  In a0 (getSupport_bind_cp c1 c2) -> 
+  In a0 (getSupport_bind_cp c1 c2) ->
   In (fst a0) (getSupport c1).
-  
+
   intuition.
   unfold getSupport_bind_cp, getSupport_bind in *.
-  
+
   destruct a0.
   eapply in_flattenPair_inv in H.
   destruct H.
@@ -1544,7 +1544,7 @@ Lemma in_getSupport_bind_cp_fst : forall (A B : Set)(c1 : Comp B)(c2 : B -> Comp
   intuition.
   inversion H1; clear H1; subst.
   trivial.
-  
+
 Qed.
 
 Lemma lowDistApprox_bind_evalDist_limit : forall (A B :Set)(c1 : Comp B)(c2 : B -> Comp A) a,
@@ -1556,29 +1556,29 @@ Lemma lowDistApprox_bind_evalDist_limit : forall (A B :Set)(c1 : Comp B)(c2 : B 
     In b (getSupport c1) ->
     rat_inf_limit (lowDistApprox (c2 b) a) (evalDist (c2 b) a)) ->
   rat_inf_limit (lowDistApprox_bind c1 c2 a) (evalDist (Bind c1 c2) a).
-  
+
   unfold rat_inf_limit, inf_limit.
   intuition.
-  
+
   assert (forall (epsilon : Rat),
     ~ epsilon == 0 ->
     exists n : nat,
       forall n': nat,
-        n' >= n -> 
+        n' >= n ->
         (forall (b : B) r,
           lowDistApprox c1 b n' r ->
           (ratDistance r (evalDist c1 b)) <= epsilon)).
-  
+
   assert (forall (epsilon : Rat),
     (epsilon == 0 -> False) ->
     forall (a : B),
       exists n : nat,
         forall n' : nat,
-          n' >= n -> 
+          n' >= n ->
           forall r,
             lowDistApprox c1 a n' r ->
             (ratDistance r (evalDist c1 a) <= epsilon)).
-  
+
   intuition.
   intuition.
   specialize (H4 _ H5).
@@ -1589,7 +1589,7 @@ Lemma lowDistApprox_bind_evalDist_limit : forall (A B :Set)(c1 : Comp B)(c2 : B 
 
   econstructor.
   intuition.
-  
+
   assert (n' >= (maxList x)).
   eapply H7.
 
@@ -1605,7 +1605,7 @@ Lemma lowDistApprox_bind_evalDist_limit : forall (A B :Set)(c1 : Comp B)(c2 : B 
 
   eapply leRat_trans.
   eapply eqRat_impl_leRat.
-  eapply (ratIdentityIndiscernables r).  
+  eapply (ratIdentityIndiscernables r).
   eapply eqRat_trans.
   eapply getSupport_not_In_lowDistApprox; eauto.
   eapply eqRat_symm.
@@ -1631,9 +1631,9 @@ Lemma lowDistApprox_bind_evalDist_limit : forall (A B :Set)(c1 : Comp B)(c2 : B 
       In (fst x) (getSupport c1) ->
       exists n : nat,
         forall n' : nat,
-          n' >= n -> 
+          n' >= n ->
           forall r,
-            lowDistApprox (c2 (fst x)) (snd x) n' r -> 
+            lowDistApprox (c2 (fst x)) (snd x) n' r ->
             (ratDistance r (evalDist (c2 (fst x)) (snd x)) <= epsilon)).
 
   intuition.
@@ -1696,7 +1696,7 @@ Lemma lowDistApprox_bind_evalDist_limit : forall (A B :Set)(c1 : Comp B)(c2 : B 
   rattac.
   eapply ratMult_nz; econstructor; intuition.
   clear H4.
-  
+
   edestruct H1.
   eapply ratMult_nz; econstructor.
   rattac.
@@ -1740,7 +1740,7 @@ Lemma lowDistApprox_bind_evalDist_limit : forall (A B :Set)(c1 : Comp B)(c2 : B 
   eapply H1.
   trivial.
   trivial.
-  
+
   eapply lowDistApprox_le_1; eauto.
   eapply lowDistApprox_le_1; eauto.
 
@@ -1772,7 +1772,7 @@ Lemma datMap_left_total : forall (A B : Set)(eqdb : eq_dec A)(t : DistApproxTree
   (forall a, In a (getTreeSupport eqdb t) -> exists b, f a b) ->
   exists t',
     datMap f t t'.
-  
+
   induction t; intuition; simpl in *.
   destruct o.
   destruct (H a).
@@ -1781,10 +1781,10 @@ Lemma datMap_left_total : forall (A B : Set)(eqdb : eq_dec A)(t : DistApproxTree
   econstructor.
   econstructor.
   eauto.
-  
+
   econstructor.
   econstructor.
-  
+
   edestruct IHt1; eauto.
   intuition.
   edestruct H.
@@ -1811,14 +1811,14 @@ Lemma datMap_left_total : forall (A B : Set)(eqdb : eq_dec A)(t : DistApproxTree
 
   econstructor.
   econstructor; eauto.
-  
+
 Qed.
-    
+
 Lemma dat_exists_bind2 : forall (A B : Set)(c1 : Comp B)(c2 : B -> Comp A) n,
   well_formed_comp c1 ->
   (forall b, In b (getSupport c1) -> well_formed_comp (c2 b)) ->
   exists t, dat_correct_bind2 c1 c2 n t.
-  
+
   intuition.
   destruct (@dat_exists n _ c1).
   trivial.
@@ -1829,7 +1829,7 @@ Lemma dat_exists_bind2 : forall (A B : Set)(c1 : Comp B)(c2 : B -> Comp A) n,
   intuition.
   eauto.
   eauto.
-  
+
   intuition.
   destruct (@dat_exists n _ (c2 a)).
   eapply H0.
@@ -1838,7 +1838,7 @@ Lemma dat_exists_bind2 : forall (A B : Set)(c1 : Comp B)(c2 : B -> Comp A) n,
   eauto.
   econstructor.
   eauto.
-  
+
 Qed.
 
 (* dat_better is an inductive predicate that lets us conclude that one tree will produce an approximation that is at least as good as some other tree. *)
@@ -1856,17 +1856,17 @@ Hint Constructors dat_better : dat.
 
 Lemma dat_better_refl : forall (A : Set)(t : DistApproxTree A),
   dat_better t t.
-  
+
   induction t; intuition.
   destruct o; econstructor.
 Qed.
 
 Lemma dat_better_trans : forall (A : Set)(t1 t2 : DistApproxTree A),
   dat_better t1 t2 ->
-  forall t3, 
+  forall t3,
     dat_better t2 t3 ->
     dat_better t1 t3.
-  
+
   induction 1; intuition.
   inversion H; clear H; subst; eauto with  dat.
   inversion H1; clear H1; subst.
@@ -1880,9 +1880,9 @@ Lemma dat_correct_dat_better : forall (A : Set)(c : Comp A) ls n1 t1,
     dat_correct_h c ls n2 t2 ->
     n1 >= n2 ->
     dat_better t1 t2.
-  
+
   induction 1; intuition.
-  
+
   inversion H0; clear H0; subst.
   assert (ca_done a = ca_done a0).
   eapply evalDet_func; eauto.
@@ -1891,13 +1891,13 @@ Lemma dat_correct_dat_better : forall (A : Set)(c : Comp A) ls n1 t1,
   econstructor.
   specialize (H2 a).
   intuition.
-  
+
   inversion H0; clear H0; subst.
   specialize (H a).
   intuition.
   econstructor.
   omega.
-  
+
   inversion H2; clear H2; subst.
   specialize (H a).
   intuition.
@@ -1909,9 +1909,9 @@ Qed.
 
 Lemma lowDistApprox_dat_better_le : forall (A : Set)(eqd : eq_dec A)(t1 t2 : DistApproxTree A),
   dat_better t1 t2 ->
-  forall (a : A), 
+  forall (a : A),
     lowDistApproxFromTree eqd t2 a <= lowDistApproxFromTree eqd t1 a.
-  
+
   induction 1; intuition; simpl in *.
   apply rat0_le_all.
   rewrite <- IHdat_better1.
@@ -1924,18 +1924,18 @@ Lemma datMap_better : forall (A B : Set)(t : DistApproxTree B) n (rel : nat -> B
   datMap (rel n) t t1 ->
   datMap (rel (pred n)) t t2 ->
   dat_better t1 t2.
-  
+
   induction t; intuition; simpl in *.
   inversion H0; clear H0; subst.
   inversion H1; clear H1; subst.
   econstructor.
   inversion H1; clear H1; subst.
   eapply H; eauto.
-  
+
   inversion H0; clear H0; subst.
   inversion H1; clear H1; subst.
   econstructor; eauto.
-  
+
 Qed.
 
 Lemma datMap_depth_better : forall (A B : Set)(tb1 tb2 : DistApproxTree B),
@@ -1946,15 +1946,15 @@ Lemma datMap_depth_better : forall (A B : Set)(tb1 tb2 : DistApproxTree B),
     datMap_depth f n2 tb2 t2 ->
     n1 >= n2 ->
     dat_better t1 t2.
-  
+
   induction 1; intuition; simpl in *.
   inversion H1; clear H1; subst.
   econstructor.
-  
+
   inversion H1; clear H1; subst.
   inversion H0; clear H0; subst.
   eauto.
-  
+
   inversion H2; clear H2; subst.
   inversion H3; clear H3; subst.
   econstructor.
@@ -1966,12 +1966,12 @@ Lemma dat_bind_2_better : forall (n : nat) (A B : Set)(c1 : Comp B)(c2 : B -> Co
   dat_correct_bind2 c1 c2 n t1 ->
   dat_correct_bind c1 c2 n t2 ->
   dat_better t1 t2.
-  
+
   intuition.
   unfold dat_correct_bind, dat_correct_bind2 in *.
   destruct H.
   destruct H0.
-  
+
   intuition.
   eapply datMap_depth_better.
   Focus 4.
@@ -1981,7 +1981,7 @@ Lemma dat_bind_2_better : forall (n : nat) (A B : Set)(c1 : Comp B)(c2 : B -> Co
   eauto.
 
   eapply dat_correct_dat_better; eauto.
-  
+
   intuition.
   eapply dat_correct_dat_better; eauto.
   omega.
@@ -1991,7 +1991,7 @@ Lemma dat_correct_h_bind_app : forall (A B : Set) t (c1 : Comp B)(c2 : B -> Comp
   evalDet_steps (cs_more c1 ls1) (cs_done a nil) ->
   dat_correct_h (Bind c1 c2) (ls1 ++ ls2) n t ->
   dat_correct_h (c2 a) ls2 n t.
-  
+
   induction t; intuition; simpl in *.
   inversion H0; clear H0; subst.
   inversion H3; clear H3; subst.
@@ -2006,7 +2006,7 @@ Lemma dat_correct_h_bind_app : forall (A B : Set) t (c1 : Comp B)(c2 : B -> Comp
   econstructor.
   econstructor.
   eauto.
-  
+
   econstructor.
   intuition.
   inversion H0; clear H0; subst.
@@ -2018,7 +2018,7 @@ Lemma dat_correct_h_bind_app : forall (A B : Set) t (c1 : Comp B)(c2 : B -> Comp
   eauto.
   simpl.
   eauto.
-  
+
   inversion H0; clear H0; subst.
   econstructor.
   intuition.
@@ -2031,7 +2031,7 @@ Lemma dat_correct_h_bind_app : forall (A B : Set) t (c1 : Comp B)(c2 : B -> Comp
   eauto.
   simpl.
   eauto.
-  
+
   eapply IHt1.
   eauto.
   rewrite app_assoc.
@@ -2040,7 +2040,7 @@ Lemma dat_correct_h_bind_app : forall (A B : Set) t (c1 : Comp B)(c2 : B -> Comp
   eauto.
   rewrite app_assoc.
   eauto.
-      
+
 Qed.
 
 Lemma dat_correct_bind_same_h : forall n (A : Set)(c : Comp A) ls t,
@@ -2048,12 +2048,12 @@ Lemma dat_correct_bind_same_h : forall n (A : Set)(c : Comp A) ls t,
   forall (B : Set)(c1 : Comp B)(c2 : B -> Comp A) t1,
     c = Bind c1 c2 ->
     well_formed_comp c1 ->
-    (forall a ls', evalDet_steps (cs_more c1 ls) (cs_done a ls') -> ls' = nil) -> 
-    dat_correct_h c1 ls n t1 ->  
+    (forall a ls', evalDet_steps (cs_more c1 ls) (cs_done a ls') -> ls' = nil) ->
+    dat_correct_h c1 ls n t1 ->
     datMap_depth
-    (fun (depth : nat) (b : B) t2 => dat_correct_h (c2 b) nil depth t2) 
+    (fun (depth : nat) (b : B) t2 => dat_correct_h (c2 b) nil depth t2)
     n t1 t.
-  
+
   induction 1; intuition; subst; simpl in *.
   inversion H; clear H; subst. (*evalDet *)
   inversion H3; clear H3; subst. (*dat_correct *)
@@ -2067,20 +2067,20 @@ Lemma dat_correct_bind_same_h : forall n (A : Set)(c : Comp A) ls t,
   assert (x0 = nil); eauto; subst.
   econstructor.
   eauto.
-  
+
   apply evalDet_steps_bind_done_inv in H4.
   destruct H4. destruct H0. intuition.
   exfalso.
   eapply H.
-  econstructor. 
+  econstructor.
   eauto.
   apply evalDet_steps_bind_done_inv in H4.
   destruct H4. destruct H3. intuition.
   exfalso.
   eapply H.
-  econstructor. 
+  econstructor.
   eauto.
-  
+
   inversion H3; clear H3; subst.
   inversion H0; clear H0; subst.
   econstructor.
@@ -2091,12 +2091,12 @@ Lemma dat_correct_bind_same_h : forall n (A : Set)(c : Comp A) ls t,
   eapply H.
   econstructor.
   eapply evalDet_steps_trans.
-  eapply evalDet_steps_bind_done.      
+  eapply evalDet_steps_bind_done.
   eauto.
   eauto.
-  
+
   econstructor.
-  
+
   inversion H5; clear H5; subst.
   inversion H2; clear H2; subst.
   assert (s' = nil); eauto; subst.
@@ -2110,7 +2110,7 @@ Lemma dat_correct_bind_same_h : forall n (A : Set)(c : Comp A) ls t,
   eapply evalDet_steps_bind_done.
   eauto.
   eauto.
-  simpl.  
+  simpl.
 
   eapply dat_correct_h_bind_app; eauto.
   eapply dat_correct_h_bind_app; eauto.
@@ -2118,13 +2118,13 @@ Lemma dat_correct_bind_same_h : forall n (A : Set)(c : Comp A) ls t,
   econstructor.
   eapply IHdat_correct_h1; eauto.
   intuition.
-  
+
   eapply evalDet_app_nil; eauto.
   edestruct (@evalDet_dec _ c1 s); trivial.
   destruct H5.
-  exfalso. 
+  exfalso.
   eauto.
-  
+
   eapply IHdat_correct_h2; eauto.
   intuition.
   eapply evalDet_app_nil; eauto.
@@ -2137,10 +2137,10 @@ Qed.
 Lemma lowDistApprox_le_bind : forall n (A B : Set)(c1 : Comp B)(c2 : B -> Comp A) a r1 r2,
   well_formed_comp c1 ->
   (forall b, In b (getSupport c1) -> well_formed_comp (c2 b)) ->
-  lowDistApprox (Bind c1 c2) a n r1 -> 
+  lowDistApprox (Bind c1 c2) a n r1 ->
   lowDistApprox_bind c1 c2 a n r2 ->
   r1 <= r2.
-  
+
   intuition.
   edestruct dat_exists_bind2.
   eauto.
@@ -2164,9 +2164,9 @@ Lemma lowDistApprox_le_bind : forall n (A B : Set)(c1 : Comp B)(c2 : B -> Comp A
   eapply low_tree_approx_same_inv.
   eauto.
   eauto.
-  
+
   apply lowDistApprox_dat_better_le.
-  
+
   inversion H3; clear H3; subst.
   intuition.
   eapply datMap_depth_better.
@@ -2187,17 +2187,17 @@ Lemma lowDistApprox_le_bind : forall n (A B : Set)(c1 : Comp B)(c2 : B -> Comp A
   trivial.
   eapply H6.
   auto.
-  
+
   Grab Existential Variables.
   eapply bind_eq_dec; eauto.
-  
+
 Qed.
 
 Lemma dat_correct_bind_same: forall (A B : Set)(c1 : Comp B)(c2 : B -> Comp A) n t,
   well_formed_comp c1 ->
   dat_correct (Bind c1 c2) n t ->
   dat_correct_bind c1 c2 n t.
-  
+
   intuition.
   unfold dat_correct_bind in *.
   edestruct (dat_exists).
@@ -2211,10 +2211,10 @@ Lemma dat_correct_bind_same: forall (A B : Set)(c1 : Comp B)(c2 : B -> Comp A) n
   trivial.
   intuition.
   eapply evalDet_nil; eauto.
-  
+
   eauto.
 Qed.
-    
+
 Fixpoint datDepth (A : Set)(t : DistApproxTree A) : nat :=
   match t with
     | dat_leaf o => O
@@ -2228,18 +2228,18 @@ Lemma datMap_depth_better' : forall (B : Set)(tb1 tb2 : DistApproxTree B),
     datMap_depth rel n tb1 t1 ->
     datMap (rel n') tb2 t2 ->
     n >= n' + (datDepth tb2) ->
-    (forall b n1 n2 t1 t2, rel n1 b t1 -> rel n2 b t2 -> n1 >= n2 -> dat_better t1 t2) -> 
+    (forall b n1 n2 t1 t2, rel n1 b t1 -> rel n2 b t2 -> n1 >= n2 -> dat_better t1 t2) ->
     dat_better t1 t2.
-  
+
   induction 1; intuition; simpl in *.
   inversion H0; clear H0; subst.
   econstructor.
-  
+
   inversion H0; clear H0; subst.
   inversion H; clear H; subst.
   eapply H2; eauto.
   omega.
-  
+
   inversion H2; clear H2; subst.
   inversion H1; clear H1; subst.
   econstructor.
@@ -2251,7 +2251,7 @@ Lemma datMap_depth_better' : forall (B : Set)(tb1 tb2 : DistApproxTree B),
   omega.
   rewrite Max.max_l in H3; omega.
   eauto.
-  
+
   eapply IHdat_better2.
   eauto.
   eauto.
@@ -2259,15 +2259,15 @@ Lemma datMap_depth_better' : forall (B : Set)(tb1 tb2 : DistApproxTree B),
   rewrite Max.max_r in H3; omega.
   rewrite Max.max_l in H3; omega.
   eauto.
-  
+
 Qed.
 
 Lemma datCorrect_datDepth : forall (A : Set)(c : Comp A) n t,
   dat_correct c n t ->
   (datDepth t <= n)%nat.
-  
+
   induction 1; intuition; simpl in *.
-  
+
   destruct (le_dec (datDepth t1) (datDepth t2)).
   rewrite Max.max_r; eauto.
   omega.
@@ -2278,13 +2278,13 @@ Lemma dat_better_bind_div2 : forall (A B : Set)(c1 : Comp B)(c2 : B -> Comp A) n
   dat_correct_bind c1 c2 n t1 ->
   dat_correct_bind2 c1 c2 (div2 n) t2 ->
   dat_better t1 t2.
-  
+
   intuition.
   unfold dat_correct_bind, dat_correct_bind2 in *.
   destruct H.
   destruct H0.
   intuition.
-  
+
   eapply datMap_depth_better'.
   eapply dat_correct_dat_better.
   eapply H1.
@@ -2293,7 +2293,7 @@ Lemma dat_better_bind_div2 : forall (A B : Set)(c1 : Comp B)(c2 : B -> Comp A) n
   eauto.
   simpl.
   eauto.
-  
+
   eapply le_trans.
   Focus 2.
   eapply div2_ge_double.
@@ -2301,10 +2301,10 @@ Lemma dat_better_bind_div2 : forall (A B : Set)(c1 : Comp B)(c2 : B -> Comp A) n
   auto.
   eapply datCorrect_datDepth.
   eauto.
-  
+
   intuition.
   eapply dat_correct_dat_better; eauto.
-  
+
 Qed.
 
 Lemma lowDistApprox_bind_le_div2 : forall (A B : Set)(c1 : Comp B)(c2 : B -> Comp A) a n r1 r2,
@@ -2313,9 +2313,9 @@ Lemma lowDistApprox_bind_le_div2 : forall (A B : Set)(c1 : Comp B)(c2 : B -> Com
   lowDistApprox_bind c1 c2 a (div2 n) r1 ->
   lowDistApprox (Bind c1 c2) a n r2 ->
   r1 <= r2.
-  
+
   intuition.
-  
+
   edestruct (dat_exists_bind2).
   eauto.
   eauto.
@@ -2328,15 +2328,15 @@ Lemma lowDistApprox_bind_le_div2 : forall (A B : Set)(c1 : Comp B)(c2 : B -> Com
   eapply low_tree_approx_same_inv.
   eapply H4.
   eapply H2.
-  
+
   eapply lowDistApprox_dat_better_le.
   apply dat_correct_bind_same in H4.
   eapply dat_better_bind_div2; eauto.
   trivial.
-  
+
   Grab Existential Variables.
   eapply bind_eq_dec; eauto.
-  
+
 Qed.
 
 Lemma lowDistApprox_func : forall (A : Set)(c : Comp A) a n r1 r2,
@@ -2344,34 +2344,34 @@ Lemma lowDistApprox_func : forall (A : Set)(c : Comp A) a n r1 r2,
   lowDistApprox c a n r1 ->
   lowDistApprox c a n r2 ->
   r1 == r2.
-  
+
   intuition.
   edestruct (dat_exists).
   eauto.
   rewrite <- low_tree_approx_same_inv; eauto.
   eapply low_tree_approx_same_inv; eauto.
-  
+
   Grab Existential Variables.
   eapply comp_eq_dec; eauto.
-  
+
 Qed.
 
 Lemma lowDistApprox_bind_left_total : forall (A B : Set)(c1 : Comp B)(c2 : B -> Comp A) a,
   well_formed_comp c1 ->
-  (forall b, In b (getSupport c1) -> well_formed_comp (c2 b)) -> 
+  (forall b, In b (getSupport c1) -> well_formed_comp (c2 b)) ->
   left_total (lowDistApprox_bind c1 c2 a).
-  
+
   intuition.
   unfold left_total.
   intuition.
-  
+
   edestruct (sumList_rel_left_total).
   intuition.
   Focus 2.
   econstructor.
   econstructor.
   eauto.
-  
+
   simpl.
   edestruct lowDistApprox_left_total.
   eapply bind_eq_dec; eauto.
@@ -2379,10 +2379,10 @@ Lemma lowDistApprox_bind_left_total : forall (A B : Set)(c1 : Comp B)(c2 : B -> 
   edestruct lowDistApprox_left_total.
   eapply comp_eq_dec; eauto.
   eapply H.
-  
+
   exists (x0 * x).
   intuition.
-  
+
   eapply ratMult_eqRat_compat.
   eapply lowDistApprox_func; eauto.
   eapply lowDistApprox_func.
@@ -2396,7 +2396,7 @@ Lemma lowDistApprox_bind_div2_left_total : forall (A B : Set)(c1 : Comp B)(c2 : 
   well_formed_comp c1 ->
   (forall b, In b (getSupport c1) -> well_formed_comp (c2 b)) ->
   left_total (fun n => lowDistApprox_bind c1 c2 a (div2 n)).
-  
+
   intuition.
   unfold left_total.
   intuition.
@@ -2406,28 +2406,28 @@ Qed.
 Lemma rel_map_Rnd_NoDup : forall n ls,
   rel_map (evalDet (Rnd n)) (getAllBlists n) ls ->
   NoDup ls.
-  
+
   intuition.
   eapply rel_map_NoDup.
   eauto.
   eapply getAllBlists_NoDup.
   intuition.
   subst.
-  
+
   inversion H4; clear H4; subst.
   inversion H5; clear H5; subst.
   inversion H3; clear H3; subst.
   inversion H5; clear H5; subst.
   simpl in *.
-  
+
   edestruct shiftOut_Some.
-  
+
   eapply le_refl_gen.
   symmetry.
   eapply getAllBlists_In_length.
   eauto.
   rewrite H3 in H9.
-  
+
   edestruct shiftOut_Some.
   eapply le_refl_gen.
   symmetry.
@@ -2436,16 +2436,16 @@ Lemma rel_map_Rnd_NoDup : forall n ls,
   rewrite H4 in H8.
   destruct x.
   destruct x0.
-  
+
   inversion H9; clear H9; subst.
   inversion H8; clear H8; subst.
   simpl in *.
   inversion H11; clear H11; subst.
   inversion H10; clear H10; subst.
-  
+
   eapply H2.
   specialize (shiftOut_ls_eq _ _ H3 H4); intuition; eauto.
-  
+
   erewrite <- (firstn_eq_all_gen a1).
   erewrite <- (firstn_eq_all_gen a2).
   eauto.
@@ -2455,7 +2455,7 @@ Lemma rel_map_Rnd_NoDup : forall n ls,
   symmetry.
   eapply getAllBlists_In_length.
   trivial.
-  
+
   inversion H5; clear H5; subst.
   simpl in *.
   edestruct shiftOut_Some.
@@ -2468,41 +2468,41 @@ Lemma rel_map_Rnd_NoDup : forall n ls,
   inversion H9; clear H9; subst.
   simpl in *.
   inversion H10.
-  
+
 Qed.
 
 Lemma rel_map_Rnd_any_in : forall n ls (a : Bvector n),
   rel_map (evalDet (Rnd n)) (getAllBlists n) ls ->
   In (ca_done a) ls.
-  
+
   intuition.
   eapply (rel_map_in H _ _ (VectorDef.to_list a)).
   eapply getAllBlists_length_In.
   eapply to_list_length.
-  
+
   econstructor.
   econstructor.
   eauto.
   simpl.
-  
+
   rewrite shiftOut_to_list.
   econstructor.
   eauto.
   simpl.
   econstructor.
-  
+
   Grab Existential Variables.
   intuition.
   eapply evalDet_func; eauto.
-  
+
 Qed.
 
 Theorem lowDistApprox_Rnd: forall n2 n1 (a : Bvector n1) r,
   lowDistApprox (Rnd n1) a (n1 + n2) r ->
   r == (1 / (expnat 2 n1)).
-  
+
   induction n2; intuition; simpl in *.
-  
+
   rewrite plus_0_r in *.
   unfold lowDistApprox in *.
   destruct H.
@@ -2510,77 +2510,77 @@ Theorem lowDistApprox_Rnd: forall n2 n1 (a : Bvector n1) r,
   intuition.
   rewrite H2.
   eapply eqRat_terms.
-  
+
   eapply pred_count_eq_1_inv; eauto.
   eapply comp_answer_eq_dec.
   unfold eq_dec.
   intuition.
   eapply Bvector_eq_dec.
-  
+
   eapply rel_map_Rnd_NoDup.
   trivial.
   trivial.
-  
+
   eapply rel_map_Rnd_any_in.
   trivial.
   trivial.
 
-  
+
   unfold lowDistApprox in H.
-  destruct H. 
+  destruct H.
   destruct H.
   intuition.
-  
-  edestruct (rel_map_left_total (evalDet (Rnd n1))). 
+
+  edestruct (rel_map_left_total (evalDet (Rnd n1))).
   intuition.
   eapply evalDet_left_total.
   eapply well_formed_Rnd.
-  
+
   assert (pred_count (eq (ca_done a)) x1 x0).
   eapply pred_count_permutation.
-  
+
   eapply rel_map_permutation.
   eapply getAllBlists_perm.
   intuition.
   eapply evalDet_func; eauto.
-  
+
   Focus 2.
   eapply H0.
-    
+
   intuition.
   eapply evalDet_left_total.
   eapply well_formed_Rnd.
-  
+
   eauto.
   eauto.
-  
+
   assert ((n1 + S n2) = (S (n1 + n2)))%nat.
   omega.
   rewrite H4 in H1.
   simpl in *.
-  
+
   apply rel_map_app_inv in H1.
   intuition.
   rewrite map_length in H5.
   rewrite map_length in H6.
-  
+
   unfold lowDistApprox in *.
   apply rel_map_map_inv in H5.
   apply rel_map_map_inv in H6.
-  
+
   assert (rel_map (evalDet (Rnd n1)) (getAllBlists_app (n1 + n2)) (firstn (length (getAllBlists_app (n1 + n2))) x1)).
   eapply rel_map_eq.
   eapply H5.
   trivial.
   intuition.
-  
+
   assert (length a0 = (n1 + n2)%nat).
   eapply getAllBlists_app_In_length.
   eauto.
   inversion H8; clear H8; subst.
   inversion H10; clear H10; subst.
   simpl in *.
-  
+
   edestruct shiftOut_Some.
   assert (length a0 >= n1)%nat.
   omega.
@@ -2590,7 +2590,7 @@ Theorem lowDistApprox_Rnd: forall n2 n1 (a : Bvector n1) r,
   inversion H14; clear H14; subst.
   simpl in *.
   inversion H15; clear H15; subst.
-  
+
   econstructor.
   econstructor.
   eauto.
@@ -2600,7 +2600,7 @@ Theorem lowDistApprox_Rnd: forall n2 n1 (a : Bvector n1) r,
   eauto.
   simpl.
   econstructor.
-  
+
   inversion H10; clear H10; subst.
   simpl in *.
   case_eq (shiftOut (a0 ++ true :: nil) n1); intuition.
@@ -2610,7 +2610,7 @@ Theorem lowDistApprox_Rnd: forall n2 n1 (a : Bvector n1) r,
   simpl in *.
   inversion H15.
   rewrite H8 in H14.
-  
+
   econstructor.
   econstructor.
   eauto.
@@ -2619,20 +2619,20 @@ Theorem lowDistApprox_Rnd: forall n2 n1 (a : Bvector n1) r,
   econstructor.
   eauto.
   clear H5.
-  
+
   assert (rel_map (evalDet (Rnd n1)) (getAllBlists_app (n1 + n2)) (skipn (length (getAllBlists_app (n1 + n2))) x1)).
   eapply rel_map_eq.
   eapply H6.
   trivial.
   intuition.
-  
+
   assert (length a0 = (n1 + n2)%nat).
   eapply getAllBlists_app_In_length.
   eauto.
   inversion H8; clear H8; subst.
   inversion H10; clear H10; subst.
   simpl in *.
-  
+
   edestruct shiftOut_Some.
   assert (length a0 >= n1)%nat.
   omega.
@@ -2642,7 +2642,7 @@ Theorem lowDistApprox_Rnd: forall n2 n1 (a : Bvector n1) r,
   inversion H14; clear H14; subst.
   simpl in *.
   inversion H15; clear H15; subst.
-    
+
   econstructor.
   econstructor.
   eauto.
@@ -2652,7 +2652,7 @@ Theorem lowDistApprox_Rnd: forall n2 n1 (a : Bvector n1) r,
   eauto.
   simpl.
   econstructor.
-  
+
   inversion H10; clear H10; subst.
   simpl in *.
   case_eq (shiftOut (a0 ++ false :: nil) n1); intuition.
@@ -2662,7 +2662,7 @@ Theorem lowDistApprox_Rnd: forall n2 n1 (a : Bvector n1) r,
   simpl in *.
   inversion H15.
   rewrite H8 in H14.
-  
+
   econstructor.
   econstructor.
   eauto.
@@ -2670,17 +2670,17 @@ Theorem lowDistApprox_Rnd: forall n2 n1 (a : Bvector n1) r,
   erewrite shiftOut_app_None.
   econstructor.
   eauto.
-  
-  clear H6.    
-  
+
+  clear H6.
+
   eapply (pred_count_first_skip) in H3.
   destruct H3. destruct H3. intuition.
-  
+
   edestruct (rel_map_left_total (evalDet (Rnd n1)) (getAllBlists (n1 + n2))).
   intuition.
   eapply evalDet_left_total.
   eapply well_formed_Rnd.
-  
+
   rewrite H4 in H2.
   simpl in *.
   rewrite <- H8 in H2.
@@ -2691,10 +2691,10 @@ Theorem lowDistApprox_Rnd: forall n2 n1 (a : Bvector n1) r,
   econstructor.
   eapply expnat_pos.
   omega.
-  
+
   assert (nz 2)%nat.
   econstructor. omega.
-  
+
   eapply eqRat_trans.
   eapply ratMult_eqRat_compat.
   eapply (@eqRat_terms _ _ (x2 + x3)%nat (posnatMult (natToPosnat H10) (natToPosnat H9))).
@@ -2707,10 +2707,10 @@ Theorem lowDistApprox_Rnd: forall n2 n1 (a : Bvector n1) r,
   eapply eqRat_terms.
   eapply mult_comm.
   eapply posnatMult_1_r.
-  
+
   rewrite rat_remove_common_factor.
   eapply eqRat_terms; eauto.
-  
+
   rewrite ratAdd_den_same in H9.
 
   assert (x2 / (expnat 2 (n1 + n2)) == 1 / expnat 2 n1).
@@ -2732,7 +2732,7 @@ Theorem lowDistApprox_Rnd: forall n2 n1 (a : Bvector n1) r,
   eapply H1.
   eauto.
   eapply eqRat_terms; eauto.
-  
+
   assert (x3 / expnat 2 (n1 + n2) == 1 / expnat 2 n1).
   eapply IHn2.
   econstructor. econstructor.
@@ -2752,10 +2752,10 @@ Theorem lowDistApprox_Rnd: forall n2 n1 (a : Bvector n1) r,
   eapply H5.
   eauto.
   eapply eqRat_terms; eauto.
-  
+
   rewrite H10 in H9.
   rewrite H11 in H9.
-  rewrite ratMult_2 in H9.   
+  rewrite ratMult_2 in H9.
   eapply ratMult_same_r_inv.
   eauto.
   rattac.
@@ -2764,7 +2764,7 @@ Qed.
 Definition indicator_rel (A : Set)(P : A -> bool) a (r : Rat) :=
   (P a = true /\ r == 1) \/ (P a = false /\ r == 0).
 
-Definition lowDistApprox_repeat (A : Set)(c : Comp A)(P : A -> bool) a n : Rat -> Prop := 
+Definition lowDistApprox_repeat (A : Set)(c : Comp A)(P : A -> bool) a n : Rat -> Prop :=
   let approx := lowDistApprox c a n in
     let empty := sumList_rel (fun a => lowDistApprox c a n) (filter (fun a => negb (P a)) (getSupport c)) in
   ratMult_rel (ratMult_rel (indicator_rel P a)
@@ -2800,7 +2800,7 @@ Lemma lowDistApprox_repeat_left_total : forall (A : Set)(c : Comp A)(P : A -> bo
   intuition.
   eapply lowDistApprox_func;
   eauto.
-  
+
   edestruct (@lowDistApprox_left_total).
   eapply comp_eq_dec; eauto.
   eauto.
@@ -2825,7 +2825,7 @@ Lemma lowDistApprox_repeat_left_total : forall (A : Set)(c : Comp A)(P : A -> bo
   rewrite H4.
   intuition.
   eapply lowDistApprox_func; eauto.
-  
+
 Qed.
 
 
@@ -2870,7 +2870,7 @@ exists t1 : DistApproxTree A,
 Lemma datRepeat_left_total : forall n (A : Set)(eqd : eq_dec A)(t : DistApproxTree A)(f : DistApproxTree A -> Prop) P,
    (exists b : DistApproxTree A, f b) ->
    exists t', datRepeat f P n t t'.
-  
+
   induction n.
   induction t; intuition.
   destruct o.
@@ -2897,12 +2897,12 @@ Lemma datRepeat_left_total : forall n (A : Set)(eqd : eq_dec A)(t : DistApproxTr
   destruct H.
   edestruct (IHn _ eqd x).
   eauto.
-  
+
   case_eq (P a); intuition.
-  econstructor.  
+  econstructor.
   econstructor.
   trivial.
-  
+
   edestruct IHn; eauto.
   econstructor.
   eapply datRepeat_leaf_Some_repeat.
@@ -2949,7 +2949,7 @@ Fixpoint computeEmptySpace(A : Set)(t : DistApproxTree A)(P : A -> bool) :=
   match t with
     | dat_leaf o =>
       match o with
-        | Some a => indicator (fun a' => (negb (P a'))) a 
+        | Some a => indicator (fun a' => (negb (P a'))) a
         | None => 0
       end
     | dat_internal t1 t2 =>
@@ -2958,7 +2958,7 @@ Fixpoint computeEmptySpace(A : Set)(t : DistApproxTree A)(P : A -> bool) :=
 
 Lemma computeEmptySpace_correct : forall (A : Set)(eqd : eq_dec A)(t : DistApproxTree A) P,
   sumList (filter (fun a => negb (P a)) (getTreeSupport eqd t)) (lowDistApproxFromTree eqd t) == (computeEmptySpace t P).
-  
+
   induction t; intuition; simpl in *.
   destruct o.
   simpl.
@@ -2974,13 +2974,13 @@ Lemma computeEmptySpace_correct : forall (A : Set)(eqd : eq_dec A)(t : DistAppro
   unfold sumList.
   simpl.
   intuition.
-  
+
   rewrite sumList_sum.
   unfold getTreeSupport.
   simpl.
   eapply ratAdd_eqRat_compat.
   rewrite sumList_factor_constant_r.
-  
+
   rewrite <- sumList_subset'.
   rewrite IHt1.
   eapply ratMult_comm.
@@ -3007,7 +3007,7 @@ Lemma computeEmptySpace_correct : forall (A : Set)(eqd : eq_dec A)(t : DistAppro
   intuition.
   apply filter_In in H.
   intuition.
-  
+
   rewrite sumList_factor_constant_r.
   rewrite <- sumList_subset'.
   rewrite IHt2.
@@ -3041,7 +3041,7 @@ Lemma lowDistApprox_val_eq : forall (A : Set)(c : Comp A) a n r1 r2,
   lowDistApprox c a n r1 ->
   r1 == r2 ->
   lowDistApprox c a n r2.
- 
+
   intuition.
   unfold lowDistApprox in *.
   destruct H. destruct H. intuition.
@@ -3054,18 +3054,18 @@ Qed.
 
 Lemma repeat_low_tree_approx_same_tree_inv : forall (A : Set)(eqd : eq_dec A)(P : A -> bool)(t1 t2 t3 : DistApproxTree A) n a,
   datRepeat (eq t3) P n t1 t2 ->
-  lowDistApproxFromTree eqd t2 a == 
-  indicator P a * 
-  ((lowDistApproxFromTree eqd t1 a) + 
-    (computeEmptySpace t1 P) * 
+  lowDistApproxFromTree eqd t2 a ==
+  indicator P a *
+  ((lowDistApproxFromTree eqd t1 a) +
+    (computeEmptySpace t1 P) *
     sumList (getNats 0 n) (expRat (computeEmptySpace t3 P)) * (lowDistApproxFromTree eqd t3 a)).
-  
+
   induction 1; intuition; simpl in *.
   repeat rewrite ratMult_0_l.
   rewrite <- ratAdd_0_l.
   rewrite ratMult_0_r.
   intuition.
-  
+
   destruct (eqd a a0); subst.
   unfold indicator.
   rewrite H.
@@ -3081,7 +3081,7 @@ Lemma repeat_low_tree_approx_same_tree_inv : forall (A : Set)(eqd : eq_dec A)(P 
   repeat rewrite ratMult_0_l.
   rewrite ratMult_0_r.
   intuition.
-  
+
   destruct (eqd a a0); subst.
   unfold indicator.
   rewrite H.
@@ -3096,7 +3096,7 @@ Lemma repeat_low_tree_approx_same_tree_inv : forall (A : Set)(eqd : eq_dec A)(P 
   rewrite ratMult_0_l.
   rewrite ratMult_0_r.
   intuition.
-  
+
   rewrite IHdatRepeat.
   destruct (eqd a a0); subst.
   unfold indicator.
@@ -3109,27 +3109,27 @@ Lemma repeat_low_tree_approx_same_tree_inv : forall (A : Set)(eqd : eq_dec A)(P 
   rewrite H0.
   simpl.
   rewrite ratMult_1_l.
-  
+
   rewrite <- sumList_factor_constant_l.
-  
+
   rewrite sumList_series_incr.
-  
+
   Focus 2.
   intuition.
   assert (computeEmptySpace t P * expRat (computeEmptySpace t P) n1 == expRat (computeEmptySpace t P) (S n1)).
   simpl.
   intuition.
   eauto.
-  
+
   rewrite sumList_series_split_first.
   simpl.
   rewrite ratMult_distrib_r.
   rewrite ratMult_1_l.
   intuition.
- 
+
   rewrite IHdatRepeat1.
   rewrite IHdatRepeat2.
-  
+
   remember (sumList (getNats 0 n) (expRat (computeEmptySpace t3 P))) as v1.
   remember (lowDistApproxFromTree eqd t1 a) as v2.
   remember (computeEmptySpace t1 P) as v3.
@@ -3137,7 +3137,7 @@ Lemma repeat_low_tree_approx_same_tree_inv : forall (A : Set)(eqd : eq_dec A)(P 
   remember (lowDistApproxFromTree eqd t3 a) as v5.
   remember (lowDistApproxFromTree eqd t2 a) as v6.
   remember (computeEmptySpace t2 P) as v7.
-  
+
   rewrite ratMult_assoc.
   rewrite (ratMult_assoc v4 (v6 + v7 * v1 * v5) (1 / 2)).
   rewrite <- ratMult_distrib.
@@ -3156,14 +3156,14 @@ Lemma repeat_low_tree_approx_same_tree_inv : forall (A : Set)(eqd : eq_dec A)(P 
   rewrite ratMult_comm.
   repeat rewrite <- ratMult_assoc.
   intuition.
-  
+
 Qed.
 
 Lemma datRepeat_func_eq : forall n (A : Set)(t1 t2 : DistApproxTree A) f P (P' : DistApproxTree A -> Prop),
   datRepeat f P n t1 t2 ->
   (forall t, f t -> P' t) ->
   datRepeat P' P n t1 t2.
-  
+
   induction 1; intuition; simpl in *.
   econstructor.
   econstructor.
@@ -3183,27 +3183,27 @@ Lemma repeat_low_tree_approx_same_inv
     well_formed_comp c ->
     (exists a, In a (filter P (getSupport c))) ->
     lowDistApprox_repeat c P a n r ->
-    dat_correct_repeat2 c P n t -> 
+    dat_correct_repeat2 c P n t ->
     n > 0 ->
     r == lowDistApproxFromTree eqd t a.
-  
+
   intuition.
-  
-  destruct H2. 
+
+  destruct H2.
   intuition.
   unfold lowDistApprox_repeat, ratMult_rel, expRat_rel, indicator_rel in *.
   unfold dat_correct in *.
   symmetry.
 
-  edestruct (sumList_rel_left_total 
+  edestruct (sumList_rel_left_total
     (fun (i : nat) (r : Rat) =>
            forall r1'1 : Rat,
            sumList_rel (fun a : A => lowDistApprox c a n)
              (filter (fun a : A => negb (P a)) (getSupport c)) r1'1 ->
            r == expRat r1'1 i)
-    (getNats O (S n))). 
+    (getNats O (S n))).
   intuition.
-  
+
   edestruct (sumList_rel_left_total (fun a : A => lowDistApprox c a n) (filter (fun a : A => negb (P a)) (getSupport c))).
   intuition.
   eapply lowDistApprox_left_total.
@@ -3248,7 +3248,7 @@ Lemma repeat_low_tree_approx_same_inv
   eapply filter_In; intuition; eauto.
   apply filter_In in H8.
   intuition.
-  
+
   intuition.
   exfalso.
   eapply H9.
@@ -3259,7 +3259,7 @@ Lemma repeat_low_tree_approx_same_inv
   eauto.
   apply filter_In in H8.
   intuition.
-  
+
   assert (sumList_rel (fun i => expRat_rel (eqRat x2) i) (getNats O (S n)) x0).
   eapply sumList_rel_body_eq.
   eapply H2.
@@ -3295,7 +3295,7 @@ Lemma repeat_low_tree_approx_same_inv
   rewrite <- H2.
   clear H9.
   clear H2.
-  
+
   assert (x1 == (lowDistApproxFromTree eqd x a)).
   eapply lowDistApprox_func.
   eauto.
@@ -3303,10 +3303,10 @@ Lemma repeat_low_tree_approx_same_inv
   eapply low_tree_approx_same; eauto.
   rewrite H2.
 
-  
+
   assert (x2 == (computeEmptySpace x P)).
-  assert (sumList 
-         (filter (fun a : A => negb (P a)) (getTreeSupport eqd x)) 
+  assert (sumList
+         (filter (fun a : A => negb (P a)) (getTreeSupport eqd x))
          (fun a : A => lowDistApproxFromTree eqd x a) == x2).
   eapply sumList_rel_func.
   eapply sumList_rel_sumList_eqRat.
@@ -3326,7 +3326,7 @@ Lemma repeat_low_tree_approx_same_inv
   rewrite H9.
   intuition.
   rewrite <- H7.
-  eauto. 
+  eauto.
 
   eapply computeEmptySpace_correct; eauto.
 
@@ -3397,7 +3397,7 @@ Lemma dat_better_antisymm : forall (A : Set)(t1 t2 : DistApproxTree A),
   dat_better t1 t2 ->
   dat_better t2 t1 ->
   t1 = t2.
-  
+
   induction 1; inversion 1; intuition; subst; trivial.
 Qed.
 
@@ -3426,7 +3426,7 @@ Lemma dat_correct_h_repeat_app : forall (A : Set) t (c : Comp A)(P : A -> bool) 
   econstructor.
   rewrite H0 in H3.
   eauto.
- 
+
   econstructor.
   intuition.
   inversion H1; clear H1; subst.
@@ -3442,7 +3442,7 @@ Lemma dat_correct_h_repeat_app : forall (A : Set) t (c : Comp A)(P : A -> bool) 
   rewrite H0.
   simpl.
   eauto.
-  
+
   inversion H1; clear H1; subst.
   econstructor.
   intuition.
@@ -3502,9 +3502,9 @@ Lemma datRepeat_depth_0 : forall n2 n1 (A : Set)(f : nat -> DistApproxTree A -> 
   n2 >= n1 ->
   f O (dat_leaf None) ->
   datRepeat_depth f P n2 O t1 t2.
-  
+
   induction n2; intuition; subst.
-  
+
   inversion H; clear H; subst.
   econstructor.
   econstructor.
@@ -3512,9 +3512,9 @@ Lemma datRepeat_depth_0 : forall n2 n1 (A : Set)(f : nat -> DistApproxTree A -> 
   econstructor.
   trivial.
   trivial.
-  
+
   omega.
-  
+
   inversion H; clear H; subst.
   econstructor.
   econstructor; trivial.
@@ -3522,7 +3522,7 @@ Lemma datRepeat_depth_0 : forall n2 n1 (A : Set)(f : nat -> DistApproxTree A -> 
   trivial.
   eauto.
   econstructor.
-  
+
   econstructor; eauto.
   eapply IHn2; eauto.
   omega.
@@ -3532,15 +3532,15 @@ Lemma dat_correct_repeat_same_h : forall depth repeats (A : Set)(c : Comp A) P l
   dat_correct_h (Repeat c P) ls depth t ->
   well_formed_comp c ->
   In a (filter P (getSupport c)) ->
-  (forall a' n' ls', 
-    evalDet_steps (cs_more c (firstn n' ls)) (cs_done a' ls') -> 
-    ls' = nil)  -> 
-  dat_correct_h c ls depth t1 ->  
+  (forall a' n' ls',
+    evalDet_steps (cs_more c (firstn n' ls)) (cs_done a' ls') ->
+    ls' = nil)  ->
+  dat_correct_h c ls depth t1 ->
   repeats >= depth ->
   datRepeat_depth (dat_correct_h c nil) P repeats depth t1 t.
 
   induction depth; intuition.
-  
+
   inversion H; clear H; subst.
   inversion H5; clear H5; subst.
   inversion H6; clear H6; subst.
@@ -3726,7 +3726,7 @@ Lemma dat_correct_repeat_same_h : forall depth repeats (A : Set)(c : Comp A) P l
   eauto.
   simpl.
   econstructor.
-  
+
   destruct repeats.
   omega.
 
@@ -3868,7 +3868,7 @@ Lemma dat_correct_repeat_same_h : forall depth repeats (A : Set)(c : Comp A) P l
   assert (n' <= length ls)%nat.
   rewrite app_length in n.
   simpl in *.
-  omega. 
+  omega.
   rewrite firstn_app in H3.
   assert (ls = firstn n' ls ++ skipn n' ls).
   symmetry.
@@ -3907,7 +3907,7 @@ Lemma dat_correct_repeat_same_h : forall depth repeats (A : Set)(c : Comp A) P l
   assert (n' <= length ls)%nat.
   rewrite app_length in n.
   simpl in *.
-  omega. 
+  omega.
   rewrite firstn_app in H3.
   assert (ls = firstn n' ls ++ skipn n' ls).
   symmetry.
@@ -3929,7 +3929,7 @@ Lemma dat_correct_repeat_same:
   forall n (A : Set) (t : DistApproxTree A) (c : Comp A) (P : A -> bool),
   well_formed_comp c ->
   (exists a, In a (filter P (getSupport c))) ->
-  dat_correct (Repeat c P) n t -> 
+  dat_correct (Repeat c P) n t ->
   dat_correct_repeat c P n t.
 
   intuition.
@@ -3953,7 +3953,7 @@ Lemma datRepeat_depth_better: forall (n2 : nat) (A : Set) (t2 t1 t1' : DistAppro
     reps >= n2 ->
     datRepeat (rel n1) P n2 t2 t2' ->
     dat_better t1 t2 ->
-    depth >= n1 * n2 + datDepth t2 -> 
+    depth >= n1 * n2 + datDepth t2 ->
     (forall (n1 n2: nat) (t3 t4 : DistApproxTree A),
       rel n1 t3 -> rel n2 t4 -> n1 >= n2 -> dat_better t3 t4) ->
     (forall a, rel 0%nat (dat_leaf (Some a)) -> P a = true) ->
@@ -3986,7 +3986,7 @@ Lemma datRepeat_depth_better: forall (n2 : nat) (A : Set) (t2 t1 t1' : DistAppro
   omega.
   eauto.
   eauto.
-  rewrite mult_0_r; simpl. 
+  rewrite mult_0_r; simpl.
   eapply Max.max_lub_l.
   eauto.
   trivial.
@@ -3999,7 +3999,7 @@ Lemma datRepeat_depth_better: forall (n2 : nat) (A : Set) (t2 t1 t1' : DistAppro
   omega.
   eauto.
   trivial.
-  rewrite mult_0_r; simpl. 
+  rewrite mult_0_r; simpl.
   eapply Max.max_lub_r.
   eauto.
   trivial.
@@ -4019,7 +4019,7 @@ Lemma datRepeat_depth_better: forall (n2 : nat) (A : Set) (t2 t1 t1' : DistAppro
   inversion H; clear H; subst.
   congruence.
   omega.
-  
+
   rewrite mult_comm in H3.
   simpl in *.
 
@@ -4063,7 +4063,7 @@ Lemma datRepeat_depth_better: forall (n2 : nat) (A : Set) (t2 t1 t1' : DistAppro
   trivial.
   trivial.
   trivial.
-  
+
   eapply IHt2_2.
   eauto.
   trivial.
@@ -4083,7 +4083,7 @@ Qed.
 Lemma dat_better_repeat_sqrt : forall (A : Set) (c : Comp A)(P : A -> bool)(n : nat) (t1 t2 : DistApproxTree A),
   (exists a, In a (filter P (getSupport c))) ->
   dat_correct_repeat c P n t1 ->
-  dat_correct_repeat2 c P (Nat.sqrt (div2 n)) t2 -> 
+  dat_correct_repeat2 c P (Nat.sqrt (div2 n)) t2 ->
   well_formed_comp c ->
   dat_better t1 t2.
 
@@ -4092,7 +4092,7 @@ Lemma dat_better_repeat_sqrt : forall (A : Set) (c : Comp A)(P : A -> bool)(n : 
   destruct H0.
   destruct H1.
   intuition.
-  
+
   eapply datRepeat_depth_better.
   eauto.
   Focus 2.
@@ -4105,7 +4105,7 @@ Lemma dat_better_repeat_sqrt : forall (A : Set) (c : Comp A)(P : A -> bool)(n : 
   eauto.
   eapply sqrt_le_lin_gen.
   eapply div2_le.
-  
+
   eapply le_trans.
   eapply plus_le_compat.
   eapply Nat.sqrt_spec.
@@ -4131,7 +4131,7 @@ Lemma dat_better_repeat_sqrt : forall (A : Set) (c : Comp A)(P : A -> bool)(n : 
 
   intuition.
   eapply datCorrect_datDepth; eauto.
-  
+
 Qed.
 
 
@@ -4139,12 +4139,12 @@ Lemma lowDistApprox_repeat_sqrt_le : forall n (A : Set)(c : Comp A)(P : A -> boo
   well_formed_comp c ->
   (exists a, In a (filter P (getSupport c))) ->
   lowDistApprox (Repeat c P) a n v1 ->
-  lowDistApprox_repeat c P a (Nat.sqrt (div2 n)) v2 -> 
+  lowDistApprox_repeat c P a (Nat.sqrt (div2 n)) v2 ->
   n > 1 ->
   v2 <= v1.
 
   intuition.
-  
+
   edestruct (dat_exists_repeat2).
   eauto.
   rewrite repeat_low_tree_approx_same_inv; eauto.
@@ -4160,7 +4160,7 @@ Lemma lowDistApprox_repeat_sqrt_le : forall n (A : Set)(c : Comp A)(P : A -> boo
   eapply low_tree_approx_same_inv.
   eapply H0.
   eapply H1.
-  
+
   eapply lowDistApprox_dat_better_le.
   eapply dat_correct_repeat_same in H0.
   eapply dat_better_repeat_sqrt; eauto.
@@ -4172,7 +4172,7 @@ Lemma lowDistApprox_repeat_sqrt_le : forall n (A : Set)(c : Comp A)(P : A -> boo
   destruct n.
   omega.
   simpl.
-  
+
   eapply lt_le_trans.
   econstructor.
   eapply le_trans.
@@ -4183,7 +4183,7 @@ Lemma lowDistApprox_repeat_sqrt_le : forall n (A : Set)(c : Comp A)(P : A -> boo
 
   Grab Existential Variables.
   eapply comp_eq_dec; eauto.
-  
+
 Qed.
 
 Lemma datRepeat_better_depth: forall (A : Set) n2 (t2 t1 t1' : DistApproxTree A)(rel : nat -> DistApproxTree A -> Prop) reps depth (P : A -> bool),
@@ -4192,7 +4192,7 @@ Lemma datRepeat_better_depth: forall (A : Set) n2 (t2 t1 t1' : DistApproxTree A)
     datRepeat_depth rel P reps depth t1 t1' ->
     dat_better t2 t1 ->
     n1 >= depth ->
-    n2 >= reps ->  
+    n2 >= reps ->
     (forall (n1 n2: nat) (t3 t4 : DistApproxTree A),
       rel n1 t3 -> rel n2 t4 -> n1 >= n2 -> dat_better t3 t4) ->
     (forall a, rel 0%nat (dat_leaf (Some a)) -> P a = true) ->
@@ -4256,7 +4256,7 @@ Lemma dat_repeat_better:
     (t1 t2 : DistApproxTree A),
     (exists a : A, In a (filter P (getSupport c))) ->
     dat_correct_repeat c P n t1 ->
-    dat_correct_repeat2 c P n t2 -> 
+    dat_correct_repeat2 c P n t2 ->
     dat_better t2 t1.
 
   intuition.
@@ -4264,7 +4264,7 @@ Lemma dat_repeat_better:
   destruct H0.
   destruct H1.
   intuition.
-  
+
   eapply datRepeat_better_depth.
   eauto.
   eauto.
@@ -4274,7 +4274,7 @@ Lemma dat_repeat_better:
   omega.
   omega.
   omega.
-  
+
   intuition.
   eapply dat_correct_dat_better; eauto.
 
@@ -4287,7 +4287,7 @@ Lemma dat_repeat_better:
   eapply filter_In; eauto.
   subst.
   eapply filter_In; eauto.
-  
+
   intuition.
   destruct H.
   eapply datCorrect_datDepth.
@@ -4299,7 +4299,7 @@ Lemma lowDistApprox_le_repeat:
     well_formed_comp c ->
     (exists a0 : A, In a0 (filter P (getSupport c))) ->
     lowDistApprox (Repeat c P) a n v1 ->
-    lowDistApprox_repeat c P a n v2 -> 
+    lowDistApprox_repeat c P a n v2 ->
     n > O ->
     v1 <= v2.
 
@@ -4323,14 +4323,14 @@ Lemma lowDistApprox_le_repeat:
   eapply low_tree_approx_same_inv.
   eauto.
   eauto.
-  
+
   apply lowDistApprox_dat_better_le.
 
   eapply dat_repeat_better.
   econstructor; eauto.
   eapply dat_correct_repeat_same; eauto.
   trivial.
-  
+
   Grab Existential Variables.
   eapply comp_eq_dec; eauto.
 Qed.
@@ -4339,7 +4339,7 @@ Lemma lowDistApprox_Rnd_lt : forall n1 n2 a r,
   lowDistApprox (Rnd n1) a n2 r ->
   n2 < n1 ->
   r == 0.
-  
+
   intuition.
   unfold lowDistApprox in *.
   destruct H.
@@ -4360,19 +4360,19 @@ Lemma lowDistApprox_Rnd_lt : forall n1 n2 a r,
   econstructor.
   eauto.
   simpl.
-  
+
   rewrite shiftOut_lt.
   econstructor.
   erewrite getAllBlists_In_length.
   eauto.
   trivial.
-  
+
   intuition.
   eapply evalDet_func; eauto.
   subst.
   apply in_listRepeat_inv in H2.
   discriminate.
-  
+
   subst.
   eapply rat_num_0.
 Qed.
@@ -4380,31 +4380,31 @@ Qed.
 Lemma evalDet_step_done_support_singleton : forall (A : Set)(c : Comp A) a s,
   evalDet_step c nil = (cs_done a s) ->
   getSupport c = a :: nil.
-  
+
   induction c; intuition; simpl in *.
   inversion H; clear H; subst.
   trivial.
-  
+
   case_eq (evalDet_step c nil); intuition;
     rewrite H1 in H0;
       try discriminate.
-  
+
   destruct n; simpl.
   discriminate.
   discriminate.
-  
+
   discriminate.
-  
+
 Qed.
 
 Lemma lowDistApprox_low : forall (A : Set)(c : Comp A),
-  well_formed_comp c -> 
-  forall n a r, 
+  well_formed_comp c ->
+  forall n a r,
   lowDistApprox c a n r ->
   r <= evalDist c a.
 
   induction 1; intuition; simpl in *.
-  
+
   rewrite lowDistApprox_Ret_inv; eauto.
   eapply leRat_refl.
 
@@ -4441,7 +4441,7 @@ Lemma lowDistApprox_low : forall (A : Set)(c : Comp A),
   eauto.
   omega.
 
-  destruct n. 
+  destruct n.
   destruct H1.
   destruct H1.
   intuition.
@@ -4531,9 +4531,9 @@ Lemma lowDistApprox_low : forall (A : Set)(c : Comp A),
           forall r1' : Rat,
           sumList_rel (fun a : A => lowDistApprox c a (S n))
             (filter (fun a : A => negb (P a)) (getSupport c)) r1' ->
-          r == expRat r1' i) 
+          r == expRat r1' i)
      (getNats 0 (S (S n)))).
-  intuition.  
+  intuition.
   econstructor.
   intuition.
   eapply expRat_eqRat_compat; eauto.
@@ -4574,7 +4574,7 @@ Lemma lowDistApprox_low : forall (A : Set)(c : Comp A),
   intuition.
   eapply lowDistApprox_func;
   eauto.
- 
+
   Focus 3.
   unfold ratMult_rel, ratSubtract_rel, expRat_rel, ratInverse_rel.
   intuition.
@@ -4601,7 +4601,7 @@ Lemma lowDistApprox_low : forall (A : Set)(c : Comp A),
   eapply ratMult_leRat_compat.
   eapply ratSubtract_le.
   eapply leRat_refl.
-  
+
   eapply ratInverse_leRat.
   Focus 2.
   eapply ratSubtract_leRat.
@@ -4629,7 +4629,7 @@ Lemma lowDistApprox_low : forall (A : Set)(c : Comp A),
   rewrite ratMult_1_l.
   eapply eqRat_impl_leRat.
   eapply ratInverse_eqRat_compat.
-  
+
   intuition.
   eapply getSupport_In_evalDist.
   eapply filter_In; eauto.
@@ -4647,7 +4647,7 @@ Lemma lowDistApprox_low : forall (A : Set)(c : Comp A),
   rewrite ratAdd_comm.
   rewrite ratSubtract_ratAdd_inverse.
   intuition.
- 
+
   intuition.
 
   eapply ratAdd_not_leRat.
@@ -4675,7 +4675,7 @@ Lemma lowDistApprox_low : forall (A : Set)(c : Comp A),
   eapply filter_In; eauto.
   rewrite negb_involutive.
   eapply filter_In; eauto.
-  
+
   eapply IHwell_formed_comp; eauto.
 
   rewrite H2; eauto.
@@ -4700,7 +4700,7 @@ Qed.
 Lemma lowDistApprox_repeat_scale_limit : forall (A : Set)(c : Comp A)(P : A -> bool),
   well_formed_comp c ->
   (exists a, In a (filter P (getSupport c))) ->
-  (forall a, rat_inf_limit (lowDistApprox c a) (evalDist c a)) -> 
+  (forall a, rat_inf_limit (lowDistApprox c a) (evalDist c a)) ->
   rat_inf_limit
      (fun n : nat =>
       sumList_rel
@@ -4730,7 +4730,7 @@ Lemma lowDistApprox_repeat_scale_limit : forall (A : Set)(c : Comp A)(P : A -> b
   assert (sumList (filter (fun a0 : A => negb (P a0)) (getSupport c)) (evalDist c) == 1).
   eapply leRat_impl_eqRat.
   eapply leRat_trans.
-  
+
   eapply sumList_filter_le.
   rewrite evalDist_lossless.
   intuition.
@@ -4745,11 +4745,11 @@ Lemma lowDistApprox_repeat_scale_limit : forall (A : Set)(c : Comp A)(P : A -> b
   rewrite <- H6.
   eapply lowDistApprox_low.
   eauto.
-  eauto. 
-  
+  eauto.
+
   rewrite <- evalDist_lossless in H4; eauto.
   rewrite (sumList_filter_partition P (getSupport c)) in H4.
- 
+
   symmetry in H4.
   rewrite ratAdd_comm in H4.
   apply ratAdd_arg_0 in H4.
@@ -4762,7 +4762,7 @@ Lemma lowDistApprox_repeat_scale_limit : forall (A : Set)(c : Comp A)(P : A -> b
   intuition.
 
   eapply sumList_filter_evalDist_le_1; eauto.
-    
+
   intuition.
   eapply sumList_rel_left_total.
   intuition.
@@ -4773,7 +4773,7 @@ Lemma lowDistApprox_repeat_scale_limit : forall (A : Set)(c : Comp A)(P : A -> b
   eapply sumList_rel_func; eauto.
   intuition.
   eapply lowDistApprox_func; eauto.
-  
+
   eapply ratInverse_eqRat_compat.
   intuition.
   apply ratSubtract_0_inv in H2.
@@ -4849,7 +4849,7 @@ Lemma lowDistApprox_repeat_limit : forall (A : Set)(c : Comp A)(P : A -> bool) a
   rewrite H6; eauto.
   rewrite H8; eauto.
   intuition.
-  
+
   rewrite H4.
   rewrite H7.
   repeat rewrite ratMult_0_l.
@@ -4864,7 +4864,7 @@ Lemma lowDistApprox_repeat_limit : forall (A : Set)(c : Comp A)(P : A -> bool) a
   intuition.
   exists (if (P a) then 1 else 0).
   destruct (P a); intuition.
-  
+
   unfold left_total.
   intuition.
   edestruct (sumList_rel_left_total (fun a0 : A => lowDistApprox c a0 n)
@@ -4943,7 +4943,7 @@ Lemma lowDistApprox_repeat_limit : forall (A : Set)(c : Comp A)(P : A -> bool) a
   eapply sumList_rel_func; eauto.
   intuition.
   eapply lowDistApprox_func; eauto.
-  
+
   unfold left_total. intuition.
   eapply sumList_rel_left_total.
   intuition.
@@ -4972,17 +4972,17 @@ Lemma lowDistApprox_repeat_limit : forall (A : Set)(c : Comp A)(P : A -> bool) a
   assert (sumList (filter (fun a0 : A => negb (P a0)) (getSupport c)) (evalDist c) == 1).
   eapply leRat_impl_eqRat.
   eapply leRat_trans.
-  
+
   eapply sumList_filter_le.
   rewrite evalDist_lossless.
   intuition.
   trivial.
   eapply H2.
   clear H2.
-  
+
   rewrite <- evalDist_lossless in H3; eauto.
   rewrite (sumList_filter_partition P (getSupport c)) in H3.
- 
+
   destruct H0.
   symmetry in H3.
   rewrite ratAdd_comm in H3.
@@ -4998,7 +4998,7 @@ Lemma lowDistApprox_repeat_limit : forall (A : Set)(c : Comp A)(P : A -> bool) a
   eapply lowDistApprox_left_total.
   eapply comp_eq_dec; eauto.
   trivial.
-  
+
   eapply lowDistApprox_repeat_scale_limit.
   trivial.
   trivial.
@@ -5006,7 +5006,7 @@ Lemma lowDistApprox_repeat_limit : forall (A : Set)(c : Comp A)(P : A -> bool) a
   rewrite <- ratAdd_0_l.
   intuition.
 
-  unfold left_total. 
+  unfold left_total.
   intuition.
   eapply ratAdd_rel_left_total.
   eapply expRat_rel_left_total.
@@ -5043,7 +5043,7 @@ Lemma lowDistApprox_repeat_limit : forall (A : Set)(c : Comp A)(P : A -> bool) a
   eapply lowDistApprox_left_total.
   eapply comp_eq_dec; eauto.
   trivial.
-  
+
   intuition.
   eapply sumList_rel_func; eauto.
   intuition.
@@ -5100,8 +5100,8 @@ Lemma lowDistApprox_limit_repeat : forall (A : Set)(c : Comp A)(P : A -> bool) a
   eapply well_formed_Repeat; eauto.
   eapply comp_eq_dec; eauto.
   eauto.
-  
-  eapply lowDistApprox_repeat_sqrt_div2_left_total. 
+
+  eapply lowDistApprox_repeat_sqrt_div2_left_total.
 
   unfold left_total; intuition.
   econstructor.
@@ -5120,16 +5120,16 @@ Theorem evalDet_evalDist_equiv : forall (A : Set)(c : Comp A),
   simpl.
   eapply leRat_trans.
   eapply eqRat_impl_leRat.
-  
+
   eapply (ratIdentityIndiscernables a').
   eapply lowDistApprox_Ret_inv. eauto.
   eapply rat0_le_all.
- 
+
   eapply (@rat_inf_limit_squeeze (fun n => lowDistApprox_bind c1 c2 a (div2 n)) (lowDistApprox_bind c1 c2 a)); intuition.
   eapply rat_inf_limit_div_2.
   eapply lowDistApprox_bind_evalDist_limit; eauto.
   eapply lowDistApprox_bind_evalDist_limit; eauto.
-    
+
   eapply lowDistApprox_bind_le_div2; eauto.
   eapply lowDistApprox_le_bind; eauto.
 
@@ -5161,52 +5161,52 @@ Theorem evalDet_evalDist_equiv : forall (A : Set)(c : Comp A),
   Grab Existential Variables.
   (* todo: make a version of the squeeze theorem that doesn't have the extra nat. *)
   eapply O.
-  
+
 Qed.
 
-Lemma evalDet_equiv_impl_lowDistApprox_equiv : 
-  forall (A : Set)(c1 c2 : Comp A), 
+Lemma evalDet_equiv_impl_lowDistApprox_equiv :
+  forall (A : Set)(c1 c2 : Comp A),
     evalDet_equiv c1 c2 ->
     forall a n r,
       lowDistApprox c1 a n r <-> lowDistApprox c2 a n r.
-  
+
   intuition.
   unfold lowDistApprox, evalDet_equiv in *.
   destruct H0. destruct H0. intuition.
   exists x.
   exists x0.
   intuition.
-  
+
   eapply rel_map_impl.
   eapply H1.
   intuition.
   eapply H.
   trivial.
-  
+
   unfold lowDistApprox, evalDet_equiv in *.
   destruct H0. destruct H0. intuition.
   exists x.
   exists x0.
   intuition.
-  
+
   eapply rel_map_impl.
   eapply H1.
   intuition.
   eapply H.
-  trivial.    
-  
+  trivial.
+
 Qed.
 
 Theorem det_eq_impl_dist_sem_eq : forall (A : Set)(c1 c2 : Comp A),
   well_formed_comp c1 ->
   well_formed_comp c2 -> (* perhaps we can conclude this from the equivalence? *)
-  evalDet_equiv c1 c2 -> 
+  evalDet_equiv c1 c2 ->
   dist_sem_eq c1 c2.
 
   unfold dist_sem_eq.
   intuition.
 
-  (* The proof uses the fact that, for all a, the limit of the low approximation function for the deterministic semantics applied to a equals the distribution computation function applied to a.  Then we use the fact that limits are unique to complete the proof. *)  
+  (* The proof uses the fact that, for all a, the limit of the low approximation function for the deterministic semantics applied to a equals the distribution computation function applied to a.  Then we use the fact that limits are unique to complete the proof. *)
 
   eapply rat_limits_eq.
   Focus 2.

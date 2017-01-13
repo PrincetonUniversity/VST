@@ -31,7 +31,7 @@ Definition rat0 := (RatIntro 0 (pos 1)).
 
 Definition ratAdd(r1 r2 : Rat) : Rat :=
   match ratCD r1 r2 with
-    | (n1, n2, d) => 
+    | (n1, n2, d) =>
       RatIntro (n1 + n2) d
   end.
 
@@ -43,20 +43,20 @@ Definition ratSubtract(r1 r2: Rat) : Rat :=
 
 Definition beqRat(r1 r2 : Rat) :=
   match (ratCD r1 r2) with
-    | (n1, n2, _) => 
+    | (n1, n2, _) =>
       if (eq_nat_dec n1 n2) then true else false
   end.
 
 Definition bleRat(r1 r2 : Rat) :=
   match (ratCD r1 r2) with
-    | (n1, n2, _) => 
+    | (n1, n2, _) =>
       if (le_gt_dec n1 n2) then true else false
   end.
 
 Definition eqRat(r1 r2 : Rat) :=
   beqRat r1 r2 = true.
 
-Definition leRat(r1 r2 : Rat) := 
+Definition leRat(r1 r2 : Rat) :=
   bleRat r1 r2 = true.
 
 Definition maxRat(r1 r2 : Rat) :=
@@ -68,8 +68,8 @@ Definition minRat(r1 r2 : Rat) :=
 Definition ratDistance(r1 r2 : Rat) :=
   ratSubtract (maxRat r1 r2) (minRat r1 r2).
 
-Ltac rattac_one := 
-  match goal with 
+Ltac rattac_one :=
+  match goal with
     (* rules that solve goals *)
     | [|- posnatMult ?x1 ?x2 = posnatMult ?x2 ?x1] => apply posnatMult_comm
     | [|- posnatToNat (posnatMult ?x1 ?x2) = posnatToNat (posnatMult ?x2 ?x1)] => rewrite posnatMult_comm; trivial
@@ -85,13 +85,13 @@ Ltac rattac_one :=
             rewrite <- mult_assoc ;
               rewrite (mult_comm x x0) ;
                 repeat rewrite mult_assoc;
-                  f_equal] *) 
+                  f_equal] *)
     | [H : ?x = ?n * (posnatToNat ?p) |- ?x = (posnatToNat ?p) * ?n ] => rewrite H
     | [H : RatIntro _ _ = RatIntro _ _ |- _ ] => inversion H; clear H; subst
     | [H : (eqRat _ _) |- _ ] => unfold eqRat, beqRat in H
     | [H : (leRat _ _) |- _ ] => unfold leRat, bleRat in H
     | [H : ?r = RatIntro _ _ |- context[match ?r with | RatIntro _ _ => _ end] ] => rewrite r
-    
+
     | [|- context[match ?r with | RatIntro _ _ => _ end] ] => case_eq r; intuition
     | [H : (_ , _) = (_ , _) |- _ ] => inversion H; clear H; subst
     | [|- (_, _) = (_, _) ] => f_equal
@@ -100,8 +100,8 @@ Ltac rattac_one :=
     | [H1 : context[match ?r with | RatIntro _ _ => _ end], H2 : ?r = RatIntro _ _ |- _ ] => rewrite H2 in H1
     | [H : context[match ?r with | RatIntro _ _ => _ end ] |- _ ] => case_eq r; intuition
     | [|- context[let (_, _) := ?x in _] ] => case_eq x; intuition
-    | [H : context[ratAdd _ _] |- _ ] => unfold ratAdd in H    
-    | [H : context[ratMult _ _] |- _ ] => unfold ratMult in H   
+    | [H : context[ratAdd _ _] |- _ ] => unfold ratAdd in H
+    | [H : context[ratMult _ _] |- _ ] => unfold ratMult in H
     | [H: context [eq_nat_dec ?x ?y] |- _] => destruct (eq_nat_dec x y)
     | [H: context [le_gt_dec ?x ?y] |- _] => destruct (le_gt_dec x y)
     | [|- (if (eq_nat_dec ?x ?y) then true else false) = true ] => assert (x = y); destruct (eq_nat_dec x y); trivial
@@ -114,7 +114,7 @@ Ltac rattac_one :=
     | [H : context[let (_, _) := ?p in _] |- _] => destruct p
     end.
 Ltac rattac :=
-  intuition; unfold ratCD in *; 
+  intuition; unfold ratCD in *;
     repeat (rattac_one; subst); repeat rewrite mult_1_r; repeat rewrite plus_0_r; trivial; try congruence; try omega.
 
 Lemma ratCD_comm : forall r1 r2 n1 n2 d n1' n2' d',
@@ -213,9 +213,9 @@ Theorem leRat_trans : forall r1 r2 r3,
     n1 > O ->
     (n2 * n1 <= n3 * n1)%nat ->
     (n2 <= n3)%nat.
-    
+
     induction n2; destruct n3; intuition; simpl in *; try omega.
-    
+
     exfalso.
     remember (n2 * n1)%nat as x.
     omega.
@@ -229,7 +229,7 @@ Theorem leRat_trans : forall r1 r2 r3,
     n1 > O ->
     (n2 * n1 <= n3 * n1)%nat ->
     (n2 <= n3)%nat.
-    
+
     intuition.
     eapply mult_le_compat_r_iff_h; eauto.
   Qed.
@@ -281,7 +281,7 @@ Add Parametric Relation : Rat leRat
   transitivity proved by leRat_trans
     as leRat_rel.
 
-Add Parametric Relation : Rat eqRat 
+Add Parametric Relation : Rat eqRat
   reflexivity proved by eqRat_refl
   symmetry proved by eqRat_symm
   transitivity proved by eqRat_trans
@@ -297,7 +297,7 @@ eapply eqRat_impl_leRat.
 trivial.
 Qed.
 
-Global Instance eqRat_resp_leRat : 
+Global Instance eqRat_resp_leRat :
   forall x,
     Proper (eqRat ==> Basics.flip Basics.impl)
                                   (leRat x).
@@ -332,7 +332,7 @@ Qed.
 
 Theorem ratAdd_comm : forall r1 r2,
   r1 + r2 == r2 + r1.
- 
+
   rattac.
 Qed.
 
@@ -363,7 +363,7 @@ Qed.
 Theorem ratAdd_assoc : forall r1 r2 r3,
   r1 + r2 + r3 == r1 + (r2 + r3).
 
-  rattac. 
+  rattac.
   inversion H; clear H; subst.
 
   Local Open Scope nat_scope.
@@ -392,7 +392,7 @@ Theorem ratAdd_assoc : forall r1 r2 r3,
       | [|- _ * ?x1 <= _ * ?x1] => apply plus_le_compat; auto
       | [|- _ * ?x <= _ ] => rewrite mult_comm; repeat rewrite mult_assoc; arithSimplify
       | [|- _ + ?x <= _ ] => rewrite plus_comm; repeat rewrite plus_assoc; arithSimplify
-      
+
     end.
 
   arithNormalize.
@@ -412,7 +412,7 @@ Theorem ratMult_assoc : forall r1 r2 r3,
   inversion H; clear H; subst;
   arithNormalize;
   arithSimplify.
-  
+
 Qed.
 
 Lemma ratAdd_eqRat_compat_l : forall r1 r2 r3,
@@ -450,10 +450,10 @@ Lemma ratAdd_leRat_compat_l : forall r1 r2 r3,
   r1 + r3 <= r2 + r3.
 
   rattac.
-  
+
   unfold leRat, bleRat in *.
   rattac.
-  arithNormalize.  
+  arithNormalize.
   apply plus_le_compat.
 
   apply mult_le_compat; trivial.
@@ -461,12 +461,12 @@ Lemma ratAdd_leRat_compat_l : forall r1 r2 r3,
   repeat rewrite (mult_comm x0).
   repeat rewrite mult_assoc.
   apply mult_le_compat; trivial.
-  
+
   apply mult_le_compat; trivial.
   rewrite <- mult_assoc.
   rewrite (mult_comm x1).
   rewrite mult_assoc.
-  apply mult_le_compat; trivial.  
+  apply mult_le_compat; trivial.
 Qed.
 
 Theorem ratAdd_leRat_compat : forall r1 r2 r3 r4,
@@ -492,7 +492,7 @@ Theorem ratMult_leRat_compat : forall (r1 r2 r3 r4 : Rat),
   leRat (ratMult r1 r3) (ratMult r2 r4).
 
   rattac.
-  
+
   repeat rewrite mult_assoc.
   rewrite <- (mult_assoc n1).
   rewrite (mult_comm n).
@@ -507,7 +507,7 @@ Theorem ratMult_leRat_compat : forall (r1 r2 r3 r4 : Rat),
   rewrite <- mult_assoc.
   rewrite (mult_comm x1).
   rewrite mult_assoc.
-  auto. 
+  auto.
 Qed.
 
 Add Parametric Morphism : ratAdd
@@ -532,7 +532,7 @@ Theorem ratMult_eqRat_compat : forall (r1 r2 r3 r4 : Rat),
   eqRat (ratMult r1 r3) (ratMult r2 r4).
 
   rattac.
-  
+
   repeat rewrite mult_assoc.
   rewrite <- (mult_assoc n1).
   rewrite (mult_comm n).
@@ -578,7 +578,7 @@ Theorem ratAdd_0 : forall r1 r2,
   intuition.
   eapply mult_is_O in H0.
   intuition.
-  
+
   rattac.
   rewrite mult_0_l in e.
   unfold posnatToNat in *.
@@ -606,7 +606,7 @@ Theorem ratAdd_nz : forall r1 r2,
   exfalso.
   eapply H.
   apply ratAdd_0; eauto.
- 
+
   apply H1.
   specialize (ratAdd_0 r1 r2); intuition.
 
@@ -622,7 +622,7 @@ Qed.
 
 Lemma ratMult_0_l : forall r,
   0 * r == 0.
-  
+
   intuition; destruct r.
   unfold ratMult.
   simpl.
@@ -633,13 +633,13 @@ Qed.
 
 Lemma ratMult_0_r : forall r,
   r * 0 == 0.
-  
+
   rattac.
 Qed.
 
 Lemma ratMult_1_l : forall r,
   1 * r == r.
-  
+
   rattac.
   inversion H; clear H; subst.
   repeat rewrite mult_1_l in *.
@@ -647,7 +647,7 @@ Lemma ratMult_1_l : forall r,
 Qed.
 
 Theorem ratMult_0 : forall r1 r2,
-  r1 * r2 == 0 <-> 
+  r1 * r2 == 0 <->
   r1 == 0 \/ r2 == 0.
 
   intuition.
@@ -660,7 +660,7 @@ Theorem ratMult_0 : forall r1 r2,
   intuition; subst.
   left.
   apply rat_num_0.
-  
+
   right.
   apply rat_num_0.
 
@@ -676,7 +676,7 @@ Theorem ratMult_nz : forall r1 r2,
   (~r1 == 0) /\ (~r2 == 0).
 
   intuition.
-  
+
   eapply H.
   specialize (ratMult_0 r1 r2); intuition.
 
@@ -708,7 +708,7 @@ Qed.
 Lemma leRat_mult : forall n1 n2 d1 d2 (pf1 : d1 > 0) (pf2 : d2 > 0),
                      RatIntro n1 (exist (fun d => d > 0) _ pf1) <= RatIntro n2 (exist (fun d => d > 0) _ pf2) ->
                      (n1 * d2 <= n2 * d1)%nat.
-  
+
   rattac.
 Qed.
 
@@ -717,13 +717,13 @@ Lemma nat_minus_eq : forall (n1 n2 : nat),
                        n2 - n1 = O ->
                        n1 = n2.
 
-  intuition. 
+  intuition.
 Qed.
 
 
 Lemma bleRat_total : forall r1 r2,
                        bleRat r1 r2 = false -> bleRat r2 r1 = true.
-  
+
   intuition.
   unfold bleRat in *.
   rattac.
@@ -760,7 +760,7 @@ Theorem ratIdentityIndiscernables : forall r1 r2,
   assert ((RatIntro n4 (exist (fun n : nat => n > 0) x0 g0)) <= (RatIntro n3 (exist (fun n : nat => n > 0) x g))).
   unfold leRat.
   trivial.
-  
+
   eapply nat_minus_eq.
   apply (leRat_mult H2).
   trivial.
@@ -782,13 +782,13 @@ Theorem ratIdentityIndiscernables : forall r1 r2,
   apply (leRat_mult H2).
 Qed.
 
-(* is this even true ? 
+(* is this even true ?
 Lemma ratDistance_comm_2 : forall r1 r2 r3 r4,
     ratDistance (ratDistance r1 r2) (ratDistance r3 r4) ==
     ratDistance (ratDistance r1 r3) (ratDistance r2 r4).
 
     intuition.
-    
+
     unfold ratDistance, ratSubtract.
     rattac.
     arithNormalize.
@@ -877,7 +877,7 @@ Qed.
 Lemma ratAdd_any_leRat_l : forall r1 r2 r3,
   r1 <= r3 ->
   r1 <= r3 + r2.
-  
+
   rattac.
   arithNormalize.
   assert (n * x * x0 <= n0 * x0 * x1)%nat.
@@ -894,7 +894,7 @@ Qed.
 Lemma ratAdd_any_leRat_r : forall r1 r2 r3,
   r1 <= r2 ->
   r1 <= r3 + r2.
-  
+
   intuition.
   eapply leRat_trans.
   Focus 2.
@@ -906,7 +906,7 @@ Qed.
 Lemma ratAdd_eq_impl_leRat_l : forall r1 r2 r3,
   r1 == r2 + r3 ->
   r2 <= r1.
-  
+
   intuition.
   eapply leRat_trans.
   Focus 2.
@@ -920,7 +920,7 @@ Qed.
 Lemma ratAdd_eq_impl_leRat_r : forall r1 r2 r3,
   r1 == r2 + r3 ->
   r3 <= r1.
-  
+
   intuition.
   eapply leRat_trans.
   Focus 2.
@@ -934,7 +934,7 @@ Qed.
 Lemma ratSubtract_leRat_r : forall r1 r2 r3,
   r1 <= r2 ->
   ratSubtract r3 r2 <= ratSubtract r3 r1.
-  
+
   rattac.
   unfold ratSubtract in *.
   rattac.
@@ -955,12 +955,12 @@ Lemma ratSubtract_leRat_r : forall r1 r2 r3,
   assert (n3 * x1 * x3 * x2 = n3 * x2 * x3 * x1)%nat.
   do 3 arithSimplify.
   omega.
-  
+
 Qed.
 
 Lemma ratSubtract_leRat_l:
   forall r1 r2 r3 : Rat, r1 <= r2 -> ratSubtract r1 r3 <= ratSubtract r2 r3.
-  
+
   rattac.
   unfold ratSubtract in *.
   rattac.
@@ -968,7 +968,7 @@ Lemma ratSubtract_leRat_l:
   inversion H4; clear H4; subst.
   inversion H3; clear H3; subst.
   arithNormalize.
-  
+
   assert (n * x3 * x1 * x3 <= n0 * x3 * x2 * x3)%nat.
   apply mult_le_compat; trivial.
   rewrite <- (mult_comm x1).
@@ -979,7 +979,7 @@ Lemma ratSubtract_leRat_l:
   rewrite l.
   rewrite mult_comm.
   trivial.
-  
+
   assert (n3 * x2 * x1 * x3 = n3 * x1 * x2 * x3)%nat.
   do 3 arithSimplify.
   omega.
@@ -989,7 +989,7 @@ Lemma ratSubtract_leRat : forall r1 r2 r3 r4,
   r1 <= r2 ->
   r3 <= r4 ->
   ratSubtract r1 r4 <= ratSubtract r2 r3.
-  
+
   intuition.
   eapply leRat_trans.
   eapply ratSubtract_leRat_l; eauto.
@@ -999,7 +999,7 @@ Qed.
 Lemma ratSubtract_0 : forall r1 r2,
   r1 <= r2 ->
   ratSubtract r1 r2 == 0.
-  
+
   intuition.
   unfold ratSubtract.
   rattac.
@@ -1007,15 +1007,15 @@ Lemma ratSubtract_0 : forall r1 r2,
   omega.
   rewrite H0.
   unfold posnatToNat in *.
-  
+
   omega.
 Qed.
 
 Lemma ratSubtract_partition_leRat : forall r3 r1 r2 d1 d2,
   ratSubtract r1 r3 <= d1 ->
-  ratSubtract r3 r2 <= d2 -> 
+  ratSubtract r3 r2 <= d2 ->
   ratSubtract r1 r2 <= d1 + d2.
-  
+
   intuition.
   case_eq (bleRat r3 r1); intuition.
   case_eq (bleRat r2 r3); intuition.
@@ -1030,7 +1030,7 @@ Lemma ratSubtract_partition_leRat : forall r3 r1 r2 d1 d2,
   eapply ratSubtract_leRat;
     intuition.
   eapply rat0_le_all.
-  
+
   apply bleRat_total in H1.
   case_eq (bleRat r2 r3); intuition.
   rewrite ratAdd_0_l.
@@ -1039,12 +1039,12 @@ Lemma ratSubtract_partition_leRat : forall r3 r1 r2 d1 d2,
   eapply leRat_trans; eauto.
   eapply ratSubtract_leRat;
     intuition.
-  
+
   apply bleRat_total in H2.
   rewrite ratSubtract_0.
   eapply rat0_le_all.
   eapply leRat_trans; eauto.
-  
+
 Qed.
 
 Theorem ratTriangleInequality : forall r1 r2 r3,
@@ -1064,7 +1064,7 @@ Theorem ratTriangleInequality : forall r1 r2 r3,
   eapply ratAdd_comm.
   eapply ratSubtract_partition_leRat; eapply leRat_refl.
 
-  case_eq (bleRat r1 r2); intuition.  
+  case_eq (bleRat r1 r2); intuition.
   apply bleRat_total in H0.
   eapply leRat_trans.
   Focus 2.
@@ -1109,7 +1109,7 @@ Theorem ratMult_1_r : forall r,
   intuition.
   rewrite ratMult_comm.
   apply ratMult_1_l.
-  
+
 Qed.
 
 Theorem ratSubtract_le : forall r1 r2 d,
@@ -1125,7 +1125,7 @@ Theorem ratSubtract_le : forall r1 r2 d,
   Lemma minus_le : forall n1 n2 n3,
     (n1 <= n3 ->
     n1 - n2 <= n3)%nat.
-    
+
     intuition.
   Qed.
 
@@ -1221,7 +1221,7 @@ Lemma maxRat_eqRat_compat : forall r1 r2 r3 r4,
   apply bleRat_total in H2.
   eapply leRat_impl_eqRat;
   eauto using leRat_trans, eqRat_impl_leRat, eqRat_symm.
-  
+
   apply bleRat_total in H1.
   eapply leRat_impl_eqRat;
   eauto using leRat_trans, eqRat_impl_leRat, eqRat_symm.
@@ -1248,7 +1248,7 @@ Lemma minRat_eqRat_compat : forall r1 r2 r3 r4,
   apply bleRat_total in H2.
   eapply leRat_impl_eqRat;
   eauto using leRat_trans, eqRat_impl_leRat, eqRat_symm.
-  
+
   apply bleRat_total in H1.
   eapply leRat_impl_eqRat;
   eauto using leRat_trans, eqRat_impl_leRat, eqRat_symm.
@@ -1283,7 +1283,7 @@ Qed.
 Lemma ratSubtract_add_same_r : forall r1 r2 r3,
   r1 <= r3 ->
   ratSubtract (r3 + r2) (r1 + r2) == ratSubtract r3 r1.
-  
+
   intuition.
   unfold ratSubtract.
   rattac.
@@ -1304,7 +1304,7 @@ Qed.
 Lemma ratSubtract_add_same_l : forall r1 r2 r3,
   r1 <= r3 ->
   ratSubtract (r2 + r3) (r2 + r1) == ratSubtract r3 r1.
-  
+
   intuition.
   unfold ratSubtract.
   rattac.
@@ -1325,14 +1325,14 @@ Qed.
 Lemma minus_plus_assoc : forall n1 n2 n3,
   (n3 <= n2 ->
     (n1 + n2) - n3 = n1 + (n2 - n3))%nat.
-  
+
   intuition.
 Qed.
 
 Lemma ratSubtract_ratAdd_assoc: forall r1 r2 r3,
   r3 <= r2 ->
   ratSubtract (r1 + r2) r3 == r1 + (ratSubtract r2 r3).
-  
+
   intuition.
   unfold ratSubtract.
   rattac.
@@ -1352,11 +1352,11 @@ Qed.
 Lemma ratAdd_add_same_r : forall r1 r2 r3,
   r1 + r2 == r3 + r2 ->
   r1 == r3.
-  
+
   intuition.
   assert (ratSubtract (r1 + r2) r2 == ratSubtract (r3 + r2) r2).
   eapply ratSubtract_eqRat_compat; intuition.
-  
+
   rewrite ratSubtract_ratAdd_assoc in H0.
   setoid_rewrite ratAdd_0_r.
   eapply eqRat_trans.
@@ -1389,7 +1389,7 @@ Qed.
 
 Lemma ratDistance_add_same_r : forall r1 r2 r3,
   (ratDistance (r1 + r2) (r3 + r2)) == (ratDistance r1 r3).
-  
+
   intuition.
   unfold ratDistance, maxRat, minRat.
   case_eq (bleRat r1 r3); intuition.
@@ -1397,33 +1397,33 @@ Lemma ratDistance_add_same_r : forall r1 r2 r3,
   eapply ratAdd_leRat_compat; trivial.
   eapply leRat_refl.
   rewrite H0.
-  
+
   apply ratSubtract_add_same_r; eauto.
-  
+
   apply bleRat_total in H.
   assert (r3 + r2 <= r1 + r2).
   eapply ratAdd_leRat_compat; trivial.
   apply leRat_refl.
-  
+
   case_eq (bleRat (r1 + r2) (r3 + r2)); intuition.
   assert (r1 + r2 == r3 + r2).
   eapply leRat_antisymm; eauto.
   repeat rewrite ratSubtract_0.
   intuition.
   eapply eqRat_impl_leRat.
-  
+
   eapply ratAdd_add_same_r.
   eauto.
   eapply eqRat_impl_leRat.
   eapply eqRat_symm.
   trivial.
-  
+
   apply ratSubtract_add_same_r; eauto.
 Qed.
 
 Lemma ratDistance_add_same_l : forall r1 r2 r3,
   (ratDistance (r2 + r3) (r2 + r1)) == (ratDistance r3 r1).
-  
+
   intuition.
   unfold ratDistance, maxRat, minRat.
   case_eq (bleRat r3 r1); intuition.
@@ -1431,9 +1431,9 @@ Lemma ratDistance_add_same_l : forall r1 r2 r3,
   eapply ratAdd_leRat_compat; trivial.
   eapply leRat_refl.
   rewrite H0.
-  
+
   apply ratSubtract_add_same_l; eauto.
-  
+
   apply bleRat_total in H.
   assert (r2 + r1 <= r2 + r3).
   eapply ratAdd_leRat_compat; trivial.
@@ -1451,7 +1451,7 @@ Lemma ratDistance_add_same_l : forall r1 r2 r3,
   eapply eqRat_impl_leRat.
   eapply eqRat_symm.
   trivial.
-  
+
   apply ratSubtract_add_same_l; eauto.
 
 Qed.
@@ -1463,13 +1463,13 @@ Theorem rat_distance_of_sum : forall r1 r2 r3 r4,
   eapply leRat_trans.
   eapply (ratTriangleInequality _ _ (r3 + r2)).
   eapply ratAdd_leRat_compat.
-  
+
   eapply eqRat_impl_leRat.
   eapply ratDistance_add_same_r.
 
   eapply eqRat_impl_leRat.
   eapply ratDistance_add_same_l.
-  
+
 Qed.
 
 Theorem ratMult_distrib : forall r1 r2 r3,
@@ -1497,7 +1497,7 @@ Qed.
 
 Lemma ratAdd_num : forall n1 n2 d,
   RatIntro (n1 + n2) d == (ratAdd (RatIntro n1 d) (RatIntro n2 d)).
-  
+
   rattac.
   arithNormalize.
   trivial.
@@ -1511,16 +1511,16 @@ Qed.
 
 Lemma ratMult_num_den : forall n1 n2 d1 d2,
   (RatIntro (n1 * n2)%nat (posnatMult d1 d2)) == (RatIntro n1 d1) * (RatIntro n2 d2).
-  
+
   intuition.
-  
+
   unfold ratMult, natToPosnat, posnatMult.
   eapply eqRat_refl.
 Qed.
 
 Theorem ratAdd_den_same : forall n1 n2 d,
   RatIntro (n1 + n2)%nat d == (RatIntro n1 d) + (RatIntro n2 d).
-  
+
   rattac.
   arithNormalize.
   arithSimplify.
@@ -1528,7 +1528,7 @@ Qed.
 
 Lemma rat_mult_den : forall n d1 d2,
   (RatIntro n (posnatMult d1 d2)) == (RatIntro 1 d1) * (RatIntro n d2).
-  
+
   intuition.
   assert (n = 1 * n)%nat.
   omega.
@@ -1536,9 +1536,9 @@ Lemma rat_mult_den : forall n d1 d2,
   apply ratMult_num_den; omega.
 Qed.
 
-Lemma ratOneHalf_add: 
+Lemma ratOneHalf_add:
   1 / 2 + 1 / 2 == 1.
-  
+
   unfold ratAdd.
   simpl.
   unfold posnatMult.
@@ -1577,7 +1577,7 @@ Qed.
 
 Theorem ratMult_distrib_r : forall r1 r2 r3,
   ratMult (ratAdd r2 r3) r1  == ratAdd (ratMult r2 r1) (ratMult r3 r1).
-  
+
   intuition.
   rewrite ratMult_comm.
   rewrite ratMult_distrib.
@@ -1586,7 +1586,7 @@ Qed.
 
 Lemma ratSubtract_ratAdd_inverse : forall r1 r2,
   ratSubtract (r1 + r2) r1 == r2.
-  
+
   intuition.
   unfold ratSubtract.
   rattac.
@@ -1603,7 +1603,7 @@ Qed.
 Lemma ratSubtract_ratAdd_inverse_2 : forall r1 r2,
   r2 <= r1 ->
   r2 + ratSubtract r1 r2 == r1.
-  
+
   intuition.
   apply eqRat_symm.
   eapply eqRat_trans.
@@ -1617,7 +1617,7 @@ Qed.
 Lemma leRat_difference_exists : forall r1 r2,
   r2 <= r1 ->
   exists r3, r1 == r2 + r3.
-  
+
   intuition.
   exists (ratSubtract r1 r2).
   apply eqRat_symm.
@@ -1629,7 +1629,7 @@ Lemma ratSubtract_ratMult_le : forall r1 r2 r3 r4,
   r1 <= r2 ->
   r3 <= r4 ->
   ratSubtract (r2 * r4) (r1 * r3) == (ratSubtract r2 r1) * r3 + (ratSubtract r4 r3) * r1 + (ratSubtract r2 r1) * (ratSubtract r4 r3).
-  
+
   intuition.
   destruct (leRat_difference_exists H).
   destruct (leRat_difference_exists H0).
@@ -1685,7 +1685,7 @@ Lemma ratSubtract_ratMult_le : forall r1 r2 r3 r4,
   apply H1.
   apply eqRat_refl.
   apply ratSubtract_ratAdd_inverse.
-  
+
   apply eqRat_symm.
   eapply eqRat_trans.
   apply ratSubtract_eqRat_compat.
@@ -1702,7 +1702,7 @@ Lemma ratSubtract_eq_r : forall r1 r2 r3,
   r3 <= r1 ->
   (ratSubtract r1 r2) == (ratSubtract r1 r3) ->
   r2 == r3.
-  
+
   rattac.
   unfold ratSubtract in *.
   rattac.
@@ -1723,15 +1723,15 @@ Lemma ratSubtract_eq_r : forall r1 r2 r3,
   assert (n1 * x1 * x1 * x0 <= n2 * x * x1 * x0)%nat.
   eapply mult_le_compat; trivial.
   eapply mult_le_compat; trivial.
-  
+
   assert (n3 * x1 * x1 * x = n1 * x1 * x1 * x0)%nat.
   omega.
-  
+
   eapply (@mult_same_l (x1 * x1)).
-  
+
   eapply mult_gt_0;
     destruct (eq_nat_dec x1 O); subst; simpl in *; omega.
-  
+
   rewrite (mult_comm n3).
   rewrite (mult_comm n1).
   repeat rewrite mult_assoc.
@@ -1739,14 +1739,14 @@ Lemma ratSubtract_eq_r : forall r1 r2 r3,
   rewrite <- (mult_comm n1).
   repeat rewrite mult_assoc.
   trivial.
-  
+
 Qed.
 
 Lemma ratDistance_le_max : forall r1 r2 r3 v,
   r1 <= r2 ->
   r2 <= r3 ->
   (ratDistance r2 v) <= (maxRat (ratDistance r1 v) (ratDistance r3 v)).
-  
+
   intuition.
   unfold ratDistance, maxRat, minRat.
   case_eq (bleRat r3 v); intuition.
@@ -1758,25 +1758,25 @@ Lemma ratDistance_le_max : forall r1 r2 r3 v,
   rewrite H.
   eauto.
   rewrite H3.
-  
+
   assert ((ratSubtract v r3) <= (ratSubtract v r1)).
   eapply ratSubtract_leRat_r.
   eauto using leRat_trans.
-  
+
   case_eq (bleRat (ratSubtract v r1) (ratSubtract v r3)); intuition.
   assert (r1 == r3).
   assert ((ratSubtract v r1) == (ratSubtract v r3)).
   eapply leRat_antisymm; eauto.
-  
+
   eapply ratSubtract_eq_r; eauto.
-  
+
   eapply ratSubtract_leRat_r.
   rewrite <- H6.
   trivial.
-  
+
   eapply ratSubtract_leRat_r.
   trivial.
-  
+
   eapply bleRat_total in H1.
   case_eq (bleRat r2 v); intuition.
   assert (r1 <= v).
@@ -1787,28 +1787,28 @@ Lemma ratDistance_le_max : forall r1 r2 r3 v,
   eapply ratSubtract_leRat_r.
   eapply H.
   eapply H4.
-      
+
   eapply ratSubtract_leRat_r; trivial.
 
   apply bleRat_total in H2.
   case_eq (bleRat r1 v); intuition.
   case_eq (bleRat (ratSubtract v r1) (ratSubtract r3 v)); intuition.
-  
+
   assert (r1 <= v).
   eauto using leRat_trans.
   eapply ratSubtract_leRat_l; trivial.
-  
+
   apply bleRat_total in H4.
   eapply leRat_trans.
   eapply ratSubtract_leRat_l.
   eapply H0.
   trivial.
-  
+
   assert (bleRat (ratSubtract r1 v) (ratSubtract r3 v) = true).
   eapply ratSubtract_leRat_l.
   eauto using leRat_trans.
   rewrite H4.
-  
+
   eapply ratSubtract_leRat_l; trivial.
 Qed.
 
@@ -1816,20 +1816,20 @@ Lemma maxRat_leRat_same : forall r1 r2 r3,
   r1 <= r3 ->
   r2 <= r3 ->
   maxRat r1 r2 <= r3.
-  
+
   rattac.
   unfold maxRat in *.
-  
+
   case_eq (bleRat (RatIntro n1 (exist (fun n : nat => n > 0) x1 g1))
     (RatIntro n (exist (fun n : nat => n > 0) x2 g2))); intuition;
   rewrite H1 in H2;
     inversion H2; clear H2; subst; rattac.
-  
+
 Qed.
 
 Lemma ratMult_3_ratAdd : forall r,
   (3 / 1) * r == r + r + r.
-  
+
   rattac.
   inversion H; clear H; subst.
   inversion H0; clear H0; subst.
@@ -1843,7 +1843,7 @@ Qed.
 Lemma ratMult_small_le : forall r1 r2,
   r2 <= 1 ->
   r1 * r2 <= r1.
-  
+
   rattac.
   inversion H0; clear H0; subst.
   rewrite mult_1_r in l.
@@ -1854,7 +1854,7 @@ Lemma ratMult_small_le : forall r1 r2,
   rewrite mult_assoc.
   apply mult_le_compat;
     auto.
-  
+
 Qed.
 
 Lemma ratDistance_ratMult_le : forall r1 r2 r3 r4 d,
@@ -1865,19 +1865,19 @@ Lemma ratDistance_ratMult_le : forall r1 r2 r3 r4 d,
   r3 <= 1 ->
   r4 <= 1 ->
   (ratDistance (r1 * r2) (r3 * r4)) <= (3 / 1) * d.
-  
+
   intuition.
-  
+
   unfold ratDistance, maxRat, minRat in *.
   case_eq (bleRat r1 r3); intuition;
     rewrite H5 in H.
   case_eq (bleRat r2 r4); intuition;
     rewrite H6 in H0.
-  
+
   assert (r1 * r2 <= r3 * r4).
   apply ratMult_leRat_compat; eauto.
   rewrite H7.
-  
+
   rewrite ratSubtract_ratMult_le; eauto.
   repeat rewrite ratMult_small_le.
   rewrite H.
@@ -1889,10 +1889,10 @@ Lemma ratDistance_ratMult_le : forall r1 r2 r3 r4 d,
   trivial.
   trivial.
   trivial.
-  
+
   apply bleRat_total in H6.
   case_eq (bleRat (r1 * r2) (r3 * r4)); intuition.
-  
+
   rewrite ratSubtract_leRat.
   Focus 2.
   eapply ratMult_leRat_compat.
@@ -1902,7 +1902,7 @@ Lemma ratDistance_ratMult_le : forall r1 r2 r3 r4 d,
   eapply ratMult_leRat_compat.
   eapply leRat_refl.
   eapply H6.
-  
+
   rewrite ratSubtract_ratMult_le; eauto.
   repeat rewrite ratMult_small_le.
   rewrite H.
@@ -1914,7 +1914,7 @@ Lemma ratDistance_ratMult_le : forall r1 r2 r3 r4 d,
   trivial.
   trivial.
   trivial.
-  
+
   apply bleRat_total in H7.
   eapply leRat_trans.
   eapply ratSubtract_leRat.
@@ -1935,7 +1935,7 @@ Lemma ratDistance_ratMult_le : forall r1 r2 r3 r4 d,
   trivial.
   trivial.
   trivial.
-  
+
   apply bleRat_total in H5.
   case_eq (bleRat r2 r4); intuition.
   rewrite H6 in H0.
@@ -1959,7 +1959,7 @@ Lemma ratDistance_ratMult_le : forall r1 r2 r3 r4 d,
   trivial.
   trivial.
   trivial.
-  
+
   apply bleRat_total in H7.
   eapply leRat_trans.
   eapply ratSubtract_leRat.
@@ -1980,18 +1980,18 @@ Lemma ratDistance_ratMult_le : forall r1 r2 r3 r4 d,
   trivial.
   trivial.
   trivial.
-  
+
   rewrite H6 in H0.
-  
+
   apply bleRat_total in H6.
   assert (r3 * r4 <= r1 * r2).
   eapply ratMult_leRat_compat; eauto.
   case_eq (bleRat (r1 * r2) (r3 * r4)); intuition.
-  
+
   rewrite ratSubtract_0; eauto.
   eapply rat0_le_all.
   apply bleRat_total in H8.
-  
+
   rewrite ratSubtract_ratMult_le; eauto.
   repeat rewrite ratMult_small_le.
   rewrite H.
@@ -2003,13 +2003,13 @@ Lemma ratDistance_ratMult_le : forall r1 r2 r3 r4 d,
   trivial.
   trivial.
   trivial.
-  
+
 Qed.
 
 Lemma ratAdd_any_le : forall r1 r2 r3,
   r1 + r2 <= r3 ->
   r1 <= r3.
-  
+
   intuition.
   eapply leRat_trans.
   eapply eqRat_impl_leRat.
@@ -2023,7 +2023,7 @@ Qed.
 
 Lemma posnatMult_1_r : forall p,
   posnatToNat (posnatMult p (pos 1)) = posnatToNat p.
-  
+
   intuition.
   unfold posnatMult.
   destruct p.
@@ -2032,14 +2032,14 @@ Lemma posnatMult_1_r : forall p,
   unfold posnatToNat.
   inversion Heqp2; subst.
   apply mult_1_r.
-  
+
 Qed.
 
 Lemma rat_num_nz : forall n d,
   n > 0 ->
   RatIntro n d == 0 ->
   False.
-  
+
   rattac.
   unfold posnatToNat, natToPosnat in *.
   destruct d.
@@ -2051,7 +2051,7 @@ Qed.
 Lemma ratMult_inverse : forall r1 r2 (p1 p2 : posnat),
   r1 == r2 * (RatIntro p1 p2) ->
   r1 * (RatIntro p2 p1) == r2.
-  
+
   intuition.
   rewrite H.
   rewrite <- (ratMult_1_r r2) at 2.
@@ -2063,10 +2063,10 @@ Lemma ratMult_inverse : forall r1 r2 (p1 p2 : posnat),
   rattac.
 Qed.
 
-Lemma ratMult_inverse_nat : forall r1 r2 n d (nzn : nz n), 
+Lemma ratMult_inverse_nat : forall r1 r2 n d (nzn : nz n),
   r1 == r2 * (RatIntro n d) ->
   r1 * (RatIntro d (natToPosnat nzn)) == r2.
-  
+
   intuition.
   eapply ratMult_inverse.
   rewrite H.
@@ -2079,7 +2079,7 @@ Lemma ratMult_same_r_inv : forall r1 r2 r3,
   r1 * r2 == r3 * r2 ->
   ~ r2 == 0 ->
   r1 == r3.
-  
+
   intuition.
   unfold ratMult in *.
   destruct r1.
@@ -2122,7 +2122,7 @@ Qed.
 
 Lemma rat_le_1 : forall n (d : posnat),
   (n <= d)%nat -> (RatIntro n d) <= 1.
-  
+
   rattac.
   inversion H1; clear H1; subst.
   rewrite mult_1_r.
@@ -2132,7 +2132,7 @@ Qed.
 
 Lemma rat_remove_common_factor : forall (n num : nat)(nzn : nz n) den,
   RatIntro (n * num) (posnatMult (natToPosnat nzn) den) == RatIntro num den.
-  
+
   rattac.
   inversion H; clear H; subst.
   arithNormalize.
@@ -2141,7 +2141,7 @@ Qed.
 
 Lemma ratMult_2 : forall r,
   r + r == r * (2/1).
-  
+
   rattac.
   inversion H; clear H; subst.
   arithNormalize.
@@ -2170,16 +2170,16 @@ Definition ratInverse (r : Rat) :=
 Lemma ratInverse_prod_1 : forall r,
   ~ r == 0 ->
   (ratInverse r) * r == 1.
-  
+
   intuition.
   unfold ratInverse.
   destruct r.
   destruct n.
-  
+
   exfalso.
   eapply H.
   eapply rat_num_0.
-  
+
   rewrite <- ratMult_num_den.
   eapply num_dem_same_rat1.
   unfold posnatMult, natToPosnat, posnatToNat.
@@ -2189,7 +2189,7 @@ Qed.
 
 Fixpoint expRat r n :=
   match n with
-    | O => rat1 
+    | O => rat1
     | S n' => r * (expRat r n')
   end.
 
@@ -2215,7 +2215,7 @@ Lemma ratInverse_nz : forall (r : Rat),
   inversion H0; clear H0; subst.
   rewrite mult_1_r in e.
   rewrite mult_0_l in e.
-  omega.  
+  omega.
 
 Qed.
 
@@ -2223,7 +2223,7 @@ Lemma ratInverse_1_swap : forall r,
   ~ r == 0 ->
   r <= 1 ->
   1 <= ratInverse r.
-  
+
   intuition.
   unfold ratInverse.
   destruct r.
@@ -2231,29 +2231,29 @@ Lemma ratInverse_1_swap : forall r,
   exfalso.
   eapply H.
   eapply rat_num_0.
-  
+
   rattac.
   inversion H1; clear H1; subst.
   omega.
-  
+
 Qed.
 
-Lemma ratInverse_1 : 
+Lemma ratInverse_1 :
   ratInverse 1 == 1.
-  
+
   unfold ratInverse.
   case_eq rat1; intuition.
   inversion H; clear H; subst.
   eapply eqRat_terms;
     trivial.
-  
+
 Qed.
 
 Lemma ratInverse_leRat : forall r1 r2,
   ~ r2 == 0 ->
   r2 <= r1 ->
   ratInverse r1 <= ratInverse r2.
-  
+
   intuition.
   unfold ratInverse.
   rattac.
@@ -2267,21 +2267,21 @@ Lemma ratInverse_leRat : forall r1 r2,
   simpl in *.
   remember (n0 * x1)%nat as a.
   omega.
-  
+
   inversion H3; clear H3; subst.
   inversion H2; clear H2; subst.
   rewrite mult_comm.
   rewrite l.
   rewrite mult_comm.
   trivial.
-  
+
 Qed.
 
 Lemma ratAdd_not_leRat : forall r1 r2,
   r1 + r2 <= r1 ->
   (~r2 == 0) ->
   False.
-  
+
   rattac.
   eapply H0.
   unfold posnatMult, natToPosnat, posnatToNat in *.
@@ -2295,7 +2295,7 @@ Lemma ratAdd_not_leRat : forall r1 r2,
   remember (n1 * x0 * x0)%nat as b.
   omega.
   apply mult_is_O in H1;
-    intuition; 
+    intuition;
       subst.
   apply mult_is_O in H2;
     intuition;
@@ -2309,7 +2309,7 @@ Qed.
 (* relational versions of arithmetic operations. *)
 Definition ratSubtract_rel (r1 r2 : Rat -> Prop) d :=
   forall r1' r2', r1 r1' -> r2 r2' -> d == ratSubtract r1' r2'.
-  
+
 Definition ratAdd_rel(r1 r2 : Rat -> Prop) r :=
   forall r1' r2', r1 r1' -> r2 r2' -> r == r1' + r2'.
 
@@ -2348,7 +2348,7 @@ Lemma ratInverse_eqRat_compat : forall r1 r2,
   eapply rat_num_0.
   destruct n0.
   exfalso.
-  
+
   eapply rat_num_nz.
   Focus 2.
   rewrite rat_num_0 in H0.
@@ -2362,7 +2362,7 @@ Qed.
 
 Lemma ratSubtract_ratAdd_distr : forall r1 r2 r3,
   ratSubtract r1 (r2 + r3) == ratSubtract (ratSubtract r1 r2) r3.
-  
+
   intuition.
   unfold ratSubtract, ratAdd.
   rattac.
@@ -2377,7 +2377,7 @@ Qed.
 Lemma ratSubtract_ratAdd_assoc_1 : forall r1 r2 r3,
   r3 <= r2 ->
   ratSubtract (r1 + r2) r3 == r1 + (ratSubtract r2 r3).
-  
+
   intuition.
   unfold ratSubtract, ratAdd.
   rattac.
@@ -2391,7 +2391,7 @@ Lemma ratSubtract_ratAdd_assoc_1 : forall r1 r2 r3,
   eapply mult_le_compat; trivial.
   eapply mult_le_compat; trivial.
   eapply mult_le_compat; trivial.
-  
+
   rewrite <- (mult_assoc).
   rewrite (mult_comm x).
   rewrite mult_assoc.
@@ -2399,7 +2399,7 @@ Lemma ratSubtract_ratAdd_assoc_1 : forall r1 r2 r3,
   rewrite (mult_comm x).
   rewrite mult_assoc.
   eapply mult_le_compat; trivial.
-  
+
 Qed.
 
 
@@ -2447,10 +2447,10 @@ Qed.
 Lemma expRat_le_1 : forall n x,
   x <= 1 ->
   expRat x n <= 1.
-  
+
   induction n; intuition; simpl in *.
   intuition.
-  
+
   eapply leRat_trans.
   eapply ratMult_leRat_compat.
   eapply H.
@@ -2458,17 +2458,17 @@ Lemma expRat_le_1 : forall n x,
   trivial.
   rewrite ratMult_1_l.
   intuition.
-  
+
 Qed.
 
 Lemma expRat_le : forall n1 n2 x,
   x <= 1 ->
   n2 >= n1 ->
   expRat x n2 <= expRat x n1.
-  
+
   induction n1; intuition; simpl in *.
   eapply expRat_le_1; trivial.
-  
+
   destruct n2;
     simpl.
   omega.
@@ -2515,7 +2515,7 @@ Lemma ratSubtract_sum_1 : forall r1 r2,
   r2 + (ratSubtract r1 r2) == r1.
 
   intuition.
-  
+
   rewrite <- ratSubtract_ratAdd_assoc.
   eapply ratSubtract_ratAdd_inverse.
   apply bleRat_total.
@@ -2526,12 +2526,12 @@ Qed.
 Lemma rat_ge_1 : forall n (d : posnat),
   n >= d ->
   1 <= RatIntro n d.
-  
+
   intuition.
   rattac.
   inversion H1; clear H1; subst.
   omega.
-  
+
 Qed.
 
 Lemma leRat_ratAdd_same_r : forall r1 r2 r3,
@@ -2539,7 +2539,7 @@ Lemma leRat_ratAdd_same_r : forall r1 r2 r3,
   r2 <= r3.
 
   intuition.
-  
+
   apply (@ratSubtract_leRat_l (r2 + r1) (r3 + r1) r1) in H.
   rewrite <- (@ratSubtract_ratAdd_inverse r1 r2).
   rewrite ratAdd_comm.
@@ -2547,14 +2547,14 @@ Lemma leRat_ratAdd_same_r : forall r1 r2 r3,
   rewrite ratAdd_comm.
   rewrite ratSubtract_ratAdd_inverse.
   intuition.
-  
+
 Qed.
 
 Lemma leRat_ratMult_same_r : forall r1 r2 r3,
   (~r1 == 0) ->
   r2 * r1 <= r3 * r1 ->
   r2 <= r3.
-  
+
   intuition.
   rewrite <- ratMult_1_r.
   erewrite <- (ratInverse_prod_1 H).
@@ -2570,25 +2570,25 @@ Lemma leRat_ratMult_same_r : forall r1 r2 r3,
   rewrite ratMult_1_r.
   intuition.
   intuition.
-  
+
 Qed.
 
 Lemma ratMult_eq_rat1 : forall n1 n2 (nz1 : nz n1)(nz2 : nz n2),
   (n1 / n2) * (n2 / n1) == 1.
-  
+
   intuition.
   rewrite <- ratMult_num_den.
   eapply num_dem_same_rat1.
   unfold posnatMult, natToPosnat, posnatToNat.
   eapply mult_comm.
-  
+
 Qed.
 
 
 Lemma half_distance_1_le : forall r,
   ~ 1 <= r ->
   ~ 1 <= r + (1 / 2) * (ratSubtract 1 r).
-  
+
   intuition.
   eapply H.
   eapply (leRat_ratAdd_same_r 1).
@@ -2597,7 +2597,7 @@ Lemma half_distance_1_le : forall r,
   Focus 2.
   eapply eqRat_impl_leRat.
   eapply ratAdd_assoc.
-  
+
   repeat rewrite ratMult_2.
   rewrite ratMult_comm.
   rewrite (ratMult_comm (2/1)).
@@ -2605,13 +2605,13 @@ Lemma half_distance_1_le : forall r,
   intuition.
   rewrite ratMult_1_l.
   rewrite ratMult_eq_rat1.
-  
+
   eapply leRat_trans.
   Focus 2.
   eapply eqRat_impl_leRat.
   symmetry.
   eapply ratMult_distrib_r.
-  
+
   rewrite ratMult_assoc.
   rewrite ratMult_eq_rat1.
   rewrite ratMult_1_r.
@@ -2640,7 +2640,7 @@ Lemma posnatMult_eq : forall p1 p2,
   trivial.
 Qed.
 
-Theorem mult_gt_zero_if : 
+Theorem mult_gt_zero_if :
   forall (a b : nat),
     a * b > 0 -> (a > 0  /\ b > 0).
 
@@ -2665,9 +2665,9 @@ Lemma expRat_terms : forall k n (d : posnat)(p : nz (expnat d k)),
   destruct p.
   econstructor.
   eapply mult_gt_zero_if; eauto.
-  
+
 Qed.
-  
+
 
 Lemma expRat_le_half_exists : forall r,
   ~ 1 <= r ->
@@ -2678,7 +2678,7 @@ Lemma expRat_le_half_exists : forall r,
   destruct (le_dec n (pred p)).
 
   exists (p)%nat.
-  
+
   eapply leRat_trans.
   eapply expRat_leRat_compat.
   eapply leRat_terms.
@@ -2772,7 +2772,7 @@ Lemma expRat_le_half_exists : forall r,
   omega.
 
   Grab Existential Variables.
-  
+
   eapply expnat_nz.
   destruct p.
   econstructor.
@@ -2868,7 +2868,7 @@ Lemma expRat_exp_prod : forall n1 n2 r,
 
 Qed.
 
-Lemma expRat_le_exp_exists : forall r d, 
+Lemma expRat_le_exp_exists : forall r d,
   ~ 1 <= r ->
   ~ d == 0 ->
   exists n,
@@ -2888,7 +2888,7 @@ Qed.
 Lemma eqRat_ratAdd_same_r : forall r1 r2 r3,
   r2 + r1 == r3 + r1 ->
   r2 == r3.
-  
+
   intuition.
   eapply leRat_impl_eqRat.
   eapply leRat_ratAdd_same_r;
@@ -2901,7 +2901,7 @@ Qed.
 Lemma ratAdd_arg_0 : forall a b,
   a + b == a ->
   b == 0.
-  
+
   intuition.
   eapply eqRat_ratAdd_same_r.
   rewrite ratAdd_comm.
@@ -2968,7 +2968,7 @@ Lemma ratSubtract_0_r : forall r,
   simpl.
   rewrite <- minus_n_O.
   do 2 arithSimplify.
-  
+
 Qed.
 
 Lemma ratDistance_0_r_le : forall r d,
@@ -2983,7 +2983,7 @@ Lemma ratDistance_0_r_le : forall r d,
   apply bleRat_total in H0.
   rewrite ratSubtract_0_r.
   trivial.
-  
+
 Qed.
 
 Lemma ratSubtract_0_inv : forall r1 r2,
@@ -3002,9 +3002,9 @@ Lemma ratSubtract_le_sum : forall r1 r2 d,
   r2 <= r1 ->
   ratSubtract r1 r2 <= d ->
   r1 <= r2 + d.
-  
+
   intuition.
-  
+
   rewrite <- (ratSubtract_ratAdd_inverse r2).
   rewrite ratSubtract_ratAdd_assoc.
   eapply ratAdd_leRat_compat; eauto.
@@ -3033,7 +3033,7 @@ Qed.
 
 Lemma ratSubtract_ratDistance_le : forall r1 r2,
   ratSubtract r1 r2 <= ratDistance r1 r2.
-  
+
   unfold ratDistance, maxRat, minRat in *.
   intuition.
   case_eq (bleRat r1 r2); intuition.
@@ -3044,7 +3044,7 @@ Qed.
 
 Lemma minRat_le_r : forall r1 r2,
   minRat r1 r2 <= r2.
-  
+
   unfold minRat in *.
   intuition.
   case_eq (bleRat r1 r2); intuition.
@@ -3052,7 +3052,7 @@ Qed.
 
 Lemma minRat_le_l : forall r1 r2,
   minRat r1 r2 <= r1.
-  
+
   unfold minRat in *.
   intuition.
   case_eq (bleRat r1 r2); intuition.
@@ -3063,7 +3063,7 @@ Qed.
 Lemma ratDistance_ge_difference: forall r1 r2 d,
   ratDistance r1 r2 <= d ->
   ratSubtract r1 d <= r2.
-  
+
   intuition.
   eapply (leRat_ratAdd_same_r d).
   case_eq (bleRat r1 d); intuition.
@@ -3074,12 +3074,12 @@ Lemma ratDistance_ge_difference: forall r1 r2 d,
   rewrite ratAdd_comm.
   rewrite ratSubtract_ratAdd_inverse_2; trivial.
   eapply ratDistance_le_sum; trivial.
-  
+
 Qed.
 
 Lemma ratSubtract_ratAdd_assoc_le : forall r1 r2 r3,
   ratSubtract (r1 + r2) r3 <= r1 + (ratSubtract r2 r3).
-  
+
   unfold ratSubtract, ratAdd.
   rattac.
   arithNormalize.
@@ -3096,7 +3096,7 @@ Qed.
 
 Lemma ratSubtract_assoc_le : forall r1 r2 r3,
   ratSubtract r1 (ratSubtract r2 r3) <= (ratSubtract r1 r2) + r3.
-  
+
   unfold ratSubtract.
   rattac.
   arithNormalize.
@@ -3110,19 +3110,19 @@ Lemma ratSubtract_assoc_le : forall r1 r2 r3,
   remember (n1 * x1 * x0 * x1 * x * x0)%nat as b.
   remember (n2 * x1 * x * x1 * x * x0)%nat as c.
   omega.
-  
+
 Qed.
 
 Lemma ratDistance_leRat_both : forall r1 r2 d,
   ratSubtract r1 r2 <= d ->
   ratSubtract r2 r1 <= d ->
   ratDistance r1 r2 <= d.
-  
+
   intuition.
-  
+
   unfold ratDistance, maxRat, minRat.
   destruct (bleRat r1 r2); trivial.
-  
+
 Qed.
 
 Lemma rat_distance_of_difference : forall r1 r2 r3 r4 d1 d2,
@@ -3131,7 +3131,7 @@ Lemma rat_distance_of_difference : forall r1 r2 r3 r4 d1 d2,
   ratDistance r1 r3 <= d1 ->
   ratDistance r2 r4 <= d2 ->
   ratDistance (ratSubtract r1 r2) (ratSubtract r3 r4) <= (d1 + d2).
-  
+
   intuition.
   eapply ratDistance_leRat_both.
   eapply leRat_trans.
@@ -3139,13 +3139,13 @@ Lemma rat_distance_of_difference : forall r1 r2 r3 r4 d1 d2,
   eapply ratSubtract_leRat.
   eapply ratDistance_le_sum.
   eauto.
-  
+
   eapply ratDistance_ge_difference.
   rewrite ratDistance_comm.
   eauto.
-  
+
   eapply leRat_refl.
-  
+
   eapply leRat_trans.
   eapply ratSubtract_leRat.
   rewrite ratAdd_comm.
@@ -3156,7 +3156,7 @@ Lemma rat_distance_of_difference : forall r1 r2 r3 r4 d1 d2,
   intuition.
   eapply leRat_trans.
   eapply ratSubtract_leRat.
-  
+
   eapply ratSubtract_assoc_le.
   eapply leRat_refl.
   rewrite ratAdd_comm.
@@ -3165,7 +3165,7 @@ Lemma rat_distance_of_difference : forall r1 r2 r3 r4 d1 d2,
   rewrite <- ratAdd_0_r.
   intuition.
   intuition.
-  
+
   eapply leRat_trans.
   eapply ratSubtract_leRat.
   eapply ratSubtract_leRat.
@@ -3175,7 +3175,7 @@ Lemma rat_distance_of_difference : forall r1 r2 r3 r4 d1 d2,
   eapply ratDistance_ge_difference.
   eauto.
   eapply leRat_refl.
-  
+
   eapply leRat_trans.
   eapply ratSubtract_leRat.
   rewrite ratAdd_comm.
@@ -3186,7 +3186,7 @@ Lemma rat_distance_of_difference : forall r1 r2 r3 r4 d1 d2,
   intuition.
   eapply leRat_trans.
   eapply ratSubtract_leRat.
-  
+
   eapply ratSubtract_assoc_le.
   eapply leRat_refl.
   rewrite ratAdd_comm.
@@ -3194,18 +3194,18 @@ Lemma rat_distance_of_difference : forall r1 r2 r3 r4 d1 d2,
   rewrite ratSubtract_0.
   rewrite <- ratAdd_0_r.
   intuition.
-  intuition.    
-  
+  intuition.
+
 Qed.
 
 Lemma ratMult_ratSubtract_distrib_r : forall f r1 r2,
   (ratSubtract r1 r2) * f  == ratSubtract (r1 * f) (r2 * f).
-  
+
   intuition.
   unfold ratMult, ratSubtract.
   rattac.
   inversion H; clear H; subst.
-  
+
   arithNormalize.
   f_equal.
   do 6 arithSimplify.
@@ -3214,7 +3214,7 @@ Qed.
 
 Lemma ratMult_ratDistance_factor_r : forall r1 r2 r3,
   ratDistance (r1 * r3) (r2 * r3) == (ratDistance r1 r2) * r3.
-  
+
   intuition.
   destruct (eq_Rat_dec r3 0).
   repeat rewrite e.
@@ -3224,7 +3224,7 @@ Lemma ratMult_ratDistance_factor_r : forall r1 r2 r3,
   unfold ratDistance, maxRat, minRat.
   case_eq (bleRat r1 r2); intuition.
   assert (bleRat (r1 * r3) ( r2 * r3) = true).
-  eapply ratMult_leRat_compat; 
+  eapply ratMult_leRat_compat;
     intuition.
   rewrite H0.
   rewrite ratMult_ratSubtract_distrib_r.
@@ -3234,7 +3234,7 @@ Lemma ratMult_ratDistance_factor_r : forall r1 r2 r3,
   eapply leRat_ratMult_same_r in H0.
   congruence.
   intuition.
-  
+
   rewrite ratMult_ratSubtract_distrib_r.
   intuition.
 
@@ -3242,7 +3242,7 @@ Qed.
 
 Lemma ratMult_ratDistance_factor_l : forall r1 r2 r3,
   ratDistance (r3 * r1) (r3 * r2) == r3 * (ratDistance r1 r2).
-  
+
   intuition.
   repeat rewrite (ratMult_comm r3).
   eapply ratMult_ratDistance_factor_r.
@@ -3254,7 +3254,7 @@ Lemma ratAdd_rel_left_total : forall (r1 r2: Rat -> Prop),
   (forall x1 x2, r1 x1 -> r1 x2 -> x1 == x2) ->
   (forall x1 x2, r2 x1 -> r2 x2 -> x1 == x2) ->
   exists r3, ratAdd_rel r1 r2 r3.
-  
+
   unfold ratAdd_rel in *.
   intuition.
   destruct H.
@@ -3278,14 +3278,14 @@ Lemma expRat_rel_left_total : forall (r1 : Rat -> Prop) n,
   (exists r1', r1 r1') ->
   (forall x1 x2, r1 x1 -> r1 x2 -> x1 == x2) ->
   exists r3, expRat_rel r1 n r3.
-  
+
   unfold expRat_rel in *.
   intuition.
   destruct H.
   exists (expRat x n).
   intuition.
   eapply expRat_eqRat_compat; eauto.
-  
+
 Qed.
 
 Lemma expRat_rel_func : forall (r : Rat -> Prop) v1 v2 n,
@@ -3294,7 +3294,7 @@ Lemma expRat_rel_func : forall (r : Rat -> Prop) v1 v2 n,
   (forall x1 x2, r x1 -> r x2 -> x1 == x2) ->
   (exists r', r r') ->
   v1 == v2.
-  
+
   unfold expRat_rel in *.
   intuition.
   destruct H2.
@@ -3306,7 +3306,7 @@ Qed.
 Lemma ratInverse_involutive : forall r,
   ~ r == 0 ->
   ratInverse (ratInverse r) == r.
-  
+
   intuition.
   unfold ratInverse.
   destruct r.
@@ -3314,7 +3314,7 @@ Lemma ratInverse_involutive : forall r,
   exfalso.
   eapply H.
   eapply rat_num_0.
-  
+
   destruct p.
   unfold posnatToNat, natToPosnat.
   destruct x.
@@ -3355,7 +3355,7 @@ Qed.
 
 Lemma ratDistance_ratInverse : forall r1 r2,
   ~ r1 == 0 ->
-  ~ r2 == 0 -> 
+  ~ r2 == 0 ->
   ratDistance (ratInverse r1) (ratInverse r2) == (ratDistance r1 r2) * ratInverse (r1 * r2).
 
   intuition.
@@ -3375,7 +3375,7 @@ Qed.
 
 Lemma ratSubtract_half : forall x,
   ratSubtract x (x * (1/2)) == x * (1/2).
-  
+
   intuition.
   unfold ratSubtract.
   rattac.
@@ -3393,7 +3393,7 @@ Qed.
 
 Lemma ratMult_ratAdd_cd : forall r n (d : posnat),
   r + r * (RatIntro n d) == r * (RatIntro (d + n)%nat d).
-  
+
   intuition.
   unfold ratAdd, ratMult.
   rattac.
@@ -3410,7 +3410,7 @@ Definition numerator r :=
 Lemma ratDistance_add_same_l_gen : forall r1 r2 r3 r4,
   r1 == r3 ->
   ratDistance (r1 + r2) (r3 + r4) == ratDistance r2 r4.
-  
+
   intuition.
   rewrite H.
   eapply ratDistance_add_same_l.
@@ -3419,7 +3419,7 @@ Qed.
 Lemma ratDistance_add_same_r_gen : forall r1 r2 r3 r4,
   r2 == r4 ->
   ratDistance (r1 + r2) (r3 + r4) == ratDistance r1 r3.
-  
+
   intuition.
   rewrite H.
   eapply ratDistance_add_same_r.
@@ -3427,7 +3427,7 @@ Qed.
 
 Lemma ratDistance_from_0 : forall r,
   ratDistance 0 r == r.
-  
+
   intuition.
   unfold ratDistance, maxRat, minRat.
   rewrite rat0_le_all.
@@ -3436,7 +3436,7 @@ Qed.
 
 Lemma maxRat_comm : forall r1 r2,
   maxRat r1 r2 == maxRat r2 r1.
-  
+
   intuition.
   unfold maxRat.
   case_eq (bleRat r1 r2); intuition.
@@ -3449,7 +3449,7 @@ Qed.
 
 Lemma ratDistance_le_max_triv : forall r1 r2,
   ratDistance r1 r2 <= maxRat r1 r2.
-  
+
   intuition.
   eapply leRat_trans.
   eapply ratDistance_le_max.
@@ -3460,7 +3460,7 @@ Lemma ratDistance_le_max_triv : forall r1 r2,
   eapply eqRat_impl_leRat.
   eapply maxRat_eqRat_compat.
   eapply ratDistance_from_0.
-  
+
   eapply eqRat_trans.
   eapply ratDistance_eqRat_compat.
   eapply eqRat_refl.
@@ -3468,17 +3468,17 @@ Lemma ratDistance_le_max_triv : forall r1 r2,
   rewrite ratDistance_add_same_r.
   rewrite ratDistance_comm.
   eapply ratDistance_from_0.
-  
+
   rewrite maxRat_comm.
   intuition.
 Qed.
 
-Lemma ratAdd_2_ratMax : 
+Lemma ratAdd_2_ratMax :
   forall r1 r2,
     (r1 + r2 <= 2 / 1 * (maxRat r1 r2))%rat.
-  
+
   intuition.
-  
+
   unfold maxRat.
   case_eq (bleRat r1 r2); intuition.
   eapply leRat_trans.
@@ -3488,33 +3488,33 @@ Lemma ratAdd_2_ratMax :
   rewrite ratMult_2.
   rewrite ratMult_comm.
   intuition.
-  
+
   apply bleRat_total in H.
   eapply leRat_trans.
   eapply ratAdd_leRat_compat.
   eapply leRat_refl.
-  eapply H.     
+  eapply H.
   rewrite ratMult_2.
   rewrite ratMult_comm.
   intuition.
 Qed.
 
-Theorem rat_num_not_le : 
+Theorem rat_num_not_le :
   forall (d1 d2 : posnat),
     (RatIntro 1 d1 <= RatIntro 1 d2)%rat ->
     d1 < d2 ->
     False.
-  
+
   intuition.
   rattac.
-  
+
 Qed.
 
-Lemma leRat_0_eq : 
-  forall r, 
+Lemma leRat_0_eq :
+  forall r,
     (r <= 0 ->
       r == 0)%rat.
-  
+
   intuition.
   rattac.
   symmetry.
@@ -3527,13 +3527,13 @@ Lemma leRat_0_eq :
   intuition.
 Qed.
 
-Lemma rat_le_1_if : 
+Lemma rat_le_1_if :
   forall n d,
     RatIntro n d <= 1 ->
     (n <= d)%nat.
-  
+
   intuition.
-  
+
   unfold leRat, bleRat, ratCD, rat1 in *.
   unfold natToPosnat, posnatToNat in *.
   destruct d.
@@ -3541,15 +3541,15 @@ Lemma rat_le_1_if :
   rewrite mult_1_l in H.
   destruct (le_gt_dec n x); intuition.
   discriminate.
-  
+
 Qed.
 
 
-Theorem ratFraction_le_1 : 
+Theorem ratFraction_le_1 :
   forall r1 r2,
     r1 <= r2 ->
     r1 * (ratInverse r2) <= 1.
-  
+
   intuition.
   unfold ratInverse.
   destruct r2.
@@ -3561,24 +3561,24 @@ Theorem ratFraction_le_1 :
   rewrite H.
   rewrite <- ratMult_num_den.
   eapply rat_le_1.
-  
+
   unfold posnatMult, natToPosnat, posnatToNat.
   destruct p.
   rewrite mult_comm.
   intuition.
 Qed.
 
-Theorem ratFraction_ge_1_inv : 
+Theorem ratFraction_ge_1_inv :
   forall r1 r2,
     1 <= r1 * (ratInverse r2) ->
     r2 <= r1.
-  
+
   intuition.
-  
+
   destruct (eq_Rat_dec r2 0).
   rewrite e.
   eapply rat0_le_all.
-  
+
   eapply (@leRat_ratMult_same_r (ratInverse r2)).
   intuition.
   eapply ratInverse_nz.
@@ -3590,20 +3590,20 @@ Theorem ratFraction_ge_1_inv :
 
 Qed.
 
-Theorem eqRat_refl_eq : 
+Theorem eqRat_refl_eq :
   forall x y,
     x = y ->
     x == y.
-  
+
   intuition; subst.
   intuition.
-  
+
 Qed.
 
-Theorem rat_num_S : 
+Theorem rat_num_S :
   forall n d,
     (RatIntro (S n) d == (RatIntro 1 d) + RatIntro n d)%rat.
-  
+
   intuition.
   rattac.
   rewrite mult_plus_distr_r.
@@ -3616,19 +3616,19 @@ Theorem distance_le_prod_f :
     (forall i, | (f i) - (f (S i)) | <= k) ->
     forall q0,
 | (f 0%nat) - (f q0) | <= q0/1 * k.
-  
+
   induction q0; intuition.
   assert (| f 0%nat - f 0%nat | == 0).
   rewrite <- ratIdentityIndiscernables.
   reflexivity.
   rewrite H0.
   eapply rat0_le_all.
-  
+
   eapply leRat_trans.
   eapply ratTriangleInequality.
   rewrite IHq0.
   rewrite H.
-  
+
   rewrite rat_num_S.
   rewrite ratMult_distrib_r.
   rewrite ratAdd_comm.

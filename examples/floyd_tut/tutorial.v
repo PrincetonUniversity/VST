@@ -1,14 +1,14 @@
-(* NOTE: The LoadPath commands below assume that you run 
+(* NOTE: The LoadPath commands below assume that you run
  * coqide or Proof General with current directory as the one
  * in which this tutorial.v file is located, not some parent
  * directory.
  *)
 
-(* TUTORIAL ON LIFTED EXPRESSIONS. 
+(* TUTORIAL ON LIFTED EXPRESSIONS.
  * For more information and explanations,
  * see these chapters of Program Logics for Certified Compilers:
  *  Ch. 12 Separation Logic as a logic;
- *  Ch. 21 Lifted separation logics; 
+ *  Ch. 21 Lifted separation logics;
  *  Ch. 23 Expressions, values, and assertions
  *)
 
@@ -17,7 +17,7 @@
  * and that you start coqide/PG from the same directory.
  *)
 Add LoadPath "../../msl" as msl.
-Add LoadPath "../../compcert" as compcert. 
+Add LoadPath "../../compcert" as compcert.
 Add LoadPath "../../../compcert" as compcert.
 Add LoadPath "../../sepcomp" as sepcomp.
 Add LoadPath "../../veric" as veric.
@@ -99,10 +99,10 @@ Goal Int.one = Int.repr 1.      Proof. reflexivity. Qed.
 Definition nullval := Vint Int.zero.
 
 (* COMPCERT VALUES.
- * The contents of a scalar variable (or the results of 
+ * The contents of a scalar variable (or the results of
  * evaluating an expression) in CompCert C light (or in
  * any of the CompCert languages) is a "val", which may
- * be undefined (uninitialized), an integer (32-bit), 
+ * be undefined (uninitialized), an integer (32-bit),
  * a long long integer (64-bit), a floating-point (64-bit),
  * or a pointer.   Shorter-sized integers (8-bit,16-bit)
  * are extended to 32-bit when represented in scalar
@@ -130,9 +130,9 @@ Proof. intros. destruct v; inversion H. eauto. Qed.
 
 (* A well-typed pointer must be either zero or a Vptr *)
 Goal forall v, tc_val (tptr tint) v ->
-   match v with Vint i => i=Int.zero 
-                     | Vptr _ _ => True 
-                     | _ => False 
+   match v with Vint i => i=Int.zero
+                     | Vptr _ _ => True
+                     | _ => False
    end.
 Proof. intros. destruct v; inversion H; auto.
 Qed.
@@ -167,7 +167,7 @@ Print expr.
 Locate mpred.
 
 (* The injection from a proposition (Prop) to an mpred is "prop",
- *  which is also notated !!   
+ *  which is also notated !!
  *)
 Check prop : Prop -> mpred.
 
@@ -191,7 +191,7 @@ Check data_at: Share.t -> forall t : type, reptype t -> val -> mpred.
  * type    [environ->mpred],  that is, they predicate first
  * on an environment and then on a spatial heaplet.
  *
- * For example, at address (f rho), with full ownership (Tsh), 
+ * For example, at address (f rho), with full ownership (Tsh),
  * there is a 32-bit integer (type [tint] in the C type system),
  * whose value is Int.zero.
  *)
@@ -200,7 +200,7 @@ Check (fun rho => mapsto Tsh tint (f rho) (Vint Int.zero)).
 Check `(mapsto Tsh tint) f `(Vint Int.zero).
 
 (* Let's Define a variable-name or two.  Such definitions will
- * typically be imported from file foo.v produced by 
+ * typically be imported from file foo.v produced by
  * clightgen when compiling foo.c
  *)
 Definition _i : ident := 4%positive.
@@ -244,13 +244,13 @@ Check (prop (i <> Int.zero) && local (`(eq (Vint i)) (eval_id _i)) &&
               ( `(mapsto Tsh tint) (eval_id _s) `(Vint i)
                 * `(mapsto Tsh (tptr tint)) (eval_id _t) (eval_id _s))).
 
-(* The notation PROP(...) LOCAL(...) SEP(...) cleanly 
+(* The notation PROP(...) LOCAL(...) SEP(...) cleanly
  * segregates the pure propositions, the local assertions,
  * and the spatial assertions.  The assertion above
- * can be equivalently written, 
+ * can be equivalently written,
  *)
-Check (PROP(i<>Int.zero) 
-       LOCAL(`(eq (Vint i)) (eval_id _i)) 
+Check (PROP(i<>Int.zero)
+       LOCAL(`(eq (Vint i)) (eval_id _i))
        SEP (`(mapsto Tsh tint) (eval_id _s) `(Vint i);
              `(mapsto Tsh (tptr tint)) (eval_id _t) (eval_id _s))).
 
@@ -258,7 +258,7 @@ Check (PROP(i<>Int.zero)
  * as an r-value using eval_expr, or as an l-value using
  * eval_lvalue.  Although CompCert C light's eval_expr
  * distinguishes between stuck expressions (which
- * fail to evaluate at all) and undefined expressions 
+ * fail to evaluate at all) and undefined expressions
  * (which successfully evaluate to Vundef), in the program
  * logic we do not need to distinguish.  Thus, all expressions
  * evaluate to a value; but the stuck expressions and
@@ -274,7 +274,7 @@ Locate eval_expr.
   * and the one we're using here is the FIRST one, from veric:
   * Constant veric.expr.eval_expr
   * Inductive compcert.cfrontend.Clight.eval_expr
-  *) 
+  *)
 
 Check eval_expr : expr -> environ -> val.
 Print eval_expr.
@@ -283,19 +283,19 @@ Print eval_expr.
  | Econst_int i ty => `(Vint i)
  | Econst_long i ty => `(Vlong i)
  | Econst_float f ty => `(Vfloat f)
- | Etempvar id ty => eval_id id 
- | Eaddrof a ty => eval_lvalue a 
- | Eunop op a ty =>  `(eval_unop op (typeof a)) (eval_expr a) 
- | Ebinop op a1 a2 ty =>  
+ | Etempvar id ty => eval_id id
+ | Eaddrof a ty => eval_lvalue a
+ | Eunop op a ty =>  `(eval_unop op (typeof a)) (eval_expr a)
+ | Ebinop op a1 a2 ty =>
                   `(eval_binop op (typeof a1) (typeof a2)) (eval_expr a1) (eval_expr a2)
- | Ecast a ty => `(eval_cast (typeof a) ty) (eval_expr a) 
+ | Ecast a ty => `(eval_cast (typeof a) ty) (eval_expr a)
  | Evar id ty => `(deref_noload ty) (eval_var id ty)
  | Ederef a ty => `(deref_noload ty) (`force_ptr (eval_expr a))
  | Efield a i ty => `(deref_noload ty) (`(eval_field (typeof a) i) (eval_lvalue a))
  end
 
- with eval_lvalue (e: expr) : environ -> val := 
- match e with 
+ with eval_lvalue (e: expr) : environ -> val :=
+ match e with
  | Evar id ty => eval_var id ty
  | Ederef a ty => `force_ptr (eval_expr a)
  | Efield a i ty => `(eval_field (typeof a) i) (eval_lvalue a)
@@ -304,7 +304,7 @@ Print eval_expr.
 *)
 
 (* An environ contains ... *)
-Print environ.  
+Print environ.
 (* ... various components for global variables,
   addressable local variables, and nonaddressable locals.
  But users of the separation logic will rarely pick

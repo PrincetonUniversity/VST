@@ -18,7 +18,7 @@ simpl fst; simpl snd.
 (* END: without these lines *)
 Time do 8 (forward; unfold upd_Znth, sublist; simpl app). (* 21 sec *)
 Time repeat forward. (* 14 sec *)
-Exists (map Vint init_registers, 
+Exists (map Vint init_registers,
       (Vint Int.zero, (Vint Int.zero, (list_repeat (Z.to_nat 64) Vundef, Vint Int.zero)))).
 unfold_data_at 1%nat.
 Time entailer!. (* 5.2 sec *)

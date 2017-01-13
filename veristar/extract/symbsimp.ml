@@ -31,8 +31,8 @@ let unroll_can_sp pl tags epto csp = match csp with
 	let split_id = gensym_garb split_id_base in
 	let mapf t = (t, Ce_ident (if t=t1 then split_id else gensym_garb (create_ident t))) in
 	let cel = List.map mapf tags
-	in Some [Csp_pointsto (e1, cel); Csp_listseg (SINGLE,t1, Ce_ident split_id, f1,t2,e2,f2)] 
-      else None  
+	in Some [Csp_pointsto (e1, cel); Csp_listseg (SINGLE,t1, Ce_ident split_id, f1,t2,e2,f2)]
+      else None
   | Csp_listseg (k,t1,e1,f1,t2,e2,f2) ->
       if is_uneq pl (e1,f1) && e1=epto  (* unroll from lhs *)
       then
@@ -41,7 +41,7 @@ let unroll_can_sp pl tags epto csp = match csp with
                         if (t=t2 && k=DOUBLE) then e2
 			else Ce_ident (gensym_garb (create_ident t))) in
         let cel = List.map mapf tags
-        in Some [Csp_pointsto (e1, cel); Csp_listseg (k,t1, Ce_ident split_id, f1,t2,e1,f2)] 
+        in Some [Csp_pointsto (e1, cel); Csp_listseg (k,t1, Ce_ident split_id, f1,t2,e1,f2)]
       else if is_uneq pl (e2,f2) && f2=epto  (* unroll from rhs *)
       then
         let _ = using_induction () in
@@ -50,7 +50,7 @@ let unroll_can_sp pl tags epto csp = match csp with
 		      else if (t=t2 && k=DOUBLE) then Ce_ident(split_id)
 		      else Ce_ident (gensym_garb (create_ident t))) in
         let cel = List.map mapf tags
-        in Some [Csp_pointsto (f2, cel); Csp_listseg (k,t1,e1,f2,t2,e2,Ce_ident split_id)] 
+        in Some [Csp_pointsto (f2, cel); Csp_listseg (k,t1,e1,f2,t2,e2,Ce_ident split_id)]
       else None
   | Csp_tree (t1,t2,ce) ->
       if is_uneq pl (Ce_num 0,ce) && ce=epto
@@ -61,7 +61,7 @@ let unroll_can_sp pl tags epto csp = match csp with
 				   else if t=t2 then split_id2
 				   else gensym_garb (create_ident t))) in
 	let cel = List.map mapf tags
-	in Some [Csp_pointsto (ce, cel); Csp_tree (t1,t2, Ce_ident split_id1); Csp_tree (t1,t2, Ce_ident split_id2)] 
+	in Some [Csp_pointsto (ce, cel); Csp_tree (t1,t2, Ce_ident split_id1); Csp_tree (t1,t2, Ce_ident split_id2)]
       else None
   | Csp_indpred(id,el,cl) ->
       let (guard,newids,body) = instance_ip (id,el,cl) in
@@ -89,7 +89,7 @@ let derive_alloc (pl,sl) = (* list of e known to be allocated *)
         then l := e::!l
     | _ -> ()
   in List.iter f sl;
-    !l 
+    !l
 
 let derive_maybe_alloc (pl,sl) = (* pairs (e,f) where e is allocated if e!=f is added *)
   let l = ref [] in
@@ -115,14 +115,14 @@ let expose_ptsto (pl,sl) tags epto =
       in Some (Cp_base (pl,sl1@sl2))
     with Not_found ->
       let alloc = derive_maybe_alloc (pl,sl)
-      in try 
+      in try
 	  let (_,f) = List.find (fun (e,f) -> e=epto) alloc
 	  in Some (Cp_ifthenelse (mk_EQ (epto,f), Cp_base (pl,sl), Cp_base(pl,sl)))
 	with Not_found -> None
 
 let remove_empty_preds pl = (* remove spatial predicates when they're empty *)
   List.filter
-    (function 
+    (function
        | Csp_pointsto _ -> true
        | Csp_listseg(k,_,e1,f1,_,e2,f2) -> e1<>f1 || (k<>SINGLE && e2<>f2)
        | Csp_tree(_,_,e) -> e <> Ce_num 0
@@ -168,7 +168,7 @@ let add_constraints sl =
      add_notnil_constrs ();
      add_star_constrs ();
      !constrs
-    
+
 (* substitute equalities eq into cf and normalize *)
 let apply_equalities eq cf =
   let sub = eq_to_sub eq in
@@ -223,7 +223,7 @@ let compare_can_spred csp1 csp2 =
     | Csp_pointsto (e,_) -> e
     | Csp_tree (_,_,e) -> e
     | Csp_indpred _ -> assert false
-  in compare (existential_id (lhs csp1),csp1) (existential_id (lhs csp2),csp2) 
+  in compare (existential_id (lhs csp1),csp1) (existential_id (lhs csp2),csp2)
 
 let (>) cel t =
   try snd(List.find (fun (t',e) -> t'=t) cel)
@@ -292,13 +292,13 @@ let find_frame (eq,inst) ((pl1,sl1) as cf1) ((pl2,sl2) as cf2) tags =
 		  | ([],(t2,e2)::l') ->
 		      if existential_id e2 then
 			let split_id = Ce_ident (gensym_garb (create_ident t2)) in
-			let (inst',l'') = inst_existential (e2,split_id) (inst,l')      
+			let (inst',l'') = inst_existential (e2,split_id) (inst,l')
 			in subset inst' ([],l'')
 		      else None
 		  | (x::l,y::l') when x=y -> subset inst (l,l')
 		  | ((t1,e1)::l,(t2,e2)::l') when t1=t2 ->
 		      if existential_id e2 then
-			let (inst',l'') = inst_existential (e2,e1) (inst,l')      
+			let (inst',l'') = inst_existential (e2,e1) (inst,l')
 			in subset inst' (l,l'')
 		      else None
 		  | ((t1,e1)::l,(t2,e2)::l') when t1<>t2 ->
@@ -321,7 +321,7 @@ let find_frame (eq,inst) ((pl1,sl1) as cf1) ((pl2,sl2) as cf2) tags =
 	      let (sl1a,sl1b) = List.partition (fun csp' -> can_spred_eq (csp,csp')) sl1
 	      in (match sl1a with
 		    | _::sl1a' -> f ctx (pl1,(sl1a'@sl1b)) (pl2,sl')
-		    | _ -> assert false) 
+		    | _ -> assert false)
 	  | Csp_listseg(SINGLE,_,e1,f1,_,_,_)::sl' when e1=f1 -> f ctx (pl1,sl1) (pl2,sl')
 	  | Csp_listseg(_,_,e1,f1,_,e2,f2)::sl' when e1=f1 && e2=f2 -> f ctx (pl1,sl1) (pl2,sl')
 	  | Csp_listseg(k,t1,e1,f1,t2,e2,f2)::sl' ->
@@ -364,7 +364,7 @@ let find_frame (eq,inst) ((pl1,sl1) as cf1) ((pl2,sl2) as cf2) tags =
 			    using_induction ();
 				if can_append f1
 				then
-				  if k=SINGLE || can_append e2 
+				  if k=SINGLE || can_append e2
 				  then f ctx (pl1,sl1') (pl2,(Csp_listseg(k,t1,f1',f1,t2,f2',f2)::sl'))
 				  else
 				    begin
@@ -403,11 +403,11 @@ let find_frame (eq,inst) ((pl1,sl1) as cf1) ((pl2,sl2) as cf2) tags =
 							 | Csp_indpred (id1,el1,cl1) -> (id1,el1,cl1) = (id,el,cl)
 							 | _ -> false) sl1
 		in begin match sl1a with
-		  | (Csp_indpred _)::sl1a' -> f ctx (pl1,(sl1a' @ sl1b)) (pl2,sl') 
+		  | (Csp_indpred _)::sl1a' -> f ctx (pl1,(sl1a' @ sl1b)) (pl2,sl')
 		  | _ -> error()
 		end
 	  | Csp_tree(_,_,Ce_num 0)::sl' -> f ctx (pl1,sl1) (pl2,sl')
-	  | Csp_tree(t1,t2,e)::sl' -> 
+	  | Csp_tree(t1,t2,e)::sl' ->
 	      let rec g = function
 		| (sl1a, sp::sl1b) ->
 		    let sl1' = sl1a@sl1b in
@@ -455,7 +455,7 @@ let map_lhs_can_prop eq f_cf cp =
 	       if List.mem ca (fst cf) then true else raise Not_found
 	   then f (cp1::cpl1,cf)
 	   else f (cp2::cpl1,cf)
-	 with Not_found -> 
+	 with Not_found ->
            (f (cp1::cpl1,(cf % ca))); (f (cp2::cpl1,(cf % neg_can_atom ca))))
     | Cp_star (cp1,cp2)::cpl1 ->
         f (cp1::cp2::cpl1,cf)
@@ -500,7 +500,7 @@ let rec check_entailment eq (cp1,c,cp2,s,loc) tags =
        | _ -> loc
      in Error.print cur_com_loc "Intermediate State:@.%a@." pp_entailment
 	  (can_prop_star (eq_to_can_prop eq) cp1,c,cp2,s,loc));
-  let f_cf cf = 
+  let f_cf cf =
     let nf = try Some (normal_form eq cf)
     with Inconsistent ->
       (if !Config.verbose2 then
@@ -560,7 +560,7 @@ and check_ent eq2 ((pl2,sl2),c,post,s,loc) tags =
 		   let sub = mk_gensym_garb_subst x in
 		   let f' = sub_can_exp sub f
 		   and cf' = sub_can_form sub (pl2,sl3) in
-		   let eq2' = sub_equalities sub eq2 
+		   let eq2' = sub_equalities sub eq2
 		   in check_entailment (eq_add eq2' (Ce_ident x,f')) (Cp_base cf',c1,post,s,loc) tags
 	       | Some cp -> check_entailment eq2 (cp,c,post,s,loc) tags
 	       | None ->heap_error loc' (fun fmt () -> fprintf fmt "lookup %a->%s" pp_can_exp e t))

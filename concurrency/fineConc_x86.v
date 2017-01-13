@@ -8,7 +8,7 @@ Require Import sepcomp.semantics_lemmas.
 Require Import concurrency.pos.
 Require Import compcert.common.AST.     (*for typ*)
 Require Import compcert.common.Values. (*for val*)
-Require Import compcert.common.Globalenvs. 
+Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
 Require Import compcert.lib.Integers.
@@ -32,10 +32,10 @@ Module X86Initial : FineConcInitial X86SEM X86Machines X86Context X86Inj.
   (** The initial memory is well-defined*)
   Parameter init_mem_wd:
     forall m, init_mem = Some m -> valid_mem m.
-  
+
   Lemma init_core_wd:
     forall v args m (ARGS:valid_val_list (id_ren m) args),
-      init_mem = Some m -> 
+      init_mem = Some m ->
       match initial_core X86SEM.Sem the_ge v args with
       | Some c => core_wd (id_ren m) c
       | None => True
@@ -43,7 +43,7 @@ Module X86Initial : FineConcInitial X86SEM X86Machines X86Context X86Inj.
   Proof.
     intros.
     unfold initial_core. unfold X86SEM.Sem. simpl. unfold Asm_coop.Asm_initial_core.
-    destruct v; trivial. 
+    destruct v; trivial.
     destruct (Int.eq_dec i Int.zero); trivial.
     remember (Genv.find_funct_ptr the_ge b ) as d.
     destruct d; trivial. destruct f; trivial.
@@ -78,7 +78,7 @@ Module X86Initial : FineConcInitial X86SEM X86Machines X86Context X86Inj.
       erewrite Genv.init_mem_genv_next in Hget by eauto.
       apply id_ren_validblock in Hget.
       rewrite Hget; auto.
-    - intros. 
+    - intros.
       unfold Senv.symbol_address in H0.
       destruct (Senv.find_symbol (Genv.globalenv the_program) id) eqn:Hfind.
       apply Senv.find_symbol_below in Hfind.
@@ -88,7 +88,7 @@ Module X86Initial : FineConcInitial X86SEM X86Machines X86Context X86Inj.
       apply id_ren_validblock in Hfind. eexists; eauto.
       subst. simpl; auto.
   Qed.
-  
+
 End X86Initial.
 
 (** Safety of the FineConc machine for the X86 architecture*)

@@ -34,7 +34,7 @@ Definition program := map instr.
 
 Inductive value: Set :=
   | value_label: label -> value
-  | value_cons: value -> value -> value. 
+  | value_cons: value -> value -> value.
 
 Definition store := map value.
 Definition store_empty : store := empty value.
@@ -94,7 +94,7 @@ Definition start_state (p: program) (s: store) (i: instr) :=
 
 Inductive stepstar (p: program) : store -> instr -> store -> instr ->  Prop :=
  | stepstar_O: forall s i, stepstar p s i s i
- | stepstar_S: forall s i s' i' s'' i'', 
+ | stepstar_S: forall s i s' i' s'' i'',
               step p s i s' i' -> stepstar p s' i' s'' i'' -> stepstar p s i s'' i''.
 
 Inductive step_or_halt: program -> store -> instr -> Prop :=
@@ -103,7 +103,7 @@ Inductive step_or_halt: program -> store -> instr -> Prop :=
   | step_or_halt_halt: forall p r,
       step_or_halt p r instr_halt.
 
-Definition safe (p: program) (s: store) (i: instr) := 
+Definition safe (p: program) (s: store) (i: instr) :=
    forall s' i', stepstar p s i s' i' -> step_or_halt p s' i'.
 
 Definition safe_prog (p: program) := forall s i, start_state p s i -> safe p s i.
@@ -111,7 +111,7 @@ Definition safe_prog (p: program) := forall s i, start_state p s i -> safe p s i
 
 Inductive stepN (p: program) : nat -> store -> instr -> store -> instr ->  Prop :=
  | stepN_O: forall s i, stepN p O s i s i
- | stepN_S: forall n s i s' i' s'' i'', 
+ | stepN_S: forall n s i s' i' s'' i'',
               step p s i s' i' -> stepN p n s' i' s'' i'' -> stepN p (S n) s i s'' i''.
 
 Lemma stepstar_stepN : forall p s i s' i',
@@ -147,7 +147,7 @@ Lemma step_deterministic : forall p s i s1 s2 i1 i2,
   intros p s i s1 s2 i1 i2 H1 H2.
   inversion H1; subst; inversion H2; subst;
      intuition congruence.
- Qed.  
+ Qed.
 
 Lemma step_confluent : forall p n s s1 s2 s' i i1 i2 i',
   step p s i s1 i1 ->
@@ -179,5 +179,5 @@ Lemma step_triangle : forall p n1 n2 s s1 s2 i i1 i2,
   inversion H1; subst; clear H1.
   destruct (step_deterministic p s i s' s'0 i' i'0); auto.
   rewrite H0; rewrite H1; auto.
- Qed.  
-  
+ Qed.
+

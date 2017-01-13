@@ -19,7 +19,7 @@ Section PRP_PRF.
 
   Hint Resolve getUnusedR_wf : wftac.
   Hint Resolve well_formed_perm_1 : wftac.
-  
+
   Definition getUnusedBvector := @getUnusedR (Bvector n) _ _ (Rnd n).
   Definition well_formed_Bvector_perm := @well_formed_perm (Bvector n) _ _ _ (Rnd n).
   Definition randomPerm_Bvector := @randomPerm (Bvector n) _ _ _ (Rnd n).
@@ -57,7 +57,7 @@ Section PRP_PRF.
       | Some r => ret (f, r)
     end.
 
-   Lemma randomPerm_unroll_wf : forall ls b0, 
+   Lemma randomPerm_unroll_wf : forall ls b0,
     (forall x, ls#x = None -> exists r, inRange _ ls r = false) ->
     well_formed_comp (randomPerm_unroll (ls, b0)).
 
@@ -71,10 +71,10 @@ Section PRP_PRF.
 
   (* A random permutation in which the loop that gets an unused value form the range is unrolled one step and the permutation keeps track of whether the first attempt located a value that is already in the range.  This is useful when comparing to a random function. *)
   Definition randomPerm_bad(p : (list (Bvector n * Bvector n)) *  Bvector n) : Comp (list (Bvector n * Bvector n) * Bvector n) :=
-    let (f, d) := p in 
+    let (f, d) := p in
     match f#d with
-      | None => 
-        r0 <-$ {0,1} ^ n; 
+      | None =>
+        r0 <-$ {0,1} ^ n;
         r <-$ if (negb (inRange _ f r0)) then ret r0 else getUnusedBvector f;
           ret (if (inRange _ f r0) then ((d, r) :: (d, r0) :: f) else ((d, r) :: f), r)
       | Some r => ret (f, r)
@@ -87,11 +87,11 @@ Section PRP_PRF.
         orb (inRange _ f' r) (checkBad f')
     end.
 
-  
+
   Lemma randomPerm_bad_wf : forall ls d,
     well_formed_Bvector_perm ls ->
     well_formed_comp (randomPerm_bad (ls, d)).
-    
+
     intuition.
     unfold randomPerm_bad.
     case_eq (ls#d); intuition.
@@ -104,7 +104,7 @@ Section PRP_PRF.
     well_formed_Bvector_perm s ->
     evalDist (randomPerm_Bvector (s, d)) x ==
     evalDist (randomPerm_unroll (s, d)) x.
-    
+
     intuition.
     unfold randomPerm_Bvector, randomPerm, randomPerm_unroll.
     case_eq (s#d); intuition.
@@ -118,12 +118,12 @@ Section PRP_PRF.
     destruct (inRange _ s x0); intuition.
   Qed.
 
-  
+
   Lemma randomPerm_unroll_preserves_wf : forall ls d ls' r,
     well_formed_Bvector_perm ls ->
     In (ls', r) (getSupport (randomPerm_unroll (ls, d))) ->
     well_formed_Bvector_perm ls'.
-    
+
     intuition.
     unfold randomPerm_unroll in *.
     case_eq (ls#d); intuition.
@@ -166,13 +166,13 @@ Section PRP_PRF.
     destruct p.
     eapply randomPerm_unroll_preserves_wf; eauto.
   Qed.
- 
+
 
   Lemma randomPerm_bad_preserves_wf : forall ls d ls' r,
     well_formed_Bvector_perm ls ->
     In (ls', r) (getSupport (randomPerm_bad (ls, d))) ->
     well_formed_Bvector_perm ls'.
-    
+
     intuition.
     unfold randomPerm_bad in *.
     case_eq (ls#d); intuition;
@@ -271,7 +271,7 @@ Section PRP_PRF.
     eapply in_getAllBvectors.
     inversion H7; clear H7; subst.
     trivial.
-    
+
     repeat simp_in_support.
     eapply well_formed_perm_cons; trivial.
 
@@ -290,15 +290,15 @@ Section PRP_PRF.
   Qed.
 
   Definition Bvector_perms_eq := @perms_eq (Bvector n) _ _ _ (Rnd n).
-  
-  Lemma randomPerm_unroll_bad_inv : 
-    comp_spec 
-    (fun p1 p2 => (snd p1) = (snd p2) /\ Bvector_perms_eq (fst p1) (fst p2)) 
+
+  Lemma randomPerm_unroll_bad_inv :
+    comp_spec
+    (fun p1 p2 => (snd p1) = (snd p2) /\ Bvector_perms_eq (fst p1) (fst p2))
     (fun p1 p2 => (snd p1) = (snd p2) /\ Bvector_perms_eq (fst p1) (fst p2))
     randomPerm_unroll randomPerm_bad.
-    
+
     unfold comp_spec.
-    
+
     intuition.
     simpl in H1.
     subst.
@@ -326,11 +326,11 @@ Section PRP_PRF.
     rewrite H4.
     simpl.
     intuition.
-    
+
     inline_first.
     comp_skip.
     inline_first.
-    
+
     unfold fst, snd in H5.
     rewrite H5.
     case_eq (inRange _ l r2); intuition; unfold negb.
@@ -346,7 +346,7 @@ Section PRP_PRF.
     rewrite H3.
     eauto.
     eauto.
-    
+
     eapply well_formed_perm_cons_2; intuition.
     simpl.
     destruct (eqbBvector d b); intuition.
@@ -359,7 +359,7 @@ Section PRP_PRF.
     trivial.
 
     unfold snd.
-    
+
     eapply getSupport_In_evalDist.
     intuition.
     eapply getSupport_In_evalDist.
@@ -372,13 +372,13 @@ Section PRP_PRF.
     simpl in H1.
     trivial.
 
-    Theorem inSupportRandomPerm_bad : 
+    Theorem inSupportRandomPerm_bad :
       forall a b r1 r2,
         In r1 (getSupport (getUnusedBvector a)) ->
         inRange _ a r2  = true ->
         a # b = None ->
         In ((b, r1) :: (b, r2) :: a, r1) (getSupport (randomPerm_bad (a, b))).
-      
+
       intuition.
       unfold randomPerm_bad.
       rewrite H1.
@@ -395,7 +395,7 @@ Section PRP_PRF.
     Qed.
 
     eapply inSupportRandomPerm_bad; eauto.
-    
+
     comp_simp.
 
     eapply H0; intuition; unfold fst.
@@ -410,7 +410,7 @@ Section PRP_PRF.
     trivial.
     simpl.
     rewrite H5.
-    trivial.      
+    trivial.
 
     unfold snd.
     eapply getSupport_In_evalDist.
@@ -422,7 +422,7 @@ Section PRP_PRF.
     eapply filter_In.
     split.
     eapply H8.
-    
+
     instantiate (1:=a).
     rewrite H5.
     rewrite H6.
@@ -435,12 +435,12 @@ Section PRP_PRF.
     simpl in H1.
     trivial.
 
-     Theorem inSupportRandomPerm_bad_1 : 
+     Theorem inSupportRandomPerm_bad_1 :
       forall a b r1,
         In r1 (getSupport (getUnusedBvector a)) ->
         a # b = None ->
         In ((b, r1) :: a, r1) (getSupport (randomPerm_bad (a, b))).
-      
+
       intuition.
       unfold randomPerm_bad.
       rewrite H0.
@@ -464,17 +464,17 @@ Section PRP_PRF.
      simpl.
      eapply filter_In.
      split.
-     eapply in_getAllBvectors.  
+     eapply in_getAllBvectors.
      rewrite H6.
      trivial.
 
   Qed.
 
-  
+
   Lemma filter_eq : forall (A : Set)(ls : list A)(P1 P2 : A -> bool),
     (forall a, In a ls -> P1 a = P2 a) ->
     filter P1 ls = filter P2 ls.
-    
+
     induction ls; intuition; simpl in *.
     rewrite (H a); intuition.
     destruct (P2 a).
@@ -531,17 +531,17 @@ Section PRP_PRF.
 
   Qed.
 
-  Lemma perm_func_bad_spec : 
-    comp_spec 
-      (fun p1 p2 => checkBad (fst p1) = true /\ checkBad (fst p2) = true /\ well_formed_Bvector_perm (fst p2)) 
+  Lemma perm_func_bad_spec :
+    comp_spec
       (fun p1 p2 => checkBad (fst p1) = true /\ checkBad (fst p2) = true /\ well_formed_Bvector_perm (fst p2))
-      (randomFunc_Bvector) 
+      (fun p1 p2 => checkBad (fst p1) = true /\ checkBad (fst p2) = true /\ well_formed_Bvector_perm (fst p2))
+      (randomFunc_Bvector)
       randomPerm_bad.
 
     intuition.
     unfold comp_spec.
     intuition.
-    
+
     unfold randomFunc_Bvector, randomFunc, randomPerm_bad.
     destruct d2.
     case_eq (a # b); intuition; case_eq (l # b0); intuition.
@@ -556,7 +556,7 @@ Section PRP_PRF.
     rewrite H5.
     simpl.
     intuition.
-    
+
     inline_first.
     comp_irr_r; wftac.
     inline_first.
@@ -574,7 +574,7 @@ Section PRP_PRF.
     rewrite H4.
     simpl.
     intuition.
-    
+
     eapply inSupportRandomPerm_bad; eauto.
 
     comp_simp.
@@ -625,7 +625,7 @@ Section PRP_PRF.
     simpl in *.
     rewrite H1.
     eapply orb_true_r.
-    
+
     simpl.
     destruct (eqbBvector x r2); intuition.
     simpl.
@@ -653,10 +653,10 @@ Section PRP_PRF.
 
   Qed.
 
-  Lemma perm_func_not_bad_spec : 
+  Lemma perm_func_not_bad_spec :
     let s1 := (fun p1 p2 => checkBad (fst p1) = false /\ checkBad (fst p2) = false /\ snd p1 = snd p2 /\ (forall v, (fst p1) # v = ((fst p2) # v)) /\ (forall r, inRange  _ (fst p1) r = inRange _ (fst p2) r) /\ well_formed_Bvector_perm (fst p2)) in
-    comp_spec 
-    s1 
+    comp_spec
+    s1
     (fun p1 p2 => s1 p1 p2 \/ (checkBad (fst p1) = true /\ checkBad (fst p2) = true /\ well_formed_Bvector_perm (fst p2)))
     (randomFunc_Bvector)
     randomPerm_bad.
@@ -709,7 +709,7 @@ Section PRP_PRF.
     trivial.
 
     eapply inSupportRandomPerm_bad; trivial.
-    
+
     comp_simp.
     eapply H5; intuition.
     left; intuition.
@@ -749,13 +749,13 @@ Section PRP_PRF.
     trivial.
   Qed.
 
-  
+
   Definition randomFunc_eager(p: (list (Bvector n * Bvector n)) * Bvector n) : Comp (list (Bvector n * Bvector n) * Bvector n) :=
     let (f, d) := p in
     r <-$ {0, 1}^n;
     f' <- f ++ (d, r) :: nil;
     match f # d with
-      | None => ret (f', r) 
+      | None => ret (f', r)
       | Some r => ret (f', r)
     end.
 
@@ -813,17 +813,17 @@ Section PRP_PRF.
     trivial.
   Qed.
 
-  Lemma randomFunc_eager_spec : 
-    stateful_comp_spec  
-      (fun s1 s2 => (checkBad s1 = true -> checkBad s2 = true) /\ (forall d, s1 # d = (s2 # d)) /\ forall r, inRange _ s1 r = true -> inRange _ s2 r = true) 
+  Lemma randomFunc_eager_spec :
+    stateful_comp_spec
+      (fun s1 s2 => (checkBad s1 = true -> checkBad s2 = true) /\ (forall d, s1 # d = (s2 # d)) /\ forall r, inRange _ s1 r = true -> inRange _ s2 r = true)
       (fun p1 p2 => snd p1 = snd p2) (fun p1 p2  => snd p1 = snd p2)
-      (randomFunc_Bvector) 
+      (randomFunc_Bvector)
       randomFunc_eager.
 
     intuition.
     unfold stateful_comp_spec, comp_spec.
     intuition.
-    
+
     unfold randomFunc_Bvector, randomFunc, randomFunc_eager.
     simpl in H1.
     subst.
@@ -833,14 +833,14 @@ Section PRP_PRF.
     rewrite H2.
 
     inline_first.
-    
+
     case_eq (l # b); intuition.
     comp_simp.
     inline_first.
     comp_irr_r; wftac.
     comp_simp.
     eapply H3; intuition.
-    
+
     simpl in *.
     eapply checkBad_app; trivial.
     simpl.
@@ -856,7 +856,7 @@ Section PRP_PRF.
     simpl.
     intuition.
 
-    Theorem inSupportRandomFunc_eager_Some : 
+    Theorem inSupportRandomFunc_eager_Some :
       forall l a r b,
         l # a = Some b ->
         In (l ++ (a, r) :: nil, b) (getSupport (randomFunc_eager (l, a))).
@@ -872,7 +872,7 @@ Section PRP_PRF.
       intuition.
     Qed.
 
-    Theorem inSupportRandomFunc_eager_None : 
+    Theorem inSupportRandomFunc_eager_None :
       forall l a r,
         l # a = None ->
         In (l ++ (a, r) :: nil, r) (getSupport (randomFunc_eager (l, a))).
@@ -894,7 +894,7 @@ Section PRP_PRF.
 
     inline_first.
     comp_skip.
-    
+
     comp_simp.
     eapply H3; intuition.
     simpl in *.
@@ -902,13 +902,13 @@ Section PRP_PRF.
     simpl.
     apply orb_true_iff in H5.
     intuition.
-    
+
     simpl.
     case_eq (eqbBvector d b); intuition.
     apply eqbBvector_sound in H5.
     subst.
     rewrite arrayLookup_app_some_eq; trivial.
-   
+
     rewrite arrayLookup_app_none; trivial.
     simpl.
     rewrite H5.
@@ -933,21 +933,21 @@ Section PRP_PRF.
     trivial.
 
     eapply inSupportRandomFunc_eager_None; trivial.
-    
+
 
   Qed.
 
-  Lemma randomFunc_eager_bad_eq : 
-    stateful_comp_spec  
-      (fun s1 s2 => (checkBad s1 = checkBad s2) /\ (forall r, inRange _ s1 r = inRange _ s2 r)) 
+  Lemma randomFunc_eager_bad_eq :
+    stateful_comp_spec
+      (fun s1 s2 => (checkBad s1 = checkBad s2) /\ (forall r, inRange _ s1 r = inRange _ s2 r))
       (fun p1 p2 => True) (fun p1 p2 => True)
-      randomFunc_eager 
+      randomFunc_eager
       randomFunc_eager.
 
     intuition.
     unfold stateful_comp_spec, comp_spec.
     intuition.
-    
+
     unfold randomFunc_eager.
     comp_simp.
     inline_first.
@@ -958,7 +958,7 @@ Section PRP_PRF.
     eapply H2; intuition;
 
     try match goal with
-        | [|- _ = _ ] => simpl in *; repeat rewrite checkBad_app_cons; 
+        | [|- _ = _ ] => simpl in *; repeat rewrite checkBad_app_cons;
                                           repeat rewrite inRange_app_cons; simpl;
                                           repeat rewrite H3; repeat rewrite H0; intuition
         | [|- In (?a ++ (?b, ?r) :: nil, ?r) (getSupport (randomFunc_eager (?a, ?b))) ] =>
@@ -974,13 +974,13 @@ Section PRP_PRF.
     NoDup u ->
     (forall a, In a ls -> In a u) ->
     Permutation (filter (fun a => if (in_dec eqd a ls) then true else false) u) ls.
-    
+
     induction u; intuition; simpl in *.
     destruct ls.
     econstructor.
     specialize (H1 a); simpl in *.
     intuition.
-    
+
     inversion H0; clear H0; subst.
     destruct (in_dec eqd a ls).
     symmetry.
@@ -1017,7 +1017,7 @@ Section PRP_PRF.
     exfalso.
     eapply removeFirst_not_in; eauto.
     trivial.
-    
+
     eapply IHu; intuition.
     specialize (H1 a0); intuition.
     subst.
@@ -1026,21 +1026,21 @@ Section PRP_PRF.
 
   Lemma randomFunc_eager_wf : forall ls d,
     well_formed_comp (randomFunc_eager (ls, d)).
-    
+
     intuition.
     unfold randomFunc_eager.
     wftac.
     intuition.
     destruct (ls # d); wftac.
-    
-    
+
+
   Qed.
-  
+
   Lemma randomFunc_eager_preserves_bad : forall ls d ls' r,
     In (ls', r) (getSupport (randomFunc_eager (ls, d))) ->
     checkBad ls = true ->
     checkBad ls' = true.
-    
+
     intuition.
     unfold randomFunc_eager in *.
     simp_in_support.
@@ -1053,7 +1053,7 @@ Section PRP_PRF.
     rewrite checkBad_app_cons; simpl.
     rewrite H0.
     eapply orb_true_r.
-    
+
   Qed.
 
   (*************************************************************************************)
@@ -1062,10 +1062,10 @@ Section PRP_PRF.
 
   Variable q : nat. (* number of queries *)
   Variable A : AdversaryWithOracle unit bool (Bvector n) (Bvector n) (list (Bvector n * Bvector n)).
-  
+
   Definition PRF_G :=
     s_O <- (@nil (Bvector n * Bvector n));
-    p <-$ (A queries (randomFunc_Bvector) ) q s_O tt; 
+    p <-$ (A queries (randomFunc_Bvector) ) q s_O tt;
     ret fst p.
 
   Definition PRP_G :=
@@ -1097,9 +1097,9 @@ Section PRP_PRF.
     simpl.
     eapply in_getAllBvectors.
     trivial.
-    
+
   Qed.
-  
+
   Theorem Bvector_perms_eq_nil : Bvector_perms_eq nil nil.
 
     unfold Bvector_perms_eq, perms_eq.
@@ -1107,10 +1107,10 @@ Section PRP_PRF.
     eapply well_formed_Bvector_perm_nil.
     eapply well_formed_Bvector_perm_nil.
     unfold funcs_eq.
-    intuition.  
+    intuition.
   Qed.
 
-  Lemma PRP_G_eq_S0 : 
+  Lemma PRP_G_eq_S0 :
     Pr[PRP_G] == Pr[PRP_S0].
 
     unfold PRP_G, PRP_S0.
@@ -1123,7 +1123,7 @@ Section PRP_PRF.
     trivial.
   Qed.
 
-  Lemma PRP_S0_eq_S1 : 
+  Lemma PRP_S0_eq_S1 :
     Pr[PRP_S0] == Pr[PRP_S1].
 
     unfold PRP_S0, PRP_S1.
@@ -1135,7 +1135,7 @@ Section PRP_PRF.
     simpl.
     intuition.
   Qed.
- 
+
   Definition PRF_G_bad :=
     s_O <- nil;
     p <-$ (A queries (randomFunc_Bvector)) q s_O tt;
@@ -1145,7 +1145,7 @@ Section PRP_PRF.
     s_O <- nil;
     p <-$ (A queries randomPerm_bad) q s_O tt;
     ret (checkBad (snd p)).
- 
+
   Lemma badness_same :
     Pr[PRF_G_bad] == Pr[PRP_S1_bad].
 
@@ -1161,7 +1161,7 @@ Section PRP_PRF.
     rewrite H.
     rewrite H0.
     intuition.
-    
+
     simpl in *.
     rewrite H.
     rewrite H0.
@@ -1214,12 +1214,12 @@ Section PRP_PRF.
   Qed.
 
   Definition PRF_eager_G_bad :=
-    s_O <- nil; 
-    p <-$ (A queries randomFunc_eager) q s_O tt; 
+    s_O <- nil;
+    p <-$ (A queries randomFunc_eager) q s_O tt;
     ret checkBad (snd p).
 
 
-  Lemma randomFunc_bad_le_eager : 
+  Lemma randomFunc_bad_le_eager :
     Pr [PRF_G_bad] <= Pr [PRF_eager_G_bad].
 
     unfold PRF_G_bad, PRF_eager_G_bad.
@@ -1233,21 +1233,21 @@ Section PRP_PRF.
     trivial.
 
     destruct (EqDec_dec bool_EqDec false true); try discriminate.
-    eapply rat0_le_all.    
+    eapply rat0_le_all.
 
   Qed.
 
   Definition randomFunc_eager_loop :=
     s <-$ compLoop _ randomFunc_eager q nil (oneVector n);
     ret checkBad s.
-  
-  Lemma randomFunc_G_eq_loop : 
+
+  Lemma randomFunc_G_eq_loop :
     Pr[PRF_eager_G_bad] == Pr[randomFunc_eager_loop].
 
     intuition.
     unfold PRF_eager_G_bad, randomFunc_eager_loop.
     eapply (runA_eq_compLoop _ _ randomFunc_eager_bad_eq); intuition.
-    
+
     simpl.
     rewrite H0.
     intuition.
@@ -1256,7 +1256,7 @@ Section PRP_PRF.
   Lemma checkBad_NoDup : forall ls,
     checkBad ls = false ->
     NoDup (map (@snd (Bvector n) (Bvector n)) ls).
-    
+
     induction ls; intuition; simpl in *.
     econstructor.
     destruct a.
@@ -1270,13 +1270,13 @@ Section PRP_PRF.
     discriminate.
     intuition.
     trivial.
-    
+
   Qed.
-  
+
   Lemma compLoop_randomFunc_eager_le_bound: forall count s_O d,
     checkBad s_O = false ->
-    Pr [p <-$ compLoop _ randomFunc_eager count s_O d; ret (checkBad p)] <= 
-    if (checkBad s_O) then 1 else 
+    Pr [p <-$ compLoop _ randomFunc_eager count s_O d; ret (checkBad p)] <=
+    if (checkBad s_O) then 1 else
     ((count / 1) * (length s_O/ expnat 2 n) + (count * count / expnat 2 n)).
 
     induction count; intuition.
@@ -1299,7 +1299,7 @@ Section PRP_PRF.
     (count / 1 * (S (length s_O) / expnat 2 n) + count * count / expnat 2 n)
     bool (Rnd n)); intuition.
     wftac.
-    
+
     simpl.
     rewrite sumList_factor_constant_l.
     (* there are (length ls) distinct elements in the list, so this must be true *)
@@ -1324,17 +1324,17 @@ Section PRP_PRF.
     rewrite e in H2.
     simpl in *.
     discriminate.
-    
+
     rewrite sumList_body_const.
     rewrite ratMult_1_l.
     rewrite <- ratAdd_0_r.
     eapply eqRat_terms.
-   
+
     erewrite filter_eq.
     Focus 2.
     intros.
     eapply inRange_in_dec.
-    
+
     apply checkBad_NoDup in H.
     erewrite <- (map_length _ s_O).
 
@@ -1349,7 +1349,7 @@ Section PRP_PRF.
     eapply eqRat_terms.
     omega.
     unfold posnatMult, natToPosnat, posnatToNat.
-    omega.  
+    omega.
 
     case_eq (s_O # d); intuition.
 
@@ -1374,7 +1374,7 @@ Section PRP_PRF.
     simpl.
     destruct (EqDec_dec bool_EqDec (checkBad x) true); try congruence.
     intuition.
-    
+
     comp_simp.
     comp_irr_l.
     specialize (compLoop_wf _ randomFunc_eager); intuition.
@@ -1431,7 +1431,7 @@ Section PRP_PRF.
     rewrite plus_comm.
     simpl.
     intuition.
-    
+
     rewrite ratMult_1_r.
     eapply leRat_trans.
     eapply ratAdd_leRat_compat.
@@ -1512,7 +1512,7 @@ End PRP_PRF.
 (*
 Section PRP_Cipher.
 
-  Variable n : nat. 
+  Variable n : nat.
   Variable k1 k2 : Bvector n.
 
   Local Open Scope vector_scope.
@@ -1534,15 +1534,15 @@ Section PRP_Cipher.
 
     match v with
       | Vector.nil => ret nil
-      | b :: v' => 
+      | b :: v' =>
         ls1 <- eagerPerm_h v';
         ls2 <- eagerPerm_h v';
-        
+
     end.
 
   Definition perm := (@randomPerm n).
 
-  Definition encrypt(s_perm : list (Bvector n * Bvector n))(m : Bvector n) := 
+  Definition encrypt(s_perm : list (Bvector n * Bvector n))(m : Bvector n) :=
     p <- perm (s_perm, (BVxor n k1 m));
     ret (fst p, (BVxor n k2 (snd p))).
 

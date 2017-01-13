@@ -7,7 +7,7 @@ Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
 (* Some definitions relating to the functional spec of this particular program.  *)
 Definition sum_Z : list Z -> Z := fold_right Z.add 0.
-  
+
 Lemma sum_Z_app:
   forall a b, sum_Z (a++b) =  sum_Z a + sum_Z b.
 Proof.
@@ -39,14 +39,14 @@ Definition main_spec :=
   POST [ tint ] main_post prog nil u.
 
 (* Packaging the API spec all together. *)
-Definition Gprog : funspecs := 
+Definition Gprog : funspecs :=
         ltac:(with_library prog [sumarray_spec; main_spec]).
 
 (* Loop invariant, for use in body_sumarray.  *)
-Definition sumarray_Inv a0 sh contents size := 
+Definition sumarray_Inv a0 sh contents size :=
  EX i: Z,
    PROP  (0 <= i <= size)
-   LOCAL (temp _a a0; 
+   LOCAL (temp _a a0;
           temp _i (Vint (Int.repr i));
           temp _n (Vint (Int.repr size));
           temp _s (Vint (Int.repr (sum_Z (sublist 0 i contents)))))
@@ -60,7 +60,7 @@ Proof.
 start_function.  (* Always do this at the beginning of a semax_body proof *)
 (* The next two lines do forward symbolic execution through
    the first two executable statements of the function body *)
-forward.  (* i = 0; *) 
+forward.  (* i = 0; *)
 forward.  (* s = 0; *)
 (* To do symbolic execution through a [while] loop, we must
  * provide a loop invariant, so we use [forward_while] with
@@ -79,22 +79,22 @@ entailer!.  (* Typechecking conditions usually solve quite easily *)
    we must forward-symbolic-execute through the loop body;
    so we start that here. *)
 forward. (* x = a[i] *)
-entailer!. (* This is an example of a typechecking condition 
+entailer!. (* This is an example of a typechecking condition
    that is nontrivial; entailer! leaves a subgoal.  The subgoal basically
-   says that the array-subscript index is in range;  not just in 
+   says that the array-subscript index is in range;  not just in
    the bounds of the array, but in the _initialized_ portion of the array.*)
    rewrite Znth_map with (d':=Int.zero). hnf; auto.
    rewrite Zlength_map in H1, HRE; auto. omega.
 forward. (* s += x; *)
 forward. (* i++; *)
  (* Now we have reached the end of the loop body, and it's
-   time to prove that the _current precondition_  (which is the 
+   time to prove that the _current precondition_  (which is the
    postcondition of the loop body) entails the loop invariant. *)
  Exists (i+1).
  entailer!.
  clear - H HRE H1.
  autorewrite with sublist in *.
- simpl. 
+ simpl.
  rewrite add_repr.
  f_equal. f_equal.
  rewrite (sublist_split 0 i (i+1)) by omega.

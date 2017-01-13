@@ -23,22 +23,22 @@ subst.
 assert (exists v1': list (reptype (nested_field_type t1 (gfs SUB 0))), JMeq v1 v1').
 clear - H.
 rewrite nested_field_type_ind.
-revert v1 H. 
+revert v1 H.
 forget (nested_field_type t1 gfs) as tx.
 intros. subst. simpl.
-revert v1. rewrite reptype_eq.  simpl. 
-intros; eauto. 
+revert v1. rewrite reptype_eq.  simpl.
+intros; eauto.
 destruct H1 as [v1' H1].
 assert (exists v2': list (reptype (nested_field_type t1 (gfs SUB 0))), JMeq v2 v2').
 clear - H.
 rewrite nested_field_type_ind.
-revert v2 H. 
+revert v2 H.
 forget (nested_field_type t1 gfs) as tx.
 intros. subst. simpl.
-revert v2. rewrite reptype_eq.  simpl. 
-intros; eauto. 
+revert v2. rewrite reptype_eq.  simpl.
+intros; eauto.
 destruct H2 as [v2' H2].
-  pose proof (Zlength_nonneg al); 
+  pose proof (Zlength_nonneg al);
   pose proof (Zlength_nonneg bl).
 rewrite (field_at_Tarray sh t1 gfs t (Zlength (al++bl)) noattr v1 v1')
   by (auto; apply Zlength_nonneg).
@@ -92,7 +92,7 @@ Definition Delta_final_if1 :=
  (initialized _n  (initialized _p
      (func_tycontext f_SHA256_Final Vprog Gtot))).
 
-Definition Body_final_if1 := 
+Definition Body_final_if1 :=
   (Ssequence
               (Scall None
                 (Evar _memset (Tfunction
@@ -124,7 +124,7 @@ Zlength r_data = CBLOCKz ->
 semax Delta_final_if1
   (PROP ( )
    LOCAL (temp _n (Vint (Int.repr (Zlength (s256a_data a) + 1)));
-   temp _p (field_address t_struct_SHA256state_st [StructField _data] c); 
+   temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
    temp _md md; temp _c c; gvar _K256 kv)
    SEP (K_vector kv;
    field_at Tsh t_struct_SHA256state_st [StructField _h] (map Vint (s256a_regs a)) c;
@@ -151,18 +151,18 @@ semax Delta_final_if1
               0 <= pad < 8;
               (LBLOCKz | Zlength hashed');
               intlist_to_Zlist hashed' ++ dd' =
-              intlist_to_Zlist (s256a_hashed a) ++  (s256a_data a) 
+              intlist_to_Zlist (s256a_hashed a) ++  (s256a_data a)
                   ++ [128%Z] ++ list_repeat (Z.to_nat pad) 0)
-   LOCAL 
+   LOCAL
    (temp _n (Vint (Int.repr (Zlength dd')));
     temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
     temp _md md; temp _c c;
     gvar _K256 kv)
-   SEP  (data_at Tsh t_struct_SHA256state_st 
+   SEP  (data_at Tsh t_struct_SHA256state_st
            (map Vint (hash_blocks init_registers hashed'),
             (Vint (lo_part (s256a_len a)),
              (Vint (hi_part (s256a_len a)),
-              (map Vint (map Int.repr dd') 
+              (map Vint (map Int.repr dd')
                  ++ list_repeat (Z.to_nat (CBLOCKz - Zlength dd')) Vundef,
                Vundef))))
            c;
@@ -210,14 +210,14 @@ rename H4 into H1.
 assert (H4 := s256a_hashed_divides a).
 forget (s256a_hashed a) as hashed.
 forget (s256a_data a) as dd.
-clear - H4 H3 H1 DDbytes. 
+clear - H4 H3 H1 DDbytes.
 {
 assert (Hddlen: (0 <= Zlength dd < CBLOCKz)%Z) by Omega1.
 set (ddlen := Zlength dd) in *.
 set (fill_len := (64 - (ddlen + 1))).
  unfold Delta_final_if1, Body_final_if1; abbreviate_semax.
 change CBLOCKz with 64 in Hddlen.
-unfold_data_at 1%nat. 
+unfold_data_at 1%nat.
 eapply semax_seq'.
 evar (Frame: list mpred).
 evar (V: list val).
@@ -233,7 +233,7 @@ evar (V: list val).
  entailer!. {
  rewrite field_address0_offset by auto with field_compatible.
  rewrite field_address_offset by auto with field_compatible.
- simpl. normalize. 
+ simpl. normalize.
 }
  abbreviate_semax.
 replace (ddlen + 1 + (CBLOCKz - (ddlen + 1))) with CBLOCKz by (clear; omega).
@@ -256,7 +256,7 @@ Focus 2. {
 } Unfocus.
 pose (ddzw := Zlist_to_intlist (map Int.unsigned ddz)).
 assert (H0': Zlength ddz = CBLOCKz). {
-  clear - Hddlen H3. subst ddz ddlen. 
+  clear - Hddlen H3. subst ddz ddlen.
   autorewrite with sublist. clear; omega.
 }
 assert (H1': Zlength ddzw = LBLOCKz). {
@@ -289,7 +289,7 @@ forward_call (* sha256_block_data_order (c,p); *)
   autorewrite with sublist.
   rewrite H1', <- HU. change (LBLOCKz*4)%Z with 64.
   rewrite map_map with (g := Int.repr).
-  replace (fun x => Int.repr (Int.unsigned x)) with (@id int) by 
+  replace (fun x => Int.repr (Int.unsigned x)) with (@id int) by
     (extensionality xx; rewrite Int.repr_unsigned; auto).
   rewrite map_id.
   apply derives_refl.
@@ -299,11 +299,11 @@ forward_call (* sha256_block_data_order (c,p); *)
  entailer!.
 *
 split; [ Omega1 |].
-split. 
+split.
  + rewrite initial_world.Zlength_app.
   apply Z.divide_add_r; auto. rewrite H1'.
   apply Z.divide_refl.
- + 
+ +
   rewrite intlist_to_Zlist_app.
   autorewrite with sublist.
   f_equal.

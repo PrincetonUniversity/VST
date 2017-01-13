@@ -6,8 +6,8 @@ Require compcert.common.Globalenvs.
 
 Inductive cont': Type :=
   | Kseq: statement -> cont'       (**r [Kseq s2 k] = after [s1] in [s1;s2] *)
-  | Kloop1: statement -> statement -> cont'       
-  | Kloop2: statement -> statement  -> cont'      
+  | Kloop1: statement -> statement -> cont'
+  | Kloop2: statement -> statement  -> cont'
   | Kswitch: cont'       (**r catches [break] statements arising out of [switch] *)
   | Kcall: forall (l: option ident),                  (**r where to store result *)
            function ->                      (**r called (not calling!) function *)
@@ -69,9 +69,9 @@ Fixpoint break_cont (k: cont) : cont :=
   | _ =>  nil (* stuck *)
   end.
 
-Inductive corestate := 
+Inductive corestate :=
  | State: forall (ve: env) (te: temp_env) (k: cont), corestate
- | ExtCall: forall (ef: external_function) (args: list val) 
+ | ExtCall: forall (ef: external_function) (args: list val)
                    (lid: option ident) (ve: env) (te: temp_env) (k: cont),
                 corestate.
 
@@ -85,7 +85,7 @@ Definition cl_at_external (c: corestate) : option (external_function * list val)
  end.
 
 Definition cl_after_external (vret: option val) (c: corestate) : option corestate :=
-  match vret, c with 
+  match vret, c with
   | Some v, ExtCall ef args (Some id) ve te k => Some (State ve (PTree.set id v te) k)
   | None, ExtCall ef args (Some id) ve te k => Some (State ve (PTree.set id Vundef te) k)
   | Some v, ExtCall ef args None ve te k => Some (State ve te k)
@@ -93,10 +93,10 @@ Definition cl_after_external (vret: option val) (c: corestate) : option corestat
   | _, _ => None
   end.
 
-(** Find the statement and manufacture the continuation 
+(** Find the statement and manufacture the continuation
   corresponding to a label *)
 
-Fixpoint find_label (lbl: label) (s: statement) (k: cont) 
+Fixpoint find_label (lbl: label) (s: statement) (k: cont)
                     {struct s}: option cont :=
   match s with
   | Ssequence s1 s2 =>
@@ -121,7 +121,7 @@ Fixpoint find_label (lbl: label) (s: statement) (k: cont)
   | _ => None
   end
 
-with find_label_ls (lbl: label) (sl: labeled_statements) (k: cont) 
+with find_label_ls (lbl: label) (sl: labeled_statements) (k: cont)
                     {struct sl}: option cont :=
   match sl with
   | LSnil => None
@@ -158,7 +158,7 @@ Inductive cl_step (ge: Clight.genv): forall (q: corestate) (m: mem) (q': coresta
       list_norepet (var_names f.(fn_params) ++ var_names f.(fn_temps)) ->
       forall (NRV: list_norepet (var_names f.(fn_vars))),
       Clight.alloc_variables ge empty_env m (f.(fn_vars)) ve' m1 ->
-      bind_parameter_temps f.(fn_params) vargs (create_undef_temps f.(fn_temps)) = Some 
+      bind_parameter_temps f.(fn_params) vargs (create_undef_temps f.(fn_temps)) = Some
 le' ->
       cl_step ge (State ve te (Kseq (Scall optid a al) :: k)) m
                    (State ve' le' (Kseq f.(fn_body) :: Kseq (Sreturn None) :: Kcall optid f ve te :: k)) m1
@@ -180,7 +180,7 @@ le' ->
 
   | step_continue: forall ve te k m st' m',
            cl_step ge (State ve te (continue_cont k)) m st' m' ->
-           cl_step ge (State ve te (Kseq Scontinue :: k)) m st' m' 
+           cl_step ge (State ve te (Kseq Scontinue :: k)) m st' m'
 
   | step_break: forall ve te k m st' m',
                    cl_step ge (State ve te (break_cont k)) m st' m' ->
@@ -192,19 +192,19 @@ le' ->
       cl_step ge (State ve te (Kseq (Sifthenelse a s1 s2) :: k)) m (State ve te  (Kseq (if b then s1 else s2) :: k)) m
 
   | step_for: forall ve te k m s1 s2,
-      cl_step ge (State ve te (Kseq (Sloop s1 s2) :: k)) m 
+      cl_step ge (State ve te (Kseq (Sloop s1 s2) :: k)) m
               (State ve te (Kseq s1 :: Kseq Scontinue :: Kloop1 s1 s2 :: k)) m
 
   | step_loop2: forall ve te k m a3 s,
-      cl_step ge (State ve te (Kloop2 s a3 :: k)) m 
+      cl_step ge (State ve te (Kloop2 s a3 :: k)) m
              (State ve te (Kseq s :: Kseq Scontinue :: Kloop1 s a3 :: k)) m
 
   | step_return: forall f ve te optexp optid k m v' m' ve' te' te'' k',
       call_cont k = Kcall optid f ve' te' :: k' ->
       Mem.free_list m (Clight.blocks_of_env ge ve) = Some m' ->
       match optexp with None => v' = Vundef
-                                  | Some a => exists v, Clight.eval_expr ge ve te m a v 
-                                     /\ Cop.sem_cast v (typeof a) f.(fn_return) m = Some v' 
+                                  | Some a => exists v, Clight.eval_expr ge ve te m a v
+                                     /\ Cop.sem_cast v (typeof a) f.(fn_return) m = Some v'
                             end ->
       match optid with None => True /\ te''=te'
                                 | Some id => True /\ te'' = PTree.set id v' te'
@@ -222,7 +222,7 @@ le' ->
        cl_step ge (State ve te (Kseq (Slabel lbl s) :: k)) m st' m'
 
   | step_goto: forall f ve te k m lbl k'
-                     (* make sure to take a step here, so that every loop ticks the clock *) 
+                     (* make sure to take a step here, so that every loop ticks the clock *)
       (CUR: current_function k = Some f),
       find_label lbl f.(fn_body) (Kseq (Sreturn None) :: (call_cont k)) = Some k' ->
       cl_step ge (State ve te (Kseq (Sgoto lbl) :: k)) m (State ve te k') m.
@@ -269,7 +269,7 @@ Definition params_of_fundef (f: fundef) : list type :=
   | External _ t _ _ => typelist2list t
   end.
 
-Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option corestate := 
+Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option corestate :=
   match v with
     Vptr b i =>
     if Int.eq_dec i Int.zero then
@@ -279,7 +279,7 @@ Definition cl_initial_core (ge: genv) (v: val) (args: list val) : option coresta
                     (Kseq (Scall None
                                  (Etempvar 1%positive (type_of_fundef f))
                                  (map (fun x => Etempvar (fst x) (snd x))
-                                      (params_of_types 2%positive 
+                                      (params_of_types 2%positive
                                                        (params_of_fundef f)))) ::
                           Kseq (Sloop Sskip Sskip) :: nil))
       | _ => None end
@@ -301,7 +301,7 @@ Proof.
   simpl; auto.
 Qed.
 
-Lemma cl_after_at_external_excl : 
+Lemma cl_after_at_external_excl :
   forall retv q q', cl_after_external retv q = Some q' -> cl_at_external q' = None.
 Proof.
 intros until q'; intros H.
@@ -311,21 +311,21 @@ destruct lid; try congruence; inv H; auto.
 destruct lid; try congruence; inv H; auto.
 Qed.
 
-Program Definition cl_core_sem : 
+Program Definition cl_core_sem :
   CoreSemantics genv corestate mem :=
-  @Build_CoreSemantics _ _ _ 
+  @Build_CoreSemantics _ _ _
     (*deprecated cl_init_mem*)
     cl_initial_core
     cl_at_external
     cl_after_external
     cl_halted
     cl_step
-    cl_corestep_not_at_external 
+    cl_corestep_not_at_external
     cl_corestep_not_halted _.
 
-Lemma cl_corestep_fun: forall ge m q m1 q1 m2 q2, 
-    cl_step ge q m q1 m1 -> 
-    cl_step ge q m q2 m2 -> 
+Lemma cl_corestep_fun: forall ge m q m1 q1 m2 q2,
+    cl_step ge q m q1 m1 ->
+    cl_step ge q m q2 m2 ->
     (q1,m1)=(q2,m2).
 Proof.
 intros.
@@ -338,7 +338,7 @@ repeat fun_tac.
 inversion2 H H7.
  inversion2 H3 H5.
 destruct optid. destruct H2,H13. subst. auto. destruct H13,H2; subst; auto.
- inversion2 H H7. 
+ inversion2 H H7.
  destruct optid. destruct H2,H13; congruence. destruct H2,H13. subst. auto.
 Qed.
 

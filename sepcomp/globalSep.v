@@ -4,7 +4,7 @@
     that newly allocated blocks are NOT mapped
     to global blocks. It is used to re-establish
     meminj_preserves_globals in the after external
-    diagram. In that sense it replaces 
+    diagram. In that sense it replaces
     sm_inject_separated (jan 2015).
  *)
 
@@ -17,7 +17,7 @@ Require Import sepcomp.mem_lemmas.
 
 Definition globals_separate {F V:Type} (ge: Genv.t F V) mu nu :=
     forall b1 b2 d, as_inj mu b1 = None ->
-            as_inj nu b1 =Some(b2,d) -> 
+            as_inj nu b1 =Some(b2,d) ->
             isGlobalBlock ge b2 = false.
 
 Lemma gsep_refl:
@@ -85,11 +85,11 @@ Lemma gsep_compose:
     destruct (isGlobalBlock ge b3) eqn:isglob; [ | reflexivity].
     assert (meminj_preserves_globals ge (extern_of mu12') /\
             (forall b, isGlobalBlock ge b = true -> frgnBlocksSrc mu12' b = true)).
-      ad_it.    
+      ad_it.
       destruct H0 as [A B].
       apply B in isglob.
       destruct A as [A1 [A2 A3]].
-      
+
       ad_it.
   - assert (HH:as_inj mu12' b1 = Some (b2', d))
       by (eapply INCR; auto).
@@ -97,7 +97,7 @@ Lemma gsep_compose:
     eapply gsep23; eauto.
 Qed.
 *)
-Lemma meminj_preserves_globals_extern_incr_separate {F V:Type} (ge: Genv.t F V) mu nu: 
+Lemma meminj_preserves_globals_extern_incr_separate {F V:Type} (ge: Genv.t F V) mu nu:
   forall (INC: extern_incr mu nu)
          (PG: meminj_preserves_globals ge (as_inj mu))
          (WDnu: SM_wd nu)
@@ -112,12 +112,12 @@ Proof. intros. destruct PG as [PGa [PGb PGc]].
        destruct q.
        destruct p.
        rewrite (extern_incr_as_inj _ _ INC WDnu _ _ _ Heqq) in H0.
-       
+
        inv H0. apply (PGc _ _ _ _ H Heqq).
        specialize (GSep _ _ _ Heqq H0).
        rewrite (find_var_info_isGlobal _ _ _ H) in GSep; discriminate.
 Qed.
-Lemma meminj_preserves_globals_intern_incr_separate {F V:Type} (ge': Genv.t F V) mu nu: 
+Lemma meminj_preserves_globals_intern_incr_separate {F V:Type} (ge': Genv.t F V) mu nu:
   forall (INC: intern_incr mu nu)
          (PG: meminj_preserves_globals ge' (as_inj mu))
          (WDnu: SM_wd nu)
@@ -132,7 +132,7 @@ Proof. intros. destruct PG as [PGa [PGb PGc]].
        destruct q.
        destruct p.
        rewrite (intern_incr_as_inj _ _ INC WDnu _ _ _ Heqq) in H0.
-       
+
        inv H0. apply (PGc _ _ _ _ H Heqq).
        specialize (GSep _ _ _ Heqq H0).
        rewrite (find_var_info_isGlobal _ _ _ H) in GSep; discriminate.
@@ -140,38 +140,38 @@ Qed.
 
 
 Lemma intern_incr_globals_separate
-      {F V:Type} (ge: Genv.t F V) mu nu: 
+      {F V:Type} (ge: Genv.t F V) mu nu:
   forall (INC: intern_incr mu nu)
          (PG: meminj_preserves_globals ge (as_inj mu))
          (GF: forall b, isGlobalBlock ge b = true -> frgnBlocksSrc mu b = true)
-         (WD: SM_wd mu) (WDnu: SM_wd nu), 
+         (WD: SM_wd mu) (WDnu: SM_wd nu),
     globals_separate ge mu nu.
-Proof. intros. red; intros. 
+Proof. intros. red; intros.
        remember (isGlobalBlock ge b2) as p; apply eq_sym in Heqp.
        destruct p; simpl; trivial.
        specialize (GF _ Heqp).
        destruct (frgnSrcAx _ WD _ GF) as [? [? [? ?]]].
        assert (EE: extern_of mu = extern_of nu) by eapply INC.
        destruct (joinD_Some _ _ _ _ _ H0) as [EXT | [EXT LOC]]; clear H0.
-       rewrite <- EE in EXT. 
-       rewrite (extern_in_all _ _ _ _ EXT) in H; discriminate. 
+       rewrite <- EE in EXT.
+       rewrite (extern_in_all _ _ _ _ EXT) in H; discriminate.
        destruct (local_DomRng _ WDnu _ _ _ LOC) as [lS lT].
-       assert (lT': locBlocksTgt nu b2 = false). 
+       assert (lT': locBlocksTgt nu b2 = false).
        apply (meminj_preserves_globals_isGlobalBlock _ _ PG) in Heqp.
        rewrite (extern_in_all _ _ _ _ H1) in Heqp; inv Heqp.
        rewrite EE in H1.
-       eapply extern_DomRng'; eassumption. 
-       rewrite lT' in lT; discriminate. 
-Qed.  
+       eapply extern_DomRng'; eassumption.
+       rewrite lT' in lT; discriminate.
+Qed.
 
 Lemma exter_incr_globals_separate
-      {F V:Type} (ge: Genv.t F V) mu nu: 
+      {F V:Type} (ge: Genv.t F V) mu nu:
   forall (EE: extern_of mu = extern_of nu)
          (PG: meminj_preserves_globals ge (as_inj mu))
          (GF: forall b, isGlobalBlock ge b = true -> frgnBlocksSrc mu b = true)
-         (WD: SM_wd mu) (WDnu: SM_wd nu), 
+         (WD: SM_wd mu) (WDnu: SM_wd nu),
     globals_separate ge mu nu.
-Proof. intros. red; intros. 
+Proof. intros. red; intros.
        remember (isGlobalBlock ge b1) as p1; apply eq_sym in Heqp1.
        remember (isGlobalBlock ge b2) as p; apply eq_sym in Heqp.
        destruct p; simpl; trivial.
@@ -186,12 +186,12 @@ Proof. intros. red; intros.
        destruct (frgnSrcAx _ WD _ GF) as [? [? [? ?]]].
        destruct (joinD_Some _ _ _ _ _ H0) as [EXT | [EXT LOC]]; clear H0.
        rewrite <- EE in EXT.
-       rewrite (extern_in_all _ _ _ _ EXT) in H. discriminate. 
+       rewrite (extern_in_all _ _ _ _ EXT) in H. discriminate.
        destruct (local_DomRng _ WDnu _ _ _ LOC) as [lS lT].
-       assert (lT': locBlocksTgt nu b2 = false). 
+       assert (lT': locBlocksTgt nu b2 = false).
        apply (meminj_preserves_globals_isGlobalBlock _ _ PG) in Heqp.
        rewrite (extern_in_all _ _ _ _ H1) in Heqp; inv Heqp.
        rewrite EE in H1.
-       eapply extern_DomRng'; eassumption. 
-       rewrite lT' in lT; discriminate. 
-Qed.  
+       eapply extern_DomRng'; eassumption.
+       rewrite lT' in lT; discriminate.
+Qed.

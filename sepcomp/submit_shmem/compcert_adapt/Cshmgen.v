@@ -103,10 +103,10 @@ Definition make_cmp_ne_zero (e: expr) :=
 
 Definition make_cast_int (e: expr) (sz: intsize) (si: signedness) :=
   match sz, si with
-  | I8, Signed => Eunop Ocast8signed e  
-  | I8, Unsigned => Eunop Ocast8unsigned e  
-  | I16, Signed => Eunop Ocast16signed e  
-  | I16, Unsigned => Eunop Ocast16unsigned e  
+  | I8, Signed => Eunop Ocast8signed e
+  | I8, Unsigned => Eunop Ocast8unsigned e
+  | I16, Signed => Eunop Ocast16signed e
+  | I16, Unsigned => Eunop Ocast16unsigned e
   | I32, _ => e
   | IBool, _ => make_cmp_ne_zero e
   end.
@@ -312,7 +312,7 @@ Definition make_memcpy (dst src: expr) (ty: type) :=
 
 (** [make_store addr ty rhs] stores the value of the
    Csharpminor expression [rhs] into the memory location denoted by the
-   Csharpminor expression [addr].  
+   Csharpminor expression [addr].
    [ty] is the type of the memory location. *)
 
 Definition make_store (addr: expr) (ty: type) (rhs: expr) :=
@@ -386,7 +386,7 @@ Fixpoint transl_expr (a: Clight.expr) {struct a} : res expr :=
   | Clight.Ecast b ty =>
       do tb <- transl_expr b;
       make_cast (typeof b) ty tb
-  | Clight.Efield b i ty => 
+  | Clight.Efield b i ty =>
       match typeof b with
       | Tstruct _ fld _ =>
           do tb <- transl_expr b;
@@ -413,7 +413,7 @@ with transl_lvalue (a: Clight.expr) {struct a} : res expr :=
       OK (Eaddrof id)
   | Clight.Ederef b _ =>
       transl_expr b
-  | Clight.Efield b i ty => 
+  | Clight.Efield b i ty =>
       match typeof b with
       | Tstruct _ fld _ =>
           do tb <- transl_expr b;
@@ -424,7 +424,7 @@ with transl_lvalue (a: Clight.expr) {struct a} : res expr :=
       | _ =>
           Error(msg "Cshmgen.transl_lvalue(field)")
       end
-  | _ => 
+  | _ =>
       Error(msg "Cshmgen.transl_lvalue")
   end.
 
@@ -440,7 +440,7 @@ Fixpoint transl_arglist (al: list Clight.expr) (tyl: typelist)
   | a1 :: a2, Tcons ty1 ty2 =>
       do ta1 <- transl_expr a1;
       do ta1' <- make_cast (typeof a1) ty1 ta1;
-      do ta2 <- transl_arglist a2 ty2;      
+      do ta2 <- transl_arglist a2 ty2;
       OK (ta1' :: ta2)
   | _, _ =>
       Error(msg "Cshmgen.transl_arglist: arity mismatch")
@@ -552,7 +552,7 @@ Definition signature_of_function (f: Clight.function) :=
 
 Definition transl_function (f: Clight.function) : res function :=
   do tbody <- transl_statement f.(Clight.fn_return) 1%nat 0%nat (Clight.fn_body f);
-  OK (mkfunction 
+  OK (mkfunction
        (signature_of_function f)
        (map fst (Clight.fn_params f))
        (map transl_var (Clight.fn_vars f))
@@ -561,7 +561,7 @@ Definition transl_function (f: Clight.function) : res function :=
 
 Definition transl_fundef (f: Clight.fundef) : res fundef :=
   match f with
-  | Clight.Internal g => 
+  | Clight.Internal g =>
       do tg <- transl_function g; OK(AST.Internal tg)
   | Clight.External ef args res =>
       if list_typ_eq (sig_args (ef_sig ef)) (typlist_of_typelist args)

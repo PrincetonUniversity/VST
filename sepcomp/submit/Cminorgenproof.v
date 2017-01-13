@@ -66,7 +66,7 @@ Proof (Genv.find_var_info_transf_partial transl_fundef _ TRANSL).
 
 Lemma sig_preserved_body:
   forall f tf cenv size,
-  transl_funbody cenv size f = OK tf -> 
+  transl_funbody cenv size f = OK tf ->
   tf.(fn_sig) = Csharpminor.fn_sig f.
 Proof.
   intros. unfold transl_funbody in H. monadInv H; reflexivity.
@@ -74,13 +74,13 @@ Qed.
 
 Lemma sig_preserved:
   forall f tf,
-  transl_fundef f = OK tf -> 
+  transl_fundef f = OK tf ->
   Cminor.funsig tf = Csharpminor.funsig f.
 Proof.
   intros until tf; destruct f; simpl.
   unfold transl_function. destruct (build_compilenv f).
   case (zle z Int.max_unsigned); simpl bind; try congruence.
-  intros. monadInv H. simpl. eapply sig_preserved_body; eauto. 
+  intros. monadInv H. simpl. eapply sig_preserved_body; eauto.
   intro. inv H. reflexivity.
 Qed.
 
@@ -88,7 +88,7 @@ Qed.
 
 Lemma load_freelist:
   forall fbl chunk m b ofs m',
-  (forall b' lo hi, In (b', lo, hi) fbl -> b' <> b) -> 
+  (forall b' lo hi, In (b', lo, hi) fbl -> b' <> b) ->
   Mem.free_list m fbl = Some m' ->
   Mem.load chunk m' b ofs = Mem.load chunk m b ofs.
 Proof.
@@ -96,10 +96,10 @@ Proof.
   simpl in H0. congruence.
   destruct a as [[b' lo] hi].
   generalize H0. simpl. case_eq (Mem.free m b' lo hi); try congruence.
-  intros m1 FR1 FRL. 
+  intros m1 FR1 FRL.
   transitivity (Mem.load chunk m1 b ofs).
-  eapply IHfbl; eauto. intros. eapply H. eauto with coqlib. 
-  eapply Mem.load_free; eauto. left. apply sym_not_equal. eapply H. auto with coqlib. 
+  eapply IHfbl; eauto. intros. eapply H. eauto with coqlib.
+  eapply Mem.load_free; eauto. left. apply sym_not_equal. eapply H. auto with coqlib.
 Qed.
 
 Lemma perm_freelist:
@@ -121,7 +121,7 @@ Lemma nextblock_freelist:
 Proof.
   induction fbl; intros until m'; simpl.
   congruence.
-  destruct a as [[b lo] hi]. 
+  destruct a as [[b lo] hi].
   case_eq (Mem.free m b lo hi); intros; try congruence.
   transitivity (Mem.nextblock m0). eauto. eapply Mem.nextblock_free; eauto.
 Qed.
@@ -137,7 +137,7 @@ Proof.
   revert H. destruct a as [[b' lo'] hi'].
   caseEq (Mem.free m b' lo' hi'); try congruence.
   intros m1 FREE1 FREE2.
-  destruct H0. inv H. 
+  destruct H0. inv H.
   eauto with mem.
   red; intros. eapply Mem.perm_free_3; eauto. exploit IHl; eauto.
 Qed.
@@ -146,7 +146,7 @@ Lemma nextblock_storev:
   forall chunk m addr v m',
   Mem.storev chunk m addr v = Some m' -> Mem.nextblock m' = Mem.nextblock m.
 Proof.
-  unfold Mem.storev; intros. destruct addr; try discriminate. 
+  unfold Mem.storev; intros. destruct addr; try discriminate.
   eapply Mem.nextblock_store; eauto.
 Qed.
 
@@ -155,7 +155,7 @@ Qed.
 (** In C#minor, every variable is stored in a separate memory block.
   In the corresponding Cminor code, these variables become sub-blocks
   of the stack data block.  We capture these changes in memory via a
-  memory injection [f]: 
+  memory injection [f]:
   [f b = Some(b', ofs)] means that C#minor block [b] corresponds
   to a sub-block of Cminor block [b] at offset [ofs].
 
@@ -235,7 +235,7 @@ Record match_env (f: meminj) (cenv: compilenv)
       f b = Some(tb, delta) -> Plt b lo -> Plt tb sp
   }.
 
-Ltac geninv x := 
+Ltac geninv x :=
   let H := fresh in (generalize x; intro H; inv H).
 
 Lemma match_env_invariant:
@@ -250,7 +250,7 @@ Proof.
 (* vars *)
   intros. geninv (me_vars0 id); econstructor; eauto.
 (* bounded *)
-  intros. eauto. 
+  intros. eauto.
 (* below *)
   intros. rewrite H2 in H; eauto.
 Qed.
@@ -263,7 +263,7 @@ Remark inject_incr_separated_same:
   forall b, Mem.valid_block m1 b -> f2 b = f1 b.
 Proof.
   intros. case_eq (f1 b).
-  intros [b' delta] EQ. apply H; auto. 
+  intros [b' delta] EQ. apply H; auto.
   intros EQ. case_eq (f2 b).
   intros [b'1 delta1] EQ1. exploit H0; eauto. intros [C D]. contradiction.
   auto.
@@ -290,7 +290,7 @@ Lemma match_env_external_call:
 Proof.
   intros. apply match_env_invariant with f1; auto.
   intros. eapply inject_incr_separated_same'; eauto.
-  intros. eapply inject_incr_separated_same; eauto. red. destruct H. xomega. 
+  intros. eapply inject_incr_separated_same; eauto. red. destruct H. xomega.
 Qed.
 
 (** [match_env] and allocations *)
@@ -313,7 +313,7 @@ Proof.
 (* vars *)
   intros. rewrite PTree.gsspec. destruct (peq id0 id).
   (* the new var *)
-  subst id0. rewrite CENV. constructor. econstructor. eauto. 
+  subst id0. rewrite CENV. constructor. econstructor. eauto.
   rewrite Int.add_commut; rewrite Int.add_zero; auto.
   (* old vars *)
   generalize (me_vars0 id0). rewrite PTree.gro; auto. intros M; inv M.
@@ -327,8 +327,8 @@ Proof.
   exploit me_bounded0; eauto. rewrite NEXTBLOCK; xomega.
 (* inv *)
   intros. destruct (eq_block b (Mem.nextblock m1)).
-  subst b. rewrite SAME in H; inv H. exists id; exists sz. apply PTree.gss. 
-  rewrite OTHER in H; auto. exploit me_inv0; eauto. 
+  subst b. rewrite SAME in H; inv H. exists id; exists sz. apply PTree.gss.
+  rewrite OTHER in H; auto. exploit me_inv0; eauto.
   intros [id1 [sz1 EQ]]. exists id1; exists sz1. rewrite PTree.gso; auto. congruence.
 (* incr *)
   intros. rewrite OTHER in H. eauto. unfold block in *; xomega.
@@ -347,7 +347,7 @@ Lemma match_bounds_invariant:
    PTree.get id e = Some(b, sz) -> Mem.perm m2 b ofs Max p -> Mem.perm m1 b ofs Max p) ->
   match_bounds e m2.
 Proof.
-  intros; red; intros. eapply H; eauto. 
+  intros; red; intros. eapply H; eauto.
 Qed.
 
 (** ** Permissions on the Cminor stack block *)
@@ -363,7 +363,7 @@ Inductive is_reachable_from_env (f: meminj) (e: Csharpminor.env) (sp: block) (of
       is_reachable_from_env f e sp ofs.
 
 Definition padding_freeable (f: meminj) (e: Csharpminor.env) (tm: mem) (sp: block) (sz: Z) : Prop :=
-  forall ofs, 
+  forall ofs,
   0 <= ofs < sz -> Mem.perm tm sp ofs Cur Freeable \/ is_reachable_from_env f e sp ofs.
 
 Lemma padding_freeable_invariant:
@@ -378,7 +378,7 @@ Proof.
   exploit H; eauto. intros [A | A].
   left; auto.
   right. inv A. exploit me_bounded; eauto. intros [D E].
-  econstructor; eauto. rewrite H2; auto. 
+  econstructor; eauto. rewrite H2; auto.
 Qed.
 
 (** Decidability of the [is_reachable_from_env] predicate. *)
@@ -386,7 +386,7 @@ Qed.
 Lemma is_reachable_from_env_dec:
   forall f e sp ofs, is_reachable_from_env f e sp ofs \/ ~is_reachable_from_env f e sp ofs.
 Proof.
-  intros. 
+  intros.
   set (pred := fun id_b_sz : ident * (block * Z) =>
                  match id_b_sz with
                  | (id, (b, sz)) =>
@@ -400,22 +400,22 @@ Proof.
                  end).
   destruct (List.existsb pred (PTree.elements e)) eqn:?.
   (* yes *)
-  rewrite List.existsb_exists in Heqb. 
+  rewrite List.existsb_exists in Heqb.
   destruct Heqb as [[id [b sz]] [A B]].
   simpl in B. destruct (f b) as [[sp' delta] |] eqn:?; try discriminate.
   destruct (eq_block sp sp'); try discriminate.
   destruct (andb_prop _ _ B).
   left. apply is_reachable_intro with id b sz delta.
-  apply PTree.elements_complete; auto. 
+  apply PTree.elements_complete; auto.
   congruence.
   split; eapply proj_sumbool_true; eauto.
   (* no *)
-  right; red; intro NE; inv NE. 
+  right; red; intro NE; inv NE.
   assert (existsb pred (PTree.elements e) = true).
   rewrite List.existsb_exists. exists (id, (b, sz)); split.
-  apply PTree.elements_correct; auto. 
+  apply PTree.elements_correct; auto.
   simpl. rewrite H0. rewrite dec_eq_true.
-  unfold proj_sumbool. destruct H1. rewrite zle_true; auto. rewrite zlt_true; auto. 
+  unfold proj_sumbool. destruct H1. rewrite zle_true; auto. rewrite zlt_true; auto.
   congruence.
 Qed.
 
@@ -439,8 +439,8 @@ Remark inj_preserves_globals:
 Proof.
   intros. inv H.
   split. intros. apply DOMAIN. eapply SYMBOLS. eauto.
-  split. intros. apply DOMAIN. eapply VARINFOS. eauto. 
-  intros. symmetry. eapply IMAGE; eauto. 
+  split. intros. apply DOMAIN. eapply VARINFOS. eauto.
+  intros. symmetry. eapply IMAGE; eauto.
 Qed.
 
 (** * Invariant on abstract call stacks  *)
@@ -477,7 +477,7 @@ Inductive match_callstack (f: meminj) (m: mem) (tm: mem):
       forall hi bound tbound,
       match_globalenvs f hi ->
       Ple hi bound -> Ple hi tbound ->
-      match_callstack f m tm nil bound tbound 
+      match_callstack f m tm nil bound tbound
   | mcs_cons:
       forall cenv tf e le te sp lo hi cs bound tbound
         (BOUND: Ple hi bound)
@@ -520,16 +520,16 @@ Proof.
   assert (Ple lo hi) by (eapply me_low_high; eauto).
   econstructor; eauto.
   eapply match_temps_invariant; eauto.
-  eapply match_env_invariant; eauto. 
+  eapply match_env_invariant; eauto.
     intros. apply H3. xomega.
   eapply match_bounds_invariant; eauto.
-    intros. eapply H1; eauto. 
-    exploit me_bounded; eauto. xomega. 
-  eapply padding_freeable_invariant; eauto. 
-    intros. apply H3. xomega. 
-  eapply IHmatch_callstack; eauto. 
-    intros. eapply H1; eauto. xomega. 
-    intros. eapply H2; eauto. xomega. 
+    intros. eapply H1; eauto.
+    exploit me_bounded; eauto. xomega.
+  eapply padding_freeable_invariant; eauto.
+    intros. apply H3. xomega.
+  eapply IHmatch_callstack; eauto.
+    intros. eapply H1; eauto. xomega.
+    intros. eapply H2; eauto. xomega.
     intros. eapply H3; eauto. xomega.
     intros. eapply H4; eauto. xomega.
 Qed.
@@ -541,7 +541,7 @@ Lemma match_callstack_incr_bound:
   match_callstack f m tm cs bound' tbound'.
 Proof.
   intros. inv H.
-  econstructor; eauto. xomega. xomega. 
+  econstructor; eauto. xomega. xomega.
   constructor; auto. xomega. xomega.
 Qed.
 
@@ -554,7 +554,7 @@ Lemma match_callstack_set_temp:
   match_callstack f m tm (Frame cenv tf e (PTree.set id v le) (PTree.set id tv te) sp lo hi :: cs) bound tbound.
 Proof.
   intros. inv H0. constructor; auto.
-  eapply match_temps_assign; eauto. 
+  eapply match_temps_assign; eauto.
 Qed.
 
 (** Preservation of [match_callstack] by freeing all blocks allocated
@@ -565,7 +565,7 @@ Lemma in_blocks_of_env:
   forall e id b sz,
   e!id = Some(b, sz) -> In (b, 0, sz) (blocks_of_env e).
 Proof.
-  unfold blocks_of_env; intros. 
+  unfold blocks_of_env; intros.
   change (b, 0, sz) with (block_of_binding (id, (b, sz))).
   apply List.in_map. apply PTree.elements_correct. auto.
 Qed.
@@ -575,9 +575,9 @@ Lemma in_blocks_of_env_inv:
   In (b, lo, hi) (blocks_of_env e) ->
   exists id, e!id = Some(b, hi) /\ lo = 0.
 Proof.
-  unfold blocks_of_env; intros. 
+  unfold blocks_of_env; intros.
   exploit list_in_map_inv; eauto. intros [[id [b' sz]] [A B]].
-  unfold block_of_binding in A. inv A. 
+  unfold block_of_binding in A. inv A.
   exists id; intuition. apply PTree.elements_complete. auto.
 Qed.
 
@@ -597,10 +597,10 @@ Proof.
   red; intros.
   exploit PERM; eauto. intros [A | A].
   auto.
-  inv A. assert (Mem.range_perm m b 0 sz Cur Freeable). 
+  inv A. assert (Mem.range_perm m b 0 sz Cur Freeable).
   eapply free_list_freeable; eauto. eapply in_blocks_of_env; eauto.
-  replace ofs with ((ofs - delta) + delta) by omega. 
-  eapply Mem.perm_inject; eauto. apply H3. omega. 
+  replace ofs with ((ofs - delta) + delta) by omega.
+  eapply Mem.perm_inject; eauto. apply H3. omega.
   destruct X as  [tm' FREE].
   exploit nextblock_freelist; eauto. intro NEXT.
   exploit Mem.nextblock_free; eauto. intro NEXT'.
@@ -611,10 +611,10 @@ Proof.
   intros. eapply perm_freelist; eauto.
   intros. eapply Mem.perm_free_1; eauto. left; unfold block; xomega. xomega. xomega.
   eapply Mem.free_inject; eauto.
-  intros. exploit me_inv0; eauto. intros [id [sz A]]. 
+  intros. exploit me_inv0; eauto. intros [id [sz A]].
   exists 0; exists sz; split.
   eapply in_blocks_of_env; eauto.
-  eapply BOUND0; eauto. eapply Mem.perm_max. eauto. 
+  eapply BOUND0; eauto. eapply Mem.perm_max. eauto.
 Qed.
 
 (** Preservation of [match_callstack] by external calls. *)
@@ -631,33 +631,33 @@ Lemma match_callstack_external_call:
   Ple bound (Mem.nextblock m1) -> Ple tbound (Mem.nextblock m1') ->
   match_callstack f2 m2 m2' cs bound tbound.
 Proof.
-  intros until m2'. 
+  intros until m2'.
   intros UNMAPPED OUTOFREACH INCR SEPARATED MAXPERMS.
   induction 1; intros.
 (* base case *)
   apply mcs_nil with hi; auto.
   inv H. constructor; auto.
-  intros. case_eq (f1 b1). 
-  intros [b2' delta'] EQ. rewrite (INCR _ _ _ EQ) in H. inv H. eauto. 
-  intro EQ. exploit SEPARATED; eauto. intros [A B]. elim B. red. xomega. 
+  intros. case_eq (f1 b1).
+  intros [b2' delta'] EQ. rewrite (INCR _ _ _ EQ) in H. inv H. eauto.
+  intro EQ. exploit SEPARATED; eauto. intros [A B]. elim B. red. xomega.
 (* inductive case *)
-  constructor. auto. auto. 
+  constructor. auto. auto.
   eapply match_temps_invariant; eauto.
-  eapply match_env_invariant; eauto. 
-  red in SEPARATED. intros. destruct (f1 b) as [[b' delta']|] eqn:?. 
+  eapply match_env_invariant; eauto.
+  red in SEPARATED. intros. destruct (f1 b) as [[b' delta']|] eqn:?.
   exploit INCR; eauto. congruence.
-  exploit SEPARATED; eauto. intros [A B]. elim B. red. xomega. 
+  exploit SEPARATED; eauto. intros [A B]. elim B. red. xomega.
   intros. assert (Ple lo hi) by (eapply me_low_high; eauto).
-  destruct (f1 b) as [[b' delta']|] eqn:?. 
-  apply INCR; auto. 
+  destruct (f1 b) as [[b' delta']|] eqn:?.
+  apply INCR; auto.
   destruct (f2 b) as [[b' delta']|] eqn:?; auto.
   exploit SEPARATED; eauto. intros [A B]. elim A. red. xomega.
-  eapply match_bounds_invariant; eauto. 
-  intros. eapply MAXPERMS; eauto. red. exploit me_bounded; eauto. xomega. 
+  eapply match_bounds_invariant; eauto.
+  intros. eapply MAXPERMS; eauto. red. exploit me_bounded; eauto. xomega.
   (* padding-freeable *)
   red; intros.
   destruct (is_reachable_from_env_dec f1 e sp ofs).
-  inv H3. right. apply is_reachable_intro with id b sz delta; auto. 
+  inv H3. right. apply is_reachable_intro with id b sz delta; auto.
   exploit PERM; eauto. intros [A|A]; try contradiction.
   left. eapply Mem.perm_unchanged_on; eauto.
   red; intros; red; intros. elim H3.
@@ -694,10 +694,10 @@ Proof.
     xomega.
     rewrite PTree.gempty in H4; discriminate.
     eelim Mem.fresh_block_alloc; eauto. eapply Mem.valid_block_inject_2; eauto.
-    rewrite RES. change (Mem.valid_block tm tb). eapply Mem.valid_block_inject_2; eauto. 
+    rewrite RES. change (Mem.valid_block tm tb). eapply Mem.valid_block_inject_2; eauto.
   red; intros. rewrite PTree.gempty in H4. discriminate.
-  red; intros. left. eapply Mem.perm_alloc_2; eauto. 
-  eapply match_callstack_invariant with (tm1 := tm); eauto. 
+  red; intros. left. eapply Mem.perm_alloc_2; eauto.
+  eapply match_callstack_invariant with (tm1 := tm); eauto.
   rewrite RES; auto.
   intros. eapply Mem.perm_alloc_1; eauto.
 Qed.
@@ -717,10 +717,10 @@ Lemma match_callstack_alloc_left:
     (Frame cenv tf (PTree.set id (b, sz) e) le te sp lo (Mem.nextblock m2) :: cs)
     (Mem.nextblock m2) (Mem.nextblock tm).
 Proof.
-  intros. inv H. 
+  intros. inv H.
   exploit Mem.nextblock_alloc; eauto. intros NEXTBLOCK.
   exploit Mem.alloc_result; eauto. intros RES.
-  assert (LO: Ple lo (Mem.nextblock m1)) by (eapply me_low_high; eauto). 
+  assert (LO: Ple lo (Mem.nextblock m1)) by (eapply me_low_high; eauto).
   constructor.
   xomega.
   auto.
@@ -728,17 +728,17 @@ Proof.
   eapply match_env_alloc; eauto.
   red; intros. rewrite PTree.gsspec in H. destruct (peq id0 id).
   inversion H. subst b0 sz0 id0. eapply Mem.perm_alloc_3; eauto.
-  eapply BOUND0; eauto. eapply Mem.perm_alloc_4; eauto. 
+  eapply BOUND0; eauto. eapply Mem.perm_alloc_4; eauto.
   exploit me_bounded; eauto. unfold block in *; xomega.
-  red; intros. exploit PERM; eauto. intros [A|A]. auto. right. 
+  red; intros. exploit PERM; eauto. intros [A|A]. auto. right.
   inv A. apply is_reachable_intro with id0 b0 sz0 delta; auto.
   rewrite PTree.gso. auto. congruence.
-  eapply match_callstack_invariant with (m1 := m1); eauto. 
+  eapply match_callstack_invariant with (m1 := m1); eauto.
   intros. eapply Mem.perm_alloc_4; eauto.
   unfold block in *; xomega.
   intros. apply H4. unfold block in *; xomega.
-  intros. destruct (eq_block b0 b). 
-  subst b0. rewrite H3 in H. inv H. xomegaContradiction. 
+  intros. destruct (eq_block b0 b).
+  subst b0. rewrite H3 in H. inv H. xomegaContradiction.
   rewrite H4 in H; auto.
 Qed.
 
@@ -757,8 +757,8 @@ Remark cenv_remove_gso:
 Proof.
   induction vars; simpl; intros.
   auto.
-  rewrite PTree.gro. apply IHvars. intuition. intuition. 
-Qed. 
+  rewrite PTree.gro. apply IHvars. intuition. intuition.
+Qed.
 
 Remark cenv_remove_gss:
   forall id vars cenv,
@@ -774,8 +774,8 @@ Qed.
 Definition cenv_compat (cenv: compilenv) (vars: list (ident * Z)) (tsz: Z) : Prop :=
   forall id sz,
   In (id, sz) vars ->
-  exists ofs, 
-      PTree.get id cenv = Some ofs 
+  exists ofs,
+      PTree.get id cenv = Some ofs
    /\ Mem.inj_offset_aligned ofs sz
    /\ 0 <= ofs
    /\ ofs + Zmax 0 sz <= tsz.
@@ -790,7 +790,7 @@ Definition cenv_separated (cenv: compilenv) (vars: list (ident * Z)) : Prop :=
 Definition cenv_mem_separated (cenv: compilenv) (vars: list (ident * Z)) (f: meminj) (sp: block) (m: mem) : Prop :=
   forall id sz ofs b delta ofs' k p,
   In (id, sz) vars -> PTree.get id cenv = Some ofs ->
-  f b = Some (sp, delta) -> 
+  f b = Some (sp, delta) ->
   Mem.perm m b ofs' k p ->
   ofs <= ofs' + delta < sz + ofs -> False.
 
@@ -821,36 +821,36 @@ Proof.
   intros until cs; intros VALID REPRES STKSIZE STKPERMS.
   induction 1; intros f1 NOREPET COMPAT SEP1 SEP2 UNBOUND MCS MINJ.
   (* base case *)
-  simpl in MCS. exists f1; auto. 
+  simpl in MCS. exists f1; auto.
   (* inductive case *)
   simpl in NOREPET. inv NOREPET.
 (* exploit Mem.alloc_result; eauto. intros RES.
   exploit Mem.nextblock_alloc; eauto. intros NB.*)
   exploit (COMPAT id sz). auto with coqlib. intros [ofs [CENV [ALIGNED [LOB HIB]]]].
-  exploit Mem.alloc_left_mapped_inject. 
+  exploit Mem.alloc_left_mapped_inject.
     eexact MINJ.
     eexact H.
     eexact VALID.
-    instantiate (1 := ofs). zify. omega. 
-    intros. exploit STKSIZE; eauto. omega. 
+    instantiate (1 := ofs). zify. omega.
+    intros. exploit STKSIZE; eauto. omega.
     intros. apply STKPERMS. zify. omega.
     replace (sz - 0) with sz by omega. auto.
-    intros. eapply SEP2. eauto with coqlib. eexact CENV. eauto. eauto. omega. 
+    intros. eapply SEP2. eauto with coqlib. eexact CENV. eauto. eauto. omega.
   intros [f2 [A [B [C D]]]].
   exploit (IHalloc_variables f2); eauto.
     red; intros. eapply COMPAT. auto with coqlib.
     red; intros. eapply SEP1; eauto with coqlib.
     red; intros. exploit Mem.perm_alloc_inv; eauto. destruct (eq_block b b1); intros P.
-    subst b. rewrite C in H5; inv H5. 
-    exploit SEP1. eapply in_eq. eapply in_cons; eauto. eauto. eauto. 
-    red; intros; subst id0. elim H3. change id with (fst (id, sz0)). apply in_map; auto. 
-    omega.
-    eapply SEP2. apply in_cons; eauto. eauto. 
-    rewrite D in H5; eauto. eauto. auto. 
-    intros. rewrite PTree.gso. eapply UNBOUND; eauto with coqlib. 
+    subst b. rewrite C in H5; inv H5.
+    exploit SEP1. eapply in_eq. eapply in_cons; eauto. eauto. eauto.
     red; intros; subst id0. elim H3. change id with (fst (id, sz0)). apply in_map; auto.
-    eapply match_callstack_alloc_left; eauto. 
-    rewrite cenv_remove_gso; auto. 
+    omega.
+    eapply SEP2. apply in_cons; eauto. eauto.
+    rewrite D in H5; eauto. eauto. auto.
+    intros. rewrite PTree.gso. eapply UNBOUND; eauto with coqlib.
+    red; intros; subst id0. elim H3. change id with (fst (id, sz0)). apply in_map; auto.
+    eapply match_callstack_alloc_left; eauto.
+    rewrite cenv_remove_gso; auto.
     apply UNBOUND with sz; auto with coqlib.
 Qed.
 
@@ -877,14 +877,14 @@ Proof.
   intros. eapply Mem.perm_alloc_3; eauto.
   intros. apply Mem.perm_implies with Freeable; auto with mem. eapply Mem.perm_alloc_2; eauto.
   instantiate (1 := f1). red; intros. eelim Mem.fresh_block_alloc; eauto.
-  eapply Mem.valid_block_inject_2; eauto. 
+  eapply Mem.valid_block_inject_2; eauto.
   intros. apply PTree.gempty.
-  eapply match_callstack_alloc_right; eauto. 
+  eapply match_callstack_alloc_right; eauto.
   intros. destruct (In_dec peq id (map fst vars)).
   apply cenv_remove_gss; auto.
   rewrite cenv_remove_gso; auto.
-  destruct (cenv!id) as [ofs|] eqn:?; auto. elim n; eauto. 
-  eapply Mem.alloc_right_inject; eauto. 
+  destruct (cenv!id) as [ofs|] eqn:?; auto. elim n; eauto.
+  eapply Mem.alloc_right_inject; eauto.
 Qed.
 
 (** Properties of the compilation environment produced by [build_compilenv] *)
@@ -892,8 +892,8 @@ Qed.
 Remark block_alignment_pos:
   forall sz, block_alignment sz > 0.
 Proof.
-  unfold block_alignment; intros. 
-  destruct (zlt sz 2). omega. 
+  unfold block_alignment; intros.
+  destruct (zlt sz 2). omega.
   destruct (zlt sz 4). omega.
   destruct (zlt sz 8); omega.
 Qed.
@@ -902,7 +902,7 @@ Remark assign_variable_incr:
   forall id sz cenv stksz cenv' stksz',
   assign_variable (cenv, stksz) (id, sz) = (cenv', stksz') -> stksz <= stksz'.
 Proof.
-  simpl; intros. inv H. 
+  simpl; intros. inv H.
   generalize (align_le stksz (block_alignment sz) (block_alignment_pos sz)).
   assert (0 <= Zmax 0 sz). apply Zmax_bound_l. omega.
   omega.
@@ -916,7 +916,7 @@ Proof.
   simpl; intros. inv H. omega.
 Opaque assign_variable.
   destruct a as [id s]. simpl. intros.
-  destruct (assign_variable (cenv, sz) (id, s)) as [cenv1 sz1] eqn:?. 
+  destruct (assign_variable (cenv, sz) (id, s)) as [cenv1 sz1] eqn:?.
   apply Zle_trans with sz1. eapply assign_variable_incr; eauto. eauto.
 Transparent assign_variable.
 Qed.
@@ -947,9 +947,9 @@ Remark inj_offset_aligned_block':
   forall stacksize sz,
   Mem.inj_offset_aligned (align stacksize (block_alignment sz)) (Zmax 0 sz).
 Proof.
-  intros. 
+  intros.
   replace (block_alignment sz) with (block_alignment (Zmax 0 sz)).
-  apply inj_offset_aligned_block. 
+  apply inj_offset_aligned_block.
   rewrite Zmax_spec. destruct (zlt sz 0); auto.
   transitivity 1. reflexivity. unfold block_alignment. rewrite zlt_true. auto. omega.
 Qed.
@@ -970,31 +970,31 @@ Proof.
   assert (EITHER: forall id' sz',
              In (id', sz') (vars ++ (id, sz) :: nil) ->
              In (id', sz') vars /\ id' <> id \/ (id', sz') = (id, sz)).
-    intros. rewrite in_app in H. destruct H. 
-    left; split; auto. red; intros; subst id'. elim NOREPET. 
+    intros. rewrite in_app in H. destruct H.
+    left; split; auto. red; intros; subst id'. elim NOREPET.
     change id with (fst (id, sz')). apply in_map; auto.
     simpl in H. destruct H. auto. contradiction.
   split; red; intros.
   apply EITHER in H. destruct H as [[P Q] | P].
-  exploit COMPAT; eauto. intros [ofs [A [B [C D]]]]. 
+  exploit COMPAT; eauto. intros [ofs [A [B [C D]]]].
   exists ofs.
   split. rewrite PTree.gso; auto.
-  split. auto. split. auto. zify; omega. 
+  split. auto. split. auto. zify; omega.
   inv P. exists (align sz1 (block_alignment sz)).
   split. apply PTree.gss.
   split. apply inj_offset_aligned_block.
-  split. omega. 
+  split. omega.
   omega.
   apply EITHER in H; apply EITHER in H0.
   destruct H as [[P Q] | P]; destruct H0 as [[R S] | R].
-  rewrite PTree.gso in *; auto. eapply SEP; eauto. 
+  rewrite PTree.gso in *; auto. eapply SEP; eauto.
   inv R. rewrite PTree.gso in H1; auto. rewrite PTree.gss in H2; inv H2.
-  exploit COMPAT; eauto. intros [ofs [A [B [C D]]]]. 
-  assert (ofs = ofs1) by congruence. subst ofs. 
-  left. zify; omega. 
+  exploit COMPAT; eauto. intros [ofs [A [B [C D]]]].
+  assert (ofs = ofs1) by congruence. subst ofs.
+  left. zify; omega.
   inv P. rewrite PTree.gso in H2; auto. rewrite PTree.gss in H1; inv H1.
-  exploit COMPAT; eauto. intros [ofs [A [B [C D]]]]. 
-  assert (ofs = ofs2) by congruence. subst ofs. 
+  exploit COMPAT; eauto. intros [ofs [A [B [C D]]]].
+  assert (ofs = ofs2) by congruence. subst ofs.
   right. zify; omega.
   congruence.
 Qed.
@@ -1022,13 +1022,13 @@ Proof.
   exploit IHvars'.
     eauto.
     instantiate (1 := vars ++ ((id, sz) :: nil)).
-    rewrite list_norepet_app. split. auto. 
-    split. rewrite map_app. apply list_norepet_append_commut. simpl. constructor; auto. 
-    rewrite map_app. simpl. red; intros. rewrite in_app in H4. destruct H4. 
+    rewrite list_norepet_app. split. auto.
+    split. rewrite map_app. apply list_norepet_append_commut. simpl. constructor; auto.
+    rewrite map_app. simpl. red; intros. rewrite in_app in H4. destruct H4.
     eauto. simpl in H4. destruct H4. subst y. red; intros; subst x. tauto. tauto.
     generalize (assign_variable_incr _ _ _ _ _ _ Heqp). omega.
     auto. auto.
-  rewrite app_ass. auto. 
+  rewrite app_ass. auto.
 Qed.
 
 Remark permutation_norepet:
@@ -1047,7 +1047,7 @@ Lemma build_compilenv_sound:
   list_norepet (map fst (Csharpminor.fn_vars f)) ->
   cenv_compat cenv (Csharpminor.fn_vars f) sz /\ cenv_separated cenv (Csharpminor.fn_vars f).
 Proof.
-  unfold build_compilenv; intros. 
+  unfold build_compilenv; intros.
   set (vars1 := Csharpminor.fn_vars f) in *.
   generalize (VarSort.Permuted_sort vars1). intros P.
   set (vars2 := VarSort.sort vars1) in *.
@@ -1057,11 +1057,11 @@ Proof.
     eexact H.
     simpl. rewrite app_nil_r. apply permutation_norepet with (map fst vars1); auto.
     apply Permutation_map. auto.
-    omega. 
+    omega.
     red; intros. contradiction.
     red; intros. contradiction.
   destruct H1 as [A B]. split.
-  red; intros. apply A. apply Permutation_in with vars1; auto. 
+  red; intros. apply A. apply Permutation_in with vars1; auto.
   red; intros. eapply B; eauto; apply Permutation_in with vars1; auto.
 Qed.
 
@@ -1073,7 +1073,7 @@ Proof.
   induction vars; simpl; intros.
   auto.
   exploit IHvars; eauto. unfold assign_variable. destruct a as [id1 sz1].
-  destruct cesz as [cenv stksz]. simpl. 
+  destruct cesz as [cenv stksz]. simpl.
   rewrite PTree.gsspec. destruct (peq id id1). auto. tauto.
 Qed.
 
@@ -1082,12 +1082,12 @@ Lemma build_compilenv_domain:
   build_compilenv f = (cenv, sz) ->
   cenv!id = Some ofs -> In id (map fst (Csharpminor.fn_vars f)).
 Proof.
-  unfold build_compilenv; intros. 
+  unfold build_compilenv; intros.
   set (vars1 := Csharpminor.fn_vars f) in *.
   generalize (VarSort.Permuted_sort vars1). intros P.
   set (vars2 := VarSort.sort vars1) in *.
   generalize (assign_variables_domain id vars2 (PTree.empty Z, 0)).
-  rewrite H. simpl. intros. destruct H1. congruence. 
+  rewrite H. simpl. intros. destruct H1. congruence.
   rewrite PTree.gempty in H1. congruence.
   apply Permutation_in with (map fst vars2); auto.
   apply Permutation_map. apply Permutation_sym; auto.
@@ -1102,7 +1102,7 @@ Proof.
   rewrite PTree.gempty in H. congruence.
   rewrite PTree.gsspec in H. destruct (peq id a).
   split. auto. congruence.
-  exploit IHtemps; eauto. tauto. 
+  exploit IHtemps; eauto. tauto.
 Qed.
 
 Fixpoint set_params' (vl: list val) (il: list ident) (te: Cminor.env) : Cminor.env :=
@@ -1121,10 +1121,10 @@ Lemma bind_parameters_agree_rec:
 Proof.
 Opaque PTree.set.
   induction vars; simpl; intros.
-  destruct vals; try discriminate. inv H. auto. 
+  destruct vals; try discriminate. inv H. auto.
   destruct vals; try discriminate. inv H0.
   simpl. eapply IHvars; eauto.
-  red; intros. rewrite PTree.gsspec in *. destruct (peq id a). 
+  red; intros. rewrite PTree.gsspec in *. destruct (peq id a).
   inv H0. exists v'; auto.
   apply H1; auto.
 Qed.
@@ -1132,7 +1132,7 @@ Qed.
 Lemma set_params'_outside:
   forall id il vl te, ~In id il -> (set_params' vl il te)!id = te!id.
 Proof.
-  induction il; simpl; intros. auto. 
+  induction il; simpl; intros. auto.
   destruct vl; rewrite IHil.
   apply PTree.gso. intuition. intuition.
   apply PTree.gso. intuition. intuition.
@@ -1157,17 +1157,17 @@ Lemma set_params_set_params':
 Proof.
   induction il; simpl; intros.
   auto.
-  inv H. destruct vl. 
-  rewrite PTree.gsspec. destruct (peq id a). 
+  inv H. destruct vl.
+  rewrite PTree.gsspec. destruct (peq id a).
   subst a. rewrite set_params'_outside; auto. rewrite PTree.gss; auto.
   rewrite IHil; auto.
   destruct (List.in_dec peq id il). apply set_params'_inside; auto.
-  repeat rewrite set_params'_outside; auto. rewrite PTree.gso; auto. 
-  rewrite PTree.gsspec. destruct (peq id a). 
+  repeat rewrite set_params'_outside; auto. rewrite PTree.gso; auto.
+  rewrite PTree.gsspec. destruct (peq id a).
   subst a. rewrite set_params'_outside; auto. rewrite PTree.gss; auto.
   rewrite IHil; auto.
   destruct (List.in_dec peq id il). apply set_params'_inside; auto.
-  repeat rewrite set_params'_outside; auto. rewrite PTree.gso; auto. 
+  repeat rewrite set_params'_outside; auto. rewrite PTree.gso; auto.
 Qed.
 
 Lemma set_locals_outside:
@@ -1176,7 +1176,7 @@ Lemma set_locals_outside:
 Proof.
   induction il; simpl; intros.
   auto.
-  rewrite PTree.gso. apply IHil. tauto. intuition. 
+  rewrite PTree.gso. apply IHil. tauto. intuition.
 Qed.
 
 Lemma set_locals_inside:
@@ -1185,8 +1185,8 @@ Lemma set_locals_inside:
 Proof.
   induction il; simpl; intros.
   contradiction.
-  destruct H. subst a. apply PTree.gss. 
-  rewrite PTree.gsspec. destruct (peq id a). auto. auto. 
+  destruct H. subst a. apply PTree.gss.
+  rewrite PTree.gsspec. destruct (peq id a). auto. auto.
 Qed.
 
 Lemma set_locals_set_params':
@@ -1199,11 +1199,11 @@ Proof.
   intros. destruct (in_dec peq id vars).
   assert (~In id params). apply list_disjoint_notin with vars; auto. apply list_disjoint_sym; auto.
   rewrite set_locals_inside; auto. rewrite set_params'_outside; auto. rewrite set_locals_inside; auto.
-  rewrite set_locals_outside; auto. rewrite set_params_set_params'; auto. 
-  destruct (in_dec peq id params). 
+  rewrite set_locals_outside; auto. rewrite set_params_set_params'; auto.
+  destruct (in_dec peq id params).
   apply set_params'_inside; auto.
-  repeat rewrite set_params'_outside; auto. 
-  rewrite set_locals_outside; auto. 
+  repeat rewrite set_params'_outside; auto.
+  rewrite set_locals_outside; auto.
 Qed.
 
 Lemma bind_parameters_agree:
@@ -1249,7 +1249,7 @@ Proof.
   exploit build_compilenv_sound; eauto. intros [C1 C2].
   eapply match_callstack_alloc_variables; eauto.
   intros. eapply build_compilenv_domain; eauto.
-  eapply bind_parameters_agree; eauto. 
+  eapply bind_parameters_agree; eauto.
 Qed.
 
 (** * Properties of compile-time approximations of values *)
@@ -1278,25 +1278,25 @@ Lemma val_match_approx_increasing:
 Proof.
   assert (A: forall v, v = Val.zero_ext 8 v -> v = Val.zero_ext 16 v).
     intros. rewrite H.
-    destruct v; simpl; auto. decEq. symmetry. 
-    apply Int.zero_ext_widen. omega. 
+    destruct v; simpl; auto. decEq. symmetry.
+    apply Int.zero_ext_widen. omega.
   assert (B: forall v, v = Val.sign_ext 8 v -> v = Val.sign_ext 16 v).
     intros. rewrite H.
-    destruct v; simpl; auto. decEq. symmetry. 
+    destruct v; simpl; auto. decEq. symmetry.
     apply Int.sign_ext_widen. omega.
   assert (C: forall v, v = Val.zero_ext 8 v -> v = Val.sign_ext 16 v).
     intros. rewrite H.
-    destruct v; simpl; auto. decEq. symmetry. 
+    destruct v; simpl; auto. decEq. symmetry.
     apply Int.sign_zero_ext_widen. omega.
   assert (D: forall v, v = Val.zero_ext 1 v -> v = Val.zero_ext 8 v).
     intros. rewrite H.
-    destruct v; simpl; auto. decEq. symmetry. 
-    apply Int.zero_ext_widen. omega. 
+    destruct v; simpl; auto. decEq. symmetry.
+    apply Int.zero_ext_widen. omega.
   assert (E: forall v, v = Val.zero_ext 1 v -> v = Val.sign_ext 8 v).
     intros. rewrite H.
-    destruct v; simpl; auto. decEq. symmetry. 
+    destruct v; simpl; auto. decEq. symmetry.
     apply Int.sign_zero_ext_widen. omega.
-  intros. 
+  intros.
   unfold Approx.bge in H; destruct a1; try discriminate; destruct a2; simpl in *; try discriminate; intuition.
 Qed.
 
@@ -1304,8 +1304,8 @@ Lemma approx_of_int_sound:
   forall n, val_match_approx (Approx.of_int n) (Vint n).
 Proof.
   unfold Approx.of_int; intros.
-  destruct (Int.eq_dec n Int.zero); simpl. subst; auto. 
-  destruct (Int.eq_dec n Int.one); simpl. subst; auto. 
+  destruct (Int.eq_dec n Int.zero); simpl. subst; auto.
+  destruct (Int.eq_dec n Int.one); simpl. subst; auto.
   destruct (Int.eq_dec n (Int.zero_ext 7 n)). simpl.
     split.
     decEq. rewrite e. symmetry. apply Int.zero_ext_widen. omega.
@@ -1314,8 +1314,8 @@ Proof.
   destruct (Int.eq_dec n (Int.sign_ext 8 n)). simpl; congruence.
   destruct (Int.eq_dec n (Int.zero_ext 15 n)). simpl.
     split.
-    decEq. rewrite e. symmetry. apply Int.zero_ext_widen. omega. 
-    decEq. rewrite e. symmetry. apply Int.sign_zero_ext_widen. omega. 
+    decEq. rewrite e. symmetry. apply Int.zero_ext_widen. omega.
+    decEq. rewrite e. symmetry. apply Int.sign_zero_ext_widen. omega.
   destruct (Int.eq_dec n (Int.zero_ext 16 n)). simpl; congruence.
   destruct (Int.eq_dec n (Int.sign_ext 16 n)). simpl; congruence.
   exact I.
@@ -1324,7 +1324,7 @@ Qed.
 Lemma approx_of_float_sound:
   forall f, val_match_approx (Approx.of_float f) (Vfloat f).
 Proof.
-  unfold Approx.of_float; intros. 
+  unfold Approx.of_float; intros.
   destruct (Float.eq_dec f (Float.singleoffloat f)); simpl; auto. congruence.
 Qed.
 
@@ -1333,7 +1333,7 @@ Lemma approx_of_chunk_sound:
   Mem.load chunk m b ofs = Some v ->
   val_match_approx (Approx.of_chunk chunk) v.
 Proof.
-  intros. exploit Mem.load_cast; eauto. 
+  intros. exploit Mem.load_cast; eauto.
   destruct chunk; intros; simpl; auto.
 Qed.
 
@@ -1344,10 +1344,10 @@ Lemma approx_of_unop_sound:
   val_match_approx (Approx.unop op a1) v.
 Proof.
   destruct op; simpl; intros; auto; inv H.
-  destruct v1; simpl; auto. rewrite Int.zero_ext_idem; auto. omega. 
-  destruct v1; simpl; auto. rewrite Int.sign_ext_idem; auto. omega. 
-  destruct v1; simpl; auto. rewrite Int.zero_ext_idem; auto. omega. 
-  destruct v1; simpl; auto. rewrite Int.sign_ext_idem; auto. omega. 
+  destruct v1; simpl; auto. rewrite Int.zero_ext_idem; auto. omega.
+  destruct v1; simpl; auto. rewrite Int.sign_ext_idem; auto. omega.
+  destruct v1; simpl; auto. rewrite Int.zero_ext_idem; auto. omega.
+  destruct v1; simpl; auto. rewrite Int.sign_ext_idem; auto. omega.
   destruct v1; simpl; auto. rewrite Float.singleoffloat_idem; auto.
 Qed.
 
@@ -1359,8 +1359,8 @@ Proof.
   assert (X: forall v1 v2 N, 0 < N < Z_of_nat Int.wordsize ->
             v2 = Val.zero_ext N v2 ->
             Val.and v1 v2 = Val.zero_ext N (Val.and v1 v2)).
-    intros. rewrite Val.zero_ext_and in *; auto. 
-    rewrite Val.and_assoc. congruence. 
+    intros. rewrite Val.zero_ext_and in *; auto.
+    rewrite Val.and_assoc. congruence.
   assert (Y: forall v1 v2 N, 0 < N < Z_of_nat Int.wordsize ->
             v1 = Val.zero_ext N v1 ->
             Val.and v1 v2 = Val.zero_ext N (Val.and v1 v2)).
@@ -1375,14 +1375,14 @@ Proof.
                v = Val.zero_ext 1 v).
     intros. apply (val_match_approx_increasing Int1 a v); auto.
 
-  intros; unfold Approx.bitwise_and. 
+  intros; unfold Approx.bitwise_and.
   destruct (Approx.bge Int1 a1) eqn:?. simpl. apply Y; eauto. compute; auto.
   destruct (Approx.bge Int1 a2) eqn:?. simpl. apply X; eauto. compute; auto.
   destruct (Approx.bge Int8u a1) eqn:?. simpl. apply Y; eauto. compute; auto.
   destruct (Approx.bge Int8u a2) eqn:?. simpl. apply X; eauto. compute; auto.
   destruct (Approx.bge Int16u a1) eqn:?. simpl. apply Y; eauto. compute; auto.
   destruct (Approx.bge Int16u a2) eqn:?. simpl. apply X; eauto. compute; auto.
-  simpl; auto. 
+  simpl; auto.
 Qed.
 
 Lemma approx_bitwise_or_sound:
@@ -1401,23 +1401,23 @@ Proof.
     rewrite H3; rewrite H4. rewrite H. rewrite Val.and_assoc.
     simpl. rewrite Int.and_idem. auto.
 
-  unfold Approx.bitwise_or. 
+  unfold Approx.bitwise_or.
 
   destruct (Approx.bge Int1 a1 && Approx.bge Int1 a2) eqn:?.
   destruct (andb_prop _ _ Heqb).
-  simpl. apply X. compute; auto. 
+  simpl. apply X. compute; auto.
   apply (val_match_approx_increasing Int1 a1 v1); auto.
   apply (val_match_approx_increasing Int1 a2 v2); auto.
 
   destruct (Approx.bge Int8u a1 && Approx.bge Int8u a2) eqn:?.
   destruct (andb_prop _ _ Heqb0).
-  simpl. apply X. compute; auto. 
+  simpl. apply X. compute; auto.
   apply (val_match_approx_increasing Int8u a1 v1); auto.
   apply (val_match_approx_increasing Int8u a2 v2); auto.
 
   destruct (Approx.bge Int16u a1 && Approx.bge Int16u a2) eqn:?.
   destruct (andb_prop _ _ Heqb1).
-  simpl. apply X. compute; auto. 
+  simpl. apply X. compute; auto.
   apply (val_match_approx_increasing Int16u a1 v1); auto.
   apply (val_match_approx_increasing Int16u a2 v2); auto.
 
@@ -1432,16 +1432,16 @@ Lemma approx_of_binop_sound:
 Proof.
   assert (OB: forall ob, val_match_approx Int1 (Val.of_optbool ob)).
     destruct ob; simpl. destruct b; auto. auto.
-  
+
   destruct op; intros; simpl Approx.binop; simpl in H; try (exact I); inv H.
   apply approx_bitwise_and_sound; auto.
   apply approx_bitwise_or_sound; auto.
     intros. destruct a; destruct b; simpl; auto.
-    rewrite (Int.and_commut i c); rewrite (Int.and_commut i0 c). 
+    rewrite (Int.and_commut i c); rewrite (Int.and_commut i0 c).
     rewrite <- Int.and_or_distrib. rewrite Int.and_commut. auto.
   apply approx_bitwise_or_sound; auto.
     intros. destruct a; destruct b; simpl; auto.
-    rewrite (Int.and_commut i c); rewrite (Int.and_commut i0 c). 
+    rewrite (Int.and_commut i c); rewrite (Int.and_commut i0 c).
     rewrite <- Int.and_xor_distrib. rewrite Int.and_commut. auto.
   apply OB.
   apply OB.
@@ -1555,18 +1555,18 @@ Proof.
   inv H; inv H0; inv H1; TrivialExists.
     apply Int.sub_add_l.
     simpl. destruct (eq_block b1 b0); auto.
-    subst b1. rewrite H in H0; inv H0. 
+    subst b1. rewrite H in H0; inv H0.
     rewrite dec_eq_true. rewrite Int.sub_shifted. auto.
   inv H; inv H0; inv H1; TrivialExists.
-  inv H0; try discriminate; inv H1; try discriminate. simpl in *. 
+  inv H0; try discriminate; inv H1; try discriminate. simpl in *.
     destruct (Int.eq i0 Int.zero
       || Int.eq i (Int.repr Int.min_signed) && Int.eq i0 Int.mone); inv H; TrivialExists.
-  inv H0; try discriminate; inv H1; try discriminate. simpl in *. 
+  inv H0; try discriminate; inv H1; try discriminate. simpl in *.
     destruct (Int.eq i0 Int.zero); inv H. TrivialExists.
-  inv H0; try discriminate; inv H1; try discriminate. simpl in *. 
+  inv H0; try discriminate; inv H1; try discriminate. simpl in *.
     destruct (Int.eq i0 Int.zero
       || Int.eq i (Int.repr Int.min_signed) && Int.eq i0 Int.mone); inv H; TrivialExists.
-  inv H0; try discriminate; inv H1; try discriminate. simpl in *. 
+  inv H0; try discriminate; inv H1; try discriminate. simpl in *.
     destruct (Int.eq i0 Int.zero); inv H. TrivialExists.
   inv H; inv H0; inv H1; TrivialExists.
   inv H; inv H0; inv H1; TrivialExists.
@@ -1581,15 +1581,15 @@ Proof.
   inv H; inv H0; inv H1; TrivialExists.
   inv H; inv H0; inv H1; TrivialExists.
   inv H; inv H0; inv H1; TrivialExists.
-  inv H0; try discriminate; inv H1; try discriminate. simpl in *. 
+  inv H0; try discriminate; inv H1; try discriminate. simpl in *.
     destruct (Int64.eq i0 Int64.zero
       || Int64.eq i (Int64.repr Int64.min_signed) && Int64.eq i0 Int64.mone); inv H; TrivialExists.
-  inv H0; try discriminate; inv H1; try discriminate. simpl in *. 
+  inv H0; try discriminate; inv H1; try discriminate. simpl in *.
     destruct (Int64.eq i0 Int64.zero); inv H. TrivialExists.
-  inv H0; try discriminate; inv H1; try discriminate. simpl in *. 
+  inv H0; try discriminate; inv H1; try discriminate. simpl in *.
     destruct (Int64.eq i0 Int64.zero
       || Int64.eq i (Int64.repr Int64.min_signed) && Int64.eq i0 Int64.mone); inv H; TrivialExists.
-  inv H0; try discriminate; inv H1; try discriminate. simpl in *. 
+  inv H0; try discriminate; inv H1; try discriminate. simpl in *.
     destruct (Int64.eq i0 Int64.zero); inv H. TrivialExists.
   inv H; inv H0; inv H1; TrivialExists.
   inv H; inv H0; inv H1; TrivialExists.
@@ -1599,8 +1599,8 @@ Proof.
   inv H; inv H0; inv H1; TrivialExists. simpl. destruct (Int.ltu i0 Int64.iwordsize'); auto.
   inv H; inv H0; inv H1; TrivialExists. apply val_inject_val_of_optbool.
 (* cmpu *)
-  inv H. econstructor; split; eauto. 
-  unfold Val.cmpu. 
+  inv H. econstructor; split; eauto.
+  unfold Val.cmpu.
   destruct (Val.cmpu_bool (Mem.valid_pointer m) c v1 v2) as [b|] eqn:E.
   replace (Val.cmpu_bool (Mem.valid_pointer tm) c tv1 tv2) with (Some b).
   destruct b; simpl; constructor.
@@ -1658,10 +1658,10 @@ Remark val_lessdef_upto_and:
   val_lessdef_upto m (Val.and v1 (Vint p)) v2.
 Proof.
   intros. inversion H; clear H.
-  inversion H1. destruct v2; simpl; auto. 
+  inversion H1. destruct v2; simpl; auto.
   apply val_lessdef_upto_int. rewrite Int.and_assoc. congruence.
-  simpl. auto. 
-  simpl. apply val_lessdef_upto_int. rewrite Int.and_assoc. congruence. 
+  simpl. auto.
+  simpl. apply val_lessdef_upto_int. rewrite Int.and_assoc. congruence.
 Qed.
 
 Remark val_lessdef_upto_zero_ext:
@@ -1671,7 +1671,7 @@ Remark val_lessdef_upto_zero_ext:
 Proof.
   intros. inversion H; clear H.
   inversion H2. destruct v2; simpl; auto.
-  apply val_lessdef_upto_int. rewrite Int.zero_ext_and; auto. 
+  apply val_lessdef_upto_int. rewrite Int.zero_ext_and; auto.
   rewrite Int.and_assoc. rewrite H0. auto.
   omega.
   simpl; auto.
@@ -1692,9 +1692,9 @@ Proof.
     rewrite Int.zero_ext_and; auto. rewrite Int.and_assoc. congruence. omega. omega.
   inversion H; clear H.
   inversion H2. destruct v2; simpl; auto.
-  apply val_lessdef_upto_int. auto. 
+  apply val_lessdef_upto_int. auto.
   simpl; auto.
-  simpl. apply val_lessdef_upto_int. rewrite A. auto. 
+  simpl. apply val_lessdef_upto_int. rewrite A. auto.
 Qed.
 
 Remark val_lessdef_upto_shru:
@@ -1726,28 +1726,28 @@ Lemma eval_uncast_int:
   exists v, eval_expr tge sp te tm (uncast_int m a) v /\ val_lessdef_upto m x v.
 Proof.
   assert (EQ: forall p q, Int.eq p q = true -> p = q).
-    intros. generalize (Int.eq_spec p q). rewrite H; auto.   
+    intros. generalize (Int.eq_spec p q). rewrite H; auto.
   intros until a. functional induction (uncast_int m a); intros.
   (* cast8unsigned *)
   inv H. simpl in H4; inv H4. exploit IHe; eauto. intros [v [A B]].
-  exists v; split; auto. apply val_lessdef_upto_zero_ext; auto. 
+  exists v; split; auto. apply val_lessdef_upto_zero_ext; auto.
   compute; auto.
-  exists x; auto. 
+  exists x; auto.
   (* cast8signed *)
   inv H. simpl in H4; inv H4. exploit IHe; eauto. intros [v [A B]].
-  exists v; split; auto. apply val_lessdef_upto_sign_ext; auto. 
+  exists v; split; auto. apply val_lessdef_upto_sign_ext; auto.
   compute; auto.
-  exists x; auto. 
+  exists x; auto.
   (* cast16unsigned *)
   inv H. simpl in H4; inv H4. exploit IHe; eauto. intros [v [A B]].
-  exists v; split; auto. apply val_lessdef_upto_zero_ext; auto. 
+  exists v; split; auto. apply val_lessdef_upto_zero_ext; auto.
   compute; auto.
-  exists x; auto. 
+  exists x; auto.
   (* cast16signed *)
   inv H. simpl in H4; inv H4. exploit IHe; eauto. intros [v [A B]].
-  exists v; split; auto. apply val_lessdef_upto_sign_ext; auto. 
+  exists v; split; auto. apply val_lessdef_upto_sign_ext; auto.
   compute; auto.
-  exists x; auto. 
+  exists x; auto.
   (* and *)
   inv H. simpl in H6; inv H6. inv H5. simpl in H0. inv H0.
   exploit IHe; eauto. intros [v [A B]].
@@ -1757,14 +1757,14 @@ Proof.
   inv H. simpl in H6; inv H6. inv H5. simpl in H0. inv H0.
   exploit IHe; eauto. intros [v [A B]].
   exists (Val.shru v (Vint n)); split.
-  econstructor. eauto. econstructor. simpl; reflexivity. auto. 
+  econstructor. eauto. econstructor. simpl; reflexivity. auto.
   apply val_lessdef_upto_shru; auto.
   exists x; auto.
   (* shr *)
   inv H. simpl in H6; inv H6. inv H5. simpl in H0. inv H0.
   exploit IHe; eauto. intros [v [A B]].
   exists (Val.shr v (Vint n)); split.
-  econstructor. eauto. econstructor. simpl; reflexivity. auto. 
+  econstructor. eauto. econstructor. simpl; reflexivity. auto.
   apply val_lessdef_upto_shr; auto.
   exists x; auto.
   (* default *)
@@ -1788,8 +1788,8 @@ Proof.
   (* singleoffloat *)
   inv H. simpl in H4; inv H4. exploit IHe; eauto. intros [v [A B]].
   exists v; split; auto.
-  inv B. inv H. destruct v; simpl; auto. 
-  apply val_lessdef_upto_single_float. apply Float.singleoffloat_idem. 
+  inv B. inv H. destruct v; simpl; auto.
+  apply val_lessdef_upto_single_float. apply Float.singleoffloat_idem.
   simpl; auto.
   apply val_lessdef_upto_single_float. rewrite H. apply Float.singleoffloat_idem.
   (* default *)
@@ -1879,7 +1879,7 @@ Proof.
   assert (forall v1',
     (forall b ofs, Mem.store chunk m1 b ofs v1 = Mem.store chunk m1 b ofs v1') ->
     Mem.storev chunk m1 a1 v1' = Some n1).
-  intros. rewrite <- H0. destruct a1; simpl; auto. 
+  intros. rewrite <- H0. destruct a1; simpl; auto.
   inv H2; eapply Mem.storev_mapped_inject;
   try eapply H; try eapply H1; try apply H3; intros.
   rewrite <- Mem.store_int8_sign_ext. rewrite H4. apply Mem.store_int8_sign_ext.
@@ -1911,7 +1911,7 @@ Lemma make_store_correct:
   /\ Mem.inject f m' tm'.
 Proof.
   intros. unfold make_store.
-  exploit eval_store_arg. eexact H0. eauto. 
+  exploit eval_store_arg. eexact H0. eauto.
   intros [tv [EVAL VCINJ]].
   exploit storev_mapped_content_inject; eauto.
   intros [tm' [STORE MEMINJ]].
@@ -1928,41 +1928,41 @@ Lemma eval_make_unop:
   eval_unop op v = Some v' ->
   exists v'', eval_expr tge sp te tm (make_unop op a) v'' /\ Val.lessdef v' v''.
 Proof.
-  intros; unfold make_unop. 
+  intros; unfold make_unop.
   assert (DFL: exists v'', eval_expr tge sp te tm (Eunop op a) v'' /\ Val.lessdef v' v'').
     exists v'; split. econstructor; eauto. auto.
   destruct op; auto; simpl in H0; inv H0.
 (* cast8unsigned *)
   exploit (eval_uncast_int (Int.repr 255)); eauto. intros [v1 [A B]].
-  exists (Val.zero_ext 8 v1); split. econstructor; eauto. 
+  exists (Val.zero_ext 8 v1); split. econstructor; eauto.
   inv B. apply Val.zero_ext_lessdef; auto. simpl.
   repeat rewrite Int.zero_ext_and; auto.
   change (two_p 8 - 1) with 255. rewrite H0. auto.
   omega. omega.
 (* cast8signed *)
   exploit (eval_uncast_int (Int.repr 255)); eauto. intros [v1 [A B]].
-  exists (Val.sign_ext 8 v1); split. econstructor; eauto. 
+  exists (Val.sign_ext 8 v1); split. econstructor; eauto.
   inv B. apply Val.sign_ext_lessdef; auto. simpl.
   replace (Int.sign_ext 8 n2) with (Int.sign_ext 8 n1). auto.
   apply Int.sign_ext_equal_if_zero_equal; auto. omega.
   repeat rewrite Int.zero_ext_and; auto. omega. omega.
 (* cast16unsigned *)
   exploit (eval_uncast_int (Int.repr 65535)); eauto. intros [v1 [A B]].
-  exists (Val.zero_ext 16 v1); split. econstructor; eauto. 
+  exists (Val.zero_ext 16 v1); split. econstructor; eauto.
   inv B. apply Val.zero_ext_lessdef; auto. simpl.
   repeat rewrite Int.zero_ext_and; auto.
   change (two_p 16 - 1) with 65535. rewrite H0. auto.
   omega. omega.
 (* cast16signed *)
   exploit (eval_uncast_int (Int.repr 65535)); eauto. intros [v1 [A B]].
-  exists (Val.sign_ext 16 v1); split. econstructor; eauto. 
+  exists (Val.sign_ext 16 v1); split. econstructor; eauto.
   inv B. apply Val.sign_ext_lessdef; auto. simpl.
   replace (Int.sign_ext 16 n2) with (Int.sign_ext 16 n1). auto.
   apply Int.sign_ext_equal_if_zero_equal; auto. omega.
   repeat rewrite Int.zero_ext_and; auto. omega. omega.
 (* singleoffloat *)
   exploit eval_uncast_float32; eauto. intros [v1 [A B]].
-  exists (Val.singleoffloat v1); split. econstructor; eauto. 
+  exists (Val.singleoffloat v1); split. econstructor; eauto.
   inv B. apply Val.singleoffloat_lessdef; auto. simpl. rewrite H0; auto.
 Qed.
 
@@ -1975,7 +1975,7 @@ Lemma make_unop_correct:
 Proof.
   intros. exploit eval_unop_compat; eauto. intros [tv' [A B]].
   exploit eval_make_unop; eauto. intros [tv'' [C D]].
-  exists tv''; split; auto. 
+  exists tv''; split; auto.
   inv D. auto. inv B. auto.
 Qed.
 
@@ -2046,10 +2046,10 @@ Lemma transl_constant_correct:
   /\ val_inject f v tv
   /\ val_match_approx a v.
 Proof.
-  destruct cst; simpl; intros; inv H. 
+  destruct cst; simpl; intros; inv H.
   exists (Vint i); intuition. apply approx_of_int_sound.
   exists (Vfloat f0); intuition. apply approx_of_float_sound.
-  exists (Vlong i); intuition. 
+  exists (Vlong i); intuition.
 Qed.
 
 Lemma transl_expr_correct:
@@ -2069,22 +2069,22 @@ Lemma transl_expr_correct:
 Proof.
   induction 3; intros; simpl in TR; try (monadInv TR).
   (* Etempvar *)
-  inv MATCH. exploit MTMP; eauto. intros [tv [A B]]. 
+  inv MATCH. exploit MTMP; eauto. intros [tv [A B]].
   exists tv; split. constructor; auto. split. auto. exact I.
   (* Eaddrof *)
   exploit var_addr_correct; eauto. intros [tv [A B]].
   exists tv; split. auto. split. auto. red. auto.
   (* Econst *)
-  exploit transl_constant_correct; eauto. 
+  exploit transl_constant_correct; eauto.
   destruct (transl_constant cst) as [tcst a]; inv TR.
   intros [tv [A [B C]]].
   exists tv; split. constructor; eauto. eauto.
   (* Eunop *)
   exploit IHeval_expr; eauto. intros [tv1 [EVAL1 [INJ1 APP1]]].
-  unfold Csharpminor.eval_unop in H0. 
+  unfold Csharpminor.eval_unop in H0.
   destruct (Approx.unop_is_redundant op x0) eqn:?; inv EQ0.
   (* -- eliminated *)
-  exploit approx_unop_is_redundant_sound; eauto. intros. 
+  exploit approx_unop_is_redundant_sound; eauto. intros.
   replace v with v1 by congruence.
   exists tv1; auto.
   (* -- preserved *)
@@ -2239,7 +2239,7 @@ Remark switch_table_shift:
   switch_target n (S dfl) (switch_table sl (S base)) =
   S (switch_target n dfl (switch_table sl base)).
 Proof.
-  induction sl; intros; simpl. auto. destruct (Int.eq n i); auto. 
+  induction sl; intros; simpl. auto. destruct (Int.eq n i); auto.
 Qed.
 
 Remark length_switch_table:
@@ -2266,15 +2266,15 @@ Lemma switch_descent:
   /\ (forall f sp e m,
       plus step tge (State f s k sp e m) E0 (State f body k' sp e m)).
 Proof.
-  induction ls; intros. 
+  induction ls; intros.
   monadInv H. econstructor; split.
   econstructor; eauto.
   intros. eapply plus_left. constructor. apply star_one. constructor. traceEq.
-  monadInv H. exploit IHls; eauto. intros [k' [A B]]. 
+  monadInv H. exploit IHls; eauto. intros [k' [A B]].
   econstructor; split.
   econstructor; eauto.
-  intros. eapply plus_star_trans. eauto. 
-  eapply star_left. constructor. apply star_one. constructor. 
+  intros. eapply plus_star_trans. eauto.
+  eapply star_left. constructor. apply star_one. constructor.
   reflexivity. traceEq.
 Qed.
 
@@ -2290,14 +2290,14 @@ Lemma switch_ascent:
 Proof.
   induction ls; intros; unfold tbl, ls'; simpl.
   inv H. econstructor; split. apply star_refl. econstructor; eauto.
-  simpl in H. inv H. 
+  simpl in H. inv H.
   rewrite Int.eq_sym. destruct (Int.eq i n).
-  econstructor; split. apply star_refl. econstructor; eauto. 
+  econstructor; split. apply star_refl. econstructor; eauto.
   exploit IHls; eauto. intros [k2 [A B]].
-  rewrite (length_switch_table ls 1%nat 0%nat). 
+  rewrite (length_switch_table ls 1%nat 0%nat).
   rewrite switch_table_shift.
-  econstructor; split. 
-  eapply star_left. constructor. eapply star_left. constructor. eexact A. 
+  econstructor; split.
+  eapply star_left. constructor. eapply star_left. constructor. eexact A.
   reflexivity. traceEq.
   exact B.
 Qed.
@@ -2310,7 +2310,7 @@ Lemma switch_match_cont:
 Proof.
   induction ls; intros; simpl.
   inv H0. apply match_Kblock2. econstructor; eauto.
-  inv H0. apply match_Kblock2. eapply match_Kseq2. auto. eauto. 
+  inv H0. apply match_Kblock2. eapply match_Kseq2. auto. eauto.
 Qed.
 
 Lemma transl_lblstmt_suffix:
@@ -2320,7 +2320,7 @@ Lemma transl_lblstmt_suffix:
   exists body', exists ts',
   transl_lblstmt cenv (switch_env ls' xenv) ls' body' = OK ts'.
 Proof.
-  induction ls; simpl; intros. 
+  induction ls; simpl; intros.
   monadInv H.
   exists body; econstructor. rewrite EQ; eauto. simpl. reflexivity.
   monadInv H.
@@ -2344,9 +2344,9 @@ Lemma switch_match_states:
   /\ match_states (Csharpminor.State fn (seq_of_lbl_stmt ls) k e le m) S.
 Proof.
   intros. destruct ls; simpl.
-  inv TK. econstructor; split. 
+  inv TK. econstructor; split.
     eapply plus_left. constructor. apply star_one. constructor. traceEq.
-    eapply match_state; eauto. 
+    eapply match_state; eauto.
   inv TK. econstructor; split.
     eapply plus_left. constructor. apply star_one. constructor. traceEq.
     eapply match_state_seq; eauto.
@@ -2405,24 +2405,24 @@ with transl_lblstmt_find_label:
 Proof.
   intros. destruct s; try (monadInv H); simpl; auto.
   (* seq *)
-  exploit (transl_find_label s1). eauto. eapply match_Kseq. eexact EQ1. eauto.  
+  exploit (transl_find_label s1). eauto. eapply match_Kseq. eexact EQ1. eauto.
   destruct (Csharpminor.find_label lbl s1 (Csharpminor.Kseq s2 k)) as [[s' k'] | ].
-  intros [ts' [tk' [xenv' [A [B C]]]]]. 
+  intros [ts' [tk' [xenv' [A [B C]]]]].
   exists ts'; exists tk'; exists xenv'. intuition. rewrite A; auto.
-  intro. rewrite H. apply transl_find_label with xenv; auto. 
+  intro. rewrite H. apply transl_find_label with xenv; auto.
   (* ifthenelse *)
-  exploit (transl_find_label s1). eauto. eauto.  
+  exploit (transl_find_label s1). eauto. eauto.
   destruct (Csharpminor.find_label lbl s1 k) as [[s' k'] | ].
-  intros [ts' [tk' [xenv' [A [B C]]]]]. 
+  intros [ts' [tk' [xenv' [A [B C]]]]].
   exists ts'; exists tk'; exists xenv'. intuition. rewrite A; auto.
-  intro. rewrite H. apply transl_find_label with xenv; auto. 
+  intro. rewrite H. apply transl_find_label with xenv; auto.
   (* loop *)
   apply transl_find_label with xenv. auto. econstructor; eauto. simpl. rewrite EQ; auto.
   (* block *)
-  apply transl_find_label with (true :: xenv). auto. constructor; auto. 
+  apply transl_find_label with (true :: xenv). auto. constructor; auto.
   (* switch *)
   exploit switch_descent; eauto. intros [k' [A B]].
-  eapply transl_lblstmt_find_label. eauto. eauto. eauto. reflexivity.  
+  eapply transl_lblstmt_find_label. eauto. eauto. eauto. reflexivity.
   (* return *)
   destruct o; monadInv H; auto.
   (* label *)
@@ -2436,15 +2436,15 @@ Proof.
   eapply transl_find_label; eauto.
   (* case *)
   inv H1. simpl in H7.
-  exploit (transl_find_label s). eauto. eapply switch_match_cont; eauto. 
+  exploit (transl_find_label s). eauto. eapply switch_match_cont; eauto.
   destruct (Csharpminor.find_label lbl s (Csharpminor.Kseq (seq_of_lbl_stmt ls) k)) as [[s' k''] | ].
   intros [ts' [tk' [xenv' [A [B C]]]]].
-  exists ts'; exists tk'; exists xenv'; intuition. 
-  eapply transl_lblstmt_find_label_context; eauto. 
+  exists ts'; exists tk'; exists xenv'; intuition.
+  eapply transl_lblstmt_find_label_context; eauto.
   simpl. replace x with ts0 by congruence. rewrite H2. auto.
   intro.
-  eapply transl_lblstmt_find_label. eauto. auto. eauto. 
-  simpl. replace x with ts0 by congruence. rewrite H2. auto. 
+  eapply transl_lblstmt_find_label. eauto. auto. eauto.
+  simpl. replace x with ts0 by congruence. rewrite H2. auto.
 Qed.
 
 End FIND_LABEL.
@@ -2459,7 +2459,7 @@ Lemma transl_find_label_body:
   /\ transl_stmt cenv xenv' s' = OK ts'
   /\ match_cont k' tk' cenv xenv' cs.
 Proof.
-  intros. monadInv H. simpl. 
+  intros. monadInv H. simpl.
   exploit transl_find_label. eexact EQ. eapply match_call_cont. eexact H0.
   instantiate (1 := lbl). rewrite H1. auto.
 Qed.
@@ -2489,12 +2489,12 @@ Proof.
 (* skip seq *)
   monadInv TR. left.
   dependent induction MK.
-  econstructor; split. 
+  econstructor; split.
   apply plus_one. constructor.
   econstructor; eauto.
   econstructor; split.
   apply plus_one. constructor.
-  eapply match_state_seq; eauto. 
+  eapply match_state_seq; eauto.
   exploit IHMK; eauto. intros [T2 [A B]].
   exists T2; split. eapply plus_left. constructor. apply plus_star; eauto. traceEq.
   auto.
@@ -2509,7 +2509,7 @@ Proof.
   auto.
 (* skip call *)
   monadInv TR. left.
-  exploit match_is_call_cont; eauto. intros [tk' [A [B C]]]. 
+  exploit match_is_call_cont; eauto. intros [tk' [A [B C]]].
   exploit match_callstack_freelist; eauto. intros [tm' [P [Q R]]].
   econstructor; split.
   eapply plus_right. eexact A. apply step_skip_call. auto. eauto. traceEq.
@@ -2519,15 +2519,15 @@ Proof.
   monadInv TR.
   exploit transl_expr_correct; eauto. intros [tv [EVAL [VINJ APP]]].
   left; econstructor; split.
-  apply plus_one. econstructor; eauto. 
-  econstructor; eauto. 
-  eapply match_callstack_set_temp; eauto. 
+  apply plus_one. econstructor; eauto.
+  econstructor; eauto.
+  eapply match_callstack_set_temp; eauto.
 
 (* store *)
   monadInv TR.
-  exploit transl_expr_correct. eauto. eauto. eexact H. eauto. 
+  exploit transl_expr_correct. eauto. eauto. eexact H. eauto.
   intros [tv1 [EVAL1 [VINJ1 APP1]]].
-  exploit transl_expr_correct. eauto. eauto. eexact H0. eauto. 
+  exploit transl_expr_correct. eauto. eauto. eexact H0. eauto.
   intros [tv2 [EVAL2 [VINJ2 APP2]]].
   exploit make_store_correct. eexact EVAL1. eexact EVAL2. eauto. eauto. auto. auto.
   intros [tm' [tv' [EXEC [STORE' MINJ']]]].
@@ -2538,7 +2538,7 @@ Proof.
   rewrite (Mem.nextblock_store _ _ _ _ _ _ H1).
   rewrite (Mem.nextblock_store _ _ _ _ _ _ STORE').
   eapply match_callstack_invariant with f0 m tm; eauto.
-  intros. eapply Mem.perm_store_2; eauto. 
+  intros. eapply Mem.perm_store_2; eauto.
   intros. eapply Mem.perm_store_1; eauto.
 
 (* call *)
@@ -2563,11 +2563,11 @@ Proof.
   exploit transl_exprlist_correct; eauto.
   intros [tvargs [EVAL2 VINJ2]].
   exploit match_callstack_match_globalenvs; eauto. intros [hi' MG].
-  exploit external_call_mem_inject; eauto. 
+  exploit external_call_mem_inject; eauto.
   eapply inj_preserves_globals; eauto.
   intros [f' [vres' [tm' [EC [VINJ [MINJ' [UNMAPPED [OUTOFREACH [INCR SEPARATED]]]]]]]]].
   left; econstructor; split.
-  apply plus_one. econstructor. eauto. 
+  apply plus_one. econstructor. eauto.
   eapply external_call_symbols_preserved; eauto.
   exact symbols_preserved. eexact varinfo_preserved.
   assert (MCS': match_callstack f' m' tm'
@@ -2576,23 +2576,23 @@ Proof.
     apply match_callstack_incr_bound with (Mem.nextblock m) (Mem.nextblock tm).
     eapply match_callstack_external_call; eauto.
     intros. eapply external_call_max_perm; eauto.
-    xomega. xomega. 
+    xomega. xomega.
     eapply external_call_nextblock; eauto.
     eapply external_call_nextblock; eauto.
   econstructor; eauto.
 Opaque PTree.set.
-  unfold set_optvar. destruct optid; simpl. 
-  eapply match_callstack_set_temp; eauto. 
+  unfold set_optvar. destruct optid; simpl.
+  eapply match_callstack_set_temp; eauto.
   auto.
 
 (* seq *)
-  monadInv TR. 
+  monadInv TR.
   left; econstructor; split.
-  apply plus_one. constructor. 
+  apply plus_one. constructor.
   econstructor; eauto.
   econstructor; eauto.
 (* seq 2 *)
-  right. split. auto. split. auto. econstructor; eauto. 
+  right. split. auto. split. auto. econstructor; eauto.
 
 (* ifthenelse *)
   monadInv TR.
@@ -2604,21 +2604,21 @@ Opaque PTree.set.
 (* loop *)
   monadInv TR.
   left; econstructor; split.
-  apply plus_one. constructor. 
+  apply plus_one. constructor.
   econstructor; eauto.
-  econstructor; eauto. simpl. rewrite EQ; auto. 
+  econstructor; eauto. simpl. rewrite EQ; auto.
 
 (* block *)
   monadInv TR.
   left; econstructor; split.
-  apply plus_one. constructor. 
+  apply plus_one. constructor.
   econstructor; eauto.
   econstructor; eauto.
 
 (* exit seq *)
   monadInv TR. left.
   dependent induction MK.
-  econstructor; split. 
+  econstructor; split.
   apply plus_one. constructor.
   econstructor; eauto. simpl. auto.
   exploit IHMK; eauto. intros [T2 [A B]].
@@ -2631,20 +2631,20 @@ Opaque PTree.set.
   monadInv TR. left.
   dependent induction MK.
   econstructor; split.
-  simpl. apply plus_one. constructor. 
+  simpl. apply plus_one. constructor.
   econstructor; eauto.
   exploit IHMK; eauto. intros [T2 [A B]].
-  exists T2; split; auto. simpl. 
+  exists T2; split; auto. simpl.
   eapply plus_left. constructor. apply plus_star; eauto. traceEq.
 
 (* exit block n+1 *)
   monadInv TR. left.
   dependent induction MK.
   econstructor; split.
-  simpl. apply plus_one. constructor. 
-  econstructor; eauto. auto. 
+  simpl. apply plus_one. constructor.
+  econstructor; eauto. auto.
   exploit IHMK; eauto. intros [T2 [A B]].
-  exists T2; split; auto. simpl. 
+  exists T2; split; auto. simpl.
   eapply plus_left. constructor. apply plus_star; eauto. traceEq.
 
 (* switch *)
@@ -2656,9 +2656,9 @@ Opaque PTree.set.
   exploit transl_lblstmt_suffix; eauto. simpl. intros [body' [ts' E]].
   exploit switch_match_states; eauto. intros [T2 [F G]].
   exists T2; split.
-  eapply plus_star_trans. eapply B.  
-  eapply star_left. econstructor; eauto. 
-  eapply star_trans. eexact C. 
+  eapply plus_star_trans. eapply B.
+  eapply star_left. econstructor; eauto.
+  eapply star_trans. eexact C.
   apply plus_star. eexact F.
   reflexivity. reflexivity. traceEq.
   auto.
@@ -2672,11 +2672,11 @@ Opaque PTree.set.
   simpl; auto.
 
 (* return some *)
-  monadInv TR. left. 
+  monadInv TR. left.
   exploit transl_expr_correct; eauto. intros [tv [EVAL [VINJ APP]]].
   exploit match_callstack_freelist; eauto. intros [tm' [A [B C]]].
   econstructor; split.
-  apply plus_one. eapply step_return_1. eauto. eauto. 
+  apply plus_one. eapply step_return_1. eauto. eauto.
   econstructor; eauto. eapply match_call_cont; eauto.
 
 (* label *)
@@ -2687,10 +2687,10 @@ Opaque PTree.set.
 
 (* goto *)
   monadInv TR.
-  exploit transl_find_label_body; eauto. 
+  exploit transl_find_label_body; eauto.
   intros [ts' [tk' [xenv' [A [B C]]]]].
   left; econstructor; split.
-  apply plus_one. apply step_goto. eexact A. 
+  apply plus_one. apply step_goto. eexact A.
   econstructor; eauto.
 
 (* internal call *)
@@ -2699,7 +2699,7 @@ Opaque PTree.set.
   destruct (zle sz Int.max_unsigned); try congruence.
   intro TRBODY.
   generalize TRBODY; intro TMP. monadInv TMP.
-  set (tf := mkfunction (Csharpminor.fn_sig f) 
+  set (tf := mkfunction (Csharpminor.fn_sig f)
                         (Csharpminor.fn_params f)
                         (Csharpminor.fn_temps f)
                         sz
@@ -2708,14 +2708,14 @@ Opaque PTree.set.
   exploit match_callstack_function_entry; eauto. simpl; eauto. simpl; auto.
   intros [f2 [MCS2 MINJ2]].
   left; econstructor; split.
-  apply plus_one. constructor; simpl; eauto. 
+  apply plus_one. constructor; simpl; eauto.
   econstructor. eexact TRBODY. eauto. eexact MINJ2. eexact MCS2.
   inv MK; simpl in ISCC; contradiction || econstructor; eauto.
 
 (* external call *)
-  monadInv TR. 
+  monadInv TR.
   exploit match_callstack_match_globalenvs; eauto. intros [hi MG].
-  exploit external_call_mem_inject; eauto. 
+  exploit external_call_mem_inject; eauto.
   eapply inj_preserves_globals; eauto.
   intros [f' [vres' [tm' [EC [VINJ [MINJ' [UNMAPPED [OUTOFREACH [INCR SEPARATED]]]]]]]]].
   left; econstructor; split.
@@ -2733,9 +2733,9 @@ Opaque PTree.set.
 (* return *)
   inv MK. simpl.
   left; econstructor; split.
-  apply plus_one. econstructor; eauto. 
+  apply plus_one. econstructor; eauto.
   unfold set_optvar. destruct optid; simpl; econstructor; eauto.
-  eapply match_callstack_set_temp; eauto. 
+  eapply match_callstack_set_temp; eauto.
 Qed.
 
 Lemma match_globalenvs_init:
@@ -2744,12 +2744,12 @@ Lemma match_globalenvs_init:
   match_globalenvs (Mem.flat_inj (Mem.nextblock m)) (Mem.nextblock m).
 Proof.
   intros. constructor.
-  intros. unfold Mem.flat_inj. apply pred_dec_true; auto. 
-  intros. unfold Mem.flat_inj in H0. 
+  intros. unfold Mem.flat_inj. apply pred_dec_true; auto.
+  intros. unfold Mem.flat_inj in H0.
   destruct (plt b1 (Mem.nextblock m)); congruence.
   intros. eapply Genv.find_symbol_not_fresh; eauto.
   intros. eapply Genv.find_funct_ptr_not_fresh; eauto.
-  intros. eapply Genv.find_var_info_not_fresh; eauto. 
+  intros. eapply Genv.find_var_info_not_fresh; eauto.
 Qed.
 
 Lemma transl_initial_states:
@@ -2760,19 +2760,19 @@ Proof.
   exploit function_ptr_translated; eauto. intros [tf [FIND TR]].
   econstructor; split.
   econstructor.
-  apply (Genv.init_mem_transf_partial _ _ TRANSL). eauto. 
+  apply (Genv.init_mem_transf_partial _ _ TRANSL). eauto.
   simpl. fold tge. rewrite symbols_preserved.
   replace (prog_main tprog) with (prog_main prog). eexact H0.
   symmetry. unfold transl_program in TRANSL.
   eapply transform_partial_program_main; eauto.
-  eexact FIND. 
+  eexact FIND.
   rewrite <- H2. apply sig_preserved; auto.
   eapply match_callstate with (f := Mem.flat_inj (Mem.nextblock m0)) (cs := @nil frame) (cenv := PTree.empty Z).
   auto.
   eapply Genv.initmem_inject; eauto.
   apply mcs_nil with (Mem.nextblock m0). apply match_globalenvs_init; auto. xomega. xomega.
   constructor. red; auto.
-  constructor. 
+  constructor.
 Qed.
 
 Lemma transl_final_states:
@@ -2789,7 +2789,7 @@ Proof.
   eexact symbols_preserved.
   eexact transl_initial_states.
   eexact transl_final_states.
-  eexact transl_step_correct. 
+  eexact transl_step_correct.
 Qed.
 
 End TRANSLATION.

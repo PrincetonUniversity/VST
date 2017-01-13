@@ -54,7 +54,7 @@ Qed.
 (* The semantic notion of entailment.
  *)
 Definition derives {A} `{ageable A} (P Q:pred A) := forall a:A, P a -> Q a.
-Implicit Arguments derives.
+Arguments derives [A] [H] _ _.
 
 (* "valid" relations are those that commute with aging.  These
    relations are the ones that can be turned into modalities.
@@ -311,7 +311,7 @@ Qed.
     p1 = p2.
   Proof.
     intros; destruct p1; destruct p2; simpl in H.
-   simpl in H0. 
+   simpl in H0.
     subst x0.
     replace h0 with h by apply proof_irr.
     auto.
@@ -345,20 +345,20 @@ Lemma orp_left{A}{agA: ageable A}: forall P Q R: pred A,  P |-- R -> Q |-- R -> 
 Proof. repeat intro. destruct H1; auto.
 Qed.
 
-Lemma orp_right1{A}{agA: ageable A}: forall P Q R: pred A,  P |-- Q -> P |-- Q || R. 
+Lemma orp_right1{A}{agA: ageable A}: forall P Q R: pred A,  P |-- Q -> P |-- Q || R.
 Proof. repeat intro. left; auto.
 Qed.
 
-Lemma orp_right2{A}{agA: ageable A}: forall P Q R: pred A,  P |-- R -> P |-- Q || R. 
+Lemma orp_right2{A}{agA: ageable A}: forall P Q R: pred A,  P |-- R -> P |-- Q || R.
 Proof. repeat intro. right; auto.
 Qed.
 
 
-Lemma derives_trans {A}`{ageable A}: 
+Lemma derives_trans {A}`{ageable A}:
     forall P Q R: pred A, P |-- Q -> Q |-- R -> P |-- R.
 Proof. firstorder. Qed.
 
-Lemma exp_right: 
+Lemma exp_right:
   forall {B A: Type}{agA: ageable A}(x:B) p (q: B -> pred A),
     p |-- q x ->
     p |-- exp q.
@@ -450,7 +450,7 @@ Qed.
 
 (* Some facts about modalities *)
 
-Lemma box_e0 {A} `{ageable A}: forall (M: modality) Q, 
+Lemma box_e0 {A} `{ageable A}: forall (M: modality) Q,
             reflexive _ M -> box M Q  |-- Q.
 Proof.
 intros.
@@ -458,11 +458,11 @@ intro; intros.
 apply H1; simpl.
 apply H0.
 Qed.
-Implicit Arguments box_e0.
+Arguments box_e0 [A] _.
 
-Lemma boxy_i {A} `{ageable A}: 
+Lemma boxy_i {A} `{ageable A}:
   forall (Q: pred A) (M: modality),
-    reflexive _ M -> 
+    reflexive _ M ->
     (forall w w', M w w' -> Q w -> Q w') ->
     boxy M Q.
 Proof.
@@ -841,18 +841,18 @@ Proof.
 Qed.
 
 
-Lemma boxy_e {A} `{H : ageable A}: forall (M: modality) P,  boxy M P -> 
+Lemma boxy_e {A} `{H : ageable A}: forall (M: modality) P,  boxy M P ->
            forall w w', app_mode M w w' -> P w -> P w'.
 Proof.
 intros.
 rewrite <- H0 in H2; eauto.
 Qed.
 
-Lemma boxy_andp {A} `{H : ageable A}: 
-     forall (M: modality) , reflexive _ (app_mode M) -> 
+Lemma boxy_andp {A} `{H : ageable A}:
+     forall (M: modality) , reflexive _ (app_mode M) ->
       forall P Q, boxy M P -> boxy M Q -> boxy M (P && Q).
 Proof.
-destruct M; 
+destruct M;
 intros.
 simpl in *.
 apply boxy_i; intros; auto.
@@ -863,11 +863,11 @@ Qed.
 
 Hint Resolve @boxy_andp.
 
-Lemma boxy_disjunction {A} `{H : ageable A}: 
-     forall (M: modality) , reflexive _ (app_mode M) -> 
+Lemma boxy_disjunction {A} `{H : ageable A}:
+     forall (M: modality) , reflexive _ (app_mode M) ->
       forall P Q, boxy M P -> boxy M Q -> boxy M (P || Q).
 Proof.
-destruct M; 
+destruct M;
 intros.
 simpl in *.
 apply boxy_i; intros; auto.
@@ -879,7 +879,7 @@ Qed.
 Hint Resolve @boxy_disjunction.
 
 Lemma boxy_exp {A} `{agA : ageable A}:
-    forall (M: modality) T (P: T -> pred A), 
+    forall (M: modality) T (P: T -> pred A),
      reflexive _ (app_mode M) ->
      (forall x, boxy M (P x)) -> boxy M (exp P).
 Proof.
@@ -900,7 +900,7 @@ apply boxy_i; auto.
 Qed.
 
 Lemma boxy_TT {A} `{H : ageable A}:  forall (M: modality), reflexive _ (app_mode M) -> boxy M TT.
-Proof. 
+Proof.
 intros.
 apply boxy_i; intros; auto.
 Qed.
@@ -968,7 +968,7 @@ eauto.
 Qed.
 
 Lemma boxy_allp {A} `{agA : ageable A}:
-  forall (M: modality) (B: Type) F, 
+  forall (M: modality) (B: Type) F,
      reflexive _ (app_mode M) ->
      (forall (x:B), boxy M (F x)) -> boxy M (allp F).
 Proof.
@@ -985,7 +985,7 @@ apply H2; auto.
 Qed.
 Hint Resolve @boxy_allp.
 
-Lemma later_allp {A} `{agA : ageable A}:  
+Lemma later_allp {A} `{agA : ageable A}:
        forall B P, |> (allp P) = allp (fun x:B => |> (P x)).
 Proof.
 intros.
@@ -996,8 +996,8 @@ Lemma box_derives {A} `{ageable A} : forall M (P Q:pred A),
   P |-- Q ->  box M P |-- box M Q.
 Proof. exact box_positive. Qed.
 
-Lemma allp_derives: 
-       forall {A: Type} `{agA: ageable A} (B: Type) (P Q: B -> pred A), 
+Lemma allp_derives:
+       forall {A: Type} `{agA: ageable A} (B: Type) (P Q: B -> pred A),
                (forall x:B, P x |-- Q x) -> (allp P |-- allp Q).
 Proof.
 intros.
@@ -1005,7 +1005,7 @@ intros w b ?.
 eapply H; eauto.
 Qed.
 
-Lemma forall_pred_ext  {A} `{agA : ageable A}: forall B (P Q: B -> pred A), 
+Lemma forall_pred_ext  {A} `{agA : ageable A}: forall B (P Q: B -> pred A),
  (ALL x : B, (P x <--> Q x)) |-- (ALL x : B, P x) <--> (ALL x: B, Q x) .
 Proof.
 intros.
@@ -1013,7 +1013,7 @@ intros w ?.
 split; intros ? ? ? ?;  destruct (H b); eauto.
 Qed.
 
-Lemma exists_pred_ext  {A} `{agA : ageable A}: forall B (P Q: B -> pred A), 
+Lemma exists_pred_ext  {A} `{agA : ageable A}: forall B (P Q: B -> pred A),
  (ALL x : B, (P x <--> Q x)) |-- (EX x : B, P x) <--> (EX x: B, Q x) .
 Proof.
 intros.
@@ -1021,8 +1021,8 @@ intros w ?.
 split; intros w' ? [? ?]; exists x; eapply H; eauto.
 Qed.
 
-Lemma imp_pred_ext  {A} `{agA : ageable A}: forall B B' P Q, 
-       (B <--> B') && (B --> (P <--> Q)) 
+Lemma imp_pred_ext  {A} `{agA : ageable A}: forall B B' P Q,
+       (B <--> B') && (B --> (P <--> Q))
  |-- (B --> P) <-->  (B' --> Q).
 Proof.
 intros.
@@ -1066,7 +1066,7 @@ intros.
  apply orp_left. apply orp_right1; auto. apply orp_right2; auto.
 Qed.
 
-Lemma exp_derives {A} `{HA : ageable A}: 
+Lemma exp_derives {A} `{HA : ageable A}:
        forall B (P: B -> pred A) Q , (forall x:B, P x |-- Q x) -> (exp P |-- exp Q).
 Proof.
 intros.
@@ -1106,11 +1106,11 @@ Hint Resolve @derives_TT.
 
 Lemma FF_derives {A} `{ageable A}: forall P, FF |-- P.
 Proof.
-intros. intros ? ?. hnf in H0; contradiction. 
+intros. intros ? ?. hnf in H0; contradiction.
 Qed.
 Hint Immediate @FF_derives.
 
-Lemma necR_level' {A} `{H : ageable A}: forall {w w': A}, necR w w' -> 
+Lemma necR_level' {A} `{H : ageable A}: forall {w w': A}, necR w w' ->
        @necR _ ag_nat (level w) (level w').
 Proof.
 induction 1; simpl; intros.
@@ -1163,7 +1163,7 @@ intros ?w ? [? ?].
 eapply H; eauto.
 Qed.
 
-Lemma app_ext  {A: Type} `{ageable A} : forall (F G: A -> Prop) p1 p2 w, 
+Lemma app_ext  {A: Type} `{ageable A} : forall (F G: A -> Prop) p1 p2 w,
          (F w = G w) ->
          app_pred (exist (hereditary age) F p1) w = app_pred (exist (hereditary age) G p2) w.
 Proof.
@@ -1173,7 +1173,7 @@ Qed.
 Lemma imp_derives {A} `{agA : ageable A}:
   forall P P' Q Q',
     P' |-- P ->
-    Q |-- Q' -> 
+    Q |-- Q' ->
     P --> Q |-- P' --> Q'.
 Proof.
 intros.
@@ -1188,17 +1188,17 @@ Proof.
 intros; eauto.
 Qed.
 
-Lemma conjoin_hyp0  {A} `{H : ageable A}: 
+Lemma conjoin_hyp0  {A} `{H : ageable A}:
       forall (P Q: pred A) w,  P w -> (P --> Q) w -> (TT --> Q) w.
-Proof. 
+Proof.
 intros.
 intros w' ? ?.
-eapply H1; 
+eapply H1;
 eauto.
 eapply pred_nec_hereditary; eauto.
 Qed.
 
-Lemma conjoin_hyp1 {A} `{agA : ageable A}: forall (P Q R: pred A)  w, 
+Lemma conjoin_hyp1 {A} `{agA : ageable A}: forall (P Q R: pred A)  w,
             P w -> (P&&Q --> R) w -> (Q --> R) w.
 Proof.
 intros.
@@ -1215,22 +1215,22 @@ auto.
 Qed.
 
 Ltac slurp :=
- apply imp_lem0; 
-  match goal with |-  app_pred (_ --> _)  ?st => 
+ apply imp_lem0;
+  match goal with |-  app_pred (_ --> _)  ?st =>
         repeat match goal with
-                   | H: app_pred ?P st |- app_pred (?b --> ?c) st => 
+                   | H: app_pred ?P st |- app_pred (?b --> ?c) st =>
                        (apply (@conjoin_hyp0 _ _ P c st H) ||
-                        (apply (@conjoin_hyp1 _ _ P b c st H))); 
+                        (apply (@conjoin_hyp1 _ _ P b c st H)));
                        clear H
                    end;
         try (revert st; apply derives_e)
   end.
 
-Lemma test_slurp {A} `{agA : ageable A} :  forall  (P Q R S : pred A) w , 
+Lemma test_slurp {A} `{agA : ageable A} :  forall  (P Q R S : pred A) w ,
         (P && (Q && R) --> S) w -> P w -> Q w -> R w -> S w.
 Proof.
 intros.
-remember (app_pred (P && (Q && R) --> S) w) as hide. 
+remember (app_pred (P && (Q && R) --> S) w) as hide.
 slurp.
 subst hide. assumption.
 Qed.
@@ -1251,7 +1251,7 @@ intros.
 apply pred_ext; intros w ?; hnf in *; simpl; intros; intuition.
 Qed.
 
-Lemma distrib_orp_andp {A}{agA: ageable A}: 
+Lemma distrib_orp_andp {A}{agA: ageable A}:
    forall P Q R, (P||Q)&&R = (P&&R)||(Q&&R).
 Proof.
   intros. apply pred_ext.
@@ -1267,7 +1267,7 @@ Proof.
  intros. intros w ? v; apply (H v); auto.
 Qed.
 
-Lemma allp_left {B}{A}{agA: ageable A}: 
+Lemma allp_left {B}{A}{agA: ageable A}:
    forall (P: B -> pred A) x Q, P x |-- Q -> allp P |-- Q.
  Proof.
    intros. intros ? ?. apply H. apply H0.

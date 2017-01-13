@@ -8,7 +8,7 @@ int odd(unsigned int n)
   return even(n-1);
 }
 
-int even(unsigned int n) 
+int even(unsigned int n)
 {
   if (n == 0) {
     return 1;

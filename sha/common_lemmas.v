@@ -10,7 +10,7 @@ Require Import sha.general_lemmas.
 Require Import sha.SHA256.
 
 Lemma length_Round:
-  forall regs f n, 
+  forall regs f n,
    length regs = 8%nat ->
    length (Round regs f n) = 8%nat.
 Proof.
@@ -39,7 +39,7 @@ reflexivity.
 Qed.
 
 Lemma length_hash_block:
- forall regs block, 
+ forall regs block,
    length regs = 8%nat ->
    length block = 16%nat ->
    length (hash_block regs block) = 8%nat.

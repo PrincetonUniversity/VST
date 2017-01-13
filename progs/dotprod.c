@@ -13,4 +13,4 @@ double dotprod (int n, double x[], double y[]) {
       sum += x[i] * y[i];
   return sum;
 }
-  
+

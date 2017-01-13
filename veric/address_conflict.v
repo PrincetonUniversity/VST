@@ -66,7 +66,7 @@ Proof.
   destruct (Clight_lemmas.block_eq_dec b b0).
   + subst b0.
     unfold val2adr.
-    forget (Int.unsigned i) as i1; 
+    forget (Int.unsigned i) as i1;
     forget (Int.unsigned i0) as i2;
     clear i i0.
     destruct (range_dec i1 i2 (i1 + n1)); [| destruct (range_dec i2 i1 (i2 + n2))].
@@ -91,11 +91,11 @@ Proof.
     simpl in HH.
     pose proof @eq_sym _ b0 b.
     tauto.
-Qed.    
+Qed.
 
 Lemma pointer_range_overlap_refl: forall p n1 n2,
   isptr p ->
-  n1 > 0 -> 
+  n1 > 0 ->
   n2 > 0 ->
   pointer_range_overlap p n1 p n2.
 Proof.

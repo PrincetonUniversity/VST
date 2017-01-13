@@ -9,7 +9,7 @@ Require Import Op.
 Require Import Maps.
 Require Import Switch.
 
-Require Import sepcomp.CminorSel. 
+Require Import sepcomp.CminorSel.
 Require Import sepcomp.mem_lemmas. (*for mem_forward*)
 Require Import sepcomp.core_semantics.
 
@@ -32,18 +32,18 @@ Inductive CMinSel_core: Type :=
       CMinSel_core.
 
 Definition ToState (q:CMinSel_core) (m:mem): CminorSel.state :=
-  match q with 
+  match q with
      CMinSel_State f s k sp e => State f s k sp e m
    | CMinSel_Callstate f args k => Callstate f args k m
-   | CMinSel_Returnstate v k => Returnstate v k m 
+   | CMinSel_Returnstate v k => Returnstate v k m
   end.
 
 Definition FromState (c: CminorSel.state) : CMinSel_core * mem :=
-  match c with 
+  match c with
      State f s k sp e m => (CMinSel_State f s k sp e, m)
    | Callstate f args k m => (CMinSel_Callstate f args k, m)
    | Returnstate v k m => (CMinSel_Returnstate v k, m)
-  end. 
+  end.
 
 Definition CMinSel_at_external (c: CMinSel_core) : option (external_function * signature * list val) :=
   match c with
@@ -56,8 +56,8 @@ Definition CMinSel_at_external (c: CMinSel_core) : option (external_function * s
  end.
 
 Definition CMinSel_after_external (vret: option val) (c: CMinSel_core) : option CMinSel_core :=
-  match c with 
-    CMinSel_Callstate fd args k => 
+  match c with
+    CMinSel_Callstate fd args k =>
          match fd with
             Internal f => None
           | External ef => match vret with
@@ -68,7 +68,7 @@ Definition CMinSel_after_external (vret: option val) (c: CMinSel_core) : option 
   | _ => None
   end.
 
-Inductive CMinSel_corestep (ge : genv) : CMinSel_core -> mem -> 
+Inductive CMinSel_corestep (ge : genv) : CMinSel_core -> mem ->
                            CMinSel_core -> mem -> Prop:=
 
   | cminsel_corestep_skip_seq: forall f s k sp e m,
@@ -113,7 +113,7 @@ Inductive CMinSel_corestep (ge : genv) : CMinSel_core -> mem ->
       CMinSel_corestep ge (CMinSel_State f (Stailcall sig a bl) k (Vptr sp Int.zero) e) m
         (CMinSel_Callstate fd vargs (call_cont k)) m'
 
-(* WE DO NOT TREAT BUILTINS 
+(* WE DO NOT TREAT BUILTINS
   | cminsel_corestep_builtin: forall f optid ef al k sp e m vl t v m',
       eval_exprlist ge sp e m nil al vl ->
       external_call ef ge vl m t v m' ->
@@ -191,12 +191,12 @@ Lemma CMinSel_corestep_not_at_external:
   Proof. intros. inv H; reflexivity. Qed.
 
 Definition CMinSel_halted (q : CMinSel_core): option val :=
-    match q with 
+    match q with
        CMinSel_Returnstate v Kstop => Some v
      | _ => None
     end.
 
-Lemma CMinSel_corestep_not_halted : forall ge m q m' q', 
+Lemma CMinSel_corestep_not_halted : forall ge m q m' q',
        CMinSel_corestep ge q m q' m' -> CMinSel_halted q = None.
   Proof. intros. inv H; try reflexivity. Qed.
 
@@ -214,8 +214,8 @@ Qed.
 
 Definition CMinSel_initial_core (ge:genv) (v: val) (args:list val): option CMinSel_core :=
    match v with
-     | Vptr b i => 
-          if Int.eq_dec i Int.zero 
+     | Vptr b i =>
+          if Int.eq_dec i Int.zero
           then match Genv.find_funct_ptr ge b with
                  | None => None
                  | Some f => Some (CMinSel_Callstate f args Kstop)
@@ -228,7 +228,7 @@ Definition CMinSel_core_sem : CoreSemantics genv CMinSel_core mem.
   eapply @Build_CoreSemantics with (at_external:=CMinSel_at_external)
                   (after_external:=CMinSel_after_external)
                   (corestep:=CMinSel_corestep)
-                  (halted:=CMinSel_halted). 
+                  (halted:=CMinSel_halted).
     apply CMinSel_initial_core.
     apply CMinSel_corestep_not_at_external.
     apply CMinSel_corestep_not_halted.
@@ -238,23 +238,23 @@ Defined.
 
 (************************NOW SHOW THAT WE ALSO HAVE A COOPSEM******)
 
-Lemma CMinSel_forward : forall g c m c' m' (CS: CMinSel_corestep g c m c' m'), 
+Lemma CMinSel_forward : forall g c m c' m' (CS: CMinSel_corestep g c m c' m'),
       mem_forward m m'.
   Proof. intros.
      inv CS; try apply mem_forward_refl.
          eapply free_forward; eassumption.
          (*Storev*)
-          destruct vaddr; simpl in H2; inv H2. 
-          eapply store_forward; eassumption. 
+          destruct vaddr; simpl in H2; inv H2.
+          eapply store_forward; eassumption.
          eapply free_forward; eassumption.
-         (*builtin*) 
+         (*builtin*)
           (*eapply external_call_mem_forward; eassumption.*)
          eapply free_forward; eassumption.
          eapply free_forward; eassumption.
          eapply alloc_forward; eassumption.
 Qed.
 
-Program Definition cminsel_coop_sem : 
+Program Definition cminsel_coop_sem :
   CoopCoreSem genv CMinSel_core.
 apply Build_CoopCoreSem with (coopsem := CMinSel_core_sem).
   apply CMinSel_forward.

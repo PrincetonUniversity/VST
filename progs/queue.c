@@ -74,7 +74,7 @@ int main(void) {
   p = make_elem(2,20);
   fifo_put(Q,p);
   p = fifo_get(Q);
-  i = p->a; 
+  i = p->a;
   j = p->b;
   free(p);
   return i+j;

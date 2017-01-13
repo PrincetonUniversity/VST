@@ -5,7 +5,7 @@ Require Import Sorted.
 Require Import Coq.Sorting.Mergesort.
 Require Import Permutation.
 
-Definition StrictCompSpec {A} (eq lt: A -> A -> Prop) 
+Definition StrictCompSpec {A} (eq lt: A -> A -> Prop)
                           (cmp: A -> A -> comparison) :=
   StrictOrder lt /\ forall x y, CompSpec eq lt x y (cmp x y).
 
@@ -26,7 +26,7 @@ intros.
 Qed.
 
 Lemma eq_comp: forall {A} lt cmp,
-        StrictCompSpec Logic.eq lt cmp -> 
+        StrictCompSpec Logic.eq lt cmp ->
        forall x y: A,   (x = y <-> Eq = cmp x y).
 Proof.
  intros.
@@ -36,7 +36,7 @@ Proof.
 Qed.
 
 Lemma gt_comp: forall {A} lt cmp,
-        StrictCompSpec Logic.eq lt cmp -> 
+        StrictCompSpec Logic.eq lt cmp ->
         forall x y: A,   (lt x y <-> Gt = cmp y x).
 Proof.
 intros.
@@ -83,7 +83,7 @@ Definition isGe (c: comparison) := match c with Lt => False | _ => True end.
 Definition isGeq cc := match cc with Lt => false | _ => true end.
 
 
-Fixpoint insert {A: Type} (cmp: A -> A -> comparison) (a: A) (l: list A) 
+Fixpoint insert {A: Type} (cmp: A -> A -> comparison) (a: A) (l: list A)
   : list A:=
   match l with
   | h :: t => if isGeq (cmp a h)
@@ -96,18 +96,18 @@ Fixpoint rsort {A: Type} (cmp: A -> A -> comparison) (l: list A) : list A :=
   match l with nil => nil | h::t => insert cmp h (rsort cmp t)
   end.
 
-Fixpoint insert_uniq {A: Type} (cmp: A -> A -> comparison) (a: A) (l: list A) 
+Fixpoint insert_uniq {A: Type} (cmp: A -> A -> comparison) (a: A) (l: list A)
   : list A:=
   match l with
   | h :: t => match cmp a h with
-              | Eq => l 
+              | Eq => l
               | Gt => a :: l
               | Lt => h :: (insert_uniq cmp a t)
               end
   | nil => a::nil
   end.
 
-Fixpoint rsort_uniq {A: Type} (cmp: A -> A -> comparison) (l: list A) 
+Fixpoint rsort_uniq {A: Type} (cmp: A -> A -> comparison) (l: list A)
   : list A :=
   match l with nil => nil | h::t => insert_uniq cmp h (rsort_uniq cmp t)
   end.
@@ -117,12 +117,12 @@ Lemma perm_insert {T} cmp (a : T) l : Permutation (insert cmp a l) (a :: l).
 Proof with auto.
 induction l; simpl; auto.
 destruct (isGeq (cmp a a0)); try repeat constructor.
-apply Permutation_refl. 
+apply Permutation_refl.
 apply Permutation_sym; apply Permutation_trans with (l' := a0 :: a :: l).
 apply perm_swap. constructor; apply Permutation_sym...
 Qed.
 
-Fixpoint compare_list {A: Type} (f: A -> A -> comparison) (xl yl : list A) 
+Fixpoint compare_list {A: Type} (f: A -> A -> comparison) (xl yl : list A)
   : comparison :=
   match xl , yl with
   | x :: xl', y :: yl' => match f x y with
@@ -156,14 +156,14 @@ Proof.
  subst.
  destruct (CompSpec2Type ( IHx y)).
  subst; constructor; auto.
- econstructor; simpl; eauto. rewrite comp_refl; auto. 
- econstructor; simpl; eauto. rewrite comp_refl; auto. 
+ econstructor; simpl; eauto. rewrite comp_refl; auto.
+ econstructor; simpl; eauto. rewrite comp_refl; auto.
  econstructor; simpl; eauto. rewrite <- e; auto.
  econstructor; simpl; eauto. rewrite <- e; auto.
 Qed.
 
 Hint Resolve @list_cspec.
- 
+
 Lemma comp_antisym:  forall {A} (cmp: A -> A -> comparison) (cspec: CompSpec' cmp),
       forall x y, Lt = cmp x y <-> Gt = cmp y x.
 Proof.
@@ -171,7 +171,7 @@ Proof.
  do_comp cspec y x; subst; try congruence.
  rewrite comp_refl; auto. intuition congruence.
  intuition (try congruence).
- generalize (comp_trans _ cspec _ _ _ H e). 
+ generalize (comp_trans _ cspec _ _ _ H e).
  rewrite comp_refl; auto; congruence.
  intuition.
 Qed.
@@ -186,7 +186,7 @@ induction l.
 simpl. constructor.
 simpl.
 remember (rsort_uniq cmp l) as l0; clear - IHl cspec.
-induction IHl. 
+induction IHl.
 constructor. constructor. constructor.
 simpl.
 do_comp cspec a a0.
@@ -209,7 +209,7 @@ clear IHSorted.
 revert H0 H1; induction H; intros.
 contradiction H1.
 simpl in H2; destruct H2.
-subst. 
+subst.
 inversion H1; clear H1; subst.
 clear -cspec H3. rewrite comp_refl in H3; [congruence|auto].
 inversion H1; clear H1; subst.
@@ -219,9 +219,9 @@ clear - cspec H1 H4.
 apply comp_antisym; apply comp_antisym in H4; apply comp_antisym in H1; auto.
 eapply comp_trans; eauto.
 Qed.
- 
+
 Lemma Forall_sortu:
-  forall  {A} (f: A -> Prop) (cmp: A -> A -> comparison) l, 
+  forall  {A} (f: A -> Prop) (cmp: A -> A -> comparison) l,
     Forall f l -> Forall f  (rsort_uniq cmp l).
 Proof.
 induction l;  intros; try constructor.
@@ -246,7 +246,7 @@ rewrite <- IHl.
 remember (rsort_uniq R l) as l'.
 clear - EQ.
 induction l'; simpl. intuition.
-case_eq (R a a0); intros; simpl in *; subst; intuition. 
+case_eq (R a a0); intros; simpl in *; subst; intuition.
 symmetry in H; rewrite <- EQ in H.
 simpl; subst; intuition.
 Qed.

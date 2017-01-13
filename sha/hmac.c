@@ -1,10 +1,10 @@
-/* Adapted 2014 by Lennart Beringer from OpenSSL091c crypto/hmac/hmac.c 
+/* Adapted 2014 by Lennart Beringer from OpenSSL091c crypto/hmac/hmac.c
  * Copyright (c) 2004 The OpenSSL Project.  All rights reserved
  * according to the OpenSSL license.
 
- * Specializes openssl's file to use the hash function sha256, avoiding 
- * use of "object-oriented" programming style (engines etc) used in 
- * recent versions of openssl.  
+ * Specializes openssl's file to use the hash function sha256, avoiding
+ * use of "object-oriented" programming style (engines etc) used in
+ * recent versions of openssl.
  */
 
 /* crypto/hmac/hmac.c */
@@ -14,21 +14,21 @@
  * This package is an SSL implementation written
  * by Eric Young (eay@cryptsoft.com).
  * The implementation was written so as to conform with Netscapes SSL.
- * 
+ *
  * This library is free for commercial and non-commercial use as long as
  * the following conditions are aheared to.  The following conditions
  * apply to all code found in this distribution, be it the RC4, RSA,
  * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
  * included with this distribution is covered by the same copyright terms
  * except that the holder is Tim Hudson (tjh@cryptsoft.com).
- * 
+ *
  * Copyright remains Eric Young's, and as such any Copyright notices in
  * the code are not to be removed.
  * If this package is used in a product, Eric Young should be given attribution
  * as the author of the parts of the library used.
  * This can be in the form of a textual message at program startup or
  * in documentation (online or textual) provided with the package.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -43,10 +43,10 @@
  *     Eric Young (eay@cryptsoft.com)"
  *    The word 'cryptographic' can be left out if the rouines from the library
  *    being used are not cryptographic related :-).
- * 4. If you include any Windows specific code (or a derivative thereof) from 
+ * 4. If you include any Windows specific code (or a derivative thereof) from
  *    the apps directory (application code) you must include an acknowledgement:
  *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -58,7 +58,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  * The licence and distribution terms for any publically available version or
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
@@ -134,37 +134,37 @@ void HMAC_Init(HMAC_CTX *ctx, unsigned char *key, int len)
 	   {
 	     memcpy(ctx_key,key,len);
 	     memset(&(ctx_key[len]),0,sizeof(ctx_key)-len);
-	     //ctx_key_length=len; 
+	     //ctx_key_length=len;
            }
        }
-     
+
      if (reset)	
        {
 	 for (i=0; i<HMAC_MAX_MD_CBLOCK; i++) {
            aux = ctx_key[i];
 	   aux = 0x36^aux;
-           pad[i]=aux; 
+           pad[i]=aux;
          }
 
-         //Initialize inner SHA structure, and hash ipad 
+         //Initialize inner SHA structure, and hash ipad
 	 //EVP_DigestInit(&ctx->i_ctx,md);
 	 //EVP_DigestUpdate(&ctx->i_ctx,pad,EVP_MD_block_size(md));
 	 SHA256_Init(&ctx->i_ctx);
 	 SHA256_Update(&ctx->i_ctx,pad,HMAC_MAX_MD_CBLOCK);
-	 
-	 
+	
+	
 	 for (i=0; i<HMAC_MAX_MD_CBLOCK; i++) {
            aux = ctx_key[i];
 	   pad[i]=0x5c^aux;
          }
 
-         //Initialize outer SHA structure, and hash opad 
+         //Initialize outer SHA structure, and hash opad
 	 //EVP_DigestInit(&ctx->o_ctx,md);
 	 //EVP_DigestUpdate(&ctx->o_ctx,pad,EVP_MD_block_size(md));
 	 SHA256_Init(&ctx->o_ctx);
 	 SHA256_Update(&ctx->o_ctx,pad,HMAC_MAX_MD_CBLOCK);
        }
-     
+
      //copy inner sha structure to "current" sha structure
      memcpy(&ctx->md_ctx,&ctx->i_ctx,sizeof(ctx->i_ctx));
 }
@@ -184,9 +184,9 @@ void HMAC_Final(HMAC_CTX *ctx, unsigned char *md)
   //unsigned int i; not used, since we know the length of sha256 digests
   //unsigned char buf[EVP_MAX_MD_SIZE];
   unsigned char buf[SHA256_DIGEST_LENGTH]; //ie 32
-  
-  //j=EVP_MD_block_size(ctx->md); even openssl never reads from j - 
-  
+
+  //j=EVP_MD_block_size(ctx->md); even openssl never reads from j -
+
   //Finish the inner sha, and store it in buf
   //EVP_DigestFinal(&(ctx->md_ctx),buf,&i);
   SHA256_Final(buf,&(ctx->md_ctx));
@@ -209,8 +209,8 @@ void HMAC_cleanup(HMAC_CTX *ctx)
 }
 
 unsigned char *HMAC(//fixed to SHA256: EVP_MD *evp_md,
-                    unsigned char *key, int key_len, 
-                    unsigned char *d, int n, 
+                    unsigned char *key, int key_len,
+                    unsigned char *d, int n,
                     unsigned char *md)
                     //always 32, unsigned int *md_len)
 	{
@@ -230,8 +230,8 @@ unsigned char *HMAC(//fixed to SHA256: EVP_MD *evp_md,
 	}
 
 unsigned char *HMAC2(//fixed to SHA256: EVP_MD *evp_md,
-                    unsigned char *key, int key_len, 
-                    unsigned char *d, int n, 
+                    unsigned char *key, int key_len,
+                    unsigned char *d, int n,
                     unsigned char *md)
                     //always 64, unsigned int *md_len)
 	{
@@ -241,15 +241,15 @@ unsigned char *HMAC2(//fixed to SHA256: EVP_MD *evp_md,
 
 	if (md == NULL) md=m;
 
-	//first round 
+	//first round
         HMAC_Init(&c, key, key_len);
 	HMAC_Update(&c,d,n);
-	HMAC_Final(&c,md); 
+	HMAC_Final(&c,md);
 
-	//second round 
+	//second round
         HMAC_Init(&c, NULL, key_len); //only performs memcpy
 	HMAC_Update(&c,d,n);
-	HMAC_Final(&c,md+SHA256_DIGEST_LENGTH); 
+	HMAC_Final(&c,md+SHA256_DIGEST_LENGTH);
 	HMAC_cleanup(&c);
 	return(md);
 	}

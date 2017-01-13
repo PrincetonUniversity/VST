@@ -10,7 +10,7 @@ Proof. intros.
   induction M.
   apply mem_step_refl.
   eapply mem_step_trans.
-    eapply mem_step_alloc; eassumption. eassumption. 
+    eapply mem_step_alloc; eassumption. eassumption.
 Qed.
 
 Lemma bind_parameters_mem_step: forall cenv e m pars vargs m'
@@ -20,11 +20,11 @@ Proof. intros.
   apply mem_step_refl.
   inv H0.
 + eapply mem_step_trans; try eassumption. simpl in H2.
-  eapply mem_step_store; eassumption. 
+  eapply mem_step_store; eassumption.
 + eapply mem_step_trans; try eassumption.
-  eapply mem_step_storebytes; eassumption.  
+  eapply mem_step_storebytes; eassumption.
 Qed.
-Program Definition CLN_memsem : 
+Program Definition CLN_memsem :
   @MemSem Clight.genv (*(Genv.t fundef type)*) corestate.
 apply Build_MemSem with (csem := cl_core_sem).
   intros.
@@ -40,8 +40,8 @@ Defined.
 
 
 (*
-Lemma assign_loc_forward: 
-      forall cenv t m b ofs v m' 
+Lemma assign_loc_forward:
+      forall cenv t m b ofs v m'
       (A: assign_loc cenv t m b ofs v m'),
       mem_forward m m'.
 Proof.
@@ -59,11 +59,11 @@ Proof. intros.
   induction M.
   apply mem_forward_refl.
   apply alloc_forward in H.
-  eapply mem_forward_trans; eassumption. 
+  eapply mem_forward_trans; eassumption.
 Qed.
 
-Lemma cln_forward: forall (g : genv) (c : corestate) 
-  (m : mem) (c' : corestate) (m' : mem), 
+Lemma cln_forward: forall (g : genv) (c : corestate)
+  (m : mem) (c' : corestate) (m' : mem),
   corestep cl_core_sem g c m c' m' -> mem_forward m m'.
 Proof.
 intros.
@@ -72,7 +72,7 @@ induction H; try apply mem_forward_refl; trivial.
   eapply alloc_variables_forward; eassumption.
   eapply freelist_forward; eassumption.
 Qed.
-Program Definition CLN_coop_sem : 
+Program Definition CLN_coop_sem :
   CoopCoreSem Clight.genv (*(Genv.t fundef type)*) corestate.
 apply Build_CoopCoreSem with (coopsem := cl_core_sem).
 apply cln_forward.

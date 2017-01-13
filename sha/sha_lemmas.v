@@ -33,7 +33,7 @@ normalize.
 Qed.
 
 Fixpoint loops (s: statement) : list statement :=
- match s with 
+ match s with
   | Ssequence a b => loops a ++ loops b
   | Sloop _ _ => [s]
   | Sifthenelse _ a b => loops a ++ loops b
@@ -41,9 +41,9 @@ Fixpoint loops (s: statement) : list statement :=
   end.
 
 Lemma nth_big_endian_integer:
-  forall i bl w, 
+  forall i bl w,
    nth_error bl i = Some w ->
-    w = big_endian_integer 
+    w = big_endian_integer
                    (sublist (Z.of_nat i * WORD)
                         (Z.succ (Z.of_nat i) * WORD)
                    (map Int.repr (intlist_to_Zlist bl))).
@@ -74,15 +74,15 @@ replace (Z.to_nat (Z.of_nat (S i) * WORD)) with (4 + Z.to_nat (Z.of_nat i * WORD
         rewrite Z2Nat.inj_add by (change WORD with 4; omega); reflexivity).
 rewrite <- skipn_skipn.
 simpl skipn.
-f_equal. f_equal. f_equal. rewrite inj_S.  unfold Z.succ. 
+f_equal. f_equal. f_equal. rewrite inj_S.  unfold Z.succ.
 rewrite !Z.mul_add_distr_r; omega.
 Qed.
 
 Lemma Znth_big_endian_integer:
-  forall i bl, 
+  forall i bl,
    0 <= i < Zlength bl ->
    Znth i bl Int.zero =
-     big_endian_integer 
+     big_endian_integer
                    (sublist (i * WORD) (Z.succ i * WORD)
                    (map Int.repr (intlist_to_Zlist bl))).
 Proof.
@@ -111,7 +111,7 @@ Fixpoint rsequence (cs: list statement) s :=
  end.
 
 Lemma sequence_rsequence:
- forall Espec CS Delta P cs s0 s R, 
+ forall Espec CS Delta P cs s0 s R,
     @semax CS Espec Delta P (Ssequence s0 (sequence cs s)) R  <->
   @semax CS Espec Delta P (Ssequence (rsequence (rev cs) s0) s) R.
 Proof.
@@ -127,11 +127,11 @@ revert s0 a; induction (rev cs); simpl; intros; auto.
 rewrite IHl. auto.
 Qed.
 
-Lemma seq_assocN:  
-  forall {Espec: OracleKind} CS, 
+Lemma seq_assocN:
+  forall {Espec: OracleKind} CS,
    forall Q Delta P cs s R,
         @semax CS Espec Delta P (sequence cs Sskip) (normal_ret_assert Q) ->
-         @semax CS Espec 
+         @semax CS Espec
        (update_tycon Delta (sequence cs Sskip)) Q s R ->
         @semax CS Espec Delta P (sequence cs s) R.
 Proof.
@@ -155,14 +155,14 @@ apply IHl.
 Qed.
 
 Fixpoint sequenceN (n: nat) (s: statement) : list statement :=
- match n, s with 
+ match n, s with
  | S n', Ssequence a s' => a::sequenceN n' s'
  | _, _ => nil
  end.
 
 Lemma data_block_local_facts:
  forall {cs: compspecs} sh f data,
-  data_block sh f data |-- 
+  data_block sh f data |--
    prop (field_compatible (tarray tuchar (Zlength f)) [] data
            /\ Forall isbyteZ f).
 Proof.
@@ -190,7 +190,7 @@ Proof. reflexivity. Qed.
 Lemma LBLOCKz_eq : LBLOCKz = 16%Z.
 Proof. reflexivity. Qed.
 
-Ltac helper2 := 
+Ltac helper2 :=
  match goal with
    | |- context [CBLOCK] => add_nonredundant (CBLOCK_eq)
    | |- context [LBLOCK] => add_nonredundant (LBLOCK_eq)
@@ -205,7 +205,7 @@ Ltac helper2 :=
 Ltac Omega1 := Omega (helper1 || helper2).
 
 Ltac MyOmega :=
-  rewrite ?length_list_repeat, ?skipn_length, ?map_length, 
+  rewrite ?length_list_repeat, ?skipn_length, ?map_length,
    ?Zlength_map, ?Zlength_nil;
   pose proof CBLOCK_eq;
   pose proof CBLOCKz_eq;
@@ -247,11 +247,11 @@ Lemma isbyte_value_fits_tuchar:
   forall x, isbyteZ x -> value_fits tuchar (Vint (Int.repr x)).
 Proof.
 intros. hnf in H|-*; intros.
-simpl. rewrite Int.unsigned_repr by repable_signed. 
+simpl. rewrite Int.unsigned_repr by repable_signed.
   change Byte.max_unsigned with 255%Z. omega.
 Qed.
 
-Lemma Zlength_Zlist_to_intlist: 
+Lemma Zlength_Zlist_to_intlist:
   forall (n:Z) (l: list Z),
    (Zlength l = WORD*n)%Z -> Zlength (Zlist_to_intlist l) = n.
 Proof.
@@ -266,7 +266,7 @@ f_equal. rewrite Z2Nat.id; omega.
 Qed.
 
 Lemma nth_intlist_to_Zlist_eq:
- forall d (n i j k: nat) al, (i < n)%nat -> (i < j*4)%nat -> (i < k*4)%nat -> 
+ forall d (n i j k: nat) al, (i < n)%nat -> (i < j*4)%nat -> (i < k*4)%nat ->
     nth i (intlist_to_Zlist (firstn j al)) d = nth i (intlist_to_Zlist (firstn k al)) d.
 Proof.
  induction n; destruct i,al,j,k; simpl; intros; auto; try omega.
@@ -283,7 +283,7 @@ Lemma split2_data_block:
   (0 <= n <= Zlength data)%Z ->
   data_block sh data d =
   (data_block sh (sublist 0 n data) d *
-   data_block sh (sublist n (Zlength data) data) 
+   data_block sh (sublist n (Zlength data) data)
    (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc n] d))%logic.
 Proof.
   intros.
@@ -298,18 +298,18 @@ Proof.
   unfold tarray.
   rewrite split2_data_at_Tarray_tuchar with (n1:=n) by (autorewrite with sublist; auto).
   autorewrite with sublist.
-  reflexivity.  
+  reflexivity.
 Qed.
 
 Lemma split3_data_block:
   forall  {cs: compspecs} lo hi sh data d,
   0 <= lo <= hi ->
   hi <= Zlength data  ->
-  data_block sh data d = 
+  data_block sh data d =
   (data_block sh (sublist 0 lo data) d *
-   data_block sh (sublist lo hi data) 
+   data_block sh (sublist lo hi data)
    (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc lo] d) *
-   data_block sh (sublist hi (Zlength data) data) 
+   data_block sh (sublist hi (Zlength data) data)
    (field_address0 (tarray tuchar (Zlength data)) [ArraySubsc hi] d))%logic.
 Proof.
   intros.
@@ -326,13 +326,13 @@ Proof.
   unfold tarray.
   rewrite split3_data_at_Tarray_tuchar with (n1:=lo)(n2:=hi) by (autorewrite with sublist; auto).
   autorewrite with sublist.
-  reflexivity.  
+  reflexivity.
 Qed.
 
 Global Opaque WORD.
 
 Lemma S256abs_data:
-  forall hashed data, 
+  forall hashed data,
    (LBLOCKz | Zlength hashed) ->
    Zlength data < CBLOCKz ->
    s256a_data (S256abs hashed data) = data.
@@ -355,7 +355,7 @@ rewrite Z.div_small by omega. omega.
 omega.
 rewrite Z.div_add_l by  omega.
 rewrite Z.mul_add_distr_r.
-rewrite Z.div_small by omega. 
+rewrite Z.div_small by omega.
 split; [ | omega].
 apply Z.mul_nonneg_nonneg.
 clear - H.
@@ -369,7 +369,7 @@ omega.
 Qed.
 
 Lemma S256abs_hashed:
-  forall hashed data, 
+  forall hashed data,
    (LBLOCKz | Zlength hashed) ->
    Zlength data < CBLOCKz ->
    s256a_hashed (S256abs hashed data) = hashed.
@@ -435,7 +435,7 @@ pose proof (Z_mod_lt (Zlength a) CBLOCKz H).
 omega.
 Qed.
 
-Lemma s256a_data_len: 
+Lemma s256a_data_len:
   forall a: s256abs,
   Zlength (s256a_data a) = Zlength a mod CBLOCKz.
 Proof.
@@ -458,7 +458,7 @@ Lemma s256a_data_Zlength_less:
 Proof.
 intros.
 rewrite s256a_data_len.
-apply Z_mod_lt. 
+apply Z_mod_lt.
 rewrite CBLOCKz_eq; omega.
 Qed.
 
@@ -521,7 +521,7 @@ apply hashed_data_recombine; auto.
 Qed.
 
 Lemma Zlist_to_intlist_app:
-  forall a b, 
+  forall a b,
   (WORD | Zlength a) ->
    Zlist_to_intlist (a++b) = Zlist_to_intlist a ++ Zlist_to_intlist b.
 Proof.
@@ -533,7 +533,7 @@ destruct (zlt na 0); try omega.
 assert (na * WORD < 0); [apply Z.mul_neg_pos; auto | ].
 pose proof (Zlength_nonneg a); omega.
 revert a H; induction (Z.to_nat na); intros.
-simpl in H. destruct a. simpl. auto. rewrite Zlength_cons in H. 
+simpl in H. destruct a. simpl. auto. rewrite Zlength_cons in H.
 pose proof (Zlength_nonneg a); omega.
 rewrite inj_S in H.
 unfold Z.succ in H. rewrite Z.mul_add_distr_r in H.
@@ -568,12 +568,12 @@ Proof. rewrite CBLOCKz_eq; omega.
 Qed.
 
 Lemma Zlist_to_intlist_inj:
-  forall a b, 
+  forall a b,
    (WORD | Zlength a) ->
    (WORD | Zlength b) ->
    Forall isbyteZ a ->
    Forall isbyteZ b ->
-   Zlist_to_intlist a = Zlist_to_intlist b -> 
+   Zlist_to_intlist a = Zlist_to_intlist b ->
    a=b.
 Proof.
 intros.
@@ -610,8 +610,8 @@ split; intro.
 *
 subst a'.
 unfold s256a_hashed.
-exists (Zlist_to_intlist 
-            (sublist (Zlength a / CBLOCKz * CBLOCKz) (Zlength (a++msg) / CBLOCKz * CBLOCKz) 
+exists (Zlist_to_intlist
+            (sublist (Zlength a / CBLOCKz * CBLOCKz) (Zlength (a++msg) / CBLOCKz * CBLOCKz)
                   (a++msg))).
 split.
  +
@@ -644,7 +644,7 @@ split.
  destruct (zlt   (Zlength (a ++ msg) / CBLOCKz * CBLOCKz) (Zlength a) ).
   -
    rewrite sublist_app1; try omega.
-   rewrite (sublist_split (Zlength (a ++ msg) / CBLOCKz * CBLOCKz) 
+   rewrite (sublist_split (Zlength (a ++ msg) / CBLOCKz * CBLOCKz)
                (Zlength a) (Zlength (a ++ msg))); try omega.
    rewrite sublist_app1; try omega.
    rewrite sublist_app2 by omega.
@@ -663,7 +663,7 @@ split.
  apply Z.div_le_mono; [rewrite CBLOCKz_eq; omega| ].
   rewrite Zlength_app; Omega1.
  -
-   rewrite (sublist_split (Zlength a / CBLOCKz * CBLOCKz) (Zlength a) 
+   rewrite (sublist_split (Zlength a / CBLOCKz * CBLOCKz) (Zlength a)
                   (Zlength (a ++ msg) / CBLOCKz * CBLOCKz) ); auto.
    rewrite app_ass.
    rewrite sublist_app1; try omega.
@@ -699,7 +699,7 @@ apply Zlist_to_intlist_inj.
 rewrite Zlength_sublist.
  rewrite Z.sub_0_r.
  apply Z.divide_mul_r.
- exists LBLOCKz; reflexivity. 
+ exists LBLOCKz; reflexivity.
  split; [clear; omega | ].
  apply Z.mul_nonneg_nonneg; [ | rewrite CBLOCKz_eq; omega].
  apply Z.div_pos; [ | rewrite CBLOCKz_eq; omega].
@@ -710,7 +710,7 @@ rewrite Zlength_sublist.
 rewrite Zlength_sublist.
  rewrite Z.sub_0_r.
  apply Z.divide_mul_r.
- exists LBLOCKz; reflexivity. 
+ exists LBLOCKz; reflexivity.
  split; [clear; omega | ].
  apply Z.mul_nonneg_nonneg; [ | rewrite CBLOCKz_eq; omega].
  apply Z.div_pos; [ | rewrite CBLOCKz_eq; omega].
@@ -742,7 +742,7 @@ Lemma array_at_memory_block:
  forall {cs: compspecs} sh t gfs lo hi v p n,
   sizeof (nested_field_array_type t gfs lo hi) = n ->
   lo <= hi ->
-  array_at sh t gfs lo hi v p |-- 
+  array_at sh t gfs lo hi v p |--
   memory_block sh n (field_address0 t (ArraySubsc lo :: gfs) p).
 Proof.
 intros.

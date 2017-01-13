@@ -26,7 +26,7 @@ Lemma map_eq:
   forall (m1 m2: map), {m1=m2} + {m1<>m2}.
 Proof.
   assert (forall (o1 o2: option A), {o1=o2}+{o1<>o2}). decide equality.
-  decide equality. 
+  decide equality.
 Defined.
 
 Definition empty := Leaf.
@@ -81,12 +81,12 @@ Proof.
   induction n; simpl; auto.
 Qed.
 
-Lemma get_set_same: 
+Lemma get_set_same:
   forall (n: positive) (m: map) (x: A),
   get (set m n x) n = Some x.
 Proof.
   induction n; destruct m; intros; simpl; auto.
-Qed.  
+Qed.
 
 Remark get_leaf:
   forall (n: positive), get Leaf n = None.
@@ -106,13 +106,13 @@ Lemma get_set:
   if peq n1 n2 then Some x else get m n2.
 Proof.
   intros. case (peq n1 n2); intro.
-  subst n2. apply get_set_same. 
+  subst n2. apply get_set_same.
   apply get_set_other; auto.
 Qed.
 
 Lemma unset_same : forall m v,
    get (unset m v) v = None.
-   
+
   intros m; induction m; intros;
     destruct v; simpl; auto.
  Qed.
@@ -132,11 +132,11 @@ Lemma unset_other : forall m v v',
   Qed.
 
 
-End MAPS. 
+End MAPS.
 
 Notation "a # b" := (get _ a b) (at level 1).
 Notation "a # b <- c" := (set _ a b c) (at level 1, b at next level).
- 
+
 Section FORALL2.
 
 Variables A B: Type.
@@ -177,8 +177,8 @@ Lemma map_forall2_eq : forall (m1:map A) (m2:map B),
 
 Lemma map_forall2_correct:
   forall m1 m2 i x,
-  map_forall2 m1 m2 = true -> 
-  m1#i = Some x -> pred x m2#i = true. 
+  map_forall2 m1 m2 = true ->
+  m1#i = Some x -> pred x m2#i = true.
 Proof.
   induction m1; simpl; intros until x.
   rewrite get_leaf. congruence.
@@ -202,14 +202,14 @@ Proof.
   induction m1; intros; simpl.
   auto.
   destruct m2.
-  rewrite IHm1_1. rewrite IHm1_2. rewrite <- (get_leaf B 1). 
-  unfold pred_opt. destruct o. rewrite H. reflexivity. reflexivity. 
+  rewrite IHm1_1. rewrite IHm1_2. rewrite <- (get_leaf B 1).
+  unfold pred_opt. destruct o. rewrite H. reflexivity. reflexivity.
   reflexivity.
   intros. rewrite get_leaf. rewrite <- (get_leaf B (xI i)). apply H. assumption.
   intros. rewrite get_leaf. rewrite <- (get_leaf B (xO i)). apply H. assumption.
-  rewrite IHm1_1. rewrite IHm1_2.  
+  rewrite IHm1_1. rewrite IHm1_2.
   unfold pred_opt. destruct o. change o0 with (get B (Node B m2_1 o0 m2_2) 1).
-  rewrite H. reflexivity. reflexivity. 
+  rewrite H. reflexivity. reflexivity.
   reflexivity.
   intros. change (m2_2#i) with (get B (Node B m2_1 o0 m2_2) (xI i)). apply H. assumption.
   intros. change (m2_1#i) with (get B (Node B m2_1 o0 m2_2) (xO i)). apply H. assumption.
@@ -260,7 +260,7 @@ Lemma fmap_eqn : forall A B (m:map A) (f:A->B) x a,
   destruct o; simpl.
   congruence.
   discriminate.
- Qed.   
+ Qed.
 
 Lemma fmap_eqn2 : forall A B (m:map A) (f:A->B) x b,
   (map_fmap A B f m)#x = Some b ->
@@ -274,7 +274,7 @@ Lemma fmap_eqn2 : forall A B (m:map A) (f:A->B) x b,
   exists a; intuition.
   congruence.
   discriminate.
- Qed.   
+ Qed.
 
 Lemma fmap_update : forall A B (m:map A) (f:A->B) x a,
   (map_fmap A B f (m#x <- a)) =
@@ -305,7 +305,7 @@ Lemma fmap_unset : forall A B (m:map A) (f:A->B) x,
   rewrite IHm2; auto.
   rewrite IHm1; auto.
   rewrite IHm1; auto.
- Qed. 
+ Qed.
 
 Definition map_fold_index'
    (A B:Type)
@@ -319,7 +319,7 @@ Definition map_fold_index'
   | Leaf => z
   | Node l None r =>
      fold (fold z (fun x => g (xI x)) r) (fun x => g (xO x)) l
-  | Node l (Some x) r => 
+  | Node l (Some x) r =>
      fold (c (f (g xH) x) (fold z (fun x => g (xI x)) r)) (fun x => g (xO x)) l
   end.
 
@@ -335,13 +335,13 @@ Section map_fold_index.
   Variable f:positive -> A -> B.
   Variable c:B -> B -> B.
   Variable u:B.
-  
+
   Hypothesis Hassoc : forall x y z:B,
      c x (c y z) = c (c x y) z.
   Hypothesis Hunit_left : forall x, c u x = x.
 
   Lemma map_fold_index_lift_z : forall
-     (m:map A) (g:positive -> positive) (z:B), 
+     (m:map A) (g:positive -> positive) (z:B),
 
      map_fold_index' A B f c z g m =
      c (map_fold_index' A B f c u g m) z.
@@ -365,7 +365,7 @@ Section map_fold_index.
      rewrite IHm2.
      auto.
     Qed.
-     
+
   Lemma map_fold_index_lookup' : forall
      (m:map A) (g:positive -> positive) (z:B) v x,
 
@@ -395,8 +395,8 @@ Section map_fold_index.
      exists r'.
      rewrite H0.
      rewrite <- Hassoc.
-     auto. 
-         
+     auto.
+
      rewrite map_fold_index_lift_z.
      destruct (IHm1 (fun x => g (xO x)) u v x) as [l' [r' ?]]; intuition.
      exists l'.
@@ -422,7 +422,7 @@ Section map_fold_index.
      auto.
 
      discriminate.
-    Qed.     
+    Qed.
 
   Lemma map_fold_index_lookup : forall
      (m:map A) (z:B) v x,

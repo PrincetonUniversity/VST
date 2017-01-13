@@ -12,11 +12,11 @@ Hint Rewrite (Znth_map Int.zero) (Znth_map Vundef)
 
 Lemma FF_local_facts: forall {A}{NA: NatDed A}, (FF:A) |-- !!False.
 Proof. intros. apply FF_left. Qed.
-Hint Resolve @FF_local_facts: saturate_local. 
+Hint Resolve @FF_local_facts: saturate_local.
 
 (*** Omega stuff ***)
 
-Ltac omegable' A := 
+Ltac omegable' A :=
 lazymatch A with
 | @eq nat _ _ => idtac
 | @eq Z _ _ => idtac
@@ -66,10 +66,10 @@ Ltac is_const A :=
 Ltac simpl_const :=
   match goal with
    | |- context [Z.of_nat ?A] =>
-     is_const A; 
+     is_const A;
      let H := fresh in set (H:= Z.of_nat A); simpl in H; unfold H; clear H
    | |- context [Z.to_nat ?A] =>
-     is_const A; 
+     is_const A;
      let H := fresh in set (H:= Z.to_nat A); simpl in H; unfold H; clear H
   end.
 
@@ -96,8 +96,8 @@ repeat match goal with
  | H: le _ _ /\ le _ _ |- _ => revert H
  | H: lt _ _ /\ le _ _ |- _ => revert H
  | H: le _ _ /\ lt _ _ |- _ => revert H
- | H := ?A : Z |- _ => apply (omega_aux H A (eq_refl _)); clearbody H 
- | H := ?A : nat |- _ => apply (omega_aux H A (eq_refl _)); clearbody H 
+ | H := ?A : Z |- _ => apply (omega_aux H A (eq_refl _)); clearbody H
+ | H := ?A : nat |- _ => apply (omega_aux H A (eq_refl _)); clearbody H
  | H: _ |- _ => clear H
  end;
  clear;
@@ -128,13 +128,13 @@ Ltac Omega'' L :=
 
 Tactic Notation "Omega" tactic(L) := (omegable; Omega'' L).
 
-Ltac helper1 := 
+Ltac helper1 :=
  match goal with
    | |- context [Zlength ?A] => add_nonredundant (Zlength_correct A)
    | |- context [Int.max_unsigned] => add_nonredundant int_max_unsigned_eq
    | |- context [Int.max_signed] => add_nonredundant int_max_signed_eq
    | |- context [Int.min_signed] => add_nonredundant int_min_signed_eq
-  end. 
+  end.
 
 Ltac Omega0 := Omega (now helper1).
 
@@ -142,10 +142,10 @@ Ltac Omega0 := Omega (now helper1).
 
 Ltac simpl_compare :=
  match goal with
- | H: Vint _ = _ |- _ => 
+ | H: Vint _ = _ |- _ =>
          revert H; simpl_compare; intro H;
          try (simpl in H; apply Vint_inj in H;
-               match type of H with ?a = ?b => 
+               match type of H with ?a = ?b =>
                   first [subst a | subst b | idtac]
                end)
  | H: typed_true _ _ |- _ =>
@@ -170,7 +170,7 @@ Ltac simpl_compare :=
                           | idtac]
                  | discriminate H
                  | idtac ]
- | H : Int.lt _ _ = false |- _ => 
+ | H : Int.lt _ _ = false |- _ =>
          revert H; simpl_compare; intro H;
          try (apply (int_cmp_repr' Clt) in H ;
                     [ | repable_signed ..]; simpl in H)
@@ -178,11 +178,11 @@ Ltac simpl_compare :=
          revert H; simpl_compare;  intro H;
          try (apply (int_cmp_repr Clt) in H ;
                     [ | repable_signed ..]; simpl in H)
- | H : Int.eq _ _ = false |- _ => 
+ | H : Int.eq _ _ = false |- _ =>
          revert H; simpl_compare;  intro H;
          try (apply (int_cmp_repr' Ceq) in H ;
                     [ | repable_signed ..]; simpl in H)
- | H : Int.eq _ _ = true |- _ => 
+ | H : Int.eq _ _ = true |- _ =>
          revert H; simpl_compare;  intro H;
          try (apply (int_cmp_repr Ceq) in H ;
                     [ | repable_signed ..]; simpl in H)
@@ -196,7 +196,7 @@ intros. apply andp_right; auto.
 Qed.
 
 (* try_conjuncts.  The purpose of this is to avoid splitting any
-  goal into two subgoals, for the reason that perhaps the 
+  goal into two subgoals, for the reason that perhaps the
   user wants to simplify things above the line before splitting.
    On the other hand, if the current goal is  A/\B/\C/\D
   where B and D are easily provable, one wants to leave the
@@ -215,11 +215,11 @@ Lemma try_conjuncts_start: forall A B: Prop,
  Proof. intuition. Qed.
 
 Ltac try_conjuncts_solver :=
-    match goal with H:_ |- ?A => 
+    match goal with H:_ |- ?A =>
          no_evars A;
-         first [clear H; try immediate; solve [auto] 
-                | apply Coq.Init.Logic.I 
-                | computable 
+         first [clear H; try immediate; solve [auto]
+                | apply Coq.Init.Logic.I
+                | computable
                 | Omega0
                 ]
     end.
@@ -229,21 +229,21 @@ Ltac try_conjuncts :=
                 [try_conjuncts_solver | try_conjuncts ]
         | simple eapply try_conjuncts_lem2;
                 [try_conjuncts_solver | match goal with H:_ |- _ => apply H end ]
-        | simple eapply try_conjuncts_lem; 
-            [intro; try_conjuncts | intro; try_conjuncts 
+        | simple eapply try_conjuncts_lem;
+            [intro; try_conjuncts | intro; try_conjuncts
             |match goal with H:_ |- _ => apply H end ]
-        | match goal with H:_ |- _ => instantiate (1:=True) in H; 
+        | match goal with H:_ |- _ => instantiate (1:=True) in H;
                 try_conjuncts_solver
           end
         | match goal with H:_ |- _ => apply H end
         ].
 
 Lemma try_conjuncts_prop_and:
-  forall {A}{NA: NatDed A} (S: A) (P P': Prop) Q, 
+  forall {A}{NA: NatDed A} (S: A) (P P': Prop) Q,
       (P' -> P) ->
       S |-- !! P' && Q ->
       S |-- !! P && Q.
-Proof. intros. 
+Proof. intros.
  eapply derives_trans; [apply H0 |].
  apply andp_derives; auto.
  apply prop_derives; auto.
@@ -251,11 +251,11 @@ Qed.
 
 
 Lemma try_conjuncts_prop:
-  forall {A}{NA: NatDed A} (S: A) (P P': Prop), 
+  forall {A}{NA: NatDed A} (S: A) (P P': Prop),
       (P' -> P) ->
       S |-- !! P' ->
       S |-- !! P .
-Proof. intros. 
+Proof. intros.
  eapply derives_trans; [apply H0 |].
  apply prop_derives; auto.
 Qed.
@@ -385,15 +385,15 @@ Hint Resolve andp_valid_pointer1 andp_valid_pointer2 : valid_pointer.
 Hint Resolve valid_pointer_null : valid_pointer.
 Hint Resolve valid_pointer_zero : valid_pointer.
 
-Ltac solve_valid_pointer := 
+Ltac solve_valid_pointer :=
 match goal with
 | |- _ |-- denote_tc_comparable _ _ && _ =>
-           apply andp_right; 
-               [apply denote_tc_comparable_split; 
+           apply andp_right;
+               [apply denote_tc_comparable_split;
                 solve [auto 50 with valid_pointer] | ]
-| |- _ |-- valid_pointer _ && _ => 
+| |- _ |-- valid_pointer _ && _ =>
            apply andp_right; [ solve [auto 50 with valid_pointer] | ]
-| |- _ |-- weak_valid_pointer _ && _ => 
+| |- _ |-- weak_valid_pointer _ && _ =>
            apply andp_right; [ solve [auto 50 with valid_pointer] | ]
 | |- _ |-- denote_tc_comparable _ _ =>
               auto 50 with valid_pointer
@@ -407,17 +407,17 @@ Hint Rewrite (@TT_andp mpred _) : gather_prop.
 Hint Rewrite (@andp_TT mpred _) : gather_prop.
 
 Ltac pull_out_props :=
-    repeat (( simple apply derives_extract_prop 
+    repeat (( simple apply derives_extract_prop
                 || simple apply derives_extract_prop');
                 fancy_intros true);
     autorewrite with gather_prop;
-    repeat (( simple apply derives_extract_prop 
+    repeat (( simple apply derives_extract_prop
                 || simple apply derives_extract_prop');
                 fancy_intros true).
 
 Ltac ent_iter :=
     autorewrite with gather_prop;
-    repeat (( simple apply derives_extract_prop 
+    repeat (( simple apply derives_extract_prop
                 || simple apply derives_extract_prop');
                 fancy_intros true);
 (*   saturate_local; *)
@@ -450,22 +450,22 @@ Qed.
 
 Ltac prune_conjuncts :=
  repeat rewrite and_assoc';
- first [simple eapply try_conjuncts_prop; 
-              [intro; try_conjuncts 
+ first [simple eapply try_conjuncts_prop;
+              [intro; try_conjuncts
               | cbv beta; repeat rewrite and_True; prop_right_cautious ]
          | simple eapply try_conjuncts_prop_and;
-              [intro; try_conjuncts 
+              [intro; try_conjuncts
               | cbv beta; repeat rewrite and_True; try simple apply go_lower_lem1]
          | idtac].
 
-Ltac entailer' :=  
+Ltac entailer' :=
  repeat (progress (ent_iter; normalize));
  try simple apply prop_and_same_derives;
  prune_conjuncts;
  try rewrite (prop_true_andp True) by apply Coq.Init.Logic.I;
  try solve_valid_pointer;
  try first [apply derives_refl
-              | simple apply FF_left 
+              | simple apply FF_left
               | simple apply TT_right].
 
 Ltac entailer :=
@@ -476,7 +476,7 @@ Ltac entailer :=
         clear MORE_COMMANDS
       end;
  match goal with
- | |- ?P |-- _ => 
+ | |- ?P |-- _ =>
     match type of P with
     | ?T => unify T (environ->mpred); go_lower
     | _ => clear_Delta; pull_out_props
@@ -487,8 +487,8 @@ Ltac entailer :=
  entailer'.
 
 
-Ltac splittable := 
- match goal with 
+Ltac splittable :=
+ match goal with
  | |- _ <= _ < _ => fail 1
  | |- _ < _ <= _ => fail 1
  | |- _ <= _ <= _ => fail 1
@@ -511,9 +511,9 @@ Hint Extern 4 (value_fits _ _ _) =>
 
 Ltac prove_it_now :=
  first [ splittable; fail 1
-        | computable 
-        | apply Coq.Init.Logic.I 
-        | reflexivity 
+        | computable
+        | apply Coq.Init.Logic.I
+        | reflexivity
         | Omega0
         | repeat match goal with H: ?A |- _ => has_evar A; clear H end;
           auto with prove_it_now;
@@ -531,7 +531,7 @@ Proof. auto. Qed.
 
 Ltac my_auto_iter H :=
  first [instantiate (1:=True) in H;  prove_it_now
-       | splittable; 
+       | splittable;
          eapply try_conjuncts_lem;
             [let H1 := fresh in intro H1; my_auto_iter H1
             |let H1 := fresh in intro H1; my_auto_iter H1
@@ -543,7 +543,7 @@ Ltac all_True :=  solve [repeat simple apply conj; simple apply Coq.Init.Logic.I
 
 Ltac my_auto_reiter :=
  first [simple apply conj; [all_True | ]; my_auto_reiter
-        |simple apply conj; [ | all_True]; my_auto_reiter 
+        |simple apply conj; [ | all_True]; my_auto_reiter
         |splittable; eapply try_conjuncts_lem;
                 [intro; my_auto_reiter
                 |intro; my_auto_reiter
@@ -579,12 +579,12 @@ Ltac entailer_for_return :=
  entailer';
  try match goal with rho: environ |- _ => clear rho end.
 
-Ltac entbang := 
+Ltac entbang :=
  intros;
  match goal with
  | |- local _ && ?P |-- _ => go_lower; try simple apply empTrue
  | |- ?P |-- _ =>
-    match type of P with 
+    match type of P with
     | ?T => unify T mpred; pull_out_props
     end
  | |- _ => fail "The entailer tactic works only on entailments  _ |-- _ "
@@ -620,7 +620,7 @@ Hint Rewrite Int.unsigned_repr using repable_signed : norm.
 (************** TACTICS FOR GENERATING AND EXECUTING TEST CASES *******)
 
 Definition EVAR (x: Prop) := x.
-Lemma EVAR_e: forall x, EVAR x -> x. 
+Lemma EVAR_e: forall x, EVAR x -> x.
 Proof. intros. apply H. Qed.
 
 Ltac gather_entail :=
@@ -632,7 +632,7 @@ repeat match goal with
   | _ => clear H || (revert H; match goal with |- ?B => no_evars B end)
   end
 end;
-repeat match goal with 
+repeat match goal with
  | x := ?X |- _ => is_evar X; clearbody x; revert x; apply EVAR_e
 end;
 repeat match goal with
@@ -647,7 +647,7 @@ Proof. intros. apply H. Qed.
 
 Ltac ungather_entail :=
 match goal with
-  | |- EVAR (forall x : ?t, _) => 
+  | |- EVAR (forall x : ?t, _) =>
        let x' := fresh x in evar (x' : t);
        let x'' := fresh x in apply EVAR_i; intro x'';
        replace x'' with x'; [ungather_entail; clear x'' | apply ungather_admit ]

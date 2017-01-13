@@ -73,7 +73,7 @@ Proof.
   reflexivity.
   intros.
   eapply derives_trans; [  apply mapsto_local_facts | ].
-  normalize.   
+  normalize.
 Qed.
 
 Lemma mapsto__offset_zero:
@@ -184,7 +184,7 @@ Section COMPSPECS.
 Context {cs: compspecs}.
 
 Lemma memory_block_mapsto_:
-  forall sh t p, 
+  forall sh t p,
    type_is_by_value t = true ->
    type_is_volatile t = false ->
    legal_alignas_type t = true ->
@@ -205,7 +205,7 @@ Proof.
   + apply pred_ext; saturate_local; try contradiction.
 Qed.
 
-Lemma nonreadable_memory_block_mapsto: forall sh p t v, 
+Lemma nonreadable_memory_block_mapsto: forall sh p t v,
   ~ readable_share sh ->
   type_is_by_value t = true ->
   type_is_volatile t = false ->
@@ -231,7 +231,7 @@ Qed.
 Lemma memory_block_size_compatible:
   forall sh t p,
   sizeof t < Int.modulus ->
-  memory_block sh (sizeof t) p = 
+  memory_block sh (sizeof t) p =
   !! (size_compatible t p) && memory_block sh (sizeof t) p.
 Proof.
   intros.
@@ -269,7 +269,7 @@ Hint Extern 1 (mapsto _ _ _ _ |-- mapsto _ _ _ _) =>
 
 Hint Extern 0 (legal_alignas_type _ = true) => reflexivity : cancel.
 
-Lemma mapsto_force_ptr: forall sh t v v', 
+Lemma mapsto_force_ptr: forall sh t v v',
   mapsto sh t (force_ptr v) v' = mapsto sh t v v'.
 Proof.
 intros.
@@ -291,8 +291,8 @@ Proof.
   normalize.
 Qed.
 
-Lemma remove_PROP_LOCAL_left': 
-     forall P Q R S, `R |-- S -> 
+Lemma remove_PROP_LOCAL_left':
+     forall P Q R S, `R |-- S ->
      PROPx P (LOCALx Q (SEPx (R::nil))) |-- S.
 Proof.
   intros.
@@ -306,7 +306,7 @@ Lemma SEP_nth_isolate:
 Proof.
  unfold SEPx.
  intros. extensionality rho.
- revert R H; 
+ revert R H;
  induction n; destruct R; intros; inv H.
  simpl; rewrite emp_sepcon; auto.
  unfold replace_nth; fold @replace_nth.
@@ -346,7 +346,7 @@ Proof.
 Qed.
 
 Lemma SEP_replace_nth_isolate:
-  forall n R Rn Rn', 
+  forall n R Rn Rn',
        nth_error R n = Some Rn ->
       SEPx (replace_nth n R Rn') = SEPx (Rn' :: replace_nth n R emp).
 Proof.
@@ -397,14 +397,14 @@ Proof.
     - intros. simpl in *. cancel.
 Qed.
 
-Lemma replace_nth_SEP': 
-  forall A P Q R n Rn Rn', local A && PROPx P (LOCALx Q (SEPx (Rn::nil))) |-- `Rn' -> 
+Lemma replace_nth_SEP':
+  forall A P Q R n Rn Rn', local A && PROPx P (LOCALx Q (SEPx (Rn::nil))) |-- `Rn' ->
   (local A && PROPx P (LOCALx Q (SEPx (replace_nth n R Rn)))) |-- (PROPx P (LOCALx Q (SEPx (replace_nth n R Rn')))).
 Proof.
   simpl. unfold local, lift1.
   intros.
   specialize (H x).
-  normalize. rewrite prop_true_andp in H by auto. clear H0. 
+  normalize. rewrite prop_true_andp in H by auto. clear H0.
       autorewrite with subst norm1 norm2; normalize.
     autorewrite with subst norm1 norm2 in H; normalize in H.
   revert R.
@@ -417,7 +417,7 @@ Proof.
     - intros. simpl in *. cancel.
 Qed.
 
-Lemma replace_nth_SEP_andp_local: 
+Lemma replace_nth_SEP_andp_local:
    forall P Q R n (Rn Rn': mpred) (Rn'': Prop) x,
   nth_error R n = Some Rn ->
   (PROPx P (LOCALx Q (SEPx (replace_nth n R ((prop Rn'') && Rn'))))) x
@@ -449,7 +449,7 @@ Proof.
 Qed.
 
 Lemma LOCAL_2_hd: forall P Q R Q1 Q2,
-  (PROPx P (LOCALx (Q1 :: Q2 :: Q) (SEPx R))) = 
+  (PROPx P (LOCALx (Q1 :: Q2 :: Q) (SEPx R))) =
   (PROPx P (LOCALx (Q2 :: Q1 :: Q) (SEPx R))).
 Proof.
   intros.
@@ -459,20 +459,20 @@ Proof.
 Qed.
 
 (*
-Lemma eq_sym_LOCAL: forall P Q R id v, 
-  PROPx P (LOCALx (`eq v (eval_id id) :: Q) (SEPx R)) = 
+Lemma eq_sym_LOCAL: forall P Q R id v,
+  PROPx P (LOCALx (`eq v (eval_id id) :: Q) (SEPx R)) =
   PROPx P (LOCALx (`eq (eval_id id) v:: Q) (SEPx R)).
 Proof.
   intros.
   extensionality; apply pred_ext; normalize;
-      autorewrite with subst norm1 norm2; 
+      autorewrite with subst norm1 norm2;
       normalize;
-      autorewrite with subst norm1 norm2; 
+      autorewrite with subst norm1 norm2;
       normalize.
 Qed.
 
-Lemma eq_sym_LOCAL': forall P Q R id v, 
-  PROPx P (LOCALx (`(eq v) (eval_id id) :: Q) (SEPx R)) = 
+Lemma eq_sym_LOCAL': forall P Q R id v,
+  PROPx P (LOCALx (`(eq v) (eval_id id) :: Q) (SEPx R)) =
   PROPx P (LOCALx (`eq (eval_id id) `v:: Q) (SEPx R)).
 Proof.
   intros.
@@ -484,7 +484,7 @@ Qed.
 (*
 Lemma eq_sym_post_LOCAL: forall P Q R id v,
   (EX  old : val, PROPx P
-  (LOCALx (`eq (subst id `old v) (eval_id id)::map (subst id `old) Q) (SEPx R))) = 
+  (LOCALx (`eq (subst id `old v) (eval_id id)::map (subst id `old) Q) (SEPx R))) =
   (EX  old : val, PROPx P
   (LOCALx (`eq (eval_id id) (subst id `old v)::map (subst id `old) Q) (SEPx R))).
 Proof.
@@ -498,7 +498,7 @@ Qed.
 (*
 Lemma eq_sym_post_LOCAL': forall P Q R id v,
   (EX  old : val, PROPx P
-  (LOCALx (`(eq v) (eval_id id) :: map (subst id `old) Q) (SEPx R))) = 
+  (LOCALx (`(eq v) (eval_id id) :: map (subst id `old) Q) (SEPx R))) =
   (EX  old : val, PROPx P
   (LOCALx (`eq (eval_id id) `v ::  map (subst id `old) Q) (SEPx R))).
 Proof.
@@ -512,7 +512,7 @@ Qed.
 
 Definition of at_offset.
 
-at_offset is the elementary definition. All useful lemmas about at_offset will be proved here. 
+at_offset is the elementary definition. All useful lemmas about at_offset will be proved here.
 
 ******************************************)
 
@@ -536,12 +536,12 @@ Proof.
   apply at_offset_eq.
 Qed.
 
-Lemma at_offset_eq2: forall pos pos' P, 
+Lemma at_offset_eq2: forall pos pos' P,
   forall p, at_offset P (pos + pos') p = at_offset P pos' (offset_val pos p).
 Proof.
   intros.
   rewrite at_offset_eq.
-  rewrite at_offset_eq. 
+  rewrite at_offset_eq.
   unfold offset_val.
   destruct p; auto.
   rewrite int_add_assoc1.
@@ -621,7 +621,7 @@ Qed.
 
 Lemma withspacer_add:
   forall sh pos be ed P p,
-  withspacer sh (pos + be) (pos + ed) (fun p0 => P (offset_val pos p)) p = 
+  withspacer sh (pos + be) (pos + ed) (fun p0 => P (offset_val pos p)) p =
   withspacer sh be ed P (offset_val pos p).
 Proof.
   intros.
@@ -650,7 +650,7 @@ Proof.
   intros.
   rewrite at_offset_eq.
   specialize (H (offset_val pos p)).
-  eapply derives_trans; [exact H |]. 
+  eapply derives_trans; [exact H |].
   apply offset_val_preserve_isptr.
 Qed.
 
@@ -658,7 +658,7 @@ Lemma withspacer_preserve_local_facts: forall sh be ed P, (forall p, P p |-- !! 
 Proof.
   intros.
   rewrite withspacer_spacer.
-  simpl; rewrite sepcon_comm. 
+  simpl; rewrite sepcon_comm.
   apply (derives_left_sepcon_right_corable (!!isptr p) (P p) _); [apply corable_prop|].
   apply H.
 Qed.

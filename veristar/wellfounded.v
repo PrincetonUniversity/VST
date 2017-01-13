@@ -35,7 +35,7 @@ Require Import Image.
 
 End LT_WF_REL.
 
-Definition lex_pair {A B} (Ra: A -> A -> Prop) (Rb: B -> B -> Prop) 
+Definition lex_pair {A B} (Ra: A -> A -> Prop) (Rb: B -> B -> Prop)
             (x: A*B) (y: A*B) : Prop :=
  Ra (fst x) (fst y) \/ (fst x = fst y /\ Rb (snd x) (snd y)).
 
@@ -43,9 +43,9 @@ Definition lex_pair {A B} (Ra: A -> A -> Prop) (Rb: B -> B -> Prop)
 (*
 Lemma lex_pair_eqv:
   forall A B Ra Rb,
-   lex_pair Ra Rb = 
+   lex_pair Ra Rb =
    (fun x y =>
-   lexprod A (fun _ => B) Ra (fun _ => Rb) 
+   lexprod A (fun _ => B) Ra (fun _ => Rb)
      (existT (fun _:A => B) (fst x) (snd x))
      (existT (fun _:A => B) (fst y) (snd y))).
 Proof.
@@ -64,7 +64,7 @@ Qed.
 *)
 
 Lemma well_founded_incl:
-  forall A (Rs Rt: A -> A -> Prop), 
+  forall A (Rs Rt: A -> A -> Prop),
    inclusion _ Rt Rs -> well_founded Rs -> well_founded Rt.
 Proof.
   unfold well_founded; intros.
@@ -92,7 +92,7 @@ Lemma well_founded_lex_pair:
 Proof.
  intros.
  apply well_founded_incl with (Rs :=  (fun x y =>
-   lexprod A (fun _ => B) Ra (fun _ => Rb) 
+   lexprod A (fun _ => B) Ra (fun _ => Rb)
      (existT (fun _:A => B) (fst x) (snd x))
      (existT (fun _:A => B) (fst y) (snd y)))).
  intros [a b] [a' b'] ?.
@@ -103,8 +103,8 @@ Proof.
 Qed.
 
 
-Lemma well_founded_trans: 
-  forall A (Ra: A -> A -> Prop), 
+Lemma well_founded_trans:
+  forall A (Ra: A -> A -> Prop),
     well_founded Ra <-> well_founded (clos_trans _ Ra).
 Proof.
 intros; split; intros.
@@ -132,14 +132,14 @@ constructor 1 ;auto.
 Qed.
 
 
-Definition lexprodx {B A : Type} (f: A -> B) (R1: B -> B -> Prop) 
+Definition lexprodx {B A : Type} (f: A -> B) (R1: B -> B -> Prop)
   (R2: B -> A -> A -> Prop)
   (x y : A) : Prop :=
      R1 (f x) (f y) \/ f x = f y /\ R2 (f x) x y.
 
 Lemma lexprodx_eq: forall B A f R1 R2 x y,
     lexprodx f R1 R2 x y <->
-    lexprod B (fun _ => A) R1 R2 (existT (fun _:B => A) (f x) x) 
+    lexprod B (fun _ => A) R1 R2 (existT (fun _:B => A) (f x) x)
                (existT (fun _:B => A) (f y) y).
 Proof.
  intros.
@@ -157,7 +157,7 @@ Lemma well_founded_lexprodx: forall B A (f: A -> B) R1 R2,
   well_founded (lexprodx f R1 R2).
 Proof.
 intros.
- apply well_founded_incl with (fun x y => lexprod B (fun _ => A) R1 R2 (existT (fun _:B => A) (f x) x) 
+ apply well_founded_incl with (fun x y => lexprod B (fun _ => A) R1 R2 (existT (fun _:B => A) (f x) x)
                (existT (fun _:B => A) (f y) y)).
  intros ? ? ?. rewrite <- lexprodx_eq.  auto.
  apply well_founded_image with (f:= fun x => (existT (fun _ : B => A) (f x) x)).
@@ -166,14 +166,14 @@ Qed.
 
 
 (* WARNING: Not sure simple_lexprod is useful! *)
-Definition simple_lexprod {A: Type} (R1: A -> A -> Prop) (R2: A -> A -> Prop) 
+Definition simple_lexprod {A: Type} (R1: A -> A -> Prop) (R2: A -> A -> Prop)
             (x y: A) : Prop :=
   R1 x y \/ x=y /\ R2 x y.
 
 Lemma simple_lexprod_eq:
-  forall A R1 R2 x y, 
-     @simple_lexprod A R1 R2 x y <-> 
-    lexprod A (fun _ => A) R1 (fun _ => R2) 
+  forall A R1 R2 x y,
+     @simple_lexprod A R1 R2 x y <->
+    lexprod A (fun _ => A) R1 (fun _ => R2)
        (existT (fun _:A => A) x x) (existT (fun _:A => A) y y).
 Proof.
 intros.
@@ -191,7 +191,7 @@ Lemma wellfounded_simple_lexprod:
     well_founded (simple_lexprod R1 R2).
 Proof.
  intros.
- apply well_founded_incl with 
+ apply well_founded_incl with
    (fun x y => lexprod A (fun _ => A) R1 (fun _ => R2) (existT (fun _:A => A) x x)  (existT (fun _:A => A) y y)).
  intros ? ? ?. rewrite <- simple_lexprod_eq. auto.
  apply well_founded_image with (f:= fun x => existT (fun _:A => A) x x).

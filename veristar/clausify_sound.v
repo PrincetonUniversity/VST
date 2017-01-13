@@ -1,8 +1,8 @@
 Load loadpath.
 Require Import Coq.ZArith.ZArith Coq.Lists.List Coq.Sorting.Permutation
                Coq.Logic.Classical.
-Require Import msl.Axioms msl.predicates_sa. 
-Require Import veristar.datatypes veristar.clauses veristar.list_denote 
+Require Import msl.Axioms msl.predicates_sa.
+Require Import veristar.datatypes veristar.clauses veristar.list_denote
                veristar.model_type veristar.model veristar.spred_lemmas
                veristar.basic.
 
@@ -10,13 +10,13 @@ Module Type CLAUSIFY_SOUND.
 Declare Module VSM : VERISTAR_MODEL.
 Import VSM VeriStarLogic.
 
-Axiom cnf_correct : forall (e : entailment), 
+Axiom cnf_correct : forall (e : entailment),
   entailment_denote e =
   forall s, ~ list_denote clause_denote (@andp state) TT (cnf e) s.
 
 End CLAUSIFY_SOUND.
 
-Module Clausify_Sound (VSM : VERISTAR_MODEL) : CLAUSIFY_SOUND 
+Module Clausify_Sound (VSM : VERISTAR_MODEL) : CLAUSIFY_SOUND
   with Module VSM := VSM.
 Module VSM := VSM.
 Import VSM VeriStarLogic.
@@ -32,9 +32,9 @@ apply prop_ext; split; intros.
 destruct H. left.
 rewrite <- pure_atom_denote_order_eqv_pure_atom. auto.
 destruct H. auto.
-repeat split; auto. 
+repeat split; auto.
 rewrite <- pure_atom_denote_order_eqv_pure_atom in H. auto.
-destruct H. 
+destruct H.
 Qed.
 
 Lemma clausify_single_pureneg : forall purea,
@@ -46,21 +46,21 @@ apply prop_ext; split; intros.
 destruct H. destruct H0. destruct H.
 rewrite <- pure_atom_denote_order_eqv_pure_atom in H0. auto.
 repeat split; auto. unfold neg,compose. intro Contra.
-destruct H. 
+destruct H.
 rewrite <- pure_atom_denote_order_eqv_pure_atom.
 split; auto.
 Qed.
 
 Lemma clausify_purepos : forall l : list pure_atom,
-  list_denote pure_atom_denote (@andp state) TT l = 
-  list_denote clause_denote (@andp state) TT 
+  list_denote pure_atom_denote (@andp state) TT l =
+  list_denote clause_denote (@andp state) TT
     (map (fun a => mkPureClause nil (order_eqv_pure_atom a::nil)) l).
 Proof.
 intros. extensionality s.
 induction l; simpl; apply prop_ext; split; intros; auto.
 split. rewrite <- clausify_single_purepos. simpl.
 destruct H as [H _]. repeat split; auto.
-rewrite <- IHl. 
+rewrite <- IHl.
 destruct H as [_ H]. repeat split; auto.
 destruct H. rewrite <- clausify_single_purepos in H. simpl in H.
 destruct H. rewrite <- IHl in H0.
@@ -69,14 +69,14 @@ Qed.
 
 Lemma clausify_pureposP : forall (l : list pure_atom) P,
   list_denote pure_atom_denote (@andp state) P l =
-  list_denote clause_denote (@andp state) P 
+  list_denote clause_denote (@andp state) P
     (map (fun a => mkPureClause nil (order_eqv_pure_atom a::nil)) l).
 Proof.
 intros. extensionality s.
 induction l; simpl; apply prop_ext; split; intros; auto.
 split. rewrite <- clausify_single_purepos. simpl.
 destruct H as [H _]. repeat split; auto.
-rewrite <- IHl. 
+rewrite <- IHl.
 destruct H as [_ H]. repeat split; auto.
 destruct H. rewrite <- clausify_single_purepos in H. simpl in H.
 destruct H. rewrite <- IHl in H0.
@@ -85,13 +85,13 @@ Qed.
 
 Lemma clausify_pureneg : forall l : list pure_atom,
   list_denote (neg oo pure_atom_denote) (@andp state) TT l =
-  list_denote clause_denote (@andp state) TT 
+  list_denote clause_denote (@andp state) TT
     (map (fun a => mkPureClause (order_eqv_pure_atom a::nil) nil) l).
 Proof.
-intros. extensionality s. 
+intros. extensionality s.
 induction l; simpl; apply prop_ext; split; intros; auto.
-split. rewrite <- clausify_single_pureneg. simpl. 
-destruct H as [H _]. split; auto. 
+split. rewrite <- clausify_single_pureneg. simpl.
+destruct H as [H _]. split; auto.
 rewrite <- IHl. simpl. destruct H; auto.
 destruct H. rewrite <- clausify_single_pureneg in H.
 destruct H. rewrite <- IHl in H0. split; auto.
@@ -100,13 +100,13 @@ Qed.
 Lemma clausify_space : forall l : list space_atom,
   space_denote l = clause_denote (PosSpaceClause nil nil l).
 Proof.
-intros. extensionality s. 
+intros. extensionality s.
 apply prop_ext; split; intros.
 simpl in *; auto.
 simpl in *. apply H; auto.
 Qed.
 
-Lemma pure_atom_list_neg2 : forall (l: list pure_atom) s, 
+Lemma pure_atom_list_neg2 : forall (l: list pure_atom) s,
   (~(list_denote pure_atom_denote (@orp state) FF l s)) =
   list_denote (neg oo pure_atom_denote) (@andp state) TT l s.
 Proof.
@@ -123,14 +123,14 @@ exfalso. destruct H. apply IHl; auto.
 Qed.
 
 Lemma mk_pureR_denote1: forall pnatoms purepos pureneg P s,
-  mk_pureR pnatoms = (purepos, pureneg) -> 
+  mk_pureR pnatoms = (purepos, pureneg) ->
   listd pn_atom_denote inter P pnatoms s ->
   (listd pure_atom_denote inter P purepos s /\
     ~listd pure_atom_denote (@orp state) FF pureneg s).
 Proof.
 intros pnatoms.
 induction pnatoms; intros.
-  inversion H; subst. simpl. split. trivial. 
+  inversion H; subst. simpl. split. trivial.
   intros N. apply N.
 destruct H0 as [HD TL].
   simpl in *.
@@ -140,14 +140,14 @@ destruct H0 as [HD TL].
     simpl. split; trivial.
     split. generalize (pure_atom_denote_order_eqv_pure_atom (Eqv e e0)) as H1; intro.
            unfold order_eqv_pure_atom in H1. rewrite <-H1.
-           apply HD. apply IHP. 
+           apply HD. apply IHP.
   inversion H; subst. clear H.
     simpl. split; trivial.
      intros N. destruct N. simpl in HD. apply HD.
          generalize (pure_atom_denote_order_eqv_pure_atom (Eqv e e0)) as H1; intro.
          unfold order_eqv_pure_atom in H1. rewrite <-H1 in H; auto.
          apply IHN. apply H.
-Qed. 
+Qed.
 
 Lemma mk_pureR_denote2: forall pnatoms purepos pureneg P s,
   mk_pureR pnatoms = (purepos, pureneg) ->
@@ -160,15 +160,15 @@ induction pnatoms; simpl; intros.
   inversion H; subst. trivial.
 remember (mk_pureR pnatoms) as mkP. destruct mkP.
 destruct a. inversion H; subst. clear H. simpl in *.
-  destruct H0. split. 
+  destruct H0. split.
   generalize (pure_atom_denote_order_eqv_pure_atom (Eqv e e0)) as H2; intro.
     unfold order_eqv_pure_atom in H2. rewrite <-H2 in H; auto.
   eapply  IHpnatoms. reflexivity. assumption.
   apply H1.
-inversion H; subst. clear H. 
+inversion H; subst. clear H.
   rewrite pure_atom_list_neg2 in H1.
   simpl in *. destruct H1.
-  split. unfold compose in H. 
+  split. unfold compose in H.
     generalize (pure_atom_denote_order_eqv_pure_atom (Eqv e e0)) as H2; intro.
     unfold order_eqv_pure_atom in H2. rewrite <-H2 in H; auto.
   eapply IHpnatoms; clear IHpnatoms. reflexivity. apply H0.
@@ -182,21 +182,21 @@ Lemma mk_pureR_denote: forall pnatoms purepos pureneg P s,
     ~listd pure_atom_denote (@orp state) FF pureneg s).
 Proof.
 intros.
-apply prop_ext. 
+apply prop_ext.
 split; intros.
   eapply (mk_pureR_denote1 _ _ _ _ _ H H0).
 destruct H0.
-  eapply (mk_pureR_denote2 _ _ _ _ _ H H0 H1). 
+  eapply (mk_pureR_denote2 _ _ _ _ _ H H0 H1).
 Qed.
 
 Lemma mk_pureR_denote3: forall pnatoms purepos pureneg P s,
   mk_pureR pnatoms = (purepos, pureneg) ->
   listd pure_atom_denote inter P purepos s ->
-  ~ listd pn_atom_denote inter P pnatoms s -> 
+  ~ listd pn_atom_denote inter P pnatoms s ->
   listd pure_atom_denote (@orp state) FF pureneg s.
 Proof.
 intros.
-rewrite (mk_pureR_denote _ _ _ _ s H) in H1. 
+rewrite (mk_pureR_denote _ _ _ _ s H) in H1.
 apply not_and_or in H1.
 destruct H1.
 apply Decidable.not_not; auto.
@@ -207,7 +207,7 @@ Qed.
 
 Lemma clausify_succ : forall pnatoms (purepos pureneg : list pure_atom)
   (space : list space_atom) (s : state)
-  (Hyp: mk_pureR pnatoms = (purepos, pureneg)), 
+  (Hyp: mk_pureR pnatoms = (purepos, pureneg)),
   (~assertion_denote (Assertion pnatoms space) s) =
   (clause_denote (NegSpaceClause purepos space pureneg) s).
 Proof.
@@ -233,13 +233,13 @@ Qed.
 
 Lemma clausify_succClassic : forall pnatoms (purepos pureneg : list pure_atom)
   (space : list space_atom) (s : state)
-  (Hyp: mk_pureR pnatoms = (purepos, pureneg)), 
+  (Hyp: mk_pureR pnatoms = (purepos, pureneg)),
    (assertion_denote (Assertion pnatoms space) s) =
   (~clause_denote (NegSpaceClause purepos space pureneg) s).
 Proof.
 intros. rewrite <- (clausify_succ pnatoms).
 apply prop_ext; split; intros.
-  intros N. apply (N H). 
+  intros N. apply (N H).
 apply Decidable.not_not; auto.
  apply classic.
 assumption.
@@ -256,7 +256,7 @@ destruct a; simpl in *.
     destruct HH. assumption. contradiction.
     destruct HH. apply var_eq_sym. apply H. contradiction.
     destruct HH. assumption. contradiction.
-intros N. apply H. clear H. 
+intros N. apply H. clear H.
   remember (expr_cmp e e0) as b; destruct b; simpl in *.
     split; trivial.
     split; trivial. apply var_eq_sym. assumption.
@@ -277,7 +277,7 @@ destruct a; simpl in *. intros X. clear X.
     destruct HH. assumption.
     destruct HH. apply var_eq_sym. apply H.
     destruct HH. assumption.
-Qed.  
+Qed.
 
 Lemma mk_pureL_denoteEq: forall a,
   pn_atom_denote a = clause_denote (mk_pureL a).
@@ -290,7 +290,7 @@ apply prop_ext; split; intros.
 Qed.
 
 Lemma mk_pureL_clause_denote: forall pi P s,
-  listd clause_denote inter P (map mk_pureL pi) s -> 
+  listd clause_denote inter P (map mk_pureL pi) s ->
   listd pn_atom_denote inter P pi s.
 Proof.
 intros pi.
@@ -298,7 +298,7 @@ induction pi; intros; simpl in *. trivial.
 destruct H.
 split. apply (mk_pureL_denote _ _ H).
 apply IHpi. apply H0.
-Qed. 
+Qed.
 
 Lemma mk_pureL_clause_denoteInv: forall pi P s,
   listd pn_atom_denote inter P pi s ->
@@ -309,7 +309,7 @@ induction pi; intros; simpl in *. trivial.
 destruct H.
 split. apply (mk_pureL_denoteInv _ _ H).
 apply IHpi. apply H0.
-Qed. 
+Qed.
 
 Lemma mk_pureL_clause_denoteEq:forall pi P,
   listd pn_atom_denote inter P pi =
@@ -322,14 +322,14 @@ apply prop_ext; split; intros.
   apply mk_pureL_clause_denote. apply H.
 Qed.
 
-Lemma listd_pure_atoms_heap_expand atms : 
-  listd pure_atom_denote inter emp atms |-- 
+Lemma listd_pure_atoms_heap_expand atms :
+  listd pure_atom_denote inter emp atms |--
   listd pure_atom_denote inter TT atms.
 Proof with simpl; auto.
-induction atms... intros s [H1 H2]. split... 
+induction atms... intros s [H1 H2]. split...
 Qed.
 
-Theorem cnf_correct1 : forall (e : entailment), 
+Theorem cnf_correct1 : forall (e : entailment),
   entailment_denote e ->
   forall s, ~ list_denote clause_denote (@andp state) TT (cnf e) s.
 Proof.
@@ -346,14 +346,14 @@ destruct H1. simpl in H1.
 destruct H1. simpl in H1.
 destruct sigma' as [|s0' sigma'].
 (* sigma' nil case *)
-destruct sigma as [|s0 sigma]. 
+destruct sigma as [|s0 sigma].
 destruct H2. simpl in H2.
-assert (H5 : assertion_denote (Assertion pi' nil) s). 
+assert (H5 : assertion_denote (Assertion pi' nil) s).
   apply H. unfold assertion_denote; simpl.
   rewrite (@listd_unfold_inter _ state); split; auto.
   rewrite mk_pureL_clause_denoteEq; auto. apply H1; auto.
 rewrite clausify_succClassic with (purepos:=purepos)(pureneg:=pureneg) in H5; auto.
-apply H5; simpl in H5; simpl; intro H6. apply H2. 
+apply H5; simpl in H5; simpl; intro H6. apply H2.
 apply listd_pure_atoms_heap_expand; auto.
 destruct H2.
 assert (H11 := H1 H3). clear H1.
@@ -363,7 +363,7 @@ rewrite <- (clausify_succ _ _ _ nil s HeqmkR) in H2.
 apply H2. apply H. clear H2 H.
 simpl.
 assert (Q: (andp (listd pn_atom_denote inter TT pi) (space_denote (s0::sigma)))%pred s).
-  split. apply (mk_pureL_clause_denote _ _ _ H0). 
+  split. apply (mk_pureL_clause_denote _ _ _ H0).
   apply H11.
 assert (XX: ((listd pn_atom_denote inter (space_denote (s0::sigma)) pi s) =
     (listd pn_atom_denote inter TT pi && space_denote (s0::sigma))%pred s)).
@@ -373,7 +373,7 @@ assert (XX: ((listd pn_atom_denote inter (space_denote (s0::sigma)) pi s) =
 simpl in XX. rewrite XX. apply Q.
 (* sigma' cons case *)
   (* sigma nil case *)
-destruct sigma as [|s0 sigma]. 
+destruct sigma as [|s0 sigma].
 destruct H2.
 assert (H11 := H1 H3). clear H1.
 clear H3 H4.
@@ -382,7 +382,7 @@ rewrite <- (clausify_succ _ _ _ (s0'::sigma') s HeqmkR) in H2.
 apply H2. apply H. clear H2 H.
 simpl.
 assert (Q: (andp (listd pn_atom_denote inter TT pi) (space_denote nil))%pred s).
-  split. apply (mk_pureL_clause_denote _ _ _ H0). 
+  split. apply (mk_pureL_clause_denote _ _ _ H0).
   apply H11.
 assert (XX: ((listd pn_atom_denote inter (space_denote nil) pi s) =
     (listd pn_atom_denote inter TT pi && space_denote nil)%pred s)).
@@ -399,7 +399,7 @@ rewrite <- (clausify_succ _ _ _ (s0'::sigma') s HeqmkR) in H2.
 apply H2. apply H. clear H2 H.
 simpl.
 assert (Q: (andp (listd pn_atom_denote inter TT pi) (space_denote (s0::sigma)))%pred s).
-  split. apply (mk_pureL_clause_denote _ _ _ H0). 
+  split. apply (mk_pureL_clause_denote _ _ _ H0).
   apply H11.
 assert (XX: ((listd pn_atom_denote inter (space_denote (s0::sigma)) pi s) =
     (listd pn_atom_denote inter TT pi && space_denote (s0::sigma))%pred s)).
@@ -409,7 +409,7 @@ assert (XX: ((listd pn_atom_denote inter (space_denote (s0::sigma)) pi s) =
 simpl in XX; rewrite XX. apply Q.
 Qed.
 
-Theorem cnf_correct2 : forall (e : entailment), 
+Theorem cnf_correct2 : forall (e : entailment),
   (forall s, ~ list_denote clause_denote (@andp state) TT (cnf e) s) ->
    entailment_denote e.
 Proof.
@@ -426,9 +426,9 @@ repeat rewrite (@listd_separate _ _ state).
 simpl in H0.
 assert (XL : ~ listd clause_denote inter (space_denote sigma') (map mk_pureL pi') s).
   rewrite (mk_pureL_clause_denoteEq) in H0. assumption.
-apply eq_sym in HeqmkR. 
+apply eq_sym in HeqmkR.
 rewrite (mk_pureR_denote _ _ _ _ _ HeqmkR) in H0.
-simpl in *. 
+simpl in *.
 repeat rewrite andp_TT.
 rewrite (mk_pureL_clause_denoteEq) in K.
 rewrite (@listd_prop clause state clause_denote) in K.
@@ -454,16 +454,16 @@ destruct H0. destruct (H HH).
 apply classic.
 apply Decidable.not_and in H0.
 destruct H0. simpl. split; auto. intros HH. destruct (H HH).
-   apply Decidable.not_not in H. 
-   split; simpl; auto. 
+   apply Decidable.not_not in H.
+   split; simpl; auto.
    apply classic.
 apply classic.
 Qed.
 
-Theorem cnf_correct : forall (e : entailment), 
+Theorem cnf_correct : forall (e : entailment),
   entailment_denote e =
   forall s, ~ list_denote clause_denote (@andp state) TT (cnf e) s.
-Proof. 
+Proof.
 intros.
 apply prop_ext.
 split; intros.

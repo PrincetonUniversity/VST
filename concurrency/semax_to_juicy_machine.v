@@ -109,7 +109,7 @@ Proof.
   { clear. intros; eapply (different_threads_means_several_threads i j); eauto. }
   assert (forall j cntj q, containsThread tp i -> i <> j -> @getThreadC j tp cntj <> @Krun code q).
   { intros j cntj q cnti ne E. autospec uniq. spec uniq j cntj q E. breakhyps. }
-  
+
   inversion step; try tauto.
   all: try inversion Htstep; repeat match goal with H : ?x = ?y |- _ => subst x || subst y end.
   all: intros j cnti q.
@@ -134,23 +134,23 @@ Proof.
   unshelve erewrite gsoAddCode; eauto.
   rewrite gssThreadCode; congruence.
   rewrite gssAddCode. congruence. apply Ei.
-  
+
   pose proof cnti as cnti_.
   apply cnt_age in cnti_.
   destruct (@cntAdd' _ _ _ _ _ cnti_) as [(cnti', ne) | Ei].
   unshelve erewrite gsoAddCode; eauto.
   unshelve erewrite gsoThreadCode; eauto.
   rewrite gssAddCode. congruence. apply Ei.
-  
+
   all: try congruence.
   all: eauto.
-  
+
   inversion Hhalted.
   unfold SEM.Sem in *.
   rewrite SEM.CLN_msem in Hcant.
   simpl in Hcant.
   inversion Hcant.
-  
+
   intros E.
   hnf in uniq.
   autospec uniq.
@@ -169,14 +169,14 @@ Section Safety.
     (prog : Clight.program)
     (all_safe : semax_prog.semax_prog (Concurrent_Espec unit CS ext_link) prog V G)
     (init_mem_not_none : Genv.init_mem prog <> None).
-  
+
   Definition Jspec' := (@OK_spec (Concurrent_Espec unit CS ext_link)).
-  
+
   (* another, looser invariant to have more standard preservation
   statement *)
   Definition inv Gamma n state :=
     exists m, n <= m /\ state_invariant Jspec' Gamma m state.
-  
+
   Lemma inv_sch_irr Gamma n m ge i sch sch' tp :
     inv Gamma n (m, ge, (i :: sch, tp)) ->
     inv Gamma n (m, ge, (i :: sch', tp)).
@@ -185,7 +185,7 @@ Section Safety.
     exists k; split; auto.
     eapply state_invariant_sch_irr, Hk.
   Qed.
-  
+
   Lemma no_Krun_inv Gamma n m ge sch sch' tp :
     (1 < pos.n (num_threads tp) -> no_Krun tp) ->
     inv Gamma n (m, ge, (sch, tp)) ->
@@ -199,7 +199,7 @@ Section Safety.
     intros H. autospec nokrun. revert H.
     apply no_Krun_unique_Krun, nokrun.
   Qed.
-  
+
   Lemma blocked_at_external_dec state ef : {blocked_at_external state ef} + {~blocked_at_external state ef}.
   Proof.
     Local Ltac t := solve [right; intros []; intros; breakhyps].
@@ -208,7 +208,7 @@ Section Safety.
       try (assert (i' = i) by congruence; subst i');
       try (assert (cnti' = cnti) by apply proof_irr; subst cnti');
       breakhyps.
-    
+
     destruct state as ((m, ge) & [ | i sch] & tp). now t.
     simpl.
     destruct (containsThread_dec i tp) as [cnti | ncnti]. 2: now t.
@@ -236,7 +236,7 @@ Section Safety.
       - hnf. apply Jspec'_hered.
       - apply personal_mem_equiv_spec.
     }
-    
+
     (* the case for freelock *)
     destruct (blocked_at_external_dec state FREE_LOCK) as [isfreelock|isnotfreelock].
     {
@@ -245,7 +245,7 @@ Section Safety.
       - hnf. apply Jspec'_hered.
       - apply personal_mem_equiv_spec.
     }
-    
+
     (* the case for spawn *)
     destruct (blocked_at_external_dec state CREATE) as [isspawn|isnotspawn].
     {
@@ -254,12 +254,12 @@ Section Safety.
       - hnf. apply Jspec'_hered.
       - apply personal_mem_equiv_spec.
     }
-    
+
     destruct (progress CS ext_link ext_link_inj _ _ _ isnotspawn inv) as (state', step).
     exists state'; split; [ now apply step | ].
     eapply preservation; eauto.
   Qed.
-  
+
   Lemma inv_step Gamma n state :
     inv Gamma (S n) state ->
     exists state',
@@ -274,7 +274,7 @@ Section Safety.
     - exists (m - 1). split. omega. assumption.
     - exists m. split. omega. exact_eq H; f_equal. omega.
   Qed.
-  
+
   Lemma invariant_safe Gamma n state :
     inv Gamma n state -> jmsafe n state.
   Proof.
@@ -297,18 +297,18 @@ Section Safety.
         all: destruct INV as (? & lm & INV).
         all: inv INV; auto.
   Qed.
-  
+
   Definition init_mem : { m | Genv.init_mem prog = Some m } := init_m prog init_mem_not_none.
-  
+
   Definition spr :=
     semax_prog_rule
       (Concurrent_Espec unit CS ext_link) V G prog
       (proj1_sig init_mem) all_safe (proj2_sig init_mem).
-  
+
   Definition initial_corestate : corestate := projT1 (projT2 spr).
-  
+
   Definition initial_jm (n : nat) : juicy_mem := proj1_sig (snd (projT2 (projT2 spr)) n).
-  
+
   Definition initial_machine_state (n : nat) :=
     ThreadPool.mk
       (pos.mkPos (le_n 1))
@@ -326,15 +326,15 @@ Section Safety.
       (* when the machine is halted, it means no more schedule, there
       is nothing to check: *)
       (fun _ _ _ => Logic.True).
-  
+
   Definition NoExternal_Hrel : nat -> mem -> mem -> Prop := fun _ _ _ => False.
-  
+
   (* We state the theorem in terms of [safeN_] but because there are
   no external, this really just says that the initial state is
   "angelically safe" : for every schedule and every fuel n, there is a
   path either ending on an empty schedule or consuming all the
   fuel. *)
-  
+
   Theorem safe_initial_state : forall sch r n genv_symb,
       safeN_
         (G := genv)
@@ -382,7 +382,7 @@ Section Safety.
       + apply IHn.
         apply INV'.
   Qed.
-  
+
   (* The following is a slightly stronger result, proving [jmsafe]
   i.e. a safety that universally quantifies over all schedule each
   time a part of the schedule is consumed *)
@@ -393,7 +393,7 @@ Section Safety.
     eapply invariant_safe.
     exists n; split; auto; apply initial_invariant.
   Qed.
-  
+
   Lemma jmsafe_csafe n m ge sch s : jmsafe n (m, ge, (sch, s)) -> JuicyMachine.csafe ge (sch, nil, s) m n.
   Proof.
     clear.
@@ -404,14 +404,14 @@ Section Safety.
     - econstructor 3; simpl; eauto.
     - econstructor 4; simpl; eauto.
   Qed.
-  
+
   (* [jmsafe] is an intermediate result, we can probably prove [csafe]
   directly *)
-  
+
   Theorem safety_initial_state (sch : schedule) (n : nat) :
     JuicyMachine.csafe (globalenv prog) (sch, nil, initial_machine_state n) (proj1_sig init_mem) n.
   Proof.
     apply jmsafe_csafe, jmsafe_initial_state.
   Qed.
-  
+
 End Safety.

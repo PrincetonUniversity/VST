@@ -62,10 +62,10 @@ Section estep.
     (*----------------------------------------------------*)
       estep p r ((instr_return ;; i) :: stk) r stk.
 
-  
+
   Inductive estepstar : program X -> store -> list (instr X) -> store -> list (instr X) ->  Prop :=
   | estepstar_O: forall p s i, estepstar p s i s i
-  | estepstar_S: forall p s i s' i' s'' i'', 
+  | estepstar_S: forall p s i s' i' s'' i'',
               estep p s i s' i' ->
               estepstar p s' i' s'' i'' ->
               estepstar p s i s'' i''.
@@ -152,7 +152,7 @@ Section estep.
   Qed.
 
   Theorem total_correctness_full_erasure : forall G psi l t c r n,
-    verify_prog psi G -> 
+    verify_prog psi G ->
     G |-- funptr l unit t (fun _ => TT) (fun _ => TT) ->
     proj1_sig t r n ->
     psi#l = Some c ->
@@ -161,6 +161,6 @@ Section estep.
     intros.
     generalize (verify_halts t G psi l H H0 r n c H1 H2).
     apply erase_halt.
-  Qed.    
+  Qed.
 
 End estep.

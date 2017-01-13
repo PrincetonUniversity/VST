@@ -19,7 +19,7 @@ Qed.
 
 Fixpoint statement_beq s1 s2 :=
   match s1, s2 with
-  | Sskip, Sskip 
+  | Sskip, Sskip
   | Sbreak, Sbreak
   | Scontinue, Scontinue => true
   | Sset id1 e1, Sset id2 e2 => andb (BinPos.Pos.eqb id1 id2) (expr_beq e1 e2)
@@ -27,8 +27,8 @@ Fixpoint statement_beq s1 s2 :=
   | Scall id1 e1 l1, Scall id2 e2 l2 => andb (andb (expr.eqb_option BinPos.Pos.eqb id1 id2) (expr_beq e1 e2)) (List.list_eqb _ l1 l2)
   | Sbuiltin _ _ _ _, Sbuiltin _ _ _ _ => false (*TODO*)
   | Ssequence st1 st2, Ssequence st3 st4
-  | Sloop st1 st2, Sloop st3 st4 => andb (statement_beq st1 st3) (statement_beq st2 st4) 
-  | Sifthenelse e1 st1 st2, Sifthenelse e2 st3 st4 => andb (andb (statement_beq st1 st3) (statement_beq st2 st4)) (expr_beq e1 e2) 
+  | Sloop st1 st2, Sloop st3 st4 => andb (statement_beq st1 st3) (statement_beq st2 st4)
+  | Sifthenelse e1 st1 st2, Sifthenelse e2 st3 st4 => andb (andb (statement_beq st1 st3) (statement_beq st2 st4)) (expr_beq e1 e2)
   | Sreturn e1, Sreturn e2 => expr.eqb_option expr_beq e1 e2
   | Slabel l1 s1, Slabel l2 s2 => andb (BinPos.Pos.eqb l1 l2) (statement_beq s1 s2)
   | Sgoto l1, Sgoto l2 => BinPos.Pos.eqb l1 l2
@@ -61,8 +61,8 @@ Lemma statement_beq_sound : forall s1 s2, statement_beq s1 s2 = true -> s1 = s2
 with labeled_statements_beq_sound : forall ls1 ls2, labeled_statements_beq ls1 ls2 = true -> ls1 = ls2.
 Proof.
 + intro. destruct s1; intros; match goal with [ |- _ = ?s2] => destruct s2 end; try solve [repeat
-  try reflexivity; try solve [inversion H]; try (simpl in H; try rewrite andb_true_iff in H; destruct_ands); f_equal; try apply eqb_option_sound in H; auto with expr_beq]. 
-  - simpl in H. destruct_ands. apply eqb_option_sound in H; auto with expr_beq. f_equal; 
+  try reflexivity; try solve [inversion H]; try (simpl in H; try rewrite andb_true_iff in H; destruct_ands); f_equal; try apply eqb_option_sound in H; auto with expr_beq].
+  - simpl in H. destruct_ands. apply eqb_option_sound in H; auto with expr_beq. f_equal;
                                                                                 auto with expr_beq.
     consider (list_eqb RelDec_expr_beq l l0); auto.
 + intros. destruct ls1, ls2; try reflexivity; try solve [inversion H].
@@ -70,4 +70,4 @@ Proof.
   apply eqb_option_sound in H; auto with expr_beq.
   apply Zbool.Zeq_bool_eq.
 Qed.
- 
+

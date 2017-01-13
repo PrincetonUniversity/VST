@@ -7,7 +7,7 @@ Require Import Events.
 Require Import Globalenvs.
 Require Import Maps.
 
-Require Import sepcomp.Cminor_coop. 
+Require Import sepcomp.Cminor_coop.
   (*to enable reuse of the lemmas eval_unop_valid and eval_binop_valid*)
 
 Require Import sepcomp.Csharpminor.
@@ -34,18 +34,18 @@ Inductive CSharpMin_core: Type :=
       CSharpMin_core.
 
 Definition ToState (q:CSharpMin_core) (m:mem): Csharpminor.state :=
-  match q with 
+  match q with
      CSharpMin_State f s k sp e => State f s k sp e m
    | CSharpMin_Callstate f args k => Callstate f args k m
-   | CSharpMin_Returnstate v k => Returnstate v k m 
+   | CSharpMin_Returnstate v k => Returnstate v k m
   end.
 
 Definition FromState (c: Csharpminor.state) : CSharpMin_core * mem :=
-  match c with 
+  match c with
      State f s k sp e m => (CSharpMin_State f s k sp e, m)
    | Callstate f args k m => (CSharpMin_Callstate f args k, m)
    | Returnstate v k m => (CSharpMin_Returnstate v k, m)
-  end. 
+  end.
 
 Definition CSharpMin_at_external (c: CSharpMin_core) : option (external_function * signature * list val) :=
   match c with
@@ -58,8 +58,8 @@ Definition CSharpMin_at_external (c: CSharpMin_core) : option (external_function
  end.
 
 Definition CSharpMin_after_external (vret: option val) (c: CSharpMin_core) : option CSharpMin_core :=
-  match c with 
-    CSharpMin_Callstate fd args k => 
+  match c with
+    CSharpMin_Callstate fd args k =>
          match fd with
             Internal f => None
           | External ef => match vret with
@@ -70,7 +70,7 @@ Definition CSharpMin_after_external (vret: option val) (c: CSharpMin_core) : opt
   | _ => None
   end.
 
-Inductive CSharpMin_corestep (ge : genv) : CSharpMin_core -> mem -> CSharpMin_core ->  mem -> Prop := 
+Inductive CSharpMin_corestep (ge : genv) : CSharpMin_core -> mem -> CSharpMin_core ->  mem -> Prop :=
    csharpmin_corestep_skip_seq: forall f s k e le m,
       CSharpMin_corestep ge (CSharpMin_State f Sskip (Kseq s k) e le) m
         (CSharpMin_State f s k e le) m
@@ -175,27 +175,27 @@ Inductive CSharpMin_corestep (ge : genv) : CSharpMin_core -> mem -> CSharpMin_co
   | csharpmin_corestep_external_function: forall ef vargs k m t vres m',
       external_call ef ge vargs m t vres m' ->
       step (Callstate (External ef) vargs k) m
-         t (Returnstate vres k m')        
+         t (Returnstate vres k m')
 *)
   | csharpmin_corestep_return: forall v optid f e le k m,
       CSharpMin_corestep ge (CSharpMin_Returnstate v (Kcall optid f e le k)) m
         (CSharpMin_State f Sskip k e (Cminor.set_optvar optid v le)) m.
 
 Lemma CSharpMin_corestep_not_at_external:
-       forall ge m q m' q', CSharpMin_corestep ge q m q' m' -> 
+       forall ge m q m' q', CSharpMin_corestep ge q m q' m' ->
        CSharpMin_at_external q = None.
   Proof. intros. inv H; reflexivity. Qed.
 
 Definition CSharpMin_halted (q : CSharpMin_core): option val :=
-    match q with 
+    match q with
        CSharpMin_Returnstate v Kstop => Some v
      | _ => None
     end.
 
-Lemma CSharpMin_corestep_not_halted : forall ge m q m' q', 
+Lemma CSharpMin_corestep_not_halted : forall ge m q m' q',
        CSharpMin_corestep ge q m q' m' -> CSharpMin_halted q = None.
   Proof. intros. inv H; reflexivity. Qed.
-    
+
 Lemma CSharpMin_at_external_halted_excl :
        forall q, CSharpMin_at_external q = None \/ CSharpMin_halted q = None.
    Proof. intros. destruct q; auto. Qed.
@@ -210,8 +210,8 @@ Qed.
 
 Definition CSharpMin_initial_core (ge:genv) (v: val) (args:list val): option CSharpMin_core :=
    match v with
-     | Vptr b i => 
-          if Int.eq_dec i Int.zero 
+     | Vptr b i =>
+          if Int.eq_dec i Int.zero
           then match Genv.find_funct_ptr ge b with
                  | None => None
                  | Some f => Some (CSharpMin_Callstate f args Kstop)
@@ -228,15 +228,15 @@ Definition CSharpMin_make_initial_core (ge:genv) (v: val) (args:list val): optio
       | Some b => match Genv.find_funct_ptr ge b with
                               None => None
                             | Some f => match funsig f with
-                                                   {| sig_args := sargs; sig_res := sres |} => 
-                                                       match sargs, sres with 
+                                                   {| sig_args := sargs; sig_res := sres |} =>
+                                                       match sargs, sres with
                                                           nil, Some Tint => Some (CSharpMin_Callstate f nil Kstop) (*args = nil???*)
                                                        | _ , _ => None
                                                        end
                                                  end
                             end
     end.*)
-(*Original Csharpminor_semantics has this for initial states: 
+(*Original Csharpminor_semantics has this for initial states:
       Genv.find_symbol ge p.(prog_main) = Some b ->
       Genv.find_funct_ptr ge b = Some f ->
       funsig f = mksignature nil (Some Tint) ->
@@ -247,7 +247,7 @@ Definition CSharpMin_core_sem : CoreSemantics genv CSharpMin_core mem.
   eapply @Build_CoreSemantics with (at_external:=CSharpMin_at_external)
                   (after_external:=CSharpMin_after_external)
                   (corestep:=CSharpMin_corestep)
-                  (halted:=CSharpMin_halted). 
+                  (halted:=CSharpMin_halted).
     apply CSharpMin_initial_core.
     apply CSharpMin_corestep_not_at_external.
     apply CSharpMin_corestep_not_halted.
@@ -263,25 +263,25 @@ Proof. intros.
   induction M.
   apply mem_forward_refl.
   apply alloc_forward in H.
-  eapply mem_forward_trans; eassumption. 
+  eapply mem_forward_trans; eassumption.
 Qed.
 
-Lemma CSharpMin_forward : forall g c m c' m' (CS: CSharpMin_corestep g c m c' m'), 
+Lemma CSharpMin_forward : forall g c m c' m' (CS: CSharpMin_corestep g c m c' m'),
       mem_forward m m'.
 Proof. intros.
      induction CS; try apply mem_forward_refl.
          eapply freelist_forward; eassumption.
          (*Storev*)
-          destruct vaddr; simpl in H1; inv H1. 
-          eapply store_forward; eassumption. 
-         (*builtin*) 
+          destruct vaddr; simpl in H1; inv H1.
+          eapply store_forward; eassumption.
+         (*builtin*)
           (*eapply external_call_mem_forward; eassumption.*)
          eapply freelist_forward; eassumption.
          eapply freelist_forward; eassumption.
          eapply alloc_variables_forward; eassumption.
 Qed.
 
-Program Definition csharpmin_coop_sem : 
+Program Definition csharpmin_coop_sem :
   CoopCoreSem Csharpminor.genv CSharpMin_core.
 apply Build_CoopCoreSem with (coopsem := CSharpMin_core_sem).
   apply CSharpMin_forward.
@@ -294,7 +294,7 @@ Lemma csharpmin_coopstep_not_at_external: forall ge m q m' q',
   coopstep ge q m q' m' -> CSharpMin_at_external q = None.
 Proof.
   intros.
-  eapply CSharpMin_corestep_not_at_external. apply H. 
+  eapply CSharpMin_corestep_not_at_external. apply H.
 Qed.
 
 Lemma csharpmin_coopstep_not_halted :
@@ -304,26 +304,26 @@ Proof.
   eapply CSharpMin_corestep_not_halted. apply H.
 Qed.
 
-Program Definition csharpmin_core_sem : 
+Program Definition csharpmin_core_sem :
   CoreSemantics Csharpminor.genv CSharpMin_core mem :=
-  @Build_CoreSemantics _ _ _ 
+  @Build_CoreSemantics _ _ _
     CSharpMin_initial_core
     CSharpMin_at_external
     CSharpMin_after_external
     CSharpMin_halted
     coopstep
     csharpmin_coopstep_not_at_external
-    csharpmin_coopstep_not_halted 
+    csharpmin_coopstep_not_halted
     CSharpMin_at_external_halted_excl
     CSharpMin_after_at_external_excl.
 
 (************************NOW SHOW THAT WE ALSO HAVE A COOPSEM******)
 
-Lemma csharpmin_coop_forward : forall g c m c' m' (CS: coopstep g c m c' m'), 
+Lemma csharpmin_coop_forward : forall g c m c' m' (CS: coopstep g c m c' m'),
       mem_lemmas.mem_forward m m'.
 Proof. intros. eapply CSharpMin_forward. apply CS. Qed.
 
-Program Definition csharpmin_coop_sem : 
+Program Definition csharpmin_coop_sem :
   CoopCoreSem Csharpminor.genv CSharpMin_core.
 apply Build_CoopCoreSem with (coopsem := csharpmin_core_sem).
   apply csharpmin_coop_forward.

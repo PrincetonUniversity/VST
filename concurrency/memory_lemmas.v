@@ -45,7 +45,7 @@ Module MemoryLemmas.
   Qed.
 
   Transparent Mem.alloc.
-  
+
   Lemma val_at_alloc_1:
     forall m m' sz nb b ofs
       (Halloc: Mem.alloc m 0 sz = (m', nb))
@@ -212,7 +212,7 @@ Module MemoryLemmas.
       unfold Mem.perm in *. unfold permission_at in *.
       rewrite <- Hfree''. assumption.
   Qed.
-  
+
   Lemma mem_free_contents:
     forall m m2 sz b
       (Hfree: Mem.free m b 0 sz = Some m2),
@@ -278,7 +278,7 @@ Module MemoryLemmas.
     simpl in H.
     do 2 eexists; split; eauto.
   Qed.
-  
+
   Lemma load_valid_block:
     forall (m : mem) b ofs chunk v,
       Mem.load chunk m b ofs = Some v ->
@@ -316,14 +316,14 @@ Module MemoryLemmas.
   Qed.
 
    Lemma sim_valid_access:
-    forall (mf m1f : mem) 
+    forall (mf m1f : mem)
       (b1 b2 : block) (ofs : Z)
       (Hm1f: m1f = makeCurMax mf)
       (HmaxF: max_inv mf)
       (Hvalidb2: Mem.valid_block mf b2)
       (Halign: (4 | ofs)%Z),
       Mem.valid_access m1f Mint32 b2 ofs Freeable.
-  Proof.          
+  Proof.
     unfold Mem.valid_access. simpl. split; try assumption.
     unfold Mem.range_perm. intros ofs0 Hbounds. subst m1f.
     specialize (HmaxF _ ofs0 Hvalidb2).
@@ -401,5 +401,5 @@ Module MemoryLemmas.
         erewrite Z2Nat.id in * by omega.
         omega.
   Qed.
-  
+
 End MemoryLemmas.

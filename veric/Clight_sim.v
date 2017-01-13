@@ -35,9 +35,9 @@ Proof.
 Qed.
 
 Fixpoint strip_skip' (k: CC.cont) : CC.cont :=
- match k with 
- | CC.Kseq Sskip k' => strip_skip' k' 
- | _ => k 
+ match k with
+ | CC.Kseq Sskip k' => strip_skip' k'
+ | _ => k
  end.
 
 Inductive match_cont:  cont -> CC.cont -> Prop :=
@@ -68,24 +68,24 @@ Inductive match_states: forall (qm: corestate * mem) (st: CC.state), Prop :=
  | match_states_ext: forall k f ef tyargs tyres args lid ve te m k'
       (CUR: current_function k = Some f),
       match_cont (strip_skip k) (strip_skip' k') ->
-      match_states (ExtCall ef (signature_of_type tyargs tyres) args lid ve te k, m) 
+      match_states (ExtCall ef (signature_of_type tyargs tyres) args lid ve te k, m)
            (CC.Callstate (External ef tyargs tyres) args (CC.Kcall lid f ve te k') m).*)
 
 Lemma exec_skips:
- forall {s0 k s k'} 
+ forall {s0 k s k'}
    (H1: match_cont (Kseq s0 :: k) (strip_skip' (CC.Kseq s k')))
    ge f ve te m,
-   match s0 with Sskip => False | Scontinue => False | Sloop _ _ => False 
-            | Sifthenelse _ _ _ => False | Sreturn _ => False 
+   match s0 with Sskip => False | Scontinue => False | Sloop _ _ => False
+            | Sifthenelse _ _ _ => False | Sreturn _ => False
             | _ => True end ->
    exists k2, strip_skip' (CC.Kseq s k') = CC.Kseq s0 k2 /\
-     Smallstep.star CCstep ge (CC.State f s k' ve te m) Events.E0 
+     Smallstep.star CCstep ge (CC.State f s k' ve te m) Events.E0
               (CC.State f s0 k2 ve te m).
 Proof.
  intros.
  remember (CC.Kseq s k') as k0.
  revert k s k' H1 Heqk0; induction k0; intros; inv Heqk0.
- assert ({s1=Sskip}+{s1<>Sskip}) by (destruct s1; try (left; congruence); right; congruence). 
+ assert ({s1=Sskip}+{s1<>Sskip}) by (destruct s1; try (left; congruence); right; congruence).
  destruct H0. subst s1.
  destruct k'; try solve [inv H1].
  specialize (IHk0 _ s k' H1 (eq_refl _)).
@@ -177,7 +177,7 @@ Inductive initial_state (p: program): (corestate * mem) -> Prop :=
 Inductive final_state: (corestate * mem) -> int -> Prop :=
 (*
   | final_state_intro: forall r ve te m,
-      final_state (State ve te 
+      final_state (State ve te
                           (Kfun (EXternal ef_exit Tnil Tvoid) nil None :: nil), m) r
 *)
  . (* fixme *)
@@ -186,7 +186,7 @@ Lemma match_cont_strip:
    forall s k k', match_cont (strip_skip k) (strip_skip' k') ->
            match_cont (strip_skip (Kseq s :: k)) (strip_skip' (CC.Kseq s k')).
  Proof.
- intros.  destruct (dec_skip s). subst. simpl; auto. 
+ intros.  destruct (dec_skip s). subst. simpl; auto.
   rewrite strip_skip_not by auto. rewrite strip_skip'_not by auto.
   constructor; auto.
  Qed.
@@ -199,7 +199,7 @@ Lemma exec_skips':
 Proof.
  intros.
  destruct (dec_skip s). subst. simpl in *.
- induction k'; try solve [inv H]. 
+ induction k'; try solve [inv H].
  destruct (dec_skip s). subst. simpl in *.
  econstructor 2; eauto. constructor. auto. rewrite strip_skip'_not in * by auto.
  inv H. econstructor 2; eauto. constructor. constructor 1. auto.
@@ -210,30 +210,30 @@ Lemma break_strip:
  forall ge f ve te m k,
      Smallstep.star CCstep ge (CC.State f Sbreak k ve te m) nil (CC.State f Sbreak (strip_skip' k) ve te m).
  Proof. induction k; try solve [constructor 1].
-    destruct (dec_skip s). subst. simpl. 
+    destruct (dec_skip s). subst. simpl.
      econstructor 2. constructor. eauto. auto.
   rewrite strip_skip'_not; auto. constructor 1.
 Qed.
 
-Lemma plus_trans: forall ge s1 s2 s3, 
+Lemma plus_trans: forall ge s1 s2 s3,
    Smallstep.plus CCstep ge s1 Events.E0 s2 -> Smallstep.plus CCstep ge s2 Events.E0 s3 -> Smallstep.plus CCstep ge s1 Events.E0 s3.
 Proof.
  intros. eapply Smallstep.plus_trans; eauto.
 Qed.
 
-Lemma star_plus_trans: forall ge s1 s2 s3, 
+Lemma star_plus_trans: forall ge s1 s2 s3,
    Smallstep.star CCstep ge s1 Events.E0 s2 -> Smallstep.plus CCstep ge s2 Events.E0 s3 -> Smallstep.plus CCstep ge s1 Events.E0 s3.
 Proof.
  intros. eapply Smallstep.star_plus_trans; eauto.
-Qed. 
+Qed.
 
-Lemma plus_star_trans: forall ge s1 s2 s3, 
+Lemma plus_star_trans: forall ge s1 s2 s3,
    Smallstep.plus CCstep ge s1 Events.E0 s2 -> Smallstep.star CCstep ge s2 Events.E0 s3 -> Smallstep.plus CCstep ge s1 Events.E0 s3.
 Proof.
  intros. eapply Smallstep.plus_star_trans; eauto.
 Qed.
 
-Lemma star_trans: forall ge s1 s2 s3, 
+Lemma star_trans: forall ge s1 s2 s3,
    Smallstep.star CCstep ge s1 Events.E0 s2 -> Smallstep.star CCstep ge s2 Events.E0 s3 -> Smallstep.star CCstep ge s1 Events.E0 s3.
 Proof.
  intros. eapply Smallstep.star_trans; eauto.
@@ -311,10 +311,10 @@ Lemma match_cont_strip1:
 Qed.
 
 Lemma match_find_label_None:
-  forall lbl s1 k0 k0',      match_cont (strip_skip k0)  (strip_skip' k0') ->   
+  forall lbl s1 k0 k0',      match_cont (strip_skip k0)  (strip_skip' k0') ->
      find_label lbl s1 k0 = None -> CC.find_label lbl s1 k0' = None
  with match_find_ls_None:
-   forall lbl ls k0 k0',  match_cont (strip_skip k0)  (strip_skip' k0') ->   
+   forall lbl ls k0 k0',  match_cont (strip_skip k0)  (strip_skip' k0') ->
      find_label_ls lbl ls k0 = None -> CC.find_label_ls lbl ls k0' = None.
 Proof. induction s1; intros; simpl in *; auto.
  revert H0; case_eq (find_label lbl s1_1 (Kseq s1_2 :: k0)); intros. inv H1.
@@ -353,7 +353,7 @@ Proof.
  exists s2; exists k2'; split; auto. rewrite H1; auto.
   destruct (IHs1_2 k0 k0') as [s2 [k2' [? ?]]]; clear IHs1_1 IHs1_2; auto.
  exists s2, k2'; split; auto.
- erewrite match_find_label_None; eauto. 
+ erewrite match_find_label_None; eauto.
   apply match_cont_strip. auto.
  revert H0; case_eq (find_label lbl s1_1 k0); intros. inv H1.
  destruct (IHs1_1 k0 k0') as [s2 [k2' [? ?]]]; clear IHs1_1; auto.
@@ -361,7 +361,7 @@ Proof.
  rewrite H1. auto.
   destruct (IHs1_2 k0 k0') as [s2 [k2' [? ?]]]; clear IHs1_1 IHs1_2; auto.
  exists s2, k2'; split; auto.
- erewrite match_find_label_None; eauto. 
+ erewrite match_find_label_None; eauto.
  revert H0; case_eq (find_label lbl s1_1 (Kseq Scontinue :: Kloop1 s1_1 s1_2 :: k0)); intros.
  inv H1.
  destruct (IHs1_1 (Kseq Scontinue :: Kloop1 s1_1 s1_2 :: k0) (CC.Kloop1 s1_1 s1_2 k0')) as [s2 [k2' [? ?]]]; clear IHs1_1; auto.
@@ -378,13 +378,13 @@ Proof.
  exists s1, k0'; split; auto. inv H0; constructor; auto.
  destruct (IHs1 k0 k0') as [s2 [k2' [? ?]]]; auto.
  exists s2, k2'; split; auto.
- 
+
  clear match_find_label_ls.
  induction s1; intros. simpl in *.
  inv H0.
  simpl in H0.
  destruct (find_label lbl s (Kseq (seq_of_labeled_statement s1) :: k0))
-   eqn:?; auto.  
+   eqn:?; auto.
  *
   destruct (match_find_label lbl k' s (Kseq (seq_of_labeled_statement s1) :: k0) (CC.Kseq (seq_of_labeled_statement s1)  k0')) as [s2 [k2' [? ?]]]; auto.
   apply match_cont_strip. auto.
@@ -392,7 +392,7 @@ Proof.
   auto.
   inv H0.
  exists s2, k2'; split; auto.
- simpl. 
+ simpl.
  rewrite H1. auto.
  *
   simpl.
@@ -401,13 +401,13 @@ Proof.
  erewrite match_find_label_None; try eassumption.
  apply match_cont_strip. auto.
 Qed.
- 
+
 Lemma current_function_strip: forall k, current_function (strip_skip k) = current_function k.
 Proof.
  induction k; try destruct a; try destruct s; simpl; auto.
 Qed.
 
- Lemma current_function_call_cont: 
+ Lemma current_function_call_cont:
    forall k, current_function (call_cont k) = current_function k.
  Proof. induction k; try destruct a; simpl; auto. Qed.
 
@@ -437,12 +437,12 @@ Qed.
    induction s; simpl; intros; try discriminate.
   revert H0; case_eq (find_label lbl s (Kseq (seq_of_labeled_statement s0) :: k)); intros.
  inv H1.
-  eapply current_function_find_label; [ | eauto]. simpl; auto. 
-   eapply IHs; [ | eauto]. simpl; auto. 
+  eapply current_function_find_label; [ | eauto]. simpl; auto.
+   eapply IHs; [ | eauto]. simpl; auto.
  Qed.
 
 Lemma step_continue_strip:
-  forall ge f k ve te m, 
+  forall ge f k ve te m,
            Smallstep.star CCstep ge (CC.State f Scontinue k ve te m) Events.E0
                (CC.State f Scontinue (strip_skip' k) ve te m).
 Proof.
@@ -469,7 +469,7 @@ Definition CC_core_to_CC_state (c:CC_core) (m:mem) : CC.state :=
      CC_core_State f st k e te => CC.State f st k e te m
   |  CC_core_Callstate fd args k => CC.Callstate fd args k m
   | CC_core_Returnstate v k => CC.Returnstate v k m
- end. 
+ end.
 Definition CC_state_to_CC_core (c:CC.state): CC_core * mem :=
   match c with
      CC.State f st k e te m => (CC_core_State f st k e te, m)
@@ -477,24 +477,24 @@ Definition CC_state_to_CC_core (c:CC.state): CC_core * mem :=
   | CC.Returnstate v k m => (CC_core_Returnstate v k, m)
  end.
 
-Lemma  CC_core_CC_state_1: forall c m, 
+Lemma  CC_core_CC_state_1: forall c m,
    CC_state_to_CC_core  (CC_core_to_CC_state c m) = (c,m).
   Proof. intros. destruct c; auto. Qed.
 
-Lemma  CC_core_CC_state_2: forall s c m, 
+Lemma  CC_core_CC_state_2: forall s c m,
    CC_state_to_CC_core  s = (c,m) -> s= CC_core_to_CC_state c m.
   Proof. intros. destruct s; simpl in *.
-      destruct c; simpl in *; inv H; trivial. 
-      destruct c; simpl in *; inv H; trivial. 
-      destruct c; simpl in *; inv H; trivial. 
+      destruct c; simpl in *; inv H; trivial.
+      destruct c; simpl in *; inv H; trivial.
+      destruct c; simpl in *; inv H; trivial.
   Qed.
 
-Lemma  CC_core_CC_state_3: forall s c m, 
+Lemma  CC_core_CC_state_3: forall s c m,
    s= CC_core_to_CC_state c m -> CC_state_to_CC_core  s = (c,m).
-  Proof. intros. subst. apply CC_core_CC_state_1. Qed.  
+  Proof. intros. subst. apply CC_core_CC_state_1. Qed.
 
 Lemma  CC_core_CC_state_4: forall s, exists c, exists m, s =  CC_core_to_CC_state c m.
-  Proof. intros. destruct s. 
+  Proof. intros. destruct s.
              exists (CC_core_State f s k e le). exists m; reflexivity.
              exists (CC_core_Callstate fd args k). exists m; reflexivity.
              exists (CC_core_Returnstate res k). exists m; reflexivity.
@@ -502,24 +502,24 @@ Lemma  CC_core_CC_state_4: forall s, exists c, exists m, s =  CC_core_to_CC_stat
 
 Lemma CC_core_to_CC_state_inj: forall c m c' m',
      CC_core_to_CC_state c m = CC_core_to_CC_state c' m' -> (c',m')=(c,m).
-  Proof. intros. 
+  Proof. intros.
        apply  CC_core_CC_state_3 in H. rewrite  CC_core_CC_state_1 in H.  inv H. trivial.
   Qed.
 
 (*HERE'S THE ADAPTATION OF THE EARLER MATCH_STATE_RLEATION, COMMENTED OUT ABOVE*)
 Inductive match_states: forall (qm: corestate) (st: CC_core), Prop :=
- | match_states_seq: forall f ve te s k k' 
+ | match_states_seq: forall f ve te s k k'
       (CUR: current_function k = Some f),
       match_cont (strip_skip k) (strip_skip' (CC.Kseq s k')) ->
       match_states (State ve te k) (CC_core_State f s k' ve te)
  | match_states_ext: forall k f ef tyargs tyres cc args lid ve te k'
       (CUR: current_function k = Some f),
       match_cont (strip_skip k) (strip_skip' k') ->
-      match_states (ExtCall ef args lid ve te k) 
+      match_states (ExtCall ef args lid ve te k)
            (CC_core_Callstate (External ef tyargs tyres cc) args (CC.Kcall lid f ve te k')).
 
 Lemma Clightnew_Clight_sim_eq_noOrder_SSplusConclusion:
-forall (cenv: composite_env) 
+forall (cenv: composite_env)
      p (c1 : corestate) (m : mem) (c1' : corestate) (m' : mem),
 corestep cl_core_sem (Build_genv (Genv.globalenv p) cenv) c1 m c1' m' ->
 forall (c2 : CC_core),
@@ -537,9 +537,9 @@ revert c2 H0. induction H; intros.
 
 * (* step_assign *)
 inv H4.
-simpl strip_skip in H9. 
+simpl strip_skip in H9.
 destruct (exec_skips H9 (Build_genv ge cenv) f ve te m) as [k2 [? ?]]; simpl; auto.
-exists (CC_core_State f Sskip k2 ve te); split. 
+exists (CC_core_State f Sskip k2 ve te); split.
     eapply Smallstep.star_plus_trans. eassumption.
           apply Smallstep.plus_one. econstructor; eauto. reflexivity.
     constructor. apply CUR.  rewrite  H4 in H9.  inv H9.  simpl in *. apply H7.
@@ -547,21 +547,21 @@ exists (CC_core_State f Sskip k2 ve te); split.
 *  (* step_set *)
 inv H0.
 destruct (exec_skips H5 (Build_genv ge cenv) f ve te m) as [k2 [? ?]]; simpl; auto.
-exists (CC_core_State f Sskip k2 ve (PTree.set id v te)); split. 
+exists (CC_core_State f Sskip k2 ve (PTree.set id v te)); split.
   eapply Smallstep.star_plus_trans. eassumption. apply Smallstep.plus_one. econstructor; eauto. auto.
   rewrite H0 in H5. inv H5; constructor; auto.
 
 * (* step_call_internal *)
-inv H7. 
+inv H7.
  destruct (exec_skips H12 (Build_genv ge cenv) f0 ve te m) as [k2 [? ?]]; simpl; auto.
  rewrite H7 in *. inv H12. simpl in CUR.
   (* econstructor; split. -- introduction of CC_core destroys potential for automation/econstructor
          here - need to instanitate manually.*)
   exists (CC_core_State f (fn_body f) (CC.Kcall optid f0 ve te k2) ve' le').
   split.
-  (*a*) eapply star_plus_trans. apply H8. 
+  (*a*) eapply star_plus_trans. apply H8.
                eapply Smallstep.plus_two. econstructor; eauto.
-              econstructor; eauto. 
+              econstructor; eauto.
                apply list_norepet_app in H4. destruct H4 as [? [? ?]].
                econstructor; auto. reflexivity.
   (*b*) constructor.
@@ -569,9 +569,9 @@ inv H7.
              apply match_cont_strip. simpl. constructor; auto.
 
 * (* step_call_external *)
-inv H3. 
+inv H3.
  destruct (exec_skips H8 (Build_genv ge cenv) f ve te m) as [k2 [? ?]]; simpl; auto.
- rewrite H3 in *. inv H8. simpl in CUR. 
+ rewrite H3 in *. inv H8. simpl in CUR.
  (*econstructor; split.  -- again, we need to instantiate manually*)
   exists (CC_core_Callstate (External ef tyargs tyres cc) vargs (CC.Kcall optid f ve te k2)).
   split.
@@ -607,13 +607,13 @@ inv H3.
  assert (s0<>Sskip).
  clear- Heqk0; intro; subst.
  revert Heqk0; induction k; simpl; intros. inv Heqk0. destruct a; try solve [inv Heqk0]; auto. destruct s; inv Heqk0; auto.
- destruct (IHcl_step (CC_core_State f s k' ve te)) 
+ destruct (IHcl_step (CC_core_State f s k' ve te))
                  as [st2 [? ?]]; clear  IHcl_step.
  constructor; auto. rewrite <- Heqk0. rewrite <- Heqk0'.
  constructor 2; auto.
  exists st2; split; auto.
 
-  destruct (IHcl_step (CC_core_State f Sskip (CC.Kloop1 s0 s1 k0') ve te)) 
+  destruct (IHcl_step (CC_core_State f Sskip (CC.Kloop1 s0 s1 k0') ve te))
                       as [st2 [? ?]]; clear  IHcl_step.
  constructor; auto. simpl. rewrite <- Heqk0. constructor. auto.
   exists st2; split; auto.
@@ -626,7 +626,7 @@ inv H3.
  rewrite <- H0;
  apply strip_skip'_loop1; auto.
 
- destruct (IHcl_step (CC_core_State f Sskip (CC.Kloop2 s0 s1 k0') ve te)) 
+ destruct (IHcl_step (CC_core_State f Sskip (CC.Kloop2 s0 s1 k0') ve te))
                       as [st2 [? ?]]; clear  IHcl_step.
  destruct (dec_skip s). subst.
  econstructor; eauto. rewrite <- Heqk0. constructor. auto.
@@ -659,7 +659,7 @@ inv H3.
  Focus 1.  (* match_cont_seq: case 1 of 5 *)
  change (CC.Kseq Scontinue k'0 = strip_skip' (CC.Kseq s k')) in H3.
  symmetry in H3.
- rewrite continue_cont_skip in *. 
+ rewrite continue_cont_skip in *.
  simpl in CUR.
  rewrite <- current_function_strip in CUR.
 forget (strip_skip k) as k0. clear k. rename k0 into k.
@@ -669,7 +669,7 @@ forget (strip_skip k) as k0. clear k. rename k0 into k.
  destruct c; try contradiction. destruct l; try contradiction. destruct c; try contradiction.
  subst s0.
 
- assert (Smallstep.star CCstep (Build_genv ge cenv) (CC.State f s k' ve te m) Events.E0 
+ assert (Smallstep.star CCstep (Build_genv ge cenv) (CC.State f s k' ve te m) Events.E0
                              (CC.State f Scontinue k'0 ve te m)).
  clear - H3.
  destruct (dec_skip s). subst. simpl in H3.
@@ -686,7 +686,7 @@ clear.
  forget (strip_skip' k'0) as k0'; clear k'0.
  assert (precontinue_cont k = Kloop1 s1 s2 :: l).
  revert H0; clear; induction k; simpl; try congruence.  destruct a; try congruence; auto.
- assert (exists k1', 
+ assert (exists k1',
                Smallstep.star CCstep (Build_genv ge cenv) (CC.State f Scontinue k0' ve te m)
                   (Events.Eapp Events.E0 Events.E0)
                     (CC.State f Scontinue k1' ve te m) /\
@@ -726,7 +726,7 @@ clear.
  eapply star_plus_trans; [apply H2 | ].
  eapply star_plus_trans; [ | apply H0].
  apply Smallstep.star_one. constructor. auto.
- 
+
 Focus 1. (* case x of y *)
    change (CC.Kloop1 s0 e3 k'0 = strip_skip' (CC.Kseq s k')) in H1.
  destruct (dec_skip s); [ | destruct s; try congruence; inv H1].
@@ -748,7 +748,7 @@ Focus 1. (* case x of y *)
  eapply Smallstep.star_plus_trans; try apply H0.
  econstructor. constructor. auto. constructor 1. reflexivity. auto.
  clear H0.
- destruct (IHcl_step (CC_core_State f e3 (CC.Kloop2  s0 e3 k'0) ve te)) 
+ destruct (IHcl_step (CC_core_State f e3 (CC.Kloop2  s0 e3 k'0) ve te))
                       as [st2 [? ?]]; clear  IHcl_step.
  constructor; auto. apply match_cont_strip; constructor; auto.
  exists st2; split; auto.
@@ -760,7 +760,7 @@ Focus 1. (* case x of y *)
  (*s=skip*)
  subst.  simpl strip_skip' in *.
  assert (exists k1', strip_skip' k' = CC.Kseq Sbreak k1').
-     revert H5; clear. remember (strip_skip' k') as k0'.   
+     revert H5; clear. remember (strip_skip' k') as k0'.
      revert k' Heqk0'; induction k0'; intros; try solve [inv H5].
         inv H5. eauto.
  destruct H0 as [k1' H0].
@@ -768,7 +768,7 @@ Focus 1. (* case x of y *)
                            (CC.State f Sbreak k1' ve te m)).
        revert k1' H0; clear; induction k'; intros; try solve [inv H0].
         destruct (dec_skip s). subst.  simpl in *. specialize (IHk' _ H0).
-            econstructor 2. constructor. eassumption. auto. 
+            econstructor 2. constructor. eassumption. auto.
       rewrite strip_skip'_not in H0 by auto. inv H0.
          econstructor 2. constructor. constructor 1. auto.
  simpl.
@@ -777,7 +777,7 @@ Focus 1. (* case x of y *)
  clear k' H0.
  inv H5.
  rewrite <- break_cont_skip in *.
- simpl in CUR. rewrite <- current_function_strip in CUR. 
+ simpl in CUR. rewrite <- current_function_strip in CUR.
  forget (strip_skip k) as k0.
  assert (Smallstep.star CCstep (Build_genv ge cenv) st1 Events.E0 (CC.State f Sbreak (strip_skip' k1') ve te m)).
       eapply Smallstep.star_trans; try apply H1; auto.
@@ -787,7 +787,7 @@ Focus 1. (* case x of y *)
          simpl. econstructor 2; eauto. constructor. auto.
  forget (strip_skip' k1') as k0'. clear k1' H1.
  assert (X:exists k1',
-             Smallstep.plus CCstep (Build_genv ge cenv) (CC.State f Sbreak k0' ve te m) Events.E0 
+             Smallstep.plus CCstep (Build_genv ge cenv) (CC.State f Sbreak k0' ve te m) Events.E0
                        (CC.State f Sskip k1' ve te m)
                /\ match_cont (strip_skip (break_cont k0)) (strip_skip' k1')).
        clear - H H2.
@@ -825,12 +825,12 @@ Focus 1. (* case x of y *)
 (*s<>skip*)
  rewrite strip_skip'_not in H5 by auto.
  inv H5. clear n.
- 
+
  admit. (*probably similar to the previous case -- means similar so s=skip*)
 
 * (* step_ifthenelse *)
  inv H1. simpl strip_skip in H6.
- inv H6. 
+ inv H6.
  change (CC.Kseq (Sifthenelse a s1 s2) k'0 = strip_skip' (CC.Kseq s k')) in H4.
  assert (Smallstep.star CCstep (Build_genv ge cenv) (CC.State f s k' ve te m) nil (CC.State f (Sifthenelse a s1 s2) k'0 ve te m)).
      clear - H4.
@@ -838,13 +838,13 @@ Focus 1. (* case x of y *)
      destruct (dec_skip s). subst s.
      destruct (dec_skip s0). subst s0. simpl in *.
      eapply Smallstep.star_trans; try apply IHk'; eauto. apply Smallstep.star_one. constructor. auto.
-      change (strip_skip' (CC.Kseq Sskip (CC.Kseq s0 k'))) with 
+      change (strip_skip' (CC.Kseq Sskip (CC.Kseq s0 k'))) with
                (strip_skip' (CC.Kseq s0 k')) in H4.
       rewrite strip_skip'_not in H4 by auto.
       inv H4. apply Smallstep.star_one. constructor. rewrite strip_skip'_not in * by auto.
       inv H4. constructor 1.
  exists (CC_core_State f (if b then s1 else s2) k'0 ve te); split; auto.
- eapply star_plus_trans; try apply H1. 
+ eapply star_plus_trans; try apply H1.
  apply Smallstep.plus_one. econstructor; eauto. auto. constructor; auto.
  apply match_cont_strip; auto.
 
@@ -857,7 +857,7 @@ Focus 1. (* case x of y *)
  apply Smallstep.plus_one. eapply CC.step_loop; eauto.
  constructor; auto. apply match_cont_strip; constructor; auto.
 
-* (* step_loop2 *) 
+* (* step_loop2 *)
   inv H0. inv H4.
  destruct s0; inv H3.
  generalize (strip_skip'_loop2 (Build_genv ge cenv) f ve te m _ _ _ _ H1); intro.
@@ -885,18 +885,18 @@ Focus 1. (* case x of y *)
  inv H5.
   +  elimtype False; clear - H10.
          revert H10; induction k'1; simpl; intros; congruence.
-  + destruct optexp;  [destruct H1 as [v [? ?]] | ]; (destruct optid; destruct H2 as [H2 H2']; 
+  + destruct optexp;  [destruct H1 as [v [? ?]] | ]; (destruct optid; destruct H2 as [H2 H2'];
                try solve [contradiction H2; auto]; subst te'' ).
     -   eexists (CC_core_State f Sskip k'2 ve' (PTree.set i v' te')).
-                split. 
+                split.
                      apply (star_plus_trans _ _ _ _ H99). (*with (s2:=CC.State f0 (Sreturn (Some e)) k'1 ve te m).  apply H99. *)
                      eapply plus_trans with (s2:=CC.Returnstate v' (CC.call_cont k'1) m').
                                          eapply Smallstep.plus_one. simpl. econstructor; eauto.
-                                         eapply Smallstep.plus_one. simpl. rewrite <- H13. 
+                                         eapply Smallstep.plus_one. simpl. rewrite <- H13.
                                          eapply CC.step_returnstate.
                     constructor; auto.
     -   eexists (CC_core_State f Sskip k'2 ve' te').
-                split. 
+                split.
                      eapply (star_plus_trans _ _ _ _ H99). (* with (s2:=CC.State f0 (Sreturn (Some e)) k'1 ve te m). apply H99. *)
                           eapply plus_trans with (s2:=CC.Returnstate v' (CC.call_cont k'1) m').
                                          eapply Smallstep.plus_one. simpl. econstructor; eauto.
@@ -912,7 +912,7 @@ Focus 1. (* case x of y *)
                  simpl. constructor 1. auto. simpl.  auto.
    - eexists (CC_core_State f Sskip k'2 ve' te').
                 split.
-                     eapply (star_plus_trans _ _ _ _ H99).  
+                     eapply (star_plus_trans _ _ _ _ H99).
                           eapply plus_trans with (s2:=CC.Returnstate Vundef (CC.call_cont k'1) m').
                                          eapply Smallstep.plus_one. simpl. econstructor; eauto.
                                          eapply Smallstep.plus_one. simpl. rewrite <- H13.
@@ -926,13 +926,13 @@ Focus 1. (* case x of y *)
                          (CC.State f Sskip (CC.Kcall (Some i) f1 ve' te' k'1) ve te m)).
      clear - H1.
      revert H1; induction k'0; intros; try solve [inv H1].
-           destruct (dec_skip s). subst s. simpl in H1. 
+           destruct (dec_skip s). subst s. simpl in H1.
                eapply star_trans; try apply IHk'0; auto. apply Smallstep.star_one. constructor; auto.
           rewrite strip_skip'_not in H1 by auto. rewrite <- H1. constructor 1.
           simpl in H1. inv H1. constructor 1.
  (econstructor; split; [eapply star_plus_trans; [ apply H  | eapply Smallstep.plus_two ] | ]).
      eapply CC.step_skip_call; simpl; eauto.
-     assert (X: CCstep (Build_genv ge cenv) (CC.Returnstate Vundef (CC.Kcall (Some i) f1 ve' te' k'1) m') 
+     assert (X: CCstep (Build_genv ge cenv) (CC.Returnstate Vundef (CC.Kcall (Some i) f1 ve' te' k'1) m')
                                       Events.E0
                                      (CC_core_to_CC_state (CC_core_State f1 Sskip k'1 ve'  (CC.set_opttemp (Some i) Vundef te')) m')).
             econstructor; eauto.
@@ -946,21 +946,21 @@ Focus 1. (* case x of y *)
                          (CC.State f Sskip (CC.Kcall None f1 ve' te' k'1) ve te m)).
      clear - H1.
      revert H1; induction k'0; intros; try solve [inv H1].
-           destruct (dec_skip s). subst s. simpl in H1. 
+           destruct (dec_skip s). subst s. simpl in H1.
                eapply star_trans; try apply IHk'0; auto. apply Smallstep.star_one. constructor; auto.
           rewrite strip_skip'_not in H1 by auto. rewrite <- H1. constructor 1.
           simpl in H1. inv H1. constructor 1.
  (econstructor; split; [eapply star_plus_trans; [ apply H  | eapply Smallstep.plus_two ] | ]).
      eapply CC.step_skip_call; simpl; eauto.
-     assert (X: CCstep (Build_genv ge cenv) (CC.Returnstate Vundef (CC.Kcall None f1 ve' te' k'1) m') 
+     assert (X: CCstep (Build_genv ge cenv) (CC.Returnstate Vundef (CC.Kcall None f1 ve' te' k'1) m')
                                       Events.E0
                                      (CC_core_to_CC_state (CC_core_State f1 Sskip k'1 ve' te') m')).
             econstructor; eauto.
        apply X.
     auto.
     econstructor; eauto.
-} 
- 
+}
+
 * (* step_switch *)
  inv H1. simpl strip_skip in H6.
  remember (CC.Kseq s k') as k0'.
@@ -982,7 +982,7 @@ Focus 1. (* case x of y *)
    generalize (exec_skips' (Build_genv ge cenv) f _ _ _ _ ve te m (@eq_sym _ _ _ H3)); intro H99.
      eapply star_trans; try apply H99.
      apply Smallstep.star_one. constructor.
- 
+
 * (* step_goto *)
  inv H0. remember (CC.Kseq s k'0) as k0'. inv H5.
   generalize (match_cont_call_strip k k'1); intro.
@@ -1009,11 +1009,11 @@ Admitted.
 Definition CC_at_external (c: CC_core) : option (external_function * list val) :=
   match c with
   | CC_core_State _ _ _ _ _ => None
-  | CC_core_Callstate fd args k => 
+  | CC_core_Callstate fd args k =>
     match fd with
       Internal _ => None
-      | External ef tps tp cc => 
-          match tp with 
+      | External ef tps tp cc =>
+          match tp with
           | Tvoid => Some (ef, args)
           | _ => Some (ef, args)
           end
@@ -1063,18 +1063,18 @@ Definition CC_after_external (rv: option val) (c: CC_core) : option CC_core :=
 
 Parameter main_function:function. (*IS THIS WHAT THE FIRST ARGUMENT OF CC_core_state is about, ie current function?*)
 Parameter myStatement:statement.
-Definition CC_initial_core (ge: genv) (v: val) (args: list val) : option CC_core := 
+Definition CC_initial_core (ge: genv) (v: val) (args: list val) : option CC_core :=
   let tl := typed_params 2%positive (length args)
    in Some (CC_core_State main_function myStatement
-                           (CC.Kseq (Scall None 
+                           (CC.Kseq (Scall None
                                   (Etempvar 1%positive (Tfunction (type_of_params tl) Tvoid cc_default))
                                   (map (fun x => Etempvar (fst x) (snd x)) tl))
                               (CC.Kseq (Sloop Sskip Sskip) CC.Kstop)) (*IS THE FORMATION OF THE CONT HERE CORRECT? WAS A cont list*)
                           empty_env (temp_bindings 1%positive (v::args))).
 
 Definition CC_step (ge: genv) (q:CC_core) (m:mem) (q': CC_core) (m': mem) : Prop :=
-  match q with 
-      CC_core_Callstate (External _ _ _ _) _ _ => False 
+  match q with
+      CC_core_Callstate (External _ _ _ _) _ _ => False
    | _ => CCstep ge (CC_core_to_CC_state q m) (Events.E0)(CC_core_to_CC_state q' m')
   end.
 
@@ -1118,8 +1118,8 @@ Lemma CC_step_to_CCstep: forall ge q m q' m',
   Proof. intros.
        destruct q; simpl in *. apply H.
           destruct f; try contradiction. apply H.
-        apply H. 
-  Qed. 
+        apply H.
+  Qed.
 
 Definition isExternalCallState (c:CC.state) :=
   match c with CC.Callstate (External _ _ _ _ ) _ _ _  => True
@@ -1131,14 +1131,14 @@ Lemma CCstep_to_CC_step_1: forall ge c m c' m',
               CC_at_external c = None -> CC_step ge c m c' m'.
    Proof. intros.
       destruct c; try apply H.
-      destruct f; try apply H. 
+      destruct f; try apply H.
       destruct t0; try solve [inv H0].
    Qed.
 
   Lemma CC_atExternal_isExternal: forall s,
          (exists z, CC_at_external (fst (CC_state_to_CC_core s)) = Some z) = isExternalCallState s.
   Proof. intros. apply prop_ext.
-     destruct s; simpl. 
+     destruct s; simpl.
         split; intros; try contradiction. destruct H. inv H.
         destruct fd; simpl; intros.
         split; try contradiction.
@@ -1161,18 +1161,18 @@ Lemma step_to_CC_step: forall ge s s'  (H:CCstep ge s Events.E0 s') (Hs: ~ isExt
             exfalso. apply Hs. clear Hs.
             rewrite <- CC_atExternal_isExternal. exists p.
                  rewrite (CC_core_CC_state_3 _ c m); auto.
-  Qed. 
+  Qed.
 
 Lemma CC_step_to_step: forall ge c m c' m',  CC_step ge c m c' m' ->
    CCstep ge (CC_core_to_CC_state c m) Events.E0 (CC_core_to_CC_state c' m').
   Proof. intros.
       destruct c; try  apply H.
       destruct f; try contradiction. apply H.
-  Qed. 
+  Qed.
 
-Lemma CC_step_fun: forall ge m q m1 q1 m2 q2, 
-    CC_step ge q m q1 m1 -> 
-    CC_step ge q m q2 m2 -> 
+Lemma CC_step_fun: forall ge m q m1 q1 m2 q2,
+    CC_step ge q m q1 m1 ->
+    CC_step ge q m q2 m2 ->
     (q1,m1)=(q2,m2).
 Proof.
 intros. apply CC_step_to_step in H.  apply CC_step_to_step in H0.
@@ -1181,14 +1181,14 @@ intros. apply CC_step_to_step in H.  apply CC_step_to_step in H0.
 Qed.
 
 Lemma exec_skips_CC:
- forall {s0 k s k'} 
+ forall {s0 k s k'}
    (H1: match_cont (Kseq s0 :: k) (strip_skip' (CC.Kseq s k')))
    ge f ve te m,
-   match s0 with Sskip => False | Scontinue => False | Sloop _ _ => False 
-            | Sifthenelse _ _ _ => False | Sreturn _ => False 
+   match s0 with Sskip => False | Scontinue => False | Sloop _ _ => False
+            | Sifthenelse _ _ _ => False | Sreturn _ => False
             | _ => True end ->
    exists k2, strip_skip' (CC.Kseq s k') = CC.Kseq s0 k2 /\
-     corestep_star CC_core_sem ge  (CC_core_State f s k' ve te) m 
+     corestep_star CC_core_sem ge  (CC_core_State f s k' ve te) m
               (CC_core_State f s0 k2 ve te) m.
 Proof.
  intros.
@@ -1199,7 +1199,7 @@ assert (ZZ:= exec_skips H1 ge f ve te m H). clear H.
 
  remember (CC.Kseq s k') as k0.
  revert k s k' H1 Heqk0; induction k0; intros; inv Heqk0.
- assert ({s1=Sskip}+{s1<>Sskip}) by (destruct s1; try (left; congruence); right; congruence). 
+ assert ({s1=Sskip}+{s1<>Sskip}) by (destruct s1; try (left; congruence); right; congruence).
  destruct H0.
  (*s1 = Sskip*)  subst s1.
       destruct k'; try solve [inv H1].
@@ -1227,10 +1227,10 @@ Lemma exec_skips'_CC:
 Proof.
  intros.
  destruct (dec_skip s). subst. simpl in *.
- induction k'; try solve [inv H]. 
+ induction k'; try solve [inv H].
  destruct (dec_skip s). subst. simpl in *.
   eapply corestep_star_trans.
-             Focus 2.  apply IHk'. apply H. 
+             Focus 2.  apply IHk'. apply H.
        apply corestep_star_one. simpl. econstructor.
  rewrite strip_skip'_not in * by auto.
  inv H.  apply corestep_star_one. simpl. econstructor.
@@ -1257,16 +1257,16 @@ Lemma strip_skip'_call_CC:
                                                           (CC_core_State f Sskip (CC.Kcall lid f' ve' te' k1) ve te) m.
 Proof.
  induction k; intros; try solve [inv H].
- destruct (dec_skip s). subst. simpl in H. 
+ destruct (dec_skip s). subst. simpl in H.
      eapply corestep_star_trans; try apply (IHk H).
        apply corestep_star_one. simpl. constructor.
  rewrite strip_skip'_not in * by auto.
  rewrite <- H. apply corestep_star_zero.
- simpl in H. inv H. apply corestep_star_zero. 
+ simpl in H. inv H. apply corestep_star_zero.
 Qed.
 
 Lemma step_continue_strip_CC:
-  forall ge f k ve te m, 
+  forall ge f k ve te m,
            corestep_star CC_core_sem ge (CC_core_State f Scontinue k ve te) m
                (CC_core_State f Scontinue (strip_skip' k) ve te) m.
 Proof.
@@ -1276,7 +1276,7 @@ destruct (dec_skip s).
 (*s=skip*)
    subst.
    eapply corestep_star_trans.
-         apply corestep_star_one. 
+         apply corestep_star_one.
             assert (ZZ: corestep CC_core_sem ge (CC_core_State f Scontinue (CC.Kseq Sskip k) ve te) m (CC_core_State f Scontinue k ve te) m).
                     simpl. apply (CC.step_continue_seq ge (function_entry2 ge) f Sskip k ve te m).
             apply ZZ.
@@ -1290,12 +1290,12 @@ Lemma step_continue_seq_CC: forall ge f s k e le m,
   Proof. intros.
     assert (Z:CCstep ge (CC.State f Scontinue (CC.Kseq s k) e le m) Events.E0  (CC.State f Scontinue k e le m) ).
            apply CC.step_continue_seq.
-    apply step_to_CC_step in Z. 
+    apply step_to_CC_step in Z.
                      destruct Z as [cc [mm [cc' [mm' [Heq1 [Heq2 Hstep]]]]]].
                          apply CC_core_CC_state_3 in Heq1. apply CC_core_CC_state_3 in Heq2. simpl in *.
                      inv Heq1. inv Heq2. apply Hstep.
                      auto.
-  Qed. 
+  Qed.
 
 Lemma step_continue_switch_CC: forall ge f k e le m,
               corestep CC_core_sem ge (CC_core_State f Scontinue (CC.Kswitch k) e le) m
@@ -1303,12 +1303,12 @@ Lemma step_continue_switch_CC: forall ge f k e le m,
   Proof. intros.
     assert (Z:CCstep ge (CC.State f Scontinue (CC.Kswitch k) e le m) Events.E0  (CC.State f Scontinue k e le m) ).
            apply CC.step_continue_switch.
-    apply step_to_CC_step in Z. 
+    apply step_to_CC_step in Z.
                      destruct Z as [cc [mm [cc' [mm' [Heq1 [Heq2 Hstep]]]]]].
                          apply CC_core_CC_state_3 in Heq1. apply CC_core_CC_state_3 in Heq2. simpl in *.
                      inv Heq1. inv Heq2. apply Hstep.
                      auto.
-  Qed. 
+  Qed.
 
 Lemma break_strip_CC: forall ge f ve te m k,
        corestep_star CC_core_sem ge (CC_core_State f Sbreak k ve te) m
@@ -1316,13 +1316,13 @@ Lemma break_strip_CC: forall ge f ve te m k,
  Proof. induction k; try solve [apply corestep_star_zero].
     destruct (dec_skip s).
     (*s=skip*)  subst. simpl.
-         eapply corestep_star_trans; try eassumption. eapply corestep_star_one. constructor. 
+         eapply corestep_star_trans; try eassumption. eapply corestep_star_one. constructor.
   rewrite strip_skip'_not; auto. apply corestep_star_zero.
 Qed.
 
 Lemma strip_skip'_loop2_CC:
   forall ge f ve te m a3 s k1 k, CC.Kloop2 s a3 k1 = strip_skip' k ->
-  corestep_star CC_core_sem  ge (CC_core_State f Sskip k ve te) m 
+  corestep_star CC_core_sem  ge (CC_core_State f Sskip k ve te) m
                      (CC_core_State f Sskip (CC.Kloop2 s a3 k1) ve te) m.
 Proof. intros.
  induction k; intros; try solve [inv H].
@@ -1352,9 +1352,9 @@ revert c2 H0. induction H; intros.
 
 Focus 1. (* step_assign *)
 inv H4.
-simpl strip_skip in H9. 
+simpl strip_skip in H9.
 destruct (exec_skips_CC H9 ge f ve te m) as [k2 [? ?]]; simpl; auto.
-exists (CC_core_State f Sskip k2 ve te); split. 
+exists (CC_core_State f Sskip k2 ve te); split.
        eapply corestep_star_plus_trans. eassumption.
               eapply corestep_plus_one. econstructor; eauto.
 constructor; auto.
@@ -1363,20 +1363,20 @@ rewrite H4 in H9. inv H9; auto.
 Focus 1. (* step_set *)
 inv H0.
 destruct (exec_skips_CC H5 ge f ve te m) as [k2 [? ?]]; simpl; auto.
-exists (CC_core_State f Sskip k2 ve (PTree.set id v te)); split. 
+exists (CC_core_State f Sskip k2 ve (PTree.set id v te)); split.
   eapply corestep_star_plus_trans. eassumption. apply corestep_plus_one. econstructor; eauto.
   rewrite H0 in H5. inv H5; constructor; auto.
 
 Focus 1. (* step_call_internal *)
-inv H7. 
+inv H7.
  destruct (exec_skips_CC H12 ge f0 ve te m) as [k2 [? ?]]; simpl; auto.
  rewrite H7 in *. inv H12. simpl in CUR.
   (* econstructor; split. -- introduction of CC_core destroys potential for automation/econstructor
          here - need to instanitate manually.*)
   exists (CC_core_State f (fn_body f) (CC.Kcall optid f0 ve te k2) ve' le').
   split.
-  (*a*) eapply corestep_star_plus_trans. apply H8. 
-               apply corestep_plus_two with (c':=CC_core_Callstate (Internal f) vargs (CC.Kcall optid f0 ve te k2))(m':=m). 
+  (*a*) eapply corestep_star_plus_trans. apply H8.
+               apply corestep_plus_two with (c':=CC_core_Callstate (Internal f) vargs (CC.Kcall optid f0 ve te k2))(m':=m).
                      simpl. econstructor; eauto.
               econstructor; eauto.
    (*b*)  simpl. apply list_norepet_app in H4; destruct H4 as [? [? ?]].
@@ -1384,9 +1384,9 @@ inv H7.
              apply match_cont_strip. simpl. constructor; auto.
 
 Focus 1. (* step_call_external *)
-inv H3. 
+inv H3.
  destruct (exec_skips_CC H8 ge f ve te m) as [k2 [? ?]]; simpl; auto.
- rewrite H3 in *. inv H8. simpl in CUR. 
+ rewrite H3 in *. inv H8. simpl in CUR.
  (*econstructor; split.  -- again, we need to instantiate manually*)
   exists (CC_core_Callstate (External ef tyargs tyres cc) vargs (CC.Kcall optid f ve te k2)).
   split.
@@ -1423,13 +1423,13 @@ Focus 1. (* step_seq *)
  assert (s0<>Sskip).
  clear- Heqk0; intro; subst.
  revert Heqk0; induction k; simpl; intros. inv Heqk0. destruct a; try solve [inv Heqk0]; auto. destruct s; inv Heqk0; auto.
- destruct (IHcl_step (CC_core_State f s k' ve te)) 
+ destruct (IHcl_step (CC_core_State f s k' ve te))
                  as [st2 [? ?]]; clear  IHcl_step.
  constructor; auto. rewrite <- Heqk0. rewrite <- Heqk0'.
  constructor 2; auto.
  exists st2; split; auto.
 
-  destruct (IHcl_step (CC_core_State f Sskip (CC.Kloop1 s0 s1 k0') ve te)) 
+  destruct (IHcl_step (CC_core_State f Sskip (CC.Kloop1 s0 s1 k0') ve te))
                       as [st2 [? ?]]; clear  IHcl_step.
  constructor; auto. simpl. rewrite <- Heqk0. constructor. auto.
   exists st2; split; auto.
@@ -1441,7 +1441,7 @@ Focus 1. (* step_seq *)
                     apply (strip_skip'_loop1_CC _ _ _ _ _ _ _ _ _ H0).
                     eapply corestep_plus_one. apply Hstep.
 
- destruct (IHcl_step (CC_core_State f Sskip (CC.Kloop2 s0 s1 k0') ve te)) 
+ destruct (IHcl_step (CC_core_State f Sskip (CC.Kloop2 s0 s1 k0') ve te))
                       as [st2 [? ?]]; clear  IHcl_step.
  destruct (dec_skip s). subst.
  econstructor; eauto. rewrite <- Heqk0. constructor. auto.
@@ -1451,10 +1451,10 @@ Focus 1. (* step_seq *)
   eapply corestep_star_plus_trans; try apply H0.
   clear - H4; revert H4; induction k'; intros; inv H4.
   destruct (dec_skip s). subst.
-  specialize (IHk' H0). 
+  specialize (IHk' H0).
        eapply corestep_star_trans; try apply IHk'. apply corestep_star_one. constructor.
  replace (CC.Kloop2 s0 s1 k0') with (CC.Kseq s k') by  (destruct s; auto; congruence).
-    apply corestep_star_zero. 
+    apply corestep_star_zero.
  apply corestep_star_zero.
 
  destruct s; inv Heqk0'.
@@ -1476,7 +1476,7 @@ Focus 1. (* step_seq *)
  Focus 1.  (* match_cont_seq: case 1 of 5 *)
  change (CC.Kseq Scontinue k'0 = strip_skip' (CC.Kseq s k')) in H3.
  symmetry in H3.
- rewrite continue_cont_skip in *. 
+ rewrite continue_cont_skip in *.
  simpl in CUR.
  rewrite <- current_function_strip in CUR.
  forget (strip_skip k) as k0. clear k. rename k0 into k.
@@ -1502,14 +1502,14 @@ Focus 1. (* step_seq *)
       (*s=skip*)  subst.  simpl in *.
                             eapply corestep_star_trans; try apply IHk'0. clear IHk'0.
                             apply corestep_star_one. constructor.
-      (*s<>skip*) 
+      (*s<>skip*)
            rewrite strip_skip'_not; auto.  apply corestep_star_zero.
  generalize (corestep_star_trans _ _ _ _ _ _ _ _ X1 X2); clear X1 X2; intro.
  clear H3.
  forget (strip_skip' k'0) as k0'; clear k'0.
  assert (precontinue_cont k = Kloop1 s1 s2 :: l).
  revert H0; clear; induction k; simpl; try congruence.  destruct a; try congruence; auto.
- assert (exists k1', 
+ assert (exists k1',
                corestep_star CC_core_sem ge (CC_core_State f Scontinue k0' ve te) m
                     (CC_core_State f Scontinue k1' ve te) m /\
                match_cont (Kseq Scontinue :: Kloop1 s1 s2 :: l) k1').
@@ -1518,17 +1518,17 @@ Focus 1. (* step_seq *)
         destruct IHmatch_cont as [k1' [? ?]].
            rewrite <- continue_cont_skip; auto.
         econstructor. split; [ | eassumption].
-           eapply corestep_star_trans; try apply H. 
-             clear. 
+           eapply corestep_star_trans; try apply H.
+             clear.
              eapply corestep_star_trans.
                  eapply corestep_star_one. apply step_continue_seq_CC.
-                 apply step_continue_strip_CC. 
-(*       inv H0. econstructor; split. apply corestep_star_zero. constructor. auto. 
+                 apply step_continue_strip_CC.
+(*       inv H0. econstructor; split. apply corestep_star_zero. constructor. auto.
        destruct IHmatch_cont as [k1' [? ?]].
            rewrite <- continue_cont_skip; auto.
           econstructor. split; [ | eassumption].
             eapply corestep_star_trans; try apply H.
-              eapply corestep_star_trans. 
+              eapply corestep_star_trans.
                  eapply corestep_star_one. apply step_continue_seq_CC.
                  apply step_continue_strip_CC. *)
       inv H0.  econstructor; split. apply corestep_star_zero. constructor. auto.
@@ -1536,8 +1536,8 @@ Focus 1. (* step_seq *)
           rewrite <- continue_cont_skip; auto.
           econstructor. split; [ | eassumption].
              eapply corestep_star_trans; try apply H.
-              eapply corestep_star_trans. 
-                 eapply corestep_star_one. apply step_continue_switch_CC. 
+              eapply corestep_star_trans.
+                 eapply corestep_star_one. apply step_continue_switch_CC.
                  apply step_continue_strip_CC.
  destruct H4 as [k1' [StepStar Mtch]].
  generalize (corestep_star_trans _ _ _ _ _ _ _ _ H2 StepStar); clear H2 StepStar; intro H2.
@@ -1569,16 +1569,16 @@ Focus 1.
      induction k'; intros; try solve [apply corestep_star_zero].
      destruct (dec_skip s).
      (*s=skip*)  subst. simpl in *. eapply corestep_star_trans; try apply IHk'.
-                                        apply corestep_star_one. simpl. econstructor. 
-    (*s <> skip*) rewrite strip_skip'_not; auto.  apply corestep_star_zero.  
+                                        apply corestep_star_one. simpl. econstructor.
+    (*s <> skip*) rewrite strip_skip'_not; auto.  apply corestep_star_zero.
  forget (CC_core_State f Sskip k' ve te) as st1.
  clear k' H1.
- assert (X2: corestep_star CC_core_sem ge st1 
+ assert (X2: corestep_star CC_core_sem ge st1
                   m (CC_core_State f e3 (CC.Kloop2 s0 e3 k'0) ve te) m).
      eapply corestep_star_trans; try apply X1.
      eapply corestep_star_one. constructor. auto.
  clear X1.
- destruct (IHcl_step (CC_core_State f e3 (CC.Kloop2 s0 e3 k'0) ve te)) 
+ destruct (IHcl_step (CC_core_State f e3 (CC.Kloop2 s0 e3 k'0) ve te))
                       as [st2 [? ?]]; clear  IHcl_step.
  constructor; auto. apply match_cont_strip; constructor; auto.
  exists st2; split; auto.
@@ -1591,7 +1591,7 @@ Focus 1.
  (*s=skip*)
       subst.  simpl strip_skip' in *.
       assert (exists k1', strip_skip' k' = CC.Kseq Sbreak k1').
-           revert H5; clear. remember (strip_skip' k') as k0'.  
+           revert H5; clear. remember (strip_skip' k') as k0'.
            revert k' Heqk0'; induction k0'; intros; try solve [inv H5].
            inv H5. eauto.
       destruct H0 as [k1' H0].
@@ -1609,7 +1609,7 @@ Focus 1.
       clear k' H0.
       inv H5.
       rewrite <- break_cont_skip in *.
-      simpl in CUR. rewrite <- current_function_strip in CUR.    
+      simpl in CUR. rewrite <- current_function_strip in CUR.
       forget (strip_skip k) as k0.
       assert (Y: corestep_star  CC_core_sem ge st1 m (CC_core_State f Sbreak (strip_skip' k1') ve te) m).
           eapply corestep_star_trans; try apply X; auto.
@@ -1629,11 +1629,11 @@ Focus 1.
               destruct (IHmatch_cont H) as [k1' [? ?]]; clear IHmatch_cont. simpl.
               exists k1'; split; auto.
               eapply corestep_star_plus_trans; try eassumption.
-                   eapply corestep_star_trans with (c2:=CC_core_State f Sbreak k' ve te)(m2:=m). 
-                        apply corestep_star_one. simpl. constructor. 
-                        apply break_strip_CC.  
+                   eapply corestep_star_trans with (c2:=CC_core_State f Sbreak k' ve te)(m2:=m).
+                        apply corestep_star_one. simpl. constructor.
+                        apply break_strip_CC.
          (*4/6*) simpl  in *. exists k'; split.
-               apply corestep_plus_one. simpl. eapply CC.step_break_loop1. 
+               apply corestep_plus_one. simpl. eapply CC.step_break_loop1.
                 auto.
          (*6/6*) simpl in *. exists k'; split.
                 eapply corestep_plus_one. simpl. eapply CC.step_skip_break_switch. auto.
@@ -1654,7 +1654,7 @@ Focus 1.
 
  Focus 1.  (* step_ifthenelse *)
  inv H1. simpl strip_skip in H6.
- inv H6. 
+ inv H6.
  change (CC.Kseq (Sifthenelse a s1 s2) k'0 = strip_skip' (CC.Kseq s k')) in H4.
  assert (X: corestep_star CC_core_sem ge (CC_core_State f s k' ve te) m (CC_core_State f (Sifthenelse a s1 s2) k'0 ve te) m).
      clear - H4.
@@ -1664,15 +1664,15 @@ Focus 1.
           destruct (dec_skip s0).
           (*s0=skip*)  subst s0. simpl in *.
                eapply corestep_star_trans; try apply IHk'; eauto. apply corestep_star_one. constructor.
-          (*s0 <> skip*) change (strip_skip' (CC.Kseq Sskip (CC.Kseq s0 k'))) with 
+          (*s0 <> skip*) change (strip_skip' (CC.Kseq Sskip (CC.Kseq s0 k'))) with
                (strip_skip' (CC.Kseq s0 k')) in H4.
                rewrite strip_skip'_not in H4 by auto.
                inv H4. apply corestep_star_one. constructor.
       (*s<>skip*)  rewrite strip_skip'_not in * by auto.
           inv H4.  apply corestep_star_zero.
  exists (CC_core_State f (if b then s1 else s2) k'0 ve te); split; auto.
-   eapply corestep_star_plus_trans; try apply X.  
-      apply corestep_plus_one. econstructor; eauto. 
+   eapply corestep_star_plus_trans; try apply X.
+      apply corestep_plus_one. econstructor; eauto.
  constructor; auto. apply match_cont_strip; auto.
 
  Focus 1. (* step_loop *)
@@ -1712,29 +1712,29 @@ Focus 1.
  inv H5.
  (*1/2*)   elimtype False; clear - H10.
          revert H10; induction k'1; simpl; intros; congruence.
- (*2/2*) destruct optexp;  [destruct H1 as [v [? ?]] | ]; (destruct optid; destruct H2 as [H2 H2']; 
+ (*2/2*) destruct optexp;  [destruct H1 as [v [? ?]] | ]; (destruct optid; destruct H2 as [H2 H2'];
                try solve [contradiction H2; auto]; subst te'' );
                try (eapply corestep_star_trans; split; [eapply corestep_star_plus_trans; [ apply H99  | eapply corestep_plus_two ] | ]).
         (*The orignial proof resulted in 12 subcases here - now we have only 3 ;-) *)
-           (*1/3*) 
+           (*1/3*)
                 eexists (CC_core_State f Sskip k'2 ve' (PTree.set i v' te')).
-                split. 
+                split.
                      eapply (corestep_star_plus_trans _ _ _ _ _ _ _ _ H99). (* with (c2:=CC_core_State f0 (Sreturn (Some e)) k'1 ve te)(m2:=m).   apply H99. *)
                           eapply corestep_plus_trans with (c2:=CC_core_Returnstate v' (CC.call_cont k'1))(m2:=m').
                                          eapply corestep_plus_one. simpl. econstructor; eauto.
                                          eapply corestep_plus_one. simpl. rewrite <- H13. eapply CC.step_returnstate.
                     constructor; auto.
-           (*2/3*) 
+           (*2/3*)
                 eexists (CC_core_State f Sskip k'2 ve' te').
-                split. 
+                split.
                      eapply (corestep_star_plus_trans _ _ _ _ _ _ _ _ H99). (* with (c2:=CC_core_State f0 (Sreturn (Some e)) k'1 ve te)(m2:=m). apply H99. *)
                           eapply corestep_plus_trans with (c2:=CC_core_Returnstate v' (CC.call_cont k'1))(m2:=m').
                                          eapply corestep_plus_one. simpl. econstructor; eauto.
                                          eapply corestep_plus_one. simpl. rewrite <- H13. eapply CC.step_returnstate.
                     constructor; auto.
-           (*3/3*) 
+           (*3/3*)
                 eexists (CC_core_State f Sskip k'2 ve' (CC.set_opttemp (Some i) v' te')).
-                split. 
+                split.
                      eapply (corestep_star_plus_trans _ _ _ _ _ _ _ _ H99). (* with (c2:=CC_core_State f0 (Sreturn None) k'1 ve te)(m2:=m). apply H99. *)
                           eapply corestep_plus_trans with (c2:=CC_core_Returnstate v' (CC.call_cont k'1))(m2:=m').
                                          eapply corestep_plus_one. simpl. subst; econstructor; eauto.
@@ -1744,7 +1744,7 @@ Focus 1.
                     constructor; auto.
             (* 4/3 *)
               eexists (CC_core_State f Sskip k'2 ve' te').
-                split. 
+                split.
                      eapply (corestep_star_plus_trans _ _ _ _ _ _ _ _ H99). (* with (c2:=CC_core_State f0 (Sreturn None) k'1 ve te)(m2:=m). apply H99. *)
                           eapply corestep_plus_trans with (c2:=CC_core_Returnstate v' (CC.call_cont k'1))(m2:=m').
                                          eapply corestep_plus_one. simpl. subst; econstructor; eauto.
@@ -1762,7 +1762,7 @@ Focus 1.
                          (CC_core_State f Sskip (CC.Kcall (Some i) f1 ve' te' k'1) ve te) m).
      revert H1; induction k'0; intros; try solve [inv H1].
            destruct (dec_skip s).
-           (*s=skip*)  subst s. simpl in H1. 
+           (*s=skip*)  subst s. simpl in H1.
                eapply corestep_star_trans; try apply IHk'0; auto. apply corestep_star_one. constructor; auto.
           (*s<>skip*)
               rewrite strip_skip'_not in H1 by auto. rewrite <- H1. apply corestep_star_zero.
@@ -1781,7 +1781,7 @@ Focus 1.
      clear - H1.
      revert H1; induction k'0; intros; try solve [inv H1].
            destruct (dec_skip s).
-           (*s=skip*)  subst s. simpl in H1. 
+           (*s=skip*)  subst s. simpl in H1.
                eapply corestep_star_trans; try apply IHk'0; auto. apply corestep_star_one. constructor; auto.
           (*s<>skip*)
               rewrite strip_skip'_not in H1 by auto. rewrite <- H1. apply corestep_star_zero.
@@ -1792,7 +1792,7 @@ Focus 1.
                   eapply corestep_plus_one. simpl. eapply CC.step_skip_call; simpl; eauto.
                   eapply corestep_plus_one. simpl.  econstructor; eauto.
      econstructor; eauto.
- 
+
  Focus 1. (* step_switch *)
  rename H0 into Hn. rename H1 into H0.
  inv H0. simpl strip_skip in H5.
@@ -1815,7 +1815,7 @@ Focus 1.
    generalize (exec_skips'_CC ge f _ _ _ _ ve te m (@eq_sym _ _ _ H3)); intro H99.
      eapply corestep_star_trans; try apply H99.
      apply corestep_star_one. constructor.
- 
+
  Focus 1. (* step_goto *)
  inv H0. remember (CC.Kseq s k'0) as k0'. inv H5.
   generalize (match_cont_call_strip k k'1); intro.
@@ -1866,37 +1866,37 @@ Lemma Clightnew_Clight_sim_eq: forall cenv p ExternIdents entrypoints
                   (Build_genv (Genv.globalenv p) cenv)
                   entrypoints.
 Proof.
-  intros. 
+  intros.
   pose (bogus_measure := (fun x: corestate => O)).
   eapply eq_simulation_plus with (match_cores:=MS); try apply bogus_measure; unfold MS.
  (*genvs_domain_eq*)
     apply genvs_domain_eq_refl.
  (* initial states *)
-      intros. unfold cl_core_sem, CC_core_sem; simpl. 
+      intros. unfold cl_core_sem, CC_core_sem; simpl.
       unfold cl_initial_core, CC_initial_core; simpl.
      eexists. split. eexists. (*split. reflexivity. split. reflexivity.*)
        assert (v1=v2). unfold  CompilerCorrectness.entryPts_ok in ext_ok.
           admit. (*again some Genv/entrypojnts/ext_ok stuff*)
-       subst. 
+       subst.
        (*econstructor. simpl.
           admit. (*Definition of CC_initial_core seems to be wrong here*)
-         simpl. assert (myStatement = Sskip). admit. 
+         simpl. assert (myStatement = Sskip). admit.
           rewrite H0. econstructor. simpl. constructor. simpl. constructor.*)
        admit. (* initial_core case needs fixing *)
- (* final states *)  
+ (* final states *)
       intros. unfold cl_core_sem in H0. simpl in H0. unfold cl_halted  in H0. inv H0.
   (*at_external*)
-     intros. inv H; subst; simpl in *. 
+     intros. inv H; subst; simpl in *.
           inv H0. simpl in *. inv H2. simpl in *. congruence.
           unfold CC_at_external. destruct tyres;auto. simpl.
           admit. (*HOLE REGARDING ARGUMENT TYPES???*)
-  (*after_external*) 
-         intros. inv H1; simpl in *. 
+  (*after_external*)
+         intros. inv H1; simpl in *.
           admit. (*HOLE REGARDING ARGUMENT TYPES???*)
-          intros. destruct H0; subst. 
+          intros. destruct H0; subst.
   (*simulation_diag*)
-     intros. 
-     (*1/2*) 
+     intros.
+     (*1/2*)
        apply (Clightnew_Clight_sim_eq_noOrder _ _ _ _ _ _ H
                      (CC_core_State f s k' ve te)).
           constructor; assumption.
@@ -1910,7 +1910,7 @@ Theorem Clightnew_Clight_sim: forall cenv p ExternIdents entrypoints
         (*(IniHyp: forall x, Genv.init_mem p = Some x <-> initial_mem CC_core_sem (Genv.globalenv p) x p.(prog_defs))*),
         CompilerCorrectness.core_correctness
              (fun F C V Sem P => True)
-              ExternIdents entrypoints _ _ _ _ _ _ 
+              ExternIdents entrypoints _ _ _ _ _ _
                   (coresem_extract_cenv cl_core_sem cenv)
                   (coresem_extract_cenv CC_core_sem cenv)
                p p.

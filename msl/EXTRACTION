@@ -1,7 +1,7 @@
 The share model defined in tree_shares.v can be extracted
 to executable O'Caml code for use in tools.  The extracted
 code is the executable slice of of the module "Share"
-from the file "tree_shares.v".  The module type 
+from the file "tree_shares.v".  The module type
 is "SHARE_MODEL" defined in file "boolean_alg.v"
 
 The exposed interface is essentially the boolean algebra

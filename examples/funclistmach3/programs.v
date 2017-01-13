@@ -75,7 +75,7 @@ Qed.
    functions.  register 0 is for arguments and results.
    registers 1 2 3 and 4 are callee-saves registers,
    and registers >= 5 are caller-saves.
-   
+
    It is not specified, but register 1 is usually
    used as a value stack.
  *)
@@ -85,7 +85,7 @@ Definition stdfun (l:label) (fs:{A:Type & stdFunspec A}) :=
          (fun avs =>
            match avs with
              (a,(v1,v2,v3,v4)) =>
-             EX v0:_, 
+             EX v0:_,
              world_op
                (sfs_P (projT2 fs) a v0)
                (fun s =>
@@ -95,10 +95,10 @@ Definition stdfun (l:label) (fs:{A:Type & stdFunspec A}) :=
                  s#(V 3) = Some v3 /\
                  s#(V 4) = Some v4)
            end)
-         (fun avs => 
+         (fun avs =>
            match avs with
              (a,(v1,v2,v3,v4)) =>
-             EX v0:_, 
+             EX v0:_,
              world_op
                 (sfs_Q (projT2 fs) a v0)
                 (fun s =>
@@ -211,7 +211,7 @@ Program Definition phi : map instruction :=
       instr_cons (V 1) (V 0) (V 0) ;;
       instr_call (V 1) ;;
       instr_return
-    ))    
+    ))
 
   (* The "apply" function *)
   (L 1)
@@ -223,7 +223,7 @@ Program Definition phi : map instruction :=
 
   (* An addition function *)
   (L 0)
-    ( instr_assert (EX nm:_, add_P nm) ;; 
+    ( instr_assert (EX nm:_, add_P nm) ;;
       instr_if_nil (V 1)
         (*then *) (
           instr_return
@@ -249,7 +249,7 @@ Definition succ_fs' : {A:Type & stdFunspec A} :=
 Lemma succ_verify : forall G,
   verify_prog phi G ->
   verify_prog
-    phi  
+    phi
     (stdfun (L 3) succ_fs' && G).
 Proof.
   intros.
@@ -287,12 +287,12 @@ Section map_tm.
     match v with
       | value_label _ => n = 0
       | value_cons v1 v2 =>
-          exists x1, exists x2, 
+          exists x1, exists x2,
            proj1_sig f_tm v1 x1 /\
            map_inner_tm v2 x2  /\
            n = 1 + x1 + 1 + x2
     end.
-  
+
   Lemma map_inner_tm_fun : forall v x1 x2,
     map_inner_tm v x1 ->
     map_inner_tm v x2 ->
@@ -310,7 +310,7 @@ Section map_tm.
 End map_tm.
 
 Program Definition map_worker_tm (fs:{A:Type & stdFunspec A}) : termMeas :=
-  fun s n => 
+  fun s n =>
   match s#(V 3) with
   | Some v => map_inner_tm (sfs_t (projT2 fs)) v n
   | _ => False
@@ -451,7 +451,7 @@ Opaque get set funptr.
       try rewrite get_set_same; auto.
   eauto.
   2: apply H0.
-  simpl. 
+  simpl.
   rewrite get_set_same; auto.
   simpl.
   instantiate (1:=(p0,(v1,(value_label lab),value_cons v3_1 v3_2,v4))).
@@ -549,7 +549,7 @@ Opaque get set funptr.
   simpl. intuition.
   destruct a as [x [[[v1 v2] v3] v4]].
   destruct H0 as [v0 [? ?]]. intuition.
-  rewrite H7 in H5. 
+  rewrite H7 in H5.
   clear H H2.
   unfold map_pre in H0.
   destruct v0; try (elim H0; fail).
@@ -749,7 +749,7 @@ Qed.
 Program Definition main_tm : termMeas :=
   fun _ n => n = 5.
 
-Let PROG_G := 
+Let PROG_G :=
   (funptr (L 2) unit main_tm
                      (fun _ => TT)
                      (fun _ => store_op (fun r => exists v, r#(V 0) = Some v /\ list_nat 3 v))) &&
@@ -837,7 +837,7 @@ Lemma main_totally_correct :
         exists v, r'#(V 0) = Some v /\ list_nat 3 v.
 Proof.
   intros.
-  generalize (verify_totally_correct PROG_G unit (fun _ => TT) 
+  generalize (verify_totally_correct PROG_G unit (fun _ => TT)
     (fun _ => store_op (fun r => exists v, r#(V 0) = Some v /\ list_nat 3 v))
     phi (L 2) main_tm tt); intros.
   spec H0. apply main_verify.
@@ -860,7 +860,7 @@ Qed.
  *)
 
 Transparent list_nat.
-Lemma addition_totally_correct : 
+Lemma addition_totally_correct :
   forall r n m c,
     add_P' n m r ->
     phi#(L 0) = Some c ->

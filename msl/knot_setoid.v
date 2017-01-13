@@ -72,7 +72,7 @@ Next Obligation.
   hnf; auto.
 Qed.
 
-Program Definition composeM `{As:Setoid A} `{Bs:Setoid B} `{Cs:Setoid C} 
+Program Definition composeM `{As:Setoid A} `{Bs:Setoid B} `{Cs:Setoid C}
   (f:Mor Bs Cs) `(g:Mor As Bs) := Build_Mor As Cs (fun x => f (g x)) _.
 Next Obligation.
   hnf; intros.
@@ -145,7 +145,7 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
   Inductive le_T : T -> T -> Prop :=
    | le_T_refl : forall t1 t2,
      t1 == t2 -> le_T t1 t2
-   | le_T_bot: forall t, 
+   | le_T_bot: forall t,
      le_T T_bot t.
 
   Lemma le_T_asym: forall t1 t2,
@@ -413,7 +413,7 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     apply (stratify_unstratify_more _ 0 1 p (p,m)).
     simpl; reflexivity.
     apply (IHn p p0 H).
-    
+
     hnf; intros.
     destruct a0; destruct a'0; destruct H; simpl.
     destruct (decompose_nat n (S n)).
@@ -519,7 +519,7 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
   Qed.
 
   Program Definition squash : Mor natFS knotS :=
-    Build_Mor _ _ 
+    Build_Mor _ _
      (fun x =>
        match x with (n,y) => existT (fun x => F (projT1 (sinv x))) n (fmap (stratify n) y) end) _.
   Next Obligation.
@@ -529,7 +529,7 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     constructor.
     apply mor_prf; auto.
   Qed.
- 
+
   Program Definition unsquash : Mor knotS natFS :=
     Build_Mor _ _
       (fun x =>

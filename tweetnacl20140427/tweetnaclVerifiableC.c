@@ -104,7 +104,7 @@ sv core(u8 *out,const u8 *in,const u8 *k,const u8 *c,int h)
 
   //FOR(i,16) y[i] = x[i];
   FOR(i,16) { aux = x[i]; y[i] = aux; }
-  
+
 
   FOR(i,20) {
     FOR(j,4) {
@@ -150,9 +150,9 @@ sv core(u8 *out,const u8 *in,const u8 *k,const u8 *c,int h)
         t[0] = aux1; }
 
       FOR(m,4) {
-         aux = t[m]; 
+         aux = t[m];
 	 aux1 = 4*j+(j+m)%4;
-         w[aux1] = aux; 
+         w[aux1] = aux;
       }
     }
     //FOR(m,16) x[m] = w[m];
@@ -176,7 +176,7 @@ sv core(u8 *out,const u8 *in,const u8 *k,const u8 *c,int h)
       aux1 = x[6+i];
       x[6+i] = aux1 - aux;
     }
-    
+
     FOR(i,4) {
       //st32(out+4*i,x[5*i]);
       aux = x[5*i];
@@ -553,7 +553,7 @@ int crypto_scalarmult(u8 *q,const u8 *n,const u8 *p)
 }
 
 int crypto_scalarmult_base(u8 *q,const u8 *n)
-{ 
+{
   return crypto_scalarmult(q,n,_9);
 }
 
@@ -602,7 +602,7 @@ static u64 Sigma1(u64 x) { return R(x,14) ^ R(x,18) ^ R(x,41); }
 static u64 sigma0(u64 x) { return R(x, 1) ^ R(x, 8) ^ (x >> 7); }
 static u64 sigma1(u64 x) { return R(x,19) ^ R(x,61) ^ (x >> 6); }
 
-static const u64 K[80] = 
+static const u64 K[80] =
 {
   0x428a2f98d728ae22ULL, 0x7137449123ef65cdULL, 0xb5c0fbcfec4d3b2fULL, 0xe9b5dba58189dbbcULL,
   0x3956c25bf348b538ULL, 0x59f111f1b605d019ULL, 0x923f82a4af194f9bULL, 0xab1c5ed5da6d8118ULL,
@@ -698,7 +698,7 @@ int crypto_hash(u8 *out,const u8 *m,u64 n)
 sv add(gf p[4],gf q[4])
 {
   gf a,b,c,d,t,e,f,g,h;
-  
+
   Z(a, p[1], p[0]);
   Z(t, q[1], q[0]);
   M(a, a, t);
@@ -730,7 +730,7 @@ sv cswap(gf p[4],gf q[4],u8 b)
 sv pack(u8 *r,gf p[4])
 {
   gf tx, ty, zi;
-  inv25519(zi, p[2]); 
+  inv25519(zi, p[2]);
   M(tx, p[0], zi);
   M(ty, p[1], zi);
   pack25519(r, ty);

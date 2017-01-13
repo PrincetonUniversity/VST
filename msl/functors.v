@@ -281,7 +281,7 @@ Definition CovariantBiFunctor_CovariantFunctor_compose
   refine (@CovariantFunctor.Functor
    (fun T => F (F1 T) (F2 T))
    (fun A B f => CovariantBiFunctor.fmap F
-      (CovariantFunctor.fmap F1 f) (CovariantFunctor.fmap F2 f)) _). 
+      (CovariantFunctor.fmap F1 f) (CovariantFunctor.fmap F2 f)) _).
   constructor; intros; simpl.
   + rewrite !CovariantFunctorLemmas.fmap_id, CovariantBiFunctorLemmas.fmap_id; auto.
   + rewrite CovariantBiFunctorLemmas.fmap_comp, !CovariantFunctorLemmas.fmap_comp; auto.
@@ -294,7 +294,7 @@ Definition CovariantBiFunctor_MixVariantFunctor_compose
   refine (@MixVariantFunctor.Functor
    (fun T => F (F1 T) (F2 T))
    (fun A B f g => CovariantBiFunctor.fmap F
-      (MixVariantFunctor.fmap F1 f g) (MixVariantFunctor.fmap F2 f g)) _). 
+      (MixVariantFunctor.fmap F1 f g) (MixVariantFunctor.fmap F2 f g)) _).
   constructor; intros; simpl.
   + rewrite !MixVariantFunctorLemmas.fmap_id, CovariantBiFunctorLemmas.fmap_id; auto.
   + rewrite CovariantBiFunctorLemmas.fmap_comp, !MixVariantFunctorLemmas.fmap_comp; auto.
@@ -308,7 +308,7 @@ Definition CoContraVariantBiFunctor_CoContraVariantFunctor_compose
   refine (@CovariantFunctor.Functor
    (fun T => F (F1 T) (F2 T))
    (fun A B f => CoContraVariantBiFunctor.fmap F
-      (CovariantFunctor.fmap F1 f) (ContraVariantFunctor.fmap F2 f)) _). 
+      (CovariantFunctor.fmap F1 f) (ContraVariantFunctor.fmap F2 f)) _).
   constructor; intros; simpl.
   + rewrite CovariantFunctorLemmas.fmap_id, ContraVariantFunctorLemmas.fmap_id, CoContraVariantBiFunctorLemmas.fmap_id; auto.
   + rewrite CoContraVariantBiFunctorLemmas.fmap_comp, CovariantFunctorLemmas.fmap_comp, ContraVariantFunctorLemmas.fmap_comp; auto.
@@ -321,7 +321,7 @@ Definition CoContraVariantBiFunctor_MixVariantFunctor_compose
   refine (@MixVariantFunctor.Functor
    (fun T => F (F1 T) (F2 T))
    (fun A B f g => CoContraVariantBiFunctor.fmap F
-      (MixVariantFunctor.fmap F1 f g) (MixVariantFunctor.fmap F2 g f)) _). 
+      (MixVariantFunctor.fmap F1 f g) (MixVariantFunctor.fmap F2 g f)) _).
   constructor; intros; simpl.
   + rewrite !MixVariantFunctorLemmas.fmap_id, CoContraVariantBiFunctorLemmas.fmap_id; auto.
   + rewrite CoContraVariantBiFunctorLemmas.fmap_comp, !MixVariantFunctorLemmas.fmap_comp; auto.

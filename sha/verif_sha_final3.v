@@ -128,7 +128,7 @@ semax
    LOCAL  (temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
            temp _md md; temp _c c;
            gvar _K256 kv)
-   SEP 
+   SEP
    (data_at Tsh t_struct_SHA256state_st
        (map Vint (hash_blocks init_registers hashed),
         (Vundef, (Vundef, (map Vint (map Int.repr (intlist_to_Zlist lastblock)), Vundef)))) c;
@@ -145,7 +145,7 @@ Proof.
   intros. Intros.
   unfold sha_final_epilog.
   abbreviate_semax.
-  Time unfold_data_at 1%nat. 
+  Time unfold_data_at 1%nat.
   Time forward_call (* sha256_block_data_order (c,p); *)
     (hashed, lastblock, c,
       field_address t_struct_SHA256state_st [StructField _data] c,
@@ -155,13 +155,13 @@ Proof.
     Time entailer!. autorewrite with sublist.
     rewrite H0.
     rewrite field_at_data_at with (gfs := [StructField _data]).
-    Time cancel. 
+    Time cancel.
   }
   unfold data_block.
   simpl. rewrite prop_true_andp by apply isbyte_intlist_to_Zlist.
   rewrite <- H1.
   Time forward. (* c->num=0; *)
-  Time forward_call (* memset (p,0,SHA_CBLOCK); *) 
+  Time forward_call (* memset (p,0,SHA_CBLOCK); *)
     (Tsh, (field_address t_struct_SHA256state_st [StructField _data] c), 64%Z, Int.zero).
   {
     replace (Zlength (intlist_to_Zlist lastblock)) with 64
@@ -181,7 +181,7 @@ Proof.
  change (Z.to_nat 64) with (Z.to_nat CBLOCKz).
  rewrite field_at_data_at with (gfs := [StructField _data]) by reflexivity.
  entailer!.
- drop_LOCAL 0%nat. drop_LOCAL 2%nat. 
+ drop_LOCAL 0%nat. drop_LOCAL 2%nat.
  assert (H': Zlength (hash_blocks init_registers (generate_and_pad msg)) = 8). {
    rewrite Zlength_correct, length_hash_blocks; auto.
     rewrite H1.
@@ -193,17 +193,17 @@ Proof.
  forget (hash_blocks init_registers (generate_and_pad msg)) as hashedmsg.
  clear - Hshmd H'; rename H' into H. rename Hshmd into H0.
  unfold final_loop.
-forward_for_simple_bound 8 
+forward_for_simple_bound 8
    (@exp (environ -> mpred) _ _ (fun i: Z =>
    PROP  ()
    LOCAL  (temp _md (offset_val (i * 4) md);
                 temp _c c)
-   SEP 
+   SEP
    (data_at Tsh t_struct_SHA256state_st
        (map Vint hashedmsg, (Vundef, (Vundef, (list_repeat (Z.to_nat 64) (Vint Int.zero), Vint Int.zero))))
       c;
     K_vector kv;
-    data_at shmd (tarray tuchar 32) 
+    data_at shmd (tarray tuchar 32)
          (map Vint (map Int.repr (intlist_to_Zlist (sublist 0 i hashedmsg)))
            ++ list_repeat (Z.to_nat (32 - WORD*i)) Vundef) md)
      )).
@@ -227,7 +227,7 @@ forward_for_simple_bound 8
   }
   pose (w := Znth i hashedmsg Int.zero).
   pose (bytes := map force_int (map Vint (map Int.repr (intlist_to_Zlist [w])))).
-  assert (BYTES: bytes = 
+  assert (BYTES: bytes =
      sublist (i * 4) (i * 4 + 4)
          (map Int.repr (intlist_to_Zlist hashedmsg))). {
   subst bytes.
@@ -301,7 +301,7 @@ intuition.
   simpl in H6|-*.
   rewrite Int.unsigned_repr; try omega.
   rewrite Z.mul_1_l.
-  change (Int.max_unsigned) with (Int.modulus-1). 
+  change (Int.max_unsigned) with (Int.modulus-1).
   pose proof (Int.unsigned_range i0); omega.
 - apply align_compatible_tarray_tuchar.
 - destruct H9; auto.
@@ -334,7 +334,7 @@ intuition.
   autorewrite with sublist.
   change (@sublist Z 0 (i*4)) with (@sublist Z (0*WORD) (i*WORD)).
   rewrite sublist_intlist_to_Zlist.
-  rewrite <- !(sublist_map Int.repr). 
+  rewrite <- !(sublist_map Int.repr).
   rewrite (Z.add_comm 4 (i*4)).
   rewrite <- BYTES.
   fold vbytes.
@@ -352,8 +352,8 @@ normalize.
   autorewrite with sublist.
 Time  forward. (* return; *)  (* 60 seconds -> 4.7 seconds*)
   unfold data_block.
-  rewrite prop_true_andp 
-    by apply isbyte_intlist_to_Zlist. 
+  rewrite prop_true_andp
+    by apply isbyte_intlist_to_Zlist.
    rewrite Zlength_intlist_to_Zlist. rewrite H.
   cancel.
 Time Qed. (* 64 sec *)
@@ -378,12 +378,12 @@ semax
   (initialized _n  (initialized _p
      (func_tycontext f_SHA256_Final Vprog Gtot)))
   (PROP  ()
-      LOCAL 
-      (temp _p 
+      LOCAL
+      (temp _p
          (field_address t_struct_SHA256state_st [ArraySubsc (CBLOCKz - 8); StructField _data] c);
-      temp _n (Vint (Int.repr (Zlength dd'))); 
+      temp _n (Vint (Int.repr (Zlength dd')));
       temp _md md; temp _c c; gvar _K256 kv)
-      SEP 
+      SEP
       (field_at Tsh t_struct_SHA256state_st [StructField _data]
            (map Vint (map Int.repr dd') ++
             list_repeat (Z.to_nat (CBLOCKz - 8 - Zlength dd'))
@@ -408,7 +408,7 @@ semax
                    (intlist_to_Zlist hashed ++ dd))))
           md))).
 Proof.
-  intros Espec hashed md c shmd kv H 
+  intros Espec hashed md c shmd kv H
   bitlen dd H4 H7 H3 DDbytes hashed' dd' pad
   DDbytes' PAD H0 H1 H2 H5(* Pofs*).
   unfold sha_final_part2, sha_final_epilog; abbreviate_semax.
@@ -418,7 +418,7 @@ Proof.
     Time entailer!. (*2.3*) rename H6 into FC.
 
   Time forward. (* cNh=c->Nh; *) (*3.5*)
-  
+
   match goal with |- semax _ (PROPx _ (LOCALx _ (SEPx (?A :: _)))) _ _ =>
     pattern A;
     match goal with |- ?F A => set (GOAL := F) end
@@ -465,11 +465,11 @@ Proof.
   match goal with |- context [SEPx (?A :: _)] =>
    replace A with (array_at Tsh t_struct_SHA256state_st [StructField _data] 60 64
                            (map Vint lobytes) c)
-  by (clear - FC; 
+  by (clear - FC;
         rewrite array_at_data_at_rec by auto with field_compatible;
         reflexivity)
  end.
-  gather_SEP 0 1 2. 
+  gather_SEP 0 1 2.
   replace_SEP 0
     (field_at Tsh t_struct_SHA256state_st [StructField _data]
          (map Vint (map Int.repr dd') ++
@@ -478,7 +478,7 @@ Proof.
   {
     assert (LENhi: Zlength hibytes = 4) by reflexivity.
     clearbody hibytes. clearbody lobytes.
-    Time entailer!. (*8.7*)  
+    Time entailer!. (*8.7*)
   erewrite field_at_Tarray; try apply JMeq_refl; try reflexivity;
    [ | apply compute_legal_nested_field_spec'; repeat constructor; auto; omega
    | omega].
@@ -545,7 +545,7 @@ Proof.
   eapply semax_pre; [ | simple apply (sha_final_part3 Espec md c shmd hashed' lastblock'); auto].
   * Time entailer!.
     + apply isbyte_intlist_to_Zlist.
-    + Time unfold_data_at 1%nat. (*0.62*) 
+    + Time unfold_data_at 1%nat. (*0.62*)
       unfold lastblock'.
       rewrite Zlist_to_intlist_to_Zlist; auto.
       2:    rewrite Zlength_map, H99; exists LBLOCKz; reflexivity.

@@ -1,4 +1,4 @@
-COQC=$(COQBIN)coqc 
+COQC=$(COQBIN)coqc
 COQDEP=$(COQBIN)coqdep
 COQDOC=$(COQBIN)coqdoc
 

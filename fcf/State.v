@@ -20,7 +20,7 @@ Section CompLoop.
   Fixpoint compLoop (c : (State * D) -> Comp (State * R))(count : nat)(s : State)(d : D) : Comp State :=
     match count with
       | 0 => ret s
-      | S count' => 
+      | S count' =>
         [s', _] <-$2 c (s, d);
         compLoop c count' s' d
     end.
@@ -28,23 +28,23 @@ Section CompLoop.
   Lemma compLoop_wf : forall (o : (State * D) -> Comp (State * R)) count (s : State) (d : D),
     (forall x y, well_formed_comp (o (x, y))) ->
     well_formed_comp (compLoop o count s d).
-    
+
     induction count; intuition;
       unfold compLoop; wftac.
-    
+
   Qed.
-  
-  
+
+
   Lemma compLoop_inv : forall (c : (State * D) -> Comp (State * R)) (inv : State -> Prop) d,
     (forall s s' r,  In (s', r) (getSupport (c (s, d))) -> inv s -> inv s') ->
     forall count s s',
     inv s ->
     In s' (getSupport (compLoop c count s d)) -> inv s'.
-    
+
     induction count; intuition; simpl in *.
     intuition; subst.
     trivial.
-    
+
     eapply in_getUnique_if in H1.
     apply in_flatten in H1.
     destruct H1.
@@ -64,19 +64,19 @@ Section CompLoop.
 
 End CompLoop.
 
-Class AdversaryWithOracle_concrete 
-  (D_A R_A D_O R_O : Set) 
+Class AdversaryWithOracle_concrete
+  (D_A R_A D_O R_O : Set)
   (S_A : Set)
   (A1 : D_A -> Comp (S_A * D_O))
   (A2 : S_A -> R_O -> Comp (S_A * D_O))
   (A3 : S_A -> Comp R_A) := {
-  
+
   S_A_EqDec : EqDec S_A;
 
   A1_wf : forall x, well_formed_comp (A1 x);
   A2_wf : forall x y, well_formed_comp (A2 x y);
   A3_wf : forall x, well_formed_comp (A3 x)
-  
+
 }.
 
 Definition StatefulProc (S D R : Set) :=
@@ -98,11 +98,11 @@ Section AdversaryWithOracle_concrete.
   Hypothesis D_O_EqDec : EqDec D_O.
   Hypothesis R_O_EqDec : EqDec R_O.
 
- 
+
   Fixpoint loopA (oracleF : StatefulProc S_O D_O R_O)(count : nat)(s_A : S_A)(s_O : S_O)(d_O : D_O) : Comp (S_A * S_O) :=
     match count with
       | 0 => ret (s_A, s_O)
-      | S count' => 
+      | S count' =>
         [s_O', r_O] <-$2 oracleF (s_O, d_O);
         [s_A', d_O'] <-$2 (A2 s_A r_O);
         loopA oracleF count' s_A' s_O' d_O'
@@ -124,17 +124,17 @@ Section AdversaryWithOracle_concrete.
 
     intuition.
     eapply (loopA_wf_inv oracleF (fun x => True)); intuition.
-    
+
   Qed.
 
   Definition runA oracleF (count : nat)(s_O : S_O)(d_A : D_A) :=
     p <-$ A1 d_A;
-    p' <-$ loopA oracleF count (fst p) s_O (snd p); 
+    p' <-$ loopA oracleF count (fst p) s_O (snd p);
     r <-$ A3 (fst p');
     ret (r, (snd p')).
 
   Lemma loopA_eq_compLoop : forall inv o,
-    stateful_comp_spec inv (fun a b => True) (fun s b => True) o o -> 
+    stateful_comp_spec inv (fun a b => True) (fun s b => True) o o ->
     forall count s_O1 s_O2 s_A d_O1 d_O2 (C : Set) f1 f2 (x1 x2 : C),
     inv s_O1 s_O2 ->
     (forall s_O1' s_A s_O2', inv s_O1' s_O2' -> eqRat (evalDist (f1 (s_A, s_O1')) x1) (evalDist (f2 s_O2') x2)) ->
@@ -160,7 +160,7 @@ Section AdversaryWithOracle_concrete.
   Qed.
 
   Lemma runA_eq_compLoop : forall o inv,
-    stateful_comp_spec inv (fun a b => True) (fun s b => True) o o -> 
+    stateful_comp_spec inv (fun a b => True) (fun s b => True) o o ->
     forall count s_O1 s_O2 d_A d_O (C : Set) f1 f2 (x : C),
     inv s_O1 s_O2 ->
     (forall s_O1' s_O2' s_A, inv s_O1' s_O2' -> evalDist (f1 (s_A, s_O1')) x == evalDist (f2 s_O2') x) ->
@@ -186,9 +186,9 @@ Section AdversaryWithOracle_concrete.
     evalDist (p <-$ loopA o1 count s_A s_O1 d_O; f1 p) x == evalDist (p <-$ loopA o2 count s_A s_O2 d_O; f2 p) x.
 
     induction count; intuition.
-    
+
     comp_ute.
-    
+
     unfold loopA.
     fold loopA.
     inline_first.
@@ -196,7 +196,7 @@ Section AdversaryWithOracle_concrete.
     eapply H0;
     intuition.
     inline_first.
-    
+
     simpl in H5.
     subst.
     comp_simp.
@@ -204,10 +204,10 @@ Section AdversaryWithOracle_concrete.
     comp_skip.
     simpl.
     intuition.
-  
+
   Qed.
 
-  Lemma loopA_spec : 
+  Lemma loopA_spec :
     forall (A : Set)(inv : S_O -> S_O -> Prop)(o1 o2 : StatefulProc S_O D_O R_O)(count : nat)(s_O1 s_O2 : S_O)(s_A : S_A)(d_O : D_O) f1 f2 rel (x : A),
       SpecRel rel ->
       inv s_O1 s_O2 ->
@@ -220,11 +220,11 @@ Section AdversaryWithOracle_concrete.
     eapply add_proper.
     comp_ute.
     eapply mult_proper; comp_ute.
-    
+
     unfold loopA.
     fold loopA.
     inline_first.
-    
+
     eapply H1; intuition.
     inline_first.
     simpl in H6.
@@ -251,7 +251,7 @@ Section AdversaryWithOracle_concrete.
     eapply ratAdd_0_l.
     repeat pairInv.
     eapply H1; intuition.
-    
+
     unfold loopA.
     fold loopA.
 
@@ -289,7 +289,7 @@ Section AdversaryWithOracle_concrete.
   Qed.
 *)
 
-  Lemma loopA_spec_irr : 
+  Lemma loopA_spec_irr :
     forall rel (A : Set)(pre : (S_O * D_O) -> (S_O * D_O) -> Prop) post (o1 o2 : StatefulProc S_O D_O R_O),
       SpecRel rel ->
       comp_spec_old pre post o1 o2 ->
@@ -301,7 +301,7 @@ Section AdversaryWithOracle_concrete.
         In (s_A1'', d1) (getSupport (A2 s_A1' r1)) ->
         In (s_A2'', d2) (getSupport (A2 s_A2' r2)) ->
         pre (s_O1', d1) (s_O2', d2)) ->
-        (forall s_O1' s_O2' d_O1' d_O2' s_A1' s_A2', 
+        (forall s_O1' s_O2' d_O1' d_O2' s_A1' s_A2',
            pre (s_O1', d_O1') (s_O2', d_O2') ->
            rel (evalDist (f1 (s_A1', s_O1')) x) (evalDist (f2 (s_A2', s_O2')) x)) ->
         rel (evalDist (p <-$ loopA o1 count s_A1 s_O1 d_O1; f1 p) x) (evalDist (p <-$ loopA o2 count s_A2 s_O2 d_O2; f2 p) x).
@@ -330,15 +330,15 @@ Section AdversaryWithOracle_concrete.
     inline_first.
     comp_irr_r.
     eapply A2_wf.
-    
+
     comp_simp.
     eapply IHcount; intuition; eauto.
   Qed.
 
-  Lemma loopA_spec_irr_eq : 
+  Lemma loopA_spec_irr_eq :
     forall (A : Set)(pre : (S_O * D_O) -> (S_O * D_O) -> Prop) post (o1 o2 : StatefulProc S_O D_O R_O),
       comp_spec_old pre post o1 o2 ->
-      (forall s1 s2 r1 r2 d1 d2, 
+      (forall s1 s2 r1 r2 d1 d2,
          post (s1, r1) (s2, r2) -> pre (s1, d1) (s2, d2)) ->
       forall (count : nat)(s_O1 s_O2 : S_O)(s_A1 s_A2 : S_A)(d_O1 d_O2 : D_O) f1 f2 (x : A),
         pre (s_O1, d_O1) (s_O2, d_O2) ->
@@ -347,7 +347,7 @@ Section AdversaryWithOracle_concrete.
         In (s_A1'', d1) (getSupport (A2 s_A1' r1)) ->
         In (s_A2'', d2) (getSupport (A2 s_A2' r2)) ->
         pre (s_O1', d1) (s_O2', d2)) ->
-        (forall s_O1' s_O2' d_O1' d_O2' s_A1' s_A2', 
+        (forall s_O1' s_O2' d_O1' d_O2' s_A1' s_A2',
            pre (s_O1', d_O1') (s_O2', d_O2') ->
            eqRat (evalDist (f1 (s_A1', s_O1')) x) (evalDist (f2 (s_A2', s_O2')) x)) ->
         eqRat (evalDist (p <-$ loopA o1 count s_A1 s_O1 d_O1; f1 p) x) (evalDist (p <-$ loopA o2 count s_A2 s_O2 d_O2; f2 p) x).
@@ -358,7 +358,7 @@ Section AdversaryWithOracle_concrete.
     eauto.
   Qed.
 
-  Lemma loopA_spec_2 : 
+  Lemma loopA_spec_2 :
     forall rel (A : Set)(pre1 pre2 : (S_O * D_O) -> (S_O * D_O) -> Prop) post1 post2 post3 (o1 o2 : StatefulProc S_O D_O R_O),
       SpecRel rel ->
       comp_spec_old pre1 (fun p1 p2 => (post1 p1 p2) \/ (post2 p1 p2)) o1 o2 ->
@@ -373,14 +373,14 @@ Section AdversaryWithOracle_concrete.
         In (s_A1'', d1) (getSupport (A2 s_A1' r1)) ->
         In (s_A2'', d2) (getSupport (A2 s_A2' r2)) ->
         pre2 (s_O1', d1) (s_O2', d2)) ->
-        (forall s_O1' s_O2' d_O1' d_O2' s_A', 
+        (forall s_O1' s_O2' d_O1' d_O2' s_A',
            pre1 (s_O1', d_O1') (s_O2', d_O2') ->
            rel (evalDist (f1 (s_A', s_O1')) x) (evalDist (f2 (s_A', s_O2')) x)) ->
-        (forall s_O1' s_O2' d_O1' d_O2' s_A1' s_A2', 
+        (forall s_O1' s_O2' d_O1' d_O2' s_A1' s_A2',
            pre2 (s_O1', d_O1') (s_O2', d_O2') ->
            rel (evalDist (f1 (s_A1', s_O1')) x) (evalDist (f2 (s_A2', s_O2')) x)) ->
         rel (evalDist (p <-$ loopA o1 count s_A1 s_O1 d_O1; f1 p) x) (evalDist (p <-$ loopA o2 count s_A2 s_O2 d_O2; f2 p) x).
-    
+
     induction count; intros.
 
     comp_ute.
@@ -397,7 +397,7 @@ Section AdversaryWithOracle_concrete.
     eapply mult_proper.
     eapply refl; intuition.
     eauto.
-    
+
     unfold loopA.
     fold loopA.
     inline_first.
@@ -412,7 +412,7 @@ Section AdversaryWithOracle_concrete.
     eauto.
     subst.
     comp_skip.
- 
+
     eapply IHcount; intuition.
     left.
     intuition.
@@ -441,9 +441,9 @@ Section AdversaryWithOracle_concrete.
     right.
     eauto.
   Qed.
-   
-    
-  Lemma loopA_inv_eq : 
+
+
+  Lemma loopA_inv_eq :
     forall rel (inv : S_O -> Prop)(o1 o2 : StatefulProc S_O D_O R_O)(count : nat) s_O s_A d_A x,
       SpecRel rel ->
       inv s_O ->
@@ -451,10 +451,10 @@ Section AdversaryWithOracle_concrete.
       (forall s d p, inv s -> In p (getSupport (o2 (s, d))) -> inv (fst p)) ->
       (forall s d x, inv s -> (evalDist (o1 (s, d)) x) == (evalDist (o2 (s, d)) x)) ->
       rel (evalDist (loopA o1 count s_A s_O d_A) x) (evalDist (loopA o2 count s_A s_O d_A) x).
-    
+
     induction count; intuition.
     comp_ute.
-    
+
     unfold loopA.
     fold loopA.
     comp_skip.
@@ -488,7 +488,7 @@ Section AdversaryWithOracle_concrete.
     intuition.
   Qed.
 
-  Lemma A_query_spec : 
+  Lemma A_query_spec :
     forall rel (inv : S_O -> S_O -> Prop)(o1 o2 : StatefulProc S_O D_O R_O),
       SpecRel rel ->
       stateful_comp_spec inv (fun p1 p2 => (snd p1) = (snd p2)) (fun p1 p2 => (snd p1) = (snd p2)) o1 o2 ->
@@ -496,7 +496,7 @@ Section AdversaryWithOracle_concrete.
         inv s_O1 s_O2 ->
         (forall r1 r2 o1 o2, inv o1 o2 -> eq r1 r2 -> rel (evalDist (f1 (r1, o1)) x) (evalDist (f2 (r2, o2)) x)) ->
         rel (evalDist (p <-$ runA o1 count s_O1 d_A; f1 p) x) (evalDist (p <-$ runA o2 count s_O2 d_A; f2 p) x).
-    
+
     intuition.
     unfold runA.
     inline_first.
@@ -531,8 +531,8 @@ Section AdversaryWithOracle_concrete.
     unfold runA.
     inline_first.
     comp_skip.
-    
-    
+
+
     unfold fst, snd.
     inline_first.
     eapply loopA_spec_irr_eq; intuition.
@@ -561,7 +561,7 @@ Section AdversaryWithOracle_concrete.
     intuition.
   Qed.
 
-  Lemma A_query_spec_irr : 
+  Lemma A_query_spec_irr :
     forall rel (A : Set)(pre : (S_O * D_O) -> (S_O * D_O) -> Prop) post (o1 o2 : StatefulProc S_O D_O R_O),
       SpecRel rel ->
       comp_spec_old pre post o1 o2 ->
@@ -573,16 +573,16 @@ Section AdversaryWithOracle_concrete.
     (*     In (s_A1'', d1) (getSupport (A2 s_A1' r1)) ->
         In (s_A2'', d2) (getSupport (A2 s_A2' r2)) -> *)
         pre (s_O1', d1) (s_O2', d2)) ->
-        (forall s_O1' s_O2' d_O1' d_O2' s_A1' s_A2', 
+        (forall s_O1' s_O2' d_O1' d_O2' s_A1' s_A2',
            pre (s_O1', d_O1') (s_O2', d_O2') ->
            rel (evalDist (f1 (s_A1', s_O1')) x) (evalDist (f2 (s_A2', s_O2')) x)) ->
         rel (evalDist (p <-$ runA o1 count s_O1 d_A; f1 p) x)  (evalDist (p <-$ runA o2 count s_O2 d_A; f2 p) x).
-    
+
     intuition.
     unfold runA.
     inline_first.
     comp_skip.
-    
+
     unfold fst, snd.
     inline_first.
     eapply loopA_spec_irr; intuition.
@@ -601,7 +601,7 @@ Section AdversaryWithOracle_concrete.
     eauto.
   Qed.
 
-  Lemma A_query_inv : 
+  Lemma A_query_inv :
     forall rel (o1 o2 : StatefulProc S_O D_O R_O)(inv : S_O -> Prop)(count : nat) s_O d_A x,
       SpecRel rel ->
       inv s_O ->
@@ -620,7 +620,7 @@ Section AdversaryWithOracle_concrete.
     eapply loopA_inv_eq; intuition; eauto.
     eauto.
     eauto.
-    
+
     inline_first.
     comp_skip.
     comp_simp.
@@ -636,16 +636,16 @@ Section AdversaryWithOracle_concrete.
     (forall s1 s2 r1 r2 d, post1 (s1, r1) (s2, r2) -> pre1 (s1, d) (s2, d)) ->
     (forall s1 s2 r1 r2 d1 d2, post2 (s1, r1) (s2, r2) -> pre2 (s1, d1) (s2, d2)) ->
     forall (count : nat)(s_O1 s_O2 : S_O) d_A f1 f2 (x : A),
-      (forall d, pre1 (s_O1, d) (s_O2, d)) -> 
+      (forall d, pre1 (s_O1, d) (s_O2, d)) ->
       (forall s_O1' s_O2' r1 r2 d1 d2 (* s_A1' s_A2' s_A1'' s_A2'' *),
         post3 (s_O1', r1) (s_O2', r2) ->
       (*   In (s_A1'', d1) (getSupport (A2 s_A1' r1)) ->
         In (s_A2'', d2) (getSupport (A2 s_A2' r2)) -> *)
         pre2 (s_O1', d1) (s_O2', d2)) ->
-      (forall s_O1' s_O2' d_O1' d_O2' s_A', 
+      (forall s_O1' s_O2' d_O1' d_O2' s_A',
         pre1 (s_O1', d_O1') (s_O2', d_O2') ->
         evalDist (f1 (s_A', s_O1')) x == evalDist (f2 (s_A', s_O2')) x) ->
-      (forall s_O1' s_O2' d_O1' d_O2' s_A1' s_A2', 
+      (forall s_O1' s_O2' d_O1' d_O2' s_A1' s_A2',
         pre2 (s_O1', d_O1') (s_O2', d_O2') ->
         evalDist (f1 (s_A1', s_O1')) x == evalDist (f2 (s_A2', s_O2')) x) ->
     evalDist (p <-$ runA o1 count s_O1 d_A; f1 p) x == evalDist (p <-$ runA o2 count s_O2 d_A; f2 p) x.
@@ -667,7 +667,7 @@ Section AdversaryWithOracle_concrete.
     comp_simp.
     simpl.
     eauto.
-    
+
     inline_first.
     comp_irr_l.
     eapply A3_wf.
@@ -678,7 +678,7 @@ Section AdversaryWithOracle_concrete.
     eauto.
   Qed.
 
-  Lemma A_query_spec_2 : 
+  Lemma A_query_spec_2 :
     forall rel (A : Set)(pre1 pre2 : (S_O * D_O) -> (S_O * D_O) -> Prop) post1 post2 post3 (o1 o2 : StatefulProc S_O D_O R_O),
       SpecRel rel ->
       comp_spec_old pre1 (fun p1 p2 => (post1 p1 p2) \/ (post2 p1 p2)) o1 o2 ->
@@ -687,20 +687,20 @@ Section AdversaryWithOracle_concrete.
       (forall s1 s2 r1 r2 d, post1 (s1, r1) (s2, r2) -> pre1 (s1, d) (s2, d)) ->
       (forall s1 s2 r1 r2 d1 d2, post2 (s1, r1) (s2, r2) -> pre2 (s1, d1) (s2, d2)) ->
       forall (count : nat)(s_O1 s_O2 : S_O) d_A f1 f2 (x : A),
-      (forall d, pre1 (s_O1, d) (s_O2, d)) -> 
+      (forall d, pre1 (s_O1, d) (s_O2, d)) ->
       (forall s_O1' s_O2' r1 r2 d1 d2 (* s_A1' s_A2' s_A1'' s_A2'' *),
          post3 (s_O1', r1) (s_O2', r2) ->
          (*   In (s_A1'', d1) (getSupport (A2 s_A1' r1)) ->
         In (s_A2'', d2) (getSupport (A2 s_A2' r2)) -> *)
          pre2 (s_O1', d1) (s_O2', d2)) ->
-      (forall s_O1' s_O2' d_O1' d_O2' s_A', 
+      (forall s_O1' s_O2' d_O1' d_O2' s_A',
          pre1 (s_O1', d_O1') (s_O2', d_O2') ->
          rel (evalDist (f1 (s_A', s_O1')) x) (evalDist (f2 (s_A', s_O2')) x)) ->
-      (forall s_O1' s_O2' d_O1' d_O2' s_A1' s_A2', 
+      (forall s_O1' s_O2' d_O1' d_O2' s_A1' s_A2',
          pre2 (s_O1', d_O1') (s_O2', d_O2') ->
          rel (evalDist (f1 (s_A1', s_O1')) x) (evalDist (f2 (s_A2', s_O2')) x)) ->
       rel (evalDist (p <-$ runA o1 count s_O1 d_A; f1 p) x) (evalDist (p <-$ runA o2 count s_O2 d_A; f2 p) x).
-    
+
     intros.
     unfold runA.
     inline_first.
@@ -729,8 +729,8 @@ Section AdversaryWithOracle_concrete.
     simpl.
     eauto.
   Qed.
-    
-    
+
+
 End AdversaryWithOracle_concrete.
 
 Notation "A 'queries' f" := (@runA _ _ _ _ _ A _ _ f)

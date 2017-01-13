@@ -379,7 +379,7 @@ Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7
      (NDmk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15*t16*t17)
            (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17) => P%assert end)
            (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17) => Q%assert end))
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
              x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
               x10 at level 0, x11 at level 0, x12 at level 0,  x13 at level 0, x14 at level 0, x15 at level 0, x16 at level 0, x17 at level 0,
              P at level 100, Q at level 100).
@@ -468,7 +468,7 @@ Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7
      (NDmk_funspec (nil, tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15*t16*t17*t18)
            (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18) => P%assert end)
            (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18) => Q%assert end))
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
+            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
              x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
               x10 at level 0, x11 at level 0, x12 at level 0,  x13 at level 0, x14 at level 0, x15 at level 0, x16 at level 0, x17 at level 0, x18 at level 0,
              P at level 100, Q at level 100).
@@ -577,7 +577,7 @@ Definition Gprog : funspecs := ltac:(with_library prog [acquire_spec; release_sp
 
 Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_spec.
 Proof.
-  start_function. 
+  start_function.
   forward_call (* p = malloc(n); *)
      n.
   Intros p.
@@ -656,8 +656,8 @@ Proof.
  end.
  let DependedTypeList := fresh "DependedTypeList" in
  match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _ _ _)) =>
-   match Pre with 
-   | (fun x => match x with (a,b) => _ end) => intros Espec DependedTypeList [a b] 
+   match Pre with
+   | (fun x => match x with (a,b) => _ end) => intros Espec DependedTypeList [a b]
    | (fun i => _) => intros Espec DependedTypeList i
    end;
    simpl fn_body; simpl fn_params; simpl fn_return
@@ -668,7 +668,7 @@ Proof.
              destruct p as [a b]
            end;
  simplify_func_tycontext;
- repeat match goal with 
+ repeat match goal with
  | |- context [Sloop (Ssequence (Sifthenelse ?e Sskip Sbreak) ?s) Sskip] =>
        fold (Swhile e s)
  | |- context [Ssequence ?s1 (Sloop (Ssequence (Sifthenelse ?e Sskip Sbreak) ?s2) ?s3) ] =>
@@ -683,12 +683,12 @@ Proof.
                                   but it needs to come after process_stackframe_of *)
  repeat rewrite <- data_at__offset_zero;
  try apply start_function_aux1;
- repeat (apply semax_extract_PROP; 
+ repeat (apply semax_extract_PROP;
               match goal with
               | |- _ ?sh -> _ =>
                  match type of sh with
-                 | share => intros ?SH 
-                 | Share.t => intros ?SH 
+                 | share => intros ?SH
+                 | Share.t => intros ?SH
                  | _ => intro
                  end
                | |- _ => intro
@@ -1134,7 +1134,7 @@ Proof.
     unfold unfold_reptype in *; simpl in *.
     rewrite Zlength_map in *; apply prop_right; auto. }
   forward_for_simple_bound N (EX i : Z, PROP ( )
-   LOCAL (temp _i (vint B); lvar _available (tarray tint B) lvar0; 
+   LOCAL (temp _i (vint B); lvar _available (tarray tint B) lvar0;
    gvar _writing writing; gvar _last_given last_given; gvar _last_taken last_taken)
    SEP (field_at Tsh (tarray tint B) [] (map (fun x => vint (if eq_dec x b0 then 0
      else if in_dec eq_dec x (sublist 0 i lasts) then 0 else 1)) (upto (Z.to_nat B))) lvar0;
@@ -1163,7 +1163,7 @@ Proof.
       rewrite in_map_iff in Hin; destruct Hin as (? & ? & ?); subst; simpl; auto. }
     rewrite Znth_map with (d' := -1); auto.
     forward_if (PROP ( )
-      LOCAL (temp _last (vint (Znth i lasts (-1))); temp _r (vint i); temp _i (vint B); lvar _available (tarray tint 5) lvar0; 
+      LOCAL (temp _last (vint (Znth i lasts (-1))); temp _r (vint i); temp _i (vint B); lvar _available (tarray tint 5) lvar0;
              gvar _writing writing; gvar _last_given last_given; gvar _last_taken last_taken)
       SEP (field_at Tsh (tarray tint B) [] (map (fun x => vint (if eq_dec x b0 then 0
              else if in_dec eq_dec x (sublist 0 (i + 1) lasts) then 0 else 1)) (upto (Z.to_nat B))) lvar0;
@@ -2019,7 +2019,7 @@ Proof.
     gather_SEP 2 3 10; replace_SEP 0 (fold_right sepcon emp (map (fun r =>
       ghost_var gsh1 tint (vint (if zlt r (i + 1) then b else b0)) (offset_val 1 (Znth r comms Vundef)) *
       ghost_var gsh1 tint (vint (Znth r (map (fun i0 => if eq_dec (Znth i0 (h' ++ [v']) 0) (-1) then b0
-        else Znth i0 lasts 0) (upto (Z.to_nat N))) (-1))) (offset_val 2 (Znth r comms Vundef))) 
+        else Znth i0 lasts 0) (upto (Z.to_nat N))) (-1))) (offset_val 2 (Znth r comms Vundef)))
       (upto (Z.to_nat N)))).
     { go_lowerx.
       rewrite (extract_nth_sepcon (map _ (upto (Z.to_nat N))) i);
@@ -2123,7 +2123,7 @@ Qed.
 Ltac load_tac' :=
  ensure_normal_ret_assert;
  hoist_later_in_pre;
- match goal with   
+ match goal with
 | |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sset _ ?e) _ =>
  (* Super canonical load *)
     let e1 := fresh "e" in
@@ -2225,7 +2225,7 @@ Proof.
   set (c := Znth r comms Vundef).
   set (l := Znth r locks Vundef).
   eapply semax_pre with (P' := EX b0 : Z, EX h : hist, PROP (0 <= b0 < B; fst (last_two_reads h) = b0)
-    LOCAL (temp _r (vint r); temp _arg arg; gvar _reading reading; gvar _last_read last_read; 
+    LOCAL (temp _r (vint r); temp _arg arg; gvar _reading reading; gvar _last_read last_read;
            gvar _lock lock; gvar _comm comm; gvar _bufs buf)
     SEP (data_at sh1 (tarray (tptr tint) N) reads reading; data_at sh1 (tarray (tptr tint) N) lasts last_read;
          data_at Tsh tint (vint (-1)) (Znth r reads Vundef); data_at Tsh tint (vint b0) (Znth r lasts Vundef);
@@ -2253,7 +2253,7 @@ Proof.
   Exists b (AE e (-1) :: h) v; entailer'; cancel.
 Qed.
 
-Ltac store_tac' := 
+Ltac store_tac' :=
 ensure_open_normal_ret_assert;
 hoist_later_in_pre;
 match goal with
@@ -2327,7 +2327,7 @@ match goal with
       | solve_store_rule_evaluation
       | subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n;
         pre_entailer;
-        try quick_typecheck3; 
+        try quick_typecheck3;
         clear HLE HRE H_Denote H;
         unfold tc_efield(*; entailer_for_store_tac;
         simpl app; simpl typeof*)
@@ -2604,7 +2604,7 @@ Proof.
       fun (x : (Z * val * val * val * val * val * list val * list val * list val * list val * list val *
                 share * share * share * share * share)%type) (arg : val) =>
         let '(r, reading, last_read, lock, comm, buf, reads, lasts, locks, comms, bufs, sh1, sh2, sh, gsh1, gsh2) := x in
-        fold_right sepcon emp [!!(fold_right and True [readable_share sh; readable_share sh1; 
+        fold_right sepcon emp [!!(fold_right and True [readable_share sh; readable_share sh1;
           readable_share sh2; sepalg.join gsh1 gsh2 Tsh; isptr (Znth r comms Vundef)]) && emp;
           data_at Tsh tint (vint r) arg; malloc_token Tsh (sizeof tint) arg;
           data_at sh1 (tarray (tptr tint) N) reads reading; data_at sh1 (tarray (tptr tint) N) lasts last_read;

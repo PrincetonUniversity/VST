@@ -57,15 +57,15 @@ Section Initial_State.
     (ext_link : string -> ident) (prog : Clight.program)
     (all_safe : semax_prog.semax_prog (Concurrent_Espec unit CS ext_link) prog V G)
     (init_mem_not_none : Genv.init_mem prog <> None).
-  
+
   Definition Jspec := @OK_spec (Concurrent_Espec unit CS ext_link).
-  
+
   Definition init_m : { m | Genv.init_mem prog = Some m } :=
     match Genv.init_mem prog as y return (y <> None -> {m : mem | y = Some m}) with
     | Some m => fun _ => exist _ m eq_refl
     | None => fun H => (fun Heq => False_rect _ (H Heq)) eq_refl
     end init_mem_not_none.
-  
+
   Definition initial_state (n : nat) (sch : schedule) : cm_state :=
     (proj1_sig init_m,
      globalenv prog,
@@ -83,7 +83,7 @@ Section Initial_State.
         (addressFiniteMap.AMap.empty _)
      )
     ).
-  
+
   Lemma personal_mem_of_same_jm tp jm i (cnti : ThreadPool.containsThread tp i) mc :
     (ThreadPool.getThreadR cnti = m_phi jm) ->
     m_dry (@personal_mem (m_dry jm) (getThreadR cnti) mc) = m_dry jm.
@@ -97,7 +97,7 @@ Section Initial_State.
     symmetry.
     destruct jm; simpl; auto.
   Qed.
-  
+
   Theorem initial_invariant n sch : state_invariant Jspec G n (initial_state n sch).
   Proof.
     unfold initial_state.
@@ -106,7 +106,7 @@ Section Initial_State.
     set (q := projT1 (projT2 spr)).
     set (jm := proj1_sig (snd (projT2 (projT2 spr)) n)).
     match goal with |- _ _ _ (_, (_, ?TP)) => set (tp := TP) end.
-    
+
     (*! compatibility of memories *)
     assert (compat : mem_compatible_with tp m (m_phi jm)).
     {
@@ -115,7 +115,7 @@ Section Initial_State.
         * change (proj1_sig (snd (projT2 (projT2 spr)) n)) with jm.
           unfold join_threads.
           unfold getThreadsR.
-          
+
           match goal with |- _ ?l _ => replace l with (m_phi jm :: nil) end; swap 1 2. {
             simpl.
             set (a := m_phi jm).
@@ -132,7 +132,7 @@ Section Initial_State.
               apply core_unit.
             - apply core_identity.
           }
-        
+
         * reflexivity.
         * constructor.
       + destruct (snd (projT2 (projT2 spr))) as [jm' [D H]]; unfold jm; clear jm; simpl.
@@ -155,7 +155,7 @@ Section Initial_State.
         intros ? F.
         inversion F.
     } (* end of mcompat *)
-    
+
     assert (En : level (m_phi jm) = n). {
       unfold jm; clear.
       match goal with
@@ -164,23 +164,23 @@ Section Initial_State.
       rewrite level_juice_level_phi in *.
       auto.
     }
-    
+
     apply state_invariant_c with (PHI := m_phi jm) (mcompat := compat).
     - (*! level *)
       auto.
-    
+
     - (*! env_coherence *)
       destruct (snd (projT2 (projT2 spr))) as (jm' & D  & H  & A & NL & MFS & FA).
       simpl in jm. unfold jm.
       split.
       + apply MFS.
       + exists prog, CS, V. auto.
-    
+
     - (*! lock sparsity (no locks at first) *)
       intros l1 l2.
       rewrite threadPool.find_empty.
       tauto.
-    
+
     - (*! lock coherence (no locks at first) *)
       intros lock.
       rewrite threadPool.find_empty.
@@ -188,7 +188,7 @@ Section Initial_State.
       match goal with
         |- context [proj1_sig ?x] => destruct x as (jm' & jmm & lev & S & nolocks)
       end; simpl; apply nolocks.
-    
+
     - (*! safety of the only thread *)
       intros i cnti ora.
       destruct (ThreadPool.getThreadC cnti) as [c|c|c v|v1 v2] eqn:Ec; try discriminate; [].
@@ -213,13 +213,13 @@ Section Initial_State.
       subst q.
       simpl proj1_sig in *; simpl proj2_sig in *. subst n.
       apply (Safe ora).
-    
+
     - (* well-formedness *)
       intros i cnti.
       constructor.
-      
+
     - (* only one thread running *)
       intros F; exfalso. simpl in F. omega.
   Qed.
-  
+
 End Initial_State.

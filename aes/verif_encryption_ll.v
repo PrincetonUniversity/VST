@@ -11,9 +11,9 @@ Definition t_struct_aesctx := Tstruct _mbedtls_aes_context_struct noattr.
 Definition t_struct_tables := Tstruct _aes_tables_struct noattr.
 Definition Nr := 14. (* number of cipher rounds *)
 
-Definition tables_initialized (tables : val) := data_at Ews t_struct_tables 
+Definition tables_initialized (tables : val) := data_at Ews t_struct_tables
   (map Vint FSb, (map Vint FT0, (map Vint FT1, (map Vint FT2, (map Vint FT3,
-  (map Vint RSb, (map Vint RT0, (map Vint RT1, (map Vint RT2, (map Vint RT3, 
+  (map Vint RSb, (map Vint RT0, (map Vint RT1, (map Vint RT2, (map Vint RT3,
   (map Vint RCON))))))))))) tables.
 
 (* arr: list of 4 bytes *)
@@ -130,7 +130,7 @@ Definition encryption_spec_ll :=
           readable_share ctx_sh; readable_share in_sh; writable_share out_sh)
     LOCAL (temp _ctx ctx; temp _input input; temp _output output; gvar _tables tables)
     SEP (data_at ctx_sh (t_struct_aesctx) (
-          (Vint (Int.repr Nr)), 
+          (Vint (Int.repr Nr)),
           ((field_address t_struct_aesctx [StructField _buf] ctx),
           (map Vint (map Int.repr (exp_key ++ (list_repeat (8%nat) 0)))))
           (* The following weaker precondition would also be provable, but less conveniently, and   *)
@@ -143,13 +143,13 @@ Definition encryption_spec_ll :=
   POST [ tvoid ]
     PROP() LOCAL()
     SEP (data_at ctx_sh (t_struct_aesctx) (
-          (Vint (Int.repr Nr)), 
+          (Vint (Int.repr Nr)),
           ((field_address t_struct_aesctx [StructField _buf] ctx),
           (map Vint (map Int.repr (exp_key ++ (list_repeat (8%nat) 0)))))
          ) ctx;
          data_at in_sh  (tarray tuchar 16)
                  (map Vint (map Int.repr plaintext)) input;
-         data_at out_sh (tarray tuchar 16) 
+         data_at out_sh (tarray tuchar 16)
                  (map Vint (mbed_tls_aes_enc plaintext (exp_key ++ (list_repeat (8%nat) 0)))) output;
          tables_initialized tables).
 
@@ -259,8 +259,8 @@ destruct EE as [vv EE].
 
 pose (S12 := mbed_tls_enc_rounds 12 S0 buf 4).
 
-apply semax_pre with (P' := 
-  (EX i: Z, PROP ( 
+apply semax_pre with (P' :=
+  (EX i: Z, PROP (
      0 <= i <= 6
   ) LOCAL (
      temp _i (Vint (Int.repr i));
@@ -277,7 +277,7 @@ apply semax_pre with (P' :=
      data_at_ out_sh (tarray tuchar 16) output;
      tables_initialized tables;
      data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
-     data_at ctx_sh t_struct_aesctx vv ctx 
+     data_at ctx_sh t_struct_aesctx vv ctx
   ))).
 { subst vv. Exists 6. entailer!. }
 
@@ -297,11 +297,11 @@ eapply semax_seq' with (P' :=
      data_at_ out_sh (tarray tuchar 16) output;
      tables_initialized tables;
      data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
-     data_at ctx_sh t_struct_aesctx vv ctx 
+     data_at ctx_sh t_struct_aesctx vv ctx
   )
 ).
 { apply semax_loop with (
-  (EX i: Z, PROP ( 
+  (EX i: Z, PROP (
      0 < i <= 6
   ) LOCAL (
      temp _i (Vint (Int.repr i));
@@ -318,13 +318,13 @@ eapply semax_seq' with (P' :=
      data_at_ out_sh (tarray tuchar 16) output;
      tables_initialized tables;
      data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
-     data_at ctx_sh t_struct_aesctx vv ctx 
+     data_at ctx_sh t_struct_aesctx vv ctx
   ))).
-{ (* loop body *) 
+{ (* loop body *)
 Intro i.
 
 forward_if
-  (EX i: Z, PROP ( 
+  (EX i: Z, PROP (
      0 < i <= 6
   ) LOCAL (
      temp _i (Vint (Int.repr i));
@@ -365,7 +365,7 @@ forward_if
   apply derives_refl.
 }
 { (* rest: loop body *)
-  clear i. Intro i. Intros. 
+  clear i. Intro i. Intros.
   unfold tables_initialized. subst vv.
 
 Ltac remember_temp_Vints done :=
@@ -512,7 +512,7 @@ replace (52 - i * 8 + 4 + 4) with (52 - (i - 1) * 8) by omega.
 subst S' S''.
   assert (
     (mbed_tls_fround
-      (mbed_tls_fround 
+      (mbed_tls_fround
          (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4)
          buf
          (52 - i * 8))
@@ -634,7 +634,7 @@ Ltac entailer_for_load_tac ::=
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range;
   try (
     match goal with
-    | |- context [ (tc_val _ (Vint (Znth ?i FSb Int.zero))) ] => 
+    | |- context [ (tc_val _ (Vint (Znth ?i FSb Int.zero))) ] =>
       assert (Int.unsigned (Znth i FSb Int.zero) <= Byte.max_unsigned) by apply FSb_range
     end;
     solve [ entailer! ]
@@ -652,7 +652,7 @@ Ltac entailer_for_load_tac ::= idtac.
 
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
 match goal with
-    | |- context [ (tc_val _ (Vint (Znth ?i FSb Int.zero))) ] => 
+    | |- context [ (tc_val _ (Vint (Znth ?i FSb Int.zero))) ] =>
       assert (Int.unsigned (Znth i FSb Int.zero) <= Byte.max_unsigned) by apply FSb_range
     end.
 remember 24 as twentyfour. rewrite Heqtwentyfour at 3.
@@ -670,7 +670,7 @@ Ltac entailer_for_load_tac ::=
   rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range;
   try (
     match goal with
-    | |- context [ (tc_val _ (Vint (Znth ?i FSb Int.zero))) ] => 
+    | |- context [ (tc_val _ (Vint (Znth ?i FSb Int.zero))) ] =>
       assert (Int.unsigned (Znth i FSb Int.zero) <= Byte.max_unsigned) by apply FSb_range
     end;
     try (let Eqq := fresh "Eqq" in remember 24 as twentyfour eqn: Eqq; rewrite Eqq at 3);
@@ -805,7 +805,7 @@ Time Qed. (* Increases memory usage from 4.5 GB to 8.5 GB within 5min using 1 CP
    or at least, the tactics should warn.
    And same for nested_field_offset. *)
 
-(* TODO floyd: I want "omega" for int instead of Z 
+(* TODO floyd: I want "omega" for int instead of Z
    maybe "autorewrite with entailer_rewrite in *"
 *)
 

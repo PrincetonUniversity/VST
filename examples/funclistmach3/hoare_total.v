@@ -21,7 +21,7 @@ Next Obligation.
   spec H0. omega.
   destruct H0 as [n' [? ?]].
   exists n'. split; auto.
-admit.  
+admit.
 admit.
 Qed.
 
@@ -115,7 +115,7 @@ Next Obligation.
 Qed.
 
 Program Definition evalTM (t : termMeas) (n : nat) : pred world :=
-  fun w => let (_, r) := w in 
+  fun w => let (_, r) := w in
     proj1_sig t r n.
 Next Obligation.
   unfold hereditary; intros.
@@ -194,7 +194,7 @@ Definition funptr' (l:label) (A:Type) (t:termMeas) (P Q: A -> pred world) : pred
   EX c : instruction, code l c &&
     ALL stk : stack, ALL n : nat, ALL x : A,
       |> ((embedWP (guardsn n (Q x) stk)) -->
-           (ALL n' : nat, embedWP (evalTM t n'   --> 
+           (ALL n' : nat, embedWP (evalTM t n'   -->
                                     guardsn (n+n') (P x) ((c;;instr_assert FF)::stk) ))).
 *)
 
@@ -206,13 +206,13 @@ Definition funptr' (l:label) (A:Type) (t:termMeas) (P Q: A -> pred world) : pred
 
 Definition funptr l A P Q : pred prog :=
   EX t:termMeas,
-      funptr' l A t P Q && 
+      funptr' l A t P Q &&
       ALL x:A, (embedWP (P x --> EX n:nat, evalTM t n)).
 
 (*
 Lemma hoare_call : forall G R v Q l A lP lQ a,
-  let wp := 
-      store_op (fun r => r#v = Some (value_label l)) && 
+  let wp :=
+      store_op (fun r => r#v = Some (value_label l)) &&
       prog_op (funptr l A lP lQ) &&
       lP a && (closed (lQ a --> Q))
  in
@@ -265,7 +265,7 @@ Lemma verify_func_simple : forall psi l (G:pred prog) (A:Type) (P Q:A -> pred wo
   (REL:A -> A -> Prop),
   well_founded REL ->
   psi#l = Some i ->
-  (forall a, 
+  (forall a,
     let Pr' a' := P a' && !!(REL a' a) in
       exists t:termMeas,
         hoare (funptr' l A t Pr' Q && G) (Q a) (P a) i FF) ->
@@ -330,7 +330,7 @@ admit.
 admit.
   spec H7; auto.
 admit.
-  
+
   spec H0 r (fst w0). spec H0; auto.
   spec H0. split.
 admit.
@@ -354,7 +354,7 @@ admit.
 Lemma verify_func_simple : forall psi l (G:pred prog) (A:Type) (P Q:A -> pred world) i (t:termMeas),
   psi#l = Some i ->
 
-  (forall a r, 
+  (forall a r,
     let Pr  := P a && EX n:nat, store_op (fun r' => proj1_sig t r' n /\ (r' = r)) in
     let Pr' a' := P a' && store_op (fun r' => forall n, proj1_sig t r n -> exists n', proj1_sig t r' n' /\ n' < n) in
     hoare (funptr' l A t Pr' Q && G) (Q a) Pr i FF) ->
@@ -441,8 +441,6 @@ admit.
   destruct H8 as [n'' ?].
   exists n''. split; auto.
 admit.
-    
-  
 
 
 
@@ -466,7 +464,9 @@ admit.
 
 
 
-  
+
+
+
 
 
 
@@ -598,11 +598,11 @@ Proof.
   destruct H4 as [px [rx [? ?]]].
   exists px. exists rx.
   split. omega.
-  econstructor. econstructor.  
+  econstructor. econstructor.
   auto.
 Qed.
 
-  
+
 
 Lemma hoare_getlabel : forall l v G R P,
   hoare' 0 G R
@@ -613,7 +613,7 @@ Proof.
   repeat intro.
   spec H1 (r#v <- (value_label l)).
   destruct a'.
-  rewrite worldNec_unfold in H2. destruct H2. subst s. 
+  rewrite worldNec_unfold in H2. destruct H2. subst s.
   spec H1 (p0, r#v <- (value_label l)).
   spec H1. rewrite worldNec_unfold. intuition.
   spec H1. apply H3. constructor; auto.
@@ -626,8 +626,8 @@ Proof.
 Qed.
 
 Lemma hoare_call : forall x G R v Q l A t lP lQ a,
-  let wp := 
-      store_op (fun r => r#v = Some (value_label l)) && 
+  let wp :=
+      store_op (fun r => r#v = Some (value_label l)) &&
       evalTM t x &&
       (prog_op (funptr' l A t lP lQ)) &&
       lP a && (closed (lQ a --> Q))
@@ -671,7 +671,7 @@ Proof.
   spec H8. apply rt_refl.
   spec H8. apply pred_nec_hereditary with (p0,s); auto.
   rewrite worldNec_unfold; intuition.
-  
+
   copy H10.
   apply (af_level2 age_facts) in H10.
   destruct H8 as [pz [rz [? ?]]]. omega.
@@ -683,13 +683,13 @@ Proof.
   apply H3.
   apply H5.
   apply H11.
-  generalize (stepstar_approxprog 0 p1 pz p1 pz s 
+  generalize (stepstar_approxprog 0 p1 pz p1 pz s
       ((i;; instr_assert FF) :: k :: stk) ((ix;; instr_assert FF) :: k :: stk)
       rz nil); intro.
   spec H14 H12.
   spec H14. red. trivial.
   spec H14. red. trivial.
-  spec H14. 
+  spec H14.
   constructor.
   rewrite <- H10.
   red. simpl. red in H13. congruence.
@@ -701,8 +701,8 @@ Proof.
 Qed.
 
 Lemma hoare_call2 : forall G R v Q l A t lP lQ a,
-  let wp := 
-      store_op (fun r => r#v = Some (value_label l)) && 
+  let wp :=
+      store_op (fun r => r#v = Some (value_label l)) &&
       (prog_op (funptr' l A t lP lQ)) &&
       lP a && (closed (lQ a --> Q))
  in
@@ -710,15 +710,15 @@ Lemma hoare_call2 : forall G R v Q l A t lP lQ a,
 Proof.
   intros.
   hnf. subst wp.
-  
 
-  
+
+
 
 
 
 
 Lemma hoare_call' : forall x G R v Q,
-  let wp := 
+  let wp :=
     EX l:label, EX A:Type, EX t:termMeas,
     EX lP:(A->pred world), EX lQ:(A -> pred world), EX a:A,
       store_op (fun r => r#v = Some (value_label l)) &&
@@ -808,7 +808,7 @@ Proof.
 Qed.
 
 Lemma hoare_if : forall x v s1 s2 P1 P2 G R Q,
-  let wp := 
+  let wp :=
     EX val:value,
       store_op (fun r => r#v = Some val) &&
     (
@@ -828,7 +828,7 @@ Proof.
   destruct a'.
   destruct H5 as [v' [[_ ?] ?]].
   destruct H6 as [[? ?]|[? ?]].
-  
+
   (* nil case *)
   simpl in H6.
   spec H p n k stk.
@@ -872,7 +872,7 @@ Proof.
   intro.
   spec H2 H5.
   destruct H2 as [px [rx [? ?]]].
-  exists px. exists rx. 
+  exists px. exists rx.
   split. trivial.
   econstructor 2.
   econstructor.
@@ -919,7 +919,7 @@ Definition funspec_assumptions B b n (fss:list (label*funspec B) ) : pred prog :
     let P' a := fs_P B fs b a &&
       store_op (fun r => exists n', proj1_sig (fs_t B fs b) r n' /\ n' < n)
     in funptr l (fs_A B fs b) (fs_t B fs b) P' (fs_Q B fs b).
-    
+
 Lemma verify_true :
   forall psi,
     verify_prog psi TT.
@@ -958,12 +958,12 @@ Proof.
   destruct (H l fs H3) as [i [? ?]].
   exists (fmap_instr (K.approx (level p')) i).
   split.
-  exists 
+  exists
     (fmap_instr (K.approx (level p')) (fmap_instr (K.approx n) i)). split.
   apply nec_prog_lookup with (K.squash (n,psi)).
   eapply rt_trans; eauto.
   unfold prog_lookup. rewrite K.unsquash_squash. simpl. unfold KnotInput.fmap.
-  erewrite fmap_eqn. 
+  erewrite fmap_eqn.
   auto.
   auto.
   hnf.
@@ -1082,7 +1082,7 @@ Proof.
     apply Rt_Rft_trans with a'2; auto.
     apply rt_trans with a'3; auto.
     apply rt_trans with p2; auto.
-    
+
     apply later_level.
     apply Rt_Rft_trans with a'; auto.
     apply rt_trans with a'0; auto.
@@ -1139,8 +1139,8 @@ Qed.
 
 Lemma verify_func : forall psi l (G:pred prog) (B:Type) (A:B->Type) (P Q:forall b, A b -> pred world) i (t:B -> termMeas),
   psi#l = Some i ->
-  
-  (forall b a n, 
+
+  (forall b a n,
     let Pr  := P b a && store_op (fun r' => proj1_sig (t b) r' n) in
     let Pr' a' := P b a' && store_op (fun r' => exists n', proj1_sig (t b) r' n' /\ n' < n) in
     hoare n (funptr l (A b) (t b) Pr' (Q b) && G) (Q b a) Pr i FF) ->
@@ -1192,7 +1192,7 @@ Qed.
 Lemma verify_func_simple : forall psi l (G:pred prog) (A:Type) (P Q:A -> pred world) i (t:termMeas),
   psi#l = Some i ->
 
-  (forall a n, 
+  (forall a n,
     let Pr  := P a && store_op (fun r' => proj1_sig t r' n) in
     let Pr' a' := P a' && store_op (fun r' => exists n', proj1_sig t r' n' /\ n' < n) in
     hoare n (funptr l A t Pr' Q && G) (Q a) Pr i FF) ->
@@ -1251,7 +1251,7 @@ Proof.
   intuition. econstructor. eapply step_if_nil2; eauto. auto.
   apply IHn with (stk:= (i'0;;instr_assert FF)::i0::stk) in H2.
   intuition. econstructor. econstructor; eauto. auto.
-  apply IHn with (stk:=stk) in H2.  
+  apply IHn with (stk:=stk) in H2.
   intuition. econstructor. econstructor. auto.
 Qed.
 
@@ -1268,7 +1268,7 @@ Lemma verify_totally_correct : forall G A P Q psi l t x,
     forall n c, proj1_sig t r n ->
       psi#l = Some c ->
       exists p', exists r',
-        stepstar (K.squash (n,psi)) p' 
+        stepstar (K.squash (n,psi)) p'
         r ((c ;; instr_assert FF)::nil)
         r' nil /\
         Q x (p',r').
@@ -1314,7 +1314,7 @@ Proof.
   auto.
   econstructor 2.
   econstructor.
-  econstructor. 
+  econstructor.
 
   spec H6 n r.
   spec H6 (K.squash (n,psi),r).

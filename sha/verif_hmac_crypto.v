@@ -28,7 +28,7 @@ Lemma key_vector l:
 Proof. rewrite bytesToBits_len, hmac_common_lemmas.mkKey_length; reflexivity. Qed.
 
 Definition mkCont (l:list Z) : HMAC_spec_abstract.HMAC_Abstract.Message (fun x => x=bytesToBits l /\ NPeano.Nat.divide 8 (length x)).
-eapply exist. split. reflexivity. 
+eapply exist. split. reflexivity.
 rewrite bytesToBits_len. exists (length l). trivial.
 Qed.
 
@@ -39,7 +39,7 @@ Definition bitspec KEY MSG :=
                       (mkCont (CONT MSG))).
 
 Definition CRYPTO (A : Comp.OracleComp (HMAC_spec_abstract.HMAC_Abstract.Message PARS256.P)
-                                       (Bvector.Bvector c) bool) 
+                                       (Bvector.Bvector c) bool)
                   (A_wf : DistSem.well_formed_oc A):=
            forall tau eps sig, PRFMod.h_PRF A tau ->
                                PRFMod.h_star_WCR A eps ->
@@ -62,7 +62,7 @@ Definition HMAC_crypto :=
          _d OF tptr tuchar,
          _n OF tint,
          _md OF tptr tuchar ]
-         PROP (writable_share shmd; 
+         PROP (writable_share shmd;
                has_lengthK (LEN KEY) (CONT KEY);
                has_lengthD 512 (LEN MSG) (CONT MSG))
          LOCAL (temp _md md; temp _key keyVal;
@@ -73,9 +73,9 @@ Definition HMAC_crypto :=
              data_block Tsh (CONT MSG) msgVal;
              K_vector kv;
              memory_block shmd 32 md)
-  POST [ tvoid ] 
+  POST [ tvoid ]
          EX digest:_,
-          PROP (bytesToBits digest = bitspec KEY MSG /\ 
+          PROP (bytesToBits digest = bitspec KEY MSG /\
                 forall A Awf, CRYPTO A Awf)
           LOCAL ()
           SEP(K_vector kv;
@@ -99,7 +99,7 @@ Lemma hmacbodycryptoproof Espec k KEY msg MSG kv shmd md buf
   (frame_ret_assert
      (function_body_ret_assert (tptr tuchar)
         (EX  digest : list Z,
-         PROP 
+         PROP
          (bytesToBits digest = bitspec KEY MSG /\
           (forall
              (A : Comp.OracleComp
@@ -130,23 +130,23 @@ forward_if  (
    SEP  (data_at_ Tsh t_struct_hmac_ctx_st buf; data_block Tsh key k;
          data_block Tsh data msg; K_vector kv;
          memory_block shmd 32 md)).
-  { apply denote_tc_comparable_split. 
+  { apply denote_tc_comparable_split.
     apply sepcon_valid_pointer2. apply memory_block_valid_ptr. auto. omega.
     apply valid_pointer_zero. }
   { (* Branch1 *) exfalso. subst md. contradiction.  }
-  { (* Branch2 *) forward. entailer. } 
+  { (* Branch2 *) forward. entailer. }
 Intros.
 assert_PROP (isptr k) as isPtrK by entailer!.
 forward_call (buf, k, kl, key, kv, HMACabs nil nil nil).
   { apply isptrD in isPtrK. destruct isPtrK as [kb [kofs HK]]. rewrite HK.
-    unfold initPre. entailer!. 
+    unfold initPre. entailer!.
   }
 assert_PROP (s256a_len (absCtxt (hmacInit key)) = 512).
   { unfold hmacstate_. Intros r. apply prop_right. apply H. }
 rename H into absH_len512.
 
-forward_call (hmacInit key, buf, msg, dl, data, kv). 
-  { rewrite absH_len512. assumption. } 
+forward_call (hmacInit key, buf, msg, dl, data, kv).
+  { rewrite absH_len512. assumption. }
 
 (* Call to HMAC_Final*)
 assert_PROP (@field_compatible CompSpecs (Tstruct _hmac_ctx_st noattr) nil buf).
@@ -163,9 +163,9 @@ forward.
 (*assert_PROP (field_compatible (tarray tuchar (sizeof t_struct_hmac_ctx_st)) nil buf).
 { unfold data_block at 1. unfold Zlength. simpl. apply prop_right. assumption. }
 rename H5 into FBUF.*)
-specialize (hmac_sound key data). unfold hmac. 
+specialize (hmac_sound key data). unfold hmac.
 rewrite <- HeqRES. simpl; intros.
-Exists buf dig. 
+Exists buf dig.
 (*clear - FC FC_c H7 H8 isbyteZ_key H0.*)
 Time normalize. (*6.4*) (*calling entailer! here takes > 13 secs*)
 apply andp_right. apply prop_right. subst.
@@ -175,10 +175,10 @@ apply andp_right. apply prop_right. subst.
          rewrite ByteBitRelations.bytes_bits_bytes_id.
          rewrite HMAC_equivalence.of_length_proof_irrel.
          rewrite ByteBitRelations.bytes_bits_bytes_id. reflexivity.
-           apply isbyteZ_mkKey. assumption.   
+           apply isbyteZ_mkKey. assumption.
            assumption.
            intros ? X. apply X.
-       split; trivial. split; trivial. 
+       split; trivial. split; trivial.
        intros ? X.
         unfold CRYPTO; intros. apply HMAC256_isPRF; assumption.
 cancel.
@@ -186,15 +186,15 @@ cancel.
   rewrite Zlength_correct; simpl.
   apply andp_left2.
   rewrite <- memory_block_data_at_; trivial.
-  rewrite (memory_block_data_at_ Tsh 
+  rewrite (memory_block_data_at_ Tsh
                     (tarray tuchar (@sizeof (@cenv_cs CompSpecs) (Tstruct _hmac_ctx_st noattr)))).
   2: trivial.
   eapply derives_trans. apply data_at_data_at_. apply derives_refl.
 Qed.
 
-Lemma body_hmac_crypto: semax_body HmacVarSpecs HmacFunSpecs 
+Lemma body_hmac_crypto: semax_body HmacVarSpecs HmacFunSpecs
       f_HMAC HMAC_crypto.
 Proof.
-start_function. 
+start_function.
 apply hmacbodycryptoproof; trivial.
 Qed.

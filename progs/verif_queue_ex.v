@@ -115,7 +115,7 @@ let wit := fresh "wit" in
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right_sepcon at 1 2; cancel
- | subst wit; cbv beta iota zeta; extensionality rho; 
+ | subst wit; cbv beta iota zeta; extensionality rho;
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    first [apply exp_congr; intros ?vret; reflexivity
@@ -241,7 +241,7 @@ Lemma main_loop1 : forall {Espec : OracleKind} (q0 locks results lvar0 : val) q 
   (Hresults : field_compatible (tarray (tarray tint 3) 3) [] results) i (Hi : 0 <= i < 3),
 semax (initialized_list [_i; _i__1; _t'1] (func_tycontext f_main Vprog Gprog))
   (PROP ( )
-   LOCAL (temp _i__1 (vint i); temp _t'1 q; gvar _results results; gvar _thread_locks locks; 
+   LOCAL (temp _i__1 (vint i); temp _t'1 q; gvar _results results; gvar _thread_locks locks;
    gvar _q0 q0)
    SEP (lqueue (fst (Znth (3 - i) lshs1 (Tsh, Tsh))) tint (is_int I32 Signed) q lock sh1 sh2 [];
    data_at_ Ews (tarray (tarray tint 3) (3 - i))
@@ -265,11 +265,11 @@ semax (initialized_list [_i; _i__1; _t'1] (func_tycontext f_main Vprog Gprog))
                     (Tcons (tptr tvoid) Tnil)) tvoid cc_default))
            [Ecast
               (Eaddrof (Evar _f (Tfunction (Tcons (tptr tvoid) Tnil) (tptr tvoid) cc_default))
-                 (tptr (Tfunction (Tcons (tptr tvoid) Tnil) (tptr tvoid) cc_default))) 
+                 (tptr (Tfunction (Tcons (tptr tvoid) Tnil) (tptr tvoid) cc_default)))
               (tptr tvoid); Ecast (Etempvar _t (tptr tint)) (tptr tvoid)])))
   (normal_ret_assert
      (PROP (0 <= i + 1 <= 3)
-      LOCAL (temp _i__1 (vint i); temp _t'1 q; gvar _results results; gvar _thread_locks locks; 
+      LOCAL (temp _i__1 (vint i); temp _t'1 q; gvar _results results; gvar _thread_locks locks;
       gvar _q0 q0)
       SEP (lqueue (fst (Znth (3 - (i + 1)) lshs1 (Tsh, Tsh))) tint (is_int I32 Signed) q lock sh1 sh2 [];
       data_at_ Ews (tarray (tarray tint 3) (3 - (i + 1)))
@@ -383,7 +383,7 @@ Qed.
 
 Lemma main_loop2 : forall {Espec : OracleKind} (q0 q lock locks results : val)
   sh1 sh2 (Hsh1 : readable_share sh1) (Hsh2 : readable_share sh2) (Hsh : sepalg.join sh1 sh2 Tsh)
-  gshs1 (Hglen1 : Zlength gshs1 = 3) 
+  gshs1 (Hglen1 : Zlength gshs1 = 3)
   (Hgshs1 : forall i : Z,
          0 <= i < 3 ->
          let
@@ -437,7 +437,7 @@ semax (initialized_list [_i; _i__1; _q1; _i__2; _i__3; _t'1] (func_tycontext f_m
   (Ssequence
      (Sset _l__1
         (Ederef
-           (Ebinop Oadd (Evar _thread_locks (tarray (tptr (Tstruct _lock_t noattr)) 3)) 
+           (Ebinop Oadd (Evar _thread_locks (tarray (tptr (Tstruct _lock_t noattr)) 3))
               (Etempvar _i__3 tint) (tptr (tptr (Tstruct _lock_t noattr)))) (tptr (Tstruct _lock_t noattr))))
      (Ssequence
         (Scall None (Evar _acquire (Tfunction (Tcons (tptr tvoid) Tnil) tvoid cc_default))

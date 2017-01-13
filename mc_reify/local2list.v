@@ -33,7 +33,7 @@ evar (T1: list (ident * val)).
 evar (T2: list (ident * (type * val))).
 evar (Q' : list (environ -> Prop)).
 
-assert (local2list  ((`(eq Vundef) (eval_id 1%positive)) :: (`(eq (Vint (Int.repr 1))) (eval_id 1%positive)) :: 
+assert (local2list  ((`(eq Vundef) (eval_id 1%positive)) :: (`(eq (Vint (Int.repr 1))) (eval_id 1%positive)) ::
    (`(eq 1 3)) :: nil)
   T1 T2 Q').
 subst T1 T2 Q'.
@@ -122,7 +122,7 @@ Proof.
       apply LOCALx_shuffle.
       intros. unfold LocallistD in *.
       simpl.
-      repeat rewrite in_app in *. simpl in *. intuition. 
+      repeat rewrite in_app in *. simpl in *. intuition.
   + eapply derives_trans.
     - rewrite <- insert_local.
       apply andp_derives; [apply derives_refl | exact IHlocal2list].
@@ -132,7 +132,7 @@ Proof.
       intuition.
 *induction H.
   + auto.
-  + rewrite <- insert_local. 
+  + rewrite <- insert_local.
 Admitted.
 
 Fixpoint locallist2ptree {A : Type} (l : list (ident * A)) (p : PTree.t A) (e : list Prop) : ((PTree.t A) * (list Prop)) :=

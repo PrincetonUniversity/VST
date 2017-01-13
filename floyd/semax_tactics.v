@@ -5,50 +5,50 @@ Require Import floyd.forward_lemmas.
 (* Bug: abbreviate replaces _ALL_ instances, when sometimes
   we only want just one. *)
 Tactic Notation "abbreviate" constr(y) "as"  ident(x)  :=
-   (first [ is_var y 
+   (first [ is_var y
            |  let x' := fresh x in pose (x':= @abbreviate _ y);
                change y with x']).
 
 Tactic Notation "abbreviate" constr(y) ":" constr(t) "as"  ident(x)  :=
-   (first [ is_var y 
+   (first [ is_var y
            |  let x' := fresh x in pose (x':= @abbreviate t y);
                change y with x']).
 
 Ltac unfold_abbrev :=
-  repeat match goal with H := @abbreviate _ _ |- _ => 
-                        unfold H, abbreviate; clear H 
+  repeat match goal with H := @abbreviate _ _ |- _ =>
+                        unfold H, abbreviate; clear H
             end.
 
 Ltac unfold_abbrev' :=
   repeat match goal with
-             | H := @abbreviate ret_assert _ |- _ => 
-                        unfold H, abbreviate; clear H 
-(*             | H := @abbreviate tycontext _ |- _ => 
-                        unfold H, abbreviate; clear H 
+             | H := @abbreviate ret_assert _ |- _ =>
+                        unfold H, abbreviate; clear H
+(*             | H := @abbreviate tycontext _ |- _ =>
+                        unfold H, abbreviate; clear H
 *)
-             | H := @abbreviate statement _ |- _ => 
-                        unfold H, abbreviate; clear H 
+             | H := @abbreviate statement _ |- _ =>
+                        unfold H, abbreviate; clear H
             end.
 
 Ltac unfold_abbrev_ret :=
-  repeat match goal with H := @abbreviate ret_assert _ |- _ => 
-                        unfold H, abbreviate; clear H 
+  repeat match goal with H := @abbreviate ret_assert _ |- _ =>
+                        unfold H, abbreviate; clear H
             end.
 
 Ltac unfold_abbrev_commands :=
-  repeat match goal with H := @abbreviate statement _ |- _ => 
-                        unfold H, abbreviate; clear H 
+  repeat match goal with H := @abbreviate statement _ |- _ =>
+                        unfold H, abbreviate; clear H
             end.
 
 Ltac clear_abbrevs :=  repeat match goal with
                                     | H := @abbreviate statement _ |- _ => clear H
-                                    | H := @abbreviate ret_assert _ |- _ => clear H  
-                                    | H := @abbreviate tycontext _ |- _ => clear H  
+                                    | H := @abbreviate ret_assert _ |- _ => clear H
+                                    | H := @abbreviate tycontext _ |- _ => clear H
                                     end.
 
 Arguments var_types !Delta / .
 
-Ltac simplify_Delta_core H := 
+Ltac simplify_Delta_core H :=
  repeat match type of H with _ =  ?A => unfold A in H end;
  cbv delta [abbreviate update_tycon func_tycontext] in H; simpl in H;
  repeat
@@ -73,7 +73,7 @@ Ltac simplify_Delta_core H :=
  simpl in H.
 
 Ltac simplify_Delta_from A :=
- let d := fresh "d" in let H := fresh in 
+ let d := fresh "d" in let H := fresh in
  remember A as d eqn:H;
  simplify_Delta_core H;
  match type of H with (d = ?A) => apply A end.
@@ -81,7 +81,7 @@ Ltac simplify_Delta_from A :=
 Ltac simplify_Delta_at A :=
  match A with
  | mk_tycontext _ _ _ _ _ => idtac
- | _ => let d := fresh "d" in let H := fresh in 
+ | _ => let d := fresh "d" in let H := fresh in
        remember A as d eqn:H;
        simplify_Delta_core H;
        subst d
@@ -95,7 +95,7 @@ Fixpoint initialized_list ids D :=
  end.
 
 Lemma initialized_list1:  forall i il a1 a2 a3 a4 a5 d',
-    initialized_list il 
+    initialized_list il
       match a1 ! i with
        | Some (ty, _) =>
           mk_tycontext (PTree.set i (ty, true) a1) a2 a3 a4 a5
@@ -105,8 +105,8 @@ Lemma initialized_list1:  forall i il a1 a2 a3 a4 a5 d',
 Proof. intros; subst; reflexivity.
 Qed.
 
-Ltac simplify_Delta_OLD := 
- match goal with 
+Ltac simplify_Delta_OLD :=
+ match goal with
 | |- semax ?D _ _ _ =>
             simplify_Delta_at D
 | |- PROPx _ (LOCALx (tc_environ ?D :: _) _) |-- _ =>
@@ -126,7 +126,7 @@ Ltac simplify_Delta_OLD :=
      simplify_Delta_at A; simplify_Delta_at B; reflexivity
 end.
 
-Ltac reduce_snd S1 := 
+Ltac reduce_snd S1 :=
 match goal with
 | |- context [snd ?A] =>
    let j := fresh in set (j := snd A) at 1;
@@ -156,20 +156,20 @@ match t with
 | @PTree.Leaf _ => idtac
 end.
 
-Ltac check_ground_Delta := 
-match goal with 
-|  Delta := @abbreviate _ (mk_tycontext ?A ?B _ ?D _) |- _ => 
+Ltac check_ground_Delta :=
+match goal with
+|  Delta := @abbreviate _ (mk_tycontext ?A ?B _ ?D _) |- _ =>
    first [check_ground_ptree A | fail 99 "Temps component of Delta not a ground PTree"];
    first [check_ground_ptree B | fail 99 "Local Vars component of Delta not a ground PTree"];
    first [check_ground_ptree D | fail 99 "Globals component of Delta not a ground PTree"]
 end;
 match goal with
 |  Delta := @abbreviate _ (mk_tycontext ?A ?B _ ?D ?DS),
-   DS' := @abbreviate (PTree.t funspec) ?E  |- _ => 
+   DS' := @abbreviate (PTree.t funspec) ?E  |- _ =>
    constr_eq DS DS';
    first [check_ground_ptree E | fail 99 "Delta_specs not a ground PTree"]
 |  Delta := @abbreviate _ (mk_tycontext ?A ?B _ ?D ?DS),
-   DS' : (PTree.t funspec) |- _ => 
+   DS' : (PTree.t funspec) |- _ =>
    constr_eq DS DS'
 end.
 
@@ -191,12 +191,12 @@ end.
     end.
 
 Ltac simplify_func_tycontext_core :=
- match goal with |- @semax _ _ ?DD ?Pre ?Body ?Post =>  
+ match goal with |- @semax _ _ ?DD ?Pre ?Body ?Post =>
   match DD with context [(func_tycontext ?f ?V ?G)] =>
     let Pre' := fresh "Pre" in set (Pre':=Pre) at 1;
     let Body' := fresh "Body" in set (Body':=Body) at 1;
     let Post' := fresh "Post" in set (Post':=Post) at 1;
-    let D1 := fresh "D1" in let Delta := fresh "Delta" in 
+    let D1 := fresh "D1" in let Delta := fresh "Delta" in
     set (Delta := func_tycontext f V G);
     set (D1 := func_tycontext f V G) in Delta;
     change D1 with (@abbreviate tycontext D1) in Delta;
@@ -217,7 +217,7 @@ Ltac simplify_func_tycontext_core :=
      end
     end;
     intros S1 DS Delta;
-    change (@snd ident funspec) with 
+    change (@snd ident funspec) with
            (fun (p: ident*funspec) => let (_,y):=p in y) in S1;
     change (@PTree.set funspec) with (@ptree_set funspec) in S1;
     cbv beta iota delta [ptree_set] in S1;
@@ -225,19 +225,19 @@ Ltac simplify_func_tycontext_core :=
    end
  end.
 
-Ltac simplify_func_tycontext := 
+Ltac simplify_func_tycontext :=
  ensure_no_augment_funspecs;
  simplify_func_tycontext_core;
  check_ground_Delta.
 (*
 Ltac simplify_func_tycontext :=
  ensure_no_augment_funspecs;
- match goal with |- @semax _ _ ?DD ?Pre ?Body ?Post =>  
+ match goal with |- @semax _ _ ?DD ?Pre ?Body ?Post =>
   match DD with context [(func_tycontext ?f ?V ?G)] =>
     let Pre' := fresh "Pre" in set (Pre':=Pre) at 1;
     let Body' := fresh "Body" in set (Body':=Body) at 1;
     let Post' := fresh "Post" in set (Post':=Post) at 1;
-    let D1 := fresh "D1" in let Delta := fresh "Delta" in 
+    let D1 := fresh "D1" in let Delta := fresh "Delta" in
     set (Delta := func_tycontext f V G);
     set (D1 := func_tycontext f V G) in Delta;
     change D1 with (@abbreviate tycontext D1) in Delta;
@@ -261,10 +261,10 @@ Ltac simplify_func_tycontext :=
 *)
 
 Ltac simplify_Delta :=
-match goal with 
+match goal with
  | D1 := _ : tycontext |- semax ?D _ _ _ =>
     constr_eq D1 D
- | DS := _ : PTree.t funspec, D1 := _ : tycontext |- semax ?D _ _ _ => 
+ | DS := _ : PTree.t funspec, D1 := _ : tycontext |- semax ?D _ _ _ =>
     let DT := fresh "DT" in set (DT := D); subst D1;
      lazy beta iota zeta delta - [DS] in DT;
     pose (D1 := @abbreviate _ DT);
@@ -283,7 +283,7 @@ match goal with
         let z := fresh "z" in set (z := initialized i (mk_tycontext a b c d e));
           unfold initialized in z; simpl in z; subst z;
           simplify_Delta
-     | context [initialized ?i ?B] => 
+     | context [initialized ?i ?B] =>
         match B with appcontext [initialized] => fail 1 | _ => idtac end;
         unfold B; simplify_Delta
      end
@@ -293,7 +293,7 @@ match goal with
 Ltac build_Struct_env :=
  match goal with
  | SE := @abbreviate type_id_env _ |- _ => idtac
- | Delta := @abbreviate tycontext _ |- _ => 
+ | Delta := @abbreviate tycontext _ |- _ =>
     pose (Struct_env := @abbreviate _ (type_id_env.compute_type_id_env Delta));
     simpl type_id_env.compute_type_id_env in Struct_env
  end.
@@ -301,10 +301,10 @@ Ltac build_Struct_env :=
 
 Ltac abbreviate_semax :=
  match goal with
- | |- semax _ _ _ _ => 
+ | |- semax _ _ _ _ =>
         simplify_Delta;
         unfold_abbrev';
-        match goal with |- semax ?D _ ?C ?P => 
+        match goal with |- semax ?D _ ?C ?P =>
 (*            abbreviate D : tycontext as Delta;*)
             abbreviate P : ret_assert as POSTCONDITION;
             match C with
@@ -330,20 +330,20 @@ Ltac abbreviate_semax :=
  simpl typeof.
 
 Ltac check_Delta :=
-match goal with 
+match goal with
  | Delta := @abbreviate tycontext (mk_tycontext _ _ _ _ _) |- _ =>
-    match goal with 
+    match goal with
     | |- _ => clear Delta; check_Delta
-    | |- semax Delta _ _ _ => idtac 
+    | |- semax Delta _ _ _ => idtac
     end
  | _ => simplify_Delta;
-     match goal with |- semax ?D _ _ _ => 
+     match goal with |- semax ?D _ _ _ =>
             abbreviate D : tycontext as Delta
      end
 end.
 
 Ltac normalize_postcondition :=  (* produces a normal_ret_assert *)
- match goal with 
+ match goal with
  | P := _ |- semax _ _ _ ?P =>
      unfold P, abbreviate; clear P; normalize_postcondition
  | |- semax _ _ _ (normal_ret_assert _) => idtac
@@ -352,7 +352,7 @@ Ltac normalize_postcondition :=  (* produces a normal_ret_assert *)
  autorewrite with ret_assert.
 
 Ltac weak_normalize_postcondition := (* does not insist on normal_ret_assert *)
- repeat match goal with P := @abbreviate ret_assert _ |- _ => 
+ repeat match goal with P := @abbreviate ret_assert _ |- _ =>
                unfold abbreviate in P; subst P end;
  autorewrite with ret_assert.
 
@@ -370,7 +370,7 @@ Ltac replaceIdents D ids Delta :=
 
 (* The core replace & solve tactic*)
 Ltac replaceIdents_and_solve D ids Delta :=
-  match ids with nil => replace Delta with D; 
+  match ids with nil => replace Delta with D;
         first [simplify_Delta; reflexivity | idtac]
    | (cons ?i ?tlids) =>
       replaceIdents_and_solve (initialized i D) tlids Delta
@@ -379,7 +379,7 @@ Ltac replaceIdents_and_solve D ids Delta :=
 Ltac fold_all al :=
  match al with ?a :: ?al' => fold a; fold_all al' | nil => idtac end.
 
-Ltac refold_temp_names F := 
+Ltac refold_temp_names F :=
   unfold PTree.prev; simpl PTree.prev_append;
   let fbody := (eval hnf in F) in
    match fbody with
@@ -394,7 +394,7 @@ Definition is_init_temp Delta i : bool :=
   match (temp_types Delta) ! i with
   | Some (_ , b) => b
   | None => false
- end. 
+ end.
 
 Ltac initialized_temps_of_fundec F Delta :=
   let temps := (eval hnf in (fn_temps F)) in
@@ -413,7 +413,7 @@ Ltac semax_subcommand V G F :=
   abbreviate_semax;
   match goal with |- semax ?Delta _ _ _ =>
       mkConciseDelta V G F Delta;
-      repeat 
+      repeat
          match goal with
           | P := @abbreviate statement _ |- _ => unfold abbreviate in P; subst P
           | P := @abbreviate ret_assert _ |- _ => unfold abbreviate in P; subst P

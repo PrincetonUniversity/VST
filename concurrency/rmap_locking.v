@@ -167,7 +167,7 @@ Proof.
   replace _ with (4 * Z.of_nat length < Int.modulus)%Z in bound1 by (unfold sizeof; repeat f_equal; zify; omega).
   change (Int.unsigned ofs + 4 * Z.max 0 (Z.of_nat length) <= Int.modulus)%Z in bound2.
   replace _ with (Int.unsigned ofs + 4 * Z.of_nat length <= Int.modulus)%Z in bound2 by (f_equal; zify; omega).
-  
+
   simpl in H.
   unfold mapsto_memory_block.at_offset in *.
   simpl in H.
@@ -198,19 +198,19 @@ Proof.
     clear bound1 bound2.
     induction length; intros [|n]; simpl; auto.
   }
-  
+
   clear H. revert H'.
   rewrite Nat2Z.id in *.
   rewrite int_add_repr_0_r in *.
   replace (Int.intval ofs) with (Int.intval (Int.add ofs (Int.repr (4 * 0))))
     by (rewrite int_add_repr_0_r; reflexivity).
-  
+
   assert (bound3 : (Int.unsigned ofs + (4 * 0) + 4 * Z.of_nat length <= Int.modulus)%Z) by omega.
   remember 0%Z as z; assert (z0 : 0 <= z) by omega; clear Heqz.
   assert (RR : forall z,
              (match z with 0 => 0 | Z.pos y' => Z.pos y'~0~0 | Z.neg y' => Z.neg y'~0~0 end = 4 * z)%Z)
     by reflexivity.
-  
+
   assert (AA : forall P, (b = b /\ P) <-> P) by (intros; tauto).
   revert z z0 bound3 phi.
   induction length.
@@ -517,9 +517,9 @@ Lemma rmap_makelock_join phi1 phi1' loc R length phi2 phi :
 Proof.
   intros Hpos (Hlev & Hsame & Hchanged) j.
   assert (L1 : level phi1 = level phi) by (eapply join_level; eauto).
-  
+
   pose proof make_rmap (makelock_f phi loc R length) as Hphi'.
-  
+
   (* the makelock_f function is valid *)
   assert_specialize Hphi'. {
     clear Hphi'.
@@ -585,9 +585,9 @@ Proof.
         revert V.
         inv jz; simpl; congruence.
   }
-  
+
   specialize (Hphi' (level phi1)).
-  
+
   (* the makelock_f function is stable under approximation at level phi1 *)
   assert_specialize Hphi'. {
     pose proof approx_oo_approx as AA.
@@ -603,10 +603,10 @@ Proof.
     rewrite <-(AA (level phi)). reflexivity.
     reflexivity.
   }
-  
+
   destruct Hphi' as (phi' & Hlev' & Ephi').
   exists phi'.
-  
+
   (* the new rmap indeed joins *)
   assert (j' : join phi1' phi2 phi'). {
     apply resource_at_join2.
@@ -630,7 +630,7 @@ Proof.
       + spec Hsame x nr.
         congruence.
   }
-  
+
   split; auto.
   split. apply join_level in j. destruct j; congruence.
   split.
@@ -667,9 +667,9 @@ Lemma rmap_freelock_join phi1 phi1' m loc R length phi2 phi :
 Proof.
   intros Hpos (Hlev & Hsame & Hchanged) j.
   assert (L1 : level phi1 = level phi) by (eapply join_level; eauto).
-  
+
   pose proof make_rmap (freelock_f phi m loc length) as Hphi'.
-  
+
   (* the freelock_f function is valid *)
   assert_specialize Hphi'. {
     clear Hphi'.
@@ -724,9 +724,9 @@ Proof.
           destruct (phi @ (b, ofs - z)) as [ ? | ? ? [ | | | ] | ] eqn:E'; simpl in *; auto.
           all: inv j; simpl in *; breakhyps.
   }
-  
+
   specialize (Hphi' (level phi1)).
-  
+
   (* the freelock_f function is stable under approximation at level phi1 *)
   assert_specialize Hphi'. {
     pose proof approx_oo_approx as AA.
@@ -736,10 +736,10 @@ Proof.
     pose proof resource_at_approx phi x.
     if_tac; destruct (phi @ x) as [t | t p [] p0 | k p] eqn:E; auto.
   }
-  
+
   destruct Hphi' as (phi' & Hlev' & Ephi').
   exists phi'.
-  
+
   (* the new rmap indeed joins *)
   assert (j' : join phi1' phi2 phi'). {
     apply resource_at_join2.
@@ -763,7 +763,7 @@ Proof.
       + spec Hsame x nr.
         congruence.
   }
-  
+
   split; auto.
   split. apply join_level in j. destruct j; congruence.
   split.
@@ -799,7 +799,7 @@ enough *)
 Definition LKspec_ext (R: pred rmap) lksize : spec :=
    fun (rsh sh: Share.t) (l: AV.address)  =>
     allp (jam (adr_range_dec l lksize)
-              (jam (eq_dec l) 
+              (jam (eq_dec l)
                    (yesat (SomeP rmaps.Mpred (fun _ => R)) (LK lksize) rsh sh)
                    (CTat l rsh sh))
               (fun _ => TT)).
@@ -820,9 +820,9 @@ Proof.
   rewrite Hn in Hat.
   pose proof data_at_unfold _ _ _ _ _ _ Hwritable Hat as Hbefore.
   rewrite <-Hn in *. clear n Hn.
-  
+
   pose proof make_rmap (makelock_f phi (b, Int.unsigned ofs) R (4 * length)) as Hphi'.
-  
+
   assert_specialize Hphi'. {
     intros b' ofs'.
     remember (4 * length) as n.
@@ -872,9 +872,9 @@ Proof.
       apply empty_NO in Hbefore.
       breakhyps; rewr (phi @ (b', ofs')); simpl; auto.
   }
-  
+
   specialize (Hphi' (level phi)).
-  
+
   assert_specialize Hphi'. {
     pose proof approx_oo_approx as AA.
     unfold "oo", makelock_f in *.
@@ -888,7 +888,7 @@ Proof.
     rewrite <-(AA (level phi)). reflexivity.
     reflexivity.
   }
-  
+
   destruct Hphi' as (phi' & Hlev & Ephi').
   exists phi'.
   split.
@@ -947,9 +947,9 @@ Lemma lock_inv_rmap_freelock CS sh b ofs R phi m :
 Proof.
   intros Halign Hbound Hwritable Hli.
   destruct Hli as (? & ? & E & Hli). injection E as <- <- .
-  
+
   pose proof make_rmap (freelock_f phi m (b, Int.unsigned ofs) 4) as Hphi'.
-  
+
   assert_specialize Hphi'. {
     intros b' ofs'.
     clear Hphi'.
@@ -971,9 +971,9 @@ Proof.
       apply identity_NO in Hli.
       destruct Hli as [-> | (? & ? & ->)]; simpl; constructor.
   }
-  
+
   specialize (Hphi' (level phi)).
-  
+
   assert_specialize Hphi'. {
     pose proof approx_oo_approx as AA.
     unfold "oo", freelock_f in *.
@@ -981,7 +981,7 @@ Proof.
     pose proof resource_at_approx phi x.
     repeat if_tac; destruct (phi @ x) as [t | t p [] p0 | k p] eqn:E; auto.
   }
-  
+
   destruct Hphi' as (phi' & Hlev & Ephi').
   exists phi'.
   split.
@@ -1024,7 +1024,7 @@ Proof.
       replace (Int.unsigned ofs - Int.unsigned ofs) with 0 by omega; simpl.
       reflexivity.
     * destruct Hli as (p & ->). f_equal. now apply writable_unique_right; auto.
-      destruct x as (b', ox); simpl in r; destruct r as (<-, r); simpl. 
+      destruct x as (b', ox); simpl in r; destruct r as (<-, r); simpl.
       assert (A : forall a b c, a - b = c -> a = b + c) by (intros; omega).
       destruct (nat_of_Z (ox - Int.unsigned ofs)) as [|[|[|[|[|]]]]] eqn:Ez; auto.
       { apply juicy_mem_lemmas.Zminus_lem in Ez. subst ox; auto. apply r. }

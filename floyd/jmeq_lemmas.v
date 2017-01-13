@@ -137,8 +137,8 @@ Qed.
 (** However, when the dependencies are equal, [JMeq (P p) x (P q) y]
     is as strong as [eq_dep U P p x q y] (this uses [JMeq_eq]) *)
 
-Lemma JMeq_eq_dep : 
-  forall U (P:U->Prop) p q (x:P p) (y:P q), 
+Lemma JMeq_eq_dep :
+  forall U (P:U->Prop) p q (x:P p) (y:P q),
   p = q -> JMeq x y -> eq_dep U P p x q y.
 Proof.
 intros.
@@ -173,7 +173,7 @@ Proof.
   apply JMeq_refl.
 Qed.
 
-Lemma JMeq_sumtype_ll: forall A B C D x y, A = C -> B = D -> 
+Lemma JMeq_sumtype_ll: forall A B C D x y, A = C -> B = D ->
   (@JMeq (A + B) (inl x) (C + D) (inl y)) ->
   JMeq x y.
 Proof.
@@ -186,7 +186,7 @@ Proof.
   apply JMeq_refl.
 Qed.
 
-Lemma JMeq_sumtype_rr: forall A B C D x y, A = C -> B = D -> 
+Lemma JMeq_sumtype_rr: forall A B C D x y, A = C -> B = D ->
   (@JMeq (A + B) (inr x) (C + D) (inr y)) ->
   JMeq x y.
 Proof.

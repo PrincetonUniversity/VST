@@ -1421,7 +1421,7 @@ Definition f_SHA256_Final := {|
                                               (tptr tuint)) tuint))
                                         (Ssequence
                                           (Scall None
-                                            (Evar ___builtin_write32_reversed 
+                                            (Evar ___builtin_write32_reversed
                                             (Tfunction
                                               (Tcons (tptr tuint)
                                                 (Tcons tuint Tnil)) tvoid

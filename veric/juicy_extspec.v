@@ -15,7 +15,7 @@ Record juicy_ext_spec (Z: Type) := {
   JE_post_hered: forall e t ge_s tret rv z, hereditary age (ext_spec_post JE_spec e t ge_s tret rv z);
   JE_exit_hered: forall rv z, hereditary age (ext_spec_exit JE_spec rv z)
 }.
- 
+
 Class OracleKind := {
   OK_ty : Type;
   OK_spec: juicy_ext_spec OK_ty
@@ -63,13 +63,13 @@ Record jm_init_package: Type := {
 }.
 
 Definition init_jmem {G} (ge: G) (jm: juicy_mem) (d: jm_init_package) :=
-  jm = initial_jm (jminit_prog d) (jminit_m d) (jminit_G d) (jminit_lev d) 
+  jm = initial_jm (jminit_prog d) (jminit_m d) (jminit_G d) (jminit_lev d)
          (jminit_init_mem d) (jminit_defs_no_dups d) (jminit_fdecs_match d).
 
-Definition juicy_core_sem  
+Definition juicy_core_sem
   {G C} (csem: CoreSemantics G C mem) :
    CoreSemantics G C juicy_mem :=
-  @Build_CoreSemantics _ _ _ 
+  @Build_CoreSemantics _ _ _
     (semantics.initial_core csem)
     (at_external csem)
     (after_external csem)
@@ -89,7 +89,7 @@ Section upd_exit.
    ; ext_spec_post := ext_spec_post spec
    ; ext_spec_exit := Q_exit |}.
 
-  Definition upd_exit'' (ef : external_function) (x : ext_spec_type spec ef) ge := 
+  Definition upd_exit'' (ef : external_function) (x : ext_spec_type spec ef) ge :=
     upd_exit' (ext_spec_post spec ef x ge (sig_res (ef_sig ef))).
 
   Program Definition upd_exit {ef : external_function} (x : ext_spec_type spec ef) ge :=
@@ -105,15 +105,15 @@ Program Definition juicy_mem_op (P : pred rmap) : pred juicy_mem :=
   fun jm => P (m_phi jm).
  Next Obligation.
   intro; intros.
-  apply age1_juicy_mem_unpack in H.  
+  apply age1_juicy_mem_unpack in H.
   destruct H.
   eapply pred_hereditary; eauto.
  Qed.
 
 Lemma age_resource_decay:
-   forall b jm1 jm2 jm1' jm2',         
-        resource_decay b jm1 jm2 -> 
-        age jm1 jm1' -> age jm2 jm2' -> 
+   forall b jm1 jm2 jm1' jm2',
+        resource_decay b jm1 jm2 ->
+        age jm1 jm1' -> age jm2 jm2' ->
         level jm1 = S (level jm2) ->
         resource_decay b jm1' jm2'.
 Proof.
@@ -187,47 +187,47 @@ Proof.
       rewrite H6.
       rewrite <- (approx_oo_approx' j2' (S j2')) at 1 by auto.
       rewrite <- (approx'_oo_approx j2' (S j2')) at 2 by auto.
-      rewrite <- preds_fmap_fmap; rewrite H6. rewrite preds_fmap_NoneP. auto. 
+      rewrite <- preds_fmap_fmap; rewrite H6. rewrite preds_fmap_NoneP. auto.
     - pose proof (age1_YES _ _ l rsh pfullshare (VAL v') H1).
       rewrite H4 in H3. auto.
   + destruct H2 as [? [v ?]]; right; right; left.
     split; auto. exists v.   apply (age1_YES _ _ l _ _ _ H1) in H3. auto.
   + right; right; right.
-    destruct H2 as [v [pp [? ?]]]. exists v. econstructor; split; auto. 
+    destruct H2 as [v [pp [? ?]]]. exists v. econstructor; split; auto.
     pose proof (age1_resource_at _ _ H0 l (YES Share.top pfullshare (VAL v) pp)).
     rewrite H4.
     simpl. reflexivity.
-    rewrite <- (resource_at_approx jm1 l). 
+    rewrite <- (resource_at_approx jm1 l).
     rewrite H2. reflexivity.
     assert (necR jm2 jm2'). apply laterR_necR. constructor. auto.
     apply (necR_NO _ _ l Share.bot H4). auto.
 Qed.
 
-Lemma necR_PURE' phi0 phi k p adr : 
-  necR phi0 phi -> 
+Lemma necR_PURE' phi0 phi k p adr :
+  necR phi0 phi ->
   phi @ adr = PURE k p ->
   (*a stronger theorem is possible -- this one doesn't relate p, pp*)
   exists pp, phi0 @ adr = PURE k pp.
-Proof. 
+Proof.
   intros Hnec H.
-  case_eq (phi0 @ adr). 
-  { intros. apply necR_NO with (l:=adr)(rsh:=t) in Hnec. 
+  case_eq (phi0 @ adr).
+  { intros. apply necR_NO with (l:=adr)(rsh:=t) in Hnec.
     rewrite Hnec in H0. rewrite H0 in H. congruence. }
   { intros. eapply necR_YES in Hnec; eauto. rewrite Hnec in H. congruence. }
   { generalize (necR_level _ _ Hnec); intros Hlev.
-    intros. eapply necR_PURE in Hnec; eauto. 
+    intros. eapply necR_PURE in Hnec; eauto.
     rewrite Hnec in H. inversion H. subst. eexists. eauto. }
 Qed.
 
 Lemma age_safe {G C}
   (csem: CoreSemantics G C mem) {Z}
       (genv_symb: G -> PTree.t block) (Hspec : juicy_ext_spec Z):
-  forall jm jm0, age jm0 jm -> 
-  forall ge ora c, 
+  forall jm jm0, age jm0 jm ->
+  forall ge ora c,
    safeN genv_symb (juicy_core_sem csem) Hspec ge (level jm0) ora c jm0 ->
    safeN genv_symb (juicy_core_sem csem) Hspec ge (level jm) ora c jm.
 Proof.
-  intros. rename H into H2. 
+  intros. rename H into H2.
    rewrite (age_level _ _ H2) in H0.
    remember (level jm) as N.
    revert c jm0 jm HeqN H2 H0; induction N; intros.
@@ -244,14 +244,14 @@ Proof.
    apply levelS_age1 in H6. destruct H6 as [jm1' ].
    econstructor; eauto.
    split.
-   replace (m_dry jm) with (m_dry jm0) 
+   replace (m_dry jm) with (m_dry jm0)
      by (decompose [and] (age1_juicy_mem_unpack _ _ H2); auto).
    instantiate (1 := jm1').
-   replace (m_dry jm1') with (m_dry m') 
+   replace (m_dry jm1') with (m_dry m')
      by (decompose [and] (age1_juicy_mem_unpack _ _ H6); auto).
    eauto.
    split.
-   replace (m_dry jm) with (m_dry jm0) 
+   replace (m_dry jm) with (m_dry jm0)
      by (decompose [and] (age1_juicy_mem_unpack _ _ H2); auto).
    eapply age_resource_decay; try eassumption.
    destruct (age1_juicy_mem_unpack _ _ H2); auto.
@@ -259,7 +259,7 @@ Proof.
    apply age_level in H6. rewrite <- H6.
    omega.
    eapply IHN; try eassumption.
-   apply age_level in H6; omega. 
+   apply age_level in H6; omega.
   + eapply safeN_external; [eauto | eapply JE_pre_hered; eauto |].
     intros.
     destruct (H4 ret m' z' n') as [c' [? ?]]; auto.
@@ -291,7 +291,7 @@ Proof.
        ++ rewrite <-resource_at_approx, Hphi; auto.
       * intros adr. case_eq (m_phi m' @ adr); auto. intros k p Hm'.
         destruct H8 as [_ H8].
-        spec H8 adr. rewrite Hm' in H8. destruct H8 as [pp H8]. 
+        spec H8 adr. rewrite Hm' in H8. destruct H8 as [pp H8].
         apply age_jm_phi in H2.
         assert (Hnec: necR (m_phi jm0) (m_phi jm)) by (apply rt_step; auto).
         eapply necR_PURE' in Hnec; eauto.
@@ -329,10 +329,10 @@ Proof.
     remember (phi1 @ l) as x1;
     remember (phi2 @ l) as x2;
     subst.
-  
+
   - (* phi1: same   | phi2: same   *)
     congruence.
-  
+
   - (* phi1: same   | phi2: update *)
     rewrite <- E1, El.
     rewrite El in E1.
@@ -340,7 +340,7 @@ Proof.
     destruct (jmc1 _ _ _ _ _ E2).
     destruct (jmc2 _ _ _ _ _ E2').
     congruence.
-  
+
   - (* phi1: same   | phi2: alloc  *)
     exfalso.
     rewrite phino in E1. simpl in E1.
@@ -355,7 +355,7 @@ Proof.
     clear -jmacc2. exfalso.
     unfold perm_of_sh in *.
     repeat if_tac in jmacc2; congruence.
-  
+
   - (* phi1: same   | phi2: free   *)
     exfalso.
     rewrite E2 in E1.
@@ -371,7 +371,7 @@ Proof.
     clear -jmacc2. exfalso.
     unfold perm_of_sh in *.
     repeat if_tac in jmacc2; congruence.
-  
+
   - (* phi1: update | phi2: same   *)
     rewrite <- E2, <-El.
     rewrite <-El in E2.
@@ -379,17 +379,17 @@ Proof.
     destruct (jmc1 _ _ _ _ _ E1').
     destruct (jmc2 _ _ _ _ _ E1).
     congruence.
-  
+
   - (* phi1: update | phi2: update *)
     destruct (jmc1 _ _ _ _ _ E1').
     destruct (jmc2 _ _ _ _ _ E2').
     congruence.
-  
+
   - (* phi1: update | phi2: alloc  *)
     rewrite phino in E1.
     simpl in E1.
     inversion E1.
-  
+
   - (* phi1: update | phi2: free   *)
     exfalso.
     rewrite E2 in E1.
@@ -406,7 +406,7 @@ Proof.
     unfold perm_of_sh in *.
     unfold fullshare in *.
     repeat if_tac in jmacc2; congruence.
-  
+
   - (* phi1: alloc  | phi2: same   *)
     exfalso.
     rewrite phino in E2. simpl in E2.
@@ -421,20 +421,20 @@ Proof.
     clear -jmacc1. exfalso.
     unfold perm_of_sh in *.
     repeat if_tac in jmacc1; congruence.
-  
+
   - (* phi1: alloc  | phi2: update *)
     rewrite phino in E2.
     simpl in E2.
     inversion E2.
-  
+
   - (* phi1: alloc  | phi2: alloc  *)
     destruct (jmc1 _ _ _ _ _ E1).
     destruct (jmc2 _ _ _ _ _ E2).
     congruence.
-  
+
   - (* phi1: alloc  | phi2: free   *)
     congruence.
-  
+
   - (* phi2: free   | phi2: same   *)
     exfalso.
     rewrite E1 in E2.
@@ -450,7 +450,7 @@ Proof.
     clear -jmacc1. exfalso.
     unfold perm_of_sh in *.
     repeat if_tac in jmacc1; congruence.
-  
+
   - (* phi2: free   | phi2: update *)
     exfalso.
     rewrite E1 in E2.
@@ -467,10 +467,10 @@ Proof.
     unfold perm_of_sh in *.
     unfold fullshare in *.
     repeat if_tac in jmacc1; congruence.
-  
+
   - (* phi2: free   | phi2: alloc  *)
     congruence.
-  
+
   - (* phi2: free   | phi2: free   *)
     congruence.
 Qed.

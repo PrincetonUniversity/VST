@@ -26,9 +26,9 @@ Section PosEqType.
 Definition pos_eq := [rel u v : pos | n u == n v].
 
 Lemma pos_eqP : Equality.axiom pos_eq.
-Proof. 
-move=> /=; case=> n0 pf0; case=> n1 pf1. 
-case Heq: (n0 == n1). 
+Proof.
+move=> /=; case=> n0 pf0; case=> n1 pf1.
+case Heq: (n0 == n1).
 { move: (eqP Heq) pf0 pf1=> -> pf0 pf1.
    have ->: pf0 = pf1 by apply: proof_irr.
    by apply: ReflectT.
@@ -37,7 +37,7 @@ case Heq: (n0 == n1).
    by move: Heq; rewrite Heq1; move/eqP; apply.
 }
 Qed.
-  
+
 Definition pos_eqMixin := EqMixin pos_eqP.
 Canonical pos_eqType := Eval hnf in EqType pos pos_eqMixin.
 

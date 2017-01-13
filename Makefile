@@ -21,7 +21,7 @@ COMPCERT ?= compcert
 
 #Note2:  By default, the rules for converting .c files to .v files
 # are inactive.  To activate them, do something like
-CLIGHTGEN=$(COMPCERT)/clightgen 
+CLIGHTGEN=$(COMPCERT)/clightgen
 
 #Note3: for SSReflect, one solution is to install MathComp 1.6
 # somewhere add this line to a CONFIGURE file
@@ -113,7 +113,7 @@ SEPCOMP_FILES = \
   wholeprog_simulations.v \
   wholeprog_lemmas.v
 
-# what is:  erasure.v context.v context_equiv.v jstep.v 
+# what is:  erasure.v context.v context_equiv.v jstep.v
 
 CONCUR_FILES= \
   addressFiniteMap.v cast.v compcert_imports.v \
@@ -228,7 +228,7 @@ FLOYD_FILES= \
    nested_field_lemmas.v efield_lemmas.v proj_reptype_lemmas.v replace_refill_reptype_lemmas.v \
    data_at_rec_lemmas.v field_at.v stronger.v \
    for_lemmas.v semax_tactics.v expr_lemmas.v diagnosis.v simple_reify.v simpl_reptype.v \
-   freezer.v 
+   freezer.v
 #real_forward.v
 
 
@@ -242,7 +242,7 @@ PROGS_FILES= \
   even.v verif_even.v odd.v verif_odd.v \
   merge.v verif_merge.v verif_append.v verif_append2.v bst.v verif_bst.v \
   verif_bin_search.v incr.v verif_incr.v cond.v verif_cond.v conclib.v
-# verif_message.v verif_dotprod.v verif_insertion_sort.v 
+# verif_message.v verif_dotprod.v verif_insertion_sort.v
 
 SHA_FILES= \
   general_lemmas.v SHA256.v common_lemmas.v pure_lemmas.v sha_lemmas.v functional_prog.v \
@@ -367,10 +367,11 @@ else
 	@$(COQC) $(COQFLAGS) $*.v
 endif
 
-COQVERSION= 8.5pl1 or-else 8.5pl2 or-else 8.5pl3 or-else 8.6beta1
+# COQVERSION= 8.5pl1 or-else 8.5pl2 or-else 8.5pl3 or-else 8.6beta1 or-else 8.6
+COQVERSION= 8.6
 COQV=$(shell $(COQC) -v)
 ifeq ("$(filter $(COQVERSION),$(COQV))","")
-$(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
+	$(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
 endif
 
 
@@ -395,10 +396,11 @@ $(COMPCERT)/flocq/%.vo: $(COMPCERT)/flocq/%.v
 
 all:     .loadpath version.vo $(FILES:.v=.vo)
 
+min: .loadpath version.vo msl veric floyd
 
 ifeq ($(COMPCERT), compcert)
 compcert: $(COMPCERT)/exportclight/Clightdefs.vo
-$(COMPCERT)/exportclight/Clightdefs.vo: 
+$(COMPCERT)/exportclight/Clightdefs.vo:
 	cd $(COMPCERT) && $(MAKE) exportclight/Clightdefs.vo
 $(patsubst %.v,sepcomp/%.vo,$(SEPCOMP_FILES)): compcert
 $(patsubst %.v,veric/%.vo,$(VERIC_FILES)): compcert
@@ -411,7 +413,7 @@ sepcomp: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
 ccc26x86:   .loadpath $(CCC26x86_FILES:%.v=ccc26x86/%.vo)
 concurrency: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo)
 paco: .loadpath $(PACO_FILES:%.v=concurrency/paco/src/%.vo)
-linking: .loadpath $(LINKING_FILES:%.v=linking/%.vo) 
+linking: .loadpath $(LINKING_FILES:%.v=linking/%.vo)
 veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
 floyd:   .loadpath $(FLOYD_FILES:%.v=floyd/%.vo)
 progs:   .loadpath $(PROGS_FILES:%.v=progs/%.vo)
@@ -434,13 +436,13 @@ cvfiles: $(CVFILES)
 
 
 
-clean_cvfiles: 
+clean_cvfiles:
 	rm $(CVFILES)
 
 ifdef CLIGHTGEN
 sha/sha.v sha/hmac.v hmacdrbg/hmac_drbg.v: sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c
 	$(CLIGHTGEN) ${CGFLAGS} sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c
-# Is there a way to generate the next 5 rules automatically from C_FILES? 
+# Is there a way to generate the next 5 rules automatically from C_FILES?
 progs/revarray.v: progs/revarray.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/reverse.v: progs/reverse.c
@@ -499,9 +501,9 @@ dep:
 .depend:
 	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
 
-depend:	
+depend:
 	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
-dependx:	
+dependx:
 	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
 	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(SEPCOMP_FILES:%=sepcomp/%) $(CONCUR_FILES:%=concurrency/%))  >> .depend
 
@@ -521,7 +523,7 @@ clean-concur:
 	rm -f $(CONCUR_FILES:%.v=%.vo) $(CONCUR_FILES:%.v=%.glob)
 
 clean-linking:
-	rm -f $(LINKING_FILES:%.v=linking/%.vo) $(LINKING_FILES:%.v=linking/%.glob) 
+	rm -f $(LINKING_FILES:%.v=linking/%.vo) $(LINKING_FILES:%.v=linking/%.glob)
 
 count:
 	wc $(FILES)

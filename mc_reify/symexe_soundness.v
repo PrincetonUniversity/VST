@@ -61,7 +61,7 @@ admit.
 Qed.
 
 Lemma replace_set_sound : forall tus tvs e,
-exprD' tus tvs typrop e = exprD' tus tvs typrop (replace_set e). 
+exprD' tus tvs typrop e = exprD' tus tvs typrop (replace_set e).
 intros.
 destruct e; auto. simpl.
 repeat
@@ -75,11 +75,11 @@ Admitted.
 Lemma SIMPL_SET_sound : rtac_sound SIMPL_SET.
 Proof.
 apply SIMPLIFY_sound. intros.
-forward. subst. 
+forward. subst.
 unfold propD in *. simpl. unfold exprD'_typ0 in *. simpl. simpl in H3.
-rewrite <- replace_set_sound. forward. fold func in *. inv H3. 
+rewrite <- replace_set_sound. forward. fold func in *. inv H3.
 unfold RSym_sym.
-rewrite H. 
+rewrite H.
 intros.
 eapply Pure_pctxD. eauto. intros. eauto.
 Qed.
@@ -96,7 +96,7 @@ Proof.
     - eapply EAPPLY_sound; auto with typeclass_instances.
       * apply APPLY_condition1.
       * apply APPLY_condition2.
-      * unfold Lemma.lemmaD, split_env. simpl. intros. 
+      * unfold Lemma.lemmaD, split_env. simpl. intros.
         unfold ExprDsimul.ExprDenote.exprT_App.
         simpl.
         unfold exprT_App, exprT_Inj, Rcast_val, Rcast in *. simpl in *.
@@ -191,11 +191,11 @@ repeat match goal with
   eapply semax_seq'. eauto. eauto.
   apply SIMPL_DELTA_sound.
 + unfold APPLY_SKIP.
-  apply APPLY_sound. 
+  apply APPLY_sound.
   apply APPLY_condition1.
   apply APPLY_condition2.
-  - unfold skip_lemma. 
-    unfold Lemma.lemmaD, split_env. simpl. intros. 
+  - unfold skip_lemma.
+    unfold Lemma.lemmaD, split_env. simpl. intros.
     unfold ExprDsimul.ExprDenote.exprT_App.
     simpl.
     unfold exprT_Inj. apply semax_skip.
@@ -239,7 +239,7 @@ start_timer "02 match_tactic";
     | forall t, @rtac_sound _ _ _ _ _ _ (?tac _) =>
 	  let namee := fresh "e" in
 	  match goal with
-	    | |- ?P => 
+	    | |- ?P =>
               stop_timer "02 match_tactic";
               start_timer "03 reification";
 	      reify_aux reify term_table P namee;
@@ -262,38 +262,38 @@ start_timer "02 match_tactic";
                       set (sv := s);
                       stop_timer "06 match result";
                       start_timer "07 goalD";
-                      let gd_prop := 
+                      let gd_prop :=
                           constr:(goalD_Prop tbl nil nil g') in
                       stop_timer "07 goalD";
                       start_timer "08 reduce";
-                      let gd' := 
+                      let gd' :=
                         reduce g' gd_prop in
                       stop_timer "08 reduce";
                       start_timer "09 cut1";
 	              cut (gd');  [ stop_timer "09 cut1";
                                     start_timer "10 change";
-                          change (gd_prop -> 
+                          change (gd_prop ->
                                   exprD_Prop tbl nil nil namee);
 
                           stop_timer "10 change";
                           start_timer "11 cut2";
 	                  cut (goal_result = More_ sv g');
-                          [ stop_timer "11 cut2"; 
-                            start_timer "12 exact"; 
+                          [ stop_timer "11 cut2";
+                            start_timer "12 exact";
                             (*set (pf := *)
                              exact_no_check
-                               (@run_rtac_More tbl (tac tbl) 
+                               (@run_rtac_More tbl (tac tbl)
                                  sv g' namee (tac_sound tbl))
                            (*;
                             exact pf*)
-                           | stop_timer "12 exact"; 
-                             start_timer "13 VM_CAST"; 
-                             vm_cast_no_check 
+                           | stop_timer "12 exact";
+                             start_timer "13 VM_CAST";
+                             vm_cast_no_check
                                (@eq_refl _ (More_ sv g'))
-                             ] 
+                             ]
 	                | stop_timer "13 VM_CAST"; clear (*g'*) sv ]
 	            | Solved ?s =>
-	              exact_no_check (@run_rtac_Solved tbl (tac tbl) s namee (tac_sound tbl) 
+	              exact_no_check (@run_rtac_Solved tbl (tac tbl) s namee (tac_sound tbl)
 	                (@eq_refl (Result (CTop nil nil)) (Solved s) <: run_tac' (tac tbl) (GGoal goal) = Solved s))
 	            | Fail => idtac "Tactic" tac "failed."
 	            | _ => idtac "Error: run_rtac could not resolve the result from the tactic :" tac
@@ -316,7 +316,7 @@ Existing Instance NullExtension.Espec.
 
 
 Fixpoint lots_of_sets' n p :=
-match n with 
+match n with
 | O => (Sset p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
 | S n' => Ssequence (Sset p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))) (lots_of_sets' n' (Psucc p))
 end.
@@ -324,7 +324,7 @@ end.
 Definition lots_of_sets n := lots_of_sets' (pred n) 1%positive.
 
 Fixpoint lots_temps' n p :=
-match n with 
+match n with
 | O => (PTree.empty _)
 | S n' =>  PTree.set p (tptr t_struct_list, true) (lots_temps' n' (Psucc p))
 end.
@@ -332,7 +332,7 @@ end.
 Definition lots_temps (n : nat) : PTree.t (type * bool) := lots_temps' (n) (1%positive).
 
 Fixpoint lots_locals' n p :=
-match n with 
+match n with
 | O => (PTree.empty _)
 | S n' =>  PTree.set p (Vint (Int.repr 0%Z)) (lots_locals' n' (Psucc p))
 end.
@@ -340,7 +340,7 @@ end.
 Definition lots_locals (n : nat):= lots_locals' (n) (1%positive).
 
 Fixpoint lots_vars' n p :=
-match n with 
+match n with
 | O => (PTree.empty _)
 | S n' =>  PTree.set p (tptr t_struct_list, Vint (Int.repr 0%Z)) (lots_vars' n' (Psucc p))
 end.
@@ -348,21 +348,21 @@ end.
 Definition lots_vars (n : nat):= lots_vars' (n) (1%positive).
 
 
-Fixpoint lots_data_at n sh v :=  
+Fixpoint lots_data_at n sh v :=
 match n with
 | O => nil
-| S n' => data_at sh t_struct_list (Vundef, Vint Int.zero) (force_ptr v) :: 
+| S n' => data_at sh t_struct_list (Vundef, Vint Int.zero) (force_ptr v) ::
                   lots_data_at n' sh v
 end.
 
 
-Definition test_semax sets temps_tycon temps_local vars_local seps := 
+Definition test_semax sets temps_tycon temps_local vars_local seps :=
 forall post v sh,  (semax
      (mk_tycontext (lots_temps temps_tycon) (PTree.empty type) Tvoid
                    (PTree.empty type) (PTree.empty funspec))
-     (assertD [] (localD (lots_locals temps_local) (lots_vars vars_local)) 
+     (assertD [] (localD (lots_locals temps_local) (lots_vars vars_local))
        (lots_data_at seps sh v))
-      (lots_of_sets sets)         
+      (lots_of_sets sets)
      (normal_ret_assert  post)).
 
 
@@ -379,9 +379,9 @@ Ltac forward := start_timer "LTac"; repeat forward.forward; stop_timer "LTac".
 cbv [ sets temps_tycon temps_local vars_local seps
       test_semax lots_temps lots_temps' PTree.empty
       lots_of_sets lots_of_sets' lots_data_at Pos.succ PTree.set
-      lots_locals lots_locals' lots_vars lots_vars' pred]. 
+      lots_locals lots_locals' lots_vars lots_vars' pred].
 cbv [localD LocalD assertD PTree.fold PTree.xfold map liftx].
-intros. 
+intros.
 forward.
 Abort.*)
 
@@ -389,14 +389,14 @@ Goal test_semax sets temps_tycon temps_local vars_local seps.
 cbv [ sets temps_tycon temps_local vars_local seps
       test_semax lots_temps lots_temps' PTree.empty
       lots_of_sets lots_of_sets' lots_data_at Pos.succ PTree.set
-      lots_locals lots_locals' lots_vars lots_vars' pred]. 
-intros. 
+      lots_locals lots_locals' lots_vars lots_vars' pred].
+intros.
 rforward.
 admit.
 Time Qed. (*33 s original*)
 (* 36s change*)
 
-Print Timing Profile. 
+Print Timing Profile.
 
 (*
 
@@ -515,7 +515,7 @@ Print Timing Profile.
                                                   (inr (Data (fset tyval 1))))
                                                 (App
                                                   (Inj (inr (Eval_f (..))))
-                                                  (App 
+                                                  (App
                                                   (Inj (inr (..)))
                                                   (Inj (inr (..))))))
                                              (Inj (inr (Data (fleaf tyval))))))
@@ -579,7 +579,7 @@ Print Timing Profile.
                                 (Inj
                                    (inr
                                       (Data (fleaf (typrod tyc_type tyval)))))))
-                          (Inj (inr (Data (fnil tympred))))) 
+                          (Inj (inr (Data (fnil tympred)))))
                        (Var 0%nat)))
                  (App (Inj (inl (inl (inl 2%positive)))) (Var 0%nat)))))) e
      (SYMEXE_sound 1000
@@ -642,7 +642,7 @@ Print Timing Profile.
                                        (inr
                                           (Data
                                              (fleaf (typrod tyc_type tyval)))))))
-                              (Inj (inr (Data (fnil tympred))))) 
+                              (Inj (inr (Data (fnil tympred)))))
                            (Var 0%nat)))
                      (App (Inj (inl (inl (inl 2%positive)))) (Var 0%nat)))))))
     H) ?139) *)
@@ -656,11 +656,11 @@ Time Qed. (*109 seconds with change for 100 vars
 
 Lemma skip_triple : forall sh v e,
 @semax e empty_tycontext
-     (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
+     (assertD [] (localD (PTree.empty val) (PTree.empty (type * val)))
        [data_at sh (tptr tint) (default_val _) (force_ptr v)])
-      Sskip  (normal_ret_assert (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
+      Sskip  (normal_ret_assert (assertD [] (localD (PTree.empty val) (PTree.empty (type * val)))
        [data_at sh (tptr tint) (default_val _) (force_ptr v)])).
-Proof. 
+Proof.
 intros.
 Unset Ltac Debug.
 unfold empty_tycontext.
@@ -668,17 +668,17 @@ rforward.
 Time Qed. (*.8 seconds*)
 
 Fixpoint lots_of_skips n :=
-match n with 
+match n with
 | O => Sskip
 | S n' => Ssequence Sskip (lots_of_skips n')
 end.
 
 Lemma seq_triple : forall sh v e,
 @semax e empty_tycontext
-     (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
+     (assertD [] (localD (PTree.empty val) (PTree.empty (type * val)))
        [data_at sh (tptr tint) (default_val _) (force_ptr v)])
        (Ssequence Sskip Sskip)
-     (normal_ret_assert (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
+     (normal_ret_assert (assertD [] (localD (PTree.empty val) (PTree.empty (type * val)))
        [data_at sh (tptr tint) (default_val _) (force_ptr v)])).
 Proof.
 intros.
@@ -688,25 +688,25 @@ Qed.
 
 Lemma seq_triple' : forall sh v e,
 @semax e empty_tycontext
-     (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
+     (assertD [] (localD (PTree.empty val) (PTree.empty (type * val)))
        [data_at sh (tptr tint) (default_val _) (force_ptr v)])
        (Ssequence Sskip Sskip)
-     (normal_ret_assert (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
+     (normal_ret_assert (assertD [] (localD (PTree.empty val) (PTree.empty (type * val)))
        [])).
 Proof.
 intros.
 Locate tint.
 unfold empty_tycontext.
 Set Printing Depth 500.
-rforward. 
+rforward.
 Abort.
 
 Lemma seq_triple_lots : forall sh v e,
 @semax e empty_tycontext
-     (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
+     (assertD [] (localD (PTree.empty val) (PTree.empty (type * val)))
        [data_at sh (tptr tint) (default_val _) (force_ptr v)])
       (lots_of_skips 20)
-     (normal_ret_assert (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) 
+     (normal_ret_assert (assertD [] (localD (PTree.empty val) (PTree.empty (type * val)))
        [data_at sh (tptr tint) (default_val _) (force_ptr v)])).
 Proof.
 intros.
@@ -716,7 +716,7 @@ Qed.
 
 
 Goal
-forall {Espec : OracleKind} (contents : list val), 
+forall {Espec : OracleKind} (contents : list val),
    (semax
      (remove_global_spec Delta) (*empty_tycontext*)
      (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) [])
@@ -740,15 +740,15 @@ Notation "'NOTATION_T1' v" := (PTree.Node PTree.Leaf None
 
 
 Goal
-forall {Espec : OracleKind} (sh:Share.t) (contents : list val) (v: val) ,  
+forall {Espec : OracleKind} (sh:Share.t) (contents : list val) (v: val) ,
    (semax
      (remove_global_spec Delta) (*empty_tycontext*)
-     (assertD [] (localD (NOTATION_T1 v) (PTree.empty (type * val))) 
+     (assertD [] (localD (NOTATION_T1 v) (PTree.empty (type * val)))
        [data_at sh t_struct_list (Vundef, Vint Int.zero) (force_ptr v)])
      (Sset _t
             (Efield (Ederef (Etempvar _v (tptr t_struct_list)) t_struct_list)
-              _tail (tptr t_struct_list)))         
-     (normal_ret_assert      (assertD [] (localD (NOTATION_T1 v) (PTree.empty (type * val))) 
+              _tail (tptr t_struct_list)))
+     (normal_ret_assert      (assertD [] (localD (NOTATION_T1 v) (PTree.empty (type * val)))
        [data_at sh t_struct_list (default_val _) (force_ptr v)])
 )).
 intros.
@@ -802,16 +802,16 @@ apply derives_refl.
 Qed.
 
 Goal
-forall {Espec : OracleKind} (contents : list val) (v: val) ,  
+forall {Espec : OracleKind} (contents : list val) (v: val) ,
    (semax
      (remove_global_spec Delta) (*empty_tycontext*)
-     (assertD [] (localD (NOTATION_T1 v) (PTree.empty (type * val))) 
+     (assertD [] (localD (NOTATION_T1 v) (PTree.empty (type * val)))
        [data_at Tsh t_struct_list (Values.Vundef, Values.Vint Int.zero) (force_ptr v)])
-     (Sassign 
+     (Sassign
             (Efield (Ederef (Etempvar _v (tptr t_struct_list)) t_struct_list)
               _tail (tptr t_struct_list))
-          (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))         
-     (normal_ret_assert      (assertD [] (localD (NOTATION_T1 v) (PTree.empty (type * val))) 
+          (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
+     (normal_ret_assert      (assertD [] (localD (NOTATION_T1 v) (PTree.empty (type * val)))
        [data_at Tsh t_struct_list (Vundef, Vint Int.zero) (force_ptr v)])
 )).
 intros.
@@ -828,7 +828,7 @@ Qed.
 
 (*
 Fixpoint lots_temps' n p :=
-match n with 
+match n with
 | O => PTree.set p (tptr t_struct_list, true) (PTree.empty _)
 | S n' =>  PTree.set p (tptr t_struct_list, true) (lots_temps' n' (Psucc p))
 end.
@@ -836,7 +836,7 @@ end.
 Definition lots_temps (n : nat) : PTree.t (type * bool) := lots_temps' (S n) (1%positive).
 
 Fixpoint lots_of_sets' n p :=
-match n with 
+match n with
 | O => (Sset p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)))
 | S n' => Ssequence (Sset p (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))) (lots_of_sets' n' (Psucc p))
 end.
@@ -844,7 +844,7 @@ end.
 Definition lots_of_sets n := lots_of_sets' n 1%positive.
 
 Goal
-forall  (contents : list val), exists PO, 
+forall  (contents : list val), exists PO,
    (semax
      (mk_tycontext (lots_temps 50) (PTree.empty type) Tvoid
      (PTree.empty type) (PTree.empty funspec))
@@ -859,7 +859,7 @@ Qed.
 
 
 Lemma seq_more :
-forall  (contents : list val), exists PO, 
+forall  (contents : list val), exists PO,
    (semax
      (remove_global_spec Delta)
      (assertD [] (localD (PTree.empty val) (PTree.empty (type * val))) [])
@@ -869,7 +869,7 @@ forall  (contents : list val), exists PO,
 Proof.
 unfold Delta, remove_global_spec.
 intros.
-rforward. 
+rforward.
 Abort.
 *)
 

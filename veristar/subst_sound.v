@@ -1,7 +1,7 @@
 Require Import ZArith Coq.Lists.List Permutation.
-Require Import msl.Axioms. 
+Require Import msl.Axioms.
 Require Import msl.predicates_sa.
-Require Import veristar.variables veristar.datatypes veristar.clauses 
+Require Import veristar.variables veristar.datatypes veristar.clauses
                veristar.list_denote veristar.heapresolve
                veristar.model_type veristar.model.
 
@@ -21,7 +21,7 @@ Axiom subst_space_sound : forall i e a,
   | Lseg x y => space_atom_denote (Lseg (subst_expr i e x) (subst_expr i e y))
   end.
 
-Axiom subst_list_denote_sound : 
+Axiom subst_list_denote_sound :
   forall A Q (l : list A) (denote: A -> spred) (subst: A -> A) B,
   list_denote denote Q B (map subst l) =
   match map subst l with
@@ -64,7 +64,7 @@ Axiom subst_pures_denote_sound_union : forall (l : list pure_atom) i e B,
   | _ :: _ => list_denote pure_atom_denote (@orp state) B (subst_pures i e l)
   end.
 
-Axiom subst_list_denote_sound0 : forall {A} (Q : spred -> spred -> spred) (l : list A) 
+Axiom subst_list_denote_sound0 : forall {A} (Q : spred -> spred -> spred) (l : list A)
   (denote: A -> spred) (subst: A -> A) (B:spred),
   list_denote denote Q B (map subst l) =
   match l with
@@ -177,7 +177,7 @@ Proof.
 intros; destruct a; try reflexivity.
 Qed.
 
-Lemma subst_list_denote_sound : 
+Lemma subst_list_denote_sound :
   forall A Q (l : list A) (denote: A -> spred) (subst: A -> A) B,
   list_denote denote Q B (map subst l) =
   match map subst l with
@@ -241,7 +241,7 @@ Proof.
 intros; apply subst_list_denote_sound_union.
 Qed.
 
-Lemma subst_list_denote_sound0 : forall {A} (Q : spred -> spred -> spred) (l : list A) 
+Lemma subst_list_denote_sound0 : forall {A} (Q : spred -> spred -> spred) (l : list A)
   (denote: A -> spred) (subst: A -> A) (B:spred),
   list_denote denote Q B (map subst l) =
   match l with
@@ -347,9 +347,9 @@ clear H0.
 destruct e; simpl.
   destruct e'; simpl. reflexivity. inversion H.
   destruct e'; simpl. inversion H.
-    inversion H. 
+    inversion H.
 symmetry in H. apply comp_eq in H; auto.
-inversion H; subst; reflexivity. 
+inversion H; subst; reflexivity.
 Qed.
 
 Lemma expr_cmp_eq': forall e e' s,
@@ -383,9 +383,9 @@ Lemma subst_pures_delete_same : forall i e pcs B,
   list_denote pure_atom_denote (@andp state) B (subst_pures_delete i e pcs) =
   list_denote pure_atom_denote (@andp state) B (subst_pures i e pcs).
 Proof.
-intros. unfold subst_pures_delete. 
+intros. unfold subst_pures_delete.
 unfold compose; rewrite <- remove_trivial_atoms_correct; auto.
-Qed.  
+Qed.
 
 Lemma clause_denote_PureClause_sound: forall i e Gamma Delta,
   clause_denote (mkPureClause (subst_pures_delete i e Gamma) Delta) =
@@ -401,7 +401,7 @@ Lemma clause_denote_NegSpaceClause_sound: forall i e Gamma Sigma Delta,
   clause_denote (NegSpaceClause (subst_pures_delete i e Gamma) Sigma Delta) =
   clause_denote (NegSpaceClause (subst_pures i e Gamma) Sigma Delta).
 Proof.
-intros. unfold clause_denote. 
+intros. unfold clause_denote.
 extensionality s; apply prop_ext; split; intros.
 rewrite subst_pures_delete_same in H; auto.
 rewrite subst_pures_delete_same in H0; auto.
@@ -411,7 +411,7 @@ Lemma clause_denote_PosSpaceClause_sound: forall i e Gamma Sigma Delta,
   clause_denote (PosSpaceClause (subst_pures_delete i e Gamma) Sigma Delta) =
   clause_denote (PosSpaceClause (subst_pures i e Gamma) Sigma Delta).
 Proof.
-intros. unfold clause_denote. 
+intros. unfold clause_denote.
 extensionality s; apply prop_ext; split; intros.
 rewrite subst_pures_delete_same in H; auto.
 rewrite subst_pures_delete_same in H0; auto.

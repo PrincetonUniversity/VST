@@ -59,7 +59,7 @@ Proof.
   simpl; f_equal.
   eauto.
 Qed.
-      
+
 Lemma nth_app_1 {A} (l1 l2 : list A) i x :
   nth l1 i = Some x ->
   nth (l1 ++ l2) i = Some x.

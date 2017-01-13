@@ -40,7 +40,7 @@ Definition merge_spec :=
   POST [ tlist ]
     EX pt:val,
      PROP ()
-     LOCAL (temp ret_temp pt) 
+     LOCAL (temp ret_temp pt)
      SEP (lseg LS sh (map Vint (merge a b)) pt nullval).
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [ merge_spec ]).
@@ -87,7 +87,7 @@ Proof.
 Qed.
 
 Definition merge_invariant _cond sh init_a init_b ret_ :=
- (EX cond: int, EX a: list int, EX b: list int, EX merged: list int, 
+ (EX cond: int, EX a: list int, EX b: list int, EX merged: list int,
   EX a_: val, EX b_: val, EX c_: val, EX begin: val,
   PROP (merge init_a init_b = merged ++ merge a b;
         cond = Int.zero <-> (a_ = nullval \/ b_ = nullval)
@@ -332,9 +332,9 @@ destruct b_; inversion H1; simpl force_val.
   (* b_ is null *)
   Exists Int.zero a b merged a_ nullval c_ begin.
   now entailer!; intuition.
-  
+
   (* b_ <> null *)
-  Exists Int.one a b merged a_ (Vptr b0 i) c_ begin. 
+  Exists Int.one a b merged a_ (Vptr b0 i) c_ begin.
   entailer!. intuition discriminate.
 (* a_ = null *)
 forward.
@@ -430,9 +430,9 @@ destruct b_; inversion H1; simpl force_val.
   (* b_ is null *)
   Exists Int.zero a b merged a_ nullval c_ begin.
   now entailer!; intuition.
-  
+
   (* b_ <> null *)
-  Exists Int.one a b merged a_ (Vptr b0 i) c_ begin. 
+  Exists Int.one a b merged a_ (Vptr b0 i) c_ begin.
   entailer!; intuition discriminate.
 
 (* a_ = null *)

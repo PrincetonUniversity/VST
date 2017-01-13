@@ -7,7 +7,7 @@ See the INSTALL.md file for installing it.  You may want to add to your $PATH th
 You can use [proofgeneral](http://proofgeneral.inf.ed.ac.uk/) or CoqIde.  With proofgeneral, it's good to set up a script e.g. called `pg` that loads VST and CompCert as libraries:
 
     #!/bin/bash
-    
+
     emacs \
       --eval "(setq coq-prog-name \"coqtop\")" \
       --eval "(setq coq-prog-args \
@@ -23,9 +23,9 @@ Similarly for Coqide:
 And similarly in your typical Makefile
 
     FLAGS=-I /PATHTOVST/VST -R /PATHTOCOMPCERT/CompCert-2.5 -as compcert
-    
+
     all:myprogram.vo
-    
+
     %.vo:%.v Makefile
     	coqc $(FLAGS) $<
 
@@ -34,7 +34,7 @@ and then the usual routine is to convert your .c file into a .v file, compile it
     clightgen myprogram.c
     make myprogram.vo
     pg verif_myprogram.v #or coqide
-    
+
 You can use the following files to get started
 [Makefile](https://madiot.fr/vst/Makefile),
 [myprogram.c](https://madiot.fr/vst/myprogram.c) and
@@ -57,7 +57,7 @@ and this to your .emacs
 
     (load "/n/fs/sml/sharedvst/proofgeneral/generic/proof-site.el")
 
-Then you'll get two commands: 
+Then you'll get two commands:
 
 * "clightgen"  (for translating .c files into .v files) and
 * "pg" for proofgeneral (which loads Compcert (as "compcert") and VST (as an empty dirpath)).
@@ -65,9 +65,9 @@ Then you'll get two commands:
 Next step is use this as a starting Makefile:
 
     FLAGS=-I /n/fs/sml/sharedvst/VST -R /n/fs/sml/sharedvst/CompCert-2.5 -as compcert
-    
+
     all:myprogram.vo
-    
+
     %.vo:%.v Makefile
     	coqc $(FLAGS) $<
 

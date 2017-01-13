@@ -9,15 +9,15 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Definition t_struct_elem := Tstruct _elem noattr.
 Definition t_struct_fifo := Tstruct _fifo noattr.
 
-Instance QS: listspec _elem _next (fun sh => malloc_token sh (sizeof t_struct_elem)). 
+Instance QS: listspec _elem _next (fun sh => malloc_token sh (sizeof t_struct_elem)).
 Proof. eapply mk_listspec; reflexivity. Defined.
 
 Lemma isnil: forall {T: Type} (s: list T), {s=nil}+{s<>nil}.
 Proof. intros. destruct s; [left|right]; auto. intro Hx; inv Hx. Qed.
 
 Lemma field_at_list_cell:
-  forall sh i v p, 
-  data_at sh t_struct_elem (i,v) p 
+  forall sh i v p,
+  data_at sh t_struct_elem (i,v) p
   = list_cell QS sh i p *
   field_at sh t_struct_elem [StructField _next] v p.
 Proof.
@@ -51,7 +51,7 @@ Definition fifo (contents: list val) (p: val) : mpred :=
       data_at Tsh t_struct_fifo (hd, tl) p * malloc_token Tsh (sizeof t_struct_fifo) p *
       if isnil contents
       then (!!(hd=nullval) && emp)
-      else (EX prefix: list val, EX last: val, 
+      else (EX prefix: list val, EX last: val,
               !!(contents = prefix++last::nil)
             &&  (lseg QS Tsh prefix hd tl
                    * malloc_token Tsh (sizeof t_struct_elem) tl
@@ -62,14 +62,14 @@ Definition fifo_new_spec :=
   WITH u : unit
   PRE  [  ]
        PROP() LOCAL() SEP ()
-  POST [ (tptr t_struct_fifo) ] 
+  POST [ (tptr t_struct_fifo) ]
     EX v:val, PROP() LOCAL(temp ret_temp v) SEP (fifo nil v).
 
 Definition fifo_put_spec :=
  DECLARE _fifo_put
   WITH q: val, contents: list val, p: val, last: val
   PRE  [ _Q OF (tptr t_struct_fifo) , _p OF (tptr t_struct_elem) ]
-          PROP () LOCAL (temp _Q q; temp _p p) 
+          PROP () LOCAL (temp _Q q; temp _p p)
           SEP (fifo contents q;
                  malloc_token Tsh (sizeof t_struct_elem) p;
                  data_at Tsh t_struct_elem (last,Vundef) p)
@@ -83,18 +83,18 @@ Definition fifo_empty_spec :=
      PROP() LOCAL (temp _Q q) SEP(fifo contents q)
   POST [ tint ]
       PROP ()
-      LOCAL(temp ret_temp (if isnil contents then Vtrue else Vfalse)) 
+      LOCAL(temp ret_temp (if isnil contents then Vtrue else Vfalse))
       SEP (fifo (contents) q).
 
 Definition fifo_get_spec :=
  DECLARE _fifo_get
   WITH q: val, contents: list val, first: val
   PRE  [ _Q OF (tptr t_struct_fifo) ]
-       PROP() LOCAL (temp _Q q) SEP (fifo (first :: contents) q) 
-  POST [ (tptr t_struct_elem) ] 
-      EX p:val, 
+       PROP() LOCAL (temp _Q q) SEP (fifo (first :: contents) q)
+  POST [ (tptr t_struct_elem) ]
+      EX p:val,
        PROP ()
-       LOCAL(temp ret_temp p) 
+       LOCAL(temp ret_temp p)
        SEP (fifo contents q;
               malloc_token Tsh (sizeof t_struct_elem) p;
               data_at Tsh t_struct_elem (first,Vundef) p).
@@ -102,30 +102,30 @@ Definition fifo_get_spec :=
 Definition make_elem_spec :=
  DECLARE _make_elem
   WITH i: int
-  PRE  [ _data OF tint ] 
+  PRE  [ _data OF tint ]
         PROP() LOCAL(temp _data (Vint i)) SEP()
   POST [ (tptr t_struct_elem) ]
     EX p:val,
-       PROP() 
-       LOCAL (temp ret_temp p) 
+       PROP()
+       LOCAL (temp ret_temp p)
        SEP (malloc_token Tsh (sizeof t_struct_elem) p;
               data_at Tsh t_struct_elem (Vint i, Vundef) p).
 
-Definition main_spec := 
+Definition main_spec :=
  DECLARE _main
   WITH u : unit
   PRE  [] main_pre prog nil u
   POST [ tint ] main_post prog nil u.
 
-Definition Gprog : funspecs := 
+Definition Gprog : funspecs :=
   ltac:(with_library prog
     [surely_malloc_spec; fifo_new_spec; fifo_put_spec;
-     fifo_empty_spec; fifo_get_spec; make_elem_spec; 
+     fifo_empty_spec; fifo_get_spec; make_elem_spec;
      main_spec]).
 
 Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_spec.
 Proof.
-  start_function. 
+  start_function.
   forward_call (* p = malloc(n); *)
      n.
   Intros p.
@@ -149,7 +149,7 @@ Proof.
 Qed.
 
 Lemma memory_block_fifo:
- forall p, 
+ forall p,
   field_compatible t_struct_fifo nil p ->
   memory_block Tsh 8 p = field_at_ Tsh t_struct_fifo nil p.
 Proof.
@@ -193,7 +193,7 @@ Qed.
 
 Lemma body_fifo_new: semax_body Vprog Gprog f_fifo_new fifo_new_spec.
 Proof.
-  start_function. 
+  start_function.
   forward_call (* Q = surely_malloc(sizeof ( *Q)); *)
      (sizeof t_struct_fifo).
     simpl; computable.
@@ -287,7 +287,7 @@ destruct prefix; inversion H; clear H.
    rewrite if_true by congruence.
    entailer!. simpl sizeof. unfold_data_at 1%nat. unfold_data_at 1%nat. cancel.
 + rewrite @lseg_cons_eq by auto.
-    Intros x. 
+    Intros x.
     simpl @valinject. (* can we make this automatic? *)
     subst_any.
     forward. (*  n=h->next; *)
@@ -303,7 +303,7 @@ Qed.
 Lemma body_make_elem: semax_body Vprog Gprog f_make_elem make_elem_spec.
 Proof.
 start_function.
-forward_call (*  p = surely_malloc(sizeof ( *p));  *) 
+forward_call (*  p = surely_malloc(sizeof ( *p));  *)
   (sizeof t_struct_elem).
  simpl; computable.
  Intros p.
@@ -311,7 +311,7 @@ forward_call (*  p = surely_malloc(sizeof ( *p));  *)
  rewrite memory_block_data_at_ by auto.
 forward.  (*  p->data=i; *)
 simpl.
-forward. (* return p; *) 
+forward. (* return p; *)
 Exists p.
 entailer!.
 Qed.
@@ -325,7 +325,7 @@ Intros q.
 forward_call  (*  p = make_elem(1); *)
      (Int.repr 1).
 Intros p'.
-forward_call (* fifo_put(Q,p);*) 
+forward_call (* fifo_put(Q,p);*)
     ((q, @nil val),p', Vint (Int.repr 1)).
 
 forward_call  (*  p = make_elem(2); *)
@@ -338,7 +338,7 @@ simpl app.
 forward_call  (*   p' = fifo_get(Q); p = p'; *)
     ((q,[Vint (Int.repr 2)]), Vint (Int.repr 1)).
 Intros p3.
-forward. (*   i = p->data;  *) 
+forward. (*   i = p->data;  *)
 forward_call (*  free(p); *)
    (p3, sizeof t_struct_elem).
  assert_PROP (field_compatible t_struct_elem [] p3) by entailer!.
@@ -350,8 +350,8 @@ Qed.
 Existing Instance NullExtension.Espec.
 
 Lemma ret_temp_make_ext_rval:
-  forall gx ret p,  
-   locald_denote (temp ret_temp p) (make_ext_rval gx ret) -> 
+  forall gx ret p,
+   locald_denote (temp ret_temp p) (make_ext_rval gx ret) ->
     p = force_val ret.
 Proof.
   intros.

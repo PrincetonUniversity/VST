@@ -26,7 +26,7 @@ end.
 Global Instance RSym_Func' : SymI.RSym func' := {
    typeof_sym := typeof_func_opt;
    symD := funcD;
-   sym_eqb := eqb_sym 
+   sym_eqb := eqb_sym
 }.
 
 Global Instance RSymOk_Func' : SymI.RSymOk RSym_Func'.
@@ -37,8 +37,8 @@ auto.
 Qed.
 
 
-Definition appR (e1 : func') e2 := 
-App (@Inj typ func (inr e1)) (e2). 
+Definition appR (e1 : func') e2 :=
+App (@Inj typ func (inr e1)) (e2).
 Definition injR (e1 : func') := @Inj typ func (inr e1).
 
 Instance ILogicOps_mpred : ILogic.ILogicOps expr.mpred := {
@@ -99,7 +99,7 @@ fun t =>
   with
   | tympred => Some _
   | typrop => Some _
-  | _ => None  
+  | _ => None
 end.
 
 Definition bilops : @bilogic_ops _ RType_typ :=
@@ -108,12 +108,12 @@ fun t =>
           return option (BILogic.BILOperators (typD t))
   with
   | tympred => Some _
-  | _ => None  
+  | _ => None
 end.
 
-Instance RSym_ilfunc : RSym (@ilfunc typ) := 
+Instance RSym_ilfunc : RSym (@ilfunc typ) :=
 	RSym_ilfunc _ _ ilops.
-Instance RSym_bilfunc : RSym (@bilfunc typ) := 
+Instance RSym_bilfunc : RSym (@bilfunc typ) :=
 	RSym_bilfunc _ bilops.
 
 Existing Instance SymSum.RSym_sum.
@@ -125,7 +125,7 @@ Instance SS : SubstI.Subst subst (expr typ func) :=
   @FMapSubst.SUBST.Subst_subst _.
 (*Instance SU : SubstI.SubstUpdate subst (expr typ func) :=
   FMapSubst.SUBST.SubstUpdate_subst (@instantiate typ func).
-Instance SO : SubstI.SubstOk SS := 
+Instance SO : SubstI.SubstOk SS :=
   @FMapSubst.SUBST.SubstOk_subst typ RType_typ (expr typ func) _ _.
 *)
 
@@ -148,7 +148,7 @@ Definition reflect_prop' tbl e := match (reflect tbl nil nil e typrop) with
 | None => False
 end.
 
-Definition node l o r t : expr typ func := 
+Definition node l o r t : expr typ func :=
 (App (App (App (Inj (inr (Data (fnode t)))) l) o) r).
 
 Definition leaf t : expr typ func:=
@@ -181,7 +181,7 @@ Existing Instance Expr_ok_fs.
 
 Definition exprD_Prop (uvar_env var_env : EnvI.env) (e : expr typ func) :=
   match exprD uvar_env var_env e typrop with
-    | Some e' => e' 
+    | Some e' => e'
     | None => True
   end.
 

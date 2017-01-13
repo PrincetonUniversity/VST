@@ -23,7 +23,7 @@ Section HELPERS.
 
 Context {F V: Type} (ge: Genv.t (AST.fundef F) V).
 
-(*LENB: These are from CompCert2.6/backend/SelectLong.vp. 
+(*LENB: These are from CompCert2.6/backend/SelectLong.vp.
   Compcert2.1 / compcomp had additional helpers*)
 Record helper_functions : Type := mk_helper_functions {
   i64_dtos: ident;                      (**r float64 -> signed long *)
@@ -43,7 +43,7 @@ Record helper_functions : Type := mk_helper_functions {
 
 Variable hf: helper_functions.
 
-Definition hf_names: list ident := hf.(i64_dtos)::hf.(i64_dtou) :: 
+Definition hf_names: list ident := hf.(i64_dtos)::hf.(i64_dtou) ::
   hf.(i64_stod) :: hf.(i64_utod) :: hf.(i64_stof) ::
   hf.(i64_utof) :: hf.(i64_sdiv) :: hf.(i64_udiv) ::
   hf.(i64_smod) :: hf.(i64_umod) ::
@@ -124,7 +124,7 @@ Definition get_helpers (p: Cminor.program) : res helper_functions :=
 
 Inductive is_I64_helper hf : ident -> signature -> Prop :=
   ef_dtos: is_I64_helper hf hf.(i64_dtos) sig_f_l
-| ef_dtou: is_I64_helper hf hf.(i64_dtou) sig_f_l 
+| ef_dtou: is_I64_helper hf hf.(i64_dtou) sig_f_l
 | ef_stod: is_I64_helper hf hf.(i64_stod) sig_l_f
 | ef_utod: is_I64_helper hf hf.(i64_utod) sig_l_f
 | ef_stof: is_I64_helper hf hf.(i64_stof) sig_l_s
@@ -147,28 +147,28 @@ destruct (signature_eq sg sig_f_l); subst.
 destruct (signature_eq sg sig_l_f); subst.
   destruct (ident_eq name hf.(i64_stod)); subst; try solve[left; constructor].
   destruct (ident_eq name hf.(i64_utod)); subst; try solve[left; constructor].
-  right; intros N. inv N; intuition. 
+  right; intros N. inv N; intuition.
 destruct (signature_eq sg sig_l_s); subst.
   destruct (ident_eq name hf.(i64_stof)); subst; try solve[left; constructor].
   destruct (ident_eq name hf.(i64_utof)); subst; try solve[left; constructor].
-  right; intros N. inv N; intuition. 
+  right; intros N. inv N; intuition.
 destruct (signature_eq sg sig_ll_l); subst.
   destruct (ident_eq name hf.(i64_sdiv)); subst; try solve[left; constructor].
   destruct (ident_eq name hf.(i64_udiv)); subst; try solve[left; constructor].
   destruct (ident_eq name hf.(i64_smod)); subst; try solve[left; constructor].
   destruct (ident_eq name hf.(i64_umod)); subst; try solve[left; constructor].
-  right; intros N. inv N; intuition. 
+  right; intros N. inv N; intuition.
 destruct (signature_eq sg sig_li_l); subst.
   destruct (ident_eq name hf.(i64_shl)); subst; try solve[left; constructor].
   destruct (ident_eq name hf.(i64_shr)); subst; try solve[left; constructor].
   destruct (ident_eq name hf.(i64_sar)); subst; try solve[left; constructor].
-  right; intros N. inv N; intuition. 
-right; intros N. inv N; intuition. 
+  right; intros N. inv N; intuition.
+right; intros N. inv N; intuition.
 Qed.
 
 Inductive is_I64_helperS : String.string -> signature -> Prop :=
   ef_dtosS: is_I64_helperS "__i64_dtos" sig_f_l
-| ef_dtouS: is_I64_helperS "__i64_dtou" sig_f_l 
+| ef_dtouS: is_I64_helperS "__i64_dtou" sig_f_l
 | ef_stodS: is_I64_helperS "__i64_stod" sig_l_f
 | ef_utodS: is_I64_helperS "__i64_utod" sig_l_f
 | ef_stofS: is_I64_helperS "__i64_stof" sig_l_s
@@ -210,7 +210,7 @@ destruct (signature_eq sg sig_ll_l); subst.
     - destruct (String.string_dec name "__i64_smod").
       * subst; try solve[left; constructor].
       * destruct (String.string_dec name "__i64_umod").
-        subst; try solve[left; constructor]. 
+        subst; try solve[left; constructor].
         right; intros N; inv N; intuition. }
 destruct (signature_eq sg sig_li_l); subst.
 { destruct (String.string_dec name "__i64_shl").
@@ -220,12 +220,12 @@ destruct (signature_eq sg sig_li_l); subst.
     - destruct (String.string_dec name "__i64_sar").
       * subst; try solve[left; constructor].
       * right; intros N; inv N; intuition. }
-right; intros N. inv N; intuition. 
+right; intros N. inv N; intuition.
 Qed.
 
 Inductive is_I64_helperSI hf : ident -> String.string -> signature -> Prop :=
   ef_dtosSI: is_I64_helperSI hf hf.(i64_dtos) "__i64_dtos" sig_f_l
-| ef_dtouSI: is_I64_helperSI hf hf.(i64_dtou) "__i64_dtou" sig_f_l 
+| ef_dtouSI: is_I64_helperSI hf hf.(i64_dtou) "__i64_dtou" sig_f_l
 | ef_stodSI: is_I64_helperSI hf hf.(i64_stod) "__i64_stod" sig_l_f
 | ef_utodSI: is_I64_helperSI hf hf.(i64_utod) "__i64_utod" sig_l_f
 | ef_stofSI: is_I64_helperSI hf hf.(i64_stof) "__i64_stof" sig_l_s
@@ -290,11 +290,11 @@ destruct (signature_eq sg sig_li_l); subst.
       * destruct (ident_eq ide hf.(i64_sar)); subst; try solve[left; constructor].
         right; intros N; inv N; intuition.
       * right; intros N; inv N; intuition. }
-right; intros N. inv N; intuition. 
+right; intros N. inv N; intuition.
 Qed.
 (*LENB: moved in CompCert2.6 to BuiltinEffects
-Lemma helpers_inject: forall {F V TF TV: Type} 
-  (ge: Genv.t F V) (tge : Genv.t TF TV) 
+Lemma helpers_inject: forall {F V TF TV: Type}
+  (ge: Genv.t F V) (tge : Genv.t TF TV)
   (SymbPres : forall s, Genv.find_symbol tge s = Genv.find_symbol ge s)
   hf ide name sg vargs m t vres m1 mu tm vargs'
   (WD : SM_wd mu)
@@ -332,7 +332,7 @@ SearchAbout external_functions_sem. Locate external_functions_properties.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -352,7 +352,7 @@ SearchAbout external_functions_sem. Locate external_functions_properties.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -371,7 +371,7 @@ SearchAbout external_functions_sem. Locate external_functions_properties.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -390,7 +390,7 @@ SearchAbout external_functions_sem. Locate external_functions_properties.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -409,7 +409,7 @@ SearchAbout external_functions_sem. Locate external_functions_properties.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -428,7 +428,7 @@ SearchAbout external_functions_sem. Locate external_functions_properties.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -447,7 +447,7 @@ SearchAbout external_functions_sem. Locate external_functions_properties.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -466,7 +466,7 @@ SearchAbout external_functions_sem. Locate external_functions_properties.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -485,7 +485,7 @@ SearchAbout external_functions_sem. Locate external_functions_properties.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -504,7 +504,7 @@ SearchAbout external_functions_sem. Locate external_functions_properties.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -523,7 +523,7 @@ SearchAbout external_functions_sem. Locate external_functions_properties.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -542,7 +542,7 @@ SearchAbout external_functions_sem. Locate external_functions_properties.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -561,7 +561,7 @@ SearchAbout external_functions_sem. Locate external_functions_properties.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -580,7 +580,7 @@ SearchAbout external_functions_sem. Locate external_functions_properties.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -599,7 +599,7 @@ SearchAbout external_functions_sem. Locate external_functions_properties.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -618,7 +618,7 @@ SearchAbout external_functions_sem. Locate external_functions_properties.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -637,7 +637,7 @@ SearchAbout external_functions_sem. Locate external_functions_properties.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -653,7 +653,7 @@ Qed.
 
 
 Locate extcall_io_sem.
-Lemma helpers_inject: forall {F V TF TV: Type} 
+Lemma helpers_inject: forall {F V TF TV: Type}
   (ge: Genv.t F V) (tge : Genv.t TF TV)
   (SymbPres : forall s, Genv.find_symbol tge s = Genv.find_symbol ge s)
   hf name sg vargs m t vres m1 mu tm vargs'
@@ -680,7 +680,7 @@ Lemma helpers_inject: forall {F V TF TV: Type}
      SM_wd mu' /\
      sm_valid mu' m1 tm1 /\
      REACH_closed m1 (vis mu').
-Proof. intros. 
+Proof. intros.
 inv OBS.
 { (*i64dtos*)
     inv EC. exists mu; eexists; eexists; split.
@@ -690,7 +690,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -710,7 +710,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -729,7 +729,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -748,7 +748,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -767,7 +767,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -786,7 +786,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -805,7 +805,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -824,7 +824,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -843,7 +843,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -862,7 +862,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -881,7 +881,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -900,7 +900,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -919,7 +919,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -938,7 +938,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -957,7 +957,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -976,7 +976,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -995,7 +995,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -1009,7 +1009,7 @@ inv OBS.
       try rewrite freshloc_irrefl; intuition. }
 Qed.
 
-Lemma helpers_inject: forall {F V TF TV: Type} 
+Lemma helpers_inject: forall {F V TF TV: Type}
   (ge: Genv.t F V) (tge : Genv.t TF TV)
   (SymbPres : forall s, Genv.find_symbol tge s = Genv.find_symbol ge s)
   hf name sg vargs m t vres m1 mu tm vargs'
@@ -1036,7 +1036,7 @@ Lemma helpers_inject: forall {F V TF TV: Type}
      SM_wd mu' /\
      sm_valid mu' m1 tm1 /\
      REACH_closed m1 (vis mu').
-Proof. intros. 
+Proof. intros.
 inv OBS.
 { (*i64dtos*)
     inv EC. exists mu; eexists; eexists; split.
@@ -1046,7 +1046,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -1066,7 +1066,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -1085,7 +1085,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -1104,7 +1104,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -1123,7 +1123,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -1142,7 +1142,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -1161,7 +1161,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -1180,7 +1180,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -1199,7 +1199,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -1218,7 +1218,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -1237,7 +1237,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -1256,7 +1256,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -1275,7 +1275,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -1294,7 +1294,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -1313,7 +1313,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -1332,7 +1332,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.
@@ -1351,7 +1351,7 @@ inv OBS.
           eapply eventval_list_match_inject; try eapply ArgsInj.
             rewrite <- restrict_sm_all.
             eapply restrict_sm_preserves_globals; try eassumption.
-            unfold vis. intuition.  
+            unfold vis. intuition.
           assumption.
         eapply eventval_match_preserved.
           apply SymbPres. apply H0.

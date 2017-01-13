@@ -33,7 +33,7 @@ apply H2; auto;
    extensionality z z'; auto).  (* compability with Coq 8.3 *)
 Qed.
 
-Lemma corec_least_fixpoint {B A}: 
+Lemma corec_least_fixpoint {B A}:
 forall {F: (B -> pred A) -> (B -> pred A)}, forall {P : B -> pred A},
   P = F P ->
   forall b, corec F b |-- P b.
@@ -45,7 +45,7 @@ Qed.
 
 Lemma covariant_sepcon {B}{A} {JA: Join A}{PA: Perm_alg A}:
    forall P Q : (B -> pred A) -> (B -> pred A),
-    covariant P -> covariant Q -> 
+    covariant P -> covariant Q ->
     covariant (fun (x : B -> pred A) b => P x b * Q x b)%pred.
 Proof.
 intros. intros R S ? ?.
@@ -72,7 +72,7 @@ apply andp_derives; auto.
 Qed.
 
 Lemma covariant_exp {C B A}: forall F: C -> (B -> pred A) -> (B -> pred A),
-  (forall c, covariant (F c)) -> 
+  (forall c, covariant (F c)) ->
    covariant (fun P b => EX c:C, F c P b)%pred.
 Proof.
 intros.

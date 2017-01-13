@@ -2,18 +2,18 @@
 
 # This script deletes, from each directory in Makefile/DIRS, all files
 # that don't appear in the VST Makefile.
-# 
+#
 # Before actually deleting the files, the script uses a git branch to
 # mark the current git commit as a file archive.
 #
 # It also prompts the user before each 'git rm' command.
-# 
-# ****** IMPORTANT ******* 
+#
+# ****** IMPORTANT *******
 # Make sure you don't have uncommitted/unstashed changes in your
 # working directory when you run this script. Otherwise, the script
 # will fail.
 #
-# ****** WARNING ****** 
+# ****** WARNING ******
 # This script has been tested only on a unix-style machine. It will
 # probably fail in Cygwin.
 
@@ -27,19 +27,19 @@ deleteUnused() {
   for d in $DIRS; do
     read -p "***** delete unused files from '$d' (y/n)?" yn;
     case $yn in
-        [Yy]* ) 
+        [Yy]* )
 	    for f in $d/*.v; do
 		file=${f##*/} #strip directory from filepath
 		if [[ "$(inMakefile $file)" == "0" ]]; then
 		    read -p "delete file '$file' (y/n)?" yn
 		    case $yn in
-			[Yy]* ) 
+			[Yy]* )
 			    git rm $f;
 			    echo "*** deleted file $file";;
-			[Nn]* ) 
+			[Nn]* )
 			    echo -n "";;
 		    esac
-		else 
+		else
 		    echo -n "";
 		fi
 	    done;;
@@ -59,7 +59,7 @@ makeFileArchiveBranch() {
 }
 
 commitDeletedFilesToArchiveBranch() {
-  git status  
+  git status
   read -p "proceed with commit (y/n)?" yn;
   case $yn in
       [Yy]* ) (eval "git commit -m "\"Archived delete $branchName\""");;

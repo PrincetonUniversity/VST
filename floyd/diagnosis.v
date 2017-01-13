@@ -7,7 +7,7 @@ Local Open Scope logic.
 
 Lemma no_post_exists_unit:
   forall P Q R,
-  PROPx P (LOCALx Q (SEPx R)) = 
+  PROPx P (LOCALx Q (SEPx R)) =
    EX _:unit, PROPx P (LOCALx Q (SEPx R)).
 Proof.
 intros.
@@ -21,7 +21,7 @@ Inductive Stuck : Prop := .
 Ltac stuckwith p :=  elimtype Stuck; fold p.
 
 Ltac test_stuck :=
- match goal with 
+ match goal with
  | |- ?G => unify G Stuck
  end.
 
@@ -45,10 +45,10 @@ Ltac ccf_LOCAL1 id0 jl i :=
                                    (because_temp_out_of_scope i))
   end.
 
-Ltac ccf_LOCAL id0 fsig Q := 
- match Q with 
+Ltac ccf_LOCAL id0 fsig Q :=
+ match Q with
  | nil => idtac
- | temp ?i _ :: ?Q' => ccf_LOCAL1 id0 fsig i; 
+ | temp ?i _ :: ?Q' => ccf_LOCAL1 id0 fsig i;
                                  first [test_stuck |
                                  ccf_LOCAL id0 fsig Q']
  | lvar _ _ _ :: ?Q' =>  ccf_LOCAL id0 fsig Q'
@@ -68,13 +68,13 @@ Ltac ccf_SEP id0 R :=
 
 Ltac ccf2 id0 argsig retsig A Pre Post :=
  try (test_stuck; elimtype False);
- let F := fresh "F" in 
+ let F := fresh "F" in
  intro F;
- let x := fresh "x" in 
+ let x := fresh "x" in
  assert (x:A) by (elimtype False; apply F);
  pose (xPre := Pre x); cbv beta in xPre;
  pose (xPost := Post x); cbv beta in xPost;
- repeat (match type of x with (_*_)%type => 
+ repeat (match type of x with (_*_)%type =>
                let y := fresh "x" in destruct x as [x y]
              end);
  revert xPre;
@@ -85,7 +85,7 @@ Ltac ccf2 id0 argsig retsig A Pre Post :=
    ccf_LOCAL id0 argsig Q;
    first [test_stuck |
    ccf_SEP id0 R]]
- | |- let _ := ?PP in _ => 
+ | |- let _ := ?PP in _ =>
           stuckwith (Error__Funspec id0 not_in_canonical_form
                      (because_Precondition_not_canonical PP))
  end;
@@ -97,14 +97,14 @@ Ltac ccf2 id0 argsig retsig A Pre Post :=
   end;
   match goal with
   | |- let _ := @exp _ _ ?B ?p in _ =>
-    let w := fresh "w" in 
+    let w := fresh "w" in
     assert (w:B) by (elimtype False; apply F);
     intro xPost; clear xPost;
     pose (xPost := p w); cbv beta in xPost; revert xPost;
-    repeat (match type of w with (_*_)%type => 
+    repeat (match type of w with (_*_)%type =>
                   let y := fresh "w" in destruct w as [w y]
                 end)
-   | |- let _ := ?PP in _ => 
+   | |- let _ := ?PP in _ =>
           stuckwith (Error__Funspec id0 not_in_canonical_form
                      (because_Postcondition_not_canonical PP))
    end;
@@ -112,9 +112,9 @@ Ltac ccf2 id0 argsig retsig A Pre Post :=
   match goal with
   |- let _ := PROPx ?P (LOCALx ?Q (SEPx ?R)) in _ =>
    ccf_PROP id0 P;
-   first [test_stuck | 
+   first [test_stuck |
    ccf_LOCAL id0 ((ret_temp,  retsig)::nil) Q;
-   first [test_stuck |    
+   first [test_stuck |
    ccf_SEP id0 R]]
   end;
   first [test_stuck |
@@ -129,9 +129,9 @@ Ltac check_WITH_reptype id A :=
 Ltac ccf1 fs :=
   match fs with
   | (?id, mk_funspec (?argsig,?retsig) ?A ?Pre ?Post ) =>
-    first [ cut False; 
+    first [ cut False;
                [  try check_WITH_reptype id A;
-                 first [test_stuck 
+                 first [test_stuck
                  | ccf2 id argsig retsig A Pre Post]
                | idtac
                ]

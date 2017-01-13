@@ -18,29 +18,29 @@ Class Group
       (GroupElement : Set)
       (groupOp : Group_op GroupElement)
       (ident : GroupElement)
-      (inverse : GroupElement -> GroupElement) 
+      (inverse : GroupElement -> GroupElement)
   :={
-      
-      associativity : 
+
+      associativity :
         forall (x y z : GroupElement),
           (x * y) * z = x * (y * z);
-      
-      left_identity : 
+
+      left_identity :
         forall (a : GroupElement),
           ident * a = a;
-      
-      right_identity : 
+
+      right_identity :
         forall (a : GroupElement),
           a * ident = a;
-      
-      left_inverse : 
+
+      left_inverse :
         forall (a : GroupElement),
           (inverse a) * a = ident;
-                                                   
-      right_inverse : 
+
+      right_inverse :
         forall (a : GroupElement),
           a * (inverse a) = ident
-                                                                                               
+
     }.
 
 Fixpoint groupExp`{G : Group}(a : GroupElement)(n : nat) : GroupElement :=
@@ -76,7 +76,7 @@ Section GroupProperties.
     trivial.
   Qed.
 
-  Theorem groupExp_mult : forall n2 n1 x, 
+  Theorem groupExp_mult : forall n2 n1 x,
     ((x^n1)^n2) = (x^(n1 * n2)).
 
     induction n2; intuition; simpl in *.
@@ -98,7 +98,7 @@ End GroupProperties.
 
 Class FiniteCyclicGroup `{G: Group}
       (g : GroupElement)(order : posnat)(groupLog : GroupElement -> GroupElement -> nat) := {
-                                                                             
+
   generator : GroupElement -> Prop;
   g_generator : generator g;
   group_cyclic: forall (g a : GroupElement),
@@ -108,12 +108,12 @@ Class FiniteCyclicGroup `{G: Group}
     generator g ->
     modNat (groupLog g (g^x)) order = modNat x order;
   groupIdent : forall g,
-    generator g -> 
+    generator g ->
     g^0 = ident;
   groupOrder : forall g,
     generator g ->
     g^order = g^0
-    
+
 }.
 
 Section FiniteCyclicGroupProperties.
@@ -121,10 +121,10 @@ Section FiniteCyclicGroupProperties.
   Context`{FCG : FiniteCyclicGroup}.
 
   Lemma groupExp_eq_h : forall g c1 v,
-    generator g -> 
+    generator g ->
     v < order ->
     g^(c1 * order + v) = g^v.
-    
+
     induction c1; intuition; simpl in *.
     rewrite <- plus_assoc.
     rewrite (groupExp_plus order).
@@ -146,9 +146,9 @@ Section FiniteCyclicGroupProperties.
     rewrite H1.
     rewrite H2.
     rewrite H0.
-    
+
    repeat rewrite groupExp_eq_h; eauto using modNat_lt.
-   
+
   Qed.
 
    Theorem commutativity : forall x y,
@@ -179,7 +179,7 @@ Section FiniteCyclicGroupProperties.
     repeat rewrite associativity.
     f_equal.
     apply commutativity.
-    
+
   Qed.
 
   Theorem groupExp_eq : forall g x y,
@@ -196,16 +196,16 @@ Section FiniteCyclicGroupProperties.
   Qed.
 
   Theorem ident_l_unique : forall x y,
-    x * y = y -> 
+    x * y = y ->
     x = ident.
 
     intuition.
-    
+
     rewrite <- (group_cyclic g x).
     rewrite <- (@groupIdent _ groupOp ident _ G _ _ _ FCG g).
     eapply groupExp_eq_if; trivial.
     apply g_generator.
-    
+
     rewrite <- (group_cyclic g y) in H; eauto.
     rewrite <- (group_cyclic g x) in H; eauto.
     rewrite <- groupExp_plus in H.
@@ -219,9 +219,9 @@ Section FiniteCyclicGroupProperties.
     apply g_generator.
     apply g_generator.
     apply g_generator.
-  Qed.  
+  Qed.
 
-  Theorem groupExp_mod : forall g n, 
+  Theorem groupExp_mod : forall g n,
     generator g ->
     g^n = g^(modNat n order).
 

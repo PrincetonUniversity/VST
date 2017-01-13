@@ -10,7 +10,7 @@ Require Import fcf.CompFold.
 Section RndDup.
 
   Variable eta : nat.
- 
+
   Definition RndDup_G (A : Set)(ls : list A) (x : Bvector eta) :=
     rs <-$ compMap _ (fun _ => {0, 1} ^ eta) ls;
     ret (if (in_dec (EqDec_dec _) x rs) then true else false).
@@ -27,7 +27,7 @@ Section RndDup.
 
     unfold RndDup_G in *.
     induction ls; intros.
-    
+
     unfold compMap.
     comp_simp.
     destruct (in_dec (EqDec_dec (Bvector_EqDec eta)) x nil).
@@ -54,15 +54,15 @@ Section RndDup.
 
 
     assert (
-      Pr 
+      Pr
    [a0 <-$ { 0 , 1 }^eta;
     a1 <-$ (foreach  (_ in ls){ 0 , 1 }^eta);
     ret (if in_dec (EqDec_dec (Bvector_EqDec eta)) x (a0 :: a1)
          then true
          else false) ] ==
-   Pr 
+   Pr
    [b1 <-$ (a0 <-$ { 0 , 1 }^eta; ret (eqb x a0));
-    b2 <-$ (a1 <-$ (foreach  (_ in ls){ 0 , 1 }^eta); 
+    b2 <-$ (a1 <-$ (foreach  (_ in ls){ 0 , 1 }^eta);
       ret (if (in_dec (EqDec_dec _) x a1) then true else false));
     ret (b1 || b2) ]
    ).
@@ -103,10 +103,10 @@ Section RndDup.
     rewrite H.
     clear H.
 
-    Theorem bool_Comp_seq : 
+    Theorem bool_Comp_seq :
       forall (A : Set)(c1 : Comp bool)(c2 : bool -> Comp A) a,
         evalDist (b <-$ c1; c2 b) a ==
-        (evalDist c1 true * evalDist (c2 true) a) + 
+        (evalDist c1 true * evalDist (c2 true) a) +
         (evalDist c1 false * evalDist (c2 false) a).
 
       intros.
@@ -131,7 +131,7 @@ Section RndDup.
       rewrite H0.
       repeat rewrite ratMult_0_l.
       eapply ratAdd_0_l.
-      
+
       destruct b.
       destruct ls.
       unfold sumList.
@@ -141,7 +141,7 @@ Section RndDup.
       eapply ratAdd_eqRat_compat.
       intuition.
       symmetry.
-      
+
       assert (evalDist c1 false == 0).
       eapply getSupport_not_In_evalDist.
       rewrite <- Heqls.
@@ -224,16 +224,16 @@ Section RndDup.
       inversion H; clear H; subst.
       simpl in *.
       intuition.
-      
+
     Qed.
 
-    Theorem Prob_or_indep : 
+    Theorem Prob_or_indep :
       forall (c1 c2 : Comp bool),
         well_formed_comp c2 ->
         Pr[b1 <-$ c1; b2 <-$ c2; ret (b1 || b2)] == Pr[c1] + (evalDist c1 false) * Pr[c2].
 
       intuition.
-      
+
       rewrite bool_Comp_seq.
 
       assert (Pr  [b2 <-$ c2; ret true || b2 ] == 1).
@@ -241,7 +241,7 @@ Section RndDup.
       rewrite evalDist_ret_1; simpl; intuition.
       rewrite H0.
       clear H0.
-      
+
       assert (Pr  [b2 <-$ c2; ret false || b2 ] == Pr[c2]).
       rewrite bool_Comp_seq.
       rewrite evalDist_ret_1.
@@ -255,16 +255,16 @@ Section RndDup.
       rewrite H0.
       clear H0.
       rewrite ratMult_1_r.
-      
+
       intuition.
     Qed.
 
-    Theorem Prob_or_indep_le : 
+    Theorem Prob_or_indep_le :
       forall (c1 c2 : Comp bool),
         Pr[b1 <-$ c1; b2 <-$ c2; ret (b1 || b2)] <= Pr[c1] + Pr[c2].
 
       intuition.
-      
+
       rewrite bool_Comp_seq.
 
       eapply ratAdd_leRat_compat.
@@ -291,7 +291,7 @@ Section RndDup.
 
     assert (Pr  [a0 <-$ { 0 , 1 }^eta; ret eqb x a0 ] == 1 / expnat 2 eta).
 
-    Theorem evalDist_right_ident_eqb : 
+    Theorem evalDist_right_ident_eqb :
       forall (A : Set)(eqd : EqDec A)(c : Comp A)(a : A),
         Pr[x <-$ c; ret (eqb a x)] == evalDist c a.
 
@@ -313,10 +313,10 @@ Section RndDup.
       subst.
       rewrite eqb_refl in H0.
       congruence.
-      
+
     Qed.
 
-    
+
     rewrite evalDist_right_ident_eqb.
     simpl.
     intuition.
@@ -325,10 +325,10 @@ Section RndDup.
     eapply eqRat_impl_leRat.
     simpl.
 
-    
 
-    Theorem ratS_num': 
-      forall n d, 
+
+    Theorem ratS_num':
+      forall n d,
         RatIntro (S n) d == (RatIntro 1 d) + (RatIntro n d).
 
       intuition.

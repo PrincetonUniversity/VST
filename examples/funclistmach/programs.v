@@ -44,7 +44,7 @@ Definition add_Q (nm:nat*nat) := store_op (add_Q' (fst nm) (snd nm)).
  *)
 Program Definition add_phi : map instruction :=
   set _ (empty _) (L 0)
-    ( instr_assert (EX nm:_, add_P nm) ;; 
+    ( instr_assert (EX nm:_, add_P nm) ;;
       instr_if_nil (V 1)
         (*then *) (
           instr_return
@@ -185,7 +185,7 @@ Opaque get set funptr.
   destruct a'0 as [? [? ?]].
   rewrite worldNec_unfold in H9.
   intuition; subst s1 t0.
-  destruct H10 as [_ [? _]]. 
+  destruct H10 as [_ [? _]].
   simpl in H9.
   unfold add_Q' in *. simpl.
   replace (S (n1 + m1)) with (n1 + S m1) by omega.
@@ -199,12 +199,12 @@ Qed.
    satisfing the postcondition.
  *)
 
-Lemma addition_totally_correct : 
+Lemma addition_totally_correct :
   forall r n m,
     add_P' n m r ->
     exists n', exists p', exists r',
       stepstar add_term_measure (K.squash (n',add_phi)) p'
-        r ((instr_getlabel (L 0) (V 0) ;; instr_call (L 0) ;; instr_return ;; instr_nil _)::nil)      
+        r ((instr_getlabel (L 0) (V 0) ;; instr_call (L 0) ;; instr_return ;; instr_nil _)::nil)
         r' nil /\
       add_Q' n m r'.
 Proof.

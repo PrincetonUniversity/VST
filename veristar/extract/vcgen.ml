@@ -8,7 +8,7 @@ type fun_item =
       param: string list * string list;
       locals: IdSet.t;
       bound : IdSet.t;  (* locals + params *)
-      mutable calls: StringSet.t StringMap.t;  (* map from fid to minimum set of resources 
+      mutable calls: StringSet.t StringMap.t;  (* map from fid to minimum set of resources
                                                   always acquired before calling fid *)
       mutable in_parallel_with: StringSet.t;
       mutable requires: StringSet.t;
@@ -253,7 +253,7 @@ let check_disjoint_bound_globals env globals =
 (* calculates the modified and vars and required set for each function *)
 let calc_mvr env =
   let enable = mk_enable_fun env in
-  env.enable <- enable; 
+  env.enable <- enable;
   let shallow_mod fi =
     let mvr = mvr_body env fi.body in
     let fv_spec = (fv_norm_can_prop fi.pre ++ fv_norm_can_prop fi.post) in
@@ -297,7 +297,7 @@ let calc_mvr env =
     List.iter globals_fun env.functions;
     List.iter globals_res env.resources;
     check_disjoint_bound_globals env !globals
-  
+
 let rec desugar_fun_res iteml env =
   let f = function
     | Pfundecl (fid,param,pre,locals,body,post,post_loc,fun_loc) ->
@@ -353,7 +353,7 @@ let pp_idset x pp s = match (List.map string_of_ident (IdSet.elements s)) with
 
 let print_env pp env =
   let f fi = fprintf pp "FUNCTION %s%a%a%a%a%a@." fi.fid
-     pp_call_set fi.calls  (pp_strset "IN_PARALLEL_WITH") fi.in_parallel_with (pp_strset "REQUIRES") fi.requires 
+     pp_call_set fi.calls  (pp_strset "IN_PARALLEL_WITH") fi.in_parallel_with (pp_strset "REQUIRES") fi.requires
      (pp_idset "MODIFIES") fi.modif (pp_idset "READS") fi.vars
   in List.iter f env.functions
 
@@ -547,7 +547,7 @@ let vcgen_fun env fi =
 	let sub = mk_subst_pairs (sl_ref @ sl_val) in
         let modif_body =
 	  let ms = (mvr_body env fi'.body).md -- fi'.locals
-	  in sub_idset sub ms in 
+	  in sub_idset sub ms in
         let val_eqs =
 	  try List.map
             (fun (x,e) -> mk_EQ (e,Ce_ident x))

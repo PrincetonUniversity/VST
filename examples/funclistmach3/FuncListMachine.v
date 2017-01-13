@@ -57,7 +57,7 @@ Fixpoint fmap_instr {A B} (f:A->B) (x:instr A) : instr B :=
 
 Inductive value: Set :=
   | value_label: label -> value
-  | value_cons: value -> value -> value. 
+  | value_cons: value -> value -> value.
 
 Definition store := map value.
 Definition store_empty : store := empty value.
@@ -66,7 +66,7 @@ Definition program X := map (instr X).
 
 Module KnotInput <: KNOT_INPUT__HERED_PROP_OTH.
   Definition F := program.
-  
+
   Definition fmap A B (f:A->B) := map_fmap _ _ (fmap_instr f).
   Implicit Arguments fmap [A B].
 
@@ -166,7 +166,7 @@ Inductive step : prog -> prog -> store -> stack -> store -> stack -> Prop :=
 
 Inductive stepstar : prog -> prog -> store -> stack -> store -> stack ->  Prop :=
  | stepstar_O: forall s i p, stepstar p p s i s i
- | stepstar_S: forall p p' p'' s i s' i' s'' i'', 
+ | stepstar_S: forall p p' p'' s i s' i' s'' i'',
               step p p' s i s' i' -> stepstar p' p'' s' i' s'' i'' -> stepstar p p'' s i s'' i''.
 
 Inductive step_or_halt : prog -> store -> stack -> Prop :=
@@ -175,7 +175,7 @@ Inductive step_or_halt : prog -> store -> stack -> Prop :=
   | step_or_halt_halt: forall p r,
       step_or_halt p r nil.
 
-Definition safe (p: prog) (s: store) (k: stack) := 
+Definition safe (p: prog) (s: store) (k: stack) :=
    forall p' s' k', stepstar p p' s k s' k' -> step_or_halt p' s' k'.
 
 Definition safe_prog (p: program assert) (l:label) :=
@@ -193,7 +193,7 @@ Definition eventually_halts_n (n : nat) (p:prog) (r:store) (s:stack) : Prop :=
 
 Inductive stepN : nat -> prog -> prog -> store -> stack -> store -> stack ->  Prop :=
  | stepN_O: forall p s i, stepN O p p s i s i
- | stepN_S: forall n s i p p' p'' s' i' s'' i'', 
+ | stepN_S: forall n s i p p' p'' s' i' s'' i'',
               step p p' s i s' i' -> stepN n p' p'' s' i' s'' i'' -> stepN (S n) p p'' s i s'' i''.
 
 Lemma stepstar_stepN : forall p p' s i s' i',
@@ -208,7 +208,7 @@ Proof.
   apply H.
   apply Hn.
 Qed.
- 
+
 Lemma stepN_stepstar : forall p p' n s i s' i',
   stepN n p p' s i s' i' ->
   stepstar p p' s i s' i'.

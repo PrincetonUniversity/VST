@@ -271,7 +271,7 @@ Proof.
   - destruct l. simpl; omega. simpl.
     injection 1 as ->. rewrite IHi; auto.
 Qed.
-  
+
 Lemma upd_rev {A} i x (l : list A) :
   (i < length l)%nat ->
   upd i x (rev l) = option_map (@rev A) (upd (length l - 1 - i) x l).
@@ -578,7 +578,7 @@ Proof.
   induction l; simpl. reflexivity.
   destruct (f a); rewrite IHl; reflexivity.
 Qed.
-                          
+
 Lemma minus_plus a b c : a - (b + c) = a - b - c.
 Proof.
   omega.
@@ -864,7 +864,7 @@ Proof.
   destruct lset as [l S].
   unfold AMap.Raw.t, AMap.find in *; simpl. clear S.
   unfold LocksAndResources.lock_info in *.
-  induction l as [|[addr' x] l]; simpl; intros F; auto. 
+  induction l as [|[addr' x] l]; simpl; intros F; auto.
   destruct (AddressOrdered.compare addr addr'); try inversion F; auto.
   destruct x; simpl; rewrite IHl; auto.
 Qed.
@@ -878,7 +878,7 @@ Proof.
   destruct lset as [l S].
   unfold AMap.Raw.t, AMap.find in *; simpl. clear S.
   unfold LocksAndResources.lock_info in *.
-  induction l as [|[addr' x] l]; simpl; intros F; auto. 
+  induction l as [|[addr' x] l]; simpl; intros F; auto.
   destruct (AddressOrdered.compare addr addr'); try inversion F; auto.
   destruct x; simpl; rewrite IHl; auto.
 Qed.

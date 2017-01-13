@@ -9,10 +9,10 @@ Require Import msl.corable_direct.
 Local Open Scope logic.
 
 Instance algNatDed (T: Type) : NatDed (pred T).
-  apply (mkNatDed _ 
-                    predicates_sa.andp 
+  apply (mkNatDed _
+                    predicates_sa.andp
                     predicates_sa.orp
-                    (@predicates_sa.exp _) 
+                    (@predicates_sa.exp _)
                     (@predicates_sa.allp _)
                     predicates_sa.imp predicates_sa.prop
                     (@predicates_sa.derives _)).

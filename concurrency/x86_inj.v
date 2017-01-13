@@ -10,11 +10,11 @@ Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 
-(*NOTE: because of redefinition of [val], these imports must appear 
+(*NOTE: because of redefinition of [val], these imports must appear
   after Ssreflect eqtype.*)
 Require Import compcert.common.AST.     (*for typ*)
 Require Import compcert.common.Values. (*for val*)
-Require Import compcert.common.Globalenvs. 
+Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
 Require Import concurrency.addressFiniteMap.
@@ -37,13 +37,13 @@ Module X86WD.
 
     Definition regset_wd rs : Prop :=
       forall r, valid_val f (Pregmap.get r rs).
-    
+
     Definition loader_wd (loader : load_frame) : Prop :=
       match loader with
       | mk_load_frame b _ =>
         f b
       end.
-    
+
     Definition core_wd (c : state) : Prop :=
       match c with
       | State rs loader =>
@@ -60,7 +60,7 @@ Module X86WD.
             f b) /\
       (forall id ofs v, Senv.symbol_address the_ge id ofs = v ->
                    valid_val f v).
-    
+
   End X86WD.
 
   Lemma regset_wd_incr :
@@ -187,7 +187,7 @@ Module X86WD.
     apply f_equal.
       by rewrite regset_comm.
   Qed.
-  
+
   Lemma regset_wd_undef:
     forall f rs regs
       (Hrs_wd: regset_wd f rs),
@@ -201,9 +201,9 @@ Module X86WD.
       unfold Pregmap.get;
       destruct (Pregmap.elt_eq r' r); simpl...
   Qed.
-  
+
   Hint Extern 0 (valid_val _ (undef_regs _ _ # _ <- _ _)) => eapply regset_wd_set : wd.
-  
+
   Hint Resolve loader_wd_domain regset_wd_domain
        valid_val_list_incr valid_val_domain
        valid_val_list_domain regset_wd_undef : wd.
@@ -220,7 +220,7 @@ Module X86WD.
       simpl in *.
     specialize (H2 id i _ ltac:(reflexivity)).
     destruct (find_symbol g id); auto.
-    eapply valid_val_incr; eauto.      
+    eapply valid_val_incr; eauto.
   Qed.
 
   Hint Resolve valid_symb : wd.
@@ -235,7 +235,7 @@ Module X86WD.
   Qed.
 
   Hint Immediate valid_val_cmpu :wd.
-  
+
   Lemma valid_val_addrmode:
     forall ge rs f fg a,
       ren_domain_incr fg f ->
@@ -306,7 +306,7 @@ Module X86WD.
     intro r.
     unfold Pregmap.get...
   Qed.
-  
+
   Lemma valid_val_compare_floats32:
     forall f rs v1 v2 r,
       regset_wd f rs ->
@@ -320,7 +320,7 @@ Module X86WD.
   Qed.
 
   Hint Resolve valid_val_compare_floats32 : wd.
-  
+
   Lemma regset_wd_compare_floats32:
     forall f rs v1 v2,
       regset_wd f rs ->
@@ -329,17 +329,17 @@ Module X86WD.
     intros; intro r; unfold Pregmap.get...
   Qed.
 
-  
+
   Hint Resolve valid_val_addrmode
        regset_wd_compare_floats regset_wd_compare_floats32
        regset_wd_compare_ints : wd.
-  
+
 End X86WD.
 
 (** ** Injections/Renamings on X86 cores *)
 
 Module X86Inj <: CoreInjections X86SEM.
-    
+
 (** Injections on registers *)
 
   Definition reg_ren f (r:PregEq.t) (rs rs' : regset) : Prop :=
@@ -353,7 +353,7 @@ Module X86Inj <: CoreInjections X86SEM.
     | mk_load_frame b ty, mk_load_frame b' ty' =>
       f b = Some b' /\ ty = ty'
     end.
-  
+
   Definition core_inj f c c' :=
     match c, c' with
     | State rs loader, State rs' loader' =>
@@ -474,7 +474,7 @@ Module X86Inj <: CoreInjections X86SEM.
     specialize (H r).
       by auto.
   Qed.
-    
+
   Lemma regset_ren_trans:
     forall f f' f'' rs rs' rs'',
       regset_ren f rs rs'' ->
@@ -543,7 +543,7 @@ Module X86Inj <: CoreInjections X86SEM.
     unfold Pregmap.init, Pregmap.get;
       auto.
   Qed.
-  
+
   Lemma loader_ren_trans:
     forall f f' f'' loader loader' loader'',
       loader_ren f loader loader'' ->
@@ -617,7 +617,7 @@ Module X86Inj <: CoreInjections X86SEM.
        loader_ren_incr loader_ren_id loader_ren_trans
        val_obs_reg regset_ren_set : reg_renamings.
   Hint Rewrite gso_undef_regs : reg_renamings.
-  
+
   Hint Resolve valid_val_ge_id  : ge_renamings.
   Hint Constructors eval_builtin_arg : renamings.
   Hint Unfold Vone Vzero nextinstr nextinstr_nf : renamings.
@@ -636,7 +636,7 @@ Module X86Inj <: CoreInjections X86SEM.
     specialize (H2 id i _ ltac:(reflexivity)).
     destruct (find_symbol g id)...
   Qed.
-  
+
   Hint Resolve val_obs_symb : ge_renamings.
 
   Lemma regset_ren_undef:
@@ -654,7 +654,7 @@ Module X86Inj <: CoreInjections X86SEM.
   Qed.
 
   Hint Resolve regset_ren_undef : reg_renamings.
-   
+
   Lemma ge_wd_incr :
     forall (f f' : memren) (g : X86SEM.G),
       ge_wd f g -> ren_domain_incr f f' -> ge_wd f' g.
@@ -683,7 +683,7 @@ Module X86Inj <: CoreInjections X86SEM.
       eauto.
     eapply valid_val_domain; eauto.
   Qed.
-    
+
   Lemma core_wd_incr :
     forall (f f' : memren) c,
       core_wd f c -> ren_domain_incr f f' -> core_wd f' c.
@@ -701,7 +701,7 @@ Module X86Inj <: CoreInjections X86SEM.
              end;
         by eauto.
   Qed.
-  
+
   Lemma core_wd_domain :
     forall (f f' : memren) (m : mem) c,
       core_wd f c ->
@@ -721,7 +721,7 @@ Module X86Inj <: CoreInjections X86SEM.
     destruct (H0 f0), (H1 f0);
       by eauto.
   Qed.
-  
+
   Lemma at_external_wd :
     forall (f : memren) c
       (ef : external_function)
@@ -758,7 +758,7 @@ Module X86Inj <: CoreInjections X86SEM.
     intros.
     destruct v; simpl; auto.
   Qed.
-  
+
   Lemma after_external_wd :
     forall (c c' : state) (f : memren) (ef : external_function)
       (args : seq val) (ov : option val)
@@ -802,7 +802,7 @@ Module X86Inj <: CoreInjections X86SEM.
         repeat (eapply regset_wd_set; eauto).
       assumption.
   Qed.
-  
+
   Lemma initial_core_wd :
     forall the_ge (f : memren) (vf arg : val) (c_new : state),
       initial_core X86SEM.Sem the_ge vf [:: arg] = Some c_new ->
@@ -829,7 +829,7 @@ Module X86Inj <: CoreInjections X86SEM.
     constructor;
       by [auto | constructor].
   Qed.
-    
+
   Lemma core_inj_ext :
     forall c c' (f : memren),
       core_inj f c c' ->
@@ -867,7 +867,7 @@ Module X86Inj <: CoreInjections X86SEM.
   Qed.
 
   Lemma core_inj_after_ext :
-    forall c cc c' (ov1 : option val) 
+    forall c cc c' (ov1 : option val)
       (f : memren),
       core_inj f c c' ->
       match ov1 with
@@ -977,7 +977,7 @@ Module X86Inj <: CoreInjections X86SEM.
     inv Heql0;
     eauto with val_renamings.
   Qed.
-  
+
   Lemma core_inj_init :
     forall vf vf' arg arg' c_new f fg the_ge
       (Harg: val_obs_list f arg arg')
@@ -1028,7 +1028,7 @@ Module X86Inj <: CoreInjections X86SEM.
     erewrite <- vals_defined_obs; eauto.
     erewrite <- val_has_type_list_obs; eauto.
   Qed.
-  
+
   Lemma core_inj_id :
     forall c (f : memren),
       core_wd f c ->
@@ -1068,7 +1068,7 @@ Module X86Inj <: CoreInjections X86SEM.
            | [H: _ /\ _ |- _] => destruct H
            | [|- _ /\ _] => split
            | [|- regset_ren _ _ _] =>
-             eapply regset_ren_trans; eauto 
+             eapply regset_ren_trans; eauto
            | [|- loader_ren _ _ _] =>
              eapply loader_ren_trans; eauto
            | [|- val_obs_list _ _ _] =>
@@ -1118,7 +1118,7 @@ Module X86Inj <: CoreInjections X86SEM.
     destruct H0 as [b' Hfg'].
     assert (Heq := Hfg _ _ Hfg'); subst...
   Qed.
-  
+
   Lemma eval_builtin_arg_ren:
     forall (g : genv) (rs rs' : regset) (f fg: memren) (m m' : mem)
       (arg : builtin_arg preg) (varg : val)
@@ -1150,7 +1150,7 @@ Module X86Inj <: CoreInjections X86SEM.
         by (eapply symb_val_obs; eauto)...
     - destruct IHHeval1 as (vhi' & ? & ?), IHHeval2 as (vlo' & ? & ?)...
   Qed.
-  
+
   Lemma eval_builtin_args_ren:
     forall (g : genv) (rs rs' : regset) (f fg: memren) (m m' : mem)
       (args : seq (builtin_arg preg)) (vargs : seq val)
@@ -1176,7 +1176,7 @@ Module X86Inj <: CoreInjections X86SEM.
     exists (varg' :: vargs');
       split; econstructor; eauto.
   Qed.
-  
+
   Lemma block_is_volatile_ren:
     forall g fg f b1 b2
       (Hfg: forall b1 b2 : block, fg b1 = Some b2 -> b1 = b2)
@@ -1248,7 +1248,7 @@ Module X86Inj <: CoreInjections X86SEM.
     assert (Hinjective := injective (weak_obs_eq Hmem_obs_eq)).
     unfold compare_ints...
   Qed.
-  
+
   Lemma compare_floats32_ren:
     forall f rs rs' v1 v2 v1' v2'
       (Hval_obs: val_obs f v1 v1')
@@ -1276,7 +1276,7 @@ Module X86Inj <: CoreInjections X86SEM.
       destruct v1; inversion Hval_obs; subst;
       destruct v2; inversion Hval_obs'; subst...
   Qed.
-  
+
   Lemma eval_testcond_ren:
     forall f (c : testcond) rs rs'
       (Hrs_ren: regset_ren f rs rs'),
@@ -1308,7 +1308,7 @@ Module X86Inj <: CoreInjections X86SEM.
     destruct (eval_testcond c rs') as [[|]|];
       unfold Val.of_optbool, Vtrue, Vfalse...
   Qed.
-  
+
   Hint Resolve compare_floats_ren compare_floats32_ren
        compare_ints_ren : reg_renamings.
   Hint Resolve val_obs_addrmode val_obs_testcond : val_renamings.
@@ -1373,7 +1373,7 @@ Module X86Inj <: CoreInjections X86SEM.
         by apply Pos.lt_irrefl in v.
       destruct (valid_block_dec m2 b); first by reflexivity.
       apply Mem.valid_new_block in Halloc;
-        by exfalso.        
+        by exfalso.
     } split.
     { constructor.
       - (*weak_mem_obs_eq*)
@@ -1414,7 +1414,7 @@ Module X86Inj <: CoreInjections X86SEM.
             first by (eapply (injective (weak_obs_eq Hobs_eq)); eauto).
             exfalso.
             destruct (valid_block_dec m2 b1'); simpl in *; try discriminate.
-            inv Hf1'.            
+            inv Hf1'.
             apply (codomain_valid (weak_obs_eq Hobs_eq)) in Hf1.
             apply Mem.fresh_block_alloc in Halloc'.
             auto.
@@ -1518,7 +1518,7 @@ Module X86Inj <: CoreInjections X86SEM.
         + exfalso.
           apply Mem.alloc_result in Halloc'. subst b'.
           apply Pos.lt_eq_cases in Hle.
-          destruct Hle as [Hlt | Heq]. 
+          destruct Hle as [Hlt | Heq].
           * rewrite Z.pos_sub_gt in n0; auto.
             simpl in n0.
             unfold Mem.valid_block, Plt in *.
@@ -1553,7 +1553,7 @@ Module X86Inj <: CoreInjections X86SEM.
     }
   Qed.
 
-    
+
   (** Executing an instruction in related states results in related
   states: 1. The renaming function is extended to accommodate newly
   allocated blocks. 2. The extension to the renaming only relates
@@ -1856,11 +1856,11 @@ Module X86Inj <: CoreInjections X86SEM.
     split...
     constructor; auto.
   Qed.
-  
+
   Lemma extcall_arguments_ren:
     forall f m m' ef args rs rs'
       (Hexternal: extcall_arguments rs m (ef_sig ef) args)
-      (Hmem_obs_eq: mem_obs_eq f m m') 
+      (Hmem_obs_eq: mem_obs_eq f m m')
       (Hrs_ren: regset_ren f rs rs'),
     exists args',
       extcall_arguments rs' m' (ef_sig ef) args' /\
@@ -1929,7 +1929,7 @@ Module X86Inj <: CoreInjections X86SEM.
       rewrite Hstore0' Hstore'.
       eauto.
   Qed.
- 
+
   Lemma load_frame_store_args_obs:
     forall f m m2 m' stk stk' args args' tys
       (Hmem_obs_eq: mem_obs_eq f m m')
@@ -2080,9 +2080,9 @@ Module X86Inj <: CoreInjections X86SEM.
         simpl. destruct tys0; simpl in *; inv H6; auto.
         destruct tys0. simpl in *.
         discriminate.
-        simpl in *; destruct t0; 
+        simpl in *; destruct t0;
         destruct (load_frame.args_len_rec args tys0) eqn:?;
-                 try discriminate; 
+                 try discriminate;
         try (specialize (IHargs _ _ H3 _ Heqo);
               rewrite IHargs; auto);
         destruct a; inv H1; try discriminate;
@@ -2114,7 +2114,7 @@ Module X86Inj <: CoreInjections X86SEM.
   Qed.
 
   (** Coresteps maintain well-definedness *)
-  
+
   Lemma extcall_arg_valid:
     forall f rs m locs arg
       (Hrs_wd: regset_wd f rs)
@@ -2141,7 +2141,7 @@ Module X86Inj <: CoreInjections X86SEM.
   Qed.
 
   Hint Resolve valid_val_longofwords : wd.
-  
+
   Lemma extcall_arg_pair_valid:
     forall f rs m locs arg
       (Hrs_wd: regset_wd f rs)
@@ -2155,7 +2155,7 @@ Module X86Inj <: CoreInjections X86SEM.
     eapply extcall_arg_valid in H; eauto.
     eapply extcall_arg_valid in H0; eauto...
   Qed.
-  
+
   Lemma extcall_arguments_valid:
     forall f m ef args rs
       (Hexternal: extcall_arguments rs m (ef_sig ef) args)
@@ -2225,7 +2225,7 @@ Module X86Inj <: CoreInjections X86SEM.
           destruct (valid_block_dec m' b0); simpl in H; auto.
             by exfalso.
   Qed.
-  
+
   Lemma load_frame_store_args_rec_wd_domain:
     forall f m m' stk  args tys ofs
       (Hargs: valid_val_list f args)
@@ -2282,7 +2282,7 @@ Module X86Inj <: CoreInjections X86SEM.
   Proof.
     eapply load_frame_store_args_rec_wd_domain; eauto.
   Qed.
-  
+
   Corollary load_frame_store_args_rec_domain:
     forall f m m' stk args tys ofs
       (Hargs: valid_val_list f args)
@@ -2314,7 +2314,7 @@ Proof.
   eapply Mem.valid_block_free_1; eauto.
   split; destruct (H b0); eauto using Mem.valid_block_free_1.
 Qed.
-  
+
  Lemma exec_instr_wd:
     forall (g : genv) (fn : function) (i : instruction) (rs rs': regset)
       (m m' : mem) (f fg: memren) loader
@@ -2419,7 +2419,7 @@ Qed.
     Hint Resolve valid_val_incr regset_wd_incr loader_wd_incr : wd_alloc.
     split; eauto 2 with wd wd_alloc.
     assert (domain_memren f' m0) by
-        (eapply domain_memren_trans; eauto). 
+        (eapply domain_memren_trans; eauto).
     apply regset_wd_set.
     apply valid_val_add; eauto 2 with wd.
     apply regset_wd_set; eauto with wd wd_alloc.
@@ -2440,8 +2440,8 @@ Qed.
     unfold Mem.loadv in *; simpl in *.
     eapply valid_mem_load with (m := m); eauto.
   Qed.
-    
-  
+
+
   (** Well-definedness of state is retained. *)
   Lemma corestep_wd:
     forall c m c' m' f fg the_ge
@@ -2507,8 +2507,8 @@ Qed.
       destruct H3. rewrite H3. auto.
     - inversion Hcorestep; by exfalso.
   Qed.
-        
-End X86Inj.    
+
+End X86Inj.
 
 
 

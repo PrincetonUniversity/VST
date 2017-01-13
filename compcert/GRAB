@@ -9,8 +9,8 @@
 # WARNING: This will first delete all the .v files of your
 # current vst local copy!
 #
-# 
-if [ -e "$1" -a ./GRAB ]; then 
+#
+if [ -e "$1" -a ./GRAB ]; then
   rm -f */*.v flocq/*/*.v Makefile
   cp $1/Makefile $1/LICENSE $1/README.md $1/VERSION .
   cp $1/ia32/Archi.v ia32
@@ -25,5 +25,5 @@ if [ -e "$1" -a ./GRAB ]; then
   cp $1/exportclight/*.v exportclight
   cp $1/.depend .depend
 else
- echo "Usage:  ./GRAB ~/compcert"  
+ echo "Usage:  ./GRAB ~/compcert"
 fi

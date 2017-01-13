@@ -73,25 +73,25 @@ Qed.
 
 Lemma add_var_wf:
   forall s1 s2 map name r map' i,
-  add_var map name s1 = OK (r,map') s2 i -> 
+  add_var map name s1 = OK (r,map') s2 i ->
   map_wf map -> map_valid map s1 -> map_wf map'.
 Proof.
-  intros. monadInv H. 
+  intros. monadInv H.
   apply mk_map_wf; simpl.
   intros until r0. repeat rewrite PTree.gsspec.
   destruct (peq id1 name); destruct (peq id2 name).
   congruence.
-  intros. inv H. elimtype False. 
-  apply valid_fresh_absurd with r0 s1. 
+  intros. inv H. elimtype False.
+  apply valid_fresh_absurd with r0 s1.
   apply H1. left; exists id2; auto.
   eauto with rtlg.
-  intros. inv H2. elimtype False. 
-  apply valid_fresh_absurd with r0 s1. 
+  intros. inv H2. elimtype False.
+  apply valid_fresh_absurd with r0 s1.
   apply H1. left; exists id1; auto.
   eauto with rtlg.
   inv H0. eauto.
   intros until r0. rewrite PTree.gsspec.
-  destruct (peq id name). 
+  destruct (peq id name).
   intros. inv H.
   apply valid_fresh_absurd with r0 s1.
   apply H1. right; auto.
@@ -104,7 +104,7 @@ Lemma add_vars_wf:
   add_vars map names s1 = OK (rl,map') s2 i ->
   map_wf map -> map_valid map s1 -> map_wf map'.
 Proof.
-  induction names; simpl; intros; monadInv H. 
+  induction names; simpl; intros; monadInv H.
   auto.
   exploit add_vars_valid; eauto. intros [A B].
   eapply add_var_wf; eauto.
@@ -214,7 +214,7 @@ Lemma match_env_update_temp:
   match_env j map e le (rs#r <- v).
 Proof.
   intros. apply match_env_invariant with rs; auto.
-  intros. case (Reg.eq r r0); intro. 
+  intros. case (Reg.eq r r0); intro.
   subst r0; contradiction.
   apply Regmap.gso; auto.
 Qed.
@@ -240,7 +240,7 @@ Proof.
   exists r'; split. auto. rewrite PMap.gso; auto.
   red; intros. subst r'. elim n. eauto.
   erewrite list_map_exten. eauto.
-  intros. symmetry. apply PMap.gso. red; intros. subst x. eauto. 
+  intros. symmetry. apply PMap.gso. red; intros. subst x. eauto.
 Qed.
 
 (** A variant of [match_env_update_var] where a variable is optionally
@@ -254,8 +254,8 @@ Lemma match_env_update_dest:
   match_env j map e le rs ->
   match_env j map (set_optvar dst v e) le (rs#r <- tv).
 Proof.
-  intros. inv H1; simpl. 
-  eapply match_env_update_temp; eauto. 
+  intros. inv H1; simpl.
+  eapply match_env_update_temp; eauto.
   eapply match_env_update_var; eauto.
 Qed.
 Hint Resolve match_env_update_dest: rtlg.
@@ -276,7 +276,7 @@ Lemma match_env_unbind_letvar:
   match_env j (add_letvar map r) e (v :: le) rs ->
   match_env j map e le rs.
 Proof.
-  unfold add_letvar; intros. inv H. simpl in *. 
+  unfold add_letvar; intros. inv H. simpl in *.
   constructor. auto. inversion me_letvars0. auto.
 Qed.
 
@@ -305,13 +305,13 @@ Lemma match_set_params_init_regs:
 Proof.
   induction il; intros.
 
-  inv H. split. apply match_env_empty. auto. intros. 
+  inv H. split. apply match_env_empty. auto. intros.
   simpl. apply Regmap.gi.
 
   monadInv H. simpl.
   exploit add_vars_valid; eauto. apply init_mapping_valid. intros [A B].
   exploit add_var_valid; eauto. intros [A' B']. clear B'.
-  monadInv EQ1. 
+  monadInv EQ1.
   destruct H0 as [ | v1 tv1 vs tvs].
   (* vl = nil *)
   destruct (IHil _ _ _ _ nil nil _ EQ) as [ME UNDEF]. constructor. inv ME. split.
@@ -327,14 +327,14 @@ Proof.
   destruct (IHil _ _ _ _ _ _ _ EQ H0) as [ME UNDEF]. inv ME. split.
   constructor; simpl.
   intros id v. repeat rewrite PTree.gsspec. destruct (peq id a); intros.
-  subst a. (*inv H.*) inv H1. exists x1; split. auto. rewrite Regmap.gss. assumption.   
-  exploit me_vars0; eauto. intros [r' [C D]]. 
+  subst a. (*inv H.*) inv H1. exists x1; split. auto. rewrite Regmap.gss. assumption.
+  exploit me_vars0; eauto. intros [r' [C D]].
   exists r'; split. auto. rewrite Regmap.gso. auto.
   apply valid_fresh_different with s.
   apply B. left; exists id; auto.
-  eauto with rtlg. 
+  eauto with rtlg.
   destruct (map_letvars x0). auto. simpl in me_letvars0. inversion me_letvars0.
-  intros. rewrite Regmap.gso. apply UNDEF. 
+  intros. rewrite Regmap.gso. apply UNDEF.
   apply reg_fresh_decr with s2; eauto with rtlg.
   apply sym_not_equal. apply valid_fresh_different with s2; auto.
 Qed.
@@ -352,15 +352,15 @@ Proof.
 
   inv H2. auto.
 
-  monadInv H2. 
-  exploit IHil; eauto. intro. 
+  monadInv H2.
+  exploit IHil; eauto. intro.
   monadInv EQ1.
   constructor.
-  intros id v. simpl. repeat rewrite PTree.gsspec. 
-  destruct (peq id a). subst a. intro. 
+  intros id v. simpl. repeat rewrite PTree.gsspec.
+  destruct (peq id a). subst a. intro.
   exists x1. split. auto. inv H3. constructor.
   eauto with rtlg.
-  intros. eapply me_vars; eauto. 
+  intros. eapply me_vars; eauto.
   simpl. eapply me_letvars; eauto.
 Qed.
 
@@ -423,7 +423,7 @@ Lemma sig_transl_function:
 Proof.
   intros until tf. unfold transl_fundef, transf_partial_fundef.
   case f; intro.
-  unfold transl_function. 
+  unfold transl_function.
   destruct (reserve_labels (fn_body f0) (PTree.empty node, init_state)) as [ngoto s0].
   case (transl_fun f0 ngoto s0); simpl; intros.
   discriminate.
@@ -438,15 +438,15 @@ Proof
 
 (*LENB: GFP as in selectionproofEFF*)
 Definition globalfunction_ptr_inject (j:meminj):=
-  forall b f, Genv.find_funct_ptr ge b = Some f -> 
-              j b = Some(b,0) /\ isGlobalBlock ge b = true.  
+  forall b f, Genv.find_funct_ptr ge b = Some f ->
+              j b = Some(b,0) /\ isGlobalBlock ge b = true.
 
 Lemma restrict_preserves_globalfun_ptr: forall j X
   (PG : globalfunction_ptr_inject j)
   (Glob : forall b, isGlobalBlock ge b = true -> X b = true),
 globalfunction_ptr_inject (restrict j X).
 Proof. intros.
-  red; intros. 
+  red; intros.
   destruct (PG _ _ H). split; trivial.
   apply restrictI_Some; try eassumption.
   apply (Glob _ H1).
@@ -454,11 +454,11 @@ Qed.
 
 Lemma restrict_GFP_vis: forall mu
   (GFP : globalfunction_ptr_inject (as_inj mu))
-  (Glob : forall b, isGlobalBlock ge b = true -> 
+  (Glob : forall b, isGlobalBlock ge b = true ->
                     frgnBlocksSrc mu b = true),
   globalfunction_ptr_inject (restrict (as_inj mu) (vis mu)).
 Proof. intros.
-  unfold vis. 
+  unfold vis.
   eapply restrict_preserves_globalfun_ptr. eassumption.
   intuition.
 Qed.
@@ -486,15 +486,15 @@ Lemma tr_move_correct:
   tr_move f.(fn_code) ns r1 nd r2 ->
   exists rs',
   corestep_star rtl_eff_sem tge
-     (RTL_State cs f sp ns rs) m 
+     (RTL_State cs f sp ns rs) m
      (RTL_State cs f sp nd rs') m /\
   rs'#r2 = rs#r1 /\
   (forall r, r <> r2 -> rs'#r = rs#r).
 Proof.
-  intros. inv H. 
+  intros. inv H.
   exists rs; split. eapply corestep_star_zero. auto.
-  exists (rs#r2 <- (rs#r1)); split. 
-  apply corestep_star_one. eapply rtl_corestep_exec_Iop. eauto. auto. 
+  exists (rs#r2 <- (rs#r1)); split.
+  apply corestep_star_one. eapply rtl_corestep_exec_Iop. eauto. auto.
   split. apply Regmap.gss. intros; apply Regmap.gso; auto.
 Qed.
 
@@ -521,70 +521,70 @@ Proof.
 (* ifeq *)
   caseEq (Int.eq i key); intro EQ; rewrite EQ in H5.
   inv H5. exists nfound; exists rs; intuition.
-  apply corestep_star_one. eapply rtl_corestep_exec_Icond with (b := true); eauto. 
+  apply corestep_star_one. eapply rtl_corestep_exec_Icond with (b := true); eauto.
   simpl. rewrite H2. simpl. congruence.
   exploit IHtr_switch; eauto. intros [nd1 [rs1 [EX [NTH ME]]]].
   exists nd1; exists rs1; intuition.
-  eapply corestep_star_trans. 
-    eapply corestep_star_one. eapply rtl_corestep_exec_Icond with (b := false); eauto.  
+  eapply corestep_star_trans.
+    eapply corestep_star_one. eapply rtl_corestep_exec_Icond with (b := false); eauto.
       simpl. rewrite H2. simpl. congruence. eexact EX.
 (* iflt *)
   caseEq (Int.ltu i key); intro EQ; rewrite EQ in H5.
   exploit IHtr_switch1; eauto. intros [nd1 [rs1 [EX [NTH ME]]]].
   exists nd1; exists rs1; intuition.
-  eapply corestep_star_trans. 
-    eapply corestep_star_one. eapply rtl_corestep_exec_Icond with (b := true); eauto.  
+  eapply corestep_star_trans.
+    eapply corestep_star_one. eapply rtl_corestep_exec_Icond with (b := true); eauto.
     simpl. rewrite H2. simpl. congruence. eexact EX.
   exploit IHtr_switch2; eauto. intros [nd1 [rs1 [EX [NTH ME]]]].
   exists nd1; exists rs1; intuition.
-  eapply corestep_star_trans. 
-    eapply corestep_star_one. eapply rtl_corestep_exec_Icond with (b := false); eauto. 
+  eapply corestep_star_trans.
+    eapply corestep_star_one. eapply rtl_corestep_exec_Icond with (b := false); eauto.
     simpl. rewrite H2. simpl. congruence. eexact EX.
 (* jumptable *)
   set (rs1 := rs#rt <- (Vint(Int.sub i ofs))).
   assert (ME1: match_env j map e nil rs1).
     unfold rs1. eauto with rtlg.
   assert (EX1: RTL_corestep tge (RTL_State cs f sp n rs) m (RTL_State cs f sp n1 rs1) m).
-    eapply rtl_corestep_exec_Iop; eauto. 
+    eapply rtl_corestep_exec_Iop; eauto.
     predSpec Int.eq Int.eq_spec ofs Int.zero; simpl.
     rewrite H10. rewrite Int.sub_zero_l. congruence.
-    rewrite H6. simpl. rewrite <- Int.sub_add_opp. auto. 
+    rewrite H6. simpl. rewrite <- Int.sub_add_opp. auto.
   caseEq (Int.ltu (Int.sub i ofs) sz); intro EQ; rewrite EQ in H9.
   exploit H5; eauto. intros [nd [A B]].
   exists nd; exists rs1; intuition.
-  eapply corestep_star_trans. 
+  eapply corestep_star_trans.
     eapply corestep_star_one. eexact EX1.
-  eapply corestep_star_trans. 
-    eapply corestep_star_one. eapply rtl_corestep_exec_Icond with (b := true); eauto.  
-    simpl. unfold rs1. rewrite Regmap.gss. simpl. congruence. 
+  eapply corestep_star_trans.
+    eapply corestep_star_one. eapply rtl_corestep_exec_Icond with (b := true); eauto.
+    simpl. unfold rs1. rewrite Regmap.gss. simpl. congruence.
   apply corestep_star_one. eapply rtl_corestep_exec_Ijumptable; eauto. unfold rs1. apply Regmap.gss.
   exploit (IHtr_switch rs1); eauto. unfold rs1. rewrite Regmap.gso; auto.
   intros [nd [rs' [EX [NTH ME]]]].
   exists nd; exists rs'; intuition.
-  eapply corestep_star_trans. 
+  eapply corestep_star_trans.
     eapply corestep_star_one. eexact EX1.
-  eapply corestep_star_trans. 
-    eapply corestep_star_one. eapply rtl_corestep_exec_Icond with (b := false); eauto. 
+  eapply corestep_star_trans.
+    eapply corestep_star_one. eapply rtl_corestep_exec_Icond with (b := false); eauto.
     simpl. unfold rs1. rewrite Regmap.gss. simpl. congruence.
-  eexact EX. 
+  eexact EX.
 Qed.
 
 (** ** Semantic preservation for the translation of expressions *)
 
 (*LENB: translation of sp. Contrary to selection phase,
   the use of eval_operation (and the existing lemmas about
-  eval_operation_inject) here suggests we should 
+  eval_operation_inject) here suggests we should
   require sp=Vptr b Int.zero and sp' = Vptr b' Int.zero instead
   of sp=Vptr b i and sp' = Vptr b' i for some arbitrary i.
   Let's see whether this works...*)
-Definition sp_preserved (j:meminj) (sp sp':val) := 
-    exists b b', sp = Vptr b Int.zero /\ sp' = Vptr b' Int.zero /\ 
+Definition sp_preserved (j:meminj) (sp sp':val) :=
+    exists b b', sp = Vptr b Int.zero /\ sp' = Vptr b' Int.zero /\
                 j b = Some(b',0).
 
 Lemma shift_stack_addressing_zero: forall addr,
  shift_stack_addressing (Int.repr 0) addr = addr.
 Proof. intros.
-  destruct addr; try reflexivity. 
+  destruct addr; try reflexivity.
   simpl. rewrite Int.add_zero_l. trivial.
 Qed.
 
@@ -625,7 +625,7 @@ Variable m: mem.
   We formalize this simulation property by the following predicate
   parameterized by the CminorSel evaluation (left arrow).  *)
 
-Definition transl_expr_prop 
+Definition transl_expr_prop
      (le: letenv) (a: expr) (v: val) : Prop :=
   forall j tm cs f map pr ns nd rd rs dst
  (*NEW:*)(PG: meminj_preserves_globals ge j)
@@ -643,7 +643,7 @@ Definition transl_expr_prop
   /\ (forall r, In r pr -> rs'#r = rs#r)
   /\ Mem.inject j m tm' /\ tm=tm'.
 
-Definition transl_exprlist_prop 
+Definition transl_exprlist_prop
      (le: letenv) (al: exprlist) (vl: list val) : Prop :=
   forall j tm cs f map pr ns nd rl rs
  (*NEW:*)(PG: meminj_preserves_globals ge j)
@@ -661,7 +661,7 @@ Definition transl_exprlist_prop
   /\ (forall r, In r pr -> rs'#r = rs#r)
   /\ Mem.inject j m tm' /\ tm=tm'.
 
-Definition transl_condexpr_prop 
+Definition transl_condexpr_prop
      (le: letenv) (a: condexpr) (v: bool) : Prop :=
   forall j tm cs f map pr ns ntrue nfalse rs
  (*NEW:*)(PG: meminj_preserves_globals ge j)
@@ -693,22 +693,22 @@ Lemma transl_expr_Evar_correct:
 Proof.
   intros; red; intros. inv TE.
   exploit match_env_find_var; eauto. intro EQ.
-  exploit tr_move_correct; eauto. intros [rs' [A [B C]]]. 
+  exploit tr_move_correct; eauto. intros [rs' [A [B C]]].
   exists rs'; exists tm; split. eauto.
   destruct H2 as [[D E] | [D E]].
   (* optimized case *)
   subst r dst. simpl.
   assert (forall r, rs'#r = rs#r).
-    intros. destruct (Reg.eq r rd). subst r. auto. auto. 
+    intros. destruct (Reg.eq r rd). subst r. auto. auto.
   split. eapply match_env_invariant; eauto.
   split. congruence.
   split; auto.
   (* general case *)
   split.
   apply match_env_invariant with (rs#rd <- (rs#r)).
-  apply match_env_update_dest; auto. 
-  intros. rewrite Regmap.gsspec. destruct (peq r0 rd). congruence. auto. 
-  split. congruence. 
+  apply match_env_update_dest; auto.
+  intros. rewrite Regmap.gsspec. destruct (peq r0 rd). congruence. auto.
+  split. congruence.
   split. intros. apply C. intuition congruence.
   auto.
 Qed.
@@ -722,12 +722,12 @@ Lemma transl_expr_Eop_correct:
   transl_expr_prop le (Eop op args) v.
 Proof.
   intros; red; intros. inv TE.
-(* normal case *) 
+(* normal case *)
   exploit H0; eauto. intros [rs1 [tm1 [EX1 [ME1 [RR1 [RO1 [EXT1 X]]]]]]]; subst tm.
   (*Was: edestruct eval_operation_lessdef...*)
 
   destruct SP as [spb [spb' [SP [SP' Jsp]]]]. subst sp sp'.
-  edestruct eval_operation_inject as [v' []]; eauto. 
+  edestruct eval_operation_inject as [v' []]; eauto.
   rewrite eval_shift_stack_operation in H2. simpl in H2. rewrite Int.add_zero in H2.
 
   exists (rs1#rd <- v'); exists tm1.
@@ -735,7 +735,7 @@ Proof.
   split. eapply corestep_star_trans. eexact EX1.
   eapply corestep_star_one. eapply rtl_corestep_exec_Iop; eauto.
   rewrite (@eval_operation_preserved CminorSel.fundef _ _ _ ge tge). eauto.
-  exact symbols_preserved. 
+  exact symbols_preserved.
 (* Match-env *)
   split. eauto with rtlg.
 (* Result reg *)
@@ -760,24 +760,24 @@ Proof.
   (*Was: edestruct eval_addressing_lessdef as [vaddr' []]; eauto.*)
 
   destruct SP as [spb [spb' [SP [SP' Jsp]]]]. subst sp sp'.
-  edestruct eval_addressing_inject as [vaddr' [? ?]]; eauto. 
+  edestruct eval_addressing_inject as [vaddr' [? ?]]; eauto.
   rewrite shift_stack_addressing_zero in H3; simpl in H3.
   edestruct Mem.loadv_inject as [v' []]; eauto.
   exists (rs1#rd <- v'); exists tm1.
 (* Exec *)
   split. eapply corestep_star_trans. eexact EX1.
     eapply corestep_star_one.
-      eapply rtl_corestep_exec_Iload; try eassumption. 
+      eapply rtl_corestep_exec_Iload; try eassumption.
     rewrite (eval_addressing_preserved ge). assumption.
        exact symbols_preserved.
 (* Match-env *)
-  split. eauto with rtlg. 
+  split. eauto with rtlg.
 (* Result *)
   split. rewrite Regmap.gss. auto.
 (* Other regs *)
   split. intros. rewrite Regmap.gso. auto. intuition congruence.
 (* Mem *)
-  auto. 
+  auto.
 Qed.
 
 Lemma transl_expr_Econdition_correct:
@@ -790,7 +790,7 @@ Lemma transl_expr_Econdition_correct:
   transl_expr_prop le (Econdition a ifso ifnot) v.
 Proof.
   intros; red; intros; inv TE.
-  exploit H0; eauto. intros [rs1 [tm1 [EX1 [ME1 [OTHER1 [EXT1 X]]]]]]; subst tm. 
+  exploit H0; eauto. intros [rs1 [tm1 [EX1 [ME1 [OTHER1 [EXT1 X]]]]]]; subst tm.
   assert (tr_expr f.(fn_code) map pr (if va then ifso else ifnot) (if va then ntrue else nfalse) nd rd dst).
     destruct va; auto.
   exploit H2; eauto. intros [rs2 [tm2 [EX2 [ME2 [RES2 [OTHER2 EXT2]]]]]].
@@ -816,10 +816,10 @@ Lemma transl_expr_Elet_correct:
   transl_expr_prop (v1 :: le) a2 v2 ->
   transl_expr_prop le (Elet a1 a2) v2.
 Proof.
-  intros; red; intros; inv TE. 
+  intros; red; intros; inv TE.
   exploit H0; eauto. intros [rs1 [tm1 [EX1 [ME1 [RES1 [OTHER1 [EXT1 X]]]]]]]; subst tm.
   assert (map_wf (add_letvar map r)).
-    eapply add_letvar_wf; eauto. 
+    eapply add_letvar_wf; eauto.
   exploit H2; eauto. eapply match_env_bind_letvar; eauto.
   intros [rs2 [tm2 [EX2 [ME3 [RES2 [OTHER2 EXT2]]]]]].
   exists rs2; exists tm2.
@@ -846,9 +846,9 @@ Proof.
 (* Exec *)
   split. eexact EX1.
 (* Match-env *)
-  split. 
+  split.
   destruct H2 as [[A B] | [A B]].
-  subst r dst; simpl. 
+  subst r dst; simpl.
   apply match_env_invariant with rs. auto.
   intros. destruct (Reg.eq r rd). subst r. auto. auto.
   apply match_env_invariant with (rs#rd <- (rs#r)).
@@ -857,9 +857,9 @@ Proof.
   intros. rewrite Regmap.gsspec. destruct (peq r0 rd); auto.
   congruence.
 (* Result *)
-  split. rewrite RES1. eapply match_env_find_letvar; eauto. 
+  split. rewrite RES1. eapply match_env_find_letvar; eauto.
 (* Other regs *)
-  split. intros. 
+  split. intros.
   destruct H2 as [[A B] | [A B]].
   destruct (Reg.eq r0 rd); subst; auto.
   apply OTHER1. intuition congruence.
@@ -868,7 +868,7 @@ Proof.
 Qed.
 
 (*LENB: TODO: builtin: Lemma doesn;'t quite hold -nned to extend j -> j'.
-  But maye we won't need this case, if 
+  But maye we won't need this case, if
   builtin-expressions can be eliminated from CminorSel.expressions*)
 Lemma transl_expr_Ebuiltin_correct:
   forall le ef al vl v,
@@ -882,9 +882,9 @@ Qed.
 (*Proof.
   intros; red; intros. inv TE.
   exploit H0; eauto. intros [rs1 [tm1 [EX1 [ME1 [RR1 [RO1 EXT1]]]]]].
-  (*WAS: exploit external_call_mem_extends; eauto. 
+  (*WAS: exploit external_call_mem_extends; eauto.
         intros [v' [tm2 [A [B [C [D E]]]]]].*)
-  exploit external_call_mem_inject; eauto. 
+  exploit external_call_mem_inject; eauto.
         intros [j' [v' [tm2 [A [B [C [D [E [F G]]]]]]]]].
   exists (rs1#rd <- v'); exists tm2.
 (* Exec *)
@@ -923,9 +923,9 @@ Qed.
 Proof.
   intros; red; intros. inv TE.
   exploit H3; eauto. intros [rs1 [tm1 [EX1 [ME1 [RR1 [RO1 EXT1]]]]]].
-  exploit external_call_mem_extends; eauto. 
+  exploit external_call_mem_extends; eauto.
   intros [v' [tm2 [A [B [C [D E]]]]]].
-  exploit function_ptr_translated; eauto. simpl. intros [tf [P Q]]. inv Q. 
+  exploit function_ptr_translated; eauto. simpl. intros [tf [P Q]]. inv Q.
   exists (rs1#rd <- v'); exists tm2.
 (* Exec *)
   split. eapply star_trans. eexact EX1.
@@ -933,7 +933,7 @@ Proof.
   simpl. rewrite symbols_preserved. rewrite H. eauto. auto.
   eapply star_left. eapply exec_function_external.
   eapply external_call_symbols_preserved; eauto. exact symbols_preserved. exact varinfo_preserved.
-  apply star_one. apply exec_return. 
+  apply star_one. apply exec_return.
   reflexivity. reflexivity. reflexivity.
 (* Match-env *)
   split. eauto with rtlg.
@@ -972,7 +972,7 @@ Proof.
   exploit H2; eauto. intros [rs2 [tm2 [EX2 [ME2 [RES2 [OTHER2 [EXT2 X2]]]]]]]; subst.
   exists rs2; exists tm2.
 (* Exec *)
-  split. eapply corestep_star_trans. eexact EX1. eexact EX2. auto. 
+  split. eapply corestep_star_trans. eexact EX1. eexact EX2. auto.
 (* Match-env *)
   split. assumption.
 (* Results *)
@@ -981,7 +981,7 @@ Proof.
   auto.
 (* Other regs *)
   split. intros. transitivity (rs1#r).
-  apply OTHER2; auto. simpl; tauto. 
+  apply OTHER2; auto. simpl; tauto.
   apply OTHER1; auto.
 (* Mem *)
   auto.
@@ -994,18 +994,18 @@ Lemma transl_condexpr_CEcond_correct:
   eval_condition cond vl m = Some vb ->
   transl_condexpr_prop le (CEcond cond al) vb.
 Proof.
-  intros; red; intros. inv TE. 
+  intros; red; intros. inv TE.
   exploit H0; eauto. intros [rs1 [tm1 [EX1 [ME1 [RES1 [OTHER1 [EXT1 X]]]]]]]; subst.
   exists rs1; exists tm1.
 (* Exec *)
   split. eapply corestep_star_plus_trans. eexact EX1.
-      eapply corestep_plus_one. eapply rtl_corestep_exec_Icond. eauto. 
+      eapply corestep_plus_one. eapply rtl_corestep_exec_Icond. eauto.
       (*eapply eval_condition_lessdef; eauto.*)
     eapply eval_condition_inject; eauto. auto.
 (* Match-env *)
   split. assumption.
 (* Other regs *)
-  split. assumption. 
+  split. assumption.
 (* Mem *)
   auto.
 Qed.
@@ -1018,7 +1018,7 @@ Lemma transl_condexpr_CEcondition_correct:
   transl_condexpr_prop le (if va then b else c) v ->
   transl_condexpr_prop le (CEcondition a b c) v.
 Proof.
-  intros; red; intros. inv TE. 
+  intros; red; intros. inv TE.
   exploit H0; eauto. intros [rs1 [tm1 [EX1 [ME1 [OTHER1 [EXT1 X]]]]]]; subst.
   assert (tr_condition (fn_code f) map pr (if va then b else c) (if va then n2 else n3) ntrue nfalse).
     destruct va; auto.
@@ -1029,7 +1029,7 @@ Proof.
 (* Match-env *)
   split. assumption.
 (* Other regs *)
-  split. intros. rewrite OTHER2; auto. 
+  split. intros. rewrite OTHER2; auto.
 (* Mem *)
   auto.
 Qed.
@@ -1042,11 +1042,11 @@ Lemma transl_condexpr_CElet_correct:
   transl_condexpr_prop (v1 :: le) b v2 ->
   transl_condexpr_prop le (CElet a b) v2.
 Proof.
-  intros; red; intros. inv TE. 
+  intros; red; intros. inv TE.
   exploit H0; eauto. intros [rs1 [tm1 [EX1 [ME1 [RES1 [OTHER1 [EXT1 X]]]]]]]; subst.
   assert (map_wf (add_letvar map r)).
-    eapply add_letvar_wf; eauto. 
-  exploit H2; eauto. eapply match_env_bind_letvar; eauto. 
+    eapply add_letvar_wf; eauto.
+  exploit H2; eauto. eapply match_env_bind_letvar; eauto.
   intros [rs2 [tm2 [EX2 [ME3 [OTHER2 [EXT2 X]]]]]]; subst.
   exists rs2; exists tm2.
 (* Exec *)
@@ -1054,7 +1054,7 @@ Proof.
 (* Match-env *)
   split. eapply match_env_unbind_letvar; eauto.
 (* Other regs *)
-  split. intros. rewrite OTHER2; auto. 
+  split. intros. rewrite OTHER2; auto.
 (* Mem *)
   auto.
 Qed.
@@ -1138,15 +1138,15 @@ Lemma Efftr_move_correct:
   tr_move f.(fn_code) ns r1 nd r2 ->
   exists rs',
   effstep_star rtl_eff_sem tge EmptyEffect
-     (RTL_State cs f sp ns rs) m 
+     (RTL_State cs f sp ns rs) m
      (RTL_State cs f sp nd rs') m /\
   rs'#r2 = rs#r1 /\
   (forall r, r <> r2 -> rs'#r = rs#r).
 Proof.
-  intros. inv H. 
+  intros. inv H.
   exists rs; split. eapply effstep_star_zero. auto.
-  exists (rs#r2 <- (rs#r1)); split. 
-  apply effstep_star_one. eapply rtl_effstep_exec_Iop. eauto. auto. 
+  exists (rs#r2 <- (rs#r1)); split.
+  apply effstep_star_one. eapply rtl_effstep_exec_Iop. eauto. auto.
   split. apply Regmap.gss. intros; apply Regmap.gso; auto.
 Qed.
 
@@ -1172,52 +1172,52 @@ Proof.
 (* ifeq *)
   caseEq (Int.eq i key); intro EQ; rewrite EQ in H5.
   inv H5. exists nfound; exists rs; intuition.
-  apply effstep_star_one. eapply rtl_effstep_exec_Icond with (b := true); eauto. 
+  apply effstep_star_one. eapply rtl_effstep_exec_Icond with (b := true); eauto.
   simpl. rewrite H2. simpl. congruence.
   exploit IHtr_switch; eauto. intros [nd1 [rs1 [EX [NTH ME]]]].
   exists nd1; exists rs1; intuition.
-  eapply effstep_star_trans. 
-    eapply effstep_star_one. eapply rtl_effstep_exec_Icond with (b := false); eauto.  
+  eapply effstep_star_trans.
+    eapply effstep_star_one. eapply rtl_effstep_exec_Icond with (b := false); eauto.
       simpl. rewrite H2. simpl. congruence. eexact EX.
 (* iflt *)
   caseEq (Int.ltu i key); intro EQ; rewrite EQ in H5.
   exploit IHtr_switch1; eauto. intros [nd1 [rs1 [EX [NTH ME]]]].
   exists nd1; exists rs1; intuition.
-  eapply effstep_star_trans. 
-    eapply effstep_star_one. eapply rtl_effstep_exec_Icond with (b := true); eauto.  
+  eapply effstep_star_trans.
+    eapply effstep_star_one. eapply rtl_effstep_exec_Icond with (b := true); eauto.
     simpl. rewrite H2. simpl. congruence. eexact EX.
   exploit IHtr_switch2; eauto. intros [nd1 [rs1 [EX [NTH ME]]]].
   exists nd1; exists rs1; intuition.
-  eapply effstep_star_trans. 
-    eapply effstep_star_one. eapply rtl_effstep_exec_Icond with (b := false); eauto. 
+  eapply effstep_star_trans.
+    eapply effstep_star_one. eapply rtl_effstep_exec_Icond with (b := false); eauto.
     simpl. rewrite H2. simpl. congruence. eexact EX.
 (* jumptable *)
   set (rs1 := rs#rt <- (Vint(Int.sub i ofs))).
   assert (ME1: match_env j map e nil rs1).
     unfold rs1. eauto with rtlg.
   assert (EX1: RTL_effstep tge EmptyEffect (RTL_State cs f sp n rs) m (RTL_State cs f sp n1 rs1) m).
-    eapply rtl_effstep_exec_Iop; eauto. 
+    eapply rtl_effstep_exec_Iop; eauto.
     predSpec Int.eq Int.eq_spec ofs Int.zero; simpl.
     rewrite H10. rewrite Int.sub_zero_l. congruence.
-    rewrite H6. simpl. rewrite <- Int.sub_add_opp. auto. 
+    rewrite H6. simpl. rewrite <- Int.sub_add_opp. auto.
   caseEq (Int.ltu (Int.sub i ofs) sz); intro EQ; rewrite EQ in H9.
   exploit H5; eauto. intros [nd [A B]].
   exists nd; exists rs1; intuition.
-  eapply effstep_star_trans. 
+  eapply effstep_star_trans.
     eapply effstep_star_one. eexact EX1.
-  eapply effstep_star_trans. 
-    eapply effstep_star_one. eapply rtl_effstep_exec_Icond with (b := true); eauto.  
-    simpl. unfold rs1. rewrite Regmap.gss. simpl. congruence. 
+  eapply effstep_star_trans.
+    eapply effstep_star_one. eapply rtl_effstep_exec_Icond with (b := true); eauto.
+    simpl. unfold rs1. rewrite Regmap.gss. simpl. congruence.
   apply effstep_star_one. eapply rtl_effstep_exec_Ijumptable; eauto. unfold rs1. apply Regmap.gss.
   exploit (IHtr_switch rs1); eauto. unfold rs1. rewrite Regmap.gso; auto.
   intros [nd [rs' [EX [NTH ME]]]].
   exists nd; exists rs'; intuition.
-  eapply effstep_star_trans. 
+  eapply effstep_star_trans.
     eapply effstep_star_one. eexact EX1.
-  eapply effstep_star_trans. 
-    eapply effstep_star_one. eapply rtl_effstep_exec_Icond with (b := false); eauto. 
+  eapply effstep_star_trans.
+    eapply effstep_star_one. eapply rtl_effstep_exec_Icond with (b := false); eauto.
     simpl. unfold rs1. rewrite Regmap.gss. simpl. congruence.
-  eexact EX. 
+  eexact EX.
 Qed.
 
 Variable sp: val.
@@ -1225,7 +1225,7 @@ Variable e: env.
 Variable m: mem.
 
 
-Definition Efftransl_expr_prop 
+Definition Efftransl_expr_prop
      (le: letenv) (a: expr) (v: val) : Prop :=
   forall j tm cs f map pr ns nd rd rs dst
  (*NEW:*)(PG: meminj_preserves_globals ge j)
@@ -1243,7 +1243,7 @@ Definition Efftransl_expr_prop
   /\ (forall r, In r pr -> rs'#r = rs#r)
   /\ Mem.inject j m tm' /\ tm=tm'.
 
-Definition Efftransl_exprlist_prop 
+Definition Efftransl_exprlist_prop
      (le: letenv) (al: exprlist) (vl: list val) : Prop :=
   forall j tm cs f map pr ns nd rl rs
  (*NEW:*)(PG: meminj_preserves_globals ge j)
@@ -1261,7 +1261,7 @@ Definition Efftransl_exprlist_prop
   /\ (forall r, In r pr -> rs'#r = rs#r)
   /\ Mem.inject j m tm' /\ tm=tm'.
 
-Definition Efftransl_condexpr_prop 
+Definition Efftransl_condexpr_prop
      (le: letenv) (a: condexpr) (v: bool) : Prop :=
   forall j tm cs f map pr ns ntrue nfalse rs
  (*NEW:*)(PG: meminj_preserves_globals ge j)
@@ -1293,22 +1293,22 @@ Lemma Efftransl_expr_Evar_correct:
 Proof.
   intros; red; intros. inv TE.
   exploit match_env_find_var; eauto. intro EQ.
-  exploit Efftr_move_correct; eauto. intros [rs' [A [B C]]]. 
+  exploit Efftr_move_correct; eauto. intros [rs' [A [B C]]].
   exists rs'; exists tm; split. eauto.
   destruct H2 as [[D E] | [D E]].
   (* optimized case *)
   subst r dst. simpl.
   assert (forall r, rs'#r = rs#r).
-    intros. destruct (Reg.eq r rd). subst r. auto. auto. 
+    intros. destruct (Reg.eq r rd). subst r. auto. auto.
   split. eapply match_env_invariant; eauto.
   split. congruence.
   split; auto.
   (* general case *)
   split.
   apply match_env_invariant with (rs#rd <- (rs#r)).
-  apply match_env_update_dest; auto. 
-  intros. rewrite Regmap.gsspec. destruct (peq r0 rd). congruence. auto. 
-  split. congruence. 
+  apply match_env_update_dest; auto.
+  intros. rewrite Regmap.gsspec. destruct (peq r0 rd). congruence. auto.
+  split. congruence.
   split. intros. apply C. intuition congruence.
   auto.
 Qed.
@@ -1322,12 +1322,12 @@ Lemma Efftransl_expr_Eop_correct:
   Efftransl_expr_prop le (Eop op args) v.
 Proof.
   intros; red; intros. inv TE.
-(* normal case *) 
+(* normal case *)
   exploit H0; eauto. intros [rs1 [tm1 [EX1 [ME1 [RR1 [RO1 [EXT1 X]]]]]]]; subst tm.
   (*Was: edestruct eval_operation_lessdef...*)
 
   destruct SP as [spb [spb' [SP [SP' Jsp]]]]. subst sp sp'.
-  edestruct eval_operation_inject as [v' []]; eauto. 
+  edestruct eval_operation_inject as [v' []]; eauto.
   rewrite eval_shift_stack_operation in H2. simpl in H2. rewrite Int.add_zero in H2.
 
   exists (rs1#rd <- v'); exists tm1.
@@ -1335,7 +1335,7 @@ Proof.
   split. eapply effstep_star_trans. eexact EX1.
   eapply effstep_star_one. eapply rtl_effstep_exec_Iop; eauto.
   rewrite (@eval_operation_preserved CminorSel.fundef _ _ _ ge tge). eauto.
-  exact symbols_preserved. 
+  exact symbols_preserved.
 (* Match-env *)
   split. eauto with rtlg.
 (* Result reg *)
@@ -1360,24 +1360,24 @@ Proof.
   (*Was: edestruct eval_addressing_lessdef as [vaddr' []]; eauto.*)
 
   destruct SP as [spb [spb' [SP [SP' Jsp]]]]. subst sp sp'.
-  edestruct eval_addressing_inject as [vaddr' [? ?]]; eauto. 
+  edestruct eval_addressing_inject as [vaddr' [? ?]]; eauto.
   rewrite shift_stack_addressing_zero in H3; simpl in H3.
   edestruct Mem.loadv_inject as [v' []]; eauto.
   exists (rs1#rd <- v'); exists tm1.
 (* Exec *)
   split. eapply effstep_star_trans. eexact EX1.
     eapply effstep_star_one.
-      eapply rtl_effstep_exec_Iload; try eassumption. 
+      eapply rtl_effstep_exec_Iload; try eassumption.
     rewrite (eval_addressing_preserved ge). assumption.
        exact symbols_preserved.
 (* Match-env *)
-  split. eauto with rtlg. 
+  split. eauto with rtlg.
 (* Result *)
   split. rewrite Regmap.gss. auto.
 (* Other regs *)
   split. intros. rewrite Regmap.gso. auto. intuition congruence.
 (* Mem *)
-  auto. 
+  auto.
 Qed.
 
 Lemma Efftransl_expr_Econdition_correct:
@@ -1390,7 +1390,7 @@ Lemma Efftransl_expr_Econdition_correct:
   Efftransl_expr_prop le (Econdition a ifso ifnot) v.
 Proof.
   intros; red; intros; inv TE.
-  exploit H0; eauto. intros [rs1 [tm1 [EX1 [ME1 [OTHER1 [EXT1 X]]]]]]; subst tm. 
+  exploit H0; eauto. intros [rs1 [tm1 [EX1 [ME1 [OTHER1 [EXT1 X]]]]]]; subst tm.
   assert (tr_expr f.(fn_code) map pr (if va then ifso else ifnot) (if va then ntrue else nfalse) nd rd dst).
     destruct va; auto.
   exploit H2; eauto. intros [rs2 [tm2 [EX2 [ME2 [RES2 [OTHER2 EXT2]]]]]].
@@ -1416,10 +1416,10 @@ Lemma Efftransl_expr_Elet_correct:
   Efftransl_expr_prop (v1 :: le) a2 v2 ->
   Efftransl_expr_prop le (Elet a1 a2) v2.
 Proof.
-  intros; red; intros; inv TE. 
+  intros; red; intros; inv TE.
   exploit H0; eauto. intros [rs1 [tm1 [EX1 [ME1 [RES1 [OTHER1 [EXT1 X]]]]]]]; subst tm.
   assert (map_wf (add_letvar map r)).
-    eapply add_letvar_wf; eauto. 
+    eapply add_letvar_wf; eauto.
   exploit H2; eauto. eapply match_env_bind_letvar; eauto.
   intros [rs2 [tm2 [EX2 [ME3 [RES2 [OTHER2 EXT2]]]]]].
   exists rs2; exists tm2.
@@ -1446,9 +1446,9 @@ Proof.
 (* Exec *)
   split. eexact EX1.
 (* Match-env *)
-  split. 
+  split.
   destruct H2 as [[A B] | [A B]].
-  subst r dst; simpl. 
+  subst r dst; simpl.
   apply match_env_invariant with rs. auto.
   intros. destruct (Reg.eq r rd). subst r. auto. auto.
   apply match_env_invariant with (rs#rd <- (rs#r)).
@@ -1457,9 +1457,9 @@ Proof.
   intros. rewrite Regmap.gsspec. destruct (peq r0 rd); auto.
   congruence.
 (* Result *)
-  split. rewrite RES1. eapply match_env_find_letvar; eauto. 
+  split. rewrite RES1. eapply match_env_find_letvar; eauto.
 (* Other regs *)
-  split. intros. 
+  split. intros.
   destruct H2 as [[A B] | [A B]].
   destruct (Reg.eq r0 rd); subst; auto.
   apply OTHER1. intuition congruence.
@@ -1468,7 +1468,7 @@ Proof.
 Qed.
 
 (*LENB: TODO: builtin: Lemma doesn;'t quite hold -nned to extend j -> j'.
-  But maye we won't need this case, if 
+  But maye we won't need this case, if
   builtin-expressions can be eliminated from CminorSel.expressions*)
 Lemma Efftransl_expr_Ebuiltin_correct:
   forall le ef al vl v,
@@ -1482,9 +1482,9 @@ Qed.
 (*Proof.
   intros; red; intros. inv TE.
   exploit H0; eauto. intros [rs1 [tm1 [EX1 [ME1 [RR1 [RO1 EXT1]]]]]].
-  (*WAS: exploit external_call_mem_extends; eauto. 
+  (*WAS: exploit external_call_mem_extends; eauto.
         intros [v' [tm2 [A [B [C [D E]]]]]].*)
-  exploit external_call_mem_inject; eauto. 
+  exploit external_call_mem_inject; eauto.
         intros [j' [v' [tm2 [A [B [C [D [E [F G]]]]]]]]].
   exists (rs1#rd <- v'); exists tm2.
 (* Exec *)
@@ -1522,9 +1522,9 @@ Qed.
 (*Proof.
   intros; red; intros. inv TE.
   exploit H3; eauto. intros [rs1 [tm1 [EX1 [ME1 [RR1 [RO1 EXT1]]]]]].
-  exploit external_call_mem_extends; eauto. 
+  exploit external_call_mem_extends; eauto.
   intros [v' [tm2 [A [B [C [D E]]]]]].
-  exploit function_ptr_translated; eauto. simpl. intros [tf [P Q]]. inv Q. 
+  exploit function_ptr_translated; eauto. simpl. intros [tf [P Q]]. inv Q.
   exists (rs1#rd <- v'); exists tm2.
 (* Exec *)
   split. eapply star_trans. eexact EX1.
@@ -1532,7 +1532,7 @@ Qed.
   simpl. rewrite symbols_preserved. rewrite H. eauto. auto.
   eapply star_left. eapply exec_function_external.
   eapply external_call_symbols_preserved; eauto. exact symbols_preserved. exact varinfo_preserved.
-  apply star_one. apply exec_return. 
+  apply star_one. apply exec_return.
   reflexivity. reflexivity. reflexivity.
 (* Match-env *)
   split. eauto with rtlg.
@@ -1571,7 +1571,7 @@ Proof.
   exploit H2; eauto. intros [rs2 [tm2 [EX2 [ME2 [RES2 [OTHER2 [EXT2 X2]]]]]]]; subst.
   exists rs2; exists tm2.
 (* Exec *)
-  split. eapply effstep_star_trans. eexact EX1. eexact EX2. auto. 
+  split. eapply effstep_star_trans. eexact EX1. eexact EX2. auto.
 (* Match-env *)
   split. assumption.
 (* Results *)
@@ -1580,7 +1580,7 @@ Proof.
   auto.
 (* Other regs *)
   split. intros. transitivity (rs1#r).
-  apply OTHER2; auto. simpl; tauto. 
+  apply OTHER2; auto. simpl; tauto.
   apply OTHER1; auto.
 (* Mem *)
   auto.
@@ -1593,18 +1593,18 @@ Lemma Efftransl_condexpr_CEcond_correct:
   eval_condition cond vl m = Some vb ->
   Efftransl_condexpr_prop le (CEcond cond al) vb.
 Proof.
-  intros; red; intros. inv TE. 
+  intros; red; intros. inv TE.
   exploit H0; eauto. intros [rs1 [tm1 [EX1 [ME1 [RES1 [OTHER1 [EXT1 X]]]]]]]; subst.
   exists rs1; exists tm1.
 (* Exec *)
   split. eapply effstep_star_plus_trans. eexact EX1.
-      eapply effstep_plus_one. eapply rtl_effstep_exec_Icond. eauto. 
+      eapply effstep_plus_one. eapply rtl_effstep_exec_Icond. eauto.
       (*eapply eval_condition_lessdef; eauto.*)
     eapply eval_condition_inject; eauto. auto.
 (* Match-env *)
   split. assumption.
 (* Other regs *)
-  split. assumption. 
+  split. assumption.
 (* Mem *)
   auto.
 Qed.
@@ -1617,7 +1617,7 @@ Lemma Efftransl_condexpr_CEcondition_correct:
   Efftransl_condexpr_prop le (if va then b else c) v ->
   Efftransl_condexpr_prop le (CEcondition a b c) v.
 Proof.
-  intros; red; intros. inv TE. 
+  intros; red; intros. inv TE.
   exploit H0; eauto. intros [rs1 [tm1 [EX1 [ME1 [OTHER1 [EXT1 X]]]]]]; subst.
   assert (tr_condition (fn_code f) map pr (if va then b else c) (if va then n2 else n3) ntrue nfalse).
     destruct va; auto.
@@ -1628,7 +1628,7 @@ Proof.
 (* Match-env *)
   split. assumption.
 (* Other regs *)
-  split. intros. rewrite OTHER2; auto. 
+  split. intros. rewrite OTHER2; auto.
 (* Mem *)
   auto.
 Qed.
@@ -1641,11 +1641,11 @@ Lemma Efftransl_condexpr_CElet_correct:
   Efftransl_condexpr_prop (v1 :: le) b v2 ->
   Efftransl_condexpr_prop le (CElet a b) v2.
 Proof.
-  intros; red; intros. inv TE. 
+  intros; red; intros. inv TE.
   exploit H0; eauto. intros [rs1 [tm1 [EX1 [ME1 [RES1 [OTHER1 [EXT1 X]]]]]]]; subst.
   assert (map_wf (add_letvar map r)).
-    eapply add_letvar_wf; eauto. 
-  exploit H2; eauto. eapply match_env_bind_letvar; eauto. 
+    eapply add_letvar_wf; eauto.
+  exploit H2; eauto. eapply match_env_bind_letvar; eauto.
   intros [rs2 [tm2 [EX2 [ME3 [OTHER2 [EXT2 X]]]]]]; subst.
   exists rs2; exists tm2.
 (* Exec *)
@@ -1653,7 +1653,7 @@ Proof.
 (* Match-env *)
   split. eapply match_env_unbind_letvar; eauto.
 (* Other regs *)
-  split. intros. rewrite OTHER2; auto. 
+  split. intros. rewrite OTHER2; auto.
 (* Mem *)
   auto.
 Qed.
@@ -1696,7 +1696,7 @@ Proof
      Efftransl_expr_Econdition_correct
      Efftransl_expr_Elet_correct
      Efftransl_expr_Eletvar_correct
-     Efftransl_expr_Ebuiltin_correct 
+     Efftransl_expr_Ebuiltin_correct
      Efftransl_expr_Eexternal_correct
      Efftransl_exprlist_Enil_correct
      Efftransl_exprlist_Econs_correct
@@ -1783,10 +1783,10 @@ Lemma lt_state_wf:
   well_founded lt_state.
 Proof.
   unfold lt_state. apply wf_inverse_image with (f := measure_state).
-  apply wf_lex_ord. apply lt_wf. apply lt_wf. 
+  apply wf_lex_ord. apply lt_wf. apply lt_wf.
 Qed.
 
-(** ** Semantic preservation for the translation of statements *)   
+(** ** Semantic preservation for the translation of statements *)
 
 (** The simulation diagram for the translation of statements
   and functions is a "star" diagram of the form:
@@ -1819,7 +1819,7 @@ Inductive tr_fun (tf: function) (map: mapping) (f: CminorSel.function)
       tr_fun tf map f ngoto nret rret.
 
 (*LENB: new: meminj parameter j*)
-Inductive tr_cont (j:meminj): RTL.code -> mapping -> 
+Inductive tr_cont (j:meminj): RTL.code -> mapping ->
                    CminorSel.cont -> node -> list node -> labelmap -> node -> option reg ->
                    list RTL.stackframe -> Prop :=
   | tr_Kseq: forall c map s k nd nexits ngoto nret rret cs n,
@@ -1857,10 +1857,10 @@ Scheme tr_cont_ind_2 := Induction for tr_cont Sort Prop
 Combined Scheme tr_cont_match_stacks_mutual_ind
   from tr_cont_ind_2, match_stacks_ind_2.
 
-Lemma tr_cont_match_stacks_inject_incr: 
+Lemma tr_cont_match_stacks_inject_incr:
       forall j j' (INC: inject_incr j j'),
       (forall c map k ncont nexits ngoto nret rret cs,
-         tr_cont j c map k ncont nexits ngoto nret rret cs -> 
+         tr_cont j c map k ncont nexits ngoto nret rret cs ->
          tr_cont j' c map k ncont nexits ngoto nret rret cs) /\
        (forall k cs, match_stacks j k cs -> match_stacks j' k cs).
 Proof. intros. apply tr_cont_match_stacks_mutual_ind; intros.
@@ -1869,26 +1869,26 @@ Proof. intros. apply tr_cont_match_stacks_mutual_ind; intros.
   econstructor; eassumption.
   econstructor; eassumption.
   econstructor; eassumption.
-  econstructor; try eassumption. 
+  econstructor; try eassumption.
      eapply match_env_inject_incr; eassumption.
      destruct s as [b [b' [B [B' SP]]]].
        apply INC in SP. exists b, b'; eauto.
 Qed.
-Lemma tr_cont_inject_incr: 
+Lemma tr_cont_inject_incr:
       forall j c map k ncont nexits ngoto nret rret cs
         (TR: tr_cont j c map k ncont nexits ngoto nret rret cs)
         j' (INC: inject_incr j j'),
       tr_cont j' c map k ncont nexits ngoto nret rret cs.
-Proof. intros. 
+Proof. intros.
        eapply tr_cont_match_stacks_inject_incr; try eassumption.
 Qed.
-Lemma match_stacks_inject_incr: 
-      forall j  k cs (MS:match_stacks j k cs) 
-             j' (INC: inject_incr j j'), 
+Lemma match_stacks_inject_incr:
+      forall j  k cs (MS:match_stacks j k cs)
+             j' (INC: inject_incr j j'),
       match_stacks j' k cs.
-Proof. intros. 
-       eapply tr_cont_match_stacks_inject_incr; try eassumption. 
-Qed. 
+Proof. intros.
+       eapply tr_cont_match_stacks_inject_incr; try eassumption.
+Qed.
 
 Inductive match_states (j:meminj): CMinSel_core -> mem -> RTL_core -> mem -> Prop :=
   | match_state:
@@ -1956,7 +1956,7 @@ Proof.
   (* seq *)
   caseEq (find_label lbl s1 (Kseq s2 k)); intros.
   inv H1. inv H2. eapply IHs1; eauto. econstructor; eauto.
-  inv H2. eapply IHs2; eauto. 
+  inv H2. eapply IHs2; eauto.
   (* ifthenelse *)
   caseEq (find_label lbl s1 k); intros.
   inv H1. inv H2. eapply IHs1; eauto.
@@ -1983,18 +1983,18 @@ Definition MATCH (d:CMinSel_core) mu c1 m1 c2 m2:Prop :=
   (forall b, isGlobalBlock ge b = true -> frgnBlocksSrc mu b = true) /\
   sm_valid mu m1 m2 /\ SM_wd mu /\ Mem.inject (as_inj mu) m1 m2.
 
-Lemma MATCH_wd: forall d mu c1 m1 c2 m2 
+Lemma MATCH_wd: forall d mu c1 m1 c2 m2
   (MC: MATCH d mu c1 m1 c2 m2), SM_wd mu.
 Proof. intros. eapply MC. Qed.
 
-Lemma MATCH_RC: forall d mu c1 m1 c2 m2 
+Lemma MATCH_RC: forall d mu c1 m1 c2 m2
   (MC: MATCH d mu c1 m1 c2 m2), REACH_closed m1 (vis mu).
 Proof. intros. eapply MC. Qed.
 
 Lemma MATCH_restrict: forall d mu c1 m1 c2 m2 X
   (MC: MATCH d mu c1 m1 c2 m2)
-  (HX: forall b : block, vis mu b = true -> X b = true) 
-  (RX: REACH_closed m1 X), 
+  (HX: forall b : block, vis mu b = true -> X b = true)
+  (RX: REACH_closed m1 X),
   MATCH d (restrict_sm mu X) c1 m1 c2 m2.
 Proof. intros.
   destruct MC as [MS [RC [PG [GFP [Glob [SMV [WD INJ]]]]]]].
@@ -2013,9 +2013,9 @@ split. clear -PG Glob HX.
 split. rewrite restrict_sm_all.
   eapply restrict_preserves_globalfun_ptr; try eassumption.
   unfold vis in HX. intuition.
-split. 
+split.
   rewrite restrict_sm_frgnBlocksSrc. apply Glob.
-split. 
+split.
   destruct SMV.
   split; intros.
     rewrite restrict_sm_DOM in H1.
@@ -2027,11 +2027,11 @@ split. assumption.
   eapply inject_restrict; eassumption.
 Qed.
 
-Lemma MATCH_valid: forall d mu c1 m1 c2 m2 
+Lemma MATCH_valid: forall d mu c1 m1 c2 m2
   (MC: MATCH d mu c1 m1 c2 m2), sm_valid mu m1 m2.
 Proof. intros. eapply MC. Qed.
 
-Lemma MATCH_PG: forall d mu c1 m1 c2 m2 
+Lemma MATCH_PG: forall d mu c1 m1 c2 m2
   (MC: MATCH d mu c1 m1 c2 m2),
   meminj_preserves_globals ge (extern_of mu) /\
   (forall b : block, isGlobalBlock ge b = true -> frgnBlocksSrc mu b = true).
@@ -2059,14 +2059,14 @@ Lemma MATCH_initial: forall v1 v2 sig entrypoints
       (VInj: Forall2 (val_inject j) vals1 vals2)
       (PG:meminj_preserves_globals ge j)
       (R : list_norepet (map fst (prog_defs prog)))
-      (J: forall b1 b2 delta, j b1 = Some (b2, delta) -> 
+      (J: forall b1 b2 delta, j b1 = Some (b2, delta) ->
             (DomS b1 = true /\ DomT b2 = true))
-      (RCH: forall b, REACH m2 
+      (RCH: forall b, REACH m2
           (fun b' : block => isGlobalBlock tge b' || getBlocks vals2 b') b = true ->
           DomT b = true)
-      (InitMem : exists m0 : mem, Genv.init_mem prog = Some m0 
-               /\ Ple (Mem.nextblock m0) (Mem.nextblock m1) 
-               /\ Ple (Mem.nextblock m0) (Mem.nextblock m2))   
+      (InitMem : exists m0 : mem, Genv.init_mem prog = Some m0
+               /\ Ple (Mem.nextblock m0) (Mem.nextblock m1)
+               /\ Ple (Mem.nextblock m0) (Mem.nextblock m2))
       (GDE: genvs_domain_eq ge tge)
       (HDomS: forall b : block, DomS b = true -> Mem.valid_block m1 b)
       (HDomT: forall b : block, DomT b = true -> Mem.valid_block m2 b),
@@ -2082,7 +2082,7 @@ Proof. intros.
   unfold CMinSel_initial_core in H0. unfold ge in *. unfold tge in *.
   destruct v1; inv H0.
   remember (Int.eq_dec i Int.zero) as z; destruct z; inv H1. clear Heqz.
-  remember (Genv.find_funct_ptr (Genv.globalenv prog) b) as zz; destruct zz; inv H0. 
+  remember (Genv.find_funct_ptr (Genv.globalenv prog) b) as zz; destruct zz; inv H0.
     apply eq_sym in Heqzz.
   exploit function_ptr_translated; eauto. intros [tf [FP TF]].
   exists (RTL_Callstate nil tf vals2).
@@ -2123,10 +2123,10 @@ Proof. intros.
     rewrite initial_SM_as_inj.
       red; intros. specialize (Genv.find_funct_ptr_not_fresh prog). intros.
          destruct InitMem as [m0 [INIT_MEM [? ?]]].
-         specialize (H0 _ _ _ INIT_MEM H). 
-         destruct (valid_init_is_global _ R _ INIT_MEM _ H0) as [id Hid]. 
+         specialize (H0 _ _ _ INIT_MEM H).
+         destruct (valid_init_is_global _ R _ INIT_MEM _ H0) as [id Hid].
            destruct PG as [PGa [PGb PGc]]. split. eapply PGa; eassumption.
-         unfold isGlobalBlock. 
+         unfold isGlobalBlock.
           apply orb_true_iff. left. apply genv2blocksBool_char1.
             simpl. exists id; eassumption.
     rewrite initial_SM_as_inj; assumption.
@@ -2142,14 +2142,14 @@ Lemma MATCH_afterExternal: forall
       (ValInjMu : Forall2 (val_inject (restrict (as_inj mu) (vis mu))) vals1 vals2)
       (pubSrc' : block -> bool)
       (pubSrcHyp : pubSrc' =
-                 (fun b : block => 
+                 (fun b : block =>
                  locBlocksSrc mu b && REACH m1 (exportedSrc mu vals1) b))
       (pubTgt' : block -> bool)
       (pubTgtHyp: pubTgt' =
-                 (fun b : block => 
+                 (fun b : block =>
                  locBlocksTgt mu b && REACH m2 (exportedTgt mu vals2) b))
        nu (NuHyp: nu = replace_locals mu pubSrc' pubTgt')
-       nu' ret1 m1' ret2 m2' 
+       nu' ret1 m1' ret2 m2'
        (INC: extern_incr nu nu')
        (SEP: sm_inject_separated nu nu' m1 m2)
        (WDnu': SM_wd nu')
@@ -2178,7 +2178,7 @@ Proof. intros.
 simpl.
  destruct MatchMu as [MC [RC [PG [GFP [Glob [VAL [WDmu INJ]]]]]]].
  simpl in *. inv MC; simpl in *; inv AtExtSrc.
- destruct f; inv H0. 
+ destruct f; inv H0.
  destruct tf; inv AtExtTgt.
  eexists. eexists.
     split. reflexivity.
@@ -2198,7 +2198,7 @@ simpl.
             (negb (locBlocksTgt nu' b) &&
              REACH m2' (exportedTgt nu' (ret2 :: nil)) b))))) (as_inj nu')).
       unfold vis. rewrite replace_externs_frgnBlocksSrc, replace_externs_locBlocksSrc.
-      apply restrict_incr. 
+      apply restrict_incr.
 assert (RC': REACH_closed m1' (mapped (as_inj nu'))).
         eapply inject_REACH_closed; eassumption.
 assert (PHnu': meminj_preserves_globals (Genv.globalenv prog) (as_inj nu')).
@@ -2228,12 +2228,12 @@ assert (PHnu': meminj_preserves_globals (Genv.globalenv prog) (as_inj nu')).
     eapply (PGc _ _ delta H). specialize (PGb _ H). clear PGa PGc.
       remember (as_inj mu b1) as d.
       destruct d; apply eq_sym in Heqd.
-        destruct p. 
+        destruct p.
         apply extern_incr_as_inj in INC; trivial.
         rewrite replace_locals_as_inj in INC.
         rewrite (INC _ _ _ Heqd) in H0. trivial.
       destruct SEP as [SEPa _].
-        rewrite replace_locals_as_inj, replace_locals_DomSrc, replace_locals_DomTgt in SEPa. 
+        rewrite replace_locals_as_inj, replace_locals_DomSrc, replace_locals_DomTgt in SEPa.
         destruct (SEPa _ _ _ Heqd H0).
         destruct (as_inj_DomRng _ _ _ _ PGb WDmu).
         congruence.
@@ -2256,7 +2256,7 @@ assert (RR1: REACH_closed m1'
     remember (pubBlocksSrc nu' b') as p.
     destruct p; apply eq_sym in Heqp.
       assert (Rb': REACH m1' (mapped (as_inj nu')) b' = true).
-        apply REACH_nil. 
+        apply REACH_nil.
         destruct (pubSrc _ WDnu' _ Heqp) as [bb2 [dd1 [PUB PT]]].
         eapply mappedI_true.
          apply (pub_in_all _ WDnu' _ _ _ PUB).
@@ -2266,19 +2266,19 @@ assert (RR1: REACH_closed m1'
       destruct (mappedD_true _ _ RC') as [[b2 d1] AI'].
       remember (locBlocksSrc nu' b) as d.
       destruct d; simpl; trivial.
-      apply andb_true_iff. 
+      apply andb_true_iff.
       split. eapply as_inj_DomRng; try eassumption.
       eapply REACH_cons; try eassumption.
         apply REACH_nil. unfold exportedSrc.
         rewrite (pubSrc_shared _ WDnu' _ Heqp). intuition.
       destruct (UnchPrivSrc) as [UP UV]; clear UnchLOOR.
-        specialize (UP b' z Cur Readable). 
-        specialize (UV b' z). 
+        specialize (UP b' z Cur Readable).
+        specialize (UV b' z).
         destruct INC as [_ [_ [_ [_ [LCnu' [_ [PBnu' [_ [FRGnu' _]]]]]]]]].
-        rewrite <- LCnu'. rewrite replace_locals_locBlocksSrc.  
+        rewrite <- LCnu'. rewrite replace_locals_locBlocksSrc.
         rewrite <- LCnu' in Heql. rewrite replace_locals_locBlocksSrc in *.
         rewrite <- PBnu' in Heqp. rewrite replace_locals_pubBlocksSrc in *.
-        clear INCvisNu'. 
+        clear INCvisNu'.
         rewrite Heql in *. simpl in *. intuition.
         assert (VB: Mem.valid_block m1 b').
           eapply VAL. unfold DOM, DomSrc. rewrite Heql. intuition.
@@ -2293,7 +2293,7 @@ assert (RR1: REACH_closed m1'
            rewrite Heqq in RC; simpl in *.
         rewrite replace_locals_frgnBlocksSrc in FRGnu'.
         rewrite FRGnu' in RC.
-        apply andb_true_iff.  
+        apply andb_true_iff.
         split. unfold DomSrc. rewrite (frgnBlocksSrc_extBlocksSrc _ WDnu' _ RC). intuition.
         apply REACH_nil. unfold exportedSrc.
           rewrite (frgnSrc_shared _ WDnu' _ RC). intuition.
@@ -2301,8 +2301,8 @@ assert (RR1: REACH_closed m1'
     (negb (locBlocksSrc nu' b') &&
      REACH m1' (exportedSrc nu' (ret1 :: nil)) b') = true*)
     destruct IHL. congruence.
-    apply andb_true_iff in H. simpl in H. 
-    destruct H as [DomNu' Rb']. 
+    apply andb_true_iff in H. simpl in H.
+    destruct H as [DomNu' Rb'].
     clear INC SEP INCvisNu' UnchLOOR UnchPrivSrc.
     remember (locBlocksSrc nu' b) as d.
     destruct d; simpl; trivial. apply eq_sym in Heqd.
@@ -2314,7 +2314,7 @@ assert (RR1: REACH_closed m1'
            assert (REACH m1' (mapped (as_inj nu')) b = true).
              eapply REACH_cons; try eassumption.
              apply REACH_nil. eapply mappedI_true; eassumption.
-           specialize (RC' _ H). 
+           specialize (RC' _ H).
            destruct (mappedD_true _ _ RC') as [[? ?] ?].
            eapply as_inj_DomRng; eassumption.
     eapply REACH_cons; try eassumption.
@@ -2326,7 +2326,7 @@ assert (RR1: REACH_closed m1'
        specialize (IHL _ H1); clear H1.
        unfold exportedSrc.
        eapply REACH_cons; eassumption.*)
-    
+
 assert (RRC: REACH_closed m1' (fun b : Values.block =>
                          mapped (as_inj nu') b &&
                            (locBlocksSrc nu' b
@@ -2341,13 +2341,13 @@ assert (GFnu': forall b, isGlobalBlock (Genv.globalenv prog) b = true ->
        assert (FSRC:= extern_incr_frgnBlocksSrc _ _ INC).
           rewrite replace_locals_frgnBlocksSrc in FSRC.
        rewrite FSRC in Glob.
-       rewrite (frgnBlocksSrc_locBlocksSrc _ WDnu' _ Glob). 
+       rewrite (frgnBlocksSrc_locBlocksSrc _ WDnu' _ Glob).
        apply andb_true_iff; simpl.
         split.
           unfold DomSrc. rewrite (frgnBlocksSrc_extBlocksSrc _ WDnu' _ Glob). intuition.
           apply REACH_nil. unfold exportedSrc.
           rewrite (frgnSrc_shared _ WDnu' _ Glob). intuition.
-split. 
+split.
   econstructor; try eassumption.
     eapply match_stacks_inject_incr; try eassumption.
     unfold vis in *.
@@ -2375,10 +2375,10 @@ split.
             destruct d; trivial; simpl in *.
             apply andb_true_iff.
             split. unfold DomSrc. rewrite (frgnBlocksSrc_extBlocksSrc _ WDnu' _ H11). intuition.
-               apply REACH_nil. unfold exportedSrc. 
+               apply REACH_nil. unfold exportedSrc.
                  apply frgnSrc_shared in H11; trivial. rewrite H11; intuition.
-      unfold vis. rewrite replace_externs_as_inj. 
-       rewrite replace_externs_frgnBlocksSrc, replace_externs_locBlocksSrc. 
+      unfold vis. rewrite replace_externs_as_inj.
+       rewrite replace_externs_frgnBlocksSrc, replace_externs_locBlocksSrc.
        eapply restrict_val_inject; try eassumption.
        intros.
         destruct (getBlocks_inject (as_inj nu') (ret1::nil) (ret2::nil))
@@ -2394,8 +2394,8 @@ rewrite replace_externs_locBlocksSrc, replace_externs_frgnBlocksSrc,
         replace_externs_as_inj in *.
   eapply inject_mapped; try eassumption.
   eapply restrict_mapped_closed; try eassumption.
-  
-destruct (eff_after_check2 _ _ _ _ _ MemInjNu' RValInjNu' 
+
+destruct (eff_after_check2 _ _ _ _ _ MemInjNu' RValInjNu'
       _ (eq_refl _) _ (eq_refl _) _ (eq_refl _) WDnu' SMvalNu').
 unfold vis in *.
   rewrite replace_externs_locBlocksSrc, replace_externs_frgnBlocksSrc,
@@ -2407,8 +2407,8 @@ intuition.
   rewrite replace_locals_as_inj. assumption.
 Qed.
 
-Lemma MATCH_corestep: forall 
-       st1 m1 st1' m1' 
+Lemma MATCH_corestep: forall
+       st1 m1 st1' m1'
        (CS: corestep cminsel_eff_sem ge st1 m1 st1' m1')
        st2 mu m2 (MTCH: MATCH st1 mu st1 m1 st2 m2),
 exists st2' m2' mu',
@@ -2426,54 +2426,54 @@ Proof. intros.
   inv TS. inv TK.
   eexists; exists m2, mu; split.
      right; split. apply corestep_star_zero. Lt_state.
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
+      repeat split; extensionality b;
           try rewrite (freshloc_irrefl); intuition.
       econstructor. econstructor; eauto.
-      intuition.  
+      intuition.
 
   (* skip block *)
-  inv TS. inv TK. 
-  eexists; exists m2, mu; split. 
+  inv TS. inv TK.
+  eexists; exists m2, mu; split.
     right; split. apply corestep_star_zero. Lt_state.
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
+      repeat split; extensionality b;
           try rewrite (freshloc_irrefl); intuition.
       econstructor. econstructor; eauto. constructor.
       intuition.
 
   (* skip return *)
-  inv TS. 
+  inv TS.
   assert ((fn_code tf)!ncont = Some(Ireturn rret)
           /\ match_stacks (restrict (as_inj mu) (vis mu)) k cs).
-    inv TK; simpl in H; try contradiction; auto. 
+    inv TK; simpl in H; try contradiction; auto.
   destruct H1.
   assert (fn_stacksize tf = fn_stackspace f).
     inv TF. auto.
-  destruct SP as [spb [spb' [X [Y Rsp]]]]; subst sp'; inv X. 
+  destruct SP as [spb [spb' [X [Y Rsp]]]]; subst sp'; inv X.
   destruct PRE as [RC [PG [GFP [Glob [SMV [WD MInj]]]]]].
   edestruct free_parallel_inject as [tm' []]; eauto.
   destruct (restrictD_Some _ _ _ _ _ Rsp).
   eexists; exists tm', mu; split.
     simpl in *; rewrite Zplus_0_r in H4. rewrite <- H3 in H4.
-    left; apply corestep_plus_one. 
+    left; apply corestep_plus_one.
       eapply rtl_corestep_exec_Ireturn; try eassumption.
   assert (SMV': sm_valid mu m' tm').
-    split; intros;  
+    split; intros;
       eapply free_forward; try eassumption.
       eapply SMV; assumption.
       eapply SMV; assumption.
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
+      repeat split; extensionality b;
           try rewrite (freshloc_free _ _ _ _ _ H4);
           try rewrite (freshloc_free _ _ _ _ _ H0); intuition.
   econstructor. econstructor; eauto.
@@ -2485,18 +2485,18 @@ Proof. intros.
   inv TS.
   destruct PRE as [RC [PG [GFP [Glob [SMV [WD MInj]]]]]].
   assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
-     rewrite <- restrict_sm_all. 
+     rewrite <- restrict_sm_all.
      eapply restrict_sm_preserves_globals; try eassumption.
-     unfold vis. intuition. 
-  exploit transl_expr_correct; eauto. 
+     unfold vis. intuition.
+  exploit transl_expr_correct; eauto.
   intros [rs' [tm' [A [B [C [D [E F]]]]]]]; subst.
   eexists; eexists; exists mu; split.
     right; split. eauto. Lt_state.
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
+      repeat split; extensionality b;
           try rewrite (freshloc_irrefl); intuition.
       econstructor. econstructor; eauto. constructor.
       intuition.
@@ -2505,21 +2505,21 @@ Proof. intros.
   inv TS.
   destruct PRE as [RC [PG [GFP [Glob [SMV [WD MInj]]]]]].
   assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
-     rewrite <- restrict_sm_all. 
+     rewrite <- restrict_sm_all.
      eapply restrict_sm_preserves_globals; try eassumption.
-     unfold vis. intuition. 
+     unfold vis. intuition.
   exploit transl_exprlist_correct; eauto.
   intros [rs' [tm' [A [B [C [D [E F]]]]]]]; subst.
   exploit transl_expr_correct; eauto.
   intros [rs'' [tm'' [F [G [J [K [L M]]]]]]]; subst.
-  destruct SP as [spb [spb' [X [Y Rsp]]]]; subst sp'; inv X. 
+  destruct SP as [spb [spb' [X [Y Rsp]]]]; subst sp'; inv X.
   assert (val_list_inject (restrict (as_inj mu) (vis mu)) vl rs''##rl).
     replace (rs'' ## rl) with (rs' ## rl). auto.
     apply list_map_exten. intros. apply K. auto.
   edestruct eval_addressing_inject as [vaddr' []]; eauto.
   edestruct Mem.storev_mapped_inject as [tm''' []]; eauto.
   assert (SMV': sm_valid mu m' tm''').
-    split; intros. 
+    split; intros.
       eapply storev_valid_block_1; try eassumption.
         eapply SMV; assumption.
       eapply storev_valid_block_1; try eassumption.
@@ -2527,13 +2527,13 @@ Proof. intros.
   eexists; exists tm''', mu; split.
     left; eapply corestep_star_plus_trans.
       eapply corestep_star_trans. eexact A. eexact F.
-      eapply corestep_plus_one. 
+      eapply corestep_plus_one.
         eapply rtl_corestep_exec_Istore with (a := vaddr'). eauto.
         rewrite <- H4. rewrite shift_stack_addressing_zero.
         eapply eval_addressing_preserved. exact symbols_preserved.
       eassumption.
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
       repeat split; extensionality bb;
@@ -2544,18 +2544,18 @@ Proof. intros.
       intuition.
       (*rest of this case is almost identical to SelectionproofEFF.v, instruction store*)
       destruct vaddr; inv H2.
-        eapply REACH_Store; try eassumption. 
+        eapply REACH_Store; try eassumption.
           inv H5. destruct (restrictD_Some _ _ _ _ _ H10); trivial.
           intros b' Hb'. rewrite getBlocks_char in Hb'. destruct Hb' as [off Hoff].
-                  destruct Hoff; try contradiction. subst.   
+                  destruct Hoff; try contradiction. subst.
                   inv J. destruct (restrictD_Some _ _ _ _ _ H11); trivial.
       assert (VaddrMu: val_inject (as_inj mu) vaddr vaddr').
         eapply val_inject_incr; try eassumption.
-        apply restrict_incr. 
+        apply restrict_incr.
       assert (VMu: val_inject (as_inj mu) v (rs'' # rd)).
         eapply val_inject_incr; try eassumption.
-        apply restrict_incr. 
-      destruct (Mem.storev_mapped_inject _ _ _ _ _ _ _ _ _ 
+        apply restrict_incr.
+      destruct (Mem.storev_mapped_inject _ _ _ _ _ _ _ _ _
           MInj H2 VaddrMu VMu) as [mm [Hmm1 Hmm2]].
       rewrite Hmm1 in H6. inv H6. assumption.
 
@@ -2564,9 +2564,9 @@ Proof. intros.
   (* indirect *)
   destruct PRE as [RC [PG [GFP [Glob [SMV [WD MInj]]]]]].
   assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
-     rewrite <- restrict_sm_all. 
+     rewrite <- restrict_sm_all.
      eapply restrict_sm_preserves_globals; try eassumption.
-     unfold vis. intuition. 
+     unfold vis. intuition.
   exploit transl_expr_correct; eauto.
   intros [rs' [tm' [A [B [C [D [X ?]]]]]]]; subst m2.
   exploit transl_exprlist_correct; eauto.
@@ -2580,24 +2580,24 @@ Proof. intros.
   eexists; eexists; exists mu; split.
     left; eapply corestep_star_plus_trans.
             eapply corestep_star_trans. eexact A. eexact E.
-          eapply corestep_plus_one. 
+          eapply corestep_plus_one.
             eapply rtl_corestep_exec_Icall; eauto.
                simpl. rewrite J. rewrite <- H3. eassumption. simpl; eauto.
                apply sig_transl_function; auto.
   intuition.
-      apply intern_incr_refl. 
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b'; 
+      repeat split; extensionality b';
           try rewrite (freshloc_irrefl); intuition.
       econstructor. econstructor; eauto. econstructor; try eassumption.
       intuition.
   (* direct *)
   destruct PRE as [RC [PG [GFP [Glob [SMV [WD MInj]]]]]].
   assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
-     rewrite <- restrict_sm_all. 
+     rewrite <- restrict_sm_all.
      eapply restrict_sm_preserves_globals; try eassumption.
-     unfold vis. intuition. 
+     unfold vis. intuition.
   exploit transl_exprlist_correct; eauto.
   intros [rs'' [tm'' [E [F [G [J [Y ?]]]]]]]; subst m2.
   exploit functions_translated; eauto. intros [tf' [P Q]].
@@ -2605,14 +2605,14 @@ Proof. intros.
   destruct (GFP _ _ H1) as [muBB isGlobalBB].
   eexists; eexists; exists mu; split.
     left. eapply corestep_star_plus_trans. eexact E.
-          eapply corestep_plus_one. eapply rtl_corestep_exec_Icall; eauto. simpl. rewrite symbols_preserved. rewrite H4. 
-             rewrite Genv.find_funct_find_funct_ptr in P. eauto. 
+          eapply corestep_plus_one. eapply rtl_corestep_exec_Icall; eauto. simpl. rewrite symbols_preserved. rewrite H4.
+             rewrite Genv.find_funct_find_funct_ptr in P. eauto.
              apply sig_transl_function; auto.
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b'; 
+      repeat split; extensionality b';
           try rewrite (freshloc_irrefl); intuition.
       econstructor. econstructor; eauto. econstructor; try eassumption.
       intuition.
@@ -2622,9 +2622,9 @@ Proof. intros.
   (* indirect *)
   destruct PRE as [RC [PG [GFP [Glob [SMV [WD MInj]]]]]].
   assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
-     rewrite <- restrict_sm_all. 
+     rewrite <- restrict_sm_all.
      eapply restrict_sm_preserves_globals; try eassumption.
-     unfold vis. intuition. 
+     unfold vis. intuition.
   exploit transl_expr_correct; eauto.
   intros [rs' [tm' [A [B [C [D [X ?]]]]]]]; subst m2.
   exploit transl_exprlist_correct; eauto.
@@ -2632,7 +2632,7 @@ Proof. intros.
   exploit functions_translated; eauto. intros [tf' [P Q]].
   exploit match_stacks_call_cont; eauto. intros [U V].
   assert (fn_stacksize tf = fn_stackspace f). inv TF; auto.
-  destruct SP as [spb [spb' [SPB [SPB' Rsp]]]]; subst sp'; inv SPB. 
+  destruct SP as [spb [spb' [SPB [SPB' Rsp]]]]; subst sp'; inv SPB.
   edestruct free_parallel_inject as [tm''' []]; eauto.
   destruct (Genv.find_funct_inv _ _ H1) as [bb XX]; subst vf.
   rewrite Genv.find_funct_find_funct_ptr in H1.
@@ -2653,10 +2653,10 @@ Proof. intros.
       eapply Mem.valid_block_free_1; try eassumption;
       eapply SMV; assumption.
   intuition.
-      apply intern_incr_refl. 
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b'; 
+      repeat split; extensionality b';
           try rewrite (freshloc_free _ _ _ _ _ H2);
           try rewrite (freshloc_free _ _ _ _ _ H3); intuition.
       econstructor. econstructor; eauto.
@@ -2667,9 +2667,9 @@ Proof. intros.
   (* direct *)
   destruct PRE as [RC [PG [GFP [Glob [SMV [WD MInj]]]]]].
   assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
-     rewrite <- restrict_sm_all. 
+     rewrite <- restrict_sm_all.
      eapply restrict_sm_preserves_globals; try eassumption.
-     unfold vis. intuition. 
+     unfold vis. intuition.
   exploit transl_exprlist_correct; eauto.
   intros [rs'' [tm'' [E [F [G [J [Y ?]]]]]]]; subst m2.
   exploit functions_translated; eauto. intros [tf' [P Q]].
@@ -2677,23 +2677,23 @@ Proof. intros.
   assert (fn_stacksize tf = fn_stackspace f). inv TF; auto.
   destruct SP as [spb [spb' [SPB [SPB' Rsp]]]]; subst sp'; inv SPB.
   edestruct free_parallel_inject as [tm''' []]; eauto.
-  eexists; exists tm''', mu; split. 
+  eexists; exists tm''', mu; split.
     left; eapply corestep_star_plus_trans. eexact E.
           eapply corestep_plus_one.
             eapply rtl_corestep_exec_Itailcall; eauto.
-             simpl. rewrite symbols_preserved. rewrite H5. 
-             rewrite Genv.find_funct_find_funct_ptr in P. eauto. 
+             simpl. rewrite symbols_preserved. rewrite H5.
+             rewrite Genv.find_funct_find_funct_ptr in P. eauto.
              apply sig_transl_function; auto.
   simpl in H2; rewrite Zplus_0_r in H2; rewrite H; eauto.
   assert (SMV': sm_valid mu m' tm''').
     split; intros;
       eapply Mem.valid_block_free_1; try eassumption;
       eapply SMV; assumption.
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b'; 
+      repeat split; extensionality b';
           try rewrite (freshloc_free _ _ _ _ _ H2);
           try rewrite (freshloc_free _ _ _ _ _ H3); intuition.
       econstructor. econstructor; eauto.
@@ -2703,24 +2703,24 @@ Proof. intros.
            eapply free_free_inject; try eassumption.
 
   (* builtin TODO
-  inv TS. 
+  inv TS.
   exploit transl_exprlist_correct; eauto.
   intros [rs' [tm' [E [F [G [J K]]]]]].
   edestruct external_call_mem_extends as [tv [tm'' [A [B [C D]]]]]; eauto.
   econstructor; split.
   left. eapply plus_right. eexact E.
-  eapply exec_Ibuiltin. eauto. 
+  eapply exec_Ibuiltin. eauto.
   eapply external_call_symbols_preserved. eauto.
   exact symbols_preserved. exact varinfo_preserved.
-  traceEq. 
+  traceEq.
   econstructor; eauto. constructor.
   eapply match_env_update_dest; eauto.
 
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
+      repeat split; extensionality b;
           try rewrite (freshloc_irrefl); intuition.
       econstructor. econstructor; eauto. constructor.
       intuition.*)
@@ -2729,11 +2729,11 @@ Proof. intros.
   inv TS.
   eexists; exists m2, mu; split.
     right; split. apply corestep_star_zero. Lt_state.
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
+      repeat split; extensionality b;
           try rewrite (freshloc_irrefl); intuition.
       econstructor. econstructor; eauto. econstructor; eauto.
       intuition.
@@ -2742,18 +2742,18 @@ Proof. intros.
   inv TS.
   destruct PRE as [RC [PG [GFP [Glob [SMV [WD MInj]]]]]].
   assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
-     rewrite <- restrict_sm_all. 
+     rewrite <- restrict_sm_all.
      eapply restrict_sm_preserves_globals; try eassumption.
-     unfold vis. intuition.  
+     unfold vis. intuition.
   exploit transl_condexpr_correct; eauto.
   intros [rs' [tm' [A [B [C [D ?]]]]]]; subst m2.
   eexists; exists tm', mu; split.
     left. eexact A.
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality bb; 
+      repeat split; extensionality bb;
           try rewrite (freshloc_irrefl); intuition.
       econstructor.
        destruct b; econstructor; eauto.
@@ -2762,41 +2762,41 @@ Proof. intros.
   (* loop *)
   inversion TS; subst.
   eexists; exists m2, mu; split.
-    left. apply corestep_plus_one. eapply rtl_corestep_exec_Inop; eauto. 
-  intuition. 
-      apply intern_incr_refl. 
+    left. apply corestep_plus_one. eapply rtl_corestep_exec_Inop; eauto.
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality bb; 
+      repeat split; extensionality bb;
           try rewrite (freshloc_irrefl); intuition.
       econstructor.
-       econstructor; eauto.  
        econstructor; eauto.
        econstructor; eauto.
-      intuition. 
+       econstructor; eauto.
+      intuition.
   (* block *)
   inv TS.
   eexists; exists m2, mu; split.
     right; split. apply corestep_star_zero. Lt_state.
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
+      repeat split; extensionality b;
           try rewrite (freshloc_irrefl); intuition.
       econstructor. econstructor; eauto.
         econstructor; eauto.
       intuition.
 
   (* exit seq *)
-  inv TS. inv TK. 
+  inv TS. inv TK.
   eexists; exists m2, mu; split.
-    right; split. apply corestep_star_zero. Lt_state. 
-  intuition. 
-      apply intern_incr_refl. 
+    right; split. apply corestep_star_zero. Lt_state.
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
+      repeat split; extensionality b;
           try rewrite (freshloc_irrefl); intuition.
       econstructor. econstructor; eauto.
         econstructor; eauto.
@@ -2805,12 +2805,12 @@ Proof. intros.
   (* exit block 0 *)
   inv TS. inv TK. simpl in H0. inv H0.
   eexists; exists m2, mu; split.
-    right; split. apply corestep_star_zero. Lt_state. 
-  intuition. 
-      apply intern_incr_refl. 
+    right; split. apply corestep_star_zero. Lt_state.
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
+      repeat split; extensionality b;
           try rewrite (freshloc_irrefl); intuition.
       econstructor. econstructor; eauto.
         econstructor; eauto.
@@ -2819,12 +2819,12 @@ Proof. intros.
   (* exit block n+1 *)
   inv TS. inv TK. simpl in H0.
   eexists; exists m2, mu; split.
-    right; split. apply corestep_star_zero. Lt_state. 
-  intuition. 
-      apply intern_incr_refl. 
+    right; split. apply corestep_star_zero. Lt_state.
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
+      repeat split; extensionality b;
           try rewrite (freshloc_irrefl); intuition.
       econstructor. econstructor; eauto.
         econstructor; eauto.
@@ -2834,21 +2834,21 @@ Proof. intros.
   inv TS.
   destruct PRE as [RC [PG [GFP [Glob [SMV [WD MInj]]]]]].
   assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
-     rewrite <- restrict_sm_all. 
+     rewrite <- restrict_sm_all.
      eapply restrict_sm_preserves_globals; try eassumption.
-     unfold vis. intuition.  
+     unfold vis. intuition.
   exploit validate_switch_correct; eauto. intro CTM.
-  exploit transl_expr_correct; eauto. 
+  exploit transl_expr_correct; eauto.
   intros [rs' [tm' [A [B [C [D [X ?]]]]]]]; subst m2.
   exploit transl_switch_correct; eauto. inv C. auto.
   intros [nd [rs'' [E [F G]]]].
   eexists; eexists; exists mu; split.
-    right; split. eapply corestep_star_trans. eexact A. eexact E. Lt_state. 
-  intuition. 
-      apply intern_incr_refl. 
+    right; split. eapply corestep_star_trans. eexact A. eexact E. Lt_state.
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
+      repeat split; extensionality b;
           try rewrite (freshloc_irrefl); intuition.
       econstructor. econstructor; eauto. constructor; eassumption.
       intuition.
@@ -2860,19 +2860,19 @@ Proof. intros.
   destruct PRE as [RC [PG [GFP [Glob [SMV [WD MInj]]]]]].
   destruct SP as [spb [spb' [SPB [SPB' Rsp]]]]; subst sp'; inv SPB.
   edestruct free_parallel_inject as [tm''' []]; eauto.
-  eexists; exists tm''', mu; split. 
-    simpl in H0; rewrite Zplus_0_r in H0. rewrite <- H2 in H0. 
-    left; eapply corestep_plus_one. 
+  eexists; exists tm''', mu; split.
+    simpl in H0; rewrite Zplus_0_r in H0. rewrite <- H2 in H0.
+    left; eapply corestep_plus_one.
             eapply rtl_corestep_exec_Ireturn; eauto.
   assert (SMV': sm_valid mu m' tm''').
     split; intros;
       eapply Mem.valid_block_free_1; try eassumption;
       eapply SMV; assumption.
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b'; 
+      repeat split; extensionality b';
           try rewrite (freshloc_free _ _ _ _ _ H0);
           try rewrite (freshloc_free _ _ _ _ _ H); intuition.
       econstructor. econstructor; eauto.
@@ -2885,17 +2885,17 @@ Proof. intros.
   inv TS.
   destruct PRE as [RC [PG [GFP [Glob [SMV [WD MInj]]]]]].
   assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
-     rewrite <- restrict_sm_all. 
+     rewrite <- restrict_sm_all.
      eapply restrict_sm_preserves_globals; try eassumption.
-     unfold vis. intuition.  
+     unfold vis. intuition.
   exploit transl_expr_correct; eauto.
   intros [rs' [tm' [A [B [C [D [E ?]]]]]]]; subst m2.
   exploit match_stacks_call_cont; eauto. intros [U V].
   inversion TF.
   destruct SP as [spb [spb' [SPB [SPB' Rsp]]]]; subst sp'; inv SPB.
   edestruct free_parallel_inject as [tm'' []]; eauto.
-  eexists; exists tm'', mu; split. 
-    simpl in H5; rewrite Zplus_0_r in H5. rewrite <- H4 in H5. 
+  eexists; exists tm'', mu; split.
+    simpl in H5; rewrite Zplus_0_r in H5. rewrite <- H4 in H5.
     left; eapply corestep_star_plus_trans. eexact A.
           eapply corestep_plus_one.
             eapply rtl_corestep_exec_Ireturn; eauto.
@@ -2903,11 +2903,11 @@ Proof. intros.
     split; intros;
       eapply Mem.valid_block_free_1; try eassumption;
       eapply SMV; assumption.
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b'; 
+      repeat split; extensionality b';
           try rewrite (freshloc_free _ _ _ _ _ H0);
           try rewrite (freshloc_free _ _ _ _ _ H5); intuition.
       econstructor. econstructor; eauto.
@@ -2919,25 +2919,25 @@ Proof. intros.
   inv TS.
   eexists; exists m2, mu; split.
     right; split. apply corestep_star_zero. Lt_state.
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
+      repeat split; extensionality b;
           try rewrite (freshloc_irrefl); intuition.
       econstructor. econstructor; eauto.
       intuition.
   (* goto *)
   inv TS. inversion TF; subst.
-  exploit tr_find_label; eauto. eapply tr_cont_call_cont; eauto. 
+  exploit tr_find_label; eauto. eapply tr_cont_call_cont; eauto.
   intros [ns2 [nd2 [nexits2 [A [B C]]]]].
   eexists; exists m2, mu; split.
     left; apply corestep_plus_one. eapply rtl_corestep_exec_Inop; eauto.
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
+      repeat split; extensionality b;
           try rewrite (freshloc_irrefl); intuition.
       econstructor. econstructor; eauto.
       intuition.
@@ -2948,9 +2948,9 @@ Proof. intros.
   pose (rs := init_regs targs rparams).
   destruct PRE as [RC [PG [GFP [Glob [SMV [WD MInj]]]]]].
   assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
-     rewrite <- restrict_sm_all. 
+     rewrite <- restrict_sm_all.
      eapply restrict_sm_preserves_globals; try eassumption.
-     unfold vis. intuition.  
+     unfold vis. intuition.
   assert (ME: match_env (restrict (as_inj mu) (vis mu)) map2 e nil rs).
     unfold rs, e. eapply match_init_env_init_reg; eauto.
   assert (MWF: map_wf map2).
@@ -2982,11 +2982,11 @@ Proof. intros.
                      eapply tr_cont_inject_incr; eassumption.
                        destruct H27 as [spb [spb' [SP [SP' XX]]]].
                        exists spb, spb'; split; trivial. split; trivial.
-                       eapply IncVis; eassumption.                                          
+                       eapply IncVis; eassumption.
                      eapply match_env_inject_incr; try eassumption.
            eapply inject_restrict; eassumption.
            exists sp, b'. split; trivial. split; trivial.
-             eapply restrictI_Some; try eassumption.  
+             eapply restrictI_Some; try eassumption.
            destruct (as_inj_DomRng _ _ _ _ mu'SP); trivial.
               unfold DomSrc in H7; unfold vis.
               remember (locBlocksSrc mu' sp) as d.
@@ -2995,7 +2995,7 @@ Proof. intros.
               rewrite <- H9 in H7. unfold DomSrc in DomSP. rewrite H7 in DomSP. apply orb_false_iff in DomSP. destruct DomSP; discriminate.
   (*as in selectionproofEff*)
     intuition.
-    apply meminj_preserves_incr_sep_vb with (j:=as_inj mu)(m0:=m)(tm:=m2); try eassumption. 
+    apply meminj_preserves_incr_sep_vb with (j:=as_inj mu)(m0:=m)(tm:=m2); try eassumption.
       intros. apply as_inj_DomRng in H7.
               split; eapply SMV; eapply H7.
       assumption.
@@ -3012,24 +3012,24 @@ Proof. intros.
   (* return *)
   inv MS.
   destruct PRE as [RC [PG [GFP [Glob [SMV [WD MInj]]]]]].
-  eexists; exists m2, mu; split. 
-    left; apply corestep_plus_one; constructor. 
-  intuition. 
-      apply intern_incr_refl. 
+  eexists; exists m2, mu; split.
+    left; apply corestep_plus_one; constructor.
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
+      repeat split; extensionality b;
           try rewrite (freshloc_irrefl); intuition.
-      split. econstructor; eauto. constructor. 
+      split. econstructor; eauto. constructor.
              eapply match_env_update_dest; eauto.
       intuition.
-Qed.  
+Qed.
 
-Lemma MATCH_effcore_diagram: forall 
+Lemma MATCH_effcore_diagram: forall
          st1 m1 st1' m1' (U1 : block -> Z -> bool)
          (CS: effstep cminsel_eff_sem ge U1 st1 m1 st1' m1')
-         st2 mu m2 
-         (UHyp: forall b z, U1 b z = true -> 
+         st2 mu m2
+         (UHyp: forall b z, U1 b z = true ->
                 Mem.valid_block m1 b -> vis mu b = true)
          (MTCH: MATCH st1 mu st1 m1 st2 m2),
 exists st2' m2' mu', exists U2 : block -> Z -> bool,
@@ -3048,63 +3048,63 @@ exists st2' m2' mu', exists U2 : block -> Z -> bool,
          U1 b1 (ofs - delta1)%Z = true /\
          Mem.perm m1 b1 (ofs - delta1) Max Nonempty)).
 Proof. intros st1 m1 st1' m1' U1 CS.
-   induction CS; intros. 
+   induction CS; intros.
 
   (* skip seq *)
   destruct MTCH as [MSTATE PRE]. inv MSTATE.
   inv TS. inv TK.
   eexists; exists m2, mu; exists EmptyEffect; split.
      right; split. apply effstep_star_zero. Lt_state.
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
+      repeat split; extensionality b;
           try rewrite (freshloc_irrefl); intuition.
       econstructor. econstructor; eauto.
-      intuition.  
+      intuition.
 
   (* skip block *)
   destruct MTCH as [MSTATE PRE]. inv MSTATE.
-  inv TS. inv TK. 
-  eexists; exists m2, mu; exists EmptyEffect; split. 
+  inv TS. inv TK.
+  eexists; exists m2, mu; exists EmptyEffect; split.
     right; split. apply effstep_star_zero. Lt_state.
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
+      repeat split; extensionality b;
           try rewrite (freshloc_irrefl); intuition.
       econstructor. econstructor; eauto. constructor.
       intuition.
 
   (* skip return *)
   destruct MTCH as [MSTATE PRE]. inv MSTATE.
-  inv TS. 
+  inv TS.
   assert ((fn_code tf)!ncont = Some(Ireturn rret)
           /\ match_stacks (restrict (as_inj mu) (vis mu)) k cs).
-    inv TK; simpl in H; try contradiction; auto. 
+    inv TK; simpl in H; try contradiction; auto.
   destruct H1.
   assert (fn_stacksize tf = fn_stackspace f).
     inv TF. auto.
-  destruct SP as [spb [spb' [X [Y Rsp]]]]; subst sp'; inv X. 
+  destruct SP as [spb [spb' [X [Y Rsp]]]]; subst sp'; inv X.
   destruct PRE as [RC [PG [GFP [Glob [SMV [WD MInj]]]]]].
   edestruct free_parallel_inject as [tm' []]; eauto.
   destruct (restrictD_Some _ _ _ _ _ Rsp).
   eexists; exists tm', mu, (FreeEffect m2 0 (fn_stacksize tf) spb'); split.
     simpl in *; rewrite Zplus_0_r in H4. rewrite <- H3 in H4.
-    left; eapply effstep_plus_one. 
+    left; eapply effstep_plus_one.
         eapply rtl_effstep_exec_Ireturn; try eassumption.
   assert (SMV': sm_valid mu m' tm').
-    split; intros;  
+    split; intros;
       eapply free_forward; try eassumption.
       eapply SMV; assumption.
       eapply SMV; assumption.
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
+      repeat split; extensionality b;
           try rewrite (freshloc_free _ _ _ _ _ H4);
           try rewrite (freshloc_free _ _ _ _ _ H0); intuition.
   econstructor. econstructor; eauto.
@@ -3119,18 +3119,18 @@ Proof. intros st1 m1 st1' m1' U1 CS.
   inv TS.
   destruct PRE as [RC [PG [GFP [Glob [SMV [WD MInj]]]]]].
   assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
-     rewrite <- restrict_sm_all. 
+     rewrite <- restrict_sm_all.
      eapply restrict_sm_preserves_globals; try eassumption.
-     unfold vis. intuition. 
-  exploit Efftransl_expr_correct; eauto. 
+     unfold vis. intuition.
+  exploit Efftransl_expr_correct; eauto.
   intros [rs' [tm' [A [B [C [D [E F]]]]]]]; subst.
   eexists; eexists; exists mu, EmptyEffect; split.
     right; split. eassumption. Lt_state.
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
+      repeat split; extensionality b;
           try rewrite (freshloc_irrefl); intuition.
       econstructor. econstructor; eauto. econstructor.
       intuition.
@@ -3140,21 +3140,21 @@ Proof. intros st1 m1 st1' m1' U1 CS.
   inv TS.
   destruct PRE as [RC [PG [GFP [Glob [SMV [WD MInj]]]]]].
   assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
-     rewrite <- restrict_sm_all. 
+     rewrite <- restrict_sm_all.
      eapply restrict_sm_preserves_globals; try eassumption.
-     unfold vis. intuition. 
+     unfold vis. intuition.
   exploit Efftransl_exprlist_correct; eauto.
   intros [rs' [tm' [A [B [C [D [E F]]]]]]]; subst.
   exploit Efftransl_expr_correct; eauto.
   intros [rs'' [tm'' [F [G [J [K [L M]]]]]]]; subst.
-  destruct SP as [spb [spb' [X [Y Rsp]]]]; subst sp'; inv X. 
+  destruct SP as [spb [spb' [X [Y Rsp]]]]; subst sp'; inv X.
   assert (val_list_inject (restrict (as_inj mu) (vis mu)) vl rs''##rl).
     replace (rs'' ## rl) with (rs' ## rl). auto.
     apply list_map_exten. intros. apply K. auto.
   edestruct eval_addressing_inject as [vaddr' []]; eauto.
   edestruct Mem.storev_mapped_inject as [tm''' []]; eauto.
   assert (SMV': sm_valid mu m' tm''').
-    split; intros. 
+    split; intros.
       eapply storev_valid_block_1; try eassumption.
         eapply SMV; assumption.
       eapply storev_valid_block_1; try eassumption.
@@ -3162,16 +3162,16 @@ Proof. intros st1 m1 st1' m1' U1 CS.
   eexists; exists tm''', mu.
     exists (StoreEffect vaddr' (encode_val chunk (rs'' # rd))).
     split. left; eapply effstep_star_plus_trans.
-      eapply effstep_star_trans. 
+      eapply effstep_star_trans.
          eapply effstep_star_sub. eexact A. intuition.
          eapply effstep_star_sub. eexact F. intuition.
-      eapply effstep_plus_one. 
+      eapply effstep_plus_one.
         eapply rtl_effstep_exec_Istore with (a := vaddr'). eauto.
         rewrite <- H4. rewrite shift_stack_addressing_zero.
         eapply eval_addressing_preserved. exact symbols_preserved.
       eassumption.
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
       repeat split; extensionality bb;
@@ -3182,25 +3182,25 @@ Proof. intros st1 m1 st1' m1' U1 CS.
       intuition.
       (*rest of this case is almost identical to SelectionproofEFF.v, instruction store*)
       destruct vaddr; inv H2.
-        eapply REACH_Store; try eassumption. 
+        eapply REACH_Store; try eassumption.
           inv H5. destruct (restrictD_Some _ _ _ _ _ H10); trivial.
           intros b' Hb'. rewrite getBlocks_char in Hb'. destruct Hb' as [off Hoff].
-                  destruct Hoff; try contradiction. subst.   
+                  destruct Hoff; try contradiction. subst.
                   inv J. destruct (restrictD_Some _ _ _ _ _ H11); trivial.
       assert (VaddrMu: val_inject (as_inj mu) vaddr vaddr').
         eapply val_inject_incr; try eassumption.
-        apply restrict_incr. 
+        apply restrict_incr.
       assert (VMu: val_inject (as_inj mu) v (rs'' # rd)).
         eapply val_inject_incr; try eassumption.
-        apply restrict_incr. 
-      destruct (Mem.storev_mapped_inject _ _ _ _ _ _ _ _ _ 
+        apply restrict_incr.
+      destruct (Mem.storev_mapped_inject _ _ _ _ _ _ _ _ _
           MInj H2 VaddrMu VMu) as [mm [Hmm1 Hmm2]].
       rewrite Hmm1 in H6. inv H6. assumption.
       destruct (StoreEffectD _ _ _ _ H8) as [i [HI OFF]]. subst.
         simpl in H6. inv H5; inv H2.
           destruct (restrictD_Some _ _ _ _ _ H12).
-          destruct (as_inj_DomRng _ _ _ _ H2); trivial. 
-          eapply SMV. apply H11.  
+          destruct (as_inj_DomRng _ _ _ _ H2); trivial.
+          eapply SMV. apply H11.
       eapply StoreEffect_PropagateLeft; eassumption.
 
   (* call *)
@@ -3209,9 +3209,9 @@ Proof. intros st1 m1 st1' m1' U1 CS.
   (* indirect *)
   destruct PRE as [RC [PG [GFP [Glob [SMV [WD MInj]]]]]].
   assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
-     rewrite <- restrict_sm_all. 
+     rewrite <- restrict_sm_all.
      eapply restrict_sm_preserves_globals; try eassumption.
-     unfold vis. intuition. 
+     unfold vis. intuition.
   exploit Efftransl_expr_correct; eauto.
   intros [rs' [tm' [A [B [C [D [X ?]]]]]]]; subst m2.
   exploit Efftransl_exprlist_correct; eauto.
@@ -3225,24 +3225,24 @@ Proof. intros st1 m1 st1' m1' U1 CS.
   eexists; eexists; exists mu, EmptyEffect; split.
     left; eapply effstep_star_plus_trans.
             eapply effstep_star_trans. eexact A. eexact E.
-          eapply effstep_plus_one. 
+          eapply effstep_plus_one.
             eapply rtl_effstep_exec_Icall; eauto.
                simpl. rewrite J. rewrite <- H3. eassumption. simpl; eauto.
                apply sig_transl_function; auto.
   intuition.
-      apply intern_incr_refl. 
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b'; 
+      repeat split; extensionality b';
           try rewrite (freshloc_irrefl); intuition.
       econstructor. econstructor; eauto. econstructor; try eassumption.
       intuition.
   (* direct *)
   destruct PRE as [RC [PG [GFP [Glob [SMV [WD MInj]]]]]].
   assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
-     rewrite <- restrict_sm_all. 
+     rewrite <- restrict_sm_all.
      eapply restrict_sm_preserves_globals; try eassumption.
-     unfold vis. intuition. 
+     unfold vis. intuition.
   exploit Efftransl_exprlist_correct; eauto.
   intros [rs'' [tm'' [E [F [G [J [Y ?]]]]]]]; subst m2.
   exploit functions_translated; eauto. intros [tf' [P Q]].
@@ -3250,14 +3250,14 @@ Proof. intros st1 m1 st1' m1' U1 CS.
   destruct (GFP _ _ H1) as [muBB isGlobalBB].
   eexists; eexists; exists mu, EmptyEffect; split.
     left. eapply effstep_star_plus_trans. eexact E.
-          eapply effstep_plus_one. eapply rtl_effstep_exec_Icall; eauto. simpl. rewrite symbols_preserved. rewrite H4. 
-             rewrite Genv.find_funct_find_funct_ptr in P. eauto. 
+          eapply effstep_plus_one. eapply rtl_effstep_exec_Icall; eauto. simpl. rewrite symbols_preserved. rewrite H4.
+             rewrite Genv.find_funct_find_funct_ptr in P. eauto.
              apply sig_transl_function; auto.
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b'; 
+      repeat split; extensionality b';
           try rewrite (freshloc_irrefl); intuition.
       econstructor. econstructor; eauto. econstructor; try eassumption.
       intuition.
@@ -3268,9 +3268,9 @@ Proof. intros st1 m1 st1' m1' U1 CS.
   (* indirect *)
   destruct PRE as [RC [PG [GFP [Glob [SMV [WD MInj]]]]]].
   assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
-     rewrite <- restrict_sm_all. 
+     rewrite <- restrict_sm_all.
      eapply restrict_sm_preserves_globals; try eassumption.
-     unfold vis. intuition. 
+     unfold vis. intuition.
   exploit Efftransl_expr_correct; eauto.
   intros [rs' [tm' [A [B [C [D [X ?]]]]]]]; subst m2.
   exploit Efftransl_exprlist_correct; eauto.
@@ -3278,7 +3278,7 @@ Proof. intros st1 m1 st1' m1' U1 CS.
   exploit functions_translated; eauto. intros [tf' [P Q]].
   exploit match_stacks_call_cont; eauto. intros [U V].
   assert (fn_stacksize tf = fn_stackspace f). inv TF; auto.
-  destruct SP as [spb [spb' [SPB [SPB' Rsp]]]]; subst sp'; inv SPB. 
+  destruct SP as [spb [spb' [SPB [SPB' Rsp]]]]; subst sp'; inv SPB.
   edestruct free_parallel_inject as [tm''' []]; eauto.
   destruct (Genv.find_funct_inv _ _ H1) as [bb XX]; subst vf.
   rewrite Genv.find_funct_find_funct_ptr in H1.
@@ -3290,7 +3290,7 @@ Proof. intros st1 m1 st1' m1' U1 CS.
     split.
     left; eapply effstep_star_plus_trans.
            eapply effstep_star_trans.
-              eapply effstep_star_sub. eexact A. intuition. 
+              eapply effstep_star_sub. eexact A. intuition.
               eapply effstep_star_sub. eexact E. intuition.
            eapply effstep_plus_one.
              eapply rtl_effstep_exec_Itailcall; eauto.
@@ -3305,24 +3305,24 @@ Proof. intros st1 m1 st1' m1' U1 CS.
       eapply SMV; assumption.
   destruct (restrictD_Some _ _ _ _ _ Rsp).
   intuition.
-      apply intern_incr_refl. 
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b'; 
+      repeat split; extensionality b';
           try rewrite (freshloc_free _ _ _ _ _ H2);
           try rewrite (freshloc_free _ _ _ _ _ H3); intuition.
       econstructor. econstructor; eauto.
       intuition.
          eapply REACH_closed_free; eassumption.
            eapply free_free_inject; try eassumption.
-         eapply FreeEffect_validblock; eassumption.         
+         eapply FreeEffect_validblock; eassumption.
          eapply FreeEffect_PropagateLeft; try eassumption.
   (* direct *)
   destruct PRE as [RC [PG [GFP [Glob [SMV [WD MInj]]]]]].
   assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
-     rewrite <- restrict_sm_all. 
+     rewrite <- restrict_sm_all.
      eapply restrict_sm_preserves_globals; try eassumption.
-     unfold vis. intuition. 
+     unfold vis. intuition.
   exploit Efftransl_exprlist_correct; eauto.
   intros [rs'' [tm'' [E [F [G [J [Y ?]]]]]]]; subst m2.
   exploit functions_translated; eauto. intros [tf' [P Q]].
@@ -3332,13 +3332,13 @@ Proof. intros st1 m1 st1' m1' U1 CS.
   edestruct free_parallel_inject as [tm''' []]; eauto.
   eexists; exists tm''', mu.
     exists (FreeEffect tm'' 0 (fn_stacksize tf) spb').
-    split. 
+    split.
     left; eapply effstep_star_plus_trans.
             eapply effstep_star_sub. eexact E. intuition.
           eapply effstep_plus_one.
             eapply rtl_effstep_exec_Itailcall; eauto.
-             simpl. rewrite symbols_preserved. rewrite H5. 
-             rewrite Genv.find_funct_find_funct_ptr in P. eauto. 
+             simpl. rewrite symbols_preserved. rewrite H5.
+             rewrite Genv.find_funct_find_funct_ptr in P. eauto.
              apply sig_transl_function; auto.
   simpl in H2; rewrite Zplus_0_r in H2; rewrite H; eauto.
   rewrite H in *.
@@ -3347,11 +3347,11 @@ Proof. intros st1 m1 st1' m1' U1 CS.
       eapply Mem.valid_block_free_1; try eassumption;
       eapply SMV; assumption.
   destruct (restrictD_Some _ _ _ _ _ Rsp).
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b'; 
+      repeat split; extensionality b';
           try rewrite (freshloc_free _ _ _ _ _ H2);
           try rewrite (freshloc_free _ _ _ _ _ H3); intuition.
       econstructor. econstructor; eauto.
@@ -3359,28 +3359,28 @@ Proof. intros st1 m1 st1' m1' U1 CS.
          eapply REACH_closed_free; eassumption.
          destruct (restrictD_Some _ _ _ _ _ Rsp).
            eapply free_free_inject; try eassumption.
-         eapply FreeEffect_validblock; eassumption.         
+         eapply FreeEffect_validblock; eassumption.
          eapply FreeEffect_PropagateLeft; try eassumption.
 
   (* builtin TODO
-  inv TS. 
+  inv TS.
   exploit transl_exprlist_correct; eauto.
   intros [rs' [tm' [E [F [G [J K]]]]]].
   edestruct external_call_mem_extends as [tv [tm'' [A [B [C D]]]]]; eauto.
   econstructor; split.
   left. eapply plus_right. eexact E.
-  eapply exec_Ibuiltin. eauto. 
+  eapply exec_Ibuiltin. eauto.
   eapply external_call_symbols_preserved. eauto.
   exact symbols_preserved. exact varinfo_preserved.
-  traceEq. 
+  traceEq.
   econstructor; eauto. constructor.
   eapply match_env_update_dest; eauto.
 
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
+      repeat split; extensionality b;
           try rewrite (freshloc_irrefl); intuition.
       econstructor. econstructor; eauto. constructor.
       intuition.*)
@@ -3390,11 +3390,11 @@ Proof. intros st1 m1 st1' m1' U1 CS.
   inv TS.
   eexists; exists m2, mu, EmptyEffect; split.
     right; split. apply effstep_star_zero. Lt_state.
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
+      repeat split; extensionality b;
           try rewrite (freshloc_irrefl); intuition.
       econstructor. econstructor; eauto. econstructor; eauto.
       intuition.
@@ -3404,18 +3404,18 @@ Proof. intros st1 m1 st1' m1' U1 CS.
   inv TS.
   destruct PRE as [RC [PG [GFP [Glob [SMV [WD MInj]]]]]].
   assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
-     rewrite <- restrict_sm_all. 
+     rewrite <- restrict_sm_all.
      eapply restrict_sm_preserves_globals; try eassumption.
-     unfold vis. intuition.  
+     unfold vis. intuition.
   exploit Efftransl_condexpr_correct; eauto.
   intros [rs' [tm' [A [B [C [D ?]]]]]]; subst m2.
   eexists; exists tm', mu, EmptyEffect; split.
     left. eexact A.
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality bb; 
+      repeat split; extensionality bb;
           try rewrite (freshloc_irrefl); intuition.
       econstructor.
        destruct b; econstructor; eauto.
@@ -3425,29 +3425,29 @@ Proof. intros st1 m1 st1' m1' U1 CS.
   destruct MTCH as [MSTATE PRE]. inv MSTATE.
   inversion TS; subst.
   eexists; exists m2, mu, EmptyEffect; split.
-    left. apply effstep_plus_one. eapply rtl_effstep_exec_Inop; eauto. 
-  intuition. 
-      apply intern_incr_refl. 
+    left. apply effstep_plus_one. eapply rtl_effstep_exec_Inop; eauto.
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality bb; 
+      repeat split; extensionality bb;
           try rewrite (freshloc_irrefl); intuition.
       econstructor.
-       econstructor; eauto.  
        econstructor; eauto.
        econstructor; eauto.
-      intuition. 
+       econstructor; eauto.
+      intuition.
 
   (* block *)
   destruct MTCH as [MSTATE PRE]. inv MSTATE.
   inv TS.
   eexists; exists m2, mu, EmptyEffect; split.
     right; split. apply effstep_star_zero. Lt_state.
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
+      repeat split; extensionality b;
           try rewrite (freshloc_irrefl); intuition.
       econstructor. econstructor; eauto.
         econstructor; eauto.
@@ -3455,14 +3455,14 @@ Proof. intros st1 m1 st1' m1' U1 CS.
 
   (* exit seq *)
   destruct MTCH as [MSTATE PRE]. inv MSTATE.
-  inv TS. inv TK. 
+  inv TS. inv TK.
   eexists; exists m2, mu, EmptyEffect; split.
-    right; split. apply effstep_star_zero. Lt_state. 
-  intuition. 
-      apply intern_incr_refl. 
+    right; split. apply effstep_star_zero. Lt_state.
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
+      repeat split; extensionality b;
           try rewrite (freshloc_irrefl); intuition.
       econstructor. econstructor; eauto.
         econstructor; eauto.
@@ -3472,12 +3472,12 @@ Proof. intros st1 m1 st1' m1' U1 CS.
   destruct MTCH as [MSTATE PRE]. inv MSTATE.
   inv TS. inv TK. simpl in H0. inv H0.
   eexists; exists m2, mu, EmptyEffect; split.
-    right; split. apply effstep_star_zero. Lt_state. 
-  intuition. 
-      apply intern_incr_refl. 
+    right; split. apply effstep_star_zero. Lt_state.
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
+      repeat split; extensionality b;
           try rewrite (freshloc_irrefl); intuition.
       econstructor. econstructor; eauto.
         econstructor; eauto.
@@ -3487,12 +3487,12 @@ Proof. intros st1 m1 st1' m1' U1 CS.
   destruct MTCH as [MSTATE PRE]. inv MSTATE.
   inv TS. inv TK. simpl in H0.
   eexists; exists m2, mu, EmptyEffect; split.
-    right; split. apply effstep_star_zero. Lt_state. 
-  intuition. 
-      apply intern_incr_refl. 
+    right; split. apply effstep_star_zero. Lt_state.
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
+      repeat split; extensionality b;
           try rewrite (freshloc_irrefl); intuition.
       econstructor. econstructor; eauto.
         econstructor; eauto.
@@ -3503,21 +3503,21 @@ Proof. intros st1 m1 st1' m1' U1 CS.
   inv TS.
   destruct PRE as [RC [PG [GFP [Glob [SMV [WD MInj]]]]]].
   assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
-     rewrite <- restrict_sm_all. 
+     rewrite <- restrict_sm_all.
      eapply restrict_sm_preserves_globals; try eassumption.
-     unfold vis. intuition.  
+     unfold vis. intuition.
   exploit validate_switch_correct; eauto. intro CTM.
-  exploit Efftransl_expr_correct; eauto. 
+  exploit Efftransl_expr_correct; eauto.
   intros [rs' [tm' [A [B [C [D [X ?]]]]]]]; subst m2.
   exploit Efftransl_switch_correct; eauto. inv C. auto.
   intros [nd [rs'' [E [F G]]]].
   eexists; eexists; exists mu, EmptyEffect; split.
-    right; split. eapply effstep_star_trans. eexact A. eexact E. Lt_state. 
-  intuition. 
-      apply intern_incr_refl. 
+    right; split. eapply effstep_star_trans. eexact A. eexact E. Lt_state.
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
+      repeat split; extensionality b;
           try rewrite (freshloc_irrefl); intuition.
       econstructor. econstructor; eauto. constructor; eassumption.
       intuition.
@@ -3532,9 +3532,9 @@ Proof. intros st1 m1 st1' m1' U1 CS.
   edestruct free_parallel_inject as [tm''' []]; eauto.
   eexists; exists tm''', mu.
   exists (FreeEffect m2 0 (fn_stacksize tf) spb').
-  split. 
-    simpl in H0; rewrite Zplus_0_r in H0. rewrite <- H2 in H0. 
-    left; eapply effstep_plus_one. 
+  split.
+    simpl in H0; rewrite Zplus_0_r in H0. rewrite <- H2 in H0.
+    left; eapply effstep_plus_one.
             eapply rtl_effstep_exec_Ireturn; eauto.
   assert (SMV': sm_valid mu m' tm''').
     split; intros;
@@ -3542,11 +3542,11 @@ Proof. intros st1 m1 st1' m1' U1 CS.
       eapply SMV; assumption.
   rewrite H2 in *.
   destruct (restrictD_Some _ _ _ _ _ Rsp).
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b'; 
+      repeat split; extensionality b';
           try rewrite (freshloc_free _ _ _ _ _ H0);
           try rewrite (freshloc_free _ _ _ _ _ H); intuition.
       econstructor. econstructor; eauto.
@@ -3554,7 +3554,7 @@ Proof. intros st1 m1 st1' m1' U1 CS.
          eapply REACH_closed_free; eassumption.
          destruct (restrictD_Some _ _ _ _ _ Rsp).
            eapply free_free_inject; try eassumption.
-         eapply FreeEffect_validblock; eassumption.         
+         eapply FreeEffect_validblock; eassumption.
          eapply FreeEffect_PropagateLeft; try eassumption.
 
   (* return some *)
@@ -3562,9 +3562,9 @@ Proof. intros st1 m1 st1' m1' U1 CS.
   inv TS.
   destruct PRE as [RC [PG [GFP [Glob [SMV [WD MInj]]]]]].
   assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
-     rewrite <- restrict_sm_all. 
+     rewrite <- restrict_sm_all.
      eapply restrict_sm_preserves_globals; try eassumption.
-     unfold vis. intuition.  
+     unfold vis. intuition.
   exploit Efftransl_expr_correct; eauto.
   intros [rs' [tm' [A [B [C [D [E ?]]]]]]]; subst m2.
   exploit match_stacks_call_cont; eauto. intros [U V].
@@ -3573,9 +3573,9 @@ Proof. intros st1 m1 st1' m1' U1 CS.
   edestruct free_parallel_inject as [tm'' []]; eauto.
   eexists; exists tm'', mu.
   exists (FreeEffect tm' 0 (fn_stacksize tf) spb').
-  split. 
-    simpl in H5; rewrite Zplus_0_r in H5. rewrite <- H4 in H5. 
-    left; eapply effstep_star_plus_trans. 
+  split.
+    simpl in H5; rewrite Zplus_0_r in H5. rewrite <- H4 in H5.
+    left; eapply effstep_star_plus_trans.
              eapply effstep_star_sub. eexact A. intuition.
           eapply effstep_plus_one.
             eapply rtl_effstep_exec_Ireturn; eauto.
@@ -3585,11 +3585,11 @@ Proof. intros st1 m1 st1' m1' U1 CS.
       eapply SMV; assumption.
   rewrite H4 in *.
   destruct (restrictD_Some _ _ _ _ _ Rsp).
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b'; 
+      repeat split; extensionality b';
           try rewrite (freshloc_free _ _ _ _ _ H0);
           try rewrite (freshloc_free _ _ _ _ _ H5); intuition.
       econstructor. econstructor; eauto.
@@ -3597,7 +3597,7 @@ Proof. intros st1 m1 st1' m1' U1 CS.
          eapply REACH_closed_free; eassumption.
          destruct (restrictD_Some _ _ _ _ _ Rsp).
            eapply free_free_inject; try eassumption.
-         eapply FreeEffect_validblock; eassumption.         
+         eapply FreeEffect_validblock; eassumption.
          eapply FreeEffect_PropagateLeft; try eassumption.
 
   (* label *)
@@ -3605,11 +3605,11 @@ Proof. intros st1 m1 st1' m1' U1 CS.
   inv TS.
   eexists; exists m2, mu, EmptyEffect; split.
     right; split. apply effstep_star_zero. Lt_state.
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
+      repeat split; extensionality b;
           try rewrite (freshloc_irrefl); intuition.
       econstructor. econstructor; eauto.
       intuition.
@@ -3617,15 +3617,15 @@ Proof. intros st1 m1 st1' m1' U1 CS.
   (* goto *)
   destruct MTCH as [MSTATE PRE]. inv MSTATE.
   inv TS. inversion TF; subst.
-  exploit tr_find_label; eauto. eapply tr_cont_call_cont; eauto. 
+  exploit tr_find_label; eauto. eapply tr_cont_call_cont; eauto.
   intros [ns2 [nd2 [nexits2 [A [B C]]]]].
   eexists; exists m2, mu, EmptyEffect; split.
     left; apply effstep_plus_one. eapply rtl_effstep_exec_Inop; eauto.
-  intuition. 
-      apply intern_incr_refl. 
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
+      repeat split; extensionality b;
           try rewrite (freshloc_irrefl); intuition.
       econstructor. econstructor; eauto.
       intuition.
@@ -3638,9 +3638,9 @@ Proof. intros st1 m1 st1' m1' U1 CS.
   pose (rs := init_regs targs rparams).
   destruct PRE as [RC [PG [GFP [Glob [SMV [WD MInj]]]]]].
   assert (PGR: meminj_preserves_globals ge (restrict (as_inj mu) (vis mu))).
-     rewrite <- restrict_sm_all. 
+     rewrite <- restrict_sm_all.
      eapply restrict_sm_preserves_globals; try eassumption.
-     unfold vis. intuition.  
+     unfold vis. intuition.
   assert (ME: match_env (restrict (as_inj mu) (vis mu)) map2 e nil rs).
     unfold rs, e. eapply match_init_env_init_reg; eauto.
   assert (MWF: map_wf map2).
@@ -3672,11 +3672,11 @@ Proof. intros st1 m1 st1' m1' U1 CS.
                      eapply tr_cont_inject_incr; eassumption.
                        destruct H27 as [spb [spb' [SP [SP' XX]]]].
                        exists spb, spb'; split; trivial. split; trivial.
-                       eapply IncVis; eassumption.                                          
+                       eapply IncVis; eassumption.
                      eapply match_env_inject_incr; try eassumption.
            eapply inject_restrict; eassumption.
            exists sp, b'. split; trivial. split; trivial.
-             eapply restrictI_Some; try eassumption.  
+             eapply restrictI_Some; try eassumption.
            destruct (as_inj_DomRng _ _ _ _ mu'SP); trivial.
               unfold DomSrc in H7; unfold vis.
               remember (locBlocksSrc mu' sp) as d.
@@ -3685,7 +3685,7 @@ Proof. intros st1 m1 st1' m1' U1 CS.
               rewrite <- H9 in H7. unfold DomSrc in DomSP. rewrite H7 in DomSP. apply orb_false_iff in DomSP. destruct DomSP; discriminate.
   (*as in selectionproofEff*)
     intuition.
-    apply meminj_preserves_incr_sep_vb with (j:=as_inj mu)(m0:=m)(tm:=m2); try eassumption. 
+    apply meminj_preserves_incr_sep_vb with (j:=as_inj mu)(m0:=m)(tm:=m2); try eassumption.
       intros. apply as_inj_DomRng in H7.
               split; eapply SMV; eapply H7.
       assumption.
@@ -3703,43 +3703,43 @@ Proof. intros st1 m1 st1' m1' U1 CS.
   destruct MTCH as [MSTATE PRE]. inv MSTATE.
   inv MS.
   destruct PRE as [RC [PG [GFP [Glob [SMV [WD MInj]]]]]].
-  eexists; exists m2, mu, EmptyEffect; split. 
-    left; apply effstep_plus_one; constructor. 
-  intuition. 
-      apply intern_incr_refl. 
+  eexists; exists m2, mu, EmptyEffect; split.
+    left; apply effstep_plus_one; constructor.
+  intuition.
+      apply intern_incr_refl.
       apply sm_inject_separated_same_sminj.
       apply sm_locally_allocatedChar.
-      repeat split; extensionality b; 
+      repeat split; extensionality b;
           try rewrite (freshloc_irrefl); intuition.
-      split. econstructor; eauto. constructor. 
+      split. econstructor; eauto. constructor.
              eapply match_env_update_dest; eauto.
       intuition.
 
 (*inductive case*)
-  assert (EHyp: forall b z, E b z = true -> 
+  assert (EHyp: forall b z, E b z = true ->
            Mem.valid_block m b -> vis mu b = true).
      intros. eapply UHyp; eauto.
   destruct (IHCS _ _ _ EHyp MTCH) as [c2' [m2' [mu' [U2 [HH1 HH2]]]]].
   exists c2', m2', mu', U2. split; trivial.
   destruct HH2 as [? [? [? [? ?]]]].
-  repeat (split; trivial). 
+  repeat (split; trivial).
     eapply (H4 _ _ H5).
   intros. destruct (H4 _ _ H5).
     destruct (H8 H6) as [b1 [delta [Frg [HE HP]]]]; clear H8.
     exists b1, delta. split; trivial. split; trivial.
-    apply Mem.perm_valid_block in HP. 
-    apply H; assumption. 
-Qed.  
+    apply Mem.perm_valid_block in HP.
+    apply H; assumption.
+Qed.
 
 (** The simulation proof *)
 Theorem transl_program_correct:
   forall (R: list_norepet (map fst (prog_defs prog)))
          entrypoints
-         (entry_points_ok : 
+         (entry_points_ok :
             forall v1 v2 sig,
-              In (v1, v2, sig) entrypoints -> 
-              exists b f1 f2, 
-                v1 = Vptr b Int.zero 
+              In (v1, v2, sig) entrypoints ->
+              exists b f1 f2,
+                v1 = Vptr b Int.zero
                 /\ v2 = Vptr b Int.zero
                 /\ Genv.find_funct_ptr ge b = Some f1
                 /\ Genv.find_funct_ptr tge b = Some f2)
@@ -3750,19 +3750,19 @@ Proof.
 intros.
 assert (GDE: genvs_domain_eq ge tge).
     unfold genvs_domain_eq, genv2blocks.
-    simpl; split; intros. 
+    simpl; split; intros.
      split; intros; destruct H as [id Hid].
        rewrite <- symbols_preserved in Hid.
        exists id; trivial.
      rewrite symbols_preserved in Hid.
        exists id; trivial.
-    rewrite varinfo_preserved. intuition. 
+    rewrite varinfo_preserved. intuition.
  apply sepcomp.effect_simulations_lemmas.inj_simulation_star_wf with
   (match_states:=MATCH) (order :=lt_state).
 (*genvs_dom_eq*)
   assumption.
 (*MATCH_wd*)
-  apply MATCH_wd. 
+  apply MATCH_wd.
 (*MATCH_reachclosed*)
   apply MATCH_RC.
 (*MATCH_restrict*)
@@ -3776,7 +3776,7 @@ assert (GDE: genvs_domain_eq ge tge).
     eapply (MATCH_initial _ _ _ entrypoints); eauto.
     destruct init_mem as [m0 INIT].
     exists m0; split; auto.
-    unfold meminj_preserves_globals in H3.    
+    unfold meminj_preserves_globals in H3.
     destruct H3 as [A [B C]].
 
     assert (P: forall p q, {Ple p q} + {Plt q p}).
@@ -3789,12 +3789,12 @@ assert (GDE: genvs_domain_eq ge tge).
       apply Pos.leb_gt in FALSE.
       right; auto.
 
-    cut (forall b, Plt b (Mem.nextblock m0) -> 
+    cut (forall b, Plt b (Mem.nextblock m0) ->
            exists id, Genv.find_symbol ge id = Some b). intro D.
-    
+
     split.
     destruct (P (Mem.nextblock m0) (Mem.nextblock m1)); auto.
-    exfalso. 
+    exfalso.
     destruct (D _ p).
     apply A in H3.
     assert (Mem.valid_block m1 (Mem.nextblock m1)).
@@ -3803,22 +3803,22 @@ assert (GDE: genvs_domain_eq ge tge).
     xomega.
 
     destruct (P (Mem.nextblock m0) (Mem.nextblock m2)); auto.
-    exfalso. 
+    exfalso.
     destruct (D _ p).
     apply A in H3.
     assert (Mem.valid_block m2 (Mem.nextblock m2)).
       eapply Mem.valid_block_inject_2; eauto.
     clear - H8; unfold Mem.valid_block in H8.
     xomega.
-    
-    intros b LT.    
-    unfold ge. 
+
+    intros b LT.
+    unfold ge.
     apply valid_init_is_global with (b0 := b) in INIT.
     eapply INIT; auto.
     apply R.
     apply LT. }
-(*halted*) 
-  { intros. destruct H as [MC [RC [PG [GFP [Glob [VAL [WD INJ]]]]]]]. 
+(*halted*)
+  { intros. destruct H as [MC [RC [PG [GFP [Glob [VAL [WD INJ]]]]]]].
     destruct c1; inv H0. destruct k; inv H1.
     inv MC. exists tv.
     split. assumption.
@@ -3828,7 +3828,7 @@ assert (GDE: genvs_domain_eq ge tge).
   { intros. destruct H as [MC [RC [PG [GFP [Glob [VAL [WD INJ]]]]]]].
     split; trivial.
     destruct c1; inv H0. destruct f; inv H1.
-    inv MC. simpl. exists targs; intuition. 
+    inv MC. simpl. exists targs; intuition.
       apply val_list_inject_forall_inject; eassumption.
     inv TF. trivial. }
 (* after_external*)
@@ -3837,7 +3837,7 @@ assert (GDE: genvs_domain_eq ge tge).
   { apply lt_state_wf. }
 (* core_diagram*)
   { intros. exploit MATCH_corestep; try eassumption.
-     intros [st2' [m2' [mu' [CS' X]]]]. 
+     intros [st2' [m2' [mu' [CS' X]]]].
      exists st2', m2', mu'. intuition. }
 (*effcore_diagram*)
  { intros. exploit MATCH_effcore_diagram; try eassumption.

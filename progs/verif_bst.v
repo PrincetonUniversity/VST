@@ -21,13 +21,13 @@ Definition empty_tree : tree := E.
 Fixpoint lookup (x: key) (t : tree) : V :=
   match t with
   | E => default
-  | T tl k v tr => if x <? k then lookup x tl 
+  | T tl k v tr => if x <? k then lookup x tl
                          else if k <? x then lookup x tr
                          else v
   end.
 
 Fixpoint insert (x: key) (v: V) (s: tree) : tree :=
- match s with 
+ match s with
  | E => T E x v E
  | T a y v' b => if  x <? y then T (insert x v a) y v' b
                         else if y <? x then T a y v' (insert x v b)
@@ -43,7 +43,7 @@ Arguments lookup {V} default x t.
 Fixpoint tree_rep (t: tree val) (p: val) : mpred :=
  match t with
  | E => !!(p=nullval) && emp
- | T a x v b => !! (Int.min_signed <= x <= Int.max_signed /\ tc_val (tptr Tvoid) v) && 
+ | T a x v b => !! (Int.min_signed <= x <= Int.max_signed /\ tc_val (tptr Tvoid) v) &&
     EX pa:val, EX pb:val,
     data_at Tsh t_struct_tree (Vint (Int.repr x),(v,(pa,pb))) p *
     tree_rep a pa * tree_rep b pb
@@ -56,23 +56,23 @@ Definition mallocN_spec :=
  DECLARE _mallocN
   WITH n: Z
   PRE [ 1%positive OF tint]
-     PROP (4 <= n <= Int.max_unsigned) 
+     PROP (4 <= n <= Int.max_unsigned)
      LOCAL (temp 1%positive (Vint (Int.repr n)))
      SEP ()
-  POST [ tptr tvoid ] 
+  POST [ tptr tvoid ]
      EX v: val,
-     PROP (malloc_compatible n v) 
-     LOCAL (temp ret_temp v) 
+     PROP (malloc_compatible n v)
+     LOCAL (temp ret_temp v)
      SEP (memory_block Tsh n v).
 
 Definition freeN_spec :=
  DECLARE _freeN
   WITH p : val , n : Z
-  PRE [ 1%positive OF tptr tvoid , 2%positive OF tint]  
+  PRE [ 1%positive OF tptr tvoid , 2%positive OF tint]
      (* we should also require natural_align_compatible (eval_id 1) *)
       PROP() LOCAL (temp 1%positive p; temp 2%positive (Vint (Int.repr n)))
       SEP (memory_block Tsh n p)
-  POST [ tvoid ]  
+  POST [ tvoid ]
     PROP () LOCAL () SEP ().
 
 Definition treebox_new_spec :=
@@ -80,7 +80,7 @@ Definition treebox_new_spec :=
   WITH u : unit
   PRE  [  ]
        PROP() LOCAL() SEP ()
-  POST [ (tptr t_struct_tree) ] 
+  POST [ (tptr t_struct_tree) ]
     EX v:val,
     PROP()
     LOCAL(temp ret_temp v)
@@ -94,7 +94,7 @@ Definition insert_spec :=
     PROP( Int.min_signed <= x <= Int.max_signed; is_pointer_or_null v)
     LOCAL(temp _t b; temp _x (Vint (Int.repr x)); temp _value v)
     SEP (treebox_rep t b)
-  POST [ Tvoid ] 
+  POST [ Tvoid ]
    EX p':val,
     PROP()
     LOCAL()
@@ -107,7 +107,7 @@ Definition lookup_spec :=
     PROP( Int.min_signed <= x <= Int.max_signed)
     LOCAL(temp _t b; temp _x (Vint (Int.repr x)))
     SEP (treebox_rep t b)
-  POST [ tptr Tvoid ] 
+  POST [ tptr Tvoid ]
     PROP()
     LOCAL(temp ret_temp (lookup nullval x t))
     SEP (treebox_rep t b).
@@ -117,7 +117,7 @@ Definition tree_free_spec :=
   WITH t: tree val, p: val
   PRE  [ _p OF (tptr t_struct_tree) ]
        PROP() LOCAL(temp _p p) SEP (tree_rep t p)
-  POST [ Tvoid ] 
+  POST [ Tvoid ]
     PROP()
     LOCAL()
     SEP (emp).
@@ -127,14 +127,14 @@ Definition treebox_free_spec :=
   WITH t: tree val, b: val
   PRE  [ _b OF (tptr (tptr t_struct_tree)) ]
        PROP() LOCAL(temp _b b) SEP (treebox_rep t b)
-  POST [ Tvoid ] 
+  POST [ Tvoid ]
     PROP()
     LOCAL()
     SEP (emp).
 
-Definition Gprog : funspecs := 
+Definition Gprog : funspecs :=
     ltac:(with_library prog [
-    mallocN_spec; freeN_spec; treebox_new_spec; 
+    mallocN_spec; freeN_spec; treebox_new_spec;
     tree_free_spec; treebox_free_spec;
     insert_spec; lookup_spec
   ]).
@@ -169,22 +169,22 @@ Qed.
 Hint Resolve treebox_rep_saturate_local: saturate_local.
 
 Definition insert_inv (b0: val) (t0: tree val) (x: Z) (v: val): environ -> mpred :=
-  EX b: val, EX t: tree val, 
-  PROP() 
+  EX b: val, EX t: tree val,
+  PROP()
   LOCAL(temp _t b; temp _x (Vint (Int.repr x));   temp _value v)
   SEP(treebox_rep t b;  (treebox_rep (insert x v t) b -* treebox_rep (insert x v t0) b0)).
 
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
   start_function.
- eapply semax_pre; [ 
+ eapply semax_pre; [
     | apply (semax_loop _ (insert_inv b t x v) (insert_inv b t x v) )].
  unfold insert_inv.
 *
  Exists b t. entailer.
  rewrite <- sepcon_emp at 1.
- apply sepcon_derives; auto. 
- apply wand_sepcon_adjoint. 
+ apply sepcon_derives; auto.
+ apply wand_sepcon_adjoint.
  entailer!.
 *
  forward. (* Sskip *)
@@ -209,12 +209,12 @@ Proof.
   destruct H8; contradiction.
  }
  subst t1. simpl tree_rep. rewrite !prop_true_andp by auto.
- replace  (force_val (sem_cast_neutral v)) with v 
+ replace  (force_val (sem_cast_neutral v)) with v
    by (clear - H0; destruct v; try contradiction; reflexivity).
  forward. (* *t = p; *)
  forward. (* return; *)
- match goal with |- _ * ?B * ?C |-- _ => 
- apply derives_trans with 
+ match goal with |- _ * ?B * ?C |-- _ =>
+ apply derives_trans with
     (treebox_rep (T E x v E) b1 * C)
  end.
  cancel.
@@ -240,7 +240,7 @@ Proof.
   unfold_data_at 2%nat.
   rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
    match goal with |- ?A * (?Bk * (?Bv * (?Ba * ?Bb))) * ?Ta * ?Tb |-- _ =>
-      apply derives_trans 
+      apply derives_trans
       with (treebox_rep t1_1 (field_address t_struct_tree [StructField _left] p1) *
                A * Bk * Bv * Bb * Tb)
    end.
@@ -264,7 +264,7 @@ Proof.
   unfold_data_at 2%nat.
    rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
    match goal with |- ?A * (?Bk * (?Bv * (?Ba * ?Bb))) * ?Ta * ?Tb |-- _ =>
-      apply derives_trans 
+      apply derives_trans
       with (treebox_rep t1_2 (field_address t_struct_tree [StructField _right] p1) *
                A * Bk * Bv * Ba * Ta)
    end.
@@ -289,8 +289,8 @@ Proof.
 Qed.
 
 Definition lookup_inv (b0 p0: val) (t0: tree val) (x: Z): environ -> mpred :=
-  EX p: val, EX t: tree val, 
-  PROP(lookup nullval x t = lookup nullval x t0) 
+  EX p: val, EX t: tree val,
+  PROP(lookup nullval x t = lookup nullval x t0)
   LOCAL(temp _p p; temp _t b0; temp _x (Vint (Int.repr x)))
   SEP(data_at Tsh (tptr t_struct_tree) p0 b0; tree_rep t p;  (tree_rep t p -* tree_rep t0 p0)).
 

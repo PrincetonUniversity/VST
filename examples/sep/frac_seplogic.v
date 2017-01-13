@@ -33,12 +33,12 @@ Definition subst (x y: var) (P: pred world) : pred world :=
    fun w => P (env_set_sh x (env_get (fst w) y) (fst w), snd w).
 
 Definition mapsto (x: var) (sh: share) (y: var) : pred world :=
- fun w => 
+ fun w =>
     exists ax, env_get (fst w) x = Some (pfullshare, ax) /\
     exists ay, env_get (fst w) y = Some (pfullshare, ay) /\
     env_mapsto ax sh ay (snd w).
 
-Definition equal (x y: var) : pred world := 
+Definition equal (x y: var) : pred world :=
             fun w => env_get (fst w) x = env_get (fst w) y.
 
 Inductive modvars : command -> var -> Prop :=
@@ -48,9 +48,9 @@ Inductive modvars : command -> var -> Prop :=
 | mod_seq2: forall x c1 c2, modvars c2 x -> modvars (Seq c1 c2) x.
 
 Definition nonfreevars (P: pred world) (x: var) : Prop :=
-  forall stk hp v, P (stk,hp) -> P (env_set x v stk, hp). 
+  forall stk hp v, P (stk,hp) -> P (env_set x v stk, hp).
 
-Definition subset (S1 S2: var -> Prop) := 
+Definition subset (S1 S2: var -> Prop) :=
   forall x, S1 x -> S2 x.
 
 (* the rest of this file is w.r.t. a previous version of the operational semantics...
@@ -58,7 +58,7 @@ Definition semax (P: pred world) (c: command) (Q: pred world) : Prop :=
   forall F s, subset (modvars c) (nonfreevars F) ->
     (P*F)%pred (den s) -> exists s', exec c s = Some s' /\ (Q*F)%pred (den s').
 
-Lemma env_get_den1 {A B}{AE: EqDec A}:  
+Lemma env_get_den1 {A B}{AE: EqDec A}:
             forall {s} {y: A} {sh} {v: B}, env_get (den_env s) y = Some (sh,v) ->
                sh = pfullshare.
 Proof.
@@ -71,7 +71,7 @@ Proof.
  rewrite env_gso in H; auto.
 Qed.
 
-Lemma env_get_den2 {A B}{AE: EqDec A}:  
+Lemma env_get_den2 {A B}{AE: EqDec A}:
             forall {s} {y: A} {sh} {v: B}, env_get (den_env s) y = Some (sh,v) ->
              table_get s y = Some v.
 Proof.
@@ -103,7 +103,7 @@ Proof.
   split;  auto.
   specialize (DISJ x).
   unfold nonfreevars in DISJ.
-  rewrite H0. 
+  rewrite H0.
   apply DISJ; auto.
   constructor.
 Qed.
@@ -141,7 +141,7 @@ destruct H0 as [[stk1 hp1] [[stk2 hp2] [[? ?] [[ax [? [ay [? ?]]]] ?]]]].
  split.
  split. unfold mapsto.
  exists ax; split; simpl. rewrite env_gso; auto.
- exists ay; split; simpl. rewrite env_gso; auto. 
+ exists ay; split; simpl. rewrite env_gso; auto.
  auto.
  hnf. simpl. rewrite env_gss. rewrite env_gso; auto.
  apply H. constructor. auto.
@@ -163,13 +163,13 @@ Proof.
  intro i.
  destruct (eq_dec ax i). subst i.
  repeat rewrite env_gss.
- specialize (H2 ax). apply env_mapsto_get in H6. destruct H6 as [p ?]. 
+ specialize (H2 ax). apply env_mapsto_get in H6. destruct H6 as [p ?].
  change nat with adr in H0; rewrite H0 in H2.
  rewrite (proof_irr p top_share_nonunit) in H2.
  inv H2.  constructor.
  pfullshare_join.
  repeat rewrite env_gso; auto.
- split; auto. 
+ split; auto.
  exists ax. split; auto. exists ay; split; auto.
  rewrite (env_get_den1 H3) in H3; auto.
  replace (env_set ax ay hp1) with (env_set ax ay empty_env).
@@ -186,7 +186,7 @@ Qed.
 Lemma semax_seq: forall P c1 Q c2 R,
   semax P c1 Q -> semax Q c2 R -> semax P (Seq c1 c2) R.
 Proof.
- unfold semax; intros. 
+ unfold semax; intros.
  destruct (H F s) as [s1 [? ?]]; auto.
  intros ? ?. apply H1. constructor 3; auto.
  destruct (H0 F s1) as [s2 [? ?]]; auto.

@@ -25,7 +25,7 @@ Qed.
 Lemma function_body_ret_assert_derives:
   forall F F' t ek vl,
     F |-- F' ->
-  function_body_ret_assert t F ek vl 
+  function_body_ret_assert t F ek vl
     |-- function_body_ret_assert t F' ek vl.
 Proof.
 intros.
@@ -73,7 +73,7 @@ replace_SEP 0 (data_at Tsh t_struct_SHA256state_st
     (map Vint (hash_blocks init_registers (s256a_hashed a)),
         (Vint (lo_part (s256a_len a + len * 8)),
         (Vint (hi_part (s256a_len a + len * 8)),
-        (map Vint (map Int.repr (s256a_data a))++ 
+        (map Vint (map Int.repr (s256a_data a))++
          list_repeat (Z.to_nat (CBLOCKz - Zlength (s256a_data a))) Vundef,
          Vint (Int.repr (Zlength (s256a_data a))))))) c). {
   unfold_data_at 1%nat; entailer!.
@@ -100,7 +100,7 @@ replace_SEP 0 (data_at Tsh t_struct_SHA256state_st
            (@nested_field_type CompSpecs t_struct_SHA256state_st
               [ArraySubsc 0; StructField _data]))) with val.
   rewrite H11.
-  cancel. 
+  cancel.
   apply derives_trans with (array_at_ Tsh t_struct_SHA256state_st [StructField _data] (Zlength (s256a_data a)) 64 c);
      [ cancel | apply derives_refl].
 }
@@ -173,7 +173,7 @@ assert (UAE: S256abs (hashed ++ blocks) (sublist b4d len data) =
     apply isbyte_intlist_to_Zlist.
     apply Forall_sublist; auto.
     apply Forall_app; split; auto.
-    apply isbyte_intlist_to_Zlist. 
+    apply isbyte_intlist_to_Zlist.
  exists blocks.
  rewrite !S256abs_hashed
    by (try apply divide_length_app; auto; autorewrite with sublist; auto).
@@ -187,7 +187,7 @@ assert (UAE: S256abs (hashed ++ blocks) (sublist b4d len data) =
  }
 forward_if (   PROP  ()
                     LOCAL (gvar  _K256 kv)
-                    SEP 
+                    SEP
                     (K_vector kv;
                      sha256state_ (S256abs hashed dd ++ sublist 0 len data) c; data_block sh data d)).
 + (* then-clause *)
@@ -215,7 +215,7 @@ forward_if (   PROP  ()
   rewrite field_address_offset by auto with field_compatible.
   rewrite field_address0_offset by auto with field_compatible.
   reflexivity.
- - 
+ -
  simpl tc_environ.
  subst POSTCONDITION; unfold abbreviate.
  rewrite overridePost_normal'.
@@ -226,7 +226,7 @@ forward_if (   PROP  ()
  Exists    (map Vint (hash_blocks init_registers (hashed ++ blocks)),
                 (Vint (lo_part (bitlength hashed dd + len * 8)),
                  (Vint (hi_part (bitlength hashed dd + len * 8)),
-                  (map Vint (map Int.repr dd') ++ list_repeat (Z.to_nat (64-(len-b4d))) Vundef, 
+                  (map Vint (map Int.repr dd') ++ list_repeat (Z.to_nat (64-(len-b4d))) Vundef,
                    Vint (Int.repr (Zlength dd')))))).
  rewrite <- UAE.
 assert (Hbb: bitlength hashed dd + len * 8 =
@@ -237,7 +237,7 @@ assert (Hbb: bitlength hashed dd + len * 8 =
     rewrite <- !Z.mul_add_distr_r.
     change 4%Z with WORD.
     rewrite (Z.mul_add_distr_r _ _ WORD).
-    omega. 
+    omega.
 }
  rewrite Hbb.
  entailer!.
@@ -270,7 +270,7 @@ hnf.  unfold s256_h, s256_data, s256_num, s256_Nh, s256_Nl, s256a_regs, fst, snd
  rewrite !S256abs_data
    by (try apply divide_length_app; auto; autorewrite with sublist; auto).
  rewrite <- bitlength_eq.
- replace (bitlength hashed dd + len * 8) 
+ replace (bitlength hashed dd + len * 8)
   with (bitlength (hashed ++ blocks) []).
  split3; auto.
  split3; auto.

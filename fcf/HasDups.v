@@ -17,25 +17,25 @@ Fixpoint hasDups (A : Set)(eqd : EqDec A)(ls : list A) :=
   end.
 
 
-Theorem hasDups_false_NoDup : 
+Theorem hasDups_false_NoDup :
   forall (A : Set)(eqd : EqDec A)(ls : list A),
     hasDups _ ls = false <->
     NoDup ls.
-  
+
   induction ls; intuition; simpl in *.
   econstructor.
-  
+
   destruct (in_dec (EqDec_dec eqd) a ls).
   discriminate.
   econstructor; intuition.
-  
+
   inversion H1; clear H1; subst.
   destruct (in_dec (EqDec_dec eqd) a ls);
     intuition.
-  
+
 Qed.
 
-Theorem hasDups_true_not_NoDup : 
+Theorem hasDups_true_not_NoDup :
   forall (A : Set)(eqd : EqDec A)(ls : list A),
     hasDups eqd ls = true <-> (~ NoDup ls).
 
@@ -43,7 +43,7 @@ Theorem hasDups_true_not_NoDup :
   exfalso.
   eapply H.
   econstructor.
-       
+
   inversion H2; clear H2; subst.
   destruct (in_dec (EqDec_dec eqd) a ls); intuition.
   destruct (in_dec (EqDec_dec eqd) a ls); intuition.
@@ -51,14 +51,14 @@ Theorem hasDups_true_not_NoDup :
   intuition.
   eapply H1.
   econstructor; intuition.
-  
+
 Qed.
 
-Theorem hasDups_inj_equiv : 
+Theorem hasDups_inj_equiv :
   forall (A B : Set)(eqda : EqDec A)(eqdb : EqDec B)(lsa : list A)(inj : A -> B),
     (forall a1 a2, inj a1 = inj a2 -> a1 = a2) ->
     hasDups _ lsa = hasDups _ (map inj lsa).
-  
+
   induction lsa; intuition; simpl in *.
   destruct (in_dec (EqDec_dec eqda) a lsa);
     destruct (in_dec (EqDec_dec eqdb) (inj a) (map inj lsa));
@@ -78,25 +78,25 @@ Qed.
 
 Require Import Permutation.
 
-Theorem Permutation_hasDups : 
+Theorem Permutation_hasDups :
   forall (A : Set)(eqd : EqDec A)(ls1 ls2 : list A),
     Permutation ls1 ls2 ->
     hasDups eqd ls1 = hasDups eqd ls2.
-  
+
   intuition.
   case_eq ( hasDups eqd ls1); intuition.
   apply hasDups_true_not_NoDup in H0.
   intuition.
   case_eq (hasDups eqd ls2); intuition.
   apply hasDups_false_NoDup in H1; intuition.
-  
+
   exfalso.
   eapply H0.
   eapply permutation_NoDup.
   eapply Permutation_sym.
   eauto.
   trivial.
-  
+
   eapply hasDups_false_NoDup in H0; intuition.
   case_eq (hasDups eqd ls2); intuition.
   apply hasDups_true_not_NoDup in H1.
@@ -104,7 +104,7 @@ Theorem Permutation_hasDups :
   apply H1.
   eapply permutation_NoDup;
     eauto.
-     
+
 Qed.
 
 Section DupProb.
@@ -113,9 +113,9 @@ Section DupProb.
   Hypothesis eqdb : EqDec B.
   Variable eta : nat.
 
-  Theorem dupProb : 
+  Theorem dupProb :
     forall (ls : list A),
-      Pr[x <-$ compMap _ (fun _ => {0, 1}^eta) ls; ret (hasDups _ x)] <= 
+      Pr[x <-$ compMap _ (fun _ => {0, 1}^eta) ls; ret (hasDups _ x)] <=
       (length ls ^ 2 / 2 ^ eta).
 
     Local Opaque evalDist.
@@ -129,14 +129,14 @@ Section DupProb.
     intuition.
 
     assert (
-        Pr 
+        Pr
    [x <-$
     (b <-$ { 0 , 1 }^eta;
      lsb' <-$ compMap (Bvector_EqDec eta) (fun _ : A => { 0 , 1 }^eta) ls;
      ret b :: lsb'); ret hasDups (Bvector_EqDec eta) x ]
    ==
-   Pr 
-   [p <-$ 
+   Pr
+   [p <-$
       (b <-$ { 0 , 1 }^eta;
        lsb' <-$ compMap (Bvector_EqDec eta) (fun _ : A => { 0 , 1 }^eta) ls;
        ret (b, lsb'));
@@ -153,7 +153,7 @@ Section DupProb.
     rewrite orb_true_r.
     reflexivity.
     rewrite orb_false_r.
-    reflexivity. 
+    reflexivity.
     rewrite H.
     clear H.
 
@@ -164,7 +164,7 @@ Section DupProb.
           <=
         (S (length ls * 1 + length ls * S (length ls * 1)) / 2 ^ eta)
               ).
-    
+
     eapply leRat_trans.
     Focus 2.
     eapply leRat_terms.
@@ -192,7 +192,7 @@ Section DupProb.
     Require Import fcf.RndInList.
 
     assert (
-        Pr 
+        Pr
    [x <-$
     (b <-$ { 0 , 1 }^eta;
      lsb' <-$ compMap (Bvector_EqDec eta) (fun _ : A => { 0 , 1 }^eta) ls;
@@ -201,7 +201,7 @@ Section DupProb.
          then true
          else false) ]
    ==
-   Pr 
+   Pr
    [
      lsb' <-$ compMap (Bvector_EqDec eta) (fun _ : A => { 0 , 1 }^eta) ls;
      b <-$ { 0 , 1 }^eta;

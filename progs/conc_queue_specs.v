@@ -88,7 +88,7 @@ Definition q_lock_pred' (t : type) P p (vals : list (val * reptype t)) head (add
    cond_var Tsh addc * cond_var Tsh remc * malloc_token Tsh (sizeof tqueue_t) p *
    malloc_token Tsh (sizeof tcond) addc * malloc_token Tsh (sizeof tcond) remc *
    malloc_token Tsh (sizeof tlock) lock * ghost gsh (Tsh, h) p *
-   fold_right sepcon emp (map (fun x => let '(p, v) := x in 
+   fold_right sepcon emp (map (fun x => let '(p, v) := x in
      !!(P v) && (data_at Tsh t v p * malloc_token Tsh (sizeof t) p)) vals)).
 
 Definition q_lock_pred A P p lock gsh := EX vals : list (val * reptype A), EX head : Z,
@@ -133,7 +133,7 @@ Proof.
 Qed.
 Next Obligation.
 Proof.
-  
+
 (* How do we prove super_non_expansive of an existential? Use exp_approx from veric/seplog. *)
 Admitted.*)
 

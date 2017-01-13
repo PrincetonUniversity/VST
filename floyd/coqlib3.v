@@ -320,7 +320,7 @@ Qed.
 Arguments Int.unsigned n : simpl never.
 Arguments Pos.to_nat !x / .
 
-Lemma align_0: forall z, 
+Lemma align_0: forall z,
     z > 0 -> align 0 z = 0.
 Proof. unfold align; intros. rewrite Zdiv_small; omega.
 Qed.

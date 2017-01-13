@@ -19,18 +19,18 @@ Require Import ccc26x86.BuiltinEffects.
 
 Definition assign_loc_Effect ge (ty:type) (b: block) (ofs: int) : (block -> Z -> bool)  :=
   match access_mode ty with
-     By_value chunk => fun b' z' => eq_block b b' 
-              && zle (Int.unsigned ofs) z' 
+     By_value chunk => fun b' z' => eq_block b b'
+              && zle (Int.unsigned ofs) z'
               && zlt z' ((Int.unsigned ofs) + Z.of_nat (size_chunk_nat chunk))
-   | By_copy => fun b' z' => eq_block b' b 
-              && zle (Int.unsigned ofs) z' 
+   | By_copy => fun b' z' => eq_block b' b
+              && zle (Int.unsigned ofs) z'
               && zlt z' ((Int.unsigned ofs) + (sizeof ge ty))
    | _ => fun b' z' => false
   end.
-  
+
 Lemma assign_loc_Effect_Sound: forall ge a m loc ofs v m'
       (AL: assign_loc ge (typeof a) m loc ofs v m'),
-     Mem.unchanged_on (fun b z => assign_loc_Effect ge (typeof a) 
+     Mem.unchanged_on (fun b z => assign_loc_Effect ge (typeof a)
                             loc ofs b z = false) m m'.
 Proof. intros. inv AL.
 inv H0.
@@ -73,7 +73,7 @@ inv H0.
         destruct H5; try discriminate.
         destruct (zlt ofs0 (Int.unsigned ofs + sizeof ge (typeof a))); simpl in *. discriminate.
         apply Mem.loadbytes_length in H3. rewrite H3 in H8.
-          rewrite nat_of_Z_eq in H8. omega. 
+          rewrite nat_of_Z_eq in H8. omega.
           assert (ZZZ:= sizeof_pos ge (typeof a)). omega.
       omega.
     rewrite PMap.gso; trivial.
@@ -99,19 +99,19 @@ Proof. intros vars.
   induction vars; simpl; intros; inv AL; simpl in *.
     left; trivial.
   destruct (IHvars _ _ _ _ _ H6 _ _ _ Hid); clear IHvars.
-    rewrite PTree.gsspec in H. 
-    destruct (peq id id0); subst. 
+    rewrite PTree.gsspec in H.
+    destruct (peq id id0); subst.
       inv H. right. eapply Mem.fresh_block_alloc; eassumption.
       left; trivial.
     right. intros N; elim H; clear H.
       eapply Mem.valid_block_alloc; eassumption.
-Qed. 
+Qed.
 
 Lemma assign_loc_forward: forall g ty m b ofs v m1
       (A: assign_loc g ty m b ofs v m1),
       mem_forward m m1.
 Proof. intros.
-  inv A. 
+  inv A.
    inv H0. eapply (store_forward _ _ _ _ _ _ H2).
    eapply (storebytes_forward _ _ _ _ _ H4).
 Qed.
@@ -174,29 +174,29 @@ Inductive clight_effstep (ge:genv): (block -> Z -> bool) ->
   | clight_effstep_ifthenelse:  forall f a s1 s2 k e le m v1 b,
       eval_expr ge e le m a v1 ->
       bool_val v1 (typeof a) m = Some b ->
-      clight_effstep ge EmptyEffect 
+      clight_effstep ge EmptyEffect
         (CL_State f (Sifthenelse a s1 s2) k e le) m
         (CL_State f (if b then s1 else s2) k e le) m
 
   | clight_effstep_loop: forall f s1 s2 k e le m,
-      clight_effstep ge EmptyEffect 
+      clight_effstep ge EmptyEffect
         (CL_State f (Sloop s1 s2) k e le) m
         (CL_State f s1 (Kloop1 s1 s2 k) e le) m
   | clight_effstep_skip_or_continue_loop1:  forall f s1 s2 k e le m x,
       x = Sskip \/ x = Scontinue ->
-      clight_effstep ge EmptyEffect 
+      clight_effstep ge EmptyEffect
         (CL_State f x (Kloop1 s1 s2 k) e le) m
         (CL_State f s2 (Kloop2 s1 s2 k) e le) m
   | clight_effstep_break_loop1:  forall f s1 s2 k e le m,
-      clight_effstep ge EmptyEffect 
+      clight_effstep ge EmptyEffect
         (CL_State f Sbreak (Kloop1 s1 s2 k) e le) m
         (CL_State f Sskip k e le) m
   | clight_effstep_skip_loop2: forall f s1 s2 k e le m,
-      clight_effstep ge EmptyEffect 
+      clight_effstep ge EmptyEffect
         (CL_State f Sskip (Kloop2 s1 s2 k) e le) m
         (CL_State f (Sloop s1 s2) k e le) m
   | clight_effstep_break_loop2: forall f s1 s2 k e le m,
-      clight_effstep ge EmptyEffect 
+      clight_effstep ge EmptyEffect
         (CL_State f Sbreak (Kloop2 s1 s2 k) e le) m
         (CL_State f Sskip k e le) m
 
@@ -272,14 +272,14 @@ Variable FE_UNCH: forall f vargs m e le m', FE f vargs m e le m'->
 (*Variable FE_RDonly: forall f vargs m e le m', FE f vargs m e le m'->
          forall b, Mem.valid_block m b -> readonly m b m'.*)
 Variable HFE_mem: forall f vargs m e le m', FE f vargs m e le m'-> mem_step m m'.
-Variable HFE_ple: forall f vargs m e le m', FE f vargs m e le m'-> 
+Variable HFE_ple: forall f vargs m e le m', FE f vargs m e le m'->
                 forall m1 (PLE:perm_lesseq m m1), exists m1':mem,  FE f vargs m1 e le m1' /\ perm_lesseq m' m1'.
 
 Lemma clightstep_effax1: forall (M : block -> Z -> bool) ge c m c' m'
       (H: clight_effstep ge M c m c' m'),
        corestep (CL_memsem (*hf*) FE HFE_mem HFE_ple) ge c m c' m' /\
        Mem.unchanged_on (fun (b : block) (ofs : Z) => M b ofs = false) m m'.
-Proof. 
+Proof.
 intros.
   induction H.
   split. econstructor; try eassumption.
@@ -379,13 +379,13 @@ induction H; try (solve [inv H0]).
   - destruct (eq_block b loc); try subst loc; try discriminate; simpl in *.
     destruct (zle (Int.unsigned ofs) z ); try discriminate.
     destruct (zlt z (Int.unsigned ofs + sizeof g (typeof a1))); try discriminate.
-    clear H0. 
+    clear H0.
     apply Mem.storebytes_range_perm in H9. apply H9.  clear H9.
-    apply Mem.loadbytes_length in H8. rewrite H8, nat_of_Z_eq. omega. omega. 
+    apply Mem.loadbytes_length in H8. rewrite H8, nat_of_Z_eq. omega. omega.
 (*+ eapply nonobs_extcall_curWR; eassumption. *)
-+ eapply freelist_curWR; eassumption. 
-+ eapply freelist_curWR; eassumption. 
-+ eapply freelist_curWR; eassumption. 
++ eapply freelist_curWR; eassumption.
++ eapply freelist_curWR; eassumption.
++ eapply freelist_curWR; eassumption.
 Qed.
 
 Lemma clight_effstep_valid: forall (M : block -> Z -> bool) g c m c' m',
@@ -398,20 +398,20 @@ Definition clight_eff_sem :  @EffectSem Clight.genv CL_core.
 Proof.
 eapply Build_EffectSem with (sem := CL_memsem (*hf*) _ HFE_mem HFE_ple)
          (effstep:=clight_effstep).
-eapply clightstep_effax1. 
-apply clightstep_effax2. 
+eapply clightstep_effax1.
+apply clightstep_effax2.
 apply clight_effstep_curWR.
 Defined.
 
 End EFFSEM.
 
-Lemma function_entry1_UNCH: forall g f vargs m e le m', 
+Lemma function_entry1_UNCH: forall g f vargs m e le m',
       function_entry1 g f vargs m e le m'->
       Mem.unchanged_on (fun b z => EmptyEffect b z = false) m m'.
 Proof. intros. inv H.
   assert (FRESH: forall id b ty,
            e ! id = Some (b, ty) -> ~ Mem.valid_block m b).
-    intros. 
+    intros.
     destruct (alloc_variables_freshblocks _ _ _ _ _ _ H1 _ _ _ H); trivial.
       rewrite PTree.gempty in H3. discriminate.
   clear H0.
@@ -425,7 +425,7 @@ Proof. intros. inv H.
   induction pars; simpl; intros.
   + inv H2. apply Mem.unchanged_on_refl.
   + inv H2. specialize (IHpars _ _ H7).
-    apply FRESH in H1. 
+    apply FRESH in H1.
     eapply unchanged_on_trans; try eassumption;
       try (eapply assign_loc_forward; eassumption).
     clear H7 IHpars FRESH.
@@ -433,7 +433,7 @@ Proof. intros. inv H.
     - inv H0.
       split; intros.
       * rewrite (Mem.nextblock_store _ _ _ _ _ _ H3). xomega.
-      * split; intros. 
+      * split; intros.
           eapply Mem.perm_store_1; eassumption.
           eapply Mem.perm_store_2; eassumption.
       * rewrite (Mem.store_mem_contents _ _ _ _ _ _ H3).
@@ -441,7 +441,7 @@ Proof. intros. inv H.
         destruct H0. intros N; subst. contradiction.
     - split; intros.
       * rewrite (Mem.nextblock_storebytes _ _ _ _ _ H6). xomega.
-      * split; intros. 
+      * split; intros.
         eapply Mem.perm_storebytes_1; eassumption.
         eapply Mem.perm_storebytes_2; eassumption.
       * rewrite (Mem.storebytes_mem_contents _ _ _ _ _ H6).
@@ -449,7 +449,7 @@ Proof. intros. inv H.
         destruct H4. intros N; subst. contradiction.
 Qed.
 
-Lemma function_entry2_UNCH: forall g f vargs m e le m', 
+Lemma function_entry2_UNCH: forall g f vargs m e le m',
       function_entry2 g f vargs m e le m'->
       Mem.unchanged_on (fun b z => EmptyEffect b z = false) m m'.
 Proof. intros. inv H.

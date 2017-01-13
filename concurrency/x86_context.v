@@ -20,7 +20,7 @@ Set Bullet Behavior "Strict Subproofs".
 Import Concur.
 
 Module X86SEM <: Semantics.
-  Definition F := Asm.fundef.            
+  Definition F := Asm.fundef.
   Definition V := unit.
   Definition G := Asm.genv.
   Definition C := state.
@@ -46,19 +46,19 @@ Module X86Context <: AsmContext X86SEM X86Machines.
   Import X86Machines.
   Parameter initU: mySchedule.schedule.
   Parameter the_program: Asm.program.
-  
+
   Definition init_mem := Genv.init_mem the_program.
   Definition init_perm : option (access_map * access_map) :=
     match init_mem with
     | Some m => Some (getCurPerm m, empty_map)
     | None => None
     end.
-  
+
   Definition the_ge := Globalenvs.Genv.globalenv the_program.
-  
+
   Definition coarse_semantics:=
       DryConc.MachineSemantics initU init_perm.
-  
+
   Definition fine_semantics:=
       FineConc.MachineSemantics initU init_perm.
 
@@ -72,17 +72,17 @@ Module X86Context <: AsmContext X86SEM X86Machines.
 End X86Context.
 
 Module X86SEMAxioms <: SemanticsAxioms X86SEM.
-    
+
   Import Asm Asm_coop event_semantics semantics_lemmas
          X86SEM Memory.
-                        
+
   Lemma corestep_det: corestep_fun Sem.
   Proof.
     hnf; intros.
     inv H; inv H0;
-    repeat 
+    repeat
       match goal with
-      | H: ?A = _, H':?A=_ |- _ => inversion2 H H' 
+      | H: ?A = _, H':?A=_ |- _ => inversion2 H H'
       | H: ?A, H': ?A |- _ => clear H'
       end;
     try congruence; try now (split; auto).
@@ -132,7 +132,7 @@ Module X86SEMAxioms <: SemanticsAxioms X86SEM.
       erewrite PMap.gso by auto. auto.
       *
         revert m H; induction l; intros. inv H. apply decay_refl.
-        simpl in H. destruct a. destruct p. 
+        simpl in H. destruct a. destruct p.
         destruct (Memory.Mem.free m b z0 z) eqn:?H; inv H.
         apply decay_trans with m0; [ | | eapply IHl; eauto].
         eapply Memory.Mem.valid_block_free_1; eauto.
@@ -181,7 +181,7 @@ Module X86SEMAxioms <: SemanticsAxioms X86SEM.
     Lemma exec_store_obeys_cur_write:
       forall ge ch m a rs rs0 d rs' m',
         exec_store ge ch m a rs rs0 d = Next rs' m' ->
-        forall b ofs, 
+        forall b ofs,
           Memory.Mem.valid_block m b ->
           ~ Memory.Mem.perm m b ofs Memtype.Cur Memtype.Writable ->
           ZMap.get ofs (PMap.get b (Memory.Mem.mem_contents m)) =
@@ -222,7 +222,7 @@ Module X86SEMAxioms <: SemanticsAxioms X86SEM.
         etransitivity.
         2: eapply IHbytes; try apply H2.
         clear H2 IHbytes.
-        unfold Memory.Mem.storebytes in H1. 
+        unfold Memory.Mem.storebytes in H1.
         Opaque Memory.Mem.storebytes.
         destruct (Memory.Mem.range_perm_dec m b0 ofs0
                                      (ofs0 + Z.of_nat (length (a :: nil))) Memtype.Cur Memtype.Writable);
@@ -231,7 +231,7 @@ Module X86SEMAxioms <: SemanticsAxioms X86SEM.
         rewrite PMap.gss.
         destruct (zeq ofs0 ofs). subst.
         contradiction H0. apply r. simpl. omega.
-        rewrite ZMap.gso; auto. 
+        rewrite ZMap.gso; auto.
         rewrite PMap.gso; auto.
         clear - H H1.
         eapply Memory.Mem.storebytes_valid_block_1; eauto.
@@ -294,7 +294,7 @@ Module X86SEMAxioms <: SemanticsAxioms X86SEM.
         ZMap.get ofs (Memory.Mem.mem_contents m') !! b.
     Proof.
       intros.
-      hnf in H. 
+      hnf in H.
       apply asm_mem_step in H.
       eapply mem_step_obeys_cur_write; auto.
     Qed.

@@ -36,7 +36,7 @@ Module Type ISOMORPHIC_KNOTS.
   Axiom iso1 : f oo g = id K2.knot.
   Axiom iso2 : g oo f = id K1.knot.
 
-  Axiom f_squash : forall n F1, 
+  Axiom f_squash : forall n F1,
     f (K1.squash (n, F1)) = K2.squash (n, fF F1).
 
   Axiom g_squash : forall n F2,
@@ -52,12 +52,12 @@ Module Type ISOMORPHIC_KNOTS.
 
 End ISOMORPHIC_KNOTS.
 
-Module Unique_Knot (TF' : TY_FUNCTOR) 
-                                (K1' : KNOT with Module TF := TF') 
-                                (K2' : KNOT with Module TF := TF') : 
+Module Unique_Knot (TF' : TY_FUNCTOR)
+                                (K1' : KNOT with Module TF := TF')
+                                (K2' : KNOT with Module TF := TF') :
                                   ISOMORPHIC_KNOTS
                                     with Module TF := TF'
-                                    with Module K1 := K1' 
+                                    with Module K1 := K1'
                                     with Module K2 := K2'.
 Module TF := TF'.
 Import TF.
@@ -159,7 +159,7 @@ rewrite K2.unsquash_squash.
 rewrite K1.knot_level in H.
 rewrite <- Hequnsq_k in H.
 simpl in H.
-replace (fmap F (K2.approx n0) (fF_Z Fp)) with 
+replace (fmap F (K2.approx n0) (fF_Z Fp)) with
   ((fmap F (K2.approx n0) oo (fmap F gZ_pred)) Fp) by trivial.
 rewrite fmap_comp.
 replace (gF_Z (fmap F (K2.approx n0 oo gZ_pred) Fp)) with
@@ -183,7 +183,7 @@ remember (K2.unsquash k) as unsq_k.
 destruct unsq_k as [n0 Fp].
 rewrite K1.unsquash_squash.
 rewrite K2.knot_level in H.
-replace (fmap F (K1.approx n0) (gF_Z Fp)) with 
+replace (fmap F (K1.approx n0) (gF_Z Fp)) with
   ((fmap F (K1.approx n0) oo (fmap F fZ_pred)) Fp) by trivial.
 rewrite fmap_comp.
 replace (fF_Z (fmap F (K1.approx n0 oo fZ_pred) Fp)) with
@@ -227,10 +227,10 @@ trivial.
 Qed.
 
 (* Finally, we must show that fZ preserves unsquashing. *)
-Lemma fZ_unsquash : forall k1, 
-  level k1 <= 0 -> 
-  forall U1, 
-  U1 = K1.unsquash k1 -> 
+Lemma fZ_unsquash : forall k1,
+  level k1 <= 0 ->
+  forall U1,
+  U1 = K1.unsquash k1 ->
   K2.unsquash (f_Z k1) = (fst U1, fF_Z (snd U1)).
 Proof.
 intros.
@@ -277,10 +277,10 @@ Variable iso2 : forall k, level k <= n -> (f oo g) k = k.
 
 (* These two properties are enough to prove a bijection up to level k *)
 
-Lemma f_inj : forall ka kb, 
-  level ka <= n -> 
-  level kb <= n -> 
-  f ka = f kb -> 
+Lemma f_inj : forall ka kb,
+  level ka <= n ->
+  level kb <= n ->
+  f ka = f kb ->
   ka = kb.
 Proof.
 intros.
@@ -289,9 +289,9 @@ do 2 rewrite iso1 in H2; trivial.
 Qed.
 
 Lemma g_inj : forall ka kb,
-  level ka <= n -> 
-  level kb <= n -> 
-  g ka = g kb -> 
+  level ka <= n ->
+  level kb <= n ->
+  g ka = g kb ->
   ka = kb.
 Proof.
 intros.
@@ -351,11 +351,11 @@ for knots above level n.
 
 Actually, even this weaker version is not provable:
 
-Lemma f_level: forall k, 
+Lemma f_level: forall k,
 (K1.level k <= n \/ K2.level (f k) <= n) ->
 K1.level k = K2.level (f k).
 
-Counterexample: K1.knot = K2.knot = nat; 
+Counterexample: K1.knot = K2.knot = nat;
                             K1.level = K2.level = id;
                             f = inc, g = dec;
 *)
@@ -365,8 +365,8 @@ Variable f_level: forall k, level k = level (f k).
 Variable g_level: forall k, level k = level (g k).
 
 (* However, using them we can prove pred_iso1 and pred_iso2, which are vital. *)
-Lemma predn_iso1: forall m, 
-  m <= (n+1) -> 
+Lemma predn_iso1: forall m,
+  m <= (n+1) ->
   g_pred' f oo K2.approx m oo f_pred' g = K1.approx m.
 Proof.
 intros.
@@ -383,7 +383,7 @@ simpl; omega.
 Qed.
 
 Lemma predn_iso2: forall m,
-  m <= (n+1) -> 
+  m <= (n+1) ->
   f_pred' g oo K1.approx m oo g_pred' f = K2.approx m.
 Proof.
 intros.
@@ -410,7 +410,7 @@ rewrite K2.unsquash_squash.
 rewrite K1.knot_level in H.
 rewrite <- Hequnsq_k in H.
 simpl in H.
-replace (fmap F (K2.approx n0) (f_F' g Fp)) with 
+replace (fmap F (K2.approx n0) (f_F' g Fp)) with
   ((fmap F (K2.approx n0) oo (fmap F (f_pred' g))) Fp) by trivial.
 rewrite fmap_comp.
 replace (g_F' f (fmap F (K2.approx n0 oo f_pred' g) Fp)) with
@@ -435,7 +435,7 @@ simpl in H.
 rewrite K2.knot_level in H.
 rewrite <- Hequnsq_k in H.
 simpl in H.
-replace (fmap F (K1.approx n0) (g_F' f Fp)) with 
+replace (fmap F (K1.approx n0) (g_F' f Fp)) with
   ((fmap F (K1.approx n0) oo (fmap F (g_pred' f))) Fp) by trivial.
 rewrite fmap_comp.
 replace (f_F' g (fmap F (K1.approx n0 oo g_pred' f) Fp)) with
@@ -473,14 +473,14 @@ trivial.
 Qed.
 
 (* Finally, we must show that f_Sn preserves unsquashing. *)
-Variable fn_unsquash : forall k1, 
-  level k1 <= n -> 
-  forall U1, 
-  U1 = K1.unsquash k1 -> 
+Variable fn_unsquash : forall k1,
+  level k1 <= n ->
+  forall U1,
+  U1 = K1.unsquash k1 ->
   K2.unsquash (f k1) = (fst U1, f_F' g (snd U1)).
 
 Lemma Fn_iso2 : forall m,
-  m <= n + 1 -> 
+  m <= n + 1 ->
   g_F' f oo f_F' g oo fmap F (K1.approx m) = fmap F (K1.approx m).
 Proof.
 intros.
@@ -492,9 +492,9 @@ rewrite predn_iso1; trivial.
 Qed.
 
 Lemma gn_unsquash : forall k2,
-  level k2 <= n -> 
-  forall U2, 
-  U2 = K2.unsquash k2 -> 
+  level k2 <= n ->
+  forall U2,
+  U2 = K2.unsquash k2 ->
   K1.unsquash (g k2) = (fst U2, g_F' f (snd U2)).
 Proof.
 intros.
@@ -532,7 +532,7 @@ omega.
 Qed.
 
 Lemma gn_squash : forall m F2,
-  m <= n -> 
+  m <= n ->
   g (K2.squash (m, F2)) = K1.squash (m, g_F' f F2).
 Proof.
 intros.
@@ -543,7 +543,7 @@ rewrite (gn_unsquash (K2'.squash (m, F2)) H0 (K2.unsquash (K2'.squash (m, F2))))
 rewrite K1.unsquash_squash.
 rewrite K2.unsquash_squash.
 simpl.
-replace (g_F' f (fmap F (K2'.approx m) F2)) with 
+replace (g_F' f (fmap F (K2'.approx m) F2)) with
   ((fmap F (g_pred' f) oo (fmap F (K2.approx m))) F2) by trivial.
 replace (m, fmap F (K1'.approx m) (g_F' f F2)) with
   (m, (fmap F (K1.approx m) oo fmap F (g_pred' f)) F2) by trivial.
@@ -552,10 +552,10 @@ apply injective_projections; simpl; trivial.
 rewrite g_pred'_approx; trivial.
 Qed.
 
-Lemma fSn_unsquash : forall k1, 
-  level k1 <= n + 1 -> 
-  forall U1, 
-  U1 = K1.unsquash k1 -> 
+Lemma fSn_unsquash : forall k1,
+  level k1 <= n + 1 ->
+  forall U1,
+  U1 = K1.unsquash k1 ->
   K2.unsquash (f_Sn k1) = (fst U1, f_F' (g_Sn) (snd U1)).
 Proof.
 intros.
@@ -597,7 +597,7 @@ rewrite Hequk2.
 rewrite K2.squash_unsquash; trivial.
 Qed.
 
-Lemma gn_gSn_eq_n : forall k, 
+Lemma gn_gSn_eq_n : forall k,
 level k <= n ->
 g k = g_Sn k.
 Proof.
@@ -621,7 +621,7 @@ Section FG.
 (* We tie it together *)
 
 Fixpoint fg (n : nat) {struct n} : ((K1.knot -> K2.knot) * (K2.knot -> K1.knot)) :=
-  match n with 
+  match n with
    | 0 => (f_Z, g_Z)
    | S n => match fg n with (fn, gn) => (f_Sn gn, g_Sn fn) end
   end.
@@ -982,7 +982,7 @@ rewrite (f_unsquash (K1'.squash (n, F1)) (K1.unsquash (K1'.squash (n, F1)))); tr
 rewrite K1.unsquash_squash.
 rewrite K2.unsquash_squash.
 simpl.
-replace (fF (fmap F (K1'.approx n) F1)) with 
+replace (fF (fmap F (K1'.approx n) F1)) with
   ((fF oo (fmap F (K1.approx n))) F1) by trivial.
 rewrite fF_approx.
 trivial.
@@ -997,7 +997,7 @@ rewrite (g_unsquash (K2'.squash (n, F2)) (K2.unsquash (K2'.squash (n, F2)))); tr
 rewrite K1.unsquash_squash.
 rewrite K2.unsquash_squash.
 simpl.
-replace (gF (fmap F (K2'.approx n) F2)) with 
+replace (gF (fmap F (K2'.approx n) F2)) with
   ((gF oo (fmap F (K2.approx n))) F2) by trivial.
 rewrite gF_approx.
 trivial.

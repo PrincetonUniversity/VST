@@ -42,7 +42,7 @@ Proof.
   rewrite Share.glb_top in H.
   auto.
 Qed.
-         
+
 Lemma join_top {sh2 sh3} :
   sepalg.join Share.top sh2 sh3 ->
   sh3 = Share.top.
@@ -162,7 +162,7 @@ Lemma join_permjoin_lock
       (perm_of_res_lock r1)
       (perm_of_res_lock r2)
       (perm_of_res_lock r3).
-Proof. 
+Proof.
   destruct r1 as [t1 | t1 p1 k1 pp1 | k1 pp1];
     destruct r2 as [t2 | t2 p2 k2 pp2 | k2 pp2];
     destruct r3 as [t3 | t3 p3 k3 pp3 | k3 pp3].

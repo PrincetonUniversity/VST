@@ -13,7 +13,7 @@ Require Import concurrency.sepcomp. Import SepComp.
 Require Import concurrency.permissions.
 Require Import concurrency.lksize.
 Set Bullet Behavior "Strict Subproofs".
-  
+
   Module MiniAddressOrdered <: MiniOrderedType.
 
     Definition t:= address.
@@ -23,7 +23,7 @@ Set Bullet Behavior "Strict Subproofs".
         if peq x1 y1 then zlt x2 y2 else plt x1 y1
       end).
     Definition lt x y:= is_true (lt' x y).
-    
+
     Lemma eq_refl : forall x : t, eq x x. Proof. reflexivity. Qed.
     Lemma eq_sym : forall x y : t, eq x y -> eq y x.
     Proof. intros; symmetry; assumption. Qed.
@@ -39,17 +39,17 @@ Set Bullet Behavior "Strict Subproofs".
              exfalso;
            (* solves al Plt x y /\ Plt y x *)
            try match goal with
-             [H1:Plt ?x ?y, H2:Plt ?y ?x |- _ ]=> 
+             [H1:Plt ?x ?y, H2:Plt ?y ?x |- _ ]=>
              pose (Plt_trans x y x H1 H2)
                end;
            (* solves Plt x x*)
            try match goal with
              [H1:Plt ?x ?x  |- _ ]=>
-             apply (Plt_strict x); assumption 
+             apply (Plt_strict x); assumption
                end;
            (* solves al Plt x y /\ Plt y z /\ ~ Plt x z *)
            match goal with
-             [H1:Plt ?x ?y, H2:Plt ?y ?z |- _ ]=> 
+             [H1:Plt ?x ?y, H2:Plt ?y ?z |- _ ]=>
              pose (Plt_trans x y z H1 H2)
            end; auto.
     Qed.
@@ -97,11 +97,11 @@ Set Bullet Behavior "Strict Subproofs".
               apply Pos.le_lteq in AAA; destruct AAA; auto.
    Qed.
   End MiniAddressOrdered.
-  
+
 
   Module AddressOrdered <: OrderedType.
      Include MiniAddressOrdered.
-   
+
      Lemma eq_dec : forall x y, { eq x y } + { ~ eq x y }.
      Proof. unfold eq; destruct x, y. simpl.
             destruct (peq b b0);
@@ -115,15 +115,15 @@ Set Bullet Behavior "Strict Subproofs".
   Require Import FMaps.
   Module AMap:= Make AddressOrdered.
 
-  
+
   Section AMap2PMap.
     (*Need to build a permission map from a finite map*)
     (*The pmap is used in the compcert memory. *)
     Context {lock_info: Type}.
     Variable am: AMap.t lock_info.
 
-    
-    
+
+
     Definition A2PMap (*: Map.PMap*) :=
       fold_left
         (fun (pmap:access_map) (a:address * lock_info)=>
@@ -221,7 +221,7 @@ Proof.
   pose proof AMap.find_2.
   assert (SN : forall A, forall o : option A, (forall x, o <> Some x) <-> o = None).
   { intros ? []; split; congruence. }
-  
+
   destruct (eq_dec x x') as [d|d].
   - eauto.
   - destruct (AMap.find (elt:=A) x' m) eqn:E.
@@ -245,7 +245,7 @@ Proof.
   pose proof AMap.remove_3.
   assert (SN : forall A, forall o : option A, (forall x, o <> Some x) <-> o = None).
   { intros ? []; split; congruence. }
-  
+
   destruct (eq_dec x x') as [d|d].
   - destruct (AMap.find _ _) as [o|] eqn:Eo; auto; exfalso.
     apply AMap.find_2 in Eo.
@@ -311,8 +311,8 @@ Lemma AMap_Raw_add_fold_left A (EQ : A -> A -> Prop) B f k (x : B) l (e : A) :
   (forall e, EQ e e) ->
   (forall e e', EQ e e' -> EQ e' e) ->
   (forall e e' e'', EQ e e' -> EQ e' e'' -> EQ e e'') ->
-  (forall a e e', EQ e e' -> EQ (f e a) (f e' a)) -> 
-  (forall a b e, fst a = fst b -> EQ (f (f e a) b) (f e a)) -> 
+  (forall a e e', EQ e e' -> EQ (f e a) (f e' a)) ->
+  (forall a b e, fst a = fst b -> EQ (f (f e a) b) (f e a)) ->
   (forall a b e, EQ (f (f e a) b) (f (f e b) a)) ->
   EQ
     (fold_left f (AMap.Raw.add k x l) e)
@@ -338,7 +338,7 @@ Lemma AMap_Raw_add_fold_left_permut A (EQ : A -> A -> Prop) B f (l l' : list B) 
   (forall e, EQ e e) ->
   (forall e e', EQ e e' -> EQ e' e) ->
   (forall e e' e'', EQ e e' -> EQ e' e'' -> EQ e e'') ->
-  (forall a e e', EQ e e' -> EQ (f e a) (f e' a)) -> 
+  (forall a e e', EQ e e' -> EQ (f e a) (f e' a)) ->
   (forall a b e, EQ (f (f e a) b) (f (f e b) a)) ->
   Permutation l l' ->
   EQ
@@ -362,7 +362,7 @@ Lemma AMap_Raw_add_fold_left_right A (EQ : A -> A -> Prop) B f (l : list B) (e :
   (forall e, EQ e e) ->
   (forall e e', EQ e e' -> EQ e' e) ->
   (forall e e' e'', EQ e e' -> EQ e' e'' -> EQ e e'') ->
-  (forall a e e', EQ e e' -> EQ (f e a) (f e' a)) -> 
+  (forall a e e', EQ e e' -> EQ (f e a) (f e' a)) ->
   (forall a b e, EQ (f (f e a) b) (f (f e b) a)) ->
   EQ
     (fold_left f l e)
@@ -509,7 +509,7 @@ Proof.
   2: now apply PMap_eq_trans.
   2: now intros; eapply A2P_congr; auto.
   2: now intros; eapply A2P_comm; auto.
-  
+
   induction (@AMap.this A m) as [ | ((b0, ofs0), a) ]; [ discriminate | ].
   simpl (AMap.Raw.find _ _).
   destruct (AddressOrdered.compare (b, ofs) (b0, ofs0)) as [C|C|C].
@@ -550,7 +550,7 @@ Proof.
   unfold AMap.Raw.elements in *.
   unfold AMap.add in *.
   simpl (AMap.this _).
-  
+
   etransitivity.
   {
     apply (AMap_Raw_add_fold_left _ (fun t t' => forall b' ofs', t !! b' ofs' = t' !! b' ofs')).
@@ -685,7 +685,7 @@ Proof.
       * inv sorted; auto.
       * inv sorted'; auto.
       * eapply sorted_find; eauto.
-Qed.         
+Qed.
 
 Lemma AMap_remove_add {A} (m : AMap.t A) x y :
   AMap.find x m = Some y ->

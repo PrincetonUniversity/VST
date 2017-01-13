@@ -24,8 +24,8 @@ Inductive space_atom :=
 | Lseg : expr -> expr -> space_atom.
 
 (** assertion:
-An assertion is composed of a list of pure atoms [pi], and a list of spatial 
-atoms [sigma].  [sigma] is interpreted as the _spatial_ conjunction of the 
+An assertion is composed of a list of pure atoms [pi], and a list of spatial
+atoms [sigma].  [sigma] is interpreted as the _spatial_ conjunction of the
 atoms, whereas [pi] asserts the conjunction of its pure atoms. *)
 
 Inductive assertion : Type :=
@@ -33,7 +33,7 @@ Inductive assertion : Type :=
 
 (** entailment:
 An entailment is just a pair of assertions. Entailments are interpreted as:
-In all models (pairs of heaps [h] and stacks [s]), the interpretation of the 
+In all models (pairs of heaps [h] and stacks [s]), the interpretation of the
 assertion on the left implies the interpretation of the assertion on the right. *)
 
 Inductive entailment : Type :=
@@ -46,18 +46,18 @@ Definition subst_var (i: var) (t: expr) (j: var) :=
   if Ident.eq_dec i j then t else Var j.
 
 Definition subst_expr (i: var) (t: expr) (t': expr) :=
-  match t' with 
-    | Nil => Nil 
+  match t' with
+    | Nil => Nil
     | Var j => if Ident.eq_dec i j then t else t'
   end.
 
 Definition subst_pn (i: var) (t: expr) (a: pn_atom) :=
  match a with
-   | Equ t1 t2 => Equ (subst_expr i t t1) (subst_expr i t t2) 
-   | Nequ t1 t2 => Nequ (subst_expr i t t1) (subst_expr i t t2) 
+   | Equ t1 t2 => Equ (subst_expr i t t1) (subst_expr i t t2)
+   | Nequ t1 t2 => Nequ (subst_expr i t t1) (subst_expr i t t2)
  end.
 
-Definition subst_pns (i: var) (t: expr) (pa: list pn_atom) 
+Definition subst_pns (i: var) (t: expr) (pa: list pn_atom)
   : list pn_atom := map (subst_pn i t) pa.
 
 Definition subst_space (i: var) (t: expr) (a: space_atom) :=
@@ -66,7 +66,7 @@ Definition subst_space (i: var) (t: expr) (a: space_atom) :=
     | Lseg t1 t2 => Lseg (subst_expr i t t1) (subst_expr i t t2)
   end.
 
-Definition subst_spaces (i: var) (t: expr) 
+Definition subst_spaces (i: var) (t: expr)
   : list space_atom -> list space_atom := map (subst_space i t).
 
 Definition subst_assertion (i: var) (e: expr) (a: assertion) :=

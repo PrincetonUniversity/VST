@@ -26,7 +26,7 @@ Proof. intros L.
     eassumption.
   eapply alloc_forward; eassumption.
 Qed.
-  
+
 Inductive csharpmin_effstep (g: Csharpminor.genv):  (block -> Z -> bool) ->
             CSharpMin_core -> mem -> CSharpMin_core -> mem -> Prop :=
 
@@ -96,7 +96,7 @@ Inductive csharpmin_effstep (g: Csharpminor.genv):  (block -> Z -> bool) ->
       csharpmin_effstep g EmptyEffect (CSharpMin_State f (Sexit O) (Kblock k) e le) m
         (CSharpMin_State f Sskip k e le) m
   | csharpmin_effstep_exit_block_S: forall f n k e le m,
-      csharpmin_effstep g EmptyEffect 
+      csharpmin_effstep g EmptyEffect
         (CSharpMin_State f (Sexit (S n)) (Kblock k) e le) m
         (CSharpMin_State f (Sexit n) k e le) m
 
@@ -129,14 +129,14 @@ Inductive csharpmin_effstep (g: Csharpminor.genv):  (block -> Z -> bool) ->
       list_disjoint f.(fn_params) f.(fn_temps) ->
       alloc_variables empty_env m (fn_vars f) e m1 ->
       bind_parameters f.(fn_params) vargs (create_undef_temps f.(fn_temps)) = Some le ->
-      csharpmin_effstep g EmptyEffect 
+      csharpmin_effstep g EmptyEffect
         (CSharpMin_Callstate (Internal f) vargs k) m
         (CSharpMin_State f f.(fn_body) k e le) m1
 (* no external call
   | csharpmin_effstep_external_function: forall ef vargs k m t vres m',
       external_call ef g vargs m t vres m' ->
       csharpmin_effstep g EmptyEffect (CSharpMin_Callstate (External ef) vargs k) m
-         (CSharpMin_Returnstate vres k) m' *)       
+         (CSharpMin_Returnstate vres k) m' *)
 
   | csharpmin_effstep_return: forall v optid f e le k m,
       csharpmin_effstep g EmptyEffect (CSharpMin_Returnstate v (Kcall optid f e le k)) m
@@ -153,7 +153,7 @@ Lemma csharpminstep_effax1: forall (M : block -> Z -> bool) g c m c' m'
       (H: csharpmin_effstep g M c m c' m'),
        corestep csharpmin_coop_sem g c m c' m' /\
        Mem.unchanged_on (fun (b : block) (ofs : Z) => M b ofs = false) m m'.
-Proof. 
+Proof.
 intros.
   induction H.
   split. unfold corestep, coopsem; simpl. econstructor.
@@ -161,7 +161,7 @@ intros.
   split. unfold corestep, coopsem; simpl. econstructor.
          apply Mem.unchanged_on_refl.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
-         eapply FreelistEffect_freelist; eassumption. 
+         eapply FreelistEffect_freelist; eassumption.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
@@ -195,8 +195,8 @@ intros.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
   split. unfold corestep, coopsem; simpl. econstructor; try eassumption.
-         eapply EmptyEffect_allocvariables; eassumption. 
-  (*no external call*) 
+         eapply EmptyEffect_allocvariables; eassumption.
+  (*no external call*)
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
   (*effstep_sub_val*)
@@ -218,7 +218,7 @@ intros. inv H.
     eexists. eapply csharpmin_effstep_skip_call; try eassumption.
     eexists. eapply csharpmin_effstep_set; eassumption.
     eexists. eapply csharpmin_effstep_store; eassumption.
-    eexists. eapply csharpmin_effstep_call; try eassumption. reflexivity. 
+    eexists. eapply csharpmin_effstep_call; try eassumption. reflexivity.
 (*    eexists. eapply csharpmin_effstep_builtin; eassumption.*)
     eexists. eapply csharpmin_effstep_seq.
     eexists. eapply csharpmin_effstep_ifthenelse; eassumption.
@@ -236,10 +236,10 @@ intros. inv H.
     eexists. eapply csharpmin_effstep_return.
 Qed.
 
-Program Definition csharpmin_eff_sem : 
+Program Definition csharpmin_eff_sem :
   @EffectSem Csharpminor.genv CSharpMin_core.
 eapply Build_EffectSem with (sem := csharpmin_coop_sem)(effstep:=csharpmin_effstep).
 apply csharpminstep_effax1.
-apply csharpminstep_effax2. 
-apply csharpmin_effstep_sub_val. 
+apply csharpminstep_effax2.
+apply csharpmin_effstep_sub_val.
 Defined.

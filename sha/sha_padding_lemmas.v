@@ -16,9 +16,9 @@ Inductive InWords : list Z -> Prop :=
                    InWords msg -> InWords (a :: b :: c :: d :: msg).
 
 (* *** New definition for this lemma. *)
-Definition pad (msg : list Z) : list Z := 
+Definition pad (msg : list Z) : list Z :=
   let n := Zlength msg in
-  msg ++ [128%Z] 
+  msg ++ [128%Z]
       ++ list_repeat (Z.to_nat (-(n + 9) mod 64)) 0
       ++ intlist_to_Zlist (([Int.repr (n * 8 / Int.modulus); Int.repr (n * 8)])%list).
 
@@ -40,7 +40,7 @@ Proof.
   simpl.
   rewrite -> length_list_repeat.
   reflexivity.
-Qed.  
+Qed.
 
 Lemma InWords_len4 : forall (l : list Z),
                        Nat.divide (Z.to_nat WORD) (length l) -> InWords l.
@@ -48,7 +48,7 @@ Proof.
   intros l [x H].
   revert l H.
   induction x.
-  intros l H. simpl in H. 
+  intros l H. simpl in H.
   destruct l.
     apply words_nil.
     simpl in H. inversion H.
@@ -63,10 +63,10 @@ Proof.
       apply IHx.
       simpl in H. inversion H.
       simpl. apply H1.
-Qed.  
+Qed.
 
 (* TODO: clear out the SearchAbouts / clean up proof *)
-Lemma pad_len_64_mod : forall (msg : list Z), 
+Lemma pad_len_64_mod : forall (msg : list Z),
                            (Zlength (pad msg)) mod 64 = 0.
 Proof.
   intros msg.
@@ -99,7 +99,7 @@ Proof.
   rewrite -> Z_9.
 
   repeat rewrite <- Nat2Z.inj_add.
-  
+
   assert (forall (x : Z), x + (-x) = 0). intros. omega.
 
   rewrite -> H.
@@ -126,7 +126,7 @@ Qed.
 
 Lemma pad_len_64_nat : forall (msg : list Z), exists (n : nat),
                            (length (pad msg))%nat = (64 * n)%nat.
-Proof. 
+Proof.
   intros msg.
   pose proof pad_len_64 msg as pad_len_64.
 
@@ -174,7 +174,7 @@ Proof.
 
   assert (add_both: (length msg + S (Z.to_nat (- (Zlength msg + 9) mod 64) ))%nat =
       (x * 64 - 8)%nat) by omega. clear H.
-  
+
   rewrite -> add_both.
   assert ((x * 64 - 8)%nat = (4 * (16 * x - 2))%nat) by omega.
 
@@ -194,7 +194,7 @@ Proof.
   specialize (H msg).
   unfold Nat.divide.
   apply H.
-Qed.  
+Qed.
 
 Definition fulllen (len : Z) :=
   len + 1%Z + (- (len + 9) mod 64).
@@ -239,9 +239,9 @@ Proof.
     simpl.
     apply f_equal.
     apply IHpad_inwords.
-Qed.    
-  
-  
+Qed.
+
+
 (* ------------------------------------------------ *)
 
 (* Lemma 2: |M1| = |M2| -> |Pad(M1)| = |Pad(M2)| *)
@@ -254,12 +254,12 @@ Proof.
   repeat rewrite -> functional_prog.length_generate_and_pad.
   rewrite -> H.
   reflexivity.
-Qed.  
+Qed.
 
 (* ------------------------------------------------ *)
 
 (* Lemma 3: |M1| =/= |M2| ->
-last block of Pad(M1) =/= last block of Pad(M2) 
+last block of Pad(M1) =/= last block of Pad(M2)
 
 or, if one-to-one property is desired (for HMAC), only need to prove that
 the padded messages differ

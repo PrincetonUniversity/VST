@@ -40,21 +40,21 @@ Section RELSEM.
 Variable ge: genv.
 
 Inductive state: Type :=
-  | State: 
+  | State:
       forall (rs: regset)
              (loader: load_frame),     (**r program loader frame *)
         state
 
   (*Auxiliary state: for marshalling arguments INTO memory*)
-  | Asm_CallstateIn: 
+  | Asm_CallstateIn:
       forall (f: block)                (**r pointer to function to call *)
              (args: list val)          (**r arguments passed to initial_core *)
              (tys: list typ)           (**r argument types *)
-             (retty: option typ),      (**r return type *)       
+             (retty: option typ),      (**r return type *)
         state
 
   (*Auxiliary state: for marshalling arguments OUT OF memory*)
-  | Asm_CallstateOut: 
+  | Asm_CallstateOut:
       forall (f: external_function)    (**r external function to be called *)
              (vals: list val)          (**r at_external arguments *)
              (rs: regset)              (**r register state *)
@@ -105,17 +105,17 @@ Inductive asm_step: state -> mem -> state -> mem -> Prop :=
       rs' = (set_pair (loc_external_result (ef_sig callee)) res rs) #PC <- (rs RA) ->
       asm_step (Asm_CallstateOut callee args rs lf) m (State rs' lf) m'
   (*NOTE [loader]*)
-  | asm_exec_initialize_call: 
+  | asm_exec_initialize_call:
       forall m args tys retty m1 stk m2 fb z
       (*(HFD: helper_functions_declared ge hf)*),
-      args_len_rec args tys = Some z -> 
+      args_len_rec args tys = Some z ->
       Mem.alloc m 0 (4*z) = (m1, stk) ->
-      store_args m1 stk args tys = Some m2 -> 
-      let rs0 := (Pregmap.init Vundef) 
+      store_args m1 stk args tys = Some m2 ->
+      let rs0 := (Pregmap.init Vundef)
                   #PC <- (Vptr fb Int.zero)
-                  #RA <- Vzero 
+                  #RA <- Vzero
                   # ESP <- (Vptr stk Int.zero) in
-      asm_step (Asm_CallstateIn fb args tys retty) m 
+      asm_step (Asm_CallstateIn fb args tys retty) m
                (State rs0 (mk_load_frame stk retty)) m2.
 
 Lemma EFisHelper_dec ef : {EFisHelper ef} + {~EFisHelper ef}.
@@ -128,11 +128,11 @@ Lemma extcall_arg_det rs m a b1 b2 (EA1: extcall_arg rs m a b1) (EA2: extcall_ar
 inv EA1; inv EA2; trivial.
 remember (Val.add (rs ESP) (Vint (Int.repr (Stacklayout.fe_ofs_arg + 4 * ofs)))). clear Heqv.
 destruct v; inv H0; inv H4. rewrite H0 in H1. inv H1; trivial.
-Qed. 
+Qed.
 
 Lemma asm_step_det c m c' m' c'' m'' :
-  asm_step c m c' m' ->   
-  asm_step c m c'' m'' -> 
+  asm_step c m c' m' ->
+  asm_step c m c'' m'' ->
   c'=c'' /\ m'=m''.
 Proof.
 Ltac Equalities :=
@@ -159,7 +159,7 @@ Ltac Equalities :=
         intros [? ?]. inv H5. inv H12. destruct H0; trivial. subst. split; trivial.*)
   + specialize (extcall_arguments_determ _ _ _ _ _ H3 H10); intros; subst. split; trivial.
   (*+ exploit (EC'_determ ge). apply H3. apply H12. trivial. intros [? [? ?]]; subst. split; trivial.*)
-  + split; trivial. 
+  + split; trivial.
 Qed.
 
 End RELSEM.
@@ -175,40 +175,40 @@ Definition Asm_at_external (c: state):
   end.
 (*In compcomp, had encode_long
 Definition Asm_after_external (vret: option val)(c: state) : option state :=
-  match c with 
-    Asm_CallstateOut ef args rs lf => 
+  match c with
+    Asm_CallstateOut ef args rs lf =>
       match vret with
-         None => Some (State ((set_regs (loc_external_result (ef_sig ef)) 
+         None => Some (State ((set_regs (loc_external_result (ef_sig ef))
                                (encode_long (sig_res (ef_sig ef)) Vundef) rs) #PC <- (rs RA))
                       lf)
-       | Some res => Some (State ((set_regs (loc_external_result (ef_sig ef)) 
+       | Some res => Some (State ((set_regs (loc_external_result (ef_sig ef))
                                (encode_long (sig_res (ef_sig ef)) res) rs) #PC <- (rs RA))
-                          lf) 
+                          lf)
       end
   | _ => None
   end.
 *)
 Definition Asm_after_external (vret: option val)(c: state) : option state :=
-  match c with 
-    Asm_CallstateOut ef args rs lf => 
+  match c with
+    Asm_CallstateOut ef args rs lf =>
       match vret with
-         None => Some (State ((set_pair (loc_external_result (ef_sig ef)) 
+         None => Some (State ((set_pair (loc_external_result (ef_sig ef))
                                Vundef rs) #PC <- (rs RA))
                       lf)
-       | Some res => Some (State ((set_pair (loc_external_result (ef_sig ef)) 
+       | Some res => Some (State ((set_pair (loc_external_result (ef_sig ef))
                                res rs) #PC <- (rs RA))
-                          lf) 
+                          lf)
       end
   | _ => None
   end.
 
 Definition Asm_initial_core (ge:genv) (v: val) (args:list val): option state :=
   match v with
-     | Vptr b i => 
-          if Int.eq_dec i Int.zero 
+     | Vptr b i =>
+          if Int.eq_dec i Int.zero
           then match Genv.find_funct_ptr ge b with
                  | None => None
-                 | Some f => 
+                 | Some f =>
                     match f with Internal fi =>
                      let tyl := sig_args (fn_sig fi) in
                      let res := sig_res (fn_sig fi) in
@@ -226,9 +226,9 @@ Definition Asm_initial_core (ge:genv) (v: val) (args:list val): option state :=
 
 Definition Asm_halted (q : state): option val :=
     match q with
-      State rs (mk_load_frame b retty) => 
-        if Val.cmp_bool Ceq (rs#PC) Vzero 
-                  then match retty 
+      State rs (mk_load_frame b retty) =>
+        if Val.cmp_bool Ceq (rs#PC) Vzero
+                  then match retty
                        with Some Tlong =>
                           match decode_longs (Tlong::nil) ((rs#EDX)::(rs#EAX)::nil) with
                                 | v :: nil => Some v
@@ -238,7 +238,7 @@ Definition Asm_halted (q : state): option val :=
                        | Some Tsingle => Some(rs#ST0)
                        | Some _ => Some(rs#EAX)
                        | None => Some(rs#EAX)
-                       end 
+                       end
                   else None
     | _ => None
     end.
@@ -256,15 +256,15 @@ Lemma Asm_after_at_external_excl : forall retv q q',
   Qed.
 
 Lemma Asm_corestep_not_at_external:
-       forall ge m q m' q', asm_step ge q m q' m' -> 
+       forall ge m q m' q', asm_step ge q m q' m' ->
               Asm_at_external q = None.
-  Proof. intros. inv H; try reflexivity. 
-  simpl. destruct (observableEF_dec (*hf*) callee); simpl; trivial. 
-  exfalso. eapply EFhelpers; eassumption. 
+  Proof. intros. inv H; try reflexivity.
+  simpl. destruct (observableEF_dec (*hf*) callee); simpl; trivial.
+  exfalso. eapply EFhelpers; eassumption.
 Qed.
 
-Lemma Asm_corestep_not_halted : forall ge m q m' q', 
-       asm_step ge q m q' m' -> 
+Lemma Asm_corestep_not_halted : forall ge m q m' q',
+       asm_step ge q m q' m' ->
        Asm_halted q = None.
   Proof. intros. inv H; simpl in *; try contradiction.
   +  rewrite H0; simpl. trivial. destruct lf; auto.
@@ -273,10 +273,10 @@ Lemma Asm_corestep_not_halted : forall ge m q m' q',
   (*+  trivial.*)
   + auto.
   Qed.
- 
+
 Definition Asm_core_sem : CoreSemantics genv state mem.
 Proof.
-  eapply (@Build_CoreSemantics _ _ _ 
+  eapply (@Build_CoreSemantics _ _ _
             Asm_initial_core
             Asm_at_external
             Asm_after_external
@@ -291,7 +291,7 @@ End ASM_CORESEM.
 
 Section ASM_MEMSEM.
 
-Lemma exec_load_mem_step ge ch m a rs rd rs' m': forall 
+Lemma exec_load_mem_step ge ch m a rs rd rs' m': forall
       (EI: exec_load ge ch m a rs rd = Next rs' m'),
       mem_step m m'.
 Proof. intros.
@@ -315,13 +315,13 @@ Lemma goto_label_mem_step c0 l rs m rs' m': forall
       (G: goto_label c0 l rs m = Next rs' m'),
       mem_step m m'.
 Proof. intros.
-   unfold goto_label in G. 
+   unfold goto_label in G.
    destruct (label_pos l 0 (fn_code c0)); inv G.
-   destruct (rs PC); inv H0. 
+   destruct (rs PC); inv H0.
    apply mem_step_refl.
 Qed.
 
-Lemma exec_instr_mem_step ge c i rs m rs' m': forall 
+Lemma exec_instr_mem_step ge c i rs m rs' m': forall
       (EI: exec_instr ge c i rs m = Next rs' m'),
       mem_step m m'.
 Proof. intros.
@@ -341,24 +341,24 @@ Proof. intros.
    destruct b; inv H1; apply mem_step_refl.
    apply mem_step_refl.
 
-   eapply goto_label_mem_step; eassumption. 
+   eapply goto_label_mem_step; eassumption.
 
    destruct (eval_testcond c0 rs); inv H0.
    destruct b; inv H1.
-   eapply goto_label_mem_step; eassumption. 
+   eapply goto_label_mem_step; eassumption.
    apply mem_step_refl.
 
    destruct (eval_testcond c1 rs); inv H0.
-   destruct b. 
+   destruct b.
      destruct (eval_testcond c2 rs); inv H1.
-     destruct b; inv H0. 
+     destruct b; inv H0.
      eapply goto_label_mem_step; eassumption.
    apply mem_step_refl.
 
      destruct (eval_testcond c2 rs); inv H1.
      apply mem_step_refl.
      destruct (rs r); inv H0.
-     destruct (list_nth_z tbl (Int.unsigned i)); inv H1. 
+     destruct (list_nth_z tbl (Int.unsigned i)); inv H1.
      eapply goto_label_mem_step; eassumption.
   remember (Mem.alloc m 0 sz) as d; apply eq_sym in Heqd.
     destruct d; inv H0.
@@ -373,22 +373,22 @@ Proof. intros.
     eapply mem_step_trans.
       eapply mem_step_store; eassumption.
       eapply mem_step_store; eassumption.
-  destruct (Mem.loadv Mint32 m (Val.add (rs ESP) (Vint ofs_ra))); inv H0.  
-    destruct (Mem.loadv Mint32 m (Val.add (rs ESP) (Vint ofs_link))); inv H1.  
+  destruct (Mem.loadv Mint32 m (Val.add (rs ESP) (Vint ofs_ra))); inv H0.
+    destruct (Mem.loadv Mint32 m (Val.add (rs ESP) (Vint ofs_link))); inv H1.
     destruct (rs ESP); inv H0.
     remember (Mem.free m b 0 sz) as t.
-    destruct t; inv H1; apply eq_sym in Heqt. 
-    eapply mem_step_free; eassumption. 
+    destruct t; inv H1; apply eq_sym in Heqt.
+    eapply mem_step_free; eassumption.
 Qed.
 
 Lemma asm_mem_step : forall ge c m c' m' (CS: asm_step ge c m c' m'), mem_step m m'.
 Proof. intros.
   inv CS; simpl in *; try apply mem_step_refl; try contradiction.
-+ eapply exec_instr_mem_step; eassumption. 
++ eapply exec_instr_mem_step; eassumption.
 (*+ eapply extcall_mem_step; eassumption. *)
 (*+ inv H1. eapply extcall_mem_step; try eassumption. apply EFhelpers in OBS; assumption.
   destruct callee; simpl in *; solve [intros NN; trivial].*)
-+ eapply mem_step_trans. 
++ eapply mem_step_trans.
   eapply mem_step_alloc; eassumption.
   eapply store_args_mem_step; try eassumption.
 Qed.
@@ -432,10 +432,10 @@ intros; inv CS; simpl in *; try contradiction.
       exists m1; split; trivial; econstructor; try eassumption; reflexivity
      | destruct (ple_exec_load _ _ _ _ _ _ _ _ _ PLE H4); subst m';
         exists m1; split; simpl; auto; econstructor; eassumption
-     | destruct (ple_exec_store _ _ _ _ _ _ _ _ _ _ PLE H4) as [m1' [? ?]]; 
+     | destruct (ple_exec_store _ _ _ _ _ _ _ _ _ _ PLE H4) as [m1' [? ?]];
         exists m1'; split; auto; econstructor; eassumption
     |  exists m1; split; [ econstructor; try eassumption; simpl | ];
-       repeat match type of H4 with match ?A with Some _ => _ | None => _ end = _ => 
+       repeat match type of H4 with match ?A with Some _ => _ | None => _ end = _ =>
          destruct A; try now inv H4 end;
        eassumption
     ].
@@ -444,7 +444,7 @@ intros; inv CS; simpl in *; try contradiction.
 + admit.
 *)
 Abort.
-    
+
 Program Definition Asm_mem_sem : @MemSem genv state.
 Proof.
 apply Build_MemSem with (csem := Asm_core_sem).
@@ -452,7 +452,7 @@ apply Build_MemSem with (csem := Asm_core_sem).
 (*  apply asm_inc_perm.*)
 Defined.
 
-Lemma exec_instr_forward g c i rs m rs' m': forall 
+Lemma exec_instr_forward g c i rs m rs' m': forall
       (EI: exec_instr g c i rs m = Next rs' m'),
       mem_forward m m'.
 Proof. intros.
