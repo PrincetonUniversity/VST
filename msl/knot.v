@@ -426,7 +426,7 @@ Module Knot (TF':TY_FUNCTOR) : KNOT with Module TF:=TF'.
     rewrite H.
     trivial.
   Qed.
-  Arguments unsquash_inj [k1 k2].
+  Arguments unsquash_inj [k1 k2] _.
 
   Lemma ag_knot_facts : ageable_facts knot def_knot_level def_knot_age1.
   Proof.

@@ -198,7 +198,7 @@ Class Sing_alg A {J: Join A}{SA: Sep_alg A} :=
       the_unit_core: forall a, core a = the_unit
     }.
 Arguments Sing_alg _ [J] [SA].
-Arguments mkSing [A] [J] [SA].
+Arguments mkSing [A] [J] [SA] _ _.
 
   (* Positive Permission Algebra: there are no units, every element is nonempty *)
   Class Pos_alg  {A} {J: Join A} :=

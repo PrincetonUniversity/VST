@@ -196,7 +196,7 @@ Existing Instance Perm_lift.
 Existing Instance Pos_lift.
 Existing Instance Canc_lift.
 Existing Instance Disj_lift.
-Arguments mk_lifted [A J_A] _.
+Arguments mk_lifted [A J_A] _ _.
 
 (** The dual of lifting is lowering: adding a distinct unit to a Pos_alg 
     produces a sepalg.  Note that lower o lift is not an isomorphism for
@@ -263,8 +263,8 @@ End SA_LOWER.
 Arguments Perm_lower _ [Pj_A][PA_A].
 Arguments Sep_lower _ [Pj_A].
 Arguments Sing_lower _ [Pj_A].
-Arguments Canc_lower _ [Pj_A][psa_A][CA].
-Arguments Disj_lower _ [Pj_A][DA].
+Arguments Canc_lower _ [Pj_A][psa_A][CA] _ _ _ _ _ _.
+Arguments Disj_lower _ [Pj_A][DA] _ _ _.
 
 Existing Instance Join_lower.  (* Must not be inside a Section *)
 Existing Instance Perm_lower.

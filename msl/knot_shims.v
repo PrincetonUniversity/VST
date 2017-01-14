@@ -220,7 +220,7 @@ Module Type KNOT__COVARIANT_HERED_PROP_OTH.
   Axiom unsquash_inj : forall k1 k2,
     unsquash k1 = unsquash k2 ->
     k1 = k2.
-  Arguments unsquash_inj [k1 k2].
+  Arguments unsquash_inj [k1 k2] _.
 
   Axiom squash_surj : forall k, exists n, exists Fp,
     squash (n, Fp) = k.
@@ -284,7 +284,7 @@ Module Type KNOT__COVARIANT_HERED_PROP.
   Axiom unsquash_inj : forall k1 k2,
     unsquash k1 = unsquash k2 ->
     k1 = k2.
-  Arguments unsquash_inj [k1 k2].
+  Arguments unsquash_inj [k1 k2] _.
 
   Axiom squash_surj : forall k, exists n, exists Fp,
     squash (n, Fp) = k.
@@ -460,7 +460,7 @@ Module KnotLemmas_CoContraVariantHeredTOthRel
        (knot_full_variant.KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
      (knot_full_variant.KnotLemmas1.Proof).
   Qed.
-  Arguments unsquash_inj [k1 k2].
+  Arguments unsquash_inj [k1 k2] _.
 
   Lemma squash_surj : forall k, exists n, exists Fp,
     squash (n, Fp) = k.
@@ -480,7 +480,7 @@ Module KnotLemmas_CoContraVariantHeredTOthRel
        (knot_full_variant.KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
      (knot_full_variant.KnotLemmas1.Proof).
   Qed.
-  Arguments unsquash_approx [k n Fp].
+  Arguments unsquash_approx [k n Fp] _.
 
   Lemma pred_ext : forall (p1 p2:predicate),
     (forall x, proj1_sig p1 x = proj1_sig p2 x) ->
@@ -819,7 +819,7 @@ Module KnotLemmas_CovariantHeredPropOthRel
        (knot_full_variant.KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
      (knot_full_variant.KnotLemmas1.Proof).
   Qed.
-  Arguments unsquash_inj [k1 k2].
+  Arguments unsquash_inj [k1 k2] _.
 
   Lemma squash_surj : forall k, exists n, exists Fp,
     squash (n, Fp) = k.
@@ -839,7 +839,7 @@ Module KnotLemmas_CovariantHeredPropOthRel
        (knot_full_variant.KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
      (knot_full_variant.KnotLemmas1.Proof).
   Qed.
-  Arguments unsquash_approx [k n Fp].
+  Arguments unsquash_approx [k n Fp] _.
 
   Lemma pred_ext : forall (p1 p2: assert),
     (forall x, proj1_sig p1 x = proj1_sig p2 x) ->
@@ -1066,7 +1066,7 @@ Module KnotLemmas_CovariantHeredPropOth (K: KNOT__COVARIANT_HERED_PROP_OTH).
        (knot_full_variant.KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
      (knot_full_variant.KnotLemmas1.Proof).
   Qed.
-  Arguments unsquash_inj [k1 k2].
+  Arguments unsquash_inj [k1 k2] _.
 
   Lemma squash_surj : forall k, exists n, exists Fp,
     squash (n, Fp) = k.
@@ -1086,7 +1086,7 @@ Module KnotLemmas_CovariantHeredPropOth (K: KNOT__COVARIANT_HERED_PROP_OTH).
        (knot_full_variant.KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
      (knot_full_variant.KnotLemmas1.Proof).
   Qed.
-  Arguments unsquash_approx [k n Fp].
+  Arguments unsquash_approx [k n Fp] _.
 
   Lemma pred_ext : forall (p1 p2: pred (knot * other)),
     (forall x, p1 x = p2 x) ->
@@ -1302,7 +1302,7 @@ Module KnotLemmas_CovariantHeredProp (K: KNOT__COVARIANT_HERED_PROP).
        (knot_full_variant.KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
      (knot_full_variant.KnotLemmas1.Proof).
   Qed.
-  Arguments unsquash_inj [k1 k2].
+  Arguments unsquash_inj [k1 k2] _.
 
   Lemma squash_surj : forall k, exists n, exists Fp,
     squash (n, Fp) = k.
@@ -1322,7 +1322,7 @@ Module KnotLemmas_CovariantHeredProp (K: KNOT__COVARIANT_HERED_PROP).
        (knot_full_variant.KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
      (knot_full_variant.KnotLemmas1.Proof).
   Qed.
-  Arguments unsquash_approx [k n Fp].
+  Arguments unsquash_approx [k n Fp] _.
 
   Lemma pred_ext : forall (p1 p2: pred knot),
     (forall x, p1 x = p2 x) ->
@@ -1554,7 +1554,7 @@ Module KnotLemmas_MixVariantHeredProp (K': KNOT__MIXVARIANT_HERED_PROP).
        (knot_full_variant.KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
      (knot_full_variant.KnotLemmas1.Proof).
   Qed.
-  Arguments unsquash_inj [k1 k2].
+  Arguments unsquash_inj [k1 k2] _.
 
   Lemma squash_surj : forall k, exists n, exists Fp,
     squash (n, Fp) = k.
@@ -1574,7 +1574,7 @@ Module KnotLemmas_MixVariantHeredProp (K': KNOT__MIXVARIANT_HERED_PROP).
        (knot_full_variant.KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
      (knot_full_variant.KnotLemmas1.Proof).
   Qed.
-  Arguments unsquash_approx [k n Fp].
+  Arguments unsquash_approx [k n Fp] _.
 
   Lemma pred_ext : forall (p1 p2: pred knot),
     (forall x, p1 x = p2 x) ->

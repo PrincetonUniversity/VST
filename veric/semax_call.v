@@ -1756,7 +1756,10 @@ unfold make_args, make_ext_rval; simpl.
 unfold env_set, globals_only; simpl.
 apply derives_refl.
 destruct retty; try congruence.
-destruct retty; try contradiction.
+repeat match goal with
+| _ => destruct retty; try contradiction
+| _ => congruence (* 8.5 *)
+end.
 +
 clear - H.
 apply derives_refl'; apply H; intros.

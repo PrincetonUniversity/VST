@@ -5835,6 +5835,7 @@ Qed.
     unfold tree_round_left;
     unfold tree_round_right;
     simpl.
+    try subst.
     split;apply f_equal;apply exist_ext;trivial.
     unfold tree_avg in H.
     simpl in H.
@@ -6007,6 +6008,7 @@ Qed.
    intro;apply H.
    rewrite H6;apply exist_ext;trivial.
    icase b;icase b0;simpl.
+   try (elimtype False; tauto). (*useless in Coq.8.6 but required in Coq.8.6 *)
    exists (exist (fun t0 : ShareTree => canonicalTree t0)
           (Node (Leaf true) (Leaf false))
           (mkCanon_correct (Node (Leaf true) (Leaf false)))).
@@ -6015,6 +6017,7 @@ Qed.
           (Node (Leaf false) (Leaf true))
           (mkCanon_correct (Node (Leaf false) (Leaf true)))).
    split;trivial.
+   try (elimtype False; tauto). (*useless in Coq.8.6 but required in Coq.8.6 *)
    inv H5;inv H4;elimtype False;omega.
    inv H5;inv H4;elimtype False;omega.
    inv H5;inv H4;elimtype False;omega.
@@ -7674,7 +7677,7 @@ Proof.
  simpl. destruct c as [? [? [? ?]]].
  replace (tree_decompose a) with (decompose a) by trivial.
  rewrite H0.
- icase t1. icase b.
+ icase t1. icase b. try tauto.
  repeat f_equal. apply proof_irr.
 Qed.
 

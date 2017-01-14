@@ -24,7 +24,7 @@ Definition var_name (V: Type) (bdec: ident * globvar V) : ident :=
 
 Definition no_dups (F V: Type) (fdecs: list (ident * F)) (bdecs: list (ident * globvar V)) : Prop :=
   list_norepet (map (@fst ident F) fdecs ++ map (@var_name V) bdecs).
-Arguments no_dups [F V].
+Arguments no_dups [F V] _ _.
 
 Lemma no_dups_inv:
   forall  (A V: Type) id f fdecs bdecs,
@@ -40,7 +40,7 @@ apply H3.
 intro; contradiction H2; apply in_or_app; auto.
 intro; contradiction H2; apply in_or_app; auto.
 Qed.
-Arguments no_dups_inv [A V].
+Arguments no_dups_inv [A V] _ _ _ _ _.
 
 
 Lemma of_bool_Int_eq_e:

@@ -627,7 +627,7 @@ Proof.
   apply identity_unit_equiv in RJ; apply identity_share_bot in RJ; subst; auto.
   apply no_units in H2; contradiction.
 Qed.
-Arguments resource_at_empty [phi].
+Arguments resource_at_empty [phi] _ _.
 
 
 Lemma rmap_valid: forall r, AV.valid (res_option oo resource_at r).

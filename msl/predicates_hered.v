@@ -458,7 +458,7 @@ intro; intros.
 apply H1; simpl.
 apply H0.
 Qed.
-Arguments box_e0 [A] _.
+Arguments box_e0 [A] _ _ _ _ _ _.
 
 Lemma boxy_i {A} `{ageable A}:
   forall (Q: pred A) (M: modality),

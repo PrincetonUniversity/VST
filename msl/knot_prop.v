@@ -188,7 +188,7 @@ Module KnotProp_Lemmas (K:KNOT_PROP).
     rewrite H.
     trivial.
   Qed.
-  Arguments unsquash_inj [k1 k2].
+  Arguments unsquash_inj [k1 k2] _.
 
   Lemma squash_surj : forall k, exists n, exists Fp,
     squash (n, Fp) = k.
@@ -217,7 +217,7 @@ Module KnotProp_Lemmas (K:KNOT_PROP).
     symmetry.
     trivial.
   Qed.
-  Arguments unsquash_approx [k n Fp].
+  Arguments unsquash_approx [k n Fp] _.
 
   Lemma approx_approx1 : forall m n,
     approx n = approx n oo approx (m+n).

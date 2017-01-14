@@ -843,7 +843,7 @@ destruct k; try solve [inversion H0].
 subst.
 exists t, m0, p0; auto.
 Qed.
-Arguments writable_e [loc] [m].
+Arguments writable_e [loc] [m] _.
 
 Lemma readable_e: forall loc m,
    readable loc m ->
@@ -854,7 +854,7 @@ destruct k; try solve [inversion H].
 subst.
 econstructor; eauto.
 Qed.
-Arguments readable_e [loc] [m].
+Arguments readable_e [loc] [m] _.
 
 Definition bytes_writable (loc: address) (size: Z) (phi: rmap) : Prop :=
   forall i, (0 <= i < size) -> writable (adr_add loc i) phi.

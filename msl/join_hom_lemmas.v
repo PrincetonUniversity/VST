@@ -33,8 +33,8 @@ Section join_hom2.
       -> join (f a1 b1) (f a2 b2) (f a3 b3).
 End join_hom2.
 
-Arguments join_hom2 [A B C JA JB JC].
-Arguments join_hom2' [A B C JA].
+Arguments join_hom2 [A B C JA JB JC] _.
+Arguments join_hom2' [A B C JA] _ _.
 
 (* [id] is join hom *)
   Lemma join_hom_id (A: Type) (JA: Join A) : join_hom (fun x => x).
@@ -97,14 +97,14 @@ Section join_hom_prod.
   Proof. unfold join_hom; firstorder. Qed.
 End join_hom_prod.
 
-Arguments join_hom2_pair [A A' B B' JA JA' JB JB'].
-Arguments join_hom2_pair' [A B JA JB].
-Arguments join_hom_prodA [A] _ [B' JA] _ [JB'].
-Arguments join_hom_prodA' [A' B JA' JB].
-Arguments join_hom_prodB [A' B] _ [JA' JB].
-Arguments join_hom_prodB' [A B' JA JB'].
-Arguments join_hom_proj1 [A B JA JB].
-Arguments join_hom_proj2 [A B JA JB].
+Arguments join_hom2_pair [A A' B B' JA JA' JB JB'] _ _ _ _ _ _ _ _ _ _ _ _.
+Arguments join_hom2_pair' [A B JA JB] _ _ _ _ _ _ _ _.
+Arguments join_hom_prodA [A] _ [B' JA] _ [JB'] _ _ _ _ _ _ _ _.
+Arguments join_hom_prodA' [A' B JA' JB] _ _ _ _ _ _.
+Arguments join_hom_prodB [A' B] _ [JA' JB] _ _ _ _ _ _ _ _ _.
+Arguments join_hom_prodB' [A B' JA JB'] _ _ _ _ _ _.
+Arguments join_hom_proj1 [A B JA JB] _ _ _ _.
+Arguments join_hom_proj2 [A B JA JB] _ _ _ _.
 
 (* Disjoint Sum SA *)
 Section join_hom_disjoint_sum.
@@ -241,7 +241,7 @@ Section join_hom_fun.
     destruct (Key_dec_eq x0 k1); auto. constructor; auto.
   Qed.
 End join_hom_fun.
-Arguments lookup [Key A].
+Arguments lookup [Key A] _ _ _.
 
 Lemma join_hom_bij {A: Type} `{Perm_alg A}
             {B: Type}

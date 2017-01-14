@@ -856,7 +856,7 @@ Import EnvSA.
 Import msl.predicates_sa.
 
 Definition env_mapsto: forall {key A}{KE: EqDec key} (id: key) (sh: Share.t) (v: A) , pred (env key A) := @_env_mapsto.
-Arguments env_mapsto [key] [A] [KE].
+Arguments env_mapsto [key] [A] [KE] _ _ _ _.
 
 Lemma env_mapsto_exists{key A}{KE: EqDec key}: forall id sh (v: A), exists rho, _env_mapsto id (pshare_sh sh) v rho.
 Proof. apply _env_mapsto_exists. Qed.

@@ -46,7 +46,7 @@ End AnyRadix.
 
 Section Binary.
 
-Arguments exist [A] [P].
+Arguments exist [A] [P] _ _.
 
 (** [prec] is the number of bits of the mantissa including the implicit one;
     [emax] is the exponent of the infinities.
@@ -417,7 +417,10 @@ Theorem is_finite_Bopp :
 Proof.
 intros opp_nan [| | |] ; try easy.
 simpl.
-now case opp_nan.
+match goal with
+| _ => now case opp_nan (*coq 8.6*)
+| _ => intros ; now case opp_nan (*coq 8.5*)
+end.
 Qed.
 
 (** Absolute value *)
@@ -446,7 +449,10 @@ Theorem is_finite_Babs :
 Proof.
   intros abs_nan [| | |] ; try easy.
   simpl.
-  now case abs_nan.
+  match goal with
+  | _ => now case abs_nan (* 8.6 *)
+  | _ => intros ; now case abs_nan (* 8.5 *)
+  end.
 Qed.
 
 Theorem Bsign_Babs :

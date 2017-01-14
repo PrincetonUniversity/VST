@@ -407,7 +407,7 @@ Qed.
 End CombineJoin.
 
 Arguments combiner [A] _ _ _.
-Arguments Join_combiner [A] [JA] _ [T1 T2] _ _.
+Arguments Join_combiner [A] [JA] _ [T1 T2] _ _ _ _ _.
 Arguments CEmpty [A JA T1 T2].
 Arguments CPart [A JA T1 T2] _ _.
 Arguments CFull [A JA T1 T2] _.
@@ -442,7 +442,7 @@ Section ParameterizedCombiner.
         | CPart sh rs => CPart sh (fmap T1 f g rs)
         | CFull trs => CFull (fmap T2 f g trs)
       end.
-  Arguments fcombiner_fmap [A B] _ _.
+  Arguments fcombiner_fmap [A B] _ _ _.
 
   Lemma ff_combiner : functorFacts fcombiner fcombiner_fmap.
   Proof with auto.

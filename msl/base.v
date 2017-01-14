@@ -13,7 +13,7 @@ Require Export Coq.Relations.Relations.
 Require Export Omega.
 
 Definition compose (A B C:Type) (g:B -> C) (f:A -> B) := fun x => g (f x).
-Arguments compose [A B C].
+Arguments compose [A B C] _ _ _.
 Infix "oo" := compose (at level 54, right associativity).
 
 Lemma compose_assoc (A B C D:Type) (h:C->D) (g:B->C) (f:A->B) :

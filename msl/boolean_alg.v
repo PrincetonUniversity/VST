@@ -104,7 +104,7 @@ Class heightable (A : Type) : Type := Heightable {
   height : A -> nat;
   is_height_zero : forall a : A, {height a = 0} + {height a <> 0} (* Should run in O(1) time for trees *)
  }.
-Arguments Heightable [A].
+Arguments Heightable [A] _ _.
 Definition is_height_zero_spec {A : Type} (height : A -> nat) : Type :=
   forall a : A, {height a = 0} + {height a <> 0}.
 
@@ -129,22 +129,22 @@ Defined.
  Class decomposible (A : Type) : Type := Decomposible {
   decompose : A -> (A * A)
  }.
- Arguments Decomposible [A].
+ Arguments Decomposible [A] _.
 
  Class roundableLeft (A : Type) : Type := RoundableLeft {
    roundL : nat -> A -> option A
  }.
- Arguments RoundableLeft [A].
+ Arguments RoundableLeft [A] _.
 
  Class roundableRight (A : Type) : Type := RoundableRight {
    roundR : nat -> A -> option A
  }.
- Arguments RoundableRight [A].
+ Arguments RoundableRight [A] _.
 
  Class avgable (A : Type) : Type := Avgable {
     avg : nat -> A -> A -> option A
  }.
- Arguments Avgable [A].
+ Arguments Avgable [A] _.
 
 (* END NEW MATERIAL *)
 

@@ -57,6 +57,7 @@ Definition dependent_type_functor_rec (ts: list Type): TypeTree -> functor :=
   | ProdType T1 T2 => fpair (dtfr T1) (dtfr T2)
   | ArrowType T1 T2 => ffunc (dtfr T1) (dtfr T2)
   end.
+Opaque dependent_type_functor_rec.
 
 Definition dependent_type_function_rec (ts: list Type) (mpred': Type): TypeTree -> Type :=
   fix dtfr (T: TypeTree): Type :=
@@ -67,7 +68,7 @@ Definition dependent_type_function_rec (ts: list Type) (mpred': Type): TypeTree 
   | ProdType T1 T2 => (dtfr T1 * dtfr T2)%type
   | ArrowType T1 T2 => dtfr T1 -> dtfr T2
   end.
-*)
+
 Module Type STRAT_MODEL.
   Declare Module AV : ADR_VAL.
   Import AV.
@@ -1015,9 +1016,9 @@ Qed.
     + constructor; auto.
     + apply inj_pair2 in H10. subst p0. constructor; auto.
     + apply inj_pair2 in H10. subst p0. constructor; auto.
-    + apply inj_pair2 in H14. subst p1. apply inj_pair2 in H9; subst p0.
+    + subst ; apply inj_pair2 in H14. subst p1. apply inj_pair2 in H9; subst p0.
       constructor; auto.
-    + apply inj_pair2 in H8. subst p1. apply inj_pair2 in H5. subst p0.
+    + subst ; apply inj_pair2 in H8. subst p1. apply inj_pair2 in H5. subst p0.
       constructor; auto.
 Qed.
 

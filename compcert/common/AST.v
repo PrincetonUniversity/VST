@@ -246,8 +246,8 @@ Inductive globdef (F V: Type) : Type :=
   | Gfun (f: F)
   | Gvar (v: globvar V).
 
-Arguments Gfun [F V].
-Arguments Gvar [F V].
+Arguments Gfun [F V] _.
+Arguments Gvar [F V] _.
 
 Record program (F V: Type) : Type := mkprogram {
   prog_defs: list (ident * globdef F V);
@@ -516,7 +516,7 @@ Inductive fundef (F: Type): Type :=
   | Internal: F -> fundef F
   | External: external_function -> fundef F.
 
-Arguments External [F].
+Arguments External [F] _.
 
 Section TRANSF_FUNDEF.
 

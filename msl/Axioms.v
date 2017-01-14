@@ -29,12 +29,12 @@ Lemma extensionality:
   forall (A B: Type) (f g : A -> B),  (forall x, f x = g x) -> f = g.
 Proof. intros; apply functional_extensionality. auto. Qed.
 
-Arguments extensionality [A B] _ _.
+Arguments extensionality [A B] _ _ _.
 
 (** We also assert propositional extensionality. *)
 
 Axiom prop_ext: ClassicalFacts.prop_extensionality.
-Arguments prop_ext [A B].
+Arguments prop_ext [A B] _.
 
 (** * Proof irrelevance *)
 

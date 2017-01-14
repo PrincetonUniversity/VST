@@ -42,7 +42,7 @@ Lemma extensionality:
   forall (A B: Type) (f g : A -> B),  (forall x, f x = g x) -> f = g.
 Proof @functional_extensionality.
 
-Arguments extensionality [A B] _.
+Arguments extensionality [A B] _ _ _.
 
 (** * Proof irrelevance *)
 

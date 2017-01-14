@@ -529,7 +529,7 @@ exists w0.
 apply join_comm; auto.
 exists w0; exists w1; auto.
 Qed.
-Implicit Arguments extend_sepcon_andp.
+Arguments extend_sepcon_andp : clear implicits.
 
 Lemma distrib_sepcon_andp {A} {JA: Join A}{PA: Perm_alg A}{AG: ageable A}{XA: Age_alg A}:
   forall P Q R, P * (Q && R) |-- (P * Q) && (P * R).

@@ -8,12 +8,12 @@
 Require Import msl.base.
 Require Import msl.ageable.
 
-Open Local Scope nat_scope.
+Local Open Scope nat_scope.
 
 Module Type TY_FUNCTOR_FULL.
   Parameter F : Type -> Type -> Type.
   Parameter bimap : forall A B C D, (A -> B) -> (C -> D) -> F B C -> F A D.
-  Implicit Arguments bimap [A B C D].
+  Arguments bimap [A B C D] _ _ _.
 
   Axiom bimap_id : forall A B, bimap (id A) (id B) = id (F A B).
   Axiom bimap_comp : forall A B C D E F (f:B -> C) (g:A -> B) (s:F -> E) (t:E -> D),
@@ -750,7 +750,7 @@ Module KnotFull (TF':TY_FUNCTOR_FULL) : KNOT_FULL with Module TF:=TF'.
     rewrite H.
     trivial.
   Qed.
-  Implicit Arguments unsquash_inj.
+  Arguments unsquash_inj [k1 k2] _.
 
 
   Lemma pred_ext : forall (p1 p2:predicate),
@@ -936,7 +936,7 @@ Module KnotFull_Lemmas (K : KNOT_FULL).
     rewrite H.
     trivial.
   Qed.
-  Implicit Arguments unsquash_inj.
+  Arguments unsquash_inj [k1 k2] _.
 
   Lemma squash_surj : forall k, exists n, exists Fp,
     squash (n, Fp) = k.
@@ -965,7 +965,7 @@ Module KnotFull_Lemmas (K : KNOT_FULL).
     symmetry.
     trivial.
   Qed.
-  Implicit Arguments unsquash_approx.
+  Arguments unsquash_approx [k n Fp] _.
 
   Lemma pred_ext : forall (p1 p2:predicate),
     (forall x, proj1_sig p1 x = proj1_sig p2 x) ->

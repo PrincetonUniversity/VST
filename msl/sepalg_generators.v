@@ -506,8 +506,8 @@ Section SepAlgProd.
 
 End SepAlgProd.
 
-Arguments Perm_prod [A] [Ja] [B] [Jb].
-Arguments Sep_prod [A] [Ja] [B] [Jb].
+Arguments Perm_prod [A] [Ja] [B] [Jb] _ _.
+Arguments Sep_prod [A] [Ja] [B] [Jb] _ _.
 Existing Instance Join_prod.
 Existing Instance Perm_prod.
 Existing Instance Sep_prod.
@@ -659,7 +659,7 @@ Definition raw_join_hom A B (j1: A -> A -> A -> Prop) (j2: B -> B -> B -> Prop) 
   forall x y z,
     j1 x y z ->
     j2 (f x) (f y) (f z).
-Arguments raw_join_hom [A B].
+Arguments raw_join_hom [A B] _ _ _.
 
 Definition join_hom {A} {JA: Join A} {B} {JB: Join B} (f:A ->B) :=
   forall x y z,

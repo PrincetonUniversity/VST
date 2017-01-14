@@ -174,12 +174,12 @@ intros [? ?]; apply H; auto.
 right; auto.
 Qed.
 End Expressions.
-Arguments exprEval' [W].
-Arguments exprEval [W].
-Arguments EUnop [W].
-Arguments EUnop [W].
-Arguments EBinop [W].
-Arguments EPrim [W].
+Arguments exprEval' [W] _ _.
+Arguments exprEval [W] _ _ _ _.
+Arguments EUnop [W] _ _.
+Arguments EUnop [W] _ _.
+Arguments EBinop [W] _ _ _.
+Arguments EPrim [W] _.
 
 Section ExpressionErasure.
 Variables
@@ -294,7 +294,7 @@ rewrite H4 in H3; congruence.
 eapply primexpr_safety; eauto.
 Qed.
 End ExpressionErasure.
-Arguments expr_erase [W S'].
+Arguments expr_erase [W S'] _ _ _.
 
 
 (* Here we define the syntax and operational semantics of generic semantics. *)

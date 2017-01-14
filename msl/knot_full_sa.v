@@ -75,7 +75,7 @@ Module Type KNOT_BASIC_LEMMAS.
   Axiom unsquash_approx : forall k n Fp,
     unsquash k = (n, Fp) ->
     Fp = fmap F (approx n) (approx n) Fp.
-  Arguments unsquash_approx [k n Fp].
+  Arguments unsquash_approx [k n Fp] _.
 
   Axiom approx_approx1 : forall m n,
     approx n = approx n oo approx (m+n).

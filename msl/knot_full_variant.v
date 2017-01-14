@@ -720,7 +720,7 @@ Module Knot_MixVariantHeredTOthRel (KI':KNOT_INPUT__MIXVARIANT_HERED_T_OTH_REL) 
     rewrite H.
     trivial.
   Qed.
-  Implicit Arguments unsquash_inj.
+  Arguments unsquash_inj [k1 k2] _.
 
 
   Lemma pred_ext : forall (p1 p2:predicate),
@@ -1010,7 +1010,7 @@ Module KnotLemmas_MixVariantHeredTOthRel (K : KNOT__MIXVARIANT_HERED_T_OTH_REL).
        (KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
      (KnotLemmas1.Proof).
   Qed.
-  Implicit Arguments unsquash_inj.
+  Arguments unsquash_inj [k1 k2] _.
 
   Lemma squash_surj : forall k, exists n, exists Fp,
     squash (n, Fp) = k.
@@ -1030,7 +1030,7 @@ Module KnotLemmas_MixVariantHeredTOthRel (K : KNOT__MIXVARIANT_HERED_T_OTH_REL).
        (KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
      (KnotLemmas1.Proof).
   Qed.
-  Implicit Arguments unsquash_approx.
+  Arguments unsquash_approx [k n Fp] _.
 
   Lemma pred_ext : forall (p1 p2:predicate),
     (forall x, proj1_sig p1 x = proj1_sig p2 x) ->
@@ -1127,7 +1127,7 @@ Module Type KNOT_FULL_LEMMAS.
   Axiom unsquash_inj : forall k1 k2,
     unsquash k1 = unsquash k2 ->
     k1 = k2.
-  Implicit Arguments unsquash_inj.
+  Arguments unsquash_inj [k1 k2] _.
 
   Axiom squash_surj : forall k, exists n, exists Fp,
     squash (n, Fp) = k.
@@ -1135,7 +1135,7 @@ Module Type KNOT_FULL_LEMMAS.
   Axiom unsquash_approx : forall k n Fp,
     unsquash k = (n, Fp) ->
     Fp = fmap KI.F (approx n) (approx n) Fp.
-  Implicit Arguments unsquash_approx [k n Fp].
+  Arguments unsquash_approx [k n Fp] _.
 
   Axiom approx_approx1 : forall m n,
     approx n = approx n oo approx (m+n).
@@ -1263,7 +1263,7 @@ Module KnotFullLemmas (K: KNOT_FULL).
        (KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
      (KnotLemmas1.Proof).
   Qed.
-  Implicit Arguments unsquash_inj.
+  Arguments unsquash_inj [k1 k2] _.
 
   Lemma squash_surj : forall k, exists n, exists Fp,
     squash (n, Fp) = k.
@@ -1283,7 +1283,7 @@ Module KnotFullLemmas (K: KNOT_FULL).
        (KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
      (KnotLemmas1.Proof).
   Qed.
-  Implicit Arguments unsquash_approx.
+  Arguments unsquash_approx [k n Fp] _.
 
   Lemma pred_ext : forall (p1 p2:predicate),
     (forall x, proj1_sig (bij_f _ _ KO.pkp p1) x =

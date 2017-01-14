@@ -13,9 +13,9 @@ Record ageable_facts (A:Type) (level: A -> nat) (age1:A -> option A)  :=
 ; af_level2 : forall x y, age1 x = Some y -> level x = S (level y)
 }.
 
-Arguments af_unage [A] [level] [age1].
-Arguments af_level1 [A] [level] [age1].
-Arguments af_level2 [A] [level] [age1].
+Arguments af_unage [A] [level] [age1] _ _.
+Arguments af_level1 [A] [level] [age1] _ _.
+Arguments af_level2 [A] [level] [age1] _ _ _ _.
 
 Class ageable (A:Type) := mkAgeable
 { level : A -> nat
@@ -41,7 +41,7 @@ Proof.
   apply IHn.
   omega.
 Qed.
-Arguments af_wf [A] _.
+Arguments af_wf [A] _ _.
 
 Definition age_induction {A} `{ageable A} :=
   well_founded_induction (af_wf _).
@@ -631,7 +631,7 @@ Fixpoint composeOptN (A: Type) (f: A -> option A)
  | S n' => match f w with Some w' => composeOptN A f n' w' | None => None end
  | O => Some w
  end.
-Arguments composeOptN [A] _.
+Arguments composeOptN [A] _ _ _.
 
 Definition ageN {A} `{ageable A}: nat -> A -> option A := composeOptN age1.
 
