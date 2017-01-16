@@ -16,6 +16,9 @@ Require Import sha.hmac_common_lemmas.
 
 Require Import sha.verif_hmac_init_part1.
 
+(* TODO remove this line and update proof (should become simpler) *)
+Ltac canon_load_result Hresult ::= idtac.
+
 Lemma isbyte_zeroExt8: forall x, isbyteZ x -> Int.repr x = (Int.zero_ext 8 (Int.repr x)).
 Proof. intros. rewrite zero_ext_inrange. trivial.
   simpl.  unfold isbyteZ in H. rewrite Int.unsigned_repr. omega.

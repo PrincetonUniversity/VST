@@ -104,7 +104,7 @@ Ltac remember_indexes gfs :=
   | nil => idtac
   end.
 
-Ltac solve_load_rule_evaluation :=
+Ltac solve_load_rule_evaluation_old :=
   clear;
   repeat
   match goal with
@@ -144,4 +144,28 @@ Ltac solve_load_rule_evaluation :=
       lazy beta zeta iota delta - [opaque_function opaque_v sublist.Znth Int.repr];
       subst opaque_v opaque_function; subst; apply JMeq_refl
     end
+  end.
+
+Ltac solve_load_rule_evaluation :=
+  clear;
+  repeat
+  match goal with
+  | A : _ |- _ => clear A 
+  | A := _ |- _ => clear A 
+  end;
+  match goal with
+  | |- JMeq (@proj_reptype _ _ ?name_of_gfs ?name_of_v) _ =>
+    subst name_of_gfs;
+    try subst name_of_v
+  end;
+  match goal with
+  | |- JMeq (@proj_reptype _ _ ?gfs _) _ =>
+    remember_indexes gfs
+  end;
+  match goal with
+  | |- JMeq (@proj_reptype ?cs ?t ?gfs ?v) _ =>
+      let opaque_v := fresh "opaque_v" in
+      set (opaque_v := v);
+      cbv - [opaque_v sublist.Znth Int.repr];
+      subst opaque_v; subst; apply JMeq_refl
   end.

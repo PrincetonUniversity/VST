@@ -111,15 +111,16 @@ Proof.
     subst. rewrite Zlength_app. rewrite H0. reflexivity.
   }
 
+(*
   Ltac forward2 :=
     (forward; autorewrite with sublist); (* TODO floyd why doesn't entailer do the autorewrite? *)
     [ solve [ entailer! ] | idtac ].
-
+*)
   (* GET_UINT32_LE( X0, input,  0 ); X0 ^= *RK++;
      GET_UINT32_LE( X1, input,  4 ); X1 ^= *RK++;
      GET_UINT32_LE( X2, input,  8 ); X2 ^= *RK++;
      GET_UINT32_LE( X3, input, 12 ); X3 ^= *RK++; *)
-  Ltac GET_UINT32_LE_tac := do 4 forward2.
+  Ltac GET_UINT32_LE_tac := do 4 forward.
 
   assert_PROP (forall i, 0 <= i < 60 -> force_val (sem_add_pi tuint
        (field_address t_struct_aesctx [ArraySubsc  i   ; StructField _buf] ctx) (Vint (Int.repr 1)))
@@ -136,8 +137,8 @@ Proof.
   Time do 4 (
     GET_UINT32_LE_tac; simpl; forward; forward; forward; simpl;
     rewrite Eq by omega; simpl;
-    forward2; forward
-  ). (* 515s *)
+    forward; forward
+  ). (* 388s *)
 
   pose (S0 := mbed_tls_initial_add_round_key plaintext buf).
 
@@ -285,45 +286,26 @@ forward_if
 { (* rest: loop body *)
   clear i. Intro i. Intros.
   unfold tables_initialized. subst vv.
-
-Ltac remember_temp_Vints done :=
-  lazymatch goal with
-  | |- context [ ?T :: done ] => match T with
-    | temp ?Id (Vint ?V) =>
-      let V0 := fresh "V" in remember V as V0;
-      remember_temp_Vints ((temp Id (Vint V0)) :: done)
-    | _ => remember_temp_Vints (T :: done)
-    end
-  | |- semax _ (PROPx _ (LOCALx done (SEPx _))) _ _ => idtac
-  | _ => fail 100 "assertion failure: did not find" done
-  end.
-
-Ltac entailer_for_load_tac ::=
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range;
-  try quick_typecheck3.
+  pose proof masked_byte_range.
 
   forward. forward. simpl (temp _RK _). rewrite Eq by omega.
-  forward2.
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  forward.
+  do 4 forward.
   forward.
 
   forward. forward. simpl (temp _RK _). rewrite Eq by omega.
-  forward2.
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  forward.
+  do 4 forward.
   forward.
 
   forward. forward. simpl (temp _RK _). rewrite Eq by omega.
-  forward2.
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-
   forward.
+  do 4 forward.
+  forward.
+
   forward. forward. simpl (temp _RK _). rewrite Eq by omega.
-  forward2.
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  forward.
+  do 4 forward.
   forward.
 
   replace (52 - i * 8 + 1 + 1 + 1 + 1) with (52 - i * 8 + 4) by omega.
@@ -355,27 +337,23 @@ rewrite EqY0. rewrite EqY1. rewrite EqY2. rewrite EqY3.
 clear EqY0 EqY1 EqY2 EqY3.
 
   forward. forward. simpl (temp _RK _). rewrite Eq by omega.
-  forward2.
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  forward.
+  do 4 forward.
   forward.
 
   forward. forward. simpl (temp _RK _). rewrite Eq by omega.
-  forward2.
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  forward.
+  do 4 forward.
   forward.
 
   forward. forward. simpl (temp _RK _). rewrite Eq by omega.
-  forward2.
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  forward.
+  do 4 forward.
   forward.
 
   forward. forward. simpl (temp _RK _). rewrite Eq by omega.
-  forward2.
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  forward.
+  do 4 forward.
   forward.
 
   pose (S'' := mbed_tls_fround S' buf (52-i*8+4)).
@@ -465,33 +443,28 @@ subst S' S''.
 }
 }
 { abbreviate_semax. subst vv. unfold tables_initialized.
+  pose proof masked_byte_range.
 
   (* 2nd-to-last AES round: just a normal AES round, but not inside the loop *)
 
   forward. forward. simpl (temp _RK _). rewrite Eq by omega.
-  forward2.
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  forward.
+  do 4 forward.
   forward.
 
   forward. forward. simpl (temp _RK _). rewrite Eq by omega.
-  forward2.
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  forward.
+  do 4 forward.
   forward.
 
   forward. forward. simpl (temp _RK _). rewrite Eq by omega.
-  forward2.
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  forward.
+  do 4 forward.
   forward.
 
-(*Require Import aes.ZOpsSimplNever.*)
-
   forward. forward. simpl (temp _RK _). rewrite Eq by omega.
-  forward2.
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  forward.
+  do 4 forward.
   forward.
 
   pose (S13 := mbed_tls_fround S12 buf 52).
@@ -520,51 +493,26 @@ rewrite EqY0. rewrite EqY1. rewrite EqY2. rewrite EqY3.
 clear EqY0 EqY1 EqY2 EqY3.
 
   (* last AES round: special (uses S-box instead of forwarding tables) *)
-
-Ltac entailer_for_load_tac ::=
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range;
-  try (
-    match goal with
-    | |- context [ (tc_val _ (Vint (Znth ?i FSb Int.zero))) ] =>
-      assert (Int.unsigned (Znth i FSb Int.zero) <= Byte.max_unsigned) by apply FSb_range
-    end;
-    solve [ entailer! ]
-  ).
+  pose proof FSb_range.
 
   forward. forward. simpl (temp _RK _). rewrite Eq by omega.
-  forward2.
-  do 1 (forward; [apply prop_right; apply masked_byte_range | ]).
-  do 1 (forward; [apply prop_right; apply masked_byte_range | ]).
-  do 1 (forward; [apply prop_right; apply masked_byte_range | ]).
-  do 1 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
   forward.
-
-Ltac entailer_for_load_tac :=
-  repeat match goal with H := _ |- _ => clear H end;
-  try quick_typecheck3;
-  unfold tc_efield, tc_LR, tc_LR_strong; simpl typeof;
-  try solve [entailer!].
-
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega.
-  forward2.
-  forward; [apply prop_right; apply masked_byte_range | ].
-  forward; [apply prop_right; apply masked_byte_range | ].
-  forward; [apply prop_right; apply masked_byte_range | ].
-  forward; [apply prop_right; apply masked_byte_range | ].
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  do 4 forward.
   forward.
 
   forward. forward. simpl (temp _RK _). rewrite Eq by omega.
-  forward2.
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  forward.
+  do 4 forward.
   forward.
 
   forward. forward. simpl (temp _RK _). rewrite Eq by omega.
-  forward2.
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
+  forward.
+  do 4 forward.
+  forward.
+
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega.
+  forward.
+  do 4 forward.
   forward.
 
   pose (S14 := mbed_tls_final_fround S13 buf 56).
@@ -593,6 +541,19 @@ rewrite EqX0. rewrite EqX1. rewrite EqX2. rewrite EqX3.
 clear EqX0 EqX1 EqX2 EqX3.
 
 Ltac entailer_for_load_tac ::= idtac.
+
+Ltac remember_temp_Vints done :=
+  lazymatch goal with
+  | |- context [ ?T :: done ] => match T with
+    | temp ?Id (Vint ?V) =>
+      let V0 := fresh "V" in remember V as V0;
+      remember_temp_Vints ((temp Id (Vint V0)) :: done)
+    | _ => remember_temp_Vints (T :: done)
+    end
+  | |- semax _ (PROPx _ (LOCALx done (SEPx _))) _ _ => idtac
+  | _ => fail 100 "assertion failure: did not find" done
+  end.
+
   remember_temp_Vints (@nil localdef).
   forward.
 

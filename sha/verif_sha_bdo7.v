@@ -261,20 +261,17 @@ change LBLOCKz with 16%Z in H0.
 change (tarray tuint LBLOCKz) with (tarray tuint 16).
 change LBLOCKz with 16%Z in H.
 forward.	(*s0 = X[(i+1)&0x0f]; *)
-autorewrite with sublist. entailer!.
 autorewrite with sublist. rewrite Zland_15.
 forward. (* s0 = sigma0(s0); *)
 rewrite extract_from_b by auto; rewrite Int.and_mone; rewrite <- sigma_0_eq.
 
 forward. (* s1 = X[(i+14)&0x0f]; *)
-autorewrite with sublist. entailer!.
 autorewrite with sublist. rewrite Zland_15.
 
 forward. (* s1 = sigma1(s1); *)
 rewrite extract_from_b by auto; rewrite Int.and_mone; rewrite <- sigma_1_eq.
 
 forward. (* T1 = X[i&0xf]; *)
-autorewrite with sublist. entailer!.
 autorewrite with sublist. rewrite Zland_15.
 replace (nthi (Xarray b (Z.to_nat i)) (i mod 16))
   with (W (nthi b) (i - 16 + 0))
@@ -283,7 +280,6 @@ replace (nthi (Xarray b (Z.to_nat i)) (i mod 16))
       rewrite extract_from_b; try omega; auto).
 
 forward. (* t = X[(i+9)&0xf]; *)
-autorewrite with sublist. entailer!.
 autorewrite with sublist. rewrite Zland_15.
 rewrite extract_from_b by (try assumption; try omega).
 
@@ -298,7 +294,6 @@ unfold K_vector.
 change CBLOCKz with 64%Z.
 assert (LEN: Zlength K256 = 64%Z) by reflexivity.
 forward.  (* Ki=K256[i]; *)
-autorewrite with sublist. entailer!.
 autorewrite with sublist.
 rename b into bb.
 assert (Hregs' := length_Round _ (nthi bb) (i-1) Hregs).

@@ -258,10 +258,6 @@ Proof.
   assert (lo' <= (lo' + hi') / 2 < hi').
   { split; [apply Zdiv_le_lower_bound | apply Zdiv_lt_upper_bound]; omega. }
   forward.
-  { entailer!.
-    rewrite Znth_map with (d' := Int.repr 0); simpl; auto. }
-  rewrite Znth_map with (d' := Int.repr 0); auto.
-  rewrite Znth_map with (d' := 0); auto.
   exploit Znth_In; eauto.
   instantiate (1 := 0); intro Hin.
   match goal with H : Forall _ _ |- _ =>
