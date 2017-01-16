@@ -2,13 +2,17 @@ Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.type_induction.
-Require Import floyd.fieldlist.
+(*Require Import floyd.fieldlist.*)
 Require Import floyd.compact_prod_sum.
-Require Import floyd.aggregate_type.
+(*Require Import floyd.aggregate_type.*)
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.nested_pred_lemmas.
 Require Import floyd.jmeq_lemmas.
 Require Import floyd.sublist.
+
+Require Export floyd.fieldlist.
+Require Export floyd.aggregate_type.
+
 
 Open Scope Z.
 Open Scope logic.
@@ -500,7 +504,7 @@ Proof.
         f_equal.
         simpl.
         match goal with
-        | |- appcontext [member_dec (i, ?t') (i0, t0)] =>
+        | |- context [member_dec (i, ?t') (i0, t0)] =>
                 destruct (member_dec (i, t') (i0, t0));
                   [inversion e; congruence |]
         end.
@@ -549,7 +553,7 @@ Proof.
     - destruct H0; [simpl in H0; congruence |].
       rewrite <- sepcon_assoc, (sepcon_comm _ (P' _ _ _)), sepcon_assoc.
       match goal with
-      | |- appcontext [member_dec (i, ?t') (i0, t0)] =>
+      | |- context [member_dec (i, ?t') (i0, t0)] =>
               destruct (member_dec (i, t') (i0, t0));
                 [inversion e; congruence |]
       end.
@@ -834,7 +838,7 @@ Proof.
       apply H1.
       right; auto.
     - match goal with
-      | |- appcontext [member_dec (i, ?t') (i0, t0)] =>
+      | |- context [member_dec (i, ?t') (i0, t0)] =>
               destruct (member_dec (i, t') (i0, t0));
                 [inversion e; congruence |]
       end.
@@ -843,7 +847,7 @@ Proof.
       apply H1.
       left; auto.
     - match goal with
-      | |- appcontext [member_dec (i, ?t') (i0, t0)] =>
+      | |- context [member_dec (i, ?t') (i0, t0)] =>
               destruct (member_dec (i, t') (i0, t0));
                 [inversion e; congruence |]
       end.
@@ -887,7 +891,7 @@ Proof.
       pose proof in_members_tail_no_replicate _ _ _ _ H H0.
       destruct (ident_eq i i0); [congruence |].
       match goal with
-      | |- appcontext [member_dec (i, ?t') (i0, t0)] =>
+      | |- context [member_dec (i, ?t') (i0, t0)] =>
               destruct (member_dec (i, t') (i0, t0));
                 [inversion e; congruence |]
       end.
@@ -1336,8 +1340,6 @@ Module aggregate_pred.
 Open Scope Z.
 Open Scope logic.
 
-Require Export floyd.fieldlist.
-Require Export floyd.aggregate_type.
 
 Definition array_pred: forall {A: Type} (d:A) (lo hi: Z) (P: Z -> A -> val -> mpred) (v: list A),
     val -> mpred := @array_pred.
@@ -1626,7 +1628,10 @@ Proof.
   + simpl. unfold union_pred. simpl. reflexivity.
   + destruct v as [v | v].
     - reflexivity.
-    - apply IHm.
+    - match goal with
+      | _ => apply IHm
+      | _ => simpl ; f_equal ; apply IHm
+      end.
 Qed.
 
 Definition struct_value_fits_aux (m m0: members)
@@ -1698,7 +1703,10 @@ Proof.
   + simpl. unfold union_Prop. simpl. reflexivity.
   + destruct v as [v | v].
     - reflexivity.
-    - apply IHm.
+    - match goal with
+      | _ => apply IHm
+      | _ => simpl ; f_equal ; apply IHm
+      end.
 Qed.
 
 End AUXILIARY_PRED.

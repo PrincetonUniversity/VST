@@ -756,7 +756,7 @@ Ltac after_forward_call_binders :=
  end.
 
 Ltac cleanup_no_post_exists :=
- match goal with |-  appcontext [eq_no_post] =>
+ match goal with |-  context[eq_no_post] =>
   let vret := fresh "vret" in let H := fresh in
   apply extract_exists_pre; intro vret;
   apply semax_extract_PROP; intro H;
@@ -2270,11 +2270,11 @@ Ltac fwd_result :=
   repeat
    (let P := fresh "P" in
     match goal with
-    | |- appcontext [remove_localdef ?A ?B] =>
+    | |- context[remove_localdef ?A ?B] =>
          set (P := remove_localdef A B);
          hnf in P;
          subst P
-    | |- appcontext [map_subst_localdef ?A ?B ?C] =>
+    | |- context[map_subst_localdef ?A ?B ?C] =>
          set (P := map_subst_localdef A B C);
          hnf in P;
          subst P

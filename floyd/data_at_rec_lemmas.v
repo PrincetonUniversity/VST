@@ -9,6 +9,8 @@ Import floyd.aggregate_pred.auxiliary_pred.
 Require Import floyd.reptype_lemmas.
 Require Import floyd.jmeq_lemmas.
 Require Import floyd.sublist.
+Require Export floyd.fieldlist.
+Require Export floyd.aggregate_type.
 
 Opaque alignof.
 
@@ -114,7 +116,7 @@ Proof.
   try solve [destruct (readable_share_dec sh); reflexivity];
   try solve [
   match goal with
-  | |- appcontext [repinject ?tt] =>
+  | |- context[repinject ?tt] =>
     rewrite (repinject_unfold_reptype tt); auto
   end].
   + rewrite <- struct_data_at_rec_aux_spec; reflexivity.
@@ -175,7 +177,7 @@ Proof.
   intros.
   rewrite data_at_rec_eq; destruct t; try solve [inversion H];
   match goal with
-  | |- appcontext [type_is_volatile ?tt] =>
+  | |- context[type_is_volatile ?tt] =>
     destruct (type_is_volatile tt) eqn:HH; auto;
     rewrite <- (repinject_unfold_reptype tt); auto
   end;
@@ -190,7 +192,7 @@ Proof.
   intros.
   rewrite data_at_rec_eq; destruct t; try solve [inversion H]; rewrite H0;
   match goal with
-  | |- appcontext [repinject ?tt] =>
+  | |- context[repinject ?tt] =>
     rewrite (repinject_unfold_reptype tt); auto
   end.
 Qed.

@@ -37,8 +37,8 @@ Ltac extract_smt_simplify :=
 
 Ltac extract_smt_forbidden :=
   match goal with
-  | |- appcontext [value_fits] => idtac
-  | |- appcontext [field_compatible] => idtac
+  | |- context [value_fits] => idtac
+  | |- context [field_compatible] => idtac
   end.
 
 Ltac extract_smt :=

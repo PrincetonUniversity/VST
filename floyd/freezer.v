@@ -252,7 +252,7 @@ Ltac flatten_emp_in_SEP PQR :=
  match PQR with
  | PROPx ?P (LOCALx ?Q (SEPx (?R))) =>
    match R with context [emp :: ?R'] =>
-      let n := constr:(length R - Datatypes.S (length R'))%nat in
+      let n := constr:((length R - Datatypes.S (length R'))%nat) in
       let n' := eval lazy beta zeta iota delta in n in
       erewrite(@flatten_emp_in_SEP' n' P Q R _ (eq_refl _));
       [ |

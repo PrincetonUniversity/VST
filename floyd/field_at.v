@@ -1847,7 +1847,7 @@ Ltac find_field_at N :=
 
 Ltac find_data_at N :=
  match N with
- | S O =>  match goal with |- appcontext [@data_at ?cs ?sh ?t] =>
+ | S O =>  match goal with |- context[@data_at ?cs ?sh ?t] =>
                  change (@data_at cs sh t) with (field_at_mark cs sh t nil) at 1
                  end;
                  change data_at_hide with @data_at
@@ -1886,8 +1886,8 @@ Ltac unfold_field_at' :=
      change (protect _ v) with v in V;
      subst V;
      repeat match type of H with
-     | context [fst (?A,?B)] => change (fst (A,B)) with A in H
-     | context [snd (?A,?B)] => change (snd (A,B)) with B in H
+     | context[fst (?A,?B)] => change (fst (A,B)) with A in H
+     | context[snd (?A,?B)] => change (snd (A,B)) with B in H
      end;
      subst P;
      subst F;

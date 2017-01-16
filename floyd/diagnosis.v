@@ -138,7 +138,7 @@ Ltac ccf1 fs :=
             | stuckwith (Error__Funspec id not_in_canonical_form
                                     (for_some_undiagnosed_reason fs))
             ]
-  | _ => let fs' := constr:fs in
+  | _ => let fs' := constr:(fs) in
     let fs'' := (eval unfold fs in fs') in
     ccf1 fs''
   | _ => stuckwith (Cannot_unfold_funspec fs)

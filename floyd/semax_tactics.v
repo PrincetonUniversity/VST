@@ -284,7 +284,7 @@ match goal with
           unfold initialized in z; simpl in z; subst z;
           simplify_Delta
      | context [initialized ?i ?B] =>
-        match B with appcontext [initialized] => fail 1 | _ => idtac end;
+        match B with context [initialized] => fail 1 | _ => idtac end;
         unfold B; simplify_Delta
      end
  end.

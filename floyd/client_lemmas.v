@@ -708,7 +708,7 @@ apply H0; auto.
 Qed.
 
 Definition abbreviate {A:Type} (x:A) := x.
-Implicit Arguments abbreviate [[A][x]].
+Arguments abbreviate [A] [x].
 
 Ltac clear_Delta :=
 match goal with
@@ -1878,7 +1878,7 @@ Qed.
 Ltac hoist_later_in_pre :=
      match goal with |- semax _ ?P _ _ =>
        match P with
-       | appcontext [@later] =>
+       | context[@later] =>
             let P' := strip1_later P in apply semax_pre0 with (|> P'); [solve [auto 50 with derives] | ]
        | _ => apply semax_later_trivial
        end
@@ -2475,7 +2475,7 @@ Ltac extract_exists_in_SEP' PQR :=
  match PQR with
  | PROPx ?P (LOCALx ?Q (SEPx (?R))) =>
    match R with context [(@exp _ _ ?A ?S) :: ?R'] =>
-      let n := constr:(length R - Datatypes.S (length R'))%nat in
+      let n := constr:((length R - Datatypes.S (length R'))%nat) in
       let n' := eval lazy beta zeta iota delta in n in
       rewrite (@extract_nth_exists_in_SEP n' P Q R A S (eq_refl _));
       unfold replace_nth at 1;
@@ -2499,7 +2499,7 @@ Ltac move_from_SEP' PQR :=
  match PQR with
  | PROPx ?P (LOCALx ?Q (SEPx (?R))) =>
    match R with context [(prop ?P1 && ?S) :: ?R'] =>
-      let n := constr:(length R - Datatypes.S (length R'))%nat in
+      let n := constr:((length R - Datatypes.S (length R'))%nat) in
       let n' := eval lazy beta zeta iota delta in n in
       rewrite(@extract_prop_in_SEP n' P1 S P Q R (eq_refl _));
       unfold replace_nth at 1

@@ -678,13 +678,13 @@ Global Notation REPTYPE t :=
   end.
 
 Tactic Notation "unfold_repinj" :=
-repeat match goal with |- appcontext [repinj ?T] =>
+repeat match goal with |- context [repinj ?T] =>
  let x := fresh "x" in set (x := repinj T);
     lazy beta iota zeta delta in x; subst x; lazy beta
 end.
 
 Tactic Notation "unfold_repinj" constr(T) :=
-match goal with |- appcontext [repinj T] =>
+match goal with |- context [repinj T] =>
  let x := fresh "x" in set (x := repinj T);
     lazy beta iota zeta delta in x; subst x; lazy beta
 end.
