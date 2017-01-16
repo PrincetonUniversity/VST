@@ -4,6 +4,9 @@ Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
 
+(* TODO remove this line and update proof (should become simpler) *)
+Ltac canon_load_result Hresult ::= idtac.
+
 Require Import tweetnacl20140427.split_array_lemmas.
 Require Import ZArith.
 Require Import tweetnacl20140427.tweetNaclBase.

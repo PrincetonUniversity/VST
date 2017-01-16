@@ -49,22 +49,40 @@ Definition ___i64_udiv : ident := 27%positive.
 Definition ___i64_umod : ident := 29%positive.
 Definition ___i64_utod : ident := 23%positive.
 Definition ___i64_utof : ident := 25%positive.
+Definition _b0 : ident := 66%positive.
+Definition _b1 : ident := 67%positive.
+Definition _b2 : ident := 68%positive.
+Definition _b3 : ident := 69%positive.
+Definition _fiddle : ident := 64%positive.
 Definition _fst : ident := 1%positive.
 Definition _get22 : ident := 59%positive.
+Definition _get_little_endian : ident := 70%positive.
 Definition _i : ident := 56%positive.
+Definition _input : ident := 65%positive.
 Definition _int_pair : ident := 3%positive.
 Definition _left : ident := 4%positive.
-Definition _main : ident := 63%positive.
-Definition _onetwo : ident := 60%positive.
+Definition _main : ident := 79%positive.
+Definition _obj : ident := 74%positive.
+Definition _onetwo : ident := 71%positive.
 Definition _p : ident := 57%positive.
 Definition _pair_pair : ident := 6%positive.
-Definition _pp : ident := 62%positive.
+Definition _pp : ident := 73%positive.
 Definition _pps : ident := 55%positive.
+Definition _r : ident := 63%positive.
 Definition _res : ident := 58%positive.
+Definition _res1 : ident := 76%positive.
+Definition _res2 : ident := 77%positive.
+Definition _res3 : ident := 78%positive.
 Definition _right : ident := 5%positive.
+Definition _size : ident := 61%positive.
 Definition _snd : ident := 2%positive.
-Definition _threefour : ident := 61%positive.
-Definition _t'1 : ident := 64%positive.
+Definition _sum : ident := 60%positive.
+Definition _tagword : ident := 62%positive.
+Definition _threefour : ident := 72%positive.
+Definition _v : ident := 75%positive.
+Definition _t'1 : ident := 80%positive.
+Definition _t'2 : ident := 81%positive.
+Definition _t'3 : ident := 82%positive.
 
 Definition f_get22 := {|
   fn_return := tint;
@@ -92,6 +110,91 @@ Definition f_get22 := {|
     (Sreturn (Some (Etempvar _res tint)))))
 |}.
 
+Definition f_fiddle := {|
+  fn_return := tint;
+  fn_callconv := cc_default;
+  fn_params := ((_p, (tptr tuint)) :: nil);
+  fn_vars := nil;
+  fn_temps := ((_sum, tuint) :: (_size, tuint) :: (_i, tuint) ::
+               (_tagword, tuint) :: (_r, tuint) :: nil);
+  fn_body :=
+(Ssequence
+  (Sset _tagword
+    (Ederef
+      (Ebinop Oadd (Etempvar _p (tptr tuint))
+        (Eunop Oneg (Econst_int (Int.repr 1) tint) tint) (tptr tuint)) tuint))
+  (Ssequence
+    (Sset _sum
+      (Ebinop Oand (Etempvar _tagword tuint) (Econst_int (Int.repr 255) tint)
+        tuint))
+    (Ssequence
+      (Sset _size
+        (Ebinop Oshr (Etempvar _tagword tuint)
+          (Econst_int (Int.repr 10) tint) tuint))
+      (Ssequence
+        (Ssequence
+          (Sset _i (Econst_int (Int.repr 0) tint))
+          (Sloop
+            (Ssequence
+              (Sifthenelse (Ebinop Olt (Etempvar _i tuint)
+                             (Etempvar _size tuint) tint)
+                Sskip
+                Sbreak)
+              (Ssequence
+                (Sset _r
+                  (Ederef
+                    (Ebinop Oadd (Etempvar _p (tptr tuint))
+                      (Etempvar _i tuint) (tptr tuint)) tuint))
+                (Sset _sum
+                  (Ebinop Oadd (Etempvar _sum tuint) (Etempvar _r tuint)
+                    tuint))))
+            (Sset _i
+              (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tint)
+                tuint))))
+        (Sreturn (Some (Etempvar _sum tuint)))))))
+|}.
+
+Definition f_get_little_endian := {|
+  fn_return := tuint;
+  fn_callconv := cc_default;
+  fn_params := ((_input, (tptr tuchar)) :: nil);
+  fn_vars := nil;
+  fn_temps := ((_b0, tuint) :: (_b1, tuint) :: (_b2, tuint) ::
+               (_b3, tuint) :: nil);
+  fn_body :=
+(Ssequence
+  (Sset _b0
+    (Ecast
+      (Ederef
+        (Ebinop Oadd (Etempvar _input (tptr tuchar))
+          (Econst_int (Int.repr 0) tint) (tptr tuchar)) tuchar) tuint))
+  (Ssequence
+    (Sset _b1
+      (Ecast
+        (Ederef
+          (Ebinop Oadd (Etempvar _input (tptr tuchar))
+            (Econst_int (Int.repr 1) tint) (tptr tuchar)) tuchar) tuint))
+    (Ssequence
+      (Sset _b2
+        (Ederef
+          (Ebinop Oadd (Etempvar _input (tptr tuchar))
+            (Econst_int (Int.repr 2) tint) (tptr tuchar)) tuchar))
+      (Ssequence
+        (Sset _b3
+          (Ederef
+            (Ebinop Oadd (Etempvar _input (tptr tuchar))
+              (Econst_int (Int.repr 3) tint) (tptr tuchar)) tuchar))
+        (Sreturn (Some (Ebinop Oor
+                         (Ebinop Oor
+                           (Ebinop Oor (Etempvar _b0 tuint)
+                             (Ebinop Oshl (Etempvar _b1 tuint)
+                               (Econst_int (Int.repr 8) tint) tuint) tuint)
+                           (Ebinop Oshl (Etempvar _b2 tuint)
+                             (Econst_int (Int.repr 16) tint) tuint) tuint)
+                         (Ebinop Oshl (Etempvar _b3 tuint)
+                           (Econst_int (Int.repr 24) tint) tuint) tuint)))))))
+|}.
+
 Definition f_main := {|
   fn_return := tint;
   fn_callconv := cc_default;
@@ -99,8 +202,11 @@ Definition f_main := {|
   fn_vars := ((_onetwo, (Tstruct _int_pair noattr)) ::
               (_threefour, (Tstruct _int_pair noattr)) ::
               (_pp, (Tstruct _pair_pair noattr)) ::
-              (_pps, (tarray (Tstruct _pair_pair noattr) 1)) :: nil);
-  fn_temps := ((_res, tint) :: (_t'1, tint) :: nil);
+              (_pps, (tarray (Tstruct _pair_pair noattr) 1)) ::
+              (_obj, (tarray tuint 3)) :: (_v, (tarray tuchar 4)) :: nil);
+  fn_temps := ((_p, (tptr tuint)) :: (_res1, tint) :: (_res2, tint) ::
+               (_res3, tuint) :: (_t'3, tuint) :: (_t'2, tint) ::
+               (_t'1, tint) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -137,16 +243,99 @@ Definition f_main := {|
                     (Tstruct _pair_pair noattr))
                   (Evar _pp (Tstruct _pair_pair noattr)))
                 (Ssequence
+                  (Sassign
+                    (Ederef
+                      (Ebinop Oadd (Evar _obj (tarray tuint 3))
+                        (Econst_int (Int.repr 0) tint) (tptr tuint)) tuint)
+                    (Ebinop Oshl (Econst_int (Int.repr 2) tint)
+                      (Econst_int (Int.repr 10) tint) tint))
                   (Ssequence
-                    (Scall (Some _t'1)
-                      (Evar _get22 (Tfunction
-                                     (Tcons
-                                       (tptr (Tstruct _pair_pair noattr))
-                                       (Tcons tint Tnil)) tint cc_default))
-                      ((Evar _pps (tarray (Tstruct _pair_pair noattr) 1)) ::
-                       (Econst_int (Int.repr 0) tint) :: nil))
-                    (Sset _res (Etempvar _t'1 tint)))
-                  (Sreturn (Some (Etempvar _res tint)))))))))))
+                    (Sassign
+                      (Ederef
+                        (Ebinop Oadd (Evar _obj (tarray tuint 3))
+                          (Econst_int (Int.repr 1) tint) (tptr tuint)) tuint)
+                      (Econst_int (Int.repr 11) tint))
+                    (Ssequence
+                      (Sassign
+                        (Ederef
+                          (Ebinop Oadd (Evar _obj (tarray tuint 3))
+                            (Econst_int (Int.repr 2) tint) (tptr tuint))
+                          tuint) (Econst_int (Int.repr 12) tint))
+                      (Ssequence
+                        (Sset _p
+                          (Eaddrof
+                            (Ederef
+                              (Ebinop Oadd (Evar _obj (tarray tuint 3))
+                                (Econst_int (Int.repr 1) tint) (tptr tuint))
+                              tuint) (tptr tuint)))
+                        (Ssequence
+                          (Sassign
+                            (Ederef
+                              (Ebinop Oadd (Evar _v (tarray tuchar 4))
+                                (Econst_int (Int.repr 0) tint) (tptr tuchar))
+                              tuchar) (Econst_int (Int.repr 10) tint))
+                          (Ssequence
+                            (Sassign
+                              (Ederef
+                                (Ebinop Oadd (Evar _v (tarray tuchar 4))
+                                  (Econst_int (Int.repr 1) tint)
+                                  (tptr tuchar)) tuchar)
+                              (Econst_int (Int.repr 20) tint))
+                            (Ssequence
+                              (Sassign
+                                (Ederef
+                                  (Ebinop Oadd (Evar _v (tarray tuchar 4))
+                                    (Econst_int (Int.repr 2) tint)
+                                    (tptr tuchar)) tuchar)
+                                (Econst_int (Int.repr 30) tint))
+                              (Ssequence
+                                (Sassign
+                                  (Ederef
+                                    (Ebinop Oadd (Evar _v (tarray tuchar 4))
+                                      (Econst_int (Int.repr 3) tint)
+                                      (tptr tuchar)) tuchar)
+                                  (Econst_int (Int.repr 40) tint))
+                                (Ssequence
+                                  (Ssequence
+                                    (Scall (Some _t'1)
+                                      (Evar _get22 (Tfunction
+                                                     (Tcons
+                                                       (tptr (Tstruct _pair_pair noattr))
+                                                       (Tcons tint Tnil))
+                                                     tint cc_default))
+                                      ((Evar _pps (tarray (Tstruct _pair_pair noattr) 1)) ::
+                                       (Econst_int (Int.repr 0) tint) :: nil))
+                                    (Sset _res1 (Etempvar _t'1 tint)))
+                                  (Ssequence
+                                    (Ssequence
+                                      (Scall (Some _t'2)
+                                        (Evar _fiddle (Tfunction
+                                                        (Tcons (tptr tuint)
+                                                          Tnil) tint
+                                                        cc_default))
+                                        ((Etempvar _p (tptr tuint)) :: nil))
+                                      (Sset _res2 (Etempvar _t'2 tint)))
+                                    (Ssequence
+                                      (Ssequence
+                                        (Scall (Some _t'3)
+                                          (Evar _get_little_endian (Tfunction
+                                                                    (Tcons
+                                                                    (tptr tuchar)
+                                                                    Tnil)
+                                                                    tuint
+                                                                    cc_default))
+                                          ((Evar _v (tarray tuchar 4)) ::
+                                           nil))
+                                        (Sset _res3 (Etempvar _t'3 tuint)))
+                                      (Sreturn (Some (Ebinop Oadd
+                                                       (Ebinop Oadd
+                                                         (Etempvar _res1 tint)
+                                                         (Etempvar _res2 tint)
+                                                         tint)
+                                                       (Ebinop Oshr
+                                                         (Etempvar _res3 tuint)
+                                                         (Econst_int (Int.repr 24) tint)
+                                                         tuint) tuint)))))))))))))))))))))
   (Sreturn (Some (Econst_int (Int.repr 0) tint))))
 |}.
 
@@ -386,23 +575,26 @@ prog_defs :=
                      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
      (Tcons tint Tnil) tvoid
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
- (_get22, Gfun(Internal f_get22)) :: (_main, Gfun(Internal f_main)) :: nil);
+ (_get22, Gfun(Internal f_get22)) :: (_fiddle, Gfun(Internal f_fiddle)) ::
+ (_get_little_endian, Gfun(Internal f_get_little_endian)) ::
+ (_main, Gfun(Internal f_main)) :: nil);
 prog_public :=
-(_main :: _get22 :: ___builtin_debug :: ___builtin_nop ::
- ___builtin_write32_reversed :: ___builtin_write16_reversed ::
- ___builtin_read32_reversed :: ___builtin_read16_reversed ::
- ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::
- ___builtin_fmadd :: ___builtin_fmin :: ___builtin_fmax ::
- ___builtin_fsqrt :: ___builtin_ctzll :: ___builtin_ctzl :: ___builtin_ctz ::
- ___builtin_clzll :: ___builtin_clzl :: ___builtin_clz ::
- ___builtin_bswap16 :: ___builtin_bswap32 :: ___builtin_bswap ::
- ___i64_sar :: ___i64_shr :: ___i64_shl :: ___i64_umod :: ___i64_smod ::
- ___i64_udiv :: ___i64_sdiv :: ___i64_utof :: ___i64_stof :: ___i64_utod ::
- ___i64_stod :: ___i64_dtou :: ___i64_dtos :: ___compcert_va_composite ::
- ___compcert_va_float64 :: ___compcert_va_int64 :: ___compcert_va_int32 ::
- ___builtin_va_end :: ___builtin_va_copy :: ___builtin_va_arg ::
- ___builtin_va_start :: ___builtin_membar :: ___builtin_annot_intval ::
- ___builtin_annot :: ___builtin_memcpy_aligned :: ___builtin_fabs :: nil);
+(_main :: _get_little_endian :: _fiddle :: _get22 :: ___builtin_debug ::
+ ___builtin_nop :: ___builtin_write32_reversed ::
+ ___builtin_write16_reversed :: ___builtin_read32_reversed ::
+ ___builtin_read16_reversed :: ___builtin_fnmsub :: ___builtin_fnmadd ::
+ ___builtin_fmsub :: ___builtin_fmadd :: ___builtin_fmin ::
+ ___builtin_fmax :: ___builtin_fsqrt :: ___builtin_ctzll ::
+ ___builtin_ctzl :: ___builtin_ctz :: ___builtin_clzll :: ___builtin_clzl ::
+ ___builtin_clz :: ___builtin_bswap16 :: ___builtin_bswap32 ::
+ ___builtin_bswap :: ___i64_sar :: ___i64_shr :: ___i64_shl :: ___i64_umod ::
+ ___i64_smod :: ___i64_udiv :: ___i64_sdiv :: ___i64_utof :: ___i64_stof ::
+ ___i64_utod :: ___i64_stod :: ___i64_dtou :: ___i64_dtos ::
+ ___compcert_va_composite :: ___compcert_va_float64 ::
+ ___compcert_va_int64 :: ___compcert_va_int32 :: ___builtin_va_end ::
+ ___builtin_va_copy :: ___builtin_va_arg :: ___builtin_va_start ::
+ ___builtin_membar :: ___builtin_annot_intval :: ___builtin_annot ::
+ ___builtin_memcpy_aligned :: ___builtin_fabs :: nil);
 prog_main := _main;
 prog_types := composites;
 prog_comp_env := make_composite_env composites;

@@ -10,6 +10,9 @@ Require Import tweetnacl20140427.tweetnaclVerifiableC.
 Require Import tweetnacl20140427.spec_salsa.
 Opaque Snuffle.Snuffle. Opaque prepare_data.
 
+(* TODO remove this line and update proof (should become simpler) *)
+Ltac canon_load_result Hresult ::= idtac.
+
 Definition HFalse_inv l i xs ys :=
         Zlength l = 64 /\
                 forall ii, 0<=ii<i ->

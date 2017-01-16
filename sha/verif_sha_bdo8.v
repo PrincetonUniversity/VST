@@ -69,8 +69,7 @@ unfold load8.
 abbreviate_semax.
 assert (H5': Zlength r_h = 8%Z)
   by (rewrite Zlength_correct; rewrite H5; reflexivity).
-do 8 (forward; [ entailer!; apply Znth_is_int; omega | ]).
-autorewrite with sublist.
+do 8 forward.
 entailer!.
 Qed.
 
@@ -329,6 +328,10 @@ assert (INT_ADD_UPTO := int_add_upto _ _ H H0).
 assert (ADD_S := add_s _ _ H H0).
 
 Opaque add_upto.
+
+(* TODO remove this line and update proof (should become simpler) *)
+Ltac canon_load_result Hresult ::= idtac.
+
 forward.
 entailer!. apply INT_ADD_UPTO; auto; computable.
 forward.

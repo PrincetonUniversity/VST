@@ -166,8 +166,6 @@ unfold K_vector.
 assert (i < Zlength K256)
   by (change (Zlength K256) with 64; omega).
 forward.  (* Ki=K256[i]; *)
-autorewrite with sublist.
-entailer!.
 (* 1,811,028 1,406,332 *)
 autorewrite with sublist.
 subst POSTCONDITION; unfold abbreviate.

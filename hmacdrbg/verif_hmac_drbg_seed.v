@@ -127,8 +127,6 @@ Proof.
   rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial. rewrite int_add_repr_0_r.
   freeze [0;2;3;4;5;6] FR0.
   Time forward_call ((M1,(M2,M3)), Vptr b i, Vint (Int.repr 1), info).
-   (*8.5pl2: without FR0, this akes about 5mins but succeeds*)
-
   Intros v. rename H into Hv.
   forward.
   forward_if (
@@ -198,6 +196,12 @@ Proof.
   (*ctx->reseed_interval = MBEDTLS_HMAC_DRBG_RESEED_INTERVAL;*)
   rewrite ZL_VV.
   thaw FR3. thaw FR2. unfold md_relate. simpl.
+  replace_SEP 2 (field_at Tsh t_struct_hmac256drbg_context_st [StructField _md_ctx] (info, (M2, p)) (Vptr b i)). {
+    entailer!. rewrite field_at_data_at.
+    simpl. rewrite field_compatible_field_address by auto with field_compatible. simpl.
+    rewrite int_add_repr_0_r.
+    cancel.
+  }
   thaw FIELDS1. forward.
   freeze [0;4;5;6;7] FIELDS2.
   freeze [0;1;2;3;4;5;6;7;8;9] ALLSEP.
@@ -255,12 +259,10 @@ Proof.
          data_at Tsh t_struct_hmac256drbg_context_st ST (Vptr b i) *
          hmac256drbg_relate myABS ST).
   { go_lower. thaw INI. clear KVStreamInfoDataFreeBlk. thaw FR_CTX.
-    unfold_data_at 3%nat.
+    unfold_data_at 2%nat.
     subst ST; simpl. cancel. normalize.
     apply andp_right. apply prop_right. repeat split; trivial. apply IB1. split; omega.
     unfold md_full. simpl.
-    rewrite field_at_data_at. simpl.
-    unfold field_address. rewrite if_true; simpl; trivial. rewrite int_add_repr_0_r. cancel.
     rewrite field_at_data_at. simpl.
     unfold field_address. rewrite if_true; simpl; trivial. cancel.
     apply UNDER_SPEC.REP_FULL.

@@ -78,13 +78,12 @@ entailer!.  (* Typechecking conditions usually solve quite easily *)
 (* In order to get to the postcondition of the loop body, of course,
    we must forward-symbolic-execute through the loop body;
    so we start that here. *)
+(* "forward" fails and tells us to first make (0 <= i < Zlength contents)
+   provable by auto, so we assert the following: *)
+assert_PROP (Zlength contents = size). {
+  entailer!. do 2 rewrite Zlength_map. reflexivity.
+}
 forward. (* x = a[i] *)
-entailer!. (* This is an example of a typechecking condition
-   that is nontrivial; entailer! leaves a subgoal.  The subgoal basically
-   says that the array-subscript index is in range;  not just in
-   the bounds of the array, but in the _initialized_ portion of the array.*)
-   rewrite Znth_map with (d':=Int.zero). hnf; auto.
-   rewrite Zlength_map in H1, HRE; auto. omega.
 forward. (* s += x; *)
 forward. (* i++; *)
  (* Now we have reached the end of the loop body, and it's
@@ -93,9 +92,6 @@ forward. (* i++; *)
  Exists (i+1).
  entailer!.
  clear - H HRE H1.
- autorewrite with sublist in *.
- simpl.
- rewrite add_repr.
  f_equal. f_equal.
  rewrite (sublist_split 0 i (i+1)) by omega.
  rewrite sum_Z_app. rewrite (sublist_one i) with (d:=0) by omega.
@@ -104,7 +100,6 @@ forward. (* i++; *)
 forward.  (* return s; *)
  (* Here we prove that the postcondition of the function body
     entails the postcondition demanded by the function specification. *)
-simpl.
 apply prop_right.
 autorewrite with sublist in *.
 autorewrite with sublist.
