@@ -1,7 +1,7 @@
 # See the file BUILD_ORGANIZATION for
 # explanations of why this is the way it is
 
-default_target: msl veric floyd progs
+default_target: .loadpath version.vo msl veric floyd
 
 COMPCERT ?= compcert
 -include CONFIGURE
@@ -394,9 +394,8 @@ $(COMPCERT)/flocq/Prop/%.vo: $(COMPCERT)/flocq/Prop/%.v
 $(COMPCERT)/flocq/%.vo: $(COMPCERT)/flocq/%.v
 	@
 
-all:     .loadpath version.vo $(FILES:.v=.vo)
+all: .loadpath version.vo $(FILES:.v=.vo)
 
-min: .loadpath version.vo msl veric floyd
 
 ifeq ($(COMPCERT), compcert)
 compcert: $(COMPCERT)/exportclight/Clightdefs.vo
