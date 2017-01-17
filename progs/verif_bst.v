@@ -52,6 +52,42 @@ Fixpoint tree_rep (t: tree val) (p: val) : mpred :=
 Definition treebox_rep (t: tree val) (b: val) :=
  EX p: val, data_at Tsh (tptr t_struct_tree) p b * tree_rep t p.
 
+(* TODO: seems not useful *)
+Lemma treebox_rep_spec: forall (t: tree val) (b: val),
+  treebox_rep t b =
+  EX p: val, 
+  match t with
+  | E => !!(p=nullval) && data_at Tsh (tptr t_struct_tree) p b
+  | T l x v r => !! (Int.min_signed <= x <= Int.max_signed /\ tc_val (tptr Tvoid) v) &&
+      data_at Tsh (tptr t_struct_tree) p b *
+      field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr x)) p *
+      field_at Tsh t_struct_tree [StructField _value] v p *
+      treebox_rep l (field_address t_struct_tree [StructField _left] p) *
+      treebox_rep r (field_address t_struct_tree [StructField _right] p)
+  end.
+Proof.
+  intros.
+  unfold treebox_rep at 1.
+  f_equal.
+  extensionality p.
+  destruct t; simpl.
+  + apply pred_ext; entailer!.
+  + unfold treebox_rep.
+    apply pred_ext; entailer!.
+    - Intros pa pb.
+      Exists pb pa.
+      unfold_data_at 1%nat.
+      rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
+      rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
+      cancel.
+    - Intros pa pb.
+      Exists pb pa.
+      unfold_data_at 3%nat.
+      rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
+      rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
+      cancel.
+Qed.
+
 Definition mallocN_spec :=
  DECLARE _mallocN
   WITH n: Z
@@ -174,93 +210,152 @@ Definition insert_inv (b0: val) (t0: tree val) (x: Z) (v: val): environ -> mpred
   LOCAL(temp _t b; temp _x (Vint (Int.repr x));   temp _value v)
   SEP(treebox_rep t b;  (treebox_rep (insert x v t) b -* treebox_rep (insert x v t0) b0)).
 
+Lemma ramify_PPQQ {A: Type} {NA: NatDed A} {SA: SepLog A} {CA: ClassicalSep A}: forall P Q,
+  P |-- P * (Q -* Q).
+Proof.
+  intros.
+  apply RAMIF_PLAIN.solve with emp.
+  + rewrite sepcon_emp; auto.
+  + rewrite emp_sepcon; auto.
+Qed.
+
+Lemma tree_rep_nullval: forall t,
+  tree_rep t nullval |-- !! (t = E).
+Proof.
+  intros.
+  destruct t; [entailer! |].
+  simpl tree_rep.
+  Intros pa pb. entailer!.
+  destruct H1; contradiction.
+Qed.
+
+Hint Resolve tree_rep_nullval: saturate_local.
+
+Lemma is_pointer_or_null_force_val_sem_cast_neutral: forall p,
+  is_pointer_or_null p -> force_val (sem_cast_neutral p) = p.
+Proof.
+  intros.
+  destruct p; try contradiction; reflexivity.
+Qed.
+
+Lemma treebox_rep_leaf: forall x p b (v: val),
+  is_pointer_or_null v ->
+  Int.min_signed <= x <= Int.max_signed ->
+  data_at Tsh t_struct_tree (Vint (Int.repr x), (v, (nullval, nullval))) p * data_at Tsh (tptr t_struct_tree) p b |-- treebox_rep (T E x v E) b.
+Proof.
+  intros.
+  unfold treebox_rep, tree_rep. Exists p nullval nullval. entailer!.
+Qed.
+
+Lemma insert_left_entail: forall (t1 t2: tree val) k k0 (v p1 p2 p b v0: val),
+  Int.min_signed <= k <= Int.max_signed ->
+  is_pointer_or_null v ->
+  data_at Tsh (tptr t_struct_tree) p b *
+  data_at Tsh t_struct_tree (Vint (Int.repr k), (v, (p1, p2))) p *
+  tree_rep t1 p1 * tree_rep t2 p2
+  |-- treebox_rep t1 (field_address t_struct_tree [StructField _left] p) *
+       (treebox_rep (insert k0 v0 t1)
+         (field_address t_struct_tree [StructField _left] p) -*
+        treebox_rep (T (insert k0 v0 t1) k v t2) b).
+Proof.
+  intros.
+  unfold_data_at 2%nat.
+  rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
+  unfold treebox_rep at 1. Exists p1. cancel.
+
+  rewrite <- wand_sepcon_adjoint.
+  clear p1.
+  unfold treebox_rep.
+  Exists p.
+  simpl.
+  Intros p1.
+  Exists p1 p2.
+  entailer!.
+  unfold_data_at 2%nat.
+  rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
+  cancel.
+Qed.
+
+Lemma modus_ponens_wand' {A}{ND: NatDed A}{SL: SepLog A}:
+  forall P Q R: A, P |-- Q -> P * (Q -* R) |-- R.
+Proof.
+  intros.
+  eapply derives_trans; [| apply modus_ponens_wand].
+  apply sepcon_derives; [| apply derives_refl].
+  auto.
+Qed.
+
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
   start_function.
- eapply semax_pre; [ 
+  eapply semax_pre; [
     | apply (semax_loop _ (insert_inv b t x v) (insert_inv b t x v) )].
- unfold insert_inv.
-*
- Exists b t. entailer.
- rewrite <- sepcon_emp at 1.
- apply sepcon_derives; auto. 
- apply wand_sepcon_adjoint. 
- entailer!.
-*
- forward. (* Sskip *)
- unfold insert_inv.
- Intros b1 t1.
- unfold treebox_rep at 1. Intros p1.
- forward. (* p = *t; *)
- forward_if.
- + (* then clause *)
- subst p1.
- forward_call (sizeof t_struct_tree). simpl; repable_signed.
- Intros p'.
- rewrite memory_block_data_at_ by auto.
- forward. (* p->key=x; *)
- simpl.
- forward. (* p->value=value; *)
- forward. (*p->left=NULL; *)
- forward. (*p->right=NULL; *)
- assert_PROP (t1= (@E _)). {
-   destruct t1. entailer!. simpl tree_rep.
-  Intros pa pb. entailer!.
-  destruct H8; contradiction.
- }
- subst t1. simpl tree_rep. rewrite !prop_true_andp by auto.
- replace  (force_val (sem_cast_neutral v)) with v 
-   by (clear - H0; destruct v; try contradiction; reflexivity).
- forward. (* *t = p; *)
- forward. (* return; *)
- match goal with |- _ * ?B * ?C |-- _ => 
- apply derives_trans with 
-    (treebox_rep (T E x v E) b1 * C)
- end.
- cancel.
- unfold treebox_rep, tree_rep. Exists p' nullval nullval. entailer!.
- rewrite sepcon_comm.
- apply wand_sepcon_adjoint. auto.
- + (* else clause *)
- destruct t1.
- simpl tree_rep. normalize. contradiction H1; auto.
- simpl tree_rep.
- Intros pa pb. clear H1.
- forward.
- forward_if; [ | forward_if ].
-  - (* Inner if, then clause: x<k *)
-    forward.
+  * (* Precondition *)
     unfold insert_inv.
-    Exists (offset_val 8 p1) t1_1.
-    entailer!.
-    replace (x<?k) with true by (symmetry; apply Z.ltb_lt; omega).
-   replace (offset_val 8 p1) with (field_address t_struct_tree [StructField _left] p1)
-     by (unfold field_address; simpl; rewrite if_true by auto with field_compatible; auto).
-  apply RAMIF_PLAIN.trans'.
-  unfold_data_at 2%nat.
-  rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
-   match goal with |- ?A * (?Bk * (?Bv * (?Ba * ?Bb))) * ?Ta * ?Tb |-- _ =>
-      apply derives_trans 
-      with (treebox_rep t1_1 (field_address t_struct_tree [StructField _left] p1) *
-               A * Bk * Bv * Bb * Tb)
-   end.
-   unfold treebox_rep at 1. Exists pa. cancel.
-   cancel.
-   rewrite <- wand_sepcon_adjoint.
-   unfold treebox_rep. Intros pa'. Exists p1. simpl tree_rep. Exists pa' pb.
-   entailer!. unfold_data_at 2%nat.
-   rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
-   cancel.
- - (* Inner if, second branch:  k<x *)
-  forward.
-  unfold insert_inv.
-  Exists (offset_val 12 p1) t1_2.
-  entailer!.
-  replace (x<?k) with false by (symmetry; apply Z.ltb_ge; omega).
-  replace (k<?x) with true by (symmetry; apply Z.ltb_lt; omega).
-  replace (offset_val 12 p1) with (field_address t_struct_tree [StructField _right] p1)
-     by (unfold field_address; simpl; rewrite if_true by auto with field_compatible; auto).
-  apply RAMIF_PLAIN.trans'.
+    Exists b t. entailer.
+    apply ramify_PPQQ.
+  * (* Loop body *)
+    forward. (* Sskip *)
+    unfold insert_inv.
+    Intros b1 t1.
+    unfold treebox_rep at 1. Intros p1.
+    forward. (* p = *t; *)
+    forward_if.
+    + (* then clause *)
+      subst p1.
+      forward_call (sizeof t_struct_tree).
+        1: simpl; repable_signed.
+      Intros p'.
+      rewrite memory_block_data_at_ by auto.
+      forward. (* p->key=x; *)
+      simpl.
+      forward. (* p->value=value; *)
+      forward. (* p->left=NULL; *)
+      forward. (* p->right=NULL; *)
+      assert_PROP (t1= (@E _)).
+        1: entailer!.
+      subst t1. simpl tree_rep. rewrite !prop_true_andp by auto.
+      rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
+      forward. (* *t = p; *)
+      forward. (* return; *)
+      apply modus_ponens_wand'.
+      apply treebox_rep_leaf; auto.
+    + (* else clause *)
+      destruct t1.
+        { simpl tree_rep. normalize. contradiction H1; auto. }
+      simpl tree_rep.
+      Intros pa pb. clear H1.
+      forward. (* y=p->key; *)
+      forward_if; [ | forward_if ].
+      - (* Inner if, then clause: x<k *)
+        forward. (* t=&p->left *)
+        unfold insert_inv.
+        Exists (offset_val 8 p1) t1_1.
+        entailer!.
+        (* TODO: SIMPLY THIS LINE *)
+        replace (x<?k) with true by (symmetry; apply Z.ltb_lt; omega).
+        (* TODO: SIMPLY THIS LINE *)
+        replace (offset_val 8 p1)
+          with (field_address t_struct_tree [StructField _left] p1)
+          by (unfold field_address; simpl;
+              rewrite if_true by auto with field_compatible; auto).
+        apply RAMIF_PLAIN.trans'.
+        apply insert_left_entail; auto.
+      - (* Inner if, second branch:  k<x *)
+        forward. (* t=&p->right *)
+        unfold insert_inv.
+        Exists (offset_val 12 p1) t1_2.
+        entailer!.
+        (* TODO: SIMPLY THIS LINE *)
+        replace (x<?k) with false by (symmetry; apply Z.ltb_ge; omega).
+        (* TODO: SIMPLY THIS LINE *)
+        replace (k<?x) with true by (symmetry; apply Z.ltb_lt; omega).
+        (* TODO: SIMPLY THIS LINE *)
+        replace (offset_val 12 p1)
+          with (field_address t_struct_tree [StructField _right] p1)
+          by (unfold field_address; simpl;
+              rewrite if_true by auto with field_compatible; auto).
+        apply RAMIF_PLAIN.trans'.
   unfold_data_at 2%nat.
    rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
    match goal with |- ?A * (?Bk * (?Bv * (?Ba * ?Bb))) * ?Ta * ?Tb |-- _ =>
