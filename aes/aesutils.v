@@ -1,5 +1,5 @@
 Require Import floyd.proofauto.
-Require Import aes.AES256.
+Require Import aes.spec_AES256_HL.
 
 Require Import Coqlib.
 Require Import msl.Coqlib2. 
@@ -149,7 +149,7 @@ Fixpoint generate_forward_table (table : list int) : list word :=
   | [] => []
   end.
 
-Definition ft_words := generate_forward_table sbox.
+Definition ft_words := generate_forward_table (map Int.repr sbox).
 
 (* opposite direction of RotWord, brings last byte to front. Applies
  * rotation n times *)
@@ -175,7 +175,7 @@ Fixpoint generate_reverse_table (table : list int) : list word :=
   | [] => []
   end.
 
-Definition rt_words := generate_reverse_table inv_sbox.
+Definition rt_words := generate_reverse_table (map Int.repr inv_sbox).
 
 Definition RT0 := words_to_ints rt_words.
 Definition RT1 := words_to_ints (map (rotate 1%nat) rt_words).
