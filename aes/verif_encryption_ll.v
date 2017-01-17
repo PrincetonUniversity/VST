@@ -1,4 +1,5 @@
 Require Import floyd.proofauto.
+Require Import floyd.reassoc_seq.
 Require Import aes.aes.
 Require Import aes.tablesLL.
 
@@ -179,10 +180,25 @@ Lemma zero_ext_mask: forall i,
   Int.zero_ext 8 i = Int.and i (Int.repr 255).
 Admitted.
 
+(* This is to make sure do_compute_expr (invoked by load_tac and others), which calls hnf on the
+   expression it's computing, does not unfold field_address.
+   TODO floyd: Ideally, we'd have "Global Opaque field_address field_address0" in the library,
+   but some proofs want to unfold field_address (they shouldn't, though). *)
+Opaque field_address.
+
+(* entailer! calls simpl, and if simpl tries to evaluate a column of the final AES encryption result,
+   it takes forever, so we have to prevent this: *)
+Arguments col _ _ : simpl never.
+(* Same problem with "Z.land _ 255" *)
+Arguments Z.land _ _ : simpl never.
+
+(* This one is to prevent simplification of "12 - _", which is fast, but produces silly verbose goals *)
+Arguments Nat.sub _ _ : simpl never.
+
 Lemma body_aes_encrypt: semax_body Vprog Gprog f_mbedtls_aes_encrypt encryption_spec_ll.
 Proof.
   start_function.
-  (* TODO floyd: put (Sreturn None) in such a way that the code can be folded into MORE_COMMANDS *)
+  reassoc_seq.
 
   (* RK = ctx->rk; *)
   forward.
@@ -204,16 +220,6 @@ Proof.
     subst. rewrite Zlength_app. rewrite H0. reflexivity.
   }
 
-  Ltac forward2 :=
-    (forward; autorewrite with sublist); (* TODO floyd why doesn't entailer do the autorewrite? *)
-    [ solve [ entailer! ] | idtac ].
-
-  (* GET_UINT32_LE( X0, input,  0 ); X0 ^= *RK++;
-     GET_UINT32_LE( X1, input,  4 ); X1 ^= *RK++;
-     GET_UINT32_LE( X2, input,  8 ); X2 ^= *RK++;
-     GET_UINT32_LE( X3, input, 12 ); X3 ^= *RK++; *)
-  Ltac GET_UINT32_LE_tac := do 4 forward2.
-
   assert_PROP (forall i, 0 <= i < 60 -> force_val (sem_add_pi tuint
        (field_address t_struct_aesctx [ArraySubsc  i   ; StructField _buf] ctx) (Vint (Int.repr 1)))
      = (field_address t_struct_aesctx [ArraySubsc (i+1); StructField _buf] ctx)) as Eq. {
@@ -227,11 +233,14 @@ Proof.
     reflexivity.
   }
 
-  Time do 4 (
-    GET_UINT32_LE_tac; simpl; forward; forward; forward;
-    rewrite Eq by omega; simpl;
-    forward2; forward
-  ). (* 515s *)
+  (* GET_UINT32_LE( X0, input,  0 ); X0 ^= *RK++;
+     GET_UINT32_LE( X1, input,  4 ); X1 ^= *RK++;
+     GET_UINT32_LE( X2, input,  8 ); X2 ^= *RK++;
+     GET_UINT32_LE( X3, input, 12 ); X3 ^= *RK++; *)
+  do 4 forward. simpl. forward. forward. forward. simpl. rewrite Eq by omega. simpl. forward. forward.
+  do 4 forward. simpl. forward. forward. forward. simpl. rewrite Eq by omega. simpl. forward. forward.
+  do 4 forward. simpl. forward. forward. forward. simpl. rewrite Eq by omega. simpl. forward. forward.
+  do 4 forward. simpl. forward. forward. forward. simpl. rewrite Eq by omega. simpl. forward. forward.
 
   pose (S0 := mbed_tls_initial_add_round_key plaintext buf).
 
@@ -240,26 +249,21 @@ Proof.
   match goal with |- context [temp _X2 (Vint ?E)] => change E with (col 2 S0) end.
   match goal with |- context [temp _X3 (Vint ?E)] => change E with (col 3 S0) end.
 
-unfold Sfor.
+  forward. unfold Sfor. forward.
 
-(* beginning of for loop *)
-
-(* initialisation of i is two steps: *)
-forward. forward.
-
-(* ugly hack to avoid type mismatch between
+  (* ugly hack to avoid type mismatch between
    "(val * (val * list val))%type" and "reptype t_struct_aesctx" *)
-assert (exists (v: reptype t_struct_aesctx), v =
+  assert (exists (v: reptype t_struct_aesctx), v =
        (Vint (Int.repr Nr),
           (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx,
           map Vint (map Int.repr buf))))
-as EE by (eexists; reflexivity).
+  as EE by (eexists; reflexivity).
 
-destruct EE as [vv EE].
+  destruct EE as [vv EE].
 
-pose (S12 := mbed_tls_enc_rounds 12 S0 buf 4).
+  remember (mbed_tls_enc_rounds 12 S0 buf 4) as S12.
 
-apply semax_pre with (P' := 
+  apply semax_pre with (P' := 
   (EX i: Z, PROP ( 
      0 <= i <= 6
   ) LOCAL (
@@ -279,9 +283,9 @@ apply semax_pre with (P' :=
      data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
      data_at ctx_sh t_struct_aesctx vv ctx 
   ))).
-{ subst vv. Exists 6. entailer!. }
+  { subst vv. Exists 6. entailer!. }
 
-eapply semax_seq' with (P' :=
+  eapply semax_seq' with (P' :=
   PROP ( )
   LOCAL (
      temp _RK (field_address t_struct_aesctx [ArraySubsc 52; StructField _buf] ctx);
@@ -298,9 +302,8 @@ eapply semax_seq' with (P' :=
      tables_initialized tables;
      data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
      data_at ctx_sh t_struct_aesctx vv ctx 
-  )
-).
-{ apply semax_loop with (
+  )).
+  { apply semax_loop with (
   (EX i: Z, PROP ( 
      0 < i <= 6
   ) LOCAL (
@@ -320,10 +323,11 @@ eapply semax_seq' with (P' :=
      data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
      data_at ctx_sh t_struct_aesctx vv ctx 
   ))).
-{ (* loop body *) 
-Intro i.
+  { (* loop body *) 
+  Intro i.
+  reassoc_seq.
 
-forward_if
+  forward_if
   (EX i: Z, PROP ( 
      0 < i <= 6
   ) LOCAL (
@@ -343,12 +347,12 @@ forward_if
      data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
      data_at ctx_sh t_struct_aesctx vv ctx
   )).
-{ (* then-branch: Sskip to body *)
+  { (* then-branch: Sskip to body *)
   Intros. forward. Exists i.
   rewrite Int.signed_repr in *; [ | repable_signed ]. (* TODO floyd why is this not automatic? *)
   entailer!.
-}
-{ (* else-branch: exit loop *)
+  }
+  { (* else-branch: exit loop *)
   Intros.
   rewrite Int.signed_repr in *; [ | repable_signed ]. (* TODO floyd why is this not automatic? *)
   forward. assert (i = 0) by omega. subst i.
@@ -356,67 +360,18 @@ forward_if
   change (12 - 2 * Z.to_nat 0)%nat with 12%nat.
   replace (mbed_tls_enc_rounds 12 S0 buf 4) with S12 by reflexivity. (* interestingly, if we use
      "change" instead of "replace", it takes much longer *)
-  (* simpl. <- takes forever. *)
-  (* entailer!. <- takes >60s, because it calls go_lower, which calls simpl
-    TODO floyd make entailer! usable here *)
-
-  apply drop_LOCAL' with (n := O). cbv [delete_nth].
-  eapply derives_trans; [ apply drop_tc_environ | ].
-  apply derives_refl.
-}
-{ (* rest: loop body *)
+  entailer!.
+  }
+  { (* rest: loop body *)
   clear i. Intro i. Intros. 
   unfold tables_initialized. subst vv.
+  pose proof masked_byte_range.
 
-Ltac remember_temp_Vints done :=
-  lazymatch goal with
-  | |- context [ ?T :: done ] => match T with
-    | temp ?Id (Vint ?V) =>
-      let V0 := fresh "V" in remember V as V0;
-      remember_temp_Vints ((temp Id (Vint V0)) :: done)
-    | _ => remember_temp_Vints (T :: done)
-    end
-  | |- semax _ (PROPx _ (LOCALx done (SEPx _))) _ _ => idtac
-  | _ => fail 100 "assertion failure: did not find" done
-  end.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
 
-Ltac entailer_for_load_tac ::=
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range;
-  try quick_typecheck3.
-
-  forward. forward. rewrite Eq by omega.
-  forward2.
-  remember_temp_Vints (@nil localdef).
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
-  forward.
-
-  forward. forward. rewrite Eq by omega.
-  forward2.
-  remember_temp_Vints (@nil localdef).
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
-  forward.
-
-  forward. forward. rewrite Eq by omega.
-  forward2.
-  remember_temp_Vints (@nil localdef).
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
-  forward.
-
-  forward. forward. rewrite Eq by omega.
-  forward2.
-  remember_temp_Vints (@nil localdef).
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
-  forward.
-
-  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
   replace (52 - i * 8 + 1 + 1 + 1 + 1) with (52 - i * 8 + 4) by omega.
   replace (52 - i * 8 + 1 + 1 + 1)     with (52 - i * 8 + 3) by omega.
   replace (52 - i * 8 + 1 + 1)         with (52 - i * 8 + 2) by omega.
@@ -437,50 +392,14 @@ Ltac entailer_for_load_tac ::=
     rewrite (split_four_ints (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4)).
     reflexivity.
   }
+  apply split_four_ints_eq in Eq2. destruct Eq2 as [EqY0 [EqY1 [EqY2 EqY3]]].
+  rewrite EqY0. rewrite EqY1. rewrite EqY2. rewrite EqY3.
+  clear EqY0 EqY1 EqY2 EqY3.
 
-
-apply split_four_ints_eq in Eq2. destruct Eq2 as [EqY0 [EqY1 [EqY2 EqY3]]].
-rewrite EqY0. rewrite EqY1. rewrite EqY2. rewrite EqY3.
-clear EqY0 EqY1 EqY2 EqY3.
-
-  forward. forward. rewrite Eq by omega.
-  forward2.
-  remember_temp_Vints (@nil localdef).
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
-  forward.
-
-  forward. forward. rewrite Eq by omega.
-  forward2.
-  remember_temp_Vints (@nil localdef).
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
-  forward.
-
-  forward. forward. rewrite Eq by omega.
-  forward2.
-  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
-  remember_temp_Vints (@nil localdef).
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
-  forward.
-
-  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
-  remember_temp_Vints (@nil localdef).
-
-  forward. forward. rewrite Eq by omega.
-  forward2.
-  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
-  remember_temp_Vints (@nil localdef).
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
-  forward.
-
-  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
 
   pose (S'' := mbed_tls_fround S' buf (52-i*8+4)).
 
@@ -502,14 +421,13 @@ clear EqY0 EqY1 EqY2 EqY3.
     rewrite (split_four_ints S').
     reflexivity.
   }
+  apply split_four_ints_eq in Eq2. destruct Eq2 as [EqX0 [EqX1 [EqX2 EqX3]]].
+  rewrite EqX0. rewrite EqX1. rewrite EqX2. rewrite EqX3.
+  clear EqX0 EqX1 EqX2 EqX3.
 
-apply split_four_ints_eq in Eq2. destruct Eq2 as [EqX0 [EqX1 [EqX2 EqX3]]].
-rewrite EqX0. rewrite EqX1. rewrite EqX2. rewrite EqX3.
-clear EqX0 EqX1 EqX2 EqX3.
-
-Exists i.
-replace (52 - i * 8 + 4 + 4) with (52 - (i - 1) * 8) by omega.
-subst S' S''.
+  Exists i.
+  replace (52 - i * 8 + 4 + 4) with (52 - (i - 1) * 8) by omega.
+  subst S' S''.
   assert (
     (mbed_tls_fround
       (mbed_tls_fround 
@@ -557,56 +475,20 @@ subst S' S''.
   remember (mbed_tls_fround (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4) buf (52 - i * 8)) as S'.
   replace (52 - i * 8 + 4 + 4) with (52 - (i - 1) * 8) by omega.
   entailer!.
-}
-}
-{ (* loop decr *)
+  }} { (* loop decr *)
   Intro i. forward. unfold loop2_ret_assert. Exists (i-1). entailer!.
-}
-}
-{ abbreviate_semax. subst vv. unfold tables_initialized.
+  }} {
+  abbreviate_semax. subst vv. unfold tables_initialized.
+  pose proof masked_byte_range.
 
   (* 2nd-to-last AES round: just a normal AES round, but not inside the loop *)
 
-  forward. forward. rewrite Eq by omega.
-  forward2.
-  remember_temp_Vints (@nil localdef).
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
-  forward.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
 
-  forward. forward. rewrite Eq by omega.
-  forward2.
-  remember_temp_Vints (@nil localdef).
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
-  forward.
-
-  forward. forward. rewrite Eq by omega.
-  forward2.
-  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
-  remember_temp_Vints (@nil localdef).
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
-  forward.
-
-  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
-  remember_temp_Vints (@nil localdef).
-
-  forward. forward. rewrite Eq by omega.
-  forward2.
-  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
-  remember_temp_Vints (@nil localdef).
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
-  forward.
-
-  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
-
-  pose (S13 := mbed_tls_fround S12 buf 52).
+  remember (mbed_tls_fround S12 buf 52) as S13.
 
   match goal with |- context [temp _Y0 (Vint ?E0)] =>
     match goal with |- context [temp _Y1 (Vint ?E1)] =>
@@ -623,92 +505,206 @@ subst S' S''.
     forget 12%nat as N.
     reflexivity.
   }
-
-apply split_four_ints_eq in Eq2. destruct Eq2 as [EqY0 [EqY1 [EqY2 EqY3]]].
-rewrite EqY0. rewrite EqY1. rewrite EqY2. rewrite EqY3.
-clear EqY0 EqY1 EqY2 EqY3.
+  apply split_four_ints_eq in Eq2. destruct Eq2 as [EqY0 [EqY1 [EqY2 EqY3]]].
+  rewrite EqY0. rewrite EqY1. rewrite EqY2. rewrite EqY3.
+  clear EqY0 EqY1 EqY2 EqY3.
 
   (* last AES round: special (uses S-box instead of forwarding tables) *)
+  pose proof FSb_range.
 
-Ltac entailer_for_load_tac ::=
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range;
-  try (
-    match goal with
-    | |- context [ (tc_val _ (Vint (Znth ?i FSb Int.zero))) ] => 
-      assert (Int.unsigned (Znth i FSb Int.zero) <= Byte.max_unsigned) by apply FSb_range
-    end;
-    solve [ entailer! ]
-  ).
+  (* We have to hide the definition of S12 and S13 for subst, because otherwise the entailer
+     will substitute them and then call my_auto, which calls now, which calls easy, which calls
+     inversion on a hypothesis containing the substituted S12, which takes forever, because it
+     tries to simplify S12.
+     TODO floyd or documentation: What should users do if "forward" takes forever? *)
+  pose proof (HeqS12, HeqS13) as hidden. clear HeqS12 HeqS13.
 
-  forward. forward. rewrite Eq by omega.
-  forward2.
-  remember_temp_Vints (@nil localdef).
-  do 1 (forward; [apply prop_right; apply masked_byte_range | ]).
-  do 1 (forward; [apply prop_right; apply masked_byte_range | ]).
-  do 1 (forward; [apply prop_right; apply masked_byte_range | ]).
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward.
+
+Timeout 60 forward.
+Timeout 60 forward.
+(* Timeout 60 forward. timeout! *)
+(*
+assert (0 <= 8 <= 32) by omega.
+assert (0 <= 16 <= 32) by omega.
+assert (0 <= 24 <= 32) by omega.
+remember 8 as eight. remember 16 as sixteen. remember 24 as twentyfour.
+pose proof (Heqeight, Heqsixteen, Heqtwentyfour) as hidden2. clear Heqeight Heqsixteen Heqtwentyfour.
+*)
+
+(* Timeout 60 forward.   still timeout! *)
+
+(* inversion on an equality inferred from the C source involving (Int.shru _ (Int.repr 16)) *)
+
+  (* TODO here, forward takes forever, and entailer! too *)
+
 
 Ltac entailer_for_load_tac ::= idtac.
-  forward.
+forward.
 
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-match goal with
-    | |- context [ (tc_val _ (Vint (Znth ?i FSb Int.zero))) ] => 
-      assert (Int.unsigned (Znth i FSb Int.zero) <= Byte.max_unsigned) by apply FSb_range
-    end.
-remember 24 as twentyfour. rewrite Heqtwentyfour at 3.
-entailer!.
-apply prop_right; apply masked_byte_range.
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
-  forward.
+ Timeout 50 (intros;
+ match goal with
+ | |- local _ && ?P |-- _ => go_lower; try simple apply empTrue
+ | |- ?P |-- _ =>
+    match type of P with 
+    | ?T => unify T mpred; pull_out_props
+    end
+ | |- _ => fail "The entailer tactic works only on entailments  _ |-- _ "
+ end).
+ Timeout 50 saturate_local.
+ Timeout 50 ent_iter.
+ (*Timeout 50 contradiction.*)
+Timeout 50 simple apply prop_right.
 
-  forward. forward. rewrite Eq by omega.
-  forward2.
-  remember_temp_Vints (@nil localdef).
+(* my_auto times out!, even though 'apply H2' would solve the goal! *)
 
-Ltac entailer_for_load_tac ::=
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range;
-  try (
+(*Ltac my_auto :=*)
+ rewrite ?isptr_force_ptr by auto.
+ Timeout 50 eapply my_auto_lem.
+ - intro HH.
+
+(*Ltac my_auto_iter H :=*)
+ instantiate (1:=True) in HH. (*  prove_it_now. times out *)
+(*Ltac prove_it_now := *)
+(* splittable; fail 1. *)
+(*         computable . *)
+(*         apply Coq.Init.Logic.I . *)
+(*        reflexivity . *)
+    (*     Omega0.  times out *)
+
+omegable.
+
+(*  Omega'' (now helper1)  must time out  *)
+
+(*Ltac Omega'' L :=*)
+  match goal with
+  | |- (_ >= _)%nat => apply <- Nat2Z.inj_ge
+  | |- (_ > _)%nat => apply <- Nat2Z.inj_gt
+  | |- (_ <= _)%nat => apply <- Nat2Z.inj_le
+  | |- (_ < _)%nat => apply <- Nat2Z.inj_lt
+  | |- @eq nat _ _ => apply Nat2Z.inj
+  | |- _ => idtac
+  end;
+ repeat first
+     [ simpl_const
+     | rewrite Nat2Z.id
+     | rewrite Nat2Z.inj_add
+     | rewrite Nat2Z.inj_mul
+     | rewrite Z2Nat.id by Omega'' (now helper1)
+     | rewrite Nat2Z.inj_sub by Omega'' (now helper1)
+     | rewrite Z2Nat.inj_sub by Omega'' (now helper1)
+     | rewrite Z2Nat.inj_add by Omega'' (now helper1)
+     ].
+Ltac theTac := (now helper1).
+(* Timeout 50  Omega' theTac.  times out! *)
+
+(*Ltac Omega' L := *)
+repeat match goal with
+ | H: @eq Z _ _ |- _ => revert H
+ | H: @eq nat _ _ |- _ => revert H
+ | H: @neq Z _ _ |- _ => revert H
+ | H: not (@eq Z _ _) |- _ => revert H
+ | H: @neq nat _ _ |- _ => revert H
+ | H: not (@eq nat _ _) |- _ => revert H
+ | H: _ <> _ |- _ => revert H
+ | H: Z.lt _ _ |- _ => revert H
+ | H: Z.le _ _ |- _ => revert H
+ | H: Z.gt _ _ |- _ => revert H
+ | H: Z.ge _ _ |- _ => revert H
+ | H: Z.le _ _ /\ Z.le _ _ |- _ => revert H
+ | H: Z.lt _ _ /\ Z.le _ _ |- _ => revert H
+ | H: Z.le _ _ /\ Z.lt _ _ |- _ => revert H
+ | H: lt _ _ |- _ => revert H
+ | H: le _ _ |- _ => revert H
+ | H: gt _ _ |- _ => revert H
+ | H: ge _ _ |- _ => revert H
+ | H: le _ _ /\ le _ _ |- _ => revert H
+ | H: lt _ _ /\ le _ _ |- _ => revert H
+ | H: le _ _ /\ lt _ _ |- _ => revert H
+ | H := ?A : Z |- _ => apply (omega_aux H A (eq_refl _)); clearbody H 
+ | H := ?A : nat |- _ => apply (omega_aux H A (eq_refl _)); clearbody H 
+ | H: _ |- _ => clear H
+ end.
+ clear.
+
+(* (now helper1) times out *)
+
+(*Ltac helper1 := *)
+Timeout 50 match goal with
+   | |- context [Zlength ?A] => add_nonredundant (Zlength_correct A)
+   | |- context [Int.max_unsigned] => add_nonredundant int_max_unsigned_eq
+   | |- context [Int.max_signed] => add_nonredundant int_max_signed_eq
+   | |- context [Int.min_signed] => add_nonredundant int_min_signed_eq
+  end. 
+
+(*Tactic Notation "now" tactic(t) := t; easy.*)
+
+(* Timeout 50 easy. times out *)
+
+(*
+Pos.compare
+Z.compare
+Locate "_ ?= _".
+Z.le
+*)
+
+do 6 intro.
+(* Arguments Int.shru _ _ : simpl never.  doesn't help *)
+(*forget 16 as sixteen.*)
+clear - H2.
+ inversion H2. (* <-- this one is fast if we "forget 16 as sixteen", otherwise it takes forever.
+But if we forget 8, 16, 24 as above, forward takes forever, even when entailer_for_load_tac is idtac.
+And if we try to isolate the problem in isolate_inversion_slowness.v, the problem vanishes and inversion
+is fast again...
+ *)
+inversion H2. (* <--- this is the source of the timeout!!! *)
+
+(*Ltac easy := *)
+  let rec use_hyp H :=
+    match type of H with
+    | _ /\ _ => exact H || destruct_hyp H
+    | _ => try solve [inversion H]
+    end
+  with do_intro := let H := fresh in intro H; use_hyp H
+  with destruct_hyp H := case H; clear H; do_intro; do_intro in
+  let rec use_hyps :=
     match goal with
-    | |- context [ (tc_val _ (Vint (Znth ?i FSb Int.zero))) ] => 
-      assert (Int.unsigned (Znth i FSb Int.zero) <= Byte.max_unsigned) by apply FSb_range
-    end;
-    try (let Eqq := fresh "Eqq" in remember 24 as twentyfour eqn: Eqq; rewrite Eqq at 3);
-    solve [ entailer! ]
-  ).
+    | H : _ /\ _ |- _  => exact H || (destruct_hyp H; use_hyps)
+    | H : _ |- _ => solve [inversion H]
+    | _ => idtac
+    end in
+  let do_atom :=
+    solve [ trivial with eq_true | reflexivity | symmetry; trivial | contradiction ] in
+  let rec do_ccl :=
+    try do_atom;
+    repeat (do_intro; try do_atom);
+    solve [ split; do_ccl ] in
+  solve [ do_atom | use_hyps; (*do_ccl times out *)
+    try do_atom;
+    (*repeat (do_intro; try do_atom) times out *)
+    progress (do_intro; try do_atom);
+    progress (do_intro; try do_atom);
+    progress (do_intro; try do_atom);
+    progress (do_intro; try do_atom);
+    progress (do_intro; try do_atom);
+    (* progress (do_intro; try do_atom) <-- this one times out *)
+    let H := fresh in intro H (* use_hyp H  times out*);
+    match type of H with
+    | _ /\ _ => exact H || destruct_hyp H
+    | _ => try solve [inversion H]
+    end
+ ] ||
+  fail "Cannot solve this goal".
 
-  forward; [apply prop_right; apply masked_byte_range | ].
-  forward; [apply prop_right; apply masked_byte_range | ].
-  forward; [apply prop_right; apply masked_byte_range | ].
-  forward; [apply prop_right; apply masked_byte_range | ].
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
-  forward.
 
-  forward. forward. rewrite Eq by omega.
-  forward2.
-  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
-  remember_temp_Vints (@nil localdef).
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
-  forward.
 
-  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
-  remember_temp_Vints (@nil localdef).
 
-  forward. forward. rewrite Eq by omega.
-  forward2.
-  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
-  remember_temp_Vints (@nil localdef).
-  do 4 (forward; [apply prop_right; apply masked_byte_range | ]).
-  rewrite ?Znth_map with (d' := Int.zero) by apply masked_byte_range.
-  remember_temp_Vints (@nil localdef).
-  forward.
+                                                                      do 4 forward. forward.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
 
-  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
-
-  pose (S14 := mbed_tls_final_fround S13 buf 56).
+  remember (mbed_tls_final_fround S13 buf 56) as S14.
 
   match goal with |- context [temp _X0 (Vint ?E0)] =>
     match goal with |- context [temp _X1 (Vint ?E1)] =>
@@ -725,39 +721,51 @@ Ltac entailer_for_load_tac ::=
     forget 12%nat as N.
     reflexivity.
   }
+  apply split_four_ints_eq in Eq2. destruct Eq2 as [EqX0 [EqX1 [EqX2 EqX3]]].
+  rewrite EqX0. rewrite EqX1. rewrite EqX2. rewrite EqX3.
+  clear EqX0 EqX1 EqX2 EqX3.
 
-apply split_four_ints_eq in Eq2. destruct Eq2 as [EqX0 [EqX1 [EqX2 EqX3]]].
-rewrite EqX0. rewrite EqX1. rewrite EqX2. rewrite EqX3.
-clear EqX0 EqX1 EqX2 EqX3.
+  Ltac entailer_for_load_tac ::= idtac.
 
-Ltac entailer_for_load_tac ::= idtac.
+  Ltac remember_temp_Vints done :=
+  lazymatch goal with
+  | |- context [ ?T :: done ] => match T with
+    | temp ?Id (Vint ?V) =>
+      let V0 := fresh "V" in remember V as V0;
+      remember_temp_Vints ((temp Id (Vint V0)) :: done)
+    | _ => remember_temp_Vints (T :: done)
+    end
+  | |- semax _ (PROPx _ (LOCALx done (SEPx _))) _ _ => idtac
+  | _ => fail 100 "assertion failure: did not find" done
+  end.
+
   remember_temp_Vints (@nil localdef).
   forward.
 
-Ltac simpl_upd_Znth := match goal with
-| |- context [ (upd_Znth ?i ?l (Vint ?v)) ] =>
-  let vv := fresh "vv" in remember v as vv;
-  let a := eval cbv in (upd_Znth i l (Vint vv)) in change (upd_Znth i l (Vint vv)) with a
-end.
+  Ltac simpl_upd_Znth := match goal with
+  | |- context [ (upd_Znth ?i ?l (Vint ?v)) ] =>
+    let vv := fresh "vv" in remember v as vv;
+    let a := eval cbv in (upd_Znth i l (Vint vv)) in change (upd_Znth i l (Vint vv)) with a
+  end.
 
-simpl_upd_Znth.
+  simpl_upd_Znth.
   forward. simpl_upd_Znth. forward. simpl_upd_Znth. forward. simpl_upd_Znth.
   do 4 (forward; simpl_upd_Znth).
   do 4 (forward; simpl_upd_Znth).
   do 4 (forward; simpl_upd_Znth).
 
-rewrite zero_ext_mask in *.
-rewrite zero_ext_mask in *.
-rewrite Int.and_assoc in *.
-rewrite Int.and_assoc in *.
-rewrite Int.and_idem in *.
-rewrite Int.and_idem in *.
-repeat subst.  remember (exp_key ++ list_repeat 8 0) as buf.
+  rewrite zero_ext_mask in *.
+  rewrite zero_ext_mask in *.
+  rewrite Int.and_assoc in *.
+  rewrite Int.and_assoc in *.
+  rewrite Int.and_idem in *.
+  rewrite Int.and_idem in *.
+  repeat subst.  remember (exp_key ++ list_repeat 8 0) as buf.
 
-match goal with
-| |- context [ field_at _ _ _ ?res output ] =>
-   assert (res = (map Vint (mbed_tls_aes_enc plaintext buf))) as Eq3
-end. {
+  match goal with
+  | |- context [ field_at _ _ _ ?res output ] =>
+     assert (res = (map Vint (mbed_tls_aes_enc plaintext buf))) as Eq3
+  end. {
   unfold mbed_tls_aes_enc. unfold put_uint32_le.
   repeat match goal with
   | |- context [ Int.and ?a ?b ] => let va := fresh "va" in remember (Int.and a b) as va
@@ -770,31 +778,21 @@ end. {
   assert (4 + 4 * Z.of_nat twelve = 52) as Eq4. { subst twelve. reflexivity. }
   rewrite Eq4. clear Eq4.
   reflexivity.
-}
-rewrite Eq3. clear Eq3.
-
-remember_temp_Vints (@nil localdef).
-Ltac entailer_for_return ::= idtac.
-
-  (* TODO don't clear Eq in the beginning *)
-  assert ((field_address t_struct_aesctx [StructField _buf] ctx)
-        = (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx)) as Eq0buf. {
-    do 2 rewrite field_compatible_field_address by auto with field_compatible.
-    reflexivity.
   }
+  rewrite Eq3. clear Eq3.
+
+  Ltac entailer_for_return ::= idtac.
+
   rewrite <- Eq0buf in *.
 
-(* return None *)
-forward.
-remember (mbed_tls_aes_enc plaintext buf) as Res.
-unfold tables_initialized.
-entailer!.
-}
-(* verifying until here takes about 1 hour and 4.5 GB of memory *)
+  (* return None *)
+  forward.
+  remember (mbed_tls_aes_enc plaintext buf) as Res.
+  unfold tables_initialized.
+  entailer!.
+  }
 
-Time Qed. (* Increases memory usage from 4.5 GB to 8.5 GB within 5min using 1 CPU fully,
-  and then continues running for >2h, with no more memory consumption, using 25% of 1 CPU.
-  After that, I canceled it, so we don't know how long it would take in total. *)
+Time Qed.
 
 (* TODO floyd: sc_new_instantiate: distinguish between errors caused because the tactic is trying th
    wrong thing and errors because of user type errors such as "tuint does not equal t_struct_aesctx" *)

@@ -220,11 +220,6 @@ forward_for_simple_bound 8
  apply align_compatible_tarray_tuchar.
 *
   forward. (* ll=(c)->h[xn]; *)
-  {
-    entailer!.
-    rewrite Znth_map with (d':=Int.zero) by omega.
-    hnf; auto.
-  }
   pose (w := Znth i hashedmsg Int.zero).
   pose (bytes := map force_int (map Vint (map Int.repr (intlist_to_Zlist [w])))).
   assert (BYTES: bytes = 
