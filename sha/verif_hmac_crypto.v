@@ -73,11 +73,11 @@ Definition HMAC_crypto :=
              data_block Tsh (CONT MSG) msgVal;
              K_vector kv;
              memory_block shmd 32 md)
-  POST [ tvoid ]
+  POST [ tptr tuchar ] 
          EX digest:_,
           PROP (bytesToBits digest = bitspec KEY MSG /\
                 forall A Awf, CRYPTO A Awf)
-          LOCAL ()
+          LOCAL (temp ret_temp md)
           SEP(K_vector kv;
               data_block shmd digest md;
               initPostKey keyVal (CONT KEY);
@@ -108,7 +108,7 @@ Lemma hmacbodycryptoproof Espec k KEY msg MSG kv shmd md buf
              (Awf : @DistSem.well_formed_oc
                       (HMAC_spec_abstract.HMAC_Abstract.Message PARS256.P)
                       (Bvector c) bool A), CRYPTO A Awf))
-         LOCAL ()
+         LOCAL (temp ret_temp md)
          SEP  (K_vector kv; @data_block CompSpecs shmd digest md;
          initPostKey k (CONT KEY);
          @data_block CompSpecs Tsh (CONT MSG) msg))%assert)
@@ -165,10 +165,8 @@ forward.
 rename H5 into FBUF.*)
 specialize (hmac_sound key data). unfold hmac.
 rewrite <- HeqRES. simpl; intros.
-Exists buf dig.
-(*clear - FC FC_c H7 H8 isbyteZ_key H0.*)
-Time normalize. (*6.4*) (*calling entailer! here takes > 13 secs*)
-apply andp_right. apply prop_right. subst.
+Exists buf dig. entailer!. 
+{ subst.
        split. unfold bitspec. simpl. rewrite Equivalence.
          f_equal. unfold HMAC_spec_abstract.HMAC_Abstract.Message2Blist.
          remember (mkCont data) as dd. destruct dd. destruct a; subst x.
@@ -178,11 +176,10 @@ apply andp_right. apply prop_right. subst.
            apply isbyteZ_mkKey. assumption.
            assumption.
            intros ? X. apply X.
-       split; trivial. split; trivial.
+       (*split; trivial. split; trivial. *)
        intros ? X.
-        unfold CRYPTO; intros. apply HMAC256_isPRF; assumption.
-cancel.
-  unfold data_block.
+        unfold CRYPTO; intros. apply HMAC256_isPRF; assumption. }
+unfold data_block.
   rewrite Zlength_correct; simpl.
   apply andp_left2.
   rewrite <- memory_block_data_at_; trivial.

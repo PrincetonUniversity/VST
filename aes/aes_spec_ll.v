@@ -48,6 +48,13 @@ Axiom put_uint32_le_def: put_uint32_le = fun (x : int) =>
     (Int.and (Int.shru x (Int.repr 16)) (Int.repr 255));
     (Int.and (Int.shru x (Int.repr 24)) (Int.repr 255)) ].
 
+Parameter output_four_ints_as_bytes: four_ints -> list int.
+Axiom output_four_ints_as_bytes_def: output_four_ints_as_bytes = fun (s : four_ints) =>
+  (put_uint32_le (col 0 s)) ++
+  (put_uint32_le (col 1 s)) ++
+  (put_uint32_le (col 2 s)) ++
+  (put_uint32_le (col 3 s)).
+
 Parameter byte0: int -> Z.
 Axiom byte0_def: byte0 = fun (x : int) =>
   (Z.land (Int.unsigned x) (Int.unsigned (Int.repr 255))).
@@ -126,10 +133,7 @@ Axiom mbed_tls_aes_enc_def: mbed_tls_aes_enc = fun (plaintext : list Z) (rks : l
   let state0  := mbed_tls_initial_add_round_key plaintext rks in
   let state13 := mbed_tls_enc_rounds 13 state0 rks 4 in
   let state14 := mbed_tls_final_fround state13 rks 56 in
-  (put_uint32_le (col 0 state14)) ++
-  (put_uint32_le (col 1 state14)) ++
-  (put_uint32_le (col 2 state14)) ++
-  (put_uint32_le (col 3 state14)).
+  output_four_ints_as_bytes state14.
 
 End AES_LL_Spec_Type.
 
@@ -162,6 +166,18 @@ Lemma put_uint32_le_def: put_uint32_le = fun (x : int) =>
     (Int.and (Int.shru x (Int.repr  8)) (Int.repr 255));
     (Int.and (Int.shru x (Int.repr 16)) (Int.repr 255));
     (Int.and (Int.shru x (Int.repr 24)) (Int.repr 255)) ].
+Proof. reflexivity. Qed.
+
+Definition output_four_ints_as_bytes (s : four_ints) :=
+  (put_uint32_le (col 0 s)) ++
+  (put_uint32_le (col 1 s)) ++
+  (put_uint32_le (col 2 s)) ++
+  (put_uint32_le (col 3 s)).
+Lemma output_four_ints_as_bytes_def: output_four_ints_as_bytes = fun (s : four_ints) =>
+  (put_uint32_le (col 0 s)) ++
+  (put_uint32_le (col 1 s)) ++
+  (put_uint32_le (col 2 s)) ++
+  (put_uint32_le (col 3 s)).
 Proof. reflexivity. Qed.
 
 Definition byte0 (x : int) : Z :=
@@ -298,10 +314,7 @@ Lemma mbed_tls_aes_enc_def: mbed_tls_aes_enc = fun (plaintext : list Z) (rks : l
   let state0  := mbed_tls_initial_add_round_key plaintext rks in
   let state13 := mbed_tls_enc_rounds 13 state0 rks 4 in
   let state14 := mbed_tls_final_fround state13 rks 56 in
-  (put_uint32_le (col 0 state14)) ++
-  (put_uint32_le (col 1 state14)) ++
-  (put_uint32_le (col 2 state14)) ++
-  (put_uint32_le (col 3 state14)).
+  output_four_ints_as_bytes state14.
 Proof. reflexivity. Qed.
 
 End AES_LL_Spec.

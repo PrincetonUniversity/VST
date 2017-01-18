@@ -72,7 +72,7 @@ freeze [0;2;3] FR5.
 forward_call (fst (hmacFinal (hmacUpdate data (hmacInit key))), c).
 freeze [0;1] FR6.
 Time forward. (*4.2*)
-Exists c. entailer!.
+Exists c. entailer!. Exists (HMAC256 data key). entailer.
 thaw FR6. thaw FR5. Time cancel. (*2.2*)
 thaw FR4. Time cancel. (*2.1*)
 rewrite <- (hmac_sound key data). unfold hmac.
@@ -86,4 +86,4 @@ assert_PROP (field_compatible (tarray tuchar (sizeof t_struct_hmac_ctx_st)) [] c
 rewrite (memory_block_data_at_ Tsh (tarray tuchar (@sizeof (@cenv_cs CompSpecs) t_struct_hmac_ctx_st))).
   2: trivial.
   eapply derives_trans. apply data_at_data_at_. apply derives_refl.
-Time Qed. (*15*)
+Time Qed. 
