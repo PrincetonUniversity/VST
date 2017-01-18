@@ -247,16 +247,16 @@ Proof.
   unfold treebox_rep, tree_rep. Exists p nullval nullval. entailer!.
 Qed.
 
-Lemma insert_left_entail: forall (t1 t2: tree val) k k0 (v p1 p2 p b v0: val),
+Lemma bst_left_entail: forall (t1 t1' t2: tree val) k (v p1 p2 p b: val),
   Int.min_signed <= k <= Int.max_signed ->
   is_pointer_or_null v ->
   data_at Tsh (tptr t_struct_tree) p b *
   data_at Tsh t_struct_tree (Vint (Int.repr k), (v, (p1, p2))) p *
   tree_rep t1 p1 * tree_rep t2 p2
   |-- treebox_rep t1 (field_address t_struct_tree [StructField _left] p) *
-       (treebox_rep (insert k0 v0 t1)
+       (treebox_rep t1'
          (field_address t_struct_tree [StructField _left] p) -*
-        treebox_rep (T (insert k0 v0 t1) k v t2) b).
+        treebox_rep (T t1' k v t2) b).
 Proof.
   intros.
   unfold_data_at 2%nat.
@@ -276,16 +276,16 @@ Proof.
   cancel.
 Qed.
 
-Lemma insert_right_entail: forall (t1 t2: tree val) k k0 (v p1 p2 p b v0: val),
+Lemma bst_right_entail: forall (t1 t2 t2': tree val) k (v p1 p2 p b: val),
   Int.min_signed <= k <= Int.max_signed ->
   is_pointer_or_null v ->
   data_at Tsh (tptr t_struct_tree) p b *
   data_at Tsh t_struct_tree (Vint (Int.repr k), (v, (p1, p2))) p *
   tree_rep t1 p1 * tree_rep t2 p2
   |-- treebox_rep t2 (field_address t_struct_tree [StructField _right] p) *
-       (treebox_rep (insert k0 v0 t2)
+       (treebox_rep t2'
          (field_address t_struct_tree [StructField _right] p) -*
-        treebox_rep (T t1 k v (insert k0 v0 t2)) b).
+        treebox_rep (T t1 k v t2') b).
 Proof.
   intros.
   unfold_data_at 2%nat.
@@ -378,7 +378,7 @@ Proof.
           by (unfold field_address; simpl;
               rewrite if_true by auto with field_compatible; auto).
         apply RAMIF_PLAIN.trans'.
-        apply insert_left_entail; auto.
+        apply bst_left_entail; auto.
       - (* Inner if, second branch:  k<x *)
         forward. (* t=&p->right *)
         unfold insert_inv.
@@ -391,7 +391,7 @@ Proof.
           by (unfold field_address; simpl;
               rewrite if_true by auto with field_compatible; auto).
         apply RAMIF_PLAIN.trans'.
-        apply insert_right_entail; auto.
+        apply bst_right_entail; auto.
       - (* Inner if, third branch: x=k *)
         assert (x=k) by omega.
         subst x. clear H H1 H4.
