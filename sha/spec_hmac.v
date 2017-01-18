@@ -372,11 +372,11 @@ Definition HMAC_spec :=
              data_block Tsh (CONT MSG) msgVal;
              K_vector kv;
              memory_block shmd 32 md)
-  POST [ tvoid ] 
-          PROP ()
-          LOCAL ()
+  POST [ tptr tuchar ] EX digest:_,
+          PROP (digest= HMAC256 (CONT MSG) (CONT KEY))
+          LOCAL (temp ret_temp md)
           SEP(K_vector kv;
-              data_block shmd (HMAC256 (CONT MSG) (CONT KEY)) md;
+              data_block shmd digest md;
               initPostKey keyVal (CONT KEY);
               data_block Tsh (CONT MSG) msgVal).
 

@@ -53,10 +53,6 @@ Definition mbed_tls_final_fround' (S13 : state) (last_exp_key_block : block) : s
     0
   ).
 
-Lemma final_round_equiv: forall S K,
-  mbed_tls_final_fround' S K = last_round S K.
-Admitted.
-
 Lemma split_quad_eq: forall {T : Type} (c0 c1 c2 c3 c0' c1' c2' c3' : T),
   c0 = c0' -> c1 = c1' -> c2 = c2' -> c3 = c3' -> (c0, c1, c2, c3) = (c0', c1', c2', c3').
 Proof.
@@ -75,6 +71,126 @@ Lemma word_to_int_int_to_word: forall i,
 Proof.
   intros. unfold int_to_word. unfold word_to_int. unfold SHA256.little_endian_integer.
   (* Yay, TODO *)
+Admitted.
+
+Lemma int_to_word_word_to_int: forall w,
+  int_to_word (word_to_int w) = w.
+Admitted.
+
+Lemma byte0_word_to_int: forall b0 b1 b2 b3,
+  byte0 (word_to_int (b0, b1, b2, b3)) = Int.unsigned b0.
+Admitted.
+
+Lemma byte1_word_to_int: forall b0 b1 b2 b3,
+  byte1 (word_to_int (b0, b1, b2, b3)) = Int.unsigned b1.
+Admitted.
+
+Lemma byte2_word_to_int: forall b0 b1 b2 b3,
+  byte2 (word_to_int (b0, b1, b2, b3)) = Int.unsigned b2.
+Admitted.
+
+Lemma byte3_word_to_int: forall b0 b1 b2 b3,
+  byte3 (word_to_int (b0, b1, b2, b3)) = Int.unsigned b3.
+Admitted.
+
+Lemma int_to_word_xor_shl: forall b0 b1 b2 b3,
+  int_to_word (Int.xor (Int.xor (Int.xor 
+    b0
+    (Int.shl b1 (Int.repr 8)))
+    (Int.shl b2 (Int.repr 16)))
+    (Int.shl b3 (Int.repr 24))) =
+  (b0, b1, b2, b3).
+Proof.
+  intros. unfold int_to_word. apply split_quad_eq.
+Admitted.
+
+Ltac eval_list l :=
+  let l' := eval hnf in l in lazymatch l' with
+  | ?h :: ?tl => let tl' := eval_list tl in constr:(h :: tl')
+  | (@nil ?T) => constr:(@nil T)
+  end.
+
+Lemma xor_byte0_with_FSb: forall b0 b1 b2 b3 i,
+  Int.xor (word_to_int (b0, b1, b2, b3)) (Znth i tablesLL.FSb Int.zero)
+  = word_to_int ((Int.xor b0 (Znth i tablesLL.FSb Int.zero)), b1, b2, b3).
+Admitted.
+
+Lemma xor_byte1_with_FSb: forall b0 b1 b2 b3 i,
+  Int.xor (word_to_int (b0, b1, b2, b3)) (Int.shl (Znth i tablesLL.FSb Int.zero) (Int.repr 8))
+  = word_to_int (b0, (Int.xor b1 (Znth i tablesLL.FSb Int.zero)), b2, b3).
+Admitted.
+
+Lemma xor_byte2_with_FSb: forall b0 b1 b2 b3 i,
+  Int.xor (word_to_int (b0, b1, b2, b3)) (Int.shl (Znth i tablesLL.FSb Int.zero) (Int.repr 16))
+  = word_to_int (b0, b1, (Int.xor b2 (Znth i tablesLL.FSb Int.zero)), b3).
+Admitted.
+
+Lemma xor_byte3_with_FSb: forall b0 b1 b2 b3 i,
+  Int.xor (word_to_int (b0, b1, b2, b3)) (Int.shl (Znth i tablesLL.FSb Int.zero) (Int.repr 24))
+  = word_to_int (b0, b1, b2, (Int.xor b3 (Znth i tablesLL.FSb Int.zero))).
+Admitted.
+
+Lemma equiv_sbox: forall b,
+  Znth (Int.unsigned b) tablesLL.FSb Int.zero = look_sbox b.
+Admitted.
+
+Lemma final_round_equiv: forall S K,
+  mbed_tls_final_fround' S K = last_round S K.
+Proof.
+  intros.
+  destruct S as [[[w0 w1] w2] w3].
+  destruct w0 as [[[?p0 ?p0] ?p0] ?p0].
+  destruct w1 as [[[?p0 ?p0] ?p0] ?p0].
+  destruct w2 as [[[?p0 ?p0] ?p0] ?p0].
+  destruct w3 as [[[?p0 ?p0] ?p0] ?p0].
+  destruct K as [[[w0 w1] w2] w3].
+  destruct w0 as [[[?k0 ?k0] ?k0] ?k0].
+  destruct w1 as [[[?k0 ?k0] ?k0] ?k0].
+  destruct w2 as [[[?k0 ?k0] ?k0] ?k0].
+  destruct w3 as [[[?k0 ?k0] ?k0] ?k0].
+
+  (* unfold LHS (low level): *)
+  unfold mbed_tls_final_fround'. unfold four_ints_to_state.
+  rewrite mbed_tls_final_fround_def. unfold state_to_four_ints. 
+  match goal with
+  | |- context [ Znth (0 + 3) ?l ?d ] => let l' := (eval_list l) in change l with l'
+  end.
+  match goal with
+  | |- context [ Znth 0 (?e0 :: ?rest) ?d ] =>
+    change (Znth 0 (e0 :: rest) d) with e0
+  end.
+  match goal with
+  | |- context [ Znth (0 + 1) (?e0 :: ?e1 :: ?rest) ?d ] =>
+    change (Znth (0 + 1) (e0 :: e1 :: rest) d) with e1
+  end.
+  match goal with
+  | |- context [ Znth (0 + 2) (?e0 :: ?e1 :: ?e2 :: ?rest) ?d ] =>
+    change (Znth (0 + 2) (e0 :: e1 :: e2 :: rest) d) with e2
+  end.
+  match goal with
+  | |- context [ Znth (0 + 3) (?e0 :: ?e1 :: ?e2 :: ?e3 :: ?rest) ?d ] =>
+    change (Znth (0 + 3) (e0 :: e1 :: e2 :: e3 :: rest) d) with e3
+  end.
+  rewrite mbed_tls_final_fround_col_def.
+  do 4 rewrite byte0_word_to_int.
+  do 4 rewrite byte1_word_to_int.
+  do 4 rewrite byte2_word_to_int.
+  do 4 rewrite byte3_word_to_int.
+  do 4 rewrite Int.repr_unsigned.
+  do 4 rewrite xor_byte0_with_FSb.
+  do 4 rewrite xor_byte1_with_FSb.
+  do 4 rewrite xor_byte2_with_FSb.
+  do 4 rewrite xor_byte3_with_FSb.
+  do 4 rewrite int_to_word_word_to_int.
+
+  (* unfold RHS (high level): *)
+  unfold last_round. unfold AddRoundKey, ShiftRows, SubBytes.
+  unfold transpose. unfold sub_word, xor_word.
+
+  (* rewrite low-level LHS to high-level: *)
+  do 16 rewrite equiv_sbox.
+
+  apply split_quad_eq; apply split_quad_eq. (* TODO mismatch!! *)
 Admitted.
 
 Ltac eta5 HH :=
@@ -153,4 +269,3 @@ Proof.
   - exfalso. do 16 rewrite Zlength_cons in H.
     pose proof (Zlength_nonneg exp_key). omega.
 Qed.
-

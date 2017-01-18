@@ -43,14 +43,17 @@ Definition HMAC_Double_spec :=
              data_block Tsh (CONT MSG) msgVal;
              K_vector kv;
              memory_block shmd 64 md)
-  POST [ tvoid ] 
+  POST [ tptr tuchar ] 
          EX digest:_, 
           PROP (digest = HMAC256 (CONT MSG) (CONT KEY))
-          LOCAL ()
+          LOCAL (temp ret_temp md)
           SEP(K_vector kv;
               data_block shmd (digest++digest) md;
               initPostKey keyVal (CONT KEY);
               data_block Tsh (CONT MSG) msgVal).
+
+Definition n324 := 324%Z.
+Opaque n324.
 
 Lemma body_hmac_double: semax_body HmacVarSpecs HmacFunSpecs 
       f_HMAC2 HMAC_Double_spec.
@@ -136,8 +139,6 @@ destruct RND2 as [h5 dig2].
 simpl.
 
 forward_call (h5,c).
-Definition n324 := 324%Z.
-Opaque n324.
 match goal with |- context [data_block  Tsh ?A c] =>
   change A with (list_repeat (Z.to_nat n324) 0)
 end.
