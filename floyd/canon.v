@@ -1828,9 +1828,85 @@ eapply derives_trans.
 rewrite later_andp; apply andp_derives; auto; apply now_later.
 Qed.
 
+Lemma PROP_LOCAL_SEP_cons: forall P1 P2 P3 F,
+  PROPx P1 (LOCALx P2 (SEPx (F :: P3))) =
+  `F * PROPx P1 (LOCALx P2 (SEPx P3)).
+Proof.
+  intros.
+  change (SEPx (F :: P3)) with (`F * SEPx P3).
+  unfold PROPx, LOCALx.
+  unfold_lift; extensionality rho.
+  unfold local, lift1.
+  simpl.
+  apply pred_ext.
+  + normalize.
+  + normalize.
+Qed.
 
+Lemma semax_frame': forall {Espec: OracleKind}{CS: compspecs},
+  forall Delta P1 P2 P3 s Q1 Q2 Q3 F,
+  @semax CS Espec Delta
+    (PROPx P1 (LOCALx P2 (SEPx P3))) s
+      (normal_ret_assert (PROPx Q1 (LOCALx Q2 (SEPx Q3)))) ->
+  @semax CS Espec Delta
+    (PROPx P1 (LOCALx P2 (SEPx (F :: P3)))) s
+      (normal_ret_assert (PROPx Q1 (LOCALx Q2 (SEPx (F :: Q3))))).
+Proof.
+  intros.
+  rewrite !PROP_LOCAL_SEP_cons.
+  replace (normal_ret_assert (` F * PROPx Q1 (LOCALx Q2 (SEPx Q3))))
+    with (frame_ret_assert (normal_ret_assert (PROPx Q1 (LOCALx Q2 (SEPx Q3)))) (`F)).
+  + rewrite sepcon_comm.
+    apply semax_frame; auto.
+    hnf. intros; auto.
+  + extensionality ek v rho.
+    unfold frame_ret_assert, normal_ret_assert; simpl.
+    rewrite sepcon_andp_prop'.
+    f_equal.
+    rewrite sepcon_andp_prop'.
+    f_equal.
+    apply sepcon_comm.
+Qed.
 
+Lemma semax_frame'': forall {Espec: OracleKind}{CS: compspecs},
+  forall Delta P1 P2 P3 s t Q1 Q2 Q3 F,
+  @semax CS Espec Delta
+    (PROPx P1 (LOCALx P2 (SEPx P3))) s
+      (frame_ret_assert
+        (function_body_ret_assert t (PROPx Q1 (LOCALx Q2 (SEPx Q3)))) emp) ->
+  @semax CS Espec Delta
+    (PROPx P1 (LOCALx P2 (SEPx (F :: P3)))) s
+      (frame_ret_assert
+        (function_body_ret_assert t (PROPx Q1 (LOCALx Q2 (SEPx (F :: Q3))))) emp).
+Proof.
+  intros.
+  rewrite !PROP_LOCAL_SEP_cons.
+  replace (frame_ret_assert (function_body_ret_assert t (` F * PROPx Q1 (LOCALx Q2 (SEPx Q3)))) emp)
+    with (frame_ret_assert (frame_ret_assert (function_body_ret_assert t (PROPx Q1 (LOCALx Q2 (SEPx Q3)))) emp) (`F)).
+  + rewrite sepcon_comm.
+    apply semax_frame; auto.
+    hnf. intros; auto.
+  + extensionality ek v rho.
+    unfold frame_ret_assert, normal_ret_assert, function_body_ret_assert; simpl.
+    destruct ek; [apply pred_ext; normalize .. |].
+    destruct v; simpl.
+    - normalize.
+      f_equal.
+      apply sepcon_comm.
+    - destruct t; [| apply pred_ext; normalize .. ].
+      normalize.
+      apply sepcon_comm.
+Qed.
 
-
-
-
+Lemma semax_post'': forall R' Espec {cs: compspecs} Delta R P c t,
+           R' |-- R ->
+      @semax cs Espec Delta P c (frame_ret_assert (function_body_ret_assert t R') emp) ->
+      @semax cs Espec Delta P c (frame_ret_assert (function_body_ret_assert t R) emp).
+Proof. intros. eapply semax_post; eauto. intros. apply andp_left2.
+  intro rho; unfold frame_ret_assert, function_body_ret_assert; normalize.
+  destruct ek; autorewrite with norm1 norm2; normalize.
+  unfold bind_ret; destruct vl; autorewrite with norm1 norm2; normalize.
+  + apply H.
+  + destruct t; autorewrite with norm1 norm2; normalize.
+    apply H.
+Qed.
