@@ -276,6 +276,35 @@ Proof.
   cancel.
 Qed.
 
+Lemma insert_right_entail: forall (t1 t2: tree val) k k0 (v p1 p2 p b v0: val),
+  Int.min_signed <= k <= Int.max_signed ->
+  is_pointer_or_null v ->
+  data_at Tsh (tptr t_struct_tree) p b *
+  data_at Tsh t_struct_tree (Vint (Int.repr k), (v, (p1, p2))) p *
+  tree_rep t1 p1 * tree_rep t2 p2
+  |-- treebox_rep t2 (field_address t_struct_tree [StructField _right] p) *
+       (treebox_rep (insert k0 v0 t2)
+         (field_address t_struct_tree [StructField _right] p) -*
+        treebox_rep (T t1 k v (insert k0 v0 t2)) b).
+Proof.
+  intros.
+  unfold_data_at 2%nat.
+  rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
+  unfold treebox_rep at 1. Exists p2. cancel.
+
+  rewrite <- wand_sepcon_adjoint.
+  clear p2.
+  unfold treebox_rep.
+  Exists p.
+  simpl.
+  Intros p2.
+  Exists p1 p2.
+  entailer!.
+  unfold_data_at 2%nat.
+  rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
+  cancel.
+Qed.
+
 Lemma modus_ponens_wand' {A}{ND: NatDed A}{SL: SepLog A}:
   forall P Q R: A, P |-- Q -> P * (Q -* R) |-- R.
 Proof.
@@ -284,6 +313,16 @@ Proof.
   apply sepcon_derives; [| apply derives_refl].
   auto.
 Qed.
+
+Lemma if_trueb: forall {A: Type} b (a1 a2: A), b = true -> (if b then a1 else a2) = a1.
+Proof. intros; subst; auto. Qed.
+
+Lemma if_falseb: forall {A: Type} b (a1 a2: A), b = false -> (if b then a1 else a2) = a2.
+Proof. intros; subst; auto. Qed.
+
+Ltac simpl_compb := first [ rewrite if_trueb by (apply Z.ltb_lt; omega)
+                          | rewrite if_falseb by (apply Z.ltb_ge; omega)].
+
 
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
@@ -332,8 +371,7 @@ Proof.
         unfold insert_inv.
         Exists (offset_val 8 p1) t1_1.
         entailer!.
-        (* TODO: SIMPLY THIS LINE *)
-        replace (x<?k) with true by (symmetry; apply Z.ltb_lt; omega).
+        simpl_compb.
         (* TODO: SIMPLY THIS LINE *)
         replace (offset_val 8 p1)
           with (field_address t_struct_tree [StructField _left] p1)
@@ -346,105 +384,97 @@ Proof.
         unfold insert_inv.
         Exists (offset_val 12 p1) t1_2.
         entailer!.
-        (* TODO: SIMPLY THIS LINE *)
-        replace (x<?k) with false by (symmetry; apply Z.ltb_ge; omega).
-        (* TODO: SIMPLY THIS LINE *)
-        replace (k<?x) with true by (symmetry; apply Z.ltb_lt; omega).
+        simpl_compb; simpl_compb.
         (* TODO: SIMPLY THIS LINE *)
         replace (offset_val 12 p1)
           with (field_address t_struct_tree [StructField _right] p1)
           by (unfold field_address; simpl;
               rewrite if_true by auto with field_compatible; auto).
         apply RAMIF_PLAIN.trans'.
-  unfold_data_at 2%nat.
-   rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
-   match goal with |- ?A * (?Bk * (?Bv * (?Ba * ?Bb))) * ?Ta * ?Tb |-- _ =>
-      apply derives_trans
-      with (treebox_rep t1_2 (field_address t_struct_tree [StructField _right] p1) *
-               A * Bk * Bv * Ba * Ta)
-   end.
-   unfold treebox_rep at 1. Exists pb. cancel.
-   cancel.
-   rewrite <- wand_sepcon_adjoint.
-   unfold treebox_rep. Intros pb'. Exists p1. simpl tree_rep. Exists pa pb'.
-   entailer!. unfold_data_at 2%nat.
-   rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
-   cancel.
- - (* Inner if, third branch: x=k *)
-   assert (x=k) by omega.
-   subst x. clear H H1 H4.
-   forward.
-   forward.
-   replace (k <? k) with false by (symmetry; apply Z.ltb_ge; omega).
-   apply modus_ponens_wand'.
-   unfold treebox_rep. Exists p1. simpl tree_rep. Exists pa pb. entailer!.
-* (* After the loop *)
-  forward.
-  simpl loop2_ret_assert. apply andp_left2. auto.
+        apply insert_right_entail; auto.
+      - (* Inner if, third branch: x=k *)
+        assert (x=k) by omega.
+        subst x. clear H H1 H4.
+        forward. (* p->value=value *)
+        forward. (* return *)
+        (* TODO: SIMPLY THIS LINE *)
+        simpl_compb.
+        simpl_compb.
+        apply modus_ponens_wand'.
+        unfold treebox_rep. Exists p1.
+        simpl tree_rep. Exists pa pb. entailer!.
+  * (* After the loop *)
+    forward.
+    simpl loop2_ret_assert. apply andp_left2. auto.
 Qed.
 
 Definition lookup_inv (b0 p0: val) (t0: tree val) (x: Z): environ -> mpred :=
-  EX p: val, EX t: tree val,
-  PROP(lookup nullval x t = lookup nullval x t0)
-  LOCAL(temp _p p; temp _t b0; temp _x (Vint (Int.repr x)))
-  SEP(data_at Tsh (tptr t_struct_tree) p0 b0; tree_rep t p;  (tree_rep t p -* tree_rep t0 p0)).
+  EX p: val, EX t: tree val, 
+  PROP(lookup nullval x t = lookup nullval x t0) 
+  LOCAL(temp _p p; temp _x (Vint (Int.repr x)))
+  SEP(tree_rep t p;  (tree_rep t p -* tree_rep t0 p0)).
 
 Lemma body_lookup: semax_body Vprog Gprog f_lookup lookup_spec.
 Proof.
   start_function.
   unfold treebox_rep. Intros p.
-  forward.
+  forward. (* p=*t; *)
+  apply (semax_post''
+                      (PROP ( )
+                       LOCAL (temp ret_temp (lookup nullval x t))
+                       SEP (data_at Tsh (tptr t_struct_tree) p b; tree_rep t p))).
+  1: unfold treebox_rep; Exists p.
+     (* TODO: let entailer work here. *)
+     apply derives_refl'. f_equal. f_equal.
+     unfold SEPx; simpl. extensionality rho. symmetry; apply sepcon_assoc.
+  apply semax_frame''.
   forward_while (lookup_inv b p t x).
-* (* precondition implies loop invariant *)
-  Exists p t. entailer!.
-  apply -> wand_sepcon_adjoint. cancel.
-* (* type-check loop condition *)
-  entailer!.
-* (* loop body preserves invariant *)
-  destruct t0; unfold tree_rep at 1; fold tree_rep. normalize. contradiction HRE; auto.
-  Intros pa pb.
-  forward.
-  forward_if; [ | forward_if ].
- + (* then clause: x<y *)
-   forward.
-  Exists (pa,t0_1). unfold fst,snd.
-  set (tr := tree_rep (T t0_1 k v0 t0_2) p0).
-  entailer!.
-  rewrite <- H0; simpl.
-  replace (x<?k) with true by (symmetry; apply Z.ltb_lt; omega). auto.
-  apply -> wand_sepcon_adjoint.
-  pull_right (tr -* tree_rep t p).
-  apply modus_ponens_wand'.
-  subst tr. simpl. Exists pa pb. entailer!.
- + (* else-then clause: y<x *)
-   forward.
-   Exists (pb,t0_2). unfold fst,snd.
-  set (tr := tree_rep (T t0_1 k v0 t0_2) p0).
-  entailer!.
-  rewrite <- H0; simpl.
-  replace (x<?k) with false by (symmetry; apply Z.ltb_ge; omega).
-  replace (k<?x) with true by (symmetry; apply Z.ltb_lt; omega). auto.
-  apply -> wand_sepcon_adjoint.
-  pull_right (tr -* tree_rep t p).
-  apply modus_ponens_wand'.
-  subst tr. simpl. Exists pa pb. entailer!.
- + (* else-else clause: x=y *)
-  assert (x=k) by omega. subst x. clear H H4 H5.
-  forward.
-  set (tr := tree_rep (T t0_1 k v0 t0_2) p0).
-  forward.
-  unfold treebox_rep. Exists p.
-  entailer!. rewrite <- H0. simpl.
-  replace (k <? k) with false by (symmetry; apply Z.ltb_ge; omega). auto.
-  apply modus_ponens_wand'.
-  subst tr. simpl. Exists pa pb. entailer!.
-* (* after the loop *)
-  forward.
-  unfold treebox_rep. Exists p.
-  destruct t0; simpl tree_rep.
-  entailer!.
-  rewrite <- (emp_sepcon (_ -* _)). apply modus_ponens_wand.
-  Intros pa pb.  entailer. destruct H5; contradiction.
+  * (* precondition implies loop invariant *)
+    Exists p t. entailer!.
+    apply -> wand_sepcon_adjoint. cancel.
+  * (* type-check loop condition *)
+    entailer!.
+  * (* loop body preserves invariant *)
+    destruct t0; unfold tree_rep at 1; fold tree_rep. normalize.
+    contradiction HRE; auto.
+    Intros pa pb.
+    forward.
+    forward_if; [ | forward_if ].
+    + (* then clause: x<y *)
+      forward. (* p=p<-left *)
+      Exists (pa,t0_1). unfold fst,snd.
+      entailer!.
+      - rewrite <- H0; simpl.
+        simpl_compb; auto.
+      - (* TODO: merge the following 2 lines *)
+        apply RAMIF_PLAIN.trans''.
+        apply -> wand_sepcon_adjoint.
+        Exists pa pb; entailer!.
+    + (* else-then clause: y<x *)
+      forward. (* p=p<-right *)
+      Exists (pb,t0_2). unfold fst,snd.
+      entailer!.
+      - rewrite <- H0; simpl.
+        simpl_compb; simpl_compb; auto.
+      - (* TODO: merge the following 2 lines *)
+        apply RAMIF_PLAIN.trans''.
+        apply -> wand_sepcon_adjoint.
+        Exists pa pb; entailer!.
+    + (* else-else clause: x=y *)
+      assert (x=k) by omega. subst x. clear H H4 H5.
+      forward. (* v=p->value *)
+      forward. (* return v; *)
+      unfold treebox_rep. unfold normal_ret_assert.
+      entailer!.
+      - rewrite <- H0. simpl.
+        simpl_compb; simpl_compb; auto.
+      - (* TODO: merge the following 2 lines *)
+        apply modus_ponens_wand'.
+        Exists pa pb; entailer!.
+  * (* after the loop *)
+    forward. (* return NULL; *)
+    entailer!.
+    apply modus_ponens_wand.
 Qed.
 
 Lemma body_treebox_new: semax_body Vprog Gprog f_treebox_new treebox_new_spec.
@@ -464,24 +494,25 @@ Lemma body_tree_free: semax_body Vprog Gprog f_tree_free tree_free_spec.
 Proof.
   start_function.
   forward_if (PROP()LOCAL()SEP()).
-  destruct t; simpl tree_rep. Intros. contradiction.
-  Intros pa pb.
-  forward.
-  forward.
-  forward_call (p, sizeof t_struct_tree).
-  entailer!.
-  rewrite memory_block_data_at_ by auto.
-  cancel.
-  forward_call (t1,pa).
-  forward_call (t2,pb).
-  entailer!.
-  forward.
-  subst.
-  entailer!.
-  destruct t; simpl; normalize.
-  entailer!.
-  destruct H1; contradiction.
-  forward.
+  + destruct t; simpl tree_rep.
+      1: Intros. contradiction.
+    Intros pa pb.
+    forward.
+    forward.
+    forward_call (p, sizeof t_struct_tree).
+    Focus 1. {
+      entailer!.
+      rewrite memory_block_data_at_ by auto.
+      cancel.
+    } Unfocus.
+    forward_call (t1,pa).
+    forward_call (t2,pb).
+    entailer!.
+  + forward.
+    subst.
+    entailer!.
+    simpl; normalize.
+  + forward.
 Qed.
 
 Lemma body_treebox_free: semax_body Vprog Gprog f_treebox_free treebox_free_spec.
@@ -497,18 +528,4 @@ Proof.
   cancel.
   forward.
 Qed.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
