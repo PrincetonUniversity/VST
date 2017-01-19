@@ -432,9 +432,15 @@ $(patsubst %.c,progs/%.vo,$(C_FILES)): compcert
 
 cvfiles: $(CVFILES)
 
+dochtml:
+	mkdir -p doc/html
+	$(COQDOC) -d doc/html $(MSL_FILES:%=msl/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%) $(SEPCOMP_FILES:%=sepcomp/%)
 
+dochtml-full:
+	mkdir -p doc/html
+	$(COQDOC) -d doc/html $(FILES)
 
-clean_cvfiles: 
+clean_cvfiles:
 	rm $(CVFILES)
 
 ifdef CLIGHTGEN
@@ -499,9 +505,9 @@ dep:
 .depend:
 	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
 
-depend:	
+depend:
 	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
-dependx:	
+dependx:
 	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
 	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(SEPCOMP_FILES:%=sepcomp/%) $(CONCUR_FILES:%=concurrency/%))  >> .depend
 
@@ -516,6 +522,7 @@ depend-paco:
 
 clean:
 	rm -f $(FILES:%.v=%.vo) $(FILES:%.v=%.glob) floyd/floyd.coq .loadpath .depend
+	rm -fr doc/html
 
 clean-concur:
 	rm -f $(CONCUR_FILES:%.v=%.vo) $(CONCUR_FILES:%.v=%.glob)

@@ -10,3 +10,5 @@ coqide
 *#
 .#*
 *.aux
+
+doc/html/
