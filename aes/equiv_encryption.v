@@ -99,12 +99,94 @@ Lemma equiv_sbox: forall b,
   Znth (Int.unsigned b) tablesLL.FSb Int.zero = look_sbox b.
 Admitted.
 
+Lemma get_uint32_le_sublist: forall i l,
+  0 <= i <= Zlength l - 4 ->
+  get_uint32_le l i = get_uint32_le (sublist i (i+4) l) 0.
+Proof.
+  intros. rewrite get_uint32_le_def.
+  do 4 rewrite Znth_sublist by omega.
+  replace (0 + i) with i by omega.
+  replace (0 + 1 + i) with (i + 1) by omega.
+  replace (0 + 2 + i) with (i + 2) by omega.
+  replace (0 + 3 + i) with (i + 3) by omega.
+  reflexivity.
+Qed.
+
+Lemma get_uint32_le_word_to_int: forall b0 b1 b2 b3,
+  get_uint32_le [Int.unsigned b0; Int.unsigned b1; Int.unsigned b2; Int.unsigned b3] 0
+  = word_to_int (b0, b1, b2, b3).
+Proof.
+  intros. rewrite get_uint32_le_def. unfold word_to_int. unfold SHA256.little_endian_integer.
+  simpl.
+Admitted.
+
+Lemma xor_word_to_int: forall a0 a1 a2 a3 b0 b1 b2 b3,
+  Int.xor (word_to_int (a0, a1, a2, a3)) (word_to_int (b0, b1, b2, b3))
+  = word_to_int ((Int.xor a0 b0), (Int.xor a1 b1), (Int.xor a2 b2), (Int.xor a3 b3)).
+Proof.
+  intros. unfold word_to_int. unfold SHA256.little_endian_integer.
+Admitted.
+
 Lemma initial_round_equiv: forall S K,
   (mbed_tls_initial_add_round_key
     (map Int.unsigned (state_to_list S))
     (map Int.unsigned (block_to_ints K))
   ) = state_to_four_ints (AddRoundKey S K).
-Admitted.
+Proof.
+  intros.
+  destruct S as [[[w0 w1] w2] w3].
+  destruct w0 as [[[?p0 ?p0] ?p0] ?p0].
+  destruct w1 as [[[?p0 ?p0] ?p0] ?p0].
+  destruct w2 as [[[?p0 ?p0] ?p0] ?p0].
+  destruct w3 as [[[?p0 ?p0] ?p0] ?p0].
+  destruct K as [[[w0 w1] w2] w3].
+  destruct w0 as [[[?k0 ?k0] ?k0] ?k0].
+  destruct w1 as [[[?k0 ?k0] ?k0] ?k0].
+  destruct w2 as [[[?k0 ?k0] ?k0] ?k0].
+  destruct w3 as [[[?k0 ?k0] ?k0] ?k0].
+
+  (* simpl LHS (low level) *)
+  rewrite mbed_tls_initial_add_round_key_def.
+  rewrite mbed_tls_initial_add_round_key_col_def.
+  match goal with
+  | |- context [ Znth 3 ?l ?d ] => let l' := (eval_list l) in change l with l'
+  end.
+  match goal with
+  | |- context [ Znth 0 (?e0 :: ?rest) ?d ] =>
+    change (Znth 0 (e0 :: rest) d) with e0
+  end.
+  match goal with
+  | |- context [ Znth 1 (?e0 :: ?e1 :: ?rest) ?d ] =>
+    change (Znth 1 (e0 :: e1 :: rest) d) with e1
+  end.
+  match goal with
+  | |- context [ Znth 2 (?e0 :: ?e1 :: ?e2 :: ?rest) ?d ] =>
+    change (Znth 2 (e0 :: e1 :: e2 :: rest) d) with e2
+  end.
+  match goal with
+  | |- context [ Znth 3 (?e0 :: ?e1 :: ?e2 :: ?e3 :: ?rest) ?d ] =>
+    change (Znth 3 (e0 :: e1 :: e2 :: e3 :: rest) d) with e3
+  end.
+  match goal with
+  | |- context [ get_uint32_le ?l ?i ] => let l' := (eval_list l) in change l with l'
+  end.
+  rewrite (get_uint32_le_sublist (0 * 4)) by (simpl; omega).
+  rewrite (get_uint32_le_sublist (1 * 4)) by (simpl; omega).
+  rewrite (get_uint32_le_sublist (2 * 4)) by (simpl; omega).
+  rewrite (get_uint32_le_sublist (3 * 4)) by (simpl; omega).
+  do 4 match goal with
+  | |- context [sublist ?i ?j ?l] =>
+    let r := eval_list (sublist i j l) in change (sublist i j l) with r
+  end.
+  do 4 rewrite Int.repr_unsigned.
+  do 4 rewrite get_uint32_le_word_to_int.
+  do 4 rewrite xor_word_to_int.
+
+  (* simpl RHS (high level) *)
+  unfold AddRoundKey. unfold transpose. unfold xor_word. unfold state_to_four_ints, transpose.
+
+  reflexivity.
+Qed.
 
 Lemma round_equiv: forall S K,
   (AES_LL_Spec.mbed_tls_fround
@@ -112,6 +194,59 @@ Lemma round_equiv: forall S K,
     (map Int.unsigned (block_to_ints K))
     0
   ) = state_to_four_ints (round S K).
+Proof.
+  intros.
+  destruct S as [[[w0 w1] w2] w3].
+  destruct w0 as [[[?p0 ?p0] ?p0] ?p0].
+  destruct w1 as [[[?p0 ?p0] ?p0] ?p0].
+  destruct w2 as [[[?p0 ?p0] ?p0] ?p0].
+  destruct w3 as [[[?p0 ?p0] ?p0] ?p0].
+  destruct K as [[[w0 w1] w2] w3].
+  destruct w0 as [[[?k0 ?k0] ?k0] ?k0].
+  destruct w1 as [[[?k0 ?k0] ?k0] ?k0].
+  destruct w2 as [[[?k0 ?k0] ?k0] ?k0].
+  destruct w3 as [[[?k0 ?k0] ?k0] ?k0].
+
+  (* unfold LHS (low level): *)
+  rewrite mbed_tls_fround_def. unfold state_to_four_ints.
+  match goal with
+  | |- context [ Znth (0 + 3) ?l ?d ] => let l' := (eval_list l) in change l with l'
+  end.
+  match goal with
+  | |- context [ Znth 0 (?e0 :: ?rest) ?d ] =>
+    change (Znth 0 (e0 :: rest) d) with e0
+  end.
+  match goal with
+  | |- context [ Znth (0 + 1) (?e0 :: ?e1 :: ?rest) ?d ] =>
+    change (Znth (0 + 1) (e0 :: e1 :: rest) d) with e1
+  end.
+  match goal with
+  | |- context [ Znth (0 + 2) (?e0 :: ?e1 :: ?e2 :: ?rest) ?d ] =>
+    change (Znth (0 + 2) (e0 :: e1 :: e2 :: rest) d) with e2
+  end.
+  match goal with
+  | |- context [ Znth (0 + 3) (?e0 :: ?e1 :: ?e2 :: ?e3 :: ?rest) ?d ] =>
+    change (Znth (0 + 3) (e0 :: e1 :: e2 :: e3 :: rest) d) with e3
+  end.
+  rewrite mbed_tls_fround_col_def.
+  unfold transpose.
+  do 4 rewrite byte0_word_to_int.
+  do 4 rewrite byte1_word_to_int.
+  do 4 rewrite byte2_word_to_int.
+  do 4 rewrite byte3_word_to_int.
+  do 4 rewrite Int.repr_unsigned.
+
+  (* unfold RHS (high level): *)
+  unfold round. unfold AddRoundKey, MixColumns, ShiftRows, SubBytes.
+  unfold transpose. unfold sub_word, xor_word, transform_column.
+
+f_equal.
+  rewrite <- xor_word_to_int.
+  rewrite <- xor_word_to_int.
+  rewrite <- xor_word_to_int.
+  rewrite <- xor_word_to_int.
+
+(* TODO now unfold tablesLL.FT0,1,2,3, but only once their defintion corresponds exactly to the C code *)
 Admitted.
 
 Lemma final_round_equiv: forall S K,
