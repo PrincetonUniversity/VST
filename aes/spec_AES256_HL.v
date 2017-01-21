@@ -163,7 +163,7 @@ Definition extended_key_blocks := Nr+1.
 (* b1 and b2 are the two blocks generated before this round. *)
 Definition odd_round (b1 b2 : block) (rcon: word) : block :=
   match b1, b2 with (w1, w2, w3, w4), (_, _, _, w8) =>
-    let w1' := xor_word w1 (SubWord (xor_word (RotWord w8) rcon)) in
+    let w1' := xor_word w1 (xor_word (SubWord (RotWord w8)) rcon) in
     let w2' := xor_word w2 w1' in
     let w3' := xor_word w3 w2' in
     let w4' := xor_word w4 w3' in
