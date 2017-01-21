@@ -68,7 +68,7 @@ endif
 COQC=$(COQBIN)coqc
 COQTOP=$(COQBIN)coqtop
 COQDEP=$(COQBIN)coqdep $(DEPFLAGS)
-COQDOC=$(COQBIN)coqdoc
+COQDOC=$(COQBIN)coqdoc -d doc/html -g  $(DEPFLAGS)
 
 MSL_FILES = \
   Axioms.v Extensionality.v base.v eq_dec.v sig_isomorphism.v \
@@ -434,11 +434,11 @@ cvfiles: $(CVFILES)
 
 dochtml:
 	mkdir -p doc/html
-	$(COQDOC) -d doc/html $(MSL_FILES:%=msl/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%) $(SEPCOMP_FILES:%=sepcomp/%)
+	$(COQDOC) $(MSL_FILES:%=msl/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%) $(SEPCOMP_FILES:%=sepcomp/%)
 
 dochtml-full:
 	mkdir -p doc/html
-	$(COQDOC) -d doc/html $(FILES)
+	$(COQDOC) $(FILES)
 
 clean_cvfiles:
 	rm $(CVFILES)
