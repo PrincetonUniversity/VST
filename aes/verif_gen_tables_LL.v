@@ -130,6 +130,97 @@ Lemma pow3_inj: forall (i j : Z),
   pow3 i = pow3 j -> Int.eqmod 255 i j.
 Admitted.
 
+(* TODO floyd this lemma should be invoked by entailer!
+   Note: in summaray, this already works for data_at, but why doesn't it work for field_at?
+   QQQ: And why/how does it work for data_at? *)
+Lemma field_at_update_val: forall sh t gfs v v' p,
+  v = v' -> field_at sh t gfs v p |-- field_at sh t gfs v' p.
+Proof.
+  intros. rewrite H. apply derives_refl.
+Qed.
+
+Lemma repeat_op_table_nat_length: forall {T: Type} (i: nat) (x: T) (f: T -> T),
+  length (repeat_op_table_nat i x f) = i.
+Proof.
+  intros. induction i. reflexivity. simpl. rewrite app_length. simpl.
+  rewrite IHi. omega.
+Qed.
+
+Lemma repeat_op_table_length: forall {T: Type} (i: Z) (x: T) (f: T -> T),
+  0 <= i ->
+  Zlength (repeat_op_table i x f) = i.
+Proof.
+  intros. unfold repeat_op_table.
+  rewrite Zlength_correct. rewrite repeat_op_table_nat_length.
+  apply Z2Nat.id. assumption.
+Qed.
+
+Lemma repeat_op_nat_id: forall {T: Type} (n: nat) (v: T),
+  repeat_op_nat n v id = v.
+Proof.
+  intros. induction n.
+  - reflexivity.
+  - simpl. apply IHn.
+Qed.
+
+Lemma repeat_op_table_nat_id_app: forall {T: Type} (len1 len2: nat) (v: T),
+  repeat_op_table_nat (len1 + len2) v id 
+  = repeat_op_table_nat len1 v id ++ repeat_op_table_nat len2 v id.
+Proof.
+  intros. induction len2.
+  - simpl. replace (len1 + 0)%nat with len1 by omega. rewrite app_nil_r. reflexivity.
+  - replace (len1 + S len2)%nat with (S (len1 + len2)) by omega. simpl.
+    rewrite IHlen2. rewrite <- app_assoc. f_equal. f_equal. do 2 rewrite repeat_op_nat_id.
+    reflexivity.
+Qed.
+
+Lemma sublist_repeat_op_table_id: forall {T: Type} (lo n: Z) (v: T),
+  0 <= lo ->
+  0 <= n ->
+  sublist lo (lo + n) (repeat_op_table (lo + n) v id) = repeat_op_table n v id.
+Proof.
+  intros.
+  replace (lo + n) with (Zlength (repeat_op_table (lo + n) v id)) at 1
+    by (apply repeat_op_table_length; omega).
+  rewrite sublist_skip by omega.
+  unfold repeat_op_table at 1. rewrite Z2Nat.inj_add by omega.
+  rewrite repeat_op_table_nat_id_app.
+  rewrite Zskipn_app1 by (
+    rewrite Zlength_correct;
+    rewrite repeat_op_table_nat_length;
+    rewrite Z2Nat.id; omega
+  ).
+  rewrite skipn_short; [ reflexivity | ].
+  rewrite repeat_op_table_nat_length. omega.
+Qed.
+
+Definition rcon_loop_inv00(i: Z)(lvar0 lvar1 tables: val)(frozen: list mpred) : environ -> mpred :=
+     PROP ( 0 <= i) (* note: the upper bound is added by the tactic, but the lower isn't! *)
+     LOCAL (temp _x (Vint (pow2 i));
+            lvar _log (tarray tint 256) lvar1;
+            lvar _pow (tarray tint 256) lvar0;
+            gvar _tables tables)
+     SEP (FRZL frozen;
+          field_at Ews t_struct_tables [StructField _RCON]
+                   ((map Vint (repeat_op_table i Int.one times2)) ++ (repeat_op_table (10-i) Vundef id))
+                   tables).
+
+Definition rcon_loop_inv0(lvar0 lvar1 tables: val)(frozen: list mpred) :=  EX i: Z,
+  rcon_loop_inv00 i lvar0 lvar1 tables frozen.
+
+(* TODO floyd if I inline inv00 into inv0, why doesn't this typecheck?
+Definition rcon_loop_inv(lvar0 lvar1 tables: val) :=
+  EX i: Z,
+     PROP ( 0 <= i) (* note: the upper bound is added by the tactic, but the lower isn't! *)
+     LOCAL (temp _x (Vint (pow2 i));
+            lvar _log (tarray tint 256) lvar1;
+            lvar _pow (tarray tint 256) lvar0;
+            gvar _tables tables)
+     SEP (field_at Ews t_struct_tables [StructField _RCON]
+                   ((map Vint (repeat_op_table i Int.one times2)) ++ (repeat_op_table (10-i) Vundef id))
+                   tables).
+*)
+
 Lemma body_gen_tables: semax_body Vprog Gprog f_aes_gen_tables gen_tables_spec.
 Proof.
   start_function.
@@ -224,30 +315,15 @@ Proof.
   unfold_data_at 3%nat.
   freeze [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11] Fr.
 
-  (* next part: round constants *)
-  forward_for_simple_bound 10 (EX i: Z,
-     PROP ( 0 <= i ) (* note: the upper bound is added by the tactic, but the lower isn't! *)
-     LOCAL (temp _x (Vint (pow2 i));
-            lvar _log (tarray tint 256) lvar1;
-            lvar _pow (tarray tint 256) lvar0;
-            gvar _tables tables)
-     SEP (field_at Ews t_struct_tables [StructField _RCON]
-                   ((map Vint (repeat_op_table i Int.one times2)) ++ (repeat_op_table (10-i) Vundef id))
-                   tables)). (* TODO why doesn't this typecheck? *)
+  forward_for_simple_bound 10 (rcon_loop_inv0 lvar0 lvar1 tables Fr).
   { (* init *)
-    forward. forward. Exists 0. entailer!. Exists (repeat Vundef 10%nat). entailer!.
-    - intros. omega.
-    - apply d
- }
+    forward. forward. Exists 0. entailer!.
+  }
   { (* body *)
-    unfold tables_uninitialized.
-    unfold_data_at 3%nat.
-    (* TODO floyd: if I don't unfold, "forward" fails with the default error message *)
-    freeze [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11] Fr.
     forward. entailer!.
     (* t'2 = ( x & 0x80 ) ? 0x1B : 0x00 ) *)
     forward_if_diff (PROP () LOCAL (temp _t'2 (Vint (
-      if Int.eq (Int.and (ff_exp (Int.repr 2) (Int.repr i)) (Int.repr 128)) Int.zero
+      if Int.eq (Int.and (pow2 i) (Int.repr 128)) Int.zero
       then Int.zero
       else (Int.repr 27)
     ))) SEP ()).
@@ -264,22 +340,22 @@ Proof.
       (* x = ((x << 1) ^ t'2)) & 0xFF *)
       forward.
       entailer!.
-      { f_equal. (*
-Vint (ff_exp (Int.repr 2) (Int.repr (i + 1))) =
-Vint
-  (Int.and
-     (Int.xor (Int.shl (ff_exp (Int.repr 2) (Int.repr i)) (Int.repr 1))
-        (if Int.eq (Int.and (ff_exp (Int.repr 2) (Int.repr i)) (Int.repr 128)) Int.zero
-         then Int.zero
-         else Int.repr 27)) (Int.repr 255))
-*)
-        (* apply exp2_step. *) admit. }
-      { thaw Fr. unfold tables_uninitialized. simpl. (* TODO first make loop invariant for RCON *)
+      - f_equal. unfold pow2 at 1. rewrite repeat_op_step by omega. reflexivity.
+      - apply field_at_update_val.
+        rewrite upd_Znth_app2.
+        + rewrite Zlength_map. rewrite repeat_op_table_length by assumption.
+          replace (i - i) with 0 by omega. rewrite upd_Znth0.
+          rewrite repeat_op_table_length by omega.
+          rewrite repeat_op_table_step by omega.
+          rewrite map_app. rewrite <- app_assoc. f_equal. simpl. f_equal.
+          replace (10 - i) with (1 + (10 - (i + 1))) by omega.
+          apply sublist_repeat_op_table_id; omega.
+        + pose proof (Zlength_nonneg ((repeat_op_table (10 - i) Vundef id))).
+          rewrite Zlength_map. rewrite repeat_op_table_length by omega. omega.
+  } {
+  rewrite app_nil_r.
 
-    admit. }
-  }
-  { (* rest *)
-    admit. }
-}
+  (* generate the forward and reverse S-boxes *)
+  admit.
+} }
 Qed.
-
