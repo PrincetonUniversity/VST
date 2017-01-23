@@ -169,7 +169,7 @@ Definition turn_left_spec :=
   PRE  [ __l OF (tptr (tptr (Tstruct _tree noattr))),
         _l OF (tptr (Tstruct _tree noattr)),
         _r OF (tptr (Tstruct _tree noattr))]
-    PROP()
+    PROP(Int.min_signed <= x <= Int.max_signed; tc_val (tptr Tvoid) vx)
     LOCAL(temp __l b; temp _l l; temp _r r)
     SEP (data_at Tsh (tptr t_struct_tree) l b;
          field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr x)) l;
@@ -187,10 +187,10 @@ Definition turn_left_spec :=
          treebox_rep tc (field_address t_struct_tree [StructField _right] r)).
 
 Definition pushdown_left_spec :=
- DECLARE _turn_left
+ DECLARE _pushdown_left
   WITH ta: tree val, x: Z, v: val, tb: tree val, b: val, p: val
   PRE  [ _t OF (tptr (tptr (Tstruct _tree noattr)))]
-    PROP()
+    PROP(Int.min_signed <= x <= Int.max_signed; tc_val (tptr Tvoid) v)
     LOCAL(temp _t b)
     SEP (data_at Tsh (tptr t_struct_tree) p b;
          field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr x)) p;
@@ -238,7 +238,8 @@ Definition Gprog : funspecs :=
     ltac:(with_library prog [
     mallocN_spec; freeN_spec; treebox_new_spec; 
     tree_free_spec; treebox_free_spec;
-    insert_spec; lookup_spec
+    insert_spec; lookup_spec;
+    turn_left_spec; pushdown_left_spec; delete_spec
   ]).
 
 Lemma tree_rep_saturate_local:
@@ -542,6 +543,102 @@ Proof.
     entailer!.
     apply modus_ponens_wand.
 Qed.
+
+Lemma body_turn_left: semax_body Vprog Gprog f_turn_left turn_left_spec.
+Proof.
+  start_function.
+  simpl.
+  Intros pb pc.
+  forward. (* mid=r->left *)
+  forward. (* l->right=mid *)
+  assert_PROP (is_pointer_or_null pb) by entailer!.
+  rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
+  forward. (* r->left=l *)
+  assert_PROP (is_pointer_or_null l) by entailer!.
+  rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
+  forward. (* _l = r *)
+  assert_PROP (is_pointer_or_null r) by entailer!.
+  rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
+  forward. (* return *)
+  (* TODO: simplify the following proof *)
+  rewrite (treebox_rep_spec (T ta x vx tb)).
+  Exists l.
+  entailer!.
+  unfold treebox_rep.
+  Exists pc pb.
+  entailer!.
+  unfold_field_at 2%nat.
+  rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
+  rewrite !(field_at_data_at _ t_struct_tree [StructField _right]).
+  simpl nested_field_type.
+  cancel.
+Qed.
+
+Definition pushdown_left_inv (b_res: val) (t_res: tree val): environ -> mpred :=
+  EX b: val, EX ta: tree val, EX x: Z, EX v: val, EX tb: tree val,
+  PROP  () 
+  LOCAL (temp _t b)
+  SEP   (treebox_rep (T ta x v tb) b;
+         (treebox_rep (pushdown_left ta tb) b -* treebox_rep t_res b_res)).
+
+Lemma body_pushdown_left: semax_body Vprog Gprog f_pushdown_left pushdown_left_spec.
+Proof.
+  start_function.
+  eapply semax_pre; [
+    | apply (semax_loop _ (pushdown_left_inv b (pushdown_left ta tb))
+                         (pushdown_left_inv b (pushdown_left ta tb)))].
+  + (* Precondition *)
+    unfold pushdown_left_inv.
+    Exists b ta x v tb.
+    entailer!.
+    eapply derives_trans; [| apply ramify_PPQQ].
+    rewrite (treebox_rep_spec (T ta x v tb)).
+    Exists p.
+    entailer!.
+  + (* Loop body *)
+    unfold pushdown_left_inv.
+    clear x v H H0.
+    Intros b0 ta0 x vx tbc0.
+    unfold treebox_rep at 1.
+    Intros p0.
+    forward. (* skip *)
+    forward. (* p = *t; *)
+      (* TODO: The following should be solve automatically. satuate local does not work *)
+      1: rewrite (add_andp _ _ (tree_rep_saturate_local _ _)); entailer!.
+    simpl tree_rep.
+    Intros pa pbc.
+    forward. (* q = p->right *)
+    forward_if.
+    - subst.
+      assert_PROP (tbc0 = (@E _)).
+        1: entailer!.
+      subst.
+      forward. (* q=p->left *)
+      forward. (* *t=q *)
+      forward_call (p0, sizeof t_struct_tree). (* freeN(p, sizeof ( *p )); *)
+      Focus 1. {
+        entailer!.
+        rewrite memory_block_data_at_ by auto.
+        cancel.
+      } Unfocus.
+      forward. (* return *)
+      apply modus_ponens_wand'.
+      Exists pa.
+      cancel.
+    - destruct tbc0 as [| tb0 y vy tc0].
+        { simpl tree_rep. normalize. contradiction H1; auto. }
+      unfold_data_at 2%nat.
+      rewrite (field_at_data_at Tsh t_struct_tree [StructField _left]); simpl nested_field_type.
+      gather_SEP 3 5.
+      replace_SEP 0 (treebox_rep ta0 (field_address t_struct_tree [StructField _left] p0)).
+        1: unfold treebox_rep; entailer!; Exists pa; cancel.
+      forward_call (ta0, x, vx, tb0, y, vy, tc0, b0, p0, pbc). (* turn_left(t, p, q); *)
+      forward. (* t = &q->left; *)
+      Exists (field_address t_struct_tree [StructField _left] pbc) ta0 x vx tb0.
+      entailer!.
+      apply RAMIF_PLAIN.trans''.
+      apply -> wand_sepcon_adjoint.
+Abort.
 
 Lemma body_treebox_new: semax_body Vprog Gprog f_treebox_new treebox_new_spec.
 Proof.
