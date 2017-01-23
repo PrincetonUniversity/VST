@@ -67,7 +67,9 @@ void pushdown_left (treebox t) {
     p = *t;
     q = p->right;
     if (q==NULL) {
-      *t = p->left;
+      q = p->left;
+      *t = q;
+      freeN(p, sizeof (*p));
       return;
     } else {
       turn_left(t, p, q);

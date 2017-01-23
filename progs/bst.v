@@ -353,14 +353,24 @@ Definition f_pushdown_left := {|
                        (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid))
                        tint)
           (Ssequence
-            (Sassign
-              (Ederef (Etempvar _t (tptr (tptr (Tstruct _tree noattr))))
-                (tptr (Tstruct _tree noattr)))
+            (Sset _q
               (Efield
                 (Ederef (Etempvar _p (tptr (Tstruct _tree noattr)))
                   (Tstruct _tree noattr)) _left
                 (tptr (Tstruct _tree noattr))))
-            (Sreturn None))
+            (Ssequence
+              (Sassign
+                (Ederef (Etempvar _t (tptr (tptr (Tstruct _tree noattr))))
+                  (tptr (Tstruct _tree noattr)))
+                (Etempvar _q (tptr (Tstruct _tree noattr))))
+              (Ssequence
+                (Scall None
+                  (Evar _freeN (Tfunction
+                                 (Tcons (tptr tvoid) (Tcons tint Tnil)) tvoid
+                                 cc_default))
+                  ((Etempvar _p (tptr (Tstruct _tree noattr))) ::
+                   (Esizeof (Tstruct _tree noattr) tuint) :: nil))
+                (Sreturn None))))
           (Ssequence
             (Scall None
               (Evar _turn_left (Tfunction
