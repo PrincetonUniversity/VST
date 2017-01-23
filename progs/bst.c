@@ -53,6 +53,49 @@ void insert (treebox t, int x, void *value) {
   }
 }
 
+void turn_left(treebox _l, struct tree * l, struct tree * r) {
+  struct tree * mid;
+  mid = r->left;
+  l->right = mid;
+  r->left = l;
+  *_l = r;
+}
+
+void pushdown_left (treebox t) {
+  struct tree *p, *q;
+  for(;;) {
+    p = *t;
+    q = p->right;
+    if (q==NULL) {
+      *t = p->left;
+      return;
+    } else {
+      turn_left(t, p, q);
+      t = &q->left;
+    }
+  }
+}
+
+void delete (treebox t, int x) {
+  struct tree *p;
+  for(;;) {
+    p = *t;
+    if (p==NULL) {
+      return;
+    } else {
+      int y = p->key;
+      if (x<y)
+	t= &p->left;
+      else if (y<x)
+	t= &p->right;
+      else {
+	pushdown_left(t);
+	return;
+      }
+    }
+  }
+}
+
 void *lookup (treebox t, int x) {
   struct tree *p; void *v;
   p = *t;

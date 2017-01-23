@@ -34,11 +34,27 @@ Fixpoint insert (x: key) (v: V) (s: tree) : tree :=
                         else T a x v b
  end.
 
+Fixpoint pushdown_left (a: tree) (bc: tree) : tree :=
+ match bc with
+ | E => a
+ | T b y vy c => T (pushdown_left a b) y vy c
+ end.
+
+Fixpoint delete (x: key) (s: tree) : tree :=
+ match s with
+ | E => E
+ | T a y v' b => if  x <? y then T (delete x a) y v' b
+                        else if y <? x then T a y v' (delete x b)
+                        else pushdown_left a b
+ end.
+
 End TREES.
 Arguments E {V}.
 Arguments T {V} _ _ _ _.
 Arguments insert {V} x v s.
 Arguments lookup {V} default x t.
+Arguments pushdown_left {V} a bc.
+Arguments delete {V} x s.
 
 Fixpoint tree_rep (t: tree val) (p: val) : mpred :=
  match t with
@@ -131,7 +147,6 @@ Definition insert_spec :=
     LOCAL(temp _t b; temp _x (Vint (Int.repr x)); temp _value v)
     SEP (treebox_rep t b)
   POST [ Tvoid ] 
-   EX p':val,
     PROP()
     LOCAL()
     SEP (treebox_rep (insert x v t) b).
@@ -147,6 +162,57 @@ Definition lookup_spec :=
     PROP()
     LOCAL(temp ret_temp (lookup nullval x t))
     SEP (treebox_rep t b).
+
+Definition turn_left_spec :=
+ DECLARE _turn_left
+  WITH ta: tree val, x: Z, vx: val, tb: tree val, y: Z, vy: val, tc: tree val, b: val, l: val, r: val
+  PRE  [ __l OF (tptr (tptr (Tstruct _tree noattr))),
+        _l OF (tptr (Tstruct _tree noattr)),
+        _r OF (tptr (Tstruct _tree noattr))]
+    PROP()
+    LOCAL(temp __l b; temp _l l; temp _r r)
+    SEP (data_at Tsh (tptr t_struct_tree) l b;
+         field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr x)) l;
+         field_at Tsh t_struct_tree [StructField _value] vx l;
+         field_at Tsh t_struct_tree [StructField _right] r l;
+         treebox_rep ta (field_address t_struct_tree [StructField _left] l);
+         tree_rep (T tb y vy tc) r)
+  POST [ Tvoid ] 
+    PROP()
+    LOCAL()
+    SEP (data_at Tsh (tptr t_struct_tree) r b;
+         field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr y)) r;
+         field_at Tsh t_struct_tree [StructField _value] vy r;
+         treebox_rep (T ta x vx tb) (field_address t_struct_tree [StructField _left] r);
+         treebox_rep tc (field_address t_struct_tree [StructField _right] r)).
+
+Definition pushdown_left_spec :=
+ DECLARE _turn_left
+  WITH ta: tree val, x: Z, v: val, tb: tree val, b: val, p: val
+  PRE  [ _t OF (tptr (tptr (Tstruct _tree noattr)))]
+    PROP()
+    LOCAL(temp _t b)
+    SEP (data_at Tsh (tptr t_struct_tree) p b;
+         field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr x)) p;
+         field_at Tsh t_struct_tree [StructField _value] v p;
+         treebox_rep ta (field_address t_struct_tree [StructField _left] p);
+         treebox_rep tb (field_address t_struct_tree [StructField _right] p))
+  POST [ Tvoid ] 
+    PROP()
+    LOCAL()
+    SEP (treebox_rep (pushdown_left ta tb) b).
+
+Definition delete_spec :=
+ DECLARE _delete
+  WITH b: val, x: Z, t: tree val
+  PRE  [ _t OF (tptr (tptr t_struct_tree)), _x OF tint]
+    PROP( Int.min_signed <= x <= Int.max_signed)
+    LOCAL(temp _t b; temp _x (Vint (Int.repr x)))
+    SEP (treebox_rep t b)
+  POST [ Tvoid ] 
+    PROP()
+    LOCAL()
+    SEP (treebox_rep (delete x t) b).
 
 Definition tree_free_spec :=
  DECLARE _tree_free
