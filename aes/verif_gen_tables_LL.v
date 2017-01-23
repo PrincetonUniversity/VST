@@ -1,5 +1,6 @@
 Require Import floyd.proofauto.
 Require Import floyd.reassoc_seq.
+Require Import aes.sbox.
 Require Import aes.aes.
 
 Fixpoint repeat_op_nat{T: Type}(n: nat)(start: T)(op: T -> T): T := match n with
@@ -53,12 +54,12 @@ Definition pow2(e: Z): int := repeat_op e (Int.repr 1) times2.
      Require Import aes.tablesLL.
    we do, for the moment:
 *)
-Definition FSb := (@nil int).
+Definition FSb := map Int.repr sbox.
 Definition FT0 := (@nil int).
 Definition FT1 := (@nil int).
 Definition FT2 := (@nil int).
 Definition FT3 := (@nil int).
-Definition RSb := (@nil int).
+Definition RSb := map Int.repr inv_sbox.
 Definition RT0 := (@nil int).
 Definition RT1 := (@nil int).
 Definition RT2 := (@nil int).
@@ -194,6 +195,143 @@ Proof.
   rewrite repeat_op_table_nat_length. omega.
 Qed.
 
+Lemma invert_pow3: forall i,
+  1 <= i < 256 ->
+  exists j, 1 <= j < 256 /\ i = (Int.unsigned (pow3 j)).
+Admitted.
+
+Lemma FSb_def: forall b1,
+     0 <= b1 < 256 ->
+     Znth (Int.unsigned (pow3 (255 - b1))) FSb Int.zero
+     = Int.xor
+         (Int.xor
+            (Int.xor
+               (Int.xor (pow3 b1)
+                  (Int.and (Int.or (Int.shl (pow3 b1) (Int.repr 1)) (Int.shr (pow3 b1) (Int.repr 7)))
+                     (Int.repr 255)))
+               (Int.and
+                  (Int.or
+                     (Int.shl
+                        (Int.and
+                           (Int.or (Int.shl (pow3 b1) (Int.repr 1)) (Int.shr (pow3 b1) (Int.repr 7)))
+                           (Int.repr 255)) (Int.repr 1))
+                     (Int.shr
+                        (Int.and
+                           (Int.or (Int.shl (pow3 b1) (Int.repr 1)) (Int.shr (pow3 b1) (Int.repr 7)))
+                           (Int.repr 255)) (Int.repr 7))) (Int.repr 255)))
+            (Int.and
+               (Int.or
+                  (Int.shl
+                     (Int.and
+                        (Int.or
+                           (Int.shl
+                              (Int.and
+                                 (Int.or (Int.shl (pow3 b1) (Int.repr 1))
+                                    (Int.shr (pow3 b1) (Int.repr 7))) (Int.repr 255)) 
+                              (Int.repr 1))
+                           (Int.shr
+                              (Int.and
+                                 (Int.or (Int.shl (pow3 b1) (Int.repr 1))
+                                    (Int.shr (pow3 b1) (Int.repr 7))) (Int.repr 255)) 
+                              (Int.repr 7))) (Int.repr 255)) (Int.repr 1))
+                  (Int.shr
+                     (Int.and
+                        (Int.or
+                           (Int.shl
+                              (Int.and
+                                 (Int.or (Int.shl (pow3 b1) (Int.repr 1))
+                                    (Int.shr (pow3 b1) (Int.repr 7))) (Int.repr 255)) 
+                              (Int.repr 1))
+                           (Int.shr
+                              (Int.and
+                                 (Int.or (Int.shl (pow3 b1) (Int.repr 1))
+                                    (Int.shr (pow3 b1) (Int.repr 7))) (Int.repr 255)) 
+                              (Int.repr 7))) (Int.repr 255)) (Int.repr 7))) 
+               (Int.repr 255)))
+         (Int.xor
+            (Int.and
+               (Int.or
+                  (Int.shl
+                     (Int.and
+                        (Int.or
+                           (Int.shl
+                              (Int.and
+                                 (Int.or
+                                    (Int.shl
+                                       (Int.and
+                                          (Int.or (Int.shl (pow3 b1) (Int.repr 1))
+                                             (Int.shr (pow3 b1) (Int.repr 7))) 
+                                          (Int.repr 255)) (Int.repr 1))
+                                    (Int.shr
+                                       (Int.and
+                                          (Int.or (Int.shl (pow3 b1) (Int.repr 1))
+                                             (Int.shr (pow3 b1) (Int.repr 7))) 
+                                          (Int.repr 255)) (Int.repr 7))) (Int.repr 255)) 
+                              (Int.repr 1))
+                           (Int.shr
+                              (Int.and
+                                 (Int.or
+                                    (Int.shl
+                                       (Int.and
+                                          (Int.or (Int.shl (pow3 b1) (Int.repr 1))
+                                             (Int.shr (pow3 b1) (Int.repr 7))) 
+                                          (Int.repr 255)) (Int.repr 1))
+                                    (Int.shr
+                                       (Int.and
+                                          (Int.or (Int.shl (pow3 b1) (Int.repr 1))
+                                             (Int.shr (pow3 b1) (Int.repr 7))) 
+                                          (Int.repr 255)) (Int.repr 7))) (Int.repr 255)) 
+                              (Int.repr 7))) (Int.repr 255)) (Int.repr 1))
+                  (Int.shr
+                     (Int.and
+                        (Int.or
+                           (Int.shl
+                              (Int.and
+                                 (Int.or
+                                    (Int.shl
+                                       (Int.and
+                                          (Int.or (Int.shl (pow3 b1) (Int.repr 1))
+                                             (Int.shr (pow3 b1) (Int.repr 7))) 
+                                          (Int.repr 255)) (Int.repr 1))
+                                    (Int.shr
+                                       (Int.and
+                                          (Int.or (Int.shl (pow3 b1) (Int.repr 1))
+                                             (Int.shr (pow3 b1) (Int.repr 7))) 
+                                          (Int.repr 255)) (Int.repr 7))) (Int.repr 255)) 
+                              (Int.repr 1))
+                           (Int.shr
+                              (Int.and
+                                 (Int.or
+                                    (Int.shl
+                                       (Int.and
+                                          (Int.or (Int.shl (pow3 b1) (Int.repr 1))
+                                             (Int.shr (pow3 b1) (Int.repr 7))) 
+                                          (Int.repr 255)) (Int.repr 1))
+                                    (Int.shr
+                                       (Int.and
+                                          (Int.or (Int.shl (pow3 b1) (Int.repr 1))
+                                             (Int.shr (pow3 b1) (Int.repr 7))) 
+                                          (Int.repr 255)) (Int.repr 7))) (Int.repr 255)) 
+                              (Int.repr 7))) (Int.repr 255)) (Int.repr 7))) 
+               (Int.repr 255)) (Int.repr 99)).
+Admitted.
+
+Lemma FSb_range: forall i,
+  0 <= Int.unsigned (Znth i FSb Int.zero) < 256.
+Admitted.
+
+Lemma zero_ext_nop: forall i,
+  0 <= (Int.unsigned i) < 256 ->
+  Int.zero_ext 8 i = i.
+Admitted.
+
+Lemma FSb_inj: forall i j,
+  0 <= i < 256 ->
+  0 <= j < 256 ->
+  Znth i FSb Int.zero = Znth j FSb Int.zero ->
+  i = j.
+Admitted.
+
 Definition rcon_loop_inv00(i: Z)(lvar0 lvar1 tables: val)(frozen: list mpred) : environ -> mpred :=
      PROP ( 0 <= i) (* note: the upper bound is added by the tactic, but the lower isn't! *)
      LOCAL (temp _x (Vint (pow2 i));
@@ -220,6 +358,27 @@ Definition rcon_loop_inv(lvar0 lvar1 tables: val) :=
                    ((map Vint (repeat_op_table i Int.one times2)) ++ (repeat_op_table (10-i) Vundef id))
                    tables).
 *)
+
+Definition gen_sbox_inv00 i lvar0 lvar1 tables log pow frozen :=
+    PROP ( )
+    LOCAL (lvar _log (tarray tint 256) lvar1;
+           lvar _pow (tarray tint 256) lvar0;
+           gvar _tables tables)
+    SEP (FRZL frozen; data_at Tsh (tarray tint 256) log lvar1; data_at Tsh (tarray tint 256) pow lvar0;
+         EX fsb : list val,
+           !!(Zlength fsb = 256) &&
+           !!(forall j, 0 <= j < i -> Znth j fsb Vundef = Vint (Znth j FSb Int.zero)) &&
+           !!(Znth 0 fsb Vundef = Vint (Int.repr 99))
+           && field_at Ews t_struct_tables [StructField _FSb] fsb tables;
+         EX rsb : list val,
+           !!(Zlength rsb = 256) &&
+           !!(forall j, 1 <= j < i ->
+                (Znth (Int.unsigned (Znth j FSb Int.zero)) rsb Vundef) = Vint (Int.repr j)) &&
+           !!(Znth 99 rsb Vundef = Vint Int.zero)
+           && field_at Ews t_struct_tables [StructField _RSb] rsb tables).
+
+Definition gen_sbox_inv0 lvar0 lvar1 tables log pow frozen :=
+  EX i: Z, gen_sbox_inv00 i lvar0 lvar1 tables log pow frozen.
 
 Lemma body_gen_tables: semax_body Vprog Gprog f_aes_gen_tables gen_tables_spec.
 Proof.
@@ -355,7 +514,103 @@ Proof.
   } {
   rewrite app_nil_r.
 
+Transparent FSb RSb.
+
   (* generate the forward and reverse S-boxes *)
+  thaw Fr.
+  freeze [3; 4; 5; 6; 8; 9; 10; 11; 12] Fr.
+  forward.
+  forward.
+  forward_for_simple_bound 256 (gen_sbox_inv0 lvar0 lvar1 tables log pow Fr).
+  { (* loop invariant holds initially: *)
+    entailer!.
+    Exists (upd_Znth 99 Vundef256 (Vint (Int.repr 0))).
+    Exists (upd_Znth 0 Vundef256 (Vint (Int.repr 99))).
+    entailer!. split.
+    - intros. assert (j = 0) by omega. subst j. rewrite upd_Znth_same.
+      * reflexivity.
+      * change (Zlength Vundef256) with 256. omega.
+    - intros. omega.
+  }
+  { (* loop body preserves invariant: *)
+    Ltac expose_pow_Vint pow Hpow :=
+      match goal with
+      | |- context [ Znth ?i pow Vundef ] => rewrite (Hpow i) by omega
+      end.
+    Ltac expose_log_Vint log Hlog :=
+      match goal with
+      | |- context [ Znth ?i log Vundef ] =>
+        let b := fresh "b0" in let B := fresh "B0" in let E := fresh "E0" in
+        destruct (invert_pow3 i) as [b [B E]]; [ omega |
+          rewrite E; rewrite <- (Hlog b B); rewrite ?Int.repr_unsigned ]
+      end.
+    forward. { entailer!. expose_log_Vint log H1. auto. }
+    expose_log_Vint log H1.
+    (* TODO floyd: If I don't do the above to make sure that "temp _logi" is a Vint,
+       "forward" fails, with the default error, because it cannot calculate the array index. *)
+    forward. { entailer!. expose_pow_Vint pow H3. auto. }
+    expose_pow_Vint pow H3.
+    forward. forward. forward. forward. forward. forward. forward. forward. forward.
+
+    match goal with
+    | |- context [ temp _x (Vint ?v) ] => remember v as x
+    end.
+    remember (255 - b0) as b1. assert (b0 = 255 - b1) by omega. subst b0. clear Heqb1.
+    assert (0 <= b1 < 256) as B1 by omega. clear B0.
+    rewrite <- FSb_def in Heqx by omega. subst x.
+    match goal with
+    | |- context [ temp _y (Vint ?v) ] => forget v as y
+    end.
+
+    Intro fsb. Intro rsb. normalize.
+    (* TODO floyd if I don't do the above, "forward" fails with the default error message, because
+       in store_tac, sc_new_instantiate cannot find the right SEP clause. *)
+    forward. forward.
+    - (* entailment of "forward" *)
+      entailer!.
+      apply FSb_range.
+    - (* postcondition implies loop invariant *)
+      entailer!.
+      * rewrite Int.repr_unsigned. reflexivity.
+      * match goal with
+        | |- field_at _ _ _ ?fsb' _ * field_at _ _ _ ?rsb' _ |-- _ => Exists rsb'; Exists fsb'
+        end.
+        entailer!. repeat split.
+        + rewrite upd_Znth_diff; (omega || auto).
+        + rewrite upd_Znth_Zlength; omega.
+        + intros.
+          assert (0 <= j < Int.unsigned (pow3 (255 - b1)) \/ j = Int.unsigned (pow3 (255 - b1))) as C
+          by omega. destruct C as [C | C].
+          { rewrite upd_Znth_diff; (omega || auto). }
+          { subst j. rewrite upd_Znth_same.
+            - repeat rewrite zero_ext_nop; try reflexivity; apply FSb_range.
+            - omega.
+          }
+        + intros.
+          assert (0 <= j < Int.unsigned (pow3 (255 - b1)) \/ j = Int.unsigned (pow3 (255 - b1))) as C
+          by omega. destruct C as [C | C].
+          { rewrite upd_Znth_diff.
+            - apply H10. omega.
+            - replace (Zlength rsb) with 256 by assumption. apply FSb_range.
+            - replace (Zlength rsb) with 256 by assumption. apply FSb_range.
+            - intro HH. apply unsigned_eq_eq in HH.
+              apply FSb_inj in HH; omega.
+          }
+          { subst j. rewrite Int.repr_unsigned. rewrite upd_Znth_same.
+            - repeat rewrite zero_ext_nop; try reflexivity; omega.
+            - replace (Zlength rsb) with 256 by assumption. apply FSb_range.
+          }
+        + rewrite upd_Znth_diff.
+          { auto. }
+          { omega. }
+          { replace (Zlength rsb) with 256 by assumption. apply FSb_range. }
+          { replace 99 with (Int.unsigned (Znth 0 FSb Int.zero)) by reflexivity.
+            intro HH. apply unsigned_eq_eq in HH. apply FSb_inj in HH; omega. }
+        + rewrite upd_Znth_Zlength; [ omega | ].
+          replace (Zlength rsb) with 256 by reflexivity. apply FSb_range.
+  }
+
+  (* generate the forward and reverse tables *)
   admit.
 } }
 Qed.
