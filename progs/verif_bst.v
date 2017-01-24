@@ -165,26 +165,24 @@ Definition lookup_spec :=
 
 Definition turn_left_spec :=
  DECLARE _turn_left
-  WITH ta: tree val, x: Z, vx: val, tb: tree val, y: Z, vy: val, tc: tree val, b: val, l: val, r: val
+  WITH ta: tree val, x: Z, vx: val, tb: tree val, y: Z, vy: val, tc: tree val, b: val, l: val, pa: val, r: val
   PRE  [ __l OF (tptr (tptr (Tstruct _tree noattr))),
         _l OF (tptr (Tstruct _tree noattr)),
         _r OF (tptr (Tstruct _tree noattr))]
-    PROP(Int.min_signed <= x <= Int.max_signed; tc_val (tptr Tvoid) vx)
+    PROP(Int.min_signed <= x <= Int.max_signed; is_pointer_or_null vx)
     LOCAL(temp __l b; temp _l l; temp _r r)
     SEP (data_at Tsh (tptr t_struct_tree) l b;
-         field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr x)) l;
-         field_at Tsh t_struct_tree [StructField _value] vx l;
-         field_at Tsh t_struct_tree [StructField _right] r l;
-         treebox_rep ta (field_address t_struct_tree [StructField _left] l);
+         data_at Tsh t_struct_tree (Vint (Int.repr x), (vx, (pa, r))) l;
+         tree_rep ta pa;
          tree_rep (T tb y vy tc) r)
   POST [ Tvoid ] 
-    PROP()
+    EX pc: val,
+    PROP(Int.min_signed <= y <= Int.max_signed; is_pointer_or_null vy)
     LOCAL()
     SEP (data_at Tsh (tptr t_struct_tree) r b;
-         field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr y)) r;
-         field_at Tsh t_struct_tree [StructField _value] vy r;
-         treebox_rep (T ta x vx tb) (field_address t_struct_tree [StructField _left] r);
-         treebox_rep tc (field_address t_struct_tree [StructField _right] r)).
+         data_at Tsh t_struct_tree (Vint (Int.repr y), (vy, (l, pc))) r;
+         tree_rep (T ta x vx tb) l;
+         tree_rep tc pc).
 
 Definition pushdown_left_spec :=
  DECLARE _pushdown_left
@@ -390,7 +388,7 @@ Proof. intros; subst; auto. Qed.
 Ltac simpl_compb := first [ rewrite if_trueb by (apply Z.ltb_lt; omega)
                           | rewrite if_falseb by (apply Z.ltb_ge; omega)].
 
-
+(*
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
   start_function.
@@ -543,6 +541,7 @@ Proof.
     entailer!.
     apply modus_ponens_wand.
 Qed.
+*)
 
 Lemma body_turn_left: semax_body Vprog Gprog f_turn_left turn_left_spec.
 Proof.
@@ -559,19 +558,13 @@ Proof.
   forward. (* _l = r *)
   assert_PROP (is_pointer_or_null r) by entailer!.
   rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
-  forward. (* return *)
+  Opaque tree_rep. forward. Transparent tree_rep. (* return *)
   (* TODO: simplify the following proof *)
-  rewrite (treebox_rep_spec (T ta x vx tb)).
-  Exists l.
+  Exists pc.
   entailer!.
-  unfold treebox_rep.
-  Exists pc pb.
+  simpl.
+  Exists pa pb.
   entailer!.
-  unfold_field_at 2%nat.
-  rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
-  rewrite !(field_at_data_at _ t_struct_tree [StructField _right]).
-  simpl nested_field_type.
-  cancel.
 Qed.
 
 Definition pushdown_left_inv (b_res: val) (t_res: tree val): environ -> mpred :=
@@ -627,18 +620,21 @@ Proof.
       cancel.
     - destruct tbc0 as [| tb0 y vy tc0].
         { simpl tree_rep. normalize. contradiction H1; auto. }
-      unfold_data_at 2%nat.
-      rewrite (field_at_data_at Tsh t_struct_tree [StructField _left]); simpl nested_field_type.
-      gather_SEP 3 5.
-      replace_SEP 0 (treebox_rep ta0 (field_address t_struct_tree [StructField _left] p0)).
-        1: unfold treebox_rep; entailer!; Exists pa; cancel.
-      forward_call (ta0, x, vx, tb0, y, vy, tc0, b0, p0, pbc). (* turn_left(t, p, q); *)
+      forward_call (ta0, x, vx, tb0, y, vy, tc0, b0, p0, pa, pbc). (* turn_left(t, p, q); *)
+      Intros pc.
       forward. (* t = &q->left; *)
       Exists (field_address t_struct_tree [StructField _left] pbc) ta0 x vx tb0.
-      entailer!.
-      apply RAMIF_PLAIN.trans''.
-      apply -> wand_sepcon_adjoint.
-Abort.
+      (* TODO: not to simply to much in entailer? *)
+      Opaque tree_rep. entailer!. Transparent tree_rep.
+        (* TODO: simplify this line *)
+        1: unfold field_address; simpl; rewrite if_true by auto with field_compatible; auto.
+      apply RAMIF_PLAIN.trans'.
+      apply bst_left_entail; auto.
+  + forward. (* Sskip *)
+    (* TODO: entailer! does not work here. *)
+    unfold loop2_ret_assert.
+    apply andp_left2, derives_refl.
+Qed.
 
 Lemma body_treebox_new: semax_body Vprog Gprog f_treebox_new treebox_new_spec.
 Proof.
@@ -651,7 +647,6 @@ Proof.
   forward.
   Exists p. entailer!.
 Qed.
-
 
 Lemma body_tree_free: semax_body Vprog Gprog f_tree_free tree_free_spec.
 Proof.
