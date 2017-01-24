@@ -50,23 +50,76 @@ Definition times2(x: int): int :=
 
 Definition pow2(e: Z): int := repeat_op e (Int.repr 1) times2.
 
+Definition rot8(i: int): int := 
+  Int.or (Int.and (Int.shl i (Int.repr 8)) (Int.repr (-1))) (Int.shru i (Int.repr 24)).
+
+Definition FSb := map Int.repr sbox.
+Definition RSb := map Int.repr inv_sbox.
+
+Definition calc_FT0(i: Z): int :=
+  (Int.xor (Int.xor (Int.xor 
+     (times2 (Znth i FSb Int.zero)) 
+     (Int.shl (Znth i FSb Int.zero) (Int.repr 8)))
+     (Int.shl (Znth i FSb Int.zero) (Int.repr 16)))
+     (Int.shl (Int.and (Int.xor (times2 (Znth i FSb Int.zero)) (Znth i FSb Int.zero))
+                       (Int.repr 255))
+              (Int.repr 24))).
+Definition calc_FT1(i: Z): int := rot8 (calc_FT0 i).
+Definition calc_FT2(i: Z): int := rot8 (calc_FT1 i).
+Definition calc_FT3(i: Z): int := rot8 (calc_FT2 i).
+Definition calc_RT0(i: Z): int := Int.zero.
+Definition calc_RT1(i: Z): int := Int.zero.
+Definition calc_RT2(i: Z): int := Int.zero.
+Definition calc_RT3(i: Z): int := Int.zero.
+
+Global Opaque calc_FT0 calc_FT1 calc_FT2 calc_FT2 calc_RT0 calc_RT1 calc_RT2 calc_RT3.
+
+Fixpoint fill_list_nat{T: Type}(n: nat)(f: nat -> T): list T := match n with
+| O => []
+| S m => (fill_list_nat m f) ++ [f m]
+end.
+
+Definition fill_list{T: Type}(n: Z)(f: Z -> T): list T :=
+  fill_list_nat (Z.to_nat n) (fun i => f (Z.of_nat i)).
+
+Lemma fill_list_step: forall {T: Type} (n: Z) (f: Z -> T),
+  0 <= n ->
+  fill_list (n + 1) f = fill_list n f ++ [f n].
+Proof.
+  intros. unfold fill_list. rewrite Z2Nat.inj_add by omega.
+  rewrite Nat.add_1_r. simpl. rewrite Z2Nat.id by omega. reflexivity.
+Qed.
+
 (* instead of
      Require Import aes.tablesLL.
    we do, for the moment:
 *)
-Definition FSb := map Int.repr sbox.
-Definition FT0 := (@nil int).
-Definition FT1 := (@nil int).
-Definition FT2 := (@nil int).
-Definition FT3 := (@nil int).
-Definition RSb := map Int.repr inv_sbox.
-Definition RT0 := (@nil int).
-Definition RT1 := (@nil int).
-Definition RT2 := (@nil int).
-Definition RT3 := (@nil int).
+
+Definition FT0 := fill_list 256 calc_FT0.
+Definition FT1 := fill_list 256 calc_FT1.
+Definition FT2 := fill_list 256 calc_FT2.
+Definition FT3 := fill_list 256 calc_FT3.
+Definition RT0 := fill_list 256 calc_RT0.
+Definition RT1 := fill_list 256 calc_RT1.
+Definition RT2 := fill_list 256 calc_RT2.
+Definition RT3 := fill_list 256 calc_RT3.
 Definition RCON := repeat_op_table 10 Int.one times2.
 
 Global Opaque FSb FT0 FT1 FT2 FT3 RSb RT0 RT1 RT2 RT3 RCON.
+
+Definition partially_filled(i n: Z)(f: Z -> int): list val := 
+  (map Vint (fill_list i f)) ++ (repeat_op_table (n-i) Vundef id).
+
+Lemma update_partially_filled: forall (i: Z) (f: Z -> int),
+  0 <= i < 256 ->
+  upd_Znth i (partially_filled i 256 f) (Vint (f i))
+  = partially_filled (i+1) 256 f.
+Admitted.
+
+Lemma Znth_partially_filled: forall (i j n: Z) (f: Z -> int),
+  0 <= i -> i < j -> j <= n ->
+  Znth i (partially_filled j n f) Vundef = Vint (f i).
+Admitted.
 
 Local Open Scope logic.
 
@@ -332,6 +385,22 @@ Lemma FSb_inj: forall i j,
   i = j.
 Admitted.
 
+Lemma FSb_RSb_id: forall j,
+  0 <= j < 256 ->
+  j = Int.unsigned (Znth (Int.unsigned (Znth j RSb Int.zero)) FSb Int.zero).
+Admitted.
+
+Lemma RSb_inj: forall i j,
+  0 <= i < 256 ->
+  0 <= j < 256 ->
+  Znth i RSb Int.zero = Znth j RSb Int.zero ->
+  i = j.
+Admitted.
+
+Lemma RSb_range: forall i,
+  0 <= Int.unsigned (Znth i RSb Int.zero) < 256.
+Admitted.
+
 Definition rcon_loop_inv00(i: Z)(lvar0 lvar1 tables: val)(frozen: list mpred) : environ -> mpred :=
      PROP ( 0 <= i) (* note: the upper bound is added by the tactic, but the lower isn't! *)
      LOCAL (temp _x (Vint (pow2 i));
@@ -379,6 +448,50 @@ Definition gen_sbox_inv00 i lvar0 lvar1 tables log pow frozen :=
 
 Definition gen_sbox_inv0 lvar0 lvar1 tables log pow frozen :=
   EX i: Z, gen_sbox_inv00 i lvar0 lvar1 tables log pow frozen.
+
+(* TODO floyd put in sublist? *)
+Lemma list_equiv: forall {T: Type} (l1 l2: list T) (d: T) (n: Z),
+  Zlength l1 = n ->
+  Zlength l2 = n ->
+  (forall j, 0 <= j < n -> Znth j l1 d = Znth j l2 d) ->
+  l1 = l2.
+Proof.
+  intros T l1. induction l1; intros.
+  - cbv in H. subst n. apply Zlength_nil_inv in H0. subst l2. reflexivity.
+  - rewrite Zlength_cons in H.
+    pose proof (Zlength_nonneg l1).
+    rename a into a1. destruct l2 as [ | a2 l2 ].
+    * cbv in H0. subst n. omega.
+    * f_equal.
+      + assert (0 <= 0 < n) as B by omega. specialize (H1 0 B). cbv in H1. assumption.
+      + rewrite Zlength_cons in H0. apply (IHl1 l2 d (n-1)); try omega.
+        intros. assert (0 <= (j+1) < n) as B by omega. specialize (H1 (j+1) B).
+        do 2 rewrite Znth_pos_cons in H1 by omega.
+        replace (j + 1 - 1) with j in H1 by omega.
+        assumption.
+Qed.
+
+Definition gen_ftrt_inv00 i lvar0 lvar1 tables log pow :=
+    PROP ( )
+    LOCAL (lvar _log (tarray tint 256) lvar1;
+           lvar _pow (tarray tint 256) lvar0;
+           gvar _tables tables)
+    SEP (data_at Tsh (tarray tint 256) pow lvar0;
+         data_at Tsh (tarray tint 256) log lvar1;
+         field_at Ews t_struct_tables [StructField _FSb] (map Vint FSb) tables;
+         field_at Ews t_struct_tables [StructField _FT0] (partially_filled i 256 calc_FT0) tables;
+         field_at Ews t_struct_tables [StructField _FT1] (partially_filled i 256 calc_FT1) tables;
+         field_at Ews t_struct_tables [StructField _FT2] (partially_filled i 256 calc_FT2) tables;
+         field_at Ews t_struct_tables [StructField _FT3] (partially_filled i 256 calc_FT3) tables;
+         field_at Ews t_struct_tables [StructField _RSb] (map Vint RSb) tables;
+         field_at Ews t_struct_tables [StructField _RT0] (partially_filled i 256 calc_RT0) tables;
+         field_at Ews t_struct_tables [StructField _RT1] (partially_filled i 256 calc_RT1) tables;
+         field_at Ews t_struct_tables [StructField _RT2] (partially_filled i 256 calc_RT2) tables;
+         field_at Ews t_struct_tables [StructField _RT3] (partially_filled i 256 calc_RT3) tables;
+         field_at Ews t_struct_tables [StructField _RCON] (map Vint RCON) tables).
+
+Definition gen_ftrt_inv0 lvar0 lvar1 tables log pow :=
+  EX i: Z, gen_ftrt_inv00 i lvar0 lvar1 tables log pow.
 
 Lemma body_gen_tables: semax_body Vprog Gprog f_aes_gen_tables gen_tables_spec.
 Proof.
@@ -514,7 +627,7 @@ Proof.
   } {
   rewrite app_nil_r.
 
-Transparent FSb RSb.
+  Transparent FSb RSb.
 
   (* generate the forward and reverse S-boxes *)
   thaw Fr.
@@ -610,7 +723,118 @@ Transparent FSb RSb.
           replace (Zlength rsb) with 256 by reflexivity. apply FSb_range.
   }
 
+  thaw Fr.
+  Intro fsb. Intro rsb.
+
+  (* TODO floyd: the following should be done by normalize *)
+  assert_PROP (
+    (Zlength rsb = 256) /\
+    (forall j : Z, 1 <= j < 256 ->
+       Znth (Int.unsigned (Znth j FSb Int.zero)) rsb Vundef = Vint (Int.repr j)) /\
+    (Znth 99 rsb Vundef = Vint Int.zero)
+  ) as P. { entailer!. }
+  destruct P as [?H [?H ?H]].
+  match goal with
+  | |- semax ?D (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?e ?Post => match R with
+    | [?s0; ?s1; ?s2; ?s3; ?s4; ?s5; ?s6; ?s7; ?s8; ?s9; ?s10; ?s11; ?s12] => match s12 with
+      | _ && _ && _ && ?f => apply semax_pre with (P' :=
+         (PROPx P (LOCALx Q (SEPx [s0; s1; s2; s3; s4; s5; s6; s7; s8; s9; s10; s11; f]))))
+      end
+    end
+  end. { entailer!. }
+
+  assert (fsb = (map Vint FSb)) as E. {
+    apply list_equiv with (d := Vundef) (n := 256).
+    - assumption.
+    - rewrite Zlength_map. reflexivity.
+    - intros. rewrite H6 by omega. rewrite Znth_map with (d' := Int.zero).
+      + reflexivity.
+      + apply H10.
+  }
+  subst fsb.
+  assert (rsb = (map Vint RSb)) as E. {
+    apply list_equiv with (d := Vundef) (n := 256).
+    - assumption.
+    - rewrite Zlength_map. reflexivity.
+    - intros. assert (j = 99 \/ j <> 99) as C by omega. destruct C as [C | C].
+      + subst j. rewrite H9. reflexivity.
+      + rewrite (FSb_RSb_id j H10) at 1. rewrite H8.
+        * rewrite Int.repr_unsigned. symmetry. apply Znth_map with (d' := Int.zero).
+          replace (Zlength RSb) with 256 by reflexivity. omega.
+        * assert (Int.unsigned (Znth j RSb Int.zero) = 0 \/ Int.unsigned (Znth j RSb Int.zero) <> 0)
+          as D by omega. destruct D as [D | D].
+          { change 0 with (Int.unsigned Int.zero) in D. apply unsigned_eq_eq in D.
+            change Int.zero with (Znth 99 RSb Int.zero) in D at 2.
+            apply RSb_inj in D; omega. }
+          { pose proof (RSb_range j). omega. }
+  }
+  subst rsb.
+  clear H4 H5 H6 H7 H8 H9.
+
   (* generate the forward and reverse tables *)
+  forward_for_simple_bound 256 (gen_ftrt_inv0 lvar0 lvar1 tables log pow).
+  { (* loop invariant holds initially: *)
+    entailer!.
+  }
+  { (* loop body preserves invariant: *)
+
+    (* forward tables: *)
+    assert (forall i, Int.unsigned (Znth i FSb Int.zero) <= Byte.max_unsigned). {
+      pose proof FSb_range. intro. change Byte.max_unsigned with 255. specialize (H5 i0). omega.
+    }
+    forward.
+    Opaque FSb RSb.
+    (* t'3 = ( x & 0x80 ) ? 0x1B : 0x00 ) *)
+    forward_if_diff (PROP () LOCAL (temp _t'3 (Vint (
+      if Int.eq (Int.and (Znth i FSb Int.zero) (Int.repr 128)) Int.zero
+      then Int.zero
+      else (Int.repr 27)
+    ))) SEP ()).
+    * (* then-branch of "_ ? _ : _" *)
+      forward. rewrite Int.eq_false by assumption. entailer!.
+    * (* else-branch of "_ ? _ : _" *)
+      forward.
+      match goal with
+      | H: @eq int _ _ |- _ => rewrite H
+      end.
+      rewrite Int.eq_true.
+      entailer!.
+    * (* after  "_ ? _ : _" *)
+      forward.
+      match goal with
+      | |- context [ temp _y (Vint ?v) ] => change v with (times2 (Znth i FSb Int.zero))
+      end.
+      forward.
+      forward.
+      match goal with
+      | |- context [ field_at _ _ _ (upd_Znth i (partially_filled i 256 calc_FT0) (Vint ?v)) _ ] =>
+        change v with (calc_FT0 i)
+      end.
+      rewrite (update_partially_filled i calc_FT0) by assumption.
+
+      (* TODO floyd make sure this can be undone, and document it *)
+      Ltac canon_load_result Hresult ::= rewrite Znth_partially_filled in Hresult by omega.
+      forward. forward.
+      match goal with
+      | |- context [ field_at _ _ _ (upd_Znth i (partially_filled i 256 calc_FT1) (Vint ?v)) _ ] =>
+        change v with (calc_FT1 i)
+      end.
+      rewrite (update_partially_filled i calc_FT1) by assumption.
+
+      forward. forward.
+      match goal with
+      | |- context [ field_at _ _ _ (upd_Znth i (partially_filled i 256 calc_FT2) (Vint ?v)) _ ] =>
+        change v with (calc_FT2 i)
+      end.
+      rewrite (update_partially_filled i calc_FT2) by assumption.
+
+      forward. forward.
+      match goal with
+      | |- context [ field_at _ _ _ (upd_Znth i (partially_filled i 256 calc_FT3) (Vint ?v)) _ ] =>
+        change v with (calc_FT3 i)
+      end.
+      rewrite (update_partially_filled i calc_FT3) by assumption.
+
   admit.
 } }
 Qed.
