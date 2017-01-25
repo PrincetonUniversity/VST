@@ -42,6 +42,32 @@ Definition times3(x: int): int :=
 
 Definition pow3(e: Z): int := repeat_op e (Int.repr 1) times3.
 
+Fixpoint log3_nat(p: int)(n: nat): Z :=
+  if Int.eq p (pow3 (Z.of_nat n)) then Z.of_nat n
+  else match n with
+  | O => -1 (* illegal argument *)
+  | S m => log3_nat p m
+  end.
+
+(* Note: For (log3 1), we have two possible return values: 0 and 255.
+   We choose 255, because then both the domain and the codomain of log3 are 1..255. *)
+Definition log3(p: int): Z := log3_nat p 255.
+
+Definition Z_to_val(x: Z): val := if zeq x (-1) then Vundef else Vint (Int.repr x).
+
+Lemma pow3_not0: forall i, pow3 i <> Int.zero.
+Admitted.
+
+Lemma pow3log3: forall j,
+  1 <= j < 256 ->
+  Int.unsigned (pow3 (log3 (Int.repr j))) = j.
+Admitted.
+
+Lemma log3range: forall j,
+  1 <= j < 256 ->
+  1 <= log3 (Int.repr j) < 256.
+Admitted.
+
 Definition times2(x: int): int := 
   Int.and
     (Int.xor (Int.shl x (Int.repr 1))
@@ -515,7 +541,8 @@ Proof.
               And btw, log[0] remains Vundef.
               Think "each j has to be stored in the right cell of the log array". *)
            !!(forall j, 1 <= j < i -> Vint (Int.repr j)
-                = Znth (Int.unsigned (pow3 j)) log Vundef)
+                = Znth (Int.unsigned (pow3 j)) log Vundef) &&
+           !!(Znth 0 log Vundef = Vundef)
            && data_at Tsh (tarray tint 256) log lvar1;
          EX pow : list val,
            !!(Zlength pow = 256) &&
@@ -560,6 +587,12 @@ Proof.
         { Exists (upd_Znth i pow (Vint (pow3 i))).
           Exists (upd_Znth (Int.unsigned (pow3 i)) log (Vint (Int.repr i))).
           entailer!. assert (0 <= i < 256) by omega. repeat split.
+          - rewrite upd_Znth_diff.
+              + assumption.
+              + omega.
+              + replace (Zlength log) with 256 by assumption. apply pow3_range; omega.
+              + intro E. change 0 with (Int.unsigned Int.zero) in E. apply unsigned_eq_eq in E.
+                symmetry in E. apply (pow3_not0 i E).
           - replace 256 with (Zlength log) by assumption.
             apply upd_Znth_Zlength.
             replace (Zlength log) with 256 by assumption.
@@ -657,12 +690,12 @@ Proof.
         destruct (invert_pow3 i) as [b [B E]]; [ omega |
           rewrite E; rewrite <- (Hlog b B); rewrite ?Int.repr_unsigned ]
       end.
-    forward. { entailer!. expose_log_Vint log H1. auto. }
-    expose_log_Vint log H1.
+    forward. { entailer!. expose_log_Vint log H2. auto. }
+    expose_log_Vint log H2.
     (* TODO floyd: If I don't do the above to make sure that "temp _logi" is a Vint,
        "forward" fails, with the default error, because it cannot calculate the array index. *)
-    forward. { entailer!. expose_pow_Vint pow H3. auto. }
-    expose_pow_Vint pow H3.
+    forward. { entailer!. expose_pow_Vint pow H4. auto. }
+    expose_pow_Vint pow H4.
     forward. forward. forward. forward. forward. forward. forward. forward. forward.
 
     match goal with
@@ -703,7 +736,7 @@ Proof.
           assert (0 <= j < Int.unsigned (pow3 (255 - b1)) \/ j = Int.unsigned (pow3 (255 - b1))) as C
           by omega. destruct C as [C | C].
           { rewrite upd_Znth_diff.
-            - apply H10. omega.
+            - apply H11. omega.
             - replace (Zlength rsb) with 256 by assumption. apply FSb_range.
             - replace (Zlength rsb) with 256 by assumption. apply FSb_range.
             - intro HH. apply unsigned_eq_eq in HH.
@@ -747,9 +780,9 @@ Proof.
     apply list_equiv with (d := Vundef) (n := 256).
     - assumption.
     - rewrite Zlength_map. reflexivity.
-    - intros. rewrite H6 by omega. rewrite Znth_map with (d' := Int.zero).
+    - intros. rewrite H7 by omega. rewrite Znth_map with (d' := Int.zero).
       + reflexivity.
-      + apply H10.
+      + apply H11.
   }
   subst fsb.
   assert (rsb = (map Vint RSb)) as E. {
@@ -757,8 +790,8 @@ Proof.
     - assumption.
     - rewrite Zlength_map. reflexivity.
     - intros. assert (j = 99 \/ j <> 99) as C by omega. destruct C as [C | C].
-      + subst j. rewrite H9. reflexivity.
-      + rewrite (FSb_RSb_id j H10) at 1. rewrite H8.
+      + subst j. rewrite H10. reflexivity.
+      + rewrite (FSb_RSb_id j H11) at 1. rewrite H9.
         * rewrite Int.repr_unsigned. symmetry. apply Znth_map with (d' := Int.zero).
           replace (Zlength RSb) with 256 by reflexivity. omega.
         * assert (Int.unsigned (Znth j RSb Int.zero) = 0 \/ Int.unsigned (Znth j RSb Int.zero) <> 0)
@@ -769,10 +802,51 @@ Proof.
           { pose proof (RSb_range j). omega. }
   }
   subst rsb.
-  clear H4 H5 H6 H7 H8 H9.
+  clear H5 H6 H7 H8 H9 H10.
+
+  (* Before using log and pow, let's turn these "list val" into "list int" or "list Z", respectively. *)
+  rename log into log0, pow into pow0.
+  assert (exists pow, pow0 = map Vint pow /\ forall j, 0 <= j < 256 -> Znth j pow Int.zero = pow3 j)
+  as E. {
+    exists (map force_int pow0). split.
+    - apply list_equiv with (d := Vundef) (n := 256); rewrite ?Zlength_map; try assumption.
+      intros. autorewrite with sublist. rewrite H4 by omega. reflexivity.
+    - intros. autorewrite with sublist. rewrite H4 by omega. reflexivity.
+  }
+  destruct E as [pow [E Hpow]]. subst pow0. clear H4. rewrite Zlength_map in H3. rename H3 into Lpow.
+  assert (exists log, log0 = map Z_to_val log /\
+                      forall j, 1 <= j < 256 -> Znth j log 0 = log3 (Int.repr j))
+  as E. {
+    exists (map (fun x => match x with
+                          | Vint i => Int.unsigned i
+                          | _ => -1
+                          end)
+                 log0). split.
+    - apply list_equiv with (d := Vundef) (n := 256); rewrite ?Zlength_map; try assumption.
+      intros. autorewrite with sublist.
+      assert (j = 0 \/ j <> 0) as C by omega. destruct C as [C | C].
+      + subst j. rewrite H0. reflexivity.
+      + assert (1 <= j < 256) as A by omega.
+        specialize (H2 (log3 (Int.repr j))).
+        pose proof (log3range j A).
+        rewrite pow3log3 in H2 by assumption.
+        rewrite <- H2 by assumption.
+        rewrite Int.unsigned_repr by repable_signed. unfold Z_to_val.
+        destruct (zeq (log3 (Int.repr j)) (-1)) as [E | E]; [ | reflexivity ].
+        rewrite E in H4. omega.
+    - intros. autorewrite with sublist.
+      specialize (H2 (log3 (Int.repr j))).
+      pose proof (log3range j H3).
+      rewrite pow3log3 in H2 by assumption.
+      rewrite <- H2 by assumption.
+      rewrite Int.unsigned_repr by repable_signed.
+      reflexivity.
+  }
+  destruct E as [log [E Hlog]]. subst log0. clear H2. rewrite Zlength_map in H1. rename H1 into Llog.
+  clear H H0.
 
   (* generate the forward and reverse tables *)
-  forward_for_simple_bound 256 (gen_ftrt_inv0 lvar0 lvar1 tables log pow).
+  forward_for_simple_bound 256 (gen_ftrt_inv0 lvar0 lvar1 tables (map Z_to_val log) (map Vint pow)).
   { (* loop invariant holds initially: *)
     entailer!.
   }
@@ -780,7 +854,7 @@ Proof.
 
     (* forward tables: *)
     assert (forall i, Int.unsigned (Znth i FSb Int.zero) <= Byte.max_unsigned). {
-      pose proof FSb_range. intro. change Byte.max_unsigned with 255. specialize (H5 i0). omega.
+      pose proof FSb_range as F. intro. change Byte.max_unsigned with 255. specialize (F i0). omega.
     }
     forward.
     Opaque FSb RSb.
