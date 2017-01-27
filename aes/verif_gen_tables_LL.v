@@ -55,6 +55,13 @@ Definition log3(p: int): Z := log3_nat p 255.
 
 Definition Z_to_val(x: Z): val := if zeq x (-1) then Vundef else Vint (Int.repr x).
 
+Lemma Z_to_val_to_Vint: forall j,
+  j <> -1 ->
+  Z_to_val j = Vint (Int.repr j).
+Proof.
+  intros. unfold Z_to_val. destruct (zeq j (-1)) as [E | E]. omega. reflexivity.
+Qed.
+
 Lemma pow3_not0: forall i, pow3 i <> Int.zero.
 Admitted.
 
@@ -425,6 +432,24 @@ Admitted.
 
 Lemma RSb_range: forall i,
   0 <= Int.unsigned (Znth i RSb Int.zero) < 256.
+Admitted.
+
+Lemma simpl_mod255: forall i,
+  force_val (sem_binary_operation' Omod tint tint (Vint i) (Vint (Int.repr 255)))
+  = Vint (Int.mods i (Int.repr 255)).
+Proof.
+  intros. simpl. unfold sem_mod. simpl. unfold both_int. simpl.
+  match goal with
+  | |- context [ (?C1 && ?C2)%bool ] => destruct C2 eqn: E2
+  end.
+  - apply int_eq_e in E2. discriminate.
+  - rewrite andb_false_r. reflexivity.
+Qed.
+
+Lemma mod_range: forall i m,
+  0 <= i ->
+  0 < m ->
+  0 <= Int.unsigned (Int.mods (Int.repr i) (Int.repr m)) < m.
 Admitted.
 
 Definition rcon_loop_inv00(i: Z)(lvar0 lvar1 tables: val)(frozen: list mpred) : environ -> mpred :=
@@ -908,6 +933,96 @@ Proof.
         change v with (calc_FT3 i)
       end.
       rewrite (update_partially_filled i calc_FT3) by assumption.
+
+(* reset back to normal: (TODO floyd call this canon_load_result_default *)
+Ltac canon_load_result Hresult ::= 
+  repeat (
+    first [ rewrite Znth_map with (d' := Int.zero) in Hresult
+          | rewrite Znth_map with (d' := Vundef) in Hresult
+          | rewrite Znth_map with (d' := 0) in Hresult ];
+    [ | auto; rewrite ?Zlength_map in *; omega || match goal with
+        | |- ?Bounds => fail 1000 "Please make sure omega or auto can prove" Bounds
+        end ]
+  ).
+
+    (* reverse tables: *)
+    assert (forall i, Int.unsigned (Znth i RSb Int.zero) <= Byte.max_unsigned). {
+      pose proof RSb_range as F. intro. change Byte.max_unsigned with 255. specialize (F i0). omega.
+    }
+    forward.
+    (* MUL(0x0E, x, prod1); *)
+    assert (forall j, 1 <= j < 256 -> Znth j log 0 <> -1). {
+      intros j B. specialize (Hlog j B). pose proof (log3range j B). omega.
+    }
+    Ltac canon_load_result Hresult ::= 
+      (* default: *)
+      repeat (
+        first [ rewrite Znth_map with (d' := Int.zero) in Hresult
+              | rewrite Znth_map with (d' := Vundef) in Hresult
+              | rewrite Znth_map with (d' := 0) in Hresult ];
+        [ | auto; rewrite ?Zlength_map in *; omega || match goal with
+            | |- ?Bounds => fail 1000 "Please make sure omega or auto can prove" Bounds
+            end ]
+      );
+      (* additional: *)
+      try rewrite Z_to_val_to_Vint in Hresult by
+      match goal with
+      | H : forall j : Z, 1 <= j < 256 -> Znth j _ _ <> -1 |- _ => apply H; omega
+      end.
+
+    pose proof RSb_range as F. replace 256 with (Zlength log) in F by assumption.
+    (* Note: Looking at the expression
+       (Sset _t'4 (Ecast (Etempvar _x tint) tbool))
+       which should be the parse result of "0x0E && x", it seems that the parser optimized away
+       the constant "0x0E"... *)
+    forward.
+    forward_if_diff (PROP () LOCAL (temp _prod1 (Vint (
+      if Int.eq (cast_int_int IBool Unsigned (Znth i RSb Int.zero)) Int.zero
+      then Int.zero
+      else (Znth (Int.unsigned
+              (Int.mods (Int.repr (Znth 14 log 0 + Znth (Int.unsigned (Znth i RSb Int.zero)) log 0))
+                        (Int.repr 255))) pow Int.zero)
+    ))) SEP ()).
+    { (* TODO floyd: this should be derived automatically from H3 *)
+      assert (Int.unsigned (Znth i RSb Int.zero) <> 0) as Ne. {
+        intro E. apply H3. change 0 with (Int.unsigned Int.zero) in E.
+        apply unsigned_eq_eq in E. rewrite E. rewrite Int.eq_true. reflexivity.
+      }
+      pose proof (RSb_range i).
+      forward. forward. forward. { 
+        entailer!.
+       (* We have to show that we're not in the case "INT_MIN % -1", because that's undefined behavior.
+          TODO floyd: Make sure floyd can solve this automatically, also in solve_efield_denote, so
+          that we don't have to factor out the modulo, but can use it directly as the array index. *)
+        unfold is_true, negb.
+        match goal with
+        | |- if if (?C1 && ?C2)%bool then _ else _ then _ else _ =>
+          destruct C1 eqn: E1; destruct C2 eqn: E2; simpl; auto
+        end.
+        apply int_eq_e in E2. discriminate.
+      }
+      simpl eval_binop.
+      rewrite simpl_mod255.
+      assert (0 <= Znth 14 log 0 + Znth (Int.unsigned (Znth i RSb Int.zero)) log 0) as A. {
+        do 2 rewrite Hlog by omega.
+        pose proof (log3range 14).
+        pose proof (log3range (Int.unsigned (Znth i RSb Int.zero))). omega.
+      }
+      pose proof (mod_range _ 255 A).
+      forward.
+      entailer!.
+      destruct (Int.eq (Znth i RSb Int.zero) Int.zero) eqn: E.
+      - exfalso. apply H3. reflexivity.
+      - simpl. reflexivity.
+    }
+    { (* else-branch *)
+      forward. entailer!.
+      destruct (Int.eq (Znth i RSb Int.zero) Int.zero) eqn: E.
+      - simpl. reflexivity.
+      - discriminate.
+    }
+
+    (* MUL(0x09, x, prod2); *)
 
   admit.
 } }
