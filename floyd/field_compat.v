@@ -66,8 +66,8 @@ rewrite nested_pred_eq in H2|-*.
 rewrite andb_true_iff in *; destruct H2; split; auto.
 unfold local_legal_alignas_type in H2|-*.
 rewrite andb_true_iff in *; destruct H2; split; auto.
-destruct (attr_alignas (attr_of_type t)); auto.
-apply Z.leb_le in H11.  apply Z.leb_le. omega.
+rewrite andb_true_iff in *; destruct H11; split; auto.
+apply Z.leb_le. tauto.
 *
 omega.
 *
@@ -99,8 +99,8 @@ rewrite nested_pred_eq in H2|-*.
 rewrite andb_true_iff in *; destruct H2; split; auto.
 unfold local_legal_alignas_type in H2|-*.
 rewrite andb_true_iff in *; destruct H2; split; auto.
-destruct (attr_alignas (attr_of_type t)); auto.
-apply Z.leb_le in H11.  apply Z.leb_le. omega.
+rewrite andb_true_iff in *; destruct H11; split; auto.
+apply Z.leb_le. omega.
 *
 omega.
 *
@@ -146,7 +146,7 @@ intuition.
   clear - H1 H2 H0.
   unfold local_legal_alignas_type in *.
   rewrite andb_true_iff in *. destruct H0; split; auto.
-  destruct (attr_alignas (attr_of_type t)); auto.
+  rewrite andb_true_iff in *. destruct H0; split; auto.
   eapply Zle_is_le_bool. omega.
  *  
   unfold sizeof in H6|-*; fold (sizeof t) in *.
@@ -215,11 +215,10 @@ rewrite nested_pred_eq, andb_true_iff in H3|-*.
 destruct H3; split; auto.
 unfold local_legal_alignas_type in H|-*.
 rewrite andb_true_iff in H|-*; destruct H.
-destruct (attr_alignas (attr_of_type t)) eqn:?; try now inv H10.
-split; rewrite Z.leb_le in *; [ | omega].
-unfold plain_alignof in *.
-eapply Z.le_trans; [eassumption | ].
-apply Z.le_refl.
+rewrite andb_true_iff in H10 |-*; destruct H10.
+split; auto.
+split; auto.
+apply Z.leb_le; auto.
 *
 unfold sizeof in H5|-*. fold sizeof in H5|-*.
 rewrite Z.max_r in H5|-* by omega.
@@ -234,12 +233,9 @@ unfold legal_alignas_type in H3|-*.
 rewrite nested_pred_eq, andb_true_iff in H3|-*.
 destruct H3; split; auto.
 unfold local_legal_alignas_type in H|-*.
-rewrite andb_true_iff in H|-*; destruct H.
-destruct (attr_alignas (attr_of_type t)) eqn:?; try now inv H10.
-split; rewrite Z.leb_le in *; [ | omega].
-unfold plain_alignof in *.
-eapply Z.le_trans; [eassumption | ].
-apply Z.le_refl.
+rewrite andb_true_iff in H|-*; destruct H; split; auto.
+rewrite andb_true_iff in H10|-*; destruct H10; split; auto.
+apply Z.leb_le; omega.
 *
 unfold sizeof in H5|-*. fold sizeof in H5|-*.
 rewrite Z.max_r in H5|-* by omega.
@@ -279,8 +275,7 @@ unfold alignof. fold alignof.
 unfold attr_of_type, noattr, align_attr, attr_alignas.
 apply Z.divide_mul_l; auto.
 clear - H3.
-rewrite (legal_alignas_type_Tarray _ _ _ H3).
-apply legal_alignas_sizeof_alignof_compat.
+apply (legal_alignas_type_Tarray _ _ _ H3).
 unfold legal_alignas_type in H3.
 rewrite nested_pred_eq in H3.
 unfold legal_alignas_type.
@@ -499,7 +494,7 @@ intros until 1. intros NA ?H ?H Hni Hii Hp. subst p'.
   rewrite andb_true_iff in *. destruct H1; split; auto.
   unfold local_legal_alignas_type in *.
   rewrite andb_true_iff in *. destruct H1; split; auto.
-  destruct (attr_alignas (attr_of_type t)); auto.
+  rewrite andb_true_iff in *. destruct H12; split; auto.
   eapply Zle_is_le_bool. omega.
   *  
   unfold sizeof in H7|-*; fold (sizeof t) in *.
