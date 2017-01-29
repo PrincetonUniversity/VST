@@ -88,6 +88,26 @@ Definition value_at (v: val) (x: Z): mpred :=
 Definition container_at (xs: Z -> Prop) (b: val): mpred :=
   EX t: tree val, !! (has_keys t xs) && treebox_rep t b.
 
+Lemma treebox_rep_spec: forall (t: tree val) (b: val),
+  treebox_rep t b =
+  data_at Tsh (tptr t_struct_tree)
+    match t return val with
+    | E => nullval
+    | T _ _ p _ => p
+    end b *
+  match t with
+  | E => emp
+  | T l x p r =>
+      !! (Int.min_signed <= x <= Int.max_signed) &&
+      field_at Ash t_struct_tree [StructField _key] (Vint (Int.repr x)) p *
+      treebox_rep l (field_address t_struct_tree [StructField _left] p) *
+      treebox_rep r (field_address t_struct_tree [StructField _right] p)
+  end.
+Proof.
+  intros.
+  destruct t; simpl; apply pred_ext; entailer!.
+Qed.
+
 Definition mallocN_spec :=
  DECLARE _mallocN
   WITH n: Z
@@ -219,7 +239,7 @@ Definition treebox_free_spec :=
 Definition Gprog : funspecs := 
     ltac:(with_library prog [
     mallocN_spec; freeN_spec; treebox_new_spec; 
-    turn_left_spec; pushdown_left_spec
+    subscr_spec1; turn_left_spec; pushdown_left_spec
   ]).
 
 Lemma treebox_rep_saturate_local:
@@ -289,16 +309,23 @@ Proof.
     | apply (semax_loop _ (subscr1_inv b t x p) (subscr1_inv b t x p))].
   * (* Precondition *)
     unfold subscr1_inv.
-    Exists b t. (* TODO: entailer! fails *)
-Abort.
-(*
-    apply ramify_PPQQ.
+    Exists b t.
+    (* TODO entailer: entailer! fails *)
+    admit.
+    (* apply ramify_PPQQ. *)
   * (* Loop body *)
     forward. (* Sskip *)
-    unfold insert_inv.
+    unfold subscr1_inv.
     Intros b1 t1.
-    unfold treebox_rep at 1. Intros p1.
+    (* TODO: without this "set", "rewrite ... at 1" is super slow. *)
+    set (tb := treebox_rep t1 b1) at 2.
+    rewrite (treebox_rep_spec t1 b1).
+    subst tb.
+    normalize.
     forward. (* p = *t; *)
+Abort.
+(*
+    destruct t1; entailer!.
     forward_if.
     + (* then clause *)
       subst p1.
