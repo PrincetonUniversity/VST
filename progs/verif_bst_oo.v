@@ -27,6 +27,14 @@ Fixpoint insert (x: key) (v: V) (s: tree) : tree :=
                         else T a x v' b
  end.
 
+Fixpoint tree_inb (x: key) (s: tree) : bool :=
+ match s with
+ | E => false
+ | T a y v' b => if  x <? y then tree_inb x a
+                        else if y <? x then tree_inb x b
+                        else true
+ end.
+
 Fixpoint pushdown_left (a: tree) (bc: tree) : tree :=
  match bc with
  | E => a
@@ -41,30 +49,14 @@ Fixpoint delete (x: key) (s: tree) : tree :=
                         else pushdown_left a b
  end.
 
-Fixpoint tree_in (x: key) (s: tree) : Prop :=
- match s with 
- | E => False
- | T a y _ b => tree_in x a \/ x = y \/ tree_in x b
- end.
-
-Definition has_keys (s: tree) (xs: key -> Prop): Prop :=
-  forall x, tree_in x s <-> xs x.
-
 End TREES.
 
 Arguments E {V}.
 Arguments T {V} _ _ _ _.
 Arguments insert {V} x v s.
+Arguments tree_inb {V} x s.
 Arguments pushdown_left {V} a bc.
 Arguments delete {V} x s.
-Arguments tree_in {V} x s.
-Arguments has_keys {V} s xs.
-
-Parameter Ash: share.
-Parameter Bsh: share.
-Axiom Ash_readable: readable_share Ash.
-Axiom Bsh_readable: readable_share Bsh.
-Axiom ABsh_Tsh: sepalg.join Ash Bsh Tsh.
 
 Fixpoint treebox_rep (t: tree val) (b: val) : mpred :=
   match t with
@@ -72,22 +64,28 @@ Fixpoint treebox_rep (t: tree val) (b: val) : mpred :=
   | T l x p r =>
       !! (Int.min_signed <= x <= Int.max_signed) &&
       data_at Tsh (tptr t_struct_tree) p b *
-      field_at Ash t_struct_tree [StructField _key] (Vint (Int.repr x)) p *
+      field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr x)) p *
       treebox_rep l (field_address t_struct_tree [StructField _left] p) *
       treebox_rep r (field_address t_struct_tree [StructField _right] p)
   end.
 
-Definition key_store (x: Z) (p: val): mpred :=
+Fixpoint key_store (s: tree val) (x: key) (q: val): Prop :=
+ match s with
+ | E => False
+ | T a y p b => if  x <? y then key_store a x q
+                        else if y <? x then key_store b x q
+                        else q = field_address t_struct_tree [StructField _value] p
+ end.
+
+Definition key_store_ (s: tree val) (x: key): Prop :=
+  exists v, key_store s x v.
+
+Definition value_at (t: tree val) (v: val) (x: Z): mpred :=
   EX q: val,
-    !! (p = field_address t_struct_tree [StructField _value] q) &&
-    field_at Bsh t_struct_tree [StructField _key] (Vint (Int.repr x)) q.
+  !! (key_store t x q) &&
+  data_at Tsh (tptr Tvoid) v q.
 
-Definition value_at (v: val) (x: Z): mpred :=
-  EX p: val, key_store x p * data_at Tsh (tptr Tvoid) v p.
-
-Definition container_at (xs: Z -> Prop) (b: val): mpred :=
-  EX t: tree val, !! (has_keys t xs) && treebox_rep t b.
-
+(* TODO: maybe not useful *)
 Lemma treebox_rep_spec: forall (t: tree val) (b: val),
   treebox_rep t b =
   data_at Tsh (tptr t_struct_tree)
@@ -99,7 +97,7 @@ Lemma treebox_rep_spec: forall (t: tree val) (b: val),
   | E => emp
   | T l x p r =>
       !! (Int.min_signed <= x <= Int.max_signed) &&
-      field_at Ash t_struct_tree [StructField _key] (Vint (Int.repr x)) p *
+      field_at Tsh t_struct_tree [StructField _key] (Vint (Int.repr x)) p *
       treebox_rep l (field_address t_struct_tree [StructField _left] p) *
       treebox_rep r (field_address t_struct_tree [StructField _right] p)
   end.
@@ -142,12 +140,27 @@ Definition treebox_new_spec :=
     LOCAL(temp ret_temp v)
     SEP (data_at Tsh (tptr t_struct_tree) nullval v).
 
+Definition subscr_spec :=
+ DECLARE _subscr
+  WITH b: val, x: Z, t: tree val
+  PRE  [ _t OF (tptr (tptr t_struct_tree)), _key OF tint]
+    PROP(Int.min_signed <= x <= Int.max_signed)
+    LOCAL(temp _t b; temp _key (Vint (Int.repr x)))
+    SEP (treebox_rep t b)
+  POST [ (tptr tvoid) ]
+    EX p: val, EX q: val,
+    PROP(key_store (insert x p t) x q)
+    LOCAL(temp ret_temp q)
+    SEP (treebox_rep (insert x p t) b;
+         (!! key_store_ t x && emp) || (!! (~ key_store_ t x) && data_at Tsh (tptr tvoid) nullval q)).
+
+(*
 Definition subscr_spec1 :=
  DECLARE _subscr
   WITH b: val, x: Z, p: val, xs: Z -> Prop
-  PRE  [ _t OF (tptr (tptr t_struct_tree)), _x OF tint]
+  PRE  [ _t OF (tptr (tptr t_struct_tree)), _key OF tint]
     PROP(xs x)
-    LOCAL(temp _t b; temp _x (Vint (Int.repr x)))
+    LOCAL(temp _t b; temp _key (Vint (Int.repr x)))
     SEP (container_at xs b; key_store x p)
   POST [ Tvoid ] 
     PROP()
@@ -157,15 +170,15 @@ Definition subscr_spec1 :=
 Definition subscr_spec2 :=
  DECLARE _subscr
   WITH b: val, x: Z, p: val, xs: Z -> Prop
-  PRE  [ _t OF (tptr (tptr t_struct_tree)), _x OF tint]
+  PRE  [ _t OF (tptr (tptr t_struct_tree)), _key OF tint]
     PROP(~ xs x; Int.min_signed <= x <= Int.max_signed)
-    LOCAL(temp _t b; temp _x (Vint (Int.repr x)))
+    LOCAL(temp _t b; temp _key (Vint (Int.repr x)))
     SEP (container_at xs b)
   POST [ Tvoid ] 
     PROP()
     LOCAL()
     SEP (container_at (fun x0 => xs x0 \/ x0 = x) b; key_store x p).
-
+*)
 Definition turn_left_spec :=
  DECLARE _turn_left
   WITH ta: tree val, x: Z, tb: tree val, y: Z, tc: tree val, b: val, l: val, r: val
@@ -191,7 +204,7 @@ Definition pushdown_left_spec :=
     PROP()
     LOCAL()
     SEP (treebox_rep (pushdown_left ta tb) b).
-
+(*
 Definition delete_spec1 :=
  DECLARE _delete
   WITH b: val, x: Z, xs: Z -> Prop
@@ -215,6 +228,7 @@ Definition delete_spec2 :=
     PROP()
     LOCAL()
     SEP (container_at xs b).
+*)
 (*
 Definition tree_free_spec :=
  DECLARE _tree_free
@@ -239,7 +253,7 @@ Definition treebox_free_spec :=
 Definition Gprog : funspecs := 
     ltac:(with_library prog [
     mallocN_spec; freeN_spec; treebox_new_spec; 
-    subscr_spec1; turn_left_spec; pushdown_left_spec
+    subscr_spec; turn_left_spec; pushdown_left_spec
   ]).
 
 Lemma treebox_rep_saturate_local:
@@ -293,71 +307,96 @@ Proof. intros; subst; auto. Qed.
 Ltac simpl_compb := first [ rewrite if_trueb by (apply Z.ltb_lt; omega)
                           | rewrite if_falseb by (apply Z.ltb_ge; omega)].
 
-Definition subscr1_inv (b0: val) (t0: tree val) (x: Z) (p: val): environ -> mpred :=
-  EX b: val, EX t: tree val, 
-  PROP(tree_in x t) 
-  LOCAL(temp _t b; temp _x (Vint (Int.repr x)))
-  SEP(treebox_rep t b; key_store x p; (treebox_rep t b -* treebox_rep t0 b0)).
+Definition subscr_post (b0: val) (t0: tree val) (x: Z) (p: val) (q: val) :=
+  !! key_store (insert x p t0) x q &&
+  treebox_rep (insert x p t0) b0 *
+  (if tree_inb x t0 then emp else data_at Tsh (tptr tvoid) nullval q).
 
-Lemma body_subscr1: semax_body Vprog Gprog f_subscr subscr_spec1.
+Definition subscr_inv (b0: val) (t0: tree val) (x: Z): environ -> mpred :=
+  EX b: val, EX t: tree val, 
+  PROP() 
+  LOCAL(temp _t b; temp _key (Vint (Int.repr x)))
+  SEP(treebox_rep t b;
+      ALL p: val, ALL q: val, subscr_post b t x p q -* subscr_post b0 t0 x p q).
+
+Axiom tree_inb_true_iff: forall x (t: tree val), tree_inb x t = true <-> key_store_ t x.
+Axiom tree_inb_false_iff: forall x (t: tree val), tree_inb x t = false <-> ~ key_store_ t x.
+
+Lemma body_subscr: semax_body Vprog Gprog f_subscr subscr_spec.
 Proof.
   start_function.
-  unfold container_at.
-  Intros t.
-  rewrite <- (H0 x) in H.
-  eapply semax_pre; [
-    | apply (semax_loop _ (subscr1_inv b t x p) (subscr1_inv b t x p))].
-  * (* Precondition *)
-    unfold subscr1_inv.
-    Exists b t.
-    (* TODO entailer: entailer! fails *)
+  apply (semax_post'' (EX p: val, EX q: val,
+                       PROP ( )
+                       LOCAL (temp ret_temp q)
+                       SEP (subscr_post b t x p q))).
+  Focus 1. {
+    Intros p.
+    Exists p.
+    (* TODO entailer: let entailer work here. *)
     admit.
-    (* apply ramify_PPQQ. *)
+  } Unfocus.
+  rename H into Range_x.
+  eapply semax_pre; [
+    | apply (semax_loop _ (subscr_inv b t x) (subscr_inv b t x))].
+  * (* Precondition *)
+    unfold subscr_inv.
+    Exists b t.
+    entailer!.
+    apply allp_right; intros p.
+    apply allp_right; intros Q.
+    apply wand_sepcon_adjoint; entailer!.
   * (* Loop body *)
+    (* TODO: why this skip is here? *)
     forward. (* Sskip *)
-    unfold subscr1_inv.
+    unfold subscr_inv.
     Intros b1 t1.
-    (* TODO: without this "set", "rewrite ... at 1" is super slow. *)
-    set (tb := treebox_rep t1 b1) at 2.
-    rewrite (treebox_rep_spec t1 b1).
-    subst tb.
-    normalize.
-    forward. (* p = *t; *)
-Abort.
-(*
-    destruct t1; entailer!.
-    forward_if.
-    + (* then clause *)
-      subst p1.
+    destruct t1; simpl treebox_rep at 1; normalize.
+    + forward. (* p = *t; *)
+      forward_if; [clear H | inversion H]. (* then clause *)
       forward_call (sizeof t_struct_tree).
         1: simpl; repable_signed.
-      Intros p'.
+      Intros p1.
       rewrite memory_block_data_at_ by auto.
       forward. (* p->key=x; *)
       simpl.
-      forward. (* p->value=value; *)
+      forward. (* p->value=NULL; *)
       forward. (* p->left=NULL; *)
       forward. (* p->right=NULL; *)
-      assert_PROP (t1= (@E _)).
-        1: entailer!.
-      subst t1. simpl tree_rep. rewrite !prop_true_andp by auto.
-      rewrite is_pointer_or_null_force_val_sem_cast_neutral by auto.
       forward. (* *t = p; *)
-      forward. (* return; *)
+      forward. (* return (&p->value); *)
+      Exists p1 (offset_val 4 p1).
+      rewrite (sepcon_comm (_ * _)); apply wand_sepcon_adjoint.
+      apply (allp_left _ p1), (allp_left _ (offset_val 4 p1)).
+      apply wand_sepcon_adjoint; rewrite <- (sepcon_comm (_ * _)).
+      entailer!.
       apply modus_ponens_wand'.
-      apply treebox_rep_leaf; auto.
-    + (* else clause *)
-      destruct t1.
-        { simpl tree_rep. normalize. contradiction H1; auto. }
-      simpl tree_rep.
-      Intros pa pb. clear H1.
+      unfold subscr_post.
+      simpl.
+      replace (offset_val 4 p1)
+        with (field_address t_struct_tree [StructField _value] p1)
+        by (unfold field_address; simpl;
+            rewrite if_true by auto with field_compatible; auto).
+      simpl_compb. simpl_compb.
+      unfold_field_at 1%nat.
+      rewrite (field_at_data_at _ t_struct_tree [StructField _value]).
+      rewrite (field_at_data_at _ t_struct_tree [StructField _left]).
+      rewrite (field_at_data_at _ t_struct_tree [StructField _right]).
+      entailer!.
+    + forward. (* p = *t; *)
+      forward_if. (* else clause *)
+      (* TODO: better automation for field_compatible. *)
+        1: admit.
+      (* TODO: better automation for field_compatible. *)
+        1: admit.
       forward. (* y=p->key; *)
       forward_if; [ | forward_if ].
       - (* Inner if, then clause: x<k *)
         forward. (* t=&p->left *)
-        unfold insert_inv.
-        Exists (offset_val 8 p1) t1_1.
+        unfold subscr_inv.
+        Exists (offset_val 8 v) t1_1.
         entailer!.
+Abort.
+(*
         simpl_compb.
         (* TODO: SIMPLY THIS LINE *)
         replace (offset_val 8 p1)
