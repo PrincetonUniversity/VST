@@ -298,14 +298,46 @@ Proof.
   auto.
 Qed.
 
+Lemma RAMIF_Q2_trans' {X Y A : Type} {ND : NatDed A} {SL : SepLog A}:
+  forall (m l: A) (g' m' l' : X -> Y -> A),
+    m |-- l * (ALL p: X, ALL q: Y, l' p q -* m' p q) ->
+    m * (ALL p: X, ALL q: Y, m' p q -* g' p q) |-- l * (ALL p: X, ALL q: Y, l' p q -* g' p q).
+Proof.
+  intros.
+  eapply derives_trans; [apply sepcon_derives; [exact H | apply derives_refl] |].
+  clear H.
+  rewrite sepcon_assoc.
+  apply sepcon_derives; auto.
+  apply allp_right; intros p.
+  apply allp_right; intros q.
+  apply <- wand_sepcon_adjoint.
+  apply (allp_left _ p), (allp_left _ q).
+  apply -> wand_sepcon_adjoint.
+  rewrite sepcon_comm.
+  apply <- wand_sepcon_adjoint.
+  apply (allp_left _ p), (allp_left _ q).
+  apply -> wand_sepcon_adjoint.
+  rewrite sepcon_comm.
+  apply -> wand_sepcon_adjoint.
+  rewrite (sepcon_comm (_ * _) _), <- sepcon_assoc.
+  apply <- wand_sepcon_adjoint.
+  eapply derives_trans; [apply modus_ponens_wand |].
+  apply -> wand_sepcon_adjoint.
+  apply modus_ponens_wand.
+Qed.
+
 Lemma if_trueb: forall {A: Type} b (a1 a2: A), b = true -> (if b then a1 else a2) = a1.
 Proof. intros; subst; auto. Qed.
 
 Lemma if_falseb: forall {A: Type} b (a1 a2: A), b = false -> (if b then a1 else a2) = a2.
 Proof. intros; subst; auto. Qed.
 
-Ltac simpl_compb := first [ rewrite if_trueb by (apply Z.ltb_lt; omega)
-                          | rewrite if_falseb by (apply Z.ltb_ge; omega)].
+Ltac simpl_compb :=
+  match goal with
+  | |- context [if Z.ltb ?x ?y then _ else _] =>
+         first [ rewrite (if_trueb (Z.ltb x y)) by (apply Z.ltb_lt; omega)
+               | rewrite (if_falseb (Z.ltb x y)) by (apply Z.ltb_ge; omega)]
+  end.
 
 Definition subscr_post (b0: val) (t0: tree val) (x: Z) (p: val) (q: val) :=
   !! key_store (insert x p t0) x q &&
@@ -343,7 +375,7 @@ Proof.
     Exists b t.
     entailer!.
     apply allp_right; intros p.
-    apply allp_right; intros Q.
+    apply allp_right; intros q.
     apply wand_sepcon_adjoint; entailer!.
   * (* Loop body *)
     (* TODO: why this skip is here? *)
@@ -395,45 +427,80 @@ Proof.
         unfold subscr_inv.
         Exists (offset_val 8 v) t1_1.
         entailer!.
-Abort.
-(*
-        simpl_compb.
+        apply RAMIF_Q2_trans'.
         (* TODO: SIMPLY THIS LINE *)
-        replace (offset_val 8 p1)
-          with (field_address t_struct_tree [StructField _left] p1)
+        replace (offset_val 8 v)
+          with (field_address t_struct_tree [StructField _left] v)
           by (unfold field_address; simpl;
               rewrite if_true by auto with field_compatible; auto).
-        apply RAMIF_PLAIN.trans'.
-        apply bst_left_entail; auto.
+        entailer!.
+        apply allp_right; intros p.
+        apply allp_right; intros q.
+        apply -> wand_sepcon_adjoint.
+        unfold subscr_post.
+        simpl.
+        simpl_compb.
+        simpl_compb.
+        simpl.
+        simpl_compb.
+        entailer!.
       - (* Inner if, second branch:  k<x *)
         forward. (* t=&p->right *)
-        unfold insert_inv.
-        Exists (offset_val 12 p1) t1_2.
+        unfold subscr_inv.
+        Exists (offset_val 12 v) t1_2.
         entailer!.
-        simpl_compb; simpl_compb.
+        apply RAMIF_Q2_trans'.
         (* TODO: SIMPLY THIS LINE *)
-        replace (offset_val 12 p1)
-          with (field_address t_struct_tree [StructField _right] p1)
+        replace (offset_val 12 v)
+          with (field_address t_struct_tree [StructField _right] v)
           by (unfold field_address; simpl;
               rewrite if_true by auto with field_compatible; auto).
-        apply RAMIF_PLAIN.trans'.
-        apply bst_right_entail; auto.
+        entailer!.
+        apply allp_right; intros p.
+        apply allp_right; intros q.
+        apply -> wand_sepcon_adjoint.
+        unfold subscr_post.
+        simpl.
+        simpl_compb.
+        simpl_compb.
+        simpl.
+        simpl_compb.
+        simpl_compb.
+        simpl_compb.
+        simpl_compb.
+        entailer!.
       - (* Inner if, third branch: x=k *)
         assert (x=k) by omega.
-        subst x. clear H H1 H4.
-        forward. (* p->value=value *)
-        forward. (* return *)
-        (* TODO: SIMPLY THIS LINE *)
-        simpl_compb.
-        simpl_compb.
+        subst x. clear H1 H2.
+        forward. (* return (&p->value) *)
+        Exists v (offset_val 4 v).
+        entailer!.
+        rewrite (sepcon_comm (_ * _ * _ * _)); apply wand_sepcon_adjoint.
+        apply (allp_left _ v), (allp_left _ (offset_val 4 v)).
+        apply wand_sepcon_adjoint; rewrite <- (sepcon_comm (_ * _ * _ * _)).
         apply modus_ponens_wand'.
-        unfold treebox_rep. Exists p1.
-        simpl tree_rep. Exists pa pb. entailer!.
+        unfold subscr_post.
+        simpl.
+        simpl_compb.
+        simpl_compb.
+        simpl_compb.
+        simpl_compb.
+        simpl.
+        simpl_compb.
+        simpl_compb.
+        entailer!.
+        unfold field_address; simpl.
+        rewrite if_true; auto.
+        rewrite field_compatible_cons in H3 |- *.
+        simpl in H3 |- *.
+        split.
+        1: right; left; auto.
+        tauto.
   * (* After the loop *)
     forward.
     simpl loop2_ret_assert. apply andp_left2. auto.
-Qed.
-
+Admitted.
+(*
 Definition lookup_inv (b0 p0: val) (t0: tree val) (x: Z): environ -> mpred :=
   EX p: val, EX t: tree val, 
   PROP(lookup nullval x t = lookup nullval x t0) 
