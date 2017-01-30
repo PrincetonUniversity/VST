@@ -9,14 +9,14 @@ Class PCM (A : Type) :=
                  exists c', join b d c' /\ join a c' e }.
 Section Ghost.
 
-Context {CS : compspecs} {Espec : OracleKind}.
+Context {CS : compspecs}.
 
 Section PCM.
 
 Context `{M : PCM}.
 
 (* This is an overapproximation of IRIS's concept of view shift. *)
-Definition view_shift A B := forall D P Q R C P',
+Definition view_shift A B := forall (Espec : OracleKind) D P Q R C P',
   semax D (PROPx P (LOCALx Q (SEPx (B :: R)))) C P' ->
   semax D (PROPx P (LOCALx Q (SEPx (A :: R)))) C P'.
 
@@ -35,6 +35,8 @@ Axiom ghost_conflict : forall g1 g2 p, ghost g1 p * ghost g2 p |-- !!joins g1 g2
 Axiom ghost_update : forall g g' p, update g g' -> view_shift (ghost g p) (ghost g' p).
 
 End PCM.
+
+(* In general, when can we say that a ghost resource is precise? *)
 
 Instance Prod_PCM {A B} (MA : PCM A) (MB : PCM B) : PCM (A * B) :=
   { join a b c := join (fst a) (fst b) (fst c) /\ join (snd a) (snd b) (snd c)(*;
@@ -81,58 +83,116 @@ End GVar.
 Section GHist.
 
 (* Ghost histories in the style of Nanevsky *)
-Variables data hist_el : Type.
+Variable hist_el : Type.
 
-Definition hist := nat -> option hist_el.
-Definition empty_hist : hist := fun _ => None.
+Definition hist_part := list (nat * hist_el).
 
 (* We want to split a history into two parts: a reference part that is always complete,
    and a splittable part that can be shared among clients. *)
-Instance reference_PCM : PCM hist := { join a b c := a = c /\ b = empty_hist \/ b = c /\ a = empty_hist }.
+Instance reference_PCM : PCM (option (list hist_el)) :=
+  { join a b c := a = c /\ b = None \/ b = c /\ a = None }.
 Proof.
   - intros ??? [(? & ?) | (? & ?)]; subst; auto.
   - intros ????? [(? & ?) | (? & ?)] [(? & ?) | (? & ?)]; subst; eexists; split; eauto.
 Defined.
 
-Instance map_PCM : PCM hist := { join a b c :=
-  forall x, match a x with Some y => b x = None /\ c x = Some y | None => c x = b x end }.
+Require Import Sorting.Permutation.
+
+Definition disjoint (h1 h2 : hist_part) := forall n e, In (n, e) h1 -> forall e', ~In (n, e') h2.
+
+Lemma disjoint_nil : forall l, disjoint l [].
 Proof.
-  - intros.
-    specialize (H x).
-    destruct (a x), (b x); auto; destruct H; auto; discriminate.
-  - intros ????? Hc He.
-    exists (fun x => match b x with Some y => Some y | None => d x end).
-    split; intro; specialize (Hc x); specialize (He x); destruct (a x), (b x), (c x);
-      repeat match goal with H : _ /\ _ |- _ => destruct H end;
-      repeat match goal with H : Some _ = Some _ |- _ => inv H end; auto; discriminate.
+  repeat intro; contradiction.
+Qed.
+Hint Resolve disjoint_nil.
+
+Lemma disjoint_comm : forall a b, disjoint a b -> disjoint b a.
+Proof.
+  intros ?? Hdisj ?? Hin ? Hin'.
+  eapply Hdisj; eauto.
+Qed.
+
+Lemma disjoint_app : forall a b c, disjoint (a ++ b) c <-> disjoint a c /\ disjoint b c.
+Proof.
+  split.
+  - intro; split; repeat intro; eapply H; eauto; rewrite in_app; eauto.
+  - intros (Ha & Hb) ?????.
+    rewrite in_app in H; destruct H; [eapply Ha | eapply Hb]; eauto.
+Qed.
+
+Require Import Morphisms.
+
+Global Instance Permutation_disjoint :
+  Proper (@Permutation _ ==> @Permutation _ ==> iff) disjoint.
+Proof.
+  intros ?? Hp1 ?? Hp2.
+  split; intro Hdisj; repeat intro.
+  - eapply Hdisj; [rewrite Hp1 | rewrite Hp2]; eauto.
+  - eapply Hdisj; [rewrite <- Hp1 | rewrite <- Hp2]; eauto.
+Qed.
+
+Instance map_PCM : PCM hist_part := { join a b c := disjoint a b /\ Permutation (a ++ b) c }.
+Proof.
+  - intros ??? (Hdisj & ?); split.
+    + apply disjoint_comm; auto.
+    + etransitivity; [|eauto].
+      apply Permutation_app_comm.
+  - intros ????? (Hd1 & Hc) (Hd2 & He).
+    rewrite <- Hc, disjoint_app in Hd2; destruct Hd2 as (Hd2 & Hd3).
+    exists (b ++ d); repeat split; auto.
+    + apply disjoint_comm; rewrite disjoint_app; split; apply disjoint_comm; auto.
+    + etransitivity; [|eauto].
+      rewrite app_assoc; apply Permutation_app_tail; auto.
 Defined.
 
-Global Instance hist_PCM : PCM (hist * hist) := { join a b c := @join _ map_PCM (fst a) (fst b) (fst c) /\
-  @join _ reference_PCM (snd a) (snd b) (snd c) /\
-  (snd c = empty_hist \/ forall x y, (fst c) x = Some y -> (snd c) x = Some y) }.
+Definition hist_incl h (h' : list hist_el) := forall x y, In (x, y) h -> nth_error h' x = Some y.
+
+Global Instance hist_PCM : PCM (hist_part * option (list hist_el)) :=
+ { join a b c := @join _ map_PCM (fst a) (fst b) (fst c) /\ @join _ reference_PCM (snd a) (snd b) (snd c) /\
+                 match snd c with Some h => hist_incl (fst c) h | None => True end }.
 Proof.
   - intros ??? (? & ? & ?).
     split; [|split; auto]; apply join_comm; auto.
   - intros ????? (Hj1a & Hj1b & Hi1) (Hj2a & Hj2b & Hi2).
     eapply join_assoc in Hj2a; eauto.
     eapply join_assoc in Hj2b; eauto.
-    destruct Hj2a as (c'a & Hj2a & Hj3a), Hj2b as (c'b & Hj2b & Hj3b).
+    destruct Hj2a as (c'a & (? & Hj2a) & (? & Hj3a)), Hj2b as (c'b & Hj2b & Hj3b).
     exists (c'a, c'b); repeat split; auto; simpl; intros.
     destruct Hj3b as [(? & ->) | (-> & ?)]; auto.
-    destruct Hi2 as [|He]; auto.
-    destruct Hj2b as [(Hb & ?) | (Hd & ?)].
-    + rewrite <- Hb; destruct Hj1b as [(? & ->) | (? & ?)]; auto.
-      replace (snd c) with (snd b) in Hi1; auto.
-      destruct Hi1 as [-> | Hc]; auto.
-      right; intros.
-      specialize (Hj1a x); specialize (Hj2a x); specialize (Hj3a x).
-      destruct (fst a x); [destruct Hj3a as (Hc' & ?); rewrite Hc' in *; discriminate|].
-      replace (snd b) with (snd e); apply He; rewrite Hj3a; auto.
-    + right; intros.
-      specialize (Hj2a x); specialize (Hj3a x).
-      destruct (fst a x); [destruct Hj3a as (Hc' & ?); rewrite Hc' in *; discriminate|].
-      apply He; rewrite <- Hj3a in *; auto.
+    destruct (snd e) eqn: He; auto.
+    repeat intro; apply Hi2.
+    rewrite <- Hj3a, in_app; auto.
 Defined.
+
+Lemma hist_add : forall (h : hist_part) h' e p,
+  view_shift (ghost (h, Some h') p) (ghost (h ++ [(length h', e)], Some (h' ++ [e])) p).
+Proof.
+  intros; apply ghost_update.
+  intros (?, ?) (? & (Hdisj & Hperm) & [(<- & ?) | (? & ?)] & Hh'); try discriminate; simpl in *; subst.
+  exists (h ++ h0 ++ [(length h', e)], Some (h' ++ [e])); repeat split; simpl; auto.
+  - intros ?? Hin ?.
+    rewrite in_app in Hin; destruct Hin as [? | [X | ?]]; [eapply Hdisj; eauto | inv X | contradiction].
+    intro; specialize (Hh' (length h') e'); exploit Hh'.
+    { rewrite <- Hperm, in_app; auto. }
+    intro Hnth; eapply lt_irrefl.
+    rewrite <- nth_error_Some, Hnth; discriminate.
+  - rewrite <- app_assoc; apply Permutation_app_head, Permutation_app_comm.
+  - intros ?? Hin; rewrite app_assoc, in_app in Hin.
+    destruct Hin as [Hin | [X | ?]]; [| inv X | contradiction].
+    + rewrite Hperm in Hin; specialize (Hh' _ _ Hin).
+      rewrite nth_error_app1; auto.
+      rewrite <- nth_error_Some, Hh'; discriminate.
+    + rewrite nth_error_app2, minus_diag; auto.
+Qed.
+
+Lemma hist_sep_join : forall (h1 : hist_part) (h2 : list hist_el), hist_incl h1 h2 ->
+  join (h1, None) ([], Some h2) (h1, Some h2).
+Proof.
+  intros; repeat split; simpl; auto.
+  rewrite app_nil_r; auto.
+Qed.
+
+(*
 
 (* Timestamped ops instead of inner share? *)
 (* How should histories combine? Do we need a VerCors-style process algebra? *)
@@ -145,32 +205,38 @@ Axiom ghost_inj' : forall sh i p h1 h2 r1 r2 r
   (Hr1 : sepalg.join_sub r1 r) (Hr2 : sepalg.join_sub r2 r),
   r1 = r2 /\ h1 = h2.
 
-Axiom ghost_share_join : forall sh1 sh2 i sh h1 h2 p, sepalg.join sh1 sh2 Tsh -> list_incl h1 h2 ->
-  ghost sh1 i (sh, h1) p * ghost sh2 i (Tsh, h2) p = ghost Tsh i (Tsh, h2) p.
-Axiom hist_share_join : forall sh sh1 sh2 i sh' h1 h2 p, sepalg.join sh1 sh2 sh' ->
-  ghost i sh (sh1, h1) p * ghost i sh (sh2, h2) p = EX h' : hist, !!(interleave [h1; h2] h') && ghost i sh (sh', h') p.
-Axiom hist_add : forall i h e p, apply_hist i (e :: h) <> None ->
-  view_shift (ghost Tsh i (Tsh, h) p) (ghost Tsh i (Tsh, e :: h) p).
-Axiom ghost_inj : forall sh1 sh2 i sh h1 h2 p, ghost sh1 i (sh, h1) p * ghost sh2 i (Tsh, h2) p
-  |-- !!(list_incl h1 h2).
-Axiom ghost_inj_Tsh : forall sh1 sh2 i h1 h2 p, ghost sh1 i (Tsh, h1) p * ghost sh2 i (Tsh, h2) p
-  |-- !!(h1 = h2).
 (* Should this be an axiom? *)
-Axiom ghost_feasible : forall sh i h p, ghost sh i (Tsh, h) p |-- !!(apply_hist i h <> None).
+Axiom ghost_feasible : forall sh i h p, ghost sh i (Tsh, h) p |-- !!(apply_hist i h <> None).*)
 
 End GHist.
 
 Section AEHist.
 
 (* These histories should be usable for any atomically accessed location. *)
-Inductive hist_el := AE (r : val) (w : val).
+Inductive AE_hist_el := AE (r : val) (w : val).
 
 Fixpoint apply_hist a h :=
   match h with
   | [] => Some a
-  | AE r w :: h' => match apply_hist a h' with Some a' => if eq_dec a' r then Some w else None | _ => None end
+  | AE r w :: h' => if eq_dec r a then apply_hist w h' else None
   end.
+
+Arguments eq_dec _ _ _ _ : simpl never.
+
+Lemma apply_hist_app : forall h1 i v h2, apply_hist i h1 = Some v ->
+  apply_hist i (h1 ++ h2) = apply_hist v h2.
+Proof.
+  induction h1; simpl; intros.
+  - inv H; auto.
+  - destruct a.
+    destruct (eq_dec r i); auto.
+    discriminate.
+Qed.
+
+Definition AE_hist := hist_part AE_hist_el.
 
 End AEHist.
 
 End Ghost.
+
+Hint Resolve disjoint_nil.
