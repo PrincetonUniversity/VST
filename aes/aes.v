@@ -7,21 +7,21 @@ Definition _FT1 : ident := 7%positive.
 Definition _FT2 : ident := 8%positive.
 Definition _FT3 : ident := 9%positive.
 Definition _RCON : ident := 15%positive.
-Definition _RK : ident := 101%positive.
+Definition _RK : ident := 105%positive.
 Definition _RSb : ident := 10%positive.
 Definition _RT0 : ident := 11%positive.
 Definition _RT1 : ident := 12%positive.
 Definition _RT2 : ident := 13%positive.
 Definition _RT3 : ident := 14%positive.
-Definition _SK : ident := 117%positive.
-Definition _X0 : ident := 123%positive.
-Definition _X1 : ident := 124%positive.
-Definition _X2 : ident := 125%positive.
-Definition _X3 : ident := 126%positive.
-Definition _Y0 : ident := 127%positive.
-Definition _Y1 : ident := 128%positive.
-Definition _Y2 : ident := 129%positive.
-Definition _Y3 : ident := 130%positive.
+Definition _SK : ident := 121%positive.
+Definition _X0 : ident := 127%positive.
+Definition _X1 : ident := 128%positive.
+Definition _X2 : ident := 129%positive.
+Definition _X3 : ident := 130%positive.
+Definition _Y0 : ident := 131%positive.
+Definition _Y1 : ident := 132%positive.
+Definition _Y2 : ident := 133%positive.
+Definition _Y3 : ident := 134%positive.
 Definition ___builtin_annot : ident := 19%positive.
 Definition ___builtin_annot_intval : ident := 20%positive.
 Definition ___builtin_bswap : ident := 43%positive.
@@ -70,87 +70,91 @@ Definition ___i64_udiv : ident := 37%positive.
 Definition ___i64_umod : ident := 39%positive.
 Definition ___i64_utod : ident := 33%positive.
 Definition ___i64_utof : ident := 35%positive.
-Definition ___stringlit_1 : ident := 168%positive.
-Definition ___stringlit_2 : ident := 169%positive.
-Definition ___stringlit_3 : ident := 170%positive.
-Definition ___stringlit_4 : ident := 171%positive.
-Definition ___stringlit_5 : ident := 172%positive.
-Definition ___stringlit_6 : ident := 173%positive.
-Definition _aes_gen_tables : ident := 94%positive.
+Definition ___stringlit_1 : ident := 172%positive.
+Definition ___stringlit_2 : ident := 173%positive.
+Definition ___stringlit_3 : ident := 174%positive.
+Definition ___stringlit_4 : ident := 175%positive.
+Definition ___stringlit_5 : ident := 176%positive.
+Definition ___stringlit_6 : ident := 177%positive.
+Definition _aes_gen_tables : ident := 98%positive.
 Definition _aes_init_done : ident := 73%positive.
 Definition _aes_tables_struct : ident := 16%positive.
-Definition _aes_test_ecb_dec : ident := 163%positive.
-Definition _aes_test_ecb_enc : ident := 164%positive.
-Definition _b0 : ident := 102%positive.
-Definition _b0__1 : ident := 109%positive.
-Definition _b0__2 : ident := 132%positive.
-Definition _b0__3 : ident := 136%positive.
-Definition _b0__4 : ident := 140%positive.
-Definition _b0__5 : ident := 145%positive.
-Definition _b0__6 : ident := 150%positive.
-Definition _b0__7 : ident := 155%positive.
-Definition _b1 : ident := 103%positive.
-Definition _b1__1 : ident := 110%positive.
-Definition _b1__2 : ident := 133%positive.
-Definition _b1__3 : ident := 137%positive.
-Definition _b1__4 : ident := 141%positive.
-Definition _b1__5 : ident := 146%positive.
-Definition _b1__6 : ident := 151%positive.
-Definition _b1__7 : ident := 156%positive.
-Definition _b2 : ident := 104%positive.
-Definition _b2__1 : ident := 111%positive.
-Definition _b2__2 : ident := 134%positive.
-Definition _b2__3 : ident := 138%positive.
-Definition _b2__4 : ident := 142%positive.
-Definition _b2__5 : ident := 147%positive.
-Definition _b2__6 : ident := 152%positive.
-Definition _b2__7 : ident := 157%positive.
-Definition _b3 : ident := 105%positive.
-Definition _b3__1 : ident := 112%positive.
-Definition _b3__2 : ident := 135%positive.
-Definition _b3__3 : ident := 139%positive.
-Definition _b3__4 : ident := 143%positive.
-Definition _b3__5 : ident := 148%positive.
-Definition _b3__6 : ident := 153%positive.
-Definition _b3__7 : ident := 158%positive.
+Definition _aes_test_ecb_dec : ident := 167%positive.
+Definition _aes_test_ecb_enc : ident := 168%positive.
+Definition _b0 : ident := 106%positive.
+Definition _b0__1 : ident := 113%positive.
+Definition _b0__2 : ident := 136%positive.
+Definition _b0__3 : ident := 140%positive.
+Definition _b0__4 : ident := 144%positive.
+Definition _b0__5 : ident := 149%positive.
+Definition _b0__6 : ident := 154%positive.
+Definition _b0__7 : ident := 159%positive.
+Definition _b1 : ident := 107%positive.
+Definition _b1__1 : ident := 114%positive.
+Definition _b1__2 : ident := 137%positive.
+Definition _b1__3 : ident := 141%positive.
+Definition _b1__4 : ident := 145%positive.
+Definition _b1__5 : ident := 150%positive.
+Definition _b1__6 : ident := 155%positive.
+Definition _b1__7 : ident := 160%positive.
+Definition _b2 : ident := 108%positive.
+Definition _b2__1 : ident := 115%positive.
+Definition _b2__2 : ident := 138%positive.
+Definition _b2__3 : ident := 142%positive.
+Definition _b2__4 : ident := 146%positive.
+Definition _b2__5 : ident := 151%positive.
+Definition _b2__6 : ident := 156%positive.
+Definition _b2__7 : ident := 161%positive.
+Definition _b3 : ident := 109%positive.
+Definition _b3__1 : ident := 116%positive.
+Definition _b3__2 : ident := 139%positive.
+Definition _b3__3 : ident := 143%positive.
+Definition _b3__4 : ident := 147%positive.
+Definition _b3__5 : ident := 152%positive.
+Definition _b3__6 : ident := 157%positive.
+Definition _b3__7 : ident := 162%positive.
 Definition _buf : ident := 3%positive.
-Definition _ctx : ident := 95%positive.
-Definition _cty : ident := 116%positive.
-Definition _exit : ident := 119%positive.
+Definition _ctx : ident := 99%positive.
+Definition _cty : ident := 120%positive.
+Definition _exit : ident := 123%positive.
 Definition _i : ident := 74%positive.
-Definition _input : ident := 121%positive.
-Definition _iv : ident := 167%positive.
-Definition _j : ident := 114%positive.
-Definition _key : ident := 98%positive.
-Definition _key_word : ident := 100%positive.
-Definition _keybits : ident := 99%positive.
+Definition _input : ident := 125%positive.
+Definition _iv : ident := 171%positive.
+Definition _j : ident := 118%positive.
+Definition _key : ident := 102%positive.
+Definition _key_word : ident := 104%positive.
+Definition _keybits : ident := 103%positive.
 Definition _log : ident := 79%positive.
 Definition _logi : ident := 81%positive.
 Definition _logx : ident := 86%positive.
-Definition _logx__1 : ident := 88%positive.
-Definition _logx__2 : ident := 90%positive.
-Definition _logx__3 : ident := 92%positive.
+Definition _logx__1 : ident := 89%positive.
+Definition _logx__2 : ident := 92%positive.
+Definition _logx__3 : ident := 95%positive.
 Definition _logy : ident := 87%positive.
-Definition _logy__1 : ident := 89%positive.
-Definition _logy__2 : ident := 91%positive.
-Definition _logy__3 : ident := 93%positive.
-Definition _main : ident := 175%positive.
+Definition _logy__1 : ident := 90%positive.
+Definition _logy__2 : ident := 93%positive.
+Definition _logy__3 : ident := 96%positive.
+Definition _m : ident := 88%positive.
+Definition _m__1 : ident := 91%positive.
+Definition _m__2 : ident := 94%positive.
+Definition _m__3 : ident := 97%positive.
+Definition _main : ident := 179%positive.
 Definition _mbedtls_aes_context_struct : ident := 4%positive.
-Definition _mbedtls_aes_crypt_ecb : ident := 162%positive.
-Definition _mbedtls_aes_decrypt : ident := 160%positive.
-Definition _mbedtls_aes_encrypt : ident := 159%positive.
-Definition _mbedtls_aes_free : ident := 97%positive.
-Definition _mbedtls_aes_init : ident := 96%positive.
-Definition _mbedtls_aes_self_test : ident := 174%positive.
-Definition _mbedtls_aes_setkey_dec : ident := 120%positive.
-Definition _mbedtls_aes_setkey_enc : ident := 113%positive.
+Definition _mbedtls_aes_crypt_ecb : ident := 166%positive.
+Definition _mbedtls_aes_decrypt : ident := 164%positive.
+Definition _mbedtls_aes_encrypt : ident := 163%positive.
+Definition _mbedtls_aes_free : ident := 101%positive.
+Definition _mbedtls_aes_init : ident := 100%positive.
+Definition _mbedtls_aes_self_test : ident := 178%positive.
+Definition _mbedtls_aes_setkey_dec : ident := 124%positive.
+Definition _mbedtls_aes_setkey_enc : ident := 117%positive.
 Definition _mbedtls_zeroize : ident := 71%positive.
 Definition _memcmp : ident := 66%positive.
 Definition _memset : ident := 65%positive.
-Definition _mode : ident := 161%positive.
+Definition _mode : ident := 165%positive.
 Definition _n : ident := 69%positive.
 Definition _nr : ident := 1%positive.
-Definition _output : ident := 122%positive.
+Definition _output : ident := 126%positive.
 Definition _p : ident := 70%positive.
 Definition _pow : ident := 78%positive.
 Definition _printf : ident := 67%positive.
@@ -158,44 +162,44 @@ Definition _prod1 : ident := 82%positive.
 Definition _prod2 : ident := 83%positive.
 Definition _prod3 : ident := 84%positive.
 Definition _prod4 : ident := 85%positive.
-Definition _rcon : ident := 108%positive.
-Definition _ret : ident := 115%positive.
+Definition _rcon : ident := 112%positive.
+Definition _ret : ident := 119%positive.
 Definition _rk : ident := 2%positive.
-Definition _rk0 : ident := 106%positive.
-Definition _rk7 : ident := 107%positive.
-Definition _rk__1 : ident := 144%positive.
-Definition _rk__2 : ident := 149%positive.
-Definition _rk__3 : ident := 154%positive.
+Definition _rk0 : ident := 110%positive.
+Definition _rk7 : ident := 111%positive.
+Definition _rk__1 : ident := 148%positive.
+Definition _rk__2 : ident := 153%positive.
+Definition _rk__3 : ident := 158%positive.
 Definition _rot : ident := 80%positive.
-Definition _sk : ident := 118%positive.
+Definition _sk : ident := 122%positive.
 Definition _tables : ident := 72%positive.
-Definition _tmp : ident := 131%positive.
-Definition _u : ident := 166%positive.
+Definition _tmp : ident := 135%positive.
+Definition _u : ident := 170%positive.
 Definition _v : ident := 68%positive.
-Definition _verbose : ident := 165%positive.
+Definition _verbose : ident := 169%positive.
 Definition _x : ident := 75%positive.
 Definition _y : ident := 76%positive.
 Definition _z : ident := 77%positive.
-Definition _t'1 : ident := 176%positive.
-Definition _t'10 : ident := 185%positive.
-Definition _t'11 : ident := 186%positive.
-Definition _t'12 : ident := 187%positive.
-Definition _t'13 : ident := 188%positive.
-Definition _t'14 : ident := 189%positive.
-Definition _t'15 : ident := 190%positive.
-Definition _t'16 : ident := 191%positive.
-Definition _t'17 : ident := 192%positive.
-Definition _t'18 : ident := 193%positive.
-Definition _t'19 : ident := 194%positive.
-Definition _t'2 : ident := 177%positive.
-Definition _t'20 : ident := 195%positive.
-Definition _t'3 : ident := 178%positive.
-Definition _t'4 : ident := 179%positive.
-Definition _t'5 : ident := 180%positive.
-Definition _t'6 : ident := 181%positive.
-Definition _t'7 : ident := 182%positive.
-Definition _t'8 : ident := 183%positive.
-Definition _t'9 : ident := 184%positive.
+Definition _t'1 : ident := 180%positive.
+Definition _t'10 : ident := 189%positive.
+Definition _t'11 : ident := 190%positive.
+Definition _t'12 : ident := 191%positive.
+Definition _t'13 : ident := 192%positive.
+Definition _t'14 : ident := 193%positive.
+Definition _t'15 : ident := 194%positive.
+Definition _t'16 : ident := 195%positive.
+Definition _t'17 : ident := 196%positive.
+Definition _t'18 : ident := 197%positive.
+Definition _t'19 : ident := 198%positive.
+Definition _t'2 : ident := 181%positive.
+Definition _t'20 : ident := 199%positive.
+Definition _t'3 : ident := 182%positive.
+Definition _t'4 : ident := 183%positive.
+Definition _t'5 : ident := 184%positive.
+Definition _t'6 : ident := 185%positive.
+Definition _t'7 : ident := 186%positive.
+Definition _t'8 : ident := 187%positive.
+Definition _t'9 : ident := 188%positive.
 
 Definition v___stringlit_3 := {|
   gvar_info := (tarray tschar 21);
@@ -309,10 +313,10 @@ Definition f_aes_gen_tables := {|
   fn_temps := ((_i, tint) :: (_x, tint) :: (_y, tint) :: (_z, tint) ::
                (_rot, tuint) :: (_logi, tint) :: (_prod1, tint) ::
                (_prod2, tint) :: (_prod3, tint) :: (_prod4, tint) ::
-               (_logx, tint) :: (_logy, tint) :: (_logx__1, tint) ::
-               (_logy__1, tint) :: (_logx__2, tint) :: (_logy__2, tint) ::
-               (_logx__3, tint) :: (_logy__3, tint) :: (_t'11, tint) ::
-               (_t'10, tint) :: (_t'9, tint) :: (_t'8, tint) ::
+               (_logx, tint) :: (_logy, tint) :: (_m, tint) ::
+               (_logx__1, tint) :: (_logy__1, tint) :: (_m__1, tint) ::
+               (_logx__2, tint) :: (_logy__2, tint) :: (_m__2, tint) ::
+               (_logx__3, tint) :: (_logy__3, tint) :: (_m__3, tint) ::
                (_t'7, tint) :: (_t'6, tint) :: (_t'5, tint) ::
                (_t'4, tint) :: (_t'3, tint) :: (_t'2, tint) ::
                (_t'1, tint) :: nil);
@@ -645,170 +649,154 @@ Definition f_aes_gen_tables := {|
                                           tuchar))
                                       (Ssequence
                                         (Ssequence
-                                          (Sset _logx
-                                            (Ederef
-                                              (Ebinop Oadd
-                                                (Evar _log (tarray tint 256))
-                                                (Econst_int (Int.repr 14) tint)
-                                                (tptr tint)) tint))
-                                          (Ssequence
-                                            (Sset _logy
-                                              (Ederef
-                                                (Ebinop Oadd
-                                                  (Evar _log (tarray tint 256))
-                                                  (Etempvar _x tint)
-                                                  (tptr tint)) tint))
+                                          (Sset _t'4
+                                            (Ecast (Etempvar _x tint) tbool))
+                                          (Sifthenelse (Etempvar _t'4 tint)
                                             (Ssequence
-                                              (Ssequence
-                                                (Sset _t'4
-                                                  (Ecast (Etempvar _x tint)
-                                                    tbool))
-                                                (Sifthenelse (Etempvar _t'4 tint)
-                                                  (Sset _t'5
-                                                    (Ecast
-                                                      (Ederef
-                                                        (Ebinop Oadd
-                                                          (Evar _pow (tarray tint 256))
-                                                          (Ebinop Omod
-                                                            (Ebinop Oadd
-                                                              (Etempvar _logx tint)
-                                                              (Etempvar _logy tint)
-                                                              tint)
-                                                            (Econst_int (Int.repr 255) tint)
-                                                            tint)
-                                                          (tptr tint)) tint)
-                                                      tint))
-                                                  (Sset _t'5
-                                                    (Ecast
-                                                      (Econst_int (Int.repr 0) tint)
-                                                      tint))))
-                                              (Sset _prod1
-                                                (Etempvar _t'5 tint)))))
-                                        (Ssequence
-                                          (Ssequence
-                                            (Sset _logx__1
-                                              (Ederef
-                                                (Ebinop Oadd
-                                                  (Evar _log (tarray tint 256))
-                                                  (Econst_int (Int.repr 9) tint)
-                                                  (tptr tint)) tint))
-                                            (Ssequence
-                                              (Sset _logy__1
+                                              (Sset _logx
                                                 (Ederef
                                                   (Ebinop Oadd
                                                     (Evar _log (tarray tint 256))
-                                                    (Etempvar _x tint)
+                                                    (Econst_int (Int.repr 14) tint)
                                                     (tptr tint)) tint))
                                               (Ssequence
-                                                (Ssequence
-                                                  (Sset _t'6
-                                                    (Ecast (Etempvar _x tint)
-                                                      tbool))
-                                                  (Sifthenelse (Etempvar _t'6 tint)
-                                                    (Sset _t'7
-                                                      (Ecast
-                                                        (Ederef
-                                                          (Ebinop Oadd
-                                                            (Evar _pow (tarray tint 256))
-                                                            (Ebinop Omod
-                                                              (Ebinop Oadd
-                                                                (Etempvar _logx__1 tint)
-                                                                (Etempvar _logy__1 tint)
-                                                                tint)
-                                                              (Econst_int (Int.repr 255) tint)
-                                                              tint)
-                                                            (tptr tint))
-                                                          tint) tint))
-                                                    (Sset _t'7
-                                                      (Ecast
-                                                        (Econst_int (Int.repr 0) tint)
-                                                        tint))))
-                                                (Sset _prod2
-                                                  (Etempvar _t'7 tint)))))
-                                          (Ssequence
-                                            (Ssequence
-                                              (Sset _logx__2
-                                                (Ederef
-                                                  (Ebinop Oadd
-                                                    (Evar _log (tarray tint 256))
-                                                    (Econst_int (Int.repr 13) tint)
-                                                    (tptr tint)) tint))
-                                              (Ssequence
-                                                (Sset _logy__2
+                                                (Sset _logy
                                                   (Ederef
                                                     (Ebinop Oadd
                                                       (Evar _log (tarray tint 256))
                                                       (Etempvar _x tint)
                                                       (tptr tint)) tint))
                                                 (Ssequence
-                                                  (Ssequence
-                                                    (Sset _t'8
-                                                      (Ecast
-                                                        (Etempvar _x tint)
-                                                        tbool))
-                                                    (Sifthenelse (Etempvar _t'8 tint)
-                                                      (Sset _t'9
-                                                        (Ecast
-                                                          (Ederef
-                                                            (Ebinop Oadd
-                                                              (Evar _pow (tarray tint 256))
-                                                              (Ebinop Omod
-                                                                (Ebinop Oadd
-                                                                  (Etempvar _logx__2 tint)
-                                                                  (Etempvar _logy__2 tint)
-                                                                  tint)
-                                                                (Econst_int (Int.repr 255) tint)
-                                                                tint)
-                                                              (tptr tint))
-                                                            tint) tint))
-                                                      (Sset _t'9
-                                                        (Ecast
-                                                          (Econst_int (Int.repr 0) tint)
-                                                          tint))))
-                                                  (Sset _prod3
-                                                    (Etempvar _t'9 tint)))))
-                                            (Ssequence
+                                                  (Sset _m
+                                                    (Ebinop Omod
+                                                      (Ebinop Oadd
+                                                        (Etempvar _logx tint)
+                                                        (Etempvar _logy tint)
+                                                        tint)
+                                                      (Econst_int (Int.repr 255) tint)
+                                                      tint))
+                                                  (Sset _prod1
+                                                    (Ederef
+                                                      (Ebinop Oadd
+                                                        (Evar _pow (tarray tint 256))
+                                                        (Etempvar _m tint)
+                                                        (tptr tint)) tint)))))
+                                            (Sset _prod1
+                                              (Econst_int (Int.repr 0) tint))))
+                                        (Ssequence
+                                          (Ssequence
+                                            (Sset _t'5
+                                              (Ecast (Etempvar _x tint)
+                                                tbool))
+                                            (Sifthenelse (Etempvar _t'5 tint)
                                               (Ssequence
-                                                (Sset _logx__3
+                                                (Sset _logx__1
                                                   (Ederef
                                                     (Ebinop Oadd
                                                       (Evar _log (tarray tint 256))
-                                                      (Econst_int (Int.repr 11) tint)
+                                                      (Econst_int (Int.repr 9) tint)
                                                       (tptr tint)) tint))
                                                 (Ssequence
-                                                  (Sset _logy__3
+                                                  (Sset _logy__1
                                                     (Ederef
                                                       (Ebinop Oadd
                                                         (Evar _log (tarray tint 256))
                                                         (Etempvar _x tint)
                                                         (tptr tint)) tint))
                                                   (Ssequence
-                                                    (Ssequence
-                                                      (Sset _t'10
-                                                        (Ecast
+                                                    (Sset _m__1
+                                                      (Ebinop Omod
+                                                        (Ebinop Oadd
+                                                          (Etempvar _logx__1 tint)
+                                                          (Etempvar _logy__1 tint)
+                                                          tint)
+                                                        (Econst_int (Int.repr 255) tint)
+                                                        tint))
+                                                    (Sset _prod2
+                                                      (Ederef
+                                                        (Ebinop Oadd
+                                                          (Evar _pow (tarray tint 256))
+                                                          (Etempvar _m__1 tint)
+                                                          (tptr tint)) tint)))))
+                                              (Sset _prod2
+                                                (Econst_int (Int.repr 0) tint))))
+                                          (Ssequence
+                                            (Ssequence
+                                              (Sset _t'6
+                                                (Ecast (Etempvar _x tint)
+                                                  tbool))
+                                              (Sifthenelse (Etempvar _t'6 tint)
+                                                (Ssequence
+                                                  (Sset _logx__2
+                                                    (Ederef
+                                                      (Ebinop Oadd
+                                                        (Evar _log (tarray tint 256))
+                                                        (Econst_int (Int.repr 13) tint)
+                                                        (tptr tint)) tint))
+                                                  (Ssequence
+                                                    (Sset _logy__2
+                                                      (Ederef
+                                                        (Ebinop Oadd
+                                                          (Evar _log (tarray tint 256))
                                                           (Etempvar _x tint)
-                                                          tbool))
-                                                      (Sifthenelse (Etempvar _t'10 tint)
-                                                        (Sset _t'11
-                                                          (Ecast
-                                                            (Ederef
-                                                              (Ebinop Oadd
-                                                                (Evar _pow (tarray tint 256))
-                                                                (Ebinop Omod
-                                                                  (Ebinop Oadd
-                                                                    (Etempvar _logx__3 tint)
-                                                                    (Etempvar _logy__3 tint)
-                                                                    tint)
-                                                                  (Econst_int (Int.repr 255) tint)
-                                                                  tint)
-                                                                (tptr tint))
-                                                              tint) tint))
-                                                        (Sset _t'11
-                                                          (Ecast
-                                                            (Econst_int (Int.repr 0) tint)
-                                                            tint))))
-                                                    (Sset _prod4
-                                                      (Etempvar _t'11 tint)))))
+                                                          (tptr tint)) tint))
+                                                    (Ssequence
+                                                      (Sset _m__2
+                                                        (Ebinop Omod
+                                                          (Ebinop Oadd
+                                                            (Etempvar _logx__2 tint)
+                                                            (Etempvar _logy__2 tint)
+                                                            tint)
+                                                          (Econst_int (Int.repr 255) tint)
+                                                          tint))
+                                                      (Sset _prod3
+                                                        (Ederef
+                                                          (Ebinop Oadd
+                                                            (Evar _pow (tarray tint 256))
+                                                            (Etempvar _m__2 tint)
+                                                            (tptr tint))
+                                                          tint)))))
+                                                (Sset _prod3
+                                                  (Econst_int (Int.repr 0) tint))))
+                                            (Ssequence
+                                              (Ssequence
+                                                (Sset _t'7
+                                                  (Ecast (Etempvar _x tint)
+                                                    tbool))
+                                                (Sifthenelse (Etempvar _t'7 tint)
+                                                  (Ssequence
+                                                    (Sset _logx__3
+                                                      (Ederef
+                                                        (Ebinop Oadd
+                                                          (Evar _log (tarray tint 256))
+                                                          (Econst_int (Int.repr 11) tint)
+                                                          (tptr tint)) tint))
+                                                    (Ssequence
+                                                      (Sset _logy__3
+                                                        (Ederef
+                                                          (Ebinop Oadd
+                                                            (Evar _log (tarray tint 256))
+                                                            (Etempvar _x tint)
+                                                            (tptr tint))
+                                                          tint))
+                                                      (Ssequence
+                                                        (Sset _m__3
+                                                          (Ebinop Omod
+                                                            (Ebinop Oadd
+                                                              (Etempvar _logx__3 tint)
+                                                              (Etempvar _logy__3 tint)
+                                                              tint)
+                                                            (Econst_int (Int.repr 255) tint)
+                                                            tint))
+                                                        (Sset _prod4
+                                                          (Ederef
+                                                            (Ebinop Oadd
+                                                              (Evar _pow (tarray tint 256))
+                                                              (Etempvar _m__3 tint)
+                                                              (tptr tint))
+                                                            tint)))))
+                                                  (Sset _prod4
+                                                    (Econst_int (Int.repr 0) tint))))
                                               (Ssequence
                                                 (Sassign
                                                   (Ederef

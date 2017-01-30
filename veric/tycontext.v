@@ -348,10 +348,7 @@ Qed.
 Definition local_legal_alignas_type env (t: type): bool :=
   Z.leb (plain_alignof env t) (alignof env t) &&
   match t with
-  | Tarray t' n a => match attr_alignas (attr_of_type t') with 
-                              | None => Z.leb 0 n
-                              | _ => false 
-                              end
+  | Tarray t' n a => Z.eqb ((sizeof env t') mod (alignof env t')) 0 && Z.leb 0 n
   | Tlong _ _ => Z.leb 8 (alignof env t)
   | _ => true
   end.
