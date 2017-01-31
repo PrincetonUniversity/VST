@@ -1,76 +1,8 @@
 Require Import floyd.proofauto.
 Require Import floyd.reassoc_seq.
-Require Import aes.sbox.
+Require Import aes.GF_ops_LL.
+Require Import aes.tablesLL.
 Require Import aes.aes.
-
-Fixpoint repeat_op_nat{T: Type}(n: nat)(start: T)(op: T -> T): T := match n with
-| O => start
-| S m => op (repeat_op_nat m start op)
-end.
-
-Definition repeat_op{T: Type}(n: Z)(start: T)(op: T -> T): T := repeat_op_nat (Z.to_nat n) start op.
-
-Lemma repeat_op_step: forall {T: Type} (i: Z) (start: T) (op: T -> T),
-  0 <= i ->
-  repeat_op (i + 1) start op = op (repeat_op i start op).
-Proof.
-  intros. unfold repeat_op. rewrite Z2Nat.inj_add by omega.
-  rewrite Nat.add_1_r. simpl. reflexivity.
-Qed.
-
-Fixpoint repeat_op_table_nat{T: Type}(n: nat)(start: T)(op: T -> T): list T := match n with
-| O => []
-| S m => (repeat_op_table_nat m start op) ++ [repeat_op_nat m start op]
-end.
-
-Definition repeat_op_table{T: Type}(n: Z)(start: T)(op: T -> T): list T :=
-  repeat_op_table_nat (Z.to_nat n) start op.
-
-Lemma repeat_op_table_step: forall {T: Type} (i: Z) (start: T) (op: T -> T),
-  0 <= i ->
-  repeat_op_table (i + 1) start op = (repeat_op_table i start op) ++ [repeat_op i start op].
-Proof.
-  intros. unfold repeat_op_table. rewrite Z2Nat.inj_add by omega.
-  rewrite Nat.add_1_r. simpl. reflexivity.
-Qed.
-
-Definition times3(x: int): int := 
-  Int.and
-    (Int.xor x (Int.xor (Int.shl x (Int.repr 1))
-                        (if Int.eq (Int.and x (Int.repr 128)) Int.zero then Int.zero else Int.repr 27)))
-    (Int.repr 255).
-
-Definition pow3(e: Z): int := repeat_op e (Int.repr 1) times3.
-
-Fixpoint log3_nat(p: int)(n: nat): Z :=
-  if Int.eq p (pow3 (Z.of_nat n)) then Z.of_nat n
-  else match n with
-  | O => -1 (* illegal argument *)
-  | S m => log3_nat p m
-  end.
-
-(* Note: For (log3 1), we have two possible return values: 0 and 255.
-   We choose 255, because then both the domain and the codomain of log3 are 1..255. *)
-Definition log3(p: int): Z := log3_nat p 255.
-
-Lemma pow3_not0: forall i, pow3 i <> Int.zero.
-Admitted.
-
-Lemma pow3log3: forall j,
-  1 <= j < 256 ->
-  Int.unsigned (pow3 (log3 (Int.repr j))) = j.
-Admitted.
-
-Lemma log3range: forall j,
-  1 <= j < 256 ->
-  1 <= log3 (Int.repr j) < 256.
-Admitted.
-
-Lemma mod_range: forall i m,
-  0 <= i ->
-  0 < m ->
-  0 <= Int.unsigned (Int.mods (Int.repr i) (Int.repr m)) < m.
-Admitted.
 
 (* Note: x must be non-zero, y is allowed to be zero (because x is a constant in all usages, its
    non-zero-check seems to be removed by the parser). *)
@@ -80,11 +12,6 @@ Definition mul_with_table(x y: Z)(pow: list int)(log: list Z): int :=
   else Znth (Int.unsigned
                (Int.mods (Int.repr (Znth x log 0 + Znth y log 0))
                   (Int.repr 255))) pow Int.zero.
-
-Definition mul(x y: int): int :=
-  if Int.eq x Int.zero then Int.zero else
-  if Int.eq y Int.zero then Int.zero else
-  pow3 (Int.unsigned (Int.mods (Int.repr (log3 x + log3 y)) (Int.repr 255))).
 
 Lemma mul_equiv: forall (x y: Z) (pow : list int) (log : list Z),
   (forall j : Z, 0 <= j < 256 -> Znth j pow Int.zero = pow3 j) ->
@@ -122,76 +49,6 @@ Lemma Z_to_val_to_Vint: forall j,
 Proof.
   intros. unfold Z_to_val. destruct (zeq j (-1)) as [E | E]. omega. reflexivity.
 Qed.
-
-Definition times2(x: int): int := 
-  Int.and
-    (Int.xor (Int.shl x (Int.repr 1))
-             (if Int.eq (Int.and x (Int.repr 128)) Int.zero then Int.zero else Int.repr 27))
-    (Int.repr 255).
-
-Definition pow2(e: Z): int := repeat_op e (Int.repr 1) times2.
-
-Definition rot8(i: int): int := 
-  Int.or (Int.and (Int.shl i (Int.repr 8)) (Int.repr (-1))) (Int.shru i (Int.repr 24)).
-
-Definition FSb := map Int.repr sbox.
-Definition RSb := map Int.repr inv_sbox.
-
-Definition calc_FT0(i: Z): int :=
-  (Int.xor (Int.xor (Int.xor 
-     (times2 (Znth i FSb Int.zero)) 
-     (Int.shl (Znth i FSb Int.zero) (Int.repr 8)))
-     (Int.shl (Znth i FSb Int.zero) (Int.repr 16)))
-     (Int.shl (Int.and (Int.xor (times2 (Znth i FSb Int.zero)) (Znth i FSb Int.zero))
-                       (Int.repr 255))
-              (Int.repr 24))).
-Definition calc_FT1(i: Z): int := rot8 (calc_FT0 i).
-Definition calc_FT2(i: Z): int := rot8 (calc_FT1 i).
-Definition calc_FT3(i: Z): int := rot8 (calc_FT2 i).
-Definition calc_RT0(i: Z): int :=
-  Int.xor (Int.xor (Int.xor
-           (mul (Int.repr 14) (Int.repr (Int.unsigned (Znth i RSb Int.zero))))
-  (Int.shl (mul (Int.repr  9) (Int.repr (Int.unsigned (Znth i RSb Int.zero)))) (Int.repr  8)))
-  (Int.shl (mul (Int.repr 13) (Int.repr (Int.unsigned (Znth i RSb Int.zero)))) (Int.repr 16)))
-  (Int.shl (mul (Int.repr 11) (Int.repr (Int.unsigned (Znth i RSb Int.zero)))) (Int.repr 24)).
-Definition calc_RT1(i: Z): int := rot8 (calc_RT0 i).
-Definition calc_RT2(i: Z): int := rot8 (calc_RT1 i).
-Definition calc_RT3(i: Z): int := rot8 (calc_RT2 i).
-
-Global Opaque calc_FT0 calc_FT1 calc_FT2 calc_FT2 calc_RT0 calc_RT1 calc_RT2 calc_RT3.
-
-Fixpoint fill_list_nat{T: Type}(n: nat)(f: nat -> T): list T := match n with
-| O => []
-| S m => (fill_list_nat m f) ++ [f m]
-end.
-
-Definition fill_list{T: Type}(n: Z)(f: Z -> T): list T :=
-  fill_list_nat (Z.to_nat n) (fun i => f (Z.of_nat i)).
-
-Lemma fill_list_step: forall {T: Type} (n: Z) (f: Z -> T),
-  0 <= n ->
-  fill_list (n + 1) f = fill_list n f ++ [f n].
-Proof.
-  intros. unfold fill_list. rewrite Z2Nat.inj_add by omega.
-  rewrite Nat.add_1_r. simpl. rewrite Z2Nat.id by omega. reflexivity.
-Qed.
-
-(* instead of
-     Require Import aes.tablesLL.
-   we do, for the moment:
-*)
-
-Definition FT0 := fill_list 256 calc_FT0.
-Definition FT1 := fill_list 256 calc_FT1.
-Definition FT2 := fill_list 256 calc_FT2.
-Definition FT3 := fill_list 256 calc_FT3.
-Definition RT0 := fill_list 256 calc_RT0.
-Definition RT1 := fill_list 256 calc_RT1.
-Definition RT2 := fill_list 256 calc_RT2.
-Definition RT3 := fill_list 256 calc_RT3.
-Definition RCON := repeat_op_table 10 Int.one times2.
-
-Global Opaque FSb FT0 FT1 FT2 FT3 RSb RT0 RT1 RT2 RT3 RCON.
 
 Definition partially_filled(i n: Z)(f: Z -> int): list val := 
   (map Vint (fill_list i f)) ++ (repeat_op_table (n-i) Vundef id).
@@ -256,20 +113,6 @@ Ltac forward_if_diff add := match add with
   end
 end.
 
-Lemma pow2_range: forall e,
-  0 <= e ->
-  0 <= Int.unsigned (pow2 e) < 256.
-Admitted.
-
-Lemma pow3_range: forall e,
-  0 <= e ->
-  0 <= Int.unsigned (pow3 e) < 256.
-Admitted.
-
-Lemma pow3_inj: forall (i j : Z),
-  pow3 i = pow3 j -> Int.eqmod 255 i j.
-Admitted.
-
 (* TODO floyd this lemma should be invoked by entailer!
    Note: in summaray, this already works for data_at, but why doesn't it work for field_at?
    QQQ: And why/how does it work for data_at? *)
@@ -278,66 +121,6 @@ Lemma field_at_update_val: forall sh t gfs v v' p,
 Proof.
   intros. rewrite H. apply derives_refl.
 Qed.
-
-Lemma repeat_op_table_nat_length: forall {T: Type} (i: nat) (x: T) (f: T -> T),
-  length (repeat_op_table_nat i x f) = i.
-Proof.
-  intros. induction i. reflexivity. simpl. rewrite app_length. simpl.
-  rewrite IHi. omega.
-Qed.
-
-Lemma repeat_op_table_length: forall {T: Type} (i: Z) (x: T) (f: T -> T),
-  0 <= i ->
-  Zlength (repeat_op_table i x f) = i.
-Proof.
-  intros. unfold repeat_op_table.
-  rewrite Zlength_correct. rewrite repeat_op_table_nat_length.
-  apply Z2Nat.id. assumption.
-Qed.
-
-Lemma repeat_op_nat_id: forall {T: Type} (n: nat) (v: T),
-  repeat_op_nat n v id = v.
-Proof.
-  intros. induction n.
-  - reflexivity.
-  - simpl. apply IHn.
-Qed.
-
-Lemma repeat_op_table_nat_id_app: forall {T: Type} (len1 len2: nat) (v: T),
-  repeat_op_table_nat (len1 + len2) v id 
-  = repeat_op_table_nat len1 v id ++ repeat_op_table_nat len2 v id.
-Proof.
-  intros. induction len2.
-  - simpl. replace (len1 + 0)%nat with len1 by omega. rewrite app_nil_r. reflexivity.
-  - replace (len1 + S len2)%nat with (S (len1 + len2)) by omega. simpl.
-    rewrite IHlen2. rewrite <- app_assoc. f_equal. f_equal. do 2 rewrite repeat_op_nat_id.
-    reflexivity.
-Qed.
-
-Lemma sublist_repeat_op_table_id: forall {T: Type} (lo n: Z) (v: T),
-  0 <= lo ->
-  0 <= n ->
-  sublist lo (lo + n) (repeat_op_table (lo + n) v id) = repeat_op_table n v id.
-Proof.
-  intros.
-  replace (lo + n) with (Zlength (repeat_op_table (lo + n) v id)) at 1
-    by (apply repeat_op_table_length; omega).
-  rewrite sublist_skip by omega.
-  unfold repeat_op_table at 1. rewrite Z2Nat.inj_add by omega.
-  rewrite repeat_op_table_nat_id_app.
-  rewrite Zskipn_app1 by (
-    rewrite Zlength_correct;
-    rewrite repeat_op_table_nat_length;
-    rewrite Z2Nat.id; omega
-  ).
-  rewrite skipn_short; [ reflexivity | ].
-  rewrite repeat_op_table_nat_length. omega.
-Qed.
-
-Lemma invert_pow3: forall i,
-  1 <= i < 256 ->
-  exists j, 1 <= j < 256 /\ i = (Int.unsigned (pow3 j)).
-Admitted.
 
 Lemma FSb_def: forall b1,
      0 <= b1 < 256 ->
