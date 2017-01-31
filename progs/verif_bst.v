@@ -483,14 +483,10 @@ Proof.
   start_function.
   unfold treebox_rep. Intros p.
   forward. (* p=*t; *)
-  apply (semax_post''
-                      (PROP ( )
-                       LOCAL (temp ret_temp (lookup nullval x t))
-                       SEP (data_at Tsh (tptr t_struct_tree) p b; tree_rep t p))).
-  1: unfold treebox_rep; Exists p.
-     (* TODO entailer: let entailer work here. *)
-     apply derives_refl'. f_equal. f_equal.
-     unfold SEPx; simpl. extensionality rho. symmetry; apply sepcon_assoc.
+  apply (semax_post_ret1 nil
+          (data_at Tsh (tptr t_struct_tree) p b :: tree_rep t p :: nil)).
+  1: intro HH; inversion HH.
+  1: unfold treebox_rep; Exists p; entailer!.
   apply semax_frame''.
   forward_while (lookup_inv b p t x).
   * (* precondition implies loop invariant *)
@@ -631,6 +627,7 @@ Proof.
   + forward. (* Sskip *)
     (* TODO entailer: entailer! does not work here. *)
     unfold loop2_ret_assert.
+    entailer!.
     apply andp_left2, derives_refl.
 Qed.
 
