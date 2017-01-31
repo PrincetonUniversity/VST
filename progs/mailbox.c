@@ -28,7 +28,7 @@ buffer *bufs[B];
 lock_t *lock[N];
 buf_id *comm[N];
 
-//This could be replaced by an external call once we figure out the right spec.
+//This could be replaced by an external call.
 int simulate_atomic_exchange(int *tgt, lock_t *l, int v){
   int x;
   acquire(l);
@@ -38,7 +38,7 @@ int simulate_atomic_exchange(int *tgt, lock_t *l, int v){
   return x;
 }
 
-//The initial state as written is slightly inconsistent:
+//The initial state as written in the draft is slightly inconsistent:
 //last_read is First, but comm[r] is also First as if it
 //hasn't been read yet. Either last_read or comm[r] should
 //start as Empty instead. comm[r] starting Empty is a bit
@@ -57,7 +57,7 @@ void initialize_channels(){
   }
   for(int r = 0; r < N; r++){
     buf_id *c = surely_malloc(sizeof(buf_id));
-    *c = Empty;
+    *c = First;
     comm[r] = c;
     c = surely_malloc(sizeof(buf_id));
     reading[r] = c;
@@ -75,7 +75,7 @@ void initialize_reader(int r){
   buf_id *rr = reading[r];
   buf_id *lr = last_read[r];
   *rr = Empty;
-  *lr = First;
+  *lr = 1;
 }
 
 buf_id start_read(int r){
@@ -107,7 +107,7 @@ void initialize_writer(){
   last_given = First;
   writing = Empty;
   for(int i = 0; i < N; i++)
-    last_taken[i] = Empty;
+    last_taken[i] = 1;
 }
 
 buf_id start_write(){
