@@ -96,6 +96,9 @@ Qed.
 Definition rot8(i: int): int := 
   Int.or (Int.and (Int.shl i (Int.repr 8)) (Int.repr (-1))) (Int.shru i (Int.repr 24)).
 
+Definition rotl1(b: int): int :=
+  Int.and (Int.or (Int.shl b (Int.repr 1)) (Int.shr b (Int.repr 7))) (Int.repr 255).
+
 Definition FSb := map Int.repr sbox.
 Definition RSb := map Int.repr inv_sbox.
 
@@ -137,3 +140,29 @@ Global Opaque FSb FT0 FT1 FT2 FT3 RSb RT0 RT1 RT2 RT3 RCON.
 
 (* TODO Can we achieve the same with "Arguments"?
    "Arguments FSb : simpl never." (etc) does not seem to work *)
+
+(* Instead of looking up the S-box values in a predefined list of constants, gen_tables actually
+   calculates it using the following function (for i <> 0): *)
+Definition calc_FSb_nonzero(i: Z): int :=
+  let x := pow3 (255 - log3 (Int.repr i)) in
+  (Int.xor (Int.xor (Int.xor (Int.xor        x 
+                                      (rotl1 x))
+                               (rotl1 (rotl1 x)))
+                        (rotl1 (rotl1 (rotl1 x))))
+        (Int.xor (rotl1 (rotl1 (rotl1 (rotl1 x)))) (Int.repr 99))).
+
+(* the "repeat" and the "Qed." both take ~30s *)
+Lemma FSb_equiv: forall i,
+  1 <= i < 256 ->
+  calc_FSb_nonzero i = Znth i FSb Int.zero.
+Proof.
+  intros.
+  repeat match goal with
+  | H : ?b <= i < 256 |- _ =>
+    assert (i = b \/ b + 1 <= i < 256) as C by omega;
+    destruct C as [C | C];
+    [ subst i; vm_compute; reflexivity
+    | clear H; rename C into H; simpl in H ]
+  end.
+  omega.
+Qed.

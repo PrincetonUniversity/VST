@@ -122,122 +122,6 @@ Proof.
   intros. rewrite H. apply derives_refl.
 Qed.
 
-Lemma FSb_def: forall b1,
-     0 <= b1 < 256 ->
-     Znth (Int.unsigned (pow3 (255 - b1))) FSb Int.zero
-     = Int.xor
-         (Int.xor
-            (Int.xor
-               (Int.xor (pow3 b1)
-                  (Int.and (Int.or (Int.shl (pow3 b1) (Int.repr 1)) (Int.shr (pow3 b1) (Int.repr 7)))
-                     (Int.repr 255)))
-               (Int.and
-                  (Int.or
-                     (Int.shl
-                        (Int.and
-                           (Int.or (Int.shl (pow3 b1) (Int.repr 1)) (Int.shr (pow3 b1) (Int.repr 7)))
-                           (Int.repr 255)) (Int.repr 1))
-                     (Int.shr
-                        (Int.and
-                           (Int.or (Int.shl (pow3 b1) (Int.repr 1)) (Int.shr (pow3 b1) (Int.repr 7)))
-                           (Int.repr 255)) (Int.repr 7))) (Int.repr 255)))
-            (Int.and
-               (Int.or
-                  (Int.shl
-                     (Int.and
-                        (Int.or
-                           (Int.shl
-                              (Int.and
-                                 (Int.or (Int.shl (pow3 b1) (Int.repr 1))
-                                    (Int.shr (pow3 b1) (Int.repr 7))) (Int.repr 255)) 
-                              (Int.repr 1))
-                           (Int.shr
-                              (Int.and
-                                 (Int.or (Int.shl (pow3 b1) (Int.repr 1))
-                                    (Int.shr (pow3 b1) (Int.repr 7))) (Int.repr 255)) 
-                              (Int.repr 7))) (Int.repr 255)) (Int.repr 1))
-                  (Int.shr
-                     (Int.and
-                        (Int.or
-                           (Int.shl
-                              (Int.and
-                                 (Int.or (Int.shl (pow3 b1) (Int.repr 1))
-                                    (Int.shr (pow3 b1) (Int.repr 7))) (Int.repr 255)) 
-                              (Int.repr 1))
-                           (Int.shr
-                              (Int.and
-                                 (Int.or (Int.shl (pow3 b1) (Int.repr 1))
-                                    (Int.shr (pow3 b1) (Int.repr 7))) (Int.repr 255)) 
-                              (Int.repr 7))) (Int.repr 255)) (Int.repr 7))) 
-               (Int.repr 255)))
-         (Int.xor
-            (Int.and
-               (Int.or
-                  (Int.shl
-                     (Int.and
-                        (Int.or
-                           (Int.shl
-                              (Int.and
-                                 (Int.or
-                                    (Int.shl
-                                       (Int.and
-                                          (Int.or (Int.shl (pow3 b1) (Int.repr 1))
-                                             (Int.shr (pow3 b1) (Int.repr 7))) 
-                                          (Int.repr 255)) (Int.repr 1))
-                                    (Int.shr
-                                       (Int.and
-                                          (Int.or (Int.shl (pow3 b1) (Int.repr 1))
-                                             (Int.shr (pow3 b1) (Int.repr 7))) 
-                                          (Int.repr 255)) (Int.repr 7))) (Int.repr 255)) 
-                              (Int.repr 1))
-                           (Int.shr
-                              (Int.and
-                                 (Int.or
-                                    (Int.shl
-                                       (Int.and
-                                          (Int.or (Int.shl (pow3 b1) (Int.repr 1))
-                                             (Int.shr (pow3 b1) (Int.repr 7))) 
-                                          (Int.repr 255)) (Int.repr 1))
-                                    (Int.shr
-                                       (Int.and
-                                          (Int.or (Int.shl (pow3 b1) (Int.repr 1))
-                                             (Int.shr (pow3 b1) (Int.repr 7))) 
-                                          (Int.repr 255)) (Int.repr 7))) (Int.repr 255)) 
-                              (Int.repr 7))) (Int.repr 255)) (Int.repr 1))
-                  (Int.shr
-                     (Int.and
-                        (Int.or
-                           (Int.shl
-                              (Int.and
-                                 (Int.or
-                                    (Int.shl
-                                       (Int.and
-                                          (Int.or (Int.shl (pow3 b1) (Int.repr 1))
-                                             (Int.shr (pow3 b1) (Int.repr 7))) 
-                                          (Int.repr 255)) (Int.repr 1))
-                                    (Int.shr
-                                       (Int.and
-                                          (Int.or (Int.shl (pow3 b1) (Int.repr 1))
-                                             (Int.shr (pow3 b1) (Int.repr 7))) 
-                                          (Int.repr 255)) (Int.repr 7))) (Int.repr 255)) 
-                              (Int.repr 1))
-                           (Int.shr
-                              (Int.and
-                                 (Int.or
-                                    (Int.shl
-                                       (Int.and
-                                          (Int.or (Int.shl (pow3 b1) (Int.repr 1))
-                                             (Int.shr (pow3 b1) (Int.repr 7))) 
-                                          (Int.repr 255)) (Int.repr 1))
-                                    (Int.shr
-                                       (Int.and
-                                          (Int.or (Int.shl (pow3 b1) (Int.repr 1))
-                                             (Int.shr (pow3 b1) (Int.repr 7))) 
-                                          (Int.repr 255)) (Int.repr 7))) (Int.repr 255)) 
-                              (Int.repr 7))) (Int.repr 255)) (Int.repr 7))) 
-               (Int.repr 255)) (Int.repr 99)).
-Admitted.
-
 Lemma FSb_range: forall i,
   0 <= Int.unsigned (Znth i FSb Int.zero) < 256.
 Admitted.
@@ -524,150 +408,6 @@ Proof.
   } {
   rewrite app_nil_r.
 
-  Transparent FSb RSb.
-
-  (* generate the forward and reverse S-boxes *)
-  thaw Fr.
-  freeze [3; 4; 5; 6; 8; 9; 10; 11; 12] Fr.
-  forward.
-  forward.
-  forward_for_simple_bound 256 (gen_sbox_inv0 lvar0 lvar1 tables log pow Fr).
-  { (* loop invariant holds initially: *)
-    entailer!.
-    Exists (upd_Znth 99 Vundef256 (Vint (Int.repr 0))).
-    Exists (upd_Znth 0 Vundef256 (Vint (Int.repr 99))).
-    entailer!. split.
-    - intros. assert (j = 0) by omega. subst j. rewrite upd_Znth_same.
-      * reflexivity.
-      * change (Zlength Vundef256) with 256. omega.
-    - intros. omega.
-  }
-  { (* loop body preserves invariant: *)
-    Ltac expose_pow_Vint pow Hpow :=
-      match goal with
-      | |- context [ Znth ?i pow Vundef ] => rewrite (Hpow i) by omega
-      end.
-    Ltac expose_log_Vint log Hlog :=
-      match goal with
-      | |- context [ Znth ?i log Vundef ] =>
-        let b := fresh "b0" in let B := fresh "B0" in let E := fresh "E0" in
-        destruct (invert_pow3 i) as [b [B E]]; [ omega |
-          rewrite E; rewrite <- (Hlog b B); rewrite ?Int.repr_unsigned ]
-      end.
-    forward. { entailer!. expose_log_Vint log H2. auto. }
-    expose_log_Vint log H2.
-    (* TODO floyd: If I don't do the above to make sure that "temp _logi" is a Vint,
-       "forward" fails, with the default error, because it cannot calculate the array index. *)
-    forward. { entailer!. expose_pow_Vint pow H4. auto. }
-    expose_pow_Vint pow H4.
-    forward. forward. forward. forward. forward. forward. forward. forward. forward.
-
-    match goal with
-    | |- context [ temp _x (Vint ?v) ] => remember v as x
-    end.
-    remember (255 - b0) as b1. assert (b0 = 255 - b1) by omega. subst b0. clear Heqb1.
-    assert (0 <= b1 < 256) as B1 by omega. clear B0.
-    rewrite <- FSb_def in Heqx by omega. subst x.
-    match goal with
-    | |- context [ temp _y (Vint ?v) ] => forget v as y
-    end.
-
-    Intro fsb. Intro rsb. normalize.
-    (* TODO floyd if I don't do the above, "forward" fails with the default error message, because
-       in store_tac, sc_new_instantiate cannot find the right SEP clause. *)
-    forward. forward.
-    - (* entailment of "forward" *)
-      entailer!.
-      apply FSb_range.
-    - (* postcondition implies loop invariant *)
-      entailer!.
-      * rewrite Int.repr_unsigned. reflexivity.
-      * match goal with
-        | |- field_at _ _ _ ?fsb' _ * field_at _ _ _ ?rsb' _ |-- _ => Exists rsb'; Exists fsb'
-        end.
-        entailer!. repeat split.
-        + rewrite upd_Znth_diff; (omega || auto).
-        + rewrite upd_Znth_Zlength; omega.
-        + intros.
-          assert (0 <= j < Int.unsigned (pow3 (255 - b1)) \/ j = Int.unsigned (pow3 (255 - b1))) as C
-          by omega. destruct C as [C | C].
-          { rewrite upd_Znth_diff; (omega || auto). }
-          { subst j. rewrite upd_Znth_same.
-            - repeat rewrite zero_ext_nop; try reflexivity; apply FSb_range.
-            - omega.
-          }
-        + intros.
-          assert (0 <= j < Int.unsigned (pow3 (255 - b1)) \/ j = Int.unsigned (pow3 (255 - b1))) as C
-          by omega. destruct C as [C | C].
-          { rewrite upd_Znth_diff.
-            - apply H11. omega.
-            - replace (Zlength rsb) with 256 by assumption. apply FSb_range.
-            - replace (Zlength rsb) with 256 by assumption. apply FSb_range.
-            - intro HH. apply unsigned_eq_eq in HH.
-              apply FSb_inj in HH; omega.
-          }
-          { subst j. rewrite Int.repr_unsigned. rewrite upd_Znth_same.
-            - repeat rewrite zero_ext_nop; try reflexivity; omega.
-            - replace (Zlength rsb) with 256 by assumption. apply FSb_range.
-          }
-        + rewrite upd_Znth_diff.
-          { auto. }
-          { omega. }
-          { replace (Zlength rsb) with 256 by assumption. apply FSb_range. }
-          { replace 99 with (Int.unsigned (Znth 0 FSb Int.zero)) by reflexivity.
-            intro HH. apply unsigned_eq_eq in HH. apply FSb_inj in HH; omega. }
-        + rewrite upd_Znth_Zlength; [ omega | ].
-          replace (Zlength rsb) with 256 by reflexivity. apply FSb_range.
-  }
-
-  thaw Fr.
-  Intro fsb. Intro rsb.
-
-  (* TODO floyd: the following should be done by normalize *)
-  assert_PROP (
-    (Zlength rsb = 256) /\
-    (forall j : Z, 1 <= j < 256 ->
-       Znth (Int.unsigned (Znth j FSb Int.zero)) rsb Vundef = Vint (Int.repr j)) /\
-    (Znth 99 rsb Vundef = Vint Int.zero)
-  ) as P. { entailer!. }
-  destruct P as [?H [?H ?H]].
-  match goal with
-  | |- semax ?D (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?e ?Post => match R with
-    | [?s0; ?s1; ?s2; ?s3; ?s4; ?s5; ?s6; ?s7; ?s8; ?s9; ?s10; ?s11; ?s12] => match s12 with
-      | _ && _ && _ && ?f => apply semax_pre with (P' :=
-         (PROPx P (LOCALx Q (SEPx [s0; s1; s2; s3; s4; s5; s6; s7; s8; s9; s10; s11; f]))))
-      end
-    end
-  end. { entailer!. }
-
-  assert (fsb = (map Vint FSb)) as E. {
-    apply list_equiv with (d := Vundef) (n := 256).
-    - assumption.
-    - rewrite Zlength_map. reflexivity.
-    - intros. rewrite H7 by omega. rewrite Znth_map with (d' := Int.zero).
-      + reflexivity.
-      + apply H11.
-  }
-  subst fsb.
-  assert (rsb = (map Vint RSb)) as E. {
-    apply list_equiv with (d := Vundef) (n := 256).
-    - assumption.
-    - rewrite Zlength_map. reflexivity.
-    - intros. assert (j = 99 \/ j <> 99) as C by omega. destruct C as [C | C].
-      + subst j. rewrite H10. reflexivity.
-      + rewrite (FSb_RSb_id j H11) at 1. rewrite H9.
-        * rewrite Int.repr_unsigned. symmetry. apply Znth_map with (d' := Int.zero).
-          replace (Zlength RSb) with 256 by reflexivity. omega.
-        * assert (Int.unsigned (Znth j RSb Int.zero) = 0 \/ Int.unsigned (Znth j RSb Int.zero) <> 0)
-          as D by omega. destruct D as [D | D].
-          { change 0 with (Int.unsigned Int.zero) in D. apply unsigned_eq_eq in D.
-            change Int.zero with (Znth 99 RSb Int.zero) in D at 2.
-            apply RSb_inj in D; omega. }
-          { pose proof (RSb_range j). omega. }
-  }
-  subst rsb.
-  clear H5 H6 H7 H8 H9 H10.
-
   (* Before using log and pow, let's turn these "list val" into "list int" or "list Z", respectively. *)
   rename log into log0, pow into pow0.
   assert (exists pow, pow0 = map Vint pow /\ forall j, 0 <= j < 256 -> Znth j pow Int.zero = pow3 j)
@@ -708,6 +448,151 @@ Proof.
   }
   destruct E as [log [E Hlog]]. subst log0. clear H2. rewrite Zlength_map in H1. rename H1 into Llog.
   clear H H0.
+  assert (forall j, 1 <= j < 256 ->
+    Z_to_val (Znth j log 0) = Vint (Int.repr (log3 (Int.repr j)))
+  ) as Hlog'. {
+    intros. rewrite Hlog by assumption. unfold Z_to_val.
+    destruct (zeq (log3 (Int.repr j)) (-1)) as [Eq | Ne].
+    - pose proof (log3range j). omega.
+    - reflexivity.
+  }
+
+  Transparent FSb RSb.
+
+  (* generate the forward and reverse S-boxes *)
+  thaw Fr.
+  freeze [3; 4; 5; 6; 8; 9; 10; 11; 12] Fr.
+  forward.
+  forward.
+  forward_for_simple_bound 256 (gen_sbox_inv0 lvar0 lvar1 tables (map Z_to_val log) (map Vint pow) Fr).
+  { (* loop invariant holds initially: *)
+    entailer!.
+    Exists (upd_Znth 99 Vundef256 (Vint (Int.repr 0))).
+    Exists (upd_Znth 0 Vundef256 (Vint (Int.repr 99))).
+    entailer!. split.
+    - intros. assert (j = 0) by omega. subst j. rewrite upd_Znth_same.
+      * reflexivity.
+      * change (Zlength Vundef256) with 256. omega.
+    - intros. omega.
+  }
+  { (* loop body preserves invariant: *)
+    forward. { entailer!. rewrite Hlog' by omega. auto. }
+    pose proof (log3range i).
+    rewrite Hlog' by omega.
+    (* TODO floyd: If I don't do the above to make sure that "temp _logi" is a Vint,
+       "forward" fails, with the default error, because it cannot calculate the array index. *)
+    forward.
+
+    Ltac fold_rotl1 :=
+    repeat match goal with
+    | |- context[Int.and (Int.or (Int.shl ?b (Int.repr 1)) (Int.shr ?b (Int.repr 7))) (Int.repr 255)]
+      => change (Int.and (Int.or (Int.shl  b (Int.repr 1)) (Int.shr  b (Int.repr 7))) (Int.repr 255))
+         with (rotl1 b)
+    end.
+
+    forward. forward. fold_rotl1.
+    forward. forward. fold_rotl1.
+    forward. forward. fold_rotl1.
+    forward. forward. fold_rotl1.
+    forward.
+    rewrite Hpow by omega.
+    match goal with
+    | |- context [ temp _x (Vint ?v) ] => change v with (calc_FSb_nonzero i)
+    end.
+    rewrite FSb_equiv by omega.
+
+    Intro fsb. Intro rsb. normalize.
+    (* TODO floyd if I don't do the above, "forward" fails with the default error message, because
+       in store_tac, sc_new_instantiate cannot find the right SEP clause. *)
+    forward. forward.
+    - (* entailment of "forward" *)
+      entailer!.
+      apply FSb_range.
+    - (* postcondition implies loop invariant *)
+      entailer!.
+        match goal with
+        | |- field_at _ _ _ ?fsb' _ * field_at _ _ _ ?rsb' _ |-- _ => Exists rsb'; Exists fsb'
+        end.
+        entailer!. repeat split.
+        + rewrite upd_Znth_diff; (omega || auto).
+        + rewrite upd_Znth_Zlength; omega.
+        + intros.
+          assert (0 <= j < i \/ j = i) as C
+          by omega. destruct C as [C | C].
+          { rewrite upd_Znth_diff; (omega || auto). }
+          { subst j. rewrite upd_Znth_same.
+            - repeat rewrite zero_ext_nop; try reflexivity; apply FSb_range.
+            - omega.
+          }
+        + intros.
+          assert (1 <= j < i \/ j = i) as C
+          by omega. destruct C as [C | C].
+          { rewrite upd_Znth_diff.
+            - auto.
+            - replace (Zlength rsb) with 256 by assumption. apply FSb_range.
+            - replace (Zlength rsb) with 256 by assumption. apply FSb_range.
+            - intro HH. apply unsigned_eq_eq in HH.
+              apply FSb_inj in HH; omega.
+          }
+          { subst j. rewrite upd_Znth_same.
+            - repeat rewrite zero_ext_nop; try reflexivity; rewrite Int.unsigned_repr; repable_signed.
+            - replace (Zlength rsb) with 256 by assumption. apply FSb_range.
+          }
+        + rewrite upd_Znth_diff.
+          { auto. }
+          { omega. }
+          { replace (Zlength rsb) with 256 by assumption. apply FSb_range. }
+          { replace 99 with (Int.unsigned (Znth 0 FSb Int.zero)) by reflexivity.
+            intro HH. apply unsigned_eq_eq in HH. apply FSb_inj in HH; omega. }
+        + rewrite upd_Znth_Zlength; [ omega | ].
+          replace (Zlength rsb) with 256 by reflexivity. apply FSb_range.
+  }
+
+  thaw Fr.
+  Intro fsb. Intro rsb.
+
+  (* TODO floyd: the following should be done by normalize *)
+  assert_PROP (
+    (Zlength rsb = 256) /\
+    (forall j : Z, 1 <= j < 256 ->
+       Znth (Int.unsigned (Znth j FSb Int.zero)) rsb Vundef = Vint (Int.repr j)) /\
+    (Znth 99 rsb Vundef = Vint Int.zero)
+  ) as P. { entailer!. }
+  destruct P as [?H [?H ?H]].
+  match goal with
+  | |- semax ?D (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?e ?Post => match R with
+    | [?s0; ?s1; ?s2; ?s3; ?s4; ?s5; ?s6; ?s7; ?s8; ?s9; ?s10; ?s11; ?s12] => match s12 with
+      | _ && _ && _ && ?f => apply semax_pre with (P' :=
+         (PROPx P (LOCALx Q (SEPx [s0; s1; s2; s3; s4; s5; s6; s7; s8; s9; s10; s11; f]))))
+      end
+    end
+  end. { entailer!. }
+
+  assert (fsb = (map Vint FSb)) as E. {
+    apply list_equiv with (d := Vundef) (n := 256).
+    - assumption.
+    - rewrite Zlength_map. reflexivity.
+    - intros. rewrite Znth_map with (d' := Int.zero); auto.
+  }
+  subst fsb.
+  assert (rsb = (map Vint RSb)) as E. {
+    apply list_equiv with (d := Vundef) (n := 256).
+    - assumption.
+    - rewrite Zlength_map. reflexivity.
+    - intros. assert (j = 99 \/ j <> 99) as C by omega. destruct C as [C | C].
+      + subst j. auto.
+      + rewrite (FSb_RSb_id j) at 1 by assumption. rewrite H4.
+        * rewrite Int.repr_unsigned. symmetry. apply Znth_map with (d' := Int.zero).
+          replace (Zlength RSb) with 256 by reflexivity. omega.
+        * assert (Int.unsigned (Znth j RSb Int.zero) = 0 \/ Int.unsigned (Znth j RSb Int.zero) <> 0)
+          as D by omega. destruct D as [D | D].
+          { change 0 with (Int.unsigned Int.zero) in D. apply unsigned_eq_eq in D.
+            change Int.zero with (Znth 99 RSb Int.zero) in D at 2.
+            apply RSb_inj in D; omega. }
+          { pose proof (RSb_range j). omega. }
+  }
+  subst rsb.
+  clear H H0 H1 H2 H3 H4 H5.
 
   (* generate the forward and reverse tables *)
   forward_for_simple_bound 256 (gen_ftrt_inv0 lvar0 lvar1 tables (map Z_to_val log) (map Vint pow)).
