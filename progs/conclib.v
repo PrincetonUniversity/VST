@@ -697,6 +697,14 @@ Proof.
     rewrite IHl1; auto; omega.
 Qed.
 
+Lemma Znth_inbounds : forall {A} i (l : list A) d, Znth i l d <> d -> 0 <= i < Zlength l.
+Proof.
+  intros.
+  destruct (zlt i 0); [contradiction H; apply Znth_underflow; auto|].
+  destruct (Z_lt_dec i (Zlength l)); [omega|].
+  rewrite Znth_overflow in H; [contradiction H; auto | omega].
+Qed.
+
 Lemma sublist_next : forall {A} i j l (d : A), 0 <= i < j -> j <= Zlength l ->
   sublist i j l = Znth i l d :: sublist (i + 1) j l.
 Proof.
@@ -937,6 +945,39 @@ Proof.
   apply IHl; omega.
 Qed.
 
+Fixpoint extendr {A} (l : list A) ls :=
+  match l, ls with
+  | x :: xs, y :: ys => (y ++ [x]) :: extendr xs ys
+  | _, _ => ls
+  end.
+
+Lemma Zlength_extendr : forall {A} (l : list A) ls, Zlength (extendr l ls) = Zlength ls.
+Proof.
+  induction l; destruct ls; auto; simpl.
+  rewrite !Zlength_cons, IHl; auto.
+Qed.
+
+Lemma Znth_extendr_in : forall {A} (l : list A) ls i d d', 0 <= i < Zlength l -> Zlength l <= Zlength ls ->
+  Znth i (extendr l ls) d = Znth i ls d ++ [Znth i l d'].
+Proof.
+  induction l; destruct ls; simpl; intros; try rewrite Zlength_nil in *; try omega.
+  rewrite !Zlength_cons in *.
+  destruct (eq_dec i 0); subst; auto.
+  rewrite !Znth_pos_cons; try omega.
+  apply IHl; omega.
+Qed.
+
+Lemma Znth_extendr_ge : forall {A} (l : list A) ls i d, Zlength l <= i ->
+  Znth i (extendr l ls) d = Znth i ls d.
+Proof.
+  induction l; destruct ls; auto; simpl; intros.
+  destruct (zlt i 0); [rewrite !Znth_underflow; auto|].
+  rewrite Zlength_cons in *.
+  destruct (eq_dec i 0); [rewrite Zlength_correct in *; omega|].
+  rewrite !Znth_pos_cons; try omega.
+  apply IHl; omega.
+Qed.
+
 Lemma list_join_eq : forall (b : list share) a c c'
   (Hc : sepalg_list.list_join a b c) (Hc' : sepalg_list.list_join a b c'), c = c'.
 Proof.
@@ -1002,6 +1043,31 @@ Proof.
   - unfold sublist; rewrite skipn_nil, firstn_nil; auto.
   - destruct ls.
     + unfold sublist; rewrite skipn_nil, firstn_nil, extend_nil; auto.
+    + destruct (Z_le_dec j i); [rewrite !sublist_nil_gen; auto|].
+      destruct (Z_le_dec i 0).
+      * subst; rewrite !sublist_0_cons'; try omega.
+        rewrite IHl; auto.
+      * rewrite !sublist_S_cons; auto; omega.
+Qed.
+
+Lemma extendr_nil : forall {A} (l : list A), extendr l [] = [].
+Proof.
+  destruct l; auto.
+Qed.
+
+Lemma extendr_cons : forall {A} (l : list A) l1 ls, extendr l (l1 :: ls) =
+  match l with [] => l1 :: ls | a :: l' => (l1 ++ [a]) :: extendr l' ls end.
+Proof.
+  destruct l; auto.
+Qed.
+
+Lemma sublist_extendr : forall {A} (l : list A) ls i j,
+  sublist i j (extendr l ls) = extendr (sublist i j l) (sublist i j ls).
+Proof.
+  induction l; simpl; intros.
+  - unfold sublist; rewrite skipn_nil, firstn_nil; auto.
+  - destruct ls.
+    + unfold sublist; rewrite skipn_nil, firstn_nil, extendr_nil; auto.
     + destruct (Z_le_dec j i); [rewrite !sublist_nil_gen; auto|].
       destruct (Z_le_dec i 0).
       * subst; rewrite !sublist_0_cons'; try omega.

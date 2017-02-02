@@ -52,7 +52,50 @@ Defined.
 (* Instances of ghost state *)
 Section GVar.
 
-Global Instance Share_PCM : PCM share := { join := sepalg.join }.
+Lemma join_Bot : forall a b, sepalg.join a b Share.bot -> a = Share.bot /\ b = Share.bot.
+Proof.
+  intros ?? (? & ?).
+  apply lub_bot_e; auto.
+Qed.
+
+Global Instance Var_PCM : PCM (share * sigT reptype) := { join a b c := sepalg.join (fst a) (fst b) (fst c) /\
+  (fst a = Share.bot /\ c = b \/ fst b = Share.bot /\ c = a \/ snd a = snd b /\ snd b = snd c) }.
+Proof.
+  - intros ??? (? & Hcase); split; [apply sepalg.join_comm; auto|].
+    destruct Hcase as [? | [? | (-> & ?)]]; auto.
+  - intros ????? (? & Hcase1) (Hj2 & Hcase2).
+    eapply sepalg.join_assoc in Hj2; eauto.
+    destruct Hj2 as (sh & Hj1' & Hj2').
+    destruct Hcase2 as [(Hbot & ?) | [(Hbot & ?) | (? & He)]]; subst.
+    + rewrite Hbot in H; apply join_Bot in H; destruct H as (Ha & Hb); rewrite Ha in *.
+      assert (fst d = sh).
+      { eapply sepalg.join_eq; eauto. }
+      exists (sh, snd d); split; split; auto; destruct d; subst; auto.
+    + rewrite Hbot in *; assert (fst b = sh).
+      { eapply sepalg.join_eq; eauto. }
+      exists (sh, snd b); split; split; auto; destruct b; subst; auto.
+    + destruct Hcase1 as [(Hbot & ?) | [(Hbot & ?) | (? & ?)]]; subst.
+      * exists (sh, snd b); split; split; auto; destruct b; subst; auto.
+        rewrite Hbot in *; assert (fst e = sh).
+        { eapply sepalg.join_eq; eauto. }
+        destruct e; subst; simpl in *.
+        rewrite He in *; auto.
+      * exists (sh, snd d); split; split; auto.
+        rewrite Hbot in *; assert (fst d = sh).
+        { eapply sepalg.join_eq; eauto. }
+        destruct d; auto.
+      * rewrite <- He.
+        exists (sh, snd d); split; split; auto; destruct d; simpl in *; subst; auto.
+        replace (snd a) with (snd b) in *; auto.
+Defined.
+
+Lemma joins_id : forall a b, sepalg.joins (fst a) (fst b) -> snd a = snd b -> joins a b.
+Proof.
+  intros ?? (sh & ?) ?.
+  exists (sh, snd a); simpl; auto.
+Qed.
+
+(*Global Instance Share_PCM : PCM share := { join := sepalg.join }.
 Proof.
   - intros; apply sepalg.join_comm; auto.
   - intros ?????? Hj2; eapply sepalg.join_assoc in Hj2; eauto.
@@ -63,17 +106,45 @@ Global Instance Val_PCM : PCM (sigT reptype) := { join a b c := a = b /\ b = c(*
 Proof.
   - intros ??? (? & ?); subst; auto.
   - intros ????? (? & ?) (? & ?); subst; eauto.
-Defined.
+Defined.*)
 
 Definition ghost_var (sh : share) t v p := ghost (sh, existT reptype t v) p.
 
-Lemma ghost_var_inj : forall sh1 sh2 t v1 v2 p,
+Lemma ghost_var_share_join : forall sh1 sh2 sh t v p, sepalg.join sh1 sh2 sh ->
+  ghost_var sh1 t v p * ghost_var sh2 t v p = ghost_var sh t v p.
+Proof.
+  intros; apply ghost_join; simpl; auto.
+Qed.
+
+Lemma unreadable_bot : ~readable_share Share.bot.
+Proof.
+  unfold readable_share, nonempty_share, sepalg.nonidentity.
+  rewrite Share.glb_bot; auto.
+Qed.
+
+Lemma ghost_var_inj : forall sh1 sh2 t v1 v2 p, readable_share sh1 -> readable_share sh2 ->
   ghost_var sh1 t v1 p * ghost_var sh2 t v2 p |-- !!(v1 = v2).
 Proof.
   intros.
   eapply derives_trans; [apply ghost_conflict|].
-  apply prop_left; intros (? & ? & ? & ?); apply prop_right.
-  apply Eqdep.EqdepTheory.inj_pair2; auto.
+  apply prop_left; intros (? & ? & [(? & ?) | [(? & ?) | (? & ?)]]); simpl in *; subst;
+    try (exploit unreadable_bot; eauto; contradiction).
+  apply prop_right; apply Eqdep.EqdepTheory.inj_pair2; auto.
+Qed.
+
+Lemma join_Tsh : forall a b, sepalg.join Tsh a b -> b = Tsh /\ a = Share.bot.
+Proof.
+  intros ?? (? & ?).
+  rewrite Share.glb_commute, Share.glb_top in H; subst; split; auto.
+  apply Share.lub_bot.
+Qed.
+
+Lemma ghost_var_update : forall t v p v', view_shift (ghost_var Tsh t v p) (ghost_var Tsh t v' p).
+Proof.
+  intros; apply ghost_update; intros ? (? & ? & Hcase); simpl in *.
+  apply join_Tsh in H; destruct H as (? & Hbot).
+  exists (Tsh, existT reptype t v'); simpl; split; auto.
+  rewrite Hbot; auto.
 Qed.
 
 Axiom ghost_var_precise : forall sh t p, precise (EX v : reptype t, ghost_var sh t v p).
@@ -146,6 +217,14 @@ Proof.
 Defined.
 
 Definition hist_incl h (h' : list hist_el) := forall x y, In (x, y) h -> nth_error h' x = Some y.
+
+Lemma hist_incl_lt : forall h h', hist_incl h h' -> Forall (fun x => fst x < length h')%nat h.
+Proof.
+  intros.
+  rewrite Forall_forall; intros (?, ?) Hin.
+  specialize (H _ _ Hin).
+  simpl; rewrite <- nth_error_Some, H; discriminate.
+Qed.
 
 Global Instance hist_PCM : PCM (hist_part * option (list hist_el)) :=
  { join a b c := @join _ map_PCM (fst a) (fst b) (fst c) /\ @join _ reference_PCM (snd a) (snd b) (snd c) /\
@@ -223,14 +302,12 @@ Fixpoint apply_hist a h :=
 
 Arguments eq_dec _ _ _ _ : simpl never.
 
-Lemma apply_hist_app : forall h1 i v h2, apply_hist i h1 = Some v ->
-  apply_hist i (h1 ++ h2) = apply_hist v h2.
+Lemma apply_hist_app : forall h1 i h2, apply_hist i (h1 ++ h2) =
+  match apply_hist i h1 with Some v => apply_hist v h2 | None => None end.
 Proof.
-  induction h1; simpl; intros.
-  - inv H; auto.
-  - destruct a.
-    destruct (eq_dec r i); auto.
-    discriminate.
+  induction h1; auto; simpl; intros.
+  destruct a.
+  destruct (eq_dec r i); auto.
 Qed.
 
 Definition AE_hist := hist_part AE_hist_el.
