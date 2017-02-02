@@ -2269,6 +2269,8 @@ Ltac no_loads_expr e as_lvalue :=
  | Ecast ?e1 _ => no_loads_expr e1 as_lvalue 
  | Efield ?e1 _ ?t => match as_lvalue with true => idtac | false => is_array_type t end;
                                no_loads_expr e1 true 
+ | Esizeof _ _ => idtac
+ | Ealignof _ _ => idtac
 end.
 
 Definition Undo__Then_do__forward_call_W__where_W_is_a_witness_whose_type_is_given_above_the_line_now := False.
