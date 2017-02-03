@@ -1,106 +1,106 @@
 
 Require Import Clightdefs.
 Local Open Scope Z_scope.
-Definition ___builtin_annot : ident := 7%positive.
-Definition ___builtin_annot_intval : ident := 8%positive.
-Definition ___builtin_bswap : ident := 31%positive.
-Definition ___builtin_bswap16 : ident := 33%positive.
-Definition ___builtin_bswap32 : ident := 32%positive.
-Definition ___builtin_clz : ident := 34%positive.
-Definition ___builtin_clzl : ident := 35%positive.
-Definition ___builtin_clzll : ident := 36%positive.
-Definition ___builtin_ctz : ident := 37%positive.
-Definition ___builtin_ctzl : ident := 38%positive.
-Definition ___builtin_ctzll : ident := 39%positive.
-Definition ___builtin_debug : ident := 52%positive.
-Definition ___builtin_fabs : ident := 5%positive.
-Definition ___builtin_fmadd : ident := 43%positive.
-Definition ___builtin_fmax : ident := 41%positive.
-Definition ___builtin_fmin : ident := 42%positive.
-Definition ___builtin_fmsub : ident := 44%positive.
-Definition ___builtin_fnmadd : ident := 45%positive.
-Definition ___builtin_fnmsub : ident := 46%positive.
-Definition ___builtin_fsqrt : ident := 40%positive.
-Definition ___builtin_membar : ident := 9%positive.
-Definition ___builtin_memcpy_aligned : ident := 6%positive.
-Definition ___builtin_nop : ident := 51%positive.
-Definition ___builtin_read16_reversed : ident := 47%positive.
-Definition ___builtin_read32_reversed : ident := 48%positive.
-Definition ___builtin_va_arg : ident := 11%positive.
-Definition ___builtin_va_copy : ident := 12%positive.
-Definition ___builtin_va_end : ident := 13%positive.
-Definition ___builtin_va_start : ident := 10%positive.
-Definition ___builtin_write16_reversed : ident := 49%positive.
-Definition ___builtin_write32_reversed : ident := 50%positive.
-Definition ___compcert_va_composite : ident := 17%positive.
-Definition ___compcert_va_float64 : ident := 16%positive.
-Definition ___compcert_va_int32 : ident := 14%positive.
-Definition ___compcert_va_int64 : ident := 15%positive.
-Definition ___i64_dtos : ident := 18%positive.
-Definition ___i64_dtou : ident := 19%positive.
-Definition ___i64_sar : ident := 30%positive.
-Definition ___i64_sdiv : ident := 24%positive.
-Definition ___i64_shl : ident := 28%positive.
-Definition ___i64_shr : ident := 29%positive.
-Definition ___i64_smod : ident := 26%positive.
-Definition ___i64_stod : ident := 20%positive.
-Definition ___i64_stof : ident := 22%positive.
-Definition ___i64_udiv : ident := 25%positive.
-Definition ___i64_umod : ident := 27%positive.
-Definition ___i64_utod : ident := 21%positive.
-Definition ___i64_utof : ident := 23%positive.
+Definition ___builtin_annot : ident := 5%positive.
+Definition ___builtin_annot_intval : ident := 6%positive.
+Definition ___builtin_bswap : ident := 29%positive.
+Definition ___builtin_bswap16 : ident := 31%positive.
+Definition ___builtin_bswap32 : ident := 30%positive.
+Definition ___builtin_clz : ident := 32%positive.
+Definition ___builtin_clzl : ident := 33%positive.
+Definition ___builtin_clzll : ident := 34%positive.
+Definition ___builtin_ctz : ident := 35%positive.
+Definition ___builtin_ctzl : ident := 36%positive.
+Definition ___builtin_ctzll : ident := 37%positive.
+Definition ___builtin_debug : ident := 50%positive.
+Definition ___builtin_fabs : ident := 3%positive.
+Definition ___builtin_fmadd : ident := 41%positive.
+Definition ___builtin_fmax : ident := 39%positive.
+Definition ___builtin_fmin : ident := 40%positive.
+Definition ___builtin_fmsub : ident := 42%positive.
+Definition ___builtin_fnmadd : ident := 43%positive.
+Definition ___builtin_fnmsub : ident := 44%positive.
+Definition ___builtin_fsqrt : ident := 38%positive.
+Definition ___builtin_membar : ident := 7%positive.
+Definition ___builtin_memcpy_aligned : ident := 4%positive.
+Definition ___builtin_nop : ident := 49%positive.
+Definition ___builtin_read16_reversed : ident := 45%positive.
+Definition ___builtin_read32_reversed : ident := 46%positive.
+Definition ___builtin_va_arg : ident := 9%positive.
+Definition ___builtin_va_copy : ident := 10%positive.
+Definition ___builtin_va_end : ident := 11%positive.
+Definition ___builtin_va_start : ident := 8%positive.
+Definition ___builtin_write16_reversed : ident := 47%positive.
+Definition ___builtin_write32_reversed : ident := 48%positive.
+Definition ___compcert_va_composite : ident := 15%positive.
+Definition ___compcert_va_float64 : ident := 14%positive.
+Definition ___compcert_va_int32 : ident := 12%positive.
+Definition ___compcert_va_int64 : ident := 13%positive.
+Definition ___i64_dtos : ident := 16%positive.
+Definition ___i64_dtou : ident := 17%positive.
+Definition ___i64_sar : ident := 28%positive.
+Definition ___i64_sdiv : ident := 22%positive.
+Definition ___i64_shl : ident := 26%positive.
+Definition ___i64_shr : ident := 27%positive.
+Definition ___i64_smod : ident := 24%positive.
+Definition ___i64_stod : ident := 18%positive.
+Definition ___i64_stof : ident := 20%positive.
+Definition ___i64_udiv : ident := 23%positive.
+Definition ___i64_umod : ident := 25%positive.
+Definition ___i64_utod : ident := 19%positive.
+Definition ___i64_utof : ident := 21%positive.
 Definition _a : ident := 1%positive.
-Definition _acquire : ident := 56%positive.
-Definition _arg : ident := 95%positive.
-Definition _avail : ident := 91%positive.
-Definition _available : ident := 88%positive.
-Definition _b : ident := 76%positive.
-Definition _buf : ident := 96%positive.
-Definition _buffer : ident := 4%positive.
-Definition _bufs : ident := 66%positive.
-Definition _c : ident := 63%positive.
-Definition _comm : ident := 68%positive.
-Definition _d : ident := 99%positive.
-Definition _data : ident := 3%positive.
-Definition _exit : ident := 53%positive.
-Definition _finish_read : ident := 83%positive.
-Definition _finish_write : ident := 94%positive.
-Definition _i : ident := 64%positive.
-Definition _i__1 : ident := 90%positive.
-Definition _initialize_channels : ident := 78%positive.
-Definition _initialize_reader : ident := 81%positive.
-Definition _initialize_writer : ident := 87%positive.
-Definition _l : ident := 70%positive.
-Definition _last : ident := 89%positive.
-Definition _last_given : ident := 86%positive.
-Definition _last_read : ident := 75%positive.
-Definition _last_taken : ident := 84%positive.
-Definition _lock : ident := 67%positive.
+Definition _acquire : ident := 51%positive.
+Definition _arg : ident := 96%positive.
+Definition _avail : ident := 92%positive.
+Definition _available : ident := 89%positive.
+Definition _b : ident := 77%positive.
+Definition _buf : ident := 97%positive.
+Definition _buffer : ident := 60%positive.
+Definition _bufs : ident := 72%positive.
+Definition _c : ident := 69%positive.
+Definition _comm : ident := 74%positive.
+Definition _d : ident := 100%positive.
+Definition _data : ident := 59%positive.
+Definition _exit : ident := 61%positive.
+Definition _finish_read : ident := 84%positive.
+Definition _finish_write : ident := 95%positive.
+Definition _i : ident := 70%positive.
+Definition _i__1 : ident := 91%positive.
+Definition _initialize_channels : ident := 79%positive.
+Definition _initialize_reader : ident := 82%positive.
+Definition _initialize_writer : ident := 88%positive.
+Definition _l : ident := 54%positive.
+Definition _last : ident := 90%positive.
+Definition _last_given : ident := 87%positive.
+Definition _last_read : ident := 76%positive.
+Definition _last_taken : ident := 85%positive.
+Definition _lock : ident := 73%positive.
 Definition _lock_t : ident := 2%positive.
-Definition _lr : ident := 80%positive.
-Definition _main : ident := 100%positive.
-Definition _makelock : ident := 55%positive.
-Definition _malloc : ident := 54%positive.
-Definition _memset : ident := 65%positive.
-Definition _n : ident := 59%positive.
-Definition _p : ident := 60%positive.
-Definition _r : ident := 77%positive.
-Definition _reader : ident := 97%positive.
-Definition _reading : ident := 74%positive.
-Definition _release : ident := 57%positive.
-Definition _rr : ident := 79%positive.
-Definition _s : ident := 62%positive.
-Definition _simulate_atomic_exchange : ident := 73%positive.
-Definition _spawn : ident := 58%positive.
-Definition _start_read : ident := 82%positive.
-Definition _start_write : ident := 92%positive.
-Definition _surely_malloc : ident := 61%positive.
-Definition _tgt : ident := 69%positive.
-Definition _v : ident := 71%positive.
-Definition _w : ident := 93%positive.
-Definition _writer : ident := 98%positive.
-Definition _writing : ident := 85%positive.
-Definition _x : ident := 72%positive.
+Definition _lr : ident := 81%positive.
+Definition _main : ident := 58%positive.
+Definition _makelock : ident := 63%positive.
+Definition _malloc : ident := 62%positive.
+Definition _memset : ident := 71%positive.
+Definition _n : ident := 65%positive.
+Definition _p : ident := 66%positive.
+Definition _r : ident := 78%positive.
+Definition _reader : ident := 98%positive.
+Definition _reading : ident := 75%positive.
+Definition _release : ident := 52%positive.
+Definition _rr : ident := 80%positive.
+Definition _s : ident := 68%positive.
+Definition _simulate_atomic_exchange : ident := 57%positive.
+Definition _spawn : ident := 64%positive.
+Definition _start_read : ident := 83%positive.
+Definition _start_write : ident := 93%positive.
+Definition _surely_malloc : ident := 67%positive.
+Definition _tgt : ident := 53%positive.
+Definition _v : ident := 55%positive.
+Definition _w : ident := 94%positive.
+Definition _writer : ident := 99%positive.
+Definition _writing : ident := 86%positive.
+Definition _x : ident := 56%positive.
 Definition _t'1 : ident := 101%positive.
 Definition _t'2 : ident := 102%positive.
 Definition _t'3 : ident := 103%positive.
@@ -175,30 +175,6 @@ Definition v_comm := {|
   gvar_init := (Init_space 12 :: nil);
   gvar_readonly := false;
   gvar_volatile := false
-|}.
-
-Definition f_simulate_atomic_exchange := {|
-  fn_return := tint;
-  fn_callconv := cc_default;
-  fn_params := ((_tgt, (tptr tint)) ::
-                (_l, (tptr (Tstruct _lock_t noattr))) :: (_v, tint) :: nil);
-  fn_vars := nil;
-  fn_temps := ((_x, tint) :: nil);
-  fn_body :=
-(Ssequence
-  (Scall None
-    (Evar _acquire (Tfunction (Tcons (tptr tvoid) Tnil) tvoid cc_default))
-    ((Etempvar _l (tptr (Tstruct _lock_t noattr))) :: nil))
-  (Ssequence
-    (Sset _x (Ederef (Etempvar _tgt (tptr tint)) tint))
-    (Ssequence
-      (Sassign (Ederef (Etempvar _tgt (tptr tint)) tint) (Etempvar _v tint))
-      (Ssequence
-        (Scall None
-          (Evar _release (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
-                           cc_default))
-          ((Etempvar _l (tptr (Tstruct _lock_t noattr))) :: nil))
-        (Sreturn (Some (Etempvar _x tint)))))))
 |}.
 
 Definition v_reading := {|
@@ -1057,10 +1033,6 @@ prog_defs :=
    Gfun(External (EF_external "makelock"
                    (mksignature (AST.Tint :: nil) None cc_default))
      (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
- (_acquire,
-   Gfun(External (EF_external "acquire"
-                   (mksignature (AST.Tint :: nil) None cc_default))
-     (Tcons (tptr tvoid) Tnil) tvoid cc_default)) ::
  (_release,
    Gfun(External (EF_external "release"
                    (mksignature (AST.Tint :: nil) None cc_default))
@@ -1072,10 +1044,15 @@ prog_defs :=
      (Tcons
        (tptr (Tfunction (Tcons (tptr tvoid) Tnil) (tptr tvoid) cc_default))
        (Tcons (tptr tvoid) Tnil)) tvoid cc_default)) ::
- (_surely_malloc, Gfun(Internal f_surely_malloc)) ::
+ (_simulate_atomic_exchange,
+   Gfun(External (EF_external "simulate_atomic_exchange"
+                   (mksignature (AST.Tint :: AST.Tint :: AST.Tint :: nil)
+                     (Some AST.Tint) cc_default))
+     (Tcons (tptr tint)
+       (Tcons (tptr (Tstruct _lock_t noattr)) (Tcons tint Tnil))) tint
+     cc_default)) :: (_surely_malloc, Gfun(Internal f_surely_malloc)) ::
  (_memset, Gfun(Internal f_memset)) :: (_bufs, Gvar v_bufs) ::
  (_lock, Gvar v_lock) :: (_comm, Gvar v_comm) ::
- (_simulate_atomic_exchange, Gfun(Internal f_simulate_atomic_exchange)) ::
  (_reading, Gvar v_reading) :: (_last_read, Gvar v_last_read) ::
  (_initialize_channels, Gfun(Internal f_initialize_channels)) ::
  (_initialize_reader, Gfun(Internal f_initialize_reader)) ::
@@ -1092,8 +1069,8 @@ prog_public :=
 (_main :: _writer :: _reader :: _finish_write :: _start_write ::
  _initialize_writer :: _last_given :: _writing :: _last_taken ::
  _finish_read :: _start_read :: _initialize_reader :: _initialize_channels ::
- _last_read :: _reading :: _simulate_atomic_exchange :: _comm :: _lock ::
- _bufs :: _memset :: _surely_malloc :: _spawn :: _release :: _acquire ::
+ _last_read :: _reading :: _comm :: _lock :: _bufs :: _memset ::
+ _surely_malloc :: _simulate_atomic_exchange :: _spawn :: _release ::
  _makelock :: _malloc :: _exit :: ___builtin_debug :: ___builtin_nop ::
  ___builtin_write32_reversed :: ___builtin_write16_reversed ::
  ___builtin_read32_reversed :: ___builtin_read16_reversed ::

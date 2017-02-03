@@ -1163,6 +1163,36 @@ Qed.
 (* We could also consider an alpha-renaming axiom, although this may be unnecessary. *)
 
 (* precise and positive *)
+Lemma weak_precise_positive_conflict : forall P,
+  predicates_hered.derives ((weak_precise_mpred P && emp) * (weak_positive_mpred P && emp) * P * P) FF.
+Proof.
+  repeat intro.
+  destruct H as (r1 & r2 & ? & (? & ? & Hj1 & (? & ? & Hj2 & (Hprecise & Hemp1) & (Hpositive & Hemp2)) & ?) & ?).
+  specialize (Hemp1 _ _ Hj2); subst.
+  specialize (Hemp2 _ _ Hj1); subst.
+  destruct (age_sepalg.join_level _ _ _ Hj1), (age_sepalg.join_level _ _ _ Hj2),
+    (age_sepalg.join_level _ _ _ H).
+  exploit (Hprecise a r1 r2); simpl; try (split; auto; omega).
+  { exists r2; auto. }
+  { exists r1; apply sepalg.join_comm; auto. }
+  intro; subst.
+  pose proof (sepalg.join_self H); subst.
+  destruct (Hpositive a) as (l & ? & ? & ? & ? & HYES); [split; auto; omega|].
+  apply compcert_rmaps.RML.resource_at_join with (loc := l) in H.
+  pose proof (sepalg.unit_identity _ H) as Hid.
+  rewrite HYES in Hid; apply compcert_rmaps.RML.YES_not_identity in Hid; contradiction.
+Qed.
+
+Lemma precise_positive_conflict : forall P (Hprecise : precise P) (Hpositive : positive_mpred P), P * P |-- FF.
+Proof.
+  intros.
+  apply derives_trans with (Q := (weak_precise_mpred P && emp) * (weak_positive_mpred P && emp) * P * P);
+    [|apply weak_precise_positive_conflict].
+  cancel.
+  rewrite <- sepcon_emp at 1; apply sepcon_derives; apply andp_right; auto; apply derives_trans with (Q := TT);
+    auto; [apply precise_weak_precise | apply positive_weak_positive]; auto.
+Qed.
+
 Lemma precise_sepcon : forall (P Q : mpred) (HP : precise P) (HQ : precise Q), precise (P * Q).
 Proof.
   unfold precise; intros ??????? (l1 & r1 & Hjoin1 & HP1 & HQ1) (l2 & r2 & Hjoin2 & HP2 & HQ2)
@@ -2015,3 +2045,60 @@ Qed.
 
 Ltac get_global_function'' _f :=
 eapply (semax_fun_id'' _f); try reflexivity.
+
+(* revised start_function that mostly works for dependent specs *)
+Ltac start_dep_function := 
+  match goal with |- semax_body ?V ?G ?F ?spec =>
+    let s := fresh "spec" in
+    pose (s:=spec); hnf in s;
+    match goal with
+    | s :=  (DECLARE _ WITH u : unit
+               PRE  [] main_pre _ nil u
+               POST [ tint ] main_post _ nil u) |- _ => idtac
+    | s := ?spec' |- _ => check_canonical_funspec spec'
+   end;
+   change (semax_body V G F s); subst s
+ end;
+ let DependedTypeList := fresh "DependedTypeList" in
+ match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _ _ _)) =>
+   match Pre with 
+   | (fun x => match x with (a,b) => _ end) => intros Espec DependedTypeList [a b] 
+   | (fun i => _) => intros Espec DependedTypeList i
+   end;
+   simpl fn_body; simpl fn_params; simpl fn_return
+ end;
+ simpl functors.MixVariantFunctor._functor in *;
+ simpl rmaps.dependent_type_functor_rec;
+ repeat match goal with |- @semax _ _ _ (match ?p with (a,b) => _ end * _) _ _ =>
+             destruct p as [a b]
+           end;
+ simplify_func_tycontext;
+ repeat match goal with 
+ | |- context [Sloop (Ssequence (Sifthenelse ?e Sskip Sbreak) ?s) Sskip] =>
+       fold (Swhile e s)
+ | |- context [Ssequence ?s1 (Sloop (Ssequence (Sifthenelse ?e Sskip Sbreak) ?s2) ?s3) ] =>
+      match s3 with
+      | Sset ?i _ => match s1 with Sset ?i' _ => unify i i' | Sskip => idtac end
+      end;
+      fold (Sfor s1 e s2 s3)
+ end;
+ try expand_main_pre;
+ process_stackframe_of;
+ repeat change_mapsto_gvar_to_data_at;  (* should really restrict this to only in main,
+                                  but it needs to come after process_stackframe_of *)
+ repeat rewrite <- data_at__offset_zero;
+ try apply start_function_aux1;
+ repeat (apply semax_extract_PROP; 
+              match goal with
+              | |- _ ?sh -> _ =>
+                 match type of sh with
+                 | share => intros ?SH 
+                 | Share.t => intros ?SH 
+                 | _ => intro
+                 end
+               | |- _ => intro
+               end);
+ first [ eapply eliminate_extra_return'; [ reflexivity | reflexivity | ]
+        | eapply eliminate_extra_return; [ reflexivity | reflexivity | ]
+        | idtac];
+ abbreviate_semax.

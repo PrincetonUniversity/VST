@@ -33,6 +33,24 @@ Parameter ghost : forall (g : A) (p : val), mpred.
 Axiom ghost_join : forall g1 g2 g p, join g1 g2 g -> ghost g1 p * ghost g2 p = ghost g p.
 Axiom ghost_conflict : forall g1 g2 p, ghost g1 p * ghost g2 p |-- !!joins g1 g2.
 Axiom ghost_update : forall g g' p, update g g' -> view_shift (ghost g p) (ghost g' p).
+Axiom ghost_inj : forall p g1 g2 r1 r2 r
+  (Hp1 : predicates_hered.app_pred (ghost g1 p) r1)
+  (Hp1 : predicates_hered.app_pred (ghost g2 p) r2)
+  (Hr1 : sepalg.join_sub r1 r) (Hr2 : sepalg.join_sub r2 r),
+  r1 = r2 /\ g1 = g2.
+
+Lemma ex_ghost_precise : forall p, precise (EX g : A, ghost g p).
+Proof.
+  intros ???? (? & ?) (? & ?) ??.
+  eapply ghost_inj; eauto.
+Qed.
+
+Corollary ghost_precise : forall g p, precise (ghost g p).
+Proof.
+  intros.
+  eapply derives_precise, ex_ghost_precise.
+  intros ??; exists g; eauto.
+Qed.
 
 End PCM.
 
@@ -52,13 +70,15 @@ Defined.
 (* Instances of ghost state *)
 Section GVar.
 
+Context {A : Type}.
+
 Lemma join_Bot : forall a b, sepalg.join a b Share.bot -> a = Share.bot /\ b = Share.bot.
 Proof.
   intros ?? (? & ?).
   apply lub_bot_e; auto.
 Qed.
 
-Global Instance Var_PCM : PCM (share * sigT reptype) := { join a b c := sepalg.join (fst a) (fst b) (fst c) /\
+Global Instance Var_PCM : PCM (share * A) := { join a b c := sepalg.join (fst a) (fst b) (fst c) /\
   (fst a = Share.bot /\ c = b \/ fst b = Share.bot /\ c = a \/ snd a = snd b /\ snd b = snd c) }.
 Proof.
   - intros ??? (? & Hcase); split; [apply sepalg.join_comm; auto|].
@@ -95,23 +115,10 @@ Proof.
   exists (sh, snd a); simpl; auto.
 Qed.
 
-(*Global Instance Share_PCM : PCM share := { join := sepalg.join }.
-Proof.
-  - intros; apply sepalg.join_comm; auto.
-  - intros ?????? Hj2; eapply sepalg.join_assoc in Hj2; eauto.
-    destruct Hj2; eauto.
-Defined.
+Definition ghost_var (sh : share) (v : A) p := ghost (sh, v) p.
 
-Global Instance Val_PCM : PCM (sigT reptype) := { join a b c := a = b /\ b = c(*; initial a := True*) }.
-Proof.
-  - intros ??? (? & ?); subst; auto.
-  - intros ????? (? & ?) (? & ?); subst; eauto.
-Defined.*)
-
-Definition ghost_var (sh : share) t v p := ghost (sh, existT reptype t v) p.
-
-Lemma ghost_var_share_join : forall sh1 sh2 sh t v p, sepalg.join sh1 sh2 sh ->
-  ghost_var sh1 t v p * ghost_var sh2 t v p = ghost_var sh t v p.
+Lemma ghost_var_share_join : forall sh1 sh2 sh v p, sepalg.join sh1 sh2 sh ->
+  ghost_var sh1 v p * ghost_var sh2 v p = ghost_var sh v p.
 Proof.
   intros; apply ghost_join; simpl; auto.
 Qed.
@@ -122,14 +129,14 @@ Proof.
   rewrite Share.glb_bot; auto.
 Qed.
 
-Lemma ghost_var_inj : forall sh1 sh2 t v1 v2 p, readable_share sh1 -> readable_share sh2 ->
-  ghost_var sh1 t v1 p * ghost_var sh2 t v2 p |-- !!(v1 = v2).
+Lemma ghost_var_inj : forall sh1 sh2 v1 v2 p, readable_share sh1 -> readable_share sh2 ->
+  ghost_var sh1 v1 p * ghost_var sh2 v2 p |-- !!(v1 = v2).
 Proof.
   intros.
   eapply derives_trans; [apply ghost_conflict|].
   apply prop_left; intros (? & ? & [(? & ?) | [(? & ?) | (? & ?)]]); simpl in *; subst;
     try (exploit unreadable_bot; eauto; contradiction).
-  apply prop_right; apply Eqdep.EqdepTheory.inj_pair2; auto.
+  apply prop_right; auto.
 Qed.
 
 Lemma join_Tsh : forall a b, sepalg.join Tsh a b -> b = Tsh /\ a = Share.bot.
@@ -139,15 +146,25 @@ Proof.
   apply Share.lub_bot.
 Qed.
 
-Lemma ghost_var_update : forall t v p v', view_shift (ghost_var Tsh t v p) (ghost_var Tsh t v' p).
+Lemma ghost_var_update : forall v p v', view_shift (ghost_var Tsh v p) (ghost_var Tsh v' p).
 Proof.
   intros; apply ghost_update; intros ? (? & ? & Hcase); simpl in *.
   apply join_Tsh in H; destruct H as (? & Hbot).
-  exists (Tsh, existT reptype t v'); simpl; split; auto.
+  exists (Tsh, v'); simpl; split; auto.
   rewrite Hbot; auto.
 Qed.
 
-Axiom ghost_var_precise : forall sh t p, precise (EX v : reptype t, ghost_var sh t v p).
+Lemma ghost_var_precise : forall sh p, precise (EX v : A, ghost_var sh v p).
+Proof.
+  intros; eapply derives_precise, ex_ghost_precise.
+  intros ? (x & ?); exists (sh, x); eauto.
+Qed.
+
+Lemma ghost_var_precise' : forall sh v p, precise (ghost_var sh v p).
+Proof.
+  intros; apply derives_precise with (Q := EX v : A, ghost_var sh v p);
+    [exists v; auto | apply ghost_var_precise].
+Qed.
 
 End GVar.
 
@@ -271,22 +288,6 @@ Proof.
   rewrite app_nil_r; auto.
 Qed.
 
-(*
-
-(* Timestamped ops instead of inner share? *)
-(* How should histories combine? Do we need a VerCors-style process algebra? *)
-(* We can have histories split and combine normally now, but as long as the RHS (lock part)
-   doesn't split, it should know that it has a complete history. *)
-
-Axiom ghost_inj' : forall sh i p h1 h2 r1 r2 r
-  (Hp1 : predicates_hered.app_pred (ghost sh i (Tsh, h1) p) r1)
-  (Hp1 : predicates_hered.app_pred (ghost sh i (Tsh, h2) p) r2)
-  (Hr1 : sepalg.join_sub r1 r) (Hr2 : sepalg.join_sub r2 r),
-  r1 = r2 /\ h1 = h2.
-
-(* Should this be an axiom? *)
-Axiom ghost_feasible : forall sh i h p, ghost sh i (Tsh, h) p |-- !!(apply_hist i h <> None).*)
-
 End GHist.
 
 Section AEHist.
@@ -317,3 +318,4 @@ End AEHist.
 End Ghost.
 
 Hint Resolve disjoint_nil.
+Hint Resolve ghost_var_precise ghost_var_precise'.

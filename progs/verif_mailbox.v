@@ -1,3 +1,4 @@
+Require Import progs.verif_atomic_exchange.
 Require Import veric.rmaps.
 Require Import progs.conclib.
 Require Import progs.ghost.
@@ -51,183 +52,6 @@ Definition B := N + 2.
 
 Definition tbuffer := Tstruct _buffer noattr.
 
-Definition hist := AE_hist.
-
-Definition AE_inv x i sh R := EX h : list AE_hist_el, EX v : val,
-  !!(apply_hist i h = Some v /\ v <> Vundef) &&
-  (data_at sh tint v x * ghost ([] : hist, Some h) x * R h v * (weak_precise_mpred (R h v) && emp)).
-
-Lemma AE_inv_positive : forall x i sh R, readable_share sh -> positive_mpred (AE_inv x i sh R).
-Proof.
-  unfold AE_inv; intros.
-  do 2 (apply ex_positive; intro).
-  apply positive_andp2, positive_sepcon1, positive_sepcon1, positive_sepcon1; auto.
-Qed.
-Hint Resolve AE_inv_positive.
-
-Lemma AE_inv_precise : forall x i sh R (Hsh : readable_share sh),
-  predicates_hered.derives TT (weak_precise_mpred (AE_inv x i sh R)).
-Proof.
-  intros ????? rho _ ???
-    (? & h1 & v1 & (Hh1 & ?) & ? & ? & Hj1 & (? & ? & Hj'1 & (? & ? & ? & (? & Hv1) & Hg1) & HR1) & (HR & Hemp1))
-    (? & h2 & v2 & (Hh2 & ?) & ? & ? & Hj2 & (? & ? & Hj'2 & (? & ? & ? & (? & Hv2) & Hg2) & HR2) & (_ & Hemp2))
-    Hw1 Hw2.
-  unfold at_offset in *; simpl in *; rewrite data_at_rec_eq in Hv1, Hv2; simpl in *.
-  exploit (mapsto_inj _ _ _ _ _ _ _ w Hsh Hv1 Hv2); auto; try join_sub.
-  unfold unfold_reptype; simpl; intros (? & Hv).
-(*  assert (v1 = v2).
-  { apply repr_inj_signed; auto; congruence. }*)
-(*  exploit (ghost_inj' _ _ _ _ _ _ _ w Hg1 Hg2); try join_sub.
-  intros (? & ?); subst.
-  destruct (age_sepalg.join_level _ _ _ Hj1).
-  exploit HR.
-  { split; [|apply HR1].
-    destruct (age_sepalg.join_level _ _ _ Hj'1); omega. }
-  { split; [|apply HR2].
-    pose proof (juicy_mem.rmap_join_sub_eq_level _ _ Hw1).
-    pose proof (juicy_mem.rmap_join_sub_eq_level _ _ Hw2).
-    destruct (age_sepalg.join_level _ _ _ Hj2), (age_sepalg.join_level _ _ _ Hj'2); omega. }
-  { join_sub. }
-  { join_sub. }
-  intro; join_inj.
-  apply sepalg.join_comm in Hj1; apply sepalg.join_comm in Hj2.
-  match goal with H1 : predicates_hered.app_pred emp ?a,
-    H2 : predicates_hered.app_pred emp ?b |- _ => assert (a = b);
-      [eapply sepalg.same_identity; auto;
-        [match goal with H : sepalg.join a ?x ?y |- _ =>
-           specialize (Hemp1 _ _ H); instantiate (1 := x); subst; auto end |
-         match goal with H : sepalg.join b ?x ?y |- _ =>
-           specialize (Hemp2 _ _ H); subst; auto end] | subst] end.
-  join_inj.
-Qed.*)
-Admitted.
-
-(* Can we always provide a clunky function such that P and Q are a single function? *)
-(* Compare and contrast with magic wand proof of bin tree *)
-Definition AE_spec i P R Q := forall hc hx vc vx (Hvx : apply_hist i hx = Some vx) (Hhist : hist_incl _ hc hx),
-  view_shift (R hx vx * P hc vc)
-  (R (hx ++ [AE vx vc]) vc * (weak_precise_mpred (R (hx ++ [AE vx vc]) vc) && emp) *
-   Q (hc ++ [(length hx, AE vx vc)]) vx).
-
-Definition AE_type := ProdType (ProdType (ProdType
-  (ConstType (share * share * val * val * val * val * hist))
-  (ArrowType (ConstType hist) (ArrowType (ConstType val) Mpred)))
-  (ArrowType (ConstType (list AE_hist_el)) (ArrowType (ConstType val) Mpred)))
-  (ArrowType (ConstType hist) (ArrowType (ConstType val) Mpred)).
-
-Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => P%assert end)
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => Q%assert end) _ _)
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
-             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0, x10 at level 0,
-             P at level 100, Q at level 100).
-
-Definition ghost_hist (h : hist) p := ghost (h, @None (list AE_hist_el)) p.
-
-(* It would be nice to be able to store any kind of data in the location, but that won't typecheck. *)
-Program Definition atomic_exchange_spec := DECLARE _simulate_atomic_exchange
-  TYPE AE_type WITH ish : share, lsh : share, tgt : val, l : val,
-    i : val, v : val, h : hist, P : hist -> val -> mpred, R : list AE_hist_el -> val -> mpred, Q : hist -> val -> mpred
-  PRE [ _tgt OF tptr tint, _l OF tptr (Tstruct _lock_t noattr), _v OF tint ]
-   PROP (tc_val tint v; readable_share lsh; writable_share ish; AE_spec i P R Q)
-   LOCAL (temp _tgt tgt; temp _l l; temp _v v)
-   SEP (lock_inv lsh l (AE_inv tgt i ish R); ghost_hist h tgt; P h v; weak_precise_mpred (P h v) && emp)
-  POST [ tint ]
-   EX t : nat, EX v' : val,
-   PROP (Forall (fun x => fst x < t)%nat h)
-   LOCAL (temp ret_temp v')
-   SEP (lock_inv lsh l (AE_inv tgt i ish R); ghost_hist (h ++ [(t, AE v' v)]) tgt;
-        Q (h ++ [(t, AE v' v)]) v').
-Next Obligation.
-Proof.
-  replace _ with (fun (_ : list Type)
-    (x : share * share * val * val * val * val * hist *
-         (hist -> val -> mpred) * (list AE_hist_el -> val -> mpred) * (hist -> val -> mpred)) rho =>
-    PROP (let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in tc_val tint v /\ readable_share lsh /\
-      writable_share ish /\ AE_spec i P R Q)
-    LOCAL (let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in temp _tgt tgt;
-           let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in temp _l l;
-           let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in temp _v v)
-    SEP (let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in
-         lock_inv lsh l (AE_inv tgt i ish R) * ghost_hist h tgt * P h v *
-         (weak_precise_mpred (P h v) && emp)) rho).
-  apply (PROP_LOCAL_SEP_super_non_expansive AE_type [fun _ => _] [fun _ => _; fun _ => _; fun _ => _]
-    [fun _ => _]); repeat constructor; hnf; intros;
-    destruct x as (((((((((?, ?), ?), ?), ?), ?), ?), P), R), Q); auto; simpl.
-  - unfold AE_spec.
-    (* This is probably provable for derives, but might need to be assumed for view shift. *)
-    admit.
-  - rewrite !approx_sepcon; f_equal; [f_equal|].
-    + f_equal.
-      rewrite (nonexpansive_super_non_expansive (fun R => lock_inv s0 v0 R)); [|apply nonexpansive_lock_inv].
-      setoid_rewrite (nonexpansive_super_non_expansive (fun R => lock_inv s0 v0 R)) at 2; [|apply nonexpansive_lock_inv].
-      f_equal; f_equal.
-      unfold AE_inv; rewrite !approx_exp; f_equal; extensionality l'.
-      rewrite !approx_exp; f_equal; extensionality z'.
-      rewrite !approx_andp, !approx_sepcon; f_equal; f_equal.
-      * replace (compcert_rmaps.RML.R.approx n (R l' z')) with
-          (base.compose (compcert_rmaps.R.approx n) (compcert_rmaps.R.approx n) (R l' z')) at 1
-          by (rewrite compcert_rmaps.RML.approx_oo_approx; auto); auto.
-      * rewrite !approx_andp; f_equal.
-        apply (nonexpansive_super_non_expansive), precise_mpred_nonexpansive.
-    + replace (compcert_rmaps.RML.R.approx n (P h v2)) with
-        (base.compose (compcert_rmaps.R.approx n) (compcert_rmaps.R.approx n) (P h v2)) at 1
-        by (rewrite compcert_rmaps.RML.approx_oo_approx; auto); auto.
-    + rewrite !approx_andp; f_equal.
-      apply (nonexpansive_super_non_expansive), precise_mpred_nonexpansive.
-  - extensionality ts x rho.
-    destruct x as (((((((((?, ?), ?), ?), ?), ?), ?), P), R), Q); auto.
-    unfold PROPx, SEPx; simpl; rewrite !sepcon_assoc; f_equal.
-    f_equal; apply prop_ext; tauto.
-Admitted.
-Next Obligation.
-Proof.
-  replace _ with (fun (_ : list Type)
-    (x : share * share * val * val * val * val * hist *
-         (hist -> val -> mpred) * (list AE_hist_el -> val -> mpred) * (hist -> val -> mpred)) rho =>
-    EX t : nat, EX v' : val,
-      PROP (let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in Forall (fun x => (fst x < t)%nat) h)
-      LOCAL (let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in temp ret_temp v')
-      SEP (let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in
-           lock_inv lsh l (AE_inv tgt i ish R) * ghost_hist (h ++ [(t, AE v' v)]) tgt *
-           Q (h ++ [(t, AE v' v)]) v') rho).
-  repeat intro.
-  rewrite !approx_exp; f_equal; extensionality t.
-  rewrite !approx_exp; f_equal; extensionality v'.
-  pose proof (PROP_LOCAL_SEP_super_non_expansive AE_type
-    [fun ts x => let '(_, _, _, _, _, _, h, _, _, _) := x in Forall (fun x => (fst x < t)%nat) h]
-    [fun ts x => let '(_, _, _, _, _, _, _, _, _, _) := x in temp ret_temp v']
-    [fun ts x => let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in
-       lock_inv lsh l (AE_inv tgt i ish R) * ghost_hist (h ++ [(t, AE v' v)]) tgt *
-       Q (h ++ [(t, AE v' v)]) v'])
-    as Heq; apply Heq; repeat constructor; hnf; intros;
-      destruct x0 as (((((((((?, ?), ?), ?), ?), ?), ?), P), R), Q); auto; simpl.
-  - rewrite !approx_sepcon; f_equal.
-    + rewrite (nonexpansive_super_non_expansive (fun R => lock_inv s0 v0 R)); [|apply nonexpansive_lock_inv].
-      f_equal.
-      setoid_rewrite (nonexpansive_super_non_expansive (fun R => lock_inv s0 v0 R)) at 2; [|apply nonexpansive_lock_inv].
-      f_equal; f_equal.
-      unfold AE_inv; rewrite !approx_exp; f_equal; extensionality l'.
-      rewrite !approx_exp; f_equal; extensionality z'.
-      rewrite !approx_andp, !approx_sepcon; f_equal; f_equal.
-      * replace (compcert_rmaps.RML.R.approx n0 (R l' z')) with
-          (base.compose (compcert_rmaps.R.approx n0) (compcert_rmaps.R.approx n0) (R l' z')) at 1
-          by (rewrite compcert_rmaps.RML.approx_oo_approx; auto); auto.
-      * rewrite !approx_andp; f_equal.
-        apply (nonexpansive_super_non_expansive), precise_mpred_nonexpansive.
-    + replace (compcert_rmaps.RML.R.approx n0 (Q _ v')) with
-        (base.compose (compcert_rmaps.R.approx n0) (compcert_rmaps.R.approx n0) (Q (h ++ [(t, AE v' v2)]) v')) at 1
-        by (rewrite compcert_rmaps.RML.approx_oo_approx; auto); auto.
-  - extensionality ts x rho.
-    destruct x as (((((((((?, ?), ?), ?), ?), ?), ?), P), R), Q); auto.
-    f_equal; extensionality.
-    f_equal; extensionality.
-    unfold SEPx; simpl; rewrite !sepcon_assoc; auto.
-Qed.
-
 Definition Empty := vint (-1).
 
 Fixpoint find_read h d :=
@@ -257,8 +81,8 @@ Definition last_write h := fst (find_write h (vint 0)).
 Definition comm_R bufs sh gsh p h v := EX b : Z, EX b1 : Z, EX b2 : Z,
   !!(v = vint b /\ -1 <= b < B /\ Forall (fun a => match a with AE v1 v2 => exists r w, v1 = vint r /\ v2 = vint w /\
      -1 <= r < B /\ -1 <= w < B end) h /\ last_two_reads (rev h) = (vint b1, vint b2) /\ repable_signed b1 /\ repable_signed b2) &&
-  ghost_var gsh tint (vint b1) p * ghost_var gsh tint (last_write (rev h)) (offset_val 1 p) *
-  ghost_var gsh tint (prev_taken (rev h)) (offset_val 2 p) *
+  ghost_var gsh (vint b1) p * ghost_var gsh (last_write (rev h)) (offset_val 1 p) *
+  ghost_var gsh (prev_taken (rev h)) (offset_val 2 p) *
   if eq_dec b (-1) then EX v : Z, data_at sh tbuffer (vint v) (Znth b2 bufs Vundef)
   else EX v : Z, data_at sh tbuffer (vint v) (Znth b bufs Vundef).
 
@@ -287,9 +111,9 @@ Definition initialize_channels_spec :=
           lock_inv Tsh (Znth r locks Vundef) (comm_inv (Znth r comms Vundef) bufs (Znth r shs Tsh) gsh2))
           (upto (Z.to_nat N)));
         fold_right sepcon emp (map (ghost_hist []) comms);
-        fold_right sepcon emp (map (ghost_var gsh1 tint (vint 1)) comms);
-        fold_right sepcon emp (map (fun c => ghost_var gsh1 tint (vint 0) (offset_val 1 c) *
-          ghost_var gsh1 tint (vint 1) (offset_val 2 c)) comms);
+        fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) comms);
+        fold_right sepcon emp (map (fun c => ghost_var gsh1 (vint 0) (offset_val 1 c) *
+          ghost_var gsh1 (vint 1) (offset_val 2 c)) comms);
         fold_right sepcon emp (map (malloc_token Tsh (sizeof tint)) comms);
         fold_right sepcon emp (map (malloc_token Tsh (sizeof tlock)) locks);
         fold_right sepcon emp (map (malloc_token Tsh (sizeof tbuffer)) bufs);
@@ -345,7 +169,7 @@ Definition start_read_spec :=
         data_at_ Tsh tint (Znth r reads Vundef); data_at Tsh tint (vint b0) (Znth r lasts Vundef);
         lock_inv sh2 (Znth r locks Vundef) (comm_inv (Znth r comms Vundef) bufs sh gsh2);
         EX v : Z, data_at sh tbuffer (vint v) (Znth b0 bufs Vundef);
-        ghost_hist h (Znth r comms Vundef); ghost_var gsh1 tint (vint b0) (Znth r comms Vundef))
+        ghost_hist h (Znth r comms Vundef); ghost_var gsh1 (vint b0) (Znth r comms Vundef))
   POST [ tint ]
    EX b : Z, EX t : nat, EX v0 : val, EX v : Z,
    PROP (0 <= b < B; if eq_dec v0 Empty then b = b0 else v0 = vint b; latest_read (h ++ [(t, AE v0 Empty)]) (vint b))
@@ -356,7 +180,7 @@ Definition start_read_spec :=
         lock_inv sh2 (Znth r locks Vundef) (comm_inv (Znth r comms Vundef) bufs sh gsh2);
         data_at sh tbuffer (vint v) (Znth b bufs Vundef);
         ghost_hist (h ++ [(t, AE v0 Empty)]) (Znth r comms Vundef);
-        ghost_var gsh1 tint (vint b) (Znth r comms Vundef)).
+        ghost_var gsh1 (vint b) (Znth r comms Vundef)).
 (* And bufs[b] is the most recent buffer completed by finish_write. *)
 
 Definition finish_read_spec :=
@@ -440,9 +264,8 @@ Definition finish_write_spec :=
           lock_inv lsh (Znth r locks Vundef) (comm_inv (Znth r comms Vundef) bufs (Znth r shs Tsh) gsh2))
           (upto (Z.to_nat N)));
         fold_right sepcon emp (map (fun x => let '(c, h) := x in ghost_hist h c) (combine comms h));
-        fold_right sepcon emp (map (fun r => ghost_var gsh1 tint (vint b0) (offset_val 1 (Znth r comms Vundef)) *
-          ghost_var gsh1 tint (vint (Znth r lasts (-1)))
-            (offset_val 2 (Znth r comms Vundef))) (upto (Z.to_nat N)));
+        fold_right sepcon emp (map (fun r => ghost_var gsh1 (vint b0) (offset_val 1 (Znth r comms Vundef)) *
+          ghost_var gsh1 (vint (Znth r lasts (-1))) (offset_val 2 (Znth r comms Vundef))) (upto (Z.to_nat N)));
         fold_right sepcon emp (map (fun i => EX sh : share,
           !!(if eq_dec i b0 then sh = sh0 else sepalg_list.list_join sh0 (make_shares shs lasts i) sh) &&
           EX v : Z, data_at sh tbuffer (vint v) (Znth i bufs Vundef)) (upto (Z.to_nat B))))
@@ -460,8 +283,8 @@ Definition finish_write_spec :=
           lock_inv lsh (Znth r locks Vundef) (comm_inv (Znth r comms Vundef) bufs (Znth r shs Tsh) gsh2))
           (upto (Z.to_nat N)));
         fold_right sepcon emp (map (fun x => let '(c, h) := x in ghost_hist h c) (combine comms h'));
-        fold_right sepcon emp (map (fun r => ghost_var gsh1 tint (vint b) (offset_val 1 (Znth r comms Vundef)) *
-          ghost_var gsh1 tint (vint (Znth r lasts' (-1)))
+        fold_right sepcon emp (map (fun r => ghost_var gsh1 (vint b) (offset_val 1 (Znth r comms Vundef)) *
+          ghost_var gsh1 (vint (Znth r lasts' (-1)))
             (offset_val 2 (Znth r comms Vundef))) (upto (Z.to_nat N)));
         fold_right sepcon emp (map (fun i => EX sh : share,
           !!(if eq_dec i b then sh = sh0 else sepalg_list.list_join sh0 (make_shares shs lasts' i) sh) &&
@@ -484,7 +307,7 @@ Definition reader_spec :=
         data_at sh1 (tarray (tptr tbuffer) B) bufs buf;
         lock_inv sh2 (Znth r locks Vundef) (comm_inv (Znth r comms Vundef) bufs sh gsh2);
         EX v : Z, data_at sh tbuffer (vint v) (Znth 1 bufs Vundef);
-        ghost_hist [] (Znth r comms Vundef); ghost_var gsh1 tint (vint 1) (Znth r comms Vundef))
+        ghost_hist [] (Znth r comms Vundef); ghost_var gsh1 (vint 1) (Znth r comms Vundef))
   POST [ tptr tvoid ] PROP () LOCAL () SEP (emp).
 
 Definition writer_spec :=
@@ -505,8 +328,8 @@ Definition writer_spec :=
           lock_inv lsh (Znth r locks Vundef) (comm_inv (Znth r comms Vundef) bufs (Znth r shs Tsh) gsh2))
           (upto (Z.to_nat N)));
         fold_right sepcon emp (map (ghost_hist []) comms);
-        fold_right sepcon emp (map (fun c => ghost_var gsh1 tint (vint 0) (offset_val 1 c) *
-          ghost_var gsh1 tint (vint 1) (offset_val 2 c)) comms);
+        fold_right sepcon emp (map (fun c => ghost_var gsh1 (vint 0) (offset_val 1 c) *
+          ghost_var gsh1 (vint 1) (offset_val 2 c)) comms);
         fold_right sepcon emp (map (fun i => EX sh : share,
           !!(if eq_dec i 0 then sh = sh0 else if eq_dec i 1 then sh = sh0 else sh = Tsh) &&
           EX v : Z, data_at sh tbuffer (vint v) (Znth i bufs Vundef)) (upto (Z.to_nat B))))
@@ -518,7 +341,7 @@ Definition main_spec :=
   PRE  [] main_pre prog [] u
   POST [ tint ] main_post prog [] u.
 
-Definition Gprog : funspecs := ltac:(with_library prog [acquire_spec; release_spec; makelock_spec; spawn_spec;
+Definition Gprog : funspecs := ltac:(with_library prog [makelock_spec; spawn_spec;
   surely_malloc_spec; memset_spec; atomic_exchange_spec; initialize_channels_spec; initialize_reader_spec;
   start_read_spec; finish_read_spec; initialize_writer_spec; start_write_spec; finish_write_spec;
   reader_spec; writer_spec; main_spec]).
@@ -587,112 +410,6 @@ Proof.
     entailer!.
   - forward.
     rewrite Zminus_diag, app_nil_r; apply derives_refl.
-Qed.
-
-Lemma body_atomic_exchange : semax_body Vprog Gprog f_simulate_atomic_exchange atomic_exchange_spec.
-Proof.
- match goal with |- semax_body ?V ?G ?F ?spec =>
-    let s := fresh "spec" in
-    pose (s:=spec); hnf in s;
-    match goal with
-    | s :=  (DECLARE _ WITH u : unit
-               PRE  [] main_pre _ nil u
-               POST [ tint ] main_post _ nil u) |- _ => idtac
-    | s := ?spec' |- _ => check_canonical_funspec spec'
-   end;
-   change (semax_body V G F s); subst s
- end.
- let DependedTypeList := fresh "DependedTypeList" in
- match goal with |- semax_body _ _ _ (pair _ (mk_funspec _ _ _ ?Pre _ _ _)) =>
-   match Pre with 
-   | (fun x => match x with (a,b) => _ end) => intros Espec DependedTypeList [a b] 
-   | (fun i => _) => intros Espec DependedTypeList i
-   end;
-   simpl fn_body; simpl fn_params; simpl fn_return
- end.
- simpl functors.MixVariantFunctor._functor in *;
- simpl rmaps.dependent_type_functor_rec;
- repeat match goal with |- @semax _ _ _ (match ?p with (a,b) => _ end * _) _ _ =>
-             destruct p as [a b]
-           end;
- simplify_func_tycontext;
- repeat match goal with 
- | |- context [Sloop (Ssequence (Sifthenelse ?e Sskip Sbreak) ?s) Sskip] =>
-       fold (Swhile e s)
- | |- context [Ssequence ?s1 (Sloop (Ssequence (Sifthenelse ?e Sskip Sbreak) ?s2) ?s3) ] =>
-      match s3 with
-      | Sset ?i _ => match s1 with Sset ?i' _ => unify i i' | Sskip => idtac end
-      end;
-      fold (Sfor s1 e s2 s3)
- end;
- try expand_main_pre;
- process_stackframe_of.
- repeat change_mapsto_gvar_to_data_at;  (* should really restrict this to only in main,
-                                  but it needs to come after process_stackframe_of *)
- repeat rewrite <- data_at__offset_zero;
- try apply start_function_aux1;
- repeat (apply semax_extract_PROP; 
-              match goal with
-              | |- _ ?sh -> _ =>
-                 match type of sh with
-                 | share => intros ?SH 
-                 | Share.t => intros ?SH 
-                 | _ => intro
-                 end
-               | |- _ => intro
-               end);
- first [ eapply eliminate_extra_return'; [ reflexivity | reflexivity | ]
-        | eapply eliminate_extra_return; [ reflexivity | reflexivity | ]
-        | idtac];
- abbreviate_semax.
-  simpl; destruct ts as (((((((((ish, lsh), tgt), l), i), v), h), P), R), Q).
-(* start_function doesn't work for dependent specs? *)
-  rewrite lock_inv_isptr; Intros.
-  forward_call (l, lsh, AE_inv tgt i ish R).
-  unfold AE_inv at 2; Intros h' v'.
-  gather_SEP 2 5; rewrite sepcon_comm.
-  assert_PROP (join (h, None) ([], Some h') (h, Some h')) as Hjoin.
-  { go_lowerx; apply sepcon_derives_prop.
-    eapply derives_trans; [apply ghost_conflict|].
-    apply prop_left; intros (? & (_ & Hh) & ([(? & ?) | (<- & _)] & Hincl)); try discriminate; simpl in *.
-    apply prop_right; rewrite app_nil_r in *; repeat split; auto.
-    repeat intro; apply Hincl.
-    rewrite <- Hh; auto. }
-  unfold ghost_hist; rewrite (ghost_join _ _ _ _ Hjoin).
-  forward.
-  { entailer!.
-    unfold tc_val' in *; tauto. }
-  forward.
-  assert (apply_hist i (h' ++ [AE v' v]) = Some v) as Hh'.
-  { rewrite apply_hist_app.
-    replace (apply_hist i h') with (Some v'); simpl.
-    apply eq_dec_refl. }
-  apply hist_add with (e := AE v' v).
-  destruct Hjoin as (? & ? & Hincl); simpl in Hincl.
-  erewrite <- ghost_join; [|apply hist_sep_join].
-  gather_SEP 3 5; simpl.
-  match goal with H : AE_spec _ _ _ _ |- _ => apply H; auto end.
-  forward_call (l, lsh, AE_inv tgt i ish R).
-  { rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
-      [repeat apply andp_right; auto; eapply derives_trans; try apply positive_weak_positive; auto|].
-    { apply AE_inv_precise; auto. }
-    unfold AE_inv.
-    Exists (h' ++ [AE v' v]) v; entailer!.
-    cancel.
-    rewrite (sepcon_comm (_ * _) (ghost _ _)), !sepcon_assoc; apply sepcon_derives; auto; cancel. }
-  forward.
-  Exists (length h') (Vint v'); entailer!.
-  - rewrite Forall_forall; intros (?, ?) Hin.
-    specialize (Hincl _ _ Hin).
-    simpl; rewrite <- nth_error_Some, Hincl; discriminate.
-  - rewrite <- (sepcon_emp (ghost_hist _ _)), sepcon_assoc.
-    apply sepcon_derives; auto.
-    rewrite <- (sepcon_emp emp) at 3; apply sepcon_derives; apply andp_left2; auto.
-  - intros ?? Hin.
-    rewrite in_app in Hin; destruct Hin as [Hin | [X | ?]]; [| inv X | contradiction].
-    + specialize (Hincl _ _ Hin); rewrite nth_error_app1; auto.
-      rewrite <- nth_error_Some, Hincl; discriminate.
-    + rewrite nth_error_app2, minus_diag; auto.
 Qed.
 
 Lemma lock_struct_array : forall sh z (v : list val) p,
@@ -847,13 +564,6 @@ Proof.
   forward.
 Qed.
 
-Lemma ghost_var_precise' : forall sh t v p, precise (ghost_var sh t v p).
-Proof.
-  intros; apply derives_precise' with (Q := EX v : reptype t, ghost_var sh t v p);
-    [Exists v; auto | apply ghost_var_precise].
-Qed.
-Hint Resolve ghost_var_precise ghost_var_precise'.
-
 Lemma last_two_reads_cons : forall r w h, last_two_reads (AE r w :: h) =
   if eq_dec w Empty then if eq_dec r Empty then last_two_reads h else (r, fst (last_two_reads h))
   else last_two_reads h.
@@ -976,18 +686,11 @@ Proof.
 (*   (* Do P and Q need all the arguments? *) *)
   forward_call (Tsh, sh2, c, l, vint 0, Empty, h,
     fun h b => !!(b = Empty /\ latest_read h (vint b0)) &&
-      (EX v : Z, data_at sh tbuffer (vint v) (Znth b0 bufs Vundef)) * ghost_var gsh1 tint (vint b0) c,
+      (EX v : Z, data_at sh tbuffer (vint v) (Znth b0 bufs Vundef)) * ghost_var gsh1 (vint b0) c,
     comm_R bufs sh gsh2 c, fun h b => EX b' : Z, !!((if eq_dec b Empty then b' = b0 else b = vint b') /\
       -1 <= b' < B /\ latest_read h (vint b')) &&
-      (EX v : Z, data_at sh tbuffer (vint v) (Znth b' bufs Vundef)) * ghost_var gsh1 tint (vint b') c).
-  { unfold comm_inv; entailer!.
-    rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives; [|cancel].
-    apply andp_right; auto.
-    eapply derives_trans; [|apply precise_weak_precise]; auto.
-    apply derives_precise' with (Q := data_at_ sh tbuffer (Znth b0 bufs Vundef) *
-      EX v : val, ghost_var gsh1 tint v c); [|apply precise_sepcon; [auto |
-      apply ghost_var_precise with (t := tint)]].
-    clear; Exists (vint b0); entailer!. }
+      (EX v : Z, data_at sh tbuffer (vint v) (Znth b' bufs Vundef)) * ghost_var gsh1 (vint b') c).
+  { unfold comm_inv; entailer!. }
   { repeat (split; auto); try computable.
     unfold AE_spec, comm_R; intros.
     intros ??????? Ha.
@@ -1020,8 +723,8 @@ Proof.
     rewrite <- emp_sepcon at 1; rewrite !sepcon_assoc; apply sepcon_derives.
     { apply andp_right; auto.
       eapply derives_trans; [|apply precise_weak_precise]; auto.
-      apply derives_precise' with (Q := (EX v : val, ghost_var gsh2 tint v c) *
-        (EX v : val, ghost_var gsh2 tint v (offset_val 1 c)) * (EX v : val, ghost_var gsh2 tint v (offset_val 2 c)) *
+      apply derives_precise' with (Q := (EX v : val, ghost_var gsh2 v c) *
+        (EX v : val, ghost_var gsh2 v (offset_val 1 c)) * (EX v : val, ghost_var gsh2 v (offset_val 2 c)) *
         data_at_ sh tbuffer (Znth (if eq_dec (vint b) Empty then b2 else b0) bufs Vundef)).
       - Intros b' b1' b2'.
         assert (b' = -1) by (apply Empty_inj; auto; apply repable_buf; auto).
@@ -1033,7 +736,7 @@ Proof.
           apply repr_inj_signed; auto; congruence.
         + replace b2' with b0; [cancel|].
           apply repr_inj_signed; auto; simpl in *; congruence.
-      - repeat apply precise_sepcon; auto; apply ghost_var_precise with (t := tint). }
+      - repeat apply precise_sepcon; auto; apply ghost_var_precise. }
     Exists (-1) (if eq_dec (vint b) Empty then b0 else b) (if eq_dec (vint b) Empty then b2 else b0).
     rewrite !sepcon_andp_prop'.
     apply andp_right.
@@ -1079,7 +782,7 @@ Proof.
     SEP (lock_inv sh2 l (AE_inv c (vint 0) Tsh (comm_R bufs sh gsh2 c));
          ghost_hist (h ++ [(t, AE (vint b) Empty)]) c;
          EX v : Z, data_at sh tbuffer (vint v) (Znth (if eq_dec b (-1) then b0 else b) bufs Vundef);
-         ghost_var gsh1 tint (vint b') c;
+         ghost_var gsh1 (vint b') c;
          data_at sh1 (tarray (tptr tint) N) reads reading; data_at sh1 (tarray (tptr tint) N) lasts last_read;
          data_at_ Tsh tint (Znth r reads Vundef);
          data_at Tsh tint (vint (if eq_dec b (-1) then b0 else b)) (Znth r lasts Vundef);
@@ -1176,7 +879,7 @@ Proof.
   { unfold N; computable. }
   { unfold N; computable. }
   { entailer!.
-    rewrite upd_Znth_eq with (d := Vundef); simpl; [|Omega0].
+    rewrite upd_Znth_eq with (d := Vundef); simpl; [|rewrite !Zlength_cons, Zlength_nil; unfold B, N in *; omega].
     unfold Znth; simpl.
     apply derives_refl'; f_equal.
     apply map_ext_in; intros ? Hin.
@@ -1814,8 +1517,8 @@ Proof.
                             (upto (Z.to_nat N)) in
             data_at Ews (tarray tint N) (map (fun i => vint i) lasts') last_taken *
             fold_right sepcon emp (map (fun r =>
-              ghost_var gsh1 tint (vint (if zlt r i then b else b0)) (offset_val 1 (Znth r comms Vundef)) *
-              ghost_var gsh1 tint (vint (Znth r lasts' (-1))) (offset_val 2 (Znth r comms Vundef))) (upto (Z.to_nat N))) *
+              ghost_var gsh1 (vint (if zlt r i then b else b0)) (offset_val 1 (Znth r comms Vundef)) *
+              ghost_var gsh1 (vint (Znth r lasts' (-1))) (offset_val 2 (Znth r comms Vundef))) (upto (Z.to_nat N))) *
             fold_right sepcon emp (map (fun a => EX sh : share,
               !!(if eq_dec a b0 then sepalg_list.list_join sh0 (make_shares shs (sublist 0 i lasts') a) sh
                  else if eq_dec a b then sepalg_list.list_join sh0 (sublist i N shs) sh
@@ -1879,13 +1582,13 @@ Proof.
     destruct (zlt i i); [clear - l; omega|].
     forward_call (Tsh, lsh, Znth i comms Vundef, Znth i locks Vundef, vint 0, vint b, Znth i h [],
       fun (h : hist) (v : val) => !!(v = vint b) &&
-        ghost_var gsh1 tint (vint b0) (offset_val 1 (Znth i comms Vundef)) *
-        ghost_var gsh1 tint (vint (Znth i lasts 0)) (offset_val 2 (Znth i comms Vundef)) *
+        ghost_var gsh1 (vint b0) (offset_val 1 (Znth i comms Vundef)) *
+        ghost_var gsh1 (vint (Znth i lasts 0)) (offset_val 2 (Znth i comms Vundef)) *
         EX v : Z, data_at (Znth i shs Tsh) tbuffer (vint v) (Znth b bufs Vundef),
       comm_R bufs (Znth i shs Tsh) gsh2 (Znth i comms Vundef), fun (h : hist) (v : val) => EX b' : Z,
         !!(v = vint b' /\ -1 <= b' < B) &&
-        ghost_var gsh1 tint (vint b) (offset_val 1 (Znth i comms Vundef)) *
-        ghost_var gsh1 tint (vint (if eq_dec b' (-1) then b0 else Znth i lasts 0))
+        ghost_var gsh1 (vint b) (offset_val 1 (Znth i comms Vundef)) *
+        ghost_var gsh1 (vint (if eq_dec b' (-1) then b0 else Znth i lasts 0))
           (offset_val 2 (Znth i comms Vundef)) *
         if eq_dec b' (-1) then EX v : Z, data_at (Znth i shs Tsh) tbuffer (vint v) (Znth (Znth i lasts 0) bufs Vundef)
         else !!(b' = b0) && EX v' : Z, data_at (Znth i shs Tsh) tbuffer (vint v') (Znth b0 bufs Vundef)).
@@ -1895,17 +1598,11 @@ Proof.
       (* entailer! is slow *)
       rewrite true_eq, TT_andp; auto; cancel.
       rewrite (sepcon_comm _ (ghost_hist _ _)), !sepcon_assoc; apply sepcon_derives; [auto|].
-      rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_var _ _ _ _)), !sepcon_assoc; apply sepcon_derives; [auto|].
+      rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_var _ _ _)), !sepcon_assoc; apply sepcon_derives; [auto|].
       rewrite <- !sepcon_assoc.
       subst Frame; instantiate (1 := [_ * _ * _ * _ * _ * _ * _ * _ *
         (EX v0 : Z, data_at bsh' tbuffer (vint v0) (Znth b bufs Vundef)) * _]).
-      rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives; [|simpl; rewrite sepcon_emp;
-        repeat (apply sepcon_derives; try apply derives_refl); Exists v0; auto].
-      apply andp_right; auto.
-      eapply derives_trans; [|apply precise_weak_precise]; auto.
-      eapply derives_precise' with (Q := _ * data_at_ (Znth i shs Tsh) tbuffer (Znth b bufs Vundef));
-        [apply sepcon_derives; [apply derives_refl|] | repeat apply precise_sepcon; auto].
-      clear; entailer!. }
+      simpl; rewrite sepcon_emp; repeat (apply sepcon_derives; try apply derives_refl); Exists v0; auto. }
     { repeat (split; auto).
       unfold AE_spec, comm_R; intros.
       intros ??????? Ha.
@@ -1924,11 +1621,11 @@ Proof.
       destruct (eq_dec vc Empty).
       { subst; assert (b = -1) by (apply Empty_inj; auto); omega. }
       apply semax_pre with (P' := PROPx P (LOCALx Q (SEPx (
-        (ghost_var gsh1 tint (vint b0) (offset_val 1 (Znth i comms Vundef)) *
-         ghost_var gsh2 tint (last_write (rev hx)) (offset_val 1 (Znth i comms Vundef))) ::
-        (ghost_var gsh1 tint (vint (Znth i lasts 0)) (offset_val 2 (Znth i comms Vundef)) *
-         ghost_var gsh2 tint (prev_taken (rev hx)) (offset_val 2 (Znth i comms Vundef))) ::
-        (ghost_var gsh2 tint (vint b1) (Znth i comms Vundef) *
+        (ghost_var gsh1 (vint b0) (offset_val 1 (Znth i comms Vundef)) *
+         ghost_var gsh2 (last_write (rev hx)) (offset_val 1 (Znth i comms Vundef))) ::
+        (ghost_var gsh1 (vint (Znth i lasts 0)) (offset_val 2 (Znth i comms Vundef)) *
+         ghost_var gsh2 (prev_taken (rev hx)) (offset_val 2 (Znth i comms Vundef))) ::
+        (ghost_var gsh2 (vint b1) (Znth i comms Vundef) *
          (if eq_dec b' (-1) then EX v1 : Z, @data_at CompSpecs (Znth i shs Tsh) tbuffer (vint v1) (Znth b2 bufs Vundef)
           else EX v1 : Z, @data_at CompSpecs (Znth i shs Tsh) tbuffer (vint v1) (Znth b' bufs Vundef)) *
          (EX v1 : Z, @data_at CompSpecs (Znth i shs Tsh) tbuffer (vint v1) (Znth b bufs Vundef))) :: R)))).
@@ -1938,7 +1635,7 @@ Proof.
         rewrite sepcon_comm; apply ghost_var_inj; auto. }
       assert_PROP (prev_taken (rev hx) = vint (Znth i lasts 0)) as Hprev.
       { go_lowerx.
-        rewrite <- sepcon_assoc, (sepcon_comm (_ * _) (_ * ghost_var _ _ _ _)).
+        rewrite <- sepcon_assoc, (sepcon_comm (_ * _) (_ * ghost_var _ _ _)).
         do 2 apply sepcon_derives_prop.
         rewrite sepcon_comm; apply ghost_var_inj; auto. }
       rewrite <- Hprev, <- Hwrite in *.
@@ -1946,16 +1643,16 @@ Proof.
       apply ghost_var_update with (v' := vint b).
       rewrite <- flatten_sepcon_in_SEP, sepcon_comm, flatten_sepcon_in_SEP.
       apply ghost_var_update with (v' := if eq_dec b' (-1) then last_write (rev hx) else prev_taken (rev hx)).
-      rewrite <- !(ghost_var_share_join _ _ _ _ _ _ SH5).
+      rewrite <- !(ghost_var_share_join _ _ _ _ _ SH5).
       eapply semax_pre, Ha.
       go_lowerx.
       rewrite (sepcon_comm _ (weak_precise_mpred _ && _)).
       rewrite <- emp_sepcon at 1; rewrite !sepcon_assoc; apply sepcon_derives.
       { apply andp_right; auto.
         eapply derives_trans; [|apply precise_weak_precise]; auto.
-        apply derives_precise' with (Q := (EX v : val, ghost_var gsh2 tint v (Znth i comms Vundef)) *
-          (EX v : val, ghost_var gsh2 tint v (offset_val 1 (Znth i comms Vundef))) *
-          (EX v : val, ghost_var gsh2 tint v (offset_val 2 (Znth i comms Vundef))) *
+        apply derives_precise' with (Q := (EX v : val, ghost_var gsh2 v (Znth i comms Vundef)) *
+          (EX v : val, ghost_var gsh2 v (offset_val 1 (Znth i comms Vundef))) *
+          (EX v : val, ghost_var gsh2 v (offset_val 2 (Znth i comms Vundef))) *
           data_at_ (Znth i shs Tsh) tbuffer (Znth b bufs Vundef)).
         - Intros b'' b1' b2'.
           assert (b'' = b).
@@ -1963,7 +1660,7 @@ Proof.
           subst; destruct (eq_dec b (-1)); [omega|].
           Exists (vint b1') (fst (find_read (rev hx) (vint 1))) (last_write (AE (vint b') (vint b) :: rev hx));
             entailer!.
-        - repeat apply precise_sepcon; auto; apply ghost_var_precise with (t := tint). }
+        - repeat apply precise_sepcon; auto; apply ghost_var_precise. }
       Exists b b1 b2.
       rewrite !sepcon_andp_prop'.
       apply andp_right.
@@ -2056,8 +1753,8 @@ Proof.
       + evar (rhs : Z); assert (Zlength h = rhs) as Hlenh by (subst rhs; eassumption).
         setoid_rewrite Hlenh; subst rhs; omega. }
     gather_SEP 2 3 10; replace_SEP 0 (fold_right sepcon emp (map (fun r =>
-      ghost_var gsh1 tint (vint (if zlt r (i + 1) then b else b0)) (offset_val 1 (Znth r comms Vundef)) *
-      ghost_var gsh1 tint (vint (Znth r (map (fun i0 => if eq_dec (Znth i0 (h' ++ [v]) Vundef) Empty then b0
+      ghost_var gsh1 (vint (if zlt r (i + 1) then b else b0)) (offset_val 1 (Znth r comms Vundef)) *
+      ghost_var gsh1 (vint (Znth r (map (fun i0 => if eq_dec (Znth i0 (h' ++ [v]) Vundef) Empty then b0
         else Znth i0 lasts 0) (upto (Z.to_nat N))) (-1))) (offset_val 2 (Znth r comms Vundef))) 
       (upto (Z.to_nat N)))).
     { go_lowerx.
@@ -2187,7 +1884,7 @@ Proof.
          data_at sh1 (tarray (tptr tbuffer) B) bufs buf;
          lock_inv sh2 l (comm_inv c bufs sh gsh2);
          EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth b0 bufs Vundef);
-         ghost_hist h c; ghost_var gsh1 tint (vint b0) c)).
+         ghost_hist h c; ghost_var gsh1 (vint b0) c)).
   { Exists 1 ([] : hist); entailer!.
     unfold latest_read; auto. }
   eapply semax_loop; [|forward; apply drop_tc_environ].
@@ -2223,8 +1920,8 @@ Proof.
    fold_right sepcon emp (map (fun r0 => lock_inv lsh (Znth r0 locks Vundef)
      (comm_inv (Znth r0 comms Vundef) bufs (Znth r0 shs Tsh) gsh2)) (upto (Z.to_nat N)));
    fold_right sepcon emp (map (fun x => let '(c, h) := x in ghost_hist h c) (combine comms h));
-   fold_right sepcon emp (map (fun r0 => ghost_var gsh1 tint (vint b0) (offset_val 1 (Znth r0 comms Vundef)) *
-     ghost_var gsh1 tint (vint (Znth r0 lasts (-1))) (offset_val 2 (Znth r0 comms Vundef))) (upto (Z.to_nat N)));
+   fold_right sepcon emp (map (fun r0 => ghost_var gsh1 (vint b0) (offset_val 1 (Znth r0 comms Vundef)) *
+     ghost_var gsh1 (vint (Znth r0 lasts (-1))) (offset_val 2 (Znth r0 comms Vundef))) (upto (Z.to_nat N)));
    fold_right sepcon emp (map (fun i => EX sh : share, !! (if eq_dec i b0 then sh = sh0
      else sepalg_list.list_join sh0 (make_shares shs lasts i) sh) &&
      (EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth i bufs Vundef))) (upto (Z.to_nat B))))).
@@ -2241,8 +1938,7 @@ Proof.
         erewrite map_map, map_ext_in; eauto.
         intros; rewrite In_upto in *.
         match goal with |- context[Znth a ?l (-1)] => replace (Znth a l (-1)) with 1; auto end.
-        apply Forall_Znth; [Omega0|].
-        repeat constructor; auto.
+        apply Forall_Znth; auto.
       + erewrite map_ext_in; eauto.
         intros; rewrite In_upto in *.
         destruct (eq_dec a 0); auto.
@@ -2342,8 +2038,8 @@ Proof.
           lock_inv lsh (Znth r locks Vundef) (comm_inv (Znth r comms Vundef) bufs (Znth r shs Tsh) gsh2))
           (upto (Z.to_nat N)));
         fold_right sepcon emp (map (ghost_hist []) comms);
-        fold_right sepcon emp (map (fun c => ghost_var gsh1 tint (vint 0) (offset_val 1 c) *
-          ghost_var gsh1 tint (vint 1) (offset_val 2 c)) comms);
+        fold_right sepcon emp (map (fun c => ghost_var gsh1 (vint 0) (offset_val 1 c) *
+          ghost_var gsh1 (vint 1) (offset_val 2 c)) comms);
         fold_right sepcon emp (map (fun i => EX sh : share,
           !!(if eq_dec i 0 then sh = sh0 else if eq_dec i 1 then sh = sh0 else sh = Tsh) &&
           EX v : Z, data_at sh tbuffer (vint v) (Znth i bufs Vundef)) (upto (Z.to_nat B)))]).
@@ -2424,7 +2120,7 @@ Proof.
         fold_right sepcon emp (map (fun x => lock_inv gsh2 (Znth x locks Vundef)
           (comm_inv (Znth x comms Vundef) bufs (Znth x shs Tsh) gsh2)) (sublist i N (upto (Z.to_nat N))));
         fold_right sepcon emp (map (ghost_hist []) (sublist i N comms));
-        fold_right sepcon emp (map (ghost_var gsh1 tint (vint 1)) (sublist i N comms));
+        fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) (sublist i N comms));
         fold_right sepcon emp (map (data_at_ Tsh tint) (sublist i N reads));
         fold_right sepcon emp (map (data_at_ Tsh tint) (sublist i N lasts));
         fold_right sepcon emp (map (malloc_token Tsh 4) comms);
@@ -2465,7 +2161,7 @@ Proof.
           data_at sh1 (tarray (tptr tbuffer) B) bufs buf;
         lock_inv sh2 (Znth r locks Vundef) (comm_inv (Znth r comms Vundef) bufs sh gsh2);
         EX v : Z, data_at sh tbuffer (vint v) (Znth 1 bufs Vundef);
-        ghost_hist [] (Znth r comms Vundef); ghost_var gsh1 tint (vint 1) (Znth r comms Vundef)]).
+        ghost_hist [] (Znth r comms Vundef); ghost_var gsh1 (vint 1) (Znth r comms Vundef)]).
     - apply andp_right.
       { entailer!. }
       unfold spawn_pre, PROPx, LOCALx, SEPx.
@@ -2531,16 +2227,25 @@ repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
 repeat semax_func_cons_ext.
 semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
 repeat semax_func_cons_ext.
+{ destruct x as (((((((((?, ?), ?), ?), ?), ?), ?), ?), ?), ?).
+  apply exp_left; intro.
+  apply exp_left; intro.
+  unfold PROPx, LOCALx, local, lift1, liftx, lift; simpl.
+  unfold liftx, lift; simpl.
+  apply derives_extract_prop; intros (? & ?).
+  apply derives_extract_prop; intros (? & ?); subst.
+  apply prop_right; unfold make_ext_rval, eval_id in *; simpl in *.
+  destruct ret; auto. }
 semax_func_cons body_surely_malloc.
 semax_func_cons body_memset.
-semax_func_cons body_atomic_exchange.
+(*semax_func_cons body_atomic_exchange.
 { simpl in *.
   destruct x0 as (((((((((?, ?), ?), ?), ?), ?), ?), ?), ?), ?).
   (* This could probably be done automatically with a slight modification to precondition_closed. *)
   simpl not_a_param; auto 50 with closed. }
 { simpl in *.
   destruct x0 as (((((((((?, ?), ?), ?), ?), ?), ?), ?), ?), ?).
-  simpl is_a_local; auto 50 with closed. }
+  simpl is_a_local; auto 50 with closed. }*)
 semax_func_cons body_initialize_channels.
 semax_func_cons body_initialize_reader.
 semax_func_cons body_start_read.
