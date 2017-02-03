@@ -9,16 +9,7 @@ Require Import sha.hkdf.
 Require Import sha.spec_hmac.
 Require Import sha.spec_hkdf.
 Require Import sha.hkdf_functional_prog.
-(*
-Axiom CS: CompSpecs = spec_hmac.CompSpecs. 
 
-Lemma change_compspecs_datablock:
-  @data_block spec_hmac.CompSpecs  =
-  @data_block spec_hkdf.CompSpecs.
-Proof.
-extensionality gfs. rewrite CS. trivial.
-Qed.
-*)
 Lemma body_hkdf_extract: semax_body Hkdf_VarSpecs Hkdf_FunSpecs 
        f_HKDF_extract HKDF_extract_spec.
 Proof.
@@ -32,8 +23,7 @@ thaw FR1.
 forward_call (out, SALT, secret, SECRET, kv, shmd, b, i).
 apply extract_exists_pre. intros Hmac. Intros.
 rename H into HypHmac. rename H0 into HypHmacBits. rename H1 into HmacCrypto.
-(*forward_call (Vptr b i,SALT,secret, SECRET,kv,shmd,out).
-apply extract_exists_pre. intros hmac. Intros.*)
+
 assert_PROP (isptr out) as Ptr_out.
 { unfold data_block. normalize. rewrite data_at_isptr. entailer!. }
 destruct out; try contradiction. clear Ptr_out. 
@@ -54,8 +44,8 @@ forward_if (PROP ( )
     rewrite HMAC_Zlength; simpl; omega.
   + apply valid_pointer_zero. }
 { elim H; trivial. }
-{ clear H; forward. entailer!. trivial. }
+{ clear H; forward. entailer!. }
 
 forward. forward. Exists (Int.repr 1).
-unfold HKFD_extract. entailer. cancel. trivial.
-Time Qed. (*7.047 secs (5.312u,0.s) (successful)*)
+unfold HKFD_extract. entailer. cancel. 
+Time Qed. (*Finished transaction in 5.781 secs (4.89u,0.s) (successful)*)

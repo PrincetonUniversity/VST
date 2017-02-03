@@ -355,6 +355,31 @@ Proof.
             erewrite (Zdiv_unique _ _ i rest); try omega; trivial.
 Qed.
 
+Lemma sublist_HKDF_expand5 PRK INFO l i
+         (Hl : if zeq i 0 then l = []
+               else PREVcont PRK INFO i = map Vint (map Int.repr l) /\ Forall general_lemmas.isbyteZ l)
+         (Hi : 0 <= i):
+      sublist 0 32 (HMAC256_functional_prog.HMAC256 ((l ++ CONT INFO) ++ [i + 1]) (CONT PRK)) =
+      sublist (32 * i) (32 * i + 32) (HKDF_expand (CONT PRK) (CONT INFO) (32 * (i + 1))).
+Proof.
+  unfold HKDF_expand. destruct (zle (32*(i + 1)) 0); try omega. simpl.
+  rewrite (Zmod_unique _ _ (i+1) 0) by omega. simpl. 
+  rewrite (Zdiv_unique _ _(i+1) 0) by omega.
+  rewrite sublist_sublist; try omega. rewrite ! Z.add_0_r.
+  replace (Z.to_nat (i + 1)) with (S (Z.to_nat i)).
+  2: rewrite Z.add_comm, Z2Nat.inj_add; try reflexivity; try omega.
+  simpl.
+  rewrite Zpos_P_of_succ_nat, Z2Nat.id; try omega. 
+  rewrite sublist_app2; rewrite Zlength_T, Nat2Z.inj_mul, Z2Nat.id; simpl; try omega.
+  rewrite Zminus_diag. replace ((32 * i + 32 - 32 * i)%Z) with 32%Z by omega.
+  unfold PREVcont in Hl.
+  destruct (zeq i 0). { simpl in *; subst i l; simpl; trivial. }
+  destruct Hl as [Hl isBTl]. apply map_Vint_injective in Hl.
+  apply map_IntReprOfBytes_injective in Hl; trivial. 2: apply isbyteZ_Ti.
+  rewrite Hl, <- app_assoc.
+  change (i+1)%Z with (Z.succ i); trivial.
+Qed.
+
 Lemma Zlength_HKDF_expand x y z rest: 0 <= 32 * z -> 0 <= rest < 32 -> 
       (Zlength (HKDF_expand x y (32*z+rest)) = 32*z+rest)%Z.
 Proof. unfold HKDF_expand; intros.
@@ -381,29 +406,9 @@ Lemma body_hkdf_expand: semax_body Hkdf_VarSpecs Hkdf_FunSpecs
        f_HKDF_expand HKDF_expand_spec.
 Proof.
 start_function. rename lvar0 into previous.
-rename lvar1 into hmac. rename lvar2 into ctr. 
-(*not necessary thanks to hacking 
- 
-(*Definition _hmac_ctx_st : ident := 10%positive.*)
-Definition _hmac_ctx_st : ident := 96%positive.
-
-in hkdf.v: ;-)
-apply var_block_lvar2; trivial. 
-   (*goal complete_type cenv_cs (Tstruct _hmac_ctx_st noattr) = true is not satisfied.*)
-  admit.
-intros hmac. 
-
-apply var_block_lvar2; trivial.
-intros ctr. normalize. rename H into SHMD. rename H0 into LenPRK.*)
+rename lvar1 into hmac. rename lvar2 into ctr.
 rename H into LenPRK. rename H0 into LEN_INFO1.
 destruct H1 as [LEN_INFO2 LEN_INFO3]. rename H2 into OLEN.
-
-(*rename lvar1 into hmac. rename lvar2 into ctr. *)
-(*assert_PROP (isptr out /\ field_compatible (tarray tuchar olen) [] out) as outPtr.
- { entailer!. red. intuition. unfold 
-destruct prevPtr as [prevPtr prevFC].
-destruct previous; try contradiction. clear prevPtr.
-assert_PROP (field_compatible *)
 
 freeze [0;1;2;3;4;5;6] FR1.
 forward. forward. forward. forward.
@@ -464,8 +469,7 @@ forward_if
   Exists (expand_out_post shmd (CONT PRK) (CONT INFO) olen out).
   thaw FR1; entailer. unfold expand_out_post, digest_len; simpl.
   rewrite if_false; try omega.
-  rewrite if_true; trivial. entailer!.
-  (*rewrite data_at__memory_block with (p:=out). simpl. rewrite Z.max_r, Z.mul_1_l. entailer!. omega.*) }
+  rewrite if_true; trivial. entailer!. }
 { forward. entailer. unfold typed_false in H; simpl in H; inv H.
   destruct (zlt (olen + 32) olen). inv HV; simpl in *; try discriminate.
   destruct (zlt 255 ((olen + 32 - 1) / 32)); inv HV; simpl in *; try discriminate. 
@@ -475,29 +479,27 @@ destruct (zlt 255 ((olen + 32 - 1) / 32)); [inv HV | clear HV].
 drop_LOCAL 0%nat.
 thaw FR1. 
 Time assert_PROP (isptr prk) as isPtrPrk by entailer!. destruct prk; try contradiction.
-(*remember (hmac, Vptr b i, spec_hmac.LEN PRK, spec_hmac.CONT PRK, kv, spec_hmac.HMACabs nil nil nil) as z.*)
-(*c : val, k:val, l:Z, key:list Z, kv:val, h1:hmacabs*)
-
+(*
 assert (AUX1: @data_at_ CompSpecs Tsh (Tstruct _hmac_ctx_st noattr) = 
         @data_at_ spec_hmac.CompSpecs Tsh (Tstruct _hmac_ctx_st noattr)) by normalize.  
 (*rewrite H.*)
 assert (AUX2: @data_block CompSpecs Tsh (CONT PRK) = 
         @data_block spec_hmac.CompSpecs Tsh (CONT PRK)) by normalize.  
 (*rewrite H0.*)
-(*assert (Tstruct _hmac_ctx_st noattr = t_struct_hmac_ctx_st). adxmit.
+assert (Tstruct _hmac_ctx_st noattr = t_struct_hmac_ctx_st). 
+{ unfold _hmac_ctx_st, t_struct_hmac_ctx_st. simpl. adxmit.
 assert (tptr (Tstruct _hmac_ctx_st noattr) = tptr t_struct_hmac_ctx_st). rewrite H1; trivial. 
 rewrite H2.*)
 
 (*remember (inr(hmac, spec_hmac.LEN PRK, CONT PRK, kv, b, i): (val * Z * list Z * val + val * Z * list Z * val * block * int)) as w.*)
 freeze [0;2;3;6] FR1.
-assert_PROP (field_compatible t_struct_hmac_ctx_st [] hmac) as FC_hmac by entailer!. 
+assert_PROP (field_compatible t_struct_hmac_ctx_st [] hmac) as FC_hmac by entailer!.
 (*rewrite H1.*)
 replace_SEP 1 (HMAC_SPEC.EMPTY hmac).
 { rewrite data_at__memory_block. entailer. eapply HMAC_SPEC.mkEmpty; trivial. }
 (*rewrite <- H1.*)
 forward_call (@inr (val * Z * list Z * val) _ (hmac, spec_hmac.LEN PRK, CONT PRK, kv, b, i)).
 
-(*remember (Int.unsigned (Int.divu (Int.repr (olen + 32 - 1)) (Int.repr 32))) as bnd.*)
 remember ((olen + 32 - 1) / 32) as bnd.
 thaw FR1.
 assert_PROP (isptr previous /\ field_compatible (tarray tuchar 64) [] previous) as prevPtr by entailer!.
@@ -796,7 +798,6 @@ forward_for_simple_bound bnd
          2: change (two_p 8 - 1) with 255; omega. 
          destruct (zeq rest 0).
          ++ subst rest; simpl in *. rewrite Zplus_0_r in *.
-            (*rewrite if_true; try omega.*)
             destruct (zlt (i1+1) rounds).
             ** replace (32 * rounds - (32 * i1 + 32)) with (32 * rounds - 32 * i1 - 32) by omega. cancel.
                rewrite (split2_data_at_Tarray_tuchar shmd (32 * i1+32) (32 * i1)); simpl; trivial; try omega.
@@ -808,107 +809,45 @@ forward_for_simple_bound bnd
                   rewrite sublist_sublist; try omega. 
                   rewrite sublist_sublist; try omega.
                   rewrite ! sublist_map, !  Z.mul_1_l, ! Z.add_0_r, ! Z.add_0_l.
-(*HERE*) 
-
-                  unfold HKDF_expand. destruct (zle ((i1 + 1)*32) 0); try omega. simpl.
-                      rewrite (Zmod_unique _ _ i1 0) by omega. simpl. 
-                      rewrite (Zdiv_unique _ _ i1 0) by omega.
-                      rewrite (Zmod_unique _ _ (i1+1) 0) by omega. simpl. 
-                      rewrite (Zdiv_unique _ _(i1+1) 0) by omega.
-                      rewrite ! sublist_sublist, ! Z.add_0_r by omega.
-                      replace (Z.to_nat (i1 + 1)) with (S (Z.to_nat i1)).
-                      2: rewrite Z.add_comm, Z2Nat.inj_add; try reflexivity; try omega.
-                      destruct (zle (i1 * 32) 0). { assert (i1=0) by omega. subst i1; simpl in *. subst l. cancel. }
-                      rewrite sublist_sublist, ! Z.add_0_r by omega. 
-                      unfold PREVcont in Hl; rewrite ! if_false in Hl by omega.
-                      destruct Hl as [Hl isBTl]. apply map_Vint_injective in Hl.
-                      apply map_IntReprOfBytes_injective in Hl; trivial. 2: apply isbyteZ_Ti.
-                      simpl. rewrite Hl, <- app_assoc.
-                      (*Lemma here*) 
-                      rewrite sublist_app1. 2: omega.
-                      2: rewrite Zlength_T, Nat2Z.inj_mul, Z2Nat.id; simpl; try omega.
-                      cancel.
-                      rewrite sublist_app2; rewrite Zlength_T, Nat2Z.inj_mul, Z2Nat.id; simpl; try omega.
-                      rewrite Zminus_diag. replace ((32 * i1 + 32 - 32 * i1)%Z) with 32%Z by omega.
-                      rewrite Zpos_P_of_succ_nat, Z2Nat.id; try omega. 
-                      change (i1+1)%Z with (Z.succ i1); trivial.
-                      
+                  clear - Hl Hi1.
+                  replace ((i1 + 1) * 32)%Z with (32*(i1 + 1))%Z by omega.
+                  replace (i1 * 32)%Z with (32*i1)%Z by omega.
+                  rewrite <- sublist_HKDF_expand2; try omega. 
+                  erewrite <- sublist_HKDF_expand5; try omega; try eassumption. cancel.                      
               -- rewrite Zlength_sublist; try omega. rewrite ! Zlength_map. 
                  replace ((i1 + 1) * 32)%Z with ((32 * (i1 + 1))+0) by omega.
                  rewrite Zlength_HKDF_expand; omega.
             ** assert (rounds = i1+1) by omega. subst rounds; simpl in *.
-               replace ((32 * i1 + 32)%Z) with (32 * (i1 + 1))%Z by omega.
-               replace ((32 * (i1 + 1) - 32 * i1 - 32)%Z) with 0%Z by omega.
+               replace (32 * (i1 + 1))%Z with ((32 * i1 + 32)%Z) by omega.
+               replace (32 * i1 + 32 - 32 * i1 - 32)%Z with 0%Z by omega.
                rewrite Zminus_diag, memory_block_zero. cancel. 
-               rewrite (split2_data_at_Tarray_tuchar shmd (32 * (i1+1)) (32 * i1)); simpl; trivial; try omega.
-               { replace ((32 * (i1 + 1) - 32 * i1)%Z) with 32%Z by omega.
-                 rewrite field_address0_offset by auto with field_compatible. simpl. 
-                 repeat rewrite sublist_sublist; try omega. repeat rewrite Z.add_0_r. repeat rewrite Z.add_0_l. repeat rewrite Z.mul_1_l.
-                 unfold tarray; rewrite sepcon_comm. repeat rewrite CONTAX.
-                 unfold HKDF_expand. repeat rewrite sublist_map. simpl.
-                   destruct (zle (32 * (i1 + 1)) 0); try omega.
-                   rewrite (Zmod_unique (i1 * 32) _ i1 0) by omega. simpl. 
-                   rewrite (Zdiv_unique (i1 * 32) _ i1 0) by omega.
-                   rewrite (Zmod_unique ((i1 + 1) * 32) _ (i1+1) 0) by omega. simpl. 
-                   rewrite (Zdiv_unique ((i1 + 1) * 32) _(i1+1) 0) by omega.
-(*                   replace ((32 * (i1 + 1))%Z) with (((i1 + 1) * 32)%Z) by omega. rewrite Z_mod_mult.
-                   replace ((32 * i1)%Z) with ((i1 * 32)%Z) by omega. rewrite Z_mod_mult.  simpl.
-                   rewrite 2 Z_div_mult by omega. *)
-                   replace (Z.to_nat (i1 + 1)) with (S (Z.to_nat i1)).
-                   2: rewrite Z.add_comm, Z2Nat.inj_add; try reflexivity; try omega.
-                   simpl.
-                   destruct (zle (i1 * 32) 0).
-                   - assert (i1=0) by omega. subst i1. simpl in *. cancel.
-                     rewrite sublist_sublist, ! Z.add_0_r(*, Z2Nat.id*); try omega. subst l. simpl; trivial.
-                   - destruct (zle ((i1 + 1) * 32) 0); try omega.
-                     rewrite ! sublist_sublist; try omega. rewrite ! Z.add_0_r.
-                     rewrite app_assoc, Zpos_P_of_succ_nat, Z2Nat.id; try omega.
-                     rewrite sublist_app1; try omega. cancel.
-                     2: rewrite Zlength_T, Nat2Z.inj_mul, Z2Nat.id; simpl; try omega.
-                     rewrite sublist_app2; rewrite Zlength_T, Nat2Z.inj_mul, Z2Nat.id; simpl; try omega.
-                     replace ((32 * (i1 + 1) - 32 * i1)%Z) with 32%Z by omega.
-                     rewrite Zminus_diag.
-                     unfold PREVcont in Hl.
-                     destruct (zeq i1 0); try omega. destruct Hl as [Hl isBl].
-                     apply map_Vint_injective in Hl. apply map_IntReprOfBytes_injective in Hl; try assumption. 2: apply isbyteZ_Ti.
-                     rewrite Hl. change (i1 + 1) with (Z.succ i1); trivial. }
-               { rewrite Zlength_sublist; try omega. rewrite 2 Zlength_map.
-                 replace (((i1 + 1)*32)%Z) with ((32 * (i1 + 1) + 0)%Z) by omega.
-                 rewrite Zlength_HKDF_expand; omega. } 
+               rewrite (split2_data_at_Tarray_tuchar shmd (32 * i1 + 32) (32 * i1)); simpl; trivial; try omega.
+               -- replace ((32 * i1 + 32 - 32 * i1)%Z) with 32%Z by omega.
+                  rewrite field_address0_offset by auto with field_compatible. simpl. 
+                  repeat rewrite sublist_sublist; try omega. rewrite ! Z.add_0_r, ! Z.add_0_l, ! Z.mul_1_l.
+                  unfold tarray; rewrite sepcon_comm.
+                  replace ((i1 + 1) * 32)%Z with (32*(i1+1))%Z by omega.
+                  replace (i1 * 32)%Z with (32*i1)%Z by omega.
+                  rewrite ! sublist_map, <- (sublist_HKDF_expand5 PRK INFO l i1 Hl),
+                    <- sublist_HKDF_expand2; try omega; cancel.
+               -- rewrite Zlength_sublist; try omega. rewrite 2 Zlength_map.
+                  replace (((i1 + 1)*32)%Z) with ((32 * (i1 + 1) + 0)%Z) by omega.
+                  rewrite Zlength_HKDF_expand; omega. 
           ++ replace (32 * rounds + rest - 32 * i1 - 32)%Z with (32 * rounds + rest - (32 * i1 + 32))%Z by omega. 
              cancel.
-             unfold HKDF_expand. simpl. 
-             destruct (zle ((i1 + 1)*32) 0); try omega.
-                   rewrite (Zmod_unique (i1 * 32) _ i1 0) by omega. simpl. 
-                   rewrite (Zdiv_unique (i1 * 32) _ i1 0) by omega.
-                   rewrite (Zmod_unique ((i1 + 1) * 32) _ (i1+1) 0) by omega. simpl. 
-                   rewrite (Zdiv_unique ((i1 + 1) * 32) _(i1+1) 0) by omega.
-             replace (Z.to_nat (i1 + 1)) with (S (Z.to_nat i1)).
-             2: rewrite Z.add_comm, Z2Nat.inj_add; try reflexivity; try omega.
-             simpl.
-             destruct (zle (i1 * 32) 0).
-             -- assert (i1=0) by omega. subst i1. simpl in *. subst l; simpl.
-                rewrite ! sublist_map, sublist_sublist, ! Z.add_0_r, data_at_tuchar_zero_array_eq, Int.add_zero; try omega; trivial. cancel.
-             -- rewrite (split2_data_at_Tarray_tuchar shmd (32*i1 + 32) (32*i1)); simpl; trivial; try omega.
+
+             rewrite (split2_data_at_Tarray_tuchar shmd (32*i1 + 32) (32*i1)); simpl; trivial; try omega.
                 ** rewrite field_address0_offset; simpl. rewrite Z.mul_1_l, Z.add_0_l.
+                   rewrite ! sublist_map, ! sublist_sublist, ! Z.add_0_r; try omega.
                    replace (32 * i1 + 32 - 32 * i1) with 32 by omega.
-                   rewrite ! sublist_map, !sublist_sublist, ! Z.add_0_r; try omega.
-                   rewrite sublist_app1; try rewrite Zlength_T, Nat2Z.inj_mul, Z2Nat.id; simpl; try omega. cancel.
-                   rewrite sublist_app2; try rewrite Zlength_T, Nat2Z.inj_mul, Z2Nat.id; simpl; try omega.
-                   replace (i1 * 32 - 32 * i1)%Z with 0%Z by omega.
-                   unfold PREVcont in Hl.
-                   destruct (zeq i1 0); try omega. destruct Hl as [Hl isBl].
-                   apply map_Vint_injective in Hl.
-                   apply map_IntReprOfBytes_injective in Hl; trivial. 2: apply isbyteZ_Ti.
-                   replace (32 * i1 + 32 - 32 * i1)%Z with 32%Z by omega.
-                   rewrite Zminus_diag, Hl, app_assoc, Zpos_P_of_succ_nat, Z2Nat.id; try omega.
-                       change (i1 + 1) with (Z.succ i1); trivial.
-                   eapply field_compatible0_cons_Tarray. reflexivity.
-                   eapply field_compatible_array_smaller0. apply FCout. omega.
-                   omega.
-                ** rewrite 2 sublist_map. rewrite 2 Zlength_map; try omega.
-                   rewrite ! Zlength_sublist; try omega. rewrite Zlength_sublist; try omega.
-                   rewrite Zlength_app, HMAC_Zlength, Zlength_T, Nat2Z.inj_mul, Z2Nat.id; simpl; try omega. }
+                   replace ((i1 + 1)*32)%Z with (32*(i1+1))%Z by omega.
+                   replace (i1*32)%Z with (32*i1)%Z by omega.
+                   rewrite <- (sublist_HKDF_expand5 PRK INFO l i1 Hl), <- sublist_HKDF_expand2; try omega. cancel.
+                   eapply field_compatible0_cons_Tarray; [ reflexivity | | omega].
+                   eapply field_compatible_array_smaller0; [ apply FCout | omega].
+                ** rewrite ! sublist_map, ! Zlength_map, Zlength_sublist; try omega.
+                   replace ((i1 + 1) * 32)%Z with (32 * (i1+1) + 0)%Z by omega.
+                   rewrite Zlength_HKDF_expand; omega. }
 (*Continuation after loop*)
   normalize. rewrite if_false in H. 2: omega. clear H. (*eliminate this PROP in loop invariant entirely?*)
 

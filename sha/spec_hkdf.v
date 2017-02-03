@@ -15,7 +15,7 @@ Require Import sha.protocol_spec_hmac.
 Require Import sha.hkdf_functional_prog.
 Require Import sha.hkdf.
 
-Require Import hmacdrbg.hmac_drbg_compspecs.
+Require Import sha.hkdf_compspecs.
 
 (*Definition Vprog : varspecs. Proof. mk_varspecs prog. Defined.*)
 
@@ -197,10 +197,91 @@ Definition Hkdf_FunSpecs : funspecs := ltac:(with_library prog (
   HKDF_spec :: HKDF_expand_spec :: HKDF_extract_spec :: 
   memcpy_spec:: (*memcpy__data_at:: *)
   (*memset_spec::*)
+  (HMAC_SPEC.hmac_update_spec)::
+  (HMAC_SPEC.hmac_final_spec)::  
+  (HMAC_SPEC.hmac_cleanup_spec)::  
+  (_HMAC_Init, hmac_init_funspec)::
+  (HMAC_SPEC.hmac_crypto_spec)::nil)).
+(*
+Inductive augmentFunspecsResult :=
+  OK_aFR: funspecs -> augmentFunspecsResult 
+| DeleteErr_aFR: ident -> augmentFunspecsResult 
+| NoDeletaErr_aFR: ident -> augmentFunspecsResult
+| MismatchErr_aFR: list ident ->  augmentFunspecsResult.
+
+Fixpoint my_augment_funspecs' (fds: list (ident * fundef)) (G:funspecs) :augmentFunspecsResult :=
+ match fds with
+ | (i,fd)::fds' => match delete_id i G with
+                       | Some (f, G') => 
+                              match my_augment_funspecs' fds' G' with
+                               | OK_aFR G2 => OK_aFR ((i,f)::G2)
+                               | DeleteErr_aFR i => DeleteErr_aFR i
+                               | NoDeletaErr_aFR i => NoDeletaErr_aFR i
+                               | MismatchErr_aFR l => MismatchErr_aFR l
+                              end
+                       | None =>
+                              match my_augment_funspecs' fds' G with
+                               | OK_aFR G2 => OK_aFR ((i, vacuous_funspec fd)::G2)
+                               | DeleteErr_aFR i => DeleteErr_aFR i
+                               | NoDeletaErr_aFR i => NoDeletaErr_aFR i
+                               | MismatchErr_aFR l => MismatchErr_aFR l
+                              end
+                        end
+ | nil => match G with nil => OK_aFR nil | (* _::_ => None*) (h::t) => MismatchErr_aFR (map fst (h::t)) end
+ end.
+(*
+Fixpoint my_augment_funspecs' (fds: list (ident * fundef)) (G:funspecs) : option funspecs :=
+ match fds with
+ | (i,fd)::fds' => match delete_id i G with
+                       | Some (f, G') => 
+                              match my_augment_funspecs' fds' G' with
+                               | Some G2 => Some ((i,f)::G2)
+                               | None => None
+                              end
+                       | None =>
+                              match my_augment_funspecs' fds' G with
+                               | Some G2 => Some ((i, vacuous_funspec fd)::G2)
+                               | None => None
+                              end
+                        end
+ | nil => match G with nil => Some nil | _::_ => None end
+ end.*)
+
+Definition StringofPos (p:positive): string := String (Coq.Strings.Ascii.ascii_of_pos p) EmptyString.
+
+Delimit Scope string_scope with string.
+Bind Scope string_scope with string.
+Open Local Scope string_scope.
+Definition printlist (l:list ident):string := List.fold_right (fun p s => String (Coq.Strings.Ascii.ascii_of_pos p) s) EmptyString l.
+
+Ltac mywith_library' p G :=
+  let x := eval hnf in (my_augment_funspecs' (prog_funct p) G) in match x with
+  | OK_aFR ?l => exact l
+  | DeleteErr_aFR ?i => let v := constr:("Delete " ++ (StringofPos i)) in fail 5 v
+  | NoDeletaErr_aFR ?i => let v:= constr:("NoDelete " ++ (StringofPos i)) in fail 5 v
+  | MismatchErr_aFR ?l => let v := constr:("Mismatch " ++ printlist (map fst l))                                  
+                          in fail 5 v
+  end.
+
+Ltac mywith_library prog G := mywith_library' prog G.
+Locate _HMAC.
+Definition Hkdf_FunSpecs : funspecs := ltac:(with_library prog (
+(*  HKDF_spec :: HKDF_expand_spec :: HKDF_extract_spec :: 
+  memcpy_spec:: (*memcpy__data_at:: *)
+  (*memset_spec::*)
   HMAC_SPEC.hmac_update_spec::
   HMAC_SPEC.hmac_final_spec::  
   HMAC_SPEC.hmac_cleanup_spec::  
-  (hmac._HMAC_Init,hmac_init_funspec)::
+  (_HMAC_Init,hmac_init_funspec)::*)
+  _HMAC, (snd HMAC_SPEC.hmac_crypto_spec)::nil)).
+Definition Hkdf_FunSpecs : funspecs := ltac:(with_library prog (
+  HKDF_spec :: HKDF_expand_spec :: HKDF_extract_spec :: 
+  memcpy_spec:: (*memcpy__data_at:: *)
+  (*memset_spec::*)
+  HMAC_SPEC.hmac_update_spec::
+  HMAC_SPEC.hmac_final_spec::  
+  HMAC_SPEC.hmac_cleanup_spec::  
+  (_HMAC_Init,hmac_init_funspec)::
   HMAC_SPEC.hmac_crypto_spec::nil)).
 (*
 Definition HMS : hmacstate := default_val t_struct_hmac_ctx_st.
@@ -214,4 +295,5 @@ reflexivity.
 Qed.
 
 Hint Rewrite change_compspecs_t_struct_SHA256state_st : norm.
+*)
 *)

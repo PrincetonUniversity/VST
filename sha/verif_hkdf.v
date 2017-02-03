@@ -10,6 +10,62 @@ Require Import sha.hkdf.
 Require Import sha.spec_hmac.
 Require Import sha.spec_hkdf.
 Require Import sha.hkdf_functional_prog.
+
+Lemma body_hkdf: semax_body Hkdf_VarSpecs Hkdf_FunSpecs 
+       f_HKDF HKDF_spec.
+Proof.
+start_function. 
+rename lvar0 into prk. rename lvar1 into plen.
+rename H into lenSalt. rename H0 into lenSecret.
+assert_PROP (isptr prk /\ field_compatible (tarray tuchar 64) [] prk) by entailer!. destruct H as [Pprk FCprk].
+destruct prk; try contradiction. clear Pprk.
+assert_PROP (isptr plen /\ field_compatible (tuint) [] plen) by entailer. destruct H as [Pplen FCplen].
+
+unfold data_at_, field_at_.
+rewrite field_at_data_at. simpl.
+rewrite field_at_data_at. unfold tarray. simpl.
+Let vv :reptype (Tarray tuchar (64 - 32) noattr) := list_repeat 64 Vundef.
+assert (JMeq (default_val (Tarray tuchar 64 noattr)) (sublist 0 64 vv)).
+{ unfold vv. rewrite sublist_list_repeat with (k:=64); try omega. simpl. apply JMeq_refl. }
+erewrite  split2_data_at_Tarray with (n1:=32). (* (v':=vv). (list_repeat 64 Vundef):(reptype (Tarray tuchar (64 - 32) noattr))).*)
+2: omega.
+3: apply JMeq_refl.
+3: apply JMeq_refl.
+2: eassumption.
+normalize. simpl.
+
+freeze [1; 5; 7] FR1.
+
+forward_call (Vptr b i, plen, secret, SECRET, salt, SALT, kv, Tsh).
+{ assert (Frame = [FRZL FR1]). subst Frame; reflexivity.
+  subst Frame. simpl. cancel.
+  rewrite field_address_offset by auto with field_compatible. simpl. rewrite Int.add_zero.
+  rewrite field_address_offset; trivial.
+    simpl. rewrite isptr_offset_val_zero; trivial.
+  cancel. eapply derives_trans. apply data_at_memory_block. simpl. trivial. }
+
+apply extract_exists_pre. intros extr1.
+
+assert (Zlength (HKFD_extract (CONT SALT) (CONT SECRET)) = 32) by apply HMAC_Zlength.
+thaw FR1. freeze [1; 2; 5] FR2.
+forward_call (out, olen, 
+              Vptr b i,
+              Build_DATA 32
+                  (HKFD_extract (CONT SALT) (CONT SECRET)),
+              info, INFO, kv, shmd).
+(*remember (computational_lookup_funspec Delta _HKDF_extract) as spec. symmetry in Heqspec.*)
+(*unfold computational_lookup_funspec in Heqspec; simpl in Heqspec.*)
+forward_seq.
+forward_seq.
+apply XX. eapply myConstr. with (witness:=(out, olen, 
+              Vptr b i,
+              Build_DATA 32
+                  (HKFD_extract (CONT SALT) (CONT SECRET)),
+              info, INFO, kv, shmd)). econstructor. unfold computational_lookup_funspec. reflexivity. (*slow*)
+reflexivity.
+reflexivity.
+reflexivity.
+reflexivity. 
 (*
 Inductive CFL_OUT' (Delta : tycontext) (id : positive):Prop :=
   CLF_OK: funspec -> CFL_OUT Delta id

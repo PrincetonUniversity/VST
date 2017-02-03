@@ -168,12 +168,13 @@ Definition hmac_crypto_spec :=
              data_block Tsh (CONT MSG) msg; 
              memory_block shmd 32 md;
              K_vector kv)
-  POST [ tvoid ] 
+  POST [ tptr tuchar ] 
          EX digest:_,
-          PROP (ByteBitRelations.bytesToBits digest = 
+          PROP (digest= HMAC256 (CONT MSG) (CONT KEY) /\
+                ByteBitRelations.bytesToBits digest = 
                 verif_hmac_crypto.bitspec KEY MSG /\ 
                 forall A Awf, CRYPTO A Awf)
-          LOCAL ()
+          LOCAL (temp ret_temp md)
           SEP(K_vector kv;
               data_block shmd digest md;
               data_block Tsh (CONT MSG) msg; data_block Tsh (CONT KEY) (Vptr b i)).
@@ -370,12 +371,13 @@ Definition hmac_crypto_spec :=
              data_block Tsh (CONT MSG) msg; 
              memory_block shmd 32 md;
              K_vector kv)
-  POST [ tvoid ] 
+  POST [ tptr tuchar ] 
          EX digest:_,
-          PROP (ByteBitRelations.bytesToBits digest = 
+          PROP (digest= HMAC256 (CONT MSG) (CONT KEY) /\
+                ByteBitRelations.bytesToBits digest = 
                 verif_hmac_crypto.bitspec KEY MSG /\ 
                 forall A Awf, CRYPTO A Awf)
-          LOCAL ()
+          LOCAL (temp ret_temp md)
           SEP(K_vector kv;
               data_block shmd digest md;
               data_block Tsh (CONT MSG) msg; data_block Tsh (CONT KEY) (Vptr b i)).
