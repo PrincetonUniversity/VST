@@ -3,7 +3,7 @@
 
 default_target: msl veric floyd progs
 
-COMPCERT ?= compcert
+COMPCERT ?= ../CompCert-2.7.1
 -include CONFIGURE
 #Note:  You can make a CONFIGURE file with the definition
 #   COMPCERT=../compcert
@@ -261,6 +261,9 @@ HMAC_FILES= \
   verif_hmac_update.v verif_hmac_final.v verif_hmac_simple.v \
   verif_hmac_double.v verif_hmac_crypto.v protocol_spec_hmac.v
 
+HKDF_FILES= \
+  hkdf_functional_prog.v hkdf.v hkdf_compsepcs.v spec_hkdf.v
+
 FCF_FILES= \
   Admissibility.v Encryption.v NotationV1.v RndDup.v \
   Array.v Encryption_2W.v NotationV2.v RndGrpElem.v \
@@ -424,6 +427,7 @@ tweetnacl: .loadpath $(TWEETNACL_FILES:%.v=tweetnacl20140427/%.vo)
 hmac0: .loadpath sha/verif_hmac_init.vo sha/verif_hmac_cleanup.vo sha/verif_hmac_final.vo sha/verif_hmac_simple.vo  sha/verif_hmac_double.vo sha/verif_hmac_update.vo sha/verif_hmac_crypto.vo
 hmacdrbg:   .loadpath $(HMACDRBG_FILES:%.v=hmacdrbg/%.vo)
 aes: .loadpath $(AES_FILES:%.v=aes/%.vo)
+hkdf:    .loadpath $(HKDF_FILES:%.v=sha/%.vo)
 # drbg: .loadpath $(DRBG_FILES:%.v=verifiedDrbg/%.vo)
 
 CGFLAGS =  -DCOMPCERT
@@ -438,8 +442,8 @@ clean_cvfiles:
 	rm $(CVFILES)
 
 ifdef CLIGHTGEN
-sha/sha.v sha/hmac.v hmacdrbg/hmac_drbg.v: sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c
-	$(CLIGHTGEN) ${CGFLAGS} sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c
+sha/sha.v sha/hmac.v hmacdrbg/hmac_drbg.v sha/hkdf.v: sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c sha/hkdf.c
+	$(CLIGHTGEN) ${CGFLAGS} sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c sha/hkdf.c
 # Is there a way to generate the next 5 rules automatically from C_FILES? 
 progs/revarray.v: progs/revarray.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
