@@ -279,7 +279,7 @@ Definition f_initialize_channels := {|
             (Sset _c (Etempvar _t'2 (tptr tvoid))))
           (Ssequence
             (Sassign (Ederef (Etempvar _c (tptr tint)) tint)
-              (Eunop Oneg (Econst_int (Int.repr 1) tint) tint))
+              (Econst_int (Int.repr 0) tint))
             (Ssequence
               (Sassign
                 (Ederef
@@ -368,7 +368,7 @@ Definition f_initialize_reader := {|
       (Sassign (Ederef (Etempvar _rr (tptr tint)) tint)
         (Eunop Oneg (Econst_int (Int.repr 1) tint) tint))
       (Sassign (Ederef (Etempvar _lr (tptr tint)) tint)
-        (Econst_int (Int.repr 0) tint)))))
+        (Econst_int (Int.repr 1) tint)))))
 |}.
 
 Definition f_start_read := {|
@@ -495,7 +495,7 @@ Definition f_initialize_writer := {|
             (Ederef
               (Ebinop Oadd (Evar _last_taken (tarray tint 3))
                 (Etempvar _i tint) (tptr tint)) tint)
-            (Eunop Oneg (Econst_int (Int.repr 1) tint) tint)))
+            (Econst_int (Int.repr 1) tint)))
         (Sset _i
           (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
             tint))))))

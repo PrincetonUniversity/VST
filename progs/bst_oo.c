@@ -30,27 +30,37 @@ void treebox_free(treebox b) {
   freeN(b, sizeof (*b));
 }
 
-void insert (treebox t, int x, void *value) {
+void * * subscr (treebox t, int key) {
   struct tree *p;
   for(;;) {
     p = *t;
     if (p==NULL) {
       p = (struct tree *) mallocN (sizeof *p);
-      p->key=x; p->value=value; p->left=NULL; p->right=NULL;
+      p->key=key; p->value=NULL; p->left=NULL; p->right=NULL;
       *t=p;
-      return;
+      return (&p->value);
     } else {
       int y = p->key;
-      if (x<y)
+      if (key<y)
 	t= &p->left;
-      else if (y<x)
+      else if (y<key)
 	t= &p->right;
       else {
-	p->value=value;
-	return;
+	return (&p->value);
       }
     }
   }
+}
+
+void set (treebox t, int x, void *value) {
+  void * * p = subscr(t, x);
+  * p = value;
+}
+
+void * get (treebox t, int x) {
+  void * * p = subscr(t, x);
+  void * v = * p;
+  return v;
 }
 
 void turn_left(treebox _l, struct tree * l, struct tree * r) {
@@ -98,31 +108,13 @@ void delete (treebox t, int x) {
   }
 }
 
-void *lookup (treebox t, int x) {
-  struct tree *p; void *v;
-  p = *t;
-  while (p!=NULL) {
-    int y = p->key;
-    if (x<y)
-      p=p->left;
-    else if (y<x)
-      p=p->right;
-    else {
-      v = p->value;
-      return v;
-    }
-  }
-  return NULL;
-}
-
-
 int main (void) {
   treebox p;
   p = treebox_new();
-  insert(p,3,"three");
-  insert(p,1,"one");
-  insert(p,4,"four");
-  insert(p,1,"ONE");
+  set(p,3,"three");
+  set(p,1,"one");
+  set(p,4,"four");
+  set(p,1,"ONE");
   treebox_free(p);
   return 0;
 }

@@ -791,68 +791,56 @@ Local Open Scope logic.
 (* @Qinxiang: it would be great to complete the annotation *)
 
 Definition spawn_arg_type := 
-  (rmaps.ProdType
-     (rmaps.ProdType
-        (rmaps.ConstType
-           (val *              (* f: pointer to spawned function *)
-            val *              (* b: argument given to spawned function *)
-            list (ident * val) (* globals: list of globals variables and their values *)
-        ))
-        (rmaps.DependentType 0))
-     (rmaps.ArrowType (rmaps.DependentType 0) (rmaps.ArrowType (rmaps.ConstType val) rmaps.Mpred))).
+  (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * val)) (rmaps.DependentType 0)) (rmaps.ArrowType (rmaps.DependentType 0) (rmaps.ArrowType (rmaps.ConstType val) rmaps.Mpred))).
 
 Definition spawn_pre :=
-  (fun (ts: list Type) (x: val * val * list (ident * val) * nth 0 ts unit * (nth 0 ts unit -> val -> mpred)) =>
+  (fun (ts: list Type) (x: val * val * nth 0 ts unit * (nth 0 ts unit -> val -> mpred)) =>
    match x with
-   | (f, b, globals, w, pre) =>
-     PROP (expr.tc_val (tptr Tvoid) b)
-     (LOCALx (temp _args b :: temp _f f :: gvars globals)
-     (SEP (
-       EX _y : ident,
+   | (f, b, w, pre) =>
+     PROP ()
+     LOCAL (temp _args b)
+     SEP (
+       EX _y : ident, EX globals : nth 0 ts unit -> list (ident * val),
          (func_ptr'
            (WITH y : val, x : nth 0 ts unit
              PRE [ _y OF tptr tvoid ]
                PROP ()
-               (LOCALx (temp _y y :: gvars globals)
+               (LOCALx (temp _y y :: map (fun x => gvar (fst x) (snd x)) (globals x))
                (SEP   (pre x y)))
              POST [tptr tvoid]
                PROP  ()
                LOCAL ()
                SEP   ())
            f);
-         pre w b)))
+         pre w b)
    end).
 
 Definition spawn_post :=
-  (fun (ts: list Type) (x: val * val * list (ident * val) * nth 0 ts unit * (nth 0 ts unit -> val -> mpred)) =>
+  (fun (ts: list Type) (x: val * val * nth 0 ts unit * (nth 0 ts unit -> val -> mpred)) =>
    match x with
-   | (f, b, globals, w, pre) =>
+   | (f, b, w, pre) =>
      PROP ()
      LOCAL ()
      SEP ()
    end).
 
 Lemma spawn_pre_nonexpansive: @super_non_expansive spawn_arg_type spawn_pre.
-Proof.
   replace spawn_pre with
-    (fun (ts: list Type) (x: val * val * list (ident * val) * nth 0 ts unit * (nth 0 ts unit -> val -> mpred)) (rho: environ) =>
-     PROP (
+    (fun (ts: list Type) (x: val * val * nth 0 ts unit * (nth 0 ts unit -> val -> mpred)) (rho: environ) =>
+     PROP ()
+     LOCAL (
        match x with
-       | (f, b, globals, w, pre) => expr.tc_val (tptr Tvoid) b
+       | (f, b, w, pre) => temp _args b
        end)
-     (LOCALx
+     SEP (
        match x with
-       | (f, b, globals, w, pre) => temp _args b :: temp _f f :: gvars globals
-       end
-     (SEP (
-       match x with
-       | (f, b, globals, w, pre) =>
-         EX _y : ident,
+       | (f, b, w, pre) =>
+         EX _y : ident, EX globals : nth 0 ts unit -> list (ident * val),
          (func_ptr'
            (WITH y : val, x : nth 0 ts unit
              PRE [ _y OF tptr tvoid ]
                PROP ()
-               (LOCALx (temp _y y :: gvars globals)
+               (LOCALx (temp _y y :: map (fun x => gvar (fst x) (snd x)) (globals x))
                (SEP   (pre x y)))
              POST [tptr tvoid]
                PROP  ()
@@ -861,17 +849,15 @@ Proof.
            f)
        end;
        match x with
-       | (f, b, globals, w, pre) =>
+       | (f, b, w, pre) =>
          pre w b
-       end)))
+       end)
      rho).
   Focus 2. {
     extensionality ts x rho.
-    destruct x as [[[[f b] globals] w] pre].
+    destruct x as [[[f b] w] pre].
     reflexivity.
   } Unfocus.
-Admitted.
-  (*
   apply (PROP_LOCAL_SEP_super_non_expansive
    (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * val)) (rmaps.DependentType 0)) (rmaps.ArrowType (rmaps.DependentType 0) (rmaps.ArrowType (rmaps.ConstType val) rmaps.Mpred)))
     nil
@@ -892,7 +878,7 @@ Admitted.
                POST [tptr tvoid]
                  PROP  ()
                  LOCAL ()
-                 SEP   (emp))
+                 SEP   ())
              f)
        end) ::
      (fun ts x => 
@@ -935,7 +921,7 @@ Admitted.
     simpl.
     apply (nonexpansive_super_non_expansive (fun R => R)).
     apply identity_nonexpansive.
-*)
+Qed.
 
 Lemma spawn_post_nonexpansive: @super_non_expansive spawn_arg_type spawn_post.
 Proof.

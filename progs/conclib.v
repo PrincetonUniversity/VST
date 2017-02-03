@@ -1,6 +1,6 @@
 Require Export msl.predicates_sl.
 Require Export concurrency.semax_conc_pred.
-Require Export concurrency.xsemax_conc.
+Require Export concurrency.semax_conc.
 Require Export floyd.proofauto.
 Require Import floyd.library.
 Require Export floyd.sublist.
@@ -16,14 +16,6 @@ Qed.
 Corollary Znth_app1 : forall {A} l1 (x : A) l2 i d, Zlength l1 = i -> Znth i (l1 ++ x :: l2) d = x.
 Proof.
   intros; rewrite Znth_app, Znth_0_cons; auto.
-Qed.
-
-Lemma Znth_inbounds : forall {A} i (l : list A) d, Znth i l d <> d -> 0 <= i < Zlength l.
-Proof.
-  intros.
-  destruct (zlt i 0); [contradiction H; apply Znth_underflow; auto|].
-  destruct (Z_lt_dec i (Zlength l)); [omega|].
-  rewrite Znth_overflow in H; [contradiction H; auto | omega].
 Qed.
 
 Definition complete MAX l := l ++ repeat (vint 0) (Z.to_nat MAX - length l).
@@ -84,24 +76,6 @@ Proof.
 Qed.
 
 Definition remove_at {A} i (l : list A) := firstn i l ++ skipn (S i) l.
-
-Lemma upd_Znth_cons : forall {A} i a l (x : A), i > 0 ->
-  upd_Znth i (a :: l) x = a :: upd_Znth (i - 1) l x.
-Proof.
-  intros; unfold upd_Znth, sublist.sublist; simpl.
-  repeat rewrite Z.sub_0_r.
-  destruct (Z.to_nat i) eqn: Hi.
-  { exploit Z2Nat_inj_0; eauto; omega. }
-  rewrite Zlength_cons; repeat rewrite Z2Nat.inj_add; try omega.
-  repeat rewrite Z2Nat.inj_sub; try omega.
-  rewrite Hi; simpl.
-  rewrite Nat.sub_0_r.
-  do 4 f_equal.
-  rewrite Z2Nat.inj_succ; [|rewrite Zlength_correct; omega].
-  repeat rewrite Z2Nat.inj_add; try omega.
-  rewrite Z2Nat.inj_sub; try omega.
-  simpl plus; omega.
-Qed.
 
 Lemma Forall_firstn : forall {A} (P : A -> Prop) l i, Forall P l ->
   Forall P (firstn i l).
@@ -483,11 +457,21 @@ Qed.
 
 Transparent Z.of_nat.
 
-Lemma nth_Znth : forall {A} i l (d : A), nth i l d = Znth (Z.of_nat i) l d.
+Lemma In_Znth : forall {A} l (x d : A), In x l ->
+  exists i, 0 <= i < Zlength l /\ Znth i l d = x.
+Proof.
+  intros.
+  destruct (In_nth _ _ d H) as (n & ? & ?).
+  exists (Z.of_nat n); unfold Znth.
+  split; [rewrite Zlength_correct; Omega0|].
+  rewrite Nat2Z.id; destruct (zlt (Z.of_nat n) 0); auto; omega.
+Qed.
+
+Lemma Znth_In : forall {A} i l (d : A), 0 <= i < Zlength l -> In (Znth i l d) l.
 Proof.
   intros; unfold Znth.
-  destruct (zlt (Z.of_nat i) 0); [omega|].
-  rewrite Nat2Z.id; auto.
+  destruct (zlt i 0); [omega|].
+  apply nth_In; rewrite Zlength_correct in *; Omega0.
 Qed.
 
 Lemma Znth_combine : forall {A B} i l1 l2 (a : A) (b : B), Zlength l1 = Zlength l2 ->
@@ -497,6 +481,37 @@ Proof.
   destruct (zlt i 0); auto.
   apply combine_nth.
   rewrite !Zlength_correct in *; Omega0.
+Qed.
+
+Lemma Zlength_combine : forall {A B} (l : list A) (l' : list B),
+  Zlength (combine l l') = Z.min (Zlength l) (Zlength l').
+Proof.
+  intros; rewrite !Zlength_correct, combine_length, Nat2Z.inj_min; auto.
+Qed.
+
+Lemma nth_Znth : forall {A} i l (d : A), nth i l d = Znth (Z.of_nat i) l d.
+Proof.
+  intros; unfold Znth.
+  destruct (zlt (Z.of_nat i) 0); [omega|].
+  rewrite Nat2Z.id; auto.
+Qed.
+
+Lemma upd_Znth_cons : forall {A} i a l (x : A), i > 0 ->
+  upd_Znth i (a :: l) x = a :: upd_Znth (i - 1) l x.
+Proof.
+  intros; unfold upd_Znth, sublist.sublist; simpl.
+  repeat rewrite Z.sub_0_r.
+  destruct (Z.to_nat i) eqn: Hi.
+  { exploit Z2Nat_inj_0; eauto; omega. }
+  rewrite Zlength_cons; repeat rewrite Z2Nat.inj_add; try omega.
+  repeat rewrite Z2Nat.inj_sub; try omega.
+  rewrite Hi; simpl.
+  rewrite Nat.sub_0_r.
+  do 4 f_equal.
+  rewrite Z2Nat.inj_succ; [|rewrite Zlength_correct; omega].
+  repeat rewrite Z2Nat.inj_add; try omega.
+  rewrite Z2Nat.inj_sub; try omega.
+  simpl plus; omega.
 Qed.
 
 Lemma combine_upd_Znth1 : forall {A B} (l1 : list A) (l2 : list B) i x d, 0 <= i < Zlength l1 ->
@@ -511,12 +526,6 @@ Proof.
   - rewrite !upd_Znth_cons; try omega; simpl.
     erewrite IHl1; try omega.
     rewrite Znth_pos_cons; auto; omega.
-Qed.
-
-Lemma Zlength_combine : forall {A B} (l : list A) (l' : list B),
-  Zlength (combine l l') = Z.min (Zlength l) (Zlength l').
-Proof.
-  intros; rewrite !Zlength_correct, combine_length, Nat2Z.inj_min; auto.
 Qed.
 
 Lemma sepcon_rev : forall l, fold_right sepcon emp (rev l) = fold_right sepcon emp l.
@@ -603,23 +612,6 @@ Proof.
   rewrite Z2Nat.inj_sub, Zlength_correct, Nat2Z.id, Z2Nat.inj_add, skipn_length; simpl; omega.
 Qed.
 
-Lemma Znth_In : forall {A} i l (d : A), 0 <= i < Zlength l -> In (Znth i l d) l.
-Proof.
-  intros; unfold Znth.
-  destruct (zlt i 0); [omega|].
-  apply nth_In; rewrite Zlength_correct in *; Omega0.
-Qed.
-
-Lemma In_Znth : forall {A} l (x d : A), In x l ->
-  exists i, 0 <= i < Zlength l /\ Znth i l d = x.
-Proof.
-  intros.
-  destruct (In_nth _ _ d H) as (n & ? & ?).
-  exists (Z.of_nat n); unfold Znth.
-  split; [rewrite Zlength_correct; Omega0|].
-  rewrite Nat2Z.id; destruct (zlt (Z.of_nat n) 0); auto; omega.
-Qed.
-
 Lemma In_upd_Znth : forall {A} i l (x y : A), In x (upd_Znth i l y) -> x = y \/ In x l.
 Proof.
   unfold upd_Znth; intros.
@@ -703,6 +695,14 @@ Proof.
   - subst; rewrite !upd_Znth0, !Zlength_cons, !sublist_1_cons, !sublist_same; auto; omega.
   - rewrite !upd_Znth_cons; try omega; simpl.
     rewrite IHl1; auto; omega.
+Qed.
+
+Lemma Znth_inbounds : forall {A} i (l : list A) d, Znth i l d <> d -> 0 <= i < Zlength l.
+Proof.
+  intros.
+  destruct (zlt i 0); [contradiction H; apply Znth_underflow; auto|].
+  destruct (Z_lt_dec i (Zlength l)); [omega|].
+  rewrite Znth_overflow in H; [contradiction H; auto | omega].
 Qed.
 
 Lemma sublist_next : forall {A} i j l (d : A), 0 <= i < j -> j <= Zlength l ->
@@ -945,6 +945,39 @@ Proof.
   apply IHl; omega.
 Qed.
 
+Fixpoint extendr {A} (l : list A) ls :=
+  match l, ls with
+  | x :: xs, y :: ys => (y ++ [x]) :: extendr xs ys
+  | _, _ => ls
+  end.
+
+Lemma Zlength_extendr : forall {A} (l : list A) ls, Zlength (extendr l ls) = Zlength ls.
+Proof.
+  induction l; destruct ls; auto; simpl.
+  rewrite !Zlength_cons, IHl; auto.
+Qed.
+
+Lemma Znth_extendr_in : forall {A} (l : list A) ls i d d', 0 <= i < Zlength l -> Zlength l <= Zlength ls ->
+  Znth i (extendr l ls) d = Znth i ls d ++ [Znth i l d'].
+Proof.
+  induction l; destruct ls; simpl; intros; try rewrite Zlength_nil in *; try omega.
+  rewrite !Zlength_cons in *.
+  destruct (eq_dec i 0); subst; auto.
+  rewrite !Znth_pos_cons; try omega.
+  apply IHl; omega.
+Qed.
+
+Lemma Znth_extendr_ge : forall {A} (l : list A) ls i d, Zlength l <= i ->
+  Znth i (extendr l ls) d = Znth i ls d.
+Proof.
+  induction l; destruct ls; auto; simpl; intros.
+  destruct (zlt i 0); [rewrite !Znth_underflow; auto|].
+  rewrite Zlength_cons in *.
+  destruct (eq_dec i 0); [rewrite Zlength_correct in *; omega|].
+  rewrite !Znth_pos_cons; try omega.
+  apply IHl; omega.
+Qed.
+
 Lemma list_join_eq : forall (b : list share) a c c'
   (Hc : sepalg_list.list_join a b c) (Hc' : sepalg_list.list_join a b c'), c = c'.
 Proof.
@@ -1010,6 +1043,31 @@ Proof.
   - unfold sublist; rewrite skipn_nil, firstn_nil; auto.
   - destruct ls.
     + unfold sublist; rewrite skipn_nil, firstn_nil, extend_nil; auto.
+    + destruct (Z_le_dec j i); [rewrite !sublist_nil_gen; auto|].
+      destruct (Z_le_dec i 0).
+      * subst; rewrite !sublist_0_cons'; try omega.
+        rewrite IHl; auto.
+      * rewrite !sublist_S_cons; auto; omega.
+Qed.
+
+Lemma extendr_nil : forall {A} (l : list A), extendr l [] = [].
+Proof.
+  destruct l; auto.
+Qed.
+
+Lemma extendr_cons : forall {A} (l : list A) l1 ls, extendr l (l1 :: ls) =
+  match l with [] => l1 :: ls | a :: l' => (l1 ++ [a]) :: extendr l' ls end.
+Proof.
+  destruct l; auto.
+Qed.
+
+Lemma sublist_extendr : forall {A} (l : list A) ls i j,
+  sublist i j (extendr l ls) = extendr (sublist i j l) (sublist i j ls).
+Proof.
+  induction l; simpl; intros.
+  - unfold sublist; rewrite skipn_nil, firstn_nil; auto.
+  - destruct ls.
+    + unfold sublist; rewrite skipn_nil, firstn_nil, extendr_nil; auto.
     + destruct (Z_le_dec j i); [rewrite !sublist_nil_gen; auto|].
       destruct (Z_le_dec i 0).
       * subst; rewrite !sublist_0_cons'; try omega.
@@ -1871,7 +1929,7 @@ Proof.
   destruct H as (_ & _ & _ & _ & _ & _ & _ & _ & ?); auto.
 Qed.
 
-Lemma mpred_ext : forall (P Q : predicates_hered.pred compcert_rmaps.RML.R.rmap)
+Lemma mpred_ext' : forall (P Q : predicates_hered.pred compcert_rmaps.RML.R.rmap)
   (Hd1 : predicates_hered.derives P Q) (Hd2 : predicates_hered.derives Q P), P = Q.
 Proof.
   intros.
@@ -1881,6 +1939,11 @@ Proof.
     split; [apply Hd1 | apply Hd2]. }
   subst; f_equal.
   apply proof_irr.
+Qed.
+
+Lemma mpred_ext : forall (P Q : mpred) (Hd1 : P |-- Q) (Hd2 : Q |-- P), P = Q.
+Proof.
+  apply mpred_ext'.
 Qed.
 
 (* tactics *)
@@ -1915,11 +1978,9 @@ Ltac forward_spawn sig wit := let Frame := fresh "Frame" in evar (Frame : list m
   try match goal with |- semax _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip end;
   rewrite <- ?seq_assoc; eapply semax_seq';
   [match goal with |- semax _ (PROP () (LOCALx ?locals _)) _ _ => eapply semax_pre, semax_call_id0 with
-      (argsig := [(_f, tptr voidstar_funtype); (xsemax_conc._args, tptr tvoid)])(P := [])
+      (argsig := [(_f, tptr voidstar_funtype); (_args, tptr tvoid)])(P := [])
       (Q := locals)(R := Frame)(ts := [sig])
-      (A := rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * val)) (rmaps.DependentType 0))
-            (rmaps.ArrowType (rmaps.DependentType 0) (rmaps.ArrowType (rmaps.ConstType val) rmaps.Mpred)))
-      (x := wit); try reflexivity end |
+      (A := spawn_arg_type)(x := wit); try reflexivity end |
    after_forward_call; unfold spawn_post; rewrite void_ret; subst Frame; normalize].
 
 Lemma semax_fun_id'' id f Espec {cs} Delta P Q R Post c :

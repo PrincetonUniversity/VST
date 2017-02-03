@@ -1828,9 +1828,194 @@ eapply derives_trans.
 rewrite later_andp; apply andp_derives; auto; apply now_later.
 Qed.
 
+Lemma PROP_LOCAL_SEP_cons: forall P1 P2 P3 F,
+  PROPx P1 (LOCALx P2 (SEPx (F :: P3))) =
+  `F * PROPx P1 (LOCALx P2 (SEPx P3)).
+Proof.
+  intros.
+  change (SEPx (F :: P3)) with (`F * SEPx P3).
+  unfold PROPx, LOCALx.
+  unfold_lift; extensionality rho.
+  unfold local, lift1.
+  simpl.
+  apply pred_ext.
+  + normalize.
+  + normalize.
+Qed.
 
+Lemma semax_frame': forall {Espec: OracleKind}{CS: compspecs},
+  forall Delta P1 P2 P3 s Q1 Q2 Q3 F,
+  @semax CS Espec Delta
+    (PROPx P1 (LOCALx P2 (SEPx P3))) s
+      (normal_ret_assert (PROPx Q1 (LOCALx Q2 (SEPx Q3)))) ->
+  @semax CS Espec Delta
+    (PROPx P1 (LOCALx P2 (SEPx (F :: P3)))) s
+      (normal_ret_assert (PROPx Q1 (LOCALx Q2 (SEPx (F :: Q3))))).
+Proof.
+  intros.
+  rewrite !PROP_LOCAL_SEP_cons.
+  replace (normal_ret_assert (` F * PROPx Q1 (LOCALx Q2 (SEPx Q3))))
+    with (frame_ret_assert (normal_ret_assert (PROPx Q1 (LOCALx Q2 (SEPx Q3)))) (`F)).
+  + rewrite sepcon_comm.
+    apply semax_frame; auto.
+    hnf. intros; auto.
+  + extensionality ek v rho.
+    unfold frame_ret_assert, normal_ret_assert; simpl.
+    rewrite sepcon_andp_prop'.
+    f_equal.
+    rewrite sepcon_andp_prop'.
+    f_equal.
+    apply sepcon_comm.
+Qed.
 
+Lemma semax_frame'': forall {Espec: OracleKind}{CS: compspecs},
+  forall Delta P1 P2 P3 s t Q1 Q2 Q3 F,
+  @semax CS Espec Delta
+    (PROPx P1 (LOCALx P2 (SEPx P3))) s
+      (frame_ret_assert
+        (function_body_ret_assert t (PROPx Q1 (LOCALx Q2 (SEPx Q3)))) emp) ->
+  @semax CS Espec Delta
+    (PROPx P1 (LOCALx P2 (SEPx (F :: P3)))) s
+      (frame_ret_assert
+        (function_body_ret_assert t (PROPx Q1 (LOCALx Q2 (SEPx (F :: Q3))))) emp).
+Proof.
+  intros.
+  rewrite !PROP_LOCAL_SEP_cons.
+  replace (frame_ret_assert (function_body_ret_assert t (` F * PROPx Q1 (LOCALx Q2 (SEPx Q3)))) emp)
+    with (frame_ret_assert (frame_ret_assert (function_body_ret_assert t (PROPx Q1 (LOCALx Q2 (SEPx Q3)))) emp) (`F)).
+  + rewrite sepcon_comm.
+    apply semax_frame; auto.
+    hnf. intros; auto.
+  + extensionality ek v rho.
+    unfold frame_ret_assert, normal_ret_assert, function_body_ret_assert; simpl.
+    destruct ek; [apply pred_ext; normalize .. |].
+    destruct v; simpl.
+    - normalize.
+      f_equal.
+      apply sepcon_comm.
+    - destruct t; [| apply pred_ext; normalize .. ].
+      normalize.
+      apply sepcon_comm.
+Qed.
 
+Lemma semax_post'': forall R' Espec {cs: compspecs} Delta R P c t,
+           R' |-- R ->
+      @semax cs Espec Delta P c (frame_ret_assert (function_body_ret_assert t R') emp) ->
+      @semax cs Espec Delta P c (frame_ret_assert (function_body_ret_assert t R) emp).
+Proof. intros. eapply semax_post; eauto. intros. apply andp_left2.
+  intro rho; unfold frame_ret_assert, function_body_ret_assert; normalize.
+  destruct ek; autorewrite with norm1 norm2; normalize.
+  unfold bind_ret; destruct vl; autorewrite with norm1 norm2; normalize.
+  + apply H.
+  + destruct t; autorewrite with norm1 norm2; normalize.
+    apply H.
+Qed.
 
+Definition ret0_tycon (Delta: tycontext): tycontext :=
+  mk_tycontext (PTree.empty _) (PTree.empty _) (ret_type Delta) (glob_types Delta) (glob_specs Delta).
 
+Definition ret1_tycon (Delta: tycontext): tycontext :=
+  mk_tycontext (PTree.set ret_temp ((ret_type Delta), true) (PTree.empty _))
+    (PTree.empty _) (ret_type Delta) (glob_types Delta) (glob_specs Delta).
 
+Lemma make_args0_tc_environ: forall rho Delta,
+  tc_environ Delta rho ->
+  tc_environ (ret0_tycon Delta) (make_args nil nil rho).
+Proof.
+  intros.
+  destruct H as [? [? [? ?]]].
+  split; [| split; [| split]]; simpl.
+  + hnf; intros.
+    rewrite PTree.gempty in H3; inversion H3.
+  + hnf; split; intros.
+    - rewrite PTree.gempty in H3; inversion H3.
+    - destruct H3 as [v ?].
+      inversion H3.
+  + auto.
+  + hnf; intros.
+    left.
+    simpl.
+    reflexivity.
+Qed.
+
+Lemma make_args1_tc_environ: forall rho Delta v,
+  tc_environ Delta rho ->
+  typecheck_val v (ret_type Delta) = true ->
+  tc_environ (ret1_tycon Delta) (make_args (ret_temp :: nil) (v :: nil) rho).
+Proof.
+  intros.
+  rename H0 into HH.
+  destruct H as [? [? [? ?]]].
+  simpl.
+  split; [| split; [| split]].
+  + hnf; intros.
+    unfold ret1_tycon, temp_types in H3.
+    rewrite PTree.gsspec in H3.
+    destruct (peq id ret_temp).
+    - subst.
+      inversion H3; subst.
+      exists v; simpl.
+      split; auto.
+    - rewrite PTree.gempty in H3; inversion H3.
+  + hnf; split; intros.
+    - rewrite PTree.gempty in H3; inversion H3.
+    - destruct H3 as [v' ?].
+      inversion H3.
+  + auto.
+  + hnf; intros.
+    left.
+    simpl.
+    reflexivity.
+Qed.
+
+Lemma semax_post_ret1: forall P' R' Espec {cs: compspecs} Delta P v R Pre c,
+  ret_type Delta <> Tvoid ->
+  ENTAIL (ret1_tycon Delta),
+    PROPx P' (LOCAL (temp ret_temp v) (SEPx R')) |-- PROPx P (LOCAL (temp ret_temp v) (SEPx R)) ->
+  @semax cs Espec Delta Pre c
+    (frame_ret_assert (function_body_ret_assert (ret_type Delta)
+      (PROPx P' (LOCAL (temp ret_temp v) (SEPx R')))) emp) ->
+  @semax cs Espec Delta Pre c
+    (frame_ret_assert (function_body_ret_assert (ret_type Delta)
+      (PROPx P (LOCAL (temp ret_temp v) (SEPx R)))) emp).
+Proof.
+  intros.
+  eapply semax_post; eauto.
+  intros.
+  intro rho; unfold frame_ret_assert, function_body_ret_assert; normalize.
+  destruct ek; autorewrite with norm1 norm2; try solve [normalize].
+  simpl; rewrite !sepcon_emp.
+  unfold bind_ret; unfold_lift; destruct vl; [| destruct (ret_type Delta) eqn:?H]; simpl; normalize.
+  + eapply derives_trans; [| apply (H0 _)].
+    Opaque PTree.set. simpl; apply andp_right; auto. Transparent PTree.set.
+    apply prop_right.
+    apply make_args1_tc_environ; auto.
+    rewrite tc_val_eq in H3; auto.
+  + congruence.
+Qed.
+
+Lemma semax_post_ret0: forall P' R' Espec {cs: compspecs} Delta P R Pre c,
+  ret_type Delta = Tvoid ->
+  ENTAIL (ret0_tycon Delta),
+    PROPx P' (LOCALx nil (SEPx R')) |-- PROPx P (LOCALx nil (SEPx R)) ->
+  @semax cs Espec Delta Pre c
+    (frame_ret_assert (function_body_ret_assert (ret_type Delta)
+      (PROPx P' (LOCALx nil (SEPx R')))) emp) ->
+  @semax cs Espec Delta Pre c
+    (frame_ret_assert (function_body_ret_assert (ret_type Delta)
+      (PROPx P (LOCALx nil (SEPx R)))) emp).
+Proof.
+  intros.
+  eapply semax_post; eauto.
+  intros.
+  intro rho; unfold frame_ret_assert, function_body_ret_assert; normalize.
+  destruct ek; autorewrite with norm1 norm2; try solve [normalize].
+  simpl; rewrite !sepcon_emp.
+  unfold bind_ret; unfold_lift; destruct vl; [| destruct (ret_type Delta) eqn:?H]; simpl; normalize.
+  + rewrite H in H3.
+    inversion H3.
+  + eapply derives_trans; [| apply (H0 _)].
+    Opaque PTree.set. simpl; apply andp_right; auto. Transparent PTree.set.
+    apply prop_right.
+    apply make_args0_tc_environ; auto.
+Qed.
