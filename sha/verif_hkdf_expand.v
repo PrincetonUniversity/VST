@@ -1,7 +1,5 @@
 Require Import floyd.proofauto.
 Import ListNotations.
-(*Require sha.sha.
-Require Import sha.SHA256.*)
 Local Open Scope logic.
 
 Require Import sha.spec_sha.
@@ -18,22 +16,6 @@ Lemma myadmit (P:Prop): P. Admitted.
 Axiom HMAC_CEMPTY_data_at: forall hmac,
     HMAC_SPEC.EMPTY hmac |-- data_at_ Tsh (Tstruct _hmac_ctx_st noattr) hmac.
 
-
-Lemma map_Vint_injective: forall l m, map Vint l = map Vint m -> l=m.
-Proof. induction l; intros.
-+ destruct m; simpl in *; inv H; trivial.
-+ destruct m; simpl in *; inv H. f_equal; eauto.
-Qed.
-
-Lemma map_IntReprOfBytes_injective: forall l m, Forall general_lemmas.isbyteZ  l -> 
-  Forall general_lemmas.isbyteZ m -> map Int.repr l = map Int.repr m -> l=m.
-Proof. induction l; intros.
-+ destruct m; simpl in *; inv H1; trivial.
-+ destruct m; simpl in *; inv H1. inv H. inv H0.
-  rewrite (IHl m); trivial. f_equal. clear IHl H4 H6 H7.
-  unfold general_lemmas.isbyteZ in *. do 2 rewrite Int.Z_mod_modulus_eq in H3.
-  do 2 rewrite Zmod_small in H3; trivial; rewrite int_modulus_eq; omega. 
-Qed.
 
 Lemma isbyteZ_Ti x y : forall n, Forall general_lemmas.isbyteZ (Ti x y n).
 Proof. induction n; simpl. constructor.
@@ -59,110 +41,8 @@ rewrite Zlength_app, IHn, Zlength_Ti.
 do 2 rewrite Nat2Z.inj_mul. rewrite (Nat2Z.inj_succ n), Zmult_succ_r_reverse; trivial.
 Qed.
 
-Lemma isptr_field_compatible_tarray_tuchar0 p: isptr p -> 
-      field_compatible (tarray tuchar 0) nil p.
-Proof. intros; red. destruct p; try contradiction.
-  repeat split; simpl; trivial.
-  destruct (Int.unsigned_range i); omega.
-  apply Z.divide_1_l. 
-Qed. 
 
-Lemma data_at_tuchar_singleton_array cs sh v p:
-  @data_at cs sh tuchar v p |-- @data_at cs sh (tarray tuchar 1) [v] p.  
-Proof. assert_PROP (isptr p /\ field_compatible (tarray tuchar 1) [] p) by entailer!.
-  destruct H.
-  unfold data_at at 2.
-  erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: apply JMeq_refl. 2: simpl; trivial. 
-  erewrite array_at_len_1. 2: apply JMeq_refl.
-  rewrite field_at_data_at; simpl. 
-  rewrite field_address_offset; trivial.
-    simpl. rewrite isptr_offset_val_zero; trivial.
-  eapply field_compatible_cons_Tarray. reflexivity. trivial. omega.
-Qed. 
-Lemma data_at_tuchar_singleton_array_inv cs sh v p:
-  @data_at cs sh (tarray tuchar 1) [v] p |-- @data_at cs sh tuchar v p.  
-Proof. assert_PROP (isptr p /\ field_compatible (tarray tuchar 1) [] p) by entailer!.
-  destruct H.
-  unfold data_at at 1.
-  erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: apply JMeq_refl. 2: simpl; trivial. 
-  erewrite array_at_len_1. 2: apply JMeq_refl.
-  rewrite field_at_data_at; simpl. 
-  rewrite field_address_offset; trivial.
-    simpl. rewrite isptr_offset_val_zero; trivial.
-  eapply field_compatible_cons_Tarray. reflexivity. trivial. omega.
-Qed.
- 
-Lemma data_at_tuchar_singleton_array_eq cs sh v p:
-  @data_at cs sh (tarray tuchar 1) [v] p = @data_at cs sh tuchar v p.  
-Proof. apply pred_ext.
-  apply data_at_tuchar_singleton_array_inv.
-  apply data_at_tuchar_singleton_array. 
-Qed. 
-
-Lemma data_at_tuchar_zero_array cs sh p: isptr p ->
-  emp |-- @data_at cs sh (tarray tuchar 0) [] p.  
-Proof. intros.
-  unfold data_at. 
-  erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: apply JMeq_refl. 2: simpl; trivial. 
-  rewrite array_at_len_0. apply andp_right; trivial.
-  apply prop_right. apply isptr_field_compatible_tarray_tuchar0 in H.
-  unfold field_compatible in H.  
-  unfold field_compatible0; simpl in *. intuition.
-Qed.
-Lemma data_at_tuchar_zero_array_inv cs sh p:
-  @data_at cs sh (tarray tuchar 0) [] p |-- emp.  
-Proof. intros.
-  unfold data_at. 
-  erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: apply JMeq_refl. 2: simpl; trivial. 
-  rewrite array_at_len_0. entailer. 
-Qed.
-Lemma data_at_tuchar_zero_array_eq cs sh p:
-  isptr p ->
-  @data_at cs sh (tarray tuchar 0) [] p = emp.  
-Proof. intros.
-  apply pred_ext.
-  apply data_at_tuchar_zero_array_inv.
-  apply data_at_tuchar_zero_array; trivial.
-Qed. 
-
-Lemma data_at__tuchar_zero_array cs sh p (H: isptr p):
-  emp |-- @data_at_ cs sh (tarray tuchar 0) p.  
-Proof. unfold data_at_, field_at_. apply data_at_tuchar_zero_array; trivial. Qed.
-
-Lemma data_at__tuchar_zero_array_inv cs sh p:
-  @data_at_ cs sh (tarray tuchar 0) p |-- emp.  
-Proof. unfold data_at_, field_at_. apply data_at_tuchar_zero_array_inv. Qed.
-
-Lemma data_at__tuchar_zero_array_eq cs sh p (H: isptr p):
-  @data_at_ cs sh (tarray tuchar 0) p = emp.  
-Proof. intros.
-  apply pred_ext.
-  apply data_at__tuchar_zero_array_inv.
-  apply data_at__tuchar_zero_array; trivial.
-Qed. 
-
-Lemma split2_data_at__Tarray_tuchar
-     : forall {cs} (sh : Share.t)  (n n1 : Z) (p : val),
-       0 <= n1 <= n -> isptr p ->field_compatible (Tarray tuchar n noattr) [] p ->
-       @data_at_ cs sh (Tarray tuchar n noattr) p =
-       @data_at_ cs sh (Tarray tuchar n1 noattr) p *
-       @data_at_ cs sh (Tarray tuchar (n - n1) noattr)
-         (field_address0 (Tarray tuchar n noattr) [ArraySubsc n1] p).
-Proof. intros. unfold data_at_ at 1; unfold field_at_.
-rewrite field_at_data_at.
-erewrite (@split2_data_at_Tarray cs sh tuchar n n1).
-instantiate (1:= list_repeat (Z.to_nat (n-n1)) Vundef).
-instantiate (1:= list_repeat (Z.to_nat n1) Vundef).
-unfold field_address. simpl. 
-rewrite if_true; trivial. rewrite isptr_offset_val_zero; trivial.
-trivial.
-simpl.
-instantiate (1:=list_repeat (Z.to_nat n) Vundef).
-unfold default_val. simpl. autorewrite with sublist. apply JMeq_refl. 
-unfold default_val. simpl. autorewrite with sublist. apply JMeq_refl. 
-unfold default_val. simpl. autorewrite with sublist. apply JMeq_refl.
-Qed. (*ToDO: generalize to types other than tuchar?*)
-
+(*
 Lemma change_compspecs_datablock:
   @data_block spec_hmac.CompSpecs  =
   @data_block CompSpecs.
@@ -174,49 +54,12 @@ Lemma change_compspecs_t_struct_hmacctxstate_st:
 Proof. extensionality gfs. trivial. Qed.
 
 Hint Rewrite change_compspecs_t_struct_SHA256state_st : norm.
-Hint Rewrite change_compspecs_t_struct_hmacctxstate_st: norm.
-(*
-Parameter INV : DATA -> DATA -> environ -> mpred.
-Parameter INVi : DATA -> DATA -> Z -> environ -> mpred.
-Parameter PREINC : DATA -> DATA -> environ -> mpred.
-Parameter MYPOST : DATA -> DATA -> environ -> mpred.
+Hint Rewrite change_compspecs_t_struct_hmacctxstate_st: norm.*)
 
-Parameter A:Type.
-Parameter a:A.
-*)
 Definition Done (i:Z): int := Int.repr (digest_len*i).
-(*
-Definition OUTpred sh l p ii: mpred:=
-  data_at_ sh (tarray tuchar (digest_len*ii)) p *
-  memory_block sh (l - digest_len * ii) (offset_val (digest_len*ii) p).
-
-Definition OUTpred PrkCont InfoCont sh l z c p: mpred:=
-  data_at sh (tarray tuchar z) (map Vint (map Int.repr (HKDF_expand PrkCont InfoCont c))) p *
-  memory_block sh (l - z) (offset_val z p).
-*)
 Definition OUTpred PrkCont InfoCont sh z r cont p: mpred:=
   data_at sh (tarray tuchar z) (sublist 0 z (map Vint (map Int.repr (HKDF_expand PrkCont InfoCont cont)))) p *
   memory_block sh r (offset_val z p).
-
-(*
-Parameter OUTpred': share -> Z -> val -> Z -> mpred.
-Definition OUTpred sh l p ii: mpred:=
-  if zeq ii 0 then memory_block sh l p
-  else OUTpred' sh l p ii.*)
-(*
-Function Ri (PRK info: list Z) n:=
-  match n with
-  O => list_repeat 32 Vundef
- |S m => let prev := Ri PRK info m in
-         HMAC256 (prev ++ info ++ [Z.of_nat n]) PRK
-  end.
-
-Function R (PRK info: list Z) (n:nat):list Z :=
-  match n with
-  O => nil
-| S m => (T PRK info m) ++ (Ti PRK info n)
-  end.*)
-
 
 Definition PREVcont PRK INFO (i: Z): reptype (Tarray tuchar 32 noattr) :=
      if zeq i 0 then list_repeat 32 Vundef 

@@ -2,7 +2,7 @@ Require Import compcert.lib.Coqlib.
 Require Import List. Import ListNotations.
 Require Import sha.HMAC256_functional_prog.
 
-Definition HKFD_extract (salt IKM: list Z): list Z := HMAC256 IKM salt.
+Definition HKDF_extract (salt IKM: list Z): list Z := HMAC256 IKM salt.
 
 Function Ti (PRK info: list Z) n:=
   match n with
@@ -24,7 +24,7 @@ Definition HKDF_expand (PRK info:list Z) (L:Z):list Z :=
   floyd.sublist.sublist 0 L (T PRK info (Z.to_nat k)).
 
 Definition HKDF salt IKM info L:=
-  let PRK := HKFD_extract salt IKM in
+  let PRK := HKDF_extract salt IKM in
   HKDF_expand PRK info L.
 
 Require Import Coq.Strings.String.
@@ -39,8 +39,8 @@ Definition L     := 42.
 Definition PRK   := decode_hex "077709362c2e32df0ddc3f0dc47bba6390b6c73bb50f9c3122ec844ad7c2b3e5".
 Definition OKM   := decode_hex "3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf34007208d5b887185865".
 
-Goal HKFD_extract salt IKM = PRK. vm_compute.  reflexivity. Qed. 
-Goal HKDF salt IKM info L = OKM. Time vm_compute. (*6secs*) reflexivity. Time Qed. (*6secs*)
+Goal HKDF_extract salt IKM = PRK. vm_compute.  reflexivity. Qed. 
+Goal HKDF salt IKM info L = OKM. vm_compute. reflexivity. Qed. (*6secs*)
 End HKDF_test_A1.
 
 Module HKDF_test_A2.
@@ -53,6 +53,6 @@ Definition L     := 82.
 Definition PRK   := decode_hex "06a6b88c5853361a06104c9ceb35b45cef760014904671014a193f40c15fc244".
 Definition OKM   := decode_hex "b11e398dc80327a1c8e7f78c596a49344f012eda2d4efad8a050cc4c19afa97c59045a99cac7827271cb41c65e590e09da3275600c2f09b8367793a9aca3db71cc30c58179ec3e87c14c01d5c1f3434f1d87".
 
-Goal HKFD_extract salt IKM = PRK. vm_compute.  reflexivity. Qed. 
-Goal HKDF salt IKM info L = OKM. Time vm_compute. (*20secs*) reflexivity. Time Qed. (*20secs*)
+Goal HKDF_extract salt IKM = PRK. vm_compute.  reflexivity. Qed. 
+Goal HKDF salt IKM info L = OKM. vm_compute. reflexivity. Qed.
 End HKDF_test_A2.

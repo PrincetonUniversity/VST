@@ -44,15 +44,100 @@ forward_call (Vptr b i, plen, secret, SECRET, salt, SALT, kv, Tsh).
     simpl. rewrite isptr_offset_val_zero; trivial.
   cancel. eapply derives_trans. apply data_at_memory_block. simpl. trivial. }
 
-apply extract_exists_pre. intros extr1.
+(*apply extract_exists_pre. intros extr1.*)
 
-assert (Zlength (HKFD_extract (CONT SALT) (CONT SECRET)) = 32) by apply HMAC_Zlength.
+assert (Zlength (HKDF_extract (CONT SALT) (CONT SECRET)) = 32) as ZlengthExtract by apply HMAC_Zlength.
 thaw FR1. freeze [1; 2; 5] FR2.
+
 forward_call (out, olen, 
               Vptr b i,
               Build_DATA 32
-                  (HKFD_extract (CONT SALT) (CONT SECRET)),
+                  (HKDF_extract (CONT SALT) (CONT SECRET)),
               info, INFO, kv, shmd).
+admit. (*VST error: scalar locals as function arguments?*)
+admit.
+simpl.
+cancel.
+{ simpl. repeat split; trivial.
+  rewrite ZlengthExtract; trivial. omega. omega. }
+apply extract_exists_pre. intros x. destruct x. Intros. rename H0 into EXPAND_RES. simpl in *.
+unfold expand_out_post, digest_len in EXPAND_RES. rewrite if_false in EXPAND_RES; try omega.
+replace (olen + 32 - 1)%Z with (olen + 31)%Z in EXPAND_RES by omega.
+destruct (zlt 255 ((olen + 31) / 32)); inv EXPAND_RES.
++ forward_if
+  (PROP ( )
+   LOCAL (temp _t'3 (Vint (Int.repr 1));
+   lvar _prk_len tuint plen; lvar _prk (Tarray tuchar 64 noattr) (Vptr b i); 
+   temp _out_key out; temp _out_len (Vint (Int.repr olen)); temp _salt salt;
+   temp _salt_len (Vint (Int.repr (LEN SALT))); temp _secret secret;
+   temp _secret_len (Vint (Int.repr (LEN SECRET))); temp _info info;
+   temp _info_len (Vint (Int.repr (LEN INFO))); gvar sha._K256 kv)
+   SEP (spec_sha.K_vector kv; spec_sha.data_block Tsh (CONT INFO) info;
+   spec_sha.data_block Tsh (HKDF_extract (CONT SALT) (CONT SECRET)) (Vptr b i);
+   memory_block shmd olen out; FRZL FR2; data_at Tsh tuint (Vint (Int.repr 32)) plen)).
+  { congruence. }
+  { forward. entailer!. }
+
+  forward_if (`FF).
+  { forward. Exists plen. Exists (Vptr b i). Exists 0. entailer!.
+    thaw FR2. erewrite (split2_data_at__Tarray_tuchar Tsh 64 32); simpl; trivial; try omega.
+    rewrite field_address_offset by auto with field_compatible. simpl. rewrite Int.add_zero.
+    cancel.
+    unfold spec_sha.data_block. rewrite ZlengthExtract. entailer!. }
+  { inv H0. } 
+  apply semax_ff.
+
++ forward_if (
+  (PROP ( )
+   LOCAL (lvar _prk_len tuint plen; lvar _prk (Tarray tuchar 64 noattr) (Vptr b i); 
+   temp _out_key out; temp _t'3 (Vint (Int.repr 0)); temp _out_len (Vint (Int.repr olen)); temp _salt salt;
+   temp _salt_len (Vint (Int.repr (LEN SALT))); temp _secret secret;
+   temp _secret_len (Vint (Int.repr (LEN SECRET))); temp _info info;
+   temp _info_len (Vint (Int.repr (LEN INFO))); gvar sha._K256 kv)
+   SEP (spec_sha.K_vector kv; spec_sha.data_block Tsh (CONT INFO) info;
+   spec_sha.data_block Tsh (HKDF_extract (CONT SALT) (CONT SECRET)) (Vptr b i);
+   spec_sha.data_block shmd (HKDF_expand (HKDF_extract (CONT SALT) (CONT SECRET)) (CONT INFO) olen) out;
+   FRZL FR2; data_at Tsh tuint (Vint (Int.repr 32)) plen))). 
+  { congruence. }
+  { forward. entailer!. }
+
+  forward_if (
+  (PROP ( )
+   LOCAL (lvar _prk_len tuint plen; lvar _prk (Tarray tuchar 64 noattr) (Vptr b i); 
+   temp _out_key out; temp _out_len (Vint (Int.repr olen));
+   temp _salt salt; temp _salt_len (Vint (Int.repr (LEN SALT))); temp _secret secret;
+   temp _secret_len (Vint (Int.repr (LEN SECRET))); temp _info info;
+   temp _info_len (Vint (Int.repr (LEN INFO))); gvar sha._K256 kv)
+   SEP (spec_sha.K_vector kv; spec_sha.data_block Tsh (CONT INFO) info;
+   spec_sha.data_block Tsh (HKDF_extract (CONT SALT) (CONT SECRET)) (Vptr b i);
+   spec_sha.data_block shmd (HKDF_expand (HKDF_extract (CONT SALT) (CONT SECRET)) (CONT INFO) olen) out;
+   FRZL FR2; data_at Tsh tuint (Vint (Int.repr 32)) plen))).
+  { elim H0; trivial. }
+  { forward. entailer!. }
+  forward. Exists plen. Exists (Vptr b i). Exists 1. entailer!. thaw FR2.   
+  erewrite (split2_data_at__Tarray_tuchar Tsh 64 32); simpl; trivial; try omega.
+  rewrite field_address_offset by auto with field_compatible. simpl. rewrite Int.add_zero.
+  cancel.
+  unfold spec_sha.data_block. rewrite ZlengthExtract. entailer!.
+Admitted. (*OK, apart from the admit relating to forward_call*)
+(*
+ rewrite ZlengthExtract. cancel. Zlength_HKDF_extract. rewrite field_address0_offset by auto with field_compatible. simpl.
+
+cancel.
+assert (JMeq (sublist 32 64 vv) (sublist 0 32 vv)).
+{ unfold vv. rewrite sublist_list_repeat with (k:=64); try omega. simpl. apply JMeq_refl. }
+erewrite (split2_data_at__Tarray_tuchar Tsh 64 32); simpl; trivial; try omega.
+cancel.
+ simpl. 2: simpl. with (n:=64)(n1:=32). 
+2: omega.
+3: apply JMeq_refl.
+3: apply JMeq_refl.
+2: eassumption.
+normalize. simpl.
+
+ congruence. simpl.
+ simpl.    { repeat split; trivial.
+2: simpl.
 (*remember (computational_lookup_funspec Delta _HKDF_extract) as spec. symmetry in Heqspec.*)
 (*unfold computational_lookup_funspec in Heqspec; simpl in Heqspec.*)
 forward_seq.
@@ -1177,3 +1262,4 @@ start_function.
 rename lvar0 into pad. rename lvar1 into ctxkey.
 apply initbodyproof.
 Qed.
+*)

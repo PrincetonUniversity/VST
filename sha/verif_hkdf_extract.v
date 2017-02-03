@@ -46,6 +46,6 @@ forward_if (PROP ( )
 { elim H; trivial. }
 { clear H; forward. entailer!. }
 
-forward. forward. Exists (Int.repr 1).
-unfold HKFD_extract. entailer. cancel. 
+forward. forward. 
+unfold HKDF_extract. cancel. 
 Time Qed. (*Finished transaction in 5.781 secs (4.89u,0.s) (successful)*)

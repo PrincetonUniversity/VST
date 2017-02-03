@@ -263,7 +263,7 @@ HMAC_FILES= \
 
 HKDF_FILES= \
   hkdf_functional_prog.v hkdf.v hkdf_compspecs.v spec_hkdf.v \
-  verif_hkdf_extract.v verif_hkdf_expand.v
+  verif_hkdf_extract.v verif_hkdf_expand.v verif_hkdf.v
 
 FCF_FILES= \
   Admissibility.v Encryption.v NotationV1.v RndDup.v \

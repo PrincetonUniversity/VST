@@ -3,21 +3,140 @@ Import ListNotations.
 Local Open Scope logic.
 
 Require Import floyd.library.
+Require Import sha.general_lemmas.
+
+(************************ TO BE MOVED SOMEWHERE INSODE FLOYD****************)
+Lemma map_Vint_injective: forall l m, map Vint l = map Vint m -> l=m.
+Proof. induction l; intros.
++ destruct m; simpl in *; inv H; trivial.
++ destruct m; simpl in *; inv H. f_equal; eauto.
+Qed.
+
+Lemma map_IntReprOfBytes_injective: forall l m, Forall general_lemmas.isbyteZ  l -> 
+  Forall general_lemmas.isbyteZ m -> map Int.repr l = map Int.repr m -> l=m.
+Proof. induction l; intros.
++ destruct m; simpl in *; inv H1; trivial.
++ destruct m; simpl in *; inv H1. inv H. inv H0.
+  rewrite (IHl m); trivial. f_equal. clear IHl H4 H6 H7.
+  unfold general_lemmas.isbyteZ in *. do 2 rewrite Int.Z_mod_modulus_eq in H3.
+  do 2 rewrite Zmod_small in H3; trivial; rewrite int_modulus_eq; omega. 
+Qed.
+
+Lemma isptr_field_compatible_tarray_tuchar0 {cs} p: isptr p -> 
+      @field_compatible cs (tarray tuchar 0) nil p.
+Proof. intros; red. destruct p; try contradiction.
+  repeat split; simpl; trivial.
+  destruct (Int.unsigned_range i); omega.
+  apply Z.divide_1_l. 
+Qed. 
+
+Lemma data_at_tuchar_singleton_array {cs} sh v p:
+  @data_at cs sh tuchar v p |-- @data_at cs sh (tarray tuchar 1) [v] p.  
+Proof. assert_PROP (isptr p /\ field_compatible (tarray tuchar 1) [] p) by entailer!.
+  destruct H.
+  unfold data_at at 2.
+  erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: apply JMeq_refl. 2: simpl; trivial. 
+  erewrite array_at_len_1. 2: apply JMeq_refl.
+  rewrite field_at_data_at; simpl. 
+  rewrite field_address_offset; trivial.
+    simpl. rewrite isptr_offset_val_zero; trivial.
+  eapply field_compatible_cons_Tarray. reflexivity. trivial. omega.
+Qed. 
+Lemma data_at_tuchar_singleton_array_inv {cs} sh v p:
+  @data_at cs sh (tarray tuchar 1) [v] p |-- @data_at cs sh tuchar v p.  
+Proof. assert_PROP (isptr p /\ field_compatible (tarray tuchar 1) [] p) by entailer!.
+  destruct H.
+  unfold data_at at 1.
+  erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: apply JMeq_refl. 2: simpl; trivial. 
+  erewrite array_at_len_1. 2: apply JMeq_refl.
+  rewrite field_at_data_at; simpl. 
+  rewrite field_address_offset; trivial.
+    simpl. rewrite isptr_offset_val_zero; trivial.
+  eapply field_compatible_cons_Tarray. reflexivity. trivial. omega.
+Qed.
+ 
+Lemma data_at_tuchar_singleton_array_eq {cs} sh v p:
+  @data_at cs sh (tarray tuchar 1) [v] p = @data_at cs sh tuchar v p.  
+Proof. apply pred_ext.
+  apply data_at_tuchar_singleton_array_inv.
+  apply data_at_tuchar_singleton_array. 
+Qed. 
+
+Lemma data_at_tuchar_zero_array {cs} sh p: isptr p ->
+  emp |-- @data_at cs sh (tarray tuchar 0) [] p.  
+Proof. intros.
+  unfold data_at. 
+  erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: apply JMeq_refl. 2: simpl; trivial. 
+  rewrite array_at_len_0. apply andp_right; trivial.
+  apply prop_right. apply isptr_field_compatible_tarray_tuchar0 in H.
+  unfold field_compatible in H.  
+  unfold field_compatible0; simpl in *. intuition.
+Qed.
+Lemma data_at_tuchar_zero_array_inv {cs} sh p:
+  @data_at cs sh (tarray tuchar 0) [] p |-- emp.  
+Proof. intros.
+  unfold data_at. 
+  erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: apply JMeq_refl. 2: simpl; trivial. 
+  rewrite array_at_len_0. entailer. 
+Qed.
+
+Lemma data_at_tuchar_zero_array_eq {cs} sh p:
+  isptr p ->
+  @data_at cs sh (tarray tuchar 0) [] p = emp.  
+Proof. intros.
+  apply pred_ext.
+  apply data_at_tuchar_zero_array_inv.
+  apply data_at_tuchar_zero_array; trivial.
+Qed. 
+
+Lemma data_at__tuchar_zero_array {cs} sh p (H: isptr p):
+  emp |-- @data_at_ cs sh (tarray tuchar 0) p.  
+Proof. unfold data_at_, field_at_. apply data_at_tuchar_zero_array; trivial. Qed.
+
+Lemma data_at__tuchar_zero_array_inv {cs} sh p:
+  @data_at_ cs sh (tarray tuchar 0) p |-- emp.  
+Proof. unfold data_at_, field_at_. apply data_at_tuchar_zero_array_inv. Qed.
+
+Lemma data_at__tuchar_zero_array_eq {cs} sh p (H: isptr p):
+  @data_at_ cs sh (tarray tuchar 0) p = emp.  
+Proof. intros.
+  apply pred_ext.
+  apply data_at__tuchar_zero_array_inv.
+  apply data_at__tuchar_zero_array; trivial.
+Qed. 
+
+Lemma split2_data_at__Tarray_tuchar
+     : forall {cs} (sh : Share.t)  (n n1 : Z) (p : val),
+       0 <= n1 <= n -> isptr p ->field_compatible (Tarray tuchar n noattr) [] p ->
+       @data_at_ cs sh (Tarray tuchar n noattr) p =
+       @data_at_ cs sh (Tarray tuchar n1 noattr) p *
+       @data_at_ cs sh (Tarray tuchar (n - n1) noattr)
+         (field_address0 (Tarray tuchar n noattr) [ArraySubsc n1] p).
+Proof. intros. unfold data_at_ at 1; unfold field_at_.
+rewrite field_at_data_at.
+erewrite (@split2_data_at_Tarray cs sh tuchar n n1).
+instantiate (1:= list_repeat (Z.to_nat (n-n1)) Vundef).
+instantiate (1:= list_repeat (Z.to_nat n1) Vundef).
+unfold field_address. simpl. 
+rewrite if_true; trivial. rewrite isptr_offset_val_zero; trivial.
+trivial.
+simpl.
+instantiate (1:=list_repeat (Z.to_nat n) Vundef).
+unfold default_val. simpl. autorewrite with sublist. apply JMeq_refl. 
+unfold default_val. simpl. autorewrite with sublist. apply JMeq_refl. 
+unfold default_val. simpl. autorewrite with sublist. apply JMeq_refl.
+Qed. (*ToDO: generalize to types other than tuchar?*)
+
+(****************************************************************************)
+
+
 
 Require Import sha.spec_sha.
-(*Require Import sha.sha_lemmas.
-Require Import sha.HMAC_functional_prog.
-Require Import sha.HMAC256_functional_prog.
-Require Import sha.hmac.*)
-(*Require Import sha.spec_hmac.*)
 Require Import sha.protocol_spec_hmac.
 
 Require Import sha.hkdf_functional_prog.
 Require Import sha.hkdf.
-
 Require Import sha.hkdf_compspecs.
-
-(*Definition Vprog : varspecs. Proof. mk_varspecs prog. Defined.*)
 
 Declare Module HMAC_SPEC : HMAC_ABSTRACT_SPEC.
 Definition digest_len:Z := 32.
@@ -86,13 +205,13 @@ Definition HKDF_extract_spec :=
              data_block Tsh (spec_hmac.CONT SALT) salt;
              K_vector kv; data_at_ Tsh tuint olen;
              memory_block shmd 32 out)
-  POST [ tint ] EX x:int, 
+  POST [ tint ]  
           PROP ()
-          LOCAL ((*temp _out_len (Vint (Int.repr 32));*) temp ret_temp (Vint x))
+          LOCAL (temp ret_temp (Vint (Int.repr 1)))
           SEP(K_vector kv;
               data_block Tsh (spec_hmac.CONT SECRET) secret;
               data_block Tsh (spec_hmac.CONT SALT) salt; data_at Tsh tuint (Vint (Int.repr 32)) olen;
-              data_block shmd (HKFD_extract (spec_hmac.CONT SALT) (spec_hmac.CONT SECRET)) out).
+              data_block shmd (HKDF_extract (spec_hmac.CONT SALT) (spec_hmac.CONT SECRET)) out).
 
 Definition HKDF_spec :=
   DECLARE _HKDF
@@ -106,7 +225,9 @@ Definition HKDF_spec :=
         _salt OF tptr tuchar, _salt_len OF tuint,
         _info OF tptr tuchar, _info_len OF tuint ]
          PROP (writable_share shmd; spec_hmac.has_lengthK (spec_hmac.LEN SALT) (spec_hmac.CONT SALT); 
-               spec_hmac.has_lengthD 512 (spec_hmac.LEN SECRET) (spec_hmac.CONT SECRET))
+               spec_hmac.has_lengthD 512 (spec_hmac.LEN SECRET) (spec_hmac.CONT SECRET);
+               spec_hmac.LEN INFO = Zlength (spec_hmac.CONT INFO); 0 <= Zlength (spec_hmac.CONT INFO) <= Int.max_unsigned;
+               Zlength (spec_hmac.CONT INFO) + 97 < two_power_pos 61; 0 <= olen; olen + 32 <= Int.max_unsigned)
          LOCAL (temp _out_key out; temp _out_len (Vint (Int.repr olen)); 
                 temp _salt salt;
                 temp _salt_len (Vint (Int.repr (spec_hmac.LEN SALT)));
@@ -120,14 +241,16 @@ Definition HKDF_spec :=
              data_block Tsh (spec_hmac.CONT INFO) info;
              K_vector kv;
              memory_block shmd olen out)
-  POST [ tint ] 
+  POST [ tint ] EX r:Z,
           PROP ()
-          LOCAL (temp ret_temp (Vint (Int.repr 1)))
+          LOCAL (temp ret_temp (Vint (Int.repr r)))
           SEP(K_vector kv;
               data_block Tsh (spec_hmac.CONT SECRET) secret;
               data_block Tsh (spec_hmac.CONT SALT) salt;
               data_block Tsh (spec_hmac.CONT INFO) info;
-              data_block shmd (HKDF (spec_hmac.CONT SALT) (spec_hmac.CONT SECRET) (spec_hmac.CONT INFO) olen) out).
+              if zlt 255 ((olen + 31) / 32) 
+              then (!!(r=0) && memory_block shmd olen out)
+              else (!!(r=1) && data_block shmd (HKDF (spec_hmac.CONT SALT) (spec_hmac.CONT SECRET) (spec_hmac.CONT INFO) olen) out)).
 
 (*generalizes spec_sha.memcpy_spec by allowing SRC/TGT-array to be longer than necessary*)
 Definition memcpy_spec :=
