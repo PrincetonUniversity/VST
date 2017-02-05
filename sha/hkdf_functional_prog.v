@@ -30,8 +30,7 @@ Definition HKDF salt IKM info L:=
 Require Import Coq.Strings.String.
 Definition decode_hex := sha.functional_prog.hexstring_to_Zlist. 
 
-Module HKDF_test_A1.
-(*Test case A.1 from https://github.com/casebeer/python-hkdf/blob/master/tests.py#L63*)
+Module HKDF_test_rfc5869_A1.
 Definition IKM   := decode_hex "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b".
 Definition salt  := decode_hex "000102030405060708090a0b0c".
 Definition info  := decode_hex "f0f1f2f3f4f5f6f7f8f9".
@@ -41,10 +40,9 @@ Definition OKM   := decode_hex "3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c
 
 Goal HKDF_extract salt IKM = PRK. vm_compute.  reflexivity. Qed. 
 Goal HKDF salt IKM info L = OKM. vm_compute. reflexivity. Qed. (*6secs*)
-End HKDF_test_A1.
+End HKDF_test_rfc5869_A1.
 
-Module HKDF_test_A2.
-(*Test case A.2 from https://github.com/casebeer/python-hkdf/blob/master/tests.py#L80*)
+Module HKDF_test_rfc5869_A2.
 Definition IKM   := decode_hex "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f".
 Definition salt  := decode_hex "606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeaf".
 Definition info  := decode_hex "b0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff".
@@ -55,4 +53,17 @@ Definition OKM   := decode_hex "b11e398dc80327a1c8e7f78c596a49344f012eda2d4efad8
 
 Goal HKDF_extract salt IKM = PRK. vm_compute.  reflexivity. Qed. 
 Goal HKDF salt IKM info L = OKM. vm_compute. reflexivity. Qed.
-End HKDF_test_A2.
+End HKDF_test_rfc5869_A2.
+
+Module HKDF_test_rfc5869_A3.
+Definition IKM   := decode_hex "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b".
+Definition salt  := decode_hex "".
+Definition info  := decode_hex "".
+Definition L     := 42.
+
+Definition PRK   := decode_hex "19ef24a32c717b167f33a91d6f648bdf96596776afdb6377ac434c1c293ccb04".
+Definition OKM   := decode_hex "8da4e775a563c18f715f802a063c5a31b8a11f5c5ee1879ec3454e5f3c738d2d9d201395faa4b61a96c8".
+
+Goal HKDF_extract salt IKM = PRK. vm_compute.  reflexivity. Qed. 
+Goal HKDF salt IKM info L = OKM. vm_compute. reflexivity. Qed.
+End HKDF_test_rfc5869_A3.
