@@ -127,7 +127,8 @@ int HKDF(uint8_t *out_key, size_t out_len,
         !HKDF_expand(out_key, out_len, prk, prk_len, info, info_len))*/
   int extr1 = HKDF_extract(prk, &prk_len, /*digest, */ secret, secret_len, salt,
 			    salt_len);
-  int extr2 = HKDF_expand(out_key, out_len, /*digest,*/ prk, prk_len, info, info_len);
+  size_t prk_len_temp = prk_len; //need to isolate the load (tempvar vs lvar)
+  int extr2 = HKDF_expand(out_key, out_len, /*digest,*/ prk, prk_len_temp, info, info_len);
   if (!extr1 ||!extr2) {
     return 0;
   }
