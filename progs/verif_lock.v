@@ -17,7 +17,8 @@ Definition release_spec := DECLARE _release release_spec.
 Definition lock_R R (h : list AE_hist_el) v := EX z : Z, !!(repable_signed z /\ v = vint z) &&
   (weak_precise_mpred R && emp) * (weak_positive_mpred R && emp) * if eq_dec z 0 then R else emp.
 
-Definition my_lock sh l p R := lock_inv sh l (AE_inv p (vint 1) Tsh (lock_R R)) * EX h : hist, ghost_hist h p.
+Definition my_lock sh l p R := lock_inv sh l (AE_inv p (vint 1) Tsh (lock_R R)) *
+  EX h : hist, ghost_hist h p.
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
@@ -150,6 +151,23 @@ Qed.
 Definition Gprog : funspecs := ltac:(with_library prog [acquire_spec; release_spec; atomic_exchange_spec;
   my_acquire_spec; my_release_spec]).
 
+Lemma weak_precise_lock_R : forall R h v, predicates_hered.derives
+  (weak_precise_mpred R && emp) (weak_precise_mpred (lock_R R h v) && emp).
+Proof.
+  unfold lock_R; intros ???? (Hprecise & ?).
+  split; auto.
+  intros ??? (? & v1 & ? & ? & ? & (? & ? & ? & ((? & ?) & (? & ?)) & (? & ?)) & ?)
+    (? & v2 & ? & ? & ? & (? & ? & ? & ((? & ?) & (? & ?)) & (? & ?)) & ?) ??; subst.
+  exploit (repr_inj_signed v1 v2); auto; [congruence | intro; subst].
+  repeat match goal with H : predicates_hered.app_pred emp ?r, H' : sepalg.join ?r _ _ |- _ =>
+    specialize (H _ _ H'); subst end.
+  destruct (eq_dec v2 0).
+  - apply (Hprecise w); auto; split; auto.
+  - repeat match goal with H : predicates_hered.app_pred emp ?r, H' : sepalg.join_sub ?r _ |- _ =>
+      destruct H' as (? & H'); specialize (H _ _ H'); subst end.
+    eapply sepalg.same_unit; eauto.
+Qed.
+
 Lemma body_my_acquire : semax_body Vprog Gprog f_my_acquire my_acquire_spec.
 Proof.
   start_dep_function.
@@ -188,14 +206,10 @@ Proof.
         Intros; subst.
         eapply semax_pre, Ha; clear Ha.
         go_lowerx.
+        rewrite andp_emp_dup at 1.
         Exists 1 z'; entailer!.
         { split; computable. }
-        apply andp_right; auto.
-        eapply derives_trans; [entailer! | apply precise_weak_precise].
-        apply derives_precise' with (Q := emp); auto.
-        Intros z0.
-        destruct (eq_dec z0 0); [subst; discriminate|].
-        rewrite sepcon_emp, <- sepcon_emp; apply sepcon_derives; apply andp_left2; auto. }
+        apply weak_precise_lock_R with (h := []). }
       Intros x z'; destruct x as (t, v); simpl in *.
       forward.
       go_lower.
@@ -229,18 +243,12 @@ Proof.
     { apply derives_trans with (Q0 := FF * TT); [|entailer!].
       apply sepcon_derives; [|auto].
       apply weak_precise_positive_conflict. }
+    rewrite andp_emp_dup at 1.
     Exists 0 z'; rewrite eq_dec_refl; entailer!.
     { split; computable. }
-    apply andp_right; auto.
-    eapply derives_trans; [entailer! | apply precise_weak_precise].
-    apply derives_precise' with (Q := R); auto.
-    * Intros z.
-      assert (z = 0) by (apply repr_inj_signed; auto; split; computable).
-      subst; rewrite eq_dec_refl; entailer!.
-      rewrite <- sepcon_emp; apply sepcon_derives; apply andp_left2; auto.
-    * admit. }
+    apply weak_precise_lock_R with (h := []). }
   Intros x z'; destruct x as (t, v); simpl in *.
   forward.
   unfold my_lock.
   Exists (h ++ [(t, AE (vint z') (vint 0))]); auto.
-Admitted.
+Qed.

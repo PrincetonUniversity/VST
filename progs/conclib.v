@@ -1976,6 +1976,22 @@ Proof.
   apply mpred_ext'.
 Qed.
 
+Lemma andp_emp_derives_dup : forall (P : mpred),
+  predicates_hered.derives (P && emp) ((P && emp) * (P && emp)).
+Proof.
+  intros ???.
+  exists a; exists a; split; auto.
+  setoid_rewrite <- sepalg.identity_unit_equiv; destruct H; auto.
+Qed.
+
+Corollary andp_emp_dup : forall (P : mpred), P && emp = (P && emp) * (P && emp).
+Proof.
+  intro; apply mpred_ext.
+  - apply andp_emp_derives_dup.
+  - entailer!.
+    apply andp_left2; auto.
+Qed.
+
 (* tactics *)
 Lemma void_ret : ifvoid tvoid (` (PROP ( )  LOCAL ()  SEP ()) (make_args [] []))
   (EX v : val, ` (PROP ( )  LOCAL ()  SEP ()) (make_args [ret_temp] [v])) = emp.
