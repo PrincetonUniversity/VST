@@ -1,7 +1,7 @@
 
 Require Import Clightdefs.
 Local Open Scope Z_scope.
-Definition _HKDF : ident := 197%positive.
+Definition _HKDF : ident := 198%positive.
 Definition _HKDF_expand : ident := 194%positive.
 Definition _HKDF_extract : ident := 185%positive.
 Definition _HMAC : ident := 110%positive.
@@ -96,7 +96,7 @@ Definition _dummy : ident := 123%positive.
 Definition _e : ident := 64%positive.
 Definition _entropy_len : ident := 119%positive.
 Definition _extr1 : ident := 195%positive.
-Definition _extr2 : ident := 196%positive.
+Definition _extr2 : ident := 197%positive.
 Definition _f : ident := 65%positive.
 Definition _fragment : ident := 85%positive.
 Definition _free : ident := 125%positive.
@@ -174,6 +174,7 @@ Definition _prediction_resistance : ident := 120%positive.
 Definition _previous : ident := 190%positive.
 Definition _prk : ident := 186%positive.
 Definition _prk_len : ident := 187%positive.
+Definition _prk_len_temp : ident := 196%positive.
 Definition _reseed_counter : ident := 118%positive.
 Definition _reseed_interval : ident := 121%positive.
 Definition _reset : ident := 99%positive.
@@ -198,9 +199,9 @@ Definition _todo : ident := 193%positive.
 Definition _use_len : ident := 176%positive.
 Definition _v : ident := 148%positive.
 Definition _xn : ident := 89%positive.
-Definition _t'1 : ident := 198%positive.
-Definition _t'2 : ident := 199%positive.
-Definition _t'3 : ident := 200%positive.
+Definition _t'1 : ident := 199%positive.
+Definition _t'2 : ident := 200%positive.
+Definition _t'3 : ident := 201%positive.
 
 Definition f_HKDF_extract := {|
   fn_return := tint;
@@ -425,8 +426,8 @@ Definition f_HKDF := {|
                 (_salt, (tptr tuchar)) :: (_salt_len, tuint) ::
                 (_info, (tptr tuchar)) :: (_info_len, tuint) :: nil);
   fn_vars := ((_prk, (tarray tuchar 64)) :: (_prk_len, tuint) :: nil);
-  fn_temps := ((_extr1, tint) :: (_extr2, tint) :: (_t'3, tint) ::
-               (_t'2, tint) :: (_t'1, tint) :: nil);
+  fn_temps := ((_extr1, tint) :: (_prk_len_temp, tuint) :: (_extr2, tint) ::
+               (_t'3, tint) :: (_t'2, tint) :: (_t'1, tint) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -444,29 +445,34 @@ Definition f_HKDF := {|
        (Etempvar _salt (tptr tuchar)) :: (Etempvar _salt_len tuint) :: nil))
     (Sset _extr1 (Etempvar _t'1 tint)))
   (Ssequence
-    (Ssequence
-      (Scall (Some _t'2)
-        (Evar _HKDF_expand (Tfunction
-                             (Tcons (tptr tuchar)
-                               (Tcons tuint
-                                 (Tcons (tptr tuchar)
-                                   (Tcons tuint
-                                     (Tcons (tptr tuchar) (Tcons tuint Tnil))))))
-                             tint cc_default))
-        ((Etempvar _out_key (tptr tuchar)) :: (Etempvar _out_len tuint) ::
-         (Evar _prk (tarray tuchar 64)) :: (Evar _prk_len tuint) ::
-         (Etempvar _info (tptr tuchar)) :: (Etempvar _info_len tuint) :: nil))
-      (Sset _extr2 (Etempvar _t'2 tint)))
+    (Sset _prk_len_temp (Evar _prk_len tuint))
     (Ssequence
       (Ssequence
-        (Sifthenelse (Eunop Onotbool (Etempvar _extr1 tint) tint)
-          (Sset _t'3 (Econst_int (Int.repr 1) tint))
-          (Sset _t'3
-            (Ecast (Eunop Onotbool (Etempvar _extr2 tint) tint) tbool)))
-        (Sifthenelse (Etempvar _t'3 tint)
-          (Sreturn (Some (Econst_int (Int.repr 0) tint)))
-          Sskip))
-      (Sreturn (Some (Econst_int (Int.repr 1) tint))))))
+        (Scall (Some _t'2)
+          (Evar _HKDF_expand (Tfunction
+                               (Tcons (tptr tuchar)
+                                 (Tcons tuint
+                                   (Tcons (tptr tuchar)
+                                     (Tcons tuint
+                                       (Tcons (tptr tuchar)
+                                         (Tcons tuint Tnil)))))) tint
+                               cc_default))
+          ((Etempvar _out_key (tptr tuchar)) :: (Etempvar _out_len tuint) ::
+           (Evar _prk (tarray tuchar 64)) ::
+           (Etempvar _prk_len_temp tuint) ::
+           (Etempvar _info (tptr tuchar)) :: (Etempvar _info_len tuint) ::
+           nil))
+        (Sset _extr2 (Etempvar _t'2 tint)))
+      (Ssequence
+        (Ssequence
+          (Sifthenelse (Eunop Onotbool (Etempvar _extr1 tint) tint)
+            (Sset _t'3 (Econst_int (Int.repr 1) tint))
+            (Sset _t'3
+              (Ecast (Eunop Onotbool (Etempvar _extr2 tint) tint) tbool)))
+          (Sifthenelse (Etempvar _t'3 tint)
+            (Sreturn (Some (Econst_int (Int.repr 0) tint)))
+            Sskip))
+        (Sreturn (Some (Econst_int (Int.repr 1) tint)))))))
 |}.
 
 Definition composites : list composite_definition :=
