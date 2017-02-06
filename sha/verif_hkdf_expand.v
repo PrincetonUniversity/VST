@@ -13,7 +13,7 @@ Require Import sha.hkdf_functional_prog.
 Lemma myadmit (P:Prop): P. Admitted.
 
 (*True in the implementation but not exposed in protocol_spec-interface*)
-Axiom HMAC_CEMPTY_data_at: forall hmac,
+Axiom HMAC_EMPTY_data_at: forall hmac,
     HMAC_SPEC.EMPTY hmac |-- data_at_ Tsh (Tstruct _hmac_ctx_st noattr) hmac.
 
 
@@ -40,21 +40,6 @@ replace (T PRK INFO (S n)) with ((T PRK INFO n) ++ (Ti PRK INFO (S n))) by refle
 rewrite Zlength_app, IHn, Zlength_Ti.
 do 2 rewrite Nat2Z.inj_mul. rewrite (Nat2Z.inj_succ n), Zmult_succ_r_reverse; trivial.
 Qed.
-
-
-(*
-Lemma change_compspecs_datablock:
-  @data_block spec_hmac.CompSpecs  =
-  @data_block CompSpecs.
-Proof. extensionality gfs. trivial. Qed.
-
-Lemma change_compspecs_t_struct_hmacctxstate_st:
-  @data_at_ spec_hmac.CompSpecs Tsh t_struct_hmac_ctx_st =
-  @data_at_ CompSpecs Tsh t_struct_hmac_ctx_st.
-Proof. extensionality gfs. trivial. Qed.
-
-Hint Rewrite change_compspecs_t_struct_SHA256state_st : norm.
-Hint Rewrite change_compspecs_t_struct_hmacctxstate_st: norm.*)
 
 Definition Done (i:Z): int := Int.repr (digest_len*i).
 Definition OUTpred PrkCont InfoCont sh z r cont p: mpred:=
@@ -293,8 +278,7 @@ rewrite Int.unsigned_repr in HV; [| rewrite int_max_unsigned_eq; omega].
 rewrite Int.unsigned_repr in HV; [| omega].
 unfold Val.of_bool in HV. 
 forward_if 
-  (PROP ((*255 >= Int.unsigned (Int.divu (Int.repr (olen + 32 - 1)) (Int.repr 32)) *)
-         v=Vint (Int.repr 0))
+  (PROP (v=Vint (Int.repr 0))
    LOCAL (temp _t'1 v; temp _n (Vint (Int.repr ((olen + 32 - 1) / 32)));
    temp _ret (Vint (Int.repr 0)); temp _done (Vint (Int.repr 0));
    temp _digest_len (Vint (Int.repr 32)); lvar _ctr tuchar ctr;
@@ -322,25 +306,11 @@ destruct (zlt 255 ((olen + 32 - 1) / 32)); [inv HV | clear HV].
 drop_LOCAL 0%nat.
 thaw FR1. 
 Time assert_PROP (isptr prk) as isPtrPrk by entailer!. destruct prk; try contradiction.
-(*
-assert (AUX1: @data_at_ CompSpecs Tsh (Tstruct _hmac_ctx_st noattr) = 
-        @data_at_ spec_hmac.CompSpecs Tsh (Tstruct _hmac_ctx_st noattr)) by normalize.  
-(*rewrite H.*)
-assert (AUX2: @data_block CompSpecs Tsh (CONT PRK) = 
-        @data_block spec_hmac.CompSpecs Tsh (CONT PRK)) by normalize.  
-(*rewrite H0.*)
-assert (Tstruct _hmac_ctx_st noattr = t_struct_hmac_ctx_st). 
-{ unfold _hmac_ctx_st, t_struct_hmac_ctx_st. simpl. adxmit.
-assert (tptr (Tstruct _hmac_ctx_st noattr) = tptr t_struct_hmac_ctx_st). rewrite H1; trivial. 
-rewrite H2.*)
 
-(*remember (inr(hmac, spec_hmac.LEN PRK, CONT PRK, kv, b, i): (val * Z * list Z * val + val * Z * list Z * val * block * int)) as w.*)
 freeze [0;2;3;6] FR1.
 assert_PROP (field_compatible t_struct_hmac_ctx_st [] hmac) as FC_hmac by entailer!.
-(*rewrite H1.*)
 replace_SEP 1 (HMAC_SPEC.EMPTY hmac).
 { rewrite data_at__memory_block. entailer. eapply HMAC_SPEC.mkEmpty; trivial. }
-(*rewrite <- H1.*)
 forward_call (@inr (val * Z * list Z * val) _ (hmac, spec_hmac.LEN PRK, CONT PRK, kv, b, i)).
 
 remember ((olen + 32 - 1) / 32) as bnd.
@@ -401,15 +371,12 @@ forward_for_simple_bound bnd
              SEP (FRZL FR0; K_vector kv; data_at_ Tsh tuchar ctr; 
             data_at Tsh (Tarray tuchar 32 noattr) (PREVcont PRK INFO ii) (Vptr b0 i0);
             data_block Tsh (CONT INFO) info;
-            (*hmacstate_ (HMACcont ii) hmac;*)
             if zeq ii 0 then HMAC_SPEC.REP (HMAC_SPEC.hABS (CONT PRK) []) hmac
             else HMAC_SPEC.FULL (CONT PRK) hmac; 
-            (*OUTpred shmd olen out ii*)
             OUTpred (CONT PRK) (CONT INFO) shmd (Z.min (digest_len * ii) olen) 
-                    (olen - Z.min (digest_len * ii) olen)
-                    (*(if zlt ii bnd then digest_len * ii else olen)*) (ii*32) out)).
+                    (olen - Z.min (digest_len * ii) olen) (ii*32) out)).
 { destruct (zeq 0 0); try solve [omega]. clear e; entailer!.
-  + unfold Done; simpl. (*rewrite Int.unsigned_repr; [| omega]. split; try omega.*)
+  + unfold Done; simpl.
     destruct (zeq rest 0); simpl.
     - subst rest.
       destruct (zlt 0 rounds); simpl.
@@ -423,13 +390,12 @@ forward_for_simple_bound bnd
         cancel. 
       * assert(R0: rounds = 0) by omega. rewrite R0 in *; clear R0. simpl. unfold tarray. (*cancel.*)
         rewrite isptr_offset_val_zero, data_at_tuchar_zero_array_eq; trivial. cancel. 
-    - rewrite Zmin_l. (*if_true.*) 2: omega. rewrite Zminus_0_r, data_at_tuchar_zero_array_eq; trivial.
+    - rewrite Zmin_l by omega. rewrite Zminus_0_r, data_at_tuchar_zero_array_eq; trivial.
       rewrite isptr_offset_val_zero; trivial. cancel.
 }
 
 { (*loop body*)
   rename H into Hi1. Intros. rename H into olenBounded. unfold Done, digest_len in olenBounded.
-  (*rewrite Int.unsigned_repr in olenBounded. 2: rewrite int_max_unsigned_eq; omega. *)
    rewrite if_true in olenBounded; try omega.
    rewrite Int.unsigned_repr in olenBounded. 2: rewrite int_max_unsigned_eq; omega.
    
@@ -450,8 +416,6 @@ forward_for_simple_bound bnd
      (Vint (cast_int_int I8 Unsigned (Int.add (Int.repr i1) (Int.repr 1)))) ctr;
    data_at Tsh (Tarray tuchar 32 noattr) (PREVcont PRK INFO i1) (Vptr b0 i0);
    data_block Tsh (CONT INFO) info; 
-   (*OUTpred shmd olen out i1*)(*OUTpred (CONT PRK) (CONT INFO) shmd olen  (digest_len * i1)%Z 
-          (if zlt i1 bnd then (digest_len * i1)%Z else olen) out;*)
    OUTpred (CONT PRK) (CONT INFO) shmd (digest_len * i1) (olen - digest_len * i1) (i1*32) out;
    HMAC_SPEC.REP (HMAC_SPEC.hABS (CONT PRK) l) hmac)).
 
@@ -469,9 +433,9 @@ forward_for_simple_bound bnd
      * rewrite Zlength_prev, Zlength_nil.
        split. rewrite int_max_unsigned_eq; omega.
        cbv; trivial.
-     * Exists prev. rewrite if_false; trivial. thaw FR1. (*rewrite if_true; try omega.*) entailer!. 
-       unfold data_block. rewrite Hprev, Zlength_prev. clear - prevFC. unfold tarray. normalize. apply andp_left2. trivial. (*VST why does entailer fail to do this?*) 
-     (* * omega.*) }
+     * Exists prev. rewrite if_false; trivial. thaw FR1. entailer!. 
+       unfold data_block. rewrite Hprev, Zlength_prev. clear - prevFC. 
+       unfold tarray. normalize. apply andp_left2. trivial. (*VST TODO: why does entailer fail to do this?*) }
    { subst i1. forward. Exists (@nil Z). repeat rewrite if_true; try omega.
      entailer!. }
 
@@ -546,7 +510,6 @@ forward_for_simple_bound bnd
 
    thaw FR4. 
    destruct out; try contradiction. (*out = Vptr b1 i2*) 
-   (* unfold abbreviate in FR0. simpl in FR0. *)
    unfold OUTpred, Done, digest_len. normalize.
    freeze [0;3;4;5;6;7] FR5.
    forward_call ((Tsh, shmd), offset_val (32*i1) (Vptr b1 i2), Vptr b0 i0, 
@@ -555,7 +518,7 @@ forward_for_simple_bound bnd
              then olen - 32 * i1
              else 32, map Int.repr CONTRIB).
    { destruct (zlt olen (32 * i1 + 32)); simpl; entailer!. }
-   { (*rewrite if_true; [| omega].*) simpl. cancel. }
+   { simpl; cancel. }
    { simpl. split. apply readable_share_top. split; trivial.
      destruct (zlt olen (32 * i1 + 32)); omega. } 
    forward.
@@ -589,8 +552,7 @@ forward_for_simple_bound bnd
             assert (i1 = rounds) by omega. subst i1.
             replace (32 * rounds + rest - 32 * rounds) with rest by omega.
             rewrite Zmin_r; [| omega].
-            (*replace (32 * rounds + rest - 32 * (rounds + 1)) with (rest - 32) by omega. *)
-            rewrite (*if_true,*) Zminus_diag, memory_block_zero_Vptr; try solve [omega].
+            rewrite Zminus_diag, memory_block_zero_Vptr; try solve [omega].
             replace (((rounds + 1)*32)%Z) with ((32 * (rounds + 1) + 0)%Z) by omega.
             rewrite (split2_data_at_Tarray_tuchar shmd (32 * rounds + rest) (32 * rounds)); simpl; trivial; try omega.
             
@@ -732,7 +694,7 @@ forward_for_simple_bound bnd
          erewrite Zdiv_unique with (b:=rest -1)(a:=1); omega.
      + thaw FR6. thaw FR0. cancel. unfold expand_out_post, digest_len. 
 
-        rewrite 2 sepcon_assoc. rewrite sepcon_comm. apply sepcon_derives; [| apply HMAC_CEMPTY_data_at].
+        rewrite 2 sepcon_assoc. rewrite sepcon_comm. apply sepcon_derives; [| apply HMAC_EMPTY_data_at].
         rewrite <- sepcon_assoc. rewrite sepcon_comm. apply sepcon_derives.
         - destruct (zlt (32 * rounds + rest + 32) (32 * rounds + rest)); try omega.
           destruct (zlt (if zeq rest 0 then rounds else rounds + 1) (if zeq rest 0 then rounds else rounds + 1)); try omega.
@@ -759,4 +721,26 @@ forward_for_simple_bound bnd
           rewrite field_address0_offset. cancel.
           eapply field_compatible0_cons_Tarray; [reflexivity | trivial | omega].
 Time Qed. (* Finished transaction in 54.281 secs (49.656u,0.015s) (successful)*)
+(*
+Lemma memory_block_data_at__arrayTuchar:
+  forall (cs : compspecs) (sh : share) (p : val) n (N: 0<=n < Int.modulus),
+  memory_block sh n p |--  data_at_ sh (tarray tuchar n) p.
+Proof.
+  intros.
+  unfold data_at_, data_at.
+  rewrite field_at__memory_block.
+  unfold field_address. simpl. rewrite Z.max_r, Z.mul_1_l; try omega.
+  if_tac.
+  + normalize.
+  + (*unfold field_at_, field_at.*)
+    rewrite memory_block_isptr.
+(*    replace (!!field_compatible t nil p : mpred) with FF by (apply ND_prop_ext; tauto).
+    replace (!!isptr Vundef : mpred) with FF by reflexivity.*)
+    normalize. destruct p; try contradiction. simpl in *. elim H; clear H.
+    red. repeat split; simpl; trivial. admit.
+    rewrite Z.max_r, Z.mul_1_l; omega.  rewrite Z.max_r, Z.mul_1_l; try omega. admit. (*make size_compatible part of memory_block?*) 
+    unfold align_attr; simpl. apply Z.divide_1_l.
+    - unfold legal_alignas_type, nested_pred. simpl. red; simpl.
+Qed.
+*)
             

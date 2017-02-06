@@ -160,7 +160,7 @@ Definition HKDF_expand_spec :=
          _info OF tptr tuchar, _info_len OF tuint]
          PROP (writable_share shmd; 
                spec_hmac.has_lengthK (spec_hmac.LEN PRK) (spec_hmac.CONT PRK);
-               spec_hmac.LEN INFO = Zlength (spec_hmac.CONT INFO);
+               Zlength (spec_hmac.CONT INFO) = spec_hmac.LEN INFO;
                0 <= Zlength (spec_hmac.CONT INFO) <= Int.max_unsigned /\
                  Zlength (spec_hmac.CONT INFO) + 97 < two_power_pos 61;
                0 <= olen /\ olen + 32 <= Int.max_unsigned)
@@ -224,10 +224,13 @@ Definition HKDF_spec :=
         _secret OF tptr tuchar, _secret_len OF tuint,
         _salt OF tptr tuchar, _salt_len OF tuint,
         _info OF tptr tuchar, _info_len OF tuint ]
-         PROP (writable_share shmd; spec_hmac.has_lengthK (spec_hmac.LEN SALT) (spec_hmac.CONT SALT); 
+         PROP (writable_share shmd; 
+               spec_hmac.has_lengthK (spec_hmac.LEN SALT) (spec_hmac.CONT SALT); 
                spec_hmac.has_lengthD 512 (spec_hmac.LEN SECRET) (spec_hmac.CONT SECRET);
-               spec_hmac.LEN INFO = Zlength (spec_hmac.CONT INFO); 0 <= Zlength (spec_hmac.CONT INFO) <= Int.max_unsigned;
-               Zlength (spec_hmac.CONT INFO) + 97 < two_power_pos 61; 0 <= olen; olen + 32 <= Int.max_unsigned)
+               Zlength (spec_hmac.CONT INFO) = spec_hmac.LEN INFO; 
+               0 <= Zlength (spec_hmac.CONT INFO) <= Int.max_unsigned;
+               Zlength (spec_hmac.CONT INFO) + 97 < two_power_pos 61; 
+               0 <= olen; olen + 32 <= Int.max_unsigned)
          LOCAL (temp _out_key out; temp _out_len (Vint (Int.repr olen)); 
                 temp _salt salt;
                 temp _salt_len (Vint (Int.repr (spec_hmac.LEN SALT)));
