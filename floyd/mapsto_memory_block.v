@@ -230,7 +230,7 @@ Qed.
 
 Lemma memory_block_size_compatible:
   forall sh t p,
-  sizeof t < Int.modulus ->
+(*  sizeof t < Int.modulus ->*)
   memory_block sh (sizeof t) p = 
   !! (size_compatible t p) && memory_block sh (sizeof t) p.
 Proof.

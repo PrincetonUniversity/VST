@@ -2,9 +2,6 @@ Require Import floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
 
-Require Import floyd.library.
-Require Import sha.general_lemmas.
-
 (************************ TO BE MOVED SOMEWHERE INSODE FLOYD****************)
 Lemma map_Vint_injective: forall l m, map Vint l = map Vint m -> l=m.
 Proof. induction l; intros.
@@ -12,124 +9,10 @@ Proof. induction l; intros.
 + destruct m; simpl in *; inv H. f_equal; eauto.
 Qed.
 
-Lemma map_IntReprOfBytes_injective: forall l m, Forall general_lemmas.isbyteZ  l -> 
-  Forall general_lemmas.isbyteZ m -> map Int.repr l = map Int.repr m -> l=m.
-Proof. induction l; intros.
-+ destruct m; simpl in *; inv H1; trivial.
-+ destruct m; simpl in *; inv H1. inv H. inv H0.
-  rewrite (IHl m); trivial. f_equal. clear IHl H4 H6 H7.
-  unfold general_lemmas.isbyteZ in *. do 2 rewrite Int.Z_mod_modulus_eq in H3.
-  do 2 rewrite Zmod_small in H3; trivial; rewrite int_modulus_eq; omega. 
-Qed.
-
-Lemma isptr_field_compatible_tarray_tuchar0 {cs} p: isptr p -> 
-      @field_compatible cs (tarray tuchar 0) nil p.
-Proof. intros; red. destruct p; try contradiction.
-  repeat split; simpl; trivial.
-  destruct (Int.unsigned_range i); omega.
-  apply Z.divide_1_l. 
-Qed. 
-
-Lemma data_at_tuchar_singleton_array {cs} sh v p:
-  @data_at cs sh tuchar v p |-- @data_at cs sh (tarray tuchar 1) [v] p.  
-Proof. assert_PROP (isptr p /\ field_compatible (tarray tuchar 1) [] p) by entailer!.
-  destruct H.
-  unfold data_at at 2.
-  erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: apply JMeq_refl. 2: simpl; trivial. 
-  erewrite array_at_len_1. 2: apply JMeq_refl.
-  rewrite field_at_data_at; simpl. 
-  rewrite field_address_offset; trivial.
-    simpl. rewrite isptr_offset_val_zero; trivial.
-  eapply field_compatible_cons_Tarray. reflexivity. trivial. omega.
-Qed. 
-Lemma data_at_tuchar_singleton_array_inv {cs} sh v p:
-  @data_at cs sh (tarray tuchar 1) [v] p |-- @data_at cs sh tuchar v p.  
-Proof. assert_PROP (isptr p /\ field_compatible (tarray tuchar 1) [] p) by entailer!.
-  destruct H.
-  unfold data_at at 1.
-  erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: apply JMeq_refl. 2: simpl; trivial. 
-  erewrite array_at_len_1. 2: apply JMeq_refl.
-  rewrite field_at_data_at; simpl. 
-  rewrite field_address_offset; trivial.
-    simpl. rewrite isptr_offset_val_zero; trivial.
-  eapply field_compatible_cons_Tarray. reflexivity. trivial. omega.
-Qed.
- 
-Lemma data_at_tuchar_singleton_array_eq {cs} sh v p:
-  @data_at cs sh (tarray tuchar 1) [v] p = @data_at cs sh tuchar v p.  
-Proof. apply pred_ext.
-  apply data_at_tuchar_singleton_array_inv.
-  apply data_at_tuchar_singleton_array. 
-Qed. 
-
-Lemma data_at_tuchar_zero_array {cs} sh p: isptr p ->
-  emp |-- @data_at cs sh (tarray tuchar 0) [] p.  
-Proof. intros.
-  unfold data_at. 
-  erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: apply JMeq_refl. 2: simpl; trivial. 
-  rewrite array_at_len_0. apply andp_right; trivial.
-  apply prop_right. apply isptr_field_compatible_tarray_tuchar0 in H.
-  unfold field_compatible in H.  
-  unfold field_compatible0; simpl in *. intuition.
-Qed.
-Lemma data_at_tuchar_zero_array_inv {cs} sh p:
-  @data_at cs sh (tarray tuchar 0) [] p |-- emp.  
-Proof. intros.
-  unfold data_at. 
-  erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: apply JMeq_refl. 2: simpl; trivial. 
-  rewrite array_at_len_0. entailer. 
-Qed.
-
-Lemma data_at_tuchar_zero_array_eq {cs} sh p:
-  isptr p ->
-  @data_at cs sh (tarray tuchar 0) [] p = emp.  
-Proof. intros.
-  apply pred_ext.
-  apply data_at_tuchar_zero_array_inv.
-  apply data_at_tuchar_zero_array; trivial.
-Qed. 
-
-Lemma data_at__tuchar_zero_array {cs} sh p (H: isptr p):
-  emp |-- @data_at_ cs sh (tarray tuchar 0) p.  
-Proof. unfold data_at_, field_at_. apply data_at_tuchar_zero_array; trivial. Qed.
-
-Lemma data_at__tuchar_zero_array_inv {cs} sh p:
-  @data_at_ cs sh (tarray tuchar 0) p |-- emp.  
-Proof. unfold data_at_, field_at_. apply data_at_tuchar_zero_array_inv. Qed.
-
-Lemma data_at__tuchar_zero_array_eq {cs} sh p (H: isptr p):
-  @data_at_ cs sh (tarray tuchar 0) p = emp.  
-Proof. intros.
-  apply pred_ext.
-  apply data_at__tuchar_zero_array_inv.
-  apply data_at__tuchar_zero_array; trivial.
-Qed. 
-
-Lemma split2_data_at__Tarray_tuchar
-     : forall {cs} (sh : Share.t)  (n n1 : Z) (p : val),
-       0 <= n1 <= n -> isptr p ->field_compatible (Tarray tuchar n noattr) [] p ->
-       @data_at_ cs sh (Tarray tuchar n noattr) p =
-       @data_at_ cs sh (Tarray tuchar n1 noattr) p *
-       @data_at_ cs sh (Tarray tuchar (n - n1) noattr)
-         (field_address0 (Tarray tuchar n noattr) [ArraySubsc n1] p).
-Proof. intros. unfold data_at_ at 1; unfold field_at_.
-rewrite field_at_data_at.
-erewrite (@split2_data_at_Tarray cs sh tuchar n n1).
-instantiate (1:= list_repeat (Z.to_nat (n-n1)) Vundef).
-instantiate (1:= list_repeat (Z.to_nat n1) Vundef).
-unfold field_address. simpl. 
-rewrite if_true; trivial. rewrite isptr_offset_val_zero; trivial.
-trivial.
-simpl.
-instantiate (1:=list_repeat (Z.to_nat n) Vundef).
-unfold default_val. simpl. autorewrite with sublist. apply JMeq_refl. 
-unfold default_val. simpl. autorewrite with sublist. apply JMeq_refl. 
-unfold default_val. simpl. autorewrite with sublist. apply JMeq_refl.
-Qed. (*ToDO: generalize to types other than tuchar?*)
-
 (****************************************************************************)
 
 
+Require Import floyd.library.
 
 Require Import sha.spec_sha.
 Require Import sha.protocol_spec_hmac.
@@ -139,6 +22,7 @@ Require Import sha.hkdf.
 Require Import sha.hkdf_compspecs.
 
 Declare Module HMAC_SPEC : HMAC_ABSTRACT_SPEC.
+
 Definition digest_len:Z := 32.
 Definition expand_out_post sh PrkCont InfoCont olen out: Z * mpred :=
   let n := (olen + digest_len - 1) / digest_len in
@@ -148,7 +32,6 @@ Definition expand_out_post sh PrkCont InfoCont olen out: Z * mpred :=
        then (0, memory_block sh olen out)
        else (1, data_block sh (HKDF_expand PrkCont InfoCont olen) out).
 
-(*todo: refine spec to capture path leading to rv=0*)
 Definition HKDF_expand_spec :=
   DECLARE _HKDF_expand
    WITH out: val, olen:Z,
@@ -255,21 +138,23 @@ Definition HKDF_spec :=
               then (!!(r=0) && memory_block shmd olen out)
               else (!!(r=1) && data_block shmd (HKDF (spec_hmac.CONT SALT) (spec_hmac.CONT SECRET) (spec_hmac.CONT INFO) olen) out)).
 
-(*generalizes spec_sha.memcpy_spec by allowing SRC/TGT-array to be longer than necessary*)
-Definition memcpy_spec :=
+(*generalizes spec_sha.memcpy_spec by allowing SRC/TGT-array to be longer than necessary.
+ Also adds cs to the WITH clause. Because we're copying a tarray tuchar we don't need a
+field_compatible/size_compatible side condition (cf Lemma memory_block_data_at__tarray_tuchar) *)
+Definition memcpy_tuchar_array_spec :=
   DECLARE _memcpy
-   WITH sh : share*share, p: val, q: val, n: Z, m:Z, k:Z, contents: list int 
+   WITH cs:compspecs, sh : share*share, p: val, q: val, n: Z, m:Z, k:Z, contents: list int 
    PRE [ 1%positive OF tptr tvoid, 2%positive OF tptr tvoid, 3%positive OF tuint ]
        PROP (readable_share (fst sh); writable_share (snd sh); 0 <= k <= n;
-       k <= m <= Int.max_unsigned)
+       k <= m <= Int.max_unsigned) 
        LOCAL (temp 1%positive p; temp 2%positive q; temp 3%positive (Vint (Int.repr k)))
-       SEP (data_at (fst sh) (tarray tuchar m) (map Vint contents) q;
-              memory_block (snd sh) n p)
+       SEP (@data_at cs (fst sh) (tarray tuchar m) (map Vint contents) q;
+            @memory_block (snd sh) n p)
     POST [ tptr tvoid ]
        PROP() LOCAL(temp ret_temp p)
        SEP(data_at (fst sh) (tarray tuchar m) (map Vint contents) q;
            data_at (snd sh) (tarray tuchar k) (map Vint (sublist 0 k contents)) p;
-              memory_block (snd sh) (n-k) (offset_val k p)).
+           memory_block (snd sh) (n-k) (offset_val k p)).
 (*Definition memcpy_spec := (_memcpy, snd spec_sha.memcpy_spec). *)
 
 (***************** We combine all specifications to a specification context *******)
@@ -321,7 +206,7 @@ Definition hmac_init_funspec:=
 
 Definition Hkdf_FunSpecs : funspecs := ltac:(with_library prog (
   HKDF_spec :: HKDF_expand_spec :: HKDF_extract_spec :: 
-  memcpy_spec:: (*memcpy__data_at:: *)
+  memcpy_tuchar_array_spec:: (*memcpy__data_at:: *)
   (*memset_spec::*)
   (HMAC_SPEC.hmac_update_spec)::
   (HMAC_SPEC.hmac_final_spec)::  
