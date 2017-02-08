@@ -2,44 +2,14 @@ Require Import floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
 
+Require Import sha.general_lemmas.
 Require Import sha.spec_sha.
 Require Import sha.hmac_common_lemmas.
+Require Import sha.spec_hmac.
 
 Require Import sha.hkdf.
-Require Import sha.spec_hmac.
 Require Import sha.spec_hkdf.
 Require Import sha.hkdf_functional_prog.
-
-Lemma myadmit (P:Prop): P. Admitted.
-
-(*True in the implementation but not exposed in protocol_spec-interface*)
-Axiom HMAC_EMPTY_data_at: forall hmac,
-    HMAC_SPEC.EMPTY hmac |-- data_at_ Tsh (Tstruct _hmac_ctx_st noattr) hmac.
-
-
-Lemma isbyteZ_Ti x y : forall n, Forall general_lemmas.isbyteZ (Ti x y n).
-Proof. induction n; simpl. constructor.
-apply isbyte_hmac. 
-Qed.
-
-Lemma isbyteZ_T: forall n x y, Forall general_lemmas.isbyteZ (T x y n).
-Proof.
-induction n; simpl; intros. constructor.
-apply Forall_app. split; trivial.
-apply isbyte_hmac.
-Qed.
-
-Lemma Zlength_Ti PRK INFO n: Zlength (Ti PRK INFO n) = match n with O => 0 | S k => 32 end.
-Proof. destruct n; simpl. apply Zlength_nil. apply HMAC_Zlength. Qed.
-
-
-Lemma Zlength_T PRK INFO n: Zlength (T PRK INFO n) = Z.of_nat (32 *n).
-Proof. induction n.
-apply Zlength_nil.
-replace (T PRK INFO (S n)) with ((T PRK INFO n) ++ (Ti PRK INFO (S n))) by reflexivity.
-rewrite Zlength_app, IHn, Zlength_Ti.
-do 2 rewrite Nat2Z.inj_mul. rewrite (Nat2Z.inj_succ n), Zmult_succ_r_reverse; trivial.
-Qed.
 
 Definition Done (i:Z): int := Int.repr (digest_len*i).
 Definition OUTpred PrkCont InfoCont sh z r cont p: mpred:=
@@ -59,7 +29,6 @@ assert (exists n, Z.to_nat i = S n).
 destruct H0; rewrite H0.
 unfold Ti; simpl. repeat rewrite Zlength_map. apply HMAC_Zlength.
 Qed.
-
 
 Lemma PREV_isbyteZ PRK INFO i: 0 < i -> exists l, PREVcont PRK INFO i = map Vint (map Int.repr l) /\
                                                   Forall general_lemmas.isbyteZ l.
@@ -92,52 +61,7 @@ Proof. intros. unfold PREVcont.
 destruct (zeq i 0). omega. eexists; reflexivity.
 Qed. 
 
-Lemma isbyteZ_HKDF_expand x y z: Forall general_lemmas.isbyteZ (HKDF_expand x y z).
-Proof. unfold HKDF_expand; intros.
-destruct (zle z 0). constructor.
-apply Forall_firstn.
-apply isbyteZ_T.
-Qed.
-
-Lemma sublist_HKDF_expand1 prk info i r (I: 0 <= i) (R:0<=r<32): 
-    sublist 0 (32 * i) (HKDF_expand prk info (32*i)) =
-    sublist 0 (32 * i) (HKDF_expand prk info (32*i+r)).
-Proof. unfold HKDF_expand.
-destruct (zle (32 * i) 0); simpl.
-+ assert (i=0) by omega. subst i. simpl. rewrite Z.add_0_l.
-  destruct (zle r 0); trivial.
-+ destruct (zle (32 * i + r) 0); try omega. 
-    rewrite (Zmod_unique _ _ i 0); try omega. simpl. 
-    rewrite (Zdiv_unique _ _ i 0); try omega.
-    rewrite (Zmod_unique _ _ i r); try omega. 
-    rewrite (Zdiv_unique _ _ i r); try omega.
-  rewrite 2 sublist_sublist; try omega. simpl. rewrite Z.add_0_r.
-  destruct (zeq r 0); simpl; trivial.
-  replace (Z.to_nat (i+1)) with (S (Z.to_nat i)).
-    2: rewrite Z.add_comm, Z2Nat.inj_add; try reflexivity; try omega.
-  simpl. rewrite sublist_app1; trivial. omega.
-      rewrite Zlength_T, Nat2Z.inj_mul, Z2Nat.id; simpl; omega.
-Qed.
-
-Lemma sublist_HKDF_expand2 prk info i (I: 0 <= i) : 
-    sublist 0 (32 * i) (HKDF_expand prk info (32*i)) =
-    sublist 0 (32 * i) (HKDF_expand prk info (32*(i+1))).
-Proof. unfold HKDF_expand.
-destruct (zle (32 * i) 0); simpl.
-+ assert (i=0) by omega. subst i; simpl. reflexivity.
-+ destruct (zle (32 * (i + 1)) 0); try omega. 
-    rewrite (Zmod_unique _ _ i 0); try omega. simpl. 
-    rewrite (Zdiv_unique _ _ i 0); try omega.
-    rewrite (Zmod_unique _ _ (i+1) 0); try omega. 
-    rewrite (Zdiv_unique _ _ (i+1) 0); try omega. simpl.
-  rewrite 2 sublist_sublist; try omega. simpl. rewrite Z.add_0_r.
-  replace (Z.to_nat (i+1)) with (S (Z.to_nat i)).
-    2: rewrite Z.add_comm, Z2Nat.inj_add; try reflexivity; try omega.
-  simpl. rewrite sublist_app1; trivial. omega.
-  rewrite Zlength_T, Nat2Z.inj_mul, Z2Nat.id; simpl; omega.
-Qed.
-
-Lemma sublist_HKDF_expand3 PRK INFO i rest l (REST : 0 <= rest < 32)
+Lemma sublist_HKDF_expand4 PRK INFO i rest l (REST : 0 <= rest < 32)
       (g : 255 >= i + 1) (OLEN : 32 * i + rest + 32 <= Int.max_unsigned)
       (Hl : if zeq i 0 then l = [] else PREVcont PRK INFO i = map Vint (map Int.repr l) /\ Forall general_lemmas.isbyteZ l)
       (Hi: 0 <= i):
@@ -169,20 +93,6 @@ Proof.
     change (two_p 8 - 1) with 255; omega.
 Qed.
 
-Lemma sublist_HKDF_expand4 prk info i rest (REST : 0 < rest < 32)
-      (OLEN : 0 <= 32 * i + rest):
-  sublist 0 (32 * i + rest) (HKDF_expand prk info (32 * i + 32)) =
-  HKDF_expand prk info (32 * i + rest).
-Proof.
-            unfold HKDF_expand. simpl. destruct (zle (32 * i + 32) 0); try omega.
-            destruct (zle (32 * i + rest) 0); try omega.
-            rewrite sublist_sublist; try omega. rewrite 2 Z.add_0_r.
-            erewrite (Zmod_unique _ _(i+1) 0); try omega. simpl. 
-            erewrite (Zdiv_unique _ _(i+1) 0); try omega.
-            erewrite (Zmod_unique _ _ i rest); try omega. rewrite if_false; try omega.
-            erewrite (Zdiv_unique _ _ i rest); try omega; trivial.
-Qed.
-
 Lemma sublist_HKDF_expand5 PRK INFO l i
          (Hl : if zeq i 0 then l = []
                else PREVcont PRK INFO i = map Vint (map Int.repr l) /\ Forall general_lemmas.isbyteZ l)
@@ -206,28 +116,6 @@ Proof.
   apply map_IntReprOfBytes_injective in Hl; trivial. 2: apply isbyteZ_Ti.
   rewrite Hl, <- app_assoc.
   change (i+1)%Z with (Z.succ i); trivial.
-Qed.
-
-Lemma Zlength_HKDF_expand x y z rest: 0 <= 32 * z -> 0 <= rest < 32 -> 
-      (Zlength (HKDF_expand x y (32*z+rest)) = 32*z+rest)%Z.
-Proof. unfold HKDF_expand; intros.
-destruct (zle (32*z+rest) 0).
-+ rewrite Zlength_nil; omega.
-+ rewrite Zlength_sublist; try omega. simpl.
-  rewrite Zlength_T.
-  destruct (zeq rest 0).
-  - subst rest. rewrite Z.add_0_r in *.
-    assert (X: (32 * z) mod 32 = 0) by (rewrite Z.mul_comm; apply Z_mod_mult).
-    rewrite X, if_true; trivial. 
-    assert (Y: (32 * z) / 32 = z). rewrite Z.mul_comm; apply Z_div_mult_full; omega.
-    rewrite Y, Nat2Z.inj_mul, Z2Nat.id; simpl; omega. 
-  - rewrite if_false. 
-    * replace (32 * z + rest) with (z * 32 + rest) by omega.
-      rewrite Z_div_plus_full_l, Zdiv_small, Zplus_0_r; try omega.
-      rewrite Nat2Z.inj_mul, Z2Nat.id. simpl. 2: omega.
-      rewrite Z.mul_add_distr_l, Z.mul_1_r. omega.
-    * intros N. replace (32 * z + rest) with (rest + z * 32) in N by omega.
-      rewrite Z_mod_plus, Zmod_small in N; omega.
 Qed.
 
 Lemma body_hkdf_expand: semax_body Hkdf_VarSpecs Hkdf_FunSpecs 
@@ -310,7 +198,7 @@ Time assert_PROP (isptr prk) as isPtrPrk by entailer!. destruct prk; try contrad
 freeze [0;2;3;6] FR1.
 assert_PROP (field_compatible t_struct_hmac_ctx_st [] hmac) as FC_hmac by entailer!.
 replace_SEP 1 (HMAC_SPEC.EMPTY hmac).
-{ rewrite data_at__memory_block. entailer. eapply HMAC_SPEC.mkEmpty; trivial. }
+{ entailer. eapply HMAC_SPEC.mkEmpty; trivial. }
 forward_call (@inr (val * Z * list Z * val) _ (hmac, spec_hmac.LEN PRK, CONT PRK, kv, b, i)).
 
 remember ((olen + 32 - 1) / 32) as bnd.
@@ -334,6 +222,8 @@ erewrite  split2_data_at_Tarray with (n1:=32).
 normalize. simpl.
 rewrite field_address_offset by auto with field_compatible. simpl. rewrite Int.add_zero.
 rewrite field_address0_offset by auto with field_compatible. simpl.
+rewrite memory_block_field_compatible_tarraytuchar by (rewrite <- initialize.max_unsigned_modulus; omega).
+Intros. rename H into FCout. 
 
 freeze [1;3] FR0. 
 assert_PROP (isptr out) as isPTRout by entailer!.
@@ -348,15 +238,6 @@ assert (BND: bnd = if zeq rest 0 then rounds else rounds + 1).
   + assert (X: 32 * rounds + rest + 32 - 1 = rounds * 32 + (rest + 31)) by omega. rewrite X; clear X.
     rewrite Z.div_add_l. f_equal. apply Zdiv_unique with (b:=rest -1); omega. omega. }
 clear Heqbnd Heqrounds Heqrest. 
-
-assert_PROP (field_compatible (tarray tuchar olen) nil out) as FCout.
-{ entailer. apply prop_right. red; repeat split; simpl; trivial.
-  + unfold legal_alignas_type, tarray, nested_pred, local_legal_alignas_type; simpl.
-     rewrite andb_true_r. apply Zle_imp_le_bool. apply OLEN.
-  + rewrite Z.max_r, Z.mul_1_l, <- initialize.max_unsigned_modulus; omega.
-  + red. destruct out; try contradiction. simpl. rewrite Z.max_r, Z.mul_1_l; try omega. 
-    apply myadmit. (*maybe replace memory_block with data_at_ in spec?*)
-  + red. destruct out; try contradiction. unfold alignof, align_attr; simpl. apply Z.divide_1_l. }
 
 forward_for_simple_bound bnd
        (EX ii:Z, PROP (0 <= olen - Int.unsigned(if zlt ii bnd then Done ii else Int.repr olen))
@@ -398,7 +279,7 @@ forward_for_simple_bound bnd
   rename H into Hi1. Intros. rename H into olenBounded. unfold Done, digest_len in olenBounded.
    rewrite if_true in olenBounded; try omega.
    rewrite Int.unsigned_repr in olenBounded. 2: rewrite int_max_unsigned_eq; omega.
-   
+
   forward. rewrite Zmin_l. 2: unfold digest_len; omega.
 
   forward_if (EX l:_, 
@@ -512,7 +393,8 @@ forward_for_simple_bound bnd
    destruct out; try contradiction. (*out = Vptr b1 i2*) 
    unfold OUTpred, Done, digest_len. normalize.
    freeze [0;3;4;5;6;7] FR5.
-   forward_call ((Tsh, shmd), offset_val (32*i1) (Vptr b1 i2), Vptr b0 i0, 
+   forward_call (hkdf_compspecs.CompSpecs, (Tsh, shmd), 
+                 offset_val (32*i1) (Vptr b1 i2), Vptr b0 i0, 
                  olen - (32* i1), 32,
              if zlt olen (32 * i1 + 32)
              then olen - 32 * i1
@@ -561,17 +443,16 @@ forward_for_simple_bound bnd
                      rewrite Zlength_HKDF_expand; simpl; omega.
             unfold tarray; cancel. 
                rewrite field_address0_offset; simpl.
-               2: eapply field_compatible0_cons_Tarray; try reflexivity; trivial.
-               2: omega.
+               2: eapply field_compatible0_cons_Tarray; [ reflexivity | trivial | omega].
             entailer!. rewrite sublist_sublist; try omega.
             rewrite sublist_sublist; try omega. rewrite ! Z.add_0_r. 
             replace (32 * rounds + rest - 32 * rounds) with rest by omega.
             rewrite ! sublist_map.
 
-            rewrite sepcon_comm. apply sepcon_derives; apply data_at_ext_derives; trivial.
-            -- replace (rounds * 32)%Z with (32*rounds)%Z by omega.
-               rewrite <- sublist_HKDF_expand2; trivial; omega.
-            -- f_equal. f_equal. apply sublist_HKDF_expand3; trivial; try omega.
+            replace (rounds * 32)%Z with (32*rounds)%Z by omega.
+            rewrite sublist_HKDF_expand4, <- sublist_HKDF_expand2; trivial; try omega.
+            cancel.
+
    + entailer!.
      * clear H H0 H1 H2 H3 H4 H5 AC SC JMeq_1 LEN. unfold Done, digest_len in *. simpl.
        rewrite add_repr.
@@ -693,8 +574,7 @@ forward_for_simple_bound bnd
          rewrite Z.div_add_l; try omega.
          erewrite Zdiv_unique with (b:=rest -1)(a:=1); omega.
      + thaw FR6. thaw FR0. cancel. unfold expand_out_post, digest_len. 
-
-        rewrite 2 sepcon_assoc. rewrite sepcon_comm. apply sepcon_derives; [| apply HMAC_EMPTY_data_at].
+        rewrite 2 sepcon_assoc. rewrite sepcon_comm. apply sepcon_derives; [| apply HMAC_SPEC.EmptyDissolve]. 
         rewrite <- sepcon_assoc. rewrite sepcon_comm. apply sepcon_derives.
         - destruct (zlt (32 * rounds + rest + 32) (32 * rounds + rest)); try omega.
           destruct (zlt (if zeq rest 0 then rounds else rounds + 1) (if zeq rest 0 then rounds else rounds + 1)); try omega.
@@ -716,31 +596,8 @@ forward_for_simple_bound bnd
             rewrite Zlength_HKDF_expand; omega.
           * replace ((rounds + 1)*32)%Z with (32 * rounds + 32)%Z by omega.
             rewrite 2 sublist_map. f_equal. f_equal.
-            apply sublist_HKDF_expand4; omega.
+            apply sublist_HKDF_expand3; omega.
         - rewrite (split2_data_at__Tarray_tuchar Tsh 64 32); simpl; trivial; try omega.
           rewrite field_address0_offset. cancel.
           eapply field_compatible0_cons_Tarray; [reflexivity | trivial | omega].
 Time Qed. (* Finished transaction in 54.281 secs (49.656u,0.015s) (successful)*)
-(*
-Lemma memory_block_data_at__arrayTuchar:
-  forall (cs : compspecs) (sh : share) (p : val) n (N: 0<=n < Int.modulus),
-  memory_block sh n p |--  data_at_ sh (tarray tuchar n) p.
-Proof.
-  intros.
-  unfold data_at_, data_at.
-  rewrite field_at__memory_block.
-  unfold field_address. simpl. rewrite Z.max_r, Z.mul_1_l; try omega.
-  if_tac.
-  + normalize.
-  + (*unfold field_at_, field_at.*)
-    rewrite memory_block_isptr.
-(*    replace (!!field_compatible t nil p : mpred) with FF by (apply ND_prop_ext; tauto).
-    replace (!!isptr Vundef : mpred) with FF by reflexivity.*)
-    normalize. destruct p; try contradiction. simpl in *. elim H; clear H.
-    red. repeat split; simpl; trivial. admit.
-    rewrite Z.max_r, Z.mul_1_l; omega.  rewrite Z.max_r, Z.mul_1_l; try omega. admit. (*make size_compatible part of memory_block?*) 
-    unfold align_attr; simpl. apply Z.divide_1_l.
-    - unfold legal_alignas_type, nested_pred. simpl. red; simpl.
-Qed.
-*)
-            
