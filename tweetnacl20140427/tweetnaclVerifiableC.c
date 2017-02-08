@@ -66,7 +66,11 @@ sv ts64(u8 *x,u64 u)
 static int vn(const u8 *x,const u8 *y,int n)
 {
   u32 i,d = 0;
-  FOR(i,n) d |= x[i]^y[i];
+  //FOR(i,n) d |= x[i]^y[i];
+  FOR (i,n) {
+    u8 xi = x[i];
+    d |= xi^y[i];
+  }
   return (1 & ((d - 1) >> 8)) - 1;
 }
 
