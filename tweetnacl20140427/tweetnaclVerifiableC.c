@@ -69,7 +69,8 @@ static int vn(const u8 *x,const u8 *y,int n)
   //FOR(i,n) d |= x[i]^y[i];
   FOR (i,n) {
     u8 xi = x[i];
-    d |= xi^y[i];
+    u8 yi = y[i];
+    d |= xi^yi;
   }
   return (1 & ((d - 1) >> 8)) - 1;
 }
