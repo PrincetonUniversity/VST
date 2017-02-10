@@ -1304,10 +1304,11 @@ Proof.
   apply positive_sepcon1; auto.
 Qed.
 
-Lemma later_positive : forall P, positive_mpred P -> positive_mpred (|> P)%logic.
+(* This need not hold; specifically, when an rmap is at level 0, |> P holds vacuously for all P. *)
+(*Lemma later_positive : forall P, positive_mpred P -> positive_mpred (|> P)%logic.
 Proof.
-(* !! I'm not sure this is true, but it seems plausible that a resource doesn't disappear in a later map. *)
-Admitted.
+  intros ????.
+Admitted.*)
 
 Lemma positive_FF : positive_mpred FF.
 Proof.
@@ -1959,21 +1960,9 @@ Proof.
   destruct H as (_ & _ & _ & _ & _ & _ & _ & _ & ?); auto.
 Qed.
 
-Lemma mpred_ext' : forall (P Q : predicates_hered.pred compcert_rmaps.RML.R.rmap)
-  (Hd1 : predicates_hered.derives P Q) (Hd2 : predicates_hered.derives Q P), P = Q.
-Proof.
-  intros.
-  destruct P as (P & ?), Q as (Q & ?).
-  assert (P = Q).
-  { extensionality; apply prop_ext.
-    split; [apply Hd1 | apply Hd2]. }
-  subst; f_equal.
-  apply proof_irr.
-Qed.
-
 Lemma mpred_ext : forall (P Q : mpred) (Hd1 : P |-- Q) (Hd2 : Q |-- P), P = Q.
 Proof.
-  apply mpred_ext'.
+  intros; apply (predicates_hered.pred_ext _ _ _ Hd1); auto.
 Qed.
 
 Lemma andp_emp_derives_dup : forall (P : mpred),
@@ -1990,6 +1979,23 @@ Proof.
   - apply andp_emp_derives_dup.
   - entailer!.
     apply andp_left2; auto.
+Qed.
+
+Lemma approx_imp : forall n P Q, compcert_rmaps.RML.R.approx n (predicates_hered.imp P Q) =
+  compcert_rmaps.RML.R.approx n (predicates_hered.imp (compcert_rmaps.RML.R.approx n P) (compcert_rmaps.RML.R.approx n Q)).
+Proof.
+  intros; apply predicates_hered.pred_ext; intros ? (? & Himp); split; auto; intros ? Ha' HP.
+  - destruct HP; split; auto.
+  - apply Himp; auto; split; auto.
+    pose proof (ageable.necR_level _ _ Ha'); omega.
+Qed.
+
+Lemma approx_idem : forall n P, compcert_rmaps.R.approx n (compcert_rmaps.R.approx n P) =
+  compcert_rmaps.R.approx n P.
+Proof.
+  intros.
+  transitivity (base.compose (compcert_rmaps.R.approx n) (compcert_rmaps.R.approx n) P); auto.
+  rewrite compcert_rmaps.RML.approx_oo_approx; auto.
 Qed.
 
 (* tactics *)

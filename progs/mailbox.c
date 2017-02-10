@@ -10,9 +10,9 @@ void *surely_malloc (size_t n) {
 
 //This will be replaced by an external call eventually.
 void *memset(void *s, int c, size_t n){
-  unsigned char *p = (unsigned char *)s;
-  for(size_t i = 0; i < n; i++)
-    p[i] = (unsigned char)c;
+  int *p = (int *)s;
+  for(size_t i = 0; i < n / 4; i++)
+    p[i] = c;
   return s;
 }
 
@@ -41,8 +41,7 @@ buf_id *reading[N], *last_read[N];
 void initialize_channels(){
   for(int i = 0; i < B; i++){
     buffer *b = surely_malloc(sizeof(buffer));
-    memset(b, 0, sizeof(buffer)); //for now, we initialize all buffers to maintain
-                                  //the invariant that buffers contain integers
+    memset(b, 0, sizeof(buffer));
     bufs[i] = b;
   }
   for(int r = 0; r < N; r++){
