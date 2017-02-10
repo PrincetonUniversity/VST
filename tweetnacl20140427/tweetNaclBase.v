@@ -318,3 +318,144 @@ Proof. unfold Znth.
   rewrite Z2Nat.inj_sub in H0. rewrite <- Heqn in H0. simpl in H0. rewrite <- minus_n_O in H0. 
      rewrite H0. exists x; trivial. omega.
 Qed.
+
+Lemma app_inj {A}: forall l l'
+  (L:Zlength l = Zlength l') (m m':list A) (M: Zlength m = Zlength m'),
+  l ++ m = l'++m' -> l=l' /\ m = m'.
+Proof. induction l; simpl; intros.
++ destruct l'; simpl in *. subst; split; trivial. 
+  rewrite Zlength_nil, Zlength_cons in L. specialize (Zlength_nonneg l'); omega.
++ destruct l'; simpl. rewrite Zlength_nil, Zlength_cons in L. specialize (Zlength_nonneg l); omega.
+  simpl in *. inv H. 
+  assert (LL': Zlength l = Zlength l') by (rewrite 2 Zlength_cons in L; omega).
+  destruct (IHl _ LL' _ _ M H2); subst. split; trivial.
+Qed.
+
+Lemma list_eq_dec_app {A} (eq_dec: forall x y : A, {x = y} + {x <> y}):
+  forall l m l' m'
+  (L:Zlength l = Zlength l') (M: Zlength m = Zlength m'),
+  ((if list_eq_dec eq_dec (l++m) (l'++m') then true else false) =
+  ((if list_eq_dec eq_dec l l' then true else false) &&
+   (if list_eq_dec eq_dec m m' then true else false)))%bool.
+Proof. 
+induction l; intros.
++ destruct l'; simpl; trivial. 
+  rewrite Zlength_nil, Zlength_cons in L. specialize (Zlength_nonneg l'); omega.
++ destruct l'. rewrite Zlength_nil, Zlength_cons in L. specialize (Zlength_nonneg l); omega.
+  assert (LL': Zlength l = Zlength l') by (rewrite 2 Zlength_cons in L; omega).
+  specialize (IHl _ _ _ LL' M).
+  destruct (eq_dec a a0); subst.
+  - destruct (list_eq_dec eq_dec (l ++ m) (l' ++ m')); subst.
+    * destruct (app_inj _ _ LL' _ _ M e); subst l' m'.
+      rewrite 3 if_true; trivial.
+    * if_tac; simpl in H. 
+      ++ inv H. contradiction.
+      ++ if_tac in IHl; simpl in IHl.
+         -- subst l'. rewrite if_true; trivial.
+         -- if_tac; trivial. inv H1; congruence.
+  - destruct (list_eq_dec eq_dec (l ++ m) (l' ++ m')); subst.
+    * destruct (app_inj _ _ LL' _ _ M e); subst l' m'.
+      rewrite if_false. rewrite if_false; trivial. congruence.
+      simpl; congruence.
+    * rewrite if_false. 2: simpl; congruence.
+      rewrite if_false; trivial. simpl; congruence.
+Qed. 
+
+Lemma combine_app {A B}: forall (l1:list A) (m1:list B) l2 m2 
+  (L:Zlength l1 = Zlength m1) (M: Zlength l2 = Zlength m2),
+  combine (l1 ++ l2) (m1 ++ m2) = combine l1 m1 ++ combine l2 m2.
+Proof.
+induction l1; intros.
++ destruct m1; simpl; trivial. 
+  rewrite Zlength_nil, Zlength_cons in L. specialize (Zlength_nonneg m1); omega.
++ destruct m1. rewrite Zlength_nil, Zlength_cons in L. specialize (Zlength_nonneg l1); omega.
+  assert (LL': Zlength l1 = Zlength m1) by (rewrite 2 Zlength_cons in L; omega).
+  specialize (IHl1 _ _ _ LL' M). simpl. f_equal; trivial.
+Qed.
+
+Lemma Byte_zero_ext_8 b: Byte.zero_ext 8 b = b.
+ apply Byte.same_bits_eq; intros.
+ rewrite Byte.bits_zero_ext by omega. if_tac; trivial.
+ replace Byte.zwordsize with 8 in H by reflexivity. omega.
+Qed.
+
+Lemma Byte_Int_max_unsigned: Byte.max_unsigned < Int.max_unsigned.
+Proof. cbv; trivial. Qed.
+
+Lemma byte_unsigned_range_int_unsigned_max x: 0 <= Byte.unsigned x <= Int.max_unsigned.
+Proof. destruct (Byte.unsigned_range_2 x). specialize Byte_Int_max_unsigned; omega. Qed.
+
+Lemma Zlxor_of_byte_range x y: 0 <= Z.lxor (Byte.unsigned x) (Byte.unsigned y) <= Byte.max_unsigned.
+Proof.
+ destruct (Byte.unsigned_range x).
+ destruct (Byte.unsigned_range y).
+ split; apply Byte.Ztestbit_le.
+ + apply Z.lxor_nonneg. omega.
+ + intros. destruct i; discriminate.
+ + unfold Byte.max_unsigned. simpl; omega.
+ + intros. unfold Byte.max_unsigned. simpl. rewrite Z.lxor_spec in H4.
+   unfold xorb in H4.
+   specialize (Byte.Ztestbit_two_p_m1 8 i); simpl. intros X; rewrite X; clear X; try omega.
+   destruct (zlt i 8); trivial.
+   rewrite 2 (Byte.Ztestbit_above 8) in H4. discriminate.
+   apply Byte.unsigned_range. simpl; omega.
+   apply Byte.unsigned_range. simpl; omega.
+Qed.
+
+Lemma unsigned_xor_Byte_Int xi yi: Byte.unsigned (Byte.xor xi yi) =
+      Int.unsigned (Int.xor (Int.repr (Byte.unsigned xi)) (Int.repr (Byte.unsigned yi))).
+Proof.
+  unfold Int.xor, Byte.xor.
+  rewrite (Int.unsigned_repr (Byte.unsigned xi)) by apply byte_unsigned_range_int_unsigned_max.
+  rewrite (Int.unsigned_repr (Byte.unsigned yi)) by apply byte_unsigned_range_int_unsigned_max.
+  rewrite Int.unsigned_repr, Byte.unsigned_repr; trivial. apply Zlxor_of_byte_range.
+  destruct (Zlxor_of_byte_range xi yi). specialize Byte_Int_max_unsigned; omega.
+Qed.
+
+Lemma Z_lxor_byte_neq b1 b2 (B:b1 <> b2): exists b, 
+      Z.lxor (Byte.unsigned b1) (Byte.unsigned b2) = Byte.unsigned b /\ b <> Byte.zero.
+Proof.
+  exists (Byte.xor b1 b2); split. 2: intros N; apply Byte.xor_zero_equal in N; contradiction.
+  apply Byte.equal_same_bits; intros.
+  destruct (zlt i 8).
+  + unfold Byte.xor. rewrite Byte.unsigned_repr; trivial. apply Zlxor_of_byte_range. 
+  + rewrite ! (Byte.Ztestbit_above 8); simpl; trivial; try omega. apply Byte.unsigned_range.
+    specialize (Zlxor_of_byte_range b1 b2). 
+    replace (two_power_nat 8) with 256 by reflexivity.
+    replace Byte.max_unsigned with 255 by reflexivity. omega.
+Qed.
+
+Lemma Zlor_of_byte_range x y: 0 <= Z.lor (Byte.unsigned x) (Byte.unsigned y) <= Byte.max_unsigned.
+Proof. 
+ destruct (Byte.unsigned_range x).
+ destruct (Byte.unsigned_range y).
+ split.
++ apply Byte.Ztestbit_le.
+  - apply Z.lor_nonneg. omega.
+  - destruct i; discriminate.
++ unfold Byte.max_unsigned. simpl.
+  apply Byte.Ztestbit_le. omega. intros.
+  rewrite Z.lor_spec in H4. 
+  destruct (zlt i 8 ).
+  - destruct (zeq i 0). subst; reflexivity. 
+    destruct (zeq i 1). subst; reflexivity. 
+    destruct (zeq i 2). subst; reflexivity. 
+    destruct (zeq i 3). subst; reflexivity. 
+    destruct (zeq i 4). subst; reflexivity. 
+    destruct (zeq i 5). subst; reflexivity. 
+    destruct (zeq i 6). subst; reflexivity. 
+    destruct (zeq i 7). subst; reflexivity. omega.  
+  - rewrite 2 (Byte.Ztestbit_above 8) in H4; try discriminate; simpl; try omega; apply Byte.unsigned_range.
+Qed. 
+
+Lemma Zlor_Byteor b1 b2: Z.lor (Byte.unsigned b1) (Byte.unsigned b2) = Byte.unsigned (Byte.or b1 b2).
+Proof. unfold Byte.or. rewrite Byte.unsigned_repr; trivial. apply Zlor_of_byte_range. Qed.
+
+Lemma ByteOr_zero b1 b2 (B: Byte.or b1 b2 = Byte.zero): b1=Byte.zero /\ b2=Byte.zero.
+Proof.
+  specialize (Byte.bits_or b1 b2); intros. rewrite B in H; clear B.
+  assert (forall i, 0 <= i < Byte.zwordsize -> (Byte.testbit b1 i = false /\ Byte.testbit b2 i = false)).
+  + intros. specialize (H _ H0). rewrite Byte.bits_zero in H. symmetry in H. 
+    apply orb_false_iff in H; trivial.
+  + clear H. split; apply Byte.same_bits_eq; intros; rewrite Byte.bits_zero; apply (H0 _ H).
+Qed.
