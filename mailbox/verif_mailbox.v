@@ -1,4 +1,4 @@
-Require Import progs.verif_atomic_exchange.
+Require Import mailbox.verif_atomic_exchange.
 Require Import veric.rmaps.
 Require Import progs.conclib.
 Require Import progs.ghost.
