@@ -625,7 +625,7 @@ Proof.
       apply RAMIF_PLAIN.trans'.
       apply bst_left_entail; auto.
   + forward. (* Sskip *)
-    (* TODO entailer: entailer! does not work here. *)
+    (* TODO entailer: entailer!, go_lower error message is wrong. *)
     unfold loop2_ret_assert.
     entailer!.
     apply andp_left2, derives_refl.

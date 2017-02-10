@@ -362,9 +362,10 @@ Proof.
                        LOCAL (temp ret_temp q)
                        SEP (subscr_post b t x p q))).
   Focus 1. {
-    Intros p.
-    Exists p.
+    Intros p q.
+    Exists p q.
     (* TODO entailer: let entailer work here. *)
+    unfold subscr_post.
     admit.
   } Unfocus.
   rename H into Range_x.
@@ -416,7 +417,7 @@ Proof.
       entailer!.
     + forward. (* p = *t; *)
       forward_if. (* else clause *)
-      (* TODO: better automation for field_compatible. *)
+       (* TODO: better automation for field_compatible. *)
         1: admit.
       (* TODO: better automation for field_compatible. *)
         1: admit.
