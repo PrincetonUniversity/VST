@@ -1,4 +1,4 @@
-Require Import progs.verif_atomic_exchange.
+Require Import mailbox.verif_atomic_exchange.
 Require Import veric.rmaps.
 Require Import progs.conclib.
 Require Import progs.ghost.
@@ -35,15 +35,13 @@ Lemma lock_R_super_non_expansive : forall n R h v, compcert_rmaps.RML.R.approx n
   compcert_rmaps.RML.R.approx n (lock_R (compcert_rmaps.RML.R.approx n R) h v).
 Proof.
   unfold lock_R; intros.
-  rewrite !approx_exp; f_equal; extensionality z.
+  rewrite !approx_exp; apply f_equal; extensionality z.
   rewrite !approx_sepcon, !approx_andp; f_equal.
   - rewrite nonexpansive_super_non_expansive by (apply precise_mpred_nonexpansive).
     rewrite (nonexpansive_super_non_expansive (fun R => weak_positive_mpred R))
       by (apply positive_mpred_nonexpansive); auto.
   - destruct (eq_dec z 0); auto.
-    replace (compcert_rmaps.RML.R.approx n R) with
-      (base.compose (compcert_rmaps.R.approx n) (compcert_rmaps.R.approx n) R) at 1
-      by (rewrite compcert_rmaps.RML.approx_oo_approx; auto); auto.
+    rewrite approx_idem; auto.
 Qed.
 
 Lemma my_lock_super_non_expansive : forall n sh l p R, compcert_rmaps.RML.R.approx n (my_lock sh l p R) =
@@ -57,9 +55,9 @@ Proof.
   evar (rhs : mpred).
   replace (compcert_rmaps.RML.R.approx n (AE_inv _ _ _ _)) with rhs; subst rhs; [reflexivity|].
   unfold AE_inv.
-  rewrite !approx_exp; f_equal; extensionality h.
-  rewrite !approx_exp; f_equal; extensionality v.
-  rewrite !approx_andp; f_equal.
+  rewrite !approx_exp; apply f_equal; extensionality h.
+  rewrite !approx_exp; apply f_equal; extensionality v.
+  rewrite !approx_andp; apply f_equal.
   rewrite !approx_sepcon; f_equal.
   - f_equal.
     symmetry; apply lock_R_super_non_expansive.
@@ -99,10 +97,7 @@ Proof.
     PROP () LOCAL () SEP (let '(sh, l, p, R) := x in my_lock sh l p R * R) rho).
   apply (PROP_LOCAL_SEP_super_non_expansive lock_sig [] [] [fun _ => _]); repeat constructor; hnf; intros;
     destruct x as (((?, ?), ?), R); simpl; try timeout 1 reflexivity.
-  - rewrite !approx_sepcon, my_lock_super_non_expansive.
-    replace (compcert_rmaps.RML.R.approx n R) with
-      (base.compose (compcert_rmaps.R.approx n) (compcert_rmaps.R.approx n) R) at 2
-      by (rewrite compcert_rmaps.RML.approx_oo_approx; auto); auto.
+  - rewrite !approx_sepcon, my_lock_super_non_expansive, approx_idem; auto.
   - extensionality ts x rho.
     destruct x as (((?, ?), ?), ?); auto.
     unfold SEPx; simpl; rewrite !sepcon_assoc; auto.
@@ -129,10 +124,7 @@ Proof.
   apply (PROP_LOCAL_SEP_super_non_expansive lock_sig [fun _ => _] [fun _ => _; fun _ => _]
     [fun _ => _]); repeat constructor; hnf; intros;
     destruct x as (((?, ?), ?), R); simpl; try timeout 1 reflexivity.
-  - rewrite !approx_sepcon, my_lock_super_non_expansive.
-    replace (compcert_rmaps.RML.R.approx n R) with
-      (base.compose (compcert_rmaps.R.approx n) (compcert_rmaps.R.approx n) R) at 2
-      by (rewrite compcert_rmaps.RML.approx_oo_approx; auto); auto.
+  - rewrite !approx_sepcon, my_lock_super_non_expansive, approx_idem; auto.
   - extensionality ts x rho.
     destruct x as (((?, ?), ?), ?); auto.
     unfold SEPx; simpl; rewrite !sepcon_assoc; auto.

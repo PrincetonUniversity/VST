@@ -133,23 +133,24 @@ Definition f_memset := {|
   fn_callconv := cc_default;
   fn_params := ((_s, (tptr tvoid)) :: (_c, tint) :: (_n, tuint) :: nil);
   fn_vars := nil;
-  fn_temps := ((_p, (tptr tuchar)) :: (_i, tuint) :: nil);
+  fn_temps := ((_p, (tptr tint)) :: (_i, tuint) :: nil);
   fn_body :=
 (Ssequence
-  (Sset _p (Ecast (Etempvar _s (tptr tvoid)) (tptr tuchar)))
+  (Sset _p (Ecast (Etempvar _s (tptr tvoid)) (tptr tint)))
   (Ssequence
     (Ssequence
       (Sset _i (Econst_int (Int.repr 0) tint))
       (Sloop
         (Ssequence
-          (Sifthenelse (Ebinop Olt (Etempvar _i tuint) (Etempvar _n tuint)
-                         tint)
+          (Sifthenelse (Ebinop Olt (Etempvar _i tuint)
+                         (Ebinop Odiv (Etempvar _n tuint)
+                           (Econst_int (Int.repr 4) tint) tuint) tint)
             Sskip
             Sbreak)
           (Sassign
             (Ederef
-              (Ebinop Oadd (Etempvar _p (tptr tuchar)) (Etempvar _i tuint)
-                (tptr tuchar)) tuchar) (Ecast (Etempvar _c tint) tuchar)))
+              (Ebinop Oadd (Etempvar _p (tptr tint)) (Etempvar _i tuint)
+                (tptr tint)) tint) (Etempvar _c tint)))
         (Sset _i
           (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tint)
             tuint))))

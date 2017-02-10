@@ -20,6 +20,9 @@ Definition view_shift A B := forall (Espec : OracleKind) D P Q R C P',
   semax D (PROPx P (LOCALx Q (SEPx (B :: R)))) C P' ->
   semax D (PROPx P (LOCALx Q (SEPx (A :: R)))) C P'.
 
+Axiom view_shift_super_non_expansive : forall n P Q, compcert_rmaps.RML.R.approx n (!!view_shift P Q) =
+  compcert_rmaps.RML.R.approx n (!!view_shift (compcert_rmaps.RML.R.approx n P) (compcert_rmaps.RML.R.approx n Q)).
+
 Definition joins a b := exists c, join a b c.
 
 Definition update a b := forall c, joins a c -> joins b c.
