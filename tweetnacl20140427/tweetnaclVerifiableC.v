@@ -107,12 +107,12 @@ Definition _crypto_stream_xsalsa20_tweet_xor : ident := 105%positive.
 Definition _crypto_verify_16_tweet : ident := 76%positive.
 Definition _crypto_verify_32_tweet : ident := 77%positive.
 Definition _cswap : ident := 154%positive.
-Definition _d : ident := 72%positive.
+Definition _d : ident := 73%positive.
 Definition _den : ident := 173%positive.
 Definition _den2 : ident := 174%positive.
 Definition _den4 : ident := 175%positive.
 Definition _den6 : ident := 176%positive.
-Definition _dl64 : ident := 67%positive.
+Definition _dl64 : ident := 68%positive.
 Definition _e : ident := 132%positive.
 Definition _f : ident := 133%positive.
 Definition _g : ident := 110%positive.
@@ -137,7 +137,7 @@ Definition _main : ident := 180%positive.
 Definition _minusp : ident := 108%positive.
 Definition _mlen : ident := 178%positive.
 Definition _modL : ident := 166%positive.
-Definition _n : ident := 71%positive.
+Definition _n : ident := 72%positive.
 Definition _neq25519 : ident := 123%positive.
 Definition _num : ident := 172%positive.
 Definition _o : ident := 117%positive.
@@ -163,10 +163,10 @@ Definition _sigma1 : ident := 148%positive.
 Definition _sk : ident := 162%positive.
 Definition _sm : ident := 168%positive.
 Definition _smlen : ident := 169%positive.
-Definition _st32 : ident := 68%positive.
+Definition _st32 : ident := 69%positive.
 Definition _t : ident := 83%positive.
 Definition _temp : ident := 100%positive.
-Definition _ts64 : ident := 69%positive.
+Definition _ts64 : ident := 70%positive.
 Definition _tx : ident := 155%positive.
 Definition _ty : ident := 156%positive.
 Definition _u : ident := 64%positive.
@@ -176,8 +176,8 @@ Definition _unpackneg : ident := 177%positive.
 Definition _vn : ident := 75%positive.
 Definition _w : ident := 82%positive.
 Definition _x : ident := 60%positive.
-Definition _xi : ident := 73%positive.
-Definition _y : ident := 70%positive.
+Definition _xi : ident := 67%positive.
+Definition _y : ident := 71%positive.
 Definition _yi : ident := 74%positive.
 Definition _z : ident := 94%positive.
 Definition _zi : ident := 157%positive.
@@ -402,29 +402,33 @@ Definition f_dl64 := {|
   fn_callconv := cc_default;
   fn_params := ((_x, (tptr tuchar)) :: nil);
   fn_vars := nil;
-  fn_temps := ((_i, tulong) :: (_u, tulong) :: nil);
+  fn_temps := ((_i, tint) :: (_u, tulong) :: (_xi, tuchar) :: nil);
   fn_body :=
 (Ssequence
   (Sset _u (Ecast (Econst_int (Int.repr 0) tint) tulong))
   (Ssequence
     (Ssequence
-      (Sset _i (Ecast (Econst_int (Int.repr 0) tint) tulong))
+      (Sset _i (Econst_int (Int.repr 0) tint))
       (Sloop
         (Ssequence
-          (Sifthenelse (Ebinop Olt (Etempvar _i tulong)
+          (Sifthenelse (Ebinop Olt (Etempvar _i tint)
                          (Econst_int (Int.repr 8) tint) tint)
             Sskip
             Sbreak)
-          (Sset _u
-            (Ebinop Oor
-              (Ebinop Oshl (Etempvar _u tulong)
-                (Econst_int (Int.repr 8) tint) tulong)
-              (Ederef
-                (Ebinop Oadd (Etempvar _x (tptr tuchar)) (Etempvar _i tulong)
-                  (tptr tuchar)) tuchar) tulong)))
+          (Ssequence
+            (Sset _xi
+              (Ecast
+                (Ederef
+                  (Ebinop Oadd (Etempvar _x (tptr tuchar)) (Etempvar _i tint)
+                    (tptr tuchar)) tuchar) tuchar))
+            (Sset _u
+              (Ebinop Oor
+                (Ebinop Oshl (Etempvar _u tulong)
+                  (Econst_int (Int.repr 8) tint) tulong)
+                (Etempvar _xi tuchar) tulong))))
         (Sset _i
-          (Ebinop Oadd (Etempvar _i tulong) (Econst_int (Int.repr 1) tint)
-            tulong))))
+          (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
+            tint))))
     (Sreturn (Some (Etempvar _u tulong)))))
 |}.
 
@@ -463,23 +467,24 @@ Definition f_ts64 := {|
   fn_temps := ((_i, tint) :: nil);
   fn_body :=
 (Ssequence
-  (Sset _i (Econst_int (Int.repr 7) tint))
+  (Sset _i (Econst_int (Int.repr 0) tint))
   (Sloop
     (Ssequence
-      (Sifthenelse (Ebinop Oge (Etempvar _i tint)
-                     (Econst_int (Int.repr 0) tint) tint)
+      (Sifthenelse (Ebinop Olt (Etempvar _i tint)
+                     (Econst_int (Int.repr 8) tint) tint)
         Sskip
         Sbreak)
       (Ssequence
         (Sassign
           (Ederef
-            (Ebinop Oadd (Etempvar _x (tptr tuchar)) (Etempvar _i tint)
-              (tptr tuchar)) tuchar) (Etempvar _u tulong))
+            (Ebinop Oadd (Etempvar _x (tptr tuchar))
+              (Ebinop Osub (Econst_int (Int.repr 7) tint) (Etempvar _i tint)
+                tint) (tptr tuchar)) tuchar) (Etempvar _u tulong))
         (Sset _u
           (Ebinop Oshr (Etempvar _u tulong) (Econst_int (Int.repr 8) tint)
             tulong))))
     (Sset _i
-      (Ebinop Osub (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))))
+      (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))))
 |}.
 
 Definition f_vn := {|
