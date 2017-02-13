@@ -1,4 +1,4 @@
-Require Import progs.verif_atomic_exchange.
+Require Import mailbox.verif_atomic_exchange.
 Require Import veric.rmaps.
 Require Import progs.conclib.
 Require Import progs.ghost.
@@ -14,14 +14,7 @@ Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Definition acquire_spec := DECLARE _acquire acquire_spec.
 Definition release_spec := DECLARE _release release_spec.
 Definition makelock_spec := DECLARE _makelock (makelock_spec _).
-(*Definition freelock_spec := DECLARE _freelock (freelock_spec _).*)
 Definition spawn_spec := DECLARE _spawn spawn_spec.
-(*Definition freelock2_spec := DECLARE _freelock2 (freelock2_spec _).
-Definition release2_spec := DECLARE _release2 release2_spec.
-Definition makecond_spec := DECLARE _makecond (makecond_spec _).
-Definition freecond_spec := DECLARE _freecond (freecond_spec _).
-Definition wait_spec := DECLARE _waitcond (wait2_spec _).
-Definition signal_spec := DECLARE _signalcond (signal_spec _).*)
 
 Definition surely_malloc_spec :=
  DECLARE _surely_malloc
@@ -39,13 +32,13 @@ Definition memset_spec :=
  DECLARE _memset
   WITH sh : share, t : type, p : val, c : Z, n : Z
   PRE [ _s OF tptr tvoid, _c OF tint, _n OF tuint ]
-   PROP (writable_share sh; sizeof t = n; n <= Int.max_unsigned; 0 <= c <= two_p 8 - 1)
-   LOCAL (temp _s p; temp _c (vint c); temp _n (vint n))
+   PROP (writable_share sh; sizeof t = (4 * n)%Z; 4 * n <= Int.max_unsigned; (4 | alignof t))
+   LOCAL (temp _s p; temp _c (vint c); temp _n (vint (4 * n)%Z))
    SEP (data_at_ sh t p)
   POST [ tptr tvoid ]
    PROP ()
    LOCAL (temp ret_temp p)
-   SEP (data_at sh (tarray tuchar n) (repeat (vint c) (Z.to_nat n)) p).
+   SEP (data_at sh (tarray tint n) (repeat (vint c) (Z.to_nat n)) p).
 
 Definition N := 3.
 Definition B := N + 2.
@@ -223,8 +216,7 @@ Definition start_write_spec :=
    LOCAL (temp ret_temp (vint b))
    SEP (data_at Ews tint (vint b) writing; data_at Ews tint (vint b0) last_given;
         data_at Ews (tarray tint N) (map (fun x => vint x) lasts) last_taken).
-(* And b is not in use by any reader. This follows from the property on lasts, but can we relate it to the
-   relevant ghost state? *)
+(* And b is not in use by any reader. This follows from the property on lasts. *)
 
 Fixpoint make_shares shs (lasts : list Z) i : list share :=
   match lasts with
@@ -242,8 +234,6 @@ Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7
               x10 at level 0, x11 at level 0, x12 at level 0,  x13 at level 0, x14 at level 0, x15 at level 0, x16 at level 0, x17 at level 0, x18 at level 0,
              P at level 100, Q at level 100).
 
-(* A possible refinement, removing the requirement that the buffers be initialized, would be to
-   turn the buffer invariant into upd_Znth b0 (map ... data_at_ sh tbuffer ... B) (EX v, data_at sh0 ...). *)
 Definition finish_write_spec :=
  DECLARE _finish_write
   WITH writing : val, last_given : val, last_taken : val, comm : val, lock : val,
@@ -378,36 +368,40 @@ Proof.
   rewrite data_at__isptr; Intros.
   rewrite sem_cast_neutral_ptr; auto.
   pose proof (sizeof_pos t).
-  forward_for_simple_bound n (EX i : Z, PROP () LOCAL (temp _p p; temp _s p; temp _c (vint c); temp _n (vint n))
-    SEP (data_at sh (tarray tuchar n) (repeat (vint c) (Z.to_nat i) ++ repeat Vundef (Z.to_nat (n - i))) p)).
+  assert (vint n = force_val (sem_div tuint tint (vint (4 * n)) (vint 4))) as H4.
+  { unfold sem_div; simpl.
+    unfold Int.divu.
+    rewrite !Int.unsigned_repr; auto; try (split; auto; try computable; omega).
+    rewrite Z.mul_comm, Z_div_mult; auto; computable. }
+  forward_for_simple_bound n (EX i : Z, PROP ()
+    LOCAL (temp _p p; temp _s p; temp _c (vint c); temp _n (vint (4 * n)))
+    SEP (data_at sh (tarray tint n) (repeat (vint c) (Z.to_nat i) ++ repeat Vundef (Z.to_nat (n - i))) p)).
   { entailer!.
-    apply derives_trans with (Q := data_at_ sh (tarray tuchar (sizeof t)) p).
+    { rewrite H4; auto. }
+    apply derives_trans with (Q := data_at_ sh (tarray tint n) p).
     - rewrite !data_at__memory_block; simpl.
-      assert ((1 * Z.max 0 (sizeof t))%Z = sizeof t) as Hsize.
-      { rewrite Z.mul_1_l, Z.max_r; auto; apply Z.ge_le; auto. }
+      assert ((4 * Z.max 0 n)%Z = sizeof t) as Hsize.
+      { rewrite Z.max_r; auto; omega. }
       setoid_rewrite Hsize; Intros; apply andp_right; [|simpl; apply derives_refl].
       apply prop_right; match goal with H : field_compatible _ _ _ |- _ =>
         destruct H as (? & ? & ? & ? & ? & ? & ? & ?) end; repeat split; simpl; auto.
       + unfold legal_alignas_type, tarray, nested_pred, local_legal_alignas_type; simpl.
-        rewrite andb_true_r, Z.leb_le; apply Z.ge_le; auto.
+        rewrite andb_true_r, Z.leb_le; omega.
       + setoid_rewrite Hsize; auto.
       + unfold size_compatible in *; simpl.
         destruct p; try contradiction.
         setoid_rewrite Hsize; auto.
-      + unfold align_compatible; simpl.
-        unfold align_attr; simpl.
+      + unfold align_compatible in *; simpl.
+        unfold align_attr in *; simpl.
         destruct p; try contradiction.
-        apply Z.divide_1_l.
+        etransitivity; eauto.
     - rewrite data_at__eq.
       unfold default_val, reptype_gen; simpl.
       rewrite repeat_list_repeat, Z.sub_0_r; apply derives_refl. }
   - forward.
-    repeat match goal with H : _ /\ _ |- _ => destruct H end; assert (c <= Int.max_unsigned).
-    { etransitivity; eauto; unfold Int.max_unsigned; simpl; computable. }
-    entailer!.
-    rewrite zero_ext_inrange; rewrite zero_ext_inrange; rewrite ?Int.unsigned_repr; try omega.
     rewrite upd_init_const; [|omega].
     entailer!.
+    rewrite H4; auto.
   - forward.
     rewrite Zminus_diag, app_nil_r; apply derives_refl.
 Qed.
@@ -442,13 +436,17 @@ Proof.
     rewrite malloc_compat; auto; Intros.
     rewrite memory_block_data_at_; auto.
     assert_PROP (field_compatible tbuffer [] b) by entailer!.
-    forward_call (Tsh, tbuffer, b, 0, sizeof tbuffer).
-    { repeat split; simpl; auto; computable. }
+    forward_call (Tsh, tbuffer, b, 0, 1).
+    { repeat split; simpl; auto; try computable.
+      apply Z.divide_refl. }
     forward.
     rewrite upd_init; auto; try omega.
     entailer!.
     Exists (bufs ++ [b]); rewrite Zlength_app, <- app_assoc, !map_app, !sepcon_app, Forall_app; simpl; entailer!.
-    admit. (* How do we go from an array of bytes of the right length to a data_at predicate on a larger type? *)
+    clear; unfold data_at, field_at, at_offset; Intros.
+    rewrite !data_at_rec_eq; unfold withspacer; simpl.
+    unfold array_pred, aggregate_pred.array_pred, unfold_reptype; simpl.
+    entailer!.
     { exists 2; auto. } }
   Intros bufs; rewrite Zminus_diag, app_nil_r.
   forward_for_simple_bound N (EX i : Z, PROP ()
@@ -1473,10 +1471,10 @@ Proof.
     subst l0.
     destruct (eq_dec j b).
     + subst; rewrite upd_Znth_same; auto.
-      apply mpred_ext'; intros ? HP.
-      * exists bsh'; split; auto.
-      * destruct HP as (x & HshP & ?).
-        assert (x = bsh') by (eapply list_join_eq; eauto; apply HshP).
+      apply mpred_ext.
+      * Exists bsh'; entailer!.
+      * Intros sh.
+        assert (sh = bsh') by (eapply list_join_eq; eauto; apply HshP).
         subst; auto.
     + rewrite upd_Znth_diff; auto.
       erewrite Znth_map, Znth_upto; auto.

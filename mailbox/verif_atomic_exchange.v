@@ -112,30 +112,48 @@ Proof.
   apply (PROP_LOCAL_SEP_super_non_expansive AE_type [fun _ => _] [fun _ => _; fun _ => _; fun _ => _]
     [fun _ => _]); repeat constructor; hnf; intros;
     destruct x as (((((((((?, ?), ?), ?), ?), ?), ?), P), R), Q); auto; simpl.
-  - unfold AE_spec.
-    (* This is probably provable for derives, but might need to be assumed for view shift. *)
-    admit.
-  - rewrite !approx_sepcon.
-    replace (compcert_rmaps.RML.R.approx n (P h v2)) with
-      (base.compose (compcert_rmaps.R.approx n) (compcert_rmaps.R.approx n) (P h v2)) at 1
-      by (rewrite compcert_rmaps.RML.approx_oo_approx; auto).
+  - rewrite !prop_and, !approx_andp; apply f_equal; apply f_equal; apply f_equal.
+    unfold AE_spec.
+    rewrite !prop_forall, !(approx_allp _ _ _ []); apply f_equal; extensionality hc.
+    rewrite !prop_forall, !(approx_allp _ _ _ []); apply f_equal; extensionality hv.
+    rewrite !prop_forall, !(approx_allp _ _ _ Vundef); apply f_equal; extensionality vc.
+    rewrite !prop_forall, !(approx_allp _ _ _ Vundef); apply f_equal; extensionality vx.
+    rewrite !prop_impl.
+    setoid_rewrite approx_imp at 1.
+    setoid_rewrite approx_imp at 2.
+    setoid_rewrite approx_imp at 3.
+    setoid_rewrite approx_imp at 4.
+    rewrite view_shift_super_non_expansive.
+    setoid_rewrite view_shift_super_non_expansive at 2.
+    rewrite !approx_sepcon, !approx_andp.
+    rewrite (nonexpansive_super_non_expansive weak_precise_mpred) by (apply precise_mpred_nonexpansive).
+    apply predicates_hered.pred_ext; intros ? (? & Himp); split; auto; intros ? Ha1 (? & ?);
+      split; auto; intros ? Ha2 (? & ?); split; auto;
+      change prop with (@predicates_hered.prop compcert_rmaps.RML.R.rmap _) in *;
+      intros ??????? X; rewrite !approx_idem in *.
+    + exploit (Himp _ Ha1); [split; auto|].
+      intros (? & Himp'); exploit (Himp' _ Ha2); [split; auto|].
+      intros (? & Hshift).
+      eapply semax_pre, Hshift, semax_pre, X; apply drop_tc_environ.
+    + exploit (Himp _ Ha1); [split; auto|].
+      intros (? & Himp'); exploit (Himp' _ Ha2); [split; auto|].
+      intros (? & Hshift).
+      eapply semax_pre, Hshift, semax_pre, X; apply drop_tc_environ.
+  - rewrite !approx_sepcon, approx_idem.
     evar (rhs : mpred); replace (compcert_rmaps.RML.R.approx _ _) with rhs; subst rhs; [reflexivity|].
     rewrite (nonexpansive_super_non_expansive (fun R => lock_inv s0 v0 R)); [|apply nonexpansive_lock_inv].
     setoid_rewrite (nonexpansive_super_non_expansive (fun R => lock_inv s0 v0 R)) at 2; [|apply nonexpansive_lock_inv].
-    f_equal; f_equal.
-    unfold AE_inv; rewrite !approx_exp; f_equal; extensionality l'.
-    rewrite !approx_exp; f_equal; extensionality z'.
-    rewrite !approx_andp, !approx_sepcon; f_equal; f_equal.
-    * replace (compcert_rmaps.RML.R.approx n (R l' z')) with
-        (base.compose (compcert_rmaps.R.approx n) (compcert_rmaps.R.approx n) (R l' z')) at 2
-        by (rewrite compcert_rmaps.RML.approx_oo_approx; auto); auto.
-    * rewrite !approx_andp; f_equal.
-      setoid_rewrite nonexpansive_super_non_expansive at 2; [|apply precise_mpred_nonexpansive]; auto.
+    apply f_equal; apply f_equal.
+    unfold AE_inv; rewrite !approx_exp; apply f_equal; extensionality l'.
+    rewrite !approx_exp; apply f_equal; extensionality z'.
+    rewrite !approx_andp, !approx_sepcon, approx_idem; apply f_equal; f_equal.
+    rewrite !approx_andp; f_equal.
+    setoid_rewrite nonexpansive_super_non_expansive at 2; [|apply precise_mpred_nonexpansive]; auto.
   - extensionality ts x rho.
     destruct x as (((((((((?, ?), ?), ?), ?), ?), ?), P), R), Q); auto.
     unfold PROPx, SEPx; simpl; rewrite !sepcon_assoc; f_equal.
-    f_equal; apply prop_ext; tauto.
-Admitted.
+    apply f_equal; apply prop_ext; tauto.
+Qed.
 Next Obligation.
 Proof.
   replace _ with (fun (_ : list Type)
@@ -149,8 +167,8 @@ Proof.
            lock_inv lsh l (AE_inv tgt i ish R) * ghost_hist (h ++ [(t, AE v' v)]) tgt *
            Q (h ++ [(t, AE v' v)]) v') rho).
   repeat intro.
-  rewrite !approx_exp; f_equal; extensionality t.
-  rewrite !approx_exp; f_equal; extensionality v'.
+  rewrite !approx_exp; apply f_equal; extensionality t.
+  rewrite !approx_exp; apply f_equal; extensionality v'.
   pose proof (PROP_LOCAL_SEP_super_non_expansive AE_type
     [fun ts x => let '(_, _, _, _, _, _, h, _, _, _) := x in tc_val tint v' /\ Forall (fun x => (fst x < t)%nat) h]
     [fun ts x => let '(_, _, _, _, _, _, _, _, _, _) := x in temp ret_temp v']
@@ -159,28 +177,22 @@ Proof.
        Q (h ++ [(t, AE v' v)]) v'])
     as Heq; apply Heq; repeat constructor; hnf; intros;
       destruct x0 as (((((((((?, ?), ?), ?), ?), ?), ?), P), R), Q); auto; simpl.
-  - rewrite !approx_sepcon; f_equal.
-    + rewrite (nonexpansive_super_non_expansive (fun R => lock_inv s0 v0 R)); [|apply nonexpansive_lock_inv].
-      f_equal.
-      setoid_rewrite (nonexpansive_super_non_expansive (fun R => lock_inv s0 v0 R)) at 2; [|apply nonexpansive_lock_inv].
-      f_equal; f_equal.
-      unfold AE_inv; rewrite !approx_exp; f_equal; extensionality l'.
-      rewrite !approx_exp; f_equal; extensionality z'.
-      rewrite !approx_andp, !approx_sepcon; f_equal; f_equal.
-      * replace (compcert_rmaps.RML.R.approx n0 (R l' z')) with
-          (base.compose (compcert_rmaps.R.approx n0) (compcert_rmaps.R.approx n0) (R l' z')) at 1
-          by (rewrite compcert_rmaps.RML.approx_oo_approx; auto); auto.
-      * rewrite !approx_andp; f_equal.
-        apply (nonexpansive_super_non_expansive), precise_mpred_nonexpansive.
-    + replace (compcert_rmaps.RML.R.approx n0 (Q _ v')) with
-        (base.compose (compcert_rmaps.R.approx n0) (compcert_rmaps.R.approx n0) (Q (h ++ [(t, AE v' v2)]) v')) at 1
-        by (rewrite compcert_rmaps.RML.approx_oo_approx; auto); auto.
+  - rewrite !approx_sepcon, approx_idem; f_equal.
+    rewrite (nonexpansive_super_non_expansive (fun R => lock_inv s0 v0 R)); [|apply nonexpansive_lock_inv].
+    f_equal.
+    setoid_rewrite (nonexpansive_super_non_expansive (fun R => lock_inv s0 v0 R)) at 2; [|apply nonexpansive_lock_inv].
+    apply f_equal; apply f_equal.
+    unfold AE_inv; rewrite !approx_exp; apply f_equal; extensionality l'.
+    rewrite !approx_exp; apply f_equal; extensionality z'.
+    rewrite !approx_andp, !approx_sepcon, approx_idem; apply f_equal; apply f_equal.
+    rewrite !approx_andp; f_equal.
+    apply (nonexpansive_super_non_expansive), precise_mpred_nonexpansive.
   - extensionality ts x rho.
     destruct x as (((((((((?, ?), ?), ?), ?), ?), ?), P), R), Q); auto.
-    f_equal; extensionality.
-    f_equal; extensionality.
+    apply f_equal; extensionality.
+    apply f_equal; extensionality.
     unfold PROPx, SEPx; simpl; rewrite !sepcon_assoc; f_equal.
-    f_equal; apply prop_ext; tauto.
+    apply f_equal; apply prop_ext; tauto.
 Qed.
 
 Definition Gprog : funspecs := ltac:(with_library prog [acquire_spec; release_spec; atomic_exchange_spec]).

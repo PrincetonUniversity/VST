@@ -430,31 +430,6 @@ Definition crypto_stream_salsa20_xor_spec :=
        SEP (Sigma_vector SV; ThirtyTwoByte K k;
             crypto_stream_xor_postsep b Nonce K mCont (Int64.unsigned b) nonce c m). 
 
-(*TODO: support the following part of the tetxual spec:
-      m and c can point to the same address (in-place encryption/decryption). 
-     If they don't, the regions should not overlap.*)
-Definition f_crypto_stream_salsa20_tweet_spec := 
-  DECLARE _crypto_stream_salsa20_tweet
-   WITH c : val, k:val, nonce:val, d:int64,
-        Nonce : SixteenByte, K: SixteenByte * SixteenByte,
-        (*mCont: list byte, *) SV:val
-   PRE [ _c OF tptr tuchar, (*_m OF tptr tuchar,*) _d OF tulong,
-         _n OF tptr tuchar, _k OF tptr tuchar]
-      PROP ((*Zlength mCont = Int64.unsigned b*))
-      LOCAL (temp _c c; (*temp _m m;*) temp _d (Vlong d);
-             temp _n nonce; temp _k k; gvar _sigma SV)
-      SEP ( SByte Nonce nonce;
-            data_at_ Tsh (Tarray tuchar (Int64.unsigned d) noattr) c;
-            ThirtyTwoByte K k;
-            Sigma_vector SV
-            (*data_at Tsh (tarray tuchar (Zlength mCont)) (Bl2VL mCont) m*))
-  POST [ tint ] 
-       PROP ()
-       LOCAL (temp ret_temp (Vint (Int.repr 0)))
-       SEP (Sigma_vector SV; 
-            ThirtyTwoByte K k;
-            crypto_stream_xor_postsep d Nonce K (list_repeat (Z.to_nat (Int64.unsigned d)) Byte.zero) (Int64.unsigned d) nonce c nullval). 
-
 Definition f_crypto_stream_xsalsa20_tweet_xor_spec := 
   DECLARE _crypto_stream_salsa20_tweet_xor
    WITH c : val, k:val, nonce:val, m:val, d:int64, mCont: list byte,
@@ -507,8 +482,77 @@ Definition f_crypto_stream_xsalsa20_tweet_spec :=
             ThirtyTwoByte K k).
 (*            crypto_stream_xor_postsep d Nonce K (list_repeat (Z.to_nat (Int64.unsigned d)) Byte.zero) (Int64.unsigned d) nonce c k nullval). *)
 
+(*TODO: support the following part of the tetxual spec:
+      m and c can point to the same address (in-place encryption/decryption). 
+     If they don't, the regions should not overlap.*)
+Definition f_crypto_stream_salsa20_tweet_spec := 
+  DECLARE _crypto_stream_salsa20_tweet
+   WITH c : val, k:val, nonce:val, d:int64,
+        Nonce : SixteenByte, K: SixteenByte * SixteenByte,
+        (*mCont: list byte, *) SV:val
+   PRE [ _c OF tptr tuchar, (*_m OF tptr tuchar,*) _d OF tulong,
+         _n OF tptr tuchar, _k OF tptr tuchar]
+      PROP ((*Zlength mCont = Int64.unsigned b*))
+      LOCAL (temp _c c; (*temp _m m;*) temp _d (Vlong d);
+             temp _n nonce; temp _k k; gvar _sigma SV)
+      SEP ( SByte Nonce nonce;
+            data_at_ Tsh (Tarray tuchar (Int64.unsigned d) noattr) c;
+            ThirtyTwoByte K k;
+            Sigma_vector SV
+            (*data_at Tsh (tarray tuchar (Zlength mCont)) (Bl2VL mCont) m*))
+  POST [ tint ] 
+       PROP ()
+       LOCAL (temp ret_temp (Vint (Int.repr 0)))
+       SEP (Sigma_vector SV; 
+            ThirtyTwoByte K k;
+            crypto_stream_xor_postsep d Nonce K (list_repeat (Z.to_nat (Int64.unsigned d)) Byte.zero) (Int64.unsigned d) nonce c nullval). 
+
+Definition vn_spec :=
+  DECLARE _vn
+  WITH x:val, y:val, n:Z, xsh: share, ysh: share, xcont:list byte, ycont:list byte
+  PRE [_x OF tptr tuchar, _y OF tptr tuchar, _n OF tint]
+    PROP (readable_share xsh; readable_share ysh; 0<=n<= Int.max_unsigned)
+    LOCAL (temp _x x; temp _y y; temp _n (Vint (Int.repr n)))
+    SEP (data_at xsh (Tarray tuchar n noattr) (map Vint (map Int.repr (map Byte.unsigned xcont))) x;
+         data_at ysh (Tarray tuchar n noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y)
+  POST [tint]
+    PROP ()
+    LOCAL (temp ret_temp (Vint (Int.repr (if list_eq_dec Byte.eq_dec xcont ycont then 0 else -1))))
+    SEP (data_at xsh (Tarray tuchar n noattr) (map Vint (map Int.repr (map Byte.unsigned xcont))) x;
+         data_at ysh (Tarray tuchar n noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y). 
+    
+Definition verify16_spec :=
+  DECLARE _crypto_verify_16_tweet
+  WITH x:val, y:val, n:Z, xsh: share, ysh: share, xcont:list byte, ycont:list byte
+  PRE [_x OF tptr tuchar, _y OF tptr tuchar]
+    PROP (readable_share xsh; readable_share ysh)
+    LOCAL (temp _x x; temp _y y)
+    SEP (data_at xsh (Tarray tuchar 16 noattr) (map Vint (map Int.repr (map Byte.unsigned xcont))) x;
+         data_at ysh (Tarray tuchar 16 noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y)
+  POST [tint]
+    PROP ()
+    LOCAL (temp ret_temp (Vint (Int.repr (if list_eq_dec Byte.eq_dec xcont ycont then 0 else -1))))
+    SEP (data_at xsh (Tarray tuchar 16 noattr) (map Vint (map Int.repr (map Byte.unsigned xcont))) x;
+         data_at ysh (Tarray tuchar 16 noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y).
+       
+Definition verify32_spec :=
+  DECLARE _crypto_verify_32_tweet
+  WITH x:val, y:val, n:Z, xsh: share, ysh: share, xcont:list byte, ycont:list byte
+  PRE [_x OF tptr tuchar, _y OF tptr tuchar]
+    PROP (readable_share xsh; readable_share ysh)
+    LOCAL (temp _x x; temp _y y)
+    SEP (data_at xsh (Tarray tuchar 32 noattr) (map Vint (map Int.repr (map Byte.unsigned xcont))) x;
+         data_at ysh (Tarray tuchar 32 noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y)
+  POST [tint]
+    PROP ()
+    LOCAL (temp ret_temp (Vint (Int.repr (if list_eq_dec Byte.eq_dec xcont ycont then 0 else -1))))
+    SEP (data_at xsh (Tarray tuchar 32 noattr) (map Vint (map Int.repr (map Byte.unsigned xcont))) x;
+         data_at ysh (Tarray tuchar 32 noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y).       
+
 Definition SalsaVarSpecs : varspecs := (_sigma, tarray tuchar 16)::nil.
+
 Definition SalsaFunSpecs : funspecs := 
   ltac:(with_library prog (core_spec :: ld32_spec :: L32_spec::st32_spec::dl64_spec::ts64_spec::
                            crypto_core_salsa20_spec::crypto_core_hsalsa20_spec::
-                           crypto_stream_salsa20_xor_spec::f_crypto_stream_salsa20_tweet_spec::nil)).
+                           crypto_stream_salsa20_xor_spec::f_crypto_stream_salsa20_tweet_spec::
+                           verify32_spec::verify16_spec::vn_spec::nil)).
