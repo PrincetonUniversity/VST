@@ -291,7 +291,13 @@ Proof.
   rewrite app_nil_r; auto.
 Qed.
 
+Lemma hist_incl_nil : forall h, hist_incl [] h.
+Proof.
+  repeat intro; contradiction.
+Qed.
+
 End GHist.
+Hint Resolve hist_incl_nil.
 
 Section AEHist.
 
