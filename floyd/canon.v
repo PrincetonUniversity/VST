@@ -2016,13 +2016,12 @@ Proof.
   intro rho; unfold frame_ret_assert, function_body_ret_assert; normalize.
   destruct ek; autorewrite with norm1 norm2; try solve [normalize].
   simpl; rewrite !sepcon_emp.
-  unfold bind_ret; unfold_lift; destruct vl; [| destruct (ret_type Delta) eqn:?H]; simpl; normalize.
-  + eapply derives_trans; [| apply (H0 _)].
+  unfold bind_ret; unfold_lift; destruct vl; [| destruct (ret_type Delta) eqn:?H]; simpl; normalize ; try congruence.
+  eapply derives_trans; [| apply (H0 _)].
     Opaque PTree.set. simpl; apply andp_right; auto. Transparent PTree.set.
     apply prop_right.
     apply make_args1_tc_environ; auto.
     rewrite tc_val_eq in H3; auto.
-  + congruence.
 Qed.
 
 Lemma semax_post_ret0: forall P' R' Espec {cs: compspecs} Delta P R Pre c,
