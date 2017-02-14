@@ -228,36 +228,8 @@ LOCAL (lvar _t (tarray tuint 4) t;
                (hPosLoop3 4 (hPosLoop2 4 intsums C Nonce) OUT) out
              * data_at Tsh (tarray tuint 16)
                  (map Vint (hPosLoop2 4 intsums C Nonce)) x))
-end. (*
-Definition fcore_EpiloguePOST2 t y x w nonce out c k h OUT 
-  (data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte)) := 
-match data with ((Nonce, C), K) =>
-EX xs:_, EX ys:_,
-PROP (ys = prepare_data data /\ Snuffle 20 ys = Some xs) 
-LOCAL (lvar _t (tarray tuint 4) t;
-       lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
-       lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
-       temp _k k; temp _h (Vint (Int.repr h)))
-  SEP (CoreInSEP data (nonce, c, k); 
-       data_at Tsh (tarray tuint 16) (map Vint ys) y;
-       data_at_ Tsh (tarray tuint 4) t; data_at_ Tsh (tarray tuint 16) w;
-       if Int.eq (Int.repr h) Int.zero 
-         then EX l:_, 
-          !!HFalse_inv l 16 xs ys && 
-          (data_at Tsh (tarray tuchar 64) l out *
-           data_at Tsh (tarray tuint 16) (map Vint xs) x)
-         else EX intsums:_, !!(HTrue_inv intsums xs ys) && 
-            (data_at Tsh (tarray tuchar 32)
-               (hPosLoop3 4 (hPosLoop2 4 intsums C Nonce) OUT) out
-             * data_at Tsh (tarray tuint 16)
-                 (map Vint (hPosLoop2 4 intsums C Nonce)) x))
-end.
+end. 
 
-Goal forall t y x w nonce out c k h OUT data,
-fcore_EpiloguePOST2 t y x w nonce out c k h OUT data = fcore_EpiloguePOST t y x w nonce out c k h OUT data.
-intros. unfold fcore_EpiloguePOST, fcore_EpiloguePOST2. 
- destruct data as [[? ?] ?].  reflexivity.
-*)
 Opaque Snuffle. Opaque hPosLoop2. Opaque hPosLoop3. 
 
 Lemma HTruePOST F t y x w nonce out c k h snuffleRes l data OUT: 

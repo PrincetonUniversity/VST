@@ -405,3 +405,18 @@ Lemma isbyteZ_sublist data lo hi: Forall isbyteZ data -> Forall isbyteZ (sublist
 Proof. intros. destruct (Forall_forall isbyteZ data) as [F _].
    apply Forall_forall. intros. apply (F H x). eapply sublist_In. apply H0.
 Qed.
+
+Lemma map_IntReprOfBytes_injective: forall l m, Forall isbyteZ  l -> 
+  Forall isbyteZ m -> map Int.repr l = map Int.repr m -> l=m.
+Proof. induction l; intros.
++ destruct m; simpl in *; inv H1; trivial.
++ destruct m; simpl in *. inv H1.
+  assert (Int.repr a = Int.repr z /\  map Int.repr l = map Int.repr m).
+  { forget (Int.repr a) as q. forget (Int.repr z) as w. inv H1; split; trivial. }
+  clear H1. destruct H2. inv H. inv H0.
+  rewrite (IHl m); trivial. f_equal.
+  clear IHl H2 H6 H7.
+  unfold isbyteZ in *. simpl in *.
+  rewrite <- (Int.unsigned_repr a), <- (Int.unsigned_repr z), H1; trivial;
+  rewrite int_max_unsigned_eq; omega.
+Qed.

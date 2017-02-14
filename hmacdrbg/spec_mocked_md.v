@@ -2,9 +2,9 @@ Require Import floyd.proofauto.
 Import ListNotations.
 Local Open Scope logic.
 
-Require Import mocked_md.
-Require Import sha.spec_hmacNK.
-Require Import sha.funspec_hmacNK.
+Require Import hmacdrbg.mocked_md.
+Require Import sha.spec_hmac.
+Require Import sha.protocol_spec_hmac.
 Require Import sha.spec_sha.
 Require Import sha.HMAC256_functional_prog.
 

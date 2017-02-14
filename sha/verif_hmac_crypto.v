@@ -75,7 +75,8 @@ Definition HMAC_crypto :=
              memory_block shmd 32 md)
   POST [ tptr tuchar ] 
          EX digest:_,
-          PROP (bytesToBits digest = bitspec KEY MSG /\ 
+          PROP (digest= HMAC256 (CONT MSG) (CONT KEY) /\
+                bytesToBits digest = bitspec KEY MSG /\ 
                 forall A Awf, CRYPTO A Awf)
           LOCAL (temp ret_temp md)
           SEP(K_vector kv;
@@ -100,7 +101,7 @@ Lemma hmacbodycryptoproof Espec k KEY msg MSG kv shmd md buf
      (function_body_ret_assert (tptr tuchar)
         (EX  digest : list Z,
          PROP 
-         (bytesToBits digest = bitspec KEY MSG /\
+         (digest= HMAC256 (CONT MSG) (CONT KEY) /\ bytesToBits digest = bitspec KEY MSG /\
           (forall
              (A : Comp.OracleComp
                     (HMAC_spec_abstract.HMAC_Abstract.Message PARS256.P)

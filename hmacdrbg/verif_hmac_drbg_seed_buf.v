@@ -110,12 +110,9 @@ Proof.
   rewrite <- H.
   freeze [0;2;5;6;7] FR2.
   replace_SEP 1 (UNDER_SPEC.EMPTY p).
-  { entailer. apply UNDER_SPEC.mkEmpty.
-    clear - Pp MCp. destruct p; try contradiction. destruct MCp.
-    repeat split; simpl in *; trivial.
-    + omega.
-    + unfold natural_alignment in H. unfold align_attr. simpl. 
-      destruct H. exists (x * 2)%Z. omega. 
+  { entailer!. 
+    eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
+    rewrite data_at__memory_block. simpl. entailer!. 
   }
   forward_call (Vptr b i, (((*M1*)info,(M2,p)):mdstate), 32, V0, kv, b, Int.add i (Int.repr 12)).
   { rewrite H, int_add_repr_0_r; simpl.
@@ -287,12 +284,9 @@ Proof.
   rewrite <- H.
   freeze [0;2;5;6;7] FR2.
   replace_SEP 1 (UNDER_SPEC.EMPTY p).
-  { entailer. apply UNDER_SPEC.mkEmpty.
-    clear - Pp MCp. destruct p; try contradiction. destruct MCp.
-    repeat split; simpl in *; trivial.
-    + omega.
-    + unfold natural_alignment in H. unfold align_attr. simpl. 
-      destruct H. exists (x * 2)%Z. omega. 
+  { entailer!. 
+    eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
+    rewrite data_at__memory_block. simpl. entailer!. 
   }
   forward_call (Vptr b i, (((*M1*)info,(M2,p)):mdstate), 32, V0, kv, b, Int.add i (Int.repr 12)).
   { rewrite H, int_add_repr_0_r; simpl.
@@ -368,4 +362,4 @@ Proof.
   Exists VALUE p. normalize. 
   apply andp_right. apply prop_right. repeat split; trivial. 
   cancel.
-Time Qed. (*Finished transaction in 31.687 secs (28.578u,0.s) (successful)*)
+Time Qed. (*Finished transaction in 45.61 secs (21.031u,0.s) (successful)*)

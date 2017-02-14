@@ -33,8 +33,13 @@ Parameter FULL: list Z -> val -> mpred.
 Parameter EMPTY: val -> mpred.
 
 (*We can turn a memory block of hmac_ctx size into an EMPTY abstract HMAC REP*)
-Parameter mkEmpty: forall v, field_compatible t_struct_hmac_ctx_st [] v -> 
-memory_block Tsh (sizeof t_struct_hmac_ctx_st) v |-- EMPTY v.
+(*Parameter mkEmpty: forall v, field_compatible t_struct_hmac_ctx_st [] v -> 
+memory_block Tsh (sizeof t_struct_hmac_ctx_st) v |-- EMPTY v.*)
+Parameter mkEmpty: forall v, data_at_ Tsh t_struct_hmac_ctx_st v |-- EMPTY v.
+
+(*The reverse operation enables dellocation of stack-allocated hmac contexts at the
+end of client functions*)
+Parameter EmptyDissolve: forall v, EMPTY v |-- data_at_ Tsh t_struct_hmac_ctx_st v.
 
 (* We can prematurely terminate sequences of hmac-update by simply declaring
    an updateable ctx FULL*)
@@ -168,12 +173,13 @@ Definition hmac_crypto_spec :=
              data_block Tsh (CONT MSG) msg; 
              memory_block shmd 32 md;
              K_vector kv)
-  POST [ tvoid ] 
+  POST [ tptr tuchar ] 
          EX digest:_,
-          PROP (ByteBitRelations.bytesToBits digest = 
+          PROP (digest= HMAC256 (CONT MSG) (CONT KEY) /\
+                ByteBitRelations.bytesToBits digest = 
                 verif_hmac_crypto.bitspec KEY MSG /\ 
                 forall A Awf, CRYPTO A Awf)
-          LOCAL ()
+          LOCAL (temp ret_temp md)
           SEP(K_vector kv;
               data_block shmd digest md;
               data_block Tsh (CONT MSG) msg; data_block Tsh (CONT KEY) (Vptr b i)).
@@ -226,14 +232,29 @@ Definition FULL key c:mpred :=
    (*!!(has_lengthK (Zlength key) key) &&*) EX h:_, hmacstate_PreInitNull key h c.
 
 Definition EMPTY c : mpred := data_at_ Tsh t_struct_hmac_ctx_st c.
-
+(*
 Lemma mkEmpty v: field_compatible t_struct_hmac_ctx_st [] v -> 
   memory_block Tsh (sizeof t_struct_hmac_ctx_st) v |-- EMPTY v.
-Proof. intros. unfold EMPTY. rewrite data_at__memory_block. entailer!. Qed.
+Proof. intros. unfold EMPTY.
+clear H.
+
+ rewrite data_at__memory_block. entailer.
+unfold field_compatible.
+rewrite memory_block_size_compatible, memory_block_isptr.
+entailer.
+unfold align_compatible. simpl. destruct v; try solve [inv Pv]. simpl.
+unfold align_attr. simpl. memory_block sh (sizeof t) p. simpl.
+ Qed.
 
 Lemma EmptyDissolve: forall v, 
   EMPTY v |-- memory_block Tsh (sizeof t_struct_hmac_ctx_st) v .
 Proof. intros. unfold EMPTY. rewrite data_at__memory_block. entailer!. Qed.
+*)
+Lemma mkEmpty v: data_at_ Tsh t_struct_hmac_ctx_st v |-- EMPTY v.
+Proof. trivial. Qed.
+
+Lemma EmptyDissolve v: EMPTY v |-- data_at_ Tsh t_struct_hmac_ctx_st v.
+Proof. trivial. Qed.
 
 Lemma REP_FULL key data c: REP (hABS key data) c |-- FULL key c.
 Proof. unfold REP, FULL. Intros r.
@@ -370,12 +391,13 @@ Definition hmac_crypto_spec :=
              data_block Tsh (CONT MSG) msg; 
              memory_block shmd 32 md;
              K_vector kv)
-  POST [ tvoid ] 
+  POST [ tptr tuchar ] 
          EX digest:_,
-          PROP (ByteBitRelations.bytesToBits digest = 
+          PROP (digest= HMAC256 (CONT MSG) (CONT KEY) /\
+                ByteBitRelations.bytesToBits digest = 
                 verif_hmac_crypto.bitspec KEY MSG /\ 
                 forall A Awf, CRYPTO A Awf)
-          LOCAL ()
+          LOCAL (temp ret_temp md)
           SEP(K_vector kv;
               data_block shmd digest md;
               data_block Tsh (CONT MSG) msg; data_block Tsh (CONT KEY) (Vptr b i)).

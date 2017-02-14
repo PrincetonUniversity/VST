@@ -116,7 +116,7 @@ Definition ld32_spec :=
    PRE [ _x OF tptr tuchar ]
       PROP ()
       LOCAL (temp _x x)
-      SEP (data_at Tsh (Tarray tuchar 4 noattr) (QuadByte2ValList B) x)
+      SEP (data_at Tsh (tarray tuchar 4) (QuadByte2ValList B) x)
   POST [ tuint ] 
      PROP ()
      LOCAL (temp ret_temp (Vint (littleendian B)))
@@ -128,7 +128,7 @@ Definition st32_spec :=
    PRE [ _x OF tptr tuchar, _u OF tuint ]
       PROP ()
       LOCAL (temp _x x; temp _u (Vint u))
-      SEP (EX l:_, !!(Zlength l = 4) && data_at Tsh (Tarray tuchar 4 noattr) l x)
+      SEP (data_at_ Tsh (tarray tuchar 4) x)
   POST [ tvoid ] 
      PROP ()
      LOCAL ()
@@ -145,6 +145,65 @@ Definition L32_spec :=
      PROP ()
      LOCAL (temp ret_temp (Vint (Int.rol x c)))
      SEP ().
+
+Definition bigendian64 (b c:QuadByte): int64 :=
+  match b, c with (b0, b1, b2, b3), (c0, c1, c2, c3) =>
+  Int64.repr
+   (       Byte.unsigned c3 +
+    2^8  * Byte.unsigned c2 +
+    2^16 * Byte.unsigned c1 +
+    2^24 * Byte.unsigned c0 +
+    2^32 * Byte.unsigned b3 +
+    2^40 * Byte.unsigned b2 +
+    2^48 * Byte.unsigned b1 +
+    2^56 * Byte.unsigned b0
+    )
+  end.
+
+Definition dl64_spec :=
+  DECLARE _dl64
+   WITH x : val, B:QuadByte, C: QuadByte
+   PRE [ _x OF tptr tuchar ]
+      PROP ()
+      LOCAL (temp _x x)
+      SEP (data_at Tsh (tarray tuchar 8) (QuadByte2ValList B++QuadByte2ValList C) x)
+  POST [ tulong ] 
+     PROP ()
+     LOCAL (temp ret_temp (Vlong (bigendian64 B C)))
+     SEP (data_at Tsh (tarray tuchar 8) (QuadByte2ValList B++QuadByte2ValList C) x).
+
+Definition littleendian64_invert (w:int64) : QuadByte * QuadByte:=
+    let w3 := Int64.unsigned w in
+  let b3 := w3 / (2^56) in 
+    let w2 := Z.modulo w3 (2^56) in
+  let b2 := w2 / (2^48) in 
+    let w1 := Z.modulo w2 (2^48) in
+  let b1 := w1 / (2^40) in 
+    let w0 := Z.modulo w1 (2^40) in
+  let b0 := w0 / (2^32) in 
+    let u3 := Z.modulo w0 (2^32) in
+  let c3 := u3 / (2^24) in 
+    let u2 := Z.modulo u3 (2^24) in
+  let c2 := u2 / (2^16) in 
+    let u1 := Z.modulo u2 (2^16) in
+  let c1 := u1 / (2^8) in
+    let u0 := Z.modulo u1 (2^8) in
+  ((Byte.repr b3, Byte.repr b2, Byte.repr b1, Byte.repr b0), 
+   (Byte.repr c3, Byte.repr c2, Byte.repr c1, Byte.repr u0)).
+
+Definition ts64_spec :=
+  DECLARE _ts64
+   WITH x : val, u:int64
+   PRE [ _x OF tptr tuchar, _u OF tulong ]
+      PROP ()
+      LOCAL (temp _x x; temp _u (Vlong u))
+      SEP (data_at_ Tsh (tarray tuchar 8) x)
+  POST [ tvoid ] 
+     PROP ()
+     LOCAL ()
+     SEP (let (B, C) := littleendian64_invert u in
+          data_at Tsh (tarray tuchar 8) (QuadByte2ValList B++QuadByte2ValList C) x).
+
 
 Definition crypto_core_salsa20_spec :=
   DECLARE _crypto_core_salsa20_tweet
@@ -371,31 +430,6 @@ Definition crypto_stream_salsa20_xor_spec :=
        SEP (Sigma_vector SV; ThirtyTwoByte K k;
             crypto_stream_xor_postsep b Nonce K mCont (Int64.unsigned b) nonce c m). 
 
-(*TODO: support the following part of the tetxual spec:
-      m and c can point to the same address (in-place encryption/decryption). 
-     If they don't, the regions should not overlap.*)
-Definition f_crypto_stream_salsa20_tweet_spec := 
-  DECLARE _crypto_stream_salsa20_tweet
-   WITH c : val, k:val, nonce:val, d:int64,
-        Nonce : SixteenByte, K: SixteenByte * SixteenByte,
-        (*mCont: list byte, *) SV:val
-   PRE [ _c OF tptr tuchar, (*_m OF tptr tuchar,*) _d OF tulong,
-         _n OF tptr tuchar, _k OF tptr tuchar]
-      PROP ((*Zlength mCont = Int64.unsigned b*))
-      LOCAL (temp _c c; (*temp _m m;*) temp _d (Vlong d);
-             temp _n nonce; temp _k k; gvar _sigma SV)
-      SEP ( SByte Nonce nonce;
-            data_at_ Tsh (Tarray tuchar (Int64.unsigned d) noattr) c;
-            ThirtyTwoByte K k;
-            Sigma_vector SV
-            (*data_at Tsh (tarray tuchar (Zlength mCont)) (Bl2VL mCont) m*))
-  POST [ tint ] 
-       PROP ()
-       LOCAL (temp ret_temp (Vint (Int.repr 0)))
-       SEP (Sigma_vector SV; 
-            ThirtyTwoByte K k;
-            crypto_stream_xor_postsep d Nonce K (list_repeat (Z.to_nat (Int64.unsigned d)) Byte.zero) (Int64.unsigned d) nonce c nullval). 
-
 Definition f_crypto_stream_xsalsa20_tweet_xor_spec := 
   DECLARE _crypto_stream_salsa20_tweet_xor
    WITH c : val, k:val, nonce:val, m:val, d:int64, mCont: list byte,
@@ -448,9 +482,77 @@ Definition f_crypto_stream_xsalsa20_tweet_spec :=
             ThirtyTwoByte K k).
 (*            crypto_stream_xor_postsep d Nonce K (list_repeat (Z.to_nat (Int64.unsigned d)) Byte.zero) (Int64.unsigned d) nonce c k nullval). *)
 
+(*TODO: support the following part of the tetxual spec:
+      m and c can point to the same address (in-place encryption/decryption). 
+     If they don't, the regions should not overlap.*)
+Definition f_crypto_stream_salsa20_tweet_spec := 
+  DECLARE _crypto_stream_salsa20_tweet
+   WITH c : val, k:val, nonce:val, d:int64,
+        Nonce : SixteenByte, K: SixteenByte * SixteenByte,
+        (*mCont: list byte, *) SV:val
+   PRE [ _c OF tptr tuchar, (*_m OF tptr tuchar,*) _d OF tulong,
+         _n OF tptr tuchar, _k OF tptr tuchar]
+      PROP ((*Zlength mCont = Int64.unsigned b*))
+      LOCAL (temp _c c; (*temp _m m;*) temp _d (Vlong d);
+             temp _n nonce; temp _k k; gvar _sigma SV)
+      SEP ( SByte Nonce nonce;
+            data_at_ Tsh (Tarray tuchar (Int64.unsigned d) noattr) c;
+            ThirtyTwoByte K k;
+            Sigma_vector SV
+            (*data_at Tsh (tarray tuchar (Zlength mCont)) (Bl2VL mCont) m*))
+  POST [ tint ] 
+       PROP ()
+       LOCAL (temp ret_temp (Vint (Int.repr 0)))
+       SEP (Sigma_vector SV; 
+            ThirtyTwoByte K k;
+            crypto_stream_xor_postsep d Nonce K (list_repeat (Z.to_nat (Int64.unsigned d)) Byte.zero) (Int64.unsigned d) nonce c nullval). 
+
+Definition vn_spec :=
+  DECLARE _vn
+  WITH x:val, y:val, n:Z, xsh: share, ysh: share, xcont:list byte, ycont:list byte
+  PRE [_x OF tptr tuchar, _y OF tptr tuchar, _n OF tint]
+    PROP (readable_share xsh; readable_share ysh; 0<=n<= Int.max_unsigned)
+    LOCAL (temp _x x; temp _y y; temp _n (Vint (Int.repr n)))
+    SEP (data_at xsh (Tarray tuchar n noattr) (map Vint (map Int.repr (map Byte.unsigned xcont))) x;
+         data_at ysh (Tarray tuchar n noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y)
+  POST [tint]
+    PROP ()
+    LOCAL (temp ret_temp (Vint (Int.repr (if list_eq_dec Byte.eq_dec xcont ycont then 0 else -1))))
+    SEP (data_at xsh (Tarray tuchar n noattr) (map Vint (map Int.repr (map Byte.unsigned xcont))) x;
+         data_at ysh (Tarray tuchar n noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y). 
+    
+Definition verify16_spec :=
+  DECLARE _crypto_verify_16_tweet
+  WITH x:val, y:val, n:Z, xsh: share, ysh: share, xcont:list byte, ycont:list byte
+  PRE [_x OF tptr tuchar, _y OF tptr tuchar]
+    PROP (readable_share xsh; readable_share ysh)
+    LOCAL (temp _x x; temp _y y)
+    SEP (data_at xsh (Tarray tuchar 16 noattr) (map Vint (map Int.repr (map Byte.unsigned xcont))) x;
+         data_at ysh (Tarray tuchar 16 noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y)
+  POST [tint]
+    PROP ()
+    LOCAL (temp ret_temp (Vint (Int.repr (if list_eq_dec Byte.eq_dec xcont ycont then 0 else -1))))
+    SEP (data_at xsh (Tarray tuchar 16 noattr) (map Vint (map Int.repr (map Byte.unsigned xcont))) x;
+         data_at ysh (Tarray tuchar 16 noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y).
+       
+Definition verify32_spec :=
+  DECLARE _crypto_verify_32_tweet
+  WITH x:val, y:val, n:Z, xsh: share, ysh: share, xcont:list byte, ycont:list byte
+  PRE [_x OF tptr tuchar, _y OF tptr tuchar]
+    PROP (readable_share xsh; readable_share ysh)
+    LOCAL (temp _x x; temp _y y)
+    SEP (data_at xsh (Tarray tuchar 32 noattr) (map Vint (map Int.repr (map Byte.unsigned xcont))) x;
+         data_at ysh (Tarray tuchar 32 noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y)
+  POST [tint]
+    PROP ()
+    LOCAL (temp ret_temp (Vint (Int.repr (if list_eq_dec Byte.eq_dec xcont ycont then 0 else -1))))
+    SEP (data_at xsh (Tarray tuchar 32 noattr) (map Vint (map Int.repr (map Byte.unsigned xcont))) x;
+         data_at ysh (Tarray tuchar 32 noattr) (map Vint (map Int.repr (map Byte.unsigned ycont))) y).       
 
 Definition SalsaVarSpecs : varspecs := (_sigma, tarray tuchar 16)::nil.
+
 Definition SalsaFunSpecs : funspecs := 
-  ltac:(with_library prog (core_spec :: ld32_spec :: L32_spec::st32_spec::
+  ltac:(with_library prog (core_spec :: ld32_spec :: L32_spec::st32_spec::dl64_spec::ts64_spec::
                            crypto_core_salsa20_spec::crypto_core_hsalsa20_spec::
-                           crypto_stream_salsa20_xor_spec::f_crypto_stream_salsa20_tweet_spec::nil)).
+                           crypto_stream_salsa20_xor_spec::f_crypto_stream_salsa20_tweet_spec::
+                           verify32_spec::verify16_spec::vn_spec::nil)).
