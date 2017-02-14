@@ -156,7 +156,7 @@ Definition bigendian64 (b c:QuadByte): int64 :=
     2^32 * Byte.unsigned b3 +
     2^40 * Byte.unsigned b2 +
     2^48 * Byte.unsigned b1 +
-    2^58 * Byte.unsigned b0
+    2^56 * Byte.unsigned b0
     )
   end.
 
