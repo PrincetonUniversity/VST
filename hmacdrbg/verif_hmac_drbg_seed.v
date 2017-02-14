@@ -164,12 +164,9 @@ Proof.
   rewrite <- ZL_VV.
   freeze [0;2;5;6;7;9] FR2.
   replace_SEP 1 (UNDER_SPEC.EMPTY p).
-  { entailer. apply UNDER_SPEC.mkEmpty.
-    clear - Pp MCp. destruct p; try contradiction. destruct MCp.
-    repeat split; simpl in *; trivial.
-    + omega.
-    + unfold natural_alignment in H. unfold align_attr. simpl.
-      destruct H. exists (x * 2)%Z. omega.
+  { entailer!. 
+    eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
+    rewrite data_at__memory_block. simpl. entailer!. 
   }
   forward_call (Vptr b i, ((info,(M2,p)):mdstate), 32, VV, kv, b, Int.add i (Int.repr 12)).
   { rewrite ZL_VV, int_add_repr_0_r; simpl.
@@ -354,4 +351,4 @@ Proof.
   Exists p. normalize.
   apply andp_right. apply prop_right; repeat split; trivial.
   unfold_data_at 1%nat. cancel.
-Time Qed. (*Finished transaction in 65.157 secs (57.171u,0.031s) (successful)*)
+Time Qed. (*Finished transaction in 121.296 secs (70.921u,0.062s) (successful)*)

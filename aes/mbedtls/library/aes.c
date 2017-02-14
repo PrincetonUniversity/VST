@@ -371,11 +371,20 @@ static aes_tables tables;
  */
 #define ROTL8(x) ( ( x << 8 ) & 0xFFFFFFFF ) | ( x >> 24 )
 #define XTIME(x) ( ( x << 1 ) ^ ( ( x & 0x80 ) ? 0x1B : 0x00 ) )
+// Note: - factoring out logx and logy is needed because memory loads can only appear as top level expr
+//       - factoring out m is needed because VST's solve_efield_denote cannot deal with modulo in array 
+//         indices, because it cannot prove automatically that in a%b the condition a!=INT_MIN && b!=-1
+//         holds, because otherwise we have undefined behavior (because the a/b overflows in that case)
 #define MUL(x,y,n) \
 {                    \
-    int logx = log[x];  \
-    int logy = log[y]; \
-    (n) = (x && y) ? pow[(logx + logy) % 255] : 0; \
+    if (x && y) { \
+        int logx = log[x]; \
+        int logy = log[y]; \
+        int m = (logx + logy) % 255; \
+        (n) = pow[m]; \
+    } else { \
+        (n) = 0; \
+    } \
 }
 
 static int aes_init_done = 0;

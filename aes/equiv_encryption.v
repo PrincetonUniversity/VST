@@ -1,6 +1,6 @@
 Require Import aes.aes_spec_ll.
 Require Import aes.spec_AES256_HL.
-Require Import aes.aesutils.
+Require Import aes.tablesLL.
 Require Import List. Import ListNotations.
 
 (* Note: In the standard, the 4x4 matrix is filled with bytes column-wise, but the
@@ -21,6 +21,15 @@ Definition list_to_state (l : list int) : state := transpose
          (z4, z4, z4, z4)
   end.
 
+Definition word_to_int (w : word) : int :=
+  match w with (b0, b1, b2, b3) =>
+    (Int.or (Int.or (Int.or
+             b0
+    (Int.shl b1 (Int.repr  8)))
+    (Int.shl b2 (Int.repr 16)))
+    (Int.shl b3 (Int.repr 24)))
+  end.
+
 (*
 Definition int_to_word (x : int) : word := (
   (Int.and           x                (Int.repr 255)),
@@ -37,6 +46,11 @@ end.
 Definition state_to_four_ints (s : state) : four_ints := match transpose s with
 | (c0, c1, c2, c3) => (word_to_int c0, (word_to_int c1, (word_to_int c2, word_to_int c3)))
 end.
+
+Definition block_to_ints (b : block) : list int :=
+  match b with (w0, w1, w2, w3) => [word_to_int w0; word_to_int w1; word_to_int w2; word_to_int w3] end.
+
+Definition blocks_to_ints (blocks : list block) : list int := flat_map block_to_ints blocks.
 
 Definition blocks_to_Zwords (blocks : list block) : list Z := map Int.unsigned (blocks_to_ints blocks).
 
@@ -113,18 +127,19 @@ Proof.
 Qed.
 
 Lemma get_uint32_le_word_to_int: forall b0 b1 b2 b3,
-  get_uint32_le [Int.unsigned b0; Int.unsigned b1; Int.unsigned b2; Int.unsigned b3] 0
-  = word_to_int (b0, b1, b2, b3).
+  get_uint32_le (map Int.unsigned [b0; b1; b2; b3]) 0 = word_to_int (b0, b1, b2, b3).
 Proof.
-  intros. rewrite get_uint32_le_def. unfold word_to_int. unfold SHA256.little_endian_integer.
-  simpl.
-Admitted.
+  intros. rewrite get_uint32_le_def. unfold word_to_int.
+  do 4 rewrite Znth_map with (d' := Int.zero) by (change (Zlength [b0; b1; b2; b3]) with 4; omega).
+  do 4 rewrite Int.repr_unsigned.
+  reflexivity.
+Qed.
 
 Lemma xor_word_to_int: forall a0 a1 a2 a3 b0 b1 b2 b3,
   Int.xor (word_to_int (a0, a1, a2, a3)) (word_to_int (b0, b1, b2, b3))
   = word_to_int ((Int.xor a0 b0), (Int.xor a1 b1), (Int.xor a2 b2), (Int.xor a3 b3)).
 Proof.
-  intros. unfold word_to_int. unfold SHA256.little_endian_integer.
+  intros. unfold word_to_int.
 Admitted.
 
 Lemma initial_round_equiv: forall S K,
@@ -168,12 +183,13 @@ Proof.
     change (Znth 3 (e0 :: e1 :: e2 :: e3 :: rest) d) with e3
   end.
   match goal with
-  | |- context [ get_uint32_le ?l ?i ] => let l' := (eval_list l) in change l with l'
+  | |- context [ map Int.unsigned ?l ] => let l' := (eval_list l) in change l with l'
   end.
   rewrite (get_uint32_le_sublist (0 * 4)) by (simpl; omega).
   rewrite (get_uint32_le_sublist (1 * 4)) by (simpl; omega).
   rewrite (get_uint32_le_sublist (2 * 4)) by (simpl; omega).
   rewrite (get_uint32_le_sublist (3 * 4)) by (simpl; omega).
+  do 4 rewrite sublist_map.
   do 4 match goal with
   | |- context [sublist ?i ?j ?l] =>
     let r := eval_list (sublist i j l) in change (sublist i j l) with r

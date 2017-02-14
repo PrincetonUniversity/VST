@@ -103,7 +103,7 @@ apply isptrD in Pmd. destruct Pmd as [b [i Pmd]]. rewrite Pmd in *.
 assert (GTmod64: 64 < Int.modulus).
   rewrite <- initialize.max_unsigned_modulus, int_max_unsigned_eq. omega.
 specialize (memory_block_size_compatible shmd (tarray tuint 16)). simpl; intros.
-rewrite (H _ GTmod64); clear H.
+rewrite H (*_ GTmod64)*); clear H.
 normalize. unfold size_compatible in H. simpl in H; rename H into SizeCompat64.
 specialize (memory_block_split shmd b (Int.unsigned i) 32 32); intros XX.
   rewrite Int.repr_unsigned in XX.

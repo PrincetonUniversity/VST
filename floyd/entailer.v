@@ -136,7 +136,7 @@ Ltac helper1 :=
    | |- context [Int.min_signed] => add_nonredundant int_min_signed_eq
   end.
 
-Ltac Omega0 := Omega (now helper1).
+Ltac Omega0 := Omega (solve [ helper1 ]).
 
 (*** End of Omega stuff *)
 

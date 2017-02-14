@@ -519,187 +519,7 @@ Proof.
      TODO floyd or documentation: What should users do if "forward" takes forever? *)
   pose proof (HeqS12, HeqS13) as hidden. clear HeqS12 HeqS13.
 
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward.
-
-Timeout 60 forward.
-Timeout 60 forward.
-(* Timeout 60 forward. timeout! *)
-(*
-assert (0 <= 8 <= 32) by omega.
-assert (0 <= 16 <= 32) by omega.
-assert (0 <= 24 <= 32) by omega.
-remember 8 as eight. remember 16 as sixteen. remember 24 as twentyfour.
-pose proof (Heqeight, Heqsixteen, Heqtwentyfour) as hidden2. clear Heqeight Heqsixteen Heqtwentyfour.
-*)
-
-(* Timeout 60 forward.   still timeout! *)
-
-(* inversion on an equality inferred from the C source involving (Int.shru _ (Int.repr 16)) *)
-
-  (* TODO here, forward takes forever, and entailer! too *)
-
-
-Ltac entailer_for_load_tac ::= idtac.
-forward.
-
- Timeout 50 (intros;
- match goal with
- | |- local _ && ?P |-- _ => go_lower; try simple apply empTrue
- | |- ?P |-- _ =>
-    match type of P with 
-    | ?T => unify T mpred; pull_out_props
-    end
- | |- _ => fail "The entailer tactic works only on entailments  _ |-- _ "
- end).
- Timeout 50 saturate_local.
- Timeout 50 ent_iter.
- (*Timeout 50 contradiction.*)
-Timeout 50 simple apply prop_right.
-
-(* my_auto times out!, even though 'apply H2' would solve the goal! *)
-
-(*Ltac my_auto :=*)
- rewrite ?isptr_force_ptr by auto.
- Timeout 50 eapply my_auto_lem.
- - intro HH.
-
-(*Ltac my_auto_iter H :=*)
- instantiate (1:=True) in HH. (*  prove_it_now. times out *)
-(*Ltac prove_it_now := *)
-(* splittable; fail 1. *)
-(*         computable . *)
-(*         apply Coq.Init.Logic.I . *)
-(*        reflexivity . *)
-    (*     Omega0.  times out *)
-
-omegable.
-
-(*  Omega'' (now helper1)  must time out  *)
-
-(*Ltac Omega'' L :=*)
-  match goal with
-  | |- (_ >= _)%nat => apply <- Nat2Z.inj_ge
-  | |- (_ > _)%nat => apply <- Nat2Z.inj_gt
-  | |- (_ <= _)%nat => apply <- Nat2Z.inj_le
-  | |- (_ < _)%nat => apply <- Nat2Z.inj_lt
-  | |- @eq nat _ _ => apply Nat2Z.inj
-  | |- _ => idtac
-  end;
- repeat first
-     [ simpl_const
-     | rewrite Nat2Z.id
-     | rewrite Nat2Z.inj_add
-     | rewrite Nat2Z.inj_mul
-     | rewrite Z2Nat.id by Omega'' (now helper1)
-     | rewrite Nat2Z.inj_sub by Omega'' (now helper1)
-     | rewrite Z2Nat.inj_sub by Omega'' (now helper1)
-     | rewrite Z2Nat.inj_add by Omega'' (now helper1)
-     ].
-Ltac theTac := (now helper1).
-(* Timeout 50  Omega' theTac.  times out! *)
-
-(*Ltac Omega' L := *)
-repeat match goal with
- | H: @eq Z _ _ |- _ => revert H
- | H: @eq nat _ _ |- _ => revert H
- | H: @neq Z _ _ |- _ => revert H
- | H: not (@eq Z _ _) |- _ => revert H
- | H: @neq nat _ _ |- _ => revert H
- | H: not (@eq nat _ _) |- _ => revert H
- | H: _ <> _ |- _ => revert H
- | H: Z.lt _ _ |- _ => revert H
- | H: Z.le _ _ |- _ => revert H
- | H: Z.gt _ _ |- _ => revert H
- | H: Z.ge _ _ |- _ => revert H
- | H: Z.le _ _ /\ Z.le _ _ |- _ => revert H
- | H: Z.lt _ _ /\ Z.le _ _ |- _ => revert H
- | H: Z.le _ _ /\ Z.lt _ _ |- _ => revert H
- | H: lt _ _ |- _ => revert H
- | H: le _ _ |- _ => revert H
- | H: gt _ _ |- _ => revert H
- | H: ge _ _ |- _ => revert H
- | H: le _ _ /\ le _ _ |- _ => revert H
- | H: lt _ _ /\ le _ _ |- _ => revert H
- | H: le _ _ /\ lt _ _ |- _ => revert H
- | H := ?A : Z |- _ => apply (omega_aux H A (eq_refl _)); clearbody H 
- | H := ?A : nat |- _ => apply (omega_aux H A (eq_refl _)); clearbody H 
- | H: _ |- _ => clear H
- end.
- clear.
-
-(* (now helper1) times out *)
-
-(*Ltac helper1 := *)
-Timeout 50 match goal with
-   | |- context [Zlength ?A] => add_nonredundant (Zlength_correct A)
-   | |- context [Int.max_unsigned] => add_nonredundant int_max_unsigned_eq
-   | |- context [Int.max_signed] => add_nonredundant int_max_signed_eq
-   | |- context [Int.min_signed] => add_nonredundant int_min_signed_eq
-  end. 
-
-(*Tactic Notation "now" tactic(t) := t; easy.*)
-
-(* Timeout 50 easy. times out *)
-
-(*
-Pos.compare
-Z.compare
-Locate "_ ?= _".
-Z.le
-*)
-
-do 6 intro.
-(* Arguments Int.shru _ _ : simpl never.  doesn't help *)
-(*forget 16 as sixteen.*)
-clear - H2.
- inversion H2. (* <-- this one is fast if we "forget 16 as sixteen", otherwise it takes forever.
-But if we forget 8, 16, 24 as above, forward takes forever, even when entailer_for_load_tac is idtac.
-And if we try to isolate the problem in isolate_inversion_slowness.v, the problem vanishes and inversion
-is fast again...
- *)
-inversion H2. (* <--- this is the source of the timeout!!! *)
-
-(*Ltac easy := *)
-  let rec use_hyp H :=
-    match type of H with
-    | _ /\ _ => exact H || destruct_hyp H
-    | _ => try solve [inversion H]
-    end
-  with do_intro := let H := fresh in intro H; use_hyp H
-  with destruct_hyp H := case H; clear H; do_intro; do_intro in
-  let rec use_hyps :=
-    match goal with
-    | H : _ /\ _ |- _  => exact H || (destruct_hyp H; use_hyps)
-    | H : _ |- _ => solve [inversion H]
-    | _ => idtac
-    end in
-  let do_atom :=
-    solve [ trivial with eq_true | reflexivity | symmetry; trivial | contradiction ] in
-  let rec do_ccl :=
-    try do_atom;
-    repeat (do_intro; try do_atom);
-    solve [ split; do_ccl ] in
-  solve [ do_atom | use_hyps; (*do_ccl times out *)
-    try do_atom;
-    (*repeat (do_intro; try do_atom) times out *)
-    progress (do_intro; try do_atom);
-    progress (do_intro; try do_atom);
-    progress (do_intro; try do_atom);
-    progress (do_intro; try do_atom);
-    progress (do_intro; try do_atom);
-    (* progress (do_intro; try do_atom) <-- this one times out *)
-    let H := fresh in intro H (* use_hyp H  times out*);
-    match type of H with
-    | _ /\ _ => exact H || destruct_hyp H
-    | _ => try solve [inversion H]
-    end
- ] ||
-  fail "Cannot solve this goal".
-
-
-
-
-                                                                      do 4 forward. forward.
+  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
   forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
   forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
   forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
@@ -754,13 +574,14 @@ inversion H2. (* <--- this is the source of the timeout!!! *)
   do 4 (forward; simpl_upd_Znth).
   do 4 (forward; simpl_upd_Znth).
 
+  cbv [cast_int_int] in *.
   rewrite zero_ext_mask in *.
   rewrite zero_ext_mask in *.
   rewrite Int.and_assoc in *.
   rewrite Int.and_assoc in *.
   rewrite Int.and_idem in *.
   rewrite Int.and_idem in *.
-  repeat subst.  remember (exp_key ++ list_repeat 8 0) as buf.
+  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
 
   match goal with
   | |- context [ field_at _ _ _ ?res output ] =>
@@ -772,7 +593,8 @@ inversion H2. (* <--- this is the source of the timeout!!! *)
   end.
   cbv.
   repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
-  subst S0 S12 S13 S14.
+  destruct hidden as [? ?].
+  subst S0 S12 S13.
   remember 12%nat as twelve.
   unfold mbed_tls_enc_rounds. fold mbed_tls_enc_rounds.
   assert (4 + 4 * Z.of_nat twelve = 52) as Eq4. { subst twelve. reflexivity. }
@@ -783,7 +605,13 @@ inversion H2. (* <--- this is the source of the timeout!!! *)
 
   Ltac entailer_for_return ::= idtac.
 
-  rewrite <- Eq0buf in *.
+  (* TODO reuse from above *)
+  assert ((field_address t_struct_aesctx [StructField _buf] ctx)
+        = (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx)) as EqBuf. {
+    do 2 rewrite field_compatible_field_address by auto with field_compatible.
+    reflexivity.
+  }
+  rewrite <- EqBuf in *.
 
   (* return None *)
   forward.
