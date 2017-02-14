@@ -66,8 +66,8 @@ rewrite nested_pred_eq in H2|-*.
 rewrite andb_true_iff in *; destruct H2; split; auto.
 unfold local_legal_alignas_type in H2|-*.
 rewrite andb_true_iff in *; destruct H2; split; auto.
-destruct (attr_alignas (attr_of_type t)); auto.
-apply Z.leb_le in H11.  apply Z.leb_le. omega.
+rewrite andb_true_iff in *; destruct H11; split; auto.
+apply Z.leb_le. tauto.
 *
 omega.
 *
@@ -99,8 +99,8 @@ rewrite nested_pred_eq in H2|-*.
 rewrite andb_true_iff in *; destruct H2; split; auto.
 unfold local_legal_alignas_type in H2|-*.
 rewrite andb_true_iff in *; destruct H2; split; auto.
-destruct (attr_alignas (attr_of_type t)); auto.
-apply Z.leb_le in H11.  apply Z.leb_le. omega.
+rewrite andb_true_iff in *; destruct H11; split; auto.
+apply Z.leb_le. omega.
 *
 omega.
 *
@@ -146,7 +146,7 @@ intuition.
   clear - H1 H2 H0.
   unfold local_legal_alignas_type in *.
   rewrite andb_true_iff in *. destruct H0; split; auto.
-  destruct (attr_alignas (attr_of_type t)); auto.
+  rewrite andb_true_iff in *. destruct H0; split; auto.
   eapply Zle_is_le_bool. omega.
  *
   unfold sizeof in H6|-*; fold (sizeof t) in *.
@@ -215,11 +215,10 @@ rewrite nested_pred_eq, andb_true_iff in H3|-*.
 destruct H3; split; auto.
 unfold local_legal_alignas_type in H|-*.
 rewrite andb_true_iff in H|-*; destruct H.
-destruct (attr_alignas (attr_of_type t)) eqn:?; try now inv H10.
-split; rewrite Z.leb_le in *; [ | omega].
-unfold plain_alignof in *.
-eapply Z.le_trans; [eassumption | ].
-apply Z.le_refl.
+rewrite andb_true_iff in H10 |-*; destruct H10.
+split; auto.
+split; auto.
+apply Z.leb_le; auto.
 *
 unfold sizeof in H5|-*. fold sizeof in H5|-*.
 rewrite Z.max_r in H5|-* by omega.
@@ -234,12 +233,9 @@ unfold legal_alignas_type in H3|-*.
 rewrite nested_pred_eq, andb_true_iff in H3|-*.
 destruct H3; split; auto.
 unfold local_legal_alignas_type in H|-*.
-rewrite andb_true_iff in H|-*; destruct H.
-destruct (attr_alignas (attr_of_type t)) eqn:?; try now inv H10.
-split; rewrite Z.leb_le in *; [ | omega].
-unfold plain_alignof in *.
-eapply Z.le_trans; [eassumption | ].
-apply Z.le_refl.
+rewrite andb_true_iff in H|-*; destruct H; split; auto.
+rewrite andb_true_iff in H10|-*; destruct H10; split; auto.
+apply Z.leb_le; omega.
 *
 unfold sizeof in H5|-*. fold sizeof in H5|-*.
 rewrite Z.max_r in H5|-* by omega.
@@ -279,8 +275,7 @@ unfold alignof. fold alignof.
 unfold attr_of_type, noattr, align_attr, attr_alignas.
 apply Z.divide_mul_l; auto.
 clear - H3.
-rewrite (legal_alignas_type_Tarray _ _ _ H3).
-apply legal_alignas_sizeof_alignof_compat.
+apply (legal_alignas_type_Tarray _ _ _ H3).
 unfold legal_alignas_type in H3.
 rewrite nested_pred_eq in H3.
 unfold legal_alignas_type.
@@ -499,7 +494,7 @@ intros until 1. intros NA ?H ?H Hni Hii Hp. subst p'.
   rewrite andb_true_iff in *. destruct H1; split; auto.
   unfold local_legal_alignas_type in *.
   rewrite andb_true_iff in *. destruct H1; split; auto.
-  destruct (attr_alignas (attr_of_type t)); auto.
+  rewrite andb_true_iff in *. destruct H12; split; auto.
   eapply Zle_is_le_bool. omega.
   *
   unfold sizeof in H7|-*; fold (sizeof t) in *.
@@ -643,3 +638,156 @@ Proof. intros.
  rewrite sublist_same; try omega; auto.
 Qed.
 
+Lemma sizeof_tarray_tuchar {cs} n (N:0<=n): @sizeof cs (tarray tuchar n) = n.
+Proof. simpl. rewrite Z.max_r. destruct n; trivial. omega. Qed. 
+
+Opaque sizeof.
+Import ListNotations.
+
+Lemma memory_block_field_compatible_tarraytuchar_ent {cs} sh n p (N:0<=n < Int.modulus):
+memory_block sh n p |-- !! @field_compatible cs (tarray tuchar n) nil p.
+Proof. Transparent memory_block. unfold memory_block. Opaque memory_block.
+   destruct p; try solve [apply FF_left]. normalize.
+   apply prop_right. red.
+   destruct (Int.unsigned_range i). simpl.
+   repeat split; try rewrite sizeof_tarray_tuchar; trivial; try omega.
+    unfold legal_alignas_type, nested_pred, local_legal_alignas_type; simpl.
+      rewrite Zle_imp_le_bool; trivial; omega.
+    unfold align_attr; simpl. apply Z.divide_1_l.
+Qed.
+
+Lemma memory_block_field_compatible_tarraytuchar {cs} sh n p (N:0<=n < Int.modulus):
+memory_block sh n p = !!(@field_compatible cs (tarray tuchar n) nil p) && memory_block sh n p.
+Proof. apply pred_ext. apply andp_right; trivial. apply memory_block_field_compatible_tarraytuchar_ent; trivial.
+normalize.
+Qed. 
+
+Lemma memory_block_data_at__tarray_tuchar {cs} sh p n (N: 0<=n < Int.modulus):
+  memory_block sh n p |-- @data_at_ cs sh (tarray tuchar n) p.
+Proof. 
+  rewrite memory_block_field_compatible_tarraytuchar, memory_block_isptr; trivial. 
+  normalize. destruct p; try solve [inv Pp].
+  unfold data_at_, data_at.
+  rewrite field_at__memory_block. 
+  unfold field_address. rewrite if_true; trivial.
+  unfold nested_field_offset, nested_field_type; simpl.
+  rewrite Int.add_zero, sizeof_tarray_tuchar; trivial; omega.
+Qed.
+
+Lemma memory_block_data_at__tarray_tuchar_eq {cs} sh p n (N: 0<=n < Int.modulus):
+  memory_block sh n p = @data_at_ cs sh (tarray tuchar n) p.
+Proof.
+  apply pred_ext. apply memory_block_data_at__tarray_tuchar; trivial.
+  rewrite data_at__memory_block; simpl. normalize. rewrite sizeof_tarray_tuchar; trivial; omega. 
+Qed.
+
+Lemma isptr_field_compatible_tarray_tuchar0 {cs} p: isptr p -> 
+      @field_compatible cs (tarray tuchar 0) nil p.
+Proof. intros; red. destruct p; try contradiction.
+  repeat split; simpl; try rewrite sizeof_tarray_tuchar; trivial; try omega.
+  destruct (Int.unsigned_range i); omega.
+  apply Z.divide_1_l. 
+Qed. 
+
+Lemma data_at_tuchar_singleton_array {cs} sh v p:
+  @data_at cs sh tuchar v p |-- @data_at cs sh (tarray tuchar 1) [v] p.  
+Proof. 
+  rewrite data_at_isptr. normalize.
+  assert_PROP (field_compatible (tarray tuchar 1) [] p).
+  { eapply derives_trans. eapply data_at_local_facts. normalize. }
+  unfold data_at at 2.
+  erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: apply JMeq_refl. 2: simpl; trivial. 
+  erewrite array_at_len_1. 2: apply JMeq_refl.
+  rewrite field_at_data_at; simpl. 
+  rewrite field_address_offset; trivial.
+    simpl. rewrite isptr_offset_val_zero; trivial.
+  eapply field_compatible_cons_Tarray. reflexivity. trivial. omega.
+Qed.
+ 
+Lemma data_at_tuchar_singleton_array_inv {cs} sh v p:
+  @data_at cs sh (tarray tuchar 1) [v] p |-- @data_at cs sh tuchar v p.  
+Proof. 
+  rewrite data_at_isptr. normalize.
+  assert_PROP (field_compatible (tarray tuchar 1) [] p).
+  { eapply derives_trans. eapply data_at_local_facts. normalize. }
+  unfold data_at at 1.
+  erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: apply JMeq_refl. 2: simpl; trivial. 
+  erewrite array_at_len_1. 2: apply JMeq_refl.
+  rewrite field_at_data_at; simpl. 
+  rewrite field_address_offset; trivial.
+    simpl. rewrite isptr_offset_val_zero; trivial.
+  eapply field_compatible_cons_Tarray. reflexivity. trivial. omega.
+Qed.
+ 
+Lemma data_at_tuchar_singleton_array_eq {cs} sh v p:
+  @data_at cs sh (tarray tuchar 1) [v] p = @data_at cs sh tuchar v p.  
+Proof. apply pred_ext.
+  apply data_at_tuchar_singleton_array_inv.
+  apply data_at_tuchar_singleton_array. 
+Qed. 
+
+Lemma data_at_tuchar_zero_array {cs} sh p: isptr p ->
+  emp |-- @data_at cs sh (tarray tuchar 0) [] p.  
+Proof. intros.
+  unfold data_at. 
+  erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: apply JMeq_refl. 2: simpl; trivial. 
+  rewrite array_at_len_0. apply andp_right; trivial.
+  apply prop_right. apply isptr_field_compatible_tarray_tuchar0 in H.
+  unfold field_compatible in H.  
+  unfold field_compatible0; simpl in *. intuition.
+Qed.
+
+Lemma data_at_tuchar_zero_array_inv {cs} sh p:
+  @data_at cs sh (tarray tuchar 0) [] p |-- emp.  
+Proof. intros.
+  unfold data_at. 
+  erewrite field_at_Tarray. 3: reflexivity. 3: omega. 3: apply JMeq_refl. 2: simpl; trivial. 
+  rewrite array_at_len_0. normalize. 
+Qed.
+
+Lemma data_at_tuchar_zero_array_eq {cs} sh p:
+  isptr p ->
+  @data_at cs sh (tarray tuchar 0) [] p = emp.  
+Proof. intros.
+  apply pred_ext.
+  apply data_at_tuchar_zero_array_inv.
+  apply data_at_tuchar_zero_array; trivial.
+Qed. 
+
+Lemma data_at__tuchar_zero_array {cs} sh p (H: isptr p):
+  emp |-- @data_at_ cs sh (tarray tuchar 0) p.  
+Proof. unfold data_at_, field_at_. apply data_at_tuchar_zero_array; trivial. Qed.
+
+Lemma data_at__tuchar_zero_array_inv {cs} sh p:
+  @data_at_ cs sh (tarray tuchar 0) p |-- emp.  
+Proof. unfold data_at_, field_at_. apply data_at_tuchar_zero_array_inv. Qed.
+
+Lemma data_at__tuchar_zero_array_eq {cs} sh p (H: isptr p):
+  @data_at_ cs sh (tarray tuchar 0) p = emp.  
+Proof. intros.
+  apply pred_ext.
+  apply data_at__tuchar_zero_array_inv.
+  apply data_at__tuchar_zero_array; trivial.
+Qed. 
+
+Lemma split2_data_at__Tarray_tuchar
+     : forall {cs} (sh : Share.t)  (n n1 : Z) (p : val),
+       0 <= n1 <= n -> isptr p ->field_compatible (Tarray tuchar n noattr) [] p ->
+       @data_at_ cs sh (Tarray tuchar n noattr) p =
+       @data_at_ cs sh (Tarray tuchar n1 noattr) p *
+       @data_at_ cs sh (Tarray tuchar (n - n1) noattr)
+         (field_address0 (Tarray tuchar n noattr) [ArraySubsc n1] p).
+Proof. intros. unfold data_at_ at 1; unfold field_at_.
+rewrite field_at_data_at.
+erewrite (@split2_data_at_Tarray cs sh tuchar n n1).
+instantiate (1:= list_repeat (Z.to_nat (n-n1)) Vundef).
+instantiate (1:= list_repeat (Z.to_nat n1) Vundef).
+unfold field_address. simpl. 
+rewrite if_true; trivial. rewrite isptr_offset_val_zero; trivial.
+trivial.
+simpl.
+instantiate (1:=list_repeat (Z.to_nat n) Vundef).
+unfold default_val. simpl. autorewrite with sublist. apply JMeq_refl. 
+unfold default_val. simpl. autorewrite with sublist. apply JMeq_refl. 
+unfold default_val. simpl. autorewrite with sublist. apply JMeq_refl.
+Qed. 

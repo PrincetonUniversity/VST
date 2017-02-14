@@ -58,6 +58,7 @@ Lemma f_core_loop1 (Espec : OracleKind) FR c k h nonce out w x y t
            temp _out out; temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
    SEP  (FR; data_at_ Tsh (tarray tuint 16) x;
          CoreInSEP data (nonce, c, k)))
+  
   (Ssequence
     (Sset _i (Econst_int (Int.repr 0) tint))
     (Sloop
@@ -68,13 +69,13 @@ Lemma f_core_loop1 (Espec : OracleKind) FR c k h nonce out w x y t
           Sbreak)
         (Ssequence
           (Ssequence
-            (Scall (Some 177%positive)
+            (Scall (Some _t'1)
               (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil) tuint
                             cc_default))
               ((Ebinop Oadd (Etempvar _c (tptr tuchar))
                  (Ebinop Omul (Econst_int (Int.repr 4) tint)
                    (Etempvar _i tint) tint) (tptr tuchar)) :: nil))
-            (Sset _aux (Etempvar 177%positive tuint)))
+            (Sset _aux (Etempvar _t'1 tuint)))
           (Ssequence
             (Sassign
               (Ederef
@@ -84,13 +85,13 @@ Lemma f_core_loop1 (Espec : OracleKind) FR c k h nonce out w x y t
               (Etempvar _aux tuint))
             (Ssequence
               (Ssequence
-                (Scall (Some 178%positive)
+                (Scall (Some _t'2)
                   (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil) tuint
                                 cc_default))
                   ((Ebinop Oadd (Etempvar _k (tptr tuchar))
                      (Ebinop Omul (Econst_int (Int.repr 4) tint)
                        (Etempvar _i tint) tint) (tptr tuchar)) :: nil))
-                (Sset _aux (Etempvar 178%positive tuint)))
+                (Sset _aux (Etempvar _t'2 tuint)))
               (Ssequence
                 (Sassign
                   (Ederef
@@ -100,13 +101,13 @@ Lemma f_core_loop1 (Espec : OracleKind) FR c k h nonce out w x y t
                   (Etempvar _aux tuint))
                 (Ssequence
                   (Ssequence
-                    (Scall (Some 179%positive)
+                    (Scall (Some _t'3)
                       (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil) tuint
                                     cc_default))
                       ((Ebinop Oadd (Etempvar _in (tptr tuchar))
                          (Ebinop Omul (Econst_int (Int.repr 4) tint)
                            (Etempvar _i tint) tint) (tptr tuchar)) :: nil))
-                    (Sset _aux (Etempvar 179%positive tuint)))
+                    (Sset _aux (Etempvar _t'3 tuint)))
                   (Ssequence
                     (Sassign
                       (Ederef
@@ -116,7 +117,7 @@ Lemma f_core_loop1 (Espec : OracleKind) FR c k h nonce out w x y t
                       (Etempvar _aux tuint))
                     (Ssequence
                       (Ssequence
-                        (Scall (Some 180%positive)
+                        (Scall (Some _t'4)
                           (Evar _ld32 (Tfunction (Tcons (tptr tuchar) Tnil)
                                         tuint cc_default))
                           ((Ebinop Oadd
@@ -125,7 +126,7 @@ Lemma f_core_loop1 (Espec : OracleKind) FR c k h nonce out w x y t
                              (Ebinop Omul (Econst_int (Int.repr 4) tint)
                                (Etempvar _i tint) tint) (tptr tuchar)) ::
                            nil))
-                        (Sset _aux (Etempvar 180%positive tuint)))
+                        (Sset _aux (Etempvar _t'4 tuint)))
                       (Sassign
                         (Ederef
                           (Ebinop Oadd (Evar _x (tarray tuint 16))
@@ -400,7 +401,7 @@ Time forward_for_simple_bound 4 (EX i:Z,
   thaw FR11. Time cancel. (*0.3*)
  }
 apply andp_left2; apply derives_refl.
-Time Qed. (*75*)
+Time Qed. (* 19.046 secs (17.109u,0.015s) (successful)*)
 
 Lemma XX data l: X_content data 4 l ->
   l = match data with ((Nonce, C), (Key1, Key2)) =>

@@ -7,8 +7,7 @@ Require Import hmacdrbg.HMAC256_DRBG_functional_prog.
 Require Import hmacdrbg.DRBG_functions.
 Require Import hmacdrbg.HMAC_DRBG_algorithms.
 Require Import hmacdrbg.entropy.
-(*Require Import sha.spec_hmac. LENB: was sha.spec_hmacNK*)
-Require Import sha.protocol_spec_hmac. (*LENB: was sha.funcspec_hmacNK*)
+Require Import sha.protocol_spec_hmac. 
 Require Import sha.general_lemmas.
 Require Import sha.HMAC256_functional_prog.
 
@@ -17,12 +16,6 @@ Require Import sha.spec_sha.
 Require Import floyd.library.
 
 Require Import hmacdrbg.hmac_drbg_compspecs.
-(*
-Module UNDER_SPEC := OPENSSL_HMAC_ABSTRACT_SPEC.
-*)
-(*
-Module HMACDRBG_MOD (UNDER_SPEC : HMAC_ABSTRACT_SPEC).
-*)
 
 Declare Module UNDER_SPEC : HMAC_ABSTRACT_SPEC.
 Definition mdstate: Type := (val * (val * val))%type.
@@ -31,14 +24,6 @@ Definition md_info_state: Type := val%type.
 
 Definition t_struct_md_ctx_st := Tstruct _mbedtls_md_context_t noattr.
 
-(*
-Inductive HABS := hABS: forall (key data:list Z), HABS.
-Definition convert_abs (h: HABS): UNDER_SPEC.HABS :=
-  match h with hABS key data => UNDER_SPEC.hABS key data end.
-
-Definition md_relate (h: HABS) (r:mdstate) :=
-  UNDER_SPEC.REP (convert_abs h) (snd (snd r)).
-*)
 Definition md_relate (h: UNDER_SPEC.HABS) (r:mdstate) :=
   UNDER_SPEC.REP h (snd (snd r)).
 

@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "threads.h"
+#include "atomic_exchange.h"
+//#include <stdatomic.h>
 
 void *surely_malloc (size_t n) {
   void *p = malloc(n);
@@ -10,9 +12,9 @@ void *surely_malloc (size_t n) {
 
 //This will be replaced by an external call eventually.
 void *memset(void *s, int c, size_t n){
-  unsigned char *p = (unsigned char *)s;
-  for(size_t i = 0; i < n; i++)
-    p[i] = (unsigned char)c;
+  int *p = (int *)s;
+  for(size_t i = 0; i < n / 4; i++)
+    p[i] = c;
   return s;
 }
 
@@ -28,17 +30,7 @@ buffer *bufs[B];
 lock_t *lock[N];
 buf_id *comm[N];
 
-//This could be replaced by an external call once we figure out the right spec.
-int simulate_atomic_exchange(int *tgt, lock_t *l, int v){
-  int x;
-  acquire(l);
-  x = *tgt;
-  *tgt = v;
-  release(l);
-  return x;
-}
-
-//The initial state as written is slightly inconsistent:
+//The initial state as written in the draft is slightly inconsistent:
 //last_read is First, but comm[r] is also First as if it
 //hasn't been read yet. Either last_read or comm[r] should
 //start as Empty instead. comm[r] starting Empty is a bit
@@ -51,13 +43,12 @@ buf_id *reading[N], *last_read[N];
 void initialize_channels(){
   for(int i = 0; i < B; i++){
     buffer *b = surely_malloc(sizeof(buffer));
-    memset(b, 0, sizeof(buffer)); //for now, we initialize all buffers to maintain
-                                  //the invariant that buffers contain integers
+    memset(b, 0, sizeof(buffer));
     bufs[i] = b;
   }
   for(int r = 0; r < N; r++){
     buf_id *c = surely_malloc(sizeof(buf_id));
-    *c = Empty;
+    *c = First;
     comm[r] = c;
     c = surely_malloc(sizeof(buf_id));
     reading[r] = c;
@@ -75,7 +66,7 @@ void initialize_reader(int r){
   buf_id *rr = reading[r];
   buf_id *lr = last_read[r];
   *rr = Empty;
-  *lr = First;
+  *lr = 1;
 }
 
 buf_id start_read(int r){
@@ -107,7 +98,7 @@ void initialize_writer(){
   last_given = First;
   writing = Empty;
   for(int i = 0; i < N; i++)
-    last_taken[i] = Empty;
+    last_taken[i] = 1;
 }
 
 buf_id start_write(){
@@ -154,7 +145,7 @@ void *reader(void *arg){
     buf_id b = start_read(r);
     buffer *buf = bufs[b];
     int v = buf->data;
-    //printf("Reader %d read %d\n", r, v);
+    //   printf("Reader %d read %d\n", r, v);
     finish_read(r);
   }
   return NULL;

@@ -672,75 +672,32 @@ Lemma loop1 Espec F x z c mInit b nonce k m xbytes mbytes SV cLen
      (map Vint (map Int.repr (map Byte.unsigned xbytes))) x;
    data_at_ Tsh (Tarray tuchar cLen noattr) c;
    message_at mbytes mInit))
-  (
-              (Ssequence
-                (Sset _i (Econst_int (Int.repr 0) tint))
-                (Sloop
-                  (Ssequence
-                    (Sifthenelse (Ebinop Olt (Etempvar _i tuint)
-                                   (Econst_int (Int.repr 64) tint) tint)
-                      Sskip
-                      Sbreak)
-                    (Ssequence
-                      (Ssequence
-                        (Sifthenelse (Ebinop Cop.One (Etempvar _m (tptr tuchar))
-                                       (Ecast (Econst_int (Int.repr 0) tint)
-                                         (tptr tvoid)) tint)
-                          (Sset 187%positive
-                            (Ecast
-                              (Ederef
-                                (Ebinop Oadd (Etempvar _m (tptr tuchar))
-                                  (Etempvar _i tuint) (tptr tuchar)) tuchar)
-                              tint))
-                          (Sset 187%positive
-                            (Ecast (Econst_int (Int.repr 0) tint) tint)))
-                        (Sset _loop2left
-                          (Ecast (Etempvar 187%positive tint) tuchar)))
-                      (Ssequence
-                        (Sset _loop2right
-                          (Ecast
-                            (Ederef
-                              (Ebinop Oadd (Evar _x (tarray tuchar 64))
-                                (Etempvar _i tuint) (tptr tuchar)) tuchar)
-                            tuchar))
-                        (Sassign
-                          (Ederef
-                            (Ebinop Oadd (Etempvar _c (tptr tuchar))
-                              (Etempvar _i tuint) (tptr tuchar)) tuchar)
-                          (Ebinop Oxor (Etempvar _loop2left tuchar)
-                            (Etempvar _loop2right tuchar) tint)))))
-                  (Sset _i
-                    (Ebinop Oadd (Etempvar _i tuint)
-                      (Econst_int (Int.repr 1) tint) tuint)))))
-(*  (Sfor (Sset _i (Econst_int (Int.repr 0) tint))
+  (Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Ebinop Olt (Etempvar _i tuint) (Econst_int (Int.repr 64) tint) tint)
      (Ssequence
         (Ssequence
            (Sifthenelse
-              (Ebinop One (Etempvar _m (tptr tuchar))
+              (Ebinop Cop.One (Etempvar _m (tptr tuchar))
                  (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
-              (Sset 186%positive
+              (Sset _t'1
                  (Ecast
                     (Ederef
-                       (Ebinop Oadd (Etempvar _m (tptr tuchar))
-                          (Etempvar _i tuint) (tptr tuchar)) tuchar) tint))
-              (Sset 186%positive (Ecast (Econst_int (Int.repr 0) tint) tint)))
-           (Sset _loop2left (Ecast (Etempvar 186%positive tint) tuchar)))
+                       (Ebinop Oadd (Etempvar _m (tptr tuchar)) (Etempvar _i tuint) (tptr tuchar))
+                       tuchar) tint)) (Sset _t'1 (Ecast (Econst_int (Int.repr 0) tint) tint)))
+           (Sset _loop2left (Ecast (Etempvar _t'1 tint) tuchar)))
         (Ssequence
            (Sset _loop2right
               (Ecast
                  (Ederef
-                    (Ebinop Oadd (Evar _x (tarray tuchar 64))
-                       (Etempvar _i tuint) (tptr tuchar)) tuchar) tuchar))
+                    (Ebinop Oadd (Evar _x (tarray tuchar 64)) (Etempvar _i tuint) (tptr tuchar))
+                    tuchar) tuchar))
            (Sassign
-              (Ederef
-                 (Ebinop Oadd (Etempvar _c (tptr tuchar)) (Etempvar _i tuint)
-                    (tptr tuchar)) tuchar)
-              (Ebinop Oxor (Etempvar _loop2left tuchar)
-                 (Etempvar _loop2right tuchar) tint))))
-     (Sset _i
-        (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tint) tuint)))*)
-(normal_ret_assert
+              (Ederef (Ebinop Oadd (Etempvar _c (tptr tuchar)) (Etempvar _i tuint) (tptr tuchar))
+                 tuchar)
+              (Ebinop Oxor (Etempvar _loop2left tuchar) (Etempvar _loop2right tuchar) tint))))
+     (Sset _i (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tint) tuint)))
+
+(normal_ret_assert 
   ( PROP  ()
     LOCAL  (temp _i (Vint (Int.repr 64)); lvar _x (Tarray tuchar 64 noattr) x;
        lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m; temp _b b;
@@ -788,7 +745,7 @@ rename H into I.
    LOCAL  (temp _i (Vint (Int.repr i)); lvar _x (Tarray tuchar 64 noattr) x;
       lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
       temp _b b; temp _n nonce; temp _k k; gvar _sigma SV;
-      temp 187%positive (Vint (Int.repr (Byte.unsigned (byte_at mInit (i+q) mbytes)))))
+      temp _t'1 (Vint (Int.repr (Byte.unsigned (byte_at mInit (i+q) mbytes)))))
    SEP  (FRZL FR1; message_at mbytes mInit)).
   { apply denote_tc_comparable_split.
     + clear H XOR. destruct mInit; simpl in M; try contradiction.
@@ -812,8 +769,8 @@ rename H into I.
     destruct (field_compatible0_dec (Tarray tuchar (Zlength mbytes) noattr)
            [ArraySubsc q] (Vptr b0 i0)).
     Focus 2. elim n; clear n. apply field_compatible0_cons. simpl. split; trivial. omega.
-    assert (X: 0 + 1 * q = q) by omega. rewrite X; clear X.
-    forward; unfold Bl2VL; autorewrite with sublist; entailer!.
+    assert (X: 0 + 1 * q = q) by omega. rewrite X; clear X. 
+    forward; unfold Bl2VL; autorewrite with sublist; entailer!. 
     + rewrite Znth_map with (d' := Byte.zero) by omega. reflexivity.
     + erewrite (split2_data_at_Tarray_tuchar _ (Zlength mbytes) q).
       2: omega. 2: unfold Bl2VL; repeat rewrite Zlength_map; trivial. 
@@ -825,8 +782,8 @@ rename H into I.
     destruct mInit; simpl in M; try contradiction.
     destruct M as [M _]. 2: discriminate.
     forward. entailer!.
-  }
-  forward. drop_LOCAL 10%nat. (*variable 186*)
+  } 
+  forward. drop_LOCAL 10%nat. (*variable _t'1*) 
   destruct (Znth_mapVint (map Int.repr (map Byte.unsigned xbytes)) i Vundef) as  [xi Xi].
     repeat rewrite Zlength_map. omega.
   thaw FR1. freeze [0;2;3] FR2.
@@ -870,7 +827,6 @@ rename H into I.
 apply andp_left2. apply derives_refl.
 Qed.
 
-
 Definition loop2Inv F x z c mInit m b nonce k SV q xbytes mbytes cLen: environ -> mpred:=
 EX i:Z,
   (PROP  ()
@@ -905,46 +861,7 @@ Lemma loop2 Espec F x z c mInit m b nonce k xbytes mbytes SV
               (map Vint (map Int.repr (map Byte.unsigned xbytes))) x;
          data_at_ Tsh (Tarray tuchar (Int64.unsigned b) noattr) c;
          message_at mbytes mInit))
-        (Ssequence
-                (Sset _i (Econst_int (Int.repr 0) tint))
-                (Sloop
-                  (Ssequence
-                    (Sifthenelse (Ebinop Olt (Etempvar _i tuint)
-                                   (Etempvar _b tulong) tint)
-                      Sskip
-                      Sbreak)
-                    (Ssequence
-                      (Ssequence
-                        (Sifthenelse (Ebinop Cop.One (Etempvar _m (tptr tuchar))
-                                       (Ecast (Econst_int (Int.repr 0) tint)
-                                         (tptr tvoid)) tint)
-                          (Sset 188%positive
-                            (Ecast
-                              (Ederef
-                                (Ebinop Oadd (Etempvar _m (tptr tuchar))
-                                  (Etempvar _i tuint) (tptr tuchar)) tuchar)
-                              tint))
-                          (Sset 188%positive
-                            (Ecast (Econst_int (Int.repr 0) tint) tint)))
-                        (Sset _loop3left
-                          (Ecast (Etempvar 188%positive tint) tuchar)))
-                      (Ssequence
-                        (Sset _loop3right
-                          (Ecast
-                            (Ederef
-                              (Ebinop Oadd (Evar _x (tarray tuchar 64))
-                                (Etempvar _i tuint) (tptr tuchar)) tuchar)
-                            tuchar))
-                        (Sassign
-                          (Ederef
-                            (Ebinop Oadd (Etempvar _c (tptr tuchar))
-                              (Etempvar _i tuint) (tptr tuchar)) tuchar)
-                          (Ebinop Oxor (Etempvar _loop3left tuchar)
-                            (Etempvar _loop3right tuchar) tint)))))
-                  (Sset _i
-                    (Ebinop Oadd (Etempvar _i tuint)
-                      (Econst_int (Int.repr 1) tint) tuint))))
-(*
+
   (Sfor (Sset _i (Econst_int (Int.repr 0) tint))
      (Ebinop Olt (Etempvar _i tuint) (Etempvar _b tulong) tint)
      (Ssequence
@@ -952,29 +869,24 @@ Lemma loop2 Espec F x z c mInit m b nonce k xbytes mbytes SV
            (Sifthenelse
               (Ebinop Cop.One (Etempvar _m (tptr tuchar))
                  (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
-              (Sset 187%positive
+              (Sset _t'2
                  (Ecast
                     (Ederef
-                       (Ebinop Oadd (Etempvar _m (tptr tuchar))
-                          (Etempvar _i tuint) (tptr tuchar)) tuchar) tint))
-              (Sset 187%positive (Ecast (Econst_int (Int.repr 0) tint) tint)))
-           (Sset _loop3left (Ecast (Etempvar 187%positive tint) tuchar)))
+                       (Ebinop Oadd (Etempvar _m (tptr tuchar)) (Etempvar _i tuint) (tptr tuchar))
+                       tuchar) tint)) (Sset _t'2 (Ecast (Econst_int (Int.repr 0) tint) tint)))
+           (Sset _loop3left (Ecast (Etempvar _t'2 tint) tuchar)))
         (Ssequence
            (Sset _loop3right
               (Ecast
                  (Ederef
-                    (Ebinop Oadd (Evar _x (tarray tuchar 64))
-                       (Etempvar _i tuint) (tptr tuchar)) tuchar) tuchar))
+                    (Ebinop Oadd (Evar _x (tarray tuchar 64)) (Etempvar _i tuint) (tptr tuchar))
+                    tuchar) tuchar))
            (Sassign
-              (Ederef
-                 (Ebinop Oadd (Etempvar _c (tptr tuchar)) (Etempvar _i tuint)
-                    (tptr tuchar)) tuchar)
-              (Ebinop Oxor (Etempvar _loop3left tuchar)
-                 (Etempvar _loop3right tuchar) tint))))
-     (Sset _i
-        (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tint) tuint)))*)
-
-(normal_ret_assert
+              (Ederef (Ebinop Oadd (Etempvar _c (tptr tuchar)) (Etempvar _i tuint) (tptr tuchar))
+                 tuchar)
+              (Ebinop Oxor (Etempvar _loop3left tuchar) (Etempvar _loop3right tuchar) tint))))
+     (Sset _i (Ebinop Oadd (Etempvar _i tuint) (Econst_int (Int.repr 1) tint) tuint)))
+(normal_ret_assert 
   ( PROP  ()
     LOCAL  ((*temp _i (Vlong b); *) lvar _x (Tarray tuchar 64 noattr) x;
        lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m; temp _b (Vlong b);
@@ -1023,7 +935,7 @@ Focus 2.
    LOCAL  (temp _i (Vint (Int.repr i)); lvar _x (Tarray tuchar 64 noattr) x;
       lvar _z (Tarray tuchar 16 noattr) z; temp _c c; temp _m m;
       temp _b (Vlong b); temp _n nonce; temp _k k; gvar _sigma SV;
-      temp 188%positive (Vint (Int.repr (Byte.unsigned (byte_at mInit (i+q) mbytes)))))
+      temp _t'2 (Vint (Int.repr (Byte.unsigned (byte_at mInit (i+q) mbytes)))))
    SEP  (FRZL FR1; message_at mbytes mInit)).
   { apply denote_tc_comparable_split.
     + clear H XOR. destruct mInit; simpl in M; try contradiction.
@@ -1103,12 +1015,10 @@ Focus 2.
       rewrite X; trivial.
   }
 Unfocus.
-intros. apply andp_left2. rewrite Zminus_diag, list_repeat_0.
+intros. apply andp_left2. rewrite Zminus_diag, list_repeat_0. 
 apply assert_lemmas.normal_ret_assert_derives'.
-old_go_lower. entailer!. Intros l. rewrite app_nil_r. Exists l.
- entailer!.
+old_go_lower. normalize. rewrite app_nil_r. Exists l. entailer!.
 Qed.
-
 
 Definition Inv cInit mInit bInit k nonce x z Nonce K SV mcont zcont:=
 (EX rounds:nat, EX m:_, EX zbytesR:list byte, EX srbytes:list byte,
@@ -1277,17 +1187,15 @@ rename c into cInit. rename m into mInit. rename b into bInit. thaw FR2.
 forward_while (Inv cInit mInit bInit k nonce x z (N0, N1,N2,N3) K SV mCont zbytes).
 { (*precondition*)
   Exists O mInit. Exists zbytes (@nil byte).
-  destruct (Int64.unsigned_range bInit).
-  specialize (Zlength_nonneg mCont); intros. unfold Bl2VL.
-  old_go_lower. Time entailer!.
-  (*apply andp_right. apply prop_right. *)rewrite Int64.sub_zero_l; split; trivial.
-  destruct _id0; simpl in TC; try contradiction.
-  split. simpl. solve [subst i; split; simpl; trivial].
-  constructor. split. simpl. rewrite Int.add_zero; trivial.
-  constructor.
-  rewrite Zminus_0_r. unfold tarray.
-  autorewrite with sublist. cancel.
+  destruct (Int64.unsigned_range bInit). 
+  specialize (Zlength_nonneg mCont); intros. unfold Bl2VL, tarray. 
+  rewrite Int64.sub_zero_l, Zminus_0_r.
   rewrite Tarray_0_emp_iff; auto with field_compatible.
+  normalize. entailer!. 
+  split. + destruct mInit; simpl in *; try contradiction.
+           subst i; split; trivial.
+           rewrite Int.add_zero; trivial. 
+         + constructor. 
 }
 { entailer!. }
 { remember (Z.of_nat rounds * 64)%Z as r64.
@@ -1573,4 +1481,4 @@ unfold crypto_stream_xor_postsep. cancel.
 destruct (Int64.eq bInit Int64.zero). trivial.
 Intros l. Exists l. apply andp_right; trivial.
 apply prop_right. exists zbytes. split; assumption.
-Time Qed. (*102 secs; Coq8.5pl2:42secs*)
+Time Qed. (*34.203 secs (34.203u,0.s) (successful)*) 

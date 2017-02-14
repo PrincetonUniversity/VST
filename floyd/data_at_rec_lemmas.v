@@ -377,8 +377,7 @@ Ltac AUTO_IND :=
     |- (alignof ?t | ?ofs + _) =>
     apply Z.divide_add_r;
     [ eapply Z.divide_trans; [eapply alignof_divide_alignof_Tarray |]; eauto
-    | apply Z.divide_mul_l; erewrite legal_alignas_type_Tarray by eauto;
-      apply legal_alignas_sizeof_alignof_compat; AUTO_IND]
+    | apply Z.divide_mul_l; eapply legal_alignas_type_Tarray; eauto]
   | H: legal_alignas_type (Tstruct ?id ?a) = true |-
     legal_alignas_type (field_type ?i (co_members (get_co ?id))) = true =>
     unfold legal_alignas_type in H;
@@ -413,8 +412,6 @@ Ltac AUTO_IND :=
     eapply Z.divide_trans; [apply legal_alignas_type_Tunion; eauto | auto]
   end.
 
-Unset Ltac Debug.
-
 Lemma legal_alignas_array_size:
   forall t z a, legal_alignas_type (Tarray t z a) = true -> 0 <= z.
 Proof.
@@ -423,7 +420,7 @@ intros.
     rewrite andb_true_iff in H; destruct H as [H _].
     unfold local_legal_alignas_type in H; simpl in H.
     rewrite andb_true_iff in H; destruct H as [_ H].
-    destruct (attr_alignas (attr_of_type t)); inv H.
+    rewrite andb_true_iff in H; destruct H as [_ H].
     apply Zle_bool_imp_le; auto.
 Qed.
 

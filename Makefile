@@ -21,7 +21,7 @@ COMPCERT ?= compcert
 
 #Note2:  By default, the rules for converting .c files to .v files
 # are inactive.  To activate them, do something like
-CLIGHTGEN=$(COMPCERT)/clightgen
+#CLIGHTGEN=$(COMPCERT)/clightgen 
 
 #Note3: for SSReflect, one solution is to install MathComp 1.6
 # somewhere add this line to a CONFIGURE file
@@ -29,7 +29,7 @@ CLIGHTGEN=$(COMPCERT)/clightgen
 
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-DIRS= msl sepcomp veric concurrency floyd progs sha linking fcf hmacfcf tweetnacl20140427 ccc26x86 hmacdrbg aes
+DIRS= msl sepcomp veric concurrency floyd progs sha linking fcf hmacfcf tweetnacl20140427 ccc26x86 hmacdrbg aes mailbox
 INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -Q $(a) $(a))) -Q $(COMPCERT) compcert $(if $(MATHCOMP), -Q mathcomp $(MATHCOMP))
 #Replace the INCLUDE above with the following in order to build the linking target:
 #INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert -I $(SSREFLECT)/src -R $(SSREFLECT)/theories -as Ssreflect \
@@ -240,9 +240,9 @@ PROGS_FILES= \
   verif_nest3.v verif_nest2.v verif_load_demo.v \
   logical_compare.v verif_logical_compare.v field_loadstore.v  verif_field_loadstore.v \
   even.v verif_even.v odd.v verif_odd.v \
-  merge.v verif_merge.v verif_append.v verif_append2.v bst.v verif_bst.v \
-  verif_bin_search.v incr.v verif_incr.v cond.v verif_cond.v conclib.v
-# verif_message.v verif_dotprod.v verif_insertion_sort.v
+  merge.v verif_merge.v verif_append.v verif_append2.v bst.v bst_oo.v verif_bst.v verif_bst_oo.v \
+  verif_bin_search.v incr.v verif_incr.v cond.v verif_cond.v conclib.v verif_floyd_tests.v
+# verif_message.v verif_dotprod.v verif_insertion_sort.v 
 
 SHA_FILES= \
   general_lemmas.v SHA256.v common_lemmas.v pure_lemmas.v sha_lemmas.v functional_prog.v \
@@ -260,6 +260,10 @@ HMAC_FILES= \
   verif_hmac_init_part1.v verif_hmac_init_part2.v verif_hmac_init.v\
   verif_hmac_update.v verif_hmac_final.v verif_hmac_simple.v \
   verif_hmac_double.v verif_hmac_crypto.v protocol_spec_hmac.v
+
+HKDF_FILES= \
+  hkdf_functional_prog.v hkdf.v hkdf_compspecs.v spec_hkdf.v \
+  verif_hkdf_extract.v verif_hkdf_expand.v verif_hkdf.v
 
 FCF_FILES= \
   Admissibility.v Encryption.v NotationV1.v RndDup.v \
@@ -308,7 +312,8 @@ TWEETNACL_FILES = \
   verif_fcore_jbody.v verif_fcore_loop3.v \
   verif_fcore_epilogue_hfalse.v verif_fcore_epilogue_htrue.v \
   verif_fcore.v verif_crypto_core.v \
-  verif_crypto_stream_salsa20_xor.v verif_crypto_stream.v
+  verif_crypto_stream_salsa20_xor.v verif_crypto_stream.v \
+  verif_verify.v
 
 HMACDRBG_FILES = \
   entropy.v entropy_lemmas.v DRBG_functions.v HMAC_DRBG_algorithms.v \
@@ -425,6 +430,7 @@ tweetnacl: .loadpath $(TWEETNACL_FILES:%.v=tweetnacl20140427/%.vo)
 hmac0: .loadpath sha/verif_hmac_init.vo sha/verif_hmac_cleanup.vo sha/verif_hmac_final.vo sha/verif_hmac_simple.vo  sha/verif_hmac_double.vo sha/verif_hmac_update.vo sha/verif_hmac_crypto.vo
 hmacdrbg:   .loadpath $(HMACDRBG_FILES:%.v=hmacdrbg/%.vo)
 aes: .loadpath $(AES_FILES:%.v=aes/%.vo)
+hkdf:    .loadpath $(HKDF_FILES:%.v=sha/%.vo)
 # drbg: .loadpath $(DRBG_FILES:%.v=verifiedDrbg/%.vo)
 
 CGFLAGS =  -DCOMPCERT
@@ -439,9 +445,9 @@ clean_cvfiles:
 	rm $(CVFILES)
 
 ifdef CLIGHTGEN
-sha/sha.v sha/hmac.v hmacdrbg/hmac_drbg.v: sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c
-	$(CLIGHTGEN) ${CGFLAGS} sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c
-# Is there a way to generate the next 5 rules automatically from C_FILES?
+sha/sha.v sha/hmac.v hmacdrbg/hmac_drbg.v sha/hkdf.v: sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c sha/hkdf.c
+	$(CLIGHTGEN) ${CGFLAGS} sha/sha.c sha/hmac.c hmacdrbg/hmac_drbg.c sha/hkdf.c
+# Is there a way to generate the next 5 rules automatically from C_FILES? 
 progs/revarray.v: progs/revarray.c
 	$(CLIGHTGEN) ${CGFLAGS} $<
 progs/reverse.v: progs/reverse.c

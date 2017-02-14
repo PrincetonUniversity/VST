@@ -170,16 +170,17 @@ Hint Extern 0 (legal_alignas_type _ = true) => reflexivity : cancel.
 
 Lemma local_legal_alignas_type_Tarray: forall t z a,
   local_legal_alignas_type cenv_cs (Tarray t z a) = true ->
-  alignof t = plain_alignof cenv_cs t.
+  (alignof t | sizeof t).
 Proof.
   intros.
   unfold local_legal_alignas_type in H.
   apply andb_true_iff in H.
   destruct H as [_ ?].
-  unfold alignof; rewrite plain_alignof_spec.
-  unfold align_attr.
-  destruct (attr_alignas (attr_of_type t)); [inversion H |].
-  auto.
+  apply andb_true_iff in H.
+  destruct H as [? _].
+  rewrite Z.eqb_eq in H.
+  apply Zmod_divide; auto.
+  pose proof alignof_pos t; omega.
 Qed.
 
 Lemma local_legal_alignas_type_Tstruct: forall id a,
@@ -222,7 +223,7 @@ Qed.
 
 Lemma legal_alignas_type_Tarray: forall t z a,
   legal_alignas_type (Tarray t z a) = true ->
-  alignof t = plain_alignof cenv_cs t.
+  (alignof t | sizeof t).
 Proof.
   intros.
   unfold legal_alignas_type in H.
@@ -265,12 +266,8 @@ Proof.
     unfold Z.divide. exists 2. reflexivity.
   - apply Z.divide_refl.
   - simpl.
-    fold (alignof t); erewrite legal_alignas_type_Tarray by eauto.
-    unfold legal_alignas_type in H.
-    apply (nested_pred_Tarray (local_legal_alignas_type cenv_cs)) in H.
-    apply IH in H.
     apply Z.divide_mul_l.
-    exact H.
+    apply legal_alignas_type_Tarray in H; auto.
   - apply Z.divide_refl.
   - unfold plain_alignof, sizeof.
     simpl.

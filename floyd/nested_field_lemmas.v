@@ -921,9 +921,8 @@ Proof.
   rewrite andb_true_iff in H;
   destruct H.
   + simpl.
-    erewrite legal_alignas_type_Tarray by eauto.
     apply Z.divide_mul_l.
-    apply legal_alignas_sizeof_alignof_compat; auto.
+    apply legal_alignas_type_Tarray in H0; auto.
   + simpl.
     apply field_offset_aligned.
 Qed.
@@ -1375,16 +1374,16 @@ Proof.
   + apply nested_field_array_type_nest_pred; try  tauto.
     unfold local_legal_alignas_type.
     simpl; intros.
-    rewrite andb_true_iff in H3 |- *.
-    split.
+    rewrite !andb_true_iff in H3 |- *.
+    split; [| split].
     - apply Z.leb_le.
 Transparent alignof.
       simpl.
 Opaque alignof.
       rewrite no_alignas_attr_spec.
       omega.
-    - destruct (attr_alignas (attr_of_type t0)); [tauto |].
-      apply Z.leb_le; auto.
+    - tauto.
+    - rewrite <- Zle_is_le_bool; auto.
   + apply nested_field_array_type_nest_pred; tauto.
   + apply nested_field_array_type_complete_type; tauto.
   + pose proof nested_field_array_offset_in_range t gfs lo hi.
@@ -1394,7 +1393,7 @@ Opaque alignof.
     omega.
   + apply size_compatible_nested_field_array; tauto.
   + apply align_compatible_nested_field_array; tauto.
-Admitted.
+Qed.
 
 Lemma field_compatible_isptr :
   forall t path p, field_compatible t path p -> isptr p.

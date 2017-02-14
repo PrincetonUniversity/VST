@@ -388,7 +388,6 @@ Proof. intros; subst; auto. Qed.
 Ltac simpl_compb := first [ rewrite if_trueb by (apply Z.ltb_lt; omega)
                           | rewrite if_falseb by (apply Z.ltb_ge; omega)].
 
-(*
 Lemma body_insert: semax_body Vprog Gprog f_insert insert_spec.
 Proof.
   start_function.
@@ -484,14 +483,10 @@ Proof.
   start_function.
   unfold treebox_rep. Intros p.
   forward. (* p=*t; *)
-  apply (semax_post''
-                      (PROP ( )
-                       LOCAL (temp ret_temp (lookup nullval x t))
-                       SEP (data_at Tsh (tptr t_struct_tree) p b; tree_rep t p))).
-  1: unfold treebox_rep; Exists p.
-     (* TODO: let entailer work here. *)
-     apply derives_refl'. f_equal. f_equal.
-     unfold SEPx; simpl. extensionality rho. symmetry; apply sepcon_assoc.
+  apply (semax_post_ret1 nil
+          (data_at Tsh (tptr t_struct_tree) p b :: tree_rep t p :: nil)).
+  1: intro HH; inversion HH.
+  1: unfold treebox_rep; Exists p; entailer!.
   apply semax_frame''.
   forward_while (lookup_inv b p t x).
   * (* precondition implies loop invariant *)
@@ -541,7 +536,6 @@ Proof.
     entailer!.
     apply modus_ponens_wand.
 Qed.
-*)
 
 Lemma body_turn_left: semax_body Vprog Gprog f_turn_left turn_left_spec.
 Proof.
@@ -596,7 +590,7 @@ Proof.
     Intros p0.
     forward. (* skip *)
     forward. (* p = *t; *)
-      (* TODO: The following should be solve automatically. satuate local does not work *)
+      (* TODO entailer: The following should be solve automatically. satuate local does not work *)
       1: rewrite (add_andp _ _ (tree_rep_saturate_local _ _)); entailer!.
     simpl tree_rep.
     Intros pa pbc.
@@ -624,17 +618,20 @@ Proof.
       Intros pc.
       forward. (* t = &q->left; *)
       Exists (field_address t_struct_tree [StructField _left] pbc) ta0 x vx tb0.
-      (* TODO: not to simply to much in entailer? *)
+      (* TODO entailer: not to simply too much in entailer? *)
       Opaque tree_rep. entailer!. Transparent tree_rep.
         (* TODO: simplify this line *)
         1: unfold field_address; simpl; rewrite if_true by auto with field_compatible; auto.
       apply RAMIF_PLAIN.trans'.
       apply bst_left_entail; auto.
   + forward. (* Sskip *)
-    (* TODO: entailer! does not work here. *)
+Abort.
+    (* TODO entailer: entailer! does not work here.
     unfold loop2_ret_assert.
+    entailer!.
     apply andp_left2, derives_refl.
 Qed.
+*)
 
 Lemma body_treebox_new: semax_body Vprog Gprog f_treebox_new treebox_new_spec.
 Proof.
