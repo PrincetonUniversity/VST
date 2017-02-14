@@ -1305,10 +1305,8 @@ Proof.
 Qed.
 
 (* This need not hold; specifically, when an rmap is at level 0, |> P holds vacuously for all P. *)
-(*Lemma later_positive : forall P, positive_mpred P -> positive_mpred (|> P)%logic.
-Proof.
-  intros ????.
-Admitted.*)
+Lemma later_positive : forall P, positive_mpred P -> positive_mpred (|> P)%logic.
+Admitted. (* still needed in verif_incr.v and verif_cond.v *)
 
 Lemma positive_FF : positive_mpred FF.
 Proof.
