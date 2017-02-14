@@ -2341,43 +2341,34 @@ Ltac fwd_result :=
   unfold replace_nth, repinject; cbv beta iota zeta;
   repeat simpl_proj_reptype.
 
-Ltac fwd' :=
- match goal with
- | |- semax _ _ (Ssequence (Ssequence _ _) _) _ => 
-             rewrite <- seq_assoc; fwd'
- | |- semax _ _ (Ssequence ?c _) _ => 
-      eapply semax_seq'; [forward1 c | fwd_result]
- | |- semax _ _ ?c _ =>
-      rewrite -> semax_seq_skip; 
-      eapply semax_seq'; [ forward1 c | fwd_result]
- end.
-
-Ltac fwd_last :=
-  try rewrite <- seq_assoc;
-  match goal with 
-  | |- semax _ _ (Ssequence (Sreturn _) _) _ =>
-            apply semax_seq with FF; [ | apply semax_ff];
-            clear_Delta_specs; forward_return
-  | |- semax _ _ (Sreturn _) _ =>  clear_Delta_specs; forward_return
-  | |- semax _ _ (Ssequence Sbreak _) _ =>
-            apply semax_seq with FF; [ | apply semax_ff];
-            forward_break
-  | |- semax _ _ Sbreak _ => forward_break
-  end.
-
 Ltac forward :=
   check_Delta;
- repeat simple apply seq_assoc2;
- first
- [ fwd_last
- | fwd_skip
- | fwd';
-  [ .. |
-   Intros;
-   abbreviate_semax;
-   try fwd_skip]
- ].
-
+  repeat rewrite <- seq_assoc;
+  lazymatch goal with 
+  | |- semax _ _ (Ssequence (Sreturn _) _) _ =>
+    apply semax_seq with FF; [ | apply semax_ff];
+    clear_Delta_specs; forward_return
+  | |- semax _ _ (Sreturn _) _ =>  clear_Delta_specs; forward_return
+  | |- semax _ _ (Ssequence Sbreak _) _ =>
+    apply semax_seq with FF; [ | apply semax_ff];
+    forward_break
+  | |- semax _ _ Sbreak _ => forward_break
+  | |- semax _ _ Sskip _ => fwd_skip
+  | |- semax _ _ ?c0 _ =>
+    match c0 with
+    | Ssequence _ _ => idtac
+    | _ => rewrite -> semax_seq_skip
+    end;
+    match goal with
+    | |- semax _ _ (Ssequence ?c _) _ =>
+      eapply semax_seq';
+      [ forward1 c
+      | fwd_result;
+        Intros;
+        abbreviate_semax;
+        try fwd_skip ]
+    end
+  end.
 
 Lemma start_function_aux1:
   forall (Espec: OracleKind) {cs: compspecs} Delta R1 P Q R c Post,
