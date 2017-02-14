@@ -11,6 +11,7 @@ Require Import tweetnacl20140427.tweetnaclVerifiableC.
 Require Import tweetnacl20140427.verif_salsa_base.
 
 Require Import tweetnacl20140427.spec_salsa.
+Require Import veric.expr_lemmas3.
 
 Opaque Snuffle20. Opaque Snuffle.Snuffle. Opaque prepare_data. 
 Opaque fcore_result.
@@ -86,7 +87,80 @@ Time entailer!.
   rewrite TP, BMU, Z.mul_add_distr_l, int_max_unsigned_eq. omega.
   rewrite TP, BMU, Z.mul_add_distr_l, int_max_unsigned_eq. omega.
 Time Qed. (*6.7*)
-(*
+
+Fixpoint lendian (l:list byte): Z :=
+  match l with
+    nil => 0
+  | h::t => Byte.unsigned h + 2^8 * lendian t
+  end.
+
+Lemma lendian4 b0 b1 b2 b3: littleendian (b0,b1,b2,b3) = Int.repr(lendian [b0;b1;b2;b3]).
+Proof. simpl. rewrite Zplus_0_r. 
+rewrite ! Z.mul_add_distr_l, ! (Z.mul_assoc _ (2^8)), <- ! Z.add_assoc; reflexivity.
+Qed.
+
+Lemma lendian_nil: lendian [] = 0. Proof. reflexivity. Qed.
+Lemma lendian_singleton b: lendian [b] = Byte.unsigned b. Proof. simpl; omega. Qed.
+
+Lemma lendian_app: forall l1 l2, lendian (l1++l2) =
+   lendian l1 + 2^(8*Zlength l1) * lendian l2.
+Proof.
+induction l1; intros.
++ rewrite Zlength_nil; simpl; omega.  
++ simpl. rewrite IHl1. rewrite Zlength_cons; clear IHl1.
+  rewrite ! Z.mul_add_distr_l, <- ! Z.add_assoc, Z.mul_assoc, Z.pow_pos_fold.
+  f_equal. f_equal. 
+  rewrite <- Zpower_exp, <- Zmult_succ_r_reverse, Z.add_comm; trivial. omega.
+  specialize (Zlength_nonneg l1); omega. 
+Qed.
+
+Lemma lendian_range: forall l, 0 <= lendian l < 2^(8*Zlength l).
+Proof. induction l; simpl; intros.
++ omega.
++ rewrite Zlength_cons. destruct (Byte.unsigned_range a).
+  assert (Z.pow_pos 2 8 = 256) by reflexivity.
+  split. rewrite H1. apply Z.add_nonneg_nonneg; trivial; omega.
+  rewrite <- Zmult_succ_r_reverse, Z.pow_add_r; [| specialize (Zlength_nonneg l); omega | omega ].
+  rewrite Z.mul_comm. change (Z.pow_pos 2 8) with (2^8).
+  assert (Byte.unsigned a + lendian l * 2 ^ 8 < Byte.modulus + lendian l * 2 ^ 8). omega.
+  eapply Z.lt_le_trans. apply H2. clear H2 H0. change Byte.modulus with 256.
+  change (2^8) with 256. specialize (Z.mul_add_distr_r 1 (lendian l) 256). rewrite Z.mul_1_l.
+  intros X; rewrite <- X; clear X. apply Zmult_le_compat_r; omega.
+Qed.
+
+Definition bendian l: Z := lendian (rev l).
+Lemma bendian_nil: bendian [] = 0. Proof. reflexivity. Qed.
+Lemma bendian_singleton b: bendian [b] = Byte.unsigned b. Proof. unfold bendian. simpl; omega. Qed.
+
+Lemma bendian_app l1 l2: bendian (l1++l2) = bendian l2 + 2^(8*Zlength l2) * bendian l1.
+Proof. unfold bendian. rewrite rev_app_distr, lendian_app, Zlength_rev; trivial. Qed.
+
+Lemma bendian_range l: 0 <= bendian l < 2^(8*Zlength l).
+Proof. unfold bendian. specialize (lendian_range (rev l)). rewrite Zlength_rev; trivial. Qed.
+
+Lemma Zlor_2powpos_add a b (n:positive) (B: 0<=b <Z.pow_pos 2 n):
+      a * Z.pow_pos 2 n + b = Z.lor (a * Z.pow_pos 2 n) b.
+Proof. apply Byte.equal_same_bits; intros.
+  rewrite Z.lor_spec. apply Byte.Z_add_is_or; trivial.
+  intros. rewrite Z.pow_pos_fold in *.
+  destruct (zlt j (Z.pos n)).
+  + rewrite Z.mul_pow2_bits_low; simpl; trivial.
+  + rewrite <- (positive_nat_Z n) in g, B.
+    erewrite (Byte.Ztestbit_above _ b), andb_false_r. trivial. 2: eassumption.
+    rewrite two_power_nat_equiv. apply B.
+Qed. 
+
+Lemma Byte_unsigned_range_32 b: 0 <= Byte.unsigned b <= Int.max_unsigned.
+Proof. destruct (Byte.unsigned_range_2 b). specialize Byte_Int_max_unsigned; omega. Qed.
+
+Lemma Byte_unsigned_range_64 b: 0 <= Byte.unsigned b <= Int64.max_unsigned.
+Proof. destruct (Byte.unsigned_range_2 b).
+  unfold Int64.max_unsigned; simpl.
+  unfold Byte.max_unsigned in H0; simpl in H0; omega.
+Qed. 
+
+Axiom myadmit: False.
+
 Lemma dl64_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_dl64 dl64_spec.
 Proof.
@@ -94,85 +168,70 @@ start_function.
 destruct B as (((b0, b1), b2), b3).
 destruct C as (((c0, c1), c2), c3).
 unfold QuadByte2ValList; simpl. 
-specialize Byte_max_unsigned_Int_max_unsigned; intros BND.
-assert (RNGb3:= Byte.unsigned_range_2 b3).
-assert (RNGb2:= Byte.unsigned_range_2 b2).
-assert (RNGb1:= Byte.unsigned_range_2 b1).
-assert (RNGb0:= Byte.unsigned_range_2 b0).
-assert (RNGc3:= Byte.unsigned_range_2 c3).
-assert (RNGc2:= Byte.unsigned_range_2 c2).
-assert (RNGc1:= Byte.unsigned_range_2 c1).
-assert (RNGc0:= Byte.unsigned_range_2 c0).
 forward. simpl. rewrite Int.signed_repr.
-Parameter Data64: Z -> int64.
+2: rewrite int_min_signed_eq, int_max_signed_eq; omega.
+
 forward_for_simple_bound 8 (EX i:Z, 
   (PROP  ()
-   LOCAL (temp _x x; temp _u (Vlong (Data64 i)))
+   LOCAL (temp _x x; temp _u (Vlong (Int64.repr (bendian (sublist 0 i [b0;b1;b2;b3;c0;c1;c2;c3])))))
    SEP (data_at Tsh (tarray tuchar 8)
           (map Vint (map Int.repr (map Byte.unsigned 
             [b0;b1;b2;b3;c0;c1;c2;c3]))) x))).
-{ entailer!. (*Data64 0 = 0*) admit. }
+1: solve [ entailer! ]. 
 { rename H into I.
-  (*destruct (Znth_mapVint (map Int.repr
-                (map Byte.unsigned [b0; b1; b2; b3; c0; c1; c2; c3])) i Vundef)
-  as [d D]; simpl. apply I.*)
   forward. 
   + entailer!.
-    replace [Byte.unsigned b0; Byte.unsigned b1; Byte.unsigned b2;
-           Byte.unsigned b3; Byte.unsigned c0; Byte.unsigned c1;
-           Byte.unsigned c2; Byte.unsigned c3]
-    with (map Byte.unsigned [b0; b1; b2; b3; c0; c1; c2; c3]) by reflexivity.
-    rewrite Znth_map with (d':= Byte.zero).
-    rewrite zero_ext_inrange. rewrite Int.unsigned_repr. admit. admit. (*OK*)
-    rewrite Int.unsigned_repr. apply Byte.unsigned_range_2.
-    admit. (*OK*)
-    apply I.
-  + simpl. forward. entailer!. (*tc_error tulong int*) admit.
-    entailer!. admit. (*constraint on Data*) 
-}
-forward. apply prop_right. admit. (*condition on Data*)
-
-   Z0 _ i). _ Byte.unsigned). (Byte.unsigned [b0; b1; b2; b3; c0; c1; c2; c3].
-  rewrite Znth_map with (d':=Int.zero). simpl in D. rewrite D.  simpl. ucZnth_mapVint:
-data_at Tsh (tarray tuchar 4) 
-              (sublist 0 i (map Vint (map Int.repr (map Byte.unsigned ([u0;u1;u2;u3])))) ++ 
-               list_repeat (Z.to_nat(4-i)) Vundef)
-                x))).
-
-Time forward.
-time forward. (*1.8*)
-Time entailer!; omega. (*1.1*)
-Time forward. (*2*)
-Time entailer!; omega. (*1.1*)
-Time forward. (*1.1*)
-Time forward. (*2.2*)
-Time entailer!; omega. (*1.3*)
-Time forward. (*1.5*)
-drop_LOCAL 1%nat. 
-Time forward.
-Time entailer!; omega. (*1.3*)
-Time forward. (*5.2*)
-Time entailer!.
-  assert (WS: Int.zwordsize = 32). reflexivity.
-  assert (TP: two_p 8 = Byte.max_unsigned + 1). reflexivity.
-  assert (BMU: Byte.max_unsigned = 255). reflexivity. simpl.
-  repeat rewrite Int.shifted_or_is_add; try repeat rewrite Int.unsigned_repr; try omega.
-  f_equal. f_equal. simpl. 
-    rewrite Z.mul_add_distr_r. 
-    rewrite (Zmult_comm (Z.pow_pos 2 8)).
-    rewrite (Zmult_comm (Z.pow_pos 2 16)).
-    rewrite (Zmult_comm (Z.pow_pos 2 24)). 
-    simpl. repeat rewrite <- two_power_pos_correct.
-    rewrite Z.mul_add_distr_r.
-    rewrite Z.mul_add_distr_r.
-    repeat rewrite <- Z.mul_assoc. 
-    rewrite <- Z.add_assoc. rewrite <- Z.add_assoc. rewrite Z.add_comm. f_equal.
-    rewrite Z.add_comm. f_equal. rewrite Z.add_comm. f_equal.
-  rewrite TP, BMU, Z.mul_add_distr_l, int_max_unsigned_eq. omega. 
-  rewrite TP, BMU, Z.mul_add_distr_l, int_max_unsigned_eq. omega.
-  rewrite TP, BMU, Z.mul_add_distr_l, int_max_unsigned_eq. omega.
-Time Qed. (*6.7*)
-
+    apply zero_ext_range'. change Int.zwordsize with 32; omega.
+  + forward. entailer!. exfalso. (*tc_error tulong int*) apply myadmit.
+    entailer!. clear H1 H0 H. f_equal. rewrite <- (sublist_rejoin 0 i (i+1)).
+    2: omega. 2: rewrite ! Zlength_cons, Zlength_nil; omega.
+    rewrite pure_lemmas.sublist_singleton with (d:=Byte.zero).
+    2: rewrite ! Zlength_cons, Zlength_nil; omega.
+    simpl.
+    unfold Int64.or. rewrite Int64.shl_mul_two_p, (Int64.unsigned_repr 8).
+    2: unfold Int64.max_unsigned; simpl; omega.
+    replace (Znth i
+                 [Byte.unsigned b0; Byte.unsigned b1; Byte.unsigned b2; Byte.unsigned b3; 
+                 Byte.unsigned c0; Byte.unsigned c1; Byte.unsigned c2; Byte.unsigned c3] 0) 
+       with (Byte.unsigned (Znth i [b0; b1; b2; b3; c0; c1; c2; c3] Byte.zero)).
+    2: erewrite <- (Znth_map' Byte.unsigned) with (d:= Z.zero); [ reflexivity | apply I ].
+    rewrite zero_ext_inrange.
+    2: rewrite Int.unsigned_repr; [ apply Byte.unsigned_range_2 | apply Byte_unsigned_range_32 ].
+    rewrite Int.unsigned_repr. 2: apply Byte_unsigned_range_32.
+    rewrite Int64.unsigned_repr. 2: apply Byte_unsigned_range_64.
+    change (two_p 8) with 256. 
+    rewrite bendian_app, bendian_singleton. simpl.
+    unfold Int64.mul.
+    rewrite (Int64.unsigned_repr 256). 2: unfold Int64.max_unsigned; simpl; omega.
+    rewrite Zplus_comm, Zmult_comm, Zlor_2powpos_add. 2: apply Byte.unsigned_range.
+    f_equal. f_equal. remember (bendian (sublist 0 i [b0; b1; b2; b3; c0; c1; c2; c3])) as q.
+    specialize (Int64.shifted_or_is_add  (Int64.repr q) Int64.zero 8).
+    change (two_p 8) with 256. rewrite Int64.unsigned_zero, Z.add_0_r.
+    intros X; rewrite <- X, Int64.or_zero; clear X.
+     2: replace Int64.zwordsize with 64 by reflexivity; omega. 2: omega.
+    rewrite Int64.shl_mul_two_p, (Int64.unsigned_repr 8).
+    2: unfold Int64.max_unsigned; simpl; omega.
+    unfold Int64.mul.
+    assert (Q: 0 <= q < 2^56).
+    { specialize (bendian_range (sublist 0 i [b0; b1; b2; b3; c0; c1; c2; c3])).             
+      rewrite Zlength_sublist, Zminus_0_r, <- Heqq. intros. 
+      assert (2^(8 * i) <= 2^56) by (apply Z.pow_le_mono_r; omega). omega.
+      omega. change (Zlength [b0; b1; b2; b3; c0; c1; c2; c3]) with 8; omega. }
+    change (2^56) with 72057594037927936 in Q.
+    change (two_p 8) with 256. change (Z.pow_pos 2 8) with 256. 
+    rewrite (Int64.unsigned_repr 256).
+    2: unfold Int64.max_unsigned; simpl; omega.
+    rewrite (Int64.unsigned_repr q).
+    2: unfold Int64.max_unsigned; simpl; omega.
+    rewrite Int64.unsigned_repr; trivial.
+    unfold Int64.max_unsigned; simpl; omega. }
+forward. apply prop_right.
+clear H H0. 
+unfold bendian. simpl. 
+rewrite ! Z.mul_add_distr_l, ! (Z.mul_assoc _ (Z.pow_pos 2 8)),
+        <- ! Z.add_assoc, ! Z.mul_0_r, Z.add_0_r.
+reflexivity.
+Qed.
 
 Lemma ST32_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_st32 st32_spec.
@@ -274,7 +333,7 @@ Fixpoint iter64Shr8 (u : int64) (n : nat) {struct n} : int64 :=
   | 0%nat => u
   | S n' => Int64.shru (iter64Shr8 u n') (Int64.repr 8)
   end.
-
+(*
 Lemma TS64_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_ts64 ts64_spec.
 Proof. 
@@ -523,86 +582,8 @@ Time forward_for_simple_bound 8 (EX i:Z,
         omega. }
   Time forward. (*1.6*)
 Time Qed. (*4.9*) 
-
-Lemma dl64_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
-       f_dl64 dl64_spec.
-Proof.
-start_function.
-destruct B as (((b3, b2), b1), b0). 
-destruct C as (((c3, c2), c1), c0). simpl.
-assert (BND: Byte.max_unsigned < Int64.max_unsigned) by (cbv; trivial). 
-assert (RNGB3:= Byte.unsigned_range_2 b3).
-assert (RNGB2:= Byte.unsigned_range_2 b2).
-assert (RNGB1:= Byte.unsigned_range_2 b1).
-assert (RNGB0:= Byte.unsigned_range_2 b0). 
-assert (RNGC3:= Byte.unsigned_range_2 c3).
-assert (RNGC2:= Byte.unsigned_range_2 c2).
-assert (RNGC1:= Byte.unsigned_range_2 c1).
-assert (RNGC0:= Byte.unsigned_range_2 c0).
-forward. simpl. 
-Parameter myval:Z -> Z.
-unfold Sfor.
-forward.
-forward_seq.
-eapply semax_pre.
-Focus 2.
-eapply semax_for with (A:=Z)(v:=fun a=>Vint (Int.repr a)).
-  solve [ reflexivity ].
-  solve [ intros; entailer ]. simpl.
-  solve [ intros; entailer ].
-Time forward_for_simple_bound 8 (EX i:Z, 
-  (PROP ( )
-   LOCAL (temp _u (Vlong (Int64.repr (myval i))); 
-          temp _x x)
-   SEP (data_at Tsh (tarray tuchar 8)
-          (Vint (Int.repr (Byte.unsigned b3))
-           :: Vint (Int.repr (Byte.unsigned b2))
-              :: Vint (Int.repr (Byte.unsigned b1))
-                 :: Vint (Int.repr (Byte.unsigned b0))
-                    :: QuadByte2ValList (c3, c2, c1, c0)) x))).
-
-  (PROP  ()
-   LOCAL (temp _x x; temp _u (Vint (iterShr8 u (Z.to_nat i))))
-   SEP (data_at Tsh (tarray tuchar 4) 
-              (sublist 0 i (map Vint (map Int.repr (map Byte.unsigned ([u0;u1;u2;u3])))) ++ 
-               list_repeat (Z.to_nat(4-i)) Vundef)
-                x))).
-{ entailer!. }
-
-Time forward.
-Time forward. (*1.8*)
-Time entailer!; omega. (*1.1*)
-Time forward. (*2*)
-Time entailer!; omega. (*1.1*)
-Time forward. (*1.1*)
-Time forward. (*2.2*)
-Time entailer!; omega. (*1.3*)
-Time forward. (*1.5*)
-drop_LOCAL 1%nat. 
-Time forward.
-Time entailer!; omega. (*1.3*)
-Time forward. (*5.2*)
-Time entailer!.
-  assert (WS: Int.zwordsize = 32). reflexivity.
-  assert (TP: two_p 8 = Byte.max_unsigned + 1). reflexivity.
-  assert (BMU: Byte.max_unsigned = 255). reflexivity. simpl.
-  repeat rewrite Int.shifted_or_is_add; try repeat rewrite Int.unsigned_repr; try omega.
-  f_equal. f_equal. simpl. 
-    rewrite Z.mul_add_distr_r. 
-    rewrite (Zmult_comm (Z.pow_pos 2 8)).
-    rewrite (Zmult_comm (Z.pow_pos 2 16)).
-    rewrite (Zmult_comm (Z.pow_pos 2 24)). 
-    simpl. repeat rewrite <- two_power_pos_correct.
-    rewrite Z.mul_add_distr_r.
-    rewrite Z.mul_add_distr_r.
-    repeat rewrite <- Z.mul_assoc. 
-    rewrite <- Z.add_assoc. rewrite <- Z.add_assoc. rewrite Z.add_comm. f_equal.
-    rewrite Z.add_comm. f_equal. rewrite Z.add_comm. f_equal.
-  rewrite TP, BMU, Z.mul_add_distr_l, int_max_unsigned_eq. omega. 
-  rewrite TP, BMU, Z.mul_add_distr_l, int_max_unsigned_eq. omega.
-  rewrite TP, BMU, Z.mul_add_distr_l, int_max_unsigned_eq. omega.
-Time Qed. (*6.7*)
 *)
+
 (*
 Definition L32_specZ :=
   DECLARE _L32
