@@ -203,12 +203,12 @@ Proof.
   + simpl in *.
     rewrite !approx_sepcon.
     f_equal;
-    auto.
+    auto;
 (* AUTO should solve this: it did in Coq.8.5 *)
 (*
-  Solution
+  Solution*)
 
-    clear - H x rho.
+    clear - H x rho;
 
     change ((fix dtfr (T : rmaps.TypeTree) :
             functors.MixVariantFunctor.functor :=
@@ -222,9 +222,8 @@ Proof.
                 functors.MixVariantFunctorGenerator.fpair (dtfr T1) (dtfr T2)
             | rmaps.ArrowType T1 T2 =>
                 functors.MixVariantFunctorGenerator.ffunc (dtfr T1) (dtfr T2)
-            end) A) with (rmaps.dependent_type_functor_rec ts A).
+            end) A) with (rmaps.dependent_type_functor_rec ts A);
     apply (H _ _ x rho).
- *)
 Qed.
 
 Lemma LOCALx_super_non_expansive: forall A Q R,
@@ -239,6 +238,7 @@ Proof.
   rewrite approx_andp.
   f_equal; auto.
   induction H0.
+
 Admitted.
 (*  + auto.
   + simpl.
