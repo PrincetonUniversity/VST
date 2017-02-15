@@ -1296,12 +1296,11 @@ Proof.
   intros ???? (? & ?); auto.
 Qed.
 
-Lemma selflock_positive : forall R sh v, positive_mpred R ->
-  positive_mpred (selflock R v sh).
+Lemma selflock_positive : forall R sh v, positive_mpred (selflock R v sh).
 Proof.
   intros.
   rewrite selflock_eq.
-  apply positive_sepcon1; auto.
+  apply positive_sepcon2, lock_inv_positive.
 Qed.
 
 (* This need not hold; specifically, when an rmap is at level 0, |> P holds vacuously for all P. *)
