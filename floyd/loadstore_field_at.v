@@ -452,4 +452,46 @@ Proof.
       rewrite EqT; solve_andp.
 Qed.
 
+Lemma semax_no_path_field_store_nth_ram:
+  forall {Espec: OracleKind},
+    forall n Delta sh P Q R (e1 e2 : expr) Pre Post
+      (t_root: type) (gfs: list gfield)
+      (a v : val) (v' : reptype (nested_field_type t_root gfs)),
+      type_is_by_value (typeof e1) = true ->
+      writable_share sh ->
+      type_is_volatile (typeof e1) = false ->
+      typeof e1 = nested_field_type t_root gfs ->
+      JMeq v v' ->
+      nth_error R n = Some Pre ->
+      Pre |-- field_at_ sh t_root gfs a *
+        (field_at sh t_root gfs v' a -* Post) ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        local (`(eq (field_address t_root gfs a)) (eval_lvalue e1)) ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        local (`(eq v) (eval_expr (Ecast e2 (typeof e1)))) ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        (tc_lvalue Delta e1) && 
+        (tc_expr Delta (Ecast e2 (typeof e1))) ->
+      semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
+        (Sassign e1 e2)
+          (normal_ret_assert
+            (PROPx P
+              (LOCALx Q
+                (SEPx
+                  (replace_nth n R Post))))).
+Proof.
+  intros until 0. intros ByVal Wsh Volatile EqT JM GetR F Evale1 Evale2 Tc.
+  rewrite EqT in ByVal.
+  eapply semax_store_nth_ram with (p := (field_address t_root gfs a)).
+  + exact EqT.
+  + exact Evale1.
+  + rewrite <- EqT. exact Evale2.
+  + exact GetR.
+  + exact Wsh.
+  + eapply RAMIF_PLAIN.trans; [exact F |].
+    apply mapsto_field_at_ramify; [auto | rewrite <- EqT; auto | | auto].
+    apply JMeq_sym; apply by_value_default_val; auto.
+  + rewrite <- EqT. exact Tc.
+Qed.
+
 End LOADSTORE_FIELD_AT.
