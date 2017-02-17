@@ -3,7 +3,7 @@ Require Import progs.conclib.
 Require Import progs.ghost.
 Require Import floyd.library.
 Require Import floyd.sublist.
-Require Import progs.atomic_exchange.
+Require Import mailbox.atomic_exchange.
 
 Set Bullet Behavior "Strict Subproofs".
 

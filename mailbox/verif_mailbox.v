@@ -1,10 +1,9 @@
 Require Import mailbox.verif_atomic_exchange.
-Require Import veric.rmaps.
 Require Import progs.conclib.
 Require Import progs.ghost.
 Require Import floyd.library.
 Require Import floyd.sublist.
-Require Import progs.mailbox.
+Require Import mailbox.mailbox.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -241,7 +240,7 @@ Definition finish_write_spec :=
     sh1 : share, lsh : share, shs : list share, gsh1 : share, gsh2 : share, h : list hist, sh0 : share
   PRE [ ]
    PROP (0 <= b < B; 0 <= b0 < B; Forall (fun x => 0 <= x < B) lasts; Zlength h = N; Zlength shs = N;
-         readable_share sh1; readable_share lsh; readable_share sh0; Forall readable_share shs;
+         readable_share sh1; readable_share lsh; (*readable_share sh0;*) Forall readable_share shs;
          sepalg_list.list_join sh0 shs Tsh; readable_share gsh1; readable_share gsh2; sepalg.join gsh1 gsh2 Tsh;
          Forall isptr comms; b <> b0; ~In b lasts; ~In b0 lasts)
    LOCAL (gvar _writing writing; gvar _last_given last_given; gvar _last_taken last_taken; gvar _comm comm;
@@ -306,7 +305,7 @@ Definition writer_spec :=
                       share * share * share * list share * share * share
   PRE [ _arg OF tptr tvoid ]
    let '(writing, last_given, last_taken, lock, comm, buf, locks, comms, bufs, sh1, lsh, sh0, shs, gsh1, gsh2) := x in
-   PROP (Zlength shs = N; readable_share sh1; readable_share lsh; readable_share sh0; Forall readable_share shs;
+   PROP (Zlength shs = N; readable_share sh1; readable_share lsh; (*readable_share sh0;*) Forall readable_share shs;
          sepalg_list.list_join sh0 shs Tsh; readable_share gsh1; readable_share gsh2; sepalg.join gsh1 gsh2 Tsh; Forall isptr comms)
    LOCAL (temp _arg arg; gvar _writing writing; gvar _last_given last_given; gvar _last_taken last_taken;
           gvar _lock lock; gvar _comm comm; gvar _bufs buf)
@@ -1302,7 +1301,7 @@ Qed.
 
 Lemma upd_write_shares : forall bufs b b0 lasts shs sh0 (Hb : 0 <= b < B) (Hb0 : 0 <= b0 < B)
   (Hlasts : Forall (fun x : Z => 0 <= x < B) lasts) (Hshs : Zlength shs = N)
-  (Hread0 : readable_share sh0) (Hread : Forall readable_share shs) (Hsh0 : sepalg_list.list_join sh0 shs Tsh)
+  (*(Hread0 : readable_share sh0)*) (Hread : Forall readable_share shs) (Hsh0 : sepalg_list.list_join sh0 shs Tsh)
   (Hdiff : b <> b0) (Hout : ~ In b lasts) (Hout0 : ~ In b0 lasts) (Hlasts : Zlength lasts = N)
   bsh' v' (Hv' : -1 <= v' < B) h' (Hh' : 0 <= Zlength h' < N)
   (Hbsh' : sepalg_list.list_join sh0 (sublist (Zlength h' + 1) N shs) bsh')
@@ -1365,7 +1364,6 @@ Proof.
       destruct (eq_dec lasti b); [contradiction Hneq; auto|].
       Intros v1 ish v2.
       eapply derives_trans; [apply sepcon_derives; [apply data_at_value_cohere; auto | apply derives_refl]|].
-      { eapply readable_share_list_join; eauto. }
       assert (exists sh', sepalg.join ish shi sh') as (sh' & ?).
       { eapply make_shares_join; eauto.
         + setoid_rewrite Hshs; rewrite Zlength_map, Zlength_upto, Z2Nat.id; omega.
@@ -1385,7 +1383,6 @@ Proof.
       destruct (eq_dec b0 b0); [|contradiction n0; auto].
       Intros v1 ish v2.
       eapply derives_trans; [apply sepcon_derives; [apply data_at_value_cohere; auto | apply derives_refl]|].
-      { eapply readable_share_list_join; eauto. }
       assert (exists sh', sepalg.join ish shi sh') as (sh' & ?).
       { eapply make_shares_join; eauto.
         + setoid_rewrite Hshs; rewrite Zlength_sublist; rewrite ?Zlength_map, ?Zlength_upto, ?Z2Nat.id; omega.
@@ -1688,7 +1685,7 @@ Proof.
       apply ghost_var_update with (v' := vint b).
       rewrite <- flatten_sepcon_in_SEP, sepcon_comm, flatten_sepcon_in_SEP.
       apply ghost_var_update with (v' := if eq_dec b' (-1) then last_write (rev hx) else prev_taken (rev hx)).
-      rewrite <- !(ghost_var_share_join _ _ _ _ _ SH5).
+      rewrite <- !(ghost_var_share_join _ _ _ _ _ SH4).
       eapply semax_pre, Ha.
       go_lowerx.
       rewrite (sepcon_comm _ (weak_precise_mpred _ && _)).
@@ -2062,7 +2059,7 @@ Proof.
               share * share * share * list share * share * share)%type) (arg : val) =>
     let '(writing, last_given, last_taken, lock, comm, buf, locks, comms, bufs, sh1, lsh, sh0, shs, gsh1, gsh2) := x in
       fold_right sepcon emp [!!(fold_right and True [Zlength shs = N; readable_share sh1; readable_share lsh;
-        readable_share sh0; Forall readable_share shs; sepalg_list.list_join sh0 shs Tsh;
+        (*readable_share sh0;*) Forall readable_share shs; sepalg_list.list_join sh0 shs Tsh;
         readable_share gsh1; readable_share gsh2; sepalg.join gsh1 gsh2 Tsh; Forall isptr comms]) && emp;
         data_at_ Ews tint writing; data_at_ Ews tint last_given; data_at_ Ews (tarray tint N) last_taken;
         data_at sh1 (tarray (tptr tint) N) comms comm; data_at sh1 (tarray (tptr tlock) N) locks lock;
