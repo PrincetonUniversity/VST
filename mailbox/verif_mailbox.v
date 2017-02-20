@@ -1834,7 +1834,7 @@ Proof.
       rewrite !sepcon_andp_prop'.
       rewrite Zlength_app, Zlength_cons, Zlength_nil; apply andp_right.
       { replace (Zlength t') with (Zlength h'); apply prop_right; rewrite Zlength_app; auto. }
-      time fast_cancel.
+      fast_cancel.
       apply sepcon_derives.
       * apply derives_refl'; f_equal.
         erewrite upd_Znth_eq, !map_length, upto_length, !map_map;
@@ -1927,12 +1927,6 @@ Lemma body_writer : semax_body Vprog Gprog f_writer writer_spec.
 Proof.
   start_function.
   forward_call (writing, last_given, last_taken).
-  { rewrite ?sepcon_assoc.
-    rewrite <- !sepcon_assoc.
-    rewrite (sepcon_comm _ (data_at_ Ews tint writing)).
- repeat match goal with |- _ |-- ?P * _ =>
-  rewrite <- !sepcon_assoc, (sepcon_comm _ P), !sepcon_assoc;
-  repeat (apply sepcon_derives; [apply derives_refl|]) end.
   forward.
   eapply semax_seq'; [|apply semax_ff].
   eapply semax_pre with (P' := EX v : Z, EX b0 : Z, EX lasts : list Z, EX h : list hist,
@@ -1981,6 +1975,7 @@ Proof.
   Intros v b0 lasts h.
   forward.
   forward_call (gsh1, writing, last_given, last_taken, b0, lasts).
+  { cancel. }
   Intros b.
   rewrite (extract_nth_sepcon (map _ (upto (Z.to_nat B))) b); [|rewrite Zlength_map; auto].
   erewrite Znth_map, Znth_upto; auto; rewrite ?Z2Nat.id; try omega.
