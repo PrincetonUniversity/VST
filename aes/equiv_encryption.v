@@ -211,7 +211,7 @@ Lemma Znth_fill_list: forall {T: Type} (i n: Z) (f: Z -> T) (d: T),
 Admitted.
 
 Lemma rot8_word_to_int: forall b0 b1 b2 b3,
-  rot8 (word_to_int (b0, b1, b2, b3)) = word_to_int (b1, b2, b3, b0).
+  rot8 (word_to_int (b0, b1, b2, b3)) = word_to_int (b3, b0, b1, b2).
 Admitted.
 
 Definition FT0b0(i: Z): int := GF_ops_LL.times2 (Znth i FSb Int.zero).
@@ -261,7 +261,7 @@ Admitted.
 
 Lemma calc_FT1_expose_bytes: forall i,
   0 <= i < 256 ->
-  calc_FT1 i = word_to_int (FT0b1 i, FT0b2 i, FT0b3 i, FT0b0 i).
+  calc_FT1 i = word_to_int (FT0b3 i, FT0b0 i, FT0b1 i, FT0b2 i).
 Proof.
   intros.
   Transparent calc_FT1. unfold calc_FT1.
@@ -283,7 +283,7 @@ Qed.
 
 Lemma calc_FT3_expose_bytes: forall i,
   0 <= i < 256 ->
-  calc_FT3 i = word_to_int (FT0b3 i, FT0b0 i, FT0b1 i, FT0b2 i).
+  calc_FT3 i = word_to_int (FT0b1 i, FT0b2 i, FT0b3 i, FT0b0 i).
 Proof.
   intros.
   Transparent calc_FT3. unfold calc_FT3, calc_FT2, calc_FT1.
@@ -308,7 +308,18 @@ Proof.
   intros. congruence.
 Qed.
 
-(* not sure if this lemma holds --> let's quickchick it! *)
+Lemma xor_assoc_5: forall i0 i1 i2 i3 i4,
+  Int.xor (Int.xor (Int.xor (Int.xor i4 i0) i1) i2) i3 =
+  Int.xor (Int.xor (Int.xor (Int.xor i0 i1) i2) i3) i4.
+Proof.
+  intros.
+  rewrite <- (Int.xor_commut i4).
+  repeat rewrite Int.xor_assoc.
+  reflexivity.
+Qed.
+
+Axiom byte_range_admit: forall b, 0 <= Int.unsigned b < 256.
+
 Lemma round_equiv: forall S K,
   (AES_LL_Spec.mbed_tls_fround
     (state_to_four_ints S)
@@ -361,79 +372,25 @@ Proof.
   unfold round. unfold AddRoundKey, MixColumns, ShiftRows, SubBytes.
   unfold transpose. unfold sub_word, xor_word, transform_column.
 
+  Transparent FT0 FT1 FT2 FT3.
+  unfold FT0, FT1, FT2, FT3.
+  assert (forall b, 0 <= Int.unsigned b < 256) as B by apply byte_range_admit.
+  do 16 rewrite Znth_fill_list by apply B.
 
-apply split_quad_eq'. admit. {
-Transparent FT0 FT1 FT2 FT3.
-unfold FT0, FT1, FT2, FT3.
-assert (forall b, 0 <= Int.unsigned b < 256) as B by admit.
-do 4 rewrite Znth_fill_list by apply B.
+  do 4 rewrite calc_FT0_expose_bytes by apply B.
+  do 4 rewrite calc_FT1_expose_bytes by apply B.
+  do 4 rewrite calc_FT2_expose_bytes by apply B.
+  do 4 rewrite calc_FT3_expose_bytes by apply B.
 
-rewrite calc_FT0_expose_bytes by apply B.
-rewrite calc_FT1_expose_bytes by apply B.
-rewrite calc_FT2_expose_bytes by apply B.
-rewrite calc_FT3_expose_bytes by apply B.
+  repeat rewrite xor_word_to_int.
+  unfold FT0b0, FT0b1, FT0b2, FT0b3.
+  repeat rewrite equiv_sbox.
+  repeat rewrite times2_equiv by apply B.
+  repeat rewrite times3_equiv by apply B.
+  repeat rewrite <- Int.xor_assoc.
 
-rewrite xor_word_to_int.
-rewrite xor_word_to_int.
-rewrite xor_word_to_int.
-rewrite xor_word_to_int.
-unfold FT0b0, FT0b1, FT0b2, FT0b3.
-repeat rewrite equiv_sbox.
-f_equal. apply split_quad_eq. admit. {
-rewrite times2_equiv by apply B.
-rewrite times3_equiv by apply B.
-rewrite <- (Int.xor_commut k5).
-repeat rewrite <- Int.xor_assoc.
-
-Ltac flatten_xor e :=
-  lazymatch e with
-  | Int.xor ?a ?b =>
-    let l1 := flatten_xor a in
-    let l2 := flatten_xor b in 
-    let l := eval cbv [app] in (l1 ++ l2) in
-    l
-  | _ => constr:([e])
-  end.
-
-match goal with
-| |- ?L = ?R => let L2 := flatten_xor L in let R2 := flatten_xor R in let p := constr:(L2, R2) in idtac p
-end.
-admit.
-}
-
-swap p6 and p12
-
- ff_mult (Int.repr 2) (look_sbox p12); look_sbox p6; 
- ff_mult (Int.repr 2) (look_sbox p6) ; look_sbox p12
-
-
-swap role of p6 and p12!
-
- ff_mult (Int.repr 3) (look_sbox p12); look_sbox p6; look_sbox p11; 
- ff_mult (Int.repr 3) (look_sbox p6);  look_sbox p11; look_sbox p12
-
-
-swap role of p5 and p15!
-
- ff_mult (Int.repr 3) (look_sbox p15); look_sbox p5; look_sbox p10;  
-
- ff_mult (Int.repr 3) (look_sbox p5);  look_sbox p10; look_sbox p15
-
-
-clear.
-remember (look_sbox p0) as S0.
-remember (look_sbox p5) as S5.
-remember (look_sbox p10) as S10.
-remember (look_sbox p15) as S15.
-
-rewrite xor_word_to_int.
-
-  Transparent calc_FT0 calc_FT1 calc_FT2 calc_FT3.
-  repeat unfold calc_FT0, calc_FT1, calc_FT2, calc_FT3.
-  unfold calc_FT0, calc_FT1, calc_FT2, calc_FT3.
-rewrite Znth_fill_list.
-(* TODO now unfold tablesLL.FT0,1,2,3, but only once their defintion corresponds exactly to the C code *)
-Admitted.
+  apply split_quad_eq'; f_equal; apply split_quad_eq; apply xor_assoc_5.
+Qed.
 
 Lemma final_round_equiv: forall S K,
   (mbed_tls_final_fround
