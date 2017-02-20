@@ -130,13 +130,12 @@ Proof.
     rewrite E1. rewrite H2, H3, H4. clear H2 H3 H4.
     simpl.
     forward.
-    (* here, we'd need the same improvements as those to load_tac, or... *)
-    replace_SEP 2 (data_at ctx_sh (tarray tuchar 68)
-        (map Vint (map Int.repr (sublist 0 i key_chars)) ++ repeat Vundef (Z.to_nat (68 - i)))
-        (field_address t_struct_aesctx [StructField _buf] ctx))
-    by entailer!.
-    forward. (* TODO store_tac still fails *)
-
-
+    (* assert_PROP what forward asks us to prove: *)
+    assert_PROP ((if field_compatible_dec t_struct_aesctx [StructField _buf] ctx then offset_val 8 ctx
+      else Vundef) = field_address t_struct_aesctx [StructField _buf] ctx) by entailer!.
+    forward.
+    entailer!. }
+  reassoc_seq.
+  (* main loop: *)
 
 Qed.

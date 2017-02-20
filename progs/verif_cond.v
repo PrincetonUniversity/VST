@@ -85,7 +85,6 @@ Proof.
   { apply prop_right; rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto. }
   { unfold tlock_inv; lock_props.
     - apply selflock_precise, precise_sepcon; auto.
-    - apply selflock_positive, positive_sepcon2; auto.
     - rewrite sepcon_comm; apply selflock_rec.
     - rewrite selflock_eq at 2; cancel.
       eapply derives_trans; [apply lock_inv_later | cancel]. }
@@ -163,7 +162,7 @@ Proof.
                   |>tlock_inv sh1 lockt lock cond data).
     { apply prop_right; rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto. }
     { unfold tlock_inv; lock_props.
-      + apply later_positive, selflock_positive, positive_sepcon2; auto.
+      + apply later_positive; auto.
       + unfold rec_inv.
         rewrite selflock_eq at 1.
         rewrite later_sepcon; f_equal.

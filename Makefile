@@ -29,7 +29,7 @@ COMPCERT ?= compcert
 
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-DIRS= msl sepcomp veric concurrency floyd progs sha linking fcf hmacfcf tweetnacl20140427 ccc26x86 hmacdrbg aes
+DIRS= msl sepcomp veric concurrency floyd progs sha linking fcf hmacfcf tweetnacl20140427 ccc26x86 hmacdrbg aes mailbox
 INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -Q $(a) $(a))) -Q $(COMPCERT) compcert $(if $(MATHCOMP), -Q mathcomp $(MATHCOMP))
 #Replace the INCLUDE above with the following in order to build the linking target:
 #INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert -I $(SSREFLECT)/src -R $(SSREFLECT)/theories -as Ssreflect \
@@ -237,7 +237,7 @@ PROGS_FILES= \
   insertionsort.v reverse.v queue.v sumarray.v message.v string.v\
   revarray.v verif_revarray.v insertionsort.v append.v min.v verif_min.v \
   verif_float.v verif_global.v verif_ptr_compare.v \
-  verif_nest3.v verif_nest2.v verif_load_demo.v \
+  verif_nest3.v verif_nest2.v verif_load_demo.v verif_store_demo.v \
   logical_compare.v verif_logical_compare.v field_loadstore.v  verif_field_loadstore.v \
   even.v verif_even.v odd.v verif_odd.v \
   merge.v verif_merge.v verif_append.v verif_append2.v bst.v bst_oo.v verif_bst.v verif_bst_oo.v \

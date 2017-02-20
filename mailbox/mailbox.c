@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "atomic_exchange.h"
+//#include "threads.h"
+//#include <stdatomic.h>
 
 void *surely_malloc (size_t n) {
   void *p = malloc(n);
@@ -143,7 +145,7 @@ void *reader(void *arg){
     buf_id b = start_read(r);
     buffer *buf = bufs[b];
     int v = buf->data;
-    //printf("Reader %d read %d\n", r, v);
+    //   printf("Reader %d read %d\n", r, v);
     finish_read(r);
   }
   return NULL;

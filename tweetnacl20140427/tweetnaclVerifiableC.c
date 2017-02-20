@@ -43,11 +43,27 @@ static u32 ld32(const u8 *x)
   aux = x[0];
   return (u<<8 | aux);
 }
-
+/*
 static u64 dl64(const u8 *x)
 {
   u64 i,u=0;
-  FOR(i,8) u=(u<<8)|x[i];
+  //FOR(i,8) u=(u<<8)|x[i];
+  FOR(i,8) {
+    u8 xi = x[i];
+    u=(u<<8)|xi;
+  }
+  return u;
+}
+*/
+static u64 dl64(const u8 *x)
+{
+  int i;
+  u64 u=0;
+  //FOR(i,8) u=(u<<8)|x[i];
+  FOR(i,8) {
+    u8 xi = x[i];
+    u=(u<<8)|xi;
+  }
   return u;
 }
 
@@ -57,10 +73,18 @@ sv st32(u8 *x,u32 u)
   FOR(i,4) { x[i] = u; u >>= 8; }
 }
 
-sv ts64(u8 *x,u64 u)
+/*sv ts64(u8 *x,u64 u)
 {
   int i;
   for (i = 7;i >= 0;--i) { x[i] = u; u >>= 8; }
+  }
+*/
+
+sv ts64(u8 *x,u64 u)
+{
+  int i;
+  //for (i = 7;i >= 0;--i) { x[i] = u; u >>= 8; }
+  FOR (i,8) { x[7-i] = u; u >>= 8; }
 }
 
 static int vn(const u8 *x,const u8 *y,int n)

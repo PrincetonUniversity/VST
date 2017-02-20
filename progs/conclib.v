@@ -1296,19 +1296,16 @@ Proof.
   intros ???? (? & ?); auto.
 Qed.
 
-Lemma selflock_positive : forall R sh v, positive_mpred R ->
-  positive_mpred (selflock R v sh).
+Lemma selflock_positive : forall R sh v, positive_mpred (selflock R v sh).
 Proof.
   intros.
   rewrite selflock_eq.
-  apply positive_sepcon1; auto.
+  apply positive_sepcon2, lock_inv_positive.
 Qed.
 
 (* This need not hold; specifically, when an rmap is at level 0, |> P holds vacuously for all P. *)
-(*Lemma later_positive : forall P, positive_mpred P -> positive_mpred (|> P)%logic.
-Proof.
-  intros ????.
-Admitted.*)
+Lemma later_positive : forall P, positive_mpred P -> positive_mpred (|> P)%logic.
+Admitted. (* still needed in verif_incr.v and verif_cond.v *)
 
 Lemma positive_FF : positive_mpred FF.
 Proof.
@@ -1814,6 +1811,11 @@ Proof.
 Qed.
 
 (* These lemmas should probably be in veric. *)
+Lemma mpred_ext : forall (P Q : mpred) (Hd1 : P |-- Q) (Hd2 : Q |-- P), P = Q.
+Proof.
+  intros; apply (predicates_hered.pred_ext _ _ _ Hd1); auto.
+Qed.
+
 Lemma mapsto_value_cohere: forall sh1 sh2 t p v1 v2,
   readable_share sh1 -> readable_share sh2 ->
   mapsto sh1 t p v1 * mapsto sh2 t p v2 |-- mapsto sh1 t p v1 * mapsto sh2 t p v1.
@@ -1868,21 +1870,24 @@ Proof.
   - admit.
 Admitted.
 
-Corollary data_at_value_cohere : forall {cs : compspecs} sh1 sh2 t v1 v2 p,
-  readable_share sh1 -> readable_share sh2 ->
+Corollary data_at_value_cohere : forall {cs : compspecs} sh1 sh2 t v1 v2 p, readable_share sh1 ->
   data_at sh1 t v1 p * data_at sh2 t v2 p |--
   data_at sh1 t v1 p * data_at sh2 t v1 p.
 Proof.
-  intros; unfold data_at, field_at, at_offset; Intros; entailer'.
-  apply data_at_rec_value_cohere; auto.
+  intros; destruct (readable_share_dec sh2).
+  - unfold data_at, field_at, at_offset; Intros; entailer'.
+    apply data_at_rec_value_cohere; auto.
+  - assert_PROP (value_fits t v1 /\ value_fits t v2) by entailer!.
+    setoid_rewrite nonreadable_data_at_eq at 2; eauto; tauto.
 Qed.
 
-Corollary data_at__cohere : forall {cs : compspecs} sh1 sh2 t v p,
-  readable_share sh1 -> readable_share sh2 ->
-  data_at sh1 t v p * data_at_ sh2 t p |--
-  data_at sh1 t v p * data_at sh2 t v p. (* Could this be an equality? *)
+Corollary data_at__cohere : forall {cs : compspecs} sh1 sh2 t v p, readable_share sh1 ->
+  data_at sh1 t v p * data_at_ sh2 t p =
+  data_at sh1 t v p * data_at sh2 t v p.
 Proof.
-  intros; rewrite data_at__eq; apply data_at_value_cohere; auto.
+  intros; apply mpred_ext.
+  - rewrite data_at__eq; apply data_at_value_cohere; auto.
+  - entailer!.
 Qed.
 
 Lemma data_at__shares_join : forall {cs} sh t v p shs sh1 (Hsplit : sepalg_list.list_join sh1 shs sh)
@@ -1895,8 +1900,7 @@ Proof.
     rewrite sepcon_emp; auto.
   - inv Hsplit.
     inv Hreadable.
-    rewrite <- sepcon_assoc; eapply derives_trans; [apply sepcon_derives;
-      [apply data_at__cohere; auto | apply derives_refl]|].
+    rewrite <- sepcon_assoc, data_at__cohere; auto.
     erewrite data_at_share_join; eauto.
     apply IHshs; auto.
     eapply readable_share_join; eauto.
@@ -1958,11 +1962,6 @@ Lemma field_at_array_inbounds : forall {cs : compspecs} sh t z a i v p,
 Proof.
   intros; entailer!.
   destruct H as (_ & _ & _ & _ & _ & _ & _ & _ & ?); auto.
-Qed.
-
-Lemma mpred_ext : forall (P Q : mpred) (Hd1 : P |-- Q) (Hd2 : Q |-- P), P = Q.
-Proof.
-  intros; apply (predicates_hered.pred_ext _ _ _ Hd1); auto.
 Qed.
 
 Lemma andp_emp_derives_dup : forall (P : mpred),
