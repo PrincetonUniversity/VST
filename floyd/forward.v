@@ -572,6 +572,9 @@ Ltac prove_delete_temp := match goal with |- ?A = _ =>
   let Q := fresh "Q" in set (Q:=A); hnf in Q; subst Q; reflexivity
 end.
 
+Ltac cancel_for_forward_call := cancel.
+Ltac default_cancel_for_forward_call := cancel.
+
 Ltac forward_call_id1_x_wow A witness Frame H :=
  eapply (@semax_call_id1_x_wow A witness Frame _ _ _ _ _ _ _ _ _ H);
  clear H; try clear Frame;
@@ -586,7 +589,7 @@ Ltac forward_call_id1_x_wow A witness Frame H :=
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
- | unfold fold_right_sepcon at 1 2; cancel
+ | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
  | cbv beta iota zeta; extensionality rho; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
@@ -613,7 +616,7 @@ Ltac forward_call_id1_y_wow A witness Frame H :=
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
- | unfold fold_right_sepcon at 1 2; cancel
+ | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
  | cbv beta iota zeta; extensionality rho; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
@@ -638,7 +641,7 @@ Ltac forward_call_id1_wow A witness Frame H :=
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
- | unfold fold_right_sepcon at 1 2; cancel
+ | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
  | cbv beta iota zeta; extensionality rho; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
@@ -661,8 +664,8 @@ Ltac forward_call_id01_wow A witness Frame H :=
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
- | unfold fold_right_sepcon at 1 2; cancel
- | cbv beta iota zeta; extensionality rho; 
+ | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
+ | cbv beta iota zeta; extensionality rho;
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    first [apply exp_congr; intros ?vret; reflexivity
@@ -683,7 +686,7 @@ Ltac forward_call_id00_wow A witness Frame H :=
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
- | unfold fold_right_sepcon at 1 2; cancel
+ | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
  | cbv beta iota zeta;
     repeat rewrite exp_uncurry;
     try rewrite no_post_exists0;

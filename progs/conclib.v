@@ -2025,6 +2025,12 @@ Ltac join_sub := repeat (eapply sepalg.join_sub_trans;
 Ltac join_inj := repeat match goal with H1 : sepalg.join ?a ?b ?c, H2 : sepalg.join ?a ?b ?d |- _ =>
     pose proof (sepalg.join_eq H1 H2); clear H1 H2; subst; auto end.
 
+Ltac fast_cancel := rewrite ?sepcon_emp, ?emp_sepcon; rewrite ?sepcon_assoc;
+  repeat match goal with |- _ |-- ?P * _ =>
+    try (rewrite <- !sepcon_assoc, (sepcon_comm _ P), !sepcon_assoc);
+    try simple apply derives_refl; repeat (apply sepcon_derives; [simple apply derives_refl|]) end;
+  try cancel_frame.
+
 Ltac forward_spawn sig wit := let Frame := fresh "Frame" in evar (Frame : list mpred);
   try match goal with |- semax _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip end;
   rewrite <- ?seq_assoc; eapply semax_seq';
