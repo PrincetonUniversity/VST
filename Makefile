@@ -242,7 +242,7 @@ PROGS_FILES= \
   even.v verif_even.v odd.v verif_odd.v \
   merge.v verif_merge.v verif_append.v verif_append2.v bst.v bst_oo.v verif_bst.v verif_bst_oo.v \
   verif_bin_search.v incr.v verif_incr.v cond.v verif_cond.v conclib.v verif_floyd_tests.v
-# verif_message.v verif_dotprod.v verif_insertion_sort.v 
+# verif_message.v verif_dotprod.v verif_insertion_sort.v verif_sumarray2.v
 
 SHA_FILES= \
   general_lemmas.v SHA256.v common_lemmas.v pure_lemmas.v sha_lemmas.v functional_prog.v \
