@@ -508,7 +508,8 @@ int mbedtls_aes_setkey_enc( mbedtls_aes_context *ctx, const unsigned char *key,
     uint32_t *RK;
 
 #if !defined(MBEDTLS_AES_ROM_TABLES)
-    if( aes_init_done == 0 )
+    int tmp = aes_init_done;
+    if( tmp == 0 )
     {
         aes_gen_tables();
         aes_init_done = 1;
