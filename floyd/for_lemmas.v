@@ -607,12 +607,13 @@ apply (@semax_for_simple_bound_ex n
     _i init hi body Post); auto.
 eapply semax_post'; try eassumption.
 *
-apply exp_derives; intro i. apply exp_right with tt. auto.
+apply andp_left2; apply exp_derives; intro i. apply exp_right with tt. auto.
 *
 Intros u. auto.
 *
 intros.
 eapply semax_post'; [ | apply (H2 i)].
+apply andp_left2.
 apply andp_derives; auto. apply exp_right with tt; auto.
 Qed.
 
@@ -763,12 +764,13 @@ apply (@semax_for_simple_bound_ex_u n
     _i init hi body Post s1 s2 s3); auto.
 eapply semax_post'; try eassumption.
 *
-apply exp_derives; intro i. apply exp_right with tt. auto.
+apply andp_left2; apply exp_derives; intro i. apply exp_right with tt. auto.
 *
 Intros u; auto.
 *
 intros.
 eapply semax_post'; [ | apply (H2 i)].
+apply andp_left2; 
 apply andp_derives; auto. apply exp_right with tt; auto.
 Qed.
 
@@ -949,7 +951,7 @@ go_lowerx; normalize.
 *
 intros.
 eapply semax_post'; [ | apply (H2 i)].
-apply andp_derives; auto. apply exp_right with tt; auto.
+apply andp_left2; apply andp_derives; auto. apply exp_right with tt; auto.
 Qed.
 
 
@@ -1127,6 +1129,7 @@ eapply derives_trans; [ | apply H1]. go_lowerx; normalize.
 *
 intros.
 eapply semax_post'; [ | apply (H2 i)].
+apply andp_left2; 
 apply andp_derives; auto. apply exp_right with tt; auto.
 Qed.
 
@@ -1232,6 +1235,7 @@ eapply derives_trans; [ | apply H1]. go_lowerx; normalize.
 *
 intros.
 eapply semax_post'; [ | apply (H2 i)].
+apply andp_left2; 
 Exists tt; auto.
 Qed.
 
@@ -1337,6 +1341,7 @@ Intros u. eapply derives_trans; [ | apply H1]. go_lowerx; normalize.
 *
 intros.
 eapply semax_post'; [ | apply (H2 i)].
+apply andp_left2; 
 Exists tt; auto.
 Qed.
 

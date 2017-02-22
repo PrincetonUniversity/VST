@@ -140,6 +140,7 @@ Proof.
     apply derives_refl.
   }
   eapply semax_post'; [| apply semax_set_forward].
+  apply andp_left2; 
   rewrite <- insert_local.
   rewrite <- remove_localdef_PROP.
   normalize.
