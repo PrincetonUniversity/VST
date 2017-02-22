@@ -814,6 +814,16 @@ Proof. intros; eapply semax_post; eassumption. Qed.
 
 
 Lemma semax_post': forall R' Espec {cs: compspecs} Delta R P c,
+           ENTAIL (update_tycon Delta c), R' |-- R ->
+      @semax cs Espec Delta P c (normal_ret_assert R') ->
+      @semax cs Espec Delta P c (normal_ret_assert R).
+Proof. intros. eapply semax_post; eauto. intros.
+ unfold normal_ret_assert.
+ normalize.
+Qed.
+
+(* OLD VERSION: 
+Lemma semax_post': forall R' Espec {cs: compspecs} Delta R P c,
            R' |-- R ->
       @semax cs Espec Delta P c (normal_ret_assert R') ->
       @semax cs Espec Delta P c (normal_ret_assert R).
@@ -821,6 +831,78 @@ Proof. intros. eapply semax_post; eauto. intros. apply andp_left2.
   intro rho; unfold normal_ret_assert; normalize.
  autorewrite with norm1 norm2; normalize.
 Qed.
+*)
+
+(*  Experiments, Appel, Feb 2017
+
+
+Definition is_void_type (ty: type) : bool :=
+ match ty with Tvoid => true | _ => false end.
+
+Definition ret_tycon (Delta: tycontext): tycontext :=
+  mk_tycontext 
+    (if is_void_type (ret_type Delta) 
+      then (PTree.empty _)
+      else (PTree.set ret_temp ((ret_type Delta), true) (PTree.empty _)))
+     (PTree.empty _)
+     (ret_type Delta)
+     (glob_types Delta)
+     (glob_specs Delta).
+
+
+Lemma semax_post'': forall R' Espec {cs: compspecs} Delta R P c t,
+           ENTAIL ret1_tycon Delta, R' |-- R ->
+      @semax cs Espec Delta P c (frame_ret_assert (function_body_ret_assert t R') emp) ->
+      @semax cs Espec Delta P c (frame_ret_assert (function_body_ret_assert t R) emp).
+Proof. intros. eapply semax_post; eauto. intros.
+  intro rho; unfold frame_ret_assert, function_body_ret_assert; normalize.
+  destruct ek; autorewrite with norm1 norm2; normalize.
+  unfold exit_tycon in H1.
+  unfold bind_ret; destruct vl; autorewrite with norm1 norm2; normalize.
+  +
+  specialize (H (env_set (globals_only rho) ret_temp v)).
+  simpl in H. unfold local, lift1 in H.
+  rewrite prop_true_andp in H; auto.
+  clear - H1 H2.
+  hnf in H1|-*.
+  destruct H1 as [? [? [? ?]]]; split; [ | split3]; auto.
+  - clear - H. unfold te_of, env_set.
+ hnf in H|-*.
+ intros. specialize (H id b ty).
+ unfold ret1_tycon in H0. unfold temp_types in H0.
+ destruct (ident_eq id ret_temp).
+ subst. rewrite PTree.gss in H0.
+ inv H0.
+ 
+ unfold ret_type in H0.
+ destruct id.
+
+ simpl in H0.
+  clear - 
+  simpl.
+  2: unfold ve_of.
+SearchAbout (ve_of (env_set _ _ _)).
+2: autorewrite with norm1 norm2.
+ 
+  destruct Delta; simpl in *.
+  unfold subst, env_set in H. simpl in H.
+  
+
+  unfold Map.set in H.
+ unfold mkEnviron in H.
+ rewrite Map.gss in H.
+SearchAbout subst env_set.
+  autorewrite with norm norm1 norm2 in H. 
+  rewrite prop_true_andp in H by apply H1.
+
+ apply H.
+  + destruct t; autorewrite with norm1 norm2; normalize.
+    apply H.
+Qed.
+
+
+
+*)
 
 Lemma sequential:
   forall Espec {cs: compspecs} Delta P c Q,
