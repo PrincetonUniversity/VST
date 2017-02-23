@@ -833,77 +833,6 @@ Proof. intros. eapply semax_post; eauto. intros. apply andp_left2.
 Qed.
 *)
 
-(*  Experiments, Appel, Feb 2017
-
-
-Definition is_void_type (ty: type) : bool :=
- match ty with Tvoid => true | _ => false end.
-
-Definition ret_tycon (Delta: tycontext): tycontext :=
-  mk_tycontext 
-    (if is_void_type (ret_type Delta) 
-      then (PTree.empty _)
-      else (PTree.set ret_temp ((ret_type Delta), true) (PTree.empty _)))
-     (PTree.empty _)
-     (ret_type Delta)
-     (glob_types Delta)
-     (glob_specs Delta).
-
-
-Lemma semax_post'': forall R' Espec {cs: compspecs} Delta R P c t,
-           ENTAIL ret1_tycon Delta, R' |-- R ->
-      @semax cs Espec Delta P c (frame_ret_assert (function_body_ret_assert t R') emp) ->
-      @semax cs Espec Delta P c (frame_ret_assert (function_body_ret_assert t R) emp).
-Proof. intros. eapply semax_post; eauto. intros.
-  intro rho; unfold frame_ret_assert, function_body_ret_assert; normalize.
-  destruct ek; autorewrite with norm1 norm2; normalize.
-  unfold exit_tycon in H1.
-  unfold bind_ret; destruct vl; autorewrite with norm1 norm2; normalize.
-  +
-  specialize (H (env_set (globals_only rho) ret_temp v)).
-  simpl in H. unfold local, lift1 in H.
-  rewrite prop_true_andp in H; auto.
-  clear - H1 H2.
-  hnf in H1|-*.
-  destruct H1 as [? [? [? ?]]]; split; [ | split3]; auto.
-  - clear - H. unfold te_of, env_set.
- hnf in H|-*.
- intros. specialize (H id b ty).
- unfold ret1_tycon in H0. unfold temp_types in H0.
- destruct (ident_eq id ret_temp).
- subst. rewrite PTree.gss in H0.
- inv H0.
- 
- unfold ret_type in H0.
- destruct id.
-
- simpl in H0.
-  clear - 
-  simpl.
-  2: unfold ve_of.
-SearchAbout (ve_of (env_set _ _ _)).
-2: autorewrite with norm1 norm2.
- 
-  destruct Delta; simpl in *.
-  unfold subst, env_set in H. simpl in H.
-  
-
-  unfold Map.set in H.
- unfold mkEnviron in H.
- rewrite Map.gss in H.
-SearchAbout subst env_set.
-  autorewrite with norm norm1 norm2 in H. 
-  rewrite prop_true_andp in H by apply H1.
-
- apply H.
-  + destruct t; autorewrite with norm1 norm2; normalize.
-    apply H.
-Qed.
-
-
-
-*)
-
 Lemma sequential:
   forall Espec {cs: compspecs} Delta P c Q,
         @semax cs Espec Delta P c (normal_ret_assert (Q EK_normal None)) ->
@@ -1980,17 +1909,78 @@ Proof.
       apply sepcon_comm.
 Qed.
 
+Definition is_void_type (ty: type) : bool :=
+ match ty with Tvoid => true | _ => false end.
+
+Definition ret_tycon (Delta: tycontext): tycontext :=
+  mk_tycontext 
+    (if is_void_type (ret_type Delta) 
+      then (PTree.empty _)
+      else (PTree.set ret_temp ((ret_type Delta), true) (PTree.empty _)))
+     (PTree.empty _)
+     (ret_type Delta)
+     (glob_types Delta)
+     (glob_specs Delta).
+
 Lemma semax_post'': forall R' Espec {cs: compspecs} Delta R P c t,
-           R' |-- R ->
+           t = ret_type Delta ->
+           ENTAIL ret_tycon Delta, R' |-- R ->
       @semax cs Espec Delta P c (frame_ret_assert (function_body_ret_assert t R') emp) ->
       @semax cs Espec Delta P c (frame_ret_assert (function_body_ret_assert t R) emp).
-Proof. intros. eapply semax_post; eauto. intros. apply andp_left2.
-  intro rho; unfold frame_ret_assert, function_body_ret_assert; normalize.
+Proof. intros. eapply semax_post; eauto. subst t. clear - H0. rename H0 into H.
+  intros.
+  intro rho; unfold frame_ret_assert.
+  unfold function_body_ret_assert.
   destruct ek; autorewrite with norm1 norm2; normalize.
-  unfold bind_ret; destruct vl; autorewrite with norm1 norm2; normalize.
-  + apply H.
-  + destruct t; autorewrite with norm1 norm2; normalize.
-    apply H.
+  unfold exit_tycon in H.
+(*  replace Delta with (ret_tycon Delta) in H1 by admit.  *)
+  unfold local, lift1 in H.
+  simpl andp in H.
+  unfold exit_tycon in H0.
+assert (H8: typecheck_var_environ (ve_of (globals_only rho))
+               (var_types (ret_tycon Delta))). {
+   clear - H0.
+  unfold ret_tycon, var_types.
+  hnf; intros. rewrite PTree.gempty.
+  split; intro. inv H. destruct H as [v ?].
+   unfold ve_of, globals_only, Map.get, Map.empty in H. inv H.
+ }
+  unfold bind_ret.
+  destruct vl; autorewrite with norm1 norm2; normalize.
+-
+  unfold_lift.  unfold make_args.
+  specialize (H (env_set (globals_only rho) ret_temp v)).
+  simpl in H.
+  rewrite prop_true_andp in H. auto.
+  clear H.
+  destruct H0 as [? [? [? ?]]]; split; [ | split3]; auto.
+  unfold te_of, env_set.
+  unfold temp_types, ret_tycon.
+  hnf; intros.
+  destruct (is_void_type (ret_type Delta)).
+  rewrite PTree.gempty in H4; inv H4.
+  destruct (ident_eq id ret_temp).
+  2: rewrite PTree.gso in H4 by auto; rewrite PTree.gempty in H4; inv H4.
+  subst id. rewrite PTree.gss in H4. inv H4.
+  rewrite Map.gss. exists v. split; auto. right.
+  rewrite tc_val_eq in H1. auto.
+  intros id t. specialize (H3 id t).
+  intro.
+  spec H3. rewrite <- H4.
+  unfold ret_tycon. destruct (is_void_type (ret_type Delta)); reflexivity.
+  unfold env_set. unfold ve_of at 1. left; simpl. reflexivity.
+-
+  destruct (ret_type Delta) eqn:?; auto.
+  unfold_lift. simpl.
+  specialize (H (globals_only rho)).
+  simpl in H. rewrite prop_true_andp in H; auto.
+  clear H.
+  unfold ret_tycon. rewrite Heqt. simpl is_void_type. cbv beta iota.
+  destruct H0 as [? [? [? ?]]]; split; [ | split3]; auto.
+  unfold globals_only; simpl.
+  hnf; intros. rewrite PTree.gempty in H3; inv H3.
+  intros id t. specialize (H2 id t).
+  simpl. intros. left. reflexivity.
 Qed.
 
 Definition ret0_tycon (Delta: tycontext): tycontext :=

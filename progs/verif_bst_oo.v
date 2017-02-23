@@ -357,16 +357,19 @@ Axiom tree_inb_false_iff: forall x (t: tree val), tree_inb x t = false <-> ~ key
 Lemma body_subscr: semax_body Vprog Gprog f_subscr subscr_spec.
 Proof.
   start_function.
-  apply (semax_post'' (EX p: val, EX q: val,
+  apply semax_post'' with
+     (EX p: val, EX q: val,
                        PROP ( )
                        LOCAL (temp ret_temp q)
-                       SEP (subscr_post b t x p q))).
-  Focus 1. {
-    Intros p.
-    Exists p.
-    (* TODO entailer: let entailer work here. *)
-    admit.
-  } Unfocus.
+                       SEP (subscr_post b t x p q)).
+ reflexivity.
+ { 
+  Intros p q; Exists p q.
+  unfold subscr_post.
+  destruct (tree_inb x t) eqn:?.
+  apply tree_inb_true_iff in  Heqb0. entailer!.  apply orp_right1. auto.
+  apply tree_inb_false_iff in  Heqb0. entailer!. apply orp_right2. entailer!.
+ }
   rename H into Range_x.
   eapply semax_pre; [
     | apply (semax_loop _ (subscr_inv b t x) (subscr_inv b t x))].
