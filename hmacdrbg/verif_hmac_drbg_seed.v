@@ -168,7 +168,7 @@ Proof.
     eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
     rewrite data_at__memory_block. simpl. entailer!. 
   }
-  forward_call (Vptr b i, ((info,(M2,p)):mdstate), 32, VV, kv, b, Int.add i (Int.repr 12)).
+  forward_call (Vptr b i, ((info,(M2,p)):mdstate), 32, VV, kv, Vptr b (Int.add i (Int.repr 12))).
   { rewrite ZL_VV, int_add_repr_0_r; simpl.
     apply prop_right; repeat split; trivial.
   }
@@ -351,4 +351,5 @@ Proof.
   Exists p. normalize.
   apply andp_right. apply prop_right; repeat split; trivial. 
   unfold_data_at 1%nat. cancel.
-Time Qed. (*Finished transaction in 121.296 secs (70.921u,0.062s) (successful)*)
+Time Qed. (*Jan 22nd 2017: 267.171 secs (182.812u,0.015s) (successful)*)
+          (*earlier: Finished transaction in 121.296 secs (70.921u,0.062s) (successful)*)
