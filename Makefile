@@ -366,10 +366,13 @@ FILES = \
 	@echo COQC $*.v
 ifeq ($(TIMINGS), true)
 #	bash -c "wc $*.v >>timings; date +'%s.%N before' >> timings; $(COQC) $(COQFLAGS) $*.v; date +'%s.%N after' >>timings" 2>>timings
-	@bash -c "/bin/time --output=TIMINGS -a -f '%e real, %U user, %S sys, '\"$(shell wc $*.v)\" $(COQC) $(COQFLAGS) $*.v"
+	echo true timings
+	@bash -c "/bin/time --output=TIMINGS -a -f '%e real, %U user, %S sys %M mem, '\"$(shell wc $*.v)\" $(COQC) $(COQFLAGS) $*.v"
 #	echo -n $*.v " " >>TIMINGS; bash -c "/usr/bin/time -o TIMINGS -a $(COQC) $(COQFLAGS) $*.v"
+else ifeq ($(TIMINGS), simple)
+	@/bin/time -f 'TIMINGS %e real, %U user, %S sys %M kbytes: '"$*.v" $(COQC) $(COQFLAGS) $*.v
 else
-	@$(COQC) $(COQFLAGS) $*.v
+	@$(COQC) $(COQFLAGS) $*.v 
 endif
 
 COQVERSION= 8.5pl1 or-else 8.5pl2 or-else 8.5pl3 or-else 8.6beta1
@@ -379,24 +382,25 @@ $(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
 endif
 
 
-$(COMPCERT)/lib/%.vo: $(COMPCERT)/lib/%.v
-	@
-$(COMPCERT)/common/%.vo: $(COMPCERT)/common/%.v
-	@
-$(COMPCERT)/cfrontend/%.vo: $(COMPCERT)/cfrontend/%.v
-	@
-$(COMPCERT)/exportclight/%.vo: $(COMPCERT)/exportclight/%.v
-	@
-$(COMPCERT)/flocq/Appli/%.vo: $(COMPCERT)/flocq/Appli/%.v
-	@
-$(COMPCERT)/flocq/Calc/%.vo: $(COMPCERT)/flocq/Calc/%.v
-	@
-$(COMPCERT)/flocq/Core/%.vo: $(COMPCERT)/flocq/Core/%.v
-	@
-$(COMPCERT)/flocq/Prop/%.vo: $(COMPCERT)/flocq/Prop/%.v
-	@
-$(COMPCERT)/flocq/%.vo: $(COMPCERT)/flocq/%.v
-	@
+#  This is causing problems, so commented out.  -- Appel, Feb 23, 2017
+# $(COMPCERT)/lib/%.vo: $(COMPCERT)/lib/%.v
+# 	@
+# $(COMPCERT)/common/%.vo: $(COMPCERT)/common/%.v
+# 	@
+# $(COMPCERT)/cfrontend/%.vo: $(COMPCERT)/cfrontend/%.v
+# 	@
+# $(COMPCERT)/exportclight/%.vo: $(COMPCERT)/exportclight/%.v
+# 	@
+# $(COMPCERT)/flocq/Appli/%.vo: $(COMPCERT)/flocq/Appli/%.v
+# 	@
+# $(COMPCERT)/flocq/Calc/%.vo: $(COMPCERT)/flocq/Calc/%.v
+# 	@
+# $(COMPCERT)/flocq/Core/%.vo: $(COMPCERT)/flocq/Core/%.v
+# 	@
+# $(COMPCERT)/flocq/Prop/%.vo: $(COMPCERT)/flocq/Prop/%.v
+# 	@
+# $(COMPCERT)/flocq/%.vo: $(COMPCERT)/flocq/%.v
+# 	@
 
 all:     .loadpath version.vo $(FILES:.v=.vo)
 
