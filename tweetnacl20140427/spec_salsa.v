@@ -172,7 +172,7 @@ Definition dl64_spec :=
      LOCAL (temp ret_temp (Vlong (bigendian64 B C)))
      SEP (data_at Tsh (tarray tuchar 8) (QuadByte2ValList B++QuadByte2ValList C) x).
 
-Definition littleendian64_invert (w:int64) : QuadByte * QuadByte:=
+Definition bigendian64_invert (w:int64) : QuadByte * QuadByte:=
     let w3 := Int64.unsigned w in
   let b3 := w3 / (2^56) in 
     let w2 := Z.modulo w3 (2^56) in
@@ -187,9 +187,147 @@ Definition littleendian64_invert (w:int64) : QuadByte * QuadByte:=
   let c2 := u2 / (2^16) in 
     let u1 := Z.modulo u2 (2^16) in
   let c1 := u1 / (2^8) in
-    let u0 := Z.modulo u1 (2^8) in
+    let c0 := Z.modulo u1 (2^8) in
   ((Byte.repr b3, Byte.repr b2, Byte.repr b1, Byte.repr b0), 
-   (Byte.repr c3, Byte.repr c2, Byte.repr c1, Byte.repr u0)).
+   (Byte.repr c3, Byte.repr c2, Byte.repr c1, Byte.repr c0)).
+
+Lemma bigendian64_inv: forall b c: QuadByte, bigendian64_invert (bigendian64 b c) = (b,c).
+Proof. destruct b as [[[b3 b2] b1] b0]. destruct c as [[[c3 c2] c1] c0].
+  unfold bigendian64_invert, bigendian64.
+  destruct (Byte.unsigned_range_2 b0). destruct (Byte.unsigned_range_2 b1).
+  destruct (Byte.unsigned_range_2 b2). destruct (Byte.unsigned_range_2 b3).
+  destruct (Byte.unsigned_range_2 c0). destruct (Byte.unsigned_range_2 c1).
+  destruct (Byte.unsigned_range_2 c2). destruct (Byte.unsigned_range_2 c3).
+  assert (2 ^ 8 * Byte.unsigned c1 <= 2 ^ 8 * Byte.max_unsigned).
+               apply Zmult_le_compat_l; trivial.
+  assert (2 ^ 16 * Byte.unsigned c2 <= 2 ^ 16 * Byte.max_unsigned).
+               apply Zmult_le_compat_l; trivial.
+  assert (2 ^ 24 * Byte.unsigned c3 <= 2 ^ 24 * Byte.max_unsigned).
+               apply Zmult_le_compat_l; trivial.
+  assert (2 ^ 32 * Byte.unsigned b0 <= 2 ^ 32 * Byte.max_unsigned).
+               apply Zmult_le_compat_l; trivial.
+  assert (2 ^ 40 * Byte.unsigned b1 <= 2 ^ 40 * Byte.max_unsigned).
+               apply Zmult_le_compat_l; trivial.
+  assert (2 ^ 48 * Byte.unsigned b2 <= 2 ^ 48 * Byte.max_unsigned).
+               apply Zmult_le_compat_l; trivial.
+  assert (2 ^ 56 * Byte.unsigned b3 <= 2 ^ 56 * Byte.max_unsigned).
+               apply Zmult_le_compat_l; trivial.
+  assert (0 <= 2 ^ 8 * Byte.unsigned c1). apply Z.mul_nonneg_cancel_l; trivial.
+  assert (0 <= 2 ^ 16 * Byte.unsigned c2). apply Z.mul_nonneg_cancel_l; trivial.
+  assert (0 <= 2 ^ 24 * Byte.unsigned c3). apply Z.mul_nonneg_cancel_l; trivial. 
+  assert (0 <= 2 ^ 32 * Byte.unsigned b0). apply Z.mul_nonneg_cancel_l; trivial.
+  assert (0 <= 2 ^ 40 * Byte.unsigned b1). apply Z.mul_nonneg_cancel_l; trivial.
+  assert (0 <= 2 ^ 48 * Byte.unsigned b2). apply Z.mul_nonneg_cancel_l; trivial. 
+  assert (0 <= 2 ^ 56 * Byte.unsigned b3). apply Z.mul_nonneg_cancel_l; trivial. 
+  rewrite Int64.unsigned_repr.
+  Focus 2. split. clear H0 H2 H4 H6 H8 H10 H12 H14.
+             apply OMEGA2; trivial.
+             apply OMEGA2; trivial.
+             apply OMEGA2; trivial.
+             apply OMEGA2; trivial.
+             apply OMEGA2; trivial.
+             apply OMEGA2; trivial.
+             apply OMEGA2; trivial.
+            eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
+              apply Z.add_le_mono; try eassumption. 
+              apply Z.add_le_mono; try eassumption. 
+              apply Z.add_le_mono; try eassumption. 
+              apply Z.add_le_mono; try eassumption.
+              apply Z.add_le_mono; try eassumption.  
+              apply Z.add_le_mono; eassumption.
+            unfold Int64.max_unsigned; simpl. omega.
+  assert (0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
+          2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 + 2 ^ 40 * Byte.unsigned b1 +
+          2 ^ 48 * Byte.unsigned b2 < 2 ^ 56). 
+              split. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial.
+              assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 
+                      + 2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 
+                      + 2 ^ 40 * Byte.unsigned b1 + 2 ^ 48 * Byte.unsigned b2 <= 2 ^ 56 -1). 2: omega.
+              eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
+              apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. 
+              apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. 
+              apply Z.add_le_mono; try eassumption. simpl. omega.
+  erewrite (Zmod_unique _ (2^56) (Byte.unsigned b3)); try eassumption.
+     Focus 2. rewrite (Z.mul_comm (2^56)). rewrite Z.add_comm. reflexivity.
+  assert (0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
+          2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 + 2 ^ 40 * Byte.unsigned b1 < 2 ^ 48). 
+              split. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial. 
+              assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 
+                      + 2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 
+                      + 2 ^ 40 * Byte.unsigned b1 <= 2 ^ 48 -1). 2: omega.
+              eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
+              apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. 
+              apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. simpl. omega. 
+  erewrite (Zmod_unique _ (2^48) (Byte.unsigned b2)); try eassumption.
+     Focus 2. rewrite (Z.mul_comm (2^48)). rewrite Z.add_comm. reflexivity.
+  assert (0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
+          2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 < 2 ^ 40). 
+              split. apply OMEGA2; trivial. apply OMEGA2; trivial.  apply OMEGA2; trivial.  apply OMEGA2; trivial.
+              assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 
+                      + 2 ^ 24 * Byte.unsigned c3 + 2 ^ 32 * Byte.unsigned b0 <= 2 ^ 40 -1). 2: omega.
+              eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
+              apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. 
+              apply Z.add_le_mono; try eassumption. simpl. omega.
+  erewrite (Zmod_unique _ (2^40) (Byte.unsigned b1)); try eassumption.
+     Focus 2. rewrite (Z.mul_comm (2^40)). rewrite Z.add_comm. reflexivity.
+  assert (0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 +
+          2 ^ 24 * Byte.unsigned c3 < 2 ^ 32). 
+              split. apply OMEGA2; trivial. apply OMEGA2; trivial. apply OMEGA2; trivial.
+              assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 
+                      + 2 ^ 24 * Byte.unsigned c3 <= 2 ^ 32 -1). 2: omega.
+              eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
+              apply Z.add_le_mono; try eassumption. apply Z.add_le_mono; try eassumption. simpl. omega.
+  erewrite (Zmod_unique _ (2^32) (Byte.unsigned b0)); try eassumption.
+     Focus 2. rewrite (Z.mul_comm (2^32)). rewrite Z.add_comm. reflexivity.
+  assert (0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 < 2 ^ 24). 
+              split. apply OMEGA2; trivial. apply OMEGA2; trivial.
+              assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 + 2 ^ 16 * Byte.unsigned c2 <= 2 ^ 24 -1). 2: omega.
+              eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
+              apply Z.add_le_mono; try eassumption. simpl. omega.
+  erewrite (Zmod_unique _ (2^24) (Byte.unsigned c3)); try eassumption.
+     Focus 2. rewrite (Z.mul_comm (2^24)). rewrite Z.add_comm. reflexivity.
+  assert (0 <= Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 < 2 ^ 16).
+             split. apply OMEGA2; trivial.
+              assert (Byte.unsigned c0 + 2 ^ 8 * Byte.unsigned c1 <= 2 ^ 16 -1). 2: omega.
+              eapply Z.le_trans. apply Z.add_le_mono; try eassumption. 
+              simpl. omega.
+  erewrite (Zmod_unique _ (2^16) (Byte.unsigned c2)); try eassumption.
+     Focus 2. rewrite (Z.mul_comm (2^16)). rewrite Z.add_comm. reflexivity.
+  erewrite (Zmod_unique _ (2^8) (Byte.unsigned c1)).
+     Focus 2. rewrite (Z.mul_comm (2^8)). rewrite Z.add_comm. reflexivity.
+     2: apply Byte.unsigned_range. 
+  erewrite (Zdiv_unique _ _ (Byte.unsigned b3));
+       [  | rewrite (Z.mul_comm (2^56)), Z.add_comm; reflexivity
+          | assumption ]. 
+  rewrite Byte.repr_unsigned. 
+  erewrite (Zdiv_unique _ _ (Byte.unsigned b2));
+       [  | rewrite (Z.mul_comm (2^48)), Z.add_comm; reflexivity
+          | assumption ]. 
+  rewrite Byte.repr_unsigned. 
+  erewrite (Zdiv_unique _ _ (Byte.unsigned b1));
+       [  | rewrite (Z.mul_comm (2^40)), Z.add_comm; reflexivity
+          | assumption ]. 
+  rewrite Byte.repr_unsigned. 
+  erewrite (Zdiv_unique _ _ (Byte.unsigned b0));
+       [  | rewrite (Z.mul_comm (2^32)), Z.add_comm; reflexivity
+          | assumption ]. 
+  rewrite Byte.repr_unsigned. 
+  erewrite (Zdiv_unique _ _ (Byte.unsigned c3));
+       [  | rewrite (Z.mul_comm (2^24)), Z.add_comm; reflexivity
+          | assumption ].
+  rewrite Byte.repr_unsigned. 
+  erewrite (Zdiv_unique _ _ (Byte.unsigned c2));
+       [  | rewrite (Z.mul_comm (2^16)), Z.add_comm; reflexivity
+          | assumption ]. 
+  rewrite Byte.repr_unsigned. 
+  erewrite (Zdiv_unique _ _ (Byte.unsigned c1));
+       [  | rewrite (Z.mul_comm (2^8)), Z.add_comm; reflexivity
+          | ]. 
+  rewrite Byte.repr_unsigned. 
+  rewrite Byte.repr_unsigned. trivial.
+  apply Byte.unsigned_range. 
+Qed.
+
 
 Definition ts64_spec :=
   DECLARE _ts64
@@ -201,7 +339,7 @@ Definition ts64_spec :=
   POST [ tvoid ] 
      PROP ()
      LOCAL ()
-     SEP (let (B, C) := littleendian64_invert u in
+     SEP (let (B, C) := bigendian64_invert u in
           data_at Tsh (tarray tuchar 8) (QuadByte2ValList B++QuadByte2ValList C) x).
 
 
