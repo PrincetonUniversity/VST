@@ -1461,6 +1461,7 @@ Definition f_mbedtls_aes_setkey_enc := {|
                                                                     (Econst_int (Int.repr 14) tint)
                                                                     (tptr tuint))
                                                                     tuint))
+                                                                    (Ssequence
                                                                     (Sassign
                                                                     (Ederef
                                                                     (Ebinop Oadd
@@ -1471,14 +1472,15 @@ Definition f_mbedtls_aes_setkey_enc := {|
                                                                     (Ebinop Oxor
                                                                     (Etempvar _rk0 tuint)
                                                                     (Etempvar _rk7 tuint)
-                                                                    tuint)))))))))))))))))))))))))))))))))))
-                (Ssequence
-                  (Sset _i
-                    (Ebinop Oadd (Etempvar _i tuint)
-                      (Econst_int (Int.repr 1) tint) tuint))
-                  (Sset _RK
-                    (Ebinop Oadd (Etempvar _RK (tptr tuint))
-                      (Econst_int (Int.repr 8) tint) (tptr tuint))))))
+                                                                    tuint))
+                                                                    (Sset _RK
+                                                                    (Ebinop Oadd
+                                                                    (Etempvar _RK (tptr tuint))
+                                                                    (Econst_int (Int.repr 8) tint)
+                                                                    (tptr tuint)))))))))))))))))))))))))))))))))))))
+                (Sset _i
+                  (Ebinop Oadd (Etempvar _i tuint)
+                    (Econst_int (Int.repr 1) tint) tuint))))
             (Sreturn (Some (Econst_int (Int.repr 0) tint)))))))))
 |}.
 
