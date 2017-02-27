@@ -23,7 +23,7 @@ Fixpoint apply_hist a h :=
   | CAS r c w :: h' => if eq_dec r a then if eq_dec c a then apply_hist w h' else apply_hist a h' else None
   end.
 
-Definition hist := hist_part hist_el.
+Notation hist := (list (nat * hist_el)).
 
 Definition ghost_hist (h : hist) p := ghost (h, @None (list hist_el)) p.
 
@@ -518,8 +518,7 @@ Proof.
       [repeat apply andp_right; auto; eapply derives_trans; try apply positive_weak_positive; auto|].
     { apply A_inv_precise; auto. }
     unfold A_inv.
-    Exists (h' ++ [Load v]) v; entailer!.
-    rewrite (sepcon_comm (_ * _) (ghost _ _)), !sepcon_assoc; apply sepcon_derives; auto; cancel. }
+    Exists (h' ++ [Load v]) v; entailer!. }
   forward.
   Exists (length h') (Vint v); unfold atomic_loc; entailer!.
   - rewrite Forall_forall; intros (?, ?) Hin.
@@ -566,8 +565,7 @@ Proof.
     { apply A_inv_precise; auto. }
     unfold A_inv.
     Exists (h' ++ [Store v]) v; entailer!.
-    entailer!.
-    rewrite (sepcon_comm (_ * _) (ghost _ _)), !sepcon_assoc; apply sepcon_derives; auto; cancel. }
+    entailer!. }
   forward.
   Exists (length h'); unfold atomic_loc; entailer!.
   - rewrite Forall_forall; intros (?, ?) Hin.
@@ -627,8 +625,7 @@ Proof.
     { apply A_inv_precise; auto. }
     unfold A_inv.
     Exists (h' ++ [CAS v' c v]) (if eq_dec c v' then v else v'); entailer!.
-    { destruct (eq_dec c v'); auto. }
-    rewrite (sepcon_comm (_ * _) (ghost _ _)), !sepcon_assoc; apply sepcon_derives; auto; cancel. }
+    { destruct (eq_dec c v'); auto. } }
   forward.
   Exists (length h') (Vint v'); unfold atomic_loc; entailer!.
   - rewrite Forall_forall; intros (?, ?) Hin.

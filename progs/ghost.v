@@ -176,7 +176,7 @@ Section GHist.
 (* Ghost histories in the style of Nanevsky *)
 Variable hist_el : Type.
 
-Definition hist_part := list (nat * hist_el).
+Notation hist_part := (list (nat * hist_el)).
 
 (* We want to split a history into two parts: a reference part that is always complete,
    and a splittable part that can be shared among clients. *)
@@ -268,7 +268,7 @@ Lemma hist_add : forall (h : hist_part) h' e p,
 Proof.
   intros; apply ghost_update.
   intros (?, ?) (? & (Hdisj & Hperm) & [(<- & ?) | (? & ?)] & Hh'); try discriminate; simpl in *; subst.
-  exists (h ++ h0 ++ [(length h', e)], Some (h' ++ [e])); repeat split; simpl; auto.
+  exists (h ++ l ++ [(length h', e)], Some (h' ++ [e])); repeat split; simpl; auto.
   - intros ?? Hin ?.
     rewrite in_app in Hin; destruct Hin as [? | [X | ?]]; [eapply Hdisj; eauto | inv X | contradiction].
     intro; specialize (Hh' (length h') e'); exploit Hh'.
@@ -320,9 +320,9 @@ Proof.
   destruct (eq_dec r i); auto.
 Qed.
 
-Definition AE_hist := hist_part AE_hist_el.
-
 End AEHist.
+
+Notation AE_hist := (list (nat * AE_hist_el)).
 
 End Ghost.
 

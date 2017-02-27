@@ -1024,6 +1024,104 @@ Proof.
     + intros ? [? | ?]; auto; subst; auto.
 Qed.
 
+Lemma lt_le_1 : forall i j, i < j <-> i + 1 <= j.
+Proof.
+  intros; omega.
+Qed.
+
+Lemma firstn_all : forall {A} n (l : list A), (length l <= n)%nat -> firstn n l = l.
+Proof.
+  induction n; destruct l; auto; simpl; intros; try omega.
+  rewrite IHn; auto; omega.
+Qed.
+
+Lemma sublist_all : forall {A} i (l : list A), Zlength l <= i -> sublist 0 i l = l.
+Proof.
+  intros; unfold sublist; simpl.
+  apply firstn_all.
+  rewrite Zlength_correct in *; Omega0.
+Qed.
+
+Lemma sublist_prefix : forall {A} i j (l : list A), sublist 0 i (sublist 0 j l) = sublist 0 (Z.min i j) l.
+Proof.
+  intros.
+  destruct (Z_le_dec i 0).
+  { rewrite !sublist_nil_gen; auto.
+    rewrite Z.min_le_iff; auto. }
+  destruct (Z.min_spec i j) as [(? & ->) | (? & ->)].
+  - rewrite sublist_sublist, !Z.add_0_r by omega; auto.
+  - apply sublist_all.
+    destruct (Z_le_dec j 0); [rewrite sublist_nil_gen; auto; rewrite Zlength_nil; omega|].
+    destruct (Z_le_dec j (Zlength l)).
+    rewrite Zlength_sublist; try omega.
+    { pose proof (sublist_max_length 0 j l); omega. }
+Qed.
+
+Lemma sublist_suffix : forall {A} i j (l : list A), 0 <= i -> 0 <= j ->
+  sublist i (Zlength l - j) (sublist j (Zlength l) l) = sublist (i + j) (Zlength l) l.
+Proof.
+  intros.
+  destruct (Z_le_dec (Zlength l - j) i).
+  { rewrite !sublist_nil_gen; auto; omega. }
+  rewrite sublist_sublist by omega.
+  rewrite Z.sub_simpl_r; auto.
+Qed.
+
+Lemma sublist_parts1 : forall {A} i j (l : list A), 0 <= i -> sublist i j l = sublist i j (sublist 0 j l).
+Proof.
+  intros.
+  destruct (Z_le_dec j i).
+  { rewrite !sublist_nil_gen; auto. }
+  rewrite sublist_sublist by omega.
+  rewrite !Z.add_0_r; auto.
+Qed.
+
+Lemma sublist_parts2 : forall {A} i j (l : list A), 0 <= i -> j <= Zlength l ->
+  sublist i j l = sublist 0 (j - i) (sublist i (Zlength l) l).
+Proof.
+  intros.
+  destruct (Z_le_dec j i).
+  { rewrite !sublist_nil_gen; auto; omega. }
+  rewrite sublist_sublist; try omega.
+  rewrite Z.add_0_l, Z.sub_simpl_r; auto.
+Qed.
+
+Lemma Forall_Forall2 : forall {A} (P : A -> Prop) Q l1 l2 (HP : Forall P l1) (HQ : Forall2 Q l1 l2)
+  (Htransfer : forall x y, P x -> Q x y -> P y), Forall P l2.
+Proof.
+  induction 2; auto; intros.
+  inv HP.
+  constructor; eauto.
+Qed.
+
+Lemma Forall_suffix_max : forall {A} (P : A -> Prop) l1 l2 i j
+  (Hi : 0 <= i <= Zlength l1) (Hj : 0 <= j <= Zlength l1)
+  (Hl1 : Forall P (sublist j (Zlength l1) l1))
+  (Hl2 : sublist i (Zlength l1) l1 = sublist i (Zlength l2) l2),
+  Forall P (sublist (Z.max i j) (Zlength l2) l2).
+Proof.
+  intros.
+  destruct (eq_dec i (Zlength l1)).
+  { subst; rewrite sublist_nil in Hl2.
+    rewrite Z.max_l by omega.
+    rewrite <- Hl2; auto. }
+  assert (Zlength l1 = Zlength l2) as Heq.
+  { assert (Zlength (sublist i (Zlength l1) l1) = Zlength (sublist i (Zlength l2) l2)) as Heq by congruence.
+    destruct (Z_le_dec (Zlength l2) i).
+    { rewrite sublist_nil_gen with (l0 := l2), Zlength_nil in Heq; auto.
+      rewrite !Zlength_sublist in Heq; omega. }
+    rewrite !Zlength_sublist in Heq; omega. }
+  intros; destruct (Z.max_spec i j) as [(? & ->) | (? & ->)].
+  - replace (sublist _ _ _) with (sublist (j - i) (Zlength l2 - i) (sublist i (Zlength l2) l2)).
+    rewrite <- Hl2, sublist_sublist, !Z.sub_simpl_r by omega.
+    rewrite <- Heq; auto.
+    { rewrite sublist_sublist, !Z.sub_simpl_r by omega; auto. }
+  - rewrite <- Hl2.
+    replace (sublist _ _ _) with (sublist (i - j) (Zlength l1 - j) (sublist j (Zlength l1) l1)).
+    apply Forall_sublist; auto.
+    { rewrite sublist_sublist, !Z.sub_simpl_r; auto; omega. }
+Qed.
+
 Fixpoint extend {A} (l : list A) ls :=
   match l, ls with
   | x :: xs, y :: ys => (x :: y) :: extend xs ys
