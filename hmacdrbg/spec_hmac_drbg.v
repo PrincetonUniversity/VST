@@ -859,7 +859,7 @@ Lemma hmac_init_merge:
   ndfs_merge _ _ _ _ _ (snd UNDER_SPEC.hmac_reset_spec) (eq_refl _)
              _ _ _ _ _ (snd UNDER_SPEC.hmac_starts_spec) (eq_refl _)
   = Some hmac_init_funspec.
-Proof. unfold ndfs_merge. rewrite if_true; trivial. Qed. 
+Proof. unfold ndfs_merge. simpl. rewrite if_true; trivial. Qed. 
 
 Definition HmacDrbgFunSpecs : funspecs :=  ltac:(with_library prog (
   (*free_spec :: *)md_free_spec ::hmac_drbg_free_spec::mbedtls_zeroize_spec::

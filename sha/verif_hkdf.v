@@ -9,6 +9,8 @@ Require Import sha.spec_hmac.
 Require Import sha.spec_hkdf.
 Require Import sha.hkdf_functional_prog.
 
+Definition vv :reptype (Tarray tuchar (64 - 32) noattr) := list_repeat 64 Vundef.
+
 Lemma body_hkdf: semax_body Hkdf_VarSpecs Hkdf_FunSpecs 
        f_HKDF HKDF_spec.
 Proof.
@@ -24,7 +26,6 @@ assert_PROP (isptr plen /\ field_compatible (tuint) [] plen) by entailer. destru
 unfold data_at_, field_at_.
 rewrite field_at_data_at. simpl.
 rewrite field_at_data_at. unfold tarray. simpl.
-Let vv :reptype (Tarray tuchar (64 - 32) noattr) := list_repeat 64 Vundef.
 assert (JM: JMeq (default_val (Tarray tuchar 64 noattr)) (sublist 0 64 vv)).
 { unfold vv. rewrite sublist_list_repeat with (k:=64); try omega. simpl. apply JMeq_refl. }
 erewrite  split2_data_at_Tarray with (n1:=32). 

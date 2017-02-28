@@ -425,7 +425,7 @@ Proof.
       apply treebox_rep_leaf; auto.
     + (* else clause *)
       destruct t1.
-        { simpl tree_rep. normalize. contradiction H1; auto. }
+        { simpl tree_rep. normalize. }
       simpl tree_rep.
       Intros pa pb. clear H1.
       forward. (* y=p->key; *)
@@ -495,8 +495,7 @@ Proof.
   * (* type-check loop condition *)
     entailer!.
   * (* loop body preserves invariant *)
-    destruct t0; unfold tree_rep at 1; fold tree_rep. normalize.
-    contradiction HRE; auto.
+    destruct t0; unfold tree_rep at 1; fold tree_rep. solve [normalize].
     Intros pa pb.
     forward.
     forward_if; [ | forward_if ].
@@ -613,7 +612,7 @@ Proof.
       Exists pa.
       cancel.
     - destruct tbc0 as [| tb0 y vy tc0].
-        { simpl tree_rep. normalize. contradiction H1; auto. }
+        { simpl tree_rep. normalize. }
       forward_call (ta0, x, vx, tb0, y, vy, tc0, b0, p0, pa, pbc). (* turn_left(t, p, q); *)
       Intros pc.
       forward. (* t = &q->left; *)

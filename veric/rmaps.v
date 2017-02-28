@@ -1015,9 +1015,9 @@ Qed.
     + constructor; auto.
     + apply inj_pair2 in H10. subst p0. constructor; auto.
     + apply inj_pair2 in H10. subst p0. constructor; auto.
-    + subst x1. apply inj_pair2 in H14. subst p1. apply inj_pair2 in H9; subst p0.
+    + subst (*x1*). apply inj_pair2 in H14. subst p1. apply inj_pair2 in H9; subst p0.
       constructor; auto.
-    + subst x1. apply inj_pair2 in H8. subst p1. apply inj_pair2 in H5. subst p0.
+    + subst (*x1*). apply inj_pair2 in H8. subst p1. apply inj_pair2 in H5. subst p0.
       constructor; auto.
 Qed.
 

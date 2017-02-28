@@ -1757,7 +1757,7 @@ unfold env_set, globals_only; simpl.
 apply derives_refl.
 destruct retty; try congruence.
 destruct retty; try contradiction.
-congruence.
+(*congruence.*)
 +
 clear - H.
 apply derives_refl'; apply H; intros.

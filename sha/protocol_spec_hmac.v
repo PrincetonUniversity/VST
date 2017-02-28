@@ -11,6 +11,9 @@ Require Import sha.hmac_common_lemmas.
 Require Import sha.hmac.
 Require Import sha.spec_hmac.
 
+Require Import sha.ByteBitRelations.
+Require Import sha.verif_hmac_crypto.
+
 Module Type HMAC_ABSTRACT_SPEC.
 
 (*"Ordinary" abstract states contain a key and some data*)
@@ -149,9 +152,6 @@ Definition hmac_cleanup_spec :=
           LOCAL ()
           SEP(EMPTY c).
 
-
-Require Import sha.ByteBitRelations.
-Require Import sha.verif_hmac_crypto.
 Definition hmac_crypto_spec :=
   DECLARE _HMAC
    WITH md: val, KEY:DATA,
@@ -215,6 +215,13 @@ rewrite two_power_pos_equiv in *.
 assert (l * 8 < 2^31 * 8) by omega. clear H0.
 eapply Z.lt_trans. eassumption. clear H. cbv; trivial.
 Qed.
+
+Require Import sha.verif_hmac_final.
+Require Import sha.verif_hmac_update.
+Require Import sha.verif_hmac_init.
+Require Import sha.verif_hmac_cleanup.
+Import sha.ByteBitRelations.
+Import sha.verif_hmac_crypto.
 
 Module OPENSSL_HMAC_ABSTRACT_SPEC <: HMAC_ABSTRACT_SPEC.
 Inductive HABS := hABS: forall (key data:list Z), HABS.
@@ -367,9 +374,6 @@ Definition hmac_cleanup_spec :=
           LOCAL ()
           SEP(EMPTY c).
 
-Import sha.ByteBitRelations.
-Import sha.verif_hmac_crypto.
-
 Definition hmac_crypto_spec :=
   DECLARE _HMAC
    WITH md: val, KEY:DATA,
@@ -401,11 +405,6 @@ Definition hmac_crypto_spec :=
           SEP(K_vector kv;
               data_block shmd digest md;
               data_block Tsh (CONT MSG) msg; data_block Tsh (CONT KEY) (Vptr b i)).
-
-Require Import sha.verif_hmac_final.
-Require Import sha.verif_hmac_update.
-Require Import sha.verif_hmac_init.
-Require Import sha.verif_hmac_cleanup.
 
 Lemma body_hmac_crypto: semax_body HmacVarSpecs HmacFunSpecs 
       f_HMAC hmac_crypto_spec.

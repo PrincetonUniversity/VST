@@ -193,30 +193,30 @@ Proof.
   + simpl; auto.
   + simpl in *.
     rewrite !approx_sepcon.
-    f_equal;
-    auto.
+    f_equal; [| auto]. clear IHForall H0 l.
+    eapply H; trivial.
 Qed.
 
 Lemma LOCALx_super_non_expansive: forall A Q R,
   super_non_expansive R ->
   Forall (fun Q0 => @super_non_expansive A (fun ts a rho => prop (locald_denote (Q0 ts a) rho))) Q ->
   @super_non_expansive A (fun ts a rho => LOCALx (map (fun Q0 => Q0 ts a) Q) (R ts a) rho).
-Proof.
+Proof. 
   intros.
   hnf; intros.
   unfold LOCALx.
   simpl.
   rewrite !approx_andp.
-  f_equal; auto.
+  f_equal; [| apply H].
   induction H0.
-  + auto.
-  + simpl.
-    unfold local, lift1.
-    unfold_lift.
-    rewrite !prop_and.
-    rewrite !approx_andp.
-    f_equal; auto.
-    apply H0.
+    + auto.
+    + simpl.
+      unfold local, lift1.
+      unfold_lift.
+      rewrite !prop_and.
+      rewrite !approx_andp.
+      f_equal; auto.
+      apply H0. 
 Qed.
 
 Lemma PROPx_super_non_expansive: forall A P Q,
@@ -229,7 +229,7 @@ Proof.
   unfold PROPx.
   simpl.
   rewrite !approx_andp.
-  f_equal; auto.
+  f_equal; [| apply H].
   induction H0.
   + auto.
   + simpl.
@@ -276,7 +276,7 @@ Lemma LOCALx_nonexpansive: forall Q R rho,
 Proof.
   intros.
   unfold LOCALx.
-  apply conj_nonexpansive; [| auto].
+  apply (@conj_nonexpansive compcert_rmaps.RML.R.rmap); [| solve [auto]].
   apply const_nonexpansive.
 Qed.
 
@@ -287,7 +287,7 @@ Lemma PROPx_nonexpansive: forall P Q rho,
 Proof.
   intros.
   unfold PROPx.
-  apply conj_nonexpansive; [| auto].
+  apply (@conj_nonexpansive compcert_rmaps.RML.R.rmap); [| auto].
   clear - H.
   induction P.
   + simpl.
@@ -297,14 +297,12 @@ Proof.
       (fun P0 => (prop (a P0 /\ fold_right and True (map (fun P1 => P1 P0) P)))%logic)
     with
       (fun P0 => (prop (a P0) && prop (fold_right and True (map (fun P1 => P1 P0) P)))%logic).
-    Focus 2. {
-      extensionality S.
+    * apply (@conj_nonexpansive compcert_rmaps.RML.R.rmap).
+      - inversion H; auto.
+      - apply IHP.
+        inversion H; auto.
+    * extensionality S.
       rewrite prop_and; auto.
-    } Unfocus.
-    apply conj_nonexpansive.
-    - inversion H; auto.
-    - apply IHP.
-      inversion H; auto.
 Qed.
 
 Lemma PROP_LOCAL_SEP_nonexpansive: forall P Q R rho,
@@ -1333,7 +1331,7 @@ Ltac flatten_in_SEP PQR :=
  match PQR with
  | PROPx ?P (LOCALx ?Q (SEPx (?R))) =>
    match R with context [(?R1 * ?R2) :: ?R'] =>
-      let n := constr:(length R - Datatypes.S (length R'))%nat in
+      let n := constr:((length R - Datatypes.S (length R'))%nat) in
       let n' := eval lazy beta zeta iota delta in n in
       erewrite(@flatten_sepcon_in_SEP'' n' P Q R1 R2 R _ (eq_refl _));
       [ | 
@@ -1991,7 +1989,7 @@ Proof.
     apply prop_right.
     apply make_args1_tc_environ; auto.
     rewrite tc_val_eq in H3; auto.
-  + congruence.
+  (*+ congruence.*)
 Qed.
 
 Lemma semax_post_ret0: forall P' R' Espec {cs: compspecs} Delta P R Pre c,

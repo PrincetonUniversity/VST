@@ -1123,6 +1123,7 @@ assert (W = Z.to_nat j + 1 + (W-Z.to_nat j-1))%nat by omega.
 forget (W - Z.to_nat j - 1)%nat as K.
 subst W.
 clear H3.
+rewrite <- (Z2Nat.id n) in H; try omega.
 rewrite <- (Z2Nat.id n) in * by omega.
 rewrite <- two_power_nat_two_p in H.
 assert (Z.to_nat n <= Z.to_nat j)%nat.

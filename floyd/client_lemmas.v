@@ -2478,7 +2478,7 @@ Ltac extract_exists_in_SEP' PQR :=
  match PQR with
  | PROPx ?P (LOCALx ?Q (SEPx (?R))) =>
    match R with context [(@exp _ _ ?A ?S) :: ?R'] =>
-      let n := constr:(length R - Datatypes.S (length R'))%nat in
+      let n := constr:((length R - Datatypes.S (length R'))%nat) in
       let n' := eval lazy beta zeta iota delta in n in
       rewrite (@extract_nth_exists_in_SEP n' P Q R A S (eq_refl _));
       unfold replace_nth at 1;
@@ -2502,7 +2502,7 @@ Ltac move_from_SEP' PQR :=
  match PQR with
  | PROPx ?P (LOCALx ?Q (SEPx (?R))) =>
    match R with context [(prop ?P1 && ?S) :: ?R'] =>
-      let n := constr:(length R - Datatypes.S (length R'))%nat in
+      let n := constr:((length R - Datatypes.S (length R'))%nat) in
       let n' := eval lazy beta zeta iota delta in n in
       rewrite(@extract_prop_in_SEP n' P1 S P Q R (eq_refl _));
       unfold replace_nth at 1

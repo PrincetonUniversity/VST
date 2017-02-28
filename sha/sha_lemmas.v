@@ -28,7 +28,6 @@ destruct p; try apply FF_left.
 if_tac; try contradiction. apply orp_left.
 normalize.
 normalize.
-congruence.
 normalize.
 Qed.
 

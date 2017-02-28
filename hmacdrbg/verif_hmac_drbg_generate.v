@@ -1271,10 +1271,13 @@ apply semax_pre with (P':=
     - subst stream1 ctx1 key1.
       remember (contents_with_add (Vptr bb ii) (Zlength contents) contents) as CONT.
       unfold contents_with_add in HeqCONT. simpl in HeqCONT. simpl in Heqnna.
-      destruct (initial_world.EqDec_Z (Zlength contents) 0); simpl in *; try discriminate.
-      subst CONT. 
-      rewrite <- Heqq in UPD. inv UPD. 
-      apply andp_right. apply prop_right; repeat split; trivial. cancel.
+      destruct (initial_world.EqDec_Z (Zlength contents) 0); simpl in *.
+      * apply Zlength_nil_inv in e. subst contents CONT. 
+        rewrite <- Heqq in UPD. inv UPD.   
+        apply andp_right. apply prop_right; repeat split; trivial. cancel.
+      * subst CONT.
+        rewrite <- Heqq in UPD. inv UPD.   
+        apply andp_right. apply prop_right; repeat split; trivial. cancel.
   + destruct CTX2KEY2; subst ctx2 key2. subst after_reseed_state_abs.
     unfold mkCTX1 in CTX1; unfold mkKEY1 in KEY1; unfold mkSTREAM1 in STREAM1.
     destruct should_reseed.
@@ -2012,7 +2015,8 @@ Transparent HMAC256_DRBG_generate_function.
       remember (contents_with_add additional (Zlength contents) contents) as CONT.
       subst HLP. 
       destruct CONT.
-      * rewrite Zlength_nil, <- HeqENT in HeqMGen'. simpl in HeqMGen'.
+      * clear C' ZLc'. subst stream1. 
+        rewrite Zlength_nil, <- HeqENT(*, F*) in HeqMGen'. simpl in HeqMGen'.
         remember (HMAC_DRBG_generate_helper_Z HMAC256 key V out_len) as p. destruct p.
         remember (HMAC_DRBG_update HMAC256 [] key l2) as q. destruct q.
         subst MGen'. subst Gen.
@@ -2021,13 +2025,16 @@ Transparent HMAC256_DRBG_generate_function.
         ++ rewrite e in *. rewrite (Zlength_nil_inv _ e) in *.
            simpl in na. destruct (initial_world.EqDec_Z (Zlength contents) 0); try solve [omega]; simpl in na.
            subst na; rewrite andb_false_r in *. 
-           inv HeqAUSA. simpl.
-           apply andp_right. apply prop_right. repeat split; trivial.
+           inv HeqAUSA. simpl. 
+           rewrite hmac_common_lemmas.HMAC_Zlength.
+           remember ((negb (Memory.EqDec_val additional nullval) &&
+                            false)%bool). 
+           rewrite andb_false_r in Heqb0; subst b0 after_update_state_abs.
            normalize.
-           unfold HMAC_DRBG_update, HMAC256_DRBG_update in *. inv Heqq.
-           unfold HMAC_DRBG_update in HeqUPD.
-           rewrite <- Heqp in *. inv HeqUPD. 
            apply andp_right. apply prop_right. repeat split; trivial.
+              apply isbyteZ_HMAC256. 
+           unfold HMAC_DRBG_update, HMAC256_DRBG_update in *. inv Heqq.
+           unfold HMAC_DRBG_update in HeqUPD. inv H16. rewrite <- Heqp in *. inv HeqUPD. 
            rewrite sublist_firstn. cancel.
            unfold_data_at 1%nat. cancel.
         ++ destruct (Memory.EqDec_val additional nullval); simpl in na, HeqCONT.
@@ -2072,7 +2079,8 @@ Transparent HMAC256_DRBG_generate_function.
       simpl in *. subst reseed_interval. rewrite H15 in HeqMGen'.
       remember (contents_with_add additional (Zlength contents) contents) as CONT.
       destruct CONT.
-      * rewrite Zlength_nil, <- HeqENT(*, F*) in HeqMGen'. simpl in HeqMGen'.
+      * clear C' ZLc'. subst stream1. 
+        rewrite Zlength_nil, <- HeqENT(*, F*) in HeqMGen'. simpl in HeqMGen'.
         remember (HMAC_DRBG_generate_helper_Z HMAC256 key V out_len) as p. destruct p.
         remember (HMAC_DRBG_update HMAC256 [] key l2) as q. destruct q.
         subst MGen'. subst Gen.
@@ -2081,12 +2089,16 @@ Transparent HMAC256_DRBG_generate_function.
         ++ rewrite e0 in *. rewrite (Zlength_nil_inv _ e0) in *.
            simpl in na. destruct (initial_world.EqDec_Z (Zlength contents) 0); try solve [omega]; simpl in na.
            subst na; rewrite andb_false_r in *. 
-           inv HeqAUSA. simpl.
-           apply andp_right. apply prop_right. repeat split; trivial.
+           inv HeqAUSA. simpl. 
+           rewrite hmac_common_lemmas.HMAC_Zlength.
+           remember ((negb (Memory.EqDec_val additional nullval) &&
+                            false)%bool). 
+           rewrite andb_false_r in Heqb0; subst b0 after_update_state_abs.
            normalize.
-           unfold HMAC_DRBG_update, HMAC256_DRBG_update in *. inv Heqq.
-           unfold HMAC_DRBG_update in HeqUPD. rewrite <- Heqp in *. inv HeqUPD. 
            apply andp_right. apply prop_right. repeat split; trivial.
+              apply isbyteZ_HMAC256. 
+           unfold HMAC_DRBG_update, HMAC256_DRBG_update in *. inv Heqq.
+           unfold HMAC_DRBG_update in HeqUPD. inv H16. rewrite <- Heqp in *. inv HeqUPD. 
            rewrite sublist_firstn. cancel.
            unfold_data_at 1%nat. cancel.
         ++ destruct (Memory.EqDec_val additional nullval); simpl in na, HeqCONT.

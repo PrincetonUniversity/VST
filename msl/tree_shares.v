@@ -5831,7 +5831,7 @@ Qed.
     inv H.
     icase (bool_dec b b0).
     inv H1.
-    subst b0.
+(*    subst b0.*)
     unfold tree_round_left;
     unfold tree_round_right;
     simpl.
@@ -6007,7 +6007,7 @@ Qed.
    intro;apply H.
    rewrite H6;apply exist_ext;trivial.
    icase b;icase b0;simpl.
-   elimtype False;tauto.
+   (*elimtype False; tauto.*)
    exists (exist (fun t0 : ShareTree => canonicalTree t0)
           (Node (Leaf true) (Leaf false))
           (mkCanon_correct (Node (Leaf true) (Leaf false)))).
@@ -6016,7 +6016,7 @@ Qed.
           (Node (Leaf false) (Leaf true))
           (mkCanon_correct (Node (Leaf false) (Leaf true)))).
    split;trivial.
-   elimtype False; tauto.
+   (*elimtype False; tauto.*)
    inv H5;inv H4;elimtype False;omega.
    inv H5;inv H4;elimtype False;omega.
    inv H5;inv H4;elimtype False;omega.
@@ -7676,7 +7676,7 @@ Proof.
  simpl. destruct c as [? [? [? ?]]].
  replace (tree_decompose a) with (decompose a) by trivial.
  rewrite H0.
- icase t1. icase b. tauto.
+ icase t1. icase b. (* tauto.*)
  repeat f_equal. apply proof_irr.
 Qed.
 

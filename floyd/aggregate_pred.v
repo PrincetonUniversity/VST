@@ -1626,7 +1626,7 @@ Proof.
   + simpl. unfold union_pred. simpl. reflexivity.
   + destruct v as [v | v].
     - reflexivity.
-    - apply IHm.
+    - simpl; apply IHm.
 Qed.
 
 Definition struct_value_fits_aux (m m0: members)
@@ -1698,7 +1698,7 @@ Proof.
   + simpl. unfold union_Prop. simpl. reflexivity.
   + destruct v as [v | v].
     - reflexivity.
-    - apply IHm.
+    - simpl; apply IHm.
 Qed.
 
 End AUXILIARY_PRED.

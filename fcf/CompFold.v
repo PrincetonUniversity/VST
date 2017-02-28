@@ -2186,11 +2186,8 @@ Theorem list_pred_app_both_if :
    eapply list_pred_app in H0.
    destruct H0.
    rewrite firstn_app in l; intuition.
-   rewrite firstn_ge_all in l; intuition.
-   
-   rewrite H in l0.
-   rewrite skipn_app in l0.
-   trivial.
+   + rewrite firstn_ge_all, H, minus_diag, app_nil_r in l; trivial. intuition.
+   + rewrite H, skipn_app in l0; trivial.
 
 Qed.
 

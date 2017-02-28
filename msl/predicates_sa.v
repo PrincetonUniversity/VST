@@ -112,7 +112,7 @@ destruct H4 as [w1 [w2 [? [? [? ?]]]]].
 unfold fa,fb in *.
 subst.
 generalize (join_canc H2 H4); intro.
-subst w1a w2b.
+(*subst w1a w2b.*)
 eapply join_canc; eauto.
 Qed.
 
