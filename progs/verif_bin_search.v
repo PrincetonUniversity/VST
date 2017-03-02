@@ -96,13 +96,6 @@ Proof.
        * inversion H. auto.
 Qed.
 
-Lemma sorted_less_rest:
-  forall a l, sorted (a::l) -> (forall x, In x l -> a <= x) /\ sorted l.
-Proof.
- intros. rewrite sorted_equiv in H|-*. destruct H; split; auto; intros.
- rewrite Forall_forall in H. auto.
-Qed.
-
 Lemma sorted_mono : forall d l i j (Hsort : sorted l) (Hi : 0 <= i <= j)
                            (Hj : j < Zlength l),
     Znth i l d <= Znth j l d.
@@ -110,7 +103,8 @@ Proof.
 induction l; intros.
 * rewrite !Znth_nil. omega.
 * 
- apply sorted_less_rest in Hsort. destruct Hsort as [H9 Hsort].
+ rewrite sorted_equiv in Hsort. destruct Hsort as [H9 Hsort].
+ rewrite <- sorted_equiv in Hsort. rewrite Forall_forall in H9.
  rewrite Zlength_cons in Hj.
  destruct (zeq i 0).
  +
@@ -168,26 +162,6 @@ Proof.
   specialize (X H); subst; omega.
 Qed.
 
-Definition while_Inv contents tgt sh a lo hi := EX lo' : Z, EX hi' : Z,
-    PROP  (0 <= lo' <= Int.max_signed; 
-           Int.min_signed <= hi' <= Int.max_signed / 2;
-           hi' <= Zlength contents;
-           In tgt (sublist lo hi contents) <-> In tgt (sublist lo' hi' contents))
-    LOCAL (temp _a a; temp _tgt (Vint (Int.repr tgt));
-           temp _lo (Vint (Int.repr lo')); temp _hi (Vint (Int.repr hi')))
-    SEP   (data_at sh (tarray tint (Zlength contents))
-                   (map Vint (map Int.repr contents)) a).
-
-Lemma entail_post : forall Delta P Post ek vl,
-    ENTAIL Delta, P |-- Post EK_normal None ->
-    ENTAIL Delta, overridePost P Post ek vl |-- Post ek vl.
-Proof.
-  intros.
-  unfold overridePost; destruct (eq_dec ek EK_normal).
-  - normalize; subst; auto.
-  - unfold local, lift1; simpl; normalize.
-Qed.
-
 Lemma Znth_In_sublist : forall A i (l : list A) d lo hi
   (Hlo : 0 <= lo <= i) (Hhi : i < hi <= Zlength l),
   In (Znth i l d) (sublist lo hi l).
@@ -215,8 +189,16 @@ Proof.
  start_function.
  destruct H0.
  assert (H6 := Int.min_signed_neg).
- forward_while (while_Inv contents tgt sh a lo hi).
- * unfold while_Inv.  Exists lo; Exists hi; entailer!.
+ forward_while (EX lo' : Z, EX hi' : Z,
+    PROP  (0 <= lo' <= Int.max_signed; 
+           Int.min_signed <= hi' <= Int.max_signed / 2;
+           hi' <= Zlength contents;
+           In tgt (sublist lo hi contents) <-> In tgt (sublist lo' hi' contents))
+    LOCAL (temp _a a; temp _tgt (Vint (Int.repr tgt));
+           temp _lo (Vint (Int.repr lo')); temp _hi (Vint (Int.repr hi')))
+    SEP   (data_at sh (tarray tint (Zlength contents))
+                   (map Vint (map Int.repr contents)) a)).
+ * Exists lo; Exists hi; entailer!.
  * entailer!.
  *
   match goal with H : _ <-> _ |- _ => rename H into H_tgt_sublist end.
