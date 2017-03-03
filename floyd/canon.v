@@ -24,15 +24,11 @@ Proof.
 Qed.
 
 (*
-
 (**** New experiments regarding TEMP and VAR *)
-
 Definition temp (i: ident) (v: val) : environ -> Prop :=
    `(eq v) (eval_id i).
-
 Definition var (i: ident) (t: type) (v: val) : environ -> Prop :=
    `(eq v) (eval_var i t).
-
 Definition lvar {cs: compspecs} (i: ident) (t: type) (v: val) (rho: environ) : Prop :=
      (* local variable *)
    match Map.get (ve_of rho) i with
@@ -42,7 +38,6 @@ Definition lvar {cs: compspecs} (i: ident) (t: type) (v: val) (rho: environ) : P
        else False
    | None => False
    end.
-
 Definition gvar (i: ident) (v: val) (rho: environ) : Prop :=
     (* visible global variable *)
    match Map.get (ve_of rho) i with
@@ -53,14 +48,12 @@ Definition gvar (i: ident) (v: val) (rho: environ) : Prop :=
        | None => False
        end
    end.
-
 Definition sgvar (i: ident) (v: val) (rho: environ) : Prop := 
     (* (possibly) shadowed global variable *)
    match ge_of rho i with
        | Some b => v = Vptr b Int.zero
        | None => False
    end.
-
 *)
 Inductive localdef : Type :=
  | temp: ident -> val -> localdef
@@ -193,30 +186,29 @@ Proof.
   + simpl; auto.
   + simpl in *.
     rewrite !approx_sepcon.
-    f_equal; [| auto]. clear IHForall H0 l.
-    eapply H; trivial.
+    f_equal;
+    auto.
 Qed.
 
 Lemma LOCALx_super_non_expansive: forall A Q R,
   super_non_expansive R ->
   Forall (fun Q0 => @super_non_expansive A (fun ts a rho => prop (locald_denote (Q0 ts a) rho))) Q ->
   @super_non_expansive A (fun ts a rho => LOCALx (map (fun Q0 => Q0 ts a) Q) (R ts a) rho).
-Proof. 
+Proof.
   intros.
   hnf; intros.
   unfold LOCALx.
   simpl.
   rewrite !approx_andp.
-  f_equal; [| apply H].
+  f_equal; auto.
   induction H0.
-    + auto.
-    + simpl.
-      unfold local, lift1.
-      unfold_lift.
-      rewrite !prop_and.
-      rewrite !approx_andp.
-      f_equal; auto.
-      apply H0. 
+  + auto.
+  + simpl.
+    unfold local, lift1.
+    unfold_lift.
+    rewrite !prop_and.
+    rewrite !approx_andp.
+    f_equal; auto.
 Qed.
 
 Lemma PROPx_super_non_expansive: forall A P Q,
@@ -229,14 +221,13 @@ Proof.
   unfold PROPx.
   simpl.
   rewrite !approx_andp.
-  f_equal; [| apply H].
+  f_equal; auto.
   induction H0.
   + auto.
   + simpl.
     rewrite !prop_and.
     rewrite !approx_andp.
     f_equal; auto.
-    apply H0; auto.
 Qed.
 
 Lemma PROP_LOCAL_SEP_super_non_expansive: forall A P Q R,
@@ -276,7 +267,7 @@ Lemma LOCALx_nonexpansive: forall Q R rho,
 Proof.
   intros.
   unfold LOCALx.
-  apply (@conj_nonexpansive compcert_rmaps.RML.R.rmap); [| solve [auto]].
+  apply (conj_nonexpansive (fun S => local (fold_right ` and ` True (map locald_denote Q)) rho) (fun S => R S rho)); [| auto].
   apply const_nonexpansive.
 Qed.
 
@@ -287,7 +278,10 @@ Lemma PROPx_nonexpansive: forall P Q rho,
 Proof.
   intros.
   unfold PROPx.
-  apply (@conj_nonexpansive compcert_rmaps.RML.R.rmap); [| auto].
+  apply (conj_nonexpansive (fun S => @prop mpred Nveric (fold_right and True
+         (map
+            (fun P0 : mpred -> Prop
+             => P0 S) P))) (fun S => Q S rho)); [| auto].
   clear - H.
   induction P.
   + simpl.
@@ -297,12 +291,14 @@ Proof.
       (fun P0 => (prop (a P0 /\ fold_right and True (map (fun P1 => P1 P0) P)))%logic)
     with
       (fun P0 => (prop (a P0) && prop (fold_right and True (map (fun P1 => P1 P0) P)))%logic).
-    * apply (@conj_nonexpansive compcert_rmaps.RML.R.rmap).
-      - inversion H; auto.
-      - apply IHP.
-        inversion H; auto.
-    * extensionality S.
+    Focus 2. {
+      extensionality S.
       rewrite prop_and; auto.
+    } Unfocus.
+    apply (conj_nonexpansive (fun S => @prop mpred Nveric (a S)) _).
+    - inversion H; auto.
+    - apply IHP.
+      inversion H; auto.
 Qed.
 
 Lemma PROP_LOCAL_SEP_nonexpansive: forall P Q R rho,
@@ -665,7 +661,6 @@ Goal (SEP (a;b;c;d;e;f;g;h;i;j) = SEP (d;b;a;c;e;f;g;h;i;j)).
 focus_SEP 3 1. 
 auto.
 Qed.
-
 *)
 
 Lemma semax_post0:
@@ -1989,7 +1984,6 @@ Proof.
     apply prop_right.
     apply make_args1_tc_environ; auto.
     rewrite tc_val_eq in H3; auto.
-  (*+ congruence.*)
 Qed.
 
 Lemma semax_post_ret0: forall P' R' Espec {cs: compspecs} Delta P R Pre c,

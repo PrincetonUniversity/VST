@@ -226,7 +226,10 @@ Definition SpecTT (A: TypeTree): TypeTree :=
 
 Definition super_non_expansive {A: TypeTree}
   (P: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred): Prop :=
-  forall n ts x rho,
+  forall n ts
+    (x: functors.MixVariantFunctor._functor
+                         (rmaps.dependent_type_functor_rec ts A) mpred)
+    (rho: environ),
   approx n (P ts x rho) = approx n (P ts (fmap _ (approx n) (approx n) x) rho).
 
 Definition const_super_non_expansive: forall (T: Type) P,
