@@ -530,7 +530,7 @@ Proof. intros. simpl.
     Intros.
     freeze [0;1;2;4] FR9.
     rewrite data_at_isptr with (p:=K). Intros.
-    destruct K; try solve [contradiction].
+    (*destruct K; try solve [contradiction].*)
     thaw FR9.
     replace_SEP 1 (UNDER_SPEC.EMPTY (snd (snd (*md_ctx*)(IS1a, (IS1b, IS1c))))) by (entailer!; apply UNDER_SPEC.FULL_EMPTY).
 
@@ -538,10 +538,11 @@ Proof. intros. simpl.
     Time forward_call (field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
                        (*md_ctx*)(IS1a, (IS1b, IS1c)),
                        (Zlength (HMAC256 (V ++ [i] ++ (if na then contents else [])) key)),
-                       HMAC256 (V ++ [i] ++ (if na then contents else [])) key, kv, b, i0). (*14; Naphat 75 *)
+                       HMAC256 (V ++ [i] ++ (if na then contents else [])) key, kv, K). (*14; Naphat 75 *)
     {
       (* prove the function parameters match up *)
-      apply prop_right. rewrite hmac_common_lemmas.HMAC_Zlength, FA_ctx_MDCTX; simpl.
+      apply prop_right. destruct K; try solve [contradiction].
+      rewrite hmac_common_lemmas.HMAC_Zlength, FA_ctx_MDCTX; simpl.
       rewrite offset_val_force_ptr, isptr_force_ptr, sem_cast_neutral_ptr; trivial. auto.
     }
     {
@@ -616,8 +617,12 @@ Proof. intros. simpl.
     unfold_data_at 3%nat.
     thaw OtherFields. cancel.
     rewrite (field_at_data_at _ _ [StructField _md_ctx]);
-    rewrite (field_at_data_at _ _ [StructField _V]). cancel.
-Time Qed. (* 266 secs (42u,0.015s) in Coq8.5pl2*)
+    rewrite (field_at_data_at _ _ [StructField _V]).
+idtac "Timing the Qed of loopbody". cancel.
+Time Qed.
+ (*Feb 23rd, ie after merging semaxpost''-update: Finished transaction in 6180.062 secs (184.093u,0.375s) (successful)*)
+ (*Feb22nd 2017: Finished transaction in 2441.578 secs (275.296u,1.437s) (successful) *)
+ (*earlier: 266 secs (42u,0.015s) in Coq8.5pl2*)
  (*Dec 3rd, 2016: 1128secs (347u, 3.5s) in 8.5pl2 on laptop; laptop-make: 234s, (234u), total processing time for file: 8m17s*)
  (*Dec 6th, 2016: 1217.59 secs (435.912u,7.552s) in 8.5pl2 on laptop; laptop-make: 249.252 secs (249.328u,0.051s), 8m33s for file*)
 
@@ -839,5 +844,7 @@ Proof.
   + subst i ; simpl; trivial.
   + simpl. destruct (initial_world.EqDec_Z add_len 0); simpl; trivial.
     destruct H1; try solve[omega].
-    subst add_len. destruct contents; simpl; trivial. elim n. apply Zlength_nil.
-Time Qed. (*Dec 6th: 24s (laptop)*)
+    subst add_len. destruct contents; simpl; trivial. elim n.
+idtac "Timing the Qed of hmacdrbg_update". apply Zlength_nil.
+Time Qed. (*Feb 22nd 2017: 68.655 secs (62.937u,0.187s) (successful)
+           Dec 6th: 24s (laptop)*)

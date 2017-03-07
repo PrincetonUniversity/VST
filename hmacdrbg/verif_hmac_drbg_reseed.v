@@ -501,22 +501,10 @@ Proof.
   subst contents'.
   unfold_data_at 1%nat. (*crucial: doing the field assignment without unfolding data_at results in the forward taking 1200secs*)
 (*  freeze [0;1;2;4;5;6] FIELDS. optional wrt performance*)
-  Time forward.
-(* Opaque HMAC_DRBG_update. Opaque HMAC256_functional_prog.HMAC256.
-   Opaque HMAC256_DRBG_functional_prog.HMAC256_DRBG_update.
-   clear Heqnon_empty_additional non_empty_additional.
-   subst V' reseed_counter' entropy_len' reseed_interval' prediction_resistance'.
-   clear - Heqp Heqentropy_result H10 H1 H2 H H0 H3 H4.
-   freeze [1] FR13. thaw FR13.
-  Time forward. *)(*preceding forward with (an information-losing clear reduces time to 1100secs*)
-    (*Coq8.5pl2: 1210.094 secs (336.421u,0.687s) *)
-    (*takes 3597secs if HMAC256_DRBG_functional_prog.HMAC256_DRBG_update is opaque*)
-    (*in VST1.6, this forward takes 1968.182 secs, without allocating a single KB of memory ;-) *)
-    (*Coq8.5pl1: 1100secs*)
-(*yields a field_at ctx*)
+  forward.
 
   (* return 0 *)
-  Time forward. (*5 secs*)
+  idtac "Timing a forward (goal: 5secs)". Time forward. (*5 secs*)
   Exists seed (Vint (Int.repr 0)). normalize.
   entailer!.
 
@@ -524,7 +512,6 @@ Proof.
   { clear - ZLc' AL256. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; trivial. }
 
   apply Zgt_is_gt_bool_f in AL256.
-(*  apply Zgt_is_gt_bool_f in EAL384.*)
   assert (Z: (zlt 256 (Zlength contents)
        || zlt 384
             (hmac256drbgabs_entropy_len
@@ -534,10 +521,6 @@ Proof.
     destruct (zlt 384 (Zlength entropy_bytes + Zlength contents)); simpl; trivial. omega.
   }
   unfold reseedPOST. rewrite Z.
-(*  assert (ZL: Zlength contents >? 256 = false).
-  { clear -  H10. apply Zge_is_le_bool in H10.
-    unfold Z.gtb. unfold Z.leb in H10. destruct (Zlength contents ?= 256); trivial. discriminate.
-  }*)
   entailer!.
   { unfold return_value_relate_result. simpl.
     rewrite andb_negb_r, ZL1.
@@ -569,8 +552,10 @@ Proof.
   specialize (Zlength_nonneg (contents_with_add additional (Zlength contents) contents)).
   intros; omega.
 
-  rewrite <- Heqp in *. inv Heqq. cancel.
-Time Qed. (*Coq8.5pl2: 44secs*)
+  rewrite <- Heqp in *. inv Heqq. 
+idtac "Timing the Qed of REST (goal: 45secs)". cancel. 
+Time Qed. (*Feb 23 2017: 216.218 secs (135.625u,0.046s) (successful)*)
+         (*was: Coq8.5pl2: 44secs*)
 
 Lemma body_hmac_drbg_reseed: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
        f_mbedtls_hmac_drbg_reseed hmac_drbg_reseed_spec.
@@ -804,5 +789,7 @@ Proof.
 
   rename l into entropy_bytes.
   thaw FR5. thaw FR4.
-  eapply REST with (s0:=s0)(contents':=contents'); trivial. omega.
-Time Qed. (*Coq8.5pl2: 24secs*)
+  eapply REST with (s0:=s0)(contents':=contents'); trivial.
+idtac "Timing the Qed of drbg_reseed (goal: 25secs)". omega. 
+Time Qed. (*Feb 23 2017: Finished transaction in 105.344 secs (74.078u,0.015s) (successful)*)
+          (*earlier Coq8.5pl2: 24secs*)

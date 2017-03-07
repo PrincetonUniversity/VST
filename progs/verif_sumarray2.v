@@ -31,8 +31,8 @@ Definition sumarray_spec :=
 Definition main_spec :=
  DECLARE _main
   WITH u : unit
-  PRE  [] main_pre prog u
-  POST [ tint ] main_post prog u.
+  PRE  [] main_pre prog nil u
+  POST [ tint ] main_post prog nil u.
 
 (* Packaging the API spec all together. *)
 Definition Gprog : funspecs :=
@@ -59,20 +59,17 @@ forward_for_simple_bound size
 * (* Prove that current precondition implies loop invariant *)
 entailer!.
 * (* Prove postcondition of loop body implies loop invariant *)
-forward. (* x = a[i] *)
-entailer!. (* This is an example of a typechecking condition
-   that is nontrivial; entailer! leaves a subgoal.  The subgoal basically
-   says that the array-subscript index is in range;  not just in
-   the bounds of the array, but in the _initialized_ portion of the array.*)
-   rewrite Znth_map with (d':=Int.zero). hnf; auto.
-   rewrite Zlength_map in H1; auto.
+
+  (*Insertion of this property is suiggested by an error message in the ensuing forward.
+    The property allows forward to discharge a nontrivial typechecking condition, namely that
+    the array-subscript index is in range;  not just in the bounds of the array, but in
+    the _initialized_ portion of the array.*)    
+  assert_PROP (0 <= i < Zlength (map Vint (map Int.repr contents))) as I by entailer!.
+  rewrite 2 Zlength_map in I.
+
+  forward. (* x = a[i] *)
 forward. (* s += x; *)
 entailer!.
- autorewrite with sublist in *.
- rewrite Znth_map with (d':=Int.zero) by (autorewrite with sublist; omega).
- rewrite Znth_map with (d':=0) by  (autorewrite with sublist; omega).
- simpl.
- rewrite add_repr.
  f_equal. f_equal.
  rewrite (sublist_split 0 i (i+1)) by omega.
  rewrite sum_Z_app. rewrite (sublist_one i) with (d:=0) by omega.
@@ -331,7 +328,7 @@ Into this program we put these assertions:
 
 The assertions are defined in these five definitions:
 *)
-
+(*
 Definition sumarray_Pre a sh contents size :=
 (PROP  ()
    LOCAL (temp _a a;
@@ -339,7 +336,7 @@ Definition sumarray_Pre a sh contents size :=
           temp _n (Vint (Int.repr size));
           temp _s (Vint (Int.repr (sum_Z (sublist 0 0 contents)))))
    SEP   (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a)).
-
+*)
 Definition sumarray_Inv a sh contents size :=
 (EX i: Z,
    PROP  (0 <= i <= size)
@@ -409,21 +406,19 @@ apply semax_seq with (sumarray_Post a sh contents size).
      unfold sumarray_PreBody.
      clear i H1.
      Intros i.
-     forward.  (* x = a[i]; *)
-     entailer!.
+     assert_PROP (0 <= i < Zlength (map Vint (map Int.repr contents))) as I by entailer!.
+     rewrite 2 Zlength_map in I.
+     forward.  (* x = a[i]; *) 
+(*     entailer!.
      autorewrite with sublist in *.
      rewrite Znth_map with (d':=Int.zero).
      apply I.
      autorewrite with sublist.
-     omega.
+     omega.*)
      forward. (* s+=x; *)
      unfold sumarray_PostBody.
      Exists i. entailer!.
      autorewrite with sublist in *.
-     rewrite Znth_map with (d':=Int.zero) by (autorewrite with sublist; omega).
-     rewrite Znth_map with (d':=0) by  (autorewrite with sublist; omega).
-     simpl.
-     rewrite add_repr.
      f_equal. f_equal.
      rewrite (sublist_split 0 i (i+1)) by omega.
      rewrite sum_Z_app. rewrite (sublist_one i) with (d:=0) by omega.

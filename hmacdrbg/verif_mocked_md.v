@@ -7,25 +7,19 @@ Require Import hmacdrbg.hmac_drbg.
 Require Import hmacdrbg.spec_hmac_drbg.
 Require Import floyd.library.
 
-Axiom EmptyDissolve: forall v,
-  UNDER_SPEC.EMPTY v |-- memory_block Tsh (sizeof spec_hmac.t_struct_hmac_ctx_st) v .
-(*Provable in the implementation of UNDERSPEC, but currently not exposed in the interface*)
-
 Lemma body_md_free: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
        f_mbedtls_md_free md_free_spec.
 Proof.
   start_function. rewrite data_at_isptr. Intros.
-  destruct ctx; try contradiction. clear Pctx.
   unfold_data_at 1%nat. destruct r as [r1 [r2 r3]]. simpl.
-  rewrite EMPTY_isptr. Intros. destruct r3; try contradiction. clear Pr3.
-  forward. (*
-  replace_SEP 3 (memory_block Tsh 324 (Vptr b0 i0)).
-  { entailer!. eapply derives_trans. apply EmptyDissolve.
-    rewrite <- CTX_Struct. simpl. trivial. }*)
+  rewrite EMPTY_isptr. Intros. 
+  forward. 
 freeze [0;1;2] FR1.
- forward_call (Vptr b0 i0, 324).
-{ rewrite sepcon_comm. apply sepcon_derives. apply EmptyDissolve. cancel. }
-forward. thaw FR1.
+ forward_call (r3, 324).
+{ rewrite sepcon_comm. apply sepcon_derives. 
+  eapply derives_trans. apply UNDER_SPEC.EmptyDissolve. rewrite data_at__memory_block. entailer!.
+  cancel. }
+forward. thaw FR1. 
   unfold_data_at 1%nat. cancel.
 Qed.
 
@@ -45,10 +39,11 @@ Proof.
   rewrite EMPTY_isptr; Intros.
   unfold_data_at 1%nat.
   forward.
-
-  forward_call (@inr (val * Z * list Z * val) _ (r3, l, key, kv, b, i)).
+  rewrite data_at_isptr with (p:=k). Intros. 
+  destruct k; try contradiction.
+  forward_call (@inr (val * Z * list Z * val) _ (r3, l, key, kv, Vptr b i)).
   (* call pattern for reset:
-  forward_call (@inl _ (val * Z * list Z * val * block * int) (r3, l, key, kv)).*)
+  forward_call (@inl _ (val * Z * list Z * val * val) (r3, l, key, kv)).*)
   { unfold spec_sha.data_block. normalize. cancel. }
   forward.
   cancel. unfold md_relate; simpl. cancel.
@@ -122,7 +117,7 @@ Proof.
   (* HMAC_CTX * hmac_ctx = ctx->hmac_ctx; *)
   forward.
 
-  forward_call (@inl _ (val * Z * list Z * val * block * int) (internal_r, 32, key, kv)).
+  forward_call (@inl _ (val * Z * list Z * val * val) (internal_r, 32, key, kv)). 
   forward.
 
   unfold md_relate; simpl. cancel.

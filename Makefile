@@ -237,12 +237,12 @@ PROGS_FILES= \
   insertionsort.v reverse.v queue.v sumarray.v message.v string.v\
   revarray.v verif_revarray.v insertionsort.v append.v min.v verif_min.v \
   verif_float.v verif_global.v verif_ptr_compare.v \
-  verif_nest3.v verif_nest2.v verif_load_demo.v \
+  verif_nest3.v verif_nest2.v verif_load_demo.v verif_store_demo.v \
   logical_compare.v verif_logical_compare.v field_loadstore.v  verif_field_loadstore.v \
   even.v verif_even.v odd.v verif_odd.v \
   merge.v verif_merge.v verif_append.v verif_append2.v bst.v bst_oo.v verif_bst.v verif_bst_oo.v \
   verif_bin_search.v incr.v verif_incr.v cond.v verif_cond.v conclib.v verif_floyd_tests.v
-# verif_message.v verif_dotprod.v verif_insertion_sort.v 
+# verif_message.v verif_dotprod.v verif_insertion_sort.v verif_sumarray2.v
 
 SHA_FILES= \
   general_lemmas.v SHA256.v common_lemmas.v pure_lemmas.v sha_lemmas.v functional_prog.v \
@@ -366,10 +366,13 @@ FILES = \
 	@echo COQC $*.v
 ifeq ($(TIMINGS), true)
 #	bash -c "wc $*.v >>timings; date +'%s.%N before' >> timings; $(COQC) $(COQFLAGS) $*.v; date +'%s.%N after' >>timings" 2>>timings
-	@bash -c "/bin/time --output=TIMINGS -a -f '%e real, %U user, %S sys, '\"$(shell wc $*.v)\" $(COQC) $(COQFLAGS) $*.v"
+	echo true timings
+	@bash -c "/bin/time --output=TIMINGS -a -f '%e real, %U user, %S sys %M mem, '\"$(shell wc $*.v)\" $(COQC) $(COQFLAGS) $*.v"
 #	echo -n $*.v " " >>TIMINGS; bash -c "/usr/bin/time -o TIMINGS -a $(COQC) $(COQFLAGS) $*.v"
+else ifeq ($(TIMINGS), simple)
+	@/bin/time -f 'TIMINGS %e real, %U user, %S sys %M kbytes: '"$*.v" $(COQC) $(COQFLAGS) $*.v
 else
-	@$(COQC) $(COQFLAGS) $*.v
+	@$(COQC) $(COQFLAGS) $*.v 
 endif
 
 COQVERSION= 8.5pl1 or-else 8.5pl2 or-else 8.5pl3 or-else 8.6beta1 or-else 8.6
@@ -380,24 +383,25 @@ ifeq ("$(filter $(COQVERSION),$(COQV))","")
 endif
 
 
-$(COMPCERT)/lib/%.vo: $(COMPCERT)/lib/%.v
-	@
-$(COMPCERT)/common/%.vo: $(COMPCERT)/common/%.v
-	@
-$(COMPCERT)/cfrontend/%.vo: $(COMPCERT)/cfrontend/%.v
-	@
-$(COMPCERT)/exportclight/%.vo: $(COMPCERT)/exportclight/%.v
-	@
-$(COMPCERT)/flocq/Appli/%.vo: $(COMPCERT)/flocq/Appli/%.v
-	@
-$(COMPCERT)/flocq/Calc/%.vo: $(COMPCERT)/flocq/Calc/%.v
-	@
-$(COMPCERT)/flocq/Core/%.vo: $(COMPCERT)/flocq/Core/%.v
-	@
-$(COMPCERT)/flocq/Prop/%.vo: $(COMPCERT)/flocq/Prop/%.v
-	@
-$(COMPCERT)/flocq/%.vo: $(COMPCERT)/flocq/%.v
-	@
+#  This is causing problems, so commented out.  -- Appel, Feb 23, 2017
+# $(COMPCERT)/lib/%.vo: $(COMPCERT)/lib/%.v
+# 	@
+# $(COMPCERT)/common/%.vo: $(COMPCERT)/common/%.v
+# 	@
+# $(COMPCERT)/cfrontend/%.vo: $(COMPCERT)/cfrontend/%.v
+# 	@
+# $(COMPCERT)/exportclight/%.vo: $(COMPCERT)/exportclight/%.v
+# 	@
+# $(COMPCERT)/flocq/Appli/%.vo: $(COMPCERT)/flocq/Appli/%.v
+# 	@
+# $(COMPCERT)/flocq/Calc/%.vo: $(COMPCERT)/flocq/Calc/%.v
+# 	@
+# $(COMPCERT)/flocq/Core/%.vo: $(COMPCERT)/flocq/Core/%.v
+# 	@
+# $(COMPCERT)/flocq/Prop/%.vo: $(COMPCERT)/flocq/Prop/%.v
+# 	@
+# $(COMPCERT)/flocq/%.vo: $(COMPCERT)/flocq/%.v
+# 	@
 
 all: .loadpath version.vo $(FILES:.v=.vo)
 

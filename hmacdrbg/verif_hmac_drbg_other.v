@@ -188,64 +188,69 @@ Proof.
   (PROP (0<=k<=n )
    LOCAL (temp _p (offset_val k (Vptr b i)); temp _n (Vint (Int.repr (n-k)));
           temp _v (Vptr b i))
-   SEP (data_at_ Tsh (tarray tuchar (n-k)) (offset_val k (Vptr b i));
-        data_at Tsh (tarray tuchar k) (list_repeat (Z.to_nat k) (Vint Int.zero)) (Vptr b i)))).
-  { Exists 0. rewrite Zminus_0_r. entailer. cancel. unfold tarray.
-    apply Tarray_0_emp'. eapply field_compatible_array_smaller0. eassumption. omega. }
-  Intros k. rename H into K.
+   SEP (data_at Tsh (tarray tuchar n) (list_repeat (Z.to_nat k) (Vint Int.zero) ++
+                                       list_repeat (Z.to_nat (n-k)) Vundef) (Vptr b i)))).
+  { Exists 0. rewrite Zminus_0_r. entailer!. }
   eapply semax_seq with (Q:=
          PROP ( )
          LOCAL ()
          SEP (data_block Tsh (list_repeat (Z.to_nat n) 0) (Vptr b i))).
-  2: solve [unfold MORE_COMMANDS, abbreviate; forward].
-  apply semax_loop with (Q':=
-     (PROP ( )
-      LOCAL (temp _p (offset_val k (Vptr b i)); temp _n (Vint (Int.repr (n - k)));
-      temp _v (Vptr b i))
-      SEP (data_at_ Tsh (tarray tuchar (n - k)) (offset_val k (Vptr b i));
-      data_at Tsh (tarray tuchar k) (list_repeat (Z.to_nat k) (Vint Int.zero)) (Vptr b i)))).
-  + forward. forward.
-    forward_if
-     (PROP ( n-k<>0)
-      LOCAL (temp _n (Vint (Int.sub (Int.repr (n - k)) (Int.repr 1)));
-        temp _t'1 (Vint (Int.repr (n - k))); temp _p (offset_val k (Vptr b i));
-        temp _v (Vptr b i))
-      SEP (data_at_ Tsh (tarray tuchar (n - k)) (offset_val k (Vptr b i));
-           data_at Tsh (tarray tuchar k) (list_repeat (Z.to_nat k) (Vint Int.zero)) (Vptr b i))).
+  2: solve [unfold MORE_COMMANDS, abbreviate; forward]. 
+  apply semax_loop with (
+  (EX k : Z,
+   PROP (0 <= k <= n)
+   LOCAL (temp _p (offset_val k (Vptr b i)); temp _n (Vint (Int.repr (n - k)));
+   temp _v (Vptr b i))
+   SEP (data_at Tsh (tarray tuchar n)
+          (list_repeat (Z.to_nat k) (Vint Int.zero) ++ list_repeat (Z.to_nat (n-k)) Vundef)
+          (Vptr b i)))).
+  Focus 2. apply extract_exists_pre. intros k. Intros. forward. entailer.
+           Exists k. entailer!.
+  apply extract_exists_pre. intros k. Intros. rename H into K.
+  forward. forward. 
+    forward_if 
+  (PROP ( n-k<>0 )
+   LOCAL (temp _n (Vint (Int.sub (Int.repr (n - k)) (Int.repr 1)));
+   temp _t'1 (Vint (Int.repr (n - k))); temp _p (offset_val k (Vptr b i));
+   temp _v (Vptr b i))
+   SEP (data_at Tsh (tarray tuchar n)
+          (list_repeat (Z.to_nat k) (Vint Int.zero) ++
+           list_repeat (Z.to_nat (n - k)) Vundef) (Vptr b i))).
     - inv H. forward. apply negb_true_iff in H1. apply int_eq_false_e in H1.
-      entailer. apply prop_right. intros NN; rewrite NN in *. elim H1; trivial.
+      entailer!. elim H1; rewrite H2; trivial.
     - inv H. apply negb_false_iff in H1. apply int_eq_e in H1. rewrite H1.
-      forward.
-      entailer. unfold data_block. normalize. simpl.
-      apply andp_right. apply prop_right. apply Forall_list_repeat. split; omega.
       assert (NK: n = k).
       { apply f_equal with (f:=Int.unsigned) in H1. unfold Int.zero in H1.
         do 2 rewrite Int.unsigned_repr in H1; try omega. }
-      subst k. rewrite Zminus_diag, Zlength_list_repeat; try omega.
-      repeat rewrite general_lemmas.map_list_repeat. cancel.
-      rewrite data_at__memory_block. normalize.
-    - unfold MORE_COMMANDS, abbreviate. forward. forward.
-      unfold offset_val; simpl.
-      replace_SEP 0  (data_at Tsh (tarray tuchar (n - k)) (list_repeat (Z.to_nat (n-k)) Vundef) (Vptr b (Int.add i (Int.repr k)))).
-      { entailer. }
-      admit. (*TODO erewrite (data_at_complete_split [Vundef] (list_repeat (Z.to_nat (n-k-1)) Vundef)); try reflexivity.
-      * normalize. unfold Zlength. simpl. freeze [1;2;3] FR6. unfold tarray, tuchar, tint in *.
-assert (Econst_int (Int.repr 0) tint = Ecast (Econst_int (Int.repr 0) tint) tuchar). admit.
-rewrite H0. forward.
-        admit.
-      * assert (ZZ: [Vundef] = list_repeat (Z.to_nat 1) Vundef) by reflexivity.
-        rewrite ZZ; repeat rewrite Zlength_list_repeat; try omega.
-        assert (QQ: 1 + (n - k - 1) = n-k) by omega. rewrite QQ; clear QQ ZZ.
-        destruct (@field_compatible_Tarray_split hmac_drbg_compspecs.CompSpecs tuchar k n (Vptr b i)) as [FC' _]. omega.
-        destruct (FC' FC) as [_ FFC]; clear FC'.
-        unfold field_address0 in FFC. rewrite if_true in FFC.
-        2: auto with field_compatible.
-        simpl in FFC. rewrite Z.add_0_l, Z.mul_1_l in FFC. apply FFC.
-      * rewrite Zlength_list_repeat. unfold Zlength; simpl. omega. omega.
-      * assert (ZZ: [Vundef] = list_repeat (Z.to_nat 1) Vundef) by reflexivity.
-        rewrite ZZ, list_repeat_app, <- Z2Nat.inj_add; try omega. f_equal. f_equal. omega. *)
-  + forward. entailer.
-Admitted. (*Proof contains one admit, for the missing proof rule for volatile stores*)
+      subst k; clear H1 K. rewrite Zminus_diag.
+      forward.
+      entailer!. unfold data_block. normalize. simpl.
+      apply andp_right. apply prop_right. apply Forall_list_repeat. split; omega. 
+      rewrite Zlength_list_repeat; try omega. 
+      rewrite 2 general_lemmas.map_list_repeat, app_nil_r. cancel.
+    - forward. forward.
+      assert (KN: 0 <= k < n) by omega.
+      (*forward.  The 2 properties mentioned in the error message are equal*)
+      assert_PROP (Vptr b (Int.add i (Int.repr k)) = field_address (tarray tuchar n) [ArraySubsc k] (Vptr b i)) as Addrk.
+      { rewrite field_address_offset.
+        + simpl. rewrite Z.mul_1_l, Z.add_0_l; entailer!.
+        + apply (@field_compatible_cons_Tarray hmac_drbg_compspecs.CompSpecs k (tarray tuchar n) tuchar n noattr
+                  [] (Vptr b i) (eq_refl _) FC KN). }
+      forward.
+      Exists (k+1). rewrite ! Z.sub_add_distr. entailer!. 
+      rewrite upd_Znth_app2 by (rewrite ! Zlength_list_repeat; omega).
+      rewrite Zlength_list_repeat, Zminus_diag by omega.
+      assert (X: list_repeat (Z.to_nat k) (Vint Int.zero) ++
+               upd_Znth 0 (list_repeat (Z.to_nat (n - k)) Vundef)(Vint (Int.zero_ext 8 (Int.repr 0)))
+           = list_repeat (Z.to_nat (k + 1)) (Vint Int.zero) ++
+             list_repeat (Z.to_nat (n - k - 1)) Vundef).
+      2: rewrite X; cancel.
+      rewrite Z2Nat.inj_add, <- list_repeat_app, <- app_assoc by omega. f_equal.
+      assert (X: (Z.to_nat (n - k) = 1+Z.to_nat (n-k-1))%nat).
+      { specialize (Z2Nat.inj_add 1); simpl; intros. rewrite <- H1 by omega. f_equal; omega. }
+      rewrite X, <- list_repeat_app, upd_Znth_app1; clear X; trivial.
+      simpl; rewrite Zlength_cons, Zlength_nil; omega.
+Qed.
 
 Lemma body_hmac_drbg_setPredictionResistance:
       semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs

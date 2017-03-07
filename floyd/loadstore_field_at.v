@@ -376,4 +376,122 @@ Proof.
     rewrite H10; solve_andp.
 Qed.
 
+Lemma semax_partial_path_field_store_nth_ram:
+  forall {Espec: OracleKind},
+    forall n Delta sh P Q R (e1 e2 : expr) Pre Post
+      (t_root: type) (efs: list efield) (gfsA gfsB: list gfield) (tts: list type)
+      (a v : val) (v' : reptype (nested_field_type t_root (gfsB ++ gfsA))) lr,
+      type_is_by_value (typeof (nested_efield e1 efs tts)) = true ->
+      writable_share sh ->
+      LR_of_type (nested_field_type t_root gfsA) = lr ->
+      type_is_volatile (typeof (nested_efield e1 efs tts)) = false ->
+      JMeq v v' ->
+      nth_error R n = Some Pre ->
+      Pre |-- field_at_ sh t_root (gfsB ++ gfsA) a *
+        (field_at sh t_root (gfsB ++ gfsA) v' a -* Post) ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        local (`(eq (field_address t_root gfsA a)) (eval_LR e1 lr)) ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        local (`(eq v) (eval_expr (Ecast e2 (typeof (nested_efield e1 efs tts))))) ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        (tc_LR Delta e1 lr) && 
+        (tc_efield Delta efs) &&
+        efield_denote efs gfsB &&
+        (tc_expr Delta (Ecast e2 (typeof (nested_efield e1 efs tts)))) ->
+      legal_nested_efield (nested_field_type t_root gfsA) e1 gfsB tts lr = true ->
+      semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
+        (Sassign (nested_efield e1 efs tts) e2)
+          (normal_ret_assert
+            (PROPx P
+              (LOCALx Q
+                (SEPx
+                  (replace_nth n R Post))))).
+Proof.
+  intros until 0. intros ByVal Wsh LRo Volatile JM GetR F Evale1 Evale2 Tc Lnef.
+  assert_PROP (typeof (nested_efield e1 efs tts) = nested_field_type t_root (gfsB ++ gfsA)) as EqT. {
+    rewrite <- nested_field_type_nested_field_type.
+    eapply derives_trans; [exact Tc |].
+    rewrite (add_andp _ _ (typeof_nested_efield _ _ _ _ _ _ Lnef)).
+    normalize.
+    apply prop_right; symmetry; auto.
+  }
+  rewrite EqT in ByVal.
+  assert_PROP (field_compatible t_root (gfsB ++ gfsA) a) as Fc. {
+    erewrite SEP_nth_isolate, <- insert_SEP by eauto.
+    apply andp_left2.
+    apply derives_left_sepcon_right_corable; auto.
+    intro rho; unfold_lift; simpl.
+    eapply derives_trans; [apply F |].
+    apply derives_left_sepcon_right_corable; auto.
+    unfold field_at_. rewrite field_at_compatible'.
+    normalize.
+  }
+  eapply semax_store_nth_ram with (p := (field_address t_root (gfsB ++ gfsA) a)).
+  + exact EqT.
+  + rewrite field_address_app by assumption.
+    rewrite (add_andp _ _ Evale1), (add_andp _ _ Tc).
+    eapply derives_trans; [| apply eval_lvalue_nested_efield; try eassumption].
+    - solve_andp.
+    - apply field_compatible_app. exact Fc.
+    - rewrite nested_field_type_nested_field_type. exact ByVal.
+  + rewrite <- EqT. exact Evale2.
+  + exact GetR.
+  + exact Wsh.
+  + eapply RAMIF_PLAIN.trans; [exact F |].
+    apply mapsto_field_at_ramify; [auto | rewrite <- EqT; auto | | auto].
+    apply JMeq_sym; apply by_value_default_val; auto.
+  + apply andp_right.
+    - rewrite (add_andp _ _ Evale1), (add_andp _ _ Tc).
+      eapply derives_trans; [| eapply tc_lvalue_nested_efield].
+      * solve_andp.
+      * apply field_compatible_app. exact Fc.
+      * exact LRo.
+      * exact Lnef.
+      * rewrite nested_field_type_nested_field_type. exact ByVal.
+    - eapply derives_trans; [exact Tc |].
+      rewrite EqT; solve_andp.
+Qed.
+
+Lemma semax_no_path_field_store_nth_ram:
+  forall {Espec: OracleKind},
+    forall n Delta sh P Q R (e1 e2 : expr) Pre Post
+      (t_root: type) (gfs: list gfield)
+      (a v : val) (v' : reptype (nested_field_type t_root gfs)),
+      type_is_by_value (typeof e1) = true ->
+      writable_share sh ->
+      type_is_volatile (typeof e1) = false ->
+      typeof e1 = nested_field_type t_root gfs ->
+      JMeq v v' ->
+      nth_error R n = Some Pre ->
+      Pre |-- field_at_ sh t_root gfs a *
+        (field_at sh t_root gfs v' a -* Post) ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        local (`(eq (field_address t_root gfs a)) (eval_lvalue e1)) ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        local (`(eq v) (eval_expr (Ecast e2 (typeof e1)))) ->
+      ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
+        (tc_lvalue Delta e1) && 
+        (tc_expr Delta (Ecast e2 (typeof e1))) ->
+      semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
+        (Sassign e1 e2)
+          (normal_ret_assert
+            (PROPx P
+              (LOCALx Q
+                (SEPx
+                  (replace_nth n R Post))))).
+Proof.
+  intros until 0. intros ByVal Wsh Volatile EqT JM GetR F Evale1 Evale2 Tc.
+  rewrite EqT in ByVal.
+  eapply semax_store_nth_ram with (p := (field_address t_root gfs a)).
+  + exact EqT.
+  + exact Evale1.
+  + rewrite <- EqT. exact Evale2.
+  + exact GetR.
+  + exact Wsh.
+  + eapply RAMIF_PLAIN.trans; [exact F |].
+    apply mapsto_field_at_ramify; [auto | rewrite <- EqT; auto | | auto].
+    apply JMeq_sym; apply by_value_default_val; auto.
+  + rewrite <- EqT. exact Tc.
+Qed.
+
 End LOADSTORE_FIELD_AT.

@@ -2121,8 +2121,9 @@ Transparent HMAC256_DRBG_generate_function.
        unfold HMAC_DRBG_update in Heqq. inv Heqq. simpl. normalize.
        apply andp_right. apply prop_right. repeat split; trivial. cancel.
        unfold_data_at 1%nat. cancel.
-Time Qed.
-(*Coq8.5pl2, Dec7th:
+Time Qed.  
+(* Feb 23 2017: 708.407 secs (557.781u,0.609s) (successful)*)
+(*Coq8.5pl2, Dec7th: 
   CoqIde(Windows): 152.187 secs (152.u,0.156s) (successful) 1.87GB memory use
   coqc(Windows):  147.858 secs (147.64u,0.14s) (successful),
                   10m36s compilation time; 1.7GB memory use*)

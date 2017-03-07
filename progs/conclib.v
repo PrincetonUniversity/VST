@@ -8,6 +8,45 @@ Require Export floyd.sublist.
 (* general list lemmas *)
 Notation vint z := (Vint (Int.repr z)).
 
+Lemma app_cons_assoc : forall {A} l1 (x : A) l2, l1 ++ x :: l2 = (l1 ++ [x]) ++ l2.
+Proof.
+  intros; rewrite <- app_assoc; auto.
+Qed.
+
+Lemma Forall_forall_Znth : forall {A} (P : A -> Prop) l d,
+  Forall P l <-> forall i, 0 <= i < Zlength l -> P (Znth i l d).
+Proof.
+  split; intros; [apply Forall_Znth; auto|].
+  induction l; auto.
+  rewrite Zlength_cons in *.
+  constructor.
+  - specialize (H 0); rewrite Znth_0_cons in H; apply H.
+    pose proof (Zlength_nonneg l); omega.
+  - apply IHl; intros.
+    specialize (H (i + 1)).
+    rewrite Znth_pos_cons, Z.add_simpl_r in H by omega.
+    apply H; omega.
+Qed.
+
+Lemma Zmod_smallish : forall x y, y <> 0 -> 0 <= x < 2 * y ->
+  x mod y = x \/ x mod y = x - y.
+Proof.
+  intros.
+  destruct (zlt x y); [left; apply Zmod_small; omega|].
+  rewrite <- Z.mod_add with (b := -1) by auto.
+  right; apply Zmod_small; omega.
+Qed.
+
+Lemma Zmod_plus_inv : forall a b c d (Hc : c > 0) (Heq : (a + b) mod c = (d + b) mod c),
+  a mod c = d mod c.
+Proof.
+  intros; rewrite Zplus_mod, (Zplus_mod d) in Heq.
+  pose proof (Z_mod_lt a c Hc).
+  pose proof (Z_mod_lt b c Hc).
+  pose proof (Z_mod_lt d c Hc).
+  destruct (Zmod_smallish (a mod c + b mod c) c), (Zmod_smallish (d mod c + b mod c) c); omega.
+Qed.
+
 Lemma Znth_app : forall {A} (l1 l2 : list A) i d, Zlength l1 = i -> Znth i (l1 ++ l2) d = Znth 0 l2 d.
 Proof.
   intros; subst; rewrite app_Znth2, Zminus_diag; auto; omega.
@@ -29,7 +68,7 @@ Proof.
   rewrite Zlength_correct, Z2Nat.inj_lt, Nat2Z.id in H; try omega.
   destruct (Z.to_nat MAX - length l)%nat eqn: Hminus; [omega|].
   replace (Z.to_nat MAX - (length l + 1))%nat with n by omega.
-  unfold upd_Znth, sublist.sublist; simpl.
+  unfold upd_Znth, sublist; simpl.
   rewrite Zlength_cons.
   unfold Z.succ; rewrite Z.add_simpl_r.
   rewrite Zlength_correct, Nat2Z.id, firstn_exact_length.
@@ -58,7 +97,7 @@ Proof.
   rewrite <- app_assoc; auto.
 Qed.
 
-Lemma Forall_app : forall A (P : A -> Prop) l1 l2,
+Lemma Forall_app : forall {A} (P : A -> Prop) l1 l2,
   Forall P (l1 ++ l2) <-> Forall P l1 /\ Forall P l2.
 Proof.
   induction l1; split; auto; intros.
@@ -69,7 +108,7 @@ Proof.
     rewrite IHl1; split; auto.
 Qed.
 
-Lemma repeat_plus : forall A (x : A) i j, repeat x (i + j) = repeat x i ++ repeat x j.
+Lemma repeat_plus : forall {A} (x : A) i j, repeat x (i + j) = repeat x i ++ repeat x j.
 Proof.
   induction i; auto; simpl; intro.
   rewrite IHi; auto.
@@ -89,13 +128,6 @@ Lemma Forall_skipn : forall {A} (P : A -> Prop) l i, Forall P l ->
 Proof.
   intros; rewrite Forall_forall in *.
   intros ? Hin; pose proof (skipn_In _ _ _ Hin); auto.
-Qed.
-
-Lemma Forall_sublist : forall {A} (P : A -> Prop) l i j, Forall P l ->
-  Forall P (sublist.sublist i j l).
-Proof.
-  intros; unfold sublist.sublist.
-  apply Forall_firstn; apply Forall_skipn; auto.
 Qed.
 
 Lemma Forall_upd_Znth : forall {A} (P : A -> Prop) x l i, Forall P l -> P x ->
@@ -134,6 +166,29 @@ Proof.
     apply nth_last.
 Qed.
 
+Lemma Forall2_In_l : forall {A B} (P : A -> B -> Prop) x l1 l2, Forall2 P l1 l2 -> In x l1 ->
+  exists y, In y l2 /\ P x y.
+Proof.
+  induction 1; intro Hin; destruct Hin; simpl.
+  - subst; eauto.
+  - destruct IHForall2 as (? & ? & ?); eauto.
+Qed.
+
+Lemma Forall2_In_r : forall {A B} (P : A -> B -> Prop) x l1 l2, Forall2 P l1 l2 -> In x l2 ->
+  exists y, In y l1 /\ P y x.
+Proof.
+  induction 1; intro Hin; destruct Hin; simpl.
+  - subst; eauto.
+  - destruct IHForall2 as (? & ? & ?); eauto.
+Qed.
+
+Lemma last_snoc : forall {A} (d : A) x l, last (l ++ [x]) d = x.
+Proof.
+  induction l; auto; simpl.
+  destruct (l ++ [x]) eqn: Heq; auto.
+  contradiction (app_cons_not_nil l [] x); auto.
+Qed.
+
 Lemma sepcon_app : forall l1 l2, fold_right sepcon emp (l1 ++ l2) =
   fold_right sepcon emp l1 * fold_right sepcon emp l2.
 Proof.
@@ -144,6 +199,12 @@ Qed.
 
 Definition rotate {A} (l : list A) n m := sublist (m - n) (Zlength l) l ++
   sublist 0 (m - n) l.
+
+Lemma sublist_of_nil : forall {A} i j, sublist i j (@nil A) = [].
+Proof.
+  intros; unfold sublist.
+  rewrite skipn_nil, firstn_nil; auto.
+Qed.
 
 Lemma sublist_0_cons : forall {A} j x (l : list A), j > 0 ->
   sublist 0 j (x :: l) = x :: sublist 0 (j - 1) l.
@@ -168,48 +229,108 @@ Proof.
     rewrite Z2Nat.inj_sub, Hi; simpl; omega.
 Qed.
 
-Lemma upd_rotate : forall {A} i (l : list A) n m x (Hl : Zlength l = m) (Hlt : 0 <= n < m)
+Lemma upd_rotate : forall {A} i (l : list A) n m x (Hl : Zlength l = m) (Hlt : 0 <= n <= m)
   (Hi : 0 <= i < Zlength l),
   upd_Znth i (rotate l n m) x = rotate (upd_Znth ((i - n) mod m) l x) n m.
 Proof.
-  intros; unfold upd_Znth, rotate.
-  subst; autorewrite with sublist.
-  exploit (Z_mod_lt (i - n) (Zlength l)); [omega|].
-  intro; repeat rewrite Zlength_sublist; try omega.
-  rewrite sublist_app by (autorewrite with sublist; omega).
-  autorewrite with sublist.
-  destruct (Z_lt_dec i n) as [?H | ?H].
-*
-  assert (Heq: (i - n) mod Zlength l = Zlength l + i - n). {
-      rewrite Zmod_eq; [|omega].
-      replace (_ / _) with (-1); try Omega0.
-      replace (_ - _) with (- (n - i)); [|omega].
-      rewrite Z_div_nz_opp_full, Zdiv_small; try omega.
+  intros; unfold rotate.
+  rewrite upd_Znth_Zlength by (subst; apply Z_mod_lt; omega).
+  destruct (zlt i (Zlength l - (m - n))).
+  - rewrite upd_Znth_app1 by (rewrite Zlength_sublist; omega).
+    assert ((i - n) mod m = m + i - n) as Hmod.
+    { rewrite <- Z.mod_add with (b := 1) by omega.
       rewrite Zmod_small; omega. }
-  rewrite Heq; clear Heq.
-  autorewrite with sublist.
-  rewrite sublist_app by (autorewrite with sublist; omega).
-  autorewrite with sublist.
-  rewrite sublist_app by (autorewrite with sublist; omega).
-  autorewrite with sublist.
-  rewrite <- app_assoc.
-  f_equal. f_equal; omega.
-  rewrite sublist_0_cons by omega.
-  simpl. f_equal. f_equal.
-  autorewrite with sublist.
-  f_equal. omega. omega.
-*
-  rewrite Zmod_small by omega.
-  autorewrite with sublist.
-  rewrite <- app_assoc.
-  rewrite sublist_S_cons by omega.
-  autorewrite with sublist.
-  f_equal. f_equal; omega.
-  rewrite sublist_app by (autorewrite with sublist; omega).
-  autorewrite with sublist.
-  rewrite sublist_0_cons by omega.
-  autorewrite with sublist.
-  f_equal. f_equal. f_equal; omega.
+    rewrite Hmod, sublist_upd_Znth_lr, sublist_upd_Znth_l by (auto; omega).
+    replace (m + i - n - (m - n)) with i by omega; auto.
+  - rewrite upd_Znth_app2; rewrite ?Zlength_sublist; try omega.
+    assert ((i - n) mod m = i - n) as Hmod.
+    { rewrite Zmod_small; omega. }
+    rewrite Hmod, sublist_upd_Znth_r, sublist_upd_Znth_lr by omega.
+    replace (i - (Zlength l - (m - n))) with (i - n - 0) by omega; auto.
+Qed.
+
+Lemma Znth_cons_eq : forall {A} (d : A) i x l, Znth i (x :: l) d = if eq_dec i 0 then x else Znth (i - 1) l d.
+Proof.
+  intros.
+  destruct (eq_dec i 0); [subst; apply Znth_0_cons|].
+  destruct (zlt i 0); [rewrite !Znth_underflow; auto; omega|].
+  apply Znth_pos_cons; omega.
+Qed.
+
+Lemma Znth_rotate : forall {A} (d : A) i l n, 0 <= n <= Zlength l -> 0 <= i < Zlength l ->
+  Znth i (rotate l n (Zlength l)) d = Znth ((i - n) mod Zlength l) l d.
+Proof.
+  intros; unfold rotate.
+  destruct (zlt i n).
+  - rewrite app_Znth1 by (rewrite Zlength_sublist; omega).
+    rewrite Znth_sublist by omega.
+    rewrite <- Z_mod_plus with (b := 1), Zmod_small by omega.
+    f_equal; omega.
+  - rewrite app_Znth2; (rewrite Zlength_sublist; try omega).
+    rewrite Znth_sublist by omega.
+    rewrite Zmod_small by omega.
+    f_equal; omega.
+Qed.
+
+Lemma rotate_nil : forall {A} n m, rotate (@nil A) n m = [].
+Proof.
+  intros; unfold rotate; rewrite !sublist_of_nil; auto.
+Qed.
+
+Lemma Forall_sublist_le : forall {A} (P : A -> Prop) i j l d
+  (Hrangei : 0 <= i) (Hrangej : j <= Zlength l) (Hi : ~P (Znth i l d)) (Hj : Forall P (sublist 0 j l)),
+  j <= i.
+Proof.
+  intros.
+  destruct (Z_le_dec j i); auto.
+  eapply Forall_Znth with (i0 := i) in Hj; [|rewrite Zlength_sublist; omega].
+  rewrite Znth_sublist, Z.add_0_r in Hj by omega.
+  contradiction Hi; eauto.
+Qed.
+
+Corollary Forall_sublist_first : forall {A} (P : A -> Prop) i j l d
+  (Hrangei : 0 <= i <= Zlength l) (Hi : Forall P (sublist 0 i l)) (Hi' : ~P (Znth i l d))
+  (Hrangej : 0 <= j <= Zlength l) (Hj : Forall P (sublist 0 j l)) (Hj' : ~P (Znth j l d)),
+  i = j.
+Proof.
+  intros.
+  apply Z.le_antisymm; eapply Forall_sublist_le; eauto; omega.
+Qed.
+
+Lemma Znth_In : forall {A} i l (d : A), 0 <= i < Zlength l -> In (Znth i l d) l.
+Proof.
+  intros; unfold Znth.
+  destruct (zlt i 0); [omega|].
+  apply nth_In; rewrite Zlength_correct in *; Omega0.
+Qed.
+
+Lemma NoDup_Znth_inj : forall {A} (d : A) l i j (HNoDup : NoDup l)
+  (Hi : 0 <= i < Zlength l) (Hj : 0 <= j < Zlength l) (Heq : Znth i l d = Znth j l d),
+  i = j.
+Proof.
+  induction l; intros.
+  { rewrite Zlength_nil in *; omega. }
+  inv HNoDup.
+  rewrite Zlength_cons in *.
+  rewrite !Znth_cons_eq in Heq.
+  destruct (eq_dec i 0), (eq_dec j 0); subst; auto.
+  - contradiction H1; apply Znth_In; omega.
+  - contradiction H1; apply Znth_In; omega.
+  - exploit (IHl (i - 1) (j - 1)); auto; omega.
+Qed.
+
+Lemma rotate_In : forall {A} (x : A) n m l, 0 <= m - n <= Zlength l -> In x (rotate l n m) <-> In x l.
+Proof.
+  unfold rotate; intros.
+  replace l with (sublist 0 (m - n) l ++ sublist (m - n) (Zlength l) l) at 4
+    by (rewrite sublist_rejoin, sublist_same; auto; omega).
+  rewrite !in_app; tauto.
+Qed.
+
+Lemma rotate_map : forall {A B} (f : A -> B) n m l, rotate (map f l) n m = map f (rotate l n m).
+Proof.
+  intros; unfold rotate.
+  rewrite !sublist_map, Zlength_map, map_app; auto.
 Qed.
 
 Lemma combine_app : forall {A B} (l1 l2 : list A) (l1' l2' : list B), length l1 = length l1' ->
@@ -293,6 +414,14 @@ Lemma combine_eq : forall {A B} (l : list (A * B)), combine (map fst l) (map snd
 Proof.
   induction l; auto; simpl.
   destruct a; rewrite IHl; auto.
+Qed.
+
+Lemma signed_inj : forall i1 i2, Int.signed i1 = Int.signed i2 -> i1 = i2.
+Proof.
+  intros.
+  apply int_eq_e.
+  rewrite Int.eq_signed, H.
+  apply zeq_true.
 Qed.
 
 Lemma mods_repr : forall a b, 0 <= a <= Int.max_signed -> 0 < b <= Int.max_signed ->
@@ -467,13 +596,6 @@ Proof.
   rewrite Nat2Z.id; destruct (zlt (Z.of_nat n) 0); auto; omega.
 Qed.
 
-Lemma Znth_In : forall {A} i l (d : A), 0 <= i < Zlength l -> In (Znth i l d) l.
-Proof.
-  intros; unfold Znth.
-  destruct (zlt i 0); [omega|].
-  apply nth_In; rewrite Zlength_correct in *; Omega0.
-Qed.
-
 Lemma Znth_combine : forall {A B} i l1 l2 (a : A) (b : B), Zlength l1 = Zlength l2 ->
   Znth i (combine l1 l2) (a, b) = (Znth i l1 a, Znth i l2 b).
 Proof.
@@ -624,6 +746,23 @@ Proof.
   rewrite in_app; simpl; auto.
 Qed.
 
+Lemma NoDup_Znth_iff : forall {A} (l : list A) d,
+  NoDup l <-> forall i j (Hi : 0 <= i < Zlength l) (Hj : 0 <= j < Zlength l), Znth i l d = Znth j l d -> i = j.
+Proof.
+  split; intros; [eapply NoDup_Znth_inj; eauto|].
+  induction l; rewrite ?Zlength_cons in *; constructor.
+  - intro Hin; eapply In_Znth in Hin; destruct Hin as (j & ? & Hj).
+    exploit (H 0 (j + 1)); try omega.
+    rewrite !Znth_cons_eq; simpl.
+    if_tac; [omega|].
+    rewrite Z.add_simpl_r; eauto.
+  - apply IHl; intros.
+    exploit (H (i + 1) (j + 1)); try omega.
+    rewrite !Znth_cons_eq, !Z.add_simpl_r.
+    if_tac; [omega|].
+    if_tac; [omega | auto].
+Qed.
+
 Lemma Forall2_Znth : forall {A B} (P : A -> B -> Prop) l1 l2 d1 d2 (Hall : Forall2 P l1 l2) i
   (Hi : 0 <= i < Zlength l1), P (Znth i l1 d1) (Znth i l2 d2).
 Proof.
@@ -683,6 +822,88 @@ Proof.
       unfold sublist; simpl; apply Forall2_firstn; auto.
   - apply Nat2Z.inj; rewrite <- !Zlength_correct.
     autorewrite with sublist; auto.
+Qed.
+
+Lemma sublist_max_length : forall {A} i j (al : list A), Zlength (sublist i j al) <= Zlength al.
+Proof.
+  intros; unfold sublist.
+  rewrite Zlength_firstn, Zlength_skipn.
+  rewrite Z.min_le_iff; right.
+  pose proof (Zlength_nonneg al).
+  apply Z.max_lub; try omega.
+  rewrite <- Z.le_sub_nonneg; apply Z.le_max_l.
+Qed.
+
+Lemma Forall2_sublist : forall {A B} (P : A -> B -> Prop) l1 l2 i j, Forall2 P l1 l2 -> 0 <= i ->
+  Forall2 P (sublist i j l1) (sublist i j l2).
+Proof.
+  intros; revert j; revert dependent i; induction H; intros.
+  - rewrite !sublist_of_nil; constructor.
+  - destruct (Z_le_dec j i); [rewrite !sublist_nil_gen; auto; constructor|].
+    destruct (eq_dec i 0).
+    + subst; rewrite !sublist_0_cons by omega.
+      constructor; auto.
+    + rewrite !sublist_S_cons by omega.
+      apply IHForall2; omega.
+Qed.
+
+Lemma Forall_last : forall {A} (P : A -> Prop) d l, Forall P l -> P d -> P (last l d).
+Proof.
+  destruct l; auto.
+  exploit (@app_removelast_last _ (a :: l) d); [discriminate | intro Hlast].
+  intros; rewrite Forall_forall in H; apply H.
+  rewrite Hlast at 2; rewrite in_app; simpl; auto.
+Qed.
+
+Lemma last_map : forall {A B} (f : A -> B) d l, f (last l d) = last (map f l) (f d).
+Proof.
+  induction l; auto; simpl.
+  destruct l; auto.
+Qed.
+
+Lemma Forall2_upd_Znth_l : forall {A B} (P : A -> B -> Prop) l1 l2 i x d, Forall2 P l1 l2 ->
+  P x (Znth i l2 d) -> 0 <= i < Zlength l1 -> Forall2 P (upd_Znth i l1 x) l2.
+Proof.
+  intros.
+  erewrite <- upd_Znth_triv with (l := l2)(i0 := i); eauto.
+  apply Forall2_upd_Znth; eauto; omega.
+  apply mem_lemmas.Forall2_Zlength in H; omega.
+Qed.
+
+Lemma Forall2_upd_Znth_r : forall {A B} (P : A -> B -> Prop) l1 l2 i x d, Forall2 P l1 l2 ->
+  P (Znth i l1 d) x -> 0 <= i < Zlength l1 -> Forall2 P l1 (upd_Znth i l2 x).
+Proof.
+  intros.
+  erewrite <- upd_Znth_triv with (l := l1)(i0 := i) by (eauto; omega).
+  apply Forall2_upd_Znth; eauto.
+  apply mem_lemmas.Forall2_Zlength in H; omega.
+Qed.
+
+Lemma Forall2_eq_upto : forall {A B} (P : A -> B -> Prop) d1 d2 l1 l2, Forall2 P l1 l2 <->
+  Zlength l1 = Zlength l2 /\ Forall (fun i => P (Znth i l1 d1) (Znth i l2 d2)) (upto (Z.to_nat (Zlength l1))).
+Proof.
+  induction l1; destruct l2; rewrite ?Zlength_cons, ?Zlength_nil; try solve [split; intro H; inv H;
+    try (rewrite Zlength_correct in *; omega)]; simpl.
+  - change (upto 0) with (@nil Z); split; auto.
+  - rewrite Z2Nat.inj_succ by (apply Zlength_nonneg).
+    rewrite <- Nat.add_1_l, upto_app, Forall_app, Forall_map.
+    change (upto 1) with [0]; split; intro H.
+    + inversion H as [|????? Hall]; subst.
+      rewrite IHl1 in Hall; destruct Hall as (? & Hall).
+      split; [congruence|].
+      split; auto.
+      rewrite Forall_forall in *; intros ? Hin.
+      specialize (Hall _ Hin); simpl.
+      rewrite In_upto in Hin.
+      rewrite !Znth_pos_cons, Z.add_simpl_l by omega; auto.
+    + destruct H as (? & Ha & Hall); inversion Ha as [|?? HP]; subst.
+      rewrite !Znth_0_cons in HP.
+      constructor; auto.
+      rewrite IHl1; split; [omega|].
+      rewrite Forall_forall in *; intros ? Hin.
+      specialize (Hall _ Hin); simpl in *.
+      rewrite In_upto in Hin.
+      rewrite !Znth_pos_cons, Z.add_simpl_l in Hall by omega; auto.
 Qed.
 
 Lemma combine_upd_Znth : forall {A B} (l1 : list A) (l2 : list B) i x1 x2, 0 <= i < Zlength l1 ->
@@ -772,6 +993,18 @@ Proof.
     f_equal; omega.
 Qed.
 
+Lemma upd_Znth_diff' : forall {A} i j l (u : A) d, 0 <= j < Zlength l -> i <> j ->
+  Znth i (upd_Znth j l u) d = Znth i l d.
+Proof.
+  intros.
+  destruct (zlt i 0).
+  { rewrite !Znth_underflow; auto. }
+  destruct (zlt i (Zlength l)).
+  apply upd_Znth_diff; auto; omega.
+  { rewrite !Znth_overflow; auto.
+    rewrite upd_Znth_Zlength; auto. }
+Qed.
+
 Lemma list_Znth_eq' : forall {A} d (l1 l2 : list A)
   (Hlen : Zlength l1 = Zlength l2)
   (Heq : forall j, 0 <= j < Zlength l1 -> Znth j l1 d = Znth j l2 d), l1 = l2.
@@ -796,7 +1029,7 @@ Proof.
   apply list_Znth_eq' with (d0 := d); auto.
   intros ? Hj; destruct (eq_dec j i).
   - subst; rewrite !upd_Znth_same; auto; omega.
-  - rewrite !upd_Znth_diff; rewrite upd_Znth_Zlength in Hj; auto; omega.
+  - rewrite !upd_Znth_diff'; rewrite upd_Znth_Zlength in Hj; auto; omega.
 Qed.
 
 Lemma upd_Znth_twice : forall {A} i l (x y : A), 0 <= i < Zlength l ->
@@ -891,7 +1124,7 @@ Proof.
     + rewrite sublist_nil_gen in H; [contradiction | omega].
 Qed.
 
-Lemma incl_cons_iff : forall A (a : A) b c, incl (a :: b) c <-> In a c /\ incl b c.
+Lemma incl_cons_iff : forall {A} (a : A) b c, incl (a :: b) c <-> In a c /\ incl b c.
 Proof.
   split; intro.
   - split; [|eapply incl_cons_inv; eauto].
@@ -910,6 +1143,104 @@ Proof.
     repeat split; auto.
     + constructor; auto.
     + intros ? [? | ?]; auto; subst; auto.
+Qed.
+
+Lemma lt_le_1 : forall i j, i < j <-> i + 1 <= j.
+Proof.
+  intros; omega.
+Qed.
+
+Lemma firstn_all : forall {A} n (l : list A), (length l <= n)%nat -> firstn n l = l.
+Proof.
+  induction n; destruct l; auto; simpl; intros; try omega.
+  rewrite IHn; auto; omega.
+Qed.
+
+Lemma sublist_all : forall {A} i (l : list A), Zlength l <= i -> sublist 0 i l = l.
+Proof.
+  intros; unfold sublist; simpl.
+  apply firstn_all.
+  rewrite Zlength_correct in *; Omega0.
+Qed.
+
+Lemma sublist_prefix : forall {A} i j (l : list A), sublist 0 i (sublist 0 j l) = sublist 0 (Z.min i j) l.
+Proof.
+  intros.
+  destruct (Z_le_dec i 0).
+  { rewrite !sublist_nil_gen; auto.
+    rewrite Z.min_le_iff; auto. }
+  destruct (Z.min_spec i j) as [(? & ->) | (? & ->)].
+  - rewrite sublist_sublist, !Z.add_0_r by omega; auto.
+  - apply sublist_all.
+    destruct (Z_le_dec j 0); [rewrite sublist_nil_gen; auto; rewrite Zlength_nil; omega|].
+    destruct (Z_le_dec j (Zlength l)).
+    rewrite Zlength_sublist; try omega.
+    { pose proof (sublist_max_length 0 j l); omega. }
+Qed.
+
+Lemma sublist_suffix : forall {A} i j (l : list A), 0 <= i -> 0 <= j ->
+  sublist i (Zlength l - j) (sublist j (Zlength l) l) = sublist (i + j) (Zlength l) l.
+Proof.
+  intros.
+  destruct (Z_le_dec (Zlength l - j) i).
+  { rewrite !sublist_nil_gen; auto; omega. }
+  rewrite sublist_sublist by omega.
+  rewrite Z.sub_simpl_r; auto.
+Qed.
+
+Lemma sublist_parts1 : forall {A} i j (l : list A), 0 <= i -> sublist i j l = sublist i j (sublist 0 j l).
+Proof.
+  intros.
+  destruct (Z_le_dec j i).
+  { rewrite !sublist_nil_gen; auto. }
+  rewrite sublist_sublist by omega.
+  rewrite !Z.add_0_r; auto.
+Qed.
+
+Lemma sublist_parts2 : forall {A} i j (l : list A), 0 <= i -> j <= Zlength l ->
+  sublist i j l = sublist 0 (j - i) (sublist i (Zlength l) l).
+Proof.
+  intros.
+  destruct (Z_le_dec j i).
+  { rewrite !sublist_nil_gen; auto; omega. }
+  rewrite sublist_sublist; try omega.
+  rewrite Z.add_0_l, Z.sub_simpl_r; auto.
+Qed.
+
+Lemma Forall_Forall2 : forall {A} (P : A -> Prop) Q l1 l2 (HP : Forall P l1) (HQ : Forall2 Q l1 l2)
+  (Htransfer : forall x y, P x -> Q x y -> P y), Forall P l2.
+Proof.
+  induction 2; auto; intros.
+  inv HP.
+  constructor; eauto.
+Qed.
+
+Lemma Forall_suffix_max : forall {A} (P : A -> Prop) l1 l2 i j
+  (Hi : 0 <= i <= Zlength l1) (Hj : 0 <= j <= Zlength l1)
+  (Hl1 : Forall P (sublist j (Zlength l1) l1))
+  (Hl2 : sublist i (Zlength l1) l1 = sublist i (Zlength l2) l2),
+  Forall P (sublist (Z.max i j) (Zlength l2) l2).
+Proof.
+  intros.
+  destruct (eq_dec i (Zlength l1)).
+  { subst; rewrite sublist_nil in Hl2.
+    rewrite Z.max_l by omega.
+    rewrite <- Hl2; auto. }
+  assert (Zlength l1 = Zlength l2) as Heq.
+  { assert (Zlength (sublist i (Zlength l1) l1) = Zlength (sublist i (Zlength l2) l2)) as Heq by congruence.
+    destruct (Z_le_dec (Zlength l2) i).
+    { rewrite sublist_nil_gen with (l0 := l2), Zlength_nil in Heq; auto.
+      rewrite !Zlength_sublist in Heq; omega. }
+    rewrite !Zlength_sublist in Heq; omega. }
+  intros; destruct (Z.max_spec i j) as [(? & ->) | (? & ->)].
+  - replace (sublist _ _ _) with (sublist (j - i) (Zlength l2 - i) (sublist i (Zlength l2) l2)).
+    rewrite <- Hl2, sublist_sublist, !Z.sub_simpl_r by omega.
+    rewrite <- Heq; auto.
+    { rewrite sublist_sublist, !Z.sub_simpl_r by omega; auto. }
+  - rewrite <- Hl2.
+    replace (sublist _ _ _) with (sublist (i - j) (Zlength l1 - j) (sublist j (Zlength l1) l1)).
+    apply Forall_sublist; auto.
+    { rewrite sublist_sublist, !Z.sub_simpl_r; auto; omega. }
 Qed.
 
 Fixpoint extend {A} (l : list A) ls :=
@@ -1082,7 +1413,7 @@ Proof.
   rewrite Zlength_correct in *; Omega0.
 Qed.
 
-Lemma lookup_distinct : forall A B (f : A -> B) a l t (Ha : In a l) (Hdistinct : NoDup (map fst l)),
+Lemma lookup_distinct : forall {A B} (f : A -> B) a l t (Ha : In a l) (Hdistinct : NoDup (map fst l)),
   (fold_right (fun v : ident * A => PTree.set (fst v) (f (snd v))) t l) ! (fst a) =
   Some (f (snd a)).
 Proof.
@@ -1097,7 +1428,7 @@ Proof.
     contradiction n; auto.
 Qed.
 
-Lemma lookup_out : forall A B (f : A -> B) a l t (Ha : ~In a (map fst l)),
+Lemma lookup_out : forall {A B} (f : A -> B) a l t (Ha : ~In a (map fst l)),
   (fold_right (fun v : ident * A => PTree.set (fst v) (f (snd v))) t l) ! a = t ! a.
 Proof.
   induction l; simpl; intros; auto.
@@ -1131,7 +1462,7 @@ Proof.
         rewrite PTree.gsspec.
         destruct (peq id (fst a)); eauto; subst; simpl.
         rewrite lookup_out.
-        apply lookup_distinct with (f := id); auto.
+        apply lookup_distinct with (f0 := id); auto.
         { apply Hdistinct.
           rewrite in_map_iff; eexists; split; eauto. }
     + intros.
@@ -1146,7 +1477,7 @@ Proof.
       rewrite incl_cons_iff in HG; destruct HG.
       rewrite PTree.gsspec.
       destruct (peq id (fst a)); eauto; subst; simpl.
-      apply lookup_distinct with (f := id); auto.
+      apply lookup_distinct with (f0 := id); auto.
 Qed.
 
 (* This lets us use a library as a client. *)
@@ -1296,12 +1627,11 @@ Proof.
   intros ???? (? & ?); auto.
 Qed.
 
-Lemma selflock_positive : forall R sh v, positive_mpred R ->
-  positive_mpred (selflock R v sh).
+Lemma selflock_positive : forall R sh v, positive_mpred (selflock R v sh).
 Proof.
   intros.
   rewrite selflock_eq.
-  apply positive_sepcon1; auto.
+  apply positive_sepcon2, lock_inv_positive.
 Qed.
 
 (* This need not hold; specifically, when an rmap is at level 0, |> P holds vacuously for all P. *)
@@ -1812,6 +2142,11 @@ Proof.
 Qed.
 
 (* These lemmas should probably be in veric. *)
+Lemma mpred_ext : forall (P Q : mpred) (Hd1 : P |-- Q) (Hd2 : Q |-- P), P = Q.
+Proof.
+  intros; apply (predicates_hered.pred_ext _ _ _ Hd1); auto.
+Qed.
+
 Lemma mapsto_value_cohere: forall sh1 sh2 t p v1 v2,
   readable_share sh1 -> readable_share sh2 ->
   mapsto sh1 t p v1 * mapsto sh2 t p v2 |-- mapsto sh1 t p v1 * mapsto sh2 t p v1.
@@ -1866,21 +2201,24 @@ Proof.
   - admit.
 Admitted.
 
-Corollary data_at_value_cohere : forall {cs : compspecs} sh1 sh2 t v1 v2 p,
-  readable_share sh1 -> readable_share sh2 ->
+Corollary data_at_value_cohere : forall {cs : compspecs} sh1 sh2 t v1 v2 p, readable_share sh1 ->
   data_at sh1 t v1 p * data_at sh2 t v2 p |--
   data_at sh1 t v1 p * data_at sh2 t v1 p.
 Proof.
-  intros; unfold data_at, field_at, at_offset; Intros; entailer'.
-  apply data_at_rec_value_cohere; auto.
+  intros; destruct (readable_share_dec sh2).
+  - unfold data_at, field_at, at_offset; Intros; entailer'.
+    apply data_at_rec_value_cohere; auto.
+  - assert_PROP (value_fits t v1 /\ value_fits t v2) by entailer!.
+    setoid_rewrite nonreadable_data_at_eq at 2; eauto; tauto.
 Qed.
 
-Corollary data_at__cohere : forall {cs : compspecs} sh1 sh2 t v p,
-  readable_share sh1 -> readable_share sh2 ->
-  data_at sh1 t v p * data_at_ sh2 t p |--
-  data_at sh1 t v p * data_at sh2 t v p. (* Could this be an equality? *)
+Corollary data_at__cohere : forall {cs : compspecs} sh1 sh2 t v p, readable_share sh1 ->
+  data_at sh1 t v p * data_at_ sh2 t p =
+  data_at sh1 t v p * data_at sh2 t v p.
 Proof.
-  intros; rewrite data_at__eq; apply data_at_value_cohere; auto.
+  intros; apply mpred_ext.
+  - rewrite data_at__eq; apply data_at_value_cohere; auto.
+  - entailer!.
 Qed.
 
 Lemma data_at__shares_join : forall {cs} sh t v p shs sh1 (Hsplit : sepalg_list.list_join sh1 shs sh)
@@ -1893,8 +2231,7 @@ Proof.
     rewrite sepcon_emp; auto.
   - inv Hsplit.
     inv Hreadable.
-    rewrite <- sepcon_assoc; eapply derives_trans; [apply sepcon_derives;
-      [apply data_at__cohere; auto | apply derives_refl]|].
+    rewrite <- sepcon_assoc, data_at__cohere; auto.
     erewrite data_at_share_join; eauto.
     apply IHshs; auto.
     eapply readable_share_join; eauto.
@@ -1958,11 +2295,6 @@ Proof.
   destruct H as (_ & _ & _ & _ & _ & _ & _ & _ & ?); auto.
 Qed.
 
-Lemma mpred_ext : forall (P Q : mpred) (Hd1 : P |-- Q) (Hd2 : Q |-- P), P = Q.
-Proof.
-  intros; apply (predicates_hered.pred_ext _ _ _ Hd1); auto.
-Qed.
-
 Lemma andp_emp_derives_dup : forall (P : mpred),
   predicates_hered.derives (P && emp) ((P && emp) * (P && emp)).
 Proof.
@@ -2023,6 +2355,12 @@ Ltac join_sub := repeat (eapply sepalg.join_sub_trans;
 
 Ltac join_inj := repeat match goal with H1 : sepalg.join ?a ?b ?c, H2 : sepalg.join ?a ?b ?d |- _ =>
     pose proof (sepalg.join_eq H1 H2); clear H1 H2; subst; auto end.
+
+Ltac fast_cancel := rewrite ?sepcon_emp, ?emp_sepcon; rewrite ?sepcon_assoc;
+  repeat match goal with |- _ |-- ?P * _ =>
+    try (rewrite <- !sepcon_assoc, (sepcon_comm _ P), !sepcon_assoc);
+    try simple apply derives_refl; repeat (apply sepcon_derives; [simple apply derives_refl|]) end;
+  try cancel_frame.
 
 Ltac forward_spawn sig wit := let Frame := fresh "Frame" in evar (Frame : list mpred);
   try match goal with |- semax _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip end;

@@ -572,6 +572,9 @@ Ltac prove_delete_temp := match goal with |- ?A = _ =>
   let Q := fresh "Q" in set (Q:=A); hnf in Q; subst Q; reflexivity
 end.
 
+Ltac cancel_for_forward_call := cancel.
+Ltac default_cancel_for_forward_call := cancel.
+
 Ltac forward_call_id1_x_wow A witness Frame H :=
  eapply (@semax_call_id1_x_wow A witness Frame _ _ _ _ _ _ _ _ _ H);
  clear H; try clear Frame;
@@ -586,8 +589,8 @@ Ltac forward_call_id1_x_wow A witness Frame H :=
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
- | unfold fold_right_sepcon at 1 2; cancel
- | cbv beta iota zeta; extensionality rho;
+ | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
+ | cbv beta iota zeta; extensionality rho; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    first [apply exp_congr; intros ?vret; reflexivity
@@ -613,8 +616,8 @@ Ltac forward_call_id1_y_wow A witness Frame H :=
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
- | unfold fold_right_sepcon at 1 2; cancel
- | cbv beta iota zeta; extensionality rho;
+ | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
+ | cbv beta iota zeta; extensionality rho; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    first [apply exp_congr; intros ?vret; reflexivity
@@ -638,8 +641,8 @@ Ltac forward_call_id1_wow A witness Frame H :=
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
- | unfold fold_right_sepcon at 1 2; cancel
- | cbv beta iota zeta; extensionality rho;
+ | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
+ | cbv beta iota zeta; extensionality rho; 
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    first [apply exp_congr; intros ?vret; reflexivity
@@ -661,7 +664,7 @@ Ltac forward_call_id01_wow A witness Frame H :=
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
- | unfold fold_right_sepcon at 1 2; cancel
+ | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
  | cbv beta iota zeta; extensionality rho;
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
@@ -683,7 +686,7 @@ Ltac forward_call_id00_wow A witness Frame H :=
  | check_cast_params | reflexivity
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
- | unfold fold_right_sepcon at 1 2; cancel
+ | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
  | cbv beta iota zeta;
     repeat rewrite exp_uncurry;
     try rewrite no_post_exists0;
@@ -2119,72 +2122,158 @@ match goal with |- context [@proj_reptype ?cs ?t ?gfs ?v] =>
   subst d
 end.
 
-Ltac store_tac :=
+Ltac store_tac_without_hint Delta P Q R gfs e_root efs tts p_root p_full sh t_SEP
+                           gfs0 gfs1 v n Hroot Hnth H_Denote HRE lr :=
+  tryif
+    sc_new_instantiate P Q R R gfs p_root sh t_SEP gfs0 v n (0%nat) Hnth
+  then (
+    calc_gfs_suffix gfs gfs0 gfs1;
+    refine (semax_SC_field_store Delta sh n _ _ _ _ _ _ _ _ efs gfs0 gfs1 gfs tts _ _ _ lr
+      _ _ _ _ _ _ Hnth Hroot HRE H_Denote _ _ _ _);
+    clear Hnth Hroot HRE H_Denote;
+    subst p_root;
+    [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+    | auto (* writable share *)
+    | solve_store_rule_evaluation
+    | subst gfs0 gfs1 efs tts lr n;
+      pre_entailer;
+      try quick_typecheck3;
+      unfold tc_efield; entailer_for_store_tac;
+      simpl app; simpl typeof
+    | solve_legal_nested_field_in_entailment ]
+  ) else (
+    let path := fresh "path" in evar (path: list gfield);
+    let a := fresh "a" in evar (a: val);
+    let eq1 := eval unfold p_root, t_SEP, path, a in (p_root = field_address t_SEP path a) in
+    let eq2 := eval unfold p_full, t_SEP, path, a in (p_full = field_address t_SEP path a) in
+    fail "Please use assert_PROP to prove an equality of the form" eq1
+         "or if this does not hold, prove an equality of the form" eq2
+  ).
+
+Ltac store_tac_with_root_path_hint Delta P Q R gfs sh e_full p_full t_SEP
+                                   gfs0 gfs1 v n Hnth HRE :=
+  let e_root := fresh "e_root" in
+  let efs := fresh "efs" in
+  let tts := fresh "tts" in
+  construct_nested_efield e_full e_root efs tts;
+  let lr := fresh "lr" in
+  pose (compute_lr e_root efs) as lr;
+  cbv in lr;
+  let p_root := fresh "p_root" in evar (p_root: val);
+  let Hroot := fresh "Hroot" in
+  match goal with
+  | lr := LLLL |- _ => do_compute_lvalue Delta P Q R e_root p_root Hroot
+  | lr := RRRR |- _ => do_compute_expr Delta P Q R e_root p_root Hroot
+  end;
+  simpl in p_root;
+
+  let H_Denote := fresh "H_Denote" in
+  let gfsB := fresh "gfsB" in
+  solve_efield_denote Delta P Q R efs gfsB H_Denote;
+
+  let gfsA := fresh "gfsA" in evar (gfsA: list gfield);
+  let HNice := fresh "HNice" in
+  let p_SEP := fresh "a" in
+  tryif (
+    evar (p_SEP: val);
+    assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
+            |-- !! (p_root = field_address t_SEP gfsA p_SEP)) as HNice
+    by (
+      subst p_root t_SEP gfsA p_SEP;
+      (eassumption || (apply prop_right; (eassumption || reflexivity)))
+    )
+  ) then (
+    unify_var_or_evar gfs (gfsB ++ gfsA);
+    cbv [app gfsB gfsA] in gfs;
+    sc_new_instantiate P Q R R gfs p_SEP sh t_SEP gfs0 v n (0%nat) Hnth;
+    calc_gfs_suffix gfs gfs0 gfs1;
+    subst p_SEP;
+    refine (semax_SC_field_store_with_nested_field_partial
+      Delta sh n _ _ _ _ _ _ _ _ _ efs gfs0 gfs1 gfsA gfsB tts _ _ _ lr
+      _ _ _ _ _ Hnth Hroot HNice HRE H_Denote _ _ _ _ _);
+    clear Hnth Hroot HNice HRE H_Denote;
+    [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+    | auto (* writable share *)
+    | solve_store_rule_evaluation
+    | subst gfs0 gfs1 n;
+      pre_entailer;
+      try quick_typecheck3;
+      unfold tc_efield; entailer_for_store_tac;
+      simpl app; simpl typeof
+    | solve_legal_nested_field_in_entailment
+    | reflexivity ]
+  ) else (
+    unify_var_or_evar gfs gfsB;
+    unify_var_or_evar gfsA (@nil gfield);
+    subst gfsB;
+    store_tac_without_hint Delta P Q R gfs e_root efs tts p_root p_full sh t_SEP
+                           gfs0 gfs1 v n Hroot Hnth H_Denote HRE lr
+  );
+  try subst e_root; try subst efs; try subst tts; try subst lr; try subst p_root;
+  try subst gfsB; try subst gfsA.
+
+Ltac store_tac_with_full_path_hint Delta P Q R gfs e_full p_full sh t_SEP gfs0 gfs1 v n Hfull Hnth HRE :=
+  let p_SEP := fresh "a" in
+  let HNice := fresh "HNice" in
+  tryif (
+    evar (p_SEP: val);
+    assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R))
+            |-- !! (p_full = field_address t_SEP gfs p_SEP)) as HNice
+    by (
+      subst p_full t_SEP gfs p_SEP;
+      (eassumption || (apply prop_right; (eassumption || reflexivity)))
+    )
+  ) then (
+    (* if "assert" succeeded, the rest must succeed *)
+    sc_new_instantiate P Q R R gfs p_SEP sh t_SEP gfs0 v n (0%nat) Hnth;
+    try (unify v (default_val (nested_field_type t_SEP gfs0));
+         lazy beta iota zeta delta - [list_repeat Z.to_nat] in v);
+    calc_gfs_suffix gfs gfs0 gfs1;
+    subst p_SEP;
+    refine (semax_SC_field_store_without_nested_efield Delta sh n _ _ _ _ _ _ _ _ _ gfs0 gfs1 _ _ _ _
+      _ _ _ _ _ Hnth Hfull HNice HRE _ _ _ _);
+    clear Hnth Hfull HNice HRE;
+    [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
+    | subst sh; auto (* writable share *)
+    | solve_store_rule_evaluation
+    | subst gfs0 gfs1 sh n;
+      pre_entailer;
+      try quick_typecheck3; 
+      unfold tc_efield; entailer_for_store_tac;
+      simpl app; simpl typeof
+    | solve_legal_nested_field_in_entailment ]
+  ) else (
+    store_tac_with_root_path_hint Delta P Q R gfs sh e_full p_full t_SEP gfs0 gfs1 v n Hnth HRE
+  ).
+
+Ltac store_tac := 
 ensure_open_normal_ret_assert;
 hoist_later_in_pre;
 match goal with
-| |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign ?e ?e2) _ =>
-  (* Super canonical field store *)
-    let e1 := fresh "e" in
-    let efs := fresh "efs" in
-    let tts := fresh "tts" in
-      construct_nested_efield e e1 efs tts;
+| |- semax ?Delta (|> (PROPx ?P (LOCALx ?Q (SEPx ?R)))) (Sassign ?e_full ?e2) _ =>
+    let HRE := fresh "HRE" in
+    let v0 := fresh "v0" in evar (v0: val);
+      do_compute_expr Delta P Q R (Ecast e2 (typeof e_full)) v0 HRE;
 
-    let lr := fresh "lr" in
-      pose (compute_lr e1 efs) as lr;
-      vm_compute in lr;
+    let p_full := fresh "p_full" in evar (p_full: val);
+    let Hfull := fresh "Hfull" in
+    do_compute_lvalue Delta P Q R e_full p_full Hfull;
+    simpl in p_full;
 
-    let HLE := fresh "H" in
-    let p := fresh "p" in evar (p: val);
-      match goal with
-      | lr := LLLL |- _ => do_compute_lvalue Delta P Q R e1 p HLE
-      | lr := RRRR |- _ => do_compute_expr Delta P Q R e1 p HLE
-      end;
-
-    let HRE := fresh "H" in
-    let v0 := fresh "v" in evar (v0: val);
-      do_compute_expr Delta P Q R (Ecast e2 (typeof (nested_efield e1 efs tts))) v0 HRE;
-
-    let H_Denote := fresh "H" in
-    let gfs := fresh "gfs" in
-      solve_efield_denote Delta P Q R efs gfs H_Denote;
-
+    let t_SEP := fresh "t" in evar (t_SEP: type);
+    let gfs := fresh "gfs" in evar (gfs: list gfield);
     let sh := fresh "sh" in evar (sh: share);
-    let t_root := fresh "t_root" in evar (t_root: type);
-    let gfs0 := fresh "gfs" in evar (gfs0: list gfield);
-    let v := fresh "v" in evar (v: reptype (nested_field_type t_root gfs0));
+    let gfs0 := fresh "gfs0" in evar (gfs0: list gfield);
+    let gfs1 := fresh "gfs1" in
+    let v := fresh "v" in evar (v: reptype (nested_field_type t_SEP gfs0));
     let n := fresh "n" in
-    let H := fresh "H" in
-    sc_new_instantiate P Q R R gfs p sh t_root gfs0 v n (0%nat) H;
+    let Hnth := fresh "Hnth" in
+    let HNice := fresh "HNice" in
 
-    try (unify v (default_val (nested_field_type t_root gfs0));
-          lazy beta iota zeta delta - [list_repeat Z.to_nat] in v);
-
-    let gfs1 := fresh "gfs" in
-    calc_gfs_suffix gfs gfs0 gfs1;
-    subst gfs;
-
-    eapply (semax_SC_field_store Delta sh n p)
-      with (lr0 := lr) (t_root0 := t_root) (gfs2 := gfs0) (gfs3 := gfs1);
-    subst p;
-      [ reflexivity | reflexivity | reflexivity
-      | reflexivity | reflexivity | reflexivity
-      | exact H
-      | exact HLE
-      | exact HRE
-      | exact H_Denote
-      | solve [subst sh; auto] (* writable share *)
-      | solve_store_rule_evaluation
-      | subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n;
-        pre_entailer;
-        try quick_typecheck3;
-        clear HLE HRE H_Denote H;
-        unfold tc_efield; entailer_for_store_tac;
-        simpl app; simpl typeof
-      | solve_legal_nested_field_in_entailment;
-        subst e1 gfs0 gfs1 efs tts t_root sh v0 lr n;
-        clear HLE HRE H_Denote H
-     ]
+    store_tac_with_full_path_hint Delta P Q R gfs e_full p_full sh t_SEP gfs0 gfs1 v n Hfull Hnth HRE;
+    try clear HRE; try clear Hfull; try clear Hnth; try clear HNice;
+    try subst v0; try subst p_full; try subst t_SEP; try subst gfs; try subst sh;
+    try subst gfs0; try subst gfs1; try subst v; try subst n
 end.
 
 (* END new semax_load and semax_store tactics *************************)

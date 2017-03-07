@@ -16,9 +16,11 @@ Definition search_spec :=
  DECLARE _search
   WITH a: val, sh : share, contents : list Z, tgt : Z, lo : Z, hi : Z
   PRE [ _a OF (tptr tint), _tgt OF tint, _lo OF tint, _hi OF tint ]
-            PROP  (readable_share sh; Zlength contents <= Int.max_signed;
-                     0 <= lo <= Int.max_signed; Int.min_signed <= hi <= Int.max_signed / 2;
-                     hi <= Zlength contents; sorted contents;
+            PROP  (readable_share sh;
+                     0 <= lo <= Int.max_signed; 
+                     hi <= Zlength contents <= Int.max_signed;
+                     Int.min_signed <= hi <= Int.max_signed / 2;
+                     sorted contents;
                      Forall (fun x => Int.min_signed <= x <= Int.max_signed) contents;
                      Int.min_signed <= tgt <= Int.max_signed)
                   LOCAL (temp _a a; temp _tgt (Vint (Int.repr tgt));
@@ -87,58 +89,34 @@ Proof.
   - reflexivity.
   - destruct l.
     + simpl; split; auto.
-    + rewrite IHl; simpl; split; intros (? & Hall & ?).
-      * split; auto; constructor; auto.
-        rewrite Forall_forall in *; intros ? Hin.
-        specialize (Hall _ Hin); omega.
-      * inversion H; subst; auto.
+    + rewrite IHl; simpl; split; intros (? & Hall & ?); split3; auto.
+       * constructor; auto.
+          rewrite Forall_forall in *; intros ? Hin.
+          specialize (Hall _ Hin); omega.
+       * inversion H. auto.
 Qed.
 
 Lemma sorted_mono : forall d l i j (Hsort : sorted l) (Hi : 0 <= i <= j)
                            (Hj : j < Zlength l),
     Znth i l d <= Znth j l d.
 Proof.
-  intros; unfold Znth.
-  destruct (zlt i 0); [omega|].
-  destruct (zlt j 0); [omega|].
-  revert Hsort.
-  generalize dependent j; generalize dependent i; induction l; simpl in *; intros.
-  { rewrite Zlength_correct in *; simpl in *; omega. }
-  destruct l.
-  + rewrite Zlength_correct in *; simpl in *.
-    assert (j = 0) by omega.
-    assert (i = 0) by omega.
-    subst; omega.
-  + destruct (eq_dec j 0).
-    { assert (i = 0) by omega.
-      subst; omega. }
-    destruct (Z.to_nat j) eqn: Hnj.
-    { contradiction n; apply Z2Nat_inj_0; auto. }
-    destruct (eq_dec i 0).
-    * subst; simpl.
-      destruct Hsort as (? & Hsort).
-      destruct n0; try omega.
-      rewrite sorted_equiv in Hsort; simpl in Hsort.
-      destruct Hsort as (Hsort & _).
-      assert (In (nth n0 l d) l) as Hin.
-      { apply nth_In.
-        assert (S (S n0) < length (a :: z :: l))%nat.
-        { rewrite Z2Nat.inj_lt in Hj; try omega.
-          rewrite Hnj, Zlength_correct, Nat2Z.id in Hj; auto. }
-        simpl in *; omega. }
-      rewrite Forall_forall in Hsort; specialize (Hsort _ Hin); omega.
-    * destruct (Z.to_nat i) eqn: Hni.
-      { contradiction n1; apply Z2Nat_inj_0; auto. }
-      assert (Z.of_nat n2 >= 0) as Hi' by omega.
-      specialize (IHl _ Hi' (Z.of_nat n0)).
-      destruct Hsort.
-      repeat rewrite Nat2Z.id in IHl; apply IHl; auto; try omega.
-      - split; try omega.
-        destruct Hi as (_ & Hi).
-        rewrite Z2Nat.inj_le in Hi; omega.
-      - rewrite Z2Nat.inj_lt in Hj; try omega.
-        rewrite Hnj, Zlength_correct, Nat2Z.id in Hj.
-        rewrite Zlength_correct; apply inj_lt; simpl in *; omega.
+induction l; intros.
+* rewrite !Znth_nil. omega.
+* 
+ rewrite sorted_equiv in Hsort. destruct Hsort as [H9 Hsort].
+ rewrite <- sorted_equiv in Hsort. rewrite Forall_forall in H9.
+ rewrite Zlength_cons in Hj.
+ destruct (zeq i 0).
+ +
+   subst i; rewrite Znth_0_cons. 
+   destruct (zeq j 0).
+   - subst j. rewrite Znth_0_cons. omega.
+   - rewrite Znth_pos_cons by omega.
+      apply H9.
+      eapply Znth_In; [ | reflexivity]; omega.
+ +
+    rewrite !Znth_pos_cons by omega.
+    apply IHl; auto; omega.
 Qed.
 
 Lemma In_sorted_range : forall d lo hi x l (Hsort : sorted l) (Hlo : 0 <= lo <= hi)
@@ -148,8 +126,8 @@ Lemma In_sorted_range : forall d lo hi x l (Hsort : sorted l) (Hlo : 0 <= lo <= 
 Proof.
   intros.
   generalize (In_Znth _ _ _ d Hin); intros (i & Hrange & Hi).
-  rewrite Zlength_sublist in Hrange; auto.
-  rewrite Znth_sublist in Hi; auto; try omega.
+  rewrite Zlength_sublist in Hrange by auto.
+  rewrite Znth_sublist in Hi by omega.
   subst; split; apply sorted_mono; auto; omega.
 Qed.
 
@@ -184,36 +162,6 @@ Proof.
   specialize (X H); subst; omega.
 Qed.
 
-Definition while_Inv contents tgt sh a lo hi := EX lo' : Z, EX hi' : Z,
-    PROP  (readable_share sh; Zlength contents <= Int.max_signed;
-           0 <= lo' <= Int.max_signed; Int.min_signed <= hi' <= Int.max_signed / 2;
-           hi' <= Zlength contents;
-           In tgt (sublist lo hi contents) <-> In tgt (sublist lo' hi' contents))
-    LOCAL (temp _a a; temp _tgt (Vint (Int.repr tgt));
-           temp _lo (Vint (Int.repr lo')); temp _hi (Vint (Int.repr hi')))
-    SEP   (data_at sh (tarray tint (Zlength contents))
-                   (map Vint (map Int.repr contents)) a).
-
-Lemma entail_post : forall Delta P Post ek vl,
-    ENTAIL Delta, P |-- Post EK_normal None ->
-    ENTAIL Delta, overridePost P Post ek vl |-- Post ek vl.
-Proof.
-  intros.
-  unfold overridePost; destruct (eq_dec ek EK_normal).
-  - normalize; subst; auto.
-  - unfold local, lift1; simpl; normalize.
-Qed.
-
-Lemma Zlength_sublist : forall A (l : list A) lo hi (Hhi : hi <= Zlength l)
-  (Hlo : 0 <= lo <= hi),
-  Zlength (sublist lo hi l) = hi - lo.
-Proof.
-  intros; unfold sublist.
-  rewrite Zlength_correct, firstn_length, skipn_length.
-  rewrite Min.min_l, Z2Nat.id; try omega.
-  rewrite Zlength_correct, Z2Nat.inj_sub in *; Omega0.
-Qed.
-
 Lemma Znth_In_sublist : forall A i (l : list A) d lo hi
   (Hlo : 0 <= lo <= i) (Hhi : i < hi <= Zlength l),
   In (Znth i l d) (sublist lo hi l).
@@ -238,117 +186,67 @@ Qed.
 
 Lemma body_search: semax_body Vprog Gprog f_search search_spec.
 Proof.
-  start_function.
-  pose proof Int.min_signed_neg.
-  forward_while (while_Inv contents tgt sh a lo hi).
-  { unfold while_Inv.
-    Exists lo; Exists hi; entailer. }
-  { entailer!. }
-  forward.
-  rewrite Int.shr_div_two_p, Int.add_signed.
-  repeat rewrite Int.signed_repr; try omega.
-  rewrite Int.unsigned_repr; try computable; simpl.
-  unfold two_power_pos; simpl.
-  remember ((lo' + hi') / 2) as mid.
-  assert (0 <= mid < Zlength (map Int.repr contents)).
-  { subst; split; [apply Z_div_pos; try omega|].
-    rewrite Zlength_map.
-    apply Zdiv_lt_upper_bound; omega. }
-  assert (0 <= mid < Zlength contents) by (rewrite Zlength_map in *; auto).
-  assert (lo' <= (lo' + hi') / 2 < hi').
-  { split; [apply Zdiv_le_lower_bound | apply Zdiv_lt_upper_bound]; omega. }
-  forward.
-  exploit Znth_In; eauto.
-  instantiate (1 := 0); intro Hin.
-  match goal with H : Forall _ _ |- _ =>
-                  rewrite Forall_forall in H; specialize (H _ Hin) end.
-(*Ltac forward_if_tac post :=
-  check_Delta;
-  repeat (apply -> seq_assoc; abbreviate_semax);
-first [ignore (post: environ->mpred)
-      | fail 1 "Invariant (first argument to forward_if) must have type (environ->mpred)"];
-match goal with
- | |- semax _ _ (Sifthenelse _ _ _) (overridePost post _) =>
-       forward_if'_new
- | |- semax _ _ (Sifthenelse _ _ _) ?P =>
-      apply (semax_post_flipped (overridePost post P));
-      [ forward_if'_new
-      | try (intros; apply entail_post; simpl); try solve [normalize]
-      ]
-   | |- semax _ _ (Ssequence (Sifthenelse _ _ _) _) _ =>
-     apply semax_seq with post;
-      [forward_if'_new | abbreviate_semax; autorewrite with ret_assert]
-end.
-check_Delta;
-match goal with |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sifthenelse ?e ?c1 ?c2) _ =>
-   let HRE := fresh "H" in let v := fresh "v" in
-    evar (v: val);
-    do_compute_expr Delta P Q R e v HRE;
-    simpl in v;
-    apply (semax_ifthenelse_PQR' _ v);
-     [ reflexivity | entailer | assumption
-     | clear HRE; subst v; apply semax_extract_PROP; intro HRE;
-       do_repr_inj HRE; abbreviate_semax
-     | clear HRE; subst v; apply semax_extract_PROP; intro HRE;
-       do_repr_inj HRE; abbreviate_semax
-     ]
-end.
-forward_if_tac (while_Inv contents tgt sh a).
-  Focus 3.
-  intro; unfold while_Inv; normalize.
-  simpl.
-  unfold PROPx, LOCALx, SEPx, local, lift1; unfold_lift; simpl; normalize.
-  Exists (x0, x1); entailer.*)
+ start_function.
+ destruct H0.
+ assert (H6 := Int.min_signed_neg).
+ forward_while (EX lo' : Z, EX hi' : Z,
+    PROP  (0 <= lo' <= Int.max_signed; 
+           Int.min_signed <= hi' <= Int.max_signed / 2;
+           hi' <= Zlength contents;
+           In tgt (sublist lo hi contents) <-> In tgt (sublist lo' hi' contents))
+    LOCAL (temp _a a; temp _tgt (Vint (Int.repr tgt));
+           temp _lo (Vint (Int.repr lo')); temp _hi (Vint (Int.repr hi')))
+    SEP   (data_at sh (tarray tint (Zlength contents))
+                   (map Vint (map Int.repr contents)) a)).
+ * Exists lo; Exists hi; entailer!.
+ * entailer!.
+ *
+  match goal with H : _ <-> _ |- _ => rename H into H_tgt_sublist end.
+  forward.  (* mid =  (lo + hi) >> 1; *)
+  rewrite add_repr, Int.shr_div_two_p.
+  change (two_p (Int.unsigned (Int.repr 1))) with 2. 
+  assert (Hlo'hi':  lo' + hi' <= Int.max_signed). {
+   transitivity (Int.max_signed / 2 + Int.max_signed / 2).
+   - apply Zplus_le_compat; omega.
+   - rewrite Zplus_diag_eq_mult_2, Z.mul_comm. apply Z_mult_div_ge; omega.
+  }
+  rewrite !Int.signed_repr by omega.
+  set (mid := (lo' + hi') / 2) in *.
+  assert (H13: 0 <= mid < Zlength contents)
+    by (subst; split; [apply Z_div_pos | apply Zdiv_lt_upper_bound]; omega).
+  assert (H15: lo' <= mid < hi')
+    by (split; [apply Zdiv_le_lower_bound | apply Zdiv_lt_upper_bound]; omega).
+  assert (H16: Int.min_signed <= Znth mid contents 0 <= Int.max_signed)
+    by (rewrite Forall_forall in H3; apply H3; eapply Znth_In; eauto).
+  clear H3 Hlo'hi' H H0 H1.
+  clearbody mid.
+  forward. (* val = a[mid]; *)
   forward_if.
-  - forward.
-    Exists ((lo' + hi') / 2); entailer!.
-    destruct (in_dec _ _ _); auto.
-    subst; contradiction n.
-    match goal with H : _ <-> _ |- _ => rewrite H end.
+  - forward. (* return mid; *)
+    Exists mid; entailer!.
+    rewrite if_true; auto. 
+    rewrite H_tgt_sublist.
     apply Znth_In_sublist; omega.
   - forward_if.
-    + forward.
+    + forward. (*  lo = mid + 1; *)
       Exists ((mid + 1), hi'); entailer!.
-      match goal with H : _ <-> _ |- _ => rewrite H end.
+      rewrite H_tgt_sublist.
       split; intro Hin'.
-      * eapply In_sorted_gt; eauto; omega.
-      * eapply sublist_In_sublist; try apply Hin'; omega.
-    + forward.
+      eapply In_sorted_gt; eauto; omega.
+      eapply sublist_In_sublist; try apply Hin'; omega.
+    + forward. (* hi=mid; *)
       Exists (lo', mid); entailer!.
-      match goal with H : _ <-> _ |- _ => rewrite H end.
+      rewrite H_tgt_sublist.
       split; intro Hin'.
-      * eapply In_sorted_lt; eauto; omega.
-      * eapply sublist_In_sublist; try apply Hin'; omega.
-(*  - intros.
-
-    unfold while_Inv.
-
-    intros; unfold POSTCONDITION, abbreviate, overridePost.
-    destruct ek; entailer!.
-    unfold overri
-    intros.
-    unfold exit_tycon.
-
-    unfold PROPx, LOCALx, SEPx, local, lift1; unfold_lift; simpl; entailer!.
-    unfold overridePost; destruct (eq_dec ek EK_normal); auto.
-    subst; simpl; normalize.
-    unfold while_Inv.
-    (* For some reason, Intro doesn't work here. *)
-    refine (exp_left _ _ _); intro lo1.
-    refine (exp_left _ _ _); intro hi1.
-    Exists (lo1, hi1).
-    normalize.*)
-  - split; try omega.
-    etransitivity; [apply (Zplus_le_compat_l _ (Int.max_signed / 2)); omega|].
-    etransitivity; [apply (Zplus_le_compat_r _ (Int.max_signed / 2)); omega|].
-    rewrite Zplus_diag_eq_mult_2, Z.mul_comm.
-    apply Z_mult_div_ge; omega.
-  - forward.
+      eapply In_sorted_lt; eauto; omega.
+      eapply sublist_In_sublist; try apply Hin'; omega.
+ *
+    forward.  (* return -1; *)
     Exists (-1); entailer!.
-    destruct (in_dec _ _ _); auto.
-    match goal with H : _ <-> _ |- _ => rewrite H in i end.
-    rewrite sublist_nil1 in i; [|omega].
-    simpl in i; contradiction.
+    rewrite if_false; auto.
+    match goal with H : _ <-> _ |- _ => rewrite H end.
+    rewrite sublist_nil1 by omega.
+    clear; simpl; tauto.
 Qed.
 
 (* Contents of the extern global initialized array "_four" *)
@@ -359,11 +257,10 @@ Proof.
   name four _four.
   start_function.
   forward_call (four,Ews,four_contents,3,0,4).
-  { split; auto; simpl.
-    repeat split; try omega; try computable.
-    * unfold four_contents, Zlength; simpl; computable.
-    * unfold four_contents, Zlength; simpl; computable.
-    * repeat constructor; computable. }
+  { split. auto.
+    change (Zlength four_contents) with 4.
+    repeat constructor; computable.
+  }
   Intro r; forward.
 Qed.
 

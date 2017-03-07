@@ -281,14 +281,7 @@ assert (Hm: merged <> []) by congruence.
 clear hmerge tmerge Heqmerged.
 
 (* Command: *x = a *)
-unfold_data_at 2%nat.
-(* we replace [field_at ...tail _c] with [data_at .. (field_adress ...tail _c)] for forward*)
-focus_SEP 11.
-rewrite field_at_data_at.
 forward.
-(* we put back the [field_at ...tail _c] *)
-rewrite fold_data_at.
-rewrite <-field_at_data_at.
 
 forward. (* COMMAND : [x = &(a->tail)] *)
 forward. (* COMMAND : [a = a -> tail] *)
@@ -302,7 +295,8 @@ rewrite butlast_snoc. rewrite last_snoc.
 rewrite (snoc merged) at 3 by auto.
 rewrite map_app. simpl map.
 unfold_data_at 1%nat.
-match goal with |- ?A * ?B * ?C * ?D * ?E * ?F * ?G * ?H |-- _ =>
+unfold_field_at 5%nat.
+match goal with |- ?B * ?C * ?D * ?E * ?F * ?G * (?H * ?A) |-- _ =>
  apply derives_trans with ((H * A * G * C) * (B * D * E * F));
   [cancel | ]
 end.
@@ -380,14 +374,7 @@ assert (Hm: merged <> []) by congruence.
 clear hmerge tmerge Heqmerged.
 
 (* Command: *x = b *)
-unfold_data_at 2%nat.
-(* we replace [field_at ...tail _c] with [data_at .. (field_adress ...tail _c)] for forward*)
-focus_SEP 11.
-rewrite field_at_data_at.
 forward.
-(* we put back the [field_at ...tail _c] *)
-rewrite fold_data_at.
-rewrite <-field_at_data_at.
 
 (* COMMAND : [x = &(b->tail)] *)
 forward.
@@ -408,7 +395,8 @@ rewrite map_app. simpl map.
 assert (LCR := lseg_cons_right_neq LS sh (map Vint (butlast merged)) begin (Vint (last merged)) c_ b_' b_).
 simpl in LCR. rewrite emp_sepcon, list_cell_field_at in LCR.
 unfold_data_at 1%nat.
-match goal with |- ?A * ?B * ?C * ?D * ?E * ?F |-- _ =>
+unfold_field_at 4%nat.
+match goal with |- ?B * ?C * ?D * ?E * (?F * ?A) |-- _ =>
  apply derives_trans with ((F * A * E * D) * (B * C)); [cancel | ]
 end.
 eapply derives_trans; [apply sepcon_derives; [ | apply derives_refl] | ].
@@ -490,10 +478,6 @@ now entailer!.
 remember (hmerge :: tmerge) as merged.
 assert (Hm: merged <> []) by congruence.
 clear hmerge tmerge Heqmerged.
-unfold_data_at 2%nat.
-(* we replace [field_at ...tail _c] with [data_at .. (field_adress ...tail _c)] for forward*)
-focus_SEP 5.
-rewrite field_at_data_at.
 forward.
 Exists a (@nil int) merged a_ c_ begin.
 if_tac; [congruence|].
@@ -503,12 +487,7 @@ end.
 clear Heqmerged' merged.
 rewrite merge_nil_r in *.
 entailer!.
-unfold field_type; simpl.
-unfold_data_at 1%nat.
-(* Coq bug: rewrite does not work directly but it does after a pose *)
-pose proof (field_at_data_at sh t_struct_list [StructField _tail] a_ c_) as R.
-rewrite R.
-entailer!.
+apply derives_refl. (* TODO entailer: Why is this not done automatically? *)
 
 (* when a = [] *)
 assert_PROP (a = []). {
@@ -530,9 +509,6 @@ now entailer!.
 remember (hmerge :: tmerge) as merged.
 assert (Hm: merged <> []) by congruence.
 clear hmerge tmerge Heqmerged.
-unfold_data_at 2%nat.
-focus_SEP 5.
-rewrite field_at_data_at.
 forward.
 Exists (@nil int) b merged b_ c_ begin.
 if_tac; [congruence|].
@@ -541,9 +517,7 @@ match goal with
 end.
 clear Heqmerged' merged.
 entailer!.
-unfold_data_at 1%nat.
-rewrite (field_at_data_at sh t_struct_list [StructField _tail]).
-cancel.
+apply derives_refl.
 
 (* temp = ret *)
 clear -SH.
