@@ -1,6 +1,5 @@
 (* This probably doesn't belong in progs. Talk to Santiago about where it should go. *)
-Require Import floyd.proofauto.
-Require Export msl.predicates_sl.
+Require Import progs.conclib.
 
 Class PCM (A : Type) :=
   { join : A -> A -> A -> Prop; (*initial : A -> Prop;*)
@@ -174,7 +173,7 @@ End GVar.
 Section GHist.
 
 (* Ghost histories in the style of Nanevsky *)
-Variable hist_el : Type.
+Context {hist_el : Type}.
 
 Notation hist_part := (list (nat * hist_el)).
 
@@ -294,6 +293,66 @@ Qed.
 Lemma hist_incl_nil : forall h, hist_incl [] h.
 Proof.
   repeat intro; contradiction.
+Qed.
+
+Definition newer (l : hist_part) t := Forall (fun x => fst x < t)%nat l.
+
+Lemma newer_trans : forall l t1 t2, newer l t1 -> (t1 <= t2)%nat -> newer l t2.
+Proof.
+  intros.
+  eapply Forall_impl, H; simpl; intros; omega.
+Qed.
+
+Corollary newer_snoc : forall l t1 e t2, newer l t1 -> (t1 < t2)%nat -> newer (l ++ [(t1, e)]) t2.
+Proof.
+  unfold newer; intros.
+  rewrite Forall_app; split; [|repeat constructor; auto].
+  eapply newer_trans; eauto; omega.
+Qed.
+
+Variable (d : hist_el).
+
+Definition ordered_hist h := forall i j (Hi : 0 <= i < j) (Hj : j < Zlength h),
+  (fst (Znth i h (O, d)) < fst (Znth j h (O, d)))%nat.
+
+Lemma ordered_cons : forall t e h, ordered_hist ((t, e) :: h) ->
+  Forall (fun x => let '(m, _) := x in t < m)%nat h /\ ordered_hist h.
+Proof.
+  unfold ordered_hist; split.
+  - rewrite Forall_forall; intros (?, ?) Hin.
+    apply In_Znth with (d0 := (O, d)) in Hin.
+    destruct Hin as (j & ? & Hj).
+    exploit (H 0 (j + 1)); try omega.
+    { rewrite Zlength_cons; omega. }
+    rewrite Znth_0_cons, Znth_pos_cons, Z.add_simpl_r, Hj by omega; auto.
+  - intros; exploit (H (i + 1) (j + 1)); try omega.
+    { rewrite Zlength_cons; omega. }
+    rewrite !Znth_pos_cons, !Z.add_simpl_r by omega; auto.
+Qed.
+
+Lemma ordered_last : forall t e h (Hordered : ordered_hist h) (Hin : In (t, e) h)
+  (Ht : Forall (fun x => let '(m, _) := x in m <= t)%nat h), last h (O, d) = (t, e).
+Proof.
+  induction h; [contradiction | simpl; intros].
+  destruct a; apply ordered_cons in Hordered; destruct Hordered as (Ha & ?).
+  inversion Ht as [|??? Hp]; subst.
+  destruct Hin as [Hin | Hin]; [inv Hin|].
+  - destruct h; auto.
+    inv Ha; inv Hp; destruct p; omega.
+  - rewrite IHh; auto.
+    destruct h; auto; contradiction.
+Qed.
+
+Lemma ordered_snoc : forall h t e, ordered_hist h -> newer h t -> ordered_hist (h ++ [(t, e)]).
+Proof.
+  repeat intro.
+  rewrite Zlength_app, Zlength_cons, Zlength_nil in Hj.
+  rewrite app_Znth1 by omega.
+  destruct (eq_dec j (Zlength h)).
+  - rewrite Znth_app1; auto.
+    apply Forall_Znth; auto; omega.
+  - specialize (H i j).
+    rewrite app_Znth1 by omega; apply H; auto; omega.
 Qed.
 
 End GHist.
