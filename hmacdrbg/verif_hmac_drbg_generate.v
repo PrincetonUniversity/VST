@@ -209,7 +209,7 @@ Proof.
   }
   rewrite HmaxB.
   reflexivity.
-Qed.
+Qed.    
 
 (*
 Lemma generate_correct:
@@ -322,7 +322,7 @@ Proof.
   unfold sublist.
   unfold skipn.
   replace (out_len - 0) with out_len by omega.
-
+ 
   destruct prediction_resistance.
   {
     (* pr = true *)
@@ -339,7 +339,7 @@ Proof.
         unfold get_entropy in Hget_entropy.
         subst.
         symmetry; apply Hget_entropy;auto.
-
+        
       }
       change (Zlength (@nil Z)) with 0 in contra.
       inversion contra.
@@ -366,7 +366,7 @@ Proof.
   subst reseed_interval.
   unfold HMAC_DRBG_update.
   rewrite HZlength_contentsb.
-
+  
   destruct (reseed_counter >? 10000).
   {
     (* must reseed *)
@@ -383,7 +383,7 @@ Proof.
         unfold get_entropy in Hget_entropy.
         subst.
         symmetry; apply Hget_entropy; auto.
-
+        
       }
       change (Zlength (@nil Z)) with 0 in contra.
       inversion contra.
@@ -440,7 +440,7 @@ Definition postReseedCtx s key V reseed_counter entropy_len prediction_resistanc
   match mbedtls_HMAC256_DRBG_reseed_function s
                (HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance
                   reseed_interval) (contents_with_add additional (Zlength contents) contents)
-  with ENTROPY.success (RSVal, RSKey, aa, bb, cc) s0 =>
+  with ENTROPY.success (RSVal, RSKey, aa, bb, cc) s0 => 
        data_at Tsh t_struct_hmac256drbg_context_st
            (mc1, (mc2, mc3),
            (map Vint (map Int.repr RSVal),
@@ -480,30 +480,30 @@ Definition postReseedStream s key V reseed_counter entropy_len prediction_resist
   end.
 
 Definition mkCTX0 (should_reseed:bool) (initial_state:reptype t_struct_hmac256drbg_context_st) s key V reseed_counter entropy_len prediction_resistance reseed_interval additional contents mc p: mpred :=
-  EX myctx:reptype t_struct_hmac256drbg_context_st%type,
-           (!!(if should_reseed
+  EX myctx:reptype t_struct_hmac256drbg_context_st%type, 
+           (!!(if should_reseed 
                 then postReseedCtx myctx s key V reseed_counter entropy_len prediction_resistance reseed_interval additional contents mc
                 else myctx = initial_state)) &&
              data_at Tsh t_struct_hmac256drbg_context_st myctx p.
 (*alternative definitions that don't help
 Definition myMpred0 (should_reseed:bool) initial_state s key V reseed_counter entropy_len prediction_resistance reseed_interval additional contents mc p: mpred :=
-  EX myctx:(val * (val * val) * (list val * (val * (val * (val * val)))))%type,
-           (!!(if should_reseed
+  EX myctx:(val * (val * val) * (list val * (val * (val * (val * val)))))%type, 
+           (!!(if should_reseed 
                 then postReseedCtx myctx s key V reseed_counter entropy_len prediction_resistance reseed_interval additional contents mc
                 else myctx = initial_state)) &&
              data_at Tsh t_struct_hmac256drbg_context_st myctx p.
 
 Definition myMpred1 (should_reseed:bool) initial_state s key V reseed_counter entropy_len prediction_resistance reseed_interval additional contents mc p: mpred :=
   EX q1:val, EX q2:val, EX q3:val, EX q4:list val, EX q5:val, EX q6:val, EX q7:val, EX q8:val,
-           (!!(if should_reseed
+           (!!(if should_reseed 
                 then postReseedCtx (q1, (q2, q3), (q4, (q5, (q6, (q7, q8))))) s key V reseed_counter entropy_len prediction_resistance reseed_interval additional contents mc
                 else (q1, (q2, q3), (q4, (q5, (q6, (q7, q8))))) = initial_state)) &&
              data_at Tsh t_struct_hmac256drbg_context_st (q1, (q2, q3), (q4, (q5, (q6, (q7, q8))))) p.
 *)
 
-Definition mkCTX1 (should_reseed:bool) (ctx ctx1:reptype t_struct_hmac256drbg_context_st)
+Definition mkCTX1 (should_reseed:bool) (ctx ctx1:reptype t_struct_hmac256drbg_context_st) 
             s key V reseed_counter entropy_len prediction_resistance reseed_interval additional contents mc: Prop :=
-     if should_reseed
+     if should_reseed 
      then match mbedtls_HMAC256_DRBG_reseed_function s
         (HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance reseed_interval)
         (contents_with_add additional (Zlength contents) contents)
@@ -612,46 +612,46 @@ Proof. intros. (* unfold hmac256drbgabs_common_mpreds, hmac256drbg_relate; norma
  normalize.
       remember (mbedtls_HMAC256_DRBG_reseed_function s initial_state_abs
         (contents_with_add additional (Zlength contents) contents)) as MRS.
-      unfold return_value_relate_result in (*H8*)H.
-      destruct MRS.
+      unfold return_value_relate_result in (*H8*)H. 
+      destruct MRS. 
       { exfalso. (*clear - H8 Hrv. inv H8.*) inv H. simpl in Hrv; discriminate. }
       unfold hmac256drbgabs_common_mpreds.
       remember (hmac256drbgabs_reseed initial_state_abs s
         (contents_with_add additional (Zlength contents) contents)) as RS.
       unfold hmac256drbgabs_reseed in HeqRS. rewrite <- HeqMRS in HeqRS.
-      assert (HRS: RS = initial_state_abs) by (subst initial_state_abs; apply HeqRS).
-      clear HeqRS; subst RS.
+      assert (HRS: RS = initial_state_abs) by (subst initial_state_abs; apply HeqRS). 
+      clear HeqRS; subst RS. 
       remember (hmac256drbgabs_generate initial_state_abs s out_len
                 (contents_with_add additional (Zlength contents) contents)) as Gen.
       remember (mbedtls_HMAC256_DRBG_generate_function s initial_state_abs out_len
              (contents_with_add additional (Zlength contents) contents)) as MGen.
       Transparent hmac256drbgabs_generate.
       Transparent mbedtls_HMAC256_DRBG_generate_function.
-      unfold hmac256drbgabs_generate in HeqGen. rewrite <- HeqMGen in HeqGen.
+      unfold hmac256drbgabs_generate in HeqGen. rewrite <- HeqMGen in HeqGen. 
       unfold mbedtls_HMAC256_DRBG_generate_function in HeqMGen. subst initial_state_abs.
-      simpl in HeqMGen.
+      simpl in HeqMGen. 
       Transparent HMAC256_DRBG_generate_function. unfold HMAC256_DRBG_generate_function in HeqMGen.
       unfold mbedtls_HMAC256_DRBG_reseed_function in HeqMRS.
       unfold DRBG_generate_function in HeqMGen.
-      rewrite Hout_lenb, ZLa, andb_negb_r, F32 in HeqMGen.
+      rewrite Hout_lenb, ZLa, andb_negb_r, F32 in HeqMGen. 
       unfold DRBG_generate_function_helper in HeqMGen. rewrite <- HeqMRS in HeqMGen. subst Gen. simpl. normalize.
       destruct prediction_resistance; simpl in *.
       + rewrite ZLa in *. subst MGen.
-        unfold return_value_relate_result.
+        unfold return_value_relate_result. 
         apply andp_right. apply prop_right. repeat split; trivial.
         cancel. simpl. entailer!.
       + subst reseed_interval; rewrite Hshould_reseed, ZLa in *.
         destruct (get_entropy 32(*256*) entropy_len entropy_len false s); try discriminate.
         inv HeqMRS. unfold return_value_relate_result; simpl.
         apply andp_right. apply prop_right. repeat split; trivial.
-        cancel. entailer!.
+        cancel. entailer!. 
 Qed.
 
 Opaque hmac256drbgabs_generate.
 Opaque HMAC256_DRBG_generate_function.
 Opaque mbedtls_HMAC256_DRBG_generate_function.
 
-Lemma body_hmac_drbg_generate: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
+Lemma body_hmac_drbg_generate: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs 
        f_mbedtls_hmac_drbg_random_with_add hmac_drbg_generate_spec.
 Proof.
   start_function.
@@ -667,7 +667,7 @@ Proof.
 
   rewrite da_emp_isptrornull. (*needed later*)
   rewrite data_at_isptr with (p:=ctx).
-  normalize.
+  normalize. 
   set (initial_state_abs := HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance reseed_interval) in *.
   set (initial_state := (md_ctx',
         (map Vint (map Int.repr V),
@@ -676,7 +676,7 @@ Proof.
         (Val.of_bool prediction_resistance, Vint (Int.repr reseed_interval))))))) in *.
 
   (* mbedtls_hmac_drbg_context *ctx = p_rng; *)
-  forward.
+  forward. 
 
   (* int left = out_len *)
   forward.
@@ -688,7 +688,7 @@ Proof.
   destruct ctx; try contradiction.  (*subst initial_state.*)
   destruct md_ctx' as [mc1 [mc2 mc3]]. simpl.
   rewrite data_at_isptr with (p:=mc1). normalize.
-  freeze [0;1;3; 4;5;6] FR0.
+  freeze [0;1;3; 4;5;6] FR0. 
   Time forward. (*Coq8.5pl2:3secs - and without the freezer it is virtually nonterminating*)
   {
     (* typechecking *)
@@ -715,7 +715,7 @@ Proof.
       temp _reseed_interval (Vint (Int.repr reseed_interval));
       temp _reseed_counter (Vint (Int.repr reseed_counter));
       temp _prediction_resistance (Val.of_bool prediction_resistance);
-      temp _out output; temp _left (Vint (Int.repr out_len));
+      temp _out output; temp _left (Vint (Int.repr out_len)); 
       temp _ctx (*ctx*)(Vptr b i); temp _p_rng (*ctx*)(Vptr b i); temp _output output;
       temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
       temp _add_len (Vint (Int.repr add_len)); gvar sha._K256 kv)
@@ -771,11 +771,11 @@ Proof.
       temp _reseed_interval (Vint (Int.repr reseed_interval));
       temp _reseed_counter (Vint (Int.repr reseed_counter));
       temp _prediction_resistance (Val.of_bool prediction_resistance);
-      temp _out output; temp _left (Vint (Int.repr out_len));
+      temp _out output; temp _left (Vint (Int.repr out_len)); 
       temp _ctx (*ctx*)(Vptr b i); temp _p_rng (*ctx*)(Vptr b i); temp _output output;
       temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
       temp _add_len (Vint (Int.repr add_len)); gvar sha._K256 kv)
-      SEP  (FRZL FR2)).
+      SEP  (FRZL FR2)). 
   {
     (* return( MBEDTLS_ERR_HMAC_DRBG_INPUT_TOO_BIG ); *)
     forward.
@@ -789,15 +789,15 @@ Proof.
       assumption.
     }
     unfold generatePOST. rewrite Hout_lenb, Hadd_lenb; simpl.
-    entailer!.
-    thaw FR2. cancel.
+    entailer!. 
+    thaw FR2. cancel. 
   }
-  {
+  { 
     (*"empty" branch of III: skip*)
     forward.
     entailer!.
   }
-  Intros.
+  Intros. 
   assert (Hadd_len: 0 <= add_len <= 256) by omega.
   assert (Hadd_lenb: add_len >? 256 = false).
   {
@@ -818,29 +818,29 @@ Proof.
       temp _reseed_interval (Vint (Int.repr reseed_interval));
       temp _reseed_counter (Vint (Int.repr reseed_counter));
       temp _prediction_resistance (Val.of_bool prediction_resistance);
-      temp _out output; temp _left (Vint (Int.repr out_len));
+      temp _out output; temp _left (Vint (Int.repr out_len)); 
       temp _ctx (*ctx*)(Vptr b i); temp _p_rng (*ctx*)(Vptr b i); temp _output output;
       temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
       temp _add_len (Vint (Int.repr add_len)); gvar sha._K256 kv;
       temp _t'4 (Val.of_bool should_reseed) (* ADDED *)
       )
-      SEP (FRZL FR2)).
+      SEP (FRZL FR2)). 
   {
     forward.
     entailer!.
 
     rename H2 into Hpr.
-    destruct prediction_resistance; simpl.
+    destruct prediction_resistance; simpl. 
     (* true *) reflexivity.
     (* false *) inversion Hpr.
   }
   {
     rename H2 into Hpr.
     destruct prediction_resistance; try solve [inversion Hpr].
-    simpl in should_reseed; clear Hpr.
+    simpl in should_reseed; clear Hpr. 
     forward.
     entailer!.
-
+    
     subst should_reseed; rewrite Z.gtb_ltb.
     unfold Int.lt.
       unfold hmac256drbgabs_reseed_counter in Hreseed_counter_in_range.
@@ -853,7 +853,7 @@ Proof.
       assert (Hltb: 10000 <? reseed_counter = true) by (rewrite Z.ltb_lt; assumption).
       rewrite Hltb. unfold Int.lt.
       rewrite zlt_true; [reflexivity | ].
-      rewrite !Int.signed_repr; change Int.min_signed with (-2147483648); change Int.max_signed with (2147483647) in *; try omega.
+      rewrite !Int.signed_repr; change Int.min_signed with (-2147483648); change Int.max_signed with (2147483647) in *; try omega. 
     }
     { subst initial_state_abs.
       assert (Hltb: 10000 <? reseed_counter = false) by (rewrite Z.ltb_nlt; assumption).
@@ -879,7 +879,7 @@ Proof.
    LOCAL (temp _md_len (Vint (Int.repr 32)); temp _info mc1;
    temp _reseed_interval (Vint (Int.repr reseed_interval));
    temp _reseed_counter (Vint (Int.repr reseed_counter));
-   temp _prediction_resistance (Val.of_bool prediction_resistance);
+   temp _prediction_resistance (Val.of_bool prediction_resistance); 
    temp _out output; temp _left (Vint (Int.repr out_len)); temp _ctx (Vptr b i);
    temp _p_rng (Vptr b i); temp _output output; temp _out_len (Vint (Int.repr out_len));
    temp _additional additional; temp _add_len (Vint (Int.repr after_reseed_add_len));
@@ -894,7 +894,7 @@ Proof.
         data_at_ Tsh (tarray tuchar out_len) output *
         da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional *
         data_at Tsh t_struct_mbedtls_md_info info_contents mc1 * K_vector kv *
-        (if should_reseed
+        (if should_reseed 
             then (postReseedKey s key V reseed_counter entropy_len prediction_resistance reseed_interval additional contents mc1 mc2 mc3)
             else md_full key (mc1, (mc2, mc3))) *
         (if should_reseed
@@ -903,39 +903,39 @@ Proof.
 
   { (*Case should_reseed = true*)
     assert (Hshould_reseed: should_reseed = true) by apply H2; clear H2.
-    unfold POSTCONDITION, abbreviate. rewrite Hshould_reseed in *. clear POSTCONDITION. thaw FR2.
+    unfold POSTCONDITION, abbreviate. rewrite Hshould_reseed in *. clear POSTCONDITION. thaw FR2. 
     abbreviate_semax.
 
     forward_call (contents, additional, add_len, (*ctx*)Vptr b i, initial_state, initial_state_abs,
                   kv, info_contents, s).
     { subst initial_state initial_state_abs; cancel.
       unfold hmac256drbg_relate. entailer!.
-    }
+    } 
     { simpl in *. repeat split; trivial; try omega.
-      change Int.modulus with 4294967296. omega.
-      subst contents'. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; omega.
+      change Int.modulus with 4294967296. omega. 
+      subst contents'. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc'; omega. 
       subst contents'. destruct ZLc' as [ZLc' | ZLc']; rewrite ZLc' in *.
-      change Int.modulus with 4294967296; omega.
-      change Int.modulus with 4294967296; omega.
+      change Int.modulus with 4294967296; omega. 
+      change Int.modulus with 4294967296; omega. 
     }
-
+     
     Intros return_value.
-    forward.
+    forward. 
 
     assert (F: 0>? 256 = false) by reflexivity.
 
     forward_if (PROP  (return_value = Vzero) (* ADDED *)
-      LOCAL  (temp _ret return_value;
+      LOCAL  (temp _ret return_value; 
       temp _md_len (Vint (Int.repr 32)); temp _info (*(let (x, _) := md_ctx' in x)*)mc1;
       temp _reseed_interval (Vint (Int.repr reseed_interval));
       temp _reseed_counter (Vint (Int.repr reseed_counter));
       temp _prediction_resistance (Val.of_bool prediction_resistance);
-      temp _out output; temp _left (Vint (Int.repr out_len));
+      temp _out output; temp _left (Vint (Int.repr out_len)); 
       temp _ctx (*ctx*)(Vptr b i); temp _p_rng (*ctx*)(Vptr b i); temp _output output;
       temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
-      temp _add_len (Vint (Int.repr add_len)); gvar sha._K256 kv;
+      temp _add_len (Vint (Int.repr add_len)); gvar sha._K256 kv; 
       temp _t'4 (Val.of_bool true))
-      SEP (reseedPOST return_value contents additional add_len s initial_state_abs
+      SEP (reseedPOST return_value contents additional add_len s initial_state_abs 
                 (Vptr b i) info_contents kv initial_state;
           data_at_ Tsh (tarray tuchar out_len) output)).
     {
@@ -945,17 +945,17 @@ Proof.
       forward. simpl in *.
 (*      clear - Hadd_lenb Hadd_len Hrv H3 Hout_lenb ZLa F H4 Hshould_reseed.*)
       Exists (Vint return_value).
-      apply andp_right. apply prop_right; trivial.
+      apply andp_right. apply prop_right; trivial. 
       apply andp_right. apply prop_right; split; trivial.
       normalize.
       apply entailment1; trivial. }
 
      { (* reseed's return_value = 0 *)
        rename H2 into Hrv.
-       forward. entailer!. unfold Vzero. f_equal.
+       forward. entailer!. unfold Vzero. f_equal. 
        apply negb_false_iff in Hrv. apply int_eq_e in Hrv. trivial.
      }
-
+ 
      forward. subst after_reseed_add_len. rewrite Hshould_reseed in *. clear Hshould_reseed should_reseed.
      entailer!.
      unfold reseedPOST.
@@ -963,7 +963,7 @@ Proof.
        || zlt 384 (hmac256drbgabs_entropy_len initial_state_abs + Zlength contents))%bool) as d.
      destruct (zlt 256 (Zlength contents)); simpl in Heqd. omega.
      destruct (zlt 384 (entropy_len + Zlength contents)); simpl in Heqd; subst d.
-     { simpl in *. omega. }
+     { simpl in *. omega. } 
      Intros. (* cancel.*)
      unfold return_value_relate_result in H9.
      remember (mbedtls_HMAC256_DRBG_reseed_function s initial_state_abs
@@ -972,28 +972,28 @@ Proof.
         (contents_with_add additional (Zlength contents) contents))).
      unfold hmac256drbgabs_reseed in Heqh. rewrite <- HeqReseed in Heqh.
      destruct Reseed.
-     Focus 2. destruct e; try solve [inv H9].
-              destruct ENT_GenErrAx as [X _]. elim X; trivial.
+     Focus 2. destruct e; try solve [inv H9]. 
+              destruct ENT_GenErrAx as [X _]. elim X; trivial. 
      destruct d as [[[[RSVal RSKey] aa] bb] cc].
      unfold (*hmac256drbgabs_reseed, *)postReseedCtx, postReseedKey, postReseedStream.
-     subst initial_state_abs; rewrite <- HeqReseed. simpl. simpl in Heqh. subst h.
+     subst initial_state_abs; rewrite <- HeqReseed. simpl. simpl in Heqh. subst h. 
      Exists  (mc1, (mc2, mc3),
          (map Vint (map Int.repr RSVal),
          (Vint (Int.repr aa),
          (Vint (Int.repr entropy_len), (Val.of_bool cc, Vint (Int.repr reseed_interval)))))).
      normalize. cancel.
-     unfold hmac256drbgabs_common_mpreds; simpl.
-     normalize.
+     unfold hmac256drbgabs_common_mpreds; simpl. 
+     normalize. 
   }
   { (*Case should_reseed = false*)
     forward. subst after_reseed_add_len. rewrite H2, HIS in *. clear H2 HIS.
     Exists initial_state. entailer!. thaw FR2. cancel.
   }
-  clear FR2. Intros ctx1.
+  clear FR2. Intros ctx1. 
 
   assert (HIC: exists IC: reptype t_struct_mbedtls_md_info, IC = info_contents).
   { exists info_contents; trivial. }
-  destruct HIC as [IC HIC]. rename H2 into CTX1.
+  destruct HIC as [IC HIC]. rename H2 into CTX1. 
 
   apply semax_pre with (P':= EX key1:list Z,
    (PROP ( mkKEY1 (should_reseed:bool) s key V reseed_counter entropy_len prediction_resistance reseed_interval additional contents key1)
@@ -1011,7 +1011,7 @@ Proof.
      if should_reseed
      then postReseedStream s key V reseed_counter entropy_len prediction_resistance reseed_interval additional contents
      else Stream s))).
-  { go_lower.
+  { go_lower. 
     destruct should_reseed.
     + unfold postReseedKey, mkKEY1.
       remember (mbedtls_HMAC256_DRBG_reseed_function s
@@ -1030,14 +1030,14 @@ Proof.
   apply semax_pre with (P':=
    EX stream1:ENTROPY.stream,
     (PROP (
-       mkSTREAM1 should_reseed s key V reseed_counter entropy_len prediction_resistance
+       mkSTREAM1 should_reseed s key V reseed_counter entropy_len prediction_resistance 
                  reseed_interval additional contents stream1)
      LOCAL (temp _md_len (Vint (Int.repr 32)); temp _info mc1;
       temp _reseed_interval (Vint (Int.repr reseed_interval));
       temp _reseed_counter (Vint (Int.repr reseed_counter));
       temp _prediction_resistance (Val.of_bool prediction_resistance);
       temp _out output; temp _left (Vint (Int.repr out_len));
-      temp _ctx (Vptr b i); temp _p_rng (Vptr b i);
+      temp _ctx (Vptr b i); temp _p_rng (Vptr b i); 
       temp _output output; temp _out_len (Vint (Int.repr out_len));
       temp _additional additional;
       temp _add_len (Vint (Int.repr after_reseed_add_len));
@@ -1054,7 +1054,7 @@ Proof.
                (contents_with_add additional (Zlength contents) contents)) as RS.
     go_lower.
     destruct should_reseed.
-    + destruct RS.
+    + destruct RS. 
       - destruct d as [[[[Val1 Key1] ?] ?] ? ?]. Exists s0. normalize.
         apply andp_right. apply prop_right; repeat split; trivial.
         cancel.
@@ -1069,14 +1069,14 @@ Proof.
   freeze [0;1;3;4] FR4.
 
   set (na:=(negb (eq_dec additional nullval) && negb (eq_dec ((if should_reseed then 0 else Zlength contents)) 0))%bool) in *.
-
+ 
   forward_if
   (PROP ( )
    LOCAL (temp _md_len (Vint (Int.repr 32)); temp _info mc1;
    temp _reseed_interval (Vint (Int.repr reseed_interval));
    temp _reseed_counter (Vint (Int.repr reseed_counter));
-   temp _prediction_resistance (Val.of_bool prediction_resistance);
-   temp _out output; temp _left (Vint (Int.repr out_len));
+   temp _prediction_resistance (Val.of_bool prediction_resistance); 
+   temp _out output; temp _left (Vint (Int.repr out_len)); 
    temp _ctx (Vptr b i); temp _p_rng (Vptr b i); temp _output output;
    temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
    temp _add_len (Vint (Int.repr after_reseed_add_len)); gvar sha._K256 kv;
@@ -1089,17 +1089,17 @@ Proof.
     + rewrite da_emp_ptr. normalize.
       unfold denote_tc_comparable. entailer!.
       eapply derives_trans; try apply valid_pointer_weak.
-      apply sepcon_valid_pointer2.
+      apply sepcon_valid_pointer2. 
       apply data_at_valid_ptr; trivial. apply top_share_nonidentity.
   }
   { forward. entailer!. subst after_reseed_add_len na.
     destruct should_reseed; simpl; trivial. rewrite andb_false_r. reflexivity.
-    destruct (initial_world.EqDec_Z (Zlength contents)  0); simpl.
+    destruct (initial_world.EqDec_Z (Zlength contents)  0); simpl. 
     + rewrite e. simpl. rewrite andb_false_r. reflexivity.
-    + rewrite Int.eq_false; simpl.
-      destruct (Memory.EqDec_val additional nullval); try reflexivity. contradiction.
+    + rewrite Int.eq_false; simpl. 
+      destruct (Memory.EqDec_val additional nullval); try reflexivity. contradiction. 
       intros N. assert (U: Int.unsigned (Int.repr (Zlength contents)) = Int.unsigned (Int.repr 0)). rewrite N; trivial. clear N.
-      rewrite Int.unsigned_repr in U; trivial. rewrite U in n. elim n; trivial.
+      rewrite Int.unsigned_repr in U; trivial. rewrite U in n. elim n; trivial. 
   }
   { forward. rewrite H2 in *. entailer!. }
 
@@ -1109,17 +1109,17 @@ Proof.
    temp _reseed_interval (Vint (Int.repr reseed_interval));
    temp _reseed_counter (Vint (Int.repr reseed_counter));
    temp _prediction_resistance (Val.of_bool prediction_resistance);
-   temp _out output; temp _left (Vint (Int.repr out_len));
+   temp _out output; temp _left (Vint (Int.repr out_len)); 
    temp _ctx (Vptr b i); temp _p_rng (Vptr b i); temp _output output;
    temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
-   temp _add_len (Vint (Int.repr after_reseed_add_len));
+   temp _add_len (Vint (Int.repr after_reseed_add_len)); 
    gvar sha._K256 kv; temp _t'4 (Val.of_bool should_reseed);
    temp _t'5 (Val.of_bool na))
    SEP (FRZL FR3; K_vector kv;
    da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional;
-   if na
+   if na 
    then (EX bb:block, EX ii: int, EX UKey:list Z, EX UVal:list Z,
-           !!(additional = Vptr bb ii /\
+           !!(additional = Vptr bb ii /\ 
               (UKey, UVal) = HMAC256_DRBG_update
                     (contents_with_add (Vptr bb ii) (Zlength contents) contents) key V)
            && data_at Tsh t_struct_hmac256drbg_context_st
@@ -1127,7 +1127,7 @@ Proof.
                 (map Vint (map Int.repr UVal),
                 (Vint (Int.repr reseed_counter),
                 (Vint (Int.repr entropy_len),
-                (Val.of_bool prediction_resistance, Vint (Int.repr reseed_interval))))))
+                (Val.of_bool prediction_resistance, Vint (Int.repr reseed_interval)))))) 
                 (Vptr b i) * md_full UKey (mc1, (mc2, mc3)))
    else data_at Tsh t_struct_hmac256drbg_context_st ctx1 (Vptr b i) *
         md_full key1 (mc1, (mc2, mc3)))).
@@ -1138,9 +1138,9 @@ Proof.
      rewrite andb_true_r in H2.
      destruct additional; simpl in PNadditional; try contradiction.
      { subst i0; discriminate. }
-     subst key1 stream1 ctx1. clear H2.
-
-       forward_call (contents, Vptr b0 i0, after_reseed_add_len,
+     subst key1 stream1 ctx1. clear H2. 
+     
+       forward_call (contents, Vptr b0 i0, after_reseed_add_len, 
                     (*ctx*)Vptr b i,
                     initial_state,
                  initial_state_abs, kv, info_contents
@@ -1150,17 +1150,17 @@ Proof.
          subst Frame.
          subst after_reseed_add_len add_len initial_state. cancel.
          thaw FR3. subst IS IC.
-         unfold hmac256drbg_relate, hmac256drbgstate_md_info_pointer; simpl. cancel. entailer!.
+         unfold hmac256drbg_relate, hmac256drbgstate_md_info_pointer; simpl. cancel. entailer!. 
        }
        { (*subst na.*)subst after_reseed_add_len.  entailer. Exists b0 i0.
          apply andp_right. entailer!.
-         cancel.
+         cancel. 
          unfold hmac256drbgabs_common_mpreds, hmac256drbgstate_md_info_pointer. simpl.
          remember (HMAC256_DRBG_update
           (contents_with_add (Vptr b0 i0) (Zlength contents) contents) key V ) as UPD.
          destruct UPD as [UKey UVal]. simpl. Exists UKey UVal. Intros.
          apply andp_right. apply prop_right; split; trivial.
-         thaw FR3. cancel.
+         thaw FR3. cancel. 
        }
      }
      { clear - H2. forward. rewrite H2 in *. entailer. cancel. }
@@ -1170,7 +1170,7 @@ apply semax_pre with (P' := EX ctx2:reptype t_struct_hmac256drbg_context_st, EX 
   PROP (
      if na
      then exists ctx2':(val * (val * val) * (list val * (val * (val * (val * val)))))%type,
-          exists bb : block, exists ii : int, exists V2 : list Z,
+          exists bb : block, exists ii : int, exists V2 : list Z, 
           additional = Vptr bb ii /\ CTXeq ctx2 ctx2' /\
           (key2, V2) = HMAC256_DRBG_update (contents_with_add (Vptr bb ii) (Zlength contents) contents) key V /\
           ctx2' = (mc1, (mc2, mc3),
@@ -1191,7 +1191,7 @@ apply semax_pre with (P' := EX ctx2:reptype t_struct_hmac256drbg_context_st, EX 
    data_at Tsh t_struct_hmac256drbg_context_st ctx2 (Vptr b i) * md_full key2 (mc1, (mc2, mc3)))).
 { go_lower.
   destruct na.
-  + normalize.
+  + normalize. 
     Exists (mc1, (mc2, mc3),
             (map Vint (map Int.repr UVal),
             (Vint (Int.repr reseed_counter),
@@ -1234,12 +1234,12 @@ apply semax_pre with (P':=
    LOCAL (temp _md_len (Vint (Int.repr 32)); temp _info mc1;
    temp _reseed_interval (Vint (Int.repr reseed_interval));
    temp _reseed_counter (Vint (Int.repr reseed_counter));
-   temp _prediction_resistance (Val.of_bool prediction_resistance);
-   temp _out output; temp _left (Vint (Int.repr out_len));
+   temp _prediction_resistance (Val.of_bool prediction_resistance); 
+   temp _out output; temp _left (Vint (Int.repr out_len)); 
    temp _ctx (Vptr b i); temp _p_rng (Vptr b i); temp _output output;
    temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
    temp _add_len (Vint (Int.repr after_reseed_add_len)); gvar sha._K256 kv)
-   SEP (data_at_ Tsh (tarray tuchar out_len) output; Stream stream1;
+   SEP (data_at_ Tsh (tarray tuchar out_len) output; Stream stream1; 
      K_vector kv;
      da_emp Tsh (tarray tuchar add_len) (map Vint (map Int.repr contents)) additional;
      after_update_Mpred ))).
@@ -1259,10 +1259,10 @@ apply semax_pre with (P':=
         (HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance
            reseed_interval) contents) as hh.
     remember (HMAC256_DRBG_update contents key V) as q.
-    destruct q as [KK VV]. normalize.
+    destruct q as [KK VV]. normalize. 
     destruct hh.
     unfold hmac256drbgabs_hmac_drbg_update in Heqhh. inv HeqUPD.
-    rewrite <- Heqq in *.  (*rewrite <- HeqUPD in Heqhh.*) inv Heqhh.
+    rewrite <- Heqq in *.  (*rewrite <- HeqUPD in Heqhh.*) inv Heqhh. 
     destruct CTX2KEY2 as [ctx22 [bb [ii [V2 [ADD [CEQ [UPD C2]]]]]]]. subst ctx22 additional.
     unfold CTXeq in CEQ; subst ctx2. simpl in Heqnna.
     unfold mkCTX1 in CTX1; unfold mkKEY1 in KEY1; unfold mkSTREAM1 in STREAM1.
@@ -1271,31 +1271,34 @@ apply semax_pre with (P':=
     - subst stream1 ctx1 key1.
       remember (contents_with_add (Vptr bb ii) (Zlength contents) contents) as CONT.
       unfold contents_with_add in HeqCONT. simpl in HeqCONT. simpl in Heqnna.
-      destruct (initial_world.EqDec_Z (Zlength contents) 0); simpl in *; try discriminate.
-      subst CONT.
-      rewrite <- Heqq in UPD. inv UPD.
-      apply andp_right. apply prop_right; repeat split; trivial. cancel.
+      destruct (initial_world.EqDec_Z (Zlength contents) 0); simpl in *.
+      * apply Zlength_nil_inv in e. subst contents CONT. 
+        rewrite <- Heqq in UPD. inv UPD.   
+        apply andp_right. apply prop_right; repeat split; trivial. cancel.
+      * subst CONT.
+        rewrite <- Heqq in UPD. inv UPD.   
+        apply andp_right. apply prop_right; repeat split; trivial. cancel.
   + destruct CTX2KEY2; subst ctx2 key2. subst after_reseed_state_abs.
     unfold mkCTX1 in CTX1; unfold mkKEY1 in KEY1; unfold mkSTREAM1 in STREAM1.
     destruct should_reseed.
-    - simpl in na. clear Heqnna na.
+    - simpl in na. clear Heqnna na. 
       remember (mbedtls_HMAC256_DRBG_reseed_function s
               (HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance
                  reseed_interval)
               (contents_with_add additional (Zlength contents) contents)) as M.
-      destruct M; try contradiction.
+      destruct M; try contradiction. 
       destruct d as [[[[AA BB] CC] DD] EE]. subst BB s0 (*ctx1*).
-      unfold hmac256drbgabs_reseed in Heqh. subst initial_state_abs. subst add_len. rewrite <- HeqM in Heqh.
+      unfold hmac256drbgabs_reseed in Heqh. subst initial_state_abs. subst add_len. rewrite <- HeqM in Heqh. 
       subst h. unfold hmac256drbgabs_reseed. rewrite <- HeqM. simpl.
       unfold  postReseedCtx in CTX1. rewrite <- HeqM in CTX1. subst ctx1.
-      cancel. entailer!.
+      cancel. entailer!. 
       { unfold mbedtls_HMAC256_DRBG_reseed_function, HMAC256_DRBG_reseed_function, DRBG_reseed_function in HeqM.
-        subst contents'. rewrite andb_negb_r, ZLa in HeqM.
+        subst contents'. rewrite andb_negb_r, ZLa in HeqM. 
         destruct (get_entropy 32(*256*) entropy_len entropy_len prediction_resistance s); inv HeqM.
         remember(HMAC_DRBG_update HMAC256
            (l ++ contents_with_add additional (Zlength contents) contents) key V) as h.
         destruct h; inv H6. split; trivial.
-           eapply HMAC_DRBG_update_value; eassumption.
+           eapply HMAC_DRBG_update_value; eassumption. 
            eapply HMAC_DRBG_update_value; eassumption.
       }
     - subst stream1 key1 initial_state_abs h ctx1 IS. simpl. cancel. entailer!.
@@ -1319,19 +1322,19 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
       temp _reseed_interval (Vint (Int.repr reseed_interval));
       temp _reseed_counter (Vint (Int.repr reseed_counter));
       temp _prediction_resistance (Val.of_bool prediction_resistance);
-      temp _out (offset_val done output); temp _left (Vint (Int.repr (out_len - done)));
+      temp _out (offset_val done output); temp _left (Vint (Int.repr (out_len - done))); 
       temp _ctx (*ctx*)(Vptr b i); temp _p_rng (*ctx*)(Vptr b i); temp _output output;
       temp _out_len (Vint (Int.repr out_len)); temp _additional additional;
       temp _add_len (Vint (Int.repr after_reseed_add_len));
       gvar sha._K256 kv
       )
       SEP  ((*Stream stream1;*)
-      hmac256drbgabs_common_mpreds (hmac256drbgabs_update_value after_update_state_abs
+      hmac256drbgabs_common_mpreds (hmac256drbgabs_update_value after_update_state_abs 
               (fst (HLP done)))
-        initial_state (Vptr b i) info_contents; FRZL StreamAdd;
+        initial_state (Vptr b i) info_contents; FRZL StreamAdd; 
       data_at Tsh (tarray tuchar out_len) ((map Vint (map Int.repr
-          (sublist 0 done (snd (HLP done))))) ++
-          list_repeat (Z.to_nat (out_len - done)) Vundef) output;
+          (sublist 0 done (snd (HLP done))))) ++ 
+          list_repeat (Z.to_nat (out_len - done)) Vundef) output; 
       K_vector kv)
   ).
   {
@@ -1370,12 +1373,12 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
       destruct ctx''; inversion Hisptr. reflexivity.
     }
     unfold_data_at 1%nat.
-
+    
     freeze [2;3;4;5] FR_unused_struct_fields.
     freeze [0;3;5] FR1.
 
     rewrite (field_at_data_at _ _ [StructField _md_ctx]). simpl.
-    rewrite (field_at_data_at _ _ [StructField _V]).
+    rewrite (field_at_data_at _ _ [StructField _V]). 
     simpl.
 
     unfold hmac256drbg_relate. subst initial_state_abs. simpl in *.
@@ -1387,7 +1390,7 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
 (*    rewrite Heqafter_update_key.*)
     simpl in AUV, AUK. subst AUV AUK.
     unfold md_full. subst initial_state. simpl.
-    normalize.
+    normalize. 
 
     (* size_t use_len = left > md_len ? md_len : left; *)
     forward_if (
@@ -1427,7 +1430,7 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
     forward.
 
     (* mbedtls_md_hmac_reset( &ctx->md_ctx ); *)
-    assert_PROP (field_compatible (Tarray tuchar 32 noattr)
+    assert_PROP (field_compatible (Tarray tuchar 32 noattr) 
           []
           (field_address t_struct_hmac256drbg_context_st [StructField _V] (*ctx*)(Vptr b i))) as FC_V by entailer!.
     assert_PROP (field_compatible t_struct_hmac256drbg_context_st
@@ -1436,34 +1439,34 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
     { simpl. cancel. }
 
     (* mbedtls_md_hmac_update( &ctx->md_ctx, ctx->V, md_len ); *)
-    rename H5 into HZlength_V.
+    rename H5 into HZlength_V. 
     rename H8 into HisbyteZ_V.
     assert_PROP (field_compatible t_struct_hmac256drbg_context_st [StructField _V] (Vptr b i)) as FCV by entailer!.
     forward_call (key0, field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] (*ctx*)(Vptr b i),
-                  (*md_ctx'*)(mc1,(mc2,mc3)),
-                  field_address t_struct_hmac256drbg_context_st [StructField _V] (*ctx*)(Vptr b i),
+                  (*md_ctx'*)(mc1,(mc2,mc3)), 
+                  field_address t_struct_hmac256drbg_context_st [StructField _V] (*ctx*)(Vptr b i), 
                   @nil Z, (fst (HLP done)), kv).
 
     { simpl. apply prop_right. rewrite HZlength_V, field_address_offset; trivial.
-      split; simpl; trivial.
+      split; simpl; trivial. 
     }
     { simpl; simpl in HZlength_V; rewrite HZlength_V (*, <- Hmultiple*).
       cancel.
     }
     {
-      simpl; simpl in HZlength_V; rewrite HZlength_V.
+      simpl; simpl in HZlength_V; rewrite HZlength_V. 
       change Int.max_unsigned with 4294967295.
       change (two_power_pos 61) with 2305843009213693952.
       repeat split; try omega.
       apply HMAC_DRBG_generate_helper_Z_isbyteZ_fst; auto; try omega.
-      apply isbyteZ_HMAC256.
+      apply isbyteZ_HMAC256. 
     }
 
     (*Intros vret; subst vret.*)
     rewrite app_nil_l.
 
     replace_SEP 2 (memory_block Tsh 32 (field_address t_struct_hmac256drbg_context_st [StructField _V] (*ctx*)(Vptr b i))).
-    {
+    { 
       entailer!.
       simpl in HZlength_V.
       unfold hmac256drbgabs_value.
@@ -1472,13 +1475,13 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
     }
 
     (* mbedtls_md_hmac_finish( &ctx->md_ctx, ctx->V ); *)
-    forward_call ((fst(HLP done)), key0,
-               field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] (*ctx*)(Vptr b i),
+    forward_call ((fst(HLP done)), key0, 
+               field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] (*ctx*)(Vptr b i), 
                (*md_ctx'*)(mc1, (mc2, mc3)),
                field_address t_struct_hmac256drbg_context_st [StructField _V] (*ctx*)(Vptr b i), Tsh, kv).
     {
       entailer!.
-      rewrite field_address_offset; trivial.
+      rewrite field_address_offset; trivial. 
     }
     Intros vret; subst vret. simpl.
     assert_PROP (field_compatible (tarray tuchar out_len) [] output) as
@@ -1499,13 +1502,13 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
         apply hmac_common_lemmas.HMAC_Zlength.
         exists n; reflexivity.
       }
-
+      
       apply data_at_complete_split; try rewrite HZlength1; try rewrite Zlength_list_repeat; auto; try omega.
       (*simpl. simpl in HZlength1. rewrite HZlength1.*)
       replace ((n * 32)%Z + (out_len - (n * 32)%Z)) with out_len by omega. assumption.
     }
     normalize.
-
+    
     remember (offset_val done output) as done_output.
     remember (Z.min 32 (out_len - done)) as use_len.
     assert_PROP (field_compatible (tarray tuchar (out_len - done)) [] done_output) as Hfield_compat_done_output.
@@ -1586,12 +1589,12 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
       }
     }
     (* memcpy( out, ctx->V, use_len ); *)
-    forward_call ((Tsh, Tsh), done_output,
-                  field_address t_struct_hmac256drbg_context_st [StructField _V] (*ctx*)(Vptr b i),
+    forward_call ((Tsh, Tsh), done_output, 
+                  field_address t_struct_hmac256drbg_context_st [StructField _V] (*ctx*)(Vptr b i), 
                   use_len,
                   sublist 0 use_len (map Int.repr H256)).
     {
-      (*replace (map Vint (sublist 0 use_len (map Int.repr H256))) with
+      (*replace (map Vint (sublist 0 use_len (map Int.repr H256))) with 
               (sublist 0 use_len (map Vint (map Int.repr H256))).*)
       rewrite sublist_map. (*
       change (@data_at CompSpecs (fst (Tsh, Tsh)) (tarray tuchar use_len)
@@ -1601,7 +1604,7 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
          (sublist 0 use_len (map Vint (map Int.repr H256)))
          (field_address t_struct_hmac256drbg_context_st [StructField _V] (*ctx*)(Vptr b i))).*)
       Time entailer!.
-      rewrite field_address_offset; trivial.
+      rewrite field_address_offset; trivial. 
     }
     { simpl. rewrite sublist_map. cancel. }
     { repeat split; auto;
@@ -1643,7 +1646,7 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
     }
 
     gather_SEP 1 2.
-    replace_SEP 0 (data_at Tsh (tarray tuchar (out_len - done))
+    replace_SEP 0 (data_at Tsh (tarray tuchar (out_len - done)) 
          ( (map Vint (sublist 0 use_len (map Int.repr H256)))
            ++ (list_repeat (Z.to_nat (out_len - done - use_len)) Vundef))
          done_output).
@@ -1656,12 +1659,12 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
       destruct (Z_lt_ge_dec 32 (out_len - done)) as [Hmin | Hmin].
       {
         rewrite zlt_true by assumption.
-        apply data_at_complete_split;
+        apply data_at_complete_split; 
            repeat rewrite Zlength_map; try rewrite Zlength_list_repeat; trivial; try omega.
         + rewrite Zlength_sublist; try omega.
             replace (32 - 0 + (out_len - done - 32)) with (out_len - done) by omega; trivial.
             rewrite Zlength_map; omega.
-        + rewrite Zlength_sublist; try rewrite Zlength_map; omega.
+        + rewrite Zlength_sublist; try rewrite Zlength_map; omega. 
       }
       {
         rewrite zlt_false by assumption.
@@ -1682,7 +1685,7 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
 
     gather_SEP 2 0.
     replace_SEP 0 (
-                  data_at Tsh (tarray tuchar out_len)
+                  data_at Tsh (tarray tuchar out_len) 
                     ((map Vint (map Int.repr (sublist 0 done (snd (HLP done))))) ++
                      (map Vint (sublist 0 use_len (map Int.repr H256)) ++
                       list_repeat (Z.to_nat (out_len - done - use_len)) Vundef)) output).
@@ -1703,7 +1706,7 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
       repeat rewrite Zlength_app; repeat rewrite Zlength_map; try rewrite HZlength1; repeat rewrite Zlength_list_repeat; repeat rewrite Zlength_sublist; repeat rewrite Zlength_map; try rewrite hmac_common_lemmas.HMAC_Zlength; auto; try omega;
       try rewrite HZlength_V.
       replace ((n * 32)%Z - 0 + (32 - 0 + (out_len - (n * 32)%Z - 32))) with out_len by omega;
-      assumption.
+      assumption. 
       replace ((n * 32)%Z - 0 + (out_len - (n * 32)%Z - 0 + (out_len - (n * 32)%Z - (out_len - (n * 32)%Z)))) with out_len by omega.
       apply data_at_complete_split;
       repeat rewrite Zlength_app; repeat rewrite Zlength_map; try rewrite HZlength1; repeat rewrite Zlength_list_repeat; repeat rewrite Zlength_sublist; repeat rewrite Zlength_map; try rewrite hmac_common_lemmas.HMAC_Zlength; auto; try omega;
@@ -1718,17 +1721,17 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
 
     (* left -= use_len; *)
     forward.
-    {
-      old_go_lower.
+    { 
+      old_go_lower. 
       Exists (done + use_len).
       unfold hmac256drbgabs_common_mpreds; normalize.
 
       unfold_data_at 4%nat.
       rewrite (field_at_data_at _ _ [StructField _md_ctx]);
       rewrite (field_at_data_at _ _ [StructField _V]).
-
+    
       unfold md_full.
-
+    
       thaw FR1.
       thaw FR_unused_struct_fields.
       (*Ideal proof - but takes ages:
@@ -1745,25 +1748,25 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
       }
       So let's do it by hand*)
       subst. rewrite (*H10,*) offset_offset_val. (*clear H10.*)
-      apply andp_right.
-      { apply prop_right.
+      apply andp_right. 
+      { apply prop_right. 
         rewrite Zmin_spec.
         destruct (Z_lt_ge_dec 32 (out_len - (n * 32)%Z)) as [Hmin | Hmin]; [rewrite zlt_true by assumption | rewrite zlt_false by assumption]; repeat split; try omega.
         left; exists (n + 1); omega.
         replace (out_len - ((n * 32)%Z + 32)) with (out_len - (n * 32)%Z - 32) by omega.
-        (*reflexivity.*) assumption.
+        (*reflexivity.*) assumption. 
         (*right; omega.*)
         f_equal. f_equal. omega.
 (*        replace (out_len - ((n * 32)%Z + (out_len - (n * 32)%Z))) with (out_len - (n * 32)%Z - (out_len - (n * 32)%Z)) by omega.*)
         assumption.
-        right; omega.
+        right; omega. 
         assumption.
         f_equal. f_equal. omega.
         assumption.
       }
       cancel.
 
-      (*Rest as with "ideal proof"*)
+      (*Rest as with "ideal proof"*) 
       unfold md_full. simpl. normalize.
       replace H256 with (fst (HLP (n * 32 + Z.min 32 (out_len - n * 32))))%Z.
 (*      replace (HMAC256 (fst (HMAC_DRBG_generate_helper_Z HMAC256 key0 V0 (n * 32)%Z))
@@ -1775,9 +1778,9 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
         apply hmac_common_lemmas.HMAC_Zlength. }
       { subst HLP.
         apply HMAC_DRBG_generate_helper_Z_isbyteZ_fst; trivial.
-          rewrite Zmin_spec. destruct (Z_lt_ge_dec 32 (out_len - (n * 32)%Z)) as [Hmin | Hmin]; [rewrite zlt_true by assumption | rewrite zlt_false by assumption]; try rewrite HZlength_V; omega.
-          apply isbyteZ_HMAC256. }
-      unfold md_full. simpl. cancel.
+          rewrite Zmin_spec. destruct (Z_lt_ge_dec 32 (out_len - (n * 32)%Z)) as [Hmin | Hmin]; [rewrite zlt_true by assumption | rewrite zlt_false by assumption]; try rewrite HZlength_V; omega. 
+          apply isbyteZ_HMAC256. } 
+      unfold md_full. simpl. cancel. 
       rewrite app_assoc.
       replace (map Vint
         (map Int.repr
@@ -1807,33 +1810,33 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
               (HLP ((n * 32)%Z + Z.min 32 (out_len - (n * 32)%Z))))).
       reflexivity.
       replace (snd
-              (HLP ((n * 32)%Z + Z.min 32 (out_len - (n * 32)%Z))))
-      with (snd (HLP (n * 32)%Z) ++
+              (HLP ((n * 32)%Z + Z.min 32 (out_len - (n * 32)%Z)))) 
+      with (snd (HLP (n * 32)%Z) ++ 
             fst (HLP ((n * 32)%Z + Z.min 32 (out_len - (n * 32)%Z)))).
       {
-        apply while_loop_post_sublist_app; auto.
+        apply while_loop_post_sublist_app; auto. 
       }
       {
         apply while_loop_post_incremental_snd; auto.
         intros contra; rewrite contra, Zminus_diag in HRE. clear - HRE.
-        elim HRE; trivial.
+        elim HRE; trivial. 
       }
       {
         apply while_loop_post_incremental_fst; auto.
         intros contra; rewrite contra, Zminus_diag in HRE. clear - HRE.
-        elim HRE; trivial.
+        elim HRE; trivial. 
       }
     }
 (*END OF INLINED LOOP BODY
 Require Import hamcdrbg_verif_gen_whilebody.
-  { (*LOOP BODY*)
-    semax_subcommand HmacDrbgVarSpecs HmacDrbgFunSpecs
-       f_mbedtls_hmac_drbg_random_with_add.
+  { (*LOOP BODY*) 
+    semax_subcommand HmacDrbgVarSpecs HmacDrbgFunSpecs 
+       f_mbedtls_hmac_drbg_random_with_add. 
     eapply gen_loopbodywith (after_update_state_abs :=after_update_state_abs). *)
   }
 
   (*POST LOOP*)
-
+  
   assert (Hdone: done = out_len).
   {
     clear - HRE H2 Hout_len.
@@ -1860,24 +1863,24 @@ Require Import hamcdrbg_verif_gen_whilebody.
   remember (hmac256drbgabs_to_state ABS3 initial_state) as CTX3.
   destruct ABS3. destruct CTX3 as [aa [bb [cc [dd [ee ff]]]]]. normalize.
   unfold hmac256drbgabs_to_state in HeqCTX3. subst initial_state. simpl in HeqCTX3. inv HeqCTX3.
-
+  
   set (ctx3 := (mc1, (mc2, mc3),
           (map Vint (map Int.repr V0),
           (Vint (Int.repr reseed_counter0),
           (Vint (Int.repr entropy_len0),
           (Val.of_bool prediction_resistance0, Vint (Int.repr reseed_interval0))))))) in *.
   thaw StreamAdd.
-  freeze [3;5] StreamOut.
+  freeze [3;5] StreamOut. 
 
   (* mbedtls_hmac_drbg_update( ctx, additional, add_len ); *)
   (*subst add_len.*)
   forward_call (contents,
-         additional, after_reseed_add_len,
+         additional, after_reseed_add_len, 
          (*ctx*)Vptr b i, ctx3,
          hmac256drbgabs_update_value after_update_state_abs (fst (HLP out_len)),
          kv, info_contents).
   { subst after_reseed_add_len. unfold hmac256drbg_relate. rewrite <- HeqABS3.
-    subst ctx3. simpl. normalize.
+    subst ctx3. simpl. normalize. 
     apply andp_right. apply prop_right. repeat split; trivial.
     cancel. }
   { subst after_reseed_add_len. rewrite <- HeqABS3; simpl.
@@ -1895,14 +1898,14 @@ Require Import hamcdrbg_verif_gen_whilebody.
   unfold hmac256drbg_relate.
   subst ctx3. simpl in ctx4. destruct ABS4. simpl in ctx4. subst ctx4. simpl. normalize.
   unfold hmac256drbgstate_md_info_pointer. simpl.
-  freeze [2;3;4;5] FR5.
+  freeze [2;3;4;5] FR5. 
   unfold_data_at 1%nat.
   freeze [1;2;4;5;6;7] FIELDS.
   forward. forward. forward.
   Exists (Vint (Int.repr 0)).
   apply andp_right. apply prop_right; trivial.
   apply andp_right. apply prop_right; split; trivial.
-  thaw FIELDS. thaw FR5. thaw StreamOut.
+  thaw FIELDS. thaw FR5. thaw StreamOut.  
   unfold hmac256drbgabs_common_mpreds, hmac256drbg_relate, hmac256drbgstate_md_info_pointer.
   simpl. normalize.
   set (Gen := hmac256drbgabs_generate initial_state_abs s out_len  contents') in *.
@@ -1928,8 +1931,8 @@ Opaque hmac256drbgabs_generate.
   destruct sr.
   + subst should_reseed after_reseed_add_len. simpl in na.
     remember MRES as MRES'. destruct MRES'; try contradiction. subst MRES.
-    destruct d as [[[[? ?] ?] ?] ?]. subst s0.
-    simpl in H1, H3, H4, H6, Hreseed_counter_in_range.
+    destruct d as [[[[? ?] ?] ?] ?]. subst s0. 
+    simpl in H1, H3, H4, H6, Hreseed_counter_in_range. 
     remember na as naa.
     destruct naa.
     - subst na. rewrite andb_false_r in Heqnaa. discriminate.
@@ -1951,14 +1954,14 @@ Opaque HMAC256_DRBG_generate_function.
       destruct ENT; inversion HeqMRES'; clear HeqMRES'. subst z0 b0 s0.
       unfold HMAC256_DRBG_update in HeqUPD.
       remember (HMAC_DRBG_update HMAC256 (l3 ++ contents_with_add additional (Zlength contents) contents) key V) as UPD'.
-      destruct UPD'; inversion H15; clear H15. subst z l1 l2.
+      destruct UPD'; inversion H15; clear H15. subst z l1 l2. 
       destruct prediction_resistance.
       * simpl in HeqMGen'.
         remember (HMAC_DRBG_generate_helper_Z HMAC256 l4 l5 out_len) as GH.
         destruct GH. subst MGen'. subst Gen. simpl.
         apply andp_right. apply prop_right. repeat split; trivial.
-        normalize. rewrite hmac_common_lemmas.HMAC_Zlength.
-        apply andp_right. apply prop_right. repeat split; trivial. apply isbyteZ_HMAC256.
+        normalize. rewrite hmac_common_lemmas.HMAC_Zlength. 
+        apply andp_right. apply prop_right. repeat split; trivial. apply isbyteZ_HMAC256. 
         rewrite sublist_firstn. cancel.
         unfold_data_at 3%nat. cancel.
         subst HLP. simpl in *.
@@ -1967,18 +1970,18 @@ Opaque HMAC256_DRBG_generate_function.
         destruct l6; inv HeqUPD'.
         ++ symmetry in Heql6. apply app_eq_nil in Heql6. destruct Heql6; subst l3.
            unfold get_entropy in HeqENT. apply get_bytes_length in HeqENT. simpl in HeqENT. exfalso. clear - HeqENT H3.
-           symmetry in HeqENT.  apply Z2Nat_inj_0 in HeqENT. omega. omega.
+           symmetry in HeqENT.  apply Z2Nat_inj_0 in HeqENT. omega. omega. 
         ++ assert (CONT: contents_with_add additional 0 contents = []).
            { unfold contents_with_add; simpl. rewrite andb_false_r; trivial. }
-           rewrite CONT in *. inv HeqUPD.
+           rewrite CONT in *. inv HeqUPD. 
            rewrite <- HeqGH; simpl. cancel.
-      * rewrite orb_false_l in Heqsr.
+      * rewrite orb_false_l in Heqsr. 
         simpl in HeqMGen'. simpl in *. subst reseed_interval. rewrite <- Heqsr, ZLa, <- HeqENT, <- HeqUPD' in HeqMGen'.
         simpl in HeqMGen'.
         remember (HMAC_DRBG_generate_helper_Z HMAC256 l4 l5 out_len) as GH.
         destruct GH. subst MGen'. subst Gen. simpl.
         apply andp_right. apply prop_right. repeat split; trivial.
-        normalize. rewrite hmac_common_lemmas.HMAC_Zlength.
+        normalize. rewrite hmac_common_lemmas.HMAC_Zlength. 
         apply andp_right. apply prop_right. repeat split; trivial. apply isbyteZ_HMAC256.
         rewrite sublist_firstn. cancel.
         simpl in *.
@@ -1991,7 +1994,7 @@ Opaque HMAC256_DRBG_generate_function.
         ++ assert (CONT: contents_with_add additional 0 contents = []).
            { unfold contents_with_add; simpl. rewrite andb_false_r; trivial. }
            rewrite CONT in *. inv HeqUPD. cancel.
-           unfold_data_at 3%nat. cancel. subst HLP; rewrite <- HeqGH; simpl. cancel.
+           unfold_data_at 3%nat. cancel. subst HLP; rewrite <- HeqGH; simpl. cancel. 
   + subst should_reseed after_reseed_add_len. symmetry in Heqsr.
     apply orb_false_iff in Heqsr. destruct Heqsr; subst prediction_resistance. simpl in na.
     simpl in H1, H3, H4, H6, Hreseed_counter_in_range.
@@ -2001,7 +2004,7 @@ Opaque HMAC256_DRBG_generate_function.
     subst contents'. rewrite andb_negb_r, ZLa in HeqMRES'.
     remember (get_entropy 32(*256*) entropy_len entropy_len false s) as ENT.
     destruct ENT.
-    - subst MRES'.
+    - subst MRES'. 
       remember  MGen as MGen'. subst MGen.
 Transparent mbedtls_HMAC256_DRBG_generate_function.
 Transparent HMAC256_DRBG_generate_function.
@@ -2010,24 +2013,28 @@ Transparent HMAC256_DRBG_generate_function.
       unfold DRBG_generate_function_helper in HeqMGen'. simpl in HeqMGen'.
       simpl in *. subst reseed_interval. rewrite H15 in HeqMGen'.
       remember (contents_with_add additional (Zlength contents) contents) as CONT.
-      subst HLP.
+      subst HLP. 
       destruct CONT.
-      * rewrite Zlength_nil, <- HeqENT in HeqMGen'. simpl in HeqMGen'.
+      * clear C' ZLc'. subst stream1. 
+        rewrite Zlength_nil, <- HeqENT(*, F*) in HeqMGen'. simpl in HeqMGen'.
         remember (HMAC_DRBG_generate_helper_Z HMAC256 key V out_len) as p. destruct p.
         remember (HMAC_DRBG_update HMAC256 [] key l2) as q. destruct q.
         subst MGen'. subst Gen.
         unfold contents_with_add in HeqCONT.
-        destruct (eq_dec (Zlength contents) 0); simpl in HeqCONT.
+        destruct (eq_dec (Zlength contents) 0); simpl in HeqCONT. 
         ++ rewrite e in *. rewrite (Zlength_nil_inv _ e) in *.
            simpl in na. destruct (initial_world.EqDec_Z (Zlength contents) 0); try solve [omega]; simpl in na.
-           subst na; rewrite andb_false_r in *.
-           inv HeqAUSA. simpl.
-           apply andp_right. apply prop_right. repeat split; trivial.
+           subst na; rewrite andb_false_r in *. 
+           inv HeqAUSA. simpl. 
+           rewrite hmac_common_lemmas.HMAC_Zlength.
+           remember ((negb (Memory.EqDec_val additional nullval) &&
+                            false)%bool). 
+           rewrite andb_false_r in Heqb0; subst b0 after_update_state_abs.
            normalize.
-           unfold HMAC_DRBG_update, HMAC256_DRBG_update in *. inv Heqq.
-           unfold HMAC_DRBG_update in HeqUPD.
-           rewrite <- Heqp in *. inv HeqUPD.
            apply andp_right. apply prop_right. repeat split; trivial.
+              apply isbyteZ_HMAC256. 
+           unfold HMAC_DRBG_update, HMAC256_DRBG_update in *. inv Heqq.
+           unfold HMAC_DRBG_update in HeqUPD. inv H16. rewrite <- Heqp in *. inv HeqUPD. 
            rewrite sublist_firstn. cancel.
            unfold_data_at 1%nat. cancel.
         ++ destruct (Memory.EqDec_val additional nullval); simpl in na, HeqCONT.
@@ -2035,10 +2042,10 @@ Transparent HMAC256_DRBG_generate_function.
            subst na. simpl in *.
            inv HeqUPD. inv HeqAUSA. inv Heqq.
            apply andp_right. apply prop_right. repeat split; trivial.
-           rewrite hmac_common_lemmas.HMAC_Zlength.
+           rewrite hmac_common_lemmas.HMAC_Zlength. 
            normalize.
            apply andp_right. apply prop_right. repeat split; trivial.
-              apply isbyteZ_HMAC256.
+              apply isbyteZ_HMAC256. 
            rewrite sublist_firstn, <- Heqp; simpl. cancel.
            unfold_data_at 1%nat. cancel.
      * unfold contents_with_add in HeqCONT.
@@ -2053,16 +2060,16 @@ Transparent HMAC256_DRBG_generate_function.
        unfold HMAC256_DRBG_update in *. subst stream1 contents.
        remember (HMAC_DRBG_update HMAC256 (z::CONT) key V) as p; destruct p. inv HeqAUSA.
        remember (HMAC_DRBG_generate_helper_Z HMAC256 l2 l3 out_len) as w; destruct w.
-       simpl in HeqUPD. inv HeqUPD.
+       simpl in HeqUPD. inv HeqUPD. 
        remember (HMAC_DRBG_update HMAC256 (z :: CONT) l2 l4) as q; destruct q.
-       subst Gen.
+       subst Gen. 
        apply andp_right. apply prop_right. repeat split; trivial.
-       simpl.
+       simpl. 
        rewrite sublist_firstn. cancel.
        unfold HMAC_DRBG_update in Heqq. inv Heqq. simpl. normalize.
        apply andp_right. apply prop_right. repeat split; trivial. cancel.
        unfold_data_at 1%nat. cancel.
-  - subst HLP MRES'.
+  - subst HLP MRES'.  
       remember  MGen as MGen'. subst MGen.
 Transparent mbedtls_HMAC256_DRBG_generate_function.
 Transparent HMAC256_DRBG_generate_function.
@@ -2072,21 +2079,26 @@ Transparent HMAC256_DRBG_generate_function.
       simpl in *. subst reseed_interval. rewrite H15 in HeqMGen'.
       remember (contents_with_add additional (Zlength contents) contents) as CONT.
       destruct CONT.
-      * rewrite Zlength_nil, <- HeqENT(*, F*) in HeqMGen'. simpl in HeqMGen'.
+      * clear C' ZLc'. subst stream1. 
+        rewrite Zlength_nil, <- HeqENT(*, F*) in HeqMGen'. simpl in HeqMGen'.
         remember (HMAC_DRBG_generate_helper_Z HMAC256 key V out_len) as p. destruct p.
         remember (HMAC_DRBG_update HMAC256 [] key l2) as q. destruct q.
         subst MGen'. subst Gen.
         unfold contents_with_add in HeqCONT.
-        destruct (eq_dec (Zlength contents) 0); simpl in HeqCONT.
+        destruct (eq_dec (Zlength contents) 0); simpl in HeqCONT. 
         ++ rewrite e0 in *. rewrite (Zlength_nil_inv _ e0) in *.
            simpl in na. destruct (initial_world.EqDec_Z (Zlength contents) 0); try solve [omega]; simpl in na.
-           subst na; rewrite andb_false_r in *.
-           inv HeqAUSA. simpl.
-           apply andp_right. apply prop_right. repeat split; trivial.
+           subst na; rewrite andb_false_r in *. 
+           inv HeqAUSA. simpl. 
+           rewrite hmac_common_lemmas.HMAC_Zlength.
+           remember ((negb (Memory.EqDec_val additional nullval) &&
+                            false)%bool). 
+           rewrite andb_false_r in Heqb0; subst b0 after_update_state_abs.
            normalize.
-           unfold HMAC_DRBG_update, HMAC256_DRBG_update in *. inv Heqq.
-           unfold HMAC_DRBG_update in HeqUPD. rewrite <- Heqp in *. inv HeqUPD.
            apply andp_right. apply prop_right. repeat split; trivial.
+              apply isbyteZ_HMAC256. 
+           unfold HMAC_DRBG_update, HMAC256_DRBG_update in *. inv Heqq.
+           unfold HMAC_DRBG_update in HeqUPD. inv H16. rewrite <- Heqp in *. inv HeqUPD. 
            rewrite sublist_firstn. cancel.
            unfold_data_at 1%nat. cancel.
         ++ destruct (Memory.EqDec_val additional nullval); simpl in na, HeqCONT.
@@ -2094,7 +2106,7 @@ Transparent HMAC256_DRBG_generate_function.
            subst na. simpl in *.
            inv HeqUPD. inv HeqAUSA. inv Heqq.
            apply andp_right. apply prop_right. repeat split; trivial.
-           rewrite hmac_common_lemmas.HMAC_Zlength.
+           rewrite hmac_common_lemmas.HMAC_Zlength. 
            normalize.
            apply andp_right. apply prop_right. repeat split; trivial.
              apply isbyteZ_HMAC256.
@@ -2112,17 +2124,16 @@ Transparent HMAC256_DRBG_generate_function.
        unfold HMAC256_DRBG_update in *. subst stream1 contents.
        remember (HMAC_DRBG_update HMAC256 (z::CONT) key V) as p; destruct p. inv HeqAUSA.
        remember (HMAC_DRBG_generate_helper_Z HMAC256 l1 l2 out_len) as w; destruct w.
-       simpl in HeqUPD. inv HeqUPD.
+       simpl in HeqUPD. inv HeqUPD. 
        remember (HMAC_DRBG_update HMAC256 (z :: CONT) l1 l3) as q; destruct q.
-       subst Gen.
+       subst Gen. 
        apply andp_right. apply prop_right. repeat split; trivial.
-       simpl.
+       simpl. 
        rewrite sublist_firstn. cancel.
        unfold HMAC_DRBG_update in Heqq. inv Heqq. simpl. normalize.
        apply andp_right. apply prop_right. repeat split; trivial. cancel.
        unfold_data_at 1%nat. cancel.
-Time Qed.  
-(* Feb 23 2017: 708.407 secs (557.781u,0.609s) (successful)*)
+Time Qed. 
 (*Coq8.5pl2, Dec7th: 
   CoqIde(Windows): 152.187 secs (152.u,0.156s) (successful) 1.87GB memory use
   coqc(Windows):  147.858 secs (147.64u,0.14s) (successful),

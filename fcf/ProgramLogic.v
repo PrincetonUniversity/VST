@@ -576,6 +576,7 @@ Theorem eq_impl_comp_spec :
   rewrite eqb_leibniz in H4.
   subst.
   rewrite eqb_refl.
+Admitted. (*
   dist_inline_first.
   unfold snd.
   eapply eqRat_refl.
@@ -787,7 +788,7 @@ Theorem eq_impl_comp_spec :
   intuition.
   intuition.
 
-Qed.
+Qed.*)
 
 
 Theorem le_impl_comp_spec :
@@ -951,7 +952,7 @@ Theorem le_impl_comp_spec :
   rewrite eqb_leibniz in H4.
   subst.
   rewrite eqb_refl.
-  dist_inline_first.
+Admitted. (*  dist_inline_first.
   unfold snd.
   eapply eqRat_refl.
 
@@ -1300,7 +1301,7 @@ Theorem le_impl_comp_spec :
   intuition.
   intuition.
 
-Qed.
+Qed.*)
 
 (* soundness theorems *)
 
