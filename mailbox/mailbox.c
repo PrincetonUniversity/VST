@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include "threads.h"
+#include "atomic_exchange.h"
+//#include "threads.h"
+//#include <stdatomic.h>
 
 void *surely_malloc (size_t n) {
   void *p = malloc(n);
@@ -10,9 +12,9 @@ void *surely_malloc (size_t n) {
 
 //This will be replaced by an external call eventually.
 void *memset(void *s, int c, size_t n){
-  unsigned char *p = (unsigned char *)s;
-  for(size_t i = 0; i < n; i++)
-    p[i] = (unsigned char)c;
+  int *p = (int *)s;
+  for(size_t i = 0; i < n / 4; i++)
+    p[i] = c;
   return s;
 }
 
@@ -28,16 +30,6 @@ buffer *bufs[B];
 lock_t *lock[N];
 buf_id *comm[N];
 
-//This could be replaced by an external call.
-int simulate_atomic_exchange(int *tgt, lock_t *l, int v){
-  int x;
-  acquire(l);
-  x = *tgt;
-  *tgt = v;
-  release(l);
-  return x;
-}
-
 //The initial state as written in the draft is slightly inconsistent:
 //last_read is First, but comm[r] is also First as if it
 //hasn't been read yet. Either last_read or comm[r] should
@@ -51,8 +43,7 @@ buf_id *reading[N], *last_read[N];
 void initialize_channels(){
   for(int i = 0; i < B; i++){
     buffer *b = surely_malloc(sizeof(buffer));
-    memset(b, 0, sizeof(buffer)); //for now, we initialize all buffers to maintain
-                                  //the invariant that buffers contain integers
+    memset(b, 0, sizeof(buffer));
     bufs[i] = b;
   }
   for(int r = 0; r < N; r++){
@@ -154,7 +145,7 @@ void *reader(void *arg){
     buf_id b = start_read(r);
     buffer *buf = bufs[b];
     int v = buf->data;
-    //printf("Reader %d read %d\n", r, v);
+    //   printf("Reader %d read %d\n", r, v);
     finish_read(r);
   }
   return NULL;

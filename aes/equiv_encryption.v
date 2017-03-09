@@ -1,6 +1,7 @@
 Require Import aes.aes_spec_ll.
 Require Import aes.spec_AES256_HL.
-Require Import aes.aesutils.
+Require Import aes.tablesLL.
+Require Import aes.GF_ops_LL.
 Require Import List. Import ListNotations.
 
 (* Note: In the standard, the 4x4 matrix is filled with bytes column-wise, but the
@@ -21,6 +22,15 @@ Definition list_to_state (l : list int) : state := transpose
          (z4, z4, z4, z4)
   end.
 
+Definition word_to_int (w : word) : int :=
+  match w with (b0, b1, b2, b3) =>
+    (Int.or (Int.or (Int.or
+             b0
+    (Int.shl b1 (Int.repr  8)))
+    (Int.shl b2 (Int.repr 16)))
+    (Int.shl b3 (Int.repr 24)))
+  end.
+
 (*
 Definition int_to_word (x : int) : word := (
   (Int.and           x                (Int.repr 255)),
@@ -37,6 +47,11 @@ end.
 Definition state_to_four_ints (s : state) : four_ints := match transpose s with
 | (c0, c1, c2, c3) => (word_to_int c0, (word_to_int c1, (word_to_int c2, word_to_int c3)))
 end.
+
+Definition block_to_ints (b : block) : list int :=
+  match b with (w0, w1, w2, w3) => [word_to_int w0; word_to_int w1; word_to_int w2; word_to_int w3] end.
+
+Definition blocks_to_ints (blocks : list block) : list int := flat_map block_to_ints blocks.
 
 Definition blocks_to_Zwords (blocks : list block) : list Z := map Int.unsigned (blocks_to_ints blocks).
 
@@ -113,18 +128,19 @@ Proof.
 Qed.
 
 Lemma get_uint32_le_word_to_int: forall b0 b1 b2 b3,
-  get_uint32_le [Int.unsigned b0; Int.unsigned b1; Int.unsigned b2; Int.unsigned b3] 0
-  = word_to_int (b0, b1, b2, b3).
+  get_uint32_le (map Int.unsigned [b0; b1; b2; b3]) 0 = word_to_int (b0, b1, b2, b3).
 Proof.
-  intros. rewrite get_uint32_le_def. unfold word_to_int. unfold SHA256.little_endian_integer.
-  simpl.
-Admitted.
+  intros. rewrite get_uint32_le_def. unfold word_to_int.
+  do 4 rewrite Znth_map with (d' := Int.zero) by (change (Zlength [b0; b1; b2; b3]) with 4; omega).
+  do 4 rewrite Int.repr_unsigned.
+  reflexivity.
+Qed.
 
 Lemma xor_word_to_int: forall a0 a1 a2 a3 b0 b1 b2 b3,
   Int.xor (word_to_int (a0, a1, a2, a3)) (word_to_int (b0, b1, b2, b3))
   = word_to_int ((Int.xor a0 b0), (Int.xor a1 b1), (Int.xor a2 b2), (Int.xor a3 b3)).
 Proof.
-  intros. unfold word_to_int. unfold SHA256.little_endian_integer.
+  intros. unfold word_to_int.
 Admitted.
 
 Lemma initial_round_equiv: forall S K,
@@ -168,12 +184,13 @@ Proof.
     change (Znth 3 (e0 :: e1 :: e2 :: e3 :: rest) d) with e3
   end.
   match goal with
-  | |- context [ get_uint32_le ?l ?i ] => let l' := (eval_list l) in change l with l'
+  | |- context [ map Int.unsigned ?l ] => let l' := (eval_list l) in change l with l'
   end.
   rewrite (get_uint32_le_sublist (0 * 4)) by (simpl; omega).
   rewrite (get_uint32_le_sublist (1 * 4)) by (simpl; omega).
   rewrite (get_uint32_le_sublist (2 * 4)) by (simpl; omega).
   rewrite (get_uint32_le_sublist (3 * 4)) by (simpl; omega).
+  do 4 rewrite sublist_map.
   do 4 match goal with
   | |- context [sublist ?i ?j ?l] =>
     let r := eval_list (sublist i j l) in change (sublist i j l) with r
@@ -187,6 +204,121 @@ Proof.
 
   reflexivity.
 Qed.
+
+Lemma Znth_fill_list: forall {T: Type} (i n: Z) (f: Z -> T) (d: T),
+  0 <= i < n ->
+  Znth i (fill_list n f) d = f i.
+Admitted.
+
+Lemma rot8_word_to_int: forall b0 b1 b2 b3,
+  rot8 (word_to_int (b0, b1, b2, b3)) = word_to_int (b3, b0, b1, b2).
+Admitted.
+
+Definition FT0b0(i: Z): int := GF_ops_LL.times2 (Znth i FSb Int.zero).
+Definition FT0b1(i: Z): int := Znth i FSb Int.zero.
+Definition FT0b2(i: Z): int := Znth i FSb Int.zero.
+Definition FT0b3(i: Z): int := GF_ops_LL.times3 (Znth i FSb Int.zero).
+(* Note: according to calc_FT0, it should FT0b3 is
+     (Int.and (Int.xor (GF_ops_LL.times2 (Znth i FSb Int.zero)) (Znth i FSb Int.zero)) (Int.repr 255))
+   but we prefer to use an equivalent "medium-level" formulation *)
+
+Lemma mask_byte_nop: forall i,
+  0 <= Int.unsigned i < 256 ->
+  Int.and i (Int.repr 255) = i.
+Admitted.
+
+Lemma FSb_range: forall i,
+  0 <= Int.unsigned (Znth i FSb Int.zero) < 256.
+Admitted.
+
+Lemma times3_times2: forall i,
+  0 <= Int.unsigned i < 256 ->
+  Int.and (Int.xor (times2 i) i) (Int.repr 255) = times3 i.
+Proof.
+  intros. unfold times2, times3.
+  rewrite <- (mask_byte_nop _ H) at 3.
+  repeat rewrite <- (Int.and_commut (Int.repr 255)).
+  rewrite <- Int.and_xor_distrib.
+  rewrite <- Int.and_assoc.
+  rewrite Int.and_idem.
+  f_equal. rewrite Int.xor_commut.
+  reflexivity.
+Qed.
+
+Lemma calc_FT0_expose_bytes: forall i,
+  0 <= i < 256 ->
+  calc_FT0 i = word_to_int (FT0b0 i, FT0b1 i, FT0b2 i, FT0b3 i).
+Proof.
+  intros.
+  Transparent calc_FT0. unfold calc_FT0.
+  unfold word_to_int.
+  unfold FT0b0, FT0b1, FT0b2, FT0b3.
+  rewrite Int.xor_is_or by admit.
+  rewrite Int.xor_is_or by admit.
+  rewrite Int.xor_is_or by admit.
+  f_equal. f_equal. apply times3_times2. apply FSb_range.
+Admitted.
+
+Lemma calc_FT1_expose_bytes: forall i,
+  0 <= i < 256 ->
+  calc_FT1 i = word_to_int (FT0b3 i, FT0b0 i, FT0b1 i, FT0b2 i).
+Proof.
+  intros.
+  Transparent calc_FT1. unfold calc_FT1.
+  rewrite calc_FT0_expose_bytes by assumption.
+  rewrite rot8_word_to_int.
+  reflexivity.
+Qed.
+
+Lemma calc_FT2_expose_bytes: forall i,
+  0 <= i < 256 ->
+  calc_FT2 i = word_to_int (FT0b2 i, FT0b3 i, FT0b0 i, FT0b1 i).
+Proof.
+  intros.
+  Transparent calc_FT2. unfold calc_FT2, calc_FT1.
+  rewrite calc_FT0_expose_bytes by assumption.
+  do 2 rewrite rot8_word_to_int.
+  reflexivity.
+Qed.
+
+Lemma calc_FT3_expose_bytes: forall i,
+  0 <= i < 256 ->
+  calc_FT3 i = word_to_int (FT0b1 i, FT0b2 i, FT0b3 i, FT0b0 i).
+Proof.
+  intros.
+  Transparent calc_FT3. unfold calc_FT3, calc_FT2, calc_FT1.
+  rewrite calc_FT0_expose_bytes by assumption.
+  do 3 rewrite rot8_word_to_int.
+  reflexivity.
+Qed.
+
+Lemma times2_equiv: forall b,
+  0 <= Int.unsigned b < 256 ->
+  times2 b = ff_mult (Int.repr 2) b.
+Admitted.
+
+Lemma times3_equiv: forall b,
+  0 <= Int.unsigned b < 256 ->
+  times3 b = ff_mult (Int.repr 3) b.
+Admitted.
+
+Lemma split_quad_eq': forall {T : Type} (c0 c1 c2 c3 c0' c1' c2' c3' : T),
+  c0 = c0' -> c1 = c1' -> c2 = c2' -> c3 = c3' -> (c0, (c1, (c2, c3))) = (c0', (c1', (c2', c3'))).
+Proof.
+  intros. congruence.
+Qed.
+
+Lemma xor_assoc_5: forall i0 i1 i2 i3 i4,
+  Int.xor (Int.xor (Int.xor (Int.xor i4 i0) i1) i2) i3 =
+  Int.xor (Int.xor (Int.xor (Int.xor i0 i1) i2) i3) i4.
+Proof.
+  intros.
+  rewrite <- (Int.xor_commut i4).
+  repeat rewrite Int.xor_assoc.
+  reflexivity.
+Qed.
+
+Axiom byte_range_admit: forall b, 0 <= Int.unsigned b < 256.
 
 Lemma round_equiv: forall S K,
   (AES_LL_Spec.mbed_tls_fround
@@ -240,14 +372,25 @@ Proof.
   unfold round. unfold AddRoundKey, MixColumns, ShiftRows, SubBytes.
   unfold transpose. unfold sub_word, xor_word, transform_column.
 
-f_equal.
-  rewrite <- xor_word_to_int.
-  rewrite <- xor_word_to_int.
-  rewrite <- xor_word_to_int.
-  rewrite <- xor_word_to_int.
+  Transparent FT0 FT1 FT2 FT3.
+  unfold FT0, FT1, FT2, FT3.
+  assert (forall b, 0 <= Int.unsigned b < 256) as B by apply byte_range_admit.
+  do 16 rewrite Znth_fill_list by apply B.
 
-(* TODO now unfold tablesLL.FT0,1,2,3, but only once their defintion corresponds exactly to the C code *)
-Admitted.
+  do 4 rewrite calc_FT0_expose_bytes by apply B.
+  do 4 rewrite calc_FT1_expose_bytes by apply B.
+  do 4 rewrite calc_FT2_expose_bytes by apply B.
+  do 4 rewrite calc_FT3_expose_bytes by apply B.
+
+  repeat rewrite xor_word_to_int.
+  unfold FT0b0, FT0b1, FT0b2, FT0b3.
+  repeat rewrite equiv_sbox.
+  repeat rewrite times2_equiv by apply B.
+  repeat rewrite times3_equiv by apply B.
+  repeat rewrite <- Int.xor_assoc.
+
+  apply split_quad_eq'; f_equal; apply split_quad_eq; apply xor_assoc_5.
+Qed.
 
 Lemma final_round_equiv: forall S K,
   (mbed_tls_final_fround

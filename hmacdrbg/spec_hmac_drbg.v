@@ -7,8 +7,7 @@ Require Import hmacdrbg.HMAC256_DRBG_functional_prog.
 Require Import hmacdrbg.DRBG_functions.
 Require Import hmacdrbg.HMAC_DRBG_algorithms.
 Require Import hmacdrbg.entropy.
-(*Require Import sha.spec_hmac. LENB: was sha.spec_hmacNK*)
-Require Import sha.protocol_spec_hmac. (*LENB: was sha.funcspec_hmacNK*)
+Require Import sha.protocol_spec_hmac. 
 Require Import sha.general_lemmas.
 Require Import sha.HMAC256_functional_prog.
 
@@ -17,12 +16,6 @@ Require Import sha.spec_sha.
 Require Import floyd.library.
 
 Require Import hmacdrbg.hmac_drbg_compspecs.
-(*
-Module UNDER_SPEC := OPENSSL_HMAC_ABSTRACT_SPEC.
-*)
-(*
-Module HMACDRBG_MOD (UNDER_SPEC : HMAC_ABSTRACT_SPEC).
-*)
 
 Declare Module UNDER_SPEC : HMAC_ABSTRACT_SPEC.
 Definition mdstate: Type := (val * (val * val))%type.
@@ -31,14 +24,6 @@ Definition md_info_state: Type := val%type.
 
 Definition t_struct_md_ctx_st := Tstruct _mbedtls_md_context_t noattr.
 
-(*
-Inductive HABS := hABS: forall (key data:list Z), HABS.
-Definition convert_abs (h: HABS): UNDER_SPEC.HABS :=
-  match h with hABS key data => UNDER_SPEC.hABS key data end.
-
-Definition md_relate (h: HABS) (r:mdstate) :=
-  UNDER_SPEC.REP (convert_abs h) (snd (snd r)).
-*)
 Definition md_relate (h: UNDER_SPEC.HABS) (r:mdstate) :=
   UNDER_SPEC.REP h (snd (snd r)).
 
@@ -205,22 +190,22 @@ Definition md_reset_spec :=
 
 Definition md_starts_spec :=
   DECLARE _mbedtls_md_hmac_starts
-   WITH c : val, r: mdstate, l:Z, key:list Z, kv:val, b:block, i:Int.int
+   WITH c : val, r: mdstate, l:Z, key:list Z, kv:val, k:val
    PRE [ _ctx OF tptr t_struct_md_ctx_st,
          _key OF tptr tuchar,
          _keylen OF tuint ]
          PROP (sha.spec_hmac.has_lengthK l key; Forall isbyteZ key)
-         LOCAL (temp _ctx c; temp _key (Vptr b i); temp _keylen (Vint (Int.repr l));
+         LOCAL (temp _ctx c; temp _key k; temp _keylen (Vint (Int.repr l));
                 gvar sha._K256 kv)
          SEP (UNDER_SPEC.EMPTY (snd (snd r));
               data_at Tsh t_struct_md_ctx_st r c;
-              data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key)) (Vptr b i); K_vector kv)
+              data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key)) k; K_vector kv)
   POST [ tint ] 
      PROP (Forall isbyteZ key)
      LOCAL (temp ret_temp (Vint (Int.zero)))
      SEP (md_relate (UNDER_SPEC.hABS key nil) r;
           data_at Tsh t_struct_md_ctx_st r c;
-          data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key)) (Vptr b i);
+          data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key)) k;
           K_vector kv).
 
 Definition md_update_spec :=
@@ -829,7 +814,8 @@ Definition fs_merge (fA fB: funspec): option funspec :=
 *)
 
 Definition hmac_init_funspec:=
-    (WITH x : val * Z * list Z * val + val * Z * list Z * val * block * int PRE
+    (WITH x : val * Z * list Z * val + val * Z * list Z * val * val
+     PRE
      [(hmac._ctx, tptr spec_hmac.t_struct_hmac_ctx_st), (hmac._key, tptr tuchar),
      (hmac._len, tint)] match x with
                         | inl (c, l, key, kv) =>
@@ -839,13 +825,13 @@ Definition hmac_init_funspec:=
                             gvar sha._K256 kv)
                             SEP (UNDER_SPEC.FULL key c;
                             spec_sha.K_vector kv)
-                        | inr (c, l, key, kv, b0, i) =>
+                        | inr (c, l, key, kv, k) =>
                             PROP (spec_hmac.has_lengthK l key)
-                            LOCAL (temp hmac._ctx c; temp hmac._key (Vptr b0 i);
+                            LOCAL (temp hmac._ctx c; temp hmac._key k;
                             temp hmac._len (Vint (Int.repr l)); 
                             gvar sha._K256 kv)
                             SEP (UNDER_SPEC.EMPTY c;
-                            spec_sha.data_block Tsh key (Vptr b0 i); 
+                            spec_sha.data_block Tsh key k; 
                             spec_sha.K_vector kv)
                         end
      POST [tvoid] match x with
@@ -855,12 +841,12 @@ Definition hmac_init_funspec:=
                       SEP (UNDER_SPEC.REP
                              (UNDER_SPEC.hABS key []) c;
                       spec_sha.K_vector kv)
-                  | inr (c, _, key, kv, b0, i) =>
+                  | inr (c, _, key, kv, k) =>
                       PROP ( )
                       LOCAL ()
                       SEP (UNDER_SPEC.REP
                              (UNDER_SPEC.hABS key []) c;
-                      spec_sha.data_block Tsh key (Vptr b0 i); 
+                      spec_sha.data_block Tsh key k; 
                       spec_sha.K_vector kv)
                   end).
 (*

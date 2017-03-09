@@ -508,7 +508,8 @@ int mbedtls_aes_setkey_enc( mbedtls_aes_context *ctx, const unsigned char *key,
     uint32_t *RK;
 
 #if !defined(MBEDTLS_AES_ROM_TABLES)
-    if( aes_init_done == 0 )
+    int tmp = aes_init_done;
+    if( tmp == 0 )
     {
         aes_gen_tables();
         aes_init_done = 1;
@@ -538,7 +539,7 @@ int mbedtls_aes_setkey_enc( mbedtls_aes_context *ctx, const unsigned char *key,
         RK[i] = key_word;
     }
 
-    for( i = 0; i < 7; i++, RK += 8 )
+    for( i = 0; i < 7; i++/*, RK += 8 TODO floyd: support additional increments */)
     {
         /* 
          *    RK[8] = RK[0] ^ tables.RCON[i] ^
@@ -602,6 +603,8 @@ int mbedtls_aes_setkey_enc( mbedtls_aes_context *ctx, const unsigned char *key,
         rk0 = RK[7];
         rk7 = RK[14];
         RK[15] = rk0 ^ rk7;
+        
+        RK += 8;
     }
 
     return( 0 );
