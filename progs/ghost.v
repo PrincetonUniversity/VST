@@ -237,6 +237,8 @@ Defined.
 
 Definition hist_incl h (h' : list hist_el) := forall x y, In (x, y) h -> nth_error h' x = Some y.
 
+Definition hist_eq h (h' : list hist_el) := forall x y, In (x, y) h <-> nth_error h' x = Some y.
+
 Lemma hist_incl_lt : forall h h', hist_incl h h' -> Forall (fun x => fst x < length h')%nat h.
 Proof.
   intros.

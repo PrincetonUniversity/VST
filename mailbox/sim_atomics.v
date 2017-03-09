@@ -150,11 +150,11 @@ Definition f_make_atomic := {|
 |}.
 
 Definition f_free_atomic := {|
-  fn_return := tvoid;
+  fn_return := tint;
   fn_callconv := cc_default;
   fn_params := ((_tgt, (tptr (Tstruct _atomic_loc noattr))) :: nil);
   fn_vars := nil;
-  fn_temps := ((_l, (tptr (Tstruct _lock_t noattr))) :: nil);
+  fn_temps := ((_l, (tptr (Tstruct _lock_t noattr))) :: (_i, tint) :: nil);
   fn_body :=
 (Ssequence
   (Sset _l
@@ -163,15 +163,28 @@ Definition f_free_atomic := {|
         (Tstruct _atomic_loc noattr)) _lock (tptr (Tstruct _lock_t noattr))))
   (Ssequence
     (Scall None
-      (Evar _freelock (Tfunction (Tcons (tptr tvoid) Tnil) tvoid cc_default))
+      (Evar _acquire (Tfunction (Tcons (tptr tvoid) Tnil) tvoid cc_default))
       ((Etempvar _l (tptr (Tstruct _lock_t noattr))) :: nil))
     (Ssequence
       (Scall None
-        (Evar _free (Tfunction (Tcons (tptr tvoid) Tnil) tvoid cc_default))
+        (Evar _freelock (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
+                          cc_default))
         ((Etempvar _l (tptr (Tstruct _lock_t noattr))) :: nil))
-      (Scall None
-        (Evar _free (Tfunction (Tcons (tptr tvoid) Tnil) tvoid cc_default))
-        ((Etempvar _tgt (tptr (Tstruct _atomic_loc noattr))) :: nil)))))
+      (Ssequence
+        (Scall None
+          (Evar _free (Tfunction (Tcons (tptr tvoid) Tnil) tvoid cc_default))
+          ((Etempvar _l (tptr (Tstruct _lock_t noattr))) :: nil))
+        (Ssequence
+          (Sset _i
+            (Efield
+              (Ederef (Etempvar _tgt (tptr (Tstruct _atomic_loc noattr)))
+                (Tstruct _atomic_loc noattr)) _val tint))
+          (Ssequence
+            (Scall None
+              (Evar _free (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
+                            cc_default))
+              ((Etempvar _tgt (tptr (Tstruct _atomic_loc noattr))) :: nil))
+            (Sreturn (Some (Etempvar _i tint)))))))))
 |}.
 
 Definition f_load_SC := {|
