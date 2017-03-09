@@ -235,21 +235,18 @@ Proof.
   hnf; intros.
   unfold LOCALx.
   simpl.
-  rewrite approx_andp.
+  rewrite !approx_andp.
   f_equal; auto.
   induction H0.
-
-Admitted.
-(*  + auto.
+  + auto.
   + simpl.
     unfold local, lift1.
     unfold_lift.
     rewrite !prop_and.
     rewrite !approx_andp.
     f_equal; auto.
-    apply H0.
 Qed.
-*)
+
 Lemma PROPx_super_non_expansive: forall A P Q,
   super_non_expansive Q ->
   Forall (fun P0 => @super_non_expansive A (fun ts a (rho: environ) => prop (P0 ts a))) P ->
@@ -267,8 +264,7 @@ Proof.
     rewrite !prop_and.
     rewrite !approx_andp.
     f_equal; auto.
-    apply H0; auto.
-Admitted.
+Qed.
 
 Lemma PROP_LOCAL_SEP_super_non_expansive: forall A P Q R,
   Forall (fun P0 => @super_non_expansive A (fun ts a _ => prop (P0 ts a))) P ->
@@ -307,7 +303,7 @@ Lemma LOCALx_nonexpansive: forall Q R rho,
 Proof.
   intros.
   unfold LOCALx.
-  apply conj_nonexpansive; [| auto].
+  apply (conj_nonexpansive (fun S => local (fold_right ` and ` True (map locald_denote Q)) rho) (fun S => R S rho)); [| auto].
   apply const_nonexpansive.
 Qed.
 
@@ -318,7 +314,10 @@ Lemma PROPx_nonexpansive: forall P Q rho,
 Proof.
   intros.
   unfold PROPx.
-  apply conj_nonexpansive; [| auto].
+  apply (conj_nonexpansive (fun S => @prop mpred Nveric (fold_right and True
+         (map
+            (fun P0 : mpred -> Prop
+             => P0 S) P))) (fun S => Q S rho)); [| auto].
   clear - H.
   induction P.
   + simpl.
@@ -332,7 +331,7 @@ Proof.
       extensionality S.
       rewrite prop_and; auto.
     } Unfocus.
-    apply conj_nonexpansive.
+    apply (conj_nonexpansive (fun S => @prop mpred Nveric (a S)) _).
     - inversion H; auto.
     - apply IHP.
       inversion H; auto.
