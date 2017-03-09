@@ -1,5 +1,17 @@
+#include <stdlib.h>
 #include "threads.h"
 
-int simulate_atomic_load(int *tgt, lock_t *l);
-void simulate_atomic_store(int *tgt, lock_t *l, int v);
-int simulate_atomic_CAS(int *tgt, lock_t *l, int c, int v);
+void *surely_malloc(size_t n);
+
+struct atomic_loc;
+typedef struct atomic_loc atomic_loc;
+
+atomic_loc *make_atomic(int i);
+void free_atomic(atomic_loc *tgt);
+
+int load_SC(atomic_loc *tgt);
+void store_SC(atomic_loc *tgt, int v);
+int CAS_SC(atomic_loc *tgt, int c, int v);
+//returns a bool, because that's all C11 has
+
+int load_relaxed(atomic_loc *tgt);
