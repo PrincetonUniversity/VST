@@ -91,7 +91,7 @@ forward_if.
 *
  forward.
  destruct s1 as [ | v s1']; unfold listrep at 1; fold listrep.
- normalize. contradiction H; auto.
+ normalize.
  Intros u.
  remember (v::s1') as s1.
  forward.
