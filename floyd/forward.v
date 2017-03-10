@@ -1717,20 +1717,27 @@ Ltac sc_new_instantiate P Q R Rnow gfs p sh t_root gfs0 v n i H :=
     end
   end.
 
+(* simplifies a list expression into [e1; e2; ...] form without simplifying its elements *)
+Ltac eval_list l :=
+  let l' := eval hnf in l in lazymatch l' with
+  | ?h :: ?tl => let tl' := eval_list tl in constr:(h :: tl')
+  | (@nil ?T) => constr:(@nil T)
+  end.
+
 (* Given gfs, gfs0, and a name for gfs1, instantiate gfs1 s.t. (gfs = gfs1 ++ gfs0).
    Called suffix because these paths are reversed lists. *)
 Ltac calc_gfs_suffix gfs gfs0 gfs1 :=
   let len := fresh "len" in
   pose ((length gfs - length gfs0)%nat) as len;
-  simpl in len;
+  hnf in len;
   match goal with
   | len := ?len' |- _ =>
     pose (firstn len' gfs) as gfs1
   end;
   clear len;
   unfold gfs in gfs1;
-  simpl firstn in gfs1;
-  simpl skipn in gfs0;
+  let gfs1' := (eval_list gfs1) in change gfs1' in (value of gfs1);
+  let gfs0' := (eval_list gfs0) in change gfs0' in (value of gfs0);
   change gfs with (gfs1 ++ gfs0) in *.
 
 (* Given a JMEq containing the result of a load, pulls the "Vint" out of "map".
