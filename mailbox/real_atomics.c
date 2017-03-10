@@ -9,8 +9,10 @@ atomic_loc *make_atomic(int i){
   return a;
 }
 
-void free_atomic(atomic_loc *tgt){
+int free_atomic(atomic_loc *tgt){
+  int i = atomic_load(&(tgt->ai));
   free(tgt);
+  return i;
 }
 
 int load_SC(atomic_loc *tgt){
