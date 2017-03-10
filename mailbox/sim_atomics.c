@@ -18,11 +18,14 @@ atomic_loc *make_atomic(int i){
   return a;
 }
 
-void free_atomic(atomic_loc *tgt){
+int free_atomic(atomic_loc *tgt){
   lock_t *l = tgt->lock;
+  acquire(l);
   freelock(l);
   free(l);
+  int i = tgt->val;
   free(tgt);
+  return i;
 }
 
 int load_SC(atomic_loc *tgt){
