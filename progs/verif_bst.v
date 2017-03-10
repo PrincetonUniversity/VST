@@ -624,13 +624,9 @@ Proof.
       apply RAMIF_PLAIN.trans'.
       apply bst_left_entail; auto.
   + forward. (* Sskip *)
-Abort.
-    (* TODO entailer: entailer! does not work here.
-    unfold loop2_ret_assert.
-    entailer!.
-    apply andp_left2, derives_refl.
+    apply andp_left2.
+    auto.
 Qed.
-*)
 
 Lemma body_treebox_new: semax_body Vprog Gprog f_treebox_new treebox_new_spec.
 Proof.

@@ -7,7 +7,7 @@ struct atomic_loc;
 typedef struct atomic_loc atomic_loc;
 
 atomic_loc *make_atomic(int i);
-void free_atomic(atomic_loc *tgt);
+int free_atomic(atomic_loc *tgt);
 
 int load_SC(atomic_loc *tgt);
 void store_SC(atomic_loc *tgt, int v);
