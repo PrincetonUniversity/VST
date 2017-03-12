@@ -2,6 +2,7 @@ Require Import veric.juicy_base.
 Require Import sepcomp.semantics.
 Require Import sepcomp.extspec.
 Require Import sepcomp.step_lemmas.
+Require Import veric.shares.
 Require Import veric.juicy_safety.
 Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import veric.initial_world.
@@ -166,8 +167,8 @@ Proof.
         forget (level jm1) as j1. forget (level jm1') as j1'. forget (level jm2) as j2. forget (level jm2') as j2'.
         subst; omega.
   + right.
-    destruct H2 as [rsh [v [v' [? ?]]]].
-    left; exists rsh, v,v'.
+    destruct H2 as [sh [wsh [v [v' [? ?]]]]].
+    left; exists sh, wsh, v,v'.
     split.
     - apply age_level in H1.
       unfold rmap in *.
@@ -175,7 +176,7 @@ Proof.
       forget (@level R.rmap R.ag_rmap jm2') as j2'. subst j2.
       clear - H2 H0 LEV.
       revert H2; case_eq (jm1 @ l); intros; inv H2.
-      pose proof (necR_YES jm1 jm1' l rsh pfullshare (VAL v) p0 (rt_step _ _ _ _ H0) H).
+      pose proof (necR_YES jm1 jm1' l sh r (VAL v) p (rt_step _ _ _ _ H0) H).
       rewrite H1.
       simpl. rewrite preds_fmap_fmap.
       apply age_level in H0.
@@ -183,24 +184,24 @@ Proof.
         2: rewrite H0 in *; inv LEV; omega.
       rewrite approx'_oo_approx.
         2: rewrite H0 in *; inv LEV; omega.
-      f_equal.
-      rewrite H6.
+      f_equal. apply proof_irr.
+      rewrite H5.
       rewrite <- (approx_oo_approx' j2' (S j2')) at 1 by auto.
       rewrite <- (approx'_oo_approx j2' (S j2')) at 2 by auto.
-      rewrite <- preds_fmap_fmap; rewrite H6. rewrite preds_fmap_NoneP. auto. 
-    - pose proof (age1_YES _ _ l rsh pfullshare (VAL v') H1).
+      rewrite <- preds_fmap_fmap; rewrite H5. rewrite preds_fmap_NoneP. auto. 
+    - pose proof (age1_YES _ _ l sh (writable_readable_share wsh) (VAL v') H1).
       rewrite H4 in H3. auto.
   + destruct H2 as [? [v ?]]; right; right; left.
     split; auto. exists v.   apply (age1_YES _ _ l _ _ _ H1) in H3. auto.
   + right; right; right.
     destruct H2 as [v [pp [? ?]]]. exists v. econstructor; split; auto. 
-    pose proof (age1_resource_at _ _ H0 l (YES Share.top pfullshare (VAL v) pp)).
+    pose proof (age1_resource_at _ _ H0 l (YES Share.top readable_share_top(VAL v) pp)).
     rewrite H4.
     simpl. reflexivity.
     rewrite <- (resource_at_approx jm1 l). 
     rewrite H2. reflexivity.
     assert (necR jm2 jm2'). apply laterR_necR. constructor. auto.
-    apply (necR_NO _ _ l Share.bot H4). auto.
+    apply (necR_NO _ _ l Share.bot bot_unreadable H4). auto.
 Qed.
 
 Lemma necR_PURE' phi0 phi k p adr : 
@@ -211,7 +212,7 @@ Lemma necR_PURE' phi0 phi k p adr :
 Proof. 
   intros Hnec H.
   case_eq (phi0 @ adr). 
-  { intros. apply necR_NO with (l:=adr)(rsh:=t) in Hnec. 
+  { intros. eapply necR_NO in Hnec; try eassumption. 
     rewrite Hnec in H0. rewrite H0 in H. congruence. }
   { intros. eapply necR_YES in Hnec; eauto. rewrite Hnec in H. congruence. }
   { generalize (necR_level _ _ Hnec); intros Hlev.
@@ -322,8 +323,8 @@ Proof.
   destruct jm2 as [m2 phi2 jmc2 jmacc2 jmma2 jmall2].
   simpl in *.
   subst m2; rename m1 into m'.
-  destruct rd1 as [jmno [E1 | [[sh1 [v1 [v1' [E1 E1']]]] | [[pos1 [v1 E1]] | [v1 [pp1 [E1 E1']]]]]]];
-  destruct rd2 as [_    [E2 | [[sh2 [v2 [v2' [E2 E2']]]] | [[pos2 [v2 E2]] | [v2 [pp2 [E2 E2']]]]]]];
+  destruct rd1 as [jmno [E1 | [[sh1 [rsh1 [v1 [v1' [E1 E1']]]]] | [[pos1 [v1 E1]] | [v1 [pp1 [E1 E1']]]]]]];
+  destruct rd2 as [_    [E2 | [[sh2 [rsh2 [v2 [v2' [E2 E2']]]]] | [[pos2 [v2 E2]] | [v2 [pp2 [E2 E2']]]]]]];
   try pose proof jmno pos1 as phino; try pose proof (jmno pos2) as phino; clear jmno;
     remember (phi  @ l) as x ;
     remember (phi1 @ l) as x1;
@@ -354,7 +355,7 @@ Proof.
     rewrite jmacc1 in jmacc2.
     clear -jmacc2. exfalso.
     unfold perm_of_sh in *.
-    repeat if_tac in jmacc2; congruence.
+    repeat if_tac in jmacc2; try congruence. contradiction Share.nontrivial.
   
   - (* phi1: same   | phi2: free   *)
     exfalso.
@@ -370,7 +371,7 @@ Proof.
     rewrite jmacc1 in jmacc2.
     clear -jmacc2. exfalso.
     unfold perm_of_sh in *.
-    repeat if_tac in jmacc2; congruence.
+    repeat if_tac in jmacc2; try congruence. contradiction Share.nontrivial.
   
   - (* phi1: update | phi2: same   *)
     rewrite <- E2, <-El.
@@ -383,7 +384,9 @@ Proof.
   - (* phi1: update | phi2: update *)
     destruct (jmc1 _ _ _ _ _ E1').
     destruct (jmc2 _ _ _ _ _ E2').
-    congruence.
+    rewrite E1', E2'.
+    destruct (phi@l); inv E1; inv E2.
+    f_equal. apply proof_irr.
   
   - (* phi1: update | phi2: alloc  *)
     rewrite phino in E1.
@@ -402,11 +405,8 @@ Proof.
     simpl in jmacc2.
     destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
     rewrite jmacc1 in jmacc2.
-    clear -jmacc2. exfalso.
     unfold perm_of_sh in *.
-    unfold fullshare in *.
-    repeat if_tac in jmacc2; congruence.
-  
+    repeat if_tac in jmacc2; try congruence.  
   - (* phi1: alloc  | phi2: same   *)
     exfalso.
     rewrite phino in E2. simpl in E2.
@@ -418,10 +418,9 @@ Proof.
     rewrite E1 in jmacc1.
     simpl in jmacc1.
     rewrite jmacc2 in jmacc1.
-    clear -jmacc1. exfalso.
+    clear -jmacc1.
     unfold perm_of_sh in *.
-    repeat if_tac in jmacc1; congruence.
-  
+    repeat if_tac in jmacc1; try congruence. contradiction Share.nontrivial.  
   - (* phi1: alloc  | phi2: update *)
     rewrite phino in E2.
     simpl in E2.
@@ -449,7 +448,7 @@ Proof.
     rewrite jmacc2 in jmacc1.
     clear -jmacc1. exfalso.
     unfold perm_of_sh in *.
-    repeat if_tac in jmacc1; congruence.
+    repeat if_tac in jmacc1; try congruence. contradiction Share.nontrivial.  
   
   - (* phi2: free   | phi2: update *)
     exfalso.
@@ -463,10 +462,9 @@ Proof.
     simpl in jmacc1.
     destruct (Share.EqDec_share Share.bot Share.bot) as [_ | F]; [ | congruence].
     rewrite jmacc2 in jmacc1.
-    clear -jmacc1. exfalso.
+    clear -jmacc1 rsh2.
     unfold perm_of_sh in *.
-    unfold fullshare in *.
-    repeat if_tac in jmacc1; congruence.
+    repeat if_tac in jmacc1; try congruence.
   
   - (* phi2: free   | phi2: alloc  *)
     congruence.

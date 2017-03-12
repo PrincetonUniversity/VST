@@ -17,10 +17,10 @@ Definition assert := environ -> mpred.  (* Unfortunately
   it confuses the Lift system *)
 
 Lemma address_mapsto_exists:
-  forall ch v rsh (sh: pshare) loc w0
-      (RESERVE: forall l', adr_range loc (size_chunk ch) l' -> w0 @ l' = NO Share.bot),
+  forall ch v sh (rsh: readable_share sh) loc w0
+      (RESERVE: forall l', adr_range loc (size_chunk ch) l' -> w0 @ l' = NO Share.bot bot_unreadable),
       (align_chunk ch | snd loc) ->
-      exists w, address_mapsto ch (decode_val ch (encode_val ch v)) rsh (pshare_sh sh) loc w 
+      exists w, address_mapsto ch (decode_val ch (encode_val ch v)) sh loc w 
                     /\ core w = core w0.
 Proof.  exact address_mapsto_exists. Qed.
 
@@ -47,11 +47,9 @@ Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
      | Vptr b ofs => 
        if readable_share_dec sh
        then (!!tc_val t v2 &&
-             address_mapsto ch v2
-              (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)) ||
+             address_mapsto ch v2 sh (b, Int.unsigned ofs)) ||
             (!! (v2 = Vundef) &&
-             EX v2':val, address_mapsto ch v2'
-              (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs))
+             EX v2':val, address_mapsto ch v2' sh (b, Int.unsigned ofs))
        else !! (tc_val' t v2 /\ (align_chunk ch | Int.unsigned ofs)) && nonlock_permission_bytes sh (b, Int.unsigned ofs) (size_chunk ch)
      | _ => FF
     end
@@ -63,24 +61,18 @@ Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
 Definition mapsto_ sh t v1 := mapsto sh t v1 Vundef.
 
 Lemma address_mapsto_readable:
-  forall m v rsh sh a, address_mapsto m v rsh sh a |-- 
-           !! readable_share (Share.splice rsh sh).
+  forall m v sh a, address_mapsto m v sh a |-- 
+           !! readable_share sh.
 Proof.
 intros.
 unfold address_mapsto.
 unfold derives.
 simpl.
 intros ? ?.
-destruct H as [bl [[? [? ?]] ?]]. do 3 red.
-specialize (H2 a). hnf in H2.
+destruct H as [bl [[? [? ?]] ?]].
+specialize (H2 a).
 rewrite if_true in H2.
-destruct H2 as [p ?].
-clear - p.
-apply right_nonempty_readable.
-intros ?.
-apply identity_share_bot in H. subst.
-apply (p Share.bot).
-split. apply Share.glb_bot. apply Share.lub_bot.
+destruct H2 as [rsh ?]. auto.
 destruct a; split; auto.
 clear; pose proof (size_chunk_pos m); omega.
 Qed.
@@ -142,8 +134,8 @@ Qed.
 
 Definition writable_block (id: ident) (n: Z): assert :=
    fun rho => 
-        EX b: block,  EX rsh: Share.t,
-          !! (ge_of rho id = Some b) && VALspec_range n rsh Share.top (b, 0).
+        EX b: block,  EX sh: Share.t,
+          !! (writable_share sh /\ ge_of rho id = Some b) && VALspec_range n sh (b, 0).
 
 Fixpoint writable_blocks (bl : list (ident*Z)) : assert :=
  match bl with
@@ -154,22 +146,20 @@ Fixpoint writable_blocks (bl : list (ident*Z)) : assert :=
 Fixpoint address_mapsto_zeros (sh: share) (n: nat) (adr: address) : mpred :=
  match n with
  | O => emp
- | S n' => address_mapsto Mint8unsigned (Vint Int.zero)
-                (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) adr 
+ | S n' => address_mapsto Mint8unsigned (Vint Int.zero) sh adr 
                * address_mapsto_zeros sh n' (fst adr, Zsucc (snd adr))
 end.
 
 Definition address_mapsto_zeros' (n: Z) : spec :=
-     fun (rsh sh: Share.t) (l: address) =>
+     fun (sh: Share.t) (l: address) =>
           allp (jam (adr_range_dec l (Zmax n 0))
-                                  (fun l' => yesat NoneP (VAL (Byte Byte.zero)) rsh sh l')
+                                  (fun l' => yesat NoneP (VAL (Byte Byte.zero)) sh l')
                                   noat).
 
 Lemma address_mapsto_zeros_eq:
   forall sh n,
    address_mapsto_zeros sh n =
-   address_mapsto_zeros' (Z_of_nat n) 
-            (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh).
+   address_mapsto_zeros' (Z_of_nat n) sh.
 Proof.
   induction n;
   extensionality adr; destruct adr as [b i].
@@ -302,15 +292,13 @@ Proof.
           omega.
 
     - (* backward direction *)
-      forget (Share.unrel Share.Lsh sh) as rsh.
-      forget (Share.unrel Share.Rsh sh) as sh'. clear sh; rename sh' into sh.
       assert (H0 := H (b,i)).
       hnf in H0.
       rewrite if_true in H0
         by (split; auto; pose proof (Z_of_nat_ge_O n); rewrite Zmax_left; omega).
       destruct H0 as [H0 H1].
       assert (AV.valid (res_option oo (fun loc => if eq_dec loc (b,i) then 
-       YES rsh (mk_pshare _ H0) (VAL (Byte Byte.zero)) NoneP 
+       YES sh H0 (VAL (Byte Byte.zero)) NoneP 
           else core (w @ loc)))).
       Focus 1. {
         intros b' z'; unfold res_option, compose; if_tac; simpl; auto.
@@ -322,7 +310,7 @@ Proof.
            | apply resource_fmap_core].
       assert (AV.valid (res_option oo 
         fun loc => if adr_range_dec (b, Zsucc i) (Z.max (Z.of_nat n) 0) loc
-                       then YES rsh (mk_pshare _ H0) (VAL (Byte Byte.zero)) NoneP 
+                       then YES sh H0 (VAL (Byte Byte.zero)) NoneP 
           else core (w @ loc))).
       Focus 1. {
         intros b' z'; unfold res_option, compose; if_tac; simpl; auto. 
@@ -346,8 +334,7 @@ Proof.
  rewrite preds_fmap_NoneP.
  apply join_unit2.
  constructor. auto.
- repeat f_equal.
- apply mk_lifted_refl1.
+ apply YES_ext; auto.
  split; auto; omega.
  subst. intros [? ?]; omega.
  if_tac in H.
@@ -356,8 +343,7 @@ Proof.
  rewrite preds_fmap_NoneP.
  apply join_unit1.
  constructor; auto.
- f_equal.
- apply mk_lifted_refl1.
+ apply YES_ext; auto.
  destruct loc;
  destruct H2; split; auto.
  assert (z<>i) by congruence.
@@ -402,8 +388,7 @@ Fixpoint memory_block' (sh: share) (n: nat) (b: block) (i: Z) : mpred :=
 
 Definition memory_block'_alt (sh: share) (n: nat) (b: block) (ofs: Z) : mpred :=
  if readable_share_dec sh 
- then VALspec_range (Z_of_nat n)
-               (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, ofs)
+ then VALspec_range (Z_of_nat n) sh (b, ofs)
  else nonlock_permission_bytes sh (b,ofs) (Z.of_nat n).
 
 Lemma memory_block'_eq: 
@@ -492,8 +477,7 @@ Lemma mapsto__exp_address_mapsto: forall sh t b i_ofs ch,
   type_is_volatile t = false ->
   readable_share sh ->
   mapsto_ sh t (Vptr b i_ofs) = EX  v2' : val,
-            address_mapsto ch v2' (Share.unrel Share.Lsh sh)
-              (Share.unrel Share.Rsh sh) (b, (Int.unsigned i_ofs)).
+            address_mapsto ch v2' sh (b, (Int.unsigned i_ofs)).
 Proof.
   pose proof (@FF_orp (pred rmap) (algNatDed _)) as HH0.
   change seplog.orp with orp in HH0.
@@ -517,8 +501,8 @@ Proof.
 Qed.
 
 Lemma exp_address_mapsto_VALspec_range_eq:
-  forall ch rsh sh l,
-    EX v: val, address_mapsto ch v rsh sh l = !! (align_chunk ch | snd l) && VALspec_range (size_chunk ch) rsh sh l.
+  forall ch sh l,
+    EX v: val, address_mapsto ch v sh l = !! (align_chunk ch | snd l) && VALspec_range (size_chunk ch) sh l.
 Proof.
   intros.
   apply pred_ext.
@@ -533,9 +517,9 @@ Proof.
 Qed.
 
 Lemma VALspec_range_exp_address_mapsto_eq:
-  forall ch rsh sh l,
+  forall ch sh l,
     (align_chunk ch | snd l) ->
-    VALspec_range (size_chunk ch) rsh sh l = EX v: val, address_mapsto ch v rsh sh l.
+    VALspec_range (size_chunk ch) sh l = EX v: val, address_mapsto ch v sh l.
 Proof.
   intros.
   apply pred_ext.
@@ -562,8 +546,7 @@ Proof.
   rewrite Coqlib.nat_of_Z_eq by (pose proof size_chunk_pos ch; omega).
   rewrite VALspec_range_exp_address_mapsto_eq by (exact H1).
   rewrite <- (TT_and (EX  v2' : val,
-   address_mapsto ch v2' (Share.unrel Share.Lsh sh)
-     (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs))) at 1.
+   address_mapsto ch v2' sh (b, Int.unsigned ofs))) at 1.
   f_equal.
   pose proof (@ND_prop_ext (pred rmap) _).
   simpl in H3.
@@ -619,45 +602,34 @@ Proof.
     pose proof (@guarded_sepcon_orp_distr (pred rmap) (algNatDed _) (algSepLog _)).
     simpl in H0; rewrite H0 by (intros; subst; pose proof tc_val_Vundef t; tauto); clear H0.
     f_equal; f_equal.
-    - apply address_mapsto_share_join.
-      1: apply Share.unrel_join; auto.
-      1: apply Share.unrel_join; auto.
-      1: rewrite <- splice_unrel_unrel in r.
-         apply right_nonempty_readable in r; apply nonidentity_nonunit in r; auto.
-      1: rewrite <- splice_unrel_unrel in r0.
-         apply right_nonempty_readable in r0; apply nonidentity_nonunit in r0; auto.
+    - apply address_mapsto_share_join; auto.
     - rewrite exp_sepcon1.
       pose proof (@exp_congr (pred rmap) (algNatDed _) val); simpl in H0; apply H0; clear H0; intro.
       rewrite exp_sepcon2.
       transitivity
-       (address_mapsto m v0 (Share.unrel Share.Lsh sh1) (Share.unrel Share.Rsh sh1) (b, Int.unsigned i) *
-        address_mapsto m v0 (Share.unrel Share.Lsh sh2) (Share.unrel Share.Rsh sh2) (b, Int.unsigned i)).
+       (address_mapsto m v0 sh1 (b, Int.unsigned i) *
+        address_mapsto m v0 sh2 (b, Int.unsigned i)).
       * apply pred_ext; [| apply (exp_right v0); auto].
         apply exp_left; intro.
-        pose proof (fun rsh1 sh0 rsh2 sh3 a => (@add_andp (pred rmap) (algNatDed _) _ _ (address_mapsto_value_cohere m v0 x rsh1 sh0 rsh2 sh3 a))).
+        pose proof (fun sh0 sh3 a => 
+            (@add_andp (pred rmap) (algNatDed _) _ _ (address_mapsto_value_cohere m v0 x sh0 sh3 a))).
         simpl in H0; rewrite H0; clear H0.
         apply normalize.derives_extract_prop'; intro; subst; auto.
-      * apply address_mapsto_share_join.
-        1: apply Share.unrel_join; auto.
-        1: apply Share.unrel_join; auto.
-        1: rewrite <- splice_unrel_unrel in r.
-           apply right_nonempty_readable in r; apply nonidentity_nonunit in r; auto.
-        1: rewrite <- splice_unrel_unrel in r0.
-           apply right_nonempty_readable in r0; apply nonidentity_nonunit in r0; auto.
+      * apply address_mapsto_share_join; auto.
   + rewrite if_true by (eapply join_sub_readable; [unfold join_sub; eauto | auto]).
     rewrite distrib_orp_sepcon.
     f_equal; rewrite sepcon_comm, sepcon_andp_prop;
     pose proof (@andp_prop_ext (pred rmap) _);
     (simpl in H0; apply H0; clear H0; [reflexivity | intro]).
-    - rewrite (address_mapsto_align _ _ (Share.unrel Share.Lsh sh)).
-      rewrite (andp_comm (address_mapsto _ _ _ _ _)), sepcon_andp_prop1.
+    - rewrite (address_mapsto_align _ _ sh).
+      rewrite (andp_comm (address_mapsto _ _ _ _)), sepcon_andp_prop1.
       pose proof (@andp_prop_ext (pred rmap) _); simpl in H1; apply H1; clear H1; intros.
       * apply tc_val_tc_val' in H0; tauto.
       * apply nonlock_permission_bytes_address_mapsto_join; auto.
     - rewrite exp_sepcon2.
       pose proof (@exp_congr (pred rmap) (algNatDed _) val); simpl in H1; apply H1; clear H1; intro.
-      rewrite (address_mapsto_align _ _ (Share.unrel Share.Lsh sh)).
-      rewrite (andp_comm (address_mapsto _ _ _ _ _)), sepcon_andp_prop1.
+      rewrite (address_mapsto_align _ _ sh).
+      rewrite (andp_comm (address_mapsto _ _ _ _)), sepcon_andp_prop1.
       pose proof (@andp_prop_ext (pred rmap) _); simpl in H1; apply H1; clear H1; intros.
       * subst; pose proof tc_val'_Vundef t. tauto.
       * apply nonlock_permission_bytes_address_mapsto_join; auto.
@@ -666,15 +638,15 @@ Proof.
     f_equal; rewrite sepcon_comm, sepcon_andp_prop;
     pose proof (@andp_prop_ext (pred rmap) _);
     (simpl in H0; apply H0; clear H0; [reflexivity | intro]).
-    - rewrite (address_mapsto_align _ _ (Share.unrel Share.Lsh sh)).
-      rewrite (andp_comm (address_mapsto _ _ _ _ _)), sepcon_andp_prop1.
+    - rewrite (address_mapsto_align _ _ sh).
+      rewrite (andp_comm (address_mapsto _ _ _ _)), sepcon_andp_prop1.
       pose proof (@andp_prop_ext (pred rmap) _); simpl in H1; apply H1; clear H1; intros.
       * apply tc_val_tc_val' in H0; tauto.
       * apply nonlock_permission_bytes_address_mapsto_join; auto.
     - rewrite exp_sepcon2.
       pose proof (@exp_congr (pred rmap) (algNatDed _) val); simpl in H1; apply H1; clear H1; intro.
-      rewrite (address_mapsto_align _ _ (Share.unrel Share.Lsh sh)).
-      rewrite (andp_comm (address_mapsto _ _ _ _ _)), sepcon_andp_prop1.
+      rewrite (address_mapsto_align _ _ sh).
+      rewrite (andp_comm (address_mapsto _ _ _ _)), sepcon_andp_prop1.
       pose proof (@andp_prop_ext (pred rmap) _); simpl in H1; apply H1; clear H1; intros.
       * subst; pose proof tc_val'_Vundef t. tauto.
       * apply nonlock_permission_bytes_address_mapsto_join; auto.
@@ -751,11 +723,9 @@ Proof.
   destruct p2; try (rewrite normalize.sepcon_FF; auto).
   if_tac.
   + apply derives_trans with ((EX  v : val,
-          address_mapsto m v (Share.unrel Share.Lsh sh)
-            (Share.unrel Share.Rsh sh) (b, Int.unsigned i)) *
+          address_mapsto m v sh (b, Int.unsigned i)) *
       (EX  v : val,
-          address_mapsto m0 v (Share.unrel Share.Lsh sh)
-            (Share.unrel Share.Rsh sh) (b0, Int.unsigned i0))).
+          address_mapsto m0 v sh (b0, Int.unsigned i0))).
     - apply sepcon_derives; apply orp_left.
       * apply andp_left2, (exp_right v1).
         auto.
@@ -1028,51 +998,15 @@ Proof.
     unfold memory_block'_alt.
     destruct (readable_share_dec sh1), (readable_share_dec sh2).
     - rewrite if_true by (eapply readable_share_join; eauto).
-      apply VALspec_range_share_join.
-      * apply readable_share_unrel_Rsh; auto.
-      * apply readable_share_unrel_Rsh; auto.
-      * apply Share.unrel_join; auto.
-      * apply Share.unrel_join; auto.
+      apply VALspec_range_share_join; auto.
     - rewrite if_true by (eapply readable_share_join; eauto).
       rewrite sepcon_comm.
-      rewrite <- (splice_unrel_unrel sh2).
-      replace (Share.unrel Share.Rsh sh) with (Share.unrel Share.Rsh sh1).
-      replace (Share.unrel Share.Rsh sh2) with Share.bot.
-      apply nonlock_permission_bytes_VALspec_range_join.
-      * apply Share.unrel_join; auto.
-      * rewrite readable_share_unrel_Rsh in n0.
-        symmetry; apply not_nonunit_bot; auto.
-      * rewrite readable_share_unrel_Rsh in n0.
-        apply not_nonunit_bot in n0.
-        rewrite <- (splice_unrel_unrel sh1), <- (splice_unrel_unrel sh).
-        rewrite !Share.unrel_splice_R.
-        apply Share.unrel_join with (x := Share.Rsh) in H.
-        rewrite n0 in H.
-        eapply join_eq; eauto.
+      apply nonlock_permission_bytes_VALspec_range_join; auto.
     - rewrite if_true by (eapply readable_share_join; eauto).
-      rewrite <- (splice_unrel_unrel sh1).
-      replace (Share.unrel Share.Rsh sh) with (Share.unrel Share.Rsh sh2).
-      replace (Share.unrel Share.Rsh sh1) with Share.bot.
-      apply nonlock_permission_bytes_VALspec_range_join.
-      * apply Share.unrel_join; auto.
-      * rewrite readable_share_unrel_Rsh in n0.
-        symmetry; apply not_nonunit_bot; auto.
-      * rewrite readable_share_unrel_Rsh in n0.
-        apply not_nonunit_bot in n0.
-        rewrite <- (splice_unrel_unrel sh2), <- (splice_unrel_unrel sh).
-        rewrite !Share.unrel_splice_R.
-        apply Share.unrel_join with (x := Share.Rsh) in H.
-        rewrite n0 in H.
-        eapply join_eq; eauto.
+      apply nonlock_permission_bytes_VALspec_range_join; auto.
     - rewrite if_false.
       * apply nonlock_permission_bytes_share_join; auto.
-      * rewrite readable_share_unrel_Rsh in *.
-        apply not_nonunit_bot in n0.
-        apply not_nonunit_bot in n1.
-        apply Share.unrel_join with (x := Share.Rsh) in H.
-        rewrite n0, n1 in H.
-        rewrite (@not_nonunit_bot (Share.unrel Share.Rsh sh)).
-        eapply join_eq; eauto.
+      * eapply join_unreadable_shares; eauto.
   + rewrite !prop_false_andp by auto.
     rewrite FF_sepcon; auto.
 Qed.

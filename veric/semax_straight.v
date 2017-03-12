@@ -140,21 +140,19 @@ destruct (readable_share_dec sh) as [H2 | H2].
 rename H2 into RS.
 destruct (access_mode t); try solve [ inv H0].
 destruct (type_is_volatile t) eqn:VOL; try contradiction.
-assert (exists v,  address_mapsto m v (Share.unrel Share.Lsh sh)
-        (Share.unrel Share.Rsh sh) (b, Int.unsigned o) x).
+assert (exists v,  address_mapsto m v sh (b, Int.unsigned o) x).
 destruct H0.
 econstructor; apply H0. destruct H0 as [_ [v2' H0]]; exists v2'; apply H0.
 clear H0; destruct H2 as [x1 H0].
 
-pose proof mapsto_core_load m x1 (Share.unrel Share.Lsh sh)
-          (Share.unrel Share.Rsh sh) (b, Int.unsigned o) (m_phi jm). 
+pose proof mapsto_core_load m x1 sh (b, Int.unsigned o) (m_phi jm). 
 
 destruct H2. simpl; eauto. 
 simpl in H2. 
 destruct H2.  
 specialize (H3 (b, Int.unsigned o)). 
 if_tac in H3.
-destruct H3.  destruct H3. destruct H3. 
+destruct H3.  destruct H3. 
 
 rewrite valid_pointer_nonempty_perm. 
 unfold perm. 
@@ -167,8 +165,7 @@ unfold perm_of_sh in *.
 rewrite JMA.
 repeat if_tac; try constructor. subst. 
 simpl in H3.
-unfold nonunit in x5. 
-destruct (x5 sh). auto. 
+contradiction.
 destruct H4.  repeat split. omega. 
 destruct m; simpl; omega.
 * (* ~ readable_share sh *)
@@ -190,10 +187,6 @@ destruct H0.
 destruct  (x @ (b, Int.unsigned o)); inv H0; inv H1; simpl; auto.
 intro.
 apply split_identity in RJ; auto.
-apply N.
-apply identity_share_bot in RJ. subst t0.
-rewrite Share.rel_bot1.
-apply bot_identity.
 Qed.
 
 Lemma mapsto_is_pointer : forall sh t m v,
@@ -1143,7 +1136,7 @@ split; [split3 | ].
    rewrite if_true in H5 by auto.
    destruct H5 as [[H5' H5] | [H5 _]]; [ | rewrite H5 in TC3; inv TC3].
    assert (core_load ch  (b, Int.unsigned ofs) (v2 rho) (m_phi jm1)).
-   apply mapsto_core_load with (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh).
+   apply mapsto_core_load with sh.
    exists m1; exists m2; split3; auto.
    apply Clight.deref_loc_value with ch; auto.
    unfold loadv.
@@ -1152,14 +1145,9 @@ split; [split3 | ].
    intros.
    destruct H6 as [bl [_ ?]]. specialize (H6 (b,z)). hnf in H6.
    rewrite if_true in H6 by (split; auto; omega).
-   destruct H6 as [? [? [? ?]]]. rewrite H6. simpl.
-   clear - x1.
-   destruct (eq_dec x0 Share.top).
-   subst. destruct (eq_dec x Share.top).
-   subst. change Share.top with fullshare at 2. rewrite perm_of_freeable. constructor. 
-   rewrite perm_of_writable by auto. constructor.
-   rewrite perm_of_readable; auto. constructor. intro.
-   subst. apply nonunit_nonidentity in x1; apply x1. apply bot_identity.
+   destruct H6 as [? [? ?]]. rewrite H6. simpl.
+   clear - x0.
+   unfold perm_of_sh. if_tac. if_tac; constructor. if_tac; [ | contradiction]. constructor.
    apply H6.
 * apply age1_resource_decay; auto.
 * apply age_level; auto.
@@ -1301,7 +1289,7 @@ split; [split3 | ].
    destruct H5 as [[H5' H5] | [H5 _]];
     [ | hnf in TC3; rewrite H5, eval_cast_Vundef in TC3; inv TC3 ].
    assert (core_load ch  (b, Int.unsigned ofs) (v2 rho) (m_phi jm1)).
-   apply mapsto_core_load with (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh).
+   apply mapsto_core_load with sh.
    exists m1; exists m2; split3; auto.
    apply Clight.deref_loc_value with ch; auto.
    unfold loadv.
@@ -1310,14 +1298,9 @@ split; [split3 | ].
    intros.
    destruct H6 as [bl [_ ?]]. specialize (H6 (b,z)). hnf in H6.
    rewrite if_true in H6 by (split; auto; omega).
-   destruct H6 as [? [? [? ?]]]. rewrite H6. simpl.
-   clear - x1.
-   destruct (eq_dec x0 Share.top).
-   subst. destruct (eq_dec x Share.top).
-   subst. change Share.top with fullshare at 2. rewrite perm_of_freeable. constructor. 
-   rewrite perm_of_writable by auto. constructor.
-   rewrite perm_of_readable; auto. constructor. intro.
-   subst. apply nonunit_nonidentity in x1; apply x1. apply bot_identity.
+   destruct H6 as [? [? ?]]. rewrite H6. simpl.
+   clear - x0.
+   unfold perm_of_sh. if_tac. if_tac; constructor. if_tac; [ | contradiction]. constructor.
    apply H6.
 * apply age1_resource_decay; auto.
 * apply age_level; auto.
@@ -1359,17 +1342,27 @@ Proof.
  destruct r. rewrite core_NO; auto. rewrite core_YES; auto. rewrite core_PURE; auto.
 Qed.
 
+Lemma writable_lub_retainer_Rsh: 
+ forall sh, writable_share sh ->
+  Share.lub (retainer_part sh) Share.Rsh = sh.
+  intros. symmetry.  
+  unfold retainer_part.
+  rewrite (comp_parts comp_Lsh_Rsh sh) at 1.
+  f_equal; auto.
+  unfold writable_share in H.
+  apply leq_join_sub in H.  apply Share.ord_spec1 in H. auto.
+Qed.
 
-Lemma address_mapsto_can_store: forall jm ch v rsh b ofs v' my,
-       (address_mapsto ch v rsh Share.top (b, Int.unsigned ofs) * exactly my)%pred (m_phi jm) ->
+Lemma address_mapsto_can_store: forall jm ch v sh (wsh: writable_share sh) b ofs v' my,
+       (address_mapsto ch v sh (b, Int.unsigned ofs) * exactly my)%pred (m_phi jm) ->
        decode_val ch (encode_val ch v') = v' ->
        exists m',
        {H: Mem.store ch (m_dry jm) b (Int.unsigned ofs) v' = Some m'|
-       (address_mapsto ch v' rsh Share.top (b, Int.unsigned ofs) * exactly my)%pred 
+       (address_mapsto ch v' sh (b, Int.unsigned ofs) * exactly my)%pred 
        (m_phi (store_juicy_mem _ _ _ _ _ _ H))}.
 Proof.
 intros. rename H0 into DE.
-destruct (mapsto_can_store ch v rsh b (Int.unsigned ofs) jm v') as [m' STORE]; auto.
+destruct (mapsto_can_store ch v sh wsh b (Int.unsigned ofs) jm v') as [m' STORE]; auto.
 eapply sepcon_derives; eauto.
 exists m'.
 exists STORE.
@@ -1379,7 +1372,9 @@ do 3 red in Hmy.
 assert (H2 := I); assert (H3 := I).
 forget (Int.unsigned ofs) as i. clear ofs.
 pose (f loc := if adr_range_dec (b,i) (size_chunk ch) loc
-                      then YES (res_retain (m1 @ loc)) pfullshare (VAL (contents_at m' loc)) NoneP
+                      then YES (Share.lub (res_retain (m1 @ loc)) Share.Rsh) 
+                               (readable_share_lub (writable_readable_share writable_Rsh))
+                               (VAL (contents_at m' loc)) NoneP
                      else core (m_phi jm @ loc)).
 assert (Vf: AV.valid (res_option oo f)).
 apply VAL_valid; intros.
@@ -1409,17 +1404,17 @@ apply (resource_at_join _ _ _ loc) in H.
 destruct H1 as [vl [? ?]]. spec H4 loc. hnf in H4.
 if_tac.
 destruct H4. hnf in H4. rewrite H4 in H.
-rewrite (proof_irr x top_share_nonunit) in H.
-generalize (YES_join_full _ _ _ _ _ H); intros [rsh' ?].
+rewrite (proof_irr x (writable_readable_share wsh)) in *; clear x.
+destruct (YES_join_full _ _ _ _ _ _ H) as [sh' [nsh' H6]]; auto.
 rewrite H6.
 unfold inflate_store; simpl.
 rewrite resource_at_make_rmap.
 rewrite H6 in H.
 inversion H; clear H.
-subst rsh1 rsh2 k sh p.
+subst sh2 k sh p.
 constructor.
 rewrite H4; simpl.
-auto.
+rewrite writable_lub_retainer_Rsh; auto.
 apply join_unit1_e in H; auto.
 rewrite H.
 unfold inflate_store; simpl.
@@ -1429,7 +1424,7 @@ case_eq (m_phi jm @ loc); simpl; intros.
 rewrite core_NO. constructor. apply join_unit1; auto.
 destruct k; try solve [rewrite core_YES; constructor; apply join_unit1; auto].
 rewrite core_YES.
-destruct (juicy_mem_contents _ _ _ _ _ _ H6). subst p0.
+destruct (juicy_mem_contents _ _ _ _ _ _ H6). subst p.
 pose proof (store_phi_elsewhere_eq _ _ _ _ _ _ STORE _ _ _ _ H5 H6).
 rewrite H8.
 constructor.
@@ -1443,7 +1438,7 @@ split.
 split3; auto.
 apply encode_val_length.
 intro loc. hnf.
-if_tac. exists top_share_nonunit.
+if_tac. exists (writable_readable_share wsh).
 hnf; rewrite H5.
 rewrite if_true; auto.
 assert (STORE' := Mem.store_mem_contents _ _ _ _ _ _ STORE).
@@ -1462,13 +1457,13 @@ destruct loc as [b' z].
 destruct H9.
 subst b'.
 rewrite (nth_getN m' b _ _ _ H0).
-simpl.
-f_equal.
 rewrite (store_mem_contents _ _ _ _ _ _ STORE).
 rewrite PMap.gss.
 replace (nat_of_Z (size_chunk ch)) with (size_chunk_nat ch) by (destruct ch; simpl; auto).
 rewrite <- (encode_val_length ch v').
-apply getN_setN_same.
+rewrite getN_setN_same.
+apply YES_ext.
+apply (writable_lub_retainer_Rsh _ wsh).
 generalize (size_chunk_pos ch); omega.
 do 3 red. rewrite H5. rewrite if_false by auto.
 apply core_identity.
@@ -1565,19 +1560,21 @@ destruct (eval_lvalue_relate _ _ _ _ _ e1 jm1 HGG' Hge (guard_environ_e1 _ _ _ T
 (*rewrite <- (age_jm_dry H) in He1'.*)
 rewrite He1' in *.
 destruct (join_assoc H3 (join_comm H0)) as [?w [H6 H7]].
-rewrite writable_share_right in H4 by auto.
+(* rewrite writable_share_right in H4 by auto. *)
 destruct (type_is_volatile (typeof e1)) eqn:NONVOL; try contradiction.
 rewrite if_true in H4 by auto.
-assert (exists v, address_mapsto ch v (Share.unrel Share.Lsh sh) Share.top
-        (b0, Int.unsigned i) w1) by (destruct H4 as [[H4' H4] |[? [? ?]]]; eauto).
+assert (exists v, address_mapsto ch v 
+             sh (*(Share.lub (retainer_part sh) Share.Rsh)*)
+        (b0, Int.unsigned i) w1)
+       by (destruct H4 as [[H4' H4] |[? [? ?]]]; eauto).
 clear v3 H4; destruct H2 as [v3 H4].
 
-assert (H11': (res_predicates.address_mapsto ch v3 (Share.unrel Share.Lsh sh) Share.top
+assert (H11': (res_predicates.address_mapsto ch v3 sh
         (b0, Int.unsigned i) * TT)%pred (m_phi jm1))
  by (exists w1; exists w3; split3; auto).
-assert (H11: (res_predicates.address_mapsto ch v3  (Share.unrel Share.Lsh sh) Share.top
+assert (H11: (res_predicates.address_mapsto ch v3  sh
         (b0, Int.unsigned i) * exactly w3)%pred (m_phi jm1)).
-generalize (address_mapsto_precise ch v3 (Share.unrel Share.Lsh sh) Share.top (b0,Int.unsigned i)); unfold precise; intro.
+generalize (address_mapsto_precise ch v3 sh (b0,Int.unsigned i)); unfold precise; intro.
 destruct H11' as [m7 [m8 [? [? _]]]].
 specialize (H2 (m_phi jm1) _ _ H4 H9).
 spec H2; [ eauto with typeclass_instances| ].
@@ -1585,17 +1582,17 @@ spec H2; [ eauto with typeclass_instances | ].
 subst m7.
 exists w1; exists w3; split3; auto. hnf. apply necR_refl.
 apply address_mapsto_can_store 
-   with (v':=((force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) (m_dry jm1))))) in H11.
-Focus 2.
-
-clear - TS TC HGG' WS TC2 TC2' TC4 TC3 TC3' TC1 Hmode.
-unfold typecheck_store in *.
-destruct TC4 as [TC4 _].
-simpl in TC2'. apply typecheck_expr_sound in TC2'; auto.
-remember (eval_expr e2 rho).
-dec_enc. rewrite DE. clear DE. subst. 
-eapply load_cast; eauto.
-
+   with (v':=((force_val (Cop.sem_cast (eval_expr e2 rho) (typeof e2) (typeof e1) (m_dry jm1))))) in H11;
+  auto.
+Focus 2. {
+  clear - TS TC HGG' WS TC2 TC2' TC4 TC3 TC3' TC1 Hmode.
+  unfold typecheck_store in *.
+  destruct TC4 as [TC4 _].
+  simpl in TC2'. apply typecheck_expr_sound in TC2'; auto.
+  remember (eval_expr e2 rho).
+  dec_enc. rewrite DE. clear DE. subst. 
+  eapply load_cast; eauto.
+} Unfocus.
 destruct H11 as [m' [H11 AM]].
 exists (store_juicy_mem _ _ _ _ _ _ H11).
 exists (te);  exists rho; split3; auto.
@@ -1628,19 +1625,15 @@ apply (age1_resource_decay _ _ Hage).
 apply resource_nodecay_decay.
 apply juicy_store_nodecay.
 {intros.
- clear - H11' H2.
+ clear - H11' H2 WS.
  destruct H11' as [phi1 [phi2 [? [? ?]]]].
  destruct H0 as [bl [_ ?]]. specialize  (H0 (b0,z)).
  hnf in H0. rewrite if_true in H0 by (split; auto; omega).
  destruct H0. hnf in H0.
  apply (resource_at_join _ _ _ (b0,z)) in H.
  rewrite H0 in H.
- apply join_YES_pfullshare1 in H.
- destruct H as [? [? ?]]. inv H.
- simpl.
- destruct (eq_dec x1 Share.top). subst. 
- rewrite perm_of_freeable; auto. constructor.
- rewrite perm_of_writable; auto. constructor.
+ inv H; simpl; apply join_writable1 in RJ; auto;
+ unfold perm_of_sh; rewrite if_true by auto; if_tac; constructor. 
 }
 rewrite level_store_juicy_mem. apply age_level; auto.
 split.
@@ -1669,7 +1662,7 @@ destruct TC4 as [TC4 _].
 
 rewrite Hmode.
 rewrite He1'. 
-rewrite writable_share_right; try rewrite cop2_sem_cast'; auto.
+rewrite cop2_sem_cast'; auto.
 rewrite NONVOL.
 rewrite if_true by auto.
 apply orp_right1.
@@ -1816,10 +1809,8 @@ rename H2 into Hmode. rename m into ch.
 destruct (type_is_volatile (typeof e1)) eqn:NONVOL; try contradiction.
 destruct v1; try contradiction.
 rename i into z. rename b into b0.
-rewrite writable_share_right in H4 by auto.
 rewrite if_true in H4 by auto.
-assert (exists v, address_mapsto ch v (Share.unrel Share.Lsh sh) Share.top
-        (b0, Int.unsigned z) w1)
+assert (exists v, address_mapsto ch v sh (b0, Int.unsigned z) w1)
   by (destruct H4 as [[? H4] | [_ [? ?]]]; eauto).
 clear v0 H4; destruct H2 as [v3 H4].
 assert (He1 := rel_lvalue_relate ge te ve rho e1 _ _ _ HGG' Hge E1).
@@ -1827,12 +1818,12 @@ rename z into i.
 assert (He2 := rel_expr_relate ge te ve rho _ _ _ HGG' Hge E2).
 destruct (join_assoc H3 (join_comm H0)) as [?w [H6 H7]].
 
-assert (H11': (res_predicates.address_mapsto ch v3 (Share.unrel Share.Lsh sh) Share.top
+assert (H11': (res_predicates.address_mapsto ch v3 sh
         (b0, Int.unsigned i) * TT)%pred (m_phi jm1))
  by (exists w1; exists w3; split3; auto).
-assert (H11: (res_predicates.address_mapsto ch v3  (Share.unrel Share.Lsh sh) Share.top
+assert (H11: (res_predicates.address_mapsto ch v3  sh
         (b0, Int.unsigned i) * exactly w3)%pred (m_phi jm1)).
-generalize (address_mapsto_precise ch v3 (Share.unrel Share.Lsh sh) Share.top (b0,Int.unsigned i)); unfold precise; intro.
+generalize (address_mapsto_precise ch v3 sh (b0,Int.unsigned i)); unfold precise; intro.
 destruct H11' as [m7 [m8 [? [? _]]]].
 specialize (H2 (m_phi jm1) _ _ H4 H9).
 spec H2; [ eauto with typeclass_instances| ].
@@ -1840,7 +1831,7 @@ spec H2; [ eauto with typeclass_instances | ].
 subst m7.
 exists w1; exists w3; split3; auto. hnf. apply necR_refl.
 apply address_mapsto_can_store 
-  with (v':=v2) in H11.
+  with (v':=v2) in H11; auto.
 Focus 2.
 clear - He2  Hmode.
 dec_enc; rewrite DE; clear DE.
@@ -1878,19 +1869,14 @@ apply (age1_resource_decay _ _ Hage).
 apply resource_nodecay_decay.
 apply juicy_store_nodecay.
 {intros.
- clear - H11' H2.
+ clear - H11' H2 H. rename H into wsh.
  destruct H11' as [phi1 [phi2 [? [? ?]]]].
  destruct H0 as [bl [_ ?]]. specialize  (H0 (b0,z)).
  hnf in H0. rewrite if_true in H0 by (split; auto; omega).
  destruct H0. hnf in H0.
  apply (resource_at_join _ _ _ (b0,z)) in H.
  rewrite H0 in H.
- apply join_YES_pfullshare1 in H.
- destruct H as [? [? ?]]. inv H.
- simpl.
- destruct (eq_dec x1 Share.top). subst. 
- rewrite perm_of_freeable; auto. constructor.
- rewrite perm_of_writable; auto. constructor.
+ inv H; simpl; apply join_writable1 in RJ; auto; unfold perm_of_sh; rewrite if_true by auto; if_tac; constructor.
 }
 rewrite level_store_juicy_mem. apply age_level; auto.
 split.
@@ -1922,7 +1908,7 @@ rewrite if_true by auto.
 apply orp_right1.
 apply andp_right.
 intros ? _; do 3 red. auto.
-rewrite writable_share_right; try rewrite cop2_sem_cast; auto.
+auto.
 
 intros ? ?. 
 do 3 red in H2.

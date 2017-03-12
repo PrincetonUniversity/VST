@@ -272,11 +272,9 @@ Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
      | Vptr b ofs => 
        if readable_share_dec sh
        then (!!tc_val t v2 &&
-             res_predicates.address_mapsto ch v2
-              (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs)) ||
+             res_predicates.address_mapsto ch v2 sh (b, Int.unsigned ofs)) ||
             (!! (v2 = Vundef) &&
-             EX v2':val, res_predicates.address_mapsto ch v2'
-              (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) (b, Int.unsigned ofs))
+             EX v2':val, res_predicates.address_mapsto ch v2' sh (b, Int.unsigned ofs))
        else !! (tc_val' t v2 /\ (Memdata.align_chunk ch | Int.unsigned ofs)) && res_predicates.nonlock_permission_bytes sh (b, Int.unsigned ofs) (Memdata.size_chunk ch)
      | _ => FF
     end
@@ -310,7 +308,7 @@ Definition init_data2pred (d: init_data)  (sh: share) (a: val) (rho: environ) : 
        end
  end.
 
-Definition extern_retainer : share := Share.Lsh.
+(*Definition extern_retainer : share := fst (Share.split Share.Lsh). *)
 
 Definition init_data_size (i: init_data) : Z :=
   match i with
@@ -334,13 +332,13 @@ Fixpoint init_data_list2pred (dl: list init_data)
                            (sh: share) (v: val)  (rho: environ) : mpred :=
   match dl with
   | d::dl' => 
-      sepcon (init_data2pred d (Share.splice extern_retainer sh) v rho) 
+      sepcon (init_data2pred d (Share.lub extern_retainer sh) v rho) 
                   (init_data_list2pred dl' sh (offset_val (init_data_size d) v) rho)
   | nil => emp
  end.
 
 Definition readonly2share (rdonly: bool) : share :=
-  if rdonly then Share.Lsh else Tsh.
+  if rdonly then fst(Share.split Share.Rsh) else Share.Rsh.
 
 Definition globvar2pred (idv: ident * globvar type) : environ->mpred :=
  fun rho =>
@@ -1128,7 +1126,7 @@ forall Delta Q Q' incr body R,
 Parameter func_ptr : funspec -> val ->mpred.
 Axiom corable_func_ptr: forall f v, corable (func_ptr f v).
 Axiom func_ptr_isptr: forall spec f, func_ptr spec f |-- !! isptr f.
-Locate approx.
+
 Axiom approx_func_ptr: forall (A: Type) fsig0 cc (P Q: A -> environ -> mpred) (v: val) (n: nat),
   compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A P Q) v) = compcert_rmaps.RML.R.approx n (func_ptr (NDmk_funspec fsig0 cc A (fun a rho => compcert_rmaps.RML.R.approx n (P a rho)) (fun a rho => compcert_rmaps.RML.R.approx n (Q a rho))) v).
 Axiom func_ptr_def :

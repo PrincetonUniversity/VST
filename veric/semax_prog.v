@@ -594,7 +594,7 @@ destruct a. destruct p.
  hnf in H2.
  assert (exists pp, initial_core (Genv.globalenv prog) G n @ (loc',0) = PURE (FUN fsig' cc') pp).
 case_eq (initial_core (Genv.globalenv prog) G n @ (loc',0)); intros.
-destruct (necR_NO _ _ (loc',0) t H1) as [? _].
+destruct (necR_NO _ _ (loc',0) sh n0 H1) as [? _].
 rewrite H4 in H2 by auto.
 inv H2.
 eapply necR_YES in H1; try apply H3.

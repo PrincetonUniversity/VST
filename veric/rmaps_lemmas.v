@@ -2,6 +2,7 @@ Require Import msl.msl_standard.
 Require Import msl.cjoins.
 Require Import msl.Coqlib2.
 Require Import msl.sepalg_list.
+Require Import veric.shares.
 Require Import veric.rmaps.
 
 Module Rmaps_Lemmas (R: RMAPS).
@@ -31,10 +32,11 @@ Hint Resolve (@subp_sepcon _ Join_rmap Perm_rmap Sep_rmap): contractive.
     apply  age_level in H.  rewrite rmap_level_eq in *. omega. 
   Qed.
 
-Lemma NO_identity: identity (NO Share.bot).
+Lemma NO_identity: forall nsh, identity (NO Share.bot nsh).
 Proof.
   unfold identity; intros.
-  inv H; f_equal;   apply join_unit1_e in RJ; auto.
+  inv H;
+  apply join_unit1_e in RJ; auto; subst sh3; proof_irr; auto.
 Qed.
 
 Lemma PURE_identity: forall k pds, identity (PURE k pds).
@@ -44,14 +46,17 @@ Proof.
 Qed.
 
 Lemma identity_NO:
-  forall r, identity  r -> r = NO Share.bot \/ exists k, exists pds, r = PURE k pds.
+  forall r, identity  r -> r = NO Share.bot bot_unreadable \/ exists k, exists pds, r = PURE k pds.
 Proof.
   destruct r; auto; intros.
+ * left.
   apply identity_unit_equiv in H. inv H.
-  apply identity_unit_equiv in RJ. apply identity_share_bot in RJ. subst. auto.
-  apply identity_unit_equiv in H. inv H.
-  apply pshare_nonunit in H1. contradiction.
-  right. exists k. exists p. trivial.
+  apply identity_unit_equiv in RJ. apply identity_share_bot in RJ. subst.
+  f_equal. apply proof_irr.
+ * apply identity_unit_equiv in H. inv H.
+   apply unit_identity in RJ. apply identity_share_bot in RJ. subst.
+   contradiction bot_unreadable.
+ * right. exists k. exists p. trivial.
 Qed.
 
 Lemma age1_resource_at_identity:
@@ -172,12 +177,12 @@ Proof.
   revert H1.
   unfold resource_fmap, compose.
   destruct (f l); destruct g; destruct (x l); simpl; intro; auto; inv H1.
-  change (preds_fmap (approx n) (approx n) (preds_fmap (approx n) (approx n) p2))
-  with ((preds_fmap (approx n) (approx n) oo preds_fmap (approx n) (approx n)) p2).
+  change (preds_fmap (approx n) (approx n) (preds_fmap (approx n) (approx n) p0))
+  with ((preds_fmap (approx n) (approx n) oo preds_fmap (approx n) (approx n)) p0).
   rewrite preds_fmap_comp.
   rewrite approx_oo_approx; auto.
-  change (preds_fmap (approx n) (approx n) (preds_fmap (approx n) (approx n) p4))
-  with ((preds_fmap (approx n) (approx n) oo preds_fmap (approx n) (approx n)) p4).
+  change (preds_fmap (approx n) (approx n) (preds_fmap (approx n) (approx n) p1))
+  with ((preds_fmap (approx n) (approx n) oo preds_fmap (approx n) (approx n)) p1).
   rewrite preds_fmap_comp.
   rewrite approx_oo_approx; auto.
   change (preds_fmap (approx n) (approx n) (preds_fmap (approx n) (approx n) p1))
@@ -246,7 +251,7 @@ Proof.
    by (unfold g; intro; destruct (H1 l); simpl in *; auto).
  clearbody g.
  generalize (make_rmap'' (level phi) g); intro.
- spec H4.
+ spec H4. {
    assert (AV.valid (fun l => res_option (phi @ l))).
      clear.
      unfold resource_at.
@@ -259,10 +264,19 @@ Proof.
     unfold compose.
    intro l; spec H3 l.
    destruct (phi @ l); simpl in *.
+   *
+   inv H3; simpl. constructor; auto.
+   apply join_comm in RJ.
+   erewrite (join_readable_part_eq) by eassumption. constructor.
+   *
+    inv H3; simpl.
+   erewrite (join_readable_part_eq) by eassumption. constructor.
+   constructor.
+   constructor. simpl.
+   apply join_readable_part; auto. simpl. constructor; auto.
+   *    
    inv H3; constructor; auto.
-   inv H3; constructor; auto.
-   constructor; auto.
-   inv H3; constructor; auto.
+  }
  destruct H4 as [phig [? ?]].
  exists phif; exists phig.
  split.
@@ -444,44 +458,57 @@ Qed.
     omega.
   Qed.
 
-
 Lemma YES_join_full: 
-   forall rsh n P r2 r3,
-       join (R.YES rsh pfullshare n P) r2 r3 ->
-       exists rsh2, r2 = NO rsh2.
+   forall sh rsh n P r2 r3,
+       join (R.YES sh rsh n P) r2 r3 ->
+       writable_share sh ->
+       exists sh2 rsh2, r2 = NO sh2 rsh2.
 Proof.
   intros.
   inv H. eauto.
-  pfullshare_join.
+  elimtype False; clear - RJ H0 rsh2.
+  destruct RJ.
+  destruct H0. destruct H0. destruct rsh2. subst sh sh3.
+  rewrite Share.glb_commute, Share.distrib1 in H.
+  rewrite Share.glb_commute.
+  apply lub_bot_e in H. destruct H. rewrite H. apply bot_identity.
 Qed.
 
+
 Lemma YES_not_identity:
-  forall rsh sh k Q, ~ identity (YES rsh sh k Q).
+  forall sh rsh k Q, ~ identity (YES sh rsh k Q).
 Proof.
 intros. intro.
 rewrite identity_unit_equiv in H.
-simpl in * |-.
 unfold unit_for in H.
 inv H.
-apply no_units in H1; auto.
+apply share_self_join_bot in RJ; subst.
+apply bot_unreadable in rsh. auto.
 Qed.
 
 Lemma YES_overlap:
-forall rsh0 rsh1 (phi0 phi1: rmap) loc (sh : pshare) k k' p p',
-  joins phi0 phi1 -> phi1@loc = R.YES rsh1 pfullshare k p -> 
-               phi0@loc = R.YES rsh0 sh k' p' -> False.
+forall sh0 rsh0 sh1 rsh1 (phi0 phi1: rmap) loc k k' p p',
+  joins phi0 phi1 ->
+  phi1@loc = R.YES sh1 rsh1 k p -> 
+  writable_share sh1 ->
+  phi0@loc = R.YES sh0 rsh0 k' p' ->
+  False.
 Proof.
   intros.
   destruct H as [phi3 ?].
   generalize (resource_at_join _ _ _ loc H); intro.
-  rewrite H1 in H2.
-  rewrite H0 in H2.
-  contradiction (YES_not_identity rsh0 sh k' p').
-  apply join_comm in H2. apply YES_join_full in H2. destruct H2; discriminate.
+  rewrite H2 in H3.
+  rewrite H0 in H3.
+  apply join_comm in H3.
+  apply YES_join_full in H3; auto.
+  destruct H3 as [? [? H3]]. inv H3.
 Qed.
 
 Lemma necR_NOx:
-   forall phi phi' l rsh, necR phi phi' -> phi@l = NO rsh -> phi'@l = NO rsh.
+   forall phi phi' l sh nsh, 
+      necR phi phi' -> 
+      phi@l = NO sh nsh -> 
+      phi'@l = NO sh nsh.
 Proof.
 induction 1; eauto.
 unfold age in H; simpl in H.
@@ -604,19 +631,21 @@ Proof.
 Qed.
 
 Lemma necR_NO:
-   forall phi phi' l rsh, necR phi phi' -> 
-   (phi@l = NO rsh <-> phi'@l = NO rsh).
+   forall phi phi' l sh nsh, necR phi phi' -> 
+   (phi@l = NO sh nsh <-> phi'@l = NO sh nsh).
 Proof.
   intros; split.
   apply necR_NOx; auto.
   intros.
   case_eq (phi @ l); intros; auto.
-   generalize (necR_NOx _ _ l t H H1); intro. congruence.
+   generalize (necR_NOx _ _ l _ _ H H1); intro. congruence.
   generalize (necR_YES _ _ _ _ _ _ _ H H1); congruence.
   generalize (necR_PURE _ _ _ _ _ H H1); congruence.
 Qed.
 
-Lemma resource_at_empty: forall phi, identity phi -> forall l, (phi @ l = NO Share.bot \/ exists k, exists pds, phi @ l = PURE k pds).
+Lemma resource_at_empty: forall phi, 
+     identity phi -> 
+     forall l, (phi @ l = NO Share.bot bot_unreadable \/ exists k, exists pds, phi @ l = PURE k pds).
 Proof.
   intros.
   rewrite identity_unit_equiv in H.
@@ -624,11 +653,14 @@ Proof.
   generalize (resource_at_join _ _ _ l H); intro.
   remember (phi @ l) as r.
   destruct r; inv H0; eauto.
-  apply identity_unit_equiv in RJ; apply identity_share_bot in RJ; subst; auto.
-  apply no_units in H2; contradiction.
+  left. clear - RJ.
+  apply identity_unit_equiv in RJ; apply identity_share_bot in RJ; subst.
+  f_equal. apply proof_irr.
+  clear - r RJ.
+  apply share_self_join_bot in RJ. subst.
+  contradiction (bot_unreadable r).
 Qed.
 Implicit Arguments resource_at_empty.
-
 
 Lemma rmap_valid: forall r, AV.valid (res_option oo resource_at r).
 Proof.
@@ -671,8 +703,8 @@ destruct n; inv H1.
 rewrite unsquash_squash in H. simpl in H. destruct r; simpl in *.
 unfold compose in H. 
 revert H; destruct (x loc); simpl; intros; auto.
-destruct p0; inv H.
-inj_pair_tac. f_equal.
+destruct p; inv H.
+inj_pair_tac. f_equal. apply proof_irr.
 unfold NoneP; f_equal.
 auto.
 inv H.
@@ -706,7 +738,7 @@ split; intros [pp ?].
   revert H0; destruct (x loc); simpl; intros; auto.
   inv H0.
   inv H0.
-  econstructor; eauto.
+  econstructor; proof_irr; eauto.
   inv H0.
 Qed.
 
@@ -769,8 +801,8 @@ Lemma necR_res_option:
 Proof.
   intros.
   case_eq (phi @ loc); intros.
-  rewrite (necR_NO _ _ _ _ H) in H0. congruence.
-  destruct p0.
+  rewrite (necR_NO _ _ _ _ n H) in H0. congruence.
+  destruct p.
   rewrite (necR_YES phi phi' loc _ _ _ _ H H0); auto.
   rewrite (necR_PURE phi phi' loc _ _ H H0); auto.
 Qed.
@@ -812,8 +844,8 @@ apply necR_YES''.
 constructor 1; auto.
 Qed.
 
-Lemma age1_NO: forall phi phi' l rsh,
-  age1 phi = Some phi' -> (phi @ l = NO rsh <-> phi' @ l = NO rsh).
+Lemma age1_NO: forall phi phi' l sh nsh,
+  age1 phi = Some phi' -> (phi @ l = NO sh nsh <-> phi' @ l = NO sh nsh).
 Proof.
 intros.
 apply necR_NO.
@@ -828,14 +860,15 @@ Proof.
   constructor 1; auto.
 Qed.
   
-Lemma empty_NO: forall r, identity r -> r = NO Share.bot \/ exists k, exists pds, r = PURE k pds.
+Lemma empty_NO: forall r, identity r -> r = NO Share.bot bot_unreadable \/ exists k, exists pds, r = PURE k pds.
 Proof.
 intros.
 destruct r; auto.
 left. f_equal. apply identity_unit_equiv in H. inv H.
-  apply identity_unit_equiv in RJ. apply identity_share_bot in RJ. subst. auto.
+  apply identity_unit_equiv in RJ. apply identity_share_bot in RJ. subst.
+ f_equal. apply proof_irr.
 unfold identity in H.
-spec H (NO Share.bot) (YES t p k p0).
+spec H (NO Share.bot bot_unreadable) (YES sh r k p).
 spec H.
 apply res_join_NO2.
 auto.
@@ -889,16 +922,21 @@ Lemma resource_at_constructive_joins2:
          constructive_joins phi1 phi2.
 Proof.
 intros ? ? ? H0.
-assert (AV.valid (res_option oo (fun loc => proj1_sig (H0 loc)))).
-apply AV.valid_join with (res_option oo (resource_at phi1)) (res_option oo (resource_at phi2));
- try apply rmap_valid.
-intro l.
-unfold compose in *.
-destruct (H0 l); simpl in *.
-destruct (phi1 @ l). inv j; constructor.
-inv j; constructor. split; auto. 
-inv j; constructor.
-(** End of CompCert_AV.valid proof **)
+assert (AV.valid (res_option oo (fun loc => proj1_sig (H0 loc)))). {
+ apply AV.valid_join with (res_option oo (resource_at phi1)) (res_option oo (resource_at phi2));
+  try apply rmap_valid.
+ intro l.
+ unfold compose in *.
+ destruct (H0 l); simpl in *.
+ destruct (phi1 @ l).
+ inv j; simpl; try constructor.
+ apply join_comm in RJ.
+ rewrite (join_readable_part_eq rsh2 n rsh3 RJ); constructor.
+ inv j; simpl; try constructor.
+ rewrite (join_readable_part_eq r nsh2 rsh3 RJ); constructor.
+ constructor. apply join_readable_part; auto. split; reflexivity.
+ inv j; constructor.
+}
 destruct (make_rmap _ H1 (level phi1)) as [phi' [? ?]].
 clear H1.
 unfold compose; extensionality loc.
@@ -944,7 +982,7 @@ Proof.
 Qed.
 
 Definition no_preds (r: resource) :=
-   match r with NO _ => True | YES _ _ _ pp => pp=NoneP | PURE _ pp => pp=NoneP end.
+   match r with NO _ _ => True | YES _ _ _ pp => pp=NoneP | PURE _ pp => pp=NoneP end.
 
 Lemma remake_rmap:
   forall (f: AV.address -> resource),
@@ -962,11 +1000,9 @@ Proof.
   rewrite H1.
   subst.
   apply resource_at_approx.
-  destruct (f l); simpl in *; auto;
-  [destruct p0 | destruct p];
-  rewrite H1;
-  apply f_equal;
-  apply preds_fmap_NoneP.
+  destruct (f l); simpl in *; auto.
+  subst p; reflexivity.
+  subst p; reflexivity.
 Qed.
 
 Lemma rmap_unage_age:
@@ -1013,35 +1049,8 @@ rewrite (age1_resource_at _ _ H1 loc _ (eq_sym (resource_at_approx _ _))).
 rewrite H. rewrite H4; auto.
 Qed.
 
-
-Lemma join_YES_pfullshare1:
-    forall rsh1 pp k p x y, 
-       join (YES rsh1 (mk_lifted Share.top pp) k p) x y -> 
-        exists rsh2, exists rsh3, 
-        (NO rsh2, YES rsh3 pfullshare k p) = (x,y).
-Proof.
-intros. inv H; try pfullshare_join; f_equal; auto.
-  unfold pfullshare.
-  exists rsh2, rsh3; f_equal; f_equal; f_equal. apply proof_irr.
-Qed.
-
-Lemma join_YES_pfullshare2:
-    forall rsh2 pp k p x y, join x (YES rsh2 (mk_lifted Share.top pp) k p) y -> 
-        exists rsh1, exists rsh3, 
-        (NO rsh1, YES rsh3 pfullshare k p) = (x,y).
-Proof.
-intros. inv H; try pfullshare_join; f_equal; auto.
-  unfold pfullshare.
-  exists rsh1, rsh3; f_equal; f_equal; f_equal. apply proof_irr.
-Qed.
-
-Ltac inv H := ((apply join_YES_pfullshare1 in H; destruct H as [?rsh [?rsh H]]) 
-                     || (apply join_YES_pfullshare2 in H ; destruct H as [?rsh [?rsh H]]) 
-                     || idtac); 
-                  (inversion H; clear H; subst).
-
   Definition empty_rmap' : rmap'.
-    set (f:= fun _: AV.address => NO Share.bot).
+    set (f:= fun _: AV.address => NO Share.bot bot_unreadable).
     assert (R.valid f).
     red; unfold f; simpl.
     apply AV.valid_empty.
@@ -1065,7 +1074,7 @@ destruct r; destruct r0; simpl in *.
 rewrite unsquash_squash in H.
 simpl in *.
 unfold compose in H.
-inv H; auto; apply join_unit1_e in RJ; auto; subst; auto.
+inv H; auto; apply join_unit1_e in RJ; auto; subst; proof_irr; auto.
 Qed.
 
 Lemma empty_rmap_level:
@@ -1098,18 +1107,50 @@ refine (fun f V lev H => match proj2_sig (make_rmap f V lev H) with
                          end).
 Qed.
 
-Instance Join_trace : Join (AV.address -> option (pshare * AV.kind)) :=
-     (Join_fun AV.address (option (pshare * AV.kind))
-                   (Join_lower (Join_prod pshare Join_pshare AV.kind (Join_equiv AV.kind)))).
+Instance Join_trace : Join (AV.address -> option (rshare * AV.kind)) :=
+     (Join_fun AV.address (option (rshare * AV.kind))
+                   (Join_lower (Join_prod rshare Join_rshare AV.kind (Join_equiv AV.kind)))).
 
 
  Lemma res_option_join:
-    forall x y z, join x y z -> @join _ (@Join_lower (pshare * AV.kind)
-     (Join_prod pshare Join_pshare AV.kind (Join_equiv AV.kind))) (res_option x) (res_option y) (res_option  z).
+    forall x y z, 
+     join x y z -> 
+     @join _ (@Join_lower (rshare * AV.kind)
+     (Join_prod rshare Join_rshare AV.kind (Join_equiv AV.kind))) (res_option x) (res_option y) (res_option  z).
  Proof.
    intros.
-  inv H; constructor.  split; auto. 
+   inv H; simpl; try constructor.
+   erewrite join_readable_part_eq by eassumption. constructor.
+   apply join_comm in  RJ.
+   erewrite join_readable_part_eq by eassumption. constructor.
+   constructor. apply join_readable_part; auto.
+   split; auto. 
  Qed.
+
+Ltac uniq_assert name P := 
+ lazymatch goal with H: P |- _ => fail 
+    | _ => let H1 := fresh "H" name in assert (H1:P) end.
+
+Ltac readable_unreadable_join_prover := 
+repeat match goal with
+| H: join ?A ?B ?C, H1: ~readable_share ?C |- _ =>
+   uniq_assert A (~readable_share A);
+    [ clear - H H1; contradict H1; eapply join_readable1; eauto; fail | ]
+| H: join ?A ?B ?C, H1: ~readable_share ?C |- _ =>
+   uniq_assert B (~readable_share B);
+    [ clear - H H1; contradict H1; eapply join_readable2; eauto; fail | ]
+| H: join ?A ?B ?C, H0: ~readable_share ?B, H1: readable_share ?C |- _ =>
+    (uniq_assert A (readable_share A);
+    [ clear - H H0 H1; destruct (readable_share_dec A); 
+      [solve [auto]
+       |eapply join_unreadable_shares in H; eauto; solve [contradiction]] | ])
+| H: join ?A ?B ?C, H0: ~readable_share ?A, H1: readable_share ?C |- _ =>
+    (uniq_assert B (readable_share B);
+    [ clear - H H0 H1; destruct (readable_share_dec B); 
+      [solve [auto]
+       | apply join_comm in H; 
+         eapply join_unreadable_shares in H; eauto; solve [contradiction]] | ])
+end.
 
 Lemma Cross_resource: Cross_alg resource.
 Proof.
@@ -1122,7 +1163,8 @@ destruct d as [rd | rd sd kd pd | kd pd ]; try solve [elimtype False; inv H0].
 assert (J1: join ra rb rz) by (inv H; auto).
 assert (J2: join rc rd rz) by (inv H0; auto).
 destruct (share_cross_split _ _ _ _ _ J1 J2) as [[[[ac ad] bc] bd] [Ha [Hb [Hc Hd]]]].
-exists (NO ac,NO ad, NO bc, NO bd); 
+readable_unreadable_join_prover.
+exists (NO ac Hac,NO ad Had, NO bc Hbc, NO bd Hbd); 
   repeat split; simpl; auto; constructor; auto.
 destruct z as [rz | rz sz kz pz | kz pz ]; try solve [elimtype False; inv H].
 destruct c as [rc | rc sc kc pc | kc pc ]; try solve [elimtype False; inv H0].
@@ -1130,17 +1172,20 @@ destruct d as [rd | rd sd kd pd | kd pd ]; try solve [elimtype False; inv H0].
 assert (J1: join ra rb rz) by (inv H; auto).
 assert (J2: join rc rd rz) by (inv H0; auto).
 destruct (share_cross_split _ _ _ _ _ J1 J2) as [[[[ac ad] bc] bd] [Ha [Hb [Hc Hd]]]].
-exists (NO ac, NO ad, NO bc, YES bd sb kb pb); inv H; inv H0;
+readable_unreadable_join_prover.
+exists (NO ac Hac, NO ad Had, NO bc Hbc, YES bd Hbd kb pb); inv H; inv H0;
   repeat split; simpl; auto; try constructor; auto.
 assert (J1: join ra rb rz) by (inv H; auto).
 destruct d as [rd | rd sd kd pd | kd pd ]; try solve [elimtype False; inv H0].
 assert (J2: join rc rd rz) by (inv H0; auto).
 destruct (share_cross_split _ _ _ _ _ J1 J2) as [[[[ac ad] bc] bd] [Ha [Hb [Hc Hd]]]].
-exists (NO ac, NO ad, YES bc sb kb pb, NO bd); inv H; inv H0;
+readable_unreadable_join_prover.
+exists (NO ac Hac, NO ad Had, YES bc Hbc kb pb, NO bd Hbd); inv H; inv H0;
   repeat split; simpl; auto; try constructor; auto.
 assert (J2: join rc rd rz) by (inv H0; auto).
 destruct (share_cross_split _ _ _ _ _ J1 J2) as [[[[ac ad] bc] bd] [Ha [Hb [Hc Hd]]]].
-exists (NO ac, NO ad, YES bc sc kb pb, YES bd sd kd pd); inv H; inv H0;
+readable_unreadable_join_prover.
+exists (NO ac Hac, NO ad Had, YES bc Hbc kb pb, YES bd Hbd kd pd); inv H; inv H0;
   repeat split; simpl; auto; try constructor; auto.
 destruct b as [rb | rb sb kb pb | kb pb ]; try solve [elimtype False; inv H].
 destruct z as [rz | rz sz kz pz | kz pz ]; try solve [elimtype False; inv H].
@@ -1149,16 +1194,19 @@ destruct c as [rc | rc sc kc pc | kc pc ]; try solve [elimtype False; inv H0].
 destruct d as [rd | rd sd kd pd | kd pd ]; try solve [elimtype False; inv H0].
 assert (J2: join rc rd rz) by (inv H0; auto).
 destruct (share_cross_split _ _ _ _ _ J1 J2) as [[[[ac ad] bc] bd] [Ha [Hb [Hc Hd]]]].
-exists (NO ac, YES ad sd kd pd, NO bc, NO bd); inv H; inv H0;
+readable_unreadable_join_prover.
+exists (NO ac Hac, YES ad Had kd pd, NO bc Hbc, NO bd Hbd); inv H; inv H0;
   repeat split; simpl; auto; try constructor; auto.
 destruct d as [rd | rd sd kd pd | kd pd ]; try solve [elimtype False; inv H0].
 assert (J2: join rc rd rz) by (inv H0; auto).
 destruct (share_cross_split _ _ _ _ _ J1 J2) as [[[[ac ad] bc] bd] [Ha [Hb [Hc Hd]]]].
-exists (YES ac sc kc pc, NO ad, NO bc, NO bd); inv H; inv H0;
+readable_unreadable_join_prover.
+exists (YES ac Hac kc pc, NO ad Had, NO bc Hbc, NO bd Hbd); inv H; inv H0;
   repeat split; simpl; auto; try constructor; auto.
 assert (J2: join rc rd rz) by (inv H0; auto).
 destruct (share_cross_split _ _ _ _ _ J1 J2) as [[[[ac ad] bc] bd] [Ha [Hb [Hc Hd]]]].
-exists (YES ac sc kc pc, YES ad sd kd pd, NO bc, NO bd); inv H; inv H0;
+readable_unreadable_join_prover.
+exists (YES ac Hac kc pc, YES ad Had kd pd, NO bc Hbc, NO bd Hbd); inv H; inv H0;
   repeat split; simpl; auto; try constructor; auto.
 destruct z as [rz | rz sz kz pz | kz pz ]; try solve [elimtype False; inv H].
 assert (J1: join ra rb rz) by (inv H; auto).
@@ -1166,48 +1214,39 @@ destruct c as [rc | rc sc kc pc | kc pc ]; try solve [elimtype False; inv H0].
 destruct d as [rd | rd sd kd pd | kd pd ]; try solve [elimtype False; inv H0].
 assert (J2: join rc rd rz) by (inv H0; auto).
 destruct (share_cross_split _ _ _ _ _ J1 J2) as [[[[ac ad] bc] bd] [Ha [Hb [Hc Hd]]]].
-exists (NO ac, YES ad sa kd pd, NO bc, YES bd sb kd pd); inv H; inv H0;
+readable_unreadable_join_prover.
+exists (NO ac Hac, YES ad Had kd pd, NO bc Hbc, YES bd Hbd kd pd); inv H; inv H0;
   repeat split; simpl; auto; try constructor; auto.
 destruct d as [rd | rd sd kd pd | kd pd ]; try solve [elimtype False; inv H0].
 assert (J2: join rc rd rz) by (inv H0; auto).
 destruct (share_cross_split _ _ _ _ _ J1 J2) as [[[[ac ad] bc] bd] [Ha [Hb [Hc Hd]]]].
-exists (YES ac sa kc pc, NO ad, YES bc sb kb pb, NO bd); inv H; inv H0;
+readable_unreadable_join_prover.
+exists (YES ac Hac kc pc, NO ad Had, YES bc Hbc kb pb, NO bd Hbd); inv H; inv H0;
   repeat split; simpl; auto; try constructor; auto.
 assert (J2: join rc rd rz) by (inv H0; auto).
 destruct (share_cross_split _ _ _ _ _ J1 J2) as [[[[ac ad] bc] bd] [Ha [Hb [Hc Hd]]]].
-assert (S1: join sa sb sz) by (inv H; auto).
-assert (S2: join sc sd sz) by (inv H0; auto).
-destruct (share_cross_split _ _ _ _ _ S1 S2) as [[[[ac' ad'] bc'] bd'] [Ha' [Hb' [Hc' Hd']]]].
-destruct (dec_share_identity ac').
-apply i in Ha'; apply i in Hc'. subst.
-destruct (dec_share_identity bd').
-apply join_comm in Hb'; apply join_comm in Hd'; apply i0 in Hb'; apply i0 in Hd'; subst.
-apply lifted_eq in Hb'. apply lifted_eq in Hd'; subst sb sd.
-exists (NO ac, YES ad sa ka pa, YES bc sc kc pc, NO bd); 
+destruct (Sumbool.sumbool_not _ _ (readable_share_dec ac)) as [Hac|Hac].
+readable_unreadable_join_prover.
+destruct (Sumbool.sumbool_not _ _ (readable_share_dec bd)) as [Hbd|Hbd].
+exists (NO ac Hac, YES ad Had ka pa, YES bc Hbc kc pc, NO bd Hbd); 
    inv H; inv H0; simpl; repeat split; auto;  constructor; auto.
-apply nonidentity_nonunit in n.
-exists (NO ac, YES ad sa ka pa, YES bc sc kc pc, YES bd (mk_lifted _ n) kd pd); 
+exists (NO ac Hac, YES ad Had ka pa, YES bc Hbc kc pc, YES bd Hbd kd pd); 
    inv H; inv H0; simpl; repeat split; auto;  constructor; auto.
-destruct (dec_share_identity ad').
-apply join_comm in Ha'; apply i in Ha'; apply i in Hd'; subst bd' ac'.
-clear n.
-destruct (dec_share_identity bc').
-apply join_comm in Hc'; apply i0 in Hb'; apply i0 in Hc'.  apply lifted_eq in Hb'; apply lifted_eq in Hc'; subst sd sc.
-exists (YES ac sa ka pa, NO ad, NO bc, YES bd sb kb pb); 
+destruct (Sumbool.sumbool_not _ _ (readable_share_dec ad)) as [Had|Had];
+readable_unreadable_join_prover;
+destruct (Sumbool.sumbool_not _ _ (readable_share_dec bc)) as [Hbc|Hbc];
+readable_unreadable_join_prover.
+exists (YES ac Hac ka pa, NO ad Had, NO bc Hbc, YES bd Hbd kb pb); 
    inv H; inv H0; simpl; repeat split; auto;  constructor; auto.
-exists (YES ac sa ka pa, NO ad, YES bc (mk_lifted _ (nonidentity_nonunit n)) kc pc, YES bd sd kd pd);
+exists (YES ac Hac ka pa, NO ad Had, YES bc Hbc kc pc, YES bd Hbd kd pd);
     inv H; inv H0; simpl; repeat split; auto;  constructor; auto.
-destruct (dec_share_identity bc').
-apply join_comm in Hc'; apply i in Hb'; apply i in Hc'.  subst ac' bd'.
-exists (YES ac sc kc pc, YES ad (mk_lifted _ (nonidentity_nonunit n0)) kc pc, NO bc, YES bd sb kb pb);
+exists (YES ac Hac kc pc, YES ad Had kc pc, NO bc Hbc, YES bd Hbd kb pb);
     inv H; inv H0; simpl; repeat split; auto;  constructor; auto.
-destruct (dec_share_identity bd').
-apply join_comm in Hb'; apply join_comm in Hd';
- apply i in Hb'; apply i in Hd'. subst bc' ad'.
-exists (YES ac (mk_lifted _ (nonidentity_nonunit n)) ka pa,  YES ad sd kd pd, YES bc sb kb pb, NO bd);
+destruct (Sumbool.sumbool_not _ _ (readable_share_dec bd)) as [Hbd|Hbd].
+exists (YES ac Hac ka pa,  YES ad Had kd pd, YES bc Hbc kb pb, NO bd Hbd);
     inv H; inv H0; simpl; repeat split; auto;  constructor; auto.
-exists (YES ac (mk_lifted _ (nonidentity_nonunit n)) ka pa, YES ad (mk_lifted _ (nonidentity_nonunit n0)) ka pa, 
-       YES bc (mk_lifted _ (nonidentity_nonunit n1)) ka pa,  YES bd (mk_lifted _ (nonidentity_nonunit n2)) ka pa);
+exists (YES ac Hac ka pa, YES ad Had ka pa, 
+       YES bc Hbc ka pa,  YES bd Hbd ka pa);
     inv H; inv H0; simpl; repeat split; auto;  constructor; auto.
 exists (PURE ka pa, PURE ka pa, PURE ka pa, PURE ka pa).
 inv H. inv H0.
@@ -1216,41 +1255,84 @@ Qed.
 
 Definition res_retain (r: resource) : Share.t :=
  match r with
-  | NO sh => sh
-  | YES sh _ _ _ => sh
+  | NO sh _ => retainer_part sh
+  | YES sh _ _ _ => retainer_part sh
   | PURE _ _ => Share.bot
  end.
 
-Definition fixup_trace (retain: AV.address -> Share.t)
-                                    (trace: AV.address -> option (pshare * AV.kind))
-                                    (f: AV.address -> resource) : AV.address -> resource :=
-   fun x => match trace x, f x with
-                   | None, PURE k pp => PURE k pp
-                   | Some(sh,k), PURE _ pp => YES (retain x) sh k pp
-                   | Some (sh,k), YES _ _ _ pp => YES (retain x) sh k pp
-                   | Some (sh, k), NO _ => YES (retain x) sh k NoneP
-                   | None, _ => NO (retain x)
-                   end.
+Lemma fixup_trace_readable:
+  forall a (b: rshare), readable_share (Share.lub (Share.glb Share.Lsh a) (Share.glb Share.Rsh (proj1_sig b))).
+Proof.
+intros.
+destruct b as [b H].
+forget (Share.glb Share.Lsh a) as a'. clear a.
+simpl.
+destruct H as [H' H].
+do 3 red in H|-*.
+simpl.
+contradict H.
+rewrite Share.distrib1 in H.
+rewrite <- Share.glb_assoc in H.
+rewrite Share.glb_idem in H.
+apply identity_share_bot in H.
+apply lub_bot_e in H. destruct H.
+rewrite H0. apply bot_identity.
+Qed.
 
-Lemma fixup_trace_valid: forall retain tr f, 
+Definition fixup_trace (retain: AV.address -> Share.t)
+                 (trace: AV.address -> option (rshare * AV.kind))
+                 (f: AV.address -> resource) : AV.address -> resource :=
+   fun x => match trace x, f x with
+            | None, PURE k pp => PURE k pp
+            | Some(sh,k), PURE _ pp =>
+               YES _ (fixup_trace_readable (retain x) sh) k pp
+            | Some (sh,k), YES _ _ _ pp => YES _ (fixup_trace_readable (retain x) sh) k pp
+            | Some (sh, k), NO _ _ => YES _ (fixup_trace_readable (retain x) sh) k NoneP
+            | None, _ => NO _ (@retainer_part_nonreadable (retain x))
+            end.
+
+
+Definition fixup_trace_ok (tr: AV.address -> option (rshare * AV.kind)) :=
+ forall x, match tr x with None => True | Some(sh,_)=> Share.glb Share.Rsh (proj1_sig sh) = (proj1_sig sh) end.
+
+Lemma fixup_trace_valid: forall retain
+             tr 
+             (trace_ok: fixup_trace_ok tr)
+              f,
             AV.valid tr -> 
             AV.valid (res_option oo (fixup_trace retain tr f)).
  Proof. intros.
   replace (res_option oo fixup_trace retain tr f) with tr. auto.
   extensionality l. unfold compose. unfold fixup_trace.
+  specialize (trace_ok l).
   destruct (tr l); simpl; auto.
-  destruct p. destruct (f l); simpl; auto.
+*
+  destruct p. rename r into s.
+  assert (s = readable_part (fixup_trace_readable (retain l) s)). {
+    destruct s; apply exist_ext'; simpl in *.
+    clear - trace_ok.
+    rewrite Share.lub_commute.
+    rewrite Share.distrib1.
+    rewrite <- !Share.glb_assoc. rewrite Share.glb_idem.
+    rewrite (Share.glb_commute _ Share.Lsh).
+    rewrite glb_Lsh_Rsh. rewrite (Share.glb_commute Share.bot). rewrite Share.glb_bot.
+    rewrite Share.lub_bot. auto.
+  }
+  destruct (f l); simpl; f_equal; f_equal; auto.
+*
   destruct (f l); reflexivity.
 Qed.
 
 Lemma fixup_trace_rmap:
-    forall (retain: AV.address -> Share.t) (tr: sig AV.valid) (f: rmap),
+    forall (retain: AV.address -> Share.t) 
+             (tr: sig AV.valid) (trace_ok: fixup_trace_ok (proj1_sig tr)) (f: rmap),
         {phi: rmap | 
              level phi = level f 
             /\ resource_at phi = fixup_trace retain (proj1_sig tr) (resource_at f)}.
 Proof.
  intros.
- apply make_rmap. apply fixup_trace_valid. destruct tr; simpl; auto.
+ apply make_rmap.
+ apply fixup_trace_valid; auto. destruct tr; simpl; auto.
  extensionality l.
  unfold compose, fixup_trace.
  destruct tr. simpl.
@@ -1270,7 +1352,7 @@ Proof.
  rewrite H in H0. symmetry in H0.
   simpl in H0. simpl.
    f_equal. injection H0; auto.
-Qed.     
+Qed.
 
 Lemma join_res_retain:
           forall a b c: rmap , 
@@ -1280,32 +1362,245 @@ Proof.
  intros.
  intro loc; apply (resource_at_join _ _ _ loc) in H.
   unfold compose.
- inv H; auto.
-Qed. 
+ inv H; simpl; auto; apply retainer_part_join; auto.
+Qed.
 
+Lemma join_fixup_trace_ok:
+  forall (v w: sig AV.valid) a,
+    join v w (exist AV.valid (res_option oo resource_at a) (rmap_valid a)) ->
+    fixup_trace_ok (proj1_sig v).
+Proof.
+  intros.
+   hnf; intros.
+   destruct v, w. simpl in *.
+   red in H. red in H. simpl in H.
+   specialize (H x).
+   clear - H.
+   forget (x0 x) as u. forget (x1 x) as v.
+   unfold res_option, compose in H.
+   destruct (a @ x); inv H; auto.
+   unfold readable_part. simpl.
+   rewrite <- Share.glb_assoc. rewrite Share.glb_idem; auto.
+   destruct a1 as [[v ?] ?]. destruct a2 as [[w ?] ?].
+   destruct H3 as [H3 _]. do 2 red in H3. simpl in H3.
+   simpl. clear - H3.
+   assert (join_sub v (Share.glb Share.Rsh sh)) by (exists w; auto).
+   clear H3.
+   apply leq_join_sub in H.
+   assert (Share.Ord (Share.glb Share.Rsh sh) Share.Rsh).
+   apply Share.ord_spec1.
+   symmetry. rewrite Share.glb_commute. rewrite <- Share.glb_assoc.
+   rewrite Share.glb_idem. auto.
+   pose proof (Share.ord_trans _ _ _ H H0).
+   clear - H1.
+   apply Share.ord_spec1 in H1.
+   rewrite Share.glb_commute. auto.
+Qed.
 
+Instance Perm_foo: Perm_alg
+               {x : AV.address -> option (rshare * AV.kind) |
+               AV.valid x}.
+Proof.
+apply Perm_prop.
+apply Perm_fun.
+apply Perm_lower.
+apply Perm_prod.
+apply Perm_rshare.
+apply Perm_equiv.
+intros.
+eapply AV.valid_join; eauto.
+Qed.
 
-Ltac crtac :=
- repeat  (solve [constructor; auto] ||
+Ltac crtac' :=
+ repeat  (simpl in *; ((*solve [constructor; auto] ||*)
    match goal with
  | H: None = res_option ?A |- _ => destruct A; inv H  
  | H: Some _ = res_option ?A |- _ => destruct A; inv H
- | H: join (NO _) _ _ |- _ => inv H
- | H: join _ (NO _) _ |- _ => inv H
+ | H: join (NO _ _) _ _ |- _ => inv H
+ | H: join _ (NO _ _) _ |- _ => inv H
  | H: join (YES _ _ _ _) _ _ |- _ => inv H
  | H: join _ (YES _ _ _ _) _ |- _ => inv H
  | H: join (PURE _ _) _ _ |- _ => inv H
  | H: join _ (PURE _ _) _ |- _ => inv H
  | H: @join _ _ (Some _) _ _ |- _ => inv H
  | H: @join _ _ _ (Some _) _ |- _ => inv H
- | H: @join _ _ None _ _ |- _ => 
-                apply join_unit1_e in H; [| apply None_identity]
- | H: @join _ _ _ None _ |- _ => 
-                apply join_unit2_e in H; [| apply None_identity]
- | H:  prod pshare AV.kind |- _ => destruct H
- | H: @join _ (Join_equiv _) ?a ?b ?c |- _ => destruct H; try subst a; try subst b; try subst c 
- | H: @join _ (Join_prod _ _ _ _) (_,_) (_,_) (_,_) |- _ => destruct H; simpl fst in *; simpl snd in *
- end; auto).
+ | H: join None _ _ |- _ =>  inv H
+ | H: join _ None _ |- _ => inv H
+ end; auto)).
+
+
+Lemma join_fixup_trace:
+ forall (Rc Rd: AV.address -> Share.t)
+        (c d: AV.address -> option (rshare * AV.kind))
+        (z a: rmap) (l: AV.address), 
+   join_sub (a @ l) (z @ l) ->
+   join (Rc l) (Rd l) (res_retain (a @ l)) ->
+   @join (option (rshare * AV.kind))
+       (@Join_lower (rshare * AV.kind)
+          (Join_prod rshare Join_rshare AV.kind
+             (Join_equiv AV.kind)))
+         (c l) (d l) (res_option (a @ l)) ->
+   join (fixup_trace Rc c (resource_at z) l) (fixup_trace Rd d (resource_at z) l) (a @ l).
+Proof.
+intros.
+unfold fixup_trace.
+forget (a @ l) as al.
+forget (z @ l) as zl.
+forget (Rc l) as Rcl.
+forget (c l) as cl.
+forget (Rd l) as Rdl.
+forget (d l) as dl.
+destruct H as [bl H].
+clear - H H0 H1.
+destruct cl as [[? ?]|]; crtac'; try constructor.
+*
+destruct (join_parts comp_Lsh_Rsh H0) as [J1 [J2 [J3 J4]]].
+unfold retainer_part.
+rewrite ?J1,?J2,?J3,?J4, ?glb_twice, ?glb_Lsh_Rsh', ?Share.lub_bot, ?lub_bot'.
+apply left_right_join.
+rewrite Share.distrib1.
+rewrite ?J1,?J2,?J3,?J4, ?glb_twice, ?glb_Lsh_Rsh', ?Share.lub_bot, ?lub_bot'.
+assumption.
+rewrite Share.distrib1.
+rewrite ?J1,?J2,?J3,?J4, ?glb_twice, ?glb_Lsh_Rsh', ?Share.lub_bot, ?lub_bot'.
+apply join_unit2; auto.
+*
+destruct (join_parts comp_Lsh_Rsh H0) as [J1 [J2 [J3 J4]]].
+unfold retainer_part.
+rewrite ?J1,?J2,?J3,?J4, ?glb_twice, ?glb_Lsh_Rsh', ?Share.lub_bot, ?lub_bot'.
+apply left_right_join.
+rewrite Share.distrib1.
+rewrite ?J1,?J2,?J3,?J4, ?glb_twice, ?glb_Lsh_Rsh', ?Share.lub_bot, ?lub_bot'.
+assumption.
+rewrite Share.distrib1.
+rewrite ?J1,?J2,?J3,?J4, ?glb_twice, ?glb_Lsh_Rsh', ?Share.lub_bot, ?lub_bot'.
+apply join_unit2; auto.
+*
+destruct a2.
+destruct H5; simpl in *. destruct H1; subst.
+destruct r,r1; simpl in *.
+do 2 red in H. simpl in *.
+constructor.
+destruct (join_parts comp_Lsh_Rsh H0) as [J1 [J2 [J3 J4]]].
+apply left_right_join.
+rewrite ?J1,?J2,?J3,?J4, ?glb_twice, ?glb_Lsh_Rsh', ?Share.lub_bot, ?lub_bot'.
+rewrite Share.distrib1.
+rewrite glb_Lsh_Rsh', Share.lub_bot.
+rewrite Share.distrib1.
+rewrite ?J1,?J2,?J3,?J4, ?glb_twice, ?glb_Lsh_Rsh', ?Share.lub_bot, ?lub_bot'.
+assumption.
+rewrite ?J1,?J2,?J3,?J4, ?glb_twice, ?glb_Lsh_Rsh', ?Share.lub_bot, ?lub_bot'.
+rewrite Share.distrib1.
+rewrite ?J1,?J2,?J3,?J4, ?glb_twice, ?glb_Lsh_Rsh', ?Share.lub_bot, ?lub_bot'.
+rewrite Share.distrib1.
+rewrite ?J1,?J2,?J3,?J4, ?glb_twice, ?glb_Lsh_Rsh', ?Share.lub_bot, ?lub_bot'.
+destruct (join_parts comp_Rsh_Lsh H) as [K1 [K2 [K3 K4]]].
+rewrite ?K1, ?K2,?K3,?K4.
+assumption.
+*
+destruct a2.
+destruct H5; simpl in *. destruct H1; subst.
+destruct r,r1; simpl in *.
+do 2 red in H. simpl in *.
+constructor.
+destruct (join_parts comp_Lsh_Rsh H0) as [J1 [J2 [J3 J4]]].
+apply left_right_join.
+rewrite ?J1,?J2,?J3,?J4, ?glb_twice, ?glb_Lsh_Rsh', ?Share.lub_bot, ?lub_bot'.
+rewrite Share.distrib1.
+rewrite glb_Lsh_Rsh', Share.lub_bot.
+rewrite Share.distrib1.
+rewrite ?J1,?J2,?J3,?J4, ?glb_twice, ?glb_Lsh_Rsh', ?Share.lub_bot, ?lub_bot'.
+assumption.
+rewrite ?J1,?J2,?J3,?J4, ?glb_twice, ?glb_Lsh_Rsh', ?Share.lub_bot, ?lub_bot'.
+rewrite Share.distrib1.
+rewrite ?J1,?J2,?J3,?J4, ?glb_twice, ?glb_Lsh_Rsh', ?Share.lub_bot, ?lub_bot'.
+rewrite Share.distrib1.
+rewrite ?J1,?J2,?J3,?J4, ?glb_twice, ?glb_Lsh_Rsh', ?Share.lub_bot, ?lub_bot'.
+destruct (join_parts comp_Rsh_Lsh H) as [K1 [K2 [K3 K4]]].
+rewrite ?K1, ?K2,?K3,?K4.
+assumption.
+*
+unfold retainer_part in *.
+destruct al; crtac'; try constructor;
+unfold retainer_part in *.
+ +
+destruct (join_parts comp_Lsh_Rsh H0) as [J1 [J2 [J3 J4]]].
+rewrite ?J1,?J2,?J3,?J4, ?glb_twice, ?glb_Lsh_Rsh', ?Share.lub_bot, ?lub_bot'.
+rewrite <- (Share.glb_top sh). rewrite Share.glb_commute.
+rewrite <- lub_Lsh_Rsh.
+rewrite Share.glb_commute.
+rewrite Share.distrib1.
+apply not_readable_Rsh_part in nsh0.
+rewrite (Share.glb_commute _ Share.Rsh), nsh0.
+rewrite Share.lub_bot.
+rewrite Share.glb_commute; auto.
+ +
+rewrite <- (Share.glb_top sh). rewrite Share.glb_commute.
+rewrite <- lub_Lsh_Rsh.
+rewrite Share.glb_commute.
+rewrite Share.distrib1.
+apply not_readable_Rsh_part in nsh0.
+rewrite (Share.glb_commute _ Share.Rsh), nsh0.
+rewrite Share.lub_bot.
+destruct (join_parts comp_Lsh_Rsh H0) as [J1 [J2 [J3 J4]]].
+rewrite ?J1,?J2,?J3,?J4, ?glb_twice, ?glb_Lsh_Rsh', ?Share.lub_bot, ?lub_bot'.
+rewrite Share.glb_commute; auto.
+ +
+destruct (join_parts comp_Lsh_Rsh H0) as [J1 [J2 [J3 J4]]].
+rewrite ?J1,?J2,?J3,?J4, ?glb_twice, ?glb_Lsh_Rsh', ?Share.lub_bot, ?lub_bot'.
+apply left_right_join.
+rewrite ?J1,?J2,?J3,?J4, ?glb_twice, ?glb_Lsh_Rsh', ?Share.lub_bot, ?lub_bot'.
+rewrite Share.distrib1.
+rewrite glb_Lsh_Rsh', Share.lub_bot.
+rewrite ?J1,?J2,?J3,?J4, ?glb_twice, ?glb_Lsh_Rsh', ?Share.lub_bot, ?lub_bot'.
+auto.
+rewrite Share.distrib1.
+rewrite ?J1,?J2,?J3,?J4, ?glb_twice, ?glb_Lsh_Rsh', ?Share.lub_bot, ?lub_bot'.
+apply join_unit1; auto.
+ +
+rewrite ?J1,?J2,?J3,?J4, ?glb_twice, ?glb_Lsh_Rsh', ?Share.lub_bot, ?lub_bot'.
+apply left_right_join.
+rewrite ?J1,?J2,?J3,?J4, ?glb_twice, ?glb_Lsh_Rsh', ?Share.lub_bot, ?lub_bot'.
+destruct (join_parts comp_Lsh_Rsh H0) as [J1 [J2 [J3 J4]]].
+rewrite ?J1,?J2,?J3,?J4, ?glb_twice, ?glb_Lsh_Rsh', ?Share.lub_bot, ?lub_bot'.
+rewrite Share.distrib1.
+rewrite ?J1,?J2,?J3,?J4, ?glb_twice, ?glb_Lsh_Rsh', ?Share.lub_bot, ?lub_bot'.
+auto.
+rewrite <- Share.glb_assoc. rewrite glb_Rsh_Lsh.
+rewrite Share.glb_commute. rewrite Share.glb_bot. 
+rewrite Share.distrib1.
+rewrite <- Share.glb_assoc. rewrite glb_Rsh_Lsh.
+rewrite Share.glb_commute. rewrite Share.glb_bot. 
+rewrite Share.lub_commute, Share.lub_bot.
+rewrite <- Share.glb_assoc. rewrite Share.glb_idem.
+apply join_unit1; auto.
+*
+destruct (join_parts comp_Lsh_Rsh H0) as [J1 [J2 [J3 J4]]].
+unfold retainer_part in *.
+rewrite ?J1,?J2,?J3,?J4, ?glb_twice, ?glb_Lsh_Rsh', ?Share.lub_bot, ?lub_bot'.
+auto.
+rewrite <- (Share.glb_top sh). rewrite Share.glb_commute.
+rewrite <- lub_Lsh_Rsh.
+rewrite Share.glb_commute.
+rewrite Share.distrib1.
+apply not_readable_Rsh_part in nsh0.
+rewrite (Share.glb_commute _ Share.Rsh), nsh0.
+rewrite Share.lub_bot.
+rewrite Share.glb_commute; auto.
+*
+destruct (join_parts comp_Lsh_Rsh H0) as [J1 [J2 [J3 J4]]].
+unfold retainer_part in *.
+rewrite ?J1,?J2,?J3,?J4, ?glb_twice, ?glb_Lsh_Rsh', ?Share.lub_bot, ?lub_bot'.
+auto.
+rewrite <- (Share.glb_top sh). rewrite Share.glb_commute.
+rewrite <- lub_Lsh_Rsh.
+rewrite Share.glb_commute.
+rewrite Share.distrib1.
+apply not_readable_Rsh_part in nsh0.
+rewrite (Share.glb_commute _ Share.Rsh), nsh0.
+rewrite Share.lub_bot.
+rewrite Share.glb_commute; auto.
+Qed.
 
 Instance Cross_rmap: 
       @Cross_alg _ (Join_prop _ Join_trace AV.valid) ->
@@ -1332,10 +1627,10 @@ Proof.
   assert (CAR: Cross_alg (AV.address -> Share.t)) by auto with typeclass_instances.
   specialize (CAR _ _ _ _ _ (join_res_retain _ _ _ H) (join_res_retain _ _ _ H0)).
   destruct CAR as [[[[Rac Rad] Rbc] Rbd] [Ra [Rb [Rc Rd]]]].
-  destruct (fixup_trace_rmap  Rac Vac z) as [Mac [? ?]].
-  destruct (fixup_trace_rmap Rad Vad z) as [Mad [? ?]].
-  destruct (fixup_trace_rmap Rbc Vbc z) as [Mbc [? ?]].
-  destruct (fixup_trace_rmap Rbd Vbd z) as [Mbd [? ?]].
+  destruct (fixup_trace_rmap  Rac Vac (join_fixup_trace_ok _ _ _ Va) z) as [Mac [? ?]].
+  destruct (fixup_trace_rmap Rad Vad (join_fixup_trace_ok _ _ _ Vd) z) as [Mad [? ?]].
+  destruct (fixup_trace_rmap Rbc Vbc (join_fixup_trace_ok _ _ _ Vb) z) as [Mbc [? ?]].
+  destruct (fixup_trace_rmap Rbd Vbd (join_fixup_trace_ok _ _ _ (join_comm Vb)) z) as [Mbd [? ?]].
   exists (Mac,Mad,Mbc,Mbd).
   destruct Vac as [ac ?]; destruct Vad as [ad ?]; destruct Vbc as [bc ?];
   destruct Vbd as [bd ?]; simpl in *.
@@ -1345,58 +1640,30 @@ Proof.
   assert (LEVd: level d = level z) by (apply join_level in H0; destruct H0; auto).
   do 2 red in Va,Vb,Vc,Vd; simpl in *.
   unfold compose in *. clear Hz.
-  split; [|split3];   apply resource_at_join2; try congruence; intro l;
+  split; [|split3];   apply resource_at_join2; try congruence;
+  repeat match goal with
+  | H: AV.valid _ |- _ => clear H
+  | H: level _ = level _ |- _ => clear H
+  end;
+  intro l;
   spec Va l; spec Vb l; spec Vc l; spec Vd l;
+  spec Ra l; spec Rb l; spec Rc l; spec Rd l; 
   apply (resource_at_join _ _ _ l) in H;
   apply (resource_at_join _ _ _ l) in H0;
   try rewrite H2; try rewrite H4; try rewrite H6; try rewrite H8;
-  unfold fixup_trace; simpl in *;
-  specialize (Ra l); specialize (Rb l); specialize (Rc l); specialize (Rd l); simpl in Ra,Rb,Rc,Rd;
-  forget (a @ l) as al; forget (b @ l) as bl; forget (c @ l ) as cl;
-  forget (d @ l) as dl; forget (z @ l) as zl;
-   clear - Ra Rb Rc Rd Va Vb Vc Vd H H0.
-  (* case 1 *)
-  destruct (ac l); crtac. destruct (ad l); crtac.
-  (* case 2 *)
-  destruct (bc l); crtac. destruct (bd l); crtac.
-  (* case 3 *)
-  destruct (ac l); crtac. destruct (bc l); crtac.
-  (* case 4 *)
-  destruct (ad l); crtac. destruct (bd l); crtac.
-Qed.
- 
-Lemma Cross_rmap_simple: (forall f, AV.valid f) -> Cross_alg rmap.
-Proof.
-  intro V.
-   apply Cross_rmap.
-   intros [a Ha] [b Hb] [c Hc] [d Hd] [e He] ? ?.
-   do 2 red in H,H0. simpl in *.
-   assert (Cross_alg (AV.address -> option (pshare * AV.kind))).
-     apply (cross_split_fun  (option (pshare * AV.kind))).
-   eapply (Cross_bij' _ _ _ _ (opposite_bij (option_bij (lift_prod_bij _ _)))).
-   apply Cross_smash; auto with typeclass_instances.
-   clear; intro. destruct x. destruct (dec_share_identity t); [left|right].
-    apply identity_unit_equiv in i. apply identity_unit_equiv. split; auto.
-    contradict n.
-    apply identity_unit_equiv in n. apply identity_unit_equiv. destruct n; auto.
-   clear. extensionality a b c. apply prop_ext.
-   destruct a as [[[? ?] ?] | ]; destruct b  as [[[? ?] ?] | ]; destruct c as [[[? ?] ?] | ];
-   split; simpl; intro H; inv H; simpl in *; try constructor; auto; hnf in  *; simpl in *;
-   try proof_irr; try constructor;
-   destruct H3; constructor; simpl; auto.
-   destruct (X a b c d e H H0) as [[[[ac ad] bc] bd] [? [? [? ?]]]].
-   exists (exist AV.valid ac (V _), exist AV.valid ad (V _), 
-              exist AV.valid bc (V _), exist AV.valid bd (V _)).
-   split; [ |split3]; simpl; auto.
+  simpl in *;
+ eapply join_fixup_trace; eauto;
+ (eapply join_join_sub; eassumption) || (eapply join_join_sub'; eassumption).
 Qed.
 
 Lemma identity_resource: forall r: resource, identity r <->
-    match r with YES _ _ _ _ => False | NO rsh => identity rsh | PURE _ _ => True end.
+    match r with YES _ _ _ _ => False | NO sh rsh => identity sh | PURE _ _ => True end.
 Proof.
  intros. destruct r.
  split; intro; apply identity_unit_equiv in H;  apply identity_unit_equiv.
  inv H; auto. constructor; auto.
- intuition. specialize (H (NO Share.bot) (YES t p k p0)).
+ intuition.
+ specialize (H (NO Share.bot bot_unreadable) (YES sh r k p)).
  spec H. constructor. apply join_unit2; auto. inv H.
  intuition. intros  ? ? ?. inv H0. auto.
 Qed.
@@ -1409,12 +1676,14 @@ Proof.
   case_eq (core m @ i); intros; auto.
   rewrite H in Hdup. inv Hdup. apply identity_unit_equiv; auto.
   rewrite H in Hdup. inv Hdup.
-   apply pshare_nonunit in H1. auto. 
+  clear - r RJ.
+  apply unit_identity in RJ. apply identity_share_bot in RJ.
+  subst. apply bot_unreadable in r. auto.
 Qed.
 
-Lemma YES_inj: forall rsh sh k pp rsh' sh' k' pp',
-           YES rsh sh k pp = YES rsh' sh' k' pp' ->
-            (rsh,sh,k,pp) = (rsh',sh',k',pp').
+Lemma YES_inj: forall sh rsh k pp sh' rsh' k' pp',
+           YES sh rsh k pp = YES sh' rsh' k' pp' ->
+            (sh,k,pp) = (sh',k',pp').
 Proof. intros. inv H. auto. Qed.
 
 Lemma SomeP_inj1: forall t t' a a', SomeP t a = SomeP t' a' -> t=t'.
@@ -1448,19 +1717,28 @@ Proof.
   rewrite H0. apply PURE_identity.
 Qed.
 
-Lemma core_YES: forall rsh sh k pp, core (YES rsh sh k pp) = NO Share.bot.
+Lemma core_YES: forall sh rsh k pp, core (YES sh rsh k pp) = NO Share.bot bot_unreadable.
 Proof.
- intros. generalize (core_unit (YES rsh sh k pp)); unfold unit_for; intros. 
+ intros. generalize (core_unit (YES sh rsh k pp)); unfold unit_for; intros. 
  inv H; auto.
  apply unit_identity in RJ. apply identity_share_bot in RJ. subst; auto.
- apply pshare_nonunit in H2. contradiction.
+ f_equal. apply proof_irr.
+ clear - H1.
+ pose proof (core_unit (YES sh rsh k pp)).
+ hnf in H. inv H.
+ rewrite <- H2 in H1. inv H1.
+ rewrite <- H2 in H1. inv H1.
+ apply unit_identity in RJ. apply identity_share_bot in RJ. subst sh0.
+ contradiction (bot_unreadable rsh0).
 Qed.
 
-Lemma core_NO: forall rsh, core (NO rsh) = NO Share.bot.
+Lemma core_NO: forall sh nsh, core (NO sh nsh) = NO Share.bot bot_unreadable.
 Proof.
- intros.  generalize (core_unit (NO rsh)); unfold unit_for; intros.
+ intros.  generalize (core_unit (NO sh nsh)); unfold unit_for; intros.
  inv H; auto.
- apply unit_identity in RJ. apply identity_share_bot in RJ. subst; auto.
+ pose proof (core_unit (NO sh nsh)).
+ apply unit_identity in RJ. apply identity_share_bot in RJ. subst sh1.
+ f_equal. apply proof_irr.
 Qed.
 
 Lemma core_PURE: forall k pp, core (PURE k pp) = PURE k pp.

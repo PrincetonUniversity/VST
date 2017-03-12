@@ -28,9 +28,9 @@ destruct loc as [b' z']; destruct H1; destruct H1; split; auto; omega.
 Qed.
 
 Lemma VALspec_range_e:
-  forall n rsh sh base m loc, VALspec_range n rsh sh base  m ->
+  forall n sh base m loc, VALspec_range n sh base  m ->
                                 adr_range base n loc -> 
-                { x| m @ loc = YES rsh (mk_lifted sh (snd x)) (VAL (fst x)) NoneP}.
+                {x | m @ loc = YES sh (snd x) (VAL (fst x)) NoneP}.
 Proof.
 intros.
 spec H loc.
@@ -38,17 +38,12 @@ rewrite jam_true in H; auto.
 simpl in H.
 destruct (m @ loc); try destruct k; 
 try solve [elimtype False; destruct H as [? [? ?]]; inv H].
-assert (sh = pshare_sh p).
-destruct H as [? [? ?]]; inv H.
-simpl. auto.
-subst sh.
-exists (m0, proj2_sig p).
+assert (readable_share sh) by (destruct H as [? [? ?]]; auto). 
+exists (m0, H1).
 simpl.
 destruct H as [? [? ?]]. 
-destruct p.
-simpl in *.
 inv H.
-auto.
+apply YES_ext; auto.
 Qed.
 
 
@@ -113,7 +108,7 @@ case_eq (Share.split Share.top); intros; simpl.
 eapply nonemp_split_neq1; eauto.
 Qed.
 
-Lemma dec_pure: forall r, {exists k, exists pp, r = PURE k pp}+{core r = NO Share.bot}.
+Lemma dec_pure: forall r, {exists k, exists pp, r = PURE k pp}+{core r = NO Share.bot bot_unreadable}.
 Proof.
  destruct r.
  right; apply core_NO.
@@ -125,21 +120,21 @@ Lemma store_init_data_list_lem:
   forall F V (ge: Genv.t F V) m b lo d m',
         Genv.store_init_data_list ge m b lo d = Some m' ->
     (* b > 0 -> *)
-    forall w IOK IOK' P rsh,
-     ((P * VALspec_range (init_data_list_size d) rsh Share.top (b,lo))%pred
+    forall w IOK IOK' P sh (wsh: writable_share sh),
+     ((P * VALspec_range (init_data_list_size d) sh (b,lo))%pred
              (m_phi (initial_mem m w IOK))) ->
-     ((P * VALspec_range (init_data_list_size d) rsh Share.top (b,lo))%pred
+     ((P * VALspec_range (init_data_list_size d) sh (b,lo))%pred
               (m_phi (initial_mem m' w IOK'))).
 Proof.
 intros until 1. (* intro Hb;*) intros.
 destruct H0 as [m0 [m1 [H4 [H1 H2]]]].
 cut (exists m2, 
          join m0 m2 (m_phi (initial_mem m' w IOK')) /\
-         VALspec_range (init_data_list_size d) rsh Share.top (b,lo) m2); 
+         VALspec_range (init_data_list_size d) sh (b,lo) m2); 
   [intros [m2 [H0 H3]] | ].
 exists m0; exists m2; split3; auto.
 rename H2 into H3.
-clear -  (*Hb*)  H H4 H3.
+clear -  (*Hb*)  H H4 H3 wsh.
 assert (MA: max_access_at m = max_access_at m'). {
  clear - H.
  revert m lo H; induction d; simpl; intros. inv H; auto.
@@ -152,10 +147,10 @@ assert (MA: max_access_at m = max_access_at m'). {
  }
 apply store_init_data_list_outside' in H.
 forget (init_data_list_size d) as N.
-clear - H4  H3 (*Hb*) H MA.
+clear - H4  H3 (*Hb*) H MA wsh.
 pose (f loc :=
    if adr_range_dec (b,lo) N loc
-   then YES rsh pfullshare (VAL (contents_at m' loc)) NoneP
+   then YES sh (writable_readable_share wsh) (VAL (contents_at m' loc)) NoneP
    else core (w @ loc)).
 pose (H0 := True).
 assert (Hv: CompCert_AV.valid (res_option oo f)).
@@ -172,7 +167,7 @@ left. exists (core w). rewrite core_resource_at. rewrite level_core.  auto.
 unfold f in *; clear f.
 exists m2.
 split.
-(* case 1 of 3 ****)
+* (* case 1 of 3 ****)
 apply resource_at_join2.
 subst.
 assert (level m0 = level (m_phi (initial_mem m w IOK))).
@@ -188,33 +183,30 @@ spec H3 (b',z'). unfold jam in H3.
 hnf in H3. if_tac in H3.
 2: rename H6 into H8.
 clear H. destruct H6 as [H H8].
-(* case 1.1 *)
++ (* case 1.1 *)
 subst b'.
 destruct H3 as [v [p H]].
 rewrite H in H4.
 repeat rewrite preds_fmap_NoneP in H4.
 
-inv H4; [ | pfullshare_join].
+inv H4; [| contradiction (join_writable_readable (join_comm RJ) wsh rsh1)].
 clear H6 m0.
-rename H13 into H4.
+rename H12 into H4.
 rewrite H2.
 rewrite if_true  by (split; auto; omega).
-replace (mk_lifted Share.top p) with pfullshare in H4.
-2: apply lifted_eq; auto.
-clear - H4 H5 H7 (*Hb*) RJ.
+clear - H4 H5 H7 (*Hb*) RJ wsh.
 replace (m_phi (initial_mem m' w IOK') @ (b, z'))
-  with (YES rsh3 pfullshare (VAL (contents_at m' (b, z'))) NoneP); [ constructor |].
-auto.
+  with (YES sh3 rsh3 (VAL (contents_at m' (b, z'))) NoneP); [ constructor; auto |].
 revert H4.
 simpl; unfold inflate_initial_mem.
 repeat rewrite resource_at_make_rmap. unfold inflate_initial_mem'.
 rewrite <- H5.
 case_eq (access_at m (b,z') Cur); intros; auto.
 destruct p; auto;
-try solve [f_equal; apply YES_inj in H4; congruence].
+try solve [apply YES_inj in H4; inv H4; apply YES_ext; auto].
 destruct (w @ (b,z')); inv H4.
 inv H4.
-(* case 1.2 *)
++ (* case 1.2 *)
 apply join_unit2_e in H4; auto.
 clear m1 H3.
 destruct H. contradiction.
@@ -234,11 +226,11 @@ revert IOK2; case_eq (w @ (b',z')); intros.
 rewrite core_NO.
 destruct (access_at m (b', z')); try destruct p; try constructor; auto.
 rewrite core_YES.
-destruct (access_at m (b', z')); try destruct p1; try constructor; auto.
+destruct (access_at m (b', z')); try destruct p0; try constructor; auto.
 destruct IOK2 as [? [? ?]].
 rewrite H2. rewrite core_PURE; constructor.
 
-(**** case 2 of 3 ****)
+* (**** case 2 of 3 ****)
 intro loc.
 spec H3 loc.
 hnf in H3|-*.
@@ -259,13 +251,13 @@ Lemma mem_alloc_juicy:
      Mem.alloc m lo hi = (m',b) ->
     forall w P IOK IOK',
      (app_pred P (m_phi (initial_mem m w IOK))) ->
-     (app_pred (P * VALspec_range (hi-lo) Share.top Share.top (b,lo))
+     (app_pred (P * VALspec_range (hi-lo) Share.top (b,lo))
                (m_phi (initial_mem m' w IOK'))).
 Proof.
 intros.
 change m with (m_dry (initial_mem m w IOK)) in H.
 assert (AV.valid  (res_option oo (fun loc => if adr_range_dec (b,lo) (hi-lo) loc
-                                      then YES Share.top pfullshare (VAL Undef) NoneP
+                                      then YES Share.top readable_share_top (VAL Undef) NoneP
                                       else core w @ loc))).
 apply VAL_valid; unfold compose; intros.
 if_tac in H1. inv H1; eauto.
@@ -298,7 +290,7 @@ simpl.
 change R.rmap with rmap in *.
 change R.Join_rmap with Join_rmap in *.
 change R.Sep_rmap with Sep_rmap in *.
-replace (core w @ (b,z')) with (NO Share.bot).
+replace (core w @ (b,z')) with (NO Share.bot bot_unreadable).
 Transparent alloc.
 replace (match max_access_at m (b, z') with
   | Some _ => NO Share.bot
@@ -344,7 +336,7 @@ destruct p; constructor; auto.
 destruct (max_access_at m (b', z')); destruct (max_access_at m' (b', z')); constructor; auto.
 rewrite core_YES.
 destruct (access_at m (b', z')).
-destruct p1; constructor; auto.
+destruct p0; constructor; auto.
 destruct (max_access_at m (b', z')); destruct (max_access_at m' (b', z')); constructor; auto.
 rewrite core_PURE.
 destruct (IOK (b',z')).
@@ -360,7 +352,8 @@ hnf.
 unfold yesat.
 simpl. rewrite H3.
 if_tac.
-exists Undef. exists top_share_nonunit.
+exists Undef. 
+exists readable_share_top.
 f_equal.
 rewrite <- core_resource_at.
 apply core_identity.
@@ -425,11 +418,11 @@ Definition initial_core' (ge: Genv.t fundef type) (G: funspecs) (n: nat) (loc: a
                   match find_id id G with
                   | Some (mk_funspec fsig cc A P Q _ _) => 
                            PURE (FUN fsig cc) (SomeP (SpecTT A) (fun ts => fmap _ (approx n) (approx n) (packPQ P Q ts)))
-                  | None => NO Share.bot
+                  | None => NO Share.bot bot_unreadable
                   end
-           | None => NO Share.bot
+           | None => NO Share.bot bot_unreadable
           end
-   else NO Share.bot.
+   else NO Share.bot bot_unreadable.
 
 
 Program Definition initial_core (ge: Genv.t fundef type) (G: funspecs) (n: nat) : rmap :=

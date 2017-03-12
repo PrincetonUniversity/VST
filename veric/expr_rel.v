@@ -171,11 +171,8 @@ apply (rel_lvalue'_expr'_sch _ rho (m_phi jm)
     apply (resource_at_join _ _ _ b') in H0.  
     rewrite H4 in H0; clear H4.
     inv H0.
-    - symmetry in H12.
-      exists rsh3, (Share.unrel Share.Rsh sh), p; assumption.
-    - symmetry in H12.
-      simpl.
-      destruct sh3 as [sh3 p3].  exists rsh3, sh3, p3; auto.
+    - symmetry in H11. do 2 eexists; eassumption.
+    - symmetry in H11; do 2 eexists; eassumption.
   + apply I.
 * (* lvalue By_reference *)
    destruct v1; try contradiction.

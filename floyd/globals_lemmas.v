@@ -266,6 +266,19 @@ intros H1 HH H1' H6' H6 H7 H8 H1'' RS.
       |      unfold offset_val; simpl; try rewrite Int.repr_unsigned, Int.add_zero_l; auto]).
 Qed.
 
+Lemma readable_share_readonly2share:
+ forall b, readable_share (readonly2share b).
+Proof.
+destruct b; simpl.
+intro.
+apply veric.slice.fst_split_glb_orthogonal in H.
+rewrite Share.glb_idem in H.
+contradiction juicy_mem.nonidentity_Rsh.
+unfold readable_share.
+rewrite Share.glb_idem.
+apply juicy_mem.nonidentity_Rsh.
+Qed.
+
 Lemma unpack_globvar  {cs: compspecs}:
   forall Delta i t gv idata, 
    (var_types Delta) ! i = None ->
@@ -280,22 +293,18 @@ Lemma unpack_globvar  {cs: compspecs}:
    sizeof t <= Int.max_unsigned ->  
    local (tc_environ Delta) && globvar2pred(i, gv) |-- 
        EX s: val, local (locald_denote (gvar i s)) &&
-       init_data2pred' Delta idata (Share.splice extern_retainer (readonly2share (gvar_readonly gv))) t s.
+       init_data2pred' Delta idata (Share.lub extern_retainer (readonly2share (gvar_readonly gv))) t s.
 Proof.
 intros.
 go_lowerx.
 eapply derives_trans; [eapply tc_globalvar_sound'; try eassumption | ].
-assert (RS: forall sh', readable_share (Share.splice sh' (readonly2share (gvar_readonly gv)))).
+assert (RS: forall sh', readable_share (Share.lub sh' (readonly2share (gvar_readonly gv)))).
 intros.
-apply right_nonempty_readable.
-unfold readonly2share.
-if_tac; auto.
-apply Lsh_nonidentity.
+apply readable_share_lub. apply readable_share_readonly2share.
 forget (readonly2share (gvar_readonly gv)) as sh.
-normalize. 
-  autorewrite with subst norm1 norm2; normalize.
-apply exp_right with x. normalize.
-  autorewrite with subst norm1 norm2; normalize.
+autorewrite with subst norm1 norm2; normalize.
+apply exp_right with x.
+autorewrite with subst norm1 norm2; normalize.
 unfold init_data_list2pred.
 simpl.
 rewrite sepcon_emp.
@@ -308,7 +317,7 @@ rewrite H10.
  hnf in H8. destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
  destruct (ge_of rho i); try contradiction. 
  apply derives_trans with
-    (init_data2pred' Delta idata (Share.splice extern_retainer sh) t
+    (init_data2pred' Delta idata (Share.lub extern_retainer sh) t
       (offset_val 0 x) rho).
  + eapply init_data2pred_rejigger; destruct H1; eauto.
    - clear H10 H8 x. inv H9.
@@ -362,7 +371,7 @@ Lemma unpack_globvar_star  {cs: compspecs}:
    init_data_list_size (gvar_init gv) <= sizeof (gvar_info gv) <= Int.max_unsigned ->
    local (tc_environ Delta) && globvar2pred(i, gv) |-- 
       EX s:val, local (locald_denote (gvar i s)) && 
-       id2pred_star Delta (Share.splice extern_retainer (readonly2share (gvar_readonly gv))) (gvar_info gv) s 0 (gvar_init gv).
+       id2pred_star Delta (Share.lub extern_retainer (readonly2share (gvar_readonly gv))) (gvar_info gv) s 0 (gvar_init gv).
 Proof.
 assert (H5:=true).
 intros until 4.
@@ -375,12 +384,9 @@ normalize.
   autorewrite with subst norm1 norm2; normalize.
 apply exp_right with x.  normalize.
   autorewrite with subst norm1 norm2; normalize.
-assert (RS: forall sh', readable_share (Share.splice sh' (readonly2share (gvar_readonly gv)))).
+assert (RS: forall sh', readable_share (Share.lub sh' (readonly2share (gvar_readonly gv)))).
  {intros. 
-  apply right_nonempty_readable.
-  unfold readonly2share.
-  if_tac; auto.
-  apply Lsh_nonidentity.
+  apply readable_share_lub. apply readable_share_readonly2share.
 }
 forget (readonly2share (gvar_readonly gv)) as sh.
 (*rename H8 into H20. *)
@@ -432,7 +438,7 @@ Lemma tc_globalvar_sound_space {cs: compspecs} :
    sizeof t <= Int.max_unsigned ->
    tc_environ Delta rho ->
    (!! ((align_compatible t) (eval_var i t rho))) && globvar2pred (i, gv) rho |-- 
-   data_at_ (Share.splice extern_retainer (readonly2share (gvar_readonly gv))) t (eval_var i t rho).
+   data_at_ (Share.lub extern_retainer (readonly2share (gvar_readonly gv))) t (eval_var i t rho).
 Proof.
 assert (H4 := true).
 intros until 1. intros ? Hno; intros.
@@ -445,7 +451,7 @@ destruct (tc_eval_gvar_zero _ _ _ _ H6 H H0) as [b ?].
 rewrite H8 in H7 |- *.
 rewrite sepcon_emp.
 pose proof (mapsto_zeros_memory_block
-  (Share.splice extern_retainer (readonly2share (gvar_readonly gv))) (sizeof t) b Int.zero).
+  (Share.lub extern_retainer (readonly2share (gvar_readonly gv))) (sizeof t) b Int.zero).
 rewrite Int.unsigned_zero in H9.
 apply andp_right.
 + normalize.
@@ -458,10 +464,7 @@ apply andp_right.
   pose (sizeof_pos t).
   - unfold Int.max_unsigned in H5. omega.
   - unfold Int.max_unsigned in H5. omega.
-  - apply right_nonempty_readable.
-     unfold readonly2share.
-     if_tac; auto.
-     apply Lsh_nonidentity.
+  - apply readable_share_lub; apply readable_share_readonly2share.
 Qed.
 
 Definition inttype2init_data (sz: intsize) : (int -> init_data) :=
@@ -620,7 +623,7 @@ Lemma unpack_globvar_array  {cs: compspecs}:
    init_data_list_size (gvar_init gv) <= sizeof (gvar_info gv) <= Int.max_unsigned ->
    local (tc_environ Delta) && globvar2pred(i, gv) |-- 
    EX s:val, local (locald_denote (gvar i s)) &&
-      `(data_at (Share.splice extern_retainer (readonly2share (gvar_readonly gv)))
+      `(data_at (Share.lub extern_retainer (readonly2share (gvar_readonly gv)))
          (tarray (Tint sz sign noattr) n)
          (map (Basics.compose Vint (Cop.cast_int_int sz sign)) data)
          s).
@@ -638,6 +641,7 @@ Proof.
     right; split; auto. rewrite <- H1; auto.
    } Unfocus.
   eapply derives_trans;[ apply andp_derives; [ apply andp_derives; [ eapply unpack_globvar_star; try eassumption; try reflexivity | apply derives_refl]  | apply derives_refl] |].
+*
   split; rewrite H1.
   assert (((0 <=? n) && true)%bool = true).
   rewrite Zle_imp_le_bool; [reflexivity | ]; rewrite Zlength_correct in H4; omega.
@@ -648,11 +652,11 @@ unfold local_legal_alignas_type.
 simpl.  destruct sz; auto.
 split. destruct sz; reflexivity.
  split; cbv; destruct n, sz, sign; reflexivity.
+*
   rewrite H1. (* rewrite H3.*)  rewrite H5.
-(* change (Share.splice extern_retainer (readonly2share false)) with Ews. *)
   normalize. apply exp_right with s.
   apply andp_right. repeat apply andp_left1; auto.
-  eapply derives_trans; [| apply id2pred_star_ZnthV_Tint; auto].
+  eapply derives_trans; [| apply (id2pred_star_ZnthV_Tint Delta); auto].
  2: rewrite <- H5; auto.
 Opaque sizeof. 
   old_go_lower.
@@ -661,16 +665,14 @@ Transparent sizeof.
  rename H8 into H19.
   destruct (globvar_eval_var Delta rho _ _ H7 H H0) as [? [? ?]].
   rewrite H1 in H8.
-  assert (align_compatible (Tint sz sign noattr) (eval_var i (tarray (Tint sz sign noattr) n) rho)).
-  Focus 1. {
+  assert (align_compatible (Tint sz sign noattr) (eval_var i (tarray (Tint sz sign noattr) n) rho)). {
     rewrite H8.
     unfold align_compatible.
     simpl.
     apply Z.divide_0_r.
-  } Unfocus.
+  } 
   assert (offset_in_range (sizeof (Tint sz sign noattr) * n)
-           (eval_var i (tarray (Tint sz sign noattr) n) rho)).
-  Focus 1. {
+           (eval_var i (tarray (Tint sz sign noattr) n) rho)). {
     rewrite H8.
     unfold offset_in_range; simpl.
     rewrite H1 in H6; simpl in H6.
@@ -679,13 +681,13 @@ Transparent sizeof.
     unfold Int.max_unsigned in H6.
     pose proof init_data_list_size_pos (gvar_init gv).
     omega.
-  } Unfocus.
- rewrite prop_true_andp.
-  normalize.
- hnf in H19.
+  } 
+ hnf in H19. 
  destruct (Map.get (ve_of rho) i) as [[? ?]|]; try contradiction.
- rewrite H9 in H19. subst s.
- rewrite H8 in *. split3; auto.
+ rewrite H9 in H19; subst s.
+ rewrite prop_true_andp; auto.
+ rewrite H8 in *.
+ split3; auto.
 Qed.
 
 Lemma process_globvar:
@@ -704,7 +706,7 @@ Lemma process_globvar:
  (forall v: val,
    semax Delta (PROPx P (LOCALx (gvar i v :: Q) (SEPx R))
                        * (init_data2pred' Delta idata 
-                         (Share.splice  extern_retainer (readonly2share (gvar_readonly gv)))
+                         (Share.lub  extern_retainer (readonly2share (gvar_readonly gv)))
                          t v * globvars2pred gvs) * SF)
      c Post) ->
  semax Delta (PROPx P (LOCALx Q (SEPx R)) 
@@ -716,7 +718,7 @@ eapply semax_pre_post; [ | intros; apply andp_left2; apply derives_refl | ].
 instantiate (1 := EX  s : val,
            PROPx P (LOCALx (gvar i s :: Q) 
           (SEPx R)) * (init_data2pred' Delta idata
-             (Share.splice extern_retainer
+             (Share.lub extern_retainer
                 (readonly2share (gvar_readonly gv))) t s 
                 *fold_right sepcon emp (map globvar2pred gvs)) * SF).
 unfold globvars2pred.
@@ -761,7 +763,7 @@ Lemma process_globvar':
  (forall v: val,
    semax Delta (PROPx P (LOCALx (gvar i v :: Q) (SEPx R))
                        * id2pred_star Delta
-                         (Share.splice  extern_retainer (readonly2share (gvar_readonly gv)))
+                         (Share.lub  extern_retainer (readonly2share (gvar_readonly gv)))
                          t v 0 (idata ::nil) * globvars2pred gvs * SF)
      c Post) ->
  semax Delta (PROPx P (LOCALx Q (SEPx R)) 
@@ -773,7 +775,7 @@ eapply semax_pre_post; [ | intros; apply andp_left2; apply derives_refl | ].
 instantiate (1 := EX  s : val,
            PROPx P (LOCALx (gvar i s :: Q) 
           (SEPx R)) * id2pred_star Delta
-                         (Share.splice  extern_retainer (readonly2share (gvar_readonly gv)))
+                         (Share.lub  extern_retainer (readonly2share (gvar_readonly gv)))
                          t s 0 (idata ::nil)
                 *fold_right sepcon emp (map globvar2pred gvs) * SF).
 unfold globvars2pred.
@@ -829,7 +831,7 @@ Lemma process_globvar_array:
  (forall v: val,
    semax Delta (PROPx P (LOCALx (gvar i v :: Q)
                       (SEPx ((data_at
-                   (Share.splice extern_retainer (readonly2share (gvar_readonly gv)))
+                   (Share.lub extern_retainer (readonly2share (gvar_readonly gv)))
                    (tarray (Tint sz sign noattr) n)
                    (map (Vint oo cast_int_int sz sign) data) v)
                     :: R)))
@@ -844,7 +846,7 @@ eapply semax_pre_post; [ | intros; apply andp_left2; apply derives_refl | ].
 instantiate (1 := EX  v : val,
            PROPx P (LOCALx (gvar i v :: Q) 
           (SEPx ((data_at
-                   (Share.splice extern_retainer (readonly2share (gvar_readonly gv)))
+                   (Share.lub extern_retainer (readonly2share (gvar_readonly gv)))
                    (tarray (Tint sz sign noattr) n)
                    (map (Vint oo cast_int_int sz sign) data) v) :: R))) * fold_right sepcon emp (map globvar2pred gvs) * SF).
 unfold globvars2pred.
@@ -891,7 +893,7 @@ Lemma process_globvar_star':
    semax Delta (PROPx P (LOCALx (gvar i s :: Q)
                       (SEPx R))
                   * (id2pred_star Delta
-                          (Share.splice extern_retainer
+                          (Share.lub extern_retainer
                                (readonly2share (gvar_readonly gv)))
                        (gvar_info gv) s 0 (gvar_init gv))
              * globvars2pred gvs * SF)
@@ -906,7 +908,7 @@ instantiate (1 := EX  s : val,
            PROPx P (LOCALx (gvar i s :: Q) 
           (SEPx R))
     * id2pred_star Delta
-             (Share.splice extern_retainer
+             (Share.lub extern_retainer
                 (readonly2share (gvar_readonly gv))) (gvar_info gv) s 0
              (gvar_init gv)
      * fold_right sepcon emp (map globvar2pred gvs) * SF).
@@ -951,7 +953,7 @@ Lemma process_globvar_star:
    semax Delta (PROPx P (LOCALx (gvar i s :: Q)
                       (SEPx R))
                        * (id2pred_star Delta
-             (Share.splice extern_retainer
+             (Share.lub extern_retainer
                 (readonly2share (gvar_readonly gv))) (gvar_info gv) s 0
              (gvar_init gv) *
                     globvars2pred gvs) * SF)
@@ -965,7 +967,7 @@ eapply semax_pre_post; [ | intros; apply andp_left2; apply derives_refl | ].
 instantiate (1 := EX  s : val,
            PROPx P (LOCALx (gvar i s :: Q) 
           (SEPx R)) * ((id2pred_star Delta
-             (Share.splice extern_retainer
+             (Share.lub extern_retainer
                 (readonly2share (gvar_readonly gv))) (gvar_info gv) s 0
              (gvar_init gv)) * fold_right sepcon emp (map globvar2pred gvs)) * SF).
 unfold globvars2pred.
@@ -1019,7 +1021,7 @@ first [
         [reflexivity | reflexivity | split; [| split]; reflexivity
         | reflexivity | compute; split; clear; congruence ]
     |  cbv beta; simpl gvar_info; simpl gvar_readonly; simpl readonly2share;
-      change (Share.splice extern_retainer Tsh) with Ews
+      change (Share.lub extern_retainer Tsh) with Ews
     ]; apply derives_refl
  | apply andp_left2; apply derives_refl
  ].
@@ -1047,11 +1049,11 @@ Ltac process_one_globvar :=
         [reflexivity | reflexivity | split; [| split]; reflexivity
         | reflexivity | compute; split; clear; congruence 
        | simpl gvar_info; simpl gvar_readonly; simpl readonly2share;
-         change (Share.splice extern_retainer Tsh) with Ews
+         change (Share.lub extern_retainer Tsh) with Ews
          ]
   ];
-  change (Share.splice extern_retainer _) with Ews;
-  change (Share.splice extern_retainer _) with Ers;
+  change (Share.lub extern_retainer _) with Ews;
+  change (Share.lub extern_retainer _) with Ers;
   change (Vint oo _) with (Vint oo id);
   fold_types;
   rewrite ?Combinators.compose_id_right.

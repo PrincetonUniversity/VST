@@ -1272,7 +1272,7 @@ Program Definition valid_pointer' (p: val) (d: Z) : mpred :=
   fun m =>
     match m @ (b, Int.unsigned ofs + d) with
     | YES _ _ _ pp => True
-    | NO sh => nonidentity sh
+    | NO sh _ => nonidentity sh
     | _ => False
     end
  | _ => FF

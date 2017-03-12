@@ -30,7 +30,6 @@ Proof.
   if_tac in H2.
   + destruct H2.
     destruct (w @ (b, ofs + i)); inv H2; inv H4; auto.
-    apply nonidentity_rel_Lsh; auto.
   + exfalso.
     simpl in H3.
     apply H3.
@@ -38,10 +37,10 @@ Proof.
     omega.
 Qed.
 
-Lemma VALspec_range_valid_pointer: forall rsh sh b ofs n i,
+Lemma VALspec_range_valid_pointer: forall sh b ofs n i,
   0 <= ofs /\ ofs + n <= Int.modulus ->
   0 <= i < n ->
-  VALspec_range n rsh sh (b, ofs) |-- valid_pointer (Vptr b (Int.repr (ofs + i))).
+  VALspec_range n sh (b, ofs) |-- valid_pointer (Vptr b (Int.repr (ofs + i))).
 Proof.
   intros.
   unfold VALspec_range, valid_pointer.
@@ -60,10 +59,10 @@ Proof.
     omega.
 Qed.
 
-Lemma address_mapsto_valid_pointer: forall ch v rsh sh b ofs i,
+Lemma address_mapsto_valid_pointer: forall ch v sh b ofs i,
   0 <= ofs /\ ofs + size_chunk ch <= Int.modulus ->
   0 <= i < size_chunk ch ->
-  address_mapsto ch v rsh sh (b, ofs) |-- valid_pointer (Vptr b (Int.repr (ofs + i))).
+  address_mapsto ch v sh (b, ofs) |-- valid_pointer (Vptr b (Int.repr (ofs + i))).
 Proof.
   intros.
   eapply derives_trans; [apply address_mapsto_VALspec_range |].

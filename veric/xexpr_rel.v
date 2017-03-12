@@ -267,11 +267,8 @@ apply (rel_LR_value'_sch _ rho (m_phi jm)
     apply (resource_at_join _ _ _ b') in H3.  
     rewrite H5 in H3; clear H5.
     inv H3.
-    - symmetry in H15.
-      exists rsh3, (Share.unrel Share.Rsh sh), p; assumption.
-    - symmetry in H15.
-      simpl.
-      destruct sh3 as [sh3 p3].  exists rsh3, sh3, p3; auto.
+    - symmetry in H14; do 2 eexists; eassumption.
+    - symmetry in H14; do 2 eexists; eassumption.
   + apply I.
 * (* Efield *)
   econstructor; eauto. 

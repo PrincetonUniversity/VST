@@ -12,8 +12,8 @@ Require Import msl.normalize.
 
 Local Open Scope pred.
 
-Lemma mapsto_core_load: forall ch v rsh sh loc m, 
-  (address_mapsto ch v rsh sh loc * TT)%pred m -> core_load ch loc v m.
+Lemma mapsto_core_load: forall ch v sh loc m, 
+  (address_mapsto ch v sh loc * TT)%pred m -> core_load ch loc v m.
 Proof.
 unfold address_mapsto, core_load.
 intros until m; intros H.
@@ -31,9 +31,7 @@ rewrite H in Hjoin; clear H.
 repeat rewrite preds_fmap_NoneP in Hjoin.
 inv Hjoin.
 do 3 econstructor; try reflexivity.
-exists rsh3.
-destruct sh3 as [sh3 p3].
-exists sh3; exists p3. reflexivity.
+do 2 econstructor; reflexivity.
 auto.
 Qed.
 
@@ -87,9 +85,9 @@ destruct loc as (b, ofs).
 spec H (b, ofs + Z_of_nat i).
 spec H0 (b, ofs + Z_of_nat i).
 hnf in H, H0. if_tac in H.
-(* adr_range *)
-destruct H as [rsh [sh [p H]]].
-destruct H0 as [rsh' [sh' [p' H0]]].
+* (* adr_range *)
+destruct H as [sh [rsh H]].
+destruct H0 as [sh' [rsh' H0]].
 rewrite H0 in H.
 clear H0.
 simpl in *.
@@ -101,7 +99,7 @@ apply nth_eq_nth_error_eq with (d := Undef); auto.
 destruct H5 as [? [H5 H5']].
 rewrite size_chunk_conv in H5'.
 omega.
-(* ~adr_range *)
+* (* ~adr_range *)
 cut (i >= length bl)%nat. intro Hlen.
 cut (i >= length bl')%nat. intro Hlen'.
 generalize (nth_error_length i bl) as H6; intro.
@@ -141,12 +139,9 @@ apply resource_at_join with (loc := loc') in H.
 hnf in H2|-*.
 if_tac; auto.
 hnf in H2|-*.
-destruct H2 as [rsh [sh [p H2]]].
+destruct H2 as [sh [rsh H2]].
 rewrite H2 in H.
 inv H; subst; eauto.
-exists rsh3.
-destruct sh3 as [sh3 p3].
-exists sh3; exists p3; auto.
 Qed.
 
 

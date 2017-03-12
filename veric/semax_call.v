@@ -38,14 +38,14 @@ induction 1; intros; auto.
 hnf in *.
 simpl in H0.
 assert (match y @ loc with
-     | YES rsh sh k _ => sh = pfullshare /\ isVAL k
+     | YES sh rsh k _ => writable_share sh /\ isVAL k
      | _ => False
      end) by (destruct (y @ loc); eauto).
 clear H0.
 revert H1; case_eq (y @ loc); intros; try contradiction.
 destruct H1; subst.
 destruct (rmap_unage_YES _ _ _ _ _ _ _ H H0).
-rewrite H1; simpl; auto.
+rewrite H3; simpl; auto.
 Qed.
 
 Lemma age_twin' {A B} `{HA: ageable A} `{HB: ageable B}:
@@ -325,14 +325,14 @@ destruct fs; simpl in *.
 destruct H6 as [pp H6].
  rewrite <- resource_at_approx.
 case_eq (w @ (loc,0)); intros.
-assert (core w @ (loc,0) = compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level (core w))) (compcert_rmaps.R.approx (level (core w))) (NO Share.bot)).
+assert (core w @ (loc,0) = compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level (core w))) (compcert_rmaps.R.approx (level (core w))) (NO _ bot_unreadable)).
  rewrite <- core_resource_at.
 simpl; erewrite <- core_NO; f_equal; eassumption.
 pose proof (necR_resource_at _ _ _ _ CORE H0).
 pose proof (necR_resource_at _ _ _ _ (necR_core _ _ Hw2) H1).
 rewrite <- core_resource_at in H2; rewrite H6 in H2; 
  rewrite core_PURE in H2; inv H2.
-assert (core w @ (loc,0) = compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level (core w))) (compcert_rmaps.R.approx (level (core w))) (NO Share.bot)).
+assert (core w @ (loc,0) = compcert_rmaps.R.resource_fmap (compcert_rmaps.R.approx (level (core w))) (compcert_rmaps.R.approx (level (core w))) (NO _ bot_unreadable)).
  rewrite <- core_resource_at.
 simpl; erewrite <- core_YES; f_equal; eassumption.
 pose proof (necR_resource_at _ _ _ _ CORE H0).
@@ -773,7 +773,7 @@ Qed.
 Definition freeable_blocks: list (block * BinInt.Z * BinInt.Z) -> mpred :=
   fold_right (fun (bb: block*BinInt.Z * BinInt.Z) a => 
                         match bb with (b,lo,hi) => 
-                                          sepcon (VALspec_range (hi-lo) Share.top Share.top (b,lo)) a
+                                          sepcon (VALspec_range (hi-lo) Share.top (b,lo)) a
                         end)
                     emp.
 
@@ -810,8 +810,8 @@ intros jm bl; revert jm; induction bl; intros.
  assert (H10:= @juicy_free_lemma jm b lo hi m2 phi1 _ H1 H0' H3).
  spec H10. apply join_core in H0; auto.
  spec H10. intros. apply (resource_at_join _ _ _ l) in H0.
-     rewrite H4 in H0. inv H0. exists rsh3,sh,pp; split3; auto. eexists; eauto. eexists; eauto.
-     exists rsh3, sh3, pp; split3; auto. eexists; eauto. eexists; eauto.
+     rewrite H4 in H0. inv H0. exists sh3,rsh3,pp; split3; auto. eexists; eauto. eexists; eauto.
+     exists rsh3, pp; split3; auto. eexists; eauto.
  match type of H10 with join _ (m_phi ?A) _ => set (jm2:=A) in H10 end.
  pose proof (join_canc (join_comm H0) (join_comm H10)). subst phi2.  clear H10. 
  specialize (IHbl  jm2 m' F H2 H6).
@@ -855,17 +855,14 @@ Proof.
  spec H5. apply (join_core H2).
  spec H5. {
   intros. specialize (H3 l). hnf in H3.  if_tac in H3. destruct H3 as [v ?]. destruct H3. hnf in H3.
-  exists Share.top; exists pfullshare; exists NoneP.
-  split3; auto. apply top_correct'. apply top_correct'.
-  rewrite H3 in H6; inversion H6; clear H6. subst k pp sh rsh.
+  exists Share.top, readable_share_top, NoneP.
+  split; auto. apply top_correct'.
+  rewrite H3 in H6; inversion H6; clear H6. subst k pp sh.
   clear - H2 H3.  
   apply (resource_at_join _ _ _ l) in H2. rewrite H3 in H2.
-  replace (mk_lifted Share.top x) with pfullshare in H2
-    by (unfold pfullshare; f_equal; apply proof_irr).
-  rewrite preds_fmap_NoneP in H2. inv H2.
-  rewrite (join_sub_share_top rsh3) by (econstructor; apply RJ).
-  reflexivity.
-  pfullshare_join.
+  rewrite (proof_irr x readable_share_top) in *; clear x.
+  rewrite preds_fmap_NoneP in H2.
+  inv H2; apply YES_ext;  apply (join_sub_share_top sh3); (econstructor; apply RJ).
   do 3 red in H3. rewrite H6 in H3. apply YES_not_identity in H3; contradiction.
  }
  match type of H5 with join _ (m_phi ?A) _ => set (jm3 := A) in H5 end.
@@ -958,7 +955,7 @@ end.
    clear.
    induction l1; simpl; try auto.
    destruct a as [id' [hi lo]]. simpl. rewrite <- sepcon_assoc. 
-   rewrite (sepcon_comm (VALspec_range (@sizeof ge ty - 0) Share.top Share.top (b, 0))).
+   rewrite (sepcon_comm (VALspec_range (@sizeof ge ty - 0) Share.top (b, 0))).
    rewrite sepcon_assoc. apply sepcon_derives; auto.
  } Unfocus.
  unfold freeable_blocks; simpl. rewrite <- H2.
@@ -978,8 +975,6 @@ end.
  pose proof (sizeof_pos ty); omega.
  rewrite Z.sub_0_r.
  unfold memory_block'_alt.
- rewrite Share.contains_Rsh_e by apply top_correct'.
- rewrite Share.contains_Lsh_e by apply top_correct'.
  rewrite if_true by apply readable_share_top.
  rewrite Coqlib.nat_of_Z_eq.
  + rewrite HGG. auto.
@@ -1034,7 +1029,7 @@ Definition maybe_retval (Q: environ -> mpred) retty ret :=
 
 Lemma VALspec_range_free:
   forall n b phi1 jm,
-  app_pred (VALspec_range n Share.top Share.top (b, 0)) phi1 ->
+  app_pred (VALspec_range n Share.top (b, 0)) phi1 ->
   join_sub phi1 (m_phi jm) ->
   {m' | free (m_dry jm) b 0 n = Some m' }.
 Proof.
@@ -1050,17 +1045,10 @@ rewrite if_true in H by (split; auto; omega).
 destruct H as [v ?].
 apply (resource_at_join _ _ _ (b,ofs)) in  H0.
 destruct H.
-replace (mk_lifted Share.top x) with pfullshare in H.
 hnf in H.
 rewrite H in H0.
-inv H0; try pfullshare_join.
-inv RJ.
-rewrite Share.glb_commute, Share.glb_top in H0.
-subst rsh2.
-rewrite Share.lub_bot in H9.
-rewrite <- H9 in H2. simpl in H2. rewrite perm_of_sh_fullshare in H2.
-destruct ((mem_access (m_dry jm)) !! b ofs Cur); inv H2; constructor.
-symmetry; apply top_pfullshare; reflexivity.
+rewrite H2.
+inv H0; simpl; apply join_top in RJ; subst sh3; rewrite perm_of_freeable; constructor.
 Qed.
 
 Lemma Forall_filter: forall {A} P (l: list A) f, Forall P l -> Forall P (filter f l).
@@ -1189,15 +1177,13 @@ Proof.
   } Unfocus.
   unfold memory_block'_alt in H3.
   rewrite Int.unsigned_zero in H3.
-  rewrite Share.contains_Lsh_e in H3 by apply top_correct'.
-  rewrite Share.contains_Rsh_e in H3 by apply top_correct'.
   rewrite Z2Nat.id in H3 by omega.
   rewrite if_true in H3 by apply readable_share_top.
   assert (join_sub phi1 (m_phi jm)) as H7
    by ( apply join_sub_trans with phi; auto; eexists; eauto).
   destruct (VALspec_range_free _ _ _ _ H3 H7)
    as [m3 ?H].
-  assert (VR: app_pred (VALspec_range (sizeof t-0) Share.top Share.top (b, 0) * TT) (m_phi jm)).
+  assert (VR: app_pred (VALspec_range (sizeof t-0) Share.top (b, 0) * TT) (m_phi jm)).
     clear - H3 H7. destruct H7.
   rewrite Z.sub_0_r; exists phi1; exists x; split3; auto.
   pose (jm3 := free_juicy_mem _ _ _ _ _ H8 (juicy_free_aux_lemma _ _ _ _ _ VR)).
@@ -1214,8 +1200,8 @@ Proof.
     apply (resource_at_join _ _ _ l) in H7.
     rewrite H9 in H7.
     clear - H7.
-    inv H7. do 3 eexists; split3; eauto. eexists; eauto. apply join_sub_refl.
-    do 3 eexists; split3; eauto. eexists; eauto. eexists; eauto.
+    inv H7. do 3 eexists; split3; eauto. eexists; eauto.
+    do 3 eexists; split3; eauto. eexists; eauto.
   } Unfocus.
   subst phi3.
   assert (join_sub phi2 (m_phi jm3)).
@@ -2056,7 +2042,7 @@ unfold after_alloc' in H1.
 destruct (allocate (m_phi jm)
     (fun loc : address =>
       if adr_range_dec (snd (alloc (m_dry jm) 0 n), 0) (n - 0) loc
-      then YES Share.top pfullshare (VAL Undef) NoneP
+      then YES Share.top readable_share_top (VAL Undef) NoneP
       else core (m_phi jm @ loc)))
   as [phi3 [phi4  [? ?]]].
 *
@@ -2071,7 +2057,7 @@ destruct (allocate (m_phi jm)
 *
  intros.
  simpl; if_tac.
- exists (YES Share.top pfullshare (VAL Undef) NoneP).
+ exists (YES Share.top readable_share_top (VAL Undef) NoneP).
  destruct l as [b ofs]; destruct H2.
  rewrite juicy_mem_alloc_cohere. constructor.
  apply join_unit1; auto.
@@ -2087,9 +2073,7 @@ assert (phi4 = phi2). {
  intro loc; apply (resource_at_join _ _ _ loc) in H2.
  rewrite H3 in H2; rewrite H1.
  if_tac.
- inv H2; try pfullshare_join.
- rewrite (join_sub_share_top rsh3) by (exists rsh1; auto).
- reflexivity.
+ inv H2; apply YES_ext; apply (join_top _ _ (join_comm RJ)).
  apply join_comm in H2.
  apply core_identity in H2. auto.
 }
@@ -2109,16 +2093,13 @@ intro loc. hnf.
 rewrite Coqlib.nat_of_Z_eq by omega.
 if_tac.
 exists Undef.
-rewrite writable_share_right by apply writable_share_top.
-exists top_share_nonunit.
+exists readable_share_top.
 hnf.
 rewrite H3.
 rewrite Z.sub_0_r.
 rewrite if_true by auto.
 rewrite preds_fmap_NoneP.
 f_equal.
-rewrite Share.contains_Lsh_e; auto.
-apply top_correct'.
 unfold noat. simpl.
 rewrite H3.
 rewrite Z.sub_0_r.

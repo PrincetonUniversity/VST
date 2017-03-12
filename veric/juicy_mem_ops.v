@@ -100,7 +100,7 @@ Qed.
 
 Lemma juicy_mem_alloc_aux1:
   forall jm lo hi m' b, alloc (m_dry jm) lo hi = (m',b) ->
-        forall ofs, m_phi jm @ (b,ofs) = NO Share.bot.
+        forall ofs, m_phi jm @ (b,ofs) = NO Share.bot bot_unreadable.
 Proof.
  intros.
  pose proof (juicy_mem_max_access jm (b,ofs)).
@@ -133,9 +133,7 @@ rewrite H0 in H4. rewrite H4 in H3.
 spec H3.
 clear.
 unfold perm_of_res, perm_of_sh; simpl.
-if_tac. if_tac. congruence. congruence. if_tac.
-destruct sh; simpl in *. apply not_nonunit_bot in H0; contradiction.
-congruence.
+if_tac. if_tac. congruence. congruence. rewrite if_true by auto. congruence.
 destruct (juicy_mem_contents jm _ _ _ _ _ H0).
 split; auto.
 rewrite <- H3; auto.
@@ -228,7 +226,7 @@ Lemma juicy_mem_alloc_at:
      juicy_mem_alloc jm lo hi = (jm',b) ->
      forall loc, m_phi jm' @ loc = 
        if adr_range_dec (b, lo) (hi - lo) loc
-       then YES Share.top pfullshare (VAL Undef) NoneP
+       then YES Share.top readable_share_top (VAL Undef) NoneP
        else m_phi jm @ loc.
 Proof.
  intros.

@@ -1,4 +1,5 @@
 Require Import veric.juicy_base.
+Require Import veric.shares.
 Require Import veric.juicy_mem veric.juicy_mem_lemmas veric.juicy_mem_ops.
 Require Import veric.res_predicates.
 Require Import veric.extend_tc.
@@ -123,7 +124,8 @@ Proof.
   simpl in H2. destruct H2 as [n' [H2 ?]]; exists n'; split; auto.
   if_tac. specialize (H (b,ofs-z0)). spec H. destruct H4; subst; split; auto; omega.
   destruct (phi @ (b,ofs-z0)); inv H3. destruct H; inv H.
-  destruct (phi @ (b,ofs-z0)); inv H3. reflexivity.
+  destruct (phi @ (b,ofs-z0)); inv H3.
+  simpl. f_equal. f_equal. apply exist_ext. auto.
   destruct (make_rmap _ H0 (level phi)) as [phi2 [J3 J4]].
   extensionality loc;   unfold compose.
   if_tac.
@@ -201,13 +203,13 @@ Fixpoint init_data_list2pred  (dl: list init_data)
                            (sh: share) (v: val)  (rho: environ) : pred rmap :=
   match dl with
   | d::dl' => 
-      sepcon (init_data2pred d (Share.splice extern_retainer sh) v rho) 
+      sepcon (init_data2pred d (Share.lub extern_retainer sh) v rho) 
                   (init_data_list2pred dl' sh (offset_val (init_data_size d) v) rho)
   | nil => emp
  end.
 
 Definition readonly2share (rdonly: bool) : share :=
-  if rdonly then Share.Lsh else Share.top.
+  if rdonly then fst(Share.split Share.Rsh) else Share.Rsh.
 
 Definition globvar2pred (idv: ident * globvar type) : assert :=
  fun rho =>
@@ -527,11 +529,13 @@ Proof.
   simpl in H2. destruct a0; simpl in *; try solve [destruct H2; auto]; intros.
 Qed.
 
+(*
 Lemma read_sh_readonly:
   forall NU, read_sh = mk_lifted (readonly2share true) NU.
 Proof.
   simpl. unfold read_sh. simpl. f_equal; auto with extensionality.
 Qed.  
+*)
 
 Lemma zero_ext_inj: forall i,
    Int.zero_ext 8 (Int.repr (Byte.unsigned i)) = Int.zero -> 
@@ -689,6 +693,24 @@ Proof.
 Qed.
 *)
 
+Lemma readable_readonly2share: forall v, readable_share (readonly2share (@gvar_readonly type v)).
+Proof.
+  intros.
+  unfold readable_share. intro.
+  apply identity_share_bot in H.
+  assert (H9: Share.Rsh <> Share.bot). {
+    unfold Share.Rsh. intro.
+    destruct (Share.split Share.top) eqn:?.
+    pose proof (Share.split_nontrivial _ _ _ Heqp). spec H1; auto. contradiction Share.nontrivial.
+  }
+  destruct (gvar_readonly v); simpl in *.
+  rewrite glb_split_x in H.
+  destruct (Share.split Share.Rsh) eqn:H0. simpl in *.
+  pose proof (Share.split_nontrivial _ _ _ H0). spec H1; auto.
+  rewrite Share.glb_idem in H; contradiction.
+Qed.
+
+(*
 Lemma nonunit_readonly2share: forall v, nonunit (readonly2share (@gvar_readonly type v)).
 Proof.
   intros.
@@ -699,13 +721,12 @@ Proof.
   clear. repeat intro. pose proof (Share.nontrivial). 
   apply unit_identity in H. apply identity_share_bot in H. contradiction H0; apply H.
 Qed.
+*)
 
-Lemma readable_splice_extern: forall v, readable_share (Share.splice extern_retainer (readonly2share (@gvar_readonly type v))).
+Lemma readable_splice_extern: forall v, readable_share (Share.lub extern_retainer (readonly2share (@gvar_readonly type v))).
 Proof.
   intros.
-  apply right_nonempty_readable.
-  apply nonunit_nonidentity.
-  apply nonunit_readonly2share.
+  apply readable_share_lub. apply readable_readonly2share.
 Qed.
 
 Lemma init_data_lem:
@@ -723,11 +744,10 @@ forall (ge: genv) (v : globvar type) (b : block) (m1 : mem')
           (AL: initializer_aligned z a = true)
            (LO:   0 <= z) (HI: z + init_data_size a < Int.modulus)
          (RHO: ge_of rho = filter_genv ge),
-  (init_data2pred a  (Share.splice extern_retainer (readonly2share (gvar_readonly v)))
+  (init_data2pred a  (Share.lub extern_retainer (readonly2share (gvar_readonly v)))
        (Vptr b (Int.repr z))) rho w1.
 Proof.
   intros.
-  assert (NU:= nonunit_readonly2share v).
   assert (APOS:= init_data_size_pos a).
   assert (READABLE:= readable_splice_extern v).
   Transparent load.
@@ -736,11 +756,9 @@ Proof.
     fst,snd.
   rewrite Int.unsigned_repr by (unfold Int.max_unsigned; omega).
   simpl.
-  repeat rewrite Share.unrel_splice_R.
-  repeat rewrite Share.unrel_splice_L.
   unfold mapsto, tc_val, is_int, is_long, is_float.
   destruct (readable_share_dec
-            (Share.splice extern_retainer (readonly2share (gvar_readonly v)))); [clear r | tauto].
+            (Share.lub extern_retainer (readonly2share (gvar_readonly v)))); [clear r | tauto].
   destruct a; 
   repeat rewrite prop_true_andp by 
     first [apply I 
@@ -758,8 +776,8 @@ Proof.
   apply Zone_divide.
 * (* Int8 *)
   intro loc; specialize (H2 loc).
-  simpl in H2. hnf. simpl size_chunk. if_tac; auto.
-  exists NU.
+  simpl in H2. hnf. if_tac; auto.
+  exists READABLE.
   destruct H2.
   apply join_comm in H1.
   apply (resource_at_join _ _ _ loc) in H1.
@@ -768,7 +786,7 @@ Proof.
   rewrite if_true by (destruct loc; destruct H; subst; simpl; unfold block; xomega).
   unfold inflate_initial_mem. rewrite resource_at_make_rmap.
   unfold inflate_initial_mem'. rewrite H4.
- unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
+  unfold Genv.perm_globvar. rewrite VOL. rewrite preds_fmap_NoneP.
   destruct (gvar_readonly v);  repeat f_equal; auto with extensionality.
   rewrite H0.
   destruct loc; destruct H; subst b0.
@@ -781,7 +799,7 @@ Proof.
 * (* Int16 *)
   intro loc; specialize (H2 loc).
   simpl in H2. simpl size_chunk. hnf; if_tac; auto.
-  exists NU.
+  exists READABLE.
   destruct H2.
   apply join_comm in H1.
   apply (resource_at_join _ _ _ loc) in H1.
@@ -803,7 +821,7 @@ Proof.
 * (* Int32 *)
   intro loc; specialize (H2 loc).
   simpl in H2. simpl size_chunk. hnf; if_tac; auto.
-  exists NU.
+  exists READABLE.
   destruct H2.
   apply join_comm in H1.
   apply (resource_at_join _ _ _ loc) in H1.
@@ -825,7 +843,7 @@ Proof.
 * (* Int64 *)
   intro loc; specialize (H2 loc).
   simpl in H2. simpl size_chunk. hnf; if_tac; auto.
-  exists NU.
+  exists READABLE.
   destruct H2.
   apply join_comm in H1.
   apply (resource_at_join _ _ _ loc) in H1.
@@ -847,7 +865,7 @@ Proof.
 * (* Float32 *)
   intro loc; specialize (H2 loc).
   simpl in H2. simpl size_chunk. hnf; if_tac; auto.
-  exists NU.
+  exists READABLE.
   destruct H2.
   apply join_comm in H1.
   apply (resource_at_join _ _ _ loc) in H1.
@@ -873,7 +891,7 @@ Proof.
   destruct AL as [c ?]. exists (2 * c). rewrite Z.mul_assoc. apply H.
 *  intro loc; specialize (H2 loc).
   simpl in H2. simpl size_chunk. hnf; if_tac; auto.
-  exists NU.
+  exists READABLE.
   destruct H2.
   apply join_comm in H1.
   apply (resource_at_join _ _ _ loc) in H1.
@@ -897,9 +915,7 @@ rewrite Zmax_Z_of_nat.
 rewrite nat_of_Z_max.
 if_tac; auto.
 
- rewrite Share.unrel_splice_R.
- rewrite Share.unrel_splice_L.
-  exists NU.
+  exists READABLE.
   destruct H2.
   apply join_comm in H1.
   apply (resource_at_join _ _ _ loc) in H1.
@@ -944,7 +960,7 @@ if_tac; auto.
   intro loc; specialize (H2 loc). hnf. simpl init_data_size in H2.
    simpl size_chunk.
  if_tac; [ | apply H2].
-  exists NU. hnf. 
+  exists READABLE. hnf. 
   destruct H2.
   apply join_comm in H1.
   apply (resource_at_join _ _ _ loc) in H1.
@@ -1273,7 +1289,7 @@ Qed.
 Lemma alloc_global_inflate_same:
   forall n i v gev m G m0,
   Genv.alloc_global gev m0 (i, Gvar v) = Some m ->
-   (forall z : Z, initial_core gev G n @ (nextblock m0, z) = NO Share.bot) ->
+   (forall z : Z, initial_core gev G n @ (nextblock m0, z) = NO Share.bot bot_unreadable) ->
    inflate_initial_mem m0 (initial_core gev G n) =
    upto_block (nextblock m0) (inflate_initial_mem m (initial_core gev G n)).
 Proof.
@@ -1592,9 +1608,11 @@ Lemma resource_identity_dec:
  forall (r: resource), {identity r}+{~identity r}.
 Proof.
 intros. destruct r.
-destruct (eq_dec t Share.bot).
+destruct (eq_dec sh Share.bot).
 subst; left; apply NO_identity.
-right; contradict n. apply identity_NO in n. destruct n. inv H; auto. destruct H as [? [? ?]]; inv H.
+right. intro. apply identity_NO in H.
+destruct H. inv H. contradiction n0; auto.
+destruct H as [? [? ?]]. inv H.
  right; apply YES_not_identity.
 left; apply PURE_identity.
 Qed.
@@ -1615,11 +1633,15 @@ if_tac. apply H5 in H4.
  case_eq (w1 @ (b,ofs)); simpl; intros; auto. clear H5. rewrite H2 in *. clear H6.
  destruct k; auto. intros. 
  assert (H9:= rmap_valid w1 b ofs). unfold compose in H9. rewrite H2 in H9. simpl in H9.
- specialize (H9 _ H5). destruct (w1 @ (b,ofs+i)); inv H9. rewrite if_false; auto. apply YES_not_identity.
+ specialize (H9 _ H5).
+ destruct (w1 @ (b,ofs+i)); inv H9.
+ rewrite if_false by apply YES_not_identity.
+ simpl. f_equal. f_equal. apply exist_ext; auto.
  assert (H10:= rmap_valid w1 b ofs). unfold compose in H10. rewrite H2 in H10. simpl in H10.
  destruct H10 as [n [? ?]]; exists n; split; auto.
- destruct (w1 @ (b,ofs-z)); inv H6; rewrite if_false; auto. apply YES_not_identity.
-destruct (make_rmap _ H1 (level w))  as [w1' [? ?]]; clear H1.
+ destruct (w1 @ (b,ofs-z)); inv H6; rewrite if_false by apply YES_not_identity.
+ simpl. f_equal. f_equal. apply exist_ext; auto.
+ destruct (make_rmap _ H1 (level w))  as [w1' [? ?]]; clear H1.
  extensionality loc.
  unfold compose. if_tac. rewrite core_resource_at.
  replace (level w) with (level w') by (destruct H; auto).
@@ -1639,10 +1661,14 @@ if_tac. apply H5 in H4.
  case_eq (w2 @ (b,ofs)); simpl; intros; auto. clear H5. rewrite H2 in *. clear H6.
  destruct k; auto. intros. 
  assert (H9:= rmap_valid w2 b ofs). unfold compose in H9. rewrite H2 in H9. simpl in H9.
- specialize (H9 _ H5). destruct (w2 @ (b,ofs+i)); inv H9. rewrite if_false; auto. apply YES_not_identity.
+ specialize (H9 _ H5). destruct (w2 @ (b,ofs+i)); inv H9. 
+ rewrite if_false by apply YES_not_identity.
+ simpl. f_equal. f_equal. apply exist_ext; auto.
  assert (H10:= rmap_valid w2 b ofs). unfold compose in H10. rewrite H2 in H10. simpl in H10.
  destruct H10 as [n [? ?]]; exists n; split; auto.
- destruct (w2 @ (b,ofs-z)); inv H6; rewrite if_false; auto. apply YES_not_identity.
+ destruct (w2 @ (b,ofs-z)); inv H6.
+ rewrite if_false by apply YES_not_identity.
+ simpl. f_equal. f_equal. apply exist_ext; auto.
 destruct (make_rmap _ H1 (level w))  as [w2' [? ?]]; clear H1.
  extensionality loc.
  unfold compose. if_tac. rewrite core_resource_at.
@@ -1674,7 +1700,7 @@ Lemma init_datalist_hack:
    (init_data_list2pred dl sh (Vptr b z) rho) phi0 ->
   forall phi,
      hackfun phi0 phi ->
-   readable_share (Share.splice extern_retainer sh) ->
+   readable_share (Share.lub extern_retainer sh) ->
    (init_data_list2pred dl sh (Vptr b z) rho) phi.
 Proof.
   induction dl; intros. destruct H0 as [H0' H0]. simpl in *.
@@ -1692,7 +1718,7 @@ Proof.
   unfold init_data2pred in *;
   unfold mapsto, address_mapsto in *;
   destruct a; simpl in *;
-  (destruct (readable_share_dec (Share.splice extern_retainer sh)); [| tauto]);
+  (destruct (readable_share_dec (Share.lub extern_retainer sh)); [| tauto]);
   try 
   (destruct H1 as [[H1' H1]|[H1x _]]; [|solve[inv H1x]];
         left; split;
@@ -1706,8 +1732,6 @@ Proof.
               | destruct (H4 loc) as [HH _]; clear - H8 HH; intuition]]).
  rewrite address_mapsto_zeros_eq in H1|-*.
  rewrite nat_of_Z_max in *.
- rewrite Share.unrel_splice_L in *.
- rewrite Share.unrel_splice_R in *.
  intro loc; specialize (H1 loc).
  assert (H99:  Zmax (Zmax z0 0) 0 = Zmax z0 0).
    apply Z.max_l. apply Zmax_bound_r. omega.
@@ -1762,7 +1786,7 @@ Proof.
  replace (access_at m0 loc Cur) with (@None permission).
  clear.
  pose proof (core_identity (phi @ loc)).
- assert (identity (NO Share.bot)) by apply NO_identity.
+ assert (identity (NO Share.bot bot_unreadable)) by apply NO_identity.
  intuition.
  symmetry; apply nextblock_noaccess. auto.
 Qed.

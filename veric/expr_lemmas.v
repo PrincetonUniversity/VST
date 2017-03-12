@@ -199,8 +199,7 @@ destruct ((Mem.mem_access (m_dry m)) !! b (Int.unsigned ofs + d) Cur); inv H1; e
 destruct H0.
 apply perm_order'_dec_fiddle with x.
 auto.
-intro; subst t. unfold nonidentity in H. contradiction H.
-apply bot_identity.
+intro; subst sh. apply H; auto.
 *
 subst.
 pose proof (juicy_mem_access m (b, Int.unsigned ofs + d)).
@@ -208,35 +207,25 @@ rewrite H0 in H1.
 unfold access_at in H1.
 unfold perm_of_res in H1.
 simpl in H1. clear H0 H.
-destruct k.
-+
-destruct (perm_of_sh_pshare t p).
-rewrite H in H1; clear H.
 unfold Mem.valid_pointer.
 unfold Mem.perm_dec.
-assert (exists x, (Mem.mem_access (m_dry m)) !! b (Int.unsigned ofs + d) Cur = Some x).
-destruct ((Mem.mem_access (m_dry m)) !! b (Int.unsigned ofs + d) Cur); inv H1; eauto.
-destruct H.
-apply perm_order'_dec_fiddle with x0.
-auto.
+destruct k.
 +
-unfold Mem.valid_pointer, Mem.perm_dec.
 assert (exists x, (Mem.mem_access (m_dry m)) !! b (Int.unsigned ofs + d) Cur = Some x).
-destruct ((Mem.mem_access (m_dry m)) !! b (Int.unsigned ofs + d) Cur); inv H1; eauto.
-destruct H.
-apply perm_order'_dec_fiddle with x. auto.
+rewrite H1. unfold perm_of_sh. repeat if_tac; try contradiction; eauto.
+destruct H as [x H]; apply perm_order'_dec_fiddle with x; auto.
 +
-unfold Mem.valid_pointer, Mem.perm_dec.
 assert (exists x, (Mem.mem_access (m_dry m)) !! b (Int.unsigned ofs + d) Cur = Some x).
-destruct ((Mem.mem_access (m_dry m)) !! b (Int.unsigned ofs + d) Cur); inv H1; eauto.
-destruct H.
-apply perm_order'_dec_fiddle with x. auto.
+rewrite H1. unfold perm_of_sh. repeat if_tac; try contradiction; eauto.
+destruct H as [x H]; apply perm_order'_dec_fiddle with x; auto.
 +
-unfold Mem.valid_pointer, Mem.perm_dec.
 assert (exists x, (Mem.mem_access (m_dry m)) !! b (Int.unsigned ofs + d) Cur = Some x).
-destruct ((Mem.mem_access (m_dry m)) !! b (Int.unsigned ofs + d) Cur); inv H1; eauto.
-destruct H.
-apply perm_order'_dec_fiddle with x. auto.
+rewrite H1. unfold perm_of_sh. repeat if_tac; try contradiction; eauto.
+destruct H as [x H]; apply perm_order'_dec_fiddle with x; auto.
++
+assert (exists x, (Mem.mem_access (m_dry m)) !! b (Int.unsigned ofs + d) Cur = Some x).
+rewrite H1. unfold perm_of_sh. repeat if_tac; try contradiction; eauto.
+destruct H as [x H]; apply perm_order'_dec_fiddle with x; auto.
 Qed.
 
 Lemma weak_valid_pointer_dry:

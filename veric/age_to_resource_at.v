@@ -84,7 +84,7 @@ Proof.
       |- _ = ?map ?f1 ?f2 (?map ?g1 ?g2 ?r) => transitivity (map (f1 oo g1) (g2 oo f2) r)
     end; swap 1 2.
     + destruct (phi @ loc); unfold "oo"; simpl; auto.
-      * destruct p0; auto.
+      * destruct p; auto.
         rewrite preds_fmap_fmap; auto.
       * destruct p; auto.
         rewrite preds_fmap_fmap; auto.
@@ -114,7 +114,7 @@ Proof.
         |- ?map ?f1 ?f2 (?map ?g1 ?g2 ?r) = _ => transitivity (map (f1 oo g1) (g2 oo f2) r)
       end.
       * destruct (phi @ loc); unfold "oo"; simpl; auto.
-        -- destruct p0; auto.
+        -- destruct p; auto.
            rewrite preds_fmap_fmap; auto.
         -- destruct p; auto.
            rewrite preds_fmap_fmap; auto.

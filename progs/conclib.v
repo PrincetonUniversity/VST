@@ -1430,8 +1430,8 @@ Proof.
   intros ?????? (? & ?) (? & ?) ??; eauto.
 Qed.
 
-Lemma ex_address_mapsto_precise: forall ch rsh sh l,
-  precise (EX v : val, res_predicates.address_mapsto ch v rsh sh l).
+Lemma ex_address_mapsto_precise: forall ch sh l,
+  precise (EX v : val, res_predicates.address_mapsto ch v sh l).
 Proof.
   intros.
   eapply derives_precise, res_predicates.VALspec_range_precise.
@@ -1528,10 +1528,10 @@ Proof.
   specialize (Hderives _ H); auto.
 Qed.
 
-Lemma ex_address_mapsto_positive: forall ch rsh sh l,
-  positive_mpred (EX v : val, res_predicates.address_mapsto ch v rsh sh l).
+Lemma ex_address_mapsto_positive: forall ch sh l,
+  positive_mpred (EX v : val, res_predicates.address_mapsto ch v sh l).
 Proof.
-  intros ????? (? & ? & ? & Hp); simpl in Hp.
+  intros ???? (? & ? & ? & Hp); simpl in Hp.
   specialize (Hp l); destruct (adr_range_dec _ _ _).
   destruct Hp; eauto 6.
   { contradiction n; unfold adr_range.
@@ -1869,12 +1869,12 @@ Proof.
 Qed.
 
 (* shares *)
-Lemma LKspec_nonunit lock_size :
+Lemma LKspec_readable lock_size :
   0 < lock_size ->
-  forall R rsh sh p, predicates_hered.derives (res_predicates.LKspec lock_size R rsh sh p)
-  (!!(sepalg.nonunit sh)).
+  forall R sh p, predicates_hered.derives (res_predicates.LKspec lock_size R sh p)
+  (!!(readable_share sh)).
 Proof.
-  intros pos R rsh sh p a H.
+  intros pos R sh p a H.
   specialize (H p); simpl in H.
   destruct (adr_range_dec p lock_size p).
   destruct (eq_dec p p); [|contradiction n; auto].
@@ -1898,11 +1898,7 @@ Proof.
     rewrite FF_sepcon; auto].
   repeat rewrite prop_true_andp; auto.
   evar (P : mpred); replace (exp _) with P.
-  - subst P; apply res_predicates.LKspec_share_join; auto.
-    + apply readable_share_unrel_Rsh; auto.
-    + apply readable_share_unrel_Rsh; eauto.
-    + apply Share.unrel_join; eauto.
-    + apply Share.unrel_join; eauto.
+  - subst P; apply slice.LKspec_share_join; eauto.
   - subst P.
     erewrite exp_uncurry, exp_congr, <- exp_andp1, exp_prop, prop_true_andp; eauto.
     { instantiate (1 := fun x => Vptr b o = Vptr (fst x) (snd x)); exists (b, o); auto. }
@@ -2046,7 +2042,7 @@ Proof.
   - rewrite !prop_false_andp with (P := v1 = Vundef), !orp_FF; auto; Intros.
     apply andp_right; [apply prop_right; auto|].
     eapply derives_trans with (Q := _ * EX v2' : val,
-      res_predicates.address_mapsto m v2' _ _ _);
+      res_predicates.address_mapsto m v2' _ _);
       [apply sepcon_derives; [apply derives_refl|]|].
     + destruct (eq_dec v2 Vundef).
       * subst; rewrite prop_false_andp with (P := tc_val t Vundef), FF_orp;

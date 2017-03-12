@@ -456,8 +456,8 @@ Qed.
 
 Lemma superprecise_address_mapsto:
   wishes_eq_horses -> 
-  forall ch v rsh sh loc, 
-   v<>Vundef -> superprecise (address_mapsto ch v rsh sh loc).
+  forall ch v sh loc, 
+   v<>Vundef -> superprecise (address_mapsto ch v sh loc).
 Proof.
 intro WH.
 intros.

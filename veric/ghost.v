@@ -2,17 +2,18 @@ Require Export veric.base.
 Require Import veric.rmaps.
 Require Import veric.compcert_rmaps.
 Require Import veric.res_predicates.
+Require Import veric.shares.
 Require Import veric.tycontext.
 Require Import veric.expr2.
 
 Definition GHOSTspec (A: Type) (x: A) : spec :=
-  fun rsh sh loc =>
+  fun sh loc =>
    allp (jam (eq_dec loc) (fun loc' => 
     yesat (SomeP (ConstType (A -> Prop)) (fun _ y => y = x)) 
-             (FUN (nil,Tvoid) cc_default) rsh sh loc') noat).
+             (FUN (nil,Tvoid) cc_default) sh loc') noat).
 
 Definition ghostp {A: Type} (sh: share) (loc: address) (x: A) : mpred :=
-  GHOSTspec A x (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) loc.
+  GHOSTspec A x sh loc.
 
 
 Lemma ghostp_unique_sepcon:
@@ -88,17 +89,17 @@ Qed.
 
 
 Definition make_GHOSTspec:
-  forall A (rsh : share) (sh: pshare) loc (x: A) (lev: nat),
-   exists m: rmap, GHOSTspec A x rsh (pshare_sh sh) loc m /\ level m =  lev.
+  forall A (sh : share) (rsh: readable_share sh) loc (x: A) (lev: nat),
+   exists m: rmap, GHOSTspec A x sh loc m /\ level m =  lev.
 Proof.
  intros.
 unfold GHOSTspec.
  assert (AV.valid (res_option oo 
   (fun l => if eq_dec l loc 
-   then YES rsh sh  (FUN(nil,Tvoid) cc_default)
+   then YES sh rsh (FUN(nil,Tvoid) cc_default)
              (SomeP (ConstType (A -> Prop)) 
                   (fun _ y => (y = x)))
-   else NO Share.bot))).
+   else NO Share.bot bot_unreadable))).
  intros b ofs.
  unfold res_option, compose.
  if_tac; auto.
@@ -113,12 +114,10 @@ unfold GHOSTspec.
  hnf.
  if_tac.
  subst l.
+ hnf. exists rsh.
  hnf.
- exists (pshare_nonunit sh).
- hnf.
- rewrite H1. rewrite if_true. f_equal.
- destruct sh; simpl. apply exist_ext.
- auto. auto.
+ rewrite H1. rewrite if_true. f_equal. 
+ auto.
  do 3 red. rewrite H1.
  rewrite if_false by auto.
  apply NO_identity.
@@ -131,10 +130,7 @@ Lemma make_ghostp:
 Proof.
 intros.
 unfold ghostp.
-destruct (make_GHOSTspec A  (Share.unrel Share.Lsh Share.top) pfullshare loc x lev) as [m [? ?]].
+destruct (make_GHOSTspec A Share.top readable_share_top loc x lev) as [m [? ?]].
 exists m; split; auto.
-rewrite Share.contains_Rsh_e.
-apply H.
-apply top_correct'.
 Qed.
 
