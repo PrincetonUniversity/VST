@@ -506,20 +506,9 @@ floyd/floyd.coq: floyd/proofauto.vo
 dep:
 	$(COQDEP) >.depend `find . -name "*.v"`
 
-.depend:
-	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
-
-depend:
-	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
-dependx:
-	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
-	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(SEPCOMP_FILES:%=sepcomp/%) $(CONCUR_FILES:%=concurrency/%))  >> .depend
-
-depend-linking:
-	$(COQDEP) $(FILES) $(LINKING_FILES:%.v=linking/%.v) > .depend
-
-depend-concur:
-	$(COQDEP) > .depend-concur $(CONCUR_FILES:%.v=concurrency/%.v) $(PACO_FILES:%.v=concurrency/paco/src/%.v) $(CCC26x86_FILES:%.v=concurrency/%.v)
+.depend depend:
+#	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
+	$(COQDEP) >.depend `find compcert $(DIRS) -name "*.v"`
 
 depend-paco:
 	$(COQDEP) > .depend-paco $(PACO_FILES:%.v=concurrency/paco/src/%.v)

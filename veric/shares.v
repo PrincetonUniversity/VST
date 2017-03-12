@@ -1322,7 +1322,6 @@ intros.
 unfold writable_share in *.
 apply leq_join_sub in H.
 apply leq_join_sub.
-SearchAbout Share.Ord.
 apply Share.ord_spec1.
 apply Share.ord_spec1 in H.
 rewrite <- H.
