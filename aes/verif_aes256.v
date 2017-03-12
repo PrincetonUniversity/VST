@@ -14,7 +14,7 @@ Definition Vprog : varspecs.  mk_varspecs prog. Defined.
    Note that we just trust that the stdlib is correctly implemented! *)
 Definition memset_spec :=
   DECLARE _memset
-   WITH sh : share, p: val, n: Z, c: int 
+   WITH sh : share, p: val, n: Z, c: int
    PRE [ 1%positive OF tptr tvoid, 2%positive OF tint, 3%positive OF tuint ]
        PROP (writable_share sh; 0 <= n <= Int.max_unsigned)
        LOCAL (temp 1%positive p; temp 2%positive (Vint c);
@@ -27,9 +27,9 @@ Definition memset_spec :=
 Definition t_struct_aesctx := Tstruct _mbedtls_aes_context_struct noattr.
 Definition t_struct_tables := Tstruct _aes_tables_struct noattr.
 
-Definition tables_initialized (tables : val) := data_at Ews t_struct_tables (map Vint sbox, 
+Definition tables_initialized (tables : val) := data_at Ews t_struct_tables (map Vint sbox,
   (map Vint FT0, (map Vint FT1, (map Vint FT2, (map Vint FT3, (map Vint inv_sbox,
-  (map Vint RT0, (map Vint RT1, (map Vint RT2, (map Vint RT3, 
+  (map Vint RT0, (map Vint RT1, (map Vint RT2, (map Vint RT3,
   (map Vint (words_to_ints full_rcons)))))))))))) tables.
 
 Definition tables_uninitialized tables := data_at_ Ews t_struct_tables tables.
@@ -96,18 +96,18 @@ Definition key_expansion_spec :=
       PROP (writable_share ctx_cont; readable_share key_cont;
             Zlength key_words = Nk; words_in_bounds key_words;
            (Int.eq init_done Int.one = true \/ Int.eq init_done Int.zero = true))
-      LOCAL (temp _ctx ctx; temp _key key; temp _keybits (Vint (Int.repr 256)); 
+      LOCAL (temp _ctx ctx; temp _key key; temp _keybits (Vint (Int.repr 256));
              gvar _aes_init_done (Vint init_done); gvar _tables tables; gvar _aes_init_done (Vint init_done))
       SEP (data_at_ ctx_cont t_struct_aesctx ctx;
            data_at key_cont (tarray tuchar (4*Nk)) (map Vint (words_to_ints key_words)) key;
-           if Int.eq init_done Int.one then tables_initialized tables 
+           if Int.eq init_done Int.one then tables_initialized tables
            else tables_uninitialized tables)
     POST [  tint ]
-      PROP () 
+      PROP ()
       LOCAL (temp ret_temp (Vint Int.zero); gvar _aes_init_done (Vint Int.one))
       SEP (data_at key_cont (tarray tuchar (4*Nk)) (map Vint (words_to_ints key_words)) key;
-           data_at ctx_cont t_struct_aesctx 
-                   (Vint (Int.repr Nr), (Vint (Int.repr (nested_field_offset t_struct_aesctx [StructField _buf])), 
+           data_at ctx_cont t_struct_aesctx
+                   (Vint (Int.repr Nr), (Vint (Int.repr (nested_field_offset t_struct_aesctx [StructField _buf])),
                                          (map Vint (blocks_to_ints (extra_key_expansion key_words)))
                                           ++ list_repeat (4%nat) Vundef)) ctx;
           tables_initialized tables)
@@ -115,13 +115,13 @@ Definition key_expansion_spec :=
 
 Definition inv_key_expansion_spec :=
   DECLARE _mbedtls_aes_setkey_dec
-    WITH ctx : val, key : val, fsb : val, ctx_cont : share, key_cont : share, 
+    WITH ctx : val, key : val, fsb : val, ctx_cont : share, key_cont : share,
          tables : val, key_words : list word
     PRE [ _ctx OF (tptr t_struct_aesctx), _key OF (tptr tuchar), _keybits OF tuint ]
-      PROP (writable_share ctx_cont; readable_share key_cont; 
+      PROP (writable_share ctx_cont; readable_share key_cont;
             Zlength key_words = Nk; words_in_bounds key_words)
       LOCAL (temp _ctx ctx; temp _key key; temp _keybits (Vint (Int.repr 256)); gvar _FSb fsb; gvar _tables tables)
-      SEP (tables_uninitialized tables; 
+      SEP (tables_uninitialized tables;
            data_at key_cont (tarray tuchar (4*Nk)) (map Vint (words_to_ints key_words)) key;
            data_at_ ctx_cont t_struct_aesctx ctx)
     POST [  tint ]
@@ -129,22 +129,22 @@ Definition inv_key_expansion_spec :=
       LOCAL (temp ret_temp (Vint Int.zero))
       SEP (tables_initialized tables;
            data_at key_cont (tarray tuchar (4*Nk)) (map Vint (words_to_ints key_words)) key;
-           data_at ctx_cont t_struct_aesctx 
-                   (Vint (Int.repr Nr), (Vint (Int.repr (nested_field_offset t_struct_aesctx [StructField _buf])), 
-                                         (map Vint (blocks_to_ints (rev (InverseKeyExpansion key_words))) 
+           data_at ctx_cont t_struct_aesctx
+                   (Vint (Int.repr Nr), (Vint (Int.repr (nested_field_offset t_struct_aesctx [StructField _buf])),
+                                         (map Vint (blocks_to_ints (rev (InverseKeyExpansion key_words)))
                                                                    ++ list_repeat (8%nat) Vundef))) ctx)
 .
 
 Definition encryption_spec :=
   DECLARE _mbedtls_aes_encrypt
-    WITH ctx : val, input : val, output : val, ctx_cont : share, in_cont : share, out_cont : share, 
+    WITH ctx : val, input : val, output : val, ctx_cont : share, in_cont : share, out_cont : share,
          content : block, key : list block, tables : val
       PRE [ _ctx OF (tptr t_struct_aesctx), _input OF (tptr tuchar), _output OF (tptr tuchar) ]
-        PROP (block_in_bounds content; blocks_in_bounds key; Zlength key = (Nr+1)%Z; 
+        PROP (block_in_bounds content; blocks_in_bounds key; Zlength key = (Nr+1)%Z;
               writable_share out_cont; readable_share in_cont; readable_share ctx_cont)
         LOCAL (temp _ctx ctx; temp _input input; temp _output output; gvar _tables tables)
         SEP (data_at in_cont (tarray tuchar 16) (map Vint (block_to_ints (transpose content))) input;
-             data_at ctx_cont (t_struct_aesctx) (Vint (Int.repr Nr), 
+             data_at ctx_cont (t_struct_aesctx) (Vint (Int.repr Nr),
                (Vint (Int.repr (nested_field_offset t_struct_aesctx [StructField _buf])),
                 map Vint (blocks_to_ints key) ++ list_repeat (8%nat) Vundef)) ctx;
              data_at_ out_cont (tarray tuchar 16) output;
@@ -153,7 +153,7 @@ Definition encryption_spec :=
         PROP() LOCAL()
         SEP (data_at out_cont (tarray tuchar 16) (map Vint (block_to_ints (transpose (Cipher key content)))) output;
              data_at in_cont (tarray tuchar 16) (map Vint (block_to_ints (transpose content))) input;
-             data_at ctx_cont (t_struct_aesctx) (Vint (Int.repr Nr), 
+             data_at ctx_cont (t_struct_aesctx) (Vint (Int.repr Nr),
                (Vint (Int.repr (nested_field_offset t_struct_aesctx [StructField _buf])),
                 map Vint (blocks_to_ints key) ++ list_repeat (8%nat) Vundef)) ctx;
              tables_initialized tables)
@@ -161,14 +161,14 @@ Definition encryption_spec :=
 
 Definition decryption_spec :=
   DECLARE _mbedtls_aes_decrypt
-    WITH ctx : val, input : val, output : val, ctx_cont : share, in_cont : share, out_cont : share, 
+    WITH ctx : val, input : val, output : val, ctx_cont : share, in_cont : share, out_cont : share,
          content : block, key : list block, tables : val
       PRE [ _ctx OF (tptr t_struct_aesctx), _input OF (tptr tuchar), _output OF (tptr tuchar) ]
-        PROP (block_in_bounds content; blocks_in_bounds key; Zlength key = (Nr+1)%Z; 
+        PROP (block_in_bounds content; blocks_in_bounds key; Zlength key = (Nr+1)%Z;
               writable_share out_cont; readable_share in_cont; readable_share ctx_cont)
         LOCAL (temp _ctx ctx; temp _input input; temp _output output; gvar _tables tables)
         SEP (data_at in_cont (tarray tuchar 16) (map Vint (block_to_ints (transpose content))) input;
-             data_at ctx_cont (t_struct_aesctx) (Vint (Int.repr Nr), 
+             data_at ctx_cont (t_struct_aesctx) (Vint (Int.repr Nr),
                (Vint (Int.repr (nested_field_offset t_struct_aesctx [StructField _buf])),
                 map Vint (blocks_to_ints key) ++ list_repeat (8%nat) Vundef)) ctx;
              data_at_ out_cont (tarray tuchar 16) output;
@@ -176,7 +176,7 @@ Definition decryption_spec :=
       POST [ tvoid ]
         PROP() LOCAL()
         SEP (data_at in_cont (tarray tuchar 16) (map Vint (block_to_ints (transpose content))) input;
-             data_at ctx_cont (t_struct_aesctx) (Vint (Int.repr Nr), 
+             data_at ctx_cont (t_struct_aesctx) (Vint (Int.repr Nr),
                (Vint (Int.repr (nested_field_offset t_struct_aesctx [StructField _buf])),
                 map Vint (blocks_to_ints key) ++ list_repeat (8%nat) Vundef)) ctx;
              data_at out_cont (tarray tuchar 16) (map Vint (block_to_ints (transpose (EqInvCipher key content)))) output;
@@ -184,14 +184,14 @@ Definition decryption_spec :=
 .
 
 Definition Gprog : funspecs := ltac:(with_library prog [
-  memset_spec; 
-  aes_init_spec; 
-  zeroize_spec; 
-  aes_free_spec; 
-  gen_tables_spec; 
-  key_expansion_spec; 
-  inv_key_expansion_spec; 
-  encryption_spec; 
+  memset_spec;
+  aes_init_spec;
+  zeroize_spec;
+  aes_free_spec;
+  gen_tables_spec;
+  key_expansion_spec;
+  inv_key_expansion_spec;
+  encryption_spec;
   decryption_spec
 ]).
 
@@ -203,7 +203,7 @@ Proof.
   + rewrite data_at__memory_block. entailer. assert ((sizeof t_struct_aesctx) = 280) by reflexivity. rewrite H0. cancel.
   + (* TODO floyd improve: this works, but it occurs often, can I do it shorter? *)
     split. auto. split; compute; intro; discriminate.
-  + forward. 
+  + forward.
     (* QQQ how to go from "data_at sh (tarray tuchar 280)" to
                            "data_at sh t_struct_aesctx" *)
     (* Instead of assuming memset for void*, assume it for ctx directly.
@@ -217,7 +217,7 @@ Swhile = fun (e : expr) (s : statement) => Sloop (Ssequence (Sifthenelse e Sskip
 so let's prove a lemma for Sloop where incr is Sskip:
 *)
 
-Lemma semax_loop_no_incr {Espec : OracleKind} {CS: compspecs}: 
+Lemma semax_loop_no_incr {Espec : OracleKind} {CS: compspecs}:
   forall Delta Q body R,
      @semax CS Espec Delta Q body (loop1_ret_assert Q R) ->
      @semax CS Espec Delta Q (Sloop body Sskip) R.
@@ -255,7 +255,7 @@ Lemma typed_false_tuint:
  forall v, typed_false tuint v -> v = nullval.
 Proof.
   intros.
-  hnf in H. destruct v; inv H. 
+  hnf in H. destruct v; inv H.
   destruct (Int.eq i Int.zero) eqn:?; inv H1.
   apply int_eq_e in Heqb. subst. reflexivity.
 Qed.
@@ -304,7 +304,7 @@ Proof. (* TODO: share with hmacdrbg/verif_hmac_drbg_other.v, where it's almost d
       + forward.
         apply typed_false_tuint_Vint in H1. apply Z_repr_0_unsigned in H1; [idtac | assumption]. subst.
         entailer.
-      + forward. forward. 
+      + forward. forward.
         assert_PROP (isptr v) by entailer. destruct v; try inv H1. simpl. (* force_val goes away *)
         admit.
         (* forward. *) (* TODO: why does forward fail? *)
@@ -338,7 +338,7 @@ Proof.
 Admitted.
 
 (* In C:  #define XTIME(x) ( ( x << 1 ) ^ ( ( x & 0x80 ) ? 0x1B : 0x00 ) )
-          y = XTIME( x ) & 0xFF; 
+          y = XTIME( x ) & 0xFF;
 
 Watch out! The usage of XTIME is slightly different in all 3 usages!
 And luckily, all three usages are in gen_tables.
@@ -381,12 +381,12 @@ Ltac forward_if_diff add := match add with
 end.
 
 (*
-Lemma xtime_step: forall (m: nat), 
+Lemma xtime_step: forall (m: nat),
   Int.xor (exp3 m) (xtime (exp3 m)) = exp3 (S m).
 *)
 
 (* note: does not yet do &0xFF, so the result might be bigger than 256 *)
-Definition xtime' (b : int) : int := 
+Definition xtime' (b : int) : int :=
   (Int.xor (Int.shl b Int.one)
            (if Int.eq (Int.and b (Int.repr 128)) Int.zero
             then Int.zero
@@ -413,7 +413,7 @@ Qed.
 Lemma push_xor_into_else_branch: forall (c : bool) (e1 e2 : int),
   (Int.xor e1 (if c then Int.zero else e2)) = (if c then e1 else (Int.xor e1 e2)).
 Proof.
-  intros. destruct c. apply Int.xor_zero. reflexivity. 
+  intros. destruct c. apply Int.xor_zero. reflexivity.
 Qed.
 
 (* Pulls out (_ & 0xFF), which requires that all expressions not behind a (_ & 0xFF) are smaller than
@@ -475,7 +475,7 @@ Lemma pow_table_invariant
 Proof.
   intros. assert (0 <= j < i \/ j = i) as C by omega. destruct C as [C | C].
   - rewrite upd_Znth_diff by omega. apply P. assumption.
-  - subst. rewrite upd_Znth_same by omega. reflexivity. 
+  - subst. rewrite upd_Znth_same by omega. reflexivity.
 Qed.
 
 (* Lemma bijection_by_counting:
@@ -560,7 +560,7 @@ Proof.
   forward_for_simple_bound 256 (EX i: Z,
     PROP ( 0 <= i ) (* TODO floyd: why do we only get "Int.min_signed <= i < 256", instead of lo=0 ?
                        Probably because there are 2 initialisations in the for-loop... *)
-    LOCAL (temp _x (Vint (ff_exp (Int.repr 3) (Int.repr i))); 
+    LOCAL (temp _x (Vint (ff_exp (Int.repr 3) (Int.repr i)));
         (* TODO documentation should say that I don't need to do this *)
         (* TODO floyd: tactic should tell me so *)
         (* temp _i (Vint (Int.repr i)); *)
@@ -569,7 +569,7 @@ Proof.
            gvar _tables tables)
     SEP (EX log : list val,
            !!(Zlength log = 256) &&
-           (* Note: log[1] is set to 0 in the first iteration, and overwritten with 255 in the last 
+           (* Note: log[1] is set to 0 in the first iteration, and overwritten with 255 in the last
               iteration, so we needn't assert anything about j=0, but we do about j=255.
               And btw, log[0] remains Vundef.
               Think "each j has to be stored in the right cell of the log array". *)
@@ -588,7 +588,7 @@ Proof.
     Intros log pow.
     freeze [0; 2] Fr.
     forward.
-    (* forward. "Error: No applicable tactic." 
+    (* forward. "Error: No applicable tactic."
        TODO floyd: error message should say that I have to thaw *)
     thaw Fr.
     forward.

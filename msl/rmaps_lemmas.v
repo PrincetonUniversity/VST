@@ -5,7 +5,7 @@ Require Import msl.Coqlib2.
 Require Import msl.sepalg_list.
 
 Module Rmaps_Lemmas (R: RMAPS).
-Module R := R. 
+Module R := R.
 Import R.
 
 Hint Resolve (@subp_sepcon _ Join_rmap Perm_rmap Sep_rmap): contractive.
@@ -36,7 +36,7 @@ Hint Resolve (@subp_sepcon _ Join_rmap Perm_rmap Sep_rmap): contractive.
     unfold compose; simpl; auto.
   Qed.
 
-  Lemma comparable_level : forall phi1 phi2 : rmap , 
+  Lemma comparable_level : forall phi1 phi2 : rmap ,
          comparable phi1 phi2 -> level phi1 = level phi2.
   Proof.
    intros.
@@ -53,7 +53,7 @@ Hint Resolve (@subp_sepcon _ Join_rmap Perm_rmap Sep_rmap): contractive.
     repeat rewrite rmap_level_eq in *.
     intros. invSome.
     specialize (IHn _ _ H2).
-    apply  age_level in H.  rewrite rmap_level_eq in *. omega. 
+    apply  age_level in H.  rewrite rmap_level_eq in *. omega.
   Qed.
 
 Lemma NO_identity: identity NO.
@@ -78,14 +78,14 @@ Proof.
 Qed.
 
 Lemma age1_resource_at_identity:
-  forall phi phi' loc, age1 phi = Some phi' -> 
+  forall phi phi' loc, age1 phi = Some phi' ->
                identity (phi@loc) ->
                identity (phi'@loc).
 Proof.
   intros.
   generalize (identity_NO _ H0); clear H0; intro.
   unfold resource_at in *.
-  rewrite rmap_age1_eq in *. 
+  rewrite rmap_age1_eq in *.
   revert H H0; case_eq (unsquash phi); simpl; intros.
   destruct n; inv H0.
   rewrite unsquash_squash.
@@ -97,7 +97,7 @@ Proof.
 Qed.
 
 Lemma unage1_resource_at_identity:
-  forall phi phi' loc, age1 phi = Some phi' -> 
+  forall phi phi' loc, age1 phi = Some phi' ->
                identity (phi'@loc) ->
                identity (phi@loc).
 Proof.
@@ -108,7 +108,7 @@ Proof.
   revert H H0; case_eq (unsquash phi); simpl; intros.
   destruct n; inv H0.
   rewrite unsquash_squash in H1. destruct r. simpl in *.
-  unfold compose in H1; simpl in H1. 
+  unfold compose in H1; simpl in H1.
   unfold resource_fmap in H1.
   destruct (x loc).
   apply NO_identity.
@@ -117,7 +117,7 @@ Proof.
 Qed.
 
 Lemma necR_resource_at_identity:
-  forall phi phi' loc, necR phi phi' -> 
+  forall phi phi' loc, necR phi phi' ->
          identity (phi@loc) ->
          identity (phi'@loc).
 Proof.
@@ -125,7 +125,7 @@ Proof.
   intro; eapply age1_resource_at_identity; eauto.
 Qed.
 
-Lemma make_rmap': forall f, AV.valid (fun l => res_option (f l)) -> 
+Lemma make_rmap': forall f, AV.valid (fun l => res_option (f l)) ->
           exists phi: rmap', proj1_sig phi = f.
 Proof.
   intros.
@@ -135,7 +135,7 @@ Proof.
 Qed.
 
 
-Lemma make_rmap (f: AV.address -> resource) (V: AV.valid (res_option oo f)) 
+Lemma make_rmap (f: AV.address -> resource) (V: AV.valid (res_option oo f))
     (n: nat) (H: resource_fmap (approx n) oo f = f) :
   {phi: rmap | level phi = n /\ resource_at phi = f}.
 Proof.
@@ -204,7 +204,7 @@ Proof.
   revert H; case_eq (unsquash phi); intros n ? ?.
   generalize H; rewrite <- (squash_unsquash phi).
   rewrite H. rewrite unsquash_squash.
-  simpl; intros. 
+  simpl; intros.
   injection H0. clear H0. intro.
   clear phi H.
   rewrite <- H0 in H1.
@@ -229,11 +229,11 @@ Proof.
   rewrite approx_oo_approx; auto.
 Qed.
 
-Lemma deallocate: 
+Lemma deallocate:
   forall (phi: rmap) (f g : AV.address -> resource),
   AV.valid (res_option oo f) -> AV.valid (res_option oo g) ->
   (forall l, join  (f l) (g l) (phi@l)) ->
-   exists phi1, exists phi2, 
+   exists phi1, exists phi2,
      join phi1 phi2 phi /\ resource_at phi1 = f.
 Proof.
   intros until g. intros Hf Hg H0.
@@ -248,7 +248,7 @@ Proof.
   split.
   rewrite rmap_level_eq in *.
   unfold resource_at in *.
-  revert H0 H Gf H1 Gg H2 H3; 
+  revert H0 H Gf H1 Gg H2 H3;
   case_eq (unsquash phif); intros nf phif' ?.
   case_eq (unsquash phig); intros ng phig' ?.
   case_eq (unsquash phi); intros n phi' ?.
@@ -260,10 +260,10 @@ Proof.
   revert H1; case_eq (unsquash phi); intros n' phi'' ?.
   intros.
   inversion H5.
-  simpl. 
-  split. 
+  simpl.
+  split.
   simpl; constructor; auto.
-  subst n' phi''. 
+  subst n' phi''.
   intro l; spec H2 l.
   simpl.
   rewrite Gf; rewrite Gg; clear Gf Gg.
@@ -304,7 +304,7 @@ Proof.
    apply join_unit1_e in H3. unfold compose. rewrite H3. constructor. apply NO_identity.
    unfold compose at 1. unfold res_option.
    destruct (f l). apply join_unit2_e in H3; [ | apply NO_identity]. rewrite <- H3. constructor.
-   destruct (g l). inv H3. inv H3. 
+   destruct (g l). inv H3. inv H3.
    constructor; split; auto.
    inv H3. inv H3. inv H3. unfold compose, res_option. rewrite <- H. constructor.
  destruct H4 as [phig [? ?]].
@@ -326,7 +326,7 @@ Proof.
  spec H6 l.
  assert (proj1_sig phig' l = g l).
    generalize (f_equal squash H2); intro.
-   rewrite squash_unsquash in H5. 
+   rewrite squash_unsquash in H5.
    subst phi.
    rewrite unsquash_squash in H2.
    injection H2; clear H2; intro.
@@ -481,7 +481,7 @@ Qed.
   Qed.
 
 
-Lemma YES_join_full: 
+Lemma YES_join_full:
    forall n P r2 r3,
        join (R.YES pfullshare n P) r2 r3 ->
        r2 = NO.
@@ -505,7 +505,7 @@ Qed.
 
 Lemma YES_overlap:
 forall (phi0 phi1: rmap) loc (sh : pshare) k k' p p',
-  joins phi0 phi1 -> phi1@loc = R.YES pfullshare k p -> 
+  joins phi0 phi1 -> phi1@loc = R.YES pfullshare k p ->
                phi0@loc = R.YES sh k' p' -> False.
 Proof.
   intros.
@@ -537,13 +537,13 @@ match goal with |- ?a = ?b =>
   match a with context [map ?x _] =>
     match b with context [map ?y _] => replace y with x; auto end end end.
 
-Lemma preds_fmap_fmap: 
+Lemma preds_fmap_fmap:
   forall f g pp, preds_fmap f (preds_fmap g pp) = preds_fmap (f oo g) pp.
 Proof.
 destruct pp; simpl; auto.
 Qed.
 
-Lemma resource_fmap_fmap:  forall f g r, resource_fmap f (resource_fmap g r) = 
+Lemma resource_fmap_fmap:  forall f g r, resource_fmap f (resource_fmap g r) =
                                                                       resource_fmap (f oo g) r.
 Proof.
 destruct r; simpl; auto.
@@ -552,7 +552,7 @@ rewrite preds_fmap_fmap; auto.
 Qed.
 
 Lemma resource_at_approx:
-  forall phi l, 
+  forall phi l,
       phi @ l = resource_fmap (approx (level phi)) (phi @ l).
 Proof.
 intros. rewrite rmap_level_eq. unfold resource_at.
@@ -620,7 +620,7 @@ Lemma necR_YES:
          phi' @ loc = YES sh k (preds_fmap (approx (level phi')) pp).
 Proof.
 intros.
-generalize (resource_at_approx phi loc); 
+generalize (resource_at_approx phi loc);
 pattern (phi @ loc) at 2; rewrite H0; intro.
 apply (necR_resource_at _ _ _ _ H H1).
 Qed.
@@ -632,13 +632,13 @@ Lemma necR_PURE:
          phi' @ loc = PURE k (preds_fmap (approx (level phi')) pp).
 Proof.
   intros.
-  generalize (resource_at_approx phi loc); 
+  generalize (resource_at_approx phi loc);
   pattern (phi @ loc) at 2; rewrite H0; intro.
   apply (necR_resource_at _ _ _ _ H H1).
 Qed.
 
 Lemma necR_NO:
-   forall phi phi' l, necR phi phi' -> 
+   forall phi phi' l, necR phi phi' ->
    (phi@l = NO <-> phi'@l = NO).
 Proof.
   intros; split.
@@ -673,7 +673,7 @@ simpl.
 apply v.
 Qed.
 
-Ltac inj_pair_tac := 
+Ltac inj_pair_tac :=
  match goal with H: (@existT ?U ?P ?p ?x = @existT _ _ _ ?y) |- _ =>
    generalize (@inj_pair2 U P p x y H); clear H; intro; try (subst x || subst y)
  end.
@@ -688,8 +688,8 @@ f_equal. extensionality x; destruct  x.
 destruct v.
 Qed.
 
-Lemma necR_YES': 
-   forall phi phi' loc sh k, 
+Lemma necR_YES':
+   forall phi phi' loc sh k,
          necR phi phi' -> (phi@loc = YES sh k NoneP <-> phi'@loc = YES sh k NoneP).
 Proof.
 intros.
@@ -707,7 +707,7 @@ unfold resource_at in *.
 revert H1; case_eq (unsquash phi); simpl; intros.
 destruct n; inv H1.
 rewrite unsquash_squash in H. simpl in H. destruct r; simpl in *.
-unfold compose in H. 
+unfold compose in H.
 revert H; destruct (x loc); simpl; intros; auto.
 destruct p0; inv H.
 inj_pair_tac. f_equal.
@@ -720,9 +720,9 @@ intuition.
 Qed.
 
 Lemma necR_YES'':
-   forall phi phi' loc sh k, 
-         necR phi phi' -> 
-    ((exists pp, phi@loc = YES sh k pp) <-> 
+   forall phi phi' loc sh k,
+         necR phi phi' ->
+    ((exists pp, phi@loc = YES sh k pp) <->
     (exists pp, phi'@loc = YES sh k pp)).
 Proof.
 intros.
@@ -741,7 +741,7 @@ unfold resource_at in *.
 revert H; case_eq (unsquash phi); simpl; intros.
 destruct n; inv H1.
 rewrite unsquash_squash in H0. simpl in H0. destruct r0; simpl in *.
-unfold compose in H0. 
+unfold compose in H0.
 revert H0; destruct (x loc); simpl; intros; auto.
 inv H0.
 inv H0.
@@ -766,7 +766,7 @@ Lemma age1_res_option: forall phi phi' loc,
    rewrite rmap_age1_eq; intros phi1 phi2 l.
  case_eq (unsquash phi1); intros. destruct n; inv H0.
  rewrite unsquash_squash.
-   destruct r; 
+   destruct r;
     simpl.
    unfold compose. destruct (x l); simpl; auto.
 Qed.
@@ -784,10 +784,10 @@ Proof.
 Qed.
 
 
-Lemma age1_resource_at: 
-     forall phi phi', 
+Lemma age1_resource_at:
+     forall phi phi',
           age1 phi = Some phi' ->
-         forall loc r, 
+         forall loc r,
           phi @ loc = resource_fmap (approx (level phi)) r ->
           phi' @ loc = resource_fmap (approx (level phi')) r.
 Proof.
@@ -888,7 +888,7 @@ intro l.
 unfold compose in *.
 destruct (H0 l); simpl in *.
 destruct (phi1 @ l). inv j; constructor.
-inv j; constructor. split; auto. 
+inv j; constructor. split; auto.
 inv j; constructor.
 (** End of CompCert_AV.valid proof **)
 destruct (make_rmap _ H1 (level phi1)) as [phi' [? ?]].
@@ -904,11 +904,11 @@ rewrite H2.
 rewrite H; apply resource_at_approx.
 inv H1. rewrite <- H0. apply resource_at_approx.
 generalize (resource_at_approx phi1 loc); intro.
-rewrite H0 in H1. simpl in H1. 
+rewrite H0 in H1. simpl in H1.
 simpl. f_equal. injection H1; auto.
-inv H1. 
+inv H1.
 generalize (resource_at_approx phi1 loc); intro.
-rewrite H0 in H1. simpl in H1. 
+rewrite H0 in H1. simpl in H1.
 simpl. f_equal. injection H1; auto.
 (*  End of make_rmap proof *)
 exists phi'.
@@ -937,7 +937,7 @@ Definition no_preds (r: resource) :=
 Lemma remake_rmap:
   forall (f: AV.address -> resource),
        AV.valid (res_option oo f) ->
-       forall n, 
+       forall n,
        (forall l, (exists m, level m = n /\ f l = m @ l) \/ no_preds (f l)) ->
        {phi: rmap | level phi = n /\ resource_at phi = f}.
 Proof.
@@ -981,9 +981,9 @@ congruence.
 Qed.
 
 Lemma ageN_resource_at_eq:
-  forall phi1 phi2 loc n phi1' phi2', 
+  forall phi1 phi2 loc n phi1' phi2',
           level phi1 = level phi2 ->
-          phi1 @ loc = phi2 @ loc -> 
+          phi1 @ loc = phi2 @ loc ->
          ageN n phi1 = Some phi1' ->
          ageN n phi2 = Some phi2' ->
          phi1' @ loc = phi2' @ loc.
@@ -995,7 +995,7 @@ simpl in *.
 revert H0 H1; case_eq (age1 phi1); case_eq (age1 phi2); intros; try discriminate.
 assert (level r = level r0) by (apply age_level in H0; apply age_level in H1; omega).
 apply (IHn r0 r); auto.
-rewrite (age1_resource_at _ _ H0 loc _ (resource_at_approx _ _)). 
+rewrite (age1_resource_at _ _ H0 loc _ (resource_at_approx _ _)).
 rewrite (age1_resource_at _ _ H1 loc _ (resource_at_approx _ _)).
 rewrite H. rewrite H4; auto.
 Qed.
@@ -1003,18 +1003,18 @@ Qed.
 Lemma join_YES_pfullshare1:
     forall pp k p x y, join (YES (mk_lifted Share.top pp) k p) x y -> (NO, YES pfullshare k p) = (x,y).
 Proof.
-intros. inv H; try pfullshare_join; f_equal; auto. 
+intros. inv H; try pfullshare_join; f_equal; auto.
   f_equal. unfold pfullshare. f_equal. apply proof_irr.
 Qed.
 
 Lemma join_YES_pfullshare2:
     forall pp k p x y, join x (YES  (mk_lifted Share.top pp) k p) y -> (NO, YES pfullshare k p) = (x,y).
 Proof.
-intros. inv H; try pfullshare_join; f_equal; auto. 
+intros. inv H; try pfullshare_join; f_equal; auto.
   f_equal. unfold pfullshare. f_equal. apply proof_irr.
 Qed.
 
-Ltac inv H := (apply join_YES_pfullshare1 in H || apply join_YES_pfullshare2 in H || idtac); 
+Ltac inv H := (apply join_YES_pfullshare1 in H || apply join_YES_pfullshare2 in H || idtac);
                   (inversion H; clear H; subst).
 
   Definition empty_rmap' : rmap'.
@@ -1028,7 +1028,7 @@ Ltac inv H := (apply join_YES_pfullshare1 in H || apply join_YES_pfullshare2 in 
   Definition empty_rmap (n:nat) : rmap := R.squash (n, empty_rmap').
 
 Lemma emp_empty_rmap: forall n, emp (empty_rmap n).
-Proof. 
+Proof.
 intros.
 intro; intros.
 apply rmap_ext.
@@ -1085,7 +1085,7 @@ Instance Join_trace : Join (AV.address -> option (pshare * AV.kind)) :=
      (Join_prod pshare Join_pshare AV.kind (Join_equiv AV.kind))) (res_option x) (res_option y) (res_option  z).
  Proof.
    intros.
-  inv H; constructor.  split; auto. 
+  inv H; constructor.  split; auto.
  Qed.
 
 Definition fixup_trace (trace: AV.address -> option (pshare * AV.kind))
@@ -1116,7 +1116,7 @@ Proof.
  extensionality l.
  unfold compose, fixup_trace.
  destruct tr. simpl.
- destruct (x l); simpl; auto. destruct p. 
+ destruct (x l); simpl; auto. destruct p.
  case_eq (f @ l); intros.
  unfold resource_fmap. rewrite preds_fmap_NoneP; auto.
  generalize (resource_at_approx f l); intro.
@@ -1132,13 +1132,13 @@ Proof.
  rewrite H in H0. symmetry in H0.
   simpl in H0. simpl.
    f_equal. injection H0; auto.
-Qed.     
+Qed.
 
 
 Ltac crtac :=
  repeat  (solve [constructor; auto] ||
    match goal with
- | H: None = res_option ?A |- _ => destruct A; inv H  
+ | H: None = res_option ?A |- _ => destruct A; inv H
  | H: Some _ = res_option ?A |- _ => destruct A; inv H
  | H: join NO _ _ |- _ => inv H
  | H: join _ NO _ |- _ => inv H
@@ -1148,12 +1148,12 @@ Ltac crtac :=
  | H: join _ (PURE _ _) _ |- _ => inv H
  | H: @join _ _ (Some _) _ _ |- _ => inv H
  | H: @join _ _ _ (Some _) _ |- _ => inv H
- | H: @join _ _ None _ _ |- _ => 
+ | H: @join _ _ None _ _ |- _ =>
                 apply join_unit1_e in H; [| apply None_identity]
- | H: @join _ _ _ None _ |- _ => 
+ | H: @join _ _ _ None _ |- _ =>
                 apply join_unit2_e in H; [| apply None_identity]
  | H:  prod pshare AV.kind |- _ => destruct H
- | H: @join _ (Join_equiv _) ?a ?b ?c |- _ => destruct H; try subst a; try subst b; try subst c 
+ | H: @join _ (Join_equiv _) ?a ?b ?c |- _ => destruct H; try subst a; try subst b; try subst c
  | H: @join _ (Join_prod _ _ _ _) (_,_) (_,_) (_,_) |- _ => destruct H; simpl fst in *; simpl snd in *
  end; auto).
 
@@ -1164,7 +1164,7 @@ destruct a as [|a|a].
 assert (b=z) by (inv H; auto). subst.
 exists (NO,NO,c,d); split; simpl; auto; try constructor; auto.
 inv H. inv H0; split; constructor. inv H0; split; constructor.
-destruct b as [|b|b]. 
+destruct b as [|b|b].
 assert (z=YES a k p) by (inv H; auto). clear H; subst.
 exists (c,d,NO,NO); split; simpl; auto.
 inv H0; split3; constructor.
@@ -1221,7 +1221,7 @@ rename k2 into k; rename p2 into p.
 exists (YES (mk_lifted _ (nonidentity_nonunit n)) k p,  YES d k p, YES b k p, NO); split; simpl; auto.
 constructor; auto. split3; constructor; auto.
 rename k2 into k; rename p2 into p.
-exists (YES (mk_lifted _ (nonidentity_nonunit n)) k p, YES (mk_lifted _ (nonidentity_nonunit n0)) k p, 
+exists (YES (mk_lifted _ (nonidentity_nonunit n)) k p, YES (mk_lifted _ (nonidentity_nonunit n0)) k p,
        YES (mk_lifted _ (nonidentity_nonunit n1)) k p,  YES (mk_lifted _ (nonidentity_nonunit n2)) k p); split; simpl; auto.
 constructor; auto.  split3; constructor; auto.
 elimtype False; inv H0.
@@ -1233,7 +1233,7 @@ inv H. inv H0.
 repeat split; constructor; auto.
 Qed.
 
-Instance Cross_rmap: 
+Instance Cross_rmap:
       @Cross_alg _ (Join_prop _ Join_trace AV.valid) ->
       Cross_alg rmap.
 Proof.
@@ -1286,7 +1286,7 @@ Proof.
   (* case 4 *)
   destruct (ad l); crtac. destruct (bd l); crtac.
 Qed.
- 
+
 Lemma Cross_rmap_simple: (forall f, AV.valid f) -> Cross_alg rmap.
 Proof.
   intro V.
@@ -1307,7 +1307,7 @@ Proof.
    try proof_irr; try constructor;
      destruct H3; constructor; simpl; auto. (* this line for compatibility with Coq 8.3 *)
    destruct (X a b c d e H H0) as [[[[ac ad] bc] bd] [? [? [? ?]]]].
-   exists (exist AV.valid ac (V _), exist AV.valid ad (V _), 
+   exists (exist AV.valid ac (V _), exist AV.valid ad (V _),
               exist AV.valid bc (V _), exist AV.valid bd (V _)).
    split; [ |split3]; simpl; auto.
 Qed.
@@ -1329,7 +1329,7 @@ Proof.
   apply identity_resource.
   case_eq (core m @ i); intros; auto.
   rewrite H in Hdup. inv Hdup.
-   apply pshare_nonunit in H1. auto. 
+   apply pshare_nonunit in H1. auto.
 Qed.
 
 Lemma YES_inj: forall sh k pp sh' k' pp',
@@ -1347,7 +1347,7 @@ Proof. intros. inv H. apply inj_pair2 in H1. auto.
 Qed.
 
 Lemma PURE_inj: forall T x x' y y', PURE x (SomeP T y) = PURE x' (SomeP T y') -> x=x' /\ y=y'.
- Proof. intros. inv H. apply inj_pair2 in H2. subst; auto. 
+ Proof. intros. inv H. apply inj_pair2 in H2. subst; auto.
  Qed.
 
 Lemma core_resource_at: forall w i, core (w @ i) = core w @ i.

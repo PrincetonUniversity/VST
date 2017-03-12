@@ -26,14 +26,14 @@ Definition world_op (P: pred (env var adr)) (Q: pred (env adr adr)) : pred world
 Notation "'^stk' e" := (world_op e emp) (at level 30, no associativity): pred.
 Notation "'^hp' e" := (world_op emp e) (at level 30, no associativity): pred.
 
-Definition world_op_sepcon: 
+Definition world_op_sepcon:
      forall P P' Q Q',
        (world_op P P' * world_op Q Q' = world_op (P*Q) (P'*Q'))%pred.
 Proof.
  repeat intro.
  apply pred_ext.
  intros [s h] [[s1 h1] [[s2 h2] [[? ?] [[? ?] [? ?]]]]]; simpl in *.
- split. 
+ split.
  exists s1; exists s2; repeat split; auto.
  exists h1; exists h2; repeat split; auto.
  intros [s h] [[s1 [s2 [? [? ?]]]] [h1 [h2 [? [? ?]]]]].
@@ -51,7 +51,7 @@ Definition subst (x: var) (v: option (pshare * adr)) (P: pred world) : pred worl
    fun w => P (env_set_sh x v (fst w), snd w).
 
 (*
-Definition equal (x y: var) : pred world := 
+Definition equal (x y: var) : pred world :=
             fun w => env_get (fst w) x = env_get (fst w) y.
 *)
 
@@ -62,13 +62,13 @@ Inductive modvars : command -> var -> Prop :=
 | mod_seq2: forall x c1 c2, modvars c2 x -> modvars (Seq c1 c2) x.
 
 Definition nonfreevars (P: pred world) (x: var) : Prop :=
-  forall v, P |-- subst x v P. 
+  forall v, P |-- subst x v P.
 
-Definition subset (S1 S2: var -> Prop) := 
+Definition subset (S1 S2: var -> Prop) :=
   forall x, S1 x -> S2 x.
 
 Definition semax (P: pred world) (c: command) (Q: pred world) : Prop :=
-  forall F s, 
+  forall F s,
     (P*F)%pred (den s) -> exists s', exec c s = Some s' /\ (Q*F)%pred (den s').
 
 Lemma env_get_den {A B}{AE: EqDec A}:  forall s (y: A) sh (v: B), env_get (den_env s) y = Some (sh,v) ->
@@ -76,7 +76,7 @@ Lemma env_get_den {A B}{AE: EqDec A}:  forall s (y: A) sh (v: B), env_get (den_e
 Proof.
 Admitted.
 
-Lemma eval_var_get: forall s x v, (x =# v)%pred s -> 
+Lemma eval_var_get: forall s x v, (x =# v)%pred s ->
      exists sh, env_get (fst s) x = Some (sh,v).
 Admitted.
 
@@ -92,14 +92,14 @@ Proof.
   intros.  intros F s H.
   destruct H as [[stk1 hp1] [[stk2 hp2] [? [[[? OWN] ?] ?]]]].
   simpl in *.
-  destruct H as [H H']. simpl in H,H'. 
+  destruct H as [H H']. simpl in H,H'.
   exists (table_set x v (fst s), snd s).
    assert (H0': (y =# v)%pred (den s)).
    admit.  (* easy, need to prove =# extendM *)
    apply eval_var_get in H0'.
    destruct H0' as [sh ?].
   destruct s as [s h]. simpl in *.
-  apply env_get_den in H3. destruct H3; subst sh. 
+  apply env_get_den in H3. destruct H3; subst sh.
   change nat with var in H3. rewrite H3.
   simpl. split; auto.
   unfold subst in H1. simpl in H1.
@@ -116,8 +116,8 @@ Qed.
 
 Lemma semax_load: forall x y p v v0 sh sh',
        semax (^stk env_mapsto x Share.top v0 * ^stk (env_mapsto y sh p) *
-                    ^hp env_mapsto p sh' v) 
-                  (Load x y) 
+                    ^hp env_mapsto p sh' v)
+                  (Load x y)
                   (^stk env_mapsto x Share.top v * ^stk (env_mapsto y sh p) *
                     ^hp env_mapsto p sh' v).
 Proof.
@@ -159,8 +159,8 @@ Qed.
 
 Lemma semax_store: forall x y p v v0 sh sh',
        semax (^stk env_mapsto x sh p * ^stk (env_mapsto y sh' v) *
-                    ^hp env_mapsto p Share.top v0) 
-                  (Store x y) 
+                    ^hp env_mapsto p Share.top v0)
+                  (Store x y)
                   (^stk env_mapsto x sh p * ^stk (env_mapsto y sh' v) *
                     ^hp env_mapsto p Share.top v).
 Proof.
@@ -198,11 +198,11 @@ Proof.
  symmetry.
  eapply env_mapsto_get_neq; eauto.
 Qed.
- 
+
 Lemma semax_seq: forall P c1 Q c2 R,
   semax P c1 Q -> semax Q c2 R -> semax P (Seq c1 c2) R.
 Proof.
- unfold semax; intros. 
+ unfold semax; intros.
  destruct (H F s) as [s1 [? ?]]; auto.
  destruct (H0 F s1) as [s2 [? ?]]; auto.
  exists s2; split; auto.

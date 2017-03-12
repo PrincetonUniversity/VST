@@ -9,7 +9,7 @@ Local Open Scope logic.
 
 
 Lemma upd_Znth_append:
- forall (t: Type) len N dd ee (v: t), 
+ forall (t: Type) len N dd ee (v: t),
    len = Zlength dd ->
    len < N ->
    N <= Zlength ee ->
@@ -53,7 +53,7 @@ assert_PROP (Zlength r_data = CBLOCKz
   { entailer!.
     simplify_value_fits in H12; destruct H12 as [LEN _].
      split; auto.
-    change  (@reptype CompSpecs tuchar) with val in LEN. (* should not be necessary *) 
+    change  (@reptype CompSpecs tuchar) with val in LEN. (* should not be necessary *)
     rewrite <- H2.
     pose proof (Zlength_nonneg (s256a_data a)).
     rewrite <- sublist_split; autorewrite with sublist; try omega.
@@ -102,13 +102,13 @@ rewrite (split2_array_at _ _ _ 0 (Zlength dd') 64); try Omega1.
 forward_call (* memset (p+n,0,SHA_CBLOCK-8-n); *)
   (Tsh,
      field_address0 t_struct_SHA256state_st
-         [ArraySubsc (Zlength dd'); StructField _data] c, 
+         [ArraySubsc (Zlength dd'); StructField _data] c,
      (Z.of_nat CBLOCK - 8 - Zlength dd')%Z,
      Int.zero).
 {apply prop_right; repeat constructor; hnf; simpl; auto.
  rewrite field_address_offset by auto with field_compatible.
  rewrite field_address0_offset by auto with field_compatible.
- make_Vptr c. simpl. normalize. 
+ make_Vptr c. simpl. normalize.
 }
 {
 change  (Z.of_nat CBLOCK - 8 - Zlength dd')
@@ -135,9 +135,9 @@ assert_PROP (force_val
  }
  simpl (temp _p _).
  rewrite H2. clear H2.
- eapply semax_pre_post; [ | | 
+ eapply semax_pre_post; [ | |
   change Delta with Delta_final_if1;
-  apply final_part2 with (hashed:= s256a_hashed a)(pad:=pad)(c:=c)(kv:=kv)(md:=md); 
+  apply final_part2 with (hashed:= s256a_hashed a)(pad:=pad)(c:=c)(kv:=kv)(md:=md);
   try eassumption; try Omega1; try apply s256a_hashed_divides].
 +
 change (Z.of_nat CBLOCK) with CBLOCKz.

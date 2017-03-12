@@ -47,7 +47,7 @@ Module Type KNOT_HERED_SA.
   Parameter Canc_knot : (forall A, Canc_alg (F A)) -> Canc_alg knot.  Existing Instance Canc_knot.
   Parameter Disj_knot : (forall A, Disj_alg (F A)) -> Disj_alg knot.  Existing Instance Disj_knot.
 
-  Instance Join_nat_F: Join (nat * F predicate) := 
+  Instance Join_nat_F: Join (nat * F predicate) :=
        Join_prod nat  (Join_equiv nat) (F predicate) _.
 
  Instance Perm_nat_F : Perm_alg (nat * F predicate) :=
@@ -79,7 +79,7 @@ Module KnotHeredSa (TFSA':TY_FUNCTOR_SA_PROP) (K':KNOT_HERED with Module TF:=TFS
   Import K.
   Import KL.
 
-  Instance Join_nat_F: Join (nat * F predicate) := 
+  Instance Join_nat_F: Join (nat * F predicate) :=
        Join_prod nat  (Join_equiv nat) (F predicate) _.
 
  Instance Perm_nat_F : Perm_alg (nat * F predicate) :=
@@ -103,13 +103,13 @@ Module KnotHeredSa (TFSA':TY_FUNCTOR_SA_PROP) (K':KNOT_HERED with Module TF:=TFS
     apply paf_join_hom. auto.
   Qed.
 
-  Instance Join_knot : Join knot := 
+  Instance Join_knot : Join knot :=
            Join_preimage knot (nat * F predicate) Join_nat_F unsquash.
 
-  Instance Perm_knot : Perm_alg knot := 
+  Instance Perm_knot : Perm_alg knot :=
     Perm_preimage _ _ _ _ unsquash squash squash_unsquash unsquash_squash_join_hom.
 
-  Instance Sep_knot(Sep_F: forall A, Sep_alg (F A)) : Sep_alg knot := 
+  Instance Sep_knot(Sep_F: forall A, Sep_alg (F A)) : Sep_alg knot :=
     Sep_preimage _ _ _  unsquash squash squash_unsquash unsquash_squash_join_hom.
 
   Lemma join_unsquash : forall x1 x2 x3,
@@ -120,7 +120,7 @@ Module KnotHeredSa (TFSA':TY_FUNCTOR_SA_PROP) (K':KNOT_HERED with Module TF:=TFS
   Qed.
 
   Instance Canc_knot(Canc_F: forall A, Canc_alg (F A)) : Canc_alg knot.
-  Proof. repeat intro. 
+  Proof. repeat intro.
             do 3 red in H, H0.
             apply unsquash_inj.
             apply (join_canc H H0).
@@ -133,7 +133,7 @@ Module KnotHeredSa (TFSA':TY_FUNCTOR_SA_PROP) (K':KNOT_HERED with Module TF:=TFS
    apply join_self in H.
    apply unsquash_inj; auto.
   Qed.
-  
+
   Lemma age_join1 :
     forall x y z x' : K'.knot,
       join x y z ->
@@ -249,7 +249,7 @@ Module KnotHeredSa (TFSA':TY_FUNCTOR_SA_PROP) (K':KNOT_HERED with Module TF:=TFS
       exists x, exists y, join x y z /\ age x x' /\ age y y'.
   Proof.
     intros.
-    rewrite join_unsquash in H. 
+    rewrite join_unsquash in H.
     revert H H0.
     unfold join, Join_knot, Join_preimage, age in *; simpl in *.
     repeat rewrite knot_age1.
@@ -272,7 +272,7 @@ Module KnotHeredSa (TFSA':TY_FUNCTOR_SA_PROP) (K':KNOT_HERED with Module TF:=TFS
     exists (squash (S n, wy)).
     split. unfold join, Join_nat_F, Join_prod; simpl.
     (* unfold Join_knot; simpl. unfold Join_preimage; simpl. *)
-    repeat rewrite unsquash_squash.  simpl.  split; auto. 
+    repeat rewrite unsquash_squash.  simpl.  split; auto.
 
     rewrite (unsquash_approx H).
     apply paf_join_hom; auto.

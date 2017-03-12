@@ -75,7 +75,7 @@ Next Obligation.
 Qed.
 
 Program Definition mapsto (x y: var) : pred world :=
- fun w => 
+ fun w =>
     exists ax, fst (snd w) x = Some ax /\
     exists ay, fst (snd w) y = Some ay /\
     forall a, if eq_dec a ax then snd (snd w) a = Some ay else snd (snd w) a = None.
@@ -85,7 +85,7 @@ Next Obligation.
  simpl in *. auto.
 Qed.
 
-Program Definition equal (x y: var) : pred world := 
+Program Definition equal (x y: var) : pred world :=
             fun w => fst (snd w) x = fst (snd w) y.
 Next Obligation.
  intros. intro; intros.
@@ -100,9 +100,9 @@ Inductive modvars : command -> var -> Prop :=
 | mod_seq2: forall x c1 c2, modvars c2 x -> modvars (Seq c1 c2) x.
 
 Definition nonfreevars (P: pred world) (x: var) : Prop :=
-  forall lev stk hp v, P (lev, (stk,hp)) -> P (lev, (fun_set stk x v, hp)). 
+  forall lev stk hp v, P (lev, (stk,hp)) -> P (lev, (fun_set stk x v, hp)).
 
-Definition subset (S1 S2: var -> Prop) := 
+Definition subset (S1 S2: var -> Prop) :=
   forall x, S1 x -> S2 x.
 
 Inductive safeN: nat -> (list command * state) -> Prop :=
@@ -152,7 +152,7 @@ Proof.
  destruct lev; [apply safe0 | ].
  eapply safe_step with  (k, (table_set x ay stk, hp)).
  econstructor; eauto.
- generalize (H4 ax); intros. 
+ generalize (H4 ax); intros.
  destruct (eq_dec ax ax); [ | contradiction n; auto].
  generalize (H9 ax).  rewrite H1; intro. inv H6; auto.  destruct H11.
  apply H0.

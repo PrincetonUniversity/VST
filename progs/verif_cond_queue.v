@@ -20,19 +20,19 @@ Definition malloc_spec :=
  DECLARE _malloc
   WITH n: Z
   PRE [ 1%positive OF tuint ]
-     PROP (4 <= n <= Int.max_unsigned) 
+     PROP (4 <= n <= Int.max_unsigned)
      LOCAL (temp 1%positive (Vint (Int.repr n)))
      SEP ()
-  POST [ tptr tvoid ] 
+  POST [ tptr tvoid ]
      EX v: val,
-     PROP (malloc_compatible n v) 
-     LOCAL (temp ret_temp v) 
+     PROP (malloc_compatible n v)
+     LOCAL (temp ret_temp v)
      SEP (memory_block Tsh n v).
 
 Definition free_spec :=
  DECLARE _free
   WITH p : val , n : Z
-  PRE [ 1%positive OF tptr tvoid ]  
+  PRE [ 1%positive OF tptr tvoid ]
      (* we should also require natural_align_compatible (eval_id 1) *)
       PROP() LOCAL (temp 1%positive p)
       SEP (memory_block Tsh n p)
@@ -456,7 +456,7 @@ Proof.
   start_function.
   rewrite <- seq_assoc.
   forward_for_simple_bound 10 (EX i : Z, PROP ()
-    LOCAL (gvar _buf buf; gvar _requests_producer cprod; gvar _requests_consumer ccon; gvar _length len; 
+    LOCAL (gvar _buf buf; gvar _requests_producer cprod; gvar _requests_consumer ccon; gvar _length len;
                       gvar _requests_lock lock)
     SEP (data_at Ews (tarray (tptr trequest) MAX)
              (repeat (Vint (Int.repr 0)) (Z.to_nat i) ++ repeat Vundef (Z.to_nat (10 - i))) buf;

@@ -1997,7 +1997,7 @@ Definition f_crypto_onetimeauth_poly1305_tweet := {|
                                                       (Econst_int (Int.repr 0) tint))
                                                     (Sloop
                                                       (Ssequence
-                                                        (Sifthenelse 
+                                                        (Sifthenelse
                                                           (Ebinop Olt
                                                             (Etempvar _j tuint)
                                                             (Econst_int (Int.repr 16) tint)
@@ -3525,7 +3525,7 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                                                            nil))
                                                         (Ssequence
                                                           (Scall None
-                                                            (Evar _M 
+                                                            (Evar _M
                                                             (Tfunction
                                                               (Tcons
                                                                 (tptr tlong)
@@ -3542,7 +3542,7 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                                                              nil))
                                                           (Ssequence
                                                             (Scall None
-                                                              (Evar _M 
+                                                              (Evar _M
                                                               (Tfunction
                                                                 (Tcons
                                                                   (tptr tlong)
@@ -3559,7 +3559,7 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                                                                nil))
                                                             (Ssequence
                                                               (Scall None
-                                                                (Evar _S 
+                                                                (Evar _S
                                                                 (Tfunction
                                                                   (Tcons
                                                                     (tptr tlong)
@@ -3573,7 +3573,7 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                                                                  nil))
                                                               (Ssequence
                                                                 (Scall None
-                                                                  (Evar _sel25519 
+                                                                  (Evar _sel25519
                                                                   (Tfunction
                                                                     (Tcons
                                                                     (tptr tlong)
@@ -3589,7 +3589,7 @@ Definition f_crypto_scalarmult_curve25519_tweet := {|
                                                                    (Etempvar _r tlong) ::
                                                                    nil))
                                                                 (Scall None
-                                                                  (Evar _sel25519 
+                                                                  (Evar _sel25519
                                                                   (Tfunction
                                                                     (Tcons
                                                                     (tptr tlong)

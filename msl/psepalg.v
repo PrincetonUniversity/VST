@@ -83,7 +83,6 @@ Section PSA_LIFT.
   Coercion lifted_obj : lifted >-> A.
   Definition mk_lifted (a : A) (pf : nonunit a) : lifted :=
     exist nonunit a pf.
-  Implicit Arguments mk_lifted [].
 
   Instance Join_lift: Join lifted := fun a1 a2 a3 : lifted => @join A J_A a1 a2 a3.
 
@@ -135,7 +134,7 @@ Section PSA_LIFT.
   Qed.
 
   (** General facts about lifting *)
-  
+
   Lemma lifted_eq : forall a b, 
     lifted_obj a = lifted_obj b -> 
     a = b.
@@ -144,13 +143,13 @@ Section PSA_LIFT.
     destruct a. destruct b. simpl in *. subst x0.
     f_equal. apply proof_irr.
   Qed.
-  
-  Lemma mk_lifted_refl1: forall a pf1 pf2, 
-    mk_lifted a pf1 = mk_lifted a pf2.
+
+  Lemma mk_lifted_refl1: forall (a:A)  (pf1 pf2: nonunit a),
+    mk_lifted pf1 = mk_lifted pf2.
   Proof.
     intros; rewrite (proof_irr pf1 pf2); auto.
   Qed.
-  
+
   Lemma lifted_pjoins : forall a b : lifted,
     joins a b = @joins A J_A a b.
   Proof.
@@ -197,7 +196,7 @@ Existing Instance Perm_lift.
 Existing Instance Pos_lift.
 Existing Instance Canc_lift.
 Existing Instance Disj_lift.
-Implicit Arguments mk_lifted [A J_A].
+Arguments mk_lifted [A J_A] _ _.
 
 (** The dual of lifting is lowering: adding a distinct unit to a Pos_alg 
     produces a sepalg.  Note that lower o lift is not an isomorphism for
@@ -261,11 +260,11 @@ Section SA_LOWER.
   Qed.
 
 End SA_LOWER.
-Implicit Arguments Perm_lower [[Pj_A][PA_A]].
-Implicit Arguments Sep_lower [[Pj_A]].
-Implicit Arguments Sing_lower [[Pj_A]].
-Implicit Arguments Canc_lower [[Pj_A][psa_A][CA]].
-Implicit Arguments Disj_lower [[Pj_A][DA]].
+Arguments Perm_lower _ [Pj_A][PA_A].
+Arguments Sep_lower _ [Pj_A].
+Arguments Sing_lower _ [Pj_A].
+Arguments Canc_lower _ [Pj_A][psa_A][CA] _ _ _ _ _ _.
+Arguments Disj_lower _ [Pj_A][DA] _ _ _.
 
 Existing Instance Join_lower.  (* Must not be inside a Section *)
 Existing Instance Perm_lower.
@@ -333,7 +332,7 @@ Section SA_SMASH.
   Qed.
 End SA_SMASH.
 
-Implicit Arguments smashed [[J_T]].
+Arguments smashed _  [J_T].
 Existing Instance Perm_smash. (* Must not be inside a Section *)
 Existing Instance Sep_smash. (* Must not be inside a Section *)
 

@@ -27,7 +27,7 @@ Local Hint Resolve inflate_initial_mem_empty.
 (* fancy initial mem *)
 
 (* TODO: move this somewhere more appropriate *)
-Definition no_VALs (phi: rmap) := forall loc, 
+Definition no_VALs (phi: rmap) := forall loc,
   match phi @ loc with
     | YES _ _ (VAL _) _ => False | _ => True
   end.
@@ -129,7 +129,7 @@ auto.
 Qed.
 
 Lemma oracle_unage:
-  forall (jm': juicy_mem) (w: rmap), age w (m_phi jm') -> 
+  forall (jm': juicy_mem) (w: rmap), age w (m_phi jm') ->
        exists jm, age jm jm' /\ m_phi jm = w.
 Proof.
 intros.
@@ -200,9 +200,9 @@ contradiction.
 Qed.
 
 Lemma valid_access_None: forall m ch b b' ofs ofs' p,
-  Mem.valid_access m ch b ofs p 
-  -> adr_range (b, ofs) (size_chunk ch) (b', ofs') 
-  -> access_at m (b', ofs') Cur = None 
+  Mem.valid_access m ch b ofs p
+  -> adr_range (b, ofs) (size_chunk ch) (b', ofs')
+  -> access_at m (b', ofs') Cur = None
   -> False.
 Proof.
 unfold access_at, Mem.valid_access, Mem.perm, Mem.range_perm, Mem.perm, Mem.perm_order'.
@@ -216,7 +216,7 @@ rewrite H1 in H.
 auto.
 Qed.
 
-Lemma core_load_getN: forall ch v b ofs bl phi m, 
+Lemma core_load_getN: forall ch v b ofs bl phi m,
   contents_cohere m phi
   -> (core_load' ch (b, ofs) v bl)%pred phi
   -> bl = Mem.getN (size_chunk_nat ch) ofs (PMap.get b (Mem.mem_contents m)).
@@ -231,7 +231,7 @@ revert ofs H H3.
 assert (H: size_chunk_nat ch = nat_of_Z (size_chunk ch)) by auto.
 rewrite H; clear H.
 generalize (size_chunk ch) as z.
-induction bl; intros; simpl; auto. 
+induction bl; intros; simpl; auto.
 rewrite IHbl with (ofs := ofs + 1) (z := z - 1); auto.
 rewrite Mem.getN_length.
 f_equal; auto.
@@ -461,16 +461,16 @@ generalize (lt_O_nat_of_P p). intro.
 case_eq (Zpos p - 1). intro.
 assert (Zpos p = 1) by omega.
 rewrite H2 in H. auto.
-intros. 
+intros.
 assert (Zpos p = Zpos p0 + 1) by omega.
 rewrite H2 in H.
 rewrite nat_of_Z_plus in H; try omega.
 simpl in H.
-simpl. 
+simpl.
 assert (forall m n, S m = n + 1 -> m = n)%nat.
   intros. omega.
 apply H3; auto.
-generalize (lt_O_nat_of_P p0). intro. 
+generalize (lt_O_nat_of_P p0). intro.
 rewrite Zpos_eq_Z_of_nat_o_nat_of_P.
 omega.
 intros.
@@ -483,7 +483,7 @@ Qed.
 Lemma nat_of_Z_lem2: forall n z1 z2, S n = nat_of_Z (z1 - z2) -> n = nat_of_Z (z1 - z2 - 1).
 Proof. intros; apply nat_of_Z_lem1; auto. Qed.
 
-Lemma nth_getN: forall m b ofs ofs' z, 
+Lemma nth_getN: forall m b ofs ofs' z,
   ofs <= ofs' < ofs + z
   -> z >= 0
   -> contents_at m (b, ofs')
@@ -536,14 +536,14 @@ omega.
 Qed.
 
 Lemma load_core_load: forall ch b ofs v m,
-  Mem.load ch (m_dry m) b ofs = Some v -> 
+  Mem.load ch (m_dry m) b ofs = Some v ->
   (forall z, ofs <= z < ofs + size_chunk ch ->
                       perm_order'' (perm_of_res (m_phi m @ (b,z))) (Some Readable)) ->
  core_load ch (b, ofs) v (m_phi m).
 Proof.
 intros until m; intros H PERM.
 hnf.
-unfold Mem.load in H. 
+unfold Mem.load in H.
 
 if_tac in H; try solve [inv H].
 inversion H.
@@ -558,7 +558,7 @@ clear H0'1 H0'2.
 intros (b', ofs').
 hnf.
 if_tac; hnf; auto.
-assert (Heqbb': b = b'). 
+assert (Heqbb': b = b').
   unfold adr_range in H. decompose [and] H. auto.
 pose proof (juicy_mem_contents m).
 pose proof I. (* pose proof (juicy_mem_access m).*)
@@ -626,7 +626,7 @@ exists phi.
 split; auto.
 exists (Mem.getN (size_chunk_nat ch) (snd loc) (PMap.get (fst loc) (Mem.mem_contents m))).
 split.
-repeat split; auto. 
+repeat split; auto.
 Transparent Mem.load.
 unfold load in *. if_tac in H0. injection H0. auto. inv H0.
 intro l'.
@@ -734,7 +734,7 @@ apply (mkmem
   (nextblock (m_dry jm)) (access_max (m_dry jm)) (nextblock_noaccess (m_dry jm))).
 intros. destruct jm; simpl.
   rewrite PMap.gsspec. destruct (peq b0 b).
-  rewrite setN_default. apply contents_default. 
+  rewrite setN_default. apply contents_default.
   apply contents_default.
 Defined.
 
@@ -875,7 +875,7 @@ unfold access_cohere in Ha.
 apply resource_at_join2; auto.
 rewrite <- (level_core m1). rewrite <- (level_core (m_phi j)). congruence.
 subst j'. simpl. unfold inflate_free. simpl. rewrite level_make_rmap. auto.
-intros (b0, ofs0). 
+intros (b0, ofs0).
 subst j'. simpl.
 unfold inflate_free; rewrite resource_at_make_rmap.
 destruct (adr_range_dec (b,lo) (hi-lo) (b0,ofs0)).
@@ -908,7 +908,7 @@ assert (H3 : m_phi j @ (b0, ofs0) = YES Share.top readable_share_top (VAL mv) No
   destruct RJ as [? RJ]; apply join_top in RJ. subst sh'.
   pose proof (juicy_mem_contents j). 
   destruct (H1 _ _ _ _ _ H0); auto. subst. apply YES_ext; auto.
- }  
+ }
 rewrite H3. repeat rewrite preds_fmap_NoneP. unfold pfullshare.
 apply join_unit2. constructor. apply join_unit1; auto.
 f_equal. apply proof_irr.
@@ -930,7 +930,7 @@ Focus 2.
 destruct (free_nadr_range_eq _ _ _ _ _ _ _ n H) as [H0 H10].
 (* rewrite <- H0 in *; clear H0.*)
   assert (Ha0 := juicy_mem_access j (b0,ofs0)).
- revert Ha0; 
+ revert Ha0;
   case_eq (m_phi j @ (b0,ofs0)); intros.
  constructor. apply join_unit1; auto.
  constructor. apply join_unit1; auto.

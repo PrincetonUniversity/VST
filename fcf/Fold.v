@@ -32,9 +32,9 @@ Fixpoint zip(A B : Set)(lsa : list A)(lsb : list B) :=
   end.
 
 
-Ltac pairInv := 
+Ltac pairInv :=
   match goal with
-    | [H : (_, _) = (_, _) |- _] => 
+    | [H : (_, _) = (_, _) |- _] =>
       inversion H; clear H; subst
   end.
 
@@ -51,58 +51,58 @@ Section RemoveDups.
         if (in_dec (EqDec_dec _) a' ls') then (removeDups ls') else (a' :: (removeDups ls'))
     end.
 
-  Theorem removeDups_in : 
+  Theorem removeDups_in :
     forall (ls : list A) a,
       In a (removeDups ls) ->
       In a ls.
-    
+
     induction ls; intuition; simpl in *.
     destruct (in_dec (EqDec_dec eqd) a ls).
     right.
     eauto.
-    
+
     simpl in *.
     intuition.
   Qed.
-  
+
   Theorem removeDups_NoDup :
     forall (ls : list A),
       NoDup (removeDups ls).
-    
+
     induction ls; intuition; simpl in *.
-    
+
     econstructor.
-    
+
     destruct (in_dec (EqDec_dec eqd) a ls); intuition.
     econstructor; intuition.
     eapply n.
     eapply removeDups_in.
     trivial.
-    
+
   Qed.
 
-  Lemma in_removeDups : 
+  Lemma in_removeDups :
     forall (ls : list A) a,
-      In a ls -> 
+      In a ls ->
       In a (removeDups ls).
-    
+
     induction ls; intuition; simpl in *.
-    
+
     intuition; subst.
-    
+
     destruct (in_dec (EqDec_dec eqd) a0 ls).
     eauto.
     simpl.
     intuition.
-    
+
     destruct (in_dec (EqDec_dec eqd) a ls).
     eauto.
     simpl.
     right.
     eauto.
-    
+
   Qed.
-     
+
 
 End RemoveDups.
 
@@ -114,12 +114,12 @@ Section ListReplace.
 
   Fixpoint listReplace (ls : list A)(i : nat)(a def : A) :=
     match i with
-      | O => 
+      | O =>
         match ls with
         | nil => a :: nil
         | a' :: ls' => a :: ls'
         end
-      | S i' => 
+      | S i' =>
         match ls with
         | nil => def :: (listReplace nil i' a def)
         | a' :: ls' =>
@@ -136,7 +136,7 @@ Section SumList.
   Definition sumList(ls : list A)(f : A -> Rat) := fold_left (fun a b => a + (f b)) ls 0.
 
   (* Facts about sumList *)
- 
+
 
   Theorem sumList_ne_0 : forall (ls : list A)(f : A -> Rat),
     ~ (sumList ls f) == 0 ->
@@ -151,14 +151,14 @@ Section SumList.
     (sumList ls1 f1) == (sumList ls2 f2).
   Abort.
 
-  
+
   Lemma fold_add_init : forall (ls : list A)(f : A -> Rat) init1 init2,
-    fold_left (fun (r : Rat) (a : A) => r + (f a)) ls (init1 + init2) == 
+    fold_left (fun (r : Rat) (a : A) => r + (f a)) ls (init1 + init2) ==
     init1 + (fold_left (fun (r : Rat) (a : A) => r + (f a)) ls init2).
-    
+
     induction ls; intuition; simpl in *.
     eapply eqRat_refl.
-    
+
     eapply eqRat_trans.
     eapply IHls.
     eapply eqRat_trans.
@@ -173,25 +173,25 @@ Section SumList.
     init1 == init2 ->
     (forall a, In a ls -> f1 a == f2 a) ->
     fold_left (fun r a => r + (f1 a)) ls init1 == fold_left (fun r a => r + (f2 a)) ls init2.
-    
+
     induction ls; intuition; simpl in *.
-    
+
     eapply IHls; eauto.
     eapply ratAdd_eqRat_compat; eauto.
   Qed.
 
   Lemma fold_add_rat_perm : forall (ls1 ls2 : list A)(f1 f2 : A -> Rat),
     Permutation ls1 ls2 ->
-    forall init1 init2, 
+    forall init1 init2,
       init1 == init2 ->
       (forall (a : A), In a ls1 -> (f1 a) == (f2 a)) ->
       fold_left (fun r a => r + (f1 a)) ls1 init1 == fold_left (fun r a => r + (f2 a)) ls2 init2.
-    
+
     induction 1; intuition; simpl in *.
-    
+
     eapply IHPermutation; eauto.
     eapply ratAdd_eqRat_compat; eauto.
-    
+
     eapply fold_add_body_eq.
     eapply eqRat_trans.
     eapply ratAdd_assoc.
@@ -204,7 +204,7 @@ Section SumList.
     eapply ratAdd_comm.
     eapply ratAdd_eqRat_compat; eauto.
     intuition.
-    
+
     eapply eqRat_trans; eauto.
     eapply eqRat_trans.
     eapply fold_add_body_eq.
@@ -216,7 +216,7 @@ Section SumList.
     eapply Permutation_sym.
     eauto.
     eauto.
-    
+
     simpl.
     eapply IHPermutation2.
     trivial.
@@ -234,9 +234,9 @@ Section SumList.
     (forall a, In a ls -> f_inv (f a) = a) ->
     fold_left (fun r b => r + fa (f_inv b)) (map f ls) init1 ==
     fold_left (fun r a => r + (fa a)) ls init2.
-    
+
     induction ls; intuition; simpl in *.
-    
+
     eapply IHls; eauto.
     rewrite H0.
     eapply ratAdd_eqRat_compat; eauto.
@@ -246,14 +246,14 @@ Section SumList.
 
    Lemma sumList_0 : forall (ls : list A) f,
     (sumList ls f == 0) <-> (forall a, In a ls -> (f a) == 0).
-    
+
     induction ls; intuition; simpl in *.
-    
+
     intuition.
     unfold sumList.
     simpl.
     eapply eqRat_refl.
-    
+
     intuition; subst.
     unfold sumList in *; simpl in *.
     eapply eqRat_trans.
@@ -270,7 +270,7 @@ Section SumList.
     eapply eqRat_refl.
     eapply H.
     eapply eqRat_refl.
-    
+
     eapply IHls.
     unfold sumList in *; simpl in *.
     eapply ratAdd_0.
@@ -284,7 +284,7 @@ Section SumList.
     eapply eqRat_refl.
     eapply H.
     trivial.
-    
+
     unfold sumList.
     simpl.
     eapply eqRat_trans.
@@ -303,16 +303,16 @@ Section SumList.
 
   Lemma sumList_nz : forall (ls : list A) f,
     (~sumList ls f == 0) <-> exists a : _, In a ls /\ (~f a == 0).
-    
+
     induction ls; intuition; unfold sumList in *; simpl in *.
-    
+
     exfalso.
     apply H.
     eapply eqRat_refl.
-    
+
     destruct H.
     intuition.
-    
+
     assert (f a + fold_left (fun r a => r + f a) ls 0 == 0 -> False).
     intuition.
     eapply H.
@@ -327,12 +327,12 @@ Section SumList.
     eapply ratAdd_nz in H0.
     destruct H0.
     econstructor; intuition.
-    
+
     apply IHls in H0.
     destruct H0; intuition.
     exists x.
     intuition.
-    
+
     assert (f a + fold_left (fun r a => r + f a) ls 0 == 0).
     eapply eqRat_trans.
     eapply eqRat_symm.
@@ -345,12 +345,12 @@ Section SumList.
     trivial.
     apply ratAdd_0 in H1.
     intuition.
-    
+
     destruct H.
     intuition.
     subst.
     intuition.
-    
+
     apply IHls in H3; intuition.
     econstructor; eauto.
   Qed.
@@ -370,9 +370,9 @@ Qed.
 
 Lemma fold_add_eq_init : forall (A : Set)(ls : list A) init,
   fold_left (fun r a => r + 0) ls init == init.
-  
+
   induction ls; intuition; simpl in *; intuition.
-  
+
   eapply eqRat_trans.
   eapply fold_add_body_eq; intuition.
   rewrite <- ratAdd_0_r.
@@ -384,7 +384,7 @@ Qed.
 Lemma fold_add_eq_init_f : forall (A : Set)(ls : list A) f init,
   (forall a, In a ls -> (f a) == 0) ->
   fold_left (fun r a => r + (f a)) ls init == init.
-  
+
   intuition.
   eapply eqRat_trans.
   eapply fold_add_body_eq.
@@ -395,31 +395,31 @@ Lemma fold_add_eq_init_f : forall (A : Set)(ls : list A) f init,
 Qed.
 
 Lemma fold_add_eq : forall (A : Set)(ls : list A)(f1 f2 : A -> Rat) init1 init2,
-  fold_left (fun r a => r + (f1 a)) ls init1 + 
+  fold_left (fun r a => r + (f1 a)) ls init1 +
   fold_left (fun r a => r + (f2 a)) ls init2 ==
   fold_left (fun r a => r + (f1 a + f2 a)) ls (init1 + init2).
-        
+
   induction ls; intuition; simpl in *.
   eapply eqRat_refl.
-  
+
   rewrite IHls.
   eapply fold_add_body_eq.
-  
+
   repeat rewrite <- ratAdd_assoc.
   apply ratAdd_eqRat_compat; intuition.
   rewrite ratAdd_assoc.
   rewrite ratAdd_assoc.
   apply ratAdd_eqRat_compat; intuition.
   eapply ratAdd_comm.
-  
+
   intuition.
 Qed.
 
 Lemma fold_add_comm : forall (A B : Set)(lsa : list A)(lsb : list B) f,
-  fold_left (fun r1 a => r1 + (fold_left (fun r2 b => r2 + (f a b)) lsb 0)) lsa 0  == 
+  fold_left (fun r1 a => r1 + (fold_left (fun r2 b => r2 + (f a b)) lsb 0)) lsa 0  ==
   fold_left (fun r1 b => r1 + (fold_left (fun r2 a => r2 + (f a b)) lsa 0)) lsb 0.
   induction lsa; destruct lsb; intuition; simpl in *; intuition.
-  
+
   apply eqRat_symm.
   eapply eqRat_trans.
   eapply fold_add_body_eq; intuition.
@@ -427,14 +427,14 @@ Lemma fold_add_comm : forall (A B : Set)(lsa : list A)(lsb : list B) f,
   apply eqRat_refl.
   apply eqRat_refl.
   apply fold_add_eq_init.
-  
+
   eapply eqRat_trans.
   eapply fold_add_body_eq; intuition.
   rewrite <- ratAdd_0_r.
   apply eqRat_refl.
   apply eqRat_refl.
   apply fold_add_eq_init.
-  
+
   eapply eqRat_trans.
   eapply fold_add_body_eq; intuition.
   rewrite <- ratAdd_0_l.
@@ -447,7 +447,7 @@ Lemma fold_add_comm : forall (A B : Set)(lsa : list A)(lsb : list B) f,
   apply eqRat_refl.
   apply eqRat_refl.
   simpl.
-  
+
   eapply eqRat_trans.
   eapply fold_add_body_eq; intuition.
   eapply eqRat_refl.
@@ -463,18 +463,18 @@ Lemma fold_add_comm : forall (A B : Set)(lsa : list A)(lsb : list B) f,
   apply ratAdd_0_r.
   apply eqRat_refl.
   apply eqRat_symm.
-  
+
   eapply fold_add_eq.
   eapply eqRat_trans.
   eapply ratAdd_eqRat_compat.
   apply eqRat_refl.
   apply ratAdd_eqRat_compat.
   apply eqRat_refl.
-  
+
   eapply IHlsa.
-  
+
   eapply eqRat_symm.
-  
+
   eapply eqRat_trans.
   eapply fold_add_body_eq; intuition.
   rewrite <- ratAdd_0_l.
@@ -487,7 +487,7 @@ Lemma fold_add_comm : forall (A B : Set)(lsa : list A)(lsb : list B) f,
   apply eqRat_refl.
   apply eqRat_refl.
   simpl.
-  
+
   eapply eqRat_trans.
   eapply fold_add_body_eq; intuition.
   eapply eqRat_refl.
@@ -504,7 +504,7 @@ Lemma fold_add_comm : forall (A B : Set)(lsa : list A)(lsb : list B) f,
   apply eqRat_refl.
   apply eqRat_symm.
   eapply fold_add_eq.
-  
+
   eapply eqRat_trans.
   eapply ratAdd_eqRat_compat.
   eapply fold_add_init_0.
@@ -515,7 +515,7 @@ Lemma fold_add_comm : forall (A B : Set)(lsa : list A)(lsb : list B) f,
   eapply ratAdd_eqRat_compat.
   eapply fold_add_init_0.
   eapply eqRat_refl.
-  
+
   repeat rewrite <- ratAdd_assoc.
   eapply ratAdd_eqRat_compat.
   repeat rewrite (ratAdd_assoc (f a b)).
@@ -526,9 +526,9 @@ Lemma fold_add_comm : forall (A B : Set)(lsa : list A)(lsb : list B) f,
 Qed.
 
 Lemma sumList_comm : forall (A B : Set)(lsa : list A)(lsb : list B) f,
-  sumList lsa (fun a => sumList lsb (fun b => (f a b))) == 
+  sumList lsa (fun a => sumList lsb (fun b => (f a b))) ==
   sumList lsb (fun b => sumList lsa (fun a => (f a b))).
-  
+
   intuition.
   eapply fold_add_comm; intuition.
 Qed.
@@ -536,47 +536,47 @@ Qed.
 Lemma sumList_body_eq : forall (A : Set)(ls : list A)(f1 f2 : A -> Rat),
   (forall a, In a ls -> f1 a == f2 a) ->
   sumList ls f1 == sumList ls f2.
-  
+
   intuition.
   eapply fold_add_body_eq; intuition.
 Qed.
 
 Lemma fold_add_factor_constant_r : forall (A : Set)(ls : list A)(f : A -> Rat) init c,
-  fold_left (fun r a => r + (f a) * c) ls (init * c) == 
+  fold_left (fun r a => r + (f a) * c) ls (init * c) ==
   (fold_left (fun r a => r + (f a)) ls init) * c.
-  
+
   induction ls; intuition; simpl in *.
-  
+
   intuition.
-  
+
   eapply eqRat_trans.
   eapply fold_add_body_eq.
   eapply eqRat_symm.
   eapply ratMult_distrib_r.
   intuition.
   eapply eqRat_refl.
-  
+
   eapply IHls.
 Qed.
-    
+
 Lemma sumList_factor_constant_r : forall (A : Set)(ls : list A)(f : A -> Rat) c,
   sumList ls (fun a => (f a) * c) == (sumList ls f) * c.
-  
+
   intuition.
-  unfold sumList.   
-  
+  unfold sumList.
+
   rewrite <- fold_add_factor_constant_r.
   eapply fold_add_body_eq.
   eapply eqRat_symm.
   eapply ratMult_0_l.
   intuition.
-  
+
 Qed.
-    
+
 Lemma sumList_factor_constant_l:
   forall (A : Set) (ls : list A) (f : A -> Rat) (c : Rat),
     sumList ls (fun a : A => c * f a) == c * sumList ls f.
-  
+
   intuition.
   eapply eqRat_trans.
   eapply sumList_body_eq; intuition.
@@ -588,7 +588,7 @@ Qed.
 
 Lemma fold_add_body_const : forall (A : Set)(ls : list A) c init,
   fold_left (fun r a => r + c) ls init == c * (length ls / 1) + init.
-  
+
   induction ls; intuition; simpl in *.
   eapply eqRat_trans.
   eapply ratAdd_0_l.
@@ -596,7 +596,7 @@ Lemma fold_add_body_const : forall (A : Set)(ls : list A) c init,
   eapply eqRat_symm.
   apply ratMult_0_r.
   intuition.
-  
+
   rewrite IHls.
   eapply eqRat_trans.
   eapply ratAdd_eqRat_compat.
@@ -617,7 +617,7 @@ Qed.
 
 Lemma sumList_body_const : forall (A : Set)(ls : list A) c,
   sumList ls (fun a => c) == c * (length ls / 1).
-  
+
   intuition.
   eapply eqRat_trans.
   apply fold_add_body_const.
@@ -628,18 +628,18 @@ Qed.
 
 Lemma fold_add_iter_le : forall (A : Set)(ls : list A) f r init,
   fold_left (fun r a => r + (f a)) ls init <= r ->
-  init <= r /\ 
+  init <= r /\
   (forall a, In a ls -> f a <= r).
-  
+
   induction ls; intuition; simpl in *;
     intuition; subst.
-  
+
   assert (init + f a <= r).
   eapply IHls.
   apply H.
-  
+
   eapply ratAdd_any_le; eauto.
-  
+
   assert (init + f a0 <= r).
   eapply IHls.
   eauto.
@@ -648,7 +648,7 @@ Lemma fold_add_iter_le : forall (A : Set)(ls : list A) f r init,
   apply eqRat_impl_leRat.
   apply ratAdd_comm.
   eauto.
-  
+
   edestruct IHls; eauto.
 Qed.
 
@@ -656,7 +656,7 @@ Lemma sumList_iter_le : forall (A : Set)(ls : list A) f r a,
   sumList ls f <= r ->
   In a ls ->
   f a <= r.
-  
+
   intuition.
   eapply fold_add_iter_le; eauto.
 Qed.
@@ -673,13 +673,13 @@ Fixpoint removeFirst(A : Set)(eqd : eq_dec A)(ls : list A) a :=
 Lemma removeFirst_permutation : forall (A : Set)(eqd : eq_dec A)(ls : list A) a,
   In a ls ->
   Permutation ls (a :: (removeFirst eqd ls a)).
-  
+
   induction ls; intuition; simpl in *;
     intuition; subst.
-  
+
   destruct (eqd a0 a0); try congruence.
   eapply Permutation_refl.
-  
+
   destruct (eqd a0 a); subst.
   eapply Permutation_refl.
   eapply perm_trans; [idtac | eapply perm_swap].
@@ -690,7 +690,7 @@ Qed.
 Lemma removeFirst_not_in : forall (A : Set)(eqd : eq_dec A)(ls : list A) a1 a2,
   ~In a1 ls ->
   ~In a1 (removeFirst eqd ls a2).
-  
+
   induction ls; intuition; simpl in *.
   destruct (eqd a2 a); subst.
   intuition.
@@ -702,44 +702,44 @@ Qed.
 Lemma removeFirst_NoDup_not_in : forall (A : Set)(eqd : eq_dec A)(ls : list A)(a : A),
   NoDup ls ->
   ~In a (removeFirst eqd ls a).
-  
+
   induction ls; intuition; simpl in *.
-  
+
   inversion H; clear H; subst.
   destruct(eqd a0 a); subst.
   intuition.
   simpl in *.
   intuition; subst.
   eapply IHls; eauto.
-  
+
 Qed.
 
 Lemma removeFirst_NoDup : forall (A : Set)(eqd : eq_dec A)(ls : list A) a,
   NoDup ls ->
   NoDup (removeFirst eqd ls a).
-  
+
   induction ls; intuition; simpl in *.
   inversion H; clear H; subst.
   destruct (eqd a0 a); subst.
   trivial.
-  
+
   econstructor.
   eapply removeFirst_not_in.
   intuition.
   eapply IHls; eauto.
-  
+
 Qed.
 
 Lemma removeFirst_in : forall (A : Set)(eqd : eq_dec A)(ls : list A)(a1 a2 : A),
   In a1 ls ->
   a1 <> a2 ->
   In a1 (removeFirst eqd ls a2).
-  
+
   induction ls; intuition; simpl in *.
   destruct (eqd a2 a); subst.
   intuition.
   congruence.
-  
+
   simpl.
   intuition.
 Qed.
@@ -747,16 +747,16 @@ Qed.
 Lemma removeFirst_in_iff : forall (A : Set)(eqd : eq_dec A)(ls : list A) a1 a2,
   In a1 (removeFirst eqd ls a2) ->
   In a1 ls.
-  
+
   induction ls; intuition; simpl in *.
   destruct (eqd a2 a); subst.
   intuition.
-  
+
   simpl in *.
   intuition.
   right.
   eapply IHls; eauto.
-  
+
 Qed.
 
 
@@ -764,7 +764,7 @@ Qed.
 Fixpoint matchOrder (A : Set)(eqd : eq_dec A)(ls1 ls2 : list A) :=
   match ls1 with
     | nil => ls2
-    | a :: ls1' => 
+    | a :: ls1' =>
       a :: (matchOrder eqd ls1' (removeFirst eqd ls2 a))
   end.
 
@@ -773,29 +773,29 @@ Lemma matchOrder_In : forall (A : Set)(eqd : eq_dec A)(ls1 ls2 : list A),
   NoDup ls2 ->
   (forall a, In a ls1 -> In a ls2) ->
   (forall a, In a ls2 <-> In a (matchOrder eqd ls1 ls2)).
-  
+
   induction ls1; destruct ls2; intuition; simpl in *; eauto; intuition; subst.
-  
+
   inversion H; clear H; subst.
   inversion H0; clear H0; subst.
-  
+
   destruct (eqd a a1); subst.
   intuition.
   right.
   eapply (IHls1 (a1 :: removeFirst _ ls2 a)); intuition.
   econstructor.
-  
+
   eapply removeFirst_not_in; intuition.
-  
+
   eapply removeFirst_NoDup; intuition.
   simpl.
   destruct (H1 a0); auto.
   right.
-  
+
   eapply removeFirst_in; eauto.
   intuition. subst.
   intuition.
-  
+
   inversion H; clear H; subst.
   inversion H0; clear H0; subst.
   destruct (H1 a); intuition; subst.
@@ -804,9 +804,9 @@ Lemma matchOrder_In : forall (A : Set)(eqd : eq_dec A)(ls1 ls2 : list A),
   eapply (IHls1 ls2); intuition.
   destruct (H1 a0); intuition; subst.
   intuition.
-  
+
   destruct (eqd a a0); try congruence.
-  
+
   destruct (eqd a a1); subst; auto.
   right.
   eapply (IHls1 (a0 :: removeFirst _ ls2 a)); intuition.
@@ -818,23 +818,23 @@ Lemma matchOrder_In : forall (A : Set)(eqd : eq_dec A)(ls1 ls2 : list A),
   destruct (eqd a0 a2); intuition.
   right.
   eapply removeFirst_in; trivial.
-  
+
   intuition.
   subst.
   intuition.
-  
+
   simpl.
   destruct (eqd a0 a1); intuition.
   right.
   eapply removeFirst_in; trivial.
-  intuition.      
-  
+  intuition.
+
   inversion H; clear H; subst.
   inversion H0; clear H0; subst.
-  
+
   destruct (eqd a0 a1); subst; intuition.
   right.
-  
+
   assert (In a1 (if eqd a a0 then ls2 else a0 :: removeFirst eqd ls2 a)).
   eapply IHls1.
   trivial.
@@ -844,7 +844,7 @@ Lemma matchOrder_In : forall (A : Set)(eqd : eq_dec A)(ls1 ls2 : list A),
   eapply removeFirst_not_in; eauto.
   eapply removeFirst_NoDup; intuition.
   intuition.
-  
+
   destruct (eqd a a0).
   destruct (H1 a2).
   intuition.
@@ -854,7 +854,7 @@ Lemma matchOrder_In : forall (A : Set)(eqd : eq_dec A)(ls1 ls2 : list A),
   simpl.
   destruct (eqd a0 a2); intuition.
   right.
-  
+
   destruct (H1 a2).
   destruct (eqd a a2); intuition.
   subst.
@@ -863,22 +863,22 @@ Lemma matchOrder_In : forall (A : Set)(eqd : eq_dec A)(ls1 ls2 : list A),
   trivial.
   intuition. subst.
   intuition.
-  
+
   trivial.
-  
+
   destruct (eqd a a0); intuition.
   simpl in *.
   intuition.
   eapply removeFirst_in_iff.
   eauto.
-  
+
 Qed.
 
 Lemma matchOrder_not_in_h : forall (A : Set)(eqd : eq_dec A)(ls1 ls2 : list A) a,
-  ~In a ls1 -> 
+  ~In a ls1 ->
   ~In a ls2 ->
   ~In a (matchOrder eqd ls1 ls2).
-  
+
   induction ls1; intuition; simpl in *.
   intuition; subst.
   eapply (IHls1 (removeFirst eqd ls2 a)).
@@ -896,9 +896,9 @@ Lemma matchOrder_not_in : forall (A : Set)(eqd : eq_dec A)(ls1 ls2 : list A) a,
   (forall a, In a ls1 -> In a ls2) ->
   ~In a ls2 ->
   ~In a (matchOrder eqd ls1 ls2).
-  
+
   induction ls1; intuition; simpl in *.
-  
+
   destruct (eqd a a0); subst;
     intuition.
   eapply IHls1.
@@ -923,7 +923,7 @@ Lemma matchOrder_NoDup : forall (A : Set)(eqd : eq_dec A)(ls1 ls2 : list A),
   NoDup ls2 ->
   NoDup ls1 ->
   NoDup (matchOrder eqd ls1 ls2).
-  
+
   induction ls1; intuition; simpl in *.
   inversion H1; clear H1; subst.
   econstructor.
@@ -935,7 +935,7 @@ Lemma matchOrder_NoDup : forall (A : Set)(eqd : eq_dec A)(ls1 ls2 : list A),
   intuition.
   intuition.
   eapply removeFirst_NoDup_not_in; eauto.
-  
+
   eapply IHls1; intuition.
   destruct (eqd a a0); subst; intuition.
   eapply removeFirst_in; eauto.
@@ -949,15 +949,15 @@ Lemma matchOrder_permutation : forall (A : Set)(eqd : eq_dec A)(ls1 ls2 : list A
   NoDup ls2 ->
   (forall a, In a ls1 -> In a ls2) ->
   Permutation ls2 (matchOrder eqd ls1 ls2).
-  
+
   intuition.
-  eapply NoDup_Permutation; intuition.      
-  
+  eapply NoDup_Permutation; intuition.
+
   eapply matchOrder_NoDup; eauto.
-  
+
   eapply (@matchOrder_In _ eqd ls1 ls2); eauto.
-  eapply (@matchOrder_In _ eqd ls1 ls2); eauto.      
-  
+  eapply (@matchOrder_In _ eqd ls1 ls2); eauto.
+
 Qed.
 
 Lemma matchOrder_firstn : forall (A : Set)(eqd : eq_dec A)(ls1 ls2 : list A),
@@ -965,7 +965,7 @@ Lemma matchOrder_firstn : forall (A : Set)(eqd : eq_dec A)(ls1 ls2 : list A),
   NoDup ls2 ->
   (forall a, In a ls1 -> In a ls2) ->
   firstn (length ls1) (matchOrder eqd ls1 ls2) = ls1.
-  
+
   induction ls1; intuition; simpl in *.
   inversion H; clear H; subst.
   f_equal.
@@ -984,22 +984,22 @@ Lemma fold_add_matchOrder : forall (A : Set)(ls : list A)(f : A -> Rat) n init1 
   NoDup ls ->
   (forall a, In a ls -> (~In a (firstn n ls)) -> (f a) == 0) ->
   fold_left (fun r a => r + (f a)) (firstn n ls) init1 == fold_left (fun r a => r + (f a)) ls init2.
-  
+
   induction ls; intuition; simpl in *.
-  
+
   destruct n; simpl in *;
     trivial.
-  
+
   inversion H0; clear H0; subst.
-  
+
   destruct n; simpl in *.
-  
+
   eapply eqRat_symm.
   eapply eqRat_trans.
   eapply fold_add_eq_init_f; intuition.
   rewrite (ratAdd_0_r init1).
   eapply ratAdd_eqRat_compat; intuition.
-  
+
   eapply IHls.
   eapply ratAdd_eqRat_compat; intuition.
   trivial.
@@ -1009,14 +1009,14 @@ Lemma fold_add_matchOrder : forall (A : Set)(ls : list A)(f : A -> Rat) n init1 
   intuition.
   subst.
   intuition.
-  
+
 Qed.
 
 Lemma permutation_NoDup : forall (A : Type)(ls1 ls2 : list A),
   Permutation ls1 ls2 ->
   NoDup ls1 ->
   NoDup ls2.
-  
+
   induction 1; intuition.
   inversion H0; clear H0; subst.
   econstructor.
@@ -1027,11 +1027,11 @@ Lemma permutation_NoDup : forall (A : Type)(ls1 ls2 : list A),
   eapply H.
   eauto.
   eauto.
-  
+
   inversion H; clear H; subst.
   inversion H3; clear H3; subst.
   simpl in *.
-  
+
   econstructor.
   simpl.
   intuition.
@@ -1046,11 +1046,11 @@ Lemma fold_add_subset : forall (A : Set)(eqd : eq_dec A)(ls1 ls2 : list A)(f : A
   (forall a, In a ls1 -> In a ls2) ->
   (forall a, (~In a ls1) -> (f a) == 0) ->
   fold_left (fun r a => r + (f a)) ls1 init1 == fold_left (fun r a => r + (f a)) ls2 init2.
-  
+
   intuition.
-  
+
   erewrite <- matchOrder_firstn at 1.
-  
+
   eapply eqRat_symm.
   eapply eqRat_trans.
   eapply fold_add_rat_perm.
@@ -1061,20 +1061,20 @@ Lemma fold_add_subset : forall (A : Set)(eqd : eq_dec A)(ls1 ls2 : list A)(f : A
   eapply eqRat_refl.
   intuition.
   eapply eqRat_refl.
-  
+
   eapply eqRat_symm.
   eapply fold_add_matchOrder; intuition.
   eapply permutation_NoDup.
   eapply matchOrder_permutation; eauto.
   eauto.
   eapply H3.
-  intuition.      
+  intuition.
   eapply H5.
   rewrite matchOrder_firstn; eauto.
   eauto.
   eauto.
   eauto.
-  
+
   Grab Existential Variables.
   trivial.
 Qed.
@@ -1085,10 +1085,10 @@ Lemma sumList_subset : forall (A : Set)(eqd : eq_dec A)(ls1 ls2 : list A)(f : A 
   (forall a, In a ls1 -> In a ls2) ->
   (forall a, (~In a ls1) -> (f a) == 0) ->
   sumList ls1 f == sumList ls2 f.
-  
+
   intuition.
   eapply fold_add_subset; intuition.
-  
+
 Qed.
 
 Fixpoint flatten(A : Type)(ls : list (list A)) :=
@@ -1102,7 +1102,7 @@ Theorem in_flatten : forall (A : Set)(ls : list (list A)) a,
   exists x : _, In x ls /\ In a x.
 
   induction ls; simpl in *; intuition.
-  
+
   destruct H; intuition.
 
   apply in_app_or in H.
@@ -1113,7 +1113,7 @@ Theorem in_flatten : forall (A : Set)(ls : list (list A)) a,
   destruct H0.
   intuition.
   exists x; intuition.
- 
+
   apply in_or_app.
   destruct H; intuition.
   subst.
@@ -1129,30 +1129,30 @@ Theorem length_flatten_nz : forall (A : Type)(ls : list (list A)) ls',
   In ls' ls ->
   length ls' > 0 ->
   length (flatten ls) > 0.
-  
+
   induction ls; destruct ls'; intuition; simpl in *.
   intuition.
-  
+
   destruct H; simpl in *; subst; intuition.
-  
+
   destruct H; simpl in *; subst; intuition.
   rewrite app_length.
   simpl.
   omega.
-  
+
   rewrite app_length.
   specialize (IHls (a0 :: ls') H).
   simpl in *.
   intuition.
-  
+
 Qed.
 
 Fixpoint getUnique(A : Set)(ls : list A)(pf : eq_dec A) : list A :=
   match ls with
     | nil => nil
-    | a :: ls' => 
+    | a :: ls' =>
       let ls'' := (getUnique ls' pf) in
-        if (in_dec pf a ls'') 
+        if (in_dec pf a ls'')
           then ls''
           else a :: ls''
   end.
@@ -1207,12 +1207,12 @@ Qed.
 Theorem length_getUnique_nz : forall (A :Set)(eqd : eq_dec A)(ls : list A),
   length ls > 0 ->
   length (getUnique ls eqd) > 0.
-  
+
   induction ls; intuition; simpl in *.
-  
+
   destruct (in_dec eqd a (getUnique ls eqd)).
   destruct ls; simpl in *; intuition.
-  
+
   simpl.
   omega.
 Qed.
@@ -1222,7 +1222,7 @@ Definition maxList(ls : list nat) : nat :=
 
 Lemma fold_left_max_ge_init : forall (ls : list nat)(n : nat),
   fold_left max ls n >= n.
-  
+
   induction ls; intuition; simpl in *.
   eapply le_trans.
   eapply Max.max_lub_l.
@@ -1233,13 +1233,13 @@ Qed.
 Lemma maxList_correct_h : forall (ls : list nat)(n init : nat),
   In n ls ->
   fold_left max ls init >= n.
-  
+
   induction ls; intuition.
   inversion H.
-  
+
   simpl in *.
   intuition; subst.
-  
+
   eapply le_trans.
   eapply Max.max_lub_r.
   eapply le_refl.
@@ -1257,9 +1257,9 @@ Qed.
 
 (* relational folds and other llist operations *)
 Inductive pred_count(A : Type)(p : A -> Prop) : list A -> nat -> Prop :=
-  | pc_nil : 
+  | pc_nil :
     pred_count p nil 0
-  | pc_yes : 
+  | pc_yes :
     forall ls n a,
     pred_count p ls n ->
     p a ->
@@ -1272,11 +1272,11 @@ Inductive pred_count(A : Type)(p : A -> Prop) : list A -> nat -> Prop :=
 Lemma pred_count_le_length : forall (A : Type)(P : A -> Prop) ls c,
   pred_count P ls c ->
   (c <= length ls)%nat.
-  
+
   induction ls; intuition; simpl in *.
   inversion H; subst.
   trivial.
-  
+
   inversion H; clear H; subst.
   eapply le_n_S.
   eapply IHls.
@@ -1295,7 +1295,7 @@ Fixpoint listRepeat(A : Type)(a : A) n :=
 
 Lemma listRepeat_length : forall n (A : Type) (a : A),
   length (listRepeat a n) = n.
-  
+
   induction n; intuition; simpl in *.
   f_equal.
   eauto.
@@ -1304,11 +1304,11 @@ Qed.
 Lemma pred_count_listRepeat_eq_inv : forall n (A : Type)(a : A) count,
   pred_count (eq a) (listRepeat a n) count ->
   count = n.
-  
+
   induction n; intuition; simpl in *.
-  
+
   inversion H. trivial.
-  
+
   inversion H; clear H; subst.
   f_equal.
   eapply IHn; eauto.
@@ -1319,14 +1319,14 @@ Lemma pred_count_listRepeat_ne_inv : forall n (A : Type)(a1 a2 : A) count,
   a1 <> a2 ->
   pred_count (eq a1) (listRepeat a2 n) count ->
   count = O.
-  
+
   induction n; intuition; simpl in *.
-  
+
   inversion H0. trivial.
-  
+
   inversion H0; clear H0; subst.
   intuition.
-  
+
   eapply IHn; eauto.
 Qed.
 
@@ -1334,17 +1334,17 @@ Lemma pred_count_func : forall (A : Type)(P : A -> Prop)(ls : list A) n1 n2,
   pred_count P ls n1 ->
   pred_count P ls n2 ->
   n1 = n2.
-  
+
   induction ls; intuition.
-  
+
   inversion H. inversion H0. trivial.
-  
+
   inversion H; clear H; subst.
   inversion H0; clear H0; subst.
   f_equal.
   eapply IHls; eauto.
   intuition.
-  
+
   inversion H0; clear H0; subst.
   intuition.
   eapply IHls; eauto.
@@ -1354,12 +1354,12 @@ Lemma pred_count_eq_all_inv : forall (A : Type)(ls : list A)(P : A -> Prop) c,
   pred_count P ls c ->
   (forall a, In a ls -> P a) ->
   c = length ls.
-  
+
   induction 1; intuition; simpl in *.
-  
+
   f_equal.
   eauto.
-  
+
   specialize (H1 a).
   intuition.
 Qed.
@@ -1371,12 +1371,12 @@ Lemma pred_count_first_skip : forall (A : Type)(P : A -> Prop)(ls : list A)(c : 
       pred_count P (firstn n ls) c1 /\
       pred_count P (skipn n ls) c2 /\
       (c1 + c2 = c)%nat.
-  
+
   induction 1; intuition; simpl in *.
   exists O. exists O.
   intuition;
     destruct n; simpl; econstructor.
-  
+
   destruct n0; simpl.
   destruct (IHpred_count O).
   destruct H1.
@@ -1385,7 +1385,7 @@ Lemma pred_count_first_skip : forall (A : Type)(P : A -> Prop)(ls : list A)(c : 
   exists (S x0).
   intuition.
   econstructor; trivial.
-  
+
   destruct (IHpred_count n0).
   destruct H1.
   destruct H1.
@@ -1394,7 +1394,7 @@ Lemma pred_count_first_skip : forall (A : Type)(P : A -> Prop)(ls : list A)(c : 
   exists x0.
   intuition.
   econstructor; trivial.
-  
+
   destruct n0; simpl.
   destruct (IHpred_count O).
   destruct H1.
@@ -1403,7 +1403,7 @@ Lemma pred_count_first_skip : forall (A : Type)(P : A -> Prop)(ls : list A)(c : 
   exists x0.
   intuition.
   econstructor; trivial.
-  
+
   destruct (IHpred_count n0).
   destruct H1.
   destruct H1.
@@ -1412,25 +1412,25 @@ Lemma pred_count_first_skip : forall (A : Type)(P : A -> Prop)(ls : list A)(c : 
   exists x0.
   intuition.
   econstructor; trivial.
-  
+
 Qed.
 
 Lemma pred_count_eq_all : forall (A : Type)(P : A -> Prop)(ls : list A) n,
   (forall a, In a ls -> P a) ->
   n = length ls ->
   pred_count P ls n.
-  
+
   induction ls; intuition; simpl in *; subst.
   econstructor.
-  
+
   econstructor; eauto.
-  
+
 Qed.
 
 Lemma pred_count_eq_none : forall (A : Type)(P : A -> Prop)(ls : list A),
   (forall a, In a ls -> ~P a) ->
   pred_count P ls 0.
-  
+
   induction ls; intuition; simpl in *.
   econstructor.
   econstructor; eauto.
@@ -1439,23 +1439,23 @@ Qed.
 Lemma in_listRepeat_inv : forall n (A : Type)(a1 a2 : A),
   In a1 (listRepeat a2 n) ->
   a1 = a2.
-  
+
   induction n; intuition; simpl in *.
   intuition.
   intuition.
-  
+
 Qed.
 
 Lemma pred_count_app : forall (A : Type)(P : A -> Prop)(ls1 ls2 : list A) n1 n2,
   pred_count P ls1 n1 ->
   pred_count P ls2 n2 ->
   pred_count P (ls1 ++ ls2) (n1 + n2).
-  
+
   induction ls1; intuition; simpl in *.
   inversion H; subst; clear H.
   simpl.
   trivial.
-  
+
   inversion H; clear H; subst.
   simpl.
   econstructor; eauto.
@@ -1464,26 +1464,26 @@ Qed.
 
 Lemma pred_count_permutation : forall (A : Set)(P : A -> Prop)(ls1 ls2 : list A),
   Permutation ls1 ls2 ->
-  forall c, 
+  forall c,
     pred_count P ls1 c ->
     pred_count P ls2 c.
-  
+
   induction 1; intuition.
   inversion H0; clear H0; subst.
   econstructor; eauto.
   econstructor; eauto.
-  
+
   inversion H; clear H; subst.
   inversion H2; clear H2; subst.
   econstructor; eauto.
   econstructor; eauto.
   eapply pc_no; eauto.
   econstructor; eauto.
-  
+
   inversion H2; clear H2; subst.
   econstructor; eauto.
   econstructor; eauto.
-  
+
   econstructor; eauto.
   econstructor; eauto.
 Qed.
@@ -1492,13 +1492,13 @@ Lemma pred_count_eq_none_inv : forall (A : Set)(P : A -> Prop)(ls : list A) c,
   pred_count P ls c ->
   (forall a, In a ls -> ~P a) ->
   c = O.
-  
+
   induction 1; intuition; simpl in *.
   exfalso.
   eapply H1.
   eauto.
   trivial.
-  
+
   eapply IHpred_count.
   intuition.
   eapply H1; eauto.
@@ -1511,9 +1511,9 @@ Lemma pred_count_eq_1_inv : forall (A : Set)(eqd : eq_dec A)(P : A -> Prop)(ls :
   In a ls ->
   (forall a', In a' ls -> a <> a' -> ~P a') ->
   c = (S O).
-  
+
   intuition.
-  
+
   assert (pred_count P (a :: (removeFirst eqd ls a)) c).
   eapply pred_count_permutation.
   eapply removeFirst_permutation.
@@ -1533,18 +1533,18 @@ Lemma pred_count_eq_1_inv : forall (A : Set)(eqd : eq_dec A)(P : A -> Prop)(ls :
   intuition; subst; intuition.
   trivial.
   omega.
-  
+
   intuition.
 Qed.
 
 Lemma pred_count_left_total : forall (A : Type)(P : A -> Prop)(ls : list A),
   (forall a, P a \/ ~P a) ->
   exists c, pred_count P ls c.
-  
+
   induction ls; intuition.
   exists O.
   econstructor.
-  
+
   destruct H0.
   destruct (H a).
   exists (S x).
@@ -1554,9 +1554,9 @@ Lemma pred_count_left_total : forall (A : Type)(P : A -> Prop)(ls : list A),
 Qed.
 
 Inductive rel_map(A B : Type)(r : A -> B -> Prop) : list A -> list B -> Prop :=
-| rm_nil : 
+| rm_nil :
   rel_map r nil nil
-| rm_step : 
+| rm_step :
   forall lsa lsb a b,
     rel_map r lsa lsb ->
     r a b ->
@@ -1579,21 +1579,21 @@ Qed.
 Lemma rel_map_length : forall (A B : Type)(lsa : list A)(P : A -> B -> Prop)(lsb : list B),
   rel_map P lsa lsb ->
   length lsa = length lsb.
-  
+
   induction 1; intuition; simpl in *.
   f_equal.
   eauto.
-  
+
 Qed.
 
 Lemma rel_map_unary_pred : forall (A B : Type)(P : A -> B -> Prop)(lsa : list A)(lsb : list B)(P' : B -> Prop),
   rel_map P lsa lsb ->
   (forall a b, P a b -> P' b) ->
   forall b, In b lsb -> P' b.
-  
+
   induction 1; intuition; simpl in *.
   intuition.
-  
+
   intuition; subst.
   eauto.
 
@@ -1605,32 +1605,32 @@ Lemma rel_map_eq_inv : forall (A B : Type)(ls1 ls2 : list A)(rel1 rel2 : A -> B 
   rel_map rel1 ls1 ls1' ->
   rel_map rel2 ls2 ls2' ->
   ls1' = ls2'.
-  
+
   induction ls1; intuition; subst.
-  
+
   inversion H1; clear H1; subst.
-  
+
   inversion H2; clear H2; subst.
   trivial.
-  
+
   inversion H1; clear H1; subst.
   inversion H2; clear H2; subst.
   f_equal.
   eapply H0; eauto.
   eapply IHls1; eauto.
-  
+
 Qed.
 
 Lemma rel_map_eq : forall (A B : Type)(ls1 : list A)(rel1 : A -> B -> Prop) ls',
   rel_map rel1 ls1 ls' ->
-  forall ls2 (rel2 : A -> B -> Prop), 
+  forall ls2 (rel2 : A -> B -> Prop),
     ls1 = ls2 ->
     (forall a b, In a ls1 -> In b ls' -> rel1 a b -> rel2 a b) ->
     rel_map rel2 ls2 ls'.
-  
+
   induction 1; intuition; subst.
   econstructor.
-  
+
   econstructor.
   eapply IHrel_map; eauto.
   intuition.
@@ -1639,7 +1639,7 @@ Lemma rel_map_eq : forall (A B : Type)(ls1 : list A)(rel1 : A -> B -> Prop) ls',
   intuition.
   simpl.
   intuition.
-  trivial.     
+  trivial.
 Qed.
 
 Theorem pred_count_eq_0 : forall (A B : Set)(ls : list B)(ls' : list A)(f : B -> A -> Prop)(P : A -> Prop) v,
@@ -1647,16 +1647,16 @@ Theorem pred_count_eq_0 : forall (A B : Set)(ls : list B)(ls' : list A)(f : B ->
   rel_map f ls ls' ->
   pred_count P ls' v ->
   v = O.
-  
+
   induction ls; intuition.
   inversion H0; subst; clear H0.
   inversion H1. trivial.
-  
+
   inversion H0; clear H0; subst.
   inversion H1; clear H1; subst.
   exfalso.
   eapply H; eauto. simpl. intuition.
-  
+
   eapply IHls; eauto.
   intuition.
   eapply H; eauto. simpl. intuition.
@@ -1665,15 +1665,15 @@ Qed.
 Lemma rel_map_app_inv : forall (A B : Type)(rel : A -> B -> Prop)(lsa1 lsa2 : list A)(lsb : list B),
   rel_map rel (lsa1 ++ lsa2) lsb ->
   (rel_map rel lsa1 (firstn (length lsa1) lsb) /\ rel_map rel lsa2 (skipn (length lsa1) lsb)).
-  
+
   induction lsa1; intuition; simpl in *.
   econstructor.
-  
+
   inversion H; clear H; subst.
   econstructor.
   eapply IHlsa1; eauto.
   trivial.
-  
+
   inversion H; clear H; subst.
   eapply IHlsa1; eauto.
 Qed.
@@ -1681,11 +1681,11 @@ Qed.
 Lemma rel_map_map_inv : forall (A B C : Type)(rel : B -> C -> Prop)(f : A -> B)(lsa : list A)(lsc : list C),
   rel_map rel (map f lsa) lsc ->
   rel_map (fun a c => rel (f a) c) lsa lsc.
-  
+
   induction lsa; intuition; simpl in *.
   inversion H; subst; clear H.
   econstructor.
-  
+
   inversion H; clear H; subst.
   econstructor.
   eapply IHlsa; eauto.
@@ -1695,24 +1695,24 @@ Qed.
 Lemma rel_map_listRepeat : forall (A B : Set)(lsa : list A)(rel : A -> B -> Prop) b,
   (forall a, In a lsa -> rel a b) ->
   rel_map rel lsa (listRepeat b (length lsa)).
-  
+
   induction lsa; intuition; simpl in *.
   econstructor.
-  
+
   econstructor; eauto.
-    
+
 Qed.
 
 Lemma rel_map_app : forall (A B : Type)(rel : A -> B -> Prop)(lsa1 lsa2 : list A)(lsb1 lsb2 : list B),
   rel_map rel lsa1 lsb1 ->
   rel_map rel lsa2 lsb2 ->
   rel_map rel (lsa1 ++ lsa2) (lsb1 ++ lsb2).
-  
+
   induction lsa1; intuition; simpl in *.
   inversion H; clear H; subst.
   simpl.
   trivial.
-  
+
   inversion H; clear H; subst.
   rewrite <- app_comm_cons.
   econstructor; eauto.
@@ -1722,46 +1722,46 @@ Qed.
 Lemma rel_map_map : forall (A B C : Type)(f : A -> B)(rel : B -> C -> Prop) lsa lsc,
   rel_map (fun a c => rel (f a) c) lsa lsc ->
   rel_map rel (map f lsa) lsc.
-  
+
   induction lsa; intuition; simpl in *.
   inversion H.
   econstructor.
-  
+
   inversion H; clear H; subst.
   econstructor; eauto.
 Qed.
 
 Lemma rel_map_inverse : forall (A B : Type)(lsa : list A)(lsb : list B) rel,
-  rel_map rel lsa lsb -> 
-  forall b, 
+  rel_map rel lsa lsb ->
+  forall b,
     In b lsb ->
     exists a, In a lsa /\ rel a b.
-  
+
   induction 1; intuition; simpl in *.
   intuition.
-  
+
   intuition;
     subst.
-  
+
   econstructor; eauto.
-  
+
   destruct (IHrel_map b0).
   trivial.
   intuition.
   econstructor; eauto.
-  
+
 Qed.
 
 Lemma ne_all_not_in : forall (A : Type)(ls : list A) a,
   (forall a', In a' ls -> a <> a') ->
   ~In a ls.
-  
+
   induction ls; intuition; simpl in *.
   intuition; subst.
   eapply H; eauto.
-  
+
   eapply IHls; eauto.
-  
+
 Qed.
 
 Lemma rel_map_NoDup : forall (A B : Type)(lsa : list A)(lsb : list B) rel,
@@ -1769,21 +1769,21 @@ Lemma rel_map_NoDup : forall (A B : Type)(lsa : list A)(lsb : list B) rel,
   NoDup lsa ->
   (forall a1 a2 b1 b2, In a1 lsa -> In a2 lsa -> a1 <> a2 -> rel a1 b1 -> rel a2 b2 -> b1 <> b2) ->
   NoDup lsb.
-  
+
   induction 1; intuition; simpl in *.
   econstructor.
-  
+
   inversion H1; clear H1; subst.
   econstructor.
-  
+
   eapply ne_all_not_in.
   intuition.
   subst.
-  
+
   destruct (rel_map_inverse H a').
   trivial.
   intuition.
-  
+
   eapply H2.
   left; eauto.
   right; eauto.
@@ -1791,7 +1791,7 @@ Lemma rel_map_NoDup : forall (A B : Type)(lsa : list A)(lsb : list B) rel,
   eauto.
   eauto.
   trivial.
-  
+
   eapply IHrel_map; intuition.
   subst.
   eapply H2.
@@ -1812,28 +1812,28 @@ Lemma rel_map_in : forall (A B : Type)(lsa : list A)(lsb : list B) rel,
     In a lsa ->
     rel a b ->
     In b lsb.
-  
+
   induction 1; intuition; simpl in *.
-  
+
   intuition; subst.
   left; eauto.
   right; eauto.
-  
+
 Qed.
 
 Lemma rel_map_left_total : forall (A B : Type)(rel : A -> B -> Prop)(lsa : list A),
   (forall a, exists b, rel a b) ->
   exists lsb, rel_map rel lsa lsb.
-  
+
   induction lsa; intuition.
   exists nil.
   econstructor.
-  
+
   destruct H0.
   destruct (H a).
   exists (x0 :: x).
   econstructor; eauto.
-  
+
 Qed.
 
 Lemma rel_map_func : forall (A B : Type) (rel : A -> B -> Prop) lsa lsb1,
@@ -1842,7 +1842,7 @@ Lemma rel_map_func : forall (A B : Type) (rel : A -> B -> Prop) lsa lsb1,
     rel_map rel lsa lsb2 ->
     (forall a b1 b2, In a lsa -> rel a b1 -> rel a b2 -> b1 = b2) ->
     lsb1 = lsb2.
-  
+
   induction 1; intuition; simpl in *.
   inversion H; clear H; subst.
   trivial.
@@ -1860,14 +1860,14 @@ Lemma rel_map_permutation : forall (A B : Type) lsa1 lsa2,
     (forall a, exists b, rel a b) ->
     forall lsb1 lsb2,
       rel_map rel lsa1 lsb1 ->
-      rel_map rel lsa2 lsb2 ->     
+      rel_map rel lsa2 lsb2 ->
       Permutation lsb1 lsb2.
-  
+
   induction 1; intuition; simpl in *.
   inversion H1; clear H1; subst.
   inversion H2; clear H2; subst.
   econstructor.
-  
+
   inversion H2; clear H2; subst.
   inversion H3; clear H3; subst.
   assert (b = b0).
@@ -1875,12 +1875,12 @@ Lemma rel_map_permutation : forall (A B : Type) lsa1 lsa2,
   subst.
   eapply perm_skip.
   eauto.
-  
+
   inversion H1; clear H1; subst.
   inversion H5; clear H5; subst.
   inversion H2; clear H2; subst.
   inversion H5; clear H5; subst.
-  
+
   assert (b0 = b1); eauto; subst.
   assert (b = b2); eauto; subst.
   eapply perm_trans.
@@ -1892,10 +1892,10 @@ Lemma rel_map_permutation : forall (A B : Type) lsa1 lsa2,
   eapply rel_map_func; eauto.
   subst.
   eapply Permutation_refl.
-  
+
   edestruct rel_map_left_total; eauto.
   eapply perm_trans.
-  
+
   eapply IHPermutation1; eauto.
   eapply IHPermutation2; eauto.
 Qed.
@@ -1904,11 +1904,11 @@ Lemma rel_map_impl : forall (A B : Type)(rel1 rel2 : A -> B -> Prop) lsa lsb,
   rel_map rel1 lsa lsb ->
   (forall a b, In a lsa -> rel1 a b -> rel2 a b) ->
   rel_map rel2 lsa lsb.
-  
+
   induction lsa; intuition.
   inversion H; clear H; subst.
   econstructor.
-  
+
   inversion H; clear H; subst.
   econstructor.
   eapply IHlsa; eauto.
@@ -1938,10 +1938,10 @@ Qed.
 (* a relational version of sumList *)
 Inductive sumList_rel(A : Type)(rel : A -> Rat -> Prop) : list A -> Rat -> Prop :=
 | slr_nil :
-  forall r, 
+  forall r,
     r == rat0 ->
     sumList_rel rel nil r
-| slr_cons : 
+| slr_cons :
   forall (ls : list A)(a : A) r1 r2 r3,
     sumList_rel rel ls r1 ->
     rel a r2 ->
@@ -1953,9 +1953,9 @@ Lemma sumList_rel_distance : forall (A : Set)(ls : list A)(f1 f2 : A -> Rat -> P
   sumList_rel f1 ls r1 ->
   sumList_rel f2 ls r2 ->
   ratDistance r1 r2 <= (r * (length ls / 1)).
-  
+
   induction ls; intuition; simpl in *.
-  
+
   inversion H0. inversion H1. subst.
   rewrite H2.
   rewrite H3.
@@ -1964,10 +1964,10 @@ Lemma sumList_rel_distance : forall (A : Set)(ls : list A)(f1 f2 : A -> Rat -> P
   eapply (ratIdentityIndiscernables 0).
   intuition.
   eapply rat0_le_all.
-  
+
   inversion H0; clear H0; subst.
   inversion H1; clear H1; subst.
-  
+
   rewrite ratS_num.
   eapply leRat_trans.
   Focus 2.
@@ -1982,7 +1982,7 @@ Lemma sumList_rel_distance : forall (A : Set)(ls : list A)(f1 f2 : A -> Rat -> P
   eapply ratMult_leRat_compat.
   eapply H; eauto.
   intuition.
-  
+
   eapply IHls; eauto.
 Qed.
 
@@ -1990,31 +1990,31 @@ Lemma sumList_rel_all_0_inv : forall (A : Set)(ls : list A)(r  : Rat)(rel : A ->
   sumList_rel rel ls r ->
   (forall a' v, In a' ls -> rel a' v -> v == 0) ->
   r == 0.
-  
+
   induction ls; intuition; simpl in *.
-  
+
   inversion H.
   intuition.
-  
+
   inversion H; clear H; subst.
   rewrite H6.
   rewrite (H0 a r2); eauto.
   rewrite <- ratAdd_0_l.
   eapply IHls; eauto.
-    
+
 Qed.
 
 Lemma sumList_rel_only_one_inv : forall (A : Set)(rel : A -> Rat -> Prop)(ls : list A)(a : A) r r',
   sumList_rel rel ls r' ->
   In a ls ->
-  NoDup ls -> 
+  NoDup ls ->
   (forall a', In a' ls -> a <> a' -> forall v, rel a' v -> v == 0) ->
   (forall v, rel a v -> v == r) ->
   r' == r.
-  
+
   induction ls; intuition; simpl in *.
   intuition.
-  
+
   inversion H1; clear H1; subst.
   inversion H; clear H; subst.
   intuition; subst.
@@ -2030,7 +2030,7 @@ Lemma sumList_rel_only_one_inv : forall (A : Set)(rel : A -> Rat -> Prop)(ls : l
   intuition; subst.
   eauto.
   trivial.
-  
+
   eapply eqRat_trans.
   rewrite H10.
   eapply ratAdd_eqRat_compat.
@@ -2041,23 +2041,23 @@ Lemma sumList_rel_only_one_inv : forall (A : Set)(rel : A -> Rat -> Prop)(ls : l
   trivial.
   eauto.
   rewrite <- ratAdd_0_l.
-  intuition.       
-  
+  intuition.
+
 Qed.
 
 Lemma sumList_rel_body_eq : forall (A : Type)(rel1 rel2 : A -> Rat -> Prop)(ls1 : list A) r1,
   sumList_rel rel1 ls1 r1 ->
-  forall ls2 r2, 
+  forall ls2 r2,
     (forall a r', rel1 a r' -> rel2 a r') ->
     r1 == r2 ->
     ls1 = ls2 ->
     sumList_rel rel2 ls2 r2.
-  
+
   induction 1; intuition; subst.
   econstructor.
   rewrite <- H1.
   trivial.
-  
+
   econstructor.
   eapply IHsumList_rel.
   intuition.
@@ -2072,9 +2072,9 @@ Lemma sumList_rel_plus_inv : forall (A : Type)(ls : list A) r (rel1 rel2 rel : A
   sumList_rel rel ls r ->
   (forall a r, In a ls -> rel a r -> forall r1 r2, rel1 a r1 -> rel2 a r2 -> r == r1 + r2) ->
   forall r1 r2, sumList_rel rel1 ls r1 -> sumList_rel rel2 ls r2 -> r == r1 + r2.
-  
+
   induction ls; intuition; simpl in *.
-  
+
   inversion H1; clear H1; subst.
   inversion H2; clear H2; subst.
   inversion H; clear H; subst.
@@ -2083,7 +2083,7 @@ Lemma sumList_rel_plus_inv : forall (A : Type)(ls : list A) r (rel1 rel2 rel : A
   rewrite H2.
   rewrite <- ratAdd_0_l.
   intuition.
-  
+
   inversion H1; clear H1; subst.
   inversion H2; clear H2; subst.
   inversion H; clear H; subst.
@@ -2107,12 +2107,12 @@ Qed.
 Lemma sumList_rel_left_total : forall (A : Type)(rel : A -> Rat -> Prop)(ls : list A),
   (forall a, In a ls -> exists r, rel a r) ->
   exists r, sumList_rel rel ls r.
-  
+
   induction ls; intuition; simpl in *.
   exists 0.
   econstructor.
   intuition.
-  
+
   edestruct H.
   left.
   eauto.
@@ -2128,17 +2128,17 @@ Qed.
 Lemma sumList_rel_factor_constant : forall (p1 p2 : posnat) (A : Type)(rel : A -> Rat -> Prop)(ls : list A) r,
   sumList_rel (fun a r' => rel a (r' * (RatIntro p1 p2))) ls (r * (RatIntro p2 p1)) ->
   sumList_rel rel ls r.
-  
+
   induction ls; intuition.
   inversion H; subst; clear H.
   apply ratMult_0 in H0.
   destruct H0.
   econstructor; trivial.
-  
+
   exfalso.
   eapply rat_num_nz; [idtac | eapply H].
   eapply posnat_pos.
-  
+
   inversion H; clear H; subst.
   symmetry in H5.
   apply ratMult_inverse in H5.
@@ -2149,7 +2149,7 @@ Lemma sumList_rel_factor_constant : forall (p1 p2 : posnat) (A : Type)(rel : A -
   eapply sumList_rel_body_eq.
   eapply H2.
   intuition.
-  
+
   rewrite ratMult_assoc.
   rewrite <- ratMult_1_r at 1.
   eapply ratMult_eqRat_compat; intuition.
@@ -2165,14 +2165,14 @@ Qed.
 
 Lemma sumList_rel_permutation : forall (A : Type)(rel : A -> Rat -> Prop)(ls1 ls2 : list A),
   Permutation ls1 ls2 ->
-  forall r, 
+  forall r,
     sumList_rel rel ls1 r ->
     sumList_rel rel ls2 r.
-  
+
   induction 1; intuition; simpl in *.
   inversion H0; clear H0; subst.
   econstructor; eauto.
-  
+
   inversion H; clear H; subst.
   inversion H2; clear H2; subst.
   econstructor; eauto.
@@ -2183,16 +2183,16 @@ Lemma sumList_rel_permutation : forall (A : Type)(rel : A -> Rat -> Prop)(ls1 ls
   repeat rewrite <- ratAdd_assoc.
   eapply ratAdd_eqRat_compat; intuition.
   eapply ratAdd_comm.
-Qed.    
+Qed.
 
 Lemma sumList_rel_all_0 : forall (A : Type)(rel : A -> Rat -> Prop)(ls : list A),
   (forall a, In a ls -> rel a 0) ->
   sumList_rel rel ls 0.
-  
+
   induction ls; intuition; simpl in *.
   econstructor.
   intuition.
-  
+
   econstructor.
   eapply IHls.
   intuition.
@@ -2203,11 +2203,11 @@ Qed.
 
 Lemma sumList_rel_ls_intersect: forall (A : Set)(rel : A -> Rat -> Prop)(ls1 : list A) r,
   sumList_rel rel ls1 r ->
-  forall ls2, 
+  forall ls2,
     NoDup ls1 ->
     NoDup ls2 ->
     eq_dec A ->
-    (forall a r1 r2, In a ls1 -> rel a r1 -> rel a r2 -> r1 == r2) -> 
+    (forall a r1 r2, In a ls1 -> rel a r1 -> rel a r2 -> r1 == r2) ->
     (forall a, In a ls1 -> ~In a ls2 -> rel a 0) ->
     (forall a, In a ls2 -> ~In a ls1 -> rel a 0) ->
     sumList_rel rel ls2 r.
@@ -2223,7 +2223,7 @@ Lemma sumList_rel_ls_intersect: forall (A : Set)(rel : A -> Rat -> Prop)(ls1 : l
   intuition.
   intuition.
   trivial.
-  
+
   inversion H2; clear H2; subst.
   symmetry in H1.
   eapply sumList_rel_body_eq; intuition; eauto.
@@ -2231,7 +2231,7 @@ Lemma sumList_rel_ls_intersect: forall (A : Set)(rel : A -> Rat -> Prop)(ls1 : l
   clear r3.
 
   destruct (in_dec H4 a ls2).
-  
+
   eapply sumList_rel_permutation.
   eapply Permutation_sym.
   eapply removeFirst_permutation.
@@ -2286,7 +2286,7 @@ Lemma sumList_rel_ls_intersect: forall (A : Set)(rel : A -> Rat -> Prop)(ls1 : l
   rewrite H2.
   rewrite <- ratAdd_0_l.
   eapply eqRat_refl.
-  Focus 2. 
+  Focus 2.
   intuition.
   eauto.
   Focus 2.
@@ -2302,7 +2302,7 @@ Lemma sumList_rel_ls_intersect: forall (A : Set)(rel : A -> Rat -> Prop)(ls1 : l
   intuition.
   subst.
   intuition.
-  
+
   Grab Existential Variables.
   trivial.
 
@@ -2311,13 +2311,13 @@ Qed.
 Lemma sumList_rel_sumList : forall (A : Set)(ls : list A)(f : A -> Rat),
   sumList_rel (fun a r => f a = r) ls
   (sumList ls f).
-  
+
   induction ls; intuition.
   unfold sumList.
   simpl.
   econstructor.
   intuition.
-  
+
   unfold sumList in *. simpl in *.
   econstructor.
   eapply IHls.
@@ -2333,7 +2333,7 @@ Qed.
 
 Lemma sumList_cons : forall (A : Set)(ls : list A) a f,
   sumList (a :: ls) f == f a + (sumList ls f).
-  
+
   intuition.
   unfold sumList. simpl.
   rewrite fold_add_body_eq.
@@ -2347,7 +2347,7 @@ Qed.
 Lemma sumList_sum : forall (A : Set)(ls : list A)(f1 f2 : A -> Rat),
   sumList ls (fun a => f1 a + f2 a) ==
   sumList ls f1 + sumList ls f2.
-  
+
   induction ls; intuition; unfold sumList in *; simpl in *.
   rewrite <- ratAdd_0_l.
   intuition.
@@ -2385,7 +2385,7 @@ Qed.
 Lemma sumList_summation : forall (A B : Set) f (lsa : list A)(lsb : list B),
   sumList lsa (fun a => sumList lsb (fun b => (f a b))) ==
   sumList lsb (fun b => sumList lsa (fun a => (f a b))).
-  
+
   induction lsa; destruct lsb; intuition.
   unfold sumList in *; simpl in *; intuition.
   assert (sumList (b :: lsb) (fun b : B => sumList nil (fun a : A => f a b)) == 0).
@@ -2401,12 +2401,12 @@ Lemma sumList_summation : forall (A B : Set) f (lsa : list A)(lsb : list B),
   unfold sumList in *; simpl in *; intuition.
   rewrite H.
   unfold sumList in *; simpl in *; intuition.
-  
+
   rewrite sumList_body_eq.
   Focus 2.
   intuition.
-  
-  eapply sumList_cons. 
+
+  eapply sumList_cons.
   rewrite sumList_sum.
   rewrite (sumList_cons lsa a (fun a0 : A => sumList lsb (f a0))).
   rewrite IHlsa.
@@ -2422,7 +2422,7 @@ Lemma sumList_summation : forall (A B : Set) f (lsa : list A)(lsb : list B),
   repeat rewrite ratAdd_assoc.
   eapply ratAdd_eqRat_compat; intuition.
   eapply ratAdd_comm.
-  
+
 Qed.
 
 Lemma fold_add_subset' : forall (A : Set)(eqd : eq_dec A)(ls1 ls2 : list A)(f : A -> Rat) init1 init2,
@@ -2432,11 +2432,11 @@ Lemma fold_add_subset' : forall (A : Set)(eqd : eq_dec A)(ls1 ls2 : list A)(f : 
   (forall a, In a ls1 -> In a ls2) ->
   (forall a, In a ls2 -> (~In a ls1) -> (f a) == 0) ->
   fold_left (fun r a => r + (f a)) ls1 init1 == fold_left (fun r a => r + (f a)) ls2 init2.
-  
+
   intuition.
-  
+
   erewrite <- matchOrder_firstn at 1.
-  
+
   eapply eqRat_symm.
   eapply eqRat_trans.
   eapply fold_add_rat_perm.
@@ -2447,7 +2447,7 @@ Lemma fold_add_subset' : forall (A : Set)(eqd : eq_dec A)(ls1 ls2 : list A)(f : 
   eapply eqRat_refl.
   intuition.
   eapply eqRat_refl.
-  
+
   eapply eqRat_symm.
   eapply fold_add_matchOrder; intuition.
   eapply permutation_NoDup.
@@ -2465,7 +2465,7 @@ Lemma fold_add_subset' : forall (A : Set)(eqd : eq_dec A)(ls1 ls2 : list A)(f : 
   trivial.
   trivial.
   trivial.
-  
+
   Grab Existential Variables.
   trivial.
 Qed.
@@ -2479,7 +2479,7 @@ Lemma sumList_subset'
       (forall a : A, In a ls1 -> In a ls2) ->
       (forall a : A, In a ls2 -> ~ In a ls1 -> f a == 0) ->
       sumList ls1 f == sumList ls2 f.
-  
+
   intuition.
   eapply fold_add_subset'; eauto.
   intuition.
@@ -2490,10 +2490,10 @@ Lemma sumList_exactly_one : forall (A : Set) a (ls : list A) f,
   In a ls ->
   (forall b, In b ls -> a <> b -> f b == 0) ->
   sumList ls f == f a.
-  
+
   induction ls; intuition.
   inversion H0.
-  
+
   simpl in *.
   inversion H; clear H; subst.
   intuition; subst.
@@ -2512,7 +2512,7 @@ Lemma sumList_exactly_one : forall (A : Set) a (ls : list A) f,
   rewrite <- ratAdd_0_r.
   intuition.
   intuition.
-  
+
   assert (sumList ls f == f a).
   eapply IHls; intuition.
   unfold sumList in *.
@@ -2528,7 +2528,7 @@ Lemma sumList_exactly_one : forall (A : Set) a (ls : list A) f,
   intuition.
   intuition; subst; intuition.
   intuition.
-  
+
 Qed.
 
 Lemma fold_add_permutation : forall (A : Set) ls1 ls2,
@@ -2548,7 +2548,7 @@ Lemma fold_add_permutation : forall (A : Set) ls1 ls2,
   eapply ratAdd_eqRat_compat; intuition.
   eapply ratAdd_eqRat_compat; intuition.
   intuition.
-  
+
   eapply eqRat_trans.
   eapply IHPermutation1.
   eapply H1.
@@ -2559,25 +2559,25 @@ Qed.
 Lemma sumList_permutation : forall (A : Set)(f : A -> Rat) ls1 ls2,
   Permutation ls1 ls2 ->
   sumList ls1 f == sumList ls2 f.
-  
+
   intuition.
   eapply fold_add_permutation; intuition.
-  
+
 Qed.
 
 Lemma sumList_rel_body_eq_strong : forall (A : Type)(rel1 rel2 : A -> Rat -> Prop)(ls1 : list A) r1,
   sumList_rel rel1 ls1 r1 ->
-  forall ls2 r2, 
+  forall ls2 r2,
     (forall a r', In a ls1 -> rel1 a r' -> rel2 a r') ->
     r1 == r2 ->
     ls1 = ls2 ->
     sumList_rel rel2 ls2 r2.
-  
+
   induction 1; intuition; subst.
   econstructor.
   rewrite <- H1.
   trivial.
-  
+
   econstructor.
   eapply IHsumList_rel.
   intuition.
@@ -2595,11 +2595,11 @@ Lemma rel_map_left_total_strong' : forall (A B : Type)(lsa : list A)(P : A -> Pr
   (forall a, P a -> exists b, rel a b) ->
   (forall a, In a lsa -> P a) ->
   exists lsb, rel_map rel lsa lsb.
-  
+
   induction lsa; intuition.
   exists nil.
   econstructor.
-  
+
   edestruct (IHlsa _ _ H).
   intuition.
   destruct (H a).
@@ -2607,23 +2607,23 @@ Lemma rel_map_left_total_strong' : forall (A B : Type)(lsa : list A)(P : A -> Pr
   simpl. intuition.
   exists (x0 :: x).
   econstructor; eauto.
-  
+
 Qed.
 
 
 Lemma firstn_eq_all_gen : forall (A : Type)(ls : list A) n,
   n = length ls ->
   firstn n ls = ls.
-  
+
   induction ls; intuition; subst; simpl in *.
   trivial.
-  
+
   f_equal.
   eauto.
 Qed.
 
 Fixpoint getNats s n :=
-  match n with 
+  match n with
     | O => nil
     | S n' => (s + n')%nat :: (getNats s n')
   end.
@@ -2632,7 +2632,7 @@ Lemma ratMult_sumList_rel_distrib : forall (A : Set)(ls : list A) f (x : Rat -> 
   sumList_rel f ls a ->
   (forall i v1 v2, f i v1 -> f i v2 -> v1 == v2) ->
   (forall x1 x2, x x1 -> x x2 -> x1 == x2) ->
-  x x' -> 
+  x x' ->
   sumList_rel (fun i => ratMult_rel x (f i)) ls (x' * a).
 
   induction ls; intuition.
@@ -2647,7 +2647,7 @@ Lemma ratMult_sumList_rel_distrib : forall (A : Set)(ls : list A) f (x : Rat -> 
   unfold ratMult_rel.
   intuition.
   eapply ratMult_eqRat_compat; eauto.
-  
+
   rewrite H8.
   eapply ratMult_distrib.
 Qed.
@@ -2658,13 +2658,13 @@ Lemma series_le : forall n (f1 f2 : nat -> Rat -> Prop) r1 r2,
   sumList_rel f1 (getNats O n) r1 ->
   sumList_rel f2 (getNats O n) r2 ->
   r2 <= r1.
-  
+
   induction n; intuition; simpl in *.
   inversion H0; clear H0; subst.
   inversion H1; clear H1; subst.
   rewrite H0.
   eapply rat0_le_all.
-  
+
   inversion H0; clear H0; subst.
   inversion H1; clear H1; subst.
   rewrite H9.
@@ -2676,7 +2676,7 @@ Lemma series_le : forall n (f1 f2 : nat -> Rat -> Prop) r1 r2,
   eapply ratAdd_leRat_compat.
   eauto.
   eauto.
-  
+
 Qed.
 
 Lemma ratSubtract_series_map : forall n f1 f2 a1 a2,
@@ -2686,7 +2686,7 @@ Lemma ratSubtract_series_map : forall n f1 f2 a1 a2,
   (forall i x1 x2, f1 (S i) x1 -> f2 i x2 -> x1 == x2) ->
   (forall i v1 v2, f1 i v1 -> f1 i v2 -> v1 == v2) ->
   (forall i v1 v2, f2 i v1 -> f2 i v2 -> v1 == v2) ->
-  (forall i v1 v2, f1 i v1 -> f2 i v2 -> v2 <= v1) ->  
+  (forall i v1 v2, f1 i v1 -> f2 i v2 -> v2 <= v1) ->
   (forall i1 i2 v1 v2, (i1 <= i2)%nat -> f1 i1 v1 -> f1 i2 v2 -> v2 <= v1) ->
   (forall i1 i2 v1 v2, (i1 <= i2)%nat -> f2 i1 v1 -> f2 i2 v2 -> v2 <= v1) ->
   forall x1 x2,
@@ -2713,7 +2713,7 @@ Lemma ratSubtract_series_map : forall n f1 f2 a1 a2,
   rewrite H0.
   rewrite <- ratAdd_0_r.
   eauto.
-  
+
   rewrite H15.
   rewrite H17.
   inversion H11; clear H11; subst.
@@ -2738,7 +2738,7 @@ Lemma ratSubtract_series_map : forall n f1 f2 a1 a2,
   trivial.
   trivial.
   trivial.
-  
+
   assert (r3 <= r2).
   eauto.
   assert (r0 <= r1).
@@ -2755,7 +2755,7 @@ Lemma ratSubtract_series_map : forall n f1 f2 a1 a2,
   eauto.
   eauto.
   trivial.
-  
+
   rewrite ratSubtract_ratAdd_distr.
   rewrite ratAdd_comm.
   rewrite ratSubtract_ratAdd_assoc.
@@ -2868,7 +2868,7 @@ Lemma sum_power_series : forall n (f : Rat -> Prop) a a',
   eauto.
   eapply bleRat_total.
   trivial.
-  
+
   unfold expRat_rel; intuition.
 
   eapply leRat_trans.
@@ -2978,7 +2978,7 @@ Lemma sumList_rel_le : forall (A : Set)(ls : list A)(f1 f2 : A -> Rat -> Prop) r
   sumList_rel f2 ls r2 ->
   (forall a v1 v2, In a ls -> f1 a v1 -> f2 a v2 -> v1 <= v2) ->
   r1 <= r2.
-  
+
   induction ls; intuition.
   inversion H; clear H; subst.
   rewrite H2.
@@ -3009,17 +3009,17 @@ Lemma sumList_rel_le : forall (A : Set)(ls : list A)(f1 f2 : A -> Rat -> Prop) r
   eauto.
   trivial.
   trivial.
-  
+
 Qed.
 
 
 Lemma sumList_filter_le : forall (A : Set)(ls : list A)(f : A -> Rat)(P : A -> bool),
   sumList (filter P ls) f <= sumList ls f.
-  
+
   induction ls; intuition;
     unfold sumList in *; simpl in *.
   intuition.
-  
+
   eapply leRat_trans.
   Focus 2.
   eapply eqRat_impl_leRat.
@@ -3030,7 +3030,7 @@ Lemma sumList_filter_le : forall (A : Set)(ls : list A)(f : A -> Rat)(P : A -> b
   eapply fold_add_init.
   intuition.
   eapply eqRat_refl.
-  
+
   destruct (P a); simpl.
   rewrite fold_add_body_eq.
   Focus 2.
@@ -3040,24 +3040,24 @@ Lemma sumList_filter_le : forall (A : Set)(ls : list A)(f : A -> Rat)(P : A -> b
   eapply eqRat_refl.
   rewrite fold_add_init.
   eapply ratAdd_leRat_compat; intuition.
-  
+
   rewrite ratAdd_0_l.
   eapply ratAdd_leRat_compat; intuition.
   eapply rat0_le_all.
-  
+
 Qed.
 
 Lemma sumList_filter_partition : forall (A : Set)(P : A -> bool)(ls : list A)(f : A -> Rat),
   sumList ls f == (sumList (filter P ls) f + (sumList (filter (fun a => negb (P a)) ls) f)).
-  
+
   induction ls; intuition; simpl in *.
   unfold sumList.
   simpl.
   eapply ratAdd_0_l.
-  
+
   unfold sumList in *.
   simpl in *.
-  
+
   erewrite fold_add_body_eq.
   Focus 2.
   eapply ratAdd_comm.
@@ -3065,10 +3065,10 @@ Lemma sumList_filter_partition : forall (A : Set)(P : A -> bool)(ls : list A)(f 
   intuition.
   eapply eqRat_refl.
   rewrite fold_add_init.
-  
+
   destruct (P a);
     simpl.
-  
+
   erewrite (fold_add_body_eq (filter P ls)).
   Focus 2.
   eapply ratAdd_comm.
@@ -3079,7 +3079,7 @@ Lemma sumList_filter_partition : forall (A : Set)(P : A -> bool)(ls : list A)(f 
   rewrite ratAdd_assoc.
   eapply ratAdd_eqRat_compat;
     intuition.
-  
+
   erewrite (fold_add_body_eq (filter (fun a => negb (P a)) ls)).
   Focus 2.
   eapply ratAdd_comm.
@@ -3092,7 +3092,7 @@ Lemma sumList_filter_partition : forall (A : Set)(P : A -> bool)(ls : list A)(f 
   rewrite ratAdd_assoc.
   eapply ratAdd_eqRat_compat;
     intuition.
-  
+
 Qed.
 
 
@@ -3100,13 +3100,13 @@ Qed.
 Lemma sumList_rel_sumList_eqRat : forall (A : Set)(ls : list A)(f : A -> Rat),
   sumList_rel (fun a r => f a == r) ls
   (sumList ls f).
-  
+
   induction ls; intuition.
   unfold sumList.
   simpl.
   econstructor.
   intuition.
-  
+
   unfold sumList in *. simpl in *.
   econstructor.
   eapply IHls.
@@ -3122,7 +3122,7 @@ Qed.
 Lemma sumList_series_incr : forall n2 n1 (f f' : nat -> Rat),
   (forall n, (f n) == (f' (S n))) ->
   sumList (getNats n1 n2) f == sumList (getNats (S n1) n2) f'.
-  
+
   induction n2; intuition; unfold sumList; simpl in *.
   intuition.
   rewrite fold_add_body_eq.
@@ -3146,9 +3146,9 @@ Lemma sumList_series_incr : forall n2 n1 (f f' : nat -> Rat),
   intuition.
 Qed.
 
-Lemma sumList_series_split_first : forall n f, 
+Lemma sumList_series_split_first : forall n f,
   sumList (n :: getNats O n) f == f O + (sumList (getNats 1 n) f).
-  
+
   induction n; intuition; unfold sumList in *; simpl in *.
   eapply ratAdd_comm.
   rewrite fold_add_body_eq.
@@ -3178,9 +3178,9 @@ Lemma sumList_series_split_first : forall n f,
   intuition.
 Qed.
 
-Lemma firstn_nil : forall (A : Set) n, 
+Lemma firstn_nil : forall (A : Set) n,
   firstn n nil = (@nil A).
-  
+
   induction n; intuition; simpl in *.
 Qed.
 
@@ -3198,17 +3198,17 @@ Lemma firstn_ge_all : forall n (A : Set) (ls : list A),
   eapply IHn.
   simpl in *.
   omega.
-  
+
 Qed.
 
 Lemma firstn_app : forall n (A : Set) (ls1 ls2 : list A),
   (n <= length ls1)%nat ->
   firstn n (ls1 ++ ls2) = firstn n ls1.
-  
+
   induction n; intuition; simpl in *.
   destruct ls1; simpl in *.
   omega.
-  
+
   f_equal.
   eapply IHn.
   omega.
@@ -3236,23 +3236,23 @@ Qed.
 
 Lemma sumList_partition : forall (A : Set)(P : A -> bool)(ls : list A)(f : A -> Rat),
   sumList ls f ==
-  sumList ls (fun a => (f a) * (if (P a) then 1 else 0)) + 
+  sumList ls (fun a => (f a) * (if (P a) then 1 else 0)) +
   sumList ls (fun a => (f a) * (if (P a) then 0 else 1)).
-  
+
   induction ls; intuition.
   unfold sumList; simpl in *.
   eapply ratAdd_0_l.
-  
+
   repeat rewrite sumList_cons.
   destruct (P a);
     rewrite ratMult_0_r;
       rewrite <- ratAdd_0_l;
         rewrite ratMult_1_r;
           rewrite IHls.
-  
+
   rewrite ratAdd_assoc.
   intuition.
-  
+
   rewrite (ratAdd_comm (sumList ls (fun a0 : A => f a0 * (if P a0 then 1 else 0)))).
   rewrite <- ratAdd_assoc.
   rewrite <- ratAdd_comm.
@@ -3262,12 +3262,12 @@ Qed.
 Lemma sumList_le : forall (A : Set)(ls : list A)(f1 f2 : A -> Rat),
   (forall a, In a ls -> f1 a <= f2 a) ->
   sumList ls f1 <= sumList ls f2.
-  
+
   induction ls; intuition.
-  
+
   unfold sumList; simpl in *.
   intuition.
-  
+
   rewrite sumList_cons.
   eapply leRat_trans.
   Focus 2.
@@ -3279,21 +3279,21 @@ Lemma sumList_le : forall (A : Set)(ls : list A)(f1 f2 : A -> Rat),
   eapply ratAdd_leRat_compat.
   eapply H.
   intuition.
-  
+
   eapply IHls.
   intuition.
-  
+
 Qed.
 
 Lemma sumList_distance_prod : forall (A : Set)(ls : list A)(f f1 f2 : A -> Rat),
   | (sumList ls (fun a => (f a) * (f1 a))) - (sumList ls (fun a => (f a) * (f2 a))) | <= sumList ls (fun a => (f a) * | (f1 a) - (f2 a) |).
-  
+
   induction ls; intuition.
   unfold sumList; simpl in *.
   eapply eqRat_impl_leRat.
   rewrite <- ratIdentityIndiscernables.
   intuition.
-  
+
   repeat rewrite sumList_cons.
   rewrite rat_distance_of_sum.
   eapply ratAdd_leRat_compat.
@@ -3302,16 +3302,16 @@ Lemma sumList_distance_prod : forall (A : Set)(ls : list A)(f f1 f2 : A -> Rat),
   eapply IHls.
 Qed.
 
-Theorem sumList_all : 
+Theorem sumList_all :
   forall (A : Set)(ls : list A)(f : A -> Rat) c,
     (forall a, In a ls -> (f a) == c) ->
     sumList ls f == (length ls)/1 * c.
-  
+
   induction ls; intuition.
   unfold sumList; simpl.
   symmetry.
   eapply ratMult_0_l.
-  
+
   rewrite sumList_cons.
   simpl in *.
   rewrite H; intuition.
@@ -3323,10 +3323,10 @@ Theorem sumList_all :
 Qed.
 
 
-Theorem filter_app : 
+Theorem filter_app :
   forall (A : Set)(ls1 ls2 : list A)(f : A -> bool),
     filter f (ls1 ++ ls2) = filter f ls1 ++ filter f ls2.
-  
+
   induction ls1; intuition; simpl in *.
   case_eq (f a); intuition.
   rewrite <- app_comm_cons.
@@ -3334,11 +3334,11 @@ Theorem filter_app :
   eauto.
 Qed.
 
-Theorem filter_true : 
+Theorem filter_true :
   forall (A : Set)(ls : list A)(f : A -> bool),
     (forall a, In a ls -> (f a) = true) ->
     filter f ls = ls.
-  
+
   induction ls; intuition; simpl in *.
   case_eq (f a); intuition.
   f_equal.
@@ -3346,20 +3346,20 @@ Theorem filter_true :
   rewrite H in H0.
   discriminate.
   intuition.
-  
+
 Qed.
 
-Theorem sumList_subset_le : 
+Theorem sumList_subset_le :
   forall (A : Set){eqd: EqDec A}(ls1 ls2 : list A)(f : A -> Rat),
     NoDup ls1 ->
     NoDup ls2 ->
     (forall a, In a ls1 -> In a ls2) ->
     sumList ls1 f <= sumList ls2 f.
-  
+
   induction ls1; intuition; simpl in *.
   unfold sumList; simpl.
   eapply rat0_le_all.
-  
+
   inversion H; clear H; subst.
   rewrite sumList_cons.
   eapply leRat_trans.
@@ -3370,7 +3370,7 @@ Theorem sumList_subset_le :
   eapply removeFirst_permutation.
   eapply H1.
   intuition.
-  
+
   eapply leRat_trans.
   Focus 2.
   eapply eqRat_impl_leRat.
@@ -3395,10 +3395,10 @@ Fixpoint allNatsLt (n : nat) :=
   end.
 
 
-Lemma allNatsLt_length : 
-  forall n, 
+Lemma allNatsLt_length :
+  forall n,
     length (allNatsLt n) = n.
-  
+
   induction n; intuition; simpl in *.
   rewrite app_length.
   rewrite IHn.
@@ -3407,17 +3407,17 @@ Lemma allNatsLt_length :
 Qed.
 
 
-Lemma allNatsLt_lt : 
+Lemma allNatsLt_lt :
   forall n v,
     In v (allNatsLt n) ->
     v < n.
-  
+
   induction n; intuition; simpl in *.
   intuition.
   apply in_app_or in H.
   simpl in *.
   intuition.
-  
+
 Qed.
 
 
@@ -3457,10 +3457,10 @@ Lemma app_NoDup : forall(A : Set)(ls1 ls2 : list A),
   eauto.
 Qed.
 
-Lemma allNatsLt_NoDup : 
+Lemma allNatsLt_NoDup :
   forall (n : nat),
     NoDup (allNatsLt n).
-  
+
   induction n; simpl in *; intuition.
   econstructor.
 
@@ -3477,15 +3477,15 @@ Lemma allNatsLt_NoDup :
   intuition; subst.
   eapply allNatsLt_lt in H0.
   omega.
-  
+
 Qed.
 
 
-Lemma allNatsLt_lt_if : 
-  forall (n i : nat), 
+Lemma allNatsLt_lt_if :
+  forall (n i : nat),
     i < n ->
     In i (allNatsLt n).
-  
+
   induction n; intuition; simpl in *.
   omega.
 
@@ -3497,10 +3497,10 @@ Lemma allNatsLt_lt_if :
   right.
   simpl.
   intuition.
-    
+
 Qed.
 
-Lemma nth_allNatsLt_lt : 
+Lemma nth_allNatsLt_lt :
   forall k n,
     n < k ->
     nth n (allNatsLt k) n = n.
@@ -3524,7 +3524,7 @@ Lemma nth_allNatsLt_lt :
 
 Qed.
 
-Lemma nth_allNatsLt : 
+Lemma nth_allNatsLt :
   forall k n,
     nth n (allNatsLt k) n = n.
 
@@ -3539,84 +3539,84 @@ Lemma nth_allNatsLt :
 Qed.
 
 
-Theorem allNatsLt_filter_lt : 
+Theorem allNatsLt_filter_lt :
   forall (p n : nat),
     (n <= p)%nat->
-    filter (fun z => if (lt_dec z n) then true else false) (allNatsLt p) = 
+    filter (fun z => if (lt_dec z n) then true else false) (allNatsLt p) =
     allNatsLt n.
-  
+
   induction p; intuition.
   simpl.
   assert (n = 0%nat). omega.
   subst. trivial.
   simpl.
   destruct (le_dec n p).
-  rewrite filter_app.    
+  rewrite filter_app.
   rewrite IHp; intuition.
   simpl.
   destruct (lt_dec p n ).
   omega.
   eapply app_nil_r.
-  
+
   assert (n = S p).
   omega.
   subst.
   simpl.
-  rewrite filter_app.  
+  rewrite filter_app.
   f_equal.
-  
+
   eapply filter_true.
   intuition.
   destruct (lt_dec a (S p)); intuition.
   apply allNatsLt_lt in H0.
   omega.
-  
+
   simpl.
   destruct (lt_dec p (S p)); intuition.
-    
+
 Qed.
 
-Theorem map_eq_all : 
+Theorem map_eq_all :
   forall (A B : Type)(ls : list A)(f1 f2 : A -> B),
     map f1 ls = map f2 ls ->
     (forall a, In a ls -> f1 a = f2 a).
-  
+
   induction ls; intuition; simpl in *.
   intuition.
   intuition; subst.
   inversion H; clear H; subst.
   trivial.
-  
+
   inversion H; clear H; subst.
   eapply IHls; intuition.
-  
+
 Qed.
 
-Theorem map_eq_if_all : 
+Theorem map_eq_if_all :
   forall (A B : Type)(ls : list A)(f1 f2 : A -> B),
     (forall a, In a ls -> f1 a = f2 a) ->
     map f1 ls = map f2 ls.
-  
+
   induction ls; intuition; simpl in *.
   f_equal.
   eapply H.
   intuition.
   eapply IHls.
   intuition.
-  
+
 Qed.
 
-Theorem map_eq_subset : 
+Theorem map_eq_subset :
   forall (A B : Type)(ls2 ls1 : list A)(f1 f2 : A -> B),
     map f1 ls1 = map f2 ls1 ->
     (forall a, In a ls2 -> In a ls1) ->
     map f1 ls2 = map f2 ls2.
-  
+
   intuition.
   specialize (map_eq_all _ _ _ H); intros.
   eapply map_eq_if_all.
   intuition.
-  
+
 Qed.
 
 Fixpoint getSomes(A : Type)(ls : list (option A)) :=
@@ -3632,12 +3632,12 @@ Fixpoint getSomes(A : Type)(ls : list (option A)) :=
 Lemma nth_nil:
   forall (A : Set)(i : nat)(def : A),
     nth i nil def = def.
-  
+
   induction i; intuition; simpl in *.
-  
+
 Qed.
 
-Theorem listReplace_getSomes_Permutation_h : 
+Theorem listReplace_getSomes_Permutation_h :
   forall (A : Set) l1' l2,
     Permutation l1' l2 ->
     forall l1 n2 (y : A),
@@ -3648,24 +3648,24 @@ Theorem listReplace_getSomes_Permutation_h :
            (listReplace l1 n2
                         (Some y) None))
         (y :: l2).
-  
+
   induction 1; intuition.
-  
-  Theorem listReplace_None_Permutation : 
+
+  Theorem listReplace_None_Permutation :
     forall (A : Set) n ls (y : A),
       nth n ls None = None ->
       Permutation (getSomes (listReplace ls n (Some y) None)) (y :: (getSomes ls)).
-    
+
     induction n; intuition; simpl in *.
     destruct ls; simpl in *.
     eapply Permutation_refl.
     subst.
     eapply Permutation_refl.
-    
+
     destruct ls; simpl in *.
     eapply (IHn nil).
     eapply nth_nil.
-    
+
     destruct o.
     eapply Permutation_sym.
     eapply perm_trans.
@@ -3678,13 +3678,13 @@ Theorem listReplace_getSomes_Permutation_h :
     trivial.
 
   Qed.
-  
+
   eapply perm_trans.
   eapply listReplace_None_Permutation.
   trivial.
   rewrite <- H.
   eapply Permutation_refl.
-  
+
   eapply perm_trans.
   eapply listReplace_None_Permutation.
   trivial.
@@ -3692,14 +3692,14 @@ Theorem listReplace_getSomes_Permutation_h :
   eapply perm_skip.
   eapply perm_skip.
   trivial.
-  
+
   eapply perm_trans.
   eapply listReplace_None_Permutation.
   trivial.
   rewrite <- H.
   eapply perm_skip.
   eapply perm_swap.
-  
+
   eapply perm_trans.
   eapply listReplace_None_Permutation.
   trivial.
@@ -3710,7 +3710,7 @@ Theorem listReplace_getSomes_Permutation_h :
   trivial.
 Qed.
 
-Theorem listReplace_getSomes_Permutation : 
+Theorem listReplace_getSomes_Permutation :
   forall (A : Set) l1 l2 n2 (y : A),
     nth n2 l1 None = None ->
     Permutation (getSomes l1) l2 ->
@@ -3719,27 +3719,27 @@ Theorem listReplace_getSomes_Permutation :
          (listReplace l1 n2
                       (Some y) None))
       (y :: l2).
-  
+
   intuition.
   eapply listReplace_getSomes_Permutation_h; eauto.
-  
+
 Qed.
 
-Lemma nth_listReplace_ne : 
+Lemma nth_listReplace_ne :
   forall (i1 i2 : nat)(A : Set)(ls : list A)(a def : A),
     i1 <> i2 ->
-    nth i1 (listReplace ls i2 a def) def = 
+    nth i1 (listReplace ls i2 a def) def =
     nth i1 ls def.
-  
+
   induction i1; destruct i2; destruct ls; intuition; simpl in *.
   destruct i1; trivial.
-  
+
   rewrite IHi1.
   eapply nth_nil.
   omega.
   eapply IHi1.
   omega.
-  
+
 Qed.
 
 
@@ -3747,74 +3747,74 @@ Theorem listReplace_length :
   forall (A : Set)(ls : list A)(i : nat)(a def : A),
     i < length ls ->
     length (listReplace ls i a def) = length ls.
-  
+
   induction ls; intuition; simpl in *.
   omega.
-  
+
   destruct i; simpl in *.
   trivial.
-  
+
   f_equal.
   eapply IHls.
   omega.
-  
+
 Qed.
 
-Lemma listReplace_in_nil : 
+Lemma listReplace_in_nil :
   forall (A : Set)(i : nat)(a1 a2 def : A),
     In a1 (listReplace nil i a2 def) ->
     a1 = a2 \/ a1 = def.
-  
+
   induction i; intuition; simpl in *.
   intuition.
   intuition.
-  
+
 Qed.
 
-Lemma listReplace_in : 
+Lemma listReplace_in :
   forall (A : Set)(ls : list A)(a1 a2 def : A)(i : nat),
     In a1 (listReplace ls i a2 def) ->
     (In a1 ls \/ a1 = a2 \/ a1 = def).
 
   induction ls; intuition; simpl in *.
   right.
-  
+
   eapply listReplace_in_nil.
   eauto.
-  
+
   destruct i; simpl in *.
   intuition.
-  
+
   intuition.
   edestruct (IHls); eauto.
-  
+
 Qed.
 
-Theorem firstn_map : 
+Theorem firstn_map :
   forall (A B : Set)(f : A -> B)(ls : list A) n,
     firstn n (map f ls) = map f (firstn n ls).
-  
+
   induction ls; destruct n; intuition; simpl in *.
   f_equal.
   eauto.
 Qed.
 
 
-Lemma firstn_app_eq : 
+Lemma firstn_app_eq :
   forall (A : Set)(ls1 ls2 : list A),
     firstn (length ls1) (ls1 ++ ls2) = ls1.
-  
+
   induction ls1; intuition; simpl in *.
   f_equal.
   eauto.
-  
+
 Qed.
 
-Theorem map_nth_in : 
+Theorem map_nth_in :
   forall (A B : Set)(ls : list A)(f : A -> B) i defa defb,
     i < length ls ->
     nth i (map f ls) defb = f (nth i ls defa).
-  
+
   induction ls; destruct i; intuition; simpl in *.
   omega.
   omega.
@@ -3823,75 +3823,75 @@ Theorem map_nth_in :
 
 Qed.
 
-Lemma flatten_app : 
+Lemma flatten_app :
   forall (A : Set)(ls1 ls2 : list (list A)),
     flatten (ls1 ++ ls2) = flatten ls1 ++ flatten ls2.
-  
+
   induction ls1; intuition; simpl in *.
   rewrite <- app_assoc.
   f_equal.
   eauto.
-  
+
 Qed.
 
 (* list_pred lifts a predicate on A and B to a predicate on list A and list B.  It is useful for reasoning about fold, map, etc. *)
 Inductive list_pred(A B : Set)(pred : A -> B -> Prop) : list A -> list B -> Prop :=
-| list_pred_nil : 
+| list_pred_nil :
     list_pred pred nil nil
-| list_pred_cons : 
+| list_pred_cons :
     forall a1 a2 ls1 ls2,
       pred a1 a2 ->
       list_pred pred ls1 ls2 ->
       list_pred pred (a1 :: ls1) (a2 :: ls2).
 
-Lemma list_pred_eq_impl_eq : 
+Lemma list_pred_eq_impl_eq :
   forall (A : Set)(ls1 ls2 : list A),
     list_pred eq ls1 ls2 ->
     ls1 = ls2.
-  
+
   induction 1; intuition; simpl in *; subst.
   f_equal; eauto.
-  
+
 Qed.
 
 
-Lemma flatten_eq : 
+Lemma flatten_eq :
   forall (A : Set)(ls1 ls2 : list (list A)),
     list_pred eq ls1 ls2 ->
     flatten ls1 = flatten ls2.
-  
+
   induction 1; intuition; simpl in *; subst.
   f_equal.
   eauto.
 
 Qed.
 
-Theorem app_cons_eq : 
+Theorem app_cons_eq :
   forall (A : Type) ls2 ls1 (a : A),
     ls2 ++ (a :: ls1) = (ls2 ++ (a :: nil)) ++ ls1.
-  
+
   induction ls2; intuition; simpl in *.
   f_equal.
   eauto.
-  
+
 Qed.
 
-Theorem skipn_nil : 
+Theorem skipn_nil :
   forall (A : Type) n,
     skipn n (@nil A) = nil.
-  
+
   induction n; intuition; simpl in *.
-  
+
 Qed.
 
-Theorem nth_In_exists : 
+Theorem nth_In_exists :
   forall (A : Type)(ls : list A) a def,
     In a ls ->
     exists n, nth n ls def = a.
-  
+
   induction ls; intuition; simpl in *.
   intuition.
-  
+
   intuition; subst.
   exists O.
   trivial.
@@ -3899,54 +3899,54 @@ Theorem nth_In_exists :
   eauto.
   exists (S x).
   eauto.
-  
+
 Qed.
 
-Theorem nth_skipn_eq : 
+Theorem nth_skipn_eq :
   forall (A : Set)(y x: nat)(ls : list A)(def : A),
     nth x (skipn y ls) def = nth (x + y) ls def.
-  
+
   induction y; intuition; simpl in *.
   rewrite plus_0_r.
   trivial.
-  
+
   destruct ls.
   rewrite nth_nil.
   rewrite nth_nil.
   trivial.
-  
+
   rewrite plus_comm.
   simpl.
   rewrite plus_comm.
-  eapply 
+  eapply
     IHy.
-  
+
 Qed.
 
-Theorem perm_flatten_listReplace_nil : 
+Theorem perm_flatten_listReplace_nil :
   forall b (A : Set)(a : A),
     Permutation (flatten (listReplace nil b (a :: nil) nil)) (a :: nil).
-  
+
   induction b; intuition; simpl in *.
-  
+
 Qed.
 
-Theorem perm_flatten_listReplace : 
+Theorem perm_flatten_listReplace :
   forall b (A : Set)(ls1 : list (list A))(ls2 : list A) (a : A),
     Permutation (flatten ls1) ls2 ->
     Permutation (flatten (listReplace ls1 b (nth b ls1 nil ++ (a :: nil)) nil))
                 (a :: ls2).
-  
+
   induction b; intuition; simpl in *.
   destruct ls1.
   simpl in *.
   apply Permutation_nil in H.
   subst.
   eapply Permutation_refl.
-  
+
   simpl in *.
   rewrite <- app_cons_eq.
-  
+
   eapply Permutation_trans.
   eapply Permutation_app_comm.
   rewrite <- app_comm_cons.
@@ -3954,12 +3954,12 @@ Theorem perm_flatten_listReplace :
   eapply Permutation_trans.
   eapply Permutation_app_comm.
   trivial.
-  
+
   destruct ls1.
   simpl in *.
   eapply Permutation_nil in H.
   subst.
-  
+
   eapply perm_flatten_listReplace_nil .
   simpl in *.
   eapply Permutation_trans.
@@ -3967,7 +3967,7 @@ Theorem perm_flatten_listReplace :
   eapply Permutation_refl.
   eapply IHb.
   eapply Permutation_refl.
-  
+
   eapply Permutation_trans.
   eapply Permutation_app_comm.
   rewrite <- app_comm_cons.
@@ -3975,31 +3975,31 @@ Theorem perm_flatten_listReplace :
   eapply Permutation_trans.
   eapply Permutation_app_comm.
   trivial.
-  
+
 Qed.
 
-Theorem map_cons : 
+Theorem map_cons :
   forall (A B : Type)(f : A -> B)(ls : list A)(a : A),
     map f (a :: ls) = (f a) :: map f ls.
-  
+
   intuition.
-  
+
 Qed.
 
-Theorem app_eq_inv : 
+Theorem app_eq_inv :
   forall (A : Type)(ls1 ls2 ls3 ls4 : list A),
     length ls1 = length ls3 ->
     (ls1 ++ ls2) = (ls3 ++ ls4) ->
     ls1 = ls3 /\ ls2 = ls4.
-  
+
   induction ls1; destruct ls3; intros; simpl in *; subst.
   intuition.
-  
+
   omega.
   omega.
-  
+
   inversion H0; clear H0; subst.
-  
+
   specialize (IHls1 ls2 ls3 ls4).
   intuition.
   f_equal.
@@ -4008,7 +4008,7 @@ Theorem app_eq_inv :
 
 Qed.
 
-Theorem NoDup_app : 
+Theorem NoDup_app :
   forall (A : Type)(ls1 ls2 : list A),
     NoDup (ls1 ++ ls2) ->
     NoDup ls1 /\
@@ -4017,84 +4017,84 @@ Theorem NoDup_app :
        In a1 ls1 ->
        In a2 ls2 ->
        a1 <> a2).
-  
+
   induction ls1; intros; simpl in *.
-           
+
   intuition.
   econstructor.
-  
+
   inversion H; clear H; subst.
   eapply IHls1 in H3.
   intuition.
   econstructor.
   intuition.
   trivial.
-  
+
   subst.
   eapply H2.
   eapply in_or_app.
   intuition.
   subst.
-  
+
   eapply H3; eauto.
-  
+
 Qed.
 
-Theorem NoDup_flatten_subset : 
+Theorem NoDup_flatten_subset :
   forall (A : Set)(ls1 ls2 : list (list A)),
     list_pred (fun x y => exists n, y = firstn n x) ls1 ls2 ->
     NoDup (flatten ls1) ->
     NoDup (flatten ls2).
-  
+
   induction 1; intuition; simpl in *.
   destruct H.
   subst.
   eapply NoDup_app in H1.
   intuition.
   eapply app_NoDup; intuition.
-  
-  Theorem firstn_In : 
+
+  Theorem firstn_In :
     forall (A : Type) n (ls : list A)(a : A),
                In a (firstn n ls) ->
                In a ls.
-    
+
     induction n; destruct ls; intuition; simpl in *;
     intuition.
   Qed.
 
-  Theorem firstn_NoDup : 
+  Theorem firstn_NoDup :
     forall (A : Type) n (ls : list A),
       NoDup ls ->
       NoDup (firstn n ls).
-    
+
     induction n; destruct ls; intuition; simpl in *.
     econstructor.
-    
+
     inversion H; clear H; subst.
     econstructor.
-    
+
     intuition.
     eapply H2.
     eapply firstn_In.
     eauto.
-    
+
     eapply IHn; intuition.
-    
+
   Qed.
-  
+
   eapply firstn_NoDup.
   trivial.
-  
+
   eapply H3.
   eapply firstn_In.
   eauto.
-  
+
   Theorem pred_firstn_In :
     forall (A : Set) ls1 ls2,
       list_pred (fun x0 y : list A => exists n : nat, y = firstn n x0) ls1 ls2 ->
       forall a,
         In a (flatten ls2) -> In a (flatten ls1).
-    
+
     induction 1; intuition; simpl in *.
     destruct H.
     subst.
@@ -4104,14 +4104,14 @@ Theorem NoDup_flatten_subset :
     left.
     eapply firstn_In.
     eauto.
-    
+
   Qed.
-  
+
   eapply pred_firstn_In.
   eauto.
   eauto.
   intuition.
-  
+
   eapply H3.
   eapply firstn_In.
   eauto.
@@ -4121,26 +4121,26 @@ Theorem NoDup_flatten_subset :
   intuition.
 Qed.
 
-Theorem firstn_allNatsLt_h : 
+Theorem firstn_allNatsLt_h :
   forall ls n1 n2,
     n2 >= n1 ->
     ls = (allNatsLt n2) ->
     firstn n1 ls = allNatsLt n1.
-  
+
   induction ls using rev_ind; intuition; simpl in *.
-  
+
   Theorem allNatsLt_nil_inv :
     forall n,
       allNatsLt n = nil ->
       n = O.
-    
+
     destruct n; intuition; simpl in *.
     eapply app_eq_nil in H.
     intuition.
     discriminate.
-    
+
   Qed.
-  
+
   symmetry in H0.
   eapply allNatsLt_nil_inv in H0.
   subst.
@@ -4149,7 +4149,7 @@ Theorem firstn_allNatsLt_h :
   subst.
   simpl.
   trivial.
-  
+
   destruct n2; simpl in *.
   eapply app_eq_nil in H0.
   intuition.
@@ -4157,8 +4157,8 @@ Theorem firstn_allNatsLt_h :
   eapply app_inj_tail in H0.
   intuition.
   subst.
-  
-  
+
+
   destruct (le_gt_dec n1 (length (allNatsLt n2))).
   rewrite firstn_app.
   eapply (@IHls); eauto.
@@ -4170,39 +4170,39 @@ Theorem firstn_allNatsLt_h :
   assert (n1 = (S n2)).
   omega.
   subst.
-  
+
   eapply firstn_ge_all.
   rewrite allNatsLt_length.
   intuition.
 Qed.
 
-Theorem firstn_allNatsLt : 
+Theorem firstn_allNatsLt :
   forall n1 n2,
     n2 >= n1 ->
     firstn n1 (allNatsLt n2) = allNatsLt n1.
-  
+
   intuition.
   eapply firstn_allNatsLt_h;
     eauto.
-  
+
 Qed.
 
-Theorem NoDup_app_l : 
+Theorem NoDup_app_l :
   forall (A : Type)(ls1 ls2 : list A),
     NoDup (ls1 ++ ls2) ->
     NoDup ls1.
-  
+
   intuition.
   eapply NoDup_app in H.
   intuition.
-  
+
 Qed.
 
-Theorem NoDup_map : 
+Theorem NoDup_map :
   forall (A B : Type)(f : A -> B)(ls : list A),
     NoDup (map f ls) ->
     (NoDup ls /\ (forall b1 b2, In b1 ls -> In b2 ls -> f b1 = f b2 -> b1 = b2)).
-  
+
   induction ls; intros; simpl in *.
   intuition.
   econstructor.
@@ -4215,10 +4215,10 @@ Theorem NoDup_map :
   econstructor.
   intuition.
   trivial.
-  
+
   subst.
   trivial.
-  
+
   subst.
   exfalso.
   eapply H2.
@@ -4228,7 +4228,7 @@ Theorem NoDup_map :
   symmetry.
   eapply H5.
   trivial.
-  
+
   subst.
   exfalso.
   eapply H2.
@@ -4237,40 +4237,40 @@ Theorem NoDup_map :
   split.
   eapply H5.
   trivial.
-  
+
 Qed.
 
-Theorem map_fst_eq : 
+Theorem map_fst_eq :
   forall (C : Set)(lsc : list C)(A B : Set)(ls : list A)(f : A -> B),
     (length ls = length lsc) ->
-    map f ls = 
+    map f ls =
     map (fun x => f (fst x)) (combine ls lsc).
-  
+
   induction lsc; destruct ls; intuition; simpl in *.
   omega.
   f_equal.
   eauto.
 Qed.
 
-Theorem map_snd_eq : 
+Theorem map_snd_eq :
   forall (C : Set)(lsc : list C)(A B : Set)(ls : list A)(f : A -> B),
     (length ls = length lsc) ->
-    map f ls = 
+    map f ls =
     map (fun x => f (snd x)) (combine lsc ls).
-  
+
   induction lsc; destruct ls; intuition; simpl in *.
   omega.
   f_equal.
   eauto.
 Qed.
 
-Theorem In_combine_NoDup_eq_l : 
+Theorem In_combine_NoDup_eq_l :
   forall (A B : Set)(lsa : list A)(lsb : list B) a1 a2 b,
     NoDup lsb ->
     In (a1, b) (combine lsa lsb) ->
     In (a2, b) (combine lsa lsb) ->
     a1 = a2.
-  
+
   induction lsa; intuition; simpl in *.
   intuition.
   destruct lsb.
@@ -4284,21 +4284,21 @@ Theorem In_combine_NoDup_eq_l :
   pairInv.
   eapply in_combine_r in H0.
   intuition.
-  
+
   pairInv.
   eapply in_combine_r in H.
   intuition.
-  
+
   eauto.
 Qed.
 
-Theorem In_combine_NoDup_eq_r : 
+Theorem In_combine_NoDup_eq_r :
   forall (A B : Set)(lsa : list A)(lsb : list B) a b1 b2,
     NoDup lsa ->
     In (a, b1) (combine lsa lsb) ->
     In (a, b2) (combine lsa lsb) ->
     b1 = b2.
-  
+
   induction lsa; intuition; simpl in *.
   intuition.
   destruct lsb.
@@ -4312,32 +4312,32 @@ Theorem In_combine_NoDup_eq_r :
   pairInv.
   eapply in_combine_l in H0.
   intuition.
-  
+
   pairInv.
   eapply in_combine_l in H.
   intuition.
-  
+
   eauto.
 Qed.
 
-Theorem zip_eq_nil_l : 
+Theorem zip_eq_nil_l :
   forall (A B : Set)(lsa : list A)(lsb : list B),
     zip lsa lsb = nil ->
     length lsa = length lsb ->
     lsa = nil.
-  
+
   induction lsa; intuition; simpl in *.
   destruct lsb; simpl in *.
   omega.
   discriminate.
-       
+
 Qed.
 
-Theorem fst_split_app_eq : 
+Theorem fst_split_app_eq :
   forall (A B : Type)(ls1 ls2 : list (A * B)),
-    fst (split (ls1 ++ ls2)) = 
+    fst (split (ls1 ++ ls2)) =
     fst (split ls1) ++ fst (split ls2).
-  
+
   induction ls1; intuition; simpl in *.
   specialize (IHls1 ls2).
   remember (split (ls1 ++ ls2)) as z.
@@ -4349,23 +4349,23 @@ Theorem fst_split_app_eq :
   trivial.
 Qed.
 
-Theorem fst_split_flatten_eq : 
+Theorem fst_split_flatten_eq :
   forall (A B : Type)(ls : list (list (A * B))),
-    fst (split (flatten ls)) = 
+    fst (split (flatten ls)) =
     flatten (map (fun x => fst (split x)) ls).
-  
+
   induction ls; intuition; simpl in *.
   rewrite  fst_split_app_eq .
   f_equal.
   trivial.
-  
+
 Qed.
 
-Theorem fst_split_map_eq : 
+Theorem fst_split_map_eq :
   forall (A B C : Type)(ls : list A)(f : A -> B * C),
-    fst (split (map f ls)) = 
+    fst (split (map f ls)) =
     map (fun a => fst (f a)) ls.
-  
+
   induction ls; intuition; simpl in *.
   remember (f a) as z.
   destruct z.
@@ -4380,31 +4380,31 @@ Theorem fst_split_map_eq :
   eauto.
 Qed.
 
-Theorem in_split_l_if : 
-  forall (A B : Type)(ls : list (A * B)) a,  
-    In a (fst (split ls)) -> 
+Theorem in_split_l_if :
+  forall (A B : Type)(ls : list (A * B)) a,
+    In a (fst (split ls)) ->
     exists b,
       In (a, b) ls.
-  
+
   induction ls; intuition; simpl in *.
   intuition.
-  
+
   remember (split ls) as z.
   destruct z.
   simpl in *.
   intuition.
   subst.
   econstructor; intuition.
-  
+
   edestruct IHls; eauto.
-  
+
 Qed.
 
-Theorem in_fst_split_if : 
+Theorem in_fst_split_if :
   forall (A B : Type)(ls : list (A * B)) a b,
     In (a, b) ls ->
     In a (fst (split ls)).
-  
+
   induction ls; intuition; simpl in *.
   intuition.
   pairInv.
@@ -4412,44 +4412,44 @@ Theorem in_fst_split_if :
   destruct z.
   simpl.
   intuition.
-  
+
   remember (split ls) as z.
   destruct z.
   simpl in *.
   right.
   eapply IHls.
   eauto.
-  
+
 Qed.
 
-Theorem map_pair_fst_eq : 
+Theorem map_pair_fst_eq :
   forall (A B C D: Type)(f1 : B -> D)(f2 : C -> D)(ls1 : list B)(ls2 : list C)(a1 a2 : A),
     map (fun x => (a1, f1 x)) ls1 = map (fun x => (a2, f2 x)) ls2 ->
     ls1 <> nil ->
     a1 = a2.
-  
+
   induction ls1; destruct ls2; intuition; simpl in *.
   discriminate.
   inversion H; clear H; subst.
   trivial.
-  
+
 Qed.
 
-Theorem In_zip_strong : 
+Theorem In_zip_strong :
   forall (A B : Set)(ls : list A) f a (b : B),
     In (a, b) (zip ls (map f ls)) ->
     (In a ls /\ b = f a).
-  
+
   induction ls; intuition; simpl in *.
   intuition.
   intuition.
   pairInv.
   intuition.
-  
+
   right.
   eapply IHls.
   eauto.
-  
+
   intuition.
   pairInv.
   trivial.
@@ -4457,23 +4457,23 @@ Theorem In_zip_strong :
 Qed.
 
 
-Lemma list_pred_impl : 
+Lemma list_pred_impl :
   forall (A B : Set)(lsa : list A)(lsb : list B) (P1 : A -> B -> Prop),
        list_pred P1 lsa lsb ->
-       forall (P2 : A -> B -> Prop), 
+       forall (P2 : A -> B -> Prop),
          (forall a b, P1 a b -> P2 a b) ->
          list_pred P2 lsa lsb.
-  
+
   induction 1; intuition; simpl in *.
   econstructor.
-  
+
   econstructor; eauto.
 Qed.
 
-Theorem list_pred_eq_in : 
+Theorem list_pred_eq_in :
   forall (A : Set)(ls : list A),
     list_pred (fun a b => a = b /\ In a ls /\ In b ls) ls ls.
-  
+
   induction ls; intuition; simpl in *.
   econstructor.
   econstructor.
@@ -4486,22 +4486,22 @@ Theorem list_pred_eq_in :
   intuition.
 Qed.
 
-Theorem zip_combine_eq : 
+Theorem zip_combine_eq :
   forall (A B : Set)(lsa : list A)(lsb : list B),
     zip lsa lsb = combine lsa lsb.
-  
+
   induction lsa; intuition; simpl in *.
   destruct lsb; intuition.
   f_equal.
   eauto.
-  
+
 Qed.
 
-Theorem list_pred_fst_split_eq : 
+Theorem list_pred_fst_split_eq :
   forall (A B C : Set)(ls1 : list (A * B))(ls2 : list (A * C)),
     list_pred (fun a b => fst a = fst b) ls1 ls2 ->
     fst (split ls1)  = fst (split ls2).
-  
+
   induction 1; intuition; simpl in *.
   destruct a1.
   destruct a2.
@@ -4512,13 +4512,13 @@ Theorem list_pred_fst_split_eq :
   simpl in *.
   subst.
   trivial.
-  
+
 Qed.
 
-Theorem unzip_eq_split : 
+Theorem unzip_eq_split :
   forall (A B : Set)(ls : list (A * B)),
     unzip ls = split ls.
-  
+
   induction ls; intuition; simpl in *.
   remember (split ls) as z.
   destruct z.
@@ -4526,25 +4526,25 @@ Theorem unzip_eq_split :
   simpl.
   f_equal.
   f_equal.
-  
+
   assert (l = fst (l, l0)).
   trivial.
   rewrite H.
   rewrite <- IHls.
   trivial.
-  
+
   assert (l0 = snd (l, l0)).
   trivial.
   rewrite H.
   rewrite <- IHls.
   f_equal.
-  
+
 Qed.
 
 Theorem in_split_r_if:
   forall (A B : Type) (ls : list (A * B)) (b : B),
     In b (snd (split ls)) -> exists a : A, In (a, b) ls.
-  
+
   induction ls; intuition; simpl in *.
   intuition.
   remember (split ls) as z.
@@ -4554,18 +4554,18 @@ Theorem in_split_r_if:
   subst.
   econstructor.
   intuition.
-  
+
   edestruct IHls.
   eauto.
   econstructor.
   right.
   eauto.
-  
+
 Qed.
 
 (* There is nth_error in the Coq library, but it seems to return something in Type. *)
 Fixpoint nth_option(A : Set)(ls : list A)(i : nat) :=
-  match ls with 
+  match ls with
     | nil => None
     | a :: ls' =>
       match i with
@@ -4575,48 +4575,48 @@ Fixpoint nth_option(A : Set)(ls : list A)(i : nat) :=
           end
   end.
 
-Theorem nth_option_app_Some : 
+Theorem nth_option_app_Some :
   forall (A : Set)(ls1 ls2 : list A) i a,
     nth_option ls1 i = Some a ->
     nth_option (ls1 ++ ls2) i = Some a.
-  
+
   induction ls1; intuition; simpl in *.
   congruence.
   destruct i; trivial.
   eauto.
 Qed.
 
-Theorem nth_option_Some_lt : 
+Theorem nth_option_Some_lt :
   forall (A : Set)(ls : list A) i a,
     nth_option ls i = Some a ->
     i < length ls.
-  
+
   induction ls; intuition; simpl in *.
   discriminate.
   destruct i.
   omega.
   eapply lt_n_S.
   eauto.
-  
+
 Qed.
 
-Theorem nth_option_app_None : 
+Theorem nth_option_app_None :
   forall (A : Set)(ls1 ls2 : list A) i,
     nth_option ls1 i = None ->
     nth_option (ls1 ++ ls2) i = nth_option ls2 (i - length ls1).
-  
+
   induction ls1; intuition; simpl in *.
-  
+
   destruct i.
   discriminate.
   eauto.
 Qed.
 
-Theorem nth_option_None_ge : 
+Theorem nth_option_None_ge :
   forall (A : Set)(ls : list A) i,
     nth_option ls i = None ->
     i >= length ls.
-  
+
   induction ls; intuition; simpl in *.
   destruct i.
   discriminate.
@@ -4625,47 +4625,47 @@ Theorem nth_option_None_ge :
   trivial.
 Qed.
 
-Theorem skipn_S_eq : 
+Theorem skipn_S_eq :
   forall (A : Set)(ls : list A) n a,
-    nth_option ls n = Some a -> 
+    nth_option ls n = Some a ->
     skipn n ls = a :: (skipn (S n) ls).
-  
+
   induction ls; intuition; simpl in *.
   discriminate.
   destruct n; simpl in *.
   inversion H; clear H; subst.
   trivial.
   eauto.
-  
+
 Qed.
 
-Theorem nth_option_snd_split : 
+Theorem nth_option_snd_split :
   forall (A B : Set)(ls : list (A * B)) n a b,
     nth_option ls n = Some (a, b) ->
     nth_option (snd (split ls)) n = Some b.
-  
+
   induction ls; intuition; simpl in *.
   discriminate.
-  
+
   destruct n.
   inversion H; clear H; subst.
   remember (split ls) as z.
   destruct z.
   simpl.
   trivial.
-  
+
   remember (split ls) as z.
   destruct z.
   simpl in *.
   eauto.
-  
+
 Qed.
 
 Theorem snd_split_map_eq :
   forall (A B C : Set)(ls : list A)(f : A -> B * C),
     snd (split (map f ls)) =
     map (fun p => snd (f p)) ls.
-  
+
   induction ls; intuition; simpl in *.
   remember (f a) as z.
   destruct z.
@@ -4680,33 +4680,33 @@ Theorem snd_split_map_eq :
   eapply IHls.
 Qed.
 
-Theorem cons_ne : 
+Theorem cons_ne :
   forall (A : Set)(eqda : eq_dec A)(a1 a2 : A)(ls1 ls2 : list A),
     ((a1 :: ls1) = (a2 :: ls2) -> False) ->
     (a1 <> a2) \/ (ls1 <> ls2).
-  
+
   intuition.
-  
+
   destruct (eqda a1 a2).
   subst.
   right.
   intuition.
   subst.
   intuition.
-  
+
   left.
   intuition.
-  
+
 Qed.
 
-Theorem map_ne_same_ex : 
+Theorem map_ne_same_ex :
   forall (A B : Set)(f1 f2 : A -> B)(ls : list A),
     eq_dec B ->
     map f1 ls <> map f2 ls ->
     exists a, In a ls /\ f1 a <> f2 a.
-  
+
   induction ls; intuition; simpl in *.
-  
+
   eapply cons_ne in H0.
   destruct H0.
   econstructor.
@@ -4719,16 +4719,16 @@ Theorem map_ne_same_ex :
   trivial.
 Qed.
 
-Theorem list_pred_I_in : 
+Theorem list_pred_I_in :
   forall (A B : Set)(lsa : list A)(lsb : list B),
     length lsa = length lsb ->
     list_pred (fun a b => In a lsa /\ In b lsb) lsa lsb.
-  
+
   induction lsa; destruct lsb; intuition; simpl in *.
   econstructor.
   discriminate.
   discriminate.
-  
+
   econstructor.
   intuition.
   eapply list_pred_impl.
@@ -4739,7 +4739,7 @@ Theorem list_pred_I_in :
   intuition.
 Qed.
 
-Theorem list_pred_fst_split_eq_l : 
+Theorem list_pred_fst_split_eq_l :
   forall (A B : Set)(a : list (A * B))(b : list A),
     list_pred (fun a0 b0 => fst a0 = b0) a b ->
     b = fst (split a).
@@ -4747,7 +4747,7 @@ Theorem list_pred_fst_split_eq_l :
   induction a; intuition; simpl in *.
   inversion H; clear H; subst.
   trivial.
-  
+
   inversion H; clear H; subst.
   simpl.
   remember (split a0) as z.
@@ -4756,65 +4756,65 @@ Theorem list_pred_fst_split_eq_l :
   f_equal.
   eapply IHa.
   trivial.
-  
+
 Qed.
 
-Theorem list_pred_fst_split_flatten_eq_l : 
+Theorem list_pred_fst_split_flatten_eq_l :
   forall (A B : Set)(a : list (list (A * B)))(b : list (list A)),
     list_pred
       (list_pred
          (fun a0 b0 => fst a0 = b0)) a b ->
     flatten b = fst (split (flatten a)).
-  
+
   induction a; intuition; simpl in *.
   inversion H; clear H; subst.
   trivial.
-  
+
   inversion H; clear H; subst.
   simpl.
   rewrite fst_split_app_eq.
   f_equal.
   eapply list_pred_fst_split_eq_l .
   trivial.
-  
+
   eauto.
-  
+
 Qed.
 
-Theorem fold_add_const_mult : 
+Theorem fold_add_const_mult :
   forall (A : Type)(ls : list A)(c : nat) init,
-    (fold_left (fun acc _ => acc + c) ls init = 
+    (fold_left (fun acc _ => acc + c) ls init =
      (length ls) * c + init)%nat.
-  
+
   induction ls; intuition; simpl in *.
   rewrite IHls.
   omega.
-  
+
 Qed.
 
 Theorem list_pred_snd_split_eq_l:
   forall (A B : Set) (a : list (B * A)) (b : list A),
     list_pred (fun (a0 : B * A) (b0 : A) => snd a0 = b0) a b ->
     b = snd (split a).
-  
+
   induction 1; intuition; simpl in *.
   subst.
   destruct a1.
   remember (split ls1) as z.
   destruct z.
-  simpl. 
+  simpl.
   trivial.
-  
+
 Qed.
 
-Theorem NoDup_snd_split_if : 
+Theorem NoDup_snd_split_if :
   forall (A B : Type)(ls : list (A * B)),
     NoDup (snd (split ls)) ->
     NoDup ls.
-  
+
   induction ls; intuition; simpl in *.
   econstructor.
-  
+
   remember (split ls) as z.
   destruct z.
   destruct a.
@@ -4836,11 +4836,11 @@ Fixpoint forNats(n : nat) :=
         cons n' (forNats n')
   end.
 
-Lemma forNats_In : 
+Lemma forNats_In :
   forall n i,
     i < n <->
     In i (forNats n).
-  
+
   induction n; intuition; simpl in *.
   omega.
   intuition.
@@ -4859,7 +4859,7 @@ Lemma forNats_In :
 
 Qed.
 
-Lemma forNats_NoDup : 
+Lemma forNats_NoDup :
   forall n,
     NoDup (forNats n).
 
@@ -4872,20 +4872,20 @@ Lemma forNats_NoDup :
 
 Qed.
 
-Lemma forNats_length : 
+Lemma forNats_length :
   forall n,
     length (forNats n) = n.
-  
+
   induction n; intuition; simpl in *.
   f_equal; intuition.
-  
+
 Qed.
 
-Lemma sumList_forNats_first_ls : 
+Lemma sumList_forNats_first_ls :
   forall (n : nat)(f : nat -> Rat),
     n <> O ->
     f O <= sumList (forNats n) f.
-  
+
   induction n; intuition; simpl in *.
   eapply leRat_trans.
   Focus 2.
@@ -4903,10 +4903,10 @@ Lemma sumList_forNats_first_ls :
   eapply rat0_le_all.
 Qed.
 
-Lemma sumList_forNats_distance : 
-  forall (n : nat)(f : nat -> Rat), 
+Lemma sumList_forNats_distance :
+  forall (n : nat)(f : nat -> Rat),
     (| sumList (forNats n) f - sumList (forNats n) (fun i => f (S i)) |) == (| (f O) - (f n) |).
-  
+
   intuition.
 
   destruct (eq_nat_dec n O).
@@ -4979,21 +4979,21 @@ Lemma sumList_forNats_distance :
 
 Qed.
 
-Lemma flatten_map_eq : 
+Lemma flatten_map_eq :
   forall (A B : Set)(ls : list A)(f : A -> B),
     flatten (map (fun a => (f a) :: nil) ls) =
     map f ls.
-  
+
   induction ls; intuition; simpl in *.
   f_equal; intuition.
-  
+
 Qed.
 
-Lemma app_NoDup_inv : 
-    forall (A : Set)(ls1 ls2 : list A), 
+Lemma app_NoDup_inv :
+    forall (A : Set)(ls1 ls2 : list A),
       NoDup (ls1 ++ ls2) ->
       (forall a, In a ls1 -> In a ls2 -> False).
-    
+
     induction ls1; intuition; simpl in *.
     intuition.
     subst.
@@ -5004,24 +5004,24 @@ Lemma app_NoDup_inv :
 
     inversion H; clear H; subst.
     eapply IHls1;
-    eauto.  
+    eauto.
 
   Qed.
 
-  
-Lemma flatten_NoDup : 
+
+Lemma flatten_NoDup :
   forall (A : Set)(ls : list (list A)),
     NoDup ls ->
     (forall x, In x ls -> NoDup x) ->
     (forall x1 x2, In x1 ls -> In x2 ls -> x1 <> x2 -> NoDup (x1 ++ x2)) ->
     NoDup (flatten ls).
-  
+
   induction ls; intuition; simpl in *.
   econstructor.
-  
+
   inversion H; clear H; subst.
   eapply app_NoDup; intuition.
-  
+
   eapply in_flatten in H3.
   destruct H3.
   intuition.
@@ -5036,7 +5036,7 @@ Lemma flatten_NoDup :
   intuition.
   eauto.
   trivial.
-  
+
   eapply in_flatten in H2.
   destruct H2.
   intuition.
@@ -5056,12 +5056,12 @@ Qed.
 Lemma map_NoDup'
 : forall (A B : Set) (ls : list A) (f : A -> B),
     NoDup ls ->
-    (forall a1 a2 : A, In a1 ls -> In a2 ls ->a1 <> a2 -> f a1 <> f a2) -> 
+    (forall a1 a2 : A, In a1 ls -> In a2 ls ->a1 <> a2 -> f a1 <> f a2) ->
     NoDup (map f ls).
-  
+
   induction ls; intuition; simpl in *;
   econstructor.
-  
+
   inversion H; clear H; subst.
   intuition.
   eapply in_map_iff in H.
@@ -5076,7 +5076,7 @@ Lemma map_NoDup'
   subst.
   intuition.
   intuition.
-  
+
   inversion H; clear H; subst.
   eapply IHls; intuition.
   eapply H0.
@@ -5086,16 +5086,16 @@ Lemma map_NoDup'
   eapply H1.
   intuition.
   trivial.
-  
+
 Qed.
 
-Lemma getUnique_cons : 
+Lemma getUnique_cons :
   forall (A : Set)(eqd : eq_dec A)(ls2 ls1 : list A) a,
     a :: ls1 = (getUnique ls2 eqd) ->
-    exists ls3 ls4, 
+    exists ls3 ls4,
       ls2 = ls3 ++ (a :: ls4) /\
       ls1 = (getUnique ls4 eqd).
-  
+
   induction ls2; intuition; simpl in *.
   inversion H.
   destruct (in_dec eqd a (getUnique ls2 eqd)).
@@ -5109,7 +5109,7 @@ Lemma getUnique_cons :
   split.
   eapply app_comm_cons.
   trivial.
-  
+
   inversion H; clear H; subst.
   econstructor.
   econstructor.
@@ -5118,19 +5118,19 @@ Lemma getUnique_cons :
   trivial.
 Qed.
 
-Lemma getUnique_eq_inv : 
+Lemma getUnique_eq_inv :
   forall (A : Set)(a : A)(eqd1 eqd2 : eq_dec A)(ls1 ls2 : list A),
     getUnique ls1 eqd1 = getUnique ls2 eqd2 ->
-    In a ls1 -> 
+    In a ls1 ->
     In a ls2.
-  
+
   induction ls1; intuition; simpl in *; intuition; subst.
-  
+
   destruct (in_dec eqd1 a (getUnique ls1 eqd1)).
   rewrite H in i.
   apply in_getUnique_if in i.
   trivial.
-  
+
   apply getUnique_cons in H.
   destruct H.
   destruct H.
@@ -5139,10 +5139,10 @@ Lemma getUnique_eq_inv :
   eapply in_or_app.
   simpl.
   intuition.
-  
+
   destruct (in_dec eqd1 a0 (getUnique ls1 eqd1)).
   eapply IHls1; intuition.
-  
+
   apply getUnique_cons in H.
   destruct H.
   destruct H.
@@ -5158,66 +5158,66 @@ Qed.
 Lemma sumList_app :
   forall (A : Set)(ls1 ls2 : list A)(f : A -> Rat),
     sumList (ls1 ++ ls2) f == (sumList ls1 f) + (sumList ls2 f).
-  
+
   induction ls1; intuition; simpl in *.
   unfold sumList; simpl in *.
   rewrite <- ratAdd_0_l.
   intuition.
-  
+
   repeat rewrite sumList_cons.
   rewrite IHls1.
   rewrite ratAdd_assoc.
   intuition.
 Qed.
 
-Lemma filter_all_true : 
-  forall (A : Set)(ls : list A)(P : A -> bool), 
+Lemma filter_all_true :
+  forall (A : Set)(ls : list A)(P : A -> bool),
     (forall a, In a ls -> P a = true) ->
     filter P ls = ls.
-  
+
   induction ls; intuition; simpl in *.
-  
+
   assert (P a = true).
   eapply H; intuition.
-  
+
   rewrite H0.
   f_equal; intuition.
-  
+
 Qed.
 
-Lemma sumList_map : 
+Lemma sumList_map :
   forall (A B : Set)(ls : list A)(f1 : A -> B)(f : B -> Rat),
-    sumList (map f1 ls) f == 
+    sumList (map f1 ls) f ==
     sumList ls (fun a => f (f1 a)).
-  
+
   induction ls; intuition; simpl in *.
   unfold sumList; simpl in *.
   intuition.
 
   repeat rewrite sumList_cons.
   eapply ratAdd_eqRat_compat; intuition.
-  
+
 Qed.
 
-Lemma sumList_filter_twice : 
+Lemma sumList_filter_twice :
   forall (A B : Set)(P : A -> bool)(ls : list A)(lsf : A -> list B)(f : A * B -> Rat),
-    sumList (filter (fun p => P (fst p)) (flatten (map (fun a => map (fun b => (a, b)) (lsf a)) ls))) f ==  
+    sumList (filter (fun p => P (fst p)) (flatten (map (fun a => map (fun b => (a, b)) (lsf a)) ls))) f ==
     sumList (filter P ls) (fun a => sumList (lsf a) (fun b => f (a, b))).
-  
+
   induction ls; intuition; simpl in *.
   unfold sumList.
   simpl.
   intuition.
   case_eq (P a); intuition.
   rewrite sumList_cons.
-  
+
   rewrite filter_app.
   rewrite sumList_app.
   eapply ratAdd_eqRat_compat; intuition.
-  
+
   rewrite filter_all_true.
   eapply sumList_map.
-  
+
   intuition.
   apply in_map_iff in H0.
   destruct H0.
@@ -5225,11 +5225,11 @@ Lemma sumList_filter_twice :
   subst.
   simpl.
   trivial.
-  
+
   rewrite filter_app.
   rewrite sumList_app.
   symmetry.
-  
+
   rewrite ratAdd_0_l.
   symmetry.
   eapply ratAdd_eqRat_compat; intuition.
@@ -5244,22 +5244,22 @@ Lemma sumList_filter_twice :
   congruence.
 Qed.
 
-Lemma filter_cons : 
+Lemma filter_cons :
   forall (A : Set)(P : A -> bool)(ls : list A) a,
-    filter P (a :: ls) = 
+    filter P (a :: ls) =
     if (P a) then (a :: (filter P ls)) else (filter P ls).
-  
+
   intuition.
 Qed.
 
-Theorem sumList_1_mult : 
+Theorem sumList_1_mult :
   forall (A : Set)(ls : list A),
     sumList ls (fun _ => 1) == length ls / 1.
-  
+
   induction ls; intuition.
   unfold sumList; simpl.
   reflexivity.
-  
+
   rewrite sumList_cons.
   simpl.
   rewrite IHls.
@@ -5267,70 +5267,70 @@ Theorem sumList_1_mult :
   intuition.
 Qed.
 
-Theorem fold_left_orb_true_init : 
+Theorem fold_left_orb_true_init :
   forall (A : Type)(f : A -> bool)(ls : list A),
     fold_left (fun b x => orb b (f x)) ls true = true.
-  
+
   induction ls; intuition.
-  
+
 Qed.
 
-Theorem fold_left_orb_true_in : 
+Theorem fold_left_orb_true_in :
   forall (A : Type)(f : A -> bool)(ls : list A) a init,
     In a ls ->
     f a = true ->
     fold_left (fun b x => orb b (f x)) ls init = true.
-  
+
   induction ls; intuition; simpl in *.
   intuition; subst.
   rewrite H0.
   rewrite orb_true_r.
   eapply fold_left_orb_true_init.
-  
+
   eauto.
 Qed.
 
-Theorem hd_error_Some_In : 
+Theorem hd_error_Some_In :
   forall (A : Type)(ls : list A) a,
     hd_error ls = Some a ->
     In a ls.
-  
+
   intuition.
   destruct ls; simpl in *.
   discriminate.
   inversion H; clear H; subst.
   intuition.
-  
+
 Qed.
 
 Theorem fold_and_false_init :
   forall (A : Type)(ls : list A) P,
     fold_left (fun b z => b && negb (P z)) ls false = false.
-  
+
   induction ls; intuition.
-  
+
 Qed.
 
-Theorem hd_filter_false_eq_and_false : 
+Theorem hd_filter_false_eq_and_false :
   forall (A : Type)(ls : list A)(P : A -> bool),
     (if hd_error (filter P ls) then false else true) =
     fold_left (fun (b : bool) (z : A) => b && negb (P z)) ls true.
-  
+
   induction ls; intuition; simpl in *.
   destruct (P a).
   simpl.
   rewrite fold_and_false_init.
   trivial.
-  
+
   eapply IHls.
-  
+
 Qed.
 
-Theorem fst_split_eq_list_pred : 
+Theorem fst_split_eq_list_pred :
   forall (A B : Set)(ls1 : list (A * B))(ls2 : list A),
     list_pred (fun a b => fst a = b) ls1 ls2 ->
     fst (split ls1) = ls2.
-  
+
   induction 1; intuition; simpl in *.
   subst.
   destruct a1.
@@ -5340,11 +5340,11 @@ Theorem fst_split_eq_list_pred :
   f_equal.
 Qed.
 
-Theorem snd_split_eq_list_pred : 
+Theorem snd_split_eq_list_pred :
   forall (A B : Set)(ls1 : list (B * A))(ls2 : list A),
     list_pred (fun a b => snd a = b) ls1 ls2 ->
     snd (split ls1) = ls2.
-  
+
   induction 1; intuition; simpl in *.
   subst.
   destruct a1.
@@ -5354,69 +5354,69 @@ Theorem snd_split_eq_list_pred :
   f_equal.
 Qed.
 
-Theorem combine_map_eq : 
+Theorem combine_map_eq :
   forall (A B C : Type)(lsa : list A)(lsb : list B)(f : B -> C),
     combine lsa (map f lsb) = map (fun p => (fst p, f (snd p))) (combine lsa lsb).
-  
+
   induction lsa; destruct lsb; intuition; simpl in *.
   f_equal; eauto.
-  
+
 Qed.
 
 
-Theorem map_ext_pred : 
+Theorem map_ext_pred :
   forall (A B C : Set)(P : A -> B -> Prop)(lsa : list A)(lsb : list B)(f1 : A -> C)(f2 : B -> C),
     list_pred P lsa lsb ->
     (forall a b, P a b -> (f1 a) = (f2 b)) ->
     map f1 lsa = map f2 lsb.
-  
+
   induction 1; intuition; simpl in *.
   f_equal; intuition.
-  
+
 Qed.
 
-Theorem list_pred_combine_l_h : 
+Theorem list_pred_combine_l_h :
   forall (A C : Set)(lsa : list A)(lsc : list C) P1,
     list_pred P1 lsa lsc ->
-    forall (B : Set)(lsb : list B) P2, 
+    forall (B : Set)(lsb : list B) P2,
       list_pred P2 lsb lsc ->
       list_pred (fun p c => P1 (fst p) c /\ P2 (snd p) c) (combine lsa lsb) lsc.
-  
+
   induction 1; intuition; simpl in *.
   econstructor.
   inversion H1; clear H1; subst.
   econstructor.
   intuition.
-    
+
   eauto.
-  
+
 Qed.
 
-Theorem list_pred_combine_l : 
+Theorem list_pred_combine_l :
   forall (A B C : Set)P1 P2 (lsa : list A)(lsb : list B)(lsc : list C),
-    list_pred P1 lsa lsc -> 
+    list_pred P1 lsa lsc ->
     list_pred P2 lsb lsc ->
     list_pred (fun p c => P1 (fst p) c /\ P2 (snd p) c) (combine lsa lsb) lsc.
-  
+
   intuition.
   eapply list_pred_combine_l_h; eauto.
-  
+
 Qed.
 
-Lemma list_pred_symm : 
+Lemma list_pred_symm :
   forall (A B : Set)(P : A -> B -> Prop) lsa lsb,
     list_pred (fun b a => P a b) lsb lsa ->
     list_pred P lsa lsb.
-  
+
   induction lsa; inversion 1; intuition; simpl in *;
   econstructor.
-  
+
   subst.
   trivial.
   subst.
   trivial.
   eauto.
-  
+
 Qed.
 
 Theorem list_pred_combine_r
@@ -5426,7 +5426,7 @@ Theorem list_pred_combine_r
     list_pred P2 lsa lsc ->
     list_pred (fun a p => P1 a (fst p) /\ P2 a (snd p))
               lsa (combine lsb lsc).
-  
+
   intuition.
   eapply list_pred_symm.
   eapply list_pred_impl.
@@ -5436,5 +5436,5 @@ Theorem list_pred_combine_r
   eapply list_pred_symm.
   eapply H0.
   intuition.
-  
+
 Qed.

@@ -3,14 +3,14 @@ Require Import compcert.lib.Coqlib msl.Coqlib2 floyd.coqlib3.
 Require Import floyd.jmeq_lemmas.
 
 Fixpoint compact_prod (T: list Type): Type :=
-  match T with 
+  match T with
   | nil => unit
   | t :: nil => t
   | t :: T0 => (t * compact_prod T0)%type
   end.
 
 Fixpoint compact_sum (T: list Type): Type :=
-  match T with 
+  match T with
   | nil => unit
   | t :: nil => t
   | t :: T0 => (t + compact_sum T0)%type
@@ -87,7 +87,7 @@ Lemma aux0: forall {A} {a a0: A}, In a (a0 :: nil) -> a <> a0 -> False.
 Proof.
   intros.
   destruct H; [congruence | tauto].
-Defined. 
+Defined.
 
 Lemma aux1: forall {A} {a a0: A} {l}, In a (a0 :: l) -> a <> a0 -> In a l.
 Proof.

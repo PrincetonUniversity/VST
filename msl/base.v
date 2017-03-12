@@ -13,7 +13,7 @@ Require Export Coq.Relations.Relations.
 Require Export Omega.
 
 Definition compose (A B C:Type) (g:B -> C) (f:A -> B) := fun x => g (f x).
-Implicit Arguments compose [A B C].
+Arguments compose [A B C] _ _ _.
 Infix "oo" := compose (at level 54, right associativity).
 
 Lemma compose_assoc (A B C D:Type) (h:C->D) (g:B->C) (f:A->B) :
@@ -46,14 +46,14 @@ Record bijection (A B:Type) : Type := Bijection {
   bij_gf: forall x, bij_g (bij_f x) = x
 }.
 
-Lemma bij_f_inj {A} {B} (bij: bijection A B): 
+Lemma bij_f_inj {A} {B} (bij: bijection A B):
      forall x y, bij_f _ _ bij x = bij_f _ _ bij y -> x=y.
 Proof.
 intros. rewrite <- (bij_gf _ _ bij x). rewrite <- (bij_gf _ _ bij y).
  rewrite H; auto.
 Qed.
 
-Lemma bij_g_inj {A} {B} (bij: bijection A B): 
+Lemma bij_g_inj {A} {B} (bij: bijection A B):
      forall x y, bij_g _ _ bij x = bij_g _ _ bij y -> x=y.
 Proof.
 intros. rewrite <- (bij_fg _ _ bij x). rewrite <- (bij_fg _ _ bij y).
@@ -150,11 +150,11 @@ Ltac detach H :=
 
 (** Specialize a hypothesis with respect to specific terms or proofs. *)
 Tactic Notation "spec" hyp(H) :=
-  match type of H with ?a -> _ => 
+  match type of H with ?a -> _ =>
     let H1 := fresh in (assert (H1: a); [|generalize (H H1); clear H H1; intro H]) end.
 
 Tactic Notation "spec" hyp(H) constr(a) :=
-  (generalize (H a); clear H; intro H). 
+  (generalize (H a); clear H; intro H).
 
 Tactic Notation "spec" hyp(H) constr(a) constr(b) :=
   (generalize (H a b); clear H; intro H).

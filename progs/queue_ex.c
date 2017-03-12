@@ -18,7 +18,7 @@ void *f(void *arg){
     free(d);
     results[t][i] = v;
   }
-  
+
   lock_t *l = thread_locks[t];
   release2(l);
   return NULL;
@@ -38,7 +38,7 @@ int main(void){
     *t = i;
     spawn((void *)&f, (void *)t);
   }
-  
+
   queue_t *q1 = q0;
 
   for(int i = 0; i < 9; i++){
@@ -59,6 +59,6 @@ int main(void){
   /*  for(int i = 0; i < 3; i++)
     for(int j = 0; j < 3; j++)
     printf("%d ", results[i][j]);*/
-      
+
   //results should merge to input
 }

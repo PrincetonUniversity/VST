@@ -11,7 +11,7 @@ Require Import floyd.loadstore_mapsto.
 
 Local Open Scope logic.
 
-Lemma is_neutral_cast_by_value: forall t t', 
+Lemma is_neutral_cast_by_value: forall t t',
   is_neutral_cast t t' = true ->
   type_is_by_value t = true.
 Proof.
@@ -69,10 +69,10 @@ Lemma semax_max_path_field_load_nth_ram:
         (tc_efield Delta efs) &&
         efield_denote efs gfs &&
         local `(tc_val (typeof (nested_efield e1 efs tts)) v) ->
-      semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
+      semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
         (Sset id (nested_efield e1 efs tts))
           (normal_ret_assert
-            (PROPx P 
+            (PROPx P
               (LOCALx (temp id v :: remove_localdef id Q)
                 (SEPx R)))).
 Proof.
@@ -177,10 +177,10 @@ Lemma semax_max_path_field_load_nth_ram'':
         (tc_efield Delta efs) &&
         efield_denote efs gfsB &&
         local `(tc_val (typeof (nested_efield e1 efs tts)) v) ->
-      semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
+      semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
         (Sset id (nested_efield e1 efs tts))
           (normal_ret_assert
-            (PROPx P 
+            (PROPx P
               (LOCALx (temp id v :: remove_localdef id Q)
                 (SEPx R)))).
 Proof.
@@ -255,7 +255,7 @@ Lemma semax_max_path_field_cast_load_nth_ram:
       semax Delta (|> PROPx P (LOCALx Q (SEPx R)))
         (Sset id (Ecast (nested_efield e1 efs tts) t))
           (normal_ret_assert
-            (PROPx P 
+            (PROPx P
               (LOCALx (temp id (eval_cast (typeof (nested_efield e1 efs tts)) t v) :: remove_localdef id Q)
                 (SEPx R)))).
 Proof.
@@ -294,7 +294,7 @@ Proof.
 Qed.
 
 Lemma lower_andp_lifted_val:
-  forall (P Q: val->mpred) v, 
+  forall (P Q: val->mpred) v,
   (`(P && Q) v) = (`P v && `Q v).
 Proof. reflexivity. Qed.
 
@@ -308,7 +308,7 @@ Proof.
   normalize.
   autorewrite with subst norm1 norm2; normalize.
   normalize in H.
-  autorewrite with subst norm1 norm2 in H; normalize in H; normalize.  
+  autorewrite with subst norm1 norm2 in H; normalize in H; normalize.
 Qed.
 
 Lemma semax_max_path_field_store_nth_ram:
@@ -330,11 +330,11 @@ Lemma semax_max_path_field_store_nth_ram:
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
         local (`(eq v) (eval_expr (Ecast e2 (typeof (nested_efield e1 efs tts))))) ->
       ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-        (tc_LR Delta e1 lr) && 
+        (tc_LR Delta e1 lr) &&
         (tc_efield Delta efs) &&
         efield_denote efs gfs &&
         (tc_expr Delta (Ecast e2 (typeof (nested_efield e1 efs tts)))) ->
-      semax Delta (|>PROPx P (LOCALx Q (SEPx R))) 
+      semax Delta (|>PROPx P (LOCALx Q (SEPx R)))
         (Sassign (nested_efield e1 efs tts) e2)
           (normal_ret_assert
             (PROPx P

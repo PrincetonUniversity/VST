@@ -25,7 +25,7 @@ Qed.
 
 Lemma body_md_get_size: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
        f_mbedtls_md_get_size md_get_size_spec.
-Proof. 
+Proof.
   start_function.
   forward.
 Qed.
@@ -33,7 +33,7 @@ Qed.
 Lemma body_md_start: semax_body HmacDrbgVarSpecs (HmacDrbgFunSpecs)
        f_mbedtls_md_hmac_starts md_starts_spec.
 Proof.
-  start_function. 
+  start_function.
 
   destruct r as [r1 [r2 r3]]. simpl.
   rewrite EMPTY_isptr; Intros.
@@ -54,12 +54,12 @@ Qed.
 Lemma body_md_update: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
        f_mbedtls_md_hmac_update md_update_spec.
 Proof.
-  start_function. 
-  
+  start_function.
+
   unfold md_relate(*; unfold convert_abs*).
   destruct r as [r1 [r2 internal_r]].
   simpl.
-  rewrite REP_isptr; Intros. 
+  rewrite REP_isptr; Intros.
 
   (* HMAC_CTX * hmac_ctx = ctx->hmac_ctx; *)
   forward.
@@ -91,7 +91,7 @@ Proof.
   unfold md_relate(*; unfold convert_abs*).
   destruct r as [r1 [r2 internal_r]].
   simpl.
-  rewrite REP_isptr; Intros. 
+  rewrite REP_isptr; Intros.
 
   (* HMAC_CTX * hmac_ctx = ctx->hmac_ctx; *)
   forward.
@@ -112,7 +112,7 @@ Proof.
 
   destruct r as [r1 [r2 internal_r]].
   simpl.
-  rewrite FULL_isptr; Intros. 
+  rewrite FULL_isptr; Intros.
 
   (* HMAC_CTX * hmac_ctx = ctx->hmac_ctx; *)
   forward.
@@ -126,14 +126,14 @@ Qed.
 
 Lemma body_md_setup: semax_body HmacDrbgVarSpecs ((*malloc_spec::*)HmacDrbgFunSpecs)
        f_mbedtls_md_setup md_setup_spec.
-Proof. 
+Proof.
   start_function.
 
   forward_call (sizeof (Tstruct _hmac_ctx_st noattr)).
-  Intros vret. 
- 
-  forward_if (PROP () LOCAL (temp _sha_ctx vret; temp _md_info info; 
-   temp _ctx c; temp _hmac h) 
+  Intros vret.
+
+  forward_if (PROP () LOCAL (temp _sha_ctx vret; temp _md_info info;
+   temp _ctx c; temp _hmac h)
       SEP (!!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr)) vret &&
            memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) vret;
            malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) vret *
@@ -144,17 +144,17 @@ Proof.
       apply sepcon_valid_pointer1.
       apply sepcon_valid_pointer2.
       apply memory_block_valid_ptr. apply top_share_nonidentity. omega.
-      entailer!. 
+      entailer!.
   }
-  { (*null*) 
+  { (*null*)
     subst vret. simpl. forward.
-    Exists (-20864). entailer!. 
+    Exists (-20864). entailer!.
   }
   { destruct (eq_dec vret nullval); subst. elim H; trivial. clear n.
     forward. entailer!.
   }
   rewrite memory_block_isptr. Intros.
   unfold_data_at 1%nat.
-  forward. forward. forward. Exists 0. simpl. entailer!. 
+  forward. forward. forward. Exists 0. simpl. entailer!.
   Exists vret. unfold_data_at 1%nat. entailer!.
-Qed. 
+Qed.

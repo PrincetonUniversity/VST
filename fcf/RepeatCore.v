@@ -6,7 +6,7 @@
 
   1) (DistSingle) When an adversary cannot distinguish two distributions when given one sample, then he cannot distinguish the distributions when given polynomially many samples.
 
-  2) (RepeatCore) When an adversary cannot distinguish two distributions when given a polynomial number of samples, he cannot distinguish the distributions when given one sample from some "core" of the distributions that has polynomial size. 
+  2) (RepeatCore) When an adversary cannot distinguish two distributions when given a polynomial number of samples, he cannot distinguish the distributions when given one sample from some "core" of the distributions that has polynomial size.
 
 *)
 
@@ -54,7 +54,7 @@ Section DistSingle_impl_Mult.
   Variable A_State_EqDec : EqDec A_State.
   Variable A1 : Comp (A * A_State).
   Variable A2 : A_State -> list B -> Comp bool.
-  
+
   Hypothesis c1_wf : forall a, well_formed_comp (c1 a).
   Hypothesis c2_wf : forall a, well_formed_comp (c2 a).
 
@@ -67,10 +67,10 @@ Section DistSingle_impl_Mult.
   Variable n : nat.
   Hypothesis n_pos : n > 0.
 
-  Theorem hybrid_replace_c1_equiv : 
+  Theorem hybrid_replace_c1_equiv :
     forall i x a,
       i < n ->
-      evalDist 
+      evalDist
         (b <-$ (c1 a);
          hybrid <-$ computeHybrid n i a;
          ret (listReplace hybrid i b b)) x ==
@@ -108,7 +108,7 @@ Section DistSingle_impl_Mult.
     comp_swap_l.
     comp_skip.
 
-    assert 
+    assert
       (evalDist
      (a1 <-$
       (lsb' <-$
@@ -116,7 +116,7 @@ Section DistSingle_impl_Mult.
         lsb' <-$ compMap B_EqDec (fun _ : nat => (c1 a)) (forNats i);
         ret b :: lsb'); ret x0 :: lsb');
       a2 <-$ compMap B_EqDec (fun _ : nat => (c2 a)) (forNats (n0 - S i));
-      ret a1 ++ a2) x == 
+      ret a1 ++ a2) x ==
        evalDist
      (ls <-$ (computeHybrid n0 (S i) a);
       ret (x0 :: ls)) x).
@@ -156,10 +156,10 @@ Section DistSingle_impl_Mult.
   Qed.
 
 
-  Theorem hybrid_replace_c2_equiv : 
+  Theorem hybrid_replace_c2_equiv :
     forall i x a,
       i < n ->
-      evalDist 
+      evalDist
         (b <-$ (c2 a);
          hybrid <-$ computeHybrid n i a;
          ret (listReplace hybrid i b b)) x ==
@@ -183,7 +183,7 @@ Section DistSingle_impl_Mult.
     comp_simp.
     simpl.
     intuition.
-   
+
     unfold computeHybrid.
     unfold minus.
     fold minus.
@@ -201,9 +201,9 @@ Section DistSingle_impl_Mult.
       (lsb' <-$ compMap B_EqDec (fun _ : nat => (c1 a)) (forNats i);
        ret x0 :: lsb');
       a2 <-$ compMap B_EqDec (fun _ : nat => (c2 a)) (forNats (n0 - i));
-      ret a1 ++ a2) x == 
+      ret a1 ++ a2) x ==
             evalDist
-     (ls <-$ 
+     (ls <-$
          (a1 <-$ compMap B_EqDec (fun _ : nat => (c1 a)) (forNats i);
           a2 <-$ compMap B_EqDec (fun _ : nat => (c2 a)) (forNats (n0 - i));
           ret a1 ++ a2);
@@ -239,7 +239,7 @@ Section DistSingle_impl_Mult.
 
   Definition B1 : Comp (A * (A * A_State)) :=
     [a, s_A] <-$2 A1;
-    ret (a, (a, s_A)). 
+    ret (a, (a, s_A)).
 
   Definition B2(s : A * A_State)(b : B) : Comp bool :=
     [a, s_A] <-2 s;
@@ -249,11 +249,11 @@ Section DistSingle_impl_Mult.
     A2 s_A distHybrid.
 
   Definition DistSingle_G1(c : A -> Comp B) :=
-    [a, s_A] <-$2 B1; 
-    b <-$ (c a); 
+    [a, s_A] <-$2 B1;
+    b <-$ (c a);
     B2 s_A b.
 
-  Theorem DistSingle_G1_equiv : 
+  Theorem DistSingle_G1_equiv :
       DistSingle_Adv c1 c2 B1 B2 ==
       (| Pr[DistSingle_G1 c1] - Pr[DistSingle_G1 c2] |).
 
@@ -268,11 +268,11 @@ Section DistSingle_impl_Mult.
     distHybrid <-$
                (b <-$ c a;
                 rndHybrid <-$ computeHybrid n i a;
-                ret (listReplace rndHybrid i b b)); 
+                ret (listReplace rndHybrid i b b));
     A2 s_A distHybrid.
 
-  Theorem DistSingle_G2_equiv : 
-    forall c, 
+  Theorem DistSingle_G2_equiv :
+    forall c,
       Pr[DistSingle_G1 c] == Pr[DistSingle_G2 c].
 
     intuition.
@@ -304,7 +304,7 @@ Section DistSingle_impl_Mult.
     distHybrid <-$ computeHybrid n (S i) a;
     A2 s_A distHybrid.
 
-  Theorem DistSingle_G3_c2_equiv : 
+  Theorem DistSingle_G3_c2_equiv :
     Pr[DistSingle_G2 c2] == Pr[DistSingle_G3_c2].
 
     unfold DistSingle_G2, DistSingle_G3_c2.
@@ -315,10 +315,10 @@ Section DistSingle_impl_Mult.
     comp_skip.
     eapply hybrid_replace_c2_equiv.
     eapply RndNat_support_lt; intuition.
-    
+
   Qed.
 
-  Theorem DistSingle_G3_c1_equiv : 
+  Theorem DistSingle_G3_c1_equiv :
     Pr[DistSingle_G2 c1] == Pr[DistSingle_G3_c1].
 
     unfold DistSingle_G2, DistSingle_G3_c1.
@@ -329,14 +329,14 @@ Section DistSingle_impl_Mult.
     comp_skip.
     eapply hybrid_replace_c1_equiv.
     eapply RndNat_support_lt; intuition.
-    
+
   Qed.
 
-  Theorem compMap_computeHybrid_0_equiv : 
-    forall s_A a, 
+  Theorem compMap_computeHybrid_0_equiv :
+    forall s_A a,
       Pr  [b <-$ compMap B_EqDec (fun _ : nat => (c2 a)) (forNats n); A2 s_A b ] ==
       Pr  [x <-$ computeHybrid n 0 a; A2 s_A x ].
-    
+
     intuition.
     unfold computeHybrid.
     unfold forNats.
@@ -352,8 +352,8 @@ Section DistSingle_impl_Mult.
     simpl.
     intuition.
   Qed.
-  
-  Theorem DistSingle_impl_Mult : 
+
+  Theorem DistSingle_impl_Mult :
     DistMult_Adv _ c1 c2 A1 A2 n <= (n / 1) * (DistSingle_Adv c1 c2 B1 B2).
 
     eapply leRat_trans.
@@ -365,7 +365,7 @@ Section DistSingle_impl_Mult.
     rewrite DistSingle_G3_c1_equiv.
     rewrite DistSingle_G3_c2_equiv.
     eapply eqRat_refl.
-    
+
     eapply leRat_trans.
     Focus 2.
     eapply eqRat_impl_leRat.
@@ -398,7 +398,7 @@ Section DistSingle_impl_Mult.
 
     eapply compMap_computeHybrid_0_equiv.
 
-    Theorem compMap_computeHybrid_n_equiv : 
+    Theorem compMap_computeHybrid_n_equiv :
       forall s_A a,
       Pr  [b <-$ compMap B_EqDec (fun _ : nat => (c1 a)) (forNats n); A2 s_A b ] ==
       Pr  [x <-$ computeHybrid n n a; A2 s_A x ].
@@ -407,7 +407,7 @@ Section DistSingle_impl_Mult.
       unfold computeHybrid.
       inline_first.
       comp_skip.
-      
+
       inline_first.
       rewrite minus_diag.
       unfold forNats.
@@ -438,7 +438,7 @@ Section RepeatCore.
   Variable A_State : Set.
   Variable A1 : Comp (A * A_State ).
   Variable A2 : A_State -> B -> Comp bool.
-  
+
   Definition RepeatCore_G(c : A -> Comp B) :=
     [a, s_A] <-$2 A1;
     b <-$ Repeat (c a) P;
@@ -475,7 +475,7 @@ Section DistMult_impl_RepeatCore.
 
   Definition DM_RC_G1(c : A -> Comp B) :=
     [a, s_A] <-$2 A1;
-    p <-$ Repeat (b <-$ (c a); g <-$ (A2 s_A b); ret (b, g)) (fun p => P (fst p)); 
+    p <-$ Repeat (b <-$ (c a); g <-$ (A2 s_A b); ret (b, g)) (fun p => P (fst p));
     ret (snd p).
 
   Theorem DM_RC_G1_equiv :
@@ -489,7 +489,7 @@ Section DistMult_impl_RepeatCore.
     comp_skip.
 
     comp_simp.
-    assert (evalDist (b0 <-$ Repeat (c a) P; A2 a0 b0) x 
+    assert (evalDist (b0 <-$ Repeat (c a) P; A2 a0 b0) x
                       ==
                       evalDist (p <-$ (b0 <-$ Repeat (c a) P; b <-$ A2 a0 b0; ret (b0, b)); ret (snd p)) x).
     inline_first.
@@ -502,7 +502,7 @@ Section DistMult_impl_RepeatCore.
     reflexivity.
     rewrite H2.
     comp_skip.
-    
+
     eapply repeat_fission; intuition.
     eauto.
     eauto.
@@ -530,7 +530,7 @@ Section DistMult_impl_RepeatCore.
     ls <-$ compMap _ (fun _ => b <-$ c a; g <-$ (A2 s_A b); ret (b, g)) (forNats n);
     ret hd_error (map (fun x => snd x) (filter (fun p => P (fst p)) ls)).
 
-  Theorem DM_RC_G2_G3_close : 
+  Theorem DM_RC_G2_G3_close :
      forall (c : A -> Comp B) k x,
        (forall a s_A, In (a, s_A) (getSupport A1) -> well_formed_comp (c a)) ->
        (forall a s_A, In (a, s_A) (getSupport A1) -> exists b, In b (filter P (getSupport (c a)))) ->
@@ -586,8 +586,8 @@ Section DistMult_impl_RepeatCore.
      allB_G <-$ compMap _ (fun b => g <-$ (A2 s_A b); ret (b, g)) allB;
      ret hd_error (map (fun x => snd x) (filter (fun p => P (fst p)) allB_G)).
 
-  Theorem DM_RC_G4_equiv : 
-     forall c x, 
+  Theorem DM_RC_G4_equiv :
+     forall c x,
      evalDist (DM_RC_G3 c) x == evalDist (DM_RC_G4 c) x.
 
      intuition.
@@ -614,14 +614,14 @@ Section DistMult_impl_RepeatCore.
      comp_simp.
      intuition.
    Qed.
-   
+
    Definition DM_RC_G5(c : A -> Comp B) :=
      [a, s_A] <-$2 A1;
      allB <-$ compMap _ (fun _ => (c a)) (forNats n);
      allG <-$ compMap _ (A2 s_A) (filter P allB);
      ret hd_error allG.
 
-   Theorem DM_RC_G5_equiv : 
+   Theorem DM_RC_G5_equiv :
      forall (c : A -> Comp B) x,
        evalDist (DM_RC_G4 c) x ==
      evalDist (DM_RC_G5 c) x.
@@ -653,7 +653,7 @@ Section DistMult_impl_RepeatCore.
       | None => ret false
     end.
 
-   Theorem DM_RC_G6_equiv : 
+   Theorem DM_RC_G6_equiv :
      forall (c : A -> Comp B),
        evalDist (DM_RC_G5 c) (Some true) ==
      evalDist (DM_RC_G6 c) true.
@@ -672,7 +672,7 @@ Section DistMult_impl_RepeatCore.
      comp_skip.
      dist_compute.
      dist_compute.
-     intuition.     
+     intuition.
 
      Grab Existential Variables.
      intuition.
@@ -687,8 +687,8 @@ Section DistMult_impl_RepeatCore.
         | Some b' => A2 s_A b'
     end.
 
-  Theorem DistMult_G_equiv : 
-    forall c, 
+  Theorem DistMult_G_equiv :
+    forall c,
       Pr[DM_RC_G6 c] == Pr[DistMult_G _ A1 DM_RC_B2 n c] .
 
     intuition.
@@ -700,15 +700,15 @@ Section DistMult_impl_RepeatCore.
   Qed.
 
   Variable k1 : Rat.
-   Hypothesis c1_fail_prob : 
+   Hypothesis c1_fail_prob :
      forall a s_A, In (a, s_A) (getSupport A1) -> Pr[b <-$ c1 a; ret (negb (P b))] <= k1.
    Variable k2 : Rat.
-   Hypothesis c2_fail_prob : 
+   Hypothesis c2_fail_prob :
      forall a s_A, In (a, s_A) (getSupport A1) -> Pr[b <-$ c2 a; ret (negb (P b))] <= k2.
 
   Theorem DistMult_impl_RepeatCore :
-    RepeatCore_Adv P c1 c2 A1 A2 <= 
-    DistMult_Adv _ c1 c2 A1 DM_RC_B2 n + 
+    RepeatCore_Adv P c1 c2 A1 A2 <=
+    DistMult_Adv _ c1 c2 A1 DM_RC_B2 n +
     expRat k1 n +
     expRat k2 n.
 
@@ -754,7 +754,7 @@ Section TrueSingle_impl_Mult.
   Variable A1 : Comp A.
   Variable Q : B -> bool.
 
-  Definition TrueSingle_G := 
+  Definition TrueSingle_G :=
     a <-$ A1;
     b <-$ c a;
     ret (Q b).
@@ -772,7 +772,7 @@ Section TrueSingle_impl_Mult.
     unfold TrueMult_G, TrueSingle_G.
 
     simpl in *.
-    
+
     eapply leRat_trans.
     Focus 2.
     eapply eqRat_impl_leRat.
@@ -808,16 +808,16 @@ Section TrueMult_impl_Repeat.
   Variable A B : Set.
   Hypothesis eqdb : EqDec B.
   Variable A1 : Comp A.
-  Hypothesis A1_wf : 
+  Hypothesis A1_wf :
     well_formed_comp A1.
   Variable c : A -> Comp B.
   Variable f P : B -> bool.
 
   Hypothesis c_wf :
-    forall x, In x (getSupport A1) -> well_formed_comp (c x).       
+    forall x, In x (getSupport A1) -> well_formed_comp (c x).
 
-  Hypothesis Repeat_c_terminating : 
-    forall x, In x (getSupport A1) -> 
+  Hypothesis Repeat_c_terminating :
+    forall x, In x (getSupport A1) ->
               exists x1 : B, In x1 (filter P (getSupport (c x))).
 
   Definition TrueRepeat_G :=
@@ -827,8 +827,8 @@ Section TrueMult_impl_Repeat.
 
   Variable n : nat.
   Variable failProb : Rat.
-  Hypothesis failProb_correct : 
-    forall (a : A), 
+  Hypothesis failProb_correct :
+    forall (a : A),
       In a (getSupport A1) ->
       Pr[x <-$ c a; ret negb (P x)] <= failProb.
 
@@ -849,7 +849,7 @@ Section TrueMult_impl_Repeat.
      unfold TrueRepeat_G, TrueRepeat_G1.
      inline_first.
      comp_skip.
-     
+
      assert (Pr  [b <-$ Repeat (c x) P; ret f b ] ==
              Pr  [b <-$ (y <-$ compMap _ (fun _ => (c x)) (forNats n);
                    match (hd_error (filter P y)) with
@@ -891,7 +891,7 @@ Section TrueMult_impl_Repeat.
           end;
      ret (f b, if b_opt then false else true).
 
-   Theorem TrueRepeat_G1_G2_equiv : 
+   Theorem TrueRepeat_G1_G2_equiv :
      Pr [TrueRepeat_G1] <= Pr[x <-$ TrueRepeat_G2; ret (fst x || snd x)].
 
      unfold TrueRepeat_G1, TrueRepeat_G2.
@@ -910,7 +910,7 @@ Section TrueMult_impl_Repeat.
      simpl in *.
      intuition.
      eapply rat0_le_all.
-    
+
    Qed.
 
    Definition TrueRepeat_G3 :=
@@ -924,18 +924,18 @@ Section TrueMult_impl_Repeat.
           end;
      ret (fold_left (fun b x => b || (f x)) bs false, if b_opt then false else true).
 
-   Theorem TrueRepeat_G2_G3_equiv : 
-     Pr[x <-$ TrueRepeat_G2; ret (fst x || snd x)] <= 
+   Theorem TrueRepeat_G2_G3_equiv :
+     Pr[x <-$ TrueRepeat_G2; ret (fst x || snd x)] <=
      Pr[x <-$ TrueRepeat_G3; ret (fst x || snd x)].
 
      unfold TrueRepeat_G2, TrueRepeat_G3.
      repeat (inline_first; comp_skip).
      comp_simp.
      eapply comp_spec_impl_le.
-     eapply 
+     eapply
        comp_spec_ret.
      simpl.
-     
+
      case_eq ( hd_error (filter P x0)); intuition.
      rewrite orb_false_r in *.
 
@@ -945,14 +945,14 @@ Section TrueMult_impl_Repeat.
      eapply hd_error_Some_In.
      eauto.
      trivial.
-     
+
    Qed.
 
    Definition TrueRepeat_G3_bad :=
       a <-$ A1;
      compFold _ (fun b _ => x <-$ c a; ret b && negb (P x)) true (forNats n).
 
-   Theorem G3_TrueMult_equiv : 
+   Theorem G3_TrueMult_equiv :
      Pr[x <-$ TrueRepeat_G3; ret (fst x)] ==
      Pr[TrueMult_G _ c A1 f n].
 
@@ -975,33 +975,33 @@ Section TrueMult_impl_Repeat.
    Qed.
 
    Theorem TrueRepeat_G1_bad_equiv :
-      Pr  [x <-$ TrueRepeat_G3; ret snd x ] == 
+      Pr  [x <-$ TrueRepeat_G3; ret snd x ] ==
       Pr[TrueRepeat_G3_bad].
 
      unfold TrueRepeat_G3, TrueRepeat_G3_bad.
 
      inline_first.
      comp_skip.
-     
+
      assert(
-         Pr 
+         Pr
    [x0 <-$
     (bs <-$ compMap eqdb (fun _ : nat => c x) (forNats n);
      _ <-$ Repeat (c x) P;
      ret (fold_left (fun (b : bool) (x0 : B) => b || f x0) bs false,
-         if hd_error (filter P bs) then false else true)); 
+         if hd_error (filter P bs) then false else true));
     ret snd x0 ]
    ==
-   Pr 
+   Pr
    [x0 <-$
     (_ <-$ Repeat (c x) P;
       bs <-$ compMap eqdb (fun _ : nat => c x) (forNats n);
-     
+
      ret (fold_left (fun (b : bool) (x0 : B) => b || f x0) bs false,
-         if hd_error (filter P bs) then false else true)); 
+         if hd_error (filter P bs) then false else true));
     ret snd x0 ]
    ).
-     
+
      comp_skip.
      comp_swap_r.
      comp_skip.
@@ -1019,14 +1019,14 @@ Section TrueMult_impl_Repeat.
      eauto.
 
      assert (
-         Pr 
+         Pr
    [x1 <-$
     (bs <-$ compMap eqdb (fun _ : nat => c x) (forNats n);
      ret (fold_left (fun (b : bool) (x1 : B) => b || f x1) bs false,
-         if hd_error (filter P bs) then false else true)); 
+         if hd_error (filter P bs) then false else true));
     ret snd x1 ]
    ==
-   Pr 
+   Pr
    [bs <-$ compMap eqdb (fun _ : nat => c x) (forNats n);
      ret (fold_left (fun b z => b && negb (P z)) bs true)]
    ).
@@ -1038,7 +1038,7 @@ Section TrueMult_impl_Repeat.
      eapply comp_spec_ret.
 
      eapply hd_filter_false_eq_and_false.
- 
+
      rewrite H1.
      clear H1.
 
@@ -1065,7 +1065,7 @@ Section TrueMult_impl_Repeat.
       intuition.
     Qed.
 
-   Theorem TrueRepeat_G3_eq_sum : 
+   Theorem TrueRepeat_G3_eq_sum :
      Pr[x <-$ TrueRepeat_G3; ret (fst x || snd x)] <=
      Pr[TrueMult_G _ c A1 f n] + expRat failProb n.
 
@@ -1076,10 +1076,10 @@ Section TrueMult_impl_Repeat.
      intuition.
    Qed.
 
-      
+
     Theorem TrueMult_impl_Repeat :
-      Pr[TrueRepeat_G] <= 
-      Pr[TrueMult_G _ c A1 f n] + (expRat failProb n). 
+      Pr[TrueRepeat_G] <=
+      Pr[TrueMult_G _ c A1 f n] + (expRat failProb n).
 
       rewrite TrueRepeat_G_G1_equiv.
       rewrite TrueRepeat_G1_G2_equiv.

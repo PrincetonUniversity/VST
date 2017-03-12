@@ -22,7 +22,7 @@ Require Import Coq.ZArith.ZArith.
 
 Require Import concurrency.permissions.
 Require Import concurrency.threadPool.
- 
+
 Require Import compcert.common.Memory. (*for Mem.perm_order'' *)
 Set Bullet Behavior "Strict Subproofs".
 
@@ -33,7 +33,7 @@ Definition map_leq {A B} (m1: PTree.t A)(m2: PTree.t B): Prop :=
 Lemma map_leq_apply:
   forall {A B} (m1: PTree.t A)(m2: PTree.t B) p f1,
     map_leq m1 m2 ->
-    m1 ! p = Some f1 -> exists f2, m2 ! p = Some f2. 
+    m1 ! p = Some f1 -> exists f2, m2 ! p = Some f2.
 Proof.
   move => A B m1 m2 p f1.
   rewrite /map_leq => /(_ p) Mle AA.
@@ -41,7 +41,7 @@ Proof.
   destruct (m2 ! p) as [f2|]; try solve[inversion Mle].
   exists f2; auto.
 Qed.
-  
+
 Lemma treemap_sub_map: forall {A B} (f: positive -> B -> A) m2,
     map_leq (PTree.map f m2) m2.
 Proof.
@@ -228,7 +228,7 @@ Lemma finite_bounded_nat_aux_func:
     konig.finite
       ( fun f:nat -> option (option permission) => bounded_nat_func_aux f hi).
 Proof.
-  
+
    intros hi.
    pose (K:= perm_to_nat).
    induction hi.
@@ -260,7 +260,7 @@ Proof.
          move: pphi=> /leP pphi.
          apply /ltP.
          omega.
-         
+
      + exists ((6 * i) + (perm_to_nat (f hi))).
        split.
        * replace (6 * N) with
@@ -297,7 +297,7 @@ Proof.
                try (apply /ltP; eapply perm_to_nat_bound).
              rewrite nat_to_perm_perm_to_nat.
              reflexivity.
-             
+
            - replace ((6 * i + perm_to_nat (f hi)) / 6) with i.
              + rewrite f_spec.
                simpl.
@@ -306,7 +306,7 @@ Proof.
                reflexivity.
              + eapply NPeano.Nat.div_unique;
                try (apply /ltP; eapply perm_to_nat_bound).
-               reflexivity.  
+               reflexivity.
          }
 Qed.
 
@@ -316,7 +316,7 @@ Lemma finite_bounded_nat_aux_func_simpl:
     konig.finite
       ( fun f:nat -> option permission => bounded_nat_func_aux f hi).
 Proof.
-  
+
    intros hi.
    pose (K:= perm_to_nat_simpl).
    induction hi.
@@ -348,7 +348,7 @@ Proof.
          move: pphi=> /leP pphi.
          apply /ltP.
          omega.
-         
+
      + exists ((5 * i) + (perm_to_nat_simpl (f hi))).
        split.
        * replace (5 * N) with
@@ -384,7 +384,7 @@ Proof.
                try (apply /ltP; eapply perm_to_nat_bound_simpl).
              rewrite nat_to_perm_perm_to_nat_simpl.
              reflexivity.
-             
+
            - replace ((5 * i + perm_to_nat_simpl (f hi)) / 5) with i.
              + rewrite f_spec.
                simpl.
@@ -393,7 +393,7 @@ Proof.
                reflexivity.
              + eapply NPeano.Nat.div_unique;
                try (apply /ltP; eapply perm_to_nat_bound_simpl).
-               reflexivity.  
+               reflexivity.
          }
 Qed.
 
@@ -542,7 +542,7 @@ Lemma finite_bounded_op_func_simpl:
 Proof.
   move => hi lo.
   move: (finite_bounded_func_simpl hi lo) => [] N [] FN FN_spec.
-  
+
   exists (S N).
   exists (fun n => if n == 0 then None
            else Some (FN (n -1)) ).
@@ -565,7 +565,7 @@ Lemma finite_bounded_op_func:
 Proof.
   move => hi lo.
   move: (finite_bounded_func hi lo) => [] N [] FN FN_spec.
-  
+
   exists (S N).
   exists (fun n => if n == 0 then None
            else Some (FN (n -1)) ).
@@ -666,7 +666,7 @@ Proof.
               rewrite HH in H0; inversion H0.
           Qed.
           eapply fun_le_bounded_func_op ; eauto.
-          } 
+          }
         move: F_spec => /(_ _ H) []i [] ineq fi.
         move : spec_F1 => /(_ _ tree1) [] i1 [] ineq1 fi1.
         move : spec_F2 => /(_ _ tree2) [] i2 [] ineq2 fi2.
@@ -723,7 +723,7 @@ Proof.
             + rewrite -mulnDr.
               rewrite addnC.
               rewrite subnK.
-            
+
               2:
                 rewrite muln_gt0;
                 apply /andP; split;
@@ -772,7 +772,7 @@ Proof.
                destruct N1; ssromega.
                rewrite mulnDl; f_equal.
                ssromega.
-            
+
          ++ rewrite - fi2.
             f_equal.
             rewrite -addn1.
@@ -783,7 +783,7 @@ Proof.
                     (N1 * (i2 + i * N2)) + i1).
             { rewrite -addnA.
               replace (i * N1 * N2) with
-              (i  * N2 * N1). 
+              (i  * N2 * N1).
               rewrite - mulnDl.
               rewrite mulnC addnC; auto.
               do 2 rewrite -mulnA; f_equal.
@@ -829,7 +829,7 @@ Proof.
               rewrite - addn1.
               rewrite subnK; auto.
               destruct N2; ssromega.
-                 
+
           - replace (N1 + N1 * (N2 - 1))
             with (N1 * 1 + N1 * (N2 - 1)).
             + rewrite -mulnDr.
@@ -871,7 +871,7 @@ Lemma finite_sub_maps_simpl:
     konig.finite
       (fun m1 => @sub_map permission permission m1 m2).
 Proof.
-  
+
   induction m2.
   - move => _.
     exists 1%nat.
@@ -951,7 +951,7 @@ Proof.
               rewrite HH in H0; inversion H0.
           Qed.
           eapply fun_le_bounded_func_op_simpl ; eauto.
-          } 
+          }
         move: F_spec => /(_ _ H) []i [] ineq fi.
         move : spec_F1 => /(_ _ tree1) [] i1 [] ineq1 fi1.
         move : spec_F2 => /(_ _ tree2) [] i2 [] ineq2 fi2.
@@ -1008,7 +1008,7 @@ Proof.
             + rewrite -mulnDr.
               rewrite addnC.
               rewrite subnK.
-            
+
               2:
                 rewrite muln_gt0;
                 apply /andP; split;
@@ -1057,7 +1057,7 @@ Proof.
                destruct N1; ssromega.
                rewrite mulnDl; f_equal.
                ssromega.
-            
+
          ++ rewrite - fi2.
             f_equal.
             rewrite -addn1.
@@ -1068,7 +1068,7 @@ Proof.
                     (N1 * (i2 + i * N2)) + i1).
             { rewrite -addnA.
               replace (i * N1 * N2) with
-              (i  * N2 * N1). 
+              (i  * N2 * N1).
               rewrite - mulnDl.
               rewrite mulnC addnC; auto.
               do 2 rewrite -mulnA; f_equal.
@@ -1114,7 +1114,7 @@ Proof.
               rewrite - addn1.
               rewrite subnK; auto.
               destruct N2; ssromega.
-                 
+
           - replace (N1 + N1 * (N2 - 1))
             with (N1 * 1 + N1 * (N2 - 1)).
             + rewrite -mulnDr.

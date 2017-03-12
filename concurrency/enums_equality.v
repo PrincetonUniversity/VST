@@ -15,11 +15,11 @@ Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 
-(*NOTE: because of redefinition of [val], these imports must appear 
+(*NOTE: because of redefinition of [val], these imports must appear
   after Ssreflect eqtype.*)
 Require Import compcert.common.AST.     (*for typ*)
 Require Import compcert.common.Values. (*for val*)
-Require Import compcert.common.Globalenvs. 
+Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
 Require Import compcert.lib.Integers.
 
@@ -37,7 +37,7 @@ Require Import veric.res_predicates.
 (**)
 Require Import veric.res_predicates. (*For the precondition of lock make and free*)
 
-(*  This shoul be replaced by global: 
+(*  This shoul be replaced by global:
     Require Import concurrency.lksize.  *)
 
 Require Import (*compcert_linking*) concurrency.permissions concurrency.threadPool.
@@ -52,7 +52,7 @@ Set Implicit Arguments.
       | S n => (@Ordinal m n ltac:(rewrite <-Heq_n in *; apply (introT leP pr)))
                 :: @enum_from n m ltac:(rewrite <-Heq_n in *; apply le_Sn_le, pr)
       end.
-    
+
     Definition enum n := Coq.Lists.List.rev (@enum_from n n (le_refl n)).
 
 Axiom ord_enum_enum:

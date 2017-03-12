@@ -12,12 +12,12 @@ Module Ident : UsualOrderedType.
   Parameter lt : t -> t -> Prop.
   Parameter lt_strorder : StrictOrder lt.
   Parameter lt_compat : Proper (eq==>eq==>iff) lt.
-  Parameter compare : forall x y : t, comparison. 
+  Parameter compare : forall x y : t, comparison.
   Axiom compare_spec: forall s s' : t, CompSpec eq lt s s' (compare s s').
   Parameter eq_dec : forall x y : t, {eq x y} + {~ eq x y}.
 End Ident.
 
-(* Version 1: Use this version if you want proper abstraction 
+(* Version 1: Use this version if you want proper abstraction
  *)
 
 Parameter minid : Ident.t.
@@ -30,7 +30,7 @@ Parameter another_id: Ident.t -> Ident.t.
 (* Note: usually "Ident.lt x (another_var x)", but not always; if you
    are writing an algorithm, make sure by doing the comparison! *)
 
-(* Note that there are NO AXIOMS about the following operators! 
+(* Note that there are NO AXIOMS about the following operators!
  *)
 
 Parameter Z2id: Z -> Ident.t.
@@ -43,28 +43,28 @@ Parameter mult_id: Ident.t -> Ident.t -> Ident.t.
    in Coq 8.3pl2.   Until this is fixed, use version 3. *)
 
 Module Ident <: UsualOrderedType := Positive_as_OT.
-  Parameter minid: Ident.t.  
+  Parameter minid: Ident.t.
   Parameter id2pos: Ident.t -> positive.
   Axiom minid_eq: id2pos minid = 1%positive.
   Axiom Ilt_morphism: forall x y, Ident.lt x y -> Plt (id2pos x) (id2pos y).
   Parameter another_id: Ident.t -> Ident.t.
 *)
 
-(* Version 3: USE THIS IF YOU WANT TO "Compute" in Coq 
-    until bug #2608 is fixed. 
+(* Version 3: USE THIS IF YOU WANT TO "Compute" in Coq
+    until bug #2608 is fixed.
  *)
 
 Module Ident <: OrderedTypeFull
   with Definition t := positive
-  with Definition lt := Plt 
+  with Definition lt := Plt
   with Definition compare := fun x y => Pcompare x y Eq
   with Definition le := Ple.
  Definition t := positive.
  Definition eq : t -> t -> Prop := @Logic.eq positive.
  Definition eq_equiv: Equivalence eq := @eq_equivalence t. (*apply eq_equivalence. Qed.*)
- Definition lt : t -> t -> Prop := Plt. 
+ Definition lt : t -> t -> Prop := Plt.
  Lemma lt_strorder:  StrictOrder lt. apply Positive_as_OT.lt_strorder. Qed.
- Lemma lt_compat : Proper (Logic.eq ==> Logic.eq ==> iff) lt. 
+ Lemma lt_compat : Proper (Logic.eq ==> Logic.eq ==> iff) lt.
   apply Positive_as_OT.lt_compat. Qed.
  Definition compare: t -> t -> comparison := fun x y => Pcompare x y Eq.
  Lemma compare_spec: forall p q : t, CompSpec Logic.eq lt p q (compare p q).
@@ -78,7 +78,7 @@ End Ident.
 Definition minid : Ident.t := xH.
 Definition id2pos: Ident.t -> positive := fun x => x.
 Lemma minid_eq: id2pos minid = 1%positive.
-Proof. reflexivity. Qed. 
+Proof. reflexivity. Qed.
 Lemma Ilt_morphism: forall x y, Ident.lt x y -> Plt (id2pos x) (id2pos y).
 Proof. auto. Qed.
 Definition another_var: Ident.t -> Ident.t := Psucc.
@@ -101,10 +101,10 @@ Lemma minid_min x : Ident.lt x minid -> False.
 tapp Ilt_morphism; rewrite minid_eq; case (id2pos x); tinv0.
 Qed.
 
-Ltac id_compare x y := 
+Ltac id_compare x y :=
   destruct (CompSpec2Type (Ident.compare_spec x y)).
 
-Ltac id_comp x y H1 H2 H3 := 
+Ltac id_comp x y H1 H2 H3 :=
   destruct (CompSpec2Type (Ident.compare_spec x y)) as [H1|H2|H3].
 
 Lemma id2pos_inj x y : id2pos x = id2pos y -> x=y.
@@ -125,22 +125,22 @@ Proof. done (introv; right). Qed.
 
 Hint Resolve Ile_refl.
 
-Lemma Ilt_Zpos i j : 
+Lemma Ilt_Zpos i j :
   Ident.lt i j <-> Zlt (Zpos (id2pos i)) ((Zpos (id2pos j))).
 Proof.
 split; [tapp Ilt_morphism|tinv H].
-generalize (Pcompare_spec (id2pos i) (id2pos j)); rewrite H; tinv H1. 
-id_comp i j H2 H3 H4; auto; subst. 
+generalize (Pcompare_spec (id2pos i) (id2pos j)); rewrite H; tinv H1.
+id_comp i j H2 H3 H4; auto; subst.
 contradiction (Plt_irrefl _ H1).
-gen H4; tapp Ilt_morphism; introv H4. 
+gen H4; tapp Ilt_morphism; introv H4.
 contradiction (Plt_irrefl _ (Plt_trans _ _ _ H1 H4)).
 Qed.
 
 Lemma nat_of_P_id2pos_le x y :
   Ile x y -> nat_of_P (id2pos x) <= nat_of_P (id2pos y).
 Proof.
-cases (Ident.eq_dec x y) as E; subst; auto; cases E. 
-introv H1; inverts H1 as H1; [|inverts H1; auto]. 
-gen H1; tapp Ilt_morphism; unfold Plt. 
+cases (Ident.eq_dec x y) as E; subst; auto; cases E.
+introv H1; inverts H1 as H1; [|inverts H1; auto].
+gen H1; tapp Ilt_morphism; unfold Plt.
 done(rewrite nat_of_P_compare_morphism, <-nat_compare_lt; omega).
 Qed.

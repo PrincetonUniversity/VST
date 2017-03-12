@@ -4,7 +4,7 @@
  *)
 
 Require Import msl.base.
-Open Local Scope nat_scope.
+Local Open Scope nat_scope.
 
 Require Import msl.ageable.
 Require Import msl.functors.
@@ -50,7 +50,7 @@ Module Type KNOT_BASIC.
     unsquash (squash (n,f)) = (n, fmap F (approx n) (approx n) f).
 
   Axiom knot_age1 : forall k:knot,
-    age1 k = 
+    age1 k =
     match unsquash k with
     | (O,_) => None
     | (S n,x) => Some (squash (n,x))
@@ -75,7 +75,7 @@ Module Type KNOT_BASIC_LEMMAS.
   Axiom unsquash_approx : forall k n Fp,
     unsquash k = (n, Fp) ->
     Fp = fmap F (approx n) (approx n) Fp.
-  Implicit Arguments unsquash_approx.
+  Arguments unsquash_approx [k n Fp] _.
 
   Axiom approx_approx1 : forall m n,
     approx n = approx n oo approx (m+n).
@@ -101,7 +101,7 @@ Module Type KNOT_FULL_SA.
   Parameter Sep_knot : Sep_alg knot.  Existing Instance Sep_knot.
   Parameter Canc_knot : Canc_alg knot.  Existing Instance Canc_knot.
   Parameter Disj_knot : Disj_alg knot.  Existing Instance Disj_knot.
-  Instance Join_nat_F: Join (nat * F predicate) := 
+  Instance Join_nat_F: Join (nat * F predicate) :=
        Join_prod nat  (Join_equiv nat) (F predicate) _.
   Instance Perm_nat_F : Perm_alg (nat * F predicate) :=
     @Perm_prod nat _ _ _ (Perm_equiv _) (Perm_F _).
@@ -140,7 +140,7 @@ Module KnotFullSa
   Import K.
   Import KL.
 
-  Instance Join_nat_F: Join (nat * F predicate) := 
+  Instance Join_nat_F: Join (nat * F predicate) :=
        Join_prod nat  (Join_equiv nat) (F predicate) _.
   Instance Perm_nat_F : Perm_alg (nat * F predicate) :=
       @Perm_prod nat _ _ _ (Perm_equiv _) (Perm_F _).
@@ -163,7 +163,7 @@ Module KnotFullSa
     apply (paf_join_hom paf_F); auto.
   Qed.
 
-  Instance Join_knot : Join knot := 
+  Instance Join_knot : Join knot :=
            Join_preimage knot (nat * F predicate) Join_nat_F unsquash.
 
   Lemma join_unsquash : forall x1 x2 x3,
@@ -173,14 +173,14 @@ Module KnotFullSa
     intuition.
   Qed.
 
-  Instance Perm_knot : Perm_alg knot := 
+  Instance Perm_knot : Perm_alg knot :=
     Perm_preimage _ _ _ _ unsquash squash squash_unsquash unsquash_squash_join_hom.
 
-  Instance Sep_knot: Sep_alg knot := 
+  Instance Sep_knot: Sep_alg knot :=
     Sep_preimage _ _ _  unsquash squash squash_unsquash unsquash_squash_join_hom.
 
   Instance Canc_knot : Canc_alg knot.
-  Proof. repeat intro. 
+  Proof. repeat intro.
             do 3 red in H, H0.
             apply unsquash_inj.
             apply (join_canc H H0).
@@ -321,7 +321,7 @@ Module KnotFullSa
       exists x, exists y, join x y z /\ age x x' /\ age y y'.
   Proof.
     intros.
-    rewrite join_unsquash in H. 
+    rewrite join_unsquash in H.
     revert H H0.
     unfold join, Join_knot, Join_preimage, age in *; simpl in *.
     repeat rewrite knot_age1.
@@ -344,7 +344,7 @@ Module KnotFullSa
     exists (squash (S n, wy)).
     split. unfold join, Join_nat_F, Join_prod; simpl.
     (* unfold Join_knot; simpl. unfold Join_preimage; simpl. *)
-    repeat rewrite unsquash_squash.  simpl.  split; auto. 
+    repeat rewrite unsquash_squash.  simpl.  split; auto.
 
     rewrite (unsquash_approx H).
     apply (paf_join_hom paf_F); auto.

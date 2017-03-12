@@ -51,7 +51,7 @@ Fixpoint decay'' {X} {F: Type} (l0 : list Type) (v: ListType l0) :
        fun E1 : A :: B = map (fun _ : X => F) (x :: l2) =>
        (fun
           X0 : map (fun _ : X => F) (x :: l2) =
-               map (fun _ : X => F) (x :: l2) -> list F => 
+               map (fun _ : X => F) (x :: l2) -> list F =>
         X0 eq_refl)
          match
            E1 in (_ = y)
@@ -78,7 +78,7 @@ Fixpoint decay'' {X} {F: Type} (l0 : list Type) (v: ListType l0) :
   end.
 
 Definition decay {X} {F: Type} {l: list X} (v: ListType (map (fun _ => F) l)): list F :=
-  let l0 := map (fun _ => F) l in 
+  let l0 := map (fun _ => F) l in
   let E := @eq_refl _ (map (fun _ => F) l) : l0 = map (fun _ => F) l in
   decay'' l0 v l E.
 
@@ -193,7 +193,7 @@ Lemma type_func_rec_rank_irrelevent: forall t n n0,
   n0 >= rank_type cenv_cs t ->
   type_func_rec n t = type_func_rec n0 t.
 Proof.
- (* DON'T USE omega IN THIS PROOF!  
+ (* DON'T USE omega IN THIS PROOF!
    We want the proof to compute reasonably efficiently.
 *)
   intros t.
@@ -236,7 +236,7 @@ Definition FTI_aux id :=
     (ListTypeGen (fun it => A (field_type (fst it) m)) (fun it => type_func (field_type (fst it) m)) m).
 
 
-Lemma type_func_ind: forall t, 
+Lemma type_func_ind: forall t,
   type_func t =
   match t as t0 return A t0 with
   | Tstruct id => F_Tstruct id (FTI_aux id)

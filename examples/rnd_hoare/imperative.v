@@ -139,7 +139,7 @@ Definition command_oaccess (c: cmd) {O1 O2: RandomVarDomain} (src: global_state 
 Definition assertion: Type := RandomPred (MetaState (@state imp sss) :: nil).
 
 Global Identity Coercion assertion_RandomPred: assertion >-> RandomPred.
- 
+
 Definition triple (P: assertion) (c: cmd) (Q: assertion): Prop :=
   forall o1 (s1: global_state o1), P o1 s1 ->
     forall o2 (s2: global_state o2), command_oaccess c s1 s2 ->
@@ -157,7 +157,7 @@ Definition filter_global_state {imp: Imperative} {sss: SmallStepSemantics} (filt
   auto.
 Defined.
 *)
-  
+
 (*
 Require Import Coq.Sets.Ensembles.
 

@@ -26,7 +26,7 @@ Definition LKspec_ext (R: pred rmap) : spec :=
      allp
        (jam
           (adr_range_dec l LKSIZE)
-          (jam (eq_dec l) 
+          (jam (eq_dec l)
                (yesat (SomeP rmaps.Mpred (fun _ => R)) (LK LKSIZE) rsh sh)
                (CTat l rsh sh))
           (fun _ => TT)).
@@ -57,12 +57,12 @@ Definition isCT (r : resource) := exists sh sh' z P, r = YES sh sh' (CT z) P.
 
 Definition resource_is_lock r := exists rsh sh n pp, r = YES rsh sh (LK n) pp.
 
-Definition same_locks phi1 phi2 := 
+Definition same_locks phi1 phi2 :=
   forall loc, resource_is_lock (phi1 @ loc) <-> resource_is_lock (phi2 @ loc).
 
 Definition resource_is_lock_sized n r := exists rsh sh pp, r = YES rsh sh (LK n) pp.
 
-Definition same_locks_sized phi1 phi2 := 
+Definition same_locks_sized phi1 phi2 :=
   forall loc n, resource_is_lock_sized n (phi1 @ loc) <-> resource_is_lock_sized n (phi2 @ loc).
 
 Definition lockSet_block_bound lset b :=
@@ -79,16 +79,16 @@ non-constructive version, see resource_decay_join.v) *)
 Definition resource_decay_aux (nextb: block) (phi1 phi2: rmap) : Type :=
   prod (level phi1 >= level phi2)%nat
   (forall l: address,
-    
+
   ((fst l >= nextb)%positive -> phi1 @ l = NO Share.bot) *
   ( (resource_fmap (approx (level phi2)) (approx (level phi2)) (phi1 @ l) = (phi2 @ l))
-    
+
   + { rsh : _ & { v : _ & { v' : _ |
-       resource_fmap (approx (level phi2)) (approx (level phi2)) (phi1 @ l) = YES rsh pfullshare (VAL v) NoneP /\ 
+       resource_fmap (approx (level phi2)) (approx (level phi2)) (phi1 @ l) = YES rsh pfullshare (VAL v) NoneP /\
        phi2 @ l = YES rsh pfullshare (VAL v') NoneP }}}
-  
+
   + (fst l >= nextb)%positive * { v | phi2 @ l = YES Share.top pfullshare (VAL v) NoneP }
-  
+
   + { v : _ & { pp : _ | phi1 @ l = YES Share.top pfullshare (VAL v) pp /\ phi2 @ l = NO Share.bot } })).
 
 Ltac breakhyps :=
@@ -122,11 +122,11 @@ Ltac sumsimpl :=
   | |- sumbool ?A ?B => check_false B; left
   end.
 
-Definition resource_decay_at (nextb: block) n (r1 r2 : resource) b := 
+Definition resource_decay_at (nextb: block) n (r1 r2 : resource) b :=
   ((b >= nextb)%positive -> r1 = NO Share.bot) /\
   (resource_fmap (approx (n)) (approx (n)) (r1) = (r2) \/
   (exists rsh, exists v, exists v',
-       resource_fmap (approx (n)) (approx (n)) (r1) = YES rsh pfullshare (VAL v) NoneP /\ 
+       resource_fmap (approx (n)) (approx (n)) (r1) = YES rsh pfullshare (VAL v) NoneP /\
        r2 = YES rsh pfullshare (VAL v') NoneP)
   \/ ((b >= nextb)%positive /\ exists v, r2 = YES Share.top pfullshare (VAL v) NoneP)
   \/ (exists v, exists pp, r1 = YES Share.top pfullshare (VAL v) pp /\ r2 = NO Share.bot)).

@@ -29,7 +29,7 @@ Module ClightSEM <: Semantics.
   Definition G := genv.
   Definition C := corestate.
   Definition getEnv (g:G): Genv.t F V := genv_genv g.
-  (* We might want to define this properly or 
+  (* We might want to define this properly or
      factor the machines so we don't need events here. *)
   Parameter CLN_evsem : EvSem G C.
   Parameter CLN_msem :

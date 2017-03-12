@@ -35,17 +35,17 @@ Qed.
 
 Instance EqDec_pshare : EqDec pshare := pshare_eq_dec.
 
-Definition pfullshare : pshare := 
+Definition pfullshare : pshare :=
   mk_lifted fullshare top_share_nonunit.
 
 Lemma pfullshare_pfull : full pfullshare.
 Proof with auto.
-  unfold pshare. 
+  unfold pshare.
   apply lifted_full. auto with typeclass_instances.
   apply fullshare_full.
 Qed.
 
-Lemma join_sub_pfullshare: forall (p: pshare), 
+Lemma join_sub_pfullshare: forall (p: pshare),
   @join_sub share Share.Join_ba pfullshare p ->
   p = pfullshare.
 Proof.
@@ -60,7 +60,7 @@ Proof.
   rewrite pfull_pmaximal in H0.
   generalize (H0 _ H); intro.
   destruct H. subst p.
-  apply join_comm in H. 
+  apply join_comm in H.
   contradiction (no_units x pfullshare).
 Qed.
 
@@ -110,8 +110,8 @@ Proof.
   apply pshare_join_full_false4 in H. trivial.
 Qed.
 
-Ltac pfullshare_join := 
-  elimtype False; 
+Ltac pfullshare_join :=
+  elimtype False;
   solve [ eapply pshare_join_full_false1; eauto
     | eapply pshare_join_full_false2; eauto
     | eapply pshare_join_full_false3; eauto

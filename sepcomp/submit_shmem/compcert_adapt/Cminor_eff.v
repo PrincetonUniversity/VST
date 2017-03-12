@@ -146,7 +146,7 @@ Lemma cminstep_effax1: forall (M : block -> Z -> bool) g c m c' m',
       cmin_effstep g M c m c' m' ->
       (corestep cmin_coop_sem g c m c' m' /\
        Mem.unchanged_on (fun (b : block) (ofs : Z) => M b ofs = false) m m').
-Proof. 
+Proof.
 intros.
   induction H.
   split. unfold corestep, coopsem; simpl. econstructor.
@@ -154,7 +154,7 @@ intros.
   split. unfold corestep, coopsem; simpl. econstructor.
          apply Mem.unchanged_on_refl.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
-         eapply FreeEffect_free; eassumption. 
+         eapply FreeEffect_free; eassumption.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
@@ -191,7 +191,7 @@ intros.
          apply Mem.unchanged_on_refl.
   split. unfold corestep, coopsem; simpl. econstructor; try eassumption. trivial.
          eapply Mem.alloc_unchanged_on; eassumption.
-  (*no external call*) 
+  (*no external call*)
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
   (*effstep_sub_val*)
@@ -227,12 +227,12 @@ intros. inv H.
     eexists. eapply cmin_effstep_return_0; try eassumption.
     eexists. eapply cmin_effstep_return_1; try eassumption.
     eexists. eapply cmin_effstep_label.
-    eexists. eapply cmin_effstep_goto; eassumption. 
-    eexists. eapply cmin_effstep_internal_function; try eassumption. reflexivity. 
-    eexists. eapply cmin_effstep_return; try eassumption. 
+    eexists. eapply cmin_effstep_goto; eassumption.
+    eexists. eapply cmin_effstep_internal_function; try eassumption. reflexivity.
+    eexists. eapply cmin_effstep_return; try eassumption.
 Qed.
 
-Program Definition cmin_eff_sem : 
+Program Definition cmin_eff_sem :
   @EffectSem Cminor.genv CMin_core.
 eapply Build_EffectSem with (sem := cmin_coop_sem)(effstep:=cmin_effstep).
 apply cminstep_effax1.

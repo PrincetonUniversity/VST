@@ -419,7 +419,7 @@ Proof.
       entailer!.
     + forward. (* p = *t; *)
       forward_if. (* else clause *)
-      (* TODO: better automation for field_compatible. *)
+       (* TODO: better automation for field_compatible. *)
         1: admit.
       (* TODO: better automation for field_compatible. *)
         1: admit.

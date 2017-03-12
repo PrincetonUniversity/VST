@@ -70,7 +70,7 @@ eapply Int.eqm_trans.
 rewrite <- eqm_mod1.
 eapply Int.eqm_add; [ | apply Int.eqm_refl].
 eapply Int.eqm_add; [ | apply Int.eqm_refl].
-rewrite <- eqm_mod1. 
+rewrite <- eqm_mod1.
 apply Int.eqm_refl.
 rewrite <- (Z.add_comm (b/_)).
 rewrite Z.add_assoc.
@@ -82,7 +82,7 @@ apply Int.eqm_trans with ((a/N*N + a mod N + b/N*N + b mod N)/N);
  [ |
    repeat rewrite <- (Z.mul_comm N);
    rewrite <- (Z.div_mod a N) by auto;
-   rewrite <- Z.add_assoc; 
+   rewrite <- Z.add_assoc;
    rewrite <- (Z.div_mod b N) by auto;
    apply Int.eqm_refl].
 apply Int.eqm_trans with
@@ -113,8 +113,8 @@ destruct H as [x ?].
 Qed.
 
  Lemma addlength_aux2:
-     forall len n, 
-          0 <= len < Int.modulus -> 
+     forall len n,
+          0 <= len < Int.modulus ->
           Int.unsigned (Int.repr (n + len * 8)) < Int.unsigned (lo_part n) ->
 Int.unsigned (hi_part n) +
   (Int.unsigned (lo_part n) + (len * 8) mod Int.modulus -
@@ -158,10 +158,10 @@ name Nh _cNh.
 rename H into BOUND.
 rename H1 into Hn.
 assert (MN: Int.modulus <> 0) by (intro Hx; inv Hx).
-forward. (* cNl=c->Nl; *) 
+forward. (* cNl=c->Nl; *)
 forward. (* cNh=c->Nh; *)
 forward. (* l=(cNl+(((SHA_LONG)len)<<3))&0xffffffffUL; *)
-assert (0 <= len < Int.modulus) 
+assert (0 <= len < Int.modulus)
  by (change Int.modulus with (Int.max_unsigned + 1); omega).
 replace (Int.and
               (Int.add (lo_part n) (Int.shl (Int.repr len) (Int.repr 3)))
@@ -229,7 +229,7 @@ forward_if (
     apply Int.eqm_refl.
  + f_equal. f_equal.
      unfold hi_part.
-  rename Hn into Hn'; 
+  rename Hn into Hn';
     assert (Hn: 0 <= n < two_p 64) by omega;
    clear Hn'.
  rewrite Int.shru_div_two_p.
@@ -238,7 +238,7 @@ forward_if (
  rewrite (Int.unsigned_repr len) by omega.
  unfold Int.add.
  repeat rewrite Int.unsigned_repr_eq.
- rewrite (Z.add_mod _ (len*8)) by auto; 
+ rewrite (Z.add_mod _ (len*8)) by auto;
  repeat rewrite int_unsigned_mod in *.
  repeat rewrite <- Z.add_mod by auto.
  change 8 with (two_p 3) in *.

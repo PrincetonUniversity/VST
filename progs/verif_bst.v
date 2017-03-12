@@ -21,13 +21,13 @@ Definition empty_tree : tree := E.
 Fixpoint lookup (x: key) (t : tree) : V :=
   match t with
   | E => default
-  | T tl k v tr => if x <? k then lookup x tl 
+  | T tl k v tr => if x <? k then lookup x tl
                          else if k <? x then lookup x tr
                          else v
   end.
 
 Fixpoint insert (x: key) (v: V) (s: tree) : tree :=
- match s with 
+ match s with
  | E => T E x v E
  | T a y v' b => if  x <? y then T (insert x v a) y v' b
                         else if y <? x then T a y v' (insert x v b)
@@ -59,7 +59,7 @@ Arguments delete {V} x s.
 Fixpoint tree_rep (t: tree val) (p: val) : mpred :=
  match t with
  | E => !!(p=nullval) && emp
- | T a x v b => !! (Int.min_signed <= x <= Int.max_signed /\ tc_val (tptr Tvoid) v) && 
+ | T a x v b => !! (Int.min_signed <= x <= Int.max_signed /\ tc_val (tptr Tvoid) v) &&
     EX pa:val, EX pb:val,
     data_at Tsh t_struct_tree (Vint (Int.repr x),(v,(pa,pb))) p *
     tree_rep a pa * tree_rep b pb
@@ -108,23 +108,23 @@ Definition mallocN_spec :=
  DECLARE _mallocN
   WITH n: Z
   PRE [ 1%positive OF tint]
-     PROP (4 <= n <= Int.max_unsigned) 
+     PROP (4 <= n <= Int.max_unsigned)
      LOCAL (temp 1%positive (Vint (Int.repr n)))
      SEP ()
-  POST [ tptr tvoid ] 
+  POST [ tptr tvoid ]
      EX v: val,
-     PROP (malloc_compatible n v) 
-     LOCAL (temp ret_temp v) 
+     PROP (malloc_compatible n v)
+     LOCAL (temp ret_temp v)
      SEP (memory_block Tsh n v).
 
 Definition freeN_spec :=
  DECLARE _freeN
   WITH p : val , n : Z
-  PRE [ 1%positive OF tptr tvoid , 2%positive OF tint]  
+  PRE [ 1%positive OF tptr tvoid , 2%positive OF tint]
      (* we should also require natural_align_compatible (eval_id 1) *)
       PROP() LOCAL (temp 1%positive p; temp 2%positive (Vint (Int.repr n)))
       SEP (memory_block Tsh n p)
-  POST [ tvoid ]  
+  POST [ tvoid ]
     PROP () LOCAL () SEP ().
 
 Definition treebox_new_spec :=
@@ -132,7 +132,7 @@ Definition treebox_new_spec :=
   WITH u : unit
   PRE  [  ]
        PROP() LOCAL() SEP ()
-  POST [ (tptr t_struct_tree) ] 
+  POST [ (tptr t_struct_tree) ]
     EX v:val,
     PROP()
     LOCAL(temp ret_temp v)
@@ -158,7 +158,7 @@ Definition lookup_spec :=
     PROP( Int.min_signed <= x <= Int.max_signed)
     LOCAL(temp _t b; temp _x (Vint (Int.repr x)))
     SEP (treebox_rep t b)
-  POST [ tptr Tvoid ] 
+  POST [ tptr Tvoid ]
     PROP()
     LOCAL(temp ret_temp (lookup nullval x t))
     SEP (treebox_rep t b).
@@ -217,7 +217,7 @@ Definition tree_free_spec :=
   WITH t: tree val, p: val
   PRE  [ _p OF (tptr t_struct_tree) ]
        PROP() LOCAL(temp _p p) SEP (tree_rep t p)
-  POST [ Tvoid ] 
+  POST [ Tvoid ]
     PROP()
     LOCAL()
     SEP (emp).
@@ -227,14 +227,14 @@ Definition treebox_free_spec :=
   WITH t: tree val, b: val
   PRE  [ _b OF (tptr (tptr t_struct_tree)) ]
        PROP() LOCAL(temp _b b) SEP (treebox_rep t b)
-  POST [ Tvoid ] 
+  POST [ Tvoid ]
     PROP()
     LOCAL()
     SEP (emp).
 
-Definition Gprog : funspecs := 
+Definition Gprog : funspecs :=
     ltac:(with_library prog [
-    mallocN_spec; freeN_spec; treebox_new_spec; 
+    mallocN_spec; freeN_spec; treebox_new_spec;
     tree_free_spec; treebox_free_spec;
     insert_spec; lookup_spec;
     turn_left_spec; pushdown_left_spec; delete_spec
@@ -270,8 +270,8 @@ Qed.
 Hint Resolve treebox_rep_saturate_local: saturate_local.
 
 Definition insert_inv (b0: val) (t0: tree val) (x: Z) (v: val): environ -> mpred :=
-  EX b: val, EX t: tree val, 
-  PROP() 
+  EX b: val, EX t: tree val,
+  PROP()
   LOCAL(temp _t b; temp _x (Vint (Int.repr x));   temp _value v)
   SEP(treebox_rep t b;  (treebox_rep (insert x v t) b -* treebox_rep (insert x v t0) b0)).
 
@@ -425,7 +425,7 @@ Proof.
       apply treebox_rep_leaf; auto.
     + (* else clause *)
       destruct t1.
-        { simpl tree_rep. normalize. contradiction H1; auto. }
+        { simpl tree_rep. normalize. }
       simpl tree_rep.
       Intros pa pb. clear H1.
       forward. (* y=p->key; *)
@@ -496,7 +496,6 @@ Proof.
     entailer!.
   * (* loop body preserves invariant *)
     destruct t0; unfold tree_rep at 1; fold tree_rep. normalize.
-    contradiction HRE; auto.
     Intros pa pb.
     forward.
     forward_if; [ | forward_if ].
@@ -613,7 +612,7 @@ Proof.
       Exists pa.
       cancel.
     - destruct tbc0 as [| tb0 y vy tc0].
-        { simpl tree_rep. normalize. contradiction H1; auto. }
+        { simpl tree_rep. normalize. }
       forward_call (ta0, x, vx, tb0, y, vy, tc0, b0, p0, pa, pbc). (* turn_left(t, p, q); *)
       Intros pc.
       forward. (* t = &q->left; *)
@@ -625,13 +624,9 @@ Proof.
       apply RAMIF_PLAIN.trans'.
       apply bst_left_entail; auto.
   + forward. (* Sskip *)
-Abort.
-    (* TODO entailer: entailer! does not work here.
-    unfold loop2_ret_assert.
-    entailer!.
-    apply andp_left2, derives_refl.
+    apply andp_left2.
+    auto.
 Qed.
-*)
 
 Lemma body_treebox_new: semax_body Vprog Gprog f_treebox_new treebox_new_spec.
 Proof.

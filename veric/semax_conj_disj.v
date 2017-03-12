@@ -137,7 +137,7 @@ Qed.
 
 Lemma semax_unfold' {CS: compspecs}:
   semax Espec = fun Delta P c R =>
-    forall (psi: Clight.genv) Delta' (w: nat) 
+    forall (psi: Clight.genv) Delta' (w: nat)
           (TS: tycontext_sub Delta Delta')
           (HGG: genv_cenv psi = cenv_cs)
            (Prog_OK: believe Espec Delta' psi Delta' w) (k: cont) (st: environ * rmap),
@@ -246,10 +246,10 @@ Abort.
     rewrite <- !(sepcon_comm (F rho)).
     Check distrib_sepcon_andp.
     SearchAbout andp sepcon.
-  
+
 Check semax_fold_unfold.
 Check semax_fold.
-    forall (psi: Clight.genv) Delta' (w: nat) 
+    forall (psi: Clight.genv) Delta' (w: nat)
           (TS: tycontext_sub Delta Delta')
           (HGG: genv_cenv psi = cenv_cs)
            (Prog_OK: believe Espec Delta' psi Delta' w) (k: cont) (F: assert),

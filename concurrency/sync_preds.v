@@ -53,7 +53,7 @@ Set Bullet Behavior "Strict Subproofs".
 (* todo: maybe remove one of those lemmas *)
 
 Lemma isSome_find_map addr f lset :
-  ssrbool.isSome (AMap.find (elt:=option rmap) addr (AMap.map f lset)) = 
+  ssrbool.isSome (AMap.find (elt:=option rmap) addr (AMap.map f lset)) =
   ssrbool.isSome (AMap.find (elt:=option rmap) addr lset).
 Proof.
   match goal with |- _ ?a = _ ?b => destruct a eqn:E; destruct b eqn:F end; try reflexivity.
@@ -83,7 +83,7 @@ Qed.
 Local Open Scope nat_scope.
 
 (** * Results related to machine predicates *)
-   
+
 (* Instantiation of modules *)
 Import THE_JUICY_MACHINE.
 Import JSEM.
@@ -291,7 +291,7 @@ Proof.
   - hnf in *. rewrite <-EN.
     auto.
 Qed.
-  
+
 Lemma mem_compatible_with_same_except_cur tp m m' phi :
   same_except_cur m m' ->
   mem_compatible_with tp m phi ->
@@ -321,7 +321,7 @@ Qed.
 Lemma juicyRestrict_Max b ofs phi m (coh : access_cohere' m phi):
   (Mem.mem_access (juicyRestrict coh)) !! b ofs Max =
   (Mem.mem_access m) !! b ofs Max.
-Proof. 
+Proof.
   symmetry.
   apply (juicyRestrictMax coh (b, ofs)).
 Qed.
@@ -435,7 +435,7 @@ Proof.
   apply PTree_xmap_self, H.
 Qed.
 
-Lemma juicyRestrictCur_unchanged m phi 
+Lemma juicyRestrictCur_unchanged m phi
       (coh : access_cohere' m phi)
       (pres : forall loc, perm_of_res (phi @ loc) = access_at m loc Cur) :
   Mem.mem_access (juicyRestrict coh) = Mem.mem_access m.

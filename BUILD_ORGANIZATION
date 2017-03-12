@@ -29,7 +29,7 @@ METHOD B [alternate]
    (typically:  ./configure ia32-linux; make clightgen)
 2. In the VST directory, create a file CONFIGURE containing exactly the text:
     COMPCERT=../compcert
-3. In the VST directory,  
+3. In the VST directory,
     make
 
 
@@ -40,7 +40,7 @@ each in a separate directory:
 msl -   Mechanized Software Library
 examples - examples of how to use the msl
 compcert -   front end of the CompCert compiler, specification of C light
-sepcomp - the theory and practice of how to specify shared-memory interaction 
+sepcomp - the theory and practice of how to specify shared-memory interaction
 veric -  program logic (and soundness proof) for Verifiable C
 floyd -  tactics for applying the separation logic
 progs -  sample programs, with their verifications
@@ -66,20 +66,20 @@ USING PROOF GENERAL AND COQIDE:
 To use either of these interactive development environments you will
 need to have the right load path.  This can be done by command-line
 arguments to coqide or coqtop.  The precise command-line arguments
-to use when running CoqIDE or coqc are in the file .loadpath, which 
-is constructed automatically when you do "make".  For example:    
+to use when running CoqIDE or coqc are in the file .loadpath, which
+is constructed automatically when you do "make".  For example:
   coqide `cat .loadpath`  # will run coqide with the right options.
   coqc `cat .loadpath`    # will run coqc with the right options.
 
-There are three methods in which to configure Proof General. 
+There are three methods in which to configure Proof General.
 1) On Linux systems, use the provided vst/pg script, as follows:
      ./pg
-   This script is adapted from the CompCert project. It starts 
-   emacs+Proof General with the load path arguments specified in 
+   This script is adapted from the CompCert project. It starts
+   emacs+Proof General with the load path arguments specified in
    the generated .loadpath file.
 2) On other systems, such as Windows, it may be necessary to specify the
    load path by hand in your .emacs file, as follows:
-     (setq coq-prog-args 
+     (setq coq-prog-args
        '("-I" "<your-vst-path>/msl" "-as" "msl"
          "-I" "<your-vst-path>/sepcomp" "-as" "sepcomp"
          "-I" "<your-vst-path>/veric" "-as" "veric"
@@ -95,11 +95,11 @@ There are three methods in which to configure Proof General.
 NEW DIRECTORIES:
 If you add a new directory, you will probably want to augment the loadpath
 so that qualified names work right.  For example:
-  coqc `cat .loadpath` -Q new -as new new/myfile.v 
+  coqc `cat .loadpath` -Q new -as new new/myfile.v
 The Makefile automatically creates the .loadpath file
 with the subdirectories that it knows about.
 
-EXTERNAL COMPCERT: 
+EXTERNAL COMPCERT:
 The VST imports from the CompCert verified C compiler, the definition
 of C light syntax and operational semantics.  For the convenience of
 VST users, the vst/compcert directory is a copy (with permission) of

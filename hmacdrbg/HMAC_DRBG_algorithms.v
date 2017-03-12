@@ -44,12 +44,12 @@ Function HMAC_DRBG_generate_helper_Z (HMAC: list Z -> list Z -> list Z) (key v: 
     let (v, rest) := HMAC_DRBG_generate_helper_Z HMAC key v (requested_number_of_bytes - (Z.of_nat len)) in
     let v := HMAC v key in
     let temp := v in
-    (v, rest ++ temp). 
+    (v, rest ++ temp).
 Proof.
   intros. rewrite Z2Nat.inj_sub by omega.
   rewrite Nat2Z.id.
   assert ((0 <? requested_number_of_bytes) = true).
-  * 
+  *
     rewrite Z.ltb_antisym.
     rewrite <- Z.geb_leb.
     rewrite teq.

@@ -14,7 +14,7 @@ Proof.
 start_function.
 rename lvar0 into Xv.
 remember (hash_blocks init_registers hashed) as regs eqn:Hregs.
-assert (Lregs: length regs = 8%nat) 
+assert (Lregs: length regs = 8%nat)
   by (subst regs; apply length_hash_blocks; auto).
 assert (Zregs: Zlength regs = 8%Z)
  by (rewrite Zlength_correct; rewrite Lregs; reflexivity).
@@ -24,7 +24,7 @@ forward. (* data = in; *)
  end.
 *
 semax_frame
-             [ lvar _X (tarray tuint 16) Xv  ] 
+             [ lvar _X (tarray tuint 16) Xv  ]
              [data_at_ Tsh (tarray tuint 16) Xv;
                       data_block sh (intlist_to_Zlist b) data;
                       K_vector kv].
@@ -32,7 +32,7 @@ apply sha256_block_load8 with (ctx:=ctx); eassumption.
 *
 abbreviate_semax.
 eapply semax_seq'.
-semax_frame 
+semax_frame
       [  ]
       [field_at Tsh t_struct_SHA256state_st [StructField _h] (map Vint regs) ctx].
 simple apply (sha256_block_data_order_loop1_proof _ sh b ctx data regs kv Xv); auto.

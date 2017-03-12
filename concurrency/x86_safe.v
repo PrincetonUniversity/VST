@@ -10,11 +10,11 @@ Require Import concurrency.pos.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 
-(*NOTE: because of redefinition of [val], these imports must appear 
+(*NOTE: because of redefinition of [val], these imports must appear
   after Ssreflect eqtype.*)
 Require Import compcert.common.AST.     (*for typ*)
 Require Import compcert.common.Values. (*for val*)
-Require Import compcert.common.Globalenvs. 
+Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
 Require Import compcert.lib.Integers.
@@ -35,10 +35,10 @@ Set Bullet Behavior "Strict Subproofs".
 
 Module X86CoreErasure <: CoreErasure X86SEM.
   Import X86SEM ValErasure MemErasure event_semantics.
-  
+
   Definition reg_erasure (r:PregEq.t) (rs rs' : regset) : Prop :=
     val_erasure (Pregmap.get r rs) (Pregmap.get r rs').
-  
+
   Definition regs_erasure rs rs' : Prop :=
     forall r, reg_erasure r rs rs'.
 
@@ -57,7 +57,7 @@ Module X86CoreErasure <: CoreErasure X86SEM.
       /\ regs_erasure rs rs' /\ loader_erasure loader loader'
     | _, _ => False
     end.
- 
+
   Lemma regs_erasure_refl:
     forall rs, regs_erasure rs rs.
   Proof with eauto with val_erasure.
@@ -70,7 +70,7 @@ Module X86CoreErasure <: CoreErasure X86SEM.
   Proof.
     unfold loader_erasure; auto.
   Qed.
-  
+
   Hint Immediate regs_erasure_refl loader_erasure_refl : regs_erasure.
   Hint Immediate val_erasure_list_refl : val_erasure.
 
@@ -82,7 +82,7 @@ Module X86CoreErasure <: CoreErasure X86SEM.
   Qed.
 
   Hint Immediate core_erasure_refl: regs_erasure.
-  
+
   Lemma regs_erasure_set:
     forall rs rs' v v' r
       (Hrs_ren: regs_erasure rs rs')
@@ -105,9 +105,9 @@ Module X86CoreErasure <: CoreErasure X86SEM.
     intros.
     unfold regs_erasure, reg_erasure in *. eauto.
   Qed.
-  
+
   Hint Resolve regs_erasure_get regs_erasure_refl regs_erasure_set : regs_erasure.
-  
+
   (** ** Result about at_external, after_external and initial_core *)
   Lemma at_external_erase:
     forall c c' (Herase: core_erasure c c'),
@@ -244,7 +244,7 @@ Module X86CoreErasure <: CoreErasure X86SEM.
   Lemma eval_addrmode_erase:
     forall g a rs rs',
       regs_erasure rs rs' ->
-      isPointer (eval_addrmode g a rs) -> 
+      isPointer (eval_addrmode g a rs) ->
       eval_addrmode g a rs = eval_addrmode g a rs'.
   Proof.
     intros. unfold isPointer in *.
@@ -317,7 +317,7 @@ Module X86CoreErasure <: CoreErasure X86SEM.
   Qed.
   Hint Resolve regs_erasure_set_undef : regs_erasure.
 
-  
+
   Lemma val_erasure_addrmode:
     forall g (a : addrmode) rs rs'
       (Hrs: regs_erasure rs rs'),
@@ -391,8 +391,8 @@ Module X86CoreErasure <: CoreErasure X86SEM.
              destruct Expr eqn:?
            end...
   Qed.
-  
-  
+
+
   Hint Resolve compare_ints_erasure compare_floats_erasure
        compare_floats32_erasure val_erasure_addrmode
        regs_erasure_undef : regs_erasure.
@@ -435,7 +435,7 @@ Module X86CoreErasure <: CoreErasure X86SEM.
              inv H
             end; auto.
   Qed.
-  
+
   Lemma exec_instr_erased:
     forall (g : genv) (fn : function) (i : instruction) (rs rs' rs2: regset)
       (m m' m2 : mem) ev
@@ -506,7 +506,7 @@ Module X86CoreErasure <: CoreErasure X86SEM.
                      inv H
         | [H: Next _ _ = Next _ _ |- _] =>
           inv H
-        end;    
+        end;
     try match goal with
         | [H: Mem.loadv _ _ (eval_addrmode ?G ?A rs) = _ |- _] =>
           pose proof (loadv_pointer _ _ _ H);
@@ -591,7 +591,7 @@ Module X86CoreErasure <: CoreErasure X86SEM.
            | [|- mem_event_erasure _ _ ] => constructor
            | [|- memval_erasure_list _ _] =>
              eauto with val_erasure regs_erasure
-           | [|- exists _ _ _, _ ] => do 3 eexists; split; try reflexivity          
+           | [|- exists _ _ _, _ ] => do 3 eexists; split; try reflexivity
            end; try (by exfalso); try assumption.
     destruct (eval_testcond c rs) as [[]|] eqn:Heq; simpl;
     try pose proof (erasure_eval_testcond _ HeraseCores Heq);
@@ -616,7 +616,7 @@ Module X86CoreErasure <: CoreErasure X86SEM.
     forall m m' loc arg rs rs' ev
       (Harg: extcall_arg rs m loc arg)
       (Harg_ev: Asm_event.extcall_arg_ev rs m loc arg ev)
-      (Hmem_obs_eq: mem_erasure m m') 
+      (Hmem_obs_eq: mem_erasure m m')
       (Hrs : regs_erasure rs rs'),
     exists arg' ev',
       Asm_event.extcall_arg_ev rs' m' loc arg' ev' /\
@@ -666,7 +666,7 @@ Module X86CoreErasure <: CoreErasure X86SEM.
   Lemma extcall_arg_pair_erasure:
     forall m m' loc arg rs rs' ev
       (Harg_ev: Asm_event.extcall_arg_pair_ev rs m loc arg ev)
-      (Hmem_obs_eq: mem_erasure m m') 
+      (Hmem_obs_eq: mem_erasure m m')
       (Hrs : regs_erasure rs rs'),
     exists arg' ev',
       Asm_event.extcall_arg_pair_ev rs' m' loc arg' ev' /\
@@ -690,11 +690,11 @@ Module X86CoreErasure <: CoreErasure X86SEM.
       (repeat split); try econstructor...
       eapply mem_event_list_erasure_cat; eauto.
   Qed.
-      
+
   Lemma extcall_arguments_erasure:
     forall m m' ef args rs rs' ev
       (Hexternal_ev: Asm_event.extcall_arguments_ev rs m (ef_sig ef) args ev)
-      (Hmem_obs_eq: mem_erasure m m') 
+      (Hmem_obs_eq: mem_erasure m m')
       (Hrs : regs_erasure rs rs'),
     exists args' ev',
       Asm_event.extcall_arguments_ev rs' m' (ef_sig ef) args' ev' /\
@@ -822,7 +822,7 @@ Module X86CoreErasure <: CoreErasure X86SEM.
       apply inj_bytes_erasure.
       auto.
   Qed.
-  
+
   Lemma load_frame_store_args_erasure:
     forall m m2 m' args args' T tys stk
       (Hmem: mem_erasure' m m')
@@ -900,7 +900,7 @@ Module X86CoreErasure <: CoreErasure X86SEM.
         simpl. destruct tys0; simpl in *; inv H3; auto.
         destruct tys0. simpl in *.
         discriminate.
-        simpl in *; destruct t; 
+        simpl in *; destruct t;
         destruct (load_frame.args_len_rec args tys0) eqn:?;
                  try discriminate;
         try (specialize (IHargs _ _ H4 _ Heqo);
@@ -927,7 +927,7 @@ Module X86CoreErasure <: CoreErasure X86SEM.
   Qed.
 
 End X86CoreErasure.
-  
+
 
 
 

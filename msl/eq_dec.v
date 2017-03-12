@@ -9,7 +9,7 @@
 Require Import msl.base.
 
 (* Class of decidable equality *)
-Class EqDec (A : Type) : Type := 
+Class EqDec (A : Type) : Type :=
   eq_dec : forall a a' : A, {a = a'} + {a <> a'}.
 
 Instance EqDec_nat : EqDec nat := eq_nat_dec.
@@ -17,9 +17,9 @@ Instance EqDec_nat : EqDec nat := eq_nat_dec.
 (* Theory of updateable functions, defined over decideable domain *)
 Definition upd {A} `{EqDec A} (B : Type) (f : A -> B) (a : A) (b : B) : A -> B :=
   fun a' => if eq_dec a a' then b else f a'.
-Implicit Arguments upd [A H B].
+Arguments upd [A H B] _ _ _ _.
 
-Lemma upd_eq {A} `{EqDec A} : forall B (f : A -> B) a b, 
+Lemma upd_eq {A} `{EqDec A} : forall B (f : A -> B) a b,
   upd f a b a = b.
 Proof with auto.
   intros.
@@ -28,7 +28,7 @@ Proof with auto.
   intro.
   destruct n...
 Qed.
-Implicit Arguments upd_eq [A H B].
+Arguments upd_eq [A H B] _ _ _.
 
 Lemma upd_eq' {A} `{EqDec A} : forall B (f : A -> B) a b a',
   a = a' ->
@@ -36,7 +36,7 @@ Lemma upd_eq' {A} `{EqDec A} : forall B (f : A -> B) a b a',
 Proof.
   intros. subst a'. apply upd_eq.
 Qed.
-Implicit Arguments upd_eq' [A H B].
+Arguments upd_eq' [A H B] _ _ _ _ _.
 
 Lemma upd_neq {A} `{EqDec A} : forall B (f : A -> B) a b a',
   a <> a' ->
@@ -49,7 +49,7 @@ Proof with auto.
   subst a'.
   destruct H0...
 Qed.
-Implicit Arguments upd_neq [A H B].
+Arguments upd_neq [A H B] _ _ _ _ _.
 
 Instance nat_eq_dec: EqDec nat.
 Proof.

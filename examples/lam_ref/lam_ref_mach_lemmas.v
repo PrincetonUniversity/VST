@@ -80,7 +80,7 @@ Proof.
   left; exists (m',App e' e2); apply st_App1; auto.
   destruct e1; try (show_stopped; inv H1; fail).
   show_stopped; elim Hstop; eauto.
-  destruct (IHe2 m) as [[[m' e'] Hstep]|Hstop2].  
+  destruct (IHe2 m) as [[[m' e'] Hstep]|Hstop2].
   left; exists (m', App (Lam e1) e'); apply st_App2; auto.
   destruct (value_dec e2).
   left; exists (m, subst 0 (exp_to_val e2 i) e1).
@@ -315,7 +315,7 @@ Proof.
 Qed.
 
 Lemma subst_env'_Update: forall rho m e1 e2 e3,
-  subst_env' m rho (Update e1 e2 e3) = 
+  subst_env' m rho (Update e1 e2 e3) =
   Update (subst_env' m rho e1) (subst_env' m rho e2) (subst_env' m rho e3).
 Proof.
   do 5 intro.
@@ -346,7 +346,7 @@ Proof.
 Qed.
 
 Lemma subst_env_Update: forall rho e1 e2 e3,
-  subst_env rho (Update e1 e2 e3) = 
+  subst_env rho (Update e1 e2 e3) =
   Update (subst_env rho e1) (subst_env rho e2) (subst_env rho e3).
 Proof.
   intros.

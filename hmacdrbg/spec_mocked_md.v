@@ -45,11 +45,11 @@ Definition md_get_size_spec :=
          PROP ()
          LOCAL ()
          SEP ()
-  POST [ tuchar ] 
+  POST [ tuchar ]
      PROP ()
      LOCAL (temp ret_temp (Vint (Int.repr (Z.of_nat SHA256.DigestLength))))
      SEP ().
- 
+
 Definition md_reset_spec :=
   DECLARE _mbedtls_md_hmac_reset
    WITH c : val, l:Z, key:list Z, kv:val, d:list Z
@@ -57,7 +57,7 @@ Definition md_reset_spec :=
          PROP (has_lengthK l key)
          LOCAL (temp _ctx c; gvar sha._K256 kv)
          SEP ( `(FULL key c); `(K_vector kv))
-  POST [ tint ] 
+  POST [ tint ]
      PROP ()
      LOCAL ()
      SEP (`(REP (hABS key nil) c); `(K_vector kv)).
@@ -71,9 +71,9 @@ Definition md_starts_spec :=
          PROP (has_lengthK l key)
          LOCAL (temp _ctx c; temp _key (Vptr b i); temp _keylen (Vint (Int.repr l));
                 gvar sha._K256 kv)
-         SEP (`(EMPTY c); 
+         SEP (`(EMPTY c);
               `(data_block Tsh key (Vptr b i)); `(K_vector kv))
-  POST [ tvoid ] 
+  POST [ tvoid ]
      PROP ()
      LOCAL ()
      SEP (`(REP (hABS key nil) c); `(data_block Tsh key (Vptr b i)); `(K_vector kv)).
@@ -81,18 +81,18 @@ Definition md_starts_spec :=
 Definition md_update_spec :=
   DECLARE _mbedtls_md_hmac_update
    WITH key: list Z, c : val, d:val, data:list Z, data1:list Z, kv:val
-   PRE [ _ctx OF tptr t_struct_md_ctx_st, 
-         _input OF tptr tvoid, 
+   PRE [ _ctx OF tptr t_struct_md_ctx_st,
+         _input OF tptr tvoid,
          _ilen OF tuint]
          PROP (0 <= Zlength data1 <= Int.max_unsigned /\
-               Zlength data1 + Zlength data + 64 < two_power_pos 61) 
+               Zlength data1 + Zlength data + 64 < two_power_pos 61)
          LOCAL (temp _ctx c; temp _input d; temp  _ilen (Vint (Int.repr (Zlength data1)));
                 gvar sha._K256 kv)
          SEP(`(REP (hABS key data) c); `(data_block Tsh data1 d); `(K_vector kv))
-  POST [ tvoid ] 
-          PROP () 
+  POST [ tvoid ]
+          PROP ()
           LOCAL ()
-          SEP(`(REP (hABS key (data++data1)) c); 
+          SEP(`(REP (hABS key (data++data1)) c);
               `(data_block Tsh data1 d);`(K_vector kv)).
 
 Definition md_final_spec :=
@@ -100,13 +100,13 @@ Definition md_final_spec :=
    WITH data:list Z, key:list Z, c : val, md:val, shmd: share, kv:val
    PRE [ _ctx OF tptr t_struct_md_ctx_st,
          _output OF tptr tuchar ]
-       PROP (writable_share shmd) 
+       PROP (writable_share shmd)
        LOCAL (temp _output md; temp _ctx c;
               gvar sha._K256 kv)
        SEP(`(REP (hABS key data) c); `(K_vector kv);
            `(memory_block shmd 32 md))
-  POST [ tvoid ] 
-          PROP () 
+  POST [ tvoid ]
+          PROP ()
           LOCAL ()
           SEP(`(K_vector kv);
               `(FULL key c);

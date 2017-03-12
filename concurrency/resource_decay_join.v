@@ -58,19 +58,19 @@ Proof.
   destruct r1 as [ sh1 | sh1 sh1' k1 pp1 | k1 pp1 ];
     destruct r2 as [ sh2 | sh2 sh2' k2 pp2 | k2 pp2 ];
     simpl in *.
-  
+
   - sumsimpl. sumsimpl. sumsimpl. breakhyps.
-  
+
   - sumsimpl.
     sumsimpl.
     breakhyps.
     destruct k2; split; eauto.
     now (exists m; breakhyps).
     all: exfalso; breakhyps.
-  
+
   - sumsimpl.
     exfalso. breakhyps.
-  
+
   - sumsimpl.
     destruct (eq_dec sh1 Share.top).
     destruct (eq_dec sh1' pfullshare).
@@ -78,7 +78,7 @@ Proof.
     destruct (eq_dec sh2 Share.bot).
     now subst; eauto.
     all: exfalso; breakhyps.
-  
+
   - sumsimpl.
     destruct D.
     + autospec nn. congruence.
@@ -91,16 +91,16 @@ Proof.
       right. exists sh1, m, m0. split; auto; f_equal; breakhyps.
       all: try solve [exfalso; breakhyps].
       sumsimpl. breakhyps.
-  
+
   - sumsimpl. exfalso; breakhyps.
-  
+
   - sumsimpl. exfalso; breakhyps.
-  
+
   - sumsimpl. sumsimpl. breakhyps.
     destruct k2; split; eauto.
     now (exists m; breakhyps).
     all: exfalso; breakhyps.
-  
+
   - sumsimpl. sumsimpl. sumsimpl. breakhyps.
 Qed.
 
@@ -127,11 +127,11 @@ Inductive res_join' : resource -> resource -> resource -> Type :=
     res_join'_NO1 : forall rsh1 rsh2 rsh3 : Share.t,
                    sepalg.join rsh1 rsh2 rsh3 ->
                    res_join' (NO rsh1) (NO rsh2) (NO rsh3)
-  | res_join'_NO2 : forall (rsh1 rsh2 rsh3 : Share.t) (sh : pshare) 
+  | res_join'_NO2 : forall (rsh1 rsh2 rsh3 : Share.t) (sh : pshare)
                      (k : AV.kind) (p : preds),
                    sepalg.join rsh1 rsh2 rsh3 ->
                    res_join' (YES rsh1 sh k p) (NO rsh2) (YES rsh3 sh k p)
-  | res_join'_NO3 : forall (rsh1 rsh2 rsh3 : Share.t) (sh : pshare) 
+  | res_join'_NO3 : forall (rsh1 rsh2 rsh3 : Share.t) (sh : pshare)
                      (k : AV.kind) (p : preds),
                    sepalg.join rsh1 rsh2 rsh3 ->
                    res_join' (NO rsh1) (YES rsh2 sh k p) (YES rsh3 sh k p)
@@ -211,10 +211,10 @@ Proof.
   intros [lev rd] J.
   assert (lev12 : level phi1 = level phi2).
   { apply join_level in J; intuition congruence. }
-  
+
   set (phi2' := age_to (level phi1') phi2).
   unfold resource_decay in *.
-  
+
   assert (DESCR : forall loc,
              { r3 |
                sepalg.join (phi1' @ loc) (phi2' @ loc) r3 /\
@@ -226,12 +226,12 @@ Proof.
     specialize (rd loc).
     assert (D: {(fst loc >= b)%positive} + {(fst loc < b)%positive}) by (pose proof zlt; zify; eauto).
     apply resource_at_join with (loc := loc) in J.
-    
+
     unfold phi2'; clear phi2'; rewrite age_to_resource_at.
     autospec bound.
-    
+
     destruct rd as [nn [[[E1 | (rsh & v & v' & E1 & E1')] | (pos & v & E1') ] | (v & pp & E1 & E1')]].
-    
+
     - exists ( resource_fmap (approx (level phi1')) (approx (level phi1')) (phi3 @ loc)).
       rewrite <-E1.
       split;[|split;[split|]].
@@ -240,7 +240,7 @@ Proof.
         inv J. f_equal. eapply join_bot_bot_eq; auto.
       + left. auto.
       + apply resource_fmap_approx_idempotent.
-    
+
     - rewrite E1'.
       apply res_join'_spec in J.
       inversion J; rewr (phi1 @ loc) in E1; simpl in *.
@@ -258,7 +258,7 @@ Proof.
         apply res_join'_spec_inv in J.
         apply YES_join_full in J.
         exfalso. breakhyps.
-    
+
     - autospec nn.
       autospec bound.
       rewrite nn in *.
@@ -294,7 +294,7 @@ Proof.
         eapply join_pfullshare.
         eauto.
   }
-  
+
   destruct (make_rmap (fun loc => proj1_sig (DESCR loc))) with (n := level phi1') as (phi3' & lev3 & at3).
   {
     (* validity *)
@@ -324,7 +324,7 @@ Proof.
     extensionality loc; simpl.
     destruct (DESCR loc) as (?&?&rd3&?); simpl; auto.
   }
-  
+
   exists phi3'.
   split;[|split].
   - apply resource_at_join2; auto.

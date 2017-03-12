@@ -1,4 +1,4 @@
-/* Adapted 2013 by Andrew Appel from OpenSSL098 crypto/sha/sha256.c 
+/* Adapted 2013 by Andrew Appel from OpenSSL098 crypto/sha/sha256.c
  * Copyright (c) 2004 The OpenSSL Project.  All rights reserved
  * according to the OpenSSL license.
  */
@@ -152,7 +152,7 @@ void SHA256_Init (SHA256_CTX *c)
 
 void SHA256_addlength(SHA256_CTX *c, size_t len) {
 	SHA_LONG l, cNl,cNh;
-	cNl=c->Nl; cNh=c->Nh; 
+	cNl=c->Nl; cNh=c->Nh;
 	l=(cNl+(((SHA_LONG)len)<<3))&0xffffffffUL;
 	if (l < cNl) /* overflow */
 	  {cNh ++;}
@@ -262,4 +262,4 @@ SHA256("The quick brown fox jumps over the lazy dog.")
 0x ef537f25c895bfa782526529a9b63d97aa631564d5d789c2b765448c8635fb6c
 
 */
- 
+

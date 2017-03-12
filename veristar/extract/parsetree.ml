@@ -138,7 +138,7 @@ and pp_a_proposition pprc ppsn f =
   and ppac = pp_a_component
   and ppace parent_prec parent_posn f (c,e) =
     fprintf f "%a:%a" (pp_a_component parent_prec parent_posn) c
-      (pp_a_expression parent_prec parent_posn) e 
+      (pp_a_expression parent_prec parent_posn) e
   in function
     | Aprop_infix (o, e1, e2) ->
 	if cp 5 (-1)

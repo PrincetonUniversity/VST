@@ -32,7 +32,7 @@ Require Import veric.tycontext.
   The [sem_*] functions below compute the result of an operator
   application.  Since operators are overloaded, the result depends
   both on the static types of the arguments and on their run-time values.
-  The corresponding [classify_*] function is first called on the 
+  The corresponding [classify_*] function is first called on the
   types of the arguments to resolve static overloading.  It is then
   followed by a case analysis on the values of the arguments. *)
 
@@ -96,43 +96,43 @@ match v with
       | _ => None
       end.
 
-Definition sem_cast_f2f (v: val) : option val := 
+Definition sem_cast_f2f (v: val) : option val :=
       match v with
       | Vfloat f => Some (Vfloat f)
       | _ => None
       end.
 
-Definition sem_cast_s2s (v: val) : option val := 
+Definition sem_cast_s2s (v: val) : option val :=
       match v with
       | Vsingle f => Some (Vsingle f)
       | _ => None
       end.
 
-Definition sem_cast_s2f (v: val) : option val := 
+Definition sem_cast_s2f (v: val) : option val :=
       match v with
       | Vsingle f => Some (Vfloat (Float.of_single f))
       | _ => None
       end.
 
- Definition sem_cast_f2s (v: val) : option val := 
+ Definition sem_cast_f2s (v: val) : option val :=
       match v with
       | Vfloat f => Some (Vsingle (Float.to_single f))
       | _ => None
       end.
 
- Definition sem_cast_i2f si1 (v: val) : option val := 
+ Definition sem_cast_i2f si1 (v: val) : option val :=
       match v with
       | Vint i => Some (Vfloat (Cop.cast_int_float si1 i))
       | _ => None
       end.
 
- Definition sem_cast_i2s si1 (v: val) : option val := 
+ Definition sem_cast_i2s si1 (v: val) : option val :=
       match v with
       | Vint i => Some (Vsingle (Cop.cast_int_single si1 i))
       | _ => None
       end.
 
- Definition sem_cast_f2i sz2 si2 (v: val) : option val := 
+ Definition sem_cast_f2i sz2 si2 (v: val) : option val :=
       match v with
       | Vfloat f =>
           match Cop.cast_float_int si2 f with
@@ -142,7 +142,7 @@ Definition sem_cast_s2f (v: val) : option val :=
       | _ => None
       end.
 
-Definition sem_cast_s2i sz2 si2 (v: val) : option val := 
+Definition sem_cast_s2i sz2 si2 (v: val) : option val :=
       match v with
       | Vsingle f =>
           match Cop.cast_single_int si2 f with
@@ -152,33 +152,33 @@ Definition sem_cast_s2i sz2 si2 (v: val) : option val :=
       | _ => None
       end.
 
-Definition sem_cast_f2bool (v: val) : option val := 
+Definition sem_cast_f2bool (v: val) : option val :=
       match v with
       | Vfloat f =>
           Some(Vint(if Float.cmp Ceq f Float.zero then Int.zero else Int.one))
       | _ => None
       end.
 
-Definition sem_cast_s2bool (v: val) : option val := 
+Definition sem_cast_s2bool (v: val) : option val :=
       match v with
       | Vsingle f =>
           Some(Vint(if Float32.cmp Ceq f Float32.zero then Int.zero else Int.one))
       | _ => None
       end.
 
- Definition sem_cast_l2f si1 (v: val) : option val := 
+ Definition sem_cast_l2f si1 (v: val) : option val :=
       match v with
       | Vlong i => Some (Vfloat (Cop.cast_long_float si1 i))
       | _ => None
       end.
 
- Definition sem_cast_l2s si1 (v: val) : option val := 
+ Definition sem_cast_l2s si1 (v: val) : option val :=
       match v with
       | Vlong i => Some (Vsingle (Cop.cast_long_single si1 i))
       | _ => None
       end.
 
- Definition sem_cast_f2l si2 (v: val) : option val := 
+ Definition sem_cast_f2l si2 (v: val) : option val :=
       match v with
       | Vfloat f =>
           match Cop.cast_float_long si2 f with
@@ -188,7 +188,7 @@ Definition sem_cast_s2bool (v: val) : option val :=
       | _ => None
       end.
 
-Definition sem_cast_s2l si2 (v: val) : option val := 
+Definition sem_cast_s2l si2 (v: val) : option val :=
       match v with
       | Vsingle f =>
           match Cop.cast_single_long si2 f with
@@ -201,27 +201,27 @@ Definition sem_cast_s2l si2 (v: val) : option val :=
 Definition sem_cast (t1 t2: type): val -> option val :=
   match Cop.classify_cast t1 t2 with
   | Cop.cast_case_neutral => sem_cast_neutral
-  | Cop.cast_case_i2i sz2 si2 => sem_cast_i2i sz2 si2      
-  | Cop.cast_case_f2f => sem_cast_f2f  
-  | Cop.cast_case_s2s => sem_cast_s2s     
-  | Cop.cast_case_s2f => sem_cast_s2f       
-  | Cop.cast_case_f2s => sem_cast_f2s         
+  | Cop.cast_case_i2i sz2 si2 => sem_cast_i2i sz2 si2
+  | Cop.cast_case_f2f => sem_cast_f2f
+  | Cop.cast_case_s2s => sem_cast_s2s
+  | Cop.cast_case_s2f => sem_cast_s2f
+  | Cop.cast_case_f2s => sem_cast_f2s
   | Cop.cast_case_i2f si1 => sem_cast_i2f si1
   | Cop.cast_case_i2s si1 => sem_cast_i2s si1
   | Cop.cast_case_f2i sz2 si2 => sem_cast_f2i sz2 si2
   | Cop.cast_case_s2i sz2 si2 => sem_cast_s2i sz2 si2
-  | Cop.cast_case_f2bool => sem_cast_f2bool    
-  | Cop.cast_case_s2bool => sem_cast_s2bool        
+  | Cop.cast_case_f2bool => sem_cast_f2bool
+  | Cop.cast_case_s2bool => sem_cast_s2bool
   | Cop.cast_case_p2bool => sem_cast_p2bool
-  | Cop.cast_case_l2l => sem_cast_l2l     
-  | Cop.cast_case_i2l si => sem_cast_i2l si     
-  | Cop.cast_case_l2i sz si => sem_cast_l2i sz si      
-  | Cop.cast_case_l2bool => sem_cast_l2bool     
-  | Cop.cast_case_l2f si1 => sem_cast_l2f si1    
-  | Cop.cast_case_l2s si1 => sem_cast_l2s si1     
-  | Cop.cast_case_f2l si2 => sem_cast_f2l si2     
-  | Cop.cast_case_s2l si2 => sem_cast_s2l si2     
-  | Cop.cast_case_struct id1 id2 => sem_cast_struct id1 id2 
+  | Cop.cast_case_l2l => sem_cast_l2l
+  | Cop.cast_case_i2l si => sem_cast_i2l si
+  | Cop.cast_case_l2i sz si => sem_cast_l2i sz si
+  | Cop.cast_case_l2bool => sem_cast_l2bool
+  | Cop.cast_case_l2f si1 => sem_cast_l2f si1
+  | Cop.cast_case_l2s si1 => sem_cast_l2s si1
+  | Cop.cast_case_f2l si2 => sem_cast_f2l si2
+  | Cop.cast_case_s2l si2 => sem_cast_s2l si2
+  | Cop.cast_case_struct id1 id2 => sem_cast_struct id1 id2
   | Cop.cast_case_union id1 id2 => sem_cast_union id1 id2
   | Cop.cast_case_void =>
       fun v => Some v
@@ -230,7 +230,7 @@ Definition sem_cast (t1 t2: type): val -> option val :=
   end.
 
 (** The following describes types that can be interpreted as a boolean:
-  integers, floats, pointers.  It is used for the semantics of 
+  integers, floats, pointers.  It is used for the semantics of
   the [!] and [?] operators, as well as the [if], [while], [for] statements. *)
 
 (** Interpretation of values as truth values.
@@ -271,11 +271,11 @@ Definition bool_val_l (v : val) : option bool :=
 
 Definition bool_val (t: type) : val -> option bool :=
   match Cop.classify_bool t with
-  | Cop.bool_case_i => bool_val_i       
+  | Cop.bool_case_i => bool_val_i
   | Cop.bool_case_s => bool_val_s
-  | Cop.bool_case_f => bool_val_f  
-  | Cop.bool_case_p => bool_val_p 
-  | Cop.bool_case_l => bool_val_l      
+  | Cop.bool_case_f => bool_val_f
+  | Cop.bool_case_p => bool_val_p
+  | Cop.bool_case_l => bool_val_l
   | bool_default => fun v => None
   end.
 
@@ -319,8 +319,8 @@ Definition sem_notbool_l (v : val) : option val :=
 
 Definition sem_notbool (t: type) : val -> option val :=
   match Cop.classify_bool t with
-  | Cop.bool_case_i => sem_notbool_i      
-  | Cop.bool_case_f => sem_notbool_f 
+  | Cop.bool_case_i => sem_notbool_i
+  | Cop.bool_case_f => sem_notbool_f
   | Cop.bool_case_s => sem_notbool_s
   | Cop.bool_case_p => sem_notbool_p
   | Cop.bool_case_l => sem_notbool_l
@@ -389,7 +389,7 @@ Definition sem_absfloat_l sg v :=
 
 Definition sem_absfloat (ty: type)  : val -> option val :=
   match Cop.classify_neg ty with
-  | Cop.neg_case_i sg => sem_absfloat_i sg      
+  | Cop.neg_case_i sg => sem_absfloat_i sg
   | Cop.neg_case_f => sem_absfloat_f
   | Cop.neg_case_s => sem_absfloat_s
    | Cop.neg_case_l sg => sem_absfloat_l sg
@@ -450,7 +450,7 @@ Definition sem_binarith
 
 Definition sem_add_pi {CS: compspecs} ty (v1 v2 : val) : option val :=
 match v1,v2 with
-      | Vptr b1 ofs1, Vint n2 => 
+      | Vptr b1 ofs1, Vint n2 =>
         Some (Vptr b1 (Int.add ofs1 (Int.mul (Int.repr (sizeof ty)) n2)))
       | Vint n1, Vint n2 =>
         Some (Vint (Int.add n1 (Int.mul (Int.repr (sizeof ty)) n2)))
@@ -458,16 +458,16 @@ match v1,v2 with
       end.
 Definition sem_add_ip  {CS: compspecs} ty (v1 v2 : val) : option val :=
  match v1,v2 with
-      | Vint n1, Vptr b2 ofs2 => 
+      | Vint n1, Vptr b2 ofs2 =>
         Some (Vptr b2 (Int.add ofs2 (Int.mul (Int.repr (sizeof ty)) n1)))
       | Vint n1, Vint n2 =>
         Some (Vint (Int.add n2 (Int.mul (Int.repr (sizeof ty)) n1)))
       | _,  _ => None
       end.
- 
+
 Definition sem_add_pl {CS: compspecs} ty (v1 v2 : val) : option val :=
 match v1,v2 with
-      | Vptr b1 ofs1, Vlong n2 => 
+      | Vptr b1 ofs1, Vlong n2 =>
         let n2 := Int.repr (Int64.unsigned n2) in
         Some (Vptr b1 (Int.add ofs1 (Int.mul (Int.repr (sizeof ty)) n2)))
       | Vint n1, Vlong n2 =>
@@ -478,7 +478,7 @@ match v1,v2 with
 
 Definition sem_add_lp {CS: compspecs} ty (v1 v2 : val) : option val :=
 match v1,v2 with
-      | Vlong n1, Vptr b2 ofs2 => 
+      | Vlong n1, Vptr b2 ofs2 =>
         let n1 := Int.repr (Int64.unsigned n1) in
         Some (Vptr b2 (Int.add ofs2 (Int.mul (Int.repr (sizeof ty)) n1)))
       | Vlong n1, Vint n2 =>
@@ -497,7 +497,7 @@ sem_binarith
         v1 v2.
 
 Definition sem_add {CS: compspecs} (t1:type) (t2:type):  val->val->option val :=
-  match Cop.classify_add t1 t2 with 
+  match Cop.classify_add t1 t2 with
   | Cop.add_case_pi ty =>  sem_add_pi ty
   | Cop.add_case_ip ty => sem_add_ip ty   (**r integer plus pointer *)
   | Cop.add_case_pl ty => sem_add_pl ty   (**r pointer plus long *)
@@ -509,7 +509,7 @@ Definition sem_add {CS: compspecs} (t1:type) (t2:type):  val->val->option val :=
 
 Definition sem_sub_pi {CS: compspecs} ty (v1 v2 : val) : option val :=
 match v1,v2 with
-      | Vptr b1 ofs1, Vint n2 => 
+      | Vptr b1 ofs1, Vint n2 =>
           Some (Vptr b1 (Int.sub ofs1 (Int.mul (Int.repr (sizeof ty)) n2)))
       | Vint n1, Vint n2 =>
           Some (Vint (Int.sub n1 (Int.mul (Int.repr (sizeof ty)) n2)))
@@ -518,7 +518,7 @@ match v1,v2 with
 
 Definition sem_sub_pl {CS: compspecs} ty (v1 v2 : val) : option val :=
  match v1,v2 with
-      | Vptr b1 ofs1, Vlong n2 => 
+      | Vptr b1 ofs1, Vlong n2 =>
           let n2 := Int.repr (Int64.unsigned n2) in
           Some (Vptr b1 (Int.sub ofs1 (Int.mul (Int.repr (sizeof ty)) n2)))
       | Vint n1, Vlong n2 =>
@@ -554,7 +554,7 @@ Definition sem_sub {CS: compspecs} (t1:type) (t2:type) : val -> val -> option va
   | Cop.sub_case_pp ty => sem_sub_pp ty       (**r pointer minus pointer *)
   | sub_default => sem_sub_default t1 t2
   end.
- 
+
 (** *** Multiplication, division, modulus *)
 
 Definition sem_mul (t1:type) (t2:type) (v1:val)  (v2: val)  : option val :=
@@ -649,7 +649,7 @@ Definition sem_xor (t1:type) (t2:type) (v1:val)  (v2: val) : option val :=
 
 Definition sem_shift_ii sem_int (sg:signedness) v1 v2 : option val :=
       match v1, v2 with
-      | Vint n1, Vint n2 => 
+      | Vint n1, Vint n2 =>
           if Int.ltu n2 Int.iwordsize
           then Some(Vint(sem_int sg n1 n2)) else None
       | _, _ => None
@@ -657,7 +657,7 @@ Definition sem_shift_ii sem_int (sg:signedness) v1 v2 : option val :=
 
 Definition sem_shift_il sem_int (sg:signedness) v1 v2 : option val :=
 match v1, v2 with
-      | Vint n1, Vlong n2 => 
+      | Vint n1, Vlong n2 =>
           if Int64.ltu n2 (Int64.repr 32)
           then Some(Vint(sem_int sg n1 (Int64.loword n2))) else None
       | _, _ => None
@@ -665,7 +665,7 @@ match v1, v2 with
 
 Definition sem_shift_li sem_long (sg:signedness) v1 v2 : option val :=
 match v1, v2 with
-      | Vlong n1, Vint n2 => 
+      | Vlong n1, Vint n2 =>
           if Int.ltu n2 Int64.iwordsize'
           then Some(Vlong(sem_long sg n1 (Int64.repr (Int.unsigned n2)))) else None
       | _, _ => None
@@ -673,7 +673,7 @@ match v1, v2 with
 
 Definition sem_shift_ll sem_long (sg:signedness) v1 v2 : option val :=
  match v1, v2 with
-      | Vlong n1, Vlong n2 => 
+      | Vlong n1, Vlong n2 =>
           if Int64.ltu n2 Int64.iwordsize
           then Some(Vlong(sem_long sg n1 n2)) else None
       | _, _ => None
@@ -683,10 +683,10 @@ Definition sem_shift
     (t1: type) (t2: type) (sem_int: signedness -> int -> int -> int)
     (sem_long: signedness -> int64 -> int64 -> int64) : val -> val -> option val :=
   match Cop.classify_shift t1 t2 with
-  | Cop.shift_case_ii sg => sem_shift_ii sem_int sg 
+  | Cop.shift_case_ii sg => sem_shift_ii sem_int sg
   | Cop.shift_case_il sg => sem_shift_il sem_int sg
-  | Cop.shift_case_li sg => sem_shift_li sem_long sg 
-  | Cop.shift_case_ll sg => sem_shift_ll sem_long sg 
+  | Cop.shift_case_li sg => sem_shift_li sem_long sg
+  | Cop.shift_case_ll sg => sem_shift_ll sem_long sg
   | shift_default => fun v1 v2 => None
   end.
 
@@ -706,12 +706,12 @@ Definition sem_shr (t1:type) (t2:type) (v1:val) (v2: val)  : option val :=
 
 Definition true2 (b : block) (i : Z) := true.
 
-Definition sem_cmp_pp c v1 v2 := 
+Definition sem_cmp_pp c v1 v2 :=
 option_map Val.of_bool (Val.cmpu_bool true2 c v1 v2).
 
 Definition sem_cmp_pl c v1 v2 :=
  match v2 with
-      | Vlong n2 => 
+      | Vlong n2 =>
           let n2 := Int.repr (Int64.unsigned n2) in
           option_map Val.of_bool (Val.cmpu_bool true2 c v1 (Vint n2))
       | _ => None
@@ -719,13 +719,13 @@ Definition sem_cmp_pl c v1 v2 :=
 
 Definition sem_cmp_lp c v1 v2   :=
       match v1 with
-      | Vlong n1 => 
+      | Vlong n1 =>
           let n1 := Int.repr (Int64.unsigned n1) in
           option_map Val.of_bool (Val.cmpu_bool true2 c (Vint n1) v2)
       | _ => None
       end.
 
-Definition sem_cmp_default c t1 t2 := 
+Definition sem_cmp_default c t1 t2 :=
  sem_binarith
         (fun sg n1 n2 =>
             Some(Val.of_bool(match sg with Signed => Int.cmp c n1 n2 | Unsigned => Int.cmpu c n1 n2 end)))
@@ -751,9 +751,9 @@ Definition sem_cmp (c:comparison) (t1: type) (t2: type) : val -> val ->  option 
 Definition sem_unary_operation
             (op: Cop.unary_operation) (ty: type) (v: val): option val :=
   match op with
-  | Cop.Onotbool => sem_notbool ty v 
-  | Cop.Onotint => sem_notint ty v 
-  | Cop.Oneg => sem_neg ty v 
+  | Cop.Onotbool => sem_notbool ty v
+  | Cop.Onotint => sem_notint ty v
+  | Cop.Oneg => sem_neg ty v
   | Cop.Oabsfloat => sem_absfloat ty v
   end.
 
@@ -788,8 +788,8 @@ sem_binary_operation' op t1 t2 (Mem.valid_pointer m).
 
 Definition sem_incrdecr {CS: compspecs} (id: Cop.incr_or_decr) (ty: type)  (valid_pointer : block -> Z -> bool)  (v: val)  :=
   match id with
-  | Cop.Incr => sem_add ty type_int32s v (Vint Int.one) 
-  | Decr => sem_sub ty type_int32s v (Vint Int.one) 
+  | Cop.Incr => sem_add ty type_int32s v (Vint Int.one)
+  | Decr => sem_sub ty type_int32s v (Vint Int.one)
   end.
 
 (*We can always simplify if the types are known *)

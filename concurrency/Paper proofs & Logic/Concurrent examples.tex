@@ -36,9 +36,9 @@ $$ \arr (a, [x_1, x_2, \dots x_n]) \triangleq a \mapsto x_1 \ast (a + 4) a \maps
  \end{align*}
 \item For queues:
 
-\begin{align*} 
+\begin{align*}
 (hd, tl) \leadsto nil  &\triangleq hd \mapsto \NULL tl \mapsto \NULL \\
- (hd, tl) \leadsto [x_n \dots, x_{1}] &\triangleq hd \mapsto (x_1, a_1) \ast \dots a_{n-1} \mapsto tl=(\NULL,x_n) 
+ (hd, tl) \leadsto [x_n \dots, x_{1}] &\triangleq hd \mapsto (x_1, a_1) \ast \dots a_{n-1} \mapsto tl=(\NULL,x_n)
 \end{align*}
 
 \end{itemize}
@@ -87,7 +87,7 @@ int main() {
 	MakeLock(l);
 	(*\textcolor{blue}{ \{ $ l  \lock{0}{1 } R \ast c \mapsto 0 \ast \hold l, R, 0 \ast \arr (a, [\_, \_, \dots, \_{]}_{n} $\} }*) //(*$ R = \lambda v. c \mapsto v  $*)
 	Release(l);
-	(*\textcolor{blue}{ \{ $ l  \lock{0}{1 } R \ast \arr (a, [\_, \_, \dots, \_{]}_{n} $\} }*) 
+	(*\textcolor{blue}{ \{ $ l  \lock{0}{1 } R \ast \arr (a, [\_, \_, \dots, \_{]}_{n} $\} }*)
 	(*\textcolor{blue}{ \{ $ \Star{j = 0}{n-1} l  \lock{0}{\frac{1}{n}} R \ast \arr (a, [\_, \_, \dots, \_{]}_{n} $\} }*)
 	for (i = 0; i < n; i ++) {
 	(*\textcolor{blue}{ \{ $ \Star{j = 0}{i} l_j  \thread R_j \ast \Star{j = i+1}{n-1} l  \lock{0}{\frac{1}{n}} R \ast \arr (a, [l_1, \dots, l_i, \_, \dots \_{]}_{n} $\} }*)
@@ -112,7 +112,7 @@ int main() {
 	(*\textcolor{blue}{ \{ $  \text{ret} \mapsto n \ast l \lock{n}{}R \ast c \mapsto n \ast \hold l, R, n $\} }*)
 	FreeLock (l);
 	(*\textcolor{blue}{ \{ $  \text{ret} \mapsto n \ast l \mapsto 0 \ast c \mapsto n $\} }*)
-	free(l,c); 
+	free(l,c);
 	(*\textcolor{blue}{ \{ $  \text{ret} \mapsto n$\} }*)
 	return ret }
 \end{lstlisting}
@@ -133,7 +133,7 @@ void incr(l,c) {
 \end{lstlisting}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%                 Initialize / concurrent read                                   %     
+%                 Initialize / concurrent read                                   %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \newpage
@@ -143,37 +143,37 @@ void incr(l,c) {
 
 (*\textcolor{blue}{ \{ $ l  \lock{\bot}{\pi} R $ \}  }*)  \\ (* $R = \lambda v. init \mapsto 0 \wedge v = \bot \vee  init \mapsto 1 \ast d \mts{\top - v} \text{data} \wedge [\top > v] $ *)
 data *first_access(l) {
-	(*\textcolor{blue}{ \{ $ l  \lock{\bot}{\pi} R $ \}  }*)  
+	(*\textcolor{blue}{ \{ $ l  \lock{\bot}{\pi} R $ \}  }*)
 	Acquire(l);
 	(*\textcolor{blue}{ \{ $ \exists v_o,  init \mapsto 0 \wedge v_o = \bot \vee  init \mapsto 1 \ast d \mts{s_o} \text{data} \ast \hold l, R, v_o \ast l  \lock{\bot}{\pi} R $ \}  }*) \\ (*where $s_o = \top -v_o$ *)
 	if(init) {
-		(*\textcolor{blue}{ \{ $ init \mapsto 1 \ast d \mts{s_o} \text{data} \ast \hold l, R, v_o \ast l  \lock{\bot}{\pi} R $ \}  }*) 
-		(*\textcolor{blue}{ \{ $ d \mts{\frac{s_o}{2}} \text{data} \ast \big (init \mapsto 1 \ast d \mts{\scriptscriptstyle{\top - (v_o + \frac{s_o}{2})}} \text{data} \big ) \ast \hold l, R, v_o \ast l  \lock{\bot}{\pi} R $ \}  }*) 
+		(*\textcolor{blue}{ \{ $ init \mapsto 1 \ast d \mts{s_o} \text{data} \ast \hold l, R, v_o \ast l  \lock{\bot}{\pi} R $ \}  }*)
+		(*\textcolor{blue}{ \{ $ d \mts{\frac{s_o}{2}} \text{data} \ast \big (init \mapsto 1 \ast d \mts{\scriptscriptstyle{\top - (v_o + \frac{s_o}{2})}} \text{data} \big ) \ast \hold l, R, v_o \ast l  \lock{\bot}{\pi} R $ \}  }*)
 		Release(l);
-		(*\textcolor{blue}{ \{ $ d \mts{\frac{s_o}{2}} \text{data} \ast l  \lock{\scriptstyle{\frac{s_o}{2}}}{\pi} R $ \}  }*) 
+		(*\textcolor{blue}{ \{ $ d \mts{\frac{s_o}{2}} \text{data} \ast l  \lock{\scriptstyle{\frac{s_o}{2}}}{\pi} R $ \}  }*)
 		return d;
-		(*\textcolor{blue}{ \{ $ d \mts{\frac{s_o}{2}} \text{data} \ast l  \lock{\scriptstyle{\frac{s_o}{2}}}{\pi} R \wedge ret = d $ \}  }*) 
+		(*\textcolor{blue}{ \{ $ d \mts{\frac{s_o}{2}} \text{data} \ast l  \lock{\scriptstyle{\frac{s_o}{2}}}{\pi} R \wedge ret = d $ \}  }*)
 	}	
 	else {
-		(*\textcolor{blue}{ \{ $ init \mapsto 0 \ast \hold l, R, \bot \ast l  \lock{\bot}{\pi} R $ \}  }*) 
+		(*\textcolor{blue}{ \{ $ init \mapsto 0 \ast \hold l, R, \bot \ast l  \lock{\bot}{\pi} R $ \}  }*)
 		InitializeData (d);
-		(*\textcolor{blue}{ \{ $ d \mapsto \text{data} \ast init \mapsto 0 \ast \hold l, R, \bot \ast l  \lock{\bot}{\pi} R $ \}  }*) 
+		(*\textcolor{blue}{ \{ $ d \mapsto \text{data} \ast init \mapsto 0 \ast \hold l, R, \bot \ast l  \lock{\bot}{\pi} R $ \}  }*)
 		init = 1;
-		(*\textcolor{blue}{ \{ $ d \mapsto \text{data} \ast init \mapsto 1 \ast \hold l, R, \bot \ast l  \lock{\bot}{\pi} R $ \}  }*) 
-		(*\textcolor{blue}{ \{ $ d \mts{\frac{1}{2}} \text{data} \ast \big( d \mts{\frac{1}{2}} \text{data} \ast init \mapsto 1 \big) \ast \hold l, R, \bot \ast l  \lock{\bot}{\pi} R $ \}  }*) 
+		(*\textcolor{blue}{ \{ $ d \mapsto \text{data} \ast init \mapsto 1 \ast \hold l, R, \bot \ast l  \lock{\bot}{\pi} R $ \}  }*)
+		(*\textcolor{blue}{ \{ $ d \mts{\frac{1}{2}} \text{data} \ast \big( d \mts{\frac{1}{2}} \text{data} \ast init \mapsto 1 \big) \ast \hold l, R, \bot \ast l  \lock{\bot}{\pi} R $ \}  }*)
 		Release(l)
-		(*\textcolor{blue}{ \{ $ d \mts{\frac{1}{2}} \text{data} \ast l  \lock{\bot}{\pi} R $ \}  }*) 
+		(*\textcolor{blue}{ \{ $ d \mts{\frac{1}{2}} \text{data} \ast l  \lock{\bot}{\pi} R $ \}  }*)
 		return d;
-		(*\textcolor{blue}{ \{ $ d \mts{\frac{1}{2}} \text{data} \ast l  \lock{\bot}{\pi} R \wedge ret = d $ \}  }*) 
+		(*\textcolor{blue}{ \{ $ d \mts{\frac{1}{2}} \text{data} \ast l  \lock{\bot}{\pi} R \wedge ret = d $ \}  }*)
 	}
 }
-(*\textcolor{blue}{ \{ $\exists \pi_s, d \mts{\pi_s} \text{data} \ast l  \lock{\bot}{\pi} R \wedge ret = d $ \}  }*) 
+(*\textcolor{blue}{ \{ $\exists \pi_s, d \mts{\pi_s} \text{data} \ast l  \lock{\bot}{\pi} R \wedge ret = d $ \}  }*)
 
 \end{lstlisting}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%                                          Stack                                          %     
+%                                          Stack                                          %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
@@ -259,7 +259,7 @@ void consume(l){
 	return ret;
 }
 (*\assert{$ ret = x \wedge l \lock{t \hookrightarrow ( x::l', l')}{\pi} R $}*)
- 
+
  (*\newpage*)
 /* Organizer */
 (*\assert{$ l \lock{\bot}{\pi} R \ast a \mapsto \_ \ast b \mapsto \_$}*) \\ (* $R = \lambda h. \text{ hd} \leadsto (\text{listof}(h))  \wedge \text{history\_stack } h $*)
@@ -312,11 +312,11 @@ void main(){
 	y = Spawn(produce, ((1,1), l);
 	(*\assert{$ y \thread R_y \ast x \thread R_x \ast l \lock{emp}{\frac{1}{3}} R \ast a \mapsto \_ \ast b \mapsto \_$}*) \\ (*$R_y = l \lock{t \hookrightarrow ( l , (1,1)::l)}{\frac{1}{3}} R   $*)
 	z = Spawn(organize2, (l, a, b));
-	(*\assert{$ z \thread R_z \ast y \thread R_y \ast x \thread R_x $}*) 
+	(*\assert{$ z \thread R_z \ast y \thread R_y \ast x \thread R_x $}*)
 	Join(x);
-	(*\assert{$ h_1 =t_x \hookrightarrow ( l_x , (0,0)::l_x ) \wedge  z \thread R_z \ast y \thread R_y \ast l \lock{h_1}{\frac{1}{3}} R $}*) 
+	(*\assert{$ h_1 =t_x \hookrightarrow ( l_x , (0,0)::l_x ) \wedge  z \thread R_z \ast y \thread R_y \ast l \lock{h_1}{\frac{1}{3}} R $}*)
 	Join(y);
-	(*\assert{$ h_2 =t_x \hookrightarrow ( l_x , (0,0)::l_x) \ast t_y \hookrightarrow ( l_y , (1,1)::l_y) \wedge z \thread R_z \ast l \lock{h_2}{\frac{2}{3}} R $}*) 
+	(*\assert{$ h_2 =t_x \hookrightarrow ( l_x , (0,0)::l_x) \ast t_y \hookrightarrow ( l_y , (1,1)::l_y) \wedge z \thread R_z \ast l \lock{h_2}{\frac{2}{3}} R $}*)
 	Join(z);
 	(*\assert{$ h_3 = h_2 \ast t_z1 \hookrightarrow ( x::l_z1, l_z1)\ast t_z2 \hookrightarrow ( y::l_z2, l_z2)) \wedge (k1, v1) = x \wedge (k2, v2) =y \wedge \newlinespecial
 	 l \lock{h_3}{\top} R  \ast \newlinespecial
@@ -324,7 +324,7 @@ void main(){
 	k1 \mapsto 1 \ast k2 \mapsto 0 \ast a \mapsto v1 \ast b \mapsto v2 \vee \newlinespecial
 	k1 \mapsto 0 \ast k2 \mapsto 1 \ast a \mapsto v2 \ast b \mapsto v1 \vee \newlinespecial
 	k1 \mapsto 0 \ast k2 \mapsto 0 \ast a \mapsto \_ \ast b \mapsto \_
-	  $}*) 
+	  $}*)
 	Acquire(l);
 	(*\assert{$  (k1, v1) = x \wedge (k2, v2) =y \wedge \newlinespecial
 	 l \lock{h_3}{\top} R \ast  \hold l, R, h_o \ast  \text{ hd} \leadsto (\text{listof}(h_3))  \wedge \text{history\_stack } (h_3) \ast \newlinespecial
@@ -336,19 +336,19 @@ void main(){
 	(*\assert{$   l \lock{h_3}{\top} R \ast  \hold l, R, h_o \ast  \text{ hd} \leadsto (\epsilon) \ast \newlinespecial
 	(1, 1) = x \wedge (0, 0) =y \wedge k1 \mapsto 1 \ast k2 \mapsto 0 \ast a \mapsto 1 \ast b \mapsto 0 \vee \newlinespecial
 	(0, 0) = x \wedge (1, 1) =y \wedge k1 \mapsto 0 \ast k2 \mapsto 1 \ast a \mapsto 1 \ast b \mapsto 0
-	  $}*) 
+	  $}*)
 	Free(l); free(k1,k2);
 	(*\assert{$   \text{ hd} \leadsto \epsilon \ast a \mapsto 1 \ast b \mapsto 0 $}*)
 	delete();
 }
 (*\assert{$  a \mapsto 1 \ast b \mapsto 0 $}*)
-	 
+	
 \end{lstlisting}
 
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%                                          Queue                                          %     
+%                                          Queue                                          %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
@@ -481,7 +481,7 @@ void consume(l){
 	return ret;
 }
 (*\assert{$ ret = x \wedge l \lock{t \hookrightarrow ( l'::x, l')}{\pi} R $}*)
- 
+
  (*\newpage*)
 /* Organizer */
 (*\assert{$ l \lock{\epsilon}{\pi} R \ast a \mapsto \_ \ast b \mapsto \_$}*) \\ (* $R = \lambda h. \text{ Q} \leadsto (\text{listof}(h))  \wedge \text{history\_queue } h_o$*)
@@ -534,11 +534,11 @@ void main(){
 	y = Spawn(produce, ((1,1), l);
 	(*\assert{$ y \thread R_y \ast x \thread R_x \ast l \lock{emp}{\frac{1}{3}} R \ast a \mapsto \_ \ast b \mapsto \_$}*) \\ (*$R_y = l \lock{t \hookrightarrow ( l , (1,1)::l)}{\frac{1}{3}} R   $*)
 	z = Spawn(organize2, (l, a, b));
-	(*\assert{$ z \thread R_z \ast y \thread R_y \ast x \thread R_x $}*) 
+	(*\assert{$ z \thread R_z \ast y \thread R_y \ast x \thread R_x $}*)
 	Join(x);
-	(*\assert{$ h_1 =t_x \hookrightarrow ( l_x , (0,0)::l_x ) \wedge  z \thread R_z \ast y \thread R_y \ast l \lock{h_1}{\frac{1}{3}} R $}*) 
+	(*\assert{$ h_1 =t_x \hookrightarrow ( l_x , (0,0)::l_x ) \wedge  z \thread R_z \ast y \thread R_y \ast l \lock{h_1}{\frac{1}{3}} R $}*)
 	Join(y);
-	(*\assert{$ h_2 =t_x \hookrightarrow ( l_x , (0,0)::l_x) \oplus t_y \hookrightarrow ( l_y , (1,1)::l_y) \wedge z \thread R_z \ast l \lock{h_2}{\frac{2}{3}} R $}*) 
+	(*\assert{$ h_2 =t_x \hookrightarrow ( l_x , (0,0)::l_x) \oplus t_y \hookrightarrow ( l_y , (1,1)::l_y) \wedge z \thread R_z \ast l \lock{h_2}{\frac{2}{3}} R $}*)
 	Join(z);
 	(*\assert{$ h_3 = h_2 \oplus t_z1 \hookrightarrow ( l_z1::x, l_z1)\oplus t_z2 \hookrightarrow ( l_z2::x', l_z2)) \wedge (k1, v1) = x \wedge (k2, v2) =x' \wedge \newlinespecial
 	 l \lock{h_3}{\top} R  \ast \newlinespecial
@@ -546,7 +546,7 @@ void main(){
 	k1 \mapsto 1 \ast k2 \mapsto 0 \ast a \mapsto v1 \ast b \mapsto v2 \vee \newlinespecial
 	k1 \mapsto 0 \ast k2 \mapsto 1 \ast a \mapsto v2 \ast b \mapsto v1 \vee \newlinespecial
 	k1 \mapsto 0 \ast k2 \mapsto 0 \ast a \mapsto \_ \ast b \mapsto \_
-	  $}*) 
+	  $}*)
 	Acquire(l);
 	(*\assert{$  (k1, v1) = x \wedge (k2, v2) =y \wedge \newlinespecial
 	 l \lock{h_3}{\top} R \ast  \hold l, R, h_o \ast  \text{ Q} \leadsto (\text{listof}(h_3))  \wedge \text{history\_queue } (h_3) \ast \newlinespecial
@@ -558,19 +558,19 @@ void main(){
 	(*\assert{$   l \lock{h_3}{\top} R \ast  \hold l, R, h_o \ast  \text{ Q} \leadsto (\epsilon) \ast \newlinespecial
 	(1, 1) = x \wedge (0, 0) =y \wedge k1 \mapsto 1 \ast k2 \mapsto 0 \ast a \mapsto 1 \ast b \mapsto 0 \vee \newlinespecial
 	(0, 0) = x \wedge (1, 1) =y \wedge k1 \mapsto 0 \ast k2 \mapsto 1 \ast a \mapsto 1 \ast b \mapsto 0
-	  $}*) 
+	  $}*)
 	Free(l); free(k1,k2);
 	(*\assert{$   \text{ Q} \leadsto \epsilon \ast a \mapsto 1 \ast b \mapsto 0 $}*)
 	delete();
 }
 (*\assert{$  a \mapsto 1 \ast b \mapsto 0 $}*)
-	 
+	
 \end{lstlisting}
 
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%                                    Tree Add                                           %     
+%                                    Tree Add                                           %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
@@ -615,11 +615,11 @@ void AddTree(struct node * t, int *res){
 		(*\assert{$ (\text{add\_tree}(ltree) = k_l) \wedge \tree{l}{ltree} \ast lres \mapsto k_l) \ast \newlinespecial rth \thread R_r \ast t \mapsto (k, l, r) \ast res \mapsto \_$}*)
 		join (rth);
 		(*\assert{$ (\text{add\_tree}(ltree) = k_l) \wedge \tree{l}{ltree} \ast lres \mapsto k_l) \ast \newlinespecial
-		(\text{add\_tree}(rtree) = k_r) \wedge \tree{r}{rtree} \ast rres \mapsto k_r) \ast  \newlinespecial 
+		(\text{add\_tree}(rtree) = k_r) \wedge \tree{r}{rtree} \ast rres \mapsto k_r) \ast  \newlinespecial
 		t \mapsto (k, l, r) \ast (res) \mapsto \_$}*)
 		res = lres + rres + t.k;
 		(*\assert{$ (\text{add\_tree}(ltree) = k_l) \wedge lres \mapsto k_l) \ast \newlinespecial
-		(\text{add\_tree}(rtree) = k_r) \wedge rres \mapsto k_r) \ast  \newlinespecial 
+		(\text{add\_tree}(rtree) = k_r) \wedge rres \mapsto k_r) \ast  \newlinespecial
 		\tree{t}{(k,ltree,rtree)} \ast (res) \mapsto (k_l + k_r + k)$}*)
 	} 	
 	(*\assert{$ (\text{add\_tree}(tree))= k' \wedge \tree{t}{tree} \ast (res) \mapsto (k')$}*)
@@ -629,7 +629,7 @@ void AddTree(struct node * t, int *res){
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%                         Tree Add reporting                                       %     
+%                         Tree Add reporting                                       %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
@@ -671,23 +671,23 @@ void AddTreeRep(struct node * t, int *RL){
 		rthread = spawn (AddTreeRep, (right, t->r));
 		(*\assert{$ rth \thread R_r \ast lth \thread R_l \ast t \mapsto (k, l, r) \ast RL \lock{0}{\frac{\pi}{3}}R $}*)
 		Acquire(RL);
-		(*\assert{$ \exists v_o. result \mapsto (v_o + 0) \ast \hold RL, R, v_o \ast \newlinespecial 
+		(*\assert{$ \exists v_o. result \mapsto (v_o + 0) \ast \hold RL, R, v_o \ast \newlinespecial
 		 rth \thread R_r \ast lth \thread R_l \ast t \mapsto (k, l, r) \ast RL \lock{0}{\frac{\pi}{3}}R $}*)
 		result = result + (t->k);
-		(*\assert{$ \exists v_o. result \mapsto (v_o + k) \ast \hold RL, R, v_o \ast \newlinespecial 
+		(*\assert{$ \exists v_o. result \mapsto (v_o + k) \ast \hold RL, R, v_o \ast \newlinespecial
 		rth \thread R_r \ast lth \thread R_l \ast t \mapsto (k, l, r) \ast RL \lock{0}{\frac{\pi}{3}}R $}*)
 		Release(RL);
 		(*\assert{$ rth \thread R_r \ast lth \thread R_l \ast t \mapsto (k, l, r) \ast RL \lock{k}{\frac{\pi}{3}}R $}*)
 		join (lth);
-		(*\assert{$(\text{add\_tree}(ltree) = k_l \wedge \tree{l}{ltree} \ast RL \lock{k_l}{\frac{\pi}{3}}R ) \ast \newlinespecial 
+		(*\assert{$(\text{add\_tree}(ltree) = k_l \wedge \tree{l}{ltree} \ast RL \lock{k_l}{\frac{\pi}{3}}R ) \ast \newlinespecial
 		rth \thread R_r \ast t \mapsto (k, l, r) \ast RL \lock{k}{\frac{\pi}{3}}R $}*)
 		join (rth);
-		(*\assert{$(\text{add\_tree}(rtree) = k_r \wedge \tree{r}{rtree} \ast RL \lock{k_r}{\frac{\pi}{3}}R ) \ast \newlinespecial 
-		(\text{add\_tree}(ltree) = k_l \wedge \tree{l}{ltree} \ast RL \lock{k_l}{\frac{\pi}{3}}R ) \ast \newlinespecial 
+		(*\assert{$(\text{add\_tree}(rtree) = k_r \wedge \tree{r}{rtree} \ast RL \lock{k_r}{\frac{\pi}{3}}R ) \ast \newlinespecial
+		(\text{add\_tree}(ltree) = k_l \wedge \tree{l}{ltree} \ast RL \lock{k_l}{\frac{\pi}{3}}R ) \ast \newlinespecial
 		t \mapsto (k, l, r) \ast RL \lock{k}{\frac{\pi}{3}}R $}*)
-		(*\assert{$\text{add\_tree}(rtree) = k_r \wedge \text{add\_tree}(ltree) = k_l \wedge  \newlinespecial 
+		(*\assert{$\text{add\_tree}(rtree) = k_r \wedge \text{add\_tree}(ltree) = k_l \wedge  \newlinespecial
 				\tree{r}{rtree} \ast \tree{l}{ltree} \ast t \mapsto (k, l, r) \ast RL \lock{k + k_l + k_r}{\pi}R $}*)
-	} 
+	}
 	(*\assert{$\text{add\_tree}(tree) = k' \wedge \tree{t}{tree} \ast RL \lock{k'}{\pi}R $}*)
 }	
 (*\assert{$\text{add\_tree}(tree) = k' \wedge \tree{t}{tree} \ast RL \lock{k'}{\pi}R $}*)	
@@ -695,7 +695,7 @@ void AddTreeRep(struct node * t, int *RL){
 \end{lstlisting}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%                     Adding a DAG with Repetitions                       %     
+%                     Adding a DAG with Repetitions                       %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
@@ -710,7 +710,7 @@ void AddTreeRep(struct node * t, int *RL){
 %Main
 \begin{align*}
 \dagt :=& \epsilon \\
-	  &|\forall sum, k, (l, r : \dagt)(\pi_l, \pi_r: \text{shares}) (sum,k, \pi_l, l, \pi_r, r)  
+	  &|\forall sum, k, (l, r : \dagt)(\pi_l, \pi_r: \text{shares}) (sum,k, \pi_l, l, \pi_r, r)
 \end{align*}
 
 $$
@@ -720,20 +720,20 @@ g \DAG{\pi}{0} \epsilon &\triangleq&  g =\NULL &\\
 g \DAG{\pi}{sum} (sum,k, \pi_l, d_l, \pi_r, d_r)  &\triangleq& g.lock \lock{(sum,k, \pi_l, l, \pi_r, r)}{\pi} R& \\
 &\text{ WHERE }&& \\
 \\
-R &\triangleq& \lambda (sum,k, \pi_l, d_l, \pi_r, d_r).  \exists l, r, k, sum_l, sum_r\\ 
+R &\triangleq& \lambda (sum,k, \pi_l, d_l, \pi_r, d_r).  \exists l, r, k, sum_l, sum_r\\
 			 & & g.k \rightarrow k \ast \\
 			 &  & g.l \rightarrow l  \ast \\
 			&  & g.r \rightarrow r  \ast \\
 			 & & \text{if } g.sum = \NULL \text{ then }\\
 			 & & \ \ \ sum = sum_l = sum_r = \bot\\
-			 & & \ \ \  g.sum = \NULL \ast \\ 
+			 & & \ \ \  g.sum = \NULL \ast \\
 			 &  & \ \ \ l \DAG{\pi_l}{\bot} d_l \ast
 			             r \DAG{\pi_r}{\bot} d_r  \\
 			 & & \text{else}\\
 			 & & \ \ \ sum = k + sum_l + sum_r \wedge \\
-			 & & \ \ \  g.sum \rightarrow sum \ast \\ 
-			 &  & \ \ \ l \DAG{\pi_l}{sum_l} d_l \ast  
-			            r \DAG{\pi_r}{sum_r} d_r 
+			 & & \ \ \  g.sum \rightarrow sum \ast \\
+			 &  & \ \ \ l \DAG{\pi_l}{sum_l} d_l \ast
+			            r \DAG{\pi_r}{sum_r} d_r
 \end{array}
 $$
 
@@ -748,7 +748,7 @@ $$
 
 struct node
 {
-  lock l;					//lock          
+  lock l;					//lock
   int * sum;				//Partial sum
   int k;					//key_value
   struct node *l; //left subtree
@@ -793,7 +793,7 @@ void AddDag(struct node * g, int *ret){
 			g.l \mapsto l  \ast
 			g.r \mapsto r  \ast
 			g.sum = \NULL \ast  \newlineThree
-			sum = sum_l = \bot \ast 
+			sum = sum_l = \bot \ast
 			l \DAG{\pi_l}{\bot} d_l \ast \newlineThree
 			\hold g,R,d_o \ast g \DAG{\pi}{\bot} (\bot,k, \pi_l, d_l, \pi_r, d_r) \ast ret \mapsto \_$}*)
 			AddDag (g.l, lret);
@@ -805,7 +805,7 @@ void AddDag(struct node * g, int *ret){
 			l \DAG{\pi_l}{sum_l} d_l \ast lret \mapsto sum_l  \ast \newlineThree
 			\hold g,R,d_o \ast g \DAG{\pi}{\bot} (\bot,k, \pi_l, d_l, \pi_r, d_r) \ast ret \mapsto \_$}*)
 			Join(the);
-			(*\assert{$ 
+			(*\assert{$
 			g.k \mapsto k \ast
 			g.l \mapsto l  \ast
 			g.r \mapsto r  \ast
@@ -814,7 +814,7 @@ void AddDag(struct node * g, int *ret){
 			l \DAG{\pi_r}{sum_r} d_r \ast rret \mapsto sum_r  \ast \newlineThree
 			\hold g,R,d_o \ast g \DAG{\pi}{\bot} (\bot,k, \pi_l, d_l, \pi_r, d_r) \ast ret \mapsto \_$}*)
 			ret = (g.sum = k + sum_l + sum_r);
-			(*\assert{$ 
+			(*\assert{$
 			g.k \mapsto k \ast
 			g.l \mapsto l  \ast
 			g.r \mapsto r  \ast   \newlineThree

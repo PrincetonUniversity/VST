@@ -3,7 +3,7 @@ Require Export sepcomp.semantics.
 Require Export sepcomp.mem_lemmas.
 Require Export sepcomp.structured_injections.
 Require Export sepcomp.effect_semantics.
-Require Export sepcomp.reach. 
+Require Export sepcomp.reach.
 Require Export sepcomp.simulations.
 (*Require Export sepcomp.closed_simulations.*)
 (*Require Export sepcomp.barebones_simulations.*)

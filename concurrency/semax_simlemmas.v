@@ -137,7 +137,7 @@ Proof.
   assert (A' = SpecTT A) by (injection PS; auto). subst A'.
   apply PURE_SomeP_inj2 in PS.
   simpl in RA. injection RA as RA. apply inj_pair2 in RA.
-  
+
   edestruct MFS with (P := fun i a e' => pp' i
     (fmap (rmaps.dependent_type_functor_rec i A) (compcert_rmaps.R.approx (level Phi))
           (compcert_rmaps.R.approx (level Phi)) a) true e')
@@ -163,7 +163,7 @@ Proof.
     all:rewrite approx_oo_approx.
     all:change compcert_rmaps.R.approx with approx in *.
     all:reflexivity. }
-  
+
   exists id, P', Q', P'_ne, Q'_ne. split; auto. split; auto.
   split.
   all: eapply cond_approx_eq_trans; [ | eapply cond_approx_eq_weakening; eauto ].
@@ -171,10 +171,10 @@ Proof.
   all: extensionality a e'; simpl.
   all: apply equal_f_dep with (x := ts) in PS.
   all: apply equal_f_dep with (x := a) in PS.
-  
+
   1: apply equal_f_dep with (x := true) in PS.
   2: apply equal_f_dep with (x := false) in PS.
-  
+
   all: apply equal_f_dep with (x := e') in PS.
   all: simpl in PS.
   all: change compcert_rmaps.R.approx with approx in *.
@@ -263,7 +263,7 @@ Proof.
     spec FA2 b fs phi1 (necR_refl phi1). subst fs.
     spec FA2; [ | auto]. simpl. clear -pat necr SP.
     simpl in pat. spec SP (b, Z0).
-    destruct (necR_PURE' _ _ _ _ _ necr pat) as (pp', E). 
+    destruct (necR_PURE' _ _ _ _ _ necr pat) as (pp', E).
     rewrite E in SP. destruct SP as (pp'', SP). exists pp''.
     rewrite <-resource_at_approx, SP. reflexivity.
 Qed.
@@ -315,7 +315,7 @@ Proof.
   eapply resource_decay_pures_eq; eauto.
 Qed.
 
-Lemma restrPermMap_mem_contents p' m (Hlt: permMapLt p' (getMaxPerm m)): 
+Lemma restrPermMap_mem_contents p' m (Hlt: permMapLt p' (getMaxPerm m)):
   Mem.mem_contents (restrPermMap Hlt) = Mem.mem_contents m.
 Proof.
   reflexivity.
@@ -367,7 +367,7 @@ Proof.
 Qed.
 
 Lemma join_sub_join {A} {J : Join A}
-      {PA : Perm_alg A} {SA : Sep_alg A} {_ : Canc_alg A} {DA : Disj_alg A} {CA : Cross_alg A} 
+      {PA : Perm_alg A} {SA : Sep_alg A} {_ : Canc_alg A} {DA : Disj_alg A} {CA : Cross_alg A}
       (a b c x : A) :
   join a b c ->
   join_sub a x ->
@@ -398,7 +398,7 @@ Proof.
   rewrite SEM.CLN_msem.
   reflexivity.
 Qed.
-  
+
 Lemma level_jm_ m tp Phi (compat : mem_compatible_with tp m Phi)
       i (cnti : containsThread tp i) :
   level (jm_ cnti compat) = level Phi.
@@ -432,8 +432,8 @@ Proof.
 Qed.
 
 Lemma pures_same_eq_l phi1 phi1' phi2 :
-  pures_same phi1 phi1' -> 
-  pures_eq phi1 phi2 -> 
+  pures_same phi1 phi1' ->
+  pures_eq phi1 phi2 ->
   pures_eq phi1' phi2.
 Proof.
   intros E [M N]; split; intros loc; autospec M; autospec N; autospec E.
@@ -443,14 +443,14 @@ Proof.
     all: breakhyps.
     all: try solve [pose proof (proj1 (E _ _) eq_refl); congruence].
     injection H as <- <-.
-    exists p1. f_equal. 
+    exists p1. f_equal.
     try solve [pose proof (proj2 (E _ _) eq_refl); congruence].
-Qed.    
+Qed.
 
 Lemma pures_same_eq_r phi1 phi2 phi2' :
   level phi2 = level phi2' ->
-  pures_same phi2 phi2' -> 
-  pures_eq phi1 phi2 -> 
+  pures_same phi2 phi2' ->
+  pures_eq phi1 phi2 ->
   pures_eq phi1 phi2'.
 Proof.
   intros L E [M N]; split; intros loc; autospec M; autospec N; autospec E.
@@ -466,7 +466,7 @@ Qed.
 
 Lemma pures_same_pures_eq phi1 phi2 :
   level phi1 = level phi2 ->
-  pures_same phi1 phi2 -> 
+  pures_same phi1 phi2 ->
   pures_eq phi1 phi2.
 Proof.
   intros L E.
@@ -679,7 +679,7 @@ Proof.
     + spec E k1 p1. destruct E as [_ E]. autospec E. discriminate.
     + spec E k0 p. destruct E as [E _]. autospec E. discriminate.
     + spec E k0 p. destruct E as [E _]. autospec E. discriminate.
-    + spec E k0 p. destruct E as [E _]. autospec E. injection E as -> ->. rewr (PURE k pp). congruence. 
+    + spec E k0 p. destruct E as [E _]. autospec E. injection E as -> ->. rewr (PURE k pp). congruence.
     + spec E k0 p. destruct E as [E _]. autospec E. injection E as -> ->. rewr (PURE k pp). congruence.
   - (* reflexivity case *)
     intuition eauto.

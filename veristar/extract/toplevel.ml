@@ -19,9 +19,9 @@ let verify_wp lex =
   in try Error.report
       (fun () ->
 	 let (l,compl) = wp lex
-	 in let g p = valid := 
-       begin match driver p with 
-             | Some b -> if not b then begin fprintf stdout "C_example found\n"; false end 
+	 in let g p = valid :=
+       begin match driver p with
+             | Some b -> if not b then begin fprintf stdout "C_example found\n"; false end
                            else begin fprintf stdout "Valid\n"; true && !valid end
              | None -> fprintf stdout "Prover aborted\n"; false && !valid
        end
@@ -41,6 +41,6 @@ let verify_wp_fname fname d =
   let lex = Lexing.from_channel ic in
   Lexer.init lex fname;
   init_gensym ();
-  debugging := d; 
+  debugging := d;
   verify_wp lex;
   close_in ic

@@ -9,7 +9,7 @@ BUILDING
 --------
 
 The files in this directory are excerpted from a larger proof development,
-the VST, or Princeton Verified Software Toolchain.  
+the VST, or Princeton Verified Software Toolchain.
 
 To build, and to get a sense of the larger context of the proof development,
 please download VST revision 5785, which is linked at
@@ -17,7 +17,7 @@ please download VST revision 5785, which is linked at
     http://vst.cs.princeton.edu/download
 
 and follow the attached build/installation instructions.  Most of the files
-relating to this paper are in directory [vst/sepcomp], with the 
+relating to this paper are in directory [vst/sepcomp], with the
 exception of [Clight_new.v], which is located in [vst/veric].
 
 
@@ -26,24 +26,24 @@ FILES
 
 Section 3:
 ----------
-   
+
 - core_semantics.v
    definition of core_semantics, cooperative core_semantics,
    and lemmas on multistep relations
 
 - mem_lemmas.v
    auxiliary definitions and lemmas used throughout the developent,
-   including definitions for mem_forward and mem_wd ("closed"), 
+   including definitions for mem_forward and mem_wd ("closed"),
 
 Section 4:
 ----------
 
 - forward_simulations.v
-   Definition of the logical simulations on cores, with cases according 
-   to the three kinds of memory transformations. Definition 4.1 in the 
+   Definition of the logical simulations on cores, with cases according
+   to the three kinds of memory transformations. Definition 4.1 in the
    paper corresponds to Module Forward_simulation_inj (starting at line 299).
-   Full simulations combining the three cases are given at the end of 
-   the file, for coresemantics and coopsemantics. 
+   Full simulations combining the three cases are given at the end of
+   the file, for coresemantics and coopsemantics.
 
 - forward_simulations_lemmas.v
   lemmas on the definitions
@@ -53,10 +53,10 @@ Section 4:
 
 - compcert_compiler_correctness.v
   relates compiler_correctness.v to CompCert 2.0's memory-oblivious
-  whole-program simulations. 
+  whole-program simulations.
 
 Files required for proof of transitivity:
-- FiniteMaps.v (auxilary data structure; used in constructing 
+- FiniteMaps.v (auxilary data structure; used in constructing
   interpolating memories)
 
 - mem_interpol*.v: files for the interpolation lemmas
@@ -77,8 +77,8 @@ Section 5:
 ----------
 
 - safety_preservation.v
-  Safety and semantics preservation, in addition to a restricted 
-  version of program safety for closed whole programs.  General 
+  Safety and semantics preservation, in addition to a restricted
+  version of program safety for closed whole programs.  General
   program safety is defined in step_lemmas.v.
 
 Section 6:
@@ -99,7 +99,7 @@ Section 6:
 Relevant, but not discussed in the paper due to lack of space:
 --------------------------------------------------------------
 
-- linking.v: 
+- linking.v:
     extensional model of core semantics linking
 
 - linking_simulations.v:
@@ -112,5 +112,5 @@ Relevant, but not discussed in the paper due to lack of space:
     develops a model of a simple file system;
     proves the linking simulation theorem of linking_simulations.v
     for the file system model
-      
+
 

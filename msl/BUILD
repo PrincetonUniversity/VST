@@ -27,7 +27,7 @@ Require Import msl.shares.
 Note: some components are not exported by msl_standard,
 so the client would still have to do (for example),
 
-Require Import msl.cjoins.   
+Require Import msl.cjoins.
 
 For all this to work, the Coq include path for the client must contain
 the PARENT directory containing the msl directory; suppose msl is
@@ -48,6 +48,6 @@ METHOD 2.  Import more conventionally.
 
 For this, one would use -R instead of -I for coqc. Then the client
 would get all the filenames unqualified, i.e. as "Require Import cjoins"
-instead of "Require Import msl.cjoins".  
+instead of "Require Import msl.cjoins".
 I haven't debugged this version yet.
 

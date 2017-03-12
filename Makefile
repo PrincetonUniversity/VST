@@ -1,7 +1,7 @@
 # See the file BUILD_ORGANIZATION for
 # explanations of why this is the way it is
 
-default_target: msl veric floyd progs
+default_target: .loadpath version.vo msl veric floyd
 
 COMPCERT ?= compcert
 -include CONFIGURE
@@ -30,7 +30,7 @@ COMPCERT ?= compcert
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
 DIRS= msl sepcomp veric concurrency floyd progs sha linking fcf hmacfcf tweetnacl20140427 ccc26x86 hmacdrbg aes mailbox
-INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -Q $(a) $(a))) -Q $(COMPCERT) compcert $(if $(MATHCOMP), -Q mathcomp $(MATHCOMP))
+INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -Q $(a) $(a))) -R $(COMPCERT) compcert -as compcert $(if $(MATHCOMP), -Q mathcomp $(MATHCOMP))
 #Replace the INCLUDE above with the following in order to build the linking target:
 #INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert -I $(SSREFLECT)/src -R $(SSREFLECT)/theories -as Ssreflect \
 #  -R $(MATHCOMP)/theories -as MathComp
@@ -65,7 +65,7 @@ ifdef LIBPREFIX
  COQFLAGS=$(foreach d, $(DIRS), $(if $(wildcard $(d)), -Q $(d) $(LIBPREFIX).$(d))) $(EXTFLAGS)
 endif
 
-COQC=$(COQBIN)coqc
+COQC=$(COQBIN)coqc -w none
 COQTOP=$(COQBIN)coqtop
 COQDEP=$(COQBIN)coqdep $(DEPFLAGS)
 COQDOC=$(COQBIN)coqdoc
@@ -113,7 +113,7 @@ SEPCOMP_FILES = \
   wholeprog_simulations.v \
   wholeprog_lemmas.v
 
-# what is:  erasure.v context.v context_equiv.v jstep.v 
+# what is:  erasure.v context.v context_equiv.v jstep.v
 
 CONCUR_FILES= \
   addressFiniteMap.v cast.v compcert_imports.v \
@@ -228,7 +228,7 @@ FLOYD_FILES= \
    nested_field_lemmas.v efield_lemmas.v proj_reptype_lemmas.v replace_refill_reptype_lemmas.v \
    data_at_rec_lemmas.v field_at.v stronger.v \
    for_lemmas.v semax_tactics.v expr_lemmas.v diagnosis.v simple_reify.v simpl_reptype.v \
-   freezer.v 
+   freezer.v
 #real_forward.v
 
 
@@ -375,10 +375,10 @@ else
 	@$(COQC) $(COQFLAGS) $*.v 
 endif
 
-COQVERSION= 8.5pl1 or-else 8.5pl2 or-else 8.5pl3 or-else 8.6beta1
+COQVERSION= 8.5pl1 or-else 8.5pl2 or-else 8.5pl3 or-else 8.6beta1 or-else 8.6
 COQV=$(shell $(COQC) -v)
 ifeq ("$(filter $(COQVERSION),$(COQV))","")
-$(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
+	$(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
 endif
 
 
@@ -402,25 +402,25 @@ endif
 # $(COMPCERT)/flocq/%.vo: $(COMPCERT)/flocq/%.v
 # 	@
 
-all:     .loadpath version.vo $(FILES:.v=.vo)
+all: .loadpath version.vo $(FILES:.v=.vo)
 
 
-ifeq ($(COMPCERT), compcert)
-compcert: $(COMPCERT)/exportclight/Clightdefs.vo
-$(COMPCERT)/exportclight/Clightdefs.vo: 
-	cd $(COMPCERT) && $(MAKE) exportclight/Clightdefs.vo
-$(patsubst %.v,sepcomp/%.vo,$(SEPCOMP_FILES)): compcert
-$(patsubst %.v,veric/%.vo,$(VERIC_FILES)): compcert
-$(patsubst %.v,floyd/%.vo,$(FLOYD_FILES)): compcert
-msl/Coqlib2.vo: compcert
-endif
-
+# ifeq ($(COMPCERT), compcert)
+# compcert: $(COMPCERT)/exportclight/Clightdefs.vo
+# $(COMPCERT)/exportclight/Clightdefs.vo:
+# 	cd $(COMPCERT) && $(MAKE) exportclight/Clightdefs.vo
+# $(patsubst %.v,sepcomp/%.vo,$(SEPCOMP_FILES)): compcert
+# $(patsubst %.v,veric/%.vo,$(VERIC_FILES)): compcert
+# $(patsubst %.v,floyd/%.vo,$(FLOYD_FILES)): compcert
+# msl/Coqlib2.vo: compcert
+# endif
+ 
 msl:     .loadpath version.vo $(MSL_FILES:%.v=msl/%.vo)
 sepcomp: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo)
 ccc26x86:   .loadpath $(CCC26x86_FILES:%.v=ccc26x86/%.vo)
 concurrency: .loadpath $(CC_TARGET) $(SEPCOMP_FILES:%.v=sepcomp/%.vo) $(CONCUR_FILES:%.v=concurrency/%.vo)
 paco: .loadpath $(PACO_FILES:%.v=concurrency/paco/src/%.vo)
-linking: .loadpath $(LINKING_FILES:%.v=linking/%.vo) 
+linking: .loadpath $(LINKING_FILES:%.v=linking/%.vo)
 veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
 floyd:   .loadpath $(FLOYD_FILES:%.v=floyd/%.vo)
 progs:   .loadpath $(PROGS_FILES:%.v=progs/%.vo)
@@ -444,7 +444,7 @@ cvfiles: $(CVFILES)
 
 
 
-clean_cvfiles: 
+clean_cvfiles:
 	rm $(CVFILES)
 
 ifdef CLIGHTGEN
@@ -509,9 +509,9 @@ dep:
 .depend:
 	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
 
-depend:	
+depend:
 	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
-dependx:	
+dependx:
 	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
 	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(SEPCOMP_FILES:%=sepcomp/%) $(CONCUR_FILES:%=concurrency/%))  >> .depend
 
@@ -531,7 +531,7 @@ clean-concur:
 	rm -f $(CONCUR_FILES:%.v=%.vo) $(CONCUR_FILES:%.v=%.glob)
 
 clean-linking:
-	rm -f $(LINKING_FILES:%.v=linking/%.vo) $(LINKING_FILES:%.v=linking/%.glob) 
+	rm -f $(LINKING_FILES:%.v=linking/%.vo) $(LINKING_FILES:%.v=linking/%.glob)
 
 count:
 	wc $(FILES)

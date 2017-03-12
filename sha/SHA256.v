@@ -8,7 +8,7 @@ Require Import compcert.lib.Integers.
 Require Import compcert.lib.Coqlib.
 Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
-Require Import List. 
+Require Import List.
 Require Import sha.general_lemmas.
 
 (* THIS BLOCK OF STUFF is not needed to define SHA256,
@@ -20,7 +20,7 @@ Definition hi_part (z: Z) := Int.repr (z / Int.modulus).
 Definition lo_part (z: Z) := Int.repr z.
 
 Fixpoint little_endian_integer (contents: list int) : int :=
- match contents with 
+ match contents with
  | nil => Int.zero
  | c::cr => Int.or (Int.shl (little_endian_integer cr) (Int.repr 8)) c
  end.
@@ -32,8 +32,8 @@ Import ListNotations.
 
 (*
 Lemma skipn_length:
-  forall {A} n (al: list A), 
-    (length al >= n)%nat -> 
+  forall {A} n (al: list A),
+    (length al >= n)%nat ->
     (length (skipn n al) = length al - n)%nat.
 Proof.
  induction n; destruct al; simpl; intros; auto.
@@ -50,9 +50,9 @@ Fixpoint str_to_Z (str : string) : list Z :=
     |String c s => Z.of_N (N_of_ascii c) :: str_to_Z s
     end.
 
-Definition generate_and_pad msg := 
+Definition generate_and_pad msg :=
   let n := Zlength msg in
-   Zlist_to_intlist (msg ++ [128%Z] 
+   Zlist_to_intlist (msg ++ [128%Z]
                 ++ list_repeat (Z.to_nat (-(n + 9) mod 64)) 0)
            ++ [Int.repr (n * 8 / Int.modulus); Int.repr (n * 8)].
 
@@ -86,19 +86,19 @@ Definition Maj (x y z : int) : int :=
 
 Definition Rotr b x := Int.ror x (Int.repr b).
 
-Definition Sigma_0 (x : int) : int := 
+Definition Sigma_0 (x : int) : int :=
           Int.xor (Int.xor (Rotr 2 x) (Rotr 13 x)) (Rotr 22 x).
-Definition Sigma_1 (x : int) : int := 
+Definition Sigma_1 (x : int) : int :=
           Int.xor (Int.xor (Rotr 6 x) (Rotr 11 x)) (Rotr 25 x).
-Definition sigma_0 (x : int) : int := 
+Definition sigma_0 (x : int) : int :=
           Int.xor (Int.xor (Rotr 7 x) (Rotr 18 x)) (Shr 3 x).
-Definition sigma_1 (x : int) : int := 
+Definition sigma_1 (x : int) : int :=
           Int.xor (Int.xor (Rotr 17 x) (Rotr 19 x)) (Shr 10 x).
 
 (* word function *)
 Function W (M: Z -> int) (t: Z) {measure Z.to_nat t} : int :=
-  if zlt t 16 
-  then M t 
+  if zlt t 16
+  then M t
   else  (Int.add (Int.add (sigma_1 (W M (t-2))) (W M (t-7)))
                (Int.add (sigma_0 (W M (t-15))) (W M (t-16)))).
 Proof.
@@ -113,24 +113,24 @@ Definition registers := list int.
 
 (*initializing the values of registers, first thirty-two bits of the fractional
     parts of the square roots of the first eight prime numbers*)
-Definition init_registers : registers := 
+Definition init_registers : registers :=
   map Int.repr  [1779033703; 3144134277; 1013904242; 2773480762;
                         1359893119; 2600822924; 528734635; 1541459225].
 
 Definition nthi (il: list int) (t: Z) := nth (Z.to_nat t) il Int.zero.
 
 Definition rnd_function (x : registers) (k : int) (w : int) : registers:=
-  match x with 
-  |  [a; b; c; d; e; f; g; h] => 
+  match x with
+  |  [a; b; c; d; e; f; g; h] =>
      let T1 := Int.add (Int.add (Int.add (Int.add h (Sigma_1 e)) (Ch e f g)) k) w in
      let T2 := Int.add (Sigma_0 a) (Maj a b c) in
        [Int.add T1 T2; a; b; c; Int.add d T1; e; f; g]
   | _ => nil  (* impossible *)
   end.
 
-Function Round  (regs: registers) (M: Z ->int) (t: Z) 
+Function Round  (regs: registers) (M: Z ->int) (t: Z)
         {measure (fun t => Z.to_nat(t+1)) t} : registers :=
- if zlt t 0 then regs 
+ if zlt t 0 then regs
  else rnd_function (Round regs M (t-1)) (nthi K256 t) (W M t).
 Proof. intros; apply Z2Nat.inj_lt; omega.
 Qed.

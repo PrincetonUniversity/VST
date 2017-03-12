@@ -27,7 +27,7 @@ Existing Instance MA.
 Definition reflect tus tvs e (ty : typ)
  := @exprD _ _ _ Expr_expr_fs tus tvs e ty.
 
-Lemma some_none: forall T v, @None T = Some v -> False. 
+Lemma some_none: forall T v, @None T = Some v -> False.
 intros. congruence.
 Qed.
 
@@ -38,10 +38,10 @@ e = (App (App (App (Inj (inr (Data (fnode t)))) l) o) r).
 intros.
 unfold as_tree in H.
 repeat
-match goal with 
-| [ H : match ?x with _ => _  end = _ |- _ ] => destruct x; 
-  try (apply some_none in H; contradiction) end. 
-congruence. 
+match goal with
+| [ H : match ?x with _ => _  end = _ |- _ ] => destruct x;
+  try (apply some_none in H; contradiction) end.
+congruence.
 inversion H. subst. auto.
 Admitted. (*Qed.*)
 
@@ -52,15 +52,15 @@ e = (Inj (inr (Data (fleaf t)))).
 intros.
 unfold as_tree in H.
 repeat
-match goal with 
-| [ H : match ?x with _ => _  end = _ |- _ ] => destruct x; simpl in H;  try congruence end. 
+match goal with
+| [ H : match ?x with _ => _  end = _ |- _ ] => destruct x; simpl in H;  try congruence end.
 inversion H. subst. auto.
 Admitted.
 
 Ltac destruct_as_tree :=
 repeat
 match goal with
-| [ H : context [ match as_tree ?x with _ => _ end] |- _] => destruct (as_tree x) eqn:? 
+| [ H : context [ match as_tree ?x with _ => _ end] |- _] => destruct (as_tree x) eqn:?
 | [ H : as_tree _ = Some (inl (_ , _ , _, _)) |- _ ] => apply as_tree_l in H
 | [ H : as_tree _ = Some (inr _) |- _ ] => apply as_tree_r in H
 | [ H : as_tree _ = Some (inl (?p, _, _)) |- _ ] => destruct p
@@ -79,9 +79,9 @@ forall i tr typ tus tvs vtr,
 exprD' tus tvs (typtree typ) tr = Some vtr ->
 exists v, exprD' tus tvs (tyoption typ) (get_reif i tr typ) = Some v.
 unfold RSym_sym.
-induction i; intros; simpl in *;  
+induction i; intros; simpl in *;
 destruct (as_tree tr) eqn:?; destruct_as_tree; solve_exprD; unfold none_reif; solve_exprD.
-Qed.  
+Qed.
 
 Lemma get_reif_eq2 :
 forall typ i tr tus tvs val,
@@ -90,7 +90,7 @@ exprD' tus tvs (tyoption typ) (App (Inj (inr (Data (fget typ i)))) tr)  =
 exprD' tus tvs (tyoption typ) (get_reif i tr typ) .
 Proof.
 intros.
-match goal with 
+match goal with
         [ |- ?l = ?r ] => destruct l eqn:?, r eqn:?
     end; auto.
   + solve_exprD. simpl in *. unfold exprT_App. simpl. rewrite <- Heqo0.
@@ -98,12 +98,12 @@ match goal with
     generalize dependent e2.
     generalize dependent tr.
     induction i; intros.
-      - simpl in *. destruct_as_tree. 
-          * solve_exprD. 
-          * unfold none_reif. solve_exprD. 
-          * simpl in *. solve_exprD. 
+      - simpl in *. destruct_as_tree.
+          * solve_exprD.
+          * unfold none_reif. solve_exprD.
+          * simpl in *. solve_exprD.
       - simpl in *; destruct_as_tree.
-          * solve_exprD. 
+          * solve_exprD.
           * unfold none_reif. solve_exprD.
           * simpl in *. solve_exprD.
       - simpl in *. destruct_as_tree.
@@ -111,7 +111,7 @@ match goal with
           * unfold none_reif. solve_exprD.
           * solve_exprD.
   + solve_exprD.
-    edestruct (get_reif_val_exists); eauto. 
+    edestruct (get_reif_val_exists); eauto.
     rewrite H0 in Heqo0. congruence.
   + unfold RSym_sym in *. solve_exprD.
 Admitted.
@@ -125,14 +125,14 @@ Proof.
 simpl in *.
 induction i; intros; simpl in *; unfold leaf, node, some_reif, none_reif in *.
   + destruct_as_tree;
-      solve_exprD. 
-  + destruct_as_tree; solve_exprD; specialize (IHi tus tvs (typtree t1)); 
+      solve_exprD.
+  + destruct_as_tree; solve_exprD; specialize (IHi tus tvs (typtree t1));
       try eapply IHi in H5; try eapply IHi in H3; auto.
-  + destruct_as_tree; subst; 
+  + destruct_as_tree; subst;
       solve_exprD.
 (*Time Qed.*)
 Admitted.
-     
+
 
 Lemma set_reif_exprD :
 forall tus tvs typ i vr e v ev,
@@ -141,9 +141,9 @@ exprD' tus tvs typ vr = Some v ->
 exists r, exprD' tus tvs (typtree typ) (set_reif i vr e typ) = Some r.
 Proof.
 induction i; intros; simpl in *; unfold leaf, node, some_reif, none_reif in *;
-destruct (as_tree e) eqn:?; destruct_as_tree; 
-      unfold RSym_sym in *; solve_exprD; eauto. 
-  + edestruct (IHi vr e0); eauto; solve_exprD; eauto.  
+destruct (as_tree e) eqn:?; destruct_as_tree;
+      unfold RSym_sym in *; solve_exprD; eauto.
+  + edestruct (IHi vr e0); eauto; solve_exprD; eauto.
   + edestruct (IHi vr (Inj (inr (Data (fleaf typ))))); eauto; solve_exprD.
   + edestruct (IHi vr e2); eauto; solve_exprD.
   + edestruct (IHi vr (Inj (inr (Data (fleaf typ))))); eauto; solve_exprD.
@@ -155,12 +155,12 @@ Lemma set_reif_vr : forall tus tvs typ i e vr e4,
   exists v, exprD' tus tvs typ vr = Some v.
 Proof.
 induction i; intros; simpl in *; unfold leaf, node, some_reif, none_reif in *;
-    destruct_as_tree; 
+    destruct_as_tree;
       solve_exprD; eauto.
 Admitted. (*Qed.*)
 
 Ltac extract_set_reif_type :=
-repeat 
+repeat
 match goal with
 | [ H : exprD' ?tus ?tvs (typtree ?t) (set_reif _ _ _ _) = _ |- _] => fail 1
 | [ H : exprD' ?tus ?tvs ?t (set_reif ?i ?vr ?e ?t0) = Some ?x |- _] =>
@@ -169,7 +169,7 @@ end.
 
 
 Ltac set_reif_ex :=
-match goal with 
+match goal with
 |  [ H : exprD' ?tus ?tvs (typtree ?t) (set_reif ?i ?vr ?e ?t) = None |- _ ] =>
       edestruct (set_reif_exprD tus tvs t i vr e); eauto; fold func in *;
 try congruence
@@ -198,7 +198,7 @@ end.
 
 Ltac get_vr_type :=
 repeat
-match goal with 
+match goal with
 |  [ H :  exprD' ?tus ?tvs (typtree ?typ) (set_reif ?i ?vr ?e ?typ) = Some ?v |- _ ] =>
    match goal with
      | [ H': exprD' tus tvs typ vr = Some _ |- _] => fail 1
@@ -225,28 +225,28 @@ exprD' tus tvs (typtree typ) (set_reif i vr tr typ).
 Proof.
 intros.
 unfold RSym_sym in *.
-match goal with 
+match goal with
         [ |- ?l = ?r ] => destruct l eqn:?, r eqn:?
     end; auto.
-  - solve_exprD. unfold exprT_App. simpl. fold func in *. 
+  - solve_exprD. unfold exprT_App. simpl. fold func in *.
     simpl in Heqo0. rewrite <- Heqo0.
-    clear Heqo0 e0. 
+    clear Heqo0 e0.
     generalize dependent vr. generalize dependent tr. revert e2 e3.
-    induction i; intros; simpl in *; 
-    unfold node, leaf, some_reif, none_reif in *;  
+    induction i; intros; simpl in *;
+    unfold node, leaf, some_reif, none_reif in *;
 
     destruct_as_tree; solve_exprD.
     + pose_exprD'.
-      solve_exprD. unfold exprT_App. simpl. 
+      solve_exprD. unfold exprT_App. simpl.
       erewrite <- IHi in *; auto. inversion Heqo10. auto.  auto. auto.
     + pose_exprD'. solve_exprD. unfold exprT_App. simpl.
-      erewrite <- IHi in *; eauto. inversion Heqo2. 
-      Focus 2. solve_exprD. simpl. auto. 
+      erewrite <- IHi in *; eauto. inversion Heqo2.
+      Focus 2. solve_exprD. simpl. auto.
     + pose_exprD'. solve_exprD. erewrite <- IHi in *; eauto. inv Heqo11. auto.
     + pose_exprD'. solve_exprD. unfold exprT_App. simpl. erewrite <- IHi in *; eauto.
       inversion Heqo6. Focus 2. solve_exprD. auto.
   - set_reif_tac.
   - set_reif_tac.
 Admitted.
-    
+
 End tbled.

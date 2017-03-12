@@ -31,10 +31,10 @@ Require Import mc_reify.func_defs.
 Require Import mc_reify.rtac_base.
 
 Lemma semax_set_localD:
-    forall temp var ret gt 
+    forall temp var ret gt
       id (e: Clight.expr) ty gs P T1 T2 R Post v,
   forall {Espec: OracleKind},
-      typeof_temp (mk_tycontext temp var ret gt gs) id = Some ty -> 
+      typeof_temp (mk_tycontext temp var ret gt gs) id = Some ty ->
       is_neutral_cast (implicit_deref (typeof e)) ty = true ->
       msubst_eval_LR T1 T2 e RRRR = Some v ->
       tc_expr_b_norho (mk_tycontext temp var ret gt gs) e = true ->
@@ -52,7 +52,7 @@ Proof.
 Qed.
 
 Definition set_lemma (temp : PTree.t (type * bool)) (var : PTree.t type)
-         (ret : type) (gt : PTree.t type) (id : ident) 
+         (ret : type) (gt : PTree.t type) (id : ident)
          (e : Clight.expr) (ty : type): my_lemma.
 reify_lemma reify_vst (semax_set_localD temp var ret gt id e ty).
 Defined.
@@ -80,7 +80,7 @@ Proof.
     apply tc_expr_b_sound; auto.
 Qed.
 
-Lemma nth_error_prop: 
+Lemma nth_error_prop:
   forall P T1 T2 R Rn (n : nat) S,
   assertD P (localD T1 T2) [Rn] |-- !! S ->
   nth_error R n = Some Rn ->
@@ -100,17 +100,17 @@ Proof.
 Qed.
 
 Lemma semax_load_localD:
-forall (temp : PTree.t (type * bool)) (var : PTree.t type) 
+forall (temp : PTree.t (type * bool)) (var : PTree.t type)
      (ret : type) (gt : PTree.t type) (id : ident) (t t_root : type) (e0 e1 : Clight.expr)
-     (efs : list efield) (tts : list type) 
+     (efs : list efield) (tts : list type)
      (e : type_id_env) (lr : LLRR) (n: nat)
-     (gs : PTree.t funspec) (sh : Share.t) 
+     (gs : PTree.t funspec) (sh : Share.t)
      (P : list Prop) (T1 : PTree.t val) (T2 : PTree.t (type * val))
      (R : list mpred) (Post : environ -> mpred)
      (gfs : list gfield)
-     (p p' v : val) (v' : reptype t_root) 
+     (p p' v : val) (v' : reptype t_root)
      (Espec : OracleKind),
-  typeof_temp (mk_tycontext temp var ret gt gs) id = Some t -> 
+  typeof_temp (mk_tycontext temp var ret gt gs) id = Some t ->
   is_neutral_cast (typeof e0) t = true ->
   msubst_efield_denote T1 T2 efs = Some gfs ->
   legal_nested_efield e t_root e1 gfs tts lr = true ->
@@ -119,17 +119,17 @@ forall (temp : PTree.t (type * bool)) (var : PTree.t type)
   msubst_eval_LR T1 T2 e1 lr = Some p ->
   tc_LR_b_norho (mk_tycontext temp var ret gt gs) e1 lr = true ->
   (@eq (option mpred)) (nth_error R n) (Some (data_at sh t_root v' p')) ->
-  (forall rho, 
+  (forall rho,
       !!(tc_environ (mk_tycontext temp var ret gt gs) rho) && (assertD P (localD T1 T2) R rho) |-- !! (p = p')) ->
   proj_val t_root gfs v' = v ->
   assertD P (localD (PTree.set id v T1) T2) R = Post ->
   nested_efield e1 efs tts = e0 ->
 
-  (forall rho, 
+  (forall rho,
       !! (tc_environ (mk_tycontext temp var ret gt gs) rho) && (assertD P (localD T1 T2) R rho) |--
         !! (tc_val (typeof e0) v) &&
         !! (legal_nested_field t_root gfs)) ->
- semax (mk_tycontext temp var ret gt gs) (|> assertD P (localD T1 T2) R) 
+ semax (mk_tycontext temp var ret gt gs) (|> assertD P (localD T1 T2) R)
         (Sset id e0)
           (normal_ret_assert Post).
 Proof.
@@ -161,7 +161,7 @@ Proof.
     normalize.
 Qed.
 
-Definition load_lemma (temp : PTree.t (type * bool)) (var : PTree.t type) 
+Definition load_lemma (temp : PTree.t (type * bool)) (var : PTree.t type)
      (ret : type) (gt : PTree.t type) (id : ident) (t t_root : type) (e0 e1 : Clight.expr)
     (efs: list efield) (tts : list type) (e : type_id_env) (lr : LLRR)
     (n: nat): my_lemma.
@@ -169,9 +169,9 @@ reify_lemma reify_vst (semax_load_localD temp var ret gt id t t_root e0 e1 efs t
 Defined.
 
 Lemma semax_store_localD:
-    forall (temp : PTree.t (type * bool)) (var : PTree.t type) 
+    forall (temp : PTree.t (type * bool)) (var : PTree.t type)
      (ret : type) (gt : PTree.t type) (t t_root : type) (e0 e1 e2: Clight.expr)
-     (efs : list efield) (tts : list type) 
+     (efs : list efield) (tts : list type)
      (e : type_id_env) (lr : LLRR) (n: nat)
      sh P T1 T2 R gs Post
       (gfs: list gfield)
@@ -188,9 +188,9 @@ Lemma semax_store_localD:
       legal_nested_efield e t_root e1 gfs tts lr = true ->
 
       (@eq (option mpred)) (nth_error R n) (Some (data_at sh t_root v' p')) ->
-  (forall rho, 
+  (forall rho,
       !!(tc_environ (mk_tycontext temp var ret gt gs) rho) && (assertD P (localD T1 T2) R rho) |-- !! (p = p')) ->
-  (forall rho, 
+  (forall rho,
       !! (tc_environ (mk_tycontext temp var ret gt gs) rho) && (assertD P (localD T1 T2) R rho) |--
         !! (legal_nested_field t_root gfs)) ->
   (assertD P (localD T1 T2)
@@ -200,7 +200,7 @@ Lemma semax_store_localD:
       writable_share sh ->
   nested_efield e1 efs tts = e0 ->
 
-      semax (mk_tycontext temp var ret gt gs) (|>assertD P (localD T1 T2) R) 
+      semax (mk_tycontext temp var ret gt gs) (|>assertD P (localD T1 T2) R)
         (Sassign e0 e2)
           (normal_ret_assert Post).
 Proof.
@@ -240,9 +240,9 @@ Proof.
       apply tc_efield_b_sound; auto.
 Qed.
 
-Definition store_lemma (temp : PTree.t (type * bool)) (var : PTree.t type) 
+Definition store_lemma (temp : PTree.t (type * bool)) (var : PTree.t type)
      (ret : type) (gt : PTree.t type) (t t_root : type) (e0 e1 e2: Clight.expr)
-     (efs : list efield) (tts : list type) 
+     (efs : list efield) (tts : list type)
      (e : type_id_env) (lr : LLRR) (n: nat): my_lemma.
 reify_lemma reify_vst (semax_store_localD temp var ret gt t t_root e0 e1 e2 efs tts e lr n).
 Defined.
@@ -281,7 +281,7 @@ Lemma load_store_sound_aux:
                     (BILogicFunc.bilfunc typ))
                  func' (Sep (fdata_at t_root)))
               (tyArr tyshare
-                 (tyArr 
+                 (tyArr
                     (reptyp t_root)
                     (tyArr tyval tympred))) =
             Some
@@ -300,17 +300,17 @@ Proof.
     intros.
     destruct pl; [f_equal; apply proof_irr | congruence].
   } Unfocus.
-  match goal with 
+  match goal with
   | [ |- context [match (match ?e with _ => _ end) with _ => _ end] ] => rewrite (H e)
   end.
   unfold Rcast; simpl.
   reflexivity.
 Qed.
 
-Lemma APPLY_sound_store_lemma: forall (temp : PTree.t (type * bool)) (var : PTree.t type) 
+Lemma APPLY_sound_store_lemma: forall (temp : PTree.t (type * bool)) (var : PTree.t type)
   (ret : type) (gt : PTree.t type) (t t_root : type)
   (e0 e1 e2 : Clight.expr) (efs : list efield) (tts : list type)
-  (e : type_id_env) (lr : LLRR) (n : nat), 
+  (e : type_id_env) (lr : LLRR) (n : nat),
   rtac_sound (EAPPLY typ func (store_lemma temp var ret gt t t_root e0 e1 e2 efs tts e lr n)).
 Proof.
   intros.
@@ -331,9 +331,9 @@ Proof.
                 (BILogicFunc.bilfunc typ))
                 func'
                 (Sep (fupd_val t_root)))
-                (tyArr 
+                (tyArr
                 (tylist tygfield)
-                (tyArr 
+                (tyArr
                 (reptyp t_root)
                 (tyArr tyval
                 (reptyp t_root))))
@@ -356,7 +356,7 @@ Proof.
         intros.
         destruct pl; [f_equal; apply proof_irr | congruence].
       } Unfocus.
-      match goal with 
+      match goal with
       | [ |- context [match (match ?e with _ => _ end) with _ => _ end] ] => rewrite (H e)
       end.
       unfold Rcast; simpl.
@@ -371,10 +371,10 @@ Proof.
     exact H11.
 Qed.
 
-Lemma APPLY_sound_load_lemma: forall (temp : PTree.t (type * bool)) (var : PTree.t type) 
+Lemma APPLY_sound_load_lemma: forall (temp : PTree.t (type * bool)) (var : PTree.t type)
   (ret : type) (gt : PTree.t type) (id : ident) (t t_root : type)
   (e0 e1 : Clight.expr) (efs : list efield) (tts : list type)
-  (e : type_id_env) (lr : LLRR) (n : nat), 
+  (e : type_id_env) (lr : LLRR) (n : nat),
   rtac_sound (EAPPLY typ func (load_lemma temp var ret gt id t t_root e0 e1 efs tts e lr n)).
 Proof.
   intros.
@@ -387,22 +387,22 @@ Proof.
     unfold exprD'. simpl.
     rewrite (load_store_sound_aux t_root); simpl.
     assert (exprT_GetVAs []
-                  [tyOracleKind; 
+                  [tyOracleKind;
                 reptyp t_root; tyval; tyval; tyval;
                 tylist tygfield;
                 tyArr tyenviron tympred;
                 tylist tympred;
                 typtree (typrod tyc_type tyval);
-                typtree tyval; 
+                typtree tyval;
                 tylist typrop; tyshare;
-                typtree tyfunspec] 1 
+                typtree tyfunspec] 1
                 (reptyp t_root) = Some
       (fun (_ : HList.hlist typD [])
          (vs : HList.hlist typD
                 [tyOracleKind; reptyp t_root; tyval; tyval; tyval;
-                tylist tygfield; tyArr tyenviron tympred; 
+                tylist tygfield; tyArr tyenviron tympred;
                 tylist tympred; typtree (typrod tyc_type tyval);
-                typtree tyval; tylist typrop; tyshare; 
+                typtree tyval; tylist typrop; tyshare;
                 typtree tyfunspec]) => HList.hlist_hd (HList.hlist_tl vs))).
     Focus 1. {
       intros.

@@ -117,14 +117,14 @@ Proof.
     eapply derives_trans.
       apply nonexpansive_entail, nonexpansive_lock_inv.
       apply fash_derives, andp_left1, derives_refl.
-    
+
     (* join resource invariant *)
     repeat apply subp_sepcon; try apply subp_refl.
       apply allp_left with true.
       eapply derives_trans.
         apply nonexpansive_entail, nonexpansive_lock_inv.
         apply fash_derives, andp_left1, derives_refl.
-      
+
       apply allp_left with false.
       eapply derives_trans.
         apply nonexpansive_entail, nonexpansive_lock_inv.
@@ -290,7 +290,7 @@ Qed.
 
 Definition acquire_spec: funspec := mk_funspec
   ((_lock OF tptr Tvoid)%formals :: nil, tvoid)
-  cc_default 
+  cc_default
   acquire_arg_type
   (fun _ => acquire_pre)
   (fun _ => acquire_post)
@@ -356,7 +356,7 @@ Qed.
 
 Definition release_spec: funspec := mk_funspec
   ((_lock OF tptr Tvoid)%formals :: nil, tvoid)
-  cc_default 
+  cc_default
   release_arg_type
   (fun _ => release_pre)
   (fun _ => release_post)
@@ -366,7 +366,7 @@ Definition release_spec: funspec := mk_funspec
 
 Program Definition makelock_spec cs: funspec := mk_funspec
   ((_lock OF tptr Tvoid)%formals :: nil, tvoid)
-  cc_default 
+  cc_default
   (rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred)
   (fun _ x =>
    match x with
@@ -407,7 +407,7 @@ Qed.
 
 Program Definition freelock_spec cs: funspec := mk_funspec
   ((_lock OF tptr Tvoid)%formals :: nil, tvoid)
-  cc_default 
+  cc_default
   (rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred)
   (fun _ x =>
    match x with
@@ -486,7 +486,7 @@ Qed.
 
 Program Definition freelock2_spec cs: funspec := mk_funspec
   ((_lock OF tptr Tvoid)%formals :: nil, tvoid)
-  cc_default 
+  cc_default
   (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * share * share)) rmaps.Mpred) rmaps.Mpred)
   (fun _ x =>
    match x with
@@ -546,7 +546,7 @@ Qed.
 
 Program Definition release2_spec: funspec := mk_funspec
   ((_lock OF tptr Tvoid)%formals :: nil, tvoid)
-  cc_default 
+  cc_default
   (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * share)) rmaps.Mpred) rmaps.Mpred)
   (fun _ x =>
    match x with
@@ -630,7 +630,7 @@ Definition freecond_spec cs :=
 
 Program Definition wait_spec cs: funspec := mk_funspec
   ((_cond OF tptr tcond)%formals :: (_lock OF tptr Tvoid)%formals :: nil, tvoid)
-  cc_default 
+  cc_default
   (rmaps.ProdType (rmaps.ConstType (val * val * share * share)) rmaps.Mpred)
   (fun _ x =>
    match x with
@@ -687,7 +687,7 @@ Qed.
 
 Program Definition wait2_spec cs: funspec := mk_funspec
   ((_cond OF tptr tcond)%formals :: (_lock OF tptr Tvoid)%formals :: nil, tvoid)
-  cc_default 
+  cc_default
   (rmaps.ProdType (rmaps.ConstType (val * val * share * share)) rmaps.Mpred)
   (fun _ x =>
    match x with
@@ -861,11 +861,11 @@ Lemma spawn_pre_nonexpansive: @super_non_expansive spawn_arg_type spawn_pre.
   apply (PROP_LOCAL_SEP_super_non_expansive
    (rmaps.ProdType (rmaps.ProdType (rmaps.ConstType (val * val)) (rmaps.DependentType 0)) (rmaps.ArrowType (rmaps.DependentType 0) (rmaps.ArrowType (rmaps.ConstType val) rmaps.Mpred)))
     nil
-    ((fun ts x => 
+    ((fun ts x =>
         match x with
         | (f, b, w, pre) => temp _args b
         end) :: nil)
-    ((fun (ts: list Type) x => 
+    ((fun (ts: list Type) x =>
        match x with
        | (f, b, w, pre) =>
          EX _y : ident, EX globals : nth 0 ts unit -> list (ident * val),
@@ -881,7 +881,7 @@ Lemma spawn_pre_nonexpansive: @super_non_expansive spawn_arg_type spawn_pre.
                  SEP   ())
              f)
        end) ::
-     (fun ts x => 
+     (fun ts x =>
        match x with
        | (f, b, w, pre) => pre w b
        end) :: nil)); repeat constructor.
@@ -945,7 +945,7 @@ Definition void_spec T : external_specification juicy_mem external_function T :=
     Build_external_specification
       juicy_mem external_function T
       (fun ef => False)
-      (fun ef Hef ge tys vl m z => False) 
+      (fun ef Hef ge tys vl m z => False)
       (fun ef Hef ge ty vl m z => False)
       (fun rv m z => False).
 

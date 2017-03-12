@@ -20,9 +20,9 @@ Library), Verifiable C and some previous automation in VST.
 
   Demo1 shows the definition in Section 3 of the paper and corresponding
 soundness proofs.
-  To be as self-contained as possible, it is only dependent on MSL which is a 
-formalization of separation logic. (We only use the Coqlib in CompCert which 
-contains some lemmas about Coq standard library). The only assumptions we made 
+  To be as self-contained as possible, it is only dependent on MSL which is a
+formalization of separation logic. (We only use the Coqlib in CompCert which
+contains some lemmas about Coq standard library). The only assumptions we made
 about C semantics are all Coq Parameters and Coq Axioms in expr.v.
   The organization of main definitions and proofs are as follows.
   type_rec_functions.v:
@@ -35,11 +35,11 @@ about C semantics are all Coq Parameters and Coq Axioms in expr.v.
 3.2. Demo2
 
   Demo2 shows the non-structure recursive definitions in Section 4 of the paper.
-It contains the proof of reptype_eq, data_at_rec_eq. But it does not contain a 
+It contains the proof of reptype_eq, data_at_rec_eq. But it does not contain a
 soundness proof of the whole logic.
-  To be as self-contained as possible, it is only dependent on MSL which is a 
-formalization of separation logic. (We only use the Coqlib in CompCert which 
-contains some lemmas about Coq standard library). The only assumptions we made 
+  To be as self-contained as possible, it is only dependent on MSL which is a
+formalization of separation logic. (We only use the Coqlib in CompCert which
+contains some lemmas about Coq standard library). The only assumptions we made
 about C semantics are all Coq Parameters and Coq Hypothesis in expr.v.
   The organization of main definitions and proofs are as follows.
   computable_theorems.v:

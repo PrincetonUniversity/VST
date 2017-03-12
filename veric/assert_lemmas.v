@@ -40,14 +40,14 @@ Lemma nth_error_in_bounds: forall {A} (l: list A) i, (O <= i < length l)%nat
 Proof.
 intros until i; intros H.
 revert i l H.
-induction i; destruct l; intros; simpl in *; 
+induction i; destruct l; intros; simpl in *;
   try solve [eauto|omegaContradiction].
 apply IHi; omega.
 Qed.
 
 Lemma nth_eq_nth_error_eq: forall {A} (d: A) (l l': list A) i,
-  (O <= i < length l)%nat 
-  -> length l = length l' 
+  (O <= i < length l)%nat
+  -> length l = length l'
   -> nth i l d = nth i l' d
   -> nth_error l i = nth_error l' i.
 Proof.
@@ -77,7 +77,7 @@ induction bl; destruct bl'; intros; try solve [spec H5 O; inv H5|auto].
 f_equal.
 spec H5 O; inv H5; auto.
 apply IHbl.
-intro i. 
+intro i.
 spec H5 (S i).
 auto.
 intro i.
@@ -112,7 +112,7 @@ rewrite <- H1; auto.
 unfold adr_range in H5.
 rewrite size_chunk_conv in H5.
 rewrite <- H1 in H5.
-cut ( ~(O <= i < length bl))%nat. 
+cut ( ~(O <= i < length bl))%nat.
 omega.
 intro HContra.
 apply H5.
@@ -123,7 +123,7 @@ omega.
 Qed.
 
 Lemma extensible_core_load': forall ch loc v
-  w w', extendR w w' -> core_load ch loc v w -> core_load ch loc v w'. 
+  w w', extendR w w' -> core_load ch loc v w -> core_load ch loc v w'.
 Proof.
 intros.
 unfold core_load in *.
@@ -145,7 +145,7 @@ inv H; subst; eauto.
 Qed.
 
 
-Definition Dbool {CS: compspecs} (Delta: tycontext) (e: Clight.expr) : assert := 
+Definition Dbool {CS: compspecs} (Delta: tycontext) (e: Clight.expr) : assert :=
   fun rho =>  EX b: bool, !! (bool_of_valf (eval_expr e rho) = Some b).
 
 Lemma assert_truth:  forall {A} `{ageable A} (P:  Prop), P -> forall (Q: pred A), Q |-- (!! P) && Q.
@@ -153,7 +153,7 @@ Proof.
 intros.
 intros st ?.
 split; auto.
-Qed. 
+Qed.
 
 (*   Lemma assert_Val_is_true:
    forall {A} `{ageable A} (P: pred A), P |-- !!(is_true Vtrue) && P.
@@ -199,7 +199,7 @@ omega.
 Qed.
 
 Lemma adr_range_split_lem2: forall n m r loc loc',
-  r = n + m -> n >= 0 -> m >= 0 -> adr_range (fst loc, snd loc + n) m loc' 
+  r = n + m -> n >= 0 -> m >= 0 -> adr_range (fst loc, snd loc + n) m loc'
   -> adr_range loc r loc'.
 Proof.
 unfold adr_range; intros.
@@ -209,7 +209,7 @@ omega.
 Qed.
 
 Lemma adr_range_split_lem3: forall n m r loc loc',
-  r = n + m -> n >= 0 -> m >= 0 
+  r = n + m -> n >= 0 -> m >= 0
   -> ~adr_range loc n loc'
   -> ~adr_range (fst loc, snd loc + n) m loc'
   -> ~adr_range loc r loc'.
@@ -299,8 +299,8 @@ Qed.
 
 Hint Resolve corable_funassert.
 
-Lemma corable_jam: forall {B} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) (P Q: B -> pred rmap), 
-    (forall loc, corable (P loc)) -> 
+Lemma corable_jam: forall {B} {S': B -> Prop} (S: forall l, {S' l}+{~ S' l}) (P Q: B -> pred rmap),
+    (forall loc, corable (P loc)) ->
     (forall loc, corable (Q loc)) ->
     forall b, corable (jam S P Q b).
 Proof.
@@ -330,7 +330,7 @@ Qed.
 
 Hint Resolve corable_fun_assert : normalize.
 *)
-Lemma prop_derives {A}{H: ageable A}: 
+Lemma prop_derives {A}{H: ageable A}:
  forall (P Q: Prop), (P -> Q) -> prop P |-- prop Q.
 Proof.
 intros. intros w ?; apply H0; auto.
@@ -343,7 +343,7 @@ Hypothesis extends: tycontext_sub Delta Delta'.
 
 Lemma denote_tc_assert_tc_bool_sub: forall b b' err rho phi,
   (b = true -> b' = true) ->
-  denote_tc_assert (tc_bool b err) rho phi -> 
+  denote_tc_assert (tc_bool b err) rho phi ->
   denote_tc_assert (tc_bool b' err) rho phi.
 Proof.
   intros.
@@ -438,7 +438,7 @@ Proof.
   + destruct IHe. apply (H3 w); auto.
 * repeat rewrite denote_tc_assert_andp; intros [? ?]; repeat split; auto.
   + destruct IHe as [_ H8]; apply (H8 w); auto.
-Qed.    
+Qed.
 
 Lemma tc_expr_sub:
     forall e rho, typecheck_environ Delta rho -> tc_expr Delta e rho |-- tc_expr Delta' e rho.
@@ -469,10 +469,10 @@ split.
   eapply neutral_isCastResultType.
   exact H.
 Qed.
-  
+
 Lemma tc_temp_id_load_sub:
-   forall id t v rho, 
-   tc_temp_id_load id t Delta v rho |--    tc_temp_id_load id t Delta' v rho.  
+   forall id t v rho,
+   tc_temp_id_load id t Delta v rho |--    tc_temp_id_load id t Delta' v rho.
 Proof.
 rename extends into H.
 unfold tc_temp_id_load; simpl; intros.

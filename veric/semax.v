@@ -23,11 +23,11 @@ Definition closed_wrt_modvars c (F: assert) : Prop :=
 Definition jsafeN {Z} (Hspec : juicy_ext_spec Z)  :=
   safeN (fun ge: genv => Genv.genv_symb ge) (juicy_core_sem cl_core_sem) Hspec.
 
-Program Definition assert_safe 
+Program Definition assert_safe
      (Espec : OracleKind)
      (ge: genv) ve te (ctl: cont) : assert :=
   fun rho w => forall ora (jm:juicy_mem),
-       rho = construct_rho (filter_genv ge) ve te ->  
+       rho = construct_rho (filter_genv ge) ve te ->
        m_phi jm = w ->
              jsafeN (@OK_spec Espec) ge (level w) ora (State ve te ctl) jm.
  Next Obligation.
@@ -51,13 +51,13 @@ Definition match_venv (ve: venviron) (vars: list (ident * type)) :=
 
 Definition guard_environ (Delta: tycontext) (f: option function) (rho: environ) : Prop :=
    typecheck_environ Delta rho /\
-  match f with 
+  match f with
   | Some f' => match_venv (ve_of rho) (fn_vars f')
                 /\ ret_type Delta = fn_return f'
   | None => True
   end.
 
-Lemma guard_environ_e1: 
+Lemma guard_environ_e1:
    forall Delta f rho, guard_environ Delta f rho ->
      typecheck_environ Delta rho.
 Proof. intros. destruct H; auto. Qed.
@@ -65,7 +65,7 @@ Proof. intros. destruct H; auto. Qed.
 Definition guard  {CS: compspecs} (Espec : OracleKind)
     (gx: genv) (Delta: tycontext) (P : assert)  (ctl: cont) : pred nat :=
      ALL tx : Clight.temp_env, ALL vx : env,
-          let rho := construct_rho (filter_genv gx) vx tx in 
+          let rho := construct_rho (filter_genv gx) vx tx in
           !! guard_environ Delta (current_function ctl) rho
                   && P rho && funassert Delta rho
                 (*  && (!! (genv_cenv gx = cenv_cs)) *)
@@ -79,26 +79,26 @@ Definition exit_cont (ek: exitkind) (vl: option val) (k: cont) : cont :=
   | EK_normal => k
   | EK_break => break_cont k
   | EK_continue => continue_cont k
-  | EK_return => 
-         match vl, call_cont k with 
-         | Some v, Kcall (Some x) f ve te :: k' => 
+  | EK_return =>
+         match vl, call_cont k with
+         | Some v, Kcall (Some x) f ve te :: k' =>
                     Kseq (Sreturn None) :: Kcall None (zap_fn_return f) ve (PTree.set x v te) :: k'
          | _,_ => Kseq (Sreturn None) :: call_cont k
          end
    end.
 
-Definition r_update_tenv (tx:Clight.temp_env) id vl := 
-match vl, id with 
-| v::_, Some ret => PTree.set ret v tx  
+Definition r_update_tenv (tx:Clight.temp_env) id vl :=
+match vl, id with
+| v::_, Some ret => PTree.set ret v tx
 | _,_ => tx
 end.
 
 Definition rguard {CS: compspecs} (Espec : OracleKind)
     (gx: genv) (Delta: exitkind -> tycontext)  (R : ret_assert) (ctl: cont) : pred nat :=
      ALL ek: exitkind, ALL vl: option val, ALL tx: Clight.temp_env, ALL vx : env,
-           let rho := construct_rho (filter_genv gx) vx tx in 
-           !! guard_environ (Delta ek) (current_function ctl) rho && 
-         R ek vl rho && funassert (Delta ek) rho 
+           let rho := construct_rho (filter_genv gx) vx tx in
+           !! guard_environ (Delta ek) (current_function ctl) rho &&
+         R ek vl rho && funassert (Delta ek) rho
            (* && (!! (genv_cenv gx = cenv_cs)) *)
           >=> assert_safe Espec gx vx tx (exit_cont ek vl ctl) rho.
 
@@ -109,17 +109,17 @@ Record semaxArg :Type := SemaxArg {
  sa_R: ret_assert
 }.
 
-Definition ext_spec_pre' (Espec: OracleKind) (ef: external_function) 
-   (x': ext_spec_type OK_spec ef) (ge_s: PTree.t block) 
+Definition ext_spec_pre' (Espec: OracleKind) (ef: external_function)
+   (x': ext_spec_type OK_spec ef) (ge_s: PTree.t block)
    (ts: list typ) (args: list val) (z: OK_ty) : pred juicy_mem :=
-  exist (hereditary age) 
+  exist (hereditary age)
      (ext_spec_pre OK_spec ef x' ge_s ts args z)
      (JE_pre_hered _ _ _ _ _ _ _ _).
 
 Program Definition ext_spec_post' (Espec: OracleKind)
    (ef: external_function) (x': ext_spec_type OK_spec ef) (ge_s: PTree.t block)
    (tret: option typ) (ret: option val) (z: OK_ty) : pred juicy_mem :=
-  exist (hereditary age) 
+  exist (hereditary age)
    (ext_spec_post OK_spec ef x' ge_s tret ret z)
      (JE_post_hered _ _ _ _ _ _ _ _).
 
@@ -127,7 +127,7 @@ Definition juicy_mem_pred (P : pred rmap) (jm: juicy_mem): pred nat :=
      # diamond fashionM (exactly (m_phi jm) && P).
 
 Fixpoint make_ext_args (gx: genviron) (ids: list ident) (vl: list val)  :=
-  match ids, vl with 
+  match ids, vl with
   | id::ids', v::vl' => env_set (make_ext_args gx ids' vl') id v
   | _, v::vl' => env_set (make_ext_args gx ids vl') 1%positive v
   | _, _ => mkEnviron gx (Map.empty _) (Map.empty _)
@@ -135,25 +135,25 @@ Fixpoint make_ext_args (gx: genviron) (ids: list ident) (vl: list val)  :=
 
 Definition make_ext_rval  (gx: genviron) (v: option val):=
   match v with
-  | Some v' =>  mkEnviron gx (Map.empty _) 
+  | Some v' =>  mkEnviron gx (Map.empty _)
                               (Map.set 1%positive v' (Map.empty _))
   | None => mkEnviron gx (Map.empty _) (Map.empty _)
   end.
 
-Definition semax_external 
+Definition semax_external
   (Hspec: OracleKind) (ids: list ident) ef
   (A: TypeTree)
   (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)):
-        pred nat := 
+        pred nat :=
  ALL gx: genv, ALL Ts: list Type,
  ALL x: (dependent_type_functor_rec Ts A (pred rmap)),
    |>  ALL F: pred rmap, ALL ts: list typ,
    ALL args: list val,
    !!Val.has_type_list args (sig_args (ef_sig ef)) &&
-   juicy_mem_op (P Ts x (make_ext_args (filter_genv gx) ids args) * F) >=> 
+   juicy_mem_op (P Ts x (make_ext_args (filter_genv gx) ids args) * F) >=>
    EX x': ext_spec_type OK_spec ef,
     ALL z:_, ext_spec_pre' Hspec ef x' (Genv.genv_symb gx) ts args z &&
-     ! ALL tret: option typ, ALL ret: option val, ALL z': OK_ty, 
+     ! ALL tret: option typ, ALL ret: option val, ALL z': OK_ty,
       ext_spec_post' Hspec ef x' (Genv.genv_symb gx) tret ret z' >=>
           juicy_mem_op (Q Ts x (make_ext_rval (filter_genv gx) ret) * F).
 
@@ -175,27 +175,27 @@ Definition believe_external (Hspec: OracleKind) (gx: genv) (v: val) (fsig: funsi
   (A: TypeTree)
   (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)):
   pred nat :=
-  match Genv.find_funct gx v with 
-  | Some (External ef sigargs sigret cc') => 
+  match Genv.find_funct gx v with
+  | Some (External ef sigargs sigret cc') =>
       let ids := fst (split (fst fsig)) in
-        !! (fsig = (zip_with_tl ids sigargs, sigret) /\ cc'=cc 
+        !! (fsig = (zip_with_tl ids sigargs, sigret) /\ cc'=cc
            /\ ef_sig ef = mksignature
                            (typlist_of_typelist (type_of_params (fst fsig)))
                            (opttyp_of_type (snd fsig)) cc
-           /\ length (typelist2list sigargs)=length ids) 
-        && semax_external Hspec ids ef A P Q 
+           /\ length (typelist2list sigargs)=length ids)
+        && semax_external Hspec ids ef A P Q
         && ! (ALL ts: list Type,
               ALL x: dependent_type_functor_rec ts A (pred rmap),
-              ALL ret:option val, 
+              ALL ret:option val,
                 Q ts x (make_ext_rval (filter_genv gx) ret)
                   && !!has_opttyp ret (opttyp_of_type (snd fsig))
                   >=> !! tc_option_val sigret ret)
-  | _ => FF 
+  | _ => FF
   end.
 
 Definition fn_funsig (f: function) : funsig := (fn_params f, fn_return f).
 
-Definition var_sizes_ok (cenv: composite_env) (vars: list (ident*type)) := 
+Definition var_sizes_ok (cenv: composite_env) (vars: list (ident*type)) :=
    Forall (fun var : ident * type => @sizeof cenv (snd var) <= Int.max_unsigned)%Z vars.
 
 Definition var_block' (sh: Share.t) (cenv: composite_env) (idt: ident * type) (rho: environ): mpred :=
@@ -207,11 +207,11 @@ Definition stackframe_of' (cenv: composite_env) (f: Clight.function) : assert :=
      (map (fun idt => var_block' Share.top cenv idt) (Clight.fn_vars f)).
 
 
-Definition believe_internal_ 
+Definition believe_internal_
   (semax:semaxArg -> pred nat)
   (gx: genv) (Delta: tycontext) v (fsig: funsig) cc (A: TypeTree)
   (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)) : pred nat :=
-  (EX b: block, EX f: function,  
+  (EX b: block, EX f: function,
    prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ Forall (fun it => complete_type (genv_cenv gx) (snd it) = true) (fn_vars f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
@@ -246,20 +246,20 @@ Definition semax_  {CS: compspecs}  (Espec: OracleKind)
  match a with SemaxArg Delta P c R =>
   ALL gx: genv, ALL Delta': tycontext,
        !! (tycontext_sub Delta Delta' /\ genv_cenv gx = cenv_cs)-->
-      (believepred Espec semax Delta' gx Delta') --> 
-     ALL k: cont, ALL F: assert, 
-       (!! (closed_wrt_modvars c F) && 
+      (believepred Espec semax Delta' gx Delta') -->
+     ALL k: cont, ALL F: assert,
+       (!! (closed_wrt_modvars c F) &&
               rguard Espec gx (exit_tycon c Delta') (frame_ret_assert R F) k) -->
         guard Espec gx Delta' (fun rho => F rho * P rho) (Kseq c :: k)
   end.
 
-Definition semax'  {CS: compspecs} (Espec: OracleKind) Delta P c R : pred nat := 
+Definition semax'  {CS: compspecs} (Espec: OracleKind) Delta P c R : pred nat :=
      HORec (semax_  Espec) (SemaxArg Delta P c R).
 
 Definition believe_internal {CS: compspecs} (Espec:  OracleKind)
   (gx: genv) (Delta: tycontext) v (fsig: funsig) cc (A: TypeTree)
   (P Q: forall ts, dependent_type_functor_rec ts (AssertTT A) (pred rmap)) : pred nat :=
-  (EX b: block, EX f: function,  
+  (EX b: block, EX f: function,
    prop (v = Vptr b Int.zero /\ Genv.find_funct_ptr gx b = Some (Internal f)
                  /\ Forall (fun it => complete_type (genv_cenv gx) (snd it) = true) (fn_vars f)
                  /\ list_norepet (map (@fst _ _) f.(fn_params) ++ map (@fst _ _) f.(fn_temps))
@@ -270,7 +270,7 @@ Definition believe_internal {CS: compspecs} (Espec:  OracleKind)
         |> semax' Espec (func_tycontext' f Delta)
                                 (fun rho => (bind_args f.(fn_params) f.(fn_vars) (P ts x) rho * stackframe_of' (genv_cenv gx)  f rho)
                                              && funassert (func_tycontext' f Delta) rho)
-                               (Ssequence f.(fn_body) (Sreturn None))  
+                               (Ssequence f.(fn_body) (Sreturn None))
            (frame_ret_assert (function_body_ret_assert (fn_return f) (Q ts x)) (stackframe_of' (genv_cenv gx) f))).
 
 Definition believe {CS: compspecs} (Espec:OracleKind)
@@ -287,8 +287,8 @@ Lemma semax_fold_unfold : forall {CS: compspecs} (Espec : OracleKind),
   semax' Espec = fun Delta P c R =>
   ALL gx: genv, ALL Delta': tycontext,
        !! (tycontext_sub Delta Delta' /\ genv_cenv gx = cenv_cs) -->
-       believe Espec Delta' gx Delta' --> 
-     ALL k: cont, ALL F: assert, 
+       believe Espec Delta' gx Delta' -->
+     ALL k: cont, ALL F: assert,
         (!! (closed_wrt_modvars c F) && rguard Espec gx (exit_tycon c Delta') (frame_ret_assert R F) k) -->
         guard Espec gx Delta' (fun rho => F rho * P rho) (Kseq c :: k).
 Proof.

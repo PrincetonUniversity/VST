@@ -8,7 +8,7 @@ Require Import hmacdrbg.spec_hmac_drbg.
 Require Import sha.HMAC256_functional_prog.
 Require Import sha.spec_sha.
 Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
- 
+
 Fixpoint HMAC_DRBG_update_round (HMAC: list Z -> list Z -> list Z) (provided_data K V: list Z) (round: nat): (list Z * list Z) :=
   match round with
     | O => (K, V)
@@ -68,7 +68,7 @@ Lemma HMAC_DRBG_update_round_incremental_Z:
 Proof.
   intros.
   specialize (HMAC_DRBG_update_round_incremental _ _ _ _ _ H0); intros. clear H0.
-  rewrite (Z2Nat.id _ H) in H1. 
+  rewrite (Z2Nat.id _ H) in H1.
   rewrite Z2Nat.inj_add; try assumption; omega.
 Qed.
 
@@ -110,7 +110,7 @@ Lemma loopbody: forall (Espec : OracleKind)
   (H8 : hmac256drbgabs_metadata_same state_abs initial_state_abs)
   (H9 : Zlength value = Z.of_nat SHA256.DigestLength)
   (H10 : Forall general_lemmas.isbyteZ value),
-@semax hmac_drbg_compspecs.CompSpecs Espec 
+@semax hmac_drbg_compspecs.CompSpecs Espec
   (initialized_list
      [_info; _md_len; _rounds; _sep_value; _t'3; _t'2; _t'1]
      (func_tycontext f_mbedtls_hmac_drbg_update HmacDrbgVarSpecs
@@ -157,7 +157,7 @@ Lemma loopbody: forall (Espec : OracleKind)
                  (tptr (Tstruct _mbedtls_md_context_t noattr));
               Efield
                 (Ederef (Etempvar _ctx (tptr (Tstruct _mbedtls_hmac_drbg_context noattr)))
-                   (Tstruct _mbedtls_hmac_drbg_context noattr)) _V 
+                   (Tstruct _mbedtls_hmac_drbg_context noattr)) _V
                 (tarray tuchar 32); Etempvar _md_len tuint])
            (Ssequence
               (Scall (@None ident)
@@ -288,10 +288,10 @@ Lemma loopbody: forall (Espec : OracleKind)
         additional; @data_at_ hmac_drbg_compspecs.CompSpecs Tsh (tarray tuchar 1) sep;
       K_vector kv))).
 Proof. intros. simpl.
-    unfold hmac256drbgabs_common_mpreds. repeat flatten_sepcon_in_SEP. 
+    unfold hmac256drbgabs_common_mpreds. repeat flatten_sepcon_in_SEP.
     (*unfold hmac256drbgabs_to_state. simpl.*)
     unfold hmac256drbgabs_to_state. simpl. destruct state_abs. simpl in *. subst key0 value.
-    abbreviate_semax. Intros. 
+    abbreviate_semax. Intros.
     freeze [1;2;3;5;6] FR0.
     rewrite data_at_isptr with (p:= ctx).
     rewrite da_emp_isptrornull. normalize.
@@ -313,8 +313,8 @@ Proof. intros. simpl.
       destruct (field_compatible_dec t_struct_hmac256drbg_context_st); [|contradiction].
       reflexivity.
     }(*
-    assert (Hfield_md_ctx: forall ctx', isptr ctx' -> 
-        field_compatible t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx' -> 
+    assert (Hfield_md_ctx: forall ctx', isptr ctx' ->
+        field_compatible t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx' ->
          ctx' = field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx').
     {
       intros ctx'' Hisptr Hfc.
@@ -323,7 +323,7 @@ Proof. intros. simpl.
       simpl. change (Int.repr 0) with Int.zero. rewrite offset_val_force_ptr.
       destruct ctx''; inversion Hisptr. reflexivity.
     }
-    assert (Hfield_V: forall ctx', isptr ctx' -> 
+    assert (Hfield_V: forall ctx', isptr ctx' ->
              field_compatible t_struct_hmac256drbg_context_st [StructField _V] ctx' ->
              offset_val 12 ctx' = field_address t_struct_hmac256drbg_context_st [StructField _V] ctx').
     {
@@ -342,10 +342,10 @@ Proof. intros. simpl.
     (* sep[0] = sep_value; *)
     freeze [0;1;2;3;5;6;7;8] FR2.
     forward.
-    thaw FR2. freeze [0;1;3;5;7;8] FR3. 
+    thaw FR2. freeze [0;1;3;5;7;8] FR3.
 
     (* mbedtls_md_hmac_reset( &ctx->md_ctx ); *)
-    Time forward_call (field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx, 
+    Time forward_call (field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
                        (*md_ctx*)(IS1a, (IS1b, IS1c)), key, kv). (*LENB: 8secs Naphat's measure: 79 *)
     (*{
       entailer!.
@@ -356,7 +356,7 @@ Proof. intros. simpl.
     thaw FR3. rewrite <- H9. freeze [3;4;5;6;8] FR4.
     Time forward_call (key, field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
                        (*md_ctx*)(IS1a, (IS1b, IS1c)),
-                       field_address t_struct_hmac256drbg_context_st [StructField _V] ctx, 
+                       field_address t_struct_hmac256drbg_context_st [StructField _V] ctx,
                        @nil Z, V, kv). (*LENB: 8, Naphat: 83 *)
     (*{
       entailer!.
@@ -372,10 +372,10 @@ Proof. intros. simpl.
       repeat split; [hnf;auto | hnf;auto | assumption].
     }
     Intros. (*Intros v; subst v.*)
-      
+
 (*    unfold upd_Znth.
     unfold sublist. *)
-    simpl. 
+    simpl.
     assert (Hiuchar: Int.zero_ext 8 (Int.repr i) = Int.repr i).
     {
       clear - H4 Heqrounds. destruct na; subst;
@@ -393,10 +393,10 @@ Proof. intros. simpl.
       entailer!.
     }
     { (*LENB: this SC is now now discharged manually*)
-      unfold upd_Znth, sublist. simpl.  
-      change (Zlength [i]) with 1. rewrite Hiuchar. cancel. 
+      unfold upd_Znth, sublist. simpl.
+      change (Zlength [i]) with 1. rewrite Hiuchar. cancel.
     }*)
-    { 
+    {
       (* prove the PROP clauses *)
       rewrite H9.
       change (Zlength [i]) with 1.
@@ -407,10 +407,10 @@ Proof. intros. simpl.
       destruct na; subst rounds; omega.
     }
     Intros. (*Intros v; subst v.*)
-      
+
     (* if( rounds == 2 ) *)
-     thaw FR5. 
-     freeze [2;4;5;6;7] FR6. 
+     thaw FR5.
+     freeze [2;4;5;6;7] FR6.
      (*assert (NA:non_empty_additional =andb (negb (eq_dec additional nullval)) (negb (eq_dec add_len 0))).
      { clear - Heqnon_empty_additional PNadditional.
        subst. destruct additional; simpl in PNadditional; try contradiction.
@@ -430,7 +430,7 @@ Proof. intros. simpl.
           (field_address t_struct_hmac256drbg_context_st
              [StructField _md_ctx] ctx));
       (*(data_at Tsh (tarray tuchar (Zlength [i])) [Vint (Int.repr i)] sep);*)
-      (K_vector kv);FRZL FR6; 
+      (K_vector kv);FRZL FR6;
       (*(data_at Tsh (tarray tuchar (Zlength V)) (map Vint (map Int.repr V))
           (field_address t_struct_hmac256drbg_context_st [StructField _V] ctx));
       (field_at Tsh t_struct_hmac256drbg_context_st
@@ -450,9 +450,9 @@ Proof. intros. simpl.
          (entropy_len', (Val.of_bool prediction_resistance, reseed_interval')))))));
       (data_at_ Tsh (tarray tuchar (Zlength V)) K);*)
       (da_emp Tsh (tarray tuchar (Zlength contents))
-          (map Vint (map Int.repr contents)) additional)) 
+          (map Vint (map Int.repr contents)) additional))
     ). (* 4.4 *)
-    { 
+    {
       (* rounds = 2 case *)
       destruct na; rewrite Heqrounds in *. Focus 2. inv H7. clear H7.
       subst rounds. simpl in Heqna.
@@ -491,7 +491,7 @@ Proof. intros. simpl.
       (* prove the post condition of the if statement *)
       rewrite <- app_assoc.
       (*Intros v.
-      rewrite H10.*) rewrite H9. rewrite da_emp_ptr. 
+      rewrite H10.*) rewrite H9. rewrite da_emp_ptr.
       entailer!. (*subst add_len; trivial.
       destruct (eq_dec (Vptr b i0) nullval); simpl in *; try discriminate.
       destruct (initial_world.EqDec_Z (Zlength contents) 0); trivial; discriminate. *)
@@ -508,15 +508,15 @@ Proof. intros. simpl.
       forward. rewrite H9, NAF.
       destruct additional; try contradiction; simpl in PNadditional.
       + subst i0. rewrite da_emp_null; trivial. entailer!.
-      + rewrite da_emp_ptr. Intros. normalize. entailer!. 
+      + rewrite da_emp_ptr. Intros. normalize. entailer!.
     }
 
     (* mbedtls_md_hmac_finish( &ctx->md_ctx, K ); *)
     thaw FR6. freeze [3;4;5;6;8] FR8.  rewrite H9.
     rewrite data_at__memory_block. change (sizeof (*cenv_cs*) (tarray tuchar 32)) with 32.
     Intros.
-    Time forward_call ((V ++ [i] ++ (if na then contents else [])), key, 
-                       field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx, 
+    Time forward_call ((V ++ [i] ++ (if na then contents else [])), key,
+                       field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
                        (*md_ctx*)(IS1a, (IS1b, IS1c)), K, Tsh, kv). (*LENB: 7, Naphat 62 *)
     (*{
       (* prove the parameters match up *)
@@ -536,7 +536,7 @@ Proof. intros. simpl.
 
     (* mbedtls_md_hmac_starts( &ctx->md_ctx, K, md_len ); *)
     Time forward_call (field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
-                       (*md_ctx*)(IS1a, (IS1b, IS1c)), 
+                       (*md_ctx*)(IS1a, (IS1b, IS1c)),
                        (Zlength (HMAC256 (V ++ [i] ++ (if na then contents else [])) key)),
                        HMAC256 (V ++ [i] ++ (if na then contents else [])) key, kv, K). (*14; Naphat 75 *)
     {
@@ -545,7 +545,7 @@ Proof. intros. simpl.
       rewrite hmac_common_lemmas.HMAC_Zlength, FA_ctx_MDCTX; simpl.
       rewrite offset_val_force_ptr, isptr_force_ptr, sem_cast_neutral_ptr; trivial. auto.
     }
-    { 
+    {
       split.
       + (* prove that output of HMAC can serve as its key *)
         unfold spec_hmac.has_lengthK; simpl.
@@ -554,13 +554,13 @@ Proof. intros. simpl.
       + (* prove that the output of HMAC are bytes *)
         apply hmac_common_lemmas.isbyte_hmac.
     }
-    Intros. 
+    Intros.
 
-    thaw FR8. freeze [2;4;6;7;8] FR9. 
+    thaw FR8. freeze [2;4;6;7;8] FR9.
 (*    assert_PROP (field_compatible t_struct_hmac256drbg_context_st [StructField _V] ctx) as FC_vctx_V by entailer!.*)
     (* mbedtls_md_hmac_update( &ctx->md_ctx, ctx->V, md_len ); *)
     Time forward_call (HMAC256 (V ++ [i] ++ (if na then contents else [])) key,
-                       field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx, 
+                       field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
                        (*md_ctx*)(IS1a, (IS1b, IS1c)),
                        field_address t_struct_hmac256drbg_context_st [StructField _V] ctx, @nil Z, V, kv). (*9; Naphat 72 *)
     {
@@ -582,8 +582,8 @@ Proof. intros. simpl.
     replace_SEP 2 (memory_block Tsh (sizeof (*cenv_cs*) (tarray tuchar 32)) (field_address t_struct_hmac256drbg_context_st [StructField _V] ctx)) by (entailer!; apply data_at_memory_block).
     simpl.
     (* mbedtls_md_hmac_finish( &ctx->md_ctx, ctx->V ); *)
-    Time forward_call (V, HMAC256 (V ++ i::(if na then contents else [])) key, 
-                       field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx, 
+    Time forward_call (V, HMAC256 (V ++ i::(if na then contents else [])) key,
+                       field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
                        (*md_ctx*)(IS1a, (IS1b, IS1c)),
                        field_address t_struct_hmac256drbg_context_st [StructField _V] ctx, Tsh, kv). (*9; Naphat: 75 *)
     (*{
@@ -591,10 +591,10 @@ Proof. intros. simpl.
       entailer!.
     }*)
     Time old_go_lower. (*24 secs, 1.45GB -> 1.55GB*)(*necessary due to existence of local () && in postcondition of for-rule!!!*)
-    normalize. 
+    normalize.
     Exists (HMAC256 (V ++ [i] ++ (if na then contents else [])) key).
 
-    apply andp_right. (*Time solve [entailer!].*) apply prop_right. repeat split; auto; omega. 
+    apply andp_right. (*Time solve [entailer!].*) apply prop_right. repeat split; auto; omega.
 
     Exists (HMAC256 V (HMAC256 (V ++ [i] ++ (if na then contents else [])) key)).
     Exists (HMAC256DRBGabs (HMAC256 (V ++ [i] ++ (if na then contents else [])) key)
@@ -626,23 +626,23 @@ Time Qed.
  (*Dec 3rd, 2016: 1128secs (347u, 3.5s) in 8.5pl2 on laptop; laptop-make: 234s, (234u), total processing time for file: 8m17s*)
  (*Dec 6th, 2016: 1217.59 secs (435.912u,7.552s) in 8.5pl2 on laptop; laptop-make: 249.252 secs (249.328u,0.051s), 8m33s for file*)
 
-Lemma body_hmac_drbg_update: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs 
+Lemma body_hmac_drbg_update: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
        f_mbedtls_hmac_drbg_update hmac_drbg_update_spec.
 Proof.
-  start_function. 
+  start_function.
   rename lvar0 into sep.
   rename lvar1 into K.
   abbreviate_semax.
   destruct initial_state as [IS1 [IS2 [IS3 [IS4 [IS5 IS6]]]]].
-  rewrite da_emp_isptrornull. 
+  rewrite da_emp_isptrornull.
 
   (* info = md_ctx.md_info *)
   destruct IS1 as [IS1a [IS1b IS1c]]. simpl.
-  rewrite data_at_isptr with (p:=ctx). 
+  rewrite data_at_isptr with (p:=ctx).
   unfold hmac256drbgstate_md_info_pointer. simpl.
-  rewrite data_at_isptr with (p:=IS1a). 
+  rewrite data_at_isptr with (p:=IS1a).
   normalize.
-  freeze [0;1;2;4;6] FR0. 
+  freeze [0;1;2;4;6] FR0.
   freeze [0;2] FR1.
 
   Time forward. (*8.5pl2: 3secs. BUT without doing the 2 lines
@@ -674,7 +674,7 @@ Proof.
       temp _t'2 (Val.of_bool na);
 (*      temp 225x%positive (Val.of_bool non_empty_additional);*)
       gvar sha._K256 kv)
-      SEP  (FRZL (FR2))). 
+      SEP  (FRZL (FR2))).
   {
     (* show that add_len <> 0 implies the post condition *)
     forward.
@@ -683,7 +683,7 @@ Proof.
       thaw FR2. thaw FR1. thaw FR0. normalize.
       rewrite da_emp_ptr.
       apply denote_tc_comparable_split; auto 50 with valid_pointer.
-      (* TODO regression, this should have solved it *) 
+      (* TODO regression, this should have solved it *)
       apply sepcon_valid_pointer1.
       apply sepcon_valid_pointer1.
       apply sepcon_valid_pointer1.
@@ -692,19 +692,19 @@ Proof.
       apply data_at_valid_ptr; auto.
 
 (*      simpl. clear - H4 H. rewrite Zmax_right; omega.*)
-    } 
+    }
 
     { entailer!.
       destruct additional; simpl in PNadditional; try contradiction.
       subst i; simpl; trivial.
       simpl. destruct (initial_world.EqDec_Z add_len 0); trivial; omega.
     }
-  } 
+  }
 
   {
     (* show that add_len = 0 implies the post condition *)
-    forward. 
-    entailer!. (*rewrite H4.*) simpl. rewrite andb_false_r. reflexivity. 
+    forward.
+    entailer!. (*rewrite H4.*) simpl. rewrite andb_false_r. reflexivity.
   }
 
   remember (update_rounds na) as rounds. unfold update_rounds in Heqrounds.
@@ -717,7 +717,7 @@ Proof.
       temp _t'3 (Vint (Int.repr rounds));
       gvar sha._K256 kv
              )
-      SEP  (FRZL FR2) 
+      SEP  (FRZL FR2)
   ).
   {
     (* non_empty_additional = true *)
@@ -746,7 +746,7 @@ Proof.
       key = hmac256drbgabs_key final_state_abs;
       value = hmac256drbgabs_value final_state_abs;
       hmac256drbgabs_metadata_same final_state_abs state_abs *)
-        ) 
+        )
       LOCAL ((*In VST 1.6, we need to add the entry for temp*)
                temp _rounds (Vint (Int.repr rounds));
        temp _md_len (Vint (Int.repr 32));
@@ -758,7 +758,7 @@ Proof.
       SEP  (
         (EX key: list Z, EX value: list Z, EX final_state_abs: hmac256drbgabs,
           !!(
-              (key, value) = HMAC_DRBG_update_round HMAC256 
+              (key, value) = HMAC_DRBG_update_round HMAC256
                 (*contents*) (if na then contents else [])
                 initial_key initial_value (Z.to_nat i)
               /\ key = hmac256drbgabs_key final_state_abs
@@ -767,7 +767,7 @@ Proof.
               /\ Zlength value = Z.of_nat SHA256.DigestLength
               /\ Forall general_lemmas.isbyteZ value
             ) &&
-           (hmac256drbgabs_common_mpreds final_state_abs 
+           (hmac256drbgabs_common_mpreds final_state_abs
              (*initial_state*) ((IS1a,(IS1b,IS1c)),(IS2,(IS3,(IS4,(IS5,IS6)))))
               ctx info_contents)
          );
@@ -788,12 +788,12 @@ Proof.
   }
   {
     (* pre conditions imply loop invariant *)
-    entailer!. 
+    entailer!.
     Exists (hmac256drbgabs_key initial_state_abs) (hmac256drbgabs_value initial_state_abs) initial_state_abs.
     destruct initial_state_abs. simpl. Time entailer!.
     thaw FR2. thaw FR1. thaw FR0. cancel.
     unfold hmac256drbgabs_common_mpreds, hmac256drbgabs_to_state. cancel.
-    unfold hmac256drbg_relate. entailer!. 
+    unfold hmac256drbg_relate. entailer!.
   }
   {
     (* loop body *)
@@ -801,13 +801,13 @@ Proof.
     Intros key value state_abs. normalize.
     clear FR2 FR1 FR0.
 
-    (*( semax_subcommand HmacDrbgVarSpecs HmacDrbgFunSpecs 
+    (*( semax_subcommand HmacDrbgVarSpecs HmacDrbgFunSpecs
        f_mbedtls_hmac_drbg_update hmac_drbg_update_spec.*)
 
     (*unfold MORE_COMMANDS, POSTCONDITION, abbreviate.*)
 
     eapply loopbody; eassumption.
-    (* eapply hmac_drbg_update_loop; try eassumption; try reflexivity. 
+    (* eapply hmac_drbg_update_loop; try eassumption; try reflexivity.
       eapply hmac_drbg_update_loop; try eassumption. reflexivity.
       rewrite Heqna. clear - PNadditional.
       destruct additional; simpl in PNadditional; try contradiction.
@@ -836,7 +836,7 @@ Proof.
   replace (HMAC_DRBG_update_concrete HMAC256 (*contents*) (if (negb (eq_dec additional nullval) &&
                       negb (eq_dec (Zlength contents) 0))%bool then contents else []) key V) with (key0, V0). apply derives_refl.
   cancel.*)
-  unfold hmac256drbgabs_key, hmac256drbgabs_value in Hupdate_rounds. 
+  unfold hmac256drbgabs_key, hmac256drbgabs_value in Hupdate_rounds.
   rewrite Hupdate_rounds in *. unfold HMAC_DRBG_update_concrete.
   f_equal.
   clear - H1 PNadditional. unfold contents_with_add.

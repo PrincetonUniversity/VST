@@ -50,7 +50,7 @@ Module ErasureSafety.
 
   (*Definition local_erasure:= erasure initU init_rmap init_pmap init_rmap_perm.*)
   Definition step_diagram:= ErasureProof.core_diagram.
-  
+
   Lemma erasure_safety': forall n ge sch js ds m,
       ErasureProof.match_st js ds ->
       DMS.invariant ds ->
@@ -87,7 +87,7 @@ Module ErasureSafety.
         destruct Hstep as [ds' [dinv' [MATCH' stp']]].
         econstructor 4; eauto. }
 Qed.
-        
+
 
   Theorem erasure_safety: forall ge cd j js ds m n,
       Erasure.match_state cd j js m ds m ->
@@ -101,7 +101,7 @@ Qed.
 
   Theorem initial_safety:
     forall (U : DryMachine.Sch) (js : jstate)
-      (vals : seq Values.val) (m : Memory.mem) 
+      (vals : seq Values.val) (m : Memory.mem)
       (rmap0 : rmap) (pmap : access_map * access_map) main genv,
       match_rmap_perm rmap0 pmap ->
       no_locks_perm rmap0 ->
@@ -137,7 +137,7 @@ Qed.
       destruct st as [[a b] c]; destruct st' as [[a' b'] c']; simpl in *.
       inversion H4; subst.
       apply: (safety.sft_step).
-      - apply: DryMachine.halt_with_step=> //. 
+      - apply: DryMachine.halt_with_step=> //.
       - move => U'' nVAL.
         apply: IHn => //.
         + apply: (MATCH).
@@ -159,7 +159,7 @@ Qed.
       (*We need to talk about traces... until now... they are empty:*)
       assert (requirement:(a') = nil).
       { inversion H0; simpl in *; eauto. }
-        
+
       rewrite requirement in H0.
       eapply step_diagram in H0 => //.
       destruct H0 as [ ds' [ Dinv' [ match' step']]].
@@ -180,7 +180,7 @@ Qed.
   Qed.
 
   Lemma new_erasure_safety': forall n ge js ds m,
-      (forall sch, JuicyMachine.valid (sch, nil, js)) -> 
+      (forall sch, JuicyMachine.valid (sch, nil, js)) ->
       ErasureProof.match_st js ds ->
       DMS.invariant ds ->
       (forall sch, JuicyMachine.ksafe_new_step ge (sch, nil, js) m n) ->
@@ -192,10 +192,10 @@ Qed.
     - eapply assume. exact MATCH.
       apply: all_val.
   Qed.
-      
+
 
  (* Theorem new_erasure_safety: forall ge cd j jtp dtp m n,
-      (forall sch,  JuicyMachine.valid (sch, nil, jtp) ) -> 
+      (forall sch,  JuicyMachine.valid (sch, nil, jtp) ) ->
       forall sch, Erasure.match_state cd j (sch, nil, jtp) m (sch, nil, dtp) m ->
     JuicyMachine.csafe ge (sch, nil, jtp) m n ->
     DryMachine.csafe ge (sch, nil, dtp) m n.
@@ -206,6 +206,6 @@ Qed.
     inversion MATCH. subst.
     eapply erasure_safety'; eauto.
   Qed.*)
-  
-    
-End ErasureSafety. 
+
+
+End ErasureSafety.

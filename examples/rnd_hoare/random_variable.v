@@ -62,7 +62,7 @@ Definition RandomVar_global_equiv {O1} {O2} {A: Type} {SA: SigmaAlgebra A} (v1: 
 
 Definition unit_space_domain: RandomVarDomain :=
   exist is_measurable_subspace unit_space_anti_chain (max_anti_chain_measurable _ unit_anti_chain_max).
-  
+
 Definition constant_var (Omega: RandomVarDomain) {A: Type} (v: A) {SA: SigmaAlgebra A}: RandomVariable Omega A := PrFamily.MeasurableFunction_inv (ConstantFunction v).
 
 Definition unit_space_var {A: Type} (v: A) {SA: SigmaAlgebra A}: RandomVariable unit_space_domain A := constant_var _ v.

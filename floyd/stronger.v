@@ -246,7 +246,7 @@ Defined.
 
 Lemma data_equal_array_ext: forall t0 n a (v0 v1: reptype (Tarray t0 n a)),
  Zlength (unfold_reptype v0) = Zlength (unfold_reptype v1) ->
-  (forall i, 0 <= i < n -> 
+  (forall i, 0 <= i < n ->
      Znth i (unfold_reptype v0) (default_val _) === Znth i (unfold_reptype v1) (default_val _)) ->
   v0 === v1.
 Proof.
@@ -254,13 +254,13 @@ Proof.
   apply data_equal_stronger; split; apply stronger_array_ext; auto.
   + intros.
     specialize (H0 i H1).
-    destruct (data_equal_stronger 
+    destruct (data_equal_stronger
                       (Znth i (unfold_reptype v0) (default_val _))
                       (Znth i (unfold_reptype v1) (default_val _))) as [? _].
     tauto.
   + intros.
     specialize (H0 i H1).
-    destruct (data_equal_stronger 
+    destruct (data_equal_stronger
                       (Znth i (unfold_reptype v0) (default_val _))
                       (Znth i (unfold_reptype v1) (default_val _))) as [? _].
     tauto.
@@ -290,7 +290,7 @@ Proof.
 Qed.
 
 Instance Proper_fold_reptype_array: forall t n a,
-  Proper ((@zl_equiv (reptype t) (default_val _) (list_zlist _ _) 0 n) 
+  Proper ((@zl_equiv (reptype t) (default_val _) (list_zlist _ _) 0 n)
                ==> (@data_equal (Tarray t n a))) (@fold_reptype _ _ (Tarray t n a)).
 Proof.
   intros.

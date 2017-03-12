@@ -11,7 +11,7 @@ Require Import concurrency.pos.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 
-(*NOTE: because of redefinition of [val], these imports must appear 
+(*NOTE: because of redefinition of [val], these imports must appear
   after Ssreflect eqtype.*)
 Require Import compcert.common.AST.     (*for typ*)
 Require Import compcert.common.Values. (*for val*)
@@ -70,7 +70,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
       FineConc.MachStep the_ge (i :: U, tr, tp) m (U, tr ++ tr', tp') m' ->
       fine_execution (U, tr ++ tr', tp') m' (U', tr ++ tr' ++ tr'', tp'') m'' ->
       fine_execution (i :: U,tr,tp) m (U',tr ++ tr' ++ tr'',tp'') m''.
-  
+
   (** Complete executions of the SC machine *)
   Inductive sc_execution :
     SC.MachState -> mem -> SC.MachState -> mem -> Prop :=
@@ -111,16 +111,16 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
   Qed.
 
   (** ** Generic Properties of executions and steps *)
-  
+
   (** A property of steps is that any sequence of events added by
     one external step is a singleton *)
   Lemma fstep_ext_trace:
     forall (a : tid) U
-      (i : nat) (tr tr' : SC.event_trace) (tp tp' : thread_pool) 
+      (i : nat) (tr tr' : SC.event_trace) (tp tp' : thread_pool)
       (m m' : mem) (ev : machine_event),
       is_external ev ->
       nth_error tr' i = Some ev ->
-      FineConc.MachStep the_ge ((a :: U)%SEQ, tr, tp) m 
+      FineConc.MachStep the_ge ((a :: U)%SEQ, tr, tp) m
                         (U, tr ++ tr', tp') m' ->
       tr' = [:: ev].
   Proof.
@@ -270,7 +270,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
     eapply IHHexec.
     eapply fstep_valid_block; eauto.
   Qed.
-  
+
   Lemma fstep_trace_monotone:
     forall U tp m tr U' tp' m' tr'
       (Hstep: FineConc.MachStep the_ge (U, tr, tp) m
@@ -299,7 +299,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
       eapply IHU in H9.
       now eauto.
   Qed.
-  
+
   (** Decomposing steps based on an external event*)
   Lemma multi_fstep_inv_ext:
     forall U U' i tr tr' tp m tp' m' ev
@@ -514,8 +514,8 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
         replace ((U' ++ [:: a]) ++ U) with (U' ++ (a :: U)).
         eauto.
         rewrite <- app_assoc. simpl. reflexivity.
-  Qed. 
-  
+  Qed.
+
   Lemma  multi_fstep_refl:
     forall U tr tp m tr' tp' m'
       (Hexec: multi_fstep (U, tr, tp) m (U, tr', tp') m'),
@@ -532,7 +532,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
   Qed.
 
   (** A location that the machine has no access to (i.e. the permission is
-  empty in all its resources) *) 
+  empty in all its resources) *)
   Inductive deadLocation tp m b ofs : Prop :=
   | Dead: forall
       (Hvalid: Mem.valid_block m b)
@@ -552,7 +552,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
     inversion H.
     constructor; eauto.
   Qed.
-  
+
   Lemma fstep_deadLocation:
     forall U U' tr tp m tr' tp' m' b ofs
       (Hdead: deadLocation tp m b ofs)
@@ -658,7 +658,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
           simpl in Hangel1, Hangel2.
           destruct Hangel1 as [_ Hangel1];
             destruct Hangel2 as [_ Hangel2].
-          
+
           repeat match goal with
                  | [H: context[match ?X with _ => _ end] |- _] =>
                    destruct X eqn:?
@@ -895,7 +895,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
           left.
           exists j, cntj'.
           rewrite gLockSetRes gssThreadRes.
-          pf_cleanup.        
+          pf_cleanup.
           now eauto using po_trans.
         * left.
           exists j, cntj'.
@@ -1090,7 +1090,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
     - subst tp'; auto.
     - subst tp'; auto.
   Qed.
-  
+
   (** If some address is a lock and there is no event of type Freelock at this
   address in some trace tr then the address is still a lock at the resulting
   state *)
@@ -1223,7 +1223,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
       inv H;
       now auto.
   Qed.
-    
+
   (** If (b, ofs) is not in the list of freed locations and b
           is a valid block then the permissions remains the same
           (cannot be freed or allocated)*)
@@ -1522,14 +1522,14 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
               + assert (Hfreeable:permission_at m'' b0 ofs' Cur = None)
                   by (eapply MemoryLemmas.permission_at_alloc_3; eauto).
                 pose proof (Mem.valid_new_block _ _ _ _ _ Halloc) as Hvalid.
-                pose proof (ev_elim_stable _ ofs' _ Hvalid ltac:(rewrite Hfreeable; simpl; now constructor) Helim') as Heq. 
+                pose proof (ev_elim_stable _ ofs' _ Hvalid ltac:(rewrite Hfreeable; simpl; now constructor) Helim') as Heq.
                 rewrite <- Heq.
                 rewrite Hfreeable.
                 split; intros; now eauto using ev_elim_valid_block.
             - assert (Hfreeable:permission_at m'' b0 ofs' Cur = None).
                 by (eapply MemoryLemmas.permission_at_alloc_3; eauto; left; omega).
                 pose proof (Mem.valid_new_block _ _ _ _ _ Halloc) as Hvalid.
-                pose proof (ev_elim_stable _ ofs' _ Hvalid ltac:(rewrite Hfreeable; simpl; now constructor) Helim') as Heq. 
+                pose proof (ev_elim_stable _ ofs' _ Hvalid ltac:(rewrite Hfreeable; simpl; now constructor) Helim') as Heq.
                 rewrite <- Heq.
                 rewrite Hfreeable.
                 split; intros; now eauto using ev_elim_valid_block.
@@ -1632,7 +1632,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
                     destruct ((getThreadR cnt).2 !! b ofs);
                       [by exfalso | reflexivity].
                   * (** case i is a different thread than the one that stepped*)
-                    (** by the invariant*) 
+                    (** by the invariant*)
                     assert (cnti' := cntUpdate' cnti).
                     erewrite! gsoThreadRes with (cntj := cnti')
                       by (intro Hcontra; subst; auto).
@@ -1810,7 +1810,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
               unfold Intv.In, lksize.LKSIZE in i.
               simpl in i.
               ssromega.
-            } 
+            }
             specialize (Hneq_perms Hrange).
             replace ((nat_of_Z (ofs - Int.intval ofs0)).+1) with
             (nat_of_Z (ofs - Int.intval ofs0 +1)) in Hneq_perms.
@@ -1822,7 +1822,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
               by (unfold lksize.LKSIZE in *; simpl in *; ssromega).
             omega.
             rewrite setPermBlock_var_other_1 in Hperm'.
-            now auto. 
+            now auto.
             apply Intv.range_notin in n.
             destruct n; eauto.
             unfold lksize.LKSIZE.
@@ -1834,7 +1834,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
         + exfalso.
           rewrite gRemLockSetRes gsoThreadRes in Hperm';
             now eauto.
-    Qed. 
+    Qed.
 
     (** Lifting [data_permission_decrease_step] to multiple steps using [multi_fstep] *)
     Lemma data_permission_decrease_execution:
@@ -1865,7 +1865,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
              (exists rmap, match location evu with
                       | Some (laddr, sz) =>
                         sz = lksize.LKSIZE_nat /\
-                        lockRes tp_dec laddr = Some rmap /\ 
+                        lockRes tp_dec laddr = Some rmap /\
                         Mem.perm_order'' (rmap.1 !! b ofs) (Some Readable)
                       | None => False
                       end))).
@@ -1886,7 +1886,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
                 [data_permission_decrease_step] applies directly*)
           destruct (perm_order''_dec ((getThreadR cnt').1 !! b ofs)
                                      (Some Readable)) as [Hincr | Hdecr].
-          
+
           { (** Case permissions increased*)
             rewrite app_assoc in H9.
             (** And we can apply the IH*)
@@ -2147,7 +2147,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
         + exfalso.
           rewrite gRemLockSetRes gsoThreadRes in Hperm';
             now eauto.
-    Qed. 
+    Qed.
 
     (** Lifting [lock_permission_decrease_step] to multiple steps using [multi_fstep] *)
     Lemma lock_permission_decrease_execution:
@@ -2178,7 +2178,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
              (exists rmap, match location evu with
                       | Some (laddr, sz) =>
                         sz = lksize.LKSIZE_nat /\
-                        lockRes tp_dec laddr = Some rmap /\ 
+                        lockRes tp_dec laddr = Some rmap /\
                         Mem.perm_order'' (rmap.2 !! b ofs) (Some Readable)
                       | None => False
                       end))).
@@ -2199,7 +2199,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
                 [data_permission_decrease_step] applies directly*)
           destruct (perm_order''_dec ((getThreadR cnt').2 !! b ofs)
                                      (Some Readable)) as [Hincr | Hdecr].
-          
+
           { (** Case permissions increased*)
             rewrite app_assoc in H9.
             (** And we can apply the IH*)
@@ -2353,7 +2353,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
              (exists rmap, match location evu with
                       | Some (laddr, sz) =>
                         sz = lksize.LKSIZE_nat /\
-                        lockRes tp_dec laddr = Some rmap /\ 
+                        lockRes tp_dec laddr = Some rmap /\
                         (Mem.perm_order'' (rmap.1 !! b ofs) (Some Readable) \/
                          Mem.perm_order'' (rmap.2 !! b ofs) (Some Readable))
                       | None => False
@@ -2388,7 +2388,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
              end; subst;
         eexists; repeat split; eauto.
     Qed.
-    
+
     (** Permission increase: A thread can increase its data permissions on a valid block by:
 - If it is spawned
 - A freelock operation, turning a lock into data.
@@ -2488,7 +2488,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
           eexists.
           left.
           simpl; split;
-            now eauto. 
+            now eauto.
         + exfalso.
           rewrite gsoAddRes gsoThreadRes in Hperm';
             now eauto.
@@ -2540,7 +2540,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
           rewrite gRemLockSetRes gsoThreadRes in Hperm';
             now eauto.
     Qed.
-    
+
     Lemma data_permission_increase_execution:
       forall U tr tpi mi U' tr' tpj mj
         b ofs tidn
@@ -2753,7 +2753,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
           eexists.
           left.
           simpl; split;
-            now eauto. 
+            now eauto.
         + exfalso.
           rewrite gsoAddRes gsoThreadRes in Hperm';
             now eauto.
@@ -2797,7 +2797,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
             simpl in Hperm';
               now auto.
             rewrite setPermBlock_other_1 in Hperm'.
-            now auto. 
+            now auto.
             apply Intv.range_notin in n.
             destruct n; eauto.
             unfold lksize.LKSIZE.
@@ -2810,7 +2810,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
           rewrite gRemLockSetRes gsoThreadRes in Hperm';
             now eauto.
     Qed.
-    
+
     Lemma lock_permission_increase_execution:
       forall U tr tpi mi U' tr' tpj mj
         b ofs tidn
@@ -3025,7 +3025,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
       erewrite gsolockResRemLock, gsoThreadLPool in Hres' by eauto.
         by congruence.
     Qed.
-    
+
     Lemma lockRes_mklock_execution:
       forall U tr tpi mi U' tpj mj tr' laddr rmapj
         (Hres: lockRes tpi laddr = None)
@@ -3105,7 +3105,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
       erewrite gsolockResRemLock, gsoThreadLPool in Hres' by eauto.
         by congruence.
     Qed.
-    
+
     Lemma lockRes_freelock_execution:
       forall U tr tpi mi U' tpj mj tr' laddr rmapi
         (Hres: lockRes tpi laddr = Some rmapi)
@@ -3155,7 +3155,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
             repeat split; eauto using multi_fstep.
           }
     Qed.
-    
+
     Lemma lockRes_data_permission_decrease_step:
       forall U tr tp m U' tp' m' tr' laddr rmap rmap' b ofs
         (Hres: lockRes tp laddr = Some rmap)
@@ -3229,7 +3229,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
           rewrite Hres' in Hres; inv Hres;
             now eauto.
     Qed.
-    
+
 
     Lemma lockRes_data_permission_decrease_execution:
       forall U tr tpi mi U' tpj mj tr' laddr rmapi rmapj b ofs
@@ -3281,7 +3281,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
             rewrite Hempty.1 in Hperm.
             simpl in Hperm.
             assumption.
-          } 
+          }
     Qed.
 
     Lemma lockRes_lock_permission_decrease_step:
@@ -3408,9 +3408,9 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
             rewrite Hempty.2 in Hperm.
             simpl in Hperm.
             assumption.
-          } 
+          }
     Qed.
-    
+
     Lemma lockRes_permission_decrease_execution:
       forall U tr tpi mi U' tpj mj tr' laddr rmapi rmapj b ofs
         (Hres: lockRes tpi laddr = Some rmapi)
@@ -3429,7 +3429,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
         eauto using lockRes_data_permission_decrease_execution,
         lockRes_lock_permission_decrease_execution.
     Qed.
-    
+
     Lemma lockRes_data_permission_increase_step:
       forall U tr tp m U' tp' m' tr' laddr rmap rmap' b ofs
         (Hres: lockRes tp laddr = Some rmap)
@@ -3599,7 +3599,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
       exists v ev,
         nth_error tr' v = Some ev /\ action ev = Release /\
         location ev = Some (laddr, lksize.LKSIZE_nat)
-    with 
+    with
     lockRes_data_permission_increase_execution U {struct U}:
       forall U' tr tpi mi tpj mj tr' laddr rmapi rmapj b ofs
         (Hres: lockRes tpi laddr = Some rmapi)
@@ -3696,7 +3696,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
       exists v ev,
         nth_error tr' v = Some ev /\ action ev = Release /\
         location ev = Some (laddr, lksize.LKSIZE_nat)
-    with 
+    with
     lockRes_lock_permission_increase_execution U {struct U}:
       forall U' tr tpi mi tpj mj tr' laddr rmapi rmapj b ofs
         (Hres: lockRes tpi laddr = Some rmapi)
@@ -3784,7 +3784,7 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
           }
       }
     Qed.
-    
+
     Lemma lockRes_permission_increase_execution:
       forall U tr tpi mi U' tpj mj tr' laddr rmapi rmapj b ofs
         (Hres: lockRes tpi laddr = Some rmapi)
@@ -3869,5 +3869,5 @@ Module Executions (SEM: Semantics) (SemAxioms: SemanticsAxioms SEM)
           econstructor; eauto.
           rewrite! app_assoc; eauto.
   Qed.
-  
+
 End Executions.

@@ -34,7 +34,7 @@ Module Type KNOT_INPUT__COCONTRAVARIANT_HERED_T_OTH_REL.
   Parameter T:Type.
   Parameter T_bot:T.
 
-  Parameter T_rel : T -> T -> Prop.  
+  Parameter T_rel : T -> T -> Prop.
   Parameter T_rel_bot : forall x, T_rel T_bot x.
   Parameter T_rel_refl : forall x, T_rel x x.
   Parameter T_rel_trans : transitive T T_rel.
@@ -72,7 +72,7 @@ Module Type KNOT__COCONTRAVARIANT_HERED_T_OTH_REL.
     n = n' /\ Rel predicate predicate f f'.
 
   Axiom knot_age1 : forall k:knot,
-    age1 k = 
+    age1 k =
     match unsquash k with
     | (O,_) => None
     | (S n,x) => Some (squash (n,x))
@@ -122,7 +122,7 @@ Module Type KNOT__COVARIANT_HERED_PROP_OTH_REL.
   Import KI.
 
   Parameter knot : Type.
-  
+
   Parameter ageable_knot : ageable knot.
   Existing Instance ageable_knot.
 
@@ -145,7 +145,7 @@ Module Type KNOT__COVARIANT_HERED_PROP_OTH_REL.
     unsquash (squash (n,x')) = (n, fmap F (approx n) x').
 
   (* Definition of the expandM modality *)
-  
+
   Definition knot_rel (k1 k2:knot) :=
     let (n,f) := unsquash k1 in
     let (n',f') := unsquash k2 in
@@ -186,7 +186,7 @@ Module Type KNOT__COVARIANT_HERED_PROP_OTH.
   Import KI.
 
   Parameter knot : Type.
-  
+
   Parameter ageable_knot : ageable knot.
   Existing Instance ageable_knot.
 
@@ -209,7 +209,7 @@ Module Type KNOT__COVARIANT_HERED_PROP_OTH.
   (* Definitions of the "ageable" operations *)
   Axiom knot_level : forall (k:knot),
     level k = fst (unsquash k).
-   
+
   Axiom knot_age1 : forall (k:knot),
     age1 k =
     match unsquash k with
@@ -220,8 +220,8 @@ Module Type KNOT__COVARIANT_HERED_PROP_OTH.
   Axiom unsquash_inj : forall k1 k2,
     unsquash k1 = unsquash k2 ->
     k1 = k2.
-  Implicit Arguments unsquash_inj.
-  
+  Arguments unsquash_inj [k1 k2] _.
+
   Axiom squash_surj : forall k, exists n, exists Fp,
     squash (n, Fp) = k.
 
@@ -229,7 +229,7 @@ Module Type KNOT__COVARIANT_HERED_PROP_OTH.
     unsquash k = (n, Fp) ->
     Fp = KI.fmap (approx n) Fp.
   Implicit Arguments unsquash_approx [k n Fp].
-  
+
   Axiom approx_approx1 : forall m n,
     approx n = approx n oo approx (m+n).
 
@@ -253,7 +253,7 @@ Module Type KNOT__COVARIANT_HERED_PROP.
   Import KI.
 
   Parameter knot : Type.
-  
+
   Parameter ageable_knot : ageable knot.
   Existing Instance ageable_knot.
 
@@ -268,11 +268,11 @@ Module Type KNOT__COVARIANT_HERED_PROP.
     squash (unsquash x) = x.
   Axiom unsquash_squash : forall n x',
     unsquash (squash (n,x')) = (n, fmap F (approx n) x').
-  
+
   (* Definitions of the "ageable" operations *)
   Axiom knot_level : forall (k:knot),
     level k = fst (unsquash k).
-   
+
   Axiom knot_age1 : forall (k:knot),
     age1 k =
     match unsquash k with
@@ -284,8 +284,8 @@ Module Type KNOT__COVARIANT_HERED_PROP.
   Axiom unsquash_inj : forall k1 k2,
     unsquash k1 = unsquash k2 ->
     k1 = k2.
-  Implicit Arguments unsquash_inj.
-  
+  Arguments unsquash_inj [k1 k2] _.
+
   Axiom squash_surj : forall k, exists n, exists Fp,
     squash (n, Fp) = k.
 
@@ -293,7 +293,7 @@ Module Type KNOT__COVARIANT_HERED_PROP.
     unsquash k = (n, Fp) ->
     Fp = fmap (approx n) Fp.
   Implicit Arguments unsquash_approx [k n Fp].
-  
+
   Axiom approx_approx1 : forall m n,
     approx n = approx n oo approx (m+n).
 
@@ -316,7 +316,7 @@ Module Type KNOT__MIXVARIANT_HERED_PROP.
   Import KI.
 
   Parameter knot : Type.
-  
+
   Parameter ageable_knot : ageable knot.
   Existing Instance ageable_knot.
 
@@ -332,11 +332,11 @@ Module Type KNOT__MIXVARIANT_HERED_PROP.
     squash (unsquash x) = x.
   Axiom unsquash_squash : forall n x',
     unsquash (squash (n,x')) = (n, fmap F (approx n) (approx n) x').
-  
+
   (* Definitions of the "ageable" operations *)
   Axiom knot_level : forall (k:knot),
     level k = fst (unsquash k).
-   
+
   Axiom knot_age1 : forall (k:knot),
     age1 k =
     match unsquash k with
@@ -423,7 +423,7 @@ Module Knot_CoContraVariantHeredTOthRel
     n = n' /\ KI.Rel predicate predicate f f'.
 
   Definition knot_age1 : forall k:knot,
-    age1 k = 
+    age1 k =
     match unsquash k with
     | (O,_) => None
     | (S n,x) => Some (squash (n,x))
@@ -460,7 +460,7 @@ Module KnotLemmas_CoContraVariantHeredTOthRel
        (knot_full_variant.KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
      (knot_full_variant.KnotLemmas1.Proof).
   Qed.
-  Implicit Arguments unsquash_inj.
+  Arguments unsquash_inj [k1 k2] _.
 
   Lemma squash_surj : forall k, exists n, exists Fp,
     squash (n, Fp) = k.
@@ -480,8 +480,8 @@ Module KnotLemmas_CoContraVariantHeredTOthRel
        (knot_full_variant.KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
      (knot_full_variant.KnotLemmas1.Proof).
   Qed.
-  Implicit Arguments unsquash_approx.
-  
+  Arguments unsquash_approx [k n Fp] _.
+
   Lemma pred_ext : forall (p1 p2:predicate),
     (forall x, proj1_sig p1 x = proj1_sig p2 x) ->
     p1 = p2.
@@ -551,7 +551,7 @@ Module Knot_CovariantHeredPropOthRel (KI':KNOT_INPUT__COVARIANT_HERED_PROP_OTH_R
 
     Definition T := Prop.
     Definition T_bot := False.
-  
+
     Definition T_rel (x y:T) := x -> y.
     Lemma T_rel_bot : forall x, T_rel T_bot x.
     Proof.
@@ -687,7 +687,7 @@ Module Knot_CovariantHeredPropOthRel (KI':KNOT_INPUT__COVARIANT_HERED_PROP_OTH_R
     Definition predicate: Type := assert.
 
     Lemma boxy_expand_spec: forall (p: pred (K0.knot*KI.other)),
-      boxy expandM p <-> 
+      boxy expandM p <->
       (fun p: pred (K0.knot*KI.other) =>
          forall x y, expandR x y -> proj1_sig p x -> proj1_sig p y) p.
     Proof.
@@ -819,7 +819,7 @@ Module KnotLemmas_CovariantHeredPropOthRel
        (knot_full_variant.KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
      (knot_full_variant.KnotLemmas1.Proof).
   Qed.
-  Implicit Arguments unsquash_inj.
+  Arguments unsquash_inj [k1 k2] _.
 
   Lemma squash_surj : forall k, exists n, exists Fp,
     squash (n, Fp) = k.
@@ -839,7 +839,7 @@ Module KnotLemmas_CovariantHeredPropOthRel
        (knot_full_variant.KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
      (knot_full_variant.KnotLemmas1.Proof).
   Qed.
-  Implicit Arguments unsquash_approx.
+  Arguments unsquash_approx [k n Fp] _.
 
   Lemma pred_ext : forall (p1 p2: assert),
     (forall x, proj1_sig p1 x = proj1_sig p2 x) ->
@@ -882,7 +882,6 @@ Module KnotLemmas_CovariantHeredPropOthRel
          (@proj1_sig _ _) _ pred_ext approx_spec')),
      (knot_full_variant.KnotLemmas2.Proof).
   Qed.
-  Implicit Arguments unsquash_inj.
 
 End KnotLemmas_CovariantHeredPropOthRel.
 
@@ -897,7 +896,7 @@ Module Knot_CovariantHeredPropOth (KI':KNOT_INPUT__COVARIANT_HERED_PROP_OTH)
   Module Input.
     Definition F: functor := CovariantFunctor_MixVariantFunctor KI.F.
     Definition other := KI.other.
-    
+
     Definition Rel A := @eq (F A).
     Lemma Rel_fmap : forall A B (f:A -> B) (s:B -> A) x y,
       Rel A x y ->
@@ -929,7 +928,7 @@ Module Knot_CovariantHeredPropOth (KI':KNOT_INPUT__COVARIANT_HERED_PROP_OTH)
 
     Definition T := Prop.
     Definition T_bot := False.
-  
+
     Definition T_rel (x y:T) := x -> y.
     Lemma T_rel_bot : forall x, T_rel T_bot x.
     Proof.
@@ -1067,7 +1066,7 @@ Module KnotLemmas_CovariantHeredPropOth (K: KNOT__COVARIANT_HERED_PROP_OTH).
        (knot_full_variant.KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
      (knot_full_variant.KnotLemmas1.Proof).
   Qed.
-  Implicit Arguments unsquash_inj.
+  Arguments unsquash_inj [k1 k2] _.
 
   Lemma squash_surj : forall k, exists n, exists Fp,
     squash (n, Fp) = k.
@@ -1087,7 +1086,7 @@ Module KnotLemmas_CovariantHeredPropOth (K: KNOT__COVARIANT_HERED_PROP_OTH).
        (knot_full_variant.KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
      (knot_full_variant.KnotLemmas1.Proof).
   Qed.
-  Implicit Arguments unsquash_approx.
+  Arguments unsquash_approx [k n Fp] _.
 
   Lemma pred_ext : forall (p1 p2: pred (knot * other)),
     (forall x, p1 x = p2 x) ->
@@ -1129,7 +1128,6 @@ Module KnotLemmas_CovariantHeredPropOth (K: KNOT__COVARIANT_HERED_PROP_OTH).
          (@proj1_sig _ _) _ pred_ext approx_spec')),
      (knot_full_variant.KnotLemmas2.Proof).
   Qed.
-  Implicit Arguments unsquash_inj.
 
 End KnotLemmas_CovariantHeredPropOth.
 
@@ -1176,7 +1174,7 @@ Module Knot_CovariantHeredProp (KI':KNOT_INPUT__COVARIANT_HERED_PROP)
 
     Definition T := Prop.
     Definition T_bot := False.
-  
+
     Definition T_rel (x y:T) := x -> y.
     Lemma T_rel_bot : forall x, T_rel T_bot x.
     Proof.
@@ -1304,7 +1302,7 @@ Module KnotLemmas_CovariantHeredProp (K: KNOT__COVARIANT_HERED_PROP).
        (knot_full_variant.KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
      (knot_full_variant.KnotLemmas1.Proof).
   Qed.
-  Implicit Arguments unsquash_inj.
+  Arguments unsquash_inj [k1 k2] _.
 
   Lemma squash_surj : forall k, exists n, exists Fp,
     squash (n, Fp) = k.
@@ -1324,7 +1322,7 @@ Module KnotLemmas_CovariantHeredProp (K: KNOT__COVARIANT_HERED_PROP).
        (knot_full_variant.KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
      (knot_full_variant.KnotLemmas1.Proof).
   Qed.
-  Implicit Arguments unsquash_approx.
+  Arguments unsquash_approx [k n Fp] _.
 
   Lemma pred_ext : forall (p1 p2: pred knot),
     (forall x, p1 x = p2 x) ->
@@ -1380,7 +1378,6 @@ Module KnotLemmas_CovariantHeredProp (K: KNOT__COVARIANT_HERED_PROP).
          _ _ pred_ext' approx_spec')),
      (knot_full_variant.KnotLemmas2.Proof).
   Qed.
-  Implicit Arguments unsquash_inj.
 
 End KnotLemmas_CovariantHeredProp.
 
@@ -1427,7 +1424,7 @@ Module Knot_MixVariantHeredProp (KI':KNOT_INPUT__MIXVARIANT_HERED_PROP)
 
     Definition T := Prop.
     Definition T_bot := False.
-  
+
     Definition T_rel (x y:T) := x -> y.
     Lemma T_rel_bot : forall x, T_rel T_bot x.
     Proof.
@@ -1557,7 +1554,7 @@ Module KnotLemmas_MixVariantHeredProp (K': KNOT__MIXVARIANT_HERED_PROP).
        (knot_full_variant.KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
      (knot_full_variant.KnotLemmas1.Proof).
   Qed.
-  Implicit Arguments unsquash_inj.
+  Arguments unsquash_inj [k1 k2] _.
 
   Lemma squash_surj : forall k, exists n, exists Fp,
     squash (n, Fp) = k.
@@ -1577,7 +1574,7 @@ Module KnotLemmas_MixVariantHeredProp (K': KNOT__MIXVARIANT_HERED_PROP).
        (knot_full_variant.KnotLemmas1.Build_Input _ _ _ _ _ squash_unsquash unsquash_squash)),
      (knot_full_variant.KnotLemmas1.Proof).
   Qed.
-  Implicit Arguments unsquash_approx.
+  Arguments unsquash_approx [k n Fp] _.
 
   Lemma pred_ext : forall (p1 p2: pred knot),
     (forall x, p1 x = p2 x) ->
@@ -1633,7 +1630,6 @@ Module KnotLemmas_MixVariantHeredProp (K': KNOT__MIXVARIANT_HERED_PROP).
          _ _ pred_ext' approx_spec')),
      (knot_full_variant.KnotLemmas2.Proof).
   Qed.
-  Implicit Arguments unsquash_inj.
 
 End KnotLemmas_MixVariantHeredProp.
 

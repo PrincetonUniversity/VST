@@ -57,7 +57,7 @@ Fixpoint fmap_instr {A B} (f:A->B) (x:instr A) : instr B :=
 
 Inductive value: Set :=
   | value_label: label -> value
-  | value_cons: value -> value -> value. 
+  | value_cons: value -> value -> value.
 
 Definition store := map value.
 Definition store_empty : store := empty value.
@@ -77,7 +77,7 @@ Definition termMeasure_incr (s1 s2:terminationMeasure) :=
 
 Module KnotInput <: KNOT_INPUT__HERED_PROP_OTH_REL.
   Definition F := program.
-  
+
   Definition fmap A B (f:A->B) := map_fmap _ _ (fmap_instr f).
   Implicit Arguments fmap [A B].
 
@@ -226,7 +226,7 @@ Inductive step (t:terminationMeasure) : prog -> prog -> store -> stack -> store 
 
 Inductive stepstar (t:terminationMeasure) : prog -> prog -> store -> stack -> store -> stack ->  Prop :=
  | stepstar_O: forall s i p, stepstar t p p s i s i
- | stepstar_S: forall p p' p'' s i s' i' s'' i'', 
+ | stepstar_S: forall p p' p'' s i s' i' s'' i'',
               step t p p' s i s' i' -> stepstar t p' p'' s' i' s'' i'' -> stepstar t p p'' s i s'' i''.
 
 Inductive step_or_halt (t:terminationMeasure) : prog -> store -> stack -> Prop :=
@@ -235,7 +235,7 @@ Inductive step_or_halt (t:terminationMeasure) : prog -> store -> stack -> Prop :
   | step_or_halt_halt: forall p r,
       step_or_halt t p r nil.
 
-Definition safe (t:terminationMeasure) (p: prog) (s: store) (k: stack) := 
+Definition safe (t:terminationMeasure) (p: prog) (s: store) (k: stack) :=
    forall p' s' k', stepstar t p p' s k s' k' -> step_or_halt t p' s' k'.
 
 Definition safe_prog (p: program assert) (l:label) :=
@@ -252,7 +252,7 @@ Definition eventually_halts (t:terminationMeasure) (p:prog) (r:store) (s:stack) 
 
 Inductive stepN : nat -> terminationMeasure -> prog -> prog -> store -> stack -> store -> stack ->  Prop :=
  | stepN_O: forall t p s i, stepN O t p p s i s i
- | stepN_S: forall n t s i p p' p'' s' i' s'' i'', 
+ | stepN_S: forall n t s i p p' p'' s' i' s'' i'',
               step t p p' s i s' i' -> stepN n t p' p'' s' i' s'' i'' -> stepN (S n) t p p'' s i s'' i''.
 
 Lemma stepstar_stepN : forall t p p' s i s' i',
@@ -267,7 +267,7 @@ Proof.
   apply H.
   apply Hn.
 Qed.
- 
+
 Lemma stepN_stepstar : forall t p p' n s i s' i',
   stepN n t p p' s i s' i' ->
   stepstar t p p' s i s' i'.

@@ -11,7 +11,7 @@ Open Scope Z.
 
 Definition of nested_field_type2, nested_field_offset2
 
-The principle of this part is only exposing nft2 and nfo2 to users 
+The principle of this part is only exposing nft2 and nfo2 to users
 and hide the implimentation of nf_rec
 
 ************************************************)
@@ -81,7 +81,7 @@ Fixpoint nested_field_rec (t: type) (gfs: list gfield) : option (prod Z type) :=
   | nil => Some (0, t)
   | hd :: tl =>
     match nested_field_rec t tl with
-    | Some (pos, t') => 
+    | Some (pos, t') =>
       match t', hd with
       | Tarray t'' n _, ArraySubsc i => Some(pos + sizeof t'' * i, t'')
       | Tstruct id _, StructField i =>
@@ -108,7 +108,7 @@ Fixpoint nested_field_rec (t: type) (gfs: list gfield) : option (prod Z type) :=
   | nil => Some (0, t)
   | hd :: tl =>
     match nested_field_rec t tl with
-    | Some (pos, t') => 
+    | Some (pos, t') =>
       match t', hd with
       | Tarray t'' n _, ArraySubsc i => Some(pos + sizeof t'' * i, t'')
       | Tstruct id _, StructField i =>
@@ -214,7 +214,7 @@ Lemma nested_field_offset_ind: forall t gfs,
   nested_field_offset t gfs =
   match gfs with
   | nil => 0
-  | gf :: gfs0 => nested_field_offset t gfs0 + gfield_offset (nested_field_type t gfs0) gf 
+  | gf :: gfs0 => nested_field_offset t gfs0 + gfield_offset (nested_field_type t gfs0) gf
   end.
 Proof.
   intros.
@@ -235,7 +235,7 @@ Lemma nested_field_offset_ind': forall t gfs,
   nested_field_offset t gfs =
   match gfs with
   | nil => 0
-  | gf :: gfs0 => nested_field_offset t gfs0 + gfield_offset (nested_field_type t gfs0) gf 
+  | gf :: gfs0 => nested_field_offset t gfs0 + gfield_offset (nested_field_type t gfs0) gf
   end.
 Proof.
   intros.
@@ -283,7 +283,7 @@ Lemma nested_field0_offset_ind: forall t gfs,
   nested_field_offset t gfs =
   match gfs with
   | nil => 0
-  | gf :: gfs0 => nested_field_offset t gfs0 + gfield_offset (nested_field_type t gfs0) gf 
+  | gf :: gfs0 => nested_field_offset t gfs0 + gfield_offset (nested_field_type t gfs0) gf
   end.
 Proof.
   intros.
@@ -300,7 +300,7 @@ Proof.
 Qed.
 
 Ltac valid_nested_field_rec f a T :=
-  let H := fresh "H" in 
+  let H := fresh "H" in
   let t := fresh "t" in
   let ofs := fresh "ofs" in
   simpl in T; destruct (nested_field_rec f a) as [[ofs t]|] eqn:H; [|inversion T].
@@ -329,7 +329,7 @@ Proof.
   tauto.
 Qed.
 
-Lemma nested_field_rec_cons_eq_Some_lemma: forall t gf gfs ofs0 t0, 
+Lemma nested_field_rec_cons_eq_Some_lemma: forall t gf gfs ofs0 t0,
   nested_field_rec t (gf :: gfs) = Some (ofs0, t0)
   <->
   match gf, nested_field_rec t gfs with
@@ -412,7 +412,7 @@ Ltac solve_nested_field_rec_cons_eq_Some H :=
   let co := fresh "co" in
   let CO := fresh "CO" in
   match type of H with
-  | (nested_field_rec ?T (?A :: ?GFS) = Some (?OFS, ?T0)) => 
+  | (nested_field_rec ?T (?A :: ?GFS) = Some (?OFS, ?T0)) =>
     destruct (nested_field_rec_cons_eq_Some_lemma T A GFS OFS T0) as [HH _];
     specialize (HH H);
     destruct A eqn:HeqA;
@@ -639,7 +639,7 @@ Proof.
   split; [| tauto].
   omega.
 Qed.
-  
+
 Lemma field_compatible_field_compatible0':
   forall (t : type) (i : Z) (gfs : list gfield) (p : val),
   field_compatible t (ArraySubsc i :: gfs) p <->
@@ -655,7 +655,7 @@ Proof.
 Qed.
 
 Lemma field_compatible0_range:
- forall i lo hi t gfs p, 
+ forall i lo hi t gfs p,
    lo <= i <= hi ->
    field_compatible0 t (ArraySubsc lo :: gfs) p ->
    field_compatible0 t (ArraySubsc hi :: gfs) p ->
@@ -671,7 +671,7 @@ Proof.
 Qed.
 
 Lemma field_compatible_range:
- forall i lo hi t gfs p, 
+ forall i lo hi t gfs p,
    lo <= i < hi ->
    field_compatible0 t (ArraySubsc lo :: gfs) p ->
    field_compatible0 t (ArraySubsc hi :: gfs) p ->
@@ -683,7 +683,7 @@ Proof.
 Qed.
 
 Lemma is_pointer_or_null_field_compatible:
-  forall t path c, 
+  forall t path c,
      is_pointer_or_null (field_address t path c) ->
       field_compatible t path c.
 Proof.
@@ -757,7 +757,7 @@ Lemma gfield_type_nested_pred: forall {atom_pred: type -> bool}, atom_pred Tvoid
   nested_pred atom_pred t = true -> nested_pred atom_pred (gfield_type t gf) = true.
 Proof.
   intros.
-  destruct t as [| | | | | | | id ? | id ?], gf; auto; 
+  destruct t as [| | | | | | | id ? | id ?], gf; auto;
    unfold gfield_type in *; rewrite nested_pred_eq in H0.
   + rewrite andb_true_iff in H0.
     tauto.
@@ -1009,7 +1009,7 @@ Proof.
   simpl in *.
   rewrite (Z.max_r 0 z) by omega.
   assert (0 <= Z.max 0 (hi - lo) <= hi) by (apply arith_aux05; omega).
-  assert (0 <= lo + Z.max 0 (hi - lo) <= z) by (apply arith_aux06; omega).  
+  assert (0 <= lo + Z.max 0 (hi - lo) <= z) by (apply arith_aux06; omega).
   pose_size_mult cenv_cs t (0 :: Z.max 0 (hi - lo) :: hi :: nil).
   pose_size_mult cenv_cs t (0 :: lo :: lo + Z.max 0 (hi - lo) :: z :: nil).
   omega.
@@ -1033,7 +1033,7 @@ Proof.
     omega.
   + unfold gfield_type, gfield_offset.
     pose_sizeof_co (Tunion id a).
-    pose proof sizeof_union_in_members _ _ H. 
+    pose proof sizeof_union_in_members _ _ H.
     pose proof sizeof_pos (field_type i (co_members (get_co id))).
     omega.
 Qed.
@@ -1298,7 +1298,7 @@ Lemma align_compatible_nested_field0: forall t gfs p,
 Proof.
   intros.
   destruct p; simpl in *; try tauto.
-  unfold Int.unsigned; simpl. 
+  unfold Int.unsigned; simpl.
   unfold Int.unsigned; simpl.
   repeat rewrite Int.Z_mod_modulus_eq.
   rewrite Zplus_mod_idemp_r.
@@ -1515,14 +1515,14 @@ Hint Extern 1 (legal_nested_field0 _ _) => (eapply field_compatible0_legal_neste
 
 Lemma lvar_size_compatible:
   forall  {cs: compspecs} id t v rho,
-  locald_denote (lvar id t v) rho -> 
+  locald_denote (lvar id t v) rho ->
   sizeof t <= Int.modulus ->
   size_compatible t v.
 Proof.
-intros. hnf in H. 
+intros. hnf in H.
 destruct (Map.get (ve_of rho) id) as [[? ?] | ]; try contradiction.
 destruct H; subst.
-red. 
+red.
 rewrite Int.unsigned_zero. rewrite Z.add_0_l; auto.
 Qed.
 
@@ -1547,8 +1547,8 @@ reflexivity.
 Qed.
 
 Lemma gvar_field_compatible:
-  forall {cs: compspecs} i s rho t, 
-    locald_denote (gvar i s) rho -> 
+  forall {cs: compspecs} i s rho t,
+    locald_denote (gvar i s) rho ->
     sizeof t < Int.modulus ->
    legal_alignas_type t = true ->
    legal_cosu_type t = true ->
@@ -1575,6 +1575,6 @@ apply compute_in_members_true_iff. auto.
 Qed.
 
 Hint Extern 2 (field_compatible _ (StructField _ :: _) _) =>
-  (apply field_compatible_cons; split; [ apply compute_in_members_e; reflexivity | ]) 
+  (apply field_compatible_cons; split; [ apply compute_in_members_e; reflexivity | ])
       : field_compatible.
 

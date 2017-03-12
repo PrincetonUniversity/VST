@@ -14,8 +14,8 @@ Import Semax.
 
 Section PROG.
 
-Let a : var := 0. 
-Let s : var := 1. 
+Let a : var := 0.
+Let s : var := 1.
 Let p : var := 2.
 Let r : var := 3.
 Let START : adr := 0.
@@ -23,7 +23,7 @@ Let LOOP : adr := 1.
 Let DONE : adr := 2.
 
 Definition STARTbody := (a::nil,
-                  Do Mem a := a .+ 1; Do Mem (a .+ 1) := a .+ 2; Do Mem (a .+ 2) := Const 0; 
+                  Do Mem a := a .+ 1; Do Mem (a .+ 1) := a .+ 2; Do Mem (a .+ 2) := Const 0;
                   Go LOOP ((a.+3)::(Var a)::(Var a)::(Const DONE)::nil)).
 
 Definition LOOPbody := (a::s::p::r::nil,
@@ -32,15 +32,15 @@ Definition LOOPbody := (a::s::p::r::nil,
 
 Definition DONEbody := (a::s::nil,  Go DONE (Var a::Var s::nil)).
 
-Definition myprog : program := 
+Definition myprog : program :=
    (START, STARTbody):: (LOOP,  LOOPbody) :: (DONE,   DONEbody) :: nil.
 
-Definition STARTspec : funspec := (a::nil, 
+Definition STARTspec : funspec := (a::nil,
                fun s => allocpool (eval (Var a) s)).
-Definition DONEspec: funspec := (a::s::nil, 
+Definition DONEspec: funspec := (a::s::nil,
                fun s' => lseg (eval (Var s) s') (eval (Const 0) s') * allocpool (eval (Var a) s')).
 Definition LOOPspec: funspec :=  (a::s::p::r::nil,
-              fun s' => lseg (eval (Var s) s') (eval (Var p) s') 
+              fun s' => lseg (eval (Var s) s') (eval (Var p) s')
                * lseg (eval (Var p) s') (eval (Const 0) s')
                * allocpool (eval (Var a) s')
                && cont DONEspec (eval (Var r) s')).
@@ -48,7 +48,7 @@ Definition LOOPspec: funspec :=  (a::s::p::r::nil,
 Definition myspec := (START, STARTspec):: ((LOOP, LOOPspec) :: (DONE, DONEspec) :: nil).
 
 
-Lemma prove_START: semax_body myspec STARTspec STARTbody. 
+Lemma prove_START: semax_body myspec STARTspec STARTbody.
  eapply semax_pre; [intro ; call_tac; apply derives_refl |  simpl ].
  rewrite' alloc.
  apply semax_prop; auto; intros _.
@@ -73,10 +73,10 @@ Lemma prove_START: semax_body myspec STARTspec STARTbody.
  apply next_lseg;  omega.
 Qed.
 
-Lemma prove_LOOP: semax_body myspec LOOPspec LOOPbody. 
+Lemma prove_LOOP: semax_body myspec LOOPspec LOOPbody.
   eapply semax_pre; [intro ; call_tac; apply derives_refl | simpl ].
  forward.
- apply semax_pre 
+ apply semax_pre
    with  (fun s' => EX x: adr, (next (s' p) x * |>lseg x 0 * lseg (s' s) (s' p) * allocpool (s' a)) &&
      cont DONEspec (s' r)).
  intro s'. normalize.
@@ -122,7 +122,7 @@ Lemma prove_LOOP: semax_body myspec LOOPspec LOOPbody.
  apply andp_left1.
  rewrite (sepcon_comm (lseg (s0 s) _)). auto.
  forward.
- normalize. 
+ normalize.
  apply andp_left1. apply andp_left2. apply derives_refl.
  simpl. normalize.
  autorewrite with args. rewrite H. rewrite lseg_eq. normalize.
@@ -130,7 +130,7 @@ Lemma prove_LOOP: semax_body myspec LOOPspec LOOPbody.
  apply andp_left1. auto.
 Qed.
 
-Lemma prove_DONE: semax_body myspec DONEspec DONEbody. 
+Lemma prove_DONE: semax_body myspec DONEspec DONEbody.
   eapply semax_pre; [intro ; call_tac; apply derives_refl | simpl ].
  forward.
  apply andp_left1.
@@ -150,10 +150,10 @@ Qed.
    split. apply prove_myspec. reflexivity.
  Qed.
 
-Definition run' (p: program) (n: nat) : bool := 
- match 
+Definition run' (p: program) (n: nat) : bool :=
+ match
     stepN p (nil, initial_heap p, Go (Const 0) (Const (boundary p) :: nil)) n
-  with None => false | _ => true 
+  with None => false | _ => true
  end.
 
 Compute run' myprog 100.

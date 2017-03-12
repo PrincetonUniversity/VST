@@ -31,7 +31,7 @@ Require Import concurrency.juicy_machine. Import Concur.
 Require Import concurrency.dry_machine. Import Concur.
 
 (*The simulations*)
-Require Import sepcomp.wholeprog_simulations. 
+Require Import sepcomp.wholeprog_simulations.
 
 Definition init_inj_ok (j: Values.Val.meminj) m:=
   forall b b' ofs, j b = Some (b', ofs) ->
@@ -43,7 +43,7 @@ Module Type ErasureSig.
   Declare Module SCH: Scheduler with Module TID:=NatTID.
   Declare Module SEM: Semantics.
   Import SCH SEM.
-    
+
   Declare Module JSIG: ConcurrentMachineSig
       with Module ThreadPool.TID:= NatTID
       with Module ThreadPool.SEM:= SEM.
@@ -54,20 +54,20 @@ Module Type ErasureSig.
   Notation jstate:= JSEM.ThreadPool.t.
   Notation jmachine_state:= JuicyMachine.MachState.
 
-  
+
   Declare Module DSIG: ConcurrentMachineSig
       with Module ThreadPool.TID:= NatTID
       with Module ThreadPool.SEM:= SEM.
   Declare Module DryMachine: ConcurrentMachine
       with Module SCH:=SCH
       with Module SIG:= DSEM.
-  Notation DMachineSem:= DryMachine.MachineSemantics. 
+  Notation DMachineSem:= DryMachine.MachineSemantics.
   Notation dstate:= DSEM.ThreadPool.t.
   Notation dmachine_state:= DryMachine.MachState.
 
   (*Parameter parch_state : jstate ->  dstate.*)
   Parameter match_st : jstate ->  dstate -> Prop.
-  
+
   (*match axioms*)
   Axiom MTCH_cnt: forall {js tid ds},
            match_st js ds ->
@@ -75,19 +75,19 @@ Module Type ErasureSig.
   Axiom MTCH_cnt': forall {js tid ds},
            match_st js ds ->
            DSEM.ThreadPool.containsThread ds tid -> JSEM.ThreadPool.containsThread js tid.
-        
+
        Axiom  MTCH_getThreadC: forall js ds tid c,
            forall (cnt: JSEM.ThreadPool.containsThread js tid)
              (cnt': DSEM.ThreadPool.containsThread ds tid)
              (M: match_st js ds),
              JSEM.ThreadPool.getThreadC cnt =  c ->
              DSEM.ThreadPool.getThreadC cnt'  =  c.
-        
+
        Axiom MTCH_compat: forall js ds m,
            match_st js ds ->
          JSEM.mem_compatible js m ->
          DSEM.mem_compatible ds m.
-        
+
        Axiom MTCH_updt:
            forall js ds tid c
              (H0:match_st js ds)
@@ -95,7 +95,7 @@ Module Type ErasureSig.
              (cnt': DSEM.ThreadPool.containsThread ds tid),
              match_st (JSEM.ThreadPool.updThreadC cnt c)
                        (DSEM.ThreadPool.updThreadC cnt' c).
-       
+
   Variable genv: G.
   Variable main: Values.val.
   Variable match_rmap_perm: JuicyMachine.SIG.ThreadPool.RES.res -> DryMachine.SIG.ThreadPool.RES.res -> Prop.
@@ -113,7 +113,7 @@ Module Type ErasureSig.
 
   Axiom core_diagram:
     forall (m : mem)  (U0 U U': schedule) rmap pmap
-     (ds : dstate) (js js': jstate) 
+     (ds : dstate) (js js': jstate)
      (m' : mem),
    corestep (JMachineSem U0 rmap) genv (U, js) m (U', js') m' ->
    match_st js ds ->
@@ -159,7 +159,7 @@ Module ErasureFnctr (PC:ErasureSig).
         args1 = args2 ->
         m1 = m2 ->
         halt_inv j g1 args1 m1 g2 args2 m2.
-  
+
   Definition ge_inv: G -> G -> Prop:= @eq G.
   Definition core_data:= unit.
   Definition core_ord: unit-> unit -> Prop := fun _ _ => False.
@@ -171,12 +171,12 @@ Module ErasureFnctr (PC:ErasureSig).
       DSEM.invariant ds -> (*This could better go inside the state... but it's fine here. *)
       match_st js ds ->
       match_state d j  (U, js) m (U, ds) m.
-  
-  
-  
+
+
+
   Lemma core_ord_wf:  well_founded core_ord.
   Proof. constructor; intros y H; inversion H. Qed.
-  
+
   Theorem erasure: forall U rmap pmap,
       PC.match_rmap_perm rmap pmap ->
       Wholeprog_sim.Wholeprog_sim
@@ -215,5 +215,5 @@ Module ErasureFnctr (PC:ErasureSig).
       constructor; reflexivity.
       rewrite <- H1; symmetry. (apply halted_diagram); reflexivity.
   Qed.
-      
+
 End ErasureFnctr.

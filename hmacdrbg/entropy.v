@@ -18,8 +18,8 @@ Inductive result X: Type: Type :=
 | error : error_code -> stream -> @result X
 .
 
-Arguments success {X} _ _. 
-Arguments error {X} _ _. 
+Arguments success {X} _ _.
+Arguments error {X} _ _.
 
 Parameter get_bytes: nat -> stream -> result (list Z).
 Parameter get_bits: nat -> stream -> result (list bool).
@@ -40,8 +40,8 @@ Inductive result X: Type: Type :=
 | error : error_code -> stream -> @result X
 .
 
-Arguments success {X} _ _. 
-Arguments error {X} _ _. 
+Arguments success {X} _ _.
+Arguments error {X} _ _.
 
 Fixpoint get_bits (k: nat) (s: stream): result (list bool) :=
   match k with
@@ -185,7 +185,7 @@ Proof.
              | 0%nat => S k''
              | S l => (k'' - l)%nat
              end) with 1%nat by (destruct k''; omega).
-    
+
   }
   {
     destruct k' as [|k''].
@@ -218,5 +218,5 @@ End OPTIONAL_ENTROPY.
 
 Module ENTROPY := OPTIONAL_ENTROPY.
 
-Definition get_entropy (security_strength min_length max_length: Z) (prediction_resistance: bool) s := 
+Definition get_entropy (security_strength min_length max_length: Z) (prediction_resistance: bool) s :=
            ENTROPY.get_bytes (Z.to_nat min_length) s.

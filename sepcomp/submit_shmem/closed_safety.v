@@ -17,9 +17,9 @@ Variable ge : G.
 Fixpoint safeN (n : nat) (c : C) (m : M) : Prop :=
   match n with
     | O => True
-    | S n' => 
+    | S n' =>
       match halted sem c with
-        | None => 
+        | None =>
           exists c', exists m',
             corestep sem ge c m c' m' /\
             safeN n' c' m'
@@ -43,8 +43,8 @@ intros. apply IHle. apply safe_downward1. auto.
 Qed.
 
 Lemma safe_corestep_forward c m c' m' n :
-  corestep_fun sem -> 
-  corestep sem ge c m c' m' -> safeN (S n) c m -> 
+  corestep_fun sem ->
+  corestep sem ge c m c' m' -> safeN (S n) c m ->
   safeN n c' m'.
 Proof.
 simpl; intros.
@@ -57,8 +57,8 @@ inv H3; auto.
 Qed.
 
 Lemma safe_corestepN_forward c m c' m' n n0 :
-  corestep_fun sem -> 
-  corestepN sem ge n0 c m c' m' -> 
+  corestep_fun sem ->
+  corestepN sem ge n0 c m c' m' ->
   safeN (n + S n0) c m -> safeN n c' m'.
 Proof.
 intros.
@@ -67,15 +67,15 @@ induction n0; intros; auto.
 simpl in H0; inv H0.
 eapply safe_downward in H1; eauto. omega.
 simpl in H0. destruct H0 as [c2 [m2 [STEP STEPN]]].
-apply (IHn0 _ _ _ _ n STEPN). 
+apply (IHn0 _ _ _ _ n STEPN).
 assert (Heq: (n + S (S n0) = S (n + S n0))%nat) by omega.
 rewrite Heq in H1.
 eapply safe_corestep_forward in H1; eauto.
 Qed.
 
 Lemma safe_corestep_backward c m c' m' n :
-  corestep sem ge c m c' m' -> 
-  safeN (n - 1) c' m' -> 
+  corestep sem ge c m c' m' ->
+  safeN (n - 1) c' m' ->
   safeN n c m.
 Proof.
 simpl; intros.
@@ -87,8 +87,8 @@ rewrite Heq; auto.
 Qed.
 
 Lemma safe_corestepN_backward c m c' m' n n0 :
-  corestepN sem ge n0 c m c' m' -> 
-  safeN (n - n0) c' m' -> 
+  corestepN sem ge n0 c m c' m' ->
+  safeN (n - n0) c' m' ->
   safeN n c m.
 Proof.
 simpl; intros.
@@ -97,9 +97,9 @@ induction n0; intros; auto.
 simpl in H; inv H.
 solve[assert (Heq: (n = n - 0)%nat) by omega; rewrite Heq; auto].
 simpl in H. destruct H as [c2 [m2 [STEP STEPN]]].
-assert (H: safeN (n - 1 - n0) c' m'). 
+assert (H: safeN (n - 1 - n0) c' m').
 eapply safe_downward in H0; eauto. omega.
-specialize (IHn0 _ _ _ _ (n - 1)%nat STEPN H). 
+specialize (IHn0 _ _ _ _ (n - 1)%nat STEPN H).
 eapply safe_corestep_backward; eauto.
 Qed.
 

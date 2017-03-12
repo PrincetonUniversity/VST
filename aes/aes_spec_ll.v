@@ -101,7 +101,7 @@ match cols with (col0, (col1, (col2, col3))) =>
 end.
 
 Parameter mbed_tls_final_fround: four_ints -> list Z -> Z -> four_ints.
-Axiom mbed_tls_final_fround_def: mbed_tls_final_fround = 
+Axiom mbed_tls_final_fround_def: mbed_tls_final_fround =
 fun (cols : four_ints) (rks : list Z) (i : Z) =>
 match cols with (col0, (col1, (col2, col3))) =>
   ((mbed_tls_final_fround_col col0 col1 col2 col3 (Znth  i    rks 0)),
@@ -264,7 +264,7 @@ match cols with (col0, (col1, (col2, col3))) =>
   ((mbed_tls_final_fround_col col2 col3 col0 col1 (Znth (i+2) rks 0)),
    (mbed_tls_final_fround_col col3 col0 col1 col2 (Znth (i+3) rks 0)))))
 end.
-Lemma mbed_tls_final_fround_def: mbed_tls_final_fround = 
+Lemma mbed_tls_final_fround_def: mbed_tls_final_fround =
 fun (cols : four_ints) (rks : list Z) (i : Z) =>
 match cols with (col0, (col1, (col2, col3))) =>
   ((mbed_tls_final_fround_col col0 col1 col2 col3 (Znth  i    rks 0)),

@@ -9,7 +9,7 @@ Set Implicit Arguments.
 Require Import fcf.Crypto.
 Require Import Permutation.
 Require Import fcf.NotationV1.
-  
+
 Definition RndNat_unchecked(n : nat) :=
   v <-$ {0,1} ^ (lognat n);
   let n := (bvToNat v) in
@@ -27,7 +27,7 @@ Notation "[ 0 '..' n )" := (RndNat n)
 Lemma well_formed_RndNat : forall n,
   n > O ->
   well_formed_comp (RndNat n).
-  
+
   intuition.
   unfold RndNat.
   eapply (well_formed_Repeat).
@@ -53,25 +53,25 @@ Lemma well_formed_RndNat : forall n,
   eapply Fold.in_flatten.
   econstructor.
   split.
-  
+
   eapply in_map_iff.
   econstructor.
   split.
   eauto.
-  
+
   eapply in_getAllBvectors.
-  
+
   specialize (bvNat_zero (lognat n)); intuition.
   simpl in *.
   left.
   eapply H0.
-  
+
 Qed.
 
 Lemma RndNat_support_lt : forall n x,
   In x (getSupport (RndNat n)) ->
   x < n.
-  
+
   intuition.
   unfold RndNat in *.
   simpl in *.
@@ -87,7 +87,7 @@ Hint Resolve well_formed_RndNat : wftac.
 Lemma RndNat_unchecked_lt_support : forall n v,
   v < n ->
   In v (getSupport (RndNat_unchecked n)).
-  
+
   intuition.
   unfold RndNat_unchecked.
 
@@ -95,43 +95,43 @@ Lemma RndNat_unchecked_lt_support : forall n v,
   eapply in_getAllBvectors.
   simpl.
   left.
-  
+
   eapply bvToNat_natToBv_inverse.
   eapply lognat_monotonic.
   omega.
- 
-  
+
+
 Qed.
 
 Local Open Scope rat_scope.
 
 Lemma RndNat_uniform : forall v1 v2 n,
   v1 < n ->
-  v2 < n -> 
+  v2 < n ->
   evalDist (RndNat n) v1 == evalDist (RndNat n) v2.
-  
+
   intuition.
-    
+
   eapply evalDist_Repeat_eq; intuition.
   unfold RndNat_unchecked.
   remember (lognat n) as length.
   eapply (evalDist_iso
     (BVxor length (BVxor length (natToBv length v1) (natToBv length v2)))
     (BVxor length (BVxor length (natToBv length v1) (natToBv length v2)))); intuition.
-  
+
 (*
   eapply getSupport_In_evalDist.
   intuition.
   eapply getSupport_In_evalDist.
   intuition.
 *)
- 
+
   remember (BVxor length (natToBv length v1) (natToBv length v2)) as z.
   rewrite <- BVxor_assoc.
   rewrite BVxor_same_id.
   rewrite BVxor_id_l.
   trivial.
-  
+
   rewrite <- BVxor_assoc.
   rewrite BVxor_same_id.
   rewrite BVxor_id_l.
@@ -139,9 +139,9 @@ Lemma RndNat_uniform : forall v1 v2 n,
 
   simpl.
   eapply in_getAllBvectors.
-  
+
   eapply uniformity.
-  
+
   simpl.
   destruct (EqDec_dec nat_EqDec (bvToNat x) v2); subst.
   destruct (EqDec_dec nat_EqDec
@@ -152,17 +152,17 @@ Lemma RndNat_uniform : forall v1 v2 n,
   intuition.
   exfalso.
   eapply n0.
-    
+
   rewrite natToBv_bvToNat_inverse.
-  
+
   rewrite BVxor_assoc.
   rewrite BVxor_same_id.
   rewrite BVxor_id_r.
-  
+
   eapply bvToNat_natToBv_inverse.
   eapply lognat_monotonic.
   omega.
-  
+
   destruct (EqDec_dec nat_EqDec
     (bvToNat
       (BVxor (lognat n)
@@ -177,16 +177,16 @@ Lemma RndNat_uniform : forall v1 v2 n,
   eauto.
   apply BVxor_id_inv in H2.
   rewrite <- H2.
-  
+
   eapply bvToNat_natToBv_inverse.
   eapply lognat_monotonic.
   omega.
 
   intuition.
-  
+
   unfold ltNatBool.
   destruct (lt_dec v1 n); destruct (lt_dec v2 n); congruence.
-  
+
   eapply filter_In; intuition.
   eapply RndNat_unchecked_lt_support.
   trivial.
@@ -197,7 +197,7 @@ Qed.
 Lemma in_getSupport_RndNat : forall x k,
   x < k ->
   In x (getSupport (RndNat k)).
-  
+
   intuition.
   simpl.
   eapply filter_In.
@@ -222,13 +222,13 @@ Qed.
 
 
 
-Theorem RndNat_prob : 
+Theorem RndNat_prob :
   forall n i (nzn : nz n),
     i < n ->
     evalDist (RndNat n) i == 1 / n.
-  
+
   intuition.
-  
+
   eapply (@ratMult_same_r_inv _ (n / 1)).
   rewrite ratMult_eq_rat1.
   eapply eqRat_trans.
@@ -237,7 +237,7 @@ Theorem RndNat_prob :
   eapply well_formed_RndNat.
   destruct nzn.
   apply agz.
-  
+
   symmetry.
   eapply eqRat_trans.
   eapply sumList_body_eq; intuition.
@@ -245,11 +245,11 @@ Theorem RndNat_prob :
   eapply RndNat_support_lt; intuition.
   trivial.
   rewrite sumList_body_const.
-  
-  Lemma RndNat_support_length : 
-    forall n, 
+
+  Lemma RndNat_support_length :
+    forall n,
       length (getSupport (RndNat n)) = n.
-    
+
     intuition.
     rewrite (@Permutation_length _ _ (forNats n)).
     eapply forNats_length.
@@ -257,15 +257,15 @@ Theorem RndNat_prob :
     eapply getSupport_NoDup.
     eapply forNats_NoDup.
     intuition.
-    
+
     eapply forNats_In.
     eapply RndNat_support_lt; intuition.
-    
+
     eapply in_getSupport_RndNat.
     eapply forNats_In; intuition.
-    
+
   Qed.
-  
+
   rewrite RndNat_support_length.
   intuition.
   intuition.
@@ -276,11 +276,11 @@ Theorem RndNat_prob :
 Qed.
 
 
-Theorem RndNat_seq : 
+Theorem RndNat_seq :
   forall (n : posnat)(A : Set)(c : nat -> Comp A) a,
     evalDist (x <-$ RndNat n; c x) a ==
     (1 / n) * sumList (allNatsLt n) (fun z => evalDist (c z) a).
-  
+
   intuition.
   rewrite evalDist_seq_step.
   eapply eqRat_trans.
@@ -304,14 +304,14 @@ Theorem RndNat_seq :
   eapply in_getSupport_RndNat.
   eapply allNatsLt_lt.
   trivial.
-  
+
 Qed.
 
-Lemma rndNat_sumList : 
+Lemma rndNat_sumList :
   forall (A : Set)(f : nat -> Comp A) n (nzn : nz n) x,
-    evalDist (i <-$ RndNat n; f i) x == 
+    evalDist (i <-$ RndNat n; f i) x ==
     sumList (forNats n) (fun i => (1 / n) * (evalDist (f i) x)).
-  
+
   intuition.
   unfold evalDist.
   fold evalDist.
@@ -332,7 +332,7 @@ Lemma rndNat_sumList :
   eapply sumList_body_eq.
   intuition.
   eapply ratMult_eqRat_compat; intuition.
-  
+
 
 
   eapply RndNat_prob.

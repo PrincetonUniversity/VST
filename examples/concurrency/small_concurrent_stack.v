@@ -39,7 +39,7 @@ provide which map to give away], and then the oracle itself is
 
 and do the same.  We adopt the spawning with an ID instead because
 it's closer to the architecture of VST *)
-                                       
+
 
 (*+ General results about safety *)
 
@@ -91,7 +91,7 @@ Proof.
     clear -it; induction it. constructor.
     econstructor; eauto.
   - intros Sx y st.
-    cut (exists n, iter R n x y). 
+    cut (exists n, iter R n x y).
     { intros (n, it). refine (Sx (S n) _ n _ it). auto. }
     clear -st; induction st.
     + exists 0; constructor.
@@ -168,7 +168,7 @@ Proof.
   simpl; f_equal.
   eauto.
 Qed.
-      
+
 Lemma nth_app_1 {A} (l1 l2 : list A) i x :
   nth l1 i = Some x ->
   nth (l1 ++ l2) i = Some x.
@@ -859,13 +859,13 @@ Proof.
   destruct x as (((([|i sch], F), G), thd), pool);
     intros xy; inversion xy; subst; intros (PR & FF & J & M & S);
       simpl fst in *; simpl snd in *.
-  
+
   - (* out of schedule *)
     hnf; intuition; eauto.
-  
+
   - (* schedule out of bound *)
     hnf; intuition; eauto.
-    
+
   - (* set *)
     repeat split; auto.
     + eapply selfjoins_sameperms_compat; [..|apply J]; intros [k|]; simpl; eauto.
@@ -877,7 +877,7 @@ Proof.
       ifeq; subst; auto.
       intros. rewr.
       eapply safe_R; eauto.
-  
+
   - (* assert *)
     repeat split; auto.
     + eapply selfjoins_sameperms_compat; [..|apply J]; intros [k|]; simpl; eauto.
@@ -889,7 +889,7 @@ Proof.
       ifeq; subst; auto.
       intros. rewr.
       eapply safe_R; eauto.
-  
+
   - (* release *)
     simpl; repeat split; auto.
     + assert (Empl : match pool l with None => True | Some ml => empty ml end). {
@@ -919,10 +919,10 @@ Proof.
       ifeq; subst; auto.
       intros. rewr.
       eapply safe_R; eauto.
-  
+
   - (* acquire (locked) *)
     repeat split; eauto.
-  
+
   - (* acquire (unlocked) *)
     repeat split; auto.
     + eapply (selfjoins_swapped natnateqdec (inl i) (inr l) J).
@@ -942,7 +942,7 @@ Proof.
       intros; rewr.
       specialize (M l); rewr (pool l) in *.
       eapply safe_R; eauto.
-  
+
   - (* halted *)
     repeat split; eauto.
 
@@ -1230,7 +1230,7 @@ Ltac forward :=
     | eapply semax_cons
     ]; auto.
 
-(* The following example show that running two (or more) copies of the 
+(* The following example show that running two (or more) copies of the
 following program is safe:
 
   acquire;
@@ -1271,7 +1271,7 @@ Proof.
   }
   apply semax_safe.
   assert (r: resinvs G 0 = mapsto 5 1) by reflexivity.
-  
+
   forward.
   rewrite r.
   apply semax_pre with (mapsto_ 5); [ intros x; apply mapsto_mapsto_ | ].

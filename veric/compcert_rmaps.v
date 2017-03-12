@@ -4,9 +4,9 @@ Require Import veric.shares.
 Require Import veric.rmaps.
 Require Import veric.rmaps_lemmas.
 
-Inductive kind : Type := VAL : memval -> kind 
-                                   | LK : Z -> kind 
-                                   | CT: Z -> kind 
+Inductive kind : Type := VAL : memval -> kind
+                                   | LK : Z -> kind
+                                   | CT: Z -> kind
                                    | FUN: funsig -> calling_convention -> kind.
 
 Definition isVAL (k: kind) := match k with | VAL _ => True | _ => False end.
@@ -54,13 +54,13 @@ destruct k; auto; intros.
  generalize (H b ofs); intro H'; generalize (H0 b ofs); intro H0'.
  generalize (J (b,ofs)); rewrite H1; intro H8.
  inv H8. clear H'.  rewrite H6 in H0'. specialize (H0' _ H2).
- specialize (J (b,ofs+i)); rewrite H0' in J. 
+ specialize (J (b,ofs+i)); rewrite H0' in J.
  inv J; auto.
  specialize (H b (ofs+i)). rewrite <- H3 in H. destruct a1. inv H8. simpl in *.
  inv H9. destruct H as [n [? ?]]. replace (ofs+i-i) with ofs in H8 by omega.
  rewrite <- H4 in H8; inv H8.
  clear H0'. rewrite H6 in H'. specialize (H' _ H2).
- specialize (J (b,ofs+i)); rewrite H' in J. 
+ specialize (J (b,ofs+i)); rewrite H' in J.
  inv J; auto.
  specialize (H0 b (ofs+i)). rewrite <- H4 in H0. destruct a2. inv H8. simpl in *.
  inv H9. destruct H0 as [n [? ?]]. replace (ofs+i-i) with ofs in H8 by omega.
@@ -73,7 +73,7 @@ destruct k; auto; intros.
  replace (ofs+i-i) with ofs in H6,H7 by omega.
  rewrite <- H4 in H7; inv H7. rewrite <- H3 in H6; inv H6.
  specialize (J (b,ofs+i)). rewrite (H' _ H2) in J. rewrite (H0' _ H2) in J.
- inv J; auto. inv H9; auto. simpl in *. destruct a3; simpl in *. inv H7. 
+ inv J; auto. inv H9; auto. simpl in *. destruct a3; simpl in *. inv H7.
  f_equal. f_equal. eapply join_eq; eauto.
 (** CT -> LK **)
  generalize (H b ofs); intros H'; generalize (H0 b ofs); intro H0'.
@@ -82,17 +82,17 @@ destruct k; auto; intros.
  specialize (J (b,ofs-z)); rewrite H4 in J.
  inv J; auto. destruct a1; destruct a3. destruct H9. simpl in *. inv H9.
  specialize (H b (ofs-z)). rewrite <- H6 in H.
- specialize (H _ H2). 
+ specialize (H _ H2).
  replace (ofs-z+z) with ofs in H by omega. congruence.
  rewrite H1 in H5. rewrite H5 in H'. destruct H' as [n [? ?]]; exists n; split; auto.
  specialize (J (b,ofs-z)); rewrite H3 in J.
- inv J; auto. destruct a2; destruct a3. destruct H9. simpl in *. inv H9. 
+ inv J; auto. destruct a2; destruct a3. destruct H9. simpl in *. inv H9.
  specialize (H0 b (ofs-z)). rewrite <- H7 in H0.
- specialize (H0 _ H2). 
+ specialize (H0 _ H2).
  replace (ofs-z+z) with ofs in H0 by omega. congruence.
  destruct a1; destruct a2; destruct a3.
- rewrite <- H3 in H0'; rewrite <- H2 in H'. destruct H5. destruct H6. simpl in *; subst. 
- rewrite H1 in H4. inv H4. 
+ rewrite <- H3 in H0'; rewrite <- H2 in H'. destruct H5. destruct H6. simpl in *; subst.
+ rewrite H1 in H4. inv H4.
  destruct H' as [n [? ?]]. exists n; split; auto.
  specialize (J (b,ofs-z)). rewrite H6 in J.
  assert (g (b,ofs-z) = Some (r0, LK n)).
@@ -166,9 +166,9 @@ Qed.
 Lemma store_valid:
   forall (f f' :  address -> option (rshare*kind)),
    CompCert_AV.valid f ->
-     (forall l, f l = f' l \/ 
+     (forall l, f l = f' l \/
                   match f l, f' l with
-                  | Some (_, k) , Some (_, k') =>    isVAL k /\ isVAL k' 
+                  | Some (_, k) , Some (_, k') =>    isVAL k /\ isVAL k'
                   | Some(_, k), None => isVAL k
                   | None, Some(_, k') => isVAL k'
                   | None, None => True
@@ -227,16 +227,16 @@ Qed.
 
 Instance EqDec_kind: EqDec kind.
 Proof.
-  hnf. decide equality; try apply eq_dec; try apply zeq.  
+  hnf. decide equality; try apply eq_dec; try apply zeq.
 Qed.
 
 Module R := Rmaps (CompCert_AV).
 Module RML := Rmaps_Lemmas(R).
 
-Export RML. 
+Export RML.
 Export R.
 
-Lemma rmap_valid_e1: forall r b ofs n i, 0 < i < n -> 
+Lemma rmap_valid_e1: forall r b ofs n i, 0 < i < n ->
      forall sh, res_option (r @ (b,ofs)) = Some (sh, LK n) -> res_option (r @ (b,ofs+i))= Some (sh, CT i).
 Proof.
 intros until sh.
@@ -247,7 +247,7 @@ auto.
 Qed.
 
 Lemma rmap_valid_e2:  forall r b ofs i sh,
-    res_option (r @ (b,ofs+i)) = Some (sh, CT i) -> 
+    res_option (r @ (b,ofs+i)) = Some (sh, CT i) ->
             exists n, 0 < i < n /\ res_option (r @ (b,ofs)) = Some (sh, LK n).
 Proof.
 intros until sh.
@@ -388,7 +388,7 @@ Lemma fixup_join : forall a (ac ad: address -> Share.t)  z,
   (forall x, @join_sub _ Join_pk (a x) (z x)) ->
   (forall x, join (ac x) (ad x) (share_of (a x))) ->
   (forall x,
-    @join _ Join_pk 
+    @join _ Join_pk
     (fixup_splitting ac z x)
     (fixup_splitting ad z x)
     (a x)).
@@ -618,16 +618,16 @@ Proof.
 Qed.
 
 Instance Cross_rmap_aux: Cross_alg (sig AV.valid).
-Proof. 
+Proof.
  hnf. intros [a Ha] [b Hb] [c Hc] [d Hd] [z Hz] ? ?.
  hnf in H,H0. simpl in H,H0.
  destruct (cross_split_fun Share.t _ address share_cross_split
                    (share_of oo a) (share_of oo b) (share_of oo c) (share_of oo d) (share_of oo z))
   as [[[[ac ad] bc] bd] [? [? [? ?]]]].
- intro x. specialize (H x). unfold compose. 
+ intro x. specialize (H x). unfold compose.
  clear - H. inv H; simpl in *. apply join_unit1; auto. apply join_unit2; auto.
  destruct a1; destruct a2; destruct a3; apply H3.
- intro x. specialize (H0 x). unfold compose. 
+ intro x. specialize (H0 x). unfold compose.
  clear - H0. inv H0; simpl in *. apply join_unit1; auto. apply join_unit2; auto.
  destruct a1; destruct a2; destruct a3; apply H3.
  assert (Sac: forall x : address, join_sub (ac x) (share_of (z x))).
@@ -733,7 +733,7 @@ Qed.
 Instance Trip_rmap : Trip_alg rmap.
 Proof.
 intro; intros.
-pose (f loc := @Trip_resource _ _ _ _ _ _ 
+pose (f loc := @Trip_resource _ _ _ _ _ _
                  (resource_at_join _ _ _ loc H)
                  (resource_at_join _ _ _ loc H0)
                  (resource_at_join _ _ _ loc H1)).
@@ -961,7 +961,7 @@ Program Definition writable (l: address): pred rmap :=
   intro; intros.
   generalize (age1_res_option a a' l H); intro.
   destruct (a @ l); try contradiction.
-  simpl in H1. 
+  simpl in H1.
   destruct (a' @ l); inv H1; auto.
   destruct H0; split; auto.
   unfold writable_share in *.
@@ -975,18 +975,18 @@ Program Definition writable (l: address): pred rmap :=
   apply Share.glb_lower2.
 Qed.
 
-Program Definition readable (loc: address) : pred rmap := 
+Program Definition readable (loc: address) : pred rmap :=
    fun phi => match phi @ loc with YES _ _ k _ => isVAL k | _ => False end.
  Next Obligation.
   intro; intros.
   generalize (age1_res_option a a' loc H); intro.
   destruct (a @ loc); try contradiction.
-  simpl in H1. 
+  simpl in H1.
   destruct (a' @ loc); inv H1; auto.
   Qed.
 
 Lemma readable_join:
-  forall phi1 phi2 phi3 loc, join phi1 phi2 phi3 -> 
+  forall phi1 phi2 phi3 loc, join phi1 phi2 phi3 ->
             readable loc phi1 -> readable loc phi3.
 Proof.
 unfold readable; intros until loc.
@@ -1029,7 +1029,7 @@ destruct (join_assoc H0 H) as [c [? ?]].
 exists c; auto.
 Qed.
 
-Lemma writable_join: forall loc phi1 phi2, join_sub phi1 phi2 -> 
+Lemma writable_join: forall loc phi1 phi2, join_sub phi1 phi2 ->
             writable loc phi1 -> writable loc phi2.
 Proof.
 unfold writable; intros.
@@ -1056,7 +1056,7 @@ destruct H.
 destruct k; try solve [inversion H0].
 exists sh, r, m0, p; split; auto.
 Qed.
-Implicit Arguments writable_e.
+Arguments writable_e [loc] [m] _.
 
 Lemma readable_e: forall loc m, 
    readable loc m -> 
@@ -1067,7 +1067,7 @@ destruct k; try solve [inversion H].
 subst.
 econstructor; eauto.
 Qed.
-Implicit Arguments readable_e.
+Arguments readable_e [loc] [m] _.
 
 Definition bytes_writable (loc: address) (size: Z) (phi: rmap) : Prop :=
   forall i, (0 <= i < size) -> writable (adr_add loc i) phi.
@@ -1077,7 +1077,7 @@ Definition bytes_readable (loc: address) (size: Z) (phi: rmap) : Prop :=
 
 Lemma readable_dec (loc: address) (phi: rmap) : {readable loc phi} + {~readable loc phi}.
 Proof. intros.
-unfold readable. simpl. 
+unfold readable. simpl.
 case (phi @ loc); intros; auto.
 apply isVAL_dec.
 Qed.
@@ -1197,7 +1197,7 @@ Hint Resolve bytes_writable_readable : mem.
 Lemma rmap_age_i:
  forall w w' : rmap,
     level w = S (level w') ->
-   (forall l, resource_fmap (approx (level w')) (approx (level w')) (w @ l) = w' @ l) -> 
+   (forall l, resource_fmap (approx (level w')) (approx (level w')) (w @ l) = w' @ l) ->
     age w w'.
 Proof.
 intros.

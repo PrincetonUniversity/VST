@@ -168,7 +168,7 @@ int main(){
   initialize_channels();
 
   spawn((void *)&writer, NULL);
-  
+
   for(int i = 0; i < N; i++){
     int *d = surely_malloc(sizeof(int));
     *d = i;
@@ -177,4 +177,4 @@ int main(){
 
   while(1);
 }
-  
+

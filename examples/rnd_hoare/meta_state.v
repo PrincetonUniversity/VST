@@ -230,7 +230,7 @@ Proof.
   assert (prefix_history (fin_history nil) h_limit) by (hnf; intros [|]; left; auto).
   specialize (H n (fin_history nil) (fin_history_fin _) H0); clear H0.
   destruct H as [n0 [h0 [? [? [? ?]]]]].
-  
+
   destruct (fun HH => RandomVarDomainStream_mono Omegas n n0 HH h0 H2) as [h [? ?]]; [omega |].
   exists h.
   split; auto.
@@ -245,7 +245,7 @@ Proof.
   destruct H as [n [? ?]].
   destruct (H0 0 (fstn_history (S n) h1) (fstn_history_finite _ _) (fstn_history_prefix _ _)) as [m1 [h1' [? [? [? ?]]]]].
   destruct (H1 0 (fstn_history (S n) h2) (fstn_history_finite _ _) (fstn_history_prefix _ _)) as [m2 [h2' [? [? [? ?]]]]].
-  
+
   destruct (raw_anti_chain_legal (Omegas (max m1 m2))) as [?H].
   destruct (limit_raw_domain_covered Omegas h1 (max m1 m2) H0) as [h1'' [? ?]].
   destruct (limit_raw_domain_covered Omegas h2 (max m1 m2) H1) as [h2'' [? ?]].
@@ -267,7 +267,7 @@ Proof.
   } Unfocus.
 
   clear h1' h2' H4 H5 H6 H8 H9 H10.
-  
+
   apply (H11 h1'' h2''); auto.
   exists n.
   rewrite <- (n_conflict_proper_aux n h1 h1'' h2 h2''); auto.
@@ -286,7 +286,7 @@ Proof.
   destruct (classic (exists l, prefix_history h (fin_history l) /\ forall n0, covered_by (fin_history l) (Omegas n0))).
   + (* when h_limit is finite *)
     destruct H0 as [l ?].
-    pose proof 
+    pose proof
       dec_inh_nat_subset_has_unique_least_element
         (fun m =>
            exists l0, length l0 = m /\
@@ -321,9 +321,9 @@ Proof.
     auto.
 
   + (* when h_limit is infinite *)
-    
+
 SearchAbout prefix_history (@eq RandomHistory).
-    
+
 
 Lemma limit_domain_anti_chain_covered_forward: forall (Omegas: RandomVarDomainStream) h,
   is_inf_history h ->
@@ -348,7 +348,7 @@ Proof.
   intros.
   destruct (classic (exists n, exists h', strict_conflict_history h' h /\ (Omegas n) h')).
   + clear H0; destruct H1 as [n [h' [? ?]]].
-    
+
 
 Definition limit_domain (Omegas: RandomVarDomainStream) (dir: ConvergeDir Omegas): RandomVarDomain.
   exists (limit_domain_anti_chain Omegas).
@@ -393,7 +393,7 @@ Fixpoint left_raw_domain (n: nat): RandomHistory -> Prop :=
 Fixpoint left_raw_state (n: nat): RandomHistory -> MetaState state -> Prop :=
   match n with
   | 0 => fun h s => l 0 h s
-  | S n0 => fun h s => 
+  | S n0 => fun h s =>
               (filter_anti_chain (left_raw_domain n0) (left_raw_dir n0)) h /\ left_raw_state n0 h s \/
               covered_by h (left_raw_dir n0) /\ l n h s
   end.
@@ -401,4 +401,4 @@ Fixpoint left_raw_state (n: nat): RandomHistory -> MetaState state -> Prop :=
 Definition right_raw_dir (n: nat): RandomHistory -> Prop :=
   fun h => exists m, covered_by h (left_raw_dir m) /\ ~ covered_by h (left_raw_dir (S m)) /\ MeasurableSubset_HistoryAntiChain (dir (n + S m)) h.
 
-End CutLimit. 
+End CutLimit.

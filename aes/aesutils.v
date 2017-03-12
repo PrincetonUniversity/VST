@@ -2,7 +2,7 @@ Require Import floyd.proofauto.
 Require Import aes.spec_AES256_HL.
 
 Require Import Coqlib.
-Require Import msl.Coqlib2. 
+Require Import msl.Coqlib2.
 Require Import floyd.coqlib3.
 Require Import Integers.
 Require Import List.
@@ -25,9 +25,9 @@ Definition block_to_ints (b : block) : list int :=
 Definition blocks_to_ints (blocks : list block) : list int := flat_map block_to_ints blocks.
 
 (* stipulate that the different ints used to represent bytes are indeed in range *)
-Definition word_in_bounds (w : word) := 
-  match w with 
-      (b0, b1, b2, b3) => (Int.unsigned b0 < 256 /\ Int.unsigned b1 < 256 /\ Int.unsigned b2 < 256 /\ Int.unsigned b3 < 256) 
+Definition word_in_bounds (w : word) :=
+  match w with
+      (b0, b1, b2, b3) => (Int.unsigned b0 < 256 /\ Int.unsigned b1 < 256 /\ Int.unsigned b2 < 256 /\ Int.unsigned b3 < 256)
   end.
 Definition block_in_bounds (b : block) :=
    match b with (w0, w1, w2, w3) => (word_in_bounds w0 /\ word_in_bounds w1 /\ word_in_bounds w2 /\ word_in_bounds w3) end.
@@ -113,8 +113,8 @@ Definition ff_log_table := gen_log_table 256 Int.one.
 
 (* We will show that GF(256) arithmetic done by peasant multiplication
  * is equivalent to the method used by the implementation, namely using
- * log and exponentiation tables. The implementation takes log of a and b, 
- * adds them mod 255 (not mod 256) and returns exp of that, 
+ * log and exponentiation tables. The implementation takes log of a and b,
+ * adds them mod 255 (not mod 256) and returns exp of that,
  * returning 0 if a or b is 0 *)
 Definition table_ff_mult (a b: int) : int :=
   if Int.eq a Int.zero then Int.zero
@@ -170,7 +170,7 @@ Fixpoint generate_reverse_table (table : list int) : list word :=
   let c_d := Int.repr 13 in (* 0x0d *)
   let c_9 := Int.repr 9 in (* 0x09 *)
   match table with
-  | hd :: tl => 
+  | hd :: tl =>
     (ff_mult c_e hd, ff_mult c_9 hd, ff_mult c_d hd, ff_mult c_b hd) :: generate_reverse_table tl
   | [] => []
   end.
@@ -205,10 +205,10 @@ Definition mbed_tls_fround_col (b0 b1 b2 b3 : Z) (rk : int) : int :=
 Definition mbed_tls_fround (cols : list int) (rk : list int) : list int :=
   match (cols, rk) with
   | (c3 :: c2 :: c1 :: c0 :: [], k3 :: k2 :: k1 :: k0 :: []) =>
-      match (zlist_to_col c0, zlist_to_col c1, zlist_to_col c2, zlist_to_col c3) with           
+      match (zlist_to_col c0, zlist_to_col c1, zlist_to_col c2, zlist_to_col c3) with
             ((c00, c01, c02, c03), (c10, c11, c12, c13),
              (c20, c21, c22, c23), (c30, c31, c32, c33)) =>
-       [mbed_tls_fround_col c00 c11 c22 c33 k0; 
+       [mbed_tls_fround_col c00 c11 c22 c33 k0;
         mbed_tls_fround_col c10 c21 c32 c03 k1;
         mbed_tls_fround_col c20 c31 c02 c13 k2;
         mbed_tls_fround_col c30 c01 c12 c23 k3]
@@ -227,11 +227,11 @@ Definition mbed_tls_rround_col (b0 b1 b2 b3 : Z) (rk : int) : int :=
 Definition mbed_tls_rround (cols : list int) (rk : list int) : list int :=
   match (cols, rk) with
   | (c3 :: c2 :: c1 :: c0 :: [], k3 :: k2 :: k1 :: k0 :: []) =>
-      match (zlist_to_col c0, zlist_to_col c1, zlist_to_col c2, zlist_to_col c3) with           
+      match (zlist_to_col c0, zlist_to_col c1, zlist_to_col c2, zlist_to_col c3) with
             ((c00, c01, c02, c03), (c10, c11, c12, c13),
              (c20, c21, c22, c23), (c30, c31, c32, c33)) =>
       (* note that column positions differ from the forward round *)
-       [mbed_tls_rround_col c00 c31 c22 c13 k0; 
+       [mbed_tls_rround_col c00 c31 c22 c13 k0;
         mbed_tls_rround_col c10 c01 c32 c23 k1;
         mbed_tls_rround_col c20 c11 c02 c33 k2;
         mbed_tls_rround_col c30 c21 c12 c03 k3]

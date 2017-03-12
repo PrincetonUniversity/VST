@@ -55,10 +55,10 @@ test: extract
 	results/truthify.awk </tmp/test.1 >/tmp/test.2
 	diff -s /tmp/test.2 results/test.ground
 
-doc: 
+doc:
 	$(COQDOC) -R . veristar -g --html -d doc $(FILES)
 
-graph: 
+graph:
 	runhaskell util/mkSrcGraph.hs > util/srcGraph.dot
 	tred util/srcGraph.dot | dot -Tpng >util/srcGraph.png
 
@@ -73,7 +73,7 @@ depend:
 	$(COQDEP) $(COQFLAGS) $(DEPFLAGS) $(FILES) > .depend
 
 clean:
-	rm -f *.vo *.glob *.cmx *.cmi *~ 
+	rm -f *.vo *.glob *.cmx *.cmi *~
 
 count:
 	wc -l $(FILES)

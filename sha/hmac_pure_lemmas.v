@@ -6,7 +6,7 @@ Require Import Vector.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
 
-Definition Vector_0_is_nil (T : Type) (v : Vector.t T 0) : v = Vector.nil T := 
+Definition Vector_0_is_nil (T : Type) (v : Vector.t T 0) : v = Vector.nil T :=
   match v with Vector.nil => eq_refl end.
 
 Lemma VectorToList_cons A n: forall (a:A) l,
@@ -26,9 +26,9 @@ Lemma VectorToList_combine A n: forall (a:A) b v1 v2,
    = (a,b) :: combine (Vector.to_list v1) (Vector.to_list v2).
 Proof. intros. simpl. f_equal. Qed.
 
-Theorem VectorToList_append {A}: 
+Theorem VectorToList_append {A}:
         forall (m:nat) (v2:Vector.t A m) (n : nat) (v1 : Vector.t A n),
-                   (Vector.to_list v1) ++ (Vector.to_list v2) = 
+                   (Vector.to_list v1) ++ (Vector.to_list v2) =
                    Vector.to_list (Vector.append v1 v2).
 Proof. intros m v2.
   eapply Vector.t_rec.
@@ -36,7 +36,7 @@ Proof. intros m v2.
   intros. simpl. rewrite (VectorToList_cons _ _ h). f_equal. rewrite <- H. f_equal.
 Qed.
 
-Lemma Forall2_map {A B} (f:A -> B): forall l m, 
+Lemma Forall2_map {A B} (f:A -> B): forall l m,
       Forall2 (fun x y => y = f x) l m -> map f l = m.
 Proof. intros.
   induction H; simpl. reflexivity.
@@ -47,7 +47,7 @@ Lemma isByte_mono: forall x y, 0<=y<=x -> isbyteZ x -> isbyteZ y.
 Proof. intros. destruct H0. split; omega. Qed.
 
 Lemma unsigned_Brepr_isbyte z: isbyteZ z -> Byte.unsigned (Byte.repr z) = z.
-Proof. intros. 
+Proof. intros.
       unfold isbyteZ in H. apply Byte.unsigned_repr.
       unfold Byte.max_unsigned, Byte.modulus. simpl. omega.
 Qed.
@@ -62,32 +62,32 @@ Qed.
 
 Lemma unsigned_repr_isbyte x:
   isbyteZ x -> Int.unsigned (Int.repr x) = x.
-Proof. intros; apply Int.unsigned_repr. 
-  rewrite int_max_unsigned_eq. destruct H; omega. 
+Proof. intros; apply Int.unsigned_repr.
+  rewrite int_max_unsigned_eq. destruct H; omega.
 Qed.
 
 Lemma map_unsigned_Brepr_isbyte: forall l, List.Forall isbyteZ l ->
       List.map Byte.unsigned (map Byte.repr l) = l.
 Proof. intros. induction l; simpl in *. trivial.
-   rewrite IHl. rewrite Forall_forall in H. 
-   assert (In a (a::l)). left. trivial. 
+   rewrite IHl. rewrite Forall_forall in H.
+   assert (In a (a::l)). left. trivial.
    specialize (H _ H0); clear H0.
    rewrite unsigned_Brepr_isbyte; trivial.
    rewrite Forall_forall in *. intros. apply H. right; trivial.
 Qed.
 
 Lemma isbyte_map_ByteUnsigned l: Forall isbyteZ (map Byte.unsigned l).
-Proof. 
-  rewrite Forall_forall. intros. 
+Proof.
+  rewrite Forall_forall. intros.
   apply list_in_map_inv in H. destruct H as [b [B1 _]]. subst x.
   apply isByte_ByteUnsigned.
 Qed.
 
-Lemma isbyteZ_range q: isbyteZ q -> 0 <= q <= Byte.max_unsigned. 
+Lemma isbyteZ_range q: isbyteZ q -> 0 <= q <= Byte.max_unsigned.
 Proof. intros B; destruct B. unfold Byte.max_unsigned, Byte.modulus; simpl. omega.
 Qed.
 (*
-Lemma NPeano_divide_trans a b c: NPeano.divide a b -> 
+Lemma NPeano_divide_trans a b c: NPeano.divide a b ->
       NPeano.divide b c -> NPeano.divide a c.
 Proof. intros. destruct H; destruct H0. subst.
   exists (x0 * x)%nat. apply mult_assoc.
@@ -130,7 +130,7 @@ Lemma app_inj1 {A} l2 m2: forall (l1 m1:list A) (H:l1++l2=m1++m2),
 Proof. induction l1.
   destruct m1; simpl; intros. split; trivial. discriminate.
   destruct m1; simpl; intros. discriminate.
-  inversion H; subst. 
+  inversion H; subst.
   destruct (IHl1 _ H3). omega.
   subst. split; trivial.
 Qed.
@@ -142,7 +142,7 @@ Proof. reflexivity. Qed.
 
 Lemma IntModulus32: Int.modulus = 2^32. reflexivity. Qed.
 
-Lemma Intsize_monotone a b: 0 <= Int.unsigned (Int.repr a) <= Int.unsigned (Int.repr b) -> 
+Lemma Intsize_monotone a b: 0 <= Int.unsigned (Int.repr a) <= Int.unsigned (Int.repr b) ->
                           Int.size (Int.repr a) <= Int.size (Int.repr b).
 Proof. apply Int.Zsize_monotone. Qed.
 
@@ -151,7 +151,7 @@ Proof. destruct l; simpl in *; eauto. inv L. Qed.
 
 Lemma nth_mapIn: forall i (l:list Z) d (Hi: (0 <= i < length l)%nat),
   exists n, nth i l d = n /\ In n l.
-Proof. intros i. 
+Proof. intros i.
   induction i; simpl; intros.
     destruct l; simpl in *. omega. exists z. split; trivial. left; trivial.
     destruct l; simpl in *. omega.
@@ -167,21 +167,21 @@ Proof.
 Qed.
 
 Lemma skipn_length:
-  forall {A} n (al: list A), 
-    (length al >= n)%nat -> 
+  forall {A} n (al: list A),
+    (length al >= n)%nat ->
     (length (skipn n al) = length al - n)%nat.
 Proof.
  induction n; destruct al; simpl; intros; auto.
  apply IHn. omega.
 Qed.
 
-Lemma fold_left_cons {A B} (f: A -> B -> A) l b x: 
+Lemma fold_left_cons {A B} (f: A -> B -> A) l b x:
       fold_left f (x :: l) b = fold_left f l (f b x).
 Proof. reflexivity. Qed.
 
-Definition Forall_tl (A : Type) (P : A -> Prop) (a : A) (l : list A) 
+Definition Forall_tl (A : Type) (P : A -> Prop) (a : A) (l : list A)
            (H : Forall P (a :: l)): Forall P l.
-Proof. inversion H. assumption. Defined. 
+Proof. inversion H. assumption. Defined.
 (*Now in sublist
 Lemma Zlength_length:
   forall A (al: list A) (n: Z),
@@ -197,13 +197,13 @@ apply Z2Nat.inj; try omega.
 rewrite Nat2Z.id; auto.
 Qed.
 *)
-Lemma firstn_exact : 
+Lemma firstn_exact :
   forall {A : Type} (l1 l2 : list A) (n : nat),
     (length l1 = n)%nat -> firstn n (l1 ++ l2) = l1.
 Proof.
   induction l1; destruct n; intros; simpl; try reflexivity; inversion H.
   * f_equal. apply IHl1. reflexivity.
-Qed.    
+Qed.
 
 Lemma skipn_exact :
   forall {A : Type} (l1 l2 : list A) (n : nat),
@@ -223,7 +223,7 @@ Proof.
   - reflexivity.
 Qed.
 
-Lemma list_splitLength {A}: forall n (l:list A) m, 
+Lemma list_splitLength {A}: forall n (l:list A) m,
       length l = (n + m)%nat -> exists l1 l2, l = l1 ++ l2 /\ length l1 = n /\ length l2 = m.
 Proof. intros n.
   induction n; simpl; intros.
@@ -234,7 +234,7 @@ Proof. intros n.
 Qed.
 
 Lemma skipn_short {A}: forall n (l:list A), (length l <= n)%nat -> skipn n l = nil.
-Proof. induction n; simpl; intros. 
+Proof. induction n; simpl; intros.
   destruct l; trivial. simpl in H. omega.
   destruct l; trivial.
   apply IHn. simpl in H. omega.
@@ -248,7 +248,7 @@ Proof.
 intros. revert al H;
 induction n; destruct al; intros; simpl in *; try omega; auto.
 apply IHn; omega.
-Qed. 
+Qed.
 (*now in floyd_sublist
 Lemma firstn_app1: forall {A} n (p l: list A),
   (n <= Datatypes.length p)%nat ->
@@ -256,20 +256,20 @@ Lemma firstn_app1: forall {A} n (p l: list A),
 Proof. intros A n.
 induction n; simpl; intros. trivial.
   destruct p; simpl in H. omega.
-  apply le_S_n in H. simpl. f_equal. auto. 
-Qed.  
+  apply le_S_n in H. simpl. f_equal. auto.
+Qed.
 
 Lemma firstn_app2: forall {A} n (p l: list A),
   (n > Datatypes.length p)%nat ->
    firstn n (p ++ l) = p ++ (firstn (n-Datatypes.length p) l).
 Proof. intros A n.
-induction n; simpl; intros. 
+induction n; simpl; intros.
   destruct p; simpl in *. trivial. omega.
   destruct p; simpl in *. trivial.
-  rewrite IHn. trivial. omega. 
+  rewrite IHn. trivial. omega.
 Qed.  *)
 
-Lemma firstn_map {A B} (f:A -> B): forall n l, 
+Lemma firstn_map {A B} (f:A -> B): forall n l,
       firstn n (map f l) = map f (firstn n l).
 Proof. intros n.
 induction n; simpl; intros. trivial.
@@ -277,7 +277,7 @@ induction n; simpl; intros. trivial.
   rewrite IHn. trivial.
 Qed.
 
-Lemma firstn_combine {A}: forall n (l k: list A), 
+Lemma firstn_combine {A}: forall n (l k: list A),
       firstn n (combine l k) = combine (firstn n l) (firstn n k).
 Proof. intros n.
 induction n; simpl; intros. trivial.
@@ -286,13 +286,13 @@ induction n; simpl; intros. trivial.
   rewrite IHn. trivial.
 Qed.
 
-Lemma firstn_precise {A}: forall n (l:list A), length l = n -> 
+Lemma firstn_precise {A}: forall n (l:list A), length l = n ->
       firstn n l = l.
-Proof. intros n. 
+Proof. intros n.
   induction n; intros; destruct l; simpl in *; trivial.
     inversion H.
     rewrite IHn; trivial. inversion H; trivial.
-Qed. 
+Qed.
 
 Lemma mapnth': forall {A B : Type} (f : A -> B) (l : list A) (d : A) (n : nat) fd,
       fd = f d -> nth n (map f l) fd = f (nth n l d).
@@ -304,13 +304,13 @@ Proof. reflexivity. Qed.
 Hint Rewrite Ztest_Bytetest : testbit.
 
 Lemma nthD_1 {A B}: forall (f: A ->B) n l d fx dd, (n < length l)%nat ->
-      nth n (map f l) d = fx -> 
+      nth n (map f l) d = fx ->
       exists x, In x l /\ nth n l dd = x /\ f x = fx.
 Proof. intros f n.
   induction n; simpl; intros.
     destruct l; simpl in *. omega.
       exists a; split. left; trivial. split; trivial.
-    destruct l; simpl in *. omega. 
+    destruct l; simpl in *. omega.
     destruct (IHn l d fx dd) as [? [? [? ?]]]. omega. trivial.
     exists x; eauto.
 Qed.
@@ -344,15 +344,15 @@ Lemma nth_error_app {A}: forall n (l:list A) d,
   Qed.
 
 Lemma Forall_app {A} p (l1 l2: list A): Forall p (l1 ++ l2) <-> (Forall p l1 /\ Forall p l2).
-Proof. intros. repeat  rewrite Forall_forall. 
+Proof. intros. repeat  rewrite Forall_forall.
   split; intros.
     split; intros; apply H; apply in_or_app. left; trivial. right; trivial.
   apply in_app_or in H0. destruct H. destruct H0; eauto.
-Qed. 
+Qed.
 
 Lemma Zlength_nonneg {A}: forall (l:list A), 0 <= Zlength l.
 Proof.
- intros. 
+ intros.
  rewrite Zlength_correct.
  induction l; simpl. omega. rewrite Zpos_P_of_succ_nat. omega.
 Qed.
@@ -370,12 +370,12 @@ Proof.
   assert (ZZ: Z.lxor x y mod Byte.modulus =
         Z.lxor x y mod two_p (Z.of_nat Byte.wordsize)).
         rewrite Byte.modulus_power. reflexivity.
-  rewrite ZZ; clear ZZ.     
+  rewrite ZZ; clear ZZ.
   rewrite Byte.Ztestbit_mod_two_p; try omega.
-  destruct (zlt i (Z.of_nat Byte.wordsize)); trivial. 
+  destruct (zlt i (Z.of_nat Byte.wordsize)); trivial.
   symmetry. rewrite Z.lxor_spec.
   assert (BB: Byte.modulus = two_p (Z.of_nat Byte.wordsize)).
-    apply Byte.modulus_power. 
+    apply Byte.modulus_power.
   rewrite BB in H, H0.
 
   rewrite H; clear H; rewrite H0; clear H0 BB.
@@ -384,14 +384,14 @@ Proof.
    destruct (zlt i (Z.of_nat Byte.wordsize)); trivial. omega.
 Qed.
 
-Lemma length_mul_split A k (K:(0<k)%nat) n (N:(0<n)%nat): forall (l:list A), length l = (k * n)%nat -> 
+Lemma length_mul_split A k (K:(0<k)%nat) n (N:(0<n)%nat): forall (l:list A), length l = (k * n)%nat ->
       exists l1, exists l2, l=l1++l2 /\ length l1=n /\ length l2 = ((k-1) * n)%nat.
 Proof.
-  intros. 
+  intros.
   assert ((k * n = n + (k-1) * n)%nat). rewrite mult_minus_distr_r. simpl. rewrite plus_0_r.
       rewrite le_plus_minus_r. (* NPeano.Nat.add_sub_assoc. rewrite minus_plus. *) trivial.
       specialize (mult_le_compat_r 1 k n). simpl; rewrite plus_0_r. simpl; intros. apply H0. omega.
-  rewrite H0 in H; clear H0. 
+  rewrite H0 in H; clear H0.
   apply (list_splitLength _ _ _ H).
 Qed.
 

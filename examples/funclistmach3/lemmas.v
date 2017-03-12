@@ -46,7 +46,7 @@ Lemma age1_level : forall p1 p2,
   level p1 = S (level p2).
 Proof.
   intros.
-  do 2 rewrite K.knot_level.      
+  do 2 rewrite K.knot_level.
   rewrite K.knot_age1 in H.
   remember (K.unsquash p1).
   icase p.
@@ -55,7 +55,7 @@ Proof.
   rewrite K.unsquash_squash.
   simpl.
   trivial.
-Qed.  
+Qed.
 
 Fixpoint ageN (n : nat) (p1 p2 : prog) : Prop :=
   match n with
@@ -193,7 +193,7 @@ Lemma worldNec_unfold : forall p r p' r',
   @necR world _ (p,r) (p',r') <->
   necR p p' /\ r = r'.
 Proof.
-  intros; split; intro H. 
+  intros; split; intro H.
   remember (p,r) as w1.
   remember (p',r') as w2.
   revert p r p' r' Heqw1 Heqw2.
@@ -396,7 +396,7 @@ Qed.
 Lemma step_approxprog: forall n p1 p2 p1' p2' r1 s1 s1' r2 s2,
   step p1 p2 r1 s1 r2 s2 ->
   ageN n p1 p1' ->
-  ageN n p2 p2' -> 
+  ageN n p2 p2' ->
   stack_approx_rel (S (level p1')) s1 s1' ->
   exists s2',
     step p1' p2' r1 s1' r2 s2' /\
@@ -416,7 +416,7 @@ Proof.
   constructor.
   assert (K.approx (S (level p1')) P (p1', r2)).
     rewrite K.approx_spec. simpl.
-    rewrite <- (nec_useless P) in H3. spec H3 (p1', r2). 
+    rewrite <- (nec_useless P) in H3. spec H3 (p1', r2).
     spec H3. simpl. rewrite worldNec_unfold. split; trivial.
     rewrite <- ageN_necR. exists n. trivial.
     split; trivial. omega.
@@ -468,7 +468,7 @@ Proof.
   inversion H5; subst.
   split. econstructor; eauto.
   apply stack_approx_downward with (S (level p1')). omega.
-  constructor; trivial. 
+  constructor; trivial.
   red. simpl. congruence.
 (* if1 *)
   generalize (ageN_det _ _ _ _ H0 H1). intro. subst p2'.
@@ -478,7 +478,7 @@ Proof.
   inversion H6; subst.
   split. econstructor; eauto.
   apply stack_approx_downward with (S (level p1')). omega.
-  constructor; trivial. 
+  constructor; trivial.
   red. simpl. congruence.
 (* if2 *)
   generalize (ageN_det _ _ _ _ H0 H1). intro. subst p2'.
@@ -488,7 +488,7 @@ Proof.
   inversion H6; subst.
   split. econstructor; eauto.
   apply stack_approx_downward with (S (level p1')). omega.
-  constructor; trivial. 
+  constructor; trivial.
   red. simpl. congruence.
 (* call *)
   assert (age p1' p2').
@@ -497,7 +497,7 @@ Proof.
     subst p1' p2'. trivial.
     destruct H0 as [px [? ?]]. destruct H1 as [px' [? ?]]. unfold prog in *.
     red in H, H5. rewrite H in H5. inv H5.
-    eapply IHn; eauto. 
+    eapply IHn; eauto.
   unfold prog in *.
   icase s1'. inversion H2.
   icase i0; inversion H2; disc. subst.
@@ -508,7 +508,7 @@ Proof.
   apply (nec_prog_lookup p1 p1' l i'); trivial.
   rewrite <- ageN_necR. exists n. trivial.
   apply age_level in H6.
-  constructor. 
+  constructor.
   red. simpl.
   rewrite collapse_instr_approx. rewrite min_l. trivial. omega.
   apply stack_approx_downward with (S (level p1')). omega.
@@ -536,7 +536,7 @@ Qed.
 Lemma stepstar_approxprog: forall n p1 p2 p1' p2' r1 s1 s1' r2 s2,
   stepstar p1 p2 r1 s1 r2 s2 ->
   ageN n p1 p1' ->
-  ageN n p2 p2' -> 
+  ageN n p2 p2' ->
   stack_approx_rel (S (level p1')) s1 s1' ->
   exists s2',
     stepstar p1' p2' r1 s1' r2 s2' /\
@@ -626,7 +626,7 @@ Proof.
   inv H0.
   constructor.
   apply H1; constructor.
-  
+
   inv H2.
   cut (step_or_halt p r s).
   intros.
@@ -666,7 +666,7 @@ Proof.
   auto.
 Qed.
 
-Lemma step_approx : 
+Lemma step_approx :
   forall n p1 p2 s1 s1' s2 r1 r2,
     level p2 < n ->
     stack_approx_rel n s1 s2 ->
@@ -708,7 +708,7 @@ Proof.
   destruct i'1; inv H1.
   exists (i'2 :: stk'); split;
     econstructor; eauto.
-  
+
   (* step cons *)
   hnf in H5; destruct i'; inv H5.
   destruct i'1; inv H1.
@@ -738,7 +738,7 @@ Proof.
   exists ((i'1_2 ;; i'2) :: stk'); split;
     econstructor; eauto.
   hnf; simpl; f_equal; auto.
-  
+
   (* step call *)
   hnf in H6; destruct i'0; inv H6.
   destruct i'0_1; inv H1.
@@ -757,7 +757,7 @@ Qed.
 *)
 (* end nagging suspicion *)
 (*
-Lemma stepstar_approx : 
+Lemma stepstar_approx :
   forall n p1 p2 s1 s1' s2 r1 r2,
     level p1 < n ->
     stack_approx_rel n s1 s2 ->

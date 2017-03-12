@@ -14,10 +14,10 @@ Definition peek (stack: seq T) : option T :=
 Definition pop  (stack: seq T) : seq T := behead stack.
 Definition empty : seq T := [::].
 
-Definition nonempty : pred (seq T) := 
+Definition nonempty : pred (seq T) :=
   [pred s | if s is [::] then false else true].
 
-Lemma peek_nonempty (stack : seq T) t : 
+Lemma peek_nonempty (stack : seq T) t :
   peek stack = Some t -> nonempty stack.
 Proof. by rewrite/peek; case: stack. Qed.
 
@@ -25,24 +25,24 @@ Lemma nonempty_nempty (stack: seq T) : nonempty stack -> [::] = stack -> T.
 Proof. by case: stack. Qed.
 
 Definition head (stack: seq T) (pf: nonempty stack) : T :=
-  (match stack as s return (s = stack -> T) with 
+  (match stack as s return (s = stack -> T) with
     | nil => fun pf' => nonempty_nempty pf pf'
     | s :: stack' => fun pf' => s
   end) erefl.
 
-Lemma nonempty_peek (stack : seq T) (pf : nonempty stack) : 
+Lemma nonempty_peek (stack : seq T) (pf : nonempty stack) :
   peek stack = Some (head stack pf).
 Proof. by move: pf; case: stack=>// a l _. Qed.
 
-Lemma peeksome_head stack t : 
-  peek stack = Some t -> 
+Lemma peeksome_head stack t :
+  peek stack = Some t ->
   forall pf : nonempty stack, head stack pf = t.
 Proof. by rewrite/head; case: stack=> //=; move=> ? ?; case. Qed.
 
 Lemma all_pop (stack : seq T) p : all p stack -> all p (pop stack).
 Proof. by case: stack=>//= a l; move/andP=> [H1 H2]. Qed.
 
-End seqStack. 
+End seqStack.
 
 Arguments empty / {T}.
 Arguments push {T} _ _ /.
@@ -53,17 +53,17 @@ Arguments head {T} !_ _ /.
 
 End SeqStack.
 
-Module STACK. 
+Module STACK.
 
-Record type (T : Type) : Type := 
+Record type (T : Type) : Type :=
   { t : Type
-  ; empty: t 
+  ; empty: t
   ; push : t -> T -> t
   ; pop  : t -> t
   ; peek : t -> option T
   ; nonempty : pred t
   ; head : forall t, nonempty t -> T
-  ; all  : pred T -> t -> bool 
+  ; all  : pred T -> t -> bool
   ; all_pop : forall t p, all p t -> all p (pop t) }.
 
 End STACK.
@@ -85,8 +85,8 @@ Section Stack.
 
 Variable T : Type.
 
-Definition t : STACK.type T := 
-  @STACK.Build_type T (seq T) empty push pop peek nonempty head 
+Definition t : STACK.type T :=
+  @STACK.Build_type T (seq T) empty push pop peek nonempty head
   all (@all_pop T).
 
 End Stack.
@@ -97,7 +97,7 @@ Canonical Structure seq_stackTy T : STACK.type T := Stack.t T.
 
 Lemma pop_size U T (stack1 : seq U) (stack2 : seq T)
   (pf1 : 1 <= size stack1) (pf2 : 1 <= size stack2) :
-  size (STACK.pop stack1) = size (STACK.pop stack2) -> 
+  size (STACK.pop stack1) = size (STACK.pop stack2) ->
   size stack1 = size stack2.
 Proof.
 by case: stack1 pf1=> // a s1 ? /=; case: stack2 pf2=> // b s2 ? /= => ->.

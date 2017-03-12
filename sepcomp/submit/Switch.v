@@ -34,9 +34,9 @@ Module IntIndexed <: INDEXED_TYPE.
 
   Lemma index_inj: forall n m, index n = index m -> n = m.
   Proof.
-    unfold index; intros. 
+    unfold index; intros.
     rewrite <- (Int.repr_unsigned n). rewrite <- (Int.repr_unsigned m).
-    f_equal. 
+    f_equal.
     destruct (Int.unsigned n); destruct (Int.unsigned m); congruence.
   Qed.
 
@@ -130,7 +130,7 @@ Definition refine_low_bound (v lo: Z) :=
 Definition refine_high_bound (v hi: Z) :=
   if zeq v hi then hi - 1 else hi.
 
-Fixpoint validate_jumptable (cases: IntMap.t nat) 
+Fixpoint validate_jumptable (cases: IntMap.t nat)
                             (tbl: list nat) (n: int) {struct tbl} : bool :=
   match tbl with
   | nil => true
@@ -154,7 +154,7 @@ Fixpoint validate (default: nat) (cases: table) (t: comptree)
       | (None, _) =>
           false
       | (Some act', others) =>
-          beq_nat act act' 
+          beq_nat act act'
           && validate default others t'
                       (refine_low_bound (Int.unsigned pivot) lo)
                       (refine_high_bound (Int.unsigned pivot) hi)
@@ -190,14 +190,14 @@ Lemma split_eq_prop:
     else switch_target v default cases').
 Proof.
   induction cases; simpl; intros until cases'.
-  intros. inversion H; subst. simpl. 
+  intros. inversion H; subst. simpl.
   destruct (Int.eq v n); auto.
-  destruct a as [key act]. 
+  destruct a as [key act].
   case_eq (split_eq n cases). intros same other SEQ.
   rewrite (IHcases _ _ SEQ).
   predSpec Int.eq Int.eq_spec key n; intro EQ; inversion EQ; simpl.
   subst n. destruct (Int.eq v key). auto. auto.
-  predSpec Int.eq Int.eq_spec v key. 
+  predSpec Int.eq Int.eq_spec v key.
   subst v. predSpec Int.eq Int.eq_spec key n. congruence. auto.
   auto.
 Qed.
@@ -213,14 +213,14 @@ Proof.
   induction cases; intros until rcases; simpl.
   intro. inversion H; subst. simpl.
   destruct (Int.ltu v n); auto.
-  destruct a as [key act]. 
+  destruct a as [key act].
   case_eq (split_lt n cases). intros lc rc SEQ.
   rewrite (IHcases _ _ SEQ).
   case_eq (Int.ltu key n); intros; inv H0; simpl.
-  predSpec Int.eq Int.eq_spec v key. 
+  predSpec Int.eq Int.eq_spec v key.
   subst v. rewrite H. auto.
   auto.
-  predSpec Int.eq Int.eq_spec v key. 
+  predSpec Int.eq Int.eq_spec v key.
   subst v. rewrite H. auto.
   auto.
 Qed.
@@ -237,15 +237,15 @@ Proof.
 - inv SEQ. destruct (Int.ltu (Int.sub v ofs) sz); auto. rewrite IntMap.gi. auto.
 - destruct a as [key act].
   destruct (split_between default ofs sz cases) as [ins outs].
-  erewrite IHcases; eauto. 
+  erewrite IHcases; eauto.
   destruct (Int.ltu (Int.sub key ofs) sz) eqn:LT; inv SEQ.
-  + predSpec Int.eq Int.eq_spec v key. 
-    subst v. rewrite LT. rewrite IntMap.gss. auto. 
-    destruct (Int.ltu (Int.sub v ofs) sz). 
+  + predSpec Int.eq Int.eq_spec v key.
+    subst v. rewrite LT. rewrite IntMap.gss. auto.
+    destruct (Int.ltu (Int.sub v ofs) sz).
     rewrite IntMap.gso; auto.
     auto.
-  + simpl. destruct (Int.ltu (Int.sub v ofs) sz) eqn:LT'. 
-    rewrite Int.eq_false. auto. congruence. 
+  + simpl. destruct (Int.ltu (Int.sub v ofs) sz) eqn:LT'.
+    rewrite Int.eq_false. auto. congruence.
     auto.
 Qed.
 
@@ -262,12 +262,12 @@ Proof.
   destruct (zeq (Int.unsigned v) 0).
   unfold Int.add. rewrite e. rewrite Zplus_0_r. rewrite Int.repr_unsigned. auto.
   assert (Int.unsigned (Int.sub v Int.one) = Int.unsigned v - 1).
-    unfold Int.sub. change (Int.unsigned Int.one) with 1. 
+    unfold Int.sub. change (Int.unsigned Int.one) with 1.
     apply Int.unsigned_repr. split. omega.
     generalize (Int.unsigned_range_2 v). omega.
   replace (Int.add base v) with (Int.add (Int.add base Int.one) (Int.sub v Int.one)).
-  rewrite <- IHtbl. rewrite H. auto. auto. rewrite H. omega. 
-  rewrite Int.sub_add_opp. rewrite Int.add_permut. rewrite Int.add_assoc. 
+  rewrite <- IHtbl. rewrite H. auto. auto. rewrite H. omega.
+  rewrite Int.sub_add_opp. rewrite Int.add_permut. rewrite Int.add_assoc.
   replace (Int.add Int.one (Int.neg Int.one)) with Int.zero.
   rewrite Int.add_zero. apply Int.add_commut.
   rewrite Int.add_neg_zero; auto.
@@ -281,12 +281,12 @@ Lemma validate_jumptable_correct:
   list_nth_z tbl (Int.unsigned (Int.sub v ofs)) = Some(IntMap.get v cases).
 Proof.
   intros.
-  exploit Int.ltu_inv; eauto. intros. 
+  exploit Int.ltu_inv; eauto. intros.
   rewrite (validate_jumptable_correct_rec cases tbl ofs).
-  rewrite Int.sub_add_opp. rewrite Int.add_permut. rewrite <- Int.sub_add_opp. 
-  rewrite Int.sub_idem. rewrite Int.add_zero. auto. 
+  rewrite Int.sub_add_opp. rewrite Int.add_permut. rewrite <- Int.sub_add_opp.
+  rewrite Int.sub_idem. rewrite Int.add_zero. auto.
   auto.
-  omega. 
+  omega.
 Qed.
 
 Lemma validate_correct_rec:
@@ -299,7 +299,7 @@ Opaque Int.sub.
   induction t; simpl; intros until hi.
   (* base case *)
   destruct cases as [ | [key1 act1] cases1]; intros.
-  replace n with default. reflexivity. 
+  replace n with default. reflexivity.
   symmetry. apply beq_nat_eq. auto.
   destruct (andb_prop _ _ H). destruct (andb_prop _ _ H1). clear H H1.
   assert (Int.unsigned key1 = lo). eapply proj_sumbool_true; eauto.
@@ -309,7 +309,7 @@ Opaque Int.sub.
   simpl. unfold Int.eq. rewrite H5. rewrite zeq_true. auto.
   symmetry. apply beq_nat_eq. auto.
   (* eq node *)
-  case_eq (split_eq i cases). intros optact cases' EQ. 
+  case_eq (split_eq i cases). intros optact cases' EQ.
   destruct optact as [ act | ]. 2: congruence.
   intros. destruct (andb_prop _ _ H). clear H.
   rewrite (split_eq_prop v default _ _ _ _ EQ).
@@ -326,7 +326,7 @@ Opaque Int.sub.
   (* lt node *)
   case_eq (split_lt i cases). intros lcases rcases EQ V RANGE.
   destruct (andb_prop _ _ V). clear V.
-  rewrite (split_lt_prop v default _ _ _ _ EQ). 
+  rewrite (split_lt_prop v default _ _ _ _ EQ).
   unfold Int.ltu. destruct (zlt (Int.unsigned v) (Int.unsigned i)).
   eapply IHt1. eauto. omega.
   eapply IHt2. eauto. omega.
@@ -337,9 +337,9 @@ Opaque Int.sub.
   destruct (andb_prop _ _ H1). clear H1.
   rewrite (split_between_prop v _ _ _ _ _ _ EQ).
   case_eq (Int.ltu (Int.sub v i) i0); intros.
-  eapply validate_jumptable_correct; eauto. 
+  eapply validate_jumptable_correct; eauto.
   eapply proj_sumbool_true; eauto.
-  eapply IHt; eauto. 
+  eapply IHt; eauto.
 Qed.
 
 Definition table_tree_agree
@@ -352,6 +352,6 @@ Theorem validate_switch_correct:
   table_tree_agree default cases t.
 Proof.
   unfold validate_switch, table_tree_agree; intros.
-  eapply validate_correct_rec; eauto. 
+  eapply validate_correct_rec; eauto.
   apply Int.unsigned_range_2.
 Qed.

@@ -190,7 +190,7 @@ Proof.
  intros. apply pred_ext.
  apply allp_right. intro b; destruct b.
  apply andp_left1; apply derives_refl.
- apply andp_left2; apply derives_refl. 
+ apply andp_left2; apply derives_refl.
  apply andp_right.
  apply allp_left with true; apply derives_refl.
  apply allp_left with false; apply derives_refl.
@@ -210,12 +210,12 @@ Qed.
 
 Lemma modus_ponens {A}{ND: NatDed A}: forall P Q: A, derives (andp P (imp P Q)) Q.
 Proof.
-intros. apply derives_trans with (andp (imp P Q) P). 
+intros. apply derives_trans with (andp (imp P Q) P).
   apply andp_right; [apply andp_left2 | apply andp_left1]; apply derives_refl.
  apply imp_andp_adjoint. apply derives_refl.
 Qed.
 
-Lemma modus_ponens_wand {A}{ND: NatDed A}{SL: SepLog A}: 
+Lemma modus_ponens_wand {A}{ND: NatDed A}{SL: SepLog A}:
                       forall P Q: A, derives (sepcon P (wand P Q)) Q.
 Proof.
 intros.
@@ -303,16 +303,16 @@ Proof.
     apply derives_refl.
 Qed.
 
-Lemma allp_derives: 
-       forall {A: Type}  {NA: NatDed A} (B: Type) (P Q: B -> A), 
+Lemma allp_derives:
+       forall {A: Type}  {NA: NatDed A} (B: Type) (P Q: B -> A),
                (forall x:B, P x |-- Q x) -> (allp P |-- allp Q).
 Proof.
 intros.
 apply allp_right; intro x; apply allp_left with x; auto.
 Qed.
 
-Lemma allp_congr: 
-       forall {A: Type}  {NA: NatDed A} (B: Type) (P Q: B -> A), 
+Lemma allp_congr:
+       forall {A: Type}  {NA: NatDed A} (B: Type) (P Q: B -> A),
                (forall x:B, P x = Q x) -> (allp P = allp Q).
 Proof.
 intros.
@@ -393,7 +393,7 @@ Proof.
     apply (allp_left _ v); apply derives_refl.
 Qed.
 
-Lemma prop_derives {A}{ND: NatDed A}: 
+Lemma prop_derives {A}{ND: NatDed A}:
  forall (P Q: Prop), (P -> Q) -> prop P |-- prop Q.
 Proof.
 intros; apply prop_left; intro; apply prop_right; auto.
@@ -418,7 +418,7 @@ Proof.
   apply sepcon_wand_CCC.
 Qed.
 
-Lemma distrib_orp_andp {A}{ND: NatDed A}:  
+Lemma distrib_orp_andp {A}{ND: NatDed A}:
    forall (P Q R : A), andp (orp P Q) R = orp (andp P R) (andp Q R).
 Proof.
   intros.
@@ -432,14 +432,14 @@ Proof.
   apply andp_imp_CCC.
 Qed.
 
-Lemma exp_sepcon1 {A}{ND: NatDed A} {SL: SepLog A}:  
+Lemma exp_sepcon1 {A}{ND: NatDed A} {SL: SepLog A}:
   forall T (P: T ->  A) Q, sepcon (exp P) Q = exp (fun x => sepcon (P x) Q).
 Proof.
   eapply CCC_exp_prod1.
   apply sepcon_wand_CCC.
 Qed.
 
-Lemma distrib_orp_sepcon {A}{ND: NatDed A}{SL: SepLog A}: 
+Lemma distrib_orp_sepcon {A}{ND: NatDed A}{SL: SepLog A}:
       forall (P Q R : A), sepcon (P || Q) R = sepcon P R || sepcon Q R.
 Proof.
   intros.
@@ -454,7 +454,7 @@ Proof.
 intros. rewrite !(sepcon_comm R). apply distrib_orp_sepcon.
 Qed.
 
-Lemma exp_sepcon2 {A}{NA: NatDed A}{SA: SepLog A}: 
+Lemma exp_sepcon2 {A}{NA: NatDed A}{SA: SepLog A}:
   forall T (P: A) (Q: T -> A),  P * exp Q = exp (fun x => P * Q x).
 Proof.
   intros.
@@ -473,7 +473,7 @@ Qed.
 Lemma imp_derives {A} {NA: NatDed A}:
   forall P P' Q Q' : A,
     P' |-- P ->
-    Q |-- Q' -> 
+    Q |-- Q' ->
     P --> Q |-- P' --> Q'.
 Proof.
   intros.
@@ -489,7 +489,7 @@ Proof.
   auto.
 Qed.
 
-Lemma  distrib_sepcon_andp {A}{ND: NatDed A}{SL: SepLog A}: 
+Lemma  distrib_sepcon_andp {A}{ND: NatDed A}{SL: SepLog A}:
      forall P Q R, sepcon P (andp Q R) |-- andp (sepcon P Q) (sepcon P R).
 Proof.
   intros.
@@ -517,7 +517,7 @@ Lemma later_andp  {A}{ND: NatDed A}{IA: Indir A}:
        forall P Q: A, later (P && Q) = later P && later Q.
 Proof.
  intros. repeat rewrite andp_is_allp.
- rewrite later_allp. 
+ rewrite later_allp.
  f_equal. extensionality x.
  destruct x; auto.
 Qed.
@@ -551,7 +551,7 @@ Proof.
 intros. apply prop_right; auto.
 Qed.
 
-Lemma sepcon_andp_prop'  {A}{NA: NatDed A}{SA: SepLog A}: 
+Lemma sepcon_andp_prop'  {A}{NA: NatDed A}{SA: SepLog A}:
      forall (P:A)  (Q:Prop) (R: A), (!!Q && P)*R = !!Q&&(P*R).
 Proof with norm.
 intros.
@@ -597,7 +597,7 @@ Lemma true_eq {A} {NA: NatDed A}:  forall P: Prop, P -> (!! P) = (TT: A).
 Proof with norm.
 intros. apply pred_ext...
 apply prop_right...
-Qed. 
+Qed.
 Hint Rewrite @true_eq using (solve [immediate]) : norm.
 
 Hint Rewrite @andp_dup : norm.
@@ -621,7 +621,7 @@ intros.
 apply exp_left. auto.
 Qed.
 
-Hint Rewrite @sepcon_emp @emp_sepcon @TT_andp @andp_TT 
+Hint Rewrite @sepcon_emp @emp_sepcon @TT_andp @andp_TT
              @exp_sepcon1 @exp_sepcon2
                @exp_andp1 @exp_andp2
          @sepcon_andp_prop @sepcon_andp_prop'
@@ -629,13 +629,13 @@ Hint Rewrite @sepcon_emp @emp_sepcon @TT_andp @andp_TT
         : norm.
 
 Lemma exp_congr:
- forall A NA T X Y, 
+ forall A NA T X Y,
     (forall v, X v = Y v) -> @exp A NA T X = @exp A NA T Y.
 Proof.
 intros. f_equal. extensionality v; auto.
 Qed.
 
-Lemma forall_pred_ext  {A}  {NA: NatDed A}: forall B (P Q: B -> A), 
+Lemma forall_pred_ext  {A}  {NA: NatDed A}: forall B (P Q: B -> A),
  (ALL x : B, (P x <--> Q x)) |-- (ALL x : B, P x) <--> (ALL x: B, Q x) .
 Proof.
 intros.
@@ -654,7 +654,7 @@ apply andp_right.
  rewrite andp_comm. apply modus_ponens.
 Qed.
 
-Lemma exists_pred_ext  {A} {NA: NatDed A}: forall B (P Q: B -> A), 
+Lemma exists_pred_ext  {A} {NA: NatDed A}: forall B (P Q: B -> A),
  (ALL x : B, (P x <--> Q x)) |-- (EX x : B, P x) <--> (EX x: B, Q x) .
 Proof.
 intros.
@@ -671,8 +671,8 @@ apply exp_left; intro x. apply exp_right with x.
 apply allp_left with x. apply andp_left2; auto.
 Qed.
 
-Lemma imp_pred_ext  {A}  {NA: NatDed A}: forall B B' P Q, 
-       (B <--> B') && (B --> (P <--> Q)) 
+Lemma imp_pred_ext  {A}  {NA: NatDed A}: forall B B' P Q,
+       (B <--> B') && (B --> (P <--> Q))
  |-- (B --> P) <-->  (B' --> Q).
 Proof.
 intros.
@@ -771,7 +771,7 @@ Qed.
 
 Lemma andp_assoc' {A}{NA: NatDed A}:
   forall P Q R : A, Q && (P && R) = P && (Q && R).
-Proof. intros. rewrite andp_comm. rewrite andp_assoc. f_equal. apply andp_comm. 
+Proof. intros. rewrite andp_comm. rewrite andp_assoc. f_equal. apply andp_comm.
 Qed.
 
 Lemma corable_andp_sepcon2{A}{NA: NatDed A}{SA: SepLog A}{CA: CorableSepLog A}:
@@ -792,7 +792,7 @@ Proof.
 intros. rewrite sepcon_comm. rewrite andp_comm. rewrite corable_andp_sepcon1; auto. rewrite sepcon_comm; auto.
 Qed.
 
-Hint Resolve @corable_andp @corable_orp @corable_allp @corable_exp 
+Hint Resolve @corable_andp @corable_orp @corable_allp @corable_exp
                     @corable_imp @corable_prop @corable_sepcon @corable_wand @corable_later.
 Hint Resolve @corable_prop : norm.
 
@@ -833,7 +833,7 @@ Proof.
   apply derives_extract_prop'; auto.
 Qed.
 
-Lemma prop_and {A} {NA: NatDed A}: 
+Lemma prop_and {A} {NA: NatDed A}:
     forall P Q: Prop, prop (P /\ Q) = (prop P && prop Q).
 Proof.
   intros. apply pred_ext.
@@ -844,7 +844,7 @@ Proof.
     apply prop_right; auto.
 Qed.
 
-Lemma prop_impl {A} {NA: NatDed A}: 
+Lemma prop_impl {A} {NA: NatDed A}:
   forall P Q: Prop, prop (P -> Q) = (prop P --> prop Q).
 Proof.
   intros.
@@ -856,7 +856,7 @@ Proof.
   + apply prop_imp_prop_left.
 Qed.
 
-Lemma prop_forall {A B} {NA: NatDed A}: 
+Lemma prop_forall {A B} {NA: NatDed A}:
   forall P: B -> Prop, prop (forall b, P b) = ALL b: B, !! P b.
 Proof.
   intros.
@@ -899,7 +899,7 @@ Proof.
   apply TT_right.
 Qed.
 
-Lemma later_prop_andp_sepcon: forall {A: Type} {A}{NA: NatDed A}{SA: SepLog A}{ClA: ClassicalSep A}{IA: Indir A}{CSL: CorableSepLog A} {CI: CorableIndir A} (P: Prop) (Q R: A), 
+Lemma later_prop_andp_sepcon: forall {A: Type} {A}{NA: NatDed A}{SA: SepLog A}{ClA: ClassicalSep A}{IA: Indir A}{CSL: CorableSepLog A} {CI: CorableIndir A} (P: Prop) (Q R: A),
 ((|> !! P) && Q) * R = (|> !! P) && (Q * R).
 Proof.
   intros.
@@ -967,15 +967,15 @@ Proof.
 intros. apply andp_right; auto.
 Qed.
 
-Ltac normalize1 := 
+Ltac normalize1 :=
          match goal with
             | |- _ => contradiction
             | |- context [@andp ?A (@LiftNatDed ?T ?B ?C) ?D ?E ?F] =>
                       change (@andp A (@LiftNatDed T B C) D E F) with (D F && E F)
             | |- context [@later ?A  (@LiftNatDed ?T ?B ?C) (@LiftIndir ?X1 ?X2 ?X3 ?X4 ?X5) ?D ?F] =>
-                   change (@later A  (@LiftNatDed T B C) (@LiftIndir X1 X2 X3 X4 X5) D F) 
-                     with (@later B C X5 (D F))   
-            | |- context [@sepcon ?A (@LiftNatDed ?B ?C ?D) 
+                   change (@later A  (@LiftNatDed T B C) (@LiftIndir X1 X2 X3 X4 X5) D F)
+                     with (@later B C X5 (D F))
+            | |- context [@sepcon ?A (@LiftNatDed ?B ?C ?D)
                                                          (@LiftSepLog ?E ?F ?G ?H) ?J ?K ?L] =>
                    change (@sepcon A (@LiftNatDed B C D) (@LiftSepLog E F G H) J K L)
                       with (@sepcon C D H (J L) (K L))
@@ -985,16 +985,16 @@ Ltac normalize1 :=
             | |- context [?Q * (?R && ?P)] => rewrite (corable_sepcon_andp2 P Q R) by (auto with norm)
             (* In the next four rules, doing it this way (instead of leaving it to autorewrite)
                 preserves the name of the "y" variable *)
-            | |- context [andp (exp (fun y => _)) _] => 
+            | |- context [andp (exp (fun y => _)) _] =>
                 autorewrite with norm; apply imp_extract_exp_left; intro y
-            | |- context [andp _ (exp (fun y => _))] => 
+            | |- context [andp _ (exp (fun y => _))] =>
                 autorewrite with norm; apply imp_extract_exp_left; intro y
-            | |- context [sepcon (exp (fun y => _)) _] => 
+            | |- context [sepcon (exp (fun y => _)) _] =>
                autorewrite with norm; apply imp_extract_exp_left; intro y
-            | |- context [sepcon _ (exp (fun y => _))] => 
+            | |- context [sepcon _ (exp (fun y => _))] =>
                 autorewrite with norm; apply imp_extract_exp_left; intro y
- 
-           | |-  derives ?A   _ => match A with 
+
+           | |-  derives ?A   _ => match A with
                           | context [ ((!! ?P) && ?Q) && ?R ] => rewrite (andp_assoc (!!P) Q R)
                           | context [ ?Q && (!! ?P && ?R)] =>
                                          match Q with !! _ => fail 2 | _ => rewrite (andp_assoc' (!!P) Q R) end
@@ -1002,18 +1002,18 @@ Ltac normalize1 :=
             | |- _ => progress  (autorewrite with norm); auto with typeclass_instances
             | |- _ = ?x -> _ => intro; subst x
             | |- ?x = _ -> _ => intro; subst x
-            |  |- ?ZZ -> _ => match type of ZZ with 
-                                               | Prop => 
+            |  |- ?ZZ -> _ => match type of ZZ with
+                                               | Prop =>
                                                     let H := fresh in
                                                        ((assert (H:ZZ) by auto; clear H; intros _) || intro H)
                                                | _ => intros _
-                                              end             
+                                              end
             | |- forall _, _ => let x := fresh "x" in (intro x; normalize1; try generalize dependent x)
-            | |- exp _ |-- _ => apply imp_extract_exp_left 
+            | |- exp _ |-- _ => apply imp_extract_exp_left
             | |- !! _ |-- _ => apply derives_extract_prop0
             | |- !! _ && _ |-- _ => apply derives_extract_prop
             | |- _ && !! _ |-- _ => apply derives_extract_prop'
-            | |- _ |-- !! (?x = ?y) && _ => 
+            | |- _ |-- !! (?x = ?y) && _ =>
                             (rewrite prop_true_andp with (P:= (x=y))
                                             by (unfold y; reflexivity); unfold y in *; clear y) ||
                             (rewrite prop_true_andp with (P:=(x=y))
@@ -1022,21 +1022,21 @@ Ltac normalize1 :=
             | |- _ => solve [auto with typeclass_instances]
             end.
 
-Ltac normalize1_in Hx := 
+Ltac normalize1_in Hx :=
              match type of Hx with
                  | context [@andp ?A (@LiftNatDed ?T ?B ?C) ?D ?E ?F] =>
                          change (@andp A (@LiftNatDed T B C) D E F) with (D F && E F)
                  | context [@later ?A  (@LiftNatDed ?T ?B ?C) (@LiftIndir ?X1 ?X2 ?X3 ?X4 ?X5) ?D ?F] =>
-                    change (@later A  (@LiftNatDed T B C) (@LiftIndir X1 X2 X3 X4 X5) D F) 
-                     with (@later B C X5 (D F))   
-                 | context [@sepcon ?A (@LiftNatDed ?B ?C ?D) 
+                    change (@later A  (@LiftNatDed T B C) (@LiftIndir X1 X2 X3 X4 X5) D F)
+                     with (@later B C X5 (D F))
+                 | context [@sepcon ?A (@LiftNatDed ?B ?C ?D)
                                                          (@LiftSepLog ?E ?F ?G ?H) ?J ?K ?L] =>
                    change (@sepcon A (@LiftNatDed B C D) (@LiftSepLog E F G H) J K L)
                       with (@sepcon C D H (J L) (K L))
-                | context [ !! ?P ] =>      
+                | context [ !! ?P ] =>
                                     rewrite (true_eq P) in Hx by auto with typeclass_instances
-                | context [ !! ?P && ?Q ] =>  
-                                    rewrite (prop_true_andp P Q) in Hx by auto with typeclass_instances  
+                | context [ !! ?P && ?Q ] =>
+                                    rewrite (prop_true_andp P Q) in Hx by auto with typeclass_instances
                 | context [(?P && ?Q) * ?R] => rewrite (corable_andp_sepcon1 P Q R) in Hx by (auto with norm)
                 | context [?Q * (?P && ?R)] => rewrite (corable_sepcon_andp1 P Q R) in Hx by (auto with norm)
                 | context [(?Q && ?P) * ?R] => rewrite (corable_andp_sepcon2 P Q R) in Hx by (auto with norm)
@@ -1095,30 +1095,30 @@ apply sepcon_comm.
 Qed.
 
 Ltac select_left n :=
-  repeat match goal with 
- | |- context [(_ * mark ?i _ * mark n _)] => 
+  repeat match goal with
+ | |- context [(_ * mark ?i _ * mark n _)] =>
       rewrite (swap_mark1 i n); [ | solve [simpl; auto]]
- | |- context [(mark ?i _ * mark n _)] => 
+ | |- context [(mark ?i _ * mark n _)] =>
       rewrite (swap_mark0 i n); [ | solve [simpl; auto]]
 end.
-Ltac select_all n := match n with 
-                                | O => idtac 
-                                | S ?n' => select_left n; select_all n' 
+Ltac select_all n := match n with
+                                | O => idtac
+                                | S ?n' => select_left n; select_all n'
                               end.
-Ltac markem n P := 
-   match P with 
-   | (?Y * ?Z) => 
-        (match goal with H: mark _ Z = Z |- _ => idtac end 
+Ltac markem n P :=
+   match P with
+   | (?Y * ?Z) =>
+        (match goal with H: mark _ Z = Z |- _ => idtac end
         || assert (mark n Z = Z) by auto); markem (S n) Y
-   | ?Z =>  match goal with H: mark _ Z = Z |- _ => idtac end 
+   | ?Z =>  match goal with H: mark _ Z = Z |- _ => idtac end
                 || assert (mark n Z = Z) by auto
   end.
 
-Ltac prove_assoc_commut := 
+Ltac prove_assoc_commut :=
  clear;
  try (match goal with |- ?F _ -> ?G _ => replace G with F; auto end);
-  (repeat rewrite <- sepcon_assoc; 
-   match goal with |- ?P = _ => markem O P end; 
+  (repeat rewrite <- sepcon_assoc;
+   match goal with |- ?P = _ => markem O P end;
    let LEFT := fresh "LEFT" in match goal with |- ?P = _ => set (LEFT := P) end;
   match goal with H: mark ?n _ = _ |- _ =>
      repeat  match goal with H: mark ?n _ = ?P |- _ => rewrite <- H; clear H end;
@@ -1280,7 +1280,7 @@ apply orp_left; apply -> imp_andp_adjoint; [apply orp_right1 | apply orp_right2]
 Qed.
 
 Lemma subp_subp {A} {NA: NatDed A}{IA: Indir A}{RA: RecIndir A}:
-  forall G (P Q R S: A), 
+  forall G (P Q R S: A),
    G |-- (R >=> P) ->
    G |-- (Q >=> S) ->
    G |-- (P >=> Q) >=> (R >=> S).
@@ -1301,14 +1301,14 @@ Qed.
 Lemma allp_imp2_later_e2 {B}{A}{NA: NatDed A}{IA: Indir A}{RA: RecIndir A}:
    forall (P Q: B -> A) (y: B) ,
       (ALL x:B, |> P x <=> |> Q x) |-- |> Q y >=> |> P y.
-Proof. 
+Proof.
   intros. apply allp_left with y. repeat rewrite fash_andp. apply andp_left2; auto.
 Qed.
 
 Lemma allp_imp2_later_e1 {B}{A}{NA: NatDed A}{IA: Indir A}{RA: RecIndir A}:
    forall (P Q: B -> A) (y: B) ,
       (ALL x:B, |> P x <=> |> Q x) |-- |> P y >=> |> Q y.
-Proof. 
+Proof.
   intros. apply allp_left with y. repeat rewrite fash_andp. apply andp_left1; auto.
 Qed.
 
@@ -1385,25 +1385,25 @@ Proof.
  apply andp_right; auto.
 Qed.
 
-Ltac sub_unfold := 
-   match goal with 
-    | |- _ |-- ?A _ >=> ?A _ => unfold A 
-    | |- _ |-- ?A _ _ >=> ?A _ _ => unfold A 
-    | |- _ |-- ?A _ _ _ >=> ?A _ _ _ => unfold A 
-    | |- _ |-- ?A _ _ _ _ >=> ?A _ _ _ _ => unfold A 
-    | |- _ |-- ?A _ _ _ _ _ >=> ?A _ _ _ _ _ => unfold A 
+Ltac sub_unfold :=
+   match goal with
+    | |- _ |-- ?A _ >=> ?A _ => unfold A
+    | |- _ |-- ?A _ _ >=> ?A _ _ => unfold A
+    | |- _ |-- ?A _ _ _ >=> ?A _ _ _ => unfold A
+    | |- _ |-- ?A _ _ _ _ >=> ?A _ _ _ _ => unfold A
+    | |- _ |-- ?A _ _ _ _ _ >=> ?A _ _ _ _ _ => unfold A
     | v: _ |- _ => destruct v
    end.
 
 Hint Extern 2 (_ |-- _ >=> _) => sub_unfold : contractive.
 
-Hint Resolve @prove_HOcontractive 
-  @subp_allp @subp_imp @subp_refl @subp_exp @subp_andp @subp_orp @subp_subp 
+Hint Resolve @prove_HOcontractive
+  @subp_allp @subp_imp @subp_refl @subp_exp @subp_andp @subp_orp @subp_subp
   @subp_sepcon (* NOTE: This hint fails to work unless fully instantiated, for some reason;
                              so the client must re-do the subp_sepcon hint *)
   @allp_imp2_later_e1 @allp_imp2_later_e2 : contractive.
 
-Lemma  goedel_loeb {A}  {NA: NatDed A}{IA: Indir A}: 
+Lemma  goedel_loeb {A}  {NA: NatDed A}{IA: Indir A}:
     forall P Q : A ,   Q && later P |-- P ->  Q |-- P.
 Proof.
 intros.
@@ -1451,8 +1451,8 @@ Proof.
   apply goedel_loeb.
   apply allp_right; intro b.
   rewrite HORec_fold_unfold by auto.
-  pose proof (HORec_fold_unfold _ _ (HF1 P)). 
-  pose proof (HORec_fold_unfold _ _ (HF1 Q)). 
+  pose proof (HORec_fold_unfold _ _ (HF1 P)).
+  pose proof (HORec_fold_unfold _ _ (HF1 Q)).
   set (P' := HORec (F P)) in *.
   set (Q' := HORec (F Q)) in *.
   rewrite <- H.

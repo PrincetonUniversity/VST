@@ -16,15 +16,15 @@ int intpair_serialize(struct intpair *p, unsigned char *buf) {
   ((int *)buf)[1]=y;
   return 8;
 }
-  
+
 void intpair_deserialize(struct intpair *p, unsigned char *buf, int length) {
   int x = ((int *)buf)[0];
   int y = ((int *)buf)[1];
   p->x = x;
   p->y = y;
 }
-  
-struct message intpair_message = 
+
+struct message intpair_message =
   {8, &intpair_serialize, &intpair_deserialize};
 
 int main(void) {
@@ -44,10 +44,10 @@ int main(void) {
   y = q.y;
   return x+y;
 }
-  
-  
-    
-   
+
+
+
+
 
 
 

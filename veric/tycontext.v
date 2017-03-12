@@ -32,7 +32,7 @@ Definition t := positive -> option B.
 Definition get (h: t) (a:positive) : option B := h a.
 
 Definition set (a:positive) (v: B) (h: t) : t :=
-  fun i => if ident_eq i a then Some v else h i.   
+  fun i => if ident_eq i a then Some v else h i.
 
 Definition remove (a: positive) (h: t) : t :=
   fun i => if ident_eq i a then None else h i.
@@ -59,8 +59,8 @@ Qed.
 
 Lemma ext h h' : (forall x, get h x = get h' x) -> h=h'.
 Proof.
-intros. extensionality x. apply H. 
-Qed. 
+intros. extensionality x. apply H.
+Qed.
 
 Lemma override (a: positive) (b b' : B) h : set a b' (set a b h) = set a b' h.
 Proof.
@@ -68,7 +68,7 @@ apply ext; intros; unfold get, set; if_tac; intuition. Qed.
 
 Lemma gsspec:
     forall (i j: positive) (x: B) (m: t),
-    get (set j x m) i = if ident_eq i j then Some x else get m i. 
+    get (set j x m) i = if ident_eq i j then Some x else get m i.
 Proof.
 intros. unfold get; unfold set; if_tac; intuition.
 Qed.
@@ -79,7 +79,7 @@ intros. unfold set. unfold get in H.  apply ext. intros. unfold get.
 if_tac; subst; auto.
 Qed.
 
-End map. 
+End map.
 
 
 End Map.
@@ -107,7 +107,7 @@ Definition te_of (rho: environ) : tenviron :=
 
 Definition opt2list (A: Type) (x: option A) :=
   match x with Some a => a::nil | None => nil end.
-Implicit Arguments opt2list.
+Arguments opt2list [A] _.
 
 Fixpoint typelist2list (tl: typelist) : list type :=
  match tl with Tcons t r => t::typelist2list r | Tnil => nil end.
@@ -132,7 +132,7 @@ Fixpoint modifiedvars' (c: statement) (S: idset) : idset :=
  | _ => S
  end
  with
- modifiedvars_ls (cs: labeled_statements) (S: idset) : idset := 
+ modifiedvars_ls (cs: labeled_statements) (S: idset) : idset :=
  match cs with
  | LSnil => S
  | LScons _ c ls => modifiedvars' c (modifiedvars_ls ls S)
@@ -161,8 +161,8 @@ intro id.
  rewrite PTree.gempty; auto.
  induction c; try destruct o; simpl; intros;
  try solve [clear - IS0; intuition];
- try solve [unfold insert_idset; destruct (eq_dec i id); 
-  [subst; repeat rewrite PTree.gss; simpl; clear; intuition 
+ try solve [unfold insert_idset; destruct (eq_dec i id);
+  [subst; repeat rewrite PTree.gss; simpl; clear; intuition
   |  repeat rewrite PTree.gso by auto; simpl; clear - IS0; intuition ]];
  try solve [rewrite IHc1; rewrite IHc1 with (S := modifiedvars' c2 idset0);
                 rewrite IHc2; clear - IS0; intuition].
@@ -199,7 +199,7 @@ Definition make_tenv (te : Clight.temp_env) : tenviron := fun id => PTree.get id
 
 Definition make_venv (te : Clight.env) : venviron := fun id => PTree.get id te.
 
-Definition construct_rho ge ve te:= mkEnviron ge (make_venv ve) (make_tenv te) . 
+Definition construct_rho ge ve te:= mkEnviron ge (make_venv ve) (make_tenv te) .
 
 Definition empty_environ (ge: Clight.genv) := mkEnviron (filter_genv ge) (Map.empty _) (Map.empty _).
 
@@ -226,7 +226,10 @@ Definition SpecTT (A: TypeTree): TypeTree :=
 
 Definition super_non_expansive {A: TypeTree}
   (P: forall ts, dependent_type_functor_rec ts (AssertTT A) mpred): Prop :=
-  forall n ts x rho,
+  forall n ts
+    (x: functors.MixVariantFunctor._functor
+                         (rmaps.dependent_type_functor_rec ts A) mpred)
+    (rho: environ),
   approx n (P ts x rho) = approx n (P ts (fmap _ (approx n) (approx n) x) rho).
 
 Definition const_super_non_expansive: forall (T: Type) P,
@@ -239,7 +242,7 @@ Inductive funspec :=
      (P_ne: super_non_expansive P) (Q_ne: super_non_expansive Q),
      funspec.
 
-(* Causes a universe inconsistency in seplog.v! 
+(* Causes a universe inconsistency in seplog.v!
 Definition example_f_spec :=
   (mk_funspec (nil,Tvoid) mpred (fun (x: mpred) rho => emp) (fun x rho => emp)).
 *)
@@ -256,12 +259,12 @@ Definition members_no_replicate (m: members) : bool :=
 
 Definition compute_in_members id (m: members): bool :=
   id_in_list id (map fst m).
-                                                                      
+
 Lemma compute_in_members_true_iff: forall i m, compute_in_members i m = true <-> in_members i m.
 Proof.
   intros.
   unfold compute_in_members.
-  destruct (id_in_list i (map fst m)) eqn:HH; 
+  destruct (id_in_list i (map fst m)) eqn:HH;
   [apply id_in_list_true in HH | apply id_in_list_false in HH].
   + unfold in_members.
     tauto.
@@ -363,7 +366,7 @@ Proof.
   apply Zle_is_le_bool in H.
   apply power_nat_divide'; [apply alignof_two_p | apply plain_alignof_two_p | omega].
 Qed.
-  
+
 Lemma align_chunk_alignof: forall env t ch, local_legal_alignas_type env t = true -> access_mode t = By_value ch -> (Memdata.align_chunk ch | alignof env t).
 Proof.
   intros.
@@ -418,7 +421,7 @@ Arguments alignof_pos {env} t.
 
 Goal forall {cs: compspecs} t, sizeof t >= 0.
 Proof. intros. apply sizeof_pos.
-Abort. 
+Abort.
 
 (*
 Definition compspecs_program (p: program): compspecs.
@@ -428,11 +431,11 @@ Definition compspecs_program (p: program): compspecs.
 Defined.
 *)
 
-Definition type_of_funspec (fs: funspec) : type :=  
+Definition type_of_funspec (fs: funspec) : type :=
   match fs with mk_funspec fsig cc _ _ _ _ _ => Tfunction (type_of_params (fst fsig)) (snd fsig) cc end.
 
 (** Declaration of type context for typechecking **)
-Inductive tycontext : Type := 
+Inductive tycontext : Type :=
   mk_tycontext : forall (tyc_temps: PTree.t (type * bool))
                         (tyc_vars: PTree.t type)
                         (tyc_ret: type)
@@ -442,18 +445,18 @@ Inductive tycontext : Type :=
 
 
 Definition empty_tycontext : tycontext :=
-  mk_tycontext (PTree.empty _) (PTree.empty _) Tvoid 
+  mk_tycontext (PTree.empty _) (PTree.empty _) Tvoid
          (PTree.empty _)  (PTree.empty _).
 
-Definition temp_types (Delta: tycontext): PTree.t (type*bool) := 
+Definition temp_types (Delta: tycontext): PTree.t (type*bool) :=
   match Delta with mk_tycontext a _ _ _ _ => a end.
-Definition var_types (Delta: tycontext) : PTree.t type := 
+Definition var_types (Delta: tycontext) : PTree.t type :=
   match Delta with mk_tycontext _ a _ _ _ => a end.
-Definition ret_type (Delta: tycontext) : type := 
+Definition ret_type (Delta: tycontext) : type :=
   match Delta with mk_tycontext _ _ a _ _ => a end.
-Definition glob_types (Delta: tycontext) : PTree.t type := 
+Definition glob_types (Delta: tycontext) : PTree.t type :=
   match Delta with mk_tycontext _ _ _ a _ => a end.
-Definition glob_specs (Delta: tycontext) : PTree.t funspec := 
+Definition glob_specs (Delta: tycontext) : PTree.t funspec :=
   match Delta with mk_tycontext _ _ _ _ a => a end.
 
 (** Functions that modify type environments **)
@@ -464,7 +467,7 @@ match (temp_types Delta) ! id with
 | None => Delta (*Shouldn't happen *)
 end.
 
-Definition join_te'  (te2 te : PTree.t (type * bool)) (id: positive) (val: type * bool) := 
+Definition join_te'  (te2 te : PTree.t (type * bool)) (id: positive) (val: type * bool) :=
    let (ty, assn) := val in
         match (te2 ! id) with
         | Some (ty2, assn2) => PTree.set id (ty, assn && assn2) te
@@ -478,7 +481,7 @@ Definition join_tycon (tycon1: tycontext) (tycon2 : tycontext) : tycontext :=
 match tycon1 with  mk_tycontext te1 ve1 r vl1 g1  =>
 match tycon2 with  mk_tycontext te2 _ _ _ _ =>
   mk_tycontext (join_te te1 te2) ve1 r vl1 g1
-end end.              
+end end.
 
 (** Strictly for updating the type context... no typechecking here **)
 Fixpoint update_tycon (Delta: tycontext) (c: Clight.statement) {struct c} : tycontext :=
@@ -498,7 +501,7 @@ end
 with join_tycon_labeled ls Delta :=
 match ls with
 | LSnil => Delta
-| LScons int s ls' => join_tycon (update_tycon Delta s) 
+| LScons int s ls' => join_tycon (update_tycon Delta s)
                       (join_tycon_labeled ls' Delta)
 end.
 
@@ -508,27 +511,27 @@ end.
 
 Definition make_tycontext_t (params: list (ident*type)) (temps : list(ident*type)) :=
 fold_right (fun (param: ident*type) => PTree.set (fst param) (snd param, true))
- (fold_right (fun (temp : ident *type) tenv => let (id,ty):= temp in PTree.set id (ty,false) tenv) 
+ (fold_right (fun (temp : ident *type) tenv => let (id,ty):= temp in PTree.set id (ty,false) tenv)
   (PTree.empty (type * bool)) temps) params.
 
 Definition make_tycontext_v (vars : list (ident * type)) :=
- fold_right (fun (var : ident * type) venv => let (id, ty) := var in PTree.set id ty venv) 
+ fold_right (fun (var : ident * type) venv => let (id, ty) := var in PTree.set id ty venv)
    (PTree.empty type) vars.
 
 Definition make_tycontext_g (V: varspecs) (G: funspecs) :=
- (fold_right (fun (var : ident * funspec) => PTree.set (fst var) (type_of_funspec (snd var))) 
+ (fold_right (fun (var : ident * funspec) => PTree.set (fst var) (type_of_funspec (snd var)))
       (fold_right (fun (v: ident * type) => PTree.set (fst v) (snd v))
          (PTree.empty _) V)
             G).
 
 Definition make_tycontext_s (G: funspecs) :=
- (fold_right (fun (var : ident * funspec) => PTree.set (fst var) (snd var)) 
+ (fold_right (fun (var : ident * funspec) => PTree.set (fst var) (snd var))
             (PTree.empty _) G).
 
 Definition make_tycontext (params: list (ident*type)) (temps: list (ident*type)) (vars: list (ident*type))
                        (return_ty: type)
                        (V: varspecs) (G: funspecs) :  tycontext :=
- mk_tycontext 
+ mk_tycontext
    (make_tycontext_t params temps)
    (make_tycontext_v vars)
    return_ty
@@ -550,19 +553,19 @@ Definition nofunc_tycontext (V: varspecs) (G: funspecs) : tycontext :=
    make_tycontext nil nil nil Tvoid V G.
 
 Definition exit_tycon (c: statement) (Delta: tycontext) (ek: exitkind) : tycontext :=
-  match ek with 
-  | EK_normal => update_tycon Delta c 
-  | _ => Delta 
+  match ek with
+  | EK_normal => update_tycon Delta c
+  | _ => Delta
   end.
 
 Lemma join_te_eqv :forall te1 te2 id b1 b2 t1,
 te1 ! id = Some (t1, b1) -> te2 ! id = Some (t1, b2) ->
 (join_te te1 te2) ! id = Some (t1,andb b1 b2).
 Proof.
-intros. 
+intros.
 unfold join_te. rewrite PTree.fold_spec. rewrite <- fold_left_rev_right.
 assert (forall t : type * bool, In (id, t) (rev (PTree.elements te1)) -> te1 ! id = Some t).
-intros. apply PTree.elements_complete. apply in_rev. auto. 
+intros. apply PTree.elements_complete. apply in_rev. auto.
 assert (forall t, te1 ! id = Some t -> In (id, t) (rev (PTree.elements te1))).
 intros. apply In_rev. rewrite rev_involutive. apply PTree.elements_correct.
 auto.
@@ -584,7 +587,7 @@ destruct H2. inv H2. congruence.  auto.
 apply IHl; auto; intros. rewrite H in *. inv H3. specialize (H2 (t1, b1)).
 intuition. inv H2. congruence.
 Qed.
- 
+
 Lemma temp_types_same_type : forall id i t b Delta,
 (temp_types Delta) ! id = Some (t, b) ->
 exists b0 : bool,
@@ -594,9 +597,9 @@ intros.
 unfold initialized.
 remember ((temp_types Delta) ! i). destruct o.
 destruct p. unfold temp_types in *. simpl. rewrite PTree.gsspec.
-if_tac. subst. rewrite H in *. inv Heqo. exists true.   rewrite orb_true_r. 
-eauto. exists false.   rewrite orb_false_r. eauto. exists false. rewrite orb_false_r. 
-auto. 
+if_tac. subst. rewrite H in *. inv Heqo. exists true.   rewrite orb_true_r.
+eauto. exists false.   rewrite orb_false_r. eauto. exists false. rewrite orb_false_r.
+auto.
 Qed.
 
 Lemma temp_types_update_dist : forall d1 d2 ,
@@ -615,35 +618,35 @@ Proof.
 intros.
 destruct d1; destruct d2.
 simpl. unfold var_types. simpl. auto.
-Qed. 
+Qed.
 
-Lemma ret_type_update_dist : forall d1 d2, 
+Lemma ret_type_update_dist : forall d1 d2,
 (ret_type (join_tycon (d1) (d2))) =
 (ret_type (d1)).
 Proof.
 intros.
 destruct d1; destruct d2.
 simpl. unfold var_types. simpl. auto.
-Qed. 
+Qed.
 
 Lemma glob_types_update_dist :
-forall d1 d2, 
+forall d1 d2,
 (glob_types (join_tycon (d1) (d2))) =
 (glob_types (d1)).
 Proof.
 intros. destruct d1. destruct d2.  simpl. auto.
-Qed. 
- 
+Qed.
+
 Lemma glob_specs_update_dist :
-forall d1 d2, 
+forall d1 d2,
 (glob_specs (join_tycon (d1) (d2))) =
 (glob_specs (d1)).
 Proof.
 intros. destruct d1. destruct d2.  simpl. auto.
-Qed. 
- 
+Qed.
+
 Lemma func_tycontext'_update_dist :
-forall f d1 d2, 
+forall f d1 d2,
 (func_tycontext' f (join_tycon (d1) (d2))) =
 (func_tycontext' f (d1)).
 Proof.
@@ -658,73 +661,73 @@ var_types (join_tycon_labeled l Delta) = var_types Delta.
 Proof.
 assert (forall i Delta, var_types (initialized i Delta) = var_types Delta).
 intros; unfold initialized.
-destruct ((temp_types Delta)!i); try destruct p; reflexivity. 
-destruct c; intros; simpl; try reflexivity. 
-apply H. 
-destruct o. apply H. auto. 
-rewrite var_types_update_tycon. apply var_types_update_tycon. 
+destruct ((temp_types Delta)!i); try destruct p; reflexivity.
+destruct c; intros; simpl; try reflexivity.
+apply H.
+destruct o. apply H. auto.
+rewrite var_types_update_tycon. apply var_types_update_tycon.
 
-rewrite var_types_update_dist. apply var_types_update_tycon. 
-apply var_types_join_labeled. 
+rewrite var_types_update_dist. apply var_types_update_tycon.
+apply var_types_join_labeled.
 
 intros. destruct l. simpl. auto.
-simpl. rewrite var_types_update_dist.  
-rewrite var_types_update_tycon. reflexivity.  
- 
+simpl. rewrite var_types_update_dist.
+rewrite var_types_update_tycon. reflexivity.
+
 Qed.
- 
+
 Lemma glob_types_update_tycon:
   forall c Delta, glob_types (update_tycon Delta c) = glob_types Delta
  with
 glob_types_join_labeled : forall Delta e l,
-glob_types (update_tycon Delta (Sswitch e l)) = glob_types Delta. 
-Proof. 
+glob_types (update_tycon Delta (Sswitch e l)) = glob_types Delta.
+Proof.
 clear glob_types_update_tycon.
 assert (forall i Delta, glob_types (initialized i Delta) = glob_types Delta).
 intros; unfold initialized.
-destruct ((temp_types Delta)!i); try destruct p; reflexivity.  
-induction c; intros; try apply H; try reflexivity. 
-simpl. destruct o. apply H. auto. 
-simpl. 
-rewrite IHc2. 
-auto. 
+destruct ((temp_types Delta)!i); try destruct p; reflexivity.
+induction c; intros; try apply H; try reflexivity.
+simpl. destruct o. apply H. auto.
+simpl.
+rewrite IHc2.
+auto.
 
-simpl.  rewrite glob_types_update_dist. auto. 
+simpl.  rewrite glob_types_update_dist. auto.
 
 auto.
 
 clear glob_types_join_labeled.
-intros. simpl. 
-destruct l. simpl. auto. 
-simpl in *. rewrite glob_types_update_dist. 
-auto. 
-Qed. 
+intros. simpl.
+destruct l. simpl. auto.
+simpl in *. rewrite glob_types_update_dist.
+auto.
+Qed.
 
 Lemma glob_specs_update_tycon:
   forall c Delta, glob_specs (update_tycon Delta c) = glob_specs Delta
  with
 glob_specs_join_labeled : forall Delta e l,
-glob_specs (update_tycon Delta (Sswitch e l)) = glob_specs Delta. 
-Proof. 
+glob_specs (update_tycon Delta (Sswitch e l)) = glob_specs Delta.
+Proof.
 clear glob_specs_update_tycon.
 assert (forall i Delta, glob_specs (initialized i Delta) = glob_specs Delta).
 intros; unfold initialized.
-destruct ((temp_types Delta)!i); try destruct p; reflexivity.  
-induction c; intros; try apply H; try reflexivity. 
-simpl. destruct o. apply H. auto. 
-simpl. 
-rewrite IHc2. 
-auto. 
+destruct ((temp_types Delta)!i); try destruct p; reflexivity.
+induction c; intros; try apply H; try reflexivity.
+simpl. destruct o. apply H. auto.
+simpl.
+rewrite IHc2.
+auto.
 
-simpl.  rewrite glob_specs_update_dist. auto. 
+simpl.  rewrite glob_specs_update_dist. auto.
 
 auto.
 
 clear glob_specs_join_labeled.
-intros. simpl. 
-destruct l. simpl. auto. 
-simpl in *. rewrite glob_specs_update_dist. 
-auto. 
+intros. simpl.
+destruct l. simpl. auto.
+simpl in *. rewrite glob_specs_update_dist.
+auto.
 Qed.
 
 Lemma ret_type_join_tycon:
@@ -743,7 +746,7 @@ Proof.
  rewrite IHc2; auto.
  rewrite ret_type_join_tycon. auto.
 
- induction l; simpl; intros; auto. rewrite ret_type_join_tycon. auto. 
+ induction l; simpl; intros; auto. rewrite ret_type_join_tycon. auto.
 Qed.
 
 Lemma func_tycontext'_update_tycon: forall Delta c f,
@@ -754,30 +757,30 @@ Proof.
 + clear func_tycontext'_update_tycon.
   assert (forall i f Delta, func_tycontext' f (initialized i Delta) = func_tycontext' f Delta).
   intros; unfold initialized.
-  destruct ((temp_types Delta)!i); try destruct p; reflexivity.  
-  intros; revert Delta; induction c; intros; try apply H; try reflexivity. 
-  simpl. destruct o. apply H. auto. 
-  simpl. 
-  rewrite IHc2. 
-  auto. 
+  destruct ((temp_types Delta)!i); try destruct p; reflexivity.
+  intros; revert Delta; induction c; intros; try apply H; try reflexivity.
+  simpl. destruct o. apply H. auto.
+  simpl.
+  rewrite IHc2.
+  auto.
   simpl.  rewrite func_tycontext'_update_dist. auto.
   apply func_tycontext'_join_labeled.
 + clear func_tycontext'_join_labeled.
-  intros. simpl. 
-  destruct l. simpl. auto. 
-  simpl in *. rewrite func_tycontext'_update_dist. 
-  auto. 
+  intros. simpl.
+  destruct l. simpl. auto.
+  simpl in *. rewrite func_tycontext'_update_dist.
+  auto.
 Qed.
 
 Lemma ret_type_exit_tycon:
   forall c Delta ek, ret_type (exit_tycon c Delta ek) = ret_type Delta.
-Proof. 
+Proof.
  destruct ek; try reflexivity. unfold exit_tycon. apply ret_type_update_tycon.
 Qed.
 
 Ltac try_false :=
-try  solve[exists false; rewrite orb_false_r; eauto]. 
- 
+try  solve[exists false; rewrite orb_false_r; eauto].
+
 Lemma update_tycon_te_same : forall c Delta id t b,
 (temp_types Delta) ! id = Some (t,b) ->
 exists b2, (temp_types (update_tycon Delta c)) ! id = Some (t,b || b2)
@@ -785,13 +788,13 @@ exists b2, (temp_types (update_tycon Delta c)) ! id = Some (t,b || b2)
 with update_labeled_te_same : forall ls Delta id t b,
 (temp_types Delta) ! id = Some (t,b) ->
 exists b2, (temp_types (join_tycon_labeled ls Delta)) ! id = Some (t,b || b2) .
-Focus 1. 
-destruct c; intros; simpl; try_false. 
+Focus 1.
+destruct c; intros; simpl; try_false.
 
 simpl. eapply temp_types_same_type; eauto.
 
 simpl. destruct o; eauto. simpl. eapply temp_types_same_type; eauto.
-try_false; eauto. 
+try_false; eauto.
 
 assert (forall (c : statement) (Delta : tycontext)
                          (id : positive) (t : type) (b : bool),
@@ -801,17 +804,17 @@ assert (forall (c : statement) (Delta : tycontext)
                          Some (t, b || b2)) by auto.
 edestruct update_tycon_te_same. apply H.
 specialize (update_tycon_te_same c2 _ _ _ _ H1).
-destruct (update_tycon_te_same). exists (x || x0). rewrite orb_assoc. eauto. 
+destruct (update_tycon_te_same). exists (x || x0). rewrite orb_assoc. eauto.
 
 
 simpl. rewrite temp_types_update_dist.
 
 edestruct (update_tycon_te_same c1). apply H.
-edestruct (update_tycon_te_same c2). apply H. 
+edestruct (update_tycon_te_same c2). apply H.
 erewrite join_te_eqv;
 eauto. exists (x && x0). rewrite orb_andb_distrib_r.  auto.
 
-apply update_labeled_te_same.  exact H.  (*these are the problem if it won't qed*) 
+apply update_labeled_te_same.  exact H.  (*these are the problem if it won't qed*)
 
 intros. destruct ls. simpl. exists false.
 rewrite H. f_equal. f_equal. destruct b; reflexivity.
@@ -819,23 +822,23 @@ rewrite H. f_equal. f_equal. destruct b; reflexivity.
 simpl. rewrite temp_types_update_dist.
 edestruct update_tycon_te_same. apply H.
 edestruct update_labeled_te_same. apply H.
-exists (x && x0).  
-erewrite join_te_eqv. rewrite <- orb_andb_distrib_r. auto. 
-eauto. eauto. Qed. 
+exists (x && x0).
+erewrite join_te_eqv. rewrite <- orb_andb_distrib_r. auto.
+eauto. eauto. Qed.
 
 Lemma set_temp_ve : forall Delta i,
 var_types (initialized i Delta) = var_types (Delta).
 Proof.
 intros. destruct Delta. unfold var_types. unfold initialized.
 simpl. unfold temp_types. simpl. destruct (tyc_temps ! i); auto. destruct p; auto.
-Qed. 
+Qed.
 
 Lemma set_temp_ge : forall Delta i,
 glob_types (initialized i Delta) = glob_types (Delta).
 Proof.
 intros. destruct Delta. unfold var_types. unfold initialized.
 simpl. unfold temp_types. simpl. destruct (tyc_temps ! i); auto. destruct p; auto.
-Qed. 
+Qed.
 
 Lemma set_temp_gs : forall Delta i,
 glob_specs (initialized i Delta) = glob_specs (Delta).
@@ -843,10 +846,10 @@ Proof.
 intros. destruct Delta. unfold var_types. unfold initialized.
 simpl. unfold temp_types. simpl. destruct (tyc_temps ! i); auto. destruct p; auto.
 Qed.
- 
+
 Lemma set_temp_ret : forall Delta i,
 ret_type (initialized i Delta) = ret_type (Delta).
-intros. 
+intros.
 destruct Delta. unfold var_types. unfold initialized.
 simpl. unfold temp_types. simpl. destruct (tyc_temps ! i); auto. destruct p; auto.
 Qed.
@@ -855,10 +858,10 @@ Lemma update_tycon_eqv_ve : forall Delta c id,
 (var_types (update_tycon Delta c)) ! id = (var_types (Delta)) ! id
 
 with update_le_eqv_ve : forall (l : labeled_statements) (id : positive) Delta,
-(var_types (join_tycon_labeled l Delta)) ! id = 
+(var_types (join_tycon_labeled l Delta)) ! id =
 (var_types Delta) ! id.
 Proof.
-intros; 
+intros;
 destruct c; simpl in *; try reflexivity.
 rewrite set_temp_ve. auto.
 destruct o. rewrite set_temp_ve. auto.
@@ -870,20 +873,20 @@ rewrite update_tycon_eqv_ve. auto.
 
 erewrite update_le_eqv_ve. auto.
 
-intros. 
- destruct l. simpl in *. auto. 
+intros.
+ destruct l. simpl in *. auto.
  simpl in *. rewrite var_types_update_dist.
 rewrite update_tycon_eqv_ve. auto.
 Qed.
 
 Lemma update_tycon_eqv_ret : forall Delta c,
-(ret_type (update_tycon Delta c)) = (ret_type (Delta)) 
+(ret_type (update_tycon Delta c)) = (ret_type (Delta))
 
 with update_le_eqv_ret : forall (l : labeled_statements)  Delta,
-(ret_type (join_tycon_labeled l Delta)) = 
+(ret_type (join_tycon_labeled l Delta)) =
 (ret_type Delta).
 Proof.
-intros; 
+intros;
 destruct c; simpl in *; try reflexivity.
 rewrite set_temp_ret. auto.
 destruct o. rewrite set_temp_ret. auto.
@@ -895,8 +898,8 @@ rewrite update_tycon_eqv_ret. auto.
 
 rewrite update_le_eqv_ret. auto.
 
-intros. 
- destruct l. simpl in *. 
+intros.
+ destruct l. simpl in *.
 reflexivity.
  simpl in *. rewrite ret_type_update_dist.
 rewrite update_tycon_eqv_ret. auto.
@@ -924,25 +927,25 @@ Lemma update_tycon_eqv_ge : forall Delta c id,
 
 with update_le_eqv_ge : forall (l : labeled_statements) (id : positive)  Delta,
 (glob_types (join_tycon_labeled l Delta)) ! id =
-(glob_types Delta) ! id. 
+(glob_types Delta) ! id.
 Proof.
-intros; 
+intros;
 destruct c; simpl in *; try reflexivity.
 rewrite set_temp_ge. auto.
 destruct o. rewrite set_temp_ge. auto.
 auto.
-rewrite update_tycon_eqv_ge. apply update_tycon_eqv_ge. 
+rewrite update_tycon_eqv_ge. apply update_tycon_eqv_ge.
 
 rewrite glob_types_update_dist.
 rewrite update_tycon_eqv_ge. auto.
 erewrite update_le_eqv_ge. auto.
 
-intros. 
- destruct l. simpl in *. 
-auto. 
+intros.
+ destruct l. simpl in *.
+auto.
 simpl in *. rewrite glob_types_update_dist.
 rewrite update_tycon_eqv_ge. auto.
-Qed.   
+Qed.
 
 
 Lemma update_tycon_eqv_gs : forall Delta c id,
@@ -950,25 +953,25 @@ Lemma update_tycon_eqv_gs : forall Delta c id,
 
 with update_le_eqv_gs : forall (l : labeled_statements) (id : positive)  Delta,
 (glob_specs (join_tycon_labeled l Delta)) ! id =
-(glob_specs Delta) ! id. 
+(glob_specs Delta) ! id.
 Proof.
-intros; 
+intros;
 destruct c; simpl in *; try reflexivity.
 rewrite set_temp_gs. auto.
 destruct o. rewrite set_temp_gs. auto.
 auto.
-rewrite update_tycon_eqv_gs. apply update_tycon_eqv_gs. 
+rewrite update_tycon_eqv_gs. apply update_tycon_eqv_gs.
 
 rewrite glob_specs_update_dist.
 rewrite update_tycon_eqv_gs. auto.
 erewrite update_le_eqv_gs. auto.
 
-intros. 
- destruct l. simpl in *. 
-auto. 
+intros.
+ destruct l. simpl in *.
+auto.
 simpl in *. rewrite glob_specs_update_dist.
 rewrite update_tycon_eqv_gs. auto.
-Qed.   
+Qed.
 
 
 Lemma update_tycon_same_ge : forall Delta c id v,
@@ -984,7 +987,7 @@ intros; split; intros;
 rewrite update_tycon_eqv_ge in *; auto.
 intros; split; intros;
 rewrite update_le_eqv_ge in *; auto.
-Qed.    
+Qed.
 
 Lemma update_tycon_same_gs : forall Delta c id v,
 (glob_specs (update_tycon Delta c)) ! id = Some v <->
@@ -1091,7 +1094,7 @@ Definition tycontext_sub (Delta Delta' : tycontext) : Prop :=
  /\ (forall id, (var_types Delta) ! id = (var_types Delta') ! id)
  /\ ret_type Delta = ret_type Delta'
  /\ (forall id, sub_option ((glob_types Delta) ! id) ((glob_types Delta') ! id))
- /\ (forall id, sub_option ((glob_specs Delta) ! id) ((glob_specs Delta') ! id)).               
+ /\ (forall id, sub_option ((glob_specs Delta) ! id) ((glob_specs Delta') ! id)).
 
 Definition tycontext_eqv (Delta Delta' : tycontext) : Prop :=
  (forall id, (temp_types Delta) ! id = (temp_types Delta') ! id)
@@ -1099,7 +1102,7 @@ Definition tycontext_eqv (Delta Delta' : tycontext) : Prop :=
  /\ ret_type Delta = ret_type Delta'
  /\ (forall id, (glob_types Delta) ! id = (glob_types Delta') ! id)
  /\ (forall id, (glob_specs Delta) ! id = (glob_specs Delta') ! id).
-                
+
 Lemma join_tycon_same: forall Delta, tycontext_eqv (join_tycon Delta Delta) Delta.
 Proof.
  intros.
@@ -1136,7 +1139,7 @@ Proof.
  simpl. destruct a. simpl. unfold join_te' at 1. destruct p0.
  destruct (eq_dec p id). subst p. rewrite  H. apply IHl; auto.
  contradict H0; simpl; auto.
- case_eq (tyc_temps ! p); intros. destruct p0. 
+ case_eq (tyc_temps ! p); intros. destruct p0.
  rewrite PTree.gso.
  apply IHl. contradict H0;simpl; auto.
  intro; subst p; congruence.
@@ -1188,7 +1191,7 @@ Proof.
   intros. destruct Delta as [T V r G S].
   unfold tycontext_sub.
   intuition.
-  + unfold sub_option. unfold temp_types. simpl. 
+  + unfold sub_option. unfold temp_types. simpl.
     destruct (T ! id) as [[? ?]|]; split; auto; destruct b; auto.
   + apply sub_option_refl.
   + apply sub_option_refl.
@@ -1203,9 +1206,9 @@ Proof.
   repeat split.
   * intros. specialize (G1 id); specialize (H1 id).
     destruct ((temp_types Delta1) ! id); auto.
-    destruct p. destruct ((temp_types Delta2) ! id); 
+    destruct p. destruct ((temp_types Delta2) ! id);
       try contradiction. destruct p.
-    destruct ((temp_types Delta3) ! id); try contradiction. 
+    destruct ((temp_types Delta3) ! id); try contradiction.
     destruct p. destruct G1, H1; split; subst; auto.
     destruct (negb  b); inv H0; simpl; auto.
     destruct b0; inv H; simpl in H4. auto.
@@ -1227,7 +1230,7 @@ auto.
 Qed.
 
 Definition te_one_denote (v1 v2 : option (type * bool)):=
-match v1, v2 with 
+match v1, v2 with
 | Some (t1,b1),Some (t2, b2) =>  Some (t1, andb b1 b2)
 | _, _ => None
 end.
@@ -1282,7 +1285,7 @@ destruct (d1 ! id) as [[t b] | ] eqn:?; auto.
  pose proof (PTree.elements_complete d1 id (t,b) H1). congruence.
  clear - H1.
  induction (rev el); simpl. apply PTree.gempty.
- unfold join_te' at 1. destruct a. simpl. destruct p0. 
+ unfold join_te' at 1. destruct a. simpl. destruct p0.
  destruct (d2 ! p). destruct p0. rewrite PTree.gso. apply IHl.
  contradict H1. right; auto.
  contradict H1. left; auto.
@@ -1293,7 +1296,7 @@ Lemma temp_types_same_type' : forall i (Delta: tycontext),
  (temp_types (initialized i Delta)) ! i =
   match (temp_types Delta) ! i with
    | Some (t, b) => Some (t, true)
-  | None => None 
+  | None => None
   end.
 Proof.
 intros.
@@ -1305,19 +1308,19 @@ Qed.
 
 Definition binop_stable cenv op a1 a2 : bool :=
 match op with
-  | Cop.Oadd => match Cop.classify_add (typeof a1) (typeof a2) with 
+  | Cop.Oadd => match Cop.classify_add (typeof a1) (typeof a2) with
                     | Cop.add_case_pi t => complete_type cenv t
-                    | Cop.add_case_ip t => complete_type cenv t 
-                    | Cop.add_case_pl t => complete_type cenv t 
-                    | Cop.add_case_lp t => complete_type cenv t 
+                    | Cop.add_case_ip t => complete_type cenv t
+                    | Cop.add_case_pl t => complete_type cenv t
+                    | Cop.add_case_lp t => complete_type cenv t
                     | Cop.add_default => true
             end
-  | Cop.Osub => match Cop.classify_sub (typeof a1) (typeof a2) with 
+  | Cop.Osub => match Cop.classify_sub (typeof a1) (typeof a2) with
                     | Cop.sub_case_pi t => complete_type cenv t
-                    | Cop.sub_case_pl t => complete_type cenv t 
+                    | Cop.sub_case_pl t => complete_type cenv t
                     | Cop.sub_case_pp t => complete_type cenv t
                     | Cop.sub_default => true
-            end 
+            end
   | _ => true
   end.
 
@@ -1396,7 +1399,7 @@ Lemma initialized_sub: forall i,
   tycontext_sub (initialized i Delta) (initialized i Delta').
 Proof.
 intros.
-unfold tycontext_sub in *. 
+unfold tycontext_sub in *.
 destruct extends as [? [? [? [? ?]]]].
 repeat split; intros.
  + specialize (H id); clear - H.
@@ -1413,7 +1416,7 @@ repeat split; intros.
         destruct ((temp_types Delta')!id) as [[? ?] |]; [| contradiction].
          auto.
  + repeat rewrite set_temp_ve; auto.
- + repeat rewrite set_temp_ret; auto. 
+ + repeat rewrite set_temp_ret; auto.
  + repeat rewrite set_temp_ge; auto.
  + repeat rewrite set_temp_gs; auto.
 Qed.
@@ -1468,7 +1471,7 @@ Qed.
 Lemma update_tycon_sub:
   forall Delta Delta', tycontext_sub Delta Delta' ->
    forall h, tycontext_sub (update_tycon Delta h) (update_tycon Delta' h)
-with join_tycon_labeled_sub: 
+with join_tycon_labeled_sub:
  forall Delta Delta', tycontext_sub Delta Delta' ->
     forall ls, tycontext_sub (join_tycon_labeled ls Delta)
                          (join_tycon_labeled ls Delta').

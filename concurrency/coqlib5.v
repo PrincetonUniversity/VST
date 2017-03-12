@@ -3,13 +3,13 @@
 (** Additions to [if_tac]: when mature, move these upstream *)
 
 Tactic Notation "if_tac" "eq:" simple_intropattern(E) :=
-  match goal with 
+  match goal with
     |- context [if ?a then _ else _] =>
     destruct a as [?H | ?H] eqn:E
   end.
 
 Tactic Notation "if_tac" simple_intropattern(H) "eq:" simple_intropattern(E):=
-  match goal with 
+  match goal with
     |- context [if ?a then _ else _] =>
     destruct a as H eqn:E
   end.
@@ -78,19 +78,19 @@ Tactic Notation "rewr" :=
 
 Tactic Notation "rewr" constr(e) :=
   match goal with
-    E : e = _ |- _ => rewrite E 
+    E : e = _ |- _ => rewrite E
   | E : _ = e |- _ => rewrite <-E
   end.
 
 Tactic Notation "rewr" constr(e) "in" "*" :=
   match goal with
-    E : e = _ |- _ => rewrite E in * 
+    E : e = _ |- _ => rewrite E in *
   | E : _ = e |- _ => rewrite <-E in *
   end.
 
 Tactic Notation "rewr" constr(e) "in" hyp(H) :=
   match goal with
-    E : e = _ |- _ => rewrite E in H 
+    E : e = _ |- _ => rewrite E in H
   | E : _ = e |- _ => rewrite <-E in H
   end.
 

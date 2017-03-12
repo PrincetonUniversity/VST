@@ -5,7 +5,7 @@
 
 Require Import msl.base.
 
-Open Local Scope nat_scope.
+Local Open Scope nat_scope.
 
 Record ageable_facts (A:Type) (level: A -> nat) (age1:A -> option A)  :=
 { af_unage : forall x':A, exists x, age1 x = Some x'
@@ -13,9 +13,9 @@ Record ageable_facts (A:Type) (level: A -> nat) (age1:A -> option A)  :=
 ; af_level2 : forall x y, age1 x = Some y -> level x = S (level y)
 }.
 
-Implicit Arguments af_unage [[A] [level] [age1]].
-Implicit Arguments af_level1 [[A] [level] [age1]].
-Implicit Arguments af_level2 [[A] [level] [age1]].
+Arguments af_unage [A] [level] [age1] _ _.
+Arguments af_level1 [A] [level] [age1] _ _.
+Arguments af_level2 [A] [level] [age1] _ _ _ _.
 
 Class ageable (A:Type) := mkAgeable
 { level : A -> nat
@@ -25,7 +25,7 @@ Class ageable (A:Type) := mkAgeable
 
 Definition age {A} `{ageable A} (x y:A) := age1 x = Some y.
 
-Lemma af_wf {A} `{ageable A} : 
+Lemma af_wf {A} `{ageable A} :
  well_founded (fun x y => age y x).
 Proof.
   intros.
@@ -41,7 +41,7 @@ Proof.
   apply IHn.
   omega.
 Qed.
-Implicit Arguments af_wf.
+Arguments af_wf [A] _ _.
 
 Definition age_induction {A} `{ageable A} :=
   well_founded_induction (af_wf _).
@@ -54,13 +54,13 @@ Proof.
   repeat intro; hnf; auto.
 Qed.
 
-Lemma fashionR_trans {A} `{ageable A} {B} `{ageable B} {C} `{ageable C} : 
+Lemma fashionR_trans {A} `{ageable A} {B} `{ageable B} {C} `{ageable C} :
     forall (x: A) (y: B) (z: C), fashionR x y -> fashionR y z -> fashionR x z.
 Proof.
   unfold fashionR; intros; congruence.
 Qed.
 
-Lemma fashionR_sym {A} `{ageable A} {B} `{ageable B}: 
+Lemma fashionR_sym {A} `{ageable A} {B} `{ageable B}:
    forall (x: A) (y: B), fashionR x y -> fashionR y x.
 Proof.
   unfold fashionR; intros; auto.
@@ -93,7 +93,7 @@ Section level'.
     intros. hnf. assumption.
     unfold transp. apply (af_wf _).
   Defined.
-  
+
   Theorem level_level' : forall x:A, level x = level' x.
   Proof.
     intro x; induction x using age_induction; intros.
@@ -174,7 +174,7 @@ Section RtRft.
     clos_trans A (transp A R) x y <-> transp A (clos_trans A R) x y.
   Proof.
     unfold transp; intuition.
-    
+
     elim H; intros.
     apply t_step; auto.
     apply t_trans with y0; auto.
@@ -276,7 +276,7 @@ Proof.
 Qed.
 
 Section NAT_AGEABLE.
-  
+
   Definition natLevel (x:nat) : nat := x.
   Definition natAge1 (x:nat) : option nat :=
     match x with
@@ -285,7 +285,7 @@ Section NAT_AGEABLE.
     end.
   Definition natUnage (x:nat) : nat := S x.
 
-  Lemma ag_nat_facts : 
+  Lemma ag_nat_facts :
     ageable_facts nat natLevel natAge1.
   Proof.
     constructor.
@@ -306,7 +306,7 @@ Section NAT_AGEABLE.
     destruct x; inv H; auto.
     auto.
     omega.
-    
+
     induction H.
     apply rt_refl.
     apply rt_trans with m.
@@ -369,13 +369,13 @@ Section BIJECTION.
 
   Let ageB (x y: B) :=age1B x = Some y.
 
-  Lemma age_bij_unage : 
+  Lemma age_bij_unage :
     forall x', exists x, age1B x = Some x'.
   Proof.
     unfold age1B, levelB; simpl; intros.
     destruct bijAB as [f g fg gf]; simpl in *.
     destruct (af_unage age_facts (g x')) as [y ?].
-   exists (f y). rewrite gf. rewrite H. f_equal. apply fg. 
+   exists (f y). rewrite gf. rewrite H. f_equal. apply fg.
   Qed.
 
   Lemma age_bij_level1 :
@@ -416,7 +416,7 @@ End BIJECTION.
 Section PROD.
   Variable A B : Type.
   Variable agA: ageable A.
-  
+
   Let levelAB (x:prod A B) := level (fst x).
   Let age1AB (x:prod A B) :=
     match age1 (fst x) with
@@ -512,7 +512,7 @@ Section PROD.
 
     destruct H; subst.
     induction H.
-    apply t_step. 
+    apply t_step.
     hnf; simpl. unfold age1AB. simpl; rewrite H. auto.
     eapply t_trans; eauto.
   Qed.
@@ -522,7 +522,7 @@ End PROD.
 Section PROD'.
   Variable A B : Type.
   Variable agB: ageable B.
-  
+
   Let levelAB (x:prod A B) := level (snd x).
   Let age1AB (x:prod A B) :=
     match age1 (snd x) with
@@ -618,7 +618,7 @@ Section PROD'.
 
     destruct H; subst.
     induction H.
-    apply t_step. 
+    apply t_step.
     hnf; simpl. unfold age1AB. simpl; rewrite H. auto.
     eapply t_trans; eauto.
   Qed.
@@ -627,11 +627,11 @@ End PROD'.
 
 Fixpoint composeOptN (A: Type) (f: A -> option A)
          (n: nat) (w: A) {struct n} : option A :=
- match n  with 
+ match n  with
  | S n' => match f w with Some w' => composeOptN A f n' w' | None => None end
  | O => Some w
  end.
-Implicit Arguments composeOptN.
+Arguments composeOptN [A] _ _ _.
 
 Definition ageN {A} `{ageable A}: nat -> A -> option A := composeOptN age1.
 
@@ -643,7 +643,7 @@ extensionality phi.
 case_eq (age1 phi); intros; try rewrite H; auto.
 Qed.
 
-Lemma ageN_compose {A} `{agA : ageable A}: 
+Lemma ageN_compose {A} `{agA : ageable A}:
  forall a b c phi1 phi2 phi3,ageN a phi1 = Some phi2 ->
        ageN b phi2 = Some phi3 ->  (a+b=c)%nat ->  ageN c phi1 = Some phi3.
 Proof.
@@ -744,7 +744,7 @@ Lemma predicate_max:
 Proof.
 intros.
 assert (forall m, (m <= n)%nat ->
-         (forall k, (k<m)%nat -> F k) \/ 
+         (forall k, (k<m)%nat -> F k) \/
          (exists i, F i /\ (i<m)%nat /\ ~ F (S i))).
 induction m.
 left; intros.
@@ -787,12 +787,12 @@ exists n; repeat split; auto; try omega.
 auto.
 Qed.
 
-Lemma age_noetherian'  {A} `{agA : ageable A}: 
+Lemma age_noetherian'  {A} `{agA : ageable A}:
        forall phi, exists! n, exists phi', ageN n phi = Some phi' /\ age1 phi' = None.
 Proof.
 intros.
 destruct (age_noetherian phi) as [n ?].
-assert (Fdec: forall n, {ageN n phi <> None}+{~( ageN n phi <> None)}) 
+assert (Fdec: forall n, {ageN n phi <> None}+{~( ageN n phi <> None)})
   by (intros; destruct (ageN n0 phi); auto; left; intro Hx; inversion Hx).
 destruct (predicate_max (fun n => ageN n phi <> None) Fdec n) as [i [? [? ?]]].
 intro. inv H0.
@@ -905,7 +905,7 @@ destruct H3; auto.
 apply laterR_level in H3; unfold fashionR in H2; elimtype False; omega.
 Qed.
 
-Lemma laterR_necR {A} `{agA : ageable A}: 
+Lemma laterR_necR {A} `{agA : ageable A}:
   forall {x y}, laterR x y -> necR x y.
 Proof.
 induction 1; intros.

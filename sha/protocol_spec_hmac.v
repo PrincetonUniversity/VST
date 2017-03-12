@@ -11,6 +11,9 @@ Require Import sha.hmac_common_lemmas.
 Require Import sha.hmac.
 Require Import sha.spec_hmac.
 
+Require Import sha.ByteBitRelations.
+Require Import sha.verif_hmac_crypto.
+
 Module Type HMAC_ABSTRACT_SPEC.
 
 (*"Ordinary" abstract states contain a key and some data*)
@@ -72,7 +75,8 @@ Qed.
    mbedtls_md_hmac_starts sets the key and prepares to authenticate a new message. *)
 
 Definition hmac_reset_spec :=
-  DECLARE _HMAC_Init 
+  DECLARE _HMAC_Init (*Naphat: you'll probably have DECLARE mbedtls_hmac_reset here, and the
+                       body of your wrapper function is a call to hmac_init with key==null.*)
    WITH c : val, l:Z, key:list Z, kv:val 
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
          _key OF tptr tuchar,
@@ -87,19 +91,20 @@ Definition hmac_reset_spec :=
      SEP (REP (hABS key nil) c; K_vector kv).
 
 Definition hmac_starts_spec :=
-  DECLARE _HMAC_Init 
-   WITH c : val, l:Z, key:list Z, kv:val, k:val(*b:block, i:Int.int*)
+  DECLARE _HMAC_Init (*Naphat: you'll probably have DECLARE mbedtls_hmac_starts here, and the
+                       body of your wrapper function is a call to hmac_init with the nonnull key*)
+   WITH c : val, l:Z, key:list Z, kv:val, b:block, i:Int.int
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
          _key OF tptr tuchar,
          _len OF tint ]
          PROP (has_lengthK l key)
-         LOCAL (temp _ctx c; temp _key k; temp _len (Vint (Int.repr l));
+         LOCAL (temp _ctx c; temp _key (Vptr b i); temp _len (Vint (Int.repr l));
                 gvar sha._K256 kv)
-         SEP (EMPTY c; data_block Tsh key k; K_vector kv)
+         SEP (EMPTY c; data_block Tsh key (Vptr b i); K_vector kv)
   POST [ tvoid ] 
      PROP ()
      LOCAL ()
-     SEP (REP (hABS key nil) c; data_block Tsh key k; K_vector kv).
+     SEP (REP (hABS key nil) c; data_block Tsh key (Vptr b i); K_vector kv).
 
 Definition hmac_update_spec :=
   DECLARE _HMAC_Update
@@ -147,14 +152,11 @@ Definition hmac_cleanup_spec :=
           LOCAL ()
           SEP(EMPTY c).
 
-
-Require Import sha.ByteBitRelations.
-Require Import sha.verif_hmac_crypto.
 Definition hmac_crypto_spec :=
   DECLARE _HMAC
    WITH md: val, KEY:DATA,
         msg: val, MSG:DATA,
-        kv:val, shmd: share, k:val
+        kv:val, shmd: share, b:block, i:int
    PRE [ _key OF tptr tuchar,
          _key_len OF tint,
          _d OF tptr tuchar,
@@ -163,11 +165,11 @@ Definition hmac_crypto_spec :=
          PROP (writable_share shmd; 
                has_lengthK (LEN KEY) (CONT KEY);
                has_lengthD 512 (LEN MSG) (CONT MSG))
-         LOCAL (temp _md md; temp _key k;
+         LOCAL (temp _md md; temp _key (Vptr b i);
                 temp _key_len (Vint (Int.repr (LEN KEY)));
                 temp _d msg; temp _n (Vint (Int.repr (LEN MSG)));
                 gvar sha._K256 kv)
-         SEP(data_block Tsh (CONT KEY) k; 
+         SEP(data_block Tsh (CONT KEY) (Vptr b i); 
              data_block Tsh (CONT MSG) msg; 
              memory_block shmd 32 md;
              K_vector kv)
@@ -180,7 +182,7 @@ Definition hmac_crypto_spec :=
           LOCAL (temp ret_temp md)
           SEP(K_vector kv;
               data_block shmd digest md;
-              data_block Tsh (CONT MSG) msg; data_block Tsh (CONT KEY) k).
+              data_block Tsh (CONT MSG) msg; data_block Tsh (CONT KEY) (Vptr b i)).
 
 (* Finally, we have proofs that the openssl implementations satisfy these specs*)
 
@@ -213,6 +215,13 @@ rewrite two_power_pos_equiv in *.
 assert (l * 8 < 2^31 * 8) by omega. clear H0.
 eapply Z.lt_trans. eassumption. clear H. cbv; trivial.
 Qed.
+
+Require Import sha.verif_hmac_final.
+Require Import sha.verif_hmac_update.
+Require Import sha.verif_hmac_init.
+Require Import sha.verif_hmac_cleanup.
+Import sha.ByteBitRelations.
+Import sha.verif_hmac_crypto.
 
 Module OPENSSL_HMAC_ABSTRACT_SPEC <: HMAC_ABSTRACT_SPEC.
 Inductive HABS := hABS: forall (key data:list Z), HABS.
@@ -306,18 +315,18 @@ Definition hmac_reset_spec :=
 
 Definition hmac_starts_spec :=
   DECLARE _HMAC_Init
-   WITH c : val, l:Z, key:list Z, kv:val, k:val
+   WITH c : val, l:Z, key:list Z, kv:val, b:block, i:Int.int
    PRE [ _ctx OF tptr t_struct_hmac_ctx_st,
          _key OF tptr tuchar,
          _len OF tint ]
          PROP (has_lengthK l key)
-         LOCAL (temp _ctx c; temp _key k; temp _len (Vint (Int.repr l));
+         LOCAL (temp _ctx c; temp _key (Vptr b i); temp _len (Vint (Int.repr l));
                 gvar sha._K256 kv)
-         SEP (EMPTY c; data_block Tsh key k; K_vector kv)
+         SEP (EMPTY c; data_block Tsh key (Vptr b i); K_vector kv)
   POST [ tvoid ] 
      PROP ()
      LOCAL ()
-     SEP (REP (hABS key nil) c; data_block Tsh key k; K_vector kv).
+     SEP (REP (hABS key nil) c; data_block Tsh key (Vptr b i); K_vector kv).
 
 Definition hmac_update_spec :=
   DECLARE _HMAC_Update
@@ -365,14 +374,11 @@ Definition hmac_cleanup_spec :=
           LOCAL ()
           SEP(EMPTY c).
 
-Import sha.ByteBitRelations.
-Import sha.verif_hmac_crypto.
-
 Definition hmac_crypto_spec :=
   DECLARE _HMAC
    WITH md: val, KEY:DATA,
         msg: val, MSG:DATA,
-        kv:val, shmd: share, k:val
+        kv:val, shmd: share, b:block, i:int
    PRE [ _key OF tptr tuchar,
          _key_len OF tint,
          _d OF tptr tuchar,
@@ -381,11 +387,11 @@ Definition hmac_crypto_spec :=
          PROP (writable_share shmd; 
                has_lengthK (LEN KEY) (CONT KEY);
                has_lengthD 512 (LEN MSG) (CONT MSG))
-         LOCAL (temp _md md; temp _key k;
+         LOCAL (temp _md md; temp _key (Vptr b i);
                 temp _key_len (Vint (Int.repr (LEN KEY)));
                 temp _d msg; temp _n (Vint (Int.repr (LEN MSG)));
                 gvar sha._K256 kv)
-         SEP(data_block Tsh (CONT KEY) k; 
+         SEP(data_block Tsh (CONT KEY) (Vptr b i); 
              data_block Tsh (CONT MSG) msg; 
              memory_block shmd 32 md;
              K_vector kv)
@@ -398,23 +404,17 @@ Definition hmac_crypto_spec :=
           LOCAL (temp ret_temp md)
           SEP(K_vector kv;
               data_block shmd digest md;
-              data_block Tsh (CONT MSG) msg; data_block Tsh (CONT KEY) k).
-
-Require Import sha.verif_hmac_final.
-Require Import sha.verif_hmac_update.
-Require Import sha.verif_hmac_init.
-Require Import sha.verif_hmac_cleanup.
+              data_block Tsh (CONT MSG) msg; data_block Tsh (CONT KEY) (Vptr b i)).
 
 Lemma body_hmac_crypto: semax_body HmacVarSpecs HmacFunSpecs 
       f_HMAC hmac_crypto_spec.
 Proof.
 start_function.
 rename lvar0 into c. rename H into KL. rename H0 into DL.
-assert_PROP (isptr k) by entailer!. 
 eapply semax_pre_post.
-3: solve [eapply (hmacbodycryptoproof Espec k KEY msg MSG kv shmd md c); eassumption].
-1: solve [entailer!].
-destruct k; try contradiction; clear H.
+Focus 3.
+eapply (hmacbodycryptoproof Espec (Vptr b i) KEY msg MSG kv shmd md c); eassumption.
+entailer!.
 intros ? ?. apply andp_left2. apply frame_ret_assert_derives.
   apply function_body_ret_assert_derives. normalize. Exists digest.
   old_go_lower.
@@ -435,11 +435,11 @@ apply semax_pre with (P':=EX h1:hmacabs,
    SEP  (data_at_ Tsh (tarray tuchar 64) ctxkey;
    data_at_ Tsh (tarray tuchar 64) pad; K_vector kv;
    initPre c nullval h1 l key))). 
-{ unfold FULL. Intros h1. Exists h1. entailer!. }
+{ unfold FULL. Intros h1. Exists h1. (*red in H.*)  entailer!. }
 Intros h1.
 eapply semax_post.
-2: solve [apply (initbodyproof Espec c nullval l key kv h1 pad ctxkey)].
-intros. apply andp_left2. apply frame_ret_assert_derives.
+2: apply (initbodyproof Espec c nullval l key kv h1 pad ctxkey).
+  intros. apply andp_left2. apply frame_ret_assert_derives.
   apply function_body_ret_assert_derives.
   old_go_lower.
   entailer!.
@@ -455,16 +455,16 @@ rename lvar0 into buf.
 unfold REP, abs_relate. Intros r.
 destruct H as [mREL [iREL [oREL [iLEN oLEN]]]].
 eapply semax_pre_post.
-  3: solve [apply (finalbodyproof Espec c md shmd kv buf (hmacUpdate data (hmacInit key)) SH)].
+  3: apply (finalbodyproof Espec c md shmd kv buf (hmacUpdate data (hmacInit key)) SH).
   
-  + apply andp_left2. unfold hmacstate_. Exists r. old_go_lower. entailer!.
+  apply andp_left2. unfold hmacstate_. Exists r. old_go_lower. entailer!.
 
-  + intros. apply andp_left2. apply frame_ret_assert_derives.
-    apply function_body_ret_assert_derives.
-    rewrite <- hmac_sound. unfold FULL.
-    change (hmacFinal (hmacUpdate data (hmacInit key))) with (hmac key data).
-    Exists (fst (hmac key data)). old_go_lower. entailer!.
-    eapply hmacstate_PostFinal_PreInitNull; reflexivity.
+  intros. apply andp_left2. apply frame_ret_assert_derives.
+  apply function_body_ret_assert_derives.
+  rewrite <- hmac_sound. unfold FULL.
+  change (hmacFinal (hmacUpdate data (hmacInit key))) with (hmac key data).
+  Exists (fst (hmac key data)). old_go_lower. entailer!.
+  eapply hmacstate_PostFinal_PreInitNull; reflexivity.
 Qed.
 
 Lemma body_hmac_update: semax_body HmacVarSpecs HmacFunSpecs 
@@ -474,13 +474,14 @@ start_function.
 destruct H as [Prop1 Prop2].
 eapply semax_pre_post.
   3: apply (updatebodyproof Espec c d (Zlength data1) data1 kv (hmacUpdate data (hmacInit key))).
-     apply andp_left2. old_go_lower. entailer!.
 
-  + intros. apply andp_left2. apply frame_ret_assert_derives.
+  apply andp_left2. old_go_lower. entailer!.
+
+  intros. apply andp_left2. apply frame_ret_assert_derives.
   apply function_body_ret_assert_derives. 
   rewrite hmacUpdate_app. old_go_lower. entailer!.
 
-  + split; trivial. split; trivial. simpl.
+  split; trivial. split; trivial. simpl.
   unfold innerShaInit, s256a_len.
   rewrite Zlength_app, Zlength_mkArgZ, map_length, mkKey_length, Min.min_idempotent.
   simpl. rewrite (Z.add_comm 64), <- Z.mul_add_distr_r, Z.add_assoc. 
@@ -496,14 +497,11 @@ start_function.
 rename lvar0 into pad. rename lvar1 into ctxkey.
 unfold EMPTY. 
 remember (HMACabs (S256abs nil nil) (S256abs nil nil) (S256abs nil nil)) as hdummy.
-rename H into KeyLen.
-assert_PROP (isptr k) as K by entailer!.
 eapply semax_pre_post.
- 3: solve [apply (initbodyproof Espec c k l key kv hdummy pad ctxkey)].
- + destruct k; try contradiction. entailer!.
- + destruct k; try contradiction. 
-   intros. apply andp_left2. apply frame_ret_assert_derives.
-   apply function_body_ret_assert_derives. old_go_lower. entailer!. 
+Focus 3. apply (initbodyproof Espec c (Vptr b i) l key kv hdummy pad ctxkey).
+  apply andp_left2. old_go_lower. entailer!.
+  intros. apply andp_left2. apply frame_ret_assert_derives.
+  apply function_body_ret_assert_derives. old_go_lower. entailer!. 
    unfold hmacstate_, REP. Intros r. Exists r. entailer!.
    red. rewrite hmacUpdate_nil. assumption.
 Qed.
@@ -516,14 +514,14 @@ unfold FULL. Intros h.
 assert_PROP (field_compatible t_struct_hmac_ctx_st [] c).
 { unfold hmacstate_PreInitNull. Intros r v. entailer!. }
 eapply semax_pre_post.
-  3: solve [apply (cleanupbodyproof1 Espec c h)].
-  1: Exists key; entailer!.
+  3: apply (cleanupbodyproof1 Espec c h).
+  Exists key. apply andp_left2. apply derives_refl. 
 
   intros. apply andp_left2.  apply frame_ret_assert_derives.
-  apply function_body_ret_assert_derives. old_go_lower; normalize. 
+  apply function_body_ret_assert_derives. old_go_lower. entailer!.
   unfold EMPTY. 
-  rewrite <- memory_block_data_at_; trivial.
-  clear. unfold data_block; simpl. apply andp_left2. apply data_at_memory_block. 
+  rewrite <- memory_block_data_at_. simpl. unfold data_block.
+  clear. simpl. apply andp_left2. apply data_at_memory_block. trivial.
 Qed. 
 
 End OPENSSL_HMAC_ABSTRACT_SPEC.

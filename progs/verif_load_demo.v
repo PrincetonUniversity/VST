@@ -14,7 +14,7 @@ Definition get22_spec :=
   PRE [ _pps OF (tptr pair_pair_t), _i OF tint ]
     PROP  (readable_share sh; 0 <= i < array_size)
     LOCAL (temp _pps pps; temp _i (Vint (Int.repr i)))
-    SEP   (field_at sh (tarray pair_pair_t array_size) [ArraySubsc i] 
+    SEP   (field_at sh (tarray pair_pair_t array_size) [ArraySubsc i]
                     ((Vint x11, Vint x12), (Vint x21, Vint x22)) pps)
   POST [ tint ]
         PROP () LOCAL (temp ret_temp (Vint x22))

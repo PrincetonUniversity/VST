@@ -3,7 +3,7 @@ Require Import aes.aesutils.
 Require Import aes.AES256.
 
 Require Import Coqlib.
-Require Import msl.Coqlib2. 
+Require Import msl.Coqlib2.
 Require Import floyd.coqlib3.
 Require Import Integers.
 Require Import List.
@@ -12,7 +12,7 @@ Require Import sha.SHA256.
 Require Import sha.general_lemmas.
 
 (* works, but very slow!
-Lemma exp_table_correct : forall a : nat, (a < 256)%nat -> 
+Lemma exp_table_correct : forall a : nat, (a < 256)%nat ->
   nth a ff_exp_table Int.zero = exp3 a.
 Proof.
   intros.
@@ -43,7 +43,7 @@ Definition int_max_unsigned_eq : Int.max_unsigned = 4294967295 := eq_refl.
 Definition int_max_signed_eq : Int.max_signed = 2147483647 := eq_refl.
 Definition int_min_signed_eq : Int.min_signed = -2147483648 := eq_refl.
 
-Ltac my_repable_signed := 
+Ltac my_repable_signed :=
    pose proof int_wordsize_eq;
    pose proof int_zwordsize_eq;
    pose proof int_modulus_eq;
@@ -175,7 +175,7 @@ Lemma ff_exp_range: forall a b,
 Proof.
 Admitted.
 
-Lemma gen_exp_table_correct : forall n : nat, (n <= 256)%nat -> 
+Lemma gen_exp_table_correct : forall n : nat, (n <= 256)%nat ->
   forall i : nat, (i < n)%nat ->
     nth i (gen_exp_table n (exp3 (256-n))) Int.zero = exp3 (256+i-n).
 Proof.
@@ -191,12 +191,12 @@ Proof.
     + apply ff_exp_range.
       * omega.
       * replace 256 with (Z.of_nat 256) by reflexivity. split.
-        { apply Nat2Z.is_nonneg. } 
+        { apply Nat2Z.is_nonneg. }
         { apply Nat2Z.inj_lt. omega. }
 Qed.
 
 (* slow (minutes)
-Lemma exp_table_correct : forall a : nat, (a < 256)%nat -> 
+Lemma exp_table_correct : forall a : nat, (a < 256)%nat ->
   nth a ff_exp_table Int.zero = exp3 a.
 Proof.
   specialize (gen_exp_table_correct 256). intros C a H.
@@ -224,7 +224,7 @@ Qed.
 (* unfeasibly slow (150 hours are not enough)
 Lemma ff_mult_equiv : forall a b : nat,
   (a < 256)%nat -> (b < 256)%nat ->
-  table_ff_mult (Int.repr (Z.of_nat a)) (Int.repr (Z.of_nat b)) 
+  table_ff_mult (Int.repr (Z.of_nat a)) (Int.repr (Z.of_nat b))
   = ff_mult (Int.repr (Z.of_nat a)) (Int.repr (Z.of_nat b)).
 Proof.
   intros.

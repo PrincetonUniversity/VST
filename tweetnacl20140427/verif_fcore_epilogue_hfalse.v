@@ -1,7 +1,7 @@
 Require Import floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
-Require Import ZArith. 
+Require Import ZArith.
 Require Import tweetnacl20140427.tweetNaclBase.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.verif_salsa_base.
@@ -12,13 +12,13 @@ Opaque Snuffle.Snuffle. Opaque prepare_data.
 
 Definition HFalse_inv l i xs ys :=
         Zlength l = 64 /\
-                forall ii, 0<=ii<i -> 
+                forall ii, 0<=ii<i ->
                   exists x_i, Znth ii (map Vint xs) Vundef = Vint x_i /\
                   exists y_i, Znth ii (map Vint ys) Vundef = Vint y_i /\
                   sublist (4*ii) (4*ii+4) l =
                   QuadByte2ValList (littleendian_invert (Int.add x_i y_i)).
 
-Definition HFalsePostCond FR t y x w nonce out c k h xs ys := 
+Definition HFalsePostCond FR t y x w nonce out c k h xs ys :=
 PROP  ()
  LOCAL  (lvar _t (tarray tuint 4) t;
  lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
@@ -83,7 +83,7 @@ eapply semax_post_flipped'.
    lvar _y (tarray tuint 16) y; lvar _x (tarray tuint 16) x;
    lvar _w (tarray tuint 16) w; temp _in nonce; temp _out out; temp _c c;
    temp _k k; temp _h (Vint (Int.repr h)))
-   SEP 
+   SEP
    (FR; @data_at CompSpecs Tsh (tarray tuint 16) (map Vint xs) x;
    @data_at CompSpecs Tsh (tarray tuint 16) (map Vint ys) y;
    EX l:_, !!HFalse_inv l i xs ys && @data_at CompSpecs Tsh (tarray tuchar 64) l out))).
@@ -112,7 +112,7 @@ eapply semax_post_flipped'.
     rewrite <- ZL, (split3_data_at_Tarray_tuchar Tsh (Zlength l) (4 *i) (4+4*i)); try rewrite ZL; try omega; trivial.
     rewrite field_address0_offset by auto with field_compatible.
     rewrite field_address0_offset by auto with field_compatible.
-    unfold offset_val. simpl. 
+    unfold offset_val. simpl.
     apply isptrD in Pout. destruct Pout as [b [z Pout]]; rewrite Pout in *; simpl in *.
     repeat flatten_sepcon_in_SEP.
 
@@ -134,7 +134,7 @@ eapply semax_post_flipped'.
       destruct (zlt ii i).
         * destruct (INV_l ii) as [x_ii [Z_ii [y_ii [Y_iiA Y_iiB]]]]. omega.
           autorewrite with sublist in Z_ii,Y_iiA.
-          rewrite Z_ii, Y_iiA. exists x_ii; split. trivial. 
+          rewrite Z_ii, Y_iiA. exists x_ii; split. trivial.
           exists y_ii; split. trivial. rewrite <- Y_iiB. clear Y_iiB. clear INV_l.
           rewrite sublist_app1.
           - rewrite sublist_sublist. do 2 rewrite Zplus_0_r. reflexivity. omega. omega. rewrite Zminus_0_r; omega.
@@ -149,8 +149,8 @@ eapply semax_post_flipped'.
 (*          autorewrite with sublist.*)
           unfold sublist. reflexivity. (* autorewrite with sublist. fails*) }
 
-    { unfold QByte. thaw FR4. thaw FR3. Time cancel. (*0.9*) 
-      rewrite (split3_data_at_Tarray_tuchar Tsh 64 (4 *i) (4+4*i)); 
+    { unfold QByte. thaw FR4. thaw FR3. Time cancel. (*0.9*)
+      rewrite (split3_data_at_Tarray_tuchar Tsh 64 (4 *i) (4+4*i));
        autorewrite with sublist; try omega.
        2: rewrite <- QuadByteValList_ZLength; omega.
        rewrite field_address0_offset by auto with field_compatible.

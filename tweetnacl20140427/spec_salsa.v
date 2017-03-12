@@ -3,7 +3,7 @@ Require Import floyd.proofauto.
 Local Open Scope logic.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
-Require Import ZArith. 
+Require Import ZArith.
 Require Import tweetnacl20140427.Salsa20.
 Require Import tweetnacl20140427.tweetNaclBase.
 Require Import tweetnacl20140427.verif_salsa_base.
@@ -12,19 +12,19 @@ Require Import tweetnacl20140427.tweetnaclVerifiableC.
 Require Import tweetnacl20140427.Snuffle.
 Require Import floyd.library.
 
-Definition CoreInSEP (data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte)) 
+Definition CoreInSEP (data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte))
                      (v: val * val * val) : mpred :=
   match data with (Nonce, C, K) =>
-  match v with (n, c, k) => 
+  match v with (n, c, k) =>
    (SByte Nonce n) * (SByte C c) * (ThirtyTwoByte K k)
   end end.
 
-Definition prepare_data 
+Definition prepare_data
            (data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte)) :=
 match data with ((Nonce, C), K) =>
-  match Nonce with (N1, N2, N3, N4) => 
-  match C with (C1, C2, C3, C4) => 
-  match K with ((K1, K2, K3, K4), (L1, L2, L3, L4)) => 
+  match Nonce with (N1, N2, N3, N4) =>
+  match C with (C1, C2, C3, C4) =>
+  match K with ((K1, K2, K3, K4), (L1, L2, L3, L4)) =>
       map littleendian [C1; K1; K2; K3; K4; C2; N1; N2; N3; N4; C3; L1; L2; L3; L4; C4]
   end end end
 end.
@@ -45,7 +45,7 @@ Definition sumlist_SomeInv:= combinelist_SomeInv _ Int.add.
 
 Definition sumlist_length:= combinelist_length _ Int.add.
 
-Definition sumlist_symm:= combinelist_symm _ Int.add Int.add_commut. 
+Definition sumlist_symm:= combinelist_symm _ Int.add Int.add_commut.
 
 Definition sumlist_char_nth:= combinelist_char_nth _ Int.add.
 
@@ -55,21 +55,21 @@ Definition Snuffle20 x := bind (Snuffle 20 x) (fun y => sumlist y x).
 
 Lemma Snuffle20_length s l: Snuffle20 s = Some l -> length s = 16%nat -> length l = 16%nat.
 Proof. unfold Snuffle20, bind; intros. remember (Snuffle 20 s).
-  destruct o; simpl. 
+  destruct o; simpl.
     symmetry in Heqo. symmetry in H; rewrite sumlist_symm in H.
       rewrite (sumlist_length _ _ _ H).
       apply (Snuffle_length _ _ _ Heqo H0). inv H.
 Qed.
 
 Definition fcore_result h data l :=
-  match Snuffle20 (prepare_data data) 
+  match Snuffle20 (prepare_data data)
   with None => False
-     | Some x => 
-             if Int.eq (Int.repr h) Int.zero 
+     | Some x =>
+             if Int.eq (Int.repr h) Int.zero
              then l=QuadChunks2ValList (map littleendian_invert x)
              else match data with ((Nonce, C), K) =>
-                    match Nonce with (N1, N2, N3, N4) => 
-                    match C with (C1, C2, C3, C4) => 
+                    match Nonce with (N1, N2, N3, N4) =>
+                    match C with (C1, C2, C3, C4) =>
                     l = QuadByte2ValList (littleendian_invert (Int.sub (Znth 0 x Int.zero)  (littleendian C1))) ++
                     QuadByte2ValList (littleendian_invert (Int.sub (Znth 5 x Int.zero)  (littleendian C2))) ++
                     QuadByte2ValList (littleendian_invert (Int.sub (Znth 10 x Int.zero) (littleendian C3))) ++
@@ -87,8 +87,8 @@ Definition fcorePOST_SEP h data d l out :=
   CoreInSEP data d *
   data_at Tsh (tarray tuchar (OutLen h)) l out.
 
-Definition f_core_POST d out h (data: SixteenByte * SixteenByte * (SixteenByte * SixteenByte) ) := 
-EX l:_,     
+Definition f_core_POST d out h (data: SixteenByte * SixteenByte * (SixteenByte * SixteenByte) ) :=
+EX l:_,
    PROP (fcore_result h data l)
    LOCAL ()
    SEP (fcorePOST_SEP h data d l out).
@@ -104,9 +104,9 @@ Definition core_spec :=
          _c OF tptr tuchar,
          _h OF tint ]
       PROP ()
-      LOCAL (temp _in nonce; temp _out out; 
+      LOCAL (temp _in nonce; temp _out out;
              temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
-      SEP (CoreInSEP data (nonce, c, k); 
+      SEP (CoreInSEP data (nonce, c, k);
            data_at Tsh (tarray tuchar (OutLen h)) OUT out)
   POST [ tvoid ] (f_core_POST (nonce, c, k) out h data).
 
@@ -141,7 +141,7 @@ Definition L32_spec :=
       PROP (0 < Int.unsigned c < 32) (*yes, c=Int.zero needs to be ruled out - it leads to undefined behaviour in the shift-right operation*)
       LOCAL (temp _x (Vint x); temp _c (Vint c))
       SEP ()
-  POST [ tuint ] 
+  POST [ tuint ]
      PROP ()
      LOCAL (temp ret_temp (Vint (Int.rol x c)))
      SEP ().
@@ -345,23 +345,23 @@ Definition ts64_spec :=
 
 Definition crypto_core_salsa20_spec :=
   DECLARE _crypto_core_salsa20_tweet
-   WITH c : val, k:val, 
-        nonce:val, out:val, 
+   WITH c : val, k:val,
+        nonce:val, out:val,
         data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte)
    PRE [ _out OF tptr tuchar,
          _in OF tptr tuchar,
          _k OF tptr tuchar,
          _c OF tptr tuchar ]
       PROP ()
-      LOCAL (temp _in nonce; temp _out out; 
+      LOCAL (temp _in nonce; temp _out out;
              temp _c c; temp _k k)
-      SEP ( CoreInSEP data (nonce, c, k); 
+      SEP ( CoreInSEP data (nonce, c, k);
             data_at_ Tsh (tarray tuchar 64) out)
-  POST [ tint ] 
-       EX res:_, 
+  POST [ tint ]
+       EX res:_,
        PROP (Snuffle20 (prepare_data data) = Some res)
        LOCAL (temp ret_temp (Vint (Int.repr 0)))
-       SEP (CoreInSEP data (nonce, c, k); 
+       SEP (CoreInSEP data (nonce, c, k);
             data_at Tsh (tarray tuchar 64) (QuadChunks2ValList (map littleendian_invert res)) out).
 
 Definition hSalsaOut x :=
@@ -373,10 +373,10 @@ Definition hSalsaOut x :=
            QuadByte2ValList (littleendian_invert (Znth 7  x Int.zero)) ++
            QuadByte2ValList (littleendian_invert (Znth 8  x Int.zero)) ++
            QuadByte2ValList (littleendian_invert (Znth 9  x Int.zero)).
-  
+
 Definition crypto_core_hsalsa20_spec :=
   DECLARE _crypto_core_hsalsa20_tweet
-   WITH c : val, k:val, 
+   WITH c : val, k:val,
         nonce:val, out:val, OUT: list val,
         data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte)
    PRE [ _out OF tptr tuchar,
@@ -384,12 +384,12 @@ Definition crypto_core_hsalsa20_spec :=
          _k OF tptr tuchar,
          _c OF tptr tuchar ]
       PROP ()
-      LOCAL (temp _in nonce; temp _out out; 
+      LOCAL (temp _in nonce; temp _out out;
              temp _c c; temp _k k)
-      SEP (CoreInSEP data (nonce, c, k); 
+      SEP (CoreInSEP data (nonce, c, k);
            data_at Tsh (tarray tuchar 32) OUT out)
-  POST [ tint ] 
-       EX res:_, 
+  POST [ tint ]
+       EX res:_,
        PROP (Snuffle 20 (prepare_data data) = Some res)
        LOCAL (temp ret_temp (Vint (Int.repr 0)))
        SEP (CoreInSEP data (nonce, c, k); data_at Tsh (tarray tuchar 32) (hSalsaOut res) out).
@@ -401,17 +401,17 @@ Definition Sigma_vector : val -> mpred :=
 Fixpoint ZZ (zbytes: list byte) (n: nat): int * list byte :=
   match n with
    O => (Int.one, zbytes)
-  | S k => match ZZ zbytes k with (u,zb) => 
+  | S k => match ZZ zbytes k with (u,zb) =>
              let v := (Int.unsigned u + (Byte.unsigned (Znth (Z.of_nat k+8) zb Byte.zero)))
-             in (Int.shru (Int.repr v) (Int.repr 8), 
+             in (Int.shru (Int.repr v) (Int.repr 8),
                  upd_Znth (Z.of_nat k+8) zb (Byte.repr (Z.modulo v 256))) end
-          
+
   end.
 
-Fixpoint ZCont (r: nat) (zcont: list byte): list byte := 
+Fixpoint ZCont (r: nat) (zcont: list byte): list byte :=
   match r with
      O => zcont
-   | S n => let zb := ZCont n zcont in 
+   | S n => let zb := ZCont n zcont in
             let zz := ZZ zb (8:nat) in snd zz
   end.
 
@@ -425,13 +425,13 @@ match x with
 end.
 
 
-Lemma Zlength_bytes_at x q i mbytes : 0<=q -> 0 <= i -> 
+Lemma Zlength_bytes_at x q i mbytes : 0<=q -> 0 <= i ->
   q + i <= Zlength mbytes -> Zlength (bytes_at x q i mbytes) = i.
 Proof. intros. destruct x; simpl; try rewrite Zlength_sublist; try omega.
   rewrite Zlength_list_repeat; omega.
 Qed.
 
-Definition bxorlist := combinelist _ Byte.xor. 
+Definition bxorlist := combinelist _ Byte.xor.
 Definition Bl2VL (l: list byte) := map Vint (map Int.repr (map Byte.unsigned l)).
 
 Definition message_at (mCont: list byte) (m:val): mpred :=
@@ -454,7 +454,7 @@ Inductive CONTENT SIGMA K (mInit:val) (mCont zbytes:list byte): nat -> list byte
              bxorlist (bytes_at mInit (Z.of_nat n * 64) 64 mCont) srbytes = Some Xor ->
              CONTENT SIGMA K mInit mCont zbytes (S n) (snd (ZZ zN (8:nat))) (resN++Xor).
 
-Lemma CONT_Zlength SIGMA K mInit mCont zbytes: 
+Lemma CONT_Zlength SIGMA K mInit mCont zbytes:
   forall n zB x,
    CONTENT SIGMA K mInit mCont zbytes n zB x ->
    Zlength x = (Z.of_nat n * 64)%Z.
@@ -471,12 +471,12 @@ Proof.
   apply prepare_data_length.
 Qed.
 
-Lemma CONTCONT SIGMA K mInit mCont zbytes: 
+Lemma CONTCONT SIGMA K mInit mCont zbytes:
   forall n zB x,
    CONTENT SIGMA K mInit mCont zbytes n zB x ->
    ZCont n zbytes = zB.
 Proof.
-  induction n; intros; inv H. 
+  induction n; intros; inv H.
   apply ZCont0.
   rewrite ZContS. erewrite IHn. 2: eassumption. trivial.
 Qed.
@@ -486,14 +486,14 @@ Lemma ZZ_Zlength: forall n zbytes u U, ZZ zbytes n = (u,U) ->
 Proof. induction n; simpl; intros.
 + inv H. trivial.
 + remember (ZZ zbytes n). destruct p. symmetry in Heqp. inv H.
-  rewrite Zpos_P_of_succ_nat in H1. 
+  rewrite Zpos_P_of_succ_nat in H1.
   apply IHn in Heqp; trivial; clear IHn.
   rewrite upd_Znth_Zlength; trivial.
   omega.
   omega.
 Qed.
 
-Lemma Zlength_ZCont: forall n zbytes, Zlength zbytes = 16 -> Zlength (ZCont n zbytes) = 16. 
+Lemma Zlength_ZCont: forall n zbytes, Zlength zbytes = 16 -> Zlength (ZCont n zbytes) = 16.
 Proof.
   induction n; intros. rewrite ZCont0. trivial.
   rewrite ZContS. specialize (ZZ_Zlength 8 (ZCont n zbytes)); intros.
@@ -505,31 +505,31 @@ Qed.
 Lemma SixteenByte2ValList_exists bytes: Zlength bytes = 16 ->
   exists d, SixteenByte2ValList d = map Vint (map Int.repr (map Byte.unsigned bytes)).
 Proof. intros.
-  apply listD16 in H. 
-  destruct H as [v0 [v1 [v2 [v3 [v4 [v5 [v6 [v7 [v8 
+  apply listD16 in H.
+  destruct H as [v0 [v1 [v2 [v3 [v4 [v5 [v6 [v7 [v8
         [v9 [v10 [v11 [v12 [v13 [v14 [v15 V]]]]]]]]]]]]]]]].
-  subst; simpl. 
-  exists ((v0, v1, v2, v3), (v4, v5, v6, v7), (v8, v9, v10, v11), (v12, v13, v14, v15)). 
+  subst; simpl.
+  exists ((v0, v1, v2, v3), (v4, v5, v6, v7), (v8, v9, v10, v11), (v12, v13, v14, v15)).
   rewrite SixteenByte2ValList_char. reflexivity.
 Qed.
 
-Definition ContSpec bInit SIGMA K mInit mCont zbytes  srbytes := 
+Definition ContSpec bInit SIGMA K mInit mCont zbytes  srbytes :=
     let n:= (Int64.unsigned bInit) / 64 in
     if zeq ((Int64.unsigned bInit) mod 64) 0
     then exists zbytesR, CONTENT SIGMA K mInit mCont zbytes (Z.to_nat n) zbytesR srbytes
-    else exists zN resN d snuff bytes lastbytes(*zbytes*), 
+    else exists zN resN d snuff bytes lastbytes(*zbytes*),
          CONTENT SIGMA K mInit mCont zbytes (Z.to_nat n) zN resN /\
              SixteenByte2ValList d = Bl2VL (ZCont (Z.to_nat n) zbytes) /\
              Snuffle20 (prepare_data (d, SIGMA, K)) = Some snuff /\
              QuadChunks2ValList (map littleendian_invert snuff) =
                 map Vint (map Int.repr (map Byte.unsigned bytes)) /\
-             bxorlist (bytes_at mInit (n * 64) ((Int64.unsigned bInit) mod 64) mCont) 
+             bxorlist (bytes_at mInit (n * 64) ((Int64.unsigned bInit) mod 64) mCont)
                                 (sublist 0 ((Int64.unsigned bInit) mod 64) bytes) = Some lastbytes /\
              (*zbytesR = (snd (ZZ zN (8:nat)))/\*) srbytes = (resN++lastbytes).
 
 (*TODO: refine non-zero-case of this spec, relating COUT to mCont and K and Nonce*)
 Definition crypto_stream_xor_postsep b (Nonce:SixteenByte) K mCont cLen nonce c m :=
-  (if Int64.eq b Int64.zero 
+  (if Int64.eq b Int64.zero
    then data_at_ Tsh (Tarray tuchar cLen noattr) c
    else (EX COUT:_, !!(exists zbytes, match Nonce with (Nnc0, Nnc1, _, _) =>
                 SixteenByte2ValList
@@ -538,13 +538,13 @@ Definition crypto_stream_xor_postsep b (Nonce:SixteenByte) K mCont cLen nonce c 
                 map Vint (map Int.repr (map Byte.unsigned zbytes))
                 /\  ContSpec b SIGMA K m mCont zbytes COUT end)
            && data_at Tsh (Tarray tuchar cLen noattr) (Bl2VL COUT) c))
-                    * SByte Nonce nonce 
+                    * SByte Nonce nonce
                     * message_at mCont m.
 
 (*Precondition length mCont = Int64.unsigned b comes from textual spec in
   https://download.libsodium.org/doc/advanced/salsa20.html
   TODO: support the following part of the tetxual spec:
-      m and c can point to the same address (in-place encryption/decryption). 
+      m and c can point to the same address (in-place encryption/decryption).
      If they don't, the regions should not overlap.*)
 Definition crypto_stream_salsa20_xor_spec :=
   DECLARE _crypto_stream_salsa20_tweet_xor
@@ -562,11 +562,11 @@ Definition crypto_stream_salsa20_xor_spec :=
             Sigma_vector SV;
             message_at mCont m
             (*data_at Tsh (tarray tuchar (Zlength mCont)) (Bl2VL mCont) m*))
-  POST [ tint ] 
+  POST [ tint ]
        PROP ()
        LOCAL (temp ret_temp (Vint (Int.repr 0)))
        SEP (Sigma_vector SV; ThirtyTwoByte K k;
-            crypto_stream_xor_postsep b Nonce K mCont (Int64.unsigned b) nonce c m). 
+            crypto_stream_xor_postsep b Nonce K mCont (Int64.unsigned b) nonce c m).
 
 Definition f_crypto_stream_xsalsa20_tweet_xor_spec := 
   DECLARE _crypto_stream_salsa20_tweet_xor
@@ -584,17 +584,17 @@ Definition f_crypto_stream_xsalsa20_tweet_xor_spec :=
             message_at mCont m;
             Sigma_vector SV
             (*data_at Tsh (tarray tuchar (Zlength mCont)) (Bl2VL mCont) m*))
-  POST [ tint ] 
+  POST [ tint ]
        PROP ()
        LOCAL (temp ret_temp (Vint (Int.repr 0)))
-       SEP (Sigma_vector SV; 
+       SEP (Sigma_vector SV;
             EX HSalsaRes:_, crypto_stream_xor_postsep d Nonce2 HSalsaRes
               mCont (Int64.unsigned d)
               (offset_val 16 nonce) c m;
             data_at Tsh (Tarray tuchar 16 noattr) (SixteenByte2ValList Nonce) nonce;
             ThirtyTwoByte K k).
 
-Definition f_crypto_stream_xsalsa20_tweet_spec := 
+Definition f_crypto_stream_xsalsa20_tweet_spec :=
   DECLARE _crypto_stream_xsalsa20_tweet
    WITH c : val, k:val, nonce:val, d:int64,
         Nonce : SixteenByte, Nonce2 : SixteenByte, K: SixteenByte * SixteenByte,
@@ -609,10 +609,10 @@ Definition f_crypto_stream_xsalsa20_tweet_spec :=
             ThirtyTwoByte K k;
             Sigma_vector SV
             (*data_at Tsh (tarray tuchar (Zlength mCont)) (Bl2VL mCont) m*))
-  POST [ tint ] 
+  POST [ tint ]
        PROP ()
        LOCAL (temp ret_temp (Vint (Int.repr 0)))
-       SEP (Sigma_vector SV; 
+       SEP (Sigma_vector SV;
             EX HSalsaRes:_, crypto_stream_xor_postsep d Nonce2 HSalsaRes
               (list_repeat (Z.to_nat (Int64.unsigned d)) Byte.zero) (Int64.unsigned d)
               (offset_val 16 nonce) c nullval;

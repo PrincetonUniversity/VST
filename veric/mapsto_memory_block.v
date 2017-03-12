@@ -26,9 +26,9 @@ Proof.  exact address_mapsto_exists. Qed.
 
 Definition permission_block (sh: Share.t)  (v: val) (t: type) : mpred :=
     match access_mode t with
-         | By_value ch => 
-            match v with 
-            | Vptr b ofs => 
+         | By_value ch =>
+            match v with
+            | Vptr b ofs =>
                  nonlock_permission_bytes sh (b, Int.unsigned ofs)
                        (size_chunk ch)
             | _ => FF
@@ -40,11 +40,11 @@ Local Open Scope pred.
 
 Definition mapsto (sh: Share.t) (t: type) (v1 v2 : val): mpred :=
   match access_mode t with
-  | By_value ch => 
+  | By_value ch =>
    match type_is_volatile t with
    | false =>
     match v1 with
-     | Vptr b ofs => 
+     | Vptr b ofs =>
        if readable_share_dec sh
        then (!!tc_val t v2 &&
              address_mapsto ch v2 sh (b, Int.unsigned ofs)) ||
@@ -95,7 +95,7 @@ Proof.
 Qed.
 
 Lemma mapsto_value_range:
- forall sh v sz sgn i, 
+ forall sh v sz sgn i,
    readable_share sh ->
    mapsto sh (Tint sz sgn noattr) v (Vint i) =
     !! int_range sz sgn i && mapsto sh (Tint sz sgn noattr) v (Vint i).
@@ -126,9 +126,9 @@ destruct sz, sgn, v; (try rewrite FF_and; auto);
  repeat rewrite GG;
  apply prop_andp_left; intros ? ? _; hnf; try omega.
  pose proof (Int.signed_range i); omega.
- destruct H6; subst; 
+ destruct H6; subst;
   try rewrite Int.unsigned_zero; try rewrite Int.unsigned_one; omega.
- destruct H6; subst; 
+ destruct H6; subst;
   try rewrite Int.unsigned_zero; try rewrite Int.unsigned_one; omega.
 Qed.
 
@@ -139,7 +139,7 @@ Definition writable_block (id: ident) (n: Z): assert :=
 
 Fixpoint writable_blocks (bl : list (ident*Z)) : assert :=
  match bl with
-  | nil =>  fun rho => emp 
+  | nil =>  fun rho => emp
   | (b,n)::bl' =>  fun rho => writable_block b n rho * writable_blocks bl' rho
  end.
 
@@ -206,7 +206,7 @@ Proof.
             hnf. rewrite H5. f_equal.
             f_equal.
             simpl. destruct H6. simpl in H7. replace (i'-i) with 0 by omega.
-            unfold size_chunk_nat in H0. simpl in H0. 
+            unfold size_chunk_nat in H0. simpl in H0.
             unfold nat_of_P in H0. simpl in H0.
             destruct bl; try solve [inv H0].
             destruct bl; inv H0.
@@ -237,7 +237,7 @@ Proof.
             omega.
             clear.
             compute; congruence.
-          } Unfocus. 
+          } Unfocus.
           destruct H2.
           intros [? ?].
           destruct H6.
@@ -282,7 +282,7 @@ Proof.
           destruct H2; split; auto.
           destruct H0.
           split; try omega.
-          pose proof (Z_of_nat_ge_O n). 
+          pose proof (Z_of_nat_ge_O n).
           rewrite Zmax_left in H1 by omega.
           rewrite Zmax_left by omega.
           omega.
@@ -302,24 +302,24 @@ Proof.
           else core (w @ loc)))).
       Focus 1. {
         intros b' z'; unfold res_option, compose; if_tac; simpl; auto.
-        destruct (w @ (b',z')); [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; auto.  
+        destruct (w @ (b',z')); [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; auto.
       } Unfocus.
       destruct (make_rmap _ H2 (level w)) as [w1 [? ?]].
       extensionality loc. unfold compose.
-      if_tac; [unfold resource_fmap; f_equal; apply preds_fmap_NoneP 
+      if_tac; [unfold resource_fmap; f_equal; apply preds_fmap_NoneP
            | apply resource_fmap_core].
-      assert (AV.valid (res_option oo 
+      assert (AV.valid (res_option oo
         fun loc => if adr_range_dec (b, Zsucc i) (Z.max (Z.of_nat n) 0) loc
                        then YES sh H0 (VAL (Byte Byte.zero)) NoneP 
           else core (w @ loc))).
       Focus 1. {
-        intros b' z'; unfold res_option, compose; if_tac; simpl; auto. 
+        intros b' z'; unfold res_option, compose; if_tac; simpl; auto.
         case_eq (w @ (b',z')); intros;
          [rewrite core_NO | rewrite core_YES | rewrite core_PURE]; auto.
       } Unfocus.
       destruct (make_rmap _ H5 (level w)) as [w2 [? ?]].
       extensionality loc. unfold compose.
-      if_tac; [unfold resource_fmap; f_equal; apply preds_fmap_NoneP 
+      if_tac; [unfold resource_fmap; f_equal; apply preds_fmap_NoneP
            | apply resource_fmap_core].
       exists w1; exists w2; split3; auto.
 +apply resource_at_join2; try congruence.
@@ -365,7 +365,7 @@ Proof.
   rewrite H4. rewrite if_true by auto. f_equal.
  unfold noat. simpl. rewrite H4. rewrite if_false. apply core_identity.
   contradict H8. subst. split; auto. simpl; omega.
-+ intro loc. hnf. 
++ intro loc. hnf.
  if_tac. exists H0. hnf. rewrite H7.
  rewrite if_true by auto. rewrite preds_fmap_NoneP. auto.
  unfold noat. simpl. rewrite H7.
@@ -391,7 +391,7 @@ Definition memory_block'_alt (sh: share) (n: nat) (b: block) (ofs: Z) : mpred :=
  then VALspec_range (Z_of_nat n) sh (b, ofs)
  else nonlock_permission_bytes sh (b,ofs) (Z.of_nat n).
 
-Lemma memory_block'_eq: 
+Lemma memory_block'_eq:
  forall sh n b i,
   0 <= i ->
   Z_of_nat n + i <= Int.modulus ->
@@ -424,7 +424,7 @@ Proof.
       intros [b' z']; unfold jam; extensionality P Q loc;
        destruct loc as [b'' z'']; apply exist_ext; extensionality w;
        if_tac; [rewrite if_true | rewrite if_false]; auto;
-        [destruct H; subst; f_equal;  simpl in H0; omega 
+        [destruct H; subst; f_equal;  simpl in H0; omega
         | contradict H; inv H; split; simpl; auto; omega].
       apply pred_ext.
       * intros w ?.
@@ -467,7 +467,7 @@ Proof.
 Qed.
 
 Definition memory_block (sh: share) (n: Z) (v: val) : mpred :=
- match v with 
+ match v with
  | Vptr b ofs => (!!(Int.unsigned ofs + n <= Int.modulus)) && memory_block' sh (nat_of_Z n) b (Int.unsigned ofs)
  | _ => FF
  end.
@@ -492,7 +492,7 @@ Proof.
   assert (!!(tc_val t Vundef) = FF)
     by (destruct t as [ | | | [ | ] |  | | | | ]; reflexivity).
   rewrite H1.
-  
+
   rewrite FF_and, HH0.
   assert (!!(Vundef = Vundef) = TT) by (apply HH1; tauto).
   rewrite H2.
@@ -527,7 +527,7 @@ Proof.
   + apply exp_left; intro; apply address_mapsto_VALspec_range.
 Qed.
 
-Lemma mapsto__memory_block: forall sh b ofs t ch, 
+Lemma mapsto__memory_block: forall sh b ofs t ch,
   access_mode t = By_value ch ->
   type_is_volatile t = false ->
   (align_chunk ch | Int.unsigned ofs) ->
@@ -562,7 +562,7 @@ Proof.
    auto.
 Qed.
 
-Lemma nonreadable_memory_block_mapsto: forall sh b ofs t ch v, 
+Lemma nonreadable_memory_block_mapsto: forall sh b ofs t ch v,
   ~ readable_share sh ->
   access_mode t = By_value ch ->
   type_is_volatile t = false ->
@@ -803,7 +803,7 @@ Proof.
   destruct v; try (rewrite FF_sepcon; auto).
   pose proof (size_chunk_pos x).
   if_tac.
-*  
+*
   normalize.
   rewrite distrib_orp_sepcon, !distrib_orp_sepcon2;
   repeat apply orp_left;
@@ -920,7 +920,7 @@ Lemma memory_block'_split:
   forall sh b ofs i j,
    0 <= i <= j ->
     j <= j+ofs <= Int.modulus ->
-   memory_block' sh (nat_of_Z j) b ofs = 
+   memory_block' sh (nat_of_Z j) b ofs =
       memory_block' sh (nat_of_Z i) b ofs * memory_block' sh (nat_of_Z (j-i)) b (ofs+i).
 Proof.
   intros.
@@ -1254,14 +1254,14 @@ destruct t2; try destruct i; try contradiction.
 destruct a as [ [ | ] [ | ] ]; try contradiction.
 fold noattr.
 unfold mapsto_.
-destruct s,s0; fold tuint; fold tint; 
+destruct s,s0; fold tuint; fold tint;
   repeat rewrite mapsto_tuint_tint;
   try apply mapsto_mapsto_.
 Qed.
 
 Lemma mapsto_null_mapsto_pointer:
-  forall t sh v, 
-             mapsto sh tint v nullval = 
+  forall t sh v,
+             mapsto sh tint v nullval =
              mapsto sh (tptr t) v nullval.
 Proof.
   intros.

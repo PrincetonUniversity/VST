@@ -17,7 +17,7 @@ End option.
 Implicit Arguments omap [A B].
 Implicit Arguments obnd [A B].
 
-Definition isSome {A : Type} (o : option A) := 
+Definition isSome {A : Type} (o : option A) :=
   match o with Some _ => true | _ => false end.
 
 Section comp.
@@ -88,11 +88,11 @@ intros; destruct (Psucc_pred n) as [Hpred | Hpred]; try contradiction;
   pattern n at 2; rewrite <- Hpred; rewrite nat_of_P_succ_morphism; omega.
 Defined.
 
-Ltac Ppred_tac n := 
-  apply Ppred_decrease; destruct n; 
+Ltac Ppred_tac n :=
+  apply Ppred_decrease; destruct n;
   let H := fresh "H" in intro H; try (inversion H||inversion H1); congruence.
 
-Definition Pleb (x y : positive) := 
+Definition Pleb (x y : positive) :=
   match Pcompare x y Eq with
     | Lt => true
     | Eq => true
@@ -110,7 +110,7 @@ Qed.
 
 Require Import NArith NOrderedType.
 
-Definition Nleb (x y : N) := 
+Definition Nleb (x y : N) :=
   match Ncompare x y with
     | Lt => true
     | Eq => true
@@ -129,7 +129,7 @@ Qed.
 Section revc.
 Variables (A : Type) (c : A -> A -> comparison).
 
-Definition revc a1 a2 := 
+Definition revc a1 a2 :=
   match c a1 a2 with
     | Gt => Lt
     | Eq => Eq

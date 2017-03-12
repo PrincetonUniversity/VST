@@ -1,13 +1,13 @@
-Require Import compcert.lib.Coqlib. 
+Require Import compcert.lib.Coqlib.
 Require Import compcert.lib.Maps.
-Require Import compcert.lib.Integers. 
+Require Import compcert.lib.Integers.
 Require Import compcert.common.Values.
 Require Import compcert.common.Memory.
 Require Import compcert.common.Events.
 Require Import compcert.common.AST.
 Require Import compcert.common.Globalenvs.
 
-Require Import msl.Extensionality. 
+Require Import msl.Extensionality.
 Require Import sepcomp.mem_lemmas.
 Require Import sepcomp.semantics.
 Require Import sepcomp.semantics_lemmas.
@@ -44,22 +44,22 @@ Proof.
   destruct (Mem.perm_order_dec p0 p1); trivial.
 Qed.
 
-Fixpoint cur_perm (l: block * Z) (T: list mem_event): option permission := 
-  match T with 
+Fixpoint cur_perm (l: block * Z) (T: list mem_event): option permission :=
+  match T with
       nil => None
-    | (mu :: R) => 
+    | (mu :: R) =>
           let popt := cur_perm l R in
-          match mu, l with 
-            | (Read b ofs n bytes), (b',ofs') => 
+          match mu, l with
+            | (Read b ofs n bytes), (b',ofs') =>
                  pmax (if eq_block b b' && zle ofs ofs' && zlt ofs' (ofs+n)
                        then Some Readable else None) popt
-            | (Write b ofs bytes), (b',ofs') => 
+            | (Write b ofs bytes), (b',ofs') =>
                  pmax (if eq_block b b' && zle ofs ofs' && zlt ofs' (ofs+ Zlength bytes)
                        then Some Writable else None) popt
             | (Alloc b lo hi), (b',ofs') =>  (*we don't add a constraint relating lo/hi/ofs*)
                  if eq_block b b' then None else popt
-            | (Free l), (b',ofs') => 
-                 List.fold_right (fun tr qopt => match tr with (b,lo,hi) => 
+            | (Free l), (b',ofs') =>
+                 List.fold_right (fun tr qopt => match tr with (b,lo,hi) =>
                                                    if eq_block b b' && zle lo ofs' && zlt ofs' hi
                                                    then Some Freeable else qopt
                                                 end)
@@ -70,14 +70,14 @@ Fixpoint cur_perm (l: block * Z) (T: list mem_event): option permission :=
 Lemma po_None popt: Mem.perm_order'' popt None.
 Proof. destruct popt; simpl; trivial. Qed.
 
-Lemma ev_perm b ofs: forall T m m', ev_elim m T m' -> 
+Lemma ev_perm b ofs: forall T m m', ev_elim m T m' ->
       Mem.perm_order'' ((Mem.mem_access m) !! b ofs Cur) (cur_perm (b,ofs) T).
 Proof.
 induction T; simpl; intros.
-+ subst. apply po_None. 
++ subst. apply po_None.
 + destruct a.
   - (*Store*)
-     destruct H as [m'' [SB EV]]. specialize (IHT _ _ EV); clear EV. 
+     destruct H as [m'' [SB EV]]. specialize (IHT _ _ EV); clear EV.
      rewrite (Mem.storebytes_access _ _ _ _ _ SB) in *.
      eapply po_pmax_I; try eassumption.
      remember (eq_block b0 b && zle ofs0 ofs && zlt ofs (ofs0 + Zlength bytes)) as d.
@@ -86,22 +86,22 @@ induction T; simpl; intros.
      destruct (zle ofs0 ofs); simpl in *; try discriminate.
      destruct (zlt ofs (ofs0 + Zlength bytes)); simpl in *; try discriminate.
      rewrite Zlength_correct in *.
-     apply Mem.storebytes_range_perm in SB. 
+     apply Mem.storebytes_range_perm in SB.
      exploit (SB ofs); try omega.
-     intros; subst; assumption. 
+     intros; subst; assumption.
   - (*Load*)
-     destruct H as [LB EV]. specialize (IHT _ _ EV); clear EV. 
+     destruct H as [LB EV]. specialize (IHT _ _ EV); clear EV.
      eapply po_pmax_I; try eassumption.
      remember (eq_block b0 b && zle ofs0 ofs && zlt ofs (ofs0 + n)) as d.
      destruct d; try solve [apply po_None].
      destruct (eq_block b0 b); simpl in *; try discriminate.
      destruct (zle ofs0 ofs); simpl in *; try discriminate.
      destruct (zlt ofs (ofs0 + n)); simpl in *; try discriminate.
-     apply Mem.loadbytes_range_perm in LB. 
+     apply Mem.loadbytes_range_perm in LB.
      exploit (LB ofs); try omega.
-     intros; subst; assumption. 
+     intros; subst; assumption.
   - (*Alloc*)
-     destruct H as [m'' [ALLOC EV]]. specialize (IHT _ _ EV); clear EV. 
+     destruct H as [m'' [ALLOC EV]]. specialize (IHT _ _ EV); clear EV.
      destruct (eq_block b0 b); subst; try solve [apply po_None].
      eapply po_trans; try eassumption.
      remember ((Mem.mem_access m'') !! b ofs Cur) as d.
@@ -111,7 +111,7 @@ induction T; simpl; intros.
      * unfold Mem.perm; rewrite Heqd. destruct p; simpl; constructor.
      * intros N; subst; elim n; trivial.
   - (*Free*)
-     destruct H as [m'' [FR EV]]. specialize (IHT _ _ EV); clear EV. 
+     destruct H as [m'' [FR EV]]. specialize (IHT _ _ EV); clear EV.
      generalize dependent m.
      induction l; simpl; intros.
      * inv FR. assumption.
@@ -163,13 +163,13 @@ Proof.
     exists m2; split; trivial. exists mm; split; trivial.
 Qed.
 
-(** Similar to effect semantics, event semantics augment memory semantics with suitable effects, in the form 
-    of a set of memory access traces associated with each internal 
+(** Similar to effect semantics, event semantics augment memory semantics with suitable effects, in the form
+    of a set of memory access traces associated with each internal
     step of the semantics. *)
 
 Record EvSem {G C} :=
   { (** [sem] is a memory semantics. *)
-    msem :> MemSem G C
+    msem :> @MemSem G C
 
     (** The step relation of the new semantics. *)
   ; ev_step: G -> C -> mem -> list mem_event -> C -> mem -> Prop
@@ -178,7 +178,7 @@ Record EvSem {G C} :=
         underlying step relation of [msem]. *)
   ; ev_step_ax1: forall g c m T c' m',
        ev_step g c m T c' m' ->
-            corestep msem g c m c' m' 
+            corestep msem g c m c' m'
   ; ev_step_ax2: forall g c m c' m',
        corestep msem g c m c' m' ->
        exists T, ev_step g c m T c' m'
@@ -187,15 +187,16 @@ Record EvSem {G C} :=
 (*  ; ev_step_elim: forall g c m T c' m',
        ev_step g c m T c' m' -> ev_elim m T m'*)
   ; ev_step_elim: forall g c m T c' m' (STEP: ev_step g c m T c' m'),
-       ev_elim m T m' /\ 
+       ev_elim m T m' /\
        (forall mm mm', ev_elim mm T mm' -> exists cc', ev_step g c mm T cc' mm')
   }.
 
-Lemma Ev_sem_cur_perm {G C} (R: @EvSem G C) g c m T c' m' b ofs (D: ev_step R g c m T c' m'): 
+Lemma Ev_sem_cur_perm {G C} (R: @EvSem G C) g c m T c' m' b ofs (D: ev_step R g c m T c' m'):
       Mem.perm_order'' ((Mem.mem_access m) !! b ofs Cur) (cur_perm (b,ofs) T).
 Proof. eapply ev_perm. eapply ev_step_elim; eassumption. Qed.
-
-Implicit Arguments EvSem [].
+(*
+Arguments EvSem G C.
+*)
 
 Require Import List.
 Import ListNotations.
@@ -222,46 +223,46 @@ Lemma EFLT_char es: forall b ofs, in_free_list_trace b ofs es <->
                              exists l lo hi, In (Free l) es /\ In ((b, lo), hi) l /\ lo <= ofs < hi.
 Proof. induction es; simpl.
        + split; intros; try contradiction. destruct H as [? [? [? [? ?]]]]. contradiction.
-       + intros. 
+       + intros.
        - destruct a.
          * destruct (IHes b ofs).
            split; intros.
            ++ destruct (H H1) as [? [? [? [? ?]]]]. eexists; eexists; eexists. split. right. apply H2. apply H3.
            ++ destruct H1 as [? [? [? [? ?]]]].
-              destruct H1. discriminate. apply H0.  eexists; eexists; eexists. split. eassumption. apply H2. 
+              destruct H1. discriminate. apply H0.  eexists; eexists; eexists. split. eassumption. apply H2.
          * destruct (IHes b ofs).
            split; intros.
            ++ destruct (H H1) as [? [? [? [? ?]]]]. eexists; eexists; eexists. split. right. apply H2. apply H3.
            ++ destruct H1 as [? [? [? [? ?]]]].
-              destruct H1. discriminate. apply H0.  eexists; eexists; eexists. split. eassumption. apply H2. 
+              destruct H1. discriminate. apply H0.  eexists; eexists; eexists. split. eassumption. apply H2.
          * destruct (IHes b ofs).
            split; intros.
            ++ destruct (H H1) as [? [? [? [? ?]]]]. eexists; eexists; eexists. split. right. apply H2. apply H3.
            ++ destruct H1 as [? [? [? [? ?]]]].
-              destruct H1. discriminate. apply H0.  eexists; eexists; eexists. split. eassumption. apply H2. 
+              destruct H1. discriminate. apply H0.  eexists; eexists; eexists. split. eassumption. apply H2.
          * destruct (IHes b ofs).
            split; intros.
-           ++ destruct H1. destruct H1 as [[[? ?] ?] [? [? ?]]]; subst b0. exists l, z, z0. split; eauto. 
+           ++ destruct H1. destruct H1 as [[[? ?] ?] [? [? ?]]]; subst b0. exists l, z, z0. split; eauto.
               destruct (H H1) as [? [? [? [? ?]]]]. eexists; eexists; eexists. split. right. apply H2. apply H3.
            ++ destruct H1 as [? [? [? [? [? ?]]]]].
               destruct H1. inv H1. left. red. exists ((b,x0),x1). split; trivial. split; trivial.
               right. apply H0. exists x, x0 , x1. split; trivial. split; trivial.
-Qed. 
+Qed.
 
-Lemma freelist_mem_access_1 b ofs p: forall l m (ACC:(Mem.mem_access m) !! b ofs Cur = Some p) 
+Lemma freelist_mem_access_1 b ofs p: forall l m (ACC:(Mem.mem_access m) !! b ofs Cur = Some p)
                                        m1 (FL: Mem.free_list m1 l = Some m), (Mem.mem_access m1) !! b ofs Cur = Some p.
 Proof. induction l; simpl; intros. inv FL; trivial.
        destruct a. destruct p0.
        case_eq (Mem.free m1 b0 z0 z); intros; rewrite H in FL; try discriminate.
        eapply free_access_inv; eauto.
-Qed. 
+Qed.
 
 Lemma freelist_access_2 b ofs: forall l  (FL: in_free_list b ofs l)
                                  m m' (FR : Mem.free_list m l = Some m'),
     (Mem.mem_access m') !! b ofs Cur = None /\ Mem.valid_block m' b.
 Proof. intros l FL. destruct FL as [[[? ?] ?] [? [? ?]]]; subst b0.
        induction l; simpl; intros.
-       - inv H. 
+       - inv H.
        - destruct H.
          * subst. case_eq (Mem.free m b z z0); intros; rewrite H in FR; try discriminate.
            clear IHl. case_eq ((Mem.mem_access m') !! b ofs Cur); intros; trivial.
@@ -272,7 +273,7 @@ Proof. intros l FL. destruct FL as [[[? ?] ?] [? [? ?]]]; subst b0.
            ++ split; trivial. eapply freelist_forward; eauto.
               exploit Mem.free_range_perm. eassumption. eassumption. intros.
               eapply Mem.valid_block_free_1; try eassumption. eapply Mem.perm_valid_block; eauto.
-         * destruct a. destruct p.    
+         * destruct a. destruct p.
            case_eq (Mem.free m b0 z2 z1); intros; rewrite H0 in FR; try discriminate. eauto.
 Qed.
 
@@ -287,7 +288,7 @@ Proof. induction l; simpl; intros.
        - destruct (eq_block b0 b); subst. apply Mem.free_result in H. subst. simpl. rewrite PMap.gss, ACC. destruct (zle z ofs && zlt ofs z0); trivial.
          apply Mem.free_result in H. subst. simpl. rewrite PMap.gso; eauto.
        - eapply Mem.valid_block_free_1; eauto.
-Qed. 
+Qed.
 
 Lemma ev_elim_accessNone b ofs: forall ev m' m'' (EV:ev_elim m'' ev m')
                                   (ACC: (Mem.mem_access m'') !! b ofs Cur = None)
@@ -305,9 +306,9 @@ Proof.  induction ev; simpl; intros. subst; trivial.
           + eapply Mem.valid_block_alloc; eauto.
         - destruct EV as [? [? EV]]. apply (IHev _ _ EV); clear IHev.
           2: eapply freelist_forward; eauto.
-          clear EV ev m'. 
+          clear EV ev m'.
           eapply freelist_access_3; eassumption.
-Qed. 
+Qed.
 
 Lemma ev_elim_valid_block: forall ev m m' (EV: ev_elim m ev m') b
                              (VB : Mem.valid_block m b), Mem.valid_block m' b.
@@ -317,7 +318,7 @@ Proof. induction ev; simpl; intros; subst; trivial.
        + destruct EV as [? EV]. eauto.
        + destruct EV as [? [? EV]]. exploit Mem.valid_block_alloc. apply H. eassumption. eauto.
        + destruct EV as [? [? EV]]. exploit freelist_forward; eauto. intros [? _]. eauto.
-Qed. 
+Qed.
 
 
 (** If (b, ofs) is in the list of freed addresses then the
@@ -340,7 +341,7 @@ Proof.
   destruct a.
   + destruct H as [m'' [ST EV]].
     specialize (Mem.storebytes_access _ _ _ _ _ ST); intros ACCESS.
-    destruct (eq_block b0 b); subst. 
+    destruct (eq_block b0 b); subst.
   - destruct (IHev _ _ EV H0) as [IHa [IHb [IHc [e [E HE]]]]]; clear IHev.
     split. { destruct IHa. left. eapply Mem.perm_storebytes_2; eauto.
              right. intros N. apply H. eapply Mem.storebytes_valid_block_1; eauto. }
@@ -353,13 +354,13 @@ Proof.
            split. trivial.
     split; trivial. exists e. split; trivial. right; trivial.
     + destruct H.
-      destruct (IHev _ _ H1 H0) as [IHa [IHb [IHc [e [E HE]]]]]; clear IHev. 
+      destruct (IHev _ _ H1 H0) as [IHa [IHb [IHc [e [E HE]]]]]; clear IHev.
       split; trivial.
       split; trivial.
       split; trivial.
       exists e. split; trivial. right; trivial.
     + destruct H as [m'' [ALLOC EV]].
-      destruct (IHev _ _ EV H0) as [IHa [IHb [IHc [e [E HE]]]]]; clear IHev.  
+      destruct (IHev _ _ EV H0) as [IHa [IHb [IHc [e [E HE]]]]]; clear IHev.
       destruct (eq_block b0 b); subst.
   - split. right. eapply Mem.fresh_block_alloc. eauto.
     split; trivial.
@@ -368,7 +369,7 @@ Proof.
     split; trivial. right; trivial.
   - split. { destruct IHa. left. eapply Mem.perm_alloc_4; eauto.
              right; intros N. apply H. eapply Mem.valid_block_alloc; eauto. }
-           split; trivial. 
+           split; trivial.
     split; trivial.
     exists e. split; trivial. right; trivial.
     + destruct H as [m'' [FR EV]].
@@ -376,13 +377,13 @@ Proof.
   - clear IHev.
     split. { destruct (valid_block_dec m b). 2: right; trivial. left.
              clear EV m'. generalize dependent m''. generalize dependent m.
-             destruct H as [[[bb lo] hi] [X [? Y]]]; subst bb. 
+             destruct H as [[[bb lo] hi] [X [? Y]]]; subst bb.
              induction l; simpl in *; intros. contradiction.
-             destruct X; subst. 
+             destruct X; subst.
              + case_eq (Mem.free m b lo hi); intros; rewrite H in FR; try discriminate.
                eapply Mem.free_range_perm; eassumption.
              + destruct a. destruct p.
-               case_eq (Mem.free m b0 z0 z); intros; rewrite H0 in FR; try discriminate. 
+               case_eq (Mem.free m b0 z0 z); intros; rewrite H0 in FR; try discriminate.
                eapply Mem.perm_free_3. eassumption.
                eapply IHl; try eassumption.
                eapply Mem.valid_block_free_1; eauto. }
@@ -391,20 +392,20 @@ Proof.
                     eapply ev_elim_accessNone; eauto. }
                   split. { exploit freelist_access_2; eauto. intros [ACC VB].
                            eapply ev_elim_valid_block; eauto. }
-                         exists (Free l). intuition. 
-  - destruct (IHev _ _ EV H) as [IHa [IHb [IHc [e [E HE]]]]]; clear IHev.  
+                         exists (Free l). intuition.
+  - destruct (IHev _ _ EV H) as [IHa [IHb [IHc [e [E HE]]]]]; clear IHev.
     split. { destruct IHa. left. eapply perm_freelist; eauto.
              right; intros N. apply H0. eapply freelist_forward; eauto. }
-           split; trivial. 
+           split; trivial.
     split; trivial.
-    exists e. split; trivial. right; trivial. 
+    exists e. split; trivial. right; trivial.
 Qed.
 
 Lemma perm_order_pp_refl p: Mem.perm_order'' p p.
-Proof. unfold Mem.perm_order''. destruct p; trivial. apply perm_refl. Qed. 
+Proof. unfold Mem.perm_order''. destruct p; trivial. apply perm_refl. Qed.
 
 Lemma in_free_list_dec b ofs xs: {in_free_list b ofs xs} + {~in_free_list b ofs xs}.
-Proof. unfold in_free_list. 
+Proof. unfold in_free_list.
        induction xs; simpl. right. intros N. destruct N as [[[? ?] ?] [? _]]. trivial.
        destruct IHxs.
        + left. destruct e as [? [? ?]]. exists x. split; eauto.
@@ -426,7 +427,7 @@ Qed.
 Lemma in_free_list_trace_dec b ofs: forall es, {in_free_list_trace b ofs es} + {~in_free_list_trace b ofs es}.
 Proof.
   induction es; simpl. right; intros N; trivial.
-  destruct IHes. 
+  destruct IHes.
   + destruct a; try solve [left; eauto].
   + destruct a; try solve [right; eauto].
     destruct (in_free_list_dec b ofs l). left; left; trivial.
@@ -442,7 +443,7 @@ Proof.
   remember (Mem.free m b0 z z0) as q; destruct q; try discriminate. symmetry in Heqq.
   assert (~ in_free_list b ofs l). { intros N. elim H. destruct N as [? [? ?]]. exists x. split; eauto. right; trivial. }
                                    rewrite (IHl H1 _ _ H0). clear IHl H0.
-  Transparent Mem.free. unfold Mem.free in Heqq. 
+  Transparent Mem.free. unfold Mem.free in Heqq.
   remember (Mem.range_perm_dec m b0 z z0 Cur Freeable).
   destruct s; inv Heqq; clear Heqs. simpl.
   rewrite PMap.gsspec. destruct (peq b b0); subst; trivial.
@@ -460,7 +461,7 @@ Lemma ev_elim_free_2 b ofs:
                      ((Mem.mem_access m) !! b ofs Cur).
 Proof.
   induction ev; simpl; intros.
-  + subst. apply perm_order_pp_refl. 
+  + subst. apply perm_order_pp_refl.
   + destruct a.
   - destruct EV  as [m'' [ST EV]].
     apply Mem.storebytes_access in ST. rewrite <- ST. apply (IHev _ _ EV T).
@@ -478,13 +479,13 @@ Proof.
          Opaque Mem.alloc.
          remember ((Mem.mem_access m) !! b ofs Cur) as r. destruct r; trivial. symmetry in Heqr.
          rewrite PMap.gso in Heqq; trivial. rewrite Heqq in Heqr. inv Heqr. apply perm_refl.
-    * erewrite alloc_access_inv_None; eauto. 
+    * erewrite alloc_access_inv_None; eauto.
   - destruct EV  as [m'' [FR EV]]. specialize (IHev _ _ EV).
     destruct (in_free_list_dec b ofs l).
     * elim T. left; trivial.
     * destruct (in_free_list_trace_dec b ofs ev).
       elim T. right; trivial.
-      eapply po_trans. apply IHev; trivial. 
+      eapply po_trans. apply IHev; trivial.
       erewrite freelist_access_1; eauto. apply perm_order_pp_refl.
 Qed.
 
@@ -506,7 +507,7 @@ Proof.
   rewrite PMap.gsspec in *.
   destruct (peq b bb); subst; trivial.
   destruct IHl.
-  + destruct H. 
+  + destruct H.
     rewrite H0; clear H0.
     destruct (zle lo ofs); try discriminate; simpl in *.
   - destruct (zlt ofs hi); try discriminate; simpl in *. rewrite H. left; split; trivial.

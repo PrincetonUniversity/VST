@@ -4,7 +4,7 @@ Require Import progs.message.
 Local Open Scope Z.
 Local Open Scope logic.
 
-(*   mf_assert msgfmt sh buf len data  := the [data] is formatted into a message 
+(*   mf_assert msgfmt sh buf len data  := the [data] is formatted into a message
          at most [len] bytes,  stored starting at address [buf] with share [sh] *)
 
 
@@ -34,10 +34,10 @@ mf_build {
    mf_data_assert: forall (data: reptype t), Prop;
    mf_assert: forall (sh: share) (buf: val) (len: Z) (data: reptype t), mpred;
    mf_size_range:  0 <= mf_size <= Int.max_signed;
-   mf_bufprop: forall sh buf len data, 
-           mf_assert sh buf len data |-- 
+   mf_bufprop: forall sh buf len data,
+           mf_assert sh buf len data |--
                  !!(0 <= len <= mf_size) && memory_block sh (Int.repr len) buf;
-   mf_restbuf := fun (sh: share) (buf: val) (len: Z) => 
+   mf_restbuf := fun (sh: share) (buf: val) (len: Z) =>
           memory_block sh (Int.repr (mf_size-len)) (offset_val (Int.repr len) buf)
 }.
 
@@ -53,7 +53,7 @@ Implicit Arguments mf_restbuf [[t]].
 
 Program Definition intpair_message: message_format t_struct_intpair :=
   mf_build 8 (fun data => is_int I32 Signed (fst data) /\ is_int I32 Signed (snd data))
-             (fun sh buf len data => !!(len=8/\ is_int I32 Signed (fst data) /\ is_int I32 Signed (snd data)) 
+             (fun sh buf len data => !!(len=8/\ is_int I32 Signed (fst data) /\ is_int I32 Signed (snd data))
                            && data_at sh (tarray tint 2) [fst data; snd data] buf)
       _ _.
 Next Obligation.
@@ -72,22 +72,22 @@ Qed.
 (* align_compatible requirement is neccesary in precondition *)
 Definition serialize_spec {t: type} (format: message_format t) :=
   WITH data: reptype t, p: val, buf: val, sh: share, sh': share
-  PRE [ _p OF (tptr tvoid), _buf OF (tptr tuchar) ] 
+  PRE [ _p OF (tptr tvoid), _buf OF (tptr tuchar) ]
           PROP (writable_share sh';
                 mf_data_assert format data;
                 natural_align_compatible buf)
           LOCAL (temp _p p; temp _buf buf)
-          SEP (`(data_at sh t data p); 
+          SEP (`(data_at sh t data p);
                `(memory_block sh' (Int.repr (mf_size format)) buf))
-  POST [ tint ]  
-         EX len: Z, 
+  POST [ tint ]
+         EX len: Z,
           local (`(eq (Vint (Int.repr len))) retval) &&
-         `(data_at sh t data p)  
+         `(data_at sh t data p)
             * `(mf_assert format sh' buf len data) * `(mf_restbuf format sh' buf len).
 
 Definition deserialize_spec {t: type} (format: message_format t) :=
   WITH data: reptype t, p: val, buf: val, shs: share*share, len: Z
-  PRE [ _p OF (tptr tvoid), _buf OF (tptr tuchar), _length OF tint ] 
+  PRE [ _p OF (tptr tvoid), _buf OF (tptr tuchar), _length OF tint ]
           PROP (writable_share (fst shs);
                 0 <= len <= mf_size format)
           LOCAL (temp _p p;
@@ -120,7 +120,7 @@ Definition message (sh: share) {t: type} (format: message_format t) (m: val) : m
           func_ptr (deserialize_spec format) (snd fg) &&
        data_at sh t_struct_message (Vint (Int.repr (mf_size format)), (fst fg, snd fg)) m.
 
-Definition Gprog : funspecs :=   ltac:(with_library prog [ 
+Definition Gprog : funspecs :=   ltac:(with_library prog [
     intpair_serialize_spec; intpair_deserialize_spec; main_spec]).
 
 Lemma body_intpair_serialize: semax_body Vprog Gprog f_intpair_serialize intpair_serialize_spec.
@@ -186,20 +186,20 @@ forward. (*  p->y = y; *)
 forward.  (* return; *)
 Qed.
 
-Ltac simpl_stackframe_of := 
+Ltac simpl_stackframe_of :=
   unfold stackframe_of, fn_vars; simpl map; unfold fold_right; rewrite sepcon_emp;
-  repeat rewrite var_block_data_at_ by reflexivity. 
+  repeat rewrite var_block_data_at_ by reflexivity.
 
 Ltac get_global_function id :=
   eapply (call_lemmas.semax_fun_id' id); [ reflexivity | simpl; reflexivity | ].
 
 Lemma slide_func_ptr:
-  forall f e R1 R, 
+  forall f e R1 R,
   SEPx (`(func_ptr' f) e :: R1 :: R) = SEPx ((`(func_ptr f) e && R1)::R).
 Proof.
  intros. unfold SEPx; unfold_lift.
 extensionality rho.
-simpl. 
+simpl.
 rewrite <- sepcon_assoc.
  f_equal.
 unfold func_ptr'.
@@ -279,16 +279,16 @@ apply andp_derives; auto.
    normalize.
 Qed.
 
-Definition serialize_A {t}  (msg: message_format t) : Type := 
+Definition serialize_A {t}  (msg: message_format t) : Type :=
   match serialize_spec msg with mk_funspec _ A _ _ => A  end.
 
 Definition serialize_pre {t} (msg: message_format t)  :=
-match serialize_spec msg as f 
+match serialize_spec msg as f
      return match f with mk_funspec _ A _ _ => A -> environ->mpred end
 with mk_funspec f A P Q => P end.
 
 Definition serialize_post {t} (msg: message_format t)  :=
-match serialize_spec msg as f 
+match serialize_spec msg as f
      return match f with mk_funspec _ A _ _ => A -> environ->mpred end
 with mk_funspec f A P Q => Q end.
 
@@ -302,13 +302,13 @@ Definition list2idset  (l: list ident) (id: ident)  :=
   isSome ((list2idset' l) ! id).
 
 Definition temp_type_is (Delta: tycontext) (id: ident) (t: type) :=
-   match (temp_types Delta) ! id with 
+   match (temp_types Delta) ! id with
     Some (t',_) => t' = t
    | _ => False
   end.
 
 Lemma subst_make_args'x
-     : forall (id : ident) (v : environ -> val) 
+     : forall (id : ident) (v : environ -> val)
          (fsig : list (ident * type) * type) (tl : list type)
          (el : list expr),
        length tl = length el ->
@@ -362,9 +362,9 @@ Lemma call_serialize:
      SEP (`(message sh_obj msg) d_obj ;
                `(data_at sh_p t v) d_p;
                `(data_at_ sh_buf (tarray tuchar (mf_size msg))) d_buf)))
-   (Ssequence 
-    (Sset ser 
-     (Efield e_obj _serialize 
+   (Ssequence
+    (Sset ser
+     (Efield e_obj _serialize
         (tptr (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint cc_default))))
       (Ssequence
            (Scall (Some x)
@@ -384,7 +384,7 @@ assert (CLser: included (eq ser) (list2idset(ser::x::id::nil))) by admit.
 assert (CLx: included (eq x) (list2idset(ser::x::id::nil))) by admit.
 assert (CLid: included (eq id) (list2idset(ser::x::id::nil))) by admit.
 eapply semax_pre with
- (PROP() 
+ (PROP()
   LOCAL (tc_lvalue Delta e_obj ; tc_exprlist Delta (tptr tvoid :: tptr tuchar :: nil) (e_p :: e_buf :: nil))
   SEP (`(message sh_obj msg) (eval_lvalue e_obj);
         `(data_at sh_p t v) (eval_expr e_p);
@@ -443,7 +443,7 @@ eapply semax_seq'.
   change (Efield e_obj _serialize
            (tptr
               (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint
-                 cc_default))) with 
+                 cc_default))) with
   (nested_efield e_obj (eStructField _serialize :: nil) ((tptr
               (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint
                  cc_default)) :: nil)).
@@ -460,21 +460,21 @@ Admitted.
  unfold typeof_temp; rewrite H0. reflexivity.
  go_lowerx; entailer.
  simpl. cancel.
- entailer!. 
+ entailer!.
  hnf. simpl. repeat rewrite denote_tc_assert_andp; repeat split; auto.
  rewrite H2. simpl. hnf; auto.
 }
-rename H into H'. 
+rename H into H'.
 focus_SEP 3 1.
-   apply semax_pre with 
+   apply semax_pre with
      (P':=PROP () LOCAL (tc_expr (initialized ser Delta)
                 (Etempvar ser
                    (tptr
                       (Tfunction
                          (Tcons (tptr tvoid) (Tcons (tptr tuchar) Tnil)) tint cc_default)));
-              tc_exprlist  (initialized ser Delta) (snd (split (fst (serialize_fsig msg))))   (e_p :: e_buf :: nil); 
+              tc_exprlist  (initialized ser Delta) (snd (split (fst (serialize_fsig msg))))   (e_p :: e_buf :: nil);
               `eq (eval_id ser) `f;
-              `(eq p) (eval_expr e_p);  `(eq buf) (eval_lvalue e_buf)) 
+              `(eq p) (eval_expr e_p);  `(eq buf) (eval_lvalue e_buf))
        (SEP (`(serialize_pre msg (v, p, buf, sh_p, sh_buf))
               (make_args'  (fst (serialize_fsig msg), snd (serialize_fsig msg))
                  (eval_exprlist (snd (split (fst (serialize_fsig msg))))
@@ -558,7 +558,7 @@ rewrite <- H9.
 simpl force_int.
 cancel.
 apply derives_trans with
-((!!(0 <= len <= mf_size msg) && 
+((!!(0 <= len <= mf_size msg) &&
   mf_assert msg sh_buf (eval_lvalue e_buf rho) len v ) *
 mf_restbuf msg sh_buf (eval_lvalue e_buf rho) len *
 field_at sh_obj t_struct_message [_serialize]
@@ -589,7 +589,7 @@ simpl.
 normalize.
 unfold at_offset.
 normalize.
-cancel. 
+cancel.
 Qed.
 *)
 
@@ -604,32 +604,32 @@ Lemma call_deserialize:
  eval_expr e_buf = d_buf ->
  writable_share sh_p ->
   (PROPx P (LOCALx Q
-     (SEPx (`(message sh_obj msg) d_obj :: 
+     (SEPx (`(message sh_obj msg) d_obj ::
                `(data_at_ sh_p t) d_p::
                `(mf_assert msg sh_buf) d_buf d_len `v ::
                 R)))) |-- local (`((fun n => 0 <= n <= mf_size msg) : Z->Prop) d_len) &&
                              local (`eq d_len (`Int.signed (`force_int (eval_expr e_len)))) ->
  closed_wrt_vars (eq ser)
              (PROPx P (LOCALx Q
-     (SEPx (`(message sh_obj msg) d_obj :: 
+     (SEPx (`(message sh_obj msg) d_obj ::
                `(data_at_ sh_p t) d_p::
                `(mf_assert msg sh_buf) d_buf d_len `v ::
                 R)))) ->
  @semax Espec Delta
    (PROPx P (LOCALx Q
-     (SEPx (`(message sh_obj msg) d_obj :: 
+     (SEPx (`(message sh_obj msg) d_obj ::
                `(data_at_ sh_p t) d_p::
                `(mf_assert msg sh_buf) d_buf d_len`v ::
                 R))))
-   (Ssequence 
-    (Sset ser 
-     (Efield e_obj _deserialize 
+   (Ssequence
+    (Sset ser
+     (Efield e_obj _deserialize
         (tptr  (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) (Tcons tint Tnil))) tvoid cc_default))))
       (Scall None
         (Etempvar ser (tptr  (Tfunction (Tcons (tptr tvoid) (Tcons (tptr tuchar) (Tcons tint Tnil))) tvoid cc_default)))
           (e_p :: e_buf :: e_len :: nil)))
     (normal_ret_assert (PROPx P (LOCALx Q
-     (SEPx (`(message sh_obj msg) d_obj :: 
+     (SEPx (`(message sh_obj msg) d_obj ::
                `(data_at sh_p t v) d_p::
                `(mf_assert msg sh_buf) d_buf d_len`v::
                 R))))).
@@ -641,7 +641,7 @@ Lemma intpair_message_length:
   forall sh p (len: environ -> Z) v P Q R,
     (PROPx P (LOCALx Q (SEPx
        (`(mf_assert intpair_message sh) p len v :: R)))) |--
-   (PROPx P 
+   (PROPx P
         (LOCALx (`(eq (mf_size intpair_message)) len :: Q)
          (SEPx (`(mf_assert intpair_message sh) p len v :: R)))).
 Proof.
@@ -676,13 +676,13 @@ apply (remember_value (eval_var _p t_struct_intpair)); intros p.
 apply (remember_value (eval_var _q t_struct_intpair)); intros q.
 apply (remember_value (eval_var _intpair_message t_struct_message)); intros ipm.
 apply (remember_value (eval_var _buf (tarray tuchar 8))); intros buf.
-eapply semax_pre with 
+eapply semax_pre with
 (P' := (PROP  ()
       LOCAL  (`(eq buf) (eval_var _buf (tarray tuchar 8));
       `(eq ipm) (eval_var _intpair_message t_struct_message);
       `(eq q) (eval_var _q t_struct_intpair);
       `(eq p) (eval_var _p t_struct_intpair))
-      SEP 
+      SEP
       (`(message Ews intpair_message ipm);
       `(data_at_ Tsh (tarray tuchar 8) buf);
       `(data_at_ Tsh t_struct_intpair q);
@@ -698,8 +698,8 @@ apply derives_refl.  (* SHOULD NOT NEED THIS LINE *)
 
 Ltac gather_SEP' L :=
    grab_indexes_SEP L; (*handles lifting better than the one in client_lemmas *)
- match goal with |- context [SEPx ?R] => 
-   rewrite <- (firstn_skipn (length L) R); 
+ match goal with |- context [SEPx ?R] =>
+   rewrite <- (firstn_skipn (length L) R);
    unfold firstn, skipn; simpl length; cbv beta iota; rewrite gather_SEP;
    unfold app, fold_right; try  rewrite sepcon_emp
  end.
@@ -801,11 +801,11 @@ rename H into HYP. (*remove when simpl_data_at is fixed (explanation in verif_qu
 unfold data_at_ at 2.
 unfold_data_at 3%nat.
 change (field_at Tsh t_struct_intpair [_x] Vundef
-          (eval_var _q t_struct_intpair rho)) with 
+          (eval_var _q t_struct_intpair rho)) with
   (field_at_ Tsh t_struct_intpair [_x]
           (eval_var _q t_struct_intpair rho)).
 change (field_at Tsh t_struct_intpair [_y] Vundef
-          (eval_var _q t_struct_intpair rho)) with 
+          (eval_var _q t_struct_intpair rho)) with
   (field_at_ Tsh t_struct_intpair [_y]
           (eval_var _q t_struct_intpair rho)).
 cancel.

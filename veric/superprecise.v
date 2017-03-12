@@ -74,10 +74,10 @@ omega.
 Qed.
 
 Lemma sign_ext_injective:
- forall n i j, 
+ forall n i j,
     0 < n < Int.zwordsize ->
-    0 <= i < two_p n -> 
-    0 <= j < two_p n -> 
+    0 <= i < two_p n ->
+    0 <= j < two_p n ->
     Int.sign_ext n (Int.repr i) = Int.sign_ext n (Int.repr j) ->
     i=j.
 Proof.
@@ -88,22 +88,22 @@ rewrite H2 in H3.
 apply Int.eqmod_sym in H3.
 pose proof (Int.eqmod_trans _ _ _ _ H3 H4).
 rewrite Int.unsigned_repr in H5.
-2: pose proof (two_p_monotone_strict n Int.zwordsize); 
-   change Int.max_unsigned with (two_p Int.zwordsize - 1); 
+2: pose proof (two_p_monotone_strict n Int.zwordsize);
+   change Int.max_unsigned with (two_p Int.zwordsize - 1);
    omega.
 rewrite Int.unsigned_repr in H5.
-2: pose proof (two_p_monotone_strict n Int.zwordsize); 
-   change Int.max_unsigned with (two_p Int.zwordsize - 1); 
+2: pose proof (two_p_monotone_strict n Int.zwordsize);
+   change Int.max_unsigned with (two_p Int.zwordsize - 1);
    omega.
 apply Int.eqmod_small_eq in H5; auto.
 Qed.
 
 
 Lemma zero_ext_injective:
- forall n i j, 
+ forall n i j,
     0 <= n < Int.zwordsize ->
-    0 <= i < two_p n -> 
-    0 <= j < two_p n -> 
+    0 <= i < two_p n ->
+    0 <= j < two_p n ->
     Int.zero_ext n (Int.repr i) = Int.zero_ext n (Int.repr j) ->
     i=j.
 Proof.
@@ -114,12 +114,12 @@ rewrite H2 in H3.
 apply Int.eqmod_sym in H3.
 pose proof (Int.eqmod_trans _ _ _ _ H3 H4).
 rewrite Int.unsigned_repr in H5.
-2: pose proof (two_p_monotone_strict n Int.zwordsize); 
-   change Int.max_unsigned with (two_p Int.zwordsize - 1); 
+2: pose proof (two_p_monotone_strict n Int.zwordsize);
+   change Int.max_unsigned with (two_p Int.zwordsize - 1);
    omega.
 rewrite Int.unsigned_repr in H5.
-2: pose proof (two_p_monotone_strict n Int.zwordsize); 
-   change Int.max_unsigned with (two_p Int.zwordsize - 1); 
+2: pose proof (two_p_monotone_strict n Int.zwordsize);
+   change Int.max_unsigned with (two_p Int.zwordsize - 1);
    omega.
 apply Int.eqmod_small_eq in H5; auto.
 Qed.
@@ -190,7 +190,7 @@ Qed.
 Require Import ZArith.
 From compcert Require Import Fappli_IEEE Fcore_Zaux Fcore_generic_fmt.
 
-Lemma binary_normalize_inj: 
+Lemma binary_normalize_inj:
   forall s1 m1 e1 (h1 : bounded 24 128 m1 e1 = true),
   forall s2 m2 e2 (h2 : bounded 24 128 m2 e2 = true),
    binary_normalize 53 1024 (eq_refl _) (eq_refl _) mode_NE (cond_Zopp s1 (Zpos m1)) e1 s1 =
@@ -223,14 +223,14 @@ apply Zlt_trans with (1 := H2).
 now apply Zpower_lt.
 now apply Zle_trans with (2 := H3).
 easy.
-Qed. 
+Qed.
 
 Lemma binary_normalize_finite:
   forall b m e,
-  bounded (23 + 1) (2 ^ (8 - 1)) m e = true -> 
- match 
-     binary_normalize 53 1024 eq_refl eq_refl mode_NE 
-          (cond_Zopp b (Z.pos m)) e b 
+  bounded (23 + 1) (2 ^ (8 - 1)) m e = true ->
+ match
+     binary_normalize 53 1024 eq_refl eq_refl mode_NE
+          (cond_Zopp b (Z.pos m)) e b
  with B754_finite _ _ _ _ => True | _ => False
  end.
 Proof.
@@ -264,7 +264,7 @@ easy.
 Qed.
 
 Lemma float32_preserves_payload:
- forall s pl, 
+ forall s pl,
     let '(s1,pl1) := Float.of_single_pl s pl in
       (s=s1 /\ (536870912 * (Pos.lor (proj1_sig pl) 4194304))%positive = proj1_sig pl1).
 Proof.
@@ -288,7 +288,7 @@ Abort.
 Inductive wishes_eq_horses := .
 
 Lemma float32_payload_inj:
-  wishes_eq_horses -> 
+  wishes_eq_horses ->
   forall s1 pl1 s2 pl2,
     Float.of_single_pl s1 pl1= Float.of_single_pl s2 pl2 ->
     (s1,pl1) = (s2,pl2).
@@ -326,12 +326,12 @@ clear i j.
 destruct u,v; auto; try congruence.
 Qed.
 
-Lemma Vint_inj: forall i j, Vint i = Vint j -> i=j. 
+Lemma Vint_inj: forall i j, Vint i = Vint j -> i=j.
 Proof. congruence. Qed.
 
-Lemma decode_val_uniq: 
+Lemma decode_val_uniq:
    (* Just not true any more, with Fragments *)
-  forall ch b1 b2 v, 
+  forall ch b1 b2 v,
     v <> Vundef ->
     length b1 = size_chunk_nat ch ->
     length b2 = size_chunk_nat ch ->
@@ -360,12 +360,12 @@ destruct (check_pointer 4 b0 i0 (Pointer b0 i0 n0 :: b2)) eqn:?; try congruence.
 inv H3.
 clear H.
 unfold check_pointer in *; simpl in *.
-repeat match goal with 
+repeat match goal with
 | H: ?A = true |- _ =>
-  match A with 
+  match A with
   | context [eq_block ?a ?b]  =>
      destruct (eq_block a b); simpl in *; try congruence
-  | context [Int.eq_dec ?i ?j] => 
+  | context [Int.eq_dec ?i ?j] =>
      destruct (Int.eq_dec i j); simpl in *; try congruence
   | context [match ?n with _ => _ end] =>
      destruct n; simpl in *; try congruence
@@ -507,9 +507,9 @@ Require Import veric.extend_tc.
 Require Import veric.seplog.
 
 Lemma superprecise_mapsto:
- wishes_eq_horses -> 
-  forall sh t v1 v2, 
-    v2 <> Vundef -> 
+ wishes_eq_horses ->
+  forall sh t v1 v2,
+    v2 <> Vundef ->
    superprecise (mapsto sh t v1 v2).
 Proof.
 intro WH.

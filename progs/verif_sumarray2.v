@@ -7,7 +7,7 @@ Definition Vprog : varspecs.  mk_varspecs prog. Defined.
 
 (* Some definitions relating to the functional spec of this particular program.  *)
 Definition sum_Z : list Z -> Z := fold_right Z.add 0.
-  
+
 Lemma sum_Z_app:
   forall a b, sum_Z (a++b) =  sum_Z a + sum_Z b.
 Proof.
@@ -35,7 +35,7 @@ Definition main_spec :=
   POST [ tint ] main_post prog nil u.
 
 (* Packaging the API spec all together. *)
-Definition Gprog : funspecs := 
+Definition Gprog : funspecs :=
         ltac:(with_library prog [sumarray_spec; main_spec]).
 
 (** Proof that f_sumarray, the body of the sumarray() function,
@@ -47,10 +47,10 @@ start_function.  (* Always do this at the beginning of a semax_body proof *)
 (* The next two lines do forward symbolic execution through
    the first two executable statements of the function body *)
 forward.  (* s = 0; *)
-forward_for_simple_bound size 
+forward_for_simple_bound size
   (EX i: Z,
    PROP  ((*0 <= i <= size*))
-   LOCAL (temp _a a; 
+   LOCAL (temp _a a;
           (*temp _i (Vint (Int.repr i)); *)
           temp _n (Vint (Int.repr size));
           temp _s (Vint (Int.repr (sum_Z (sublist 0 i contents)))))
@@ -89,7 +89,7 @@ Definition four_contents := [1; 2; 3; 4].
 
 (*  discard this...
 Lemma split_array':
- forall {cs: compspecs} mid n (sh: Share.t) (t: type) 
+ forall {cs: compspecs} mid n (sh: Share.t) (t: type)
                             v (v': list (reptype t)) v1 v2 p,
     0 <= mid <= n ->
     JMeq v v' ->
@@ -102,7 +102,7 @@ Lemma split_array':
     field_compatible0 (tarray t n) [ArraySubsc n] p ->
     data_at sh (tarray t n) v p =
     data_at sh (tarray t mid) v1  p *
-    data_at sh (tarray t (n-mid)) v2 
+    data_at sh (tarray t (n-mid)) v2
             (field_address0 (tarray t n) [ArraySubsc mid] p).
 Proof.
 intros.
@@ -116,7 +116,7 @@ f_equal.
 unfold array_at.
 simpl. f_equal.
 f_equal. f_equal.
-admit.  
+admit.
 admit.
 *
 rewrite (array_at_data_at_rec sh _ _ mid n); auto.
@@ -136,7 +136,7 @@ admit.
 Admitted.
 
 Lemma split_arrayx:
- forall {cs: compspecs} mid n (sh: Share.t) (t: type) 
+ forall {cs: compspecs} mid n (sh: Share.t) (t: type)
                             v (v': list (reptype t)) v1 v2 p,
     0 <= mid <= n ->
     JMeq v v' ->
@@ -146,7 +146,7 @@ Lemma split_arrayx:
     sizeof (tarray t n) < Int.modulus ->
     data_at sh (tarray t n) v p =
     data_at sh (tarray t mid) v1  p *
-    data_at sh (tarray t (n-mid)) v2 
+    data_at sh (tarray t (n-mid)) v2
             (field_address0 (tarray t n) [ArraySubsc mid] p).
 Proof.
 intros.
@@ -162,7 +162,7 @@ erewrite <- split_array'; try eassumption; auto.
    destruct H5 as [?B [?C [?D [?E [?F [?G [?J ?K]]]]]]].
    split3; [ | | split3; [ | | split3]]; auto.
     split; auto. split; auto.
- + 
+ +
    destruct H5 as [?B [?C [?D [?E [?F [?G [?J ?K]]]]]]].
    split3; [ | | split3; [ | | split3]]; auto.
     split; auto. split; auto. hnf. omega.
@@ -177,7 +177,7 @@ erewrite <- split_array'; try eassumption; auto.
    destruct H8 as [?B [?C [?D [?E [?F [?G [?J ?K]]]]]]].
    split3; [ | | split3; [ | | split3]]; auto.
    admit.
-   hnf in G0. rewrite field_address0_clarify in G0. 
+   hnf in G0. rewrite field_address0_clarify in G0.
    clear - H H4 G G0 B. destruct p; try contradiction; simpl in *.
    unfold Int.add in G0; rewrite !Int.unsigned_repr in G0.
    autorewrite with sublist in *.
@@ -214,7 +214,7 @@ apply sublist_In in H0. auto.
 Qed.
 
 Lemma split_array:
- forall {cs: compspecs} mid n (sh: Share.t) (t: type) 
+ forall {cs: compspecs} mid n (sh: Share.t) (t: type)
                             v (v' v1' v2': list (reptype t)) v1 v2 p,
     0 <= mid <= n ->
     JMeq v (v1'++v2') ->
@@ -222,7 +222,7 @@ Lemma split_array:
     JMeq v2 v2' ->
     data_at sh (tarray t n) v p =
     data_at sh (tarray t mid) v1  p *
-    data_at sh (tarray t (n-mid)) v2 
+    data_at sh (tarray t (n-mid)) v2
             (field_address0 (tarray t n) [ArraySubsc mid] p).
 Admitted.
 
@@ -242,7 +242,7 @@ erewrite (split_array 2 4); try apply JMeq_refl; auto; try omega; try reflexivit
 forward_call (*  s = sumarray(four+2,2); *)
   (field_address0 (tarray tint 4) [ArraySubsc 2] four, Ews,
     sublist 2 4 four_contents,2).
-+ 
++
  clear - GV. unfold gvar_denote, eval_var in *.
   destruct (Map.get (ve_of rho) _four) as [[? ?]|?]; try contradiction.
   destruct (ge_of rho _four); try contradiction. apply I.
@@ -303,7 +303,7 @@ and break it down into the "loop" form of Clight:
      return s;
   }
 
-in which "Sloop c1 c2" is basically the same as 
+in which "Sloop c1 c2" is basically the same as
   "for ( ; ; c2) c1".
 
 Into this program we put these assertions:
@@ -331,7 +331,7 @@ The assertions are defined in these five definitions:
 (*
 Definition sumarray_Pre a sh contents size :=
 (PROP  ()
-   LOCAL (temp _a a; 
+   LOCAL (temp _a a;
           temp _i (Vint (Int.repr 0));
           temp _n (Vint (Int.repr size));
           temp _s (Vint (Int.repr (sum_Z (sublist 0 0 contents)))))
@@ -340,7 +340,7 @@ Definition sumarray_Pre a sh contents size :=
 Definition sumarray_Inv a sh contents size :=
 (EX i: Z,
    PROP  (0 <= i <= size)
-   LOCAL (temp _a a; 
+   LOCAL (temp _a a;
           temp _i (Vint (Int.repr i));
           temp _n (Vint (Int.repr size));
           temp _s (Vint (Int.repr (sum_Z (sublist 0 i contents)))))
@@ -349,7 +349,7 @@ Definition sumarray_Inv a sh contents size :=
 Definition sumarray_PreBody a sh contents size :=
 (EX i: Z,
    PROP  (0 <= i < size)
-   LOCAL (temp _a a; 
+   LOCAL (temp _a a;
           temp _i (Vint (Int.repr i));
           temp _n (Vint (Int.repr size));
           temp _s (Vint (Int.repr (sum_Z (sublist 0 i contents)))))
@@ -358,7 +358,7 @@ Definition sumarray_PreBody a sh contents size :=
 Definition sumarray_PostBody a sh contents size :=
 (EX i: Z,
    PROP  (0 <= i < size)
-   LOCAL (temp _a a; 
+   LOCAL (temp _a a;
           temp _i (Vint (Int.repr i));
           temp _n (Vint (Int.repr size));
           temp _s (Vint (Int.repr (sum_Z (sublist 0 (i+1) contents)))))
@@ -366,7 +366,7 @@ Definition sumarray_PostBody a sh contents size :=
 
 Definition sumarray_Post a sh contents size :=
    (PROP()
-   LOCAL (temp _a a; 
+   LOCAL (temp _a a;
           temp _i (Vint (Int.repr size));
           temp _n (Vint (Int.repr size));
           temp _s (Vint (Int.repr (sum_Z contents))))
@@ -388,7 +388,7 @@ apply semax_pre with (sumarray_Inv a sh contents size).
 apply semax_seq with (sumarray_Post a sh contents size).
 *
  apply semax_loop with (sumarray_PostBody a sh contents size).
- + 
+ +
    unfold sumarray_Inv.
    Intros i.
    forward_if (sumarray_PreBody a sh contents size).

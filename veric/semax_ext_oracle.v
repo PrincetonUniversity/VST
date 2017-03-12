@@ -242,14 +242,14 @@ Definition add_funspecs (Espec : OracleKind) (ext_link: string -> ident) (fs : l
 
 (*! Adapting semax_external to a judgment mentioning oracles *)
 
-Definition semax_external_oracle (Espec: OracleKind) (ids: list ident) ef (A: Type) (P Q: A -> Espec.(@OK_ty) -> environ -> pred rmap): 
-        pred nat := 
- ALL gx: genv, ALL x: A, 
+Definition semax_external_oracle (Espec: OracleKind) (ids: list ident) ef (A: Type) (P Q: A -> Espec.(@OK_ty) -> environ -> pred rmap):
+        pred nat :=
+ ALL gx: genv, ALL x: A,
  |>  ALL F: pred rmap, ALL ts: list typ, ALL args: list val, ALL z : Espec.(@OK_ty),
-   juicy_mem_op (P x z (make_ext_args (filter_genv gx) ids args) * F) >=> 
+   juicy_mem_op (P x z (make_ext_args (filter_genv gx) ids args) * F) >=>
    EX x': ext_spec_type OK_spec ef,
     ext_spec_pre' Espec ef x' (Genv.genv_symb gx) ts args z &&
-     ! ALL tret: option typ, ALL ret: option val, ALL z': OK_ty, 
+     ! ALL tret: option typ, ALL ret: option val, ALL z': OK_ty,
       ext_spec_post' Espec ef x' (Genv.genv_symb gx) tret ret z' >=>
           juicy_mem_op (Q x z' (make_ext_rval (filter_genv gx) ret) * F).
 

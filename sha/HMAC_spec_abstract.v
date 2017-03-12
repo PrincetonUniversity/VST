@@ -43,7 +43,7 @@ apply splitAndPad_inj in H; trivial.
 apply Extensionality.exist_ext. trivial.
 Qed.
 
-Variable fpad_v : Bvector c -> Bvector p. 
+Variable fpad_v : Bvector c -> Bvector p.
 Variable opad_v ipad_v : Bvector b.
 (*End HMAC_AbstractEQ.
 
@@ -57,12 +57,12 @@ Section HMAC_Abstract_List.
 
   Variable splitAndPad_inj: forall b1 b2, splitAndPad_v b1 = splitAndPad_v b2 ->
     P b1 -> P b2 -> b1=b2.
-Variable fpad_v : Bvector c -> Bvector p. 
+Variable fpad_v : Bvector c -> Bvector p.
 Variable opad_v ipad_v : Bvector (b c p).
 *)
 (* h *)
 Variable h: Blist -> Blist -> Blist.
-Hypothesis h_eq : forall block_v block_l 
+Hypothesis h_eq : forall block_v block_l
                (HVL: block_l = Vector.to_list block_v)
                ivA ivB (IV: ivA = Vector.to_list ivB),
                h ivA block_l = Vector.to_list (h_v ivB block_v).
@@ -70,11 +70,11 @@ Hypothesis h_eq : forall block_v block_l
 Variable iv: Blist.
 Hypothesis iv_eq: iv=Vector.to_list iv_v.
 
-(* h_star *) 
+(* h_star *)
 Lemma hash_words_eq: forall l v
                    (HVL: Forall2 (fun bv bl => bl = Vector.to_list bv) v l)
                    ivA ivB (IV: ivA = Vector.to_list ivB),
-      HMAC_List.hash_words h ivA l 
+      HMAC_List.hash_words h ivA l
       = Vector.to_list (hash_words p h_v ivB v).
 Proof.
   unfold HMAC_List.hash_words. unfold hash_words.
@@ -96,9 +96,9 @@ Lemma app_fpad_eq v l (L:l = Vector.to_list v):
       HMAC_List.app_fpad fpad l = Vector.to_list (app_fpad fpad_v v).
 Proof.
   subst.
-  unfold HMAC_List.app_fpad. unfold app_fpad. 
-  rewrite <- VectorToList_append. erewrite fpad_eq; reflexivity. 
-Qed.     
+  unfold HMAC_List.app_fpad. unfold app_fpad.
+  rewrite <- VectorToList_append. erewrite fpad_eq; reflexivity.
+Qed.
 
 Variable splitandpad_blocks: Blist -> list Blist.
 Hypothesis length_splitandpad_inner : forall m,
@@ -124,24 +124,24 @@ Proof.
   subst.
   rewrite split_eq.
   (* rewrite -> split_append_id. *) (* could use this instead of firstn and splitn *)
-  apply hash_words_eq. 
+  apply hash_words_eq.
   constructor.
     rewrite firstn_exact.
-    apply xor_eq. 
+    apply xor_eq.
     apply BLxor_length.
     (*unfold HMAC_List.b. unfold b in *.*)
     apply VectorToList_length.
     apply VectorToList_length.
-  rewrite skipn_exact. 
+  rewrite skipn_exact.
        2: apply BLxor_length.
           2: apply VectorToList_length.
           2: apply VectorToList_length.
-       2: reflexivity. 
+       2: reflexivity.
   constructor. 2: constructor.
   apply app_fpad_eq.
   apply hash_words_eq.
     constructor.
-      apply xor_eq. 
+      apply xor_eq.
       apply wrappedSAP_inner. (*apply length_splitandpad_inner.*)
     reflexivity. (*apply iv_eq.*)
 Qed.

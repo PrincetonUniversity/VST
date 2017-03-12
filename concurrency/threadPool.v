@@ -25,14 +25,14 @@ Inductive ctl {cT:Type} : Type :=
 | Kresume : cT -> val -> ctl (* Carries the return value. Probably a unit.*)
 | Kinit : val -> val -> ctl. (* vals correspond to vf and arg respectively. *)
 
-Definition EqDec: Type -> Type := 
+Definition EqDec: Type -> Type :=
   fun A : Type => forall a a' : A, {a = a'} + {a <> a'}.
 
 Module Type ThreadPoolSig.
   Declare Module TID: ThreadID.
   Declare Module SEM: Semantics.
   Declare Module RES : Resources.
-  
+
   Import TID.
   Import SEM.
   Import RES.
@@ -40,7 +40,7 @@ Module Type ThreadPoolSig.
   Parameter t : Type.
 
   Local Notation ctl := (@ctl C).
-  
+
   Parameter containsThread : t -> tid -> Prop.
   Parameter getThreadC : forall {tid tp}, containsThread tp tid -> ctl.
   Parameter getThreadR : forall {tid tp}, containsThread tp tid -> res.
@@ -63,7 +63,7 @@ Module Type ThreadPoolSig.
   (* Decidability of containsThread *)
   Axiom containsThread_dec:
     forall i tp, {containsThread tp i} + { ~ containsThread tp i}.
-  
+
   (*Proof Irrelevance of contains*)
   Axiom cnt_irr: forall t tid
                    (cnt1 cnt2: containsThread t tid),
@@ -79,7 +79,7 @@ Module Type ThreadPoolSig.
     forall {j tp} vf arg p,
       containsThread (addThread tp vf arg p) j ->
       (containsThread tp j /\ j <> latestThread tp) \/ j = latestThread tp.
-  
+
   (* Update properties*)
   Axiom cntUpdateC:
     forall {tid tid0 tp} c
@@ -89,7 +89,7 @@ Module Type ThreadPoolSig.
   Axiom cntUpdateC':
     forall {tid tid0 tp} c
       (cnt: containsThread tp tid),
-      containsThread (updThreadC cnt c) tid0 -> 
+      containsThread (updThreadC cnt c) tid0 ->
       containsThread tp tid0.
 
   Axiom cntUpdateR:
@@ -100,9 +100,9 @@ Module Type ThreadPoolSig.
   Axiom cntUpdateR':
     forall {i j tp} r
       (cnti: containsThread tp i),
-      containsThread (updThreadR cnti r) j -> 
+      containsThread (updThreadR cnti r) j ->
       containsThread tp j.
-  
+
   Axiom cntUpdate:
     forall {i j tp} c p
       (cnti: containsThread tp i),
@@ -157,7 +157,7 @@ Module Type ThreadPoolSig.
       (Heq: j = latestThread tp)
       (cnt': containsThread (addThread tp vf arg pmap) j),
       getThreadR cnt' = pmap.
-   
+
   (*Get thread Properties*)
   Axiom gssThreadCode :
     forall {tid tp} (cnt: containsThread tp tid) c' p'
@@ -180,7 +180,7 @@ Module Type ThreadPoolSig.
             (cntj: containsThread tp j) (Hneq: i <> j) c' p'
             (cntj': containsThread (updThread cnti c' p') j),
     getThreadR cntj' = getThreadR cntj.
-  
+
   Axiom gssThreadCC:
     forall {tid tp} (cnt: containsThread tp tid) c'
       (cnt': containsThread (updThreadC cnt c') tid),
@@ -221,7 +221,7 @@ Module Type ThreadPoolSig.
   Axiom gsoAddLPool:
     forall tp vf arg p (addr : address),
       lockRes (addThread tp vf arg p) addr = lockRes tp addr.
-  
+
   Axiom gLockSetRes:
     forall {i tp} addr (res : lock_info) (cnti: containsThread tp i)
       (cnti': containsThread (updLockSet tp addr res) i),
@@ -246,7 +246,7 @@ Module Type ThreadPoolSig.
     forall tp b ofs rmap ofs',
       (ofs <= ofs' < ofs + Z.of_nat lksize.LKSIZE_nat)%Z ->
       (Maps.PMap.get b (lockSet (updLockSet tp (b, ofs) rmap)) ofs') = Some Writable.
-    
+
   Axiom gsoLockSet_1 :
     forall tp b ofs ofs'  pmap
       (Hofs: (ofs' < ofs)%Z \/ (ofs' >= ofs + (Z.of_nat lksize.LKSIZE_nat))%Z),
@@ -254,7 +254,7 @@ Module Type ThreadPoolSig.
       (Maps.PMap.get b (lockSet tp)) ofs'.
   Axiom gsoLockSet_2 :
     forall tp b b' ofs ofs' pmap,
-      b <> b' -> 
+      b <> b' ->
       (Maps.PMap.get b' (lockSet (updLockSet tp (b,ofs) pmap))) ofs' =
       (Maps.PMap.get b' (lockSet tp)) ofs'.
 
@@ -303,9 +303,9 @@ Module Type ThreadPoolSig.
 
  (*uniqueness of the running threadc*)
   Parameter unique_Krun':  t -> tid -> Prop.
-  Definition is_running tp i:= 
+  Definition is_running tp i:=
     exists cnti q, @getThreadC i tp cnti = Krun q.
-  
+
   (*New Axioms, to avoid breaking the modularity *)
   Axioms lockSet_spec_2 :
     forall (js : t) (b : block) (ofs ofs' : Z),
@@ -382,7 +382,7 @@ Module Type ThreadPoolSig.
         forall i (cnti: containsThread ds i) c map l lmap,
           forall (cnti': containsThread (updLockSet ds l lmap) i),
           updLockSet
-            (@updThread _ ds cnti c map) l lmap = 
+            (@updThread _ ds cnti c map) l lmap =
           @updThread _ (updLockSet ds l lmap) cnti' c map.
 
   Axiom remLock_updThread_comm:
@@ -391,9 +391,9 @@ Module Type ThreadPoolSig.
           forall (cnti': containsThread (remLockSet ds l) i),
           remLockSet
             (updThread cnti c map)
-            l = 
+            l =
           updThread cnti' c map.
-  
+
 End ThreadPoolSig.
 
 
@@ -416,16 +416,16 @@ Qed.
 Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
     with Module TID:= NatTID with Module SEM:=SEM
     with Module RES:=RES.
-                            
+
   Module TID:=NatTID.
   Module RES:=RES.
   Module SEM:=SEM.
   Import TID.
   Import SEM.
   Import RES.
-  
+
   Global Notation code:=C.
-  
+
   Record t' := mk
                  { num_threads : pos
                    ; pool :> 'I_num_threads -> @ctl code
@@ -433,7 +433,7 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
                    ; lset : AMap.t lock_info
                  }.
 
-  
+
   Definition t := t'.
 
   Definition lockGuts := lset.
@@ -460,14 +460,14 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
     if filter (@pool st (@Ordinal (num_threads st) n P))
     then Some n
     else match n with
-         | S n' =>  find_thread' n' (lt_decr  n' _ P) 
+         | S n' =>  find_thread' n' (lt_decr  n' _ P)
          | O => None
          end.
   Definition pos_pred (n:pos): nat.
   Proof. destruct n. destruct n eqn:AA; [omega|].
          exact n0.
   Defined.
-                                 
+
   Program Definition find_thread (st:t)(filter:@ctl code -> bool): option tid:=
     @find_thread' st filter (pos_pred (num_threads st)) _ .
   Next Obligation.
@@ -475,18 +475,18 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
     elim (num_threads st) => n N_pos /=.
     destruct n; try omega; eauto.
   Qed.
-      
+
 Require Import msl.Coqlib2.
 Import Coqlib.
 
   Lemma lockSet_WorNE: forall js b ofs,
-      (lockSet js) !! b ofs = Some Memtype.Writable \/ 
+      (lockSet js) !! b ofs = Some Memtype.Writable \/
       (lockSet js) !! b ofs = None.
   Proof.
-   intros. unfold lockSet. 
+   intros. unfold lockSet.
   unfold A2PMap.
   rewrite <- List.fold_left_rev_right.
-  match goal with |- context [List.fold_right ?F ?Z ?A] => 
+  match goal with |- context [List.fold_right ?F ?Z ?A] =>
              set (f := F); set (z:=Z); induction A end.
   right. simpl. rewrite PMap.gi. auto.
   change (List.fold_right f z (a::l)) with (f a (List.fold_right f z l)).
@@ -498,7 +498,7 @@ Import Coqlib.
     destruct H as [-> | ->]; auto.
   - rewrite permissions.setPermBlock_other_2; auto.
   Qed.
-  
+
   Lemma lockSet_spec_2 :
     forall (js : t) (b : block) (ofs ofs' : Z),
       Intv.In ofs' (ofs, (ofs + Z.of_nat lksize.LKSIZE_nat)%Z) ->
@@ -516,7 +516,7 @@ Import Coqlib.
     apply SetoidList.InA_rev in H1.
     unfold AMap.key in H1.
     forget (@rev (address * lock_info) (AMap.elements (elt:=lock_info) (lset js))) as el.
-    match goal with |- context [List.fold_right ?F ?Z ?A] => 
+    match goal with |- context [List.fold_right ?F ?Z ?A] =>
                     set (f := F); set (z:=Z) end.
     revert H1; induction el; intros.
     inv H1.
@@ -535,7 +535,7 @@ Import Coqlib.
     repeat match goal with |- context [is_left ?A] => destruct A; simpl; auto end.
     rewrite !PMap.gso; auto.
   Qed.
-  
+
   Lemma lockSet_spec_1: forall js b ofs,
       lockRes js (b,ofs) ->
       (lockSet js) !! b ofs = Some Memtype.Writable.
@@ -545,7 +545,7 @@ Import Coqlib.
     unfold Intv.In.
     simpl. omega.
   Qed.
-    
+
 Open Scope nat_scope.
 
 (* Definition containsThread_dec (tp : t) (i : NatTID.tid) : bool:=
@@ -564,13 +564,13 @@ Open Scope nat_scope.
 
   Definition getThreadC {i tp} (cnt: containsThread tp i) : ctl :=
     tp (Ordinal cnt).
-  
+
   Definition unique_Krun' tp i :=
   ( forall j cnti q,
       @getThreadC j tp cnti = Krun q ->
       eq_tid_dec i j ).
 
-  Definition is_running tp i:= 
+  Definition is_running tp i:=
     exists cnti q, @getThreadC i tp cnti = Krun q.
 
   Lemma unique_runing_not_running:
@@ -583,13 +583,13 @@ Open Scope nat_scope.
     intros.
     specialize (H  _ _ _ H1);
       destruct (eq_tid_dec i j0); inversion H; subst.
-    
+
     exfalso; apply H0 .
     exists cnti, q; assumption.
   Qed.
-    
 
-    
+
+
   Definition getThreadR {i tp} (cnt: containsThread tp i) : res :=
     (perm_maps tp) (Ordinal cnt).
 
@@ -599,12 +599,12 @@ Open Scope nat_scope.
     let: new_num_threads := pos_incr (num_threads tp) in
     let: new_tid := ordinal_pos_incr (num_threads tp) in
     mk new_num_threads
-        (fun (n : 'I_new_num_threads) => 
+        (fun (n : 'I_new_num_threads) =>
            match unlift new_tid n with
            | None => Kinit vf arg  (*Could be a new state Kinit?? *)
            | Some n' => tp n'
            end)
-        (fun (n : 'I_new_num_threads) => 
+        (fun (n : 'I_new_num_threads) =>
            match unlift new_tid n with
            | None => pmap
            | Some n' => (perm_maps tp) n'
@@ -622,7 +622,7 @@ Open Scope nat_scope.
        (pool tp)
        (perm_maps tp)
        (AMap.remove add (lockGuts tp)).
-  
+
   Definition updThreadC {tid tp} (cnt: containsThread tp tid) (c' : ctl) : t :=
     mk (num_threads tp)
        (fun n => if n == (Ordinal cnt) then c' else (pool tp)  n)
@@ -646,27 +646,27 @@ Open Scope nat_scope.
        (lset tp).
 
   (*TODO: see if typeclasses can automate these proofs, probably not thanks dep types*)
-                           
+
   (*Proof Irrelevance of contains*)
   Lemma cnt_irr: forall t tid
                    (cnt1 cnt2: containsThread t tid),
       cnt1 = cnt2.
   Proof. intros. apply proof_irr. Qed.
-  
+
   (* Update properties*)
   Lemma numUpdateC :
     forall {tid tp} (cnt: containsThread tp tid) c,
-      num_threads tp =  num_threads (updThreadC cnt c). 
+      num_threads tp =  num_threads (updThreadC cnt c).
   Proof.
     intros tid tp cnt c.
     destruct tp; simpl; reflexivity.
   Qed.
-  
+
   Lemma cntUpdateC :
     forall {tid tid0 tp} c
       (cnt: containsThread tp tid),
       containsThread tp tid0 ->
-      containsThread (updThreadC cnt c) tid0. 
+      containsThread (updThreadC cnt c) tid0.
   Proof.
     intros tid tp.
     unfold containsThread; intros.
@@ -676,7 +676,7 @@ Open Scope nat_scope.
     forall {tid tid0 tp} c
       (cnt: containsThread tp tid),
       containsThread (updThreadC cnt c) tid0 ->
-      containsThread tp tid0. 
+      containsThread tp tid0.
   Proof.
     intros tid tp.
     unfold containsThread; intros.
@@ -693,29 +693,29 @@ Open Scope nat_scope.
     unfold containsThread; intros.
       by simpl.
   Qed.
-      
+
   Lemma cntUpdateR':
     forall {i j tp} r
       (cnti: containsThread tp i),
-      containsThread (updThreadR cnti r) j -> 
+      containsThread (updThreadR cnti r) j ->
       containsThread tp j.
   Proof.
     intros tid tp.
     unfold containsThread; intros.
       by simpl.
   Qed.
-  
+
   Lemma cntUpdate :
     forall {i j tp} c p
       (cnti: containsThread tp i),
       containsThread tp j ->
-      containsThread (updThread cnti c p) j. 
+      containsThread (updThread cnti c p) j.
   Proof.
     intros tid tp.
     unfold containsThread; intros.
     by simpl.
   Qed.
-  
+
   Lemma cntUpdate':
     forall {i j tp} c p
       (cnti: containsThread tp i),
@@ -743,7 +743,7 @@ Open Scope nat_scope.
     intros; unfold containsThread, updLockSet in *;
     simpl; by assumption.
   Qed.
-  
+
   Lemma cntUpdateL':
     forall {j tp} add lf,
       containsThread (updLockSet tp add lf) j ->
@@ -796,7 +796,7 @@ Open Scope nat_scope.
   Lemma contains_add_latest: forall ds p a r,
       containsThread (addThread ds p a r)
                      (latestThread ds).
-  Proof. intros. 
+  Proof. intros.
          simpl. unfold containsThread, latestThread.
          simpl. ssromega.
   Qed.
@@ -806,7 +806,7 @@ Open Scope nat_scope.
         forall i (cnti: containsThread ds i) c map l lmap,
           forall (cnti': containsThread (updLockSet ds l lmap) i),
           updLockSet
-            (@updThread _ ds cnti c map) l lmap = 
+            (@updThread _ ds cnti c map) l lmap =
           @updThread _ (updLockSet ds l lmap) cnti' c map.
             unfold updLockSet, updThread; simpl; intros.
             f_equal.
@@ -817,15 +817,15 @@ Open Scope nat_scope.
           forall (cnti': containsThread (remLockSet ds l) i),
           remLockSet
             (updThread cnti c map)
-            l = 
+            l =
           updThread cnti' c map.
             unfold remLockSet, updThread; simpl; intros.
             f_equal.
       Qed.
 
-  
+
   (* TODO: most of these proofs are similar, automate them*)
-  (** Getters and Setters Properties*)  
+  (** Getters and Setters Properties*)
 
 Set Bullet Behavior "None".
 Set Bullet Behavior "Strict Subproofs".
@@ -833,7 +833,7 @@ Set Bullet Behavior "Strict Subproofs".
   Lemma gsslockResUpdLock: forall js a res,
       lockRes (updLockSet js a res) a =
       Some res.
- Proof. 
+ Proof.
  intros.
  unfold lockRes, updLockSet. simpl.
  unfold AMap.find; simpl.
@@ -846,7 +846,7 @@ Set Bullet Behavior "Strict Subproofs".
  *
  rewrite AMap.Raw.add_equation. destruct a0.
  destruct (AddressOrdered.compare a a0).
- simpl. 
+ simpl.
  destruct (@AMap.Raw.PX.MO.elim_compare_eq a a); auto. rewrite H. auto.
  simpl.
  destruct (@AMap.Raw.PX.MO.elim_compare_eq a a); auto. rewrite H. auto.
@@ -859,14 +859,14 @@ Set Bullet Behavior "Strict Subproofs".
  hnf in e. subst. contradiction l0; reflexivity.
  auto.
 Qed.
-  
+
 
 Ltac address_ordered_auto :=
  auto; repeat match goal with
  | H: AddressOrdered.eq ?A ?A |- _ => clear H
- | H: AddressOrdered.eq ?A ?B |- _ => hnf in H; subst A 
+ | H: AddressOrdered.eq ?A ?B |- _ => hnf in H; subst A
  | H: ?A <> ?A |- _ => contradiction H; reflexivity
- | H: AddressOrdered.lt ?A ?A |- _ => 
+ | H: AddressOrdered.lt ?A ?A |- _ =>
      apply AddressOrdered.lt_not_eq in H; contradiction H; reflexivity
  | H: AddressOrdered.lt ?A ?B, H': AddressOrdered.lt ?B ?A |- _ =>
      contradiction (AddressOrdered.lt_not_eq (AddressOrdered.lt_trans H H')); reflexivity
@@ -911,7 +911,7 @@ Qed.
   intros.
    unfold lockRes, remLockSet; simpl. unfold AMap.find, AMap.remove; simpl.
  destruct js; simpl. destruct lset0; simpl.
- assert (SetoidList.NoDupA (@AMap.Raw.PX.eqk _) this). 
+ assert (SetoidList.NoDupA (@AMap.Raw.PX.eqk _) this).
  apply SetoidList.SortA_NoDupA with (@AMap.Raw.PX.ltk _); auto with typeclass_instances.
  rename this into el.
  revert H; clear; induction el; simpl; intros; auto.
@@ -928,7 +928,7 @@ Qed.
  apply IHel.
  inv H; auto.
 Qed.
-  
+
   Lemma gsolockResRemLock: forall js loc a,
       loc <> a ->
       lockRes (remLockSet js loc) a =
@@ -946,7 +946,7 @@ Qed.
  apply SetoidList.InfA_alt; auto with typeclass_instances.
  specialize (H1 (a,l0)).
  assert (~SetoidList.InA (AMap.Raw.PX.eqk (elt:=lock_info)) (a, l0) l ).
- intro. specialize (H1 H2). 
+ intro. specialize (H1 H2).
  change (AddressOrdered.lt b a) in H1. address_ordered_auto.
  clear - H2.
  induction l as [| [b ?]]; simpl in *; auto.
@@ -954,7 +954,7 @@ Qed.
  contradiction H2. left; auto.
 Qed.
 
-  
+
   Lemma gsoThreadLock:
     forall {i tp} c p (cnti: containsThread tp i),
       lockSet (updThread cnti c p) = lockSet tp.
@@ -1033,7 +1033,7 @@ Proof.
     intros. intro. destruct H1; apply AMap.find_1 in H1.
      rewrite H in H1. inv H1. auto.
   } clear H.
-   unfold lockGuts in *. 
+   unfold lockGuts in *.
    assert (H7 : forall (x : AMap.key) (e : lock_info),
      @InA _ (@AMap.eq_key_elt lock_info) (x, e) (rev (AMap.elements (lset ds))) ->
        AMap.MapsTo x e (lset ds)). {
@@ -1046,7 +1046,7 @@ Proof.
   change ((f a (fold_right f init al)) !! b ofs = None).
   unfold f at 1. destruct a as [[? ?] ?].
   simpl.
-  destruct (peq b0 b).    
+  destruct (peq b0 b).
    2: unfold permissions.setPerm; rewrite !PMap.gso; auto.
   subst b0; rewrite !PMap.gss.
   cut (~ (z <= ofs < z+4))%Z.
@@ -1066,10 +1066,10 @@ Qed.
       (lockSet (remLockSet ds (b, ofs))) !! b ofs0 =
       None.
   Proof.
-    intros. 
+    intros.
     hnf in H0; simpl in H0.
     apply lockSet_spec_3.
-    unfold LKSIZE in H0. 
+    unfold LKSIZE in H0.
     unfold LKSIZE.
     intros.
     destruct (zeq ofs z).
@@ -1098,13 +1098,13 @@ Qed.
 Qed.
 
 
-  
+
   Lemma gsolockSet_rem1: forall ds b ofs b' ofs',
       b  <> b' ->
       (lockSet (remLockSet ds (b, ofs))) !! b' ofs' =
       (lockSet ds)  !! b' ofs'.
   Proof.
-    
+
     intros.
     destruct (lockRes_range_dec ds b' ofs').
     - destruct e as [z [ineq HH]]. unfold LKSIZE in ineq.
@@ -1120,7 +1120,7 @@ Qed.
       intros.
       rewrite gsolockResRemLock; auto.
       intros AA. inversion AA; congruence.
-  Qed. 
+  Qed.
 
   Lemma gsolockSet_rem2: forall ds b ofs ofs',
       lr_valid (lockRes ds) ->
@@ -1150,7 +1150,7 @@ Qed.
       rewrite gsolockResRemLock; auto.
       intros AA. inversion AA; congruence.
   Qed.
-  
+
   Lemma gssThreadCode {tid tp} (cnt: containsThread tp tid) c' p'
         (cnt': containsThread (updThread cnt c' p') tid) :
     getThreadC cnt' = c'.
@@ -1182,13 +1182,13 @@ Qed.
     unfold updThread in cntj'. unfold containsThread in *. simpl in *.
     unfold getThreadC. do 2 apply f_equal. apply proof_irr.
 Qed.
-  
+
   Lemma gssThreadRes {tid tp} (cnt: containsThread tp tid) c' p'
         (cnt': containsThread (updThread cnt c' p') tid) :
     getThreadR cnt' = p'.
   Proof.
-    simpl. 
-    unfold eq_op; simpl. rewrite eq_refl; auto. 
+    simpl.
+    unfold eq_op; simpl. rewrite eq_refl; auto.
   Qed.
 
   Lemma gsoThreadRes {i j tp} (cnti: containsThread tp i)
@@ -1235,14 +1235,14 @@ Qed.
      erewrite <- @gsoThreadCC with (cntj := cntj)];
     now eauto.
   Qed.
-  
+
   Lemma gThreadCR {i j tp} (cnti: containsThread tp i)
         (cntj: containsThread tp j) c'
         (cntj': containsThread (updThreadC cnti c') j) :
     getThreadR cntj' = getThreadR cntj.
   Proof.
     simpl.
-    unfold getThreadR. 
+    unfold getThreadR.
     unfold updThreadC, containsThread in *. simpl in *.
     do 2 apply f_equal.
     apply proof_irr.
@@ -1351,7 +1351,7 @@ Qed.
     rewrite H.
       by reflexivity.
   Qed.
-  
+
   Lemma gsoAddCode:
     forall {i tp} (cnt: containsThread tp i) vf arg pmap j
       (cntj: containsThread tp j)
@@ -1435,7 +1435,7 @@ Qed.
       }
       unfold eq_op in H|-*.
       apply negb_true_iff in H. rewrite H. auto.
-    } 
+    }
     unfold p in H. simpl in H.
     apply prod_fun in H.
     destruct H as [H1 H2].
@@ -1534,7 +1534,7 @@ Qed.
       erewrite proof_irr with (a1 := i0) (a2 := cntj) in Heqb0;
         by exfalso.
       inversion Heqb2; subst.
-      erewrite proof_irr with (a1 := i0) (a2 := cnti') in Heqb;            
+      erewrite proof_irr with (a1 := i0) (a2 := cnti') in Heqb;
         by exfalso.
     }
     unfold p in H. simpl in H.
@@ -1582,13 +1582,13 @@ Qed.
       erewrite proof_irr with (a1 := i0) (a2 := cntj) in Heqb0;
         by exfalso.
       inversion Heqb2; subst.
-      erewrite proof_irr with (a1 := i0) (a2 := cnti') in Heqb;            
+      erewrite proof_irr with (a1 := i0) (a2 := cnti') in Heqb;
         by exfalso.
     }
     simpl in H.
     rewrite H. auto.
   Qed.
-  
+
   Lemma gsoThreadCLPool:
     forall {i tp} c (cnti: containsThread tp i) addr,
       lockRes (updThreadC cnti c) addr = lockRes tp addr.
@@ -1655,7 +1655,7 @@ Qed.
     do 2 apply f_equal.
       by apply cnt_irr.
   Qed.
-  
+
   Lemma gssLockRes:
     forall tp addr pmap,
       lockRes (updLockSet tp addr pmap) addr = Some pmap.
@@ -1714,14 +1714,14 @@ Qed.
     red.
    rewrite gssLockRes. reflexivity.
 Qed.
-  
+
   Lemma gsoLockSet_12 :
     forall tp b b' ofs ofs' pmap,
-      ~ adr_range (b,ofs) LKSIZE (b',ofs') -> 
+      ~ adr_range (b,ofs) LKSIZE (b',ofs') ->
       (Maps.PMap.get b' (lockSet (updLockSet tp (b,ofs) pmap))) ofs' =
       (Maps.PMap.get b' (lockSet tp)) ofs'.
   Proof.
-    
+
     intros.
     destruct (lockRes_range_dec tp b' ofs').
     - destruct e as [z [ineq HH]]. unfold LKSIZE in ineq.
@@ -1753,7 +1753,7 @@ Qed.
 
   Lemma gsoLockSet_2 :
     forall tp b b' ofs ofs' pmap,
-      b <> b' -> 
+      b <> b' ->
       (Maps.PMap.get b' (lockSet (updLockSet tp (b,ofs) pmap))) ofs' =
       (Maps.PMap.get b' (lockSet tp)) ofs'.
   Proof.
@@ -1820,6 +1820,6 @@ Qed.
   Qed.
 
 End OrdinalPool.
-  
+
 
 

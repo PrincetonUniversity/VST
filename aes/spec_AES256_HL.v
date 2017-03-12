@@ -5,7 +5,7 @@ Require Export List. Import ListNotations.
 Require Export aes.sbox.
 
 (* substitute b for its counterpart in the sbox *)
-Definition look_sbox (b: int) : int := 
+Definition look_sbox (b: int) : int :=
   (* All possible values of b are covered in the sbox so the default should never be returned *)
   Int.repr (Znth (Int.unsigned b) sbox 0).
 
@@ -23,10 +23,10 @@ Definition xtime (b: int) : int :=
   (* test if highest bit of b is one. If so, then XOR b' with 0x1b, otherwise return b' *)
   if Int.eq (Int.and b c_80) Int.zero then b'
   else Int.xor b' c_1b.
-  
+
 (* Finite field multiplication using xtime operation and xor for finite field addition
  * (Russian peasant multiplication), not described directly but suggested in section 4.2.1. *)
- 
+
 (* Repeatedly double b using xtime as per Russian peasant multiplication. Add b to accumulator
  * if there is a "remainder," i.e., the tested bit of a is 1 *)
 Definition ff_checkbit (a b : int) (acc : int) : int :=
@@ -37,7 +37,7 @@ Definition ff_checkbit (a b : int) (acc : int) : int :=
 Fixpoint xtime_test (a b : int) (acc : int) (shifts : nat) : int :=
   if Int.eq a Int.zero then acc (* if a or b are zero, nothing to do *)
   else if Int.eq b Int.zero then acc
-  else 
+  else
     (* check lowest bit of a, add b to acc if it is positive. Shift a
      * right for next iteration unless we're finished *)
     match shifts with
@@ -75,7 +75,7 @@ Definition ShiftRows (s : state) : state :=
    (b21, b22, b23, b24),
    (b31, b32, b33, b34),
    (b41, b42, b43, b44)) =>
- 
+
   ((b11, b12, b13, b14),
    (b22, b23, b24, b21),
    (b33, b34, b31, b32),
@@ -102,12 +102,12 @@ Definition transform_column (col: word) : word :=
 (* lets us treat state by columns rather than rows *)
 Definition transpose (s: state) : state :=
   match s with
-   ((b11, b12, b13, b14), 
-    (b21, b22, b23, b24), 
-    (b31, b32, b33, b34), 
+   ((b11, b12, b13, b14),
+    (b21, b22, b23, b24),
+    (b31, b32, b33, b34),
     (b41, b42, b43, b44)) =>
-   
-   ((b11, b21, b31, b41), 
+
+   ((b11, b21, b31, b41),
     (b12, b22, b32, b42),
     (b13, b23, b33, b43),
     (b14, b24, b34, b44))
@@ -190,7 +190,7 @@ Fixpoint grow_key (b1 b2: block) (rcs: list word) : list block :=
 	b3 :: b4 :: (grow_key b3 b4 tl)
   | [] => [] (* should not happen *)
   end.
-  
+
 (* Note that RCon list (round constants) is described in section 5.2 and its values are given in A.3.
  * k should be a list of words of length Nk. Returns a list of blocks of length Nr+1 *)
 Definition KeyExpansion (k : list word) : list block :=
@@ -224,11 +224,11 @@ Fixpoint apply_rounds (s : state) (ek: list block) : state :=
   | rk :: tl => apply_rounds (round s rk) tl
   | [] => s (* should not happen *)
   end.
-  
+
 (* exp_key should be length Nr+1 blocks, produced by applying KeyExpansion on a valid key. *)
 Definition Cipher (exp_key : list block) (init : state) : state :=
   match exp_key with
-  | k1 :: tl => 
+  | k1 :: tl =>
     let r1 := AddRoundKey init k1 in
 	apply_rounds r1 tl
   | [] => init (* should not happen *)
@@ -238,7 +238,7 @@ Definition Cipher (exp_key : list block) (init : state) : state :=
 
 (* InvShiftRows in section 5.3.1 *)
 Definition InvShiftRows (s: state) : state :=
-  match s with 
+  match s with
     ((b11, b12, b13, b14),
      (b21, b22, b23, b24),
 	 (b31, b32, b33, b34),
@@ -252,8 +252,8 @@ Definition InvShiftRows (s: state) : state :=
 
 (* InvSubBytes in section 5.3.2 *)
 Definition inv_sub_word (w: word) : word :=
-  match w with (b1, b2, b3, b4) => 
-    (look_inv_sbox b1, look_inv_sbox b2, look_inv_sbox b3, look_inv_sbox b4) 
+  match w with (b1, b2, b3, b4) =>
+    (look_inv_sbox b1, look_inv_sbox b2, look_inv_sbox b3, look_inv_sbox b4)
   end.
 
 Definition InvSubBytes (s : state) : state :=
@@ -292,7 +292,7 @@ Fixpoint grow_inv_key (ek : list block) : list block :=
   | rk :: tl => InvMixColumns rk :: grow_inv_key tl
   | [] => [] (* should not happen *)
   end.
-  
+
 (* Inverse key expansion briefly described at end of figure 15. k should be of length Nk. *)
 Definition InverseKeyExpansion (k : list word) : list block :=
   let exp_key := KeyExpansion k in
@@ -315,15 +315,14 @@ Fixpoint apply_inv_rounds (s: state) (ek: list block) : state :=
   | kb :: tl => apply_inv_rounds (inv_round s kb) tl
   | [] => s (* should not happen *)
   end.
-  
+
 (* exp_key should be length Nr+1 blocks, produced by applying InverseKeyExpansion on a valid
  * key and reversing the result, since the round keys are supposed to be applied starting with
  * the last. (We pass the key in this way for simplifying verification, since the implementation's
- * key expansion process also reverses the key, whereas the specification reverses it during the 
+ * key expansion process also reverses the key, whereas the specification reverses it during the
  * decryption process) *)
 Definition EqInvCipher (exp_key: list block) (init: state) : state :=
   match exp_key with
   | kb :: tl => apply_inv_rounds (AddRoundKey init kb) tl
   | l => init (* should not happen *)
   end.
- 

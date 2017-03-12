@@ -28,9 +28,9 @@ Require Import ccc26x86.Asm_eff.
 Require Import sepcomp.simulations.
 Require Import sepcomp.effect_semantics.
 
-Axiom transf_clight_program : Clight.program -> res Asm.program. 
+Axiom transf_clight_program : Clight.program -> res Asm.program.
 
-(*WE NEED THIS:*) Axiom CL_core : Type. 
+(*WE NEED THIS:*) Axiom CL_core : Type.
 (*WE NEED THIS:*) Axiom CL_eff_sem1 : @EffectSem (Genv.t Clight.fundef cfrontend.Ctypes.type) CL_core.
 
 (* Axiomatization of Theorem 18, Compiler Correctness: *)

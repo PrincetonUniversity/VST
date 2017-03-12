@@ -60,7 +60,7 @@ Inductive typ :=
 
 Fixpoint typD (t : typ) (*(m : PositiveMap.t Type)*): Type :=
     match t with
-        | tyArr a b => typD a  -> typD b 
+        | tyArr a b => typD a  -> typD b
         | tytycontext => tycontext
         | tyc_expr => expr
         | tyc_type => type

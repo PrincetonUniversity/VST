@@ -16,7 +16,7 @@ Definition convertByteBits bits (byte : Z) : Prop :=
          + 16 * (asZ b4) + 32 * (asZ b5) + 64 * (asZ b6) + 128 * (asZ b7)).
 (* TODO: stuck here *)
 
-Lemma AUX1 b2 b3 b4 b5 b6 b7 b8 b9 b10 b11 b12 b13 b14 b15: 
+Lemma AUX1 b2 b3 b4 b5 b6 b7 b8 b9 b10 b11 b12 b13 b14 b15:
 Z.lxor
   (1 * 1 + 2 * 1 + 4 * asZ b2 + 8 * asZ b3 + 16 * asZ b4 + 32 * asZ b5 +
    64 * asZ b6 + 128 * asZ b7)
@@ -31,27 +31,27 @@ Proof.
       { rewrite (xorb_true_l b10).
         destruct b3; try rewrite asZT; try rewrite asZF.
         { rewrite (xorb_true_l b11).
-          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9; 
+          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9;
           destruct b10; destruct b11; destruct b12; destruct b13; destruct b14; destruct b15; trivial.
         }
         { rewrite (xorb_false_l b11).
-          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9; 
+          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9;
           destruct b10; destruct b11; destruct b12; destruct b13; destruct b14; destruct b15; trivial.
         }
       }
       { rewrite (xorb_false_l b10).
         destruct b3; try rewrite asZT; try rewrite asZF.
         { rewrite (xorb_true_l b11).
-          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9; 
+          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9;
           destruct b10; destruct b11; destruct b12; destruct b13; destruct b14; destruct b15; trivial.
         }
         { rewrite (xorb_false_l b11).
-          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9; 
+          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9;
           destruct b10; destruct b11; destruct b12; destruct b13; destruct b14; destruct b15; trivial.
         }
       }
 Qed.
-Lemma AUX2 b2 b3 b4 b5 b6 b7 b8 b9 b10 b11 b12 b13 b14 b15: 
+Lemma AUX2 b2 b3 b4 b5 b6 b7 b8 b9 b10 b11 b12 b13 b14 b15:
 Z.lxor (1 * 1 + 2 * 0 + 4 * asZ b2 + 8 * asZ b3 + 16 * asZ b4 + 32 * asZ b5 +
    64 * asZ b6 + 128 * asZ b7)
   (1 * asZ b8 + 2 * asZ b9 + 4 * asZ b10 + 8 * asZ b11 + 16 * asZ b12 +
@@ -65,28 +65,28 @@ Proof.
       { rewrite (xorb_true_l b10).
         destruct b3; try rewrite asZT; try rewrite asZF.
         { rewrite (xorb_true_l b11).
-          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9; 
+          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9;
           destruct b10; destruct b11; destruct b12; destruct b13; destruct b14; destruct b15; trivial.
         }
         { rewrite (xorb_false_l b11).
-          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9; 
+          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9;
           destruct b10; destruct b11; destruct b12; destruct b13; destruct b14; destruct b15; trivial.
         }
       }
       { rewrite (xorb_false_l b10).
         destruct b3; try rewrite asZT; try rewrite asZF.
         { rewrite (xorb_true_l b11).
-          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9; 
+          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9;
           destruct b10; destruct b11; destruct b12; destruct b13; destruct b14; destruct b15; trivial.
         }
         { rewrite (xorb_false_l b11).
-          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9; 
+          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9;
           destruct b10; destruct b11; destruct b12; destruct b13; destruct b14; destruct b15; trivial.
         }
       }
 Qed.
 
-Lemma AUX3 b2 b3 b4 b5 b6 b7 b8 b9 b10 b11 b12 b13 b14 b15: 
+Lemma AUX3 b2 b3 b4 b5 b6 b7 b8 b9 b10 b11 b12 b13 b14 b15:
 Z.lxor
   (1 * 0 + 2 * 1 + 4 * asZ b2 + 8 * asZ b3 + 16 * asZ b4 + 32 * asZ b5 +
    64 * asZ b6 + 128 * asZ b7)
@@ -101,28 +101,28 @@ Proof.
       { rewrite (xorb_true_l b10).
         destruct b3; try rewrite asZT; try rewrite asZF.
         { rewrite (xorb_true_l b11).
-          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9; 
+          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9;
           destruct b10; destruct b11; destruct b12; destruct b13; destruct b14; destruct b15; trivial.
         }
         { rewrite (xorb_false_l b11).
-          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9; 
+          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9;
           destruct b10; destruct b11; destruct b12; destruct b13; destruct b14; destruct b15; trivial.
         }
       }
       { rewrite (xorb_false_l b10).
         destruct b3; try rewrite asZT; try rewrite asZF.
         { rewrite (xorb_true_l b11).
-          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9; 
+          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9;
           destruct b10; destruct b11; destruct b12; destruct b13; destruct b14; destruct b15; trivial.
         }
         { rewrite (xorb_false_l b11).
-          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9; 
+          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9;
           destruct b10; destruct b11; destruct b12; destruct b13; destruct b14; destruct b15; trivial.
         }
       }
 Qed.
 
-Lemma AUX4 b2 b3 b4 b5 b6 b7 b8 b9 b10 b11 b12 b13 b14 b15: 
+Lemma AUX4 b2 b3 b4 b5 b6 b7 b8 b9 b10 b11 b12 b13 b14 b15:
 Z.lxor (1 * 0 + 2 * 0 + 4 * asZ b2 + 8 * asZ b3 + 16 * asZ b4 + 32 * asZ b5 +
    64 * asZ b6 + 128 * asZ b7)
   (1 * asZ b8 + 2 * asZ b9 + 4 * asZ b10 + 8 * asZ b11 + 16 * asZ b12 +
@@ -136,22 +136,22 @@ Proof.
       { rewrite (xorb_true_l b10).
         destruct b3; try rewrite asZT; try rewrite asZF.
         { rewrite (xorb_true_l b11).
-          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9; 
+          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9;
           destruct b10; destruct b11; destruct b12; destruct b13; destruct b14; destruct b15; trivial.
         }
         { rewrite (xorb_false_l b11).
-          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9; 
+          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9;
           destruct b10; destruct b11; destruct b12; destruct b13; destruct b14; destruct b15; trivial.
         }
       }
       { rewrite (xorb_false_l b10).
         destruct b3; try rewrite asZT; try rewrite asZF.
         { rewrite (xorb_true_l b11).
-          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9; 
+          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9;
           destruct b10; destruct b11; destruct b12; destruct b13; destruct b14; destruct b15; trivial.
         }
         { rewrite (xorb_false_l b11).
-          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9; 
+          destruct b4; destruct b5; destruct b6; destruct b7; destruct b8; destruct b9;
           destruct b10; destruct b11; destruct b12; destruct b13; destruct b14; destruct b15; trivial.
         }
       }
@@ -164,7 +164,7 @@ Lemma xor_correspondence :
     convertByteBits [b8; b9; b10; b11; b12; b13; b14; b15] byte1 ->
 
     convertByteBits
-      [xorb b0 b8; xorb b1 b9; xorb b2 b10; xorb b3 b11; 
+      [xorb b0 b8; xorb b1 b9; xorb b2 b10; xorb b3 b11;
        xorb b4 b12; xorb b5 b13; xorb b6 b14; xorb b7 b15]
       (Z.lxor byte0 byte1).
 Proof.

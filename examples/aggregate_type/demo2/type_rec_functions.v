@@ -35,7 +35,7 @@ Proof.
   intros.
   unfold reptype_gen at 1.
   rewrite type_func_ind.
-  destruct t; auto.   
+  destruct t; auto.
   + unfold FTI_aux; rewrite decay_spec.
     rewrite map_map.
     reflexivity.
@@ -73,7 +73,7 @@ Definition fold_reptype {t} (v: REPTYPE t): reptype t :=
 Definition struct_default_val (m : members) := list_prod_gen (fun it => default_val (field_type (fst it) m)) m.
 
 Lemma default_val_eq: forall t,
-  default_val t = 
+  default_val t =
   fold_reptype
   match t as t_PAT return REPTYPE t_PAT with
   | Tint => Vundef
@@ -118,11 +118,11 @@ Proof.
 Defined.
 
 Lemma struct_data_at_rec_aux_spec: forall m m0 v P,
-  struct_data_at_rec_aux m m0 
+  struct_data_at_rec_aux m m0
    (ListTypeGen
      (fun it => reptype (field_type (fst it) m0) -> val -> Pred)
      P m) v =
-  struct_pred m 
+  struct_pred m
    (fun it v => at_offset (P it v) (field_offset cenv_cs (fst it) m0)) v.
 Proof.
   intros.

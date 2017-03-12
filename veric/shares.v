@@ -18,7 +18,7 @@ Lemma share_lemma87:
 Admitted.
 
 Lemma share_rel_unrel':
-  forall r sh, 
+  forall r sh,
     Share.rel r (Share.unrel r sh) = Share.glb r sh.
 Proof.
 Admitted.
@@ -26,7 +26,7 @@ Admitted.
 Lemma share_sub_Lsh:
 forall sh, identity (Share.unrel Share.Rsh sh) -> join_sub sh Share.Lsh.
 Proof.
- intros. 
+ intros.
  rewrite (Share.decompose_Rsh sh) in H.
  remember (decompose sh).
  symmetry in Heqp. destruct p as [sh1 sh2].
@@ -49,7 +49,7 @@ Qed.
 
 Lemma join_splice2_aux:
 forall a1 a2 a3 b1 b2 b3,
-Share.lub (Share.rel Share.Lsh (Share.lub a1 a2)) (Share.rel Share.Rsh (Share.lub b1 b2)) 
+Share.lub (Share.rel Share.Lsh (Share.lub a1 a2)) (Share.rel Share.Rsh (Share.lub b1 b2))
 = Share.lub (Share.rel Share.Lsh a3) (Share.rel Share.Rsh b3) ->
 Share.lub a1 a2 = a3 /\ Share.lub b1 b2 = b3.
 Proof with try tauto.
@@ -155,11 +155,11 @@ Qed.
 
 Definition Tsh : share := Share.top.
 
-Definition nonempty_share (sh: share) := 
+Definition nonempty_share (sh: share) :=
        sepalg.nonidentity sh.
 Definition readable_share (sh: share) :=
        nonempty_share (Share.glb Share.Rsh sh).
-Definition writable_share (sh: share) := 
+Definition writable_share (sh: share) :=
     join_sub Share.Rsh sh.
 
 
@@ -252,7 +252,7 @@ intros.
 intro.
 destruct H as [a ?].
 destruct H.
-subst sh. 
+subst sh.
 rewrite Share.glb_absorb in H0.
 clear - H0. unfold Share.Rsh in H0.
 destruct (Share.split Share.top) eqn:?. simpl in H0.
@@ -465,7 +465,7 @@ auto.
 Qed.
 
 Lemma right_nonempty_readable:
-  forall rsh sh, sepalg.nonidentity sh <-> 
+  forall rsh sh, sepalg.nonidentity sh <->
      readable_share (Share.splice rsh sh).
 Proof.
 intros.
@@ -627,7 +627,7 @@ auto.
 Qed.
 
 Lemma share_rel_unrel:
-  forall r sh, 
+  forall r sh,
     join_sub sh r ->
     Share.rel r (Share.unrel r sh) = sh.
 Proof.
@@ -678,7 +678,7 @@ intros.
 unfold Share.splice in H.
 destruct H.
 unfold join, Share.Join_ba.
-assert ((Share.glb a1 a2 = Share.bot /\ Share.glb b1 b2 = Share.bot) 
+assert ((Share.glb a1 a2 = Share.bot /\ Share.glb b1 b2 = Share.bot)
          /\ (Share.lub a1 a2 = a3 /\ Share.lub b1 b2 = b3)); [ | intuition].
 split.
 *
@@ -710,7 +710,7 @@ Qed.
 Lemma join_sub_readable:
   forall sh sh', sepalg.join_sub sh sh' -> readable_share sh -> readable_share sh'.
 Proof.
-unfold readable_share; 
+unfold readable_share;
 intros.
 hnf in H0|-*.
 contradict H0.

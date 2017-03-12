@@ -73,7 +73,7 @@ Proof.
   f_equal; apply IHenv1 with a0.
   destruct H3; auto.
 Qed.
-  
+
 Lemma T_weaken_nil : forall G e tau,
   Typ nil e tau ->
   Typ G e tau.
@@ -198,7 +198,7 @@ Proof.
 Qed.
 
 
-Lemma T_Nat : forall G n, 
+Lemma T_Nat : forall G n,
   Typ G (Nat n) ty_nat.
 Proof.
   intros; split; intros.
@@ -354,7 +354,7 @@ Proof.
   apply TT_boxy.
   hnf; rewrite box_refl_trans; auto.
   intros; apply st_Prim1; auto.
- 
+
   clear -H.
   intros.
   rewrite expr_type_eqn; repeat intro.
@@ -383,7 +383,7 @@ Proof.
   apply st_Prim2.
   unfold compose.
   destruct (f x); auto.
-  
+
   clear; intros.
   eapply H0; eauto.
   apply R_extends_refl.
@@ -428,11 +428,11 @@ Proof.
   apply TT_boxy.
   hnf; rewrite box_refl_trans; auto.
   intros; apply st_New1; auto.
-  
+
   intros.
   change e0 with (val_to_exp (exp_to_val e0 H2)).
   eapply expr_ty_new; auto.
- 
+
   intros.
   eapply H3; eauto.
   apply R_extends_refl.
@@ -482,7 +482,7 @@ Proof.
   hnf; rewrite expr_type_extends; auto.
   hnf; rewrite box_refl_trans; auto.
   intros; apply st_App1; auto.
-  
+
   intros.
   rewrite ty_lam_extends in H9.
   generalize H9; intros.
@@ -528,7 +528,7 @@ Proof.
   simpl; auto.
   repeat intro.
   spec H0 env a H1.
-  
+
   rewrite subst_env_Deref.
   cut ( TT |-- %(ALL e:expr, !!(closed e) && expr_type e (ty_ref tau) --> expr_type (Deref e) tau)).
   intros.
@@ -561,7 +561,7 @@ Proof.
   apply TT_boxy.
   hnf; rewrite box_refl_trans; auto.
   intros; apply st_Deref1; auto.
-  
+
   intros.
   rewrite ty_ref_extends in H7.
   assert (exists l, e0 = Loc l).
@@ -594,7 +594,7 @@ Proof.
   spec H3 env a H1.
   spec H4 env a H1.
   spec H5 env a H1.
-  
+
   rewrite subst_env_Update.
   cut ( TT |-- %(ALL e1:expr, ALL e2:expr, ALL e3:expr,
                  !!(closed e1 /\ closed e2 /\ closed e3) &&
@@ -636,7 +636,7 @@ Proof.
   hnf; rewrite box_and; do 2  rewrite expr_type_extends; auto.
   hnf; rewrite box_refl_trans; auto.
   intros; apply st_Upd1; auto.
-  
+
   clear; intros.
   destruct H2.
   rewrite ty_ref_extends in H4.
@@ -726,7 +726,7 @@ Proof.
   auto.
   split; auto.
   repeat intro.
-  
+
   rewrite expr_type_eqn.
   repeat intro.
   split.

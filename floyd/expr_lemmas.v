@@ -3,7 +3,7 @@ Require Import floyd.base.
 Lemma tc_environ_init: forall Delta id rho,
                          tc_environ (initialized id Delta) rho ->
                          tc_environ Delta rho.
-Proof.  
+Proof.
 intros.
 unfold tc_environ in *. destruct Delta.
 unfold initialized in *. simpl in *. unfold temp_types in *.
@@ -16,7 +16,7 @@ specialize (H0 id0 true t). spec H0.
 unfold temp_types in *. simpl in *. rewrite PTree.gss. auto.
 destruct H0. exists x. intuition. unfold temp_types in *.
 simpl in H. rewrite H in *. inv Heqo. auto.
-apply H0. 
+apply H0.
 unfold temp_types in *. simpl in *.
 rewrite PTree.gso. auto. auto.
 Qed.
@@ -34,10 +34,10 @@ rewrite PTree.gss; auto.
 Qed.
 
 Lemma tc_expr_init:
-  forall {CS: compspecs} i Delta rho e, 
+  forall {CS: compspecs} i Delta rho e,
     tc_expr Delta e rho |-- tc_expr (initialized i Delta) e rho
 with tc_lvalue_init:
-  forall {CS: compspecs} i Delta rho e, 
+  forall {CS: compspecs} i Delta rho e,
     tc_lvalue Delta e rho |-- tc_lvalue (initialized i Delta) e rho.
 Proof.
   clear tc_expr_init; induction e; intros; auto;
@@ -51,8 +51,8 @@ Proof.
     destruct ((glob_types Delta) ! i0); auto.
   + (* destruct (negb (type_is_volatile t)); auto.*)
     destruct ( (temp_types Delta) ! i0) eqn:?; [ | apply @FF_left].
-    destruct p.  
-    destruct (eq_dec i i0). subst. 
+    destruct p.
+    destruct (eq_dec i i0). subst.
     - apply temp_types_init_same in Heqo. rewrite Heqo.
        simpl. destruct (is_neutral_cast t0 t || same_base_type t0 t)%bool; auto.
       destruct b; auto. apply @TT_right.
@@ -79,10 +79,10 @@ Proof.
     unfold tc_lvalue; induction e; simpl; auto.
     unfold get_var_type.
     rewrite !set_temp_ve.
-    destruct ((var_types Delta) ! i0); 
+    destruct ((var_types Delta) ! i0);
       rewrite ?denote_tc_assert_bool; auto.
     rewrite set_temp_ge.
-    destruct ((glob_types Delta) ! i0); 
+    destruct ((glob_types Delta) ! i0);
       rewrite ?denote_tc_assert_bool; auto.
      rewrite !denote_tc_assert_andp.
       rewrite ?denote_tc_assert_bool; auto.

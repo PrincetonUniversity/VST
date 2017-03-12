@@ -4,7 +4,7 @@ Require Import veric.shares.
 Require Import veric.compcert_rmaps.
 Require Import veric.res_predicates.
 
-Open Local Scope pred.
+Local Open Scope pred.
 
 Lemma rshare_sh_readable:
  forall r, readable_share (rshare_sh r).

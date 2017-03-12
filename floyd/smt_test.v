@@ -8,7 +8,7 @@ Require Import floyd.sublist.
 (* from verif_revarray.v *)
 
 Definition flip_between {A} lo hi (contents: list A) :=
-  firstn (Z.to_nat lo) (rev contents) 
+  firstn (Z.to_nat lo) (rev contents)
   ++ firstn (Z.to_nat (hi-lo)) (skipn (Z.to_nat lo) contents)
   ++ skipn (Z.to_nat hi) (rev contents).
 
@@ -58,7 +58,7 @@ omega.
   f_equal. f_equal. f_equal.
   rewrite <- Z2Nat.inj_add by omega. rewrite H2.
   rewrite <- Z2Nat.inj_sub by omega. f_equal; omega.
-  rewrite firstn_length, min_l. 
+  rewrite firstn_length, min_l.
   change 1%nat with (Z.to_nat 1). apply Z2Nat.inj_le; omega.
   rewrite skipn_length.  rewrite H2.
   rewrite <- Z2Nat.inj_sub by omega. apply Z2Nat.inj_le; omega.
@@ -132,7 +132,7 @@ rewrite Zfirstn_firstn by omega.
 rewrite Zskipn_app1.
 Focus 2. {
 rewrite Zlength_firstn, Z.max_r by omega.
-rewrite Zlength_rev. 
+rewrite Zlength_rev.
 rewrite !Zlength_app.
 rewrite Zlength_firstn, Z.max_r by omega.
 rewrite Z.min_l by omega.

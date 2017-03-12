@@ -28,7 +28,7 @@ Section HMAC.
   Variable splitAndPad : Blist -> list (Blist).
 
   (* fpad can be a constant *)
-  Variable fpad : Blist -> Blist. 
+  Variable fpad : Blist -> Blist.
   Definition app_fpad (x : Blist) : Blist :=
     x ++ fpad x.
 
@@ -38,9 +38,9 @@ Section HMAC.
   (* The "two-key" version of GHMAC and HMAC. *)
   Definition GHMAC_2K (k : Blist) m :=
     let (k_Out, k_In) := splitList b k in
-      let h_in := (hash_words (k_In :: m)) in 
+      let h_in := (hash_words (k_In :: m)) in
         hash_words (k_Out :: (app_fpad h_in) :: nil).
-  
+
   Definition HMAC_2K (k : Blist) (m : Blist) :=
     GHMAC_2K k (splitAndPad m).
 
@@ -53,7 +53,7 @@ Section HMAC.
   (*The following hypotheses and constructions from the abstract spec
     do not need to be enforced/repeated here
 
-  Hypothesis splitAndPad_1_1 : 
+  Hypothesis splitAndPad_1_1 :
     forall b1 b2,
       splitAndPad b1 = splitAndPad b2 ->
       b1 = b2.
@@ -74,11 +74,11 @@ Lemma fpad_list_concat_eq :
   HMAC_List.app_fpad = HMAC_Concat.app_fpad.
 Proof. reflexivity. Qed.
 
-Theorem HMAC_list_concat c p B fpad 
-        (fpad_length: forall msg, length msg = c -> length (fpad msg) = p) sap 
+Theorem HMAC_list_concat c p B fpad
+        (fpad_length: forall msg, length msg = c -> length (fpad msg) = p) sap
         (sap_b: forall m, Forall (fun x => length x = (c+p)%nat) (sap m))
         sap' (sap_sap': forall m, sap' m = concat (sap m))
-        h (HH: forall x y, length x = c -> length y = (c+p)%nat -> length (h x y)  = c) 
+        h (HH: forall x y, length x = c -> length y = (c+p)%nat -> length (h x y)  = c)
         iv (IV: length iv = c) (op ip : Blist) (IL: length ip = (c+p)%nat) (OL: length op = (c+p)%nat)
         (FOLD_hash_blocks_eq : forall (l : Blist) (ls : list Blist),
                length l = (c+p)%nat ->
@@ -102,32 +102,32 @@ Proof.
   unfold h_star.
   unfold HMAC_Concat.h_star.
   rewrite concat_app.
-  rewrite <- FOLD_hash_blocks_eq. 
-  rewrite <- FOLD_hash_blocks_eq. 
+  rewrite <- FOLD_hash_blocks_eq.
+  rewrite <- FOLD_hash_blocks_eq.
   reflexivity.
 
   * apply BLxor_length; trivial.
   * apply sap_b.
-  * apply BLxor_length; trivial. 
+  * apply BLxor_length; trivial.
   * unfold HMAC_Concat.app_fpad.
 
     constructor. 2: constructor.
     rewrite app_length. rewrite <- FOLD_hash_blocks_eq.
-      2: apply BLxor_length; trivial. 
+      2: apply BLxor_length; trivial.
       2: apply sap_b.
-    assert (C: length (fold_left h (BLxor k ip :: sap m) iv) =c). 
+    assert (C: length (fold_left h (BLxor k ip :: sap m) iv) =c).
       rewrite FOLD_hash_blocks_eq; trivial.
         apply hash_blocks_bits_len; trivial.
         econstructor. 2: reflexivity.
          erewrite BLxor_length. reflexivity. assumption. assumption.
          apply concat_InBlocks; apply sap_b.
          erewrite BLxor_length. reflexivity. assumption. assumption.
-    rewrite fpad_length; trivial. f_equal. rewrite <- C. reflexivity. 
+    rewrite fpad_length; trivial. f_equal. rewrite <- C. reflexivity.
 
   * apply BLxor_length; trivial.
   * apply BLxor_length; trivial.
   * apply BLxor_length; trivial.
   * apply BLxor_length; trivial.
 Qed.
-  
+
 End HMAC_List.

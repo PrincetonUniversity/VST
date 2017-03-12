@@ -7,26 +7,26 @@ Require Import veric.tycontext.
 Require Import veric.expr2.
 Require Import veric.binop_lemmas2.
 
-Open Local Scope pred.
+Local Open Scope pred.
 
-Definition tc_expr {CS: compspecs}  (Delta: tycontext) (e: expr) : environ -> mpred:= 
+Definition tc_expr {CS: compspecs}  (Delta: tycontext) (e: expr) : environ -> mpred:=
   fun rho => denote_tc_assert (typecheck_expr Delta e) rho.
 
-Definition tc_exprlist {CS: compspecs} (Delta: tycontext) (t : list type) (e: list expr) : environ -> mpred := 
+Definition tc_exprlist {CS: compspecs} (Delta: tycontext) (t : list type) (e: list expr) : environ -> mpred :=
       fun rho => denote_tc_assert (typecheck_exprlist Delta t e) rho.
 
-Definition tc_lvalue {CS: compspecs} (Delta: tycontext) (e: expr) : environ -> mpred := 
+Definition tc_lvalue {CS: compspecs} (Delta: tycontext) (e: expr) : environ -> mpred :=
      fun rho => denote_tc_assert (typecheck_lvalue Delta e) rho.
 
 Definition allowedValCast v tfrom tto :=
-match Cop.classify_cast tfrom tto with 
-| Cop.cast_case_neutral => if andb (is_int_type tfrom) (is_pointer_type tto) 
-                          then 
-                            match v with 
+match Cop.classify_cast tfrom tto with
+| Cop.cast_case_neutral => if andb (is_int_type tfrom) (is_pointer_type tto)
+                          then
+                            match v with
                               | Vint i => (Int.eq i Int.zero)
-                              | _ => false 
+                              | _ => false
                             end
-                          else if eqb (is_int_type tfrom) 
+                          else if eqb (is_int_type tfrom)
                                       (is_int_type tto)
                                then true else false
 | Cop.cast_case_i2i _ _ => true
@@ -34,14 +34,14 @@ match Cop.classify_cast tfrom tto with
 | Cop.cast_case_f2f => true
 | Cop.cast_case_s2s => true
 | _  => false
-end. 
+end.
 
-Definition tc_temp_id {CS: compspecs} (id : positive) (ty : type) 
+Definition tc_temp_id {CS: compspecs} (id : positive) (ty : type)
   (Delta : tycontext) (e : expr) : environ -> mpred  :=
-     fun rho => denote_tc_assert (typecheck_temp_id id ty Delta e) rho.  
+     fun rho => denote_tc_assert (typecheck_temp_id id ty Delta e) rho.
 
 Definition tc_temp_id_load id tfrom Delta v : environ -> mpred  :=
-fun rho => !! (exists tto, exists x, (temp_types Delta) ! id = Some (tto, x) 
+fun rho => !! (exists tto, exists x, (temp_types Delta) ! id = Some (tto, x)
                       /\ tc_val tto (eval_cast tfrom tto (v rho))).
 
 Lemma extend_prop: forall P, boxy extendM (prop P).
@@ -55,12 +55,12 @@ Qed.
 Hint Resolve extend_prop.
 
 Lemma extend_tc_temp_id_load :  forall id tfrom Delta v rho, boxy extendM (tc_temp_id_load id tfrom Delta v rho).
-Proof. 
+Proof.
 intros. unfold tc_temp_id_load. auto.
-Qed. 
+Qed.
 
 Lemma extend_tc_andp:
- forall {CS: compspecs} A B rho, 
+ forall {CS: compspecs} A B rho,
    boxy extendM (denote_tc_assert A rho) ->
    boxy extendM (denote_tc_assert B rho) ->
    boxy extendM (denote_tc_assert (tc_andp A B) rho).
@@ -84,7 +84,7 @@ Lemma extend_tc_Zge:
    boxy extendM (denote_tc_assert (tc_Zge v i) rho).
 Proof.
 intros.
-induction v; simpl; unfold_lift; simpl; 
+induction v; simpl; unfold_lift; simpl;
 unfold denote_tc_Zle; try apply extend_prop;
 repeat match goal with |- boxy _ (match ?A with  _ => _ end) => destruct A end;
 try apply extend_prop.
@@ -96,7 +96,7 @@ Lemma extend_tc_Zle:
    boxy extendM (denote_tc_assert (tc_Zle v i) rho).
 Proof.
 intros.
-induction v; simpl; unfold_lift; simpl; 
+induction v; simpl; unfold_lift; simpl;
 unfold denote_tc_Zge; try apply extend_prop;
 repeat match goal with |- boxy _ (match ?A with  _ => _ end) => destruct A end;
 try apply extend_prop.
@@ -173,16 +173,16 @@ Proof.
 intros.
  unfold isCastResultType;
  destruct (Cop.classify_cast t t');
- repeat apply extend_tc_andp; 
+ repeat apply extend_tc_andp;
  try match goal with |- context [eqb_type _ _] => destruct (eqb_type t t') end;
  repeat match goal with
- | |- boxy _ (match ?A with  _ => _ end) => destruct A 
+ | |- boxy _ (match ?A with  _ => _ end) => destruct A
  | |- boxy _ (denote_tc_assert (if ?A then _ else _) rho) => destruct A
- | |- boxy _ (denote_tc_assert (match t' with _ => _ end) rho) => 
+ | |- boxy _ (denote_tc_assert (match t' with _ => _ end) rho) =>
         destruct t' as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ]
  end;
  repeat apply extend_tc_andp;
- try apply extend_prop; 
+ try apply extend_prop;
  try simple apply extend_tc_bool;
  try simple apply extend_tc_Zge;
  try simple apply extend_tc_Zle;
@@ -190,12 +190,12 @@ intros.
  try simple apply extend_tc_comparable.
 Qed.
 
-Lemma extend_tc_temp_id: forall {CS: compspecs} id ty Delta e rho, boxy extendM (tc_temp_id id ty Delta e rho). 
-Proof. 
+Lemma extend_tc_temp_id: forall {CS: compspecs} id ty Delta e rho, boxy extendM (tc_temp_id id ty Delta e rho).
+Proof.
 intros. unfold tc_temp_id. unfold typecheck_temp_id.
 destruct ((temp_types Delta) ! id) as [[? ?] | ];
  repeat apply extend_tc_andp;
- try apply extend_prop; 
+ try apply extend_prop;
  try simple apply extend_tc_bool.
  apply extend_isCastResultType.
 Qed.
@@ -207,7 +207,7 @@ Proof.
 intros.
 unfold denote_tc_assert; simpl.
 unfold_lift.
-destruct (eval_expr e1 rho), (eval_expr e2 rho); 
+destruct (eval_expr e1 rho), (eval_expr e2 rho);
   apply extend_prop.
 Qed.
 
@@ -231,20 +231,20 @@ destruct (eval_expr e1 rho); try apply extend_prop.
 destruct (eval_expr e2 rho); try apply extend_prop.
 Qed.
 
-Lemma boxy_orp {A} `{H : ageable A}: 
-     forall (M: modality) , reflexive _ (app_mode M) -> 
+Lemma boxy_orp {A} `{H : ageable A}:
+     forall (M: modality) , reflexive _ (app_mode M) ->
       forall P Q, boxy M P -> boxy M Q -> boxy M (P || Q).
 Proof.
-destruct M; 
+destruct M;
 intros.
 simpl in *.
 apply boxy_i; intros; auto.
-destruct H4; [left|right]; 
+destruct H4; [left|right];
 eapply boxy_e; eauto.
 Qed.
 
 Lemma extend_tc_orp:
- forall {CS: compspecs} A B rho, 
+ forall {CS: compspecs} A B rho,
    boxy extendM (denote_tc_assert A rho) ->
    boxy extendM (denote_tc_assert B rho) ->
    boxy extendM (denote_tc_assert (tc_orp A B) rho).
@@ -280,15 +280,15 @@ unfold tc_expr.
  try (destruct u; simpl);
  repeat apply extend_tc_andp;
  repeat match goal with
- | |- boxy _ (denote_tc_assert match ?A with  _ => _ end _) => destruct A 
+ | |- boxy _ (denote_tc_assert match ?A with  _ => _ end _) => destruct A
  | |- boxy _ (denote_tc_assert (if ?A then _ else _) rho) => destruct A
- | |- context [typeof ?e] => 
-      destruct (typeof e) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ]; 
+ | |- context [typeof ?e] =>
+      destruct (typeof e) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
       try apply extend_prop
  end;
  repeat apply extend_tc_andp;
  repeat apply extend_tc_orp;
- try apply extend_prop; 
+ try apply extend_prop;
  try simple apply extend_tc_bool;
  try simple apply extend_tc_Zge;
  try simple apply extend_tc_Zle;
@@ -309,15 +309,15 @@ unfold tc_expr.
  try apply extend_prop;
  repeat apply extend_tc_andp;
  repeat match goal with
- | |- boxy _ (denote_tc_assert match ?A with  _ => _ end _) => destruct A 
+ | |- boxy _ (denote_tc_assert match ?A with  _ => _ end _) => destruct A
  | |- boxy _ (denote_tc_assert (if ?A then _ else _) rho) => destruct A
- | |- context [typeof ?e] => 
-      destruct (typeof e) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ]; 
+ | |- context [typeof ?e] =>
+      destruct (typeof e) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
       try apply extend_prop
  end;
  repeat apply extend_tc_andp;
  repeat apply extend_tc_orp;
- try apply extend_prop; 
+ try apply extend_prop;
  try simple apply extend_tc_bool;
  try simple apply extend_tc_Zge;
  try simple apply extend_tc_Zle;

@@ -18,11 +18,11 @@ Qed.
 Definition append_spec :=
  DECLARE _append
   WITH sh : share, contents : list int, x: val, y: val, s1: list val, s2: list val
-  PRE [ _x OF (tptr t_struct_list) , _y OF (tptr t_struct_list)] 
+  PRE [ _x OF (tptr t_struct_list) , _y OF (tptr t_struct_list)]
      PROP(writable_share sh)
      LOCAL (temp _x x; temp _y y)
      SEP (lseg LS sh s1 x nullval; lseg LS sh s2 y nullval)
-  POST [ tptr t_struct_list ]  
+  POST [ tptr t_struct_list ]
     EX r: val,
      PROP()
      LOCAL(temp ret_temp r)
@@ -46,12 +46,12 @@ forward_if (PROP (False) LOCAL () SEP ()).
  apply is_pointer_or_null_not_null; auto.
  forward.
  simpl valinject.
- forward_while 
+ forward_while
       (EX s1a: list val, EX s1b: list val, EX t: val, EX u: val, EX a: val,
-            PROP (s1 = s1a ++ a :: s1b) 
+            PROP (s1 = s1a ++ a :: s1b)
             LOCAL (temp _x x; temp _t t; temp _u u; temp _y y)
-            SEP (lseg LS sh s1a x t; 
-                   list_cell LS sh a t; 
+            SEP (lseg LS sh s1a x t;
+                   list_cell LS sh a t;
                    field_at sh list_struct [StructField _tail] u t;
                    lseg LS sh s1b u nullval;
                    lseg LS sh s2 y nullval))%assert.

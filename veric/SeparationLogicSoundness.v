@@ -119,7 +119,7 @@ Definition semax_extract_prop := @semax_extract_prop.
 Definition semax_extract_later_prop := @semax_extract_later_prop.
 Definition semax_ptr_compare := @semax_ptr_compare.
 Definition semax_unfold_Ssequence := @semax_unfold_Ssequence.
-Definition semax_external {Espec: OracleKind} ids ef A P Q := 
+Definition semax_external {Espec: OracleKind} ids ef A P Q :=
   forall n, semax_external Espec ids ef A P Q n.
 Definition semax_external_FF := @semax_external_FF.
 

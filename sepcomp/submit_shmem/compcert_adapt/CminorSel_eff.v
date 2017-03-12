@@ -51,8 +51,8 @@ Inductive cminsel_effstep (g:genv):  (block -> Z -> bool) ->
       CminorSel.eval_expr_or_symbol g sp e m nil a vf ->
       CminorSel.eval_exprlist g sp e m nil bl vargs ->
       Genv.find_funct g vf = Some fd ->
-      funsig fd = sig -> 
-      cminsel_effstep g EmptyEffect 
+      funsig fd = sig ->
+      cminsel_effstep g EmptyEffect
          (CMinSel_State f (Scall optid sig a bl) k sp e) m
          (CMinSel_Callstate fd vargs (Kcall optid f sp e k)) m
 
@@ -66,7 +66,7 @@ Inductive cminsel_effstep (g:genv):  (block -> Z -> bool) ->
         (CMinSel_State f (Stailcall sig a bl) k (Vptr sp Int.zero) e) m
         (CMinSel_Callstate fd vargs (call_cont k)) m'
 
-(* WE DO NOT TREAT BUILTINS 
+(* WE DO NOT TREAT BUILTINS
   | cminsel_effstep_builtin: forall f optid ef al k sp e m vl t v m',
       CminorSel.eval_exprlist g sp e m nil al vl ->
       external_call ef g vl m t v m' ->
@@ -80,7 +80,7 @@ Inductive cminsel_effstep (g:genv):  (block -> Z -> bool) ->
 
   | cminsel_effstep_ifthenelse:  forall f c s1 s2 k sp e m b,
       CminorSel.eval_condexpr g sp e m nil c b ->
-      cminsel_effstep g EmptyEffect 
+      cminsel_effstep g EmptyEffect
          (CMinSel_State f (Sifthenelse c s1 s2) k sp e) m
          (CMinSel_State f (if b then s1 else s2) k sp e) m
 
@@ -106,7 +106,7 @@ Inductive cminsel_effstep (g:genv):  (block -> Z -> bool) ->
 
   | cminsel_effstep_switch: forall f a cases default k sp e m n,
       CminorSel.eval_expr g sp e m nil a (Vint n) ->
-      cminsel_effstep g EmptyEffect 
+      cminsel_effstep g EmptyEffect
          (CMinSel_State f (Sswitch a cases default) k sp e) m
          (CMinSel_State f (Sexit (Switch.switch_target n default cases)) k sp e) m
 
@@ -117,7 +117,7 @@ Inductive cminsel_effstep (g:genv):  (block -> Z -> bool) ->
   | cminsel_effstep_return_1: forall f a k sp e m v m',
       CminorSel.eval_expr g (Vptr sp Int.zero) e m nil a v ->
       Mem.free m sp 0 f.(fn_stackspace) = Some m' ->
-      cminsel_effstep g (FreeEffect m 0 (f.(fn_stackspace)) sp) 
+      cminsel_effstep g (FreeEffect m 0 (f.(fn_stackspace)) sp)
          (CMinSel_State f (Sreturn (Some a)) k (Vptr sp Int.zero) e) m
          (CMinSel_Returnstate v (call_cont k)) m'
 
@@ -161,7 +161,7 @@ Lemma cminselstep_effax1: forall (M : block -> Z -> bool) g c m c' m',
       cminsel_effstep g M c m c' m' ->
       (corestep cminsel_coop_sem g c m c' m' /\
        Mem.unchanged_on (fun (b : block) (ofs : Z) => M b ofs = false) m m').
-Proof. 
+Proof.
 intros.
   induction H.
   split. unfold corestep, coopsem; simpl. econstructor.
@@ -169,7 +169,7 @@ intros.
   split. unfold corestep, coopsem; simpl. econstructor.
          apply Mem.unchanged_on_refl.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
-         eapply FreeEffect_free; eassumption. 
+         eapply FreeEffect_free; eassumption.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
@@ -206,7 +206,7 @@ intros.
          apply Mem.unchanged_on_refl.
   split. unfold corestep, coopsem; simpl. econstructor; try eassumption. trivial.
          eapply Mem.alloc_unchanged_on; eassumption.
-  (*no external call*) 
+  (*no external call*)
   split. unfold corestep, coopsem; simpl. econstructor; eassumption.
          apply Mem.unchanged_on_refl.
   (*effstep_sub_val*)
@@ -247,7 +247,7 @@ intros. inv H.
     eexists. eapply cminsel_effstep_return; try eassumption.
 Qed.
 
-Program Definition cminsel_eff_sem : 
+Program Definition cminsel_eff_sem :
   @EffectSem genv CMinSel_core.
 eapply Build_EffectSem with (sem := cminsel_coop_sem)(effstep:=cminsel_effstep).
 apply cminselstep_effax1.

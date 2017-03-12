@@ -185,7 +185,7 @@ Theorem eqRat_trans : forall r1 r2 r3,
   rattac.
 
   rewrite mult_assoc.
-  rewrite (mult_comm x n1).
+  rewrite (mult_comm x n0).
   rewrite e.
   rewrite <- mult_assoc.
   rewrite (mult_comm x1 x0).
@@ -500,8 +500,8 @@ Theorem ratMult_leRat_compat : forall (r1 r2 r3 r4 : Rat),
   rewrite <- mult_assoc.
   eapply le_trans.
   eapply mult_le_compat.
-  apply l.
   apply l0.
+  apply l.
   rewrite mult_assoc.
   apply mult_le_compat_r.
   rewrite <- mult_assoc.
@@ -1707,30 +1707,30 @@ Lemma ratSubtract_eq_r : forall r1 r2 r3,
   unfold ratSubtract in *.
   rattac.
   arithNormalize.
-  assert (n2 * x0 * x1 * x = n2 * x * x1 * x0)%nat.
+  assert (n2 * x0 * x3 * x = n2 * x * x3 * x0)%nat.
   do 3 arithSimplify.
   rewrite H2 in e.
-  assert (n3 * x1 * x1 * x <= n2 * x * x1 * x0)%nat.
+  assert (n3 * x3 * x3 * x <= n2 * x * x3 * x0)%nat.
   rewrite <- (mult_comm x0).
   rewrite <- (mult_assoc n2).
-  rewrite (mult_comm x x1).
+  rewrite (mult_comm x x3).
   repeat rewrite mult_assoc.
   eapply mult_le_compat; trivial.
   eapply mult_le_compat; trivial.
-  rewrite l.
+  rewrite l0.
   rewrite mult_comm.
   trivial.
-  assert (n1 * x1 * x1 * x0 <= n2 * x * x1 * x0)%nat.
+  assert (n1 * x3 * x3 * x0 <= n2 * x * x3 * x0)%nat.
   eapply mult_le_compat; trivial.
   eapply mult_le_compat; trivial.
   
-  assert (n3 * x1 * x1 * x = n1 * x1 * x1 * x0)%nat.
+  assert (n3 * x3 * x3 * x = n1 * x3 * x3 * x0)%nat.
   omega.
   
-  eapply (@mult_same_l (x1 * x1)).
+  eapply (@mult_same_l (x3 * x3)).
   
   eapply mult_gt_0;
-    destruct (eq_nat_dec x1 O); subst; simpl in *; omega.
+    destruct (eq_nat_dec x3 O); subst; simpl in *; omega.
   
   rewrite (mult_comm n3).
   rewrite (mult_comm n1).
@@ -1741,6 +1741,7 @@ Lemma ratSubtract_eq_r : forall r1 r2 r3,
   trivial.
   
 Qed.
+
 
 Lemma ratDistance_le_max : forall r1 r2 r3 v,
   r1 <= r2 ->
@@ -1820,8 +1821,8 @@ Lemma maxRat_leRat_same : forall r1 r2 r3,
   rattac.
   unfold maxRat in *.
   
-  case_eq (bleRat (RatIntro n1 (exist (fun n : nat => n > 0) x1 g1))
-    (RatIntro n (exist (fun n : nat => n > 0) x2 g2))); intuition;
+  case_eq (bleRat (RatIntro n1 (exist (fun n : nat => n > 0) x2 g2))
+         (RatIntro n (exist (fun n : nat => n > 0) x1 g1))); intuition;
   rewrite H1 in H2;
     inversion H2; clear H2; subst; rattac.
   
@@ -2265,7 +2266,7 @@ Lemma ratInverse_leRat : forall r1 r2,
   exfalso.
   rewrite mult_0_l in l.
   simpl in *.
-  remember (n0 * x1)%nat as a.
+  remember (n0 * x2)%nat as a.
   omega.
   
   inversion H3; clear H3; subst.

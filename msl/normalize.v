@@ -17,13 +17,13 @@ rewrite sepcon_comm. rewrite sepcon_andp_prop.
 rewrite sepcon_comm; auto.
 Qed.
 
-Hint Rewrite @sepcon_emp @emp_sepcon @TT_and @andp_TT 
+Hint Rewrite @sepcon_emp @emp_sepcon @TT_and @andp_TT
              @exp_sepcon1 @exp_sepcon2
                @exp_andp1 @exp_andp2
          @sepcon_andp_prop @sepcon_andp_prop'
         : normalize.
 
-Definition pure {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A} 
+Definition pure {A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}
      (P: pred A) : Prop :=
    P |-- emp.
 
@@ -55,10 +55,10 @@ Lemma sepcon_pure_andp {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: agea
  forall P Q, pure P -> pure Q -> ((P * Q) = (P && Q)).
 Proof.
 intros.
-apply pred_ext; intros w ?. 
+apply pred_ext; intros w ?.
 destruct H1 as [w1 [w2 [? [? ?]]]].
 unfold pure in *.
-assert (unit_for w1 w2). apply H in H2; simpl in H2; 
+assert (unit_for w1 w2). apply H in H2; simpl in H2;
 apply identity_unit; auto. exists w; auto.
 unfold unit_for in H4.
 assert (w2=w) by (apply (join_eq H4 H1)).
@@ -70,7 +70,7 @@ subst w1.
 split; auto.
 destruct H1.
 exists w; exists w; split; [|split]; auto.
-apply H in H1. 
+apply H in H1.
 do 3 red in H1.
 clear dependent P. clear dependent Q.
 pose proof (core_unit w); unfold unit_for in *.
@@ -121,14 +121,14 @@ apply H; auto.
 rewrite <- H1; auto.
 Qed.
 
-Lemma FF_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}: 
+Lemma FF_sepcon {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
            forall P, FF * P = FF.
 Proof.
 intros.
 apply pred_ext; intros w ?; try contradiction.
 destruct H as [w1 [w2 [? [? ?]]]]; contradiction.
 Qed.
-Lemma sepcon_FF {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}: 
+Lemma sepcon_FF {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{agA: ageable A}{AgeA: Age_alg A}:
             forall P, P * FF = FF.
 Proof.
 intros.
@@ -141,11 +141,11 @@ Hint Rewrite @prop_true_andp using (solve [auto]) : normalize.
 Lemma true_eq {A} `{ageable A}:  forall P: Prop, P -> (!! P) = (TT: pred A).
 Proof.
 intros. apply pred_ext; intros ? ?; simpl in *; intuition.
-Qed. 
+Qed.
 Hint Rewrite @true_eq using (solve [auto]) : normalize.
 
 
-Lemma pure_con' {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{agA: ageable A}{AgeA: Age_alg A}: 
+Lemma pure_con' {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{agA: ageable A}{AgeA: Age_alg A}:
       forall P Q, pure P -> pure Q -> pure (P*Q).
 Proof.
 intros.
@@ -182,7 +182,7 @@ Hint Rewrite @FF_andp @andp_FF : normalize.
 Hint Rewrite @andp_dup : normalize.
 
 Lemma andp_emp_sepcon_TT {A} {JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{CA: Canc_alg A}{agA: ageable A}{AgeA: Age_alg A}:
- forall (Q: pred A), 
+ forall (Q: pred A),
      (forall w1 w2, core w1 = core w2 -> Q w1 -> Q w2) ->
       (Q && emp * TT = Q).
 Proof.
@@ -284,7 +284,7 @@ split; auto.
 Qed.
 
 
-Lemma imp_exp_right {B A : Type} `{saA: ageable A}: 
+Lemma imp_exp_right {B A : Type} `{saA: ageable A}:
   forall (x: B) (p: pred A) (q: B -> pred A),
     p |-- q x ->
     p |-- exp q.
@@ -308,7 +308,7 @@ unfold derives, prop, andp; intuition; hnf in *; intuition.
 hnf in *; intuition. apply H1; auto.
 Qed.
 
-Ltac normalize1 := 
+Ltac normalize1 :=
              match goal with
                 | |- _ => contradiction
                 | |- context [(?P && ?Q) * ?R] => rewrite (corable_andp_sepcon1 P Q R) by (auto with normalize)
@@ -318,17 +318,17 @@ Ltac normalize1 :=
                 | |- _ => progress  (autorewrite with normalize); auto with typeclass_instances
                 | |- _ = ?x -> _ => intro; subst x
                 | |- ?x = _ -> _ => intro; subst x
-                |  |- ?ZZ -> _ => match type of ZZ with 
-                                               | Prop => 
+                |  |- ?ZZ -> _ => match type of ZZ with
+                                               | Prop =>
                                                     let H := fresh in
                                                        ((assert (H:ZZ) by auto; clear H; intros _) || intro H)
                                                | _ => intros _
-                                              end             
+                                              end
                 | |- forall _, _ => let x := fresh "x" in (intro x; normalize1; try generalize dependent x)
-                | |- exp _ |-- _ => apply imp_extract_exp_left 
+                | |- exp _ |-- _ => apply imp_extract_exp_left
                 | |- !! _ && _ |-- _ => apply derives_extract_prop
                 | |- _ && !! _ |-- _ => apply derives_extract_prop'
-                | |- _ |-- !! (?x = ?y) && _ => 
+                | |- _ |-- !! (?x = ?y) && _ =>
                             (rewrite prop_true_andp with (P:= (x=y))
                                             by (unfold y; reflexivity); unfold y in *; clear y) ||
                             (rewrite prop_true_andp with (P:=(x=y))
@@ -336,14 +336,14 @@ Ltac normalize1 :=
                 | |- _ => solve [auto with typeclass_instances]
                 end.
 
-Ltac normalize1_in Hx := 
+Ltac normalize1_in Hx :=
              match type of Hx with
-                | app_pred (exp _) _ => destruct Hx 
+                | app_pred (exp _) _ => destruct Hx
                 | app_pred (!! _ && _) _ => let H1 := fresh in destruct Hx as [H1 Hx]; unfold prop in H1
-                | context [ !! ?P ] =>      
+                | context [ !! ?P ] =>
                                     rewrite (true_eq P) in Hx by auto with typeclass_instances
-                | context [ !! ?P && ?Q ] =>  
-                                    rewrite (prop_true_andp P Q) in Hx by auto with typeclass_instances  
+                | context [ !! ?P && ?Q ] =>
+                                    rewrite (prop_true_andp P Q) in Hx by auto with typeclass_instances
                 | context [(?P && ?Q) * ?R] => rewrite (corable_andp_sepcon1 P Q R) in Hx by (auto with normalize)
                 | context [?Q * (?P && ?R)] => rewrite (corable_sepcon_andp1 P Q R) in Hx by (auto with normalize)
                 | context [(?Q && ?P) * ?R] => rewrite (corable_andp_sepcon2 P Q R) in Hx by (auto with normalize)
@@ -374,30 +374,30 @@ apply sepcon_comm.
 Qed.
 
 Ltac select_left n :=
-  repeat match goal with 
- | |- context [(_ * mark ?i _ * mark n _)%pred] => 
+  repeat match goal with
+ | |- context [(_ * mark ?i _ * mark n _)%pred] =>
       rewrite (swap_mark1 i n); [ | solve [simpl; auto]]
- | |- context [(mark ?i _ * mark n _)%pred] => 
+ | |- context [(mark ?i _ * mark n _)%pred] =>
       rewrite (swap_mark0 i n); [ | solve [simpl; auto]]
 end.
-Ltac select_all n := match n with 
-                                | O => idtac 
-                                | S ?n' => select_left n; select_all n' 
+Ltac select_all n := match n with
+                                | O => idtac
+                                | S ?n' => select_left n; select_all n'
                               end.
-Ltac markem n P := 
-   match P with 
-   | (?Y * ?Z) => 
-        (match goal with H: mark _ Z = Z |- _ => idtac end 
+Ltac markem n P :=
+   match P with
+   | (?Y * ?Z) =>
+        (match goal with H: mark _ Z = Z |- _ => idtac end
         || assert (mark n Z = Z) by auto); markem (S n) Y
-   | ?Z =>  match goal with H: mark _ Z = Z |- _ => idtac end 
+   | ?Z =>  match goal with H: mark _ Z = Z |- _ => idtac end
                 || assert (mark n Z = Z) by auto
   end.
 
-Ltac prove_assoc_commut := 
+Ltac prove_assoc_commut :=
  clear;
  try (match goal with |- ?F _ -> ?G _ => replace G with F; auto end);
-  (repeat rewrite <- sepcon_assoc; 
-   match goal with |- ?P = _ => markem O P end; 
+  (repeat rewrite <- sepcon_assoc;
+   match goal with |- ?P = _ => markem O P end;
    let LEFT := fresh "LEFT" in match goal with |- ?P = _ => set (LEFT := P) end;
   match goal with H: mark ?n _ = _ |- _ =>
      repeat  match goal with H: mark ?n _ = ?P |- _ => rewrite <- H; clear H end;

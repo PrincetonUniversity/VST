@@ -6,17 +6,17 @@ Set Implicit Arguments.
 
 Require Import fcf.FCF.
 (* RndInList has a useful theorem (qam_count) about counting calls to an oracle. *)
-Require Import fcf.RndInList. 
+Require Import fcf.RndInList.
 
 Section OracleHybrid.
 
   Variable A B State S_A : Set.
   (* At one point in the proof, we need to know that B is inhabited *)
-  Variable b : B. 
+  Variable b : B.
   Hypothesis eqdb : EqDec B.
   Hypothesis eqdState : EqDec State.
   Hypothesis eqdS_A : EqDec S_A.
-  
+
   (* Two oracles, which we want to show are indistinguishable *)
   Variable O1 O2 : State -> A -> Comp (B * State).
   Hypothesis O1_wf : forall s a, well_formed_comp (O1 s a).
@@ -28,13 +28,13 @@ Section OracleHybrid.
   Hypothesis A0_wf : well_formed_comp A0.
   Hypothesis A1_wf : forall s_A, well_formed_oc (A1 s_A).
   Variable q : nat.
-  Hypothesis A1_qam : 
-    forall s s_A, 
+  Hypothesis A1_qam :
+    forall s s_A,
       In (s, s_A) (getSupport A0) ->
       queries_at_most (A1 s_A) q.
 
   (* This proof will show that G1 and G2 are close *)
-  Definition G1 := 
+  Definition G1 :=
     [s, s_A] <-$2 A0;
     [b, _] <-$2 (A1 s_A) _ _ O1 s;
     ret b.
@@ -50,8 +50,8 @@ Section OracleHybrid.
     let O_c := if (ge_dec s_i i) then O2 else O1 in
     [b, s_s'] <-$2 O_c s_s a;
       ret (b, (s_s', (S s_i))).
-      
-  
+
+
   (* The ith game uses the ith oracle.  We will show that G1 is the same as (Gi q) and that G2 is the same as (Gi 0).*)
   Definition Gi i :=
     [s, s_A] <-$2 A0;
@@ -60,7 +60,7 @@ Section OracleHybrid.
 
   (* We need an assumption that each adjacent pair of games are distant by at most some constant k. *)
   Variable k : Rat.
-  Hypothesis Gi_Si_close : 
+  Hypothesis Gi_Si_close :
     forall i,
       | Pr[Gi i] - Pr[Gi (S i)] | <= k.
 
@@ -83,7 +83,7 @@ Section OracleHybrid.
     [b, s] <-$2 (A1 s_A) _ _ (Oi i) (s, 0%nat);
     ret (b, if (gt_dec (snd s) q) then true else false).
 
-  Theorem G1_eq_G1_count : 
+  Theorem G1_eq_G1_count :
     Pr[G1] == Pr[x <-$ G1_count; ret (fst x)].
 
     unfold G1, G1_count.
@@ -106,10 +106,10 @@ Section OracleHybrid.
 
   Qed.
 
-  Theorem Gi_eq_Gi_count : 
+  Theorem Gi_eq_Gi_count :
     forall i,
       Pr[Gi i] == Pr[x <-$ Gi_count i; ret (fst x)].
-    
+
     intuition.
     unfold Gi_count, Gi.
     fcf_inline_first.
@@ -132,7 +132,7 @@ Section OracleHybrid.
 
   Qed.
 
-  Theorem Oi_wf : 
+  Theorem Oi_wf :
     forall i a b,
       well_formed_comp (Oi i a b).
 
@@ -144,7 +144,7 @@ Section OracleHybrid.
   Qed.
 
   (* We will need to know that the count increases by one after each call to O1_count and Oi. *)
-  Theorem O1_count_increases : 
+  Theorem O1_count_increases :
     forall d1 b1 c1 a2 b2 c2,
       In (d1, (b1, c1)) (getSupport (O1_count (b2, c2) a2)) ->
       c1 = S c2.
@@ -155,10 +155,10 @@ Section OracleHybrid.
     destruct x.
     fcf_simp_in_support.
     trivial.
-    
+
   Qed.
 
-  Theorem Oi_count_increases : 
+  Theorem Oi_count_increases :
     forall i d1 b1 c1 a2 b2 c2,
       In (d1, (b1, c1)) (getSupport (Oi i (b2, c2) a2)) ->
       c1 = S c2.
@@ -169,7 +169,7 @@ Section OracleHybrid.
     destruct x.
     fcf_simp_in_support.
     trivial.
-    
+
   Qed.
 
   (* The relational specification on O1_count and (Oi q).  As usual, I arrived at this by attempting some of the theorems below and then factoring out this theorem. *)
@@ -178,14 +178,14 @@ Section OracleHybrid.
     comp_spec (fun a b => ((snd (snd a) > q) <-> (snd (snd b) > q)) /\ ((snd (snd a) <= q)%nat -> (fst a = fst b /\ fst (snd a) = fst (snd b))))
               ((A1 s_A) _ _ O1_count (s, 0)%nat)
               ((A1 s_A) _ _ (Oi q) (s, 0)%nat).
-    
+
     intuition.
     eapply comp_spec_consequence.
     eapply (fcf_oracle_eq_until_bad (fun x => if (gt_dec (snd x) q) then true else false) (fun x => if (gt_dec (snd x) q) then true else false) eq); intuition; subst.
     apply O1_count_wf.
     apply Oi_wf.
     pairInv.
-    
+
     unfold O1_count, Oi.
     destruct (ge_dec b1 q).
     fcf_irr_l.
@@ -196,10 +196,10 @@ Section OracleHybrid.
       destruct (gt_dec (S b1) q);
       try discriminate;
       try omega.
-    
+
     fcf_skip.
     fcf_spec_ret; intuition.
-      
+
     apply  O1_count_increases in H0.
     simpl in *.
     fcf_compute.
@@ -208,11 +208,11 @@ Section OracleHybrid.
     simpl in *.
     fcf_compute.
 
-    intuition; simpl in *.   
+    intuition; simpl in *.
     fcf_compute.
     destruct (gt_dec b1 q); trivial.
     destruct (gt_dec (snd (snd b0)) q); intuition; discriminate.
-  
+
     destruct (gt_dec b1 q).
     omega.
     intuition.
@@ -224,10 +224,10 @@ Section OracleHybrid.
     simpl in *.
     subst.
     trivial.
-    
+
   Qed.
 
-  Theorem G1_eq_Gi_q : 
+  Theorem G1_eq_Gi_q :
     Pr[G1] == Pr[Gi q].
 
     (* Use the fundamental lemma, where the "bad" event is that the counter in the oracle gets a value > q.  Then use the qam_count theorem from RndInList to show that the probability of this event is 0.  *)
@@ -269,7 +269,7 @@ Section OracleHybrid.
     destruct p; simpl in *.
     fcf_spec_ret; fcf_compute;
     assert (b1 <= q)%nat by omega; intuition; subst; pairInv; trivial.
-  
+
     (* probability of bad event is 0 *)
     unfold G1_count.
     fcf_inline_first.
@@ -289,7 +289,7 @@ Section OracleHybrid.
     simpl in *.
     omega.
     intuition.
-    simpl.    
+    simpl.
 
     apply O1_count_increases in H1.
     omega.
@@ -303,7 +303,7 @@ Section OracleHybrid.
   Qed.
 
   (* Step 2: show that G2 is the same as (Gi 0).  This is much simpler. *)
-  Theorem G2_eq_Gi_0 : 
+  Theorem G2_eq_Gi_0 :
     Pr[G2] == Pr[Gi 0%nat].
 
     unfold G2, Gi.
@@ -328,10 +328,10 @@ Section OracleHybrid.
     intuition; subst.
     eapply comp_spec_eq_refl.
 
-  Qed.        
+  Qed.
 
   (* Step 3: rewrite using the equalities in the previous steps, and then use some arithmetic to show that the distance between G1 and G2 is small. *)
-  Theorem G1_G2_close : 
+  Theorem G1_G2_close :
     | Pr[G1] - Pr[G2] | <= (q / 1) * k.
 
     rewrite G1_eq_Gi_q.
@@ -348,7 +348,7 @@ End OracleHybrid.
 Require Import fcf.CompFold.
 Require Import fcf.OracleCompFold.
 
-(* oracleMap is defined in PRF.  We should probably find a better place for it. *)       
+(* oracleMap is defined in PRF.  We should probably find a better place for it. *)
 Require Import fcf.PRF.
 
 Section OracleMapHybrid.
@@ -366,27 +366,27 @@ Section OracleMapHybrid.
   Variable A2 : S_A -> list B -> Comp bool.
 
   Hypothesis A1_wf : well_formed_comp A1.
-  Hypothesis A2_wf : 
+  Hypothesis A2_wf :
     forall s_A lsb, well_formed_comp (A2 s_A lsb).
 
   Variable q : nat.
   Variable k : Rat.
 
-  Hypothesis max_queries : 
+  Hypothesis max_queries :
     forall ls s s_A,
       In (s, (ls, s_A)) (getSupport A1) ->
       (length ls <= q)%nat.
-  
+
   Variable O1 O2 : State -> A -> Comp (B * State).
 
   Hypothesis O1_wf :
     forall s a,
       well_formed_comp (O1 s a).
 
-  Hypothesis O2_wf : 
+  Hypothesis O2_wf :
     forall s a,
       well_formed_comp (O2 s a).
-  
+
   Definition OMH_G O :=
    [s, p] <-$2 A1;
     [lsa, s_A] <-2 p;
@@ -400,7 +400,7 @@ Section OracleMapHybrid.
     [lsb2, _] <-$2 oracleMap _ _ O2 s' (skipn i lsa);
     A2 s_A (lsb1 ++ lsb2).
 
-  Hypothesis adjacent_close : 
+  Hypothesis adjacent_close :
     forall i,
       | Pr[OMH_G_i i] - Pr[OMH_G_i (S i)] | <= k.
 
@@ -422,12 +422,12 @@ Section OracleMapHybrid.
     auto.
   Qed.
 
-  Theorem OMH_G_oc_equiv : 
+  Theorem OMH_G_oc_equiv :
     forall O,
-      Pr[OMH_G O] == 
+      Pr[OMH_G O] ==
       Pr[
           [s, s_A] <-$2 A1;
-          [b, _] <-$2 (OMH_G_oc s_A) _ _ O s; 
+          [b, _] <-$2 (OMH_G_oc s_A) _ _ O s;
           ret b
         ].
 
@@ -435,13 +435,13 @@ Section OracleMapHybrid.
     unfold OMH_G, OMH_G_oc.
     fcf_skip.
     fcf_simp.
-    
+
     fcf_to_prhl_eq.
     simpl.
     fcf_inline_first.
     fcf_skip.
     apply compFold_oc_equiv.
-    
+
     subst.
     fcf_inline_first.
     fcf_ident_expand_l.
@@ -455,28 +455,28 @@ Section OracleMapHybrid.
 
   Definition OMH_G2 := OMH_G O2.
 
-  Theorem OMH_G1_equiv: 
+  Theorem OMH_G1_equiv:
     Pr[OMH_G1] == Pr[G1 _ O1 A1 OMH_G_oc].
 
     unfold OMH_G1.
     rewrite OMH_G_oc_equiv.
     unfold G1, OMH_G_oc.
     reflexivity.
-    
+
   Qed.
 
-  Theorem OMH_G2_equiv: 
+  Theorem OMH_G2_equiv:
     Pr[OMH_G2] == Pr[G2 _ O2 A1 OMH_G_oc].
 
     unfold OMH_G2.
     rewrite OMH_G_oc_equiv.
     unfold G2, OMH_G_oc.
     reflexivity.
-    
+
   Qed.
 
   Theorem OMH_G_oc_qam :
-    forall p s, 
+    forall p s,
       In (s, p) (getSupport A1) ->
       queries_at_most (OMH_G_oc p) q.
 
@@ -511,10 +511,10 @@ Section OracleMapHybrid.
       );
     A2 s_A (fst p).
 
-  Theorem Gi_oracleMap_equiv : 
+  Theorem Gi_oracleMap_equiv :
     forall i,
       Pr[Gi _ _ O1 O2 A1 OMH_G_oc i] == Pr[Gi_oracleMap i].
-    
+
     intuition.
     unfold Gi, OMH_G_oc, Gi_oracleMap.
     fcf_skip.
@@ -532,27 +532,27 @@ Section OracleMapHybrid.
     fcf_skip.
     fcf_simp.
     fcf_spec_ret.
-    
+
   Qed.
 
-  Theorem Gi_oracleMap'_equiv : 
+  Theorem Gi_oracleMap'_equiv :
     forall i,
       Pr[Gi_oracleMap i] == Pr[Gi_oracleMap' i].
-    
+
     intuition.
     unfold Gi_oracleMap, Gi_oracleMap'.
-    
+
     fcf_skip.
     fcf_simp.
-    fcf_skip.    
+    fcf_skip.
     cutrewrite (l = (firstn i l ++ skipn i l)).
     eapply eqRat_trans.
     eapply compFold_app.
-    
+
     fcf_skip.
     rewrite firstn_skipn.
     reflexivity.
-    
+
     fcf_simp.
     fcf_ident_expand_l.
     fcf_to_prhl_eq.
@@ -576,7 +576,7 @@ Section OracleMapHybrid.
     simpl.
     rewrite app_assoc.
     trivial.
-    
+
     fcf_simp.
     simpl in H3.
     intuition.
@@ -585,11 +585,11 @@ Section OracleMapHybrid.
     rewrite firstn_skipn.
     trivial.
   Qed.
-  
-  Theorem OMH_G_i_equiv : 
+
+  Theorem OMH_G_i_equiv :
     forall i,
       Pr[Gi_oracleMap' i] == Pr[OMH_G_i i].
-    
+
     intuition.
     unfold Gi_oracleMap', OMH_G_i.
     fcf_skip.
@@ -600,7 +600,7 @@ Section OracleMapHybrid.
     eapply (compFold_spec' (fun a b c d => a = b /\ fst c = fst d /\ fst (snd c) = snd d /\ (snd (snd c) + length a = min i (length l))%nat)); intuition.
     simpl.
     apply firstn_length.
-    
+
     fcf_simp.
     simpl in *.
     subst.
@@ -620,13 +620,13 @@ Section OracleMapHybrid.
     fcf_spec_ret.
     simpl.
     omega.
-    
+
     simpl in H2.
     intuition.
     subst.
     fcf_inline_first.
     fcf_simp.
-    
+
     rewrite plus_0_r in H6.
     destruct (ge_dec i (length l)).
     rewrite skipn_ge_nil; trivial.
@@ -635,7 +635,7 @@ Section OracleMapHybrid.
     fcf_simp.
     simpl.
     eapply comp_spec_eq_refl.
-    
+
     fcf_skip.
     eapply (compFold_spec' (fun a b c d => a = b /\ fst c = fst d /\ fst (snd c) = snd d /\ (snd (snd c) >= i)%nat)); intuition.
     simpl.
@@ -651,16 +651,16 @@ Section OracleMapHybrid.
     fcf_spec_ret.
     simpl.
     omega.
-    
+
     simpl in H5.
     intuition; subst.
     fcf_simp.
     simpl.
     eapply comp_spec_eq_refl.
-    
+
   Qed.
 
-  Theorem OMH_G1_G2_close : 
+  Theorem OMH_G1_G2_close :
     | Pr[OMH_G1] - Pr[OMH_G2] | <= (q / 1) * k.
 
     rewrite OMH_G1_equiv.

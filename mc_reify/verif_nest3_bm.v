@@ -6,7 +6,7 @@ Local Open Scope logic.
 Definition get_spec :=
  DECLARE _get
   WITH v : reptype' t_struct_c, p: val
-  PRE  [] 
+  PRE  []
         PROP  ()
         LOCAL (var _p t_struct_c p)
         SEP   (`(data_at Ews t_struct_c (repinj _ v) p))
@@ -21,7 +21,7 @@ Definition update222 (i: int) (v: reptype' t_struct_c) : reptype' t_struct_c :=
 Definition set_spec :=
  DECLARE _set
   WITH i : int, v : reptype' t_struct_c, p : val
-  PRE  [ _i OF tint ] 
+  PRE  [ _i OF tint ]
         PROP ()
         LOCAL(temp _i (Vint i); var _p t_struct_c p)
         SEP(`(data_at Ews t_struct_c (repinj _ v) p))
@@ -69,7 +69,7 @@ Definition multi_command_spec' :=
             `(data_at Ews t_struct_c
                (repinj t_struct_c (((i111, i112), (i121, i122)), ((i211, i212), (i221, i222)))) p))
   POST [ tvoid ]
-            `(data_at Ews t_struct_c (default_val _) q) * 
+            `(data_at Ews t_struct_c (default_val _) q) *
             `(data_at Ews t_struct_c
                (repinj t_struct_c (((i111, i112), (i121, i122)),
                           ((Int.add i122 (Int.repr 4), Int.add i121 (Int.repr 3)),
@@ -133,7 +133,7 @@ Definition Vprog : varspecs := (_p, t_struct_c)::
                                (_p7, tint)::
                                nil.
 
-Definition Gprog : funspecs := 
+Definition Gprog : funspecs :=
     multi_command_s_spec::multi_command_spec::nil.
 
 Require Import Timing.
@@ -348,7 +348,7 @@ repeat split.
   apply prop_right. solve_legal_nested_field.
 + intros.
   apply prop_right. solve_legal_nested_field.
-+ 
++
 stop_timer "T08b Unfolded Rtac".
 admit.
 Qed.
@@ -429,20 +429,20 @@ end.
 *)
 (*
 match goal with
-| |- semax ?Delta ?Pre (Ssequence (Ssequence ?A1 (Ssequence ?A2 (Ssequence ?A3 (Ssequence ?A4 
+| |- semax ?Delta ?Pre (Ssequence (Ssequence ?A1 (Ssequence ?A2 (Ssequence ?A3 (Ssequence ?A4
          (Ssequence ?A5 (Ssequence ?A6 (Ssequence ?A7 ?A8))))))) _)  _ =>
-   assert (semax Delta Pre (Ssequence A1 (Ssequence A3 (Ssequence A5 (Ssequence A7 
+   assert (semax Delta Pre (Ssequence A1 (Ssequence A3 (Ssequence A5 (Ssequence A7
                              (Ssequence A1 (Ssequence A3 (Ssequence A5 (Ssequence A7 Sskip))))))))
    (normal_ret_assert Pre)); [| admit]
 end.
 *)
-Set Printing Depth 4. 
+Set Printing Depth 4.
 Clear Timing Profile.
 rforward.
 Print Timing Profile.
 
 repeat split.
-+ Set Printing Depth 50. 
++ Set Printing Depth 50.
   intros.
   apply andp_right.
   entailer!.
@@ -467,7 +467,7 @@ repeat split.
   apply prop_right. solve_legal_nested_field.
 + intros.
   apply prop_right. solve_legal_nested_field.
-+ 
++
 stop_timer "T08a Folded Rtac".
 admit.
 

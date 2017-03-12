@@ -6,7 +6,7 @@
 Set Implicit Arguments.
 Require Import fcf.Crypto.
 Require Import Permutation.
-Require Import fcf.CompFold. 
+Require Import fcf.CompFold.
 Require Export fcf.Array.
 
 Local Open Scope list_scope.
@@ -32,8 +32,8 @@ Section RandomFunc.
     match (arrayLookup _ f d) with
       | None => (r <-$ RndR; ret ((d, r) :: f, r))
       | Some r => ret (f, r)
-    end.  
-  Lemma randomFunc_wf : forall p, 
+    end.
+  Lemma randomFunc_wf : forall p,
     well_formed_comp (randomFunc p).
 
     intuition.
@@ -51,16 +51,16 @@ Section RandomFunc.
             r <-$ RndR;
             ret ((d, r) :: arr')
     end.
-    
+
 
   Hint Resolve randomFunc_wf : wftac.
 
-  Theorem inSupportRandomFunc : 
+  Theorem inSupportRandomFunc :
     forall a b r,
       a # b = None ->
       In r (getSupport RndR) ->
       In ((b, r) :: a, r) (getSupport (randomFunc (a, b))).
-    
+
     intuition.
     unfold randomFunc.
     rewrite H.
@@ -105,7 +105,7 @@ Section RandomFunc.
       Variable A1 : Comp ((list D) * A_state ).
       Variable A2 : A_state -> list R -> Comp bool.
       Definition A := (A1, A2).
-      
+
       Definition PRF_NA_G0 :=
         lsD <-& A;
         lsR <-$ (k <-$ {0, 1} ^ eta; ret (map (f k) lsD));
@@ -116,19 +116,19 @@ Section RandomFunc.
         [_, lsR] <-$2 oracleMap _ _ randomFunc nil lsD;
         A lsR.
 
-      Definition PRF_NA_Advantage := 
-      | Pr[PRF_NA_G0] - Pr[PRF_NA_G1] |.   
+      Definition PRF_NA_Advantage :=
+      | Pr[PRF_NA_G0] - Pr[PRF_NA_G1] |.
 
     End PRF_NA_Adversary.
 
     Variable efficient : forall(x : Type), x -> Prop.
-      
+
     Definition PRF_NA_Assumption epsilon :=
       forall A_state A1 A2,
         efficient A1 ->
-        efficient A2 -> 
+        efficient A2 ->
         @PRF_NA_Advantage A_state A1 A2 <= epsilon.
-      
+
   End PRF_NA.
 
 
@@ -151,12 +151,12 @@ Section RandomFunc.
       lsRs <-$ compMap _ (fun lsD => [_, lsR] <-$2 oracleMap _ _ randomFunc nil lsD; ret lsR) lsDs;
       A2 s_A lsRs.
 
-    Definition PRF_NAI_Advantage := 
-    | Pr[PRF_NAI_G0] - Pr[PRF_NAI_G1] |.   
+    Definition PRF_NAI_Advantage :=
+    | Pr[PRF_NAI_G0] - Pr[PRF_NAI_G1] |.
 
-                         
+
   End PRF_NAI.
-  
+
 
 End RandomFunc.
 
@@ -172,7 +172,7 @@ Section RandomPerm.
   Fixpoint inRange(f : list (D * R))(r : R) :=
     match f with
       | nil => false
-      | (d', r') :: f' => 
+      | (d', r') :: f' =>
         if (eqb r r') then true
           else (inRange f' r)
     end.
@@ -183,12 +183,12 @@ Section RandomPerm.
   Lemma getUnusedR_eq : forall ls1 ls2 x,
     (forall r, inRange ls1 r = inRange ls2 r) ->
     evalDist (getUnusedR ls1) x == evalDist (getUnusedR ls2) x.
-    
+
     intuition.
 
     destruct (in_dec (EqDec_dec _) x (getSupport (getUnusedR ls1))).
-    unfold getUnusedR in *.    
-    
+    unfold getUnusedR in *.
+
     simpl in i.
     apply filter_In in i; intuition.
     eapply evalDist_Repeat_eq.
@@ -211,7 +211,7 @@ Section RandomPerm.
     eapply filter_In; intuition.
     rewrite H.
     trivial.
-    
+
     unfold getUnusedR in *.
     simpl in n.
     apply filter_not_In in n.
@@ -220,27 +220,27 @@ Section RandomPerm.
     rewrite getSupport_not_In_evalDist_h; intuition.
     repeat rewrite ratMult_0_r.
     intuition.
-    
+
     simpl.
     unfold indicator.
     rewrite <- H.
     rewrite H0.
     repeat rewrite ratMult_0_l.
     intuition.
-    
+
   Qed.
 
   Lemma inRange_map : forall ls x,
-    inRange ls x = true -> 
+    inRange ls x = true ->
     In x (map (@snd D R) ls).
-    
+
     induction ls; intuition; simpl in *.
     discriminate.
     case_eq (eqb x b); intuition.
     rewrite eqb_leibniz in H0.
     subst.
     intuition.
-    
+
     right.
     eapply IHls.
     rewrite H0 in H.
@@ -257,7 +257,7 @@ Section RandomPerm.
     unfold getUnusedR.
     eapply (well_formed_Repeat _ _ r).
     wftac.
- 
+
     eapply filter_In.
     intuition.
     rewrite H.
@@ -269,17 +269,17 @@ Section RandomPerm.
     eapply (EqDec_dec _).
   Qed.
   Hint Resolve getUnusedR_wf : wftac.
-  
+
 
   (* A random permutation *)
   Definition randomPerm(p : (list (D * R) *  D)) : Comp (list (D * R) * R) :=
-    let (f, d) := p in 
+    let (f, d) := p in
     match (f#d) with
       | None => (r <-$ getUnusedR f ; ret ((d, r) :: f, r))
       | Some r => ret (f, r)
     end.
 
-  Lemma randomPerm_wf : forall ls b0, 
+  Lemma randomPerm_wf : forall ls b0,
     (forall x, ls#x = None -> exists r, inRange ls r = false /\ In r (getSupport RndR)) ->
     well_formed_comp (randomPerm (ls, b0)).
 
@@ -292,18 +292,18 @@ Section RandomPerm.
   Qed.
 
   (* Many proofs involving random permutations will need to query the random permutation repeatedly.  In order to show that each call to the permutation is well-formed, we need to preserve the invariant that the state of the permutation is actually a permutation (as opposed to an arbitrary function).  The well_formed_perm is the predicate that we will use for this invariant. *)
-  Definition well_formed_perm ls := 
-    forall lsd, 
+  Definition well_formed_perm ls :=
+    forall lsd,
       NoDup lsd ->
-      (forall d, In d lsd -> ls#d = None) -> 
-      exists lsr, 
-        (forall r, In r lsr -> inRange ls r = false /\ In r (getSupport RndR)) /\ 
+      (forall d, In d lsd -> ls#d = None) ->
+      exists lsr,
+        (forall r, In r lsr -> inRange ls r = false /\ In r (getSupport RndR)) /\
         NoDup lsr /\
         length lsd = length lsr.
 
   (*
   Lemma well_formed_perm_nil : well_formed_perm nil.
-    
+
     intuition.
     unfold well_formed_perm.
     intuition.
@@ -311,7 +311,7 @@ Section RandomPerm.
     intuition.
     eapply H1.
     eapply getSupport_NoDup.
-    
+
     exists lsd.
     intuition.
 
@@ -320,7 +320,7 @@ Section RandomPerm.
 
   Lemma well_formed_perm_1 : forall ls,
     well_formed_perm ls ->
-    forall d, 
+    forall d,
     ls#d = None ->
     exists r, inRange ls r = false /\ In r (getSupport RndR).
 
@@ -351,7 +351,7 @@ Section RandomPerm.
   Lemma removeFirst_length : forall (A : Set)(eqd : eq_dec A)(ls : list A) a,
     In a ls ->
     S (length (removeFirst eqd ls a)) = length ls.
-    
+
     induction ls; intuition; simpl in *.
     intuition.
     subst.
@@ -452,7 +452,7 @@ Section RandomPerm.
     inRange ls r2 = true ->
     ls#d = None ->
     well_formed_perm ((d, r1) :: (d, r2) :: ls).
-    
+
     intuition.
     unfold well_formed_perm.
     intuition.
@@ -475,7 +475,7 @@ Section RandomPerm.
     destruct (eqb d0 d).
     discriminate.
     trivial.
-    
+
     intuition.
     destruct (in_dec (EqDec_dec _) r1 x).
     exists (removeFirst (EqDec_dec _) x r1).
@@ -509,7 +509,7 @@ Section RandomPerm.
     symmetry.
     eapply removeFirst_length.
     trivial.
-    
+
     destruct x.
     simpl in *.
     omega.
@@ -539,7 +539,7 @@ Section RandomPerm.
   Lemma getUnusedR_preserves_wf : forall ls d r,
     well_formed_perm ls ->
     ls#d = None ->
-    In r (getSupport (getUnusedR ls)) -> 
+    In r (getSupport (getUnusedR ls)) ->
     well_formed_perm ((d, r) :: ls).
 
     intuition.
@@ -553,11 +553,11 @@ Section RandomPerm.
 
   Qed.
 
-  
+
   Lemma getUnusedR_ret_preserves_wf : forall ls ls' d r,
     well_formed_perm ls ->
     ls#d = None ->
-    In (ls', r) (getSupport (r <-$ getUnusedR ls; ret ((d, r) :: ls, r))) -> 
+    In (ls', r) (getSupport (r <-$ getUnusedR ls; ret ((d, r) :: ls, r))) ->
     well_formed_perm ls'.
 
     intuition.
@@ -570,13 +570,13 @@ Section RandomPerm.
     eapply getUnusedR_preserves_wf; eauto.
 
   Qed.
- 
+
 
   Lemma randomPerm_preserves_wf : forall ls d ls' r,
     well_formed_perm ls ->
     In (ls', r) (getSupport (randomPerm (ls, d))) ->
     well_formed_perm ls'.
-    
+
     intuition.
     unfold randomPerm in *.
     case_eq (ls#d); intuition.
@@ -603,7 +603,7 @@ Section RandomPerm.
 
 
   Lemma getUnusedR_not_inRange : forall ls d r,
-    ls#d = None -> 
+    ls#d = None ->
     In r (getSupport (getUnusedR ls)) ->
     inRange ls r = false.
 
@@ -621,7 +621,7 @@ Section RandomPerm.
 
     induction s; intuition; simpl in *.
     discriminate.
-    
+
     case_eq (eqb d a0); intuition;
     rewrite H0 in H.
     inversion H; clear H; subst.
@@ -646,7 +646,7 @@ Section RandomPerm.
     destruct (eqb b0 b); intuition.
 
     eauto.
-    
+
   Qed.
 
   Lemma inRange_app_cons : forall ls d r x,
@@ -669,18 +669,18 @@ Section RandomPerm.
     trivial.
   Qed.
 
-  Lemma notInArrayLookupNone : 
+  Lemma notInArrayLookupNone :
     forall (A B : Set)(eqd : EqDec A)(arr : Array A B) a,
       (~ In a (fst (unzip arr))) ->
       (arr # a) = None.
-    
+
     induction arr; intuition; simpl in *.
-    
+
     case_eq (eqb a a0); intuition.
     rewrite eqb_leibniz in H0.
     subst.
     intuition.
-    
+
   Qed.
 
   Ltac hypInv :=
@@ -689,36 +689,36 @@ Section RandomPerm.
       end); try pairInv.
 
 
-  Lemma arrayLookup_Some_In_unzip : 
+  Lemma arrayLookup_Some_In_unzip :
   forall (A B : Set)(eqd : EqDec A)(arr : Array A B) a b,
     (arr # a) = Some b ->
     In a (fst (unzip arr)).
-  
+
   induction arr; intuition; simpl in *.
   discriminate.
-  
+
   case_eq (eqb a a0); intuition;
   rewrite H0 in *.
   hypInv.
   rewrite eqb_leibniz in H0.
   subst.
   intuition.
-  
+
   right.
   eapply IHarr.
   eauto.
-  
+
 Qed.
 
   (*
   Lemma funcLookup_app_some_eq : forall ls d (v : R),
     ls#d = None ->
     (ls ++ (d, v) :: nil)#d = Some v.
-    
+
     intuition.
     eapply arrayLookup_app_some_eq.
     eauto.
-    
+
   Qed.
 
   Lemma funcLookup_app_none : forall ls d d' (v' : R),
@@ -733,12 +733,12 @@ Qed.
   Lemma funcLookup_app_ne : forall ls d (r : R) d',
     d <> d' ->
     (ls ++ (d, r) :: nil)#d' = (ls#d').
-    
+
     intuition.
     eapply arrayLookup_app_ne; eauto.
-    
+
   Qed.
-  
+
   Lemma funcLookup_app_some : forall ls d d' (v v' : R),
     ls#d = Some v ->
     (ls ++ (d, v') :: nil)#d' = (ls#d').
@@ -751,7 +751,7 @@ Qed.
 
   Lemma inRange_in_dec : forall ls r,
     inRange ls r = if (in_dec (EqDec_dec _) r (map (@snd D R) ls)) then true else false.
-    
+
     induction ls; intuition; simpl in *.
     destruct (EqDec_dec R_EqDec b r); subst.
     rewrite eqb_refl.
@@ -768,12 +768,12 @@ Qed.
     trivial.
   Qed.
 
-  Theorem inSupportRandomPerm : 
+  Theorem inSupportRandomPerm :
     forall a b r,
       In r (getSupport (getUnusedR a)) ->
       a # b = None ->
       In ((b, r) :: a, r) (getSupport (randomPerm (a, b))).
-    
+
     intuition.
     unfold randomPerm.
     rewrite H0.
@@ -789,7 +789,7 @@ Qed.
   Definition funcs_eq s1 s2 :=
     (forall d, s1#d = (s2#d)) /\
     (forall r, inRange s1 r = inRange s2 r).
-  
+
   Definition perms_eq s1 s2 :=
     well_formed_perm s1 /\
     well_formed_perm s2 /\
@@ -797,7 +797,7 @@ Qed.
 
   (*
   Lemma perms_eq_nil : perms_eq nil nil.
-    
+
     unfold perms_eq.
     intuition.
     eapply well_formed_perm_nil.

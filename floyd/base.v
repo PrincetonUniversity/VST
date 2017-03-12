@@ -28,11 +28,11 @@ Hint Rewrite gather_prop_left gather_prop_right : gather_prop.
 Definition not_a_prop {A} (P: A) := True.
 
 Ltac not_a_prop := match goal with
-  | |- not_a_prop  (prop _) => fail 1 
-  | |- _ => apply Coq.Init.Logic.I 
+  | |- not_a_prop  (prop _) => fail 1
+  | |- _ => apply Coq.Init.Logic.I
 end.
 
-Lemma flip_prop {A}{NA: NatDed A}: forall P Q, 
+Lemma flip_prop {A}{NA: NatDed A}: forall P Q,
       not_a_prop P -> (P&& !! Q = !! Q && P).
 Proof. intros. apply andp_comm. Qed.
 
@@ -49,7 +49,7 @@ Hint Rewrite @gather_prop3 using not_a_prop : gather_prop.
 
 Lemma gather_prop4 {A}{NA: NatDed A}:
   forall P Q R,  not_a_prop R -> not_a_prop Q -> (!!P && R) && Q = !!P && (R && Q).
-Proof. intros. rewrite andp_assoc. auto. 
+Proof. intros. rewrite andp_assoc. auto.
 Qed.
 Hint Rewrite @gather_prop4 using not_a_prop : gather_prop.
 
@@ -223,7 +223,7 @@ normalize. inv H.
 Qed.
 
 Fixpoint fold_right_sepcon (l: list mpred) : mpred :=
- match l with 
+ match l with
  | nil => emp
  | b::r => b * fold_right_sepcon r
  end.

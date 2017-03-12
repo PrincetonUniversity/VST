@@ -22,7 +22,7 @@ Extract Inductive option => option [ Some None ].
 
 Import Superposition.
 
-Extraction Inline 
+Extraction Inline
   rewrite_by demodulate simplify
   andb negb.
 
@@ -42,8 +42,8 @@ Extract Constant minid => "min_int".
 
 Extract Constant id2pos => "(fun _ -> failwith (String.make 0 'x'))".
 
-Extract Constant Z2id => 
-  "(fun z -> 
+Extract Constant Z2id =>
+  "(fun z ->
       let rec pos2int = function
       | XH -> 1
       | XO(p) -> 2 * pos2int p

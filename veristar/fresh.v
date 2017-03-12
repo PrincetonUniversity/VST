@@ -17,7 +17,7 @@ Fixpoint freshmax_expr (e: expr) : var :=
 Definition var_max (x y : var) : var :=
  match Ident.compare x y with Lt => y | _ => x end.
 
-Definition freshmax_pn_atom (a: pn_atom) : var := 
+Definition freshmax_pn_atom (a: pn_atom) : var :=
   match a with
   | Equ e1 e2 => var_max (freshmax_expr e1) (freshmax_expr e2)
   | Nequ e1 e2 => var_max (freshmax_expr e1) (freshmax_expr e2)
@@ -34,12 +34,12 @@ Definition freshmax_list {A} (f: A -> var) (l: list A) : var :=
 
 Definition freshmax_assertion (a: assertion) : var :=
   match a with
-  | Assertion pi sigma => 
+  | Assertion pi sigma =>
      var_max (freshmax_list freshmax_pn_atom pi)
             (freshmax_list freshmax_space_atom sigma)
   end.
 
-Definition freshmax_pure_atom (a: pure_atom) : var := 
+Definition freshmax_pure_atom (a: pure_atom) : var :=
   match a with
   | Eqv e1 e2 => var_max (freshmax_expr e1) (freshmax_expr e2)
   end.
@@ -48,11 +48,11 @@ Definition freshmax_clause (c : clause) : var :=
  match c with
  | PureClause pi pi' _ _ =>  var_max (freshmax_list freshmax_pure_atom pi)
                                      (freshmax_list freshmax_pure_atom pi')
- | PosSpaceClause pi pi' sigma => 
+ | PosSpaceClause pi pi' sigma =>
      var_max (var_max (freshmax_list freshmax_pure_atom pi)
                                      (freshmax_list freshmax_pure_atom pi'))
                        (freshmax_list freshmax_space_atom sigma)
- | NegSpaceClause pi sigma pi' => 
+ | NegSpaceClause pi sigma pi' =>
      var_max (var_max (freshmax_list freshmax_pure_atom pi)
                                      (freshmax_list freshmax_pure_atom pi'))
                        (freshmax_list freshmax_space_atom sigma)
@@ -243,7 +243,7 @@ Proof.
   revert bl H H0; induction al; simpl; intros; auto.
   revert H0; induction bl; simpl; intros; auto.
   apply var_max_split' in H; destruct H.
-assert (IHal': 
+assert (IHal':
   forall bl, Ile (freshmax_list freshmax_pure_atom bl) m ->
        Ile (freshmax_list freshmax_pure_atom (merge pure_atom_cmp al bl)) m).
  intros; apply IHal; auto.
@@ -277,9 +277,9 @@ Proof.
   apply IHs; auto.
 Qed.
 
-Lemma freshmax_list_insu: 
+Lemma freshmax_list_insu:
    forall A (f: A -> var) (cmp: A -> A -> comparison)
-      (CMP_EQ: forall a b, a=b <-> Eq = cmp a b) 
+      (CMP_EQ: forall a b, a=b <-> Eq = cmp a b)
       a s,
       freshmax_list f (insert_uniq cmp a s) = var_max (f a) (freshmax_list f s).
 Proof.
@@ -295,10 +295,10 @@ Proof.
  f_equal. apply var_max_com.
  simpl. auto.
 Qed.
- 
+
 Lemma freshmax_list_sort:
   forall A (f: A -> var) (cmp: A -> A -> comparison)
-      (CMP_EQ: forall a b, a=b <-> Eq = cmp a b) 
+      (CMP_EQ: forall a b, a=b <-> Eq = cmp a b)
       (s: list A),
     freshmax_list f (rsort_uniq cmp s) = freshmax_list f s.
 Proof.
@@ -311,7 +311,7 @@ Lemma freshmax_insu:
   forall m a pi,
        Ile (freshmax_pure_atom a) m ->
        Ile (freshmax_list freshmax_pure_atom pi) m ->
-       Ile (freshmax_list freshmax_pure_atom 
+       Ile (freshmax_list freshmax_pure_atom
               (insert_uniq pure_atom_cmp a pi)) m.
 Proof.
  intros. rewrite freshmax_list_insu; auto.

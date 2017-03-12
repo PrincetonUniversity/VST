@@ -85,7 +85,7 @@ Definition range_overlap (base1: address) (sz1: Z) (base2: address) (sz2: Z) : P
 
 Definition adr_add (loc: address) (ofs: Z) : address := (fst loc, snd loc + ofs).
 
-Definition val2adr (v: val) (l: address) : Prop := 
+Definition val2adr (v: val) (l: address) : Prop :=
      match v with Vptr b ofs => l = (b, Int.unsigned ofs) | _ => False end.
 
 Lemma adr_range_non_zero: forall l1 n l2, adr_range l1 n l2 -> n > 0.

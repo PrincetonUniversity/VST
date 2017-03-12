@@ -158,7 +158,7 @@ Proof.
   apply EAPPLY_sound; auto with typeclass_instances.
   + apply APPLY_condition1.
   + apply APPLY_condition2.
-  + unfold Lemma.lemmaD, split_env. simpl. intros. 
+  + unfold Lemma.lemmaD, split_env. simpl. intros.
     unfold ExprDsimul.ExprDenote.exprT_App.
     simpl.
     unfold exprT_App, exprT_Inj, Rcast_val, Rcast in *. simpl in *.
@@ -171,7 +171,7 @@ Proof.
   apply EAPPLY_sound; auto with typeclass_instances.
   + apply APPLY_condition1.
   + apply APPLY_condition2.
-  + unfold Lemma.lemmaD, split_env. simpl. intros. 
+  + unfold Lemma.lemmaD, split_env. simpl. intros.
     unfold ExprDsimul.ExprDenote.exprT_App.
     simpl.
     unfold exprT_App, exprT_Inj, Rcast_val, Rcast in *. simpl in *.
@@ -211,7 +211,7 @@ Lemma solve_strip_1_later_def: forall R,
 Proof.
   intros.
   repeat
-  match goal with 
+  match goal with
   | [ |- context [match ?e with _ => _ end] ] => destruct e; auto
   end.
 Qed. (* 5 seconds *)

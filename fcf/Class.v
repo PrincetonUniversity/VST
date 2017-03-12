@@ -32,6 +32,6 @@ Section EncryptClassify.
     c <-$ Encrypt key pb;
     b' <-$ A2 s_A (Encrypt key) lsC c;
     ret (eqb b b').
-    
+
 
 End EncryptClassify.

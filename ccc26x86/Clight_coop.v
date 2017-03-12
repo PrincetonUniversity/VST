@@ -12,7 +12,7 @@ Require Import Smallstep.
 Require Import Ctypes.
 Require Import Cop.
 
-Require Import compcert.cfrontend.Clight. 
+Require Import compcert.cfrontend.Clight.
 Require Import sepcomp.mem_lemmas.
 
 Require Import sepcomp.semantics.
@@ -46,7 +46,7 @@ Definition CL_at_external (c: CL_core) : option (external_function * signature *
   | CL_Callstate fd args k =>
       match fd with
         Internal f => None
-      | External ef targs tres cc => 
+      | External ef targs tres cc =>
           if observableEF_dec (*hf *)ef && vals_def args
           then Some (ef, ef_sig ef, args)
           else None
@@ -69,13 +69,13 @@ Definition CL_after_external (rv: option val) (c: CL_core) : option CL_core :=
   end.
 
 Definition CL_halted (q : CL_core): option val :=
-    match q with 
-       CL_Returnstate v Kstop => 
+    match q with
+       CL_Returnstate v Kstop =>
          if vals_def (v::nil) then Some v
          else None
      | _ => None
     end.
-   
+
 (** Transition relation *)
 
 Section SEMANTICS.
@@ -205,26 +205,26 @@ Lemma CL_corestep_not_at_external:
        forall m q m' q', clight_corestep q m q' m' -> CL_at_external q = None.
   Proof. intros. inv H; reflexivity. Qed.
 
-Lemma CL_corestep_not_halted : forall m q m' q', 
+Lemma CL_corestep_not_halted : forall m q m' q',
        clight_corestep q m q' m' -> CL_halted q = None.
   Proof. intros. inv H; reflexivity. Qed.
-    
+
 Lemma CL_at_external_halted_excl :
        forall q, CL_at_external q = None \/ CL_halted q = None.
    Proof. intros. destruct q; auto. Qed.
 
 Definition CL_initial_core (v: val) (args:list val): option CL_core :=
    match v with
-     | Vptr b i => 
-          if Int.eq_dec i Int.zero 
+     | Vptr b i =>
+          if Int.eq_dec i Int.zero
           then match Genv.find_funct_ptr ge b with
                  | None => None
-                 | Some f => 
+                 | Some f =>
                     match f with Internal fi =>
                       match type_of_fundef f with
-                        | Tfunction targs tres cconv => 
-                            if val_casted_list_func args targs 
-                               && tys_nonvoid targs 
+                        | Tfunction targs tres cconv =>
+                            if val_casted_list_func args targs
+                               && tys_nonvoid targs
                                && vals_defined args
                                && zlt (4*(2*(Zlength args))) Int.max_unsigned
                             then Some (CL_Callstate f args Kstop)
@@ -243,9 +243,9 @@ End SEMANTICS.
 Definition CL_core_sem (FE:function -> list val -> mem -> env -> temp_env -> mem -> Prop)
          : CoreSemantics genv CL_core mem.
 Proof.
-  eapply (@Build_CoreSemantics _ _ _ 
-      CL_initial_core CL_at_external CL_after_external 
-       CL_halted (clight_corestep FE)). 
+  eapply (@Build_CoreSemantics _ _ _
+      CL_initial_core CL_at_external CL_after_external
+       CL_halted (clight_corestep FE)).
     apply CL_corestep_not_at_external.
     apply CL_corestep_not_halted.
     apply CL_at_external_halted_excl.
@@ -305,7 +305,7 @@ Proof. intros. unfold sem_cast in *.
 destruct (classify_cast t1 t2); try solve [destruct v1; try discriminate; trivial].
 destruct v1; try discriminate; trivial.
 remember (Mem.weak_valid_pointer m b (Int.unsigned i)) as p.
-destruct p; try discriminate. symmetry in Heqp. 
+destruct p; try discriminate. symmetry in Heqp.
 erewrite ple_weak_valid_pointer; trivial; eassumption.
 Qed.
 
@@ -344,7 +344,7 @@ Proof. unfold sem_cmp in *. destruct (classify_cmp t1 t2); try discriminate.
          remember (Mem.valid_pointer m b0 (Int.unsigned i0)) as w. destruct w; simpl in *.
          -- symmetry in Heqw. rewrite (ple_valid_pointer _ _ _ Heqw _ PLE); simpl. reflexivity.
          -- remember (Mem.valid_pointer m b0 (Int.unsigned i0 - 1)) as r. destruct r; simpl in *; inv H0.
-            symmetry in Heqr. rewrite (ple_valid_pointer _ _ _ Heqr _ PLE); simpl. rewrite orb_true_r. reflexivity.   
+            symmetry in Heqr. rewrite (ple_valid_pointer _ _ _ Heqr _ PLE); simpl. rewrite orb_true_r. reflexivity.
       ++ remember (Mem.valid_pointer m b0 (Int.unsigned i - 1)) as w. destruct w; simpl in *; trivial; inv H0.
          symmetry in Heqw. rewrite (ple_valid_pointer _ _ _ Heqw _ PLE); simpl; trivial.
          rewrite orb_true_r. simpl.
@@ -354,7 +354,7 @@ Proof. unfold sem_cmp in *. destruct (classify_cmp t1 t2); try discriminate.
             symmetry in Heqr. rewrite (ple_valid_pointer _ _ _ Heqr _ PLE); simpl. rewrite orb_true_r. reflexivity.
      ++ remember (Mem.valid_pointer m b (Int.unsigned i) ) as q. destruct q; inv H0; simpl in *.
         symmetry in Heqq. rewrite (ple_valid_pointer _ _ _ Heqq _ PLE); simpl.
-        remember (Mem.valid_pointer m b0 (Int.unsigned i0)) as w. destruct w; inv H1. 
+        remember (Mem.valid_pointer m b0 (Int.unsigned i0)) as w. destruct w; inv H1.
         symmetry in Heqw. rewrite (ple_valid_pointer _ _ _ Heqw _ PLE); simpl; trivial.
   - destruct v2; inv CMP; trivial. destruct v1; simpl in *; inv H0; trivial.
     destruct (Int.eq (Int.repr (Int64.unsigned i)) Int.zero); simpl in *; inv H1.
@@ -368,28 +368,28 @@ Proof. unfold sem_cmp in *. destruct (classify_cmp t1 t2); try discriminate.
     symmetry in Heqq. rewrite (ple_valid_pointer _ _ _ Heqq _ PLE); simpl; trivial.
     remember (Mem.valid_pointer m b (Int.unsigned i0 - 1)) as r. destruct r; inv H1.
     symmetry in Heqr. rewrite (ple_valid_pointer _ _ _ Heqr _ PLE), orb_true_r; simpl; trivial.
-  - eapply ple_sem_binarith; eassumption. 
+  - eapply ple_sem_binarith; eassumption.
 Qed.
 
 Lemma ple_binop g op v1 t1 v2 t2 m v (SBO: sem_binary_operation g op v1 t1 v2 t2 m = Some v)
       m1 (PLE : perm_lesseq m m1): sem_binary_operation g op v1 t1 v2 t2 m1 = Some v.
 Proof. destruct op; simpl in *; trivial.
 + unfold sem_add in *. destruct (classify_add t1 t2); trivial.
-  eapply ple_sem_binarith; eassumption. 
+  eapply ple_sem_binarith; eassumption.
 + unfold sem_sub in *. destruct (classify_sub t1 t2); trivial.
-  eapply ple_sem_binarith; eassumption. 
+  eapply ple_sem_binarith; eassumption.
 + unfold sem_mul in *.
-  eapply ple_sem_binarith; eassumption. 
-+ unfold sem_div in *. 
-  eapply ple_sem_binarith; eassumption. 
-+ unfold sem_mod in *. 
-  eapply ple_sem_binarith; eassumption. 
-+ unfold sem_and in *. 
-  eapply ple_sem_binarith; eassumption. 
-+ unfold sem_or in *. 
-  eapply ple_sem_binarith; eassumption. 
+  eapply ple_sem_binarith; eassumption.
++ unfold sem_div in *.
+  eapply ple_sem_binarith; eassumption.
++ unfold sem_mod in *.
+  eapply ple_sem_binarith; eassumption.
++ unfold sem_and in *.
+  eapply ple_sem_binarith; eassumption.
++ unfold sem_or in *.
+  eapply ple_sem_binarith; eassumption.
 + unfold sem_xor in *.
-  eapply ple_sem_binarith; eassumption. 
+  eapply ple_sem_binarith; eassumption.
 + eapply ple_sem_cmp; eassumption.
 + eapply ple_sem_cmp; eassumption.
 + eapply ple_sem_cmp; eassumption.
@@ -402,15 +402,15 @@ Lemma ple_deref_loc t m loc ofs v (D:deref_loc t m loc ofs v) m1 (PLE : perm_les
       deref_loc t m1 loc ofs v.
 Proof.
 inv D.
-+ eapply deref_loc_value. eassumption. eapply ple_load; eassumption. 
++ eapply deref_loc_value. eassumption. eapply ple_load; eassumption.
 + apply deref_loc_reference; trivial.
 + apply deref_loc_copy; trivial.
 Qed.
 
-Lemma ple_eval_evallvalue g e le m: 
-     (forall (a : expr) (v : val), eval_expr g e le m a v -> 
+Lemma ple_eval_evallvalue g e le m:
+     (forall (a : expr) (v : val), eval_expr g e le m a v ->
          (forall m1 (PLE:perm_lesseq m m1), eval_expr g e le m1 a v)) /\
-     (forall (a : expr) (b : block) (i : int), eval_lvalue g e le m a b i -> 
+     (forall (a : expr) (b : block) (i : int), eval_lvalue g e le m a b i ->
          (forall m1 (PLE:perm_lesseq m m1), eval_lvalue g e le m1 a b i)).
 Proof.
 apply eval_expr_lvalue_ind; simpl; intros; try solve [econstructor; eauto].
@@ -420,42 +420,42 @@ apply eval_expr_lvalue_ind; simpl; intros; try solve [econstructor; eauto].
 + econstructor. eauto. eapply ple_deref_loc; eassumption.
 Qed.
 
-Lemma ple_eval_expr g e le m: 
+Lemma ple_eval_expr g e le m:
       forall a v (EE:eval_expr g e le m a v) mm
       (PLE : perm_lesseq m mm), eval_expr g e le mm a v.
-Proof. 
+Proof.
 induction a; simpl; intros; inv EE; simpl; try solve [constructor; trivial]; try solve [inv H].
 + econstructor.
-   eapply ple_eval_evallvalue; eassumption. 
+   eapply ple_eval_evallvalue; eassumption.
    eapply ple_deref_loc; eassumption.
 + econstructor.
-   eapply ple_eval_evallvalue; eassumption. 
+   eapply ple_eval_evallvalue; eassumption.
    eapply ple_deref_loc; eassumption.
 + econstructor.
-   eapply ple_eval_evallvalue; eassumption. 
+   eapply ple_eval_evallvalue; eassumption.
 + econstructor; eauto.
-   eapply ple_unop; eassumption. 
-+ econstructor; eauto. 
-   eapply ple_binop; eassumption. 
+   eapply ple_unop; eassumption.
++ econstructor; eauto.
+   eapply ple_binop; eassumption.
 + econstructor; eauto.
     symmetry. symmetry in H3. eapply ple_cast; eassumption.
 + econstructor.
-   eapply ple_eval_evallvalue; eassumption. 
+   eapply ple_eval_evallvalue; eassumption.
    eapply ple_deref_loc; eassumption.
 Qed.
 
 Lemma ple_eval_exprlist g e le: forall al tyargs vargs m (EE:eval_exprlist g e le m al tyargs vargs) m1
       (PLE : perm_lesseq m m1), eval_exprlist g e le m1 al tyargs vargs.
-Proof. 
+Proof.
 induction al; simpl; intros; inv EE.
 + constructor.
-+ econstructor. 
++ econstructor.
   eapply ple_eval_expr; eassumption.
   symmetry. symmetry in H2. eapply ple_cast; eassumption.
   eauto.
 Qed.
 
-Lemma ple_assign_loc g t loc ofs v m m' (A:assign_loc g t m loc ofs v m')  
+Lemma ple_assign_loc g t loc ofs v m m' (A:assign_loc g t m loc ofs v m')
       m1 (PLE:perm_lesseq m m1): exists m1',  assign_loc g t m1 loc ofs v m1' /\ perm_lesseq m' m1'.
 Proof.
 inv A.
@@ -467,15 +467,15 @@ inv A.
   eapply ple_loadbytes; try eassumption. specialize (sizeof_pos g t). omega.
 Qed.
 
-Lemma clight_inc_perm 
+Lemma clight_inc_perm
            (FE:function -> list val -> mem -> env -> temp_env -> mem -> Prop)
-           (HFE_ple: forall f vargs m e le m', FE f vargs m e le m'-> 
-                forall m1 (PLE:perm_lesseq m m1), exists m1':mem,  FE f vargs m1 e le m1' /\ perm_lesseq m' m1'): 
+           (HFE_ple: forall f vargs m e le m', FE f vargs m e le m'->
+                forall m1 (PLE:perm_lesseq m m1), exists m1':mem,  FE f vargs m1 e le m1' /\ perm_lesseq m' m1'):
        forall (g : genv) c m c' m' (CS:corestep (CL_core_sem FE) g c m c' m')
        m1 (PLE:perm_lesseq m m1), exists m1', corestep (CL_core_sem FE) g c m1 c' m1' /\ perm_lesseq m' m1'.
 Proof.
  intros; inv CS; try contradiction;
- try solve [exists m1; split; trivial; econstructor; try eassumption]. 
+ try solve [exists m1; split; trivial; econstructor; try eassumption].
 + destruct (ple_assign_loc _ _ _ _ _ _ _ H2 _ PLE) as [mm [AA MM]].
   exists mm. split; trivial.
   econstructor; try eassumption.
@@ -483,9 +483,9 @@ Proof.
    eapply ple_eval_evallvalue; eassumption.
    symmetry. symmetry in H1. eapply ple_cast; eassumption.
 + exists m1; split; trivial. econstructor. eapply ple_eval_evallvalue; eassumption.
-+ exists m1; split; trivial. econstructor; try eassumption.  eapply ple_eval_evallvalue; eassumption. eapply ple_eval_exprlist; eassumption. 
++ exists m1; split; trivial. econstructor; try eassumption.  eapply ple_eval_evallvalue; eassumption. eapply ple_eval_exprlist; eassumption.
 + exists m1; split; trivial. econstructor; try eassumption. eapply ple_eval_evallvalue; eassumption.
-   unfold bool_val in *. destruct (classify_bool (typeof a)); inv H0.  
+   unfold bool_val in *. destruct (classify_bool (typeof a)); inv H0.
    destruct v1; simpl in *; inv H2; trivial.
    destruct v1; simpl in *; inv H2; trivial.
    destruct v1; simpl in *; inv H2; trivial.
@@ -505,13 +505,13 @@ Proof.
   eexists mm; split; trivial. econstructor; try eassumption.
 + exists m1; split; trivial. econstructor; try eassumption. eapply ple_eval_evallvalue; eassumption.
 + destruct (HFE_ple _ _ _ _ _ _ H _ PLE) as [mm [FEM MM]].
-  exists mm; split; trivial. econstructor; trivial. 
+  exists mm; split; trivial. econstructor; trivial.
 Qed.
 
 Definition CL_memsem
            (FE:function -> list val -> mem -> env -> temp_env -> mem -> Prop)
            (HFE_mem: forall f vargs m e le m', FE f vargs m e le m'-> mem_step m m')
-           (HFE_ple: forall f vargs m e le m', FE f vargs m e le m'-> 
+           (HFE_ple: forall f vargs m e le m', FE f vargs m e le m'->
                 forall m1 (PLE:perm_lesseq m m1), exists m1',  FE f vargs m1 e le m1' /\ perm_lesseq m' m1')
            : @MemSem genv CL_core.
 Proof.
@@ -536,7 +536,7 @@ Proof. intros.
   induction M.
   apply mem_step_refl.
   eapply mem_step_trans.
-    eapply mem_step_alloc; eassumption. eassumption. 
+    eapply mem_step_alloc; eassumption. eassumption.
 Qed.
 
 Lemma bind_parameters_mem_step: forall ge e m pars vargs m'
@@ -546,12 +546,12 @@ Proof. intros.
   apply mem_step_refl.
   inv H0.
 + eapply mem_step_trans; try eassumption. simpl in H2.
-  eapply mem_step_store; eassumption. 
+  eapply mem_step_store; eassumption.
 + eapply mem_step_trans; try eassumption.
-  eapply mem_step_storebytes; eassumption.  
+  eapply mem_step_storebytes; eassumption.
 Qed.
 
-Lemma function_entry1_mem_step: forall g f vargs m e le m', 
+Lemma function_entry1_mem_step: forall g f vargs m e le m',
       function_entry1 g f vargs m e le m'-> mem_step m m'.
 Proof. intros. inv H.
   eapply mem_step_trans.
@@ -559,7 +559,7 @@ Proof. intros. inv H.
   eapply bind_parameters_mem_step; eassumption.
 Qed.
 
-Lemma function_entry2_mem_step: forall g f vargs m e le m', 
+Lemma function_entry2_mem_step: forall g f vargs m e le m',
       function_entry2 g f vargs m e le m'-> mem_step m m'.
 Proof. intros. inv H.
     eapply alloc_variables_mem_step; try eassumption.
@@ -567,8 +567,8 @@ Qed.
 
 Lemma alloc_variables_inc_perm: forall ge vars m e e2 m'
       (M: alloc_variables ge e m vars e2 m') m1 (PLE: perm_lesseq m m1),
-      exists m1' : mem, alloc_variables ge e m1 vars e2 m1' /\ perm_lesseq m' m1'. 
-Proof. intros until m'. 
+      exists m1' : mem, alloc_variables ge e m1 vars e2 m1' /\ perm_lesseq m' m1'.
+Proof. intros until m'.
   induction 1; simpl; intros.
   exists m1; split; trivial. constructor.
   destruct (alloc_inc_perm _ _ _ _ _ H _ PLE) as [m1' [X2 M2]].
@@ -585,9 +585,9 @@ Proof. intros until m'.
   + destruct (ple_assign_loc _ _ _ _ _ _ _ H0 _ PLE) as [m1' [ALL M1]].
     destruct (IHM _ M1) as [m2' [BP PLE2]].
     exists m2'; split; trivial. econstructor; eassumption.
-Qed.  
+Qed.
 
-Lemma function_entry1_inc_perm: forall g f vargs m e le m', 
+Lemma function_entry1_inc_perm: forall g f vargs m e le m',
       function_entry1 g f vargs m e le m' ->
         forall m1 : mem, perm_lesseq m m1 ->
       exists m1' : mem, function_entry1 g f vargs m1 e le m1' /\ perm_lesseq m' m1'.
@@ -598,7 +598,7 @@ Proof.
   exists m2'; split; trivial. econstructor; try eassumption. trivial.
 Qed.
 
-Lemma function_entry2_inc_perm: forall g f vargs m e le m', 
+Lemma function_entry2_inc_perm: forall g f vargs m e le m',
       function_entry2 g f vargs m e le m' ->
         forall m1 : mem, perm_lesseq m m1 ->
       exists m1' : mem, function_entry2 g f vargs m1 e le m1' /\ perm_lesseq m' m1'.
@@ -607,10 +607,10 @@ Proof.
   destruct (alloc_variables_inc_perm _ _ _ _ _ _ H4 _ H0) as [m1' [? ?]].
   exists m1'; split; trivial. econstructor; try eassumption.
 Qed.
-      
 
-Definition CL_memsem1 g := CL_memsem _ (function_entry1_mem_step g) (function_entry1_inc_perm g). 
-Definition CL_memsem2 g := CL_memsem _ (function_entry2_mem_step g) (function_entry2_inc_perm g). 
+
+Definition CL_memsem1 g := CL_memsem _ (function_entry1_mem_step g) (function_entry1_inc_perm g).
+Definition CL_memsem2 g := CL_memsem _ (function_entry2_mem_step g) (function_entry2_inc_perm g).
 
 Lemma alloc_variables_forward g vars m e e2 m'
       (M: alloc_variables g e m vars e2 m'): mem_forward m m'.
@@ -622,24 +622,24 @@ Qed.
 Lemma bind_parameter_forward g e m pars vargs m'
       (M: bind_parameters g e m pars vargs m'):
       mem_forward m m'.
-Proof. 
+Proof.
   apply bind_parameters_mem_step in M.
-  apply mem_forward_preserve in M. trivial. 
+  apply mem_forward_preserve in M. trivial.
 Qed.
 
 (*
-Lemma CL_forward : 
+Lemma CL_forward :
   forall (FE: function -> list val -> mem -> env -> temp_env -> mem -> Prop)
          (HFE: forall f vargs m e le m', FE f vargs m e le m'-> mem_forward m m')
-         g c m c' m' (CS: clight_corestep FE g c m c' m'), 
+         g c m c' m' (CS: clight_corestep FE g c m c' m'),
                      mem_forward m m'.
   Proof. intros.
      inv CS; simpl in *; try apply mem_forward_refl.
          (*Storev*)
-          inv H2. 
-          eapply store_forward. eassumption. 
+          inv H2.
+          eapply store_forward. eassumption.
           eapply storebytes_forward. eassumption.
-         (*builtin*) 
+         (*builtin*)
           eapply external_call_mem_forward; eassumption.
          (*free*)
          eapply freelist_forward; eassumption.
@@ -655,7 +655,7 @@ Proof. intros.
   induction M.
   apply mem_forward_refl.
   apply alloc_forward in H.
-  eapply mem_forward_trans; eassumption. 
+  eapply mem_forward_trans; eassumption.
 Qed.
 
 Lemma bind_parameter_forward: forall e m pars vargs m'
@@ -667,12 +667,12 @@ Proof. intros.
   eapply mem_forward_trans; try eassumption.
   inv H0.
   eapply store_forward. eassumption.
-  eapply storebytes_forward. eassumption. 
+  eapply storebytes_forward. eassumption.
 Qed.
 
 Lemma CL_rdonly g
             (FE: function -> list val -> mem -> env -> temp_env -> mem -> Prop)
-            (HFE: forall f vargs m e le m', FE f vargs m e le m' -> 
+            (HFE: forall f vargs m e le m', FE f vargs m e le m' ->
                     forall b, Mem.valid_block m b -> readonly m b m')
              c m c' m'
             (CS: clight_corestep FE g c m c' m') b
@@ -683,7 +683,7 @@ Lemma CL_rdonly g
           remember (typeof a1) as t; clear Heqt.
             inv H2. eapply store_readonly; eassumption.
                     eapply storebytes_readonly; eassumption.
-          eapply ec_readonly_strong; eassumption. 
+          eapply ec_readonly_strong; eassumption.
           eapply freelist_readonly; eassumption.
           eapply freelist_readonly; eassumption.
           eapply freelist_readonly; eassumption.
@@ -694,7 +694,7 @@ Lemma CL_rdonly g
 Definition CL_coop_sem
            (FE:function -> list val -> mem -> env -> temp_env -> mem -> Prop)
            (HFE: forall f vargs m e le m', FE f vargs m e le m'-> mem_forward m m')
-           (HFE_rdo: forall f vargs m e le m', FE f vargs m e le m' -> 
+           (HFE_rdo: forall f vargs m e le m', FE f vargs m e le m' ->
                      forall b, Mem.valid_block m b -> readonly m b m')
            : CoopCoreSem genv CL_core.
 Proof.
@@ -714,7 +714,7 @@ Lemma CL_decay g
           remember (typeof a1) as t; clear Heqt.
             inv H2. eapply store_decay; eassumption.
                     eapply storebytes_decay; eassumption.
-          eapply ec_decay; eassumption. 
+          eapply ec_decay; eassumption.
           eapply freelist_decay; eassumption.
           eapply freelist_decay; eassumption.
           eapply freelist_decay; eassumption.
@@ -724,7 +724,7 @@ Lemma CL_decay g
 Definition CL_decay_sem
            (FE:function -> list val -> mem -> env -> temp_env -> mem -> Prop)
            (HFE_fwd: forall f vargs m e le m', FE f vargs m e le m'-> mem_forward m m')
-           (HFE_rdo: forall f vargs m e le m', FE f vargs m e le m' -> 
+           (HFE_rdo: forall f vargs m e le m', FE f vargs m e le m' ->
                      forall b, Mem.valid_block m b -> readonly m b m')
            (HFE_dec: forall f vargs m e le m', FE f vargs m e le m'-> decay m m')
            : @DecayCoreSem genv CL_core.
@@ -743,7 +743,7 @@ Inductive function_entry1 (f: function) (vargs: list val) (m: mem) (e: env) (le:
       le = create_undef_temps f.(fn_temps) ->
       function_entry1 f vargs m e le m'.
 
-Lemma function_entry1_forward: forall f vargs m e le m', 
+Lemma function_entry1_forward: forall f vargs m e le m',
       function_entry1 f vargs m e le m'-> mem_forward m m'.
 Proof. intros. inv H.
   eapply mem_forward_trans.
@@ -757,7 +757,7 @@ Lemma alloc_variables_readonly: forall vars m e e2 m'
 Proof. intros.
   induction M.
   apply readonly_refl.
-  eapply readonly_trans. 
+  eapply readonly_trans.
      eapply alloc_readonly; try eassumption.
      apply IHM. eapply alloc_forward; eassumption.
 Qed.
@@ -771,7 +771,7 @@ Proof. intros.
   eapply readonly_trans; try eassumption.
   inv H0.
   eapply store_readonly; eassumption.
-  eapply storebytes_readonly; eassumption. 
+  eapply storebytes_readonly; eassumption.
      apply IHM. inv H0. eapply store_forward; eassumption.
                         eapply storebytes_forward; eassumption.
 Qed.
@@ -783,7 +783,7 @@ Proof. intros. inv H.
   eapply readonly_trans.
     eapply alloc_variables_readonly; try eassumption.
     eapply bind_parameter_readonly; try eassumption.
-      eapply alloc_variables_forward; try eassumption. 
+      eapply alloc_variables_forward; try eassumption.
 Qed.
 
 
@@ -793,7 +793,7 @@ Proof. intros.
   induction M.
   apply decay_refl.
   eapply decay_trans.
-    eapply alloc_forward; eassumption. 
+    eapply alloc_forward; eassumption.
     eapply alloc_decay; try eassumption.
     apply IHM.
 Qed.
@@ -805,10 +805,10 @@ Proof. intros.
   apply decay_refl.
   inv H0.
 + eapply decay_trans; try eassumption.
-  eapply store_forward; eassumption.  
+  eapply store_forward; eassumption.
   eapply store_decay; eassumption.
 + eapply decay_trans; try eassumption.
-  eapply storebytes_forward; eassumption.  
+  eapply storebytes_forward; eassumption.
   eapply storebytes_decay; eassumption.
 Qed.
 
@@ -824,16 +824,16 @@ Qed.
 (*Definition clight_corestep1 (ge: genv) := clight_corestep function_entry1 ge.*)
 
 Definition CL_core_sem1 := CL_core_sem function_entry1.
-Definition CL_coop_sem1 : CoopCoreSem genv CL_core. 
+Definition CL_coop_sem1 : CoopCoreSem genv CL_core.
   eapply (CL_coop_sem function_entry1).
-  apply function_entry1_forward. 
+  apply function_entry1_forward.
   apply function_entry1_readonly.
 Defined.
-Definition CL_decay_sem1 : @DecayCoreSem genv CL_core. 
+Definition CL_decay_sem1 : @DecayCoreSem genv CL_core.
   eapply (CL_decay_sem function_entry1).
-  apply function_entry1_forward. 
+  apply function_entry1_forward.
   apply function_entry1_readonly.
-  apply function_entry1_decay. 
+  apply function_entry1_decay.
 Defined.
 
 Inductive function_entry2 (f: function) (vargs: list val) (m: mem) (e: env) (le: temp_env) (m': mem) : Prop :=
@@ -845,7 +845,7 @@ Inductive function_entry2 (f: function) (vargs: list val) (m: mem) (e: env) (le:
       bind_parameter_temps f.(fn_params) vargs (create_undef_temps f.(fn_temps)) = Some le ->
       function_entry2 f vargs m e le m'.
 
-Lemma function_entry2_forward: forall f vargs m e le m', 
+Lemma function_entry2_forward: forall f vargs m e le m',
       function_entry2 f vargs m e le m'-> mem_forward m m'.
 Proof. intros. inv H.
     eapply alloc_variables_forward; try eassumption.
@@ -867,17 +867,17 @@ Qed.
 (*Definition clight_corestep2 (ge: genv) := clight_corestep function_entry2 ge.*)
 
 Definition CL_core_sem2 := CL_core_sem function_entry2.
-Definition CL_coop_sem2 : CoopCoreSem genv CL_core. 
+Definition CL_coop_sem2 : CoopCoreSem genv CL_core.
   eapply (CL_coop_sem function_entry2).
   apply function_entry2_forward.
   apply function_entry2_readonly.
 Defined.
 
-Definition CL_decay_sem2 : @DecayCoreSem genv CL_core. 
+Definition CL_decay_sem2 : @DecayCoreSem genv CL_core.
   eapply (CL_decay_sem function_entry2).
-  apply function_entry2_forward. 
+  apply function_entry2_forward.
   apply function_entry2_readonly.
-  apply function_entry2_decay. 
+  apply function_entry2_decay.
 Defined.
 
 End CLIGHT_COOP.*)

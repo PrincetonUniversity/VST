@@ -33,12 +33,12 @@ Ltac prog_ret s :=
     | rightc => prog_ret_r
   end.
 
-Ltac prog_irr_l := 
-  eapply comp_spec_irr_l; 
+Ltac prog_irr_l :=
+  eapply comp_spec_irr_l;
   [ intuition | wftac | intuition].
-  
-Ltac prog_irr_r := 
-  eapply comp_spec_irr_r; 
+
+Ltac prog_irr_r :=
+  eapply comp_spec_irr_r;
     [ intuition | wftac | intuition].
 
 
@@ -63,7 +63,7 @@ Ltac prog_skip_eq :=
 Ltac prog_inline_l :=
   match goal with
     | [ |- comp_spec _ (Bind (Bind ?c1 _ ) _) _] =>
-      eapply comp_spec_eq_trans_l; 
+      eapply comp_spec_eq_trans_l;
         [eapply eq_impl_comp_spec_eq; intros ;
           [eapply (evalDist_assoc c1); intuition ]
           | idtac]
@@ -71,13 +71,13 @@ Ltac prog_inline_l :=
 
 
 Ltac prog_inline_r :=
-  match goal with 
+  match goal with
     | [ |- comp_spec _ _ (Bind (Bind ?c1 _ ) _)] =>
-      eapply comp_spec_eq_trans_r; 
+      eapply comp_spec_eq_trans_r;
         [idtac |
           eapply eq_impl_comp_spec_eq; intros ;
             [symmetry;  eapply (evalDist_assoc c1); intuition ]
-        ] 
+        ]
         end.
 
 Ltac prog_inline s :=
@@ -91,15 +91,15 @@ Ltac prog_inline_first := repeat (prog_simp_weak_1; prog_inline_first_1).
 
 Ltac prog_swap_l :=
   match goal with
-    | [ |- comp_spec _ (Bind ?c1 (fun x => (Bind ?c2 _))) _ ] => 
-      eapply comp_spec_eq_trans_l; 
+    | [ |- comp_spec _ (Bind ?c1 (fun x => (Bind ?c2 _))) _ ] =>
+      eapply comp_spec_eq_trans_l;
         [eapply comp_spec_eq_swap | idtac]
   end.
 
 Ltac prog_swap_r :=
   match goal with
-    | [ |- comp_spec _ _ (Bind ?c1 (fun x => (Bind ?c2 _))) ] => 
-      eapply comp_spec_eq_trans_r; 
+    | [ |- comp_spec _ _ (Bind ?c1 (fun x => (Bind ?c2 _))) ] =>
+      eapply comp_spec_eq_trans_r;
         [idtac | eapply comp_spec_eq_swap]
   end.
 
@@ -114,7 +114,7 @@ Ltac prog_at_l tac line :=
     | O => tac rightc
     | S ?line' =>
       eapply comp_spec_eq_trans_l; [
-        eapply comp_spec_seq_eq; eauto with inhabited; [eapply comp_spec_eq_refl | idtac]; intros; prog_at_l tac line'; eapply comp_spec_eq_refl | 
+        eapply comp_spec_seq_eq; eauto with inhabited; [eapply comp_spec_eq_refl | idtac]; intros; prog_at_l tac line'; eapply comp_spec_eq_refl |
         idtac ]
   end.
 
@@ -122,7 +122,7 @@ Ltac prog_at_r tac line :=
   match line with
       | O => tac rightc
     | S ?line' =>
-      eapply comp_spec_eq_trans_r; [idtac | 
+      eapply comp_spec_eq_trans_r; [idtac |
         eapply comp_spec_seq_eq; eauto with inhabited; [eapply comp_spec_eq_refl | idtac]; intros; prog_at_r tac line'; eapply comp_spec_eq_refl]
   end.
 

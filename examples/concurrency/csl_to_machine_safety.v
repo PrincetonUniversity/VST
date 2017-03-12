@@ -198,7 +198,7 @@ Definition at_ext : C -> option ext :=
     | acquire l _ => Some (acquire_spec l)
     | release l _ => Some (release_spec l)
     | _ => None
-    end.  
+    end.
 
 (*+ Concurrent machine *)
 
@@ -309,9 +309,9 @@ Proof.
   intros (Phi & J & PM & MP & Safe).
   destruct (nth thd i) as [[m p]|] eqn:E; [ | eauto].
   destruct p as [v c | v c | c].
-  
+
   - (* Case for acquire *)
-    
+
     (* The precondition for acquire tells us there is a lock in the
     global map, which means by our invariant that the lock pool has a
     lock there. *)
@@ -326,10 +326,10 @@ Proof.
     assert (EPhiv : Phi v = Some (inr lock)). {
       eapply jointo_Some with (a := inl i); eauto.
       simpl. rewrite E; auto.
-    } 
+    }
     specialize (MP lock EPhiv).
     destruct (pool v) as [ [ mlock | ] | ] eqn:Epoolv; [ | | congruence ].
-    
+
     + (* In the case the lock is unlocked, [acquire] succeeds *)
       apply jointo_selfjoins in J.
       destruct (J (inl i) (inr v)) as [m' J']. congruence.
@@ -339,14 +339,14 @@ Proof.
       now apply E.
       now apply Epoolv.
       now apply J'.
-    
+
     + (* In the case the lock is locked, [acquire] fails *)
       eexists.
       eapply machine_acquire_failure. now apply E.
       assumption.
-  
+
   - (* Case for release *)
-    
+
     (* To determine the next state, we need to use [release]'s
     precondition which provides one possible subheap [m2] of the
     thread's heap.  (By [release]'s precondition, we also know that
@@ -358,7 +358,7 @@ Proof.
     destruct x as [vx Rx].
     simpl in PRE.
     destruct PRE as (m1 & m2 & J12 & -> & isl & Rm2).
-    
+
     (* Using this [m2] we prove that the global map, we prove that the
     lock pool indeed has a lock there. *)
     specialize (MP v).
@@ -371,7 +371,7 @@ Proof.
     }
     simpl.
     specialize (MP lock EPhiv).
-    
+
     (* We now can apply the release machine step *)
     eexists.
     match goal with |- _ ===> ?y => pose y end.
@@ -381,13 +381,13 @@ Proof.
       subst Rx.
       apply Rm2.
     + apply J12.
-  
+
   - (* Case for corestep *)
     pose proof (Safe i tt _ _ E) as Sa.
     inversion Sa; subst.
     + eexists; eapply machine_core; eassumption.
     + discriminate.
-  
+
 Qed.
 
 Theorem preservation n x y : x ===> y -> invariant (S n) x -> invariant n y.
@@ -399,13 +399,13 @@ Proof.
     exists Phi; intuition.
     eapply safeN_S.
     eapply Sa; eauto.
-  
+
   - (* schedule out of bound *)
     hnf; intuition; eauto.
     exists Phi; intuition.
     eapply safeN_S.
     eapply Sa; eauto.
-  
+
   - (* Case of a corestep *)
     assert (SJ : selfjoins (reindex (nth_upd thd i (m', normal c')) pool)). {
       apply jointo_selfjoins in J.
@@ -483,7 +483,7 @@ Proof.
         destruct (corestep_fun _ _ _ _ _ _ H4 H2) as [<- <-].
         assumption.
       * intros; apply safeN_S; eauto.
-  
+
   - (* Case of release *)
     exists Phi. intuition.
     + (* First, we prove joinability *)
@@ -491,7 +491,7 @@ Proof.
         destruct (pool l) as [[ml|]|] eqn:E; auto.
         cut (empty ml /\ empty mlock);[intuition|].
         destruct H6 as [lock [Eml SAT]].
-        
+
         (* We need preciseness, which we get it thanks to the precondition *)
         assert (PR : precise (interp_lock lock)). {
           specialize (Sa i tt _ _ H5).
@@ -509,8 +509,8 @@ Proof.
           }
           replace lock' with lock in * by congruence.
           assumption.
-        }        
-        
+        }
+
         apply precise_join with (interp_lock lock); eauto.
         - specialize (PM l); rewrite E in PM; auto.
           hnf in PM.
@@ -589,12 +589,12 @@ Proof.
       * inversion ae; subst.
         inversion E; subst.
         apply Sa'.
-        
+
   - (* acquire (locked) *)
     exists Phi; intuition.
     apply safeN_S.
     eapply Sa; eauto.
-  
+
   - (* acquire (unlocked) *)
     exists Phi; intuition.
     + eapply (jointo_swapped natnateqdec (inl i) (inr l) Phi); [ .. | apply J].
@@ -617,7 +617,7 @@ Proof.
       subst i0.
       injection H as <- <-.
       specialize (Sa _ tt _ _ H4).
-      inversion Sa as [ | | n0 z c m0 ex x ae PRE POST]; subst.        
+      inversion Sa as [ | | n0 z c m0 ex x ae PRE POST]; subst.
       assert (A:Hrel n m m') by (eapply join_Hrel2; eauto).
       specialize (POST m' oracle n (le_n _) A).
       destruct POST as [c' [E Sa']].
@@ -659,7 +659,7 @@ Proof.
   revert state; induction n; intros ((sch, thd), pool) Inv.
   now constructor.
   destruct (progress _ _ Inv) as (x, step).
-  assert (pre : forall y, (sch, thd, pool) ===> y -> invariant n y) 
+  assert (pre : forall y, (sch, thd, pool) ===> y -> invariant n y)
     by (intros; eapply preservation; eauto).
   inversion Inv as (Phi & J & PM & MP & Safe).
   inversion step; subst.

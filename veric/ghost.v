@@ -17,7 +17,7 @@ Definition ghostp {A: Type} (sh: share) (loc: address) (x: A) : mpred :=
 
 
 Lemma ghostp_unique_sepcon:
-    forall {A: Type} sh1 sh2 loc (x1 x2: A), 
+    forall {A: Type} sh1 sh2 loc (x1 x2: A),
      ghostp sh1 loc x1 * ghostp sh2 loc x2 |-- |> !! (x1=x2).
 Proof.
 intros.
@@ -54,7 +54,7 @@ rewrite <- H; auto.
 Qed.
 
 Lemma ghostp_unique_andp:
-    forall {A: Type} sh loc (x1 x2: A), 
+    forall {A: Type} sh loc (x1 x2: A),
      ghostp sh loc x1 && ghostp sh loc x2 |-- |> !! (x1=x2).
 Proof.
 intros.

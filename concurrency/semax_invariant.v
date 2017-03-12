@@ -110,17 +110,17 @@ Definition load_at m loc := Mem.load Mint32 m (fst loc) (snd loc).
 Definition lock_coherence (lset : AMap.t (option rmap)) (phi : rmap) (m : mem) : Prop :=
   forall loc : address,
     match AMap.find loc lset with
-    
+
     (* not a lock *)
     | None => ~isLK (phi @ loc) (* /\ ~isCT (phi @ loc) *)
-    
+
     (* locked lock *)
     | Some None =>
       load_at m loc = Some (Vint Int.zero) /\
       (4 | snd loc) /\
       (snd loc + 4 <= Int.modulus)%Z /\
       exists R, lkat R loc phi
-    
+
     (* unlocked lock *)
     | Some (Some lockphi) =>
       load_at m loc = Some (Vint Int.one) /\
@@ -158,7 +158,7 @@ Definition lock_sparsity {A} (lset : AMap.t A) : Prop :=
     (fst loc1 = fst loc2 /\ far (snd loc1) (snd loc2)).
 
 Lemma lock_sparsity_age_to tp n :
-  lock_sparsity (lset tp) -> 
+  lock_sparsity (lset tp) ->
   lock_sparsity (lset (age_tp_to n tp)).
 Proof.
   destruct tp as [A B C lset0]; simpl.
@@ -297,7 +297,7 @@ Definition threads_wellformed tp :=
     end.
 
 (* Havent' move this, but it's already defined in the concurrent_machien...
- * Probably in the wrong part... 
+ * Probably in the wrong part...
  * SC: I had to change unique_Krun to include ~ Halted. Because halted
  * threads are still in Krun. (Although, ass you know right now there are no Hatled
  * threads...)  *)

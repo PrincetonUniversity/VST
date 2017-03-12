@@ -111,7 +111,7 @@ Definition oracle_at_ext_old : C -> option ext :=
     | release l _ => Some (release_spec l)
     | _ => None
     end.
-  
+
 Definition oracle_at_ext : C -> option ext :=
   fun c =>
     match c with
@@ -119,7 +119,7 @@ Definition oracle_at_ext : C -> option ext :=
     | release l _ => Some (release_spec l)
     | _ => None
     end.
-  
+
 Definition after_external : C -> option C :=
   fun c =>
     match c with
@@ -177,7 +177,7 @@ Proof.
   induction Safe as [ | | n Ω c m e x E PRE SPOST ];
     try solve [econstructor; eauto].
   destruct c as [ lock k | lock k | c ].
-  
+
   - (* acquire *)
     injection E as <-; simpl in *.
     destruct x as (((okx, vx), orax), R), PRE as [-> [isl PRE]].
@@ -197,13 +197,13 @@ Proof.
       destruct SPOST as (c', (Eq, Safe)).
       * intuition.
       * exists c'; intuition.
-  
+
   - (* release *)
     eapply safeN_external; eauto.
     intros m' z' n' H H0 H1.
     destruct (SPOST m' z' n' H H0 H1) as [c' Sa].
     exists c'; intuition.
-  
+
   - (* corestep *)
     inversion E.
 Qed.
@@ -218,7 +218,7 @@ Proof.
   induction Safe as [ | | n Ω c m e x E PRE SPOST ];
     try solve [econstructor; eauto].
   destruct c as [ lock k | lock k | c ].
-  
+
   - (* acquire *)
     injection E as <-; simpl in *.
     destruct x as ((vx, orax), R), PRE as [-> [isl PRE]].
@@ -239,13 +239,13 @@ Proof.
       destruct SPOST as (c', (Eq, Safe)).
       * intuition.
       * exists c'; intuition.
-  
+
   - (* release *)
     eapply safeN_external; eauto.
     intros m' z' n' H H0 H1.
     destruct (SPOST m' z' n' H H0 H1) as [c' Sa].
     exists c'; intuition.
-  
+
   - (* corestep *)
     inversion E.
 Qed.
@@ -261,7 +261,7 @@ Lemma safeN_oracle_step_ n m l k R mlock :
     (forall Ω, safeN_  oracle_at_ext_old n Ω k m').
 Proof.
   intros Isl Sat Safe.
-  
+
   (* first, with dummy oracle *)
   pose proof (Safe (cons mlock nil)) as Safe'.
   inversion Safe' as [ | | A B C D e x atex PRE POST K L M ]; subst A B C D.
@@ -269,18 +269,18 @@ Proof.
   destruct x as (((okx, lx), Ωx), Rx).
   simpl in PRE, POST; unfold good_oracle in PRE.
   destruct PRE as (-> & isl & <- & PRE).
-  
+
   intros m' Hm' Ω.
-  
+
   (* now with real oracle *)
   pose proof (Safe (cons mlock Ω)) as Safe''.
-  
+
   inversion Safe'' as [ | | A B C D e'' x'' atex'' PRE'' POST'' K L M ]; subst A B C D.
   injection atex'' as <- .
   destruct x'' as (((okx'', lx''), Ωx''), Rx'').
   simpl in PRE'', POST''; unfold good_oracle in PRE''.
   destruct PRE'' as (-> & isl'' & E'' & PRE'').
-  
+
   assert (POST''' :
             forall (m' : M) (z' : Z) (n' : nat),
               n' <= n -> Hrel n' m m' -> z' = Ωx'' /\ okx'' /\ islock l Rx'' m' -> safeN_   oracle_at_ext_old n' z' k m').
@@ -292,7 +292,7 @@ Proof.
     injection Ec' as <- .
     auto.
   }
-  
+
   apply POST'''; auto. split; auto. split; auto.
   Require Import Setoid.
   rewrite <-PRE''.
@@ -360,7 +360,7 @@ Definition clean_at_ext : C -> option ext :=
     | release l _ => Some (clean_release_spec l)
     | _ => None
     end.
-  
+
 (*+ Proof that clean safety => dirty safety *)
 
 Require Import Arith.
@@ -377,7 +377,7 @@ Theorem clean_safeN_implies_safeN_ n Ω c m :
 Proof.
   intros H; apply old_new.
   revert n Ω c m H; induction n as [n SIH] using strong_nat_ind; intros Ω c m Safe.
-  
+
   (* we reason by induction on clean safety *)
   induction Safe as [ | | n Ω c m e x E PRE SPOST ];
     try solve [econstructor; eauto].
@@ -487,7 +487,7 @@ Proof.
     clear -it; induction it. constructor.
     econstructor; eauto.
   - intros Sx y st.
-    cut (exists n, iter R n x y). 
+    cut (exists n, iter R n x y).
     { intros (n, it). refine (Sx (S n) _ n _ it). auto. }
     clear -st; induction st.
     + exists 0; constructor.
@@ -564,7 +564,7 @@ Proof.
   simpl; f_equal.
   eauto.
 Qed.
-      
+
 Lemma nth_app_1 {A} (l1 l2 : list A) i x :
   nth l1 i = Some x ->
   nth (l1 ++ l2) i = Some x.
@@ -1257,13 +1257,13 @@ Proof.
   destruct x as (((([|i sch], F), G), thd), pool);
     intros xy; inversion xy; subst; intros (PR & FF & J & M & S);
       simpl fst in *; simpl snd in *.
-  
+
   - (* out of schedule *)
     hnf; intuition; eauto.
-  
+
   - (* schedule out of bound *)
     hnf; intuition; eauto.
-    
+
   - (* corestep *)
     repeat split; auto.
     + eapply selfjoins_sameperms_compat; [..|apply J]; intros [k|]; simpl; eauto.
@@ -1278,7 +1278,7 @@ Proof.
       intros. rewr.
       intros <- <- .
       eapply safe_R; eauto.
-  
+
   - (* release *)
     simpl; repeat split; auto.
     + assert (Empl : match pool l with None => True | Some ml => empty ml end). {
@@ -1310,10 +1310,10 @@ Proof.
       ifeq; subst; auto.
       intros. rewr.
       eapply safe_R; eauto.
-  
+
   - (* acquire (locked) *)
     repeat split; eauto.
-  
+
   - (* acquire (unlocked) *)
     repeat split; auto.
     + eapply (selfjoins_swapped natnateqdec (inl i) (inr l) J).
@@ -1477,12 +1477,12 @@ Proof.
     hnf; intuition; eauto.
     eapply safeN_S.
     eapply Sa; eauto.
-  
+
   - (* schedule out of bound *)
     hnf; intuition; eauto.
     eapply safeN_S.
     eapply Sa; eauto.
-    
+
   - (* corestep *)
     repeat split; auto.
     + eapply selfjoins_sameperms_compat; [..|apply J]; intros [k|]; simpl; eauto.
@@ -1502,7 +1502,7 @@ Proof.
            assumption.
         -- inversion H1.
       * intros; apply safeN_S; eauto.
-  
+
   - (* release *)
     simpl; repeat split; auto.
     + assert (Empl : match pool l with None => True | Some ml => empty ml end). {
@@ -1551,13 +1551,13 @@ Proof.
       * intros m0 p0 H.
         apply safeN_S.
         eapply Sa; auto.
-  
+
   - (* acquire (locked) *)
     repeat split; eauto.
     intros i0 oracle0 m0 p0 H.
     apply safeN_S.
     eapply Sa; eauto.
-  
+
   - (* acquire (unlocked) *)
     repeat split; auto.
     + eapply (selfjoins_swapped natnateqdec (inl i) (inr l) J).
@@ -1661,12 +1661,12 @@ Proof.
     hnf; intuition; eauto.
     eapply safeN_S.
     eapply Sa; eauto.
-  
+
   - (* schedule out of bound *)
     hnf; intuition; eauto.
     eapply safeN_S.
     eapply Sa; eauto.
-    
+
   - (* corestep *)
     repeat split; auto.
     + eapply selfjoins_sameperms_compat; [..|apply J]; intros [k|]; simpl; eauto.
@@ -1686,7 +1686,7 @@ Proof.
            assumption.
         -- inversion H1.
       * intros; apply safeN_S; eauto.
-  
+
   - (* release *)
     simpl; repeat split; auto.
     + assert (Empl : match pool l with None => True | Some ml => empty ml end). {
@@ -1735,13 +1735,13 @@ Proof.
       * intros m0 p0 H.
         apply safeN_S.
         eapply Sa; auto.
-  
+
   - (* acquire (locked) *)
     repeat split; eauto.
     intros i0 oracle0 m0 p0 H.
     apply safeN_S.
     eapply Sa; eauto.
-  
+
   - (* acquire (unlocked) *)
     repeat split; auto.
     + eapply (selfjoins_swapped natnateqdec (inl i) (inr l) J).

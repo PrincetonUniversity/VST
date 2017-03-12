@@ -42,14 +42,14 @@ Set Bullet Behavior "Strict Subproofs".
 Import Concur threadPool.
 
 Module THE_DRY_MACHINE_SOURCE.
-  Module SCH:= THESCH.         
+  Module SCH:= THESCH.
   Module SEM:= ClightSEM.
   (*Import SCH SEM.*)
 
   (*Module DSEM := DryMachineShell SEM.
   Module DryMachine <: ConcurrentMachine:= CoarseMachine SCH DSEM.
-  Notation DMachineSem:= DryMachine.MachineSemantics. 
-  Notation new_DMachineSem:= DryMachine.new_MachineSemantics. 
+  Notation DMachineSem:= DryMachine.MachineSemantics.
+  Notation new_DMachineSem:= DryMachine.new_MachineSemantics.
   Notation dstate:= DryMachine.SIG.ThreadPool.t.
   Notation dmachine_state:= DryMachine.MachState.
   (*Module DTP:= DryMachine.SIG.ThreadPool.*)
@@ -65,21 +65,21 @@ Module THE_DRY_MACHINE_SOURCE.
 
      Module DryConc <: ConcurrentMachine :=
       CoarseMachine SCH DryMachine.
-     Notation DMachineSem:= DryConc.MachineSemantics. 
-     Notation new_DMachineSem:= DryConc.new_MachineSemantics. 
+     Notation DMachineSem:= DryConc.MachineSemantics.
+     Notation new_DMachineSem:= DryConc.new_MachineSemantics.
 
      Module FineConc := concurrent_machine.FineMachine SCH DryMachine.
      (** SC machine*)
      Module SC := concurrent_machine.FineMachine SCH ErasedMachine.
      Module DTP<: ThreadPoolSig:= DryConc.SIG.ThreadPool.
-     
+
      Import DryMachine DTP.
-     
+
   End DMS.
   Module DryMachineLemmas := ThreadPoolWF SEM DMS.
 
   Module FiniteBranching.
-    
+
   (** *Finite Branching*)
     (* Probably need to assume something about memory.
      Such as:
@@ -105,7 +105,7 @@ Module THE_DRY_MACHINE_SOURCE.
                      /DMS.DryMachine.ThreadPool.SEM.Sem
                      /DMS.SEM.Sem SEM.CLN_msem //.
       Qed.
-      
+
     Lemma finite_branching_sync: forall ds ge i cnti c,
       @DMS.DTP.getThreadC i ds.1.2 cnti = Kblocked c ->
           safety.finite_on_x
@@ -129,12 +129,12 @@ Module THE_DRY_MACHINE_SOURCE.
         move => x y [] [] val [] sch_ok bounde [] y' stp.
         exfalso; apply NHbound; auto.
       } Unfocus.
-      
+
       pose (mem_compat_dec:=
               DMS.DryMachine.mem_compatible dm m).
       destruct (Classical_Prop.classic mem_compat_dec) as [Hcmpt|NHcmpt].
       Focus 2. (*it can't step! *)
-      { 
+      {
         exists 1%nat, (fun _ => (tr, dm, m)).
         move => x y [] val [] y' stp.
         inversion stp; subst.
@@ -149,7 +149,7 @@ Module THE_DRY_MACHINE_SOURCE.
           + reflexivity.
       } Unfocus.
 
-      
+
       Lemma is_syncStep:
         forall ge tr dm m i cnti c
         (Hcmpt: DMS.DryMachine.mem_compatible dm m),
@@ -191,7 +191,7 @@ Module THE_DRY_MACHINE_SOURCE.
       Qed.
 
       pose (is_syncStep:= is_syncStep ge tr dm m i cnti c Hcmpt KRES).
-      
+
       (*It most be at_external *)
       destruct (at_external DMS.DryMachine.ThreadPool.SEM.Sem c) eqn:AtExt.
       Focus 2. {
@@ -216,7 +216,7 @@ Module THE_DRY_MACHINE_SOURCE.
       destruct (Classical_Prop.classic the_args_dec) as [Hargs|NHargs].
       Focus 2. {
         exists 0%nat, (fun _ => (tr, dm, m)).
-        move=> x y [] [] PEEK. 
+        move=> x y [] [] PEEK.
         rewrite PEEK => VAL [] y' /(schedule_not_halted y i PEEK) STEP.
         inversion STEP; simpl in *; try subst; (*Lets go through all possible steps*)
          match goal with
@@ -248,7 +248,7 @@ Module THE_DRY_MACHINE_SOURCE.
 
       (** *MKLOCK case*)
       destruct (extfunct_eqdec FUN (EF_external "makelock" UNLOCK_SIG)) as [? | notMKLOCK].
-      { 
+      {
         subst.
 
         (*must be able to store*)
@@ -256,7 +256,7 @@ Module THE_DRY_MACHINE_SOURCE.
         destruct (Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.zero)) as [m'|] eqn:Hstore'.
         Focus 2. {
         exists 0%nat, (fun _ => (tr, dm, m)).
-        move=> x y [] [] PEEK. 
+        move=> x y [] [] PEEK.
         rewrite PEEK => VAL [] y' /(schedule_not_halted y i PEEK) STEP.
         inversion STEP; simpl in *; try subst; (*Lets go through all possible steps*)
          match goal with
@@ -284,27 +284,27 @@ Module THE_DRY_MACHINE_SOURCE.
 
         rewrite AtExt in Hat_external; inversion Hat_external; subst.
         unfold m1 in Hstore'.
-        replace Hcmpt0 with Hcmpt in Hstore by apply proof_irrelevance. 
-        replace Htid with cnti in Hstore by apply proof_irrelevance. 
+        replace Hcmpt0 with Hcmpt in Hstore by apply proof_irrelevance.
+        replace Htid with cnti in Hstore by apply proof_irrelevance.
         clear - Hstore Hstore'.
         rewrite Hstore' in Hstore; inversion Hstore.
         } Unfocus.
 
-        pose (pmap_tid'0:= (setPermBlock (Some Nonempty) b 
+        pose (pmap_tid'0:= (setPermBlock (Some Nonempty) b
                     (Int.intval ofs)
                     (DMS.DryMachine.ThreadPool.getThreadR cnti).1
                     LKSIZE_nat,
-                    setPermBlock (Some Writable) b 
+                    setPermBlock (Some Writable) b
                     (Int.intval ofs)
                     (DMS.DryMachine.ThreadPool.getThreadR cnti).2
-                    LKSIZE_nat)).       
+                    LKSIZE_nat)).
         pose (tp'0:= DMS.DryMachine.ThreadPool.updThread cnti
                     (Kresume c Vundef) pmap_tid'0).
         pose (tp''0 :=
                   DMS.DryMachine.ThreadPool.updLockSet tp'0
                     (b, Int.intval ofs) (empty_map, empty_map)).
         exists 1%nat, (fun _ => ([::], tp''0, m')).
-        move=> x y [] [] PEEK. 
+        move=> x y [] [] PEEK.
         rewrite PEEK => VAL [] y' /(schedule_not_halted y i PEEK) STEP.
         inversion STEP; simpl in *; try subst; (*Lets go through all possible steps*)
          match goal with
@@ -340,8 +340,8 @@ Module THE_DRY_MACHINE_SOURCE.
           repeat f_equal; apply proof_irrelevance.
         - simpl in *; subst.
           unfold m1 in Hstore'.
-          replace Hcmpt0 with Hcmpt in Hstore by apply proof_irrelevance. 
-          replace Htid with cnti in Hstore by apply proof_irrelevance. 
+          replace Hcmpt0 with Hcmpt in Hstore by apply proof_irrelevance.
+          replace Htid with cnti in Hstore by apply proof_irrelevance.
           clear - Hstore Hstore'.
           rewrite Hstore' in Hstore; inversion Hstore.
           auto.
@@ -372,7 +372,7 @@ Module THE_DRY_MACHINE_SOURCE.
         (*ACQFAIL*)
         Focus 2. {
         exists 1%nat, (fun _ => (tr, dm, m)).
-        move=> x y [] [] PEEK. 
+        move=> x y [] [] PEEK.
         rewrite PEEK => VAL [] y' /(schedule_not_halted y i PEEK) STEP.
         inversion STEP; simpl in *; try subst; (*Lets go through all possible steps*)
          match goal with
@@ -399,18 +399,18 @@ Module THE_DRY_MACHINE_SOURCE.
         try solve[ exfalso; apply Htid; assumption].
         - subst. exfalso; apply Nload.
           rewrite /load_one_dec /m1.
-          replace Hcmpt with Hcmpt0 by apply proof_irrelevance. 
-          replace cnti with Htid by apply proof_irrelevance. 
+          replace Hcmpt with Hcmpt0 by apply proof_irrelevance.
+          replace cnti with Htid by apply proof_irrelevance.
           auto.
         - exists 0%nat; split; auto.
           destruct x as [[? ?] ?]; simpl in *; subst; auto.
         } Unfocus.
 
-        pose (pmap_tid'0:= 
-                setPermBlock (Some Writable) b 
+        pose (pmap_tid'0:=
+                setPermBlock (Some Writable) b
                              (Int.intval ofs)
                              (DMS.DryMachine.ThreadPool.getThreadR cnti).2 LKSIZE_nat).
-        
+
         pose (Hlt_dec:= permMapLt pmap_tid'0 (getMaxPerm m)).
         destruct (Classical_Prop.classic Hlt_dec) as [Hlt| NHlt].
         Focus 2. {
@@ -431,7 +431,7 @@ Module THE_DRY_MACHINE_SOURCE.
           - exfalso; apply NHlt. auto.
           - rewrite Hone_zero in Hload; inversion Hload.
         } Unfocus.
-         
+
         (*must be able to store*)
         pose (m2:= restrPermMap Hlt).
         destruct (Mem.store Mint32 m2 b (Int.intval ofs) (Vint Int.zero)) as [m'|] eqn:Hstore'.
@@ -455,7 +455,7 @@ Module THE_DRY_MACHINE_SOURCE.
             replace Hlt' with Hlt in Hstore by apply proof_irrelevance.
             rewrite Hstore' in Hstore; inversion Hstore.
         } Unfocus.
-        
+
         destruct virtue_bound as [N [virtue_generator virtue_gen_spec] ].
         pose (newThreadPerm v :=
                      (computeMap
@@ -509,7 +509,7 @@ Module THE_DRY_MACHINE_SOURCE.
       }
 
 
-      
+
 
       (** *RELEASE cases*)
       destruct (extfunct_eqdec FUN UNLOCK).
@@ -543,8 +543,8 @@ Module THE_DRY_MACHINE_SOURCE.
           apply Hload.
         } Unfocus.
 
-        pose (pmap_tid'0:= 
-                setPermBlock (Some Writable) b 
+        pose (pmap_tid'0:=
+                setPermBlock (Some Writable) b
                              (Int.intval ofs)
                              (DMS.DryMachine.ThreadPool.getThreadR cnti).2 LKSIZE_nat).
         pose (Hlt_dec:= permMapLt pmap_tid'0 (getMaxPerm m)).
@@ -566,7 +566,7 @@ Module THE_DRY_MACHINE_SOURCE.
                  end; simpl in *; try subst).
           - exfalso; apply NHlt. auto.
         } Unfocus.
-         
+
         (*must be able to store*)
         pose (m1:= restrPermMap Hlt).
         destruct (Mem.store Mint32 m1 b (Int.intval ofs) (Vint Int.one)) as [m'|] eqn:Hstore'.
@@ -591,7 +591,7 @@ Module THE_DRY_MACHINE_SOURCE.
         } Unfocus.
 
         pose (virtueXother_bound:= konig.finite_product virtue_bound otherLP_bound).
-        
+
         destruct virtueXother_bound as [N [virtue_generator virtue_gen_spec] ].
         pose (newThreadPerm v :=
                      (computeMap
@@ -664,7 +664,7 @@ Module THE_DRY_MACHINE_SOURCE.
 
         (*get a pair of virtues*)
         pose (virtueXvirtue_bound:= konig.finite_product virtue_bound virtue_bound).
-        
+
         destruct virtueXvirtue_bound as [N [virtue_generator virtue_gen_spec] ].
         pose (threadPerm' virtue1 := (computeMap
                        (DMS.DryMachine.ThreadPool.getThreadR cnti).1
@@ -683,7 +683,7 @@ Module THE_DRY_MACHINE_SOURCE.
                     | _ => Vundef
              end ).
         pose (tp'0 v :=
-                  DMS.DryMachine.ThreadPool.addThread (tp_upd0 v.1) 
+                  DMS.DryMachine.ThreadPool.addThread (tp_upd0 v.1)
                     (Vptr b ofs) arg (newThreadPerm v.2)).
         exists N.
         exists (fun n => (nil,
@@ -732,7 +732,7 @@ Module THE_DRY_MACHINE_SOURCE.
 
         (*get a pair of virtues*)
         pose (virtueXvirtue_bound:= konig.finite_product virtue_bound virtue_bound).
-        
+
         destruct virtueXvirtue_bound as [N [virtue_generator virtue_gen_spec] ].
         pose (threadPerm' virtue1 := (computeMap
                        (DMS.DryMachine.ThreadPool.getThreadR cnti).1
@@ -751,7 +751,7 @@ Module THE_DRY_MACHINE_SOURCE.
                     | _ => Vundef
              end ).
         pose (tp'0 v :=
-                  DMS.DryMachine.ThreadPool.addThread (tp_upd0 v.1) 
+                  DMS.DryMachine.ThreadPool.addThread (tp_upd0 v.1)
                     (Vptr b ofs) arg (newThreadPerm v.2)).
         exists N.
         exists (fun n => (nil,
@@ -801,7 +801,7 @@ Module THE_DRY_MACHINE_SOURCE.
 
         destruct (bounded_maps.finite_bounded_nat_func_simpl LKSIZE_nat )
           as [N [virtue_generator virtue_gen_spec] ].
-        
+
         (*get a pair of virtues*)
         pose (pmap_tid'0 pd:=
                 (setPermBlock_var pd b (Int.intval ofs)
@@ -837,7 +837,7 @@ Module THE_DRY_MACHINE_SOURCE.
         unfold tp''0, tp'0.
         assert (H: bounded_maps.bounded_nat_func' pdata LKSIZE_nat).
         { auto. }
-        
+
         move virtue_gen_spec at bottom.
         move: H => /virtue_gen_spec [] j [] /ltP ineq vg_spec.
         exists j; split; auto.
@@ -846,7 +846,7 @@ Module THE_DRY_MACHINE_SOURCE.
         repeat f_equal.
         unfold pmap_tid'0; destruct pmap_tid'; simpl in *; subst.
         auto.
-        
+
       }
 
       (*That's it folks it can't be anything else*)
@@ -869,9 +869,9 @@ Module THE_DRY_MACHINE_SOURCE.
         exfalso; apply H; reflexivity
       end).
 
-      
+
     Qed.
-    
+
     Lemma finite_branching_fixed_thread: forall ds ge i,
           safety.finite_on_x
             (@safety.possible_image
@@ -881,7 +881,7 @@ Module THE_DRY_MACHINE_SOURCE.
                (fun st y => SCH.schedPeek y = Some i /\ DMS.DryConc.new_valid_bound st y)
                ds).
     Proof.
-      move=> [] [] tr dm m  prog i. 
+      move=> [] [] tr dm m  prog i.
       rewrite /safety.finite_on_x /safety.possible_image /=.
       rewrite /DMS.DryConc.new_step /DMS.DryConc.new_valid_bound /=.
       rewrite /DMS.DryConc.valid /DMS.DryConc.correct_schedule.
@@ -896,7 +896,7 @@ Module THE_DRY_MACHINE_SOURCE.
               DMS.DryMachine.mem_compatible dm m).
       destruct (Classical_Prop.classic mem_compat_dec) as [Hcmpt|NHcmpt].
       Focus 2. (*it can't step! *)
-      { 
+      {
         exists 1%nat, (fun _ => (tr, dm, m)).
         move => x y [] val [] y' stp.
         inversion stp; subst.
@@ -916,7 +916,7 @@ Module THE_DRY_MACHINE_SOURCE.
       Focus 2. {
         assert (cnti: (~ i < pos.n (DMS.DryMachine.ThreadPool.num_threads dm))%N).
         rewrite cnti'; auto. clear cnti'.
-        
+
         pose (st0 := (tr,dm,m)).
         exists 1%nat, (fun _ => st0).
         move => x y [] [] PEEK; rewrite PEEK.
@@ -934,14 +934,14 @@ Module THE_DRY_MACHINE_SOURCE.
       assert (cnti: (i < pos.n (DMS.DryMachine.ThreadPool.num_threads dm))%N).
       rewrite cnti'; auto. clear cnti'.
 
-      
+
       (*Third check the state of the thread: Krun Kblock. Kresume Kinit*)
       destruct (DMS.DTP.getThreadC cnti) eqn:Hruning.
       { (* Krun *)
         rename Hruning into is_running.
 
-        (*If the schedule is empty, it's halted so the same state 
-         * notice this case is impossible, but it's easier to 
+        (*If the schedule is empty, it's halted so the same state
+         * notice this case is impossible, but it's easier to
          *consider it *)
         pose (st0 := (tr,dm,m)).
         (* Make a fake schedule, standing in for the real one *)
@@ -1100,13 +1100,13 @@ Module THE_DRY_MACHINE_SOURCE.
       }
 
       { (*Kresume*)
-        (*then it must be after external*) 
+        (*then it must be after external*)
         destruct (after_external DMS.DryMachine.ThreadPool.SEM.Sem None c) eqn:AftEx.
         Focus 2. {
           exists 0%nat, (fun _  => (tr, dm, m)).
           move => x y [] [] PEEK; rewrite PEEK.
         move=> _ [] y' /(schedule_not_halted y i PEEK) STEP.
-        
+
         inversion STEP; (*Lets go through all possible steps*)
           simpl in *; try subst;
           try match goal with
@@ -1126,14 +1126,14 @@ Module THE_DRY_MACHINE_SOURCE.
           - exfalso; apply Htid; assumption.
         } Unfocus.
 
-          
+
         exists 1%nat.
         exists (fun _ => (tr,
                   @DMS.DryMachine.ThreadPool.updThreadC i dm cnti (Krun c0),
                   m)).
         move => x y [] [] PEEK; rewrite PEEK.
         move=> _ [] y' /(schedule_not_halted y i PEEK) STEP.
-        
+
         inversion STEP; (*Lets go through all possible steps*)
           simpl in *; try subst;
           try match goal with
@@ -1159,13 +1159,13 @@ Module THE_DRY_MACHINE_SOURCE.
 
       { (*Kinit*)
 
-        (*then it must be ready to start*) 
+        (*then it must be ready to start*)
         destruct (initial_core DMS.DryMachine.ThreadPool.SEM.Sem prog v [:: v0]) eqn:Hinit.
         Focus 2. {
           exists 0%nat, (fun _  => (tr, dm, m)).
           move => x y [] [] PEEK; rewrite PEEK.
         move=> _ [] y' /(schedule_not_halted y i PEEK) STEP.
-        
+
         inversion STEP; (*Lets go through all possible steps*)
           simpl in *; try subst;
           try match goal with
@@ -1191,7 +1191,7 @@ Module THE_DRY_MACHINE_SOURCE.
                   m)).
         move => x y [] [] PEEK; rewrite PEEK.
         move=> _ [] y' /(schedule_not_halted y i PEEK) STEP.
-        
+
         inversion STEP; (*Lets go through all possible steps*)
           simpl in *; try subst;
           try match goal with
@@ -1217,7 +1217,7 @@ Module THE_DRY_MACHINE_SOURCE.
 
 
 
-    
+
   Lemma finite_branching: forall ds ge,
           safety.finite_on_x
             (@safety.possible_image
@@ -1237,7 +1237,7 @@ Module THE_DRY_MACHINE_SOURCE.
               DMS.DryMachine.mem_compatible dm m).
     destruct (Classical_Prop.classic mem_compat_dec) as [Hcmpt|NHcmpt].
     Focus 2. (*it can't step! *)
-    { 
+    {
     exists 1%nat, (fun _ => (tr, dm, m)).
     move => x y [] val [] y' stp.
     inversion stp; subst.
@@ -1252,7 +1252,7 @@ Module THE_DRY_MACHINE_SOURCE.
       + reflexivity.
     } Unfocus.
 
-    
+
       (*Introduce a bound to do induction*)
       cut ( forall M:nat,
             exists (n : nat) (f : nat -> DMS.DryConc.new_state),
@@ -1340,7 +1340,7 @@ Module THE_DRY_MACHINE_SOURCE.
         - (*Now lets do the inductive step M ->  M+1*)
           (*Step 1: get all the branches from thread M*)
           move: (finite_branching_fixed_thread (tr, dm, m) prog M) => [] NM [] fM threadM.
-          
+
           (*Step2: get all the branches for threads <M, eith the Ind. Hyp.*)
           move: IHM => [] N [] f other_threads.
 
@@ -1401,8 +1401,8 @@ Module THE_DRY_MACHINE_SOURCE.
   Qed.
 
 
-  
+
   End FiniteBranching.
-  
+
 End THE_DRY_MACHINE_SOURCE.
 

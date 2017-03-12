@@ -16,12 +16,12 @@ Fixpoint nested_field_type (t: type) (nf: list ident) : type :=
   match nf with
   | nil => t
   | f :: nf0 => gfield_type (nested_field_type t nf0) f
-  end. 
+  end.
 
 Fixpoint nested_field_offset (t: type) (nf: list ident) : Z :=
   match nf with
   | nil => 0
-  | f :: nf0 => nested_field_offset t nf0 + gfield_offset (nested_field_type t nf0) f 
+  | f :: nf0 => nested_field_offset t nf0 + gfield_offset (nested_field_type t nf0) f
   end.
 
 Definition legal_field (t: type) (f: ident) :=
@@ -44,7 +44,7 @@ Fixpoint proj_struct (f : ident) (fs : fieldlist)
     return reptype_fieldlist fs_PAT -> reptype (field_type f fs_PAT) with
   | Fnil => fun _ => Vundef (* default return value *)
   | Fcons (f', t) fs_tl =>
-      fun v => 
+      fun v =>
       if ident_eq f f' as b
         return reptype (if b then t else (field_type f fs_tl))
       then fst v
@@ -73,7 +73,7 @@ Fixpoint upd_struct (f : ident) (fs : fieldlist) (v: reptype_fieldlist fs) (v0: 
   match fs as fs_PAT return (reptype_fieldlist fs_PAT -> reptype (field_type f fs_PAT) -> reptype_fieldlist fs_PAT) with
   | Fnil => fun _ _ => tt (* default return value *)
   | Fcons (f', t) fs_tl =>
-      fun v: reptype t * reptype_fieldlist fs_tl => 
+      fun v: reptype t * reptype_fieldlist fs_tl =>
       if ident_eq f f' as b return reptype (if b then t else (field_type f fs_tl)) -> reptype t * reptype_fieldlist fs_tl
       then fun v0 => (v0, snd v)
       else fun v0 => (fst v, upd_struct f fs_tl (snd v) v0)
@@ -107,7 +107,7 @@ Proof.
   clear H0 H.
   destruct (nested_field_type t nf); [inversion H1 |].
   simpl in *.
-  
+
   destruct IHnf as [_ ?].
   induction fs as [| [i0 t0] fs0]; [inversion H1 |].
   simpl.
@@ -123,7 +123,7 @@ Lemma legal_type_nested_field_type: forall t nf,
 Proof.
   intros. apply nested_pred_nested_field_type; auto.
 Qed.
-    
+
 Lemma proj_upd_gfield_reptype_hit: forall t i v u,
   legal_field t i ->
   proj_gfield_reptype t i (upd_gfield_reptype t i u v) = v.
@@ -154,4 +154,3 @@ Proof.
   + apply IHfs0; tauto.
 Qed.
 
-  

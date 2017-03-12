@@ -28,9 +28,9 @@ Context { G C D Z : Type }
 Fixpoint safeN (n:nat) (c:C) (m:mem) : Prop :=
   match n with
     | O => True
-    | S n' => 
+    | S n' =>
       match halted Hcore c with
-        | None => 
+        | None =>
           exists c', exists m',
             corestep Hcore ge c m c' m' /\
             safeN n' c' m'
@@ -40,8 +40,8 @@ Fixpoint safeN (n:nat) (c:C) (m:mem) : Prop :=
 
 Definition corestep_fun  :=
   forall ge m q m1 q1 m2 q2 ,
-    corestep Hcore ge q m q1 m1 -> 
-    corestep Hcore ge q m q2 m2 -> 
+    corestep Hcore ge q m q1 m1 ->
+    corestep Hcore ge q m q2 m2 ->
     (q1, m1) = (q2, m2).
 
 Lemma safe_downward1 :
@@ -54,7 +54,7 @@ Proof.
   exists c', m'; split; auto.
 Qed.
 
-Lemma safe_downward : 
+Lemma safe_downward :
   forall (n n' : nat) c m,
     le n' n ->
     safeN n c m -> safeN n' c m.
@@ -64,7 +64,7 @@ Proof.
 Qed.
 
 Lemma safe_corestep_forward:
-  corestep_fun -> 
+  corestep_fun ->
   forall c m c' m' n,
     corestep Hcore ge c m c' m' -> safeN (S n) c m -> safeN n c' m'.
 Proof.
@@ -77,7 +77,7 @@ Proof.
 Qed.
 
 Lemma safe_corestepN_forward:
-  corestep_fun -> 
+  corestep_fun ->
   forall c m c' m' n n0,
     corestepN Hcore ge n0 c m c' m' -> safeN (n + S n0) c m -> safeN n c' m'.
 Proof.
@@ -87,7 +87,7 @@ Proof.
   simpl in H0; inv H0.
   eapply safe_downward in H1; eauto. omega.
   simpl in H0. destruct H0 as [c2 [m2 [STEP STEPN]]].
-  apply (IHn0 _ _ _ _ n STEPN). 
+  apply (IHn0 _ _ _ _ n STEPN).
   assert (Heq: (n + S (S n0) = S (n + S n0))%nat) by omega.
   rewrite Heq in H1.
   eapply safe_corestep_forward in H1; eauto.
@@ -115,9 +115,9 @@ Proof.
   simpl in H; inv H.
   solve[assert (Heq: (n = n - 0)%nat) by omega; rewrite Heq; auto].
   simpl in H. destruct H as [c2 [m2 [STEP STEPN]]].
-  assert (H: safeN (n - 1 - n0) c' m'). 
+  assert (H: safeN (n - 1 - n0) c' m').
   eapply safe_downward in H0; eauto. omega.
-  specialize (IHn0 _ _ _ _ (n - 1)%nat STEPN H). 
+  specialize (IHn0 _ _ _ _ (n - 1)%nat STEPN H).
   eapply safe_corestep_backward; eauto.
 Qed.
 
@@ -145,11 +145,11 @@ Context  {F V TF TV C D Z data : Type}
   (SRC_DET : corestep_fun source)
 
   (TGT_DET : corestep_fun target)
-  
+
   (source_safe : forall n, safeN source geS P n c m)
 .
 
-Definition my_P := fun (x: data) => 
+Definition my_P := fun (x: data) =>
    forall (j : meminj) (c : C) (d : D) (m tm : mem),
    (forall n : nat, safeN source geS P n c m) ->
    match_state x j c m d tm ->
@@ -164,17 +164,17 @@ Definition my_P := fun (x: data) =>
 
 Lemma corestep_ord:
   forall cd j,
-  match_state cd j c m d tm -> 
+  match_state cd j c m d tm ->
   (exists rv, halted source c = Some rv) \/
   (exists cd' j' c' m',
       corestep_plus source geS c m c' m'
    /\ ((exists d' tm', corestep_plus target geT d tm d' tm'
                    /\ match_state cd' j' c' m' d' tm')
-    \/ (exists rv, halted source c' = Some rv 
+    \/ (exists rv, halted source c' = Some rv
                    /\ match_state cd' j' c' m' d tm))).
 Proof.
 destruct sim.
-clear match_validblocks0 core_halted0 
+clear match_validblocks0 core_halted0
   core_initial0 core_at_external0 core_after_external0.
 intros.
 revert j c d m tm source_safe H.
@@ -219,7 +219,7 @@ destruct H as [cd' [j' [c' [m' [STEPN H]]]]].
 destruct H as [H|H].
 destruct H as [d' [tm' [TSTEP' MATCH']]].
 exists cd', j', c', m'.
-split; auto. 
+split; auto.
 destruct STEPN as [n STEPN].
 exists (S n).
 simpl.
@@ -228,7 +228,7 @@ split; auto.
 solve[left; exists d', tm'; split; auto].
 destruct H as [rv [HALT MATCH']].
 exists cd', j', c', m'.
-split; auto. 
+split; auto.
 destruct STEPN as [n STEPN].
 exists (S n).
 simpl.
@@ -236,29 +236,29 @@ exists c2, m2.
 split; auto.
 solve[right; exists rv; split; auto].
 exists cd2, j2, c2, m2.
-split; auto. 
+split; auto.
 solve[exists O; simpl; exists c2, m2; split; auto].
-left. 
+left.
 exists d2, tm2.
 split; auto.
 exists n; auto.
 Qed.
 
-Definition halt_match c m d tm := 
-  exists rv trv, 
-    halted source c = Some rv 
+Definition halt_match c m d tm :=
+  exists rv trv,
+    halted source c = Some rv
     /\ halted target d = Some trv
-    /\ P rv m 
+    /\ P rv m
     /\ P trv tm.
 
 Lemma corestep_ord':
   forall cd j,
-  match_state cd j c m d tm -> 
+  match_state cd j c m d tm ->
   halt_match c m d tm
-  \/ (exists cd' j' c' m', 
-         corestep_plus source geS c m c' m' 
+  \/ (exists cd' j' c' m',
+         corestep_plus source geS c m c' m'
          /\ ((match_state cd' j' c' m' d tm /\ halt_match c' m' d tm)
-            \/ (exists d' tm', 
+            \/ (exists d' tm',
                   corestep_plus target geT d tm d' tm'
                   /\ match_state cd' j' c' m' d' tm'))).
 Proof.
@@ -271,7 +271,7 @@ destruct H as [rv HALT].
 left.
 unfold halt_match.
 destruct sim.
-clear match_validblocks0 core_diagram0 
+clear match_validblocks0 core_diagram0
   core_initial0 core_at_external0 core_after_external0.
 generalize HALT as HALT'; intro.
 apply (core_halted0 cd j c m d tm) in HALT; auto.
@@ -303,7 +303,7 @@ left.
 split; auto.
 unfold halt_match.
 destruct sim.
-clear match_validblocks0 core_diagram0 
+clear match_validblocks0 core_diagram0
   core_initial0 core_at_external0 core_after_external0.
 generalize HALT as HALT'; intro.
 apply (core_halted0 cd' j' c' m' d tm) in HALT; auto.
@@ -312,9 +312,9 @@ exists rv, rv'.
 split; auto.
 split; auto.
 assert (H: forall n, safeN source geS P n c' m').
-  intro n. 
+  intro n.
   destruct STEPN as [n0 STEPN].
-  specialize (source_safe (n + S (S n0))). 
+  specialize (source_safe (n + S (S n0))).
   solve[eapply safe_corestepN_forward in source_safe; eauto].
 specialize (H (S O)).
 simpl in H.
@@ -350,17 +350,17 @@ Context  {F V TF TV C D Z data : Type}
   (SRC_DET : corestep_fun source)
 
   (TGT_DET : corestep_fun target)
-  
+
   (source_safe : forall n, safeN source geS P n c m)
 .
 
 Lemma termination_preservation:
   forall cd j c' m' rv1,
-  match_state cd j c m d tm -> 
-  corestep_star source geS c m c' m' -> 
-  halted source c' = Some rv1 -> 
-  exists d' tm' rv2, 
-     corestep_star target geT d tm d' tm' 
+  match_state cd j c m d tm ->
+  corestep_star source geS c m c' m' ->
+  halted source c' = Some rv1 ->
+  exists d' tm' rv2,
+     corestep_star target geT d tm d' tm'
   /\ halted target d' = Some rv2.
 Proof.
 intros.
@@ -385,12 +385,12 @@ rewrite STEP in H1; congruence.
 simpl in H0.
 destruct H0 as [c2 [m2 [? ?]]].
 destruct sim.
-clear match_validblocks0 core_halted0 
+clear match_validblocks0 core_halted0
   core_initial0 core_at_external0 core_after_external0.
 generalize H0 as H0'; intro.
 eapply core_diagram0 in H0; eauto.
 destruct H0 as [d2 [tm2 [cd2 [j2 [? [? [? ?]]]]]]].
-assert (SAFE: forall n, safeN source geS P n c2 m2). 
+assert (SAFE: forall n, safeN source geS P n c2 m2).
   intros n0.
   solve[eapply safe_corestep_forward in H0'; eauto].
 specialize (IHn cd2 j2 c2 m2 d2 tm2 H4 H2 SAFE).
@@ -472,11 +472,11 @@ destruct TSTEPN as [d2 [tm2 [STEP ?]]].
 solve[apply corestep_not_halted in STEP; auto].
 Qed.
 
-Lemma halted_safe: 
-  forall c m c' m' (P: val -> mem -> Prop) rv, 
-  corestep_star source geS c m c' m' -> 
-  halted source c = Some rv -> 
-  P rv m' -> 
+Lemma halted_safe:
+  forall c m c' m' (P: val -> mem -> Prop) rv,
+  corestep_star source geS c m c' m' ->
+  halted source c = Some rv ->
+  P rv m' ->
   (forall n, safeN source geS P n c m).
 Proof.
 intros.

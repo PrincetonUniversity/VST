@@ -12,7 +12,7 @@ Require Import fcf.SemEquiv.
 Require Import fcf.DetSem.
 Require Import fcf.NotationV1.
 
- 
+
 Local Open Scope rat_scope.
 Local Open Scope comp_scope.
 Local Open Scope list_scope.
@@ -89,15 +89,15 @@ Lemma perm_map_in : forall (A B : Set)(lsa : list A)(lsb : list B)(f : A -> B)(f
 Qed.
 
 Lemma not_in_map : forall (A B : Set)(ls : list A)(f : A -> B)(f_inv : B -> A)(a : A),
-  (forall a, f_inv (f a) = a) -> 
-  ~In a ls -> 
+  (forall a, f_inv (f a) = a) ->
+  ~In a ls ->
   ~In (f a) (map f ls).
 
   induction ls; intuition.
   simpl in *.
 
   intuition.
-  
+
   eapply H1.
   rewrite <- (H a).
   rewrite <- (H a0).
@@ -145,7 +145,7 @@ Lemma filter_NoDup : forall (A : Set)(ls : list A)(P : A -> bool),
   NoDup (filter P ls).
 
   induction ls; simpl in *; intuition.
-  
+
   inversion H; clear H; subst.
   destruct (P a).
   econstructor; eauto.
@@ -160,7 +160,7 @@ Qed.
 
 Lemma evalDist_getSupport_perm : forall (A B : Set)(c1 : Comp A)(c2 : Comp B) (f : A -> B)(f_inv : B -> A),
   (forall b, In b (getSupport c2) -> (f (f_inv b)) = b) ->
-  (forall a, In a (getSupport c1) -> (f_inv (f a)) = a) -> 
+  (forall a, In a (getSupport c1) -> (f_inv (f a)) = a) ->
   (forall a, In a (getSupport c1) -> eqRat (evalDist c1 a) (evalDist c2 (f a))) ->
   (forall a, In a (getSupport c2) -> eqRat (evalDist c2 a) (evalDist c1 (f_inv a))) ->
   Permutation (map f (getSupport c1)) (getSupport c2).
@@ -190,7 +190,7 @@ Lemma evalDist_getSupport_perm : forall (A B : Set)(c1 : Comp A)(c2 : Comp B) (f
   split.
   eapply H.
   trivial.
-  
+
   eapply getSupport_In_evalDist.
   intuition.
   eapply getSupport_In_evalDist.
@@ -259,7 +259,7 @@ Lemma sumList_f_inverse : forall (A B : Set)(ls : list A)(f : A -> B)(f_inv : B 
     (forall a, In a ls -> f_inv (f a) = a) ->
     sumList (map f ls) (fun (b : B) => fa (f_inv b) ) ==
     sumList ls fa.
-    
+
   intuition.
   unfold sumList.
   eapply fold_add_f_inverse;
@@ -270,7 +270,7 @@ Theorem distro_iso_eq : forall (A B C D : Set)(f : C -> D)(f_inv : D -> C)(d : C
   (forall x, In x (getSupport d) -> f (f_inv x) = x) ->
   (forall x, In x (getSupport c) -> f_inv (f x) = x) ->
   (forall x, In x (getSupport d) -> In (f_inv x) (getSupport c)) ->
-  (forall x, In x (getSupport c) -> (evalDist d (f x)) == (evalDist c x)) -> 
+  (forall x, In x (getSupport c) -> (evalDist d (f x)) == (evalDist c x)) ->
   (forall x, In x (getSupport c) -> (evalDist (f1 (f x)) b) == (evalDist (f2 x) a)) ->
   (evalDist (Bind d f1) b == evalDist (Bind c f2) a).
 
@@ -340,9 +340,9 @@ Qed.
 
 Theorem distro_irr_eq : forall (A B : Set)(b : Comp B)(a : B -> Comp A)(y : A) v,
   well_formed_comp b ->
-  (forall x, In x (getSupport b) -> (evalDist (a x) y) == v) -> 
+  (forall x, In x (getSupport b) -> (evalDist (a x) y) == v) ->
   evalDist (Bind b a) y == v.
-  
+
   intuition.
   simpl.
   rewrite sumList_body_eq.
@@ -370,7 +370,7 @@ Lemma sumList_filter : forall (A : Set)(ls : list A)(f : A -> Rat)(P : A -> bool
   eapply IHls.
   symmetry.
   eapply ratAdd_0_r.
-  
+
   intuition.
 Qed.
 
@@ -465,8 +465,8 @@ Qed.
 
 (* We can swap any two independent commands *)
 Theorem evalDist_commute_eq : forall (A B : Set)(c1 : Comp A)(c2 : Comp B)(C : Set)(c3 : A -> B -> Comp C),
-  dist_sem_eq (a <-$ c1; b <-$ c2; (c3 a b)) (b <-$ c2; a <-$ c1; (c3 a b)). 
-  
+  dist_sem_eq (a <-$ c1; b <-$ c2; (c3 a b)) (b <-$ c2; a <-$ c1; (c3 a b)).
+
   intuition.
   unfold dist_sem_eq.
   intuition.
@@ -498,7 +498,7 @@ Lemma evalDist_Repeat_eq : forall (A : Set)(c1 c2 : Comp A)(P1 P2 : A -> bool) v
   In v1 (filter P1 (getSupport c1)) ->
   sumList (filter P1 (getSupport c1)) (evalDist c1) == sumList (filter P2 (getSupport c2)) (evalDist c2) ->
   evalDist (Repeat c1 P1) v1 == evalDist (Repeat c2 P2) v2.
-  
+
   intuition.
   simpl.
   eapply ratMult_eqRat_compat; intuition.
@@ -513,7 +513,7 @@ Lemma evalDist_Repeat_eq : forall (A : Set)(c1 c2 : Comp A)(P1 P2 : A -> bool) v
   eauto.
   eapply sumList_0 in H3; eauto.
   trivial.
-  
+
 Qed.
 
 Definition intersect(A : Set)(eqd : eq_dec A)(ls1 ls2 : list A) :=
@@ -523,9 +523,9 @@ Definition intersect(A : Set)(eqd : eq_dec A)(ls1 ls2 : list A) :=
 Lemma in_intersect : forall (A : Set)(eqd : eq_dec A)(ls1 ls2 : list A) a,
   In a (intersect eqd ls1 ls2) <->
   In a ls1 /\ In a ls2.
-  
+
   unfold intersect in *.
-  
+
   intuition.
   apply filter_In in H.
   intuition.
@@ -534,7 +534,7 @@ Lemma in_intersect : forall (A : Set)(eqd : eq_dec A)(ls1 ls2 : list A) a,
   discriminate.
   apply filter_In in H.
   intuition.
-  
+
   eapply filter_In.
   intuition.
   destruct (in_dec eqd a ls1); intuition.
@@ -544,12 +544,12 @@ Lemma intersect_comm : forall (A : Set)(eqd : eq_dec A)(ls1 ls2 : list A),
   NoDup ls1 ->
   NoDup ls2 ->
   Permutation (intersect eqd ls1 ls2) (intersect eqd ls2 ls1).
-  
+
   intuition.
   eapply NoDup_Permutation.
   apply filter_NoDup; trivial.
   apply filter_NoDup; trivial.
-  
+
   unfold intersect in *.
   intuition.
   apply filter_In.
@@ -558,22 +558,22 @@ Lemma intersect_comm : forall (A : Set)(eqd : eq_dec A)(ls1 ls2 : list A),
   destruct (in_dec eqd x ls1); intuition.
   discriminate.
   destruct (in_dec eqd x ls2); intuition.
-  
+
   apply filter_In.
   apply filter_In in H1.
   intuition.
   destruct (in_dec eqd x ls2); intuition.
   discriminate.
   destruct (in_dec eqd x ls1); intuition.
-  
+
 Qed.
 
 
 Theorem fundamental_lemma_h : forall (A : Set)(eqda : EqDec A)(c1 c2 : Comp (A * bool)),
   (evalDist (Bind c1 (fun x => ret snd x)) true == evalDist (Bind c2 (fun x => ret snd x)) true) ->
   (forall a, evalDist c1 (a, false) == evalDist c2 (a, false)) ->
-  forall a, 
-    ratDistance (evalDist (Bind c1 (fun x => ret (fst x))) a) (evalDist (Bind c2 (fun x => ret (fst x))) a) <= 
+  forall a,
+    ratDistance (evalDist (Bind c1 (fun x => ret (fst x))) a) (evalDist (Bind c2 (fun x => ret (fst x))) a) <=
     evalDist (Bind c1 (fun x => ret snd x)) true.
 
   intuition.
@@ -627,7 +627,7 @@ Theorem fundamental_lemma_h : forall (A : Set)(eqda : EqDec A)(c1 c2 : Comp (A *
   assert (NoDup (filter (fun a0 : A * bool => negb (snd a0)) (intersect H1 (getSupport c1) (getSupport c2)))).
   eapply filter_NoDup.
   eapply filter_NoDup; eapply getSupport_NoDup.
-  
+
   eapply eqRat_trans.
   symmetry.
   eapply sumList_subset'.
@@ -751,8 +751,8 @@ Qed.
 Theorem fundamental_lemma : forall (A B : Set)(eqda : EqDec A)(eqdb : EqDec B)(c1 c2 : Comp A)(badness : A -> bool)(proj : A -> B),
   Pr [a <-$ c1; ret (badness a)] == Pr[a <-$ c2; ret (badness a)] ->
   (forall x, evalDist (a <-$ c1; ret (proj a, badness a)) (x, false) == evalDist (a <-$ c2; ret (proj a, badness a)) (x, false)) ->
-  forall x, 
-    | (evalDist (a <-$ c1; ret (proj a)) x)  - (evalDist (a <-$ c2; ret (proj a)) x) | <= 
+  forall x,
+    | (evalDist (a <-$ c1; ret (proj a)) x)  - (evalDist (a <-$ c2; ret (proj a)) x) | <=
     Pr [a <-$ c1; ret (badness a)].
 
   intuition.
@@ -830,12 +830,12 @@ Theorem repeat_unroll_eq: forall (A : Set)(eqd : EqDec A)(c : Comp A)(P : A -> b
   well_formed_comp c ->
   (exists a, In a (filter P (getSupport c))) ->
   evalDist (Repeat c P) v == evalDist (x <-$ c; if (P x) then ret x else (Repeat c P)) v.
-  
+
   intuition.
-  
+
   eapply det_eq_impl_dist_sem_eq; trivial.
   destruct H0.
-  
+
   eapply well_formed_Repeat; trivial.
   unfold eq_dec.
   intuition.
@@ -851,11 +851,11 @@ Theorem repeat_unroll_eq: forall (A : Set)(eqd : EqDec A)(c : Comp A)(P : A -> b
   eapply (EqDec_dec _).
   trivial.
   eauto.
-  
+
   unfold DetSem.evalDet_equiv.
   intuition.
   inversion H1; clear H1; subst.
-  
+
   inversion H2; clear H2; subst.
   simpl in *.
   eapply evalDet_steps_bind_done_inv in H6.
@@ -875,7 +875,7 @@ Theorem repeat_unroll_eq: forall (A : Set)(eqd : EqDec A)(c : Comp A)(P : A -> b
   simpl.
   econstructor.
   trivial.
-  
+
   inversion H2; clear H2; subst.
   simpl in *.
   apply evalDet_steps_bind_eof_inv in H6.
@@ -895,7 +895,7 @@ Theorem repeat_unroll_eq: forall (A : Set)(eqd : EqDec A)(c : Comp A)(P : A -> b
   simpl in *.
   inversion H7.
   trivial.
-  
+
   inversion H1; clear H1; subst.
   eapply evalDet_steps_bind_done_inv in H2.
   destruct H2.
@@ -917,7 +917,7 @@ Theorem repeat_unroll_eq: forall (A : Set)(eqd : EqDec A)(c : Comp A)(P : A -> b
   simpl.
   econstructor.
   trivial.
-  
+
   apply evalDet_steps_bind_eof_inv in H2.
   intuition.
   econstructor.
@@ -951,12 +951,12 @@ Lemma evalDist_seq_case_split_eq : forall (B : Set)(e : B -> bool) v v1 v2 (A : 
   (forall b, (e b) = true -> (evalDist (f b) a) == v1) ->
   (forall b, (e b) = false -> (evalDist (f b) a) == v2) ->
   (evalDist (Bind c f) a == v * v1 + (ratSubtract 1 v) * v2).
-  
+
   intuition.
   simpl in *.
   rewrite (sumList_partition e).
   eapply ratAdd_eqRat_compat.
-  
+
   rewrite (sumList_body_eq _ _ (fun b => ((evalDist c b) * (if (e b) then 1 else 0)) * v1)).
   rewrite sumList_factor_constant_r.
   eapply ratMult_eqRat_compat; intuition.
@@ -967,7 +967,7 @@ Lemma evalDist_seq_case_split_eq : forall (B : Set)(e : B -> bool) v v1 v2 (A : 
   intuition.
   destruct (e a0); try congruence.
   intuition.
-  
+
   intuition.
   case_eq (e a0); intuition.
   repeat rewrite ratMult_1_r.
@@ -975,12 +975,12 @@ Lemma evalDist_seq_case_split_eq : forall (B : Set)(e : B -> bool) v v1 v2 (A : 
   repeat rewrite ratMult_0_r.
   rewrite ratMult_0_l.
   intuition.
-  
+
   rewrite (sumList_body_eq _ _ (fun b => ((evalDist c b) * (if (e b) then 0 else 1)) * v2)).
   rewrite sumList_factor_constant_r.
   eapply ratMult_eqRat_compat; intuition.
   rewrite <- H0.
-  
+
   rewrite <- (@evalDist_lossless _ c).
   rewrite (sumList_partition e _ (evalDist c)).
   rewrite ratAdd_comm.
@@ -1003,7 +1003,7 @@ Lemma evalDist_seq_case_split_eq : forall (B : Set)(e : B -> bool) v v1 v2 (A : 
   destruct (e a0); try congruence.
   intuition.
   trivial.
-  
+
   intuition.
   case_eq (e a0); intuition.
   repeat rewrite ratMult_0_r.
@@ -1019,7 +1019,7 @@ Theorem evalDist_bind_distance : forall (A B : Set)(c1 c2 : Comp B)(c3 c4 : B ->
   (forall b, evalDist c1 b == evalDist c2 b) ->
   (forall b a, In b (getSupport c1) -> | evalDist (c3 b) a - evalDist (c4 b) a | <= d) ->
   (forall a, | evalDist (Bind c1 c3) a - evalDist (Bind c2 c4) a | <= d).
-  
+
   intuition.
   simpl.
   eapply leRat_trans.
@@ -1031,7 +1031,7 @@ Theorem evalDist_bind_distance : forall (A B : Set)(c1 c2 : Comp B)(c3 c4 : B ->
   eapply H0.
   eapply eqRat_refl.
   eapply eqRat_refl.
-  
+
   assert (Permutation (getSupport c1) (getSupport c2)).
   eapply NoDup_Permutation; intuition; eauto using getSupport_NoDup.
   eapply getSupport_In_evalDist.
@@ -1043,7 +1043,7 @@ Theorem evalDist_bind_distance : forall (A B : Set)(c1 c2 : Comp B)(c3 c4 : B ->
   eapply getSupport_In_evalDist.
   trivial.
   erewrite sumList_permutation; eauto.
-  
+
   rewrite sumList_distance_prod.
   eapply leRat_trans.
   eapply sumList_le; intuition.
@@ -1060,14 +1060,14 @@ Theorem evalDist_bind_distance : forall (A B : Set)(c1 c2 : Comp B)(c3 c4 : B ->
   rewrite ratMult_1_l.
   intuition.
   trivial.
-  
+
 Qed.
 
 Lemma evalDist_Bind_1_le_l : forall (A B : Set) (b : Comp B) (a : B -> Comp A) (y : A) (v : Rat),
   well_formed_comp b ->
   (forall x : B, In x (getSupport b) -> evalDist (a x) y <= v) ->
   evalDist (x <-$ b; a x) y <= v.
-  
+
   intuition.
   simpl.
   eapply leRat_trans.
@@ -1084,45 +1084,45 @@ Lemma evalDist_Bind_1_le_l : forall (A B : Set) (b : Comp B) (a : B -> Comp A) (
 Qed.
 
 
-Lemma evalDist_ret_1 : 
+Lemma evalDist_ret_1 :
   forall (A : Set)(eqd : eq_dec A)(a1 a2 : A),
     a1 = a2 ->
     evalDist (Ret eqd a1) a2 = 1.
-  
+
   intuition.
   subst.
   simpl.
   destruct (eqd a2 a2); subst; intuition.
-  
+
 Qed.
 
-Lemma evalDist_ret_0 : 
+Lemma evalDist_ret_0 :
   forall (A : Set)(eqd : eq_dec A)(a1 a2 : A),
     a1 <> a2 ->
     evalDist (Ret eqd a1) a2 = 0.
-  
+
   intuition.
   simpl.
   destruct (eqd a1 a2); subst; intuition.
-  
+
 Qed.
 
-Lemma evalDist_ret_eq : 
+Lemma evalDist_ret_eq :
   forall (A : Set)(eqd1 eqd2 : eq_dec A) a1 a2 x,
     a1 = a2 ->
     evalDist (Ret eqd1 a1) x == evalDist (Ret eqd2 a2) x.
-  
+
   intuition.
   simpl.
   subst.
   destruct (eqd1 a2 x); destruct (eqd2 a2 x); subst; intuition.
 Qed.
 
-Theorem evalDist_seq_step : 
+Theorem evalDist_seq_step :
   forall (A B :Set)(c : Comp A)(f : A -> Comp B) b,
     evalDist (Bind c f) b ==
     sumList (getSupport c) (fun a => evalDist c a * evalDist (f a) b).
-  
+
   intuition.
   simpl.
   eapply sumList_body_eq; intuition.
@@ -1130,14 +1130,14 @@ Theorem evalDist_seq_step :
 Qed.
 
 
-Theorem evalDist_1 : 
+Theorem evalDist_1 :
   forall (A : Set)(eqd : EqDec A)(c : Comp A) a,
     well_formed_comp c ->
     evalDist c a == 1 ->
     (getSupport c) = (a :: nil)%list.
 
   intuition.
-  
+
   specialize (evalDist_getSupport_perm_id c (ret a)); intuition.
   assert (forall a0 : A, evalDist c a0 == evalDist (ret a) a0).
   intuition.
@@ -1146,7 +1146,7 @@ Theorem evalDist_1 :
   subst.
   simpl.
   destruct (EqDec_dec eqd a0 a0); intuition.
-  
+
   simpl.
   assert (evalDist c a0 == 0).
   eapply evalDist_1_0; intuition.
@@ -1158,27 +1158,27 @@ Theorem evalDist_1 :
   destruct ( EqDec_dec eqd a a0); subst; intuition.
   rewrite eqb_refl in H2.
   discriminate.
-  
+
   intuition.
   simpl in *.
-  
+
   eapply Permutation_length_1_inv.
   eapply Permutation_sym.
   trivial.
-  
+
 Qed.
 
-Theorem evalDist_bool_equiv_all : 
+Theorem evalDist_bool_equiv_all :
   forall (c1 c2 : Comp bool),
     well_formed_comp c1 ->
     well_formed_comp c2 ->
-    Pr[c1] == Pr[c2] -> 
+    Pr[c1] == Pr[c2] ->
     (forall b, evalDist c1 b == evalDist c2 b).
-  
+
   intuition.
   destruct b.
   trivial.
-  
+
   rewrite evalDist_complement.
   rewrite evalDist_complement.
   eapply ratSubtract_eqRat_compat; intuition.
@@ -1198,7 +1198,7 @@ Class RatRel (R : Rat -> Rat -> Prop) :=
   mult_proper : Proper (R ==> R ==> R) ratMult
 }.
 
-Instance RatRel_trans : 
+Instance RatRel_trans :
   forall (R : Rat -> Rat -> Prop),
     RatRel R -> Transitive R.
 
@@ -1208,7 +1208,7 @@ intuition.
 
 Qed.
 
-Instance RatRel_flip : 
+Instance RatRel_flip :
   forall R,
     RatRel R ->
     RatRel (Basics.flip R).
@@ -1244,7 +1244,7 @@ eapply eqRat_impl_leRat.
 Qed.
 
 (* This one comes up some times: *)
-Instance eqRat_RatRel_1 : 
+Instance eqRat_RatRel_1 :
   RatRel (fun r r1 : Rat => r1 == r).
 
 eapply RatRel_flip.
@@ -1253,7 +1253,7 @@ intuition.
 Qed.
 
 (* some distribution rules that use RatRel *)
-Theorem evalDist_left_ident : 
+Theorem evalDist_left_ident :
   forall rel (B : Set)(eqd : EqDec B)(b : B)(A : Set)(c2 : B -> Comp A) a,
     RatRel rel ->
     rel (evalDist (x <-$ ret b; (c2 x)) a) (evalDist (c2 b) a).
@@ -1263,7 +1263,7 @@ Theorem evalDist_left_ident :
   eapply evalDist_left_ident_eq.
 Qed.
 
-Theorem evalDist_assoc : 
+Theorem evalDist_assoc :
   forall rel (A : Set)(c1 : Comp A)(B C : Set)(c2 : A -> Comp B)(c3 : B -> Comp C) x,
     RatRel rel ->
     rel (evalDist (Bind (Bind c1 c2) c3) x) (evalDist (Bind c1 (fun a => (Bind (c2 a) c3))) x).
@@ -1275,10 +1275,10 @@ Theorem evalDist_assoc :
 Qed.
 
 
-Theorem evalDist_commute: 
+Theorem evalDist_commute:
   forall rel  (A B : Set)(c1 : Comp A)(c2 : Comp B)(C : Set)(c3 : A -> B -> Comp C) x,
     RatRel rel ->
-    rel (evalDist (a <-$ c1; b <-$ c2; (c3 a b)) x) (evalDist (b <-$ c2; a <-$ c1; (c3 a b)) x). 
+    rel (evalDist (a <-$ c1; b <-$ c2; (c3 a b)) x) (evalDist (b <-$ c2; a <-$ c1; (c3 a b)) x).
 
   intuition.
   eapply refl.
@@ -1287,17 +1287,17 @@ Theorem evalDist_commute:
 Qed.
 
 
-Lemma rel_sumList_compat : 
+Lemma rel_sumList_compat :
   forall (A : Set)(f1 f2 : A -> Rat) ls rel,
     RatRel rel ->
     (forall a, In a ls -> rel (f1 a) (f2 a)) ->
     rel (sumList ls f1) (sumList ls f2).
-  
+
   induction ls; intuition; simpl in *.
   unfold sumList; simpl.
   eapply refl.
   intuition.
-  
+
   eapply trans.
   eapply refl.
   eapply sumList_cons.
@@ -1311,12 +1311,12 @@ Lemma rel_sumList_compat :
   eapply IHls; intuition.
 Qed.
 
-Lemma rel_seq : 
+Lemma rel_seq :
   forall (A B C : Set)(c : Comp A)(f1 : A -> Comp B)(f2 : A -> Comp C) rel x1 x2,
     RatRel rel ->
     (forall a, In a (getSupport c) -> rel (evalDist (f1 a) x1) (evalDist (f2 a) x2)) ->
     rel (evalDist (a <-$ c; f1 a) x1) (evalDist (a <-$ c; f2 a) x2).
-  
+
   intuition.
   simpl.
   eapply rel_sumList_compat; intuition.
@@ -1326,7 +1326,7 @@ Lemma rel_seq :
   intuition.
 Qed.
 
-Lemma evalDist_bind_case_split : 
+Lemma evalDist_bind_case_split :
   forall rel (B : Set)(e : B -> bool) v v1 v2 (A : Set)(c : Comp B)(f : B -> Comp A)  a,
     RatRel rel ->
     well_formed_comp c ->
@@ -1354,7 +1354,7 @@ Lemma evalDist_bind_case_split :
   eapply refl.
   rewrite sumList_factor_constant_r.
   eapply ratMult_eqRat_compat; intuition.
-  
+
   rewrite (sumList_filter_partition e) in H1.
   rewrite <- H1.
   rewrite ratAdd_0_r.
@@ -1391,7 +1391,7 @@ Lemma evalDist_bind_case_split :
   eapply refl.
   rewrite sumList_factor_constant_r.
   eapply ratMult_eqRat_compat; intuition.
-  
+
   rewrite <- H1.
   rewrite <- (@evalDist_lossless _ c); trivial.
   symmetry.
@@ -1400,7 +1400,7 @@ Lemma evalDist_bind_case_split :
   rewrite ratSubtract_ratAdd_assoc.
   rewrite ratSubtract_0.
   rewrite <- ratAdd_0_r.
-  
+
   rewrite (sumList_filter_partition e).
   symmetry.
   rewrite ratAdd_0_l.
@@ -1432,11 +1432,11 @@ Qed.
 
 
 
-Theorem evalDist_irr_l : 
+Theorem evalDist_irr_l :
   forall (A B : Set)(c : Comp A)(f : A -> Comp B)(y : B) rel v,
     RatRel rel ->
     well_formed_comp c ->
-    (forall x, In x (getSupport c) -> rel (evalDist (f x) y) v) -> 
+    (forall x, In x (getSupport c) -> rel (evalDist (f x) y) v) ->
     rel (evalDist (Bind c f) y) v.
 
   intuition.
@@ -1450,7 +1450,7 @@ Theorem evalDist_irr_l :
   eapply H1.
   trivial.
 
-  Lemma rel_sumList_factor_r : 
+  Lemma rel_sumList_factor_r :
     forall (A : Set) (f : A -> Rat) (ls : list A) c rel,
       RatRel rel ->
       rel (sumList ls (fun a => (f a) * c)) ((sumList ls f) * c).
@@ -1478,7 +1478,7 @@ Theorem evalDist_irr_l :
     intuition.
     eapply IHls; intuition.
   Qed.
-  
+
   specialize (rel_sumList_factor_r (evalDist c) (getSupport c) v H); intuition.
 
   eapply trans.
@@ -1489,11 +1489,11 @@ Theorem evalDist_irr_l :
   trivial.
 Qed.
 
-Theorem evalDist_irr_r : 
+Theorem evalDist_irr_r :
   forall (A B : Set)(c : Comp A)(f : A -> Comp B)(y : B) rel v,
     RatRel rel ->
     well_formed_comp c ->
-    (forall x, In x (getSupport c) -> rel v (evalDist (f x) y)) -> 
+    (forall x, In x (getSupport c) -> rel v (evalDist (f x) y)) ->
     rel v (evalDist (Bind c f) y).
 
   intuition.
@@ -1508,7 +1508,7 @@ Theorem evalDist_irr_r :
   eapply H1.
   trivial.
 
-  Lemma rel_sumList_factor_r_r : 
+  Lemma rel_sumList_factor_r_r :
     forall (A : Set) (f : A -> Rat) (ls : list A) c rel,
       RatRel rel ->
       rel ((sumList ls f) * c) (sumList ls (fun a => (f a) * c)).
@@ -1538,7 +1538,7 @@ Theorem evalDist_irr_r :
     eapply IHls; intuition.
   Qed.
 
-  
+
   specialize (rel_sumList_factor_r_r (evalDist c) (getSupport c) v H); intuition.
 
   eapply trans.
@@ -1552,9 +1552,9 @@ Theorem evalDist_irr_r :
 Qed.
 
 
-Theorem evalDist_iso : 
-  forall rel (A B C D : Set) (f : C -> D) (f_inv : D -> C) 
-    (d : Comp D) (c : Comp C) (f1 : D -> Comp B) 
+Theorem evalDist_iso :
+  forall rel (A B C D : Set) (f : C -> D) (f_inv : D -> C)
+    (d : Comp D) (c : Comp C) (f1 : D -> Comp B)
     (f2 : C -> Comp A) (a : A) (b : B),
     RatRel rel ->
     (forall x : D, In x (getSupport d) -> f (f_inv x) = x) ->
@@ -1585,7 +1585,7 @@ Theorem evalDist_iso :
 
 Qed.
 
-Theorem evalDist_seq : 
+Theorem evalDist_seq :
 forall rel (A1 A2 B : Set) (c1 c2 : Comp B) (f1 : B -> Comp A1)(f2 : B -> Comp A2) y z,
   RatRel rel ->
   (forall x : B, evalDist c1 x == evalDist c2 x) ->
@@ -1614,24 +1614,24 @@ Qed.
 
 
 
-Theorem oc_comp_invariant : 
+Theorem oc_comp_invariant :
   forall (A B C : Set)(c : OracleComp A B C)(S : Set)(P : S -> Prop)
     (eqds : EqDec S)
     (o : S -> A -> Comp (B * S))(s : S),
     (forall a b c d, In (a, b) (getSupport (o c d)) -> P c -> P b) ->
       P s ->
       forall a b, In (a, b) (getSupport (c _ _ o s)) -> P b.
-  
+
   Opaque getSupport.
   induction c; intuition; simpl in *.
   eapply H; eauto.
 
   Transparent getSupport.
   repeat simp_in_support.
-  destruct x. 
+  destruct x.
   simpl in *.
 
-  specialize (IHc (S * S0) (fun x => P (snd x)) _ 
+  specialize (IHc (S * S0) (fun x => P (snd x)) _
   (fun (x : S * S0) (y : A) =>
                 p <-$ (o (fst x) y) S0 eqds o0 (snd x);
                 ret (fst (fst p), (snd (fst p), snd p))) (s, s0))%type.
@@ -1644,7 +1644,7 @@ Theorem oc_comp_invariant :
   destruct x.
   eapply H.
   eapply H0.
-  eapply H4. 
+  eapply H4.
   eapply H5.
   trivial.
 
@@ -1662,14 +1662,14 @@ Theorem oc_comp_invariant :
   eauto.
 Qed.
 
-Theorem oc_comp_invariant_f : 
+Theorem oc_comp_invariant_f :
   forall (A B C : Set)(c : OracleComp A B C)(S : Set)(f : S -> bool)
     (eqds : EqDec S)
     (o : S -> A -> Comp (B * S))(s : S),
     (forall a b c d, In (a, b) (getSupport (o c d)) -> f c = true -> f b = true) ->
     f s = true ->
     forall a b, In (a, b) (getSupport (c _ _ o s)) -> f b = true.
-  
+
   intuition.
   eapply (@oc_comp_invariant _ _ _ _ _ (fun x => f x = true)); intuition.
   eapply H.
@@ -1682,7 +1682,7 @@ Qed.
 
 
 Theorem distro_irr_le
-     : forall (A B : Set) (c : Comp A) (f : A -> Comp B) 
+     : forall (A B : Set) (c : Comp A) (f : A -> Comp B)
          (y : B) (v : Rat),
        (forall x : A, In x (getSupport c) -> (evalDist (f x) y) <=  v) ->
        (evalDist (x <-$ c; f x) y)  <= v.
@@ -1704,14 +1704,14 @@ Theorem distro_irr_le
   intuition.
 Qed.
 
-Theorem oc_comp_wf : 
+Theorem oc_comp_wf :
   forall (A B C : Set)(c : OracleComp A B C),
     well_formed_oc c ->
     forall (S : Set)(eqds : EqDec S)(o : S -> A -> Comp (B * S))(s : S),
       (forall a b, well_formed_comp (o a b)) ->
       well_formed_comp (c _ _ o s).
 
-  induction 1; intuition; simpl in *; intuition. 
+  induction 1; intuition; simpl in *; intuition.
   eapply well_formed_Bind; intuition.
 
   eapply IHwell_formed_oc; intuition.
@@ -1725,11 +1725,11 @@ Theorem oc_comp_wf :
   eapply well_formed_Bind; intuition.
   destruct b.
   eauto.
-  
+
 Qed.
 
 
-Theorem repeat_fission : 
+Theorem repeat_fission :
   forall (A B : Set)(eqda : EqDec A)(eqdb : EqDec B)(c : Comp A)(P : A -> bool)(f : A -> Comp B) x,
     well_formed_comp c ->
     (exists a, In a (filter P (getSupport c))) ->
@@ -1748,7 +1748,7 @@ Theorem repeat_fission :
 
   symmetry.
   rewrite (@sumList_subset' A (EqDec_dec _ ) _ (getSupport c)).
-  
+
   eapply sumList_body_eq; intuition.
   unfold indicator.
   simpl.
@@ -1802,7 +1802,7 @@ Theorem repeat_fission :
 
   eapply flatten_NoDup;
     intuition.
-  
+
   eapply map_NoDup'; intuition.
   eapply getSupport_NoDup.
 
@@ -1893,7 +1893,7 @@ Theorem repeat_fission :
   pairInv.
   intuition.
   eapply ratMult_0_r.
-  
+
   rewrite sumList_factor_constant_l.
   symmetry.
   rewrite <- ratMult_1_r at 1.
@@ -1928,7 +1928,7 @@ Theorem repeat_fission :
 
   intuition.
   apply filter_In in H3; intuition.
-  
+
   intuition.
   unfold indicator.
   case_eq (P a0); intuition.
@@ -1965,48 +1965,48 @@ Theorem repeat_fission :
   intuition.
 Qed.
 
-Lemma evalDistRepeat_sup_0 : 
+Lemma evalDistRepeat_sup_0 :
   forall (A : Set)(c : Comp A)(P : A -> bool) x,
     evalDist c x == 0 ->
     evalDist (Repeat c P) x == 0.
-  
+
   intuition.
   simpl.
   rewrite H.
   rewrite ratMult_0_r.
   intuition.
-  
+
 Qed.
 
-Lemma evalDistRepeat_pred_0 : 
+Lemma evalDistRepeat_pred_0 :
   forall (A : Set)(c : Comp A)(P : A -> bool) x,
     P x = false ->
     evalDist (Repeat c P) x == 0.
-  
+
   intuition.
   simpl.
   unfold indicator.
   rewrite H.
   repeat rewrite ratMult_0_l.
   intuition.
-  
+
 Qed.
 
-Theorem repeat_snd_equiv : 
+Theorem repeat_snd_equiv :
   forall (A B : Set)(eqd : EqDec B)(c : Comp (A * B))(P : B -> bool) x,
     evalDist (p <-$ Repeat c (fun p => P (snd p)); ret (snd p)) x ==
     evalDist (Repeat (p <-$ c; ret (snd p)) P) x.
-  
+
   intuition.
-  
+
   simpl.
   case_eq (P x); intuition.
-  
+
   unfold indicator.
   rewrite H.
   rewrite ratMult_1_l.
   rewrite <- sumList_factor_constant_l.
-  
+
   symmetry.
   rewrite (sumList_filter_partition (fun p : A * B => P (snd p))).
   symmetry.
@@ -2019,7 +2019,7 @@ Theorem repeat_snd_equiv :
   rewrite ratMult_1_l.
   repeat rewrite ratMult_1_r.
   eapply ratMult_eqRat_compat; intuition.
-  
+
   rewrite flatten_map_eq.
   eapply ratInverse_eqRat_compat.
   intuition.
@@ -2031,7 +2031,7 @@ Theorem repeat_snd_equiv :
   intuition.
   eapply filter_In; intuition.
   eapply getSupport_In_evalDist; eauto.
-  
+
   rewrite sumList_comm.
   symmetry.
   rewrite (sumList_filter_partition (fun p : A * B => P (snd p))).
@@ -2071,19 +2071,19 @@ Theorem repeat_snd_equiv :
   destruct (EqDec_dec eqd b a1); subst.
   destruct (P a1); simpl in *; discriminate.
   eapply ratMult_0_r.
-  
+
   repeat rewrite ratMult_0_r.
   intuition.
-  
+
   symmetry.
   eapply sumList_0; intuition.
   eapply filter_In in H0; intuition.
   destruct (EqDec_dec eqd (snd a) x); subst.
   destruct (P (snd a)); simpl in *; discriminate.
-  
+
   repeat rewrite ratMult_0_r.
   intuition.
-  
+
   unfold indicator.
   rewrite H.
   repeat rewrite ratMult_0_l.
@@ -2097,24 +2097,24 @@ Theorem repeat_snd_equiv :
   destruct (EqDec_dec eqd b x); subst; try congruence.
   rewrite ratMult_0_r.
   intuition.
-  
+
 Qed.
 
-Theorem repeat_fst_equiv : 
+Theorem repeat_fst_equiv :
   forall (A B : Set)(eqd : EqDec A)(c : Comp (A * B))(P : A -> bool) x,
     evalDist (p <-$ Repeat c (fun p => P (fst p)); ret (fst p)) x ==
     evalDist (Repeat (p <-$ c; ret (fst p)) P) x.
-  
+
   intuition.
-  
+
   simpl.
   case_eq (P x); intuition.
-  
+
   unfold indicator.
   rewrite H.
   rewrite ratMult_1_l.
   rewrite <- sumList_factor_constant_l.
-  
+
   symmetry.
   rewrite (sumList_filter_partition (fun p : A * B => P (fst p))).
   symmetry.
@@ -2127,7 +2127,7 @@ Theorem repeat_fst_equiv :
   rewrite ratMult_1_l.
   repeat rewrite ratMult_1_r.
   eapply ratMult_eqRat_compat; intuition.
-  
+
   rewrite flatten_map_eq.
   eapply ratInverse_eqRat_compat.
   intuition.
@@ -2139,7 +2139,7 @@ Theorem repeat_fst_equiv :
   intuition.
   eapply filter_In; intuition.
   eapply getSupport_In_evalDist; eauto.
-  
+
   rewrite sumList_comm.
   symmetry.
   rewrite (sumList_filter_partition (fun p : A * B => P (fst p))).
@@ -2164,10 +2164,10 @@ Theorem repeat_fst_equiv :
   econstructor. split; eauto.
   simpl.
   trivial.
-  
+
   intuition.
   destruct (EqDec_dec eqd a0 b0); subst; intuition.
-  
+
   symmetry.
   eapply sumList_0.
   intuition.
@@ -2179,7 +2179,7 @@ Theorem repeat_fst_equiv :
   destruct (EqDec_dec eqd a0 a1); subst.
   destruct (P a1); simpl in *; discriminate.
   eapply ratMult_0_r.
-  
+
   repeat rewrite ratMult_0_r.
   intuition.
 
@@ -2188,10 +2188,10 @@ Theorem repeat_fst_equiv :
   eapply filter_In in H0; intuition.
   destruct (EqDec_dec eqd (fst a) x); subst.
   destruct (P (fst a)); simpl in *; discriminate.
-  
+
   repeat rewrite ratMult_0_r.
   intuition.
-  
+
   unfold indicator.
   rewrite H.
   repeat rewrite ratMult_0_l.
@@ -2205,14 +2205,14 @@ Theorem repeat_fst_equiv :
   destruct (EqDec_dec eqd a x); subst; try congruence.
   rewrite ratMult_0_r.
   intuition.
-  
+
 Qed.
 
-Theorem repeat_fission' : 
+Theorem repeat_fission' :
   forall (A B : Set)(eqda : EqDec A)(eqdb : EqDec B)(c : Comp A)(P1 : A -> bool)(P2 : B -> bool)(f : A -> Comp B) x,
     well_formed_comp c ->
     (exists a, In a (filter P1 (getSupport c))) ->
-    (forall a, In a (getSupport c) -> well_formed_comp (f a)) -> 
+    (forall a, In a (getSupport c) -> well_formed_comp (f a)) ->
     (forall a b, In a (getSupport c) -> In b (getSupport (f a)) -> (P1 a = P2 b)) ->
     evalDist (a <-$ Repeat c P1; f a) x ==
     evalDist
@@ -2220,7 +2220,7 @@ Theorem repeat_fission' :
 
   intuition.
 
-  assert (evalDist (a <-$ Repeat c P1; f a) x  == 
+  assert (evalDist (a <-$ Repeat c P1; f a) x  ==
           evalDist (z <-$ (a <-$ Repeat c P1; b <-$ f a; ret (a, b)); ret (snd z)) x).
 
   rewrite evalDist_assoc.
@@ -2249,12 +2249,12 @@ Theorem repeat_fission' :
   assert (evalDist
      (z <-$
       Repeat (a <-$ c; b <-$ f a; ret (a, b)) (fun p : A * B => P1 (fst p));
-      ret snd z) x == 
+      ret snd z) x ==
           evalDist
      (z <-$
       Repeat (a <-$ c; b <-$ f a; ret (a, b)) (fun p : A * B => P2 (snd p));
       ret snd z) x).
-  
+
   eapply evalDist_seq_eq; intuition.
   destruct (in_dec (EqDec_dec _ ) a (getSupport c)).
   destruct (in_dec (EqDec_dec _) b (getSupport (f a))).
@@ -2314,7 +2314,7 @@ Theorem repeat_fission' :
   rewrite repeat_snd_equiv.
 
   (* The following fact comes up a couple times. *)
-  assert (forall a, 
+  assert (forall a,
              evalDist (p <-$ (a0 <-$ c; b <-$ f a0; ret (a0, b)); ret snd p) a ==
    evalDist (a0 <-$ c; f a0) a).
   intuition.
@@ -2331,7 +2331,7 @@ Theorem repeat_fission' :
   case_eq (P2 x); intuition.
   destruct (in_dec (EqDec_dec _) x (getSupport (Bind c f))).
   eapply evalDist_Repeat_eq; intuition.
-  
+
   eapply filter_In; intuition.
   repeat simp_in_support.
   eapply getSupport_In_Seq.
@@ -2346,9 +2346,9 @@ Theorem repeat_fission' :
   rewrite sumList_permutation.
   Focus 2.
   eapply (evalDist_getSupport_filter_perm _ (a <-$ c; f a)); intuition.
-  
+
   eapply sumList_body_eq; intuition.
-  
+
   repeat rewrite evalDistRepeat_sup_0; intuition;
   eapply getSupport_not_In_evalDist; intuition;
   repeat simp_in_support; intuition.
@@ -2358,18 +2358,18 @@ Theorem repeat_fission' :
   repeat rewrite evalDistRepeat_pred_0; intuition.
 Qed.
 
-Theorem prob_or_le_sum : 
+Theorem prob_or_le_sum :
   forall (c1 c2 : Comp bool),
     Pr[x1 <-$ c1;
         x2 <-$ c2;
         ret (x1 || x2)] <= Pr[c1] + Pr[c2].
-  
+
   intuition.
   Local Transparent evalDist.
   simpl.
   rewrite (sumList_partition (fun x => x)).
   eapply ratAdd_leRat_compat.
-  
+
   eapply leRat_trans.
   Focus 2.
   eapply eqRat_impl_leRat.
@@ -2387,12 +2387,12 @@ Theorem prob_or_le_sum :
   eapply eqRat_impl_leRat.
   eapply ratMult_1_r.
   eapply evalDist_sum_le_1.
-  
+
   intuition.
 
   rewrite ratMult_0_r.
   eapply rat0_le_all.
-  
+
   eapply leRat_trans.
   Focus 2.
   eapply eqRat_impl_leRat.
@@ -2414,7 +2414,7 @@ Theorem prob_or_le_sum :
   intuition.
   destruct a.
   destruct (EqDec_dec bool_EqDec true true); intuition.
-  
+
   eapply leRat_trans.
   eapply eqRat_impl_leRat.
   eapply sumList_body_eq.
@@ -2443,7 +2443,7 @@ Theorem prob_or_le_sum :
   reflexivity.
   eapply H1.
   eapply evalDist_sum_le_1.
-  
+
   destruct ( EqDec_dec bool_EqDec false true).
   discriminate.
   eapply leRat_trans.
@@ -2456,11 +2456,11 @@ Theorem prob_or_le_sum :
   destruct (EqDec_dec bool_EqDec false true ); try discriminate.
   repeat rewrite ratMult_0_r.
   eapply ratMult_0_l.
-  
+
   eapply rat0_le_all.
 Qed.
 
-Theorem evalDist_orb_le : 
+Theorem evalDist_orb_le :
   forall (A : Set)(c : Comp A) f1 f2,
     Pr [x <-$ c; ret (f1 x || f2 x)] <=
     Pr[ x <-$ c; ret (f1 x)] + Pr[x <-$ c; ret (f2 x)].
@@ -2489,5 +2489,5 @@ Theorem evalDist_orb_le :
   eapply rat0_le_all.
   rewrite ratMult_1_r.
   reflexivity.
-  
+
 Qed.

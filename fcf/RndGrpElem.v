@@ -16,7 +16,7 @@ Definition RndGrpElem`{FCG : FiniteCyclicGroup}{eqd : EqDec GroupElement} :=
 Section RndGrpElem.
 
   Context`{FCG : FiniteCyclicGroup}.
-  Hypothesis GroupElement_EqDec : EqDec GroupElement. 
+  Hypothesis GroupElement_EqDec : EqDec GroupElement.
 
   Theorem RndGrpElem_wf : well_formed_comp RndGrpElem.
 
@@ -78,15 +78,15 @@ Section RndGrpElem.
     intuition.
     unfold RndGrpElem.
 
-    eapply (evalDist_iso 
-              (fun z => (modNat (z + (modNatAddInverse (groupLog g y) order) + (groupLog g x))) order) 
+    eapply (evalDist_iso
+              (fun z => (modNat (z + (modNatAddInverse (groupLog g y) order) + (groupLog g x))) order)
               (fun z => (modNat (z + (groupLog g y) + (modNatAddInverse (groupLog g x) order)) order))); intuition.
 
     rewrite <- plus_assoc.
     rewrite <- modNat_plus.
     assert ((x0 + groupLog g y + modNatAddInverse (groupLog g x) order +
-      (modNatAddInverse (groupLog g y) order + groupLog g x)) = 
-    ((groupLog g y + modNatAddInverse (groupLog g y) order) + 
+      (modNatAddInverse (groupLog g y) order + groupLog g x)) =
+    ((groupLog g y + modNatAddInverse (groupLog g y) order) +
       (groupLog g x + modNatAddInverse (groupLog g x) order +
       x0)))%nat.
     omega.
@@ -104,8 +104,8 @@ Section RndGrpElem.
     rewrite <- plus_assoc.
     rewrite <- modNat_plus.
     assert ((x0 + modNatAddInverse (groupLog g y) order + groupLog g x +
-      (groupLog g y + modNatAddInverse (groupLog g x) order)) = 
-    (groupLog g x + modNatAddInverse (groupLog g x) order + 
+      (groupLog g y + modNatAddInverse (groupLog g x) order)) =
+    (groupLog g x + modNatAddInverse (groupLog g x) order +
       (groupLog g y + modNatAddInverse (groupLog g y) order + x0)))%nat.
     omega.
     rewrite H0.
@@ -175,9 +175,9 @@ Section RndGrpElem.
     apply g_generator.
     apply g_generator.
     apply g_generator.
-  Qed. 
+  Qed.
 
-  Theorem RndGrpElem_spec : 
+  Theorem RndGrpElem_spec :
     forall x y,
       comp_spec (fun a b => a = x <-> b = y) RndGrpElem RndGrpElem.
 

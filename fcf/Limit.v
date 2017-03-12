@@ -17,7 +17,7 @@ Section Limit.
 
   Variable A : Set.
   Variable eq : A -> A -> Prop.
-  Hypothesis eq_dec : forall (a1 a2 : A), 
+  Hypothesis eq_dec : forall (a1 a2 : A),
     {eq a1 a2} + {~eq a1 a2}.
   Hypothesis eq_refl : forall (a : A),
     eq a a.
@@ -41,7 +41,7 @@ Section Limit.
     eq a1 a3 ->
     eq a2 a4 ->
     eq (distance a1 a2) (distance a3 a4).
- 
+
 
   Variable le : A -> A -> Prop.
   Hypothesis le_eq : forall (a1 a2 : A),
@@ -51,7 +51,7 @@ Section Limit.
     le a1 a2 ->
     le a2 a3 ->
     le a1 a3.
-  
+
   (* all numbers positive *)
   Hypothesis all_pos : forall (a : A),
     le zero a.
@@ -80,12 +80,12 @@ Section Limit.
   Theorem le_epsilon_zero : forall (a : A),
     (forall (epsilon : A), ~eq epsilon zero -> le a epsilon) ->
     eq a zero.
-    
+
     intuition.
-    
+
     destruct (eq_dec a zero).
     trivial.
-    
+
     exfalso.
     specialize (H (half a)).
     apply f.
@@ -104,11 +104,11 @@ Section Limit.
       r n a1 ->
       r n a2 ->
       eq a1 a2.
-    
+
 
   Definition inf_limit(f : nat -> A -> Prop)(a : A) :=
     forall (epsilon : A),
-      ~eq epsilon zero -> 
+      ~eq epsilon zero ->
       exists n : nat,
         forall (n' : nat),
           n' >= n ->
@@ -121,7 +121,7 @@ Section Limit.
   (* We could define inf_limit in terms of inf_limit_2, but inf_limit_2 only shows up in proofs, while inf_limit shows up in top-level definitions. *)
   Definition inf_limit_2(f f' : nat -> A -> Prop) :=
     forall (epsilon : A),
-      ~eq epsilon zero -> 
+      ~eq epsilon zero ->
       exists n : nat,
         forall (n' : nat),
           n' >= n ->
@@ -129,7 +129,7 @@ Section Limit.
             f n' a ->
             f' n' a' ->
             le (distance a a') epsilon.
-  
+
   Theorem inf_limit_2_const : forall (f : nat -> A -> Prop)(a : A),
     inf_limit_2 f (fun x => eq a) <->
     inf_limit f a.
@@ -145,7 +145,7 @@ Section Limit.
     inf_limit f a1 ->
     inf_limit f a2 ->
     le (distance a1 a2) epsilon.
-    
+
    (*  remember half as h. *)
 
     intuition.
@@ -181,7 +181,7 @@ Section Limit.
     trivial.
     eapply le_eq.
     eapply half_plus.
-  Qed.    
+  Qed.
 
   Theorem limits_eq : forall f a1 a2,
     left_total f ->
@@ -194,7 +194,7 @@ Section Limit.
 
     eapply le_epsilon_zero.
     intuition.
- 
+
     eapply limit_eq_h; eauto.
   Qed.
 
@@ -237,7 +237,7 @@ Theorem rat_inf_limit_2_trans : forall f1 f2 f3,
   rat_inf_limit_2 f2 f3 ->
   left_total f2 ->
   rat_inf_limit_2 f1 f3.
-  
+
   unfold rat_inf_limit_2, inf_limit_2; intuition.
   edestruct (H (ratHalf epsilon)).
   eapply ratHalf_ne_0; intuition.
@@ -308,7 +308,7 @@ Lemma rat_inf_limit_div_2 : forall (f : nat -> Rat -> Prop)(v : Rat),
   unfold rat_inf_limit, inf_limit.
   intuition.
   destruct (H epsilon); intuition.
-  
+
   econstructor.
   intuition.
   specialize (H1 (div2 n')).
@@ -359,7 +359,7 @@ Lemma rat_inf_limit_difference : forall (f1 f2 : nat -> Rat -> Prop) c1 c2,
   left_total f1 ->
   left_total f2 ->
   rat_inf_limit f1 c1 ->
-  rat_inf_limit f2 c2 -> 
+  rat_inf_limit f2 c2 ->
   rat_inf_limit (fun n => (ratSubtract_rel (f1 n) (f2 n))) (ratSubtract c1 c2).
 
   unfold rat_inf_limit, inf_limit in *.
@@ -369,10 +369,10 @@ Lemma rat_inf_limit_difference : forall (f1 f2 : nat -> Rat -> Prop) c1 c2,
 
   edestruct (H1 (ratHalf epsilon)).
   eapply ratHalf_ne_0.
-  intuition.  
+  intuition.
   edestruct (H2 (ratHalf epsilon)).
   eapply ratHalf_ne_0.
-  intuition. 
+  intuition.
   exists (Max.max x x0).
   intuition.
   unfold ratSubtract_rel in *.
@@ -381,10 +381,10 @@ Lemma rat_inf_limit_difference : forall (f1 f2 : nat -> Rat -> Prop) c1 c2,
   rewrite H7; eauto.
   rewrite (ratSubtract_0 l).
   eapply ratDistance_0_r_le.
-  
+
   eapply leRat_trans.
   eapply ratSubtract_partition_leRat.
-  
+
   eapply ratSubtract_ratDistance_le.
   Focus 2.
   rewrite H4.
@@ -491,7 +491,7 @@ Lemma rat_inf_limit_product : forall (f1 f2 : nat -> Rat -> Prop) c1 c2,
   left_total f1 ->
   left_total f2 ->
   rat_inf_limit f1 c1 ->
-  rat_inf_limit f2 c2 -> 
+  rat_inf_limit f2 c2 ->
   rat_inf_limit (fun n => (ratMult_rel (f1 n) (f2 n))) (c1 * c2).
 
   (* This is the proof found at http://planetmath.org/ProofOfLimitRuleOfProduct.html *)
@@ -598,7 +598,7 @@ Lemma rat_inf_limit_product : forall (f1 f2 : nat -> Rat -> Prop) c1 c2,
 Qed.
 
 Definition rat_limit(f : Rat -> Rat -> Prop)(p L : Rat) :=
-  forall epsilon, 
+  forall epsilon,
     ~ (epsilon == 0) ->
     exists delta, (~delta == 0) /\
       forall x v,
@@ -644,10 +644,10 @@ Lemma rat_inf_limit_trans : forall (f1 f2 : nat -> Rat -> Prop) a,
   intuition.
   edestruct (H (ratHalf epsilon)).
   eapply ratHalf_ne_0.
-  intuition.  
+  intuition.
   edestruct (H0 (ratHalf epsilon)).
   eapply ratHalf_ne_0.
-  intuition.  
+  intuition.
   exists (Max.max x x0).
   intuition.
   destruct (H1 n').
@@ -768,11 +768,11 @@ Lemma rat_inf_limit_summation : forall (A : Set)(f1 : A -> nat -> Rat -> Prop)(f
   intuition.
   eauto.
 Qed.
-  
+
 Lemma ratInverse_continuous : forall c,
   ~ c == 0 ->
   continuous_at (fun v' r : Rat => r == ratInverse v') c.
-  
+
   unfold continuous_at, rat_limit in *.
   intuition.
 
@@ -787,7 +787,7 @@ Lemma ratInverse_continuous : forall c,
 
   rewrite H2.
   rewrite H0.
-  
+
   assert (ratDistance x c <= c * (1/2)).
   eapply leRat_trans.
   eapply H3.
@@ -859,7 +859,7 @@ Lemma rat_inf_limit_ratInverse : forall (f : nat -> Rat -> Prop) a v,
   ratInverse a == v ->
   left_total f ->
   rat_inf_limit (fun n => ratInverse_rel (f n)) v.
-  
+
   intuition.
   eapply rat_inf_limit_comp.
   eauto.
@@ -868,7 +868,7 @@ Lemma rat_inf_limit_ratInverse : forall (f : nat -> Rat -> Prop) a v,
   eapply ratInverse_continuous.
   trivial.
   trivial.
-  
+
 Qed.
 
 Lemma rat_inf_limit_exp_0 : forall (f : nat -> Rat -> Prop) a,
@@ -884,7 +884,7 @@ Lemma rat_inf_limit_exp_0 : forall (f : nat -> Rat -> Prop) a,
   intuition.
   apply ratMult_0 in H3.
   intuition.
-  eapply H0.  
+  eapply H0.
   eapply ratSubtract_0_inv.
   trivial.
 
@@ -906,13 +906,13 @@ Lemma rat_inf_limit_exp_0 : forall (f : nat -> Rat -> Prop) a,
   eapply Max.max_lub_l.
   eauto.
   trivial.
-  
+
   eapply expRat_le'.
   eauto.
   eapply half_distance_1_le; trivial.
   eapply Max.max_lub_r.
   eauto.
- 
+
 Qed.
 
 Lemma power_series_limit_2 : forall (f : nat -> Rat -> Prop) a,
@@ -921,20 +921,20 @@ Lemma power_series_limit_2 : forall (f : nat -> Rat -> Prop) a,
   ~ 1 <= a ->
   (forall n, exists v, f n v) ->
   (forall n v1 v2, f n v1 -> f n v2 -> v1 == v2) ->
-  rat_inf_limit 
-  (fun n => sumList_rel 
+  rat_inf_limit
+  (fun n => sumList_rel
     (fun i => expRat_rel (f n) i)
     (getNats O n))
   (ratInverse (ratSubtract 1 a)).
 
   intuition.
-  
+
   eapply (@rat_inf_limit_trans _ (fun n => (ratMult_rel (ratSubtract_rel (eqRat 1) (expRat_rel (f n) n)) (ratInverse_rel (ratSubtract_rel (eqRat 1) (f n)))))).
   unfold rat_inf_limit_2, inf_limit_2.
   intuition.
   exists (S O).
   intuition.
-  destruct (H2 n'). 
+  destruct (H2 n').
   eapply leRat_trans.
   eapply eqRat_impl_leRat.
   rewrite <- ratIdentityIndiscernables.
@@ -955,7 +955,7 @@ Lemma power_series_limit_2 : forall (f : nat -> Rat -> Prop) a,
 
   eapply rat_inf_limit_eq.
   eapply rat_inf_limit_product.
-    
+
   unfold left_total, ratSubtract_rel, expRat_rel. intuition.
   destruct (H2 n).
   exists (ratSubtract 1 (expRat x n)).
@@ -978,12 +978,12 @@ Lemma power_series_limit_2 : forall (f : nat -> Rat -> Prop) a,
 
   symmetry.
   eapply H5; intuition.
-  
+
   eapply rat_inf_limit_difference.
 
   unfold left_total; intuition.
   exists 1; intuition.
-  
+
   unfold left_total, expRat_rel; intuition.
   destruct (H2 n).
   exists (expRat x n).
@@ -1009,7 +1009,7 @@ Lemma power_series_limit_2 : forall (f : nat -> Rat -> Prop) a,
   econstructor.
   eapply eqRat_refl.
   unfold left_total; intuition.
-  
+
   eapply rat_inf_limit_const.
   eapply eqRat_refl.
   intuition.
@@ -1021,7 +1021,7 @@ Lemma power_series_limit_2 : forall (f : nat -> Rat -> Prop) a,
   eapply H1.
   eapply ratSubtract_0_inv.
   trivial.
-  
+
   eapply eqRat_refl.
   unfold left_total; intuition.
   destruct (H2 n).
@@ -1051,7 +1051,7 @@ Lemma power_series_limit_2 : forall (f : nat -> Rat -> Prop) a,
 Qed.
 
 Lemma rat_inf_limit_mono  : forall (f : nat -> Rat -> Prop) (g : nat -> nat)(v : Rat),
-    rat_inf_limit f v -> 
+    rat_inf_limit f v ->
     (forall n1 n2, n1 <= n2 -> g n1 <= g n2)%nat ->
     (forall y, exists x, g x = y) ->
     rat_inf_limit (fun n => f (g n)) v.
@@ -1075,7 +1075,7 @@ Qed.
 
 Lemma rat_inf_limit_sqrt:
   forall (f : nat -> Rat -> Prop) (v : Rat),
-    rat_inf_limit f v -> 
+    rat_inf_limit f v ->
     rat_inf_limit (fun n => f (Nat.sqrt n)) v.
 
   intuition.

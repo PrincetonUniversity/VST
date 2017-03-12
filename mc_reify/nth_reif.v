@@ -3,7 +3,7 @@ Require Import compcert.lib.Maps.
 Require Import mc_reify.func_defs.
 
 Definition as_list (e : expr typ func) : option
-  ((typ * expr typ func * expr typ func) + typ) := 
+  ((typ * expr typ func * expr typ func) + typ) :=
 match e with
   | Inj (inr (Data (fnil ty))) => Some (inr ty)
   | App (App (Inj (inr (Data (fcons ty)))) hd) tl => Some (inl (ty, hd, tl))
@@ -24,7 +24,7 @@ Fixpoint rnth_error (t: typ) (xs: expr typ func) (n: nat) : expr typ func :=
 Fixpoint rreplace_nth (t: typ) (n: nat) (xs: expr typ func) (x: expr typ func) : expr typ func :=
   match as_list xs with
   | Some (inr ty) => xs
-  | Some (inl (ty, hd, tl)) => 
+  | Some (inl (ty, hd, tl)) =>
     match n with
     | O => App (App (Inj (inr (Data (fcons ty)))) x) tl
     | S n0 => App (App (Inj (inr (Data (fcons ty)))) hd) (rreplace_nth t n0 tl x)
@@ -57,7 +57,7 @@ Existing Instance MA.
 Definition reflect tus tvs e (ty : typ)
  := @exprD _ _ _ Expr_expr_fs tus tvs e ty.
 
-Lemma some_none: forall T v, @None T = Some v -> False. 
+Lemma some_none: forall T v, @None T = Some v -> False.
 intros. congruence.
 Qed.
 
@@ -68,8 +68,8 @@ Proof.
   intros.
   unfold as_list in H.
   repeat
-  match goal with 
-  | [ H : match ?x with _ => _  end = _ |- _ ] => destruct x; 
+  match goal with
+  | [ H : match ?x with _ => _  end = _ |- _ ] => destruct x;
     try (apply some_none in H; contradiction) end.
   congruence.
   inversion H. subst. auto.
@@ -82,8 +82,8 @@ Proof.
   intros.
   unfold as_list in H.
   repeat
-  match goal with 
-  | [ H : match ?x with _ => _  end = _ |- _ ] => destruct x; 
+  match goal with
+  | [ H : match ?x with _ => _  end = _ |- _ ] => destruct x;
     try (apply some_none in H; contradiction) end.
   inversion H. subst. auto.
   congruence.
@@ -96,8 +96,8 @@ Opaque type_cast.
 Ltac destruct_as_list :=
 repeat
 match goal with
-| [ H : context [ match as_list ?x with _ => _ end] |- _] => destruct (as_list x) eqn:? 
-| [ |- context [ match as_list ?x with _ => _ end]] => destruct (as_list x) eqn:? 
+| [ H : context [ match as_list ?x with _ => _ end] |- _] => destruct (as_list x) eqn:?
+| [ |- context [ match as_list ?x with _ => _ end]] => destruct (as_list x) eqn:?
 | [ H : as_list _ = Some (inr _) |- _ ] => apply as_list_nil in H
 | [ H : as_list _ = Some (inl (_ , _, _)) |- _ ] => apply as_list_cons in H
 | [ H : as_list _ = Some (inl (?p, _)) |- _ ] => destruct p
@@ -113,7 +113,7 @@ exprD' tus tvs (tyoption typ) (App (Inj (inr (Data (fnth_error typ n)))) xs)  =
 exprD' tus tvs (tyoption typ) (rnth_error typ xs n).
 Proof.
 intros.
-match goal with 
+match goal with
         [ |- ?l = ?r ] => destruct l eqn:?, r eqn:?
     end; auto.
   + solve_exprD. simpl in *. unfold exprT_App. simpl. rewrite <- Heqo0.
@@ -174,7 +174,7 @@ exprD' tus tvs (tylist typ) (rreplace_nth typ n xs x).
 Proof.
   fold func in *; unfold RSym_sym in *.
   intros.
-  match goal with 
+  match goal with
         [ |- ?l = ?r ] => destruct l eqn:?, r eqn:?
     end; auto.
   + solve_exprD. simpl in *. unfold exprT_App. simpl. rewrite <- Heqo0.

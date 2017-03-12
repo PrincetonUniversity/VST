@@ -10,7 +10,7 @@ Definition t_struct_c := Tstruct _c noattr.
 Definition get_spec0 :=
  DECLARE _get
   WITH v : reptype' t_struct_c, p: val
-  PRE  [] 
+  PRE  []
         PROP  ()
         LOCAL (gvar _p p)
         SEP   (data_at Ews t_struct_c (repinj _ v) p)
@@ -23,7 +23,7 @@ Definition get_spec : ident * funspec.
  let t := eval compute in (reptype' t_struct_c) in
  exact (DECLARE _get
   WITH v : t, p: val
-  PRE  [] 
+  PRE  []
         PROP  ()
         LOCAL (gvar _p p)
         SEP   (data_at Ews t_struct_c (repinj t_struct_c v) p)
@@ -39,7 +39,7 @@ Definition update222 (i: int) (v: reptype' t_struct_c) : reptype' t_struct_c :=
 Definition set_spec :=
  DECLARE _set
   WITH i : int, v : reptype' t_struct_c, p : val
-  PRE  [ _i OF tint ] 
+  PRE  [ _i OF tint ]
         PROP ()
         LOCAL(temp _i (Vint i); gvar _p p)
         SEP(data_at Ews t_struct_c (repinj _ v) p)

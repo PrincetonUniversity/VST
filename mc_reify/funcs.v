@@ -52,7 +52,7 @@ end.
 Definition constD (c : const)
 : typD (typeof_const c) :=
 match c with
-| fN c | fZ c | fPos c | fident c | fCtype c | fCexpr c | fComparison c | fbool c | fint c 
+| fN c | fZ c | fPos c | fident c | fCtype c | fCexpr c | fComparison c | fbool c | fint c
 | fint64 c | ffloat c | ffloat32 c | fenv c | fllrr c
                                           => c
 end.
@@ -244,7 +244,7 @@ Inductive other :=
 | fsome : typ -> other
 | ftypeof
 | fTrue
-| fFalse 
+| fFalse
 .
 
 Definition typeof_other (o : other) :=
@@ -254,7 +254,7 @@ match o with
 | fand => tyArr typrop (tyArr typrop typrop)
 | falign => tyArr tyZ (tyArr tyZ tyZ)
 | ftyped_true => tyArr tyc_type (tyArr tyval typrop)
-| feq t => tyArr t (tyArr t typrop) 
+| feq t => tyArr t (tyArr t typrop)
 | fnone t => tyoption t
 | fsome t => tyArr t (tyoption t)
 | ftypeof => tyArr tyc_expr tyc_type
@@ -268,7 +268,7 @@ match o with
 | fand => and
 | falign => align
 | ftyped_true => typed_true
-| feq t => @eq (typD t) 
+| feq t => @eq (typD t)
 | fsome t => @Some (typD t)
 | fnone t => @None (typD t)
 | ftypeof => typeof
@@ -337,7 +337,7 @@ Inductive sep :=
 | fproj_val : type -> sep
 | fupd_val : type -> sep
 (*| flseg : forall (t: type) (i : ident), listspec t i -> sep*)
-. 
+.
 
 Fixpoint reptyp (ty: type) : typ :=
   match ty with
@@ -355,27 +355,27 @@ Fixpoint reptyp (ty: type) : typ :=
 with reptyp_structlist (fld: fieldlist) : typ :=
   match fld with
   | Fnil => tyunit
-  | Fcons id ty fld' => 
-    if is_Fnil fld' 
+  | Fcons id ty fld' =>
+    if is_Fnil fld'
       then reptyp ty
       else typrod (reptyp ty) (reptyp_structlist fld')
   end
 with reptyp_unionlist (fld: fieldlist) : typ :=
   match fld with
   | Fnil => tyunit
-  | Fcons id ty fld' => 
-    if is_Fnil fld' 
+  | Fcons id ty fld' =>
+    if is_Fnil fld'
       then reptyp ty
       else tysum (reptyp ty) (reptyp_unionlist fld')
   end.
- 
+
 Definition typeof_sep (s : sep) : typ :=
 match s with
 | fdata_at t => tyArr tyshare (tyArr (reptyp t) (tyArr tyval tympred))
 | ffield_at t gfs => tyArr tyshare (tyArr (reptyp (nested_field_type2 t gfs)) (tyArr tyval tympred))
-(*| flseg t i l => tyArr tyshare (tyArr (tylist (reptyp_structlist (@all_but_link i (list_fields)))) 
+(*| flseg t i l => tyArr tyshare (tyArr (tylist (reptyp_structlist (@all_but_link i (list_fields))))
                                       (tyArr tyval (tyArr tyval tympred)))*)
-| flocal => tyArr (tyArr tyenviron typrop) (tyArr tyenviron tympred) 
+| flocal => tyArr (tyArr tyenviron typrop) (tyArr tyenviron tympred)
 | fprop => tyArr typrop tympred
 | fproj_val t => tyArr (tylist tygfield)
                  (tyArr (reptyp t) tyval)
@@ -458,7 +458,7 @@ with reptyp_structlist_reptype  fl {struct fl} : typD  (reptyp_structlist fl) ->
       let b := is_Fnil fl0 in
       if b as b0
          return
-         (typD 
+         (typD
                (if b0
                 then reptyp t
                 else typrod (reptyp t) (reptyp_structlist fl0)) ->
@@ -481,7 +481,7 @@ match
        let b := is_Fnil fl0 in
        if b as b0
         return
-          (typD 
+          (typD
              (if b0
               then reptyp t
               else tysum (reptyp t) (reptyp_unionlist fl0)) ->
@@ -521,7 +521,7 @@ with reptype_structlist_reptyp fl {struct fl} : reptype_structlist fl -> typD (r
          ((if b0
           then reptype t
           else (reptype t * reptype_structlist fl0)%type) ->
-          typD 
+          typD
                (if b0
                 then reptyp t
                 else typrod (reptyp t) (reptyp_structlist fl0)))
@@ -542,7 +542,7 @@ match
        if b as b0
         return
           ((if b0 then reptype t else (reptype t + reptype_unionlist fl0)%type) ->
-           typD 
+           typD
              (if b0
               then reptyp t
               else tysum (reptyp t) (reptyp_unionlist fl0)))
@@ -592,7 +592,7 @@ match s with
 | ffield_at t ids => _
 | fproj_val ty => _
 | fupd_val ty => _
-(*| flseg t id ls => _*) 
+(*| flseg t id ls => _*)
 end.
 { simpl. intros sh rt v.
   exact (data_at sh ty (reptyp_reptype  _ rt) v). }
@@ -613,14 +613,14 @@ Inductive smx :=
 | fstatement : statement -> smx
 | fretassert : ret_assert -> smx
 | ftycontext : PTree.t (type * bool) -> PTree.t type -> type -> PTree.t type ->  smx
-| fupdate_tycon 
+| fupdate_tycon
 (*| fPROPx
 | fLOCALx
 | fSEPx *)
 | fnormal_ret_assert
 (*| flocalD : PTree.t val -> PTree.t (type * val) -> list (environ -> Prop) -> smx *)
 | fassertD
-| flocalD 
+| flocalD
 | fvaltree : PTree.t val -> smx
 | fdenote_tc_assert_b_norho
 | ftc_expr_b_norho
@@ -661,7 +661,7 @@ match t with
 | fSEPx => tyArr (tylist (tyArr tyenviron tympred)) (tyArr tyenviron tympred)*)
 | fnormal_ret_assert => tyArr (tyArr tyenviron tympred) (tyret_assert)
 | fenviron e => tyenviron
-| flocalD  => tyArr (typtree tyval) 
+| flocalD  => tyArr (typtree tyval)
                     (tyArr (typtree (typrod tyc_type tyval)) (tylist (tyArr tyenviron typrop)))
 | fupdate_tycon => tyArr tytycontext (tyArr tystatement tytycontext)
 | fvaltree t => typtree tyval
@@ -675,7 +675,7 @@ match t with
 | flater_lift => tyArr (tyArr tyenviron tympred) (tyArr tyenviron tympred)
 | fnested_field_type2 => tyArr tyc_type (tyArr (tylist tygfield) tyc_type)
 | fis_neutral_cast => tyArr tyc_type (tyArr tyc_type tybool)
-| fmsubst_efield_denote _ => tyArr (typtree tyval) 
+| fmsubst_efield_denote _ => tyArr (typtree tyval)
                            (tyArr (typtree (typrod tyc_type tyval))
                                  (tyoption (tylist tygfield)))
 | flegal_nested_efield _ => tyArr tytype_id_env
@@ -683,7 +683,7 @@ match t with
                            (tyArr tyc_expr
                             (tyArr (tylist tygfield)
                               (tyArr tyllrr tybool))))
-| fmsubst_eval_LR => tyArr (typtree tyval) 
+| fmsubst_eval_LR => tyArr (typtree tyval)
                      (tyArr (typtree (typrod tyc_type tyval))
                       (tyArr tyc_expr
                        (tyArr tyllrr (tyoption tyval))))
@@ -715,13 +715,13 @@ match t with
 | fSEPx => SEPx*)
 | fnormal_ret_assert => normal_ret_assert
 | fenviron e => (e : typD (typeof_smx (fenviron e)))
-| flocalD => localD 
+| flocalD => localD
 | fupdate_tycon => update_tycon
 | fvaltree t => t
 | fassertD => assertD
 | fdenote_tc_assert_b_norho => (denote_tc_assert_b_norho : typD (typeof_smx fdenote_tc_assert_b_norho))
 | ftc_expr_b_norho => tc_expr_b_norho
-| ftc_temp_id_b_norho id ty  => tc_temp_id_b_norho id ty 
+| ftc_temp_id_b_norho id ty  => tc_temp_id_b_norho id ty
 (*| fmsubst_eval_expr_norho => msubst_eval_expr*)
 (*| fmsubst_eval_lvalue_norho => msubst_eval_lvalue*)
 | flater => later

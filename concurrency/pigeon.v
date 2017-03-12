@@ -1,10 +1,10 @@
 Require Import Omega.
 
 Lemma pigeon:
-  forall (n m: nat) (f: nat->option nat), 
-     (forall i, i < n -> 
+  forall (n m: nat) (f: nat->option nat),
+     (forall i, i < n ->
       exists j, j < m /\ f i = Some j) ->
-    (forall i i' j j', 
+    (forall i i' j j',
           f i = Some j -> f i' = Some j' ->
           i<>i' -> j<>j') ->
     m>=n.
@@ -84,10 +84,10 @@ Proof.
  intros.
  apply (H0 _ _ _ _ H3 H4). auto.
 Qed.
- intros. 
+ intros.
 
  omega.
- apply H. 
+ apply H.
 
 
 
@@ -96,29 +96,29 @@ Qed.
  omega.
  omega.
  eapply H0; try eassumption. omega.
- 
- rewrite <- H6 in 
- 
+
+ rewrite <- H6 in
+
  omega.
 
 
  omega.
 
  inversion H4; clear H4; subst j'.
- 
+
  clear H6 H11 H10.
 
 
  rewrite <- H10 in H3.
 
- 
- 
- omega.
-
 
 
  omega.
- 
+
+
+
+ omega.
+
 
  omega.
 
@@ -127,24 +127,24 @@ Qed.
  rewrite <- H4 in H3. omega.
 
  rewrite <- beq_nat_refl in H4. inversion H4; clear H4; subst j'.
- 
+
 
  eapply H0; try eassumption. omega.
 
- rewrite 
+ rewrite
  eapply H0; try eassumption. omega.
- 
+
  omega.
  omega.
- 
+
  SearchAbout (_ =? _).
  clear H7.
- 
- 
+
+
  apply (H0 _ _ _ _ H3
  intro; subst j'.
 admit. omega.
- 
+
  assert (j <= S m) by admit.
  omega.
 
@@ -152,7 +152,7 @@ admit. omega.
  omega.
 
  exists m. split; auto
- 
+
  destruct (H n).
  omega.
 
@@ -160,4 +160,3 @@ admit. omega.
  red. red.
  simpl.
 
-  

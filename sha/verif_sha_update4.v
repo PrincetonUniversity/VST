@@ -14,7 +14,7 @@ Lemma Hblocks_lem:
  Zlength frag <= Zlength blocks * 4.
 Proof.
 intros.
-assert (Zlength (intlist_to_Zlist blocks) = 
+assert (Zlength (intlist_to_Zlist blocks) =
                Zlength ( frag ++
      sublist 0 (Zlength blocks * 4 - Zlength frag) data)) by congruence.
  autorewrite with sublist in H0.
@@ -53,20 +53,20 @@ Definition update_outer_if :=
         Sskip.
 
 Lemma update_outer_if_proof:
- forall  (Espec : OracleKind) (hashed : list int) 
+ forall  (Espec : OracleKind) (hashed : list int)
            (dd data : list Z) (c d : val) (sh : share) (len : Z) kv
    (H : 0 <= len <= Zlength data)
    (Hsh: readable_share sh)
    (HBOUND : bitlength hashed dd + len * 8 < two_p 64)
    (H3 : Zlength dd < CBLOCKz)
-   (H3' : Forall isbyteZ dd) 
+   (H3' : Forall isbyteZ dd)
    (H4 : (LBLOCKz | Zlength hashed))
    (Hlen : len <= Int.max_unsigned),
 semax
   (initialized_list [_data; _p; _n]
      (func_tycontext f_SHA256_Update Vprog Gtot))
   (PROP  ()
-   LOCAL 
+   LOCAL
    (temp _p (field_address t_struct_SHA256state_st [StructField _data] c);
     temp _n (Vint (Int.repr (Zlength dd)));
     temp _data d; temp _c c;temp _data_ d;
@@ -76,11 +76,11 @@ semax
                  (map Vint (hash_blocks init_registers hashed),
                   (Vint (lo_part (bitlength hashed dd + len*8)),
                    (Vint (hi_part (bitlength hashed dd + len*8)),
-                    (map Vint (map Int.repr dd) ++ list_repeat (Z.to_nat (CBLOCKz-Zlength dd)) Vundef, 
+                    (map Vint (map Int.repr dd) ++ list_repeat (Z.to_nat (CBLOCKz-Zlength dd)) Vundef,
                      Vint (Int.repr (Zlength dd))))))
                c;
      K_vector kv;
-     data_block sh data d)) 
+     data_block sh data d))
   update_outer_if
   (overridePost (sha_update_inv sh hashed len c d dd data kv false)
      (function_body_ret_assert tvoid
@@ -134,13 +134,13 @@ Time Qed. (*5.4*)
 
 Lemma update_while_proof:
  forall (Espec : OracleKind) (hashed : list int) (dd data: list Z) kv
-    (c d : val) (sh : share) (len : Z) 
+    (c d : val) (sh : share) (len : Z)
   (H : 0 <= len <= Zlength data)
    (Hsh: readable_share sh)
   (HBOUND : bitlength hashed dd + len * 8 < two_p 64)
   (H3 : Zlength dd < CBLOCKz)
-  (H3' : Forall isbyteZ dd) 
-  (H4 : (LBLOCKz | Zlength hashed)) 
+  (H3' : Forall isbyteZ dd)
+  (H4 : (LBLOCKz | Zlength hashed))
   (Hlen : len <= Int.max_unsigned),
  semax
      (initialized_list [_p; _n; _data]
@@ -175,7 +175,7 @@ forward_while
  rewrite Int.unsigned_repr in HRE by omega.
  assert_PROP (Forall isbyteZ data) as BYTESdata
   by (rewrite (data_block_isbyteZ sh data d); entailer!).
- pose (bl := Zlist_to_intlist (sublist (Zlength blocks * 4 - Zlength dd) 
+ pose (bl := Zlist_to_intlist (sublist (Zlength blocks * 4 - Zlength dd)
                                                    (Zlength blocks * 4 - Zlength dd + CBLOCKz) data)).
 assert (Zlength bl = LBLOCKz). {
  apply Zlength_Zlist_to_intlist.
@@ -185,13 +185,13 @@ assert (Zlength bl = LBLOCKz). {
  {
   rename H6 into Hdiv. rename H7 into Hblocks. rename H0 into H7.
   rename HRE into Hlen_ge.  clear H5.
-  assert (H6: sublist (Zlength blocks * 4 - Zlength dd) 
+  assert (H6: sublist (Zlength blocks * 4 - Zlength dd)
                     (Zlength blocks * 4 - Zlength dd + CBLOCKz) data =
         intlist_to_Zlist bl).
   unfold bl; rewrite Zlist_to_intlist_to_Zlist; auto.
   pose proof CBLOCKz_eq;  autorewrite with sublist.
   exists LBLOCKz; reflexivity.
-  rename dd into frag. 
+  rename dd into frag.
   clear H7; rename H1 into H7.
   rename HBOUND into LEN64.
   clear - Hsh H Hdiv H4 Hblocks H3 Hlen Hlen_ge H6 H7 LEN64.
@@ -214,11 +214,11 @@ assert (Zlength bl = LBLOCKz). {
   }
  rewrite H6.
  Time forward_call (* sha256_block_data_order (c,data); *)
-   (hashed++ blocks,  bl, c, 
+   (hashed++ blocks,  bl, c,
     field_address0 (tarray tuchar (Zlength data))  [ArraySubsc lo] d,
     sh, kv). (*3.8*)
   { Time unfold_data_at 1%nat. (*0.8*)
-    Time cancel. (*2.5*) 
+    Time cancel. (*2.5*)
   }
  split3; auto. apply divide_length_app; auto.
  Time forward. (* data += SHA_CBLOCK; *) (*5*)
@@ -227,7 +227,7 @@ assert (Zlength bl = LBLOCKz). {
  Exists (blocks++ bl).
  Time entailer!. (*17.4 SLOW*)
  subst lo. autorewrite with sublist.
- rewrite Z.mul_add_distr_r. 
+ rewrite Z.mul_add_distr_r.
  {repeat split; auto.
   + Omega1.
   + rewrite H7; apply Z.divide_add_r; auto. apply Z.divide_refl.

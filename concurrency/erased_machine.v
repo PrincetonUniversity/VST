@@ -13,11 +13,11 @@ Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
 
-(*NOTE: because of redefinition of [val], these imports must appear 
+(*NOTE: because of redefinition of [val], these imports must appear
   after Ssreflect eqtype.*)
 Require Import compcert.common.AST.     (*for typ*)
 Require Import compcert.common.Values. (*for val*)
-Require Import compcert.common.Globalenvs. 
+Require Import compcert.common.Globalenvs.
 Require Import compcert.common.Memory.
 Require Import compcert.lib.Integers.
 Require Import concurrency.threads_lemmas.
@@ -52,22 +52,22 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
    Import ThreadPool.
    Import ThreadPool.SEM ThreadPool.RES.
    Import event_semantics Events.
-   
+
    Notation tid := NatTID.tid.
 
    (** Memories*)
    Definition richMem: Type:= mem.
    Definition dryMem: richMem -> mem:= id.
    Definition diluteMem: mem -> mem := erasePerm.
-   
+
    Notation thread_pool := (ThreadPool.t).
    Notation perm_map := ThreadPool.RES.res.
-   
+
    (** The state respects the memory*)
    Definition mem_compatible (tp : thread_pool) (m : mem) : Prop := True.
 
    Definition invariant (tp : thread_pool) := True.
-   
+
    (** Steps*)
    Inductive dry_step genv {tid0 tp m} (cnt: containsThread tp tid0)
              (Hcompatible: mem_compatible tp m) :
@@ -91,7 +91,7 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
          (Hstore: Mem.store Mint32 m b (Int.intval ofs) (Vint Int.zero) = Some m')
          (Htp': tp' = updThreadC cnt0 (Kresume c Vundef)),
          ext_step genv cnt0 Hcompat tp' m' (acquire (b, Int.intval ofs) None)
-                  
+
    | step_release :
        forall (tp':thread_pool) c m' b ofs
          (Hcode: getThreadC cnt0 = Kblocked c)
@@ -100,7 +100,7 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
          (Hstore: Mem.store Mint32 m b (Int.intval ofs) (Vint Int.one) = Some m')
          (Htp': tp' = updThreadC cnt0 (Kresume c Vundef)),
          ext_step genv cnt0 Hcompat tp' m' (release (b, Int.intval ofs) None)
-                  
+
    | step_create :
        forall (tp_upd tp':thread_pool) c b ofs arg
          (Hcode: getThreadC cnt0 = Kblocked c)
@@ -109,7 +109,7 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
          (Htp_upd: tp_upd = updThreadC cnt0 (Kresume c Vundef))
          (Htp': tp' = addThread tp_upd (Vptr b ofs) arg tt),
          ext_step genv cnt0 Hcompat tp' m (spawn (b, Int.intval ofs) None None)
-                  
+
    | step_mklock :
        forall  (tp': thread_pool) c m' b ofs
           (Hcode: getThreadC cnt0 = Kblocked c)
@@ -118,7 +118,7 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
           (Hstore: Mem.store Mint32 m b (Int.intval ofs) (Vint Int.zero) = Some m')
           (Htp': tp' = updThreadC cnt0 (Kresume c Vundef)),
          ext_step genv cnt0 Hcompat tp' m' (mklock (b, Int.intval ofs))
-                  
+
    | step_freelock :
        forall (tp' tp'': thread_pool) c b ofs
          (Hcode: getThreadC cnt0 = Kblocked c)
@@ -126,7 +126,7 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
                         Some (FREE_LOCK, Vptr b ofs::nil))
          (Htp': tp' = updThreadC cnt0 (Kresume c Vundef)),
          ext_step genv cnt0 Hcompat  tp' m (freelock (b,Int.intval ofs))
-                  
+
    | step_acqfail :
        forall  c b ofs
           (Hcode: getThreadC cnt0 = Kblocked c)
@@ -134,14 +134,14 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
                          Some (LOCK, Vptr b ofs::nil))
           (Hload: Mem.load Mint32 m b (Int.intval ofs) = Some (Vint Int.zero)),
          ext_step genv cnt0 Hcompat tp m (failacq (b, Int.intval ofs)).
-   
+
    Definition threadStep (genv : G): forall {tid0 ms m},
        containsThread ms tid0 -> mem_compatible ms m ->
        thread_pool -> mem -> seq mem_event -> Prop:=
      @dry_step genv.
 
    Lemma threadStep_equal_run:
-    forall g i tp m cnt cmpt tp' m' tr, 
+    forall g i tp m cnt cmpt tp' m' tr,
       @threadStep g i tp m cnt cmpt tp' m' tr ->
       forall j,
         (exists cntj q, @getThreadC j tp cntj = Krun q) <->
@@ -171,15 +171,15 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
         + exists q'.
           erewrite <- gsoThreadCC in running; eauto.
    Qed.
-   
+
    Definition syncStep (isCoarse:bool) (genv :G) :
      forall {tid0 ms m},
        containsThread ms tid0 -> mem_compatible ms m ->
        thread_pool -> mem -> sync_event -> Prop:=
      @ext_step isCoarse genv.
-    
+
   Lemma syncstep_equal_run:
-    forall b g i tp m cnt cmpt tp' m' tr, 
+    forall b g i tp m cnt cmpt tp' m' tr,
       @syncStep b g i tp m cnt cmpt tp' m' tr ->
       forall j,
         (exists cntj q, @getThreadC j tp cntj = Krun q) <->
@@ -237,7 +237,7 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
         | [ H: getThreadC ?cnt = Krun ?c |- _ ] =>
           exists cntj, c; exact H
         end).
-      (*Add thread case*) 
+      (*Add thread case*)
         assert (cntj':=cntj).
         eapply cntAdd' in cntj'; destruct cntj' as [ [HH HHH] | HH].
         * erewrite gsoAddCode; eauto.
@@ -249,9 +249,9 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
           Grab Existential Variables.
           all: eauto.
   Qed.
-  
+
   Lemma syncstep_not_running:
-    forall b g i tp m cnt cmpt tp' m' tr, 
+    forall b g i tp m cnt cmpt tp' m' tr,
       @syncStep b g i tp m cnt cmpt tp' m' tr ->
       forall cntj q, ~ @getThreadC i tp cntj = Krun q.
   Proof.
@@ -263,7 +263,7 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
           rewrite H; intros AA; inversion AA
       end.
   Qed.
-  
+
    Inductive threadHalted': forall {tid0 ms},
        containsThread ms tid0 -> Prop:=
    | thread_halted':
@@ -272,11 +272,11 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
          (Hcode: getThreadC cnt = Krun c)
          (Hcant: halted Sem c),
          threadHalted' cnt.
-   
+
    Definition threadHalted: forall {tid0 ms},
        containsThread ms tid0 -> Prop:= @threadHalted'.
 
-   
+
   Lemma threadHalt_update:
     forall i j, i <> j ->
       forall tp cnt cnti c' cnt',
@@ -288,9 +288,9 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
     erewrite <- (gsoThreadCC H); exact Hcode.
     erewrite (gsoThreadCC H); exact Hcode.
   Qed.
-  
+
   Lemma syncstep_equal_halted:
-    forall b g i tp m cnti cmpt tp' m' tr, 
+    forall b g i tp m cnti cmpt tp' m' tr,
       @syncStep b g i tp m cnti cmpt tp' m' tr ->
       forall j cnt cnt',
         (@threadHalted j tp cnt) <->
@@ -341,13 +341,13 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
         { (*AQCUIRE*)
             replace cnt with cnt0 by apply cnt_irr;
           exact Hcode. }
-                  
+
         Grab Existential Variables.
-        all:eauto. 
+        all:eauto.
   Qed.
-  
+
   Lemma threadStep_not_unhalts:
-    forall g i tp m cnt cmpt tp' m' tr, 
+    forall g i tp m cnt cmpt tp' m' tr,
       @threadStep g i tp m cnt cmpt tp' m' tr ->
       forall j cnt cnt',
         (@threadHalted j tp cnt) ->
@@ -365,9 +365,9 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
     - econstructor; eauto.
       erewrite <- gsoThreadCC; eauto.
   Qed.
-  
+
    Definition one_pos : pos := mkPos NPeano.Nat.lt_0_1.
-   
+
    Definition initial_machine c :=
      ThreadPool.mk
        one_pos
@@ -378,10 +378,10 @@ Module ErasedMachineShell (SEM:Semantics)  <: ConcurrentMachineSig
    Definition init_mach (_ : option unit) (genv:G)
               (v:val)(args:list val):option thread_pool :=
      match initial_core Sem genv v args with
-     | Some c =>      
+     | Some c =>
        Some (initial_machine c)
      | None => None
      end.
-     
+
 End ErasedMachineShell.
 

@@ -2,13 +2,17 @@ Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.type_induction.
-Require Import floyd.fieldlist.
+(*Require Import floyd.fieldlist.*)
 Require Import floyd.compact_prod_sum.
-Require Import floyd.aggregate_type.
+(*Require Import floyd.aggregate_type.*)
 Require Import floyd.mapsto_memory_block.
 Require Import floyd.nested_pred_lemmas.
 Require Import floyd.jmeq_lemmas.
 Require Import floyd.sublist.
+
+Require Export floyd.fieldlist.
+Require Export floyd.aggregate_type.
+
 
 Open Scope Z.
 Open Scope logic.
@@ -35,11 +39,11 @@ Definition fold_range {A: Type} (f: Z -> A -> A) (zero: A) (lo hi: Z) : A :=
   fold_range' f zero lo (Z.to_nat (hi-lo)).
 
 Lemma rangespec_shift_derives: forall lo lo' len P P' p p',
-  (forall i i', lo <= i < lo + Z_of_nat len -> i - lo = i' - lo' -> P i p |-- P' i' p') -> 
+  (forall i i', lo <= i < lo + Z_of_nat len -> i - lo = i' - lo' -> P i p |-- P' i' p') ->
   rangespec lo len P p |-- rangespec lo' len P' p'.
 Proof.
   intros.
-  revert lo lo' H; 
+  revert lo lo' H;
   induction len; intros.
   + simpl. auto.
   + simpl.
@@ -57,7 +61,7 @@ Proof.
 Qed.
 
 Lemma rangespec_ext_derives: forall lo len P P' p,
-  (forall i, lo <= i < lo + Z_of_nat len -> P i p |-- P' i p) -> 
+  (forall i, lo <= i < lo + Z_of_nat len -> P i p |-- P' i p) ->
   rangespec lo len P p |-- rangespec lo len P' p.
 Proof.
   intros.
@@ -70,7 +74,7 @@ Proof.
 Qed.
 
 Lemma rangespec_shift: forall lo lo' len P P' p p',
-  (forall i i', lo <= i < lo + Z_of_nat len -> i - lo = i' - lo' -> P i p = P' i' p') -> 
+  (forall i i', lo <= i < lo + Z_of_nat len -> i - lo = i' - lo' -> P i p = P' i' p') ->
   rangespec lo len P p = rangespec lo' len P' p'.
 Proof.
   intros; apply pred_ext; apply rangespec_shift_derives;
@@ -81,7 +85,7 @@ Proof.
 Qed.
 
 Lemma rangespec_ext: forall lo len P P' p,
-  (forall i, lo <= i < lo + Z_of_nat len -> P i p = P' i p) -> 
+  (forall i, lo <= i < lo + Z_of_nat len -> P i p = P' i p) ->
   rangespec lo len P p = rangespec lo len P' p.
 Proof.
   intros; apply pred_ext; apply rangespec_ext_derives;
@@ -160,7 +164,7 @@ Defined.
 Definition array_Prop {A: Type} (d:A) (lo hi: Z) (P: Z -> A -> Prop) (v: list A) : Prop :=
    Zlength v = hi-lo /\ Forallz P 0 v.
 
-Definition struct_Prop (m: members) {A: ident * type -> Type} 
+Definition struct_Prop (m: members) {A: ident * type -> Type}
                              (P: forall it, A it -> Prop) (v: compact_prod (map A m)) : Prop.
 Proof.
   destruct m as [| (i0, t0) m]; [exact True |].
@@ -171,7 +175,7 @@ Proof.
     exact ((P _ (fst v)) /\ IHm i0 t0 (snd v)).
 Defined.
 
-Definition union_Prop (m: members) {A: ident * type -> Type} 
+Definition union_Prop (m: members) {A: ident * type -> Type}
                (P: forall it, A it -> Prop) (v: compact_sum (map A m)): Prop.
 Proof.
   destruct m as [| (i0, t0) m]; [exact True |].
@@ -218,7 +222,7 @@ Lemma split_array_pred: forall {A}  (d: A) lo mid hi P v p,
   Zlength v = hi - lo ->
   array_pred d lo hi P v p =
   array_pred d lo mid P (sublist 0 (mid-lo) v) p *
-  array_pred d mid hi P (sublist (mid-lo) (hi-lo) v) p. 
+  array_pred d mid hi P (sublist (mid-lo) (hi-lo) v) p.
 Proof.
   intros.
   unfold array_pred.
@@ -233,7 +237,7 @@ Proof.
   clear Heqn.
   revert lo v H H0; induction n; intros.
   + subst lo.
-    change (Z.of_nat 0) with 0 in *. 
+    change (Z.of_nat 0) with 0 in *.
     simpl rangespec at 2. rewrite emp_sepcon.
     rewrite Z.sub_0_r, Z.sub_diag, plus_0_l.
     apply rangespec_ext; intros.
@@ -282,14 +286,14 @@ Qed.
 Lemma array_pred_shift: forall {A} (d: A) (lo hi lo' hi' mv : Z) P' P v p,
   lo - lo' = mv ->
   hi - hi' = mv ->
- (forall i i', lo <= i < hi -> i - i' = mv -> P' i' (Znth (i-lo) v d) p = P i (Znth (i-lo) v d) p) -> 
+ (forall i i', lo <= i < hi -> i - i' = mv -> P' i' (Znth (i-lo) v d) p = P i (Znth (i-lo) v d) p) ->
   array_pred d lo' hi' P' v p = array_pred d lo hi P v p.
 Proof.
   intros.
   unfold array_pred.
   apply andp_prop_ext; [omega | intros].
   replace (hi' - lo') with (hi - lo) by omega.
-  destruct (zlt hi lo). rewrite Z2Nat_neg by omega. reflexivity. 
+  destruct (zlt hi lo). rewrite Z2Nat_neg by omega. reflexivity.
   apply pred_ext; apply rangespec_shift_derives; intros.
   rewrite H4; rewrite Z2Nat.id in H3 by omega.
   rewrite H1; auto; omega.
@@ -299,8 +303,8 @@ Qed.
 
 Lemma array_pred_ext_derives: forall {A} (d: A) lo hi P0 P1 v0 v1 p,
   (Zlength v0 = hi - lo -> Zlength v1 = hi - lo) ->
-  (forall i, lo <= i < hi -> 
-    P0 i (Znth (i-lo) v0 d) p |-- P1 i (Znth (i-lo) v1 d) p) -> 
+  (forall i, lo <= i < hi ->
+    P0 i (Znth (i-lo) v0 d) p |-- P1 i (Znth (i-lo) v1 d) p) ->
   array_pred d lo hi P0 v0 p |-- array_pred d lo hi P1 v1 p.
 Proof.
   intros.
@@ -318,8 +322,8 @@ Qed.
 
 Lemma array_pred_ext: forall {A} (d:A) lo hi P0 P1 v0 v1 p,
   Zlength v0 = Zlength v1 ->
-  (forall i, lo <= i < hi -> 
-    P0 i (Znth (i-lo) v0 d) p = P1 i (Znth (i-lo) v1 d) p) -> 
+  (forall i, lo <= i < hi ->
+    P0 i (Znth (i-lo) v0 d) p = P1 i (Znth (i-lo) v1 d) p) ->
   array_pred d lo hi P0 v0 p = array_pred d lo hi P1 v1 p.
 Proof.
   intros; apply pred_ext; apply array_pred_ext_derives; intros; try omega;
@@ -436,9 +440,9 @@ Proof.
     simpl compact_prod; simpl Ctypes.field_type.
     intros v.
     subst M.
-    change (struct_pred ((i0, t0) :: (i1, t1) :: m) P v p) 
+    change (struct_pred ((i0, t0) :: (i1, t1) :: m) P v p)
       with (P _ (fst v) p * struct_pred ((i1, t1) :: m) P (snd v) p).
-    change (struct_pred ((i0, t0) :: (i1, t1) :: m) P' v p) 
+    change (struct_pred ((i0, t0) :: (i1, t1) :: m) P' v p)
       with (P' _ (fst v) p * struct_pred ((i1, t1) :: m) P' (snd v) p).
     destruct (ident_eq i i0).
     - subst P'; intros; subst.
@@ -474,9 +478,9 @@ Proof.
     set (M := (i1, t1) :: m).
     simpl compact_prod in v |- *; simpl Ctypes.field_type in d |- *.
     subst M.
-    change (struct_pred ((i0, t0) :: (i1, t1) :: m) P v p) 
+    change (struct_pred ((i0, t0) :: (i1, t1) :: m) P v p)
       with (P _ (fst v) p * struct_pred ((i1, t1) :: m) P (snd v) p).
-    change (struct_pred ((i0, t0) :: (i1, t1) :: m) P' v p) 
+    change (struct_pred ((i0, t0) :: (i1, t1) :: m) P' v p)
       with (P' _ (fst v) p * struct_pred ((i1, t1) :: m) P' (snd v) p).
     destruct (ident_eq i i0).
     - subst i0.
@@ -500,7 +504,7 @@ Proof.
         f_equal.
         simpl.
         match goal with
-        | |- appcontext [member_dec (i, ?t') (i0, t0)] =>
+        | |- context [member_dec (i, ?t') (i0, t0)] =>
                 destruct (member_dec (i, t') (i0, t0));
                   [inversion e; congruence |]
         end.
@@ -527,9 +531,9 @@ Proof.
     apply members_no_replicate_ind in H1; destruct H1.
     simpl compact_prod in v |- *; simpl Ctypes.field_type in v0 |- *.
     set (v' := (upd_struct i ((i0, t0) :: (i1, t1) :: m) v v0)).
-    change (struct_pred ((i0, t0) :: (i1, t1) :: m) P v' p) 
+    change (struct_pred ((i0, t0) :: (i1, t1) :: m) P v' p)
       with (P _ (fst v') p * struct_pred ((i1, t1) :: m) P (snd v') p).
-    change (struct_pred ((i0, t0) :: (i1, t1) :: m) P' v p) 
+    change (struct_pred ((i0, t0) :: (i1, t1) :: m) P' v p)
       with (P' _ (fst v) p * struct_pred ((i1, t1) :: m) P' (snd v) p).
     subst v'.
     simpl upd_struct.
@@ -549,7 +553,7 @@ Proof.
     - destruct H0; [simpl in H0; congruence |].
       rewrite <- sepcon_assoc, (sepcon_comm _ (P' _ _ _)), sepcon_assoc.
       match goal with
-      | |- appcontext [member_dec (i, ?t') (i0, t0)] =>
+      | |- context [member_dec (i, ?t') (i0, t0)] =>
               destruct (member_dec (i, t') (i0, t0));
                 [inversion e; congruence |]
       end.
@@ -834,7 +838,7 @@ Proof.
       apply H1.
       right; auto.
     - match goal with
-      | |- appcontext [member_dec (i, ?t') (i0, t0)] =>
+      | |- context [member_dec (i, ?t') (i0, t0)] =>
               destruct (member_dec (i, t') (i0, t0));
                 [inversion e; congruence |]
       end.
@@ -843,7 +847,7 @@ Proof.
       apply H1.
       left; auto.
     - match goal with
-      | |- appcontext [member_dec (i, ?t') (i0, t0)] =>
+      | |- context [member_dec (i, ?t') (i0, t0)] =>
               destruct (member_dec (i, t') (i0, t0));
                 [inversion e; congruence |]
       end.
@@ -887,7 +891,7 @@ Proof.
       pose proof in_members_tail_no_replicate _ _ _ _ H H0.
       destruct (ident_eq i i0); [congruence |].
       match goal with
-      | |- appcontext [member_dec (i, ?t') (i0, t0)] =>
+      | |- context [member_dec (i, ?t') (i0, t0)] =>
               destruct (member_dec (i, t') (i0, t0));
                 [inversion e; congruence |]
       end.
@@ -1030,7 +1034,7 @@ Proof.
       apply IHm; auto.
       exact (proj2 H0).
 Qed.
-      
+
 Lemma union_Prop_compact_sum_gen: forall m (F: ident * type -> Type) (P: forall it, F it -> Prop) (f: forall it, F it),
   members_no_replicate m = true ->
   (forall i, in_members i m -> P (i, field_type i m) (f (i, field_type i m))) ->
@@ -1293,7 +1297,7 @@ Proof.
     - rewrite members_no_replicate_ind in NO_REPLI; destruct NO_REPLI as [NOT_IN NO_REPLI].
       rewrite IHm with (z := align z (alignof t0) + sizeof t0);
         [| now auto
-         | simpl in H |- *; pose_align_le; pose_sizeof_pos; omega 
+         | simpl in H |- *; pose_align_le; pose_sizeof_pos; omega
          | pose_align_le; pose_sizeof_pos; omega].
       replace (ofs + align (align z (alignof t0) + sizeof t0) (alignof t1)) with
         (ofs + align z (alignof t0) +
@@ -1336,8 +1340,6 @@ Module aggregate_pred.
 Open Scope Z.
 Open Scope logic.
 
-Require Export floyd.fieldlist.
-Require Export floyd.aggregate_type.
 
 Definition array_pred: forall {A: Type} (d:A) (lo hi: Z) (P: Z -> A -> val -> mpred) (v: list A),
     val -> mpred := @array_pred.
@@ -1372,23 +1374,23 @@ Definition split_array_pred: forall  {A} (d:A) lo mid hi P v p,
 Definition array_pred_shift: forall {A} (d:A) lo hi lo' hi' mv P' P v p,
   lo - lo' = mv ->
   hi - hi' = mv ->
-  (forall i i', lo <= i < hi -> i - i' = mv -> P' i' (Znth (i - lo) v d) p = P i (Znth (i - lo) v d) p) -> 
+  (forall i i', lo <= i < hi -> i - i' = mv -> P' i' (Znth (i - lo) v d) p = P i (Znth (i - lo) v d) p) ->
   array_pred d lo' hi' P' v p = array_pred d lo hi P v p
 := @array_pred_shift.
 
 Definition array_pred_ext_derives:
   forall {A} (d:A) lo hi P0 P1 v0 v1 p,
   (Zlength v0 = hi - lo -> Zlength v1 = hi - lo) ->
-  (forall i, lo <= i < hi -> 
-      P0 i (Znth (i-lo) v0 d) p |-- P1 i (Znth (i-lo) v1 d) p) -> 
+  (forall i, lo <= i < hi ->
+      P0 i (Znth (i-lo) v0 d) p |-- P1 i (Znth (i-lo) v1 d) p) ->
   array_pred d lo hi P0 v0 p |-- array_pred d lo hi P1 v1 p
 := @array_pred_ext_derives.
 
 Definition array_pred_ext:
   forall {A} (d:A) lo hi P0 P1 v0 v1 p,
   Zlength v0 = Zlength v1 ->
-  (forall i, lo <= i < hi -> 
-     P0 i (Znth (i - lo) v0 d) p = P1 i (Znth (i - lo) v1 d) p) -> 
+  (forall i, lo <= i < hi ->
+     P0 i (Znth (i - lo) v0 d) p = P1 i (Znth (i - lo) v1 d) p) ->
   array_pred d lo hi P0 v0 p = array_pred d lo hi P1 v1 p
 := @array_pred_ext.
 
@@ -1579,7 +1581,7 @@ Lemma struct_data_at_rec_aux_spec: forall m m0 sz v P,
    (ListTypeGen
      (fun it => reptype (field_type (fst it) m0) -> val -> mpred)
      P m) v =
-  struct_pred m 
+  struct_pred m
    (fun it v =>
       withspacer sh
        (field_offset cenv_cs (fst it) m0 + sizeof (field_type (fst it) m0))
@@ -1626,7 +1628,10 @@ Proof.
   + simpl. unfold union_pred. simpl. reflexivity.
   + destruct v as [v | v].
     - reflexivity.
-    - apply IHm.
+    - match goal with
+      | _ => apply IHm
+      | _ => simpl ; f_equal ; apply IHm
+      end.
 Qed.
 
 Definition struct_value_fits_aux (m m0: members)
@@ -1645,7 +1650,7 @@ Proof.
 Defined.
 
 Definition union_value_fits_aux (m m0: members)
-      (P: ListType (map (fun it => reptype (field_type (fst it) m0) -> Prop) m)) 
+      (P: ListType (map (fun it => reptype (field_type (fst it) m0) -> Prop) m))
       (v: compact_sum (map (fun it => reptype (field_type (fst it) m0)) m)) : Prop.
 Proof.
   destruct m as [| (i0, t0) m]; [exact True |].
@@ -1675,7 +1680,7 @@ Proof.
      (struct_value_fits_aux ((i1, t1) :: (i0, t0) :: m) m0
      (ListTypeGen (fun it : ident * type => reptype (field_type (fst it) m0) -> Prop)
         P ((i1, t1) :: (i0, t0) :: m)) v) with
-     (P (i1, t1) (fst v) /\  struct_value_fits_aux ((i0, t0) :: m) m0 
+     (P (i1, t1) (fst v) /\  struct_value_fits_aux ((i0, t0) :: m) m0
      (ListTypeGen (fun it : ident * type => reptype (field_type (fst it) m0) -> Prop)
         P ((i0, t0) :: m)) (snd v)).
     - rewrite IHm.
@@ -1698,7 +1703,10 @@ Proof.
   + simpl. unfold union_Prop. simpl. reflexivity.
   + destruct v as [v | v].
     - reflexivity.
-    - apply IHm.
+    - match goal with
+      | _ => apply IHm
+      | _ => simpl ; f_equal ; apply IHm
+      end.
 Qed.
 
 End AUXILIARY_PRED.
@@ -1720,7 +1728,7 @@ Definition struct_data_at_rec_aux_spec: forall {cs: compspecs} (sh: share) m m0 
    (ListTypeGen
      (fun it => reptype (field_type (fst it) m0) -> val -> mpred)
      P m) v =
-  struct_pred m 
+  struct_pred m
    (fun it v =>
       withspacer sh
        (field_offset cenv_cs (fst it) m0 + sizeof (field_type (fst it) m0))
@@ -1749,7 +1757,7 @@ Definition struct_value_fits_aux:
 
 Definition union_value_fits_aux:
   forall {cs: compspecs} (m m0: members)
-      (P: ListType (map (fun it => reptype (field_type (fst it) m0) -> Prop) m)) 
+      (P: ListType (map (fun it => reptype (field_type (fst it) m0) -> Prop) m))
       (v: compact_sum (map (fun it => reptype (field_type (fst it) m0)) m)), Prop
 := @union_value_fits_aux.
 

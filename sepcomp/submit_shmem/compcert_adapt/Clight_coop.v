@@ -13,7 +13,7 @@ Require Import Ctypes.
 Require Import Cop.
 
 
-Require Import Clight. 
+Require Import Clight.
 Require Import sepcomp.mem_lemmas. (*for mem_forward*)
 Require Import sepcomp.core_semantics.
 
@@ -74,8 +74,8 @@ Definition CL_after_external (rv: option val) (c: CL_core) : option CL_core :=
 *)
 (*
 Definition CL_after_external (vret: option val) (c: CL_core) : option CL_core :=
-  match c with 
-    CL_Callstate fd args k => 
+  match c with
+    CL_Callstate fd args k =>
          match fd with
             Internal f => None
           | External ef targs tres => match vret with
@@ -85,13 +85,13 @@ Definition CL_after_external (vret: option val) (c: CL_core) : option CL_core :=
          end
   | _ => None
   end.
-*)       
+*)
 Definition CL_halted (q : CL_core): option val :=
-    match q with 
+    match q with
        CL_Returnstate v Kstop => Some v
      | _ => None
     end.
-   
+
 (** Transition relation *)
 Section SEMANTICS.
 Variable function_entry: function -> list val -> mem -> env -> temp_env -> mem -> Prop.
@@ -121,7 +121,7 @@ Inductive clight_corestep: CL_core -> mem-> CL_core -> mem -> Prop :=
       clight_corestep (CL_State f (Scall optid a al) k e le) m
         (CL_Callstate fd vargs (Kcall optid f e le k)) m
 
-(* WE DO NOT TREAT BUILTINS 
+(* WE DO NOT TREAT BUILTINS
   | clight_corestep_builtin:   forall f optid ef tyargs al k e le m vargs t vres m',
       eval_exprlist ge e le m al tyargs vargs ->
       external_call ef ge vargs m t vres m' ->
@@ -170,7 +170,7 @@ Inductive clight_corestep: CL_core -> mem-> CL_core -> mem -> Prop :=
       clight_corestep (CL_State f (Sreturn None) k e le) m
         (CL_Returnstate Vundef (call_cont k)) m'
   | clight_corestep_return_1: forall f a k e le m v v' m',
-      eval_expr ge e le m a v -> 
+      eval_expr ge e le m a v ->
       sem_cast v (typeof a) f.(fn_return) = Some v' ->
       Mem.free_list m (blocks_of_env e) = Some m' ->
       clight_corestep (CL_State f (Sreturn (Some a)) k e le) m
@@ -221,10 +221,10 @@ Lemma CL_corestep_not_at_external:
        forall m q m' q', clight_corestep q m q' m' -> CL_at_external q = None.
   Proof. intros. inv H; reflexivity. Qed.
 
-Lemma CL_corestep_not_halted : forall m q m' q', 
+Lemma CL_corestep_not_halted : forall m q m' q',
        clight_corestep q m q' m' -> CL_halted q = None.
   Proof. intros. inv H; reflexivity. Qed.
-    
+
 Lemma CL_at_external_halted_excl :
        forall q, CL_at_external q = None \/ CL_halted q = None.
    Proof. intros. destruct q; auto. Qed.
@@ -240,8 +240,8 @@ Qed.
 
 Definition CL_initial_core (v: val) (args:list val): option CL_core :=
    match v with
-     | Vptr b i => 
-          if Int.eq_dec i Int.zero 
+     | Vptr b i =>
+          if Int.eq_dec i Int.zero
           then match Genv.find_funct_ptr ge b with
                  | None => None
                  | Some f => Some (CL_Callstate f args Kstop)
@@ -256,7 +256,7 @@ Definition CL_core_sem (FE:function -> list val -> mem -> env -> temp_env -> mem
   eapply @Build_CoreSemantics with (at_external:=CL_at_external)
                   (after_external:=CL_after_external)
                   (corestep:=clight_corestep FE)
-                  (halted:=CL_halted). 
+                  (halted:=CL_halted).
     apply CL_initial_core.
     apply CL_corestep_not_at_external.
     apply CL_corestep_not_halted.
@@ -264,18 +264,18 @@ Definition CL_core_sem (FE:function -> list val -> mem -> env -> temp_env -> mem
     apply CL_after_at_external_excl.
 Defined.
 
-Lemma CL_forward : 
+Lemma CL_forward :
   forall (FE: function -> list val -> mem -> env -> temp_env -> mem -> Prop)
          (HFE: forall f vargs m e le m', FE f vargs m e le m'-> mem_forward m m')
-         g c m c' m' (CS: clight_corestep FE g c m c' m'), 
+         g c m c' m' (CS: clight_corestep FE g c m c' m'),
                      mem_forward m m'.
   Proof. intros.
      inv CS; simpl in *; try apply mem_forward_refl.
          (*Storev*)
-          inv H2. 
-          eapply store_forward. eassumption. 
+          inv H2.
+          eapply store_forward. eassumption.
           eapply storebytes_forward. eassumption.
-         (*builtin*) 
+         (*builtin*)
           (*eapply external_call_mem_forward; eassumption.*)
          (*free*)
          eapply freelist_forward; eassumption.
@@ -299,7 +299,7 @@ Proof. intros.
   induction M.
   apply mem_forward_refl.
   apply alloc_forward in H.
-  eapply mem_forward_trans; eassumption. 
+  eapply mem_forward_trans; eassumption.
 Qed.
 
 Lemma bind_parameter_forward: forall e m pars vargs m'
@@ -311,7 +311,7 @@ Proof. intros.
   eapply mem_forward_trans; try eassumption.
   inv H0.
   eapply store_forward. eassumption.
-  eapply storebytes_forward. eassumption. 
+  eapply storebytes_forward. eassumption.
 Qed.
 
 (** The two semantics for function parameters.  First, parameters as local variables. *)
@@ -324,7 +324,7 @@ Inductive function_entry1 (f: function) (vargs: list val) (m: mem) (e: env) (le:
       le = create_undef_temps f.(fn_temps) ->
       function_entry1 f vargs m e le m'.
 
-Lemma function_entry1_forward: forall f vargs m e le m', 
+Lemma function_entry1_forward: forall f vargs m e le m',
       function_entry1 f vargs m e le m'-> mem_forward m m'.
 Proof. intros. inv H.
   eapply mem_forward_trans.
@@ -335,9 +335,9 @@ Qed.
 (*Definition clight_corestep1 (ge: genv) := clight_corestep function_entry1 ge.*)
 
 Definition CL_core_sem1 := CL_core_sem function_entry1.
-Definition CL_coop_sem1 : CoopCoreSem genv CL_core. 
+Definition CL_coop_sem1 : CoopCoreSem genv CL_core.
   eapply (CL_coop_sem function_entry1).
-  apply function_entry1_forward. 
+  apply function_entry1_forward.
 Defined.
 
 Inductive function_entry2 (f: function) (vargs: list val) (m: mem) (e: env) (le: temp_env) (m': mem) : Prop :=
@@ -349,7 +349,7 @@ Inductive function_entry2 (f: function) (vargs: list val) (m: mem) (e: env) (le:
       bind_parameter_temps f.(fn_params) vargs (create_undef_temps f.(fn_temps)) = Some le ->
       function_entry2 f vargs m e le m'.
 
-Lemma function_entry2_forward: forall f vargs m e le m', 
+Lemma function_entry2_forward: forall f vargs m e le m',
       function_entry2 f vargs m e le m'-> mem_forward m m'.
 Proof. intros. inv H.
     eapply alloc_variables_forward; try eassumption.
@@ -358,9 +358,9 @@ Qed.
 (*Definition clight_corestep2 (ge: genv) := clight_corestep function_entry2 ge.*)
 
 Definition CL_core_sem2 := CL_core_sem function_entry2.
-Definition CL_coop_sem2 : CoopCoreSem genv CL_core. 
+Definition CL_coop_sem2 : CoopCoreSem genv CL_core.
   eapply (CL_coop_sem function_entry2).
-  apply function_entry2_forward. 
+  apply function_entry2_forward.
 Defined.
 
 

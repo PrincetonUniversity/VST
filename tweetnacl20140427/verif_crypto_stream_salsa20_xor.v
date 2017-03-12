@@ -341,8 +341,10 @@ Lemma sublist_hi_plus {A} (l:list A) lo a b: 0<=lo<=a -> 0<=b -> sublist lo (a +
 Proof. intros.
   unfold sublist.
   assert (X: a+b -lo = a-lo + b) by omega. rewrite X; clear X.
-  rewrite Z2Nat.inj_add, <- firstn_app; try omega. f_equal.
+  rewrite Z2Nat.inj_add; try omega.
   assert (Y: a + b - a = b) by omega. rewrite Y; clear Y.
+  rewrite <- Z2Nat.inj_add; try omega.
+  rewrite <- Zfirstn_app; try omega. f_equal.
   rewrite skipn_skipn, Z2Nat.inj_sub; try omega.
   f_equal. f_equal. rewrite <- le_plus_minus; trivial.
   apply Z2Nat.inj_le; omega.
@@ -366,6 +368,7 @@ Proof. rewrite Int.unsigned_repr. trivial.
 Qed. 
 
 Lemma zero_ext8_byte b: Int.zero_ext 8 (Int.repr (Byte.unsigned b)) = Int.repr (Byte.unsigned b).
+Proof.
   apply zero_ext_inrange.
   rewrite Int.unsigned_repr. apply Byte.unsigned_range_2.
   apply byte_unsigned_range_3. 
@@ -428,6 +431,7 @@ Proof. intros H; symmetry in H.
 Qed. 
 
 Lemma Tarray_0_emp sh v c: data_at sh (Tarray tuchar 0 noattr) v c |--  emp.
+Proof.
   unfold data_at. unfold field_at, data_at_rec, at_offset; simpl.
   unfold array_pred, unfold_reptype, aggregate_pred.array_pred. entailer.
 Qed. 
@@ -444,6 +448,7 @@ Proof. intros. apply pred_ext. apply Tarray_0_emp. apply Tarray_0_emp'; trivial.
 Qed.
 
 Lemma Tarray_0_emp_ sh c: data_at_ sh (Tarray tuchar 0 noattr) c |--  emp.
+Proof.
   unfold data_at_. unfold field_at_, field_at, data_at_rec, at_offset; simpl.
   unfold array_pred, unfold_reptype, aggregate_pred.array_pred. entailer.
 Qed. 
@@ -1038,6 +1043,21 @@ Definition Inv cInit mInit bInit k nonce x z Nonce K SV mcont zcont:=
      data_at_ Tsh (Tarray tuchar (Int64.unsigned bInit - Z.of_nat rounds * 64) noattr) c;
      message_at mcont mInit))).
 
+Definition IfPost z x b Nonce K mCont cLen nonce c k m SV zbytes :=
+  PROP ()
+  LOCAL (lvar _x (Tarray tuchar 64 noattr) x;
+   lvar _z (Tarray tuchar 16 noattr) z;
+(*   temp _c c; temp _m m;*)
+   (*temp _b (Vlong (Int64.sub bInit (Int64.repr r64)));*) temp _n nonce;
+   temp _k k; gvar _sigma SV)
+  SEP (data_at_ Tsh (Tarray tuchar 16 noattr) z;
+      data_at_ Tsh (Tarray tuchar 64 noattr) x; Sigma_vector SV;
+      SByte Nonce nonce; ThirtyTwoByte K k; message_at mCont m;
+      (if Int64.eq b Int64.zero 
+       then data_at_ Tsh (Tarray tuchar cLen noattr) c
+       else EX COUT:_, !!ContSpec b SIGMA K m mCont zbytes COUT && 
+            data_at Tsh (Tarray tuchar cLen noattr) (Bl2VL COUT) c)).
+
 Lemma crypto_stream_salsa20_xor_ok: semax_body SalsaVarSpecs SalsaFunSpecs
       f_crypto_stream_salsa20_tweet_xor
       crypto_stream_salsa20_xor_spec.
@@ -1366,21 +1386,6 @@ remember (Z.of_nat rounds * 64)%Z as r64.
   { destruct (Int64.unsigned_range_2 bInit).
     unfold Int64.sub.
     repeat rewrite Int64.unsigned_repr; try omega. }
-Definition IfPost z x b Nonce K mCont cLen nonce c k m SV zbytes :=
-  PROP ()
-  LOCAL (lvar _x (Tarray tuchar 64 noattr) x;
-   lvar _z (Tarray tuchar 16 noattr) z;
-(*   temp _c c; temp _m m;*)
-   (*temp _b (Vlong (Int64.sub bInit (Int64.repr r64)));*) temp _n nonce;
-   temp _k k; gvar _sigma SV)
-  SEP (data_at_ Tsh (Tarray tuchar 16 noattr) z;
-      data_at_ Tsh (Tarray tuchar 64 noattr) x; Sigma_vector SV;
-      SByte Nonce nonce; ThirtyTwoByte K k; message_at mCont m;
-      (if Int64.eq b Int64.zero 
-       then data_at_ Tsh (Tarray tuchar cLen noattr) c
-       else EX COUT:_, !!ContSpec b SIGMA K m mCont zbytes COUT && 
-            data_at Tsh (Tarray tuchar cLen noattr) (Bl2VL COUT) c)).
-
 forward_if (IfPost z x bInit (N0, N1, N2, N3) K mCont (Int64.unsigned bInit) nonce cInit k mInit SV zbytes).
 { rename H into BR.
   destruct (SixteenByte2ValList_exists zbytesR) as [d D].

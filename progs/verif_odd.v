@@ -15,14 +15,14 @@ forward_if (PROP (z > 0) LOCAL (temp _n (Vint (Int.repr z))) SEP ()).
  forward.
 *
  forward. entailer!.
-* 
-  normalize. 
+*
+  normalize.
   forward_call (z-1).
   omega.
   forward.
   entailer!.
-  rewrite Z.even_sub; simpl. 
-  case_eq (Z.odd z); rewrite Zodd_even_bool; 
+  rewrite Z.even_sub; simpl.
+  case_eq (Z.odd z); rewrite Zodd_even_bool;
    destruct (Z.even z); simpl; try (intros; congruence).
 Qed.
 

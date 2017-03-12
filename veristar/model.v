@@ -1,10 +1,10 @@
 Load loadpath.
 Require Import Coq.ZArith.ZArith Coq.Lists.List.
-Require Import msl.base msl.sepalg msl.sepalg_generators msl.Axioms 
+Require Import msl.base msl.sepalg msl.sepalg_generators msl.Axioms
                msl.predicates_sa.
 Require Import veristar.datatypes veristar.clauses veristar.model_type veristar.list_denote.
 
-(** The abstract separation logic model, parameterized by a separation logic 
+(** The abstract separation logic model, parameterized by a separation logic
    implementation, VeriStarLogic *)
 
 Module Type VERISTAR_MODEL.
@@ -13,14 +13,14 @@ Import VeriStarLogic.
 
 Inductive lseg : val -> val -> heap -> Prop :=
 | lseg_nil : forall x s, identity s -> nil_or_loc x -> lseg x x s
-| lseg_cons : forall x x' y s h0 h1 z, 
+| lseg_cons : forall x x' y s h0 h1 z,
   x<>y -> val2loc x = Some x' ->
-  rawnext x' z h0 -> lseg z y h1 -> join h0 h1 s -> 
+  rawnext x' z h0 -> lseg z y h1 -> join h0 h1 s ->
   lseg x y s.
 
 Axiom rawnext2rawnext' : forall {x y h}, rawnext x y h -> rawnext' x y h.
 
-Notation stack := env. 
+Notation stack := env.
 
 Instance Join_stack : Join stack := Join_equiv stack.
 Instance Perm_stack : Perm_alg stack := Perm_equiv stack.
@@ -47,7 +47,7 @@ Definition stk (st : state) := match st with State s h => s end.
 
 Definition hp  (st : state) := match st with State s h => h end.
 
-Instance Join_state : Join state := 
+Instance Join_state : Join state :=
    fun (s1 s2 s3 : state) =>
     join (stk s1) (stk s2) (stk s3) /\ join (hp s1) (hp s2) (hp s3).
 
@@ -59,7 +59,7 @@ apply (Bijection _ _
 Defined.
 
 Axiom join_state_eq:
-  Join_state = Join_bij _ _ _ state_bij. 
+  Join_state = Join_bij _ _ _ state_bij.
 
 Declare Instance Perm_state: Perm_alg state.
 Declare Instance Sep_state: Sep_alg state.
@@ -87,30 +87,30 @@ Hint Unfold neg : spred.
 
 Axiom empstate_empheap: forall (s:state), emp s <-> emp (hp s).
 
-Definition pn_atom_denote (a : pn_atom) : spred := 
+Definition pn_atom_denote (a : pn_atom) : spred :=
   match a with Equ e1 e2 => e1 === e2 | Nequ e1 e2 => neg (e1 === e2) end.
 
-Definition pure_atom_denote (a : pure_atom) : spred := 
+Definition pure_atom_denote (a : pure_atom) : spred :=
   match a with Eqv e1 e2 => e1 === e2 end.
 
 Definition space_atom_denote (a : space_atom) : spred :=
   match a with
-  | Next x y => 
+  | Next x y =>
       fun s => match val2loc (expr_denote x s) with
       | Some l' =>  rawnext l' (expr_denote y s) (hp s)
-                          /\ nil_or_loc (expr_denote y s) 
+                          /\ nil_or_loc (expr_denote y s)
       | None => False
-      end 
-  | Lseg x y => 
+      end
+  | Lseg x y =>
       fun s => lseg (expr_denote x s) (expr_denote y s) (hp s)
   end.
 
 Definition space_denote (sigma : list space_atom) : spred :=
   list_denote space_atom_denote sepcon emp sigma.
 
-Definition clause_denote (c : clause) : spred := fun s : state => 
+Definition clause_denote (c : clause) : spred := fun s : state =>
   match c with
-  | PureClause p p' _ _ => 
+  | PureClause p p' _ _ =>
       list_denote pure_atom_denote (@andp state) TT p s ->
       list_denote pure_atom_denote (@orp state) FF p' s
   | NegSpaceClause p space p' =>
@@ -121,7 +121,7 @@ Definition clause_denote (c : clause) : spred := fun s : state =>
       list_denote pure_atom_denote (@orp state) (space_denote space') p' s
   end.
 
-Definition assertion_denote (f : assertion) : spred := 
+Definition assertion_denote (f : assertion) : spred :=
   match f with Assertion pi space =>
     let sd := space_denote space in
     list_denote pn_atom_denote (@andp state) sd pi
@@ -145,26 +145,26 @@ Module VeriStarLogic := VSLog. Import VSLog.
 
 Inductive lseg : val -> val -> heap -> Prop :=
 | lseg_nil : forall x s, identity s -> nil_or_loc x -> lseg x x s
-| lseg_cons : forall x x' y s h0 h1 z, 
+| lseg_cons : forall x x' y s h0 h1 z,
   x<>y -> val2loc x = Some x' ->
-  rawnext x' z h0 -> lseg z y h1 -> join h0 h1 s -> 
+  rawnext x' z h0 -> lseg z y h1 -> join h0 h1 s ->
   lseg x y s.
 
 Lemma rawnext2rawnext' : forall {x y h}, rawnext x y h -> rawnext' x y h.
-Proof. 
-intros; destruct (join_ex_units h) as [eh ?]; exists h; split; eauto. 
+Proof.
+intros; destruct (join_ex_units h) as [eh ?]; exists h; split; eauto.
 apply join_sub_refl.
 Qed.
 
 Lemma var_nil_or_loc : forall (z : var) (e : env), nil_or_loc (env_get e z).
 Proof.
-intros; remember (env_get e z) as v. 
+intros; remember (env_get e z) as v.
 generalize vars_defined_locs as H1; intro.
-spec H1 z e. destruct H1 as [v' [H2 H3]]. 
+spec H1 z e. destruct H1 as [v' [H2 H3]].
 solve[subst; auto].
 Qed.
 
-Notation stack := env. 
+Notation stack := env.
 
 Instance Join_stack : Join stack := Join_equiv stack.
 Instance Perm_stack : Perm_alg stack := Perm_equiv stack.
@@ -194,7 +194,7 @@ Definition stk (st : state) := match st with State s h => s end.
 
 Definition hp  (st : state) := match st with State s h => h end.
 
-Instance Join_state : Join state := 
+Instance Join_state : Join state :=
    fun (s1 s2 s3 : state) =>
     join (stk s1) (stk s2) (stk s3) /\ join (hp s1) (hp s2) (hp s3).
 
@@ -206,7 +206,7 @@ apply (Bijection _ _
 Defined.
 
 Lemma join_state_eq:
-  Join_state = Join_bij _ _ _ state_bij. 
+  Join_state = Join_bij _ _ _ state_bij.
 Proof.
 extensionality w1 w2 w3; simpl.
 destruct w1; destruct w2; destruct w3; simpl.
@@ -214,17 +214,17 @@ apply prop_ext; split; intros [? ?]; split; auto.
 Qed.
 
 Instance Perm_state: Perm_alg state.
-  Proof. rewrite join_state_eq; 
+  Proof. rewrite join_state_eq;
      apply Perm_bij; auto with typeclass_instances.
   Qed.
 
 Instance Sep_state: Sep_alg state.
-  Proof. rewrite join_state_eq; 
+  Proof. rewrite join_state_eq;
      apply Sep_bij; auto with typeclass_instances.
   Defined.
 
 Instance Canc_state: Canc_alg state.
-  Proof. rewrite join_state_eq; 
+  Proof. rewrite join_state_eq;
      apply Canc_bij; auto with typeclass_instances.
   Qed.
 
@@ -251,7 +251,7 @@ Proof. intros; extensionality s; apply prop_ext; split; apply var_eq_sym. Qed.
 Notation spred := (state -> Prop).
 
 Lemma empstate_empheap : forall (s:state), emp s <-> emp (hp s).
-Proof. 
+Proof.
 intros; rewrite identity_unit_equiv; unfold unit_for; simpl.
 rewrite identity_unit_equiv; unfold unit_for; simpl.
 unfold join, Join_state; intuition; constructor; auto.
@@ -260,30 +260,30 @@ Qed.
 Definition neg (P : spred) : spred := fun s : state => ~P s.
 Hint Unfold neg : spred.
 
-Definition pn_atom_denote (a : pn_atom) : spred := 
+Definition pn_atom_denote (a : pn_atom) : spred :=
   match a with Equ e1 e2 => e1 === e2 | Nequ e1 e2 => neg (e1 === e2) end.
 
-Definition pure_atom_denote (a : pure_atom) : spred := 
+Definition pure_atom_denote (a : pure_atom) : spred :=
   match a with Eqv e1 e2 => e1 === e2 end.
 
 Definition space_atom_denote (a : space_atom) : spred :=
   match a with
-  | Next x y => 
+  | Next x y =>
       fun s => match val2loc (expr_denote x s) with
       | Some l' =>  rawnext l' (expr_denote y s) (hp s)
-                          /\ nil_or_loc (expr_denote y s) 
+                          /\ nil_or_loc (expr_denote y s)
       | None => False
-      end 
-  | Lseg x y => 
+      end
+  | Lseg x y =>
       fun s => lseg (expr_denote x s) (expr_denote y s) (hp s)
   end.
 
 Definition space_denote (sigma : list space_atom) : spred :=
   list_denote space_atom_denote sepcon emp sigma.
 
-Definition clause_denote (c : clause) : spred := fun s : state => 
+Definition clause_denote (c : clause) : spred := fun s : state =>
   match c with
-  | PureClause p p' _ _ => 
+  | PureClause p p' _ _ =>
       list_denote pure_atom_denote (@andp state) TT p s ->
       list_denote pure_atom_denote (@orp state) FF p' s
   | NegSpaceClause p space p' =>
@@ -294,7 +294,7 @@ Definition clause_denote (c : clause) : spred := fun s : state =>
       list_denote pure_atom_denote (@orp state) (space_denote space') p' s
   end.
 
-Definition assertion_denote (f : assertion) : spred := 
+Definition assertion_denote (f : assertion) : spred :=
   match f with Assertion pi space =>
     let sd := space_denote space in
     list_denote pn_atom_denote (@andp state) sd pi

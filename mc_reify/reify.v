@@ -26,7 +26,7 @@ Reify Declare Syntax reify_vst_typ :=
 Reify Declare Typed Table term_table : BinNums.positive => reify_vst_typ.
 
 Reify Declare Syntax reify_vst :=
-  { (@Patterns.CFirst _  
+  { (@Patterns.CFirst _
       ((@Patterns.CVar _ (@ExprCore.Var typ func)) ::
        (@Patterns.CPatterns _ patterns_vst) ::
        (@Patterns.CApp _ (@ExprCore.App typ func)) ::
@@ -36,10 +36,10 @@ Reify Declare Syntax reify_vst :=
   }.
 
 Reify Pattern patterns_vst_typ += (!!Values.val) => tyval.
-Reify Pattern patterns_vst_typ += (@RImpl (?0) (?1)) => 
-       (fun (a b : Patterns.function reify_vst_typ) => tyArr a b). 
+Reify Pattern patterns_vst_typ += (@RImpl (?0) (?1)) =>
+       (fun (a b : Patterns.function reify_vst_typ) => tyArr a b).
 
-Reify Pattern patterns_vst_typ += (!!floyd.data_at_lemmas.reptype @ ?0) => 
+Reify Pattern patterns_vst_typ += (!!floyd.data_at_lemmas.reptype @ ?0) =>
 (fun (a : id _) => (reptyp a)).
 
 
@@ -52,7 +52,7 @@ Reify Pattern patterns_vst_typ += (!!shares.Share.t) => tyshare.
 Reify Pattern patterns_vst_typ += (!!list @ ?0) =>
        (fun (a : Patterns.function reify_vst_typ) => tylist a).
 Reify Pattern patterns_vst_typ += (!!expr.mpred) => tympred.
-Reify Pattern patterns_vst_typ += (!!Prop) => typrop. 
+Reify Pattern patterns_vst_typ += (!!Prop) => typrop.
 Reify Pattern patterns_vst_typ += (!!juicy_extspec.OracleKind) => tyOracleKind.
 Reify Pattern patterns_vst_typ += (!!bool) => tybool.
 Reify Pattern patterns_vst_typ += (!!Integers.Int.int) => tyint.
@@ -70,29 +70,29 @@ Reify Pattern patterns_vst_typ += (!!Ctypes.typelist) => tytypelist.
 Reify Pattern patterns_vst_typ += (!!Ctypes.fieldlist) => tyfieldlist.
 Reify Pattern patterns_vst_typ += (!!Cop.binary_operation) => tybinary_operation.
 Reify Pattern patterns_vst_typ += (!!Cop.unary_operation) => tyunary_operation.
-Reify Pattern patterns_vst_typ += (!!BinNums.N ) => tyN. 
-Reify Pattern patterns_vst_typ += (!!option @ ?0) => 
+Reify Pattern patterns_vst_typ += (!!BinNums.N ) => tyN.
+Reify Pattern patterns_vst_typ += (!!option @ ?0) =>
     (fun (a : function reify_vst_typ) => tyoption a).
-Reify Pattern patterns_vst_typ += (!!sum @ ?0 @ ?1) => 
+Reify Pattern patterns_vst_typ += (!!sum @ ?0 @ ?1) =>
     (fun (a b : function reify_vst_typ) => tysum a b).
-Reify Pattern patterns_vst_typ += (!!prod @ ?0 @ ?1) => 
+Reify Pattern patterns_vst_typ += (!!prod @ ?0 @ ?1) =>
     (fun (a b : function reify_vst_typ) => typrod a b).
 Reify Pattern patterns_vst_typ += (!!unit) => tyunit.
 Reify Pattern patterns_vst_typ += (!!Clight.statement) => tystatement.
 Reify Pattern patterns_vst_typ += (!!seplog.ret_assert) => tyret_assert.
 Reify Pattern patterns_vst_typ += (!!SeparationLogic.ret_assert) => tyret_assert.
 
-Reify Pattern patterns_vst_typ += (!!(lift.lifted (expr.LiftEnviron Prop))) => 
+Reify Pattern patterns_vst_typ += (!!(lift.lifted (expr.LiftEnviron Prop))) =>
 (tyArr tyenviron typrop).
-Reify Pattern patterns_vst_typ += (!!(lift.lifted (expr.LiftEnviron expr.mpred))) => 
+Reify Pattern patterns_vst_typ += (!!(lift.lifted (expr.LiftEnviron expr.mpred))) =>
 (tyArr tyenviron tympred).
 (*
 Reify Pattern patterns_vst_typ += (!!@list_dt.elemtype @ ?0 @ ?1 @ ?2) =>
-(fun (a : id Ctypes.type) (b : id AST.ident) (c : id (list_dt.listspec a b)) => 
+(fun (a : id Ctypes.type) (b : id AST.ident) (c : id (list_dt.listspec a b)) =>
   reptyp_structlist (@list_dt.all_but_link b (@list_dt.list_fields a b c))).*)
 Reify Pattern patterns_vst_typ += (!!expr.exitkind) => tyexitkind.
 
-Reify Pattern patterns_vst_typ += (!!Maps.PTree.t @ ?0) => 
+Reify Pattern patterns_vst_typ += (!!Maps.PTree.t @ ?0) =>
 (fun (a : function reify_vst_typ) => (typtree a)).
 Reify Pattern patterns_vst_typ += (!!floyd.nested_field_lemmas.gfield) => tygfield.
 Reify Pattern patterns_vst_typ += (!!expr.funspec) => tyfunspec.
@@ -133,11 +133,11 @@ Reify Pattern patterns_vst += (!!Values.Vfloat) => (@Inj typ func (inr (Value fV
 Reify Pattern patterns_vst += (!!Values.Vlong) => (@Inj typ func (inr (Value fVlong))).
 Reify Pattern patterns_vst += (!!Values.Vptr) => (@Inj typ func (inr (Value fVptr))).
 Reify Pattern patterns_vst += (!!Values.Vundef) => (@Inj typ func (inr (Value fVundef))).
-Reify Pattern patterns_vst += (!!expr.eval_cast @ ?0 @ ?1 ) => 
+Reify Pattern patterns_vst += (!!expr.eval_cast @ ?0 @ ?1 ) =>
    (fun (a b: id Ctypes.type) => (@Inj typ func (inr (Eval_f (feval_cast a b))))).
 Reify Pattern patterns_vst += (!!expr.deref_noload @ ?0 @ ?1) => (fun (a : id Ctypes.type) => (@Inj typ func (inr (Eval_f (fderef_noload a))))).
 Reify Pattern patterns_vst += (!!expr.eval_field @ ?0 @ ?1) => (fun (a : id Ctypes.type) (b: id AST.ident) => (@Inj typ func (inr (Eval_f (feval_field a b))))).
-Reify Pattern patterns_vst += (!!expr.eval_binop @ ?0 @ ?1 @ ?2) => 
+Reify Pattern patterns_vst += (!!expr.eval_binop @ ?0 @ ?1 @ ?2) =>
 (fun (a : id Cop.binary_operation) (b c : id Ctypes.type) => ((@Inj typ func (inr (Eval_f (feval_binop a b c)))))).
 Reify Pattern patterns_vst += (!!expr.eval_unop @ ?0 @ ?1) => (fun (a : id Cop.unary_operation) (b : id Ctypes.type) =>  (@Inj typ func (inr (Eval_f (feval_unop a b))))).
 Reify Pattern patterns_vst += (!!expr.eval_id @ ?0) => (fun (a : id AST.ident) => (@Inj typ func (inr (Eval_f (feval_id a))))).
@@ -145,29 +145,29 @@ Reify Pattern patterns_vst += (!!expr.eval_id @ ?0) => (fun (a : id AST.ident) =
 
 
 Reify Pattern patterns_vst += (!!Zpower.two_power_nat) =>  (@Inj typ func (inr (Other ftwo_power_nat))).
-Reify Pattern patterns_vst += (!!expr.force_ptr) =>  (@Inj typ func (inr (Other fforce_ptr))). 
+Reify Pattern patterns_vst += (!!expr.force_ptr) =>  (@Inj typ func (inr (Other fforce_ptr))).
 Reify Pattern patterns_vst += (!!and) =>  (@Inj typ func (inr (Other fand))).
 Reify Pattern patterns_vst += (!!Coqlib.align) =>  (@Inj typ func (inr (Other falign))).
 Reify Pattern patterns_vst += (!!seplog.typed_true) => (@Inj typ func (inr (Other ftyped_true))).
-Reify Pattern patterns_vst += 
-      (!!@eq @ ?0) => (fun (a : function reify_vst_typ) 
+Reify Pattern patterns_vst +=
+      (!!@eq @ ?0) => (fun (a : function reify_vst_typ)
                        => @Inj typ func (inr (Other (feq a)))).
 
 Reify Pattern patterns_vst += (!!Clight.typeof) => (@Inj typ func (inr (Other ftypeof))).
-Reify Pattern patterns_vst += (!!@Some @ ?0) => (fun (a : function reify_vst_typ) => 
+Reify Pattern patterns_vst += (!!@Some @ ?0) => (fun (a : function reify_vst_typ) =>
      @Inj typ func (inr (Other (fsome a)))).
-Reify Pattern patterns_vst += (!!@None @ ?0) => (fun (a : function reify_vst_typ) => 
+Reify Pattern patterns_vst += (!!@None @ ?0) => (fun (a : function reify_vst_typ) =>
      @Inj typ func (inr (Other (fnone a)))).
 
-Reify Pattern patterns_vst += 
+Reify Pattern patterns_vst +=
       (!!seplog.derives) => (fEntails (func := expr typ func) tympred).
-Reify Pattern patterns_vst += 
+Reify Pattern patterns_vst +=
       (!!seplog.sepcon) => (fStar (func := expr typ func) tympred).
-Reify Pattern patterns_vst += 
+Reify Pattern patterns_vst +=
       (!!seplog.emp) => (mkEmp (func := func) tympred).
 (*Reify Pattern patterns_vst +=
-      (!!@list_dt.lseg @ ?0 @ ?1 @ ?2) => 
-         (fun  (a : id Ctypes.type) (b : id AST.ident) 
+      (!!@list_dt.lseg @ ?0 @ ?1 @ ?2) =>
+         (fun  (a : id Ctypes.type) (b : id AST.ident)
                (c : id (list_dt.listspec a b)) =>
               (@Inj typ func (inr (Sep (flseg a b c))))).*)
 Reify Pattern patterns_vst += (!!seplog.TT) => (mkTrue (func := func) tympred).
@@ -184,7 +184,7 @@ Reify Pattern patterns_vst += (!!client_lemmas.SEPx) => (@Inj typ func (inr (Smx
 Reify Pattern patterns_vst += (!!denote_tc_assert_b_norho) => (@Inj typ func (inr (Smx fdenote_tc_assert_b_norho))).
 Reify Pattern patterns_vst += (!!tc_expr_b_norho) => (@Inj typ func (inr (Smx ftc_expr_b_norho))).
 
-Reify Pattern patterns_vst += (!!tc_temp_id_b_norho @ ?0 @ ?1 ) => 
+Reify Pattern patterns_vst += (!!tc_temp_id_b_norho @ ?0 @ ?1 ) =>
   (fun (a : id positive) (b : id Ctypes.type) =>
      (@Inj typ func (inr (Smx (ftc_temp_id_b_norho a b ))))).
 
@@ -216,36 +216,36 @@ Reify Pattern patterns_vst += (!!@SeparationLogicSoundness.SoundSeparationLogic.
 Reify Pattern patterns_vst += (!!semax.semax) => (@Inj typ func (inr (Smx fsemax))).
 
 
-Reify Pattern patterns_vst += (!!(@seplog.exp expr.mpred SeparationLogic.Nveric) @ ?0) => 
+Reify Pattern patterns_vst += (!!(@seplog.exp expr.mpred SeparationLogic.Nveric) @ ?0) =>
      (fun (a : function reify_vst_typ) => (fExists (func := expr typ func) a tympred)).
 
-Reify Pattern patterns_vst += (!!(@seplog.allp expr.mpred SeparationLogic.Nveric) @ ?0) => 
+Reify Pattern patterns_vst += (!!(@seplog.allp expr.mpred SeparationLogic.Nveric) @ ?0) =>
      (fun (a : function reify_vst_typ) => (fForall (func := expr typ func) a tympred)).
 
 
 Reify Pattern patterns_vst +=
-      (!!data_at_lemmas.data_at @ ?0 @ ?1) => 
+      (!!data_at_lemmas.data_at @ ?0 @ ?1) =>
          (fun (a : function reify_vst) (b : id Ctypes.type)  =>
               App (@Inj typ func (inr (Sep (fdata_at b )))) a).
 
 Reify Pattern patterns_vst +=
-      (!!sc_set_load_store.proj_val @ ?0) => 
+      (!!sc_set_load_store.proj_val @ ?0) =>
          ((fun (a : id Ctypes.type)  =>
              @Inj typ func (inr (Sep (fproj_val a ))))).
 
 Reify Pattern patterns_vst +=
-      (!!sc_set_load_store.upd_val @ ?0) => 
+      (!!sc_set_load_store.upd_val @ ?0) =>
          ((fun (a : id Ctypes.type)  =>
              @Inj typ func (inr (Sep (fupd_val a ))))).
 
 (*
 Reify Pattern patterns_vst +=
-      (!!@field_at.field_at @ ?0 @ ?1) => 
+      (!!@field_at.field_at @ ?0 @ ?1) =>
          (fun  (a : id Ctypes.type) (b : id (list AST.ident)) =>
               (@Inj typ func (inr (Sep (ffield_at a b))))).*)
 
-Reify Pattern patterns_vst += 
-      (!!@map @ ?0 @ ?1) => (fun (a b: function reify_vst_typ) => 
+Reify Pattern patterns_vst +=
+      (!!@map @ ?0 @ ?1) => (fun (a b: function reify_vst_typ) =>
                           (@Inj typ func (inr (Data (fmap a b))))).
 
 Reify Pattern patterns_vst +=
@@ -260,17 +260,17 @@ Reify Pattern patterns_vst +=
       (!!@Maps.PTree.set @ ?0 @ ?1) => (fun (a : function reify_vst_typ) (b : id positive) =>
                                          (@Inj typ func (inr (Data (fset a b))))).
 
-Reify Pattern patterns_vst += 
-      (!!@Maps.PTree.Leaf @ ?0) => (fun (a : function reify_vst_typ) => 
+Reify Pattern patterns_vst +=
+      (!!@Maps.PTree.Leaf @ ?0) => (fun (a : function reify_vst_typ) =>
                                  (@Inj typ func (inr (Data (fleaf a))))).
 
-Reify Pattern patterns_vst += 
-      (!!@Maps.PTree.Node @ ?0) => (fun (a : function reify_vst_typ) => 
+Reify Pattern patterns_vst +=
+      (!!@Maps.PTree.Node @ ?0) => (fun (a : function reify_vst_typ) =>
                                  (@Inj typ func (inr (Data (fnode a))))).
 
 
 Reify Pattern patterns_vst +=
-      (!!@nil @ ?0) => (fun (a : function reify_vst_typ) => 
+      (!!@nil @ ?0) => (fun (a : function reify_vst_typ) =>
         (@Inj typ func (inr (Data (fnil a))))).
 
 
@@ -283,114 +283,114 @@ Reify Pattern patterns_vst +=
         (@Inj typ func (inr (Data (ffold_left a b))))).
 
 Reify Pattern patterns_vst +=
-      (!!@cons @ ?0) => (fun (a : function reify_vst_typ) => 
+      (!!@cons @ ?0) => (fun (a : function reify_vst_typ) =>
         (@Inj typ func (inr (Data (fcons a))))).
 
-Reify Pattern patterns_vst += 
+Reify Pattern patterns_vst +=
       (!!@pair @ ?0 @ ?1) => (fun (a b : function reify_vst_typ) =>
         (@Inj typ func (inr (Data (fpair a b))))).
 
 Reify Pattern patterns_vst +=
-      (!!@app @ ?0) => (fun (a : function reify_vst_typ) => 
+      (!!@app @ ?0) => (fun (a : function reify_vst_typ) =>
         (@Inj typ func (inr (Data (fappend a))))).
 
 Reify Pattern patterns_vst +=
       (!!@nth_error @ ?0 @ ?1 @ ?2) =>
-        (fun (a: function reify_vst_typ) (b: function reify_vst) (c: id nat)=> 
+        (fun (a: function reify_vst_typ) (b: function reify_vst) (c: id nat)=>
         (App (@Inj typ func (inr (Data (fnth_error a c)))) b)).
 
 Reify Pattern patterns_vst +=
       (!!@canon.replace_nth @ ?0 @ ?1) =>
-        (fun (a: function reify_vst_typ) (b: id nat)=> 
+        (fun (a: function reify_vst_typ) (b: id nat)=>
           (@Inj typ func (inr (Data (freplace_nth a b))))).
 
-Reify Pattern patterns_vst += 
-      (RHasType AST.ident (?0)) => (fun (a : id AST.ident) 
+Reify Pattern patterns_vst +=
+      (RHasType AST.ident (?0)) => (fun (a : id AST.ident)
                                        => (@Inj typ func (inr (Const (fident a))))).
 
-Reify Pattern patterns_vst_hastype += 
-      (RHasType bool (?0)) => (fun (a : id bool) 
+Reify Pattern patterns_vst_hastype +=
+      (RHasType bool (?0)) => (fun (a : id bool)
                                        => (@Inj typ func (inr (Const (fbool a))))).
 
-Reify Pattern patterns_vst_hastype += 
-      (RHasType Ctypes.type (?0)) => (fun (a : id Ctypes.type) 
+Reify Pattern patterns_vst_hastype +=
+      (RHasType Ctypes.type (?0)) => (fun (a : id Ctypes.type)
                                        => (@Inj typ func (inr (Const (fCtype a))))).
 
-Reify Pattern patterns_vst += 
-      (RHasType expr.environ (?0)) => (fun (a : id expr.environ) 
+Reify Pattern patterns_vst +=
+      (RHasType expr.environ (?0)) => (fun (a : id expr.environ)
                                        => (@Inj typ func (inr (Smx (fenviron a))))).
 
-Reify Pattern patterns_vst += 
-      (RHasType Clight.statement (?0)) => (fun (a : id Clight.statement) 
+Reify Pattern patterns_vst +=
+      (RHasType Clight.statement (?0)) => (fun (a : id Clight.statement)
                                        => (@Inj typ func (inr (Smx (fstatement a))))).
 
-Reify Pattern patterns_vst += 
-      (RHasType Clight.expr (?0)) => (fun (a : id Clight.expr) 
+Reify Pattern patterns_vst +=
+      (RHasType Clight.expr (?0)) => (fun (a : id Clight.expr)
                                        => (@Inj typ func (inr (Const (fCexpr a))))).
 
-Reify Pattern patterns_vst += 
-      (RHasType type_id_env.type_id_env (?0)) => (fun (a : id type_id_env.type_id_env) 
+Reify Pattern patterns_vst +=
+      (RHasType type_id_env.type_id_env (?0)) => (fun (a : id type_id_env.type_id_env)
                                        => (@Inj typ func (inr (Const (fenv a))))).
 
-Reify Pattern patterns_vst += 
-      (RHasType efield_lemmas.LLRR (?0)) => (fun (a : id efield_lemmas.LLRR) 
+Reify Pattern patterns_vst +=
+      (RHasType efield_lemmas.LLRR (?0)) => (fun (a : id efield_lemmas.LLRR)
                                        => (@Inj typ func (inr (Const (fllrr a))))).
 
 Reify Pattern patterns_vst +=
       (!!expr.update_tycon) => (@Inj typ func (inr (Smx (fupdate_tycon)))).
 
-Reify Pattern patterns_vst += 
+Reify Pattern patterns_vst +=
 (!!expr.mk_tycontext @ ?0 @ ?1 @ ?2 @ ?3 @ ?4) =>
-(fun (a : id (Maps.PTree.t (Ctypes.type * bool))) 
+(fun (a : id (Maps.PTree.t (Ctypes.type * bool)))
                                      (b : id (Maps.PTree.t Ctypes.type))
-                                     (c : id Ctypes.type) 
+                                     (c : id Ctypes.type)
                                      (d : id (Maps.PTree.t Ctypes.type))
                                      (e : function reify_vst) =>
                              App (@Inj typ func (inr (Smx (ftycontext a b c d)))) e).
-(*Reify Pattern patterns_vst += 
-(!!(@pair 
+(*Reify Pattern patterns_vst +=
+(!!(@pair
   (prod
      (prod (Maps.PTree.t (prod Ctypes.type bool)) (Maps.PTree.t Ctypes.type))
-     Ctypes.type) (Maps.PTree.t expr.global_spec)) @  
+     Ctypes.type) (Maps.PTree.t expr.global_spec)) @
   (!!(@pair
      (prod (Maps.PTree.t (prod Ctypes.type bool)) (Maps.PTree.t Ctypes.type))
      Ctypes.type) @
-    (!!(@pair (Maps.PTree.t (prod Ctypes.type bool)) 
-        (Maps.PTree.t Ctypes.type)) @ (?0) @ (?1)) @ (?2)) @ ?3) => (fun (a : id (Maps.PTree.t (Ctypes.type * bool))) 
+    (!!(@pair (Maps.PTree.t (prod Ctypes.type bool))
+        (Maps.PTree.t Ctypes.type)) @ (?0) @ (?1)) @ (?2)) @ ?3) => (fun (a : id (Maps.PTree.t (Ctypes.type * bool)))
                                      (b : id (Maps.PTree.t Ctypes.type))
-                                     (c : id Ctypes.type) 
+                                     (c : id Ctypes.type)
                                      (d : function reify_vst) =>
                              App (@Inj typ func (inr (Smx (ftycontext a b c)))) d).*)
 
 (*
-Reify Pattern patterns_vst_hastype += 
-      (RHasType expr.tycontext (?0)) => (fun (a : id expr.tycontext) 
-                                       => (@Inj typ func (inr (Smx 
-                                                                 (ftycontext 
+Reify Pattern patterns_vst_hastype +=
+      (RHasType expr.tycontext (?0)) => (fun (a : id expr.tycontext)
+                                       => (@Inj typ func (inr (Smx
+                                                                 (ftycontext
                                         (expr.temp_types a) (expr.var_types a) (expr.ret_type a) (expr.glob_types a)))))). *)
 
 
 (*
-Reify Pattern patterns_vst_hastype += 
+Reify Pattern patterns_vst_hastype +=
       (RHasType (Maps.PTree.tree (Ctypes.type * bool) * Maps.PTree.t Ctypes.type * Ctypes.type *
-       Maps.PTree.tree expr.global_spec) (?0)) => (fun (a : id expr.tycontext) 
-                                       => (@Inj typ func (inr (Smx 
-                                                                 (ftycontext 
+       Maps.PTree.tree expr.global_spec) (?0)) => (fun (a : id expr.tycontext)
+                                       => (@Inj typ func (inr (Smx
+                                                                 (ftycontext
                                         (expr.temp_types a) (expr.var_types a) (expr.ret_type a) (expr.glob_types a)))))). *)
 
-(*Reify Pattern patterns_vst += 
-      (RHasType (Maps.PTree.t Values.val) (?0)) => (fun (a : id (Maps.PTree.t Values.val)) 
+(*Reify Pattern patterns_vst +=
+      (RHasType (Maps.PTree.t Values.val) (?0)) => (fun (a : id (Maps.PTree.t Values.val))
                                        => (@Inj typ func (inr (Smx (fvaltree a))))).*)
 
 
-Reify Pattern patterns_vst += (RPi (?0) (?1)) => (fun (x : function reify_vst_typ) (y : function reify_vst) => 
+Reify Pattern patterns_vst += (RPi (?0) (?1)) => (fun (x : function reify_vst_typ) (y : function reify_vst) =>
   ExprCore.App (fForall (func := expr typ func) x typrop)
                (Abs x y)).
 
 Reify Pattern patterns_vst += (!!localD) => (@Inj typ func (inr (Smx (flocalD)))).
 
 (*
-Reify Pattern patterns_vst += (!!LocalD @ (?0) @ (?1) @ (?2)) => 
+Reify Pattern patterns_vst += (!!LocalD @ (?0) @ (?1) @ (?2)) =>
 (fun (a : id (Maps.PTree.t Values.val)) (b : id (Maps.PTree.t (Ctypes.type * Values.val))) (c :id (list (expr.environ -> Prop)))
 => (@Inj typ func (inr (Smx (flocalD a b c))))).*)
 
@@ -399,8 +399,8 @@ Reify Pattern patterns_vst += (!!assertD) => (@Inj typ func (inr (Smx (fassertD)
 
 (*Impl*)
 
-Reify Pattern patterns_vst += (@RImpl (?0) (?1)) => 
-       (fun (a b : Patterns.function reify_vst) => ((App (App (fImpl (func := expr typ func) typrop) a) b))). 
+Reify Pattern patterns_vst += (@RImpl (?0) (?1)) =>
+       (fun (a b : Patterns.function reify_vst) => ((App (App (fImpl (func := expr typ func) typrop) a) b))).
 
 Reify Pattern patterns_vst += (!!@ex @ ?0) => (fun (a : Patterns.function reify_vst_typ) => (fExists (func := expr typ func) a typrop )).
 
@@ -408,7 +408,7 @@ Reify Pattern patterns_vst += (!!(@msl.seplog.later veric.expr.mpred SeparationL
 Reify Pattern patterns_vst += (!!(@msl.seplog.later (veric.expr.environ-> veric.expr.mpred) (@SeparationLogic.LiftNatDed' expr.mpred SeparationLogic.Nveric) _)) => (@Inj typ func (inr (Smx (flater_lift)))).
 Reify Pattern patterns_vst += (!!nested_field_lemmas.nested_field_type2) => (@Inj typ func (inr (Smx (fnested_field_type2)))).
 Reify Pattern patterns_vst += (!!expr.is_neutral_cast @ ?0 @ ?1) =>
-  (fun (a b: id (Ctypes.type)) => App (App (@Inj typ func (inr (Smx (fis_neutral_cast)))) 
+  (fun (a b: id (Ctypes.type)) => App (App (@Inj typ func (inr (Smx (fis_neutral_cast))))
                                            (@Inj typ func (inr (Const (fCtype a)))))
                                       (@Inj typ func (inr (Const (fCtype b))))).
 Reify Pattern patterns_vst += (!!msubst_efield_denote @ ?0 @ ?1 @ ?2) =>
@@ -422,7 +422,7 @@ Reify Pattern patterns_vst += (!!efield_lemmas.legal_nested_efield @ ?0 @ ?1 @ ?
 Reify Pattern patterns_vst += (!!tc_LR_b_norho) => (@Inj typ func (inr (Smx (ftc_LR_b_norho)))).
 Reify Pattern patterns_vst += (!!SeparationLogic.tc_environ) => (@Inj typ func (inr (Smx (ftc_environ)))).
 
-Reify Pattern patterns_vst += (!!tc_efield_b_norho @ ?0 @ ?1) => 
+Reify Pattern patterns_vst += (!!tc_efield_b_norho @ ?0 @ ?1) =>
 (fun (a : function reify_vst) (e : id (list floyd.efield_lemmas.efield)) => App (@Inj typ func (inr (Smx (ftc_efield_b_norho e)))) a).
 
 Reify Pattern patterns_vst += (!!efield_lemmas.nested_efield @ ?0 @ ?1 @ ?2) =>
@@ -477,14 +477,14 @@ match goal with
 end.
 
 Definition reflect_prop' tbl e:= match
-func_defs.reflect_prop tbl e with 
+func_defs.reflect_prop tbl e with
 | Some p => p
 | None => False
 end.
 (*
 Ltac reify_goal :=
 let tbl := get_tbl in
-match goal with 
+match goal with
 | [ |- ?X] =>
   let k fs e :=
       change X with (reflect_prop' tbl e) in

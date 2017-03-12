@@ -23,7 +23,7 @@ docs :
 	cd funclistmach; make docs
 	cd funclistmach2; make docs
 	cd hoare; make docs
-	cd sep; make docs 
+	cd sep; make docs
 	cd cont; make docs
 
 .PHONY : all clean docs

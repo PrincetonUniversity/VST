@@ -1,7 +1,7 @@
 VST trunk as of 28 October 2014, compatible with CompCert 2.4.
 
 SPATIAL PREDICATES: Added new definitions "temp" and "var" to use
-in LOCAL part of predicates in supercanonical form. 
+in LOCAL part of predicates in supercanonical form.
 
 TYPECHECKER AND EXPRESSIONS: New, refined typechecking of integer
 types.  Now, local variables of type "Tint I8 Signed" are known to
@@ -20,7 +20,7 @@ treat "var" as well as "temp" efficiently.
 
 TYPECHECKER AND EXPRESSIONS: Typechecker no longer cares about
 type_is_volatile.  Single-precision floating-point values, and
-adjusted rules for floating-point coercions and casts, as per 
+adjusted rules for floating-point coercions and casts, as per
 CompCert 2.4.
 
 SYMBOLIC EXECUTION: Substantial improvement to treatment of nested
@@ -46,7 +46,7 @@ Changes since release 1.3:
 
 SYMBOLIC EXECUTION:  Proof theory for closed_wrt_lvars,
 that is, closedness regarding the addressable-variable environment.
-New load and store rules for data_at, allowing access to 
+New load and store rules for data_at, allowing access to
 structure fields without expanding data_at into a bunch
 of spatial conjunctions (much more efficient).
 Improved semax_cast_load (and all its versions) so it's more useful.

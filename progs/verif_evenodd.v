@@ -65,15 +65,15 @@ forward_if (PROP (repr z v /\ z > 0) LOCAL (`(eq v) (eval_id _n)) SEP ()).
 * forward; eapply repr0_not_odd in H0; eauto; rewrite H0; entailer.
 * forward; entailer; inv H.
   assert (z <> 0) by (apply repr_eq0_not0; auto); entailer.
-* forward_call (z-1,Vint (Int.sub (Int.repr z) (Int.repr 1))). 
+* forward_call (z-1,Vint (Int.sub (Int.repr z) (Int.repr 1))).
   entailer; inversion H; subst z0; rewrite <-H5 in H2; inversion H2; subst n.
   entailer.
-  assert (repr (z - 1) (Vint (Int.repr (z - 1)))). 
+  assert (repr (z - 1) (Vint (Int.repr (z - 1)))).
   { clear -H H1. inv H. constructor. omega. }
-  entailer!. 
+  entailer!.
   after_call; forward.
-  rewrite Z.even_sub; simpl. 
-  case_eq (Z.odd z); rewrite Zodd_even_bool; 
+  rewrite Z.even_sub; simpl.
+  case_eq (Z.odd z); rewrite Zodd_even_bool;
    destruct (Z.even z); simpl; congruence.
 Qed.
 
@@ -85,21 +85,21 @@ forward_if (PROP (repr z v /\ z > 0) LOCAL (`(eq v) (eval_id _n)) SEP ()).
 * forward. eapply repr0_even in H0; eauto; rewrite H0; entailer.
 * forward; entailer; inv H.
   assert (z <> 0) by (apply repr_eq0_not0; auto); entailer.
-* forward_call (Share.top,z-1,Vint (Int.sub (Int.repr z) (Int.repr 1))). 
+* forward_call (Share.top,z-1,Vint (Int.sub (Int.repr z) (Int.repr 1))).
   entailer; inversion H; subst z0; rewrite <-H5 in H2; inversion H2; subst n.
   entailer.
-  assert (repr (z - 1) (Vint (Int.repr (z - 1)))). 
+  assert (repr (z - 1) (Vint (Int.repr (z - 1)))).
   { clear -H H1. inv H. constructor. omega. }
-  entailer!. 
+  entailer!.
   after_call; forward.
-  rewrite Z.odd_sub; simpl. 
-  case_eq (Z.odd z); rewrite Zodd_even_bool; 
+  rewrite Z.odd_sub; simpl.
+  case_eq (Z.odd z); rewrite Zodd_even_bool;
    destruct (Z.even z); simpl; congruence.
 Qed.
 
 Lemma body_main : semax_body Vprog Gprog f_main main_spec.
 Proof with (try solve[entailer!|entailer!; constructor; omega]).
-start_function. 
+start_function.
 forward_call (42,Vint (Int.repr 42))... after_call.
 forward.
 Qed.

@@ -19,9 +19,9 @@ Class NatDed (A: Type) := mkNatDed {
   orp_left: forall P Q R, derives P R -> derives Q R -> derives (orp P Q) R;
   orp_right1: forall P Q R, derives P Q -> derives P (orp Q R);
   orp_right2: forall P Q R, derives P R -> derives P (orp Q R);
-  exp_right: forall {B: Type} (x:B) (P: A) (Q: B -> A), 
+  exp_right: forall {B: Type} (x:B) (P: A) (Q: B -> A),
                         derives P (Q x) -> derives P (exp Q);
-  exp_left: forall {B: Type} (P: B -> A) (Q: A), 
+  exp_left: forall {B: Type} (P: B -> A) (Q: A),
                       (forall x, derives (P x) Q) -> derives (exp P) Q;
   allp_left: forall {B}(P: B -> A) x Q, derives (P x) Q -> derives (allp P) Q;
   allp_right: forall {B}(P: A) (Q: B -> A),  (forall v, derives P (Q v)) -> derives P (allp Q);
@@ -86,7 +86,7 @@ Class SepLog (A: Type) {ND: NatDed A} := mkSepLog {
   sepcon_derives: forall P P' Q Q' : A, P |-- P' -> Q |-- Q' -> sepcon P Q |-- sepcon P' Q';
   ewand_sepcon: forall (P Q R : A),  ewand (sepcon P Q) R = ewand P (ewand Q R);
   ewand_TT_sepcon: forall (P Q R: A),
-                         andp (sepcon P Q) (ewand R TT) |-- 
+                         andp (sepcon P Q) (ewand R TT) |--
                                sepcon (andp P (ewand R TT)) (andp Q (ewand R TT));
   exclude_elsewhere: forall P Q: A, sepcon P Q |-- sepcon (andp P (ewand Q TT)) Q;
   ewand_conflict: forall P Q R, sepcon P Q |-- FF -> andp P (ewand Q R) |-- FF
@@ -96,7 +96,7 @@ Notation "P '*' Q" := (sepcon P Q) : logic.
 Notation "P '-*' Q" := (wand P Q) (at level 60, right associativity) : logic.
 
 Instance LiftSepLog (A B: Type) {NB: NatDed B}{SB: SepLog B} : SepLog (A -> B).
- apply (mkSepLog (A -> B) _ (fun rho => emp) 
+ apply (mkSepLog (A -> B) _ (fun rho => emp)
             (fun P Q rho => P rho * Q rho) (fun P Q rho => P rho -* Q rho)
             (fun P Q rho => ewand (P rho) (Q rho))).
  (* sepcon_assoc *) intros; extensionality rho; apply sepcon_assoc.
@@ -165,7 +165,7 @@ Class SepIndir (A: Type) {NA: NatDed A}{SA: SepLog A}{IA: Indir A} := mkSepIndir
   later_ewand: forall P Q, |> (ewand P Q) = ewand (|>P) (|>Q)
 }.
 
-Instance LiftSepIndir  (A: Type) (B: Type)  {NB: NatDed B} {SB: SepLog B}{IB: Indir B}{SIB: SepIndir B} : 
+Instance LiftSepIndir  (A: Type) (B: Type)  {NB: NatDed B} {SB: SepLog B}{IB: Indir B}{SIB: SepIndir B} :
      @SepIndir (A -> B) (LiftNatDed A B) (LiftSepLog A B) (LiftIndir A B).
  constructor.
  intros; simpl. extensionality rho.  apply later_sepcon.

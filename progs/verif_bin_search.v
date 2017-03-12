@@ -40,7 +40,7 @@ Definition main_spec :=
   POST [ tint ] main_post prog nil u.
 
 (* Packaging the API spec all together. *)
-Definition Gprog : funspecs := 
+Definition Gprog : funspecs :=
         ltac:(with_library prog [search_spec; main_spec]).
 
 Lemma sublist_nil1 : forall A i j (l : list A), j <= i -> sublist i j l = [].

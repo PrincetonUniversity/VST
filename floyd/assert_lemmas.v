@@ -48,7 +48,7 @@ Qed.
 Hint Rewrite <- offset_val_force_ptr : norm.
 
 Lemma sem_add_pi_ptr:
-   forall {cs: compspecs}  t p i, 
+   forall {cs: compspecs}  t p i,
     isptr p ->
     sem_add_pi t p (Vint (Int.repr i)) = Some (offset_val (sizeof t * i) p).
 Proof.
@@ -71,7 +71,7 @@ Qed.
 Hint Rewrite sem_cast_i2i_correct_range using (solve [auto with norm]) : norm.
 
 Lemma force_val_e:
- forall v, force_val (Some v) = v. 
+ forall v, force_val (Some v) = v.
 Proof. reflexivity. Qed.
 Hint Rewrite force_val_e: norm.
 
@@ -90,7 +90,7 @@ Hint Rewrite sem_cast_neutral_Vint : norm.
 Definition isVint v := match v with Vint _ => True | _ => False end.
 
 Lemma is_int_is_Vint: forall i s v, is_int i s v -> isVint v.
-Proof. intros. 
+Proof. intros.
  destruct i,s,v; simpl; intros; auto.
 Qed.
 
@@ -108,8 +108,8 @@ Proof.
 destruct v; simpl; intros; try contradiction; auto.
 Qed.
 
-Hint Rewrite sem_cast_neutral_int using 
-  (auto; 
+Hint Rewrite sem_cast_neutral_int using
+  (auto;
    match goal with H: is_int ?i ?s ?v |- isVint ?v => apply (is_int_is_Vint i s v H) end) : norm.
 
 Lemma sizeof_tuchar: forall {cs: compspecs}, sizeof tuchar = 1%Z.
@@ -166,7 +166,7 @@ unfold normal_ret_assert. intros. normalize.
 Qed.
 
 Lemma frame_normal:
-  forall P F, 
+  forall P F,
    frame_ret_assert (normal_ret_assert P) F = normal_ret_assert (P * F).
 Proof.
 intros.
@@ -176,8 +176,8 @@ normalize.
 Qed.
 
 Lemma frame_for1:
-  forall Q R F, 
-   frame_ret_assert (loop1_ret_assert Q R) F = 
+  forall Q R F,
+   frame_ret_assert (loop1_ret_assert Q R) F =
    loop1_ret_assert (Q * F) (frame_ret_assert R F).
 Proof.
 intros.
@@ -187,8 +187,8 @@ destruct ek; normalize.
 Qed.
 
 Lemma frame_loop1:
-  forall Q R F, 
-   frame_ret_assert (loop2_ret_assert Q R) F = 
+  forall Q R F,
+   frame_ret_assert (loop2_ret_assert Q R) F =
    loop2_ret_assert (Q * F) (frame_ret_assert R F).
 Proof.
 intros.
@@ -198,7 +198,7 @@ destruct ek; normalize.
 Qed.
 
 
-Hint Rewrite normal_ret_assert_FF frame_normal frame_for1 frame_loop1 
+Hint Rewrite normal_ret_assert_FF frame_normal frame_for1 frame_loop1
                  overridePost_normal: ret_assert.
 
 Hint Rewrite eval_id_same : norm.
@@ -234,18 +234,18 @@ Proof.
 Qed.
 Hint Rewrite overridePost_normal' : ret_assert.
 
-Lemma eval_expr_Etempvar: 
+Lemma eval_expr_Etempvar:
   forall {cs: compspecs}  i t, eval_expr (Etempvar i t) = eval_id i.
 Proof. reflexivity.
 Qed.
 Hint Rewrite @eval_expr_Etempvar : eval.
 
-Lemma eval_expr_binop: forall {cs: compspecs}  op a1 a2 t, eval_expr (Ebinop op a1 a2 t) = 
+Lemma eval_expr_binop: forall {cs: compspecs}  op a1 a2 t, eval_expr (Ebinop op a1 a2 t) =
           `(eval_binop op (typeof a1) (typeof a2)) (eval_expr a1) (eval_expr a2).
 Proof. reflexivity. Qed.
 Hint Rewrite @eval_expr_binop : eval.
 
-Lemma eval_expr_unop: forall {cs: compspecs} op a1 t, eval_expr (Eunop op a1 t) = 
+Lemma eval_expr_unop: forall {cs: compspecs} op a1 t, eval_expr (Eunop op a1 t) =
           lift1 (eval_unop op (typeof a1)) (eval_expr a1).
 Proof. reflexivity. Qed.
 Hint Rewrite @eval_expr_unop : eval.
@@ -312,9 +312,9 @@ Proof.
  intros. unfold eval_var; simpl.
  hnf in H. unfold typecheck_environ in H.
   destruct H as [_ [? [? ?]]].
-  unfold typecheck_var_environ in  *. 
-  unfold typecheck_glob_environ in *. 
-  unfold same_env in *. 
+  unfold typecheck_var_environ in  *.
+  unfold typecheck_glob_environ in *.
+  unfold same_env in *.
   destruct (H3 _ _ H1).
   unfold Map.get; rewrite H4.
   destruct (H2 _ _ H1) as [b [? ?]].
@@ -334,9 +334,9 @@ Proof.
  rewrite H2; apply Coq.Init.Logic.I.
 Qed.
 
-Lemma local_lift2_and: forall P Q, local (`and P Q) = 
+Lemma local_lift2_and: forall P Q, local (`and P Q) =
         local P && local Q.
-Proof. intros; extensionality rho. unfold local; super_unfold_lift.   
+Proof. intros; extensionality rho. unfold local; super_unfold_lift.
 simpl.
  apply pred_ext; normalize. destruct H; normalize.
 Qed.
@@ -348,7 +348,7 @@ intros. extensionality rho; reflexivity.
 Qed.
 
 Lemma subst_FF {A}{NA: NatDed A}: forall i v, subst i v FF = FF.
-Proof. 
+Proof.
 intros. extensionality rho; reflexivity.
 Qed.
 Hint Rewrite @subst_TT @subst_FF: subst.
@@ -380,9 +380,9 @@ Lemma local_lift0_True:     local (`True) = TT.
 Proof. reflexivity. Qed.
 Hint Rewrite local_lift0_True : norm2.
 
-Lemma overridePost_EK_return: 
+Lemma overridePost_EK_return:
   forall Q P, overridePost Q P EK_return = P EK_return.
-Proof. unfold overridePost; intros. 
+Proof. unfold overridePost; intros.
   extensionality vl rho; rewrite if_false by congruence. auto.
 Qed.
 Hint Rewrite overridePost_EK_return : ret_assert.
@@ -413,16 +413,16 @@ Proof. reflexivity. Qed.
 Hint Rewrite bind_ret1_unfold : norm2.
 
 Lemma bind_ret1_unfold':
-  forall v t Q rho, 
+  forall v t Q rho,
   bind_ret (Some v) t Q rho = !!(tc_val t v) && Q (make_args (ret_temp::nil)(v::nil) rho).
 Proof.
  intros. reflexivity.
 Qed.
 Hint Rewrite bind_ret1_unfold' : norm2.  (* put this in AFTER the unprimed version, for higher priority *)
 
-Lemma normal_ret_assert_derives': 
+Lemma normal_ret_assert_derives':
   forall P Q, P |-- Q -> normal_ret_assert P |-- normal_ret_assert Q.
-Proof. 
+Proof.
   intros. intros ek vl rho. apply normal_ret_assert_derives. apply H.
 Qed.
 
@@ -489,7 +489,7 @@ Hint Rewrite eval_make_args' : norm2.
 
 Lemma eval_make_args_same:
  forall {cs: compspecs}  i t fsig t0 tl (e: expr) el,
- `(eval_id i) (make_args' ((i,t)::fsig, t0) (eval_exprlist (t::tl) (e::el))) = 
+ `(eval_id i) (make_args' ((i,t)::fsig, t0) (eval_exprlist (t::tl) (e::el))) =
    `force_val (`(sem_cast (typeof e) t) (eval_expr e)).
 Proof.
 intros.
@@ -537,7 +537,7 @@ Lemma compose_eval_make_args_same:
   @liftx (Tarrow environ (LiftEnviron Prop))
       (Q oo (eval_id i)) (make_args' ((i,t)::fsig,t0) (eval_exprlist (t::tl) (e::el))) =
   `Q (`force_val (`(sem_cast (typeof e) t) (eval_expr e))).
-Proof. 
+Proof.
   intros.
   rewrite <- compose_backtick.
   f_equal. apply eval_make_args_same.
@@ -575,10 +575,10 @@ Lemma elim_globals_only:
   tc_environ Delta rho /\ (var_types Delta) ! i = None /\ (glob_types Delta) ! i = Some g ->
   eval_var i t (globals_only rho) = eval_var i t rho.
 Proof.
-intros. 
+intros.
 destruct H as [H [H8 H0]].
 unfold eval_var, globals_only.
-simpl. 
+simpl.
 destruct H as [_ [? [? ?]]].
 destruct (H2 i g H0).
 unfold Map.get; rewrite H3; auto.
@@ -594,8 +594,8 @@ Proof. reflexivity. Qed.
 
 Hint Rewrite eval_var_env_set : norm. (* MOVE elsewhere? *)
 
-Lemma elim_globals_only': 
- forall a: mpred, 
+Lemma elim_globals_only':
+ forall a: mpred,
  (@liftx (Tarrow environ (LiftEnviron mpred)) (`a) globals_only) = `a.
 Proof. reflexivity. Qed.
 Hint Rewrite elim_globals_only' : norm.
@@ -605,7 +605,7 @@ Proof. reflexivity. Qed.
 Lemma eval_expropt_None: forall  {cs: compspecs} , eval_expropt None = `None.
 Proof. reflexivity. Qed.
 Hint Rewrite @eval_expropt_Some @eval_expropt_None : eval.
- 
+
 Lemma globvar_eval_var:
   forall Delta rho id t,
       tc_environ Delta rho ->
@@ -621,14 +621,14 @@ hnf in Hc.
 specialize (Hc _ _ H1). destruct Hc as [b [Hc Hc']].
 exists b.
 unfold eval_var; simpl.
-apply Hd in H1. 
+apply Hd in H1.
 destruct H1 as [? | [? ?]]; [ | congruence].
 unfold Map.get; rewrite H. rewrite Hc.
 auto.
 Qed.
 
-Lemma globvars2pred_unfold: forall vl rho, 
-    globvars2pred vl rho = 
+Lemma globvars2pred_unfold: forall vl rho,
+    globvars2pred vl rho =
     fold_right sepcon emp (map (fun idv => globvar2pred idv rho) vl).
 Proof. intros. unfold globvars2pred.
    induction vl; simpl; auto. normalize; f_equal; auto.
@@ -648,9 +648,9 @@ Hint Rewrite sub_repr : norm.
 Hint Rewrite and_repr : norm.
 Hint Rewrite or_repr : norm.
 
-Lemma ltu_repr: forall i j, 
- (0 <= i <= Int.max_unsigned -> 
-  0 <= j <= Int.max_unsigned -> 
+Lemma ltu_repr: forall i j,
+ (0 <= i <= Int.max_unsigned ->
+  0 <= j <= Int.max_unsigned ->
   Int.ltu (Int.repr i) (Int.repr j) = true -> i<j)%Z.
 Proof.
 intros. unfold Int.ltu in H1. if_tac in H1; inv H1.
@@ -658,9 +658,9 @@ repeat rewrite Int.unsigned_repr in H2 by assumption.
 auto.
 Qed.
 
-Lemma ltu_repr_false: forall i j, 
- (0 <= i <= Int.max_unsigned -> 
-  0 <= j <= Int.max_unsigned -> 
+Lemma ltu_repr_false: forall i j,
+ (0 <= i <= Int.max_unsigned ->
+  0 <= j <= Int.max_unsigned ->
   Int.ltu (Int.repr i) (Int.repr j) = false -> i>=j)%Z.
 Proof.
 intros. unfold Int.ltu in H1. if_tac in H1; inv H1.
@@ -681,7 +681,7 @@ Proof.
   intros.
   pose proof zeq b 0.
   destruct H0; unfold Z.divide in H; unfold align.
-  + destruct H. subst. 
+  + destruct H. subst.
     repeat rewrite Zdiv_0_r.
     simpl.
     omega.
@@ -696,14 +696,14 @@ Qed.
 
 Lemma deref_noload_tarray:
   forall ty n, deref_noload (tarray ty n) = (fun v => v).
-Proof. 
+Proof.
  intros. extensionality v. reflexivity.
 Qed.
 Hint Rewrite deref_noload_tarray : norm.
 
 Lemma deref_noload_Tarray:
   forall ty n a, deref_noload (Tarray ty n a) = (fun v => v).
-Proof. 
+Proof.
  intros. extensionality v. reflexivity.
 Qed.
 Hint Rewrite deref_noload_Tarray : norm.
@@ -724,14 +724,14 @@ Hint Extern 2 (?A |-- ?B) => (constr_eq A B; simple apply derives_refl) : cancel
 Hint Extern 2 (?A |-- |> ?B) => (constr_eq A B; simple apply now_later) : cancel.
 
 Lemma cancel1_start:
- forall P Q : mpred, 
+ forall P Q : mpred,
    P |-- Q * emp ->
    P |-- Q.
 Proof. intros. rewrite sepcon_emp in H; auto.
 Qed.
 
 Lemma cancel1_here:
-  forall P P' Q1 Q2 Q3 : mpred, 
+  forall P P' Q1 Q2 Q3 : mpred,
   P' |-- Q2 ->
   P |-- Q1 * Q3 ->
   P * P' |-- Q1 * Q2 * Q3.
@@ -764,32 +764,32 @@ Proof.
 Qed.
 
 Lemma cancel1_finish2:
-  forall P Q : mpred, 
+  forall P Q : mpred,
     P |-- Q ->
    P |-- Q * emp.
 Proof. intros. rewrite sepcon_emp; auto.
 Qed.
 
-Ltac cancel1 := 
+Ltac cancel1 :=
  first [
    simple apply cancel1_here; [
     try match goal with H := _ : list mpred |- _ => clear H end; (*
       this line is to work around Coq 8.4 bug,
-      Anomaly: undefined_evars_of_term *) 
-    solve [eauto with nocore cancel] 
+      Anomaly: undefined_evars_of_term *)
+    solve [eauto with nocore cancel]
    | ]
  | simple apply cancel1_next; cancel1
  | simple apply cancel1_last; [
     try match goal with H := _ : list mpred |- _ => clear H end; (*
       this line is to work around Coq 8.4 bug,
-      Anomaly: undefined_evars_of_term *)  
+      Anomaly: undefined_evars_of_term *)
     solve [eauto with nocore cancel] | ]
  ].
 
-Ltac cancel2 := 
+Ltac cancel2 :=
   simple apply cancel1_start;
   cancel1;
-  repeat simple apply cancel1_finish1; 
+  repeat simple apply cancel1_finish1;
   try simple apply cancel1_finish2.
 
 Ltac lift1 a e1 rho  :=
@@ -820,22 +820,22 @@ Ltac lift4 a e1 e2 e3 e4 rho :=
 Ltac abstract_env rho P :=
   match P with
    | @emp mpred _ _ => constr:(@emp (environ->mpred) _ _)
-   | @sepcon mpred _ _ ?e1 ?e2 => 
+   | @sepcon mpred _ _ ?e1 ?e2 =>
       let e1' := abstract_env rho e1 in let e2' := abstract_env rho e2
        in constr:(@sepcon (environ->mpred) _ _ e1' e2')
-   | ?a0 ?a1 ?a2 ?e1 ?e2 ?e3 ?e4 => 
+   | ?a0 ?a1 ?a2 ?e1 ?e2 ?e3 ?e4 =>
       let e1' := abstract_env rho e1  in let e2' := abstract_env rho e2 in let e3' := abstract_env rho e3 in let e4' := abstract_env rho e4
       in lift3 (a0 a1 a2) e1' e2' e3' e4' rho
-   | ?a0 ?a1 ?e1 ?e2 ?e3 ?e4 => 
+   | ?a0 ?a1 ?e1 ?e2 ?e3 ?e4 =>
       let e1' := abstract_env rho e1 in let e2' := abstract_env rho e2 in let e3' := abstract_env rho e3 in let e4' := abstract_env rho e4
       in lift3 (a0 a1) e1' e2' e3' e4' rho
-   | ?a0 ?e1 ?e2 ?e3 ?e4 => 
+   | ?a0 ?e1 ?e2 ?e3 ?e4 =>
       let e1' := abstract_env rho e1 in let e2' := abstract_env rho e2 in let e3' := abstract_env rho e3 in let e4' := abstract_env rho e4
       in lift4 a0 e1' e2' e3' e4' rho
-   | ?a0 ?e1 ?e2 ?e3 => 
+   | ?a0 ?e1 ?e2 ?e3 =>
       let e1' := abstract_env rho e1 in let e2' := abstract_env rho e2 in let e3' := abstract_env rho e3
       in lift3 a0 e1' e2' e3' rho
-   | ?a0 ?e1 ?e2 => 
+   | ?a0 ?e1 ?e2 =>
       let e1' := abstract_env rho e1 in let e2' := abstract_env rho e2
       in lift2 a0 e1' e2' rho
    | ?a0 ?e1 => let e1' := abstract_env rho e1 in lift1 a0 e1' rho
@@ -863,25 +863,25 @@ Lemma cancel_frame2_low: forall (P Q: mpred) F,
 Proof. intros. apply sepcon_derives; auto.
 Qed.
 
-Lemma cancel_frame1: forall (P: environ->mpred) (rho: environ), 
+Lemma cancel_frame1: forall (P: environ->mpred) (rho: environ),
          P rho |-- fold_right sepcon emp (P::nil) rho.
 Proof. intros. unfold fold_right. rewrite sepcon_emp; apply derives_refl.
 Qed.
 
-Lemma cancel_frame1_low: forall (P: mpred), 
+Lemma cancel_frame1_low: forall (P: mpred),
          P |-- fold_right_sepcon (P::nil).
 Proof. intros. unfold fold_right_sepcon. rewrite sepcon_emp; apply derives_refl.
 Qed.
 
 
-Ltac fixup_lifts := 
- repeat 
+Ltac fixup_lifts :=
+ repeat
  match goal with
- | |- appcontext [@lift0 mpred] => change (@lift0 mpred) with (@liftx (LiftEnviron mpred))
- | |- appcontext [@lift1 ?A] => change (@lift1 A mpred) with (@liftx (Tarrow A (LiftEnviron mpred)))
- | |- appcontext [@lift2 ?A ?B] =>  change (@lift2 A B mpred) with (@liftx (Tarrow A (Tarrow B (LiftEnviron mpred))))
- | |- appcontext [@lift3 ?A ?B ?C] => change (@lift3 A B C mpred) with (@liftx (Tarrow A (Tarrow B (Tarrow C (LiftEnviron mpred)))))
- | |- appcontext [@lift4 ?A ?B ?C ?D] => change (@lift4 A B C D mpred) with (@liftx (Tarrow A (Tarrow B (Tarrow C (Tarrow D (LiftEnviron mpred))))))
+ | |- context[@lift0 mpred] => change (@lift0 mpred) with (@liftx (LiftEnviron mpred))
+ | |- context[@lift1 ?A] => change (@lift1 A mpred) with (@liftx (Tarrow A (LiftEnviron mpred)))
+ | |- context[@lift2 ?A ?B] =>  change (@lift2 A B mpred) with (@liftx (Tarrow A (Tarrow B (LiftEnviron mpred))))
+ | |- context[@lift3 ?A ?B ?C] => change (@lift3 A B C mpred) with (@liftx (Tarrow A (Tarrow B (Tarrow C (LiftEnviron mpred)))))
+ | |- context[@lift4 ?A ?B ?C ?D] => change (@lift4 A B C D mpred) with (@liftx (Tarrow A (Tarrow B (Tarrow C (Tarrow D (LiftEnviron mpred))))))
  end.
 
 Fixpoint fold_right_sepconx (l: list mpred) : mpred :=
@@ -914,8 +914,8 @@ Ltac unfold_right_sepcon A :=
  | ?D => let y := constr:(D::nil) in y
 end.
 
-Ltac cancel_frame := 
-match goal with 
+Ltac cancel_frame :=
+match goal with
 | |- _ |-- fold_right_sepcon _  => (* setup *)
    rewrite !sepcon_assoc; cancel_frame
 | F := ?v |- ?A |-- fold_right_sepcon ?F  => (* fast way *)
@@ -933,17 +933,17 @@ match goal with
     try (unfold F; apply cancel_frame1_low)
 *)
 | |- ?P |-- fold_right _ _ ?F ?rho  =>
-     let P' := abstract_env rho P in  
+     let P' := abstract_env rho P in
        change ( P' rho |-- fold_right sepcon emp F rho);
    fixup_lifts; cbv beta;
     repeat rewrite sepcon_assoc;
    repeat match goal with |- (_ * _) _ |-- _ =>
                    apply cancel_frame2
-                    end; 
+                    end;
     try (unfold F; apply cancel_frame1);
     try (instantiate (1:=nil) in (Value of F); unfold F; apply cancel_frame0)
  end.
-  
+
 
 Ltac pull_left A :=
  (* For some reason in Coq 8.4pl3 and perhaps other versions,
@@ -965,7 +965,7 @@ match goal with |- ?P |-- ?Q =>
  end;
 repeat rewrite <- sepcon_assoc;
 repeat
-match goal with 
+match goal with
    | |- sepcon _ emp |-- _ => fail 1
    | |- sepcon _ TT |-- _ => pull_left (@TT mpred _)
    | |- sepcon _ ?P' |-- _ => first [ cancel2 | pull_left P' ]
@@ -978,7 +978,7 @@ match goal with
                  what I have here is a compromise between reliable speed, and (in)completeness.
                *)
           | apply TT_right
-          | apply sepcon_TT 
+          | apply sepcon_TT
           | apply TT_sepcon
           | cancel_frame
           | idtac
@@ -993,10 +993,10 @@ Qed.
 
 Hint Rewrite @exp_trivial : norm.
 
-Lemma tc_andp_TT2:  forall e, tc_andp e tc_TT = e. 
+Lemma tc_andp_TT2:  forall e, tc_andp e tc_TT = e.
 Proof. intros; unfold tc_andp.  destruct e; reflexivity. Qed.
- 
-Lemma tc_andp_TT1:  forall e, tc_andp tc_TT e = e. 
+
+Lemma tc_andp_TT1:  forall e, tc_andp tc_TT e = e.
 Proof. intros; unfold tc_andp; reflexivity. Qed.
 Hint Rewrite tc_andp_TT1 tc_andp_TT2 : norm.
 
@@ -1013,7 +1013,7 @@ Definition ptr_neq (v1 v2: val) := ~ ptr_eq v1 v2.
 Lemma ptr_eq_e: forall v1 v2, ptr_eq v1 v2 -> v1=v2.
 Proof.
 intros. destruct v1; destruct v2; simpl in H; try contradiction.
-pose proof (Int.eq_spec i i0). destruct H. 
+pose proof (Int.eq_spec i i0). destruct H.
 rewrite H in H0. subst; auto.
 destruct H; subst.
 f_equal.
@@ -1073,16 +1073,16 @@ intros. unfold_lift. extensionality rho. apply prop_ext; split; intro; auto.
 Qed.
 Hint Rewrite flip_lifted_eq : norm.
 
-Lemma isptr_is_pointer_or_null: 
+Lemma isptr_is_pointer_or_null:
   forall v, isptr v -> is_pointer_or_null v.
 Proof. intros. destruct v; inv H; simpl; auto.
 Qed.
 Hint Resolve isptr_is_pointer_or_null.
 
 Lemma eval_var_isptr:
-  forall Delta t i rho, 
+  forall Delta t i rho,
             tc_environ Delta rho ->
-            ((var_types Delta) ! i = Some t \/ 
+            ((var_types Delta) ! i = Some t \/
              (var_types Delta)!i = None /\
             (glob_types Delta) ! i = Some t) ->
             isptr (eval_var i t rho).
@@ -1098,7 +1098,7 @@ Proof.
   destruct H; rewrite H.
   rewrite eqb_type_refl.
   simpl. auto.
-  destruct H0. 
+  destruct H0.
   destruct (H1 _ _ H3) as [b [? ?]].
   rewrite H4. simpl.
  destruct (H2 _ _ H3).
@@ -1115,16 +1115,16 @@ Definition repable_signed_dec (z: Z) : {repable_signed z}+{~repable_signed z}.
 Proof.
  intros. unfold repable_signed.
  destruct (zlt z Int.min_signed).
- right; intros [? _]; unfold Int.min_signed; omega. 
+ right; intros [? _]; unfold Int.min_signed; omega.
  destruct (zlt Int.max_signed z).
  right; intros [_ ?]; unfold Int.max_signed; omega.
- left; split; omega. 
+ left; split; omega.
 Defined.
 
 Definition add_ptr_int'  {cs: compspecs}  (ty: type) (v: val) (i: Z) : val :=
   if repable_signed_dec (sizeof ty * i)
    then match v with
-      | Vptr b ofs => 
+      | Vptr b ofs =>
            Vptr b (Int.add ofs (Int.repr (sizeof ty * i)))
       | Vint n1 =>
            Vint (Int.add n1 (Int.repr (sizeof ty * i)))
@@ -1190,7 +1190,7 @@ intros.
 Qed.
 
 Lemma add_ptr_int_eq:
-  forall  {cs: compspecs}  ty v i, 
+  forall  {cs: compspecs}  ty v i,
        repable_signed (sizeof ty * i) ->
        add_ptr_int' ty v i = add_ptr_int ty v i.
 Proof.
@@ -1203,7 +1203,7 @@ Qed.
 
 
 Lemma add_ptr_int_offset:
-  forall  {cs: compspecs}  t v n, 
+  forall  {cs: compspecs}  t v n,
   repable_signed (sizeof t) ->
   repable_signed n ->
   add_ptr_int t v n = offset_val (sizeof t * n) v.
@@ -1217,45 +1217,45 @@ Proof.
 Abort. (* broken in CompCert 2.7 *)
 
 Lemma add_ptr_int'_offset:
-  forall  {cs: compspecs}  t v n, 
+  forall  {cs: compspecs}  t v n,
   repable_signed (sizeof t * n) ->
   add_ptr_int' t v n = offset_val (sizeof t * n) v.
 Proof.
  intros.
- unfold add_ptr_int'. 
+ unfold add_ptr_int'.
  rewrite if_true by auto. destruct v; simpl; auto.
 Abort. (* broken in CompCert 2.7 *)
 
 Lemma typed_false_cmp:
-  forall op i j , 
+  forall op i j ,
    typed_false tint (force_val (sem_cmp op tint tint (Vint i) (Vint j))) ->
    Int.cmp (negate_comparison op) i j = true.
 Proof.
 intros.
-unfold sem_cmp in H. 
+unfold sem_cmp in H.
 unfold classify_cmp in H. simpl in H.
 rewrite Int.negate_cmp.
 destruct (Int.cmp op i j); auto. inv H.
 Qed.
 
 Lemma typed_true_cmp:
-  forall op i j, 
+  forall op i j,
    typed_true tint (force_val (sem_cmp op tint tint (Vint i) (Vint j))) ->
    Int.cmp op i j = true.
 Proof.
 intros.
-unfold sem_cmp in H. 
+unfold sem_cmp in H.
 unfold classify_cmp in H. simpl in H.
 destruct (Int.cmp op i j); auto. inv H.
 Qed.
 
 Definition Zcmp (op: comparison) : Z -> Z -> Prop :=
- match op with 
+ match op with
  | Ceq => eq
  | Cne => (fun i j => i<>j)
  | Clt => Zlt
  | Cle => Zle
- | Cgt => Zgt 
+ | Cgt => Zgt
  | Cge => Zge
  end.
 
@@ -1270,7 +1270,7 @@ replace (if zeq (Int.unsigned (Int.repr i)) (Int.unsigned (Int.repr j))
              then true else false)
  with (if zeq i j then true else false) in H1.
 Focus 2.
-destruct (zeq i j); destruct (zeq (Int.unsigned (Int.repr i)) (Int.unsigned (Int.repr j))); 
+destruct (zeq i j); destruct (zeq (Int.unsigned (Int.repr i)) (Int.unsigned (Int.repr j)));
  auto.
 subst. contradiction n; auto.
 clear - H H0 e n.
@@ -1294,10 +1294,10 @@ Qed.
 
 
 Lemma typed_false_cmp_repr:
-  forall op i j, 
-   repable_signed i -> repable_signed j -> 
+  forall op i j,
+   repable_signed i -> repable_signed j ->
    typed_false tint (force_val (sem_cmp op tint tint
-                              (Vint (Int.repr i)) 
+                              (Vint (Int.repr i))
                               (Vint (Int.repr j)) )) ->
    Zcmp (negate_comparison op) i j.
 Proof.
@@ -1307,10 +1307,10 @@ Proof.
 Qed.
 
 Lemma typed_true_cmp_repr:
-  forall op i j, 
-   repable_signed i -> repable_signed j -> 
+  forall op i j,
+   repable_signed i -> repable_signed j ->
    typed_true tint (force_val (sem_cmp op tint tint
-                              (Vint (Int.repr i)) 
+                              (Vint (Int.repr i))
                               (Vint (Int.repr j)) )) ->
    Zcmp op i j.
 Proof.
@@ -1362,7 +1362,7 @@ Ltac no_evars P := (has_evar P; fail 1) || idtac.
 
 
 Ltac putable x :=
- match x with 
+ match x with
  | O => idtac
  | S ?x => putable x
  | Z.lt ?x ?y => putable x; putable y
@@ -1451,7 +1451,7 @@ Lemma force_signed_int_e:
 Proof. reflexivity. Qed.
 Hint Rewrite force_signed_int_e : norm.
 
-Lemma allp_sepcon1 {A}{ND: NatDed A} {SL: SepLog A}:  
+Lemma allp_sepcon1 {A}{ND: NatDed A} {SL: SepLog A}:
   forall T (P: T ->  A) Q, sepcon (allp P) Q |-- allp (fun x => sepcon (P x) Q).
 Proof.
 intros.
@@ -1460,7 +1460,7 @@ apply sepcon_derives; auto.
 apply allp_left with x. auto.
 Qed.
 
-Lemma allp_sepcon2 {A}{ND: NatDed A} {SL: SepLog A}:  
+Lemma allp_sepcon2 {A}{ND: NatDed A} {SL: SepLog A}:
   forall T P (Q: T ->  A), sepcon P (allp Q) |-- allp (fun x => sepcon P (Q x)).
 Proof.
 intros.

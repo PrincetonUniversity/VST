@@ -12,14 +12,14 @@ Require Import ZArith.
 
 (* log2 is like log_inf except it returns nat, so I don't have to reason about an unnecessary conversion. This function is only used to implement lognat below.*)
 Fixpoint log2(n : positive) : nat :=
-  match n with 
+  match n with
     | xH => 0
     | xO n' | xI n' => (S (log2 n'))
   end.
 
 Lemma log2_prod_sum : forall(a : positive),
   (S (log2 a)) = (log2 (Pmult 2 a)).
-  
+
   intros. auto.
 Qed.
 
@@ -35,14 +35,14 @@ Qed.
 Lemma log2_monotonic_b : forall(a : positive),
   (log2 a) <= (log2 (Psucc a)).
 
-  induction a; 
+  induction a;
   simpl in *; try apply le_s; auto.
 Qed.
 
 Lemma log2_ge_monotonic : forall(a : positive),
   (log2 (Psucc a)) >= (log2 a).
 
-  induction a; 
+  induction a;
   simpl in *; try apply le_s; auto.
 Qed.
 
@@ -61,8 +61,8 @@ Qed.
 
 Lemma factor_s_conv : forall(a : nat)(pf1 : (a <> 0))(pf2 : (S a) <> 0),
   (nat_to_pos (pf2)) = (Psucc (nat_to_pos pf1)).
-  
-  intros. 
+
+  intros.
   destruct a.
   congruence.
 
@@ -89,54 +89,54 @@ Lemma factor_double_conv : forall(a : nat)(pf1 : (a <> 0))(pf2 : (2 * a) <> 0),
   congruence.
 
   destruct (eq_nat_dec a 0).
-  subst. 
+  subst.
   unfold nat_to_pos.
   auto.
 
   assert (a + S (a + 0) <> 0) by omega.
-  specialize (factor_s_conv H). intros. 
+  specialize (factor_s_conv H). intros.
   unfold nat_to_pos in *.
 
   rewrite (H0 pf2). clear H0.  clear pf2.
   assert (a + S (a + 0) = S (a + (a + 0))) by omega.
-  rewrite H0.  
+  rewrite H0.
   assert (a + (a + 0) <> 0) by omega.
-  specialize (factor_s_conv H1). intros. 
-  
+  specialize (factor_s_conv H1). intros.
+
   unfold nat_to_pos in H2.
   rewrite <- H0 in H2.
   rewrite <- H0.
   rewrite (H2 H). clear H. clear H2.
-  
+
   rewrite (IHa n). clear IHa.
   simpl.
   destruct a. intros. destruct n. auto.
 
   auto.
-  omega. 
+  omega.
 Qed.
 
-Definition lognat(n : nat) : (n <> 0) -> nat := 
+Definition lognat(n : nat) : (n <> 0) -> nat :=
   fun pf => (log2 (nat_to_pos pf)).
 
 
 Theorem lognat_prod_sum : forall(a : nat)(pf1 : (a <> 0))(pf2: (2 * a) <> 0),
   (S (lognat pf1)) = (lognat pf2).
-  
-  intros. 
+
+  intros.
   unfold lognat in *.
   rewrite (factor_double_conv pf1 pf2).
   eapply log2_prod_sum.
-Qed.  
+Qed.
 
 Theorem lognat_monotonic_b : forall(a : nat)(pf1 : (a <> 0))(pf2: (S a) <> 0),
   (lognat pf1) <= (lognat pf2).
-  
+
   induction a.
-  intros. 
+  intros.
   destruct pf1. auto.
 
-  intros. 
+  intros.
   unfold lognat in *.
   rewrite (factor_s_conv pf1).
   apply log2_monotonic_b.
@@ -152,14 +152,14 @@ Fixpoint expnat(a e : nat) : nat :=
 Lemma mult_ne : forall a b,
   a <> 0 -> b <> 0 -> a * b <> 0.
 
-  intros. 
-  destruct a. omega. 
-  destruct b. omega. 
-  simpl. 
+  intros.
+  destruct a. omega.
+  destruct b. omega.
+  simpl.
   remember (b + a * (S b)) as c.
-  omega. 
+  omega.
 Qed.
-  
+
 
 Theorem expnat_nz : forall a e,
   (a <> 0) -> (expnat a e) <> 0.
@@ -167,8 +167,8 @@ Theorem expnat_nz : forall a e,
   induction e.
   simpl. auto.
 
-  simpl. 
-  intros. 
+  simpl.
+  intros.
   eapply mult_ne; eauto.
 Qed.
 
@@ -178,15 +178,15 @@ Qed.
 
 Theorem expnat_2_nz: forall e,
   (expnat 2 e) <> 0.
-  
-  intros. 
+
+  intros.
   apply (expnat_nz e nz_2).
 Qed.
 
 Theorem expnat_2_monotonic : forall e1 e2,
   e1 <= e2 ->
   (expnat 2 e1 <= expnat 2 e2).
-  
+
   induction e1.
   intros.
   simpl.
@@ -197,7 +197,7 @@ Theorem expnat_2_monotonic : forall e1 e2,
   intros.
   omega.
 
-  simpl. 
+  simpl.
   specialize (IHe1 e2).
   omega.
 Qed.
@@ -207,10 +207,10 @@ Theorem lognat_correct_eq : forall(b : nat)(pf : (expnat 2 b) <> 0),
 
   induction b.
   intros. simpl in *. auto.
-  
-  intros. 
-  specialize (lognat_prod_sum (expnat_2_nz b)). intros. 
-  specialize (IHb (expnat_2_nz b)). 
+
+  intros.
+  specialize (lognat_prod_sum (expnat_2_nz b)). intros.
+  specialize (IHb (expnat_2_nz b)).
   rewrite IHb in H.
   symmetry in H.
   simpl in *.
@@ -225,12 +225,12 @@ Qed.
 
 Theorem lognat_ge_monotonic_b : forall(a : nat)(pf1 : (a <> 0))(pf2: (S a) <> 0),
   (lognat pf2) >= (lognat pf1).
-  
+
   induction a.
-  intros. 
+  intros.
   destruct pf1. auto.
 
-  intros. 
+  intros.
   unfold lognat in *.
   rewrite (factor_s_conv pf1).
   apply log2_monotonic_b.
@@ -241,16 +241,16 @@ Lemma ge_trans : forall a b c,
   intuition.
 Qed.
 
-Lemma lognat_ge_monotonic_h : forall (c a b : nat)(pfa : a <> 0)(pfb : b <> 0), 
+Lemma lognat_ge_monotonic_h : forall (c a b : nat)(pfa : a <> 0)(pfb : b <> 0),
     a >= b -> c = (a - b) -> (lognat pfa) >= (lognat pfb).
 
   induction c.
-  intros. 
+  intros.
   assert (a = b) by intuition.
   subst. auto.
 
-  intros. 
-  assert (a >= (S b)) by omega. 
+  intros.
+  assert (a >= (S b)) by omega.
   assert (c = a - (S b)) by omega.
   eapply ge_trans.
   apply (IHc a (S b) pfa (s_nat_nz pfb)).
@@ -259,7 +259,7 @@ Lemma lognat_ge_monotonic_h : forall (c a b : nat)(pfa : a <> 0)(pfb : b <> 0),
   apply lognat_ge_monotonic_b.
 Qed.
 
-Lemma lognat_ge_monotonic : forall (a b : nat)(pfa : a <> 0)(pfb : b <> 0), 
+Lemma lognat_ge_monotonic : forall (a b : nat)(pfa : a <> 0)(pfb : b <> 0),
     a >= b -> (lognat pfa) >= (lognat pfb).
 
   intros.
@@ -267,7 +267,7 @@ Lemma lognat_ge_monotonic : forall (a b : nat)(pfa : a <> 0)(pfb : b <> 0),
   apply (@lognat_ge_monotonic_h c); auto.
 Qed.
 
-Lemma lognat_monotonic : forall (a b : nat)(pfa : a <> 0)(pfb : b <> 0), 
+Lemma lognat_monotonic : forall (a b : nat)(pfa : a <> 0)(pfb : b <> 0),
     a <= b -> (lognat pfa) <= (lognat pfb).
 
   intros.
@@ -277,7 +277,7 @@ Qed.
 
 Theorem mt : forall P Q: Prop, (P -> Q) -> (~Q -> ~P).
   unfold not in *.
-  intros. 
+  intros.
   apply H0.
   apply H.
   apply H1.
@@ -288,27 +288,27 @@ Lemma ge_not : forall a b,
   intuition.
 Qed.
 
-Lemma lognat_ge_monotonic_mt : forall (a b : nat)(pfa : a <> 0)(pfb : b <> 0), 
+Lemma lognat_ge_monotonic_mt : forall (a b : nat)(pfa : a <> 0)(pfb : b <> 0),
     (lognat pfa) < (lognat pfb) -> a < b.
 
-  intros. 
+  intros.
   specialize (lognat_ge_monotonic pfa pfb).
-  intros. 
+  intros.
   specialize (mt H0).
-  intros. 
+  intros.
   apply ge_not. omega.
 Qed.
 
 Lemma lognat_correct2 : forall(a : nat)(pf : a <> 0),
   a < (expnat 2 (S (lognat pf))).
-  
-  intros. 
+
+  intros.
 
   simpl.
   rewrite fold_add.
   assert (expnat 2 (lognat pf) <> 0). apply expnat_nz. auto.
-  assert (2 * (expnat 2 (lognat pf)) <> 0). omega. 
-  eapply (lognat_ge_monotonic_mt pf H0). 
+  assert (2 * (expnat 2 (lognat pf)) <> 0). omega.
+  eapply (lognat_ge_monotonic_mt pf H0).
   rewrite <- (lognat_prod_sum H).
   rewrite lognat_correct_eq.
   omega.
@@ -317,12 +317,12 @@ Qed.
 Lemma lognat_odd : forall(a : nat)(pf1 : (2 * a) <> 0)(pf2 : (S (2 * a)) <> 0),
   ((lognat pf2) = (lognat pf1)).
 
-  intros. 
+  intros.
   unfold lognat in *.
   rewrite (factor_s_conv pf1 pf2).
   assert (a <> 0). omega.
   rewrite (factor_double_conv H pf1).
-  simpl. 
+  simpl.
   auto.
 Qed.
 
@@ -332,10 +332,10 @@ Qed.
 
 
 Lemma lognat_double_eq : forall a b (pf1: 2 * a <> 0)(pf2: 2 * b <> 0)(pf3 : a <> 0) (pf4: b <> 0),
-  lognat pf3 = lognat pf4 -> 
+  lognat pf3 = lognat pf4 ->
   lognat pf1 = lognat pf2.
 
-  intros. 
+  intros.
   rewrite <- (lognat_prod_sum pf3).
   rewrite <- (lognat_prod_sum pf4).
   omega.
@@ -349,54 +349,54 @@ Lemma nat_comp : forall(a : nat),
   exists 0. simpl.  auto.
 
   elim IHa. clear IHa.
-  intros. 
+  intros.
   destruct H.
   subst. simpl.
   exists x.
   right. auto.
 
-  subst. simpl. 
+  subst. simpl.
   exists (S x).
   left.
-  simpl. 
-  omega. 
+  simpl.
+  omega.
 Qed.
 
 Lemma lognat_correct1 : forall(b a : nat)(pf : a <> 0),
-  (lognat pf) = b -> 
+  (lognat pf) = b ->
   (expnat 2 b) <= a.
 
   induction b.
 
   intros. simpl in *. omega.
 
-  intros. 
-  elim (nat_comp a). intros. 
+  intros.
+  elim (nat_comp a). intros.
   destruct H0.
-  subst. 
+  subst.
   destruct (eq_nat_dec x 0).
-  subst. omega. 
+  subst. omega.
   rewrite <- (lognat_prod_sum n pf) in H.
   inversion H. clear H.
   rewrite H1.
   apply IHb in H1.
-  simpl in *. omega. 
+  simpl in *. omega.
 
-  subst. 
+  subst.
   destruct (eq_nat_dec x 0).
-  subst. unfold lognat in H. simpl in *. omega. 
+  subst. unfold lognat in H. simpl in *. omega.
   assert ((2 * x) <> 0). omega.
   rewrite (lognat_odd x H0 pf) in H.
-  
+
   rewrite <- (lognat_prod_sum n H0) in H.
   inversion H.
   rewrite H2.
   apply IHb in H2.
-  simpl. 
+  simpl.
   omega.
-Qed.  
-  
-  
+Qed.
+
+
 Theorem lognat_correct : forall(a : nat)(pf : a <> 0),
   (expnat 2 (lognat pf)) <= a < (expnat 2 (S (lognat pf))).
 
@@ -407,16 +407,16 @@ Theorem lognat_correct : forall(a : nat)(pf : a <> 0),
   apply lognat_correct2.
 Qed.
 
-Lemma lognat_prod_sum_gen_h : forall (a' a b: nat)(pf1 : (a <> 0))(pf2 : (b <> 0))(pf3 : a * b <> 0), 
+Lemma lognat_prod_sum_gen_h : forall (a' a b: nat)(pf1 : (a <> 0))(pf2 : (b <> 0))(pf3 : a * b <> 0),
   lognat pf1 = a' ->
   a' + lognat pf2 <= lognat pf3.
- 
-  induction a'; intros. 
-  simpl. 
-  eapply lognat_monotonic. 
+
+  induction a'; intros.
+  simpl.
+  eapply lognat_monotonic.
   induction a.
   congruence.
-  simpl. 
+  simpl.
   intuition.
 
   destruct (nat_comp a).
@@ -425,10 +425,10 @@ Lemma lognat_prod_sum_gen_h : forall (a' a b: nat)(pf1 : (a <> 0))(pf2 : (b <> 0
   assert (x <> 0). omega.
   assert (x * b <> 0). destruct x; destruct b; simpl; congruence.
   rewrite <- (lognat_prod_sum H0) in H.
-  assert (lognat pf3 = S (lognat H1)). 
+  assert (lognat pf3 = S (lognat H1)).
   generalize pf3.
   rewrite mult_assoc_reverse.
-  intros. 
+  intros.
   rewrite (lognat_prod_sum _ pf0).
   trivial.
 
@@ -436,7 +436,7 @@ Lemma lognat_prod_sum_gen_h : forall (a' a b: nat)(pf1 : (a <> 0))(pf2 : (b <> 0
   inversion H.
   specialize (IHa' x b H0 pf2 H1 H4).
   subst.
-  omega. 
+  omega.
 
   destruct (eq_nat_dec x 0).
   subst.
@@ -444,32 +444,32 @@ Lemma lognat_prod_sum_gen_h : forall (a' a b: nat)(pf1 : (a <> 0))(pf2 : (b <> 0
   simpl in *.
   discriminate.
 
-  assert (2 * x <> 0). omega. 
+  assert (2 * x <> 0). omega.
   assert (x * b <> 0). destruct x; destruct b; simpl; congruence.
   assert (2 * x * b <> 0). rewrite mult_assoc_reverse. omega.
   subst.
   rewrite (lognat_odd _ H1) in H.
   rewrite <- (lognat_prod_sum n) in H.
   inversion H.
-  subst. 
+  subst.
   assert (lognat n = lognat n). trivial.
   specialize (IHa' x b n pf2 H2 H0).
 
   generalize pf3.
   assert (S (2 * x) * b = b + 2 * x * b). intuition.
   rewrite H4.
-  intros. 
+  intros.
   eapply le_trans.
   Focus 2.
   eapply (lognat_monotonic H3). intuition.
   generalize H3.
   rewrite mult_assoc_reverse.
-  intros. 
+  intros.
   rewrite <- (lognat_prod_sum H2).
   omega.
 Qed.
 
-Theorem lognat_prod_sum_gen : forall (a b: nat)(pf1 : (a <> 0))(pf2 : (b <> 0))(pf3 : a * b <> 0), 
+Theorem lognat_prod_sum_gen : forall (a b: nat)(pf1 : (a <> 0))(pf2 : (b <> 0))(pf3 : a * b <> 0),
   lognat pf1 + lognat pf2 <= lognat pf3.
 
   intros.
@@ -480,17 +480,17 @@ Qed.
 Lemma lognat_0_1 : forall n (pf : n <> 0),
   lognat pf = 0 -> n = 1.
 
-  intros. 
+  intros.
   destruct n.
   omega.
-  
+
   destruct n.
   trivial.
 
   assert (2 <> 0). omega.
   assert (lognat pf >= lognat H0).
   eapply lognat_ge_monotonic.
-  omega. 
+  omega.
 
   unfold lognat in *.
   simpl in *.
@@ -498,53 +498,53 @@ Lemma lognat_0_1 : forall n (pf : n <> 0),
 Qed.
 
 Lemma lognat_succ_h : forall a n (pf1 : n <> 0)(pf2: (S n) <> 0),
-  a = lognat pf1 -> 
+  a = lognat pf1 ->
     lognat pf2 = a \/
     lognat pf2 = S (a).
 
-  induction a; intros. 
-  assert (n = 1). 
+  induction a; intros.
+  assert (n = 1).
   apply (lognat_0_1 pf1).
   auto.
-  subst. 
+  subst.
   unfold lognat.
-  simpl. 
+  simpl.
   auto.
 
   destruct (nat_comp n).
   destruct H0.
-  subst. 
+  subst.
   assert (x <> 0). omega.
   rewrite <- (lognat_prod_sum H0) in H.
   inversion H.
-  subst. 
+  subst.
   rewrite (lognat_odd _ pf1).
   rewrite <- (lognat_prod_sum H0).
   auto.
 
   subst.
   destruct (eq_nat_dec x 0).
-  subst. 
+  subst.
   unfold lognat in *.
   simpl in *.
-  omega. 
+  omega.
 
   generalize pf2.
   assert (S (S (2 * x)) = 2 * (S x)). omega.
   rewrite H0.
-  intros. 
-  assert (S x <> 0). omega. 
+  intros.
+  assert (S x <> 0). omega.
   assert (2 * x <> 0). omega.
   rewrite (lognat_odd _ H2) in H.
   rewrite <- (lognat_prod_sum n) in H.
   inversion H.
   rewrite <- (lognat_prod_sum H1).
-  specialize (IHa x n H1 H4). 
+  specialize (IHa x n H1 H4).
   destruct IHa.
-  subst. 
+  subst.
   rewrite H4.
   auto.
-  subst. 
+  subst.
   right.
   rewrite H3.
   auto.
@@ -563,10 +563,10 @@ Qed.
 Lemma logn_ge_1 : forall n (pf : n <> 0),
   n > 1 -> lognat pf >= 1.
 
-  intros. 
+  intros.
   destruct n.
   congruence.
-  
+
   destruct n.
   omega.
 
@@ -579,8 +579,8 @@ Lemma logn_ge_1 : forall n (pf : n <> 0),
   omega.
 
   assert (forall (pf : 2 <> 0), 1 = lognat pf).
-  intros. 
-  unfold lognat. 
+  intros.
+  unfold lognat.
   auto.
 
   rewrite (H2 H0).

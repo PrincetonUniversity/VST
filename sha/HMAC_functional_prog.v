@@ -5,8 +5,8 @@ Require Import sha.general_lemmas.
 
 Module HP.
 
-(*SHA256: blocksize = 64bytes 
-    corresponds to 
+(*SHA256: blocksize = 64bytes
+    corresponds to
     #define SHA_LBLOCK	16
     #define SHA256_CBLOCK	(SHA_LBLOCK*4) *)
 
@@ -32,18 +32,18 @@ Definition zeroPad (k: list Z) : list Z :=
 
 Definition mkKey (l:list Z) : list Z :=
   if Z.gtb (Zlength l) (Z.of_nat HF.BlockSize)
-  then (zeroPad (HF.Hash l)) 
+  then (zeroPad (HF.Hash l))
   else zeroPad l.
 
 Definition KeyPreparation (l:list Z) : list byte := map Byte.repr (mkKey l).
 
-Definition mkArg (key:list byte) (pad:byte): list byte := 
+Definition mkArg (key:list byte) (pad:byte): list byte :=
        (map (fun p => Byte.xor (fst p) (snd p))
           (combine key (sixtyfour pad))).
-Definition mkArgZ key (pad:byte): list Z := 
+Definition mkArgZ key (pad:byte): list Z :=
      map Byte.unsigned (mkArg key pad).
 (*
-Definition Ipad := P.Ipad.  
+Definition Ipad := P.Ipad.
 Definition Opad := P.Opad.
 *)
 (*innerArg to be applied to message, (map Byte.repr (mkKey password)))*)
@@ -68,23 +68,23 @@ Definition HmacCore' IP OP txt (key: list byte): list Z :=
 Goal forall IP OP txt key, HmacCore IP OP txt key = HmacCore' IP OP txt key.
 Proof. intros. reflexivity. Qed.
 
-Definition HMAC IP OP txt password: list Z := 
+Definition HMAC IP OP txt password: list Z :=
   let key := KeyPreparation password in
   HmacCore IP OP txt key.
 
 Lemma SF_ByteRepr x: isbyteZ x ->
-                     sixtyfour x = 
+                     sixtyfour x =
                      map Byte.unsigned (sixtyfour (Byte.repr x)).
 Proof. intros. unfold sixtyfour.
  rewrite map_list_repeat.
- rewrite Byte.unsigned_repr; trivial. destruct H. 
+ rewrite Byte.unsigned_repr; trivial. destruct H.
  assert (BMU: Byte.max_unsigned = 255). reflexivity. omega.
 Qed.
 
 Lemma length_SF {A} (a:A) :length (sixtyfour a) = HF.BlockSize.
-Proof. apply length_list_repeat. Qed. 
+Proof. apply length_list_repeat. Qed.
 
-Lemma isbyte_hmaccore ipad opad m k: 
+Lemma isbyte_hmaccore ipad opad m k:
    Forall isbyteZ (HmacCore (Byte.repr ipad) (Byte.repr opad) m k).
 Proof. apply HF.Hash_isbyteZ. Qed.
 

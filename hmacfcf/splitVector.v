@@ -10,18 +10,18 @@ Require Import fcf.DetSem.
 
 Fixpoint splitVector(A : Set)(n m : nat) : Vector.t A (n + m) -> (Vector.t A n * Vector.t A m) :=
   match n with
-          | 0 => 
+          | 0 =>
             fun (v : Vector.t A (O + m)) => (@Vector.nil A, v)
-          | S n' => 
-            fun (v : Vector.t A (S n' + m)) => 
+          | S n' =>
+            fun (v : Vector.t A (S n' + m)) =>
               let (v1, v2) := splitVector _ _ (Vector.tl v) in
                 (Vector.cons _ (Vector.hd v) _ v1, v2)
     end.
 
-Theorem splitVector_append : 
+Theorem splitVector_append :
   forall (A : Set) n1 (v1 : Vector.t A n1) n2 (v2 : Vector.t A n2),
     splitVector n1 n2 (Vector.append v1 v2) = (v1, v2).
-  
+
   induction v1; intuition; simpl in *.
   remember ( splitVector n n2 (Vector.append v1 v2)) as z.
   destruct z.
@@ -30,7 +30,7 @@ Theorem splitVector_append :
   trivial.
 Qed.
 
-Theorem append_splitVector_h : 
+Theorem append_splitVector_h :
   forall (A : Set) n1 n2 (x : Vector.t A (n1 + n2)),
    (Vector.append (fst (splitVector n1 n2 x)) (snd (splitVector n1 n2 x))) = x.
 
@@ -50,9 +50,9 @@ Theorem append_splitVector_h :
 
 Qed.
 
-Theorem append_splitVector: 
+Theorem append_splitVector:
   forall (A : Set) n1 n2 (x : Vector.t A (n1 + n2)) x1 x2,
-    (x1, x2) = (splitVector n1 n2 x) -> 
+    (x1, x2) = (splitVector n1 n2 x) ->
    (Vector.append x1 x2) = x.
 
   intuition.
@@ -64,14 +64,14 @@ Theorem append_splitVector:
 Qed.
 
 
-Theorem shiftOut_plus : 
+Theorem shiftOut_plus :
   forall (n1 n2 : nat) s b s',
     shiftOut s (n1 + n2) = Some (b, s') ->
     exists b1 b2 s'',
       shiftOut s n1 = Some (b1, s'') /\
       shiftOut s'' n2 = Some (b2, s') /\
       splitVector n1 n2 b = (b1, b2).
-  
+
   induction n1; intuition; simpl in *.
   rewrite shiftOut_0.
   econstructor.
@@ -79,7 +79,7 @@ Theorem shiftOut_plus :
   econstructor.
   intuition.
   trivial.
-  
+
   destruct s; simpl in *.
   discriminate.
   case_eq (shiftOut s (n1 + n2)); intuition.
@@ -100,29 +100,29 @@ Theorem shiftOut_plus :
   simpl.
   rewrite H3.
   trivial.
-  
+
   rewrite H0 in H.
   discriminate.
-  
+
 Qed.
 
-Theorem shiftOut_plus_None : 
+Theorem shiftOut_plus_None :
   forall n1 n2 s,
     shiftOut s (n1 + n2) = None ->
     shiftOut s n1 = None \/
     (exists x s', shiftOut s n1 = Some (x, s') /\
       shiftOut s' n2 = None).
-  
+
   induction n1; intuition; simpl in *.
   rewrite shiftOut_0.
   right.
   econstructor.
   econstructor.
   intuition.
-  
+
   destruct s; simpl in *.
   intuition.
-  
+
   case_eq (shiftOut s (n1 + n2)); intuition.
   rewrite H0 in H.
   destruct p.
@@ -131,26 +131,26 @@ Theorem shiftOut_plus_None :
   eauto.
   rewrite H1.
   intuition.
-  
+
   destruct H1.
   destruct H1.
   intuition.
-  
+
   rewrite H2.
   right.
-      
+
   econstructor.
   econstructor.
   intuition.
 Qed.
 
-Theorem Vector_cons_app_assoc : 
+Theorem Vector_cons_app_assoc :
   forall (A : Type)(a : A)(n1 n2 : nat)(v1 : Vector.t A n1)(v2 : Vector.t A n2),
-    Vector.cons _ a _ (Vector.append v1 v2) = 
+    Vector.cons _ a _ (Vector.append v1 v2) =
     Vector.append (Vector.cons _ a _ v1) v2.
-  
+
   induction n1; intuition; simpl in *.
-       
+
 Qed.
 
 Theorem shiftOut_plus_if :
@@ -158,13 +158,13 @@ Theorem shiftOut_plus_if :
     shiftOut s n1 = Some (b1, s') ->
     shiftOut s' n2 = Some (b2, s'') ->
     shiftOut s (n1 + n2) = Some (Vector.append b1 b2, s'').
-  
+
   induction n1; intuition; simpl in *.
   rewrite shiftOut_0 in H.
   inversion H; clear H; subst.
   simpl in *.
   trivial.
-  
+
   destruct s; simpl in *.
   discriminate.
   case_eq (shiftOut s n1); intuition.
@@ -172,21 +172,21 @@ Theorem shiftOut_plus_if :
   destruct p.
   inversion H; clear H; subst.
   erewrite IHn1; eauto.
-  
+
   rewrite Vector_cons_app_assoc.
   trivial.
-  
+
   rewrite H1 in H.
   discriminate.
 Qed.
 
-Theorem shiftOut_plus_None_if : 
+Theorem shiftOut_plus_None_if :
   forall n1 n2 s,
     (shiftOut s n1 = None \/
       (exists b s', shiftOut s n1 = Some (b, s') /\
         shiftOut s' n2 = None)) ->
     shiftOut s (n1 + n2) = None.
-  
+
   induction n1; intuition; simpl in *.
   rewrite shiftOut_0 in H0.
   discriminate.
@@ -196,26 +196,26 @@ Theorem shiftOut_plus_None_if :
   rewrite shiftOut_0 in H0.
   inversion H0; clear H0; subst.
   trivial.
-  
+
   destruct s; simpl in *.
   trivial.
-  
+
   case_eq (shiftOut s n1); intuition.
   rewrite H in H0.
   destruct p.
   discriminate.
-  
+
   rewrite H in H0.
   erewrite IHn1.
   trivial.
   intuition.
-  
+
   destruct H0.
   destruct H.
   intuition.
   destruct s; simpl in *.
   discriminate.
-  
+
   case_eq (shiftOut s n1); intuition.
   rewrite H in H0.
   destruct p.
@@ -228,24 +228,24 @@ Theorem shiftOut_plus_None_if :
   intuition.
   eauto.
   trivial.
-  
+
   rewrite H in H0.
   discriminate.
-  
+
 Qed.
-    
-Theorem Rnd_split_equiv : 
+
+Theorem Rnd_split_equiv :
   forall n1 n2 z ,
-    evalDist 
+    evalDist
     (x <-$ {0, 1}^(n1 + n2);
       ret (splitVector n1 n2 x)) z ==
-    evalDist 
+    evalDist
     (x1 <-$ {0, 1}^n1;
       x2 <-$ {0, 1}^n2;
       ret (x1, x2)) z.
-  
+
   intuition.
-  
+
   eapply det_eq_impl_dist_sem_eq; wftac.
   unfold evalDet_equiv.
   intuition.
@@ -258,8 +258,8 @@ Theorem Rnd_split_equiv :
   destruct H0.
   destruct H0.
   destruct H0.
-  intuition.    
-  
+  intuition.
+
   rewrite H in H4.
   inversion H4; clear H4; subst.
   simpl in *.
@@ -285,10 +285,10 @@ Theorem Rnd_split_equiv :
   eauto.
   rewrite H3.
   econstructor.
-  
+
   rewrite H in H4.
   inversion H4; clear H4; subst.
-  
+
   inversion H0; clear H0; subst.
   simpl in *.
   case_eq (shiftOut s (n1 + n2)); intuition.
@@ -299,7 +299,7 @@ Theorem Rnd_split_equiv :
   inversion H5; clear H5; subst.
   simpl in *.
   inversion H4.
-      
+
   specialize (shiftOut_plus_None _ _ _ H); intuition.
   econstructor.
   econstructor.
@@ -323,7 +323,7 @@ Theorem Rnd_split_equiv :
   simpl.
   rewrite H2.
   econstructor.
-  
+
   inversion H; clear H; subst.
   inversion H0; clear H0; subst.
   simpl in *.
@@ -352,16 +352,16 @@ Theorem Rnd_split_equiv :
   simpl.
   econstructor.
   eauto.
-  simpl. 
-    
+  simpl.
+
   rewrite splitVector_append.
   econstructor.
-  
+
   rewrite H0 in H4.
   inversion H4; clear H4; subst.
   rewrite H in H4.
   inversion H4.
-  
+
   inversion H0; clear H0; subst.
   simpl in *.
   case_eq (shiftOut s n1); intuition.
@@ -379,12 +379,12 @@ Theorem Rnd_split_equiv :
   inversion H6; clear H6; subst.
   simpl in *.
   inversion H5.
-  
+
   econstructor.
   econstructor.
   eauto.
   simpl.
-  
+
   erewrite shiftOut_plus_None_if.
   econstructor.
   right.
@@ -393,7 +393,7 @@ Theorem Rnd_split_equiv :
   intuition.
   eauto.
   trivial.
-  
+
   rewrite H in H4.
   econstructor.
   econstructor.
@@ -401,6 +401,6 @@ Theorem Rnd_split_equiv :
   simpl.
   erewrite shiftOut_plus_None_if.
   econstructor.
-  
+
   intuition.
 Qed.

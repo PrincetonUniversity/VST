@@ -2,7 +2,7 @@
  * Use of this source code is governed by the license described	*
  * in the LICENSE file at the root of the source tree.		*)
 
-(* Some initial work on sigma protocols.  The goal is to prove that any sigma protocol is a proof of knowledge.  There is some interesting theory in here (e.g. the "emergency break" theorem), but it is far form complete.  
+(* Some initial work on sigma protocols.  The goal is to prove that any sigma protocol is a proof of knowledge.  There is some interesting theory in here (e.g. the "emergency break" theorem), but it is far form complete.
 
 Set Implicit Arguments.
 
@@ -14,13 +14,13 @@ Lemma sumList_bool : forall (ls : list bool) f,
   (forall b, In b ls \/ (f b == 0)) ->
   sumList ls f ==
   f false + f true.
-      
+
   intuition.
 
   destruct ls.
   unfold sumList.
   simpl.
-  
+
   rewrite ratAdd_0_r.
   eapply ratAdd_eqRat_compat.
   specialize (H0 false).
@@ -29,7 +29,7 @@ Lemma sumList_bool : forall (ls : list bool) f,
   specialize (H0 true).
   simpl in H0.
   intuition.
-  
+
   inversion H; clear H; subst.
   destruct b;
     rewrite sumList_cons.
@@ -50,7 +50,7 @@ Lemma sumList_bool : forall (ls : list bool) f,
   rewrite <- ratAdd_0_r.
   intuition.
   destruct b; simpl in *; intuition.
-  
+
   eapply ratAdd_eqRat_compat.
   intuition.
   destruct ls.
@@ -60,7 +60,7 @@ Lemma sumList_bool : forall (ls : list bool) f,
   simpl in *.
   intuition.
   discriminate.
-  
+
   inversion H4; clear H4; subst.
   destruct b.
   rewrite sumList_cons.
@@ -70,7 +70,7 @@ Lemma sumList_bool : forall (ls : list bool) f,
   intuition.
   destruct b; simpl in *; intuition.
   simpl in *; intuition.
-  
+
 Qed.
 
 Lemma commandTwice : forall (c1 c2 : Comp bool),
@@ -78,10 +78,10 @@ Lemma commandTwice : forall (c1 c2 : Comp bool),
     b1 <- c1;
     b2 <- c2;
     ret (b1 && b2)] == (Pr [c1] * Pr[c2])%rat.
-  
+
   intuition.
   simpl.
-  
+
   repeat rewrite sumList_bool; intuition.
   simpl.
   destruct (EqDec_dec bool_EqDec false true); try discriminate.
@@ -92,19 +92,19 @@ Lemma commandTwice : forall (c1 c2 : Comp bool),
   repeat rewrite <- ratAdd_0_l.
   rewrite ratMult_1_r.
   intuition.
-  
+
   eapply getSupport_NoDup.
   Lemma in_getSupport_or_evalDist_0 : forall (A : Set)(c : Comp A) a,
     In a (getSupport c) \/ evalDist c a == 0.
 
     intuition.
     destruct (in_dec (comp_eq_dec c) a (getSupport c)); intuition.
-    
+
     right.
     eapply getSupport_not_In_evalDist; intuition.
-    
+
   Qed.
-  
+
   Show.
   edestruct in_getSupport_or_evalDist_0.
   left.
@@ -112,7 +112,7 @@ Lemma commandTwice : forall (c1 c2 : Comp bool),
   right.
   rewrite H.
   eapply ratMult_0_l.
-  
+
   eapply getSupport_NoDup.
 
   edestruct in_getSupport_or_evalDist_0.
@@ -123,7 +123,7 @@ Lemma commandTwice : forall (c1 c2 : Comp bool),
   eapply ratMult_0_l.
 
   eapply getSupport_NoDup.
-  
+
   edestruct in_getSupport_or_evalDist_0.
   left.
   eauto.
@@ -137,7 +137,7 @@ Section SigmaProtocol.
 
   Variable R : Blist -> Blist -> bool.
   Variable t : nat.
-  Variable (Commitment Response P_State : Set) 
+  Variable (Commitment Response P_State : Set)
   (P_commit : Blist -> Blist -> Comp (P_State * Commitment))
   (V_challenge : Blist -> Commitment -> Comp (Bvector t))
   (P_respond : P_State -> Bvector t -> Comp Response)
@@ -145,7 +145,7 @@ Section SigmaProtocol.
 
   Variable extract : Blist -> Commitment -> Bvector t -> Bvector t -> Response -> Response -> Comp Blist.
   (* Also, extract must be efficient *)
-  
+
   Variable Commitment_EqDec : EqDec Commitment.
   Variable Response_EqDec : EqDec Response.
 
@@ -159,8 +159,8 @@ Section SigmaProtocol.
   Variable M : Blist -> Bvector t -> Comp (Commitment * Response).
 
   Definition G_S x :=
-    e <- {0, 1}^t; 
-    [a, z] <--* M x e; 
+    e <- {0, 1}^t;
+    [a, z] <--* M x e;
     b <- ret (V_accept x a e z);
     ret (b, (a, e, z)).
 
@@ -184,10 +184,10 @@ Section SigmaProtocol.
         V_accept x a e' z' = true ->
         Pr[w <- extract x a e e' z z'; ret (R x w)] == 1; (* Or perhaps just non-negligible *)
       sHVZK : forall x w c,
-        evalDist (G_S x) (true, c) == evalDist (G_P x w) (true,c)  
-          
+        evalDist (G_S x) (true, c) == evalDist (G_P x w) (true,c)
+
   }.
-  
+
 End SigmaProtocol.
 
 Ltac destruct_exists :=
@@ -198,10 +198,10 @@ Ltac destruct_exists :=
 
 Lemma getSupport_Bind_In : forall (A B : Set) (c : Comp B)(f : B -> Comp A) a,
   In a (getSupport (Bind c f)) ->
-  exists b, 
+  exists b,
     In b (getSupport c) /\
     In a (getSupport (f b)).
-  
+
   intuition.
   simpl in *.
   apply in_getUnique_if in H.
@@ -215,11 +215,11 @@ Lemma getSupport_Bind_In : forall (A B : Set) (c : Comp B)(f : B -> Comp A) a,
   econstructor.
   intuition;
     eauto.
-  
-Qed.
-  
 
-Ltac simp_in_support := 
+Qed.
+
+
+Ltac simp_in_support :=
   match goal with
     | [H : In _ (getSupport (Bind _ _)) |- _ ] =>
       apply getSupport_Bind_In in H; destruct_exists; intuition
@@ -233,7 +233,7 @@ Lemma getSupport_In_Bind : forall (A B : Set) b (c : Comp B)(f : B -> Comp A) a,
   In b (getSupport c) ->
   In a (getSupport (f b)) ->
   In a (getSupport (Bind c f)).
-  
+
   intuition.
   simpl.
   eapply in_getUnique.
@@ -246,7 +246,7 @@ Lemma getSupport_In_Bind : forall (A B : Set) b (c : Comp B)(f : B -> Comp A) a,
   eapply eq_refl.
   eauto.
   trivial.
-  
+
 Qed.
 
 (* Is this sequential or parallel? *)
@@ -300,9 +300,9 @@ Section ParallelComposition.
     (let (a, b) := p in f a b) = f (fst p) (snd p).
 
     intuition.
-   
+
   Qed.
-   
+
   Instance sig2 :
     SigmaProtocol R P_commit2 V_challenge2 P_respond2 V_accept2 extract2 (pair_EqDec Commitment_EqDec Commitment_EqDec) (pair_EqDec Response_EqDec Response_EqDec) M2.
 
@@ -314,12 +314,12 @@ Section ParallelComposition.
   rewrite <- ratMult_1_r.
   rewrite <- completeness0.
   rewrite <- commandTwice.
-  
+
   symmetry.
   do 2 comp_inline O O.
   do 2 comp_inline 1%nat O.
   comp_skip.
- 
+
   comp_inline O O.
   comp_inline 1%nat O.
   eapply eqRat_trans.
@@ -356,7 +356,7 @@ Section ParallelComposition.
   comp_swap O O.
   comp_skip.
   comp_ret 1%nat O.
-  
+
   comp_inline O 2%nat.
   eapply eqRat_trans.
   eapply evalDist_Bind_id; intuition.
@@ -389,7 +389,7 @@ Section ParallelComposition.
   comp_ret 1%nat O.
   unfold snd.
   comp_skip.
-  
+
 
   (* second proof starts here *)
   unfold extract2.
@@ -408,7 +408,7 @@ Section ParallelComposition.
   exists x0.
   unfold Protocol, P_commit2, V_challenge2, P_respond2 in H0.
   unfold Protocol.
-  
+
   repeat simp_in_support.
   destruct H0; intuition.
   repeat simp_in_support.
@@ -459,8 +459,8 @@ Section ParallelComposition.
   unfold V_accept2 in *.
   destruct z'.
   rewrite commandTwice in H2.
-  
- 
+
+
   Lemma ratMult_r_ident : forall r1 r2,
     ~(r1 == 0) ->
     r1 * r2 == r1 ->
@@ -520,7 +520,7 @@ Section ParallelComposition.
     destruct (eq_nat_dec (x0 * x) (x0 * x)); congruence.
     discriminate.
   Qed.
-  
+
   Lemma rat_prod_1 : forall r1 r2,
     r1 <= 1 ->
     r2 <= 1 ->
@@ -528,7 +528,7 @@ Section ParallelComposition.
     r1 == 1 /\ r2 == 1.
 
     intuition.
-    
+
     specialize (ratMult_1_inverse _ _ H1); intuition.
     eapply leRat_impl_eqRat; intuition.
     apply ratInverse_1_swap in H0.
@@ -641,7 +641,7 @@ Section ParallelComposition.
   repeat simp_in_support.
   destruct x1.
   repeat simp_in_support.
-  
+
   eapply getSupport_In_Bind.
   eapply H5.
   comp_simp.
@@ -657,7 +657,7 @@ Section ParallelComposition.
   rewrite commandTwice in H2.
   apply rat_prod_1 in H2.
   intuition.
-  
+
   eapply evalDist_le_1; intuition.
   unfold eq_dec.
   intuition.
@@ -685,7 +685,7 @@ Section ParallelComposition.
   eapply (EqDec_dec _).
 
   (* zero knowledge part starts here *)
-  admit.  
+  admit.
 
   Defined.
 
@@ -716,10 +716,10 @@ Lemma sample_split : forall (A : Set) n1 n2 f (a : A),
   intuition.
   eapply det_eq_impl_dist_sem_eq;
   wftac.
- 
+
   unfold DetSem.evalDet_equiv.
   intuition.
-  
+
 Admitted.
 
 Lemma evalDist_right_ident : forall (A : Set)(eqd : EqDec A)(c : Comp A) a,
@@ -728,15 +728,15 @@ Admitted.
 
 Lemma eager_sampling : forall (A : Set)(eqd : EqDec A)(c : Comp A),
   well_formed_comp c ->
-  forall d, 
-  exists t (f : Bvector t -> A), 
+  forall d,
+  exists t (f : Bvector t -> A),
     (forall a,
     | evalDist (v <- {0, 1}^t; ret (f v)) a - evalDist c a | <= d) /\
-    (forall a, 
+    (forall a,
       In a (getSupport (v <- {0, 1}^t; ret (f v))) -> In a (getSupport c)).
 
   induction 1; intuition.
-  
+
   exists O.
   exists (fun v => a).
   intuition.
@@ -778,14 +778,14 @@ Lemma eager_sampling : forall (A : Set)(eqd : EqDec A)(c : Comp A),
          forall a : A,
          evalDist (v <- { 0 , 1 }^t'; ret f v) a == evalDist (c2 b) a).
   intuition.
-  
+
 
 
   Lemma maxWitness : forall (A : Set)(P_A : A -> Prop)(P : A -> nat -> Prop),
     (forall (a : A), P_A a -> exists (b : nat), forall b', b' >= b -> P a b') ->
     exists max, forall a, P_A a -> P a max.
   Admitted.
-    
+
   *)
 
   assert (exists t, forall b, In b (getSupport c1) -> exists (f : Bvector t -> A),
@@ -836,7 +836,7 @@ Lemma eager_sampling : forall (A : Set)(eqd : EqDec A)(c : Comp A),
     rewrite ratMult_1_l.
     intuition.
     congruence.
-    
+
   Qed.
 
   eapply evalDist_left_ident'.
@@ -872,7 +872,7 @@ Lemma eager_sampling : forall (A : Set)(eqd : EqDec A)(c : Comp A),
     rewrite ratMult_1_l.
     eapply eqRat_refl.
     eapply ratAdd_leRat_compat; intuition.
-  
+
   Qed.
 
   Lemma evalDist_bind_distance_gen:
@@ -883,12 +883,12 @@ Lemma eager_sampling : forall (A : Set)(eqd : EqDec A)(c : Comp A),
       (forall b, well_formed_comp (c4 b)) ->
       (forall b : B, | evalDist c1 b - evalDist c2 b | <= d) ->
       (forall (b : B) (a : A), In b (getSupport c1) -> | evalDist (c3 b) a - evalDist (c4 b) a | <= d) ->
-      (forall a, In a (getSupport c2) -> In a (getSupport c1)) -> 
+      (forall a, In a (getSupport c2) -> In a (getSupport c1)) ->
       forall a : A,
     | evalDist (x <- c1; c3 x) a - evalDist (x <- c2; c4 x) a | <= (length (getSupport c1) * 3 / 1) * d.
 
     intuition.
-    
+
     simpl.
 
     erewrite (sumList_subset _ _ _ _ H5).
@@ -908,7 +908,7 @@ Lemma eager_sampling : forall (A : Set)(eqd : EqDec A)(c : Comp A),
     eapply bind_eq_dec; eauto.
     eapply evalDist_le_1; intuition.
     eapply bind_eq_dec; eauto.
-    
+
     rewrite <- ratMult_assoc.
     rewrite <- ratMult_num_den.
     eapply ratMult_leRat_compat; intuition.
@@ -981,7 +981,7 @@ Lemma eager_sampling : forall (A : Set)(eqd : EqDec A)(c : Comp A),
   destruct (IHwell_formed_comp eqd d).
   destruct H1.
   intuition.
-  
+
 Admitted.
 
 Inductive monte_carlo : forall (A : Set), (Comp A) -> Prop :=
@@ -996,7 +996,7 @@ Inductive monte_carlo : forall (A : Set), (Comp A) -> Prop :=
 
 Lemma eager_sampling_strong : forall (A : Set)(eqd : EqDec A)(c : Comp A),
   monte_carlo c ->
-  exists t (f : Bvector t -> A), 
+  exists t (f : Bvector t -> A),
     forall a,
       evalDist (v <- {0, 1}^t; ret (f v)) a == evalDist c a.
 
@@ -1010,7 +1010,7 @@ Lemma eager_sampling_strong : forall (A : Set)(eqd : EqDec A)(c : Comp A),
   simpl.
   destruct (EqDec_dec eqd a a0); destruct (e a a0); intuition.
 
- 
+
 Admitted.
 
 End EagerSampling.
@@ -1020,9 +1020,9 @@ End EagerSampling.
 Section ProofOfKnowledge.
 
   Context `{p : SigmaProtocol}.
-  
+
   Variable P_State_EqDec : EqDec P_State.
-  Hypothesis P_commit_well_formed : forall x y, 
+  Hypothesis P_commit_well_formed : forall x y,
     well_formed_comp (P_commit x y).
   Hypothesis V_challenge_wf : forall x a,
     well_formed_comp (V_challenge x a).
@@ -1037,7 +1037,7 @@ Section ProofOfKnowledge.
   Definition rewindable_P_oracle := forall (A : Set)(eqd : EqDec A), (Commitment -> P_respond_oracle -> Comp (A * bool)) -> forall (B: Set), (A -> Commitment -> P_respond_oracle -> Comp B) -> Comp B.
   Definition mk_rewindable_P_oracle x w (A : Set)(eqd : EqDec A)(f1 : Commitment -> P_respond_oracle -> Comp (A * bool))(B : Set)(f2 : A -> Commitment -> P_respond_oracle -> Comp B)  : Comp B :=
     [p1, p2] <--* Repeat
-    ([s_P, a] <--* P_commit x w; 
+    ([s_P, a] <--* P_commit x w;
       p <- (f1 a (P_respond s_P));
       ret (p, (s_P, a)))
     (fun p => (snd (fst p)));
@@ -1062,8 +1062,8 @@ Section ProofOfKnowledge.
   Definition d := 16.
   Definition emergencyBreak (x : Blist)(oracle : P_oracle) :=
     n <- [0 .. d);
-    b <- oracle _ 
-    (fun a resp => 
+    b <- oracle _
+    (fun a resp =>
       [e, z] <--* queryRow resp x a;
       ret (V_accept x a e z));
     ret (b && eqb n O).
@@ -1076,9 +1076,9 @@ Section ProofOfKnowledge.
   Definition to_P_oracle (o : rewindable_P_oracle)(B : Set)(f : Commitment -> P_respond_oracle -> Comp B) :=
     (@o unit _ (fun a b => ret (tt, true)) _ (fun a b c => f b c)).
 
-  Definition acceptance_prob x y := 
-    Pr[mk_P_oracle x y 
-      (fun a resp => 
+  Definition acceptance_prob x y :=
+    Pr[mk_P_oracle x y
+      (fun a resp =>
         [e, z] <--* queryRow resp x a;
         ret (V_accept x a e z))].
 
@@ -1092,22 +1092,22 @@ Section ProofOfKnowledge.
 
   Definition knowledge_soundness(cost : forall (A : Set), A -> Rat -> Prop)(k : Blist -> Rat) :=
     forall x y (pf : nz (length x)),
-      exists c, 
+      exists c,
       let e := acceptance_prob x y in
       (~(ratSubtract e (k x)) == 0) ->
-      exists (M : Blist -> rewindable_P_oracle -> Comp Blist), 
+      exists (M : Blist -> rewindable_P_oracle -> Comp Blist),
         let oracle := (mk_rewindable_P_oracle x y) in
           expected_time_at_most cost 1 (P_commit x y) ->
           (forall s c e, In (s, e) (getSupport (P_commit x y)) -> (expected_time_at_most cost 1 (P_respond s c))) ->
           expected_time_at_most cost ((expRat (length x / 1) c) * ratInverse (ratSubtract e (k x))) (M x oracle) /\
           Pr[y' <- M x oracle; ret (R x y')] == 1.
-  
+
   (*
   Lemma evalDist_bind_case_split : forall (B : Set)(e : B -> Comp bool) v1 v2 (A : Set)(c : Comp B)(f : B -> Comp A) a,
   well_formed_comp c ->
   (forall b, (e b) = true -> (evalDist (f b) a) == v1) ->
   (forall b, (e b) = false -> (evalDist (f b) a) == v2) ->
-  evalDist (Bind c f) a == Pr[Bind c e] * 
+  evalDist (Bind c f) a == Pr[Bind c e] *
   *)
 
   Lemma evalDist_bind_case_split_ge : forall (B : Set)(e : B -> bool) v1 v2 (A : Set)(c : Comp B)(f : B -> Comp A) a,
@@ -1127,7 +1127,7 @@ Section ProofOfKnowledge.
     eapply leRat_trans.
     Focus 2.
     eapply (evalDist_bind_case_split_ge e); intuition.
-   
+
     eapply rat0_le_all.
     eapply leRat_trans.
     Focus 2.
@@ -1140,7 +1140,7 @@ Section ProofOfKnowledge.
 
   Lemma filter_twice : forall (A : Set)(p1 p2 : A -> bool)(ls : list A),
     filter p1 (filter p2 ls) = filter (fun a => (p1 a) && (p2 a)) ls.
-    
+
     induction ls; intuition; simpl in *.
     destruct (p2 a);
       simpl.
@@ -1148,15 +1148,15 @@ Section ProofOfKnowledge.
     f_equal.
     intuition.
     intuition.
-    
+
     rewrite andb_false_r.
     intuition.
   Qed.
-  
+
   Lemma filter_pred_eq : forall (A : Set)(p1 p2 : A -> bool)(ls : list A),
     (forall a, In a ls -> p1 a = p2 a) ->
     filter p1 ls = filter p2 ls.
-    
+
     induction ls; intuition; simpl in *.
     rewrite H.
     destruct (p2 a); intuition.
@@ -1164,11 +1164,11 @@ Section ProofOfKnowledge.
     intuition.
     intuition.
   Qed.
-  
+
   Lemma sumList_filter_prod_eq_r : forall (eqd : eq_dec bool)(A : Set)(ls : list A)(p : A -> bool) f,
     sumList (filter p ls) f ==
     sumList ls (fun a => (f a) * (if (eqd (p a) true) then 1 else 0)).
-    
+
     intuition.
     symmetry.
     rewrite (sumList_filter_partition p0).
@@ -1189,13 +1189,13 @@ Section ProofOfKnowledge.
     symmetry.
     eapply ratAdd_0_r.
   Qed.
-  
-  
+
+
   Theorem emergency_break : forall (A : Set)(c : Comp A)(p1 p2 : A -> bool),
     Pr [a <- c; ret (p2 a)] <= Pr[a <-c; ret (p1 a)] ->
     (exists a, In a (getSupport c) /\ (p1 a || p2 a = true)) ->
       1 / 2 <= Pr[a <- (Repeat c (fun a => (p1 a) || (p2 a))); ret (p1 a)].
-    
+
     intuition.
     simpl in *.
 
@@ -1213,10 +1213,10 @@ Section ProofOfKnowledge.
     rewrite H1.
     intuition.
     eapply rat0_le_all.
-    
+
     destruct H0.
     intuition.
-    
+
     apply orb_true_iff in H4.
     intuition.
 
@@ -1231,7 +1231,7 @@ Section ProofOfKnowledge.
     eauto.
     trivial.
     trivial.
-    
+
     eapply (sumList_0) in H2.
     assert ( evalDist c x *
       (if EqDec_dec bool_EqDec (p2 x) true then 1 else 0) == 0).
@@ -1243,7 +1243,7 @@ Section ProofOfKnowledge.
     eauto.
     trivial.
     trivial.
-    
+
     eapply leRat_trans.
     Focus 2.
     eapply eqRat_impl_leRat.
@@ -1256,14 +1256,14 @@ Section ProofOfKnowledge.
     rewrite H4.
     rewrite ratMult_1_l at 1.
     eapply ratMult_assoc.
-    
+
     eapply leRat_trans.
     Focus 2.
     eapply eqRat_impl_leRat.
     symmetry.
     eapply sumList_factor_constant_l.
     simpl in *.
-    
+
     eapply leRat_trans.
     Focus 2.
     eapply eqRat_impl_leRat.
@@ -1290,7 +1290,7 @@ Section ProofOfKnowledge.
     destruct (p1 a); simpl in *; try congruence.
     destruct (EqDec_dec bool_EqDec false true); try congruence.
     eapply ratMult_0_r.
-    
+
     eapply leRat_trans.
     Focus 2.
     eapply ratMult_leRat_compat.
@@ -1304,35 +1304,35 @@ Section ProofOfKnowledge.
     eapply getSupport_In_evalDist.
     eauto.
     trivial.
-    
+
     rewrite (sumList_filter_partition p1).
     rewrite filter_twice.
     erewrite (filter_pred_eq _ p1).
     rewrite sumList_filter_prod_eq_r.
-   
+
     assert (sumList
       (filter (fun a : A => negb (p1 a))
-        (filter (fun a : A => p1 a || p2 a) (getSupport c))) 
-      (evalDist c) <= 
+        (filter (fun a : A => p1 a || p2 a) (getSupport c)))
+      (evalDist c) <=
       (sumList (getSupport c)
         (fun b : A =>
           evalDist c b * (if EqDec_dec bool_EqDec (p2 b) true then 1 else 0)))).
-    
+
     eapply leRat_trans.
     Focus 2.
     eapply eqRat_impl_leRat.
     eapply sumList_filter_prod_eq_r.
-    
-    
+
+
     assert (sumList
       (filter (fun a : A => negb (p1 a))
-        (filter (fun a : A => p1 a || p2 a) (getSupport c))) 
+        (filter (fun a : A => p1 a || p2 a) (getSupport c)))
       (evalDist c) ==
       sumList
       (filter (fun a : A => negb (p1 a))
-        (filter p2 (getSupport c))) 
+        (filter p2 (getSupport c)))
       (evalDist c)).
-    
+
     repeat rewrite filter_twice.
     erewrite filter_pred_eq.
     eapply eqRat_refl.
@@ -1341,7 +1341,7 @@ Section ProofOfKnowledge.
 
     rewrite H2.
     clear H2.
-    
+
     eapply sumList_filter_le.
     rewrite H2.
     rewrite H.
@@ -1349,7 +1349,7 @@ Section ProofOfKnowledge.
     eapply leRat_refl.
     intuition.
     destruct (p1 a); trivial.
-    
+
     eapply eqRat_impl_leRat.
     eapply ratAdd_0_r.
     eapply leRat_trans.
@@ -1364,32 +1364,32 @@ Section ProofOfKnowledge.
     eapply ratMult_eqRat_compat.
     eapply eqRat_refl.
     eapply ratInverse_eqRat_compat.
-    
+
     trivial.
-    
+
     symmetry.
     eapply sumList_filter_prod_eq_r.
     rewrite ratMult_comm.
     eapply ratInverse_prod_1.
-    
+
     rewrite sumList_filter_prod_eq_r.
     eauto.
-    
+
     simpl.
     eapply eqRat_refl.
-    
+
     trivial.
-    
+
     intuition.
     eapply eqRat_impl_leRat.
     rewrite ratMult_1_l.
     intuition.
   Qed.
-  
+
   Lemma getSupport_Repeat_In : forall (A : Set)(c : Comp A) p a,
     In a (getSupport (Repeat c p)) ->
     In a (filter p (getSupport c)).
-    
+
     intuition.
   Qed.
 
@@ -1405,9 +1405,9 @@ Section ProofOfKnowledge.
   Definition largeRowQuery x oracle :=
     (fun p a respond_oracle =>
         [e, z] <-* p;
-        p' <- Repeat 
-        (queryRowWithEmergencyBreak (to_P_oracle oracle) respond_oracle x a) 
-        (fun p => let (e', z') := snd p in 
+        p' <- Repeat
+        (queryRowWithEmergencyBreak (to_P_oracle oracle) respond_oracle x a)
+        (fun p => let (e', z') := snd p in
           (V_accept x a e' z' && negb (eqb e e')) || fst p);
         [e', z'] <-* (snd p');
         extract x a e e' z z').
@@ -1418,11 +1418,11 @@ Section ProofOfKnowledge.
 
   Definition knowledgeExtractor_large(x : Blist)(oracle : rewindable_P_oracle) :=
     Repeat (knowledgeExtractor_large_h x oracle) (fun y => R x y).
-  
+
   Fixpoint BoundedRepeat (A : Set)(eqd : EqDec A)(n : nat)(c : Comp A)(P : A -> bool)(def : A) :=
     match n with
       | O => ret (def)
-      | S n' => 
+      | S n' =>
         (Bind c (fun x => if (P x) then (ret x) else (BoundedRepeat _ n' c P def)))
     end.
 
@@ -1467,12 +1467,12 @@ Section ProofOfKnowledge.
 
     induction n; intuition; simpl in *.
     econstructor.
-    
+
     eapply cost_respects_equality.
     eapply H0.
     rewrite ratMult_0_r.
     intuition.
-    
+
     econstructor.
     econstructor.
     eauto.
@@ -1503,8 +1503,8 @@ Section ProofOfKnowledge.
     (fun p a respond_oracle =>
         [e, z] <-* p;
         p' <- BoundedRepeat _ (expnat 2 (t - 2))
-        (queryRow respond_oracle x a) 
-        (fun p => let (e', z') := p in 
+        (queryRow respond_oracle x a)
+        (fun p => let (e', z') := p in
           (V_accept x a e' z' && negb (eqb e e'))) p;
         [e', z'] <-* p';
         extract x a e e' z z').
@@ -1514,12 +1514,12 @@ Section ProofOfKnowledge.
 
   Definition knowledgeExtractor_small(x : Blist)(oracle : rewindable_P_oracle) :=
     Repeat (knowledgeExtractor_small_h x oracle) (fun y => R x y).
-  
+
   Definition sigma x y :=
     (ratSubtract ((acceptance_prob x y) * (expnat 2 t / 1)) 1).
 
   Hypothesis V_challenge_efficient : forall (x : Blist),
-    exists v, forall a, 
+    exists v, forall a,
     expected_time_at_most cost v (V_challenge x a) /\
     at_most_polynomial (length x / 1) v.
 
@@ -1576,7 +1576,7 @@ Section ProofOfKnowledge.
     intuition.
     econstructor.
     eauto.
-    
+
     apply pair_extract_cost in H0; intuition.
     apply pair_extract_cost in H1; intuition.
 
@@ -1584,8 +1584,8 @@ Section ProofOfKnowledge.
     destruct a.
 
     Focus 2.
-    
-    
+
+
     unfold extract.
 
     here
@@ -1596,15 +1596,15 @@ Section ProofOfKnowledge.
 
   Check mk_rewindable_P_oracle.
 
-  
+
   Theorem knowledgeExtractor_small_h_effective : forall x y,
     expnat 2 t / 1 * ratInverse (sigma x y) <=
-    Pr 
+    Pr
     [v <- knowledgeExtractor_small_h x (mk_rewindable_P_oracle x y); ret R x v].
   Abort.
 
   Theorem knowledgeExtractor_small_efficient : forall x y,
-    (~(4 / expnat 2 t) <= (acceptance_prob x y)) -> 
+    (~(4 / expnat 2 t) <= (acceptance_prob x y)) ->
     (~ (acceptance_prob x y) <= (1 / expnat 2 t)) ->
     expected_time_at_most_polynomial cost
     ((expnat 2 t / 1) * (2 / 1 + sigma x y) * (ratInverse (sigma x y)))
@@ -1612,7 +1612,7 @@ Section ProofOfKnowledge.
 
     (*
     intuition.
- 
+
     econstructor.
   (*   eapply (@expected_time_R_Repeat _ (((expnat 2 t) / 1) * (ratInverse (sigma x y)))). *)
     econstructor.
@@ -1630,7 +1630,7 @@ Section ProofOfKnowledge.
     eapply knowledgeExtractor_small_h_effective.
     unfold sigma.
     SearchAbout leRat ratSubtract 0.
-    
+
     continue here
 
     apply knowledgeExtractor_small_h_effective.
@@ -1642,7 +1642,7 @@ Section ProofOfKnowledge.
     unfold sigma.
     unfold at_least_polynomial.
     exists 1%nat.
-    
+
     simpl.
     eapply leRat_trans.
     Focus 2.
@@ -1662,7 +1662,7 @@ Section ProofOfKnowledge.
     intuition.
     admit.
     rewrite ratMult_comm.
-    
+
     rewrite ratMult_ratSubtract_distrib_r.
     eapply leRat_trans.
     eapply eqRat_impl_leRat.
@@ -1723,11 +1723,11 @@ Section ProofOfKnowledge.
     econstructor.
     eauto.
     intuition.
-    
+
     destruct a.
     destruct p0.
     destruct p1.
-    
+
     unfold largeRowQuery.
     destruct p0.
     econstructor.
@@ -1749,10 +1749,10 @@ Section ProofOfKnowledge.
     destruct a0.
     econstructor.
     econstructor.
-    
+
 
     here
-    
+
 
   Qed.
 
@@ -1797,7 +1797,7 @@ Section ProofOfKnowledge.
   Theorem knowledgeExtractor_large_wf : forall x y ,
     well_formed_comp (knowledgeExtractor_large x (mk_rewindable_P_oracle x y)).
   Admitted.
-    
+
   Theorem sigma_knowledge_soundness : knowledge_soundness cost (fun x => 1 / expnat 2 t).
 
     unfold knowledge_soundness.
@@ -1805,13 +1805,13 @@ Section ProofOfKnowledge.
 
     (* start by splitting on acceptance_prob -- we use a different knowledge extractor when acceptance_prob is large/small *)
     destruct (le_Rat_dec (4 / expnat 2 t) (acceptance_prob x y)).
-    
+
     (* acceptance probability is "large" *)
     exists knowledgeExtractor_large.
     intuition.
 
     apply knowledgeExtractor_large_efficient.
-      
+
     eapply eqRat_trans.
     eapply evalDist_Bind_1.
     eapply knowledgeExtractor_large_wf.
@@ -1880,7 +1880,7 @@ Section ProofOfKnowledge.
        [s_P, a]<-* z;
        p0 <-
        (z0 <- queryRow (P_respond s_P) x a;
-        [e, z1]<-* z0; ret (e, z1, V_accept x a e z1)); 
+        [e, z1]<-* z0; ret (e, z1, V_accept x a e z1));
        ret (p0, (s_P, a)))
       (fun p0 : Bvector t * Response * bool * (P_State * Commitment) =>
        [_, b]<-* fst p0; eqb b true)
@@ -1892,8 +1892,8 @@ Section ProofOfKnowledge.
     comp_simp.
 
     simpl in H0.
-    
-    
+
+
 
     apply getSupport_Repeat_In in H.
     apply filter_In in H.
@@ -1920,7 +1920,7 @@ Section ProofOfKnowledge.
     inversion H3; clear H3; subst.
     inversion H4; clear H4; subst.
     simpl in H1.
-    
+
 
     (* The row is heavy, so we expect to get an accepting conversation before the emergency break kicks in. *)
     eapply leRat_trans.
@@ -1936,7 +1936,7 @@ Section ProofOfKnowledge.
        let (e', z') := snd p0 in
        V_accept x c e' z' && negb (eqb b0 e'))); intros.
     admit.
-      
+
     destruct b.
     unfold snd in H4.
     destruct p0.
@@ -1983,7 +1983,7 @@ Section ProofOfKnowledge.
     eapply eqRat_impl_leRat.
     symmetry.
     unfold snd.
-    
+
     eapply special_soundness.
     eapply p.
     unfold not.
@@ -2004,7 +2004,7 @@ Section ProofOfKnowledge.
     simpl.
     left.
     eapply refl_equal.
-    
+
     exists y.
     eapply getSupport_In_Bind.
     eapply H.
@@ -2063,11 +2063,11 @@ Section ProofOfKnowledge.
     destruct x0.
     unfold snd.
     destruct p0.
-    
+
     eapply refl_equal.
 
     assert (evalDist (ret (pred1 x0)) true ==
-   Pr 
+   Pr
    [ret (let (e', z') := snd x0 in V_accept x c e' z' && negb (eqb b0 e')) ]).
     subst.
     eapply eqRat_refl.
@@ -2076,11 +2076,11 @@ Section ProofOfKnowledge.
     eapply emergency_break.
     subst.
 
-    
 
-    Lemma eb_le_accept : forall x y c p1 b0, 
+
+    Lemma eb_le_accept : forall x y c p1 b0,
       isHeavy (P_respond p1) x y c = true ->
-      Pr 
+      Pr
    [a <-
     queryRowWithEmergencyBreak
       (to_P_oracle
@@ -2095,7 +2095,7 @@ Section ProofOfKnowledge.
              [_, b]<-* fst p0; eqb b true);
           (let '(e, _, (s_P, a)) := z in f2 e a (P_respond s_P))))
       (P_respond p1) x c; ret fst a ] <=
-   Pr 
+   Pr
    [a <-
     queryRowWithEmergencyBreak
       (to_P_oracle
@@ -2114,7 +2114,7 @@ Section ProofOfKnowledge.
 
       intuition.
       unfold queryRowWithEmergencyBreak, to_P_oracle.
-      
+
       remember (emergencyBreak x
       (fun (B : Set) (f : Commitment -> P_respond_oracle -> Comp B) =>
        z <-
@@ -2144,7 +2144,7 @@ Section ProofOfKnowledge.
       admit.
       eapply evalDist_Bind_1_le_r; intuition.
       admit.
-      
+
       (* The loop executes exactly once *)
       rewrite Heqc1.
       eapply leRat_trans.
@@ -2172,7 +2172,7 @@ Section ProofOfKnowledge.
         eapply repeat_unroll.
         trivial.
         trivial.
-        
+
         eapply eqRat_trans.
         Focus 2.
         eapply evalDist_right_ident'.
@@ -2223,7 +2223,7 @@ Section ProofOfKnowledge.
       eapply refl_equal.
       simpl.
       eapply refl_equal.
-      
+
       intros.
       apply getSupport_Bind_In in H3.
       destruct H3.
@@ -2243,12 +2243,12 @@ Section ProofOfKnowledge.
       rewrite <- H6.
       simpl.
       eapply refl_equal.
-      
+
       eapply eqRat_refl.
       comp_simp.
       subst.
       unfold isHeavy in *.
-      
+
       eapply leRat_trans.
       Focus 2.
       eapply leRat_trans.
@@ -2257,33 +2257,33 @@ Section ProofOfKnowledge.
       eapply evalDist_Bind_id; intros.
       eapply eqRat_refl.
       destruct x2.
-      
+
       symmetry.
       eapply eqRat_trans.
       eapply evalDist_left_ident.
       cbv beta.
       unfold snd.
       (* these are close *)
-      
+
       comp_simp.
       unfold queryRow.
-      
-      
+
+
       SearchAbout evalDist Repeat.
-      
-      
+
+
 
       subst.
       unfold emergencyBreak, queryRow.
       clear H0.
       clear H1.
-      
-      
 
-      
+
+
+
       eapply leRat_trans.
       eapply eqRat
-      
+
       eapply eqRat_trans.
       eapply evalDist_Bind_id; intuition.
       eapply eqRat_refl.
@@ -2308,29 +2308,29 @@ Section ProofOfKnowledge.
       eapply eqRat_refl.
       comp_ret O O.
       Qed.
-   
-    
+
+
 continue here
 
     eapply evalDist_Bind_id_le;
     intuition.
-    
+
 
 
     symmetry.
     rewrite <- Heqpred1 at 1.
     eapply eqRat_refl.
-    
+
 
     Check evalDist_Repeat.
 
     eapply emergency_break.
-    
+
     (* Why did I have to do this twice? *)
     eapply eqRat_impl_leRat.
     symmetry.
     comp_simp.
-    
+
     repeat simp_in_support.
     apply getSupport_Bind_In in H3.
     destruct H3.
@@ -2353,7 +2353,7 @@ continue here
     rewrite eqb_refl in H11.
     simpl in H11.
     discriminate.
-    
+
     exists y.
     eapply getSupport_In_Bind.
     eapply H.
@@ -2375,7 +2375,7 @@ continue here
     eapply H10.
     simpl.
     intuition.
-    
+
 
     apply getSupport_Bind_In in H2.
     destruct H2.
@@ -2394,22 +2394,22 @@ continue here
     destruct H8.
     simp_in_support.
     destruct H8.
-    
+
 
 here
 
     rewrite <- ratMult_1_r.
     eapply ratMult_leRat_compat; intuition.
-    
+
     here
 
     eapply emergency_break.
 
     Theorem repeat_disj : forall (A : Set)(c : Comp A)(p1 p2 : A -> bool)(p : A -> Comp bool),
       (forall a, p1 a = true -> Pr[p a] == 1) ->
-      Pr[v <- Repeat c (fun a => p1 a || p2 a); p v] == 
+      Pr[v <- Repeat c (fun a => p1 a || p2 a); p v] ==
       Pr[a <- c; ret (p1 a && negb (p2 a))].
-      
+
       intuition.
       simpl.
       unfold indicator.
@@ -2424,7 +2424,7 @@ here
 
       rewrite (sumList_filter_partition p1).
 
-      
+
 
       repeat rewrite filter_twice.
       rewrite sumList_body_eq.
@@ -2436,7 +2436,7 @@ here
       intuition.
       apply andb_true_iff in H2.
       intuition.
-      
+
 
       SearchAbout filter.
 
@@ -2491,7 +2491,7 @@ Section ProofOfKnowledge.
 
     unfold knowledge_soundness.
     intuition.
-    
+
 
   Qed.
 
@@ -2506,7 +2506,7 @@ Section SigmaProtocolDefs.
 
   Context`{p : SigmaProtocol}.
 
-  
+
 
 End SigmaProtocolDefs.
 
@@ -2522,7 +2522,7 @@ Class SigmaProtocol`(p : SigmaProtocolProcs) := {
     R x w = true ->
     Pr[[a, e, z] <--** Protocol x w; V_accept x a e z] == 1.
 
-  
+
 
   Definition special_soundness := forall x a e e' z z',
     e <> e' ->
@@ -2536,8 +2536,8 @@ Class SigmaProtocol`(p : SigmaProtocolProcs) := {
   Variable M : Blist -> Bvector t -> Comp (Commitment * Response).
 
   Definition G_S x :=
-    e <- {0, 1}^t; 
-    [a, z] <--* M x e; 
+    e <- {0, 1}^t;
+    [a, z] <--* M x e;
     b <- V_accept x a e z;
     ret (b, (a, e, z)).
 
@@ -2548,12 +2548,12 @@ Class SigmaProtocol`(p : SigmaProtocolProcs) := {
 
   (* special honest verifier zero knowledge *)
   Definition sHVZK := forall x w c,
-    evalDist (G_S x) (true, c) == evalDist (G_P x w) (true,c).  
+    evalDist (G_S x) (true, c) == evalDist (G_P x w) (true,c).
 
 End SigmaProtocolDefs.
 
 Section SigmaPar.
-  
+
   Context`{p : SigmaProtocol}.
 
 End SigmaPar.
@@ -2603,8 +2603,8 @@ Section Sigma.
   Variable M : Blist -> Bvector t -> Comp (Commitment * Response).
 
   Definition G_S x :=
-    e <- {0, 1}^t; 
-    [a, z] <--* M x e; 
+    e <- {0, 1}^t;
+    [a, z] <--* M x e;
     b <- V_accept x a e z;
     ret (b, (a, e, z)).
 
@@ -2615,7 +2615,7 @@ Section Sigma.
 
   (* special honest verifier zero knowledge *)
   Hypothesis sHVZK : forall x w c,
-    evalDist (G_S x) (true, c) == evalDist (G_P x w) (true,c).  
+    evalDist (G_S x) (true, c) == evalDist (G_P x w) (true,c).
 
 End Sigma.
 
@@ -2643,7 +2643,7 @@ Section SigmaPar.
     c <- (Protocol Commitment_EqDec Response_EqDec P_commit V_challenge P_respond) x w;
     c' <- (Protocol Commitment_EqDec Response_EqDec P_commit V_challenge P_respond) x w;
     ret (c, c').
-    
-  
+
+
 
 End SigmaPar. *) (*added by Lennart*)

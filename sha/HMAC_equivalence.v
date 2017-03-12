@@ -13,7 +13,7 @@ Require Import sha.HMAC_spec_abstract.
 
 Require Import fcf.Blist.
 
-Lemma of_length_proof_irrel {A:Set} n (l: list A) M: 
+Lemma of_length_proof_irrel {A:Set} n (l: list A) M:
       Vector.to_list (@of_list_length _ n l M) = l.
 Proof. destruct M. apply Vector.to_list_of_list_opp. Qed.
 
@@ -43,7 +43,7 @@ Module Type EQUIV_Inst (HF:HP.HASH_FUNCTION).
 (*  Proof. unfold iv_v. rewrite of_length_proof_irrel. trivial.
   Qed.*)
 
-  Parameter fpad_v : Bvector c -> Bvector p. 
+  Parameter fpad_v : Bvector c -> Bvector p.
   Parameter fpad : Blist -> Blist.
   Parameter fpad_length: forall msg, length msg = c -> length (fpad msg) = p.
   Parameter fpad_eq: forall v l, l = Vector.to_list v ->
@@ -133,11 +133,11 @@ Module PAD := HMAC_Pad HF I.
                (HVL: block_l = Vector.to_list block_v)
                ivA ivB (IV: ivA = Vector.to_list ivB),
                EQ.h ivA block_l = Vector.to_list (h_v ivB block_v).
-  Proof. intros. unfold h_v, of_list_length. 
+  Proof. intros. unfold h_v, of_list_length.
     destruct (EQ.h_length (Vector.to_list ivB) (Vector.to_list block_v)
-      (VectorToList_length EQ.c ivB) (VectorToList_length EQ.b block_v)). 
+      (VectorToList_length EQ.c ivB) (VectorToList_length EQ.b block_v)).
     symmetry. subst. apply Vector.to_list_of_list_opp.
-  Qed. 
+  Qed.
 
   Definition ipd:Z := 54.
   Definition opd:Z:=92.
@@ -150,10 +150,10 @@ Module PAD := HMAC_Pad HF I.
   Definition OPAD:=bytesToBits (PAD.HM.sixtyfour opd).
 
   Lemma IL: length IPAD = EQ.b.
-    unfold IPAD. rewrite bytesToBits_len, PAD.HM.length_SF, <- EQ.BS; trivial. 
+    unfold IPAD. rewrite bytesToBits_len, PAD.HM.length_SF, <- EQ.BS; trivial.
   Qed.
   Lemma OL: length OPAD = EQ.b.
-    unfold OPAD. rewrite bytesToBits_len, PAD.HM.length_SF, <- EQ.BS; trivial. 
+    unfold OPAD. rewrite bytesToBits_len, PAD.HM.length_SF, <- EQ.BS; trivial.
   Qed.
 
   Definition ipad_v: Bvector EQ.b := of_list_length _ IL.
@@ -170,8 +170,8 @@ Module PAD := HMAC_Pad HF I.
     unfold ipad_v. rewrite of_length_proof_irrel. reflexivity.
   Qed.
 
-Lemma BS_pos: (0< HF.BlockSize)%nat. 
-Proof. 
+Lemma BS_pos: (0< HF.BlockSize)%nat.
+Proof.
   assert ((0 < HF.BlockSize * 8)%nat).
     rewrite EQ.BS. apply EQ.B.
   omega.
@@ -205,7 +205,7 @@ Qed.
 Lemma Equivalence (P : Blist -> Prop) (HP: forall msg, P msg -> NPeano.Nat.divide 8 (length msg))
       (kv : Bvector EQ.b) (m : HMAC_Abstract.Message P):
       Vector.to_list (HMAC_spec.HMAC h_v EQ.iv_v (HMAC_Abstract.wrappedSAP _ _ EQ.splitAndPad_v)
-                      EQ.fpad_v opad_v ipad_v kv m) = 
+                      EQ.fpad_v opad_v ipad_v kv m) =
       bytesToBits (PAD.HM.HmacCore (Byte.repr ipd) (Byte.repr opd)
                      (bitsToBytes (HMAC_Abstract.Message2Blist m))
                      (map Integers.Byte.repr (bitsToBytes (Vector.to_list kv)))).
@@ -216,7 +216,7 @@ Proof.
   2: apply h_eq.
   2: apply EQ.fpad_eq.
   2: apply EQ.length_splitandpad_inner.
-  erewrite HMAC_spec_list.HMAC_List.HMAC_list_concat with (B:=EQ.B)(sap':=EQ.sap'). 
+  erewrite HMAC_spec_list.HMAC_List.HMAC_list_concat with (B:=EQ.B)(sap':=EQ.sap').
   2: apply EQ.fpad_length.
   2: apply EQ.shasplitandpad_blocks_b.
   2: reflexivity.
@@ -240,48 +240,48 @@ Proof.
   rewrite <- EQ.iv_eq.
   apply bits_bytes_ind_comp.
     apply PAD.HM.isbyte_hmaccore.
-  eapply (PAD.HMAC_pad_concrete' _ _ EQ.B EQ.BS EQ.D EQ.ir _ EQ.GAP EQ.sap_gap EQ.HASH). 
+  eapply (PAD.HMAC_pad_concrete' _ _ EQ.B EQ.BS EQ.D EQ.ir _ EQ.GAP EQ.sap_gap EQ.HASH).
     apply isbyteZ_Ipad.
     apply isbyteZ_Opad.
     repeat rewrite map_length.
             erewrite bitsToBytes_len_gen. reflexivity.
             rewrite LK. rewrite EQ.BS; trivial.
     rewrite map_unsigned_Brepr_isbyte.
-            apply bytes_bits_comp_ind. 
+            apply bytes_bits_comp_ind.
               eapply bitsToBytes_isbyteZ. reflexivity.
-              rewrite bits_bytes_bits_id; trivial. 
+              rewrite bits_bytes_bits_id; trivial.
               apply InBlocks_len. rewrite LK, <- EQ.BS. eexists; reflexivity.
             eapply bitsToBytes_isbyteZ. reflexivity.
-    apply bytes_bits_comp_ind. 
+    apply bytes_bits_comp_ind.
               eapply bitsToBytes_isbyteZ. reflexivity.
-              rewrite bits_bytes_bits_id; trivial. 
+              rewrite bits_bytes_bits_id; trivial.
               apply InBlocks_len. destruct m. simpl. apply HP. assumption.
     apply OPADX. apply IPADX. (*
-    apply bytes_bits_comp_ind. 
+    apply bytes_bits_comp_ind.
              unfold PAD.HM.sixtyfour. apply Forall_list_repeat. apply EQ.isbyteZ_Ipad.
              unfold opad_v. rewrite of_length_proof_irrel. reflexivity.
-    apply bytes_bits_comp_ind. 
-             unfold PAD.HM.sixtyfour. apply Forall_list_repeat. apply EQ.isbyteZ_Ipad. 
+    apply bytes_bits_comp_ind.
+             unfold PAD.HM.sixtyfour. apply Forall_list_repeat. apply EQ.isbyteZ_Ipad.
              unfold ipad_v. rewrite of_length_proof_irrel. reflexivity.*)
 Qed.
    (*
 
 Lemma opad_length: length (bytesToBits (HP.HMAC_SHA256.sixtyfour
                        (Integers.Byte.unsigned HP.Opad))) = b.
-Proof. rewrite bytesToBits_len, length_SF. reflexivity. Qed. 
- 
+Proof. rewrite bytesToBits_len, length_SF. reflexivity. Qed.
+
 Definition opad_v: Bvector b := of_list_length _ opad_length.
 
 Lemma ipad_length: length (bytesToBits (HP.HMAC_SHA256.sixtyfour
                        (Integers.Byte.unsigned HP.Ipad))) = b.
-Proof. rewrite bytesToBits_len, length_SF. reflexivity. Qed. 
- 
+Proof. rewrite bytesToBits_len, length_SF. reflexivity. Qed.
+
 Definition ipad_v: Bvector b := of_list_length _ ipad_length.
 
 Lemma Equivalence (P : Blist -> Prop) (HP: forall msg, P msg -> NPeano.divide 8 (length msg))
       (kv : Bvector b) (m : HMAC_Abstract.Message P):
       Vector.to_list (HMAC_spec.HMAC h_v iv_v (HMAC_Abstract.wrappedSAP _ _ splitAndPad_v)
-                      fpad_v opad_v ipad_v kv m) = 
+                      fpad_v opad_v ipad_v kv m) =
       bytesToBits (HP.HMAC_SHA256.HmacCore (Integers.Byte.repr 54) (Integers.Byte.repr 92)
                               (bitsToBytes (HMAC_Abstract.Message2Blist m))
                               (map Integers.Byte.repr (bitsToBytes (Vector.to_list kv)))).
@@ -308,7 +308,7 @@ Proof.
   split; omega.
 
   (* key length *)
-  { rewrite map_length, bitsToBytes_len_gen with (n:=64%nat). 
+  { rewrite map_length, bitsToBytes_len_gen with (n:=64%nat).
     reflexivity.
     rewrite LK; reflexivity. }
 
@@ -320,7 +320,7 @@ Proof.
 
   (* key *)
   { rewrite map_unsigned_Brepr_isbyte.
-      apply bytes_bits_comp_ind. 
+      apply bytes_bits_comp_ind.
       eapply bitsToBytes_isbyteZ; reflexivity.
       rewrite  bits_bytes_bits_id; trivial.
       apply block_8. assumption.
@@ -329,8 +329,8 @@ Proof.
   (* uses fact that message is in blocks of 8 *)
   { apply bytes_bits_comp_ind.
     eapply bitsToBytes_isbyteZ; reflexivity.
-    rewrite bits_bytes_bits_id; trivial. 
-    apply InBlocks_len. 
+    rewrite bits_bytes_bits_id; trivial.
+    apply InBlocks_len.
     apply HP. destruct m. simpl; trivial. }
 
   (* opad *)
@@ -339,9 +339,9 @@ Proof.
     apply of_length_proof_irrel. }
 
   (* ipad *)
-  { apply bytes_bits_comp_ind. 
+  { apply bytes_bits_comp_ind.
     apply Forall_list_repeat. unfold HP.Ipad. omega.
     apply of_length_proof_irrel. }
 
 Qed.*)
-End HMAC_Equiv. 
+End HMAC_Equiv.

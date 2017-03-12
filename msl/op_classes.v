@@ -20,7 +20,7 @@ Require Import msl.predicates_rec.
 
 Class StarOp A := {  starOp : A -> A -> A }.
 
-Instance baseStarOp {A}{agA: ageable A}{JA: Join A}{PA: Perm_alg A}{AgeA: Age_alg A} 
+Instance baseStarOp {A}{agA: ageable A}{JA: Join A}{PA: Perm_alg A}{AgeA: Age_alg A}
  : StarOp (pred A) := {| starOp := sepcon |}.
 
 Instance funStarOp (B: Type)(A: Type)(StarA: StarOp A) : StarOp (B -> A) :=
@@ -41,7 +41,7 @@ Notation "P '|--' Q" := (derivesOp P%pred Q%pred).
 
 Class WandOp A := {  wandOp : A -> A -> A }.
 
-Instance baseWandOp {A}{agA: ageable A}{JA: Join A}{PA: Perm_alg A}{AgeA: Age_alg A} 
+Instance baseWandOp {A}{agA: ageable A}{JA: Join A}{PA: Perm_alg A}{AgeA: Age_alg A}
  : WandOp (pred A) := {| wandOp := wand |}.
 
 Instance funWandOp (B: Type)(A: Type)(WandA: WandOp A) : WandOp (B -> A) :=
@@ -52,7 +52,7 @@ Notation "P '-*' Q" := (wandOp P Q) : pred.
 
 Class EmpOp A := { Emp: A}.
 
-Instance baseEmpOp {A}{agA: ageable A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AgeA: Age_alg A} 
+Instance baseEmpOp {A}{agA: ageable A}{JA: Join A}{PA: Perm_alg A}{SA: Sep_alg A}{AgeA: Age_alg A}
   : EmpOp (pred A) := {| Emp := @emp A JA PA SA agA AgeA |}.
 
 Instance funEmpOp  (B: Type)(A: Type)(EmpA: EmpOp A) : EmpOp (B -> A) :=

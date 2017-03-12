@@ -18,7 +18,7 @@ Require Import programs.
 (** Here we prove that the "obvious" typing rule
     for allp introduction is incorrect.
     The correct rule has the "value restriction."
-    
+
     We want to show that this typing rule would
     allow us to type an unsafe program.
 
@@ -56,7 +56,7 @@ Definition crash :=
              (* ; *) (Var 1 (*r*)))))
     (* in *)
     ( e_let (* a := *) (App (Var 0 (*f*)) (Lam (Var 0))) (* in *)
-     (e_let (* b := *) (App (Var 1 (*f*)) (Nat 5))       (* in *) 
+     (e_let (* b := *) (App (Var 1 (*f*)) (Nat 5))       (* in *)
        (App (App (App out (Lam (Var 0))) (Deref (Var 1 (*a*)))) (Nat 42))
      )).
 
@@ -164,7 +164,7 @@ Qed.
    after polymorphic type instantiation.  This makes
    the expression a value, and allows us to apply
    the allp introduction rule with the
-   value restriction.   
+   value restriction.
  *)
 Definition ok_program :=
   e_let
@@ -177,7 +177,7 @@ Definition ok_program :=
              (* ; *) (Var 1 (*r*))))))
     (* in *)
     ( e_let (* a := *) (App (App (Var 0 (*f*)) (Nat 0)) (Lam (Var 0))) (* in *)
-     (e_let (* b := *) (App (App (Var 1 (*f*)) (Nat 0)) (Nat 5))       (* in *) 
+     (e_let (* b := *) (App (App (Var 1 (*f*)) (Nat 0)) (Nat 5))       (* in *)
        (App (App (App out (Lam (Var 0))) (Deref (Var 1 (*a*)))) (Nat 42))
      )).
 
@@ -229,7 +229,7 @@ Proof.
   apply T_Var; simpl; auto.
 
   apply T_UnivI; simpl; intros; auto.
-  apply T_Abs.  
+  apply T_Abs.
   apply T_App with (ty_ref (option tau)).
   apply T_Abs.
   apply T_Abs.

@@ -14,18 +14,18 @@ Parameter juicy_mem_storebytes
 Parameter juicy_mem_alloc
   : juicy_mem -> Z -> Z -> juicy_mem * block.
 
-(* See comment below, "this is fixable" 
+(* See comment below, "this is fixable"
 
 Parameter juicy_mem_free
   : juicy_mem -> block -> Z -> Z -> option juicy_mem.
-Axiom juicy_mem_free_succeeds: forall j j' b lo hi, 
-  juicy_mem_free j b lo hi = Some j' 
+Axiom juicy_mem_free_succeeds: forall j j' b lo hi,
+  juicy_mem_free j b lo hi = Some j'
   -> exists m', free (m_dry j) b lo hi = Some m' /\ m' = m_dry j'.
 
 *)
 
 Axiom juicy_mem_store_succeeds: forall j j' ch b ofs v,
-  juicy_mem_store j ch b ofs v = Some j' 
+  juicy_mem_store j ch b ofs v = Some j'
   -> exists m', store ch (m_dry j) b ofs v = Some m' /\ m' = m_dry j'.
 Axiom juicy_mem_alloc_succeeds: forall j j' b lo hi,
   juicy_mem_alloc j lo hi = (j', b) -> (m_dry j', b) = alloc (m_dry j) lo hi.
@@ -35,8 +35,8 @@ End JUICY_MEM_OPS.
 Obligation Tactic := Tactics.program_simpl.
 
 Module JuicyMemOps <: JUICY_MEM_OPS.
-Program Definition juicy_mem_store j ch b ofs v: option juicy_mem := 
-  if valid_access_dec (m_dry j) ch b ofs Writable 
+Program Definition juicy_mem_store j ch b ofs v: option juicy_mem :=
+  if valid_access_dec (m_dry j) ch b ofs Writable
     then Some (store_juicy_mem j _ ch b ofs v _)
     else None.
 Next Obligation.
@@ -48,7 +48,7 @@ apply (proj2_sig (valid_access_store (m_dry j) ch b ofs v H)).
 Defined.
 
 Lemma juicy_mem_store_succeeds: forall j j' ch b ofs v,
-  juicy_mem_store j ch b ofs v = Some j' 
+  juicy_mem_store j ch b ofs v = Some j'
   -> exists m', store ch (m_dry j) b ofs v = Some m' /\ m' = m_dry j'.
 Proof.
 intros until v; intro H.
@@ -64,7 +64,7 @@ simpl. auto.
 inv H.
 Qed.
 
-Program Definition juicy_mem_storebytes j b ofs bytes: option juicy_mem := 
+Program Definition juicy_mem_storebytes j b ofs bytes: option juicy_mem :=
   if range_perm_dec (m_dry j) b ofs (ofs + Z_of_nat (length bytes)) Cur Writable
     then Some (storebytes_juicy_mem j _ b ofs bytes _)
     else None.
@@ -105,12 +105,12 @@ Proof.
  intros.
  pose proof (juicy_mem_max_access jm (b,ofs)).
  unfold max_access_at in H0.
- simpl in H0. 
+ simpl in H0.
  pose proof (alloc_result _ _ _ _ _ H).
  subst b.
  destruct jm; simpl in *.
  rewrite JMalloc; auto; simpl.
- xomega. 
+ xomega.
 Qed.
 
 (* Transparent alloc. *)
@@ -119,7 +119,7 @@ Lemma after_alloc_contents_cohere:
   contents_cohere m'
     (after_alloc lo hi b (m_phi jm) (juicy_mem_alloc_aux1 jm lo hi m' b H)).
 Proof.
-intros. 
+intros.
 unfold after_alloc; hnf; intros.
 rewrite resource_at_make_rmap in H0. unfold after_alloc' in H0.
 if_tac in H0.
@@ -139,7 +139,7 @@ split; auto.
 rewrite <- H3; auto.
 Qed.
 
-Lemma after_alloc_access_cohere: 
+Lemma after_alloc_access_cohere:
  forall jm lo hi m' b (H : alloc (m_dry jm) lo hi = (m', b)),
  access_cohere m'
   (after_alloc lo hi b (m_phi jm) (juicy_mem_alloc_aux1 jm lo hi m' b H)).
@@ -157,12 +157,12 @@ pose proof (juicy_mem_access jm loc).
 congruence.
 Qed.
 
-Lemma after_alloc_max_access_cohere: 
+Lemma after_alloc_max_access_cohere:
  forall jm lo hi m' b (H : alloc (m_dry jm) lo hi = (m', b)),
  max_access_cohere m'
   (after_alloc lo hi b (m_phi jm) (juicy_mem_alloc_aux1 jm lo hi m' b H)).
 Proof.
-  
+
 intros; pose proof I; hnf; intros.
 unfold after_alloc. rewrite resource_at_make_rmap.
 unfold after_alloc'.
@@ -175,14 +175,14 @@ if_tac.
  constructor.
 *
   assert (HH:= juicy_mem_max_access jm loc).
-  
+
     eapply perm_order''_trans; eauto.
     unfold max_access_at in *.
     destruct loc as [b' z].
     rewrite (alloc_access_other _ _ _ _ _ H); auto.
-    
+
     destruct ((access_at m' (b', z) Max)); [apply perm_refl |constructor].
-    destruct (eq_block b b'). 
+    destruct (eq_block b b').
     right. assert (~(lo <= z < lo + (hi - lo))).
     { intros HHH; apply H1. split; auto. }
     xomega.
@@ -213,18 +213,18 @@ Qed.
 
 Definition juicy_mem_alloc (jm: juicy_mem) (lo hi: Z) : juicy_mem * block :=
          (mkJuicyMem (fst (alloc (m_dry jm) lo hi))
-                     (after_alloc lo hi (snd (alloc (m_dry jm) lo hi)) (m_phi jm) 
+                     (after_alloc lo hi (snd (alloc (m_dry jm) lo hi)) (m_phi jm)
                             (juicy_mem_alloc_aux1 _ _ _ _ _ (eq_refl _)))
                      (after_alloc_contents_cohere _ _ _ _ _ (eq_refl _))
                      (after_alloc_access_cohere _ _ _ _ _ (eq_refl _))
                      (after_alloc_max_access_cohere _ _ _ _ _ (eq_refl _))
-                     (after_alloc_alloc_cohere _ _ _ _ _ (eq_refl _)), 
+                     (after_alloc_alloc_cohere _ _ _ _ _ (eq_refl _)),
            snd (alloc (m_dry jm) lo hi)).
 
 Lemma juicy_mem_alloc_at:
   forall jm lo hi jm' b,
      juicy_mem_alloc jm lo hi = (jm',b) ->
-     forall loc, m_phi jm' @ loc = 
+     forall loc, m_phi jm' @ loc =
        if adr_range_dec (b, lo) (hi - lo) loc
        then YES Share.top readable_share_top (VAL Undef) NoneP
        else m_phi jm @ loc.
@@ -233,7 +233,7 @@ Proof.
  inv H. simpl.
  unfold after_alloc; rewrite resource_at_make_rmap.
  unfold after_alloc'. auto.
-Qed.  
+Qed.
 
 Lemma juicy_mem_alloc_level:
  forall jm lo hi jm' b,
@@ -277,8 +277,8 @@ destruct p; inv H.
 inv H.
 hnf in H.
 
-Lemma juicy_mem_free_succeeds: forall j j' b lo hi, 
-  juicy_mem_free j b lo hi = Some j' 
+Lemma juicy_mem_free_succeeds: forall j j' b lo hi,
+  juicy_mem_free j b lo hi = Some j'
   -> exists m', free (m_dry j) b lo hi = Some m' /\ m' = m_dry j'.
 Proof.
 intros until hi; intro H.
@@ -304,7 +304,7 @@ Module Abs := JuicyMemOps.
 Require Import veric.local.
 
 Inductive AbsPrimcom : relation juicy_mem -> Prop :=
-| AbsPrimcom_store : forall ch b ofs v, 
+| AbsPrimcom_store : forall ch b ofs v,
   AbsPrimcom (fun j j' => Abs.juicy_mem_store j ch b ofs v = Some j')
 | AbsPrimcom_alloc : forall lo hi,
   AbsPrimcom (fun j j' => fst (Abs.juicy_mem_alloc j lo hi) = j')
@@ -338,7 +338,7 @@ Inductive VU : relation juicy_mem -> relation mem -> Prop :=
 (*| VU_free : forall b ofs n,
   VU (fun j j' => Abs.juicy_mem_free j b ofs n = Some j')
      (fun m m' => free m b ofs n = Some m')*).
-  
+
 Inductive GF : pfunc juicy_mem val -> pfunc mem val -> Prop :=.
 
 Lemma PrimexprErasure : forall g f, GF g f -> False. Proof. inversion 1. Qed.
@@ -393,8 +393,8 @@ Qed.
 Existing Instance abstract.
 Existing Instance concrete.
 
-Instance stratsem : @StratifiedSemantics 
-  juicy_mem 
+Instance stratsem : @StratifiedSemantics
+  juicy_mem
   AbsPrimcom
   AbsPrimexpr
   mem
@@ -402,8 +402,8 @@ Instance stratsem : @StratifiedSemantics
   ConcPrimexpr
   abstract
   concrete
-  m_dry 
-  VU 
+  m_dry
+  VU
   GF.
 Proof.
 constructor.
@@ -425,11 +425,11 @@ Inductive HG : pfunc rmap val -> pfunc juicy_mem val -> Prop :=.
 
 Instance stratsemsep : StratifiedSemanticsWithSeparation m_phi RmapPrimexpr HG.
 Proof.
-constructor; intros; inv H. 
+constructor; intros; inv H.
 Qed.
 
 Fixpoint alloc_juicy_variables (ge: genv) (rho: env) (jm: juicy_mem) (vl: list (ident*type)) : env * juicy_mem :=
- match vl with 
+ match vl with
  | nil => (rho,jm)
  | (id,ty)::vars => match JuicyMemOps.juicy_mem_alloc jm 0 (@sizeof ge ty) with
                               (m1,b1) => alloc_juicy_variables ge (PTree.set id (b1,ty) rho) m1 vars
@@ -445,8 +445,8 @@ Proof.
  simpl.
  apply rmap_ext.
  repeat rewrite level_core. rewrite level_make_rmap. auto.
- intro loc. 
- repeat rewrite <- core_resource_at. 
+ intro loc.
+ repeat rewrite <- core_resource_at.
  rewrite resource_at_make_rmap.
  unfold after_alloc'.
  if_tac; auto.
@@ -457,7 +457,7 @@ Proof.
  simpl. destruct H.
  revert H; case_eq (alloc (m_dry jm) lo hi); intros.
  simpl in *. subst b0. apply alloc_result in H. subst b; xomega.
-Qed. 
+Qed.
 
 Lemma alloc_juicy_variables_e:
   forall ge rho jm vl rho' jm',

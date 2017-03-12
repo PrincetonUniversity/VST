@@ -1,9 +1,9 @@
-# We have the .depend file checked into the repository so that 
+# We have the .depend file checked into the repository so that
 # this file works even if coqdep cannot be run.  Do "make depend"
 # to rebuild the .depend file.
 
 COQFLAGS= -I . -I ../../msl -as msl -R ../../compcert -as compcert
-COQC=coqc 
+COQC=coqc
 COQDEP=coqdep
 COQDOC=coqdoc
 

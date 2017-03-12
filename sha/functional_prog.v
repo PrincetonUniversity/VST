@@ -5,7 +5,7 @@ Require Coq.Strings.Ascii.
 Require Import compcert.lib.Coqlib.
 Require Import msl.Coqlib2.
 Require Import floyd.coqlib3.
-Require Import floyd.sublist. 
+Require Import floyd.sublist.
 Require Import List. Import ListNotations.
 Require Import sha.general_lemmas.
 Require Import sha.SHA256.
@@ -21,7 +21,7 @@ Proof.
 Defined.
 
 Definition padlen (n: Z) : list Int.int :=
-    let p := n/4+3 (* number of words with trailing 128-byte, 
+    let p := n/4+3 (* number of words with trailing 128-byte,
                                                       up to 3 zero bytes, and 2 length words *)
     in let q := (p+15)/16*16 - p   (* number of zero-pad words *)
       in zeros q ++ [Int.repr (n * 8 / Int.modulus); Int.repr (n * 8)].
@@ -48,7 +48,7 @@ Definition Wnext (msg : list int) : int :=
 (*generating 64 words for the given message block imput*)
 Fixpoint generate_word (msg : list int) (n : nat) {struct n}: list int :=
   match n with
-  |O   => msg 
+  |O   => msg
   |S n' => generate_word (Wnext msg :: msg) n'
   end.
 Arguments generate_word msg n : simpl never.
@@ -74,7 +74,7 @@ Fixpoint grab_and_process_block (n: nat) (r: registers) (firstrev msg: list int)
  end.
 
 (*iterate through all the message blocks; this could have been done with just a Fixpoint
-  if we incorporated grab_and_process_block into process_msg, but I wanted to 
+  if we incorporated grab_and_process_block into process_msg, but I wanted to
   modularize a bit more. *)
 Function process_msg  (r: registers) (msg : list int) {measure length msg}  : registers :=
  match msg with
@@ -115,7 +115,7 @@ Definition hexdigit(a: Z) : Z :=
 
 Fixpoint hexstring_to_Zlist (s: String.string): list Z  :=
  match s with
- | String.String a (String.String b r) =>  (hexdigit (Z.of_N (Ascii.N_of_ascii a)) * 16 
+ | String.String a (String.String b r) =>  (hexdigit (Z.of_N (Ascii.N_of_ascii a)) * 16
                                          + hexdigit (Z.of_N (Ascii.N_of_ascii b)))
                                           :: hexstring_to_Zlist r
  | _ => nil
@@ -123,7 +123,7 @@ Fixpoint hexstring_to_Zlist (s: String.string): list Z  :=
 
 Section CHECKS.
 Import String.
-Definition check m h := 
+Definition check m h :=
   listZ_eq (SHA_256' (str_to_Z m)) (hexstring_to_Zlist h) = true.
 
 (*This input message is 344 bits long, which would have one message block after padding*)
@@ -137,7 +137,7 @@ Goal check "The Secure Hash Algorithm is a family of cryptographic hash function
 Proof. vm_compute; auto. Qed.
 End CHECKS.
 
-(* PROOF OF EQUIVALENCE OF FAST FUNCTIONAL PROGRAM WITH 
+(* PROOF OF EQUIVALENCE OF FAST FUNCTIONAL PROGRAM WITH
     FUNCTIONAL SPECIFICATION *)
 
 Require Import sha.common_lemmas.
@@ -254,7 +254,7 @@ simpl. auto.
 Qed.
 
 Lemma rnd_64_S:
-  forall regs i b k w, 
+  forall regs i b k w,
     nth_error K256 i = Some k ->
     nth_error b i = Some w ->
     rnd_64 regs K256 (firstn (S i) b) =
@@ -284,7 +284,7 @@ unfold rnd_64; simpl; fold rnd_64.
 apply IHl.
 Qed.
 
-Lemma Zlength_zeros: 
+Lemma Zlength_zeros:
     forall n, (n>=0)%Z -> Zlength (zeros n) = n.
 Proof.
 intros.
@@ -304,12 +304,12 @@ Qed.
 Lemma length_zeros: forall n:Z, length (zeros n) = Z.to_nat n.
 Proof.
 intros. destruct (zlt n 0).
-rewrite zeros_equation. 
+rewrite zeros_equation.
 pose proof (Zgt_cases n 0).
 destruct (n>?0). omega.
 destruct n. inv l. inv l. simpl. reflexivity.
 rename g into H.
-pose proof (Zlength_zeros n H). 
+pose proof (Zlength_zeros n H).
 rewrite Zlength_correct in H0.
 rewrite <- H0 at 2.
 rewrite Nat2Z.id. auto.
@@ -321,7 +321,7 @@ Local Open Scope Z.
 
 Lemma Zlength_padlen:
  forall n,
-  n>=0 -> 
+  n>=0 ->
   Zlength (padlen n) = roundup (n/4+3) 16 - n/4 - 1.
 Proof.
 intros.
@@ -604,7 +604,7 @@ assert (H88: (n * 4 <= length msg)%nat). {
  subst n.
  apply Nat2Z.inj_le.
  rewrite <- Zlength_correct. rewrite Nat2Z.inj_mul.
- rewrite Z2Nat.id. 
+ rewrite Z2Nat.id.
  rewrite (Z_div_mod_eq (Zlength msg) 4) at 2 by omega.
  change (Z.of_nat 4) with 4. rewrite <- Z.mul_comm.
  pose proof (Z.mod_pos_bound (Zlength msg) 4); omega.
@@ -654,7 +654,7 @@ assert (a mod 64 / 4 < 16).
 apply Z.div_lt_upper_bound. omega. apply Z.mod_pos_bound; omega.
 omega.
 }
-assert (- (Zlength msg + 9) mod 64 = 
+assert (- (Zlength msg + 9) mod 64 =
            (3 - Zlength ccc) + 4* ((Zlength msg+8)/64 * 16 + 15 - (Zlength msg + 8) / 4)). {
 assert (LL: length ccc = length (skipn (Z.to_nat (Zlength msg / 4) * 4) msg))
  by congruence.
@@ -672,7 +672,7 @@ rewrite Nat2Z.inj_mul.
 rewrite Z2Nat.id by auto.
 rewrite <- Zlength_correct.
 change (Z.of_nat 4) with 4.
-assert (0 <= Zlength msg mod 4) 
+assert (0 <= Zlength msg mod 4)
  by (apply Z.mod_pos_bound; omega).
 omega.
 replace (Zlength ccc) with (Zlength msg - Zlength msg / 4 * 4) by omega.
@@ -710,7 +710,7 @@ rewrite Nat2Z.inj_mul. change (Z.of_nat 4) with 4.
 rewrite Z2Nat.id  by omega.
  omega.
 } Unfocus.
-match goal with |- context [_ ++ list_repeat (Z.to_nat (4 * ?qq)) 0] => 
+match goal with |- context [_ ++ list_repeat (Z.to_nat (4 * ?qq)) 0] =>
  assert (Zlist_to_intlist (list_repeat (Z.to_nat (4 * qq)) 0) =
   zeros ((Zlength msg + 8) / 64 * 16 + 15 - (Zlength msg + 8) / 4));
   set (Q := qq) in *
@@ -718,7 +718,7 @@ end. {
  rewrite Z2Nat.inj_mul by omega. change (Z.to_nat 4) with 4%nat.
  rewrite <- Z2Nat.id at 2 by omega.
  induction (Z.to_nat Q). reflexivity.
- rewrite inj_S. rewrite zeros_equation. 
+ rewrite inj_S. rewrite zeros_equation.
  assert (0 < Z.succ (Z.of_nat n)) by omega.
  apply Z.gtb_lt in H6; rewrite H6.
  replace (Z.succ (Z.of_nat n) - 1) with (Z.of_nat n) by omega.
@@ -728,19 +728,19 @@ end. {
 }
 set (Q4 := Z.to_nat (4 * Q)) in *.
 destruct ccc as [|a [|b [|c [|]]]]; simpl in H3; try omega; clear H3;
- unfold generate_and_pad'; rewrite padlen_eq; unfold padlen'; 
+ unfold generate_and_pad'; rewrite padlen_eq; unfold padlen';
  simpl;
 repeat rewrite Zlength_cons; rewrite Zlength_nil.
 + (* ccc = [] *)
-  rewrite Z.sub_0_r. rewrite H6. reflexivity.  
+  rewrite Z.sub_0_r. rewrite H6. reflexivity.
 + (* ccc = [a] *)
-   change (Z.succ 0) with 1; rewrite Z.sub_add. rewrite H6. reflexivity.  
+   change (Z.succ 0) with 1; rewrite Z.sub_add. rewrite H6. reflexivity.
 + (* ccc = [a,b] *)
    change (Z.succ (Z.succ 0)) with 2; rewrite Z.sub_add.
-   rewrite H6. reflexivity.  
+   rewrite H6. reflexivity.
 + (* ccc = [a,b,c] *)
    change (Z.succ (Z.succ (Z.succ 0))) with 3; rewrite Z.sub_add.
-   rewrite H6. reflexivity.  
+   rewrite H6. reflexivity.
 * (* inductive case for n *)
 replace (S n * 4)%nat with (4 + n*4)%nat in H88 by omega.
 assert ((Z.to_nat (Zlength msg / 4) - S n) * 4 = ((Z.to_nat (Zlength msg / 4) - n) * 4) - 4)%nat
@@ -748,7 +748,7 @@ assert ((Z.to_nat (Zlength msg / 4) - S n) * 4 = ((Z.to_nat (Zlength msg / 4) - 
 rewrite H0. clear H0.
 spec IHn; [omega |].
 set (Q := ((Z.to_nat (Zlength msg / 4) - n) * 4)%nat) in *.
-assert (Hyy : 0 <= Zlength msg) by (rewrite Zlength_correct; omega). 
+assert (Hyy : 0 <= Zlength msg) by (rewrite Zlength_correct; omega).
 assert (Hzz:=Zmod_eq (Zlength msg) 4); spec Hzz; [omega|].
 destruct (Z.mod_pos_bound (Zlength msg) 4); try  omega.
 apply Nat2Z.inj_le in H88.
@@ -797,7 +797,7 @@ unfold app at 2. unfold app at 4.
 unfold generate_and_pad'; fold generate_and_pad'.
 unfold Zlist_to_intlist; fold Zlist_to_intlist.
 replace (Z.of_nat (Q-4) + 4) with (Z.of_nat Q)
- by (rewrite Nat2Z.inj_sub by omega; 
+ by (rewrite Nat2Z.inj_sub by omega;
        change (Z.of_nat 4) with 4; omega).
 rewrite <- IHn.
 reflexivity.
@@ -837,7 +837,7 @@ rewrite rev_involutive.
 rewrite firstn_app1 by omega.
 rewrite firstn_same; auto; omega.
 unfold generate_word; fold generate_word.
-change (Wnext (a ++ rev b) :: a ++ rev b) with 
+change (Wnext (a ++ rev b) :: a ++ rev b) with
       ((Wnext (a ++ rev b) ::a) ++ rev b).
 apply IHn.
 Qed.
@@ -855,7 +855,7 @@ simpl. omega.
 Qed.
 
 Lemma nth_generate_word_S:
-  forall k i n b', 
+  forall k i n b',
    nth (i+k) (generate_word b' (n+k)) = nth i (generate_word b' n).
 Proof.
 induction k; intros.
@@ -875,7 +875,7 @@ Qed.
 Lemma generate_word_small:
   forall i b n,
            length b = 16%nat ->
-           (i < length b)%nat -> 
+           (i < length b)%nat ->
            nth i (rev (generate_word (rev b) n)) = nth i b.
 Proof.
 intros.
@@ -905,7 +905,7 @@ Definition nthB (b: list int) (i: nat) (n: Z) :=
 
 Lemma nth_rev_generate_word:
  forall i b,
-   length b = 16%nat -> 
+   length b = 16%nat ->
    (16 <= i < 64)%nat ->
     nth i (rev (generate_word (rev b) 48)) Int.zero =
   Int.add (nthB b i 0)
@@ -917,7 +917,7 @@ unfold nthB.
 rewrite <- rev_length in H.
 forget (rev b) as b'.
 clear b.
-assert (length (generate_word b' 48) = 64)%nat 
+assert (length (generate_word b' 48) = 64)%nat
  by (rewrite length_generate_word, H; reflexivity).
 rewrite rev_nth by omega.
 repeat rewrite rev_nth
@@ -928,7 +928,7 @@ assert (48 = (i - 16) + 1 + (64 - S i))%nat by (clear - H0; omega).
 rewrite H2 at 2.
 rewrite nth_generate_word_S.
 rewrite generate_word_plus by omega.
-unfold generate_word at 1. 
+unfold generate_word at 1.
 unfold nth at 1.
 assert (forall n:nat, (n < 16) ->
     ((64 - S (Z.to_nat (Z.of_nat i - 16 + Z.of_nat n))) =
@@ -1021,7 +1021,7 @@ split.
 apply Nat2Z.inj_le. change (Z.of_nat 16) with 16.
 rewrite Z2Nat.id by omega. omega.
 apply Nat2Z.inj_lt.
-rewrite Z2Nat.id by omega. 
+rewrite Z2Nat.id by omega.
 change (Z.of_nat 64) with 64.
 apply Nat2Z.inj_le in H.
 rewrite Z2Nat.id in H by omega.
@@ -1063,7 +1063,7 @@ apply Int.add_commut.
 Qed.
 
 Lemma process_block_hash_block:
- forall regs block, 
+ forall regs block,
    length regs = 8%nat ->
    length block = 16%nat ->
    process_block regs (rev block) = hash_block regs block.
@@ -1083,7 +1083,7 @@ rewrite Heqn in H1 at 2.
 clear Heqn. rename H1 into H7.
 revert regs H H7; induction n; intros.
 simpl plus.
-change 48%nat with c48 in H7 |- *. 
+change 48%nat with c48 in H7 |- *.
 remember 16%nat as n.
 rewrite Heqn in H0.
 assert (n <= 16)%nat by omega.

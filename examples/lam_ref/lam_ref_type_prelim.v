@@ -186,7 +186,7 @@ Proof.
   unfold mtype in *.
   rewrite H2; auto.
   rewrite H1 in H; discriminate.
-  
+
   destruct x; destruct y; destruct z; simpl in *.
   unfold age in H0; simpl in H0.
   hnf in H.
@@ -452,7 +452,7 @@ Definition approx_eq (n : nat) (tau1 tau2 : predicate) : Prop :=
   approx n tau1 = approx n tau2.
 
 Lemma approx_eq_downward : forall n m p q,
-  m <= n -> 
+  m <= n ->
   approx_eq n p q ->
   approx_eq m p q.
 Proof.

@@ -2,7 +2,7 @@
 
 
 From mathcomp.ssreflect Require Import ssreflect seq ssrbool ssrnat.
-      
+
 Require Import Coq.ZArith.ZArith.
 
 Require Import compcert.common.Memory.
@@ -19,17 +19,17 @@ Section cardinality.
 (*Here goes cardinality stuff*)
 End cardinality.
 
-Section filtered_konig.  
+Section filtered_konig.
   Variable X: Type.
   Axiom X_dec: forall x y:X, {x=y} + {x<>y}.
   Variable Filter: X -> Prop.
   Variable R: X->X->Prop.
   Axiom  preservation :  forall P P', Filter P -> R P P' -> Filter P'.
-  
+
   Record TT :Type:= mkTT {thing: X; prf: Filter thing}.
   Inductive RR: TT->TT->Prop:=
   | stepstep: forall P x' (stp: R (thing P) x'), RR P (mkTT x' (preservation _ _ (prf P) stp)).
-  
+
   Lemma filtered_to_unfiltered_safe:
     forall P,
       konig.safe _ RR P ->
@@ -69,7 +69,7 @@ Section filtered_konig.
                             cardinality' P n.
 
   Lemma repetition_dec: forall (f:nat -> X) x n,  (exists i, i<n /\ f(i) = x) \/ (forall i, i<n -> f i <> x).
-              Proof. 
+              Proof.
                 induction n=>//.
                 - constructor 2 => //.
                 - move: IHn=> [[]i [] A B| A].
@@ -86,7 +86,7 @@ Section filtered_konig.
                       }
               Qed.
   Lemma finite_cardinality:
-    forall (P:X->Prop) (EM: forall x, P x \/ ~ P x), finite P -> exists n, cardinality P n. 
+    forall (P:X->Prop) (EM: forall x, P x \/ ~ P x), finite P -> exists n, cardinality P n.
   Proof.
     move => P EM [] n [] f FIN.
     cut (forall n2,
@@ -101,11 +101,11 @@ Section filtered_konig.
     { move => HH; move: (HH n) => [ [] f0 [] n0 [] A [] B []  C [] D E  | [] n0 [] HH0 HH1 ].
       - exists n0; exists f0 => //.
         move =>  x Px. move: (FIN x Px)=> [] i [] /leP /D D' fi.
-        move: Px; rewrite -fi => /D' [] i0 [] ineqi0 fifi0. rewrite fifi0. 
+        move: Px; rewrite -fi => /D' [] i0 [] ineqi0 fifi0. rewrite fifi0.
         by exists i0; split.
       - by exists n0.
     }
-    { induction n2. 
+    { induction n2.
       - left; exists f, 0; repeat split=>//.
       - move: IHn2=> [].
         + move => [] f0 [] n0 [] ineq02 [] inject0 [] prf0 [] subset complete.
@@ -135,7 +135,7 @@ Section filtered_konig.
                     - move => i0 /complete [] j [] ineq0 fjfi0.
                       exists j; split=>//.
                       apply/leP. move: ineq0=> /leP HH; omega.
-                  }          
+                  }
                 + { move => HH.
                     pose (f0':= eq_dec.upd f0 n0 new_x); exists f0', n0.+1; repeat split => //.
                     - move => i j ineqi ineqj diffij.
@@ -183,8 +183,8 @@ Section filtered_konig.
                         assert (ineqi':  i < n0).
                         { apply/ltP ; move: ineq0=> /ltP ineq0; omega. }
                         move: ineqi'=> /complete [] j [] ineqj <-.
-                        exists j; split=>//. apply/ltP; move: ineqj=> /ltP ineqj; omega. 
-                      
+                        exists j; split=>//. apply/ltP; move: ineqj=> /ltP ineqj; omega.
+
                   }
                 + left; exists f0, n0; repeat split=> //.
                   * auto.
@@ -195,13 +195,13 @@ Section filtered_konig.
                         by move /(subset _ H).
                   * move=> i /complete [] j [] ineq' eqj; exists j; split=> //.
                     apply/ltP; move: ineq' =>/ltP ineq';omega.
-                    
+
             }
         + move => [] n0 [] /leP /(le_trans _ _ n2.+1) A B; right; exists n0; split=> //.
           apply/leP; apply: A; omega.
     }
 Qed.
-  
+
   Lemma filtered_konigsafe:
     forall (x : X),
       (forall P : Prop, P \/ ~ P) ->
@@ -223,13 +223,13 @@ Qed.
 
     exists n.
     assert (HH: forall i, i < n -> Filter (f i)) by move => i / H0 / (preservation _ _ prfx) //.
-    assert (refl:forall i n, (i < n)%coq_nat -> is_true (i < n)) by move => i' n' /ltP //. 
+    assert (refl:forall i n, (i < n)%coq_nat -> is_true (i < n)) by move => i' n' /ltP //.
     pose (f0:= fun i =>
                  match le_lt_dec n i with
                  | left _ =>  mkTT xx prfx
                  | right ineq => mkTT (f i) (HH i (refl i n ineq))
                  end ).
-    
+
     exists f0 => [] [] xx' prfx' /= stepstep. inversion stepstep.
     move: stp0; subst x'=> /= /H1 [] i0 [] /ltP A B.
     exists i0; split=> //.
@@ -239,24 +239,24 @@ Qed.
     move: A => /ltP FALSE1 /leP FALSE2; omega.
     clear stepstep.
     remember (HH i0 (refl i0 n l)) as prfx''. clear Heqprfx''.
-    move: prfx' prfx''. 
+    move: prfx' prfx''.
     dependent rewrite B => P1 P2; f_equal.
     apply: ProofIrrelevance.PI.proof_irrelevance.
 
     move => n.
     apply: unfiltered_to_filtered_safeN=> //.
   Qed.
-  
+
 End filtered_konig.
 
 Section Safety.
   Context (ST:Type)(SCH:Type).
   Context (STEP:ST->SCH->ST->SCH-> Prop).
   Context (valid: ST-> SCH -> Prop).
-  
+
   Axiom schedule_dec:
     forall (U U':SCH), {U=U'} + {U<>U'}.
-  
+
   Inductive ksafe (st:ST) U: nat -> Prop :=
   |sft0: ksafe st U 0
   |sft_step: forall n st' U', STEP st U st' U' -> (forall U'', valid st' U'' -> ksafe st' U'' n) -> ksafe st U (S n).
@@ -266,7 +266,7 @@ Section Safety.
 
   (*The proof relies on the sets of states: SST's*)
   Definition SST:= ST -> Prop.
-  Definition is_in (st:ST)(P:SST):= P st. 
+  Definition is_in (st:ST)(P:SST):= P st.
   (*Notation enth:= (List.nth_error).*)
   Infix "\In":= (is_in) (at level 20, right associativity).
 
@@ -276,34 +276,34 @@ Section Safety.
               (forall x', P' x' -> exists x y, R x x' y /\ P x /\ valid x y) ->
               SStep R valid P P'.
   Definition SST_step : SST -> SST -> Prop := SStep (fun st st' U => exists U', STEP st U st' U') valid.
-  
+
   (*Instantiating koning's variables *)
-  Definition SsafeN:= konig.safeN SST SST_step. 
+  Definition SsafeN:= konig.safeN SST SST_step.
   Definition Ssafe:= konig.safe (SST) SST_step.
   (*Initial state is singleton.*)
   Inductive P_init {st_init:ST}: SST:=
   |ItIsMe: P_init st_init.
-  
+
   Lemma finite_P_init: forall {st}, finite (@P_init st).
   Proof. by move =>st; exists 1, (fun _ => st) => st' []; exists 0; split. Qed.
-  
+
   Lemma SsafeN_ksafe': forall n P,
       SsafeN n P -> forall st U, st \In P -> valid st U -> ksafe st U n.
   Proof.
     induction n.
     - constructor.
-    - move=> P HH st U inP VAL. 
+    - move=> P HH st U inP VAL.
       inversion HH; subst.
       inversion H0.
       move: VAL inP => /H H' /H'  [] st' [][] U' STP inx'.
       apply: (sft_step st U n st' U' STP)=> U'' VALID'.
       apply: (IHn x' _ )=>//.
   Qed.
-  
+
   Corollary SsafeN_ksafe: forall n st,
       SsafeN n (@P_init st) -> forall U, valid st U -> ksafe st U n.
   Proof. move=> n st mysN U VAL. apply: (SsafeN_ksafe' n P_init mysN) => //. Qed.
-  
+
   Lemma ksafe_SsafeN': forall n P,
       (forall st U, st \In P -> valid st U -> ksafe st U n) ->
       SsafeN n P.
@@ -330,7 +330,7 @@ Section Safety.
     - eapply IHn => st' U [] st [] UU [] U' [] inP [] VAL [] STP COND;
       by apply: COND.
   Qed.
-  
+
   Lemma ksafe_SsafeN: forall st_init,
       (forall U, valid st_init U) ->
       forall n, (forall U, ksafe st_init U n) ->
@@ -344,7 +344,7 @@ Section Safety.
   Lemma Ssafe_safe': forall P,
       Ssafe P -> forall st U, st \In P -> valid st U -> safe st U.
   Proof.
-    cofix=> P SF st U. 
+    cofix=> P SF st U.
     inversion SF; subst x; rename x' into P'.
     inversion H => /H1 H1' /H1' [] st' [] [] U' STP inP'.
     apply: (csft_step _ _ st' U')=>// U'' VAL'.
@@ -385,9 +385,9 @@ Section Safety.
     forall st, ( forall n : nat, safeN (ST -> Prop) SST_step n (@P_init st)) ->
           Ssafe (@P_init st).
   Proof. move => EM FIN P; apply: finite_Ssafe_safe'=>//. apply: finite_P_init. Qed.
-  
+
   Definition possible_image {X Y} (STEP:X-> Y-> X (*-> Y*) -> Prop) (valid: X -> Y -> Prop)  st st' U:= valid st U /\ (* exists U',  *) STEP st U st' (* U' *).
-  Definition finite_on_x {X Y} (A:X->Y->Prop):= 
+  Definition finite_on_x {X Y} (A:X->Y->Prop):=
     exists n (f: nat -> X), forall x y, A x y -> exists i, (i < n) /\ f i = x.
   (** This lemma is actually easy. It's unique, under prop_ext. **)
   Require Import msl.Axioms.
@@ -398,7 +398,7 @@ Section Safety.
   Proof.
     move=> FINx P [] n [] Pf FINp.
     unfold possible_image, finite_on_x in FINx.
-    pose (PN:= fun n x => exists i, Pf i = x /\ i < n /\ P x).  
+    pose (PN:= fun n x => exists i, Pf i = x /\ i < n /\ P x).
     cut (forall n, finite (fun x' => exists x y, (PN n) x /\ V x y /\ R x x' y)).
     { move => /(_ n) [] N [] F HH.
       exists N, F => x' [] x [] y [] Px [] Vxy Rxx.
@@ -415,7 +415,7 @@ Section Safety.
         contradict HH; clear; omega.
       - move: IHn0 => [] N [] F HH.
         pose (new_x:= Pf n0).
-        move: (FINx new_x)=> [] nn [] fn HHH. 
+        move: (FINx new_x)=> [] nn [] fn HHH.
         exists (N + nn).
         exists (fun i => if (i < N) then F i else fn (i - N)) => x' [] x [] y [][] i [] Pfi []ineqi Px.
         destruct (Nat.eq_dec i n0) as [e|ne].
@@ -427,12 +427,12 @@ Section Safety.
           * replace (N + i0 < N) with false.
             replace (N + i0 - N) with i0.
             assumption.
-            rewrite /addn /addn_rec /subn /subn_rec; 
+            rewrite /addn /addn_rec /subn /subn_rec;
               omega.
             symmetry.
             cut (~ (N + i0 < N)).
             apply: introF; apply: idP.
-            move: ineqi0=> /ltP ineqi0 /ltP. 
+            move: ineqi0=> /ltP ineqi0 /ltP.
             rewrite /addn /addn_rec => NN.
             clear - NN ineqi0. omega.
         + move=> [] Vxy Rxxy.
@@ -441,13 +441,13 @@ Section Safety.
           exists i0; split.
           * rewrite /addn /addn_rec ;omega.
           * by move: ineqi0=> /ltP ->.
-            
+
             {
               exists x, y; repeat split=> //.
               exists i; repeat split=>//.
               apply/ltP. move: ineqi=> /ltP ineqi'; omega. }
-  }          
-  Qed.        
+  }
+  Qed.
   Lemma power_set_finite {X}:
     (forall P : Prop, P \/ ~ P) ->
     forall P: X-> Prop, finite P ->
@@ -486,7 +486,7 @@ Section Safety.
                 rewrite /addn /addn_rec /subn /subn_rec /muln /muln_rec.
                 rewrite Nat.add_sub Nat.mul_comm Nat.div_mul; [reflexivity | omega].
         }
-            
+
       + { exists (2 * i); split.
         rewrite /addn /addn_rec /muln /muln_rec; omega.
         rewrite odd_mul.
@@ -495,7 +495,7 @@ Section Safety.
           * by move=> [].
           * move => Px'; split => // EQ.
               by apply:no; rewrite EQ.
-              
+
         }
       (*CUT: subset (fun x : X => P' x /\ f n <> x) (fun x : X => P x /\ f n <> x)*)
         { move=> x [] Px' fnx'; split=> //.
@@ -510,7 +510,7 @@ Section Safety.
 
   Lemma subset_finite {X}: forall (P P': X-> Prop), finite P -> subset P' P -> finite P'.
   Proof. move=> P P' [] n [] f HH SUB. by exists n, f => x / SUB / HH. Qed.
-  
+
   Lemma finite_rel_generalize {X Y} (V: X -> Y -> Prop) (R: X -> X -> Y -> Prop):
     forall (propositional_extentionality: True),
       (forall P : Prop, P \/ ~ P) ->
@@ -546,7 +546,7 @@ Section Safety.
         inversion ImIn as [H0].
         subst. apply KS=> //.
   Qed.
-  
+
   Lemma ksafe_safe:
     (forall P: Prop, P \/ ~ P) ->
     forall (propositional_extentionality: True),
@@ -575,7 +575,7 @@ Section Safety.
       apply: (sft_step _ _ _ st' U' H)=> U'' VAL'.
       apply: IHn=>//.
   Qed.
-  
+
   Lemma safe_ksafe:
     forall st,
       (forall U : SCH, valid st U) ->

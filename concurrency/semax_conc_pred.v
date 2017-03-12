@@ -292,12 +292,12 @@ Lemma nonexpansive_lock_inv : forall sh p, nonexpansive (lock_inv sh p).
 Proof.
   intros.
   unfold lock_inv.
-  apply exists_nonexpansive.
+  apply @exists_nonexpansive.
   intros b.
-  apply exists_nonexpansive.
+  apply @exists_nonexpansive.
   intros y.
-  apply (conj_nonexpansive (fun _ => prop (p = Vptr b y))).
-  1: apply const_nonexpansive.
+  apply @conj_nonexpansive.
+  apply @const_nonexpansive.
 
   unfold LKspec.
   apply forall_nonexpansive; intros.
