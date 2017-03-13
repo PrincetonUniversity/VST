@@ -635,7 +635,6 @@ Proof.
       end.
       rewrite (update_partially_filled i calc_FT0) by assumption.
 
-      (* TODO floyd make sure this can be undone, and document it *)
       Ltac canon_load_result Hresult ::= rewrite Znth_partially_filled in Hresult by omega.
       forward. forward.
       match goal with
@@ -658,16 +657,8 @@ Proof.
       end.
       rewrite (update_partially_filled i calc_FT3) by assumption.
 
-(* reset back to normal: (TODO floyd call this canon_load_result_default *)
-Ltac canon_load_result Hresult ::= 
-  repeat (
-    first [ rewrite Znth_map with (d' := Int.zero) in Hresult
-          | rewrite Znth_map with (d' := Vundef) in Hresult
-          | rewrite Znth_map with (d' := 0) in Hresult ];
-    [ | auto; rewrite ?Zlength_map in *; omega || match goal with
-        | |- ?Bounds => fail 1000 "Please make sure omega or auto can prove" Bounds
-        end ]
-  ).
+      (* reset back to normal: *)
+      Ltac canon_load_result Hresult ::= default_canon_load_result Hresult.
 
     (* reverse tables: *)
     assert (forall i, Int.unsigned (Znth i RSb Int.zero) <= Byte.max_unsigned). {
@@ -680,14 +671,7 @@ Ltac canon_load_result Hresult ::=
     }
     Ltac canon_load_result Hresult ::= 
       (* default: *)
-      repeat (
-        first [ rewrite Znth_map with (d' := Int.zero) in Hresult
-              | rewrite Znth_map with (d' := Vundef) in Hresult
-              | rewrite Znth_map with (d' := 0) in Hresult ];
-        [ | auto; rewrite ?Zlength_map in *; omega || match goal with
-            | |- ?Bounds => fail 1000 "Please make sure omega or auto can prove" Bounds
-            end ]
-      );
+      default_canon_load_result Hresult;
       (* additional: *)
       try rewrite Z_to_val_to_Vint in Hresult by
       match goal with
@@ -871,7 +855,6 @@ Ltac canon_load_result Hresult ::=
     end.
     rewrite (update_partially_filled i calc_RT0) by assumption.
 
-    (* TODO floyd make sure this can be undone, and document it *)
     Ltac canon_load_result Hresult ::= rewrite Znth_partially_filled in Hresult by omega.
     forward. forward.
     match goal with
@@ -894,16 +877,7 @@ Ltac canon_load_result Hresult ::=
     end.
     rewrite (update_partially_filled i calc_RT3) by assumption.
 
-(* reset back to normal: (TODO floyd call this canon_load_result_default *)
-Ltac canon_load_result Hresult ::= 
-  repeat (
-    first [ rewrite Znth_map with (d' := Int.zero) in Hresult
-          | rewrite Znth_map with (d' := Vundef) in Hresult
-          | rewrite Znth_map with (d' := 0) in Hresult ];
-    [ | auto; rewrite ?Zlength_map in *; omega || match goal with
-        | |- ?Bounds => fail 1000 "Please make sure omega or auto can prove" Bounds
-        end ]
-  ).
+    Ltac canon_load_result Hresult ::= default_canon_load_result Hresult.
 
     (* postcondition implies loop invariant: *)
     entailer!.
@@ -937,4 +911,7 @@ Ltac canon_load_result Hresult ::=
   Exists lvar0.
   entailer!.
 } }
-Qed.
+Time Qed.
+(* Coq 8.5.2: 177s
+   Coq 8.6  :  75s
+*)
