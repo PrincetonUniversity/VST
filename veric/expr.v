@@ -747,20 +747,20 @@ end.
 (** Main typechecking function, with work will typecheck both pure
 and non-pure expressions, for now mostly just works with pure expressions **)
 
-Fixpoint typecheck_expr {CS: compspecs}(Delta : tycontext) (e: expr) : tc_assert :=
-let tcr := typecheck_expr Delta in
+Fixpoint typecheck_expr {CS: compspecs} (Delta : tycontext) (te: tenviron) (e: expr) : tc_assert :=
+let tcr := typecheck_expr Delta te in
 match e with
  | Econst_int _ (Tint I32 _ _) => tc_TT
  | Econst_float _ (Tfloat F64 _) => tc_TT
  | Econst_single _ (Tfloat F32 _) => tc_TT
  | Etempvar id ty =>
                        match (temp_types Delta)!id with
-                         | Some ty' => if is_neutral_cast (fst ty') ty || same_base_type (fst ty') ty then
-                                         if (snd ty') then tc_TT else (tc_initialized id ty)
-                                       else tc_FF (mismatch_context_type ty (fst ty'))
+                         | Some ty' => if is_neutral_cast ty' ty || same_base_type ty' ty then
+                                         match te id with Some _ => tc_TT | _ => tc_initialized id ty end
+                                       else tc_FF (mismatch_context_type ty ty')
 		         | None => tc_FF (var_not_in_tycontext Delta id)
                        end
- | Eaddrof a ty => tc_andp (typecheck_lvalue Delta a) (tc_bool (is_pointer_type ty)
+ | Eaddrof a ty => tc_andp (typecheck_lvalue Delta te a) (tc_bool (is_pointer_type ty)
                                                       (op_result_type e))
  | Eunop op a ty => tc_andp (isUnOpResultType op a ty) (tcr a)
  | Ebinop op a1 a2 ty => tc_andp (tc_andp (isBinOpResultType op a1 a2 ty)  (tcr a1)) (tcr a2)
@@ -776,7 +776,7 @@ match e with
                         end
  | Efield a i ty => match access_mode ty with
                          | By_reference =>
-                            tc_andp (typecheck_lvalue Delta a) (match typeof a with
+                            tc_andp (typecheck_lvalue Delta te a) (match typeof a with
                             | Tstruct id att =>
                                match cenv_cs ! id with
                                | Some co =>
@@ -798,7 +798,7 @@ match e with
  | Ederef a ty => match access_mode ty with
                   | By_reference => tc_andp
                        (tc_andp
-                          (typecheck_expr Delta a)
+                          (typecheck_expr Delta te a)
                           (tc_bool (is_pointer_type (typeof a))(op_result_type e)))
                        (tc_isptr a)
                   | _ => tc_FF (deref_byvalue ty)
@@ -810,7 +810,7 @@ match e with
  | _ => tc_FF (invalid_expression e)
 end
 
-with typecheck_lvalue {CS: compspecs}(Delta: tycontext) (e: expr) : tc_assert :=
+with typecheck_lvalue {CS: compspecs}(Delta: tycontext) (te: tenviron) (e: expr) : tc_assert :=
 match e with
  | Evar id ty => match get_var_type Delta id with
                   | Some ty' => tc_bool (eqb_type ty ty')
@@ -819,11 +819,11 @@ match e with
                  end
  | Ederef a ty => tc_andp
                        (tc_andp
-                          (typecheck_expr Delta a)
+                          (typecheck_expr Delta te a)
                           (tc_bool (is_pointer_type (typeof a))(op_result_type e)))
                        (tc_isptr a)
  | Efield a i ty => tc_andp
-                         (typecheck_lvalue Delta a)
+                         (typecheck_lvalue Delta te a)
                          (match typeof a with
                             | Tstruct id att =>
                               match cenv_cs ! id with
@@ -852,7 +852,7 @@ Definition implicit_deref (t: type) : type :=
 
 Definition typecheck_temp_id {CS: compspecs}id ty Delta a : tc_assert :=
   match (temp_types Delta)!id with
-  | Some (t,_) =>
+  | Some t =>
       tc_andp (tc_bool (is_neutral_cast (implicit_deref ty) t) (invalid_cast ty t))
                   (isCastResultType (implicit_deref ty) t a)
   | None => tc_FF (var_not_in_tycontext Delta id)
@@ -874,17 +874,17 @@ end.
 
 (* A more standard typechecker, should approximate the c typechecker,
 might need to add a tc_noproof for nested loads*)
-Definition typecheck_b {CS: compspecs}Delta e :=  tc_might_be_true (typecheck_expr Delta e).
+Definition typecheck_b {CS: compspecs}Delta te e :=  tc_might_be_true (typecheck_expr Delta te e).
 
 (*Definition of the original *pure* typechecker where true means the expression
 will always evaluate, may not be useful since tc_denote will just compute to true
 on these assertions*)
-Definition typecheck_pure_b {CS: compspecs}Delta e := tc_always_true (typecheck_expr Delta e).
+Definition typecheck_pure_b {CS: compspecs}Delta te e := tc_always_true (typecheck_expr Delta te e).
 
-Fixpoint typecheck_exprlist {CS: compspecs}(Delta : tycontext) (tl : list type) (el : list expr) : tc_assert :=
+Fixpoint typecheck_exprlist {CS: compspecs}(Delta : tycontext) (te: tenviron) (tl : list type) (el : list expr) : tc_assert :=
 match tl,el with
-| t::tl', e:: el' => tc_andp (typecheck_expr Delta (Ecast e t))
-                      (typecheck_exprlist Delta tl' el')
+| t::tl', e:: el' => tc_andp (typecheck_expr Delta te (Ecast e t))
+                      (typecheck_exprlist Delta te tl' el')
 | nil, nil => tc_TT
 | _, _ => tc_FF wrong_signature
 end.
@@ -929,12 +929,12 @@ end.
 (** Environment typechecking functions **)
 
 Definition typecheck_temp_environ
-(te: tenviron) (tc: PTree.t (type * bool)) :=
-forall id b ty , tc ! id = Some (ty,b) -> exists v, (Map.get te id = Some v /\ ((is_true (negb b)) \/ (typecheck_val v ty) = true)).
+(te: tenviron) (tc: PTree.t type) :=
+forall id ty , tc ! id = Some ty  -> exists v, Map.get te id = Some v /\ typecheck_val v ty = true.
 
 Definition typecheck_var_environ
 (ve: venviron) (tc: PTree.t type) :=
-forall id ty, tc ! id = Some (ty) <-> exists v, Map.get ve id = Some(v,ty).
+forall id ty, tc ! id = Some ty <-> exists v, Map.get ve id = Some(v,ty).
 
 Definition typecheck_glob_environ
 (ge: genviron) (tc: PTree.t type) :=
@@ -970,7 +970,7 @@ Definition all_var_ids (Delta : tycontext) : list positive :=
 (fst (split (PTree.elements (glob_types Delta)))).
 *)
 
-Definition typecheck_environ (Delta: tycontext)  (rho : environ) :=
+Definition typecheck_environ (Delta: tycontext) (rho : environ) :=
 typecheck_temp_environ (te_of rho) (temp_types Delta) /\
 typecheck_var_environ  (ve_of rho) (var_types Delta) /\
 typecheck_glob_environ (ge_of rho) (glob_types Delta) /\

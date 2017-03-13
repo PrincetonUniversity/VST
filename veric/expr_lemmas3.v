@@ -409,14 +409,14 @@ intros.
 Qed.
 
 Lemma typecheck_cast_sound:
- forall {CS: compspecs} Delta rho m e t,
+ forall {CS: compspecs} Delta te0 rho m e t,
  typecheck_environ Delta rho ->
-(denote_tc_assert (typecheck_expr Delta e) rho m ->
+(denote_tc_assert (typecheck_expr Delta te0 e) rho m ->
  typecheck_val (eval_expr e rho) (typeof e) = true) /\
 (forall pt : type,
- denote_tc_assert (typecheck_lvalue Delta e) rho m ->
+ denote_tc_assert (typecheck_lvalue Delta te0 e) rho m ->
  is_pointer_type pt = true -> typecheck_val (eval_lvalue e rho) pt = true) ->
-denote_tc_assert (typecheck_expr Delta (Ecast e t)) rho m ->
+denote_tc_assert (typecheck_expr Delta te0 (Ecast e t)) rho m ->
 typecheck_val (eval_expr (Ecast e t) rho) (typeof (Ecast e t)) = true.
 Proof.
 intros until t; intros H IHe H0.

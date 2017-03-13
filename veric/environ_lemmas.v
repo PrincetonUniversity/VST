@@ -26,7 +26,7 @@ induction l. destruct H. inv H. simpl in *. destruct H. destruct H. destruct a. 
 clear IHl. destruct (split l). simpl. auto. destruct (split l). destruct a. simpl.
 right. apply IHl. eauto.
 Qed.
-
+(*
 Lemma join_te_denote : forall te1 te2 id b t1,
 (join_te te1 te2) ! id = Some (t1, b) ->
   (exists b1, te1 ! id = Some (t1, b || b1)) /\
@@ -93,10 +93,11 @@ destruct Delta1 as [temps1 vars1 ret1 globty1 globsp1]; simpl in *.
 subst. unfold same_env in *.
 simpl in *. intros. specialize (H4 id _ H). auto.
 Qed.
+ *)
 
 Definition tycontext_evolve (Delta Delta' : tycontext) :=
  (forall id, match (temp_types Delta) ! id, (temp_types Delta') ! id with
-                | Some (t,b), Some (t',b') => t=t' /\ (orb (negb b) b' = true)
+                | Some t, Some t' => t=t'
                 | None, None => True
                 | _, _ => False
                end)
@@ -104,7 +105,7 @@ Definition tycontext_evolve (Delta Delta' : tycontext) :=
  /\ ret_type Delta = ret_type Delta'
  /\ (forall id, (glob_types Delta) ! id = (glob_types Delta') ! id)
  /\ (forall id, (glob_specs Delta) ! id = (glob_specs Delta') ! id).
-
+(*
 Lemma initialized_tycontext_evolve:
   forall i Delta, tycontext_evolve Delta (initialized i Delta).
 Proof.
@@ -127,7 +128,7 @@ intros i [A B C D E].
  destruct (A!i) as [[? ?]|]; reflexivity.
  destruct (A!i) as [[? ?]|]; reflexivity.
 Qed.
-
+*)
 Lemma tycontext_evolve_trans: forall Delta1 Delta2 Delta3,
    tycontext_evolve Delta1 Delta2 ->
    tycontext_evolve Delta2 Delta3 ->
@@ -140,14 +141,14 @@ intros [A B C D E] [A1 B1 C1 D1 E1] [A2 B2 C2 D2 E2]
  try congruence.
  clear - S1 T1.
  intro id; specialize (S1 id); specialize (T1 id).
- destruct (A!id) as [[? ?]|].
- destruct (A1!id) as [[? ?]|]; [ | contradiction]. destruct S1; subst t0.
- destruct (A2!id) as [[? ?]|]; [ | contradiction]. destruct T1; subst t0.
- split; auto. destruct b; inv H0; auto. destruct b0; inv H; simpl in H1. auto.
- destruct (A1!id) as [[? ?]|]; [ contradiction| ].
+ destruct (A!id) as [?|].
+ destruct (A1!id) as [?|]; [ | contradiction]. subst t0.
+ destruct (A2!id) as [?|]; [ | contradiction]. subst t0.
+ auto.
+ destruct (A1!id) as [?|]; [ contradiction| ].
  auto.
 Qed.
-
+(*
 Lemma typecheck_environ_join2:
   forall rho Delta Delta1 Delta2,
         tycontext_evolve Delta Delta1 ->
@@ -186,11 +187,11 @@ intros [ge ve te]  [A B C D E] [A1 B1 C1 D1 E1] [A2 B2 C2 D2 E2]
  destruct H as [t1 ?]. exists t1.
  unfold var_types in *; simpl in *; auto. congruence.
 Qed.
-
+*)
 Lemma typecheck_val_ptr_lemma {CS: compspecs} :
-   forall rho m Delta id t a,
+   forall rho m Delta te id t a,
    typecheck_environ Delta rho ->
-   denote_tc_assert (typecheck_expr Delta (Etempvar id (Tpointer t a))) rho m ->
+   denote_tc_assert (typecheck_expr Delta te (Etempvar id (Tpointer t a))) rho m ->
    (*(temp_types Delta) ! id =  Some (Tpointer t a, init) ->*) (*modified for init changes*)
    strict_bool_val (eval_id id rho) (Tpointer t a) = Some true ->
    typecheck_val (eval_id id rho) (Tpointer t a) = true.
@@ -203,7 +204,7 @@ Qed.
 Lemma typecheck_environ_put_te : forall ge te ve Delta id v ,
 typecheck_environ  Delta (mkEnviron ge ve te) ->
 (forall t , ((temp_types Delta) ! id = Some t ->
-  (typecheck_val v (fst t)) = true)) ->
+  (typecheck_val v t) = true)) ->
 typecheck_environ  Delta (mkEnviron ge ve (Map.set id v te)).
 Proof.
 intros. unfold typecheck_environ in *. simpl in *.
@@ -211,13 +212,11 @@ intuition. clear H H2 H4.
 destruct Delta. unfold temp_types in *; simpl in *.
 unfold typecheck_temp_environ.
 intros. edestruct H1; eauto. destruct H2. rewrite Map.gsspec.
-if_tac. subst. exists v; intuition. specialize (H0 (ty,b)).
-simpl in *. right.
-apply H0. auto.
+if_tac. subst. exists v; intuition. specialize (H0 ty).
 simpl in *. exists x. intuition.
 Qed.
 
-
+(*
 Lemma typecheck_environ_put_te' : forall ge te ve Delta id v ,
 typecheck_environ  Delta (mkEnviron ge ve te) ->
 (forall t , ((temp_types Delta) ! id = Some t ->
@@ -262,3 +261,4 @@ Qed.
 Lemma type_eq_true : forall a b, proj_sumbool  (type_eq a b) =true  -> a = b.
 Proof. intros. destruct (type_eq a b). auto. simpl in H. inv H.
 Qed.
+*)
