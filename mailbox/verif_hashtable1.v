@@ -144,7 +144,7 @@ Definition add_item_spec :=
    LOCAL (temp ret_temp (Val.of_bool success))
    SEP (data_at sh (tarray tentry size) entries p; atomic_entries sh entries h').
 
-Notation empty_hists := (repeat ([], []) size).
+Notation empty_hists := (repeat ([], []) (Z.to_nat size)).
 
 Definition init_table_spec :=
  DECLARE _init_table
@@ -152,20 +152,20 @@ Definition init_table_spec :=
   PRE [ ]
    PROP ()
    LOCAL (gvar _m_entries p)
-   SEP (data_at_ sh (tarray tentry size) p)
+   SEP (data_at_ Ews (tarray tentry size) p)
   POST [ tvoid ]
    EX entries : list (val * val),
    PROP ()
    LOCAL ()
-   SEP (data_at sh (tarray tentry size) entries p; atomic_entries sh entries empty_hists).
+   SEP (data_at Ews (tarray tentry size) entries p; atomic_entries Tsh entries empty_hists).
 
 Definition freeze_table_spec :=
  DECLARE _freeze_table
-  WITH p : val, entries : list (val * val), h : list (hist * hist), keys : val, values : val
+  WITH sh : share, p : val, entries : list (val * val), h : list (hist * hist), keys : val, values : val
   PRE [ ]
    PROP ()
    LOCAL (gvar _m_entries p; temp _keys keys; temp _values values)
-   SEP (data_at sh (tarray tentry size) entries p; atomic_entries sh entries h;
+   SEP (data_at sh (tarray tentry size) entries p; atomic_entries Tsh entries h;
         data_at_ Tsh (tarray tint size) keys; data_at_ Tsh (tarray tint size) values)
   POST [ tvoid ]
    EX lk : list Z, EX lv : list Z,
@@ -173,19 +173,20 @@ Definition freeze_table_spec :=
          Forall2 (fun h v => value_of_hist h = vint v) (map snd h) lv)
    LOCAL ()
    SEP (data_at_ sh (tarray tentry size) p;
-        data_at Tsh (tarray tint size) lk keys; data_at Tsh (tarray tint size) lv values).
+        data_at Tsh (tarray tint size) (map (fun x => vint x) lk) keys;
+        data_at Tsh (tarray tint size) (map (fun x => vint x) lv) values).
 
 Definition add_3_items_trace (h : list (hist * hist)) li ls h' := Zlength li = 3 /\ Zlength ls = 3 /\
   exists h1, add_item_trace h 0 1 (Znth 0 li 0) (Znth 0 ls false) h1 /\
   exists h2, add_item_trace h1 1 1 (Znth 1 li 0) (Znth 1 ls false) h2 /\
              add_item_trace h2 2 1 (Znth 2 li 0) (Znth 2 ls false) h'.
 
-Notation f_lock_inv sh entries p t locksp lockt resultsp res :=
+Definition f_lock_inv sh entries p t locksp lockt resultsp res :=
   (EX h : list (hist * hist), EX total : Z, EX li : list Z, EX ls : list bool,
   !!(add_3_items_trace empty_hists li ls h /\ total = Zlength (filter id ls)) &&
      data_at sh (tarray tentry size) entries p * atomic_entries sh entries h *
-     data_at gsh (tarray (tptr tlock) 3) (upd_Znth t (repeat Vundef 3) lockt) locksp *
-     data_at Ews (tarray (tptr tint) 3) (upd_Znth t (repeat Vundef 3) res) resultsp *
+     data_at sh (tarray (tptr tlock) 3) (upd_Znth t (repeat Vundef 3) lockt) locksp *
+     data_at sh (tarray (tptr tint) 3) (upd_Znth t (repeat Vundef 3) res) resultsp *
      data_at Tsh tint (vint total) res).
 
 Definition f_lock_pred tsh sh entries p t locksp lockt resultsp res :=
@@ -193,15 +194,15 @@ Definition f_lock_pred tsh sh entries p t locksp lockt resultsp res :=
 
 Definition f_spec :=
  DECLARE _f
-  WITH tid : val, x : share * share * val * Z * val * val * val * val
+  WITH tid : val, x : share * share * list (val * val) * val * Z * val * val * val * val
   PRE [ _arg OF (tptr tvoid) ]
    let '(sh, tsh, entries, p, t, locksp, lockt, resultsp, res) := x in
    PROP (0 <= t < 3; isptr lockt; readable_share sh)
    LOCAL (temp _arg tid; gvar _m_entries p; gvar _thread_locks locksp; gvar _results resultsp)
    SEP (data_at sh (tarray tentry size) entries p; atomic_entries sh entries empty_hists;
         data_at Tsh tint (vint t) tid; malloc_token Tsh (sizeof tint) tid;
-        data_at gsh (tarray (tptr tlock) 3) (upd_Znth t (repeat Vundef 3) lockt) locksp;
-        data_at Ews (tarray (tptr tint) 3) (upd_Znth t (repeat Vundef 3) res) resultsp;
+        data_at sh (tarray (tptr tlock) 3) (upd_Znth t (repeat Vundef 3) lockt) locksp;
+        data_at sh (tarray (tptr tint) 3) (upd_Znth t (repeat Vundef 3) res) resultsp;
         data_at_ Tsh tint res; lock_inv tsh lockt (f_lock_pred tsh sh entries p t locksp lockt resultsp res))
   POST [ tptr tvoid ] PROP () LOCAL () SEP ().
 
@@ -822,7 +823,7 @@ Proof.
           * admit. (* list is long enough *) }
         apply andp_right; [apply prop_right; auto|].
         fast_cancel.
-        erewrite sepcon_assoc, replace_nth_sepcon, update_entries_hist; eauto; omega.
+        erewrite <- sepcon_assoc, replace_nth_sepcon, update_entries_hist; eauto; omega.
   - Intros i i1 h'.
     forward.
     unfold loop2_ret_assert.
@@ -1144,6 +1145,11 @@ Proof.
       rewrite Zplus_mod_idemp_l, <- Z.add_assoc, (Z.add_comm _ 1), Z.add_assoc; auto. }
     admit. (* list is long enough *)
 Admitted.
+
+Lemma body_init_table : semax_body Vprog Gprog f_init_table init_table_spec.
+Proof.
+  
+Qed.
 
 (* Given the relations on histories, what can we actually conclude about the maps? *)
 Lemma make_map_eq : forall h h', Forall2 (fun a b => value_of_hist (fst a) = value_of_hist (fst b) /\

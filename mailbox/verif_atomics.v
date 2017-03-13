@@ -153,7 +153,7 @@ Proof.
     PROP () LOCAL (let '(i, R) := x in temp _i (vint i))
     SEP (let '(i, R) := x in R [] (vint i) * (weak_precise_mpred (R [] (vint i)) && emp)) rho).
   apply (PROP_LOCAL_SEP_super_non_expansive (ProdType (ConstType Z) A_inv_Type) [] [fun _ => _] [fun _ => _]);
-    repeat constructor; hnf; intros; destruct x as (i, R); auto; simpl.
+    repeat constructor; hnf; intros; destruct x as (i, R); [auto | simpl].
   - rewrite !approx_sepcon, !approx_andp.
     rewrite approx_idem, nonexpansive_super_non_expansive by (apply precise_mpred_nonexpansive); auto.
   - extensionality ts x rho.
@@ -170,7 +170,7 @@ Proof.
     apply (PROP_LOCAL_SEP_super_non_expansive (ProdType (ConstType Z) A_inv_Type) []
       [fun ts x => let '(i, R) := x in temp ret_temp p]
       [fun ts x => let '(i, R) := x in atomic_loc Tsh p (vint i) R []]); repeat constructor; hnf; intros;
-        destruct x0 as (i, R); auto; simpl.
+      destruct x0 as (i, R); [auto | simpl].
     apply atomic_loc_super_non_expansive.
   - extensionality ts x rho.
     destruct x; auto.
@@ -202,8 +202,9 @@ Proof.
   replace _ with (fun (_ : list Type) (x : val * val * hist * (list hist_el -> val -> mpred)) rho =>
     PROP () LOCAL (let '(p, i, h, R) := x in temp _tgt p)
     SEP (let '(p, i, h, R) := x in atomic_loc Tsh p i R h) rho).
-  apply (PROP_LOCAL_SEP_super_non_expansive (ProdType (ConstType (val * val * hist)) A_inv_Type) [] [fun _ => _]
-    [fun _ => _]); repeat constructor; hnf; intros; destruct x as (((p, i), h), R); auto.
+  apply (PROP_LOCAL_SEP_super_non_expansive (ProdType (ConstType (val * val * hist)) A_inv_Type) []
+    [fun _ x => let '(((p, i), h), R) := x in _] [fun _ x => let '(((p, i), h), R) := x in _]);
+    repeat constructor; hnf; intros; destruct x as (((p, i), h), R); [auto|].
   - apply atomic_loc_super_non_expansive.
   - extensionality ts x rho.
     destruct x as (((?, ?), ?), ?); auto.
@@ -684,7 +685,47 @@ Lemma body_free_atomic : semax_body Vprog Gprog f_free_atomic free_atomic_spec.
 Proof.
   start_dep_function.
   simpl; destruct ts as (((p, i), h), R).
-  
+  unfold atomic_loc; Intros l.
+  rewrite lock_inv_isptr; Intros.
+  forward.
+  forward_call (l, Tsh, A_inv p l i R).
+  forward_call (l, Tsh, A_inv p l i R).
+  { rewrite <- emp_sepcon at 1; apply sepcon_derives; [|cancel].
+    apply andp_right; auto; apply andp_right.
+    - eapply derives_trans, A_inv_precise; auto.
+    - eapply derives_trans, positive_weak_positive, A_inv_positive; auto. }
+  unfold A_inv; Intros h' v.
+  forward_call (l, sizeof tlock).
+  { rewrite data_at__memory_block; entailer!. }
+  forward.
+  gather_SEP 0 5.
+  forward_call (p, sizeof tatomic).
+  { entailer!.
+    rewrite 3sepcon_assoc.
+    apply sepcon_derives; [|cancel].
+    eapply derives_trans; [apply sepcon_derives; apply field_at_field_at_|].
+    rewrite !field_at__memory_block; simpl.
+    rewrite !field_compatible_field_address by auto; simpl.
+    replace 8 with (4 + 4) by omega.
+    exploit field_compatible_isptr; eauto; intro.
+    destruct p; try contradiction.
+    rewrite <- (Int.repr_unsigned i0), memory_block_split; try computable.
+    simpl; entailer!.
+    { match goal with H : field_compatible _ _ _ |- _ => destruct H as (? & ? & ? & ? & ? & Hsize & ?) end.
+      pose proof (Int.unsigned_range i0).
+      simpl in Hsize; omega. } }
+  gather_SEP 0 3.
+  assert_PROP (hist_eq h h').
+  { (* We need to know that h is complete. *)
+    go_lowerx.
+    apply sepcon_derives_prop.
+    eapply derives_trans; [apply ghost_conflict|].
+    apply prop_left; intros (? & (? & ?) & [(<- & ?) | (? & ?)] & ?); try discriminate; simpl in *.
+(*    erewrite hist_incl_permute in * by eauto.*)
+    admit. }
+  forward.
+  Exists h' (Int.signed v); rewrite Int.repr_signed; entailer!.
+  admit. (* deallocate ghost *)
 Admitted.
 
 Lemma apply_hist_app : forall h1 i h2, apply_hist i (h1 ++ h2) =
