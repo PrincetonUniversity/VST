@@ -1743,7 +1743,7 @@ Ltac calc_gfs_suffix gfs gfs0 gfs1 :=
 (* Given a JMEq containing the result of a load, pulls the "Vint" out of "map".
    Useful for all loads from int arrays.
    Makes entailer and other tactics more successful. *)
-Ltac canon_load_result Hresult := 
+Ltac default_canon_load_result Hresult :=
   repeat (
     first [ rewrite Znth_map with (d' := Int.zero) in Hresult
           | rewrite Znth_map with (d' := Vundef) in Hresult
@@ -1752,6 +1752,8 @@ Ltac canon_load_result Hresult :=
         | |- ?Bounds => fail 1000 "Please make sure omega or auto can prove" Bounds
         end ]
   ).
+
+Ltac canon_load_result Hresult := default_canon_load_result Hresult.
 
 Ltac find_load_result Hresult t_root gfs0 v gfs1 :=
   let result := fresh "result" in evar (result: val);
@@ -1901,13 +1903,17 @@ Ltac solve_store_rule_evaluation :=
 
 Inductive undo_and_first__assert_PROP: Prop -> Prop := .
 
-Ltac entailer_for_load_tac :=
+Ltac default_entailer_for_load_tac :=
   repeat match goal with H := _ |- _ => clear H end;
   try quick_typecheck3;
   unfold tc_efield, tc_LR, tc_LR_strong; simpl typeof;
   try solve [entailer!].
 
-Ltac entailer_for_store_tac := try solve [entailer!].
+Ltac entailer_for_load_tac := default_entailer_for_load_tac.
+
+Ltac default_entailer_for_store_tac := try solve [entailer!].
+
+Ltac entailer_for_store_tac := default_entailer_for_store_tac.
 
 Ltac load_tac_with_full_path_hint Delta P Q R gfs p_full sh t_SEP gfs0 gfs1 v n Hfull Hnth :=
   let p_SEP := fresh "a" in evar (p_SEP: val);
