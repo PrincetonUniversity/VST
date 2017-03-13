@@ -636,18 +636,42 @@ Proof.
   simpl plus; omega.
 Qed.
 
-Lemma combine_upd_Znth1 : forall {A B} (l1 : list A) (l2 : list B) i x d, 0 <= i < Zlength l1 ->
-  Zlength l1 = Zlength l2 -> combine (upd_Znth i l1 x) l2 = upd_Znth i (combine l1 l2) (x, Znth i l2 d).
+Lemma upd_Znth_triv : forall {A} i (l : list A) x d (Hi : 0 <= i < Zlength l),
+  Znth i l d = x -> upd_Znth i l x = l.
+Proof.
+  intros; unfold upd_Znth.
+  setoid_rewrite <- (firstn_skipn (Z.to_nat i) l) at 4.
+  erewrite skipn_cons, Z2Nat.id, H; try omega; [|rewrite Zlength_correct in *; Omega0].
+  unfold sublist.
+  rewrite Z.sub_0_r, Z2Nat.inj_add, NPeano.Nat.add_1_r; try omega.
+  setoid_rewrite firstn_same at 2; auto.
+  rewrite Z2Nat.inj_sub, Zlength_correct, Nat2Z.id, Z2Nat.inj_add, skipn_length; simpl; omega.
+Qed.
+
+Lemma combine_upd_Znth : forall {A B} (l1 : list A) (l2 : list B) i x1 x2, 0 <= i < Zlength l1 ->
+  Zlength l1 = Zlength l2 -> combine (upd_Znth i l1 x1) (upd_Znth i l2 x2) = upd_Znth i (combine l1 l2) (x1, x2).
 Proof.
   induction l1; simpl; intros; [rewrite Zlength_nil in *; omega|].
   destruct l2; [rewrite Zlength_nil in *; omega|].
   rewrite !Zlength_cons in *.
   destruct (eq_dec i 0).
-  - subst; rewrite !upd_Znth0, !Zlength_cons, !sublist_1_cons, !sublist_same; try omega; simpl.
-    rewrite Znth_0_cons; auto.
+  - subst; rewrite !upd_Znth0, !Zlength_cons, !sublist_1_cons, !sublist_same; auto; omega.
   - rewrite !upd_Znth_cons; try omega; simpl.
-    erewrite IHl1; try omega.
-    rewrite Znth_pos_cons; auto; omega.
+    rewrite IHl1; auto; omega.
+Qed.
+
+Corollary combine_upd_Znth1 : forall {A B} (l1 : list A) (l2 : list B) i x d, 0 <= i < Zlength l1 ->
+  Zlength l1 = Zlength l2 -> combine (upd_Znth i l1 x) l2 = upd_Znth i (combine l1 l2) (x, Znth i l2 d).
+Proof.
+  intros; rewrite <- combine_upd_Znth by auto.
+  erewrite upd_Znth_triv with (l := l2); eauto; omega.
+Qed.
+
+Corollary combine_upd_Znth2 : forall {A B} (l1 : list A) (l2 : list B) i x d, 0 <= i < Zlength l1 ->
+  Zlength l1 = Zlength l2 -> combine l1 (upd_Znth i l2 x) = upd_Znth i (combine l1 l2) (Znth i l1 d, x).
+Proof.
+  intros; rewrite <- combine_upd_Znth by auto.
+  erewrite upd_Znth_triv with (l := l1); eauto; omega.
 Qed.
 
 Lemma sepcon_rev : forall l, fold_right sepcon emp (rev l) = fold_right sepcon emp l.
@@ -720,18 +744,6 @@ Proof.
   induction n; destruct l2; auto; intros; rewrite ?Nat2Z.inj_succ, ?Zlength_nil, ?Zlength_cons in *;
     simpl in *; try (rewrite Zlength_correct in *; omega).
   rewrite IHn; auto; omega.
-Qed.
-
-Lemma upd_Znth_triv : forall {A} i (l : list A) x d (Hi : 0 <= i < Zlength l),
-  Znth i l d = x -> upd_Znth i l x = l.
-Proof.
-  intros; unfold upd_Znth.
-  setoid_rewrite <- (firstn_skipn (Z.to_nat i) l) at 4.
-  erewrite skipn_cons, Z2Nat.id, H; try omega; [|rewrite Zlength_correct in *; Omega0].
-  unfold sublist.
-  rewrite Z.sub_0_r, Z2Nat.inj_add, NPeano.Nat.add_1_r; try omega.
-  setoid_rewrite firstn_same at 2; auto.
-  rewrite Z2Nat.inj_sub, Zlength_correct, Nat2Z.id, Z2Nat.inj_add, skipn_length; simpl; omega.
 Qed.
 
 Lemma In_upd_Znth : forall {A} i l (x y : A), In x (upd_Znth i l y) -> x = y \/ In x l.
@@ -904,18 +916,6 @@ Proof.
       specialize (Hall _ Hin); simpl in *.
       rewrite In_upto in Hin.
       rewrite !Znth_pos_cons, Z.add_simpl_l in Hall by omega; auto.
-Qed.
-
-Lemma combine_upd_Znth : forall {A B} (l1 : list A) (l2 : list B) i x1 x2, 0 <= i < Zlength l1 ->
-  Zlength l1 = Zlength l2 -> combine (upd_Znth i l1 x1) (upd_Znth i l2 x2) = upd_Znth i (combine l1 l2) (x1, x2).
-Proof.
-  induction l1; simpl; intros; [rewrite Zlength_nil in *; omega|].
-  destruct l2; [rewrite Zlength_nil in *; omega|].
-  rewrite !Zlength_cons in *.
-  destruct (eq_dec i 0).
-  - subst; rewrite !upd_Znth0, !Zlength_cons, !sublist_1_cons, !sublist_same; auto; omega.
-  - rewrite !upd_Znth_cons; try omega; simpl.
-    rewrite IHl1; auto; omega.
 Qed.
 
 Lemma Znth_inbounds : forall {A} i (l : list A) d, Znth i l d <> d -> 0 <= i < Zlength l.
@@ -1584,14 +1584,17 @@ Proof.
     omega.
 Qed.
 
-Lemma selflock_precise : forall R sh v, precise R ->
-  precise (selflock R v sh).
+Lemma selflock_precise : forall R sh v, precise R -> precise (selflock R v sh).
 Proof.
   intros.
   rewrite selflock_eq.
   apply precise_sepcon; auto.
   apply lock_inv_precise.
 Qed.
+
+(* This need not hold; specifically, when an rmap is at level 0, |> P holds vacuously for all P. *)
+Lemma later_positive : forall P, positive_mpred P -> positive_mpred (|> P)%logic.
+Admitted. (* still needed in verif_incr.v and verif_cond.v *)
 
 Lemma positive_sepcon1 : forall P Q (HP : positive_mpred P),
   positive_mpred (P * Q).
@@ -1633,10 +1636,6 @@ Proof.
   rewrite selflock_eq.
   apply positive_sepcon2, lock_inv_positive.
 Qed.
-
-(* This need not hold; specifically, when an rmap is at level 0, |> P holds vacuously for all P. *)
-Lemma later_positive : forall P, positive_mpred P -> positive_mpred (|> P)%logic.
-Admitted. (* still needed in verif_incr.v and verif_cond.v *)
 
 Lemma positive_FF : positive_mpred FF.
 Proof.
