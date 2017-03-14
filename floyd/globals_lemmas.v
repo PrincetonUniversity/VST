@@ -271,7 +271,7 @@ Lemma readable_share_readonly2share:
 Proof.
 destruct b; simpl.
 intro.
-apply veric.slice.fst_split_glb_orthogonal in H.
+apply fst_split_glb_orthogonal in H.
 rewrite Share.glb_idem in H.
 contradiction juicy_mem.nonidentity_Rsh.
 unfold readable_share.

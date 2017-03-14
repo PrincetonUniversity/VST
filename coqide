@@ -1,1 +1,3 @@
-coqide -async-proofs-j 4 `cat .loadpath` $* &
+#!/bin/bash
+coqide -async-proofs off `cat .loadpath` $* &
+# coqide -async-proofs-j 4 `cat .loadpath` $* &
