@@ -412,7 +412,7 @@ Ltac solve_efield_denote Delta P Q R efs gfs H ::=   evar (gfs : list gfield);
         specialize (Hhist _ _ Hin); apply nth_error_In in Hhist; subst; auto.
       + apply andp_right; auto.
         eapply derives_trans, precise_weak_precise, precise_andp2; auto. }
-    Intros x; destruct x as (t, v); simpl in *.
+    Intros x; destruct x as (t, v); simpl snd in *.
     destruct v; try contradiction.
     match goal with |- semax _ (PROP () (LOCALx (_ :: ?Q) (SEPx (_ :: ?R)))) _ _ =>
       forward_if (EX hki' : hist, PROP (found_key key hki hki') (LOCALx Q
@@ -436,7 +436,7 @@ Ltac solve_efield_denote Delta P Q R efs gfs H ::=   evar (gfs : list gfield);
           { rewrite upd_Znth_Zlength; auto; omega. }
           rewrite Zmod_mod.
           split; auto; split; auto; split; auto.
-          apply incr_invariant; auto; simpl; try omega.
+          apply incr_invariant; auto; simpl in *; try omega.
           * rewrite Heq, Hhi; repeat eexists; eauto; auto.
             match goal with H : forall v0, last_value hki v0 -> v0 <> vint 0 -> Vint i0 = v0 |- _ =>
               symmetry; apply H; auto end.
@@ -474,7 +474,7 @@ Ltac solve_efield_denote Delta P Q R efs gfs H ::=   evar (gfs : list gfield);
           intro X; apply nth_error_In in X; subst; auto.
         + apply andp_right; auto.
           eapply derives_trans, precise_weak_precise, precise_andp2; auto. }
-      Intros x; destruct x as (t', v); simpl in *.
+      Intros x; destruct x as (t', v); simpl snd in *.
       destruct v; try contradiction.
       assert (t < t')%nat.
       { match goal with H : Forall _ (hki ++ _) |- _ => rewrite Forall_app in H;
@@ -488,7 +488,7 @@ Ltac solve_efield_denote Delta P Q R efs gfs H ::=   evar (gfs : list gfield);
           k_R,
           fun (h : hist) (v : val) => !!(v = Vint i0) && emp).
         { entailer!.
-          rewrite Hpi; auto. }
+          simpl in *; rewrite Hpi; auto. }
         { rewrite <- app_assoc; fast_cancel. }
         { repeat (split; auto).
           intros ???????????? Ha.
@@ -510,7 +510,7 @@ Ltac solve_efield_denote Delta P Q R efs gfs H ::=   evar (gfs : list gfield);
             if_tac; [absurd (Vint i0 = vint 0)|]; auto.
           + apply andp_right; auto.
             eapply derives_trans, precise_weak_precise, precise_andp2; auto. }
-        Intros x; destruct x as (t'', v); simpl in *; subst.
+        Intros x; destruct x as (t'', v); simpl snd in *; subst.
         assert (t' < t'')%nat.
         { match goal with H : Forall _ (hki ++ [_; _]) |- _ => rewrite Forall_app in H;
             destruct H as (_ & Ht); inversion Ht as [|??? Ht']; inv Ht'; auto end. }
@@ -528,7 +528,7 @@ Ltac solve_efield_denote Delta P Q R efs gfs H ::=   evar (gfs : list gfield);
             { rewrite upd_Znth_Zlength; auto; omega. }
             rewrite Zmod_mod.
             split; auto; split; auto; split; auto.
-            apply incr_invariant; auto; simpl; try omega.
+            apply incr_invariant; auto; simpl in *; try omega.
             * rewrite Heq, Hhi; do 3 eexists; [|split; [right; do 3 eexists; [|reflexivity]|]]; auto.
               repeat split; auto.
               { intro; contradiction n; subst; auto. }
@@ -584,11 +584,11 @@ Ltac solve_efield_denote Delta P Q R efs gfs H ::=   evar (gfs : list gfield);
       Intros hki'.
       forward.
       { entailer!.
-        rewrite Hpi; auto. }
+        simpl in *; rewrite Hpi; auto. }
       forward_call (sh, pvi, vint value, vint 0, hvi, fun (h : hist) v => !!(v = vint value) && emp, v_R,
         fun (h : hist) => emp).
       { entailer!.
-        rewrite Hpi; auto. }
+        simpl in *; rewrite Hpi; auto. }
       { repeat (split; auto).
         intros ????????????? Ha.
         unfold v_R in *; simpl in *.
@@ -614,7 +614,7 @@ Ltac solve_efield_denote Delta P Q R efs gfs H ::=   evar (gfs : list gfield);
           replace (i1 mod size) with ((i + hash key) mod size).
           rewrite Zminus_mod_idemp_l; auto. }
         simpl in Hindex; split.
-        + intro Hin.
+        + intro Hin; simpl in *.
           rewrite upd_Znth_diff'; auto.
           match goal with H : forall j, (In j _ -> _) /\ (~In j _ -> _) |- _ => apply H; auto end.
           rewrite Hindex; auto.
@@ -703,17 +703,17 @@ Proof.
         specialize (Hhist _ _ Hin); apply nth_error_In in Hhist; subst; auto.
       + apply andp_right; auto.
         eapply derives_trans, precise_weak_precise, precise_andp2; auto. }
-    Intros x; destruct x as (t, v); simpl in *.
+    Intros x; destruct x as (t, v); simpl snd in *.
     destruct v; try contradiction.
     match goal with |- semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
       forward_if (PROP (i0 <> Int.repr key) (LOCALx Q (SEPx R))) end.
     + rewrite (atomic_loc_isptr _ pvi).
       forward.
       { entailer!.
-        rewrite Hpi; auto. }
+        simpl in *; rewrite Hpi; auto. }
       forward_call (sh, pvi, vint 0, hvi, fun (h : hist) => emp, v_R, fun (h : hist) (v : val) => emp).
       { entailer!.
-        rewrite Hpi; auto. }
+        simpl in Hpi; rewrite Hpi; auto. }
       { repeat (split; auto).
         intros ???????????? Ha.
         unfold v_R in *; simpl in *.
@@ -721,7 +721,7 @@ Proof.
         go_lowerx; entailer!.
         apply andp_right; auto.
         eapply derives_trans, precise_weak_precise; auto. }
-      Intros x; destruct x as (t', v); simpl in *.
+      Intros x; destruct x as (t', v); simpl snd in *.
       forward.
       Exists (Int.signed v) (i1 mod size) (upd_Znth (i1 mod size) h' (hki ++ [(t, Load (vint key))],
         hvi ++ [(t', Load (Vint v))])).
@@ -744,7 +744,7 @@ Proof.
             replace (i1 mod size) with ((i + hash key) mod size).
             rewrite Zminus_mod_idemp_l; auto. }
           simpl in Hindex; split.
-          + intro Hin.
+          + intro Hin; simpl in *.
             rewrite upd_Znth_diff'; auto.
             match goal with H : forall j, (In j _ -> _) /\ (~In j _ -> _) |- _ => apply H; auto end.
             rewrite Hindex; auto.
@@ -783,7 +783,7 @@ Proof.
             replace (i1 mod size) with ((i + hash key) mod size).
             rewrite Zminus_mod_idemp_l; auto. }
           simpl in Hindex; split.
-          + intro Hin.
+          + intro Hin; simpl in *.
             rewrite upd_Znth_diff'; auto.
             match goal with H : forall j, (In j _ -> _) /\ (~In j _ -> _) |- _ => apply H; auto end.
             rewrite Hindex; auto.
@@ -815,7 +815,7 @@ Proof.
           { rewrite upd_Znth_Zlength; auto; omega. }
           rewrite Zmod_mod.
           split; auto; split; auto; split; auto.
-          apply incr_invariant; auto; simpl; try omega.
+          apply incr_invariant; auto; simpl in *; try omega.
           * rewrite Heq, Hhi; repeat eexists; eauto; auto.
             match goal with H : forall v0, last_value hki v0 -> v0 <> vint 0 -> Vint i0 = v0 |- _ =>
               symmetry; apply H; auto end.
@@ -900,7 +900,7 @@ Proof.
         specialize (Hhist _ _ Hin); apply nth_error_In in Hhist; subst; auto.
       + apply andp_right; auto.
         eapply derives_trans, precise_weak_precise, precise_andp2; auto. }
-    Intros x; destruct x as (t, v); simpl in *.
+    Intros x; destruct x as (t, v); simpl snd in *.
     destruct v; try contradiction.
     assert (indices (hash key) (i + hash key) = indices (hash key) (i1 mod size)) as Hindex.
     { unfold indices.
@@ -921,12 +921,12 @@ Proof.
             symmetry; apply H; auto end.
           rewrite ordered_last_value; auto. }
         simpl in Hindex; split.
-        * intro Hin.
+        * intro Hin; simpl in *.
           rewrite upd_Znth_diff'; auto.
           match goal with H : forall j, (In j _ -> _) /\ (~In j _ -> _) |- _ => apply H; auto end.
-          rewrite Hindex; auto.
+          simpl in *; rewrite Hindex; auto.
           { intro; contradiction Hnew; subst.
-            rewrite Hindex; auto. }
+            simpl in *; rewrite Hindex; auto. }
         * intros Hout ?; rewrite upd_Znth_diff'; auto.
           match goal with H : forall j, (In j _ -> _) /\ (~In j _ -> _) |- _ => apply H; auto end.
           { intro; contradiction Hout; subst; simpl.
@@ -954,7 +954,7 @@ Proof.
         { rewrite upd_Znth_Zlength; auto; omega. }
         rewrite Zmod_mod.
         split; auto; split; auto; split; auto.
-        apply incr_invariant; auto; simpl; try omega.
+        apply incr_invariant; auto; simpl in *; try omega.
         * rewrite Heq, Hhi; repeat eexists; eauto; auto.
           match goal with H : forall v0, last_value hki v0 -> v0 <> vint 0 -> Vint i0 = v0 |- _ =>
             symmetry; apply H; auto end.
@@ -992,7 +992,7 @@ Proof.
         intro X; apply nth_error_In in X; subst; auto.
       + apply andp_right; auto.
         eapply derives_trans, precise_weak_precise, precise_andp2; auto. }
-    Intros x; destruct x as (t', v); simpl in *.
+    Intros x; destruct x as (t', v); simpl snd in *.
     destruct v; try contradiction.
     assert (t < t')%nat.
     { match goal with H : Forall _ (hki ++ _) |- _ => rewrite Forall_app in H;
@@ -1005,7 +1005,7 @@ Proof.
         k_R,
         fun (h : hist) (v : val) => !!(v = Vint i0) && emp).
       { entailer!.
-        rewrite Hpi; auto. }
+        simpl in Hpi; rewrite Hpi; auto. }
       { rewrite <- app_assoc; fast_cancel. }
       { repeat (split; auto).
         intros ???????????? Ha.
@@ -1027,7 +1027,7 @@ Proof.
           if_tac; [absurd (Vint i0 = vint 0)|]; auto.
         + apply andp_right; auto.
           eapply derives_trans, precise_weak_precise, precise_andp2; auto. }
-      Intros x; destruct x as (t'', v); simpl in *; subst.
+      Intros x; destruct x as (t'', v); simpl snd in *; subst.
       assert (t' < t'')%nat.
       { match goal with H : Forall _ (hki ++ [_; _]) |- _ => rewrite Forall_app in H;
           destruct H as (_ & Ht); inversion Ht as [|??? Ht']; inv Ht'; auto end. }
@@ -1047,7 +1047,7 @@ Proof.
               symmetry; apply H; auto end.
             rewrite ordered_last_value; auto. }
           simpl in Hindex; split.
-          * intro Hin.
+          * intro Hin; simpl in *.
             rewrite upd_Znth_diff'; auto.
             match goal with H : forall j, (In j _ -> _) /\ (~In j _ -> _) |- _ => apply H; auto end.
             rewrite Hindex; auto.
@@ -1070,7 +1070,7 @@ Proof.
           { rewrite upd_Znth_Zlength; auto; omega. }
           rewrite Zmod_mod.
           split; auto; split; auto; split; auto.
-          apply incr_invariant; auto; simpl; try omega.
+          apply incr_invariant; auto; simpl in *; try omega.
           * rewrite Heq, Hhi; do 3 eexists; [|split; [right; do 3 eexists; [|reflexivity]|]]; auto;
               repeat split; auto.
             { intro; subst; contradiction n; auto. }
@@ -1089,7 +1089,7 @@ Proof.
       destruct (eq_dec (vint 0) (Vint i0)); [|discriminate].
       assert (i0 = Int.zero) by (inv e; auto); entailer!. }
     rewrite (atomic_loc_isptr _ pvi).
-    Intros; subst.
+    Intros; subst; simpl in Hpi.
     forward.
     { entailer!.
       rewrite Hpi; auto. }
@@ -1127,7 +1127,7 @@ Proof.
         rewrite Hindex; auto.
         { intro; contradiction Hnew; subst.
           rewrite Hindex; auto. }
-      + intros Hout ?; rewrite upd_Znth_diff'; auto.
+      + intros Hout ?; simpl in *; rewrite upd_Znth_diff'; auto.
         match goal with H : forall j, (In j _ -> _) /\ (~In j _ -> _) |- _ => apply H; auto end.
         { intro; contradiction Hout; subst; simpl.
           rewrite <- Hindex; auto. } }
@@ -1149,7 +1149,7 @@ Admitted.
 Lemma body_init_table : semax_body Vprog Gprog f_init_table init_table_spec.
 Proof.
   
-Qed.
+Admitted.
 
 (* Given the relations on histories, what can we actually conclude about the maps? *)
 Lemma make_map_eq : forall h h', Forall2 (fun a b => value_of_hist (fst a) = value_of_hist (fst b) /\

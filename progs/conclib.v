@@ -1005,6 +1005,15 @@ Proof.
     rewrite upd_Znth_Zlength; auto. }
 Qed.
 
+Lemma list_nth_error_eq : forall {A} (l1 l2 : list A)
+  (Heq : forall j, nth_error l1 j = nth_error l2 j), l1 = l2.
+Proof.
+  induction l1; destruct l2; auto; intros; try (specialize (Heq O); simpl in Heq; discriminate).
+  erewrite IHl1.
+  - specialize (Heq O); inv Heq; eauto.
+  - intro j; specialize (Heq (S j)); auto.
+Qed.
+
 Lemma list_Znth_eq' : forall {A} d (l1 l2 : list A)
   (Hlen : Zlength l1 = Zlength l2)
   (Heq : forall j, 0 <= j < Zlength l1 -> Znth j l1 d = Znth j l2 d), l1 = l2.
