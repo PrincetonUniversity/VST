@@ -77,8 +77,10 @@ void init_table(){
 
 void freeze_table(int *keys, int *values){
   for(int i = 0; i < ARRAY_SIZE; i++){
-    keys[i] = free_atomic(m_entries[i].key);
-    values[i] = free_atomic(m_entries[i].value);
+    atomic_loc *l = m_entries[i].key;
+    keys[i] = free_atomic(l);
+    l = m_entries[i].value;
+    values[i] = free_atomic(l);
   }
 }
 

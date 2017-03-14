@@ -163,7 +163,7 @@ Definition freeze_table_spec :=
  DECLARE _freeze_table
   WITH sh : share, p : val, entries : list (val * val), h : list (hist * hist), keys : val, values : val
   PRE [ ]
-   PROP ()
+   PROP (Zlength h = Zlength entries)
    LOCAL (gvar _m_entries p; temp _keys keys; temp _values values)
    SEP (data_at sh (tarray tentry size) entries p; atomic_entries Tsh entries h;
         data_at_ Tsh (tarray tint size) keys; data_at_ Tsh (tarray tint size) values)
@@ -212,7 +212,8 @@ Definition main_spec :=
   PRE  [] main_pre prog [] u
   POST [ tint ] main_post prog [] u.
 
-Definition Gprog : funspecs := ltac:(with_library prog [load_SC_spec; store_SC_spec; CAS_SC_spec;
+Definition Gprog : funspecs := ltac:(with_library prog [make_atomic_spec; free_atomic_spec;
+  load_SC_spec; store_SC_spec; CAS_SC_spec;
   integer_hash_spec; set_item_spec; get_item_spec; add_item_spec; init_table_spec; freeze_table_spec;
   f_spec; main_spec]).
 
@@ -1146,9 +1147,89 @@ Proof.
     admit. (* list is long enough *)
 Admitted.
 
+Opaque size.
+
 Lemma body_init_table : semax_body Vprog Gprog f_init_table init_table_spec.
 Proof.
-  
+  start_function.
+  forward_for_simple_bound size (EX i : Z, PROP () LOCAL (gvar _m_entries p)
+    SEP (EX entries : list (val * val),
+      !!(Zlength entries = i) &&
+        @data_at CompSpecs Ews (tarray tentry size) (entries ++ repeat (Vundef, Vundef) (Z.to_nat (size - i))) p *
+        atomic_entries Tsh entries (repeat ([], []) (Z.to_nat i)))).
+  { change size with 16384; computable. }
+  { change size with 16384; computable. }
+  - Exists (@nil (val * val)); entailer!.
+    rewrite data_at__eq; unfold default_val; simpl.
+    rewrite repeat_list_repeat, Z.sub_0_r; auto.
+  - Intros entries.
+    forward_call (0, k_R).
+    { unfold k_R; entailer!.
+      rewrite <- emp_sepcon at 1; apply sepcon_derives; [|cancel].
+      apply andp_right; auto.
+      eapply derives_trans, precise_weak_precise; auto.
+      apply precise_andp2; auto. }
+    Intro k.
+    Opaque Znth.
+    forward.
+    forward_call (0, v_R).
+    { unfold v_R; entailer!.
+      rewrite <- emp_sepcon at 1; apply sepcon_derives; [|cancel].
+      apply andp_right; auto.
+      eapply derives_trans, precise_weak_precise; auto. }
+    Intro v.
+    forward.
+    assert (0 <= Zlength entries < Zlength (entries ++
+      repeat (Vundef, Vundef) (Z.to_nat (size - Zlength entries)))).
+    { rewrite Zlength_app, Zlength_repeat, Z2Nat.id; omega. }
+    subst; rewrite upd_Znth_twice, upd_complete_gen by (auto; omega).
+    Exists (entries ++ [(k, v)]); entailer!.
+    + rewrite Zlength_app, Zlength_cons, Zlength_nil; auto.
+    + rewrite upd_Znth_same by auto.
+      rewrite Zlength_app, Zlength_cons, Zlength_nil; entailer!.
+      unfold atomic_entries.
+      rewrite Z2Nat.inj_add, repeat_plus by omega; simpl.
+      rewrite combine_app, map_app, sepcon_app; simpl.
+      unfold atomic_entry; entailer!.
+      { rewrite repeat_length, Zlength_correct, Nat2Z.id; auto. }
+  - Intros entries.
+    rewrite Zminus_diag, app_nil_r.
+    forward.
+    Exists entries; entailer!.
+Qed.
+
+Lemma body_freeze_table : semax_body Vprog Gprog f_freeze_table freeze_table_spec.
+Proof.
+  start_function.
+  assert_PROP (Zlength entries = size) as Hlen by entailer!.
+  forward_for_simple_bound size (EX i : Z, PROP () LOCAL (gvar _m_entries p; temp _keys keys; temp _values values)
+    SEP (@data_at CompSpecs sh (tarray tentry size) entries p;
+         atomic_entries Tsh (sublist i (Zlength entries) entries) (sublist i (Zlength entries) h);
+         EX lk : list Z, EX lv : list Z, !!(Zlength lk = i /\ Zlength lv = i /\
+           Forall2 (fun h v => value_of_hist h = vint v) (map fst (sublist 0 i h)) lk /\
+           Forall2 (fun h v => value_of_hist h = vint v) (map snd (sublist 0 i h)) lv) &&
+           data_at Tsh (tarray tint size) (map (fun x => vint x) lk ++ repeat Vundef (Z.to_nat (Zlength entries - i))) keys *
+           data_at Tsh (tarray tint size) (map (fun x => vint x) lv ++ repeat Vundef (Z.to_nat (Zlength entries - i))) values)).
+  { change size with 16384; computable. }
+  { change size with 16384; computable. }
+  - Exists (@nil Z) (@nil Z); rewrite sublist_nil.
+    go_lower; repeat (apply andp_right; [apply prop_right; auto|]).
+    rewrite !sublist_same by (auto; omega).
+    repeat (apply sepcon_derives; [auto|]).
+    + apply andp_right; [apply prop_right; auto|].
+      rewrite data_at__eq; unfold default_val; simpl.
+      rewrite repeat_list_repeat, Z.sub_0_r, Hlen; auto.
+    + rewrite data_at__eq; unfold default_val; simpl.
+      rewrite repeat_list_repeat, Z.sub_0_r, Hlen; auto.
+  - Intros lk lv.
+    unfold atomic_entries.
+    rewrite sublist_next with (d := (Vundef, Vundef)) by omega.
+    rewrite sublist_next with (d := ([], [])) by omega; simpl.
+    destruct (Znth i entries (Vundef, Vundef)) as (pki, pvi) eqn: Hpi.
+    destruct (Znth i h ([], [])) as (hki, hvi) eqn: Hhi.
+    unfold atomic_entry; Intros.
+    forward.
+    forward_call (pki, vint 0, hki, k_R).
 Admitted.
 
 (* Given the relations on histories, what can we actually conclude about the maps? *)
