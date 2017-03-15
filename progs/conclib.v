@@ -1100,6 +1100,12 @@ Proof.
   destruct (f a); simpl; omega.
 Qed.
 
+Lemma filter_app : forall {A} (f : A -> bool) l1 l2, filter f (l1 ++ l2) = filter f l1 ++ filter f l2.
+Proof.
+  induction l1; auto; intros; simpl.
+  rewrite IHl1; if_tac; auto.
+Qed.
+
 Lemma NoDup_upto : forall n, NoDup (upto n).
 Proof.
   induction n; simpl; constructor.
@@ -2165,6 +2171,12 @@ Qed.
 Lemma mpred_ext : forall (P Q : mpred) (Hd1 : P |-- Q) (Hd2 : Q |-- P), P = Q.
 Proof.
   intros; apply (predicates_hered.pred_ext _ _ _ Hd1); auto.
+Qed.
+
+Lemma exp_comm : forall {A B} P,
+  (EX x : A, EX y : B, P x y) = EX y : B, EX x : A, P x y.
+Proof.
+  intros; apply mpred_ext; Intros x y; Exists y x; auto.
 Qed.
 
 Lemma mapsto_value_cohere: forall sh1 sh2 t p v1 v2,

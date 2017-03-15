@@ -547,6 +547,12 @@ Variable (d : hist_el).
 Definition ordered_hist h := forall i j (Hi : 0 <= i < j) (Hj : j < Zlength h),
   (fst (Znth i h (O, d)) < fst (Znth j h (O, d)))%nat.
 
+Lemma ordered_nil : ordered_hist [].
+Proof.
+  repeat intro.
+  rewrite Zlength_nil in *; omega.
+Qed.
+
 Lemma ordered_cons : forall t e h, ordered_hist ((t, e) :: h) ->
   Forall (fun x => let '(m, _) := x in t < m)%nat h /\ ordered_hist h.
 Proof.
@@ -588,7 +594,6 @@ Proof.
 Qed.
 
 End GHist.
-Hint Resolve hist_incl_nil hist_list_nil.
 
 Section AEHist.
 
@@ -617,5 +622,5 @@ Notation AE_hist := (list (nat * AE_hist_el)).
 
 End Ghost.
 
-Hint Resolve disjoint_nil.
+Hint Resolve disjoint_nil hist_incl_nil hist_list_nil ordered_nil.
 Hint Resolve ghost_var_precise ghost_var_precise'.
