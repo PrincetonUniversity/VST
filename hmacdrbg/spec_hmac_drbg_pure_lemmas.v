@@ -16,7 +16,7 @@ Require Import sha.spec_hmac.
 Require Import sha.protocol_spec_hmac.*)
 
 Lemma isbyteZ_initialKey: Forall isbyteZ initial_key.
-Proof. apply Forall_list_repeat; split; omega. Qed.
+Proof. apply sublist.Forall_list_repeat; split; omega. Qed.
 
 Lemma hmac256drbgabs_hmac_drbg_update_any_prop_key:
   forall (P: list Z -> Prop) a additional_data,
