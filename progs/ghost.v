@@ -542,6 +542,13 @@ Proof.
   eapply newer_trans; eauto; omega.
 Qed.
 
+Lemma hist_incl_lt : forall h l, hist_incl h l -> newer h (length l).
+Proof.
+  unfold hist_incl; intros.
+  unfold newer; rewrite Forall_forall; intros (?, ?) Hin.
+  erewrite <- nth_error_Some, H; eauto; discriminate.
+Qed.
+
 Variable (d : hist_el).
 
 Definition ordered_hist h := forall i j (Hi : 0 <= i < j) (Hj : j < Zlength h),

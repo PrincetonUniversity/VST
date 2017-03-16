@@ -2066,7 +2066,13 @@ Lemma split_readable_share sh :
     readable_share sh1 /\
     readable_share sh2 /\
     sepalg.join sh1 sh2 sh.
-Admitted.
+Proof.
+  intros.
+  pose proof (slice.split_YES_ok1 _ H); pose proof (slice.split_YES_ok2 _ H).
+  destruct (Share.split sh) as (sh1, sh2) eqn: Hsplit.
+  exists sh1, sh2; split; [|split]; auto.
+  apply split_join; auto.
+Qed.
 
 Lemma split_Ews :
   exists sh1, exists sh2,
@@ -2179,8 +2185,7 @@ Proof.
   intros; apply mpred_ext; Intros x y; Exists y x; auto.
 Qed.
 
-Lemma mapsto_value_cohere: forall sh1 sh2 t p v1 v2,
-  readable_share sh1 -> readable_share sh2 ->
+Lemma mapsto_value_cohere: forall sh1 sh2 t p v1 v2, readable_share sh1 ->
   mapsto sh1 t p v1 * mapsto sh2 t p v2 |-- mapsto sh1 t p v1 * mapsto sh2 t p v1.
 Proof.
   intros; unfold mapsto.
@@ -2188,16 +2193,19 @@ Proof.
   destruct (type_is_volatile t); try simple apply derives_refl.
   destruct p; try simple apply derives_refl.
   destruct (readable_share_dec sh1); [|contradiction n; auto].
-  destruct (readable_share_dec sh2); [|contradiction n; auto].
   destruct (eq_dec v1 Vundef).
   - subst; rewrite !prop_false_andp with (P := tc_val t Vundef), !FF_orp, prop_true_andp; auto;
       try apply tc_val_Vundef.
     cancel.
     rewrite prop_true_andp with (P := Vundef = Vundef); auto.
-    apply orp_left; Intros; auto.
-    Exists v2; auto.
+    if_tac.
+    + apply orp_left; Intros; auto.
+      Exists v2; auto.
+    + entailer!.
+      intro X; contradiction X; auto.
   - rewrite !prop_false_andp with (P := v1 = Vundef), !orp_FF; auto; Intros.
     apply andp_right; [apply prop_right; auto|].
+    if_tac.
     eapply derives_trans with (Q := _ * EX v2' : val,
       res_predicates.address_mapsto m v2' _ _);
       [apply sepcon_derives; [apply derives_refl|]|].
@@ -2209,9 +2217,53 @@ Proof.
         Exists v2; auto.
     + Intro v2'.
       assert_PROP (v1 = v2') by (apply res_predicates.address_mapsto_value_cohere).
-      subst; auto.
+      subst; entailer!.
+    + entailer!.
+      intro; auto.
 Qed.
 
+Lemma struct_pred_value_cohere : forall {cs : compspecs} m sh1 sh2 p t f off v1 v2
+  (Hsh1 : readable_share sh1) (Hsh2 : readable_share sh2)
+  (IH : Forall (fun it : ident * type => forall v1 v2 (p : val),
+        readable_share sh1 -> readable_share sh2 ->
+        data_at_rec sh1 (t it) v1 p * data_at_rec sh2 (t it) v2 p |--
+        data_at_rec sh1 (t it) v1 p * data_at_rec sh2 (t it) v1 p) m),
+  struct_pred m (fun (it : ident * type) v =>
+    withspacer sh1 (f it + sizeof (t it)) (off it) (at_offset (data_at_rec sh1 (t it) v) (f it))) v1 p *
+  struct_pred m (fun (it : ident * type) v =>
+    withspacer sh2 (f it + sizeof (t it)) (off it) (at_offset (data_at_rec sh2 (t it) v) (f it))) v2 p |--
+  struct_pred m (fun (it : ident * type) v =>
+    withspacer sh1 (f it + sizeof (t it)) (off it) (at_offset (data_at_rec sh1 (t it) v) (f it))) v1 p *
+  struct_pred m (fun (it : ident * type) v =>
+    withspacer sh2 (f it + sizeof (t it)) (off it) (at_offset (data_at_rec sh2 (t it) v) (f it))) v1 p.
+Proof.
+  intros.
+  revert v1 v2; induction m; auto; intros.
+  destruct a; inv IH.
+  destruct m.
+  - unfold withspacer, at_offset; simpl.
+    if_tac; auto.
+    match goal with |- (?P1 * ?Q1) * (?P2 * ?Q2) |-- _ => apply derives_trans with (Q := (P1 * P2) * (Q1 * Q2));
+      [cancel|] end.
+    eapply derives_trans; [apply sepcon_derives, derives_refl|].
+    { apply H1; auto. }
+    cancel.
+  - rewrite !struct_pred_cons2.
+    match goal with |- (?P1 * ?Q1) * (?P2 * ?Q2) |-- _ => apply derives_trans with (Q := (P1 * P2) * (Q1 * Q2));
+      [cancel|] end.
+    match goal with |- _ |-- (?P1 * ?Q1) * (?P2 * ?Q2) => apply derives_trans with (Q := (P1 * P2) * (Q1 * Q2));
+      [|cancel] end.
+    apply sepcon_derives; [|auto].
+    unfold withspacer, at_offset; simpl.
+    if_tac; auto.
+    match goal with |- (?P1 * ?Q1) * (?P2 * ?Q2) |-- _ => apply derives_trans with (Q := (P1 * P2) * (Q1 * Q2));
+      [cancel|] end.
+    eapply derives_trans; [apply sepcon_derives, derives_refl|].
+    { apply H1; auto. }
+    cancel.
+Qed.
+
+(* This isn't true if the type contains any unions, since in fact the type of the data could be different.
 Lemma data_at_rec_value_cohere : forall {cs : compspecs} sh1 sh2 t v1 v2 p,
   readable_share sh1 -> readable_share sh2 ->
   data_at_rec sh1 t v1 p * data_at_rec sh2 t v2 p |--
@@ -2229,19 +2281,27 @@ Proof.
     rewrite <- (sepcon_assoc _ (at_offset _ _ _)), (sepcon_comm _ (at_offset _ _ _)).
     rewrite !sepcon_assoc, <- !(sepcon_assoc (at_offset _ _ _) (at_offset _ _ _)).
     apply sepcon_derives; unfold at_offset; auto.
-  - admit.
-  - admit.
-Admitted.
+  - apply struct_pred_value_cohere; auto.
+  - 
+Qed.
+
+Corollary field_at_value_cohere : forall {cs : compspecs} sh1 sh2 t gfs v1 v2 p, readable_share sh1 ->
+  field_at sh1 t gfs v1 p * field_at sh2 t gfs v2 p |--
+  field_at sh1 t gfs v1 p * field_at sh2 t gfs v1 p.
+Proof.
+  intros; destruct (readable_share_dec sh2).
+  - unfold field_at, at_offset; Intros; entailer'.
+    apply data_at_rec_value_cohere; auto.
+  - assert_PROP (value_fits (nested_field_type t gfs) v1 /\ value_fits (nested_field_type t gfs) v2)
+      by entailer!.
+    setoid_rewrite nonreadable_field_at_eq at 2; eauto; tauto.
+Qed.
 
 Corollary data_at_value_cohere : forall {cs : compspecs} sh1 sh2 t v1 v2 p, readable_share sh1 ->
   data_at sh1 t v1 p * data_at sh2 t v2 p |--
   data_at sh1 t v1 p * data_at sh2 t v1 p.
 Proof.
-  intros; destruct (readable_share_dec sh2).
-  - unfold data_at, field_at, at_offset; Intros; entailer'.
-    apply data_at_rec_value_cohere; auto.
-  - assert_PROP (value_fits t v1 /\ value_fits t v2) by entailer!.
-    setoid_rewrite nonreadable_data_at_eq at 2; eauto; tauto.
+  intros; apply field_at_value_cohere; auto.
 Qed.
 
 Corollary data_at__cohere : forall {cs : compspecs} sh1 sh2 t v p, readable_share sh1 ->
@@ -2267,7 +2327,7 @@ Proof.
     erewrite data_at_share_join; eauto.
     apply IHshs; auto.
     eapply readable_share_join; eauto.
-Qed.
+Qed.*)
 
 Lemma extract_nth_sepcon : forall l i, 0 <= i < Zlength l ->
   fold_right sepcon emp l = Znth i l FF * fold_right sepcon emp (upd_Znth i l emp).

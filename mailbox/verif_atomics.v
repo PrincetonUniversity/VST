@@ -1022,3 +1022,21 @@ Corollary atomic_loc_precise : forall sh p i R h, readable_share sh -> precise (
 Proof.
   intros; eapply derives_precise', atomic_loc_precise'; [Exists h|]; eauto.
 Qed.
+
+Lemma atomic_loc_join : forall sh1 sh2 sh p i R h1 h2 h (Hjoin : sepalg.join sh1 sh2 sh)
+  (Hh : Permutation.Permutation (h1 ++ h2) h) (Hsh1 : readable_share sh1) (Hsh2 : readable_share sh2)
+  (Hdisj : disjoint h1 h2),
+  atomic_loc sh1 p i R h1 * atomic_loc sh2 p i R h2 = atomic_loc sh p i R h.
+Proof.
+  intros; unfold atomic_loc.
+  rewrite sepcon_andp_prop', sepcon_andp_prop.
+  rewrite <- andp_assoc, andp_dup.
+  apply f_equal.
+  rewrite <- !exp_sepcon1.
+  unfold ghost_hist; rewrite <- (ghost_join(M := ref_PCM(P := map_PCM))
+    (Some (sh1, h1), None) (Some (sh2, h2), None) (Some (sh, h), None)).
+  apply mpred_ext.
+  - Intros l1 l2.
+    Exists l1; rewrite <- (lock_inv_share_join sh1 sh2 sh) by auto; cancel.
+    unfold field_at; simpl.
+    Search field_at sepcon eq.
