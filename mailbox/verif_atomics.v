@@ -668,7 +668,6 @@ Proof.
     pose proof Share.nontrivial.
     rewrite sepcon_emp, hist_ref_join by auto.
     Exists ([] : hist); entailer!.
-    split; [apply hist_list_nil|].
     unfold hist_sub; rewrite eq_dec_refl; auto. }
   forward_call (l, Tsh, A_inv p l (vint i) R).
   forward_call (l, Tsh, A_inv p l (vint i) R).
@@ -994,4 +993,32 @@ Lemma atomic_loc_isptr : forall sh p i R h, atomic_loc sh p i R h = !!isptr p &&
 Proof.
   intros; eapply local_facts_isptr with (P := fun p => atomic_loc sh p i R h); eauto.
   unfold atomic_loc; entailer!.
+Qed.
+
+Lemma atomic_loc_precise' : forall sh p i R, readable_share sh -> precise (EX h : _, atomic_loc sh p i R h).
+Proof.
+  intros; unfold atomic_loc.
+  apply derives_precise' with (Q := (EX lock : val, @field_at CompSpecs sh tatomic [StructField _lock] lock p *
+    lock_inv sh lock (A_inv p lock i R)) * (EX g : (option (share * hist) * option hist), ghost g p)).
+  { Intros h lock; Exists lock (Some (sh, h), @None hist); entailer!. }
+  apply precise_sepcon, ex_ghost_precise.
+  intros ??? (l1 & r1 & r1' & ? & (? & Hl1) & ?) (l2 & r2 & r2' & ? & (? & Hl2) & ?) ??.
+  unfold at_offset in *.
+  rewrite data_at_rec_eq in Hl1, Hl2; simpl in *.
+  unfold unfold_reptype in *; simpl in *.
+  rewrite lock_inv_isptr in *; repeat match goal with H : predicates_hered.app_pred (!!_ && _) _ |- _ =>
+    destruct H end.
+  exploit (mapsto_inj sh (tptr (Tstruct sim_atomics._lock_t noattr)) l1 l2 (offset_val 4 p) r1 r2 w);
+    auto; try join_sub.
+  { intro; subst; contradiction. }
+  { intro; subst; contradiction. }
+  intros (? & ?); subst.
+  assert (r1' = r2').
+  { eapply lock_inv_precise; eauto; join_sub. }
+  subst; join_inj.
+Qed.
+
+Corollary atomic_loc_precise : forall sh p i R h, readable_share sh -> precise (atomic_loc sh p i R h).
+Proof.
+  intros; eapply derives_precise', atomic_loc_precise'; [Exists h|]; eauto.
 Qed.

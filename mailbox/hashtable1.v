@@ -67,13 +67,15 @@ Definition _freeze_table : ident := 96%positive.
 Definition _get_item : ident := 91%positive.
 Definition _i : ident := 64%positive.
 Definition _i__1 : ident := 103%positive.
+Definition _i__2 : ident := 104%positive.
+Definition _i__3 : ident := 106%positive.
 Definition _idx : ident := 87%positive.
 Definition _init_table : ident := 93%positive.
 Definition _integer_hash : ident := 86%positive.
 Definition _key : ident := 77%positive.
 Definition _keys : ident := 94%positive.
 Definition _l : ident := 65%positive.
-Definition _l__1 : ident := 104%positive.
+Definition _l__1 : ident := 105%positive.
 Definition _load_SC : ident := 70%positive.
 Definition _load_relaxed : ident := 75%positive.
 Definition _lock : ident := 4%positive.
@@ -105,10 +107,10 @@ Definition _val : ident := 3%positive.
 Definition _value : ident := 78%positive.
 Definition _values : ident := 95%positive.
 Definition _x : ident := 69%positive.
-Definition _t'1 : ident := 105%positive.
-Definition _t'2 : ident := 106%positive.
-Definition _t'3 : ident := 107%positive.
-Definition _t'4 : ident := 108%positive.
+Definition _t'1 : ident := 107%positive.
+Definition _t'2 : ident := 108%positive.
+Definition _t'3 : ident := 109%positive.
+Definition _t'4 : ident := 110%positive.
 
 Definition v_m_entries := {|
   gvar_info := (tarray (Tstruct _entry noattr) 16384);
@@ -473,7 +475,8 @@ Definition f_freeze_table := {|
   fn_callconv := cc_default;
   fn_params := ((_keys, (tptr tint)) :: (_values, (tptr tint)) :: nil);
   fn_vars := nil;
-  fn_temps := ((_i, tint) :: (_t'2, tint) :: (_t'1, tint) :: nil);
+  fn_temps := ((_i, tint) :: (_l, (tptr (Tstruct _atomic_loc noattr))) ::
+               (_t'2, tint) :: (_t'1, tint) :: nil);
   fn_body :=
 (Ssequence
   (Sset _i (Econst_int (Int.repr 0) tint))
@@ -484,38 +487,46 @@ Definition f_freeze_table := {|
         Sskip
         Sbreak)
       (Ssequence
-        (Ssequence
-          (Scall (Some _t'1)
-            (Evar _free_atomic (Tfunction
-                                 (Tcons (tptr (Tstruct _atomic_loc noattr))
-                                   Tnil) tint cc_default))
-            ((Efield
-               (Ederef
-                 (Ebinop Oadd
-                   (Evar _m_entries (tarray (Tstruct _entry noattr) 16384))
-                   (Etempvar _i tint) (tptr (Tstruct _entry noattr)))
-                 (Tstruct _entry noattr)) _key
-               (tptr (Tstruct _atomic_loc noattr))) :: nil))
-          (Sassign
+        (Sset _l
+          (Efield
             (Ederef
-              (Ebinop Oadd (Etempvar _keys (tptr tint)) (Etempvar _i tint)
-                (tptr tint)) tint) (Etempvar _t'1 tint)))
+              (Ebinop Oadd
+                (Evar _m_entries (tarray (Tstruct _entry noattr) 16384))
+                (Etempvar _i tint) (tptr (Tstruct _entry noattr)))
+              (Tstruct _entry noattr)) _key
+            (tptr (Tstruct _atomic_loc noattr))))
         (Ssequence
-          (Scall (Some _t'2)
-            (Evar _free_atomic (Tfunction
-                                 (Tcons (tptr (Tstruct _atomic_loc noattr))
-                                   Tnil) tint cc_default))
-            ((Efield
-               (Ederef
-                 (Ebinop Oadd
-                   (Evar _m_entries (tarray (Tstruct _entry noattr) 16384))
-                   (Etempvar _i tint) (tptr (Tstruct _entry noattr)))
-                 (Tstruct _entry noattr)) _value
-               (tptr (Tstruct _atomic_loc noattr))) :: nil))
-          (Sassign
-            (Ederef
-              (Ebinop Oadd (Etempvar _values (tptr tint)) (Etempvar _i tint)
-                (tptr tint)) tint) (Etempvar _t'2 tint)))))
+          (Ssequence
+            (Scall (Some _t'1)
+              (Evar _free_atomic (Tfunction
+                                   (Tcons (tptr (Tstruct _atomic_loc noattr))
+                                     Tnil) tint cc_default))
+              ((Etempvar _l (tptr (Tstruct _atomic_loc noattr))) :: nil))
+            (Sassign
+              (Ederef
+                (Ebinop Oadd (Etempvar _keys (tptr tint)) (Etempvar _i tint)
+                  (tptr tint)) tint) (Etempvar _t'1 tint)))
+          (Ssequence
+            (Sset _l
+              (Efield
+                (Ederef
+                  (Ebinop Oadd
+                    (Evar _m_entries (tarray (Tstruct _entry noattr) 16384))
+                    (Etempvar _i tint) (tptr (Tstruct _entry noattr)))
+                  (Tstruct _entry noattr)) _value
+                (tptr (Tstruct _atomic_loc noattr))))
+            (Ssequence
+              (Scall (Some _t'2)
+                (Evar _free_atomic (Tfunction
+                                     (Tcons
+                                       (tptr (Tstruct _atomic_loc noattr))
+                                       Tnil) tint cc_default))
+                ((Etempvar _l (tptr (Tstruct _atomic_loc noattr))) :: nil))
+              (Sassign
+                (Ederef
+                  (Ebinop Oadd (Etempvar _values (tptr tint))
+                    (Etempvar _i tint) (tptr tint)) tint)
+                (Etempvar _t'2 tint)))))))
     (Sset _i
       (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint) tint))))
 |}.
@@ -564,8 +575,9 @@ Definition f_f := {|
                         (Evar _add_item (Tfunction
                                           (Tcons tint (Tcons tint Tnil)) tint
                                           cc_default))
-                        ((Etempvar _i tint) ::
-                         (Econst_int (Int.repr 0) tint) :: nil))
+                        ((Ebinop Oadd (Etempvar _i tint)
+                           (Econst_int (Int.repr 1) tint) tint) ::
+                         (Econst_int (Int.repr 1) tint) :: nil))
                       (Sset _r (Etempvar _t'1 tint)))
                     (Sifthenelse (Etempvar _r tint)
                       (Sset _total
@@ -578,10 +590,12 @@ Definition f_f := {|
             (Ssequence
               (Sassign (Ederef (Etempvar _res (tptr tint)) tint)
                 (Etempvar _total tint))
-              (Scall None
-                (Evar _release2 (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
-                                  cc_default))
-                ((Etempvar _l (tptr (Tstruct _lock_t noattr))) :: nil)))))))))
+              (Ssequence
+                (Scall None
+                  (Evar _release2 (Tfunction (Tcons (tptr tvoid) Tnil) tvoid
+                                    cc_default))
+                  ((Etempvar _l (tptr (Tstruct _lock_t noattr))) :: nil))
+                (Sreturn (Some (Econst_int (Int.repr 0) tint)))))))))))
 |}.
 
 Definition f_main := {|
@@ -591,10 +605,11 @@ Definition f_main := {|
   fn_vars := ((_keys, (tarray tint 16384)) ::
               (_values, (tarray tint 16384)) :: nil);
   fn_temps := ((_total, tint) :: (_i, tint) ::
-               (_l, (tptr (Tstruct _lock_t noattr))) :: (_t, (tptr tint)) ::
-               (_i__1, tint) :: (_l__1, (tptr (Tstruct _lock_t noattr))) ::
-               (_r, tint) :: (_t'3, (tptr tvoid)) :: (_t'2, (tptr tvoid)) ::
-               (_t'1, (tptr tvoid)) :: nil);
+               (_l, (tptr (Tstruct _lock_t noattr))) :: (_i__1, tint) ::
+               (_t, (tptr tint)) :: (_i__2, tint) ::
+               (_l__1, (tptr (Tstruct _lock_t noattr))) ::
+               (_r, (tptr tint)) :: (_i__3, tint) :: (_t'3, (tptr tvoid)) ::
+               (_t'2, (tptr tvoid)) :: (_t'1, (tptr tvoid)) :: nil);
   fn_body :=
 (Ssequence
   (Ssequence
@@ -640,43 +655,11 @@ Definition f_main := {|
                             (Etempvar _i tint) (tptr (tptr tint)))
                           (tptr tint))
                         (Ecast (Etempvar _t'2 (tptr tvoid)) (tptr tint))))
-                    (Ssequence
-                      (Scall None
-                        (Evar _makelock (Tfunction (Tcons (tptr tvoid) Tnil)
-                                          tvoid cc_default))
-                        ((Ecast (Etempvar _l (tptr (Tstruct _lock_t noattr)))
-                           (tptr tvoid)) :: nil))
-                      (Ssequence
-                        (Ssequence
-                          (Scall (Some _t'3)
-                            (Evar _surely_malloc (Tfunction
-                                                   (Tcons tuint Tnil)
-                                                   (tptr tvoid) cc_default))
-                            ((Esizeof tint tuint) :: nil))
-                          (Sset _t
-                            (Ecast (Etempvar _t'3 (tptr tvoid)) (tptr tint))))
-                        (Ssequence
-                          (Sassign (Ederef (Etempvar _t (tptr tint)) tint)
-                            (Etempvar _i tint))
-                          (Scall None
-                            (Evar _spawn (Tfunction
-                                           (Tcons
-                                             (tptr (Tfunction
-                                                     (Tcons (tptr tvoid)
-                                                       Tnil) (tptr tvoid)
-                                                     cc_default))
-                                             (Tcons (tptr tvoid) Tnil)) tvoid
-                                           cc_default))
-                            ((Ecast
-                               (Eaddrof
-                                 (Evar _f (Tfunction
-                                            (Tcons (tptr tvoid) Tnil)
-                                            (tptr tvoid) cc_default))
-                                 (tptr (Tfunction (Tcons (tptr tvoid) Tnil)
-                                         (tptr tvoid) cc_default)))
-                               (tptr tvoid)) ::
-                             (Ecast (Etempvar _t (tptr tint)) (tptr tvoid)) ::
-                             nil)))))))))
+                    (Scall None
+                      (Evar _makelock (Tfunction (Tcons (tptr tvoid) Tnil)
+                                        tvoid cc_default))
+                      ((Ecast (Etempvar _l (tptr (Tstruct _lock_t noattr)))
+                         (tptr tvoid)) :: nil))))))
             (Sset _i
               (Ebinop Oadd (Etempvar _i tint) (Econst_int (Int.repr 1) tint)
                 tint))))
@@ -690,52 +673,99 @@ Definition f_main := {|
                   Sskip
                   Sbreak)
                 (Ssequence
-                  (Sset _l__1
-                    (Ederef
-                      (Ebinop Oadd
-                        (Evar _thread_locks (tarray (tptr (Tstruct _lock_t noattr)) 3))
-                        (Etempvar _i__1 tint)
-                        (tptr (tptr (Tstruct _lock_t noattr))))
-                      (tptr (Tstruct _lock_t noattr))))
                   (Ssequence
+                    (Scall (Some _t'3)
+                      (Evar _surely_malloc (Tfunction (Tcons tuint Tnil)
+                                             (tptr tvoid) cc_default))
+                      ((Esizeof tint tuint) :: nil))
+                    (Sset _t
+                      (Ecast (Etempvar _t'3 (tptr tvoid)) (tptr tint))))
+                  (Ssequence
+                    (Sassign (Ederef (Etempvar _t (tptr tint)) tint)
+                      (Etempvar _i__1 tint))
                     (Scall None
-                      (Evar _acquire (Tfunction (Tcons (tptr tvoid) Tnil)
-                                       tvoid cc_default))
-                      ((Etempvar _l__1 (tptr (Tstruct _lock_t noattr))) ::
-                       nil))
+                      (Evar _spawn (Tfunction
+                                     (Tcons
+                                       (tptr (Tfunction
+                                               (Tcons (tptr tvoid) Tnil)
+                                               (tptr tvoid) cc_default))
+                                       (Tcons (tptr tvoid) Tnil)) tvoid
+                                     cc_default))
+                      ((Ecast
+                         (Eaddrof
+                           (Evar _f (Tfunction (Tcons (tptr tvoid) Tnil)
+                                      (tptr tvoid) cc_default))
+                           (tptr (Tfunction (Tcons (tptr tvoid) Tnil)
+                                   (tptr tvoid) cc_default))) (tptr tvoid)) ::
+                       (Ecast (Etempvar _t (tptr tint)) (tptr tvoid)) :: nil)))))
+              (Sset _i__1
+                (Ebinop Oadd (Etempvar _i__1 tint)
+                  (Econst_int (Int.repr 1) tint) tint))))
+          (Ssequence
+            (Ssequence
+              (Sset _i__2 (Econst_int (Int.repr 0) tint))
+              (Sloop
+                (Ssequence
+                  (Sifthenelse (Ebinop Olt (Etempvar _i__2 tint)
+                                 (Econst_int (Int.repr 3) tint) tint)
+                    Sskip
+                    Sbreak)
+                  (Ssequence
+                    (Sset _l__1
+                      (Ederef
+                        (Ebinop Oadd
+                          (Evar _thread_locks (tarray (tptr (Tstruct _lock_t noattr)) 3))
+                          (Etempvar _i__2 tint)
+                          (tptr (tptr (Tstruct _lock_t noattr))))
+                        (tptr (Tstruct _lock_t noattr))))
                     (Ssequence
                       (Scall None
-                        (Evar _freelock2 (Tfunction (Tcons (tptr tvoid) Tnil)
-                                           tvoid cc_default))
+                        (Evar _acquire (Tfunction (Tcons (tptr tvoid) Tnil)
+                                         tvoid cc_default))
                         ((Etempvar _l__1 (tptr (Tstruct _lock_t noattr))) ::
                          nil))
                       (Ssequence
                         (Scall None
-                          (Evar _free (Tfunction (Tcons (tptr tvoid) Tnil)
-                                        tvoid cc_default))
+                          (Evar _freelock2 (Tfunction
+                                             (Tcons (tptr tvoid) Tnil) tvoid
+                                             cc_default))
                           ((Etempvar _l__1 (tptr (Tstruct _lock_t noattr))) ::
                            nil))
                         (Ssequence
-                          (Sset _r
-                            (Ederef
+                          (Scall None
+                            (Evar _free (Tfunction (Tcons (tptr tvoid) Tnil)
+                                          tvoid cc_default))
+                            ((Etempvar _l__1 (tptr (Tstruct _lock_t noattr))) ::
+                             nil))
+                          (Ssequence
+                            (Sset _r
                               (Ederef
                                 (Ebinop Oadd
                                   (Evar _results (tarray (tptr tint) 3))
-                                  (Etempvar _i__1 tint) (tptr (tptr tint)))
-                                (tptr tint)) tint))
-                          (Sset _total
-                            (Ebinop Oadd (Etempvar _total tint)
-                              (Etempvar _r tint) tint))))))))
-              (Sset _i__1
-                (Ebinop Oadd (Etempvar _i__1 tint)
-                  (Econst_int (Int.repr 1) tint) tint))))
-          (Scall None
-            (Evar _freeze_table (Tfunction
-                                  (Tcons (tptr tint)
-                                    (Tcons (tptr tint) Tnil)) tvoid
-                                  cc_default))
-            ((Evar _keys (tarray tint 16384)) ::
-             (Evar _values (tarray tint 16384)) :: nil))))))
+                                  (Etempvar _i__2 tint) (tptr (tptr tint)))
+                                (tptr tint)))
+                            (Ssequence
+                              (Sset _i__3
+                                (Ederef (Etempvar _r (tptr tint)) tint))
+                              (Ssequence
+                                (Scall None
+                                  (Evar _free (Tfunction
+                                                (Tcons (tptr tvoid) Tnil)
+                                                tvoid cc_default))
+                                  ((Etempvar _r (tptr tint)) :: nil))
+                                (Sset _total
+                                  (Ebinop Oadd (Etempvar _total tint)
+                                    (Etempvar _i__3 tint) tint))))))))))
+                (Sset _i__2
+                  (Ebinop Oadd (Etempvar _i__2 tint)
+                    (Econst_int (Int.repr 1) tint) tint))))
+            (Scall None
+              (Evar _freeze_table (Tfunction
+                                    (Tcons (tptr tint)
+                                      (Tcons (tptr tint) Tnil)) tvoid
+                                    cc_default))
+              ((Evar _keys (tarray tint 16384)) ::
+               (Evar _values (tarray tint 16384)) :: nil)))))))
   (Sreturn (Some (Econst_int (Int.repr 0) tint))))
 |}.
 

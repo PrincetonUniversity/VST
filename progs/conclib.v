@@ -506,6 +506,22 @@ Proof.
     + f_equal; omega.
 Qed.
 
+Lemma upd_complete_gen : forall {A} (l : list A) x n y, Zlength l < n ->
+  upd_Znth (Zlength l) (l ++ repeat y (Z.to_nat (n - Zlength l))) x =
+  (l ++ [x]) ++ repeat y (Z.to_nat (n - Zlength (l ++ [x]))).
+Proof.
+  intros.
+  rewrite upd_Znth_app2, Zminus_diag.
+  destruct (Z.to_nat (n - Zlength l)) eqn: Hn.
+  - apply Z2Nat.inj with (m := 0) in Hn; omega.
+  - simpl; rewrite upd_Znth0, Zlength_cons, sublist_1_cons.
+    unfold Z.succ; rewrite Z.add_simpl_r, sublist_same; auto.
+    rewrite <- app_assoc, Zlength_app, Zlength_cons, Zlength_nil; simpl.
+    rewrite Z.sub_add_distr, Z2Nat.inj_sub, Hn by computable; simpl.
+    rewrite Nat.sub_0_r; auto.
+  - pose proof (Zlength_nonneg (repeat y (Z.to_nat (n - Zlength l)))); omega.
+Qed.
+
 Lemma upd_complete' : forall l x n, (length l < n)%nat ->
   upd_Znth (Zlength l) (map Vint (map Int.repr l) ++ repeat Vundef (n - length l)) (Vint (Int.repr x)) =
   map Vint (map Int.repr (l ++ [x])) ++ repeat Vundef (n - length (l ++ [x])).
@@ -1082,6 +1098,12 @@ Proof.
   induction l; simpl; intros; auto.
   rewrite IHl.
   destruct (f a); simpl; omega.
+Qed.
+
+Lemma filter_app : forall {A} (f : A -> bool) l1 l2, filter f (l1 ++ l2) = filter f l1 ++ filter f l2.
+Proof.
+  induction l1; auto; intros; simpl.
+  rewrite IHl1; if_tac; auto.
 Qed.
 
 Lemma NoDup_upto : forall n, NoDup (upto n).
@@ -2149,6 +2171,12 @@ Qed.
 Lemma mpred_ext : forall (P Q : mpred) (Hd1 : P |-- Q) (Hd2 : Q |-- P), P = Q.
 Proof.
   intros; apply (predicates_hered.pred_ext _ _ _ Hd1); auto.
+Qed.
+
+Lemma exp_comm : forall {A B} P,
+  (EX x : A, EX y : B, P x y) = EX y : B, EX x : A, P x y.
+Proof.
+  intros; apply mpred_ext; Intros x y; Exists y x; auto.
 Qed.
 
 Lemma mapsto_value_cohere: forall sh1 sh2 t p v1 v2,
