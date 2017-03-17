@@ -217,9 +217,12 @@ Proof.
   intros;
   rewrite den_isBinOpR in IBR; simpl in IBR;
   unfold binarithType in IBR;
-  solve_tc_val TV1; solve_tc_val TV2.
-  rewrite <- H, <- H1 in IBR.
+  solve_tc_val TV1; solve_tc_val TV2;
+  rewrite <- ?H, <- ?H1 in IBR.
 
+  simpl in IBR.
+  
+Print isBinOpResultType.
 Time (* reduced from 548.6 sec to 192 sec *)
 destruct op;
 (*try abstract ( *)
