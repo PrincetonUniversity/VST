@@ -2185,6 +2185,20 @@ Proof.
   intros; apply mpred_ext; Intros x y; Exists y x; auto.
 Qed.
 
+Lemma mapsto_value_eq: forall sh1 sh2 t p v1 v2, readable_share sh1 -> readable_share sh2 ->
+  v1 <> Vundef -> v2 <> Vundef -> mapsto sh1 t p v1 * mapsto sh2 t p v2 |-- !!(v1 = v2).
+Proof.
+  intros; unfold mapsto.
+  destruct (access_mode t); try solve [entailer!].
+  destruct (type_is_volatile t); try solve [entailer!].
+  destruct p; try solve [entailer!].
+  destruct (readable_share_dec sh1); [|contradiction n; auto].
+  destruct (readable_share_dec sh2); [|contradiction n; auto].
+  rewrite !prop_false_andp with (P := v1 = Vundef), !orp_FF; auto; Intros.
+  rewrite !prop_false_andp with (P := v2 = Vundef), !orp_FF; auto; Intros.
+  apply res_predicates.address_mapsto_value_cohere.
+Qed.
+
 Lemma mapsto_value_cohere: forall sh1 sh2 t p v1 v2, readable_share sh1 ->
   mapsto sh1 t p v1 * mapsto sh2 t p v2 |-- mapsto sh1 t p v1 * mapsto sh2 t p v1.
 Proof.

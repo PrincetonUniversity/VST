@@ -389,6 +389,23 @@ Qed.
 
 Definition ghost_hist (sh : share) (h : hist_part) p := (ghost (Some (sh, h), @None hist_part) p).
 
+Lemma ghost_hist_join : forall sh1 sh2 sh h1 h2 h p (Hsh : sepalg.join sh1 sh2 sh)
+  (Hh : Permutation (h1 ++ h2) h) (Hsh1 : sh1 <> Share.bot) (Hsh2 : sh2 <> Share.bot),
+  ghost_hist sh1 h1 p * ghost_hist sh2 h2 p = !!(disjoint h1 h2) && ghost_hist sh h p.
+Proof.
+  intros; unfold ghost_hist.
+  apply mpred_ext.
+  - assert_PROP (disjoint h1 h2).
+    { eapply derives_trans; [apply ghost_conflict|].
+      apply prop_left; intros (x & ? & ?); simpl in *.
+      apply prop_right; destruct (fst x) as [(?, ?)|]; [tauto | contradiction]. }
+    erewrite ghost_join; [entailer!|].
+    repeat (split; simpl; auto).
+  - Intros.
+    erewrite ghost_join; eauto.
+    repeat (split; simpl; auto).
+Qed.
+
 Definition hist_incl (h : hist_part) l := forall t e, In (t, e) h -> nth_error l t = Some e.
 
 Definition hist_list (h : hist_part) l := forall t e, In (t, e) h <-> nth_error l t = Some e.
@@ -454,28 +471,6 @@ Proof.
   rewrite Hin; discriminate.
 Qed.
 
-Lemma hist_ref_join : forall sh h l p, sh <> Share.bot ->
-  ghost_hist sh h p * ghost_ref l p =
-  EX h' : hist_part, !!(hist_list h' l /\ hist_sub sh h h') && ghost (Some (sh, h), Some h') p.
-Proof.
-  unfold ghost_hist, ghost_ref; intros; apply mpred_ext.
-  - Intros hr; Exists hr.
-    eapply derives_trans; [apply prop_and_same_derives, ghost_conflict|].
-    apply derives_extract_prop; intros (x & Hj1 & Hj2 & Hcompat).
-    destruct Hj2 as [(? & ?) | (Hsnd & ?)]; [discriminate|].
-    rewrite <- Hsnd in Hcompat; simpl in *.
-    destruct (fst x); [destruct Hj1 as (_ & Heq); inv Heq | contradiction].
-    assert (hist_sub sh h hr) by (rewrite <- completable_alt; auto).
-    entailer!.
-    erewrite ghost_join; eauto.
-    simpl; auto.
-  - Intros h'.
-    Exists h'; entailer!.
-    erewrite ghost_join; eauto.
-    repeat (split; simpl; auto).
-    rewrite completable_alt; auto.
-Qed.
-
 Lemma hist_incl_nil : forall h, hist_incl [] h.
 Proof.
   repeat intro; contradiction.
@@ -525,6 +520,47 @@ Corollary hist_sub_list_incl : forall sh h h' l (Hsub : hist_sub sh h h') (Hlist
 Proof.
   unfold hist_list, hist_incl; intros.
   rewrite <- Hlist; eapply hist_sub_incl; eauto.
+Qed.
+
+Lemma hist_sub_Tsh : forall h h', hist_sub Tsh h h' = (h = h').
+Proof.
+  intros; unfold hist_sub; rewrite eq_dec_refl; auto.
+Qed.
+
+Lemma hist_ref_join : forall sh h l p, sh <> Share.bot ->
+  ghost_hist sh h p * ghost_ref l p =
+  EX h' : hist_part, !!(hist_list h' l /\ hist_sub sh h h') && ghost (Some (sh, h), Some h') p.
+Proof.
+  unfold ghost_hist, ghost_ref; intros; apply mpred_ext.
+  - Intros hr; Exists hr.
+    eapply derives_trans; [apply prop_and_same_derives, ghost_conflict|].
+    apply derives_extract_prop; intros (x & Hj1 & Hj2 & Hcompat).
+    destruct Hj2 as [(? & ?) | (Hsnd & ?)]; [discriminate|].
+    rewrite <- Hsnd in Hcompat; simpl in *.
+    destruct (fst x); [destruct Hj1 as (_ & Heq); inv Heq | contradiction].
+    assert (hist_sub sh h hr) by (rewrite <- completable_alt; auto).
+    entailer!.
+    erewrite ghost_join; eauto.
+    simpl; auto.
+  - Intros h'.
+    Exists h'; entailer!.
+    erewrite ghost_join; eauto.
+    repeat (split; simpl; auto).
+    rewrite completable_alt; auto.
+Qed.
+
+Corollary hist_ref_join_nil : forall sh p, sh <> Share.bot ->
+  ghost_hist sh [] p * ghost_ref [] p = ghost (Some (sh, [] : hist_part), Some ([] : hist_part)) p.
+Proof.
+  intros; rewrite hist_ref_join by auto.
+  apply mpred_ext; entailer!.
+  - destruct h' as [|(t, e)]; auto.
+    match goal with H : hist_list _ _ |- _ => specialize (H t e); destruct H as (Hin & _) end.
+    exploit Hin; [simpl; auto | rewrite nth_error_nil; discriminate].
+  - Exists ([] : hist_part); entailer!.
+    split; [apply hist_list_nil|].
+    unfold hist_sub; if_tac; auto.
+    split; auto; exists []; auto.
 Qed.
 
 Definition newer (l : hist_part) t := Forall (fun x => fst x < t)%nat l.
