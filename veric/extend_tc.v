@@ -10,13 +10,13 @@ Require Import veric.binop_lemmas2.
 Local Open Scope pred.
 
 Definition tc_expr {CS: compspecs} (Delta: tycontext) (e: expr) : environ -> mpred:=
-  fun rho => denote_tc_assert (typecheck_expr Delta (te_of rho) e) rho.
+  fun rho => denote_tc_assert (typecheck_expr Delta e) rho.
 
 Definition tc_exprlist {CS: compspecs} (Delta: tycontext) (t : list type) (e: list expr) : environ -> mpred :=
-      fun rho => denote_tc_assert (typecheck_exprlist Delta (te_of rho) t e) rho.
+      fun rho => denote_tc_assert (typecheck_exprlist Delta t e) rho.
 
 Definition tc_lvalue {CS: compspecs} (Delta: tycontext) (e: expr) : environ -> mpred :=
-     fun rho => denote_tc_assert (typecheck_lvalue Delta (te_of rho) e) rho.
+     fun rho => denote_tc_assert (typecheck_lvalue Delta e) rho.
 
 Definition allowedValCast v tfrom tto :=
 match Cop.classify_cast tfrom tto with

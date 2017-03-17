@@ -189,9 +189,9 @@ intros [ge ve te]  [A B C D E] [A1 B1 C1 D1 E1] [A2 B2 C2 D2 E2]
 Qed.
 *)
 Lemma typecheck_val_ptr_lemma {CS: compspecs} :
-   forall rho m Delta te id t a,
+   forall rho m Delta id t a,
    typecheck_environ Delta rho ->
-   denote_tc_assert (typecheck_expr Delta te (Etempvar id (Tpointer t a))) rho m ->
+   denote_tc_assert (typecheck_expr Delta (Etempvar id (Tpointer t a))) rho m ->
    (*(temp_types Delta) ! id =  Some (Tpointer t a, init) ->*) (*modified for init changes*)
    strict_bool_val (eval_id id rho) (Tpointer t a) = Some true ->
    typecheck_val (eval_id id rho) (Tpointer t a) = true.
@@ -202,23 +202,22 @@ destruct (Int.eq i Int.zero); try congruence.
 Qed.
 
 Lemma typecheck_environ_put_te : forall ge te ve Delta id v ,
-typecheck_environ  Delta (mkEnviron ge ve te) ->
-(forall t , ((temp_types Delta) ! id = Some t ->
-  (typecheck_val v t) = true)) ->
-typecheck_environ  Delta (mkEnviron ge ve (Map.set id v te)).
+typecheck_environ Delta (mkEnviron ge ve te) ->
+typecheck_environ Delta (mkEnviron ge ve (Map.set id v te)).
 Proof.
-intros. unfold typecheck_environ in *. simpl in *.
-intuition. clear H H2 H4.
-destruct Delta. unfold temp_types in *; simpl in *.
-unfold typecheck_temp_environ.
-intros. edestruct H1; eauto. destruct H2. rewrite Map.gsspec.
-if_tac. subst. exists v; intuition. specialize (H0 ty).
-simpl in *. exists x. intuition.
+  intros. unfold typecheck_environ in *. simpl in *.
+  intuition. clear H H1 H3.
+  destruct Delta. unfold temp_types in *; simpl in *.
+  unfold typecheck_temp_environ.
+  intros. rewrite Map.gsspec.
+  if_tac.
+  + subst. exists v; intuition.
+  + simpl in *. specialize (H0 id0 _ H). auto.
 Qed.
 
 (*
 Lemma typecheck_environ_put_te' : forall ge te ve Delta id v ,
-typecheck_environ  Delta (mkEnviron ge ve te) ->
+ typecheck_environ  Delta (mkEnviron ge ve te) ->
 (forall t , ((temp_types Delta) ! id = Some t ->
   (typecheck_val v (fst t)) = true)) ->
 typecheck_environ (initialized id Delta) (mkEnviron ge ve (Map.set id v te)).
