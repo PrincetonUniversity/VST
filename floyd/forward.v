@@ -793,6 +793,7 @@ Ltac clear_MORE_POST :=
         clear MORE_COMMANDS
       end.
 
+(* old
 Ltac fwd_call' A witness H :=
  first[ eapply semax_seq';
          [clear_Delta_specs; clear_MORE_POST;
@@ -806,9 +807,63 @@ Ltac fwd_call' A witness H :=
            ]
          | clear H; after_forward_call]
      | rewrite <- seq_assoc; fwd_call' A witness H].
+*)
+
+Ltac fwd_call' A witness H :=
+lazymatch goal with
+| |- semax _ _ (Ssequence (Scall _ _ _) _) _ =>
+  eapply semax_seq';
+    [clear_Delta_specs; clear_MORE_POST;
+     let Frame := fresh "Frame" in evar (Frame: list (mpred));
+     lazymatch goal with |- semax _ _ ?C _ =>
+      lazymatch C with
+      | Scall (Some _) (Evar _ _) _ =>
+         forward_call_id1_wow A witness Frame H
+      | Scall None (Evar _ (Tfunction _ ?retty _)) _ =>
+        tryif (unify retty Tvoid)
+        then forward_call_id00_wow A witness Frame H
+       else forward_call_id01_wow A witness Frame H 
+      end
+    end
+   | clear H; after_forward_call ]
+| |- semax _ _ (Ssequence (Ssequence (Scall (Some _) _ _) (Sset _ _)) _) _ =>
+ (eapply semax_seq';
+    [clear_Delta_specs; clear_MORE_POST;
+     let Frame := fresh "Frame" in evar (Frame: list (mpred));
+         (forward_call_id1_x_wow A witness Frame H
+          || forward_call_id1_y_wow A witness Frame H)
+     |  clear H; after_forward_call ])   
+ || (rewrite <- seq_assoc; fwd_call' A witness H)
+| |- _ => rewrite <- seq_assoc; fwd_call' A witness H
+end.
 
 Inductive Ridiculous: Type := .
 
+Ltac fwd_call witness :=
+ try lazymatch goal with
+      | |- semax _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip
+      end;
+ repeat lazymatch goal with
+  | |- semax _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
+      rewrite <- seq_assoc
+ end;
+lazymatch goal with |- @semax ?CS _ ?Delta _ (Ssequence ?C _) _ =>
+  lazymatch C with context [Scall _ (Evar ?id _) _] =>
+   refine (modusponens (global_funspec Delta id _ _ _ _ _ _ _ _) _ _ _);
+  [ eapply lookup_funspec;
+    [check_function_name
+    | lookup_spec_and_change_compspecs CS id
+    | find_spec_in_globals']
+  | let H := fresh in intro H;
+    match type of H with global_funspec _ _ _ _ _ ?A _ _ _ _ =>
+      (unify A (rmaps.ConstType Ridiculous); (* because [is_evar A] doesn't seem to work *)
+             elimtype False)
+     || fwd_call' A witness H
+    end ]
+  end
+end.
+
+(* old: 
 Ltac fwd_call witness :=
  try match goal with
       | |- semax _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip
@@ -826,13 +881,14 @@ match goal with |- @semax ?CS _ ?Delta _ (Ssequence ?C _) _ =>
     | find_spec_in_globals']
   | let H := fresh in intro H;
     match type of H with global_funspec _ _ _ _ _ ?A _ _ _ _ =>
-     first [unify A (rmaps.ConstType Ridiculous); (* because [is_evar A] doesn't seem to work *)
-             elimtype False
-           | fwd_call' A witness H]
+      (unify A (rmaps.ConstType Ridiculous); (* because [is_evar A] doesn't seem to work *)
+             elimtype False)
+     || fwd_call' A witness H
     end
   ]
   end
 end.
+*)
 
 Tactic Notation "forward_call" constr(witness) := fwd_call witness.
 (*

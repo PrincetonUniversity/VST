@@ -663,12 +663,7 @@ Proof.
   match goal with |- semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
     apply semax_pre with (P' := PROP () (LOCALx Q (SEPx (ghost (Some (Tsh, [] : hist), Some ([] : hist)) p :: R)))) end.
   { admit. } (* allocate ghost *)
-  replace_SEP 0 (ghost_hist Tsh ([] : hist) p * ghost_ref (@nil hist_el) p).
-  { go_lowerx.
-    pose proof Share.nontrivial.
-    rewrite sepcon_emp, hist_ref_join by auto.
-    Exists ([] : hist); entailer!.
-    unfold hist_sub; rewrite eq_dec_refl; auto. }
+  rewrite <- hist_ref_join_nil by (apply Share.nontrivial).
   forward_call (l, Tsh, A_inv p l (vint i) R).
   forward_call (l, Tsh, A_inv p l (vint i) R).
   { rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
@@ -1024,19 +1019,30 @@ Proof.
 Qed.
 
 Lemma atomic_loc_join : forall sh1 sh2 sh p i R h1 h2 h (Hjoin : sepalg.join sh1 sh2 sh)
-  (Hh : Permutation.Permutation (h1 ++ h2) h) (Hsh1 : readable_share sh1) (Hsh2 : readable_share sh2)
-  (Hdisj : disjoint h1 h2),
-  atomic_loc sh1 p i R h1 * atomic_loc sh2 p i R h2 = atomic_loc sh p i R h.
+  (Hh : Permutation.Permutation (h1 ++ h2) h) (Hsh1 : readable_share sh1) (Hsh2 : readable_share sh2),
+  atomic_loc sh1 p i R h1 * atomic_loc sh2 p i R h2 = !!(disjoint h1 h2) && atomic_loc sh p i R h.
 Proof.
   intros; unfold atomic_loc.
   rewrite sepcon_andp_prop', sepcon_andp_prop.
   rewrite <- andp_assoc, andp_dup.
+  rewrite <- andp_assoc, (andp_comm _ (!! _)), andp_assoc.
   apply f_equal.
   rewrite <- !exp_sepcon1.
-  unfold ghost_hist; rewrite <- (ghost_join(M := ref_PCM(P := map_PCM))
-    (Some (sh1, h1), None) (Some (sh2, h2), None) (Some (sh, h), None)).
+  assert (sh1 <> Share.bot) by (intro; subst; contradiction unreadable_bot).
+  assert (sh2 <> Share.bot) by (intro; subst; contradiction unreadable_bot).
   apply mpred_ext.
   - Intros l1 l2.
+    match goal with |- (?P1 * ?Q1) * (?P2 * ?Q2) |-- _ =>
+      apply derives_trans with (Q := (Q1 * Q2) * (P1 * P2)); [cancel|] end.
+    erewrite ghost_hist_join; eauto.
+    entailer!.
+    rewrite (lock_inv_isptr sh1), (lock_inv_isptr sh2); Intros.
     Exists l1; rewrite <- (lock_inv_share_join sh1 sh2 sh) by auto; cancel.
-    unfold field_at; simpl.
-    Search field_at sepcon eq.
+    unfold field_at, at_offset; Intros; apply andp_right; [apply prop_right; auto|].
+    rewrite !data_at_rec_eq; simpl.
+    assert_PROP (l1 = l2) by (apply sepcon_derives_prop, mapsto_value_eq; auto; intro; subst; contradiction).
+    subst; erewrite mapsto_share_join; eauto.
+  - Intros l; Exists l l.
+    erewrite <- field_at_share_join, <- (lock_inv_share_join sh1 sh2); eauto; cancel.
+    erewrite ghost_hist_join; eauto; entailer!.
+Qed.
