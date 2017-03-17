@@ -1514,6 +1514,7 @@ Proof.
     { apply sepcon_derives; [apply lock_struct | cancel_frame]. }
     Exists (res ++ [r]) (locks ++ [l]); rewrite !Zlength_app, !Zlength_cons, !Zlength_nil.
     go_lower; entailer'.
+    rewrite lock_inv_isptr, data_at__isptr; Intros.
     rewrite Z2Nat.inj_add, upto_app, !map_app, !sepcon_app by omega.
     simpl; change (upto 1) with [0]; simpl.
     rewrite Z2Nat.id, Z.add_0_r by omega.
@@ -1523,7 +1524,6 @@ Proof.
     replace (Zlength (res ++ [r])) with (Zlength (locks ++ [l]))
       by (rewrite !Zlength_app, !Zlength_cons, !Zlength_nil; auto; omega).
     rewrite <- upd_complete_gen by omega.
-    rewrite lock_inv_isptr, data_at__isptr; Intros.
     rewrite !app_Znth2 by omega.
     replace (Zlength locks) with (Zlength res); rewrite Zminus_diag, !Znth_0_cons.
     rewrite (sepcon_comm _ (@data_at CompSpecs Ews (tarray tentry size) entries m_entries)), !sepcon_assoc;
@@ -1539,29 +1539,68 @@ Proof.
     destruct l; try contradiction.
     repeat (apply sepcon_derives; [apply derives_refl|]).
     cancel.
-    
-    
-    apply sepcon_derives; [auto|].
-    apply sepcon_derives; [auto|].
-    rewrite <- !sepcon_assoc; apply sepcon_derives.
-    rewrite (sepcon_comm _ (@data_at_ CompSpecs Tsh (tarray tint 16384) values)).
-  try cancel_frame.
-  
-    rewrite <- !sepcon_assoc, (sepcon_comm _ (@data_at_ CompSpecs Tsh (tarray tint 16384) values)), !sepcon_assoc;
-      apply sepcon_derives; [auto|].
-
-    admit. }
+    apply sepcon_list_derives; rewrite !Zlength_map, !Zlength_upto, <- Zlength_correct.
+    { rewrite Z2Nat.id; auto; omega. }
+    intros.
+    erewrite !Znth_map, !Znth_upto by (rewrite ?Zlength_upto, <- ?Zlength_correct, ?Z2Nat.id; auto; omega).
+    rewrite !app_Znth1 by omega; auto. }
   Intros res locks.
+  destruct (split_shares 3 Tsh) as (sh0' & shs' & ? & ? & ? & Hshs'); auto.
+  rewrite !app_nil_r.
+
+    
+  2: simpl; repeat (split; auto).
+  2: unfold join.
+  unfold ghost_hist.
+  normalize.
+  Search andp.
+  Check andp_idem.
+  Search andp prop sepcon.
+
+Lemma atomic_entries_join : forall sh1 sh2 sh entries hists1 hists2 hists (Hjoin : sepalg.join sh1 sh2 sh)
+  (Hlen1 : Zlength hists1 = Zlength hists) (Hlen2 : Zlength hists2 = Zlength hists)
+  (Hhists : forall i, Znth i hists ([], []) = (fst (Znth i hists1 ([], [])) ++ fst (Znth i hists2 ([], [])),
+     (snd (Znth i hists1 ([], [])) ++ snd (Znth i hists2 ([], []))))),
+  atomic_entries sh1 entries hists1 * atomic_entries sh2 entries hists2 =
+  atomic_entries sh entries hists.
+Proof.
+  induction entries; unfold atomic_entries; simpl; intros.
+  { rewrite sepcon_emp; auto. }
+  destruct hists1.
+  - rewrite Zlength_nil in *.
+    destruct hists; [|rewrite Zlength_cons in *; pose proof (Zlength_nonneg hists); omega].
+    rewrite Zlength_nil in *.
+    destruct hists2; [|rewrite Zlength_cons in *; pose proof (Zlength_nonneg hists2); omega].
+    simpl; rewrite sepcon_emp; auto.
+  - rewrite Zlength_cons in *; pose proof (Zlength_nonneg hists1).
+    destruct hists; [rewrite Zlength_nil in *; omega|].
+    rewrite Zlength_cons in *; pose proof (Zlength_nonneg hists).
+    destruct hists2; [rewrite Zlength_nil in *; omega|].
+    rewrite Zlength_cons in *; simpl.
+    destruct a, p, p0, p1.
+    unfold atomic_entry.
+    Search atomic_loc sepalg.join.
+    simpl; rewrite sepcon_emp; auto.
+  Focus 2.
+  omega.
+  all: try Omega0.
+  - destruct hists; simpl.
+  Search fold_right sepcon.
+  
   forward_for_simple_bound 3 (EX i : Z, EX sh : share,
     PROP (sepalg_list.list_join sh0 (sublist i 3 shs) sh)
     LOCAL (temp _total (vint 0); lvar _values (tarray tint 16384) values;
            lvar _keys (tarray tint 16384) keys; gvar _results resp;
            gvar _thread_locks locksp; gvar _m_entries m_entries)
-    SEP (@data_at CompSpecs Ews (tarray tentry size) entries m_entries;
-         atomic_entries Tsh entries empty_hists;
+    SEP (@data_at CompSpecs sh (tarray tentry size) entries m_entries;
+         EX sh' : share, !!(sepalg_list.list_join sh0' (sublist i 3 shs') sh') &&
+           atomic_entries Tsh entries empty_hists;
          data_at_ Tsh (tarray tint 16384) values; data_at_ Tsh (tarray tint 16384) keys;
          data_at sh (tarray (tptr tint) 3) res resp;
+         fold_right sepcon emp (map (data_at_ Tsh tint) (sublist i 3 res));
+         fold_right sepcon emp (map (malloc_token Tsh (sizeof tint)) res);
          data_at sh (tarray (tptr (Tstruct _lock_t noattr)) 3) locks locksp;
+         fold_right sepcon emp (map (malloc_token Tsh (sizeof (Tstruct _lock_t noattr))) locks);
          fold_right sepcon emp (map (fun j => lock_inv (if zlt j i then sh1 else Tsh) (Znth j locks Vundef)
            (f_lock_pred sh2 (Znth j shs Share.bot) entries m_entries j locksp (Znth j locks Vundef)
            resp (Znth j res Vundef))) (upto 3)))).
