@@ -99,7 +99,7 @@ Lemma typecheck_lvalue_Evar:
   forall {CS: compspecs} i t pt Delta rho m, typecheck_environ Delta rho ->
            denote_tc_assert (typecheck_lvalue Delta (Evar i t)) rho m ->
            is_pointer_type pt = true ->
-           typecheck_val (eval_lvalue (Evar i t) rho) pt = true.
+           tc_val pt (eval_lvalue (Evar i t) rho).
 Proof.
 intros.
 simpl in *. unfold eval_var.
@@ -121,7 +121,7 @@ destruct H as [H _].
 specialize (H Heqo).
 
 {destruct H.
-rewrite H in *. rewrite eqb_type_refl in *. destruct pt; auto.
+rewrite H in *. rewrite eqb_type_refl in *. destruct pt; inv H1; auto.
 }
 {remember ((glob_types Delta) ! i). destruct o; try congruence.
 simpl in *. super_unfold_lift.
@@ -143,13 +143,13 @@ Lemma typecheck_expr_sound_Efield:
   forall {CS: compspecs} Delta rho e i t m
   (H: typecheck_environ Delta rho)
   (IHe: (denote_tc_assert (typecheck_expr Delta e) rho m ->
-          typecheck_val (eval_expr e rho) (typeof e) = true) /\
+          tc_val (typeof e) (eval_expr e rho)) /\
           (forall pt : type,
           denote_tc_assert (typecheck_lvalue Delta e) rho m ->
           is_pointer_type pt = true ->
-          typecheck_val (eval_lvalue e rho) pt = true))
+          tc_val pt (eval_lvalue e rho)))
   (H0: denote_tc_assert (typecheck_expr Delta (Efield e i t)) rho m),
-  typecheck_val (eval_expr (Efield e i t) rho) (typeof (Efield e i t)) = true.
+  tc_val (typeof (Efield e i t)) (eval_expr (Efield e i t) rho).
 Proof.
 intros.
 simpl in *. super_unfold_lift.
@@ -169,6 +169,8 @@ destruct (typeof e); try now inv H3.
 + destruct (cenv_cs ! i0) as [co |]; try now inv H3.
   destruct (field_offset cenv_cs i (co_members co)); try now inv H3.
   destruct (eval_lvalue e (mkEnviron ge ve te)); try now inv H.
+  destruct t; auto; try inversion H2.
+  destruct f; inv H2.
 + destruct (cenv_cs ! i0) as [co |]; try now inv H3.
   destruct (eval_lvalue e (mkEnviron ge ve te)); try now inv H.
 Qed.

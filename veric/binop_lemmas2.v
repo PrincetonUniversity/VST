@@ -152,10 +152,10 @@ extensionality rho.
  apply pred_ext; intuition.
 Qed.
 
-Lemma typecheck_val_void:
-  forall v, typecheck_val v Tvoid = true -> False.
+Lemma tc_val_void:
+  forall v, tc_val Tvoid v <-> False.
 Proof.
-destruct v; simpl; congruence.
+destruct v; simpl; tauto.
 Qed.
 
 Definition denote_tc_assert' {CS: compspecs} (a: tc_assert) (rho: environ) : mpred.
@@ -668,7 +668,7 @@ omega.
 compute; congruence.
 Qed.
 
-Definition typecheck_numeric_val (v: val) (t: type) : Prop :=
+Definition tc_numeric_val (v: val) (t: type) : Prop :=
  match v,t with
  | Vint _, Tint _ _ _ => True
  | Vlong _, Tlong _ _ => True
@@ -676,23 +676,23 @@ Definition typecheck_numeric_val (v: val) (t: type) : Prop :=
  | _, _ => False
  end.
 
-
-Lemma typecheck_val_of_bool:
- forall x i3 s3 a3, typecheck_val (Val.of_bool x) (Tint i3 s3 a3) = true.
+Lemma tc_val_of_bool:
+ forall x i3 s3 a3, tc_val (Tint i3 s3 a3) (Val.of_bool x).
 Proof.
 intros.
-destruct x, i3,s3; simpl; auto.
+destruct x, i3,s3; simpl; try split; auto;
+rewrite <- Z.leb_le;
+reflexivity.
 Qed.
 
-Lemma typecheck_val_sem_cmp:
+Lemma tc_val_sem_cmp:
  forall op v1 t1 v2 t2 i3 s3 a3,
- typecheck_numeric_val v1 t1 ->
- typecheck_numeric_val v2 t2 ->
-typecheck_val
-  (force_val
-     (Cop2.sem_cmp op t1 t2 v1 v2))
-  (Tint i3 s3 a3) = true.
+ tc_numeric_val v1 t1 ->
+ tc_numeric_val v2 t2 ->
+tc_val (Tint i3 s3 a3)
+  (force_val (Cop2.sem_cmp op t1 t2 v1 v2)).
 Proof.
+Opaque tc_val.
 destruct op; intros;
 destruct v1;
   destruct t1 as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
@@ -703,10 +703,11 @@ destruct v2;
  unfold Cop2.sem_cmp, classify_cmp, typeconv,
   Cop2.sem_binarith, Cop2.sem_cast, classify_cast;
  simpl;
- try apply typecheck_val_of_bool.
+try apply tc_val_of_bool.
+Transparent tc_val.
 Qed.
 
-Lemma typecheck_val_cmp_eqne_ip:
+Lemma tc_val_cmp_eqne_ip:
  forall op v1 t1 v2 t0 a0 i2 s0 a1,
  match op with Ceq => True | Cne => True | _ => False end ->
  match v1,t1 with
@@ -714,12 +715,11 @@ Lemma typecheck_val_cmp_eqne_ip:
  | Vlong i, Tlong _ _ => Int.eq (Int.repr (Int64.unsigned i)) Int.zero = true
  | _, _ => False
  end ->
- typecheck_val v2 (Tpointer t0 a0) = true ->
-typecheck_val
-  (force_val
-     (Cop2.sem_cmp op t1 (Tpointer t0 a0) v1 v2))
-  (Tint i2 s0 a1) = true.
+ tc_val (Tpointer t0 a0) v2 ->
+tc_val (Tint i2 s0 a1)
+  (force_val (Cop2.sem_cmp op t1 (Tpointer t0 a0) v1 v2)).
 Proof.
+Opaque tc_val.
 intros until 1; rename H into CMP; intros;
  destruct op; try contradiction CMP; clear CMP;
  destruct v1, t1; try contradiction H;
@@ -729,10 +729,11 @@ unfold Cop2.sem_cmp, classify_cmp, typeconv,
   Cop2.sem_binarith, sem_cast, classify_cast, sem_cmp_pp;
  simpl; try rewrite H;
  try reflexivity;
- try apply typecheck_val_of_bool.
+ try apply tc_val_of_bool.
+Transparent tc_val.
 Qed.
 
-Lemma typecheck_val_cmp_eqne_pi:
+Lemma tc_val_cmp_eqne_pi:
  forall op v1 t1 v2 t0 a0 i2 s0 a1,
  match op with Ceq => True | Cne => True | _ => False end ->
  match v1,t1 with
@@ -740,12 +741,11 @@ Lemma typecheck_val_cmp_eqne_pi:
  | Vlong i, Tlong _ _ => Int.eq (Int.repr (Int64.unsigned i)) Int.zero = true
  | _, _ => False
  end ->
- typecheck_val v2 (Tpointer t0 a0) = true ->
-typecheck_val
-  (force_val
-     (Cop2.sem_cmp op (Tpointer t0 a0) t1 v2 v1))
-  (Tint i2 s0 a1) = true.
+tc_val (Tpointer t0 a0) v2 ->
+tc_val (Tint i2 s0 a1) 
+  (force_val (Cop2.sem_cmp op (Tpointer t0 a0) t1 v2 v1)).
 Proof.
+Opaque tc_val.
 intros until 1; rename H into CMP; intros.
  destruct op; try contradiction CMP; clear CMP;
  destruct v1, t1; try contradiction H;
@@ -755,7 +755,8 @@ unfold Cop2.sem_cmp, classify_cmp, typeconv,
   sem_binarith, sem_cast, classify_cast, sem_cmp_pp;
  simpl; try rewrite H;
  try reflexivity;
- try apply typecheck_val_of_bool.
+ try apply tc_val_of_bool.
+Transparent tc_val.
 Qed.
 
 
@@ -780,4 +781,4 @@ match t1 with
                   destruct A eqn:?; try contradiction; clear H
             end;
   try reflexivity;
-  try apply typecheck_val_of_bool.
+  try apply tc_val_of_bool.

@@ -889,48 +889,11 @@ match tl,el with
 | _, _ => tc_FF wrong_signature
 end.
 
-Definition typecheck_val (v: val) (ty: type) : bool :=
- match v, ty with
- | Vint i, Tint sz sg _ =>
-  match v with
-  | Vint i =>
-    match sz, sg with
-    | I8, Signed => andb (Z.leb Byte.min_signed (Int.signed i))
-                                      (Z.leb (Int.signed i) Byte.max_signed)
-    | I8, Unsigned => Z.leb (Int.unsigned i) Byte.max_unsigned
-    | I16, Signed => andb (Z.leb (-two_p (16-1)) (Int.signed i))
-                                        (Z.leb (Int.signed i) (two_p (16-1) -1))
-    | I16, Unsigned => Z.leb (Int.unsigned i) (two_p 16 - 1)
-    | I32, _ => true
-    | IBool, _ => orb (Int.eq i Int.zero) (Int.eq i Int.one)
-    end
-  | _ => false
-  end
- | Vlong i, Tlong _ _ => true
- | Vfloat v, Tfloat F64 _ => true
- | Vsingle v, Tfloat F32 _ => true
- | Vint i, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ ) =>
-                    (Int.eq i Int.zero)
-(* | Vlong i, (Tpointer _ _ | Tarray _ _ _ | Tfunction _ _ _ | Tcomp_ptr _ _) =>
-                    (Int64.eq i Int64.zero)  *)
- | Vptr b z,  (Tpointer _ _ | Tarray _ _ _
-                   | Tfunction _ _ _ | Tstruct _ _ | Tunion _ _) => true
- | Vundef, _ => false
- | _, _ => false
- end.
-
-Fixpoint typecheck_vals (v: list val) (ty: list type) : bool :=
- match v, ty with
- | v1::vs , t1::ts => typecheck_val v1 t1 && typecheck_vals vs ts
- | nil, nil => true
- | _, _ => false
-end.
-
 (** Environment typechecking functions **)
 
 Definition typecheck_temp_environ
 (te: tenviron) (tc: PTree.t (type * bool)) :=
-forall id b ty , tc ! id = Some (ty,b) -> exists v, (Map.get te id = Some v /\ ((is_true (negb b)) \/ (typecheck_val v ty) = true)).
+forall id b ty , tc ! id = Some (ty,b) -> exists v, (Map.get te id = Some v /\ ((is_true (negb b)) \/ tc_val ty v)).
 
 Definition typecheck_var_environ
 (ve: venviron) (tc: PTree.t type) :=
@@ -940,7 +903,7 @@ Definition typecheck_glob_environ
 (ge: genviron) (tc: PTree.t type) :=
 forall id  t,  tc ! id = Some t ->
 ((exists b,
-(ge id = Some b /\ typecheck_val (Vptr b Int.zero) t = true))).
+(ge id = Some b /\ tc_val t (Vptr b Int.zero)))).
 
 Definition same_env (rho:environ) (Delta:tycontext)  :=
 forall id t, (glob_types Delta) ! id = Some t ->
@@ -1071,26 +1034,6 @@ Qed.
 
 Lemma int_eq_e: forall i j, Int.eq i j = true -> i=j.
 Proof. intros. pose proof (Int.eq_spec i j); rewrite H in H0; auto. Qed.
-
-Lemma tc_val_eq: tc_val = fun t v => typecheck_val v t = true.
-Proof.
-extensionality t v.
-unfold tc_val.
-destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ] , v; try reflexivity;
-apply prop_ext; intuition; try apply I;
-simpl in *; subst;
-try apply Int.eq_true;
-try solve [apply int_eq_e; auto];
-try solve [try (rewrite andb_true_iff; split); rewrite <- Zle_is_le_bool; omega];
-try solve [try (rewrite andb_true_iff in H; destruct H; split);
-               rewrite -> Zle_is_le_bool; auto];
-try solve [rewrite orb_true_iff; destruct H; [left | right]; subst; apply Int.eq_true];
-try solve [rewrite orb_true_iff in H; destruct H; [left | right];  apply int_eq_e; auto].
-Qed.
-
-Lemma tc_val_eq':
-  forall t v, (typecheck_val v t = true) =  tc_val t v.
-Proof. intros. rewrite tc_val_eq. auto. Qed.
 
 Lemma two_p_neg:
  forall n, n<0 -> two_p n = 0.

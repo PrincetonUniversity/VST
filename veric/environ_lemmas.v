@@ -187,23 +187,24 @@ intros [ge ve te]  [A B C D E] [A1 B1 C1 D1 E1] [A2 B2 C2 D2 E2]
  unfold var_types in *; simpl in *; auto. congruence.
 Qed.
 
-Lemma typecheck_val_ptr_lemma {CS: compspecs} :
+Lemma tc_val_ptr_lemma {CS: compspecs} :
    forall rho m Delta id t a,
    typecheck_environ Delta rho ->
    denote_tc_assert (typecheck_expr Delta (Etempvar id (Tpointer t a))) rho m ->
    (*(temp_types Delta) ! id =  Some (Tpointer t a, init) ->*) (*modified for init changes*)
    strict_bool_val (eval_id id rho) (Tpointer t a) = Some true ->
-   typecheck_val (eval_id id rho) (Tpointer t a) = true.
+   tc_val (Tpointer t a) (eval_id id rho).
 Proof.
-intros. unfold strict_bool_val in *. unfold typecheck_val.
+intros. unfold strict_bool_val in *. unfold tc_val.
 destruct (eval_id id rho); try congruence.
-destruct (Int.eq i Int.zero); try congruence.
++ destruct (Int.eq i Int.zero); try congruence.
++ simpl; auto.
 Qed.
 
 Lemma typecheck_environ_put_te : forall ge te ve Delta id v ,
 typecheck_environ  Delta (mkEnviron ge ve te) ->
 (forall t , ((temp_types Delta) ! id = Some t ->
-  (typecheck_val v (fst t)) = true)) ->
+  (tc_val (fst t) v))) ->
 typecheck_environ  Delta (mkEnviron ge ve (Map.set id v te)).
 Proof.
 intros. unfold typecheck_environ in *. simpl in *.
@@ -221,7 +222,7 @@ Qed.
 Lemma typecheck_environ_put_te' : forall ge te ve Delta id v ,
 typecheck_environ  Delta (mkEnviron ge ve te) ->
 (forall t , ((temp_types Delta) ! id = Some t ->
-  (typecheck_val v (fst t)) = true)) ->
+  (tc_val (fst t) v))) ->
 typecheck_environ (initialized id Delta) (mkEnviron ge ve (Map.set id v te)).
 Proof.
 intros.

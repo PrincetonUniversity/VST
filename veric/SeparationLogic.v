@@ -151,7 +151,7 @@ match v1, v2 with
 
 Definition denote_tc_initialized id ty rho : mpred :=
     prop (exists v, Map.get (te_of rho) id = Some v
-               /\ is_true (typecheck_val v ty)).
+               /\ tc_val ty v).
 
 Definition denote_tc_isptr v : mpred :=
   prop (isptr v).
