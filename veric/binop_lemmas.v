@@ -183,6 +183,28 @@ destruct ii,ss; simpl; try split; auto;
 rewrite <- Z.leb_le; reflexivity.
 Qed.
 
+Inductive tc_val_PM: type -> val -> Prop :=
+| tc_val_PM_Tint: forall sz sg a v, is_int sz sg v -> tc_val_PM (Tint sz sg a) v
+| tc_val_PM_Tlong: forall s a v, is_long v -> tc_val_PM (Tlong s a) v
+| tc_val_PM_Tfloat_single: forall a v, is_single v -> tc_val_PM (Tfloat F32 a) v
+| tc_val_PM_Tfloat_double: forall a v, is_float v -> tc_val_PM (Tfloat F64 a) v
+| tc_val_PM_Tpointer: forall t a v, is_pointer_or_null v -> tc_val_PM (Tpointer t a) v
+| tc_val_PM_Tarray: forall t n a v, is_pointer_or_null v -> tc_val_PM (Tarray t n a) v
+| tc_val_PM_Tfunction: forall ts t a v, is_pointer_or_null v -> tc_val_PM (Tfunction ts t a) v
+| tc_val_PM_Tstruct: forall i a v, isptr v -> tc_val_PM (Tstruct i a) v
+| tc_val_PM_Tunion: forall i a v, isptr v -> tc_val_PM (Tunion i a) v.
+
+Lemma tc_val_tc_val_PM: forall t v, tc_val t v <-> tc_val_PM t v.
+Proof.
+  intros.
+  split; intros.
+  + destruct t as [| | | [ | ] ? | | | | |]; try (inv H); constructor; auto.
+  + inversion H; subst; auto.
+Qed.
+
+Ltac solve_tc_val H :=
+  rewrite tc_val_tc_val_PM in H; inv H.
+
 Lemma typecheck_binop_sound:
 forall op {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
    (IBR: denote_tc_assert (isBinOpResultType op e1 e2 t) rho m)
@@ -191,6 +213,13 @@ forall op {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
    tc_val t
      (eval_binop op (typeof e1) (typeof e2) (eval_expr e1 rho) (eval_expr e2 rho)).
 Proof.
+  destruct op;
+  intros;
+  rewrite den_isBinOpR in IBR; simpl in IBR;
+  unfold binarithType in IBR;
+  solve_tc_val TV1; solve_tc_val TV2.
+  rewrite <- H, <- H1 in IBR.
+
 Time (* reduced from 548.6 sec to 192 sec *)
 destruct op;
 (*try abstract ( *)
