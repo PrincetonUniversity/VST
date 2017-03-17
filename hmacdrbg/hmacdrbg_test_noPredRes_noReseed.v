@@ -25,6 +25,62 @@ Definition CheckWS (WS:DRBG_functions.DRBG_working_state)
    zeq reseedcounter rc = true
   end.
 
+(*no personalization string, no additional input*)
+Definition Check_A (entropy nonce Value0 Key0 Value1 Key1 Bits Value2 Key2: string) :=
+  let ws0 := Instantiate entropy nonce ""
+  in match Generate ws0 nil with 
+       DRBG_functions.generate_algorithm_success Bits1 ws1 =>
+         match Generate ws1 nil with
+             DRBG_functions.generate_algorithm_success Bits2 ws2 =>
+             CheckWS ws0 Value0 Key0 1 /\ CheckWS ws1 Value1 Key1 2 /\  
+             CheckWS ws2 Value2 Key2 3 /\ Bits2 = hexstring_to_Zlist Bits
+         | err => False
+         end
+    | err => False
+    end.
+
+(*no personalization string, but additional input*)
+Definition Check_B (entropy nonce Value0 Key0 addInput1 Value1 Key1 addInput2 Bits Value2 Key2: string) :=
+  let ws0 := Instantiate entropy nonce ""
+  in match Generate ws0 (hexstring_to_Zlist addInput1) with 
+       DRBG_functions.generate_algorithm_success Bits1 ws1 =>
+         match Generate ws1 (hexstring_to_Zlist addInput2) with
+             DRBG_functions.generate_algorithm_success Bits2 ws2 =>
+             CheckWS ws0 Value0 Key0 1 /\ CheckWS ws1 Value1 Key1 2 /\  
+             CheckWS ws2 Value2 Key2 3 /\ Bits2 = hexstring_to_Zlist Bits
+         | err => False
+         end
+    | err => False
+    end.
+
+(*personalization string, no additional input*)
+Definition Check_C (entropy nonce pers Value0 Key0 Value1 Key1 Bits Value2 Key2: string) :=
+  let ws0 := Instantiate entropy nonce pers
+  in match Generate ws0 nil with 
+       DRBG_functions.generate_algorithm_success Bits1 ws1 =>
+         match Generate ws1 nil with
+             DRBG_functions.generate_algorithm_success Bits2 ws2 =>
+             CheckWS ws0 Value0 Key0 1 /\ CheckWS ws1 Value1 Key1 2 /\  
+             CheckWS ws2 Value2 Key2 3 /\ Bits2 = hexstring_to_Zlist Bits
+         | err => False
+         end
+    | err => False
+    end.
+
+(*personalization string, additional input*)
+Definition Check_D (entropy nonce pers Value0 Key0 addInput1 Value1 Key1 addInput2 Bits Value2 Key2: string) :=
+  let ws0 := Instantiate entropy nonce pers
+  in match Generate ws0 (hexstring_to_Zlist addInput1) with 
+       DRBG_functions.generate_algorithm_success Bits1 ws1 =>
+         match Generate ws1 (hexstring_to_Zlist addInput2) with
+             DRBG_functions.generate_algorithm_success Bits2 ws2 =>
+             CheckWS ws0 Value0 Key0 1 /\ CheckWS ws1 Value1 Key1 2 /\  
+             CheckWS ws2 Value2 Key2 3 /\ Bits2 = hexstring_to_Zlist Bits
+         | err => False
+         end
+    | err => False
+    end.
+
 Module TestSection8424_8685.
 (*Relevant Section of HMAC_DRBG.txt: lines 8424 -- 8685
 [SHA-256]
@@ -74,21 +130,9 @@ Lemma Generate0_2: exists ws, Gen0_2 = DRBG_functions.generate_algorithm_success
                                        CheckWS ws Value0_2 Key0_2 3.
 Proof. vm_compute. eexists. split; reflexivity. Qed.
 
-Definition Check_8424_8685 (entropy nonce Value0 Key0 Value1 Key1 Bits Value2 Key2: string) :=
-  let ws0 := Instantiate entropy nonce ""
-  in match Generate ws0 nil with 
-       DRBG_functions.generate_algorithm_success Bits1 ws1 =>
-         match Generate ws1 nil with
-             DRBG_functions.generate_algorithm_success Bits2 ws2 =>
-             CheckWS ws0 Value0 Key0 1 /\ CheckWS ws1 Value1 Key1 2 /\  
-             CheckWS ws2 Value2 Key2 3 /\ Bits2 = hexstring_to_Zlist Bits
-         | err => False
-         end
-    | err => False
-    end.
 
 Lemma Check_8424_8685_COUNT0: 
-      Check_8424_8685
+      Check_A
   (*entropy*) "ca851911349384bffe89de1cbdc46e6831e44d34a4fb935ee285dd14b71a7488" 
   (*nonce*)   "659ba96c601dc69fc902940805ec0ca8"
   (*Value0*)  "e75855f93b971ac468d200992e211960202d53cf08852ef86772d6490bfb53f9"
@@ -99,7 +143,7 @@ Lemma Check_8424_8685_COUNT0:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8424_8685_COUNT1: 
-      Check_8424_8685
+      Check_A
       "79737479ba4e7642a221fcfd1b820b134e9e3540a35bb48ffae29c20f5418ea3"
       "3593259c092bef4129bc2c6c9e19f343"
       "b57cb403b6cd62860139c3484c9a5998fd0d82670846a765a87c9ead65f663c5"
@@ -112,7 +156,7 @@ Lemma Check_8424_8685_COUNT1:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8424_8685_COUNT2:
-      Check_8424_8685
+      Check_A
            "b340907445b97a8b589264de4a17c0bea11bb53ad72f9f33297f05d2879d898d"
            "65cb27735d83c0708f72684ea58f7ee5"
 	           "0b8e71f560cbe2b358684fc682ba7837480017785266d698a49c0bdf02a65eda"
@@ -125,7 +169,7 @@ Lemma Check_8424_8685_COUNT2:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8424_8685_COUNT3: 
-      Check_8424_8685
+      Check_A
            "8e159f60060a7d6a7e6fe7c9f769c30b98acb1240b25e7ee33f1da834c0858e7"
            "c39d35052201bdcce4e127a04f04d644"
 	           "ec970281607ce9a5e6fec81f018351173f7ea2accaa00d2e229c91f86c255eea"
@@ -138,7 +182,7 @@ Lemma Check_8424_8685_COUNT3:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8424_8685_COUNT4: 
-      Check_8424_8685
+      Check_A
            "74755f196305f7fb6689b2fe6835dc1d81484fc481a6b8087f649a1952f4df6a"
            "c36387a544a5f2b78007651a7b74b749"
 	           "b80f5b61e4095fc3191d9abd3f64ae42eaf59062f6f1c9d0302f3192addd9d0f"
@@ -151,7 +195,7 @@ Lemma Check_8424_8685_COUNT4:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8424_8685_COUNT5: 
-      Check_8424_8685
+      Check_A
            "4b222718f56a3260b3c2625a4cf80950b7d6c1250f170bd5c28b118abdf23b2f"
            "7aed52d0016fcaef0b6492bc40bbe0e9"
 	           "b52d87fcf3249f61e9c73af4c3e0c949579aa580dd7271399b22490671a49792"
@@ -164,7 +208,7 @@ Lemma Check_8424_8685_COUNT5:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8424_8685_COUNT6: 
-      Check_8424_8685
+      Check_A
            "b512633f27fb182a076917e39888ba3ff35d23c3742eb8f3c635a044163768e0"
            "e2c39b84629a3de5c301db5643af1c21"
 	           "e46a05a9268ecc00ecc3310947baa11d1ccd42cedd0ed80d78b6fb43bfd1b903"
@@ -177,7 +221,7 @@ Lemma Check_8424_8685_COUNT6:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8424_8685_COUNT7: 
-      Check_8424_8685
+      Check_A
            "aae3ffc8605a975befefcea0a7a286642bc3b95fb37bd0eb0585a4cabf8b3d1e"
            "9504c3c0c4310c1c0746a036c91d9034"
 	           "4e24e7f387135fdc233ad60089c247c568573a97aac6420ddc581b76e7a3d663"
@@ -190,7 +234,7 @@ Lemma Check_8424_8685_COUNT7:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8424_8685_COUNT8: 
-      Check_8424_8685
+      Check_A
            "b9475210b79b87180e746df704b3cbc7bf8424750e416a7fbb5ce3ef25a82cc6"
            "24baf03599c10df6ef44065d715a93f7"
 	           "0a56aaa8f57f86d4a9a9c7e521eb4dba4f1d2e8c6299d4b0119743301a773b4b"
@@ -203,7 +247,7 @@ Lemma Check_8424_8685_COUNT8:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8424_8685_COUNT9: 
-      Check_8424_8685
+      Check_A
            "27838eb44ceccb4e36210703ebf38f659bc39dd3277cd76b7a9bcd6bc964b628"
            "39cfe0210db2e7b0eb52a387476e7ea1"
 	           "0fd98ec7cbed31cdea2ae2277da8576ceec36ced6dbb0311b8a6630a5b35435a"
@@ -216,7 +260,7 @@ Lemma Check_8424_8685_COUNT9:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8424_8685_COUNT10: 
-      Check_8424_8685
+      Check_A
            "d7129e4f47008ad60c9b5d081ff4ca8eb821a6e4deb91608bf4e2647835373a5"
            "a72882773f78c2fc4878295840a53012"
 	           "e831c88f8d20edd22c2ec13b094a9140e1bddb1e19c5041dd5079b37971d9ab2"
@@ -229,7 +273,7 @@ Lemma Check_8424_8685_COUNT10:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8424_8685_COUNT11: 
-      Check_8424_8685
+      Check_A
            "67fe5e300c513371976c80de4b20d4473889c9f1214bce718bc32d1da3ab7532"
            "e256d88497738a33923aa003a8d7845c"
 	           "4cff638a9926fd3d53055516bd146ed44998b09cff0e8fb8fb10f78609e83068"
@@ -242,7 +286,7 @@ Lemma Check_8424_8685_COUNT11:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8424_8685_COUNT12: 
-      Check_8424_8685
+      Check_A
            "de8142541255c46d66efc6173b0fe3ffaf5936c897a3ce2e9d5835616aafa2cb"
            "d01f9002c407127bc3297a561d89b81d"
 	           "162b13fdafaecf6c2d8dbfc2e40a84ce707691f741030a0d34c28d36af4362f2"
@@ -255,7 +299,7 @@ Lemma Check_8424_8685_COUNT12:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8424_8685_COUNT13: 
-      Check_8424_8685
+      Check_A
            "4a8e0bd90bdb12f7748ad5f147b115d7385bb1b06aee7d8b76136a25d779bcb7"
            "7f3cce4af8c8ce3c45bdf23c6b181a00"
 	           "f85a9ec074983762f1d47fc6bf4d348a4faa10b44bf1405e4e5840ed0c8a6697"
@@ -268,7 +312,7 @@ Lemma Check_8424_8685_COUNT13:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8424_8685_COUNT14: 
-      Check_8424_8685
+      Check_A
            "451ed024bc4b95f1025b14ec3616f5e42e80824541dc795a2f07500f92adc665"
            "2f28e6ee8de5879db1eccd58c994e5f0"
 	           "fcc4d72fbbaab8ab9b461fb37f122fa43ed9250c492d0c7d6530f40afc181593"
@@ -292,21 +336,9 @@ Module TestSection8687_8948.
 [AdditionalInputLen = 256]
 [ReturnedBitsLen = 1024]
 *)
-Definition Check_8687_8948 (entropy nonce Value0 Key0 addInput1 Value1 Key1 addInput2 Bits Value2 Key2: string) :=
-  let ws0 := Instantiate entropy nonce ""
-  in match Generate ws0 (hexstring_to_Zlist addInput1) with 
-       DRBG_functions.generate_algorithm_success Bits1 ws1 =>
-         match Generate ws1 (hexstring_to_Zlist addInput2) with
-             DRBG_functions.generate_algorithm_success Bits2 ws2 =>
-             CheckWS ws0 Value0 Key0 1 /\ CheckWS ws1 Value1 Key1 2 /\  
-             CheckWS ws2 Value2 Key2 3 /\ Bits2 = hexstring_to_Zlist Bits
-         | err => False
-         end
-    | err => False
-    end.
 
 Lemma Check_8687_8948_COUNT0: 
-      Check_8687_8948
+      Check_B
          "d3cc4d1acf3dde0c4bd2290d262337042dc632948223d3a2eaab87da44295fbd"
          "0109b0e729f457328aa18569a9224921"
          "ce2b227a459d2fb4058b1a7bf88be68f2f60bc3d2d9d178375198173b1932684"
@@ -321,7 +353,7 @@ Lemma Check_8687_8948_COUNT0:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8687_8948_COUNT1:
-      Check_8687_8948 "f97a3cfd91faa046b9e61b9493d436c4931f604b22f1081521b3419151e8ff06"
+      Check_B "f97a3cfd91faa046b9e61b9493d436c4931f604b22f1081521b3419151e8ff06"
         "11f3a7d43595357d58120bd1e2dd8aed"
 	      "5a0d3b60a40a7b0d653b679d4bea9e12f7ae541fbdaf905f47d2de1409b84288"
 	      "b9ebe961ac9bfd242644f8147a118495e658caa4dc06130687273aea796560a1"
@@ -335,7 +367,7 @@ Lemma Check_8687_8948_COUNT1:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8687_8948_COUNT2:
-      Check_8687_8948 "0f2f23d64f481cabec7abb01db3aabf125c3173a044b9bf26844300b69dcac8b"
+      Check_B "0f2f23d64f481cabec7abb01db3aabf125c3173a044b9bf26844300b69dcac8b"
          "9a5ae13232b43aa19cfe8d7958b4b590"
 	       "665c452d966fffcacc78cf6f0081036aa86fe10bdd758df8642f217b6d10ba60"
 	       "52ffd881747b54347ddc8f9cbdf1248c13e30d74e1b92640e05c03a43ab42b28"
@@ -349,7 +381,7 @@ Lemma Check_8687_8948_COUNT2:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8687_8948_COUNT3:
-      Check_8687_8948 "53c56660c78481be9c63284e005fcc14fbc7fb27732c9bf1366d01a426765a31"
+      Check_B "53c56660c78481be9c63284e005fcc14fbc7fb27732c9bf1366d01a426765a31"
          "dc7a14d0eb5b0b3534e717a0b3c64614"
 	       "0883c582eef706ec27a6b982f61475fe2bc4c1eb2fb1554a99727f9e735a3b92"
 	       "30b3f8ab8085dcb1a64ed2440726cc9de1542b751d11bd3385072384d6ae4d91"
@@ -363,7 +395,7 @@ Lemma Check_8687_8948_COUNT3:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8687_8948_COUNT4:
-      Check_8687_8948 "f63c804404902db334c54bb298fc271a21d7acd9f770278e089775710bf4fdd7"
+      Check_B "f63c804404902db334c54bb298fc271a21d7acd9f770278e089775710bf4fdd7"
          "3e45009ea9cb2a36ba1aa4bf39178200"
 	       "e6080cfc008f636581de1045ef6bc22c4598c64bb2941d68544098abd38590d4"
 	       "3b6c4fb17403947fe8b298ae3bb00642f1818dd232a0b2e281467354c0668987"
@@ -377,7 +409,7 @@ Lemma Check_8687_8948_COUNT4:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8687_8948_COUNT5:
-      Check_8687_8948 "2aaca9147da66c176615726b69e3e851cc3537f5f279fe7344233d8e44cfc99d"
+      Check_B "2aaca9147da66c176615726b69e3e851cc3537f5f279fe7344233d8e44cfc99d"
          "4e171f080af9a6081bee9f183ac9e340"
 	       "15bde5c9833efa6cd30a2659f0f92b2567a0a95e89701255712ebe9ea9f21c1e"
 	       "0aa1b42ef19f782dd5933a733c476f57db34783bb92c3ba4d4bee5a98c891869"
@@ -391,7 +423,7 @@ Lemma Check_8687_8948_COUNT5:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8687_8948_COUNT6:
-      Check_8687_8948 "a2e4cd48a5cf918d6f55942d95fcb4e8465cdc4f77b7c52b6fae5b16a25ca306"
+      Check_B "a2e4cd48a5cf918d6f55942d95fcb4e8465cdc4f77b7c52b6fae5b16a25ca306"
          "bef036716440db6e6d333d9d760b7ca8"
 	       "2f1f534e3b1bc903b2b5a2c53978519e31b8a7e4f64d093e2f31d43ecca905ca"
 	       "02a0f7facfff426c2015f475da09f7ed59446b3ed24587fccf92cba409a868b9"
@@ -405,7 +437,7 @@ Lemma Check_8687_8948_COUNT6:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8687_8948_COUNT7:
-      Check_8687_8948 "95a67771cba69011a79776e713145d309edae56fad5fd6d41d83eaff89df6e5e"
+      Check_B "95a67771cba69011a79776e713145d309edae56fad5fd6d41d83eaff89df6e5e"
          "be5b5164e31ecc51ba6f7c3c5199eb33"
 	       "103ba40e9ca58fe0ae6a4231fe613ea0d10e8fd64f8adeb01f893298db874da0"
 	       "b8cfcdd0344eeb97a4f445a1c33980b1e119f93b9b0d280c8802b6c56558d190"
@@ -419,7 +451,7 @@ Lemma Check_8687_8948_COUNT7:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8687_8948_COUNT8:
-      Check_8687_8948 "a459e1815cbca4514ec8094d5ab2414a557ba6fe10e613c345338d0521e4bf90"
+      Check_B "a459e1815cbca4514ec8094d5ab2414a557ba6fe10e613c345338d0521e4bf90"
          "62221392e2552e76cd0d36df6e6068eb"
 	       "15b9c28ad9afe313a5e375582b627e12773d93fff5f49a2776279bd8e20aa980"
 	       "c85bd8f167d455f9d3f42818884e21f161ecb47d85bcbb5534cd40ace086b04e"
@@ -433,7 +465,7 @@ Lemma Check_8687_8948_COUNT8:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8687_8948_COUNT9:
-      Check_8687_8948 "252c2cad613e002478162861880979ee4e323025eebb6fb2e0aa9f200e28e0a1"
+      Check_B "252c2cad613e002478162861880979ee4e323025eebb6fb2e0aa9f200e28e0a1"
          "d001bc9a8f2c8c242e4369df0c191989"
 	       "8709561984595d2857ea43c6e1f1f35006cfc61e29f74140bdb093879e8e6d5d"
 	       "bd3b7f84f150095b07d64171f9cc9d8fbfdd60943b8826ec2258f0eb5f2ab926"
@@ -447,7 +479,7 @@ Lemma Check_8687_8948_COUNT9:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8687_8948_COUNT10:
-      Check_8687_8948 "8be0ca6adc8b3870c9d69d6021bc1f1d8eb9e649073d35ee6c5aa0b7e56ad8a5"
+      Check_B "8be0ca6adc8b3870c9d69d6021bc1f1d8eb9e649073d35ee6c5aa0b7e56ad8a5"
          "9d1265f7d51fdb65377f1e6edd6ae0e4"
 	       "84984757cceb9dabf1e8c3b9c011527736595e5ee1c8f8fc6b13298b9d84e86d"
 	       "f456ff0365f64c5139f4f7135f7638908879489106b9be464c88361c05d6604c"
@@ -461,7 +493,7 @@ Lemma Check_8687_8948_COUNT10:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8687_8948_COUNT11:
-      Check_8687_8948 "d43a75b6adf26d60322284cb12ac38327792442aa8f040f60a2f331b33ac4a8f"
+      Check_B "d43a75b6adf26d60322284cb12ac38327792442aa8f040f60a2f331b33ac4a8f"
          "0682f8b091f811afacaacaec9b04d279"
 	       "ae0c2e2b6287d3b1a7aa89d8cc906d4c29cd6db1160e71edf7ad1420fe2b2432"
 	       "f2426267c6c59921d9b4d382e4b6a19111009a40131d439fc01795d8ff6dbde2"
@@ -475,7 +507,7 @@ Lemma Check_8687_8948_COUNT11:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8687_8948_COUNT12:
-      Check_8687_8948 "64352f236af5d32067a529a8fd05ba00a338c9de306371a0b00c36e610a48d18"
+      Check_B "64352f236af5d32067a529a8fd05ba00a338c9de306371a0b00c36e610a48d18"
          "df99ed2c7608c870624b962a5dc68acd"
 	       "0a7101745f574b3932171f6b6a6ff1529c0f4eb2392ebe26bdfee07f19864791"
 	       "efff1577cc2536f2c36d56227317f207329fd5fa1722739b025fadd9865589ae"
@@ -489,7 +521,7 @@ Lemma Check_8687_8948_COUNT12:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8687_8948_COUNT13:
-      Check_8687_8948 "282f4d2e05a2cd30e9087f5633089389449f04bac11df718c90bb351cd3653a5"
+      Check_B "282f4d2e05a2cd30e9087f5633089389449f04bac11df718c90bb351cd3653a5"
          "90a7daf3c0de9ea286081efc4a684dfb"
 	       "a80038cb47b588bafae0a4dd5dc2cd6c1c994f0a16887dd8475a95b9daa3d3ae"
 	       "69bddaa468856be9b63f3fead90186db61d766e4a3622c73cd15345dbc36d878"
@@ -503,7 +535,7 @@ Lemma Check_8687_8948_COUNT13:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8687_8948_COUNT14:
-      Check_8687_8948 "13c752b9e745ce77bbc7c0dbda982313d3fe66f903e83ebd8dbe4ff0c11380e9"
+      Check_B "13c752b9e745ce77bbc7c0dbda982313d3fe66f903e83ebd8dbe4ff0c11380e9"
          "f1a533095d6174164bd7c82532464ae7"
 	       "694251657eaab2b77877427a31552fdc5f3517fa628319402e75308c343b0573"
 	       "b8f2eea2049fcbb6c2b1f5933d667873b373b097f5b03b799693db9a5e59ab5e"
@@ -528,21 +560,9 @@ Module TestSection8950_9211.
 [AdditionalInputLen = 0]
 [ReturnedBitsLen = 1024]
 *)
-Definition Check_8950_9211 (entropy nonce pers Value0 Key0 Value1 Key1 Bits Value2 Key2: string) :=
-  let ws0 := Instantiate entropy nonce pers
-  in match Generate ws0 nil with 
-       DRBG_functions.generate_algorithm_success Bits1 ws1 =>
-         match Generate ws1 nil with
-             DRBG_functions.generate_algorithm_success Bits2 ws2 =>
-             CheckWS ws0 Value0 Key0 1 /\ CheckWS ws1 Value1 Key1 2 /\  
-             CheckWS ws2 Value2 Key2 3 /\ Bits2 = hexstring_to_Zlist Bits
-         | err => False
-         end
-    | err => False
-    end.
 
 Lemma Check_8950_9211_COUNT0:
-      Check_8950_9211
+      Check_C
        "5cacc68165a2e2ee20812f35ec73a79dbf30fd475476ac0c44fc6174cdac2b55"
        "6f885496c1e63af620becd9e71ecb824"
        "e72dd8590d4ed5295515c35ed6199e9d211b8f069b3058caa6670b96ef1208d0"
@@ -556,7 +576,7 @@ Lemma Check_8950_9211_COUNT0:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8950_9211_COUNT1:
-      Check_8950_9211
+      Check_C
        "8df013b4d103523073917ddf6a869793059e9943fc8654549e7ab22f7c29f122"
        "da2625af2ddd4abcce3cf4fa4659d84e"
        "b571e66d7c338bc07b76ad3757bb2f9452bf7e07437ae8581ce7bc7c3ac651a9"
@@ -570,7 +590,7 @@ Lemma Check_8950_9211_COUNT1:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8950_9211_COUNT2:
-      Check_8950_9211
+      Check_C
        "565b2b77937ba46536b0f693b3d5e4a8a24563f9ef1f676e8b5b2ef17823832f"
        "4ef3064ec29f5b7f9686d75a23d170e3"
        "3b722433226c9dba745087270ab3af2c909425ba6d39f5ce46f07256068319d9"
@@ -584,7 +604,7 @@ Lemma Check_8950_9211_COUNT2:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8950_9211_COUNT3:
-      Check_8950_9211
+      Check_C
        "fc3832a91b1dcdcaa944f2d93cbceb85c267c491b7b59d017cde4add79a836b6"
        "d5e76ce9eabafed06e33a913e395c5e0"
        "ffc5f6eefd51da64a0f67b5f0cf60d7ab43fc7836bca650022a0cee57a43c148"
@@ -598,7 +618,7 @@ Lemma Check_8950_9211_COUNT3:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8950_9211_COUNT4:
-      Check_8950_9211
+      Check_C
        "8009eb2cb49fdf16403bcdfd4a9f952191062acb9cc111eca019f957fb9f4451"
        "355598866952394b1eddd85d59f81c9d"
        "09ff1d4b97d83b223d002e05f754be480d13ba968e5aac306d71cc9fc49cc2dd"
@@ -612,7 +632,7 @@ Lemma Check_8950_9211_COUNT4:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8950_9211_COUNT5:
-      Check_8950_9211
+      Check_C
        "a6e4c9a8bd6da23b9c2b10a7748fd08c4f782fadbac7ea501c17efdc6f6087bd"
        "acdc47edf1d3b21d0aec7631abb6d7d5"
        "c16ee0908a5886dccf332fbc61de9ec7b7972d2c4c83c477409ce8a15c623294"
@@ -626,7 +646,7 @@ Lemma Check_8950_9211_COUNT5:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8950_9211_COUNT6:
-      Check_8950_9211
+      Check_C
        "59d6307460a9bdd392dfc0904973991d585696010a71e52d590a5039b4849fa4"
        "34a0aafb95917cbf8c38fc5548373c05"
        "0407b7c57bc11361747c3d67526c36e228028a5d0b145d66ab9a2fe4b07507a0"
@@ -640,7 +660,7 @@ Lemma Check_8950_9211_COUNT6:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8950_9211_COUNT7:
-      Check_8950_9211
+      Check_C
        "9ae3506aadbc8358696ba1ba17e876e1157b7048235921503d36d9211b430342"
        "9abf7d66afee5d2b811cba358bbc527d"
        "0d645f6238e9ceb038e4af9772426ca110c5be052f8673b8b5a65c4e53d2f519"
@@ -654,7 +674,7 @@ Lemma Check_8950_9211_COUNT7:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8950_9211_COUNT8:
-      Check_8950_9211
+      Check_C
        "96ae3b8775b36da2a29b889ad878941f43c7d51295d47440cd0e3c4999193109"
        "1fe022a6fc0237b055d4d6a7036b18d5"
        "1e40e97362d0a823d3964c26b81ab53825c56446c5261689011886f19b08e5c2"
@@ -668,7 +688,7 @@ Lemma Check_8950_9211_COUNT8:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8950_9211_COUNT9:
-      Check_8950_9211
+      Check_C
        "33f5120396336e51ee3b0b619b5f873db05ca57cda86aeae2964f51480d14992"
        "6f1f6e9807ba5393edcf3cb4e4bb6113"
        "3709605af44d90196867c927512aa8ba31837063337b4879408d91a05c8efa9f"
@@ -682,7 +702,7 @@ Lemma Check_8950_9211_COUNT9:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8950_9211_COUNT10:
-      Check_8950_9211
+      Check_C
        "ad300b799005f290fee7f930eebce158b98fb6cb449987fe433f955456b35300"
        "06aa2514e4bd114edf7ac105cfef2772"
        "87ada711465e4169da2a74c931afb9b5a5b190d07b7af342aa99570401c3ee8a"
@@ -696,7 +716,7 @@ Lemma Check_8950_9211_COUNT10:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8950_9211_COUNT11:
-      Check_8950_9211
+      Check_C
        "130b044e2c15ab89375e54b72e7baae6d4cad734b013a090f4df057e634f6ff0"
        "65fd6ac602cd44107d705dbc066e52b6"
        "f374aba16f34d54aae5e494505b67d3818ef1c08ea24967a76876d4361379aec"
@@ -710,7 +730,7 @@ Lemma Check_8950_9211_COUNT11:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8950_9211_COUNT12:
-      Check_8950_9211
+      Check_C
        "716430e999964b35459c17921fe5f60e09bd9ab234cb8f4ba4932bec4a60a1d5"
        "9533b711e061b07d505da707cafbca03"
        "372ae616d1a1fc45c5aecad0939c49b9e01c93bfb40c835eebd837af747f079d"
@@ -724,7 +744,7 @@ Lemma Check_8950_9211_COUNT12:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8950_9211_COUNT13:
-      Check_8950_9211
+      Check_C
        "7679f154296e6d580854826539003a82d1c54e2e062c619d00da6c6ac820789b"
        "55d12941b0896462e7d888e5322a99a3"
        "ba4d1ed696f58ef64596c76cee87cc1ca83069a79e7982b9a06f9d62f4209faf"
@@ -738,7 +758,7 @@ Lemma Check_8950_9211_COUNT13:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_8950_9211_COUNT14:
-      Check_8950_9211
+      Check_C
        "8ca4a964e1ff68753db86753d09222e09b888b500be46f2a3830afa9172a1d6d"
        "a59394e0af764e2f21cf751f623ffa6c"
        "eb8164b3bf6c1750a8de8528af16cffdf400856d82260acd5958894a98afeed5"
@@ -763,21 +783,9 @@ Module TestSection9213_9474.
 [AdditionalInputLen = 256]
 [ReturnedBitsLen = 1024]
 *)
-Definition Check_9213_9474 (entropy nonce pers Value0 Key0 addInput1 Value1 Key1 addInput2 Bits Value2 Key2: string) :=
-  let ws0 := Instantiate entropy nonce pers
-  in match Generate ws0 (hexstring_to_Zlist addInput1) with 
-       DRBG_functions.generate_algorithm_success Bits1 ws1 =>
-         match Generate ws1 (hexstring_to_Zlist addInput2) with
-             DRBG_functions.generate_algorithm_success Bits2 ws2 =>
-             CheckWS ws0 Value0 Key0 1 /\ CheckWS ws1 Value1 Key1 2 /\  
-             CheckWS ws2 Value2 Key2 3 /\ Bits2 = hexstring_to_Zlist Bits
-         | err => False
-         end
-    | err => False
-    end.
 
 Lemma Check_9213_9474_COUNT0:
-      Check_9213_9474
+      Check_D
         "5d3286bc53a258a53ba781e2c4dcd79a790e43bbe0e89fb3eed39086be34174b"
         "c5422294b7318952ace7055ab7570abf"
         "2dba094d008e150d51c4135bb2f03dcde9cbf3468a12908a1b025c120c985b9d"
@@ -793,7 +801,7 @@ Lemma Check_9213_9474_COUNT0:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9213_9474_COUNT1:
-      Check_9213_9474
+      Check_D
         "c2a566a9a1817b15c5c3b778177ac87c24e797be0a845f11c2fe399dd37732f2"
         "cb1894eb2b97b3c56e628329516f86ec"
         "13ce4d8dd2db9796f94156c8e8f0769b0aa1c82c1323b61536603bca37c9ee29"
@@ -809,7 +817,7 @@ Lemma Check_9213_9474_COUNT1:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9213_9474_COUNT2:
-      Check_9213_9474
+      Check_D
         "a33288a96f41dd54b945e060c8bd0c094f1e28267cc1dcbba52063c1a9d54c4d"
         "36918c977e1a7276a2bb475591c367b7"
         "6aa528c940962638dc2201738850fd1fe6f5d0eb9f687ff1af39d9c7b36830d9"
@@ -825,7 +833,7 @@ Lemma Check_9213_9474_COUNT2:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9213_9474_COUNT3:
-      Check_9213_9474
+      Check_D
         "5f37b6e47e1776e735adc03d4b999879477ff4a206231924033d94c0114f911b"
         "7d12d62c79c9f6234ae0314156947459"
         "92d4d9fab5f8bf5119f2663a9df7334f50dcde74fb9d7732f7eba56501e60d54"
@@ -841,7 +849,7 @@ Lemma Check_9213_9474_COUNT3:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9213_9474_COUNT4:
-      Check_9213_9474
+      Check_D
         "2311c5afd64c584484b2729e84db80c0b4063fe9ca7edc83350488d7e67264a0"
         "6a6dfd975a0dc7b72df1f107c4b3b3a6"
         "2abd870ec5fe26ed14dfa57a3309f920131b70580c3639af2645cd1af93db1b1"
@@ -857,7 +865,7 @@ Lemma Check_9213_9474_COUNT4:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9213_9474_COUNT5:
-      Check_9213_9474
+      Check_D
         "362ece9d330e1172a8f9e50258476d0c79c3ee50346524ba12d970ee3a6ef8c5"
         "cf11bcb4d9d51311ceacfca8705e833f"
         "abb5a8edde02e526449284ecc31bc713383df3ed085f752e3b6a32f305861eed"
@@ -873,7 +881,7 @@ Lemma Check_9213_9474_COUNT5:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9213_9474_COUNT6:
-      Check_9213_9474
+      Check_D
         "cf614bc29946bc0095f415e8bdeda10aab05392f9cc9187a86ea6ec95ee422e1"
         "77fb5ec22dc0432cc13f4693e2e3bd9a"
         "e4ce77914ffbc5fddf1fb51edfafdc196109139b84c741354135ec8d314c7c43"
@@ -889,7 +897,7 @@ Lemma Check_9213_9474_COUNT6:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9213_9474_COUNT7:
-      Check_9213_9474
+      Check_D
         "a8da1d3e233f393fd44d204c200202f7d01896e72c5ac652940cfd15b5d4b0bd"
         "0a112b4cb0890af0a495e0f49fcf6874"
         "d2e32799bc822b8d033299bdf63dc35774f7649e935d25be5b10512c430d1bda"
@@ -905,7 +913,7 @@ Lemma Check_9213_9474_COUNT7:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9213_9474_COUNT8:
-      Check_9213_9474
+      Check_D
         "a77b1ed4ecaa650374e1052c405f1d88881c25c87d13dbe1334d8c1a847fa76b"
         "05c143e2f145db216fe7be9ed23635d0"
         "b5c750968ff09ed251d4a1c05342ac843db5246b19045728a634fa4f6e752e54"
@@ -921,7 +929,7 @@ Lemma Check_9213_9474_COUNT8:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9213_9474_COUNT9:
-      Check_9213_9474
+      Check_D
         "491686c781e83eb4e21d9989e8d718100b0d21a2c56295888baef1a65f219651"
         "499085296d21065feabf3106101c8d6f"
         "d208a72f9ae34f0817669fb04f49239dd31700f3dc9a93db8d75fb79f9b686c1"
@@ -937,7 +945,7 @@ Lemma Check_9213_9474_COUNT9:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9213_9474_COUNT10:
-      Check_9213_9474
+      Check_D
         "36a5267eeeb5a1a7d46de0f8f9281f73cd9611f01198fdaa78c5315205e5a177"
         "b66b5337970df36219321badacc624eb"
         "c2a7b164949da102bece44a423197682ff97627d1fe9654266b8527f64e5b386"
@@ -953,7 +961,7 @@ Lemma Check_9213_9474_COUNT10:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9213_9474_COUNT11:
-      Check_9213_9474
+      Check_D
         "a76b0366df89e4073a6b6b9c04da1d6817ce26f1c4825cad4097bdf4d7b9445e"
         "773d3cc3290176773847869be528d1a4"
         "1bfd3bcfb9287a5ad055d1b2b8615fa81c94ac24bc1c219a0f8de58789e0404a"
@@ -969,7 +977,7 @@ Lemma Check_9213_9474_COUNT11:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9213_9474_COUNT12:
-      Check_9213_9474
+      Check_D
         "46571e1df43e5e141235e2a9ec85bb0faf1dc0566031e14d41a2fbd0315653ec"
         "b60ef6a3347967519aabeaf748e4e991"
         "759fd8593e3688b23c4a003b655311770d670789878570eb3b155a8e6c2d8c45"
@@ -985,7 +993,7 @@ Lemma Check_9213_9474_COUNT12:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9213_9474_COUNT13:
-      Check_9213_9474
+      Check_D
         "d63980e63bbe4ac08d2ac5646bf085b82c75995e3fdfc23bb9cc734cd85ca7d2"
         "d33ed1dcae13fb634ba08272d6697590"
         "acd0da070072a5340c4f5f4395568e1a36374e074196ae87f3692ee40487e1df"
@@ -1001,7 +1009,7 @@ Lemma Check_9213_9474_COUNT13:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9213_9474_COUNT14:
-      Check_9213_9474
+      Check_D
         "3d99f9b7ac3a2fbe9cf15d960bf41f5588fc4db1e0d2a5c9c0fe9059f03593fb"
         "411f504bb63a9b3afa7ffa1357bb48be"
         "0bb5ebd55981a25ba69164da49fa92f2871fd3fc65eb30d0f0d0b8d798a4f8f2"
@@ -1029,10 +1037,8 @@ Module TestSection9476_9737.
 [ReturnedBitsLen = 1024]
 *)
 
-Definition Check_9476_9737 := TestSection8424_8685.Check_8424_8685.
-
 Lemma Check_9476_9737_COUNT0:
-      Check_9476_9737
+      Check_A
       "369f0eec011db3db44971ab16371c7a8de327a4852bd34226e0f25358e296ce6"
       "ca6043750aa99545d1597f71d583246f"
 	      "d7a768c483bf07bd826b4daf4319b73ca03dcd7960eea632612c8390386d4f6e"
@@ -1045,7 +1051,7 @@ Lemma Check_9476_9737_COUNT0:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9476_9737_COUNT1:
-      Check_9476_9737
+      Check_A
       "268d2f3751c52f9302296f48684ec9f2d88389bca90f78211047d723b6d32e32"
       "7aad9b5479dc01a02087b6a8e12b7f1c"
 	      "9103555169674c2ca06858bdb80c6c94234c2bd6e1d06feefee1719fc32c43e0"
@@ -1058,7 +1064,7 @@ Lemma Check_9476_9737_COUNT1:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9476_9737_COUNT2:
-      Check_9476_9737
+      Check_A
       "05ccd9244ef0f0aeae3796ce9368696b90d1c4e2056e83190350e5036d9ac31e"
       "deb6542edd7e754963553b70c0462133"
 	      "4846076e6c77307b23488b12912f219eb4149275648eb07d78f76733b2517f58"
@@ -1071,7 +1077,7 @@ Lemma Check_9476_9737_COUNT2:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9476_9737_COUNT3:
-      Check_9476_9737
+      Check_A
       "159a81340a1ad14c0e77e377c9e4da79cabc3fb8f3fea8d1fd830234d715fc7b"
       "87ad56b811552f05f9839a15780b8b62"
 	      "ae7c69d459cfb5131e2cbe37135518138f7d772533fdeca87737fc103ed456f0"
@@ -1084,7 +1090,7 @@ Lemma Check_9476_9737_COUNT3:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9476_9737_COUNT4:
-      Check_9476_9737
+      Check_A
       "cb86a35f0e8aca3af38dc4eceeea21d52d43fc03d795e507bc47da9008acb0ae"
       "05a5f1a5fe29bb529b83d1bfa727e341"
 	      "661d42a31cec35db3afdac0d94f347c3ed33e166e9f137c68d3e6b2e81190664"
@@ -1097,7 +1103,7 @@ Lemma Check_9476_9737_COUNT4:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9476_9737_COUNT5:
-      Check_9476_9737
+      Check_A
       "680b1088d2a6fbe45e629af37221e89605d6e285f80e53a8bbcdf6dee0fbb6a6"
       "c61821d54b747e2c5287d086dd02e2e2"
 	      "7a7c496a9877eb833f6b44c76099badb87626434b46baea5b77c2f4c79317514"
@@ -1110,7 +1116,7 @@ Lemma Check_9476_9737_COUNT5:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9476_9737_COUNT6:
-      Check_9476_9737
+      Check_A
       "53e83610917a79598a6f5383c2443ead0b3f35f3ec853ef81109c322bd601fd5"
       "8211d8f173da228877d99f16f5f8082e"
 	      "e03107ab65cfc83d68c1dbeec7874cc9412a491de3a1d9fc1082d430caf7a10e"
@@ -1123,7 +1129,7 @@ Lemma Check_9476_9737_COUNT6:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9476_9737_COUNT7:
-      Check_9476_9737
+      Check_A
       "24286f08f6960927ac1c5a24c7b75c6a02f40a095ae42c6d4df844015bf08471"
       "472072af39fcc2e1af9b4eb59e7d645d"
 	      "2e76f070581178de86d6ab6c0ce4e619858f9d30ffc7085be66b3021d1379378"
@@ -1136,7 +1142,7 @@ Lemma Check_9476_9737_COUNT7:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9476_9737_COUNT8:
-      Check_9476_9737
+      Check_A
       "da21ac05cdec567d217433dbaac74e3f9e5ac8039412e38b1eedf3a703086110"
       "d9301860762979f2c042233fdd4db0b0"
 	      "cd99b38dee1db5f521d0c01bf1e7095f116ef77b9749a9875bbe8431e305bba9"
@@ -1149,7 +1155,7 @@ Lemma Check_9476_9737_COUNT8:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9476_9737_COUNT9:
-      Check_9476_9737
+      Check_A
       "36ca7fa625f0dfd939c8cd11192d9c6a364d57af22d0be45c3e5c6deb104fe73"
       "b74646e6e03efe09d2648271305e8597"
 	      "a39a591aa64ba45453b3224e0ca0b518b89bcc8c546d0757132fc57e2438730c"
@@ -1162,7 +1168,7 @@ Lemma Check_9476_9737_COUNT9:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9476_9737_COUNT10:
-      Check_9476_9737
+      Check_A
       "8df532502f4b0b721aabc640bf26fce2c0e98b9ce3d1b13c2366242c839716c1"
       "a1250ef983c762deb1207f22b37c58cf"
 	      "17d34b5b23308cbf9693b99878d25595245283766a43a5ac4525a89057aa64e9"
@@ -1175,7 +1181,7 @@ Lemma Check_9476_9737_COUNT10:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9476_9737_COUNT11:
-      Check_9476_9737
+      Check_A
       "86e62b68da31a62d1bb04d391cda1cc1fa3a167d8017e9ca056ad41dde790807"
       "72a9fca5fafb7fc4d65a7d7932d1c1df"
 	      "ed574e60bef9099b85ca7d07eb6e560f04df3430d71b5aeddc03d0e45318a889"
@@ -1188,7 +1194,7 @@ Lemma Check_9476_9737_COUNT11:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9476_9737_COUNT12:
-      Check_9476_9737
+      Check_A
       "0ac25dffd09bd845ed6f213ef2e1da3bd17beb4ef00f55fbcc21448676617950"
       "6a6857e0009ceb559de41cecad964265"
 	      "ffa14a8af0340d1fbf17b98cf9e6c08fdd4f62d395682b18259765a7ee1c5cf6"
@@ -1201,7 +1207,7 @@ Lemma Check_9476_9737_COUNT12:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9476_9737_COUNT13:
-      Check_9476_9737
+      Check_A
       "4bbafbbca804e6a4aafd89744558cc7758bcd01bd7954cf6d2940307dd9e0d2f"
       "ae5dfda1271a218ed6cc2d03cc98ad55"
 	      "1ac84a9570ca1ffa46a9fc4f1f41e044760d40176b6cbb3579ce7e869bdf858d"
@@ -1214,7 +1220,7 @@ Lemma Check_9476_9737_COUNT13:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9476_9737_COUNT14:
-      Check_9476_9737
+      Check_A
       "17da1efd3e5250dfde3ef1683bd9cf4d4432a2f223399664f7645763bebd5ebd"
       "0b160c67b97d5302972b5c517bed5a7c"
 	      "c76d1e6989d35c09333a67849d8c17a9441bba1b5c2d30481880791287e8c689"
@@ -1239,10 +1245,8 @@ Module TestSection9739_10000.
 [ReturnedBitsLen = 1024]
 *)
 
-Definition Check_9739_10000 := TestSection8687_8948.Check_8687_8948.
-
 Lemma Check_9739_10000_COUNT0:
-      Check_9739_10000
+      Check_B
       "8ee1df3d864bca351263fa00489d73d4a14c92f022a7cc2473695f4aa28ac496"
       "7772269c9b6fa377349729a2a20bc1a6"
 	      "360cea4e919e31692b1990c15e6d8b0eff1ef102a30c4d84e79d4c5c13de3e31"
@@ -1257,7 +1261,7 @@ Lemma Check_9739_10000_COUNT0:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9739_10000_COUNT1:
-      Check_9739_10000
+      Check_B
       "5045965f5a7792807b5000b5ddd7fb4505731c8a54fdfaa50b15cc0f8bb554d4"
       "f647bf05ef60f0026786cc892d995d3c"
 	      "cc807d1461cc8cbda8e3546a0e23731bd31740436a9ef4faf723a05a28d35da7"
@@ -1272,7 +1276,7 @@ Lemma Check_9739_10000_COUNT1:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9739_10000_COUNT2:
-      Check_9739_10000
+      Check_B
       "e1c86f1381aa66d04ef5ad4bf37d616a4f6643173d1255ce9d2d2b280e32b9f3"
       "8d95c6f153a33d023f16a0223fb850b6"
 	      "ece672a25104be3f887522353d2d75b7ece70fd8b887eb1412e9f2b57db9ba11"
@@ -1287,7 +1291,7 @@ Lemma Check_9739_10000_COUNT2:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9739_10000_COUNT3:
-      Check_9739_10000
+      Check_B
       "f6c342ee8c1ce21c48ef23b7fbb81f09db4a4ba40f9530ac91651d01157cd773"
       "8e5be622de1332f4fc7809d223122793"
 	      "6c86ff4b6ae0fa60c18049a79597fd2700ab600971b9a4720a65d1ee5082f0cc"
@@ -1302,7 +1306,7 @@ Lemma Check_9739_10000_COUNT3:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9739_10000_COUNT4:
-      Check_9739_10000
+      Check_B
       "e2f4cf8d27ae6f3d13f623c86f9b89d6a4d2ec565a14cdb598cc398bee759e54"
       "4c9ba98dc07febbbb0953e5255712933"
 	      "b1f46cb740a16a35a082da6071f4b3c8afd42a68f141d72c61ad6c0b467fb793"
@@ -1317,7 +1321,7 @@ Lemma Check_9739_10000_COUNT4:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9739_10000_COUNT5:
-      Check_9739_10000
+      Check_B
       "c71741d9deb8d267439ad9b02898c8c86bb7c1086a4f849599415ed0e0ed32af"
       "cc01057e084bfb23c304f84b9fb74af2"
 	      "c199a789c08f76baa0c8c58e7c6c537834cf59cd2fcb7e6e2fa97dd060243a83"
@@ -1332,7 +1336,7 @@ Lemma Check_9739_10000_COUNT5:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9739_10000_COUNT6:
-      Check_9739_10000
+      Check_B
       "113117270694c3bc4e71ddf24b247d1444102b8e59a60a881e237cd608dad285"
       "3d0d8bbfab7f44da510bdc2b3bd82011"
 	      "e174ac3f60060f68ffc5a2ce5c8f21d743511d47f7588d4b14db169581d4718e"
@@ -1347,7 +1351,7 @@ Lemma Check_9739_10000_COUNT6:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9739_10000_COUNT7:
-      Check_9739_10000
+      Check_B
       "dea80aa984bfab5870a28877c225fe071f087f82098a7678d4e20a7366a5ef32"
       "b80f9014c996e080662d2508dd5aa4c0"
 	      "d5f1541739f4e8209a68cf7b54a4ed25082207808d74464df3b56f03a0f9e941"
@@ -1362,7 +1366,7 @@ Lemma Check_9739_10000_COUNT7:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9739_10000_COUNT8:
-      Check_9739_10000
+      Check_B
       "c54de4b970faa4b67cb09d9f3ca85e95b4130ba12789aee27ac6c428a6eca4bc"
       "85cf6aa08e0415b3e9c1f305bc5a2b0a"
 	      "d12e7fa53745d65507fdff2163deffe21fbfccf71cf638bf74ef100e5b4d2d14"
@@ -1377,7 +1381,7 @@ Lemma Check_9739_10000_COUNT8:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9739_10000_COUNT9:
-      Check_9739_10000
+      Check_B
       "f2e16396676fa0d34d853ce0ea226c3871832a48df511c225f711efc3c46f58f"
       "a8bc3b444cc8396f1a08022f63be4d05"
 	      "9b1fb21af5116ea7d1a06ce43b2968582eb6e19b62aaa0c17dcb154b56cbbceb"
@@ -1392,7 +1396,7 @@ Lemma Check_9739_10000_COUNT9:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9739_10000_COUNT10:
-      Check_9739_10000
+      Check_B
       "6a04d1a90b7666e632cf1d18dbb0a6c7c1d20aec7f9c7ea42fc947a149329cdd"
       "79e323dd7bc28b2bbed53a80e200f903"
 	      "12eb84d517d9cb6fc68b92c5b0d086560c8d59951d02fadc98bc404f1b30b15e"
@@ -1407,7 +1411,7 @@ Lemma Check_9739_10000_COUNT10:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9739_10000_COUNT11:
-      Check_9739_10000
+      Check_B
       "a99cbd7d274c6d3115ac939ca67d52d0f43ab38fb354df110264eb7d462be1ad"
       "9dfa25936d6a1952c9a2e0bf530610bc"
 	      "04f3aae052848d6bdc3d2fa41954084d1bfd7b3b16ba8a7b1743e1afb0a6621f"
@@ -1422,7 +1426,7 @@ Lemma Check_9739_10000_COUNT11:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9739_10000_COUNT12:
-      Check_9739_10000
+      Check_B
       "4fd0335159cbf717b8c6f4520661cc746836b661719f975647872658d160d440"
       "14b6fdb19e6be030009d189fa3155eec"
 	      "f243a93cdc6eb282ea7fb7a92db6abd0889b7e9d1d5ca1f9e620cc2d848dd407"
@@ -1437,7 +1441,7 @@ Lemma Check_9739_10000_COUNT12:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9739_10000_COUNT13:
-      Check_9739_10000
+      Check_B
       "0a8bf98c5c06576c361fa8d2ad062fa285b449547cfd6b07683a9f1b7b5c9441"
       "8198f6a486f6ace1ebefb650d4fb1cc4"
 	      "b41259acd6d94f7fe2b9ac4884ec24ef9d22eedb465f940288dabac51a3a5caf"
@@ -1452,7 +1456,7 @@ Lemma Check_9739_10000_COUNT13:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_9739_10000_COUNT14:
-      Check_9739_10000
+      Check_B
       "bf25cb51fd828de8f406d2ae16de1e4e9e4c46262518564e75cd7ae55a5cf04b"
       "6203d68117aa20b980b6b515ffb030e2"
 	      "7f885b118094aac53b5f9a2a85dc19458bc3f126b916a2363bea13f3eaacfc23"
@@ -1479,10 +1483,8 @@ Module TestSection10002_10263.
 [ReturnedBitsLen = 1024]
 *)
 
-Definition Check_10002_10263 := TestSection8950_9211.Check_8950_9211.
-
 Lemma Check_10002_10263_COUNT0:
-      Check_10002_10263
+      Check_C
       "a8c77ba575b8468bb5f99220de43d466cdb1d91ac3253c3be27cf18f82520624"
       "052b3c6dd0ee77fb8b0980c38ffa2cdf"
       "4f074ac6ccb7c21c9589fa223428af0e860ae31fe008ecbf520653b9be235ea4"
@@ -1496,7 +1498,7 @@ Lemma Check_10002_10263_COUNT0:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10002_10263_COUNT1:
-      Check_10002_10263
+      Check_C
       "911f3206aef3fa424e5333519237cc7d59b71d40f97fc793c4876103a2d05980"
       "ea7877e8a5b1a29a10c82ebc8f8fc3a9"
       "5fd33aff8724f27a9f56a2fb6d49b407e120f636279b58ce2bda77447a79826c"
@@ -1510,7 +1512,7 @@ Lemma Check_10002_10263_COUNT1:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10002_10263_COUNT2:
-      Check_10002_10263
+      Check_C
       "5326824ff5cc0597b46c0a162e841c5690bda10df74e483e4baca0623e43413b"
       "b1f4f182a5ccfe00ddd245a4c8c0485e"
       "2f29b4ad28f722fc884943c1c12a586ff1ddd04db3d8695392a57385fc99115f"
@@ -1524,7 +1526,7 @@ Lemma Check_10002_10263_COUNT2:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10002_10263_COUNT3:
-      Check_10002_10263
+      Check_C
       "8adf144473335a79173d3af6e50965001a34ec27ccd567313c7bebdbec9f71d2"
       "7065371d51d3285d6ea653494c308863"
       "0fdec2ca6179623406f594af0f662c675a7cb7d6fa65030c1c5a04fa4c89fe33"
@@ -1538,7 +1540,7 @@ Lemma Check_10002_10263_COUNT3:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10002_10263_COUNT4:
-      Check_10002_10263
+      Check_C
       "c58faf114e4cf647c3a27189acf2d6346147b9b6aad7c5d9cca18aa13f513949"
       "96e1b9425401337f46dbf9cd0ae076f5"
       "cbed9113b3b2170712a8ead60137461e72f46be14ba79fd0a70e48930d347565"
@@ -1552,7 +1554,7 @@ Lemma Check_10002_10263_COUNT4:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10002_10263_COUNT5:
-      Check_10002_10263
+      Check_C
       "39723ac65fb657f3c273dabe094f9c4b69cef6cce25a2041e07e5f3d0c0c23cd"
       "6906ad6afcd5390340d04dbc484b12c4"
       "ec987d4f7da75c0c6045a11180d3619c6db996c61116167a17c632d6141dc874"
@@ -1566,7 +1568,7 @@ Lemma Check_10002_10263_COUNT5:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10002_10263_COUNT6:
-      Check_10002_10263
+      Check_C
       "39120774b5e76bfdcd7a1d5c94b359bbbdfa24e7ca1ba37c8786e6e7d417c363"
       "81d05d26b0af3000c9506ed5d1332cb8"
       "c36ff94e9777b742cbb6f7a1b7a25f1a64a3d1e343f153149b596f732e854d7b"
@@ -1580,7 +1582,7 @@ Lemma Check_10002_10263_COUNT6:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10002_10263_COUNT7:
-      Check_10002_10263
+      Check_C
       "6df7250981e3b5a74efec19f15ec73cbcb46ccdcb23519f2dcb2f9b855addf65"
       "e0921ea03a36ab53544f2e7815890d6e"
       "a807fcb6dc1439fe7b4f9494e68b613e56a608a78595a466692387ab6983dc6e"
@@ -1594,7 +1596,7 @@ Lemma Check_10002_10263_COUNT7:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10002_10263_COUNT8:
-      Check_10002_10263
+      Check_C
       "0ee55f1797b1498cf0ff8535cd3430613b6da15d1fc06a851ca8f3aac878ce84"
       "220e692fe775885b919e1ad689ba6e7c"
       "0e849b31f01a98ad5e9245c7799f74936efe52d99427621e34dbf83c639f1dae"
@@ -1608,7 +1610,7 @@ Lemma Check_10002_10263_COUNT8:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10002_10263_COUNT9:
-      Check_10002_10263
+      Check_C
       "7f90574ac55c4b3f10a9d39882a4ed1a9e922f25dee0779fd0a5839d5dec0091"
       "914e40a201adbb144089f34c91786b1e"
       "26a55b8e95aab92a12b681bea7412f00a48d6b438f54da9c42f34ac5c31ae515"
@@ -1622,7 +1624,7 @@ Lemma Check_10002_10263_COUNT9:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10002_10263_COUNT10:
-      Check_10002_10263
+      Check_C
       "6da05910b7d742fbfa3296dec76d884c0591c4274b0b1ef7b8b556ab63c99a60"
       "69beec7da0557e59914cecda553cb9c6"
       "3e1c544c43118a8115ff26152c57f43739eb5cc66f63d3172bf8732c25607cd3"
@@ -1636,7 +1638,7 @@ Lemma Check_10002_10263_COUNT10:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10002_10263_COUNT11:
-      Check_10002_10263
+      Check_C
       "90d67dcac6fadf87e691b700a4b6755f388643d9d46fffa91f9ede43e9cdb72a"
       "b0e142d060c97f4bf4fba4663249de43"
       "3b1ade723ecd8a8cdb9de06e844f5bad612b90946002c8b07dbcf4cb989a7b87"
@@ -1650,7 +1652,7 @@ Lemma Check_10002_10263_COUNT11:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10002_10263_COUNT12:
-      Check_10002_10263
+      Check_C
       "19daa51bfec63fe6f0d3461ad0e184bcc6231052e9b84d03d7fb80c691749e3e"
       "323e269e7c69c02fbf5c8fc2ee6f7782"
       "caf1f074076ee7692d5beb895298caf38f0b48f5c6cf971b20db2ed5628409d3"
@@ -1664,7 +1666,7 @@ Lemma Check_10002_10263_COUNT12:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10002_10263_COUNT13:
-      Check_10002_10263
+      Check_C
       "3a741bafe59aceb22db401d4f26a7d746c5ed7d3f24391153448bd299a86a7d3"
       "4d13731ee770540ebb919bd07df8013f"
       "efaab02851795f0c8541233d89135412734a628cb61ecb96b427398a6739bfd7"
@@ -1678,7 +1680,7 @@ Lemma Check_10002_10263_COUNT13:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10002_10263_COUNT14:
-      Check_10002_10263
+      Check_C
       "e344a3bf1eac434ca09e944efee161cc1673590fed203527bcff81a97368823a"
       "2b653a89e549e3b1ee7817f5864fa684"
       "814146b3b340e042557b0e8482fcc496a14c02d89195782679172e99654991ed"
@@ -1704,10 +1706,8 @@ Module TestSection10265_10526.
 [ReturnedBitsLen = 1024]
 *)
 
-Definition Check_10265_10526 := TestSection9213_9474.Check_9213_9474.
-
 Lemma Check_10265_10526_COUNT0:
-      Check_10265_10526
+      Check_D
       "191c4f0bb2853d9392dbab6defc8ca2eae6cb47d9a412d0490db7d08244cb70f"
       "9044a8503b55ef8f40063fcf066994cb"
       "914fbe6c98771f1cec56223e4493505a31dcde5f9700a121be232c044f06a10f"
@@ -1723,7 +1723,7 @@ Lemma Check_10265_10526_COUNT0:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10265_10526_COUNT1:
-      Check_10265_10526
+      Check_D
       "66952a80d175c4c1c9088df2651bf38cf458fa8f6bccadb72a7d28a5634ccf05"
       "e1e98ef65bead7ba5a99fe28cf0b18bf"
       "6135d7e64f7fa25226b273e5f3ece934f67aa7c91e71c2d10206731d8cdbc789"
@@ -1739,7 +1739,7 @@ Lemma Check_10265_10526_COUNT1:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10265_10526_COUNT2:
-      Check_10265_10526
+      Check_D
       "fd2028bda30cba426093d2a4daea714793fd994175a745665ae2a4f73b8c6f1d"
       "48a7d049d27b573c93d8e1337de0f3d0"
       "00c8167deb963270bbc42587b70c040502e62c898d9ee5703b8d06df1b33aec7"
@@ -1755,7 +1755,7 @@ Lemma Check_10265_10526_COUNT2:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10265_10526_COUNT3:
-      Check_10265_10526
+      Check_D
       "66e593c788a9489289b73ec3a9d763b251180a995b31ba5e330a86e698208604"
       "25aadd63fd7863fa353a352adb7041bb"
       "dd994fb735c46a3173b2ccc874982c86e178c4c35b286f30940f64846ddb50a5"
@@ -1771,7 +1771,7 @@ Lemma Check_10265_10526_COUNT3:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10265_10526_COUNT4:
-      Check_10265_10526
+      Check_D
       "60254f58a67a400f417e849b3350f226dde79de73df115c32def3f3a0e5925a1"
       "9c550f7d7adcdae3ed5bff7063a3df45"
       "67d1fa64675fc618b5ca7b98dc2fedfa52a426173048c06bc9a3e73c70e43299"
@@ -1787,7 +1787,7 @@ Lemma Check_10265_10526_COUNT4:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10265_10526_COUNT5:
-      Check_10265_10526
+      Check_D
       "9152351bd6ee422e7cc23905a84e9df973da9b9ef6be79270b25953b2ec81543"
       "52c8f3b3c1d4ce7b2e4abafe7659fe3c"
       "ee6b13a50f5cd452ea6fae660d9601e7d016bca025ca02bf67b91427def585f7"
@@ -1803,7 +1803,7 @@ Lemma Check_10265_10526_COUNT5:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10265_10526_COUNT6:
-      Check_10265_10526
+      Check_D
       "d02d4e9a40257703e5eff98648f7e533e41dca57a8eb78ea69d475e7a3b005e6"
       "b6716a283689b9b53a75eb8bc260e0db"
       "4cfff605bcdfbc934d8af8d9aee2148983ea754d3eb8946a642c8efe3dcf5bb1"
@@ -1819,7 +1819,7 @@ Lemma Check_10265_10526_COUNT6:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10265_10526_COUNT7:
-      Check_10265_10526
+      Check_D
       "4a479b7274d73dd187c52864333aa73ab4d8552539cc1d451ce746f41118c0e8"
       "da8b0333309c81271d860d00834f5667"
       "9106f9df83eb13f2c14b445e9a2026b5c6000b34afe2516249aa3012d5b595b7"
@@ -1835,7 +1835,7 @@ Lemma Check_10265_10526_COUNT7:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10265_10526_COUNT8:
-      Check_10265_10526
+      Check_D
       "046c6e0caca05f66b7c7b0965c64429f1dd7d383b64d03d86ff0655bf41cf616"
       "559d2dd8a47b0bd94e23d28c14126b5a"
       "7324a958348d97cb437a1799f097eb2be287558525b102f4921910ce671b0bbe"
@@ -1851,7 +1851,7 @@ Lemma Check_10265_10526_COUNT8:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10265_10526_COUNT9:
-      Check_10265_10526
+      Check_D
       "a026ab58eb641ab68dff0cddf3b2e07b5cfd9b5f03388d83779add9ad1d447f4"
       "c830a9faf3c3c6b02031fd664633d12c"
       "d8840fd34420044938f1bb9258cd0d3404f2d12ed06547542087b1a5bcc21754"
@@ -1867,7 +1867,7 @@ Lemma Check_10265_10526_COUNT9:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10265_10526_COUNT10:
-      Check_10265_10526
+      Check_D
       "22bf25fdaffeec3cf89b615f77d78a271779277ea9706b917eb4d9106bb1430a"
       "4622f84512e9ae07ecdeafa56729bfe4"
       "2454a3b2aee313d76235c56af4de49cfccbfabe5befb3e39ea75c6c2aac564d6"
@@ -1883,7 +1883,7 @@ Lemma Check_10265_10526_COUNT10:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10265_10526_COUNT11:
-      Check_10265_10526
+      Check_D
       "ada68accc624c8c30c7c5a4d8442110ed7c45a8d6a645693f322d0b4a5beb2d9"
       "e5f2972bfcfa1122282754fc7b3348cb"
       "87806a8c4bc013fa85f3cba02a75eaba5f815fb7ad681c98602dd13c91965281"
@@ -1899,7 +1899,7 @@ Lemma Check_10265_10526_COUNT11:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10265_10526_COUNT12:
-      Check_10265_10526
+      Check_D
       "9779a105bc750feeeda774b832d74a045383b61969d264fccd3be63298295c36"
       "c5415f6853a1b3bf8aa3e15efb452421"
       "39cab707205a5d4a4967cb9c5b96604723df6633e3b65600560717015e529ff5"
@@ -1915,7 +1915,7 @@ Lemma Check_10265_10526_COUNT12:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10265_10526_COUNT13:
-      Check_10265_10526
+      Check_D
       "590566793eaf2b1deea85296d189a9b9709c42f072a4eed2836bd8e73b537940"
       "c2ff757940d823c72f1fc5526e7c810a"
       "dab526476eca7b485bb17c3109e5dc98d24cf605954c39385a5f813cf3c0171b"
@@ -1931,7 +1931,7 @@ Lemma Check_10265_10526_COUNT13:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10265_10526_COUNT14:
-      Check_10265_10526
+      Check_D
       "8ca489bdb9c34722db712d7d63207fe78bb6ab645bf7ff7c8ccd7acebe555368"
       "2419a6bc6d2e57792264091585427677"
       "8f8642092eacad449117d08fbeb49d312f69e3b4658c2dc94c1c0e4d913aff71"
@@ -1959,10 +1959,8 @@ Module TestSection10528_10789.
 [ReturnedBitsLen = 1024]
 *)
 
-Definition Check_10528_10789 := TestSection9476_9737.Check_9476_9737.
-
 Lemma Check_10528_10789_COUNT0:
-      Check_10528_10789
+      Check_A
       "bf834dd99be9d58e3f6eac7664be2922c5fbcc99b8337037398e72757452b5f0"
       "179123b7c887982acd3b4a37f3d87283"
 	      "166473540e2abe12ee6f3abac9c39dd55bfa8437e6f828b7545847e8b405e0a4"
@@ -1974,8 +1972,8 @@ Lemma Check_10528_10789_COUNT0:
 	      "ce5eb7771d2fa50ea0f21928539de8fe46a4748cbc3498f448c007204503a543".
 Proof. vm_compute; auto. Qed.
 
-Lemma Check_10258_10789_COUNT1:
-      Check_10528_10789
+Lemma Check_10528_10789_COUNT1:
+      Check_A
       "9e99d33410a8b2081814714ccca9997f8efa85bf47b3f44325000e7a26885e5c"
       "fec5d7169c2af87b2075f8c7953a2302"
 	      "6c5b3b4d0578dd25de6a991334a8f503130a341769f88eae59fe04a8fc685670"
@@ -1987,8 +1985,8 @@ Lemma Check_10258_10789_COUNT1:
 	      "bf39b20d3463443d7f4c6deacdfa695603eba25b851fa3e250c34d618a848abb".
 Proof. vm_compute; auto. Qed.
 
-Lemma Check_10258_10789_COUNT2:
-      Check_10528_10789
+Lemma Check_10528_10789_COUNT2:
+      Check_A
       "b41e761ae51064b5f1bc3d77dfb4b4ceed1bc4bba7d4f821895b84081c31f75d"
       "c7b8a8d8ae06daacf64cfb5da139a553"
 	      "46e1b7471adb340db1e380a2d3499babbfec23346b25b9b60137bc978dc51f71"
@@ -2000,8 +1998,8 @@ Lemma Check_10258_10789_COUNT2:
 	      "5b63eb518b3690dac19f0b686dca43c0a999284c7b2c2b753b1044b416a4b0a2".
 Proof. vm_compute; auto. Qed.
 
-Lemma Check_10258_10789_COUNT3:
-      Check_10528_10789
+Lemma Check_10528_10789_COUNT3:
+      Check_A
       "8d12298dea58e35585545ebb5f20d7da6a640d59c1485b38a60dc56260e9cf2a"
       "81bff3acdb2c6ba76fa2cb029fa29cd0"
 	      "56b44a01df8c19c9cba92be4afe79b8731aea14321d93eb27979fa3d66775c8f"
@@ -2013,8 +2011,8 @@ Lemma Check_10258_10789_COUNT3:
 	      "4a8c888a61215c273188052446628606e0512aa199a0c3a0c7f764d31d2d796a".
 Proof. vm_compute; auto. Qed.
 
-Lemma Check_10258_10789_COUNT4:
-      Check_10528_10789
+Lemma Check_10528_10789_COUNT4:
+      Check_A
       "e1b9f54f7b16028caf1facbbf5a09d1da61508eb23848f9d3cb961dd082e0e3d"
       "ed5606c8230f993a0ef8e30e4ac6f87b"
 	      "83e9b7c69184bb7c23fc32c66455fb663806c6dd8d4044e6d9fc96ae841fe268"
@@ -2026,8 +2024,8 @@ Lemma Check_10258_10789_COUNT4:
 	      "7ba9733bf6899fa985cd118a25a1149dc18897f6ae96d7a4fd860f1f7e5b43b0".
 Proof. vm_compute; auto. Qed.
 
-Lemma Check_10258_10789_COUNT5:
-      Check_10528_10789
+Lemma Check_10528_10789_COUNT5:
+      Check_A
       "49137936175ffb835e80ef48fea9354bc018a86d23596d561073cac534f4bf8d"
       "753563c02f45c9af21b815eafa77fc5d"
 	      "496c9bde48229a7f423f2170a289cce68057cd5acab244cf605c05e74b3660e8"
@@ -2039,8 +2037,8 @@ Lemma Check_10258_10789_COUNT5:
 	      "1b295c777a2c6ed81e05f81a34d0c6d34985054ebab59a126b9ed2d3499b636f".
 Proof. vm_compute; auto. Qed.
 
-Lemma Check_10258_10789_COUNT6:
-      Check_10528_10789
+Lemma Check_10528_10789_COUNT6:
+      Check_A
       "4849a2df18e5d528c172481958e1d1ef53a608e213698af8ecdbbb508daba39e"
       "c827f4b4cb07303066bc78d5521def39"
 	      "f5bb9ef1aa76bf1ab04d405665f7016300c2b974f5dc649e40b67797c2dbf2d1"
@@ -2052,8 +2050,8 @@ Lemma Check_10258_10789_COUNT6:
 	      "94d976d246f5a50e54c3e4a447d8a8eb9bd42cd76da4a4e6c7aa0e6c55fb68b1".
 Proof. vm_compute; auto. Qed.
 
-Lemma Check_10258_10789_COUNT7:
-      Check_10528_10789
+Lemma Check_10528_10789_COUNT7:
+      Check_A
       "7fa540133452de6005b1d79c3fe87e4c50b942ecc21739253a867d27af439043"
       "84fb3e54c85c20cdbddc04a4538c8038"
 	      "3dd638d032f9a4d4a4bcf73f9510fe932596409c4896b020ced1bf8996702883"
@@ -2065,8 +2063,8 @@ Lemma Check_10258_10789_COUNT7:
 	      "1e4ab035705ac5fba80834dabc42ea6980cc75fee7e5f773ba371e878d3b7f9e".
 Proof. vm_compute; auto. Qed.
 
-Lemma Check_10258_10789_COUNT8:
-      Check_10528_10789
+Lemma Check_10528_10789_COUNT8:
+      Check_A
       "a541ed73fcc5fb2125edfb514eef05c4b2e55d68b0c03a9f24da4d78c57d472f"
       "a81fdec163cb205cb8927020edafe7a2"
 	      "2145423241abae442b30a7b5ff7cfd1b3a5a2d093d478ab2993d150494cae26b"
@@ -2078,8 +2076,8 @@ Lemma Check_10258_10789_COUNT8:
 	      "d48072551edbf0ba34e51e9cd6c3c515caebfdd8004309f7b0f6b4aca0c8aa6c".
 Proof. vm_compute; auto. Qed.
 
-Lemma Check_10258_10789_COUNT9:
-      Check_10528_10789
+Lemma Check_10528_10789_COUNT9:
+      Check_A
       "b43bff7fde71c178cbe11e7a1350c79bcbe619ac4b428ae90dc45427b962e6a7"
       "1a1ec9ae03b53cb86362c6daebdc6214"
 	      "91773a2f3439955c2dc3de12666ef49aceaf7bb1e20c704351b841e3bb7342bf"
@@ -2091,8 +2089,8 @@ Lemma Check_10258_10789_COUNT9:
 	      "4b2300cb2fd35ba48e7a5abcd52ce849e1d4dae403e134d52af6747455355baf".
 Proof. vm_compute; auto. Qed.
 
-Lemma Check_10258_10789_COUNT10:
-      Check_10528_10789
+Lemma Check_10528_10789_COUNT10:
+      Check_A
       "11603d301f43587b45021858a85ceca9ce7eec33baadd09ee073e9d12cf7dccf"
       "d80d5cc4dffdaa05735079dd391ae848"
 	      "db4b4c3afcc4ab523f72af18d84ad9ba63611f8c41a785b81768a273946872b0"
@@ -2104,8 +2102,8 @@ Lemma Check_10258_10789_COUNT10:
 	      "e543f6f9d82af20e4083e69ecdf7bd17039e74f8be1cab71c901c8a12ba916cc".
 Proof. vm_compute; auto. Qed.
 
-Lemma Check_10258_10789_COUNT11:
-      Check_10528_10789
+Lemma Check_10528_10789_COUNT11:
+      Check_A
       "ded63893594595036854ac58a1ba4c49e2a262bd6a5bec530b8797dc0f491be3"
       "267ed02edc56cfd991a510fb6d0f69fd"
 	      "515222f915b5b71b1a2b2ee3f276193d56111f4f2f2ffff80fe2a955981f0445"
@@ -2117,8 +2115,8 @@ Lemma Check_10258_10789_COUNT11:
 	      "d1256754e2ddb4c5312c664c5c4f35a8f521b641ff0648968bc7ecbb7bcdc0a8".
 Proof. vm_compute; auto. Qed.
 
-Lemma Check_10258_10789_COUNT12:
-      Check_10528_10789
+Lemma Check_10528_10789_COUNT12:
+      Check_A
       "9e520e1d515e4bec39f2cdd032cfa9bad9ce5541b107d7e6a616833beea72a40"
       "3fdfe4b121b69dc292081b0edb4e68be"
 	      "55f6a669e3efc8a382ade126b31ee02427d1f28b9ffd59220fcc761681b007e0"
@@ -2130,8 +2128,8 @@ Lemma Check_10258_10789_COUNT12:
 	      "99509e7e930d501f09760b3197b128edf3fb2441c54faa2814e056ca1b235d9c".
 Proof. vm_compute; auto. Qed.
 
-Lemma Check_10258_10789_COUNT13:
-      Check_10528_10789
+Lemma Check_10528_10789_COUNT13:
+      Check_A
       "b5ced385bb14d96498b7c8f4d11ab929b482a2e6050a5d303348aa97f5265092"
       "3508f53b7825951e10a770e826b7491a"
 	      "219c13bad56530d2ffefd42603741a8c698bb261e5818887a64e836bcfc66786"
@@ -2143,8 +2141,8 @@ Lemma Check_10258_10789_COUNT13:
 	      "dbe8266ccb046fe5d262b4aa5b37af1e54325a1e7caa0d64b7f6f63935fc50bf".
 Proof. vm_compute; auto. Qed.
 
-Lemma Check_10258_10789_COUNT14:
-      Check_10528_10789
+Lemma Check_10528_10789_COUNT14:
+      Check_A
       "32695b2c55839eb3a048fabedcae1f23bf0c7206280ba4ba0d08b9bd9f119908"
       "01f2a4cf8a9311abe5ecf58d6661dc5a"
 	      "38161e9188baf877c640a1299a0a0e0aaf1c35f97496a1551e77f101bd09b0da"
@@ -2169,10 +2167,8 @@ Module TestSection10791_11052.
 [ReturnedBitsLen = 1024]
 *)
 
-Definition Check_10791_11052 := TestSection9739_10000.Check_9739_10000.
-
 Lemma Check_10791_11052_COUNT0:
-      Check_10791_11052
+      Check_B
       "f3428ae375e688496eb2fb0cd772f429a2ca9a76c032d3c9463cb50e0b5890a3"
       "4cb6959e2fca6e7d20d4fac254f8a7de"
 	      "8ba1fc78662117f6d7643c0ea085bdf724732864971ddafad6cfc2c087a27749"
@@ -2187,7 +2183,7 @@ Lemma Check_10791_11052_COUNT0:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10791_11052_COUNT1:
-      Check_10791_11052
+      Check_B
       "994a0a73b6df92186f4b1ca970cfe343729800f24047ffdc8927fc828bd522a6"
       "9d85ca8f29bba4f1c01363542e183c31"
 	      "9c024920a79e3019f225e13b5a547f9845fe0350c17fc1adb875ea8782c057fd"
@@ -2202,7 +2198,7 @@ Lemma Check_10791_11052_COUNT1:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10791_11052_COUNT2:
-      Check_10791_11052
+      Check_B
       "d4af86308ed748abe5d167b5e909beec78dba45b2bc843688ad306ce11b4e013"
       "3c0463a033341482d9a801d48f5dae8e"
 	      "52eb7a03cceaa0253fea631c4bcaf0e32963f5e6ab04c576fb6cee10a6b1d33b"
@@ -2217,7 +2213,7 @@ Lemma Check_10791_11052_COUNT2:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10791_11052_COUNT3:
-      Check_10791_11052
+      Check_B
       "04644f5f4409cf4cccdbdf82fe0c18f2bc402d20639789e7b6910ec8d29a314c"
       "9697c728062baceabd2a07d88afca4d7"
 	      "25a58160e506293ae83cc55140f36b861598fa02ef87ec561ef073c2e25187b8"
@@ -2232,7 +2228,7 @@ Lemma Check_10791_11052_COUNT3:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10791_11052_COUNT4:
-      Check_10791_11052
+      Check_B
       "6a67d9773751e7a143ac8f5a99c633f7178fb241a2269cdbb3c0b32bc649d503"
       "ff0ff303e0e567dd7ddd4b252eef9708"
 	      "f10cfd44d61db94a794418cfc5cc9878b2d38dc5f9ff0ac6bdc21bc9fb49dbe2"
@@ -2247,7 +2243,7 @@ Lemma Check_10791_11052_COUNT4:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10791_11052_COUNT5:
-      Check_10791_11052
+      Check_B
       "08aa05db8a9d5b1d61ccb8498dc7a5b6256f7cb07eb4b3d661de84e710dfd232"
       "a0fcb7f1b7c499586d6b3c68240202fd"
 	      "f9533e6ae75fbcd88c39f4a637da7fe7b391a3c836b5b9e9b83ea6f23dade638"
@@ -2262,7 +2258,7 @@ Lemma Check_10791_11052_COUNT5:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10791_11052_COUNT6:
-      Check_10791_11052
+      Check_B
       "6ba11a9dd7d9d46bd77e95a199cd4cc34211cf3ef98b2a9b3338d06a9df80e65"
       "6885b88743e571edcd7cb1c2062bc178"
 	      "85c3fb7ef491e43afb739371522c1e0bc71a49532551acf9a86d1d7bb6e58021"
@@ -2277,7 +2273,7 @@ Lemma Check_10791_11052_COUNT6:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10791_11052_COUNT7:
-      Check_10791_11052
+      Check_B
       "1643caebba4994f361aa30ebb7bfbc05269b94bfe04460ec17198d34402c3e3e"
       "57d6d8dac11901483be9edd9a142829b"
 	      "4cfbe8d7d8111b274a3afb71f76a6c5c56c69146955ee15ef4055f17f7b6f473"
@@ -2292,7 +2288,7 @@ Lemma Check_10791_11052_COUNT7:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10791_11052_COUNT8:
-      Check_10791_11052
+      Check_B
       "04f03b4059da6f27ee002be1293f9bb847e815725937a20a4b4ddc14cd205868"
       "caa8372e9c756eee3e866e06cd1d8635"
 	      "4a4997c65cc5d119e34f4125bb47799b2656e95d6854c02b6ed685dcbbccc385"
@@ -2307,7 +2303,7 @@ Lemma Check_10791_11052_COUNT8:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10791_11052_COUNT9:
-      Check_10791_11052
+      Check_B
       "d5fffc4f57c7b4e45a9b7bf5fef3553c4cc8dffe6e57d2efc0bc324f1900b7aa"
       "2a29436352fda465c64c49680d0fa169"
 	      "8e6a63ca601b88eed90a17a68556e6250cf7fb57a6575ffd07f96c9fc9d87f4b"
@@ -2322,7 +2318,7 @@ Lemma Check_10791_11052_COUNT9:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10791_11052_COUNT10:
-      Check_10791_11052
+      Check_B
       "b36567bfc7f655ca65d92b623ed689cd21cc6733dafe6b4d3fe2ad51dccca2ad"
       "e06e4c4fa61ad7850a4effac4da4982d"
 	      "bee6655ed8ae0a6ff01c88974b4741d288c9b5967287ec05c3ffac3ecb033dd3"
@@ -2337,7 +2333,7 @@ Lemma Check_10791_11052_COUNT10:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10791_11052_COUNT11:
-      Check_10791_11052
+      Check_B
       "bbefdf9f55f4255c7b51563a21eabd43b368c14e1a931a3ed599c393f4f0f884"
       "91557e5e2d7e7d10288c9a6d3eeba345"
 	      "07ce072ffb24ec1ed0295822a4f5601f0bd2d1c0069b0a32ec7d9a914b8ed189"
@@ -2352,7 +2348,7 @@ Lemma Check_10791_11052_COUNT11:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10791_11052_COUNT12:
-      Check_10791_11052
+      Check_B
       "daf8f8a18cb7b0aeb4e9868352c1eeadb819411d7c06ae0c9687d76ed48b3ec1"
       "489c0582257a88bde25f7f1328d16e27"
 	      "66d2004019eedab72fffa3b4568302b68bbc127685144a16e521215956fbef9a"
@@ -2367,7 +2363,7 @@ Lemma Check_10791_11052_COUNT12:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10791_11052_COUNT13:
-      Check_10791_11052
+      Check_B
       "9cdc0c9d7e25fe80cb61e3745989498511dc4e5de76833438941c947aca3b1f3"
       "3b81cd9b6082ec5a3d222c14db62f65b"
 	      "c2e170b78dca1a3ac7c593e44e8016101a5da065d282953c65c49331b00d7fa3"
@@ -2382,7 +2378,7 @@ Lemma Check_10791_11052_COUNT13:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_10791_11052_COUNT14:
-      Check_10791_11052
+      Check_B
       "26c7b96f47802510f0a0ed22eccd26c39ae56638aaec9a52d90d1887297999c0"
       "09ffbde5ef15ad645b4daf2b5bf8bbe6"
 	      "ecb77df1a106c44c9fabb92c50e10966b43b14c607cfe7a7758edfa87a1fcd09"
@@ -2409,10 +2405,8 @@ Module TestSection11054_11315.
 [ReturnedBitsLen = 1024]
 *)
 
-Definition Check_11054_11315:= TestSection10002_10263.Check_10002_10263.
-
 Lemma Check_11054_11315_COUNT0:
-      Check_11054_11315
+      Check_C
       "e50153d9d7114aa4b8535482f8c4c8f187e4bc12a59d35c51f3fae9970d1f778"
       "1175f514a24b02cdbd1d90396f92c51b"
       "7ba1b78349569a81902cbf95b5127cfdcc5bfaa761c349f1930c62cf536abd0d"
@@ -2426,7 +2420,7 @@ Lemma Check_11054_11315_COUNT0:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11054_11315_COUNT1:
-      Check_11054_11315
+      Check_C
       "a1a7dfd64b0bb565b6965c23af2ec3814714d1a7af4367d249f3ef2c28e10d70"
       "ace62601e397838eb0093b8bfceb04ed"
       "128886ac929d9c4d198cf29091ae013e3ba2aad3ed7c017f0da7dd9da478d8d3"
@@ -2440,7 +2434,7 @@ Lemma Check_11054_11315_COUNT1:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11054_11315_COUNT2:
-      Check_11054_11315
+      Check_C
       "8eada77fc0bf869c8077a6b3aa697d4c818e398b309c4d9e73b77e7b43958f8b"
       "4ae5f1dd363ca3f0a3e8bd65311102ec"
       "9328cbc2233821eb0b977426c07873661549488eb7aae957e0110e3762a46864"
@@ -2454,7 +2448,7 @@ Lemma Check_11054_11315_COUNT2:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11054_11315_COUNT3:
-      Check_11054_11315
+      Check_C
       "0edc07b780c304d8145a36ef567912244ab3c49c11d0ee4e324850f580bc7f8e"
       "4044447c33e8a9349774d409ea04093a"
       "32d1710102b28da78d2cde1ae3a14e0448603dab18786a3a43be95562161b037"
@@ -2468,7 +2462,7 @@ Lemma Check_11054_11315_COUNT3:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11054_11315_COUNT4:
-      Check_11054_11315
+      Check_C
       "4fc150782f8aaa6ace45fc5128b8478cd8feb34d1cc3e14caa8508d8cd252581"
       "fcc48fc6618359b700d2936114aea646"
       "f7ac2f0fa50fe11d397311c0387df50567004baded7941c0ad9633654a92ea00"
@@ -2482,7 +2476,7 @@ Lemma Check_11054_11315_COUNT4:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11054_11315_COUNT5:
-      Check_11054_11315
+      Check_C
       "8eed1b9eb753ce303fe8f30c4d782345f27bc4839695b8bf8b558cc8b59b9a07"
       "e42b1c108bfe505a5730dc69b8d2a6ad"
       "8e9d09e5c51a28ecce73442e47414ec907034f2dfa2f24db2c0a4f7c0424b18c"
@@ -2496,7 +2490,7 @@ Lemma Check_11054_11315_COUNT5:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11054_11315_COUNT6:
-      Check_11054_11315
+      Check_C
       "9f0bbaa33b7321608f0cb354add1cacd01ecee863282c8c30c58929f197dd877"
       "d4388f2404c73dfa515f309757752dcd"
       "d6136b57bf0b8ef3d0a402b757cd87dfd8bc98af42cf6b64dc7251beeae7d3d7"
@@ -2510,7 +2504,7 @@ Lemma Check_11054_11315_COUNT6:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11054_11315_COUNT7:
-      Check_11054_11315
+      Check_C
       "abb007b472c21869d2571b412d2320cf7c0d080397d35e47c47a8ec10bd21cc7"
       "59b420bf6ef70bc58d02a074e09f29fd"
       "e836f980a188f0189be8bf130ba6136ff71e0994863cafb25bb611ea875cfa55"
@@ -2524,7 +2518,7 @@ Lemma Check_11054_11315_COUNT7:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11054_11315_COUNT8:
-      Check_11054_11315
+      Check_C
       "831b39f472980c2cc0ab18bc0fbbf9dc2639c0fdcbf8bf1aa7b85192bf589f57"
       "d3691ea3d137d7248f5592397bd1c6d5"
       "a08affc0d4262986cab581f602f6139e959960de35b7931ccdaba450185ff290"
@@ -2538,7 +2532,7 @@ Lemma Check_11054_11315_COUNT8:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11054_11315_COUNT9:
-      Check_11054_11315
+      Check_C
       "c977c3a73ff79c5d7d3fdee8ccef4713e90d0a87f0b28ff65407bf1323b70372"
       "9d5d1efade50b35415d190f295886fbf"
       "560277ab734b3865ce5a38761099f3aa38700a05e1180d30fbaa6250b8a827fa"
@@ -2552,7 +2546,7 @@ Lemma Check_11054_11315_COUNT9:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11054_11315_COUNT10:
-      Check_11054_11315
+      Check_C
       "658565fbb879495ac5634af9f478d9f8409c9708591f802d0183a3036cf786c6"
       "a39383adc3c396c0509662e022152899"
       "c60456ec7c0dc96bf947293076b5b1f8b6f7cef4289b225c3d99bd8b8ff5f134"
@@ -2566,7 +2560,7 @@ Lemma Check_11054_11315_COUNT10:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11054_11315_COUNT11:
-      Check_11054_11315
+      Check_C
       "5f369d910ef83b28b012880db63b86d2139778c931a4fe9ed11a3cacc5630a54"
       "9ccaa788611202abd00f6a230f36cb8b"
       "9f43246e07542b8b72a0d49648f6539cffcfdadd2bf364930003e58fd645c697"
@@ -2580,7 +2574,7 @@ Lemma Check_11054_11315_COUNT11:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11054_11315_COUNT12:
-      Check_11054_11315
+      Check_C
       "ffbd8a4cb741b9f636b5a35b00be7d174ce0bd0c6c4807ad7425b8688511ebc4"
       "43bb0b0d7ca0488aabf66cfe79cd4c78"
       "06dd817b26cd5cfb2b53058fbb36ab2934fc1b00fb2c25903f013b909ae6ba3b"
@@ -2594,7 +2588,7 @@ Lemma Check_11054_11315_COUNT12:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11054_11315_COUNT13:
-      Check_11054_11315
+      Check_C
       "e742599c62d9baec6461daf2a28a77e354f1069e569029fd2c6ea32e56e52a54"
       "231c786e778fc70846b56c7159611ad4"
       "41156ed56a74f98dbc311069d8edaf70a267193705c784b363af82cda9595570"
@@ -2608,7 +2602,7 @@ Lemma Check_11054_11315_COUNT13:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11054_11315_COUNT14:
-      Check_11054_11315
+      Check_C
       "8296aaf08f44bd70b0d219306e6242dc74775cba1793bf2b41b4c1de6519fbe7"
       "3f9e88b93a6e69d070328c2c570c3be9"
       "bbe702bbd2265e73aa073f47ce55fb65902abbe51635b414df688c60868546e1"
@@ -2634,10 +2628,8 @@ Module TestSection11317_11578.
 [ReturnedBitsLen = 1024]
 *)
 
-Definition Check_11317_11578 := TestSection10265_10526.Check_10265_10526.
-
 Lemma Check_11317_11578_COUNT0:
-      Check_11317_11578
+      Check_D
       "ea4da988e6c5f0685a587bcba36eabab586a87e2d724708078bb3766a80546ec"
       "9221ed63f8003b6e95f7fc8043f5b01c"
       "93dc2c6b8499308ddf040ccf81464f482f09ea44be246f8c09181d488c28606d"
@@ -2653,7 +2645,7 @@ Lemma Check_11317_11578_COUNT0:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11317_11578_COUNT1:
-      Check_11317_11578
+      Check_D
       "a850b5711449f79f3468e8bdf10df2bed8467546aba6229f257d8bc01b17c051"
       "4ccf750d53e8c3c41dae2201da36a948"
       "b664f6ca0987d12db7074a892aa505369499f58fad3973416df415b87ddac56c"
@@ -2669,7 +2661,7 @@ Lemma Check_11317_11578_COUNT1:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11317_11578_COUNT2:
-      Check_11317_11578
+      Check_D
       "4d49d3e490132f9330a3b8ed731790da8480f03299e3843920086dbd173ae72f"
       "4d68d064a0baf5834c72bf66472e2f6a"
       "4487251a3bef7e408649f03618799af364a3b47f8f804f7d60c2d3b20c53f5ac"
@@ -2685,7 +2677,7 @@ Lemma Check_11317_11578_COUNT2:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11317_11578_COUNT3:
-      Check_11317_11578
+      Check_D
       "604f43140ad6c4e8360395a1c5b98f7e86cb8ee78dbe5672c37f58ea24b07fe8"
       "9344f2f41aee9a7741291f7b55d11e92"
       "bb981dd8e390829577a610589c401cd41ac4f03271c1987ad30422779599a01f"
@@ -2701,7 +2693,7 @@ Lemma Check_11317_11578_COUNT3:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11317_11578_COUNT4:
-      Check_11317_11578
+      Check_D
       "c90218e658ac6b41dfa4b2820a758c024b6e0cf9abe2b999aaa1e673d8ac81c7"
       "5656251045f3f94c6911a0b238039587"
       "bf315bae9e0e691138a15547a692c774a5ffd96b08fae9408bc6ebf94f2dc32b"
@@ -2717,7 +2709,7 @@ Lemma Check_11317_11578_COUNT4:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11317_11578_COUNT5:
-      Check_11317_11578
+      Check_D
       "8554821e05a966e51cc86d3d0312a94f125f89fff56ab97e0f9db5c746d6f5bd"
       "b208b9d94c4ce82c86b7e5ebbe769c0a"
       "4b0e5786ef6cbe46d759aa648613a922ae1c326d4cb8ce741bc1fa81b8f8ac8b"
@@ -2733,7 +2725,7 @@ Lemma Check_11317_11578_COUNT5:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11317_11578_COUNT6:
-      Check_11317_11578
+      Check_D
       "021f275f7823b872012c18aa92acb01be5cfcc6d44a4b35cc24659f2e12183c3"
       "ec63898f606538592702d5eca2e4ff4f"
       "7f94ad23ba6d54db3d587ef06bdb50dbd4354b33d3d9d03e26fb5117497847d5"
@@ -2749,7 +2741,7 @@ Lemma Check_11317_11578_COUNT6:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11317_11578_COUNT7:
-      Check_11317_11578
+      Check_D
       "477e1c8515f368946f5c8b6bb111516d4b756113f37dfe9fc3ecce2efd8b5dd2"
       "a1a6e54762942a4a1dc0d58fa7895bff"
       "52dfdde18386885d2b2fc42f98d9d718ae54d31a5a090f8866c5fbaaba90156c"
@@ -2765,7 +2757,7 @@ Lemma Check_11317_11578_COUNT7:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11317_11578_COUNT8:
-      Check_11317_11578
+      Check_D
       "c02380281fc7b8a24e4b28b4e558106bb131efb72fc90cfa38f2c50b00162224"
       "b73690893ac8350e9e2f27967be1a07c"
       "4f40a4f971f777ebc4417b6347cc3ccc434d8c7357fae77c16e730fd78b92f86"
@@ -2781,7 +2773,7 @@ Lemma Check_11317_11578_COUNT8:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11317_11578_COUNT9:
-      Check_11317_11578
+      Check_D
       "44c9d13606484d13512a243105405dd124bb31aa2dce7c924acccf7d309f1b09"
       "d8ab01b10063d71c93e3b49244960b0f"
       "60a7fbd174c0b4f92fdc3469e1130ab6dcd6dc5a74228a82646ffa0349a60749"
@@ -2797,7 +2789,7 @@ Lemma Check_11317_11578_COUNT9:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11317_11578_COUNT10:
-      Check_11317_11578
+      Check_D
       "3d7b9004662fd21fedbf04b917c6e349c1bcd86e320e87556204bde436ef1c85"
       "7d4fbb77f14977030ed74ff43ad6d6f2"
       "d421c84dd0807921503eadbdcf326a4ce0808f342f941e24076a9446d34eb712"
@@ -2813,7 +2805,7 @@ Lemma Check_11317_11578_COUNT10:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11317_11578_COUNT11:
-      Check_11317_11578
+      Check_D
       "9a937114e00f83915386b3e66701ce6b1ec7fcde6c302d7383b1218121e38a3b"
       "e24546426e524e670af2188c5360be16"
       "ba876365a4a86fdb0af9069c733d4a9a962de2ef2d04b4cc1ac2a50fdff70dd1"
@@ -2829,7 +2821,7 @@ Lemma Check_11317_11578_COUNT11:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11317_11578_COUNT12:
-      Check_11317_11578
+      Check_D
       "76560236e3c6c548ba1fc39efc8d952f911e46a297bfb666681e836e5a5baebf"
       "006cef471ce415d5ea83a95c31009194"
       "01f0711a8e1164cb97692552849c2a1c9443006f5d22ff2d080f083eb1020c1a"
@@ -2845,7 +2837,7 @@ Lemma Check_11317_11578_COUNT12:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11317_11578_COUNT13:
-      Check_11317_11578
+      Check_D
       "7e47e637a043f06e574fe6a718267f0bb5e16bb8e342c7a2e6b2d76ef9f10299"
       "a7564f36c172bec0d2fb2760a7edde1e"
       "825e34284577c8b62a5606a9046200238c78ce32e11869ffbc83825e1989cc97"
@@ -2861,7 +2853,7 @@ Lemma Check_11317_11578_COUNT13:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11317_11578_COUNT14:
-      Check_11317_11578
+      Check_D
       "517f160ab174f63da837f9ebe5545396f7e78a4171a73a76c6c2244b0715fdf3"
       "b02adc63c0c8790454a6a9d01664dd51"
       "f21e5f51f5e119e17a5ba061fe5aad0628c3789f4df3c0d7025b43a5fb155481"
@@ -2888,10 +2880,9 @@ Module TestSection11580_11841.
 [AdditionalInputLen = 0]
 [ReturnedBitsLen = 1024]
 *)
-Definition Check_11580_11841 := TestSection10528_10789.Check_10528_10789.
 
 Lemma Check_11580_11841_COUNT0:
-      Check_11580_11841
+      Check_A
       "0398eea9b1887385fdd440f46c475829e5a15d73e0fdc22e1d9290852a0fa0d9"
       "9c7b1c1fa7491b8c7421854427ddc1c3"
 	      "a9b93341016bea1c74202cfc0c9ccebd8c68d714035cf95c0440b627ed2d1c7f"
@@ -2904,7 +2895,7 @@ Lemma Check_11580_11841_COUNT0:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11580_11841_COUNT1:
-      Check_11580_11841
+      Check_A
       "0ff19bb811df7ca0f547b5d9a6809b1a7b58d5d144426c00e924878101536924"
       "9478e8b18fdc530a570852bbc3460cba"
 	      "435aef4ef3ad582975f9b06d2780b98981f4a6cdec1192ca0995782080e48a93"
@@ -2917,7 +2908,7 @@ Lemma Check_11580_11841_COUNT1:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11580_11841_COUNT2:
-      Check_11580_11841
+      Check_A
       "0236edaba4e5e27e90c96bdd78ead44fd7a2cc5796b8dd7b2bcd1dd06a287487"
       "f86fa888c9be09b4b9f8c02d8f851e2b"
 	      "1dea242923fda7b8de4e6a26caa9beb0826f3885e1642e149fa7fbaa81a3fb73"
@@ -2930,7 +2921,7 @@ Lemma Check_11580_11841_COUNT2:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11580_11841_COUNT3:
-      Check_11580_11841
+      Check_A
       "55a2fea78b19b685e0fae6d9bbd14ed528342a169ad494f2e4054e30ea54a36c"
       "a63e8e20cbd540490639e98a3021c358"
 	      "b4e6adfc3063f9601d435f9b610af88e34d72f97fe790c1bde9306bf9f385024"
@@ -2943,7 +2934,7 @@ Lemma Check_11580_11841_COUNT3:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11580_11841_COUNT4:
-      Check_11580_11841
+      Check_A
       "35f938fc8bbbdade64d95c50f75aaeca356a2b9fd1ec1719a94b8239081386ab"
       "c8bcbe8bdf4532cc50947878d414f470"
 	      "3333c0b3b486eb6fa9c79fad3dc9e94482742dffb454e4c203b814c8a2b79252"
@@ -2956,7 +2947,7 @@ Lemma Check_11580_11841_COUNT4:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11580_11841_COUNT5:
-      Check_11580_11841
+      Check_A
       "e107669ceba4715a97d531d083f842993a4f217745387e79088b970be077d1b7"
       "fe44cfa21e308b55b4575b4dd3744c68"
 	      "e07cbd067f84c4e9c1d428e1871bd8d197bd34ee3439edb7a7672fefe7e2afa8"
@@ -2969,7 +2960,7 @@ Lemma Check_11580_11841_COUNT5:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11580_11841_COUNT6:
-      Check_11580_11841
+      Check_A
       "e75c87acc72256b4c1eb11df060dc3fa21c858b737178dc61f907c57787b4d06"
       "0487c6c9609f9de7db75b63b000c3af2"
 	      "06ae94ead69aa666bb103e5c23bf8e6a713d1d8a6c96a8e04fc4598e5a7f3d96"
@@ -2982,7 +2973,7 @@ Lemma Check_11580_11841_COUNT6:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11580_11841_COUNT7:
-      Check_11580_11841
+      Check_A
       "b1ca7743d644438cfae752bcbc1489622376ceb0e8272b3718ab0d71165165be"
       "c3c5b30c0b4e599c7e710e6893248d55"
 	      "429891b074d9064a6bd02e5b3d6bf248e6c4026730d20d4ae7408dd3b0f03c8e"
@@ -2995,7 +2986,7 @@ Lemma Check_11580_11841_COUNT7:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11580_11841_COUNT8:
-      Check_11580_11841
+      Check_A
       "b37f987c7c36f253852ed7d07af677545364091187c0fa7111f03affe8f65bc1"
       "6005e3904c94d629d161f81fa810b7cc"
 	      "c20ce49b765a822964504d4eab514be78bdd2c9b0a5f4aaf1926877360c8bd7b"
@@ -3008,7 +2999,7 @@ Lemma Check_11580_11841_COUNT8:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11580_11841_COUNT9:
-      Check_11580_11841
+      Check_A
       "416ceb8c2ce590b5773ba8ec82fc91122c58808273d65615f8ab023cdff77692"
       "3d11888f43fc72e329719c8e09852b4f"
 	      "130433a554d0f8a96dda665426631db14b31f6dc2c3a957757c0dba9de3616c3"
@@ -3021,7 +3012,7 @@ Lemma Check_11580_11841_COUNT9:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11580_11841_COUNT10:
-      Check_11580_11841
+      Check_A
       "34bbe706783662324f12047f1bdd4cdac8b09ec3e3c8a3faa48d0edc3a241042"
       "1924993c64cd8395319bd45471502f5a"
 	      "f67f6ce76ae61d4e74f66bfb344f2e83c0f6168246047a41a4d759e251b80332"
@@ -3034,7 +3025,7 @@ Lemma Check_11580_11841_COUNT10:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11580_11841_COUNT11:
-      Check_11580_11841
+      Check_A
       "6d7bd10ada2c3b56c42de6634dce1d34270f04f0e1ae89f804c90ef4b2dc8eb0"
       "247373004e17d7704484049dd649e8d9"
 	      "0d7858cb6f213eb41e9e4e94c3570996b028a9dba26d7786f2e4a5844122cd2f"
@@ -3047,7 +3038,7 @@ Lemma Check_11580_11841_COUNT11:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11580_11841_COUNT12:
-      Check_11580_11841
+      Check_A
       "f86bdd78fbe954f941790c8bdd1e650929c3797afaa092346faa22a91f6a1a0e"
       "9b5a2d78c91bd9e28b138f0476666be0"
 	      "908d2a78caf5f1f09ee9c7ee7c843f0bd7826ce8a4019092082100bdf2bdf4fa"
@@ -3060,7 +3051,7 @@ Lemma Check_11580_11841_COUNT12:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11580_11841_COUNT13:
-      Check_11580_11841
+      Check_A
       "675d0f1b40e76ca58a97fc167de10fde8fe12f9973584f843805c23b4ee569ce"
       "d5e4b9857b535e5bddd172efb6fbba5b"
 	      "8a8c7e2437c15aaca645400fc95605aa4a58438cc8b407f536e5d0ed87e19ef7"
@@ -3073,7 +3064,7 @@ Lemma Check_11580_11841_COUNT13:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11580_11841_COUNT14:
-      Check_11580_11841
+      Check_A
       "1006646f977b83f4d90870f24b3b72d0b4947037f7671a64ce3b52829506a519"
       "5698d50f59c42b26339d218fc985a41d"
 	      "569323e64b3255ac6b7a28190ea035cd797e74820d48c4af9d067ade006ed6f9"
@@ -3097,10 +3088,9 @@ Module TestSection11843_12104.
 [AdditionalInputLen = 256]
 [ReturnedBitsLen = 1024]
 *)
-Definition Check_11843_12104 := TestSection10791_11052.Check_10791_11052.
 
 Lemma Check_11843_12104_COUNT0:
-      Check_11843_12104
+      Check_B
       "5643776352534d25cffa8f62c071dda1cf6635008aca89aaaa574b564536e3bf"
       "f79149ab6cf92a106931e51f0541c689"
 	      "9dfc16ec4d724ba3383626af7da0ab0eff14b354aa24d6308d0bbf9835451718"
@@ -3115,7 +3105,7 @@ Lemma Check_11843_12104_COUNT0:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11843_12104_COUNT1:
-      Check_11843_12104
+      Check_B
       "c912bb219548b23346f5206f0a66f16698d70ad1997801b9b709d3428cba6d5f"
       "d1cd49802816d55dd41ea08aea40cba6"
 	      "c4f7bad777a9a619bab58ecdd392ee0f663273e73c6757455cd4e511858b6539"
@@ -3130,7 +3120,7 @@ Lemma Check_11843_12104_COUNT1:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11843_12104_COUNT2:
-      Check_11843_12104
+      Check_B
       "df3d1d0388742b4a5c010a5a21404311e7753881ee1ec4e2652f00c30b92f520"
       "faafdd9e53737c2678020b95d0c3f7c1"
 	      "587c8298245fde61a8392c65a8318c000eb3f3e37a23eb479f2dd470eee4f69b"
@@ -3145,7 +3135,7 @@ Lemma Check_11843_12104_COUNT2:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11843_12104_COUNT3:
-      Check_11843_12104
+      Check_B
       "d788812e4e17649951c02c187b15f09fe847e123e7266f4aeaac710f6c3d1625"
       "03cc7c29a190572ea7dfc48294f56878"
 	      "08d108d62a31aabf24e5f22d60b1b869b4fd299d75683a9dc5df889236f252e2"
@@ -3160,7 +3150,7 @@ Lemma Check_11843_12104_COUNT3:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11843_12104_COUNT4:
-      Check_11843_12104
+      Check_B
       "2b6f323b758a84da468d1008e780bc828c8b649fe6328134cfdbc39e19eaac59"
       "17bf7faaad250b6095b85811e82ab79e"
 	      "f7e4998c4b07473bd67cbcd2adb2358d63ed78cec10005875759e4e6cd5eef9a"
@@ -3175,7 +3165,7 @@ Lemma Check_11843_12104_COUNT4:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11843_12104_COUNT5:
-      Check_11843_12104
+      Check_B
       "de116198e5250bfd31ce835fa29f1e559ea333b14127fed0df323342a5d29b28"
       "d7a01a18fa49389b04b27643f2ef1fba"
 	      "feff7dccb5b06f38a090b4953173f929ac20118847160b9c991c7ecddaad5912"
@@ -3190,7 +3180,7 @@ Lemma Check_11843_12104_COUNT5:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11843_12104_COUNT6:
-      Check_11843_12104
+      Check_B
       "3df5c20c256be660689ba6accac5adecd5f53342e19064c73bb50c5399bfd13b"
       "b354dadec57e7ce6aad195e6bf3ecae2"
 	      "d7524cf8629d4e61e0e0adf9ddb2b096b440d250db8533f6df7ae43111b93403"
@@ -3205,7 +3195,7 @@ Lemma Check_11843_12104_COUNT6:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11843_12104_COUNT7:
-      Check_11843_12104
+      Check_B
       "d7c7dd4af3480bd34e28366c21ccb2a03dd7015817a69de1e7e4388fe9e88523"
       "3452fe913fb5177cca02e65d991a25b6"
 	      "c7f05c1a3a59c4f0a674ff2df90bdceec5ae82c851274a31f3c5e7d392bde5f8"
@@ -3220,7 +3210,7 @@ Lemma Check_11843_12104_COUNT7:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11843_12104_COUNT8:
-      Check_11843_12104
+      Check_B
       "741ad501296d3f18680655d5ff88efe7db6e917af6d26df9bd20895a70381d11"
       "8281033e701a290c81edee11571297ab"
 	      "db9b74ef5b57e988ec303ffdba4f309f72e467b5c8fe4923da0577badda4fe6f"
@@ -3235,7 +3225,7 @@ Lemma Check_11843_12104_COUNT8:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11843_12104_COUNT9:
-      Check_11843_12104
+      Check_B
       "561a4330c56e459bf7fca66a3ae97be126fcd81f56b497d4f0c03d45313515fe"
       "8e0e519bb591cedfb5754f10757b4a2a"
 	      "a9862c0242e8f51dbf3cd116feaa16e4b9f30ef16117347de3da33590dc66810"
@@ -3250,7 +3240,7 @@ Lemma Check_11843_12104_COUNT9:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11843_12104_COUNT10:
-      Check_11843_12104
+      Check_B
       "38434169f568fb1e1836a62c85631acd8f5be3dd64a09f6f2309c777398d4c34"
       "c7fe254cfc90e1913be7df63b7ef07bc"
 	      "382e05c524b45802e833ce23e615fea527dd69a8fac595abac564c89ed8c6c6f"
@@ -3265,7 +3255,7 @@ Lemma Check_11843_12104_COUNT10:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11843_12104_COUNT11:
-      Check_11843_12104
+      Check_B
       "8311a7cc5af8b85c0d129552cffb9ed9a172c0d9ecd6a3cbbc8b56e8f14bbd40"
       "57977e3d5cc96c26c177b8a6e969362a"
 	      "5b73b9007f9830f29aea8f2d4e191336571390e26b49ef1e5669eb3b3f33d73e"
@@ -3280,7 +3270,7 @@ Lemma Check_11843_12104_COUNT11:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11843_12104_COUNT12:
-      Check_11843_12104
+      Check_B
       "1c3d1f251f06a6d0c28e2a25e72f5c5cfcd41e18c73eac703fff701884fd9782"
       "ab94d19358ba74042ab5050ccf9be51a"
 	      "0850084bdba18e8c3b237c32415257c71c39dcf884b6e5bf9eeca2ebfd5c2cfb"
@@ -3295,7 +3285,7 @@ Lemma Check_11843_12104_COUNT12:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11843_12104_COUNT13:
-      Check_11843_12104
+      Check_B
       "d6c7079504c53d5fcb5ff68d6694e6168e8ace2d6e1516f89a0bbf0483c359d7"
       "011248ede6a732704a05de2388764f1a"
 	      "b2fc19d72d58effd0231faa70269aee24892d96f3c7c34fc9cd7cb208568e97e"
@@ -3310,7 +3300,7 @@ Lemma Check_11843_12104_COUNT13:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_11843_12104_COUNT14:
-      Check_11843_12104
+      Check_B
       "7fa0633aed9d622d26ab60779879c9f3e84aea2313f996c9558f934724db2d48"
       "76cd330bb81ae68860d2abd0c7bb533c"
 	      "e6820af98756f6c4347198c7877ef89d6a8fca320c0ef0b2b5eeac78ee4e8dd1"
@@ -3335,10 +3325,9 @@ Module TestSection12106_12367.
 [AdditionalInputLen = 0]
 [ReturnedBitsLen = 1024]
 *)
-Definition Check_12106_12367 := TestSection11054_11315.Check_11054_11315.
 
 Lemma Check_12106_12367_COUNT0:
-      Check_12106_12367
+      Check_C
       "30197171d85c81d6526474b43cb5efafeba746119ff10ef2a96d9b30f40a354b"
       "c634e60d27088ed0cab663af404706bf"
       "1f0977ef52e535260e4f5a0d749fc6b2e9752e0f10848ba939a8b1ec3320b333"
@@ -3352,7 +3341,7 @@ Lemma Check_12106_12367_COUNT0:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_12106_12367_COUNT1:
-      Check_12106_12367
+      Check_C
       "455f4d93e91d45a36faf6bbadceb021f446852e8a2228b5934972073a131e80b"
       "49e1804270f15512d811c74ed9d5d905"
       "50b1bd2d3ba3be6d048e069cc8969ccbe8ba3b0dc7273ea0cdeabd5a779f446c"
@@ -3366,7 +3355,7 @@ Lemma Check_12106_12367_COUNT1:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_12106_12367_COUNT2:
-      Check_12106_12367
+      Check_C
       "d10486ae771b1fffe1360ff70eaf5264272fb402162af835d6fbca194c4bcfbd"
       "a269686bbfd9a3031da2fd5421da5dfa"
       "2611bff5b6484e76641625a1887b4844098fdea0ca73a65bf6aa89aa0e5fd15b"
@@ -3380,7 +3369,7 @@ Lemma Check_12106_12367_COUNT2:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_12106_12367_COUNT3:
-      Check_12106_12367
+      Check_C
       "76bc1536924130b36b83328f40adaa1f8fea9aa24809e2f1b1886e8421ac5a3e"
       "cafb00f40e590ad87c2f9f1404bce230"
       "c6a45da5b04af67d0d1f5dfcb388e8ba51e675aeebea1a18578f51b2e7ff4fd7"
@@ -3394,7 +3383,7 @@ Lemma Check_12106_12367_COUNT3:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_12106_12367_COUNT4:
-      Check_12106_12367
+      Check_C
       "4a207dcf464ba938e1e9f03d3c4990702481cac85e3c831d74c0ab1e718636c6"
       "ac9cbd6cd10c793d450c2dec09d42c30"
       "7620cf6a8828eeb4369c5f3841466d06b7ad38dc9de90293307b57632bf43def"
@@ -3408,7 +3397,7 @@ Lemma Check_12106_12367_COUNT4:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_12106_12367_COUNT5:
-      Check_12106_12367
+      Check_C
       "df8aa843e8a06278e1ba51f529bd108e90ff710b6d8a0b957f63ec364c411ab2"
       "1d20f877693716f5b2fe8bbecad9fc06"
       "509a42718c5d8f24ccdaa6a546eec3bce0f8fe785bf3c72146024e8e7c122e09"
@@ -3422,7 +3411,7 @@ Lemma Check_12106_12367_COUNT5:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_12106_12367_COUNT6:
-      Check_12106_12367
+      Check_C
       "aea9f1ab7f2a7b176f76a1d114688dc3a692158c2ba4fca7fc6285477fe8e6c1"
       "ac2a7d31a95908a556bb7c75ceaa21d9"
       "78bac89b1cc0c21b32c2e24394e9385028c0986d4639b34130a6983a39010240"
@@ -3436,7 +3425,7 @@ Lemma Check_12106_12367_COUNT6:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_12106_12367_COUNT7:
-      Check_12106_12367
+      Check_C
       "329cf7fb5c8905b7ed6a805eeae441318fd4f793c50c14a8aafd04d476109539"
       "c9ad01bf21904253b76426d94634ea74"
       "b79f0ea558c4dd2e42bfc592634a92d51ef6c13154a6c1eb51c9d08557a1f6f1"
@@ -3450,7 +3439,7 @@ Lemma Check_12106_12367_COUNT7:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_12106_12367_COUNT8:
-      Check_12106_12367
+      Check_C
       "adf012e2395c2d53e3a6e3e73a1d5f83afe1ac065a75f6b20b45db14d0d12734"
       "d729499703a5fb90f9b1d6c6989aa8a2"
       "e97021e3b7f72f5c6bcd82e654706e83fb409dafe4dd98f704f03c6338d6d24b"
@@ -3464,7 +3453,7 @@ Lemma Check_12106_12367_COUNT8:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_12106_12367_COUNT9:
-      Check_12106_12367
+      Check_C
       "e29de9b2c5e069f3fc29339ac517e70d9b9309fce6076551b9e5f016567641c1"
       "ba666331b85bb6d8a763df9d30a6c6b6"
       "67abf3319b242035460fbe09bae8df4f10600632a19295131543d270ba45335b"
@@ -3478,7 +3467,7 @@ Lemma Check_12106_12367_COUNT9:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_12106_12367_COUNT10:
-      Check_12106_12367
+      Check_C
       "b2ebee204c7165dea375e9360f308be3ccd3801a71255e0edd1f42ba3ede07e6"
       "486cb1ae920d332847d7019e9fc61611"
       "5f3bd6d419778e63caafd45178888777efd7b484a29e9dea30d450654e01e83f"
@@ -3492,7 +3481,7 @@ Lemma Check_12106_12367_COUNT10:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_12106_12367_COUNT11:
-      Check_12106_12367
+      Check_C
       "bfdf29359846af38a24267ccb68bad50858b8b9ff47ed5fa8ccb99694ff9eae1"
       "ccafbc9dd71255d1ebfa76617642d6d2"
       "71e50feaf0ed045972b44d80b599a2087fe250d266f1129e821f54b57d99ea18"
@@ -3506,7 +3495,7 @@ Lemma Check_12106_12367_COUNT11:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_12106_12367_COUNT12:
-      Check_12106_12367
+      Check_C
       "d10f709fc7674fcc37e77b3214308dce6c0433b4034edeae098564509688622c"
       "63c3ab9f1b35626ce98ccb72ef3ad5fe"
       "d9ecf8f8e9f3bcab221cb29dba385737daaa57853bedda0cde26d61edcbcef3f"
@@ -3520,7 +3509,7 @@ Lemma Check_12106_12367_COUNT12:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_12106_12367_COUNT13:
-      Check_12106_12367
+      Check_C
       "d74f66ecb33efce890c4ee4aaca1d3438d82eb65ea46a137d0d42d5be4b13f93"
       "bbc9981a2959721c7b439e42e00c1aa5"
       "91065f0c37c28fbcab2c1a883614eb8889dac50f53248834c7d5a3c2ad24d0bc"
@@ -3534,7 +3523,7 @@ Lemma Check_12106_12367_COUNT13:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_12106_12367_COUNT14:
-      Check_12106_12367
+      Check_C
       "6cad4deb8e3c18f4f4265d845237bb0f9760b379292e363d5ce8e5bc243fb2fb"
       "50f723edc4f658862758e149e7ae4f20"
       "39d43e627ab7c7a6d12fce4cd8c001678bfadd9d07d4086674e5d8bdef4ac62e"
@@ -3559,10 +3548,9 @@ Module TestSection12369_12630.
 [AdditionalInputLen = 256]
 [ReturnedBitsLen = 1024]
 *)
-Definition Check_12369_12630 := TestSection10265_10526.Check_10265_10526.
 
 Lemma Check_12369_12630_COUNT0:
-      Check_12369_12630
+      Check_D
       "f074a8cf417a9a4c4aade25f530567fd7a1410a074f3b0edd664bbc430ddb250"
       "d3c0823b6d28a42d5f0fc01496d32859"
       "972527fe90601de9d13a050c7e49d556d0de6b0e75e0619807ade2178eefe47d"
@@ -3578,7 +3566,7 @@ Lemma Check_12369_12630_COUNT0:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_12369_12630_COUNT1:
-      Check_12369_12630
+      Check_D
       "9f5c9900211626b17c06b5539432f6c30d925e222fc1dcc466cdaedf1f727c31"
       "a1e46afccd53e814f782d147c82af202"
       "92d6864dfdb5a6382de645eb55c243192e828e49f5322e4a769bdef2bac063ac"
@@ -3594,7 +3582,7 @@ Lemma Check_12369_12630_COUNT1:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_12369_12630_COUNT2:
-      Check_12369_12630
+      Check_D
       "79edb0af741348294208242c92b8dfcdf9e99fd20996b2b0825a35af7fcc177d"
       "3a69da52b49809c566876b77b13539a3"
       "5f1cee7ff01c5fe1d182ab7c4bc7bf84a50f16f0fcbd4ff08eb13c2e3743965b"
@@ -3610,7 +3598,7 @@ Lemma Check_12369_12630_COUNT2:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_12369_12630_COUNT3:
-      Check_12369_12630
+      Check_D
       "882dcaeecf17349b31d7bbbbbeb9c85270b705b46e7a5b60519d8df30f17aff5"
       "46e777807732a55950af791ca1ca5fc8"
       "f771698092ea1cda1c6c232d0641bb76886c6df8ebda39e95c7f573186f4cce5"
@@ -3626,7 +3614,7 @@ Lemma Check_12369_12630_COUNT3:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_12369_12630_COUNT4:
-      Check_12369_12630
+      Check_D
       "11965cda20767ce8f8c5ab4c9b10cf589324c3a9d6a277d27d9c5c4c93c6517b"
       "1798523cc23aafb99a554b24a0d5e45f"
       "566d51c543e9cf828a659200862f1a2a4994009a58ebfc8f303b0852e7f53343"
@@ -3642,7 +3630,7 @@ Lemma Check_12369_12630_COUNT4:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_12369_12630_COUNT5:
-      Check_12369_12630
+      Check_D
       "9c0693df87f400f82f61cb47cfc2d672fe41e1cd2e17418ac1d51dfa4d8bace1"
       "dfefe5a66bb369d1e788b72a860b41c7"
       "cf4bbba8b2427117775663f84c77bc37160ec54e68c6aaafeecc967206a37b54"
@@ -3658,7 +3646,7 @@ Lemma Check_12369_12630_COUNT5:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_12369_12630_COUNT6:
-      Check_12369_12630
+      Check_D
       "5dd98a23c155939634161903f2b3da3fc31a18fc1c5acaddeba1fd08a08f0faa"
       "c7ee4ea3efea01a22ceba03f86e323c8"
       "43501b961a81bc4458fd9dc15983f4aba6cd9a11600294a2bb8e0518d2ef5a6b"
@@ -3674,7 +3662,7 @@ Lemma Check_12369_12630_COUNT6:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_12369_12630_COUNT7:
-      Check_12369_12630
+      Check_D
       "0bcd80d942263c3372f8f4257ff5d35bd564a12dec0c7e8fbe1cd1521e26875f"
       "41db7a98b2be3678a76ba981e44767b8"
       "acac5ec7e76ea7a7a770437d77ca74ca9e364b20fefb02be3a3c2811c026fed2"
@@ -3690,7 +3678,7 @@ Lemma Check_12369_12630_COUNT7:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_12369_12630_COUNT8:
-      Check_12369_12630
+      Check_D
       "b2747fc3131b61d2c3c8e6d3e8807ee1dbbd0d0795c1b8e2253232b9dc4a4c70"
       "84e66ffdf6040a2ed22e549b688f14e8"
       "3ff1b7307b93a2fb6fa87729159e39e63e3f1005e056ccc09a50deab679a8d23"
@@ -3706,7 +3694,7 @@ Lemma Check_12369_12630_COUNT8:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_12369_12630_COUNT9:
-      Check_12369_12630
+      Check_D
       "79c40f253a2265a659f7c127904df1fd4851c149df7820f6d82ca8f886f7ca82"
       "2066ac2491c6f46f3f6845ad64987aaf"
       "bb3cd677f58abb5dc58260547800a101413f6526f229b7a9bc707d4e0fdb9447"
@@ -3722,7 +3710,7 @@ Lemma Check_12369_12630_COUNT9:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_12369_12630_COUNT10:
-      Check_12369_12630
+      Check_D
       "a5b77a8e17178ff701a35996ed4f55d952e4418e5a348eab4ac9703c6011fa3e"
       "92ddadc8c640b32f840863a5eafeec4d"
       "78286d39fc5180844e86a24d675e583514b7cb83ec691f537c5a3c79c73ed4a9"
@@ -3738,7 +3726,7 @@ Lemma Check_12369_12630_COUNT10:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_12369_12630_COUNT11:
-      Check_12369_12630
+      Check_D
       "1a27c3084aae1e055174e8bad8e8366cc1add1a14c74f507ce849274332b003e"
       "ba672516904ce5e8c975d7aba6059228"
       "6e28f38655ec1275a61e5cab038e3383bcfcd59674e02908daeb008213596b35"
@@ -3754,7 +3742,7 @@ Lemma Check_12369_12630_COUNT11:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_12369_12630_COUNT12:
-      Check_12369_12630
+      Check_D
       "b5019df2c59490eafc352c76418aa5d04c253427b8cab96b008d21a2dd9bf532"
       "b963166dda387bbe831798a8eba4368b"
       "b0c6a491682245f21ee9ca783559bed4b499b7eda3a789bf209c9e2ca67f3388"
@@ -3770,7 +3758,7 @@ Lemma Check_12369_12630_COUNT12:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_12369_12630_COUNT13:
-      Check_12369_12630
+      Check_D
       "0f2c30aab056b778b82676c4e862780fe31649f4d1fcb8fc0cd7fdb76b27423a"
       "7e92afd284532c2966bff91f67499d10"
       "d68fb207bf5afe47051fa40f82cecfede1ee011cb7a5d08adc21b3aacb9a6553"
@@ -3786,7 +3774,7 @@ Lemma Check_12369_12630_COUNT13:
 Proof. vm_compute; auto. Qed.
 
 Lemma Check_12369_12630_COUNT14:
-      Check_12369_12630
+      Check_D
       "774804cb3530deecfc477e3f47d57039aab2f1a2dc133584a358b5d73c164092"
       "3bd0ae797ecb7c0780e758c64ca0d61b"
       "9b7ccbeec10758cd0a3a8fdaee6f3989832e44bca7763f59e838c612521d3427"
