@@ -839,6 +839,33 @@ end.
 
 Inductive Ridiculous: Type := .
 
+Ltac check_witness_type A witness :=
+ let TA := constr:(functors.MixVariantFunctor._functor
+     (rmaps.dependent_type_functor_rec nil A) mpred) in
+  let TA' := eval cbv 
+     [functors.MixVariantFunctor._functor
+      functors.MixVariantFunctorGenerator.fpair
+      functors.MixVariantFunctorGenerator.fconst
+      functors.MixVariantFunctorGenerator.fidentity
+      rmaps.dependent_type_functor_rec
+      functors.GeneralFunctorGenerator.CovariantBiFunctor_MixVariantFunctor_compose
+      functors.CovariantFunctorGenerator.fconst
+      functors.CovariantFunctorGenerator.fidentity
+      functors.CovariantBiFunctor._functor
+      functors.CovariantBiFunctorGenerator.Fpair
+      functors.GeneralFunctorGenerator.CovariantFunctor_MixVariantFunctor
+      functors.CovariantFunctor._functor
+      functors.MixVariantFunctor.fmap
+      ] in TA
+ in let TA'' := eval simpl in TA'
+  in match type of witness with ?T => 
+       unify T TA''
+      + (fail "Type of witness does not match type required by funspec WITH clause.
+Witness value: " witness "
+Witness type: " T "
+Funspec type: " TA'')
+     end.
+
 Ltac fwd_call witness :=
  try lazymatch goal with
       | |- semax _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip
@@ -858,7 +885,8 @@ lazymatch goal with |- @semax ?CS _ ?Delta _ (Ssequence ?C _) _ =>
     match type of H with global_funspec _ _ _ _ _ ?A _ _ _ _ =>
       (unify A (rmaps.ConstType Ridiculous); (* because [is_evar A] doesn't seem to work *)
              elimtype False)
-     || fwd_call' A witness H
+     || (check_witness_type A witness;
+         fwd_call' A witness H)
     end ]
   end
 end.
