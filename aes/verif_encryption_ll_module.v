@@ -584,7 +584,9 @@ match goal with
 | |- context [ field_at _ _ _ ?res output ] =>
    assert (res = (map Vint (mbed_tls_aes_enc plaintext buf))) as Eq3
 end. {
-  rewrite mbed_tls_aes_enc_def. rewrite put_uint32_le_def.
+  rewrite mbed_tls_aes_enc_def.
+  rewrite output_four_ints_as_bytes_def.
+  rewrite put_uint32_le_def.
   cbv [app map].
   subst S0 S12 S13 S14.
   remember 12%nat as twelve.
@@ -608,13 +610,29 @@ entailer!.
 (* Verifying until here takes about 1 hour.
    In 64bit Coq: 3.1 GB of memory
    In 32bit Coq: 1.5 GB of memory *)
+(* In Coq 8.6, 32bit:
+   Verifying until here takes about 10min and 1.2 GB of memory *)
 
 Time Qed.
 
 (* In 64bit Coq: Increases memory usage from 3.1 GB to 6.7 GB, and finishes in 448s *)
 (* In 32bit Coq: Increases memory usage from 1.5 GB to 2.6 GB, and finishes in 403s *)
 
+(* In Coq 8.6, 32bit:
+   Increases memory usage from 1.2GB to 2.3GB, and finishes in 180s *)
+
 Print Assumptions body_aes_encrypt.
+(* In console:
+
+Warning: Cannot open ../mirror-shard/src [cannot-open-path,filesystem]
+Warning: Cannot open ../mirror-shard/coq-ext-lib/theories
+[cannot-open-path,filesystem]
+
+In message panel:
+
+Anomaly: Uncaught exception Not_found. Please report at
+http://coq.inria.fr/bugs/.
+*)
 
 (* TODO floyd: sc_new_instantiate: distinguish between errors caused because the tactic is trying th
    wrong thing and errors because of user type errors such as "tuint does not equal t_struct_aesctx" *)

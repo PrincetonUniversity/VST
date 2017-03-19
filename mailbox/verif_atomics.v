@@ -40,14 +40,14 @@ Fixpoint apply_hist a h :=
 
 Notation hist := (list (nat * hist_el)).
 
-Definition ghost_hist (h : hist) p := ghost (h, @None (list hist_el)) p.
+(*Definition ghost_hist (h : hist) p := ghost (h, @None (list hist_el)) p.*)
 
 (* lock invariant for atomic locations *)
 Definition tatomic := Tstruct _atomic_loc noattr.
 
 Definition A_inv p l i R := EX h : list hist_el, EX v : val,
   !!(apply_hist i h = Some v /\ tc_val tint v) &&
-  (field_at Tsh tatomic [StructField _val] v p * ghost ([] : hist, Some h) p * R h v *
+  (field_at Tsh tatomic [StructField _val] v p * ghost_ref h p * R h v *
    (weak_precise_mpred (R h v) && emp) * malloc_token Tsh (sizeof tatomic) p * malloc_token Tsh (sizeof tlock) l).
 
 Lemma A_inv_positive : forall x l i R, positive_mpred (A_inv x l i R).
@@ -64,9 +64,9 @@ Lemma A_inv_precise : forall x l i R,
 Proof.
   intros ???? rho _ ???
     (? & h1 & v1 & (Hh1 & ?) & ? & ? & Hj1 & (? & ? & Hj'1 & (? & ? & Hj''1 & (? & r1 & Hj'''1 &
-      (? & ? & ? & (? & Hv1) & Hg1) & ?) & HR & Hemp1) & Hma1) & Hml1)
+      (? & ? & ? & (? & Hv1) & ? & Hr1 & Hg1) & ?) & HR & Hemp1) & Hma1) & Hml1)
     (? & h2 & v2 & (Hh2 & ?) & ? & ? & Hj2 & (? & ? & Hj'2 & (? & ? & Hj''2 & (? & r2 & Hj'''2 &
-      (? & ? & ? & (? & Hv2) & Hg2) & ?) & _ & Hemp2) & Hma2) & Hml2)
+      (? & ? & ? & (? & Hv2) & ? & Hr2 & Hg2) & ?) & _ & Hemp2) & Hma2) & Hml2)
     Hw1 Hw2.
   unfold at_offset in *; simpl in *; rewrite data_at_rec_eq in Hv1, Hv2; simpl in *.
   exploit (malloc_token_precise _ _ _ w _ _ Hma1 Hma2); try join_sub; intro; subst.
@@ -78,6 +78,7 @@ Proof.
   intros (? & Hv); subst.
   exploit (ghost_inj _ _ _ _ _ w Hg1 Hg2); try join_sub.
   intros (? & Heq); inv Heq.
+  pose proof (hist_list_inj _ _ _ Hr1 Hr2); subst.
   destruct (age_sepalg.join_level _ _ _ Hj1), (age_sepalg.join_level _ _ _ Hj2),
     (age_sepalg.join_level _ _ _ Hj'1), (age_sepalg.join_level _ _ _ Hj'2),
     (age_sepalg.join_level _ _ _ Hj''1), (age_sepalg.join_level _ _ _ Hj''2),
@@ -97,9 +98,9 @@ Proof.
   join_inj.
 Qed.
 
-Definition atomic_loc sh p i R h := !!(field_compatible tatomic [] p) &&
+Definition atomic_loc sh p i R (h : hist) := !!(field_compatible tatomic [] p) &&
   (EX lock : val, field_at sh tatomic [StructField _lock] lock p * lock_inv sh lock (A_inv p lock i R) *
-   ghost_hist h p).
+   ghost_hist sh h p).
 
 Lemma A_inv_super_non_expansive : forall n p l i R,
   compcert_rmaps.RML.R.approx n (A_inv p l i R) =
@@ -153,7 +154,7 @@ Proof.
     PROP () LOCAL (let '(i, R) := x in temp _i (vint i))
     SEP (let '(i, R) := x in R [] (vint i) * (weak_precise_mpred (R [] (vint i)) && emp)) rho).
   apply (PROP_LOCAL_SEP_super_non_expansive (ProdType (ConstType Z) A_inv_Type) [] [fun _ => _] [fun _ => _]);
-    repeat constructor; hnf; intros; destruct x as (i, R); auto; simpl.
+    repeat constructor; hnf; intros; destruct x as (i, R); [auto | simpl].
   - rewrite !approx_sepcon, !approx_andp.
     rewrite approx_idem, nonexpansive_super_non_expansive by (apply precise_mpred_nonexpansive); auto.
   - extensionality ts x rho.
@@ -170,7 +171,7 @@ Proof.
     apply (PROP_LOCAL_SEP_super_non_expansive (ProdType (ConstType Z) A_inv_Type) []
       [fun ts x => let '(i, R) := x in temp ret_temp p]
       [fun ts x => let '(i, R) := x in atomic_loc Tsh p (vint i) R []]); repeat constructor; hnf; intros;
-        destruct x0 as (i, R); auto; simpl.
+      destruct x0 as (i, R); [auto | simpl].
     apply atomic_loc_super_non_expansive.
   - extensionality ts x rho.
     destruct x; auto.
@@ -194,7 +195,7 @@ Program Definition free_atomic_spec := DECLARE _free_atomic
    SEP (atomic_loc Tsh p i R h)
   POST [ tint ]
    EX h' : list hist_el, EX v : Z,
-   PROP (hist_eq h h'; apply_hist i h' = Some (vint v))
+   PROP (hist_list h h'; apply_hist i h' = Some (vint v))
    LOCAL (temp ret_temp (vint v))
    SEP (R h' (vint v)).
 Next Obligation.
@@ -202,8 +203,9 @@ Proof.
   replace _ with (fun (_ : list Type) (x : val * val * hist * (list hist_el -> val -> mpred)) rho =>
     PROP () LOCAL (let '(p, i, h, R) := x in temp _tgt p)
     SEP (let '(p, i, h, R) := x in atomic_loc Tsh p i R h) rho).
-  apply (PROP_LOCAL_SEP_super_non_expansive (ProdType (ConstType (val * val * hist)) A_inv_Type) [] [fun _ => _]
-    [fun _ => _]); repeat constructor; hnf; intros; destruct x as (((p, i), h), R); auto.
+  apply (PROP_LOCAL_SEP_super_non_expansive (ProdType (ConstType (val * val * hist)) A_inv_Type) []
+    [fun _ x => let '(((p, i), h), R) := x in _] [fun _ x => let '(((p, i), h), R) := x in _]);
+    repeat constructor; hnf; intros; destruct x as (((p, i), h), R); [auto|].
   - apply atomic_loc_super_non_expansive.
   - extensionality ts x rho.
     destruct x as (((?, ?), ?), ?); auto.
@@ -211,7 +213,7 @@ Qed.
 Next Obligation.
 Proof.
   replace _ with (fun (_ : list Type) (x : val * val * hist * (list hist_el -> val -> mpred)) rho =>
-    EX h' : list hist_el, EX v : Z, PROP (let '(p, i, h, R) := x in hist_eq h h' /\ apply_hist i h' = Some (vint v))
+    EX h' : list hist_el, EX v : Z, PROP (let '(p, i, h, R) := x in hist_list h h' /\ apply_hist i h' = Some (vint v))
       LOCAL (let '(p, i, h, R) := x in temp ret_temp (vint v)) SEP (let '(p, i, h, R) := x in R h' (vint v)) rho).
   - repeat intro.
     rewrite !approx_exp; apply f_equal; extensionality h'.
@@ -659,12 +661,9 @@ Proof.
   forward.
   forward.
   match goal with |- semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
-    apply semax_pre with (P' := PROP () (LOCALx Q (SEPx (ghost ([] : hist, Some (@nil hist_el)) p :: R)))) end.
-  { admit. }
-  replace_SEP 0 (ghost_hist [] p * ghost (nil : hist, Some (@nil hist_el)) p).
-  { go_lowerx.
-    rewrite sepcon_emp.
-    unfold ghost_hist; erewrite ghost_join; [apply derives_refl | apply hist_sep_join, hist_incl_nil]. }
+    apply semax_pre with (P' := PROP () (LOCALx Q (SEPx (ghost (Some (Tsh, [] : hist), Some ([] : hist)) p :: R)))) end.
+  { admit. } (* allocate ghost *)
+  rewrite <- hist_ref_join_nil by (apply Share.nontrivial).
   forward_call (l, Tsh, A_inv p l (vint i) R).
   forward_call (l, Tsh, A_inv p l (vint i) R).
   { rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
@@ -684,7 +683,43 @@ Lemma body_free_atomic : semax_body Vprog Gprog f_free_atomic free_atomic_spec.
 Proof.
   start_dep_function.
   simpl; destruct ts as (((p, i), h), R).
-  
+  unfold atomic_loc; Intros l.
+  rewrite lock_inv_isptr; Intros.
+  forward.
+  forward_call (l, Tsh, A_inv p l i R).
+  forward_call (l, Tsh, A_inv p l i R).
+  { rewrite <- emp_sepcon at 1; apply sepcon_derives; [|cancel].
+    apply andp_right; auto; apply andp_right.
+    - eapply derives_trans, A_inv_precise; auto.
+    - eapply derives_trans, positive_weak_positive, A_inv_positive; auto. }
+  unfold A_inv; Intros h' v.
+  forward_call (l, sizeof tlock).
+  { rewrite data_at__memory_block; entailer!. }
+  forward.
+  gather_SEP 0 5.
+  forward_call (p, sizeof tatomic).
+  { entailer!.
+    rewrite 3sepcon_assoc.
+    apply sepcon_derives; [|cancel].
+    eapply derives_trans; [apply sepcon_derives; apply field_at_field_at_|].
+    rewrite !field_at__memory_block; simpl.
+    rewrite !field_compatible_field_address by auto; simpl.
+    replace 8 with (4 + 4) by omega.
+    exploit field_compatible_isptr; eauto; intro.
+    destruct p; try contradiction.
+    rewrite <- (Int.repr_unsigned i0), memory_block_split; try computable.
+    simpl; entailer!.
+    { match goal with H : field_compatible _ _ _ |- _ => destruct H as (? & ? & ? & ? & ? & Hsize & ?) end.
+      pose proof (Int.unsigned_range i0).
+      simpl in Hsize; omega. } }
+  gather_SEP 0 3.
+  pose proof Share.nontrivial.
+  rewrite sepcon_comm, hist_ref_join by auto.
+  Intros h''.
+  match goal with H : hist_sub _ _ _ |- _ => unfold hist_sub in H; rewrite eq_dec_refl in H; subst end.
+  forward.
+  Exists h' (Int.signed v); rewrite Int.repr_signed; entailer!.
+  admit. (* deallocate ghost *)
 Admitted.
 
 Lemma apply_hist_app : forall h1 i h2, apply_hist i (h1 ++ h2) =
@@ -707,23 +742,23 @@ Proof.
   forward.
   forward_call (l, sh, A_inv tgt l i R).
   unfold A_inv at 2; Intros h' v.
-  gather_SEP 2 8; rewrite sepcon_comm.
-  assert_PROP (join (h, None) ([], Some h') (h, Some h')) as Hjoin.
-  { go_lowerx; apply sepcon_derives_prop.
-    eapply derives_trans; [apply ghost_conflict|].
-    apply prop_left; intros (? & (_ & Hh) & ([(? & ?) | (<- & _)] & Hincl)); try discriminate; simpl in *.
-    apply prop_right; rewrite app_nil_r in *; repeat split; auto.
-    repeat intro; apply Hincl.
-    rewrite <- Hh; auto. }
-  unfold ghost_hist; rewrite (ghost_join _ _ _ _ Hjoin).
+  assert (sh <> Share.bot).
+  { intro; subst; contradiction unreadable_bot. }
+  gather_SEP 2 8; rewrite sepcon_comm, hist_ref_join by auto.
+  Intros hr.
   forward.
   assert (apply_hist i (h' ++ [Load v]) = Some v) as Hh'.
   { rewrite apply_hist_app.
     replace (apply_hist i h') with (Some v); simpl.
     apply eq_dec_refl. }
-  apply hist_add with (e := Load v).
-  destruct Hjoin as (? & ? & Hincl); simpl in Hincl.
-  erewrite <- ghost_join; [|apply hist_sep_join].
+  match goal with H : hist_list _ _ |- _ => pose proof (hist_next _ _ H) end.
+  eapply hist_add with (e := Load v); eauto.
+  replace_SEP 0 (ghost_hist sh (h ++ [(length h', Load v)]) tgt * ghost_ref (h' ++ [Load v]) tgt).
+  { go_lowerx; rewrite sepcon_emp, hist_ref_join by auto.
+    Exists (hr ++ [(length h', Load v)]); entailer!.
+    split; [apply hist_list_snoc | apply hist_sub_snoc]; auto. }
+  assert (hist_incl h h') as Hincl.
+  { eapply hist_sub_list_incl; eauto. }
   gather_SEP 3 8; simpl.
   match goal with H : AL_spec _ _ _ _ |- _ => apply H; auto end.
   forward_call (l, sh, A_inv tgt l i R).
@@ -737,14 +772,7 @@ Proof.
   - rewrite Forall_forall; intros (?, ?) Hin.
     specialize (Hincl _ _ Hin).
     simpl; rewrite <- nth_error_Some, Hincl; discriminate.
-  - rewrite <- (sepcon_emp (ghost_hist _ _)).
-    apply sepcon_derives; auto.
-    apply andp_left2; auto.
-  - intros ?? Hin.
-    rewrite in_app in Hin; destruct Hin as [Hin | [X | ?]]; [| inv X | contradiction].
-    + specialize (Hincl _ _ Hin); rewrite nth_error_app1; auto.
-      rewrite <- nth_error_Some, Hincl; discriminate.
-    + rewrite nth_error_app2, minus_diag; auto.
+  - apply andp_left2; auto.
 Qed.
 
 Lemma body_store_SC : semax_body Vprog Gprog f_store_SC store_SC_spec.
@@ -757,23 +785,23 @@ Proof.
   forward.
   forward_call (l, sh, A_inv tgt l i R).
   unfold A_inv at 2; Intros h' v'.
-  gather_SEP 2 8; rewrite sepcon_comm.
-  assert_PROP (join (h, None) ([], Some h') (h, Some h')) as Hjoin.
-  { go_lowerx; apply sepcon_derives_prop.
-    eapply derives_trans; [apply ghost_conflict|].
-    apply prop_left; intros (? & (_ & Hh) & ([(? & ?) | (<- & _)] & Hincl)); try discriminate; simpl in *.
-    apply prop_right; rewrite app_nil_r in *; repeat split; auto.
-    repeat intro; apply Hincl.
-    rewrite <- Hh; auto. }
-  unfold ghost_hist; rewrite (ghost_join _ _ _ _ Hjoin).
+  assert (sh <> Share.bot).
+  { intro; subst; contradiction unreadable_bot. }
+  gather_SEP 2 8; rewrite sepcon_comm, hist_ref_join by auto.
+  Intros hr.
   forward.
   assert (apply_hist i (h' ++ [Store v]) = Some v) as Hh'.
   { rewrite apply_hist_app.
     replace (apply_hist i h') with (Some v'); auto. }
-  apply hist_add with (e := Store v).
-  destruct Hjoin as (? & ? & Hincl); simpl in Hincl.
-  erewrite <- ghost_join; [|apply hist_sep_join].
+  match goal with H : hist_list _ _ |- _ => pose proof (hist_next _ _ H) end.
+  eapply hist_add with (e := Store v); eauto.
+  replace_SEP 0 (ghost_hist sh (h ++ [(length h', Store v)]) tgt * ghost_ref (h' ++ [Store v]) tgt).
+  { go_lowerx; rewrite sepcon_emp, hist_ref_join by auto.
+    Exists (hr ++ [(length h', Store v)]); entailer!.
+    split; [apply hist_list_snoc | apply hist_sub_snoc]; auto. }
   gather_SEP 3 8; simpl.
+  assert (hist_incl h h') as Hincl.
+  { eapply hist_sub_list_incl; eauto. }
   match goal with H : AS_spec _ _ _ _ |- _ => apply H; auto end.
   forward_call (l, sh, A_inv tgt l i R).
   { rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
@@ -787,14 +815,7 @@ Proof.
   - rewrite Forall_forall; intros (?, ?) Hin.
     specialize (Hincl _ _ Hin).
     simpl; rewrite <- nth_error_Some, Hincl; discriminate.
-  - rewrite <- (sepcon_emp (ghost_hist _ _)).
-    apply sepcon_derives; auto.
-    apply andp_left2; auto.
-  - intros ?? Hin.
-    rewrite in_app in Hin; destruct Hin as [Hin | [X | ?]]; [| inv X | contradiction].
-    + specialize (Hincl _ _ Hin); rewrite nth_error_app1; auto.
-      rewrite <- nth_error_Some, Hincl; discriminate.
-    + rewrite nth_error_app2, minus_diag; auto.
+  - apply andp_left2; auto.
 Qed.
 
 Lemma body_CAS_SC : semax_body Vprog Gprog f_CAS_SC CAS_SC_spec.
@@ -807,15 +828,10 @@ Proof.
   forward.
   forward_call (l, sh, A_inv tgt l i R).
   unfold A_inv at 2; Intros h' v'.
-  gather_SEP 2 8; rewrite sepcon_comm.
-  assert_PROP (join (h, None) ([], Some h') (h, Some h')) as Hjoin.
-  { go_lowerx; apply sepcon_derives_prop.
-    eapply derives_trans; [apply ghost_conflict|].
-    apply prop_left; intros (? & (_ & Hh) & ([(? & ?) | (<- & _)] & Hincl)); try discriminate; simpl in *.
-    apply prop_right; rewrite app_nil_r in *; repeat split; auto.
-    repeat intro; apply Hincl.
-    rewrite <- Hh; auto. }
-  unfold ghost_hist; rewrite (ghost_join _ _ _ _ Hjoin).
+  assert (sh <> Share.bot).
+  { intro; subst; contradiction unreadable_bot. }
+  gather_SEP 2 8; rewrite sepcon_comm, hist_ref_join by auto.
+  Intros hr.
   forward.
   focus_SEP 2.
   match goal with |- semax _ (PROP () (LOCALx (temp _x v' :: ?Q)
@@ -840,10 +856,15 @@ Proof.
     replace (apply_hist i h') with (Some v'); simpl.
     rewrite eq_dec_refl; destruct (eq_dec c v'); auto. }
   focus_SEP 1.
-  apply hist_add with (e := CAS v' c v).
-  destruct Hjoin as (? & ? & Hincl); simpl in Hincl.
-  erewrite <- ghost_join; [|apply hist_sep_join].
+  match goal with H : hist_list _ _ |- _ => pose proof (hist_next _ _ H) end.
+  eapply hist_add with (e := CAS v' c v); eauto.
+  replace_SEP 0 (ghost_hist sh (h ++ [(length h', CAS v' c v)]) tgt * ghost_ref (h' ++ [CAS v' c v]) tgt).
+  { go_lowerx; rewrite sepcon_emp, hist_ref_join by auto.
+    Exists (hr ++ [(length h', CAS v' c v)]); entailer!.
+    split; [apply hist_list_snoc | apply hist_sub_snoc]; auto. }
   gather_SEP 3 8; simpl.
+  assert (hist_incl h h') as Hincl.
+  { eapply hist_sub_list_incl; eauto. }
   match goal with H : ACAS_spec _ _ _ _ |- _ => apply H; auto end.
   forward_call (l, sh, A_inv tgt l i R).
   { rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
@@ -857,14 +878,7 @@ Proof.
   - rewrite Forall_forall; intros (?, ?) Hin.
     specialize (Hincl _ _ Hin).
     simpl; rewrite <- nth_error_Some, Hincl; discriminate.
-  - rewrite <- (sepcon_emp (ghost_hist _ _)).
-    apply sepcon_derives; auto.
-    apply andp_left2; auto.
-  - intros ?? Hin.
-    rewrite in_app in Hin; destruct Hin as [Hin | [X | ?]]; [| inv X | contradiction].
-    + specialize (Hincl _ _ Hin); rewrite nth_error_app1; auto.
-      rewrite <- nth_error_Some, Hincl; discriminate.
-    + rewrite nth_error_app2, minus_diag; auto.
+  - apply andp_left2; auto.
 Qed.
 
 (* Useful functions for working with atomic histories *)
@@ -974,4 +988,61 @@ Lemma atomic_loc_isptr : forall sh p i R h, atomic_loc sh p i R h = !!isptr p &&
 Proof.
   intros; eapply local_facts_isptr with (P := fun p => atomic_loc sh p i R h); eauto.
   unfold atomic_loc; entailer!.
+Qed.
+
+Lemma atomic_loc_precise' : forall sh p i R, readable_share sh -> precise (EX h : _, atomic_loc sh p i R h).
+Proof.
+  intros; unfold atomic_loc.
+  apply derives_precise' with (Q := (EX lock : val, @field_at CompSpecs sh tatomic [StructField _lock] lock p *
+    lock_inv sh lock (A_inv p lock i R)) * (EX g : (option (share * hist) * option hist), ghost g p)).
+  { Intros h lock; Exists lock (Some (sh, h), @None hist); entailer!. }
+  apply precise_sepcon, ex_ghost_precise.
+  intros ??? (l1 & r1 & r1' & ? & (? & Hl1) & ?) (l2 & r2 & r2' & ? & (? & Hl2) & ?) ??.
+  unfold at_offset in *.
+  rewrite data_at_rec_eq in Hl1, Hl2; simpl in *.
+  unfold unfold_reptype in *; simpl in *.
+  rewrite lock_inv_isptr in *; repeat match goal with H : predicates_hered.app_pred (!!_ && _) _ |- _ =>
+    destruct H end.
+  exploit (mapsto_inj sh (tptr (Tstruct sim_atomics._lock_t noattr)) l1 l2 (offset_val 4 p) r1 r2 w);
+    auto; try join_sub.
+  { intro; subst; contradiction. }
+  { intro; subst; contradiction. }
+  intros (? & ?); subst.
+  assert (r1' = r2').
+  { eapply lock_inv_precise; eauto; join_sub. }
+  subst; join_inj.
+Qed.
+
+Corollary atomic_loc_precise : forall sh p i R h, readable_share sh -> precise (atomic_loc sh p i R h).
+Proof.
+  intros; eapply derives_precise', atomic_loc_precise'; [Exists h|]; eauto.
+Qed.
+
+Lemma atomic_loc_join : forall sh1 sh2 sh p i R h1 h2 h (Hjoin : sepalg.join sh1 sh2 sh)
+  (Hh : Permutation.Permutation (h1 ++ h2) h) (Hsh1 : readable_share sh1) (Hsh2 : readable_share sh2),
+  atomic_loc sh1 p i R h1 * atomic_loc sh2 p i R h2 = !!(disjoint h1 h2) && atomic_loc sh p i R h.
+Proof.
+  intros; unfold atomic_loc.
+  rewrite sepcon_andp_prop', sepcon_andp_prop.
+  rewrite <- andp_assoc, andp_dup.
+  rewrite <- andp_assoc, (andp_comm _ (!! _)), andp_assoc.
+  apply f_equal.
+  rewrite <- !exp_sepcon1.
+  assert (sh1 <> Share.bot) by (intro; subst; contradiction unreadable_bot).
+  assert (sh2 <> Share.bot) by (intro; subst; contradiction unreadable_bot).
+  apply mpred_ext.
+  - Intros l1 l2.
+    match goal with |- (?P1 * ?Q1) * (?P2 * ?Q2) |-- _ =>
+      apply derives_trans with (Q := (Q1 * Q2) * (P1 * P2)); [cancel|] end.
+    erewrite ghost_hist_join; eauto.
+    entailer!.
+    rewrite (lock_inv_isptr sh1), (lock_inv_isptr sh2); Intros.
+    Exists l1; rewrite <- (lock_inv_share_join sh1 sh2 sh) by auto; cancel.
+    unfold field_at, at_offset; Intros; apply andp_right; [apply prop_right; auto|].
+    rewrite !data_at_rec_eq; simpl.
+    assert_PROP (l1 = l2) by (apply sepcon_derives_prop, mapsto_value_eq; auto; intro; subst; contradiction).
+    subst; erewrite mapsto_share_join; eauto.
+  - Intros l; Exists l l.
+    erewrite <- field_at_share_join, <- (lock_inv_share_join sh1 sh2); eauto; cancel.
+    erewrite ghost_hist_join; eauto; entailer!.
 Qed.

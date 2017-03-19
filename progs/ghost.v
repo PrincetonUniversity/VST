@@ -2,10 +2,11 @@
 Require Import progs.conclib.
 
 Class PCM (A : Type) :=
-  { join : A -> A -> A -> Prop; (*initial : A -> Prop;*)
-    join_comm : forall a b c, join a b c -> join b a c;
-    join_assoc : forall a b c d e, join a b c -> join c d e ->
+  { join : A -> A -> A -> Prop;
+    join_comm : forall a b c (Hjoin : join a b c), join b a c;
+    join_assoc : forall a b c d e (Hjoin1 : join a b c) (Hjoin2 : join c d e),
                  exists c', join b d c' /\ join a c' e }.
+
 Section Ghost.
 
 Context {CS : compspecs}.
@@ -56,17 +57,53 @@ Qed.
 
 End PCM.
 
-(* In general, when can we say that a ghost resource is precise? *)
+(* operations on PCMs *)
 
-Instance Prod_PCM {A B} (MA : PCM A) (MB : PCM B) : PCM (A * B) :=
-  { join a b c := join (fst a) (fst b) (fst c) /\ join (snd a) (snd b) (snd c)(*;
-    initial a := initial (fst a) /\ initial (snd a)*) }.
+Section Ops.
+
+Context {A B : Type} {MA : PCM A} {MB : PCM B}.
+
+Instance prod_PCM : PCM (A * B) := { join a b c := join (fst a) (fst b) (fst c) /\ join (snd a) (snd b) (snd c) }.
 Proof.
   - intros ??? (? & ?); split; apply join_comm; auto.
   - intros ????? (? & ?) (HA & HB).
     eapply join_assoc in HA; eauto.
     eapply join_assoc in HB; eauto.
     destruct HA as (c'a & ? & ?), HB as (c'b & ? & ?); exists (c'a, c'b); split; split; auto.
+Defined.
+
+(* Two different ways of adding a unit to a PCM. *)
+Instance option_PCM : PCM (option A) := { join a b c :=
+  match a, b, c with
+  | Some a', Some b', Some c' => join a' b' c'
+  | Some a', None, Some c' => c' = a'
+  | None, Some b', Some c' => c' = b'
+  | None, None, None => True
+  | _, _, _ => False
+  end }.
+Proof.
+  - destruct a, b, c; auto.
+    apply join_comm.
+  - destruct a, b, c, d, e; try contradiction; intros; subst;
+      try solve [eexists (Some _); split; auto; auto]; try solve [exists None; split; auto].
+    eapply join_assoc in Hjoin2; eauto.
+    destruct Hjoin2 as (c' & ? & ?); exists (Some c'); auto.
+Defined.
+
+Instance exclusive_PCM : PCM (option A) := { join a b c := a = c /\ b = None \/ b = c /\ a = None }.
+Proof.
+  - tauto.
+  - intros ????? [(? & ?) | (? & ?)]; subst; eauto.
+Defined.
+
+End Ops.
+
+Global Instance share_PCM : PCM share := { join := sepalg.join }.
+Proof.
+  - intros; apply sepalg.join_comm; auto.
+  - intros.
+    eapply sepalg.join_assoc in Hjoin2; eauto.
+    destruct Hjoin2; eauto.
 Defined.
 
 (* Instances of ghost state *)
@@ -170,21 +207,87 @@ Qed.
 
 End GVar.
 
+Section Reference.
+(* One common kind of PCM is one in which a central authority has a reference copy, and clients pass around
+   partial knowledge. When a client recovers all pieces, it can gain full knowledge. *)
+
+Context `{P : PCM}.
+
+Instance pos_PCM : PCM (option (share * A)) := { join a b c :=
+  match a, b, c with
+  | Some (sha, a'), Some (shb, b'), Some (shc, c') =>
+      sha <> Share.bot /\ shb <> Share.bot /\ sepalg.join sha shb shc /\ join a' b' c'
+  | Some (sha, a'), None, Some c' => sha <> Share.bot /\ c' = (sha, a')
+  | None, Some (shb, b'), Some c' => shb <> Share.bot /\ c' = (shb, b')
+  | None, None, None => True
+  | _, _, _ => False
+  end }.
+Proof.
+  - destruct a as [(?, ?)|], b as [(?, ?)|], c as [(?, ?)|]; auto.
+    intros (? & ? & ? & ?); repeat (split; auto); apply join_comm; auto.
+  - destruct a as [(?, ?)|], b as [(?, ?)|], c as [(?, ?)|], d as [(?, ?)|], e as [(?, ?)|]; try contradiction;
+      intros; decompose [and] Hjoin1; decompose [and] Hjoin2;
+      repeat match goal with H : (_, _) = (_, _) |- _ => inv H end;
+      try solve [eexists (Some _); split; auto; auto]; try solve [exists None; split; auto].
+    + destruct (@sepalg.join_assoc _ _ _ s s0 s2 s1 s3) as (sh' & ? & ?); auto.
+      destruct (join_assoc a a0 a1 a2 a3) as (a' & ? & ?); auto.
+      exists (Some (sh', a')); repeat (split; auto).
+      intro; subst.
+      exploit join_Bot; eauto; tauto.
+    + exists (Some (s2, a2)); repeat (split; auto).
+      intro; subst.
+      exploit join_Bot; eauto; tauto.
+Defined.
+
+Definition completable a r := exists x, join a x (Some (Tsh, r)).
+
+Global Instance ref_PCM : PCM (option (share * A) * option A) :=
+  { join a b c := join (fst a) (fst b) (fst c) /\ @join _ exclusive_PCM (snd a) (snd b) (snd c) /\
+      match snd c with Some r => completable (fst c) r | None => True end }.
+Proof.
+  - intros ??? (Hfst & Hsnd & ?).
+    split; [|split]; try apply join_comm; auto.
+  - intros ????? (Hfst1 & Hsnd1 & Hcase1) (Hfst2 & Hsnd2 & Hcase2).
+    destruct (join_assoc _ _ _ _ _ Hfst1 Hfst2) as (c'1 & ? & Hc'1).
+    destruct (join_assoc _ _ _ _ _ Hsnd1 Hsnd2) as (c'2 & ? & Hc'2).
+    exists (c'1, c'2).
+    destruct Hc'2 as [(He & ?) | (? & ?)]; subst; [repeat split; simpl; auto|].
+    repeat split; try solve [simpl; auto].
+    simpl snd; destruct (snd e); auto.
+    unfold completable.
+    destruct Hcase2 as (? & Hcase2).
+    apply join_comm in Hc'1.
+    destruct (join_assoc _ _ _ _ _ Hc'1 Hcase2) as (? & ? & ?); eauto.
+Defined.
+
+Lemma ref_sub : forall (sh : share) (a b : A) p,
+  ghost (Some (sh, a), @None A) p * ghost (@None (share * A), Some b) p |--
+    !!(if eq_dec sh Tsh then a = b else exists x, join a x b).
+Proof.
+  intros.
+  eapply derives_trans; [apply ghost_conflict|].
+  apply prop_left; intros (c & Hjoin & [(? & ?) | (Hc & ?)] & Hcompat); [discriminate | apply prop_right].
+  rewrite <- Hc in Hcompat; destruct Hcompat as (c' & Hsub).
+  simpl in Hjoin.
+  destruct (fst c); [|contradiction].
+  destruct Hjoin; subst.
+  simpl in Hsub.
+  destruct c' as [(?, ?)|].
+  - destruct Hsub as (? & ? & Hsh & ?).
+    if_tac; eauto; subst.
+    apply join_Tsh in Hsh; tauto.
+  - destruct Hsub as (? & Hsub); inv Hsub.
+    rewrite eq_dec_refl; auto.
+Qed.
+
+End Reference.
+
 Section GHist.
 
 (* Ghost histories in the style of Nanevsky *)
 Context {hist_el : Type}.
 
 Notation hist_part := (list (nat * hist_el)).
-
-(* We want to split a history into two parts: a reference part that is always complete,
-   and a splittable part that can be shared among clients. *)
-Instance reference_PCM : PCM (option (list hist_el)) :=
-  { join a b c := a = c /\ b = None \/ b = c /\ a = None }.
-Proof.
-  - intros ??? [(? & ?) | (? & ?)]; subst; auto.
-  - intros ????? [(? & ?) | (? & ?)] [(? & ?) | (? & ?)]; subst; eexists; split; eauto.
-Defined.
 
 Require Import Sorting.Permutation.
 
@@ -235,66 +338,229 @@ Proof.
       rewrite app_assoc; apply Permutation_app_tail; auto.
 Defined.
 
-Definition hist_incl h (h' : list hist_el) := forall x y, In (x, y) h -> nth_error h' x = Some y.
+Definition hist_sub sh h hr := if eq_dec sh Tsh then h = hr
+  else sh <> Share.bot /\ exists h', disjoint h h' /\ Permutation (h ++ h') hr.
 
-Definition hist_eq h (h' : list hist_el) := forall x y, In (x, y) h <-> nth_error h' x = Some y.
-
-Lemma hist_incl_lt : forall h h', hist_incl h h' -> Forall (fun x => fst x < length h')%nat h.
+(* up *)
+Lemma comp_join_top : forall sh, sepalg.join sh (Share.comp sh) Tsh.
 Proof.
-  intros.
-  rewrite Forall_forall; intros (?, ?) Hin.
-  specialize (H _ _ Hin).
-  simpl; rewrite <- nth_error_Some, H; discriminate.
+  intro; pose proof (Share.comp1 sh).
+  apply comp_parts_join with (L := sh)(R := Share.comp sh); auto;
+    rewrite Share.glb_idem, Share.glb_top.
+  - rewrite Share.comp2; auto.
+  - rewrite Share.glb_commute, Share.comp2; auto.
 Qed.
 
-Global Instance hist_PCM : PCM (hist_part * option (list hist_el)) :=
- { join a b c := @join _ map_PCM (fst a) (fst b) (fst c) /\ @join _ reference_PCM (snd a) (snd b) (snd c) /\
-                 match snd c with Some h => hist_incl (fst c) h | None => True end }.
+Lemma completable_alt : forall sh h hr, completable (Some (sh, h)) hr <-> hist_sub sh h hr.
 Proof.
-  - intros ??? (? & ? & ?).
-    split; [|split; auto]; apply join_comm; auto.
-  - intros ????? (Hj1a & Hj1b & Hi1) (Hj2a & Hj2b & Hi2).
-    eapply join_assoc in Hj2a; eauto.
-    eapply join_assoc in Hj2b; eauto.
-    destruct Hj2a as (c'a & (? & Hj2a) & (? & Hj3a)), Hj2b as (c'b & Hj2b & Hj3b).
-    exists (c'a, c'b); repeat split; auto; simpl; intros.
-    destruct Hj3b as [(? & ->) | (-> & ?)]; auto.
-    destruct (snd e) eqn: He; auto.
-    repeat intro; apply Hi2.
-    rewrite <- Hj3a, in_app; auto.
-Defined.
+  unfold completable, hist_sub; intros; simpl; split.
+  - intros ([(?, ?)|] & Hcase).
+    + destruct Hcase as (? & ? & Hsh & ? & ?).
+      if_tac; eauto.
+      subst; apply join_Tsh in Hsh; tauto.
+    + destruct Hcase as (? & Heq); inv Heq.
+      rewrite eq_dec_refl; auto.
+  - if_tac.
+    + intro; subst; exists None; split; auto.
+      apply Share.nontrivial.
+    + intros (? & h' & ?); exists (Some (Share.comp sh, h')).
+      split; auto.
+      split.
+      { intro Hbot; contradiction H.
+        rewrite <- Share.comp_inv at 1.
+        rewrite Hbot; apply comp_bot. }
+      split; [apply comp_join_top | auto].
+Qed.
 
-Lemma hist_add : forall (h : hist_part) h' e p,
-  view_shift (ghost (h, Some h') p) (ghost (h ++ [(length h', e)], Some (h' ++ [e])) p).
+Lemma hist_sub_snoc : forall sh h hr t' e (Hsub : hist_sub sh h hr) (Hfresh : ~In t' (map fst hr)),
+  hist_sub sh (h ++ [(t', e)]) (hr ++ [(t', e)]).
+Proof.
+  unfold hist_sub; intros.
+  if_tac; subst; auto.
+  destruct Hsub as (? & h' & ? & Hperm); split; auto.
+  exists h'; split.
+  - rewrite disjoint_app; split; auto.
+    intros ?? [Heq | ?]; [inv Heq | contradiction].
+    intros ??; contradiction Hfresh; rewrite in_map_iff.
+    do 2 eexists; [|rewrite <- Hperm, in_app; eauto]; auto.
+  - rewrite <- app_assoc; etransitivity; [apply Permutation_app_head, Permutation_app_comm|].
+    rewrite app_assoc; apply Permutation_app; auto.
+Qed.
+
+Definition ghost_hist (sh : share) (h : hist_part) p := (ghost (Some (sh, h), @None hist_part) p).
+
+Lemma ghost_hist_join : forall sh1 sh2 sh h1 h2 h p (Hsh : sepalg.join sh1 sh2 sh)
+  (Hh : Permutation (h1 ++ h2) h) (Hsh1 : sh1 <> Share.bot) (Hsh2 : sh2 <> Share.bot),
+  ghost_hist sh1 h1 p * ghost_hist sh2 h2 p = !!(disjoint h1 h2) && ghost_hist sh h p.
+Proof.
+  intros; unfold ghost_hist.
+  apply mpred_ext.
+  - assert_PROP (disjoint h1 h2).
+    { eapply derives_trans; [apply ghost_conflict|].
+      apply prop_left; intros (x & ? & ?); simpl in *.
+      apply prop_right; destruct (fst x) as [(?, ?)|]; [tauto | contradiction]. }
+    erewrite ghost_join; [entailer!|].
+    repeat (split; simpl; auto).
+  - Intros.
+    erewrite ghost_join; eauto.
+    repeat (split; simpl; auto).
+Qed.
+
+Definition hist_incl (h : hist_part) l := forall t e, In (t, e) h -> nth_error l t = Some e.
+
+Definition hist_list (h : hist_part) l := forall t e, In (t, e) h <-> nth_error l t = Some e.
+
+Lemma hist_list_inj : forall h l1 l2 (Hl1 : hist_list h l1) (Hl2 : hist_list h l2), l1 = l2.
+Proof.
+  unfold hist_list; intros; apply list_nth_error_eq.
+  intro j; specialize (Hl1 j); specialize (Hl2 j).
+  destruct (nth_error l1 j).
+  - symmetry; rewrite <- Hl2, Hl1; auto.
+  - destruct (nth_error l2 j); auto.
+    specialize (Hl2 h0); rewrite Hl1 in Hl2; tauto.
+Qed.
+
+Definition ghost_ref l p := EX hr : hist_part, !!(hist_list hr l) &&
+  ghost (@None (share * hist_part), Some hr) p.
+
+Lemma hist_add : forall (sh : share) (h h' : hist_part) e p t' (Hfresh : ~In t' (map fst h')),
+  view_shift (ghost (Some (sh, h), Some h') p) (ghost (Some (sh, h ++ [(t', e)]), Some (h' ++ [(t', e)])) p).
 Proof.
   intros; apply ghost_update.
-  intros (?, ?) (? & (Hdisj & Hperm) & [(<- & ?) | (? & ?)] & Hh'); try discriminate; simpl in *; subst.
-  exists (h ++ l ++ [(length h', e)], Some (h' ++ [e])); repeat split; simpl; auto.
-  - intros ?? Hin ?.
-    rewrite in_app in Hin; destruct Hin as [? | [X | ?]]; [eapply Hdisj; eauto | inv X | contradiction].
-    intro; specialize (Hh' (length h') e'); exploit Hh'.
-    { rewrite <- Hperm, in_app; auto. }
-    intro Hnth; eapply lt_irrefl.
-    rewrite <- nth_error_Some, Hnth; discriminate.
-  - rewrite <- app_assoc; apply Permutation_app_head, Permutation_app_comm.
-  - intros ?? Hin; rewrite app_assoc, in_app in Hin.
-    destruct Hin as [Hin | [X | ?]]; [| inv X | contradiction].
-    + rewrite Hperm in Hin; specialize (Hh' _ _ Hin).
-      rewrite nth_error_app1; auto.
-      rewrite <- nth_error_Some, Hh'; discriminate.
-    + rewrite nth_error_app2, minus_diag; auto.
+  intros (c1, c2) ((d1, d2) & Hjoin1 & [(<- & ?) | (? & ?)] & Hcompat); try discriminate.
+  simpl in *.
+  destruct c1 as [(shc, hc)|], d1 as [(?, ?)|]; try contradiction.
+  - destruct Hjoin1 as (? & ? & ? & Hdisj & Hperm).
+    rewrite completable_alt in Hcompat; unfold hist_sub in Hcompat.
+    destruct (eq_dec s Tsh).
+    + subst; exists (Some (Tsh, h' ++ [(t', e)]), Some (h' ++ [(t', e)])).
+      repeat (split; simpl; auto).
+      * rewrite disjoint_app; split; auto.
+        intros ?? [Heq | ?]; [inv Heq | contradiction].
+        intros ??; contradiction Hfresh; rewrite in_map_iff.
+        do 2 eexists; [|rewrite <- Hperm, in_app; eauto]; auto.
+      * rewrite <- app_assoc.
+        etransitivity; [apply Permutation_app_head, Permutation_app_comm|].
+        rewrite app_assoc; apply Permutation_app; auto.
+      * rewrite completable_alt; apply hist_sub_snoc; auto.
+        unfold hist_sub; rewrite eq_dec_refl; auto.
+    + destruct Hcompat as (? & l' & ? & Hperm').
+      exists (Some (s, h ++ hc ++ [(t', e)]), Some (h' ++ [(t', e)])); repeat (split; simpl; auto).
+      * rewrite disjoint_app; split; auto.
+        intros ?? [Heq | ?]; [inv Heq | contradiction].
+        intros ??; contradiction Hfresh; rewrite in_map_iff.
+        do 2 eexists; [|rewrite <- Hperm', in_app, <- Hperm, in_app; eauto]; auto.
+      * rewrite <- app_assoc; apply Permutation_app_head, Permutation_app_comm.
+      * rewrite completable_alt, app_assoc; apply hist_sub_snoc; auto.
+        unfold hist_sub; if_tac; [contradiction n; auto|].
+        split; auto; exists l'; split.
+        { eapply Permutation_disjoint; eauto. }
+        etransitivity; [|eauto].
+        apply Permutation_app; auto.
+  - simpl in H; destruct Hjoin1 as (? & Hjoin1); inv Hjoin1.
+    exists (Some (sh, h ++ [(t', e)]), Some (h' ++ [(t', e)])); simpl; repeat (split; auto).
+    rewrite completable_alt in *; apply hist_sub_snoc; auto.
 Qed.
 
-Lemma hist_sep_join : forall (h1 : hist_part) (h2 : list hist_el), hist_incl h1 h2 ->
-  join (h1, None) ([], Some h2) (h1, Some h2).
+Lemma hist_next : forall h l (Hlist : hist_list h l), ~In (length l) (map fst h).
 Proof.
-  intros; repeat split; simpl; auto.
-  rewrite app_nil_r; auto.
+  intros; rewrite in_map_iff; intros ((?, ?) & ? & Hin); simpl in *; subst.
+  unfold hist_list in Hlist; rewrite Hlist in Hin.
+  pose proof (nth_error_Some l (length l)) as (Hlt & _).
+  exploit Hlt; [|omega].
+  rewrite Hin; discriminate.
 Qed.
 
 Lemma hist_incl_nil : forall h, hist_incl [] h.
 Proof.
   repeat intro; contradiction.
+Qed.
+
+Lemma hist_list_nil : hist_list [] [].
+Proof.
+  split; [contradiction | rewrite nth_error_nil; discriminate].
+Qed.
+
+Lemma hist_list_snoc : forall h l e, hist_list h l -> hist_list (h ++ [(length l, e)]) (l ++ [e]).
+Proof.
+  unfold hist_list; intros.
+  rewrite in_app; split.
+  - intros [Hin | [Heq | ?]]; try contradiction.
+    + rewrite H in Hin.
+      rewrite nth_error_app1; auto.
+      rewrite <- nth_error_Some, Hin; discriminate.
+    + inv Heq; rewrite nth_error_app2, minus_diag; auto.
+  - destruct (lt_dec t (length l)).
+    + rewrite nth_error_app1 by auto.
+      rewrite <- H; auto.
+    + rewrite nth_error_app2 by omega.
+      destruct (eq_dec t (length l)).
+      * subst; rewrite minus_diag.
+        intro Heq; inv Heq; simpl; auto.
+      * destruct (t - length l)%nat eqn: Hminus; [omega | simpl; rewrite nth_error_nil; discriminate].
+Qed.
+
+Lemma hist_incl_permute : forall h1 h2 h' (Hincl : hist_incl h1 h') (Hperm : Permutation h1 h2),
+  hist_incl h2 h'.
+Proof.
+  repeat intro.
+  rewrite <- Hperm in H; auto.
+Qed.
+
+Lemma hist_sub_incl : forall sh h h', hist_sub sh h h' -> incl h h'.
+Proof.
+  unfold hist_sub; intros.
+  destruct (eq_dec sh Tsh); [subst; apply incl_refl|].
+  destruct H as (? & ? & ? & Hperm); repeat intro.
+  rewrite <- Hperm, in_app; auto.
+Qed.
+
+Corollary hist_sub_list_incl : forall sh h h' l (Hsub : hist_sub sh h h') (Hlist : hist_list h' l),
+  hist_incl h l.
+Proof.
+  unfold hist_list, hist_incl; intros.
+  rewrite <- Hlist; eapply hist_sub_incl; eauto.
+Qed.
+
+Lemma hist_sub_Tsh : forall h h', hist_sub Tsh h h' = (h = h').
+Proof.
+  intros; unfold hist_sub; rewrite eq_dec_refl; auto.
+Qed.
+
+Lemma hist_ref_join : forall sh h l p, sh <> Share.bot ->
+  ghost_hist sh h p * ghost_ref l p =
+  EX h' : hist_part, !!(hist_list h' l /\ hist_sub sh h h') && ghost (Some (sh, h), Some h') p.
+Proof.
+  unfold ghost_hist, ghost_ref; intros; apply mpred_ext.
+  - Intros hr; Exists hr.
+    eapply derives_trans; [apply prop_and_same_derives, ghost_conflict|].
+    apply derives_extract_prop; intros (x & Hj1 & Hj2 & Hcompat).
+    destruct Hj2 as [(? & ?) | (Hsnd & ?)]; [discriminate|].
+    rewrite <- Hsnd in Hcompat; simpl in *.
+    destruct (fst x); [destruct Hj1 as (_ & Heq); inv Heq | contradiction].
+    assert (hist_sub sh h hr) by (rewrite <- completable_alt; auto).
+    entailer!.
+    erewrite ghost_join; eauto.
+    simpl; auto.
+  - Intros h'.
+    Exists h'; entailer!.
+    erewrite ghost_join; eauto.
+    repeat (split; simpl; auto).
+    rewrite completable_alt; auto.
+Qed.
+
+Corollary hist_ref_join_nil : forall sh p, sh <> Share.bot ->
+  ghost_hist sh [] p * ghost_ref [] p = ghost (Some (sh, [] : hist_part), Some ([] : hist_part)) p.
+Proof.
+  intros; rewrite hist_ref_join by auto.
+  apply mpred_ext; entailer!.
+  - destruct h' as [|(t, e)]; auto.
+    match goal with H : hist_list _ _ |- _ => specialize (H t e); destruct H as (Hin & _) end.
+    exploit Hin; [simpl; auto | rewrite nth_error_nil; discriminate].
+  - Exists ([] : hist_part); entailer!.
+    split; [apply hist_list_nil|].
+    unfold hist_sub; if_tac; auto.
+    split; auto; exists []; auto.
 Qed.
 
 Definition newer (l : hist_part) t := Forall (fun x => fst x < t)%nat l.
@@ -312,10 +578,23 @@ Proof.
   eapply newer_trans; eauto; omega.
 Qed.
 
+Lemma hist_incl_lt : forall h l, hist_incl h l -> newer h (length l).
+Proof.
+  unfold hist_incl; intros.
+  unfold newer; rewrite Forall_forall; intros (?, ?) Hin.
+  erewrite <- nth_error_Some, H; eauto; discriminate.
+Qed.
+
 Variable (d : hist_el).
 
 Definition ordered_hist h := forall i j (Hi : 0 <= i < j) (Hj : j < Zlength h),
   (fst (Znth i h (O, d)) < fst (Znth j h (O, d)))%nat.
+
+Lemma ordered_nil : ordered_hist [].
+Proof.
+  repeat intro.
+  rewrite Zlength_nil in *; omega.
+Qed.
 
 Lemma ordered_cons : forall t e h, ordered_hist ((t, e) :: h) ->
   Forall (fun x => let '(m, _) := x in t < m)%nat h /\ ordered_hist h.
@@ -358,7 +637,6 @@ Proof.
 Qed.
 
 End GHist.
-Hint Resolve hist_incl_nil.
 
 Section AEHist.
 
@@ -387,5 +665,5 @@ Notation AE_hist := (list (nat * AE_hist_el)).
 
 End Ghost.
 
-Hint Resolve disjoint_nil.
+Hint Resolve disjoint_nil hist_incl_nil hist_list_nil ordered_nil.
 Hint Resolve ghost_var_precise ghost_var_precise'.

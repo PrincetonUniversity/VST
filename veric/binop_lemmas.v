@@ -183,6 +183,32 @@ destruct ii,ss; simpl; try split; auto;
 rewrite <- Z.leb_le; reflexivity.
 Qed.
 
+Lemma eq_block_true: forall b1 b2 i1 i2 A (a b: A),
+    is_true (sameblock (Vptr b1 i1) (Vptr b2 i2)) ->
+    (if eq_block b1 b2 then a else b) = a.
+Proof.
+  unfold sameblock, eq_block.
+  intros.
+  apply is_true_e in H.
+  destruct (peq b1 b2); auto.
+  inv H.
+Qed.
+
+Lemma sizeof_range_true {CS: composite_env}: forall t A (a b: A),
+    negb (Z.eqb (sizeof t) 0) = true ->
+    Z.leb (sizeof t) Int.max_signed = true ->
+    (if zlt 0 (sizeof t) && zle (sizeof t) Int.max_signed then a else b) = a.
+Proof.
+  intros.
+  rewrite negb_true_iff in H.
+  rewrite Z.eqb_neq in H.
+  pose proof sizeof_pos t.
+  rewrite <- Zle_is_le_bool in H0.
+  destruct (zlt 0 (sizeof t)); [| omega].
+  destruct (zle (sizeof t) Int.max_signed); [| omega]. 
+  reflexivity.
+Qed.
+
 Inductive tc_val_PM: type -> val -> Prop :=
 | tc_val_PM_Tint: forall sz sg a v, is_int sz sg v -> tc_val_PM (Tint sz sg a) v
 | tc_val_PM_Tlong: forall s a v, is_long v -> tc_val_PM (Tlong s a) v
@@ -275,7 +301,7 @@ Proof.
     simpl; auto.
 Qed.
 
-Lemma typecheck_OSub_sound:
+Lemma typecheck_Osub_sound:
 forall {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
    (IBR: denote_tc_assert (isBinOpResultType Osub e1 e2 t) rho m)
    (TV2: tc_val (typeof e2) (eval_expr e2 rho))
@@ -313,7 +339,9 @@ Proof.
     try solve [inv H];
     destruct (eval_expr e1 rho), (eval_expr e2 rho);
     try solve [inv H1 | inv H3 | inv IBR];
-    destruct t; try solve [inv IBR2]; simpl; auto.
+    destruct t as [| [| | |] [|] | | | | | | |]; try solve [inv IBR2]; simpl;
+    erewrite eq_block_true by eauto; rewrite sizeof_range_true by auto;
+    simpl; auto.
   + simpl in IBR.
     destruct IBR as [[?IBR ?IBR] ?IBR].
     apply tc_bool_e in IBR0.
@@ -325,8 +353,62 @@ Proof.
     destruct (eval_expr e1 rho), (eval_expr e2 rho);
     try solve [inv H1 | inv H3 | inv IBR];
     destruct t; try solve [inv IBR1]; simpl; auto.
+  + solve_tc_val TV1;
+    solve_tc_val TV2;
+    rewrite <- H0, <- H2 in H, IBR;
+    try solve [inv H];
+    destruct (eval_expr e1 rho), (eval_expr e2 rho);
+    try solve [inv H1 | inv H3 | inv IBR];
+    destruct t; try solve [inv IBR];    
+    try destruct sz, sg; try destruct sz0, sg0; try destruct s; try destruct s0; try destruct i1; try destruct i2; try destruct f0; try destruct f1; try solve [inv IBR];
+    simpl; auto.
+Qed.
 
+Lemma typecheck_Omul_sound:
+forall {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
+   (IBR: denote_tc_assert (isBinOpResultType Omul e1 e2 t) rho m)
+   (TV2: tc_val (typeof e2) (eval_expr e2 rho))
+   (TV1: tc_val (typeof e1) (eval_expr e1 rho)),
+   tc_val t
+     (eval_binop Omul (typeof e1) (typeof e2)
+       (eval_expr e1 rho) (eval_expr e2 rho)).
+Proof.
+  intros.
+  rewrite den_isBinOpR in IBR.
+  unfold eval_binop, sem_binary_operation', isBinOpResultType, Cop2.sem_mul in IBR |- *.
+  unfold force_val2, force_val;
+  solve_tc_val TV1;
+  solve_tc_val TV2;
+  rewrite <- H1, <- H in IBR;
+  destruct (eval_expr e1 rho), (eval_expr e2 rho);
+  try solve [inv H0 | inv H2 | inv IBR];
+  destruct t; try solve [inv IBR];
+  try destruct sz, sg; try destruct sz0, sg0; try destruct s; try destruct s0; try destruct i1; try destruct i2; try destruct f0; try destruct f1; try solve [inv IBR];
+  simpl; auto.
+Qed.
 
+Lemma typecheck_Odiv_sound:
+forall {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
+   (IBR: denote_tc_assert (isBinOpResultType Odiv e1 e2 t) rho m)
+   (TV2: tc_val (typeof e2) (eval_expr e2 rho))
+   (TV1: tc_val (typeof e1) (eval_expr e1 rho)),
+   tc_val t
+     (eval_binop Odiv (typeof e1) (typeof e2)
+       (eval_expr e1 rho) (eval_expr e2 rho)).
+Proof.
+  intros.
+  rewrite den_isBinOpR in IBR.
+  unfold eval_binop, sem_binary_operation', isBinOpResultType, Cop2.sem_div in IBR |- *.
+  unfold force_val2, force_val;
+  solve_tc_val TV1;
+  solve_tc_val TV2;
+  rewrite <- H1, <- H in IBR;
+  destruct (eval_expr e1 rho), (eval_expr e2 rho);
+  try solve [inv H0 | inv H2 | inv IBR];
+  destruct t; try solve [inv IBR];
+  try destruct sz, sg; try destruct sz0, sg0; try destruct s; try destruct s0; try destruct i1; try destruct i2; try destruct f0; try destruct f1; try solve [inv IBR];
+  simpl; auto.
+Qed.
   
 Lemma typecheck_binop_sound:
 forall op {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
@@ -388,7 +470,7 @@ destruct op;
     try (rewrite Int64_eq_repr_unsigned32_nonzero by assumption; reflexivity);
     try (rewrite (denote_tc_igt_e m) by assumption; reflexivity);
     try (rewrite (denote_tc_iszero_long_e m) by assumption; reflexivity);
-    simpl; auto.
+    try (unfold Cop2.sem_sub; simpl; erewrite eq_block_true by eauto; rewrite sizeof_range_true by auto; reflexivity
 ).
 Time Qed. (* 24.5 sec *)
 
