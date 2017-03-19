@@ -541,16 +541,21 @@ Definition binarithType' t1 t2 ty deferr reterr : tc_assert :=
   | Cop.bin_default => tc_FF deferr
   end.
 
-Lemma classify_binarith_eq: binarithType = binarithType'.
+Lemma classify_binarith_eq: classify_binarith = classify_binarith'.
 Proof.
-  unfold binarithType, binarithType'; extensionality t1 t2 ty e1 e2.
-  replace (classify_binarith t1 t2) with (classify_binarith' t1 t2); auto.
-  unfold classify_binarith.
+  unfold classify_binarith; extensionality t1 t2.
   destruct t1,t2; simpl; auto;
   try destruct i,s; auto;
   try destruct i0,s0; auto;
   try destruct s; auto;
   try destruct s0; auto.
+Qed.
+
+Lemma binarithType_eq: binarithType = binarithType'.
+Proof.
+  unfold binarithType, binarithType'; extensionality t1 t2 ty e1 e2.
+  rewrite classify_binarith_eq.
+  auto.
 Qed.
 
 Lemma den_isBinOpR: forall {CS: compspecs} op a1 a2 ty,
@@ -595,7 +600,7 @@ match op with
                     | Cop.sub_default => binarithType' (typeof a1) (typeof a2) ty deferr reterr
             end
   | Cop.Omul => binarithType' (typeof a1) (typeof a2) ty deferr reterr
-  | Cop.Omod => match Cop.classify_binarith (typeof a1) (typeof a2) with
+  | Cop.Omod => match classify_binarith' (typeof a1) (typeof a2) with
                     | Cop.bin_case_i Unsigned =>
                            tc_andp' (tc_nonzero' a2)
                            (tc_bool (is_int32_type ty) reterr)
@@ -610,7 +615,7 @@ match op with
                                                      (tc_bool (is_long_type ty) reterr)
                     | _ => tc_FF deferr
             end
-  | Cop.Odiv => match Cop.classify_binarith (typeof a1) (typeof a2) with
+  | Cop.Odiv => match classify_binarith' (typeof a1) (typeof a2) with
                     | Cop.bin_case_i Unsigned => tc_andp' (tc_nonzero' a2) (tc_bool (is_int32_type ty) reterr)
                     | Cop.bin_case_l Unsigned => tc_andp' (tc_nonzero' a2) (tc_bool (is_long_type ty) reterr)
                     | Cop.bin_case_i Signed => tc_andp' (tc_andp' (tc_nonzero' a2) (tc_nodivover' a1 a2))
@@ -627,7 +632,7 @@ match op with
                     | _ => tc_FF deferr
                    end
   | Cop.Oand | Cop.Oor | Cop.Oxor =>
-                   match Cop.classify_binarith (typeof a1) (typeof a2) with
+                   match classify_binarith' (typeof a1) (typeof a2) with
                     | Cop.bin_case_i _ =>tc_bool (is_int32_type ty) reterr
                     | _ => tc_FF deferr
                    end
@@ -649,7 +654,7 @@ Proof.
   intros.
  rewrite <- classify_add_eq. rewrite <- classify_sub_eq.
  rewrite <- classify_shift_eq. rewrite <- classify_cmp_eq.
- rewrite <- classify_binarith_eq.
+ rewrite <- classify_binarith_eq. rewrite <- binarithType_eq.
  unfold isBinOpResultType, classify_add, classify_sub, classify_binarith, classify_shift,
   classify_cmp, check_pp_int, check_pp_int',
   (*check_pl_long, check_pl_long', *)

@@ -398,16 +398,52 @@ forall {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
 Proof.
   intros.
   rewrite den_isBinOpR in IBR.
-  unfold eval_binop, sem_binary_operation', isBinOpResultType, Cop2.sem_div in IBR |- *.
-  unfold force_val2, force_val;
-  solve_tc_val TV1;
-  solve_tc_val TV2;
-  rewrite <- H1, <- H in IBR;
-  destruct (eval_expr e1 rho), (eval_expr e2 rho);
-  try solve [inv H0 | inv H2 | inv IBR];
-  destruct t; try solve [inv IBR];
-  try destruct sz, sg; try destruct sz0, sg0; try destruct s; try destruct s0; try destruct i1; try destruct i2; try destruct f0; try destruct f1; try solve [inv IBR];
-  simpl; auto.
+  unfold eval_binop, sem_binary_operation', isBinOpResultType, Cop2.sem_div, Cop2.sem_binarith in IBR |- *.
+  rewrite classify_binarith_eq.
+  destruct (classify_binarith' (typeof e1) (typeof e2)) eqn:?H;
+  unfold force_val2, force_val.
+  + solve_tc_val TV1;
+    solve_tc_val TV2;
+    rewrite <- H2, <- H0 in H;
+    try solve [inv H].
+    destruct s; destruct IBR as [?IBR ?IBR].
+    - destruct IBR as [?IBR ?IBR].
+      apply tc_bool_e in IBR0.
+      simpl in IBR, IBR1 |- *; unfold_lift in IBR; unfold_lift in IBR1.
+      destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      try solve [inv H1 | inv H3 | inv IBR].
+      unfold both_int; simpl.
+      apply denote_tc_nonzero_e in IBR; try rewrite IBR.
+      apply denote_tc_nodivover_e in IBR1; try rewrite IBR1.
+      simpl.
+      destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0];
+      simpl; auto.
+    - apply tc_bool_e in IBR0.
+      simpl in IBR |- *; unfold_lift in IBR.
+      destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      try solve [inv H1 | inv H3 | inv IBR].
+      unfold both_int; simpl.
+      apply denote_tc_nonzero_e in IBR; try rewrite IBR.
+      simpl.
+      destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0];
+      simpl; auto.
+  + solve_tc_val TV1;
+    solve_tc_val TV2;
+    rewrite <- H2, <- H0 in H;
+    try solve [inv H].
+    destruct s; destruct IBR as [?IBR ?IBR].
+    - destruct IBR as [?IBR ?IBR].
+      apply tc_bool_e in IBR0.
+      simpl in IBR, IBR1 |- *; unfold_lift in IBR; unfold_lift in IBR1.
+      destruct (eval_expr e1 rho), (eval_expr e2 rho);
+        try solve [inv H1 | inv H3].
+      Print denote_tc_nonzero.
+      simpl in IBR.
+    - apply tc_bool_e in IBR0.
+      simpl in IBR |- *; unfold_lift in IBR.
+      destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      try solve [inv H1 | inv H3 | inv IBR].
+  + 
 Qed.
   
 Lemma typecheck_binop_sound:
