@@ -176,6 +176,32 @@ subst i. rewrite Int.eq_true.
  destruct ii,ss; simpl; reflexivity.
 Qed.
 
+Lemma eq_block_true: forall b1 b2 i1 i2 A (a b: A),
+    is_true (sameblock (Vptr b1 i1) (Vptr b2 i2)) ->
+    (if eq_block b1 b2 then a else b) = a.
+Proof.
+  unfold sameblock, eq_block.
+  intros.
+  apply is_true_e in H.
+  destruct (peq b1 b2); auto.
+  inv H.
+Qed.
+
+Lemma sizeof_range_true {CS: composite_env}: forall t A (a b: A),
+    negb (Z.eqb (sizeof t) 0) = true ->
+    Z.leb (sizeof t) Int.max_signed = true ->
+    (if zlt 0 (sizeof t) && zle (sizeof t) Int.max_signed then a else b) = a.
+Proof.
+  intros.
+  rewrite negb_true_iff in H.
+  rewrite Z.eqb_neq in H.
+  pose proof sizeof_pos t.
+  rewrite <- Zle_is_le_bool in H0.
+  destruct (zlt 0 (sizeof t)); [| omega].
+  destruct (zle (sizeof t) Int.max_signed); [| omega]. 
+  reflexivity.
+Qed.
+
 Lemma typecheck_binop_sound:
 forall op {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
    (IBR: denote_tc_assert (isBinOpResultType op e1 e2 t) rho m)
@@ -225,7 +251,8 @@ try abstract (
     try (rewrite Int64_eq_repr_signed32_nonzero by assumption; reflexivity);
     try (rewrite Int64_eq_repr_unsigned32_nonzero by assumption; reflexivity);
     try (rewrite (denote_tc_igt_e m) by assumption; reflexivity);
-    try (rewrite (denote_tc_iszero_long_e m) by assumption; reflexivity)
+    try (rewrite (denote_tc_iszero_long_e m) by assumption; reflexivity);
+    try (unfold Cop2.sem_sub; simpl; erewrite eq_block_true by eauto; rewrite sizeof_range_true by auto; reflexivity)
 ).
 Time Qed. (* 24.5 sec *)
 
