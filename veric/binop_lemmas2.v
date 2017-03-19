@@ -278,27 +278,31 @@ Lemma denote_tc_assert_nonzero: forall {CS: compspecs} e rho,
   denote_tc_assert (tc_nonzero e) rho =
   match (eval_expr e rho) with
   | Vint i => prop (is_true (negb (Int.eq i Int.zero)))
-   | _ => FF end.
+  | Vlong i => prop (is_true (negb (Int64.eq i Int64.zero)))
+  | _ => FF end.
 Proof.
- intros.
- unfold tc_nonzero.
- destruct (eval_expr e any_environ) eqn:?; simpl; auto;
- try rewrite (eval_expr_any rho e _ Heqv) by congruence;
- unfold_lift.
- destruct (eval_expr e rho); try reflexivity.
- simpl.
- destruct (Int.eq i Int.zero); reflexivity.
- destruct (Int.eq i Int.zero) eqn:?; simpl; try reflexivity.
- unfold_lift; simpl; rewrite (eval_expr_any rho e _ Heqv) by congruence.
- simpl. rewrite Heqb; reflexivity.
- unfold_lift; simpl; rewrite (eval_expr_any rho e _ Heqv) by congruence;
-  reflexivity.
- unfold_lift; simpl; rewrite (eval_expr_any rho e _ Heqv) by congruence;
-  reflexivity.
- unfold_lift; simpl; rewrite (eval_expr_any rho e _ Heqv) by congruence;
-  reflexivity.
- unfold_lift; simpl; rewrite (eval_expr_any rho e _ Heqv) by congruence;
-  reflexivity.
+  intros.
+  unfold tc_nonzero.
+  destruct (eval_expr e any_environ) eqn:?; simpl; auto;
+  try rewrite (eval_expr_any rho e _ Heqv) by congruence;
+  unfold_lift.
+  + destruct (eval_expr e rho); try reflexivity.
+    - simpl.
+      destruct (Int.eq i Int.zero); reflexivity.
+    - simpl.
+      destruct (Int64.eq i Int64.zero); reflexivity.
+  + destruct (Int.eq i Int.zero) eqn:?; simpl; try reflexivity.
+    unfold_lift; simpl; rewrite (eval_expr_any rho e _ Heqv) by congruence.
+    simpl. rewrite Heqb; reflexivity.
+  + destruct (Int64.eq i Int64.zero) eqn:?; simpl; try reflexivity.
+    unfold_lift; simpl; rewrite (eval_expr_any rho e _ Heqv) by congruence.
+    simpl. rewrite Heqb; reflexivity.
+  + unfold_lift; simpl; rewrite (eval_expr_any rho e _ Heqv) by congruence;
+    reflexivity.
+  + unfold_lift; simpl; rewrite (eval_expr_any rho e _ Heqv) by congruence;
+    reflexivity.
+  + unfold_lift; simpl; rewrite (eval_expr_any rho e _ Heqv) by congruence;
+    reflexivity.
 Qed.
 
 Lemma denote_tc_assert_nonzero': forall {CS: compspecs} e,
@@ -308,7 +312,8 @@ intros.
 extensionality rho.
 rewrite denote_tc_assert_nonzero.
 simpl.  unfold_lift. destruct (eval_expr e rho); simpl; auto.
-destruct (Int.eq i Int.zero); reflexivity.
++ destruct (Int.eq i Int.zero); reflexivity.
++ destruct (Int64.eq i Int64.zero); reflexivity.
 Qed.
 
 Lemma denote_tc_assert_nodivover: forall {CS: compspecs} e1 e2 rho,
@@ -317,22 +322,33 @@ Lemma denote_tc_assert_nodivover: forall {CS: compspecs} e1 e2 rho,
                            | Vint n1, Vint n2 => prop (is_true (negb
                                    (Int.eq n1 (Int.repr Int.min_signed)
                                     && Int.eq n2 Int.mone)))
+                           | Vlong n1, Vlong n2 => prop (is_true (negb
+                                   (Int64.eq n1 (Int64.repr Int64.min_signed)
+                                    && Int64.eq n2 Int64.mone)))
                            | _ , _ => FF
                           end.
 Proof.
- intros.
- unfold tc_nodivover.
- destruct (eval_expr e1 any_environ) eqn:?;
- destruct (eval_expr e2 any_environ) eqn:?;
- simpl; auto.
- rewrite (eval_expr_any rho e1 _ Heqv) by congruence.
- rewrite (eval_expr_any rho e2 _ Heqv0) by congruence.
- destruct (negb (Int.eq i (Int.repr Int.min_signed) && Int.eq i0 Int.mone)) eqn:?.
- simpl; try   reflexivity.
- simpl.  unfold_lift.
- rewrite (eval_expr_any rho e1 _ Heqv) by congruence;
- rewrite (eval_expr_any rho e2 _ Heqv0) by congruence.
- simpl. rewrite Heqb. reflexivity.
+  intros.
+  unfold tc_nodivover.
+  destruct (eval_expr e1 any_environ) eqn:?;
+  destruct (eval_expr e2 any_environ) eqn:?;
+  simpl; auto.
+  + rewrite (eval_expr_any rho e1 _ Heqv) by congruence.
+    rewrite (eval_expr_any rho e2 _ Heqv0) by congruence.
+    destruct (negb (Int.eq i (Int.repr Int.min_signed) && Int.eq i0 Int.mone)) eqn:?.
+    - simpl; reflexivity.
+    - simpl. unfold_lift.
+      rewrite (eval_expr_any rho e1 _ Heqv) by congruence;
+      rewrite (eval_expr_any rho e2 _ Heqv0) by congruence.
+      simpl. rewrite Heqb. reflexivity.
+  + rewrite (eval_expr_any rho e1 _ Heqv) by congruence.
+    rewrite (eval_expr_any rho e2 _ Heqv0) by congruence.
+    destruct (negb (Int64.eq i (Int64.repr Int64.min_signed) && Int64.eq i0 Int64.mone)) eqn:?.
+    - simpl; reflexivity.
+    - simpl. unfold_lift.
+      rewrite (eval_expr_any rho e1 _ Heqv) by congruence;
+      rewrite (eval_expr_any rho e2 _ Heqv0) by congruence.
+      simpl. rewrite Heqb. reflexivity.
 Qed.
 
 Lemma denote_tc_assert_nodivover': forall {CS: compspecs} e1 e2,

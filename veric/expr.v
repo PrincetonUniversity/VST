@@ -415,6 +415,7 @@ Definition tc_iszero {CS: compspecs} (e: expr) : tc_assert :=
 Definition tc_nonzero {CS: compspecs} (e: expr) : tc_assert :=
   match eval_expr e any_environ with
    | Vint i => if negb (Int.eq i Int.zero) then tc_TT else tc_nonzero' e
+   | Vlong i => if negb (Int64.eq i Int64.zero) then tc_TT else tc_nonzero' e
    | _ => tc_nonzero' e
    end.
 
@@ -430,6 +431,10 @@ Definition tc_nodivover {CS: compspecs} (e1 e2: expr) : tc_assert :=
                            | Vint n1, Vint n2 => if (negb
                                    (Int.eq n1 (Int.repr Int.min_signed)
                                     && Int.eq n2 Int.mone))
+                                     then tc_TT else tc_nodivover' e1 e2
+                           | Vlong n1, Vlong n2 => if (negb
+                                   (Int64.eq n1 (Int64.repr Int64.min_signed)
+                                    && Int64.eq n2 Int64.mone))
                                      then tc_TT else tc_nodivover' e1 e2
                            | _ , _ => tc_nodivover' e1 e2
                           end.
