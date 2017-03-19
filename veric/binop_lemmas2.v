@@ -508,6 +508,51 @@ try destruct i,s; auto;
 try destruct i0,s0; auto.
 Qed.
 
+Definition classify_binarith' (ty1: type) (ty2: type) :=
+  match ty1, ty2 with
+  | Tint i1 s1 _, Tint i2 s2 _ => bin_case_i 
+    match i1, s1, i2, s2 with
+    | I32, Unsigned, _, _ => Unsigned
+    | _, _, I32, Unsigned => Unsigned
+    | _, _, _, _ => Signed
+    end
+  | Tint _ _ _, Tlong s _ => bin_case_l s
+  | Tlong s _, Tint _ _ _ => bin_case_l s
+  | Tlong s1 _, Tlong s2 _ => bin_case_l
+    match s1, s2 with
+    | Signed, Signed => Signed
+    | _, _ => Unsigned
+    end
+  | Tfloat F32 _, Tfloat F32 _ => bin_case_s
+  | Tfloat _ _, Tfloat _ _ => bin_case_f
+  | Tfloat F64 _, (Tint _ _ _ | Tlong _ _) => bin_case_f
+  | (Tint _ _ _ | Tlong _ _), Tfloat F64 _ => bin_case_f
+  | Tfloat F32 _, (Tint _ _ _ | Tlong _ _) => bin_case_s
+  | (Tint _ _ _ | Tlong _ _), Tfloat F32 _ => bin_case_s
+  | _, _ => bin_default
+  end.
+
+Definition binarithType' t1 t2 ty deferr reterr : tc_assert :=
+  match classify_binarith' t1 t2 with
+  | Cop.bin_case_i sg =>  tc_bool (is_int32_type ty) reterr
+  | Cop.bin_case_l sg => tc_bool (is_long_type ty) reterr
+  | Cop.bin_case_f   => tc_bool (is_float_type ty) reterr
+  | Cop.bin_case_s   => tc_bool (is_single_type ty) reterr
+  | Cop.bin_default => tc_FF deferr
+  end.
+
+Lemma classify_binarith_eq: binarithType = binarithType'.
+Proof.
+  unfold binarithType, binarithType'; extensionality t1 t2 ty e1 e2.
+  replace (classify_binarith t1 t2) with (classify_binarith' t1 t2); auto.
+  unfold classify_binarith.
+  destruct t1,t2; simpl; auto;
+  try destruct i,s; auto;
+  try destruct i0,s0; auto;
+  try destruct s; auto;
+  try destruct s0; auto.
+Qed.
+
 Lemma den_isBinOpR: forall {CS: compspecs} op a1 a2 ty,
   denote_tc_assert (isBinOpResultType op a1 a2 ty) =
 let e := (Ebinop op a1 a2 ty) in
@@ -528,7 +573,7 @@ match op with
                     | Cop.add_case_lp t => tc_andp' (tc_andp' (tc_isptr a2)
                                            (tc_bool (complete_type cenv_cs t) reterr))
                                             (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.add_default => binarithType (typeof a1) (typeof a2) ty deferr reterr
+                    | Cop.add_default => binarithType' (typeof a1) (typeof a2) ty deferr reterr
             end
   | Cop.Osub => match classify_sub' (typeof a1) (typeof a2) with
                     | Cop.sub_case_pi t => tc_andp' (tc_andp' (tc_isptr a1)
@@ -546,9 +591,9 @@ match op with
                                       (pp_compare_size_0 t)))
                                  (tc_bool (complete_type cenv_cs t) reterr))
                                   (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.sub_default => binarithType (typeof a1) (typeof a2) ty deferr reterr
+                    | Cop.sub_default => binarithType' (typeof a1) (typeof a2) ty deferr reterr
             end
-  | Cop.Omul => binarithType (typeof a1) (typeof a2) ty deferr reterr
+  | Cop.Omul => binarithType' (typeof a1) (typeof a2) ty deferr reterr
   | Cop.Omod => match Cop.classify_binarith (typeof a1) (typeof a2) with
                     | Cop.bin_case_i Unsigned =>
                            tc_andp' (tc_nonzero' a2)
@@ -600,9 +645,10 @@ match op with
                    end
   end.
 Proof.
- intros.
+  intros.
  rewrite <- classify_add_eq. rewrite <- classify_sub_eq.
  rewrite <- classify_shift_eq. rewrite <- classify_cmp_eq.
+ rewrite <- classify_binarith_eq.
  unfold isBinOpResultType, classify_add, classify_sub, classify_binarith, classify_shift,
   classify_cmp, check_pp_int, check_pp_int',
   (*check_pl_long, check_pl_long', *)
@@ -612,9 +658,6 @@ Proof.
  extensionality rho;
  destruct (typeof a1) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ]; dtca;
  destruct (typeof a2) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ]; dtca.
-
-
-
 Qed.
 
 Lemma denote_tc_assert'_andp'_e:
