@@ -507,10 +507,16 @@ Qed.
 
 Definition classify_shift' (ty1: type) (ty2: type) :=
   match stupid_typeconv ty1, stupid_typeconv ty2 with
-  | Tint I32 Unsigned _, Tint _ _ _ => shift_case_ii Unsigned
-  | Tint _ _ _, Tint _ _ _ => shift_case_ii Signed
-  | Tint I32 Unsigned _, Tlong _ _ => shift_case_il Unsigned
-  | Tint _ _ _, Tlong _ _ => shift_case_il Signed
+  | Tint sz sg _, Tint _ _ _ => shift_case_ii
+    match sz, sg with 
+    | I32, Unsigned => Unsigned
+    | _, _ => Signed
+    end
+  | Tint sz sg _, Tlong _ _ => shift_case_il
+    match sz, sg with
+    | I32, Unsigned => Unsigned
+    | _, _ => Signed
+    end
   | Tlong s _, Tint _ _ _ => shift_case_li s
   | Tlong s _, Tlong _ _ => shift_case_ll s
   | _,_  => shift_default

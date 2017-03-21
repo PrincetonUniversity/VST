@@ -412,12 +412,12 @@ Lemma typecheck_cast_sound:
  forall {CS: compspecs} Delta rho m e t,
  typecheck_environ Delta rho ->
 (denote_tc_assert (typecheck_expr Delta e) rho m ->
- typecheck_val (eval_expr e rho) (typeof e) = true) /\
+ tc_val (typeof e) (eval_expr e rho)) /\
 (forall pt : type,
  denote_tc_assert (typecheck_lvalue Delta e) rho m ->
- is_pointer_type pt = true -> typecheck_val (eval_lvalue e rho) pt = true) ->
+ is_pointer_type pt = true -> tc_val pt (eval_lvalue e rho)) ->
 denote_tc_assert (typecheck_expr Delta (Ecast e t)) rho m ->
-typecheck_val (eval_expr (Ecast e t) rho) (typeof (Ecast e t)) = true.
+tc_val (typeof (Ecast e t)) (eval_expr (Ecast e t) rho).
 Proof.
 intros until t; intros H IHe H0.
 simpl in *. unfold_lift.
