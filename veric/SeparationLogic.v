@@ -76,6 +76,7 @@ Definition denote_tc_iszero v : mpred :=
 Definition denote_tc_nonzero v : mpred :=
          match v with
          | Vint i => if negb (Int.eq i Int.zero) then TT else FF
+         | Vlong i => if negb (Int64.eq i Int64.zero) then TT else FF
          | _ => FF end.
 
 Definition denote_tc_igt i v : mpred :=
@@ -146,6 +147,9 @@ match v1, v2 with
           | Vint n1, Vint n2 => prop (is_true (negb
                                    (Int.eq n1 (Int.repr Int.min_signed)
                                     && Int.eq n2 Int.mone)))
+          | Vlong n1, Vlong n2 => prop (is_true (negb
+                                   (Int64.eq n1 (Int64.repr Int64.min_signed)
+                                    && Int64.eq n2 Int64.mone)))
           | _ , _ => FF
         end.
 
