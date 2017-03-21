@@ -227,7 +227,7 @@ Lemma extend_tc_nodivover:
 Proof.
 intros.
 rewrite denote_tc_assert_nodivover.
-destruct (eval_expr e1 rho); try apply extend_prop.
+destruct (eval_expr e1 rho); try apply extend_prop;
 destruct (eval_expr e2 rho); try apply extend_prop.
 Qed.
 
