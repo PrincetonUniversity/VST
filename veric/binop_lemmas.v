@@ -28,12 +28,28 @@ Proof.
 simpl; intros . destruct (Int64.eq i Int64.zero); auto; contradiction.
 Qed.
 
-Lemma denote_tc_nodivover_e64:
+Lemma denote_tc_nodivover_e64_ll:
  forall i j m, app_pred (denote_tc_nodivover (Vlong i) (Vlong j)) m ->
    Int64.eq i (Int64.repr Int64.min_signed) && Int64.eq j Int64.mone = false.
 Proof.
 simpl; intros.
 destruct (Int64.eq i (Int64.repr Int64.min_signed) && Int64.eq j Int64.mone); try reflexivity; contradiction.
+Qed.
+
+Lemma denote_tc_nodivover_e64_il:
+ forall s i j m, app_pred (denote_tc_nodivover (Vint i) (Vlong j)) m ->
+   Int64.eq (cast_int_long s i) (Int64.repr Int64.min_signed) && Int64.eq j Int64.mone = false.
+Proof.
+simpl; intros.
+destruct (Int64.eq (cast_int_long s i) (Int64.repr Int64.min_signed) && Int64.eq j Int64.mone); try reflexivity; contradiction.
+Qed.
+
+Lemma denote_tc_nodivover_e64_li:
+ forall s i j m, app_pred (denote_tc_nodivover (Vlong i) (Vint j)) m ->
+   Int64.eq i (Int64.repr Int64.min_signed) && Int64.eq (cast_int_long s j) Int64.mone = false.
+Proof.
+simpl; intros.
+destruct (Int64.eq i (Int64.repr Int64.min_signed) && Int64.eq (cast_int_long s j) Int64.mone); try reflexivity; contradiction.
 Qed.
 
 Lemma Int64_eq_repr_signed32_nonzero:
@@ -87,6 +103,16 @@ unfold Int64.max_unsigned.
 apply Z.le_trans with Int.modulus.
 omega.
 compute; congruence.
+Qed.
+
+Lemma Int64_eq_repr_int_nonzero:
+  forall s i, Int.eq i Int.zero = false ->
+    Int64.eq (cast_int_long s i) Int64.zero = false.
+Proof.
+  intros.
+  destruct s.
+  + apply Int64_eq_repr_signed32_nonzero; auto.
+  + apply Int64_eq_repr_unsigned32_nonzero; auto.
 Qed.
 
 Lemma denote_tc_igt_e:
@@ -445,19 +471,102 @@ Proof.
     solve_tc_val TV2;
     rewrite <- H2, <- H0 in H;
     try solve [inv H].
-    destruct s; destruct IBR as [?IBR ?IBR].
-    - destruct IBR as [?IBR ?IBR].
-      apply tc_bool_e in IBR0.
-      simpl in IBR, IBR1 |- *; unfold_lift in IBR; unfold_lift in IBR1.
-      destruct (eval_expr e1 rho), (eval_expr e2 rho);
-        try solve [inv H1 | inv H3].
-      Print denote_tc_nonzero.
-      simpl in IBR.
-    - apply tc_bool_e in IBR0.
-      simpl in IBR |- *; unfold_lift in IBR.
-      destruct (eval_expr e1 rho), (eval_expr e2 rho);
-      try solve [inv H1 | inv H3 | inv IBR].
-  + 
+    - (* int long *)
+      destruct s; destruct IBR as [?IBR ?IBR].
+      * destruct IBR as [?IBR ?IBR].
+        apply tc_bool_e in IBR0.
+        simpl in IBR, IBR1 |- *; unfold_lift in IBR; unfold_lift in IBR1.
+        destruct (eval_expr e1 rho), (eval_expr e2 rho);
+          try solve [inv H1 | inv H3].
+        unfold both_long; simpl.
+        apply denote_tc_nonzero_e64 in IBR; try rewrite IBR.
+        apply (denote_tc_nodivover_e64_il sg) in IBR1; try rewrite IBR1.
+        simpl.
+        destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0];
+        simpl; auto.
+      * apply tc_bool_e in IBR0.
+        simpl in IBR |- *; unfold_lift in IBR.
+        destruct (eval_expr e1 rho), (eval_expr e2 rho);
+        try solve [inv H1 | inv H3 | inv IBR].
+        unfold both_long; simpl.
+        apply denote_tc_nonzero_e64 in IBR; try rewrite IBR.
+        destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0];
+        simpl; auto.
+    - (* long int *)
+      destruct s; destruct IBR as [?IBR ?IBR].
+      * destruct IBR as [?IBR ?IBR].
+        apply tc_bool_e in IBR0.
+        simpl in IBR, IBR1 |- *; unfold_lift in IBR; unfold_lift in IBR1.
+        destruct (eval_expr e1 rho), (eval_expr e2 rho);
+          try solve [inv H1 | inv H3].
+        unfold both_long; simpl.
+        apply denote_tc_nonzero_e, (Int64_eq_repr_int_nonzero sg) in IBR; try rewrite IBR.
+        apply (denote_tc_nodivover_e64_li sg) in IBR1; try rewrite IBR1.
+        simpl.
+        destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0];
+        simpl; auto.
+      * apply tc_bool_e in IBR0.
+        simpl in IBR |- *; unfold_lift in IBR.
+        destruct (eval_expr e1 rho), (eval_expr e2 rho);
+        try solve [inv H1 | inv H3 | inv IBR].
+        unfold both_long; simpl.
+        apply denote_tc_nonzero_e, (Int64_eq_repr_int_nonzero sg) in IBR; try rewrite IBR.
+        destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0];
+        simpl; auto.
+    - (* long long *)
+      destruct s; destruct IBR as [?IBR ?IBR].
+      * destruct IBR as [?IBR ?IBR].
+        apply tc_bool_e in IBR0.
+        simpl in IBR, IBR1 |- *; unfold_lift in IBR; unfold_lift in IBR1.
+        destruct (eval_expr e1 rho), (eval_expr e2 rho);
+          try solve [inv H1 | inv H3].
+        unfold both_long; simpl.
+        apply denote_tc_nonzero_e64 in IBR; try rewrite IBR.
+        apply denote_tc_nodivover_e64_ll in IBR1; try rewrite IBR1.
+        simpl.
+        destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0];
+        simpl; auto.
+      * apply tc_bool_e in IBR0.
+        simpl in IBR |- *; unfold_lift in IBR.
+        destruct (eval_expr e1 rho), (eval_expr e2 rho);
+        try solve [inv H1 | inv H3 | inv IBR].
+        unfold both_long; simpl.
+        apply denote_tc_nonzero_e64 in IBR; try rewrite IBR.
+        destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0];
+        simpl; auto.
+  + apply tc_bool_e in IBR.
+    destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR].
+    destruct f; try solve [inv IBR].
+    solve_tc_val TV1;
+    solve_tc_val TV2;
+    rewrite <- H2, <- H0 in H;
+    try solve [inv H];
+    unfold both_float;
+    destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      try solve [inv H1 | inv H3].
+    - destruct sg; simpl; auto.
+    - destruct s; simpl; auto.
+    - simpl; auto.
+    - destruct sg; simpl; auto.
+    - destruct s; simpl; auto.
+    - simpl; auto.
+    - simpl; auto.
+  + apply tc_bool_e in IBR.
+    destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR].
+    destruct f; try solve [inv IBR].
+    solve_tc_val TV1;
+    solve_tc_val TV2;
+    rewrite <- H2, <- H0 in H;
+    try solve [inv H];
+    unfold both_float;
+    destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      try solve [inv H1 | inv H3].
+    - destruct sg; simpl; auto.
+    - destruct s; simpl; auto.
+    - simpl; auto.
+    - simpl; auto.
+    - simpl; auto.
+  + inv IBR.
 Qed.
   
 Lemma typecheck_binop_sound:
