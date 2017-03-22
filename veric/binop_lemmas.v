@@ -708,27 +708,127 @@ Proof.
   destruct IBR as [?IBR ?IBR].
   apply tc_bool_e in IBR0.
   simpl in IBR; unfold_lift in IBR.
+  solve_tc_val TV1;
+  solve_tc_val TV2;
+  rewrite <- H0, <- H2 in H;
+  try solve [inv H].
+  + (* shift_ii *)
+    destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      try solve [inv H1 | inv H3].
+    destruct OP; subst; auto;
+    simpl;
+    unfold force_val, Cop2.sem_shift;
+    rewrite classify_shift_eq, H;
+    simpl.
+    - rewrite (denote_tc_igt_e m) by assumption;
+      destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
+    - rewrite (denote_tc_igt_e m) by assumption;
+      destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR0]; simpl; auto.
+  (* TODO: Other shift cases to be added *)
+Qed.
+
+Lemma typecheck_Obin_sound:
+ forall op {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
+   (IBR: denote_tc_assert (isBinOpResultType op e1 e2 t) rho m)
+   (TV2: tc_val (typeof e2) (eval_expr e2 rho))
+   (TV1: tc_val (typeof e1) (eval_expr e1 rho))
+   (OP: op = Oand \/ op = Oor \/ op = Oxor),
+   tc_val t
+     (eval_binop op (typeof e1) (typeof e2) (eval_expr e1 rho) (eval_expr e2 rho)).
+Proof.
+  intros.
+  replace
+    ((denote_tc_assert (isBinOpResultType op e1 e2 t) rho) m)
+  with
+    ((denote_tc_assert
+           match classify_binarith' (typeof e1) (typeof e2) with
+           | bin_case_i _ => tc_bool (is_int32_type t) (op_result_type (Ebinop op e1 e2 t))
+           | _ => tc_FF (arg_type (Ebinop op e1 e2 t))
+           end rho) m)
+  in IBR
+  by (rewrite den_isBinOpR; destruct OP as [| [ | ]]; subst; auto).
+  destruct (classify_binarith' (typeof e1) (typeof e2)) eqn:?H; try solve [inv IBR].
+  apply tc_bool_e in IBR.
+  simpl in IBR; unfold_lift in IBR.
+  solve_tc_val TV1;
+  solve_tc_val TV2;
+  rewrite <- H0, <- H2 in H;
+  try solve [inv H].
+  + (* bin_case_i *)
+    destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      try solve [inv H1 | inv H3].
+    destruct OP as [| [|]]; subst; auto;
+    simpl;
+    unfold force_val, Cop2.sem_and, Cop2.sem_or, Cop2.sem_xor, Cop2.sem_binarith;
+    rewrite classify_binarith_eq, H;
+    simpl;
+    destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR]; simpl; auto.
+  (* TODO: Other bin cases to be added *)
+Qed.
+
+Lemma typecheck_Ocmp_sound:
+ forall op {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
+   (IBR: denote_tc_assert (isBinOpResultType op e1 e2 t) rho m)
+   (TV2: tc_val (typeof e2) (eval_expr e2 rho))
+   (TV1: tc_val (typeof e1) (eval_expr e1 rho))
+   (OP: op = Oeq \/ op = One \/ op = Olt \/ op = Ogt \/ op = Ole \/ op = Oge),
+   tc_val t
+     (eval_binop op (typeof e1) (typeof e2) (eval_expr e1 rho) (eval_expr e2 rho)).
+Proof.
+  intros.
+  replace
+    ((denote_tc_assert (isBinOpResultType op e1 e2 t) rho) m)
+  with
+    ((denote_tc_assert
+           match classify_cmp' (typeof e1) (typeof e2) with
+           | cmp_case_pp => check_pp_int' e1 e2 op t (Ebinop op e1 e2 t)
+           | cmp_case_pl => check_pp_int' (Ecast e1 (Tint I32 Unsigned noattr)) e2 op t (Ebinop op e1 e2 t)
+           | cmp_case_lp => check_pp_int' (Ecast e2 (Tint I32 Unsigned noattr)) e1 op t (Ebinop op e1 e2 t)
+           | cmp_default =>
+               tc_bool (is_numeric_type (typeof e1) && is_numeric_type (typeof e2) && is_int_type t)
+                 (arg_type (Ebinop op e1 e2 t))
+           end rho) m)
+  in IBR
+  by (rewrite den_isBinOpR; destruct OP as [| [ | [ | [ | [ | ]]]]]; subst; auto).
+  replace
+    (tc_val t (eval_binop op (typeof e1) (typeof e2) (eval_expr e1 rho) (eval_expr e2 rho)))
+  with
+    (tc_val t
+      (force_val
+        (match classify_cmp' (typeof e1) (typeof e2) with
+         | cmp_case_pp => sem_cmp_pp (op_to_cmp op)
+         | cmp_case_pl => sem_cmp_pl (op_to_cmp op)
+         | cmp_case_lp => sem_cmp_lp (op_to_cmp op)
+         | cmp_default => sem_cmp_default (op_to_cmp op) (typeof e1) (typeof e2)
+         end (eval_expr e1 rho) (eval_expr e2 rho))))
+  by (destruct OP as [| [ | [ | [ | [ | ]]]]]; subst; rewrite <- classify_cmp_eq; auto).
+  destruct (classify_cmp' (typeof e1) (typeof e2)) eqn:?H; try solve [inv IBR].
+  + unfold check_pp_int' in IBR.
+    Check sem_cmp_pp_pp.
+    Print sem_cmp_pp.
+    Print Val.cmpu_bool.
     solve_tc_val TV1;
     solve_tc_val TV2;
     rewrite <- H0, <- H2 in H;
     try solve [inv H].
-Locate classify_shift' .
+    Focus 1.
+    destruct OP as [| [ | [ | [ | [ | ]]]]]; subst;
     destruct (eval_expr e1 rho), (eval_expr e2 rho);
-    try solve [inv H1 | inv H3 | inv IBR];
-    destruct t; try solve [inv IBR1]; simpl; auto.
-
-
-
+    try solve [inv H1 | inv H3].
+    destruct t; simpl; auto.
+  + (* bin_case_i *)
+    destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      try solve [inv H1 | inv H3].
+    destruct OP as [| [|]]; subst; auto;
+    simpl;
+    unfold force_val, Cop2.sem_and, Cop2.sem_or, Cop2.sem_xor, Cop2.sem_binarith;
+    rewrite classify_binarith_eq, H;
+    simpl;
+    destruct t as [| [| | |] ? ? | | | | | | |]; try solve [inv IBR]; simpl; auto.
+  (* TODO: Other bin cases to be added *)
+Qed.
 
   
-forall {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
-   (IBR: denote_tc_assert (isBinOpResultType Omod e1 e2 t) rho m)
-   (TV2: tc_val (typeof e2) (eval_expr e2 rho))
-   (TV1: tc_val (typeof e1) (eval_expr e1 rho)),
-   tc_val t
-     (eval_binop Omod (typeof e1) (typeof e2)
-       (eval_expr e1 rho) (eval_expr e2 rho)).
-
 Lemma typecheck_binop_sound:
 forall op {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
    (IBR: denote_tc_assert (isBinOpResultType op e1 e2 t) rho m)
