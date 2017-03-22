@@ -2277,6 +2277,42 @@ Proof.
     cancel.
 Qed.
 
+Lemma data_at_value_cohere : forall {cs : compspecs} sh1 sh2 t v1 v2 p, readable_share sh1 ->
+  type_is_by_value t = true -> type_is_volatile t = false ->
+  data_at sh1 t v1 p * data_at sh2 t v2 p |--
+  data_at sh1 t v1 p * data_at sh2 t v1 p.
+Proof.
+  intros; unfold data_at, field_at, at_offset; Intros.
+  apply andp_right; [apply prop_right; auto|].
+  rewrite !by_value_data_at_rec_nonvolatile by auto.
+  apply mapsto_value_cohere; auto.
+Qed.
+
+Lemma data_at_array_value_cohere : forall {cs : compspecs} sh1 sh2 t z a v1 v2 p, readable_share sh1 ->
+  type_is_by_value t = true -> type_is_volatile t = false ->
+  data_at sh1 (Tarray t z a) v1 p * data_at sh2 (Tarray t z a) v2 p |--
+  data_at sh1 (Tarray t z a) v1 p * data_at sh2 (Tarray t z a) v1 p.
+Proof.
+  intros; unfold data_at, field_at, at_offset; Intros.
+  apply andp_right; [apply prop_right; auto|].
+  rewrite !data_at_rec_eq; simpl.
+  unfold array_pred, aggregate_pred.array_pred; Intros.
+  apply andp_right; [apply prop_right; auto|].
+  rewrite Z.sub_0_r in *.
+  erewrite aggregate_pred.rangespec_ext by (intros; rewrite Z.sub_0_r; apply f_equal; auto).
+  setoid_rewrite aggregate_pred.rangespec_ext at 2; [|intros; rewrite Z.sub_0_r; apply f_equal; auto].
+  setoid_rewrite aggregate_pred.rangespec_ext at 4; [|intros; rewrite Z.sub_0_r; apply f_equal; auto].
+  forget (offset_val 0 p) as p'; forget (Z.to_nat z) as n; forget 0 as lo; revert dependent lo; induction n; auto; simpl; intros.
+  match goal with |- (?P1 * ?Q1) * (?P2 * ?Q2) |-- _ =>
+    eapply derives_trans with (Q := (P1 * P2) * (Q1 * Q2)); [cancel|] end.
+  eapply derives_trans; [apply sepcon_derives|].
+  - unfold at_offset.
+    rewrite 2by_value_data_at_rec_nonvolatile by auto.
+    apply mapsto_value_cohere; auto.
+  - apply IHn.
+  - unfold at_offset; rewrite 2by_value_data_at_rec_nonvolatile by auto; cancel.
+Qed.
+
 (* This isn't true if the type contains any unions, since in fact the type of the data could be different.
 Lemma data_at_rec_value_cohere : forall {cs : compspecs} sh1 sh2 t v1 v2 p,
   readable_share sh1 -> readable_share sh2 ->
