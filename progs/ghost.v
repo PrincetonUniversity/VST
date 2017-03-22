@@ -423,6 +423,15 @@ Qed.
 Definition ghost_ref l p := EX hr : hist_part, !!(hist_list hr l) &&
   ghost (@None (share * hist_part), Some hr) p.
 
+Lemma hist_next : forall h l (Hlist : hist_list h l), ~In (length l) (map fst h).
+Proof.
+  intros; rewrite in_map_iff; intros ((?, ?) & ? & Hin); simpl in *; subst.
+  unfold hist_list in Hlist; rewrite Hlist in Hin.
+  pose proof (nth_error_Some l (length l)) as (Hlt & _).
+  exploit Hlt; [|omega].
+  rewrite Hin; discriminate.
+Qed.
+
 Lemma hist_add : forall (sh : share) (h h' : hist_part) e p t' (Hfresh : ~In t' (map fst h')),
   view_shift (ghost (Some (sh, h), Some h') p) (ghost (Some (sh, h ++ [(t', e)]), Some (h' ++ [(t', e)])) p).
 Proof.
@@ -460,15 +469,6 @@ Proof.
   - simpl in H; destruct Hjoin1 as (? & Hjoin1); inv Hjoin1.
     exists (Some (sh, h ++ [(t', e)]), Some (h' ++ [(t', e)])); simpl; repeat (split; auto).
     rewrite completable_alt in *; apply hist_sub_snoc; auto.
-Qed.
-
-Lemma hist_next : forall h l (Hlist : hist_list h l), ~In (length l) (map fst h).
-Proof.
-  intros; rewrite in_map_iff; intros ((?, ?) & ? & Hin); simpl in *; subst.
-  unfold hist_list in Hlist; rewrite Hlist in Hin.
-  pose proof (nth_error_Some l (length l)) as (Hlt & _).
-  exploit Hlt; [|omega].
-  rewrite Hin; discriminate.
 Qed.
 
 Lemma hist_incl_nil : forall h, hist_incl [] h.
@@ -561,6 +561,22 @@ Proof.
     split; [apply hist_list_nil|].
     unfold hist_sub; if_tac; auto.
     split; auto; exists []; auto.
+Qed.
+
+Lemma hist_add' : forall sh h h' e p, sh <> Share.bot ->
+  view_shift (ghost_hist sh h p * ghost_ref h' p)
+  (ghost_hist sh (h ++ [(length h', e)]) p * ghost_ref (h' ++ [e]) p).
+Proof.
+  intros; rewrite hist_ref_join by auto.
+  repeat intro.
+  rewrite extract_exists_in_SEP; Intro hr.
+  erewrite extract_prop_in_SEP with (n := O); simpl; eauto; Intros.
+  match goal with H : hist_list _ _ |- _ => pose proof (hist_next _ _ H) end.
+  apply hist_add with (e := e)(t' := length h'); auto.
+  eapply semax_pre; [|eauto].
+  go_lowerx; rewrite hist_ref_join by auto.
+  Exists (hr ++ [(length h', e)]); entailer!.
+  split; [apply hist_list_snoc | apply hist_sub_snoc]; auto.
 Qed.
 
 Definition newer (l : hist_part) t := Forall (fun x => fst x < t)%nat l.

@@ -8,8 +8,6 @@ Require Import mailbox.hashtable.
 
 Set Bullet Behavior "Strict Subproofs".
 
-Set Default Timeout 40.
-
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 
@@ -36,10 +34,10 @@ Proof.
 Defined.
 
 (* Once set, a key is never reset. *)
-Definition k_R (h : list hist_el) (v : val) := !!(Forall int_op h /\
-  forall e, In e h -> value_of e <> vint 0 -> v = value_of e) && emp.
+Definition k_R (h : list hist_el) (v : Z) := !!(Forall int_op h /\
+  forall e, In e h -> value_of e <> vint 0 -> vint v = value_of e) && emp.
 
-Definition v_R (h : list hist_el) (v : val) := emp.
+Definition v_R (h : list hist_el) (v : Z) := emp.
 
 (* Entries are no longer consecutive. *)
 Definition wf_hists h := Forall (fun x => (ordered_hist (fst x) /\ Forall int_op (map snd (fst x))) /\
@@ -49,17 +47,17 @@ Definition make_map h :=
   map (fun hs => (make_int (value_of_hist (fst hs)), make_int (value_of_hist (snd hs)))) h.
 
 Definition atomic_entry sh pk pv hk hv :=
-  atomic_loc sh pk (vint 0) k_R hk * atomic_loc sh pv (vint 0) v_R hv.
+  atomic_loc_hist sh pk 0 k_R hk * atomic_loc_hist sh pv 0 v_R hv.
 
 Definition atomic_entries sh entries hists := fold_right sepcon emp
   (map (fun x => let '((pk, pv), (hk, hv)) := x in atomic_entry sh pk pv hk hv) (combine entries hists)).
 
 Definition failed_CAS k (a b : hist * hist) := exists t r, newer (fst a) t /\
-  (fst b = fst a ++ [(t, Load (Vint r))] \/
+  (fst b = fst a ++ [(t, Load (vint r))] \/
    exists t1 t2, (t < t1 < t2)%nat /\
-     fst b = fst a ++ [(t, Load (vint 0)); (t1, CAS (Vint r) (vint 0) (vint k)); (t2, Load (Vint r))]) /\
-  r <> Int.zero /\ r <> Int.repr k /\ snd b = snd a /\
-  (let v := value_of_hist (fst a) in v <> vint 0 -> v = Vint r).
+     fst b = fst a ++ [(t, Load (vint 0)); (t1, CAS (vint r) (vint 0) (vint k)); (t2, Load (vint r))]) /\
+  r <> 0 /\ r <> k /\ snd b = snd a /\
+  (let v := value_of_hist (fst a) in v <> vint 0 -> v = vint r).
 
 Definition found_key k (a b : hist) := (exists t, newer a t /\
   (b = a ++ [(t, Load (vint k))] \/ exists t1, (t < t1)%nat /\
@@ -92,8 +90,8 @@ Definition set_item_spec :=
 (* set_item_trace_map describes the properties on the resulting map. *)
 
 Definition failed_load k (a b : hist * hist) := exists t r, newer (fst a) t /\
-  fst b = fst a ++ [(t, Load (Vint r))] /\ r <> Int.zero /\ r <> Int.repr k /\ snd b = snd a /\
-  (let v := value_of_hist (fst a) in v <> vint 0 -> v = Vint r).
+  fst b = fst a ++ [(t, Load (vint r))] /\ r <> 0 /\ r <> k /\ snd b = snd a /\
+  (let v := value_of_hist (fst a) in v <> vint 0 -> v = vint r).
 
 (* get_item can return 0 in two cases: if the key is not in the map, or if its value is 0.
    In correct use, the latter should only occur if the value has not been initialized.
@@ -170,7 +168,7 @@ Definition full_hist h v := exists l, hist_list h l /\ apply_hist (vint 0) l = S
 Definition freeze_table_spec :=
  DECLARE _freeze_table
   WITH sh : share, p : val, entries : list (val * val), h : list (hist * hist), keys : val, values : val
-  PRE [ ]
+  PRE [ _keys OF tptr tint, _values OF tptr tint ]
    PROP (readable_share sh; Zlength h = Zlength entries)
    LOCAL (gvar _m_entries p; temp _keys keys; temp _values values)
    SEP (data_at sh (tarray tentry size) entries p; atomic_entries Tsh entries h;
@@ -227,6 +225,8 @@ Definition Gprog : funspecs := ltac:(with_library prog [verif_atomics.makelock_s
   integer_hash_spec; set_item_spec; get_item_spec; add_item_spec; init_table_spec; freeze_table_spec;
   f_spec; main_spec]).
 
+Set Default Timeout 40.
+
 Lemma body_integer_hash: semax_body Vprog Gprog f_integer_hash integer_hash_spec.
 Proof.
   start_function.
@@ -256,8 +256,8 @@ Lemma update_entries_hist : forall sh entries h i hk hv pki pvi (Hlen : Zlength 
   (Hpi : Znth i entries (Vundef, Vundef) = (pki, pvi)) (Hi : 0 <= i < Zlength entries),
   atomic_entries sh entries (upd_Znth i h (hk, hv)) =
   fold_right sepcon emp (upd_Znth i (map (fun x => let '(pk, pv, (hk, hv)) := x in
-    atomic_loc sh pk (vint 0) k_R hk * atomic_loc sh pv (vint 0) v_R hv) (combine entries h))
-    (atomic_loc sh pki (vint 0) k_R hk * atomic_loc sh pvi (vint 0) v_R hv)).
+    atomic_loc_hist sh pk 0 k_R hk * atomic_loc_hist sh pv 0 v_R hv) (combine entries h))
+    (atomic_loc_hist sh pki 0 k_R hk * atomic_loc_hist sh pvi 0 v_R hv)).
 Proof.
   intros; unfold atomic_entries.
   f_equal.
@@ -292,9 +292,23 @@ Proof.
   * rewrite Z.add_simpl_r; auto.
 Qed.
 
+Lemma k_R_precise : forall v, precise (EX h : _, k_R h v).
+Proof.
+  intros; apply derives_precise' with (Q := emp); auto.
+  unfold k_R; entailer!.
+Qed.
+
+Lemma v_R_precise : forall v, precise (EX h : _, v_R h v).
+Proof.
+  intros; apply derives_precise' with (Q := emp); auto.
+  unfold v_R; entailer!.
+Qed.
+Hint Resolve k_R_precise v_R_precise.
+
 Lemma body_set_item : semax_body Vprog Gprog f_set_item set_item_spec.
 Proof.
   start_function.
+  assert (sh <> Share.bot) by (intro; subst; contradiction unreadable_bot).
   forward_call key.
   eapply semax_pre with (P' := EX i : Z, EX i1 : Z, EX h' : list (hist * hist),
     PROP (Zlength h' = Zlength h; i1 mod size = (i + hash key) mod size; 0 <= i < size;
@@ -321,7 +335,7 @@ Proof.
       by (rewrite ?Zlength_map, ?Zlength_combine, ?Z.min_l; auto; omega).
     destruct (Znth (i1 mod size) entries (Vundef, Vundef)) as (pki, pvi) eqn: Hpi.
     destruct (Znth (i1 mod size) h' ([], [])) as (hki, hvi) eqn: Hhi.
-    unfold atomic_entry; Intros.
+    unfold atomic_entry, atomic_loc_hist; Intros.
     rewrite atomic_loc_isptr; Intros.
 
 Ltac solve_efield_denote Delta P Q R efs gfs H ::=   evar (gfs : list gfield);
@@ -405,31 +419,28 @@ Ltac solve_efield_denote Delta P Q R efs gfs H ::=   evar (gfs : list gfield);
     assert (ordered_hist hki).
     { match goal with H : wf_hists h |- _ => eapply Forall_Znth with (i0 := i1 mod size) in H; [|omega];
       rewrite Heq, Hhi in H; tauto end. }
-    forward_call (sh, pki, vint 0, hki, fun (h : hist) => !!(h = hki) && emp, k_R,
-      fun (h : hist) (v : val) => !!(forall v0, last_value hki v0 -> v0 <> vint 0 -> v = v0) && emp).
+    forward_call (AL_witness sh pki 0 k_R hki emp (fun v => !!(forall v0, last_value hki v0 -> v0 <> vint 0 -> vint v = v0) && emp)).
     { entailer!.
       setoid_rewrite Hpi; auto. }
     { repeat (split; auto).
+      apply AL_hist_spec; auto.
       intros ???????????? Ha.
       unfold k_R in *; simpl in *.
       eapply semax_pre, Ha.
       go_lowerx; entailer!.
       repeat split.
       + rewrite Forall_app; repeat constructor; auto.
-        apply apply_int_ops in Hvx; auto.
       + intros ? Hin; rewrite in_app in Hin.
         destruct Hin as [? | [? | ?]]; subst; auto; contradiction.
       + intros ? [(? & ?) | (? & ? & Hin & ? & ?)] Hn; [contradiction Hn; auto|].
-        specialize (Hhist _ _ Hin); apply nth_error_In in Hhist; subst; auto.
-      + apply andp_right; auto.
-        eapply derives_trans, precise_weak_precise, precise_andp2; auto. }
-    Intros x; destruct x as (t, v); simpl snd in *.
-    destruct v; try contradiction.
-    match goal with |- semax _ (PROP () (LOCALx (_ :: ?Q) (SEPx (_ :: ?R)))) _ _ =>
+        specialize (Hhist _ _ Hin); apply nth_error_In in Hhist; subst; auto. }
+    Intros v.
+    simpl; Intros t.
+    match goal with |- semax _ (PROP () (LOCALx (_ :: ?Q) (SEPx (_ :: _ :: ?R)))) _ _ =>
       forward_if (EX hki' : hist, PROP (found_key key hki hki') (LOCALx Q
-        (SEPx (atomic_loc sh pki (vint 0) k_R hki' :: R)))) end.
+        (SEPx (atomic_loc_hist sh pki 0 k_R hki' :: R)))) end.
     + match goal with |- semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
-        forward_if (PROP (i0 = Int.zero) (LOCALx Q (SEPx R))) end.
+        forward_if (PROP (v = 0) (LOCALx Q (SEPx R))) end.
       { eapply semax_pre; [|apply semax_continue].
         unfold POSTCONDITION, abbreviate, overridePost.
         destruct (eq_dec EK_continue EK_normal); [discriminate|].
@@ -440,7 +451,7 @@ Ltac solve_efield_denote Delta P Q R efs gfs H ::=   evar (gfs : list gfield);
             (~In j (indices (hash key) ((i + 1) + hash key)) -> Znth j h' ([], []) = Znth j h ([], [])))
           LOCAL (temp _idx (vint i1); temp _key (vint key); temp _value (vint value); gvar _m_entries p)
           SEP (@data_at CompSpecs sh (tarray tentry size) entries p; atomic_entries sh entries h')).
-        Exists i (i1 mod size) (upd_Znth (i1 mod size) h' (hki ++ [(t, Load (Vint i0))], hvi)).
+        Exists i (i1 mod size) (upd_Znth (i1 mod size) h' (hki ++ [(t, Load (vint v))], hvi)).
         go_lower.
         apply andp_right.
         { apply prop_right; split.
@@ -449,91 +460,85 @@ Ltac solve_efield_denote Delta P Q R efs gfs H ::=   evar (gfs : list gfield);
           split; auto; split; auto; split; auto.
           apply incr_invariant; auto; simpl in *; try omega.
           * rewrite Heq, Hhi; repeat eexists; eauto; auto.
-            match goal with H : forall v0, last_value hki v0 -> v0 <> vint 0 -> Vint i0 = v0 |- _ =>
+            match goal with H : forall v0, last_value hki v0 -> v0 <> vint 0 -> vint v = v0 |- _ =>
               symmetry; apply H; auto end.
             rewrite ordered_last_value; auto.
           * admit. (* list is long enough *) }
         apply andp_right; [apply prop_right; auto|].
         fast_cancel.
-        erewrite <- sepcon_assoc, replace_nth_sepcon, update_entries_hist; eauto; omega. }
+        erewrite <- !sepcon_assoc, replace_nth_sepcon, update_entries_hist; eauto; [|omega].
+        rewrite sepcon_assoc; auto. }
       { forward.
         entailer!. }
       Intros; subst.
-      forward_call (sh, pki, vint 0, vint key, vint 0, hki ++ [(t, Load (vint 0))],
-        fun (h : hist) c v => !!(c = vint 0 /\ v = vint key /\ h = hki ++ [(t, Load (vint 0))]) && emp,
-        k_R, fun (h : hist) (v : val) => !!(forall v0, last_value hki v0 -> v0 <> vint 0 -> v = v0) && emp).
+      forward_call (ACAS_witness sh pki 0 k_R (hki ++ [(t, Load (vint 0))]) 0 key emp
+        (fun v => !!(forall v0, last_value hki v0 -> v0 <> vint 0 -> vint v = v0) && emp)).
       { entailer!.
         setoid_rewrite Hpi; auto. }
       { repeat (split; auto).
-        intros ?????????????? Ha.
+        apply ACAS_hist_spec; auto.
+        intros ???????????? Ha.
         unfold k_R in *; simpl in *.
         eapply semax_pre, Ha.
         go_lowerx; entailer!.
         repeat split.
         + rewrite Forall_app; repeat constructor; auto.
-          apply apply_int_ops in Hvx; auto.
         + intros ? Hin; rewrite in_app in Hin.
           destruct Hin as [? | [? | ?]]; [| |contradiction].
           * intros.
-            replace vx with (value_of e) by (symmetry; auto).
             if_tac; auto; absurd (value_of e = vint 0); auto.
+            subst; symmetry; auto.
           * subst; simpl; intros.
-            if_tac; if_tac; auto; absurd (vx = vint 0); auto.
+            if_tac; if_tac; auto; [subst; absurd (vint 0 = vint 0); auto|].
+            absurd (v' = 0); auto; apply repr_inj_signed; auto; congruence.
         + intros ? [(? & ?) | (? & ? & Hin & ? & ?)] Hn; [contradiction Hn; auto|].
           exploit Hhist.
           { rewrite in_app; eauto. }
-          intro X; apply nth_error_In in X; subst; auto.
-        + apply andp_right; auto.
-          eapply derives_trans, precise_weak_precise, precise_andp2; auto. }
-      Intros x; destruct x as (t', v); simpl snd in *.
-      destruct v; try contradiction.
+          intro X; apply nth_error_In in X; subst; auto. }
+      Intros v t'.
       assert (t < t')%nat.
-      { match goal with H : Forall _ (hki ++ _) |- _ => rewrite Forall_app in H;
+      { match goal with H : newer (hki ++ _) _ |- _ => unfold newer in H; rewrite Forall_app in H;
           destruct H as (_ & Ht); inv Ht; auto end. }
-      match goal with |- semax _ (PROP () (LOCALx (_ :: _ :: ?Q) (SEPx (_ :: ?R)))) _ _ =>
+      match goal with |- semax _ (PROP () (LOCALx (_ :: _ :: ?Q) (SEPx (_ :: _ :: ?R)))) _ _ =>
         forward_if (EX hki' : hist, PROP (found_key key hki hki') ((LOCALx Q)
-        (SEPx (atomic_loc sh pki (vint 0) k_R hki' :: R)))) end.
-      * destruct (eq_dec (vint 0) (Vint i0)); [discriminate|].
-        forward_call (sh, pki, vint 0, hki ++ [(t, Load (vint 0)); (t', CAS (Vint i0) (vint 0) (vint key))],
-          fun (h : hist) => !!(h = hki ++ [(t, Load (vint 0)); (t', CAS (Vint i0) (vint 0) (vint key))]) && emp,
-          k_R,
-          fun (h : hist) (v : val) => !!(v = Vint i0) && emp).
+        (SEPx (atomic_loc_hist sh pki 0 k_R hki' :: R)))) end.
+      * destruct (eq_dec 0 v); [discriminate|].
+        forward_call (AL_witness sh pki 0 k_R (hki ++ [(t, Load (vint 0)); (t', CAS (vint v) (vint 0) (vint key))]) emp (fun v' => !!(v' = v) && emp)).
         { entailer!.
           simpl in *; rewrite Hpi; auto. }
         { rewrite <- app_assoc; fast_cancel. }
         { repeat (split; auto).
+          apply AL_hist_spec; auto.
           intros ???????????? Ha.
           unfold k_R in *; simpl in *.
           eapply semax_pre, Ha.
           go_lowerx; entailer!.
           repeat split.
           + rewrite Forall_app; repeat constructor; auto.
-            apply apply_int_ops in Hvx; auto.
           + intros ? Hin; rewrite in_app in Hin.
             destruct Hin as [? | [? | ?]]; subst; auto; contradiction.
-          + match goal with H : forall e, In e hx -> _ |- _ =>
-              exploit (H (CAS (Vint i0) (vint 0) (vint key))) end.
+          + match goal with H : forall e, In e h'0 -> _ |- _ =>
+              exploit (H (CAS (vint v) (vint 0) (vint key))) end.
             { eapply nth_error_In, Hhist.
               rewrite in_app; simpl; eauto. }
             { simpl.
-              if_tac; [absurd (Vint i0 = vint 0)|]; auto. }
+              if_tac; [absurd (v = 0)|]; auto.
+              apply repr_inj_signed; auto; congruence. }
             simpl.
-            if_tac; [absurd (Vint i0 = vint 0)|]; auto.
-          + apply andp_right; auto.
-            eapply derives_trans, precise_weak_precise, precise_andp2; auto. }
-        Intros x; destruct x as (t'', v); simpl snd in *; subst.
+            if_tac; [absurd (v = 0)|]; auto; intros; apply repr_inj_signed; auto; congruence. }
+        Intros v'; simpl; Intros t''; subst.
         assert (t' < t'')%nat.
-        { match goal with H : Forall _ (hki ++ [_; _]) |- _ => rewrite Forall_app in H;
+        { match goal with H : newer (hki ++ [_; _]) _ |- _ => unfold newer in H; rewrite Forall_app in H;
             destruct H as (_ & Ht); inversion Ht as [|??? Ht']; inv Ht'; auto end. }
         match goal with |- semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
-          forward_if (PROP (i0 = Int.repr key) (LOCALx Q (SEPx R))) end.
+          forward_if (PROP (v = key) (LOCALx Q (SEPx R))) end.
         { eapply semax_pre; [|apply semax_continue].
           unfold POSTCONDITION, abbreviate, overridePost.
           destruct (eq_dec EK_continue EK_normal); [discriminate|].
           unfold loop1_ret_assert.
           go_lower.
           Exists i (i1 mod size) (upd_Znth (i1 mod size) h' (hki ++
-            [(t, Load (vint 0)); (t', CAS (Vint i0) (vint 0) (vint key)); (t'', Load (Vint i0))], hvi)).
+            [(t, Load (vint 0)); (t', CAS (vint v) (vint 0) (vint key)); (t'', Load (vint v))], hvi)).
           apply andp_right.
           { apply prop_right; split.
             { rewrite upd_Znth_Zlength; auto; omega. }
@@ -542,15 +547,15 @@ Ltac solve_efield_denote Delta P Q R efs gfs H ::=   evar (gfs : list gfield);
             apply incr_invariant; auto; simpl in *; try omega.
             * rewrite Heq, Hhi; do 3 eexists; [|split; [right; do 3 eexists; [|reflexivity]|]]; auto.
               repeat split; auto.
-              { intro; contradiction n; subst; auto. }
-              match goal with H : forall v0, last_value hki v0 -> v0 <> vint 0 -> Vint i0 = v0 |- _ =>
+              match goal with H : forall v0, last_value hki v0 -> v0 <> vint 0 -> vint v = v0 |- _ =>
                 symmetry; apply H; auto end.
               rewrite ordered_last_value; auto.
             * admit. (* list is long enough *) }
           apply andp_right; [apply prop_right; auto|].
           fast_cancel.
           rewrite <- app_assoc.
-          erewrite <- sepcon_assoc, replace_nth_sepcon, update_entries_hist; eauto; omega. }
+          erewrite <- !sepcon_assoc, replace_nth_sepcon, update_entries_hist; eauto; [|omega].
+          rewrite sepcon_assoc; auto. }
         { forward.
           entailer!. }
         intros.
@@ -561,19 +566,18 @@ Ltac solve_efield_denote Delta P Q R efs gfs H ::=   evar (gfs : list gfield);
         go_lower.
         apply andp_right; [apply prop_right; auto|].
         rewrite <- app_assoc; Exists (hki ++
-          [(t, Load (vint 0)); (t', CAS (Vint i0) (vint 0) (vint key)); (t'', Load (Vint i0))]); entailer!.
+          [(t, Load (vint 0)); (t', CAS (vint v) (vint 0) (vint key)); (t'', Load (vint v))]); entailer!.
         split; [do 2 eexists; eauto; right; do 2 eexists; eauto|].
         match goal with H : forall v0, last_value hki v0 -> v0 <> vint 0 -> vint key = v0 |- _ =>
           symmetry; apply H; auto end.
         apply ordered_last_value; auto.
       * forward.
-        destruct (eq_dec (vint 0) (Vint i0)); [|discriminate].
-        assert (i0 = Int.zero) by (inv e; auto); subst.
-        rewrite <- app_assoc.
+        destruct (eq_dec 0 v); [|discriminate].
+        subst; rewrite <- app_assoc.
         Exists (hki ++ [(t, Load (vint 0)); (t', CAS (vint 0) (vint 0) (vint key))]); entailer!.
         split; [do 2 eexists; eauto|].
         intros ? X; contradiction X.
-        match goal with H : forall v0, last_value hki v0 -> v0 <> vint 0 -> Vint Int.zero = v0 |- _ =>
+        match goal with H : forall v0, last_value hki v0 -> v0 <> vint 0 -> vint 0 = v0 |- _ =>
           symmetry; apply H; auto end.
         apply ordered_last_value; auto.
       * intros.
@@ -596,17 +600,15 @@ Ltac solve_efield_denote Delta P Q R efs gfs H ::=   evar (gfs : list gfield);
       forward.
       { entailer!.
         simpl in *; rewrite Hpi; auto. }
-      forward_call (sh, pvi, vint value, vint 0, hvi, fun (h : hist) v => !!(v = vint value) && emp, v_R,
-        fun (h : hist) => emp).
+      forward_call (AS_witness sh pvi 0 v_R hvi value emp emp).
       { entailer!.
         simpl in *; rewrite Hpi; auto. }
       { repeat (split; auto).
-        intros ????????????? Ha.
+        apply AS_hist_spec; auto.
+        intros ???????????? Ha.
         unfold v_R in *; simpl in *.
         eapply semax_pre, Ha.
-        go_lowerx; entailer!.
-        apply andp_right; auto.
-        eapply derives_trans, precise_weak_precise; auto. }
+        go_lowerx; entailer!. }
       Intros t'.
       forward.
       Exists (i1 mod size) (upd_Znth (i1 mod size) h' (hki', hvi ++ [(t', Store (vint value))])).
@@ -637,8 +639,8 @@ Ltac solve_efield_denote Delta P Q R efs gfs H ::=   evar (gfs : list gfield);
             rewrite <- Hindex; auto. } }
       apply andp_right; auto.
       fast_cancel.
-      erewrite <- sepcon_assoc, (sepcon_comm (atomic_loc _ _ _ _ _)), replace_nth_sepcon,
-        update_entries_hist; eauto; omega.
+      erewrite <- !sepcon_assoc, (sepcon_comm _ (atomic_loc_hist _ _ _ _ _)), replace_nth_sepcon,
+        update_entries_hist; eauto; auto; omega.
   - Intros i i1 h'.
     forward.
     unfold loop2_ret_assert.
@@ -653,6 +655,7 @@ Admitted.
 Lemma body_get_item : semax_body Vprog Gprog f_get_item get_item_spec.
 Proof.
   start_function.
+  assert (sh <> Share.bot) by (intro; subst; contradiction unreadable_bot).
   forward_call key.
   eapply semax_pre with (P' := EX i : Z, EX i1 : Z, EX h' : list (hist * hist),
     PROP (Zlength h' = Zlength h; i1 mod size = (i + hash key) mod size; 0 <= i < size;
@@ -679,7 +682,7 @@ Proof.
       by (rewrite ?Zlength_map, ?Zlength_combine, ?Z.min_l; auto; omega).
     destruct (Znth (i1 mod size) entries (Vundef, Vundef)) as (pki, pvi) eqn: Hpi.
     destruct (Znth (i1 mod size) h' ([], [])) as (hki, hvi) eqn: Hhi.
-    unfold atomic_entry; Intros.
+    unfold atomic_entry, atomic_loc_hist; Intros.
     rewrite atomic_loc_isptr; Intros.
     forward.
     { entailer!.
@@ -696,49 +699,44 @@ Proof.
     assert (ordered_hist hki).
     { match goal with H : wf_hists h |- _ => eapply Forall_Znth with (i0 := i1 mod size) in H; [|omega];
       rewrite Heq, Hhi in H; tauto end. }
-    forward_call (sh, pki, vint 0, hki, fun h => !!(h = hki) && emp, k_R,
-      fun (h : hist) (v : val) => !!(forall v0, last_value hki v0 -> v0 <> vint 0 -> v = v0) && emp).
+    forward_call (AL_witness sh pki 0 k_R hki emp (fun v => !!(forall v0, last_value hki v0 -> v0 <> vint 0 -> vint v = v0) && emp)).
     { entailer!.
       setoid_rewrite Hpi; auto. }
     { repeat (split; auto).
+      apply AL_hist_spec; auto.
       intros ???????????? Ha.
       unfold k_R in *; simpl in *.
       eapply semax_pre, Ha.
       go_lowerx; entailer!.
       repeat split.
       + rewrite Forall_app; repeat constructor; auto.
-        apply apply_int_ops in Hvx; auto.
       + intros ? Hin; rewrite in_app in Hin.
         destruct Hin as [? | [? | ?]]; subst; auto; contradiction.
       + intros ? [(? & ?) | (? & ? & Hin & ? & ?)] Hn; [contradiction Hn; auto|].
-        specialize (Hhist _ _ Hin); apply nth_error_In in Hhist; subst; auto.
-      + apply andp_right; auto.
-        eapply derives_trans, precise_weak_precise, precise_andp2; auto. }
-    Intros x; destruct x as (t, v); simpl snd in *.
-    destruct v; try contradiction.
+        specialize (Hhist _ _ Hin); apply nth_error_In in Hhist; subst; auto. }
+    Intros v; simpl; Intros t.
     match goal with |- semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
-      forward_if (PROP (i0 <> Int.repr key) (LOCALx Q (SEPx R))) end.
+      forward_if (PROP (v <> key) (LOCALx Q (SEPx R))) end.
     + rewrite (atomic_loc_isptr _ pvi).
       forward.
       { entailer!.
         simpl in *; rewrite Hpi; auto. }
-      forward_call (sh, pvi, vint 0, hvi, fun (h : hist) => emp, v_R, fun (h : hist) (v : val) => emp).
+      forward_call (AL_witness sh pvi 0 v_R hvi emp (fun (v : Z) => emp)).
       { entailer!.
         simpl in Hpi; rewrite Hpi; auto. }
       { repeat (split; auto).
+        apply AL_hist_spec; auto.
         intros ???????????? Ha.
         unfold v_R in *; simpl in *.
         eapply semax_pre, Ha.
-        go_lowerx; entailer!.
-        apply andp_right; auto.
-        eapply derives_trans, precise_weak_precise; auto. }
-      Intros x; destruct x as (t', v); simpl snd in *.
+        go_lowerx; entailer!. }
+      subst; Intros v; simpl; Intros t'.
       forward.
-      Exists (Int.signed v) (i1 mod size) (upd_Znth (i1 mod size) h' (hki ++ [(t, Load (vint key))],
-        hvi ++ [(t', Load (Vint v))])).
+      Exists v (i1 mod size) (upd_Znth (i1 mod size) h' (hki ++ [(t, Load (vint key))],
+        hvi ++ [(t', Load (vint v))])).
       apply andp_right.
       { apply prop_right.
-        split; [apply Int.signed_range|].
+        split; auto.
         split; auto.
         split.
         { rewrite upd_Znth_Zlength; auto. }
@@ -746,7 +744,7 @@ Proof.
         setoid_rewrite Heq.
         rewrite Hhi; simpl.
         rewrite upd_Znth_same by auto; simpl; split.
-        - do 3 eexists; eauto; split; eauto; split; eauto; [rewrite Int.repr_signed; eauto|].
+        - do 3 eexists; eauto; split; eauto; split; eauto.
             match goal with H : forall v0, last_value hki v0 -> v0 <> vint 0 -> vint key = v0 |- _ =>
               symmetry; apply H; auto end.
             rewrite ordered_last_value; auto.
@@ -765,14 +763,15 @@ Proof.
             match goal with H : forall j, (In j _ -> _) /\ (~In j _ -> _) |- _ => apply H; auto end.
             { intro; contradiction Hout; subst; simpl.
               rewrite <- Hindex; auto. } }
-      apply andp_right; [apply prop_right; rewrite Int.repr_signed; auto|].
+      apply andp_right; [apply prop_right; auto|].
       fast_cancel.
-      erewrite <- sepcon_assoc, (sepcon_comm (atomic_loc _ _ _ _ _)), replace_nth_sepcon,
-        update_entries_hist; eauto; omega.
+      erewrite <- !sepcon_assoc, (sepcon_assoc _ (atomic_loc _ _ _)), replace_nth_sepcon,
+        update_entries_hist; eauto; [|omega].
+      rewrite (sepcon_comm (atomic_loc_hist _ _ _ _ _)); auto.
     + forward.
       entailer!.
     + Intros; match goal with |- semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
-        forward_if (PROP (i0 <> Int.zero) (LOCALx Q (SEPx R))) end.
+        forward_if (PROP (v <> 0) (LOCALx Q (SEPx R))) end.
       * forward.
         Exists 0 (i1 mod size) (upd_Znth (i1 mod size) h' (hki ++ [(t, Load (vint 0))], hvi)).
         apply andp_right.
@@ -806,7 +805,8 @@ Proof.
               rewrite <- Hindex; auto. } }
         apply andp_right; [apply prop_right; auto|].
         fast_cancel.
-        erewrite <- sepcon_assoc, replace_nth_sepcon, update_entries_hist; eauto; omega.
+        erewrite <- !sepcon_assoc, replace_nth_sepcon, update_entries_hist; eauto; [|omega].
+        rewrite (sepcon_assoc _ (atomic_loc _ _ _)); auto.
       * forward.
         entailer!.
       * intros.
@@ -819,7 +819,7 @@ Proof.
             (~In j (indices (hash key) ((i + 1) + hash key)) -> Znth j h' ([], []) = Znth j h ([], [])))
           LOCAL (temp _idx (vint i1); temp _key (vint key); gvar _m_entries p)
           SEP (@data_at CompSpecs sh (tarray tentry size) entries p; atomic_entries sh entries h')).
-        Exists i (i1 mod size) (upd_Znth (i1 mod size) h' (hki ++ [(t, Load (Vint i0))], hvi)).
+        Exists i (i1 mod size) (upd_Znth (i1 mod size) h' (hki ++ [(t, Load (vint v))], hvi)).
         go_lower.
         apply andp_right.
         { apply prop_right; split.
@@ -828,13 +828,14 @@ Proof.
           split; auto; split; auto; split; auto.
           apply incr_invariant; auto; simpl in *; try omega.
           * rewrite Heq, Hhi; repeat eexists; eauto; auto.
-            match goal with H : forall v0, last_value hki v0 -> v0 <> vint 0 -> Vint i0 = v0 |- _ =>
+            match goal with H : forall v0, last_value hki v0 -> v0 <> vint 0 -> vint v = v0 |- _ =>
               symmetry; apply H; auto end.
             rewrite ordered_last_value; auto.
           * admit. (* list is long enough *) }
         apply andp_right; [apply prop_right; auto|].
         fast_cancel.
-        erewrite <- sepcon_assoc, replace_nth_sepcon, update_entries_hist; eauto; omega.
+        erewrite <- !sepcon_assoc, replace_nth_sepcon, update_entries_hist; eauto; [|omega].
+        rewrite (sepcon_assoc _ (atomic_loc _ _ _)); auto.
   - Intros i i1 h'.
     forward.
     unfold loop2_ret_assert.
@@ -849,6 +850,7 @@ Admitted.
 Lemma body_add_item : semax_body Vprog Gprog f_add_item add_item_spec.
 Proof.
   start_function.
+  assert (sh <> Share.bot) by (intro; subst; contradiction unreadable_bot).
   forward_call key.
   eapply semax_pre with (P' := EX i : Z, EX i1 : Z, EX h' : list (hist * hist),
     PROP (Zlength h' = Zlength h; i1 mod size = (i + hash key) mod size; 0 <= i < size;
@@ -876,7 +878,7 @@ Proof.
       by (rewrite ?Zlength_map, ?Zlength_combine, ?Z.min_l; auto; omega).
     destruct (Znth (i1 mod size) entries (Vundef, Vundef)) as (pki, pvi) eqn: Hpi.
     destruct (Znth (i1 mod size) h' ([], [])) as (hki, hvi) eqn: Hhi.
-    unfold atomic_entry; Intros.
+    unfold atomic_entry, atomic_loc_hist; Intros.
     rewrite atomic_loc_isptr; Intros.
     forward.
     { entailer!.
@@ -893,32 +895,28 @@ Proof.
     assert (ordered_hist hki).
     { match goal with H : wf_hists h |- _ => eapply Forall_Znth with (i0 := i1 mod size) in H; [|omega];
       rewrite Heq, Hhi in H; tauto end. }
-    forward_call (sh, pki, vint 0, hki, fun (h : hist) => !!(h = hki) && emp, k_R,
-      fun (h : hist) (v : val) => !!(forall v0, last_value hki v0 -> v0 <> vint 0 -> v = v0) && emp).
+    forward_call (AL_witness sh pki 0 k_R hki emp (fun v => !!(forall v0, last_value hki v0 -> v0 <> vint 0 -> vint v = v0) && emp)).
     { entailer!.
       setoid_rewrite Hpi; auto. }
     { repeat (split; auto).
+      apply AL_hist_spec; auto.
       intros ???????????? Ha.
       unfold k_R in *; simpl in *.
       eapply semax_pre, Ha.
       go_lowerx; entailer!.
       repeat split.
       + rewrite Forall_app; repeat constructor; auto.
-        apply apply_int_ops in Hvx; auto.
       + intros ? Hin; rewrite in_app in Hin.
         destruct Hin as [? | [? | ?]]; subst; auto; contradiction.
       + intros ? [(? & ?) | (? & ? & Hin & ? & ?)] Hn; [contradiction Hn; auto|].
-        specialize (Hhist _ _ Hin); apply nth_error_In in Hhist; subst; auto.
-      + apply andp_right; auto.
-        eapply derives_trans, precise_weak_precise, precise_andp2; auto. }
-    Intros x; destruct x as (t, v); simpl snd in *.
-    destruct v; try contradiction.
+        specialize (Hhist _ _ Hin); apply nth_error_In in Hhist; subst; auto. }
+    Intros v; simpl; Intros t.
     assert (indices (hash key) (i + hash key) = indices (hash key) (i1 mod size)) as Hindex.
     { unfold indices.
       replace (i1 mod size) with ((i + hash key) mod size).
       rewrite Zminus_mod_idemp_l; auto. }
     match goal with |- semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
-      forward_if (PROP (i0 <> Int.repr key) (LOCALx Q (SEPx R))) end.
+      forward_if (PROP (v <> key) (LOCALx Q (SEPx R))) end.
     { forward.
       Exists false (i1 mod size) (upd_Znth (i1 mod size) h' (hki ++ [(t, Load (vint key))], hvi));
         entailer!.
@@ -942,12 +940,13 @@ Proof.
           match goal with H : forall j, (In j _ -> _) /\ (~In j _ -> _) |- _ => apply H; auto end.
           { intro; contradiction Hout; subst; simpl.
             rewrite <- Hindex; auto. }
-      + erewrite replace_nth_sepcon, update_entries_hist; eauto; omega. }
+      + erewrite replace_nth_sepcon, update_entries_hist; eauto; [|omega].
+        rewrite (sepcon_assoc _ (atomic_loc _ _ _)); auto. }
     { forward.
       entailer!. }
     Intros.
     match goal with |- semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
-      forward_if (PROP (i0 = Int.zero) (LOCALx Q (SEPx R))) end.
+      forward_if (PROP (v = 0) (LOCALx Q (SEPx R))) end.
     { eapply semax_pre; [|apply semax_continue].
       unfold POSTCONDITION, abbreviate, overridePost.
       destruct (eq_dec EK_continue EK_normal); [discriminate|].
@@ -958,7 +957,7 @@ Proof.
           (~In j (indices (hash key) ((i + 1) + hash key)) -> Znth j h' ([], []) = Znth j h ([], [])))
         LOCAL (temp _idx (vint i1); temp _key (vint key); temp _value (vint value); gvar _m_entries p)
         SEP (@data_at CompSpecs sh (tarray tentry size) entries p; atomic_entries sh entries h')).
-      Exists i (i1 mod size) (upd_Znth (i1 mod size) h' (hki ++ [(t, Load (Vint i0))], hvi)).
+      Exists i (i1 mod size) (upd_Znth (i1 mod size) h' (hki ++ [(t, Load (vint v))], hvi)).
       go_lower.
       apply andp_right.
       { apply prop_right; split.
@@ -967,80 +966,74 @@ Proof.
         split; auto; split; auto; split; auto.
         apply incr_invariant; auto; simpl in *; try omega.
         * rewrite Heq, Hhi; repeat eexists; eauto; auto.
-          match goal with H : forall v0, last_value hki v0 -> v0 <> vint 0 -> Vint i0 = v0 |- _ =>
+          match goal with H : forall v0, last_value hki v0 -> v0 <> vint 0 -> vint v = v0 |- _ =>
             symmetry; apply H; auto end.
           rewrite ordered_last_value; auto.
         * admit. (* list is long enough *) }
       apply andp_right; [apply prop_right; auto|].
       fast_cancel.
-      erewrite <- sepcon_assoc, replace_nth_sepcon, update_entries_hist; eauto; omega. }
+      erewrite <- !sepcon_assoc, replace_nth_sepcon, update_entries_hist; eauto; [|omega].
+      rewrite (sepcon_assoc _ (atomic_loc _ _ _)); auto. }
     { forward.
       entailer!. }
     Intros; subst.
-    forward_call (sh, pki, vint 0, vint key, vint 0, hki ++ [(t, Load (vint 0))],
-      fun (h : hist) c v => !!(c = vint 0 /\ v = vint key /\ h = hki ++ [(t, Load (vint 0))]) && emp,
-      k_R, fun (h : hist) (v : val) => !!(forall v0, last_value hki v0 -> v0 <> vint 0 -> v = v0) && emp).
+    forward_call (ACAS_witness sh pki 0 k_R (hki ++ [(t, Load (vint 0))]) 0 key emp (fun v => !!(forall v0, last_value hki v0 -> v0 <> vint 0 -> vint v = v0) && emp)).
     { entailer!.
       setoid_rewrite Hpi; auto. }
     { repeat (split; auto).
-      intros ?????????????? Ha.
+      apply ACAS_hist_spec; auto.
+      intros ???????????? Ha.
       unfold k_R in *; simpl in *.
       eapply semax_pre, Ha.
       go_lowerx; entailer!.
       repeat split.
       + rewrite Forall_app; repeat constructor; auto.
-        apply apply_int_ops in Hvx; auto.
       + intros ? Hin; rewrite in_app in Hin.
         destruct Hin as [? | [? | ?]]; [| |contradiction].
         * intros.
-          replace vx with (value_of e) by (symmetry; auto).
-          if_tac; auto; absurd (value_of e = vint 0); auto.
+          assert (vint v' = value_of e) by auto.
+          if_tac; auto.
+          subst; absurd (value_of e = vint 0); auto.
         * subst; simpl; intros.
-          if_tac; if_tac; auto; absurd (vx = vint 0); auto.
+          if_tac; if_tac; auto; [absurd (vint v' = vint 0); subst; auto|].
+          absurd (v' = 0); auto; apply repr_inj_signed; auto; congruence.
       + intros ? [(? & ?) | (? & ? & Hin & ? & ?)] Hn; [contradiction Hn; auto|].
         exploit Hhist.
         { rewrite in_app; eauto. }
-        intro X; apply nth_error_In in X; subst; auto.
-      + apply andp_right; auto.
-        eapply derives_trans, precise_weak_precise, precise_andp2; auto. }
-    Intros x; destruct x as (t', v); simpl snd in *.
-    destruct v; try contradiction.
+        intro X; apply nth_error_In in X; subst; auto. }
+    Intros v; simpl; Intros t'.
     assert (t < t')%nat.
-    { match goal with H : Forall _ (hki ++ _) |- _ => rewrite Forall_app in H;
+    { match goal with H : newer (hki ++ _) _ |- _ => unfold newer in H; rewrite Forall_app in H;
         destruct H as (_ & Ht); inv Ht; auto end. }
     match goal with |- semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
-      forward_if (PROP (i0 = Int.zero) ((LOCALx Q) (SEPx R))) end.
-    { destruct (eq_dec (vint 0) (Vint i0)); [discriminate|].
-      forward_call (sh, pki, vint 0, hki ++ [(t, Load (vint 0)); (t', CAS (Vint i0) (vint 0) (vint key))],
-        fun (h : hist) => !!(h = hki ++ [(t, Load (vint 0)); (t', CAS (Vint i0) (vint 0) (vint key))]) && emp,
-        k_R,
-        fun (h : hist) (v : val) => !!(v = Vint i0) && emp).
+      forward_if (PROP (v = 0) ((LOCALx Q) (SEPx R))) end.
+    { destruct (eq_dec 0 v); [discriminate|].
+      forward_call (AL_witness sh pki 0 k_R (hki ++ [(t, Load (vint 0)); (t', CAS (vint v) (vint 0) (vint key))])
+        emp (fun v' => !!(v' = v) && emp)).
       { entailer!.
         simpl in Hpi; rewrite Hpi; auto. }
       { rewrite <- app_assoc; fast_cancel. }
       { repeat (split; auto).
+        apply AL_hist_spec; auto.
         intros ???????????? Ha.
         unfold k_R in *; simpl in *.
         eapply semax_pre, Ha.
         go_lowerx; entailer!.
         repeat split.
         + rewrite Forall_app; repeat constructor; auto.
-          apply apply_int_ops in Hvx; auto.
         + intros ? Hin; rewrite in_app in Hin.
           destruct Hin as [? | [? | ?]]; subst; auto; contradiction.
-        + match goal with H : forall e, In e hx -> _ |- _ =>
-            exploit (H (CAS (Vint i0) (vint 0) (vint key))) end.
+        + match goal with H : forall e, In e _ -> _ |- _ =>
+            exploit (H (CAS (vint v) (vint 0) (vint key))) end.
           { eapply nth_error_In, Hhist.
             rewrite in_app; simpl; eauto. }
           { simpl.
-            if_tac; [absurd (Vint i0 = vint 0)|]; auto. }
+            if_tac; [absurd (v = 0)|]; auto; apply repr_inj_signed; auto; congruence. }
           simpl.
-          if_tac; [absurd (Vint i0 = vint 0)|]; auto.
-        + apply andp_right; auto.
-          eapply derives_trans, precise_weak_precise, precise_andp2; auto. }
-      Intros x; destruct x as (t'', v); simpl snd in *; subst.
+          if_tac; [absurd (v = 0)|]; auto; intros; apply repr_inj_signed; auto; congruence. }
+      Intros v'; simpl; Intros t''; subst.
       assert (t' < t'')%nat.
-      { match goal with H : Forall _ (hki ++ [_; _]) |- _ => rewrite Forall_app in H;
+      { match goal with H : newer (hki ++ [_; _]) _ |- _ => unfold newer in H; rewrite Forall_app in H;
           destruct H as (_ & Ht); inversion Ht as [|??? Ht']; inv Ht'; auto end. }
       match goal with |- semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
         forward_if (fun _ : environ => FF) end.
@@ -1068,14 +1061,15 @@ Proof.
             match goal with H : forall j, (In j _ -> _) /\ (~In j _ -> _) |- _ => apply H; auto end.
             { intro; contradiction Hout; subst; simpl.
               rewrite <- Hindex; auto. }
-        + erewrite <- app_assoc, replace_nth_sepcon, update_entries_hist; eauto; omega.
+        + erewrite <- app_assoc, replace_nth_sepcon, update_entries_hist; eauto; [|omega].
+          rewrite (sepcon_assoc _ (atomic_loc _ _ _)); auto.
       - eapply semax_pre; [|apply semax_continue].
         unfold POSTCONDITION, abbreviate, overridePost.
         destruct (eq_dec EK_continue EK_normal); [discriminate|].
         unfold loop1_ret_assert.
         go_lower.
         Exists i (i1 mod size) (upd_Znth (i1 mod size) h' (hki ++
-          [(t, Load (vint 0)); (t', CAS (Vint i0) (vint 0) (vint key)); (t'', Load (Vint i0))], hvi)).
+          [(t, Load (vint 0)); (t', CAS (vint v) (vint 0) (vint key)); (t'', Load (vint v))], hvi)).
         apply andp_right.
         { apply prop_right; split.
           { rewrite upd_Znth_Zlength; auto; omega. }
@@ -1084,37 +1078,35 @@ Proof.
           apply incr_invariant; auto; simpl in *; try omega.
           * rewrite Heq, Hhi; do 3 eexists; [|split; [right; do 3 eexists; [|reflexivity]|]]; auto;
               repeat split; auto.
-            { intro; subst; contradiction n; auto. }
-            match goal with H : forall v0, last_value hki v0 -> v0 <> vint 0 -> Vint i0 = v0 |- _ =>
+            match goal with H : forall v0, last_value hki v0 -> v0 <> vint 0 -> vint v = v0 |- _ =>
               symmetry; apply H; auto end.
             rewrite ordered_last_value; auto.
           * admit. (* list is long enough *) }
         apply andp_right; [apply prop_right; auto|].
         fast_cancel.
-        erewrite <- app_assoc, <- sepcon_assoc, replace_nth_sepcon, update_entries_hist; eauto; omega.
+        erewrite <- app_assoc, <- !sepcon_assoc, replace_nth_sepcon, update_entries_hist; eauto; [|omega].
+        rewrite (sepcon_assoc _ (atomic_loc _ _ _)); auto.
       - intros.
         unfold exit_tycon, overridePost.
         destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
         Intros; go_lowerx; contradiction. }
     { forward.
-      destruct (eq_dec (vint 0) (Vint i0)); [|discriminate].
-      assert (i0 = Int.zero) by (inv e; auto); entailer!. }
+      destruct (eq_dec 0 v); [|discriminate].
+      entailer!. }
     rewrite (atomic_loc_isptr _ pvi).
     Intros; subst; simpl in Hpi.
     forward.
     { entailer!.
       rewrite Hpi; auto. }
-    forward_call (sh, pvi, vint value, vint 0, hvi, fun (h : hist) v => !!(v = vint value) && emp, v_R,
-      fun (h : hist) => emp).
+    forward_call (AS_witness sh pvi 0 v_R hvi value emp emp).
     { entailer!.
       rewrite Hpi; auto. }
     { repeat (split; auto).
-      intros ????????????? Ha.
+      apply AS_hist_spec; auto.
+      intros ???????????? Ha.
       unfold v_R in *; simpl in *.
       eapply semax_pre, Ha.
-      go_lowerx; entailer!.
-      apply andp_right; auto.
-      eapply derives_trans, precise_weak_precise; auto. }
+      go_lowerx; entailer!. }
     Intros tv.
     forward.
     Exists true (i1 mod size) (upd_Znth (i1 mod size) h' (hki ++ [(t, Load (vint 0));
@@ -1128,7 +1120,7 @@ Proof.
       rewrite Hhi; simpl.
       rewrite upd_Znth_same by auto; simpl; split; [repeat eexists; auto|].
       { destruct (eq_dec (value_of_hist hki) (vint 0)); auto.
-        match goal with H : forall v0, last_value hki v0 -> v0 <> vint 0 -> Vint Int.zero = v0 |- _ =>
+        match goal with H : forall v0, last_value hki v0 -> v0 <> vint 0 -> vint 0 = v0 |- _ =>
           symmetry; apply H; auto end.
         rewrite ordered_last_value; auto. }
       split.
@@ -1144,8 +1136,8 @@ Proof.
           rewrite <- Hindex; auto. } }
     apply andp_right; [apply prop_right; auto|].
     fast_cancel.
-    erewrite <- app_assoc, <- sepcon_assoc, (sepcon_comm (atomic_loc _ _ _ _ _)), replace_nth_sepcon,
-      update_entries_hist; eauto; omega.
+    erewrite <- app_assoc, <- !sepcon_assoc, replace_nth_sepcon, update_entries_hist; eauto; [|omega].
+    rewrite (sepcon_assoc _ (atomic_loc _ _ _)), sepcon_comm; auto.
   - Intros i i1 h'.
     forward.
     unfold loop2_ret_assert.
@@ -1174,19 +1166,16 @@ Proof.
     rewrite data_at__eq; unfold default_val; simpl.
     rewrite repeat_list_repeat, Z.sub_0_r; auto.
   - Intros entries.
-    forward_call (0, k_R).
-    { unfold k_R; entailer!.
-      rewrite <- emp_sepcon at 1; apply sepcon_derives; [|cancel].
-      apply andp_right; auto.
-      eapply derives_trans, precise_weak_precise; auto.
-      apply precise_andp2; auto. }
+    forward_call (MA_witness 0 k_R).
+    { unfold k_R; entailer!. }
+    { split; [|split; computable].
+      apply MA_hist_spec; auto. }
     Intro k.
     forward.
-    forward_call (0, v_R).
-    { unfold v_R; entailer!.
-      rewrite <- emp_sepcon at 1; apply sepcon_derives; [|cancel].
-      apply andp_right; auto.
-      eapply derives_trans, precise_weak_precise; auto. }
+    forward_call (MA_witness 0 v_R).
+    { unfold v_R; entailer!. }
+    { split; [|split; computable].
+      apply MA_hist_spec; auto. }
     Intro v.
     forward.
     assert (0 <= Zlength entries < Zlength (entries ++
@@ -1200,7 +1189,7 @@ Proof.
       unfold atomic_entries.
       rewrite Z2Nat.inj_add, repeat_plus by omega; simpl.
       rewrite combine_app, map_app, sepcon_app; simpl.
-      unfold atomic_entry; entailer!.
+      unfold atomic_entry, atomic_loc_hist; entailer!.
       { rewrite repeat_length, Zlength_correct, Nat2Z.id; auto. }
   - Intros entries.
     rewrite Zminus_diag, app_nil_r.
@@ -1236,21 +1225,25 @@ Proof.
     rewrite sublist_next with (d := ([], [])) by omega; simpl.
     destruct (Znth i entries (Vundef, Vundef)) as (pki, pvi) eqn: Hpi.
     destruct (Znth i h ([], [])) as (hki, hvi) eqn: Hhi.
-    unfold atomic_entry; rewrite atomic_loc_isptr; Intros.
+    unfold atomic_entry, atomic_loc_hist; rewrite atomic_loc_isptr; Intros.
     forward.
     { entailer!.
       rewrite Hpi; auto. }
     rewrite Hpi.
-    forward_call (pki, vint 0, hki, k_R).
-    Intros x; destruct x as (lki, ki); simpl in *.
+    forward_call (pki, hist_R pki 0 k_R).
+    unfold hist_R; Intros ki lki.
+    gather_SEP 3 0; rewrite hist_ref_join by (apply Share.nontrivial).
+    Intro hk'; unfold hist_sub; rewrite eq_dec_refl; Intros; subst hk'.
     forward.
     rewrite atomic_loc_isptr; Intros.
     forward.
     { entailer!.
       rewrite Hpi; auto. }
     rewrite Hpi.
-    forward_call (pvi, vint 0, hvi, v_R).
-    Intros x; destruct x as (lvi, vi); simpl in *.
+    forward_call (pvi, hist_R pvi 0 v_R).
+    unfold hist_R; Intros vi lvi.
+    gather_SEP 5 0; rewrite hist_ref_join by (apply Share.nontrivial).
+    Intro hv'; unfold hist_sub; rewrite eq_dec_refl; Intros; subst hv'.
     forward.
     Exists (lk ++ [ki]) (lv ++ [vi]).
     go_lower.
@@ -1261,7 +1254,10 @@ Proof.
       repeat (split; [repeat split; auto; omega|]).
       rewrite sublist_split with (mid := i), sublist_len_1 with (d := ([], [])), !map_app, Hhi by omega.
       split; apply Forall2_app; auto; repeat constructor; unfold full_hist; eauto.
-    + rewrite !emp_sepcon, !sepcon_assoc; apply sepcon_derives; [auto|].
+    + rewrite !sepcon_emp, !sepcon_assoc.
+      rewrite <- emp_sepcon; apply sepcon_derives; [admit|]. (* deallocate ghost *)
+      rewrite <- emp_sepcon; apply sepcon_derives; [admit|].
+      apply sepcon_derives; [auto|].
       apply sepcon_derives; [auto|].
       rewrite !map_app; simpl.
       replace (i + 1) with (Zlength (map (fun x => vint x) lk ++ [vint ki]))
@@ -1277,7 +1273,7 @@ Proof.
     repeat match goal with H : Forall2 _ (map _ (sublist _ _ _)) _ |- _ =>
       rewrite sublist_same in H by (auto; omega) end.
     Exists lk lv; entailer!.
-Qed.
+Admitted.
 
 Lemma lock_struct_array : forall sh z (v : list val) p,
   data_at sh (tarray (tptr (Tstruct _lock_t noattr)) z) v p =
@@ -1343,8 +1339,8 @@ Proof.
   apply selflock_precise.
   unfold f_lock_inv.
   eapply derives_precise' with (Q := data_at_ _ _ _ *
-    fold_right sepcon emp (map (fun p => (EX h : hist, atomic_loc sh (fst p) (vint 0) k_R h) *
-                                         (EX h : hist, atomic_loc sh (snd p) (vint 0) v_R h)) entries) *
+    fold_right sepcon emp (map (fun p => (EX h : hist, atomic_loc_hist sh (fst p) 0 k_R h) *
+                                         (EX h : hist, atomic_loc_hist sh (snd p) 0 v_R h)) entries) *
     data_at_ sh _ _ * data_at_ _ _ _ * data_at_ _ _ _).
   - Intros hists li ls; assert_PROP (Zlength entries = size) as Hlene by entailer!.
     repeat (apply sepcon_derives; try apply data_at_data_at_).
@@ -1364,7 +1360,7 @@ Proof.
   - repeat (apply precise_sepcon; auto).
     apply precise_fold_right.
     rewrite Forall_map, Forall_forall; intros; simpl.
-    apply precise_sepcon; apply atomic_loc_precise'; auto.
+    apply precise_sepcon; apply atomic_loc_hist_precise; auto.
 Qed.
 
 Lemma f_pred_positive : forall tsh sh entries p t locksp lockt resultsp res,
@@ -1460,12 +1456,43 @@ Proof.
   (* temporarily broken *)
 Admitted.
 
+Fixpoint join_hists (h1 h2 : list (hist * hist)) :=
+  match (h1, h2) with
+  | ((k1, v1) :: rest1, (k2, v2) :: rest2) => (k1 ++ k2, v1 ++ v2) :: join_hists rest1 rest2
+  | _ => []
+  end.
+Lemma join_hists_spec : forall h1 h2 i, Zlength h1 = Zlength h2 ->
+  Znth i (join_hists h1 h2) ([], []) =
+  (fst (Znth i h1 ([], [])) ++ fst (Znth i h2 ([], [])),
+  (snd (Znth i h1 ([], [])) ++ snd (Znth i h2 ([], [])))).
+Proof.
+  induction h1; destruct h2; simpl; intros; rewrite ?Zlength_cons, ?Zlength_nil in *.
+  - rewrite Znth_nil; auto.
+  - pose proof (Zlength_nonneg h2); omega.
+  - pose proof (Zlength_nonneg h1); omega.
+  - destruct a, p.
+    destruct (zlt i 0).
+    { rewrite !Znth_underflow; auto. }
+    destruct (eq_dec i 0).
+    + subst; rewrite !Znth_0_cons; auto.
+    + rewrite !Znth_pos_cons by omega.
+      apply IHh1; omega.
+Qed.
+
+Lemma join_empty : forall h, Zlength h = size -> join_hists empty_hists h = h.
+Proof.
+  intros.
+  rewrite Zlength_correct in H.
+  assert (length h = Z.to_nat size) as Hlen by Omega0.
+  forget (Z.to_nat size) as n; clear H.
+  revert dependent h; induction n; destruct h; auto; intros; inv Hlen; simpl.
+  destruct p; rewrite IHn; auto.
+Qed.
+
 Lemma atomic_entries_join : forall sh1 sh2 sh entries hists1 hists2 hists (Hjoin : sepalg.join sh1 sh2 sh)
-  (Hlen : Zlength entries = Zlength hists)
-  (Hlen1 : Zlength hists1 = Zlength hists) (Hlen2 : Zlength hists2 = Zlength hists)
-  (Hsh1 : readable_share sh1) (Hsh2 : readable_share sh2)
-  (Hhists : forall i, Znth i hists ([], []) = (fst (Znth i hists1 ([], [])) ++ fst (Znth i hists2 ([], [])),
-     (snd (Znth i hists1 ([], [])) ++ snd (Znth i hists2 ([], []))))),
+  (Hhists : join_hists hists1 hists2 = hists)
+  (Hlen : Zlength entries = Zlength hists1) (Hlen1 : Zlength hists1 = Zlength hists2)
+  (Hsh1 : readable_share sh1) (Hsh2 : readable_share sh2),
   atomic_entries sh1 entries hists1 * atomic_entries sh2 entries hists2 =
   !!(forall i, disjoint (fst (Znth i hists1 ([], []))) (fst (Znth i hists2 ([], []))) /\
                disjoint (snd (Znth i hists1 ([], []))) (snd (Znth i hists2 ([], [])))) &&
@@ -1473,23 +1500,20 @@ Lemma atomic_entries_join : forall sh1 sh2 sh entries hists1 hists2 hists (Hjoin
 Proof.
   induction entries; unfold atomic_entries; simpl; intros.
   { exploit Zlength_nil_inv; eauto; intro; subst.
-    exploit (Zlength_nil_inv hists1); auto; intro; subst.
     exploit (Zlength_nil_inv hists2); auto; intro; subst.
     rewrite prop_true_andp, sepcon_emp; auto.
     intro; rewrite Znth_nil; simpl; auto. }
-  destruct hists; [exploit (Zlength_nil_inv (a :: entries)); eauto; discriminate|].
-  destruct hists1; [exploit Zlength_nil_inv; eauto; discriminate|].
+  destruct hists1; [exploit (Zlength_nil_inv (a :: entries)); eauto; discriminate|].
   destruct hists2; [exploit Zlength_nil_inv; eauto; discriminate|].
-  rewrite !Zlength_cons in *; simpl.
-  destruct a, p, p0 as (hk1, hv1), p1 as (hk2, hv2).
+  rewrite !Zlength_cons in *; simpl in *.
+  destruct a, p as (hk1, hv1), p0 as (hk2, hv2); subst; simpl.
   unfold atomic_entry.
   match goal with |- (?P1 * ?Q1) * (?P2 * ?Q2) = _ =>
     transitivity ((P1 * P2) * (Q1 * Q2)); [apply mpred_ext; cancel|] end.
-  setoid_rewrite (IHentries _ _ hists); auto; try omega.
-  specialize (Hhists 0); rewrite !Znth_0_cons in Hhists; inv Hhists.
+  setoid_rewrite (IHentries _ _ _ Hjoin eq_refl); auto; try omega.
   match goal with |- (?P1 * ?Q1 * (?P2 * ?Q2) * ?R) = _ =>
     transitivity ((P1 * P2) * (Q1 * Q2) * R); [apply mpred_ext; cancel|] end.
-  erewrite !atomic_loc_join by eauto.
+  erewrite !atomic_loc_hist_join by eauto.
   apply mpred_ext; entailer!.
   - intros.
     destruct (zlt i 0); [rewrite !Znth_underflow; simpl; auto|].
@@ -1501,10 +1525,6 @@ Proof.
     intro i; specialize (H (i + 1)).
     destruct (zlt i 0); [rewrite !Znth_underflow; simpl; auto|].
     rewrite !Znth_pos_cons, Z.add_simpl_r in H by omega; auto.
-  - intros.
-    destruct (zlt i 0); [rewrite !Znth_underflow; simpl; auto|].
-    specialize (Hhists (i + 1)).
-    rewrite !Znth_pos_cons, Z.add_simpl_r in Hhists by omega; auto.
 Qed.
 
 Corollary atomic_entries_join_nil : forall sh1 sh2 sh entries
@@ -1513,14 +1533,35 @@ Corollary atomic_entries_join_nil : forall sh1 sh2 sh entries
   atomic_entries sh1 entries empty_hists * atomic_entries sh2 entries empty_hists =
   atomic_entries sh entries empty_hists.
 Proof.
-  intros; erewrite atomic_entries_join with (sh := sh); try assumption.
+  intros; erewrite atomic_entries_join with (sh := sh).
   rewrite prop_true_andp; eauto.
   - intro; rewrite Znth_repeat; simpl; auto.
+  - auto.
+  - apply join_empty.
+    rewrite Zlength_repeat, Z2Nat.id; auto.
+    pose proof size_pos; omega.
   - rewrite Zlength_repeat, Z2Nat.id; auto.
     pose proof size_pos; omega.
   - reflexivity.
-  - reflexivity.
-  - intro; rewrite Znth_repeat; auto.
+  - auto.
+  - auto.
+Qed.
+
+Lemma join_hists_length : forall h1 h2, Zlength h1 = Zlength h2 ->
+  Zlength (join_hists h1 h2) = Zlength h1.
+Proof.
+  induction h1; auto; simpl; intros.
+  destruct h2; [apply Zlength_nil_inv in H; discriminate|].
+  destruct a, p; rewrite !Zlength_cons in *; rewrite IHh1; auto; omega.
+Qed.
+
+Corollary fold_join_hists_length : forall lh h, Forall (fun h' => Zlength h' = Zlength h) lh ->
+  Zlength (fold_right join_hists h lh) = Zlength h.
+Proof.
+  induction lh; auto; simpl; intros.
+  inv H.
+  rewrite join_hists_length; auto.
+  rewrite IHlh; auto.
 Qed.
 
 Lemma body_main : semax_body Vprog Gprog f_main main_spec.
@@ -1726,7 +1767,7 @@ Proof.
            gvar _thread_locks locksp; gvar _m_entries m_entries)
     SEP (@data_at CompSpecs (fst x) (tarray tentry size) entries m_entries;
          EX sh' : share, !!(sepalg_list.list_join sh' (sublist i 3 shs) Tsh) &&
-           let h := map fst (map fst (snd x)) in atomic_entries sh' entries (concat (empty_hists :: h));
+           let h := map fst (map fst (snd x)) in atomic_entries sh' entries (fold_right join_hists empty_hists h);
          data_at_ Tsh (tarray tint 16384) values; data_at_ Tsh (tarray tint 16384) keys;
          data_at (fst x) (tarray (tptr tint) 3) res resp;
          let ls := map snd (snd x) in fold_right sepcon emp (map (fun j =>
@@ -1758,7 +1799,9 @@ Proof.
     forward_call (Znth i locks Vundef, Tsh, sh2,
       |>f_lock_inv (Znth i shs Ews) entries m_entries i locksp (Znth i locks Vundef) resp (Znth i res Vundef),
       |>f_lock_pred sh2 (Znth i shs Ews) entries m_entries i locksp (Znth i locks Vundef) resp (Znth i res Vundef)).
-    { lock_props.
+    { rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
+        [repeat apply andp_right; auto; eapply derives_trans;
+         try (apply precise_weak_precise || apply positive_weak_positive || apply rec_inv_weak_rec_inv); auto |].
       { apply later_positive; auto. }
       { apply later_rec_lock, selflock_rec. }
       unfold f_lock_pred at 2.
@@ -1796,11 +1839,54 @@ Proof.
     apply andp_right.
     - admit.
     - admit. }
-    Print freeze_table_spec.
   Intros x sh''; destruct x as (?, lr); simpl in *.
   repeat match goal with H : sepalg_list.list_join _ (sublist 3 3 _) _ |- _ =>
     rewrite sublist_nil in H; inv H end.
-  forward_call (Ews, m_entries, entries, map fst (map fst lr), keys, values).
+  (*forward_call (0, 0, m_entries, sh, entries, fold_right join_hists empty_hists (map fst (map fst lr))).*)
+  eapply semax_seq'.
+  let Frame := fresh "Frame" in evar (Frame: list (mpred)).
+  refine (modusponens (global_funspec Delta _freeze_table _ _ _ _ _ _ _ _) _ _ _);
+  [eapply lookup_funspec;
+    [check_function_name
+    | lookup_spec_and_change_compspecs CS _freeze_table
+    | find_spec_in_globals']|].
+  intro Hf.
+  eapply (@semax_call_id00_wow (rmaps.ConstType
+          (share * val * list (val * val) * list (hist * hist) * val * val)) (Ews, m_entries, entries, fold_right join_hists empty_hists (map fst (map fst lr)), keys, values) Frame _ _ _ _ _ _ _ _ _ Hf);
+ clear Hf; try clear Frame;
+ [ check_result_type | check_parameter_types
+ | check_prove_local2ptree
+ | check_typecheck
+ | check_funspec_precondition
+ | check_prove_local2ptree
+ | check_cast_params | reflexivity
+ | Forall_pTree_from_elements
+ | Forall_pTree_from_elements
+ | unfold fold_right_sepcon at 1 2
+ | cbv beta iota zeta; extensionality rho;
+    repeat rewrite exp_uncurry;
+    try rewrite no_post_exists0;
+    repeat rewrite exp_unfold; reflexivity
+ | unify_postcondition_exps
+ | unfold fold_right_and; repeat rewrite and_True; auto
+ ].
+  { rewrite !sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
+    apply sepcon_derives; [apply derives_refl|].
+    simpl; fast_cancel. }
+  { split; auto.
+    rewrite fold_join_hists_length, Zlength_repeat, Z2Nat.id; auto.
+    { pose proof size_pos; omega. }
+    { rewrite 2Forall_map; eapply Forall_impl; [|eauto].
+      simpl; intros ((?, ?), ?) ?.
+      eapply add_n_items_length; eauto. } }
+  after_forward_call.
+  Intro x; destruct x as (lk, lv); simpl; Intros.
+  (* Here's where we can prove that total is 3. *)
+  forward.
+  Exists values keys.
+  rewrite !sepcon_assoc, (sepcon_comm (data_at _ _ _ keys)), (sepcon_comm (data_at _ _ _ values)).
+  rewrite sepcon_assoc, (sepcon_comm (data_at _ _ _ values)), <- !sepcon_assoc; apply sepcon_derives; [apply sepcon_derives; auto|];
+    apply andp_right, data_at_data_at_; apply prop_right; auto.
 Admitted.
 
 (* Given the relations on histories, what can we actually conclude about the maps? *)
