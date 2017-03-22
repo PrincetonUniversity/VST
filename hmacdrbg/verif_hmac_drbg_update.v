@@ -530,7 +530,7 @@ Proof. intros. simpl.
     Intros.
     freeze [0;1;2;4] FR9.
     rewrite data_at_isptr with (p:=K). Intros.
-    (*destruct K; try solve [contradiction].*)
+    apply vst_lemmas.isptrD in PK; destruct PK as [sk [ik HK]]; subst K.
     thaw FR9.
     replace_SEP 1 (UNDER_SPEC.EMPTY (snd (snd (*md_ctx*)(IS1a, (IS1b, IS1c))))) by (entailer!; apply UNDER_SPEC.FULL_EMPTY).
 
@@ -538,10 +538,10 @@ Proof. intros. simpl.
     Time forward_call (field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
                        (*md_ctx*)(IS1a, (IS1b, IS1c)),
                        (Zlength (HMAC256 (V ++ [i] ++ (if na then contents else [])) key)),
-                       HMAC256 (V ++ [i] ++ (if na then contents else [])) key, kv, K). (*14; Naphat 75 *)
+                       HMAC256 (V ++ [i] ++ (if na then contents else [])) key, kv, sk, ik). (*Coq8.6: 7.9*)
     {
       (* prove the function parameters match up *)
-      apply prop_right. destruct K; try solve [contradiction].
+      apply prop_right. 
       rewrite hmac_common_lemmas.HMAC_Zlength, FA_ctx_MDCTX; simpl.
       rewrite offset_val_force_ptr, isptr_force_ptr, sem_cast_neutral_ptr; trivial. auto.
     }
@@ -562,15 +562,11 @@ Proof. intros. simpl.
     Time forward_call (HMAC256 (V ++ [i] ++ (if na then contents else [])) key,
                        field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
                        (*md_ctx*)(IS1a, (IS1b, IS1c)),
-                       field_address t_struct_hmac256drbg_context_st [StructField _V] ctx, @nil Z, V, kv). (*9; Naphat 72 *)
+                       field_address t_struct_hmac256drbg_context_st [StructField _V] ctx, @nil Z, V, kv). (*9 *)
     {
       (* prove the function parameters match up *)
       rewrite H9, FA_ctx_V. apply prop_right. destruct ctx; try contradiction. split; reflexivity.
     }
-    (*{
-      (* prove the function SEP clauses match up *)
-      rewrite H9; cancel.
-    }*)
     {
       (* prove the PROP clauses *)
       rewrite H9.
@@ -578,14 +574,13 @@ Proof. intros. simpl.
     }
     Intros.
     rewrite H9.
-(*    normalize.*)
     replace_SEP 2 (memory_block Tsh (sizeof (*cenv_cs*) (tarray tuchar 32)) (field_address t_struct_hmac256drbg_context_st [StructField _V] ctx)) by (entailer!; apply data_at_memory_block).
     simpl.
     (* mbedtls_md_hmac_finish( &ctx->md_ctx, ctx->V ); *)
     Time forward_call (V, HMAC256 (V ++ i::(if na then contents else [])) key,
                        field_address t_struct_hmac256drbg_context_st [StructField _md_ctx] ctx,
                        (*md_ctx*)(IS1a, (IS1b, IS1c)),
-                       field_address t_struct_hmac256drbg_context_st [StructField _V] ctx, Tsh, kv). (*9; Naphat: 75 *)
+                       field_address t_struct_hmac256drbg_context_st [StructField _V] ctx, Tsh, kv). (* 10 *)
     (*{
       (* prove the function parameters match up *)
       entailer!.
@@ -594,7 +589,7 @@ Proof. intros. simpl.
     normalize.
     Exists (HMAC256 (V ++ [i] ++ (if na then contents else [])) key).
 
-    apply andp_right. (*Time solve [entailer!].*) apply prop_right. repeat split; auto; omega.
+    apply andp_right. solve [apply prop_right; repeat split; auto; omega].
 
     Exists (HMAC256 V (HMAC256 (V ++ [i] ++ (if na then contents else [])) key)).
     Exists (HMAC256DRBGabs (HMAC256 (V ++ [i] ++ (if na then contents else [])) key)
@@ -620,6 +615,7 @@ Proof. intros. simpl.
     rewrite (field_at_data_at _ _ [StructField _V]).
 idtac "Timing the Qed of loopbody". cancel.
 Time Qed.
+ (*Coq8.6: 420 secs!*)
  (*Feb 23rd, ie after merging semaxpost''-update: Finished transaction in 6180.062 secs (184.093u,0.375s) (successful)*)
  (*Feb22nd 2017: Finished transaction in 2441.578 secs (275.296u,1.437s) (successful) *)
  (*earlier: 266 secs (42u,0.015s) in Coq8.5pl2*)
@@ -846,5 +842,6 @@ Proof.
     destruct H1; try solve[omega].
     subst add_len. destruct contents; simpl; trivial. elim n.
 idtac "Timing the Qed of hmacdrbg_update". apply Zlength_nil.
-Time Qed. (*Feb 22nd 2017: 68.655 secs (62.937u,0.187s) (successful)
+Time Qed. (*Coq8.6: 10.3secs
+           Feb 22nd 2017: 68.655 secs (62.937u,0.187s) (successful)
            Dec 6th: 24s (laptop)*)

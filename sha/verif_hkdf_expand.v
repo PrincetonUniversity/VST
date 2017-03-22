@@ -618,6 +618,8 @@ forward_for_simple_bound bnd
         - rewrite (split2_data_at__Tarray_tuchar Tsh 64 32); simpl; trivial; try omega.
           rewrite field_address0_offset. cancel.
           eapply field_compatible0_cons_Tarray; [reflexivity | trivial | omega].
-Time Qed. (*Finished transaction in 195.171 secs (171.828u,0.031s) (successful)*)
+Time Qed.
+ (*Coq8.6:37secs*)
+ (*Finished transaction in 195.171 secs (171.828u,0.031s) (successful)*)
  (* Last week: Finished transaction in 54.281 secs (49.656u,0.015s) (successful)*)
 
