@@ -11,6 +11,7 @@ Require Import sha.general_lemmas.
 Require Import hmacdrbg.spec_hmac_drbg_pure_lemmas.
 Require Import Coqlib.
 Require Import fcf.Fold.
+Import ListNotations.
 
 (* already defined in fcf.Fold
 Fixpoint flatten {A} (l: list (list A)):list A :=
@@ -204,6 +205,16 @@ Proof. induction n; simpl; intros.
   constructor. apply isbyteZ_HMAC256. eauto.
 Qed. 
 
+Lemma Gen_loop_Zlist_ZlengthBlocks k t: forall n v blocks vv,
+  Gen_loop_Zlist k t v n = (blocks,vv) -> Zlength blocks = Zlength t + Z.of_nat n.
+Proof. induction n; intros.
++ inv H; simpl; omega. 
++ rewrite Nat2Z.inj_succ; simpl in H.
+  remember (Gen_loop_Zlist k t (HMAC256 v k) n) as p; destruct p; inv H.
+  specialize (IHn (HMAC256 v k)). rewrite <- Heqp in IHn; clear Heqp.
+  rewrite sublist.Zlength_app, Zlength_cons, (IHn _ _ (eq_refl _)). simpl; omega.
+Qed. 
+
 Lemma Gen_loop_Zlist_Blist k (K: Forall isbyteZ k): forall n t v (V: Forall isbyteZ v),
   match Gen_loop_Zlist k t v n with (uu,vv) =>
         Gen_loop_Blist (bytesToBits k) (map bytesToBits t) (bytesToBits v) n
@@ -246,20 +257,6 @@ Proof. induction n; simpl; intros.
   subst. rewrite ZZ, <- app_assoc. exists (zz ++ HMAC256 v k :: nil).
   split; trivial.
 Qed.
-
-Import ListNotations.
-Goal forall k v, Gen_loop_Zlist k nil v 3 = 
-  ( (([HMAC256 (HMAC256 (HMAC256 v k) k) k;
-      HMAC256 (HMAC256 v k) k;
-      HMAC256 v k])%list),
-    HMAC256 (HMAC256 (HMAC256 v k) k) k). reflexivity. Qed. 
-
-Goal forall k v P, HMAC_DRBG_generate_algorithm HMAC256 10000
-            (v,k,0) 3 nil = P.
-intros. simpl. Admitted.
-
-Goal forall k v P Q, HMAC_DRBG_generate_helper_Z HMAC256 k v 65 = (P,Q).
-intros. unfold HMAC_DRBG_generate_helper_Z. simpl. Admitted.
 
 Lemma Gen_loop_Zlist_nestedV k: forall n t v a b aa bb,
   Gen_loop_Zlist k t (HMAC256 v k) n = (a, b) ->
@@ -396,7 +393,7 @@ Proof. unfold GenUpdate_original_refeactored, GenUpdate_original. simpl; intros.
  destruct state as [k v]; simpl.
  destruct (Gen_loop HMAC_Bvec k v n) as [bits v']. Admitted.
 
-Definition GenUpdate_original_core_Bvec (state : KV 256) (n : nat) :
+Definition GenUpdate_original_Bvec (state : KV 256) (n : nat) :
   (list (Bvector 256) * KV 256) :=
   match state with (k, v) =>
     match Gen_loop_Bvec k nil v n with (bits, v') => 
@@ -405,17 +402,17 @@ Definition GenUpdate_original_core_Bvec (state : KV 256) (n : nat) :
     end
   end.
 
-Lemma GenUpdate_original_core_Bvec_correct state n:
-  match GenUpdate_original_core_Bvec state n with (bits,vv) => 
+Lemma GenUpdate_original_Bvec_correct state n:
+  match GenUpdate_original_Bvec state n with (bits,vv) => 
      GenUpdate_original_core state n = (rev bits, vv) end.
-Proof. unfold GenUpdate_original_core_Bvec, GenUpdate_original_core.
+Proof. unfold GenUpdate_original_Bvec, GenUpdate_original_core.
   destruct state as [k v].
   remember (Gen_loop_Bvec k [] v n) as p; destruct p; symmetry in Heqp.
   apply GenloopBvec_Gen_loop in Heqp. destruct Heqp as [? [? ?]].
   subst. rewrite H0; trivial.
 Qed.
 
-Definition GenUpdate_original_core_Blist (state : Blist * Blist) (n : nat) :
+Definition GenUpdate_original_Blist (state : Blist * Blist) (n : nat) :
   (list Blist * (Blist * Blist)) :=
   match state with (k, v) =>
     match Gen_loop_Blist k nil v n with (bits, v') => 
@@ -424,12 +421,12 @@ Definition GenUpdate_original_core_Blist (state : Blist * Blist) (n : nat) :
     end
   end.
 
-Lemma GenUpdate_original_core_Blist_Bvec k v n:
-  match GenUpdate_original_core_Bvec (k,v) n with (bits,(kk,vv)) =>
-    GenUpdate_original_core_Blist (@Vector.to_list _ 256 k, @Vector.to_list _ 256 v) n =
+Lemma GenUpdate_original_Blist_Bvec k v n:
+  match GenUpdate_original_Bvec (k,v) n with (bits,(kk,vv)) =>
+    GenUpdate_original_Blist (@Vector.to_list _ 256 k, @Vector.to_list _ 256 v) n =
       (map (@Vector.to_list _ 256) bits, (@Vector.to_list _ 256 kk, @Vector.to_list _ 256 vv))
   end.
-Proof. unfold GenUpdate_original_core_Bvec, GenUpdate_original_core_Blist.
+Proof. unfold GenUpdate_original_Bvec, GenUpdate_original_Blist.
   remember (Gen_loop_Bvec k nil v n) as p; symmetry in Heqp. destruct p as [bits v'].
   remember (Gen_loop_Blist (Vector.to_list k) [] (Vector.to_list v) n) as q; symmetry in Heqq.
   destruct q as [Bits V]. 
@@ -437,22 +434,30 @@ Proof. unfold GenUpdate_original_core_Bvec, GenUpdate_original_core_Blist.
   rewrite ! HMAC_Blist_Bvec; trivial.
 Qed.
 
-Definition GenUpdate_original_core_Zlist (state : list Z * list Z) (n : nat) :
+Definition GenUpdate_original_Zlist (state : list Z * list Z) (n : nat) :
   (list (list Z) * (list Z * list Z)) :=
   match state with (k, v) =>
-    match Gen_loop_Zlist k nil v n with (bits, v') => 
+    match Gen_loop_Zlist k nil v n with (blocks, v') => 
         let k' := HMAC256 (v' ++ [Z0]) k in
-        let v'' := HMAC256 v' k' in (bits, (k', v''))
+        let v'' := HMAC256 v' k' in (blocks, (k', v''))
     end
   end.
 
-Lemma GenUpdate_original_core_Zlist_Blist k v n
+Lemma GenUpdate_original_Zlist_ZlengthBlocks state n blocks state':
+  GenUpdate_original_Zlist state n = (blocks,state') -> 
+  Zlength blocks = Z.of_nat n.
+Proof. destruct state; simpl; intros.
+  remember (Gen_loop_Zlist l [] l0 n) as p; destruct p; symmetry in Heqp.
+  inv H. apply Gen_loop_Zlist_ZlengthBlocks in Heqp; rewrite Heqp; trivial.
+Qed. 
+
+Lemma GenUpdate_original_Zlist_Blist k v n
   (K: Forall isbyteZ k) (V: Forall isbyteZ v):
-  match GenUpdate_original_core_Zlist (k,v) n with (bits,(k',v')) =>
-    GenUpdate_original_core_Blist (bytesToBits k, bytesToBits v) n =
+  match GenUpdate_original_Zlist (k,v) n with (bits,(k',v')) =>
+    GenUpdate_original_Blist (bytesToBits k, bytesToBits v) n =
          (map bytesToBits bits,(bytesToBits k', bytesToBits v'))
   end.
-Proof. unfold GenUpdate_original_core_Zlist, GenUpdate_original_core_Blist.
+Proof. unfold GenUpdate_original_Zlist, GenUpdate_original_Blist.
   remember (Gen_loop_Zlist k [] v n) as p; symmetry in Heqp. destruct p as [bits v'].
   specialize (Gen_loop_Zlist_Blist _ K n nil _ V). rewrite Heqp; intros Q. simpl in Q. 
   remember (Gen_loop_Blist (bytesToBits k) [] (bytesToBits v) n) as q; destruct q.
@@ -472,21 +477,21 @@ Definition Generate (WS: DRBG_functions.DRBG_working_state) n: DRBG_functions.DR
                                            WS
                                            n
                                            nil.
+
 Lemma GenerateCorrect k v z n (Z: (z<=reseedInterval)%Z):
-  match GenUpdate_original_core_Zlist (k,v) (S n) with (bits,(k',v')) =>
-    Generate (v, k, z) (32 * Z.of_nat n +1) = 
-    generate_algorithm_success (firstn ((32 * n +1)%nat) (fcf.Fold.flatten (rev bits))) (v',k',(z+1)%Z) 
+  match GenUpdate_original_Zlist (k,v) (S n) with (blocks,(k',v')) => 
+    Generate (v, k, z) (Z.of_nat ((32 * n +1)%nat)) = 
+    generate_algorithm_success (firstn ((32 * n +1)%nat) (fcf.Fold.flatten (rev blocks))) (v',k',(z+1)%Z) 
   end.
-Proof. remember (GenUpdate_original_core_Zlist (k, v) (S n)) as p; destruct p as [kk[vv zz]]; symmetry in Heqp. 
-  unfold GenUpdate_original_core_Zlist in Heqp.
-  remember (Gen_loop_Zlist k [] v (S n)) as q; destruct q as [bits v']; symmetry in Heqq; inv Heqp.
+Proof. remember (GenUpdate_original_Zlist (k, v) (S n)) as p; destruct p as [kk [vv zz]]; symmetry in Heqp. 
+  unfold GenUpdate_original_Zlist in Heqp.
+  remember (Gen_loop_Zlist k [] v (S n)) as q; destruct q as [blocks v']; symmetry in Heqq; inv Heqp.
   apply (E n) in Heqq. remember (32 * n + 1)%nat as a.
   simpl. remember (z >? reseedInterval) as d. destruct d; symmetry in Heqd. 
   + apply Zgt_is_gt_bool in Heqd; omega.
   + rewrite Z.mul_sub_distr_l in Heqq.
-    assert (W: (32 * Z.of_nat (S n) - 32 * 1 + 1 = 32 * Z.of_nat n +1)%Z).
-    { clear. change (S n) with (1+n)%nat; rewrite (Nat2Z.inj_add 1 n). 
-      rewrite Z.mul_add_distr_l. simpl; omega. }
-    rewrite W in Heqq. rewrite Heqq; clear Heqq.
-    f_equal. f_equal. rewrite Z2Nat.inj_add, Z2Nat.inj_mul, Nat2Z.id; simpl; omega.
+    assert (W: (32 * Z.of_nat (S n) - 32 * 1 + 1 = Z.of_nat a)%Z).
+    { subst a; clear. change (S n) with (1+n)%nat; rewrite (Nat2Z.inj_add (32*n) 1), (Nat2Z.inj_add 1 n). 
+      rewrite Z.mul_add_distr_l, Nat2Z.inj_mul. simpl; omega. }
+    rewrite W in Heqq. rewrite Heqq, Nat2Z.id; trivial.
 Qed.
