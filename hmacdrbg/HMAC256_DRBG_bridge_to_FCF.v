@@ -141,21 +141,18 @@ Proof. unfold HMAC_Blist, HMAC_Bvec. rewrite HMAC_equivalence.of_length_proof_ir
 
 (*Relationship between Gen_loop_Blist and Gen_loop_bvec*)
 Lemma Gen_loop_Blist_Bvec k: forall n t v bytes V,
-  Gen_loop_Blist k t v n = (bytes, V) -> forall kv tv vv bytesv Vv,
-  Gen_loop_Bvec kv tv vv n = (bytesv, Vv) ->
-  k = to_list kv -> t = (map (@Vector.to_list _ 256) tv) -> v = to_list vv ->
-  V = to_list Vv /\ bytes = map (@Vector.to_list _ 256) bytesv.
+  Gen_loop_Blist (to_list k) (map (@Vector.to_list _ 256) t) (to_list v) n = (bytes, V) ->
+  forall bytes' V', Gen_loop_Bvec k t v n = (bytes', V') ->
+  V = to_list V' /\ bytes = map (@Vector.to_list _ 256) bytes'.
 Proof. 
 induction n; simpl; intros; subst.
 + inv H; inv H0. split; trivial.
-+ remember (Gen_loop_Blist (to_list kv) (map Vector.to_list tv) (HMAC_Blist (to_list kv) (to_list vv)) n) as p. destruct p.
++ remember (Gen_loop_Blist (to_list k) (map Vector.to_list t) (HMAC_Blist (to_list k) (to_list v)) n) as p. destruct p.
   inv H; symmetry in Heqp.
-  remember (Gen_loop_Bvec kv tv (HMAC_Bvec kv (to_list vv)) n) as q. destruct q.
-  inv H0; symmetry in Heqq. 
-  destruct (IHn _ _ _ _ Heqp kv tv (HMAC_Bvec kv (to_list vv)) _ _ Heqq) as [A B]; trivial.
-    apply HMAC_Blist_Bvec.
-  subst. rewrite HMAC_Blist_Bvec. split; trivial.
-  rewrite to_list_eq, list_append_map. trivial.
+  remember (Gen_loop_Bvec k t (HMAC_Bvec k (to_list v)) n) as q; destruct q.
+  inv H0; symmetry in Heqq. rewrite HMAC_Blist_Bvec in Heqp.
+  destruct (IHn _ _ _ _ Heqp _ _ Heqq) as [A B]; subst.
+  rewrite HMAC_Blist_Bvec, to_list_eq, list_append_map. split; trivial.
 Qed.
 
 Lemma Gen_loop_Blist_cons k: forall n t v bytes V x,
@@ -383,16 +380,6 @@ Definition GenUpdate_original_core (state : KV 256) (n : nat) :
     end
   end.
 
-Require Import fcf.FCF.
-Definition GenUpdate_original_refeactored (state : KV 256) (n : nat) :
-  Comp (list (Bvector 256) * KV 256) := ret (GenUpdate_original_core state n).
-
-(*presumably, this should be stated as an equivalence between games, not as equality *)
-Goal forall state n, GenUpdate_original_refeactored state n = GenUpdate_original HMAC_Bvec state n.
-Proof. unfold GenUpdate_original_refeactored, GenUpdate_original. simpl; intros.
- destruct state as [k v]; simpl.
- destruct (Gen_loop HMAC_Bvec k v n) as [bits v']. Admitted.
-
 Definition GenUpdate_original_Bvec (state : KV 256) (n : nat) :
   (list (Bvector 256) * KV 256) :=
   match state with (k, v) =>
@@ -429,8 +416,8 @@ Lemma GenUpdate_original_Blist_Bvec k v n:
 Proof. unfold GenUpdate_original_Bvec, GenUpdate_original_Blist.
   remember (Gen_loop_Bvec k nil v n) as p; symmetry in Heqp. destruct p as [bits v'].
   remember (Gen_loop_Blist (Vector.to_list k) [] (Vector.to_list v) n) as q; symmetry in Heqq.
-  destruct q as [Bits V]. 
-  destruct (Gen_loop_Blist_Bvec _ _ _ _ _ _ Heqq _ _ _ _ _ Heqp (eq_refl _) (eq_refl _) (eq_refl _)); subst.
+  destruct q as [Bits V].
+  destruct (Gen_loop_Blist_Bvec k n nil v Bits V Heqq _ _ Heqp); subst.
   rewrite ! HMAC_Blist_Bvec; trivial.
 Qed.
 
@@ -495,3 +482,49 @@ Proof. remember (GenUpdate_original_Zlist (k, v) (S n)) as p; destruct p as [kk 
       rewrite Z.mul_add_distr_l, Nat2Z.inj_mul. simpl; omega. }
     rewrite W in Heqq. rewrite Heqq, Nat2Z.id; trivial.
 Qed.
+
+Lemma Generate_Blist_ok k v z n (Z: (z<=reseedInterval)%Z) l kk vv zz 
+    (K: Forall isbyteZ k) (V:Forall isbyteZ v):
+    Generate (v, k, z) (Z.of_nat ((32 * n +1)%nat)) = generate_algorithm_success l (kk,vv, zz) ->
+    exists y,
+    GenUpdate_original_Blist (bytesToBits k, bytesToBits v) (S n) = 
+    (map bytesToBits y,(bytesToBits vv, bytesToBits kk)) /\ zz=z+1 /\ 
+    l = firstn (32 * n + 1) (flatten (rev y)).
+Proof.
+  remember (GenUpdate_original_Zlist (k,v) (S n)) as g. symmetry in Heqg; destruct g as [a [b c]].
+  specialize (GenerateCorrect k v z n Z). rewrite Heqg; intros HH1 HH2.
+  rewrite HH1 in HH2. exists a. inv HH2. repeat split; trivial.
+  specialize (GenUpdate_original_Zlist_Blist k v (S n) K V).
+  rewrite Heqg; intros HH; rewrite HH; trivial.
+Qed.
+(*roughly similar:
+Lemma Generate_Bvec_ok k v z n (Z: (z<=reseedInterval)%Z) l kk vv zz 
+    (K: Forall isbyteZ k) (V:Forall isbyteZ v):
+    Generate (v, k, z) (Z.of_nat ((32 * n +1)%nat)) = generate_algorithm_success l (kk,vv, zz) ->
+    exists y,
+    GenUpdate_original_Bvec (Vector.of_list (bytesToBits k), Vector.of_list (bytesToBits v)) (S n) = 
+    (map bytesToBits y,(bytesToBits vv, bytesToBits kk)) /\ zz=z+1 /\ 
+    l = firstn (32 * n + 1) (flatten (rev y)).
+Proof.
+  remember (GenUpdate_original_Zlist (k,v) (S n)) as g. symmetry in Heqg; destruct g as [a [b c]].
+  specialize (GenerateCorrect k v z n Z). rewrite Heqg; intros HH1 HH2.
+  rewrite HH1 in HH2. exists a. inv HH2. repeat split; trivial.
+  specialize (GenUpdate_original_Zlist_Blist k v (S n) K V).
+  rewrite Heqg; intros HH; rewrite HH; trivial.
+Qed.*)
+  
+
+Require Import fcf.FCF.
+Definition GenUpdate_original_refactored (state : KV 256) (n : nat) :
+  Comp (list (Bvector 256) * KV 256) := ret (GenUpdate_original_core state n).
+
+Lemma Refactored kv n: 
+     comp_spec (fun x y => x=y)
+               (GenUpdate_original HMAC_Bvec kv n)
+               (GenUpdate_original_refactored kv n).
+Proof.
+  unfold GenUpdate_original, GenUpdate_original_refactored, GenUpdate_original_core.
+  destruct kv as [k v]. prog_simp. apply comp_spec_ret; trivial. 
+Qed.
+
+(*Now add FCF lemmas relating refactored to Generate, for relational spec relating bvectors to list Z, using the obaove Gallina equalities*)
