@@ -225,7 +225,7 @@ Definition Gprog : funspecs := ltac:(with_library prog [verif_atomics.makelock_s
   integer_hash_spec; set_item_spec; get_item_spec; add_item_spec; init_table_spec; freeze_table_spec;
   f_spec; main_spec]).
 
-Set Default Timeout 40.
+Set Default Timeout 100.
 
 Lemma body_integer_hash: semax_body Vprog Gprog f_integer_hash integer_hash_spec.
 Proof.
@@ -1152,6 +1152,12 @@ Admitted.
 Opaque size.
 Opaque Znth.
 
+Lemma Zlength_empty : Zlength empty_hists = size.
+Proof.
+  rewrite Zlength_repeat, Z2Nat.id; auto.
+  pose proof size_pos; omega.
+Qed.
+
 Lemma body_init_table : semax_body Vprog Gprog f_init_table init_table_spec.
 Proof.
   start_function.
@@ -1345,7 +1351,7 @@ Proof.
   - Intros hists li ls; assert_PROP (Zlength entries = size) as Hlene by entailer!.
     repeat (apply sepcon_derives; try apply data_at_data_at_).
     exploit add_n_items_length; eauto.
-    rewrite Zlength_repeat, Z2Nat.id by (pose proof size_pos; omega); intro Hlenh.
+    rewrite Zlength_empty; intro Hlenh.
     assert (Zlength entries <= Zlength hists) by omega.
     apply sepcon_list_derives; rewrite !Zlength_map, Zlength_combine, Z.min_l; auto.
     intros; rewrite Znth_map with (d' := ((Vundef, Vundef), ([], [])))
@@ -1410,8 +1416,7 @@ Proof.
     { repeat (split; auto; try computable; try omega).
       + pose proof (Int.min_signed_neg); omega.
       + transitivity 4; [omega | computable].
-      + erewrite add_n_items_length, Zlength_repeat, Z2Nat.id; eauto.
-        pose proof size_pos; omega.
+      + erewrite add_n_items_length, Zlength_empty; [reflexivity | eauto].
       + eapply add_n_items_trace_wf; eauto. }
     apply extract_exists_pre; intros ((s, j), h'); simpl; Intros.
     match goal with |- semax _ (PROP () (LOCALx (?a :: ?b :: temp _total _ :: ?Q) (SEPx ?R))) _ _ =>
@@ -1537,11 +1542,8 @@ Proof.
   rewrite prop_true_andp; eauto.
   - intro; rewrite Znth_repeat; simpl; auto.
   - auto.
-  - apply join_empty.
-    rewrite Zlength_repeat, Z2Nat.id; auto.
-    pose proof size_pos; omega.
-  - rewrite Zlength_repeat, Z2Nat.id; auto.
-    pose proof size_pos; omega.
+  - apply join_empty, Zlength_empty.
+  - rewrite Zlength_empty; auto.
   - reflexivity.
   - auto.
   - auto.
@@ -1562,6 +1564,32 @@ Proof.
   inv H.
   rewrite join_hists_length; auto.
   rewrite IHlh; auto.
+Qed.
+
+Lemma join_empty_r : forall h, Zlength h = size -> join_hists h empty_hists = h.
+Proof.
+  intros.
+  rewrite Zlength_correct in H.
+  assert (length h = Z.to_nat size) as Hlen by Omega0.
+  forget (Z.to_nat size) as n; clear H.
+  revert dependent h; induction n; destruct h; auto; intros; inv Hlen; simpl.
+  destruct p; rewrite IHn, !app_nil_r; auto.
+Qed.
+
+Lemma join_hists_assoc : forall a b c, join_hists a (join_hists b c) = join_hists (join_hists a b) c.
+Proof.
+  induction a; auto; simpl; intros.
+  destruct a, b; auto; simpl.
+  destruct p, c; auto; simpl.
+  destruct p; rewrite IHa, !app_assoc; auto.
+Qed.
+
+Lemma join_hists_base : forall l h, Zlength h = size ->
+  fold_right join_hists (join_hists h empty_hists) l = join_hists (fold_right join_hists empty_hists l) h.
+Proof.
+  induction l; simpl; intros.
+  - rewrite join_empty, join_empty_r; auto.
+  - rewrite IHl, join_hists_assoc; auto.
 Qed.
 
 Lemma body_main : semax_body Vprog Gprog f_main main_spec.
@@ -1761,37 +1789,36 @@ Proof.
     PROP (readable_share (fst x); sepalg_list.list_join (fst x) (sublist i 3 shs) Ews;
           Zlength (snd x) = i;
           Forall (fun p => let '(h, li, ls) := p in add_n_items_trace 3 empty_hists [1; 2; 3] [1; 1; 1] li ls h)
-            (snd x))
+            (snd x); Forall (fun h' => Zlength h' = Zlength empty_hists) (map fst (map fst (snd x))))
     LOCAL (let ls := map snd (snd x) in temp _total (vint (Zlength (filter id (concat ls))));
            lvar _values (tarray tint 16384) values; lvar _keys (tarray tint 16384) keys; gvar _results resp;
            gvar _thread_locks locksp; gvar _m_entries m_entries)
     SEP (@data_at CompSpecs (fst x) (tarray tentry size) entries m_entries;
-         EX sh' : share, !!(sepalg_list.list_join sh' (sublist i 3 shs) Tsh) &&
+         EX sh' : share, !!(readable_share sh' /\ sepalg_list.list_join sh' (sublist i 3 shs) Tsh) &&
            let h := map fst (map fst (snd x)) in atomic_entries sh' entries (fold_right join_hists empty_hists h);
          data_at_ Tsh (tarray tint 16384) values; data_at_ Tsh (tarray tint 16384) keys;
          data_at (fst x) (tarray (tptr tint) 3) res resp;
-         let ls := map snd (snd x) in fold_right sepcon emp (map (fun j =>
-           data_at Tsh tint (vint (Zlength (filter id (Znth j ls [])))) (Znth j res Vundef)) (upto (Z.to_nat i)));
          fold_right sepcon emp (map (malloc_token Tsh (sizeof tint)) (sublist i 3 res));
          data_at (fst x) (tarray (tptr (Tstruct _lock_t noattr)) 3) locks locksp;
          fold_right sepcon emp (map (malloc_token Tsh (sizeof (Tstruct _lock_t noattr))) (sublist i 3 locks));
-         fold_right sepcon emp (map (fun j => lock_inv (if zlt j i then Tsh else sh1) (Znth j locks Vundef)
+         fold_right sepcon emp (map (fun j => lock_inv sh1 (Znth j locks Vundef)
            (f_lock_pred sh2 (Znth j shs Ews) entries m_entries j locksp
-              (Znth j locks Vundef) resp (Znth j res Vundef))) (upto 3)))).
+              (Znth j locks Vundef) resp (Znth j res Vundef))) (sublist i 3 (upto 3))))).
   { rewrite !(sublist_same 0 3) by auto.
-    Exists (sh, @nil (list (hist * hist) * list Z * list bool)) sh'; go_lower; entailer'.
-    apply prop_right.
+    Exists (sh, @nil (list (hist * hist) * list Z * list bool)) sh'; go_lower.
     match goal with H : sepalg_list.list_join _ (sublist _ _ _) _ |- _ => rewrite sublist_nil in H; inv H end.
-    split; auto; split; auto.
+    apply andp_right; [apply prop_right; repeat (split; auto)|].
+    apply andp_right; [apply prop_right; repeat (split; auto)|].
+    entailer'.
+    apply prop_right; split.
+    { eapply join_readable1; eauto. }
     eapply sepalg_list.list_join_assoc2 in Hshs; [|eapply sepalg.join_comm, comp_join_top].
     destruct Hshs as (shd & Hjoin' & ?).
     apply sepalg.join_comm in Hjoin'; exploit (sepalg.join_eq(x := sh)(y := Share.comp Ews)(z := shd)(z' := sh'));
       auto; intro; subst; auto. }
   { (* third loop *)
     destruct x as (sh3, lr); Intros sh3'; simpl in *.
-    rewrite (extract_nth_sepcon (map _ (upto 3)) i) by (rewrite Zlength_map; auto).
-    erewrite Znth_map, Znth_upto by (auto; simpl; omega).
-    destruct (zlt i i); [omega|].
+    erewrite sublist_next with (l := upto 3), Znth_upto by (auto; rewrite ?Zlength_upto; simpl; omega); simpl.
     rewrite lock_inv_isptr; Intros.
     forward.
     forward_call (Znth i locks Vundef, sh1, f_lock_pred sh2 (Znth i shs Ews) entries m_entries i locksp
@@ -1829,16 +1856,55 @@ Proof.
     { rewrite <- !sepcon_assoc, (sepcon_comm _ (data_at _ _ _ (Znth i res Vundef))), !sepcon_assoc;
         apply sepcon_derives; [|cancel_frame].
       apply data_at_memory_block. }
-    forward.
     assert (3 <= Zlength shs) by omega.
     match goal with H : sepalg_list.list_join sh3 _ _ |- _ => rewrite sublist_next with (d := Ews) in H by auto;
       inversion H as [|??? w1 ? Hj1]; subst end.
     match goal with H : sepalg_list.list_join sh3' _ _ |- _ => rewrite sublist_next with (d := Ews) in H by auto;
       inversion H as [|??? w1' ? Hj1']; subst end.
-    go_lower; Exists (w1, lr ++ [(hi, lii, lsi)]) w1'; entailer'.
-    apply andp_right.
-    - admit.
-    - admit. }
+    gather_SEP 10 2.
+    replace_SEP 0 (data_at w1 (tarray (tptr (Tstruct _lock_t noattr)) 3) locks locksp).
+    { go_lower.
+      rewrite <- lock_struct_array.
+      eapply derives_trans; [apply data_at_array_value_cohere; auto|].
+      erewrite data_at_share_join; eauto. }
+    gather_SEP 8 3.
+    replace_SEP 0 (data_at w1 (tarray (tptr tint) 3) res resp).
+    { go_lower.
+      eapply derives_trans; [apply data_at_array_value_cohere; auto|].
+      erewrite data_at_share_join; eauto. }
+    forward.
+    go_lower; Exists (w1, lr ++ [(hi, lii, lsi)]) w1'.
+    rewrite sepcon_andp_prop', sepcon_andp_prop.
+    apply andp_right; [|apply andp_right; [|apply andp_right]]; try apply prop_right.
+    - simpl; split; [omega|].
+      split; [eapply join_readable1; eauto|].
+      split; auto.
+      split; [rewrite Zlength_app, Zlength_cons, Zlength_nil; auto|].
+      split; [rewrite Forall_app; repeat constructor; auto|].
+      rewrite !map_app, Forall_app; repeat (split; auto).
+      simpl; constructor; [|constructor].
+      eapply add_n_items_length; eauto.
+    - repeat (split; auto).
+      simpl; rewrite add_repr, map_app, concat_app, filter_app, Zlength_app; simpl; rewrite app_nil_r; auto.
+    - split; auto.
+      eapply join_readable1; eauto.
+    - rewrite <- !sepcon_assoc, (sepcon_comm _ (data_at sh3 _ _ m_entries)), (sepcon_comm _ (data_at _ _ _ m_entries)).
+      erewrite <- !sepcon_assoc, data_at_share_join by eauto.
+      rewrite !sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
+      rewrite <- !sepcon_assoc, (sepcon_comm _ (atomic_entries _ _ _)), (sepcon_comm _ (atomic_entries _ _ _)).
+      erewrite <- !sepcon_assoc, atomic_entries_join; eauto.
+      Intros.
+      simpl; rewrite !map_app, fold_right_app; simpl.
+      rewrite join_hists_base.
+      rewrite !sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
+      rewrite <- !sepcon_assoc, (sepcon_comm _ (data_at_ _ _ values)), !sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
+      rewrite <- !sepcon_assoc, (sepcon_comm _ (data_at_ _ _ keys)), !sepcon_assoc; apply sepcon_derives; [apply derives_refl|].
+      fast_cancel.
+      + erewrite add_n_items_length by eauto; apply Zlength_empty.
+      + rewrite fold_join_hists_length, Zlength_empty; auto.
+      + rewrite fold_join_hists_length by auto.
+        symmetry; eapply add_n_items_length; eauto.
+      + apply Forall_Znth; auto. }
   Intros x sh''; destruct x as (?, lr); simpl in *.
   repeat match goal with H : sepalg_list.list_join _ (sublist 3 3 _) _ |- _ =>
     rewrite sublist_nil in H; inv H end.
@@ -1874,11 +1940,7 @@ Proof.
     apply sepcon_derives; [apply derives_refl|].
     simpl; fast_cancel. }
   { split; auto.
-    rewrite fold_join_hists_length, Zlength_repeat, Z2Nat.id; auto.
-    { pose proof size_pos; omega. }
-    { rewrite 2Forall_map; eapply Forall_impl; [|eauto].
-      simpl; intros ((?, ?), ?) ?.
-      eapply add_n_items_length; eauto. } }
+    rewrite fold_join_hists_length, Zlength_empty; auto. }
   after_forward_call.
   Intro x; destruct x as (lk, lv); simpl; Intros.
   (* Here's where we can prove that total is 3. *)
