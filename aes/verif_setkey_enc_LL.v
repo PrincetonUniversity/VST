@@ -1,42 +1,7 @@
-Require Import floyd.proofauto.
-Require Import floyd.reassoc_seq.
-Require Import aes.GF_ops_LL.
-Require Import aes.tablesLL.
-Require Import aes.aes.
+Require Import aes.verif_utils.
+Require Import aes.spec_utils_LL. (* TODO write & import LL spec of key expansion *)
 
 Local Open Scope logic.
-
-Instance CompSpecs : compspecs.
-Proof. make_compspecs prog. Defined.
-Definition Vprog : varspecs.  mk_varspecs prog. Defined.
-
-Definition t_struct_aesctx := Tstruct _mbedtls_aes_context_struct noattr.
-Definition t_struct_tables := Tstruct _aes_tables_struct noattr.
-
-Definition tables_initialized (tables : val) := data_at Ews t_struct_tables (map Vint FSb, 
-  (map Vint FT0, (map Vint FT1, (map Vint FT2, (map Vint FT3, (map Vint RSb,
-  (map Vint RT0, (map Vint RT1, (map Vint RT2, (map Vint RT3, 
-  (map Vint RCON))))))))))) tables.
-
-Definition Vundef256 : list val := repeat Vundef 256%nat.
-
-Definition tables_uninitialized tables := data_at Ews t_struct_tables (Vundef256, 
-  (Vundef256, (Vundef256, (Vundef256, (Vundef256, (Vundef256,
-  (Vundef256, (Vundef256, (Vundef256, (Vundef256, 
-  (repeat Vundef 10))))))))))) tables.
-
-Definition Nk := 8. (* number of words in key *)
-Definition Nr := 14. (* number of cipher rounds *)
-Definition Nb := 4. (* number of words in a block (state) *)
-
-Definition byte0 (x : int) : Z :=
-  (Z.land (Int.unsigned x) (Int.unsigned (Int.repr 255))).
-Definition byte1 (x : int) : Z :=
-  (Z.land (Int.unsigned (Int.shru x (Int.repr 8))) (Int.unsigned (Int.repr 255))).
-Definition byte2 (x : int) : Z :=
-  (Z.land (Int.unsigned (Int.shru x (Int.repr 16))) (Int.unsigned (Int.repr 255))).
-Definition byte3 (x : int) : Z :=
-  (Z.land (Int.unsigned (Int.shru x (Int.repr 24))) (Int.unsigned (Int.repr 255))).
 
 Definition word_to_int (w : (int * int * int * int)) : int :=
   match w with (b0, b1, b2, b3) =>
