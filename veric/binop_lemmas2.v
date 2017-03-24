@@ -179,10 +179,15 @@ intros. assert (X := Int.eq_spec x y). if_tac in X; auto. congruence.
 Qed.
 
 Definition check_pp_int' e1 e2 op t e :=
-match op with
-| Cop.Oeq | Cop.One => tc_andp'
-                         (tc_comparable' e1 e2)
-                         (tc_bool (is_int_type t) (op_result_type e))
+  match op with
+  | Cop.Oeq | Cop.One =>
+      tc_andp'
+        (tc_comparable' e1 e2)
+        (tc_bool (is_int_type t) (op_result_type e))
+  | Cop.Ole | Cop.Olt | Cop.Oge | Cop.Ogt =>
+      tc_andp'
+        (tc_orp' (tc_samebase e1 e2) (tc_andp' (tc_iszero' e1) (tc_iszero' e2)))
+        (tc_bool (is_int_type t) (op_result_type e))
 | _ => tc_noproof
 end.
 
@@ -612,9 +617,6 @@ Proof.
  extensionality rho;
  destruct (typeof a1) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ]; dtca;
  destruct (typeof a2) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ]; dtca.
-
-
-
 Qed.
 
 Lemma denote_tc_assert'_andp'_e:

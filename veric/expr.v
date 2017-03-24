@@ -460,21 +460,26 @@ Definition tc_bool (b : bool) (e: tc_error) :=
 if b then tc_TT else tc_FF e.
 
 Definition check_pp_int {CS: compspecs} e1 e2 op t e :=
-match op with
-| Cop.Oeq | Cop.One => tc_andp
-                         (tc_comparable e1 e2)
-                         (tc_bool (is_int_type t) (op_result_type e))
-| _ => tc_noproof
-end.
+  match op with
+  | Cop.Oeq | Cop.One =>
+      tc_andp
+        (tc_comparable e1 e2)
+        (tc_bool (is_int_type t) (op_result_type e))
+  | Cop.Ole | Cop.Olt | Cop.Oge | Cop.Ogt =>
+      tc_andp
+        (tc_orp (tc_samebase e1 e2) (tc_andp (tc_iszero e1) (tc_iszero e2)))
+        (tc_bool (is_int_type t) (op_result_type e))
+  | _ => tc_noproof
+  end.
 
 Definition binarithType t1 t2 ty deferr reterr : tc_assert :=
- match Cop.classify_binarith t1 t2 with
+  match Cop.classify_binarith t1 t2 with
   | Cop.bin_case_i sg =>  tc_bool (is_int32_type ty) reterr
   | Cop.bin_case_l sg => tc_bool (is_long_type ty) reterr
   | Cop.bin_case_f   => tc_bool (is_float_type ty) reterr
   | Cop.bin_case_s   => tc_bool (is_single_type ty) reterr
- | Cop.bin_default => tc_FF deferr
- end.
+  | Cop.bin_default => tc_FF deferr
+  end.
 
 Definition is_numeric_type t :=
 match t with Tint _ _ _ | Tlong _ _ | Tfloat _ _ => true | _ => false end.
@@ -598,7 +603,7 @@ match op with
                                          && is_numeric_type (typeof a2)
                                           && is_int_type ty)
                                              deferr
-	                  | Cop.cmp_case_pp => check_pp_int a1 a2 op ty e
+	            | Cop.cmp_case_pp => check_pp_int a1 a2 op ty e
                     | Cop.cmp_case_pl => check_pp_int (Ecast a1 (Tint I32 Unsigned noattr)) a2 op ty e
                     | Cop.cmp_case_lp => check_pp_int (Ecast a2 (Tint I32 Unsigned noattr)) a1 op ty e
                    end
