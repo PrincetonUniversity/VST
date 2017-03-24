@@ -70,11 +70,14 @@ Definition mbed_tls_initial_add_round_key (plaintext : list Z) (rks : list Z) : 
 ((mbed_tls_initial_add_round_key_col 2 plaintext rks),
 ((mbed_tls_initial_add_round_key_col 3 plaintext rks))))).
 
+Definition output_four_ints_as_bytes (s : four_ints) :=
+  (put_uint32_le (col 0 s)) ++
+  (put_uint32_le (col 1 s)) ++
+  (put_uint32_le (col 2 s)) ++
+  (put_uint32_le (col 3 s)).
+
 Definition mbed_tls_aes_enc (plaintext : list Z) (rks : list Z) : list int :=
   let state0  := mbed_tls_initial_add_round_key plaintext rks in
   let state13 := mbed_tls_enc_rounds 13 state0 rks 4 in
   let state14 := mbed_tls_final_fround state13 rks 56 in
-  (put_uint32_le (col 0 state14)) ++
-  (put_uint32_le (col 1 state14)) ++
-  (put_uint32_le (col 2 state14)) ++
-  (put_uint32_le (col 3 state14)).
+  output_four_ints_as_bytes state14.
