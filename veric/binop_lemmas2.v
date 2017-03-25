@@ -598,9 +598,9 @@ match op with
                                           && is_int_type ty)
                                              deferr
 		    | Cop.cmp_case_pp => check_pp_int' a1 a2 op ty e
-                    | Cop.cmp_case_pl => check_pp_int' (Ecast a1 (Tint I32 Unsigned noattr)) a2 op ty e
+                    | Cop.cmp_case_pl => check_pp_int' a1 (Ecast a2 (Tint I32 Unsigned noattr)) op ty e
 (*check_pl_long' a2 op ty e*)
-                    | Cop.cmp_case_lp => check_pp_int' (Ecast a2 (Tint I32 Unsigned noattr)) a1 op ty e
+                    | Cop.cmp_case_lp => check_pp_int' (Ecast a1 (Tint I32 Unsigned noattr)) a2 op ty e
 (*check_pl_long' a1 op ty e*)
                    end
   end.
