@@ -147,23 +147,30 @@ super_unfold_lift.
 unfold denote_tc_comparable in *.
 destruct (eval_expr e1 rho); auto;
 destruct (eval_expr e2 rho); auto.
-destruct H0; split; auto.
-destruct H1 as [H1|H1]; [left|right];
-apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
-destruct H0; split; auto.
-destruct H1 as [H1|H1]; [left|right];
-apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
-unfold comparable_ptrs in *.
-if_tac.
-destruct H0; split.
-destruct H0 as [?|?]; [left|right];
-apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H0).
-destruct H1 as [?|?]; [left|right];
-apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
-destruct H0.
-split.
-apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H0).
-apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
++ destruct H0; split; auto.
+  destruct H1 as [H1|H1]; [left|right];
+  apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
++ destruct H0; split; auto.
+  destruct H1 as [H1|H1]; [left|right];
+  apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
++ destruct H0; split; auto.
+  destruct H1 as [H1|H1]; [left|right];
+  apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
++ destruct H0; split; auto.
+  destruct H1 as [H1|H1]; [left|right];
+  apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
++ unfold comparable_ptrs in *.
+  simpl cast_out_long in H0 |- *.
+  cbv iota beta in H0 |- *.
+  if_tac.
+  - destruct H0; split.
+    * destruct H0 as [?|?]; [left|right];
+      apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H0).
+    * destruct H1 as [?|?]; [left|right];
+      apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
+  - destruct H0; split.
+    * apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H0).
+    * apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
 Qed.
 
 Lemma extend_isCastResultType:

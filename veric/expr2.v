@@ -162,7 +162,7 @@ Definition comparable_ptrs v1 v2 : mpred :=
   else (andp (valid_pointer v1) (valid_pointer v2)).
 
 Definition denote_tc_comparable v1 v2 : mpred :=
- match v1, v2 with
+ match cast_out_long v1, cast_out_long v2 with
  | Vint i, Vint j => andp (prop (i = Int.zero)) (prop (j = Int.zero))
  | Vint i, Vptr _ _ =>
       andp (prop (i = Int.zero)) (weak_valid_pointer v2)

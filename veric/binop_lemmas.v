@@ -161,7 +161,7 @@ Proof.
   + rewrite Int.eq_true.
     destruct ii,ss; simpl; reflexivity.
 Qed.
-
+(*
 Lemma sem_cmp_lp_lp:
   forall c b i i0 ii ss aa
     (OP: c = Ceq \/ c = Cne),
@@ -178,11 +178,11 @@ Proof.
   + rewrite Int.eq_true.
     destruct ii,ss; simpl; reflexivity.
 Qed.
-
+*)
 Lemma sem_cmp_pp_ip':
   forall c b i i0 ii ss aa m
   (OP: c = Cle \/ c = Clt \/ c = Cge \/ c = Cgt),
-    False \/ (denote_tc_iszero (Vint i)) m /\ False  ->
+    False \/ False /\ (denote_tc_iszero (Vint i)) m ->
  typecheck_val
   match sem_cmp_pp c (Vint i) (Vptr b i0)  with
   | Some v' => v'
@@ -193,7 +193,7 @@ Proof.
   exfalso.
   tauto.
 Qed.
-
+(*
 Lemma sem_cmp_lp_lp':
   forall c b i i' i0 ii ss aa m
   (OP: c = Cle \/ c = Clt \/ c = Cge \/ c = Cgt),
@@ -208,7 +208,7 @@ Proof.
   exfalso.
   tauto.
 Qed.
-
+*)
 Lemma sem_cmp_pp_pi:
   forall c b i i0 ii ss aa
     (OP: c = Ceq \/ c = Cne),
@@ -240,7 +240,7 @@ Proof.
   exfalso.
   tauto.
 Qed.
-
+(*
 Lemma sem_cmp_pl_pl':
   forall c b i i' i0 ii ss aa m
   (OP: c = Cle \/ c = Clt \/ c = Cge \/ c = Cgt),
@@ -255,14 +255,14 @@ Proof.
   exfalso.
   tauto.
 Qed.
-
+*)
 Lemma typecheck_binop_sound:
 forall {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
-   (IBR: denote_tc_assert (isBinOpResultType Oeq e1 e2 t) rho m)
+   (IBR: denote_tc_assert (isBinOpResultType Ole e1 e2 t) rho m)
    (TV2: typecheck_val (eval_expr e2 rho) (typeof e2) = true)
    (TV1: typecheck_val (eval_expr e1 rho) (typeof e1) = true),
    typecheck_val
-     (eval_binop Oeq (typeof e1) (typeof e2) (eval_expr e1 rho)
+     (eval_binop Ole (typeof e1) (typeof e2) (eval_expr e1 rho)
         (eval_expr e2 rho)) t = true.
 Proof.
   intros;
@@ -283,7 +283,8 @@ Proof.
  try contradiction IBR; try discriminate IBR;
  simpl; unfold Cop2.sem_div, Cop2.sem_mod,
  Cop2.sem_binarith, Cop2.sem_cast, Cop2.sem_shift,
- force_val, sem_shift_ii, both_int, both_long, both_float; simpl.
+ force_val, sem_shift_ii, both_int, both_long, both_float,
+ sem_cmp_lp, sem_cmp_pl, cast_out_long; simpl;
  repeat (let H := fresh in revert IBR; intros [IBR H];
                 try contradiction IBR;
                 try contradiction H;
@@ -297,16 +298,19 @@ Proof.
     try (simple eapply sem_cmp_pp_pp'; solve [eauto]);
     try (simple apply sem_cmp_pp_ip; solve [eauto]);
     try (simple eapply sem_cmp_pp_ip'; [solve [auto] | exact IBR]);
-    try (simple eapply sem_cmp_lp_lp'; [solve [auto] | exact IBR]);
     try (simple apply sem_cmp_pp_pi; solve [auto]);
     try (simple eapply sem_cmp_pp_pi'; [solve [auto] | exact IBR]);
-    try (simple eapply sem_cmp_pl_pl'; [solve [auto] | exact IBR]).
     try (rewrite Int64_eq_repr_signed32_nonzero by assumption; reflexivity);
     try (rewrite Int64_eq_repr_unsigned32_nonzero by assumption; reflexivity);
     try (rewrite (denote_tc_igt_e m) by assumption; reflexivity);
     try (rewrite (denote_tc_iszero_long_e m) by assumption; reflexivity).
-  Focus 1.
-  (simple eapply sem_cmp_pp_ppx'; solve [eauto]).
+    Focus 1.
+    simple eapply sem_cmp_pp_ip'; [solve [auto] |].
+
+simpl in IBR.
+    exact IBR]);
+unfold .    
+  (simple eapply sem_cmp_pp_ip; solve [eauto]).
   destruct IBR.
   inv H0.
   inv H0.
