@@ -95,87 +95,260 @@ destruct (Int.eq (Int.repr (Int64.unsigned i)) Int.zero);
 Qed.
 
 Lemma sem_cmp_pp_pp:
-  forall b i b0 i0 ii ss aa,
+  forall c b i b0 i0 ii ss aa
+    (OP: c = Ceq \/ c = Cne),
  typecheck_val
-  match sem_cmp_pp Ceq (Vptr b i) (Vptr b0 i0) with
+  match sem_cmp_pp c (Vptr b i) (Vptr b0 i0) with
   | Some v' => v'
   | None => Vundef
   end (Tint ii ss aa) = true.
 Proof.
-intros; unfold sem_cmp_pp; simpl.
-destruct (eq_block b b0); [ destruct (Int.eq i i0) |];
- destruct ii,ss; simpl; try reflexivity.
+  intros; destruct OP; subst; unfold sem_cmp_pp; simpl.
+  + destruct (eq_block b b0); [ destruct (Int.eq i i0) |];
+    destruct ii,ss; simpl; try reflexivity.
+  + destruct (eq_block b b0); [ destruct (Int.eq i i0) |];
+    destruct ii,ss; simpl; try reflexivity.
 Qed.
 
 Lemma sem_cmp_pp_pp':
-  forall b i b0 i0 ii ss aa,
+  forall c b i b0 i0 ii ss aa m
+    (OP: c = Cle \/ c = Clt \/ c = Cge \/ c = Cgt),
+    is_true (sameblock (Vptr b i) (Vptr b0 i0)) \/
+        (denote_tc_iszero (Vptr b i)) m /\ (denote_tc_iszero (Vptr b0 i0)) m ->
  typecheck_val
-  match sem_cmp_pp Cne (Vptr b i) (Vptr b0 i0) with
+  match sem_cmp_pp c (Vptr b i) (Vptr b0 i0) with
   | Some v' => v'
   | None => Vundef
   end (Tint ii ss aa) = true.
 Proof.
-intros; unfold sem_cmp_pp; simpl.
-destruct (eq_block b b0); [ destruct (Int.eq i i0) |];
- destruct ii,ss; simpl; try reflexivity.
+  intros; destruct OP as [| [| [|]]]; subst; unfold sem_cmp_pp; simpl;
+  (destruct H as [| [? ?]]; [| inv H]).
+  + unfold sameblock in H; unfold eq_block.
+    destruct (peq b b0); [subst | inv H].
+    simpl.
+    destruct (Int.ltu i0 i);
+    destruct ii,ss; simpl; try reflexivity.
+  + unfold sameblock in H; unfold eq_block.
+    destruct (peq b b0); [subst | inv H].
+    simpl.
+    destruct (Int.ltu i i0);
+    destruct ii,ss; simpl; try reflexivity.
+  + unfold sameblock in H; unfold eq_block.
+    destruct (peq b b0); [subst | inv H].
+    simpl.
+    destruct (Int.ltu i i0);
+    destruct ii,ss; simpl; try reflexivity.
+  + unfold sameblock in H; unfold eq_block.
+    destruct (peq b b0); [subst | inv H].
+    simpl.
+    destruct (Int.ltu i0 i);
+    destruct ii,ss; simpl; try reflexivity.
 Qed.
 
-Lemma sem_cmp_pp_ppx:
-  forall b i i0 ii ss aa,
+Lemma sem_cmp_pp_ip:
+  forall c b i i0 ii ss aa
+    (OP: c = Ceq \/ c = Cne),
   i = Int.zero ->
  typecheck_val
-  match sem_cmp_pp Ceq (Vint i)  (Vptr b i0)  with
+  match sem_cmp_pp c (Vint i)  (Vptr b i0)  with
   | Some v' => v'
   | None => Vundef
   end (Tint ii ss aa) = true.
 Proof.
-intros; unfold sem_cmp_pp; simpl.
-subst i. rewrite Int.eq_true.
- destruct ii,ss; simpl; reflexivity.
+  intros; destruct OP; subst; unfold sem_cmp_pp; simpl.
+  + rewrite Int.eq_true.
+    destruct ii,ss; simpl; reflexivity.
+  + rewrite Int.eq_true.
+    destruct ii,ss; simpl; reflexivity.
 Qed.
 
-Lemma sem_cmp_pp_ppx':
-  forall b i i0 ii ss aa,
+Lemma sem_cmp_lp_lp:
+  forall c b i i0 ii ss aa
+    (OP: c = Ceq \/ c = Cne),
+  i = Int64.zero ->
+ typecheck_val
+  match sem_cmp_lp c (Vlong i)  (Vptr b i0)  with
+  | Some v' => v'
+  | None => Vundef
+  end (Tint ii ss aa) = true.
+Proof.
+  intros; destruct OP; subst; unfold sem_cmp_lp; simpl.
+  + rewrite Int.eq_true.
+    destruct ii,ss; simpl; reflexivity.
+  + rewrite Int.eq_true.
+    destruct ii,ss; simpl; reflexivity.
+Qed.
+
+Lemma sem_cmp_pp_ip':
+  forall c b i i0 ii ss aa m
+  (OP: c = Cle \/ c = Clt \/ c = Cge \/ c = Cgt),
+    False \/ (denote_tc_iszero (Vint i)) m /\ False  ->
+ typecheck_val
+  match sem_cmp_pp c (Vint i) (Vptr b i0)  with
+  | Some v' => v'
+  | None => Vundef
+  end (Tint ii ss aa) = true.
+Proof.
+  intros.
+  exfalso.
+  tauto.
+Qed.
+
+Lemma sem_cmp_lp_lp':
+  forall c b i i' i0 ii ss aa m
+  (OP: c = Cle \/ c = Clt \/ c = Cge \/ c = Cgt),
+    False \/ False /\ (denote_tc_iszero (Vint i')) m  ->
+ typecheck_val
+  match sem_cmp_lp c (Vlong i) (Vptr b i0)  with
+  | Some v' => v'
+  | None => Vundef
+  end (Tint ii ss aa) = true.
+Proof.
+  intros.
+  exfalso.
+  tauto.
+Qed.
+
+Lemma sem_cmp_pp_pi:
+  forall c b i i0 ii ss aa
+    (OP: c = Ceq \/ c = Cne),
   i = Int.zero ->
  typecheck_val
-  match sem_cmp_pp Cne (Vint i)  (Vptr b i0)  with
+  match sem_cmp_pp c (Vptr b i0)  (Vint i)  with
   | Some v' => v'
   | None => Vundef
   end (Tint ii ss aa) = true.
 Proof.
-intros; unfold sem_cmp_pp; simpl.
-subst i. rewrite Int.eq_true.
- destruct ii,ss; simpl; reflexivity.
+  intros; destruct OP; subst; unfold sem_cmp_pp; simpl.
+  + rewrite Int.eq_true.
+    destruct ii,ss; simpl; reflexivity.
+  + rewrite Int.eq_true.
+    destruct ii,ss; simpl; reflexivity.
 Qed.
 
-Lemma sem_cmp_pp_ppy:
-  forall b i i0 ii ss aa,
-  i = Int.zero ->
+Lemma sem_cmp_pp_pi':
+  forall c b i i0 ii ss aa m
+  (OP: c = Cle \/ c = Clt \/ c = Cge \/ c = Cgt),
+    False \/ False /\ (denote_tc_iszero (Vint i)) m ->
  typecheck_val
-  match sem_cmp_pp Ceq (Vptr b i0)  (Vint i)  with
+  match sem_cmp_pp c (Vptr b i0) (Vint i)  with
   | Some v' => v'
   | None => Vundef
   end (Tint ii ss aa) = true.
 Proof.
-intros; unfold sem_cmp_pp; simpl.
-subst i. rewrite Int.eq_true.
- destruct ii,ss; simpl; reflexivity.
+  intros.
+  exfalso.
+  tauto.
 Qed.
 
-Lemma sem_cmp_pp_ppy':
-  forall b i i0 ii ss aa,
-  i = Int.zero ->
+Lemma sem_cmp_pl_pl':
+  forall c b i i' i0 ii ss aa m
+  (OP: c = Cle \/ c = Clt \/ c = Cge \/ c = Cgt),
+    False \/ False /\ (denote_tc_iszero (Vint i')) m ->
  typecheck_val
-  match sem_cmp_pp Cne (Vptr b i0) (Vint i)  with
+  match sem_cmp_pl c (Vptr b i0) (Vlong i)  with
   | Some v' => v'
   | None => Vundef
   end (Tint ii ss aa) = true.
 Proof.
-intros; unfold sem_cmp_pp; simpl.
-subst i. rewrite Int.eq_true.
- destruct ii,ss; simpl; reflexivity.
+  intros.
+  exfalso.
+  tauto.
 Qed.
 
+Lemma typecheck_binop_sound:
+forall {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
+   (IBR: denote_tc_assert (isBinOpResultType Oeq e1 e2 t) rho m)
+   (TV2: typecheck_val (eval_expr e2 rho) (typeof e2) = true)
+   (TV1: typecheck_val (eval_expr e1 rho) (typeof e1) = true),
+   typecheck_val
+     (eval_binop Oeq (typeof e1) (typeof e2) (eval_expr e1 rho)
+        (eval_expr e2 rho)) t = true.
+Proof.
+  intros;
+  rewrite den_isBinOpR in IBR; simpl in IBR;
+ unfold binarithType in IBR;
+ destruct (typeof e1) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ] eqn:TE1;
+ try contradiction IBR;
+ destruct (typeof e2) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ] eqn:TE2;
+ simpl in IBR;
+ rewrite ?TE1, ?TE2 in IBR; simpl in IBR; clear TE1 TE2;
+ match type of IBR with context [@liftx] => unfold_lift in IBR | _ => idtac end;
+ try contradiction IBR;
+ try simple apply tc_bool_e in IBR;  try discriminate IBR;
+ destruct (eval_expr e1 rho); try discriminate TV1; clear TV1;
+ destruct (eval_expr e2 rho); try discriminate TV2; clear TV2;
+ clear - IBR;
+ destruct t as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
+ try contradiction IBR; try discriminate IBR;
+ simpl; unfold Cop2.sem_div, Cop2.sem_mod,
+ Cop2.sem_binarith, Cop2.sem_cast, Cop2.sem_shift,
+ force_val, sem_shift_ii, both_int, both_long, both_float; simpl.
+ repeat (let H := fresh in revert IBR; intros [IBR H];
+                try contradiction IBR;
+                try contradiction H;
+                try (simple apply tc_bool_e in IBR; try discriminate IBR);
+                try (simple apply denote_tc_nonzero_e in IBR; try rewrite IBR);
+                try (simple apply denote_tc_nodivover_e in H; try rewrite H);
+                try (simple apply tc_bool_e in H; try discriminate H));
+    try simple apply eq_refl;
+    try simple apply typecheck_val_of_bool;
+    try (simple apply sem_cmp_pp_pp; solve [auto]);
+    try (simple eapply sem_cmp_pp_pp'; solve [eauto]);
+    try (simple apply sem_cmp_pp_ip; solve [eauto]);
+    try (simple eapply sem_cmp_pp_ip'; [solve [auto] | exact IBR]);
+    try (simple eapply sem_cmp_lp_lp'; [solve [auto] | exact IBR]);
+    try (simple apply sem_cmp_pp_pi; solve [auto]);
+    try (simple eapply sem_cmp_pp_pi'; [solve [auto] | exact IBR]);
+    try (simple eapply sem_cmp_pl_pl'; [solve [auto] | exact IBR]).
+    try (rewrite Int64_eq_repr_signed32_nonzero by assumption; reflexivity);
+    try (rewrite Int64_eq_repr_unsigned32_nonzero by assumption; reflexivity);
+    try (rewrite (denote_tc_igt_e m) by assumption; reflexivity);
+    try (rewrite (denote_tc_iszero_long_e m) by assumption; reflexivity).
+  Focus 1.
+  (simple eapply sem_cmp_pp_ppx'; solve [eauto]).
+  destruct IBR.
+  inv H0.
+  inv H0.
+
+
+  (*
+Definition sem_cmp (c:comparison)
+                  (v1: val) (t1: type) (v2: val) (t2: type)
+                  (m: mem): option val :=
+  match classify_cmp t1 t2 with
+  | cmp_case_pp =>
+      option_map Val.of_bool (Val.cmpu_bool (Mem.valid_pointer m) c v1 v2)
+  | cmp_case_pl =>
+      match v2 with
+      | Vlong n2 =>
+          let n2 := Int.repr (Int64.unsigned n2) in
+          option_map Val.of_bool (Val.cmpu_bool (Mem.valid_pointer m) c v1 (Vint n2))
+      | _ => None
+      end
+  | cmp_case_lp =>
+      match v1 with
+      | Vlong n1 =>
+          let n1 := Int.repr (Int64.unsigned n1) in
+          option_map Val.of_bool (Val.cmpu_bool (Mem.valid_pointer m) c (Vint n1) v2)
+      | _ => None
+      end
+  | cmp_default =>
+      sem_binarith
+        (fun sg n1 n2 =>
+            Some(Val.of_bool(match sg with Signed => Int.cmp c n1 n2 | Unsigned => Int.cmpu c n1 n2 end)))
+        (fun sg n1 n2 =>
+            Some(Val.of_bool(match sg with Signed => Int64.cmp c n1 n2 | Unsigned => Int64.cmpu c n1 n2 end)))
+        (fun n1 n2 =>
+            Some(Val.of_bool(Float.cmp c n1 n2)))
+        (fun n1 n2 =>
+            Some(Val.of_bool(Float32.cmp c n1 n2)))
+        v1 t1 v2 t2 m
+  end.
+
+*)
+
+  
 Lemma typecheck_binop_sound:
 forall op {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
    (IBR: denote_tc_assert (isBinOpResultType op e1 e2 t) rho m)

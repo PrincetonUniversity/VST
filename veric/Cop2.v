@@ -716,6 +716,7 @@ Definition sem_cmp_pl c v1 v2 :=
           option_map Val.of_bool (Val.cmpu_bool true2 c v1 (Vint n2))
       | _ => None
       end.
+Arguments sem_cmp_pl c v1 v2: simpl never.
 
 Definition sem_cmp_lp c v1 v2   :=
       match v1 with
@@ -724,6 +725,7 @@ Definition sem_cmp_lp c v1 v2   :=
           option_map Val.of_bool (Val.cmpu_bool true2 c (Vint n1) v2)
       | _ => None
       end.
+Arguments sem_cmp_lp c v1 v2: simpl never.
 
 Definition sem_cmp_default c t1 t2 :=
  sem_binarith

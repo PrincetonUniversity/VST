@@ -728,7 +728,7 @@ intros until 1; rename H into CMP; intros;
  destruct v2; inv H0; try rewrite H2;
  try destruct i0; destruct s;
 unfold Cop2.sem_cmp, classify_cmp, typeconv,
-  Cop2.sem_binarith, sem_cast, classify_cast, sem_cmp_pp;
+  Cop2.sem_binarith, sem_cast, classify_cast, sem_cmp_pp, sem_cmp_lp;
  simpl; try rewrite H;
  try reflexivity;
  try apply typecheck_val_of_bool.
@@ -754,12 +754,11 @@ intros until 1; rename H into CMP; intros.
  destruct v2; inv H0; try rewrite H2;
  try destruct i0; destruct s;
 unfold Cop2.sem_cmp, classify_cmp, typeconv,
-  sem_binarith, sem_cast, classify_cast, sem_cmp_pp;
+  sem_binarith, sem_cast, classify_cast, sem_cmp_pp, sem_cmp_pl;
  simpl; try rewrite H;
  try reflexivity;
  try apply typecheck_val_of_bool.
 Qed.
-
 
 Ltac sem_cmp_solver t1 t2 :=
 match t1 with

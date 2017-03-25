@@ -288,6 +288,7 @@ unfold tc_expr.
  end;
  repeat apply extend_tc_andp;
  repeat apply extend_tc_orp;
+ repeat apply extend_tc_andp;
  try apply extend_prop;
  try simple apply extend_tc_bool;
  try simple apply extend_tc_Zge;
@@ -317,6 +318,7 @@ unfold tc_expr.
  end;
  repeat apply extend_tc_andp;
  repeat apply extend_tc_orp;
+ repeat apply extend_tc_andp;
  try apply extend_prop;
  try simple apply extend_tc_bool;
  try simple apply extend_tc_Zge;
