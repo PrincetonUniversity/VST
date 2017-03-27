@@ -14,12 +14,12 @@ Require Import fcf.Blist.
 Require Import Omega.
 Require Import fcf.StdNat.
 Require Import fcf.NotationV1.
-
-
+ 
+ 
 Local Open Scope list_scope.
 Local Open Scope rat_scope.
 
-Ltac simp_in_support :=
+Ltac simp_in_support := 
   unfold setLet in *;
   match goal with
     | [H : In _ (getSupport (Bind _ _)) |- _ ] =>
@@ -40,7 +40,7 @@ Definition indicator(A : Set)(P : A -> bool) :=
 Fixpoint evalDist(A : Set)(c : Comp A) : Distribution A :=
   match c with
     | Ret eqd a => fun a' => if (eqd a a') then 1 else 0
-    | Bind c1 c2 => fun a =>
+    | Bind c1 c2 => fun a => 
       sumList (getSupport c1) (fun b => (evalDist c1 b) * (evalDist (c2 b) a))
     | Rnd n => fun v => 1 / (expnat 2 n)
     | Repeat c P => fun a => (indicator P a) * (ratInverse (sumList (filter P (getSupport c)) (evalDist c))) * (evalDist c a)
@@ -74,7 +74,7 @@ Qed.
 Lemma filter_not_In : forall (A : Set)(ls : list A)(P : A -> bool) a,
                         (~In a ls) \/ P a = false <->
                         ~In a (filter P ls).
-
+  
     intuition.
     eapply H1.
     eapply filter_In; eauto.
@@ -83,13 +83,13 @@ Lemma filter_not_In : forall (A : Set)(ls : list A)(P : A -> bool) a,
     congruence.
     eapply H.
     eapply filter_In; eauto.
-
+    
     case_eq (P a); intuition.
     left.
     intuition.
     eapply H.
     eapply filter_In; eauto.
-
+    
 Qed.
 
 Theorem getSupport_In_evalDist : forall (A : Set)(c : Comp A)(a : A),
@@ -211,18 +211,18 @@ Theorem getSupport_not_In_evalDist : forall (A : Set)(c : Comp A)(a : A),
 
     apply filter_not_In in H.
     intuition.
-
+    
     eapply ratMult_0.
     right.
     eauto.
-
+    
     eapply ratMult_0.
     left.
     unfold indicator.
     rewrite H0.
     rewrite ratMult_0_l.
     intuition.
-
+    
   Qed.
 
   eapply getSupport_not_In_evalDist_h.
@@ -238,9 +238,9 @@ Theorem getSupport_correct : forall (A : Set)(c : Comp A),
   intuition.
   econstructor.
   eapply getSupport_NoDup.
-
+  
   apply getSupport_In_evalDist.
-
+  
 Qed.
 
 
@@ -251,16 +251,16 @@ Notation "'Pr' [ c  ] " := (evalDist c true) (at level 20).
 Lemma evalDist_sum_bind_eq : forall (A B : Set)(eqdb : eq_dec B)(eqda : eq_dec A)(c1 : Comp B)(c2 : B -> Comp A),
   sumList (getSupport (Bind c1 c2)) (evalDist (Bind c1 c2)) ==
   sumList (getSupport c1) (fun b => evalDist c1 b * (sumList (getSupport (c2 b)) (evalDist (c2 b)))).
-
+  
   intuition. simpl.
   eapply eqRat_trans.
   eapply sumList_comm.
   eapply sumList_body_eq; intuition.
-
+  
   eapply eqRat_trans.
   eapply sumList_factor_constant_l.
   eapply ratMult_eqRat_compat; intuition.
-
+  
   eapply eqRat_symm.
   eapply sumList_subset; intuition.
   eapply getSupport_NoDup.
@@ -275,14 +275,14 @@ Lemma evalDist_sum_bind_eq : forall (A B : Set)(eqdb : eq_dec B)(eqda : eq_dec A
   eapply eq_refl.
   eauto.
   eauto.
-
+  
   eapply getSupport_not_In_evalDist.
   eauto.
 Qed.
-
+  
 (*
 Lemma evalDist_sum_repeat_eq : forall (A : Set)(eqda : eq_dec A)(c : Comp A) P,
-  let scale := (ratInverse (sumList (filter P (getSupport c)) (evalDist c))) in
+  let scale := (ratInverse (sumList (filter P (getSupport c)) (evalDist c))) in 
   sumList (getSupport (Repeat c P)) (evalDist (Repeat c P)) ==
   sumList (filter P (getSupport c1)) (fun b => scale * evalDist c1 b * (sumList (getSupport (c2 b)) (evalDist (c2 b)))).
 
@@ -290,11 +290,11 @@ Lemma evalDist_sum_repeat_eq : forall (A : Set)(eqda : eq_dec A)(c : Comp A) P,
   eapply eqRat_trans.
   eapply sumList_comm.
   eapply sumList_body_eq; intuition.
-
+  
   eapply eqRat_trans.
   eapply sumList_factor_constant_l.
   eapply ratMult_eqRat_compat; intuition.
-
+  
   eapply eqRat_symm.
   eapply sumList_subset; intuition.
   eapply getSupport_NoDup.
@@ -309,7 +309,7 @@ Lemma evalDist_sum_repeat_eq : forall (A : Set)(eqda : eq_dec A)(c : Comp A) P,
   eapply eq_refl.
   eauto.
   eauto.
-
+  
   eapply getSupport_not_In_evalDist.
   eauto.
 
@@ -320,7 +320,7 @@ Lemma ratInverse_scale_sum_1 : forall (A : Set)(ls : list A)(f : A -> Rat),
   (forall a, In a ls -> ~f a == 0) ->
   length ls > O ->
   sumList ls (fun a => (ratInverse (sumList ls f)) * (f a)) == 1.
-
+  
   intuition.
   rewrite sumList_factor_constant_l.
   eapply ratInverse_prod_1.
@@ -333,19 +333,19 @@ Lemma ratInverse_scale_sum_1 : forall (A : Set)(ls : list A)(f : A -> Rat),
   eauto.
   simpl.
   eauto.
-
+  
 Qed.
 
 Lemma evalDist_lossless : forall (A : Set)(c : Comp A),
   well_formed_comp c ->
   sumList (getSupport c) (evalDist c) == 1.
-
+  
   induction 1; intuition; simpl in *.
   unfold sumList; simpl in *.
   destruct (pf a a); intuition.
   rewrite <- ratAdd_0_l.
-  intuition.
-
+  intuition.    
+  
   eapply eqRat_trans.
   apply evalDist_sum_bind_eq.
   eapply comp_eq_dec; eauto.
@@ -361,7 +361,7 @@ Lemma evalDist_lossless : forall (A : Set)(c : Comp A),
   eapply sumList_body_eq; intuition.
   apply ratMult_1_r.
   trivial.
-
+ 
   rewrite sumList_body_const.
   rewrite getAllBvectors_length.
   rewrite <- ratMult_num_den.
@@ -397,7 +397,7 @@ Lemma sumList_filter_evalDist_le_1 : forall (A : Set)(c : Comp A)(P : A -> bool)
   In a (filter P (getSupport c)) ->
   1 <= sumList (filter (fun a' => negb (P a')) (getSupport c)) (evalDist c) ->
   False.
-
+  
   intuition.
   assert (sumList (filter (fun a0 : A => negb (P a0)) (getSupport c)) (evalDist c) == 1).
   eapply leRat_impl_eqRat; trivial.
@@ -406,7 +406,7 @@ Lemma sumList_filter_evalDist_le_1 : forall (A : Set)(c : Comp A)(P : A -> bool)
   rewrite evalDist_lossless.
   intuition.
   trivial.
-
+  
   rewrite <- evalDist_lossless in H2; eauto.
   rewrite (sumList_filter_partition P (getSupport c)) in H2.
   symmetry in H2.
@@ -419,15 +419,15 @@ Lemma sumList_filter_evalDist_le_1 : forall (A : Set)(c : Comp A)(P : A -> bool)
 Qed.
 
 
-Theorem sumList_support_bool :
+Theorem sumList_support_bool : 
   forall (c : Comp bool),
     sumList (getSupport c) (evalDist c) ==
     evalDist c true + evalDist c false.
-
+  
   intuition.
   rewrite (sumList_filter_partition (eqb true)).
   eapply ratAdd_eqRat_compat.
-
+  
   destruct (eq_Rat_dec (Pr[c]) 0).
   rewrite e.
   eapply sumList_0.
@@ -437,7 +437,7 @@ Theorem sumList_support_bool :
   rewrite eqb_leibniz in H1.
   subst.
   trivial.
-
+  
   eapply sumList_exactly_one.
   eapply filter_NoDup.
   eapply getSupport_NoDup.
@@ -453,7 +453,7 @@ Theorem sumList_support_bool :
   rewrite eqb_leibniz in H2.
   subst.
   intuition.
-
+  
   destruct (eq_Rat_dec (evalDist c false) 0).
   rewrite e.
   eapply sumList_0.
@@ -465,7 +465,7 @@ Theorem sumList_support_bool :
   simpl in *.
   discriminate.
   trivial.
-
+  
   eapply sumList_exactly_one.
   eapply filter_NoDup.
   eapply getSupport_NoDup.
@@ -476,7 +476,7 @@ Theorem sumList_support_bool :
   case_eq (eqb true false); intuition.
   rewrite eqb_leibniz in H.
   discriminate.
-
+  
   intuition.
   eapply filter_In in H.
   intuition.
@@ -486,17 +486,17 @@ Theorem sumList_support_bool :
   discriminate.
   intuition.
 Qed.
-
+  
 
 Lemma evalDist_sum_le_1 : forall (A : Set)(c : Comp A),
   sumList (getSupport c) (evalDist c) <= 1.
-
+ 
   induction c; intuition; simpl in *.
   unfold sumList; simpl in *.
   destruct (e a a); intuition.
   rewrite <- ratAdd_0_l.
-  intuition.
-
+  intuition.    
+  
   eapply leRat_trans.
   eapply eqRat_impl_leRat.
   apply evalDist_sum_bind_eq.
@@ -513,7 +513,7 @@ Lemma evalDist_sum_le_1 : forall (A : Set)(c : Comp A),
   eapply eqRat_impl_leRat.
   eapply ratMult_1_r.
   trivial.
-
+ 
   rewrite sumList_body_const.
   rewrite getAllBvectors_length.
   rewrite <- ratMult_num_den.
@@ -584,60 +584,60 @@ Lemma evalDist_le_1 : forall (A : Set)(c : Comp A) a,
   trivial.
   eapply ratMult_0_r.
   eapply eqRat_refl.
-
+  
   eapply leRat_trans.
   eapply eqRat_impl_leRat.
   eapply ratAdd_0_r.
   eapply ratAdd_leRat_compat.
   rewrite eqb_refl.
-
+  
   eapply leRat_trans.
   Focus 2.
   eapply eqRat_impl_leRat.
   symmetry.
   eapply ratMult_1_r.
   intuition.
-
+  
   eapply rat0_le_all.
-
+  
   apply getSupport_not_In_evalDist in n.
   rewrite n.
   eapply rat0_le_all.
 Qed.
 
-Theorem evalDist_complement :
+Theorem evalDist_complement : 
   forall (c : Comp bool),
     well_formed_comp c ->
     evalDist c false == ratSubtract 1 (Pr[c]).
-
+  
   intuition.
   eapply (@ratAdd_add_same_l _ (Pr[c])).
   rewrite ratSubtract_ratAdd_inverse_2.
   rewrite <- sumList_support_bool.
   eapply evalDist_lossless.
   trivial.
-
+  
   eapply evalDist_le_1.
 Qed.
 
 
-Theorem evalDist_le_1_gen :
+Theorem evalDist_le_1_gen : 
   forall (A : Set)(eqd : EqDec A)(c : Comp A)(ls : list A),
     NoDup ls ->
     sumList ls (evalDist c) <= 1.
-
+  
   intuition.
   eapply leRat_trans.
   eapply eqRat_impl_leRat.
   eapply (sumList_filter_partition (fun a => if (in_dec (EqDec_dec _) a (getSupport c)) then true else false)).
-
+  
   eapply leRat_trans.
   Focus 2.
   eapply eqRat_impl_leRat.
   symmetry.
   eapply ratAdd_0_r.
   eapply ratAdd_leRat_compat.
-
+  
   eapply leRat_trans.
   eapply sumList_subset_le.
   intuition.
@@ -661,25 +661,25 @@ Theorem evalDist_le_1_gen :
   discriminate.
   eapply getSupport_not_In_evalDist.
   trivial.
-
+  
 Qed.
 
-Theorem evalDist_1_0 :
+Theorem evalDist_1_0 : 
   forall (A : Set){eqd : EqDec A}(c : Comp A) a,
     well_formed_comp c ->
     evalDist c a == 1 ->
       (forall b, b <> a -> evalDist c b == 0).
-
+  
   intuition.
   eapply leRat_impl_eqRat.
-
+  
   eapply (leRat_ratAdd_same_r (evalDist c a)).
   eapply leRat_trans.
   Focus 2.
   eapply eqRat_impl_leRat.
   rewrite H0.
   eapply ratAdd_0_l.
-
+  
   assert ( evalDist c b + evalDist c a ==
     sumList (a :: b :: nil)%list (evalDist c)).
   repeat rewrite sumList_cons.
@@ -688,21 +688,21 @@ Theorem evalDist_1_0 :
   rewrite ratAdd_0_r at 1.
   eapply ratAdd_eqRat_compat; intuition.
   unfold sumList; simpl; intuition.
-
+  
   rewrite H2.
   eapply evalDist_le_1_gen; intuition.
   econstructor.
   simpl; intuition.
   econstructor; simpl; intuition.
   econstructor.
-
+  
   eapply rat0_le_all.
-
+  
 Qed.
-
+   
 Local Open Scope comp_scope.
 
-Theorem EqDec_pair_l
+Theorem EqDec_pair_l 
   : forall (A B : Set)(eqd : EqDec (A * B))(b : B),
     EqDec A.
 
@@ -718,21 +718,21 @@ Qed.
 Fixpoint evalDist_OC(A B C: Set)(c : OracleComp A B C): forall(S : Set), EqDec S -> (S -> A -> Comp (B * S)) -> S -> Comp (C * S) :=
   match c in (OracleComp A B C) return (forall(S : Set), EqDec S -> (S -> A -> Comp (B * S)) -> S -> Comp (C * S))
     with
-    | @OC_Query A' B' a =>
-      fun (S : Set)(eqds : EqDec S)(o : S -> A' -> Comp (B' * S))(s : S) =>
+    | @OC_Query A' B' a => 
+      fun (S : Set)(eqds : EqDec S)(o : S -> A' -> Comp (B' * S))(s : S) =>  
         o s a
     | @OC_Run A'' B'' C' A' B' S' eqds' eqda'' eqdb'' c' o' s' =>
       fun (S : Set)(eqds : EqDec S)(o : S -> A' -> Comp (B' * S))(s : S) =>
       p <-$ evalDist_OC c' (pair_EqDec eqds' eqds) (fun x y => p <-$ evalDist_OC (o' (fst x) y) _ o (snd x); ret (fst (fst p), (snd (fst p), snd p))) (s', s);
-      Ret
-      (EqDec_dec (pair_EqDec (pair_EqDec
+      Ret 
+      (EqDec_dec (pair_EqDec (pair_EqDec 
         (oc_EqDec c' (fun x => fst (oc_base_exists (o' s' x) (fun y => fst (comp_base_exists (o s y))))) (fun x => EqDec_pair_l (oc_EqDec (o' s' x) (fun y => fst (comp_base_exists (o s y))) (fun y => EqDec_pair_l (comp_EqDec (o s y)) s)) s' ))
         _) _ ))
       (fst p, fst (snd p), snd (snd p))
 
-    | @OC_Ret A' B' C' c =>
+    | @OC_Ret A' B' C' c => 
       fun (S : Set)(eqds : EqDec S)(o : S -> A' -> Comp (B' * S))(s : S) =>
-      x <-$ c; Ret
+      x <-$ c; Ret 
       (EqDec_dec (pair_EqDec (comp_EqDec c) _ ))
       (x, s)
     | @OC_Bind A' B' C' C'' c' f' =>
@@ -748,18 +748,18 @@ Inductive well_formed_oc : forall (A B C : Set), OracleComp A B C -> Prop :=
 | well_formed_OC_Query :
   forall (A B : Set)(a : A),
     well_formed_oc (OC_Query B a)
-| well_formed_OC_Run :
+| well_formed_OC_Run : 
   forall (A B C A' B' S : Set)
   (eqds : EqDec S)(eqdb : EqDec B)(eqda : EqDec A)(c : OracleComp A B C)
   (o : S -> A -> OracleComp A' B' (B * S))(s : S),
   well_formed_oc c ->
   (forall s a, well_formed_oc (o s a)) ->
   well_formed_oc (OC_Run eqds eqdb eqda c o s)
-| well_formed_OC_Ret :
+| well_formed_OC_Ret : 
   forall (A B C : Set)(c : Comp C),
       well_formed_comp c ->
       well_formed_oc (OC_Ret A B c)
-| well_formed_OC_Bind :
+| well_formed_OC_Bind : 
   forall (A B C C' : Set)(c : OracleComp A B C)(f : C -> OracleComp A B C'),
     well_formed_oc c ->
     (forall c, well_formed_oc (f c)) ->
@@ -772,17 +772,17 @@ Definition in_oc_support(A B C : Set)(x : C)(c : OracleComp A B C) :=
     In (x, s') (getSupport (c _ _ o s)).
 
 Inductive queries_at_most : forall (A B C : Set), OracleComp A B C -> nat -> Prop :=
-| qam_Bind :
+| qam_Bind : 
   forall (A B C C' : Set)(c : OracleComp A B C')(f : C' -> OracleComp A B C) q1 q2,
     queries_at_most c q1 ->
     (forall c',
       in_oc_support c' c ->
        queries_at_most (f c') q2) ->
     queries_at_most (OC_Bind c f) (q1 + q2)
-| qam_Query :
+| qam_Query : 
   forall (A B : Set)(a : A),
   queries_at_most (OC_Query B a) 1
-| qam_Ret :
+| qam_Ret : 
   forall (A B C : Set)(c : Comp C),
     queries_at_most (OC_Ret A B c) 0
 | qam_Run :
@@ -791,7 +791,7 @@ Inductive queries_at_most : forall (A B C : Set), OracleComp A B C -> nat -> Pro
     queries_at_most c q1 ->
     (forall s a, queries_at_most (oc s a) q2) ->
     queries_at_most (OC_Run _ _ _ c oc s) (q1 * q2)
-| qam_le :
+| qam_le : 
   forall (A B C : Set)(c : OracleComp A B C) q1 q2,
     queries_at_most c q1 ->
     q1 <= q2 ->

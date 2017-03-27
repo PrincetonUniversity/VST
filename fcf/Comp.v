@@ -61,7 +61,7 @@ Lemma comp_base_exists : forall (A : Set),
   eauto using Bvector_exists.
 Qed.
 
-(*Require Import EqDec. *)
+Require Import fcf.EqDec. 
 
 Lemma comp_EqDec : forall (A : Set),
   Comp A ->
@@ -151,7 +151,7 @@ Inductive well_formed_comp : forall (A : Set), Comp A -> Prop :=
   | well_formed_Ret :
     forall (A : Set)(pf : eq_dec A)(a : A),
       well_formed_comp (Ret pf a)
-  | well_formed_Bind :
+  | well_formed_Bind : 
     forall (A B : Set)(c1 : Comp B)(c2 : B -> Comp A),
       well_formed_comp c1 ->
       (forall b, In b (getSupport c1) -> well_formed_comp (c2 b)) ->
@@ -166,7 +166,7 @@ Inductive well_formed_comp : forall (A : Set), Comp A -> Prop :=
 
 Delimit Scope comp_scope with comp.
 
-Theorem lt_eq_false :
+Theorem lt_eq_false : 
   forall n,
     n < n -> False.
 
@@ -177,11 +177,11 @@ Qed.
 Lemma length_nz_exists : forall (A : Type)(ls : list A),
                            length ls > 0 ->
                            exists a, In a ls.
-
+  
   destruct ls; intuition; simpl in *.
   exfalso.
   eapply lt_eq_false; eauto.
-
+  
   econstructor; eauto.
 Qed.
 
@@ -189,13 +189,13 @@ Qed.
 Theorem getSupport_length_nz : forall (A : Set)(c : Comp A),
   well_formed_comp c ->
   length (getSupport c) > 0.
-
+  
   induction 1; intuition; simpl in *.
-
+  
   apply length_getUnique_nz.
   apply length_nz_exists in IHwell_formed_comp.
   destruct IHwell_formed_comp.
-
+  
   eapply length_flatten_nz.
   eapply in_map_iff.
   econstructor; intuition; eauto.
@@ -236,14 +236,14 @@ Lemma getSupport_NoDup : forall (A : Set)(c : Comp A),
   eapply filter_NoDup.
   trivial.
 
-Qed.
+Qed. 
 
 Lemma getSupport_Bind_In : forall (A B : Set) (c : Comp B)(f : B -> Comp A) a,
   In a (getSupport (Bind c f)) ->
-  exists b,
+  exists b, 
     In b (getSupport c) /\
     In a (getSupport (f b)).
-
+  
   intuition.
   simpl in *.
   apply in_getUnique_if in H.
@@ -257,11 +257,11 @@ Lemma getSupport_Bind_In : forall (A B : Set) (c : Comp B)(f : B -> Comp A) a,
   econstructor.
   intuition;
     eauto.
-
+  
 Qed.
 
 Ltac pairInv :=
-  match goal with
+  match goal with 
     | [H : (_, _) = (_, _) |-_ ] => inversion H; clear H; subst
   end.
 
@@ -271,7 +271,7 @@ Ltac destruct_exists :=
       destruct H
   end.
 
-Theorem getSupport_In_Ret :
+Theorem getSupport_In_Ret : 
   forall (A : Set)(eqd : eq_dec A) x a,
     In x (getSupport (Ret eqd a)) ->
     x = a.
@@ -289,7 +289,7 @@ Theorem getSupport_In_Seq :
     In a (getSupport c) ->
     In b (getSupport (f a)) ->
     In b (getSupport (Bind c f)).
-
+  
   intuition.
   simpl.
   eapply in_getUnique.
@@ -314,7 +314,7 @@ Definition maybeBind(A B : Type)(opt_a : option A)(f : A -> B) : option B :=
 
 Inductive OracleComp : Set -> Set -> Set -> Type :=
 | OC_Query : forall (A B : Set), A -> OracleComp A B B
-| OC_Run : forall (A B C A' B' S : Set),
+| OC_Run : forall (A B C A' B' S : Set), 
   EqDec S ->
   EqDec B ->
   EqDec A ->
@@ -346,19 +346,19 @@ Theorem oc_EqDec : forall (A B C: Set),  OracleComp A B C -> (A -> B) -> (A -> E
   eauto.
   intuition.
   intuition.
-
+  
 Qed.
 
 
-Lemma well_formed_val_exists :
+Lemma well_formed_val_exists : 
   forall (A : Set)(c : Comp A),
     well_formed_comp c ->
     exists x, In x (getSupport c).
-
+  
   induction 1; intuition; simpl in *.
-
+  
   econstructor; intuition.
-
+  
   destruct IHwell_formed_comp.
   edestruct H1; eauto.
   econstructor.
@@ -375,7 +375,7 @@ Lemma well_formed_val_exists :
 
   exists (oneVector n).
   eapply in_getAllBvectors.
-
+  
   econstructor.
   eauto.
 Qed.

@@ -1,5 +1,4 @@
-(* Copyright 2012-2015 by Adam Petcher.				*
- * Use of this source code is governed by the license described	*
+(* Use of this source code is governed by the license described	*
  * in the LICENSE file at the root of the source tree.		*)
 
 (* Lists of booleans and related theory. *)
@@ -29,10 +28,10 @@ Defined.
 Fixpoint shiftOut(s : Blist)(n : nat) : option (Bvector n * Blist) :=
   match n with
     | 0 => Some ((@Vector.nil bool), s)
-    | S n' =>
+    | S n' => 
       match s with
         | nil => None
-        | b :: s' =>
+        | b :: s' => 
           match (shiftOut s' n') with
             | Some (v', s'') => Some (Vector.cons _ b _ v', s'')
             | None => None
@@ -53,7 +52,7 @@ Theorem shiftOut_app : forall (n : nat)(s1 s1' s2 : Blist) v,
   inversion H; clear H; subst.
   rewrite app_comm_cons.
   trivial.
-
+  
   destruct s1; simpl in *.
   discriminate.
   case_eq (shiftOut s1 n); intuition.
@@ -61,7 +60,7 @@ Theorem shiftOut_app : forall (n : nat)(s1 s1' s2 : Blist) v,
   destruct p.
   inversion H; clear H; subst.
   erewrite IHn; eauto.
-
+  
   rewrite H0 in H.
   discriminate.
 
@@ -70,7 +69,7 @@ Qed.
 Lemma shiftOut_lt : forall ls n,
   length ls < n ->
   shiftOut ls n = None.
-
+  
   induction ls; intuition; simpl in *.
   destruct n.
   omega.
@@ -85,14 +84,14 @@ Qed.
 Lemma shiftOut_Some : forall (ls : Blist) n,
   length ls >= n ->
   exists p, shiftOut ls n = Some p.
-
+  
   induction ls; intuition; simpl in *.
   assert (n = O).
   omega.
   subst.
   exists ([], nil).
   trivial.
-
+  
   destruct n.
   exists ([], a :: ls).
   trivial.
@@ -109,7 +108,7 @@ Qed.
 Theorem shiftOut_None_inv : forall n ls,
   shiftOut ls n = None ->
   n > length ls.
-
+  
   induction n; destruct ls; intuition; simpl in *; try discriminate.
   apply gt_n_S.
   eapply IHn.
@@ -122,14 +121,14 @@ Qed.
 Theorem shiftOut_Some_inv : forall n ls v ls',
   shiftOut ls n = Some (v, ls') ->
   (n <= length ls)%nat.
-
+  
   induction n; destruct ls; intuition; simpl in *; try discriminate.
-
+  
   apply le_n_S.
   case_eq (shiftOut ls n); intuition.
   destruct p.
   eauto.
-
+  
   rewrite H0 in H.
   discriminate.
 Qed.
@@ -137,19 +136,19 @@ Qed.
 Theorem shiftOut_correct_inv : forall n ls ls' v,
   shiftOut ls n = Some (v, ls') ->
   ls = (Vector.to_list v) ++ ls'.
-
+  
   induction n; destruct ls; intuition; simpl in *.
-
+  
   inversion H; clear H; subst.
   simpl.
   trivial.
-
+  
   inversion H; clear H; subst.
   simpl.
   trivial.
-
+  
   discriminate.
-
+  
   case_eq (shiftOut ls n); intuition.
   rewrite H0 in H.
   destruct p.
@@ -159,7 +158,7 @@ Theorem shiftOut_correct_inv : forall n ls ls' v,
   apply IHn in H0.
   subst.
   trivial.
-
+  
   rewrite H0 in H.
   discriminate.
 Qed.
@@ -168,18 +167,18 @@ Qed.
 
 Lemma to_list_length : forall (A : Set)(m : nat)(v : Vector.t A m),
   length (Vector.to_list v) = m.
-
+  
   induction m; intuition.
   rewrite (vector_0 v).
   simpl.
   trivial.
-
+  
   destruct (vector_S v).
   destruct H.
   subst.
   simpl.
-
-  f_equal.
+  
+  f_equal. 
   eapply IHm.
 Qed.
 
@@ -216,13 +215,13 @@ Theorem shiftOut_S_None : forall (n : nat)(s s1 : Blist)(v1 : Bvector 1),
   shiftOut s 1 = Some (v1, s1) ->
   shiftOut s1 n = None ->
   shiftOut s (S n) = None.
-Admitted.
+Abort.
 
 Theorem shiftOut_1_None : forall (n1 n2 : nat)(s : Blist),
   shiftOut s n1 = None ->
   n2 >= n1 ->
   shiftOut s n2 = None.
-Admitted.
+Abort.
 
 (* Todo : we need a general theorem that covers these sorts of facts.  Something like:
    shiftOut s n1 = Some(_, s1) ->
@@ -232,7 +231,7 @@ Admitted.
 Theorem shiftOut_S : forall (n : nat)(s s1 s2 : Blist)(v1 : Bvector 1)(v2 : Bvector n),
   shiftOut s 1 = Some (v1, s1) ->
   shiftOut s1 n = Some (v2, s2) ->
-  shiftOut s (S n) = Some (Vector.cons _ (Vector.hd v1) _  v2, s2).
+  shiftOut s (S n) = Some (Vector.cons _ (Vector.hd v1) _  v2, s2). 
 
   destruct n; intuition; simpl in *.
   eapply eq_trans.
@@ -243,7 +242,7 @@ Theorem shiftOut_S : forall (n : nat)(s s1 s2 : Blist)(v1 : Bvector 1)(v2 : Bvec
   f_equal.
   f_equal.
   eapply vector_hd_cons_eq.
-
+  
   destruct s; intuition; simpl in *.
   discriminate.
   rewrite shiftOut_0 in H.
@@ -304,7 +303,7 @@ Fixpoint getAllBvectors(n : nat) : (list (Bvector n)) :=
 
 Lemma getAllBvectors_length : forall n,
   length (getAllBvectors n) = (expnat 2 n).
-
+  
   induction n; intuition; simpl in *.
   rewrite app_length.
   repeat rewrite map_length.
@@ -314,7 +313,7 @@ Qed.
 
 Lemma getAllBvectors_length_nz : forall n,
   length (getAllBvectors n) > 0.
-
+  
   induction n; intuition; simpl in *.
   rewrite app_length.
   repeat rewrite map_length.
@@ -342,7 +341,7 @@ Qed.
 Lemma vector_tl_eq : forall (A : Set)(n : nat)(v1 v2 : Vector.t A (S n)),
   v1 = v2 ->
   Vector.tl v1 = Vector.tl v2.
-
+  
   intuition.
   specialize (vector_S v1).
   specialize (vector_S v2).
@@ -359,7 +358,7 @@ Lemma vector_cons_eq : forall (A : Set)(n : nat)(v1 v2 : Vector.t A n)(a1 a2 : A
   v1 = v2.
 
   intuition.
-
+  
   apply vector_tl_eq in H.
   simpl in *.
   trivial.
@@ -367,7 +366,7 @@ Lemma vector_cons_eq : forall (A : Set)(n : nat)(v1 v2 : Vector.t A n)(a1 a2 : A
 Qed.
 
 Lemma vector_cons_ne : forall (A : Set)(n : nat)(a1 a2 : Vector.t A n)(a : A),
-  a1 <> a2 ->
+  a1 <> a2 -> 
   Vector.cons A a n a1 <> Vector.cons A a n a2.
 
   intuition.
@@ -411,10 +410,10 @@ Lemma getAllBvectors_NoDup : forall (n : nat),
   eapply map_NoDup; eauto.
   intros.
   eapply vector_cons_ne; eauto.
-
+  
   eapply map_NoDup; eauto.
   intros.
-
+  
   eapply vector_cons_ne; eauto.
 
   intuition.
@@ -440,23 +439,23 @@ Require Import Permutation.
 
 Lemma getAllBlists_NoDup : forall n,
   NoDup (getAllBlists n).
-
+  
   induction n; intuition; simpl in *.
   econstructor.
   simpl.
   intuition.
   econstructor.
-
+  
   eapply app_NoDup; intuition.
-
+  
   eapply map_NoDup; intuition.
   eapply H.
   inversion H0; subst; intuition.
-
+  
   eapply map_NoDup; intuition.
   eapply H.
   inversion H0; subst; intuition.
-
+  
   apply in_map_iff in H.
   apply in_map_iff in H0.
   destruct H.
@@ -464,7 +463,7 @@ Lemma getAllBlists_NoDup : forall n,
   intuition.
   subst.
   discriminate.
-
+  
   apply in_map_iff in H.
   apply in_map_iff in H0.
   destruct H.
@@ -472,30 +471,30 @@ Lemma getAllBlists_NoDup : forall n,
   intuition.
   subst.
   discriminate.
-
+  
 Qed.
 
 Lemma getAllBlists_app_NoDup : forall n,
   NoDup (getAllBlists_app n).
-
+  
   induction n; intuition; simpl in *.
   econstructor.
   simpl.
   intuition.
   econstructor.
-
+  
   eapply app_NoDup; intuition.
-
+  
   eapply map_NoDup; intuition.
   eapply H.
   apply app_inj_tail in H0.
   intuition.
-
+  
   eapply map_NoDup; intuition.
   eapply H.
   eapply app_inj_tail in H0.
   intuition.
-
+  
   apply in_map_iff in H.
   apply in_map_iff in H0.
   destruct H.
@@ -503,7 +502,7 @@ Lemma getAllBlists_app_NoDup : forall n,
   intuition.
   subst.
   apply app_inj_tail in H; intuition.
-
+  
   apply in_map_iff in H.
   apply in_map_iff in H0.
   destruct H.
@@ -534,14 +533,14 @@ Lemma getAllBlists_perm : forall n,
 
     eapply rel_map_app.
     eapply rel_map_map2.
-
+    
     eapply rel_map_impl; eauto; intuition.
     subst.
     simpl.
     trivial.
 
     eapply rel_map_map2.
-
+    
     eapply rel_map_impl; eauto; intuition.
     subst.
     simpl.
@@ -562,13 +561,13 @@ Lemma getAllBlists_perm : forall n,
     subst.
     rewrite rev_unit.
     trivial.
-
+  
     eapply rel_map_map2.
     eapply rel_map_impl; eauto; intuition.
     subst.
     rewrite rev_unit.
-    trivial.
-
+    trivial.  
+    
   Qed.
 
   intuition.
@@ -694,7 +693,7 @@ Qed.
 
 Theorem getAllBlists_length : forall n,
   length (getAllBlists n) = (expnat 2 n).
-
+  
   induction n; intuition; simpl in *.
   rewrite app_length.
   repeat rewrite map_length.
@@ -706,39 +705,39 @@ Qed.
 Lemma vector_cons_eq_inv : forall (A : Set)(n : nat)(a1 a2 : A)(v1 v2 : Vector.t A n),
   Vector.cons A a1 n v1 = Vector.cons A a2 n v2 ->
   a1 = a2 /\ v1 = v2.
-
+  
   intuition.
   inversion H; trivial.
-
+  
   Fixpoint tailOpt(A : Set)(n : nat)(v : Vector.t A n) : option (Vector.t A (pred n)):=
     match v with
       | [] => None
       | Vector.cons _ _ _ v => Some v
     end.
-
+  
   assert (tailOpt (Vector.cons A a1 n v1) = tailOpt (Vector.cons A a2 n v2)).
-
+  
   Lemma tailOpt_eq : forall (A : Set)(n : nat)(v1 v2 : Vector.t A n),
     v1 = v2 ->
     tailOpt v1 = tailOpt v2.
-
+            
     intuition.
     subst.
     trivial.
   Qed.
   eapply tailOpt_eq.
   trivial.
-
+  
   simpl in *.
   inversion H0; clear H0; subst.
-  trivial.
-
+  trivial.          
+  
 Qed.
 
 Lemma pair_eq_inv : forall (A B : Type)(a1 a2 : A)(b1 b2 : B),
   (a1, b1) = (a2, b2) ->
   a1 = a2 /\ b1 = b2.
-
+  
   intros.
   inversion H; clear H; subst.
   intuition.
@@ -747,7 +746,7 @@ Qed.
 Lemma opt_eq_inv : forall (A : Type)(a1 a2 : A),
   Some a1 = Some a2 ->
   a1 = a2.
-
+  
   intuition.
   inversion H; clear H; subst.
   trivial.
@@ -757,7 +756,7 @@ Lemma shiftOut_ls_eq : forall n ls1 ls2 v ls1' ls2',
   shiftOut ls1 n = Some (v, ls1') ->
   shiftOut ls2 n = Some (v, ls2') ->
   (firstn n ls1) = (firstn n ls2).
-
+  
   induction n; intuition; simpl in *.
   destruct ls1; simpl in *; try discriminate.
   destruct ls2; simpl in *; try discriminate.
@@ -768,16 +767,16 @@ Lemma shiftOut_ls_eq : forall n ls1 ls2 v ls1' ls2',
   destruct p.
   destruct p0.
   inversion H; clear H; subst.
-
+  
   apply opt_eq_inv in H0.
   apply pair_eq_inv in H0; intuition.
   apply vector_cons_eq_inv in H; intuition; subst.
-
+  
   f_equal.
   eapply IHn.
   eapply H1.
   eapply H2.
-
+  
   rewrite H2 in H0.
   discriminate.
   rewrite H1 in H.
@@ -787,15 +786,15 @@ Qed.
 Lemma le_refl_gen : forall n1 n2,
   (n1 = n2 ->
     n1 <= n2)%nat.
-
+  
   intuition.
 Qed.
 
 Lemma shiftOut_to_list : forall n (v : Bvector n),
   shiftOut (VectorDef.to_list v) n = Some (v, nil).
-
+  
   intuition.
-
+  
   edestruct (shiftOut_Some (VectorDef.to_list v)).
   eapply le_refl_gen.
   symmetry.
@@ -803,12 +802,12 @@ Lemma shiftOut_to_list : forall n (v : Bvector n),
   destruct x.
   rewrite H.
   apply shiftOut_correct_inv in H.
-
+  
   Lemma app_first_eq : forall (A : Type)(ls2 ls1 ls3 : list A),
     ls1 = ls2 ++ ls3 ->
     length ls1 = length ls2 ->
     ls1 = ls2 /\ ls3 = nil.
-
+    
     intros; subst.
     assert (ls3 = nil).
     rewrite app_length in H0.
@@ -819,34 +818,34 @@ Lemma shiftOut_to_list : forall n (v : Bvector n),
     rewrite app_nil_r.
     intuition.
   Qed.
-
+  
   apply app_first_eq in H.
   intuition; subst.
-
+  
   Lemma to_list_eq_inv : forall (A : Set) n (v1 v2 : Vector.t A n),
     VectorDef.to_list v1 = VectorDef.to_list v2 ->
           v1 = v2.
-
+    
     induction n; intuition.
     rewrite (vector_0 v2).
     rewrite (vector_0 v1).
     trivial.
-
+    
     destruct (vector_S v1).
     destruct (vector_S v2).
-    destruct H0.
+    destruct H0. 
     destruct H1.
     subst.
     unfold VectorDef.to_list in *.
     inversion H; clear H; subst.
     f_equal.
     eauto.
-
+    
   Qed.
-
+  
   apply to_list_eq_inv in H0; subst.
   trivial.
-
+  
   repeat rewrite to_list_length.
   trivial.
 Qed.
@@ -854,13 +853,13 @@ Qed.
 Lemma shiftOut_app_None : forall ls1 ls2 n,
   shiftOut (ls1 ++ ls2) n = None ->
   shiftOut ls1 n = None.
-
+  
   induction ls1; intuition; simpl in *.
   destruct n; destruct ls2; try discriminate; trivial.
-
+  
   destruct n.
   discriminate.
-
+  
   case_eq (shiftOut (ls1 ++ ls2) n); intuition.
   rewrite H0 in H.
   destruct p.
@@ -869,7 +868,7 @@ Lemma shiftOut_app_None : forall ls1 ls2 n,
   erewrite IHls1.
   trivial.
   eauto.
-
+  
 Qed.
 
 Lemma BVxor_same_id : forall n (v : Bvector n),
@@ -942,7 +941,7 @@ Qed.
 
 Lemma BVxor_assoc : forall n (v1 v2 v3 : Bvector n),
   BVxor n (BVxor n v1 v2) v3 = BVxor n v1 (BVxor n v2 v3).
-
+  
   induction n; intuition.
   rewrite (vector_0 v1).
   rewrite (vector_0 v2).
@@ -992,7 +991,7 @@ Lemma BVxor_id_inv : forall n (v1 v2 : Bvector n),
 Qed.
 
 
-Definition lognat(n : nat) : nat :=
+Definition lognat(n : nat) : nat := 
   N.size_nat (N.of_nat n).
 
 Definition bvToNat(k : nat)(v : Bvector k) :=
@@ -1000,7 +999,7 @@ Definition bvToNat(k : nat)(v : Bvector k) :=
 
 Lemma Bv2N_zero : forall (n : nat),
   Bv2N n (Bvect_false n) = N0.
-
+  
   induction n; intuition; simpl in *.
   unfold N.double in *.
   unfold Bvect_false in *.
@@ -1008,7 +1007,7 @@ Lemma Bv2N_zero : forall (n : nat),
   trivial.
 Qed.
 
-Lemma bvNat_zero : forall n,
+Lemma bvNat_zero : forall n, 
   bvToNat (Bvect_false n) = O.
 
   intuition.
@@ -1019,7 +1018,7 @@ Lemma bvNat_zero : forall n,
   rewrite <- H.
   f_equal.
   eapply Bv2N_zero.
-
+  
 Qed.
 
 Definition natToBv(k : nat)(v : nat) : Bvector k :=
@@ -1028,12 +1027,12 @@ Definition natToBv(k : nat)(v : nat) : Bvector k :=
 
 Lemma Bv2N_app_false : forall n1 n2 (v1 : Bvector n1),
   Bv2N (n1 + n2) (Vector.append v1 (Bvect_false n2)) = Bv2N n1 v1.
-
+  
   induction n1; intuition.
   rewrite (vector_0 v1).
   simpl.
   apply Bv2N_zero.
-
+  
   destruct (vector_S v1).
   destruct H.
   rewrite H.
@@ -1043,13 +1042,13 @@ Lemma Bv2N_app_false : forall n1 n2 (v1 : Bvector n1),
   trivial.
   rewrite IHn1.
   trivial.
-
+  
 Qed.
 
 Lemma Bv2N_N2Bv_gen : forall n0 k,
   n0 >= N.size_nat k ->
   Bv2N n0 (N2Bv_gen n0 k) = k.
-
+  
   intuition.
   assert (exists x, n0 = N.size_nat k + x)%nat.
   exists (minus n0 (N.size_nat k)).
@@ -1060,11 +1059,11 @@ Lemma Bv2N_N2Bv_gen : forall n0 k,
   rewrite Bv2N_app_false.
   apply Bv2N_N2Bv.
 Qed.
-
+  
 Lemma bvToNat_natToBv_inverse : forall n k,
   n >= lognat k ->
   bvToNat (natToBv n k) = k.
-
+  
   intuition.
   unfold bvToNat, natToBv.
   rewrite Bv2N_N2Bv_gen.
@@ -1075,7 +1074,7 @@ Qed.
 Lemma Nat_size_nat_monotonic : forall n1 n2,
   (n1 < n2)%N ->
   (N.size_nat n1 <= N.size_nat n2)%nat.
-
+  
   intuition.
   destruct n1; simpl.
   omega.
@@ -1084,11 +1083,11 @@ Lemma Nat_size_nat_monotonic : forall n1 n2,
   eapply Pos.size_nat_monotone.
   intuition.
 Qed.
-
+  
 Lemma lognat_monotonic : forall n1 n2,
   (n1 < n2 ->
     lognat n1 <= lognat n2)%nat.
-
+  
   intuition.
   unfold lognat.
   eapply Nat_size_nat_monotonic.
