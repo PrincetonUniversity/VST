@@ -19,6 +19,23 @@ Proof.
   intros.
   destruct b; auto.
 Qed.
+Check tc_bool_e.
+Lemma denote_tc_comparable_strenthen: forall {CS: compspecs} e1 e2 rho m,
+  (denote_tc_assert (tc_orp (tc_samebase e1 e2) (tc_andp (tc_iszero e1) (tc_iszero e2))) rho) m ->
+  (denote_tc_comparable (eval_expr e1 rho) (eval_expr e2 rho)) m.
+Proof.
+  intros.
+  SearchAbout tc_orp tc_orp'.
+  rewrite denote_tc_assert_orp' in H; simpl in H.
+  rewrite  denote_tc_assert_andp' in H.
+  unfold denote_tc_comparable.
+  destruct H.
+  + destruct (eval_expr e1 rho), (eval_expr e2 rho);
+    first [inv H | auto].
+    simpl.
+    unfold comparable_ptrs.
+  simpl in H |- *.
+    
 
 (** Main soundness result for the typechecker **)
 

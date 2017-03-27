@@ -182,15 +182,16 @@ Definition check_pp_int' e1 e2 op t e :=
   match op with
   | Cop.Oeq | Cop.One =>
       tc_andp'
-        (tc_comparable' e1 e2)
+        (tc_test_eq' e1 e2)
         (tc_bool (is_int_type t) (op_result_type e))
   | Cop.Ole | Cop.Olt | Cop.Oge | Cop.Ogt =>
       tc_andp'
-        (tc_orp' (tc_samebase e1 e2) (tc_andp' (tc_iszero' e1) (tc_iszero' e2)))
+        (tc_test_order' e1 e2)
         (tc_bool (is_int_type t) (op_result_type e))
 | _ => tc_noproof
 end.
 
+(*
 Definition check_pl_long' e2 op t e :=
 match op with
 | Cop.Oeq | Cop.One => tc_andp'
@@ -198,7 +199,7 @@ match op with
                          (tc_bool (is_int_type t) (op_result_type e))
 | _ => tc_noproof
 end.
-
+*)
 
 Lemma tc_andp_TT2:  forall e, tc_andp e tc_TT = e.
 Proof. intros; unfold tc_andp.  destruct e; reflexivity. Qed.
@@ -370,52 +371,93 @@ Lemma denote_tc_assert_orp':
                         denote_tc_assert (tc_orp' a b).
 Proof. intros. extensionality rho. apply denote_tc_assert_orp. Qed.
 
-Lemma denote_tc_assert_comparable':
+Lemma denote_tc_assert_test_eq':
   forall {CS: compspecs} a b,
-    denote_tc_assert (tc_comparable a b) =
-    denote_tc_assert (tc_comparable' a b).
+    denote_tc_assert (tc_test_eq a b) =
+    denote_tc_assert (tc_test_eq' a b).
 Proof.
-intros; extensionality rho.
-unfold tc_comparable.
-simpl; unfold_lift;  unfold denote_tc_comparable.
-destruct (eval_expr a rho) eqn:Ha;
-destruct (eval_expr a any_environ) eqn:Ha';
-simpl; unfold_lift;  unfold denote_tc_comparable;
-rewrite ?Ha, ?Ha'; simpl; auto;
-try solve [
-   rewrite (eval_expr_any rho a _ Ha') in Ha by congruence;
-   inv Ha].
-destruct (eval_expr b rho) eqn:Hb;
-destruct (eval_expr b any_environ) eqn:Hb';
-simpl; unfold_lift;  unfold denote_tc_comparable;
-rewrite ?Ha, ?Ha', ?Hb, ?Hb'; simpl; auto;
-rewrite (eval_expr_any rho b _ Hb') in Hb by congruence;   inv Hb.
-rewrite (eval_expr_any rho a _ Ha') in Ha by congruence; inv Ha.
-destruct (Int.eq_dec i Int.zero).
-subst. rewrite Int.eq_true.
-destruct (Int.eq_dec i1 Int.zero).
-subst. rewrite Int.eq_true.
-simpl.
-rewrite !prop_true_andp by auto.
-super_unfold_lift.
-unfold TT. f_equal. apply prop_ext; intuition.
-rewrite Int.eq_false by auto. simpl.
-simpl; unfold_lift;  unfold denote_tc_comparable.
-rewrite (eval_expr_any rho a _ Ha')  by congruence.
-rewrite (eval_expr_any rho _ _ Hb')  by congruence.
-auto.
-rewrite Int.eq_false by auto. simpl.
-simpl; unfold_lift;  unfold denote_tc_comparable.
-rewrite (eval_expr_any rho a _ Ha')  by congruence.
-rewrite (eval_expr_any rho _ _ Hb')  by congruence.
-auto.
+  intros; extensionality rho.
+  unfold tc_test_eq.
+  simpl; unfold_lift;  unfold denote_tc_test_eq.
+  destruct (eval_expr a rho) eqn:Ha;
+  destruct (eval_expr a any_environ) eqn:Ha';
+  simpl; unfold_lift;  unfold denote_tc_test_eq;
+  rewrite ?Ha, ?Ha'; simpl; auto;
+  try solve [
+    rewrite (eval_expr_any rho a _ Ha') in Ha by congruence;
+    inv Ha].
+  destruct (eval_expr b rho) eqn:Hb;
+  destruct (eval_expr b any_environ) eqn:Hb';
+  simpl; unfold_lift;  unfold denote_tc_test_eq;
+  rewrite ?Ha, ?Ha', ?Hb, ?Hb'; simpl; auto;
+  rewrite (eval_expr_any rho b _ Hb') in Hb by congruence; inv Hb.
+  rewrite (eval_expr_any rho a _ Ha') in Ha by congruence; inv Ha.
+  destruct (Int.eq_dec i Int.zero).
+  + subst. rewrite Int.eq_true.
+    destruct (Int.eq_dec i1 Int.zero).
+    - subst. rewrite Int.eq_true.
+      simpl.
+      rewrite !prop_true_andp by auto.
+      super_unfold_lift.
+      unfold TT. f_equal. apply prop_ext; intuition.
+    - rewrite Int.eq_false by auto. simpl.
+      simpl; unfold_lift;  unfold denote_tc_test_eq.
+      rewrite (eval_expr_any rho a _ Ha')  by congruence.
+      rewrite (eval_expr_any rho _ _ Hb')  by congruence.
+      auto.
+  + rewrite Int.eq_false by auto. simpl.
+    simpl; unfold_lift;  unfold denote_tc_test_eq.
+    rewrite (eval_expr_any rho a _ Ha')  by congruence.
+    rewrite (eval_expr_any rho _ _ Hb')  by congruence.
+    auto.
+Qed.
+
+Lemma denote_tc_assert_test_order':
+  forall {CS: compspecs} a b,
+    denote_tc_assert (tc_test_order a b) =
+    denote_tc_assert (tc_test_order' a b).
+Proof.
+  intros; extensionality rho.
+  unfold tc_test_order.
+  simpl; unfold_lift;  unfold denote_tc_test_order.
+  destruct (eval_expr a rho) eqn:Ha;
+  destruct (eval_expr a any_environ) eqn:Ha';
+  simpl; unfold_lift;  unfold denote_tc_test_order;
+  rewrite ?Ha, ?Ha'; simpl; auto;
+  try solve [
+    rewrite (eval_expr_any rho a _ Ha') in Ha by congruence;
+    inv Ha].
+  destruct (eval_expr b rho) eqn:Hb;
+  destruct (eval_expr b any_environ) eqn:Hb';
+  simpl; unfold_lift;  unfold denote_tc_test_eq;
+  rewrite ?Ha, ?Ha', ?Hb, ?Hb'; simpl; auto;
+  rewrite (eval_expr_any rho b _ Hb') in Hb by congruence; inv Hb.
+  rewrite (eval_expr_any rho a _ Ha') in Ha by congruence; inv Ha.
+  destruct (Int.eq_dec i Int.zero).
+  + subst. rewrite Int.eq_true.
+    destruct (Int.eq_dec i1 Int.zero).
+    - subst. rewrite Int.eq_true.
+      simpl.
+      rewrite !prop_true_andp by auto.
+      super_unfold_lift.
+      unfold TT. f_equal. apply prop_ext; intuition.
+    - rewrite Int.eq_false by auto. simpl.
+      simpl; unfold_lift;  unfold denote_tc_test_eq.
+      rewrite (eval_expr_any rho a _ Ha')  by congruence.
+      rewrite (eval_expr_any rho _ _ Hb')  by congruence.
+      auto.
+  + rewrite Int.eq_false by auto. simpl.
+    simpl; unfold_lift;  unfold denote_tc_test_eq.
+    rewrite (eval_expr_any rho a _ Ha')  by congruence.
+    rewrite (eval_expr_any rho _ _ Hb')  by congruence.
+    auto.
 Qed.
 
 Hint Rewrite @denote_tc_assert_andp' @denote_tc_assert_andp''
     @denote_tc_assert_orp' @denote_tc_assert_orp''
     @denote_tc_assert_iszero' @denote_tc_assert_nonzero'
     @denote_tc_assert_nodivover' @denote_tc_assert_ilt'
-    @denote_tc_assert_comparable'
+    @denote_tc_assert_test_eq' @denote_tc_assert_test_order'
      : dtca.
 
 Ltac dtca := autorewrite with dtca; auto.

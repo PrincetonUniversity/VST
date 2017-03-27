@@ -395,7 +395,8 @@ Inductive tc_assert :=
 | tc_nonzero': expr -> tc_assert
 | tc_iszero': expr -> tc_assert
 | tc_isptr: expr -> tc_assert
-| tc_comparable': expr -> expr -> tc_assert
+| tc_test_eq': expr -> expr -> tc_assert
+| tc_test_order': expr -> expr -> tc_assert
 | tc_ilt': expr -> int -> tc_assert
 | tc_Zle: expr -> Z -> tc_assert
 | tc_Zge: expr -> Z -> tc_assert
@@ -418,11 +419,18 @@ Definition tc_nonzero {CS: compspecs} (e: expr) : tc_assert :=
    | _ => tc_nonzero' e
    end.
 
-Definition tc_comparable {CS: compspecs} (e1 e2: expr) : tc_assert :=
+Definition tc_test_eq {CS: compspecs} (e1 e2: expr) : tc_assert :=
  match eval_expr e1 any_environ, eval_expr e2 any_environ with
  | Vint i, Vint j => if andb (Int.eq i Int.zero) (Int.eq j Int.zero)
-                             then tc_TT else tc_comparable' e1 e2
- | _, _ => tc_comparable' e1 e2
+                             then tc_TT else tc_test_eq' e1 e2
+ | _, _ => tc_test_eq' e1 e2
+ end.
+
+Definition tc_test_order {CS: compspecs} (e1 e2: expr) : tc_assert :=
+ match eval_expr e1 any_environ, eval_expr e2 any_environ with
+ | Vint i, Vint j => if andb (Int.eq i Int.zero) (Int.eq j Int.zero)
+                             then tc_TT else tc_test_order' e1 e2
+ | _, _ => tc_test_order' e1 e2
  end.
 
 Definition tc_nodivover {CS: compspecs} (e1 e2: expr) : tc_assert :=
@@ -463,11 +471,11 @@ Definition check_pp_int {CS: compspecs} e1 e2 op t e :=
   match op with
   | Cop.Oeq | Cop.One =>
       tc_andp
-        (tc_comparable e1 e2)
+        (tc_test_eq e1 e2)
         (tc_bool (is_int_type t) (op_result_type e))
   | Cop.Ole | Cop.Olt | Cop.Oge | Cop.Ogt =>
       tc_andp
-        (tc_orp (tc_samebase e1 e2) (tc_andp (tc_iszero e1) (tc_iszero e2)))
+        (tc_test_order e1 e2)
         (tc_bool (is_int_type t) (op_result_type e))
   | _ => tc_noproof
   end.
@@ -496,7 +504,7 @@ match op with
                         | Cop.bool_default => tc_FF (op_result_type a)
                         | Cop.bool_case_p =>
                            tc_andp (tc_bool (is_int_type ty) (op_result_type a))
-                                         (tc_comparable a (Econst_int Int.zero (Tint I32 Signed noattr)))
+                                         (tc_test_eq a (Econst_int Int.zero (Tint I32 Signed noattr)))
                         | _ => tc_bool (is_int_type ty) (op_result_type a)
                         end
   | Cop.Onotint => match Cop.classify_notint (typeof a) with
@@ -625,7 +633,7 @@ match Cop.classify_cast tfrom tto with
 | Cop.cast_case_void => tc_noproof
 | Cop.cast_case_f2bool => tc_bool (is_float_type tfrom) (invalid_cast_result tfrom tto)
 | Cop.cast_case_s2bool => tc_bool (is_single_type tfrom) (invalid_cast_result tfrom tto)
-| Cop.cast_case_p2bool => tc_andp (tc_comparable a (Econst_int Int.zero (Tint I32 Signed noattr)))
+| Cop.cast_case_p2bool => tc_andp (tc_test_eq a (Econst_int Int.zero (Tint I32 Signed noattr)))
                                                 (tc_bool (orb (is_int_type tfrom) (is_pointer_type tfrom)) (invalid_cast_result tfrom tto))
       (* before CompCert 2.5: tc_bool (orb (is_int_type tfrom) (is_pointer_type tfrom)) (invalid_cast_result tfrom tto) *)
 | Cop.cast_case_l2bool => tc_bool (is_long_type tfrom) (invalid_cast_result tfrom tto)
