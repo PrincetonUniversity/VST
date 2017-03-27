@@ -19,23 +19,6 @@ Proof.
   intros.
   destruct b; auto.
 Qed.
-Check tc_bool_e.
-Lemma denote_tc_comparable_strenthen: forall {CS: compspecs} e1 e2 rho m,
-  (denote_tc_assert (tc_orp (tc_samebase e1 e2) (tc_andp (tc_iszero e1) (tc_iszero e2))) rho) m ->
-  (denote_tc_comparable (eval_expr e1 rho) (eval_expr e2 rho)) m.
-Proof.
-  intros.
-  SearchAbout tc_orp tc_orp'.
-  rewrite denote_tc_assert_orp' in H; simpl in H.
-  rewrite  denote_tc_assert_andp' in H.
-  unfold denote_tc_comparable.
-  destruct H.
-  + destruct (eval_expr e1 rho), (eval_expr e2 rho);
-    first [inv H | auto].
-    simpl.
-    unfold comparable_ptrs.
-  simpl in H |- *.
-    
 
 (** Main soundness result for the typechecker **)
 
@@ -259,16 +242,16 @@ rewrite <- Z.add_opp_r.
 apply valid_pointer_dry; auto.
 Qed.
 
-Lemma comparable_relate:
-  forall v1 v2 op m,
-     (denote_tc_comparable v1 v2)
-         (m_phi m) ->
+Lemma test_eq_relate:
+  forall v1 v2 op m
+    (OP: op = Ceq \/ op = Cne),
+     (denote_tc_test_eq v1 v2) (m_phi m) ->
      option_map Val.of_bool
      (Val.cmpu_bool (Mem.valid_pointer (m_dry m)) op v1 v2) =
      sem_cmp_pp op v1 v2.
 Proof.
 intros.
-unfold denote_tc_comparable in H.
+unfold denote_tc_test_eq in H.
  destruct v1; try contradiction; auto;
  destruct v2; try contradiction; auto.
 *
@@ -285,7 +268,7 @@ unfold denote_tc_comparable in H.
  rewrite H0. simpl. auto.
 *
  unfold sem_cmp_pp; simpl.
- unfold comparable_ptrs in *.
+ unfold test_eq_ptrs in *.
  unfold sameblock in H.
  destruct (peq b b0);
   simpl proj_sumbool in H; cbv iota in H;
@@ -302,6 +285,33 @@ unfold denote_tc_comparable in H.
  rewrite Z.add_0_r in H,H0.
  rewrite H. rewrite H0.
  reflexivity.
+Qed.
+
+Lemma test_order_relate:
+  forall v1 v2 op m
+    (OP: op = Cle \/ op = Clt \/ op = Cle \/ op = Clt),
+     (denote_tc_test_order v1 v2) (m_phi m) ->
+     option_map Val.of_bool
+     (Val.cmpu_bool (Mem.valid_pointer (m_dry m)) op v1 v2) =
+     sem_cmp_pp op v1 v2.
+Proof.
+  intros.
+  unfold denote_tc_test_order in H.
+  destruct v1; try contradiction; auto;
+  destruct v2; try contradiction; auto.
+  unfold sem_cmp_pp; simpl.
+  unfold test_order_ptrs in *.
+  unfold sameblock in H.
+  destruct (peq b b0);
+  simpl proj_sumbool in H; cbv iota in H;
+    [rewrite !if_true by auto | rewrite !if_false by auto].
+  + destruct H.
+    apply weak_valid_pointer_dry in H.
+    apply weak_valid_pointer_dry in H0.
+    rewrite H. rewrite H0.
+    simpl.
+    reflexivity.
+  + inv H.
 Qed.
 
 Lemma tc_binaryop_relate : forall {CS: compspecs} Delta b e1 e2 t rho m

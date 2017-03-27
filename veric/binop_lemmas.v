@@ -113,8 +113,7 @@ Qed.
 Lemma sem_cmp_pp_pp':
   forall c b i b0 i0 ii ss aa m
     (OP: c = Cle \/ c = Clt \/ c = Cge \/ c = Cgt),
-    is_true (sameblock (Vptr b i) (Vptr b0 i0)) \/
-        (denote_tc_iszero (Vptr b i)) m /\ (denote_tc_iszero (Vptr b0 i0)) m ->
+    (denote_tc_test_order (Vptr b i) (Vptr b0 i0)) m ->
  typecheck_val
   match sem_cmp_pp c (Vptr b i) (Vptr b0 i0) with
   | Some v' => v'
@@ -122,23 +121,23 @@ Lemma sem_cmp_pp_pp':
   end (Tint ii ss aa) = true.
 Proof.
   intros; destruct OP as [| [| [|]]]; subst; unfold sem_cmp_pp; simpl;
-  (destruct H as [| [? ?]]; [| inv H]).
-  + unfold sameblock in H; unfold eq_block.
+  unfold denote_tc_test_order, test_order_ptrs in H; simpl in H.
+  + unfold eq_block.
     destruct (peq b b0); [subst | inv H].
     simpl.
     destruct (Int.ltu i0 i);
     destruct ii,ss; simpl; try reflexivity.
-  + unfold sameblock in H; unfold eq_block.
+  + unfold eq_block.
     destruct (peq b b0); [subst | inv H].
     simpl.
     destruct (Int.ltu i i0);
     destruct ii,ss; simpl; try reflexivity.
-  + unfold sameblock in H; unfold eq_block.
+  + unfold eq_block.
     destruct (peq b b0); [subst | inv H].
     simpl.
     destruct (Int.ltu i i0);
     destruct ii,ss; simpl; try reflexivity.
-  + unfold sameblock in H; unfold eq_block.
+  + unfold eq_block.
     destruct (peq b b0); [subst | inv H].
     simpl.
     destruct (Int.ltu i0 i);
@@ -162,21 +161,6 @@ Proof.
     destruct ii,ss; simpl; reflexivity.
 Qed.
 
-Lemma sem_cmp_pp_ip':
-  forall c b i i0 ii ss aa m
-  (OP: c = Cle \/ c = Clt \/ c = Cge \/ c = Cgt),
-    False \/ (denote_tc_iszero (Vint i)) m /\ False ->
- typecheck_val
-  match sem_cmp_pp c (Vint i) (Vptr b i0)  with
-  | Some v' => v'
-  | None => Vundef
-  end (Tint ii ss aa) = true.
-Proof.
-  intros.
-  exfalso.
-  tauto.
-Qed.
-
 Lemma sem_cmp_pp_pi:
   forall c b i i0 ii ss aa
     (OP: c = Ceq \/ c = Cne),
@@ -194,21 +178,6 @@ Proof.
     destruct ii,ss; simpl; reflexivity.
 Qed.
 
-Lemma sem_cmp_pp_pi':
-  forall c b i i0 ii ss aa m
-  (OP: c = Cle \/ c = Clt \/ c = Cge \/ c = Cgt),
-    False \/ False /\ (denote_tc_iszero (Vint i)) m ->
- typecheck_val
-  match sem_cmp_pp c (Vptr b i0) (Vint i)  with
-  | Some v' => v'
-  | None => Vundef
-  end (Tint ii ss aa) = true.
-Proof.
-  intros.
-  exfalso.
-  tauto.
-Qed.
-
 Lemma typecheck_binop_sound:
 forall op {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
    (IBR: denote_tc_assert (isBinOpResultType op e1 e2 t) rho m)
@@ -218,7 +187,7 @@ forall op {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
      (eval_binop op (typeof e1) (typeof e2) (eval_expr e1 rho)
         (eval_expr e2 rho)) t = true.
 Proof.
-Time (* reduced from 919.6 sec to 192 sec *)
+Time (* 919.6 sec *)
 destruct op;
 try abstract (
   intros;
@@ -253,9 +222,7 @@ try abstract (
     try (simple apply sem_cmp_pp_pp; solve [auto]);
     try (simple eapply sem_cmp_pp_pp'; solve [eauto]);
     try (simple apply sem_cmp_pp_ip; solve [eauto]);
-    try (simple eapply sem_cmp_pp_ip'; [solve [auto] | exact IBR]);
     try (simple apply sem_cmp_pp_pi; solve [auto]);
-    try (simple eapply sem_cmp_pp_pi'; [solve [auto] | exact IBR]);
     try (rewrite Int64_eq_repr_signed32_nonzero by assumption; reflexivity);
     try (rewrite Int64_eq_repr_unsigned32_nonzero by assumption; reflexivity);
     try (rewrite (denote_tc_igt_e m) by assumption; reflexivity);
