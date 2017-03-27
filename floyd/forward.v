@@ -1640,7 +1640,7 @@ Ltac sequential :=
 Hint Extern 1 (@sizeof _ ?A > 0) =>
    (let a := fresh in set (a:= sizeof A); hnf in a; subst a; computable)
   : valid_pointer.
-Hint Resolve denote_tc_comparable_split : valid_pointer.
+Hint Resolve denote_tc_test_eq_split : valid_pointer.
 
 Ltac pre_entailer :=
   try match goal with

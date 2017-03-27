@@ -135,64 +135,100 @@ destruct (Int.eq (Int.repr (Int64.unsigned i)) Int.zero);
 Qed.
 
 Lemma sem_cmp_pp_pp:
-  forall b i b0 i0 ii ss aa,
+  forall c b i b0 i0 ii ss aa
+    (OP: c = Ceq \/ c = Cne),
     tc_val
       (Tint ii ss aa)
-        match sem_cmp_pp Ceq (Vptr b i) (Vptr b0 i0) with
+        match sem_cmp_pp c (Vptr b i) (Vptr b0 i0) with
         | Some v' => v'
         | None => Vundef
         end.
 Proof.
-intros; unfold sem_cmp_pp; simpl.
-destruct (eq_block b b0); [ destruct (Int.eq i i0) |];
-destruct ii,ss; simpl; try split; auto;
-rewrite <- Z.leb_le; reflexivity.
+intros; destruct OP; subst; unfold sem_cmp_pp; simpl.
++ destruct (eq_block b b0); [ destruct (Int.eq i i0) |];
+  destruct ii,ss; simpl; try split; auto;
+  rewrite <- Z.leb_le; reflexivity.
++ destruct (eq_block b b0); [ destruct (Int.eq i i0) |];
+  destruct ii,ss; simpl; try split; auto;
+  rewrite <- Z.leb_le; reflexivity.
 Qed.
 
 Lemma sem_cmp_pp_pp':
-  forall b i b0 i0 ii ss aa,
-     tc_val (Tint ii ss aa)
-        match sem_cmp_pp Cne (Vptr b i) (Vptr b0 i0) with
-        | Some v' => v'
-        | None => Vundef
-        end.
+  forall c b i b0 i0 ii ss aa m
+    (OP: c = Cle \/ c = Clt \/ c = Cge \/ c = Cgt),
+    (denote_tc_test_order (Vptr b i) (Vptr b0 i0)) m ->
+    tc_val (Tint ii ss aa)
+      match sem_cmp_pp c (Vptr b i) (Vptr b0 i0) with
+      | Some v' => v'
+      | None => Vundef
+      end.
 Proof.
-intros; unfold sem_cmp_pp; simpl.
-destruct (eq_block b b0); [ destruct (Int.eq i i0) |];
-destruct ii,ss; simpl; try split; auto;
-rewrite <- Z.leb_le; reflexivity.
+  intros; destruct OP as [| [| [|]]]; subst; unfold sem_cmp_pp; simpl;
+  unfold denote_tc_test_order, test_order_ptrs in H; simpl in H.
+  + unfold eq_block.
+    destruct (peq b b0); [subst | inv H].
+    simpl.
+    destruct (Int.ltu i0 i);
+    destruct ii,ss; simpl; try split; auto;
+    rewrite <- Z.leb_le; reflexivity.
+  + unfold eq_block.
+    destruct (peq b b0); [subst | inv H].
+    simpl.
+    destruct (Int.ltu i i0);
+    destruct ii,ss; simpl; try split; auto;
+    rewrite <- Z.leb_le; reflexivity.
+  + unfold eq_block.
+    destruct (peq b b0); [subst | inv H].
+    simpl.
+    destruct (Int.ltu i i0);
+    destruct ii,ss; simpl; try split; auto;
+    rewrite <- Z.leb_le; reflexivity.
+  + unfold eq_block.
+    destruct (peq b b0); [subst | inv H].
+    simpl.
+    destruct (Int.ltu i0 i);
+    destruct ii,ss; simpl; try split; auto;
+    rewrite <- Z.leb_le; reflexivity.
 Qed.
 
-Lemma sem_cmp_pp_ppx:
-  forall b i i0 ii ss aa,
+Lemma sem_cmp_pp_ip:
+  forall c b i i0 ii ss aa
+    (OP: c = Ceq \/ c = Cne),
   i = Int.zero ->
  tc_val (Tint ii ss aa)
-  match sem_cmp_pp Ceq (Vint i)  (Vptr b i0)  with
+  match sem_cmp_pp c (Vint i)  (Vptr b i0)  with
   | Some v' => v'
   | None => Vundef
   end.
 Proof.
-intros; unfold sem_cmp_pp; simpl.
-subst i. rewrite Int.eq_true.
-destruct ii,ss; simpl; try split; auto;
-rewrite <- Z.leb_le; reflexivity.
+  intros; destruct OP; subst; unfold sem_cmp_pp; simpl.
+  + rewrite Int.eq_true.
+    destruct ii,ss; simpl; try split; auto;
+    rewrite <- Z.leb_le; reflexivity.
+  + rewrite Int.eq_true.
+    destruct ii,ss; simpl; try split; auto;
+    rewrite <- Z.leb_le; reflexivity.
 Qed.
 
-Lemma sem_cmp_pp_ppx':
-  forall b i i0 ii ss aa,
+Lemma sem_cmp_pp_pi:
+  forall c b i i0 ii ss aa
+    (OP: c = Ceq \/ c = Cne),
   i = Int.zero ->
  tc_val (Tint ii ss aa)
-  match sem_cmp_pp Cne (Vint i)  (Vptr b i0)  with
+  match sem_cmp_pp c (Vptr b i0)  (Vint i)  with
   | Some v' => v'
   | None => Vundef
   end.
 Proof.
-intros; unfold sem_cmp_pp; simpl.
-subst i. rewrite Int.eq_true.
-destruct ii,ss; simpl; try split; auto;
-rewrite <- Z.leb_le; reflexivity.
+  intros; destruct OP; subst; unfold sem_cmp_pp; simpl.
+  + rewrite Int.eq_true.
+    destruct ii,ss; simpl; try split; auto;
+    rewrite <- Z.leb_le; reflexivity.
+  + rewrite Int.eq_true.
+    destruct ii,ss; simpl; try split; auto;
+    rewrite <- Z.leb_le; reflexivity.
 Qed.
-
+(*
 Lemma sem_cmp_pp_ppy:
   forall b i i0 ii ss aa,
   i = Int.zero ->
@@ -222,7 +258,7 @@ subst i. rewrite Int.eq_true.
 destruct ii,ss; simpl; try split; auto;
 rewrite <- Z.leb_le; reflexivity.
 Qed.
-
+*)
 Lemma eq_block_true: forall b1 b2 i1 i2 A (a b: A),
     is_true (sameblock (Vptr b1 i1) (Vptr b2 i2)) ->
     (if eq_block b1 b2 then a else b) = a.
@@ -782,8 +818,8 @@ Proof.
     ((denote_tc_assert
            match classify_cmp' (typeof e1) (typeof e2) with
            | cmp_case_pp => check_pp_int' e1 e2 op t (Ebinop op e1 e2 t)
-           | cmp_case_pl => check_pp_int' (Ecast e1 (Tint I32 Unsigned noattr)) e2 op t (Ebinop op e1 e2 t)
-           | cmp_case_lp => check_pp_int' (Ecast e2 (Tint I32 Unsigned noattr)) e1 op t (Ebinop op e1 e2 t)
+           | cmp_case_pl => check_pp_int' e1 (Ecast e2 (Tint I32 Unsigned noattr)) op t (Ebinop op e1 e2 t)
+           | cmp_case_lp => check_pp_int' (Ecast e1 (Tint I32 Unsigned noattr)) e2 op t (Ebinop op e1 e2 t)
            | cmp_default =>
                tc_bool (is_numeric_type (typeof e1) && is_numeric_type (typeof e2) && is_int_type t)
                  (arg_type (Ebinop op e1 e2 t))
@@ -837,17 +873,6 @@ forall op {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
    tc_val t
      (eval_binop op (typeof e1) (typeof e2) (eval_expr e1 rho) (eval_expr e2 rho)).
 Proof.
-  destruct op;
-  intros;
-  rewrite den_isBinOpR in IBR; simpl in IBR;
-  unfold binarithType in IBR;
-  solve_tc_val TV1; solve_tc_val TV2;
-  rewrite <- ?H, <- ?H1 in IBR.
-
-  simpl in IBR.
-  
-Print isBinOpResultType.
-Time (* reduced from 548.6 sec to 192 sec *)
 destruct op;
 (*try abstract ( *)
   intros;
@@ -869,7 +894,8 @@ destruct op;
  try contradiction IBR; try discriminate IBR;
  simpl; unfold Cop2.sem_div, Cop2.sem_mod,
  Cop2.sem_binarith, Cop2.sem_cast, Cop2.sem_shift,
- force_val, sem_shift_ii, both_int, both_long, both_float; simpl;
+ force_val, sem_shift_ii, both_int, both_long, both_float,
+ sem_cmp_lp, sem_cmp_pl, cast_out_long; simpl;
  repeat (let H := fresh in revert IBR; intros [IBR H];
                 try contradiction IBR;
                 try contradiction H;
@@ -881,19 +907,17 @@ destruct op;
                 try (simple apply tc_bool_e in H; try discriminate H));
     try simple apply eq_refl;
     try simple apply tc_val_of_bool;
-    try simple apply sem_cmp_pp_pp;
-    try simple apply sem_cmp_pp_pp';
-    try (simple apply sem_cmp_pp_ppx; assumption);
-    try (simple apply sem_cmp_pp_ppx'; assumption);
-    try (simple apply sem_cmp_pp_ppy; assumption);
-    try (simple apply sem_cmp_pp_ppy'; assumption);
+    try (simple apply sem_cmp_pp_pp; solve [auto]);
+    try (simple eapply sem_cmp_pp_pp'; solve [eauto]);
+    try (simple apply sem_cmp_pp_ip; solve [eauto]);
+    try (simple apply sem_cmp_pp_pi; solve [auto]);
     try (rewrite Int64_eq_repr_signed32_nonzero by assumption; reflexivity);
     try (rewrite Int64_eq_repr_unsigned32_nonzero by assumption; reflexivity);
     try (rewrite (denote_tc_igt_e m) by assumption; reflexivity);
     try (rewrite (denote_tc_iszero_long_e m) by assumption; reflexivity);
     try (unfold Cop2.sem_sub; simpl; erewrite eq_block_true by eauto; rewrite sizeof_range_true by auto; reflexivity
 ).
-Time Qed. (* 24.5 sec *)
+Time Qed. (* 61.5 sec *)
 
 
 

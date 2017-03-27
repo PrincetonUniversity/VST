@@ -114,7 +114,7 @@ Proof.
     eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
     rewrite data_at__memory_block. simpl. entailer!. 
   }
-  forward_call (Vptr b i, (((*M1*)info,(M2,p)):mdstate), 32, V0, kv, Vptr b (Int.add i (Int.repr 12))).
+  forward_call (Vptr b i, (((*M1*)info,(M2,p)):mdstate), 32, V0, kv, b, Int.add i (Int.repr 12)).
   { rewrite H, int_add_repr_0_r; simpl.
     apply prop_right; repeat split; trivial.
   }
@@ -188,7 +188,9 @@ Proof.
   Exists VALUE p. normalize.
   apply andp_right. apply prop_right. repeat split; trivial.
   cancel.
-Time Qed. (*Feb22nd, 2017: 116.921 secs (111.953u,0.015s) (successful)*)
+Time Qed.
+          (*Coq8.6: 18secs*)
+          (*Feb22nd, 2017: 116.921 secs (111.953u,0.015s) (successful)*)
           (*earlier: 26.657 secs (26.656u,0.s) (successful)*)
 
 Definition hmac_drbg_seed_buf_spec2 :=
@@ -289,7 +291,7 @@ Proof.
     eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
     rewrite data_at__memory_block. simpl. entailer!. 
   }
-  forward_call (Vptr b i, (((*M1*)info,(M2,p)):mdstate), 32, V0, kv, Vptr b (Int.add i (Int.repr 12))).
+  forward_call (Vptr b i, (((*M1*)info,(M2,p)):mdstate), 32, V0, kv, b, Int.add i (Int.repr 12)).
   { rewrite H, int_add_repr_0_r; simpl.
     apply prop_right; repeat split; trivial.
   }
@@ -363,5 +365,6 @@ Proof.
   Exists VALUE p. normalize.
   apply andp_right. apply prop_right. repeat split; trivial.
   cancel.
-Time Qed. (*Feb 22nd 2017: Finished transaction in 116.281 secs (105.203u,0.062s) (successful)
+Time Qed.  (*Coq8.6: 21secs*)
+           (*Feb 22nd 2017: Finished transaction in 116.281 secs (105.203u,0.062s) (successful)
             earlier: Finished transaction in 45.61 secs (21.031u,0.s) (successful)*)

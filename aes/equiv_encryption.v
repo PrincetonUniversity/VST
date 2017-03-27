@@ -1,4 +1,4 @@
-Require Import aes.aes_spec_ll.
+Require Import aes.spec_encryption_LL.
 Require Import aes.spec_AES256_HL.
 Require Import aes.tablesLL.
 Require Import aes.GF_ops_LL.
@@ -118,7 +118,7 @@ Lemma get_uint32_le_sublist: forall i l,
   0 <= i <= Zlength l - 4 ->
   get_uint32_le l i = get_uint32_le (sublist i (i+4) l) 0.
 Proof.
-  intros. rewrite get_uint32_le_def.
+  intros. unfold get_uint32_le.
   do 4 rewrite Znth_sublist by omega.
   replace (0 + i) with i by omega.
   replace (0 + 1 + i) with (i + 1) by omega.
@@ -130,7 +130,7 @@ Qed.
 Lemma get_uint32_le_word_to_int: forall b0 b1 b2 b3,
   get_uint32_le (map Int.unsigned [b0; b1; b2; b3]) 0 = word_to_int (b0, b1, b2, b3).
 Proof.
-  intros. rewrite get_uint32_le_def. unfold word_to_int.
+  intros. unfold get_uint32_le. unfold word_to_int.
   do 4 rewrite Znth_map with (d' := Int.zero) by (change (Zlength [b0; b1; b2; b3]) with 4; omega).
   do 4 rewrite Int.repr_unsigned.
   reflexivity.
@@ -162,8 +162,8 @@ Proof.
   destruct w3 as [[[?k0 ?k0] ?k0] ?k0].
 
   (* simpl LHS (low level) *)
-  rewrite mbed_tls_initial_add_round_key_def.
-  rewrite mbed_tls_initial_add_round_key_col_def.
+  unfold mbed_tls_initial_add_round_key.
+  unfold mbed_tls_initial_add_round_key_col.
   match goal with
   | |- context [ Znth 3 ?l ?d ] => let l' := (eval_list l) in change l with l'
   end.
@@ -321,7 +321,7 @@ Qed.
 Axiom byte_range_admit: forall b, 0 <= Int.unsigned b < 256.
 
 Lemma round_equiv: forall S K,
-  (AES_LL_Spec.mbed_tls_fround
+  (mbed_tls_fround
     (state_to_four_ints S)
     (map Int.unsigned (block_to_ints K))
     0
@@ -340,7 +340,7 @@ Proof.
   destruct w3 as [[[?k0 ?k0] ?k0] ?k0].
 
   (* unfold LHS (low level): *)
-  rewrite mbed_tls_fround_def. unfold state_to_four_ints.
+  unfold mbed_tls_fround. unfold state_to_four_ints.
   match goal with
   | |- context [ Znth (0 + 3) ?l ?d ] => let l' := (eval_list l) in change l with l'
   end.
@@ -360,7 +360,7 @@ Proof.
   | |- context [ Znth (0 + 3) (?e0 :: ?e1 :: ?e2 :: ?e3 :: ?rest) ?d ] =>
     change (Znth (0 + 3) (e0 :: e1 :: e2 :: e3 :: rest) d) with e3
   end.
-  rewrite mbed_tls_fround_col_def.
+  unfold mbed_tls_fround_col.
   unfold transpose.
   do 4 rewrite byte0_word_to_int.
   do 4 rewrite byte1_word_to_int.
@@ -412,7 +412,7 @@ Proof.
   destruct w3 as [[[?k0 ?k0] ?k0] ?k0].
 
   (* unfold LHS (low level): *)
-  rewrite mbed_tls_final_fround_def. unfold state_to_four_ints. 
+  unfold mbed_tls_final_fround. unfold state_to_four_ints. 
   match goal with
   | |- context [ Znth (0 + 3) ?l ?d ] => let l' := (eval_list l) in change l with l'
   end.
@@ -432,7 +432,7 @@ Proof.
   | |- context [ Znth (0 + 3) (?e0 :: ?e1 :: ?e2 :: ?e3 :: ?rest) ?d ] =>
     change (Znth (0 + 3) (e0 :: e1 :: e2 :: e3 :: rest) d) with e3
   end.
-  rewrite mbed_tls_final_fround_col_def.
+  unfold mbed_tls_final_fround_col.
   unfold transpose.
   do 4 rewrite byte0_word_to_int.
   do 4 rewrite byte1_word_to_int.
@@ -467,17 +467,17 @@ Lemma mbed_tls_initial_round_sublist: forall s ks,
   mbed_tls_initial_add_round_key s ks = mbed_tls_initial_add_round_key s (sublist 0 4 ks).
 Proof.
   intros.
-  rewrite mbed_tls_initial_add_round_key_def.
-  rewrite mbed_tls_initial_add_round_key_col_def.
+  unfold mbed_tls_initial_add_round_key.
+  unfold mbed_tls_initial_add_round_key_col.
   do 4 rewrite Znth_sublist by omega.
   reflexivity.
 Qed.
 
 Lemma mbed_tls_fround_sublist: forall i s ks,
   0 <= i <= Zlength ks - 4 ->
-  AES_LL_Spec.mbed_tls_fround s ks i = AES_LL_Spec.mbed_tls_fround s (sublist i (i+4) ks) 0.
+  mbed_tls_fround s ks i = mbed_tls_fround s (sublist i (i+4) ks) 0.
 Proof.
-  intros. rewrite mbed_tls_fround_def.
+  intros. unfold mbed_tls_fround.
   do 4 rewrite Znth_sublist by omega.
   replace (0 + i) with i by omega.
   replace (0 + 1 + i) with (i + 1) by omega.
@@ -490,7 +490,7 @@ Lemma mbed_tls_final_fround_sublist: forall i s ks,
   0 <= i <= Zlength ks - 4 ->
   mbed_tls_final_fround s ks i = mbed_tls_final_fround s (sublist i (i+4) ks) 0.
 Proof.
-  intros. rewrite mbed_tls_final_fround_def.
+  intros. unfold mbed_tls_final_fround.
   do 4 rewrite Znth_sublist by omega.
   replace (0 + i) with i by omega.
   replace (0 + 1 + i) with (i + 1) by omega.
@@ -507,7 +507,7 @@ Lemma HL_equiv_LL_encryption: forall exp_key plaintext,
   ) = output_four_ints_as_bytes (state_to_four_ints (Cipher exp_key plaintext)).
 Proof.
   intros.
-  rewrite mbed_tls_aes_enc_def. cbv zeta. f_equal.
+  unfold mbed_tls_aes_enc. cbv zeta. f_equal.
   do 15 (destruct exp_key as [ | [[[?k0 ?k0] ?k0] ?k0] exp_key]; [ inversion H | ]).
   assert (exp_key = nil). {
     destruct exp_key; [ reflexivity | ].
@@ -522,7 +522,7 @@ Proof.
     let r := eval_list (l1 ++ l2) in change (l1 ++ l2) with r
   end.
   rewrite mbed_tls_final_fround_sublist by (simpl; omega).
-  rewrite mbed_tls_enc_rounds_def.
+  unfold mbed_tls_enc_rounds.
   simpl (4 + 4 * Z.of_nat _).
   rewrite (mbed_tls_fround_sublist 4) by (simpl; omega).
   rewrite (mbed_tls_fround_sublist 8) by (simpl; omega).
