@@ -341,7 +341,7 @@ Variable CS: compspecs.
 Variables Delta Delta': tycontext.
 Hypothesis extends: tycontext_sub Delta Delta'.
 
-Lemma denote_tc_assert_tc_bool_sub: forall b b' err rho phi,
+Lemma tc_bool_e_sub: forall b b' err rho phi,
   (b = true -> b' = true) ->
   denote_tc_assert (tc_bool b err) rho phi ->
   denote_tc_assert (tc_bool b' err) rho phi.
@@ -353,7 +353,7 @@ Proof.
   + inversion H0.
 Qed.
 
-Lemma denote_tc_assert_tc_bool_i:
+Lemma tc_bool_e_i:
   forall b c rho phi,
    b = true ->
   app_pred (denote_tc_assert (tc_bool b c) rho) phi.
@@ -462,10 +462,10 @@ destruct ((temp_types Delta')! id) as [[? ?]|]; try contradiction.
 destruct H; subst.
 rewrite !denote_tc_assert_andp in H0 |- *.
 split.
-+ eapply denote_tc_assert_tc_bool_sub; [| exact (proj1 H0)].
++ eapply tc_bool_e_sub; [| exact (proj1 H0)].
   exact (fun x => x).
 + destruct H0 as [? _].
-  apply denote_tc_assert_tc_bool in H.
+  apply tc_bool_e in H.
   eapply neutral_isCastResultType.
   exact H.
 Qed.

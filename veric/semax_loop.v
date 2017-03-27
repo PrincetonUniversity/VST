@@ -192,9 +192,9 @@ clear - TS TC H TC2 TC2' TC2'a TCS Hphi.
  destruct (eval_expr b rho) eqn:H15;
  simpl; destruct (typeof b) as [ | [| | | ] [| ]| | [ | ] |  | | | | ];
     intuition; simpl in *; try rewrite TCS; eauto;
- rewrite binop_lemmas2.denote_tc_assert_comparable' in  TC2';
+ rewrite binop_lemmas2.denote_tc_assert_test_eq' in  TC2';
  simpl in TC2'; unfold_lift in TC2'; rewrite H15 in TC2';
- subst; rewrite comparable1; eauto.
+ subst; rewrite tc_test_eq0; eauto.
 } clear TCS.
 (* typechecking proof *)
 destruct H9 as [b' ?].
@@ -232,9 +232,9 @@ unfold typed_true, strict_bool_val.
 destruct (eval_expr b rho) eqn:H16,
  (typeof b) as [ | [| | | ] [| ]| | [ | ] |  | | | | ];
  simpl in *; inv H9; auto;
- rewrite binop_lemmas2.denote_tc_assert_comparable' in  TC2;
+ rewrite binop_lemmas2.denote_tc_assert_test_eq' in  TC2;
  simpl in TC2; unfold_lift in TC2;
- unfold denote_tc_comparable in TC2;
+ unfold denote_tc_test_eq in TC2;
  rewrite H16 in TC2; destruct TC2 as [TC2 _]; simpl in TC2;
  subst; rewrite Int.eq_true; reflexivity.
 eapply H1; auto.
@@ -253,9 +253,9 @@ destruct (eval_expr b rho) eqn:H16,
  (typeof b) as [ | [| | | ] [| ]| | [ | ] |  | | | | ];
  simpl in *; inv H9; auto;
  try (rewrite negb_false_iff in H0; rewrite H0); auto.
- rewrite binop_lemmas2.denote_tc_assert_comparable' in  TC2;
+ rewrite binop_lemmas2.denote_tc_assert_test_eq' in  TC2;
  simpl in TC2; unfold_lift in TC2;
- unfold denote_tc_comparable in TC2;
+ unfold denote_tc_test_eq in TC2;
  rewrite H16 in TC2; destruct TC2 as [TC2 _]; simpl in TC2.
  unfold Cop.bool_val in H0; simpl in H0; if_tac in H0; inv H0.
  unfold Cop.bool_val in H0; simpl in H0; if_tac in H0; inv H0.

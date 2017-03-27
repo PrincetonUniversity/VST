@@ -13,13 +13,6 @@ Require Import veric.juicy_mem.
 Import Cop.
 Import Cop2.
 
-Lemma denote_tc_assert_tc_bool: forall {CS: compspecs} b rho m err,
-  denote_tc_assert (tc_bool b err) rho m -> b = true.
-Proof.
-  intros.
-  destruct b; auto.
-Qed.
-
 (** Main soundness result for the typechecker **)
 
 Lemma typecheck_both_sound:
@@ -111,8 +104,8 @@ eapply typecheck_lvalue_sound_Efield; eauto.
 simpl in H0.
 repeat rewrite denote_tc_assert_andp in H0.
 destruct H0.
-apply denote_tc_assert_tc_bool in H0.
-apply denote_tc_assert_tc_bool in H1.
+apply tc_bool_e in H0.
+apply tc_bool_e in H1.
 rewrite eqb_type_spec in H1.
 subst.
 reflexivity.
@@ -120,8 +113,8 @@ reflexivity.
 simpl in H0.
 repeat rewrite denote_tc_assert_andp in H0.
 destruct H0.
-apply denote_tc_assert_tc_bool in H0.
-apply denote_tc_assert_tc_bool in H1.
+apply tc_bool_e in H0.
+apply tc_bool_e in H1.
 rewrite eqb_type_spec in H1.
 subst.
 reflexivity.
@@ -289,7 +282,7 @@ Qed.
 
 Lemma test_order_relate:
   forall v1 v2 op m
-    (OP: op = Cle \/ op = Clt \/ op = Cle \/ op = Clt),
+    (OP: op = Cle \/ op = Clt \/ op = Cge \/ op = Cgt),
      (denote_tc_test_order v1 v2) (m_phi m) ->
      option_map Val.of_bool
      (Val.cmpu_bool (Mem.valid_pointer (m_dry m)) op v1 v2) =
@@ -323,110 +316,173 @@ Cop.sem_binary_operation cenv_cs b (eval_expr e1 rho) (typeof e1) (eval_expr e2 
   (typeof e2) (m_dry m) =
 sem_binary_operation' b (typeof e1) (typeof e2) (eval_expr e1 rho) (eval_expr e2 rho).
 Proof.
-intros.
-apply typecheck_expr_sound in TC1; [| auto].
-apply typecheck_expr_sound in TC2; [| auto].
-unfold Cop.sem_binary_operation.
-unfold sem_binary_operation'.
-destruct b; auto;
-try solve [apply bin_arith_relate];
-match goal with
-    |- ?A = ?B => let opL := fresh in set (opL:=A);
-                         let opR := fresh in set (opR:=B);
-                         hnf in opL; hnf in opR; subst opL opR
-end; rewrite ?bin_arith_relate.
-*
-destruct (classify_add (typeof e1) (typeof e2)); reflexivity.
-*
- destruct (classify_sub (typeof e1) (typeof e2)); reflexivity.
-* destruct (classify_shift (typeof e1)(typeof e2)); try reflexivity; apply bin_arith_relate.
-* destruct (classify_shift (typeof e1)(typeof e2)); try reflexivity; apply bin_arith_relate.
-* unfold isBinOpResultType in H;
+  intros.
+  apply typecheck_expr_sound in TC1; [| auto].
+  apply typecheck_expr_sound in TC2; [| auto].
+  unfold Cop.sem_binary_operation.
+  unfold sem_binary_operation'.
+  destruct b; auto;
+  try solve [apply bin_arith_relate];
+  match goal with
+  |- ?A = ?B => let opL := fresh in set (opL:=A);
+                let opR := fresh in set (opR:=B);
+                hnf in opL; hnf in opR; subst opL opR
+  end;
+  rewrite ?bin_arith_relate.
+  * destruct (classify_add (typeof e1) (typeof e2)); reflexivity.
+  * destruct (classify_sub (typeof e1) (typeof e2)); reflexivity.
+  * destruct (classify_shift (typeof e1)(typeof e2)); try reflexivity; apply bin_arith_relate.
+  * destruct (classify_shift (typeof e1)(typeof e2)); try reflexivity; apply bin_arith_relate.
+  * unfold isBinOpResultType in H;
     destruct (classify_cmp (typeof e1) (typeof e2)) eqn:HH;
-     try destruct i; try destruct s; auto; try contradiction;
-     simpl in H;
-     try (rewrite denote_tc_assert_andp in H; destruct H);
-     try apply bin_arith_relate.
-  +
-     rewrite denote_tc_assert_comparable' in H.
-     clear t H0.
-     simpl in H. unfold_lift in H.
-      apply comparable_relate; auto.
-  +
-     rewrite denote_tc_assert_comparable' in H.
-     simpl in H. unfold_lift in H.
-   destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-     destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-try solve [rewrite classify_cmp_eq in HH; inv HH];
-     destruct (eval_expr e1 rho), (eval_expr e2 rho);
-   simpl in H;       try contradiction; try reflexivity;
-   unfold sem_cmp_pl; apply comparable_relate; auto.
-  +  rewrite denote_tc_assert_comparable' in H.
-     simpl in H. unfold_lift in H.
-   destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-     destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-try solve [rewrite classify_cmp_eq in HH; inv HH];
-     destruct (eval_expr e1 rho), (eval_expr e2 rho);
-   simpl in H;       try contradiction; try reflexivity;
-   unfold sem_cmp_pl; apply comparable_relate; auto.
-     *  unfold isBinOpResultType, check_pp_int in H.
-        destruct (classify_cmp (typeof e1) (typeof e2)) eqn:HH;
-        try destruct i; try destruct s; auto; try contradiction;
-     try (rewrite denote_tc_assert_andp in H; destruct H);
-     try apply bin_arith_relate.
-  + rewrite denote_tc_assert_comparable' in H.
-    simpl in H.
-    apply comparable_relate; auto.
-  + rewrite denote_tc_assert_comparable' in H.
-     simpl in H. unfold_lift in H.
-   destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-     destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-try solve [rewrite classify_cmp_eq in HH; inv HH];
-     destruct (eval_expr e1 rho), (eval_expr e2 rho);
-   simpl in H;       try contradiction; try reflexivity;
-   unfold sem_cmp_pl; apply comparable_relate; auto.
-  + rewrite denote_tc_assert_comparable' in H.
-     simpl in H. unfold_lift in H.
-   destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-     destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-try solve [rewrite classify_cmp_eq in HH; inv HH];
-     destruct (eval_expr e1 rho), (eval_expr e2 rho);
-   simpl in H;       try contradiction; try reflexivity;
-   unfold sem_cmp_pl; apply comparable_relate; auto.
-     *  unfold isBinOpResultType, check_pp_int in H.
-        destruct (classify_cmp (typeof e1) (typeof e2)) eqn:HH;
-        try destruct i; try destruct s; auto; try contradiction;
-     try (rewrite denote_tc_assert_andp in H; destruct H);
-     try apply bin_arith_relate.
-  + apply comparable_relate; auto.
-  + rewrite denote_tc_assert_comparable' in H.
-     simpl in H. unfold_lift in H.
-   destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-     destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-try solve [rewrite classify_cmp_eq in HH; inv HH];
-     destruct (eval_expr e1 rho), (eval_expr e2 rho);
-   simpl in H;       try contradiction; try reflexivity;
-   unfold sem_cmp_pl; apply comparable_relate; auto.
-  + rewrite denote_tc_assert_comparable' in H.
-     simpl in H. unfold_lift in H.
-   destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-     destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-try solve [rewrite classify_cmp_eq in HH; inv HH];
-     destruct (eval_expr e1 rho), (eval_expr e2 rho);
-   simpl in H;       try contradiction; try reflexivity;
-   unfold sem_cmp_pl; apply comparable_relate; auto.
-
-    * unfold isBinOpResultType in H; destruct (classify_cmp (typeof e1) (typeof e2));
-     try destruct i; try destruct s; auto; try contradiction; simpl in H;
-     try rewrite denote_tc_assert_andp in *; super_unfold_lift.
-* unfold isBinOpResultType in H; destruct (classify_cmp (typeof e1) (typeof e2));
-     try destruct i; try destruct s; auto; try contradiction; simpl in H;
-     try rewrite denote_tc_assert_andp in *; super_unfold_lift.
-* unfold isBinOpResultType in H; destruct (classify_cmp (typeof e1) (typeof e2));
-     try destruct i; try destruct s; auto; try contradiction; simpl in H;
-     try rewrite denote_tc_assert_andp in *; super_unfold_lift.
+    try destruct i; try destruct s; auto; try contradiction;
+    simpl in H;
+    try (rewrite denote_tc_assert_andp in H; destruct H);
+    try apply bin_arith_relate.
+    + rewrite denote_tc_assert_test_eq' in H.
+      clear t H0.
+      simpl in H. unfold_lift in H.
+      apply test_eq_relate; auto.
+    + rewrite denote_tc_assert_test_eq' in H.
+      simpl in H. unfold_lift in H.
+      destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      try solve [rewrite classify_cmp_eq in HH; inv HH];
+      destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      simpl in H;
+      try contradiction; try reflexivity;
+      unfold sem_cmp_pl; apply test_eq_relate; auto.
+    + rewrite denote_tc_assert_test_eq' in H.
+      simpl in H. unfold_lift in H.
+      destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      try solve [rewrite classify_cmp_eq in HH; inv HH];
+      destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      simpl in H;
+      try contradiction; try reflexivity;
+      unfold sem_cmp_pl; apply test_eq_relate; auto.
+  * unfold isBinOpResultType in H;
+    destruct (classify_cmp (typeof e1) (typeof e2)) eqn:HH;
+    try destruct i; try destruct s; auto; try contradiction;
+    simpl in H;
+    try (rewrite denote_tc_assert_andp in H; destruct H);
+    try apply bin_arith_relate.
+    + rewrite denote_tc_assert_test_eq' in H.
+      clear t H0.
+      simpl in H. unfold_lift in H.
+      apply test_eq_relate; auto.
+    + rewrite denote_tc_assert_test_eq' in H.
+      simpl in H. unfold_lift in H.
+      destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      try solve [rewrite classify_cmp_eq in HH; inv HH];
+      destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      simpl in H;
+      try contradiction; try reflexivity;
+      unfold sem_cmp_pl; apply test_eq_relate; auto.
+    + rewrite denote_tc_assert_test_eq' in H.
+      simpl in H. unfold_lift in H.
+      destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      try solve [rewrite classify_cmp_eq in HH; inv HH];
+      destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      simpl in H;
+      try contradiction; try reflexivity;
+      unfold sem_cmp_pl; apply test_eq_relate; auto.
+  * unfold isBinOpResultType, check_pp_int in H.
+    destruct (classify_cmp (typeof e1) (typeof e2)) eqn:HH;
+    try destruct i; try destruct s; auto; try contradiction;
+    try (rewrite denote_tc_assert_andp in H; destruct H);
+    try apply bin_arith_relate.
+    + rewrite denote_tc_assert_test_order' in H.
+      apply test_order_relate; auto.
+    + rewrite denote_tc_assert_test_order' in H.
+      simpl in H. unfold_lift in H.
+      destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      try solve [rewrite classify_cmp_eq in HH; inv HH];
+      destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      simpl in H;
+      try contradiction; try reflexivity.
+    + rewrite denote_tc_assert_test_order' in H.
+      simpl in H. unfold_lift in H.
+      destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      try solve [rewrite classify_cmp_eq in HH; inv HH];
+      destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      simpl in H;
+      try contradiction; try reflexivity.
+  * unfold isBinOpResultType, check_pp_int in H.
+    destruct (classify_cmp (typeof e1) (typeof e2)) eqn:HH;
+    try destruct i; try destruct s; auto; try contradiction;
+    try (rewrite denote_tc_assert_andp in H; destruct H);
+    try apply bin_arith_relate.
+    + rewrite denote_tc_assert_test_order' in H.
+      apply test_order_relate; auto.
+    + rewrite denote_tc_assert_test_order' in H.
+      simpl in H. unfold_lift in H.
+      destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      try solve [rewrite classify_cmp_eq in HH; inv HH];
+      destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      simpl in H;
+      try contradiction; try reflexivity.
+    + rewrite denote_tc_assert_test_order' in H.
+      simpl in H. unfold_lift in H.
+      destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      try solve [rewrite classify_cmp_eq in HH; inv HH];
+      destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      simpl in H;
+      try contradiction; try reflexivity.
+  * unfold isBinOpResultType, check_pp_int in H.
+    destruct (classify_cmp (typeof e1) (typeof e2)) eqn:HH;
+    try destruct i; try destruct s; auto; try contradiction;
+    try (rewrite denote_tc_assert_andp in H; destruct H);
+    try apply bin_arith_relate.
+    + rewrite denote_tc_assert_test_order' in H.
+      apply test_order_relate; auto.
+    + rewrite denote_tc_assert_test_order' in H.
+      simpl in H. unfold_lift in H.
+      destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      try solve [rewrite classify_cmp_eq in HH; inv HH];
+      destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      simpl in H;
+      try contradiction; try reflexivity.
+    + rewrite denote_tc_assert_test_order' in H.
+      simpl in H. unfold_lift in H.
+      destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      try solve [rewrite classify_cmp_eq in HH; inv HH];
+      destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      simpl in H;
+      try contradiction; try reflexivity.
+  * unfold isBinOpResultType, check_pp_int in H.
+    destruct (classify_cmp (typeof e1) (typeof e2)) eqn:HH;
+    try destruct i; try destruct s; auto; try contradiction;
+    try (rewrite denote_tc_assert_andp in H; destruct H);
+    try apply bin_arith_relate.
+    + rewrite denote_tc_assert_test_order' in H.
+      apply test_order_relate; auto.
+    + rewrite denote_tc_assert_test_order' in H.
+      simpl in H. unfold_lift in H.
+      destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      try solve [rewrite classify_cmp_eq in HH; inv HH];
+      destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      simpl in H;
+      try contradiction; try reflexivity.
+    + rewrite denote_tc_assert_test_order' in H.
+      simpl in H. unfold_lift in H.
+      destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      try solve [rewrite classify_cmp_eq in HH; inv HH];
+      destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      simpl in H;
+      try contradiction; try reflexivity.
 Qed.
-*)
+
 Definition some_pt_type := Tpointer Tvoid noattr.
 
 Lemma typecheck_force_Some : forall ov t, typecheck_val (force_val ov) t = true
@@ -483,9 +539,9 @@ Qed.
 Opaque tc_andp.
 (** Equivalence of CompCert eval_expr and our function eval_expr on programs that typecheck **)
 
-Lemma comparable1:
+Lemma tc_test_eq0:
   forall b i m,
-  (denote_tc_comparable (Vptr b i) (Vint Int.zero)) (m_phi m) ->
+  (denote_tc_test_eq (Vptr b i) (Vint Int.zero)) (m_phi m) ->
   Mem.weak_valid_pointer (m_dry m) b (Int.unsigned i) = true.
 Proof.
 intros.
@@ -497,7 +553,7 @@ Qed.
 Lemma cop2_sem_cast :
     forall t1 t2 v m,
  (classify_cast t1 t2 = cast_case_p2bool ->
-   denote_tc_comparable v (Vint Int.zero) (m_phi m) )->
+   denote_tc_test_eq v (Vint Int.zero) (m_phi m) )->
  Cop.sem_cast v t1 t2 (m_dry m) = sem_cast t1 t2 v.
 intros.
  unfold Cop.sem_cast, sem_cast.
@@ -519,7 +575,7 @@ Proof.
 intros.
 apply cop2_sem_cast.
 intro.
-rewrite isCastR,H0,denote_tc_assert_andp, denote_tc_assert_comparable' in H.
+rewrite isCastR,H0,denote_tc_assert_andp, denote_tc_assert_test_eq' in H.
 apply H.
 Qed.
 
@@ -534,12 +590,12 @@ Proof.
   + destruct (classify_add (typeof e1) (typeof e2));
     try rewrite !denote_tc_assert_andp in H;
     try destruct H as [[_ ?] _];
-    try solve [eapply denote_tc_assert_tc_bool; eauto].
+    try solve [eapply tc_bool_e; eauto].
     auto.
   + destruct (classify_sub (typeof e1) (typeof e2));
     try rewrite !denote_tc_assert_andp in H;
     try destruct H as [[_ ?] _];
-    try solve [eapply denote_tc_assert_tc_bool; eauto].
+    try solve [eapply tc_bool_e; eauto].
     auto.
 Qed.
 
@@ -701,12 +757,12 @@ destruct u; auto;
   destruct (eval_expr e rho) eqn:?;
   try contradiction; try reflexivity;
  unfold Cop.sem_notbool; simpl;
- unfold tc_comparable in H6; simpl in H6;
+ unfold tc_test_eq in H6; simpl in H6;
  destruct (eval_expr e any_environ) eqn:?;
  simpl in H6; unfold_lift in H6;
   try solve [apply (eval_expr_any rho) in Heqv0; congruence];
   rewrite Heqv in H6;
-  try (rewrite comparable1; auto).
+  try (rewrite tc_test_eq0; auto).
 * (*binop*)
 simpl in *.
 clear H4 H2. rename H3 into H7.
@@ -806,8 +862,8 @@ rewrite Hcenv; eassumption.
 simpl in H1.
 repeat rewrite denote_tc_assert_andp in H1.
 destruct H1.
-apply denote_tc_assert_tc_bool in H1.
-apply denote_tc_assert_tc_bool in H2.
+apply tc_bool_e in H1.
+apply tc_bool_e in H2.
 rewrite eqb_type_spec in H2.
 subst.
 unfold eval_expr.
@@ -818,8 +874,8 @@ constructor.
 simpl in H1.
 repeat rewrite denote_tc_assert_andp in H1.
 destruct H1.
-apply denote_tc_assert_tc_bool in H1.
-apply denote_tc_assert_tc_bool in H2.
+apply tc_bool_e in H1.
+apply tc_bool_e in H2.
 unfold eval_expr.
 unfold_lift; simpl.
 unfold alignof; rewrite <- Hcenv.
