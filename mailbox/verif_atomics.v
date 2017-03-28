@@ -816,6 +816,11 @@ Qed.
 (* Now, we can specialize these to the history PCM. *)
 Inductive hist_el := Load (v : val) | Store (v : val) | CAS (r : val) (c : val) (w : val).
 
+Instance EqDec_hist_el : EqDec hist_el.
+Proof.
+  unfold EqDec; decide equality; apply EqDec_val.
+Qed.
+
 Fixpoint apply_hist a h :=
   match h with
   | [] => Some a
@@ -836,7 +841,30 @@ Proof.
     destruct (eq_dec c i); auto.
 Qed.
 
-(*Definition ghost_hist (h : hist) p := ghost (h, @None (list hist_el)) p.*)
+Definition writes e v :=
+  match e with
+  | Load _ => False
+  | Store v' => v' = v
+  | CAS r c v' => r = c /\ v' = v
+  end.
+
+Lemma change_implies_write : forall v h i, apply_hist i h = Some v -> v <> i ->
+  exists e, In e h /\ writes e v.
+Proof.
+  induction h; simpl; intros.
+  - inv H; contradiction.
+  - destruct a.
+    + destruct (eq_dec v0 i); [|discriminate].
+      exploit IHh; eauto; intros (? & ? & ?); eauto.
+    + destruct (eq_dec v v0).
+      * subst; do 2 eexists; eauto; simpl; auto.
+      * exploit IHh; eauto; intros (? & ? & ?); eauto.
+    + destruct (eq_dec r i); [|discriminate].
+      destruct (eq_dec c i).
+      * destruct (eq_dec v w); [subst; do 2 eexists; eauto; simpl; auto|].
+        exploit IHh; eauto; intros (? & ? & ?); eauto.
+      * exploit IHh; eauto; intros (? & ? & ?); eauto.
+Qed.
 
 Definition value_of e :=
   match e with
@@ -844,6 +872,17 @@ Definition value_of e :=
   | Store v => v
   | CAS r c w => if eq_dec r c then w else r
   end.
+
+Lemma apply_one_value : forall i a v, apply_hist i [a] = Some v -> value_of a = v.
+Proof.
+  destruct a; simpl; intros.
+  - destruct (eq_dec v i); inv H; auto.
+  - inv H; auto.
+  - destruct (eq_dec r i); [|discriminate].
+    destruct (eq_dec c i); inv H.
+    + rewrite eq_dec_refl; auto.
+    + destruct (eq_dec v c); auto; contradiction n; auto.
+Qed.
 
 Definition last_value (h : hist) v :=
   (* initial condition *)
@@ -889,6 +928,130 @@ Proof.
       * subst; rewrite Hlast in Hi; inv Hi; auto.
       * exploit (Hordered i (Zlength (p :: h) - 1)); try omega.
         rewrite Hlast, Hi; simpl; omega.
+Qed.
+
+Lemma hist_list_value : forall h l v (Horder : ordered_hist h) (Hl : hist_list h l)
+  (Hv : apply_hist (vint 0) l = Some v), value_of_hist h = v.
+Proof.
+  intros.
+  destruct (eq_dec (Zlength l) 0).
+  { apply Zlength_nil_inv in e; subst; inv Hv.
+    destruct h as [|(t, e)]; auto.
+    specialize (Hl t e); rewrite nth_error_nil in Hl; simpl in Hl.
+    destruct Hl as (Hl & _); exploit Hl; [auto | discriminate]. }
+  assert (l <> []) by (intro; subst; contradiction).
+  pose proof (Hl (length l - 1)%nat (last l (Store (vint 0)))) as Hlast.
+  assert (length l > 0)%nat by (destruct l; [contradiction | simpl; omega]).
+  erewrite nth_error_nth, nth_last in Hlast by omega.
+  destruct Hlast as (_ & Hlast); exploit Hlast; eauto.
+  intro Hin; unfold value_of_hist.
+  rewrite app_removelast_last with (l := l)(d := Store (vint 0)), apply_hist_app in Hv by auto.
+  destruct (apply_hist (vint 0) (removelast l)) eqn: Hh; [|discriminate].
+  apply apply_one_value in Hv.
+  pose proof (ordered_hist_length _ _ _ Horder Hl).
+  erewrite <- Znth_last, ordered_hist_list; eauto; simpl.
+  erewrite ordered_hist_length, Znth_last; eauto.
+  { pose proof (Zlength_nonneg h); omega. }
+Qed.
+
+Definition full_hist h v := exists l, hist_list h l /\ apply_hist (vint 0) l = Some (vint v).
+
+Definition full_hist' h v := exists l, hist_list' h l /\ apply_hist (vint 0) l = Some v.
+
+Lemma full_hist_weak : forall h v (Hl : full_hist h v) (HNoDup : NoDup (map fst h)), full_hist' h (vint v).
+Proof.
+  intros ?? (l & ? & ?) ?; exists l; split; auto.
+  apply hist_list_weak; auto.
+Qed.
+
+Lemma full_hist'_drop : forall h h' v (Hh : full_hist' h v)
+  (Hh' : incl h' h) (HNoDup : NoDup (map fst h'))
+  (Hdiff : forall t e, In (t, e) h -> ~In (t, e) h' -> forall v, ~writes e v),
+  full_hist' h' v.
+Proof.
+  intros ??? (l & Hl & Hv) ?.
+  revert dependent h'; revert dependent v; revert dependent h; induction l using rev_ind; intros.
+  - inv Hl; simpl in *.
+    destruct h'.
+    exists []; auto.
+    { specialize (Hh' p); simpl in Hh'; contradiction Hh'; auto. }
+    { exploit app_cons_not_nil; [symmetry; eauto | contradiction]. }
+  - pose proof (hist_list_NoDup _ _ Hl) as Hh.
+    inv Hl.
+    { exploit app_cons_not_nil; [symmetry; eauto | contradiction]. }
+    apply app_inj_tail in H1; destruct H1; subst.
+    rewrite map_app in Hh; simpl in Hh; apply NoDup_remove in Hh; rewrite <- map_app in Hh.
+    rewrite apply_hist_app in Hv.
+    destruct (apply_hist (vint 0) l) eqn: Hl; [|discriminate].
+    destruct (in_dec (EqDec_prod _ _ _ _) (t, x) h').
+    + exploit in_split; eauto; intros (h1' & h2' & ?); subst.
+      rewrite map_app in HNoDup; simpl in HNoDup; apply NoDup_remove in HNoDup; rewrite <- map_app in HNoDup.
+      assert (incl (h1' ++ h2') (h1 ++ h2)).
+      { intros (t', e') Hin.
+        specialize (Hh' (t', e')); exploit Hh'.
+        { rewrite in_app in *; simpl; tauto. }
+        rewrite !in_app; intros [? | [Heq | ?]]; auto; inv Heq.
+        destruct HNoDup as (? & HNoDup); contradiction HNoDup.
+        rewrite in_map_iff; do 2 eexists; eauto; auto. }
+      exploit IHl; eauto.
+      { tauto. }
+      { intros t' e' ? Hin2 ??.
+        eapply (Hdiff t' e'); eauto.
+        { rewrite in_app in *; simpl; tauto. }
+        { intro Hin; contradiction Hin2.
+          rewrite in_app in *; destruct Hin as [? | [Heq | ?]]; auto; inv Heq.
+          destruct Hh as (_ & Hh); contradiction Hh.
+          rewrite in_map_iff; do 2 eexists; [|rewrite in_app; eauto]; auto. } }
+      intros (l' & ? & Hl').
+      exists (l' ++ [x]); split; [|rewrite apply_hist_app, Hl'; auto].
+      econstructor; eauto.
+      eapply Forall_incl; eauto.
+    + eapply IHl; eauto.
+      * specialize (Hdiff t x).
+        rewrite in_app in Hdiff; simpl in Hdiff.
+        specialize (Hdiff (or_intror (or_introl eq_refl)) n).
+        destruct x; simpl in *.
+        { destruct (eq_dec v1 v0); inv Hv; auto. }
+        { specialize (Hdiff _ eq_refl); contradiction. }
+        { destruct (eq_dec r v0); [|discriminate].
+          destruct (eq_dec c v0); inv Hv; auto.
+          exploit Hdiff; eauto; contradiction. }
+      * intros ? Hin; specialize (Hh' _ Hin).
+        rewrite in_app in *; destruct Hh' as [? | [? | ?]]; auto; subst; contradiction.
+      * intros t' e' ????; eapply (Hdiff t' e'); eauto.
+        rewrite in_app in *; simpl; tauto.
+Qed.
+
+Lemma full_hist'_nil : forall n l, Forall2 full_hist' (repeat [] n) l -> l = repeat (vint 0) n.
+Proof.
+  intros.
+  assert (Zlength l = Z.of_nat n).
+  { rewrite <- (mem_lemmas.Forall2_Zlength H), Zlength_repeat; auto. }
+  intros; eapply list_Znth_eq'.
+  { rewrite Zlength_repeat; auto. }
+  intros; rewrite Znth_repeat.
+  eapply Forall2_Znth with (i := j)(d2 := vint 0) in H; [|rewrite Zlength_repeat; omega].
+  destruct H as (? & Hl & Hv).
+  rewrite Znth_repeat in Hl; inv Hl; inv Hv; auto.
+  apply app_cons_not_nil in He; contradiction.
+Qed.
+
+Corollary full_hist_nil' : forall n l (Hfull : Forall2 full_hist' (repeat [] n) (map (fun x => vint x) l))
+  (Hrep : Forall repable_signed l), l = repeat 0 n.
+Proof.
+  intros; apply full_hist'_nil in Hfull.
+  revert dependent l; induction n; destruct l; auto; try discriminate; simpl; intros.
+  inv Hrep; f_equal; [|apply IHn; inv Hfull; auto].
+  apply repr_inj_signed; auto; congruence.
+Qed.
+
+Corollary full_hist_nil : forall n l (Hfull : Forall2 full_hist (repeat [] n) l)
+  (Hrep : Forall repable_signed l), l = repeat 0 n.
+Proof.
+  intros; apply full_hist_nil'; auto.
+  eapply Forall2_map2, Forall2_impl', Hfull.
+  intros ?? Hin ??; apply full_hist_weak; auto.
+  apply repeat_spec in Hin; subst; constructor.
 Qed.
 
 Definition int_op e :=
