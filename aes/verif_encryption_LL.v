@@ -1,5 +1,6 @@
 Require Import aes.verif_utils.
 Require Import aes.spec_encryption_LL.
+Require Import aes.bitfiddling.
 
 Definition encryption_spec_ll :=
   DECLARE _mbedtls_aes_encrypt
@@ -36,9 +37,6 @@ Definition encryption_spec_ll :=
                  (map Vint (mbed_tls_aes_enc plaintext (exp_key ++ (list_repeat (8%nat) 0)))) output;
          tables_initialized tables).
 
-(* QQQ: How to know that if x is stored in a var of type tuchar, 0 <= x < 256 ? *)
-(* QQQ: Declare vars of type Z or of type int in API spec ? *)
-
 Definition Gprog : funspecs := ltac:(with_library prog [ encryption_spec_ll ]).
 
 Ltac simpl_Int := repeat match goal with
@@ -49,18 +47,6 @@ Ltac simpl_Int := repeat match goal with
     let x := fresh "x" in (pose (x := (A + B)%Z)); simpl in x;
     replace (Int.add (Int.repr A) (Int.repr B)) with (Int.repr x); subst x; [|reflexivity]
 end.
-
-Lemma masked_byte_range: forall i,
-  0 <= Z.land i 255 < 256.
-Admitted.
-
-Lemma FSb_range: forall i,
-  Int.unsigned (Znth i FSb Int.zero) <= Byte.max_unsigned.
-Admitted.
-
-Lemma zero_ext_mask: forall i,
-  Int.zero_ext 8 i = Int.and i (Int.repr 255).
-Admitted.
 
 (* This is to make sure do_compute_expr (invoked by load_tac and others), which calls hnf on the
    expression it's computing, does not unfold field_address.
@@ -79,6 +65,7 @@ Arguments Nat.sub _ _ : simpl never.
 
 Lemma body_aes_encrypt: semax_body Vprog Gprog f_mbedtls_aes_encrypt encryption_spec_ll.
 Proof.
+  idtac "Starting body_aes_encrypt".
   start_function.
   reassoc_seq.
 
@@ -392,7 +379,9 @@ Proof.
   clear EqY0 EqY1 EqY2 EqY3.
 
   (* last AES round: special (uses S-box instead of forwarding tables) *)
-  pose proof FSb_range.
+  assert (forall i, Int.unsigned (Znth i FSb Int.zero) <= Byte.max_unsigned). {
+    intros. pose proof (FSb_range i) as P. change 256 with (Byte.max_unsigned + 1) in P. omega.
+  }
 
   (* We have to hide the definition of S12 and S13 for subst, because otherwise the entailer
      will substitute them and then call my_auto, which calls now, which calls easy, which calls
@@ -469,7 +458,7 @@ Proof.
   | |- context [ field_at _ _ _ ?res output ] =>
      assert (res = (map Vint (mbed_tls_aes_enc plaintext buf))) as Eq3
   end. {
-  unfold mbed_tls_aes_enc. unfold put_uint32_le.
+  unfold mbed_tls_aes_enc. progress unfold output_four_ints_as_bytes. progress unfold put_uint32_le.
   repeat match goal with
   | |- context [ Int.and ?a ?b ] => let va := fresh "va" in remember (Int.and a b) as va
   end.
@@ -502,6 +491,7 @@ Proof.
   entailer!.
   }
 
+  Show.
 Time Qed.
 
 (* TODO floyd: sc_new_instantiate: distinguish between errors caused because the tactic is trying th

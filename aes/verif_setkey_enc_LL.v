@@ -1,5 +1,7 @@
 Require Import aes.verif_utils.
 Require Import aes.spec_utils_LL. (* TODO write & import LL spec of key expansion *)
+Require Import aes.partially_filled.
+Require Import aes.bitfiddling.
 
 Local Open Scope logic.
 
@@ -65,20 +67,6 @@ Definition get_uint32_le (arr: list Z) (i: Z) : int :=
    (Int.shl (Int.repr (Znth (i+1) arr 0)) (Int.repr  8)))
    (Int.shl (Int.repr (Znth (i+2) arr 0)) (Int.repr 16)))
    (Int.shl (Int.repr (Znth (i+3) arr 0)) (Int.repr 24))).
-
-Definition partially_filled(i n: Z)(f: Z -> int): list val := 
-  (map Vint (fill_list i f)) ++ (repeat_op_table (n-i) Vundef id).
-
-Lemma update_partially_filled: forall (i: Z) (n: Z) (f: Z -> int),
-  0 <= i < n ->
-  upd_Znth i (partially_filled i n f) (Vint (f i))
-  = partially_filled (i+1) n f.
-Admitted.
-
-Lemma Znth_partially_filled: forall (i j n: Z) (f: Z -> int),
-  0 <= i -> i < j -> j <= n ->
-  Znth i (partially_filled j n f) Vundef = Vint (f i).
-Admitted.
 
 Definition key_bytes_to_key_words(key_bytes: list Z): list int := 
   fill_list 8 (fun i => get_uint32_le key_bytes (i*4)).
@@ -207,8 +195,17 @@ Lemma Zlength_partially_expanded_key: forall i key_chars,
           repeat_op_table (60 - i * 8) Vundef id) = 68.
 Admitted.
 
-Lemma masked_byte_range: forall i,
-  0 <= Z.land i 255 < 256.
+Lemma update_partially_expanded_key: forall j v key_chars,
+(* TODO what's the value of v? *)
+  upd_Znth (j + 8) (map Vint (pow_fun GrowKeyByOne (Z.to_nat j) (key_bytes_to_key_words key_chars))
+                   ++ repeat_op_table (60 - j) Vundef id) v
+  = (map Vint (pow_fun GrowKeyByOne (Z.to_nat (j + 1)) (key_bytes_to_key_words key_chars))
+                   ++ repeat_op_table (60 - (j + 1)) Vundef id).
+Admitted.
+
+(* TODO this does not hold, we have to replace Vundef by (Vint Int.zero) in the whole proof *)
+Lemma Vundef_is_Vint:
+  repeat_op_table 4 Vundef id = repeat_op_table 4 (Vint Int.zero) id.
 Admitted.
 
 Lemma body_key_expansion: semax_body Vprog Gprog f_mbedtls_aes_setkey_enc key_expansion_spec.
@@ -258,9 +255,12 @@ Proof.
     forward.
     entailer!.
     replace (4 * i)%Z with (i * 4)%Z by omega.
+    assert (forall sh t gfs v1 v2 p, v1 = v2 -> field_at sh t gfs v1 p |-- field_at sh t gfs v2 p)
+    as field_at_change_value. (* TODO floyd: this might be useful elsewhere *)
+    { intros. replace v1 with v2 by assumption. apply derives_refl. }
+    apply field_at_change_value.
     fold ((fun i0 => get_uint32_le key_chars (i0 * 4)) i).
-    rewrite update_partially_filled by omega.
-    apply derives_refl.
+    apply update_partially_filled. omega.
   }
   reassoc_seq.
   (* main loop: *)
@@ -364,13 +364,6 @@ Proof.
       simpl. rewrite Int.add_assoc. do 2 f_equal. rewrite add_repr. f_equal. omega.
     - clear H10.
 
-Lemma update_partially_expanded_key: forall j v key_chars,
-(* TODO what's the value of v? *)
-  upd_Znth (j + 8) (map Vint (pow_fun GrowKeyByOne (Z.to_nat j) (key_bytes_to_key_words key_chars))
-                   ++ repeat_op_table (60 - j) Vundef id) v
-  = (map Vint (pow_fun GrowKeyByOne (Z.to_nat (j + 1)) (key_bytes_to_key_words key_chars))
-                   ++ repeat_op_table (60 - (j + 1)) Vundef id).
-Admitted.
       rewrite update_partially_expanded_key.
       replace (i * 8 + 9) with (i * 8 + 1 + 8) by omega.
       rewrite update_partially_expanded_key.
@@ -392,14 +385,16 @@ Admitted.
   (* return 0 *)
   assert ((Nb * (Nr + 2) - Nk) = 7 * 8)%Z as E by reflexivity.
   rewrite <- E.
-  progress fold (KeyExpansion (key_bytes_to_key_words key_chars)).
-  rewrite E. clear E. change (60 - 7 * 8) with 4.
+  assert ((pow_fun GrowKeyByOne (Z.to_nat (Nb * (Nr + 2) - Nk)) (key_bytes_to_key_words key_chars)
+   = (KeyExpansion (key_bytes_to_key_words key_chars)))) as Eq. {
+    unfold KeyExpansion. (* without this, reflexivity takes forever *)
+    reflexivity.
+  }
+  rewrite Eq. rewrite E. clear Eq. clear E.
+  change (60 - 7 * 8) with 4.
   forget (KeyExpansion (key_bytes_to_key_words key_chars)) as R.
   forward.
-(* TODO this does not hold, we have to replace Vundef by (Vint Int.zero) in the whole proof *)
-Lemma Vundef_is_Vint:
-  repeat_op_table 4 Vundef id = repeat_op_table 4 (Vint Int.zero) id.
-Admitted.
   rewrite Vundef_is_Vint.
   unfold_data_at 4%nat. entailer!.
+  Show.
 Time Qed. (* takes too long, using 25% CPU only *)
