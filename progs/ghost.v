@@ -408,11 +408,12 @@ Qed.
 
 Definition hist_incl (h : hist_part) l := forall t e, In (t, e) h -> nth_error l t = Some e.
 
-Definition hist_list (h : hist_part) l := forall t e, In (t, e) h <-> nth_error l t = Some e.
+Definition hist_list (h : hist_part) l := NoDup h /\ forall t e, In (t, e) h <-> nth_error l t = Some e.
 
 Lemma hist_list_inj : forall h l1 l2 (Hl1 : hist_list h l1) (Hl2 : hist_list h l2), l1 = l2.
 Proof.
   unfold hist_list; intros; apply list_nth_error_eq.
+  destruct Hl1 as (? & Hl1), Hl2 as (? & Hl2).
   intro j; specialize (Hl1 j); specialize (Hl2 j).
   destruct (nth_error l1 j).
   - symmetry; rewrite <- Hl2, Hl1; auto.
@@ -424,6 +425,7 @@ Lemma hist_list_nil_inv1 : forall l, hist_list [] l -> l = [].
 Proof.
   unfold hist_list; intros.
   destruct l; auto.
+  destruct H as (_ & H).
   specialize (H O h); destruct H; simpl in *; contradiction.
 Qed.
 
@@ -431,6 +433,7 @@ Lemma hist_list_nil_inv2 : forall h, hist_list h [] -> h = [].
 Proof.
   unfold hist_list; intros.
   destruct h as [|(t, e)]; auto.
+  destruct H as (_ & H).
   specialize (H t e); destruct H as (H & _).
   exploit H; [simpl; auto | rewrite nth_error_nil; discriminate].
 Qed.
@@ -452,18 +455,78 @@ Proof.
   rewrite in_map_iff; do 2 eexists; eauto; auto.
 Qed.
 
-Lemma hist_list_length : forall l h (Hl : hist_list h l) (Hdisj : NoDup (map fst h)),
-  Zlength h = Zlength l.
+Lemma NoDup_remove_0' : forall {A} (l : list (nat * A)), NoDup l -> ~In O (map fst l) ->
+  NoDup (map (fun '(t, e) => ((t - 1)%nat, e)) l).
+Proof.
+  induction l; auto; simpl; intros.
+  inv H.
+  constructor; auto.
+  destruct a.
+  rewrite in_map_iff; intros ((?, ?) & Heq & Hin); simpl in *; inv Heq.
+  destruct n; [tauto|].
+  destruct n0; [|simpl in *; assert (n0 = n) by omega; subst; contradiction].
+  assert (In O (map fst l)); [|tauto].
+  rewrite in_map_iff; do 2 eexists; eauto; auto.
+Qed.
+
+Lemma remove_0_inj : forall {A} (l : list (nat * A)), ~In O (map fst l) ->
+  map fst (map (fun '(t, e) => ((t - 1)%nat, e)) l) = map (fun t => t - 1)%nat (map fst l).
+Proof.
+  induction l; auto; simpl; intros.
+  destruct a; rewrite IHl; auto.
+Qed.
+
+Lemma hist_list_NoDup : forall l h (Hl : hist_list h l), NoDup (map fst h).
+Proof.
+  induction l; intros; [apply hist_list_nil_inv2 in Hl; subst; constructor|].
+  destruct Hl as (Hd & Hl).
+  assert (In (O, a) h) as Hin.
+  { unfold hist_list in Hl; rewrite Hl; auto. }
+  exploit in_split; eauto; intros (h1 & h2 & ?); subst.
+  apply NoDup_remove in Hd; destruct Hd as (? & Hn).
+  assert (~In O (map fst (h1 ++ h2))) as HO.
+  { rewrite in_map_iff; intros ((?, e) & ? & ?); simpl in *; subst.
+    specialize (Hl O e); destruct Hl as (Hl & _); exploit Hl.
+    { rewrite in_app in *; simpl; tauto. }
+    simpl; intro X; inv X; contradiction. }
+  exploit (IHl (map (fun x => let '(t, e) := x in ((t - 1)%nat, e)) (h1 ++ h2))).
+  { split.
+    { apply NoDup_remove_0'; auto. }
+    intros t e.
+    rewrite in_map_iff; split.
+    + intros ((?, ?) & Heq & ?); inv Heq.
+      specialize (Hl n e).
+      destruct Hl as (Hl & _); exploit Hl.
+      { rewrite in_app in *; simpl; tauto. }
+      destruct n; simpl; [|rewrite Nat.sub_0_r; auto].
+      contradiction HO.
+      rewrite in_map_iff; do 2 eexists; eauto; auto.
+    + intro Ht; specialize (Hl (S t) e); simpl in Hl.
+      destruct Hl as (_ & Hl); specialize (Hl Ht).
+      exists (S t, e); split; [simpl; rewrite Nat.sub_0_r; auto|].
+      rewrite in_app in *; destruct Hl as [? | [Heq | ?]]; auto.
+      inv Heq. }
+  intro Hd; rewrite map_app; simpl; apply NoDup_add; rewrite <- map_app; auto.
+  rewrite remove_0_inj in Hd; auto.
+  eapply NoDup_map_inv; eauto.
+Qed.
+
+Lemma hist_list_length : forall l h (Hl : hist_list h l), Zlength h = Zlength l.
 Proof.
   induction l; intros.
   - apply hist_list_nil_inv2 in Hl; subst; auto.
-  - assert (In (O, a) h) as Hin.
+  - pose proof (hist_list_NoDup _ _ Hl) as Hdisj; destruct Hl as (? & Hl).
+    assert (In (O, a) h) as Hin.
     { unfold hist_list in Hl; rewrite Hl; auto. }
     exploit in_split; eauto; intros (h1 & h2 & ?); subst.
     rewrite map_app in Hdisj; simpl in Hdisj; apply NoDup_remove in Hdisj.
     destruct Hdisj as (Hdisj & Hn).
     exploit (IHl (map (fun x => let '(t, e) := x in ((t - 1)%nat, e)) (h1 ++ h2))).
-    { intros t e.
+    { split.
+      { apply NoDup_remove in H; destruct H.
+        apply NoDup_remove_0'; auto.
+        rewrite map_app; auto. }
+      intros t e.
       rewrite in_map_iff; split.
       + intros ((?, ?) & Heq & ?); inv Heq.
         specialize (Hl n e).
@@ -472,12 +535,11 @@ Proof.
         destruct n; simpl; [|rewrite Nat.sub_0_r; auto].
         contradiction Hn.
         rewrite <- map_app, in_map_iff; do 2 eexists; eauto; auto.
-      + intro; specialize (Hl (S t) e); simpl in Hl.
-        destruct Hl as (_ & Hl); specialize (Hl H).
+      + intro Ht; specialize (Hl (S t) e); simpl in Hl.
+        destruct Hl as (_ & Hl); specialize (Hl Ht).
         exists (S t, e); split; [simpl; rewrite Nat.sub_0_r; auto|].
         rewrite in_app in *; destruct Hl as [? | [Heq | ?]]; auto.
         inv Heq. }
-    { apply NoDup_remove_0; rewrite map_app; auto. }
     rewrite Zlength_map, !Zlength_app, !Zlength_cons; omega.
 Qed.
 
@@ -487,7 +549,7 @@ Definition ghost_ref l p := EX hr : hist_part, !!(hist_list hr l) &&
 Lemma hist_next : forall h l (Hlist : hist_list h l), ~In (length l) (map fst h).
 Proof.
   intros; rewrite in_map_iff; intros ((?, ?) & ? & Hin); simpl in *; subst.
-  unfold hist_list in Hlist; rewrite Hlist in Hin.
+  destruct Hlist as (? & Hlist); rewrite Hlist in Hin.
   pose proof (nth_error_Some l (length l)) as (Hlt & _).
   exploit Hlt; [|omega].
   rewrite Hin; discriminate.
@@ -539,6 +601,7 @@ Qed.
 
 Lemma hist_list_nil : hist_list [] [].
 Proof.
+  split; [constructor|].
   split; [contradiction | rewrite nth_error_nil; discriminate].
 Qed.
 
