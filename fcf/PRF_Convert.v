@@ -26,7 +26,7 @@ Section PRF_Convert.
 
   Variable k_f : K' -> K.
   Variable d_f : D' -> D.
-  Hypothesis d_f_1_1 :
+  Hypothesis d_f_1_1 : 
     forall x y,
       x <> y ->
       d_f x <> d_f y.
@@ -54,13 +54,13 @@ Section PRF_Convert.
     [b, _] <--$2 OC_Run _ _ _ A f'_o tt;
     $ ret b.
 
-  Theorem PRF_Convert_Adv :
+  Theorem PRF_Convert_Adv : 
     PRF_Advantage RndK' RndR' f' _ _ A ==
     PRF_Advantage RndK RndR f _ _ A_f.
 
     unfold PRF_Advantage.
     eapply ratDistance_eqRat_compat.
-
+    
     unfold PRF_G_A.
     unfold RndK.
     inline_first.
@@ -83,7 +83,7 @@ Section PRF_Convert.
     simpl.
     eapply comp_spec_ret.
     intuition.
-
+    
     simpl in *.
     comp_simp.
     simpl.
@@ -100,9 +100,9 @@ Section PRF_Convert.
     simpl.
     inline_first.
     comp_skip.
-    eapply (oc_comp_spec_eq _ _ _ _ _ _
-                            (fun a b =>
-                               forall x,
+    eapply (oc_comp_spec_eq _ _ _ _ _ _ 
+                            (fun a b => 
+                               forall x, 
                                  match (arrayLookup _ a x) with
                                    | None => arrayLookup _ (snd b) (d_f x) = None
                                    | Some y => exists y',
@@ -121,7 +121,7 @@ Section PRF_Convert.
     unfold RndR_func, randomFunc.
     pose proof H.
     specialize (H a).
-
+    
     case_eq ( arrayLookup D'_EqDec x1 a); intuition.
     rewrite H1 in H.
     destruct H.
@@ -149,7 +149,7 @@ Section PRF_Convert.
     simpl.
     eapply comp_spec_ret; intuition.
     simpl.
-
+    
     case_eq (eqb x a); intuition.
     rewrite eqb_leibniz in H5.
     subst.

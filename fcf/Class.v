@@ -1,5 +1,4 @@
-(* Copyright 2012-2015 by Adam Petcher.				*
- * Use of this source code is governed by the license described	*
+(* Use of this source code is governed by the license described	*
  * in the LICENSE file at the root of the source tree.		*)
 
 Set Implicit Arguments.
@@ -7,7 +6,7 @@ Set Implicit Arguments.
 Require Import fcf.Crypto.
 Require Import fcf.Encryption.
 Require Import fcf.CompFold.
-Require Import fcf.NotationV1. (*added by Lennart*)
+Require Import fcf.FCF.
 
 Section EncryptClassify.
 
@@ -32,6 +31,6 @@ Section EncryptClassify.
     c <-$ Encrypt key pb;
     b' <-$ A2 s_A (Encrypt key) lsC c;
     ret (eqb b b').
-
+    
 
 End EncryptClassify.

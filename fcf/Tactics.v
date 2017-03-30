@@ -68,7 +68,7 @@ Ltac fcf_rewrite_expr e :=
 (** ** fcf_rewrite *)
 (** The fcf_rewrite_l/fcf_rewrite_r tactic accepts a program and attempts to rewrite the entire program on the left/right (respectively) to the specified program.  This tactic will produce an obligation to prove that the program is appropriately related to the specified program. *)
 Ltac fcf_rewrite_l t :=
-  match goal with
+  match goal with 
     | [|- ?a == _ ] =>
       fcf_rewrite_expr (a == t)
     | [|- ?a <= _ ] =>
@@ -76,7 +76,7 @@ Ltac fcf_rewrite_l t :=
   end.
 
 Ltac fcf_rewrite_r t :=
-  match goal with
+  match goal with 
     | [|- _ == ?a ] =>
       fcf_rewrite_expr (a == t)
     | [|- _ <= ?a ] =>
@@ -99,7 +99,7 @@ Ltac fcf_skip_eq := prog_skip_eq.
 (** ** fcf_to_prhl *)
 (** The fcf_to_prhl tactic converts the current goal from probability expression to the equivalent program logic judgment. *)
 (** Supporting theory: comp_spec_impl_eq (for equality goals), comp_spec_impl_le (for inequality goals) *)
-Ltac fcf_to_prhl :=
+Ltac fcf_to_prhl := 
   match goal with
     | [|- _ == _] => eapply comp_spec_impl_eq
     | [|- _ <= _] => eapply comp_spec_impl_le
@@ -114,7 +114,7 @@ Ltac fcf_to_prhl_eq := eapply comp_spec_eq_impl_eq.
 (** The fcf_to_probability tactic replaces certain program logic goals with the equivalent goals in probability theory.  In order to use this tactic, the relation must be one of the following: (eq), (fun a b, a = x <-> b = y) for any values x and y, or (fun a b => a = x -> b = y) for any values x and y. *)
 (** Supporting theory: eq_impl_comp_spec, le_impl_comp_spec *)
 Ltac fcf_to_probability :=
-  match goal with
+  match goal with 
     | [|- comp_spec (fun a b => a = _ -> b = _) _ _ ] => eapply le_impl_comp_spec
     | [|- comp_spec (fun a b => a = _ <-> b = _) _ _ ] => eapply eq_impl_comp_spec
     | [|- comp_spec eq _ _ ] => eapply comp_spec_consequence; [eapply eq_impl_comp_spec | idtac]
@@ -145,7 +145,7 @@ Ltac fcf_symmetry := symmetry || prog_symmetry.
 
 (** ** fcf_spec_ret *)
 (** The fcf_spec_ret tactic applies to program logic goals in which both programs are of the form (ret p1) for some p1.  The tactic replaces the current goal with the corresponding goal in the underlying logic.  The tactic will also simplify this goal and attempt to discharge it (if it is trivial). *)
-(** Supporting theory: comp_spec_ret *)
+(** Supporting theory: comp_spec_ret *)  
 Ltac fcf_spec_ret :=
   eapply comp_spec_ret; trivial; intuition.
 
@@ -169,7 +169,7 @@ Ltac fcf_at t s l := comp_at t s l.
 Ltac fcf_with pf t :=
     let x := fresh "x" in
     pose proof pf as x;
-      t;
+      t; 
       clear x.
 
 (** * Other probabilistic tactics *)
@@ -185,7 +185,7 @@ Ltac fcf_fundamental_lemma := apply fundamental_lemma_h.
 Theorem fcf_compute_example :
   Pr[x <-$ {0, 1}; y <-$ {0, 1}; ret (x && y)] == 1/4.
   fcf_compute.
-Qed.
+Qed. 
 *)
 Ltac fcf_compute := dist_compute.
 
@@ -195,7 +195,7 @@ Ltac fcf_compute := dist_compute.
 Ltac fcf_well_formed := wftac.
 
 (** ** fcf_simp_in_support *)
-(** Many FCF theorems and tactics will add assumptions to the environment stating that some value is in the support of some distribution defined by a probabilistic program.  This hypothesis carries no probabilistic information, but it may provide some useful set-theoretic information.  The simp_in_support tactic will automatically destruct these hypotheses and extract this set-theoretic information.  This extraction will often result in the introduction of new variables (e.g. destructing a sequence in this manner will introduce a variable describing the value after the first statement in the sequence is executed).  *)
+(** Many FCF theorems and tactics will add assumptions to the environment stating that some value is in the support of some distribution defined by a probabilistic program.  This hypothesis carries no probabilistic information, but it may provide some useful set-theoretic information.  The simp_in_support tactic will automatically destruct these hypotheses and extract this set-theoretic information.  This extraction will often result in the introduction of new variables (e.g. destructing a sequence in this manner will introduce a variable describing the value after the first statement in the sequence is executed).  *)  
 Ltac fcf_simp_in_support := repeat simp_in_support.
 
 (** * Theorems *)
@@ -203,7 +203,7 @@ Ltac fcf_simp_in_support := repeat simp_in_support.
 
 (** ** fcf_spec_seq *)
 (** The fcf_spec_seq theorem behaves like the tactic fcf_skip.  Importantly, this theorem accepts the relational predicate that must hold after the first pair of games is executed.  It can often be valuable to specify this predicate in the sequence rule to avoid having to fill it in later.  *)
-Theorem fcf_spec_seq :
+Theorem fcf_spec_seq : 
   forall {A B : Set} (P' : A -> B -> Prop) {C D : Set} P{eqda : EqDec A}{eqdb : EqDec B}{eqdc : EqDec C}{eqdd : EqDec D}(c1 : Comp A)(c2 : Comp B) (c : C) (d : D)
     (f1 : A -> Comp C)(f2 : B -> Comp D),
     comp_spec P' c1 c2 ->
@@ -218,34 +218,34 @@ Qed.
 (** ** fcf_oracle_eq *)
 (** The fcf_oracl_eq theorem is used to replace an oracle with an observationally equivalent oracle.  This theorem accepts a relational predicate that specifies an invariant on the states of the oracles.  The resulting proof obligations will be to show that the invariant holds on the initial state, and the when the invariant holds on any state, the oracles produce identical output for all inputs and the invariant still holds on the resulting state. *)
 Theorem fcf_oracle_eq :
-  forall {S1 S2 : Set}(P : S1 -> S2 -> Prop)(A B C : Set) (c : OracleComp A B C)
-         (eqdb : EqDec B) (eqdc : EqDec C)
+  forall {S1 S2 : Set}(P : S1 -> S2 -> Prop)(A B C : Set) (c : OracleComp A B C) 
+         (eqdb : EqDec B) (eqdc : EqDec C) 
          (o1 : S1 -> A -> Comp (B * S1)) (o2 : S2 -> A -> Comp (B * S2))
-         (eqds1 : EqDec S1) (eqds2 : EqDec S2) (s1 : S1)
+         (eqds1 : EqDec S1) (eqds2 : EqDec S2) (s1 : S1) 
          (s2 : S2),
     P s1 s2 ->
     (forall (a : A) (x1 : S1) (x2 : S2),
        P x1 x2 ->
        comp_spec
          (fun (y1 : B * S1) (y2 : B * S2) =>
-            fst y1 = fst y2 /\ P (snd y1) (snd y2))
+            fst y1 = fst y2 /\ P (snd y1) (snd y2)) 
          (o1 x1 a) (o2 x2 a)) ->
     comp_spec
       (fun (a : C * S1) (b : C * S2) => fst a = fst b /\ P (snd a) (snd b))
       (c S1 eqds1 o1 s1) (c S2 eqds2 o2 s2).
-
+  
   intuition.
   eapply oc_comp_spec_eq; intuition.
-
+  
 Qed.
 
 (** ** fcf_oracle_eq_until_bad *)
 (** The fcf_oracle_eq_until_bad theorem is similar to fcf_oracle_eq, except it allows the state of the oracles to go "bad", and the resulting fact is that the oracles are indistinguishable unless this bad event occurs.  This fact can be used with the fundamental lemma to bound the distance between a pair of program/oracle interactions. *)
-Theorem fcf_oracle_eq_until_bad :
+Theorem fcf_oracle_eq_until_bad : 
   forall {S1 S2 : Set}(bad1 : S1 -> bool)
          (bad2 : S2 -> bool)(inv : S1 -> S2 -> Prop)(A B C : Set) (c : OracleComp A B C),
     well_formed_oc c ->
-    forall (eqdb : EqDec B) (eqdc : EqDec C)
+    forall (eqdb : EqDec B) (eqdc : EqDec C) 
            (o1 : S1 -> A -> Comp (B * S1)) (o2 : S2 -> A -> Comp (B * S2))
            (eqds1 : EqDec S1) (eqds2 : EqDec S2),
       (forall (a : S1) (b : A), bad1 a = true -> well_formed_comp (o1 a b)) ->
@@ -270,10 +270,10 @@ Theorem fcf_oracle_eq_until_bad :
              bad1 (snd y1) = bad2 (snd y2) /\
              (bad1 (snd y1) = false -> inv (snd y1) (snd y2) /\ fst y1 = fst y2))
           (c S1 eqds1 o1 s1) (c S2 eqds2 o2 s2).
-
+  
   intuition.
   eapply oc_comp_spec_eq_until_bad; intuition.
-
+  
 Qed.
 
 
