@@ -934,6 +934,7 @@ Lemma hist_list_value : forall h l v (Horder : ordered_hist h) (Hl : hist_list h
   (Hv : apply_hist (vint 0) l = Some v), value_of_hist h = v.
 Proof.
   intros.
+  destruct Hl as (Hd & Hl).
   destruct (eq_dec (Zlength l) 0).
   { apply Zlength_nil_inv in e; subst; inv Hv.
     destruct h as [|(t, e)]; auto.
@@ -948,9 +949,10 @@ Proof.
   rewrite app_removelast_last with (l := l)(d := Store (vint 0)), apply_hist_app in Hv by auto.
   destruct (apply_hist (vint 0) (removelast l)) eqn: Hh; [|discriminate].
   apply apply_one_value in Hv.
-  pose proof (ordered_hist_length _ _ _ Horder Hl).
-  erewrite <- Znth_last, ordered_hist_list; eauto; simpl.
-  erewrite ordered_hist_length, Znth_last; eauto.
+  assert (hist_list h l) as Hlist by (split; auto).
+  pose proof (hist_list_length _ _ Hlist) as Hlen.
+  erewrite <- Znth_last, ordered_hist_list; eauto; simpl; rewrite Hlen.
+  rewrite Znth_last; eauto.
   { pose proof (Zlength_nonneg h); omega. }
 Qed.
 
@@ -958,9 +960,9 @@ Definition full_hist h v := exists l, hist_list h l /\ apply_hist (vint 0) l = S
 
 Definition full_hist' h v := exists l, hist_list' h l /\ apply_hist (vint 0) l = Some v.
 
-Lemma full_hist_weak : forall h v (Hl : full_hist h v) (HNoDup : NoDup (map fst h)), full_hist' h (vint v).
+Lemma full_hist_weak : forall h v (Hl : full_hist h v), full_hist' h (vint v).
 Proof.
-  intros ?? (l & ? & ?) ?; exists l; split; auto.
+  intros ?? (l & ? & ?); exists l; split; auto.
   apply hist_list_weak; auto.
 Qed.
 
@@ -976,7 +978,7 @@ Proof.
     exists []; auto.
     { specialize (Hh' p); simpl in Hh'; contradiction Hh'; auto. }
     { exploit app_cons_not_nil; [symmetry; eauto | contradiction]. }
-  - pose proof (hist_list_NoDup _ _ Hl) as Hh.
+  - pose proof (hist_list'_NoDup _ _ Hl) as Hh.
     inv Hl.
     { exploit app_cons_not_nil; [symmetry; eauto | contradiction]. }
     apply app_inj_tail in H1; destruct H1; subst.
@@ -1051,7 +1053,6 @@ Proof.
   intros; apply full_hist_nil'; auto.
   eapply Forall2_map2, Forall2_impl', Hfull.
   intros ?? Hin ??; apply full_hist_weak; auto.
-  apply repeat_spec in Hin; subst; constructor.
 Qed.
 
 Definition int_op e :=

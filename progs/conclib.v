@@ -756,6 +756,13 @@ Proof.
     + intros (? & ? & [? | ?]); subst; eauto.
 Qed.
 
+Lemma filter_concat : forall {A} f (l : list (list A)),
+  filter f (concat l) = concat (map (filter f) l).
+Proof.
+  induction l; auto; simpl.
+  rewrite filter_app, IHl; auto.
+Qed.
+
 Lemma length_concat : forall {A} (l : list (list A)), length (concat l) = fold_right plus O (map (@length A) l).
 Proof.
   induction l; auto; simpl.
