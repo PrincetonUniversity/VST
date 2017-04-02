@@ -584,15 +584,16 @@ match op with
                     | Cop.sub_case_pl t => tc_andp' (tc_andp' (tc_isptr a1)
                                            (tc_bool (complete_type cenv_cs t) reterr))
                                             (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.sub_case_pp t =>  (*tc_isptr may be redundant here*)
+                    | Cop.sub_case_pp t =>
                              tc_andp' (tc_andp' (tc_andp' (tc_andp' (tc_andp' (tc_andp' (tc_samebase a1 a2)
                              (tc_isptr a1))
                               (tc_isptr a2))
                                (tc_bool (is_int32_type ty) reterr))
-			        (tc_bool (negb (Int.eq (Int.repr (sizeof t)) Int.zero))
+			        (tc_bool (negb (Z.eqb (sizeof t) 0))
                                       (pp_compare_size_0 t)))
                                  (tc_bool (complete_type cenv_cs t) reterr))
-                                  (tc_bool (is_pointer_type ty) reterr)
+                                  (tc_bool (Z.leb (sizeof t) Int.max_signed)
+                                         (pp_compare_size_exceed t))
                     | Cop.sub_default => binarithType (typeof a1) (typeof a2) ty deferr reterr
             end
   | Cop.Omul => binarithType (typeof a1) (typeof a2) ty deferr reterr
