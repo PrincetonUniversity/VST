@@ -22,6 +22,20 @@ simpl; intros.
 destruct (Int.eq i (Int.repr Int.min_signed) && Int.eq j Int.mone); try reflexivity; contradiction.
 Qed.
 
+Lemma denote_tc_nonzero_e64:
+ forall i m, app_pred (denote_tc_nonzero (Vlong i)) m -> Int64.eq i Int64.zero = false.
+Proof.
+simpl; intros . destruct (Int64.eq i Int64.zero); auto; contradiction.
+Qed.
+
+Lemma denote_tc_nodivover_e64:
+ forall i j m, app_pred (denote_tc_nodivover (Vlong i) (Vlong j)) m ->
+   Int64.eq i (Int64.repr Int64.min_signed) && Int64.eq j Int64.mone = false.
+Proof.
+simpl; intros.
+destruct (Int64.eq i (Int64.repr Int64.min_signed) && Int64.eq j Int64.mone); try reflexivity; contradiction.
+Qed.
+
 Lemma Int64_eq_repr_signed32_nonzero:
   forall i, Int.eq i Int.zero = false ->
              Int64.eq (Int64.repr (Int.signed i)) Int64.zero = false.
@@ -242,6 +256,8 @@ try abstract (
                 try (simple apply tc_bool_e in IBR; try discriminate IBR);
                 try (simple apply denote_tc_nonzero_e in IBR; try rewrite IBR);
                 try (simple apply denote_tc_nodivover_e in H; try rewrite H);
+                try (simple apply denote_tc_nonzero_e64 in IBR; try rewrite IBR);
+                try (simple apply denote_tc_nodivover_e64 in H; try rewrite H);
                 try (simple apply tc_bool_e in H; try discriminate H));
     try simple apply eq_refl;
     try simple apply typecheck_val_of_bool;
