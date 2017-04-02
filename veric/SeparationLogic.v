@@ -76,6 +76,7 @@ Definition denote_tc_iszero v : mpred :=
 Definition denote_tc_nonzero v : mpred :=
          match v with
          | Vint i => if negb (Int.eq i Int.zero) then TT else FF
+         | Vlong i => if negb (Int64.eq i Int64.zero) then TT else FF
          | _ => FF end.
 
 Definition denote_tc_igt i v : mpred :=
@@ -146,6 +147,9 @@ match v1, v2 with
           | Vint n1, Vint n2 => prop (is_true (negb
                                    (Int.eq n1 (Int.repr Int.min_signed)
                                     && Int.eq n2 Int.mone)))
+          | Vlong n1, Vlong n2 => prop (is_true (negb
+                                   (Int64.eq n1 (Int64.repr Int64.min_signed)
+                                    && Int64.eq n2 Int64.mone)))
           | _ , _ => FF
         end.
 
@@ -156,20 +160,33 @@ Definition denote_tc_initialized id ty rho : mpred :=
 Definition denote_tc_isptr v : mpred :=
   prop (isptr v).
 
-Definition comparable_ptrs v1 v2 : mpred :=
+Definition test_eq_ptrs v1 v2 : mpred :=
   if sameblock v1 v2
   then (andp (weak_valid_pointer v1) (weak_valid_pointer v2))
   else (andp (valid_pointer v1) (valid_pointer v2)).
 
-Definition denote_tc_comparable v1 v2 : mpred :=
- match v1, v2 with
+Definition test_order_ptrs v1 v2 : mpred :=
+  if sameblock v1 v2
+  then (andp (weak_valid_pointer v1) (weak_valid_pointer v2))
+  else FF.
+
+Definition denote_tc_test_eq v1 v2 : mpred :=
+ match cast_out_long v1, cast_out_long v2 with
  | Vint i, Vint j => andp (prop (i = Int.zero)) (prop (j = Int.zero))
  | Vint i, Vptr _ _ =>
       andp (prop (i = Int.zero)) (weak_valid_pointer v2)
  | Vptr _ _, Vint i =>
       andp (prop (i = Int.zero)) (weak_valid_pointer v1)
  | Vptr _ _, Vptr _ _ =>
-      comparable_ptrs v1 v2
+      test_eq_ptrs v1 v2
+ | _, _ => FF
+ end.
+
+Definition denote_tc_test_order v1 v2 : mpred :=
+ match cast_out_long v1, cast_out_long v2 with
+ | Vint i, Vint j => andp (prop (i = Int.zero)) (prop (j = Int.zero))
+ | Vptr _ _, Vptr _ _ =>
+      test_order_ptrs v1 v2
  | _, _ => FF
  end.
 
@@ -184,7 +201,8 @@ Fixpoint denote_tc_assert {CS: compspecs} (a: tc_assert) : environ -> mpred :=
   | tc_orp' b c => `orp (denote_tc_assert b) (denote_tc_assert c)
   | tc_nonzero' e => `denote_tc_nonzero (eval_expr e)
   | tc_isptr e => `denote_tc_isptr (eval_expr e)
-  | tc_comparable' e1 e2 => `denote_tc_comparable (eval_expr e1) (eval_expr e2)
+  | tc_test_eq' e1 e2 => `denote_tc_test_eq (eval_expr e1) (eval_expr e2)
+  | tc_test_order' e1 e2 => `denote_tc_test_order (eval_expr e1) (eval_expr e2)
   | tc_ilt' e i => `(denote_tc_igt i) (eval_expr e)
   | tc_Zle e z => `(denote_tc_Zge z) (eval_expr e)
   | tc_Zge e z => `(denote_tc_Zle z) (eval_expr e)

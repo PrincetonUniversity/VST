@@ -373,6 +373,7 @@ Inductive tc_error :=
 | op_result_type : expr -> tc_error
 | arg_type : expr -> tc_error
 | pp_compare_size_0 : type -> tc_error
+| pp_compare_size_exceed : type -> tc_error
 | invalid_cast : type -> type -> tc_error
 | invalid_cast_result : type -> type -> tc_error
 | invalid_expression : expr -> tc_error
@@ -395,7 +396,8 @@ Inductive tc_assert :=
 | tc_nonzero': expr -> tc_assert
 | tc_iszero': expr -> tc_assert
 | tc_isptr: expr -> tc_assert
-| tc_comparable': expr -> expr -> tc_assert
+| tc_test_eq': expr -> expr -> tc_assert
+| tc_test_order': expr -> expr -> tc_assert
 | tc_ilt': expr -> int -> tc_assert
 | tc_Zle: expr -> Z -> tc_assert
 | tc_Zge: expr -> Z -> tc_assert
@@ -415,14 +417,22 @@ Definition tc_iszero {CS: compspecs} (e: expr) : tc_assert :=
 Definition tc_nonzero {CS: compspecs} (e: expr) : tc_assert :=
   match eval_expr e any_environ with
    | Vint i => if negb (Int.eq i Int.zero) then tc_TT else tc_nonzero' e
+   | Vlong i => if negb (Int64.eq i Int64.zero) then tc_TT else tc_nonzero' e
    | _ => tc_nonzero' e
    end.
 
-Definition tc_comparable {CS: compspecs} (e1 e2: expr) : tc_assert :=
+Definition tc_test_eq {CS: compspecs} (e1 e2: expr) : tc_assert :=
  match eval_expr e1 any_environ, eval_expr e2 any_environ with
  | Vint i, Vint j => if andb (Int.eq i Int.zero) (Int.eq j Int.zero)
-                             then tc_TT else tc_comparable' e1 e2
- | _, _ => tc_comparable' e1 e2
+                             then tc_TT else tc_test_eq' e1 e2
+ | _, _ => tc_test_eq' e1 e2
+ end.
+
+Definition tc_test_order {CS: compspecs} (e1 e2: expr) : tc_assert :=
+ match eval_expr e1 any_environ, eval_expr e2 any_environ with
+ | Vint i, Vint j => if andb (Int.eq i Int.zero) (Int.eq j Int.zero)
+                             then tc_TT else tc_test_order' e1 e2
+ | _, _ => tc_test_order' e1 e2
  end.
 
 Definition tc_nodivover {CS: compspecs} (e1 e2: expr) : tc_assert :=
@@ -430,6 +440,10 @@ Definition tc_nodivover {CS: compspecs} (e1 e2: expr) : tc_assert :=
                            | Vint n1, Vint n2 => if (negb
                                    (Int.eq n1 (Int.repr Int.min_signed)
                                     && Int.eq n2 Int.mone))
+                                     then tc_TT else tc_nodivover' e1 e2
+                           | Vlong n1, Vlong n2 => if (negb
+                                   (Int64.eq n1 (Int64.repr Int64.min_signed)
+                                    && Int64.eq n2 Int64.mone))
                                      then tc_TT else tc_nodivover' e1 e2
                            | _ , _ => tc_nodivover' e1 e2
                           end.
@@ -460,21 +474,26 @@ Definition tc_bool (b : bool) (e: tc_error) :=
 if b then tc_TT else tc_FF e.
 
 Definition check_pp_int {CS: compspecs} e1 e2 op t e :=
-match op with
-| Cop.Oeq | Cop.One => tc_andp
-                         (tc_comparable e1 e2)
-                         (tc_bool (is_int_type t) (op_result_type e))
-| _ => tc_noproof
-end.
+  match op with
+  | Cop.Oeq | Cop.One =>
+      tc_andp
+        (tc_test_eq e1 e2)
+        (tc_bool (is_int_type t) (op_result_type e))
+  | Cop.Ole | Cop.Olt | Cop.Oge | Cop.Ogt =>
+      tc_andp
+        (tc_test_order e1 e2)
+        (tc_bool (is_int_type t) (op_result_type e))
+  | _ => tc_noproof
+  end.
 
 Definition binarithType t1 t2 ty deferr reterr : tc_assert :=
- match Cop.classify_binarith t1 t2 with
+  match Cop.classify_binarith t1 t2 with
   | Cop.bin_case_i sg =>  tc_bool (is_int32_type ty) reterr
   | Cop.bin_case_l sg => tc_bool (is_long_type ty) reterr
   | Cop.bin_case_f   => tc_bool (is_float_type ty) reterr
   | Cop.bin_case_s   => tc_bool (is_single_type ty) reterr
- | Cop.bin_default => tc_FF deferr
- end.
+  | Cop.bin_default => tc_FF deferr
+  end.
 
 Definition is_numeric_type t :=
 match t with Tint _ _ _ | Tlong _ _ | Tfloat _ _ => true | _ => false end.
@@ -491,7 +510,7 @@ match op with
                         | Cop.bool_default => tc_FF (op_result_type a)
                         | Cop.bool_case_p =>
                            tc_andp (tc_bool (is_int_type ty) (op_result_type a))
-                                         (tc_comparable a (Econst_int Int.zero (Tint I32 Signed noattr)))
+                                         (tc_test_eq a (Econst_int Int.zero (Tint I32 Signed noattr)))
                         | _ => tc_bool (is_int_type ty) (op_result_type a)
                         end
   | Cop.Onotint => match Cop.classify_notint (typeof a) with
@@ -541,15 +560,16 @@ match op with
                     | Cop.sub_case_pl t => tc_andp (tc_andp (tc_isptr a1)
                                            (tc_bool (complete_type cenv_cs t) reterr))
                                             (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.sub_case_pp t =>  (*tc_isptr may be redundant here*)
+                    | Cop.sub_case_pp t =>
                              tc_andp (tc_andp (tc_andp (tc_andp (tc_andp (tc_andp (tc_samebase a1 a2)
                              (tc_isptr a1))
                               (tc_isptr a2))
                                (tc_bool (is_int32_type ty) reterr))
-			        (tc_bool (negb (Int.eq (Int.repr (sizeof t)) Int.zero))
+			        (tc_bool (negb (Z.eqb (sizeof t) 0))
                                       (pp_compare_size_0 t)))
                                  (tc_bool (complete_type cenv_cs t) reterr))
-                                  (tc_bool (is_pointer_type ty) reterr)
+                                   (tc_bool (Z.leb (sizeof t) Int.max_signed)
+                                          (pp_compare_size_exceed t))
                     | Cop.sub_default => binarithType (typeof a1) (typeof a2) ty deferr reterr
             end
   | Cop.Omul => binarithType (typeof a1) (typeof a2) ty deferr reterr
@@ -598,9 +618,9 @@ match op with
                                          && is_numeric_type (typeof a2)
                                           && is_int_type ty)
                                              deferr
-	                  | Cop.cmp_case_pp => check_pp_int a1 a2 op ty e
-                    | Cop.cmp_case_pl => check_pp_int (Ecast a1 (Tint I32 Unsigned noattr)) a2 op ty e
-                    | Cop.cmp_case_lp => check_pp_int (Ecast a2 (Tint I32 Unsigned noattr)) a1 op ty e
+	            | Cop.cmp_case_pp => check_pp_int a1 a2 op ty e
+                    | Cop.cmp_case_pl => check_pp_int a1 (Ecast a2 (Tint I32 Unsigned noattr)) op ty e
+                    | Cop.cmp_case_lp => check_pp_int (Ecast a1 (Tint I32 Unsigned noattr)) a2 op ty e
                    end
   end.
 
@@ -620,7 +640,7 @@ match Cop.classify_cast tfrom tto with
 | Cop.cast_case_void => tc_noproof
 | Cop.cast_case_f2bool => tc_bool (is_float_type tfrom) (invalid_cast_result tfrom tto)
 | Cop.cast_case_s2bool => tc_bool (is_single_type tfrom) (invalid_cast_result tfrom tto)
-| Cop.cast_case_p2bool => tc_andp (tc_comparable a (Econst_int Int.zero (Tint I32 Signed noattr)))
+| Cop.cast_case_p2bool => tc_andp (tc_test_eq a (Econst_int Int.zero (Tint I32 Signed noattr)))
                                                 (tc_bool (orb (is_int_type tfrom) (is_pointer_type tfrom)) (invalid_cast_result tfrom tto))
       (* before CompCert 2.5: tc_bool (orb (is_int_type tfrom) (is_pointer_type tfrom)) (invalid_cast_result tfrom tto) *)
 | Cop.cast_case_l2bool => tc_bool (is_long_type tfrom) (invalid_cast_result tfrom tto)

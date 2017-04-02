@@ -888,33 +888,61 @@ Proof.
 Qed.
 Hint Resolve closed_wrtl_tc_andp closed_wrtl_tc_orp closed_wrtl_tc_bool : closed.
 
-Lemma closed_wrt_tc_comparable:
+Lemma closed_wrt_tc_test_eq:
   forall {cs: compspecs} S e e',
           expr_closed_wrt_vars S e ->
           expr_closed_wrt_vars S e' ->
   closed_wrt_vars S
      (denote_tc_assert
-        (tc_comparable e e')).
+        (tc_test_eq e e')).
 Proof.
 intros.
 hnf; intros.
-rewrite !binop_lemmas2.denote_tc_assert_comparable'.
+rewrite !binop_lemmas2.denote_tc_assert_test_eq'.
 simpl. unfold_lift. rewrite H, H0; auto.
 Qed.
-Lemma closed_wrtl_tc_comparable:
+Lemma closed_wrtl_tc_test_eq:
   forall {cs: compspecs} S e e',
           expr_closed_wrt_lvars S e ->
           expr_closed_wrt_lvars S e' ->
   closed_wrt_lvars S
      (denote_tc_assert
-        (tc_comparable e e')).
+        (tc_test_eq e e')).
 Proof.
 intros.
 hnf; intros.
-rewrite !binop_lemmas2.denote_tc_assert_comparable'.
+rewrite !binop_lemmas2.denote_tc_assert_test_eq'.
 simpl. unfold_lift. rewrite H, H0; auto.
 Qed.
-Hint Resolve  closed_wrt_tc_comparable  closed_wrtl_tc_comparable : closed.
+Hint Resolve  closed_wrt_tc_test_eq  closed_wrtl_tc_test_eq : closed.
+
+Lemma closed_wrt_tc_test_order:
+  forall {cs: compspecs} S e e',
+          expr_closed_wrt_vars S e ->
+          expr_closed_wrt_vars S e' ->
+  closed_wrt_vars S
+     (denote_tc_assert
+        (tc_test_order e e')).
+Proof.
+intros.
+hnf; intros.
+rewrite !binop_lemmas2.denote_tc_assert_test_order'.
+simpl. unfold_lift. rewrite H, H0; auto.
+Qed.
+Lemma closed_wrtl_tc_test_order:
+  forall {cs: compspecs} S e e',
+          expr_closed_wrt_lvars S e ->
+          expr_closed_wrt_lvars S e' ->
+  closed_wrt_lvars S
+     (denote_tc_assert
+        (tc_test_order e e')).
+Proof.
+intros.
+hnf; intros.
+rewrite !binop_lemmas2.denote_tc_assert_test_order'.
+simpl. unfold_lift. rewrite H, H0; auto.
+Qed.
+Hint Resolve  closed_wrt_tc_test_order  closed_wrtl_tc_test_order : closed.
 
 Lemma expr_closed_const_int:
   forall {cs: compspecs} S i t, expr_closed_wrt_vars S (Econst_int i t).
@@ -1511,7 +1539,7 @@ try solve [destruct t  as [ | [ | | | ] [ | ] | | [ | ] | | | | | ]; simpl; auto
  destruct u;
  destruct (typeof e) as   [ | [ | | | ] [ | ] | | [ | ] | | | | | ];
    simpl; repeat apply closed_wrt_tc_andp; auto 50 with closed;
-  rewrite binop_lemmas2.denote_tc_assert_comparable';
+  rewrite binop_lemmas2.denote_tc_assert_test_eq';
   simpl; unfold_lift;
   hnf; intros ? ? H8; simpl;
   rewrite <- (H _ _ H8); auto.

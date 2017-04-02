@@ -668,26 +668,20 @@ Definition sem_shr (t1:type) (t2:type) (v1:val) (v2: val)  : option val :=
 
 (** *** Comparisons *)
 
+Definition cast_out_long (v: val) : val :=
+  match v with
+  | Vlong l => Vint (Int.repr (Int64.unsigned l))
+  | _ => v
+  end.
+
 Definition true2 (b : block) (i : Z) := true.
 
 Definition sem_cmp_pp c v1 v2 :=
 option_map Val.of_bool (Val.cmpu_bool true2 c v1 v2).
 
-Definition sem_cmp_pl c v1 v2 :=
- match v2 with
-      | Vlong n2 =>
-          let n2 := Int.repr (Int64.unsigned n2) in
-          option_map Val.of_bool (Val.cmpu_bool true2 c v1 (Vint n2))
-      | _ => None
-      end.
+Definition sem_cmp_pl c v1 v2 := sem_cmp_pp c v1 (cast_out_long v2).
 
-Definition sem_cmp_lp c v1 v2   :=
-      match v1 with
-      | Vlong n1 =>
-          let n1 := Int.repr (Int64.unsigned n1) in
-          option_map Val.of_bool (Val.cmpu_bool true2 c (Vint n1) v2)
-      | _ => None
-      end.
+Definition sem_cmp_lp c v1 v2 := sem_cmp_pp c (cast_out_long v1) v2.
 
 Definition sem_cmp_default c t1 t2 :=
  sem_binarith
