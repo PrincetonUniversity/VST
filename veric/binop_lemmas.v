@@ -304,8 +304,88 @@ Proof.
   + inversion H; subst; auto.
 Qed.
 
+Inductive tc_val_PM': type -> val -> Prop :=
+| tc_val_PM'_Tint: forall t0 sz sg a v, stupid_typeconv t0 = Tint sz sg a -> is_int sz sg v -> tc_val_PM' t0 v
+| tc_val_PM'_Tlong: forall t0 s a v, stupid_typeconv t0 = Tlong s a -> is_long v -> tc_val_PM' t0 v
+| tc_val_PM'_Tfloat_single: forall t0 a v, stupid_typeconv t0 = Tfloat F32 a -> is_single v -> tc_val_PM' t0 v
+| tc_val_PM'_Tfloat_double: forall t0 a v, stupid_typeconv t0 = Tfloat F64 a -> is_float v -> tc_val_PM' t0 v
+| tc_val_PM'_Tpointer: forall t0 t a v, stupid_typeconv t0 = Tpointer t a -> is_pointer_or_null v -> tc_val_PM' t0 v
+| tc_val_PM'_Tstruct: forall t0 i a v, stupid_typeconv t0 = Tstruct i a -> isptr v -> tc_val_PM' t0 v
+| tc_val_PM'_Tunion: forall t0 i a v, stupid_typeconv t0 = Tunion i a -> isptr v -> tc_val_PM' t0 v.
+
+Lemma tc_val_tc_val_PM': forall t v, tc_val t v <-> tc_val_PM' t v.
+Proof.
+  intros.
+  split; intros.
+  + destruct t as [| | | [ | ] ? | | | | |]; try (inv H).
+    - eapply tc_val_PM'_Tint; eauto; reflexivity.
+    - eapply tc_val_PM'_Tlong; eauto; reflexivity.
+    - eapply tc_val_PM'_Tfloat_single; eauto; reflexivity.
+    - eapply tc_val_PM'_Tfloat_double; eauto; reflexivity.
+    - eapply tc_val_PM'_Tpointer; eauto; reflexivity.
+    - eapply tc_val_PM'_Tpointer; eauto; reflexivity.
+    - eapply tc_val_PM'_Tpointer; eauto; reflexivity.
+    - eapply tc_val_PM'_Tstruct; eauto; reflexivity.
+    - eapply tc_val_PM'_Tunion; eauto; reflexivity.
+  + inversion H; subst;
+    destruct t as [| | | [ | ] ? | | | | |]; try (inv H0);
+    auto.
+Qed.
+
 Ltac solve_tc_val H :=
   rewrite tc_val_tc_val_PM in H; inv H.
+
+Ltac solve_tc_val' H :=
+  rewrite tc_val_tc_val_PM' in H; inv H.
+
+Lemma tc_val_sem_binarith': forall {CS: compspecs} sem_int sem_long sem_float sem_single t1 t2 t v1 v2 deferr reterr rho m
+  (TV2: tc_val t2 v2)
+  (TV1: tc_val t1 v1),
+  (denote_tc_assert (binarithType' t1 t2 t deferr reterr) rho) m ->
+  tc_val t
+    (force_val
+      (Cop2.sem_binarith
+        (fun s n1 n2 => Some (Vint (sem_int s n1 n2)))
+        (fun s n1 n2 => Some (Vlong (sem_long s n1 n2)))
+        (fun n1 n2 => Some (Vfloat (sem_float n1 n2)))
+        (fun n1 n2 => Some (Vsingle (sem_single n1 n2)))
+        t1 t2 v1 v2)).
+Proof.
+  intros.
+  unfold binarithType' in H.
+  unfold Cop2.sem_binarith.
+  rewrite classify_binarith_eq.
+  destruct (classify_binarith' t1 t2) eqn:?H;
+  try solve [inv H]; apply tc_bool_e in H.
+  + (* bin_case_i *)
+    solve_tc_val TV1;
+    solve_tc_val TV2;
+    try solve [inv H0].
+    destruct v1; try solve [inv H1].
+    destruct v2; try solve [inv H2].
+    destruct t as [| [| | |] ? ? | | | | | | |]; inv H; simpl; auto.
+  + (* bin_case_l *)
+    solve_tc_val TV1;
+    solve_tc_val TV2;
+    try solve [inv H0];
+    destruct v1; try solve [inv H1];
+    destruct v2; try solve [inv H2];
+    destruct t as [| [| | |] ? ? | | | | | | |]; inv H; simpl; auto.
+  + (* bin_case_f *)
+    solve_tc_val TV1;
+    solve_tc_val TV2;
+    try solve [inv H0];
+    destruct v1; try solve [inv H1];
+    destruct v2; try solve [inv H2];
+    destruct t as [| [| | |] ? ? | | [|] | | | | |]; inv H; simpl; auto.
+  + (* bin_case_s *)
+    solve_tc_val TV1;
+    solve_tc_val TV2;
+    try solve [inv H0];
+    destruct v1; try solve [inv H1];
+    destruct v2; try solve [inv H2];
+    destruct t as [| [| | |] ? ? | | [|] | | | | |]; inv H; simpl; auto.
+Qed.
 
 Lemma typecheck_Oadd_sound:
 forall {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
@@ -319,17 +399,42 @@ Proof.
   intros.
   rewrite den_isBinOpR in IBR.
   unfold eval_binop, sem_binary_operation', isBinOpResultType, Cop2.sem_add in IBR |- *.
+  rewrite classify_add_eq.
   destruct (classify_add' (typeof e1) (typeof e2)) eqn:?H;
-  unfold force_val2, force_val;
-  rewrite classify_add_eq, H.
+  unfold force_val2, force_val.
   + simpl in IBR.
     destruct IBR as [[?IBR ?IBR] ?IBR].
     apply tc_bool_e in IBR0.
     apply tc_bool_e in IBR1.
-    solve_tc_val TV1;
-    solve_tc_val TV2;
-    rewrite <- H0, <- H2 in H;
-    try solve [inv H];
+    unfold classify_add' in H.
+    solve_tc_val' TV1;
+    solve_tc_val' TV2;
+    rewrite ?H0, ?H2 in H;
+    try solve [inv H].
+    destruct (eval_expr e1 rho), (eval_expr e2 rho);
+    try solve [inv H1 | inv H3 | inv IBR].
+    destruct t; try solve [inv IBR1]; simpl; auto.
+  + simpl in IBR.
+    destruct IBR as [[?IBR ?IBR] ?IBR].
+    apply tc_bool_e in IBR0.
+    apply tc_bool_e in IBR1.
+    unfold classify_add' in H.
+    solve_tc_val' TV1;
+    solve_tc_val' TV2;
+    rewrite ?H0, ?H2 in H;
+    try solve [inv H].
+    destruct (eval_expr e1 rho), (eval_expr e2 rho);
+    try solve [inv H1 | inv H3 | inv IBR].
+    destruct t; try solve [inv IBR1]; simpl; auto.
+  + simpl in IBR.
+    destruct IBR as [[?IBR ?IBR] ?IBR].
+    apply tc_bool_e in IBR0.
+    apply tc_bool_e in IBR1.
+    unfold classify_add' in H.
+    solve_tc_val' TV1;
+    solve_tc_val' TV2;
+    rewrite ?H0, ?H2 in H;
+    try solve [inv H].
     destruct (eval_expr e1 rho), (eval_expr e2 rho);
     try solve [inv H1 | inv H3 | inv IBR];
     destruct t; try solve [inv IBR1]; simpl; auto.
@@ -337,44 +442,16 @@ Proof.
     destruct IBR as [[?IBR ?IBR] ?IBR].
     apply tc_bool_e in IBR0.
     apply tc_bool_e in IBR1.
-    solve_tc_val TV1;
-    solve_tc_val TV2;
-    rewrite <- H0, <- H2 in H;
-    try solve [inv H];
+    unfold classify_add' in H.
+    solve_tc_val' TV1;
+    solve_tc_val' TV2;
+    rewrite ?H0, ?H2 in H;
+    try solve [inv H].
     destruct (eval_expr e1 rho), (eval_expr e2 rho);
     try solve [inv H1 | inv H3 | inv IBR];
     destruct t; try solve [inv IBR1]; simpl; auto.
-  + simpl in IBR.
-    destruct IBR as [[?IBR ?IBR] ?IBR].
-    apply tc_bool_e in IBR0.
-    apply tc_bool_e in IBR1.
-    solve_tc_val TV1;
-    solve_tc_val TV2;
-    rewrite <- H0, <- H2 in H;
-    try solve [try destruct sz; try destruct sz0; inv H];
-    destruct (eval_expr e1 rho), (eval_expr e2 rho);
-    try solve [inv H1 | inv H3 | inv IBR];
-    destruct t; try solve [inv IBR1]; simpl; auto.
-  + simpl in IBR.
-    destruct IBR as [[?IBR ?IBR] ?IBR].
-    apply tc_bool_e in IBR0.
-    apply tc_bool_e in IBR1.
-    solve_tc_val TV1;
-    solve_tc_val TV2;
-    rewrite <- H0, <- H2 in H;
-    try solve [try destruct sz; try destruct sz0; inv H];
-    destruct (eval_expr e1 rho), (eval_expr e2 rho);
-    try solve [inv H1 | inv H3 | inv IBR];
-    destruct t; try solve [inv IBR1]; simpl; auto.
-  + solve_tc_val TV1;
-    solve_tc_val TV2;
-    rewrite <- H0, <- H2 in H, IBR;
-    try solve [inv H];
-    destruct (eval_expr e1 rho), (eval_expr e2 rho);
-    try solve [inv H1 | inv H3 | inv IBR];
-    destruct t; try solve [inv IBR];    
-    try destruct sz, sg; try destruct sz0, sg0; try destruct s; try destruct s0; try destruct i1; try destruct i2; try destruct f0; try destruct f1; try solve [inv IBR];
-    simpl; auto.
+  + unfold sem_add_default.
+    eapply tc_val_sem_binarith'; eauto.
 Qed.
 
 Lemma typecheck_Osub_sound:
@@ -389,19 +466,20 @@ Proof.
   intros.
   rewrite den_isBinOpR in IBR.
   unfold eval_binop, sem_binary_operation', isBinOpResultType, Cop2.sem_sub in IBR |- *.
+  rewrite classify_sub_eq.
   destruct (classify_sub' (typeof e1) (typeof e2)) eqn:?H;
-  unfold force_val2, force_val;
-  rewrite classify_sub_eq, H.
+  unfold force_val2, force_val.
   + simpl in IBR.
     destruct IBR as [[?IBR ?IBR] ?IBR].
     apply tc_bool_e in IBR0.
     apply tc_bool_e in IBR1.
-    solve_tc_val TV1;
-    solve_tc_val TV2;
-    rewrite <- H0, <- H2 in H;
-    try solve [inv H];
+    unfold classify_sub' in H.
+    solve_tc_val' TV1;
+    solve_tc_val' TV2;
+    rewrite ?H0, ?H2 in H;
+    try solve [inv H].
     destruct (eval_expr e1 rho), (eval_expr e2 rho);
-    try solve [inv H1 | inv H3 | inv IBR];
+    try solve [inv H1 | inv H3 | inv IBR].
     destruct t; try solve [inv IBR1]; simpl; auto.
   + simpl in IBR.
     destruct IBR as [[[[[[?IBR ?IBR] ?IBR] ?IBR] ?IBR] ?IBR] ?IBR].
@@ -409,12 +487,13 @@ Proof.
     apply tc_bool_e in IBR3.
     apply tc_bool_e in IBR4.
     apply tc_bool_e in IBR5.
-    solve_tc_val TV1;
-    solve_tc_val TV2;
-    rewrite <- H0, <- H2 in H;
-    try solve [inv H];
+    unfold classify_sub' in H.
+    solve_tc_val' TV1;
+    solve_tc_val' TV2;
+    rewrite ?H0, ?H2 in H;
+    try solve [inv H].
     destruct (eval_expr e1 rho), (eval_expr e2 rho);
-    try solve [inv H1 | inv H3 | inv IBR];
+    try solve [inv H1 | inv H3 | inv IBR].
     destruct t as [| [| | |] [|] | | | | | | |]; try solve [inv IBR2]; simpl;
     erewrite eq_block_true by eauto; rewrite sizeof_range_true by auto;
     simpl; auto.
@@ -422,22 +501,16 @@ Proof.
     destruct IBR as [[?IBR ?IBR] ?IBR].
     apply tc_bool_e in IBR0.
     apply tc_bool_e in IBR1.
-    solve_tc_val TV1;
-    solve_tc_val TV2;
-    rewrite <- H0, <- H2 in H;
-    try solve [inv H];
+    unfold classify_sub' in H.
+    solve_tc_val' TV1;
+    solve_tc_val' TV2;
+    rewrite ?H0, ?H2 in H;
+    try solve [inv H].
     destruct (eval_expr e1 rho), (eval_expr e2 rho);
-    try solve [inv H1 | inv H3 | inv IBR];
+    try solve [inv H1 | inv H3 | inv IBR].
     destruct t; try solve [inv IBR1]; simpl; auto.
-  + solve_tc_val TV1;
-    solve_tc_val TV2;
-    rewrite <- H0, <- H2 in H, IBR;
-    try solve [inv H];
-    destruct (eval_expr e1 rho), (eval_expr e2 rho);
-    try solve [inv H1 | inv H3 | inv IBR];
-    destruct t; try solve [inv IBR];    
-    try destruct sz, sg; try destruct sz0, sg0; try destruct s; try destruct s0; try destruct i1; try destruct i2; try destruct f0; try destruct f1; try solve [inv IBR];
-    simpl; auto.
+  + unfold sem_sub_default.
+    eapply tc_val_sem_binarith'; eauto.
 Qed.
 
 Lemma typecheck_Omul_sound:
@@ -452,15 +525,8 @@ Proof.
   intros.
   rewrite den_isBinOpR in IBR.
   unfold eval_binop, sem_binary_operation', isBinOpResultType, Cop2.sem_mul in IBR |- *.
-  unfold force_val2, force_val;
-  solve_tc_val TV1;
-  solve_tc_val TV2;
-  rewrite <- H1, <- H in IBR;
-  destruct (eval_expr e1 rho), (eval_expr e2 rho);
-  try solve [inv H0 | inv H2 | inv IBR];
-  destruct t; try solve [inv IBR];
-  try destruct sz, sg; try destruct sz0, sg0; try destruct s; try destruct s0; try destruct i1; try destruct i2; try destruct f0; try destruct f1; try solve [inv IBR];
-  simpl; auto.
+  unfold force_val2, force_val.
+  eapply tc_val_sem_binarith'; eauto.
 Qed.
 
 Lemma typecheck_Odiv_sound:
@@ -802,12 +868,30 @@ Proof.
   (* TODO: Other bin cases to be added *)
 Qed.
 
-Lemma typecheck_Ocmp_sound:
+Lemma denote_tc_test_eq_Vint_l: forall m i v,
+  (denote_tc_test_eq (Vint i) v) m ->
+  i = Int.zero.
+Proof.
+  intros.
+  unfold denote_tc_test_eq in H; simpl in H.
+  destruct v; try solve [inv H]; simpl in H; tauto.
+Qed.
+
+Lemma denote_tc_test_eq_Vint_r: forall m i v,
+  (denote_tc_test_eq v (Vint i)) m ->
+  i = Int.zero.
+Proof.
+  intros.
+  unfold denote_tc_test_eq in H; simpl in H.
+  destruct v; try solve [inv H]; simpl in H; tauto.
+Qed.
+
+Lemma typecheck_Otest_eq_sound:
  forall op {CS: compspecs} (rho : environ) m (e1 e2 : expr) (t : type)
    (IBR: denote_tc_assert (isBinOpResultType op e1 e2 t) rho m)
    (TV2: tc_val (typeof e2) (eval_expr e2 rho))
    (TV1: tc_val (typeof e1) (eval_expr e1 rho))
-   (OP: op = Oeq \/ op = One \/ op = Olt \/ op = Ogt \/ op = Ole \/ op = Oge),
+   (OP: op = Oeq \/ op = One),
    tc_val t
      (eval_binop op (typeof e1) (typeof e2) (eval_expr e1 rho) (eval_expr e2 rho)).
 Proof.
@@ -825,7 +909,7 @@ Proof.
                  (arg_type (Ebinop op e1 e2 t))
            end rho) m)
   in IBR
-  by (rewrite den_isBinOpR; destruct OP as [| [ | [ | [ | [ | ]]]]]; subst; auto).
+  by (rewrite den_isBinOpR; destruct OP as [|]; subst; auto).
   replace
     (tc_val t (eval_binop op (typeof e1) (typeof e2) (eval_expr e1 rho) (eval_expr e2 rho)))
   with
@@ -837,22 +921,63 @@ Proof.
          | cmp_case_lp => sem_cmp_lp (op_to_cmp op)
          | cmp_default => sem_cmp_default (op_to_cmp op) (typeof e1) (typeof e2)
          end (eval_expr e1 rho) (eval_expr e2 rho))))
-  by (destruct OP as [| [ | [ | [ | [ | ]]]]]; subst; rewrite <- classify_cmp_eq; auto).
+  by (destruct OP as [|]; subst; rewrite <- classify_cmp_eq; auto).
   destruct (classify_cmp' (typeof e1) (typeof e2)) eqn:?H; try solve [inv IBR].
-  + unfold check_pp_int' in IBR.
-    Check sem_cmp_pp_pp.
-    Print sem_cmp_pp.
-    Print Val.cmpu_bool.
+  + (* cmp_case_pp *)
+    replace (check_pp_int' e1 e2 op t (Ebinop op e1 e2 t))
+    with (tc_andp' (tc_test_eq' e1 e2)
+                   (tc_bool (is_int_type t) (op_result_type (Ebinop op e1 e2 t))))
+    in IBR
+    by (unfold check_pp_int'; destruct OP; subst; auto).
+    destruct IBR as [?IBR ?IBR].
+    apply tc_bool_e in IBR0.
+    simpl in IBR; unfold_lift in IBR.
+    SearchAbout sem_cmp_pp.
     solve_tc_val TV1;
     solve_tc_val TV2;
     rewrite <- H0, <- H2 in H;
     try solve [inv H].
-    Focus 1.
-    destruct OP as [| [ | [ | [ | [ | ]]]]]; subst;
+    Print classify_cmp'.
+    Focus 2.
+    destruct OP as [|]; subst;
     destruct (eval_expr e1 rho), (eval_expr e2 rho);
-    try solve [inv H1 | inv H3].
-    destruct t; simpl; auto.
-  + (* bin_case_i *)
+    try solve [inv H1 | inv H3];
+    destruct t as [| | | | | | | |]; try solve [inv IBR0];
+    unfold force_val, op_to_cmp;
+    try pose proof denote_tc_test_eq_Vint_l _ _ _ IBR;
+    try pose proof denote_tc_test_eq_Vint_r _ _ _ IBR;
+    first [ apply sem_cmp_pp_pp; solve [auto]
+          | apply sem_cmp_pp_ip; solve [auto]
+          | apply sem_cmp_pp_pi; solve [auto]
+          | subst; apply tc_val_of_bool].
+  + (* cmp_case_pl *)
+    replace (check_pp_int' e1 (Ecast e2 (Tint I32 Unsigned noattr)) op t (Ebinop op e1 e2 t))
+    with (tc_andp' (tc_test_eq' e1 (Ecast e2 (Tint I32 Unsigned noattr)))
+                   (tc_bool (is_int_type t) (op_result_type (Ebinop op e1 e2 t))))
+    in IBR
+    by (unfold check_pp_int'; destruct OP; subst; auto).
+    simpl in IBR.
+    destruct IBR as [?IBR ?IBR].
+    apply tc_bool_e in IBR0.
+    simpl in IBR; unfold_lift in IBR.
+    unfold sem_cmp_pl.
+    solve_tc_val TV1;
+    solve_tc_val TV2;
+    rewrite <- H0, <- H2 in H;
+    try solve [inv H];
+    destruct OP as [|]; subst;
+    destruct (eval_expr e1 rho), (eval_expr e2 rho);
+    try solve [inv H1 | inv H3];
+    destruct t as [| | | | | | | |]; try solve [inv IBR0];
+    unfold force_val, op_to_cmp.
+    unfold force_val1, force_val, Cop2.sem_cast in IBR.
+Focus 6.    
+    try pose proof denote_tc_test_eq_Vint_l _ _ _ IBR;
+    try pose proof denote_tc_test_eq_Vint_r _ _ _ IBR;
+    first [ apply sem_cmp_pp_pp; solve [auto]
+          | apply sem_cmp_pp_ip; solve [auto]
+          | apply sem_cmp_pp_pi; solve [auto]
+          | subst; apply tc_val_of_bool].
     destruct (eval_expr e1 rho), (eval_expr e2 rho);
       try solve [inv H1 | inv H3].
     destruct OP as [| [|]]; subst; auto;

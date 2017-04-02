@@ -578,7 +578,7 @@ try destruct i0,s0; auto.
 Qed.
 
 Definition classify_binarith' (ty1: type) (ty2: type) :=
-  match ty1, ty2 with
+  match stupid_typeconv ty1, stupid_typeconv ty2 with
   | Tint i1 s1 _, Tint i2 s2 _ => bin_case_i 
     match i1, s1, i2, s2 with
     | I32, Unsigned, _, _ => Unsigned
@@ -734,6 +734,7 @@ Proof.
  destruct (typeof a1) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ]; dtca;
  destruct (typeof a2) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ]; dtca.
 Qed.
+(* TODO: Improve this efficiency as well. *)
 
 Lemma denote_tc_assert'_andp'_e:
  forall {CS: compspecs} a b rho m, denote_tc_assert' (tc_andp' a b) rho m ->
