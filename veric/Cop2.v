@@ -567,52 +567,16 @@ Definition sem_mul (t1:type) (t2:type) (v1:val)  (v2: val)  : option val :=
 
 Definition sem_div (t1:type) (t2:type) (v1:val)  (v2: val) : option val :=
   sem_binarith
-    (fun sg n1 n2 =>
-      match sg with
-      | Signed =>
-          if Int.eq n2 Int.zero
-          || Int.eq n1 (Int.repr Int.min_signed) && Int.eq n2 Int.mone
-          then None else Some(Vint(Int.divs n1 n2))
-      | Unsigned =>
-          if Int.eq n2 Int.zero
-          then None else Some(Vint(Int.divu n1 n2))
-      end)
-    (fun sg n1 n2 =>
-      match sg with
-      | Signed =>
-          if Int64.eq n2 Int64.zero
-          || Int64.eq n1 (Int64.repr Int64.min_signed) && Int64.eq n2 Int64.mone
-          then None else Some(Vlong(Int64.divs n1 n2))
-      | Unsigned =>
-          if Int64.eq n2 Int64.zero
-          then None else Some(Vlong(Int64.divu n1 n2))
-      end)
+    (fun sg n1 n2 => Some(Vint (match sg with | Signed => Int.divs | Unsigned => Int.divu end n1 n2)))
+    (fun sg n1 n2 => Some(Vlong (match sg with | Signed => Int64.divs | Unsigned => Int64.divu end n1 n2)))
     (fun n1 n2 => Some(Vfloat(Float.div n1 n2)))
     (fun n1 n2 => Some(Vsingle(Float32.div n1 n2)))
     t1 t2 v1 v2.
 
 Definition sem_mod (t1:type) (t2:type) (v1:val)  (v2: val) : option val :=
   sem_binarith
-    (fun sg n1 n2 =>
-      match sg with
-      | Signed =>
-          if Int.eq n2 Int.zero
-          || Int.eq n1 (Int.repr Int.min_signed) && Int.eq n2 Int.mone
-          then None else Some(Vint(Int.mods n1 n2))
-      | Unsigned =>
-          if Int.eq n2 Int.zero
-          then None else Some(Vint(Int.modu n1 n2))
-      end)
-    (fun sg n1 n2 =>
-      match sg with
-      | Signed =>
-          if Int64.eq n2 Int64.zero
-          || Int64.eq n1 (Int64.repr Int64.min_signed) && Int64.eq n2 Int64.mone
-          then None else Some(Vlong(Int64.mods n1 n2))
-      | Unsigned =>
-          if Int64.eq n2 Int64.zero
-          then None else Some(Vlong(Int64.modu n1 n2))
-      end)
+    (fun sg n1 n2 => Some(Vint (match sg with | Signed => Int.mods | Unsigned => Int.modu end n1 n2)))
+    (fun sg n1 n2 => Some(Vlong (match sg with | Signed => Int64.mods | Unsigned => Int64.modu end n1 n2)))
     (fun n1 n2 => None)
     (fun n1 n2 => None)
     t1 t2 v1 v2.
