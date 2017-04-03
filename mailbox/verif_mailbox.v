@@ -408,8 +408,7 @@ Qed.
 Lemma Empty_inj : forall i, vint i = Empty -> repable_signed i -> i = -1.
 Proof.
   intros; apply repr_inj_signed; auto.
-  - split; computable.
-  - unfold Empty in *; congruence.
+  unfold Empty in *; congruence.
 Qed.
 
 Lemma repable_buf : forall a, -1 <= a < B -> repable_signed a.
@@ -1793,7 +1792,7 @@ Proof.
         (upd_Znth i l (vint (if eq_dec (vint b') Empty then b0 else Znth i lasts 0))) last_taken :: R)))) end.
     + forward.
       match goal with H : Int.repr b' = _ |- _ => rewrite Int.neg_repr in H; apply repr_inj_signed in H end; subst;
-        auto; [|split; try computable].
+        auto.
       destruct (eq_dec (- (1)) (-1)); [|absurd (-1 = -1); auto].
       apply drop_tc_environ.
     + forward.
@@ -2220,7 +2219,7 @@ repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
 repeat semax_func_cons_ext.
 semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
 repeat semax_func_cons_ext.
-{ destruct x as (((((((((?, ?), ?), ?), ?), ?), ?), ?), ?), ?).
+{ destruct x as ((((((((?, ?), ?), ?), ?), ?), ?), ?), ?).
   apply exp_left; intro.
   apply exp_left; intro.
   unfold PROPx, LOCALx, local, lift1, liftx, lift; simpl.
@@ -2231,14 +2230,6 @@ repeat semax_func_cons_ext.
   destruct ret; auto. }
 semax_func_cons body_surely_malloc.
 semax_func_cons body_memset.
-(*semax_func_cons body_atomic_exchange.
-{ simpl in *.
-  destruct x0 as (((((((((?, ?), ?), ?), ?), ?), ?), ?), ?), ?).
-  (* This could probably be done automatically with a slight modification to precondition_closed. *)
-  simpl not_a_param; auto 50 with closed. }
-{ simpl in *.
-  destruct x0 as (((((((((?, ?), ?), ?), ?), ?), ?), ?), ?), ?).
-  simpl is_a_local; auto 50 with closed. }*)
 semax_func_cons body_initialize_channels.
 semax_func_cons body_initialize_reader.
 semax_func_cons body_start_read.
