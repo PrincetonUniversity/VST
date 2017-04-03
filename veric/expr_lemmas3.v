@@ -485,5 +485,12 @@ destruct (classify_cast (typeof e) t)
    end);
  try match goal with |- Int.eq (if ?A then _ else _) _ || _ = _ =>
       destruct A; try reflexivity
-  end.
+     end;
+  try solve [apply int_eq_true; symmetry; auto;
+       simpl denote_tc_iszero in *;
+       destruct (Int.eq i Int.zero); auto];
+ try match goal with |- (if ?A then _ else _) = _ \/ (if ?A then _ else _) = _ =>
+      destruct A; solve [auto]
+     end;
+  auto.
 Qed.
