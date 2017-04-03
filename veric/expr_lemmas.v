@@ -331,6 +331,144 @@ Proof.
   rewrite ?bin_arith_relate.
   * destruct (classify_add (typeof e1) (typeof e2)); reflexivity.
   * destruct (classify_sub (typeof e1) (typeof e2)); reflexivity.
+  * rewrite den_isBinOpR in H.
+    destruct (classify_binarith (typeof e1) (typeof e2)) as [[|] | [|] | | |] eqn:?H.
+    + destruct H as [[? ?] ?].
+      simpl in H, H1; unfold_lift in H; unfold_lift in H1.
+      apply tc_bool_e in H2.
+      destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      try solve [inv H0];
+      destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      simpl;
+      try contradiction;
+      apply denote_tc_nonzero_e in H;
+      apply denote_tc_nodivover_e in H1;
+      rewrite H, H1;
+      reflexivity.
+    + destruct H as [? ?].
+      simpl in H; unfold_lift in H.
+      apply tc_bool_e in H1.
+      destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      try solve [inv H0];
+      destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      simpl;
+      try contradiction;
+      apply denote_tc_nonzero_e in H;
+      rewrite H;
+      reflexivity.
+    + destruct H as [[? ?] ?].
+      simpl in H, H1; unfold_lift in H; unfold_lift in H1.
+      apply tc_bool_e in H2.
+      destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      try solve [inv H0];
+      destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      simpl;
+      try contradiction;
+      apply denote_tc_nonzero_e64 in H;
+      apply denote_tc_nodivover_e64 in H1;
+      rewrite H, H1;
+      reflexivity.
+    + destruct H as [? ?].
+      simpl in H; unfold_lift in H.
+      apply tc_bool_e in H1.
+      destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      try solve [inv H0];
+      destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      simpl;
+      try contradiction;
+      first
+      [ apply denote_tc_nonzero_e64 in H;
+        rewrite H;
+        reflexivity
+      | apply denote_tc_nonzero_e in H;
+        apply Int64_eq_repr_signed32_nonzero in H;
+        rewrite H;
+        reflexivity
+      | apply denote_tc_nonzero_e in H;
+        apply Int64_eq_repr_unsigned32_nonzero in H;
+        rewrite H;
+        reflexivity ].
+    + destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      try solve [inv H0];
+      destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      simpl;
+      try contradiction; reflexivity.
+    + destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      try solve [inv H0];
+      destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      simpl;
+      try contradiction; reflexivity.
+    + inv H.
+  * rewrite den_isBinOpR in H.
+    destruct (classify_binarith (typeof e1) (typeof e2)) as [[|] | [|] | | |] eqn:?H.
+    + destruct H as [[? ?] ?].
+      simpl in H, H1; unfold_lift in H; unfold_lift in H1.
+      apply tc_bool_e in H2.
+      destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      try solve [inv H0];
+      destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      simpl;
+      try contradiction;
+      apply denote_tc_nonzero_e in H;
+      apply denote_tc_nodivover_e in H1;
+      rewrite H, H1;
+      reflexivity.
+    + destruct H as [? ?].
+      simpl in H; unfold_lift in H.
+      apply tc_bool_e in H1.
+      destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      try solve [inv H0];
+      destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      simpl;
+      try contradiction;
+      apply denote_tc_nonzero_e in H;
+      rewrite H;
+      reflexivity.
+    + destruct H as [[? ?] ?].
+      simpl in H, H1; unfold_lift in H; unfold_lift in H1.
+      apply tc_bool_e in H2.
+      destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      try solve [inv H0];
+      destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      simpl;
+      try contradiction;
+      apply denote_tc_nonzero_e64 in H;
+      apply denote_tc_nodivover_e64 in H1;
+      rewrite H, H1;
+      reflexivity.
+    + destruct H as [? ?].
+      simpl in H; unfold_lift in H.
+      apply tc_bool_e in H1.
+      destruct (typeof e1)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      destruct (typeof e2)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+      try solve [inv H0];
+      destruct (eval_expr e1 rho), (eval_expr e2 rho);
+      simpl;
+      try contradiction;
+      first
+      [ apply denote_tc_nonzero_e64 in H;
+        rewrite H;
+        reflexivity
+      | apply denote_tc_nonzero_e in H;
+        apply Int64_eq_repr_signed32_nonzero in H;
+        rewrite H;
+        reflexivity
+      | apply denote_tc_nonzero_e in H;
+        apply Int64_eq_repr_unsigned32_nonzero in H;
+        rewrite H;
+        reflexivity ].
+    + inv H.
+    + inv H.
+    + inv H.
   * destruct (classify_shift (typeof e1)(typeof e2)); try reflexivity; apply bin_arith_relate.
   * destruct (classify_shift (typeof e1)(typeof e2)); try reflexivity; apply bin_arith_relate.
   * unfold isBinOpResultType in H;
