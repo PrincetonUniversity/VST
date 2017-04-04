@@ -350,7 +350,7 @@ Proof.
     eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
     rewrite data_at__memory_block. simpl. entailer!. 
   }
-  forward_call (Vptr b i, ((info,(M2,p)):mdstate), 32, initial_key, kv, Vptr b (Int.add i (Int.repr 12))).
+  forward_call (Vptr b i, ((info,(M2,p)):mdstate), 32, initial_key, kv, b, Int.add i (Int.repr 12)).
   { simpl. cancel. }
   { split; trivial. red. simpl. rewrite int_max_signed_eq.
     split. trivial. split. omega. rewrite two_power_pos_equiv.
@@ -547,5 +547,6 @@ Proof.
   cancel.
   unfold_data_at 1%nat. cancel.
   apply deep_interp_empty. 
-Time Qed. (*Feb 22nd 2017: 245.406 secs (233.843u,0.203s) (successful)*)
+Time Qed. (*Coq8.6: 42secs*)
+   (*Feb 22nd 2017: 245.406 secs (233.843u,0.203s) (successful)*)
    (*earlier: 69.671 secs (59.578u,0.015s) (successful)*)

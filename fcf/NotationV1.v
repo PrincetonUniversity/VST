@@ -20,14 +20,14 @@ Notation "{ 0 , 1 }" := (Bind (Rnd 1) (fun m => ret (Vector.hd m)))
   (right associativity, at level 75) : comp_scope.
 
 (* A sequence of probabilistic computations. *)
-Notation "x <-$ c1 ; c2" := (@Bind _ _ c1%comp (fun x => c2))
+Notation "x <-$ c1 ; c2" := (@Bind _ _ c1%comp (fun x => c2)) 
   (right associativity, at level 81, c1 at next level) : comp_scope.
 
 (* The following notations run the first computation that produces a tuple, unpacks the tuple, and provides names for the values that can be used by the second computation. *)
-Notation "[ x1 , x2 ] <-$2 c1 ; c2" :=
+Notation "[ x1 , x2 ] <-$2 c1 ; c2" := 
   (Bind c1%comp (fun z => let '(x1, x2) := z in c2)) (right associativity, at level 81, c1 at next level, only parsing) : comp_scope.
 
-Notation "[ x1 , x2 , x3 ] <-$3 c1 ; c2" :=
+Notation "[ x1 , x2 , x3 ] <-$3 c1 ; c2" := 
   (Bind c1%comp (fun z => let '(x1, x2, x3) := z in c2)) (right associativity, at level 81, c1 at next level, only parsing) : comp_scope.
 
 (* setLet enables "let" notation but ensures that the first type is in Set.  This helps check some errors in definitions. *)
@@ -46,14 +46,14 @@ Notation "[ x1 , x2 , x3 , x4 ] <-4 e1 ; c2" := (let '(x1, x2, x3, x4) := e1 in 
 Notation "[ x1 , x2 , x3 , x4 , x5 ] <-5 e1 ; c2" := (let '(x1, x2, x3, x4, x5) := e1 in c2) (right associativity, at level 81, e1 at next level) : comp_scope.
 
 (* Run a sequence of probabilistic computations with oracle access. *)
-Notation "x <--$ c1 ; c2" := (OC_Bind c1%comp (fun x => c2))
+Notation "x <--$ c1 ; c2" := (OC_Bind c1%comp (fun x => c2)) 
   (right associativity, at level 81, c1 at next level) : comp_scope.
 
 (* The following notations run the first computation (with oracle access) that produces a tuple, unpacks the tuple, and provides names for the values that can be used by the second computation. *)
-Notation "[ x1 , x2 ] <--$2 c1 ; c2" :=
+Notation "[ x1 , x2 ] <--$2 c1 ; c2" := 
   (OC_Bind c1%comp (fun z => let '(x1, x2) := z in c2)) (right associativity, at level 81, c1 at next level, only parsing) : comp_scope.
 
-Notation "[ x1 , x2 , x3 ] <--$3 c1 ; c2" :=
+Notation "[ x1 , x2 , x3 ] <--$3 c1 ; c2" := 
   (OC_Bind c1%comp (fun z => let '(x1, x2, x3) := z in c2)) (right associativity, at level 81, c1 at next level, only parsing) : comp_scope.
 
 (* Promote a computation into a computation with oracle access. *)
@@ -71,7 +71,7 @@ Definition maybeBindComp(A B : Set)(eqdb : EqDec B)(c : Comp (option A))(f : A -
     | Some a => b <-$ (f a); ret (Some b)
   end.
 
-Notation "x <-$? c1 ; c2" :=
+Notation "x <-$? c1 ; c2" := 
    (maybeBindComp _ (c1)%comp (fun x => (c2)%comp))
                               (right associativity, at level 81, c1 at next level) : comp_scope.
 

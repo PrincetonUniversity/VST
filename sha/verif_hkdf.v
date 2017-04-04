@@ -118,4 +118,4 @@ destruct (zlt 255 ((olen + 31) / 32)); inv EXPAND_RES.
   rewrite field_address_offset by auto with field_compatible. simpl.
   rewrite isptr_offset_val_zero; trivial. cancel.
   unfold spec_sha.data_block. normalize. rewrite ZlengthExtract. cancel.
-Time Qed. (*Finished transaction in 16.671 secs (15.484u,0.s) (successful)*)
+Time Qed. (*Coq8.6: 8.3 secs; Coq8.5pl2: Finished transaction in 16.671 secs (15.484u,0.s) (successful)*)

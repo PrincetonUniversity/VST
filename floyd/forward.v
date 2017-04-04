@@ -254,12 +254,23 @@ Ltac semax_func_cons L :=
  repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]);
  try apply semax_func_nil.
 
+(* This is a better way of finding an element in a long list. *)
+Lemma from_elements_In : forall {A} l i (v : A), (pTree_from_elements l) ! i = Some v ->
+  In (i, v) l.
+Proof.
+  induction l; simpl; intros.
+  - rewrite PTree.gempty in H; discriminate.
+  - destruct a as (i', v'); destruct (eq_dec i' i).
+    + subst; rewrite PTree.gss in H; inv H; auto.
+    + rewrite PTree.gso in H; auto.
+Qed.
+
 Ltac semax_func_cons_ext :=
   eapply semax_func_cons_ext;
     [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
     | semax_func_cons_ext_tc
     | solve[ first [eapply semax_ext;
-          [ repeat first [reflexivity | left; reflexivity | right]
+          [ (*repeat first [reflexivity | left; reflexivity | right]*) apply from_elements_In; reflexivity
           | apply compute_funspecs_norepeat_e; reflexivity
           | reflexivity
           | reflexivity ]]]
@@ -793,6 +804,7 @@ Ltac clear_MORE_POST :=
         clear MORE_COMMANDS
       end.
 
+(* old
 Ltac fwd_call' A witness H :=
  first[ eapply semax_seq';
          [clear_Delta_specs; clear_MORE_POST;
@@ -806,9 +818,91 @@ Ltac fwd_call' A witness H :=
            ]
          | clear H; after_forward_call]
      | rewrite <- seq_assoc; fwd_call' A witness H].
+*)
+
+Ltac fwd_call' A witness H :=
+lazymatch goal with
+| |- semax _ _ (Ssequence (Scall _ _ _) _) _ =>
+  eapply semax_seq';
+    [clear_Delta_specs; clear_MORE_POST;
+     let Frame := fresh "Frame" in evar (Frame: list (mpred));
+     lazymatch goal with |- semax _ _ ?C _ =>
+      lazymatch C with
+      | Scall (Some _) (Evar _ _) _ =>
+         forward_call_id1_wow A witness Frame H
+      | Scall None (Evar _ (Tfunction _ ?retty _)) _ =>
+        tryif (unify retty Tvoid)
+        then forward_call_id00_wow A witness Frame H
+       else forward_call_id01_wow A witness Frame H 
+      end
+    end
+   | clear H; after_forward_call ]
+| |- semax _ _ (Ssequence (Ssequence (Scall (Some _) _ _) (Sset _ _)) _) _ =>
+ (eapply semax_seq';
+    [clear_Delta_specs; clear_MORE_POST;
+     let Frame := fresh "Frame" in evar (Frame: list (mpred));
+         (forward_call_id1_x_wow A witness Frame H
+          || forward_call_id1_y_wow A witness Frame H)
+     |  clear H; after_forward_call ])   
+ || (rewrite <- seq_assoc; fwd_call' A witness H)
+| |- _ => rewrite <- seq_assoc; fwd_call' A witness H
+end.
 
 Inductive Ridiculous: Type := .
 
+Ltac check_witness_type A witness :=
+ let TA := constr:(functors.MixVariantFunctor._functor
+     (rmaps.dependent_type_functor_rec nil A) mpred) in
+  let TA' := eval cbv 
+     [functors.MixVariantFunctor._functor
+      functors.MixVariantFunctorGenerator.fpair
+      functors.MixVariantFunctorGenerator.fconst
+      functors.MixVariantFunctorGenerator.fidentity
+      rmaps.dependent_type_functor_rec
+      functors.GeneralFunctorGenerator.CovariantBiFunctor_MixVariantFunctor_compose
+      functors.CovariantFunctorGenerator.fconst
+      functors.CovariantFunctorGenerator.fidentity
+      functors.CovariantBiFunctor._functor
+      functors.CovariantBiFunctorGenerator.Fpair
+      functors.GeneralFunctorGenerator.CovariantFunctor_MixVariantFunctor
+      functors.CovariantFunctor._functor
+      functors.MixVariantFunctor.fmap
+      ] in TA
+ in let TA'' := eval simpl in TA'
+  in match type of witness with ?T => 
+       unify T TA''
+      + (fail "Type of witness does not match type required by funspec WITH clause.
+Witness value: " witness "
+Witness type: " T "
+Funspec type: " TA'')
+     end.
+
+Ltac fwd_call witness :=
+ try lazymatch goal with
+      | |- semax _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip
+      end;
+ repeat lazymatch goal with
+  | |- semax _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
+      rewrite <- seq_assoc
+ end;
+lazymatch goal with |- @semax ?CS _ ?Delta _ (Ssequence ?C _) _ =>
+  lazymatch C with context [Scall _ (Evar ?id _) _] =>
+   refine (modusponens (global_funspec Delta id _ _ _ _ _ _ _ _) _ _ _);
+  [ eapply lookup_funspec;
+    [check_function_name
+    | lookup_spec_and_change_compspecs CS id
+    | find_spec_in_globals']
+  | let H := fresh in intro H;
+    match type of H with global_funspec _ _ _ _ _ ?A _ _ _ _ =>
+      (unify A (rmaps.ConstType Ridiculous); (* because [is_evar A] doesn't seem to work *)
+             elimtype False)
+     || (check_witness_type A witness;
+         fwd_call' A witness H)
+    end ]
+  end
+end.
+
+(* old: 
 Ltac fwd_call witness :=
  try match goal with
       | |- semax _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip
@@ -826,13 +920,14 @@ match goal with |- @semax ?CS _ ?Delta _ (Ssequence ?C _) _ =>
     | find_spec_in_globals']
   | let H := fresh in intro H;
     match type of H with global_funspec _ _ _ _ _ ?A _ _ _ _ =>
-     first [unify A (rmaps.ConstType Ridiculous); (* because [is_evar A] doesn't seem to work *)
-             elimtype False
-           | fwd_call' A witness H]
+      (unify A (rmaps.ConstType Ridiculous); (* because [is_evar A] doesn't seem to work *)
+             elimtype False)
+     || fwd_call' A witness H
     end
   ]
   end
 end.
+*)
 
 Tactic Notation "forward_call" constr(witness) := fwd_call witness.
 (*
@@ -1556,7 +1651,7 @@ Ltac sequential :=
 Hint Extern 1 (@sizeof _ ?A > 0) =>
    (let a := fresh in set (a:= sizeof A); hnf in a; subst a; computable)
   : valid_pointer.
-Hint Resolve denote_tc_comparable_split : valid_pointer.
+Hint Resolve denote_tc_test_eq_split : valid_pointer.
 
 Ltac pre_entailer :=
   try match goal with
@@ -1743,7 +1838,7 @@ Ltac calc_gfs_suffix gfs gfs0 gfs1 :=
 (* Given a JMEq containing the result of a load, pulls the "Vint" out of "map".
    Useful for all loads from int arrays.
    Makes entailer and other tactics more successful. *)
-Ltac canon_load_result Hresult := 
+Ltac default_canon_load_result Hresult :=
   repeat (
     first [ rewrite Znth_map with (d' := Int.zero) in Hresult
           | rewrite Znth_map with (d' := Vundef) in Hresult
@@ -1752,6 +1847,8 @@ Ltac canon_load_result Hresult :=
         | |- ?Bounds => fail 1000 "Please make sure omega or auto can prove" Bounds
         end ]
   ).
+
+Ltac canon_load_result Hresult := default_canon_load_result Hresult.
 
 Ltac find_load_result Hresult t_root gfs0 v gfs1 :=
   let result := fresh "result" in evar (result: val);
@@ -1901,13 +1998,17 @@ Ltac solve_store_rule_evaluation :=
 
 Inductive undo_and_first__assert_PROP: Prop -> Prop := .
 
-Ltac entailer_for_load_tac :=
+Ltac default_entailer_for_load_tac :=
   repeat match goal with H := _ |- _ => clear H end;
   try quick_typecheck3;
   unfold tc_efield, tc_LR, tc_LR_strong; simpl typeof;
   try solve [entailer!].
 
-Ltac entailer_for_store_tac := try solve [entailer!].
+Ltac entailer_for_load_tac := default_entailer_for_load_tac.
+
+Ltac default_entailer_for_store_tac := try solve [entailer!].
+
+Ltac entailer_for_store_tac := default_entailer_for_store_tac.
 
 Ltac load_tac_with_full_path_hint Delta P Q R gfs p_full sh t_SEP gfs0 gfs1 v n Hfull Hnth :=
   let p_SEP := fresh "a" in evar (p_SEP: val);

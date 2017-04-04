@@ -134,36 +134,68 @@ rewrite H1 in H.
 inv H; auto.
 Qed.
 
-Lemma extend_tc_comparable:
+Lemma extend_tc_test_eq:
   forall {CS: compspecs} e1 e2 rho,
- boxy extendM (denote_tc_assert (tc_comparable e1 e2) rho).
+ boxy extendM (denote_tc_assert (tc_test_eq e1 e2) rho).
 Proof.
 intros.
-rewrite denote_tc_assert_comparable'.
+rewrite denote_tc_assert_test_eq'.
 apply boxy_i; intros.
 apply extendM_refl.
 simpl in *.
 super_unfold_lift.
-unfold denote_tc_comparable in *.
+unfold denote_tc_test_eq in *.
 destruct (eval_expr e1 rho); auto;
 destruct (eval_expr e2 rho); auto.
-destruct H0; split; auto.
-destruct H1 as [H1|H1]; [left|right];
-apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
-destruct H0; split; auto.
-destruct H1 as [H1|H1]; [left|right];
-apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
-unfold comparable_ptrs in *.
-if_tac.
-destruct H0; split.
-destruct H0 as [?|?]; [left|right];
-apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H0).
-destruct H1 as [?|?]; [left|right];
-apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
-destruct H0.
-split.
-apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H0).
-apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
++ destruct H0; split; auto.
+  destruct H1 as [H1|H1]; [left|right];
+  apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
++ destruct H0; split; auto.
+  destruct H1 as [H1|H1]; [left|right];
+  apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
++ destruct H0; split; auto.
+  destruct H1 as [H1|H1]; [left|right];
+  apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
++ destruct H0; split; auto.
+  destruct H1 as [H1|H1]; [left|right];
+  apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
++ unfold test_eq_ptrs in *.
+  simpl cast_out_long in H0 |- *.
+  cbv iota beta in H0 |- *.
+  if_tac.
+  - destruct H0; split.
+    * destruct H0 as [?|?]; [left|right];
+      apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H0).
+    * destruct H1 as [?|?]; [left|right];
+      apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
+  - destruct H0; split.
+    * apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H0).
+    * apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
+Qed.
+
+Lemma extend_tc_test_order:
+  forall {CS: compspecs} e1 e2 rho,
+ boxy extendM (denote_tc_assert (tc_test_order e1 e2) rho).
+Proof.
+intros.
+rewrite denote_tc_assert_test_order'.
+apply boxy_i; intros.
+apply extendM_refl.
+simpl in *.
+super_unfold_lift.
+unfold denote_tc_test_order in *.
+destruct (eval_expr e1 rho); auto;
+destruct (eval_expr e2 rho); auto.
++ unfold test_order_ptrs in *.
+  simpl cast_out_long in H0 |- *.
+  cbv iota beta in H0 |- *.
+  if_tac.
+  - destruct H0; split.
+    * destruct H0 as [?|?]; [left|right];
+      apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H0).
+    * destruct H1 as [?|?]; [left|right];
+      apply (boxy_e _ _ (extend_valid_pointer' _ _) _ w' H H1).
+  - auto.
 Qed.
 
 Lemma extend_isCastResultType:
@@ -187,7 +219,8 @@ intros.
  try simple apply extend_tc_Zge;
  try simple apply extend_tc_Zle;
  try simple apply extend_tc_iszero;
- try simple apply extend_tc_comparable.
+ try simple apply extend_tc_test_eq;
+ try simple apply extend_tc_test_order.
 Qed.
 
 Lemma extend_tc_temp_id: forall {CS: compspecs} id ty Delta e rho, boxy extendM (tc_temp_id id ty Delta e rho).
@@ -227,7 +260,7 @@ Lemma extend_tc_nodivover:
 Proof.
 intros.
 rewrite denote_tc_assert_nodivover.
-destruct (eval_expr e1 rho); try apply extend_prop.
+destruct (eval_expr e1 rho); try apply extend_prop;
 destruct (eval_expr e2 rho); try apply extend_prop.
 Qed.
 
@@ -288,6 +321,7 @@ unfold tc_expr.
  end;
  repeat apply extend_tc_andp;
  repeat apply extend_tc_orp;
+ repeat apply extend_tc_andp;
  try apply extend_prop;
  try simple apply extend_tc_bool;
  try simple apply extend_tc_Zge;
@@ -298,7 +332,8 @@ unfold tc_expr.
  try simple apply extend_tc_samebase;
  try simple apply extend_tc_ilt;
  try simple apply extend_isCastResultType;
- try simple apply extend_tc_comparable;
+ try simple apply extend_tc_test_eq;
+ try simple apply extend_tc_test_order;
  auto;
  try apply extend_tc_lvalue.
 *
@@ -317,6 +352,7 @@ unfold tc_expr.
  end;
  repeat apply extend_tc_andp;
  repeat apply extend_tc_orp;
+ repeat apply extend_tc_andp;
  try apply extend_prop;
  try simple apply extend_tc_bool;
  try simple apply extend_tc_Zge;
@@ -327,7 +363,8 @@ unfold tc_expr.
  try simple apply extend_tc_samebase;
  try simple apply extend_tc_ilt;
  try simple apply extend_isCastResultType;
- try simple apply extend_tc_comparable;
+ try simple apply extend_tc_test_eq;
+ try simple apply extend_tc_test_order;
  auto;
  try apply extend_tc_lvalue.
  apply extend_tc_expr.

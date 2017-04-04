@@ -14,165 +14,6 @@ destruct p;
 auto.
 Qed.
 
-(*
-Definition slice_resource (sh: share) (rsh: readable_share sh) (r: resource) :=
-  match r with
-   | NO _ _ => NO (retainer_part sh) (@retainer_part_nonreadable sh)
-   | YES _ _ k pp => YES sh rsh k pp
-   | PURE k pp => PURE k pp
- end.
-
-Lemma slice_resource_valid:
-  forall sh rsh phi, 
-   AV.valid (fun l => res_option (slice_resource (retain l) rsh (phi @ l))).
-Proof.
-intros.
-unfold slice_resource.
-intro; intros.
-case_eq (phi @ (b,ofs)); intros; simpl; auto.
-generalize (rmap_valid phi b ofs); unfold compose; intro.
-rewrite H in H0. simpl in H0.
-destruct k; simpl; auto.
-+ intros; specialize (H0 _ H1).
-  destruct (phi @ (b,ofs+i)); inv H0; auto.
-  simpl. f_equal. f_equal. apply exist_ext.
-  unfold retainer_part. rewrite !Share.distrib1.
-  rewrite <- !(Share.glb_assoc Share.Rsh).
-  rewrite !(Share.glb_commute Share.Rsh).
-  rewrite !glb_Lsh_Rsh.
-  rewrite !(Share.glb_commute Share.bot).
-  rewrite !(Share.glb_bot). auto.
-+ destruct H0 as [n [? ?]].
-  exists n; split; auto.
-  destruct (phi @ (b,ofs-z)); inv H1; auto.
-  simpl. f_equal. f_equal. apply exist_ext.
-  unfold retainer_part. rewrite !Share.distrib1.
-  rewrite <- !(Share.glb_assoc Share.Rsh).
-  rewrite !(Share.glb_commute Share.Rsh).
-  rewrite !glb_Lsh_Rsh.
-  rewrite !(Share.glb_commute Share.bot).
-  rewrite !(Share.glb_bot). auto.
-Qed.
-
-Lemma slice_rmap_valid:
-    forall retain rsh m, CompCert_AV.valid 
-        (res_option oo (fun l => slice_resource (retain l) rsh (m @ l))).
-Proof.
-intros.
-replace (res_option
-   oo (fun l : AV.address =>
-       slice_resource (retain l) rsh (m @ l)))
-with (fun l => res_option (slice_resource (retain l) rsh (m @ l))).
-apply slice_resource_valid.
-extensionality l.
-unfold compose. auto.
-Qed.
-
-Lemma slice_rmap_ok: forall rsh sh m,
-  resource_fmap (approx (level m)) (approx (level m)) oo
-    (fun l => slice_resource (rsh l) sh (m @ l)) =
-       (fun l => slice_resource (rsh l) sh (m @ l)).
-Proof.
-intros.
-extensionality l; unfold compose; simpl.
-case_eq (m@l); simpl; intros; auto.
-generalize (eq_sym (resource_at_approx m l)); intro.
-pattern (m@l) at 2 in H0; rewrite H in H0.
-simpl in H0.
-rewrite H in H0.
-inversion H0.
-rewrite <- H2.
-rewrite <- H2.
-auto.
-generalize (eq_sym (resource_at_approx m l)); intro.
-pattern (m@l) at 2 in H0; rewrite H in H0.
-simpl in H0.
-rewrite H in H0.
-inversion H0.
-rewrite <- H2.
-rewrite <- H2.
-auto.
-Qed.
-
-Definition slice_rmap (retain: address -> share) (rsh: rshare) (m: rmap) : rmap :=
-   proj1_sig (make_rmap _ (slice_rmap_valid retain rsh m) (level m) 
-                     (slice_rmap_ok retain rsh m)).
-
-Lemma resource_at_slice:
-  forall rsh sh m l, resource_at (slice_rmap rsh sh m) l = slice_resource (rsh l) sh (resource_at m l).
-Proof.
-intros.
-unfold slice_rmap.
-case_eq (make_rmap (fun l : CompCert_AV.address => slice_resource (rsh l) sh (m @ l))
-             (slice_rmap_valid rsh sh m) (level m)
-             (slice_rmap_ok rsh sh m)); intros.
-simpl.
-generalize a; intros [? ?].
-rewrite H1.
-auto.
-Qed.
-
-Lemma slice_rmap_level: forall retain rsh w, level (slice_rmap retain rsh w) = level w.
-Proof.
-intros.
-unfold slice_rmap.
-case_eq (make_rmap (fun l  => slice_resource (retain l) rsh (w @ l))
-        (slice_rmap_valid retain rsh w) (level w)
-        (slice_rmap_ok retain rsh w)); intros.
-simpl.
-clear H; destruct a; auto.
-Qed.
-
-Lemma slice_rmap_join: forall retain1 retain2 retain rsh1 rsh2 rsh w,
-    join retain1 retain2 retain ->
-    join (rshare_sh rsh1) (rshare_sh rsh2) (rshare_sh rsh) ->
-     join (slice_rmap retain1 rsh1 w) (slice_rmap retain2 rsh2 w) 
-          (slice_rmap retain rsh w).
-Proof.
-intros.
-apply resource_at_join2.
-transitivity (level w).
-apply slice_rmap_level.
-symmetry; apply slice_rmap_level.
-transitivity (level w).
-apply slice_rmap_level.
-symmetry; apply slice_rmap_level.
-intro loc.
-repeat rewrite resource_at_slice.
-specialize (H loc).
-destruct (w @ loc); simpl; constructor; auto.
-apply (join_comp_parts comp_Lsh_Rsh H).
-destruct rsh1 as [sh1 ?].
-destruct rsh2 as [sh2 ?].
-destruct rsh as [sh3 ?].
-unfold retainer_part.
-simpl in *.
-apply (comp_parts_join comp_Lsh_Rsh).
-destruct p0,p1,p2.
-rewrite !Share.distrib1.
-rewrite H1,H3,H5.
-rewrite !Share.lub_bot.
-rewrite !glb_twice.
-apply (join_comp_parts comp_Lsh_Rsh H).
-rewrite !Share.distrib1.
-  rewrite <- !(Share.glb_assoc Share.Rsh).
-  rewrite !(Share.glb_commute Share.Rsh).
-  rewrite !glb_Lsh_Rsh.
-  rewrite !(Share.glb_commute Share.bot).
-  rewrite !(Share.glb_bot).
-  rewrite !(Share.lub_commute Share.bot).
-  rewrite !(Share.lub_bot).
-  rewrite <- !(Share.glb_commute Share.Rsh).
-apply (join_comp_parts comp_Lsh_Rsh H0).
-Qed.
-*)
-
-(*
-Definition split_parts (sh: Share.t) : Share.t * Share.t :=
- (Share.lub (fst (Share.split (Share.glb Share.Lsh sh))) (fst (Share.split (Share.glb Share.Rsh sh))),
-  Share.lub (snd (Share.split (Share.glb Share.Lsh sh))) (snd (Share.split (Share.glb Share.Rsh sh)))).
-*)
-
 Lemma split_NO_ok1:
   forall sh, ~readable_share sh -> ~ readable_share (fst (Share.split sh)).
 Proof.
@@ -203,30 +44,6 @@ destruct H1 as [_ ?].
 apply join_comm in H1.
 apply split_identity in H1; auto.
 Qed.
-
-Lemma glb_split_lemma1:
-  forall a b, Share.glb Share.Rsh a = Share.glb Share.Rsh b ->
-     Share.glb Share.Rsh (fst (Share.split a)) =
-     Share.glb Share.Rsh (fst (Share.split b)).
-Proof.
-Admitted.
-
-Lemma glb_split_lemma2:
-  forall a b, Share.glb Share.Rsh a = Share.glb Share.Rsh b ->
-     Share.glb Share.Rsh (snd (Share.split a)) =
-     Share.glb Share.Rsh (snd (Share.split b)).
-Admitted.
-
-Lemma fst_split_glb_orthogonal: forall sh : share,
-identity (Share.glb Share.Rsh (fst (Share.split sh))) ->
-identity (Share.glb Share.Rsh sh).
-Proof.
-Admitted.
-
-Lemma snd_split_glb_orthogonal: forall sh : share,
-identity (Share.glb Share.Rsh (snd (Share.split sh))) ->
-identity (Share.glb Share.Rsh sh).
-Admitted.
 
 Lemma split_YES_ok1:
  forall sh, readable_share sh -> readable_share (fst (Share.split sh)).
@@ -397,7 +214,7 @@ Qed.
 Definition split_shareval (shv: Share.t * val) : ((Share.t * val) * (Share.t * val)) :=
   ((fst (Share.split (fst shv)), snd shv), (snd (Share.split (fst shv)), snd shv)).
 
-Definition general_slice_resource (sh: share) (r: resource) : resource :=
+Definition slice_resource (sh: share) (r: resource) : resource :=
   match r with
    | NO _ _ => NO (retainer_part sh) (retainer_part_nonreadable sh)
    | YES _ _ k pp =>
@@ -408,13 +225,13 @@ Definition general_slice_resource (sh: share) (r: resource) : resource :=
    | PURE k pp => PURE k pp
   end.
 
-Lemma general_slice_resource_valid:
+Lemma slice_resource_valid:
   forall sh phi P (P_DEC: forall l, {P l} + {~ P l}),
   (forall l, ~ P l -> identity (phi @ l)) ->
-  AV.valid (fun l => res_option (if P_DEC l then general_slice_resource sh (phi @ l) else phi @ l)).
+  AV.valid (fun l => res_option (if P_DEC l then slice_resource sh (phi @ l) else phi @ l)).
 Proof.
 intros ? ? ? ? H_id.
-unfold general_slice_resource.
+unfold slice_resource.
 pose proof rmap_valid phi as H_valid.
 unfold compose in H_valid.
 change compcert_rmaps.R.res_option with res_option in H_valid.
@@ -450,11 +267,11 @@ Qed.
 Lemma make_slice_rmap: forall w (P: address -> Prop) (P_DEC: forall l, {P l} + {~ P l}) sh,
   (forall l : AV.address, ~ P l -> identity (w @ l)) ->
   {w' | level w' = level w /\ compcert_rmaps.R.resource_at w' =
-       (fun l => if P_DEC l then general_slice_resource sh (w @ l) else w @ l)}.
+       (fun l => if P_DEC l then slice_resource sh (w @ l) else w @ l)}.
 Proof.
   intros.
-  pose (f l := if P_DEC l then general_slice_resource sh (w @ l) else w @ l).
-  assert (Vf: AV.valid (res_option oo f)) by (apply general_slice_resource_valid; auto).
+  pose (f l := if P_DEC l then slice_resource sh (w @ l) else w @ l).
+  assert (Vf: AV.valid (res_option oo f)) by (apply slice_resource_valid; auto).
   apply (make_rmap _ Vf (level w)).
   extensionality loc; unfold compose, f.
   destruct (P_DEC loc).
@@ -474,8 +291,8 @@ Lemma jam_noat_splittable_aux:
            l
            (H: join sh1 sh2 sh3)
            w (H0: allp (@jam _ _ _ _ _ _ (S' l) (S l) (Q l sh3) noat) w)
-           f (Hf: resource_at f = fun loc => general_slice_resource (if S l loc then sh1 else Share.bot) (w @ loc))
-           g (Hg: resource_at g = fun loc => general_slice_resource (if S l loc then sh2 else Share.bot) (w @ loc))
+           f (Hf: resource_at f = fun loc => slice_resource (if S l loc then sh1 else Share.bot) (w @ loc))
+           g (Hg: resource_at g = fun loc => slice_resource (if S l loc then sh2 else Share.bot) (w @ loc))
            (H1: join f g w),
            allp (jam (S l) (Q l sh1) noat) f.
 Proof.
@@ -513,8 +330,8 @@ generalize (resource_at_join _ _ _ l' H1); intro.
 apply split_identity in H3; auto.
 Qed.
 
-Lemma general_slice_resource_identity:
-  forall r, identity r -> general_slice_resource Share.bot r = r.
+Lemma slice_resource_identity:
+  forall r, identity r -> slice_resource Share.bot r = r.
 Proof.
  intros.
  destruct r; simpl in *; auto.
@@ -565,9 +382,9 @@ apply pred_ext; intro w; simpl.
     generalize (resource_at_join _ _ _ l' H0); intro.
     apply H2 in H4. rewrite H4 in H3; auto.
 + intros.
-  pose (f loc := if S l loc then general_slice_resource sh1 (w @ loc) else w@loc).
+  pose (f loc := if S l loc then slice_resource sh1 (w @ loc) else w@loc).
   assert (Vf: CompCert_AV.valid (res_option oo f)). {
-     apply general_slice_resource_valid.
+     apply slice_resource_valid.
      intros. specialize (H0 l0). rewrite if_false in H0; auto.
   }
   destruct (make_rmap _ Vf (level w)) as [phi [Gf Hf]].
@@ -588,9 +405,9 @@ apply pred_ext; intro w; simpl.
     revert H0; case_eq (w @ loc); intros; try contradiction; simpl; f_equal; auto.
     apply resource_at_approx.
   } Unfocus.
-  pose (g loc := if S l loc then general_slice_resource sh2 (w @ loc) else w@loc).
+  pose (g loc := if S l loc then slice_resource sh2 (w @ loc) else w@loc).
   assert (Vg: CompCert_AV.valid (res_option oo g)). {
-     apply general_slice_resource_valid.
+     apply slice_resource_valid.
      intros. specialize (H0 l0). rewrite if_false in H0; auto.
   }
   destruct (make_rmap _ Vg (level w)) as [phi' [Gg Hg]].
@@ -637,20 +454,20 @@ apply pred_ext; intro w; simpl.
   simpl; auto.
   rewrite Hf. extensionality loc. if_tac. auto.
   clear - H0 H2. specialize (H0 loc). rewrite if_false in H0 by auto.
-  symmetry; apply general_slice_resource_identity; auto.
+  symmetry; apply slice_resource_identity; auto.
   rewrite Hg. extensionality loc. if_tac. auto.
   clear - H0 H2. specialize (H0 loc). rewrite if_false in H0 by auto.
-  symmetry; apply general_slice_resource_identity; auto.
+  symmetry; apply slice_resource_identity; auto.
   apply join_comm in H.
   eapply jam_noat_splittable_aux.
   auto. auto. apply rsh1. eauto. 4: apply (join_comm H1).
   simpl; auto.
   rewrite Hg. extensionality loc. if_tac. auto.
   clear - H0 H2. specialize (H0 loc). rewrite if_false in H0 by auto.
-  symmetry; apply general_slice_resource_identity; auto.
+  symmetry; apply slice_resource_identity; auto.
   rewrite Hf. extensionality loc. if_tac. auto.
   clear - H0 H2. specialize (H0 loc). rewrite if_false in H0 by auto.
-  symmetry; apply general_slice_resource_identity; auto.
+  symmetry; apply slice_resource_identity; auto.
 Qed.
 
 Lemma address_mapsto_splittable:
@@ -711,7 +528,7 @@ specialize (H2 loc). hnf in H2.
 if_tac.
 destruct H2 as [rsh ?].
 hnf in H2. rewrite H2. clear H2.
-unfold general_slice_resource.
+unfold slice_resource.
 destruct (readable_share_dec sh1); [ | contradiction].
 destruct (readable_share_dec sh2); [ | contradiction].
 constructor. auto.
@@ -723,7 +540,7 @@ exists rsh1.
 hnf.
 rewrite H4.
 rewrite if_true by auto.
-unfold general_slice_resource.
+unfold slice_resource.
 destruct H2. hnf in H2.
 rewrite H2.
 destruct (readable_share_dec sh1); [ | contradiction].
@@ -737,7 +554,7 @@ exists rsh2.
 hnf.
 rewrite H6.
 rewrite if_true by auto.
-unfold general_slice_resource.
+unfold slice_resource.
 destruct H2. hnf in H2.
 rewrite H2.
 destruct (readable_share_dec sh2); [ | contradiction].
@@ -869,13 +686,13 @@ Lemma not_readable_share_retainer_part_eq:
     rewrite Share.lub_bot. auto.
 Qed.
 
-Lemma general_slice_resource_resource_share: forall r sh sh',
+Lemma slice_resource_resource_share: forall r sh sh',
   resource_share r = Some sh ->
   join_sub sh' sh ->
-  resource_share (general_slice_resource sh' r) = Some sh'.
+  resource_share (slice_resource sh' r) = Some sh'.
 Proof.
   intros.
-  destruct r; inv H; unfold general_slice_resource; simpl.
+  destruct r; inv H; unfold slice_resource; simpl.
   + f_equal.
     assert (~readable_share sh'). contradict n. destruct H0.
     eapply join_readable1; eauto.
@@ -883,24 +700,24 @@ Proof.
   + destruct (readable_share_dec sh'); simpl; auto.
 Qed.
 
-Lemma general_slice_resource_nonlock: forall r sh sh',
+Lemma slice_resource_nonlock: forall r sh sh',
   resource_share r = Some sh ->
   join_sub sh' sh ->
   nonlock r ->
-  nonlock (general_slice_resource sh' r).
+  nonlock (slice_resource sh' r).
 Proof.
   intros.
-  destruct r; inv H; unfold general_slice_resource; simpl; auto.
+  destruct r; inv H; unfold slice_resource; simpl; auto.
   destruct (readable_share_dec sh'); simpl; auto.
 Qed.
 
 Lemma NO_ext: forall sh1 sh2 rsh1 rsh2, sh1=sh2 -> NO sh1 rsh1 = NO sh2 rsh2.
 Proof. intros. subst sh1. f_equal. apply proof_irr. Qed.
 
-Lemma join_sub_is_general_slice_resource: forall r r' sh',
+Lemma join_sub_is_slice_resource: forall r r' sh',
   join_sub r' r ->
   resource_share r' = Some sh' ->
-  r' = general_slice_resource sh' r.
+  r' = slice_resource sh' r.
 Proof.
   intros.
   destruct H as [r'' ?].
@@ -917,10 +734,10 @@ Proof.
     f_equal. apply proof_irr.
 Qed.
 
-Lemma general_slice_resource_share_join: forall sh1 sh2 sh r,
+Lemma slice_resource_share_join: forall sh1 sh2 sh r,
   join sh1 sh2 sh ->
   resource_share r = Some sh ->
-  join (general_slice_resource sh1 r) (general_slice_resource sh2 r) r.
+  join (slice_resource sh1 r) (slice_resource sh2 r) r.
 Proof.
   intros.
   destruct r; simpl in *.
@@ -946,8 +763,8 @@ Definition resource_share_split (p q r: address -> pred rmap): Prop :=
     join q_sh r_sh p_sh /\
     (forall res l n, p' res l n ->
       resource_share res = Some p_sh /\
-      q' (general_slice_resource q_sh res) l n /\
-      r' (general_slice_resource r_sh res) l n) /\
+      q' (slice_resource q_sh res) l n /\
+      r' (slice_resource r_sh res) l n) /\
     (forall p_res q_res r_res l n,
       join q_res r_res p_res ->
       q' q_res l n ->
@@ -981,7 +798,7 @@ Proof.
       intro l.
       rewrite H7, H9; clear H7 H9.
       specialize (H5 l); destruct (P_DEC l).
-      * eapply general_slice_resource_share_join; eauto.
+      * eapply slice_resource_share_join; eauto.
         rewrite H in H5.
         apply H3 in H5.
         tauto.
@@ -1173,7 +990,7 @@ apply pred_ext.
   intro . rewrite H2,H4. clear dependent w1. clear dependent w2.
   specialize (H0 loc). hnf in H0.  
   if_tac in H0. destruct H0 as [rsh' H0]. proof_irr. rewrite H0.
-  unfold general_slice_resource.
+  unfold slice_resource.
   destruct (readable_share_dec sh2); [ | contradiction]. proof_irr.
   destruct (readable_share_dec sh1).
   constructor; auto.
@@ -1187,7 +1004,7 @@ apply pred_ext.
   if_tac in H0.
   -
    destruct H0. proof_irr. rewrite H0.
-   unfold general_slice_resource.
+   unfold slice_resource.
    destruct (readable_share_dec sh1).
    simpl. split; auto.
    split; simpl; auto.
@@ -1264,10 +1081,10 @@ Proof.
     destruct H0.
     split; [auto |].
     split; split.
-    - eapply general_slice_resource_resource_share; [eauto | eexists; eauto ].
-    - eapply general_slice_resource_nonlock; [eauto | eexists; eauto | auto].
-    - eapply general_slice_resource_resource_share; [eauto | eexists; eapply join_comm; eauto].
-    - eapply general_slice_resource_nonlock; [eauto | eexists; eapply join_comm; eauto | auto].
+    - eapply slice_resource_resource_share; [eauto | eexists; eauto ].
+    - eapply slice_resource_nonlock; [eauto | eexists; eauto | auto].
+    - eapply slice_resource_resource_share; [eauto | eexists; eapply join_comm; eauto].
+    - eapply slice_resource_nonlock; [eauto | eexists; eapply join_comm; eauto | auto].
   + simpl; intros.
     destruct H1, H2.
     split.

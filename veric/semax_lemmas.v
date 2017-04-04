@@ -85,7 +85,7 @@ Lemma guard_environ_put_te':
  forall ge te ve Delta id v k,
  guard_environ Delta k (mkEnviron ge ve te)  ->
     (forall t : type * bool,
-        (temp_types Delta) ! id = Some t -> typecheck_val v (fst t) = true) ->
+        (temp_types Delta) ! id = Some t -> tc_val (fst t) v) ->
  guard_environ (initialized id Delta) k (mkEnviron ge ve (Map.set id v te)).
 Proof.
  intros.

@@ -1,8 +1,6 @@
-Require Import floyd.proofauto.
-Require Import floyd.reassoc_seq.
-Require Import aes.GF_ops_LL.
-Require Import aes.tablesLL.
-Require Import aes.aes.
+Require Import aes.verif_utils.
+Require Import aes.partially_filled.
+Require Import aes.bitfiddling.
 
 (* Note: x must be non-zero, y is allowed to be zero (because x is a constant in all usages, its
    non-zero-check seems to be removed by the parser). *)
@@ -50,41 +48,6 @@ Proof.
   intros. unfold Z_to_val. destruct (zeq j (-1)) as [E | E]. omega. reflexivity.
 Qed.
 
-Definition partially_filled(i n: Z)(f: Z -> int): list val := 
-  (map Vint (fill_list i f)) ++ (repeat_op_table (n-i) Vundef id).
-
-Lemma update_partially_filled: forall (i: Z) (f: Z -> int),
-  0 <= i < 256 ->
-  upd_Znth i (partially_filled i 256 f) (Vint (f i))
-  = partially_filled (i+1) 256 f.
-Admitted.
-
-Lemma Znth_partially_filled: forall (i j n: Z) (f: Z -> int),
-  0 <= i -> i < j -> j <= n ->
-  Znth i (partially_filled j n f) Vundef = Vint (f i).
-Admitted.
-
-Local Open Scope logic.
-
-Instance CompSpecs : compspecs.
-Proof. make_compspecs prog. Defined.
-Definition Vprog : varspecs.  mk_varspecs prog. Defined.
-
-Definition t_struct_aesctx := Tstruct _mbedtls_aes_context_struct noattr.
-Definition t_struct_tables := Tstruct _aes_tables_struct noattr.
-
-Definition tables_initialized (tables : val) := data_at Ews t_struct_tables (map Vint FSb, 
-  (map Vint FT0, (map Vint FT1, (map Vint FT2, (map Vint FT3, (map Vint RSb,
-  (map Vint RT0, (map Vint RT1, (map Vint RT2, (map Vint RT3, 
-  (map Vint RCON))))))))))) tables.
-
-Definition Vundef256 : list val := repeat Vundef 256%nat.
-
-Definition tables_uninitialized tables := data_at Ews t_struct_tables (Vundef256, 
-  (Vundef256, (Vundef256, (Vundef256, (Vundef256, (Vundef256,
-  (Vundef256, (Vundef256, (Vundef256, (Vundef256, 
-  (repeat Vundef 10))))))))))) tables.
-
 Definition gen_tables_spec :=
   DECLARE _aes_gen_tables
     WITH tables : val
@@ -121,38 +84,6 @@ Lemma field_at_update_val: forall sh t gfs v v' p,
 Proof.
   intros. rewrite H. apply derives_refl.
 Qed.
-
-Lemma FSb_range: forall i,
-  0 <= Int.unsigned (Znth i FSb Int.zero) < 256.
-Admitted.
-
-Lemma zero_ext_nop: forall i,
-  0 <= (Int.unsigned i) < 256 ->
-  Int.zero_ext 8 i = i.
-Admitted.
-
-Lemma FSb_inj: forall i j,
-  0 <= i < 256 ->
-  0 <= j < 256 ->
-  Znth i FSb Int.zero = Znth j FSb Int.zero ->
-  i = j.
-Admitted.
-
-Lemma FSb_RSb_id: forall j,
-  0 <= j < 256 ->
-  j = Int.unsigned (Znth (Int.unsigned (Znth j RSb Int.zero)) FSb Int.zero).
-Admitted.
-
-Lemma RSb_inj: forall i j,
-  0 <= i < 256 ->
-  0 <= j < 256 ->
-  Znth i RSb Int.zero = Znth j RSb Int.zero ->
-  i = j.
-Admitted.
-
-Lemma RSb_range: forall i,
-  0 <= Int.unsigned (Znth i RSb Int.zero) < 256.
-Admitted.
 
 Lemma simpl_mod255: forall i,
   force_val (sem_binary_operation' Omod tint tint (Vint i) (Vint (Int.repr 255)))
@@ -635,7 +566,6 @@ Proof.
       end.
       rewrite (update_partially_filled i calc_FT0) by assumption.
 
-      (* TODO floyd make sure this can be undone, and document it *)
       Ltac canon_load_result Hresult ::= rewrite Znth_partially_filled in Hresult by omega.
       forward. forward.
       match goal with
@@ -658,16 +588,8 @@ Proof.
       end.
       rewrite (update_partially_filled i calc_FT3) by assumption.
 
-(* reset back to normal: (TODO floyd call this canon_load_result_default *)
-Ltac canon_load_result Hresult ::= 
-  repeat (
-    first [ rewrite Znth_map with (d' := Int.zero) in Hresult
-          | rewrite Znth_map with (d' := Vundef) in Hresult
-          | rewrite Znth_map with (d' := 0) in Hresult ];
-    [ | auto; rewrite ?Zlength_map in *; omega || match goal with
-        | |- ?Bounds => fail 1000 "Please make sure omega or auto can prove" Bounds
-        end ]
-  ).
+      (* reset back to normal: *)
+      Ltac canon_load_result Hresult ::= default_canon_load_result Hresult.
 
     (* reverse tables: *)
     assert (forall i, Int.unsigned (Znth i RSb Int.zero) <= Byte.max_unsigned). {
@@ -680,14 +602,7 @@ Ltac canon_load_result Hresult ::=
     }
     Ltac canon_load_result Hresult ::= 
       (* default: *)
-      repeat (
-        first [ rewrite Znth_map with (d' := Int.zero) in Hresult
-              | rewrite Znth_map with (d' := Vundef) in Hresult
-              | rewrite Znth_map with (d' := 0) in Hresult ];
-        [ | auto; rewrite ?Zlength_map in *; omega || match goal with
-            | |- ?Bounds => fail 1000 "Please make sure omega or auto can prove" Bounds
-            end ]
-      );
+      default_canon_load_result Hresult;
       (* additional: *)
       try rewrite Z_to_val_to_Vint in Hresult by
       match goal with
@@ -871,7 +786,6 @@ Ltac canon_load_result Hresult ::=
     end.
     rewrite (update_partially_filled i calc_RT0) by assumption.
 
-    (* TODO floyd make sure this can be undone, and document it *)
     Ltac canon_load_result Hresult ::= rewrite Znth_partially_filled in Hresult by omega.
     forward. forward.
     match goal with
@@ -894,16 +808,7 @@ Ltac canon_load_result Hresult ::=
     end.
     rewrite (update_partially_filled i calc_RT3) by assumption.
 
-(* reset back to normal: (TODO floyd call this canon_load_result_default *)
-Ltac canon_load_result Hresult ::= 
-  repeat (
-    first [ rewrite Znth_map with (d' := Int.zero) in Hresult
-          | rewrite Znth_map with (d' := Vundef) in Hresult
-          | rewrite Znth_map with (d' := 0) in Hresult ];
-    [ | auto; rewrite ?Zlength_map in *; omega || match goal with
-        | |- ?Bounds => fail 1000 "Please make sure omega or auto can prove" Bounds
-        end ]
-  ).
+    Ltac canon_load_result Hresult ::= default_canon_load_result Hresult.
 
     (* postcondition implies loop invariant: *)
     entailer!.
@@ -937,4 +842,7 @@ Ltac canon_load_result Hresult ::=
   Exists lvar0.
   entailer!.
 } }
-Qed.
+Time Qed.
+(* Coq 8.5.2: 177s
+   Coq 8.6  :  75s
+*)

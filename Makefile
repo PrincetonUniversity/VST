@@ -204,10 +204,10 @@ LINKING_FILES= \
   finfun.v
 
 VERIC_FILES= \
-  base.v Memory.v shares.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v juicy_base.v \
+  base.v Memory.v shares.v splice.v rmaps.v rmaps_lemmas.v compcert_rmaps.v Cop2.v juicy_base.v \
   tycontext.v lift.v expr.v expr2.v environ_lemmas.v binop_lemmas.v binop_lemmas2.v \
   expr_lemmas.v expr_lemmas2.v expr_lemmas3.v expr_rel.v xexpr_rel.v extend_tc.v \
-  Clight_lemmas.v Clight_new.v Clightnew_coop.v Clight_sim.v \
+  Clight_lemmas.v Clight_new.v Clightnew_coop.v Clight_core.v Clight_sim.v \
   slice.v res_predicates.v seplog.v mapsto_memory_block.v assert_lemmas.v  ghost.v \
   juicy_mem.v juicy_mem_lemmas.v local.v juicy_mem_ops.v juicy_safety.v juicy_extspec.v \
   semax.v semax_lemmas.v semax_call.v semax_straight.v semax_loop.v semax_congruence.v \
@@ -241,8 +241,9 @@ PROGS_FILES= \
   logical_compare.v verif_logical_compare.v field_loadstore.v  verif_field_loadstore.v \
   even.v verif_even.v odd.v verif_odd.v \
   merge.v verif_merge.v verif_append.v verif_append2.v bst.v bst_oo.v verif_bst.v verif_bst_oo.v \
-  verif_bin_search.v incr.v verif_incr.v cond.v verif_cond.v conclib.v verif_floyd_tests.v
-# verif_message.v verif_dotprod.v verif_insertion_sort.v verif_sumarray2.v
+  verif_bin_search.v incr.v verif_incr.v cond.v verif_cond.v conclib.v verif_floyd_tests.v \
+  verif_sumarray2.v
+# verif_message.v verif_dotprod.v verif_insertion_sort.v
 
 SHA_FILES= \
   general_lemmas.v SHA256.v common_lemmas.v pure_lemmas.v sha_lemmas.v functional_prog.v \
@@ -267,21 +268,21 @@ HKDF_FILES= \
 
 FCF_FILES= \
   Admissibility.v Encryption.v NotationV1.v RndDup.v \
-  Array.v Encryption_2W.v NotationV2.v RndGrpElem.v \
+  Array.v NotationV2.v RndGrpElem.v \
   Asymptotic.v  Encryption_PK.v OracleCompFold.v RndInList.v \
   Bernoulli.v EqDec.v OracleHybrid.v RndListElem.v \
   Blist.v ExpectedPolyTime.v OTP.v RndNat.v \
   Class.v FCF.v PRF.v RndPerm.v \
   Comp.v Fold.v PRF_Convert.v SemEquiv.v \
-  CompFold.v GenTacs.v PRG.v Sigma.v \
-  ConstructedFunc.v GroupTheory.v Procedure.v State.v \
+  CompFold.v GenTacs.v PRG.v GroupTheory.v  \
   Crypto.v HasDups.v ProgramLogic.v StdNat.v \
   DetSem.v Hybrid.v ProgTacs.v Tactics.v \
-  DiffieHellman.v Limit.v PRP_PRF.v TwoWorldsEquiv.v \
-  DistRules.v ListHybrid.v RandPermSwitching.v WC_PolyTime.v \
+  DiffieHellman.v Limit.v TwoWorldsEquiv.v \
+  DistRules.v  WC_PolyTime.v \
   DistSem.v Lognat.v Rat.v WC_PolyTime_old.v \
-  DistTacs.v NoDup_gen.v RepeatCore.v
-
+  DistTacs.v NoDup_gen.v RepeatCore.v SplitVector.v \
+  PRF_DRBG.v HMAC_DRBG_definitions_only.v
+# ConstructedFunc.v Encryption_2W.v Sigma.v ListHybrid.v Procedure.v PRP_PRF.v RandPermSwitching.v State.v
 
 #FCF_FILES= \
 #  Limit.v Blist.v StdNat.v Rat.v EqDec.v Fold.v Comp.v DetSem.v DistSem.v \
@@ -322,6 +323,7 @@ HMACDRBG_FILES = \
   mocked_md.v mocked_md_compspecs.v hmac_drbg.v hmac_drbg_compspecs.v \
   spec_hmac_drbg.v spec_hmac_drbg_pure_lemmas.v \
   HMAC_DRBG_common_lemmas.v  HMAC_DRBG_pure_lemmas.v \
+  hmacdrbg_test_noPredRes_noReseed.v \
   verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v \
   verif_hmac_drbg_generate.v verif_hmac_drbg_seed_buf.v verif_mocked_md.v \
   verif_hmac_drbg_seed.v verif_hmac_drbg_NISTseed.v verif_hmac_drbg_other.v

@@ -8,23 +8,23 @@ Set Implicit Arguments.
 Require Export Arith.
 Require Export Omega.
 Require Export Arith.Div2.
-Require Export Coq.Numbers.Natural.Peano.NPeano.
+Require Export Coq.Numbers.Natural.Peano.NPeano. 
 Require Import Coq.NArith.BinNat.
 
 Lemma mult_same_r : forall n1 n2 n3,
   n3 > 0 ->
   n1 * n3 = n2 * n3 ->
   n1 = n2.
-
+  
   induction n1; destruct n2; intuition; simpl in *.
   remember (n2 * n3) as x.
   omega.
   remember (n1 * n3) as x.
   omega.
-
+  
   f_equal.
   eapply IHn1; eauto.
-
+  
   eapply plus_reg_l. eauto.
 Qed.
 
@@ -32,7 +32,7 @@ Lemma mult_same_l : forall n3 n1 n2,
   n3 > 0 ->
   n3 * n1 = n3 * n2 ->
   n1 = n2.
-
+  
   intuition.
   eapply mult_same_r; eauto.
   rewrite mult_comm.
@@ -53,7 +53,7 @@ Lemma minus_eq_compat : forall n1 n2 n3 n4,
   n1 = n2 ->
   n3 = n4 ->
   n1 - n3 = n2 - n4.
-
+  
   intuition.
 Qed.
 
@@ -61,28 +61,28 @@ Lemma plus_eq_compat : forall n1 n2 n3 n4,
   n1 = n2 ->
   n3 = n4 ->
   n1 + n3 = n2 + n4.
-
+  
   intuition.
 Qed.
 
 Lemma minus_diag_eq : forall n1 n2,
   n1 = n2 ->
   n1 - n2 = 0.
-
+  
   intuition.
 Qed.
 
 Lemma le_eq : forall n1 n2,
   n1 = n2 ->
   n1 <= n2.
-
+  
   intuition.
 Qed.
 
 Lemma minus_add_assoc : forall n1 n2 n3,
   (n3 <= n2)%nat ->
   (n1 + (n2 - n3) = n1 + n2 - n3)%nat.
-
+  
   intuition.
 Qed.
 
@@ -107,7 +107,7 @@ Definition posnatToNat(p : posnat) :=
   end.
 
 Inductive posnatEq : posnat -> posnat -> Prop :=
-  | posnatEq_intro :
+  | posnatEq_intro : 
     forall (n1 n2 : nat) pf1 pf2,
       n1 = n2 ->
       posnatEq (exist _ n1 pf1) (exist _ n2 pf2).
@@ -126,13 +126,13 @@ Lemma posnatMult_comm : forall p1 p2,
   destruct p1; destruct p2.
   econstructor.
   apply mult_comm.
-Qed.
+Qed.  
 
 Coercion posnatToNat : posnat >-> nat.
 
 Lemma posnat_pos : forall (p : posnat),
   p > 0.
-
+  
   intuition.
   destruct p.
   unfold posnatToNat.
@@ -163,7 +163,7 @@ Fixpoint expnat n1 n2 :=
 Theorem expnat_pos : forall x n,
   x > 0 ->
   expnat x n > 0.
-
+  
   induction n; intuition; simpl in *.
   remember (x * expnat x n) as y.
   assert (y <> 0); try omega.
@@ -175,20 +175,20 @@ Qed.
 
 Lemma div2_le : forall n,
   le (div2 n) n.
-
+  
   intuition.
 
   eapply PeanoNat.Nat.div2_decr.
   omega.
-
+  
 Qed.
 
-Lemma div2_ge_double : forall n,
+Lemma div2_ge_double : forall n, 
   n >= (div2 n) + (div2 n).
-
+  
   intuition.
   destruct (Even.even_odd_dec n).
-
+  
   rewrite (even_double n) at 1.
   unfold double.
   omega.
@@ -205,7 +205,7 @@ Definition modNat (n : nat)(p : posnat) : nat :=
 
 Lemma modNat_plus : forall n1 n2 p,
     (modNat (n1 + n2) p = modNat ((modNat n1 p) + n2) p)%nat.
-
+  
   unfold modNat.
 
   intuition.
@@ -220,12 +220,12 @@ Lemma modNat_plus : forall n1 n2 p,
 
   destruct p.
   simpl.
-
+  
   destruct x;
   simpl.
   omega.
-
-  Lemma Npos_nz : forall p,
+  
+  Lemma Npos_nz : forall p, 
     Npos p <> N0.
 
     destruct p; intuition; simpl in *.
@@ -277,7 +277,7 @@ Lemma of_posnat_gt_0 : forall (p : posnat),
   destruct x.
   omega.
   destruct x; intuition; simpl in *.
-
+  
   case_eq (N.compare 0 1)%N; intuition.
   inversion H.
   inversion H.
@@ -306,7 +306,7 @@ Lemma modNat_lt : forall x p, (modNat x p < p)%nat.
 Qed.
 
 Lemma modNat_eq : forall (n : posnat) x, (x < n -> modNat x n = x)%nat.
-
+  
   intuition.
   unfold modNat.
   rewrite N.mod_small.
@@ -326,7 +326,7 @@ Definition modNatAddInverse (n : nat)(p : posnat) :=
 Lemma modNatAddInverse_correct_gen : forall x y p,
   modNat x p = modNat y p ->
   modNat (x + modNatAddInverse y p) p = O.
-
+  
   intuition.
   unfold modNatAddInverse.
   rewrite <- H.
@@ -337,13 +337,13 @@ Lemma modNatAddInverse_correct_gen : forall x y p,
   rewrite minus_diag.
   rewrite plus_0_r.
   apply modNat_arg_eq.
-
+  
   trivial.
-
+  
   assert (modNat x p < p)%nat.
   apply modNat_lt.
   omega.
-
+  
 Qed.
 
 Lemma modNatAddInverse_correct : forall n p,
@@ -352,7 +352,7 @@ Lemma modNatAddInverse_correct : forall n p,
   intuition.
   eapply modNatAddInverse_correct_gen.
   trivial.
-
+  
 Qed.
 
 Lemma modNat_correct : forall x (p : posnat),
@@ -367,7 +367,7 @@ Lemma modNat_correct : forall x (p : posnat),
   assert (N.of_nat p <> 0%N).
   intuition.
   eapply H0.
-
+  
   rewrite <- Nnat.Nat2N.id.
   rewrite <- (Nnat.Nat2N.id p).
   f_equal.
@@ -387,7 +387,7 @@ Lemma modNat_correct : forall x (p : posnat),
   rewrite Nnat.Nat2N.id.
   trivial.
 
-  subst.
+  subst.  
   eapply N.mul_div_le.
   trivial.
 Qed.
@@ -409,22 +409,22 @@ Local Open Scope nat_scope.
 Lemma modNatAddInverse_sum_0 : forall x y p,
   modNat (x + (modNatAddInverse y p)) p = O ->
   modNat x p = modNat y p.
-
+  
   intuition.
-
+  
   assert (modNat x p < p).
   eapply modNat_lt.
   assert (modNat y p < p).
   eapply modNat_lt.
-
+  
   rewrite modNat_plus in H.
   unfold modNatAddInverse in *.
   rewrite minus_add_assoc in H; intuition.
   rewrite plus_comm in H.
-
+  
   apply modNat_divides in H.
   destruct H.
-
+  
   remember (modNat x p) as a.
   remember (modNat y p) as b.
   assert (p + a >= p).
@@ -435,20 +435,20 @@ Lemma modNatAddInverse_sum_0 : forall x y p,
   omega.
   assert (p + a - b > 0).
   omega.
-
+  
   assert (x0 * p > 0).
   omega.
   assert (x0 * p < 2 * p).
   omega.
-
+  
   destruct x0.
   omega.
   destruct x0.
-
+  
   simpl in H.
   rewrite plus_0_r in H.
   omega.
-
+  
   assert (p > 0).
   eapply posnat_pos.
   simpl in H7.
@@ -459,15 +459,15 @@ Qed.
 Lemma modNat_correct_if : forall x y z (p : posnat),
   x * p + y = z ->
   modNat z p = modNat y p.
-
+  
   induction x; intuition; simpl in *.
   subst.
   trivial.
-
+  
   assert (x * p + (y + p) = z).
   omega.
   apply IHx in H0.
-
+  
   rewrite H0.
   rewrite plus_comm.
   rewrite modNat_plus.
@@ -478,19 +478,19 @@ Qed.
 
 Lemma modNat_mult : forall x (p : posnat),
   modNat (x * p) p = 0.
-
+  
   induction x; intuition; simpl in *.
   rewrite modNat_plus.
   rewrite modNat_arg_eq.
   rewrite plus_0_l.
   eauto.
-
+  
 Qed.
 
 Lemma modNat_add_same_l : forall x y z p,
   modNat (x + y) p = modNat (x + z) p ->
   modNat y p = modNat z p.
-
+  
   induction x; intuition; simpl in *.
   assert (S (x + y) = x + S y).
   omega.
@@ -501,36 +501,36 @@ Lemma modNat_add_same_l : forall x y z p,
   rewrite H0 in H.
   clear H0.
   apply IHx in H.
-
+  
   destruct (modNat_correct (S y) p).
   destruct (modNat_correct (S z) p).
   rewrite H in H0.
-
+  
   assert (S y - x0 * p = modNat (S z) p).
   omega.
   assert (S z - x1 * p = modNat (S z) p).
   omega.
   rewrite <- H2 in H3.
-
+  
   assert (z - x1 * p = y - x0 * p).
   omega.
-
+  
   assert (x1 * p + y = x0 * p + z).
   omega.
-
+  
   apply modNat_correct_if in H5.
   rewrite modNat_plus in H5.
-
+  
   rewrite modNat_mult in H5.
   rewrite plus_0_l in H5.
   auto.
-
+  
 Qed.
 
 Lemma modNat_add_same_r : forall x y z p,
   modNat (y + x) p = modNat (z + x) p ->
   modNat y p = modNat z p.
-
+  
   intuition.
   eapply (modNat_add_same_l x y z).
   rewrite plus_comm.
@@ -559,7 +559,7 @@ Lemma expnat_base_S : forall n k,
   rewrite plus_comm.
   eapply plus_le_compat.
   rewrite <- (plus_0_r (expnat k n)) at 1.
-  eapply plus_le_compat.
+  eapply plus_le_compat. 
   omega.
   intuition.
   intuition.
@@ -587,7 +587,7 @@ Qed.
 Lemma sqrt_le_lin_gen : forall a b,
   (a <= b ->
     Nat.sqrt a <= b)%nat.
-
+  
   intuition.
   eapply le_trans.
   eapply Nat.sqrt_le_lin.
@@ -595,9 +595,9 @@ Lemma sqrt_le_lin_gen : forall a b,
 Qed.
 
 Lemma div2_le_mono : forall n1 n2,
-  (n1 <= n2 ->
+  (n1 <= n2 -> 
     div2 n1 <= div2 n2)%nat.
-
+  
   induction n1; intuition.
   destruct n2.
   omega.
@@ -606,13 +606,13 @@ Lemma div2_le_mono : forall n1 n2,
   repeat rewrite <- even_div2; trivial.
   eapply IHn1.
   omega.
-
+  
   rewrite <- even_div2; trivial.
   rewrite <- odd_div2; trivial.
   econstructor.
   eapply IHn1.
   omega.
-
+  
   destruct (Even.even_odd_dec n2).
   destruct (lt_dec n1 n2).
   assert (n1 <= (S n2))%nat.
@@ -633,13 +633,13 @@ Lemma div2_le_mono : forall n1 n2,
   subst.
   exfalso.
   eapply Even.not_even_and_odd; eauto.
-
+  
   rewrite <- odd_div2; trivial.
   rewrite <- odd_div2; trivial.
   eapply le_n_S.
   eapply IHn1.
   omega.
-
+  
 Qed.
 
 Lemma div2_ge : forall n n',
@@ -647,12 +647,12 @@ Lemma div2_ge : forall n n',
   forall x,
     (n' = 2 * x)%nat ->
     div2 n >= x.
-
+  
   induction 1; intuition; subst; simpl in *.
   specialize (div2_double x); intuition; simpl in *.
   rewrite H.
   omega.
-
+  
   destruct m.
   omega.
   destruct (Even.even_odd_dec m).
@@ -662,9 +662,9 @@ Lemma div2_ge : forall n n',
   trivial.
   omega.
   trivial.
-
+  
   rewrite odd_div2.
-
+  
   eapply IHle.
   trivial.
   trivial.
@@ -684,7 +684,7 @@ destruct p.
 eapply mult_gt_0; intuition.
 
 Qed.
-
+  
 Lemma expnat_2_ge_1 : forall n,
   (1 <= expnat 2 n)%nat.
 
@@ -703,7 +703,7 @@ Lemma le_expnat_2 : forall n,
   eapply plus_le_compat.
   eapply expnat_2_ge_1.
   trivial.
-
+  
 Qed.
 
 Lemma expnat_1 : forall k,
@@ -715,18 +715,18 @@ Lemma expnat_1 : forall k,
 
 Qed.
 
-Theorem expnat_base_le :
+Theorem expnat_base_le : 
   forall k n1 n2,
     n1 <= n2 ->
     expnat n1 k <=
     expnat n2 k.
-
+  
   induction k; intuition; simpl in *.
   eapply mult_le_compat; intuition.
-
+  
 Qed.
 
-Theorem expnat_double_le :
+Theorem expnat_double_le : 
   forall k n,
     n >= 2 ->
     expnat n (S k) >= 2 * expnat n k.
@@ -743,20 +743,20 @@ Theorem expnat_double_le :
   trivial.
 Qed.
 
-Theorem nat_half_plus :
-  forall x,
+Theorem nat_half_plus : 
+  forall x, 
     x > 1 ->
     exists a b,
       a > 0 /\ b <= 1 /\ x = 2 * a + b.
-
+  
   induction x; intuition; simpl in *.
   omega.
-
+  
   destruct (eq_nat_dec x 1); subst.
   exists 1.
   exists 0.
   intuition; omega.
-
+  
   edestruct (IHx).
   omega.
   destruct H0.
@@ -767,22 +767,22 @@ Theorem nat_half_plus :
   exists 1.
   subst.
   intuition; omega.
-
+  
   exists (S x0).
   exists 0.
   subst.
   intuition.
-
+            
 Qed.
 
-Theorem log2_div2 :
+Theorem log2_div2 : 
   forall x y,
     S y = Nat.log2 x ->
     Nat.log2 (div2 x) = y.
-
+  
   intuition.
   specialize (Nat.log2_double); intuition.
-
+  
   destruct (@nat_half_plus x).
   eapply Nat.log2_lt_cancel.
   rewrite Nat.log2_1.
@@ -796,50 +796,50 @@ Theorem log2_div2 :
   rewrite H0 in H.
   omega.
   omega.
-
+  
   destruct x1.
-
+  
   rewrite plus_comm.
   rewrite div2_double_plus_one.
-
+  
   rewrite Nat.log2_succ_double in H.
   omega.
   omega.
-
+  
   omega.
-
+  
 Qed.
 
-Lemma log2_0 :
+Lemma log2_0 : 
   Nat.log2 0 = 0.
   trivial.
 Qed.
 
-Theorem expnat_0 :
+Theorem expnat_0 : 
   forall k,
     k > 0 ->
     expnat 0 k = 0.
-
+  
   induction k; intuition; simpl in *.
-
+  
 Qed.
 
-Theorem expnat_plus :
+Theorem expnat_plus : 
   forall k1 k2 n,
     expnat n (k1 + k2) = expnat n k1 * expnat n k2.
-
+  
   induction k1; simpl in *; intuition.
   rewrite IHk1.
   rewrite mult_assoc.
   trivial.
-
+  
 Qed.
 
 Theorem expnat_ge_1 :
   forall k n,
     n > 0 ->
     1 <= expnat n k.
-
+  
   induction k; intuition; simpl in *.
   rewrite <- mult_1_r at 1.
   eapply mult_le_compat.
@@ -848,30 +848,30 @@ Theorem expnat_ge_1 :
 Qed.
 
 
-Theorem expnat_exp_le :
+Theorem expnat_exp_le : 
   forall n2 n4 n,
     (n2 > 0 \/ n > 0) ->
     n2 <= n4 ->
     expnat n n2 <= expnat n n4.
-
+  
   induction n2; destruct n4; simpl in *; intuition.
   rewrite <- mult_1_l at 1.
   eapply mult_le_compat.
   omega.
   eapply expnat_ge_1; trivial.
-
+  
   destruct (eq_nat_dec n 0); subst.
   simpl; intuition.
   eapply mult_le_compat; intuition.
-
+  
 Qed.
 
-Lemma mult_lt_compat :
+Lemma mult_lt_compat : 
   forall a b c d,
     a < b ->
     c < d ->
     a * c < b * d.
-
+  
   intuition.
   eapply le_lt_trans.
   eapply mult_le_compat.
@@ -884,12 +884,12 @@ Lemma mult_lt_compat :
   omega.
 Qed.
 
-Theorem orb_same_eq_if :
+Theorem orb_same_eq_if : 
   forall a b c,
     (a = false -> b = c) ->
     orb a b = orb a c.
-
+  
   intuition.
   destruct a; trivial; intuition.
-
+     
 Qed.

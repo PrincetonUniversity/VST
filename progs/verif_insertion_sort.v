@@ -233,7 +233,7 @@ cancel.
 Qed.
 
 Lemma eval_id_initialized : forall v id rho t,
-is_true (typecheck_val v t) ->
+tc_val t v ->
 v = eval_id id rho ->
 denote_tc_initialized id t rho.
 Proof.
