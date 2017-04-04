@@ -291,17 +291,17 @@ apply orp_right1.
 auto.
 Qed.
 
-Lemma denote_tc_comparable_split:
+Lemma denote_tc_test_eq_split:
   forall P x y,
     P |-- valid_pointer x ->
     P |-- valid_pointer y ->
-    P |-- denote_tc_comparable x y.
+    P |-- denote_tc_test_eq x y.
 Proof.
  intros.
  eapply derives_trans with (valid_pointer x && valid_pointer y).
  apply andp_right; auto.
  clear H H0.
- unfold denote_tc_comparable, weak_valid_pointer.
+ unfold denote_tc_test_eq, weak_valid_pointer.
 change predicates_hered.orp with orp.
  destruct x; try (apply andp_left1; apply @FF_left); try apply @TT_right;
  destruct y; try (apply andp_left2; apply @FF_left); try apply @TT_right.
@@ -311,7 +311,7 @@ change predicates_hered.orp with orp.
  rewrite andp_comm.
  apply andp_derives; try apply derives_refl.
  apply orp_right1. apply derives_refl.
- unfold comparable_ptrs.
+ unfold test_eq_ptrs.
  if_tac; auto.
  apply andp_derives; apply valid_pointer_weak.
 Qed.
@@ -385,17 +385,18 @@ Hint Resolve andp_valid_pointer1 andp_valid_pointer2 : valid_pointer.
 Hint Resolve valid_pointer_null : valid_pointer.
 Hint Resolve valid_pointer_zero : valid_pointer.
 
+(* TODO: test_order need to be added *)
 Ltac solve_valid_pointer :=
 match goal with
-| |- _ |-- denote_tc_comparable _ _ && _ =>
+| |- _ |-- denote_tc_test_eq _ _ && _ =>
            apply andp_right;
-               [apply denote_tc_comparable_split;
+               [apply denote_tc_test_eq_split;
                 solve [auto 50 with valid_pointer] | ]
 | |- _ |-- valid_pointer _ && _ =>
            apply andp_right; [ solve [auto 50 with valid_pointer] | ]
 | |- _ |-- weak_valid_pointer _ && _ =>
            apply andp_right; [ solve [auto 50 with valid_pointer] | ]
-| |- _ |-- denote_tc_comparable _ _ =>
+| |- _ |-- denote_tc_test_eq _ _ =>
               auto 50 with valid_pointer
 | |- _ |-- valid_pointer _ =>
               auto 50 with valid_pointer

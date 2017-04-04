@@ -152,10 +152,10 @@ extensionality rho.
  apply pred_ext; intuition.
 Qed.
 
-Lemma typecheck_val_void:
-  forall v, typecheck_val v Tvoid = true -> False.
+Lemma tc_val_void:
+  forall v, tc_val Tvoid v <-> False.
 Proof.
-destruct v; simpl; congruence.
+destruct v; simpl; tauto.
 Qed.
 
 Definition denote_tc_assert' {CS: compspecs} (a: tc_assert) (rho: environ) : mpred.
@@ -179,13 +179,19 @@ intros. assert (X := Int.eq_spec x y). if_tac in X; auto. congruence.
 Qed.
 
 Definition check_pp_int' e1 e2 op t e :=
-match op with
-| Cop.Oeq | Cop.One => tc_andp'
-                         (tc_comparable' e1 e2)
-                         (tc_bool (is_int_type t) (op_result_type e))
+  match op with
+  | Cop.Oeq | Cop.One =>
+      tc_andp'
+        (tc_test_eq' e1 e2)
+        (tc_bool (is_int_type t) (op_result_type e))
+  | Cop.Ole | Cop.Olt | Cop.Oge | Cop.Ogt =>
+      tc_andp'
+        (tc_test_order' e1 e2)
+        (tc_bool (is_int_type t) (op_result_type e))
 | _ => tc_noproof
 end.
 
+(*
 Definition check_pl_long' e2 op t e :=
 match op with
 | Cop.Oeq | Cop.One => tc_andp'
@@ -193,7 +199,7 @@ match op with
                          (tc_bool (is_int_type t) (op_result_type e))
 | _ => tc_noproof
 end.
-
+*)
 
 Lemma tc_andp_TT2:  forall e, tc_andp e tc_TT = e.
 Proof. intros; unfold tc_andp.  destruct e; reflexivity. Qed.
@@ -278,27 +284,31 @@ Lemma denote_tc_assert_nonzero: forall {CS: compspecs} e rho,
   denote_tc_assert (tc_nonzero e) rho =
   match (eval_expr e rho) with
   | Vint i => prop (is_true (negb (Int.eq i Int.zero)))
-   | _ => FF end.
+  | Vlong i => prop (is_true (negb (Int64.eq i Int64.zero)))
+  | _ => FF end.
 Proof.
- intros.
- unfold tc_nonzero.
- destruct (eval_expr e any_environ) eqn:?; simpl; auto;
- try rewrite (eval_expr_any rho e _ Heqv) by congruence;
- unfold_lift.
- destruct (eval_expr e rho); try reflexivity.
- simpl.
- destruct (Int.eq i Int.zero); reflexivity.
- destruct (Int.eq i Int.zero) eqn:?; simpl; try reflexivity.
- unfold_lift; simpl; rewrite (eval_expr_any rho e _ Heqv) by congruence.
- simpl. rewrite Heqb; reflexivity.
- unfold_lift; simpl; rewrite (eval_expr_any rho e _ Heqv) by congruence;
-  reflexivity.
- unfold_lift; simpl; rewrite (eval_expr_any rho e _ Heqv) by congruence;
-  reflexivity.
- unfold_lift; simpl; rewrite (eval_expr_any rho e _ Heqv) by congruence;
-  reflexivity.
- unfold_lift; simpl; rewrite (eval_expr_any rho e _ Heqv) by congruence;
-  reflexivity.
+  intros.
+  unfold tc_nonzero.
+  destruct (eval_expr e any_environ) eqn:?; simpl; auto;
+  try rewrite (eval_expr_any rho e _ Heqv) by congruence;
+  unfold_lift.
+  + destruct (eval_expr e rho); try reflexivity.
+    - simpl.
+      destruct (Int.eq i Int.zero); reflexivity.
+    - simpl.
+      destruct (Int64.eq i Int64.zero); reflexivity.
+  + destruct (Int.eq i Int.zero) eqn:?; simpl; try reflexivity.
+    unfold_lift; simpl; rewrite (eval_expr_any rho e _ Heqv) by congruence.
+    simpl. rewrite Heqb; reflexivity.
+  + destruct (Int64.eq i Int64.zero) eqn:?; simpl; try reflexivity.
+    unfold_lift; simpl; rewrite (eval_expr_any rho e _ Heqv) by congruence.
+    simpl. rewrite Heqb; reflexivity.
+  + unfold_lift; simpl; rewrite (eval_expr_any rho e _ Heqv) by congruence;
+    reflexivity.
+  + unfold_lift; simpl; rewrite (eval_expr_any rho e _ Heqv) by congruence;
+    reflexivity.
+  + unfold_lift; simpl; rewrite (eval_expr_any rho e _ Heqv) by congruence;
+    reflexivity.
 Qed.
 
 Lemma denote_tc_assert_nonzero': forall {CS: compspecs} e,
@@ -308,7 +318,8 @@ intros.
 extensionality rho.
 rewrite denote_tc_assert_nonzero.
 simpl.  unfold_lift. destruct (eval_expr e rho); simpl; auto.
-destruct (Int.eq i Int.zero); reflexivity.
++ destruct (Int.eq i Int.zero); reflexivity.
++ destruct (Int64.eq i Int64.zero); reflexivity.
 Qed.
 
 Lemma denote_tc_assert_nodivover: forall {CS: compspecs} e1 e2 rho,
@@ -317,22 +328,33 @@ Lemma denote_tc_assert_nodivover: forall {CS: compspecs} e1 e2 rho,
                            | Vint n1, Vint n2 => prop (is_true (negb
                                    (Int.eq n1 (Int.repr Int.min_signed)
                                     && Int.eq n2 Int.mone)))
+                           | Vlong n1, Vlong n2 => prop (is_true (negb
+                                   (Int64.eq n1 (Int64.repr Int64.min_signed)
+                                    && Int64.eq n2 Int64.mone)))
                            | _ , _ => FF
                           end.
 Proof.
- intros.
- unfold tc_nodivover.
- destruct (eval_expr e1 any_environ) eqn:?;
- destruct (eval_expr e2 any_environ) eqn:?;
- simpl; auto.
- rewrite (eval_expr_any rho e1 _ Heqv) by congruence.
- rewrite (eval_expr_any rho e2 _ Heqv0) by congruence.
- destruct (negb (Int.eq i (Int.repr Int.min_signed) && Int.eq i0 Int.mone)) eqn:?.
- simpl; try   reflexivity.
- simpl.  unfold_lift.
- rewrite (eval_expr_any rho e1 _ Heqv) by congruence;
- rewrite (eval_expr_any rho e2 _ Heqv0) by congruence.
- simpl. rewrite Heqb. reflexivity.
+  intros.
+  unfold tc_nodivover.
+  destruct (eval_expr e1 any_environ) eqn:?;
+  destruct (eval_expr e2 any_environ) eqn:?;
+  simpl; auto.
+  + rewrite (eval_expr_any rho e1 _ Heqv) by congruence.
+    rewrite (eval_expr_any rho e2 _ Heqv0) by congruence.
+    destruct (negb (Int.eq i (Int.repr Int.min_signed) && Int.eq i0 Int.mone)) eqn:?.
+    - simpl; reflexivity.
+    - simpl. unfold_lift.
+      rewrite (eval_expr_any rho e1 _ Heqv) by congruence;
+      rewrite (eval_expr_any rho e2 _ Heqv0) by congruence.
+      simpl. rewrite Heqb. reflexivity.
+  + rewrite (eval_expr_any rho e1 _ Heqv) by congruence.
+    rewrite (eval_expr_any rho e2 _ Heqv0) by congruence.
+    destruct (negb (Int64.eq i (Int64.repr Int64.min_signed) && Int64.eq i0 Int64.mone)) eqn:?.
+    - simpl; reflexivity.
+    - simpl. unfold_lift.
+      rewrite (eval_expr_any rho e1 _ Heqv) by congruence;
+      rewrite (eval_expr_any rho e2 _ Heqv0) by congruence.
+      simpl. rewrite Heqb. reflexivity.
 Qed.
 
 Lemma denote_tc_assert_nodivover': forall {CS: compspecs} e1 e2,
@@ -365,52 +387,93 @@ Lemma denote_tc_assert_orp':
                         denote_tc_assert (tc_orp' a b).
 Proof. intros. extensionality rho. apply denote_tc_assert_orp. Qed.
 
-Lemma denote_tc_assert_comparable':
+Lemma denote_tc_assert_test_eq':
   forall {CS: compspecs} a b,
-    denote_tc_assert (tc_comparable a b) =
-    denote_tc_assert (tc_comparable' a b).
+    denote_tc_assert (tc_test_eq a b) =
+    denote_tc_assert (tc_test_eq' a b).
 Proof.
-intros; extensionality rho.
-unfold tc_comparable.
-simpl; unfold_lift;  unfold denote_tc_comparable.
-destruct (eval_expr a rho) eqn:Ha;
-destruct (eval_expr a any_environ) eqn:Ha';
-simpl; unfold_lift;  unfold denote_tc_comparable;
-rewrite ?Ha, ?Ha'; simpl; auto;
-try solve [
-   rewrite (eval_expr_any rho a _ Ha') in Ha by congruence;
-   inv Ha].
-destruct (eval_expr b rho) eqn:Hb;
-destruct (eval_expr b any_environ) eqn:Hb';
-simpl; unfold_lift;  unfold denote_tc_comparable;
-rewrite ?Ha, ?Ha', ?Hb, ?Hb'; simpl; auto;
-rewrite (eval_expr_any rho b _ Hb') in Hb by congruence;   inv Hb.
-rewrite (eval_expr_any rho a _ Ha') in Ha by congruence; inv Ha.
-destruct (Int.eq_dec i Int.zero).
-subst. rewrite Int.eq_true.
-destruct (Int.eq_dec i1 Int.zero).
-subst. rewrite Int.eq_true.
-simpl.
-rewrite !prop_true_andp by auto.
-super_unfold_lift.
-unfold TT. f_equal. apply prop_ext; intuition.
-rewrite Int.eq_false by auto. simpl.
-simpl; unfold_lift;  unfold denote_tc_comparable.
-rewrite (eval_expr_any rho a _ Ha')  by congruence.
-rewrite (eval_expr_any rho _ _ Hb')  by congruence.
-auto.
-rewrite Int.eq_false by auto. simpl.
-simpl; unfold_lift;  unfold denote_tc_comparable.
-rewrite (eval_expr_any rho a _ Ha')  by congruence.
-rewrite (eval_expr_any rho _ _ Hb')  by congruence.
-auto.
+  intros; extensionality rho.
+  unfold tc_test_eq.
+  simpl; unfold_lift;  unfold denote_tc_test_eq.
+  destruct (eval_expr a rho) eqn:Ha;
+  destruct (eval_expr a any_environ) eqn:Ha';
+  simpl; unfold_lift;  unfold denote_tc_test_eq;
+  rewrite ?Ha, ?Ha'; simpl; auto;
+  try solve [
+    rewrite (eval_expr_any rho a _ Ha') in Ha by congruence;
+    inv Ha].
+  destruct (eval_expr b rho) eqn:Hb;
+  destruct (eval_expr b any_environ) eqn:Hb';
+  simpl; unfold_lift;  unfold denote_tc_test_eq;
+  rewrite ?Ha, ?Ha', ?Hb, ?Hb'; simpl; auto;
+  rewrite (eval_expr_any rho b _ Hb') in Hb by congruence; inv Hb.
+  rewrite (eval_expr_any rho a _ Ha') in Ha by congruence; inv Ha.
+  destruct (Int.eq_dec i Int.zero).
+  + subst. rewrite Int.eq_true.
+    destruct (Int.eq_dec i1 Int.zero).
+    - subst. rewrite Int.eq_true.
+      simpl.
+      rewrite !prop_true_andp by auto.
+      super_unfold_lift.
+      unfold TT. f_equal. apply prop_ext; intuition.
+    - rewrite Int.eq_false by auto. simpl.
+      simpl; unfold_lift;  unfold denote_tc_test_eq.
+      rewrite (eval_expr_any rho a _ Ha')  by congruence.
+      rewrite (eval_expr_any rho _ _ Hb')  by congruence.
+      auto.
+  + rewrite Int.eq_false by auto. simpl.
+    simpl; unfold_lift;  unfold denote_tc_test_eq.
+    rewrite (eval_expr_any rho a _ Ha')  by congruence.
+    rewrite (eval_expr_any rho _ _ Hb')  by congruence.
+    auto.
+Qed.
+
+Lemma denote_tc_assert_test_order':
+  forall {CS: compspecs} a b,
+    denote_tc_assert (tc_test_order a b) =
+    denote_tc_assert (tc_test_order' a b).
+Proof.
+  intros; extensionality rho.
+  unfold tc_test_order.
+  simpl; unfold_lift;  unfold denote_tc_test_order.
+  destruct (eval_expr a rho) eqn:Ha;
+  destruct (eval_expr a any_environ) eqn:Ha';
+  simpl; unfold_lift;  unfold denote_tc_test_order;
+  rewrite ?Ha, ?Ha'; simpl; auto;
+  try solve [
+    rewrite (eval_expr_any rho a _ Ha') in Ha by congruence;
+    inv Ha].
+  destruct (eval_expr b rho) eqn:Hb;
+  destruct (eval_expr b any_environ) eqn:Hb';
+  simpl; unfold_lift;  unfold denote_tc_test_eq;
+  rewrite ?Ha, ?Ha', ?Hb, ?Hb'; simpl; auto;
+  rewrite (eval_expr_any rho b _ Hb') in Hb by congruence; inv Hb.
+  rewrite (eval_expr_any rho a _ Ha') in Ha by congruence; inv Ha.
+  destruct (Int.eq_dec i Int.zero).
+  + subst. rewrite Int.eq_true.
+    destruct (Int.eq_dec i1 Int.zero).
+    - subst. rewrite Int.eq_true.
+      simpl.
+      rewrite !prop_true_andp by auto.
+      super_unfold_lift.
+      unfold TT. f_equal. apply prop_ext; intuition.
+    - rewrite Int.eq_false by auto. simpl.
+      simpl; unfold_lift;  unfold denote_tc_test_eq.
+      rewrite (eval_expr_any rho a _ Ha')  by congruence.
+      rewrite (eval_expr_any rho _ _ Hb')  by congruence.
+      auto.
+  + rewrite Int.eq_false by auto. simpl.
+    simpl; unfold_lift;  unfold denote_tc_test_eq.
+    rewrite (eval_expr_any rho a _ Ha')  by congruence.
+    rewrite (eval_expr_any rho _ _ Hb')  by congruence.
+    auto.
 Qed.
 
 Hint Rewrite @denote_tc_assert_andp' @denote_tc_assert_andp''
     @denote_tc_assert_orp' @denote_tc_assert_orp''
     @denote_tc_assert_iszero' @denote_tc_assert_nonzero'
     @denote_tc_assert_nodivover' @denote_tc_assert_ilt'
-    @denote_tc_assert_comparable'
+    @denote_tc_assert_test_eq' @denote_tc_assert_test_order'
      : dtca.
 
 Ltac dtca := autorewrite with dtca; auto.
@@ -491,10 +554,16 @@ Qed.
 
 Definition classify_shift' (ty1: type) (ty2: type) :=
   match stupid_typeconv ty1, stupid_typeconv ty2 with
-  | Tint I32 Unsigned _, Tint _ _ _ => shift_case_ii Unsigned
-  | Tint _ _ _, Tint _ _ _ => shift_case_ii Signed
-  | Tint I32 Unsigned _, Tlong _ _ => shift_case_il Unsigned
-  | Tint _ _ _, Tlong _ _ => shift_case_il Signed
+  | Tint sz sg _, Tint _ _ _ => shift_case_ii
+    match sz, sg with 
+    | I32, Unsigned => Unsigned
+    | _, _ => Signed
+    end
+  | Tint sz sg _, Tlong _ _ => shift_case_il
+    match sz, sg with
+    | I32, Unsigned => Unsigned
+    | _, _ => Signed
+    end
   | Tlong s _, Tint _ _ _ => shift_case_li s
   | Tlong s _, Tlong _ _ => shift_case_ll s
   | _,_  => shift_default
@@ -506,6 +575,56 @@ unfold classify_shift; extensionality t1 t2.
 destruct t1,t2; simpl; auto;
 try destruct i,s; auto;
 try destruct i0,s0; auto.
+Qed.
+
+Definition classify_binarith' (ty1: type) (ty2: type) :=
+  match stupid_typeconv ty1, stupid_typeconv ty2 with
+  | Tint i1 s1 _, Tint i2 s2 _ => bin_case_i 
+    match i1, s1, i2, s2 with
+    | I32, Unsigned, _, _ => Unsigned
+    | _, _, I32, Unsigned => Unsigned
+    | _, _, _, _ => Signed
+    end
+  | Tint _ _ _, Tlong s _ => bin_case_l s
+  | Tlong s _, Tint _ _ _ => bin_case_l s
+  | Tlong s1 _, Tlong s2 _ => bin_case_l
+    match s1, s2 with
+    | Signed, Signed => Signed
+    | _, _ => Unsigned
+    end
+  | Tfloat F32 _, Tfloat F32 _ => bin_case_s
+  | Tfloat _ _, Tfloat _ _ => bin_case_f
+  | Tfloat F64 _, (Tint _ _ _ | Tlong _ _) => bin_case_f
+  | (Tint _ _ _ | Tlong _ _), Tfloat F64 _ => bin_case_f
+  | Tfloat F32 _, (Tint _ _ _ | Tlong _ _) => bin_case_s
+  | (Tint _ _ _ | Tlong _ _), Tfloat F32 _ => bin_case_s
+  | _, _ => bin_default
+  end.
+
+Definition binarithType' t1 t2 ty deferr reterr : tc_assert :=
+  match classify_binarith' t1 t2 with
+  | Cop.bin_case_i sg =>  tc_bool (is_int32_type ty) reterr
+  | Cop.bin_case_l sg => tc_bool (is_long_type ty) reterr
+  | Cop.bin_case_f   => tc_bool (is_float_type ty) reterr
+  | Cop.bin_case_s   => tc_bool (is_single_type ty) reterr
+  | Cop.bin_default => tc_FF deferr
+  end.
+
+Lemma classify_binarith_eq: classify_binarith = classify_binarith'.
+Proof.
+  unfold classify_binarith; extensionality t1 t2.
+  destruct t1,t2; simpl; auto;
+  try destruct i,s; auto;
+  try destruct i0,s0; auto;
+  try destruct s; auto;
+  try destruct s0; auto.
+Qed.
+
+Lemma binarithType_eq: binarithType = binarithType'.
+Proof.
+  unfold binarithType, binarithType'; extensionality t1 t2 ty e1 e2.
+  rewrite classify_binarith_eq.
+  auto.
 Qed.
 
 Lemma den_isBinOpR: forall {CS: compspecs} op a1 a2 ty,
@@ -528,7 +647,7 @@ match op with
                     | Cop.add_case_lp t => tc_andp' (tc_andp' (tc_isptr a2)
                                            (tc_bool (complete_type cenv_cs t) reterr))
                                             (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.add_default => binarithType (typeof a1) (typeof a2) ty deferr reterr
+                    | Cop.add_default => binarithType' (typeof a1) (typeof a2) ty deferr reterr
             end
   | Cop.Osub => match classify_sub' (typeof a1) (typeof a2) with
                     | Cop.sub_case_pi t => tc_andp' (tc_andp' (tc_isptr a1)
@@ -537,19 +656,20 @@ match op with
                     | Cop.sub_case_pl t => tc_andp' (tc_andp' (tc_isptr a1)
                                            (tc_bool (complete_type cenv_cs t) reterr))
                                             (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.sub_case_pp t =>  (*tc_isptr may be redundant here*)
+                    | Cop.sub_case_pp t =>
                              tc_andp' (tc_andp' (tc_andp' (tc_andp' (tc_andp' (tc_andp' (tc_samebase a1 a2)
                              (tc_isptr a1))
                               (tc_isptr a2))
                                (tc_bool (is_int32_type ty) reterr))
-			        (tc_bool (negb (Int.eq (Int.repr (sizeof t)) Int.zero))
+			        (tc_bool (negb (Z.eqb (sizeof t) 0))
                                       (pp_compare_size_0 t)))
                                  (tc_bool (complete_type cenv_cs t) reterr))
-                                  (tc_bool (is_pointer_type ty) reterr)
-                    | Cop.sub_default => binarithType (typeof a1) (typeof a2) ty deferr reterr
+                                  (tc_bool (Z.leb (sizeof t) Int.max_signed)
+                                         (pp_compare_size_exceed t))
+                    | Cop.sub_default => binarithType' (typeof a1) (typeof a2) ty deferr reterr
             end
-  | Cop.Omul => binarithType (typeof a1) (typeof a2) ty deferr reterr
-  | Cop.Omod => match Cop.classify_binarith (typeof a1) (typeof a2) with
+  | Cop.Omul => binarithType' (typeof a1) (typeof a2) ty deferr reterr
+  | Cop.Omod => match classify_binarith' (typeof a1) (typeof a2) with
                     | Cop.bin_case_i Unsigned =>
                            tc_andp' (tc_nonzero' a2)
                            (tc_bool (is_int32_type ty) reterr)
@@ -564,7 +684,7 @@ match op with
                                                      (tc_bool (is_long_type ty) reterr)
                     | _ => tc_FF deferr
             end
-  | Cop.Odiv => match Cop.classify_binarith (typeof a1) (typeof a2) with
+  | Cop.Odiv => match classify_binarith' (typeof a1) (typeof a2) with
                     | Cop.bin_case_i Unsigned => tc_andp' (tc_nonzero' a2) (tc_bool (is_int32_type ty) reterr)
                     | Cop.bin_case_l Unsigned => tc_andp' (tc_nonzero' a2) (tc_bool (is_long_type ty) reterr)
                     | Cop.bin_case_i Signed => tc_andp' (tc_andp' (tc_nonzero' a2) (tc_nodivover' a1 a2))
@@ -581,7 +701,7 @@ match op with
                     | _ => tc_FF deferr
                    end
   | Cop.Oand | Cop.Oor | Cop.Oxor =>
-                   match Cop.classify_binarith (typeof a1) (typeof a2) with
+                   match classify_binarith' (typeof a1) (typeof a2) with
                     | Cop.bin_case_i _ =>tc_bool (is_int32_type ty) reterr
                     | _ => tc_FF deferr
                    end
@@ -593,16 +713,17 @@ match op with
                                           && is_int_type ty)
                                              deferr
 		    | Cop.cmp_case_pp => check_pp_int' a1 a2 op ty e
-                    | Cop.cmp_case_pl => check_pp_int' (Ecast a1 (Tint I32 Unsigned noattr)) a2 op ty e
+                    | Cop.cmp_case_pl => check_pp_int' a1 (Ecast a2 (Tint I32 Unsigned noattr)) op ty e
 (*check_pl_long' a2 op ty e*)
-                    | Cop.cmp_case_lp => check_pp_int' (Ecast a2 (Tint I32 Unsigned noattr)) a1 op ty e
+                    | Cop.cmp_case_lp => check_pp_int' (Ecast a1 (Tint I32 Unsigned noattr)) a2 op ty e
 (*check_pl_long' a1 op ty e*)
                    end
   end.
 Proof.
- intros.
+  intros.
  rewrite <- classify_add_eq. rewrite <- classify_sub_eq.
  rewrite <- classify_shift_eq. rewrite <- classify_cmp_eq.
+ rewrite <- classify_binarith_eq. rewrite <- binarithType_eq.
  unfold isBinOpResultType, classify_add, classify_sub, classify_binarith, classify_shift,
   classify_cmp, check_pp_int, check_pp_int',
   (*check_pl_long, check_pl_long', *)
@@ -612,10 +733,8 @@ Proof.
  extensionality rho;
  destruct (typeof a1) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ]; dtca;
  destruct (typeof a2) as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ]; dtca.
-
-
-
 Qed.
+(* TODO: Improve this efficiency as well. *)
 
 Lemma denote_tc_assert'_andp'_e:
  forall {CS: compspecs} a b rho m, denote_tc_assert' (tc_andp' a b) rho m ->
@@ -668,7 +787,7 @@ omega.
 compute; congruence.
 Qed.
 
-Definition typecheck_numeric_val (v: val) (t: type) : Prop :=
+Definition tc_numeric_val (v: val) (t: type) : Prop :=
  match v,t with
  | Vint _, Tint _ _ _ => True
  | Vlong _, Tlong _ _ => True
@@ -676,23 +795,23 @@ Definition typecheck_numeric_val (v: val) (t: type) : Prop :=
  | _, _ => False
  end.
 
-
-Lemma typecheck_val_of_bool:
- forall x i3 s3 a3, typecheck_val (Val.of_bool x) (Tint i3 s3 a3) = true.
+Lemma tc_val_of_bool:
+ forall x i3 s3 a3, tc_val (Tint i3 s3 a3) (Val.of_bool x).
 Proof.
 intros.
-destruct x, i3,s3; simpl; auto.
+destruct x, i3,s3; simpl; try split; auto;
+rewrite <- Z.leb_le;
+reflexivity.
 Qed.
 
-Lemma typecheck_val_sem_cmp:
+Lemma tc_val_sem_cmp:
  forall op v1 t1 v2 t2 i3 s3 a3,
- typecheck_numeric_val v1 t1 ->
- typecheck_numeric_val v2 t2 ->
-typecheck_val
-  (force_val
-     (Cop2.sem_cmp op t1 t2 v1 v2))
-  (Tint i3 s3 a3) = true.
+ tc_numeric_val v1 t1 ->
+ tc_numeric_val v2 t2 ->
+tc_val (Tint i3 s3 a3)
+  (force_val (Cop2.sem_cmp op t1 t2 v1 v2)).
 Proof.
+Opaque tc_val.
 destruct op; intros;
 destruct v1;
   destruct t1 as [ | [ | | | ] [ | ] ? | [ | ] ? | [ | ] ? | | | | | ];
@@ -703,10 +822,11 @@ destruct v2;
  unfold Cop2.sem_cmp, classify_cmp, typeconv,
   Cop2.sem_binarith, Cop2.sem_cast, classify_cast;
  simpl;
- try apply typecheck_val_of_bool.
+try apply tc_val_of_bool.
+Transparent tc_val.
 Qed.
 
-Lemma typecheck_val_cmp_eqne_ip:
+Lemma tc_val_cmp_eqne_ip:
  forall op v1 t1 v2 t0 a0 i2 s0 a1,
  match op with Ceq => True | Cne => True | _ => False end ->
  match v1,t1 with
@@ -714,25 +834,25 @@ Lemma typecheck_val_cmp_eqne_ip:
  | Vlong i, Tlong _ _ => Int.eq (Int.repr (Int64.unsigned i)) Int.zero = true
  | _, _ => False
  end ->
- typecheck_val v2 (Tpointer t0 a0) = true ->
-typecheck_val
-  (force_val
-     (Cop2.sem_cmp op t1 (Tpointer t0 a0) v1 v2))
-  (Tint i2 s0 a1) = true.
+ tc_val (Tpointer t0 a0) v2 ->
+tc_val (Tint i2 s0 a1)
+  (force_val (Cop2.sem_cmp op t1 (Tpointer t0 a0) v1 v2)).
 Proof.
+Opaque tc_val.
 intros until 1; rename H into CMP; intros;
  destruct op; try contradiction CMP; clear CMP;
  destruct v1, t1; try contradiction H;
  destruct v2; inv H0; try rewrite H2;
  try destruct i0; destruct s;
 unfold Cop2.sem_cmp, classify_cmp, typeconv,
-  Cop2.sem_binarith, sem_cast, classify_cast, sem_cmp_pp;
+  Cop2.sem_binarith, sem_cast, classify_cast, sem_cmp_lp, sem_cmp_pp;
  simpl; try rewrite H;
  try reflexivity;
- try apply typecheck_val_of_bool.
+ try apply tc_val_of_bool.
+Transparent tc_val.
 Qed.
 
-Lemma typecheck_val_cmp_eqne_pi:
+Lemma tc_val_cmp_eqne_pi:
  forall op v1 t1 v2 t0 a0 i2 s0 a1,
  match op with Ceq => True | Cne => True | _ => False end ->
  match v1,t1 with
@@ -740,24 +860,23 @@ Lemma typecheck_val_cmp_eqne_pi:
  | Vlong i, Tlong _ _ => Int.eq (Int.repr (Int64.unsigned i)) Int.zero = true
  | _, _ => False
  end ->
- typecheck_val v2 (Tpointer t0 a0) = true ->
-typecheck_val
-  (force_val
-     (Cop2.sem_cmp op (Tpointer t0 a0) t1 v2 v1))
-  (Tint i2 s0 a1) = true.
+tc_val (Tpointer t0 a0) v2 ->
+tc_val (Tint i2 s0 a1) 
+  (force_val (Cop2.sem_cmp op (Tpointer t0 a0) t1 v2 v1)).
 Proof.
+Opaque tc_val.
 intros until 1; rename H into CMP; intros.
  destruct op; try contradiction CMP; clear CMP;
  destruct v1, t1; try contradiction H;
  destruct v2; inv H0; try rewrite H2;
  try destruct i0; destruct s;
 unfold Cop2.sem_cmp, classify_cmp, typeconv,
-  sem_binarith, sem_cast, classify_cast, sem_cmp_pp;
+  sem_binarith, sem_cast, classify_cast, sem_cmp_pl, sem_cmp_pp;
  simpl; try rewrite H;
  try reflexivity;
- try apply typecheck_val_of_bool.
+ try apply tc_val_of_bool.
+Transparent tc_val.
 Qed.
-
 
 Ltac sem_cmp_solver t1 t2 :=
 match t1 with
@@ -772,7 +891,7 @@ match t1 with
   | Tfloat ?i _ => try (is_var i; destruct i)
   | _ => idtac
   end;
-  unfold Cop2.sem_cmp, sem_cmp_pp, sem_cmp_pl, sem_cmp_lp; simpl;
+  unfold Cop2.sem_cmp, sem_cmp_pl, sem_cmp_lp, sem_cmp_pp; simpl;
  repeat match goal with
             | H: _ = true |- _ =>
                 try rewrite H; clear H
@@ -780,4 +899,4 @@ match t1 with
                   destruct A eqn:?; try contradiction; clear H
             end;
   try reflexivity;
-  try apply typecheck_val_of_bool.
+  try apply tc_val_of_bool.

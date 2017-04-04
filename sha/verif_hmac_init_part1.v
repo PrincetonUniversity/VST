@@ -519,7 +519,7 @@ Lemma hmac_init_part1: forall
   (normal_ret_assert (PostKeyNull c k pad kv h1 l key ckb ckoff)).
 Proof. intros. subst Delta. abbreviate_semax.
 forward_if  (PostKeyNull c k pad kv h1 l key ckb ckoff).
-  { apply denote_tc_comparable_split. unfold initPre; normalize. destruct k; try contradiction.
+  { apply denote_tc_test_eq_split. unfold initPre; normalize. destruct k; try contradiction.
     clear H.
     remember (Int.eq i Int.zero). destruct b.
      apply binop_lemmas2.int_eq_true in Heqb. rewrite Heqb; apply valid_pointer_zero. entailer!.
