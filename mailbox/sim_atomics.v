@@ -313,7 +313,7 @@ Definition f_load_relaxed := {|
 |}.
 
 Definition composites : list composite_definition :=
-(Composite _lock_t Struct ((_a, (tarray (tptr tvoid) 4)) :: nil) noattr ::
+(Composite _lock_t Struct ((_a, (tarray (tptr tvoid) 2)) :: nil) noattr ::
  Composite _atomic_loc Struct
    ((_val, tint) :: (_lock, (tptr (Tstruct _lock_t noattr))) :: nil)
    noattr :: nil).

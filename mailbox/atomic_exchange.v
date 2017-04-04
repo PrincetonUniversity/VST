@@ -85,7 +85,7 @@ Definition f_simulate_atomic_exchange := {|
 |}.
 
 Definition composites : list composite_definition :=
-(Composite _lock_t Struct ((_a, (tarray (tptr tvoid) 4)) :: nil) noattr ::
+(Composite _lock_t Struct ((_a, (tarray (tptr tvoid) 2)) :: nil) noattr ::
  nil).
 
 Definition prog : Clight.program := {|

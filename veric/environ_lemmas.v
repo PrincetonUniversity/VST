@@ -230,7 +230,3 @@ apply typecheck_environ_put_te; auto.
 unfold typecheck_environ in *. simpl in *.
 intuition.
 Qed.
-
-Lemma type_eq_true : forall a b, proj_sumbool  (type_eq a b) =true  -> a = b.
-Proof. intros. destruct (type_eq a b). auto. simpl in H. inv H.
-Qed.
