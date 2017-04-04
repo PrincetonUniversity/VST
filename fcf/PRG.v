@@ -14,7 +14,7 @@ Section OneWayPermutation.
 
   Variable f : Bvector n -> Bvector n.
   Variable f_inv : Bvector n -> Bvector n.
-
+  
   Hypothesis f_inv1 : forall v, f (f_inv v) = v.
   Hypothesis f_inv2 : forall v, f_inv (f v) = v.
 
@@ -48,9 +48,9 @@ Section HardCorePredicate.
     r <-$ {0, 1} ^ n;
     g <-$ (A (f r) rb);
     ret g.
-
+   
   Definition HCP_Advantage := | (Pr[HCP_G1]) - (Pr[HCP_G2]) | .
-
+      
 End HardCorePredicate.
 
 Definition vector_firstPart_h(A : Set)(m1 m2 : nat)(v : Vector.t A (m1 + m2)) : {ls : list A | length ls = m1}.
@@ -67,9 +67,9 @@ Fixpoint firstPart(A : Set)(m1 m2 : nat)(v : Vector.t A (m1 + m2)) : Vector.t A 
 
 Theorem skipn_length : forall (A : Set) n0 (ls : list A),
   length (skipn n0 ls) = (length ls) - n0.
-
+  
   induction n0; intuition; simpl in *.
-
+  
   destruct ls; simpl.
   trivial.
   eauto.
@@ -92,7 +92,7 @@ Section OWP_impl_HCP.
   (* f is a one-way permutation *)
   Variable f : Bvector n -> Bvector n.
   Variable f_inv : Bvector n -> Bvector n.
-
+  
   Hypothesis f_inv1 : forall v, f (f_inv v) = v.
   Hypothesis f_inv2 : forall v, f_inv (f v) = v.
 
@@ -102,14 +102,14 @@ Section OWP_impl_HCP.
     Vector.fold_left2 (fun acc b1 b2 => (xorb acc (andb b1 b2))) false v1 v2.
 
   (* f' is a one-way function for vectors of length n + n *)
-  Definition f'(v : Bvector (n + n)) :=
+  Definition f'(v : Bvector (n + n)) := 
     Vector.append (f (firstPart n n v)) (secondPart n n v).
   Definition b(v : Bvector (n + n)) := (dotProduct (firstPart n n v) (secondPart n n v)).
 
   Definition OWP_HCP_B(v : Bvector n) : Comp (Bvector n) :=
     ret v.
 
-  Theorem OWP_HCP :
+  Theorem OWP_HCP : 
     HCP_Advantage f' b A <= (OWP_Advantage f OWP_HCP_B).
 
   Abort.
@@ -149,10 +149,10 @@ Section OWP_HCP_Impl_PRG.
 
   Hypothesis f_inv1 : forall v, f (f_inv v) = v.
   Hypothesis f_inv2 : forall v, f_inv (f v) = v.
-
+    
   (* b is a hard-core predicate for f *)
   Variable b : Bvector n -> bool.
-
+  
   Definition OWP_HCP_PRG_fun(v : Bvector n) :=
     (b v) :: (f v).
 
@@ -197,7 +197,7 @@ Section OWP_HCP_Impl_PRG.
     econstructor.
     eauto.
     simpl.
-
+    
     rewrite shiftOut_0.
     econstructor.
     eauto.
@@ -223,10 +223,10 @@ Section OWP_HCP_Impl_PRG.
     eauto.
     simpl.
     econstructor.
-
+    
     rewrite H in H4.
     inversion H4; clear H4; subst.
-
+    
     inversion H0; clear H0; subst.
     simpl in *.
     destruct s; simpl in *.
@@ -295,7 +295,7 @@ Section OWP_HCP_Impl_PRG.
     econstructor.
     inversion H5.
     inversion H4.
-
+    
     inversion H0; clear H0; subst.
     simpl in *.
     destruct s.
@@ -332,11 +332,11 @@ Section OWP_HCP_Impl_PRG.
   Qed.
 
 
-  Theorem OWP_HCP_PRG :
+  Theorem OWP_HCP_PRG : 
     PRG_Advantage OWP_HCP_PRG_fun A <= (HCP_Advantage f b B).
 
     unfold OWP_HCP_PRG_fun, PRG_Advantage, PRG_G1, PRG_G2, HCP_Advantage, HCP_G1, HCP_G2, B.
-
+    
     eapply eqRat_impl_leRat.
     eapply ratDistance_eqRat_compat.
     intuition.
@@ -353,17 +353,17 @@ Section OWP_HCP_Impl_PRG.
     comp_simp.
     inline_first.
 
-    eapply (distro_iso_eq f f_inv); intuition.
+    eapply (distro_iso_eq f f_inv); intuition. 
     simpl; eauto using in_getAllBvectors.
-
+    
     apply uniformity.
 
     comp_simp.
 
     intuition.
-
+   
   Qed.
-
+    
   (* Print Assumptions OWP_HCP_PRG. *)
 
 End OWP_HCP_Impl_PRG.

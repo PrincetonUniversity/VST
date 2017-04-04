@@ -333,6 +333,7 @@ Definition Gprog : funspecs := ltac:(with_library prog [release_spec; makelock_s
 
 Ltac cancel_for_forward_call ::= repeat (rewrite ?sepcon_andp_prop', ?sepcon_andp_prop);
   repeat (apply andp_right; [auto; apply prop_right; auto|]); fast_cancel.
+Ltac entailer_for_return ::= go_lower; entailer'.
 
 Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_spec.
 Proof.
@@ -408,8 +409,7 @@ Qed.
 Lemma Empty_inj : forall i, vint i = Empty -> repable_signed i -> i = -1.
 Proof.
   intros; apply repr_inj_signed; auto.
-  - split; computable.
-  - unfold Empty in *; congruence.
+  unfold Empty in *; congruence.
 Qed.
 
 Lemma repable_buf : forall a, -1 <= a < B -> repable_signed a.
@@ -601,7 +601,6 @@ Proof.
   Intros locks comms reads lasts sh.
   match goal with H : sepalg_list.list_join sh1 (sublist N N shs) sh |- _ =>
     rewrite sublist_nil in H; inv H end.
-Ltac entailer_for_return ::= go_lower; entailer'.
   forward.
   rewrite !app_nil_r.
   Exists comms locks bufs reads lasts.
@@ -1303,7 +1302,7 @@ Proof.
   rewrite !data_at_rec_eq; unfold withspacer, at_offset; simpl.
   rewrite !data_at_rec_eq; simpl.
   apply mapsto_value_cohere; auto.
-Admitted. (* make this Qed *)
+Qed.
 
 Lemma upd_write_shares : forall bufs b b0 lasts shs sh0 (Hb : 0 <= b < B) (Hb0 : 0 <= b0 < B)
   (Hlasts : Forall (fun x : Z => 0 <= x < B) lasts) (Hshs : Zlength shs = N)
@@ -1793,7 +1792,7 @@ Proof.
         (upd_Znth i l (vint (if eq_dec (vint b') Empty then b0 else Znth i lasts 0))) last_taken :: R)))) end.
     + forward.
       match goal with H : Int.repr b' = _ |- _ => rewrite Int.neg_repr in H; apply repr_inj_signed in H end; subst;
-        auto; [|split; try computable].
+        auto.
       destruct (eq_dec (- (1)) (-1)); [|absurd (-1 = -1); auto].
       apply drop_tc_environ.
     + forward.
@@ -1871,6 +1870,7 @@ Proof.
 Qed.
 
 Ltac entailer_for_load_tac ::= go_lower; entailer'.
+Ltac entailer_for_store_tac ::= go_lower; entailer'.
 
 Lemma body_reader : semax_body Vprog Gprog f_reader reader_spec.
 Proof.
@@ -1977,7 +1977,6 @@ Proof.
     rewrite Zlength_map in *; auto. }
   rewrite make_shares_out in *; auto; [|setoid_rewrite H; auto].
   assert (sh = Tsh) by (eapply list_join_eq; eauto); subst.
-Ltac entailer_for_store_tac ::= go_lower; entailer'.
   forward.
   gather_SEP 8 9; replace_SEP 0 (fold_right sepcon emp (map (fun i => EX sh2 : share,
     !! (if eq_dec i b0 then sh2 = sh0 else sepalg_list.list_join sh0 (make_shares shs lasts i) sh2) &&
@@ -1987,7 +1986,7 @@ Ltac entailer_for_store_tac ::= go_lower; entailer'.
     rewrite Znth_map', Znth_upto; [|simpl; unfold B, N in *; omega].
     destruct (eq_dec b b0); [absurd (b = b0); auto|].
     rewrite make_shares_out; auto; [|setoid_rewrite H; auto].
-    Exists Tsh v; entailer'. }
+    Exists Tsh v; entailer!. }
   forward_call (writing, last_given, last_taken, comm, lock, comms, locks, bufs, b, b0, lasts,
     sh1, lsh, shs, gsh1, gsh2, h, sh0).
   { repeat (split; auto). }
@@ -2215,12 +2214,12 @@ Existing Instance Espec.
 Lemma all_funcs_correct:
   semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.
-unfold Gprog, prog, prog_funct; simpl.
+unfold Gprog, prog, prog_funct, main_pre, main_post, prog_vars; simpl.
 repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
 repeat semax_func_cons_ext.
 semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
 repeat semax_func_cons_ext.
-{ destruct x as (((((((((?, ?), ?), ?), ?), ?), ?), ?), ?), ?).
+{ destruct x as ((((((((?, ?), ?), ?), ?), ?), ?), ?), ?).
   apply exp_left; intro.
   apply exp_left; intro.
   unfold PROPx, LOCALx, local, lift1, liftx, lift; simpl.
@@ -2231,14 +2230,6 @@ repeat semax_func_cons_ext.
   destruct ret; auto. }
 semax_func_cons body_surely_malloc.
 semax_func_cons body_memset.
-(*semax_func_cons body_atomic_exchange.
-{ simpl in *.
-  destruct x0 as (((((((((?, ?), ?), ?), ?), ?), ?), ?), ?), ?).
-  (* This could probably be done automatically with a slight modification to precondition_closed. *)
-  simpl not_a_param; auto 50 with closed. }
-{ simpl in *.
-  destruct x0 as (((((((((?, ?), ?), ?), ?), ?), ?), ?), ?), ?).
-  simpl is_a_local; auto 50 with closed. }*)
 semax_func_cons body_initialize_channels.
 semax_func_cons body_initialize_reader.
 semax_func_cons body_start_read.

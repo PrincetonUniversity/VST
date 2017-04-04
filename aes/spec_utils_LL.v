@@ -1,6 +1,6 @@
 Require Export List. Export ListNotations.
 Require Export ZArith.
-Open Scope Z_scope.
+Local Open Scope Z_scope.
 Require Export Integers.
 Require Export floyd.sublist.
 

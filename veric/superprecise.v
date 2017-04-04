@@ -1,3 +1,4 @@
+Require Import Reals.
 Require Export veric.base.
 Require Import veric.compcert_rmaps.
 Require Import veric.slice.
@@ -240,7 +241,7 @@ rewrite round_generic ; auto with typeclass_instances.
 rewrite Fcore_Raux.Rlt_bool_true.
 (****)
 intros [H _].
-assert (H': B2R 53 1024 (binary_normalize 53 1024 eq_refl eq_refl mode_NE (cond_Zopp s (Z.pos m)) e s) <> Rdefinitions.R0).
+assert (H': B2R 53 1024 (binary_normalize 53 1024 eq_refl eq_refl mode_NE (cond_Zopp s (Z.pos m)) e s) <> 0%R).
   rewrite H, <- (Fcore_float_prop.F2R_0 radix2 e).
   case s.
   now apply RIneq.Rlt_not_eq, Fcore_float_prop.F2R_lt_compat.

@@ -17,14 +17,14 @@ Section DDH.
   Section DDH_Concrete.
 
     Context`{FCG : FiniteCyclicGroup}.
-    Variable A : (GroupElement * GroupElement * GroupElement) -> Comp bool.
+    Variable A : (GroupElement * GroupElement * GroupElement) -> Comp bool. 
 
     Definition DDH0 :=
       x <-$ [0 .. order);
       y <-$ [0 .. order);
       b <-$ (A (g^x, g^y, g^(x * y)));
       ret b.
-
+    
     Definition DDH1  :=
       x <-$ [0 .. order);
       y <-$ [0 .. order);
@@ -34,7 +34,7 @@ Section DDH.
 
     Definition DDH_Advantage:= | Pr[DDH0] - Pr[DDH1] |.
 
-  End DDH_Concrete.
-
+  End DDH_Concrete. 
+  
 
 End DDH.

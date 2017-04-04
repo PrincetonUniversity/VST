@@ -8,17 +8,17 @@ Require Import fcf.FCF.
 
 Local Open Scope nat_scope.
 
-Theorem qam_count_gen :
+Theorem qam_count_gen : 
   forall (A B C : Set)(c : OracleComp A B C)(q : nat),
     queries_at_most c q ->
     forall (S : Set)(count : S -> nat)(eqds : EqDec S)(o : S -> A -> Comp (B * S))(s : S)(n : nat),
       (forall a b x y,
         In (a, b) (getSupport (o x y)) ->
           count b <= n + (count x)) ->
-      forall a b,
+      forall a b, 
       In (a, b) (getSupport (c _ _ o s)) ->
       count b <= q * n + (count s).
-
+    
   Opaque getSupport.
   induction 1; intuition; simpl in *.
 
@@ -55,13 +55,13 @@ Theorem qam_count_gen :
   destruct x.
   simpl in *.
 
-  specialize (IHqueries_at_most (S * S0)%type (fun p =>  count (snd p)) _
+  specialize (IHqueries_at_most (S * S0)%type (fun p =>  count (snd p)) _ 
   (fun (x : S * S0) (y : A) =>
                 p <-$ (oc (fst x) y) S0 eqds0 o (snd x);
                 ret (fst (fst p), (snd (fst p), snd p)))
   (s, s0) (q2 * n)
   ).
-
+  
   eapply le_trans.
   eapply IHqueries_at_most.
   intuition.
@@ -93,7 +93,7 @@ Qed.
 
 Local Open Scope rat_scope.
 
-Theorem evalDist_bind_event_le :
+Theorem evalDist_bind_event_le : 
   forall (A : Set)(c : Comp A)(f : A -> Comp bool)(evta : A -> bool) (k1 k2 : Rat),
     Pr[a <-$ c; ret (evta a)] <= k1 ->
     (forall a, In a (getSupport c) -> evta a = false -> Pr[f a] <= k2) ->
@@ -154,8 +154,8 @@ Theorem evalDist_bind_event_le :
   eapply eqRat_impl_leRat.
   eapply ratMult_1_r.
   eapply ratMult_leRat_compat; intuition.
-
-
+  
+  
   assert (sumList (getSupport c)
      (fun a : A => evalDist c a * (if evta a then 0 else 1)) <=
           sumList (getSupport c)
@@ -174,7 +174,7 @@ Theorem evalDist_bind_event_le :
   eapply evalDist_sum_le_1.
 Qed.
 
-Theorem oc_eventProb :
+Theorem oc_eventProb : 
   forall (A B C : Set)(c : OracleComp A B C) n,
     queries_at_most c n ->
     forall
@@ -193,11 +193,11 @@ Theorem oc_eventProb :
   inline_first.
 
   assert (
-       Pr
+       Pr 
    [a <-$ c S eqds o s;
     p <-$ ([z, s']<-2 a; (f z) S eqds o s'); ret evt (snd p) ] <=
-   q1 / 1 * k (i * q1 + count s)%nat +
-   q2 / 1 * k (i * q2 + (i * q1 + count s))%nat
+   q1 / 1 * k (i * q1 + count s)%nat + 
+   q2 / 1 * k (i * q2 + (i * q1 + count s))%nat 
                      ).
 
   eapply evalDist_bind_event_le.
@@ -225,7 +225,7 @@ Theorem oc_eventProb :
 
   rewrite H6.
   clear H6.
-
+  
   eapply leRat_trans.
   Focus 2.
   eapply eqRat_impl_leRat.
@@ -311,7 +311,7 @@ Theorem oc_eventProb :
               (fun p : prod (prod C S) S0 =>
                Ret (EqDec_dec bool_EqDec) (evt (snd p))))) true)
    ==
-   Pr
+   Pr 
    [a <-$
     c (S * S0)%type (pair_EqDec eqds eqds0)
       (fun (x : S * S0) (y : A) =>
@@ -326,9 +326,9 @@ Theorem oc_eventProb :
   rewrite H7.
   clear H7.
 
-
+  
   eapply leRat_trans.
-  eapply (@IHqueries_at_most _ _
+  eapply (@IHqueries_at_most _ _ 
                              ((fun (x : S * S0) (y : A) =>
        p <-$ (oc (fst x) y) S0 eqds0 o (snd x);
        ret (fst (fst p), (snd (fst p), snd p))))
@@ -338,14 +338,14 @@ Theorem oc_eventProb :
   eapply ratMult_leRat_compat; intuition.
   trivial.
   intuition.
-
+  
   comp_inline_l.
   assert (
-      Pr
+      Pr 
    [a1 <-$ (oc (fst (a, b)) a0) S0 eqds0 o (snd (a, b));
     p <-$ ret (fst (fst a1), (snd (fst a1), snd a1)); ret evt (snd (snd p)) ]
    ==
-   Pr
+   Pr 
    [a1 <-$ (oc (fst (a, b)) a0) S0 eqds0 o (snd (a, b));
     ret evt (snd a1) ]
    ).
@@ -400,7 +400,7 @@ Theorem oc_eventProb :
 
 Qed.
 
-Theorem oc_eventProb_0_1 :
+Theorem oc_eventProb_0_1 : 
   forall (S : Set)(count : S -> nat)(evt : S -> bool)(k : nat -> Rat)
          (A B C : Set)(c : OracleComp A B C) n,
     queries_at_most c n ->
@@ -413,7 +413,7 @@ Theorem oc_eventProb_0_1 :
       (forall s s' a b, In (b, s') (getSupport (o s a)) ->
                         count s' <= 1 + (count s))%nat ->
       count s = 0%nat ->
-      Pr[p <-$ c _ _ o s; ret (evt (snd p))] <= (n / 1) * (k n).
+      Pr[p <-$ c _ _ o s; ret (evt (snd p))] <= (n / 1) * (k n).  
 
   intuition.
   eapply leRat_trans.
@@ -429,7 +429,7 @@ Local Open Scope nat_scope.
 
 
 
-Theorem qam_count :
+Theorem qam_count : 
   forall (A B C : Set)(c : OracleComp A B C)(q : nat),
     queries_at_most c q ->
     forall (S : Set)(count : S -> nat)(eqds : EqDec S)(o : S -> A -> Comp (B * S))(s : S),
@@ -437,7 +437,7 @@ Theorem qam_count :
         In (a, b) (getSupport (o x y)) ->
           count b <= 1 + (count x)) ->
       count s = 0 ->
-      forall a b,
+      forall a b, 
       In (a, b) (getSupport (c _ _ o s)) ->
       count b <= q.
 
@@ -451,7 +451,7 @@ Qed.
 Local Transparent evalDist.
 
 Section RndInList.
-
+  
   Variable eta : nat.
 
   Theorem RndInList_prob_h :
@@ -512,7 +512,7 @@ Section RndInList.
     rewrite eqb_leibniz in H2.
     subst.
     intuition.
-
+    
     eapply leRat_trans.
     Focus 2.
     eapply IHls.
@@ -536,7 +536,7 @@ Section RndInList.
     rewrite eqb_refl in H1.
     simpl in *. discriminate.
     destruct (in_dec (EqDec_dec (Bvector_EqDec eta)) a0 ls); intuition.
-
+    
     eapply rat0_le_all.
   Qed.
 
@@ -553,12 +553,12 @@ Section RndInList.
     eapply leRat_terms; intuition.
 
   Qed.
-
+  
 End RndInList.
 
 Local Open Scope rat_scope.
 
-Theorem RndNat_eq_any :
+Theorem RndNat_eq_any : 
   forall (eta : nat)(x : Bvector eta),
     Pr  [a0 <-$ { 0 , 1 }^eta; ret (eqb x a0) ] == 1 / 2^eta.
 
@@ -584,7 +584,7 @@ Require Import fcf.CompFold.
 Local Opaque evalDist.
 
 Section FixedInRndList.
-
+  
   Variable A : Set.
   Variable eta : nat.
 
@@ -608,14 +608,14 @@ Section FixedInRndList.
     eapply eqRat_impl_leRat.
     apply RndNat_eq_any.
     intuition.
-
-    assert (Pr
+    
+    assert (Pr 
    [lsR <-$
     (lsb' <-$ compMap (Bvector_EqDec eta) (fun _ : A => { 0 , 1 }^eta) ls;
      ret (a0 :: lsb')%list);
     ret (if in_dec (EqDec_dec (Bvector_EqDec eta)) x lsR then true else false)
    ] ==
-            Pr
+            Pr 
    [lsR <-$ compMap (Bvector_EqDec eta) (fun _ : A => { 0 , 1 }^eta) ls;
     ret (if in_dec (EqDec_dec (Bvector_EqDec eta)) x lsR then true else false)
    ]).
@@ -635,7 +635,7 @@ Section FixedInRndList.
     rewrite H1.
     rewrite IHls.
     reflexivity.
-
+    
     eapply leRat_trans.
     Focus 2.
     eapply eqRat_impl_leRat.
@@ -645,21 +645,21 @@ Section FixedInRndList.
     trivial.
     reflexivity.
   Qed.
-
+  
 End FixedInRndList.
 
 
 Section RndInAdaptive.
 
   Variable A B C : Set.
-
+  
   Local Open Scope rat_scope.
 
-  Theorem RndInAdaptive_prob :
+  Theorem RndInAdaptive_prob : 
     forall (c : OracleComp A B C)(q : nat),
       queries_at_most c q ->
       forall (S : Set)(evt : S -> bool)(eqd : EqDec S)(o : S -> A -> Comp (B * S))(k : Rat),
-        (forall a b,
+        (forall a b, 
           evt a = false ->
           Pr[ d <-$ o a b; ret (evt (snd d))] <= k)->
         (forall a b x y,
@@ -673,12 +673,12 @@ Section RndInAdaptive.
     Opaque evalDist.
     simpl.
 
-    assert ( Pr
+    assert ( Pr 
    [d <-$ (z0 <-$ c S eqd o s; [z, s']<-2 z0; (f z) S eqd o s');
     ret evt (snd d) ] ==
-    Pr
+    Pr 
    [a <-$ c S eqd o s;
-    d <-$ (f (fst a)) S eqd o (snd a);
+    d <-$ (f (fst a)) S eqd o (snd a); 
     ret (evt (snd a) || evt (snd d)) ]).
 
     inline_first.
@@ -697,11 +697,11 @@ Section RndInAdaptive.
     simpl; intuition.
     rewrite orb_false_l.
     intuition.
-
+    
     rewrite H5.
     clear H5.
-
-    Theorem orb_prob :
+    
+    Theorem orb_prob : 
       forall (A B : Set)(c : Comp A)(f : A -> Comp B) evt1 evt2 k1 k2,
         Pr[x <-$ c; ret (evt1 x)] <= k1 ->
         (forall a, In a (getSupport c) -> evt1 a = false -> Pr[y <-$ f a; ret (evt2 y)] <= k2) ->
@@ -734,7 +734,7 @@ Section RndInAdaptive.
       eapply leRat_refl.
       intuition.
       destruct (EqDec_dec bool_EqDec true true); intuition.
-
+      
       destruct (EqDec_dec bool_EqDec false true); intuition.
       discriminate.
       rewrite ratMult_0_r; intuition.
@@ -777,14 +777,14 @@ Section RndInAdaptive.
       intuition.
       rewrite H1. clear H1.
       eapply evalDist_sum_le_1.
-    Qed.
+    Qed.    
 
-    assert (Pr
+    assert (Pr 
    [a <-$ c S eqd o s;
     d <-$ (f (fst a)) S eqd o (snd a); ret evt (snd a) || evt (snd d) ] <=
    q1 / 1 * k + q2 / 1 * k).
     eapply orb_prob.
-
+   
     eapply IHqueries_at_most;
     eauto.
     intros.
@@ -834,19 +834,19 @@ Section RndInAdaptive.
     eapply comp_base_exists; eauto.
     intuition.
     intuition.
-
+    
     assert (EqDec C).
     eapply oc_EqDec; eauto.
-
+  
     simpl.
 
     specialize (IHqueries_at_most (S * S0)%type (fun p => evt (snd p)) _ (fun (x : S * S0) (y : A) =>
         p <-$ (oc (fst x) y) S0 eqd o (snd x);
         ret (fst (fst p), (snd (fst p), snd p)))  (q2 / 1 * k)).
-
+ 
     inline_first.
     comp_at comp_ret leftc 1%nat.
-
+ 
     eapply leRat_trans.
     eapply IHqueries_at_most.
 
@@ -855,7 +855,7 @@ Section RndInAdaptive.
     inline_first.
     simpl.
     comp_at comp_ret leftc 1%nat.
-
+    
     eapply H1; eauto.
     intuition.
     simpl.
@@ -881,3 +881,4 @@ Section RndInAdaptive.
 
 
 End RndInAdaptive.
+   
