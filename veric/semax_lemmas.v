@@ -1562,29 +1562,6 @@ Proof.
  rewrite Int.eq_true; reflexivity.
 Qed.
 
-(*Is it ok to force store into int? seems fine, result will always be int. any cast seems silly*)
-Definition typecheck_tid_ptr_compare
-Delta id :=
-match (temp_types Delta) ! id with
-| Some t => is_int_type t
-| None => false
-end.
-
-Lemma typecheck_tid_ptr_compare_sub:
-   forall Delta Delta',
-    tycontext_sub Delta Delta' ->
-    forall id, typecheck_tid_ptr_compare Delta id = true ->
-                typecheck_tid_ptr_compare Delta' id = true.
-Proof.
-unfold typecheck_tid_ptr_compare;
-intros.
-destruct H as [? _].
-specialize (H id).
-destruct ((temp_types Delta) ! id); try discriminate.
-destruct ((temp_types Delta') ! id); try contradiction.
-destruct H; subst; auto.
-Qed.
-
 (* Mutually recursive induction scheme for [statement] and [labeled_statements] *)
 Section statement_rect.
   Variable P : statement -> Type.
