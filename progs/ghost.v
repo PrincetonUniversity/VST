@@ -30,8 +30,9 @@ Definition update a b := forall c, joins a c -> joins b c.
 (* General PCM-based ghost state *)
 Parameter ghost : forall (g : A) (p : val), mpred.
 
-(*Axiom new_ghost : forall t v p (g : A), initial g ->
-  view_shift (data_at Tsh t v p) (ghost Tsh g p * data_at Tsh t v p).*)
+(* subject to change *)
+Axiom ghost_alloc : forall (g : A) P, view_shift P (EX p : val, ghost g p * P).
+Axiom ghost_dealloc : forall (g : A) p, view_shift (ghost g p) emp.
 
 Axiom ghost_join : forall g1 g2 g p, join g1 g2 g -> ghost g1 p * ghost g2 p = ghost g p.
 Axiom ghost_conflict : forall g1 g2 p, ghost g1 p * ghost g2 p |-- !!joins g1 g2.

@@ -770,7 +770,7 @@ Definition f_main := {|
 |}.
 
 Definition composites : list composite_definition :=
-(Composite _lock_t Struct ((_a, (tarray (tptr tvoid) 4)) :: nil) noattr ::
+(Composite _lock_t Struct ((_a, (tarray (tptr tvoid) 2)) :: nil) noattr ::
  Composite _entry Struct
    ((_key, (tptr (Tstruct _atomic_loc noattr))) ::
     (_value, (tptr (Tstruct _atomic_loc noattr))) :: nil)

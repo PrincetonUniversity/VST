@@ -792,7 +792,7 @@ Definition f_main := {|
 |}.
 
 Definition composites : list composite_definition :=
-(Composite _lock_t Struct ((_a, (tarray (tptr tvoid) 4)) :: nil) noattr ::
+(Composite _lock_t Struct ((_a, (tarray (tptr tvoid) 2)) :: nil) noattr ::
  Composite _buffer Struct ((_data, tint) :: nil) noattr :: nil).
 
 Definition prog : Clight.program := {|
