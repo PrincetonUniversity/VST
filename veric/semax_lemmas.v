@@ -80,23 +80,20 @@ apply prop_ext; split; intros.
 eapply H; eauto.
 intro b; apply H.
 Qed.
-(*
+
 Lemma guard_environ_put_te':
  forall ge te ve Delta id v k,
  guard_environ Delta k (mkEnviron ge ve te)  ->
-    (forall t : type * bool,
-        (temp_types Delta) ! id = Some t -> tc_val (fst t) v) ->
- guard_environ (initialized id Delta) k (mkEnviron ge ve (Map.set id v te)).
+    (forall t,
+        (temp_types Delta) ! id = Some t -> tc_val' t v) ->
+ guard_environ Delta k (mkEnviron ge ve (Map.set id v te)).
 Proof.
  intros.
  destruct H; split.
- apply typecheck_environ_put_te'; auto.
+ apply typecheck_environ_put_te; auto.
  destruct k; auto.
- destruct H1; split.
- apply H1.
- unfold initialized. destruct ((temp_types Delta) ! id); try destruct p; auto.
 Qed.
-*)
+
 Lemma prop_imp_derives {A}{agA: ageable A}:
   forall (P: Prop) (Q Q': pred A),  (P -> Q |-- Q') -> !!P --> Q |-- !!P --> Q'.
 Proof.

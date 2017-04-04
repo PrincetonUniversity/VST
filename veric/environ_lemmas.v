@@ -218,12 +218,10 @@ Proof.
   + simpl in *. specialize (H1 id0 _ H). auto.
 Qed.
 
-(*
 Lemma typecheck_environ_put_te' : forall ge te ve Delta id v ,
  typecheck_environ  Delta (mkEnviron ge ve te) ->
-(forall t , ((temp_types Delta) ! id = Some t ->
-  (tc_val (fst t) v))) ->
-typecheck_environ (initialized id Delta) (mkEnviron ge ve (Map.set id v te)).
+(forall t , ((temp_types Delta) ! id = Some t -> tc_val' t v)) ->
+typecheck_environ Delta (mkEnviron ge ve (Map.set id v te)).
 Proof.
 intros.
 assert (typecheck_environ Delta (mkEnviron ge ve (Map.set id v te))).
@@ -231,36 +229,8 @@ apply typecheck_environ_put_te; auto.
 
 unfold typecheck_environ in *. simpl in *.
 intuition.
-
-destruct Delta. unfold initialized. unfold temp_types in *.
-clear H1 H3 H4 H5 H8 H7. simpl in *.
-unfold typecheck_temp_environ in *.
-intros. remember (tyc_temps ! id).
-destruct o; try congruence; auto. destruct p. simpl in *.
-rewrite PTree.gsspec in *.
-if_tac in H1. inv H1.
-edestruct H; eauto. destruct H1. destruct H3; eauto. exists v.
-split. rewrite Map.gsspec in *. unfold ident_eq in *. rewrite peq_true in *. auto.
-specialize (H0 (ty, b0)). right.  apply H0. auto.
-eauto.
-
-
-unfold var_types in *. destruct Delta. simpl in *.
-unfold initialized. simpl.
-destruct (tyc_temps ! id).
-destruct p. simpl. unfold var_types. auto. auto.
-
-destruct Delta. simpl in *. unfold initialized.
-simpl. destruct (tyc_temps ! id); try destruct p; simpl in *; auto.
-
-unfold same_env in *.
-intros. simpl in *. unfold initialized in *.
-destruct Delta. simpl in *.
-unfold var_types, temp_types in *. simpl in *.
-destruct (tyc_temps ! id); try destruct p; eauto.
 Qed.
 
 Lemma type_eq_true : forall a b, proj_sumbool  (type_eq a b) =true  -> a = b.
 Proof. intros. destruct (type_eq a b). auto. simpl in H. inv H.
 Qed.
-*)
