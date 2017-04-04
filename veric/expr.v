@@ -919,13 +919,8 @@ end.
 (** Environment typechecking functions **)
 
 Definition typecheck_temp_environ
-<<<<<<< HEAD
 (te: tenviron) (tc: PTree.t type) :=
-forall id ty , tc ! id = Some ty  -> exists v, Map.get te id = Some v.
-=======
-(te: tenviron) (tc: PTree.t (type * bool)) :=
-forall id b ty , tc ! id = Some (ty,b) -> exists v, (Map.get te id = Some v /\ ((is_true (negb b)) \/ tc_val ty v)).
->>>>>>> master
+forall id ty , tc ! id = Some ty  -> exists v, Map.get te id = Some v /\ tc_val' ty v.
 
 Definition typecheck_var_environ
 (ve: venviron) (tc: PTree.t type) :=
