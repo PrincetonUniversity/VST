@@ -57,43 +57,6 @@ apply pred_ext.
 + apply andp_right; trivial. apply UNDER_SPEC.REP_isptr.
 + entailer!.
 Qed. 
-(*
-Parameter FreeBLK : Z -> val -> mpred.
-Definition malloc_spec :=
-  DECLARE _malloc
-   WITH n:Z
-   PRE [ 1%positive OF tuint ]
-       PROP (0 <= n <= Int.max_unsigned)
-       LOCAL (temp 1%positive (Vint (Int.repr n)))
-       SEP ()
-    POST [ tptr tvoid ] EX p:_,
-       PROP ()
-       LOCAL (temp ret_temp p)
-       SEP (if eq_dec p nullval then emp 
-            else (!!malloc_compatible n p && (memory_block Tsh n p * FreeBLK n p))).
-
-Definition free_spec :=
-  DECLARE _free
-   WITH p:_, n:_
-   PRE [ 1%positive OF tptr tvoid ]
-       PROP ()
-       LOCAL (temp 1%positive p)
-       SEP (memory_block Tsh n p; FreeBLK n p)
-    POST [ Tvoid ] 
-      EX vret:unit, PROP ()
-       LOCAL ()
-       SEP (emp).
-(*TODO: if we write this as 
-Definition oldfree_spec :=
-  DECLARE _free
-   WITH p:_, n:_
-   PRE [ 1%positive OF tptr tvoid ]
-       PROP ()
-       LOCAL (temp 1%positive p)
-       SEP (memory_block Tsh n p; FreeBLK n p)
-    POST [ Tvoid ] 
-       SEP (emp).
-the proof of md_free breaks*)*)
 
 Definition md_free_spec :=
  DECLARE _mbedtls_md_free
@@ -103,7 +66,6 @@ Definition md_free_spec :=
        LOCAL(temp _ctx ctx) 
        SEP (data_at Tsh t_struct_md_ctx_st r ctx;
             UNDER_SPEC.EMPTY (snd (snd r)); 
-(*            FreeBLK (sizeof (Tstruct _hmac_ctx_st noattr)) (snd (snd r))))*)
             malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) (snd (snd r)))
   POST [ tvoid ] 
     SEP (data_at Tsh t_struct_md_ctx_st r ctx).
@@ -147,20 +109,6 @@ Definition drbg_memset_spec := (_memset, snd spec_sha.memset_spec).
 Definition drbg_memcpy_spec := (_memcpy, snd spec_sha.memcpy_spec). 
 *)
 
-(*
-Definition md_get_size_SPEC :=
-   WITH u:unit
-   PRE [ _md_info OF tptr (Tstruct _mbedtls_md_info_t noattr)]
-         PROP ()
-         LOCAL ()
-         SEP ()
-  POST [ tuchar ] 
-     PROP ()
-     LOCAL (temp ret_temp (Vint (Int.repr (32 (*Z.of_nat SHA256.DigestLength*)))))
-     SEP ().
-Opaque md_get_size_SPEC. in comment
-Definition md_get_size_spec := (_mbedtls_md_get_size, md_get_size_SPEC).
-*)
 Definition md_get_size_spec :=
   DECLARE _mbedtls_md_get_size
    WITH u:unit
@@ -265,7 +213,7 @@ Definition md_setup_spec :=
               if zeq r 0
               then (EX p:_, !!malloc_compatible (sizeof (Tstruct _hmac_ctx_st noattr)) p && 
                               memory_block Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
-                              (*FreeBLK*) malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+                              malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
                               data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info, (fst(snd md_ctx), p)) c)
               else data_at Tsh (Tstruct _mbedtls_md_context_t noattr) md_ctx c).
 (* end mocked_md *)
@@ -607,6 +555,48 @@ Definition hmac_drbg_generate_spec :=
        LOCAL (temp ret_temp ret_value)
        SEP (generatePOST ret_value contents additional add_len output out_len ctx initial_state initial_state_abs kv info_contents s).
 
+Definition hmac_drbg_seed_buf_spec :=
+  DECLARE _mbedtls_hmac_drbg_seed_buf
+   WITH ctx: val, info:val, d_len: Z, data:val, Data: list Z,
+        Ctx: hmac256drbgstate,
+        CTX: hmac256drbgabs,
+        kv: val, Info: md_info_state
+    PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
+         _md_info OF (tptr (Tstruct _mbedtls_md_info_t noattr)),
+         _data OF tptr tuchar, _data_len OF tuint ]
+       PROP ( (d_len = Zlength Data \/ d_len=0) /\
+              0 <= d_len <= Int.max_unsigned /\ Forall isbyteZ Data)
+       LOCAL (temp _ctx ctx; temp _md_info info;
+              temp _data_len (Vint (Int.repr d_len)); temp _data data; gvar sha._K256 kv)
+       SEP (
+         data_at Tsh t_struct_hmac256drbg_context_st Ctx ctx;
+         hmac256drbg_relate CTX Ctx;
+         data_at Tsh t_struct_mbedtls_md_info Info info;
+         da_emp Tsh (tarray tuchar (Zlength Data)) (map Vint (map Int.repr Data)) data;
+         K_vector kv)
+    POST [ tint ]
+       EX ret_value:_,
+       PROP ()
+       LOCAL (temp ret_temp ret_value)
+       SEP (data_at Tsh t_struct_mbedtls_md_info Info info *
+            da_emp Tsh (tarray tuchar (Zlength Data)) (map Vint (map Int.repr Data)) data *
+            K_vector kv;
+            orp ( !!(ret_value = Vint (Int.repr (-20864))) &&
+                  data_at Tsh t_struct_hmac256drbg_context_st Ctx ctx *
+                  hmac256drbg_relate CTX Ctx)
+                ( !!(ret_value <> Vint (Int.repr (-20864))) &&
+                  match Ctx, CTX
+                  with (mds, (V', (RC', (EL', (PR', RI'))))),
+                              HMAC256DRBGabs key V RC EL PR RI
+                     => EX KEY:list Z, EX VAL:list Z, EX p:val,
+                          !!(HMAC256_DRBG_update (contents_with_add data d_len Data) V (list_repeat 32 1) = (KEY, VAL))
+                          && md_full key mds * malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+                             data_at Tsh t_struct_hmac256drbg_context_st ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI'))))) ctx *
+                             hmac256drbg_relate (HMAC256DRBGabs KEY VAL RC EL PR RI) ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI')))))
+                  end)
+       ).
+
+
 Definition get_entropy_spec :=
   DECLARE _get_entropy
    WITH
@@ -762,33 +752,13 @@ Definition hmac_drbg_free_spec :=
        SEP (da_emp Tsh t_struct_hmac256drbg_context_st CTX ctx;
             if Val.eq ctx nullval then emp else
                  (hmac256drbg_relate ABS CTX *
-                 (*FreeBLK*)malloc_token Tsh 324 (snd(snd (fst CTX)))))
+                  malloc_token Tsh 324 (snd(snd (fst CTX)))))
     POST [ tvoid ] 
       EX vret:unit, PROP ()
        LOCAL ()
        SEP (if Val.eq ctx nullval then emp else data_block Tsh (list_repeat (Z.to_nat size_of_HMACDRBGCTX) 0) ctx).
-(*TODO: writing the spec like this breaks the proof of its body
-Definition hmac_drbg_free_spec :=
-  DECLARE _mbedtls_hmac_drbg_free
-   WITH ctx:val, CTX:hmac256drbgstate, ABS:_
-    PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr) ]
-       PROP ( )
-       LOCAL (temp _ctx ctx)
-       SEP (da_emp Tsh t_struct_hmac256drbg_context_st CTX ctx;
-            if Val.eq ctx nullval then emp else
-                 (hmac256drbg_relate ABS CTX *
-                 FreeBLK 324 (snd(snd (fst CTX)))))
-    POST [ tvoid ]
-       SEP (if Val.eq ctx nullval then emp else data_block Tsh (list_repeat (Z.to_nat size_of_HMACDRBGCTX) 0) ctx).
-*)
-(*
-Lemma super_nonexpansive_sum {P Q} (HP:super_non_expansive P) 
-      (HQ:super_non_expansive Q):
-  super_non_expansive P. (fun x => match x with inl a => P a | inr b => Q b end).
-*)
 
 Definition HmacDrbgVarSpecs : varspecs := (sha._K256, tarray tuint 64)::nil.
-(*Check NDmk_funspec. Check const_super_non_expansive.*)
 
 Definition ndfs_merge fA cA A PA QA FSA (HFSA: FSA = NDmk_funspec fA cA A PA QA) 
                     fB cB B PB QB FSB (HFSB: FSB = NDmk_funspec fB cB B PB QB): option funspec.
@@ -862,31 +832,19 @@ Lemma hmac_init_merge:
 Proof. unfold ndfs_merge. simpl. rewrite if_true; trivial. Qed. 
 
 Definition HmacDrbgFunSpecs : funspecs :=  ltac:(with_library prog (
-  (*free_spec :: *)md_free_spec ::hmac_drbg_free_spec::mbedtls_zeroize_spec::
+  md_free_spec ::hmac_drbg_free_spec::mbedtls_zeroize_spec::
   hmac_drbg_setReseedInterval_spec::hmac_drbg_setEntropyLen_spec::
   hmac_drbg_setPredictionResistance_spec::hmac_drbg_random_spec::hmac_drbg_init_spec::
   hmac_drbg_update_spec::
   hmac_drbg_reseed_spec::
-  hmac_drbg_generate_spec::
+  hmac_drbg_generate_spec::hmac_drbg_seed_buf_spec ::
   get_entropy_spec::
   md_reset_spec::md_final_spec::md_update_spec::
   md_starts_spec::md_setup_spec::md_get_size_spec::
 
-(*
-  OPENSSL_HMAC_ABSTRACT_SPEC.hmac_update_spec::
-  OPENSSL_HMAC_ABSTRACT_SPEC.hmac_final_spec::
-  OPENSSL_HMAC_ABSTRACT_SPEC.hmac_reset_spec::
-  OPENSSL_HMAC_ABSTRACT_SPEC.hmac_starts_spec::*)
   UNDER_SPEC.hmac_update_spec::
-  UNDER_SPEC.hmac_final_spec:: (*
-  UNDER_SPEC.hmac_reset_spec::
-  UNDER_SPEC.hmac_starts_spec*) 
+  UNDER_SPEC.hmac_final_spec:: 
   (hmac._HMAC_Init,hmac_init_funspec)::
 
   drbg_memcpy_spec:: drbg_memset_spec::
-(*memcpy_spec::memset_spec::*)
-  sha.spec_hmac.sha256init_spec::sha.spec_hmac.sha256update_spec::sha.spec_hmac.sha256final_spec::(*SHA256_spec::*)
-(*  HMAC_Init_spec:: HMAC_Update_spec::HMAC_Cleanup_spec::
-  HMAC_Final_spec:: HMAC_spec ::*)(* malloc_spec*)nil)).
-
-(*End HMACDRBG_MOD.*)
+  sha.spec_hmac.sha256init_spec::sha.spec_hmac.sha256update_spec::sha.spec_hmac.sha256final_spec::nil)).
