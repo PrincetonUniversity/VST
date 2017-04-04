@@ -80,7 +80,7 @@ apply prop_ext; split; intros.
 eapply H; eauto.
 intro b; apply H.
 Qed.
-
+(*
 Lemma guard_environ_put_te':
  forall ge te ve Delta id v k,
  guard_environ Delta k (mkEnviron ge ve te)  ->
@@ -96,7 +96,7 @@ Proof.
  apply H1.
  unfold initialized. destruct ((temp_types Delta) ! id); try destruct p; auto.
 Qed.
-
+*)
 Lemma prop_imp_derives {A}{agA: ageable A}:
   forall (P: Prop) (Q Q': pred A),  (P -> Q |-- Q') -> !!P --> Q |-- !!P --> Q'.
 Proof.
@@ -144,12 +144,10 @@ split; [ | split; [ | split]].
  hnf; intros.
  specialize (H id); rewrite H0 in H.
  destruct ((temp_types Delta') ! id) eqn:?H; try contradiction.
- destruct p. destruct H; subst.
- specialize (H3 id b0 t H1).
+ destruct H; subst.
+ specialize (H3 id ty H1).
  destruct H3 as [v [? ?]].
- exists v; split; auto. destruct H3; [left | right]; auto.
- destruct b0; try contradiction.
- destruct (negb b); inv H2. apply I.
+ exists v; split; auto.
 * clear - H0 H4.
   red in H4|-*.
  intros id ty. specialize (H4 id ty). rewrite <- H4.
@@ -168,7 +166,7 @@ Qed.
 
 Lemma semax'_post:
  forall {CS: compspecs} (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall ek vl rho,  !!(typecheck_environ (exit_tycon c Delta ek) rho ) &&  R' ek vl rho |-- R ek vl rho) ->
+   (forall ek vl rho,  !!(typecheck_environ Delta rho ) &&  R' ek vl rho |-- R ek vl rho) ->
    semax' Espec Delta P c R' |-- semax' Espec Delta P c R.
 Proof.
 intros.
@@ -200,8 +198,6 @@ apply H; split; auto.
 destruct H3 as [H3 _].
 do 3 red.
 eapply typecheck_environ_sub; eauto.
-apply exit_tycon_sub.
-auto.
 Qed.
 
 Lemma semax'_pre:
@@ -236,7 +232,7 @@ Lemma semax'_pre_post:
  forall
       {CS: compspecs} P' (R': ret_assert) Delta (R: ret_assert) P c,
    (forall rho, typecheck_environ Delta rho ->   P rho |-- P' rho) ->
-   (forall ek vl rho, !!(typecheck_environ (exit_tycon c Delta ek) rho) &&   R ek vl rho |-- R' ek vl rho) ->
+   (forall ek vl rho, !!(typecheck_environ Delta rho) &&   R ek vl rho |-- R' ek vl rho) ->
    semax' Espec Delta P' c R |-- semax' Espec Delta P c R'.
 Proof.
 intros.
@@ -273,7 +269,7 @@ revert w H0.
 apply imp_derives; auto.
 apply andp_derives; auto.
 apply andp_derives; auto.
-repeat intro. simpl exit_tycon.
+repeat intro.
 unfold frame_ret_assert.
 rewrite sepcon_comm.
 eapply sepcon_derives; try apply H0; auto.
@@ -377,7 +373,7 @@ Lemma semax_unfold {CS: compspecs}:
           (HGG: genv_cenv psi = cenv_cs)
            (Prog_OK: believe Espec Delta' psi Delta' w) (k: cont) (F: assert),
         closed_wrt_modvars c F ->
-       rguard Espec psi (exit_tycon c Delta') (frame_ret_assert R F) k w ->
+       rguard Espec psi (fun _ => Delta') (frame_ret_assert R F) k w ->
        guard Espec psi Delta' (fun rho => F rho * P rho) (Kseq c :: k) w.
 Proof.
 unfold semax; rewrite semax_fold_unfold.
@@ -394,7 +390,7 @@ Qed.
 
 Lemma semax_post {CS: compspecs}:
  forall (R': ret_assert) Delta (R: ret_assert) P c,
-   (forall ek vl rho,  !!(typecheck_environ (exit_tycon c Delta ek) rho) &&  R' ek vl rho
+   (forall ek vl rho,  !!(typecheck_environ Delta rho) &&  R' ek vl rho
                         |-- R ek vl rho) ->
    semax Espec Delta P c R' ->  semax Espec Delta P c R.
 Proof.
@@ -421,7 +417,7 @@ Qed.
 Lemma semax_pre_post {CS: compspecs}:
  forall P' (R': ret_assert) Delta P c (R: ret_assert) ,
    (forall rho,  !!(typecheck_environ Delta rho) &&  P rho |-- P' rho )%pred ->
-   (forall ek vl rho , !!(typecheck_environ (exit_tycon c Delta ek) rho) &&  R' ek vl rho |-- R ek vl rho) ->
+   (forall ek vl rho , !!(typecheck_environ Delta rho) &&  R' ek vl rho |-- R ek vl rho) ->
    semax Espec Delta P' c R' ->  semax Espec Delta P c R.
 Proof.
 intros.
@@ -595,7 +591,7 @@ specialize (H5 gx Delta'' _ (necR_refl _)
 
 intros k F w4 Hw4 [? ?].
 specialize (H5 k F w4 Hw4).
-assert ((rguard Espec gx (exit_tycon c Delta'') (frame_ret_assert R F) k) w4).
+assert ((rguard Espec gx (fun _ => Delta'') (frame_ret_assert R F) k) w4).
 do 9 intro.
 apply (H9 b b0 b1 b2 y H10 a' H11).
 destruct H12; split; auto; clear H13.
@@ -1570,8 +1566,7 @@ Qed.
 Definition typecheck_tid_ptr_compare
 Delta id :=
 match (temp_types Delta) ! id with
-| Some (t, _) =>
-   is_int_type t
+| Some t => is_int_type t
 | None => false
 end.
 
@@ -1585,8 +1580,8 @@ unfold typecheck_tid_ptr_compare;
 intros.
 destruct H as [? _].
 specialize (H id).
-destruct ((temp_types Delta) ! id) as [[? ?]|]; try discriminate.
-destruct ((temp_types Delta') ! id) as [[? ?]|]; try contradiction.
+destruct ((temp_types Delta) ! id); try discriminate.
+destruct ((temp_types Delta') ! id); try contradiction.
 destruct H; subst; auto.
 Qed.
 
