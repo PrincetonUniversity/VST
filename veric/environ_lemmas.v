@@ -203,17 +203,19 @@ destruct (eval_id id rho); try congruence.
 Qed.
 
 Lemma typecheck_environ_put_te : forall ge te ve Delta id v ,
-typecheck_environ Delta (mkEnviron ge ve te) ->
-typecheck_environ Delta (mkEnviron ge ve (Map.set id v te)).
+  typecheck_environ Delta (mkEnviron ge ve te) ->
+  (forall t , ((temp_types Delta) ! id = Some t ->
+     tc_val' t v)) ->
+  typecheck_environ Delta (mkEnviron ge ve (Map.set id v te)).
 Proof.
   intros. unfold typecheck_environ in *. simpl in *.
-  intuition. clear H H1 H3.
+  intuition. clear H H2 H4.
   destruct Delta. unfold temp_types in *; simpl in *.
   unfold typecheck_temp_environ.
   intros. rewrite Map.gsspec.
   if_tac.
   + subst. exists v; intuition.
-  + simpl in *. specialize (H0 id0 _ H). auto.
+  + simpl in *. specialize (H1 id0 _ H). auto.
 Qed.
 
 (*

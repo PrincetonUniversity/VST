@@ -1181,13 +1181,8 @@ repeat rewrite update_tycon_same_ge in *. specialize (H3 H).
 destruct H3; auto. destruct H0.
 rewrite update_tycon_same_ve in *. eauto.
 Qed.
-<<<<<<< HEAD
 *)
-Lemma typecheck_bool_val:
-=======
-
 Lemma tc_bool_val:
->>>>>>> master
   forall v t,
        tc_val t v ->
        bool_type t = true ->
@@ -1426,14 +1421,22 @@ Proof.
             spec IHp; [auto |].
             spec IHp; [| auto].
             intros; auto. destruct H5.
-           ** congruence. destruct H5.
-    clear - H5 H1. inv H1. destruct H2. apply in_map_iff. exists (id, ty). auto. subst.
-    spec IHp. auto. spec IHp; auto. spec IHt; auto. rewrite PTree.gsspec in *.
-    if_tac in IHt. intuition. intros. auto.
-
+           ** clear - H5 H2.
+              apply list_disjoint_cons_left, list_disjoint_sym in H2.
+              eapply list_disjoint_notin in H2; [| left; eauto].
+              destruct H2. apply in_map_iff. exists (id, ty). auto.
+           ** clear - H5 H1. inv H1. destruct H2. apply in_map_iff. exists (id, ty). auto.
+         -- subst.
+            spec IHp; [auto |].
+            spec IHp; [| auto].
+            spec IHt; [auto |].
+            rewrite PTree.gsspec in *.
+            if_tac in IHt.
+           ** intuition.
+           ** intros. auto.
 Qed.
 
- Definition cast_no_val_change (from: type)(to:type) : bool :=
+Definition cast_no_val_change (from: type)(to:type) : bool :=
 match from, to with
 | Tint _ _ _, Tint I32 _ _ => true
 | Tpointer _ _, Tpointer _ _ => true
@@ -1500,8 +1503,7 @@ Opaque Int.repr.
 Definition typecheck_tid_ptr_compare
 Delta id :=
 match (temp_types Delta) ! id with
-| Some (t, _) =>
-   is_int_type t
+| Some t => is_int_type t
 | None => false
 end.
 
@@ -1515,8 +1517,8 @@ unfold typecheck_tid_ptr_compare;
 intros.
 destruct H as [? _].
 specialize (H id).
-destruct ((temp_types Delta) ! id) as [[? ?]|]; try discriminate.
-destruct ((temp_types Delta') ! id) as [[? ?]|]; try contradiction.
+destruct ((temp_types Delta) ! id) as [? |]; try discriminate.
+destruct ((temp_types Delta') ! id) as [? |]; try contradiction.
  destruct H; subst; auto.
 Qed.
 

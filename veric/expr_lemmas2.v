@@ -363,39 +363,21 @@ unfold temp_types in *. simpl in *.
 specialize (H1 i).
 destruct (tyc_temps ! i); try (contradiction H0).
 destruct (H1 _ (eq_refl _)) as [v ?]. clear H1.
+destruct H.
 rewrite H.
 simpl in H0.
 destruct (is_neutral_cast t0 t) eqn:?.
-<<<<<<< HEAD
-+ rewrite tc_val_eq' in *.
-  simpl in H0.
++ simpl in H0.
   rewrite H in H0.
   destruct H0 as [? [? ?]].
   inv H0.
   symmetry in Heqb; eapply neutral_cast_subsumption; eauto.
-  rewrite tc_val_eq.
-  destruct (typecheck_val x t0); auto.
 + destruct (same_base_type t0 t) eqn:?; [ | inv H0].
   simpl in H0.
   rewrite H in H0.
   destruct H0 as [? [? ?]].
   inv H0.
   eapply same_base_tc_val; eauto.
-  destruct (typecheck_val x t0); auto.
-=======
-destruct b; inv H0;
-intuition;
-try solve [symmetry in Heqb0; eapply neutral_cast_subsumption; eauto].
-simpl in H0. rewrite H in H0. inv H0.
-auto.
-destruct (same_base_type t0 t) eqn:?; [ | inv H0].
-simpl in H0.
-destruct b; inv H0;
-intuition;
-try solve [eapply same_base_tc_val; eauto].
-simpl in H0. rewrite H in H0. inv H0.
-auto.
->>>>>>> master
 Qed.
 
 Lemma typecheck_deref_sound:
