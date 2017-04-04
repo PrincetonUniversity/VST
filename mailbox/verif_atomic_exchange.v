@@ -15,11 +15,11 @@ Definition release_spec := DECLARE _release release_spec.
 
 Notation hist := (list (nat * AE_hist_el)).
 
-Definition AE_inv x i R := EX h : list AE_hist_el, EX v : val,
+Definition AE_inv x g i R := EX h : list AE_hist_el, EX v : val,
   !!(apply_hist i h = Some v /\ tc_val tint v) &&
-  (data_at Tsh tint v x * ghost_ref h x * R h v * (weak_precise_mpred (R h v) && emp)).
+  (data_at Tsh tint v x * ghost_ref h g * R h v * (weak_precise_mpred (R h v) && emp)).
 
-Lemma AE_inv_positive : forall x i R, positive_mpred (AE_inv x i R).
+Lemma AE_inv_positive : forall x g i R, positive_mpred (AE_inv x g i R).
 Proof.
   unfold AE_inv; intros.
   do 2 (apply ex_positive; intro).
@@ -27,10 +27,10 @@ Proof.
 Qed.
 Hint Resolve AE_inv_positive.
 
-Lemma AE_inv_precise : forall x i R,
-  predicates_hered.derives TT (weak_precise_mpred (AE_inv x i R)).
+Lemma AE_inv_precise : forall x g i R,
+  predicates_hered.derives TT (weak_precise_mpred (AE_inv x g i R)).
 Proof.
-  intros ??? rho _ ???
+  intros ???? rho _ ???
     (? & h1 & v1 & (Hh1 & ?) & ? & ? & Hj1 & (? & r1 & Hj'1 & (? & ? & ? & (? & Hv1) & ? & Hr1 & Hg1) & HR1) & (HR & Hemp1))
     (? & h2 & v2 & (Hh2 & ?) & ? & ? & Hj2 & (? & r2 & Hj'2 & (? & ? & ? & (? & Hv2) & ? & Hr2 & Hg2) & HR2) & (_ & Hemp2))
     Hw1 Hw2.
@@ -60,11 +60,11 @@ Proof.
   join_inj.
 Qed.
 
-Definition AE_loc sh l p i R (h : hist) := lock_inv sh l (AE_inv p i R) * ghost_hist sh h p.
+Definition AE_loc sh l p g i R (h : hist) := lock_inv sh l (AE_inv p g i R) * ghost_hist sh h g.
 
-Lemma AE_inv_super_non_expansive : forall n p i R,
-  compcert_rmaps.RML.R.approx n (AE_inv p i R) =
-  compcert_rmaps.RML.R.approx n (AE_inv p i (fun h v => compcert_rmaps.RML.R.approx n (R h v))).
+Lemma AE_inv_super_non_expansive : forall n p g i R,
+  compcert_rmaps.RML.R.approx n (AE_inv p g i R) =
+  compcert_rmaps.RML.R.approx n (AE_inv p g i (fun h v => compcert_rmaps.RML.R.approx n (R h v))).
 Proof.
   intros; unfold AE_inv.
   rewrite !approx_exp; apply f_equal; extensionality h.
@@ -75,9 +75,9 @@ Proof.
     by (apply precise_mpred_nonexpansive); auto.
 Qed.
 
-Lemma AE_loc_super_non_expansive : forall n sh l p i R h,
-  compcert_rmaps.RML.R.approx n (AE_loc sh l p i R h) =
-  compcert_rmaps.RML.R.approx n (AE_loc sh l p i (fun h v => compcert_rmaps.RML.R.approx n (R h v)) h).
+Lemma AE_loc_super_non_expansive : forall n sh l p g i R h,
+  compcert_rmaps.RML.R.approx n (AE_loc sh l p g i R h) =
+  compcert_rmaps.RML.R.approx n (AE_loc sh l p g i (fun h v => compcert_rmaps.RML.R.approx n (R h v)) h).
 Proof.
   intros; unfold AE_loc.
   rewrite !approx_sepcon.
@@ -95,48 +95,48 @@ Definition AE_spec i P R Q := forall hc hx vc vx (Hvx : apply_hist i hx = Some v
    Q (hc ++ [(length hx, AE vx vc)]) vx).
 
 Definition AE_type := ProdType (ProdType (ProdType
-  (ConstType (share * val * val * val * val * hist))
+  (ConstType (share * val * val * val * val * val * hist))
   (ArrowType (ConstType hist) (ArrowType (ConstType val) Mpred)))
   (ArrowType (ConstType (list AE_hist_el)) (ArrowType (ConstType val) Mpred)))
   (ArrowType (ConstType hist) (ArrowType (ConstType val) Mpred)).
 
-Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9) => P%assert end)
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9) => Q%assert end) _ _)
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => P%assert end)
+  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8*t9*t10) =>
+     match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10) => Q%assert end) _ _)
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
-             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
+             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0, x10 at level 0,
              P at level 100, Q at level 100).
 
 (* It would be nice to be able to store any kind of data in the location, but that won't typecheck. *)
 Program Definition atomic_exchange_spec := DECLARE _simulate_atomic_exchange
-  TYPE AE_type WITH lsh : share, tgt : val, l : val,
+  TYPE AE_type WITH lsh : share, tgt : val, g : val, l : val,
     i : val, v : val, h : hist, P : hist -> val -> mpred, R : list AE_hist_el -> val -> mpred, Q : hist -> val -> mpred
   PRE [ _tgt OF tptr tint, _l OF tptr (Tstruct _lock_t noattr), _v OF tint ]
    PROP (tc_val tint v; readable_share lsh; AE_spec i P R Q)
    LOCAL (temp _tgt tgt; temp _l l; temp _v v)
-   SEP (AE_loc lsh l tgt i R h; P h v)
+   SEP (AE_loc lsh l tgt g i R h; P h v)
   POST [ tint ]
    EX t : nat, EX v' : val,
    PROP (tc_val tint v'; Forall (fun x => fst x < t)%nat h)
    LOCAL (temp ret_temp v')
-   SEP (AE_loc lsh l tgt i R (h ++ [(t, AE v' v)]); Q (h ++ [(t, AE v' v)]) v').
+   SEP (AE_loc lsh l tgt g i R (h ++ [(t, AE v' v)]); Q (h ++ [(t, AE v' v)]) v').
 Next Obligation.
 Proof.
   replace _ with (fun (_ : list Type)
-    (x : share * val * val * val * val * hist *
+    (x : share * val * val * val * val * val * hist *
          (hist -> val -> mpred) * (list AE_hist_el -> val -> mpred) * (hist -> val -> mpred)) rho =>
-    PROP (let '(lsh, tgt, l, i, v, h, P, R, Q) := x in tc_val tint v /\ readable_share lsh /\ AE_spec i P R Q)
-    LOCAL (let '(lsh, tgt, l, i, v, h, P, R, Q) := x in temp _tgt tgt;
-           let '(lsh, tgt, l, i, v, h, P, R, Q) := x in temp _l l;
-           let '(lsh, tgt, l, i, v, h, P, R, Q) := x in temp _v v)
-    SEP (let '(lsh, tgt, l, i, v, h, P, R, Q) := x in
-         AE_loc lsh l tgt i R h * P h v) rho).
+    PROP (let '(lsh, tgt, g, l, i, v, h, P, R, Q) := x in tc_val tint v /\ readable_share lsh /\ AE_spec i P R Q)
+    LOCAL (let '(lsh, tgt, g, l, i, v, h, P, R, Q) := x in temp _tgt tgt;
+           let '(lsh, tgt, g, l, i, v, h, P, R, Q) := x in temp _l l;
+           let '(lsh, tgt, g, l, i, v, h, P, R, Q) := x in temp _v v)
+    SEP (let '(lsh, tgt, g, l, i, v, h, P, R, Q) := x in
+         AE_loc lsh l tgt g i R h * P h v) rho).
   apply (PROP_LOCAL_SEP_super_non_expansive AE_type [fun _ => _] [fun _ => _; fun _ => _; fun _ => _]
     [fun _ => _]); repeat constructor; hnf; intros;
-    destruct x as ((((((((?, ?), ?), ?), ?), ?), P), R), Q); auto; simpl.
+    destruct x as (((((((((?, ?), ?), ?), ?), ?), ?), P), R), Q); auto; simpl.
   - rewrite !prop_and, !approx_andp; apply f_equal; apply f_equal.
     unfold AE_spec.
     rewrite !prop_forall, !(approx_allp _ _ _ []); apply f_equal; extensionality hc.
@@ -166,34 +166,34 @@ Proof.
       eapply semax_pre, Hshift, semax_pre, X; apply drop_tc_environ.
   - rewrite !approx_sepcon, approx_idem, AE_loc_super_non_expansive; auto.
   - extensionality ts x rho.
-    destruct x as ((((((((?, ?), ?), ?), ?), ?), P), R), Q); auto.
+    destruct x as (((((((((?, ?), ?), ?), ?), ?), ?), P), R), Q); auto.
     unfold PROPx, SEPx; simpl; rewrite !sepcon_assoc; f_equal.
     apply f_equal; apply prop_ext; tauto.
 Qed.
 Next Obligation.
 Proof.
   replace _ with (fun (_ : list Type)
-    (x : share * val * val * val * val * hist *
+    (x : share * val * val * val * val * val * hist *
          (hist -> val -> mpred) * (list AE_hist_el -> val -> mpred) * (hist -> val -> mpred)) rho =>
     EX t : nat, EX v' : val,
-      PROP (let '(lsh, tgt, l, i, v, h, P, R, Q) := x in
+      PROP (let '(lsh, tgt, g, l, i, v, h, P, R, Q) := x in
             tc_val tint v' /\ Forall (fun x => (fst x < t)%nat) h)
-      LOCAL (let '(lsh, tgt, l, i, v, h, P, R, Q) := x in temp ret_temp v')
-      SEP (let '(lsh, tgt, l, i, v, h, P, R, Q) := x in
-           AE_loc lsh l tgt i R (h ++ [(t, AE v' v)]) * Q (h ++ [(t, AE v' v)]) v') rho).
+      LOCAL (let '(lsh, tgt, g, l, i, v, h, P, R, Q) := x in temp ret_temp v')
+      SEP (let '(lsh, tgt, g, l, i, v, h, P, R, Q) := x in
+           AE_loc lsh l tgt g i R (h ++ [(t, AE v' v)]) * Q (h ++ [(t, AE v' v)]) v') rho).
   repeat intro.
   rewrite !approx_exp; apply f_equal; extensionality t.
   rewrite !approx_exp; apply f_equal; extensionality v'.
   pose proof (PROP_LOCAL_SEP_super_non_expansive AE_type
-    [fun ts x => let '(_, _, _, _, _, h, _, _, _) := x in tc_val tint v' /\ Forall (fun x => (fst x < t)%nat) h]
-    [fun ts x => let '(_, _, _, _, _, _, _, _, _) := x in temp ret_temp v']
-    [fun ts x => let '(lsh, tgt, l, i, v, h, P, R, Q) := x in
-       AE_loc lsh l tgt i R (h ++ [(t, AE v' v)]) * Q (h ++ [(t, AE v' v)]) v'])
+    [fun ts x => let '(_, _, _, _, _, _, h, _, _, _) := x in tc_val tint v' /\ Forall (fun x => (fst x < t)%nat) h]
+    [fun ts x => let '(_, _, _, _, _, _, _, _, _, _) := x in temp ret_temp v']
+    [fun ts x => let '(lsh, tgt, g, l, i, v, h, P, R, Q) := x in
+       AE_loc lsh l tgt g i R (h ++ [(t, AE v' v)]) * Q (h ++ [(t, AE v' v)]) v'])
     as Heq; apply Heq; repeat constructor; hnf; intros;
-      destruct x0 as ((((((((?, ?), ?), ?), ?), ?), P), R), Q); auto; simpl.
+      destruct x0 as (((((((((?, ?), ?), ?), ?), ?), ?), P), R), Q); auto; simpl.
   - rewrite !approx_sepcon, approx_idem, AE_loc_super_non_expansive; auto.
   - extensionality ts x rho.
-    destruct x as ((((((((?, ?), ?), ?), ?), ?), P), R), Q); auto.
+    destruct x as (((((((((?, ?), ?), ?), ?), ?), ?), P), R), Q); auto.
     apply f_equal; extensionality.
     apply f_equal; extensionality.
     unfold PROPx, SEPx; simpl; rewrite !sepcon_assoc; f_equal.
@@ -205,30 +205,27 @@ Definition Gprog : funspecs := ltac:(with_library prog [acquire_spec; release_sp
 Lemma body_atomic_exchange : semax_body Vprog Gprog f_simulate_atomic_exchange atomic_exchange_spec.
 Proof.
   start_dep_function.
-  simpl; destruct ts as ((((((((lsh, tgt), l), i), v), h), P), R), Q).
+  simpl; destruct ts as (((((((((lsh, tgt), g), l), i), v), h), P), R), Q).
   unfold AE_loc; rewrite lock_inv_isptr; Intros.
-  forward_call (l, lsh, AE_inv tgt i R).
+  forward_call (l, lsh, AE_inv tgt g i R).
   unfold AE_inv at 2; Intros h' v'.
   assert (lsh <> Share.bot).
   { intro; subst; contradiction unreadable_bot. }
-  gather_SEP 2 5; rewrite sepcon_comm, hist_ref_join by auto.
-  Intros hr; forward.
+  forward.
   forward.
   assert (apply_hist i (h' ++ [AE v' v]) = Some v) as Hh'.
   { rewrite apply_hist_app.
     replace (apply_hist i h') with (Some v'); simpl.
     apply eq_dec_refl. }
-  match goal with H : hist_list _ _ |- _ => pose proof (hist_next _ _ H) end.
-  eapply hist_add with (e := AE v' v); eauto.
-  replace_SEP 0 (ghost_hist lsh (h ++ [(length h', AE v' v)]) tgt * ghost_ref (h' ++ [AE v' v]) tgt).
-  { go_lowerx; rewrite sepcon_emp, hist_ref_join by auto.
-    Exists (hr ++ [(length h', AE v' v)]); entailer!.
-    split; [apply hist_list_snoc | apply hist_sub_snoc]; auto. }
-  assert (hist_incl h h') as Hincl.
-  { eapply hist_sub_list_incl; eauto. }
+  gather_SEP 5 2; assert_PROP (hist_incl h h') as Hincl.
+  { go_lower; apply sepcon_derives_prop.
+    rewrite hist_ref_join by auto.
+    Intros hr.
+    apply prop_right; eapply hist_sub_list_incl; eauto. }
+  apply hist_add' with (e := AE v' v); auto.
   gather_SEP 3 5; simpl.
   match goal with H : AE_spec _ _ _ _ |- _ => apply H; auto end.
-  forward_call (l, lsh, AE_inv tgt i R).
+  forward_call (l, lsh, AE_inv tgt g i R).
   { rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
       [repeat apply andp_right; auto; eapply derives_trans; try apply positive_weak_positive; auto|].
     { apply AE_inv_precise; auto. }
@@ -243,15 +240,14 @@ Proof.
   - apply andp_left2; auto.
 Qed.
 
-Lemma AE_loc_join : forall sh1 sh2 sh l p i R h1 h2 h (Hjoin : sepalg.join sh1 sh2 sh)
+Lemma AE_loc_join : forall sh1 sh2 sh l p g i R h1 h2 h (Hjoin : sepalg.join sh1 sh2 sh)
   (Hh : Permutation.Permutation (h1 ++ h2) h) (Hsh1 : readable_share sh1) (Hsh2 : readable_share sh2)
   (Hdisj : disjoint h1 h2),
-  AE_loc sh1 l p i R h1 * AE_loc sh2 l p i R h2 = AE_loc sh l p i R h.
+  AE_loc sh1 l p g i R h1 * AE_loc sh2 l p g i R h2 = AE_loc sh l p g i R h.
 Proof.
   intros; unfold AE_loc.
-  unfold ghost_hist; rewrite <- (ghost_join(M := ref_PCM(P := map_PCM))
-    (Some (sh1, h1), None) (Some (sh2, h2), None) (Some (sh, h), None)).
-  rewrite <- (lock_inv_share_join sh1 sh2 sh) by auto.
-  apply mpred_ext; entailer!.
-  { repeat (split; simpl; auto); intro; subst; contradiction (unreadable_bot). }
+  match goal with |- (?P1 * ?Q1) * (?P2 * ?Q2) = _ => transitivity ((P1 * P2) * (Q1 * Q2));
+    [apply mpred_ext; cancel|] end.
+  erewrite lock_inv_share_join, ghost_hist_join by (eauto; intro; subst; contradiction unreadable_bot).
+  rewrite prop_true_andp; auto.
 Qed.
