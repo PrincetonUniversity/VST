@@ -268,21 +268,21 @@ HKDF_FILES= \
 
 FCF_FILES= \
   Admissibility.v Encryption.v NotationV1.v RndDup.v \
-  Array.v Encryption_2W.v NotationV2.v RndGrpElem.v \
+  Array.v NotationV2.v RndGrpElem.v \
   Asymptotic.v  Encryption_PK.v OracleCompFold.v RndInList.v \
   Bernoulli.v EqDec.v OracleHybrid.v RndListElem.v \
   Blist.v ExpectedPolyTime.v OTP.v RndNat.v \
   Class.v FCF.v PRF.v RndPerm.v \
   Comp.v Fold.v PRF_Convert.v SemEquiv.v \
-  CompFold.v GenTacs.v PRG.v Sigma.v \
-  ConstructedFunc.v GroupTheory.v Procedure.v State.v \
+  CompFold.v GenTacs.v PRG.v GroupTheory.v  \
   Crypto.v HasDups.v ProgramLogic.v StdNat.v \
   DetSem.v Hybrid.v ProgTacs.v Tactics.v \
-  DiffieHellman.v Limit.v PRP_PRF.v TwoWorldsEquiv.v \
-  DistRules.v ListHybrid.v RandPermSwitching.v WC_PolyTime.v \
+  DiffieHellman.v Limit.v TwoWorldsEquiv.v \
+  DistRules.v  WC_PolyTime.v \
   DistSem.v Lognat.v Rat.v WC_PolyTime_old.v \
-  DistTacs.v NoDup_gen.v RepeatCore.v
-
+  DistTacs.v NoDup_gen.v RepeatCore.v SplitVector.v \
+  PRF_DRBG.v HMAC_DRBG_definitions_only.v
+# ConstructedFunc.v Encryption_2W.v Sigma.v ListHybrid.v Procedure.v PRP_PRF.v RandPermSwitching.v State.v
 
 #FCF_FILES= \
 #  Limit.v Blist.v StdNat.v Rat.v EqDec.v Fold.v Comp.v DetSem.v DistSem.v \

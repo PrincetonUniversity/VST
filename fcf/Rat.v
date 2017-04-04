@@ -1,5 +1,4 @@
-(* Copyright 2012-2015 by Adam Petcher.				*
- * Use of this source code is governed by the license described	*
+(* Use of this source code is governed by the license described	*
  * in the LICENSE file at the root of the source tree.		*)
 (* A theory of constructed rational numbers *)
 
@@ -9,6 +8,7 @@ Require Import Arith.
 Require Import Omega.
 Require Import List.
 Require Import fcf.StdNat.
+Require Import Lia.
 
 Inductive Rat :=
     RatIntro : nat -> posnat -> Rat.
@@ -183,17 +183,7 @@ Theorem eqRat_trans : forall r1 r2 r3,
   eqRat r1 r3.
 
   rattac.
-
-  rewrite mult_assoc.
-  rewrite (mult_comm x n0).
-  rewrite e.
-  rewrite <- mult_assoc.
-  rewrite (mult_comm x1 x0).
-  repeat rewrite mult_assoc.
-  f_equal.
-  rewrite e0.
-  apply mult_comm.
-
+  match goal with H:_, G:_ |- _ => ring [H G] end.
 Qed.
 
 Theorem leRat_refl : forall r,
@@ -202,37 +192,37 @@ Theorem leRat_refl : forall r,
   rattac.
 Qed.
 
+Lemma mult_le_compat_r_iff_h : forall n2 n3 n1,
+    n1 > O ->
+    (n2 * n1 <= n3 * n1)%nat ->
+    (n2 <= n3)%nat.
+  
+  induction n2; destruct n3; intuition; simpl in *; try omega.
+  
+  exfalso.
+  remember (n2 * n1)%nat as x.
+  omega.
+
+  eapply le_n_S.
+  eapply IHn2; eauto.
+  omega.
+Qed.
+
+Lemma mult_le_compat_r_iff : forall n1 n2 n3,
+    n1 > O ->
+    (n2 * n1 <= n3 * n1)%nat ->
+    (n2 <= n3)%nat.
+  
+  intuition.
+  eapply mult_le_compat_r_iff_h; eauto.
+Qed.
+
 Theorem leRat_trans : forall r1 r2 r3,
   leRat r1 r2 ->
   leRat r2 r3 ->
   leRat r1 r3.
 
   rattac.
-
-  Lemma mult_le_compat_r_iff_h : forall n2 n3 n1,
-    n1 > O ->
-    (n2 * n1 <= n3 * n1)%nat ->
-    (n2 <= n3)%nat.
-    
-    induction n2; destruct n3; intuition; simpl in *; try omega.
-    
-    exfalso.
-    remember (n2 * n1)%nat as x.
-    omega.
-
-    eapply le_n_S.
-    eapply IHn2; eauto.
-    omega.
-  Qed.
-
-  Lemma mult_le_compat_r_iff : forall n1 n2 n3,
-    n1 > O ->
-    (n2 * n1 <= n3 * n1)%nat ->
-    (n2 <= n3)%nat.
-    
-    intuition.
-    eapply mult_le_compat_r_iff_h; eauto.
-  Qed.
 
   eapply (@mult_le_compat_r_iff x1); trivial.
   rewrite <- mult_assoc.
@@ -492,22 +482,7 @@ Theorem ratMult_leRat_compat : forall (r1 r2 r3 r4 : Rat),
   leRat (ratMult r1 r3) (ratMult r2 r4).
 
   rattac.
-  
-  repeat rewrite mult_assoc.
-  rewrite <- (mult_assoc n1).
-  rewrite (mult_comm n).
-  rewrite mult_assoc.
-  rewrite <- mult_assoc.
-  eapply le_trans.
-  eapply mult_le_compat.
-  apply l0.
-  apply l.
-  rewrite mult_assoc.
-  apply mult_le_compat_r.
-  rewrite <- mult_assoc.
-  rewrite (mult_comm x1).
-  rewrite mult_assoc.
-  auto. 
+  nia.
 Qed.
 
 Add Parametric Morphism : ratAdd
@@ -1112,6 +1087,13 @@ Theorem ratMult_1_r : forall r,
   
 Qed.
 
+Lemma minus_le : forall n1 n2 n3,
+    (n1 <= n3 ->
+     n1 - n2 <= n3)%nat.
+  
+  intuition.
+Qed.
+
 Theorem ratSubtract_le : forall r1 r2 d,
   r1 <= d ->
   ratSubtract r1 r2 <= d.
@@ -1121,13 +1103,6 @@ Theorem ratSubtract_le : forall r1 r2 d,
   unfold ratSubtract.
   rattac.
   arithNormalize.
-
-  Lemma minus_le : forall n1 n2 n3,
-    (n1 <= n3 ->
-    n1 - n2 <= n3)%nat.
-    
-    intuition.
-  Qed.
 
   apply minus_le.
   rewrite <- (mult_assoc n).
@@ -1706,42 +1681,11 @@ Lemma ratSubtract_eq_r : forall r1 r2 r3,
   rattac.
   unfold ratSubtract in *.
   rattac.
-  arithNormalize.
-  assert (n2 * x0 * x3 * x = n2 * x * x3 * x0)%nat.
-  do 3 arithSimplify.
-  rewrite H2 in e.
-  assert (n3 * x3 * x3 * x <= n2 * x * x3 * x0)%nat.
-  rewrite <- (mult_comm x0).
-  rewrite <- (mult_assoc n2).
-  rewrite (mult_comm x x3).
-  repeat rewrite mult_assoc.
-  eapply mult_le_compat; trivial.
-  eapply mult_le_compat; trivial.
-  rewrite l0.
-  rewrite mult_comm.
-  trivial.
-  assert (n1 * x3 * x3 * x0 <= n2 * x * x3 * x0)%nat.
-  eapply mult_le_compat; trivial.
-  eapply mult_le_compat; trivial.
-  
-  assert (n3 * x3 * x3 * x = n1 * x3 * x3 * x0)%nat.
-  omega.
-  
-  eapply (@mult_same_l (x3 * x3)).
-  
-  eapply mult_gt_0;
-    destruct (eq_nat_dec x3 O); subst; simpl in *; omega.
-  
-  rewrite (mult_comm n3).
-  rewrite (mult_comm n1).
-  repeat rewrite mult_assoc.
-  rewrite <- (mult_comm n3).
-  rewrite <- (mult_comm n1).
-  repeat rewrite mult_assoc.
-  trivial.
-  
+  match goal with
+    H: (_ * (?x*_) = _ * (?x*_))%nat |- _
+    => eapply (@mult_same_l (x * x)); nia
+  end.
 Qed.
-
 
 Lemma ratDistance_le_max : forall r1 r2 r3 v,
   r1 <= r2 ->
@@ -1820,12 +1764,10 @@ Lemma maxRat_leRat_same : forall r1 r2 r3,
   
   rattac.
   unfold maxRat in *.
-  
-  case_eq (bleRat (RatIntro n1 (exist (fun n : nat => n > 0) x2 g2))
-         (RatIntro n (exist (fun n : nat => n > 0) x1 g1))); intuition;
-  rewrite H1 in H2;
-    inversion H2; clear H2; subst; rattac.
-  
+  match goal with
+    [H:(if ?C then _ else _) = _ |- _ ] =>
+    destruct C eqn:?; inversion H; subst; nia
+  end.
 Qed.
 
 Lemma ratMult_3_ratAdd : forall r,
@@ -2266,16 +2208,12 @@ Lemma ratInverse_leRat : forall r1 r2,
   exfalso.
   rewrite mult_0_l in l.
   simpl in *.
-  remember (n0 * x2)%nat as a.
-  omega.
+  remember (n0 * x1)%nat as a.
+  nia.
   
   inversion H3; clear H3; subst.
   inversion H2; clear H2; subst.
-  rewrite mult_comm.
-  rewrite l.
-  rewrite mult_comm.
-  trivial.
-  
+  nia.
 Qed.
 
 Lemma ratAdd_not_leRat : forall r1 r2,

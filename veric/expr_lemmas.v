@@ -1315,7 +1315,7 @@ induction t.
       simpl in *. rewrite PTree.gsspec in *. rewrite peq_true in *.
       auto.
 
-      simpl in *. rewrite PTree.gsspec in *. destruct a0. simpl in *.
+      simpl in *. rewrite PTree.gsspec in *. destruct a0 as (i,t0). simpl in *.
       if_tac. subst. clear - H. specialize (H i i). intuition.  apply IHp.
       unfold list_disjoint in *. intros. apply H; simpl in *; auto.
       intros. apply IHt. unfold list_disjoint in *. intros; simpl in *; apply H;      auto.

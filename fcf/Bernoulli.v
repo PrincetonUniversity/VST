@@ -15,7 +15,7 @@ Definition Bernoulli(r : Rat) : Comp bool :=
   end.
 
 
-Theorem Bernoulli_correct :
+Theorem Bernoulli_correct : 
   forall (r : Rat),
     r <= 1 ->
     Pr[Bernoulli r] == r.
@@ -25,7 +25,7 @@ Theorem Bernoulli_correct :
   destruct r.
 
   rewrite RndNat_seq.
-
+  
   rewrite (sumList_filter_partition (fun z => if (lt_dec z n) then true else false)).
   eapply eqRat_trans.
   eapply ratMult_eqRat_compat.
@@ -67,8 +67,8 @@ Theorem Bernoulli_correct :
 
 Qed.
 
-Theorem Bernoulli_wf :
-  forall r,
+Theorem Bernoulli_wf : 
+  forall r, 
     well_formed_comp (Bernoulli r).
 
   intuition.
@@ -78,10 +78,10 @@ Theorem Bernoulli_wf :
 
 Qed.
 
-Theorem Bernoulli_correct_complement :
+Theorem Bernoulli_correct_complement : 
   forall (r : Rat),
     r <= 1 ->
-    evalDist (Bernoulli r) false ==
+    evalDist (Bernoulli r) false == 
     ratSubtract 1 r.
 
   intuition.

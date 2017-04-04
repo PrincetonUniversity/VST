@@ -1,4 +1,6 @@
 Require Import aes.verif_utils.
+Require Import aes.partially_filled.
+Require Import aes.bitfiddling.
 
 (* Note: x must be non-zero, y is allowed to be zero (because x is a constant in all usages, its
    non-zero-check seems to be removed by the parser). *)
@@ -46,20 +48,6 @@ Proof.
   intros. unfold Z_to_val. destruct (zeq j (-1)) as [E | E]. omega. reflexivity.
 Qed.
 
-Definition partially_filled(i n: Z)(f: Z -> int): list val := 
-  (map Vint (fill_list i f)) ++ (repeat_op_table (n-i) Vundef id).
-
-Lemma update_partially_filled: forall (i: Z) (f: Z -> int),
-  0 <= i < 256 ->
-  upd_Znth i (partially_filled i 256 f) (Vint (f i))
-  = partially_filled (i+1) 256 f.
-Admitted.
-
-Lemma Znth_partially_filled: forall (i j n: Z) (f: Z -> int),
-  0 <= i -> i < j -> j <= n ->
-  Znth i (partially_filled j n f) Vundef = Vint (f i).
-Admitted.
-
 Definition gen_tables_spec :=
   DECLARE _aes_gen_tables
     WITH tables : val
@@ -96,38 +84,6 @@ Lemma field_at_update_val: forall sh t gfs v v' p,
 Proof.
   intros. rewrite H. apply derives_refl.
 Qed.
-
-Lemma FSb_range: forall i,
-  0 <= Int.unsigned (Znth i FSb Int.zero) < 256.
-Admitted.
-
-Lemma zero_ext_nop: forall i,
-  0 <= (Int.unsigned i) < 256 ->
-  Int.zero_ext 8 i = i.
-Admitted.
-
-Lemma FSb_inj: forall i j,
-  0 <= i < 256 ->
-  0 <= j < 256 ->
-  Znth i FSb Int.zero = Znth j FSb Int.zero ->
-  i = j.
-Admitted.
-
-Lemma FSb_RSb_id: forall j,
-  0 <= j < 256 ->
-  j = Int.unsigned (Znth (Int.unsigned (Znth j RSb Int.zero)) FSb Int.zero).
-Admitted.
-
-Lemma RSb_inj: forall i j,
-  0 <= i < 256 ->
-  0 <= j < 256 ->
-  Znth i RSb Int.zero = Znth j RSb Int.zero ->
-  i = j.
-Admitted.
-
-Lemma RSb_range: forall i,
-  0 <= Int.unsigned (Znth i RSb Int.zero) < 256.
-Admitted.
 
 Lemma simpl_mod255: forall i,
   force_val (sem_binary_operation' Omod tint tint (Vint i) (Vint (Int.repr 255)))

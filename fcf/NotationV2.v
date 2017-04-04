@@ -50,7 +50,7 @@ eapply OC_Bind; eauto.
 
 Defined.
 
-Notation "x <- c1 ; c2" := (MBind c1 _ (fun x => c2))
+Notation "x <- c1 ; c2" := (MBind c1 _ (fun x => c2)) 
   (right associativity, at level 81, c1 at next level) : comp_scope.
 
 Notation "$ { 0 , 1 } ^ n" := (Rnd n)
@@ -68,7 +68,7 @@ Notation "'cret' v" := (Ret (EqDec_dec _) v)
 Notation "'ocret' v" := (OC_Ret _ _ v)
   (at level 75).
 
-Notation "[ x1 , x2 ] <- c1 ; c2" :=
+Notation "[ x1 , x2 ] <- c1 ; c2" := 
   (MBind c1 _ (fun z => let '(x1, x2) := z in c2)) (right associativity, at level 81, c1 at next level) : comp_scope.
 
 

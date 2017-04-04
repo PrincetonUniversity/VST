@@ -11,15 +11,15 @@ Require Import Permutation.
 
 Local Open Scope list_scope.
 
-Theorem removeFirst_In_length :
+Theorem removeFirst_In_length : 
   forall (A : Set)(eqd : EqDec A)(ls : list A)(a : A),
     In a ls ->
     length (removeFirst (EqDec_dec _ ) ls a) = pred (length ls).
-
+  
   induction ls; intuition; simpl in *.
   intuition; subst.
   destruct (EqDec_dec eqd a0 a0); intuition.
-
+  
   destruct (EqDec_dec eqd a0 a); subst.
   trivial.
   simpl.
@@ -32,7 +32,7 @@ Qed.
 Fixpoint addInAllLocations(A : Type)(a : A)(ls : list A) :=
   match ls with
     | nil =>  (a :: nil) :: nil
-    | a' :: ls' =>
+    | a' :: ls' => 
       (a :: ls) :: map (fun x => a' :: x) (addInAllLocations a ls')
   end.
 
@@ -44,7 +44,7 @@ Fixpoint getAllPermutations(A : Type)(ls : list A) :=
         flatten (map (addInAllLocations a) perms')
   end.
 
-Theorem addInAllLocations_not_nil :
+Theorem addInAllLocations_not_nil : 
   forall (A : Type) l (a : A),
     addInAllLocations a l = nil -> False.
 
@@ -54,7 +54,7 @@ Theorem addInAllLocations_not_nil :
 
 Qed.
 
-Theorem getAllPermutations_not_nil :
+Theorem getAllPermutations_not_nil : 
   forall (A : Type)(ls : list A),
     getAllPermutations ls = nil -> False.
 
@@ -68,9 +68,9 @@ Theorem getAllPermutations_not_nil :
   intuition.
   eapply addInAllLocations_not_nil; eauto.
 Qed.
+  
 
-
-Theorem addInAllLocations_perm :
+Theorem addInAllLocations_perm : 
   forall (A : Type) x0 (a : A) ls2,
     In ls2 (addInAllLocations a x0) ->
     Permutation ls2 (a :: x0).
@@ -78,7 +78,7 @@ Theorem addInAllLocations_perm :
   induction x0; intuition; simpl in *.
   intuition; subst.
   eapply Permutation_refl.
-
+  
   intuition; subst.
   eapply Permutation_refl.
 
@@ -94,7 +94,7 @@ Theorem addInAllLocations_perm :
 
 Qed.
 
-Theorem getAllPermutations_perms :
+Theorem getAllPermutations_perms : 
   forall (A : Set)(ls1 ls2 : list A),
     In ls2 (getAllPermutations ls1) ->
     Permutation ls1 ls2.
@@ -119,7 +119,7 @@ Theorem getAllPermutations_perms :
   eapply perm_skip.
   eapply IHls1.
   trivial.
-
+  
 Qed.
 
 Section ShuffleList.
@@ -129,13 +129,13 @@ Section ShuffleList.
 
   Definition shuffle(ls : list A) :=
     o <-$ rndListElem _ (getAllPermutations ls);
-    ret
+    ret 
     match o with
       | None => nil
       | Some x => x
     end.
-
-  Theorem shuffle_perm :
+      
+  Theorem shuffle_perm : 
     forall (ls1 ls2 : list A),
       In ls2 (getSupport (shuffle ls1)) ->
       Permutation ls2 ls1.
@@ -145,7 +145,7 @@ Section ShuffleList.
     repeat simp_in_support.
     destruct x.
     eapply Permutation_sym.
-    eapply getAllPermutations_perms.
+    eapply getAllPermutations_perms.    
     apply rndListElem_support in H0.
     trivial.
 
@@ -159,28 +159,28 @@ Section ShuffleList.
    Fixpoint permute(ls : list A)(sigma : list nat) : list A :=
     match sigma with
       | nil => nil
-      | n :: sigma' =>
+      | n :: sigma' => 
         match (nth_error ls n) with
           | None => nil
           | Some a => a :: (permute ls sigma')
         end
   end.
 
-   Theorem permute_length_eq :
+   Theorem permute_length_eq : 
      forall (sigma : list nat)(ls : list A),
        (forall n, In n sigma -> n < length ls) ->
        length (permute ls sigma) = length sigma.
-
+     
      induction sigma; intuition; simpl in *.
      case_eq (nth_error ls a); intuition.
      simpl.
      f_equal.
      eapply IHsigma; intuition.
-
-     Theorem nth_error_not_None :
+     
+     Theorem nth_error_not_None : 
        forall (ls : list A)(n : nat),
          n < length ls ->
-         nth_error ls n = None ->
+         nth_error ls n = None -> 
          False.
 
        induction ls; destruct n; intuition; simpl in *.
@@ -197,12 +197,12 @@ Section ShuffleList.
      intuition.
      trivial.
    Qed.
-
-   Theorem shuffle_Permutation :
+   
+   Theorem shuffle_Permutation : 
      forall (ls1 ls2 : list A),
        In ls2 (getSupport (shuffle ls1)) ->
        Permutation ls1 ls2.
-
+     
      intuition.
 
      unfold shuffle in *.
@@ -218,8 +218,8 @@ Section ShuffleList.
      eauto.
 
     Qed.
-
-    Theorem shuffle_wf :
+  
+    Theorem shuffle_wf : 
       forall ls,
         well_formed_comp (shuffle ls).
 
@@ -236,7 +236,7 @@ Definition RndPerm(n : nat) :=
   shuffle _ (allNatsLt n).
 
 Theorem list_pred_map_both':
-  forall (A B C D : Set) (lsa : list A) (lsb : list B)
+  forall (A B C D : Set) (lsa : list A) (lsb : list B) 
     (P : C -> D -> Prop) (f : A -> C)(g : B -> D),
   list_pred (fun (a : A) (b : B) => P (f a) (g b)) lsa lsb ->
   list_pred P (map f lsa) (map g lsb).
@@ -253,21 +253,21 @@ Theorem list_pred_map_both':
 
 Qed.
 
-Theorem addInAllLocations_pred :
+Theorem addInAllLocations_pred : 
   forall (A B : Set) (R : A -> B -> Prop) (a : list A) (b : list B),
     list_pred R a b ->
     forall a1 a2,
       R a1 a2 ->
   list_pred (list_pred R) (addInAllLocations a1 a) (addInAllLocations a2 b).
-
+  
   induction 1; intuition; simpl in *.
-
+  
   econstructor.
   econstructor.
   trivial.
   econstructor.
   econstructor.
-
+  
 
   econstructor.
   repeat econstructor;assumption.
@@ -295,18 +295,18 @@ Theorem getAllPermutations_pred :
   eapply list_pred_impl.
   eauto.
   intuition.
-
+  
   eapply addInAllLocations_pred; intuition.
 Qed.
 
-Theorem allNats_nth_pred :
+Theorem allNats_nth_pred : 
   forall (A : Set)(ls : list A),
    list_pred (fun (a : A) (b : nat) => nth_error ls b = Some a) ls
      (allNatsLt (length ls)).
 
   induction ls using rev_ind; intuition; simpl in *.
   econstructor.
-
+ 
   rewrite app_length.
   simpl.
   rewrite plus_comm.
@@ -317,7 +317,7 @@ Theorem allNats_nth_pred :
   eapply IHls.
   intuition.
 
-  Theorem nth_error_app_Some :
+  Theorem nth_error_app_Some : 
     forall (A : Set)(ls : list A) n (a a' : A),
       nth_error ls n = Some a ->
       nth_error (ls ++ (a' :: nil)) n = Some a.
@@ -335,28 +335,28 @@ Theorem allNats_nth_pred :
 
   econstructor.
 
-  Theorem nth_error_app_length :
+  Theorem nth_error_app_length : 
     forall (A : Set)(ls : list A) (a : A),
       nth_error (ls ++ (a :: nil)) (length ls) = Some a.
 
     induction ls; intuition; simpl in *.
-
+    
   Qed.
 
   eapply  nth_error_app_length .
 
   econstructor.
-
+  
 Qed.
 
-Theorem permute_nth_equiv :
+Theorem permute_nth_equiv : 
   forall (A : Set)(ls : list A) a b,
   list_pred (fun (a0 : A) (b0 : nat) => nth_error ls b0 = Some a0) a b ->
   a = permute ls b.
 
   induction a; inversion 1; intuition; simpl in *.
   subst.
-
+  
   rewrite H2.
   f_equal.
   eapply IHa.
@@ -380,13 +380,13 @@ Theorem getAllPerms_permute_eq :
 
   eapply permute_nth_equiv.
   trivial.
-
+  
 Qed.
 
-Theorem rndListElem_pred :
+Theorem rndListElem_pred : 
   forall (A B : Set)(eqda : EqDec A)(eqdb : EqDec B)(P : A -> B -> Prop)(lsa : list A)(lsb : list B),
     list_pred P lsa lsb ->
-    comp_spec (fun a b =>
+    comp_spec (fun a b => 
       match a with
         | None => b = None
         | Some a' => exists b', b = Some b' /\ P a' b'
@@ -399,7 +399,7 @@ Theorem rndListElem_pred :
   erewrite <- list_pred_length_eq; eauto.
   rewrite H0.
   eapply comp_spec_ret; intuition.
-
+  
   erewrite <- list_pred_length_eq; eauto.
   rewrite H0.
   comp_skip.
@@ -409,10 +409,10 @@ Theorem rndListElem_pred :
 
   case_eq (nth_option lsa b); intuition.
 
-  Theorem list_pred_nth_exists :
+  Theorem list_pred_nth_exists : 
     forall (A B : Set)(P : A -> B -> Prop) lsa lsb,
       list_pred P lsa lsb ->
-      forall n a,
+      forall n a, 
         nth_option lsa n = Some a -> exists b, nth_option lsb n = Some b /\ P a b.
 
     induction 1; intuition; simpl in *.
@@ -434,7 +434,7 @@ Theorem rndListElem_pred :
   omega.
 Qed.
 
-Theorem shuffle_RndPerm_spec :
+Theorem shuffle_RndPerm_spec : 
   forall (A : Set)(eqd : EqDec A)(ls : list A),
     comp_spec (fun a b => a = permute ls b)
     (shuffle eqd ls)
@@ -442,11 +442,11 @@ Theorem shuffle_RndPerm_spec :
 
   intuition.
   unfold shuffle in *.
-
+  
   comp_skip.
   eapply rndListElem_pred.
   eapply getAllPerms_permute_eq.
-
+  
   simpl in H1.
   eapply comp_spec_ret; intuition.
   destruct a.
@@ -460,7 +460,7 @@ Theorem shuffle_RndPerm_spec :
   intuition.
 Qed.
 
-Theorem shuffle_RndPerm_spec_eq :
+Theorem shuffle_RndPerm_spec_eq : 
   forall (A : Set)(eqd : EqDec A)(ls : list A),
     comp_spec eq
     (shuffle eqd ls)
@@ -476,11 +476,11 @@ Theorem shuffle_RndPerm_spec_eq :
 
 Qed.
 
-Theorem RndPerm_In_support :
-  forall n ls,
+Theorem RndPerm_In_support : 
+  forall n ls, 
     In ls (getSupport (RndPerm n)) ->
     Permutation (allNatsLt n) ls.
-
+  
   intuition.
   eapply shuffle_Permutation.
   eapply H.
@@ -501,7 +501,7 @@ Theorem RndPerm_In_support_length :
   eapply allNatsLt_length.
 Qed.
 
-Theorem RndPerm_wf :
+Theorem RndPerm_wf : 
   forall n,
     well_formed_comp (RndPerm n).
 
