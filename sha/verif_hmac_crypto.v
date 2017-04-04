@@ -131,7 +131,7 @@ forward_if  (
    SEP  (data_at_ Tsh t_struct_hmac_ctx_st buf; data_block Tsh key k;
          data_block Tsh data msg; K_vector kv;
          memory_block shmd 32 md)).
-  { apply denote_tc_comparable_split.
+  { apply denote_tc_test_eq_split.
     apply sepcon_valid_pointer2. apply memory_block_valid_ptr. auto. omega.
     apply valid_pointer_zero. }
   { (* Branch1 *) exfalso. subst md. contradiction.  }
