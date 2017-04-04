@@ -85,18 +85,6 @@ Proof.
   intros. rewrite H. apply derives_refl.
 Qed.
 
-Lemma simpl_mod255: forall i,
-  force_val (sem_binary_operation' Omod tint tint (Vint i) (Vint (Int.repr 255)))
-  = Vint (Int.mods i (Int.repr 255)).
-Proof.
-  intros. simpl. unfold sem_mod. simpl. unfold both_int. simpl.
-  match goal with
-  | |- context [ (?C1 && ?C2)%bool ] => destruct C2 eqn: E2
-  end.
-  - apply int_eq_e in E2. discriminate.
-  - rewrite andb_false_r. reflexivity.
-Qed.
-
 Lemma mod255_condition: forall b,
   is_true (negb (b && Int.eq (Int.repr 255) Int.mone)).
 Proof.
@@ -635,8 +623,6 @@ Proof.
           that we don't have to factor out the modulo, but can use it directly as the array index. *)
         apply mod255_condition.
       }
-      simpl eval_binop.
-      rewrite simpl_mod255.
       assert (0 <= Znth 14 log 0 + Znth (Int.unsigned (Znth i RSb Int.zero)) log 0) as A. {
         do 2 rewrite Hlog by omega.
         pose proof (log3range 14).
@@ -671,8 +657,6 @@ Proof.
       }
       pose proof (RSb_range i).
       forward. forward. forward. { entailer!. apply mod255_condition. }
-      simpl eval_binop.
-      rewrite simpl_mod255.
       assert (0 <= Znth 9 log 0 + Znth (Int.unsigned (Znth i RSb Int.zero)) log 0) as A. {
         do 2 rewrite Hlog by omega.
         pose proof (log3range 9).
@@ -707,8 +691,6 @@ Proof.
       }
       pose proof (RSb_range i).
       forward. forward. forward. { entailer!. apply mod255_condition. }
-      simpl eval_binop.
-      rewrite simpl_mod255.
       assert (0 <= Znth 13 log 0 + Znth (Int.unsigned (Znth i RSb Int.zero)) log 0) as A. {
         do 2 rewrite Hlog by omega.
         pose proof (log3range 13).
@@ -743,8 +725,6 @@ Proof.
       }
       pose proof (RSb_range i).
       forward. forward. forward. { entailer!. apply mod255_condition. }
-      simpl eval_binop.
-      rewrite simpl_mod255.
       assert (0 <= Znth 11 log 0 + Znth (Int.unsigned (Znth i RSb Int.zero)) log 0) as A. {
         do 2 rewrite Hlog by omega.
         pose proof (log3range 11).
@@ -842,6 +822,7 @@ Proof.
   Exists lvar0.
   entailer!.
 } }
+  Show.
 Time Qed.
 (* Coq 8.5.2: 177s
    Coq 8.6  :  75s
