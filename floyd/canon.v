@@ -1984,21 +1984,20 @@ assert (H8: typecheck_var_environ (ve_of (globals_only rho))
   rewrite prop_true_andp in H. auto.
   clear H.
   destruct H0 as [? [? [? ?]]]; split; [ | split3]; auto.
-  unfold te_of, env_set.
-  unfold temp_types, ret_tycon.
-  hnf; intros.
-  destruct (is_void_type (ret_type Delta)).
-  rewrite PTree.gempty in H4; inv H4.
-  destruct (ident_eq id ret_temp).
-  2: rewrite PTree.gso in H4 by auto; rewrite PTree.gempty in H4; inv H4.
-  subst id. rewrite PTree.gss in H4. inv H4.
-  rewrite Map.gss. exists v. split; auto. right.
-  rewrite tc_val_eq in H1. auto.
-  intros id t. specialize (H3 id t).
-  intro.
-  spec H3. rewrite <- H4.
-  unfold ret_tycon. destruct (is_void_type (ret_type Delta)); reflexivity.
-  unfold env_set. unfold ve_of at 1. left; simpl. reflexivity.
+  + unfold te_of, env_set.
+    unfold temp_types, ret_tycon.
+    hnf; intros.
+    destruct (is_void_type (ret_type Delta)).
+    * rewrite PTree.gempty in H4; inv H4.
+    * destruct (ident_eq id ret_temp).
+      2: rewrite PTree.gso in H4 by auto; rewrite PTree.gempty in H4; inv H4.
+      subst id. rewrite PTree.gss in H4. inv H4.
+      rewrite Map.gss. exists v. split; auto.
+  + intros id t. specialize (H3 id t).
+    intro.
+    spec H3. rewrite <- H4.
+    unfold ret_tycon. destruct (is_void_type (ret_type Delta)); reflexivity.
+    unfold env_set. unfold ve_of at 1. left; simpl. reflexivity.
 -
   destruct (ret_type Delta) eqn:?; auto.
   unfold_lift. simpl.
@@ -2042,7 +2041,7 @@ Qed.
 
 Lemma make_args1_tc_environ: forall rho Delta v,
   tc_environ Delta rho ->
-  typecheck_val v (ret_type Delta) = true ->
+  tc_val (ret_type Delta) v ->
   tc_environ (ret1_tycon Delta) (make_args (ret_temp :: nil) (v :: nil) rho).
 Proof.
   intros.
@@ -2092,7 +2091,6 @@ Proof.
     Opaque PTree.set. simpl; apply andp_right; auto. Transparent PTree.set.
     apply prop_right.
     apply make_args1_tc_environ; auto.
-    rewrite tc_val_eq in H3; auto.
 Qed.
 
 Lemma semax_post_ret0: forall P' R' Espec {cs: compspecs} Delta P R Pre c,

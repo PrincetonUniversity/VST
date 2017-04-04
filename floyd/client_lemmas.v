@@ -655,7 +655,6 @@ Lemma tc_eval_id_i:
               tc_val t (eval_id i rho).
 Proof.
 intros.
-rewrite tc_val_eq.
 unfold tc_environ in H.
 destruct rho.
 destruct H as [? _].
@@ -781,9 +780,7 @@ intros.
  destruct t2; inv H2.
  destruct b; inv H4.
  pose proof (tc_eval_id_i _ _ _ _ H H1).
- rewrite tc_val_eq in H2.
  destruct (eval_id id  rho); inv H2.
- pose proof (Int.eq_spec i Int.zero). rewrite H4 in H2. subst. clear H4.
  destruct t1 as [ | [ | | | ] | [ | ] | [ | ] |  | | | | ];
  destruct t3 as [ | [ | | | ] | [ | ] | [ | ] |  | | | | ]; inv H0; try reflexivity.
  destruct t1 as [ | | | [ | ] |  | | | | ]; destruct t3 as [ | | | [ | ] |  | | | | ]; inv H0;
@@ -805,11 +802,6 @@ destruct v; inv H1; simpl; auto.
 Qed.
 
 Hint Rewrite sem_cast_pointer2' using (try apply Coq.Init.Logic.I; try assumption; reflexivity) : norm.
-
-Lemma typecheck_val_eq:
-  forall v t, (typecheck_val v t = true) = tc_val t v.
-Proof. intros. rewrite tc_val_eq. reflexivity. Qed.
-Hint Rewrite typecheck_val_eq : norm2.
 
 Lemma sem_cast_pointer2:
   forall v t1 t2 t3 t1' t2',
