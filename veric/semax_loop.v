@@ -186,7 +186,6 @@ assert (TCS := typecheck_expr_sound _ _ w0 _ (guard_environ_e1 _ _ _ TC) TC2'). 
  destruct TC2' as [TC2' TC2'a].
 assert (exists b': bool, Cop.bool_val (eval_expr b rho) (typeof b) (m_dry jm) = Some b'). {
 clear - TS TC H TC2 TC2' TC2'a TCS Hphi.
- rewrite tc_val_eq in TCS.
  simpl in TCS. unfold_lift in TCS.
  unfold Cop.bool_val;
  destruct (eval_expr b rho) eqn:H15;

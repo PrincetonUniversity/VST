@@ -696,6 +696,13 @@ Definition tc_val (ty: type) : val -> Prop :=
 
 Definition tc_val' t v := v <> Vundef -> tc_val t v.
 
+Fixpoint tc_vals (ty: list type) (v: list val) : Prop :=
+ match v, ty with
+ | v1::vs , t1::ts => tc_val t1 v1 /\ tc_vals ts vs
+ | nil, nil => True
+ | _, _ => False
+end.
+
 Lemma tc_val_Vundef:
   forall t, ~tc_val t Vundef.
 Proof.

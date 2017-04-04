@@ -15,7 +15,7 @@ Import Cop2.
 
 (** Main soundness result for the typechecker **)
 
-Lemma tc_both_sound:
+Lemma typecheck_both_sound:
   forall {CS: compspecs} Delta rho m e ,
              typecheck_environ Delta rho ->
              (denote_tc_assert (typecheck_expr Delta e) rho m ->
@@ -125,7 +125,7 @@ Lemma typecheck_expr_sound : forall {CS: compspecs} Delta rho m e,
               denote_tc_assert (typecheck_expr Delta e) rho m ->
               tc_val (typeof e) (eval_expr e rho).
 Proof. intros.
-assert (TC := tc_both_sound Delta rho m e). intuition. Qed.
+assert (TC := typecheck_both_sound Delta rho m e). intuition. Qed.
 
 
 Lemma typecheck_lvalue_sound : forall {CS: compspecs} Delta rho m e,
@@ -134,7 +134,7 @@ Lemma typecheck_lvalue_sound : forall {CS: compspecs} Delta rho m e,
   is_pointer_or_null (eval_lvalue e rho).
 Proof.
 intros.
- edestruct (tc_both_sound _ _ m e H).
+ edestruct (typecheck_both_sound _ _ m e H).
 specialize (H2 (Tpointer Tvoid noattr) H0 (eq_refl _)).
 apply H2.
 Qed.
@@ -1438,7 +1438,7 @@ tc_val t (eval_expr e rho).
 Proof.
 intros.
 rewrite isCastR in H0.
-apply typecheck_expr_sound in H1; auto. rewrite tc_val_eq in H1.
+apply typecheck_expr_sound in H1; auto.
 Transparent Int.repr.
 destruct (typeof e)  as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ] ;
 destruct t as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ]; simpl in H; simpl in H0;
@@ -1447,23 +1447,16 @@ simpl in H0; try congruence; auto;
 unfold is_neutral_cast in *;
 simpl in *; try congruence; super_unfold_lift;
 try rewrite <- Heqv in *;  unfold denote_tc_iszero in *;
-try apply H0; try contradiction;
-try (rewrite andb_true_iff; repeat rewrite Z.leb_le;
-    rewrite orb_true_iff in H1; destruct H1 as [H1|H1];
-   apply int_eq_e in H1; subst; compute; split; congruence);
-try (repeat rewrite Z.leb_le;
-  rewrite orb_true_iff in H1; destruct H1 as [H1|H1];
-   apply int_eq_e in H1; subst; compute; congruence).
+try apply H0; [| |
+try (destruct H1; subst; try split; compute; congruence) ..].
 *
  change Byte.min_signed with (-128) in H1;
  change Byte.max_signed with 127 in H1;
- change (Z.neg (shift_pos 15 1)) with (-32768);
-rewrite andb_true_iff in H1|-*; destruct H1 as [H1 H1'];
-  rewrite Z.leb_le in H1,H1'; split; rewrite Z.leb_le;
-  omega.
+ change (Z.neg (shift_pos 15 1)) with (-32768).
+ omega.
 *
- change Byte.max_unsigned with 255 in H1;
- rewrite Z.leb_le in H1|-*; omega.
+ change Byte.max_unsigned with 255 in H1.
+ omega.
 Qed.
 
 Opaque Int.repr.
@@ -1491,44 +1484,37 @@ destruct ((temp_types Delta') ! id) as [[? ?]|]; try contradiction.
  destruct H; subst; auto.
 Qed.
 
-Lemma typecheck_val_sem_cast:
+Lemma tc_val_sem_cast:
   forall {CS: compspecs} t2 e2 rho phi Delta,
       typecheck_environ Delta rho ->
       denote_tc_assert (typecheck_expr Delta e2) rho phi ->
       denote_tc_assert (isCastResultType (typeof e2) t2  e2) rho phi ->
-      typecheck_val (force_val (sem_cast (typeof e2) t2 (eval_expr e2 rho))) t2 = true.
+      tc_val t2 (force_val (sem_cast (typeof e2) t2 (eval_expr e2 rho))).
 Proof. intros ? ? ? ? ? ? H2 H5 H6.
 assert (H7 := cast_exists _ _ _ _ phi H2 H5 H6).
 assert (H8 := typecheck_expr_sound _ _ _ _ H2 H5).
-rewrite tc_val_eq in H8.
 clear - H7 H6 H8.
 revert H7; case_eq (sem_cast (typeof e2) t2 (eval_expr e2 rho) ); intros; inv H7.
 simpl.
 rewrite isCastR in H6.
 case_eq (eval_expr e2 rho); intros; rename H0 into H99;
- destruct t2 as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-  inv H8; inv H; simpl; auto;
+destruct t2 as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
+try inv H8; inv H; simpl; auto;
 hnf in H6; try contradiction; rewrite H99 in *;
 destruct (typeof e2) as [ | [ | | | ] [ | ] | [ | ] | [ | ] | | | | | ];
-inv H2; inv H1; auto;
+inv H1; try inv H8; try inv H2; auto;
+
 simpl in H6;
 try (unfold sem_cast in H0;
       simpl in*; inv H0; simpl; auto);
 super_unfold_lift;
-try (rewrite H99 in H6; simpl in H6; try contradiction H6;
+try (rewrite H99 in H6; simpl in H6; try contradiction H6; try tauto;
       apply is_true_e in H6);
 auto;
  try match type of H1 with
    match ?ZZ with Some _ => _ | None => _ end = _ =>
-  destruct ZZ eqn:H5; inv H1; simpl; auto
+  destruct ZZ eqn:H5; try inv H0; inv H1; simpl; auto
 end;
- try (rewrite andb_true_iff in H1; destruct H1 as [H1 H1']);
- try rewrite orb_true_iff in H1;
- try rewrite Z.leb_le in H1; try rewrite Z.leb_le in H1';
- simpl;
- (transitivity true; [ | symmetry]);
- try rewrite andb_true_iff; try rewrite orb_true_iff;
- repeat rewrite Z.leb_le;
  auto;
  try match goal with
   | |- context [Int.sign_ext ?n ?i] =>
@@ -1536,10 +1522,16 @@ end;
   | |- context [Int.zero_ext ?n ?i] =>
   apply (zero_ext_range' n i);  compute; split; congruence
   end;
+simpl; auto;
 try match goal with
-    | |- Int.eq (if ?A then _ else _) _ = true \/ _ =>
+    | |- (if ?A then _ else _) = _ \/ _ =>
      destruct A; simpl; auto
-   end.
+    end;
+try (apply int_eq_true; symmetry; auto);
+ match goal with
+    | H: (if ?A then _ else _) = _ |- _  =>
+     destruct A; inv H; simpl; auto
+    end.
 Qed.
 
 
