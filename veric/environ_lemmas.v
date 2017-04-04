@@ -259,7 +259,3 @@ destruct Delta. simpl in *.
 unfold var_types, temp_types in *. simpl in *.
 destruct (tyc_temps ! id); try destruct p; eauto.
 Qed.
-
-Lemma type_eq_true : forall a b, proj_sumbool  (type_eq a b) =true  -> a = b.
-Proof. intros. destruct (type_eq a b). auto. simpl in H. inv H.
-Qed.
