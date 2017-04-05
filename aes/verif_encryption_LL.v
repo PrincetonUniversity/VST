@@ -1,6 +1,72 @@
 Require Import aes.api_specs.
 Require Import aes.bitfiddling.
+Require Import aes.verif_encryption_LL_loop_body.
 Open Scope Z.
+
+Definition round_column_ast rk b0 b1 b2 b3 t Y X0 X1 X2 X3 := 
+(Ssequence (Sset t (Etempvar _RK (tptr tuint)))
+   (Ssequence
+      (Sset _RK
+         (Ebinop Oadd (Etempvar t (tptr tuint))
+            (Econst_int (Int.repr 1) tint) (tptr tuint)))
+      (Ssequence (Sset rk (Ederef (Etempvar t (tptr tuint)) tuint))
+         (Ssequence
+            (Sset b0
+               (Ederef
+                  (Ebinop Oadd
+                     (Efield
+                        (Evar _tables t_struct_tables)
+                        _FT0 (tarray tuint 256))
+                     (Ebinop Oand (Etempvar X0 tuint)
+                        (Econst_int (Int.repr 255) tint) tuint) (tptr tuint))
+                  tuint))
+            (Ssequence
+               (Sset b1
+                  (Ederef
+                     (Ebinop Oadd
+                        (Efield
+                           (Evar _tables t_struct_tables)
+                           _FT1 (tarray tuint 256))
+                        (Ebinop Oand
+                           (Ebinop Oshr (Etempvar X1 tuint)
+                              (Econst_int (Int.repr 8) tint) tuint)
+                           (Econst_int (Int.repr 255) tint) tuint)
+                        (tptr tuint)) tuint))
+               (Ssequence
+                  (Sset b2
+                     (Ederef
+                        (Ebinop Oadd
+                           (Efield
+                              (Evar _tables
+                                 t_struct_tables) _FT2
+                              (tarray tuint 256))
+                           (Ebinop Oand
+                              (Ebinop Oshr (Etempvar X2 tuint)
+                                 (Econst_int (Int.repr 16) tint) tuint)
+                              (Econst_int (Int.repr 255) tint) tuint)
+                           (tptr tuint)) tuint))
+                  (Ssequence
+                     (Sset b3
+                        (Ederef
+                           (Ebinop Oadd
+                              (Efield
+                                 (Evar _tables
+                                    t_struct_tables) _FT3
+                                 (tarray tuint 256))
+                              (Ebinop Oand
+                                 (Ebinop Oshr (Etempvar X3 tuint)
+                                    (Econst_int (Int.repr 24) tint) tuint)
+                                 (Econst_int (Int.repr 255) tint) tuint)
+                              (tptr tuint)) tuint))
+                     (Sset Y
+                        (Ebinop Oxor
+                           (Ebinop Oxor
+                              (Ebinop Oxor
+                                 (Ebinop Oxor (Etempvar rk tuint)
+                                    (Etempvar b0 tuint) tuint)
+                                 (Etempvar b1 tuint) tuint)
+                              (Etempvar b2 tuint) tuint)
+                           (Etempvar b3 tuint) tuint))))))))).
 
 Ltac simpl_Int := repeat match goal with
 | |- context [ (Int.mul (Int.repr ?A) (Int.repr ?B)) ] =>
@@ -182,123 +248,26 @@ Proof.
   { (* rest: loop body *)
   clear i. Intro i. Intros. 
   unfold tables_initialized. subst vv.
-  remember S0 as S0'. subst S0. rename S0' into S0. rename HeqS0' into HeqS0.
-  mkConciseDelta Vprog Gprog f_mbedtls_aes_encrypt Delta.
+  unfold MORE_COMMANDS, abbreviate.
 
-Require Import aes.aes_encryption_loop_body.
+  reassoc_seq_chunks 8.
 
-Lemma encryption_loop_body_proof: forall
-  (Espec : OracleKind)
-  (ctx input output : val)
-  (ctx_sh in_sh out_sh : share)
-  (plaintext exp_key : list Z)
-  (tables : val)
-  (H : Zlength plaintext = 16)
-  (H0 : Zlength exp_key = 60)
-  (SH : readable_share ctx_sh)
-  (SH0 : readable_share in_sh)
-  (SH1 : writable_share out_sh)
-  (buf : list Z)
-  (Heqbuf : buf = exp_key ++ list_repeat 8 0)
-  (Fctx : field_compatible t_struct_aesctx [StructField _buf] ctx)
-  (LenBuf : Zlength buf = 68)
-  (Eq : forall i : Z,
-     0 <= i < 60 ->
-     force_val
-       (sem_add_pi tuint
-          (field_address t_struct_aesctx [ArraySubsc i; StructField _buf] ctx)
-          (Vint (Int.repr 1))) =
-     field_address t_struct_aesctx [ArraySubsc (i + 1); StructField _buf] ctx)
-  (S12 S0 : four_ints)
-  (HeqS0 : S0 = mbed_tls_initial_add_round_key plaintext buf)
-  (HeqS12 : S12 = mbed_tls_enc_rounds 12 S0 buf 4)
-  (i : Z)
-  (H1 : 0 < i <= 6),
-semax
-  (initialized_list
-     [_i; _RK; _X0; _X1; _X2; _X3; _tmp; _b0; _b1; _b2; _b3; _b0__1; _b1__1;
-     _b2__1; _b3__1; _b0__2; _b1__2; _b2__2; _b3__2; _b0__3; _b1__3; _b2__3;
-     _b3__3; _t'4; _t'3; _t'2; _t'1]
-     (func_tycontext f_mbedtls_aes_encrypt Vprog Gprog))
-  (PROP ( )
-   LOCAL (temp _i (Vint (Int.repr i));
-   temp _RK
-     (field_address t_struct_aesctx
-        [ArraySubsc (52 - i * 8); StructField _buf] ctx);
-   temp _X3
-     (Vint (col 3 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4)));
-   temp _X2
-     (Vint (col 2 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4)));
-   temp _X1
-     (Vint (col 1 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4)));
-   temp _X0
-     (Vint (col 0 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4)));
-   temp _ctx ctx; temp _input input; temp _output output;
-   gvar _tables tables)
-   SEP (data_at_ out_sh (tarray tuchar 16) output;
-   data_at Ews t_struct_tables
-     (map Vint FSb,
-     (map Vint FT0,
-     (map Vint FT1,
-     (map Vint FT2,
-     (map Vint FT3,
-     (map Vint RSb,
-     (map Vint RT0,
-     (map Vint RT1, (map Vint RT2, (map Vint RT3, map Vint RCON))))))))))
-     tables;
-   data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
-   data_at ctx_sh t_struct_aesctx
-     (Vint (Int.repr Nr),
-     (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx,
-     map Vint (map Int.repr buf))) ctx))
-  encryption_loop_body
-  (loop1_ret_assert
-     (EX i0 : Z,
-      PROP (0 < i0 <= 6)
-      LOCAL (temp _i (Vint (Int.repr i0));
-      temp _RK
-        (field_address t_struct_aesctx
-           [ArraySubsc (52 - (i0 - 1) * 8); StructField _buf] ctx);
-      temp _X3
-        (Vint
-           (col 3 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat (i0 - 1)) S0 buf 4)));
-      temp _X2
-        (Vint
-           (col 2 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat (i0 - 1)) S0 buf 4)));
-      temp _X1
-        (Vint
-           (col 1 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat (i0 - 1)) S0 buf 4)));
-      temp _X0
-        (Vint
-           (col 0 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat (i0 - 1)) S0 buf 4)));
-      temp _ctx ctx; temp _input input; temp _output output;
-      gvar _tables tables)
-      SEP (data_at_ out_sh (tarray tuchar 16) output;
-      tables_initialized tables;
-      data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext))
-        input;
-      data_at ctx_sh t_struct_aesctx
-        (Vint (Int.repr Nr),
-        (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx,
-        map Vint (map Int.repr buf))) ctx))%assert
-     (normal_ret_assert
-        (PROP ( )
-         LOCAL (temp _RK
-                  (field_address t_struct_aesctx
-                     [ArraySubsc 52; StructField _buf] ctx);
-         temp _X3 (Vint (col 3 S12)); temp _X2 (Vint (col 2 S12));
-         temp _X1 (Vint (col 1 S12)); temp _X0 (Vint (col 0 S12));
-         temp _ctx ctx; temp _input input; temp _output output;
-         gvar _tables tables)
-         SEP (data_at_ out_sh (tarray tuchar 16) output;
-         tables_initialized tables;
-         data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext))
-           input;
-         data_at ctx_sh t_struct_aesctx
-           (Vint (Int.repr Nr),
-           (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf]
-              ctx, map Vint (map Int.repr buf))) ctx)))).
-Admitted.
+  progress fold t_struct_tables.
+  progress fold (round_column_ast _rk _b0__4 _b1__4 _b2__4 _b3__4 _t'5 _Y0 _X0 _X1 _X2 _X3).
+  progress fold (round_column_ast _rk _b0__4 _b1__4 _b2__4 _b3__4 _t'6 _Y1 _X1 _X2 _X3 _X0).
+  progress fold (round_column_ast _rk _b0__4 _b1__4 _b2__4 _b3__4 _t'7 _Y2 _X2 _X3 _X0 _X1).
+  progress fold (round_column_ast _rk _b0__4 _b1__4 _b2__4 _b3__4 _t'8 _Y3 _X3 _X0 _X1 _X2).
+  progress fold (round_column_ast _rk__1 _b0__5 _b1__5 _b2__5 _b3__5 _t'9  _X0 _Y0 _Y1 _Y2 _Y3).
+  progress fold (round_column_ast _rk__1 _b0__5 _b1__5 _b2__5 _b3__5 _t'10 _X1 _Y1 _Y2 _Y3 _Y0).
+  progress fold (round_column_ast _rk__1 _b0__5 _b1__5 _b2__5 _b3__5 _t'11 _X2 _Y2 _Y3 _Y0 _Y1).
+  progress fold (round_column_ast _rk__1 _b0__5 _b1__5 _b2__5 _b3__5 _t'12 _X3 _Y3 _Y0 _Y1 _Y2).
+
+  (* drop_LOCALs [_ctx; _input; _output]. *)
+
+  (* undo the reassociation into blocks of 8 to apply the lemma for the whole loop body *)
+  unfold round_column_ast.
+  reassoc_seq.
+
   subst MORE_COMMANDS POSTCONDITION. unfold abbreviate.
   simple eapply encryption_loop_body_proof; eauto.
   }} { (* loop decr *)
@@ -449,7 +418,8 @@ Admitted.
   }
 
   Show.
-Time Qed.
+(* Time Qed. takes forever *)
+Admitted.
 
 (* TODO floyd: sc_new_instantiate: distinguish between errors caused because the tactic is trying th
    wrong thing and errors because of user type errors such as "tuint does not equal t_struct_aesctx" *)
