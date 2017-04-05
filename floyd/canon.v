@@ -826,7 +826,7 @@ Qed.
 
 Lemma semax_post:
  forall (R': ret_assert) Espec {cs: compspecs} Delta (R: ret_assert) P c,
-   (forall ek vl, ENTAIL (exit_tycon c Delta ek), R' ek vl |-- R ek vl) ->
+   (forall ek vl, ENTAIL Delta, R' ek vl |-- R ek vl) ->
    @semax cs Espec Delta P c R' ->  @semax cs Espec Delta P c R.
 Proof.
 intros; eapply semax_pre_post; try eassumption.
@@ -838,13 +838,13 @@ Lemma semax_post_flipped:
          (P : environ->mpred) (c : statement),
         @semax cs Espec Delta P c R' ->
        (forall (ek : exitkind) (vl : option val),
-        ENTAIL (exit_tycon c Delta ek), R' ek vl |-- R ek vl) ->
+        ENTAIL Delta, R' ek vl |-- R ek vl) ->
        @semax cs Espec Delta P c R.
 Proof. intros; eapply semax_post; eassumption. Qed.
 
 
 Lemma semax_post': forall R' Espec {cs: compspecs} Delta R P c,
-           ENTAIL (update_tycon Delta c), R' |-- R ->
+           ENTAIL Delta, R' |-- R ->
       @semax cs Espec Delta P c (normal_ret_assert R') ->
       @semax cs Espec Delta P c (normal_ret_assert R).
 Proof. intros. eapply semax_post; eauto. intros.
@@ -890,7 +890,7 @@ Qed.
 Lemma semax_seq':
  forall Espec {cs: compspecs} Delta P c1 P' c2 Q,
          @semax cs Espec Delta P c1 (normal_ret_assert P') ->
-         @semax cs Espec(update_tycon Delta c1) P' c2 Q ->
+         @semax cs Espec Delta P' c2 Q ->
          @semax cs Espec Delta P (Ssequence c1 c2) Q.
 Proof.
  intros. apply semax_seq with P'; auto.
@@ -905,7 +905,7 @@ Lemma semax_frame_seq:
     ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
     PROPx P1 (LOCALx (Q1++QFrame) (SEPx (R1 ++ Frame))) ->
     closed_wrt_modvars c1 (LOCALx QFrame (SEPx Frame)) ->
-    semax (update_tycon Delta c1)
+    semax Delta
          (PROPx P2 (LOCALx (Q2++QFrame) (SEPx (R2 ++ Frame)))) c2 R3 ->
     semax Delta (PROPx P (LOCALx Q (SEPx R))) (Ssequence c1 c2) R3.
 Proof.
@@ -1827,7 +1827,7 @@ Qed.
 Lemma semax_post_flipped' :
    forall (R': environ->mpred) Espec {cs: compspecs} (Delta: tycontext) (R P: environ->mpred) c,
        @semax cs Espec Delta P c (normal_ret_assert R') ->
-       ENTAIL (exit_tycon c Delta EK_normal), R' |-- R ->
+       ENTAIL Delta, R' |-- R ->
        @semax cs Espec Delta P c (normal_ret_assert R).
  Proof. intros; eapply semax_post; [ | eassumption].
  intros. unfold normal_ret_assert.
@@ -1946,7 +1946,7 @@ Definition ret_tycon (Delta: tycontext): tycontext :=
   mk_tycontext 
     (if is_void_type (ret_type Delta) 
       then (PTree.empty _)
-      else (PTree.set ret_temp ((ret_type Delta), true) (PTree.empty _)))
+      else (PTree.set ret_temp (ret_type Delta) (PTree.empty _)))
      (PTree.empty _)
      (ret_type Delta)
      (glob_types Delta)
@@ -1962,12 +1962,10 @@ Proof. intros. eapply semax_post; eauto. subst t. clear - H0. rename H0 into H.
   intro rho; unfold frame_ret_assert.
   unfold function_body_ret_assert.
   destruct ek; autorewrite with norm1 norm2; normalize.
-  unfold exit_tycon in H.
 (*  replace Delta with (ret_tycon Delta) in H1 by admit.  *)
   unfold local, lift1 in H.
   simpl andp in H.
-  unfold exit_tycon in H0.
-assert (H8: typecheck_var_environ (ve_of (globals_only rho))
+  assert (H8: typecheck_var_environ (ve_of (globals_only rho))
                (var_types (ret_tycon Delta))). {
    clear - H0.
   unfold ret_tycon, var_types.
@@ -1993,6 +1991,7 @@ assert (H8: typecheck_var_environ (ve_of (globals_only rho))
       2: rewrite PTree.gso in H4 by auto; rewrite PTree.gempty in H4; inv H4.
       subst id. rewrite PTree.gss in H4. inv H4.
       rewrite Map.gss. exists v. split; auto.
+      apply tc_val_tc_val'; auto.
   + intros id t. specialize (H3 id t).
     intro.
     spec H3. rewrite <- H4.
@@ -2016,7 +2015,7 @@ Definition ret0_tycon (Delta: tycontext): tycontext :=
   mk_tycontext (PTree.empty _) (PTree.empty _) (ret_type Delta) (glob_types Delta) (glob_specs Delta).
 
 Definition ret1_tycon (Delta: tycontext): tycontext :=
-  mk_tycontext (PTree.set ret_temp ((ret_type Delta), true) (PTree.empty _))
+  mk_tycontext (PTree.set ret_temp (ret_type Delta) (PTree.empty _))
     (PTree.empty _) (ret_type Delta) (glob_types Delta) (glob_specs Delta).
 
 Lemma make_args0_tc_environ: forall rho Delta,
@@ -2057,6 +2056,7 @@ Proof.
       inversion H3; subst.
       exists v; simpl.
       split; auto.
+      apply tc_val_tc_val'; auto.
     - rewrite PTree.gempty in H3; inversion H3.
   + hnf; split; intros.
     - rewrite PTree.gempty in H3; inversion H3.
