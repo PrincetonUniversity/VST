@@ -1087,10 +1087,10 @@ Proof.
   { destruct additional; simpl in PNadditional; try contradiction.
     + subst i0; entailer.
     + rewrite da_emp_ptr. normalize.
-      unfold denote_tc_comparable. entailer!.
-      eapply derives_trans; try apply valid_pointer_weak.
+      apply denote_tc_test_eq_split.
       apply sepcon_valid_pointer2. 
       apply data_at_valid_ptr; trivial. apply top_share_nonidentity.
+      auto 50 with valid_pointer.
   }
   { forward. entailer!. subst after_reseed_add_len na.
     destruct should_reseed; simpl; trivial. rewrite andb_false_r. reflexivity.
