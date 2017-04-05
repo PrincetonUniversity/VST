@@ -1,6 +1,7 @@
-Require Import aes.verif_utils.
+Require Import aes.api_specs.
 Require Import aes.partially_filled.
 Require Import aes.bitfiddling.
+Open Scope Z.
 
 (* Note: x must be non-zero, y is allowed to be zero (because x is a constant in all usages, its
    non-zero-check seems to be removed by the parser). *)
@@ -47,21 +48,6 @@ Lemma Z_to_val_to_Vint: forall j,
 Proof.
   intros. unfold Z_to_val. destruct (zeq j (-1)) as [E | E]. omega. reflexivity.
 Qed.
-
-Definition gen_tables_spec :=
-  DECLARE _aes_gen_tables
-    WITH tables : val
-    PRE [  ]
-      PROP ()
-      LOCAL (gvar _tables tables)
-      SEP (tables_uninitialized tables)
-    POST [ tvoid ]
-      PROP ()
-      LOCAL ()
-      SEP (tables_initialized tables)
-.
-
-Definition Gprog : funspecs := ltac:(with_library prog [ gen_tables_spec ]).
 
 (* Calls forward_if with the current precondition to which the provided conditions are added *)
 (* QQQ TODO does this already exist? Add to library? *)
@@ -420,9 +406,7 @@ Proof.
     end.
     rewrite FSb_equiv by omega.
 
-    Intro fsb. Intro rsb. normalize.
-    (* TODO floyd if I don't do the above, "forward" fails with the default error message, because
-       in store_tac, sc_new_instantiate cannot find the right SEP clause. *)
+    Intro fsb. Intro rsb.
     forward. forward.
     - (* entailment of "forward" *)
       entailer!.
@@ -430,7 +414,7 @@ Proof.
     - (* postcondition implies loop invariant *)
       entailer!.
         match goal with
-        | |- field_at _ _ _ ?fsb' _ * field_at _ _ _ ?rsb' _ |-- _ => Exists rsb'; Exists fsb'
+        | |- (field_at _ _ _ ?fsb' _ * field_at _ _ _ ?rsb' _)%logic |-- _ => Exists rsb'; Exists fsb'
         end.
         entailer!. repeat split.
         + rewrite upd_Znth_diff; (omega || auto).

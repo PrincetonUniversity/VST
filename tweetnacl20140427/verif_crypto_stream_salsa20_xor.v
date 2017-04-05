@@ -752,7 +752,7 @@ rename H into I.
       temp _b b; temp _n nonce; temp _k k; gvar _sigma SV;
       temp _t'1 (Vint (Int.repr (Byte.unsigned (byte_at mInit (i+q) mbytes)))))
    SEP  (FRZL FR1; message_at mbytes mInit)).
-  { apply denote_tc_comparable_split.
+  { apply denote_tc_test_eq_split.
     + clear H XOR. destruct mInit; simpl in M; try contradiction.
       - destruct M. subst m. apply valid_pointer_null.
       - subst m. thaw FR1. apply sepcon_valid_pointer2.
@@ -942,7 +942,7 @@ Focus 2.
       temp _b (Vlong b); temp _n nonce; temp _k k; gvar _sigma SV;
       temp _t'2 (Vint (Int.repr (Byte.unsigned (byte_at mInit (i+q) mbytes)))))
    SEP  (FRZL FR1; message_at mbytes mInit)).
-  { apply denote_tc_comparable_split.
+  { apply denote_tc_test_eq_split.
     + clear H XOR. destruct mInit; simpl in M; try contradiction.
       - destruct M. subst m. apply valid_pointer_null.
       - subst m. thaw FR1. apply sepcon_valid_pointer2.
@@ -1292,7 +1292,7 @@ forward_if (EX m:_,
            (Int64.repr (Int.signed (Int.repr 64)))));
    lvar _x (Tarray tuchar 64 noattr) x; lvar _z (Tarray tuchar 16 noattr) z;
    temp _m m; temp _n nonce; temp _k k; gvar _sigma SV)  SEP  (FRZL FR5))).
-{  clear H v. apply denote_tc_comparable_split.
+{  clear H v. apply denote_tc_test_eq_split.
    destruct mInit; simpl in M; try contradiction.
    destruct M as [II M]; rewrite M in *.
      apply valid_pointer_null.

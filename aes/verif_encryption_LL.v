@@ -1,43 +1,6 @@
-Require Import aes.verif_utils.
-Require Import aes.spec_encryption_LL.
+Require Import aes.api_specs.
 Require Import aes.bitfiddling.
-
-Definition encryption_spec_ll :=
-  DECLARE _mbedtls_aes_encrypt
-  WITH ctx : val, input : val, output : val, (* arguments *)
-       ctx_sh : share, in_sh : share, out_sh : share, (* shares *)
-       plaintext : list Z, (* 16 chars *)
-       exp_key : list Z, (* expanded key, 4*(Nr+1)=60 32-bit integers *)
-       tables : val (* global var *)
-  PRE [ _ctx OF (tptr t_struct_aesctx), _input OF (tptr tuchar), _output OF (tptr tuchar) ]
-    PROP (Zlength plaintext = 16; Zlength exp_key = 60;
-          readable_share ctx_sh; readable_share in_sh; writable_share out_sh)
-    LOCAL (temp _ctx ctx; temp _input input; temp _output output; gvar _tables tables)
-    SEP (data_at ctx_sh (t_struct_aesctx) (
-          (Vint (Int.repr Nr)),
-          ((field_address t_struct_aesctx [StructField _buf] ctx),
-          (map Vint (map Int.repr (exp_key ++ (list_repeat (8%nat) 0)))))
-          (* The following weaker precondition would also be provable, but less conveniently, and   *)
-          (* since mbedtls_aes_init zeroes the whole buffer, we exploit this to simplify the proof  *)
-          (* ((map Vint (map Int.repr exp_key)) ++ (list_repeat (8%nat) Vundef))) *)
-         ) ctx;
-         data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
-         data_at_ out_sh (tarray tuchar 16) output;
-         tables_initialized tables)
-  POST [ tvoid ]
-    PROP() LOCAL()
-    SEP (data_at ctx_sh (t_struct_aesctx) (
-          (Vint (Int.repr Nr)),
-          ((field_address t_struct_aesctx [StructField _buf] ctx),
-          (map Vint (map Int.repr (exp_key ++ (list_repeat (8%nat) 0)))))
-         ) ctx;
-         data_at in_sh  (tarray tuchar 16)
-                 (map Vint (map Int.repr plaintext)) input;
-         data_at out_sh (tarray tuchar 16)
-                 (map Vint (mbed_tls_aes_enc plaintext (exp_key ++ (list_repeat (8%nat) 0)))) output;
-         tables_initialized tables).
-
-Definition Gprog : funspecs := ltac:(with_library prog [ encryption_spec_ll ]).
+Open Scope Z.
 
 Ltac simpl_Int := repeat match goal with
 | |- context [ (Int.mul (Int.repr ?A) (Int.repr ?B)) ] =>
@@ -47,21 +10,6 @@ Ltac simpl_Int := repeat match goal with
     let x := fresh "x" in (pose (x := (A + B)%Z)); simpl in x;
     replace (Int.add (Int.repr A) (Int.repr B)) with (Int.repr x); subst x; [|reflexivity]
 end.
-
-(* This is to make sure do_compute_expr (invoked by load_tac and others), which calls hnf on the
-   expression it's computing, does not unfold field_address.
-   TODO floyd: Ideally, we'd have "Global Opaque field_address field_address0" in the library,
-   but some proofs want to unfold field_address (they shouldn't, though). *)
-Opaque field_address.
-
-(* entailer! calls simpl, and if simpl tries to evaluate a column of the final AES encryption result,
-   it takes forever, so we have to prevent this: *)
-Arguments col _ _ : simpl never.
-(* Same problem with "Z.land _ 255" *)
-Arguments Z.land _ _ : simpl never.
-
-(* This one is to prevent simplification of "12 - _", which is fast, but produces silly verbose goals *)
-Arguments Nat.sub _ _ : simpl never.
 
 Lemma body_aes_encrypt: semax_body Vprog Gprog f_mbedtls_aes_encrypt encryption_spec_ll.
 Proof.
@@ -234,116 +182,125 @@ Proof.
   { (* rest: loop body *)
   clear i. Intro i. Intros. 
   unfold tables_initialized. subst vv.
-  pose proof masked_byte_range.
+  remember S0 as S0'. subst S0. rename S0' into S0. rename HeqS0' into HeqS0.
+  mkConciseDelta Vprog Gprog f_mbedtls_aes_encrypt Delta.
 
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
+Require Import aes.aes_encryption_loop_body.
 
-  replace (52 - i * 8 + 1 + 1 + 1 + 1) with (52 - i * 8 + 4) by omega.
-  replace (52 - i * 8 + 1 + 1 + 1)     with (52 - i * 8 + 3) by omega.
-  replace (52 - i * 8 + 1 + 1)         with (52 - i * 8 + 2) by omega.
-
-  pose (S' := mbed_tls_fround (mbed_tls_enc_rounds (12-2*Z.to_nat i) S0 buf 4) buf (52-i*8)).
-
-  match goal with |- context [temp _Y0 (Vint ?E0)] =>
-    match goal with |- context [temp _Y1 (Vint ?E1)] =>
-      match goal with |- context [temp _Y2 (Vint ?E2)] =>
-        match goal with |- context [temp _Y3 (Vint ?E3)] =>
-          assert (S' = (E0, (E1, (E2, E3)))) as Eq2
-        end
-      end
-    end
-  end.
-  {
-    subst S'.
-    rewrite (split_four_ints (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4)).
-    reflexivity.
-  }
-  apply split_four_ints_eq in Eq2. destruct Eq2 as [EqY0 [EqY1 [EqY2 EqY3]]].
-  rewrite EqY0. rewrite EqY1. rewrite EqY2. rewrite EqY3.
-  clear EqY0 EqY1 EqY2 EqY3.
-
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-
-  pose (S'' := mbed_tls_fround S' buf (52-i*8+4)).
-
-  replace (52 - i * 8 + 4 + 1 + 1 + 1 + 1) with (52 - i * 8 + 4 + 4) by omega.
-  replace (52 - i * 8 + 4 + 1 + 1 + 1)     with (52 - i * 8 + 4 + 3) by omega.
-  replace (52 - i * 8 + 4 + 1 + 1)         with (52 - i * 8 + 4 + 2) by omega.
-
-  match goal with |- context [temp _X0 (Vint ?E0)] =>
-    match goal with |- context [temp _X1 (Vint ?E1)] =>
-      match goal with |- context [temp _X2 (Vint ?E2)] =>
-        match goal with |- context [temp _X3 (Vint ?E3)] =>
-          assert (S'' = (E0, (E1, (E2, E3)))) as Eq2
-        end
-      end
-    end
-  end.
-  {
-    subst S''.
-    rewrite (split_four_ints S').
-    reflexivity.
-  }
-  apply split_four_ints_eq in Eq2. destruct Eq2 as [EqX0 [EqX1 [EqX2 EqX3]]].
-  rewrite EqX0. rewrite EqX1. rewrite EqX2. rewrite EqX3.
-  clear EqX0 EqX1 EqX2 EqX3.
-
-  Exists i.
-  replace (52 - i * 8 + 4 + 4) with (52 - (i - 1) * 8) by omega.
-  subst S' S''.
-  assert (
-    (mbed_tls_fround
-      (mbed_tls_fround
-         (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4)
-         buf
-         (52 - i * 8))
-      buf
-      (52 - i * 8 + 4))
-  = (mbed_tls_enc_rounds (12 - 2 * Z.to_nat (i - 1)) S0 buf 4)) as Eq2. {
-    replace (12 - 2 * Z.to_nat (i - 1))%nat with (S (S (12 - 2 * Z.to_nat i))).
-    - unfold mbed_tls_enc_rounds (*at 2*). fold mbed_tls_enc_rounds.
-      f_equal.
-      * f_equal.
-        rewrite Nat2Z.inj_sub. {
-          change (Z.of_nat 12) with 12.
-          rewrite Nat2Z.inj_mul.
-          change (Z.of_nat 2) with 2.
-          rewrite Z2Nat.id; omega.
-        }
-        assert (Z.to_nat i <= 6)%nat. {
-          change 6%nat with (Z.to_nat 6).
-          apply Z2Nat.inj_le; omega.
-        }
-        omega.
-      * rewrite Nat2Z.inj_succ.
-        change 2%nat with (Z.to_nat 2) at 2.
-        rewrite <- Z2Nat.inj_mul; [ | omega | omega ].
-        change 12%nat with (Z.to_nat 12).
-        rewrite <- Z2Nat.inj_sub; [ | omega ].
-        rewrite Z2Nat.id; omega.
-    - rewrite Z2Nat.inj_sub; [ | omega ].
-      change (Z.to_nat 1) with 1%nat.
-      assert (Z.to_nat i <= 6)%nat. {
-        change 6%nat with (Z.to_nat 6).
-        apply Z2Nat.inj_le; omega.
-      }
-      assert (0 < Z.to_nat i)%nat. {
-        change 0%nat with (Z.to_nat 0).
-        apply Z2Nat.inj_lt; omega.
-      }
-      omega.
-  }
-  rewrite Eq2. clear Eq2.
-  remember (mbed_tls_enc_rounds (12 - 2 * Z.to_nat (i - 1)) S0 buf 4) as S''.
-  remember (mbed_tls_fround (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4) buf (52 - i * 8)) as S'.
-  replace (52 - i * 8 + 4 + 4) with (52 - (i - 1) * 8) by omega.
-  entailer!.
+Lemma encryption_loop_body_proof: forall
+  (Espec : OracleKind)
+  (ctx input output : val)
+  (ctx_sh in_sh out_sh : share)
+  (plaintext exp_key : list Z)
+  (tables : val)
+  (H : Zlength plaintext = 16)
+  (H0 : Zlength exp_key = 60)
+  (SH : readable_share ctx_sh)
+  (SH0 : readable_share in_sh)
+  (SH1 : writable_share out_sh)
+  (buf : list Z)
+  (Heqbuf : buf = exp_key ++ list_repeat 8 0)
+  (Fctx : field_compatible t_struct_aesctx [StructField _buf] ctx)
+  (LenBuf : Zlength buf = 68)
+  (Eq : forall i : Z,
+     0 <= i < 60 ->
+     force_val
+       (sem_add_pi tuint
+          (field_address t_struct_aesctx [ArraySubsc i; StructField _buf] ctx)
+          (Vint (Int.repr 1))) =
+     field_address t_struct_aesctx [ArraySubsc (i + 1); StructField _buf] ctx)
+  (S12 S0 : four_ints)
+  (HeqS0 : S0 = mbed_tls_initial_add_round_key plaintext buf)
+  (HeqS12 : S12 = mbed_tls_enc_rounds 12 S0 buf 4)
+  (i : Z)
+  (H1 : 0 < i <= 6),
+semax
+  (initialized_list
+     [_i; _RK; _X0; _X1; _X2; _X3; _tmp; _b0; _b1; _b2; _b3; _b0__1; _b1__1;
+     _b2__1; _b3__1; _b0__2; _b1__2; _b2__2; _b3__2; _b0__3; _b1__3; _b2__3;
+     _b3__3; _t'4; _t'3; _t'2; _t'1]
+     (func_tycontext f_mbedtls_aes_encrypt Vprog Gprog))
+  (PROP ( )
+   LOCAL (temp _i (Vint (Int.repr i));
+   temp _RK
+     (field_address t_struct_aesctx
+        [ArraySubsc (52 - i * 8); StructField _buf] ctx);
+   temp _X3
+     (Vint (col 3 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4)));
+   temp _X2
+     (Vint (col 2 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4)));
+   temp _X1
+     (Vint (col 1 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4)));
+   temp _X0
+     (Vint (col 0 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4)));
+   temp _ctx ctx; temp _input input; temp _output output;
+   gvar _tables tables)
+   SEP (data_at_ out_sh (tarray tuchar 16) output;
+   data_at Ews t_struct_tables
+     (map Vint FSb,
+     (map Vint FT0,
+     (map Vint FT1,
+     (map Vint FT2,
+     (map Vint FT3,
+     (map Vint RSb,
+     (map Vint RT0,
+     (map Vint RT1, (map Vint RT2, (map Vint RT3, map Vint RCON))))))))))
+     tables;
+   data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
+   data_at ctx_sh t_struct_aesctx
+     (Vint (Int.repr Nr),
+     (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx,
+     map Vint (map Int.repr buf))) ctx))
+  encryption_loop_body
+  (loop1_ret_assert
+     (EX i0 : Z,
+      PROP (0 < i0 <= 6)
+      LOCAL (temp _i (Vint (Int.repr i0));
+      temp _RK
+        (field_address t_struct_aesctx
+           [ArraySubsc (52 - (i0 - 1) * 8); StructField _buf] ctx);
+      temp _X3
+        (Vint
+           (col 3 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat (i0 - 1)) S0 buf 4)));
+      temp _X2
+        (Vint
+           (col 2 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat (i0 - 1)) S0 buf 4)));
+      temp _X1
+        (Vint
+           (col 1 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat (i0 - 1)) S0 buf 4)));
+      temp _X0
+        (Vint
+           (col 0 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat (i0 - 1)) S0 buf 4)));
+      temp _ctx ctx; temp _input input; temp _output output;
+      gvar _tables tables)
+      SEP (data_at_ out_sh (tarray tuchar 16) output;
+      tables_initialized tables;
+      data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext))
+        input;
+      data_at ctx_sh t_struct_aesctx
+        (Vint (Int.repr Nr),
+        (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx,
+        map Vint (map Int.repr buf))) ctx))%assert
+     (normal_ret_assert
+        (PROP ( )
+         LOCAL (temp _RK
+                  (field_address t_struct_aesctx
+                     [ArraySubsc 52; StructField _buf] ctx);
+         temp _X3 (Vint (col 3 S12)); temp _X2 (Vint (col 2 S12));
+         temp _X1 (Vint (col 1 S12)); temp _X0 (Vint (col 0 S12));
+         temp _ctx ctx; temp _input input; temp _output output;
+         gvar _tables tables)
+         SEP (data_at_ out_sh (tarray tuchar 16) output;
+         tables_initialized tables;
+         data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext))
+           input;
+         data_at ctx_sh t_struct_aesctx
+           (Vint (Int.repr Nr),
+           (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf]
+              ctx, map Vint (map Int.repr buf))) ctx)))).
+Admitted.
+  subst MORE_COMMANDS POSTCONDITION. unfold abbreviate.
+  simple eapply encryption_loop_body_proof; eauto.
   }} { (* loop decr *)
   Intro i. forward. unfold loop2_ret_assert. Exists (i-1). entailer!.
   }} {

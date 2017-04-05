@@ -150,36 +150,24 @@ Proof. intros. unfold array_copy1_statement. abbreviate_semax.
     destruct (Z_mod_lt (5 * j + 4 * m) 16) as [M1 M2]. omega.
     destruct (Znth_mapVint xs ((5 * j + 4 * m) mod 16) Vundef) as [v NV].
        simpl in XL. rewrite <- (Zlength_map _ _ Vint xs), XL. split; assumption.
-    remember ((Int.eq (Int.repr (5 * j + 4 * m))
-                         (Int.repr Int.min_signed) &&
-                       Int.eq (Int.repr 16) Int.mone)%bool).
-    destruct b; simpl.
-       { apply andb_true_eq in Heqb. destruct Heqb.
-         apply binop_lemmas2.int_eq_true in H0.
-          assert (IS: Int.signed (Int.repr 16) =
-                  Int.signed (Int.repr (-1))) by (rewrite H0; trivial).  clear - IS.
-          rewrite Int.signed_repr in IS. 2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
-          rewrite Int.signed_repr in IS. omega. rewrite int_max_signed_eq, int_min_signed_eq; omega. }
-    (*Time*) forward. (*2.5*)
-    { (*Time*) entailer!. (*1.9 versus 6.6*) rewrite <- Heqb. simpl; trivial. }
-    simpl [eval_binop].
-    unfold sem_mod, sem_binarith, both_int; simpl. rewrite ?mul_repr, ?add_repr, <- Heqb. simpl.
-    unfold Int.mods. repeat rewrite Int.signed_repr.
+    forward. 
+    { (*Time*) entailer!. 
+      rewrite andb_false_intro2. simpl; trivial. cbv; trivial. }
+    unfold Int.mods. rewrite ! mul_repr, add_repr.
+    rewrite ! Int.signed_repr.
       2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
       2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
     rewrite Z.rem_mod_nonneg; try omega.
-    (*Time*) forward; rewrite NV. (*4.5 versus 15*)
-    (*Time*) solve[entailer!]. (*1.1 versus 5.4*)
-    (*Time*) forward. (*3.9 versus 14.7*)
-    { Exists (upd_Znth m T (Vint v)).
-      (*Time*) entailer!. (*4.2 versus 8.9*)
+    forward; rewrite NV. entailer!. 
+    forward. 
+    Exists (upd_Znth m T (Vint v)).
+      entailer!. 
       intros mm ?.
       destruct (zeq mm m); subst.
       + rewrite upd_Znth_same; try omega. rewrite NV; trivial.
       + rewrite upd_Znth_diff; try omega. apply HT; omega. }
-  }
-entailer!.
-Time Qed. (*13.906 secs (2.687u,0.s) (successful)*) 
+  entailer!.
+Qed. 
 
 Definition Jbody_statement :=
   (Ssequence array_copy1_statement
@@ -472,43 +460,26 @@ Ltac compute_upd_Znth :=
     destruct (zeq m 2); subst; simpl. eexists; reflexivity.
     destruct (zeq m 3); subst; simpl. eexists; reflexivity. omega.
   destruct TM as [tm TM].
-  (*Time*) forward. (*3.6 versus 11.6*)
-  { (*Time*) entailer!. (*1 versus 5*) rewrite TM; simpl; trivial. }
-  assert (NEQ: (Int.eq (Int.repr (j + m)) (Int.repr Int.min_signed) &&
-                 Int.eq (Int.repr 4) Int.mone)%bool = false).
-  { rewrite (Int.eq_false (Int.repr 4)), andb_false_r. simpl; trivial.
-    unfold Int.mone. intros N.
-    assert (SGN: Int.signed (Int.repr 4) = Int.signed (Int.repr (-1))).
-      rewrite N; trivial.
-    rewrite Int.signed_repr, Int.signed_repr in SGN. omega.
-    rewrite client_lemmas.int_min_signed_eq, client_lemmas.int_max_signed_eq; omega.
-    rewrite client_lemmas.int_min_signed_eq, client_lemmas.int_max_signed_eq; omega. }
-  (*Time*) forward. (*2.2 versus 6*)
-  { (*Time*) entailer!. (*1.6 versus 5.5*) rewrite NEQ; simpl; trivial. }
-  simpl [eval_binop].
-  unfold force_val, sem_mod, both_int; simpl.
-              unfold sem_cast_neutral, both_int; simpl.
-              rewrite mul_repr, add_repr.
-              rewrite NEQ. simpl.
+  forward.
+  { entailer!. rewrite TM; simpl; trivial. }
+  forward.
+  { entailer!. rewrite andb_false_r; simpl; trivial. }
+  unfold Int.mods. rewrite ! mul_repr, add_repr.
+    rewrite ! Int.signed_repr, add_repr, Int.signed_repr.
+      2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
+      2: rewrite int_max_signed_eq, int_min_signed_eq; omega.
+  rewrite Z.rem_mod_nonneg; try omega.
+  unfold force_val, sem_mod, both_int; simpl. 
   assert (JM: 0 <= Z.rem (j + m) 4 < 4) by (apply Zquot.Zrem_lt_pos_pos; omega).
-  assert (A: Int.add (Int.repr (4 * j)) (Int.mods (Int.repr (j + m)) (Int.repr 4))
-            = Int.repr (4 * j + (j + m) mod 4)).
-             unfold Int.mods.
-             rewrite (Int.signed_repr (j+m)).
-             2: rewrite client_lemmas.int_min_signed_eq, client_lemmas.int_max_signed_eq; omega.
-             rewrite (Int.signed_repr 4).
-             2: rewrite client_lemmas.int_min_signed_eq, client_lemmas.int_max_signed_eq; omega.
-             rewrite add_repr. rewrite Z.rem_mod_nonneg. trivial. omega. omega.
-  rewrite A; clear A.
   forward.
   { apply prop_right.
     assert (0<= (j + m) mod 4 < 4). apply Z_mod_lt; omega. omega. }
   Exists (upd_Znth (4 * j + (j + m) mod 4) wlist1 (Vint tm)). (*_id0)). *)
-  rewrite TM.
-  entailer!.
-
-  assert (AP: 0 <= (j + m) mod 4 < 4) by (apply Z_mod_lt; omega).
-  rewrite Z.add_comm. rewrite Z2Nat.inj_add; try omega.
+  go_lower. rewrite TM. simpl. 
+  apply andp_right.  
+  { apply prop_right. split. omega. split; trivial.
+    assert (AP: 0 <= (j + m) mod 4 < 4) by (apply Z_mod_lt; omega).
+    rewrite Z.add_comm. rewrite Z2Nat.inj_add; try omega.
     assert (SS: (Z.to_nat 1 + Z.to_nat m)%nat = S (Z.to_nat m)) by reflexivity.
     rewrite SS; simpl.
     exists wlist1, tm.
@@ -517,6 +488,7 @@ Ltac compute_upd_Znth :=
            rewrite WL1. omega.
            split. trivial.
            rewrite Z2Nat.id. split; trivial. omega. }
+  entailer!. }  
 
 Intros l. Exists l.
 entailer!.

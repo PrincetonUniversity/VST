@@ -15,7 +15,8 @@ Require Import floyd.loadstore_field_at.
 Require Import floyd.nested_loadstore.
 Require Import floyd.sc_set_load_store.
 Require Import floyd.stronger.
-Require Import floyd.local2ptree.
+Require Import floyd.local2ptree_denote.
+Require Import floyd.local2ptree_eval.
 Require Import floyd.reptype_lemmas.
 Require Import floyd.proj_reptype_lemmas.
 Require Import floyd.replace_refill_reptype_lemmas.
