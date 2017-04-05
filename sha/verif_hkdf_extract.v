@@ -61,7 +61,7 @@ forward_if (PROP ( )
    gvar sha._K256 kv)
    SEP (K_vector kv; data_block shmd Hmac out; initPostKey (Vptr sb si) (CONT SALT);
    data_block Tsh (CONT SECRET) secret; data_at_ Tsh tuint olen)).
-{ apply denote_tc_comparable_split.
+{ apply denote_tc_test_eq_split. 
   + unfold data_block. normalize.
     apply sepcon_valid_pointer1.
     apply sepcon_valid_pointer1.
