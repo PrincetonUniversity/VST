@@ -1970,21 +1970,6 @@ Proof.
       apply Znth_In; rewrite upd_Znth_Zlength; auto.
 Qed.
 
-(* up *)
-Lemma hist_list'_in : forall (h : hist) l (Hl : hist_list' h l) e, (exists t, In (t, e) h) <-> In e l.
-Proof.
-  induction 1.
-  - split; [intros (? & ?)|]; contradiction.
-  - intro; subst; split.
-    + intros (? & Hin); rewrite in_app in *.
-      destruct Hin as [? | [Heq | ?]]; try solve [left; rewrite <- IHHl; eexists; rewrite in_app; eauto].
-      inv Heq; simpl; auto.
-    + rewrite in_app; intros [Hin | [Heq | ?]]; [| inv Heq | contradiction].
-      * rewrite <- IHHl in Hin; destruct Hin as (? & ?).
-        eexists; rewrite in_app in *; simpl; destruct H; eauto.
-      * eexists; rewrite in_app; simpl; eauto.
-Qed.
-
 (*Lemma remove_last_success_full_hist : forall lh h j h' k v i k' (Hj : 0 <= j < Zlength lh)
   (Hh : Znth j lh [] = h) (Hadd : add_item_trace h' k v i true h) (Hk : k <> 0) (Hrep : repable_signed k)
   (Hfull : full_hist' (concat (map fst (map (fun h => Znth i h ([], [])) lh))) k'),
@@ -2896,6 +2881,155 @@ Proof.
       { rewrite Zlength_map, fold_join_hists_length, Zlength_empty; auto. }
 Qed.
 
+Transparent Znth.
+
+Lemma add_three : forall lr lk lv (Hlen : Zlength lr = 3)
+  (Hadd : Forall (fun '(h, li, ls) => add_items_trace (repeat ([], []) (Z.to_nat size))
+     (combine (combine (combine [1; 2; 3] [1; 1; 1]) li) ls) h) lr)
+  (Hlens : Forall (fun h' : list (hist * hist) => Zlength h' = Zlength empty_hists) (map fst (map fst lr)))
+  (H3 : Forall (fun '(_, li, ls) => Zlength li = 3 /\ Zlength ls = 3) lr)
+  (Hrepk : Forall repable_signed lk) (Hrepv : Forall repable_signed lv)
+  (Hfullk : Forall2 full_hist (map fst (fold_right join_hists empty_hists (map fst (map fst lr)))) lk)
+  (Hfullv : Forall2 full_hist (map snd (fold_right join_hists empty_hists (map fst (map fst lr)))) lv)
+  (Hvalk : Forall2 (fun h v => forall t e, In (t, e) h -> value_of e <> vint 0 -> vint v = value_of e)
+     (map fst (fold_right join_hists empty_hists (map fst (map fst lr)))) lk),
+  Zlength (filter id (concat (map snd lr))) = 3.
+Proof.
+  intros; set (lr' := map (fun '(h, li, ls) => (combine (combine (combine [1; 2; 3] [1; 1; 1]) li) ls, h)) lr).
+  assert (map snd lr' = map fst (map fst lr)) as Hlr.
+  { subst lr'; rewrite !map_map; apply map_ext.
+    intros ((?, ?), ?); auto. }
+  assert (Forall (fun '(la, h) => add_items_trace empty_hists la h) lr') as Hadd'.
+  { subst lr'; rewrite Forall_map;
+      match goal with H : Forall _ lr |- _ => eapply Forall_impl; [|apply H];
+        intros ((?, ?), ?); solve [auto] end. }
+  assert (Forall2 full_hist' (map fst (fold_right join_hists empty_hists
+    (map snd lr'))) (map (fun x => vint x) lk)) as Hfullk'.
+  { rewrite Hlr; eapply Forall2_map2, Forall2_impl; [intros; apply full_hist_weak; eauto | auto]. }
+  assert (Forall2 (fun h v => forall t e, In (t, e) h -> value_of e <> vint 0 -> vint v = value_of e)
+    (map fst (fold_right join_hists empty_hists (map snd lr'))) lk) as Hkeys.
+  { rewrite Hlr; auto. }
+  assert (Forall (fun x => Forall (fun '(k, _, _, _) => k <> 0 /\ repable_signed k) (fst x)) lr') as Hnzk.
+  { subst lr'.
+    rewrite Forall_forall; intros ? Hin.
+    rewrite in_map_iff in Hin; destruct Hin as (((?, ?), ?) & ? & Hin); subst.
+    rewrite Forall_forall; intros (((?, ?), ?), ?) Hin'.
+    do 3 apply in_combine_l in Hin'.
+    destruct Hin' as [? | [? | [? | ?]]]; try contradiction; subst; repeat split; computable. }
+  pose proof (one_add_succeeds _ _ Hadd' Hfullk' Hkeys Hrepk Hnzk) as Hone.
+  assert (incl [1; 2; 3] (map fst (map fst (map fst (concat (map fst lr')))))) as Hks.
+  { intros a Ha.
+    subst lr'; destruct lr as [|((?, li), ls)]; [rewrite Zlength_nil in *; discriminate|]; simpl.
+    repeat match goal with H : Forall _ (_ :: _) |- _ => inv H end.
+    match goal with H : _ /\ _ |- _ => destruct H end.
+    destruct li; [rewrite Zlength_nil in *; discriminate|].
+    destruct ls; [rewrite Zlength_nil in *; discriminate | simpl].
+    rewrite !Zlength_cons in *.
+    destruct li; [rewrite Zlength_nil in *; discriminate|].
+    destruct ls; [rewrite Zlength_nil in *; discriminate | simpl].
+    rewrite !Zlength_cons in *.
+    destruct li; [rewrite Zlength_nil in *; discriminate|].
+    destruct ls; [rewrite Zlength_nil in *; discriminate | simpl].
+    destruct Ha as [? | [? | [? | ?]]]; auto; contradiction. }
+  rewrite !incl_cons_iff in Hks; destruct Hks as (Hk1 & Hk2 & Hk3 & _).
+  generalize (Hone _ Hk1), (Hone _ Hk2), (Hone _ Hk3).
+  intros (? & ? & th1 & ? & Hin1 & ?) (? & ? & th2 & ? & Hin2 & ?) (? & ? & th3 & ? & Hin3 & ?).
+  assert (forall th, 0 <= th < Zlength lr -> Znth th lr' ([], []) = (map (fun j => (j + 1, 1,
+    Znth j (snd (fst (Znth th lr ([], [], [])))) 0, Znth j (snd (Znth th lr ([], [], []))) false)) (upto 3),
+    fst (fst (Znth th lr ([], [], []))))) as Hnth'.
+  { subst lr'; intros.
+    rewrite Znth_map with (d' := ([], [], [])) by auto.
+    repeat match goal with H : Forall _ lr |- _ => eapply Forall_Znth with (i := th)(d := ([], [], [])) in H;
+      [|auto] end.
+    destruct (Znth th lr ([], [], [])) as ((h, li), ls) eqn: Hth.
+    match goal with H : Zlength li = _ /\ _ |- _ => destruct H as (Hli & Hls) end.
+    destruct li; [rewrite Zlength_nil in *; discriminate|].
+    destruct ls; [rewrite Zlength_nil in *; discriminate | simpl].
+    rewrite !Zlength_cons in *.
+    destruct li; [rewrite Zlength_nil in *; discriminate|].
+    destruct ls; [rewrite Zlength_nil in *; discriminate | simpl].
+    rewrite !Zlength_cons in *.
+    destruct li; [rewrite Zlength_nil in *; discriminate|].
+    destruct ls; [rewrite Zlength_nil in *; discriminate | simpl].
+    change (upto 3) with [0; 1; 2]; auto. }
+  assert (Zlength lr' = Zlength lr) as Hlenr.
+  { clear; subst lr'; rewrite Zlength_map; auto. }
+  assert (0 <= th1 < Zlength lr).
+  { rewrite <- Hlenr; apply Znth_inbounds with (d := ([], [])); intro X; rewrite X in Hin1; contradiction. }
+  assert (0 <= th2 < Zlength lr).
+  { rewrite <- Hlenr; apply Znth_inbounds with (d := ([], [])); intro X; rewrite X in Hin2; contradiction. }
+  assert (0 <= th3 < Zlength lr).
+  { rewrite <- Hlenr; apply Znth_inbounds with (d := ([], [])); intro X; rewrite X in Hin3; contradiction. }
+  assert (forall th, 0 <= th < Zlength lr -> Zlength (fst (Znth th lr' ([], []))) = 3) as Hli.
+  { intros; rewrite Hnth' by auto; simpl.
+    rewrite Zlength_map; auto. }
+  destruct (In_Znth _ _ (0, 0, 0, false) Hin1) as (j1 & ? & Hnth1).
+  rewrite Hnth' in Hnth1 by auto; simpl in Hnth1.
+  destruct (In_Znth _ _ (0, 0, 0, false) Hin2) as (j2 & ? & Hnth2).
+  rewrite Hnth' in Hnth2 by auto; simpl in Hnth2.
+  destruct (In_Znth _ _ (0, 0, 0, false) Hin3) as (j3 & ? & Hnth3).
+  rewrite Hnth' in Hnth3 by auto; simpl in Hnth3.
+  rewrite Hli in * by auto.
+  erewrite Znth_map, Znth_upto in Hnth1, Hnth2, Hnth3 by (auto; simpl; omega).
+  inv Hnth1; inv Hnth2; inv Hnth3.
+  assert (j1 = 0) by omega; subst.
+  assert (j2 = 1) by omega; subst.
+  assert (j3 = 2) by omega; subst.
+  assert (forall th, 0 <= th < Zlength lr -> Znth 0 (snd (Znth th lr ([], [], []))) false = true -> th = th1) as Hth1.
+  { intros ?? Hsucc.
+    exploit (only_one_add_succeeds lr' lk th th1); eauto; [|tauto].
+    rewrite Hnth' by auto; simpl.
+    rewrite in_map_iff; do 2 eexists; [rewrite Hsucc; eauto|].
+    rewrite In_upto; simpl; computable. }
+  assert (forall th, 0 <= th < Zlength lr -> Znth 1 (snd (Znth th lr ([], [], []))) false = true -> th = th2) as Hth2.
+  { intros ?? Hsucc.
+    exploit (only_one_add_succeeds lr' lk th th2); eauto; [|tauto].
+    rewrite Hnth' by auto; simpl.
+    rewrite in_map_iff; do 2 eexists; [rewrite Hsucc; eauto|].
+    rewrite In_upto; simpl; computable. }
+  assert (forall th, 0 <= th < Zlength lr -> Znth 2 (snd (Znth th lr ([], [], []))) false = true -> th = th3) as Hth3.
+  { intros ?? Hsucc.
+    exploit (only_one_add_succeeds lr' lk th th3); eauto; [|tauto].
+    rewrite Hnth' by auto; simpl.
+    rewrite in_map_iff; do 2 eexists; [rewrite Hsucc; eauto|].
+    rewrite In_upto; simpl; computable. }
+  assert (forall th, 0 <= th < Zlength lr -> Zlength (filter id (Znth th (map snd lr) [])) =
+    (if eq_dec th th1 then 1 else 0) + (if eq_dec th th2 then 1 else 0) + (if eq_dec th th3 then 1 else 0)) as Hls.
+  { intros ? Hth.
+    specialize (Hth1 _ Hth); specialize (Hth2 _ Hth); specialize (Hth3 _ Hth).
+    rewrite Znth_map with (d' := ([], [], [])) by auto.
+    repeat match goal with H : Forall _ lr |- _ => eapply Forall_Znth with (i := th)(d := ([], [], [])) in H; [|auto] end.
+    destruct (Znth th lr ([], [], [])) as ((h, li), ls) eqn: Hnth.
+    match goal with H : Zlength _ = _ /\ _ |- _ => destruct H as (? & Hls) end.
+    simpl; replace ls with [if eq_dec th th1 then true else false; if eq_dec th th2 then true else false; if eq_dec th th3 then true else false].
+    { repeat if_tac; simpl; auto. }
+    destruct ls; [rewrite Zlength_nil in Hls; discriminate | simpl; rewrite Zlength_cons in Hls].
+    destruct ls; [rewrite Zlength_nil in Hls; discriminate | simpl; rewrite Zlength_cons in Hls].
+    destruct ls; [rewrite Zlength_nil in Hls; discriminate | simpl; rewrite Zlength_cons in Hls].
+    destruct ls; [|rewrite Zlength_cons in Hls; pose proof (Zlength_nonneg ls); omega].
+    simpl in *; f_equal; [|f_equal].
+    - destruct (eq_dec _ _); [subst; rewrite Hnth in *; simpl in *; auto|].
+      destruct b; auto; contradiction.
+    - destruct (eq_dec _ _); [subst; rewrite Hnth in *; simpl in *; auto|].
+      destruct b0; auto; contradiction.
+    - f_equal; destruct (eq_dec _ _); [subst; rewrite Hnth in *; simpl in *; auto|].
+      destruct b1; auto; contradiction. }
+  destruct lr as [|((?, ?), ls1)]; [rewrite Zlength_nil in *; discriminate|]; simpl in *.
+  rewrite Zlength_cons in *; destruct lr as [|((?, ?), ls2)]; [rewrite Zlength_nil in *; discriminate|]; simpl in *.
+  rewrite Zlength_cons in *; destruct lr as [|((?, ?), ls3)]; [rewrite Zlength_nil in *; discriminate|]; simpl in *.
+  rewrite Zlength_cons in *; destruct lr; [|rewrite Zlength_cons in *; pose proof (Zlength_nonneg lr); omega].
+  rewrite app_nil_r, !filter_app, !Zlength_app.
+  generalize (Hls 0), (Hls 1), (Hls 2); unfold Znth; simpl.
+  intros -> -> ->; auto.
+  assert (forall i, 0 <= i < 3 ->
+    (if eq_dec 0 i then 1 else 0) + (if eq_dec 1 i then 1 else 0) + (if eq_dec 2 i then 1 else 0) = 1) as Hsum.
+  { intros; do 3 if_tac; omega. }
+  rewrite Zlength_nil in *; simpl in *.
+  generalize (Hsum th1), (Hsum th2), (Hsum th3); omega.
+Qed.
+
+Opaque combine.
+
 Lemma body_main : semax_body Vprog Gprog f_main main_spec.
 Proof.
   name m_entries _m_entries.
@@ -3129,11 +3263,12 @@ Proof.
     erewrite sublist_next with (l := upto 3), Znth_upto by (auto; rewrite ?Zlength_upto; simpl; omega); simpl.
     rewrite lock_inv_isptr; Intros.
     forward.
-    forward_call (Znth i locks Vundef, sh1, f_lock_pred sh2 (Znth i shs Ews) entries ghosts m_entries i locksp
-      (Znth i locks Vundef) resp (Znth i res Vundef)).
-    forward_call (Znth i locks Vundef, Tsh, sh2,
+    Time forward_call (Znth i locks Vundef, sh1, f_lock_pred sh2 (Znth i shs Ews) entries ghosts m_entries i locksp
+      (Znth i locks Vundef) resp (Znth i res Vundef)). (* 58s *)
+    Time forward_call (Znth i locks Vundef, Tsh, sh2,
       |>f_lock_inv (Znth i shs Ews) entries ghosts m_entries i locksp (Znth i locks Vundef) resp (Znth i res Vundef),
       |>f_lock_pred sh2 (Znth i shs Ews) entries ghosts m_entries i locksp (Znth i locks Vundef) resp (Znth i res Vundef)).
+    (* 54s *)
     { rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
         [repeat apply andp_right; auto; eapply derives_trans;
          try (apply precise_weak_precise || apply positive_weak_positive || apply rec_inv_weak_rec_inv); auto |].
@@ -3146,20 +3281,20 @@ Proof.
       rewrite <- (lock_inv_share_join sh1 sh2 Tsh) by auto; unfold f_lock_pred; cancel.
       apply lock_inv_later. }
     erewrite sublist_next with (l := locks) by (auto; omega); simpl.
-    forward_call (Znth i locks Vundef, sizeof (Tstruct _lock_t noattr)).
+    Time forward_call (Znth i locks Vundef, sizeof (Tstruct _lock_t noattr)). (* 57s *)
     { entailer!. }
     { apply sepcon_derives; [|cancel_frame].
-      admit. (* lock size *) }
+      rewrite data_at__memory_block; Intros; auto. }
     unfold f_lock_inv at 1; Intros hi lii lsi.
     assert (0 <= i < Zlength shs) by omega.
     forward.
     { apply Forall_Znth; auto. }
-    { entailer!.
+    { assert (0 <= i < 3) as Hi by auto; clear - Hi; entailer!.
       rewrite upd_Znth_same; auto. }
     rewrite upd_Znth_same by auto.
     forward.
     erewrite sublist_next with (l := res) by (auto; omega); simpl.
-    forward_call (Znth i res Vundef, sizeof tint).
+    Time forward_call (Znth i res Vundef, sizeof tint). (* 54s *)
     { entailer!. }
     { rewrite <- !sepcon_assoc, (sepcon_comm _ (data_at _ _ _ (Znth i res Vundef))), !sepcon_assoc;
         apply sepcon_derives; [|cancel_frame].
@@ -3215,7 +3350,6 @@ Proof.
       + rewrite fold_join_hists_length by auto.
         symmetry; eapply add_items_length; eauto.
       + apply Forall_Znth; auto. }
-Opaque combine.
   Intros x sh''; destruct x as (?, lr); simpl in *.
   repeat match goal with H : sepalg_list.list_join _ (sublist 3 3 _) _ |- _ =>
     rewrite sublist_nil in H; inv H end.
@@ -3256,171 +3390,13 @@ Opaque combine.
     rewrite fold_join_hists_length, Zlength_empty; auto. }
   after_forward_call.
   Intro x; destruct x as (lk, lv); simpl; Intros.
-  (* Here's where we can prove that total is 3; this should probably be a lemma. *)
-  assert (Zlength (filter id (concat (map snd lr))) = 3).
-  { set (lr' := map (fun '(h, li, ls) => (combine (combine (combine [1; 2; 3] [1; 1; 1]) li) ls, h)) lr).
-    assert (map snd lr' = map fst (map fst lr)) as Hlr.
-    { subst lr'; rewrite !map_map; apply map_ext.
-      intros ((?, ?), ?); auto. }
-    assert (Forall (fun '(la, h) => add_items_trace empty_hists la h) lr') as Hadd.
-    { subst lr'; rewrite Forall_map;
-        match goal with H : Forall _ lr |- _ => eapply Forall_impl; [|apply H];
-          intros ((?, ?), ?); solve [auto] end. }
-    assert (Forall2 full_hist' (map fst (fold_right join_hists empty_hists
-      (map snd lr'))) (map (fun x => vint x) lk)) as Hfullk.
-    { rewrite Hlr; eapply Forall2_map2, Forall2_impl; [intros; apply full_hist_weak; eauto | auto]. }
-    assert (Forall2 (fun h v => forall t e, In (t, e) h -> value_of e <> vint 0 -> vint v = value_of e)
-      (map fst (fold_right join_hists empty_hists (map snd lr'))) lk) as Hkeys.
-    { rewrite Hlr; auto. }
-    assert (Forall repable_signed lk) as Hrepk by auto.
-    assert (Forall (fun x => Forall (fun '(k, _, _, _) => k <> 0 /\
-      repable_signed k) (fst x)) lr') as Hnzk.
-    { subst lr'.
-      rewrite Forall_forall; intros ? Hin.
-      rewrite in_map_iff in Hin; destruct Hin as (((?, ?), ?) & ? & Hin); subst.
-      simpl; rewrite Forall_forall; intros (((?, ?), ?), ?) Hin'.
-      do 3 apply in_combine_l in Hin'.
-      destruct Hin' as [? | [? | [? | ?]]]; try contradiction; subst; repeat split; computable. }
-    pose proof (one_add_succeeds _ _ Hadd Hfullk Hkeys Hrepk Hnzk) as Hone.
-    assert (incl [1; 2; 3] (map fst (map fst (map fst (concat (map fst lr')))))) as Hks.
-    { Transparent combine.
-      intros a Ha.
-      subst lr'; destruct lr as [|((?, li), ls)]; [rewrite Zlength_nil in *; discriminate|]; simpl.
-      repeat match goal with H : Forall _ (_ :: _) |- _ => inv H end.
-      match goal with H : _ /\ _ |- _ => destruct H end.
-      destruct li; [rewrite Zlength_nil in *; discriminate|].
-      destruct ls; [rewrite Zlength_nil in *; discriminate | simpl].
-      rewrite !Zlength_cons in *.
-      destruct li; [rewrite Zlength_nil in *; discriminate|].
-      destruct ls; [rewrite Zlength_nil in *; discriminate | simpl].
-      rewrite !Zlength_cons in *.
-      destruct li; [rewrite Zlength_nil in *; discriminate|].
-      destruct ls; [rewrite Zlength_nil in *; discriminate | simpl].
-      destruct Ha as [? | [? | [? | ?]]]; auto; contradiction. }
-    rewrite !incl_cons_iff in Hks; destruct Hks as (Hk1 & Hk2 & Hk3 & _).
-    generalize (Hone _ Hk1), (Hone _ Hk2), (Hone _ Hk3).
-    intros (? & ? & th1 & ? & Hin1 & ?) (? & ? & th2 & ? & Hin2 & ?) (? & ? & th3 & ? & Hin3 & ?).
-    assert (forall th, 0 <= th < Zlength lr -> Znth th lr' ([], []) = (map (fun j => (j + 1, 1, Znth j (snd (fst (Znth th lr ([], [], [])))) 0,
-              Znth j (snd (Znth th lr ([], [], []))) false)) (upto 3), fst (fst (Znth th lr ([], [], []))))) as Hnth'.
-    { subst lr'; intros.
-      rewrite Znth_map with (d' := ([], [], [])) by auto.
-      repeat match goal with H : Forall _ lr |- _ => eapply Forall_Znth with (i := th)(d := ([], [], [])) in H; [|auto] end.
-      destruct (Znth th lr ([], [], [])) as ((h, li), ls) eqn: Hth.
-      match goal with H : Zlength li = _ /\ _ |- _ => destruct H as (Hli & Hls) end.
-      destruct li; [rewrite Zlength_nil in *; discriminate|].
-      destruct ls; [rewrite Zlength_nil in *; discriminate | simpl].
-      rewrite !Zlength_cons in *.
-      destruct li; [rewrite Zlength_nil in *; discriminate|].
-      destruct ls; [rewrite Zlength_nil in *; discriminate | simpl].
-      rewrite !Zlength_cons in *.
-      destruct li; [rewrite Zlength_nil in *; discriminate|].
-      destruct ls; [rewrite Zlength_nil in *; discriminate | simpl].
-      change (upto 3) with [0; 1; 2]; auto. }
-    assert (Zlength lr' = Zlength lr) as Hlens.
-    { clear; subst lr'; rewrite Zlength_map; auto. }
-    assert (0 <= th1 < Zlength lr).
-    { rewrite <- Hlens; apply Znth_inbounds with (d := ([], [])); intro X; rewrite X in Hin1; contradiction. }
-    assert (0 <= th2 < Zlength lr).
-    { rewrite <- Hlens; apply Znth_inbounds with (d := ([], [])); intro X; rewrite X in Hin2; contradiction. }
-    assert (0 <= th3 < Zlength lr).
-    { rewrite <- Hlens; apply Znth_inbounds with (d := ([], [])); intro X; rewrite X in Hin3; contradiction. }
-    assert (forall th, 0 <= th < Zlength lr -> Zlength (fst (Znth th lr' ([], []))) = 3) as Hli.
-    { intros; rewrite Hnth' by auto; simpl.
-      rewrite Zlength_map; auto. }
-    destruct (In_Znth _ _ (0, 0, 0, false) Hin1) as (j1 & ? & Hnth1).
-    rewrite Hnth' in Hnth1 by auto; simpl in Hnth1.
-    destruct (In_Znth _ _ (0, 0, 0, false) Hin2) as (j2 & ? & Hnth2).
-    rewrite Hnth' in Hnth2 by auto; simpl in Hnth2.
-    destruct (In_Znth _ _ (0, 0, 0, false) Hin3) as (j3 & ? & Hnth3).
-    rewrite Hnth' in Hnth3 by auto; simpl in Hnth3.
-    rewrite Hli in * by auto.
-    erewrite Znth_map, Znth_upto in Hnth1, Hnth2, Hnth3 by (auto; simpl; omega).
-    inv Hnth1; inv Hnth2; inv Hnth3.
-    assert (j1 = 0) by omega; subst.
-    assert (j2 = 1) by omega; subst.
-    assert (j3 = 2) by omega; subst.
-    assert (forall th, 0 <= th < Zlength lr -> Znth 0 (snd (Znth th lr ([], [], []))) false = true -> th = th1) as Hth1.
-    { intros ?? Hsucc.
-      exploit (only_one_add_succeeds lr').
-      { eauto. }
-      { eauto. }
-      { eauto. }
-      { eauto. }
-      { eauto. }
-      { apply Hin1. }
-      { rewrite Hnth'; simpl.
-        rewrite in_map_iff; do 2 eexists; [rewrite Hsucc; eauto|].
-        { rewrite In_upto; simpl; computable. }
-        { auto. } }
-      intros (? & ?); auto. }
-    assert (forall th, 0 <= th < Zlength lr -> Znth 1 (snd (Znth th lr ([], [], []))) false = true -> th = th2) as Hth2.
-    { intros ?? Hsucc.
-      exploit (only_one_add_succeeds lr').
-      { eauto. }
-      { eauto. }
-      { eauto. }
-      { eauto. }
-      { eauto. }
-      { apply Hin2. }
-      { rewrite Hnth'; simpl.
-        rewrite in_map_iff; do 2 eexists; [rewrite Hsucc; eauto|].
-        { rewrite In_upto; simpl; computable. }
-        { auto. } }
-      intros (? & ?); auto. }
-    assert (forall th, 0 <= th < Zlength lr -> Znth 2 (snd (Znth th lr ([], [], []))) false = true -> th = th3) as Hth3.
-    { intros ?? Hsucc.
-      exploit (only_one_add_succeeds lr').
-      { eauto. }
-      { eauto. }
-      { eauto. }
-      { eauto. }
-      { eauto. }
-      { apply Hin3. }
-      { rewrite Hnth'; simpl.
-        rewrite in_map_iff; do 2 eexists; [rewrite Hsucc; eauto|].
-        { rewrite In_upto; simpl; computable. }
-        { auto. } }
-      intros (? & ?); auto. }
-    assert (forall th, 0 <= th < Zlength lr -> Zlength (filter id (Znth th (map snd lr) [])) =
-      (if eq_dec th th1 then 1 else 0) + (if eq_dec th th2 then 1 else 0) + (if eq_dec th th3 then 1 else 0)) as Hls.
-    { intros ? Hth.
-      specialize (Hth1 _ Hth); specialize (Hth2 _ Hth); specialize (Hth3 _ Hth).
-      rewrite Znth_map with (d' := ([], [], [])) by auto.
-      repeat match goal with H : Forall _ lr |- _ => eapply Forall_Znth with (i := th)(d := ([], [], [])) in H; [|auto] end.
-      destruct (Znth th lr ([], [], [])) as ((h, li), ls) eqn: Hnth.
-      match goal with H : Zlength _ = _ /\ _ |- _ => destruct H as (? & Hls) end.
-      simpl; replace ls with [if eq_dec th th1 then true else false; if eq_dec th th2 then true else false; if eq_dec th th3 then true else false].
-      { repeat if_tac; simpl; auto. }
-      destruct ls; [rewrite Zlength_nil in Hls; discriminate | simpl; rewrite Zlength_cons in Hls].
-      destruct ls; [rewrite Zlength_nil in Hls; discriminate | simpl; rewrite Zlength_cons in Hls].
-      destruct ls; [rewrite Zlength_nil in Hls; discriminate | simpl; rewrite Zlength_cons in Hls].
-      destruct ls; [|rewrite Zlength_cons in Hls; pose proof (Zlength_nonneg ls); omega].
-      simpl in *; f_equal; [|f_equal].
-      - destruct (eq_dec _ _); [subst; rewrite Hnth in *; simpl in *; auto|].
-        destruct b; auto; contradiction.
-      - destruct (eq_dec _ _); [subst; rewrite Hnth in *; simpl in *; auto|].
-        destruct b0; auto; contradiction.
-      - f_equal; destruct (eq_dec _ _); [subst; rewrite Hnth in *; simpl in *; auto|].
-        destruct b1; auto; contradiction. }
-    destruct lr as [|((?, ?), ls1)]; [rewrite Zlength_nil in *; discriminate|]; simpl in *.
-    rewrite Zlength_cons in *; destruct lr as [|((?, ?), ls2)]; [rewrite Zlength_nil in *; discriminate|]; simpl in *.
-    rewrite Zlength_cons in *; destruct lr as [|((?, ?), ls3)]; [rewrite Zlength_nil in *; discriminate|]; simpl in *.
-    rewrite Zlength_cons in *; destruct lr; [|rewrite Zlength_cons in *; pose proof (Zlength_nonneg lr); omega].
-    rewrite app_nil_r, !filter_app, !Zlength_app.
-    Transparent Znth.
-    generalize (Hls 0), (Hls 1), (Hls 2); unfold Znth; simpl.
-    intros -> -> ->; auto.
-    assert (forall i, 0 <= i < 3 ->
-      (if eq_dec 0 i then 1 else 0) + (if eq_dec 1 i then 1 else 0) + (if eq_dec 2 i then 1 else 0) = 1) as Hsum.
-    { intros; do 3 if_tac; omega. }
-    rewrite Zlength_nil in *; simpl in *.
-    generalize (Hsum th1), (Hsum th2), (Hsum th3); omega. }
+  exploit (add_three lr lk lv); auto; intro.
   forward.
   Exists values keys.
   rewrite !sepcon_assoc, (sepcon_comm (data_at _ _ _ keys)), (sepcon_comm (data_at _ _ _ values)).
   rewrite sepcon_assoc, (sepcon_comm (data_at _ _ _ values)), <- !sepcon_assoc; apply sepcon_derives; [apply sepcon_derives; auto|];
     apply andp_right, data_at_data_at_; apply prop_right; auto.
-Admitted.
+Qed.
 
 (* Given the relations on histories, what can we actually conclude about the maps? *)
 Lemma make_map_eq : forall h h', Forall2 (fun a b => value_of_hist (fst a) = value_of_hist (fst b) /\
