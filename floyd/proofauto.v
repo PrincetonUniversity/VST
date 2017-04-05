@@ -23,7 +23,8 @@ Require Export floyd.stronger.
 Require Export floyd.loadstore_mapsto.
 Require Export floyd.loadstore_field_at.
 Require Export floyd.nested_loadstore.
-Require Export floyd.local2ptree.
+Require Export floyd.local2ptree_denote.
+Require Export floyd.local2ptree_eval.
 Require Export floyd.proj_reptype_lemmas.
 Require Export floyd.replace_refill_reptype_lemmas.
 Require Export floyd.sc_set_load_store.

@@ -1006,6 +1006,7 @@ Proof.
 Qed.
 
 Notation AS_witness sh p g i R h v P Q :=
+  (sh%logic, p%logic, v%Z%logic, (ghost_hist sh h g * P)%logic, hist_R g%logic i R,
    EX t' : nat, !!(newer h t') && ghost_hist sh (h%gfield ++ [(t', Store (vint v))]) g * Q v%Z).
 Lemma AS_hist_spec : forall sh g i R h v P Q
   (HPQR : forall h' v' (Hhist : hist_incl h h'), apply_hist (vint i) h' = Some (vint v') -> repable_signed v' ->

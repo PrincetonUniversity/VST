@@ -3,7 +3,8 @@ Require Import floyd.client_lemmas.
 Require Import floyd.assert_lemmas.
 Require Import floyd.closed_lemmas.
 Require Import floyd.mapsto_memory_block.
-Require Import floyd.local2ptree.
+Require Import floyd.local2ptree_denote.
+Require Import floyd.local2ptree_eval.
 Local Open Scope logic.
 
 Fixpoint argtypes (al: list (ident * type)) : list type :=
