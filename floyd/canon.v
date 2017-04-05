@@ -94,7 +94,7 @@ Definition sgvar_denote (i: ident) (v: val) rho :=
 
 Definition locald_denote (d: localdef) : environ -> Prop :=
  match d with
- | temp i v => `(eq v) (eval_id i)
+ | temp i v => `and (`(eq v) (eval_id i)) `(v <> Vundef)
  | lvar i t v => lvar_denote i t v
  | gvar i v =>  gvar_denote i v
  | sgvar i v => sgvar_denote i v

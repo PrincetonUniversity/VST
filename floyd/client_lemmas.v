@@ -585,16 +585,6 @@ Lemma liftx_local_retval:
 Proof. intros. reflexivity. Qed.
 Hint Rewrite liftx_local_retval : norm2.
 
-Lemma ret_type_initialized:
-  forall i Delta, ret_type (initialized i Delta) = ret_type Delta.
-Proof.
-intros.
-unfold ret_type; simpl.
-unfold initialized; simpl.
-destruct ((temp_types Delta) ! i); try destruct p; reflexivity.
-Qed.
-Hint Rewrite ret_type_initialized : norm.
-
 Hint Rewrite bool_val_notbool_ptr using apply Coq.Init.Logic.I : norm.
 
 Lemma Vint_inj': forall i j,  (Vint i = Vint j) =  (i=j).
@@ -648,19 +638,18 @@ Ltac super_unfold_lift' :=
     lift_prod lift_last lifted lift_uncurry_open lift_curry lift lift0
     lift1 lift2 lift3] beta iota.
 
-Lemma tc_eval_id_i:
+Lemma tc_eval'_id_i:
   forall Delta t i rho,
                tc_environ Delta rho ->
-              (temp_types Delta)!i = Some (t,true) ->
-              tc_val t (eval_id i rho).
+              (temp_types Delta)!i = Some t ->
+              tc_val' t (eval_id i rho).
 Proof.
 intros.
 unfold tc_environ in H.
 destruct rho.
 destruct H as [? _].
-destruct (H i true t H0) as [v [? ?]].
+destruct (H i t H0) as [v [? ?]].
 unfold eval_id. simpl in *. rewrite H1. simpl; auto.
-destruct H2. inv H2. auto.
 Qed.
 
 Lemma is_int_e:
@@ -675,11 +664,8 @@ Definition name (id: ident) := True.
 Tactic Notation "name" ident(s) constr(id) :=
     assert (s: name id) by apply Coq.Init.Logic.I.
 
-Definition reflect_temps_f (rho: environ) (b: Prop) (i: ident) (t: type*bool) : Prop :=
-    match t with
-    | (t',true) => tc_val t' (eval_id i rho) /\ b
-    |  _  => b
-   end.
+Definition reflect_temps_f (rho: environ) (b: Prop) (i: ident) (t: type) : Prop :=
+  tc_val' t (eval_id i rho) /\ b.
 
 Definition reflect_temps (Delta: tycontext) (rho: environ) : Prop :=
     PTree.fold (reflect_temps_f rho) (temp_types Delta) True.
@@ -696,15 +682,15 @@ assert (forall i v, In (i,v) el -> (temp_types Delta) ! i = Some v).
  intros. subst el. apply PTree.elements_complete; auto.
 clear Heqel.
 assert (forall b: Prop, b -> fold_left
-  (fun (a : Prop) (p : positive * (type * bool)) =>
+  (fun (a : Prop) (p : positive * type) =>
    reflect_temps_f rho a (fst p) (snd p)) el b);
   [ | auto].
 revert H0; induction el; simpl; intros; auto.
 unfold reflect_temps_f at 2.
-destruct a as [i [t [|]]]; simpl; auto.
+destruct a as [i t]; simpl; auto.
 apply IHel; auto.
 split; auto.
-eapply tc_eval_id_i.
+eapply tc_eval'_id_i.
 eassumption.
 apply H0; auto.
 Qed.
@@ -771,16 +757,16 @@ Lemma sem_cast_id:
       tc_environ Delta rho ->
   forall t1 t3 id,
   Cop.classify_cast t1 t3 = Cop.cast_case_neutral ->
-  match (temp_types Delta)!id with Some (Tpointer _ _, true) => true | _ => false end = true ->
+  match (temp_types Delta)!id with Some (Tpointer _ _) => true | _ => false end = true ->
   force_val (sem_cast t1 t3 (eval_id id rho)) = eval_id id rho.
 Proof.
 intros.
  revert H1; case_eq ((temp_types Delta) ! id); intros; try discriminate.
- destruct p as [t2 ?].
- destruct t2; inv H2.
- destruct b; inv H4.
- pose proof (tc_eval_id_i _ _ _ _ H H1).
- destruct (eval_id id  rho); inv H2.
+ destruct t; inv H2.
+ pose proof (tc_eval'_id_i _ _ _ _ H H1).
+ destruct (eval_id id rho); try (specialize (H2 ltac:(congruence)); inv H2).
+ destruct t1 as [ | [ | | | ] | [ | ] | [ | ] |  | | | | ];
+ destruct t3 as [ | [ | | | ] | [ | ] | [ | ] |  | | | | ]; inv H0; try reflexivity.
  destruct t1 as [ | [ | | | ] | [ | ] | [ | ] |  | | | | ];
  destruct t3 as [ | [ | | | ] | [ | ] | [ | ] |  | | | | ]; inv H0; try reflexivity.
  destruct t1 as [ | | | [ | ] |  | | | | ]; destruct t3 as [ | | | [ | ] |  | | | | ]; inv H0;
@@ -1069,7 +1055,7 @@ Hint Rewrite eval_id_other using solve [clear; intro Hx; inversion Hx] : go_lowe
 
 Lemma lower_one_temp:
  forall t rho Delta P i v Q R S,
-  (temp_types Delta) ! i = Some (t,true) ->
+  (temp_types Delta) ! i = Some t ->
   (tc_val t v -> eval_id i rho = v ->
    (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S) ->
   (local (tc_environ Delta) && PROPx P (LOCALx (temp i v :: Q) (SEPx R))) rho |-- S.
@@ -1082,7 +1068,7 @@ simpl in *. unfold_lift.
 normalize.
 rewrite prop_true_andp in H0 by auto.
 apply H0; auto.
-apply tc_eval_id_i with Delta; auto.
+apply tc_eval'_id_i with Delta; auto.
 Qed.
 
 Lemma lower_one_temp_Vint:
