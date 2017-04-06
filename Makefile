@@ -224,7 +224,8 @@ FLOYD_FILES= \
    compare_lemmas.v sc_set_load_store.v \
    loadstore_mapsto.v loadstore_field_at.v field_compat.v nested_loadstore.v \
    call_lemmas.v extcall_lemmas.v forward_lemmas.v forward.v \
-   entailer.v globals_lemmas.v local2ptree.v fieldlist.v mapsto_memory_block.v\
+   entailer.v globals_lemmas.v \
+   local2ptree_denote.v local2ptree_eval.v fieldlist.v mapsto_memory_block.v\
    nested_field_lemmas.v efield_lemmas.v proj_reptype_lemmas.v replace_refill_reptype_lemmas.v \
    data_at_rec_lemmas.v field_at.v stronger.v \
    for_lemmas.v semax_tactics.v expr_lemmas.v diagnosis.v simple_reify.v simpl_reptype.v \
@@ -328,10 +329,9 @@ HMACDRBG_FILES = \
   verif_hmac_drbg_generate.v verif_hmac_drbg_seed_buf.v verif_mocked_md.v \
   verif_hmac_drbg_seed.v verif_hmac_drbg_NISTseed.v verif_hmac_drbg_other.v
 
+# these are only the top-level AES files, but they depend on many other AES files, so first run "make depend"
 AES_FILES = \
-  aes.v sbox.v tablesLL.v \
-  verif_encryption_ll.v \
-  AES256.v aes_round_lemmas.v aesutils.v forwarding_table_lemmas.v mult_equiv_lemmas.v verif_aes256.v
+  verif_encryption_LL.v verif_gen_tables_LL.v verif_setkey_enc_LL.v equiv_encryption.v
 
 # DRBG_Files = \
 #  hmac_drbg.v HMAC256_DRBG_functional_prog.v hmac_drbg_compspecs.v \

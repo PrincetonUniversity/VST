@@ -633,7 +633,7 @@ generalize dependent bl. generalize dependent te'.
                 (mkEnviron (filter_genv psi) (make_venv vx) (make_tenv tx)))
              (typeof e) ty (m_dry jm))).
         split. rewrite cop2_sem_cast'; auto.
-        right. rewrite cop2_sem_cast'; auto. eapply typecheck_val_sem_cast; eauto.
+        right. rewrite cop2_sem_cast'; auto. eapply tc_val_sem_cast; eauto.
       - inv Heqp. destruct bl. inv TC2. inv H17. simpl in TC2.
         repeat (rewrite tc_andp_sound in TC2; simpl in TC2; super_unfold_lift).
         destruct TC2 as [[? ?] ?]. assert (i <> id). intro. subst.
@@ -1481,12 +1481,9 @@ split.
     repeat rewrite denote_tc_assert_andp in TC2.
     destruct TC2 as ((tcb & tcb') & tcbl).
     split.
-    + pose proof typecheck_val_sem_cast _ _ _ _ _ TC3 tcb tcb' as tc.
+    + pose proof tc_val_sem_cast _ _ _ _ _ TC3 tcb tcb' as tc.
       apply tc_val_has_type.
-      unfold liftx, lift; simpl.
-      revert tc.
-      remember (force_val _) as v; clear.
-      rewrite tc_val_eq; auto.
+      auto.
     + rewrite <-snd_split.
       apply (IHparams bl).
       apply tcbl.
@@ -1627,7 +1624,7 @@ split; [split; [split |] |].
  right.
  assert (ty <> Tvoid). { destruct ty; try inv Hu; intros C; congruence. }
  assert (tc_val ty v). { destruct ty; auto. }
- rewrite tc_val_eq in H1; auto.
+ auto.
  inversion Hty. subst t b0. simpl.
  assert (ty = Tvoid). { destruct ty; auto; inv Hretty. } subst ty.
  simpl in Hu. congruence.
@@ -2331,9 +2328,9 @@ split; [split(*; [split |]*) |].
 {
 simpl. unfold te2. destruct ret; unfold rval.
 destruct vl.
-assert (typecheck_val v (fn_return f) = true).
+assert (tc_val (fn_return f) v).
  clear - H22; unfold bind_ret in H22; normalize in H22; try contradiction; auto.
- destruct H22. destruct H. rewrite tc_val_eq in H; apply H.
+ destruct H22. destruct H. apply H.
 unfold construct_rho. rewrite <- map_ptree_rel.
 apply guard_environ_put_te'. subst rho; auto.
 intros.
@@ -2469,9 +2466,9 @@ specialize (TC5 H28).
 apply step_return with f ret Vundef (tx); simpl; auto.
 unfold te2.
 rewrite TC5. split; auto.
-assert (typecheck_val v (fn_return f) = true).
+assert (tc_val (fn_return f) v).
  clear - H22; unfold bind_ret in H22; normalize in H22; try contradiction; auto.
- destruct H22. destruct H. rewrite tc_val_eq in H; apply H.
+ destruct H22. destruct H. apply H.
 simpl.
 unfold rval.
 destruct ret.
@@ -2614,7 +2611,6 @@ simpl in TC2. repeat rewrite denote_tc_assert_andp in TC2.
 destruct TC2. destruct H.
 set (te1 := PTree.set i (force_val (sem_cast (typeof e) t (eval_expr e rho))) te) in *.
 specialize (IHl bl te1 H0 H21 H2).
-rewrite andb_true_iff.
 split; auto.
 assert (eval_id i (construct_rho (filter_genv psi) ve' te') =
              force_val (sem_cast (typeof e) t (eval_expr e rho))). {
@@ -2636,7 +2632,7 @@ eassumption.
 rewrite PTree.gso; auto.
 }
 rewrite H4.
-eapply typecheck_val_sem_cast; eassumption.
+eapply tc_val_sem_cast; eassumption.
 }
 {
 forget (F0 rho * F rho) as Frame.

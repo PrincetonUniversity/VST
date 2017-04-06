@@ -70,15 +70,18 @@ Definition last_write h := fst (find_write h (vint 0)).
 
 (* We can't use tokens because we need to consistently get the same share for each reader
    (so that the communication invariant is precise). *)
-Definition comm_R bufs sh gsh p h v := EX b : Z, EX b1 : Z, EX b2 : Z,
-  !!(v = vint b /\ -1 <= b < B /\ Forall (fun a => match a with AE v1 v2 => exists r w, v1 = vint r /\ v2 = vint w /\
-     -1 <= r < B /\ -1 <= w < B end) h /\ last_two_reads (rev h) = (vint b1, vint b2) /\ repable_signed b1 /\ repable_signed b2) &&
-  ghost_var gsh (vint b1) p * ghost_var gsh (last_write (rev h)) (offset_val 1 p) *
-  ghost_var gsh (prev_taken (rev h)) (offset_val 2 p) *
+Definition comm_R bufs sh gsh g0 g1 g2 h v := EX b : Z, EX b1 : Z, EX b2 : Z,
+  !!(v = vint b /\ -1 <= b < B /\
+     Forall (fun a => match a with AE v1 v2 =>
+       exists r w, v1 = vint r /\ v2 = vint w /\ -1 <= r < B /\ -1 <= w < B end) h /\
+     last_two_reads (rev h) = (vint b1, vint b2) /\ repable_signed b1 /\ repable_signed b2) &&
+  ghost_var gsh (vint b1) g0 * ghost_var gsh (last_write (rev h)) g1 *
+  ghost_var gsh (prev_taken (rev h)) g2 *
   if eq_dec b (-1) then EX v : Z, data_at sh tbuffer (vint v) (Znth b2 bufs Vundef)
   else EX v : Z, data_at sh tbuffer (vint v) (Znth b bufs Vundef).
 
-Definition comm_loc lsh lock comm bufs sh gsh := AE_loc lsh lock comm (vint 0) (comm_R bufs sh gsh comm).
+Definition comm_loc lsh lock comm g g0 g1 g2 bufs sh gsh :=
+  AE_loc lsh lock comm g (vint 0) (comm_R bufs sh gsh g0 g1 g2).
 
 Definition initialize_channels_spec :=
  DECLARE _initialize_channels
@@ -92,7 +95,8 @@ Definition initialize_channels_spec :=
         data_at_ Ews (tarray (tptr tint) N) reading; data_at_ Ews (tarray (tptr tint) N) last_read)
   POST [ tvoid ]
    EX comms : list val, EX locks : list val, EX bufs : list val, EX reads : list val, EX lasts : list val,
-   PROP (Forall isptr comms)
+     EX g : list val, EX g0 : list val, EX g1 : list val, EX g2 : list val,
+   PROP (Forall isptr comms; Zlength g = N; Zlength g0 = N; Zlength g1 = N; Zlength g2 = N)
    LOCAL ()
    SEP (data_at Ews (tarray (tptr tint) N) comms comm;
         data_at Ews (tarray (tptr tlock) N) locks lock;
@@ -100,11 +104,11 @@ Definition initialize_channels_spec :=
         data_at Ews (tarray (tptr tint) N) reads reading;
         data_at Ews (tarray (tptr tint) N) lasts last_read;
         fold_right sepcon emp (map (fun r =>
-          comm_loc Tsh (Znth r locks Vundef) (Znth r comms Vundef) bufs (Znth r shs Tsh) gsh2 ([] : hist))
-          (upto (Z.to_nat N)));
-        fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) comms);
-        fold_right sepcon emp (map (fun c => ghost_var gsh1 (vint 0) (offset_val 1 c) *
-          ghost_var gsh1 (vint 1) (offset_val 2 c)) comms);
+          comm_loc Tsh (Znth r locks Vundef) (Znth r comms Vundef) (Znth r g Vundef) (Znth r g0 Vundef)
+            (Znth r g1 Vundef) (Znth r g2 Vundef) bufs (Znth r shs Tsh) gsh2 ([] : hist)) (upto (Z.to_nat N)));
+        fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g0);
+        fold_right sepcon emp (map (ghost_var gsh1 (vint 0)) g1);
+        fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g2);
         fold_right sepcon emp (map (malloc_token Tsh (sizeof tint)) comms);
         fold_right sepcon emp (map (malloc_token Tsh (sizeof tlock)) locks);
         fold_right sepcon emp (map (malloc_token Tsh (sizeof tbuffer)) bufs);
@@ -136,13 +140,15 @@ Definition latest_read (h : hist) v :=
   v <> Empty /\ exists n, In (n, AE v Empty) h /\
   Forall (fun x => let '(m, AE r w) := x in w = Empty -> r <> Empty -> m <= n)%nat h.
 
-Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 , x16 : t16 , x17 : t17 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (NDmk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15*t16*t17)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17) => P%assert end)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17) => Q%assert end))
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 , x16 : t16 , x17 : t17 , x18 : t18 , x19 : t19 , x20 : t20 , x21 : t21 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
+     (NDmk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15*t16*t17*t18*t19*t20*t21)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19,x20,x21) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19,x20,x21) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
              x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
-              x10 at level 0, x11 at level 0, x12 at level 0,  x13 at level 0, x14 at level 0, x15 at level 0, x16 at level 0, x17 at level 0,
+              x10 at level 0, x11 at level 0, x12 at level 0,  x13 at level 0, x14 at level 0,
+               x15 at level 0, x16 at level 0, x17 at level 0, x18 at level 0, x19 at level 0,
+                x20 at level 0, x21 at level 0,
              P at level 100, Q at level 100).
 
 (* last_read retains the last buffer read, while reading is reset to Empty. *)
@@ -150,7 +156,7 @@ Definition start_read_spec :=
  DECLARE _start_read
   WITH r : Z, reading : val, last_read : val, lock : val, comm : val, reads : list val, lasts : list val,
     locks : list val, comms : list val, bufs : list val, sh : share, sh1 : share, sh2 : share, b0 : Z,
-    gsh1 : share, gsh2 : share, h : hist
+    g : val, g0 : val, g1 : val, g2 : val, gsh1 : share, gsh2 : share, h : hist
   PRE [ _r OF tint ]
    PROP (0 <= b0 < B; readable_share sh; readable_share sh1; readable_share sh2; readable_share gsh1; readable_share gsh2;
          sepalg.join gsh1 gsh2 Tsh; isptr (Znth r comms Vundef); latest_read h (vint b0))
@@ -158,9 +164,9 @@ Definition start_read_spec :=
    SEP (data_at sh1 (tarray (tptr tint) N) reads reading; data_at sh1 (tarray (tptr tint) N) lasts last_read;
         data_at sh1 (tarray (tptr tint) N) comms comm; data_at sh1 (tarray (tptr tlock) N) locks lock;
         data_at_ Tsh tint (Znth r reads Vundef); data_at Tsh tint (vint b0) (Znth r lasts Vundef);
-        comm_loc sh2 (Znth r locks Vundef) (Znth r comms Vundef) bufs sh gsh2 h;
+        comm_loc sh2 (Znth r locks Vundef) (Znth r comms Vundef) g g0 g1 g2 bufs sh gsh2 h;
         EX v : Z, data_at sh tbuffer (vint v) (Znth b0 bufs Vundef);
-        ghost_var gsh1 (vint b0) (Znth r comms Vundef))
+        ghost_var gsh1 (vint b0) g0)
   POST [ tint ]
    EX b : Z, EX t : nat, EX v0 : val, EX v : Z,
    PROP (0 <= b < B; if eq_dec v0 Empty then b = b0 else v0 = vint b;
@@ -169,9 +175,9 @@ Definition start_read_spec :=
    SEP (data_at sh1 (tarray (tptr tint) N) reads reading; data_at sh1 (tarray (tptr tint) N) lasts last_read;
         data_at sh1 (tarray (tptr tint) N) comms comm; data_at sh1 (tarray (tptr tlock) N) locks lock;
         data_at Tsh tint (vint b) (Znth r reads Vundef); data_at Tsh tint (vint b) (Znth r lasts Vundef);
-        comm_loc sh2 (Znth r locks Vundef) (Znth r comms Vundef) bufs sh gsh2 (h ++ [(t, AE v0 Empty)]);
+        comm_loc sh2 (Znth r locks Vundef) (Znth r comms Vundef) g g0 g1 g2 bufs sh gsh2 (h ++ [(t, AE v0 Empty)]);
         data_at sh tbuffer (vint v) (Znth b bufs Vundef);
-        ghost_var gsh1 (vint b) (Znth r comms Vundef)).
+        ghost_var gsh1 (vint b) g0).
 (* And bufs[b] is the most recent buffer completed by finish_write. *)
 
 Definition finish_read_spec :=
@@ -223,20 +229,23 @@ Fixpoint make_shares shs (lasts : list Z) i : list share :=
                  else hd Share.bot shs :: make_shares (tl shs) rest i
   end.
 
-Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 , x16 : t16 , x17 : t17 , x18 : t18 'PRE'  [ ] P 'POST' [ tz ] Q" :=
-     (NDmk_funspec (nil, tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15*t16*t17*t18)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18) => P%assert end)
-           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18) => Q%assert end))
+Notation "'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 , x9 : t9 , x10 : t10 , x11 : t11 , x12 : t12 , x13 : t13 , x14 : t14 , x15 : t15 , x16 : t16 , x17 : t17 , x18 : t18 , x19 : t19 , x20 : t20 , x21 : t21 , x22 : t22 'PRE'  [ ] P 'POST' [ tz ] Q" :=
+     (NDmk_funspec (nil, tz) cc_default (t1*t2*t3*t4*t5*t6*t7*t8*t9*t10*t11*t12*t13*t14*t15*t16*t17*t18*t19*t20*t21*t22)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19,x20,x21,x22) => P%assert end)
+           (fun x => match x with (x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17,x18,x19,x20,x21,x22) => Q%assert end))
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
              x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0, x9 at level 0,
-              x10 at level 0, x11 at level 0, x12 at level 0,  x13 at level 0, x14 at level 0, x15 at level 0, x16 at level 0, x17 at level 0, x18 at level 0,
+              x10 at level 0, x11 at level 0, x12 at level 0,  x13 at level 0, x14 at level 0,
+               x15 at level 0, x16 at level 0, x17 at level 0, x18 at level 0, x19 at level 0,
+                x20 at level 0, x21 at level 0, x22 at level 0,
              P at level 100, Q at level 100).
 
 Definition finish_write_spec :=
  DECLARE _finish_write
   WITH writing : val, last_given : val, last_taken : val, comm : val, lock : val,
     comms : list val, locks : list val, bufs : list val, b : Z, b0 : Z, lasts : list Z,
-    sh1 : share, lsh : share, shs : list share, gsh1 : share, gsh2 : share, h : list hist, sh0 : share
+    sh1 : share, lsh : share, shs : list share, g : list val, g0 : list val, g1 : list val, g2 : list val,
+    gsh1 : share, gsh2 : share, h : list hist, sh0 : share
   PRE [ ]
    PROP (0 <= b < B; 0 <= b0 < B; Forall (fun x => 0 <= x < B) lasts; Zlength h = N; Zlength shs = N;
          readable_share sh1; readable_share lsh; Forall readable_share shs;
@@ -249,10 +258,10 @@ Definition finish_write_spec :=
         data_at sh1 (tarray (tptr tint) N) comms comm;
         data_at sh1 (tarray (tptr tlock) N) locks lock;
         fold_right sepcon emp (map (fun r =>
-          comm_loc lsh (Znth r locks Vundef) (Znth r comms Vundef) bufs (Znth r shs Tsh) gsh2 (Znth r h []))
-          (upto (Z.to_nat N)));
-        fold_right sepcon emp (map (fun r => ghost_var gsh1 (vint b0) (offset_val 1 (Znth r comms Vundef)) *
-          ghost_var gsh1 (vint (Znth r lasts (-1))) (offset_val 2 (Znth r comms Vundef))) (upto (Z.to_nat N)));
+          comm_loc lsh (Znth r locks Vundef) (Znth r comms Vundef) (Znth r g Vundef) (Znth r g0 Vundef)
+            (Znth r g1 Vundef) (Znth r g2 Vundef) bufs (Znth r shs Tsh) gsh2 (Znth r h [])) (upto (Z.to_nat N)));
+        fold_right sepcon emp (map (fun r => ghost_var gsh1 (vint b0) (Znth r g1 Vundef) *
+          ghost_var gsh1 (vint (Znth r lasts (-1))) (Znth r g2 Vundef)) (upto (Z.to_nat N)));
         fold_right sepcon emp (map (fun i => EX sh : share,
           !!(if eq_dec i b0 then sh = sh0 else sepalg_list.list_join sh0 (make_shares shs lasts i) sh) &&
           EX v : Z, data_at sh tbuffer (vint v) (Znth i bufs Vundef)) (upto (Z.to_nat B))))
@@ -267,11 +276,10 @@ Definition finish_write_spec :=
         data_at sh1 (tarray (tptr tint) N) comms comm;
         data_at sh1 (tarray (tptr tlock) N) locks lock;
         fold_right sepcon emp (map (fun r =>
-          comm_loc lsh (Znth r locks Vundef) (Znth r comms Vundef) bufs (Znth r shs Tsh) gsh2 (Znth r h' []))
-          (upto (Z.to_nat N)));
-        fold_right sepcon emp (map (fun r => ghost_var gsh1 (vint b) (offset_val 1 (Znth r comms Vundef)) *
-          ghost_var gsh1 (vint (Znth r lasts' (-1)))
-            (offset_val 2 (Znth r comms Vundef))) (upto (Z.to_nat N)));
+          comm_loc lsh (Znth r locks Vundef) (Znth r comms Vundef) (Znth r g Vundef) (Znth r g0 Vundef)
+            (Znth r g1 Vundef) (Znth r g2 Vundef) bufs (Znth r shs Tsh) gsh2 (Znth r h' [])) (upto (Z.to_nat N)));
+        fold_right sepcon emp (map (fun r => ghost_var gsh1 (vint b) (Znth r g1 Vundef) *
+          ghost_var gsh1 (vint (Znth r lasts' (-1))) (Znth r g2 Vundef)) (upto (Z.to_nat N)));
         fold_right sepcon emp (map (fun i => EX sh : share,
           !!(if eq_dec i b then sh = sh0 else sepalg_list.list_join sh0 (make_shares shs lasts' i) sh) &&
           EX v : Z, data_at sh tbuffer (vint v) (Znth i bufs Vundef)) (upto (Z.to_nat B)))).
@@ -279,9 +287,10 @@ Definition finish_write_spec :=
 Definition reader_spec :=
  DECLARE _reader
   WITH arg : val, x : Z * val * val * val * val * val * list val * list val * list val * list val * list val *
-                      share * share * share * share * share
+                      share * share * share * val * val * val * val * share * share
   PRE [ _arg OF tptr tvoid ]
-   let '(r, reading, last_read, lock, comm, buf, reads, lasts, locks, comms, bufs, sh1, sh2, sh, gsh1, gsh2) := x in
+   let '(r, reading, last_read, lock, comm, buf, reads, lasts, locks, comms, bufs, sh1, sh2, sh, g, g0, g1, g2,
+         gsh1, gsh2) := x in
    PROP (readable_share sh; readable_share sh1; readable_share sh2; readable_share gsh1; readable_share gsh2;
          sepalg.join gsh1 gsh2 Tsh; isptr (Znth r comms Vundef))
    LOCAL (temp _arg arg; gvar _reading reading; gvar _last_read last_read;
@@ -291,19 +300,21 @@ Definition reader_spec :=
         data_at sh1 (tarray (tptr tint) N) comms comm; data_at sh1 (tarray (tptr tlock) N) locks lock;
         data_at_ Tsh tint (Znth r reads Vundef); data_at_ Tsh tint (Znth r lasts Vundef);
         data_at sh1 (tarray (tptr tbuffer) B) bufs buf;
-        comm_loc sh2 (Znth r locks Vundef) (Znth r comms Vundef) bufs sh gsh2 [];
+        comm_loc sh2 (Znth r locks Vundef) (Znth r comms Vundef) g g0 g1 g2 bufs sh gsh2 [];
         EX v : Z, data_at sh tbuffer (vint v) (Znth 1 bufs Vundef);
-        ghost_var gsh1 (vint 1) (Znth r comms Vundef))
+        ghost_var gsh1 (vint 1) g0)
   POST [ tptr tvoid ] PROP () LOCAL () SEP ().
 
 Definition writer_spec :=
  DECLARE _writer
-  WITH arg : val, x : val * val * val * val * val * val * list val * list val * list val *
-                      share * share * share * list share * share * share
+  WITH arg : val, x : val * val * val * val * val * val * list val * list val * list val * share * share *
+                      share * list share * list val * list val * list val * list val * share * share
   PRE [ _arg OF tptr tvoid ]
-   let '(writing, last_given, last_taken, lock, comm, buf, locks, comms, bufs, sh1, lsh, sh0, shs, gsh1, gsh2) := x in
+   let '(writing, last_given, last_taken, lock, comm, buf, locks, comms, bufs, sh1, lsh, sh0, shs, g, g0, g1, g2,
+         gsh1, gsh2) := x in
    PROP (Zlength shs = N; readable_share sh1; readable_share lsh; Forall readable_share shs;
-         sepalg_list.list_join sh0 shs Tsh; readable_share gsh1; readable_share gsh2; sepalg.join gsh1 gsh2 Tsh; Forall isptr comms)
+         sepalg_list.list_join sh0 shs Tsh; readable_share gsh1; readable_share gsh2; sepalg.join gsh1 gsh2 Tsh;
+         Zlength g1 = N; Zlength g2 = N; Forall isptr comms)
    LOCAL (temp _arg arg; gvar _writing writing; gvar _last_given last_given; gvar _last_taken last_taken;
           gvar _lock lock; gvar _comm comm; gvar _bufs buf)
    SEP (data_at_ Ews tint writing; data_at_ Ews tint last_given; data_at_ Ews (tarray tint N) last_taken;
@@ -311,10 +322,10 @@ Definition writer_spec :=
         data_at sh1 (tarray (tptr tlock) N) locks lock;
         data_at sh1 (tarray (tptr tbuffer) B) bufs buf;
         fold_right sepcon emp (map (fun r =>
-          comm_loc lsh (Znth r locks Vundef) (Znth r comms Vundef) bufs (Znth r shs Tsh) gsh2 [])
-          (upto (Z.to_nat N)));
-        fold_right sepcon emp (map (fun c => ghost_var gsh1 (vint 0) (offset_val 1 c) *
-          ghost_var gsh1 (vint 1) (offset_val 2 c)) comms);
+          comm_loc lsh (Znth r locks Vundef) (Znth r comms Vundef) (Znth r g Vundef) (Znth r g0 Vundef)
+            (Znth r g1 Vundef) (Znth r g2 Vundef) bufs (Znth r shs Tsh) gsh2 []) (upto (Z.to_nat N)));
+        fold_right sepcon emp (map (ghost_var gsh1 (vint 0)) g1);
+        fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g2);
         fold_right sepcon emp (map (fun i => EX sh : share,
           !!(if eq_dec i 0 then sh = sh0 else if eq_dec i 1 then sh = sh0 else sh = Tsh) &&
           EX v : Z, data_at sh tbuffer (vint v) (Znth i bufs Vundef)) (upto (Z.to_nat B))))
@@ -333,6 +344,7 @@ Definition Gprog : funspecs := ltac:(with_library prog [release_spec; makelock_s
 
 Ltac cancel_for_forward_call ::= repeat (rewrite ?sepcon_andp_prop', ?sepcon_andp_prop);
   repeat (apply andp_right; [auto; apply prop_right; auto|]); fast_cancel.
+Ltac entailer_for_return ::= go_lower; entailer'.
 
 Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_spec.
 Proof.
@@ -408,8 +420,7 @@ Qed.
 Lemma Empty_inj : forall i, vint i = Empty -> repable_signed i -> i = -1.
 Proof.
   intros; apply repr_inj_signed; auto.
-  - split; computable.
-  - unfold Empty in *; congruence.
+  unfold Empty in *; congruence.
 Qed.
 
 Lemma repable_buf : forall a, -1 <= a < B -> repable_signed a.
@@ -418,13 +429,13 @@ Proof.
   split; [transitivity (-1) | transitivity B]; unfold B, N in *; try computable; auto; omega.
 Qed.
 
-Lemma comm_R_precise : forall bufs sh gsh p h v, TT |-- weak_precise_mpred (comm_R bufs sh gsh p h v).
+Lemma comm_R_precise : forall bufs sh gsh g0 g1 g2 h v,
+  TT |-- weak_precise_mpred (comm_R bufs sh gsh g0 g1 g2 h v).
 Proof.
   unfold comm_R; intros; apply precise_weak_precise.
   apply derives_precise' with (Q := EX b : Z, EX b2 : Z, !!(repable_signed b /\ repable_signed b2 /\
     v = vint b /\ snd (last_two_reads (rev h)) = vint b2) &&
-    ((EX v : val, ghost_var gsh v p) * (EX v : val, ghost_var gsh v (offset_val 1 p)) *
-     (EX v : val, ghost_var gsh v (offset_val 2 p)) *
+    ((EX v : val, ghost_var gsh v g0) * (EX v : val, ghost_var gsh v g1) * (EX v : val, ghost_var gsh v g2) *
      data_at_ sh tbuffer (Znth (if eq_dec v Empty then b2 else b) bufs Vundef))).
   { Intros b b1 b2.
     assert (repable_signed b) by (apply repable_buf; auto).
@@ -437,8 +448,8 @@ Proof.
   intros ??? (b & b2 & (? & ? & ? & ?) & ?) (b' & b2' & (? & ? & ? & ?) & ?); subst.
   assert (b = b' /\ b2 = b2') as (? & ?) by (split; apply repr_inj_signed; auto; congruence).
   subst.
-  assert (precise ((EX v : val, ghost_var gsh v p) * (EX v : val, ghost_var gsh v (offset_val 1 p)) *
-        (EX v : val, ghost_var gsh v (offset_val 2 p)) *
+  assert (precise ((EX v : val, ghost_var gsh v g0) * (EX v : val, ghost_var gsh v g1) *
+        (EX v : val, ghost_var gsh v g2) *
         data_at_ sh tbuffer (Znth (if eq_dec (vint b') Empty then b2' else b') bufs Vundef))) as Hp;
     [|apply Hp; auto].
   repeat apply precise_sepcon; auto.
@@ -483,16 +494,18 @@ Proof.
   Intros bufs; rewrite Zminus_diag, app_nil_r.
   forward_for_simple_bound N (EX i : Z, PROP ()
     LOCAL (gvar _comm comm; gvar _lock lock; gvar _bufs buf; gvar _reading reading; gvar _last_read last_read)
-    SEP (EX locks : list val, EX comms : list val, !!(Zlength locks = i /\ Zlength comms = i /\
-         Forall isptr comms) &&
+    SEP (EX locks : list val, EX comms : list val, EX g : list val, EX g0 : list val, EX g1 : list val,
+         EX g2 : list val, !!(Zlength locks = i /\ Zlength comms = i /\ Forall isptr comms /\ Zlength g = i /\
+           Zlength g0 = i /\ Zlength g1 = i /\ Zlength g2 = i) &&
           (data_at Ews (tarray (tptr tlock) N) (locks ++ repeat Vundef (Z.to_nat (N - i))) lock *
            data_at Ews (tarray (tptr tint) N) (comms ++ repeat Vundef (Z.to_nat (N - i))) comm *
-           fold_right sepcon emp (map (fun r => comm_loc Tsh (Znth r locks Vundef) (Znth r comms Vundef) bufs
+           fold_right sepcon emp (map (fun r => comm_loc Tsh (Znth r locks Vundef) (Znth r comms Vundef)
+             (Znth r g Vundef) (Znth r g0 Vundef) (Znth r g1 Vundef) (Znth r g2 Vundef) bufs
              (Znth r shs Tsh) gsh2 []) (upto (Z.to_nat i))) *
            fold_right sepcon emp (map (malloc_token Tsh (sizeof tlock)) locks)) *
-           fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) comms) *
-           fold_right sepcon emp (map (fun c => ghost_var gsh1 (vint 0) (offset_val 1 c) *
-             ghost_var gsh1 (vint 1) (offset_val 2 c)) comms) *
+           fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g0) *
+           fold_right sepcon emp (map (ghost_var gsh1 (vint 0)) g1) *
+           fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g2) *
            fold_right sepcon emp (map (malloc_token Tsh (sizeof tint)) comms);
          EX reads : list val, !!(Zlength reads = i) &&
            data_at Ews (tarray (tptr tint) N) (reads ++ repeat Vundef (Z.to_nat (N - i))) reading *
@@ -509,11 +522,12 @@ Proof.
          fold_right sepcon emp (map (malloc_token Tsh (sizeof tbuffer)) bufs))).
   { unfold N; computable. }
   { unfold N; computable. }
-  { Exists ([] : list val) ([] : list val) ([] : list val) ([] : list val) Tsh; rewrite !data_at__eq; entailer!.
+  { Exists ([] : list val) ([] : list val) ([] : list val) ([] : list val) ([] : list val) ([] : list val)
+      ([] : list val) ([] : list val) Tsh; rewrite !data_at__eq; entailer!.
     - rewrite sublist_same; auto; omega.
     - erewrite <- sublist_same with (al := bufs), sublist_next at 1; eauto; try (unfold B, N in *; omega).
       simpl; cancel. }
-  { Intros locks comms reads lasts sh.
+  { Intros locks comms g g0 g1 g2 reads lasts sh.
     forward_call (sizeof tint).
     { simpl; computable. }
     Intro c.
@@ -534,32 +548,24 @@ Proof.
     rewrite memory_block_data_at_; auto.
     forward.
     forward_call (sizeof tlock).
-    { admit. }
     { simpl; computable. }
     Intro l.
     rewrite malloc_compat; auto; Intros.
     rewrite memory_block_data_at_; auto.
     rewrite <- lock_struct_array.
     forward.
-    forward_call (l, Tsh, AE_inv c (vint 0) (comm_R bufs (Znth i shs Tsh) gsh2 c)).
-    (* make ghost vars here - what should our allocation axiom be? *)
-    match goal with |- semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
-      apply semax_pre with (P' := PROP () (LOCALx Q (SEPx (ghost (Some (Tsh, [] : hist), Some ([] : hist)) c ::
-        ghost_var Tsh (vint 1) c :: ghost_var Tsh (vint 0) (offset_val 1 c) ::
-        ghost_var Tsh (vint 1) (offset_val 2 c) :: R)))); [admit|] end.
-    replace_SEP 0 (ghost_hist Tsh ([] : hist) c * ghost_ref (@nil AE_hist_el) c).
-    { go_lowerx.
-      pose proof Share.nontrivial.
-      rewrite sepcon_emp, hist_ref_join by auto.
-      Exists ([] : hist); entailer!.
-      unfold hist_sub; rewrite eq_dec_refl; auto. }
+    apply (ghost_alloc (Tsh, vint 1)), (ghost_alloc (Tsh, vint 0)), (ghost_alloc (Tsh, vint 1)),
+      (ghost_alloc (Some (Tsh, [] : hist), Some ([] : hist))); Intros g' g0' g1' g2'.
+    forward_call (l, Tsh, AE_inv c g' (vint 0) (comm_R bufs (Znth i shs Tsh) gsh2 g0' g1' g2')).
+    rewrite <- hist_ref_join_nil by (apply Share.nontrivial).
+    fold (ghost_var Tsh (vint 1) g0') (ghost_var Tsh (vint 0) g1') (ghost_var Tsh (vint 1) g2').
     erewrite <- !ghost_var_share_join with (sh0 := Tsh) by (apply SH).
     match goal with H : sepalg_list.list_join sh1 (sublist i N shs) sh |- _ =>
       erewrite sublist_next in H; try omega; inversion H as [|????? Hj1 Hj2] end.
     apply sepalg.join_comm in Hj1; eapply sepalg_list.list_join_assoc1 in Hj2; eauto.
     destruct Hj2 as (sh' & ? & Hsh').
     erewrite <- data_at_share_join with (sh0 := sh) by (apply Hsh').
-    forward_call (l, Tsh, AE_inv c (vint 0) (comm_R bufs (Znth i shs Tsh) gsh2 c)).
+    forward_call (l, Tsh, AE_inv c g' (vint 0) (comm_R bufs (Znth i shs Tsh) gsh2 g0' g1' g2')).
     { entailer!. }
     { rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
         [repeat apply andp_right; auto; eapply derives_trans; try apply positive_weak_positive; auto|].
@@ -575,7 +581,8 @@ Proof.
       rewrite <- emp_sepcon at 1; apply sepcon_derives.
       { apply andp_right; auto; eapply derives_trans; [|apply comm_R_precise]; auto. }
       cancel_frame. }
-    Exists (locks ++ [l]) (comms ++ [c]) (reads ++ [rr]) (lasts ++ [ll]) sh'; rewrite !upd_init; try omega.
+    Exists (locks ++ [l]) (comms ++ [c]) (g ++ [g']) (g0 ++ [g0']) (g1 ++ [g1']) (g2 ++ [g2'])
+      (reads ++ [rr]) (lasts ++ [ll]) sh'; rewrite !upd_init; try omega.
     rewrite !Zlength_app, !Zlength_cons, !Zlength_nil; rewrite <- !app_assoc.
     go_lower.
     apply andp_right; [apply prop_right; split; auto; omega|].
@@ -584,8 +591,8 @@ Proof.
     rewrite !sepcon_andp_prop; repeat (apply andp_right; [apply prop_right; auto; try omega|]).
     rewrite Z2Nat.inj_add, upto_app, !map_app, !sepcon_app; try omega; simpl.
     change (upto 1) with [0]; simpl.
-    rewrite Z2Nat.id, Z.add_0_r; [|omega].
-    rewrite !Znth_app1; auto.
+    rewrite Z2Nat.id, Z.add_0_r by omega.
+    rewrite !Znth_app1 by auto.
     replace (Z.to_nat (N - (Zlength locks + 1))) with (Z.to_nat (N - (i + 1))) by (subst; clear; Omega0).
     subst; rewrite Zlength_correct, Nat2Z.id.
     rewrite <- lock_struct_array; unfold AE_inv.
@@ -598,18 +605,17 @@ Proof.
     { exists 2; auto. }
     { exists 2; auto. }
     { exists 2; auto. } }
-  Intros locks comms reads lasts sh.
+  Intros locks comms g g0 g1 g2 reads lasts sh.
   match goal with H : sepalg_list.list_join sh1 (sublist N N shs) sh |- _ =>
     rewrite sublist_nil in H; inv H end.
-Ltac entailer_for_return ::= go_lower; entailer'.
   forward.
   rewrite !app_nil_r.
-  Exists comms locks bufs reads lasts.
+  Exists comms locks bufs reads lasts g g0 g1 g2.
   (* entailer! is slow *)
   apply andp_right; auto.
-  apply andp_right; [apply prop_right; auto|].
+  apply andp_right; [apply prop_right; repeat (split; auto)|].
   apply andp_right; auto; cancel.
-Admitted.
+Qed.
 
 Lemma body_initialize_reader : semax_body Vprog Gprog f_initialize_reader initialize_reader_spec.
 Proof.
@@ -716,8 +722,8 @@ Proof.
   destruct a, a; simpl in *; omega.
 Qed.
 
-Lemma comm_loc_isptr : forall lsh l c b sh gsh h,
-  comm_loc lsh l c b sh gsh h = !!(isptr l) && comm_loc lsh l c b sh gsh h.
+Lemma comm_loc_isptr : forall lsh l c g g0 g1 g2 b sh gsh h,
+  comm_loc lsh l c g g0 g1 g2 b sh gsh h = !!(isptr l) && comm_loc lsh l c g g0 g1 g2 b sh gsh h.
 Proof.
   intros; eapply local_facts_isptr with (P := fun l => _); [|eauto].
   unfold comm_loc, AE_loc.
@@ -741,12 +747,12 @@ Proof.
   set (c := Znth r comms Vundef).
   set (l := Znth r locks Vundef).
 (*   (* Do P and Q need all the arguments? *) *)
-  forward_call (sh2, c, l, vint 0, Empty, h,
+  forward_call (sh2, c, g, l, vint 0, Empty, h,
     fun h b => !!(b = Empty /\ latest_read h (vint b0)) &&
-      (EX v : Z, data_at sh tbuffer (vint v) (Znth b0 bufs Vundef)) * ghost_var gsh1 (vint b0) c,
-    comm_R bufs sh gsh2 c, fun h b => EX b' : Z, !!((if eq_dec b Empty then b' = b0 else b = vint b') /\
+      (EX v : Z, data_at sh tbuffer (vint v) (Znth b0 bufs Vundef)) * ghost_var gsh1 (vint b0) g0,
+    comm_R bufs sh gsh2 g0 g1 g2, fun h b => EX b' : Z, !!((if eq_dec b Empty then b' = b0 else b = vint b') /\
       -1 <= b' < B /\ latest_read h (vint b')) &&
-      (EX v : Z, data_at sh tbuffer (vint v) (Znth b' bufs Vundef)) * ghost_var gsh1 (vint b') c).
+      (EX v : Z, data_at sh tbuffer (vint v) (Znth b' bufs Vundef)) * ghost_var gsh1 (vint b') g0).
   { repeat (split; auto); try computable.
     unfold AE_spec; intros.
     intros ??????? Ha.
@@ -821,9 +827,9 @@ Proof.
     entailer!. }
   forward_if (PROP () LOCAL (temp _b (vint (if eq_dec b (-1) then b0 else b)); temp _rr (Znth r reads Vundef);
       temp _r (vint r); gvar _reading reading; gvar _last_read last_read; gvar _lock lock; gvar _comm comm)
-    SEP (comm_loc sh2 l c bufs sh gsh2 (h ++ [(t, AE (vint b) Empty)]);
+    SEP (comm_loc sh2 l c g g0 g1 g2 bufs sh gsh2 (h ++ [(t, AE (vint b) Empty)]);
          EX v : Z, data_at sh tbuffer (vint v) (Znth (if eq_dec b (-1) then b0 else b) bufs Vundef);
-         ghost_var gsh1 (vint b') c;
+         ghost_var gsh1 (vint b') g0;
          data_at sh1 (tarray (tptr tint) N) reads reading; data_at sh1 (tarray (tptr tint) N) lasts last_read;
          data_at_ Tsh tint (Znth r reads Vundef);
          data_at Tsh tint (vint (if eq_dec b (-1) then b0 else b)) (Znth r lasts Vundef);
@@ -1303,7 +1309,7 @@ Proof.
   rewrite !data_at_rec_eq; unfold withspacer, at_offset; simpl.
   rewrite !data_at_rec_eq; simpl.
   apply mapsto_value_cohere; auto.
-Admitted. (* make this Qed *)
+Qed.
 
 Lemma upd_write_shares : forall bufs b b0 lasts shs sh0 (Hb : 0 <= b < B) (Hb0 : 0 <= b0 < B)
   (Hlasts : Forall (fun x : Z => 0 <= x < B) lasts) (Hshs : Zlength shs = N)
@@ -1556,15 +1562,16 @@ Proof.
    SEP (data_at Ews tint (vint b) writing; data_at Ews tint (vint b0) last_given;
         data_at sh1 (tarray (tptr tint) N) comms comm; data_at sh1 (tarray (tptr tlock) N) locks lock;
         EX t' : list nat, EX h' : list val, !!(Zlength t' = i /\ Zlength h' = i) &&
-          fold_right sepcon emp (map (fun r => comm_loc lsh (Znth r locks Vundef) (Znth r comms Vundef) bufs
-            (Znth r shs Tsh) gsh2 (Znth r h [] ++ if zlt r i then [(Znth r t' O, AE (Znth r h' Vundef) (vint b))] else []))
+          fold_right sepcon emp (map (fun r => comm_loc lsh (Znth r locks Vundef) (Znth r comms Vundef)
+            (Znth r g Vundef) (Znth r g0 Vundef) (Znth r g1 Vundef) (Znth r g2 Vundef) bufs (Znth r shs Tsh)
+            gsh2 (Znth r h [] ++ if zlt r i then [(Znth r t' O, AE (Znth r h' Vundef) (vint b))] else []))
             (upto (Z.to_nat N))) *
           let lasts' := map (fun i => if eq_dec (Znth i h' Vundef) Empty then b0 else Znth i lasts 0)
                             (upto (Z.to_nat N)) in
             data_at Ews (tarray tint N) (map (fun i => vint i) lasts') last_taken *
             fold_right sepcon emp (map (fun r =>
-              ghost_var gsh1 (vint (if zlt r i then b else b0)) (offset_val 1 (Znth r comms Vundef)) *
-              ghost_var gsh1 (vint (Znth r lasts' (-1))) (offset_val 2 (Znth r comms Vundef))) (upto (Z.to_nat N))) *
+              ghost_var gsh1 (vint (if zlt r i then b else b0)) (Znth r g1 Vundef) *
+              ghost_var gsh1 (vint (Znth r lasts' (-1))) (Znth r g2 Vundef)) (upto (Z.to_nat N))) *
             fold_right sepcon emp (map (fun a => EX sh : share,
               !!(if eq_dec a b0 then sepalg_list.list_join sh0 (make_shares shs (sublist 0 i lasts') a) sh
                  else if eq_dec a b then sepalg_list.list_join sh0 (sublist i N shs) sh
@@ -1621,18 +1628,17 @@ Proof.
     erewrite !Znth_map; rewrite ?Znth_upto; rewrite ?Znth_upto, ?Zlength_upto; rewrite ?Z2Nat.id; auto; try omega.
     rewrite Znth_overflow with (al := h'); [|omega].
     destruct (zlt i i); [clear - l; omega|].
-    forward_call (lsh, Znth i comms Vundef, Znth i locks Vundef, vint 0, vint b, Znth i h [],
+    forward_call (lsh, Znth i comms Vundef, Znth i g Vundef, Znth i locks Vundef, vint 0, vint b, Znth i h [],
       fun (h : hist) (v : val) => !!(v = vint b) &&
-        ghost_var gsh1 (vint b0) (offset_val 1 (Znth i comms Vundef)) *
-        ghost_var gsh1 (vint (Znth i lasts 0)) (offset_val 2 (Znth i comms Vundef)) *
+        ghost_var gsh1 (vint b0) (Znth i g1 Vundef) *
+        ghost_var gsh1 (vint (Znth i lasts 0)) (Znth i g2 Vundef) *
         EX v : Z, data_at (Znth i shs Tsh) tbuffer (vint v) (Znth b bufs Vundef),
-      comm_R bufs (Znth i shs Tsh) gsh2 (Znth i comms Vundef), fun (h : hist) (v : val) => EX b' : Z,
-        !!(v = vint b' /\ -1 <= b' < B) &&
-        ghost_var gsh1 (vint b) (offset_val 1 (Znth i comms Vundef)) *
-        ghost_var gsh1 (vint (if eq_dec b' (-1) then b0 else Znth i lasts 0))
-          (offset_val 2 (Znth i comms Vundef)) *
-        if eq_dec b' (-1) then EX v : Z, data_at (Znth i shs Tsh) tbuffer (vint v) (Znth (Znth i lasts 0) bufs Vundef)
-        else !!(b' = b0) && EX v' : Z, data_at (Znth i shs Tsh) tbuffer (vint v') (Znth b0 bufs Vundef)).
+      comm_R bufs (Znth i shs Tsh) gsh2 (Znth i g0 Vundef) (Znth i g1 Vundef) (Znth i g2 Vundef),
+        fun (h : hist) (v : val) => EX b' : Z, !!(v = vint b' /\ -1 <= b' < B) &&
+          ghost_var gsh1 (vint b) (Znth i g1 Vundef) *
+          ghost_var gsh1 (vint (if eq_dec b' (-1) then b0 else Znth i lasts 0)) (Znth i g2 Vundef) *
+          if eq_dec b' (-1) then EX v : Z, data_at (Znth i shs Tsh) tbuffer (vint v) (Znth (Znth i lasts 0) bufs Vundef)
+          else !!(b' = b0) && EX v' : Z, data_at (Znth i shs Tsh) tbuffer (vint v') (Znth b0 bufs Vundef)).
     { rewrite <- !sepcon_assoc; rewrite (sepcon_comm _ (EX v : Z, @data_at CompSpecs bsh tbuffer (vint v) _)).
       rewrite !sepcon_assoc; eapply derives_trans; [apply sepcon_derives; [|apply derives_refl]|].
       { instantiate (1 := (EX v : Z, data_at bsh' tbuffer (vint v) (Znth b bufs Vundef)) *
@@ -1658,11 +1664,11 @@ Proof.
       destruct (eq_dec vc Empty).
       { subst; assert (b = -1) by (apply Empty_inj; auto); omega. }
       apply semax_pre with (P' := PROPx P (LOCALx Q (SEPx (
-        (ghost_var gsh1 (vint b0) (offset_val 1 (Znth i comms Vundef)) *
-         ghost_var gsh2 (last_write (rev hx)) (offset_val 1 (Znth i comms Vundef))) ::
-        (ghost_var gsh1 (vint (Znth i lasts 0)) (offset_val 2 (Znth i comms Vundef)) *
-         ghost_var gsh2 (prev_taken (rev hx)) (offset_val 2 (Znth i comms Vundef))) ::
-        (ghost_var gsh2 (vint b1) (Znth i comms Vundef) *
+        (ghost_var gsh1 (vint b0) (Znth i g1 Vundef) *
+         ghost_var gsh2 (last_write (rev hx)) (Znth i g1 Vundef)) ::
+        (ghost_var gsh1 (vint (Znth i lasts 0)) (Znth i g2 Vundef) *
+         ghost_var gsh2 (prev_taken (rev hx)) (Znth i g2 Vundef)) ::
+        (ghost_var gsh2 (vint b1) (Znth i g0 Vundef) *
          (if eq_dec b' (-1) then EX v1 : Z, @data_at CompSpecs (Znth i shs Tsh) tbuffer (vint v1) (Znth b2 bufs Vundef)
           else EX v1 : Z, @data_at CompSpecs (Znth i shs Tsh) tbuffer (vint v1) (Znth b' bufs Vundef)) *
          (EX v1 : Z, @data_at CompSpecs (Znth i shs Tsh) tbuffer (vint v1) (Znth b bufs Vundef))) :: R)))).
@@ -1737,7 +1743,8 @@ Proof.
         simpl; cancel. }
     Intros x b'; destruct x as (t, v); simpl in *.
     gather_SEP 0 9; replace_SEP 0 (fold_right sepcon emp (map (fun r =>
-      comm_loc lsh (Znth r locks Vundef) (Znth r comms Vundef) bufs (Znth r shs Tsh) gsh2 (Znth r h [] ++
+      comm_loc lsh (Znth r locks Vundef) (Znth r comms Vundef) (Znth r g Vundef) (Znth r g0 Vundef)
+        (Znth r g1 Vundef) (Znth r g2 Vundef) bufs (Znth r shs Tsh) gsh2 (Znth r h [] ++
         (if zlt r (i + 1) then [(Znth r (t' ++ [t]) 0%nat, AE (Znth r (h' ++ [v]) Vundef) (vint b))] else [])))
       (upto (Z.to_nat N)))).
     { go_lower.
@@ -1754,10 +1761,9 @@ Proof.
         if_tac; if_tac; auto; try omega.
         rewrite !app_Znth1; auto; omega. }
     gather_SEP 1 2 10; replace_SEP 0 (fold_right sepcon emp (map (fun r =>
-      ghost_var gsh1 (vint (if zlt r (i + 1) then b else b0)) (offset_val 1 (Znth r comms Vundef)) *
+      ghost_var gsh1 (vint (if zlt r (i + 1) then b else b0)) (Znth r g1 Vundef) *
       ghost_var gsh1 (vint (Znth r (map (fun i0 => if eq_dec (Znth i0 (h' ++ [v]) Vundef) Empty then b0
-        else Znth i0 lasts 0) (upto (Z.to_nat N))) (-1))) (offset_val 2 (Znth r comms Vundef))) 
-      (upto (Z.to_nat N)))).
+        else Znth i0 lasts 0) (upto (Z.to_nat N))) (-1))) (Znth r g2 Vundef)) (upto (Z.to_nat N)))).
     { go_lowerx.
       rewrite (extract_nth_sepcon (map _ (upto (Z.to_nat N))) i);
         [|rewrite Zlength_map, Zlength_upto; auto].
@@ -1793,7 +1799,7 @@ Proof.
         (upd_Znth i l (vint (if eq_dec (vint b') Empty then b0 else Znth i lasts 0))) last_taken :: R)))) end.
     + forward.
       match goal with H : Int.repr b' = _ |- _ => rewrite Int.neg_repr in H; apply repr_inj_signed in H end; subst;
-        auto; [|split; try computable].
+        auto.
       destruct (eq_dec (- (1)) (-1)); [|absurd (-1 = -1); auto].
       apply drop_tc_environ.
     + forward.
@@ -1871,6 +1877,7 @@ Proof.
 Qed.
 
 Ltac entailer_for_load_tac ::= go_lower; entailer'.
+Ltac entailer_for_store_tac ::= go_lower; entailer'.
 
 Lemma body_reader : semax_body Vprog Gprog f_reader reader_spec.
 Proof.
@@ -1892,16 +1899,16 @@ Proof.
          data_at sh1 (tarray (tptr tint) N) comms comm;
          data_at sh1 (tarray (tptr tlock) N) locks lock;
          data_at sh1 (tarray (tptr tbuffer) B) bufs buf;
-         comm_loc sh2 l c bufs sh gsh2 h;
+         comm_loc sh2 l c g g0 g1 g2 bufs sh gsh2 h;
          EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth b0 bufs Vundef);
-         ghost_var gsh1 (vint b0) c)).
+         ghost_var gsh1 (vint b0) g0)).
   { Exists 1 ([] : hist); entailer!.
     unfold latest_read; auto. }
   eapply semax_loop; [|forward; apply drop_tc_environ].
   forward.
   Intros b0 h.
   subst c l; subst; forward_call (r, reading, last_read, lock, comm, reads, lasts, locks, comms, bufs,
-    sh, sh1, sh2, b0, gsh1, gsh2, h).
+    sh, sh1, sh2, b0, g, g0, g1, g2, gsh1, gsh2, h).
   { cancel. }
   { repeat (split; auto). }
   Intros x; destruct x as (((b, t), e), v); simpl in *.
@@ -1928,35 +1935,40 @@ Proof.
    data_at Ews (tarray tint N) (map (fun x => vint x) lasts) last_taken;
    data_at sh1 (tarray (tptr tint) N) comms comm; data_at sh1 (tarray (tptr tlock) N) locks lock;
    data_at sh1 (tarray (tptr tbuffer) B) bufs buf;
-   fold_right sepcon emp (map (fun r0 => comm_loc lsh (Znth r0 locks Vundef) (Znth r0 comms Vundef) bufs
+   fold_right sepcon emp (map (fun r0 => comm_loc lsh (Znth r0 locks Vundef) (Znth r0 comms Vundef)
+     (Znth r0 g Vundef) (Znth r0 g0 Vundef) (Znth r0 g1 Vundef) (Znth r0 g2 Vundef) bufs
      (Znth r0 shs Tsh) gsh2 (Znth r0 h [])) (upto (Z.to_nat N)));
-   fold_right sepcon emp (map (fun r0 => ghost_var gsh1 (vint b0) (offset_val 1 (Znth r0 comms Vundef)) *
-     ghost_var gsh1 (vint (Znth r0 lasts (-1))) (offset_val 2 (Znth r0 comms Vundef))) (upto (Z.to_nat N)));
+   fold_right sepcon emp (map (fun r0 => ghost_var gsh1 (vint b0) (Znth r0 g1 Vundef) *
+     ghost_var gsh1 (vint (Znth r0 lasts (-1))) (Znth r0 g2 Vundef)) (upto (Z.to_nat N)));
    fold_right sepcon emp (map (fun i => EX sh : share, !! (if eq_dec i b0 then sh = sh0
      else sepalg_list.list_join sh0 (make_shares shs lasts i) sh) &&
      (EX v : Z, @data_at CompSpecs sh tbuffer (vint v) (Znth i bufs Vundef))) (upto (Z.to_nat B))))).
   { Exists 0 0 (repeat 1 (Z.to_nat N)) (repeat ([] : hist) (Z.to_nat N)); entailer!.
-    - split; [repeat constructor; computable | omega].
-    - apply derives_refl'.
-      f_equal; [f_equal|].
-      + rewrite list_Znth_eq with (l := comms) at 1.
-        replace (length comms) with (Z.to_nat N) by (apply Nat2Z.inj; rewrite <- Zlength_correct; auto).
-        erewrite map_map, map_ext_in; eauto.
-        intros; rewrite In_upto in *.
-        match goal with |- context[Znth a ?l (-1)] => replace (Znth a l (-1)) with 1; auto end.
-        apply Forall_Znth; auto.
-      + erewrite map_ext_in; eauto.
-        intros; rewrite In_upto in *.
-        destruct (eq_dec a 0); auto.
-        destruct (eq_dec a 1), (eq_dec 1 a); auto; try omega.
-        { apply mpred_ext; Intros sh; Exists sh; entailer!.
-          * constructor.
-          * match goal with H : sepalg_list.list_join sh0 [] sh |- _ => inv H; auto end. }
-        generalize (make_shares_out a (repeat 1 (Z.to_nat N)) shs); simpl; intro Heq.
-        destruct (eq_dec 1 a); [contradiction n0; auto|].
-         rewrite Heq; auto; [|omega].
-        apply mpred_ext; Intros sh; Exists sh; entailer!.
-        eapply list_join_eq; eauto. }
+    { split; [repeat constructor; computable | omega]. }
+    rewrite sepcon_map.
+    apply derives_refl'.
+    rewrite !sepcon_assoc; f_equal; f_equal; [|f_equal].
+    - rewrite list_Znth_eq with (l := g1) at 1.
+      replace (length g1) with (Z.to_nat N) by (symmetry; rewrite <- Zlength_length; auto; unfold N; computable).
+      rewrite map_map; auto.
+    - rewrite list_Znth_eq with (l := g2) at 1.
+      replace (length g2) with (Z.to_nat N) by (symmetry; rewrite <- Zlength_length; auto; unfold N; computable).
+      erewrite map_map, map_ext_in; eauto.
+      intros; rewrite In_upto in *.
+      match goal with |- context[Znth a ?l (-1)] => replace (Znth a l (-1)) with 1; auto end.
+      apply Forall_Znth; auto.
+    - erewrite map_ext_in; eauto.
+      intros; rewrite In_upto in *.
+      destruct (eq_dec a 0); auto.
+      destruct (eq_dec a 1), (eq_dec 1 a); auto; try omega.
+      { apply mpred_ext; Intros sh; Exists sh; entailer!.
+        * constructor.
+        * match goal with H : sepalg_list.list_join sh0 [] sh |- _ => inv H; auto end. }
+      generalize (make_shares_out a (repeat 1 (Z.to_nat N)) shs); simpl; intro Heq.
+      destruct (eq_dec 1 a); [contradiction n0; auto|].
+       rewrite Heq; auto; [|omega].
+      apply mpred_ext; Intros sh; Exists sh; entailer!.
+      eapply list_join_eq; eauto. }
   eapply semax_loop; [|forward; apply drop_tc_environ].
   Intros v b0 lasts h.
   forward.
@@ -1977,7 +1989,6 @@ Proof.
     rewrite Zlength_map in *; auto. }
   rewrite make_shares_out in *; auto; [|setoid_rewrite H; auto].
   assert (sh = Tsh) by (eapply list_join_eq; eauto); subst.
-Ltac entailer_for_store_tac ::= go_lower; entailer'.
   forward.
   gather_SEP 8 9; replace_SEP 0 (fold_right sepcon emp (map (fun i => EX sh2 : share,
     !! (if eq_dec i b0 then sh2 = sh0 else sepalg_list.list_join sh0 (make_shares shs lasts i) sh2) &&
@@ -1987,9 +1998,9 @@ Ltac entailer_for_store_tac ::= go_lower; entailer'.
     rewrite Znth_map', Znth_upto; [|simpl; unfold B, N in *; omega].
     destruct (eq_dec b b0); [absurd (b = b0); auto|].
     rewrite make_shares_out; auto; [|setoid_rewrite H; auto].
-    Exists Tsh v; entailer'. }
+    Exists Tsh v; entailer!. }
   forward_call (writing, last_given, last_taken, comm, lock, comms, locks, bufs, b, b0, lasts,
-    sh1, lsh, shs, gsh1, gsh2, h, sh0).
+    sh1, lsh, shs, g, g0, g1, g2, gsh1, gsh2, h, sh0).
   { repeat (split; auto). }
   Intros x; destruct x as (lasts', h').
   forward.
@@ -2012,7 +2023,7 @@ Proof.
   exploit (split_shares (Z.to_nat N) Tsh); auto; intros (sh0 & shs & ? & ? & ? & ?).
   rewrite (data_at__eq _ (tarray (tptr (Tstruct _lock_t noattr)) N)), lock_struct_array.
   forward_call (comm, lock, buf, reading, last_read, gsh1, gsh2, sh0, shs).
-  Intros x; destruct x as ((((comms, locks), bufs), reads), lasts); simpl in *.
+  Intros x; destruct x as ((((((((comms, locks), bufs), reads), lasts), g), g0), g1), g2); simpl in *.
   assert_PROP (Zlength comms = N). (* entailer! loops here *)
   { go_lowerx; apply sepcon_derives_prop.
     eapply derives_trans; [apply data_array_at_local_facts'; unfold N; omega|].
@@ -2029,21 +2040,26 @@ Proof.
     apply prop_left; intros (? & ? & ?); apply prop_right; auto. }
   (* It's a rather major flaw that we have to reiterate the precondition here. Could we figure it out instead? *)
   forward_spawn (val * val * val * val * val * val * list val * list val * list val *
-                 share * share * share * list share * share * share)%type
-    (writer_, vint 0, (writing, last_given, last_taken, lock, comm, buf, locks, comms, bufs, sh1, gsh1, sh0, shs, gsh1, gsh2),
+                 share * share * share * list share * list val * list val * list val * list val * share * share)%type
+    (writer_, vint 0, (writing, last_given, last_taken, lock, comm, buf, locks, comms, bufs, sh1, gsh1, sh0, shs,
+                       g, g0, g1, g2, gsh1, gsh2),
     fun (x : (val * val * val * val * val * val * list val * list val * list val *
-              share * share * share * list share * share * share)%type) (arg : val) =>
-    let '(writing, last_given, last_taken, lock, comm, buf, locks, comms, bufs, sh1, lsh, sh0, shs, gsh1, gsh2) := x in
+              share * share * share * list share * list val * list val * list val * list val * share * share)%type)
+        (arg : val) =>
+    let '(writing, last_given, last_taken, lock, comm, buf, locks, comms, bufs, sh1, lsh, sh0, shs,
+          g, g0, g1, g2, gsh1, gsh2) := x in
       fold_right sepcon emp [!!(fold_right and True [Zlength shs = N; readable_share sh1; readable_share lsh;
         Forall readable_share shs; sepalg_list.list_join sh0 shs Tsh;
-        readable_share gsh1; readable_share gsh2; sepalg.join gsh1 gsh2 Tsh; Forall isptr comms]) && emp;
+        readable_share gsh1; readable_share gsh2; sepalg.join gsh1 gsh2 Tsh; Zlength g1 = N; Zlength g2 = N;
+        Forall isptr comms]) && emp;
         data_at_ Ews tint writing; data_at_ Ews tint last_given; data_at_ Ews (tarray tint N) last_taken;
         data_at sh1 (tarray (tptr tint) N) comms comm; data_at sh1 (tarray (tptr tlock) N) locks lock;
         data_at sh1 (tarray (tptr tbuffer) B) bufs buf;
-        fold_right sepcon emp (map (fun r => comm_loc lsh (Znth r locks Vundef) (Znth r comms Vundef) bufs
+        fold_right sepcon emp (map (fun r => comm_loc lsh (Znth r locks Vundef) (Znth r comms Vundef)
+          (Znth r g Vundef) (Znth r g0 Vundef) (Znth r g1 Vundef) (Znth r g2 Vundef) bufs
           (Znth r shs Tsh) gsh2 []) (upto (Z.to_nat N)));
-        fold_right sepcon emp (map (fun c => ghost_var gsh1 (vint 0) (offset_val 1 c) *
-          ghost_var gsh1 (vint 1) (offset_val 2 c)) comms);
+        fold_right sepcon emp (map (ghost_var gsh1 (vint 0)) g1);
+        fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) g2);
         fold_right sepcon emp (map (fun i => EX sh : share,
           !!(if eq_dec i 0 then sh = sh0 else if eq_dec i 1 then sh = sh0 else sh = Tsh) &&
           EX v : Z, data_at sh tbuffer (vint v) (Znth i bufs Vundef)) (upto (Z.to_nat B)))]).
@@ -2057,9 +2073,10 @@ Proof.
     apply andp_right; [apply prop_right|].
     { unfold liftx; simpl; unfold lift, make_args'; simpl.
       rewrite eval_id_other, eval_id_same; auto; discriminate. }
-    Exists _arg (fun x : (val * val * val * val * val * val * list val * list val * list val *
-                 share * share * share * list share * share * share) =>
-      let '(writing, last_given, last_taken, lock, comm, buf, locks, comms, bufs, sh1, lsh, sh0, shs, gsh1, gsh2) := x in
+    Exists _arg (fun x : (val * val * val * val * val * val * list val * list val * list val * share * share *
+      share * list share * list val * list val * list val * list val * share * share) =>
+      let '(writing, last_given, last_taken, lock, comm, buf, locks, comms, bufs, sh1, lsh, sh0, shs,
+            g, g0, g1, g2, gsh1, gsh2) := x in
       [(_writing, writing); (_last_given, last_given); (_last_taken, last_taken);
        (_lock, lock); (_comm, comm); (_bufs, buf)]).
     rewrite !sepcon_assoc; apply sepcon_derives.
@@ -2116,13 +2133,14 @@ Proof.
         fold_right sepcon emp (map (fun sh => data_at sh (tarray (tptr tint) N) comms comm) (sublist i N shs1));
         fold_right sepcon emp (map (fun sh => data_at sh (tarray (tptr tlock) N) locks lock) (sublist i N shs1));
         fold_right sepcon emp (map (fun sh => data_at sh (tarray (tptr tbuffer) B) bufs buf) (sublist i N shs1));
-        fold_right sepcon emp (map (fun x => comm_loc gsh2 (Znth x locks Vundef) (Znth x comms Vundef) bufs
-          (Znth x shs Tsh) gsh2 []) (sublist i N (upto (Z.to_nat N))));
-        fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) (sublist i N comms));
+        fold_right sepcon emp (map (fun x => comm_loc gsh2 (Znth x locks Vundef) (Znth x comms Vundef)
+          (Znth x g Vundef) (Znth x g0 Vundef) (Znth x g1 Vundef) (Znth x g2 Vundef) bufs (Znth x shs Tsh) gsh2
+          []) (sublist i N (upto (Z.to_nat N))));
+        fold_right sepcon emp (map (ghost_var gsh1 (vint 1)) (sublist i N g0));
         fold_right sepcon emp (map (data_at_ Tsh tint) (sublist i N reads));
         fold_right sepcon emp (map (data_at_ Tsh tint) (sublist i N lasts));
         fold_right sepcon emp (map (malloc_token Tsh 4) comms);
-        fold_right sepcon emp (map (malloc_token Tsh 4) locks);
+        fold_right sepcon emp (map (malloc_token Tsh 8) locks);
         fold_right sepcon emp (map (malloc_token Tsh 4) bufs);
         fold_right sepcon emp (map (malloc_token Tsh 4) reads);
         fold_right sepcon emp (map (malloc_token Tsh 4) lasts);
@@ -2144,22 +2162,25 @@ Proof.
       match goal with H : Zlength shs1 = _ |- _ => setoid_rewrite H; rewrite Z2Nat.id; omega end] end.
     apply sepalg.join_comm in Hj1; destruct (sepalg_list.list_join_assoc1 Hj1 Hj2) as (sh1' & ? & Hj').
     forward_spawn (Z * val * val * val * val * val * list val * list val * list val * list val * list val *
-                   share * share * share * share * share)%type
+                   share * share * share * val * val * val * val * share * share)%type
       (reader_, d, (i, reading, last_read, lock, comm, buf, reads, lasts, locks, comms, bufs,
-                    Znth i shs1 Tsh, gsh2, Znth i shs Tsh, gsh1, gsh2),
+                    Znth i shs1 Tsh, gsh2, Znth i shs Tsh, Znth i g Vundef, Znth i g0 Vundef, Znth i g1 Vundef,
+                    Znth i g2 Vundef, gsh1, gsh2),
       fun (x : (Z * val * val * val * val * val * list val * list val * list val * list val * list val *
-                share * share * share * share * share)%type) (arg : val) =>
-        let '(r, reading, last_read, lock, comm, buf, reads, lasts, locks, comms, bufs, sh1, sh2, sh, gsh1, gsh2) := x in
+                share * share * share * val * val * val * val * share * share)%type) (arg : val) =>
+        let '(r, reading, last_read, lock, comm, buf, reads, lasts, locks, comms, bufs, sh1, sh2, sh,
+              g, g0, g1, g2, gsh1, gsh2) := x in
         fold_right sepcon emp [!!(fold_right and True [readable_share sh; readable_share sh1; 
-          readable_share sh2; readable_share gsh1; readable_share gsh2; sepalg.join gsh1 gsh2 Tsh; isptr (Znth r comms Vundef)]) && emp;
+          readable_share sh2; readable_share gsh1; readable_share gsh2; sepalg.join gsh1 gsh2 Tsh;
+          isptr (Znth r comms Vundef)]) && emp;
           data_at Tsh tint (vint r) arg; malloc_token Tsh (sizeof tint) arg;
           data_at sh1 (tarray (tptr tint) N) reads reading; data_at sh1 (tarray (tptr tint) N) lasts last_read;
           data_at sh1 (tarray (tptr tint) N) comms comm; data_at sh1 (tarray (tptr tlock) N) locks lock;
           data_at_ Tsh tint (Znth r reads Vundef); data_at_ Tsh tint (Znth r lasts Vundef);
           data_at sh1 (tarray (tptr tbuffer) B) bufs buf;
-        comm_loc sh2 (Znth r locks Vundef) (Znth r comms Vundef) bufs sh gsh2 [];
-        EX v : Z, data_at sh tbuffer (vint v) (Znth 1 bufs Vundef);
-        ghost_var gsh1 (vint 1) (Znth r comms Vundef)]).
+          comm_loc sh2 (Znth r locks Vundef) (Znth r comms Vundef) g g0 g1 g2 bufs sh gsh2 [];
+          EX v : Z, data_at sh tbuffer (vint v) (Znth 1 bufs Vundef);
+          ghost_var gsh1 (vint 1) g0]).
     - apply andp_right.
       { entailer!. }
       unfold spawn_pre, PROPx, LOCALx, SEPx.
@@ -2174,9 +2195,10 @@ Proof.
           destruct d; auto; contradiction end).
         replace (eval_id _d rho) with d by auto.
         rewrite sem_cast_neutral_ptr; rewrite sem_cast_neutral_ptr; auto. }
-      Exists _arg (fun x : (Z * val * val * val * val * val * list val * list val * list val * list val * list val *
-                share * share * share * share * share) =>
-        let '(r, reading, last_read, lock, comm, buf, reads, lasts, locks, comms, bufs, sh1, sh2, sh, gsh1, gsh2) := x in
+      Exists _arg (fun x : (Z * val * val * val * val * val * list val * list val * list val * list val *
+        list val * share * share * share * val * val * val * val * share * share) =>
+        let '(r, reading, last_read, lock, comm, buf, reads, lasts, locks, comms, bufs, sh1, sh2, sh,
+              g, g0, g1, g2, gsh1, gsh2) := x in
         [(_reading, reading); (_last_read, last_read); (_lock, lock); (_comm, comm); (_bufs, buf)]).
       rewrite !sepcon_assoc; apply sepcon_derives.
       { apply derives_refl'.
@@ -2215,7 +2237,7 @@ Existing Instance Espec.
 Lemma all_funcs_correct:
   semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.
-unfold Gprog, prog, prog_funct; simpl.
+unfold Gprog, prog, prog_funct, main_pre, main_post, prog_vars; simpl.
 repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
 repeat semax_func_cons_ext.
 semax_func_cons body_malloc. apply semax_func_cons_malloc_aux.
@@ -2231,14 +2253,6 @@ repeat semax_func_cons_ext.
   destruct ret; auto. }
 semax_func_cons body_surely_malloc.
 semax_func_cons body_memset.
-(*semax_func_cons body_atomic_exchange.
-{ simpl in *.
-  destruct x0 as (((((((((?, ?), ?), ?), ?), ?), ?), ?), ?), ?).
-  (* This could probably be done automatically with a slight modification to precondition_closed. *)
-  simpl not_a_param; auto 50 with closed. }
-{ simpl in *.
-  destruct x0 as (((((((((?, ?), ?), ?), ?), ?), ?), ?), ?), ?).
-  simpl is_a_local; auto 50 with closed. }*)
 semax_func_cons body_initialize_channels.
 semax_func_cons body_initialize_reader.
 semax_func_cons body_start_read.

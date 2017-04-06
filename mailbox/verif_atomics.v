@@ -73,15 +73,12 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 'PRE'  [ u , ..
             (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
              P at level 100, Q at level 100).
 
-Definition MA_spec i P (R : val -> Z -> mpred) Q := forall p,
-  view_shift P (R p i * (weak_precise_mpred (R p i) && emp) * Q p).
+Definition MA_spec i P (R : Z -> mpred) Q := view_shift P (R i * (weak_precise_mpred (R i) && emp) * Q).
 
-Definition MA_type := ProdType (ProdType (ProdType
-  (ConstType Z) Mpred) (ArrowType (ConstType val) (ArrowType (ConstType Z) Mpred)))
-  (ArrowType (ConstType val) Mpred).
+Definition MA_type := ProdType (ProdType (ProdType (ConstType Z) Mpred) (ArrowType (ConstType Z) Mpred)) Mpred.
 
 Program Definition make_atomic_spec := DECLARE _make_atomic TYPE MA_type
-  WITH i : Z, P : mpred, R : val -> Z -> mpred, Q : val -> mpred
+  WITH i : Z, P : mpred, R : Z -> mpred, Q : mpred
   PRE [ _i OF tint ]
    PROP (MA_spec i P R Q; repable_signed i)
    LOCAL (temp _i (vint i))
@@ -90,35 +87,44 @@ Program Definition make_atomic_spec := DECLARE _make_atomic TYPE MA_type
    EX p : val,
    PROP ()
    LOCAL (temp ret_temp p)
-   SEP (atomic_loc Tsh p (R p) * Q p).
+   SEP (atomic_loc Tsh p R; Q).
 Next Obligation.
 Proof.
-(*  replace _ with (fun (_ : list Type) (x : Z * (list hist_el -> val -> mpred)) rho =>
-    PROP () LOCAL (let '(i, R) := x in temp _i (vint i))
-    SEP (let '(i, R) := x in R [] (vint i) * (weak_precise_mpred (R [] (vint i)) && emp)) rho).
-  apply (PROP_LOCAL_SEP_super_non_expansive (ProdType (ConstType Z) A_inv_Type) [] [fun _ => _] [fun _ => _]);
-    repeat constructor; hnf; intros; destruct x as (i, R); [auto | simpl].
-  - rewrite !approx_sepcon, !approx_andp.
-    rewrite approx_idem, nonexpansive_super_non_expansive by (apply precise_mpred_nonexpansive); auto.
+  replace _ with (fun (_ : list Type) (x : Z * mpred * (Z -> mpred) * mpred) rho =>
+    PROP (let '(i, P, R, Q) := x in MA_spec i P R Q /\ repable_signed i)
+    LOCAL (let '(i, P, R, Q) := x in temp _i (vint i))
+    SEP (let '(i, P, R, Q) := x in P) rho).
+  apply (PROP_LOCAL_SEP_super_non_expansive MA_type [fun _ => _] [fun _ => _] [fun _ => _]);
+    repeat constructor; hnf; intros; destruct x as (((i, P), R), Q); auto; simpl.
+  - rewrite !prop_and, !approx_andp; f_equal.
+    unfold MA_spec.
+    rewrite view_shift_super_non_expansive.
+    setoid_rewrite view_shift_super_non_expansive at 2.
+    rewrite !approx_sepcon, !approx_idem, !approx_andp.
+    rewrite (nonexpansive_super_non_expansive weak_precise_mpred) by (apply precise_mpred_nonexpansive); auto.
+  - rewrite approx_idem; auto.
   - extensionality ts x rho.
-    destruct x; unfold SEPx; simpl.
-    rewrite !sepcon_emp; auto.*)
-Admitted.
+    destruct x as (((?, ?), ?), ?); unfold PROPx, SEPx; simpl.
+    rewrite !sepcon_emp; f_equal; f_equal.
+    apply prop_ext; tauto.
+Qed.
 Next Obligation.
-Proof. (*
-  replace _ with (fun (_ : list Type) (x : Z * (list hist_el -> val -> mpred)) rho =>
-    EX p : val, PROP () LOCAL (let '(i, R) := x in temp ret_temp p)
-                SEP (let '(i, R) := x in atomic_loc Tsh p (vint i) R []) rho).
+Proof.
+  replace _ with (fun (_ : list Type) (x : Z * mpred * (Z -> mpred) * mpred) rho =>
+    EX p : val, PROP () LOCAL (let '(i, P, R, Q) := x in temp ret_temp p)
+                SEP (let '(i, P, R, Q) := x in atomic_loc Tsh p R * Q) rho).
   - repeat intro.
     rewrite !approx_exp; apply f_equal; extensionality p.
-    apply (PROP_LOCAL_SEP_super_non_expansive (ProdType (ConstType Z) A_inv_Type) []
-      [fun ts x => let '(i, R) := x in temp ret_temp p]
-      [fun ts x => let '(i, R) := x in atomic_loc Tsh p (vint i) R []]); repeat constructor; hnf; intros;
-      destruct x0 as (i, R); [auto | simpl].
-    apply atomic_loc_super_non_expansive.
+    apply (PROP_LOCAL_SEP_super_non_expansive MA_type []
+      [fun ts x => let '(i, P, R, Q) := x in temp ret_temp p]
+      [fun ts x => let '(i, P, R, Q) := x in atomic_loc Tsh p R * Q]); repeat constructor; hnf; intros;
+      destruct x0 as (((i, P), R), Q); [auto | simpl].
+    rewrite !approx_sepcon, approx_idem, atomic_loc_super_non_expansive; auto.
   - extensionality ts x rho.
-    destruct x; auto.
-Qed.*) Admitted.
+    destruct x as (((?, ?), ?), ?); unfold SEPx; simpl.
+    apply f_equal; extensionality p.
+    rewrite sepcon_assoc; auto.
+Qed.
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
@@ -143,35 +149,31 @@ Program Definition free_atomic_spec := DECLARE _free_atomic
    SEP (R v).
 Next Obligation.
 Proof.
-(*  replace _ with (fun (_ : list Type) (x : val * val * hist * (list hist_el -> val -> mpred)) rho =>
-    PROP () LOCAL (let '(p, i, h, R) := x in temp _tgt p)
-    SEP (let '(p, i, h, R) := x in atomic_loc Tsh p i R h) rho).
-  apply (PROP_LOCAL_SEP_super_non_expansive (ProdType (ConstType (val * val * hist)) A_inv_Type) []
-    [fun _ x => let '(((p, i), h), R) := x in _] [fun _ x => let '(((p, i), h), R) := x in _]);
-    repeat constructor; hnf; intros; destruct x as (((p, i), h), R); [auto|].
+  replace _ with (fun (_ : list Type) (x : val * (Z -> mpred)) rho =>
+    PROP () LOCAL (let '(p, R) := x in temp _tgt p)
+    SEP (let '(p, R) := x in atomic_loc Tsh p R) rho).
+  apply (PROP_LOCAL_SEP_super_non_expansive (ProdType (ConstType val) (ArrowType (ConstType Z) Mpred)) []
+    [fun _ x => let '(p, R) := x in _] [fun _ x => let '(p, R) := x in _]);
+    repeat constructor; hnf; intros; destruct x as (p, R); [auto|].
   - apply atomic_loc_super_non_expansive.
   - extensionality ts x rho.
-    destruct x as (((?, ?), ?), ?); auto.
-Qed.*) Admitted.
+    destruct x; auto.
+Qed.
 Next Obligation.
 Proof.
-(*  replace _ with (fun (_ : list Type) (x : val * val * hist * (list hist_el -> val -> mpred)) rho =>
-    EX h' : list hist_el, EX v : Z, PROP (let '(p, i, h, R) := x in hist_list h h' /\ apply_hist i h' = Some (vint v))
-      LOCAL (let '(p, i, h, R) := x in temp ret_temp (vint v)) SEP (let '(p, i, h, R) := x in R h' (vint v)) rho).
+  replace _ with (fun (_ : list Type) (x : val * (Z -> mpred)) rho =>
+    EX v : Z, PROP (let '(p, R) := x in repable_signed v)
+      LOCAL (let '(p, R) := x in temp ret_temp (vint v)) SEP (let '(p, R) := x in R v) rho).
   - repeat intro.
-    rewrite !approx_exp; apply f_equal; extensionality h'.
     rewrite !approx_exp; apply f_equal; extensionality v.
-    apply (PROP_LOCAL_SEP_super_non_expansive (ProdType (ConstType (val * val * hist)) A_inv_Type)
-      [fun ts x => let '(p, i, h, R) := x in _] [fun ts x => let '(p, i, h, R) := x in _]
-      [fun ts x => let '(p, i, h, R) := x in _]); repeat constructor; hnf; intros;
-      destruct x0 as (((p, i), h), R); auto; simpl.
+    apply (PROP_LOCAL_SEP_super_non_expansive (ProdType (ConstType val) (ArrowType (ConstType Z) Mpred))
+      [fun ts x => let '(p, R) := x in _] [fun ts x => let '(p, R) := x in _]
+      [fun ts x => let '(p, R) := x in _]); repeat constructor; hnf; intros;
+      destruct x0 as (p, R); auto; simpl.
     rewrite approx_idem; auto.
   - extensionality ts x rho.
-    destruct x as (((?, ?), ?), ?); auto.
-    do 2 (apply f_equal; extensionality).
-    unfold PROPx; simpl; f_equal; f_equal.
-    apply prop_ext; tauto.
-Qed.*) Admitted.
+    destruct x; auto.
+Qed.
 
 Definition AL_spec P (R : Z -> mpred) Q := forall vx, repable_signed vx -> view_shift (R vx * P) (R vx * Q vx).
 
@@ -201,101 +203,44 @@ Program Definition load_SC_spec := DECLARE _load_SC TYPE AL_type
    SEP (atomic_loc sh tgt R; Q v).
 Next Obligation.
 Proof.
-(*  replace _ with (fun (_ : list Type)
-    (x : share * share * val * val * val * val * hist *
-         (hist -> val -> mpred) * (list AE_hist_el -> val -> mpred) * (hist -> val -> mpred)) rho =>
-    PROP (let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in tc_val tint v /\ readable_share lsh /\
-      writable_share ish /\ AE_spec i P R Q)
-    LOCAL (let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in temp _tgt tgt;
-           let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in temp _l l;
-           let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in temp _v v)
-    SEP (let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in
-         lock_inv lsh l (AE_inv tgt i ish R) * ghost_hist h tgt * P h v) rho).
-  apply (PROP_LOCAL_SEP_super_non_expansive AE_type [fun _ => _] [fun _ => _; fun _ => _; fun _ => _]
-    [fun _ => _]); repeat constructor; hnf; intros;
-    destruct x as (((((((((?, ?), ?), ?), ?), ?), ?), P), R), Q); auto; simpl.
-  - rewrite !prop_and, !approx_andp; apply f_equal; apply f_equal; apply f_equal.
-    unfold AE_spec.
-    rewrite !prop_forall, !(approx_allp _ _ _ []); apply f_equal; extensionality hc.
-    rewrite !prop_forall, !(approx_allp _ _ _ []); apply f_equal; extensionality hv.
-    rewrite !prop_forall, !(approx_allp _ _ _ Vundef); apply f_equal; extensionality vc.
-    rewrite !prop_forall, !(approx_allp _ _ _ Vundef); apply f_equal; extensionality vx.
+  replace _ with (fun (_ : list Type) (x : share * val * mpred * (Z -> mpred) * (Z -> mpred)) rho =>
+    PROP (let '(sh, tgt, P, R, Q) := x in AL_spec P R Q /\ readable_share sh)
+    LOCAL (let '(sh, tgt, P, R, Q) := x in temp _tgt tgt)
+    SEP (let '(sh, tgt, P, R, Q) := x in atomic_loc sh tgt R * P) rho).
+  apply (PROP_LOCAL_SEP_super_non_expansive AL_type [fun _ => _] [fun _ => _] [fun _ => _]);
+    repeat constructor; hnf; intros; destruct x as ((((?, ?), P), R), Q); auto; simpl.
+  - rewrite !prop_and, !approx_andp; f_equal.
+    unfold AL_spec.
+    rewrite !prop_forall, !(approx_allp _ _ _ 0); apply f_equal; extensionality vx.
     rewrite !prop_impl.
     setoid_rewrite approx_imp at 1.
     setoid_rewrite approx_imp at 2.
-    setoid_rewrite approx_imp at 3.
-    setoid_rewrite approx_imp at 4.
     rewrite view_shift_super_non_expansive.
-    setoid_rewrite view_shift_super_non_expansive at 2.
-    rewrite !approx_sepcon, !approx_andp.
-    rewrite (nonexpansive_super_non_expansive weak_precise_mpred) by (apply precise_mpred_nonexpansive).
-    apply predicates_hered.pred_ext; intros ? (? & Himp); split; auto; intros ? Ha1 (? & ?);
-      split; auto; intros ? Ha2 (? & ?); split; auto;
-      change prop with (@predicates_hered.prop compcert_rmaps.RML.R.rmap _) in *;
-      intros ??????? X; rewrite !approx_idem in *.
-    + exploit (Himp _ Ha1); [split; auto|].
-      intros (? & Himp'); exploit (Himp' _ Ha2); [split; auto|].
-      intros (? & Hshift).
-      eapply semax_pre, Hshift, semax_pre, X; apply drop_tc_environ.
-    + exploit (Himp _ Ha1); [split; auto|].
-      intros (? & Himp'); exploit (Himp' _ Ha2); [split; auto|].
-      intros (? & Hshift).
-      eapply semax_pre, Hshift, semax_pre, X; apply drop_tc_environ.
-  - rewrite !approx_sepcon, approx_idem.
-    evar (rhs : mpred); replace (compcert_rmaps.RML.R.approx _ _) with rhs; subst rhs; [reflexivity|].
-    rewrite (nonexpansive_super_non_expansive (fun R => lock_inv s0 v0 R)); [|apply nonexpansive_lock_inv].
-    setoid_rewrite (nonexpansive_super_non_expansive (fun R => lock_inv s0 v0 R)) at 2; [|apply nonexpansive_lock_inv].
-    apply f_equal; apply f_equal.
-    unfold AE_inv; rewrite !approx_exp; apply f_equal; extensionality l'.
-    rewrite !approx_exp; apply f_equal; extensionality z'.
-    rewrite !approx_andp, !approx_sepcon, approx_idem; apply f_equal; f_equal.
-    rewrite !approx_andp; f_equal.
-    setoid_rewrite nonexpansive_super_non_expansive at 2; [|apply precise_mpred_nonexpansive]; auto.
+    rewrite !approx_sepcon; auto.
+  - rewrite !approx_sepcon, approx_idem, atomic_loc_super_non_expansive; auto.
   - extensionality ts x rho.
-    destruct x as (((((((((?, ?), ?), ?), ?), ?), ?), P), R), Q); auto.
+    destruct x as ((((?, ?), P), R), Q).
     unfold PROPx, SEPx; simpl; rewrite !sepcon_assoc; f_equal.
     apply f_equal; apply prop_ext; tauto.
-Qed.*) Admitted.
+Qed.
 Next Obligation.
 Proof.
-(*  replace _ with (fun (_ : list Type)
-    (x : share * share * val * val * val * val * hist *
-         (hist -> val -> mpred) * (list AE_hist_el -> val -> mpred) * (hist -> val -> mpred)) rho =>
-    EX t : nat, EX v' : val,
-      PROP (let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in
-            tc_val tint v' /\ Forall (fun x => (fst x < t)%nat) h)
-      LOCAL (let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in temp ret_temp v')
-      SEP (let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in
-           lock_inv lsh l (AE_inv tgt i ish R) * ghost_hist (h ++ [(t, AE v' v)]) tgt *
-           Q (h ++ [(t, AE v' v)]) v') rho).
-  repeat intro.
-  rewrite !approx_exp; apply f_equal; extensionality t.
-  rewrite !approx_exp; apply f_equal; extensionality v'.
-  pose proof (PROP_LOCAL_SEP_super_non_expansive AE_type
-    [fun ts x => let '(_, _, _, _, _, _, h, _, _, _) := x in tc_val tint v' /\ Forall (fun x => (fst x < t)%nat) h]
-    [fun ts x => let '(_, _, _, _, _, _, _, _, _, _) := x in temp ret_temp v']
-    [fun ts x => let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in
-       lock_inv lsh l (AE_inv tgt i ish R) * ghost_hist (h ++ [(t, AE v' v)]) tgt *
-       Q (h ++ [(t, AE v' v)]) v'])
-    as Heq; apply Heq; repeat constructor; hnf; intros;
-      destruct x0 as (((((((((?, ?), ?), ?), ?), ?), ?), P), R), Q); auto; simpl.
-  - rewrite !approx_sepcon, approx_idem; f_equal.
-    rewrite (nonexpansive_super_non_expansive (fun R => lock_inv s0 v0 R)); [|apply nonexpansive_lock_inv].
-    f_equal.
-    setoid_rewrite (nonexpansive_super_non_expansive (fun R => lock_inv s0 v0 R)) at 2; [|apply nonexpansive_lock_inv].
-    apply f_equal; apply f_equal.
-    unfold AE_inv; rewrite !approx_exp; apply f_equal; extensionality l'.
-    rewrite !approx_exp; apply f_equal; extensionality z'.
-    rewrite !approx_andp, !approx_sepcon, approx_idem; apply f_equal; apply f_equal.
-    rewrite !approx_andp; f_equal.
-    apply (nonexpansive_super_non_expansive), precise_mpred_nonexpansive.
+  replace _ with (fun (_ : list Type) (x : share * val * mpred * (Z -> mpred) * (Z -> mpred)) rho =>
+    EX v : Z,
+      PROP (let '(sh, tgt, P, R, Q) := x in repable_signed v)
+      LOCAL (let '(sh, tgt, P, R, Q) := x in temp ret_temp (vint v))
+      SEP (let '(sh, tgt, P, R, Q) := x in atomic_loc sh tgt R * Q v) rho).
+  - repeat intro.
+    rewrite !approx_exp; apply f_equal; extensionality v.
+    apply (PROP_LOCAL_SEP_super_non_expansive AL_type [fun ts x => let '(sh, tgt, P, R, Q) := x in _]
+      [fun ts x => let '(sh, tgt, P, R, Q) := x in _] [fun ts x => let '(sh, tgt, P, R, Q) := x in _]);
+      repeat constructor; hnf; intros; destruct x0 as ((((?, ?), P), R), Q); auto; simpl.
+    rewrite !approx_sepcon, approx_idem, atomic_loc_super_non_expansive; auto.
   - extensionality ts x rho.
-    destruct x as (((((((((?, ?), ?), ?), ?), ?), ?), P), R), Q); auto.
+    destruct x as ((((?, ?), P), R), Q); auto.
     apply f_equal; extensionality.
-    apply f_equal; extensionality.
-    unfold PROPx, SEPx; simpl; rewrite !sepcon_assoc; f_equal.
-    apply f_equal; apply prop_ext; tauto.
-Qed.*) Admitted.
+    unfold SEPx; simpl; rewrite !sepcon_assoc; auto.
+Qed.
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
@@ -326,101 +271,40 @@ Program Definition store_SC_spec := DECLARE _store_SC
    SEP (atomic_loc sh tgt R; Q).
 Next Obligation.
 Proof.
-(*  replace _ with (fun (_ : list Type)
-    (x : share * share * val * val * val * val * hist *
-         (hist -> val -> mpred) * (list AE_hist_el -> val -> mpred) * (hist -> val -> mpred)) rho =>
-    PROP (let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in tc_val tint v /\ readable_share lsh /\
-      writable_share ish /\ AE_spec i P R Q)
-    LOCAL (let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in temp _tgt tgt;
-           let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in temp _l l;
-           let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in temp _v v)
-    SEP (let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in
-         lock_inv lsh l (AE_inv tgt i ish R) * ghost_hist h tgt * P h v) rho).
-  apply (PROP_LOCAL_SEP_super_non_expansive AE_type [fun _ => _] [fun _ => _; fun _ => _; fun _ => _]
-    [fun _ => _]); repeat constructor; hnf; intros;
-    destruct x as (((((((((?, ?), ?), ?), ?), ?), ?), P), R), Q); auto; simpl.
-  - rewrite !prop_and, !approx_andp; apply f_equal; apply f_equal; apply f_equal.
-    unfold AE_spec.
-    rewrite !prop_forall, !(approx_allp _ _ _ []); apply f_equal; extensionality hc.
-    rewrite !prop_forall, !(approx_allp _ _ _ []); apply f_equal; extensionality hv.
-    rewrite !prop_forall, !(approx_allp _ _ _ Vundef); apply f_equal; extensionality vc.
-    rewrite !prop_forall, !(approx_allp _ _ _ Vundef); apply f_equal; extensionality vx.
+  replace _ with (fun (_ : list Type) (x : share * val * Z * mpred * (Z -> mpred) * mpred) rho =>
+    PROP (let '(sh, tgt, v, P, R, Q) := x in AS_spec v P R Q /\ readable_share sh /\ repable_signed v)
+    LOCAL (let '(sh, tgt, v, P, R, Q) := x in temp _tgt tgt; let '(sh, tgt, v, P, R, Q) := x in temp _v (vint v))
+    SEP (let '(sh, tgt, v, P, R, Q) := x in atomic_loc sh tgt R * P) rho).
+  apply (PROP_LOCAL_SEP_super_non_expansive AS_type [fun _ => _] [fun _ => _; fun _ => _] [fun _ => _]);
+    repeat constructor; hnf; intros; destruct x as (((((?, ?), ?), P), R), Q); auto; simpl.
+  - rewrite !prop_and, !approx_andp; f_equal.
+    unfold AS_spec.
+    rewrite !prop_forall, !(approx_allp _ _ _ 0); apply f_equal; extensionality vx.
     rewrite !prop_impl.
     setoid_rewrite approx_imp at 1.
     setoid_rewrite approx_imp at 2.
-    setoid_rewrite approx_imp at 3.
-    setoid_rewrite approx_imp at 4.
     rewrite view_shift_super_non_expansive.
     setoid_rewrite view_shift_super_non_expansive at 2.
-    rewrite !approx_sepcon, !approx_andp.
-    rewrite (nonexpansive_super_non_expansive weak_precise_mpred) by (apply precise_mpred_nonexpansive).
-    apply predicates_hered.pred_ext; intros ? (? & Himp); split; auto; intros ? Ha1 (? & ?);
-      split; auto; intros ? Ha2 (? & ?); split; auto;
-      change prop with (@predicates_hered.prop compcert_rmaps.RML.R.rmap _) in *;
-      intros ??????? X; rewrite !approx_idem in *.
-    + exploit (Himp _ Ha1); [split; auto|].
-      intros (? & Himp'); exploit (Himp' _ Ha2); [split; auto|].
-      intros (? & Hshift).
-      eapply semax_pre, Hshift, semax_pre, X; apply drop_tc_environ.
-    + exploit (Himp _ Ha1); [split; auto|].
-      intros (? & Himp'); exploit (Himp' _ Ha2); [split; auto|].
-      intros (? & Hshift).
-      eapply semax_pre, Hshift, semax_pre, X; apply drop_tc_environ.
-  - rewrite !approx_sepcon, approx_idem.
-    evar (rhs : mpred); replace (compcert_rmaps.RML.R.approx _ _) with rhs; subst rhs; [reflexivity|].
-    rewrite (nonexpansive_super_non_expansive (fun R => lock_inv s0 v0 R)); [|apply nonexpansive_lock_inv].
-    setoid_rewrite (nonexpansive_super_non_expansive (fun R => lock_inv s0 v0 R)) at 2; [|apply nonexpansive_lock_inv].
-    apply f_equal; apply f_equal.
-    unfold AE_inv; rewrite !approx_exp; apply f_equal; extensionality l'.
-    rewrite !approx_exp; apply f_equal; extensionality z'.
-    rewrite !approx_andp, !approx_sepcon, approx_idem; apply f_equal; f_equal.
-    rewrite !approx_andp; f_equal.
-    setoid_rewrite nonexpansive_super_non_expansive at 2; [|apply precise_mpred_nonexpansive]; auto.
+    rewrite !approx_sepcon, !approx_andp, !approx_idem.
+    rewrite (nonexpansive_super_non_expansive weak_precise_mpred) by (apply precise_mpred_nonexpansive); auto.
+  - rewrite !approx_sepcon, approx_idem, atomic_loc_super_non_expansive; auto.
   - extensionality ts x rho.
-    destruct x as (((((((((?, ?), ?), ?), ?), ?), ?), P), R), Q); auto.
+    destruct x as (((((?, ?), ?), P), R), Q).
     unfold PROPx, SEPx; simpl; rewrite !sepcon_assoc; f_equal.
     apply f_equal; apply prop_ext; tauto.
-Qed.*) Admitted.
+Qed.
 Next Obligation.
 Proof.
-(*  replace _ with (fun (_ : list Type)
-    (x : share * share * val * val * val * val * hist *
-         (hist -> val -> mpred) * (list AE_hist_el -> val -> mpred) * (hist -> val -> mpred)) rho =>
-    EX t : nat, EX v' : val,
-      PROP (let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in
-            tc_val tint v' /\ Forall (fun x => (fst x < t)%nat) h)
-      LOCAL (let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in temp ret_temp v')
-      SEP (let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in
-           lock_inv lsh l (AE_inv tgt i ish R) * ghost_hist (h ++ [(t, AE v' v)]) tgt *
-           Q (h ++ [(t, AE v' v)]) v') rho).
-  repeat intro.
-  rewrite !approx_exp; apply f_equal; extensionality t.
-  rewrite !approx_exp; apply f_equal; extensionality v'.
-  pose proof (PROP_LOCAL_SEP_super_non_expansive AE_type
-    [fun ts x => let '(_, _, _, _, _, _, h, _, _, _) := x in tc_val tint v' /\ Forall (fun x => (fst x < t)%nat) h]
-    [fun ts x => let '(_, _, _, _, _, _, _, _, _, _) := x in temp ret_temp v']
-    [fun ts x => let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in
-       lock_inv lsh l (AE_inv tgt i ish R) * ghost_hist (h ++ [(t, AE v' v)]) tgt *
-       Q (h ++ [(t, AE v' v)]) v'])
-    as Heq; apply Heq; repeat constructor; hnf; intros;
-      destruct x0 as (((((((((?, ?), ?), ?), ?), ?), ?), P), R), Q); auto; simpl.
-  - rewrite !approx_sepcon, approx_idem; f_equal.
-    rewrite (nonexpansive_super_non_expansive (fun R => lock_inv s0 v0 R)); [|apply nonexpansive_lock_inv].
-    f_equal.
-    setoid_rewrite (nonexpansive_super_non_expansive (fun R => lock_inv s0 v0 R)) at 2; [|apply nonexpansive_lock_inv].
-    apply f_equal; apply f_equal.
-    unfold AE_inv; rewrite !approx_exp; apply f_equal; extensionality l'.
-    rewrite !approx_exp; apply f_equal; extensionality z'.
-    rewrite !approx_andp, !approx_sepcon, approx_idem; apply f_equal; apply f_equal.
-    rewrite !approx_andp; f_equal.
-    apply (nonexpansive_super_non_expansive), precise_mpred_nonexpansive.
+  replace _ with (fun (_ : list Type) (x : share * val * Z * mpred * (Z -> mpred) * mpred) rho =>
+    PROP () LOCAL () SEP (let '(sh, tgt, v, P, R, Q) := x in atomic_loc sh tgt R * Q) rho).
+  - repeat intro.
+    apply (PROP_LOCAL_SEP_super_non_expansive AS_type [] [] [fun ts x => let '(sh, tgt, v, P, R, Q) := x in _]);
+      repeat constructor; hnf; intros; destruct x0 as (((((?, ?), ?), P), R), Q); auto; simpl.
+    rewrite !approx_sepcon, approx_idem, atomic_loc_super_non_expansive; auto.
   - extensionality ts x rho.
-    destruct x as (((((((((?, ?), ?), ?), ?), ?), ?), P), R), Q); auto.
-    apply f_equal; extensionality.
-    apply f_equal; extensionality.
-    unfold PROPx, SEPx; simpl; rewrite !sepcon_assoc; f_equal.
-    apply f_equal; apply prop_ext; tauto.
-Qed.*) Admitted.
+    destruct x as (((((?, ?), ?), P), R), Q); auto.
+    unfold SEPx; simpl; rewrite !sepcon_assoc; auto.
+Qed.
 
 Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
      (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
@@ -454,101 +338,49 @@ Program Definition CAS_SC_spec := DECLARE _CAS_SC
    SEP (atomic_loc sh tgt R; Q v').
 Next Obligation.
 Proof.
-(*  replace _ with (fun (_ : list Type)
-    (x : share * share * val * val * val * val * hist *
-         (hist -> val -> mpred) * (list AE_hist_el -> val -> mpred) * (hist -> val -> mpred)) rho =>
-    PROP (let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in tc_val tint v /\ readable_share lsh /\
-      writable_share ish /\ AE_spec i P R Q)
-    LOCAL (let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in temp _tgt tgt;
-           let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in temp _l l;
-           let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in temp _v v)
-    SEP (let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in
-         lock_inv lsh l (AE_inv tgt i ish R) * ghost_hist h tgt * P h v) rho).
-  apply (PROP_LOCAL_SEP_super_non_expansive AE_type [fun _ => _] [fun _ => _; fun _ => _; fun _ => _]
-    [fun _ => _]); repeat constructor; hnf; intros;
-    destruct x as (((((((((?, ?), ?), ?), ?), ?), ?), P), R), Q); auto; simpl.
-  - rewrite !prop_and, !approx_andp; apply f_equal; apply f_equal; apply f_equal.
-    unfold AE_spec.
-    rewrite !prop_forall, !(approx_allp _ _ _ []); apply f_equal; extensionality hc.
-    rewrite !prop_forall, !(approx_allp _ _ _ []); apply f_equal; extensionality hv.
-    rewrite !prop_forall, !(approx_allp _ _ _ Vundef); apply f_equal; extensionality vc.
-    rewrite !prop_forall, !(approx_allp _ _ _ Vundef); apply f_equal; extensionality vx.
+  replace _ with (fun (_ : list Type) (x : share * val * Z * Z * mpred * (Z -> mpred) * (Z -> mpred)) rho =>
+    PROP (let '(sh, tgt, c, v, P, R, Q) := x in ACAS_spec c v P R Q /\ readable_share sh /\ repable_signed c /\
+      repable_signed v)
+    LOCAL (let '(sh, tgt, c, v, P, R, Q) := x in temp _tgt tgt;
+           let '(sh, tgt, c, v, P, R, Q) := x in temp _c (vint c);
+           let '(sh, tgt, c, v, P, R, Q) := x in temp _v (vint v))
+    SEP (let '(sh, tgt, c, v, P, R, Q) := x in atomic_loc sh tgt R * P) rho).
+  apply (PROP_LOCAL_SEP_super_non_expansive ACAS_type [fun _ => _] [fun _ => _; fun _ => _; fun _ => _]
+    [fun _ => _]); repeat constructor; hnf; intros; destruct x as ((((((?, ?), ?), ?), P), R), Q); auto; simpl.
+  - rewrite !prop_and, !approx_andp; f_equal.
+    unfold ACAS_spec.
+    rewrite !prop_forall, !(approx_allp _ _ _ 0); apply f_equal; extensionality vx.
     rewrite !prop_impl.
     setoid_rewrite approx_imp at 1.
     setoid_rewrite approx_imp at 2.
-    setoid_rewrite approx_imp at 3.
-    setoid_rewrite approx_imp at 4.
     rewrite view_shift_super_non_expansive.
     setoid_rewrite view_shift_super_non_expansive at 2.
-    rewrite !approx_sepcon, !approx_andp.
-    rewrite (nonexpansive_super_non_expansive weak_precise_mpred) by (apply precise_mpred_nonexpansive).
-    apply predicates_hered.pred_ext; intros ? (? & Himp); split; auto; intros ? Ha1 (? & ?);
-      split; auto; intros ? Ha2 (? & ?); split; auto;
-      change prop with (@predicates_hered.prop compcert_rmaps.RML.R.rmap _) in *;
-      intros ??????? X; rewrite !approx_idem in *.
-    + exploit (Himp _ Ha1); [split; auto|].
-      intros (? & Himp'); exploit (Himp' _ Ha2); [split; auto|].
-      intros (? & Hshift).
-      eapply semax_pre, Hshift, semax_pre, X; apply drop_tc_environ.
-    + exploit (Himp _ Ha1); [split; auto|].
-      intros (? & Himp'); exploit (Himp' _ Ha2); [split; auto|].
-      intros (? & Hshift).
-      eapply semax_pre, Hshift, semax_pre, X; apply drop_tc_environ.
-  - rewrite !approx_sepcon, approx_idem.
-    evar (rhs : mpred); replace (compcert_rmaps.RML.R.approx _ _) with rhs; subst rhs; [reflexivity|].
-    rewrite (nonexpansive_super_non_expansive (fun R => lock_inv s0 v0 R)); [|apply nonexpansive_lock_inv].
-    setoid_rewrite (nonexpansive_super_non_expansive (fun R => lock_inv s0 v0 R)) at 2; [|apply nonexpansive_lock_inv].
-    apply f_equal; apply f_equal.
-    unfold AE_inv; rewrite !approx_exp; apply f_equal; extensionality l'.
-    rewrite !approx_exp; apply f_equal; extensionality z'.
-    rewrite !approx_andp, !approx_sepcon, approx_idem; apply f_equal; f_equal.
-    rewrite !approx_andp; f_equal.
-    setoid_rewrite nonexpansive_super_non_expansive at 2; [|apply precise_mpred_nonexpansive]; auto.
+    rewrite !approx_sepcon, !approx_andp, !approx_idem.
+    rewrite (nonexpansive_super_non_expansive weak_precise_mpred) by (apply precise_mpred_nonexpansive); auto.
+  - rewrite !approx_sepcon, approx_idem, atomic_loc_super_non_expansive; auto.
   - extensionality ts x rho.
-    destruct x as (((((((((?, ?), ?), ?), ?), ?), ?), P), R), Q); auto.
+    destruct x as ((((((?, ?), ?), ?), P), R), Q).
     unfold PROPx, SEPx; simpl; rewrite !sepcon_assoc; f_equal.
     apply f_equal; apply prop_ext; tauto.
-Qed.*) Admitted.
+Qed.
 Next Obligation.
 Proof.
-(*  replace _ with (fun (_ : list Type)
-    (x : share * share * val * val * val * val * hist *
-         (hist -> val -> mpred) * (list AE_hist_el -> val -> mpred) * (hist -> val -> mpred)) rho =>
-    EX t : nat, EX v' : val,
-      PROP (let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in
-            tc_val tint v' /\ Forall (fun x => (fst x < t)%nat) h)
-      LOCAL (let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in temp ret_temp v')
-      SEP (let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in
-           lock_inv lsh l (AE_inv tgt i ish R) * ghost_hist (h ++ [(t, AE v' v)]) tgt *
-           Q (h ++ [(t, AE v' v)]) v') rho).
-  repeat intro.
-  rewrite !approx_exp; apply f_equal; extensionality t.
-  rewrite !approx_exp; apply f_equal; extensionality v'.
-  pose proof (PROP_LOCAL_SEP_super_non_expansive AE_type
-    [fun ts x => let '(_, _, _, _, _, _, h, _, _, _) := x in tc_val tint v' /\ Forall (fun x => (fst x < t)%nat) h]
-    [fun ts x => let '(_, _, _, _, _, _, _, _, _, _) := x in temp ret_temp v']
-    [fun ts x => let '(ish, lsh, tgt, l, i, v, h, P, R, Q) := x in
-       lock_inv lsh l (AE_inv tgt i ish R) * ghost_hist (h ++ [(t, AE v' v)]) tgt *
-       Q (h ++ [(t, AE v' v)]) v'])
-    as Heq; apply Heq; repeat constructor; hnf; intros;
-      destruct x0 as (((((((((?, ?), ?), ?), ?), ?), ?), P), R), Q); auto; simpl.
-  - rewrite !approx_sepcon, approx_idem; f_equal.
-    rewrite (nonexpansive_super_non_expansive (fun R => lock_inv s0 v0 R)); [|apply nonexpansive_lock_inv].
-    f_equal.
-    setoid_rewrite (nonexpansive_super_non_expansive (fun R => lock_inv s0 v0 R)) at 2; [|apply nonexpansive_lock_inv].
-    apply f_equal; apply f_equal.
-    unfold AE_inv; rewrite !approx_exp; apply f_equal; extensionality l'.
-    rewrite !approx_exp; apply f_equal; extensionality z'.
-    rewrite !approx_andp, !approx_sepcon, approx_idem; apply f_equal; apply f_equal.
-    rewrite !approx_andp; f_equal.
-    apply (nonexpansive_super_non_expansive), precise_mpred_nonexpansive.
+  replace _ with (fun (_ : list Type) (x : share * val * Z * Z * mpred * (Z -> mpred) * (Z -> mpred)) rho =>
+    EX v' : Z,
+      PROP (let '(sh, tgt, c, v, P, R, Q) := x in repable_signed v')
+      LOCAL (let '(sh, tgt, c, v, P, R, Q) := x in temp ret_temp (if eq_dec c v' then vint 1 else vint 0))
+      SEP (let '(sh, tgt, c, v, P, R, Q) := x in atomic_loc sh tgt R * Q v') rho).
+  - repeat intro.
+    rewrite !approx_exp; apply f_equal; extensionality v'.
+    apply (PROP_LOCAL_SEP_super_non_expansive ACAS_type [fun ts x => let '(sh, tgt, c, v, P, R, Q) := x in _]
+      [fun ts x => let '(sh, tgt, c, v, P, R, Q) := x in _] [fun ts x => let '(sh, tgt, c, v, P, R, Q) := x in _]);
+    repeat constructor; hnf; intros; destruct x0 as ((((((?, ?), ?), ?), P), R), Q); auto; simpl.
+    rewrite !approx_sepcon, approx_idem, atomic_loc_super_non_expansive; auto.
   - extensionality ts x rho.
-    destruct x as (((((((((?, ?), ?), ?), ?), ?), ?), P), R), Q); auto.
+    destruct x as ((((((?, ?), ?), ?), P), R), Q); auto.
     apply f_equal; extensionality.
-    apply f_equal; extensionality.
-    unfold PROPx, SEPx; simpl; rewrite !sepcon_assoc; f_equal.
-    apply f_equal; apply prop_ext; tauto.
-Qed.*) Admitted.
+    unfold SEPx; simpl; rewrite !sepcon_assoc; auto.
+Qed.
 
 Definition Gprog : funspecs := ltac:(with_library prog [acquire_spec; release_spec; makelock_spec; freelock_spec;
   surely_malloc_spec; make_atomic_spec; free_atomic_spec; load_SC_spec; store_SC_spec; CAS_SC_spec]).
@@ -625,16 +457,15 @@ Proof.
   rewrite malloc_compat; auto; Intros.
   rewrite memory_block_data_at_; auto.
   forward_call (sizeof tlock).
-  { admit. }
   { simpl; computable. }
   Intros l.
   rewrite malloc_compat; auto; Intros.
   rewrite memory_block_data_at_; auto.
   forward.
   forward.
-  forward_call (l, Tsh, A_inv p l (R p)).
-  focus_SEP 4; apply (H p).
-  forward_call (l, Tsh, A_inv p l (R p)).
+  forward_call (l, Tsh, A_inv p l R).
+  focus_SEP 4; apply H.
+  forward_call (l, Tsh, A_inv p l R).
   { rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
       [repeat apply andp_right; auto; eapply derives_trans; try apply positive_weak_positive; auto|].
     { apply A_inv_precise; auto. }
@@ -646,7 +477,7 @@ Proof.
   Exists p l; entailer!.
   { exists 2; auto. }
   { exists 2; auto. }
-Admitted.
+Qed.
 
 Lemma body_free_atomic : semax_body Vprog Gprog f_free_atomic free_atomic_spec.
 Proof.
@@ -1104,34 +935,38 @@ Proof.
       destruct (eq_dec c (Vint i)); eapply IHh; eauto.
 Qed.
 
-Definition hist_R p i R v := EX h : _, !!(apply_hist (vint i) h = Some (vint v)) &&
-  ghost_ref h p * R h v.
+Definition hist_R g i R v := EX h : _, !!(apply_hist (vint i) h = Some (vint v)) && ghost_ref h g * R h v.
 
-Definition atomic_loc_hist sh p i R (h : hist) := atomic_loc sh p (hist_R p i R) * ghost_hist sh h p.
+Definition atomic_loc_hist sh p g i R (h : hist) := atomic_loc sh p (hist_R g i R) * ghost_hist sh h g.
 
-Lemma hist_R_precise : forall p i R v, precise (EX h : _, R h v) ->
-  precise (hist_R p i R v).
+Lemma hist_R_precise : forall p i R v, precise (EX h : _, R h v) -> precise (hist_R p i R v).
 Proof.
-  intros; unfold hist_R; apply derives_precise' with (Q := (EX g : option (share * hist) * option hist, ghost g p) * EX h : _, R h v).
+  intros; unfold hist_R; apply derives_precise' with
+    (Q := (EX g : option (share * hist) * option hist, ghost g p) * EX h : _, R h v).
   - unfold ghost_ref; Intros h hr; Exists (@None (share * hist), Some hr) h; auto.
   - apply precise_sepcon; auto; apply ex_ghost_precise.
 Qed.
 Hint Resolve hist_R_precise.
 
-Lemma atomic_loc_hist_precise : forall sh p i R, readable_share sh ->
-  precise (EX h : _, atomic_loc_hist sh p i R h).
+Lemma atomic_loc_hist_precise : forall sh p g i R, readable_share sh ->
+  precise (EX h : _, atomic_loc_hist sh p g i R h).
 Proof.
   intros; unfold atomic_loc_hist.
-  eapply derives_precise' with (Q := atomic_loc _ _ _ * EX g : option (share * hist) * option hist, ghost g p).
+  eapply derives_precise' with
+    (Q := atomic_loc _ _ _ * EX g' : option (share * hist) * option hist, ghost g' g).
   - Intro h; Exists (Some (sh, h), @None hist); entailer!.
   - apply precise_sepcon; [apply atomic_loc_precise | apply ex_ghost_precise]; auto.
 Qed.
 
-Notation MA_witness i R := (i%Z, R%function [] i%Z, fun p => hist_R p i R, ghost_hist Tsh ([] : hist)).
-Lemma MA_hist_spec : forall i R, precise (EX h : _, R h i) -> MA_spec i (R [] i) (fun p => hist_R p i R) (ghost_hist Tsh ([] : hist)).
+Notation init_hist := (Some (Tsh, [] : hist), Some ([] : hist)).
+
+(* The user must make the init_hist before calling make_atomic, so that the ghost location is known. *)
+Notation MA_witness g i R :=
+  (i%Z, ghost init_hist g * R%function [] i%Z, hist_R g i R, ghost_hist Tsh ([] : hist) g).
+Lemma MA_hist_spec : forall g i R, precise (EX h : _, R h i) ->
+  MA_spec i (ghost init_hist g * R [] i) (hist_R g i R) (ghost_hist Tsh ([] : hist) g).
 Proof.
   repeat intro.
-  replace_SEP 0 (ghost (Some (Tsh, [] : hist), Some ([] : hist)) p * R [] i) by admit.
   eapply semax_pre; [|eauto].
   unfold hist_R; go_lowerx.
   Exists (@nil hist_el); entailer!.
@@ -1139,12 +974,16 @@ Proof.
   unfold share; cancel.
   apply andp_right; auto.
   eapply derives_trans, precise_weak_precise, hist_R_precise; auto.
-Admitted.
+Qed.
 
-Notation AL_witness sh p i R h P Q := (sh%logic, p%logic, (ghost_hist sh h p * P)%logic, hist_R p%logic i R, EX t' : nat, fun v => !!(newer h t') && ghost_hist sh (h%gfield ++ [(t', Load (vint v))]) p * Q v).
-Lemma AL_hist_spec : forall sh p i R h P Q (HPQR : forall h' v (Hhist : hist_incl h h'), apply_hist (vint i) h' = Some (vint v) -> repable_signed v -> view_shift (R h' v * P) (R (h' ++ [Load (vint v)]) v * Q v))
-  (Hsh : sh <> Share.bot),
-  AL_spec (ghost_hist sh h p * P) (hist_R p i R) (EX t' : nat, fun v => !!(newer h t') && ghost_hist sh (h ++ [(t', Load (vint v))]) p * Q v).
+Notation AL_witness sh p g i R h P Q :=
+  (sh%logic, p%logic, (ghost_hist sh h g * P)%logic, hist_R g%logic i R,
+   EX t' : nat, fun v => !!(newer h t') && ghost_hist sh (h%gfield ++ [(t', Load (vint v))]) g * Q v).
+Lemma AL_hist_spec : forall sh g i R h P Q
+  (HPQR : forall h' v (Hhist : hist_incl h h'), apply_hist (vint i) h' = Some (vint v) -> repable_signed v ->
+    view_shift (R h' v * P) (R (h' ++ [Load (vint v)]) v * Q v)) (Hsh : sh <> Share.bot),
+  AL_spec (ghost_hist sh h g * P) (hist_R g i R)
+    (EX t' : nat, fun v => !!(newer h t') && ghost_hist sh (h ++ [(t', Load (vint v))]) g * Q v).
 Proof.
   repeat intro.
   unfold hist_R.
@@ -1166,10 +1005,15 @@ Proof.
   replace (apply_hist (vint i) h') with (Some (vint vx)); rewrite eq_dec_refl; auto.
 Qed.
 
-Notation AS_witness sh p i R h v P Q := (sh%logic, p%logic, v%Z%logic, (ghost_hist sh h p * P)%logic, hist_R p%logic i R, EX t' : nat, !!(newer h t') && ghost_hist sh (h%gfield ++ [(t', Store (vint v))]) p * Q v%Z).
-Lemma AS_hist_spec : forall sh p i R h v P Q (HPQR : forall h' v' (Hhist : hist_incl h h'), apply_hist (vint i) h' = Some (vint v') -> repable_signed v' -> view_shift (R h' v' * P) (R (h' ++ [Store (vint v)]) v * Q))
-  (Hsh : sh <> Share.bot) (Hprecise : precise (EX h : _, R h v)),
-  AS_spec v (ghost_hist sh h p * P) (hist_R p i R) (EX t' : nat, !!(newer h t') && ghost_hist sh (h ++ [(t', Store (vint v))]) p * Q).
+Notation AS_witness sh p g i R h v P Q :=
+  (sh%logic, p%logic, v%Z%logic, (ghost_hist sh h g * P)%logic, hist_R g%logic i R,
+   EX t' : nat, !!(newer h t') && ghost_hist sh (h%gfield ++ [(t', Store (vint v))]) g * Q v%Z).
+Lemma AS_hist_spec : forall sh g i R h v P Q
+  (HPQR : forall h' v' (Hhist : hist_incl h h'), apply_hist (vint i) h' = Some (vint v') -> repable_signed v' ->
+     view_shift (R h' v' * P) (R (h' ++ [Store (vint v)]) v * Q)) (Hsh : sh <> Share.bot)
+  (Hprecise : precise (EX h : _, R h v)),
+  AS_spec v (ghost_hist sh h g * P) (hist_R g i R)
+    (EX t' : nat, !!(newer h t') && ghost_hist sh (h ++ [(t', Store (vint v))]) g * Q).
 Proof.
   repeat intro.
   unfold hist_R.
@@ -1193,11 +1037,16 @@ Proof.
     eapply derives_trans, precise_weak_precise, hist_R_precise; auto. }
 Qed.
 
-Notation ACAS_witness sh p i R h c v P Q := (sh%logic, p%logic, c%Z%logic, v%Z%logic, (ghost_hist sh h p * P)%logic, hist_R p%logic i R, fun v' => EX t' : nat, !!(newer h t') && ghost_hist sh (h%gfield ++ [(t', CAS (vint v') (vint c) (vint v))]) p * Q v').
-Lemma ACAS_hist_spec : forall sh p i R h v c P Q (HPQR : forall h' v' (Hhist : hist_incl h h'), apply_hist (vint i) h' = Some (vint v') -> repable_signed v' ->
+Notation ACAS_witness sh p g i R h c v P Q :=
+  (sh%logic, p%logic, c%Z%logic, v%Z%logic, (ghost_hist sh h g * P)%logic, hist_R g%logic i R,
+   fun v' => EX t' : nat, !!(newer h t') &&
+     ghost_hist sh (h%gfield ++ [(t', CAS (vint v') (vint c) (vint v))]) g * Q v').
+Lemma ACAS_hist_spec : forall sh g i R h v c P Q
+  (HPQR : forall h' v' (Hhist : hist_incl h h'), apply_hist (vint i) h' = Some (vint v') -> repable_signed v' ->
     view_shift (R h' v' * P) (R (h' ++ [CAS (vint v') (vint c) (vint v)]) (if eq_dec c v' then v else v') * Q v'))
   (Hsh : sh <> Share.bot) (Hc : repable_signed c) (Hprecise : forall v, precise (EX h : _, R h v)),
-  ACAS_spec c v (ghost_hist sh h p * P) (hist_R p i R) (fun v' => EX t' : nat, !!(newer h t') && ghost_hist sh (h ++ [(t', CAS (vint v') (vint c) (vint v))]) p * Q v').
+  ACAS_spec c v (ghost_hist sh h g * P) (hist_R g i R)
+    (fun v' => EX t' : nat, !!(newer h t') && ghost_hist sh (h ++ [(t', CAS (vint v') (vint c) (vint v))]) g * Q v').
 Proof.
   repeat intro.
   unfold hist_R.
@@ -1225,9 +1074,10 @@ Proof.
     eapply derives_trans, precise_weak_precise, hist_R_precise; auto.
 Qed.
 
-Lemma atomic_loc_hist_join : forall sh1 sh2 sh p i R h1 h2 h (Hjoin : sepalg.join sh1 sh2 sh)
+Lemma atomic_loc_hist_join : forall sh1 sh2 sh p g i R h1 h2 h (Hjoin : sepalg.join sh1 sh2 sh)
   (Hh : Permutation.Permutation (h1 ++ h2) h) (Hsh1 : readable_share sh1) (Hsh2 : readable_share sh2),
-  atomic_loc_hist sh1 p i R h1 * atomic_loc_hist sh2 p i R h2 = !!(disjoint h1 h2) && atomic_loc_hist sh p i R h.
+  atomic_loc_hist sh1 p g i R h1 * atomic_loc_hist sh2 p g i R h2 =
+  !!(disjoint h1 h2) && atomic_loc_hist sh p g i R h.
 Proof.
   intros; unfold atomic_loc_hist.
   assert (sh1 <> Share.bot) by (intro; subst; contradiction unreadable_bot).

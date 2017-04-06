@@ -1,43 +1,72 @@
-Require Import aes.verif_utils.
-Require Import aes.spec_encryption_LL.
+Require Import aes.api_specs.
 Require Import aes.bitfiddling.
+Require Import aes.verif_encryption_LL_loop_body.
+Open Scope Z.
 
-Definition encryption_spec_ll :=
-  DECLARE _mbedtls_aes_encrypt
-  WITH ctx : val, input : val, output : val, (* arguments *)
-       ctx_sh : share, in_sh : share, out_sh : share, (* shares *)
-       plaintext : list Z, (* 16 chars *)
-       exp_key : list Z, (* expanded key, 4*(Nr+1)=60 32-bit integers *)
-       tables : val (* global var *)
-  PRE [ _ctx OF (tptr t_struct_aesctx), _input OF (tptr tuchar), _output OF (tptr tuchar) ]
-    PROP (Zlength plaintext = 16; Zlength exp_key = 60;
-          readable_share ctx_sh; readable_share in_sh; writable_share out_sh)
-    LOCAL (temp _ctx ctx; temp _input input; temp _output output; gvar _tables tables)
-    SEP (data_at ctx_sh (t_struct_aesctx) (
-          (Vint (Int.repr Nr)),
-          ((field_address t_struct_aesctx [StructField _buf] ctx),
-          (map Vint (map Int.repr (exp_key ++ (list_repeat (8%nat) 0)))))
-          (* The following weaker precondition would also be provable, but less conveniently, and   *)
-          (* since mbedtls_aes_init zeroes the whole buffer, we exploit this to simplify the proof  *)
-          (* ((map Vint (map Int.repr exp_key)) ++ (list_repeat (8%nat) Vundef))) *)
-         ) ctx;
-         data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
-         data_at_ out_sh (tarray tuchar 16) output;
-         tables_initialized tables)
-  POST [ tvoid ]
-    PROP() LOCAL()
-    SEP (data_at ctx_sh (t_struct_aesctx) (
-          (Vint (Int.repr Nr)),
-          ((field_address t_struct_aesctx [StructField _buf] ctx),
-          (map Vint (map Int.repr (exp_key ++ (list_repeat (8%nat) 0)))))
-         ) ctx;
-         data_at in_sh  (tarray tuchar 16)
-                 (map Vint (map Int.repr plaintext)) input;
-         data_at out_sh (tarray tuchar 16)
-                 (map Vint (mbed_tls_aes_enc plaintext (exp_key ++ (list_repeat (8%nat) 0)))) output;
-         tables_initialized tables).
-
-Definition Gprog : funspecs := ltac:(with_library prog [ encryption_spec_ll ]).
+Definition round_column_ast rk b0 b1 b2 b3 t Y X0 X1 X2 X3 := 
+(Ssequence (Sset t (Etempvar _RK (tptr tuint)))
+   (Ssequence
+      (Sset _RK
+         (Ebinop Oadd (Etempvar t (tptr tuint))
+            (Econst_int (Int.repr 1) tint) (tptr tuint)))
+      (Ssequence (Sset rk (Ederef (Etempvar t (tptr tuint)) tuint))
+         (Ssequence
+            (Sset b0
+               (Ederef
+                  (Ebinop Oadd
+                     (Efield
+                        (Evar _tables t_struct_tables)
+                        _FT0 (tarray tuint 256))
+                     (Ebinop Oand (Etempvar X0 tuint)
+                        (Econst_int (Int.repr 255) tint) tuint) (tptr tuint))
+                  tuint))
+            (Ssequence
+               (Sset b1
+                  (Ederef
+                     (Ebinop Oadd
+                        (Efield
+                           (Evar _tables t_struct_tables)
+                           _FT1 (tarray tuint 256))
+                        (Ebinop Oand
+                           (Ebinop Oshr (Etempvar X1 tuint)
+                              (Econst_int (Int.repr 8) tint) tuint)
+                           (Econst_int (Int.repr 255) tint) tuint)
+                        (tptr tuint)) tuint))
+               (Ssequence
+                  (Sset b2
+                     (Ederef
+                        (Ebinop Oadd
+                           (Efield
+                              (Evar _tables
+                                 t_struct_tables) _FT2
+                              (tarray tuint 256))
+                           (Ebinop Oand
+                              (Ebinop Oshr (Etempvar X2 tuint)
+                                 (Econst_int (Int.repr 16) tint) tuint)
+                              (Econst_int (Int.repr 255) tint) tuint)
+                           (tptr tuint)) tuint))
+                  (Ssequence
+                     (Sset b3
+                        (Ederef
+                           (Ebinop Oadd
+                              (Efield
+                                 (Evar _tables
+                                    t_struct_tables) _FT3
+                                 (tarray tuint 256))
+                              (Ebinop Oand
+                                 (Ebinop Oshr (Etempvar X3 tuint)
+                                    (Econst_int (Int.repr 24) tint) tuint)
+                                 (Econst_int (Int.repr 255) tint) tuint)
+                              (tptr tuint)) tuint))
+                     (Sset Y
+                        (Ebinop Oxor
+                           (Ebinop Oxor
+                              (Ebinop Oxor
+                                 (Ebinop Oxor (Etempvar rk tuint)
+                                    (Etempvar b0 tuint) tuint)
+                                 (Etempvar b1 tuint) tuint)
+                              (Etempvar b2 tuint) tuint)
+                           (Etempvar b3 tuint) tuint))))))))).
 
 Ltac simpl_Int := repeat match goal with
 | |- context [ (Int.mul (Int.repr ?A) (Int.repr ?B)) ] =>
@@ -47,21 +76,6 @@ Ltac simpl_Int := repeat match goal with
     let x := fresh "x" in (pose (x := (A + B)%Z)); simpl in x;
     replace (Int.add (Int.repr A) (Int.repr B)) with (Int.repr x); subst x; [|reflexivity]
 end.
-
-(* This is to make sure do_compute_expr (invoked by load_tac and others), which calls hnf on the
-   expression it's computing, does not unfold field_address.
-   TODO floyd: Ideally, we'd have "Global Opaque field_address field_address0" in the library,
-   but some proofs want to unfold field_address (they shouldn't, though). *)
-Opaque field_address.
-
-(* entailer! calls simpl, and if simpl tries to evaluate a column of the final AES encryption result,
-   it takes forever, so we have to prevent this: *)
-Arguments col _ _ : simpl never.
-(* Same problem with "Z.land _ 255" *)
-Arguments Z.land _ _ : simpl never.
-
-(* This one is to prevent simplification of "12 - _", which is fast, but produces silly verbose goals *)
-Arguments Nat.sub _ _ : simpl never.
 
 Lemma body_aes_encrypt: semax_body Vprog Gprog f_mbedtls_aes_encrypt encryption_spec_ll.
 Proof.
@@ -234,116 +248,28 @@ Proof.
   { (* rest: loop body *)
   clear i. Intro i. Intros. 
   unfold tables_initialized. subst vv.
-  pose proof masked_byte_range.
+  unfold MORE_COMMANDS, abbreviate.
 
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
+  reassoc_seq_chunks 8.
 
-  replace (52 - i * 8 + 1 + 1 + 1 + 1) with (52 - i * 8 + 4) by omega.
-  replace (52 - i * 8 + 1 + 1 + 1)     with (52 - i * 8 + 3) by omega.
-  replace (52 - i * 8 + 1 + 1)         with (52 - i * 8 + 2) by omega.
+  progress fold t_struct_tables.
+  progress fold (round_column_ast _rk _b0__4 _b1__4 _b2__4 _b3__4 _t'5 _Y0 _X0 _X1 _X2 _X3).
+  progress fold (round_column_ast _rk _b0__4 _b1__4 _b2__4 _b3__4 _t'6 _Y1 _X1 _X2 _X3 _X0).
+  progress fold (round_column_ast _rk _b0__4 _b1__4 _b2__4 _b3__4 _t'7 _Y2 _X2 _X3 _X0 _X1).
+  progress fold (round_column_ast _rk _b0__4 _b1__4 _b2__4 _b3__4 _t'8 _Y3 _X3 _X0 _X1 _X2).
+  progress fold (round_column_ast _rk__1 _b0__5 _b1__5 _b2__5 _b3__5 _t'9  _X0 _Y0 _Y1 _Y2 _Y3).
+  progress fold (round_column_ast _rk__1 _b0__5 _b1__5 _b2__5 _b3__5 _t'10 _X1 _Y1 _Y2 _Y3 _Y0).
+  progress fold (round_column_ast _rk__1 _b0__5 _b1__5 _b2__5 _b3__5 _t'11 _X2 _Y2 _Y3 _Y0 _Y1).
+  progress fold (round_column_ast _rk__1 _b0__5 _b1__5 _b2__5 _b3__5 _t'12 _X3 _Y3 _Y0 _Y1 _Y2).
 
-  pose (S' := mbed_tls_fround (mbed_tls_enc_rounds (12-2*Z.to_nat i) S0 buf 4) buf (52-i*8)).
+  (* drop_LOCALs [_ctx; _input; _output]. *)
 
-  match goal with |- context [temp _Y0 (Vint ?E0)] =>
-    match goal with |- context [temp _Y1 (Vint ?E1)] =>
-      match goal with |- context [temp _Y2 (Vint ?E2)] =>
-        match goal with |- context [temp _Y3 (Vint ?E3)] =>
-          assert (S' = (E0, (E1, (E2, E3)))) as Eq2
-        end
-      end
-    end
-  end.
-  {
-    subst S'.
-    rewrite (split_four_ints (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4)).
-    reflexivity.
-  }
-  apply split_four_ints_eq in Eq2. destruct Eq2 as [EqY0 [EqY1 [EqY2 EqY3]]].
-  rewrite EqY0. rewrite EqY1. rewrite EqY2. rewrite EqY3.
-  clear EqY0 EqY1 EqY2 EqY3.
+  (* undo the reassociation into blocks of 8 to apply the lemma for the whole loop body *)
+  unfold round_column_ast.
+  reassoc_seq.
 
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-
-  pose (S'' := mbed_tls_fround S' buf (52-i*8+4)).
-
-  replace (52 - i * 8 + 4 + 1 + 1 + 1 + 1) with (52 - i * 8 + 4 + 4) by omega.
-  replace (52 - i * 8 + 4 + 1 + 1 + 1)     with (52 - i * 8 + 4 + 3) by omega.
-  replace (52 - i * 8 + 4 + 1 + 1)         with (52 - i * 8 + 4 + 2) by omega.
-
-  match goal with |- context [temp _X0 (Vint ?E0)] =>
-    match goal with |- context [temp _X1 (Vint ?E1)] =>
-      match goal with |- context [temp _X2 (Vint ?E2)] =>
-        match goal with |- context [temp _X3 (Vint ?E3)] =>
-          assert (S'' = (E0, (E1, (E2, E3)))) as Eq2
-        end
-      end
-    end
-  end.
-  {
-    subst S''.
-    rewrite (split_four_ints S').
-    reflexivity.
-  }
-  apply split_four_ints_eq in Eq2. destruct Eq2 as [EqX0 [EqX1 [EqX2 EqX3]]].
-  rewrite EqX0. rewrite EqX1. rewrite EqX2. rewrite EqX3.
-  clear EqX0 EqX1 EqX2 EqX3.
-
-  Exists i.
-  replace (52 - i * 8 + 4 + 4) with (52 - (i - 1) * 8) by omega.
-  subst S' S''.
-  assert (
-    (mbed_tls_fround
-      (mbed_tls_fround
-         (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4)
-         buf
-         (52 - i * 8))
-      buf
-      (52 - i * 8 + 4))
-  = (mbed_tls_enc_rounds (12 - 2 * Z.to_nat (i - 1)) S0 buf 4)) as Eq2. {
-    replace (12 - 2 * Z.to_nat (i - 1))%nat with (S (S (12 - 2 * Z.to_nat i))).
-    - unfold mbed_tls_enc_rounds (*at 2*). fold mbed_tls_enc_rounds.
-      f_equal.
-      * f_equal.
-        rewrite Nat2Z.inj_sub. {
-          change (Z.of_nat 12) with 12.
-          rewrite Nat2Z.inj_mul.
-          change (Z.of_nat 2) with 2.
-          rewrite Z2Nat.id; omega.
-        }
-        assert (Z.to_nat i <= 6)%nat. {
-          change 6%nat with (Z.to_nat 6).
-          apply Z2Nat.inj_le; omega.
-        }
-        omega.
-      * rewrite Nat2Z.inj_succ.
-        change 2%nat with (Z.to_nat 2) at 2.
-        rewrite <- Z2Nat.inj_mul; [ | omega | omega ].
-        change 12%nat with (Z.to_nat 12).
-        rewrite <- Z2Nat.inj_sub; [ | omega ].
-        rewrite Z2Nat.id; omega.
-    - rewrite Z2Nat.inj_sub; [ | omega ].
-      change (Z.to_nat 1) with 1%nat.
-      assert (Z.to_nat i <= 6)%nat. {
-        change 6%nat with (Z.to_nat 6).
-        apply Z2Nat.inj_le; omega.
-      }
-      assert (0 < Z.to_nat i)%nat. {
-        change 0%nat with (Z.to_nat 0).
-        apply Z2Nat.inj_lt; omega.
-      }
-      omega.
-  }
-  rewrite Eq2. clear Eq2.
-  remember (mbed_tls_enc_rounds (12 - 2 * Z.to_nat (i - 1)) S0 buf 4) as S''.
-  remember (mbed_tls_fround (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4) buf (52 - i * 8)) as S'.
-  replace (52 - i * 8 + 4 + 4) with (52 - (i - 1) * 8) by omega.
-  entailer!.
+  subst MORE_COMMANDS POSTCONDITION. unfold abbreviate.
+  simple eapply encryption_loop_body_proof; eauto.
   }} { (* loop decr *)
   Intro i. forward. unfold loop2_ret_assert. Exists (i-1). entailer!.
   }} {
@@ -492,7 +418,8 @@ Proof.
   }
 
   Show.
-Time Qed.
+(* Time Qed. takes forever *)
+Admitted.
 
 (* TODO floyd: sc_new_instantiate: distinguish between errors caused because the tactic is trying th
    wrong thing and errors because of user type errors such as "tuint does not equal t_struct_aesctx" *)

@@ -1,6 +1,7 @@
-Require Import aes.verif_utils.
+Require Import aes.api_specs.
 Require Import aes.partially_filled.
 Require Import aes.bitfiddling.
+Open Scope Z.
 
 (* Note: x must be non-zero, y is allowed to be zero (because x is a constant in all usages, its
    non-zero-check seems to be removed by the parser). *)
@@ -48,21 +49,6 @@ Proof.
   intros. unfold Z_to_val. destruct (zeq j (-1)) as [E | E]. omega. reflexivity.
 Qed.
 
-Definition gen_tables_spec :=
-  DECLARE _aes_gen_tables
-    WITH tables : val
-    PRE [  ]
-      PROP ()
-      LOCAL (gvar _tables tables)
-      SEP (tables_uninitialized tables)
-    POST [ tvoid ]
-      PROP ()
-      LOCAL ()
-      SEP (tables_initialized tables)
-.
-
-Definition Gprog : funspecs := ltac:(with_library prog [ gen_tables_spec ]).
-
 (* Calls forward_if with the current precondition to which the provided conditions are added *)
 (* QQQ TODO does this already exist? Add to library? *)
 Ltac forward_if_diff add := match add with
@@ -83,18 +69,6 @@ Lemma field_at_update_val: forall sh t gfs v v' p,
   v = v' -> field_at sh t gfs v p |-- field_at sh t gfs v' p.
 Proof.
   intros. rewrite H. apply derives_refl.
-Qed.
-
-Lemma simpl_mod255: forall i,
-  force_val (sem_binary_operation' Omod tint tint (Vint i) (Vint (Int.repr 255)))
-  = Vint (Int.mods i (Int.repr 255)).
-Proof.
-  intros. simpl. unfold sem_mod. simpl. unfold both_int. simpl.
-  match goal with
-  | |- context [ (?C1 && ?C2)%bool ] => destruct C2 eqn: E2
-  end.
-  - apply int_eq_e in E2. discriminate.
-  - rewrite andb_false_r. reflexivity.
 Qed.
 
 Lemma mod255_condition: forall b,
@@ -432,9 +406,7 @@ Proof.
     end.
     rewrite FSb_equiv by omega.
 
-    Intro fsb. Intro rsb. normalize.
-    (* TODO floyd if I don't do the above, "forward" fails with the default error message, because
-       in store_tac, sc_new_instantiate cannot find the right SEP clause. *)
+    Intro fsb. Intro rsb.
     forward. forward.
     - (* entailment of "forward" *)
       entailer!.
@@ -442,7 +414,7 @@ Proof.
     - (* postcondition implies loop invariant *)
       entailer!.
         match goal with
-        | |- field_at _ _ _ ?fsb' _ * field_at _ _ _ ?rsb' _ |-- _ => Exists rsb'; Exists fsb'
+        | |- (field_at _ _ _ ?fsb' _ * field_at _ _ _ ?rsb' _)%logic |-- _ => Exists rsb'; Exists fsb'
         end.
         entailer!. repeat split.
         + rewrite upd_Znth_diff; (omega || auto).
@@ -635,8 +607,6 @@ Proof.
           that we don't have to factor out the modulo, but can use it directly as the array index. *)
         apply mod255_condition.
       }
-      simpl eval_binop.
-      rewrite simpl_mod255.
       assert (0 <= Znth 14 log 0 + Znth (Int.unsigned (Znth i RSb Int.zero)) log 0) as A. {
         do 2 rewrite Hlog by omega.
         pose proof (log3range 14).
@@ -671,8 +641,6 @@ Proof.
       }
       pose proof (RSb_range i).
       forward. forward. forward. { entailer!. apply mod255_condition. }
-      simpl eval_binop.
-      rewrite simpl_mod255.
       assert (0 <= Znth 9 log 0 + Znth (Int.unsigned (Znth i RSb Int.zero)) log 0) as A. {
         do 2 rewrite Hlog by omega.
         pose proof (log3range 9).
@@ -707,8 +675,6 @@ Proof.
       }
       pose proof (RSb_range i).
       forward. forward. forward. { entailer!. apply mod255_condition. }
-      simpl eval_binop.
-      rewrite simpl_mod255.
       assert (0 <= Znth 13 log 0 + Znth (Int.unsigned (Znth i RSb Int.zero)) log 0) as A. {
         do 2 rewrite Hlog by omega.
         pose proof (log3range 13).
@@ -743,8 +709,6 @@ Proof.
       }
       pose proof (RSb_range i).
       forward. forward. forward. { entailer!. apply mod255_condition. }
-      simpl eval_binop.
-      rewrite simpl_mod255.
       assert (0 <= Znth 11 log 0 + Znth (Int.unsigned (Znth i RSb Int.zero)) log 0) as A. {
         do 2 rewrite Hlog by omega.
         pose proof (log3range 11).
@@ -842,6 +806,7 @@ Proof.
   Exists lvar0.
   entailer!.
 } }
+  Show.
 Time Qed.
 (* Coq 8.5.2: 177s
    Coq 8.6  :  75s

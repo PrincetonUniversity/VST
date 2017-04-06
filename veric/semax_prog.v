@@ -954,6 +954,7 @@ destruct (proj1 (Genv.find_def_symbol _ _ _) H5)
   as [b [? ?]].
  exists b.
  split; auto.
+ destruct t; inv TC; simpl; auto.
 Qed.
 
 Lemma semax_prog_typecheck_aux:
@@ -979,8 +980,9 @@ unfold typecheck_temp_environ.
 unfold make_tenv.
 unfold Map.get.
 intros.
-rewrite PTree.gsspec in *. if_tac. inv H2. eauto.
-rewrite PTree.gempty in H2. congruence.
+rewrite PTree.gsspec in *. if_tac. inv H2.
++ exists (Vptr b Int.zero); split; auto. right; simpl; auto.
++ rewrite PTree.gempty in H2. congruence.
 *
 unfold var_types.
 unfold typecheck_var_environ. intros.
@@ -1243,7 +1245,7 @@ Lemma semax_prog_typecheck_aux_types:
    list_norepet (prog_defs_names prog) ->
    match_globvars (prog_vars prog) vs = true ->
    match_fdecs (prog_funct prog) G ->
-   forallb (fun x => typecheck_val (fst x) (snd x)) typed_args = true ->
+   Forall (fun x => tc_val (snd x) (fst x)) typed_args ->
    typecheck_environ
      (Delta_types vs G (map snd typed_args))
      (construct_rho
@@ -1265,7 +1267,9 @@ Proof.
     rewrite make_tycontext_t_cons1 in Found.
     rewrite <-map_ptree_rel, Map.gsspec.
     if_tac; if_tac in Found; subst; try tauto.
-    + injection Found as <- <- ; eauto.
+    + injection Found as <- <- .
+      exists (Vptr b Int.zero); split; auto.
+      right; simpl; auto.
     + revert Found; generalize (2%positive).
       induction typed_args; intros p Found.
       * rewrite PTree.gempty in Found.
@@ -1274,9 +1278,9 @@ Proof.
         rewrite make_tycontext_t_cons1 in Found.
         simpl (map _ _).
         change (exists v : val, Map.get (make_tenv (PTree.set p (fst a) (temp_bindings (p+1)
-          (map fst typed_args)))) i = Some v /\ (is_true (negb b') \/ typecheck_val v ty = true)).
+          (map fst typed_args)))) i = Some v /\ (is_true (negb b') \/ tc_val ty v)).
         rewrite <-map_ptree_rel, Map.gsspec.
-        simpl in TYP; rewrite andb_true_iff in TYP; destruct TYP as [Ta TYP].
+        inversion TYP.
         { if_tac; if_tac in Found; subst; try tauto.
           - injection Found as <- <- ; eauto.
           - apply IHtyped_args; auto. }
@@ -1434,7 +1438,6 @@ Proof.
   split; try apply I.
   eapply semax_prog_typecheck_aux_types; eauto.
   apply compute_list_norepet_e. apply SP. apply SP.
-  now destruct arg; inversion arg_p; reflexivity.
 
   (* closed_wrt_modvars *)
   intro.

@@ -15,7 +15,8 @@ Require Import floyd.closed_lemmas.
 Require Import floyd.loadstore_mapsto.
 Require Import floyd.loadstore_field_at.
 Require Import floyd.nested_loadstore.
-Require Import floyd.local2ptree.
+Require Import floyd.local2ptree_denote.
+Require Import floyd.local2ptree_eval.
 
 Local Open Scope logic.
 
@@ -636,8 +637,6 @@ Qed.
 The set, load, cast-load and store rules will be used in the future.
 
 ************************************************)
-
-Require Import floyd.local2ptree.
 
 (* TODO: This was broken because semax_SC_field_load's specification is changed. *)
 (*

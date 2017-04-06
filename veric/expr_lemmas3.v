@@ -56,7 +56,7 @@ match Cop.classify_cast tfrom tto with
 | Cop.cast_case_l2l => tc_bool (is_long_type tfrom && is_long_type tto) (invalid_cast_result tto tto)
 | Cop.cast_case_f2bool => tc_bool (is_float_type tfrom) (invalid_cast_result tfrom tto)
 | Cop.cast_case_s2bool => tc_bool (is_single_type tfrom) (invalid_cast_result tfrom tto)
-| Cop.cast_case_p2bool =>tc_andp (tc_comparable a (Econst_int Int.zero (Tint I32 Signed noattr)))
+| Cop.cast_case_p2bool =>tc_andp (tc_test_eq a (Econst_int Int.zero (Tint I32 Signed noattr)))
                                                 (tc_bool (orb (is_int_type tfrom) (is_pointer_type tfrom)) (invalid_cast_result tfrom tto))
 | Cop.cast_case_l2bool => tc_bool (is_long_type tfrom) (invalid_cast_result tfrom tto)
 | Cop.cast_case_void => tc_noproof
@@ -412,12 +412,12 @@ Lemma typecheck_cast_sound:
  forall {CS: compspecs} Delta rho m e t,
  typecheck_environ Delta rho ->
 (denote_tc_assert (typecheck_expr Delta e) rho m ->
- typecheck_val (eval_expr e rho) (typeof e) = true) /\
+ tc_val (typeof e) (eval_expr e rho)) /\
 (forall pt : type,
  denote_tc_assert (typecheck_lvalue Delta e) rho m ->
- is_pointer_type pt = true -> typecheck_val (eval_lvalue e rho) pt = true) ->
+ is_pointer_type pt = true -> tc_val pt (eval_lvalue e rho)) ->
 denote_tc_assert (typecheck_expr Delta (Ecast e t)) rho m ->
-typecheck_val (eval_expr (Ecast e t) rho) (typeof (Ecast e t)) = true.
+tc_val (typeof (Ecast e t)) (eval_expr (Ecast e t) rho).
 Proof.
 intros until t; intros H IHe H0.
 simpl in *. unfold_lift.
@@ -485,5 +485,12 @@ destruct (classify_cast (typeof e) t)
    end);
  try match goal with |- Int.eq (if ?A then _ else _) _ || _ = _ =>
       destruct A; try reflexivity
-  end.
+     end;
+  try solve [apply int_eq_true; symmetry; auto;
+       simpl denote_tc_iszero in *;
+       destruct (Int.eq i Int.zero); auto];
+ try match goal with |- (if ?A then _ else _) = _ \/ (if ?A then _ else _) = _ =>
+      destruct A; solve [auto]
+     end;
+  auto.
 Qed.

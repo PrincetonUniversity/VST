@@ -7,6 +7,8 @@
 -R mailbox mailbox
 -R compcert compcert
 -R concurrency concurrency
+-R fcf fcf
+-R hmacfcf hmacfcf
 -R ccc26x86 ccc26x86
 -R ../mirror-shard/src MirrorShard
 -R ../mirror-shard/coq-ext-lib/theories ExtLib

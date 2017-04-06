@@ -2607,7 +2607,7 @@ Hint Rewrite @lseg_eq using reflexivity: norm.
 
 Hint Resolve @lseg_local_facts : saturate_local.
 
-Hint Resolve denote_tc_comparable_split : valid_pointer.
+Hint Resolve denote_tc_test_eq_split : valid_pointer.
 
 Ltac resolve_lseg_valid_pointer :=
 match goal with

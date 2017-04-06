@@ -30,8 +30,9 @@ Definition update a b := forall c, joins a c -> joins b c.
 (* General PCM-based ghost state *)
 Parameter ghost : forall (g : A) (p : val), mpred.
 
-(*Axiom new_ghost : forall t v p (g : A), initial g ->
-  view_shift (data_at Tsh t v p) (ghost Tsh g p * data_at Tsh t v p).*)
+(* subject to change *)
+Axiom ghost_alloc : forall (g : A) P, view_shift P (EX p : val, ghost g p * P).
+Axiom ghost_dealloc : forall (g : A) p, view_shift (ghost g p) emp.
 
 Axiom ghost_join : forall g1 g2 g p, join g1 g2 g -> ghost g1 p * ghost g2 p = ghost g p.
 Axiom ghost_conflict : forall g1 g2 p, ghost g1 p * ghost g2 p |-- !!joins g1 g2.
@@ -829,6 +830,20 @@ Inductive hist_list' : hist_part -> list hist_el -> Prop :=
     (Hlast : newer (h1 ++ h2) t) (Hrest : hist_list' (h1 ++ h2) l),
     hist_list' h (l ++ [e]).
 Hint Resolve hist_list'_nil.
+
+Lemma hist_list'_in : forall h l (Hl : hist_list' h l) e, (exists t, In (t, e) h) <-> In e l.
+Proof.
+  induction 1.
+  - split; [intros (? & ?)|]; contradiction.
+  - intro; subst; split.
+    + intros (? & Hin); rewrite in_app in *.
+      destruct Hin as [? | [Heq | ?]]; try solve [left; rewrite <- IHHl; eexists; rewrite in_app; eauto].
+      inv Heq; simpl; auto.
+    + rewrite in_app; intros [Hin | [Heq | ?]]; [| inv Heq | contradiction].
+      * rewrite <- IHHl in Hin; destruct Hin as (? & ?).
+        eexists; rewrite in_app in *; simpl; destruct H; eauto.
+      * eexists; rewrite in_app; simpl; eauto.
+Qed.
 
 Lemma hist_list_weak : forall l h (Hl : hist_list h l), hist_list' h l.
 Proof.

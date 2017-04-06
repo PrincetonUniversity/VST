@@ -85,7 +85,7 @@ Lemma guard_environ_put_te':
  forall ge te ve Delta id v k,
  guard_environ Delta k (mkEnviron ge ve te)  ->
     (forall t : type * bool,
-        (temp_types Delta) ! id = Some t -> typecheck_val v (fst t) = true) ->
+        (temp_types Delta) ! id = Some t -> tc_val (fst t) v) ->
  guard_environ (initialized id Delta) k (mkEnviron ge ve (Map.set id v te)).
 Proof.
  intros.
@@ -1564,30 +1564,6 @@ Proof.
  destruct ((Float32.cmp Ceq f Float32.zero)); reflexivity.
  destruct (typeof a); inv H0; simpl;
  rewrite Int.eq_true; reflexivity.
-Qed.
-
-(*Is it ok to force store into int? seems fine, result will always be int. any cast seems silly*)
-Definition typecheck_tid_ptr_compare
-Delta id :=
-match (temp_types Delta) ! id with
-| Some (t, _) =>
-   is_int_type t
-| None => false
-end.
-
-Lemma typecheck_tid_ptr_compare_sub:
-   forall Delta Delta',
-    tycontext_sub Delta Delta' ->
-    forall id, typecheck_tid_ptr_compare Delta id = true ->
-                typecheck_tid_ptr_compare Delta' id = true.
-Proof.
-unfold typecheck_tid_ptr_compare;
-intros.
-destruct H as [? _].
-specialize (H id).
-destruct ((temp_types Delta) ! id) as [[? ?]|]; try discriminate.
-destruct ((temp_types Delta') ! id) as [[? ?]|]; try contradiction.
-destruct H; subst; auto.
 Qed.
 
 (* Mutually recursive induction scheme for [statement] and [labeled_statements] *)

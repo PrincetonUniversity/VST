@@ -15,7 +15,8 @@ Require Import floyd.loadstore_field_at.
 Require Import floyd.nested_loadstore.
 Require Import floyd.sc_set_load_store.
 Require Import floyd.stronger.
-Require Import floyd.local2ptree.
+Require Import floyd.local2ptree_denote.
+Require Import floyd.local2ptree_eval.
 Require Import floyd.reptype_lemmas.
 Require Import floyd.proj_reptype_lemmas.
 Require Import floyd.replace_refill_reptype_lemmas.
@@ -254,12 +255,23 @@ Ltac semax_func_cons L :=
  repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]);
  try apply semax_func_nil.
 
+(* This is a better way of finding an element in a long list. *)
+Lemma from_elements_In : forall {A} l i (v : A), (pTree_from_elements l) ! i = Some v ->
+  In (i, v) l.
+Proof.
+  induction l; simpl; intros.
+  - rewrite PTree.gempty in H; discriminate.
+  - destruct a as (i', v'); destruct (eq_dec i' i).
+    + subst; rewrite PTree.gss in H; inv H; auto.
+    + rewrite PTree.gso in H; auto.
+Qed.
+
 Ltac semax_func_cons_ext :=
   eapply semax_func_cons_ext;
     [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
     | semax_func_cons_ext_tc
     | solve[ first [eapply semax_ext;
-          [ repeat first [reflexivity | left; reflexivity | right]
+          [ (*repeat first [reflexivity | left; reflexivity | right]*) apply from_elements_In; reflexivity
           | apply compute_funspecs_norepeat_e; reflexivity
           | reflexivity
           | reflexivity ]]]
@@ -1640,7 +1652,7 @@ Ltac sequential :=
 Hint Extern 1 (@sizeof _ ?A > 0) =>
    (let a := fresh in set (a:= sizeof A); hnf in a; subst a; computable)
   : valid_pointer.
-Hint Resolve denote_tc_comparable_split : valid_pointer.
+Hint Resolve denote_tc_test_eq_split : valid_pointer.
 
 Ltac pre_entailer :=
   try match goal with

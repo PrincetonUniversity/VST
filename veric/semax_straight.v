@@ -224,7 +224,6 @@ intros until rho. intros ? ? BM ? N1 N2.  intros.
 unfold Cop.sem_binary_operation, sem_cmp.
 simpl in H0, H1. apply typecheck_expr_sound in H0; auto.
 apply typecheck_expr_sound in H1; auto.
-rewrite tc_val_eq in *.
 
 copy H3. copy H4. rename H5 into MT_1.
 rename H6 into MT_2.
@@ -253,8 +252,8 @@ destruct (access_mode t1) eqn:?A1;
 destruct (access_mode t2) eqn:?A2;
  try solve [simpl in MT2; contradiction].
 clear MT1 MT2.
-destruct t1; try solve [simpl in *; congruence].
-destruct t2; try solve [simpl in *; congruence].
+destruct t1; try solve [simpl in *; try destruct f; try tauto; congruence].
+destruct t2; try solve [simpl in *; try destruct f; try tauto; congruence].
 simpl.
 destruct cmp; inv H; subst; simpl;
 unfold Cop.sem_cmp, sem_cmp_pp; simpl; try rewrite MT_1; try rewrite MT_2; simpl;
@@ -294,7 +293,6 @@ Proof.
 intros.
 apply typecheck_both_sound in H4; auto.
 apply typecheck_both_sound in H3; auto.
-rewrite tc_val_eq' in *.
 rewrite H0 in *.
 rewrite H1 in *.
 unfold sem_binary_operation'.
@@ -423,7 +421,6 @@ Proof.
     destruct t; inv TC2.
     simpl. super_unfold_lift.
     simpl.
-    rewrite tc_val_eq'.
     eapply  pointer_cmp_no_mem_bool_type; eauto.
   + destruct H0.
     split; auto.
@@ -577,7 +574,7 @@ Proof.
     super_unfold_lift. destruct TC2'.
     unfold tc_bool in *. remember (is_neutral_cast (implicit_deref (typeof e)) t).
     destruct b0; inv H0.
-    apply neutral_cast_typecheck_val with (Delta0 := Delta')(phi:=m_phi jm'); auto.
+    apply neutral_cast_tc_val with (Delta0 := Delta')(phi:=m_phi jm'); auto.
     unfold guard_environ in *. destruct TC'; auto.
   + destruct H0.
     split; auto.
@@ -711,7 +708,7 @@ split3; auto.
   subst.
   assert (is_neutral_cast (implicit_deref (typeof e)) t = true).
     destruct (typeof e), t; inversion H98; reflexivity.
-  apply neutral_cast_typecheck_val with (Delta0 := Delta')(phi:=m_phi jm'); auto.
+  apply neutral_cast_tc_val with (Delta0 := Delta')(phi:=m_phi jm'); auto.
   apply neutral_isCastResultType; auto.
   unfold guard_environ in *. destruct TC'; auto.
 +
@@ -835,7 +832,7 @@ split3; auto.
   unfold tc_expr in TC3, TC3'; simpl in TC3, TC3'.
   rewrite denote_tc_assert_andp in TC3. destruct TC3.
   rewrite denote_tc_assert_andp in TC3'. destruct TC3'.
-  apply typecheck_val_sem_cast with (Delta0 := Delta')(phi:=m_phi jm'); auto.
+  apply tc_val_sem_cast with (Delta0 := Delta')(phi:=m_phi jm'); auto.
   eapply guard_environ_e1; eauto.
 +
   destruct H0.
@@ -952,7 +949,7 @@ super_unfold_lift. destruct TC2; simpl in *.
 unfold tc_bool in *. remember (is_neutral_cast (implicit_deref (typeof e)) t).
 destruct b0; inv H0.
 destruct TC'.
-apply neutral_cast_typecheck_val with (Delta0 := Delta')(phi:=m_phi jm'); auto.
+apply neutral_cast_tc_val with (Delta0 := Delta')(phi:=m_phi jm'); auto.
 destruct H0.
 split; auto.
 simpl.
@@ -1061,14 +1058,13 @@ replace (fun rho : environ => |> ((tc_lvalue Delta e1 rho &&
   !! tc_val (typeof e1) (v2 rho) && P rho)))
  with (fun rho : environ =>
    ( |> tc_lvalue Delta e1 rho &&
-     |> !! (typecheck_val (v2 rho) (typeof e1) = true) &&
+     |> !! (tc_val (typeof e1) (v2 rho)) &&
      |> P rho)).
 Focus 2.
 extensionality rho.
 repeat rewrite <- later_andp.
 f_equal.
 repeat rewrite andp_assoc.
-rewrite tc_val_eq'. reflexivity.
 unfold mapsto.
 apply semax_straight_simple.
 intro. apply boxy_andp; auto.
@@ -1107,7 +1103,6 @@ intros. simpl in TC1.
 destruct t as [t x].
 unfold typeof_temp in Hid. rewrite H in Hid.
 inv Hid.
-rewrite tc_val_eq' in TC3|-*.
 apply (neutral_cast_lemma2 _ t2 _ TC1 TC3).
 (* typechecking proof *)
 split; [split3 | ].
@@ -1134,7 +1129,7 @@ split; [split3 | ].
    rewrite H2 in H5.
    destruct (type_is_volatile (typeof e1)); try contradiction.
    rewrite if_true in H5 by auto.
-   destruct H5 as [[H5' H5] | [H5 _]]; [ | rewrite H5 in TC3; inv TC3].
+   destruct H5 as [[H5' H5] | [H5 _]]; [ | rewrite H5 in TC3; exfalso; revert TC3; apply tc_val_Vundef].
    assert (core_load ch  (b, Int.unsigned ofs) (v2 rho) (m_phi jm1)).
    apply mapsto_core_load with sh.
    exists m1; exists m2; split3; auto.
@@ -1207,14 +1202,13 @@ replace (fun rho : environ => |> ((tc_lvalue Delta e1 rho &&
        P rho)))
  with (fun rho : environ =>
    ( |> tc_lvalue Delta e1 rho &&
-     |> !! (typecheck_val (eval_cast (typeof e1) t1 (v2 rho)) t1 = true) &&
+     |> !! (tc_val t1 (eval_cast (typeof e1) t1 (v2 rho))) &&
      |> P rho)).
 Focus 2.
 extensionality rho.
 repeat rewrite <- later_andp.
 f_equal.
 repeat rewrite andp_assoc.
-rewrite tc_val_eq'. reflexivity.
 unfold mapsto.
 apply semax_straight_simple.
 intro. apply boxy_andp; auto.
@@ -1257,7 +1251,6 @@ destruct t as [t x].
 unfold typeof_temp in Hid. rewrite H in Hid.
 inv Hid.
 simpl.
-rewrite tc_val_eq' in TC3|-*.
 apply TC3.
 split; [split3 | ].
 * simpl.
@@ -1265,7 +1258,7 @@ split; [split3 | ].
    apply Clight.eval_Ecast with (v2 rho);
   [ | clear - HCAST TC3; unfold prop,eval_cast, force_val1 in TC3;
      rewrite cop2_sem_cast by (intro; contradiction);
-    destruct (sem_cast (typeof e1) t1 (v2 rho)); try reflexivity; inv TC3].
+    destruct (sem_cast (typeof e1) t1 (v2 rho)); try reflexivity; exfalso; revert TC3; apply tc_val_Vundef].
    apply Clight.eval_Elvalue with b ofs; auto.
    destruct H0 as [H0 _].
    assert ((|> (F rho * P rho))%pred (m_phi jm)).
@@ -1287,7 +1280,7 @@ split; [split3 | ].
    rewrite H2 in H5.
    rewrite if_true in H5 by auto.
    destruct H5 as [[H5' H5] | [H5 _]];
-    [ | hnf in TC3; rewrite H5, eval_cast_Vundef in TC3; inv TC3 ].
+    [ | hnf in TC3; rewrite H5, eval_cast_Vundef in TC3; exfalso; revert TC3; apply tc_val_Vundef].
    assert (core_load ch  (b, Int.unsigned ofs) (v2 rho) (m_phi jm1)).
    apply mapsto_core_load with sh.
    exists m1; exists m2; split3; auto.
@@ -1667,7 +1660,7 @@ rewrite NONVOL.
 rewrite if_true by auto.
 apply orp_right1.
 apply andp_right.
-intros ? ?. rewrite tc_val_eq. eapply typecheck_val_sem_cast; eauto.
+intros ? ?. eapply tc_val_sem_cast; eauto.
 intros ? ?. apply H2.
 intros ? ?.
 do 3 red in H2.
@@ -1707,7 +1700,7 @@ apply guard_environ_put_te'; auto. subst; simpl in *.
 unfold construct_rho in *; auto.
 intros. simpl in *. unfold typecheck_temp_id in *.
 unfold typeof_temp in H. rewrite H0 in H. destruct t0. simpl. inv H.
-rewrite tc_val_eq in H1. auto.
+auto.
 split; auto.
 simpl.
 split3; auto.

@@ -22,9 +22,35 @@ apply vst_lemmas.isptrD in Ptr_salt. destruct Ptr_salt as [sb [si SLT]]. subst s
 thaw FR1.
 idtac "Timing the call to HMAC".
 Time forward_call (out, SALT, secret, SECRET, kv, shmd, sb, si).
-apply extract_exists_pre. intros Hmac.
-idtac "Timing the Intros". Time Intros. (*Coq8.6: 146s*) (*Coq8.5: 77.468 secs (77.25u,0.015s)*)
-rename H into HypHmac. rename H0 into HypHmacBits. rename H1 into HmacCrypto.
+apply extract_exists_pre. intros Hmac. 
+idtac "Timing the normalize". Time normalize. (*Coq8.6: 2secs*)
+(*yields 
+H: ByteBitRelations.bytesToBits
+      (HMAC256_functional_prog.HMAC256 (CONT SECRET) (CONT SALT)) =
+    verif_hmac_crypto.bitspec SALT SECRET
+H0 : forall
+       (A : Comp.OracleComp
+              (HMAC_spec_abstract.HMAC_Abstract.Message
+                 HMAC256_isPRF.PARS256.P)
+              (Bvector.Bvector ShaInstantiation.c) bool)
+       (Awf : DistSem.well_formed_oc A), verif_hmac_crypto.CRYPTO A Awf
+ and substitutes Hmac. *)
+rename H into HypHmacBits. rename H0 into HmacCrypto.
+remember (HMAC256_functional_prog.HMAC256 (CONT SECRET) (CONT SALT)) as Hmac. rename HeqHmac into HypHmac. 
+
+(*idtac "Timing the Intros". Time Intros. (*Coq8.6: 146s*) (*Coq8.5: 77.468 secs (77.25u,0.015s)*)
+(*yields
+H : Hmac = HMAC256_functional_prog.HMAC256 (CONT SECRET) (CONT SALT)
+H0 : ByteBitRelations.bytesToBits Hmac =
+     verif_hmac_crypto.bitspec SALT SECRET
+H1 : forall
+       (A : Comp.OracleComp
+              (HMAC_spec_abstract.HMAC_Abstract.Message
+                 HMAC256_isPRF.PARS256.P)
+              (Bvector.Bvector ShaInstantiation.c) bool)
+       (Awf : DistSem.well_formed_oc A), verif_hmac_crypto.CRYPTO A Awf,
+so the same except for the substitution*)
+(*rename H into HypHmac. rename H0 into HypHmacBits. Intros. rename H1 into HmacCrypto.*)*)
 
 assert_PROP (isptr out) as Ptr_out.
 { unfold data_block. normalize. rewrite data_at_isptr. entailer!. }
@@ -35,7 +61,7 @@ forward_if (PROP ( )
    gvar sha._K256 kv)
    SEP (K_vector kv; data_block shmd Hmac out; initPostKey (Vptr sb si) (CONT SALT);
    data_block Tsh (CONT SECRET) secret; data_at_ Tsh tuint olen)).
-{ apply denote_tc_comparable_split.
+{ apply denote_tc_test_eq_split. 
   + unfold data_block. normalize.
     apply sepcon_valid_pointer1.
     apply sepcon_valid_pointer1.

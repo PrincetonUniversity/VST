@@ -123,7 +123,7 @@ auto.
 Qed.
 
 Definition tc_formals (formals: list (ident * type)) : environ -> Prop :=
-     fun rho => typecheck_vals (map (fun xt => (eval_id (fst xt) rho)) formals) (map (@snd _ _) formals) = true.
+     fun rho => tc_vals (map (@snd _ _) formals) (map (fun xt => (eval_id (fst xt) rho)) formals).
 
 Program Definition close_precondition (params vars: list (ident * type)) (P: environ -> pred rmap) (rho: environ) : pred rmap :=
  fun phi =>

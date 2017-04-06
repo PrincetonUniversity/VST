@@ -756,13 +756,6 @@ Proof.
     + intros (? & ? & [? | ?]); subst; eauto.
 Qed.
 
-Lemma filter_concat : forall {A} f (l : list (list A)),
-  filter f (concat l) = concat (map (filter f) l).
-Proof.
-  induction l; auto; simpl.
-  rewrite filter_app, IHl; auto.
-Qed.
-
 Lemma length_concat : forall {A} (l : list (list A)), length (concat l) = fold_right plus O (map (@length A) l).
 Proof.
   induction l; auto; simpl.
@@ -1332,6 +1325,13 @@ Lemma filter_app : forall {A} (f : A -> bool) l1 l2, filter f (l1 ++ l2) = filte
 Proof.
   induction l1; auto; intros; simpl.
   rewrite IHl1; if_tac; auto.
+Qed.
+
+Lemma filter_concat : forall {A} f (l : list (list A)),
+  filter f (concat l) = concat (map (filter f) l).
+Proof.
+  induction l; auto; simpl.
+  rewrite filter_app, IHl; auto.
 Qed.
 
 Lemma NoDup_upto : forall n, NoDup (upto n).
