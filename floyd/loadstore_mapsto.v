@@ -39,7 +39,7 @@ Proof.
   intros.
   rename H1 into H_READABLE; rename H2 into H1.
   eapply semax_pre_post; [ | | apply semax_load with sh t2; auto].
-  + instantiate (1:= PROPx P (LOCALx Q (SEPx R))).
+  + instantiate (1:= PROPx (tc_val (typeof e1) v2 :: P) (LOCALx Q (SEPx R))).
     apply later_left2.
     match goal with |- ?A |-- _ => rewrite <- (andp_dup A) end.
     eapply derives_trans.
@@ -57,15 +57,26 @@ Proof.
   +
     intros. apply andp_left2. apply normal_ret_assert_derives'.
     eapply derives_trans.
-    - apply exp_derives; intro old.
-      apply andp_derives; [| apply derives_refl].
-      autorewrite with subst.
-      apply derives_refl.
-    - rewrite <- exp_andp2.
+    - apply andp_right.
+      * apply exp_left; intros.
+        apply andp_left2.
+        rewrite <- insert_prop.
+        autorewrite with subst.
+        apply andp_left1, derives_refl.
+      * apply exp_derives; intro old.
+        rewrite <- insert_prop.
+        autorewrite with subst.
+        apply andp_derives; [| apply andp_left2, derives_refl].
+        autorewrite with subst.
+        apply derives_refl.
+    - apply derives_extract_prop; intro.
+      rewrite <- exp_andp2.
       rewrite <- insert_local.
       apply andp_derives; auto.
       * simpl; unfold local, lift1; unfold_lift.
-        intros; apply prop_derives; congruence.
+        intros; apply prop_derives.
+        intros; split; [congruence |].
+        intro; clear H3; subst; revert H2. apply tc_val_Vundef.
       * apply derives_refl'.
         apply remove_localdef_PROP.
   +

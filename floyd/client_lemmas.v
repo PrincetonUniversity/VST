@@ -1073,7 +1073,7 @@ Qed.
 
 Lemma lower_one_temp_Vint:
  forall t rho Delta P i v Q R S,
-  (temp_types Delta) ! i = Some (t,true) ->
+  (temp_types Delta) ! i = Some t ->
   (tc_val t (Vint v) -> eval_id i rho = Vint v ->
    (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S) ->
   (local (tc_environ Delta) && PROPx P (LOCALx (temp i (Vint v) :: Q) (SEPx R))) rho |-- S.
@@ -1234,7 +1234,7 @@ Qed.
 
 Lemma lower_one_temp_Vint':
  forall sz sg rho Delta P i v Q R S,
-  (temp_types Delta) ! i = Some (Tint sz sg noattr, true) ->
+  (temp_types Delta) ! i = Some (Tint sz sg noattr) ->
   ((exists j, v = Vint j /\ tc_val (Tint sz sg noattr) (Vint j) /\ eval_id i rho = (Vint j)) ->
    (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S) ->
   (local (tc_environ Delta) && PROPx P (LOCALx (temp i v :: Q) (SEPx R))) rho |-- S.
@@ -1332,7 +1332,7 @@ Qed.
 
 Lemma lower_one_temp_trivial:
  forall t rho Delta P i v Q R S,
-  (temp_types Delta) ! i = Some (t,true) ->
+  (temp_types Delta) ! i = Some t ->
   (tc_val t v ->
    (local (tc_environ Delta) && PROPx P (LOCALx Q (SEPx R))) rho |-- S) ->
   (local (tc_environ Delta) && PROPx P (LOCALx (temp i v :: Q) (SEPx R))) rho |-- S.
@@ -1345,7 +1345,7 @@ simpl in *. unfold_lift.
 normalize.
 rewrite prop_true_andp in H0 by auto.
 apply H0; auto.
-apply tc_eval_id_i with Delta; auto.
+apply tc_eval'_id_i with Delta; auto.
 Qed.
 
 Lemma quick_finish_lower:
@@ -1967,7 +1967,7 @@ Fixpoint map_subst_localdef i v Q :=
      | _ => d :: map_subst_localdef i v l0
      end
   end.
-
+(*
 Fixpoint remove_localdef (i: ident) (l: list localdef) : list localdef :=
   match l with
   | nil => nil
@@ -1976,6 +1976,20 @@ Fixpoint remove_localdef (i: ident) (l: list localdef) : list localdef :=
      | temp j v =>
        if ident_eq i j
        then map_subst_localdef i v l0
+       else d :: remove_localdef i l0
+     | _ => d :: remove_localdef i l0
+     end
+  end.
+ *)
+
+Fixpoint remove_localdef (i: ident) (l: list localdef) : list localdef :=
+  match l with
+  | nil => nil
+  | d :: l0 =>
+     match d with
+     | temp j v =>
+       if ident_eq i j
+       then remove_localdef i l0
        else d :: remove_localdef i l0
      | _ => d :: remove_localdef i l0
      end
@@ -1991,25 +2005,50 @@ Proof.
 Qed.
 
 Lemma subst_localdef_lem: forall (i: ident) (v:val) d,
+  local (subst i `v (locald_denote d)) |-- local (locald_denote (subst_localdef i v d)).
+Proof.
+  intros.
+  unfold local, lift1; unfold_lift.
+  intros rho.
+  unfold subst; simpl.
+  destruct d; simpl in *; auto.
+  unfold eval_id. unfold_lift. simpl.
+  destruct (ident_eq i i0).
+  + subst; rewrite Map.gss.
+    apply prop_derives; intros.
+    destruct H; subst; reflexivity.
+  + rewrite Map.gso by auto.
+    apply prop_derives; intros.
+    destruct H; subst; simpl; split; auto.
+    reflexivity.
+Qed.
+(*
+Lemma subst_localdef_lem: forall (i: ident) (v:val) d,
+  v <> Vundef ->
   subst i `v (locald_denote d) = locald_denote (subst_localdef i v d).
 Proof.
-intros.
-extensionality rho. unfold_lift.
-unfold subst. simpl.
-destruct d; simpl in *; auto.
-unfold eval_id. unfold_lift. simpl.
-destruct (ident_eq i i0).
-subst; rewrite Map.gss.
-apply prop_ext; split; intro. subst; reflexivity.
-hnf in H. subst; reflexivity.
-rewrite Map.gso by auto.
-apply prop_ext; split; intro. subst; reflexivity.
-hnf in H. subst; reflexivity.
+  intros.
+  extensionality rho. unfold_lift.
+  unfold subst; simpl.
+  destruct d; simpl in *; auto.
+  unfold eval_id. unfold_lift. simpl.
+  destruct (ident_eq i i0).
+  + subst; rewrite Map.gss.
+    apply prop_ext; split; intro.
+    - destruct H0; subst; reflexivity.
+    - hnf in H0. split; subst; auto; congruence.
+  + rewrite Map.gso by auto.
+    apply prop_ext; split; intro.
+    - destruct H0; subst; simpl; split; auto.
+      reflexivity.
+    - hnf in H0. destruct H0; subst; split; auto; reflexivity.
 Qed.
-
+*)
+(*
 Lemma subst_PROP: forall i v P Q R,
-     subst i `v (PROPx P (LOCALx Q (SEPx R))) =
-     PROPx P (LOCALx (map (subst_localdef i v) Q) (SEPx R)).
+  v <> Vundef ->
+  subst i `v (PROPx P (LOCALx Q (SEPx R))) =
+  PROPx P (LOCALx (map (subst_localdef i v) Q) (SEPx R)).
 Proof.
 intros.
 unfold PROPx.
@@ -2029,7 +2068,7 @@ f_equal; auto.
 rewrite subst_localdef_lem; auto.
 Qed.
 Hint Rewrite subst_PROP using reflexivity : subst.
-
+*)
 Lemma subst_stackframe_of:
   forall {cs: compspecs} i v f, subst i v (stackframe_of f) = stackframe_of f.
 Proof.
@@ -2044,52 +2083,49 @@ Qed.
 Hint Rewrite @subst_stackframe_of : subst.
 
 Lemma remove_localdef_PROP: forall (i: ident) P Q R,
-  EX old: val, subst i `old (PROPx P (LOCALx Q (SEPx R))) =
+  EX old: val, subst i `old (PROPx P (LOCALx Q (SEPx R))) |--
   PROPx P (LOCALx (remove_localdef i Q) (SEPx R)).
 Proof.
   intros.
-  apply pred_ext.
-  + apply exp_left; intro old.
-    rewrite subst_PROP.
-    apply andp_derives; auto.
-    apply andp_derives; auto.
-    unfold local, lift1; intro rho.
-    apply prop_derives.
-
-    induction Q.
-    - simpl; auto.
-    - simpl.
-      destruct a; try (revert IHQ; unfold_lift; simpl; tauto).
-      simpl.
-      destruct (ident_eq i i0); [| revert IHQ; unfold_lift; simpl; tauto].
-      subst i0.
-      clear.
-      simpl; unfold_lift; intros.
-      destruct H.
-      subst v.
-      rewrite map_subst_localdef_spec.
+  apply exp_left; intro old.
+  unfold PROPx.
+  autorewrite with subst norm.
+  apply andp_derives; auto.
+  unfold LOCALx.
+  autorewrite with subst norm.
+  apply andp_derives; auto.
+  induction Q; simpl fold_right.
+  + autorewrite with subst norm; auto.
+  + destruct a; [if_tac | ..];
+    autorewrite with subst norm.
+    - eapply derives_trans; [| exact IHQ].
+      rewrite local_lift2_and.
+      apply andp_left2; auto.
+    - rewrite !local_lift2_and.
+      apply andp_derives; [| exact IHQ].
+      eapply derives_trans; [apply subst_localdef_lem |].
+      simpl subst_localdef.
+      if_tac; [congruence |]; auto.
+    - rewrite !local_lift2_and.
+      apply andp_derives; [| exact IHQ].
+      eapply derives_trans; [apply subst_localdef_lem |].
       auto.
-  + apply (exp_right (first_appearence i Q)).
-    rewrite subst_PROP.
-    apply andp_derives; auto.
-    apply andp_derives; auto.
-    unfold local, lift1; unfold_lift; intro rho.
-    apply prop_derives.
-
-    induction Q.
-    - simpl; auto.
-    - simpl.
-      destruct a; try (revert IHQ; unfold_lift; simpl; tauto).
-      simpl.
-      destruct (ident_eq i i0); [| revert IHQ; unfold_lift; simpl; tauto].
-      subst i0.
-      clear.
-      simpl; unfold_lift; simpl; intros.
-      rewrite map_subst_localdef_spec in H.
+    - rewrite !local_lift2_and.
+      apply andp_derives; [| exact IHQ].
+      eapply derives_trans; [apply subst_localdef_lem |].
+      auto.
+    - rewrite !local_lift2_and.
+      apply andp_derives; [| exact IHQ].
+      eapply derives_trans; [apply subst_localdef_lem |].
+      auto.
+    - rewrite !local_lift2_and.
+      apply andp_derives; [| exact IHQ].
+      eapply derives_trans; [apply subst_localdef_lem |].
       auto.
 Qed.
+(*
 Hint Rewrite remove_localdef_PROP : subst.
-
+*)
 Fixpoint iota_formals (i: ident) (tl: typelist) :=
  match tl with
  | Tcons t tl' => (i,t) :: iota_formals (i+1)%positive tl'

@@ -1,6 +1,5 @@
 Require Import floyd.base.
 Require Import floyd.assert_lemmas.
-Require Import floyd.expr_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.closed_lemmas.
 Import Cop.
@@ -260,10 +259,8 @@ eapply semax_pre_simple; [ | apply semax_break].
 eapply derives_trans; try apply Post.
  unfold local,lift0,lift1; simpl.
  repeat apply andp_right; try apply prop_right; auto.
-simpl update_tycon.
 apply semax_extensionality_Delta with Delta; auto.
-apply tycontext_eqv_sub.
-apply tycontext_eqv_symm; apply join_tycon_same.
+apply tycontext_sub_refl.
 Qed.
 
 Lemma semax_while_3g1 :
@@ -341,7 +338,7 @@ eapply semax_post_flipped.
 apply semax_skip.
 intros.
 unfold normal_ret_assert.
-normalize. simpl exit_tycon.
+normalize.
 unfold overridePost. rewrite if_true by auto. rewrite prop_true_andp by auto.
 apply derives_refl.
 eapply semax_pre_simple; [ | apply semax_break].
@@ -352,11 +349,8 @@ rewrite andp_assoc.
 apply andp_derives; auto.
 rewrite andp_comm.
 auto.
-simpl update_tycon.
 apply semax_extensionality_Delta with Delta.
-apply tycontext_eqv_sub.
-apply tycontext_eqv_symm.
-apply join_tycon_same.
+apply tycontext_sub_refl.
 eapply semax_pre_simple; [ | apply H2].
 apply andp_left2.
 apply andp_left2.
