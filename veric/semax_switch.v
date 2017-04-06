@@ -14,26 +14,7 @@ Require Import veric.expr2.
 Require Import veric.expr_lemmas.
 Require Import veric.semax.
 Require Import veric.semax_lemmas.
-Require Import veric.semax_congruence.
 Require Import veric.Clight_lemmas.
-
-(*
-      Clight.eval_expr ge ve te m a v ->
-      Cop.sem_switch_arg v (typeof a) = Some n ->
-      cl_step ge (State ve te (Kseq (Sswitch a sl) :: k)) m
-              (State ve te (Kseq (seq_of_labeled_statement (select_switch n sl)) :: Kswitch :: k)) m
-
-*)
-
-Definition switch_ret_assert (R: ret_assert) : ret_assert :=
- fun ek vl =>
- match ek with
- | EK_normal => seplog.FF
- | EK_break => R EK_normal None
- | EK_continue => R EK_continue None
- | EK_return => R EK_return vl
- end.
-
 
 Lemma closed_wrt_modvars_switch:
   forall a sl n F,
@@ -73,8 +54,40 @@ assert (isSome (modifiedvars' (seq_of_labeled_statement sl) s) ! i). {
  destruct H;[left|right]; auto.
 Qed.
 
+Lemma typecheck_environ_join_switch2:
+   forall sl Delta rho,
+    typecheck_environ Delta rho ->
+    typecheck_environ (join_tycon_labeled sl Delta) rho.
+Proof.
+ intros.
+ induction sl; simpl; auto.
+ apply typecheck_environ_join2 with Delta; auto.
+apply tycontext_evolve_update_tycon.
+ clear.
+ induction sl; simpl; auto.
+apply tycontext_evolve_refl.
+apply tycontext_evolve_join; auto.
+apply tycontext_evolve_update_tycon.
+Qed.
+
+Lemma typecheck_environ_join_switch1:
+  forall n sl rho Delta,
+    typecheck_environ
+      (update_tycon Delta (seq_of_labeled_statement (select_switch n sl))) rho ->
+    typecheck_environ (join_tycon_labeled sl Delta) rho.
+Proof.
+ intros.
+ unfold select_switch in H.
+ destruct (select_switch_case n sl) eqn:?.
+ apply typecheck_environ_update in H.
+ apply typecheck_environ_join_switch2; auto.
+ apply typecheck_environ_update in H.
+ apply typecheck_environ_join_switch2; auto.
+Qed.
+ 
+
 Lemma semax_switch: 
-  forall {CS: compspecs} Espec Delta (Q: assert) a sl R,
+  forall Espec {CS: compspecs} Delta (Q: assert) a sl R,
      is_int_type (typeof a) = true ->
      (forall rho, Q rho |-- tc_expr Delta a rho) ->
      (forall n,
@@ -122,154 +135,88 @@ apply age1_resource_decay; assumption.
 apply age_level; assumption.
 fold n.
 set (c := seq_of_labeled_statement (select_switch n sl)) in *.
-
-
-Print update_tycon.
+pose  proof (age_level _ _ H9).
+rewrite <- level_juice_level_phi in Heqn0.
+rewrite Heqn0 in H.
+inv H. clear Heqn0.
 rewrite semax_unfold in H1.
 specialize (H1 psi Delta' w TS HGG Prog_OK (Kswitch :: k) F).
-spec H1.
-eapply closed_wrt_modvars_switch; eauto.
-spec H1.
-intros ek vl tx' vx'; specialize (H3 ek vl tx' vx').
-simpl in H3|-*.
-
-Print exit_cont.
-simpl exit_cont.
-simpl in H3.
-fold rho.
-unfold rguard in H3|-*.  
-
-
- eapply IHsl.
-
- auto. 
-  
-  
-  simpl in Heqo.
-  
-  auto.
-  unfold select_switch in H0.
-  simpl in H0.
-  destruct o.
-  destruct (zeq z n). subst. auto. simpl.
-  destruct (select_switch_case n sl) eqn:?.
-  rewrite modifiedvars'_union. right. 
-  clear - Heqo H0.
-  revert s0 l Heqo H0; induction sl; intros.
-  inv Heqo.
-  simpl. simpl in Heqo. destruct o. destruct (zeq z n). subst z.
-  inv Heqo. simpl in H0. auto.
-  specialize (IHsl s0 _ Heqo H0).
-  rewrite modifiedvars'_union; right; auto.
-  specialize (IHsl s0 _ Heqo H0).
-  rewrite modifiedvars'_union; right; auto.
-  rewrite modifiedvars'_union; right; auto.
-  clear - H0.
-  induction sl; simpl in *. auto. destruct o.
-  rewrite modifiedvars'_union; right; auto.
-  simpl in H0. auto.
-  simpl.
-  unfold select_switch in *.
-  destruct (select_switch_case n sl).
-  rewrite modifiedvars'_union; right; auto.
-  
-  apply IHsl.
-  
- 
-  unfold select_switch_default in H0.
-
-  apply IHsl.
-*. simpl in Heqo. simpl.
-  simpl.
-revert s H0; induction sl; simpl; intros.
-auto.
-unfold select_switch in H0.
-simpl in H0.
-destruct o.
-destruct (zeq z n). subst.
-simpl in H0.
-clear - H0.
-
-
-revert s0 H0; induction sl; simpl; intros; auto.
-apply IHsl.
-
-
-auto.
-simpl in H0.
-
-Search isSome.
-destruct H0.
-(H rho te').
-
-hnf in H|-*.
- 
-simpl in H2.
-
+specialize (H1 (closed_wrt_modvars_switch _ _ _ _ H2)); clear H2.
+spec H1. {
+ clear - H3.
+ intros ek vl tx' vx'.
+ pose (ek' := match ek with 
+                    | EK_normal => EK_normal
+                    | EK_break => EK_normal
+                    | EK_continue => EK_continue
+                    | EK_return => EK_return
+                    end).
+ pose (vl' := match ek with 
+                    | EK_normal => None
+                    | EK_break => None
+                    | EK_continue => None
+                    | EK_return => vl
+                    end).
+ specialize (H3 ek' vl' tx' vx').
+ cbv beta in *.
+ set (rho' := construct_rho (filter_genv psi) vx' tx') in *.
+ cbv beta zeta in *.
+ intros w' H0 w'' H1 [[H2 H4] H5].
+ specialize (H3 w' H0 w'' H1).
+ spec H3. {
+ split; [split | ].
+ *
+ destruct H2; split.
+ +
+  clear - H.
+  subst ek'.
+  destruct ek; simpl in *; auto.
+  subst c.
+  eapply typecheck_environ_join_switch1; eauto.
+   apply typecheck_environ_join_switch2; auto.
+ +
+  simpl in H2.
+  destruct (current_function k); auto.
+  destruct H2; split; auto.
+   clear - H6.
+   subst ek'. rewrite ret_type_exit_tycon in *. auto.
+ *
+ clear - H4.
+ destruct ek; unfold frame_ret_assert in *; 
+  simpl switch_ret_assert in H4; auto.
+  normalize in H4; contradiction.
+ *
+  clear - H5.
+ rewrite funassert_exit_tycon in H5|-*. auto.
+ }
+ clear - H3 H4.
+ hnf in H3|-*.
+ intros. specialize (H3 ora _ H H0).
+ clear - H3 H4.
+ destruct (level w'') eqn:?.
+ constructor.
+ inv H3; [ | inv H0 | inv H].
+ econstructor 2.
+ 2: eassumption.
+ subst ek' vl'; destruct ek; simpl in *; auto.
+ destruct H4 as [? [? [? [? ?]]]]; contradiction.
+}
 hnf in H1.
-
-apply H1.
-apply resource_decay_refl.
-apply juicy_mem_alloc_cohere.
-
-intros.
-Search nextblock m_phi.
-clear - H.
-pose proof juicy_mem_alloc_cohere.
-Locate access_cohere.
-Search m_dry m_phi.
-
-SearchHead (resource_decay _ _ _).
-unfold sem_switch_arg. simpl.
-red in H.
-
-SearchAbout tc_expr join.
-SearchAbout tycontext_sub.
-Check eval_expr_sub.
-
-Search jsafeN.
-
-Lemma tc_val_Tint_e1:
-  forall i s a n, tc_val (Tint i s a) (Vint n) ->
-     exists n', n = Int.repr n'.
-Proof.
-intros.
-(*destruct i,s; simpl in H.*)
-exists (Int.signed n). rewrite Int.repr_signed; auto.
-
-SearchAbout is_int_type.
-SearchAbout Int.repr tc_val.
-simpl in H0.
- inv H0.
-destruct H4.
-unfold typecheck_expr in H0.
-SearchHead (_ |-- denote_tc_tc_expr _ _ _ ).
-
-
-
-
-unfold exit_tycon in H2.
-destruct H3.
-simpl in H8.
-
-eapply safeN_step.
-Print safeN_.
-
-econstructor 3.
-SearchHead (jsafeN _ _ _ _ _ _).
-hnf.
-hnf in H2.
-
-
-
-
-
-
-
-
-
-
-
+specialize (H1 tx vx w' Hw' _ Hw'').
+spec H1. {
+ clear H1.
+ split; auto.
+ split; auto.
+ do 3 red. split; auto.
+ exists w1, w2. split3; auto.
+ split; auto. do 3 red.
+ fold rho. rewrite Heqv.
+ subst n. rewrite Int.repr_unsigned. auto.
+}
+eapply pred_hereditary in H1;
+  [ | instantiate (1:= (m_phi jm')); apply age_jm_phi; auto].
+apply H1; auto.
+Qed.
 
 
 

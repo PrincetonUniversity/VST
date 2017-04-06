@@ -29,57 +29,6 @@ intros; apply same_glob_funassert. rewrite glob_specs_update_tycon. auto.
 Qed.
 
 
-Lemma tycontext_evolve_refl : forall Delta, tycontext_evolve Delta Delta.
-Proof.
-intros.
-split; auto.
-intros. destruct ((temp_types Delta)!id) as [[? ?]|]; auto.
-split; auto. destruct b; reflexivity.
-Qed.
-
-
-Lemma tycontext_evolve_join:
-  forall Delta Delta1 Delta2,
-   tycontext_evolve Delta Delta1 ->
-   tycontext_evolve Delta Delta2 ->
-   tycontext_evolve Delta (join_tycon Delta1 Delta2).
-Proof.
-intros [A B C D E] [A1 B1 C1 D1 E1] [A2 B2 C2 D2 E2]
-  [? [? [? [? ?]]]] [? [? [? [? ?]]]];
-simpl in *;
- repeat split; auto.
- clear - H H4.
-intro id; specialize (H id); specialize (H4 id).
- unfold temp_types in *; simpl in *.
- destruct (A ! id) as [[? ?]|].
- destruct (A1 ! id) as [[? ?]|] eqn:?; [ | contradiction].
- destruct (A2 ! id) as [[? ?]|] eqn:?; [ | contradiction].
- destruct H,H4; subst t1 t0.
- rewrite (join_te_eqv _ _ _ _ _ _ Heqo Heqo0).
- split; auto. destruct b,b0; inv H0; auto.
- rewrite join_te_denote2.
- unfold te_one_denote.
- destruct (A1 ! id) as [[? ?]|]; [contradiction|].
- auto.
-Qed.
-
-Lemma tycontext_evolve_update_tycon:
- forall c Delta, tycontext_evolve Delta (update_tycon Delta c)
- with tycontext_evolve_join_labeled:
- forall l Delta, tycontext_evolve Delta (join_tycon_labeled l Delta).
-Proof.
-clear tycontext_evolve_update_tycon.
-induction c; simpl; intros; try destruct o; try apply tycontext_evolve_refl;
-try apply initialized_tycontext_evolve.
-eapply tycontext_evolve_trans; [ apply IHc1 | apply IHc2].
-apply tycontext_evolve_join; auto.
-auto.
-clear tycontext_evolve_join_labeled.
-induction l; simpl; auto; intros.
-apply tycontext_evolve_refl.
-apply tycontext_evolve_join; auto.
-Qed.
-
 Lemma semax_ifthenelse {CS: compspecs}:
    forall Delta P (b: expr) c d R,
       bool_type (typeof b) = true ->

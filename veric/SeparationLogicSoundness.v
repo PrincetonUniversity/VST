@@ -20,6 +20,7 @@ Require Import veric.initial_world.
 Require Import veric.semax_call.
 Require Import veric.semax_straight.
 Require Import veric.semax_loop.
+Require Import veric.semax_switch.
 Require Import veric.semax_prog.
 Require Import veric.semax_ext.
 Require Import veric.SeparationLogic.
@@ -96,6 +97,7 @@ Definition semax_seq := @semax_seq.
 Definition semax_break := @semax_break.
 Definition semax_continue := @semax_continue.
 Definition semax_loop := @semax_loop.
+Definition semax_switch := @semax_switch.
 Definition seq_assoc := @seq_assoc.
 Definition semax_seq_skip := @semax_seq_skip.
 Definition semax_skip_seq := @semax_skip_seq.

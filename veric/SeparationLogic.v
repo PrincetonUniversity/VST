@@ -1141,6 +1141,20 @@ forall Delta Q Q' incr body R,
      @semax CS Espec Delta Q' incr (loop2_ret_assert Q R) ->
      @semax CS Espec Delta Q (Sloop body incr) R.
 
+(* THIS RULE FROM semax_switch *)
+
+Axiom semax_switch: 
+  forall {Espec: OracleKind}{CS: compspecs} ,
+  forall Delta (Q: environ->mpred) a sl R,
+     is_int_type (typeof a) = true ->
+     (forall rho, Q rho |-- tc_expr Delta a rho) ->
+     (forall n,
+     @semax CS Espec Delta 
+               (local (`eq (eval_expr a) `(Vint (Int.repr n))) &&  Q)
+               (seq_of_labeled_statement (select_switch n sl))
+               (seplog.switch_ret_assert R)) ->
+     @semax CS Espec Delta Q (Sswitch a sl) R.
+
 (* THESE RULES FROM semax_call *)
 Parameter func_ptr : funspec -> val ->mpred.
 Axiom corable_func_ptr: forall f v, corable (func_ptr f v).
