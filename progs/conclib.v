@@ -2714,9 +2714,10 @@ Ltac join_inj := repeat match goal with H1 : sepalg.join ?a ?b ?c, H2 : sepalg.j
     pose proof (sepalg.join_eq H1 H2); clear H1 H2; subst; auto end.
 
 Ltac fast_cancel := rewrite ?sepcon_emp, ?emp_sepcon; rewrite ?sepcon_assoc;
-  repeat match goal with |- _ |-- ?P * _ =>
-    try (rewrite <- !sepcon_assoc, (sepcon_comm _ P), !sepcon_assoc);
-    try simple apply derives_refl; repeat (apply sepcon_derives; [simple apply derives_refl|]) end;
+  repeat match goal with
+    | |- ?P |-- ?P => apply derives_refl
+    | |- ?P * _ |-- ?P * _ => apply sepcon_derives; [apply derives_refl|]
+    | |- _ |-- ?P * _ => rewrite <- !sepcon_assoc, (sepcon_comm _ P), !sepcon_assoc end;
   try cancel_frame.
 
 Ltac forward_spawn sig wit := let Frame := fresh "Frame" in evar (Frame : list mpred);

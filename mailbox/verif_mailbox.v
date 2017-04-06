@@ -575,7 +575,8 @@ Proof.
       Exists (@nil AE_hist_el) (vint 0).
       unfold comm_R at 1.
       Exists 0 1 1; unfold last_two_reads, last_write, prev_taken; simpl.
-      rewrite !sepcon_andp_prop', !sepcon_andp_prop, !sepcon_andp_prop'; apply andp_right; [apply prop_right; auto|].
+      rewrite !sepcon_andp_prop', !sepcon_andp_prop, !sepcon_andp_prop'; apply andp_right;
+        [apply prop_right; auto|].
       apply andp_right; [apply prop_right; repeat (split; auto); computable|].
       Exists 0; fast_cancel.
       rewrite <- emp_sepcon at 1; apply sepcon_derives.
@@ -587,7 +588,8 @@ Proof.
     go_lower.
     apply andp_right; [apply prop_right; split; auto; omega|].
     apply andp_right; [apply prop_right; repeat split; auto|].
-    rewrite !sepcon_andp_prop'; apply andp_right; [apply prop_right; rewrite Forall_app; repeat split; auto; omega|].
+    rewrite !sepcon_andp_prop'; apply andp_right; [apply prop_right; rewrite Forall_app; repeat split; auto;
+      omega|].
     rewrite !sepcon_andp_prop; repeat (apply andp_right; [apply prop_right; auto; try omega|]).
     rewrite Z2Nat.inj_add, upto_app, !map_app, !sepcon_app; try omega; simpl.
     change (upto 1) with [0]; simpl.
@@ -2095,7 +2097,8 @@ Proof.
     rewrite (extract_nth_sepcon (map (data_at _ _ _) (sublist 1 _ bufs)) 0), Znth_map with (d' := Vundef);
       rewrite ?Zlength_map, ?Zlength_sublist; try (unfold B, N in *; omega).
     erewrite <- (data_at_shares_join Tsh); eauto.
-    rewrite (sepcon_comm (data_at sh0 _ _ (Znth 0  (sublist _ _ bufs) Vundef))), (sepcon_assoc _ (data_at sh0 _ _ _)).
+    rewrite (sepcon_comm (data_at sh0 _ _ (Znth 0  (sublist _ _ bufs) Vundef))),
+      (sepcon_assoc _ (data_at sh0 _ _ _)).
     rewrite replace_nth_sepcon.
     fast_cancel.
     rewrite <- !sepcon_assoc, (sepcon_comm _ (data_at sh0 _ _ _)).
