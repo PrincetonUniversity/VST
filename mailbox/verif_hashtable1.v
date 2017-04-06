@@ -3290,28 +3290,8 @@ Proof.
   Intros x sh''; destruct x as (?, lr); simpl in *.
   repeat match goal with H : sepalg_list.list_join _ (sublist 3 3 _) _ |- _ =>
     rewrite sublist_nil in H; inv H end.
-  Fail forward_call (Ews, m_entries, entries, ghosts, fold_right join_hists empty_hists (map fst (map fst lr)),
+  forward_call (Ews, m_entries, entries, ghosts, fold_right join_hists empty_hists (map fst (map fst lr)),
     keys, values).
-Ltac forward_call_id00_wow A witness Frame H ::=
- eapply (@semax_call_id00_wow A witness Frame _ _ _ _ _ _ _ _ _ H);
- clear H; try clear Frame;
- [ check_result_type | check_parameter_types
- | check_prove_local2ptree
- | check_typecheck
- | check_funspec_precondition
- | check_prove_local2ptree
- | check_cast_params | reflexivity
- | Forall_pTree_from_elements
- | Forall_pTree_from_elements
- | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
- | cbv beta iota zeta; extensionality rho;
-    repeat rewrite exp_uncurry;
-    try rewrite no_post_exists0;
-    repeat rewrite exp_unfold; first [reflexivity | extensionality; simpl; reflexivity]
- | unify_postcondition_exps
- | unfold fold_right_and; repeat rewrite and_True; auto
- ].
-  forward_call (Ews, m_entries, entries, ghosts, fold_right join_hists empty_hists (map fst (map fst lr)), keys, values).
   { apply sepcon_derives; [apply derives_refl | cancel_frame]. }
   { split; auto; split; [omega|].
     rewrite join_hists_empty_length; auto. }
