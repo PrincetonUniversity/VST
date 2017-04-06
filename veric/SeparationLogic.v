@@ -1150,8 +1150,8 @@ Axiom semax_switch:
      (forall rho, Q rho |-- tc_expr Delta a rho) ->
      (forall n,
      @semax CS Espec Delta 
-               (local (`eq (eval_expr a) `(Vint (Int.repr n))) &&  Q)
-               (seq_of_labeled_statement (select_switch n sl))
+               (local (`eq (eval_expr a) `(Vint n)) &&  Q)
+               (seq_of_labeled_statement (select_switch (Int.unsigned n) sl))
                (seplog.switch_ret_assert R)) ->
      @semax CS Espec Delta Q (Sswitch a sl) R.
 

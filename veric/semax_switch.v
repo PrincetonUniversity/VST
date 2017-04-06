@@ -85,14 +85,13 @@ Proof.
  apply typecheck_environ_join_switch2; auto.
 Qed.
  
-
 Lemma semax_switch: 
   forall Espec {CS: compspecs} Delta (Q: assert) a sl R,
      is_int_type (typeof a) = true ->
      (forall rho, Q rho |-- tc_expr Delta a rho) ->
      (forall n,
-     semax Espec Delta (fun rho => andp (prop (eval_expr a rho = Vint (Int.repr n))) (Q rho))
-               (seq_of_labeled_statement (select_switch n sl))
+     semax Espec Delta (fun rho => andp (prop (eval_expr a rho = Vint n)) (Q rho))
+               (seq_of_labeled_statement (select_switch (Int.unsigned n) sl))
                (switch_ret_assert R)) ->
      semax Espec Delta Q (Sswitch a sl) R.
 Proof.
@@ -111,7 +110,7 @@ destruct H4 as [H4 H4'].
 assert (H0' := typecheck_expr_sound _ _ _ _ (typecheck_environ_sub _ _ TS _ H4) H0).
 destruct (typeof a) eqn:?; inv H.
 destruct (eval_expr a rho) eqn:?; try contradiction H0'.
-pose (n := Int.unsigned i0).
+rename i0 into n.
 specialize (H1 n).
 destruct (level (m_phi jm)) eqn:?.
 constructor.
@@ -133,8 +132,8 @@ reflexivity.
 split.
 apply age1_resource_decay; assumption.
 apply age_level; assumption.
-fold n.
-set (c := seq_of_labeled_statement (select_switch n sl)) in *.
+(*fold n. *)
+set (c := seq_of_labeled_statement (select_switch (Int.unsigned n) sl)) in *.
 pose  proof (age_level _ _ H9).
 rewrite <- level_juice_level_phi in Heqn0.
 rewrite Heqn0 in H.
@@ -209,9 +208,7 @@ spec H1. {
  split; auto.
  do 3 red. split; auto.
  exists w1, w2. split3; auto.
- split; auto. do 3 red.
- fold rho. rewrite Heqv.
- subst n. rewrite Int.repr_unsigned. auto.
+ split; auto.
 }
 eapply pred_hereditary in H1;
   [ | instantiate (1:= (m_phi jm')); apply age_jm_phi; auto].
