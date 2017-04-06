@@ -944,7 +944,9 @@ Proof.
     apply local2ptree_sound_aux with (Q0 := temp i v0).
     extensionality rho. unfold locald_denote; simpl.
     unfold local, lift1; unfold_lift; simpl. normalize.
-    f_equal. apply prop_ext; split; intros [? ?]; subst; split; auto.
+    f_equal. apply prop_ext; split.
+    intros [? [? [? ?]]]; subst; split; auto.
+    intros [? [? ?]]; subst; split; auto.
     rewrite in_app; right. apply LocalD_sound_temp. auto.
     apply LOCALx_shuffle'; intros.
     simpl In. rewrite !in_app. simpl In. intuition.
