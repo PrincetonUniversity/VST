@@ -519,6 +519,49 @@ eapply semax_pre_post;
 Qed.
 *)
 
+Lemma semax_switch_PQR: 
+  forall {Espec: OracleKind}{CS: compspecs} ,
+  forall n Delta (Pre: environ->mpred) a sl (Post: ret_assert),
+     is_int_type (typeof a) = true ->
+     ENTAIL Delta, Pre |-- tc_expr Delta a ->
+     ENTAIL Delta, Pre |-- local (`(eq (Vint (Int.repr n))) (eval_expr a)) ->
+     0 <= n <= Int.max_unsigned ->
+     @semax CS Espec Delta 
+               Pre
+               (seq_of_labeled_statement (select_switch n sl))
+               (seplog.switch_ret_assert Post) ->
+     @semax CS Espec Delta Pre (Sswitch a sl) Post.
+Proof.
+intros.
+eapply semax_pre.
+apply derives_refl.
+apply (semax_switch); auto.
+intro n'.
+assert_PROP (n = Int.unsigned n').
+apply derives_trans with (local (`( eq (Vint (Int.repr n))) (eval_expr a)) && local (` eq (eval_expr a) ` (Vint n'))).
+apply andp_right.
+eapply derives_trans; [ | eassumption].
+intro rho.
+unfold local, lift1, liftx, lift; simpl.
+normalize.
+intro rho.
+unfold local, lift1, liftx, lift; simpl.
+normalize.
+intro rho.
+unfold local, lift1, liftx, lift; simpl.
+normalize.
+rewrite <- H4 in H5.
+apply Vint_inj in H5.
+subst n'.
+rewrite Int.unsigned_repr by auto. auto.
+subst.
+eapply semax_pre; [ | eassumption].
+apply andp_left2.
+apply andp_left2.
+apply andp_left2.
+auto.
+Qed.
+
 Lemma normal_ret_assert_derives':
   forall ek vl P Q,
       P |-- Q ->

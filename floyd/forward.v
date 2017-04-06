@@ -699,10 +699,10 @@ Ltac forward_call_id00_wow A witness Frame H :=
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
- | cbv beta iota zeta; extensionality rho;
+ | cbv beta iota zeta;
     repeat rewrite exp_uncurry;
     try rewrite no_post_exists0;
-    repeat rewrite exp_unfold; first [reflexivity | extensionality; simpl; reflexivity]
+    first [reflexivity | extensionality; simpl; reflexivity]
  | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
  ].
@@ -1463,9 +1463,45 @@ Ltac forward_for Inv PreIncr Postcond :=
        ])
     ]; abbreviate_semax; autorewrite with ret_assert.
 
+Ltac process_cases := 
+match goal with
+| |- semax _ _ (seq_of_labeled_statement 
+     match select_switch_case ?N (LScons (Some ?X) ?C ?SL)
+      with Some _ => _ | None => _ end) _ =>
+      change (select_switch_case N (LScons (Some X) C SL))
+       with (if zeq X N then Some (LScons (Some X) C SL)
+                 else select_switch_case N SL);
+     let E := fresh "E" in let NE := fresh "NE" in 
+     destruct (zeq N X) as [E|NE];
+      [ rewrite if_true; [ unfold seq_of_labeled_statement at 1 | symmetry; apply E];
+        try subst N
+     | rewrite if_false; [ | contradict NE; symmetry; apply NE];
+       process_cases
+    ]
+| |- semax _ _ (seq_of_labeled_statement 
+     match select_switch_case ?N (LScons None ?C ?SL)
+      with Some _ => _ | None => _ end) _ =>
+      change (select_switch_case N (LScons None C SL))
+       with (select_switch_case N SL);
+     process_cases
+| |- semax _ _ (seq_of_labeled_statement 
+     match select_switch_case ?N LSnil
+      with Some _ => _ | None => _ end) _ =>
+      change (select_switch_case N LSnil)
+           with (@None labeled_statements);
+      cbv iota;
+      unfold seq_of_labeled_statement at 1
+end.
+
+Ltac forward_switch' := 
+ eapply semax_switch_PQR; [reflexivity | check_typecheck | try solve [entailer!] | try omega | ];
+ unfold select_switch at 1; unfold select_switch_default at 1;
+ process_cases.
+
 Ltac forward_if'_new :=
   check_Delta;
-match goal with |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sifthenelse ?e ?c1 ?c2) _ =>
+match goal with
+| |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sifthenelse ?e ?c1 ?c2) _ =>
    let HRE := fresh "H" in let v := fresh "v" in
     evar (v: val);
     do_compute_expr Delta P Q R e v HRE;
@@ -1477,6 +1513,8 @@ match goal with |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sifthenelse ?e
      | clear HRE; subst v; apply semax_extract_PROP; intro HRE;
        do_repr_inj HRE; abbreviate_semax
      ]
+| |- semax _ _ (Sswitch _ _) _ =>
+  forward_switch'
 end.
 
 Ltac forward_if_tac post :=
@@ -1487,6 +1525,8 @@ first [ignore (post: environ->mpred)
 match goal with
  | |- semax _ _ (Sifthenelse _ _ _) (overridePost post _) =>
        forward_if'_new
+ | |- semax _ _ (Sswitch _ _) _ =>
+       forward_switch'
  | |- semax _ _ (Sifthenelse _ _ _) ?P =>
       apply (semax_post_flipped (overridePost post P));
       [ forward_if'_new
@@ -1495,6 +1535,9 @@ match goal with
    | |- semax _ _ (Ssequence (Sifthenelse _ _ _) _) _ =>
      apply semax_seq with post;
       [forward_if'_new | abbreviate_semax; autorewrite with ret_assert]
+   | |- semax _ _ (Ssequence (Sswitch _ _) _) _ =>
+     apply semax_seq with post;
+      [forward_switch' | abbreviate_semax; autorewrite with ret_assert]
 end.
 
 Tactic Notation "forward_if" constr(post) :=

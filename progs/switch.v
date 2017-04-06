@@ -73,8 +73,7 @@ Definition f_twice := {|
               (Sset _n
                 (Ebinop Oadd (Etempvar _n tint) (Etempvar _n tint) tint))
               Sbreak)
-            LSnil
-            )))))
+            LSnil)))))
   (Sreturn (Some (Etempvar _n tint))))
 |}.
 
