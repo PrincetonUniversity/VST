@@ -67,7 +67,9 @@ Definition f_twice := {|
       (LScons (Some 1)
         (Ssequence (Sset _n (Econst_int (Int.repr 2) tint)) Sbreak)
         (LScons (Some 3)
-          (Ssequence (Sset _n (Econst_int (Int.repr 6) tint)) Sbreak)
+          (Sset _n
+            (Ebinop Oadd (Etempvar _n tint) (Econst_int (Int.repr 0) tint)
+              tint))
           (LScons None
             (Ssequence
               (Sset _n
