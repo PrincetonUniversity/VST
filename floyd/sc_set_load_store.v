@@ -114,19 +114,25 @@ Lemma semax_SC_set:
 Proof.
   intros.
   assert (ENTAIL Delta, PROPx P (LOCALx Q (SEPx R)) |--
-     (tc_expr Delta e2) &&  (tc_temp_id id (typeof e2) Delta e2)).
+     (tc_expr Delta e2) &&  (tc_temp_id id (typeof e2) Delta e2) && !! tc_val (typeof e2) v).
   {
-    apply andp_right.
+    apply andp_right; [apply andp_right |].
     + eapply derives_trans; [exact H2 | apply derives_refl].
     + unfold tc_temp_id.
       unfold typecheck_temp_id.
       unfold typeof_temp in H.
-      destruct ((temp_types Delta) ! id) as [[? ?]|]; [| inversion H].
+      destruct ((temp_types Delta) ! id); [| inversion H].
       inversion H; clear H; subst.
       rewrite H0.
       simpl denote_tc_assert; simpl; intros.
       unfold local, lift1.
       apply neutral_isCastResultType, H0.
+    + rewrite <- (andp_dup (local (tc_environ _))), andp_assoc.
+      eapply derives_trans; [apply andp_derives; [apply derives_refl | apply andp_right; [exact H2 | exact H1]] |].
+      intro rho; unfold local, lift1; unfold_lift.
+      simpl.
+      normalize.
+      apply typecheck_expr_sound; auto.
   }
   eapply semax_pre_simple.
   {
@@ -135,22 +141,29 @@ Proof.
     rewrite andp_comm.
     rewrite (add_andp _ _ H1).
     apply later_derives.
+    rewrite (andp_assoc (_ && _)).
     apply andp_derives; [apply derives_refl |].
+    rewrite <- andp_assoc.
     apply andp_derives; [| apply derives_refl].
+    rewrite <- andp_assoc, (andp_comm (prop _)), andp_assoc.
     apply andp_left2.
+    rewrite insert_prop.
     apply derives_refl.
   }
   eapply semax_post'; [| apply semax_set_forward].
   apply andp_left2; 
   rewrite <- insert_local.
-  rewrite <- remove_localdef_PROP.
+  eapply derives_trans; [| apply andp_derives; [apply derives_refl | apply remove_localdef_PROP]].
   normalize.
   apply (exp_right old).
+  rewrite <- insert_prop.
   autorewrite with subst.
-  rewrite andp_comm, andp_assoc, andp_comm.
+  rewrite andp_comm, andp_assoc, andp_comm, <- !andp_assoc.
   apply andp_derives; auto.
   simpl; unfold local, lift1; unfold_lift; intro rho; simpl.
   normalize.
+  split; auto.
+  intro; revert H4; rewrite H6; apply tc_val_Vundef.
 Qed.
 
 Lemma semax_SC_field_load:
