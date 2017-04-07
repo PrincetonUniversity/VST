@@ -699,9 +699,10 @@ Ltac forward_call_id00_wow A witness Frame H :=
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
- | cbv beta iota zeta;
+ | cbv beta iota zeta; extensionality rho;
     repeat rewrite exp_uncurry;
     try rewrite no_post_exists0;
+    repeat rewrite exp_unfold;
     first [reflexivity | extensionality; simpl; reflexivity]
  | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
