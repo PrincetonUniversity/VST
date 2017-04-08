@@ -50,26 +50,7 @@ Arguments var_types !Delta / .
 
 Ltac simplify_Delta_core H :=
  repeat match type of H with _ =  ?A => unfold A in H end;
- cbv delta [abbreviate update_tycon func_tycontext] in H; simpl in H;
- repeat
-  (first [
-          unfold initialized at 15 in H
-        | unfold initialized at 14 in H
-        | unfold initialized at 13 in H
-        | unfold initialized at 12 in H
-        | unfold initialized at 11 in H
-        | unfold initialized at 10 in H
-        | unfold initialized at 9 in H
-        | unfold initialized at 8 in H
-        |unfold initialized at 7 in H
-        |unfold initialized at 6 in H
-        |unfold initialized at 5 in H
-        |unfold initialized at 4 in H
-        |unfold initialized at 3 in H
-        |unfold initialized at 2 in H
-        |unfold initialized at 1 in H];
-   simpl in H);
- unfold initialized in H;
+ cbv delta [abbreviate func_tycontext] in H; simpl in H;
  simpl in H.
 
 Ltac simplify_Delta_from A :=
@@ -86,45 +67,6 @@ Ltac simplify_Delta_at A :=
        simplify_Delta_core H;
        subst d
  end.
-
-
-Fixpoint initialized_list ids D :=
- match ids with
- | nil => D
- | i::il => initialized_list il (initialized i D)
- end.
-
-Lemma initialized_list1:  forall i il a1 a2 a3 a4 a5 d',
-    initialized_list il
-      match a1 ! i with
-       | Some (ty, _) =>
-          mk_tycontext (PTree.set i (ty, true) a1) a2 a3 a4 a5
-       | None => mk_tycontext a1 a2 a3 a4 a5
-       end = d' ->
-    initialized_list (i::il) (mk_tycontext a1 a2 a3 a4 a5) = d'.
-Proof. intros; subst; reflexivity.
-Qed.
-
-Ltac simplify_Delta_OLD :=
- match goal with
-| |- semax ?D _ _ _ =>
-            simplify_Delta_at D
-| |- PROPx _ (LOCALx (tc_environ ?D :: _) _) |-- _ =>
-            simplify_Delta_at D
-| |- initialized_list _ _ = ?B =>
-         is_var B;
-         repeat (apply initialized_list1;
-                     simpl PTree.get; cbv beta iota; simpl PTree.set);
-         simplify_Delta_at B; reflexivity
-| |- ?B = initialized_list _ _ =>
-         is_var B;
-         symmetry;
-         repeat (apply initialized_list1;
-                     simpl PTree.get; cbv beta iota; simpl PTree.set);
-         simplify_Delta_at B; reflexivity
-| |- ?A = ?B =>
-     simplify_Delta_at A; simplify_Delta_at B; reflexivity
-end.
 
 Ltac reduce_snd S1 :=
 match goal with
@@ -277,16 +219,6 @@ match goal with
      let D := fresh "Delta" in set (D := mk_tycontext a b c d DS);
      change (mk_tycontext a b c d DS) with (@abbreviate _ (mk_tycontext a b c d DS)) in D
  | |- _ => simplify_func_tycontext_core; simplify_Delta
- | |- semax ?D _ _ _ =>
-     match D with
-     | context [initialized ?i (mk_tycontext ?a ?b ?c ?d ?e)] =>
-        let z := fresh "z" in set (z := initialized i (mk_tycontext a b c d e));
-          unfold initialized in z; simpl in z; subst z;
-          simplify_Delta
-     | context [initialized ?i ?B] =>
-        match B with context [initialized] => fail 1 | _ => idtac end;
-        unfold B; simplify_Delta
-     end
  end.
 
 (*
@@ -358,61 +290,10 @@ Ltac weak_normalize_postcondition := (* does not insist on normal_ret_assert *)
 
 (**** BEGIN semax_subcommand stuff  *)
 
-(* Two small-step tactics -- will probbaly not be used very much once the tactics are stable*)
-Ltac replaceIdent_and_solve D i DD :=
-  replace D with (initialized i DD); try (simplify_Delta; reflexivity); try clear D.
-
-Ltac replaceIdents D ids Delta :=
-  match ids with nil => replace Delta with D
-   | (cons ?i ?tlids) =>
-      replaceIdents (initialized i D) tlids Delta
-  end.
-
-(* The core replace & solve tactic*)
-Ltac replaceIdents_and_solve D ids Delta :=
-  match ids with nil => replace Delta with D;
-        first [simplify_Delta; reflexivity | idtac]
-   | (cons ?i ?tlids) =>
-      replaceIdents_and_solve (initialized i D) tlids Delta
-  end.
-
-Ltac fold_all al :=
- match al with ?a :: ?al' => fold a; fold_all al' | nil => idtac end.
-
-Ltac refold_temp_names F :=
-  unfold PTree.prev; simpl PTree.prev_append;
-  let fbody := (eval hnf in F) in
-   match fbody with
-    {| fn_params := ?params; fn_temps := ?temps  |} =>
-     let vv := constr:(map fst (params ++ temps)) in
-     let v2 := (eval simpl in vv) in
-       fold_all v2
-   end.
-
-
-Definition is_init_temp Delta i : bool :=
-  match (temp_types Delta) ! i with
-  | Some (_ , b) => b
-  | None => false
- end.
-
-Ltac initialized_temps_of_fundec F Delta :=
-  let temps := (eval hnf in (fn_temps F)) in
-    let vv := constr:(filter (is_init_temp Delta) (map fst temps)) in
-     let v2 := (eval simpl in vv) in
-        v2.
-
-Ltac mkConciseDelta V G F Delta :=
-  let vv := constr:(filter (is_init_temp Delta) (map fst (fn_temps F))) in
-    let inits := (eval simpl in vv) in
-    change Delta with (initialized_list inits (func_tycontext F V G))(*;
-    refold_temp_names F;
-  clear Delta*).
-
 Ltac semax_subcommand V G F :=
   abbreviate_semax;
   match goal with |- semax ?Delta _ _ _ =>
-      mkConciseDelta V G F Delta;
+      change Delta with (func_tycontext F V G);
       repeat
          match goal with
           | P := @abbreviate statement _ |- _ => unfold abbreviate in P; subst P
@@ -423,5 +304,4 @@ Ltac semax_subcommand V G F :=
 
 (**** END semax_subcommand stuff *)
 
-Arguments join_te te1 te2 / .
 Arguments PTree.fold {A} {B} f m v / .
