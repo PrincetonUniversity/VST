@@ -699,9 +699,10 @@ Ltac forward_call_id00_wow A witness Frame H :=
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
- | cbv beta iota zeta;
+ | cbv beta iota zeta; extensionality rho;
     repeat rewrite exp_uncurry;
     try rewrite no_post_exists0;
+    repeat rewrite exp_unfold;
     first [reflexivity | extensionality; simpl; reflexivity]
  | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
@@ -1494,9 +1495,31 @@ match goal with
 end.
 
 Ltac forward_switch' := 
- eapply semax_switch_PQR; [reflexivity | check_typecheck | try solve [entailer!] | try omega | ];
- unfold select_switch at 1; unfold select_switch_default at 1;
- process_cases.
+match goal with
+| |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sswitch ?e _) _ =>
+   let HRE := fresh "H" in let v := fresh "v" in
+    evar (v: val);
+    do_compute_expr Delta P Q R e v HRE;
+    simpl in v;
+    let n := fresh "n" in evar (n: int); 
+    let H := fresh in assert (H: v=Vint n) by (unfold v,n; reflexivity);
+    let A := fresh in 
+    match goal with |- ?AA => set (A:=AA) end;
+    revert n H; normalize; intros n H; subst A;
+    let n' := fresh "n" in pose (n' := Int.unsigned n); 
+    let H' := fresh in assert (H': n = Int.repr n');
+       [try (symmetry; apply Int.repr_unsigned) 
+       | rewrite H,H' in HRE; clear H H';
+         subst n' n v; 
+         rewrite (Int.repr_unsigned (Int.repr _)) in HRE;
+         eapply semax_switch_PQR; 
+           [reflexivity | check_typecheck | exact HRE 
+           | clear HRE; try omega
+           | clear HRE; unfold select_switch at 1; unfold select_switch_default at 1;
+             try match goal with H := @abbreviate statement _ |- _ => clear H end;
+             process_cases]
+]
+end.
 
 Ltac forward_if'_new :=
   check_Delta;

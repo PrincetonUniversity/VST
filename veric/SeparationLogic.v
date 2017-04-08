@@ -623,6 +623,15 @@ Definition existential_ret_assert {A: Type} (R: A -> ret_assert) :=
 Definition normal_ret_assert (Q: environ->mpred) : ret_assert :=
    fun ek vl => !!(ek = EK_normal) && (!! (vl = None) && Q).
 
+Definition switch_ret_assert (R: ret_assert) : ret_assert :=
+ fun ek vl =>
+ match ek with
+ | EK_normal => seplog.FF
+ | EK_break => R EK_normal None
+ | EK_continue => R EK_continue None
+ | EK_return => R EK_return vl
+ end.
+
 Definition with_ge (ge: genviron) (G: environ->mpred) : mpred :=
      G (mkEnviron ge (Map.empty _) (Map.empty _)).
 
@@ -1152,7 +1161,7 @@ Axiom semax_switch:
      @semax CS Espec Delta 
                (local (`eq (eval_expr a) `(Vint n)) &&  Q)
                (seq_of_labeled_statement (select_switch (Int.unsigned n) sl))
-               (seplog.switch_ret_assert R)) ->
+               (switch_ret_assert R)) ->
      @semax CS Espec Delta Q (Sswitch a sl) R.
 
 (* THESE RULES FROM semax_call *)

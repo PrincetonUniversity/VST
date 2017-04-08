@@ -529,7 +529,7 @@ Lemma semax_switch_PQR:
      @semax CS Espec Delta 
                Pre
                (seq_of_labeled_statement (select_switch n sl))
-               (seplog.switch_ret_assert Post) ->
+               (switch_ret_assert Post) ->
      @semax CS Espec Delta Pre (Sswitch a sl) Post.
 Proof.
 intros.
