@@ -782,56 +782,7 @@ Proof.
   - do 4 right; left; repeat eexists; rewrite PTree.gro by auto; eauto.
   - do 5 right; left; repeat eexists; rewrite PTree.gro by auto; eauto.
 Qed.
-(*
-Lemma LocalD_subst : forall id v Q0 T1 T2 Q,
-  In Q0 (LocalD (PTree.remove id T1) T2 (map (subst_localdef id v) Q)) ->
-  In Q0 (map (subst_localdef id v) (LocalD T1 T2 Q)).
-Proof.
-  intros.
-  apply in_map_iff.
-  apply LocalD_complete in H.
-    repeat match type of H with
-             | _ \/ _ => destruct H
-             | ex _ => destruct H
-             | _ /\ _ => destruct H
-             end;
- try (destruct (peq id x);
-  [subst; rewrite PTree.grs in H; inv H
-  | rewrite PTree.gro in H by auto ]).
-- exists Q0; split; subst; autorewrite with subst; auto.
-   simpl. rewrite if_false by auto. auto.
-   apply LocalD_sound_temp; auto.
-- exists Q0; split; subst; autorewrite with subst; auto.
-   eapply LocalD_sound_local_global in H; destruct H; eassumption.
-- exists Q0; split; subst; autorewrite with subst; auto.
-   eapply LocalD_sound_local_global in H; destruct H; eassumption.
-- exists Q0; split; subst; autorewrite with subst; auto.
-   eapply LocalD_sound_local in H; eassumption.
-- exists Q0; split; subst; autorewrite with subst; auto.
-   eapply LocalD_sound_visible_global in H; eassumption.
-- exists Q0; split; subst; autorewrite with subst; auto.
-   eapply LocalD_sound_shadowed_global in H; eassumption.
-- apply in_map_iff in H.
-    destruct H as [x [?H ?H]].
-    exists x.
-    split; [auto |].
-    apply LocalD_sound_other; auto.
-Qed.
 
-Lemma SC_remove_subst : forall P T1 T2 R id v old,
-   PROPx P
-     (LOCALx (temp id v :: map (subst_localdef id old) (LocalD T1 T2 nil))
-        (SEPx R))
-   |-- PROPx P
-         (LOCALx (LocalD (PTree.set id v T1) T2 nil) (SEPx R)).
-Proof.
-  intros.
-  apply LOCALx_shuffle_derives; intros.
-  apply LOCALx_expand_temp_var in H.
-  destruct H; [left; auto | right].
-  apply LocalD_subst, H.
-Qed.
-*)
 Lemma nth_error_local':
   forall n P Q R (Qn: localdef),
     nth_error Q n = Some Qn ->
@@ -1132,16 +1083,6 @@ Proof.
        with (Q:= LocalD T1a (PTree.remove i T2a) Qa)
               (Q':= LocalD T1a T2a Qa); auto.
     intro; symmetry; apply (LocalD_remove_empty_from_PTree2); auto.
-(* +
-    rewrite <- (IHQ _ _ _ _ _ _ _ _ H); clear IHQ H.
-    simpl. rewrite <- insert_local'.
-    rewrite <- !insert_locals;
-    forget (local (fold_right `and `True (map locald_denote Q))) as QQ;
-     rewrite !(andp_comm QQ); rewrite <- !andp_assoc; f_equal; clear QQ.
-    rewrite inser
-    apply LOCALx_shuffle'; intros.
-    apply LOCALx_expand_res.
-*)
  +
     rewrite <- (IHQ _ _ _ _ _ _ _ _ H); clear IHQ H.
     simpl app. rewrite <- insert_prop. rewrite <- insert_local'. reflexivity.
