@@ -73,6 +73,7 @@ apply tycontext_evolve_refl.
 apply tycontext_evolve_join; auto.
 Qed.
 *)
+
 Lemma semax_ifthenelse {CS: compspecs}:
    forall Delta P (b: expr) c d R,
       bool_type (typeof b) = true ->

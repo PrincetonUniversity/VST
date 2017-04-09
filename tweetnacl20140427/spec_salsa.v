@@ -86,7 +86,7 @@ Definition OutLen h := if Int.eq (Int.repr h) Int.zero then 64 else 32.
 Definition fcorePOST_SEP h data d l out :=
   CoreInSEP data d *
   data_at Tsh (tarray tuchar (OutLen h)) l out.
-
+(*
 Definition f_core_POST d out h (data: SixteenByte * SixteenByte * (SixteenByte * SixteenByte) ) :=
 EX l:_,
    PROP (fcore_result h data l)
@@ -109,6 +109,27 @@ Definition core_spec :=
       SEP (CoreInSEP data (nonce, c, k);
            data_at Tsh (tarray tuchar (OutLen h)) OUT out)
   POST [ tvoid ] (f_core_POST (nonce, c, k) out h data).
+*)
+Definition core_spec :=
+  DECLARE _core
+   WITH c : val, k:val, h:Z,
+        nonce:val, out:val, OUT:list val,
+        data : SixteenByte * SixteenByte * (SixteenByte * SixteenByte)
+   PRE [ _out OF tptr tuchar,
+         _in OF tptr tuchar,
+         _k OF tptr tuchar,
+         _c OF tptr tuchar,
+         _h OF tint ]
+      PROP ()
+      LOCAL (temp _in nonce; temp _out out;
+             temp _c c; temp _k k; temp _h (Vint (Int.repr h)))
+      SEP (CoreInSEP data (nonce, c, k);
+           data_at Tsh (tarray tuchar (OutLen h)) OUT out)
+  POST [ tvoid ] (
+   EX l:_,
+   PROP (fcore_result h data l)
+   LOCAL ()
+   SEP (fcorePOST_SEP h data (nonce,c,k) l out)).
 
 Definition ld32_spec :=
   DECLARE _ld32

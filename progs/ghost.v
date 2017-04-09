@@ -831,6 +831,20 @@ Inductive hist_list' : hist_part -> list hist_el -> Prop :=
     hist_list' h (l ++ [e]).
 Hint Resolve hist_list'_nil.
 
+Lemma hist_list'_in : forall h l (Hl : hist_list' h l) e, (exists t, In (t, e) h) <-> In e l.
+Proof.
+  induction 1.
+  - split; [intros (? & ?)|]; contradiction.
+  - intro; subst; split.
+    + intros (? & Hin); rewrite in_app in *.
+      destruct Hin as [? | [Heq | ?]]; try solve [left; rewrite <- IHHl; eexists; rewrite in_app; eauto].
+      inv Heq; simpl; auto.
+    + rewrite in_app; intros [Hin | [Heq | ?]]; [| inv Heq | contradiction].
+      * rewrite <- IHHl in Hin; destruct Hin as (? & ?).
+        eexists; rewrite in_app in *; simpl; destruct H; eauto.
+      * eexists; rewrite in_app; simpl; eauto.
+Qed.
+
 Lemma hist_list_weak : forall l h (Hl : hist_list h l), hist_list' h l.
 Proof.
   induction l using rev_ind; intros.

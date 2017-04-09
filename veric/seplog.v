@@ -233,6 +233,15 @@ Definition normal_ret_assert (Q: assert) : ret_assert :=
 Definition frame_ret_assert (R: ret_assert) (F: assert) : ret_assert :=
       fun ek vl rho => R ek vl rho * F rho.
 
+Definition switch_ret_assert (R: ret_assert) : ret_assert :=
+ fun ek vl =>
+ match ek with
+ | EK_normal => seplog.FF
+ | EK_break => R EK_normal None
+ | EK_continue => R EK_continue None
+ | EK_return => R EK_return vl
+ end.
+
 Require Import msl.normalize.
 
 Lemma normal_ret_assert_derives:

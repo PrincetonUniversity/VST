@@ -95,3 +95,34 @@ Ltac reassoc_seq_raw :=
   end.
 
 Ltac reassoc_seq := unfold_abbrev'; reassoc_seq_raw; abbreviate_semax.
+
+(* if size does not divide (Zlength l), the last chunk will be smaller *)
+Fixpoint partition {T: Type} (firstSize size: Z) (l: list T) : list (list T) := 
+  match l with
+  | h :: t => if firstSize =? 0 then
+      match partition (size-1) size t with
+      | wip :: res => nil :: (h :: wip) :: res
+      | nil => nil :: [h] :: nil
+      end
+    else
+      match partition (firstSize-1) size t with
+      | wip :: res => (h :: wip) :: res
+      | nil => [h] :: nil
+      end
+  | nil => nil
+  end.
+
+Definition reassoc_into_chunks (cs: statement) (chunksize: Z) : statement :=
+  fold_seq (map fold_seq (partition chunksize chunksize (unfold_seq cs))).
+
+(* requires that unfold_abbrev' was already invoked *)
+Ltac reassoc_seq_chunks chunksize :=
+  cbv [Sfor Swhile Sdowhile];
+  match goal with
+  | |- semax _ _ ?cs _ => let cs' := eval cbv
+       [reassoc_into_chunks fold_seq map partition unfold_seq Zlength Zlength_aux Z.succ Z.add
+        Pos.add Pos.succ Pos.add_carry app Z.eqb Pos.eqb Z.sub Z.opp Z.pos_sub
+        Z.succ_double Z.pred_double Z.double Pos.pred_double]
+       in (reassoc_into_chunks cs chunksize)
+       in apply (semax_unfold_seq cs' cs eq_refl)
+  end.

@@ -1665,6 +1665,31 @@ Ltac drop_LOCAL n :=
    first [apply (drop_LOCAL n) | apply (drop_LOCAL' n) | apply (drop_LOCAL'' n)];
     unfold delete_nth.
 
+Fixpoint find_LOCAL_index (name: ident) (current: nat) (l : list localdef) : option nat :=
+  match l with
+  | h :: t => match h with
+    | temp  i _   => if (i =? name)%positive then Some current else find_LOCAL_index name (S current) t
+    | lvar  i _ _ => if (i =? name)%positive then Some current else find_LOCAL_index name (S current) t
+    | gvar  i _   => if (i =? name)%positive then Some current else find_LOCAL_index name (S current) t
+    | sgvar i _   => if (i =? name)%positive then Some current else find_LOCAL_index name (S current) t
+    | localprop _ => None
+    end
+  | nil => None
+  end.
+
+Ltac drop_LOCAL_by_name name := match goal with
+  | |- semax _ (PROPx ?P (LOCALx ?Q (SEPx ?R))) _ _ =>
+    let r := eval hnf in (find_LOCAL_index name O Q) in match r with
+    | Some ?i => drop_LOCAL i
+    | None => fail 1 "No variable named" name "found"
+    end 
+  end.
+
+Ltac drop_LOCALs l := match l with
+| ?h :: ?t => drop_LOCAL_by_name h; drop_LOCALs t
+| nil => idtac
+end.
+
 Ltac clean_up_app_carefully := (* useful after rewriting by SEP_PROP *)
  repeat
   match goal with
