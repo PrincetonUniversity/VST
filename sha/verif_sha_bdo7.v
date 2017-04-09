@@ -169,6 +169,7 @@ Proof.
       f_equal; [do 2 f_equal; omega | f_equal; omega].
 Qed.
 
+
 Lemma sha256_block_data_order_loop2_proof:
   forall (Espec : OracleKind)
      (b: list int) ctx (regs: list int) kv Xv
@@ -205,6 +206,7 @@ Lemma sha256_block_data_order_loop2_proof:
             data_at_ Tsh (tarray tuint LBLOCKz) Xv))).
 Proof.
 intros.
+unfold Delta_loop1.
 unfold block_data_order_loop2; simpl nth.
 rewrite semax_skip_seq.
 match goal with
@@ -212,20 +214,6 @@ match goal with
       fold (Sfor s1 e s2 s3)
  end.
 abbreviate_semax.
-(*
-name a_ _a.
-name b_ _b.
-name c_ _c.
-name d_ _d.
-name e_ _e.
-name f_ _f.
-name g_ _g.
-name h_ _h.
-name t_ _t.
-name Ki _Ki.
-name ctx_ _ctx.
-name i_ _i.
-*)
 change 16%nat with LBLOCK.
 
 forward_for_simple_bound 64%Z
