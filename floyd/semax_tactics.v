@@ -181,10 +181,9 @@ match goal with
            unfold abbreviate in Delta; subst Delta; rename U into Delta;
            cbv beta iota zeta delta - [abbreviate DS] in Delta
        end; simplify_Delta
- | |- semax (initialized_list _ _) _ _ _ => 
-       unfold initialized_list at 1; simplify_Delta
  | |- semax ?DD _ _ _ => 
        match DD with
+       | context [initialized_list _ _] => unfold initialized_list
        | context [initialized _ ?D] => try (revert D; fail 1); unfold D
        | context [update_tycon ?D _] => try (revert D; fail 1); unfold D
        end; simplify_Delta

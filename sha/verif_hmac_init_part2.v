@@ -778,7 +778,7 @@ Qed.*)
 
     (*Call to _SHA256_Init*)
     Time forward_call (Vptr cb (Int.add cofs (Int.repr 108))). (*9.5 versus 10.5*)
-(*Superfluous in Coq8.5pl1 - but the previous forward_call takes 50%longer    { change_compspecs CompSpecs; cancel. }*)
+    change_compspecs CompSpecs; solve [cancel]. (* TODO: should not be necessary *)
 
     (*Call to _SHA256_Update*)
     thaw FR2.
@@ -808,8 +808,9 @@ Qed.*)
     forward_seq.
     { (*opad loop*)
       eapply semax_pre.
+      progress change_compspecs CompSpecs. (* TODO: should not be necessary *)
       2: apply (opadloop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv (FRZL FR4) IPADcont) with (ipadSHAabs:=ipadSHAabs); try reflexivity; subst ipadSHAabs; try assumption.
-      entailer!. (*superflous in Coq8.5pl1 subst ipadSHAabs; trivial.*)
+      entailer!.
     }
 
     (*continuation after opad-loop*)
@@ -825,7 +826,7 @@ Qed.*)
     unfold MORE_COMMANDS, abbreviate.
 
     Time forward_call (Vptr cb (Int.add cofs (Int.repr 216))). (*6.4 versus 10.6*)
-(*superfluous in Coq8.5pl1...    { change_compspecs CompSpecs. cancel. }*)
+    progress change_compspecs CompSpecs; solve [cancel]. (* TODO: should not be necessary *)
 
     (* Call to sha_update*)
     thaw FR6.
@@ -833,7 +834,8 @@ Qed.*)
             HMAC_SHA256.mkArgZ (map Byte.repr (HMAC_SHA256.mkKey key)) Opad,
             Vptr cb (Int.add cofs (Int.repr 216)),
             Vptr pb pofs, Tsh, 64, kv). (*4.5*)
-    { assert (FR : Frame = [FRZL FR5]).
+    { progress change_compspecs CompSpecs. (* TODO: should not be necessary *)
+      assert (FR : Frame = [FRZL FR5]).
         subst Frame; reflexivity.
       rewrite FR; clear FR Frame.
       unfold data_block. simpl.

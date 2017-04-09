@@ -165,12 +165,9 @@ Proof. intros. abbreviate_semax.
 
       freeze [0;2;3] FR3.
       Time forward_call (Vptr cb cofs). (* 4.3 versus 18 *)
-(*superfluous in 8.5pl1, but now the forward_call takes 15secs...
-      { change (Tstruct _SHA256state_st noattr) with  t_struct_SHA256state_st.
-        (*rewrite change_compspecs_t_struct_SHA256state_st'.*)
-        Time cancel. (*0.1 versus 5.8*)
+      { (* TODO: This should have solved automatically *)
+        change_compspecs CompSpecs; solve [cancel].
       }
-*)
 
       (*call to SHA256_Update*)
       thaw FR3.
@@ -179,8 +176,7 @@ Proof. intros. abbreviate_semax.
       freeze [2;3;5;6] FR4.
       Time forward_call (@nil Z, key, Vptr cb cofs, Vptr kb kofs, Tsh, l, kv). (*4.5*)
       { unfold data_block. rewrite prop_true_andp by auto.
-(*Indeed, superfluous in 8.5pl1, but again, the preceding
- forward_call now takes much longer: 18secs        change_compspecs CompSpecs.  (* this should not be needed *)*)
+        change_compspecs CompSpecs. (* TODO: should not be necessary *)
         Time cancel. (*0.1*)
       }
       { clear HeqPostIf_j_Len (*HeqPostKeyNull*).
@@ -274,10 +270,11 @@ Proof. intros. abbreviate_semax.
        thaw FR5.
        unfold data_at_, field_at_, tarray, data_block.
        unfold_data_at 2%nat. simpl. Time cancel. (*0.7*)
-(*       change_compspecs CompSpecs.*) Time (normalize; cancel). (*0.6*)
+       progress change_compspecs CompSpecs. (* TODO: should not be necessary? *)
+       Time (normalize; cancel). (*0.6*)
        rewrite field_at_data_at, field_address_offset by auto with field_compatible.
        rewrite field_at_data_at, field_address_offset by auto with field_compatible.
-       Time cancel. (*0.1*)
+       Time solve [cancel]. (*0.1*)
   }
 Time Qed. (*31.3 secs versus 58 secs*)
 
