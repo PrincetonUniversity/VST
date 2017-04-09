@@ -23,13 +23,6 @@ Local Open Scope nat_scope.
 Section extensions.
 Context (Espec : OracleKind).
 
-Lemma tycontext_evolve_refl : forall Delta, tycontext_evolve Delta Delta.
-Proof.
-intros.
-split; auto.
-intros. destruct ((temp_types Delta)!id); auto.
-Qed.
-
 (*
 Lemma tycontext_evolve_join:
   forall Delta Delta1 Delta2,

@@ -235,11 +235,10 @@ Lemma tycontext_evolve_refl : forall Delta, tycontext_evolve Delta Delta.
 Proof.
 intros.
 split; auto.
-intros. destruct ((temp_types Delta)!id) as [[? ?]|]; auto.
-split; auto. destruct b; reflexivity.
+intros. destruct ((temp_types Delta)!id); auto.
 Qed.
 
-
+(*
 Lemma tycontext_evolve_join:
   forall Delta Delta1 Delta2,
    tycontext_evolve Delta Delta1 ->
@@ -281,3 +280,4 @@ induction l; simpl; auto; intros.
 apply tycontext_evolve_refl.
 apply tycontext_evolve_join; auto.
 Qed.
+*)

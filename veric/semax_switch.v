@@ -53,7 +53,7 @@ assert (isSome (modifiedvars' (seq_of_labeled_statement sl) s) ! i). {
  rewrite modifiedvars'_union in H|-*.
  destruct H;[left|right]; auto.
 Qed.
-
+(*
 Lemma typecheck_environ_join_switch2:
    forall sl Delta rho,
     typecheck_environ Delta rho ->
@@ -84,7 +84,7 @@ Proof.
  apply typecheck_environ_update in H.
  apply typecheck_environ_join_switch2; auto.
 Qed.
- 
+*) 
 Lemma semax_switch: 
   forall Espec {CS: compspecs} Delta (Q: assert) a sl R,
      is_int_type (typeof a) = true ->
@@ -167,26 +167,17 @@ spec H1. {
  *
  destruct H2; split.
  +
-  clear - H.
-  subst ek'.
-  destruct ek; simpl in *; auto.
-  subst c.
-  eapply typecheck_environ_join_switch1; eauto.
-   apply typecheck_environ_join_switch2; auto.
+   auto.
  +
   simpl in H2.
   destruct (current_function k); auto.
-  destruct H2; split; auto.
-   clear - H6.
-   subst ek'. rewrite ret_type_exit_tycon in *. auto.
  *
  clear - H4.
  destruct ek; unfold frame_ret_assert in *; 
   simpl switch_ret_assert in H4; auto.
   normalize in H4; contradiction.
  *
-  clear - H5.
- rewrite funassert_exit_tycon in H5|-*. auto.
+  auto.
  }
  clear - H3 H4.
  hnf in H3|-*.
