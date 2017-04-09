@@ -782,7 +782,7 @@ Ltac cleanup_no_post_exists :=
  || unfold eq_no_post.
 
 Ltac after_forward_call :=
-    cbv beta iota delta [delete_temp_from_locals];
+    cbv beta iota delta [remove_localdef];
     simpl ident_eq; cbv beta iota zeta;
     repeat match goal with |- context [eq_rec_r ?A ?B ?C] =>
               change (eq_rec_r A B C) with B; cbv beta iota zeta
@@ -2595,10 +2595,6 @@ Ltac fwd_result :=
     match goal with
     | |- context[remove_localdef ?A ?B] =>
          set (P := remove_localdef A B);
-         hnf in P;
-         subst P
-    | |- context[map_subst_localdef ?A ?B ?C] =>
-         set (P := map_subst_localdef A B C);
          hnf in P;
          subst P
     end);

@@ -15,7 +15,7 @@ semax
   (normal_ret_assert (PROP () LOCAL () SEP())).
 Proof.
   intros.
-  simplify_Delta.
+Time simplify_Delta.
   apply EverythingIsTrue.
 Time Qed. (* 0.147 secs *)
 
@@ -30,7 +30,7 @@ semax
   (normal_ret_assert (PROP () LOCAL () SEP())).
 Proof.
   intros.
-  simplify_Delta.
+Time simplify_Delta.
   apply EverythingIsTrue.
 Time Qed. (* 0.201 secs *)
 
@@ -45,9 +45,10 @@ semax
   (normal_ret_assert (PROP () LOCAL () SEP())).
 Proof.
   intros.
-  simplify_Delta.
+Time simplify_Delta.
   apply EverythingIsTrue.
 Time Qed. (* 0.577 secs *)
+
 
 Goal forall
 Espec: OracleKind,
@@ -60,7 +61,7 @@ semax
   (normal_ret_assert (PROP () LOCAL () SEP())).
 Proof.
   intros.
-  simplify_Delta.
+Time  simplify_Delta.
   apply EverythingIsTrue.
 Time Qed. (* 1.823 secs *)
 
@@ -75,7 +76,7 @@ semax
   (normal_ret_assert (PROP () LOCAL () SEP())).
 Proof.
   intros.
-  simplify_Delta.
+Time  simplify_Delta.
   apply EverythingIsTrue.
 Time Qed. (* 6.952 secs *)
 
@@ -90,6 +91,6 @@ semax
   (normal_ret_assert (PROP () LOCAL () SEP())).
 Proof.
   intros.
-  simplify_Delta.
+Time  simplify_Delta.
   apply EverythingIsTrue.
 Time Qed. (* 28.175 secs *)

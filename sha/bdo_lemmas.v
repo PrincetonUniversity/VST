@@ -158,8 +158,7 @@ rewrite Int.signed_repr; auto.
 repable_signed.
 Qed.
 
-Definition Delta_loop1 : tycontext.
-simplify_Delta_from
+Definition Delta_loop1 : tycontext :=
           (initialized _h
            (initialized _g
               (initialized _f
@@ -170,7 +169,6 @@ simplify_Delta_from
                              (initialized _a
                                 (initialized _data
      (func_tycontext f_sha256_block_data_order Vprog Gtot)))))))))).
-Defined.
 
 Definition c64 := 64%nat.  Global Opaque c64.
 Definition c48 := 48%nat.  Global Opaque c48.

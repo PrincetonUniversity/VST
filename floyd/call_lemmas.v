@@ -26,12 +26,11 @@ Definition maybe_retval (Q: environ -> mpred) retty ret :=
     end
  end.
 
-Definition substopt_localdef (ret: option ident) (v: val) (P: localdef)  : localdef :=
-   match ret with
-   | Some id => subst_localdef id v P
-   | None => P
+Definition removeopt_localdef (ret: option ident) (l: list localdef) : list localdef :=
+  match ret with
+   | Some id => remove_localdef id l
+   | None => l
    end.
-
 
 Lemma semax_call': forall Espec {cs: compspecs} Delta A Pre Post NEPre NEPost ts x ret argsig retsig cc a bl P Q R,
    Cop.classify_fun (typeof a) = Cop.fun_case_f (type_of_params argsig) retsig cc ->
@@ -49,44 +48,46 @@ Lemma semax_call': forall Espec {cs: compspecs} Delta A Pre Post NEPre NEPost ts
      * PROPx P (LOCALx Q (SEPx R))))
           (Scall ret a bl)
           (normal_ret_assert
-            (EX old:val,
-              (maybe_retval (Post ts x) retsig ret *
-               PROPx P (LOCALx (map (substopt_localdef ret old) Q) (SEPx R))))).
+            (maybe_retval (Post ts x) retsig ret *
+               PROPx P (LOCALx (removeopt_localdef ret Q) (SEPx R)))).
 Proof.
- intros. rename H1 into Hret.
- rewrite argtypes_eq.
-eapply semax_pre_post ; [ | |
-   apply (semax_call Delta A Pre Post NEPre NEPost ts x (PROPx P (LOCALx Q (SEPx R))) ret argsig retsig cc a bl H); auto].
- Focus 3. {
- clear - H0.
- destruct retsig; destruct ret; simpl in *; try contradiction;
-   intros; congruence.
- } Unfocus.
-clear Hret.
-unfold_lift; unfold local, lift1. unfold func_ptr'. intro rho; simpl.
-   normalize;
-   progress (autorewrite with subst norm1 norm2; normalize).
-apply andp_derives; auto.
-rewrite !sepcon_assoc.
-rewrite !corable_andp_sepcon1 by apply corable_func_ptr.
-rewrite sepcon_comm. rewrite emp_sepcon.
-rewrite !corable_andp_sepcon1 by apply corable_func_ptr.
-apply derives_refl.
-intros.
-autorewrite with ret_assert.
-repeat rewrite normal_ret_assert_eq.
-normalize.
-apply exp_right with old; destruct ret; normalize.
-autorewrite with subst.
-intro rho; simpl; normalize.
-autorewrite with norm1 norm2; normalize.
-rewrite sepcon_comm; auto.
-intro rho; simpl; normalize.
-rewrite sepcon_comm; auto.
-unfold substopt.
-repeat rewrite list_map_identity.
-normalize.
-autorewrite with norm1 norm2; normalize.
+  intros. rename H1 into Hret.
+  rewrite argtypes_eq.
+  eapply semax_pre_post ; [ | |
+    apply (semax_call Delta A Pre Post NEPre NEPost ts x (PROPx P (LOCALx Q (SEPx R))) ret argsig retsig cc a bl H); auto].
+  Focus 3. {
+    clear - H0.
+    destruct retsig; destruct ret; simpl in *; try contradiction;
+    intros; congruence.
+  } Unfocus.
+  + clear Hret.
+    unfold_lift; unfold local, lift1. unfold func_ptr'. intro rho; simpl.
+    normalize;
+    progress (autorewrite with subst norm1 norm2; normalize).
+    apply andp_derives; auto.
+    rewrite !sepcon_assoc.
+    rewrite !corable_andp_sepcon1 by apply corable_func_ptr.
+    rewrite sepcon_comm. rewrite emp_sepcon.
+    rewrite !corable_andp_sepcon1 by apply corable_func_ptr.
+    apply derives_refl.
+  + intros.
+    autorewrite with ret_assert.
+    repeat rewrite normal_ret_assert_eq.
+    normalize.
+    destruct ret.
+    - eapply derives_trans; [| apply sepcon_derives; [apply derives_refl | apply remove_localdef_PROP]].
+      normalize.
+      apply exp_right with old.
+      autorewrite with subst.
+      intro rho; simpl; normalize.
+      autorewrite with norm1 norm2; normalize.
+      rewrite sepcon_comm; auto.
+    - intro rho; simpl; normalize.
+      rewrite sepcon_comm; auto.
+      unfold substopt.
+      repeat rewrite list_map_identity.
+      normalize.
+      autorewrite with norm1 norm2; normalize.
 Qed.
 
 Lemma semax_call1: forall Espec {cs: compspecs} Delta A Pre Post NEPre NEPost ts x id argsig retsig cc a bl P Q R,
@@ -103,9 +104,8 @@ Lemma semax_call1: forall Espec {cs: compspecs} Delta A Pre Post NEPre NEPost ts
                   PROPx P (LOCALx Q (SEPx R))))
           (Scall (Some id) a bl)
           (normal_ret_assert
-            (EX old:val,
-              `(Post ts x: environ -> mpred) (get_result1 id)
-               * PROPx P (LOCALx (map (subst_localdef id old) Q) (SEPx R)))).
+            (`(Post ts x: environ -> mpred) (get_result1 id)
+               * PROPx P (LOCALx (remove_localdef id Q) (SEPx R)))).
 Proof.
 intros.
 apply semax_call'; auto.
@@ -266,9 +266,8 @@ Lemma semax_call_id1:
              (Evar id (Tfunction (type_of_params argsig) retty cc))
              bl)
     (normal_ret_assert
-       (EX old:val,
-          (`(Post ts x: environ -> mpred) (get_result1 ret)
-           * PROPx P (LOCALx (map (subst_localdef ret old) Q) (SEPx R))))).
+       ((`(Post ts x: environ -> mpred) (get_result1 ret)
+           * PROPx P (LOCALx (remove_localdef ret Q) (SEPx R))))).
 Proof.
 intros. rename H0 into Ht. rename H1 into H0.
  rename H2 into Hret.
@@ -739,7 +738,7 @@ Lemma semax_call_id1_wow:
    (POST1: Post nil witness = EX vret:B, PROPx (Ppost vret)
                               (LOCALx (temp ret_temp (F vret) :: nil)
                               (SEPx (Rpost vret))))
-   (DELETE: delete_temp_from_locals ret Q = Qnew)
+   (DELETE: remove_localdef ret Q = Qnew)
    (H0: Post2 = EX vret:B, PROPx (P++ Ppost vret) (LOCALx (temp ret (F vret) :: Qnew)
              (SEPx (Rpost vret ++ Frame))))
    (PPRE: fold_right_and True Ppre),
@@ -852,7 +851,7 @@ apply andp_left2. apply andp_left1.
     `(PROPx (Ppost vret)
      (LOCAL  (temp ret_temp (F vret))
       (SEPx (Rpost vret))))%assert (get_result1 ret)
-     * (local (tc_environ (initialized ret Delta)) && PROPx P (LOCALx (map (subst_localdef ret old) Q) (SEPx Frame)))).
+     * (local (tc_environ (initialized ret Delta)) && PROPx P (LOCALx (remove_localdef ret Q) (SEPx Frame)))).
  clear.
  go_lowerx. normalize. apply exp_right with x; normalize.
  apply exp_left; intro vret. apply exp_right with vret.
@@ -864,15 +863,6 @@ apply andp_left2. apply andp_left1.
  repeat apply andp_right; try apply prop_right; auto.
  rewrite !fold_right_and_app_low.
  rewrite !fold_right_and_app_low in H2. destruct H2; split; auto.
- split; auto.
- apply local2ptree_soundness'' in PTREE.
- unfold LOCALx in PTREE. rewrite !andp_TT in PTREE.
- simpl app.
- clear - H3. rename H3 into H.
- induction Q; simpl in *; auto.
- destruct H, a; specialize (IHQ H0); try now (simpl; split; auto).
- hnf in H. unfold subst_localdef in H.
- if_tac; [rewrite if_true in H by auto | rewrite if_false in H by auto]; simpl; auto.
 Qed.
 
 Lemma semax_call_id1_x_wow:
@@ -914,8 +904,8 @@ Lemma semax_call_id1_x_wow:
    (POST1: Post nil witness = EX vret:B, PROPx (Ppost vret)
                               (LOCALx (temp ret_temp (F vret) :: nil)
                               (SEPx (Rpost vret))))
-   (DELETE: delete_temp_from_locals ret Q = Qnew)
-   (DELETE' : delete_temp_from_locals ret' Q = Q)
+   (DELETE: remove_localdef ret Q = Qnew)
+   (DELETE' : remove_localdef ret' Q = Q)
    (H0: Post2 = EX vret:B, PROPx (P++ Ppost vret)
                    (LOCALx (temp ret (F vret) :: Qnew)
                     (SEPx (Rpost vret ++ Frame))))
@@ -987,7 +977,8 @@ eapply semax_call_id1_wow; try eassumption; auto.
        destruct (eqb_ident ret ret'); auto;
       contradiction NEret; intuition).
  rewrite H5 in *. apply Pos.eqb_neq in H5.
- rewrite if_false in H3 by auto.
+  unfold_lift in H3.
+  rewrite eval_id_other in H3 by auto.
  hnf in H3. rewrite H3.
  assert (tc_val retty' (eval_id ret' rho)).
  eapply tc_eval_id_i; try eassumption.
@@ -1002,8 +993,9 @@ eapply semax_call_id1_wow; try eassumption; auto.
  destruct a; try now (destruct H; simpl in *; split; auto).
  if_tac; simpl in *; auto.
  destruct H; split; auto.
- hnf in H|-*; subst. unfold eval_id, env_set. simpl.
- rewrite if_false in H by auto. hnf in H. subst; reflexivity.
+ hnf in H|-*; subst.
+ rewrite eval_id_other by auto.
+ auto.
 Qed.
 
 Lemma semax_call_id1_y_wow:
@@ -1045,8 +1037,8 @@ Lemma semax_call_id1_y_wow:
    (POST1: Post nil witness = EX vret:B, PROPx (Ppost vret)
                               (LOCALx (temp ret_temp (F vret) :: nil)
                               (SEPx (Rpost vret))))
-   (DELETE: delete_temp_from_locals ret Q = Qnew)
-   (DELETE' : delete_temp_from_locals ret' Q = Q)
+   (DELETE: remove_localdef ret Q = Qnew)
+   (DELETE' : remove_localdef ret' Q = Q)
    (H0: Post2 = EX vret:B, PROPx (P++ Ppost vret)
                    (LOCALx (temp ret (F vret) :: Qnew)
                     (SEPx (Rpost vret ++ Frame))))
@@ -1119,15 +1111,17 @@ end.
        destruct (eqb_ident ret ret'); auto;
       contradiction NEret; intuition).
  rewrite H5 in *.  apply Pos.eqb_neq in H5.
- rewrite if_false in H3 by auto.
+ unfold_lift in H3.
+ rewrite eval_id_other in H3 by auto.
  hnf in H3. rewrite H3. auto.
  subst Qnew; clear - H4. rename H4 into H.
  induction Q; simpl in *; auto.
  destruct a; try now (destruct H; simpl in *; split; auto).
  if_tac; simpl in *; auto.
  destruct H; split; auto.
- hnf in H|-*; subst. unfold eval_id, env_set. simpl.
- rewrite if_false in H by auto; apply H.
+ hnf in H|-*; subst.
+ rewrite eval_id_other by auto.
+ auto.
 Qed.
 
 Lemma semax_call_id01_wow:

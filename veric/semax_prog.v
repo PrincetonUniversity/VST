@@ -224,7 +224,10 @@ assert (In id' (map (@fst _ _) G')).
 clear - H0.
 revert H0; induction G'; simpl; intros; auto.
 rewrite PTree.gempty in H0; inv H0.
-destruct (eq_dec id' (fst a)). subst. rewrite PTree.gss in H0 by auto. inv  H0.
+destruct (eq_dec id' (fst a)). subst.
+change (@ptree_set) with (@PTree.set) in H0.
+destruct a; simpl in *.
+rewrite PTree.gss in H0 by auto. inv  H0.
 auto.
 destruct a; simpl in *.
 destruct (eq_dec i id'). subst. rewrite PTree.gss in H0. auto.
@@ -579,7 +582,9 @@ destruct a. destruct p.
     induction G; simpl in *.
     rewrite PTree.gempty in H1; inv H1.
     destruct (ident_eq (fst a1) id); subst.
-    rewrite PTree.gss in H1; inv H1. destruct a1; left; auto.
+    change (@ptree_set) with (@PTree.set) in *. destruct a1; simpl in *.
+    rewrite PTree.gss in H1; inv H1. left; auto.
+    change (@ptree_set) with (@PTree.set) in *. destruct a1; simpl in *. 
     rewrite PTree.gso in H1; auto.
  }
  rewrite (find_id_i _ _ _ H9); auto.
@@ -650,9 +655,12 @@ unfold globalenv; simpl.
  apply find_id_e in H5. apply in_map_fst in H5.
  clear - H5.
  revert H5; induction G; simpl; intro. contradiction.
- destruct H5. subst. econstructor; rewrite PTree.gss; reflexivity.
+ destruct H5. subst.
+ change (@ptree_set) with (@PTree.set) in *. destruct a; simpl in *.
+ econstructor; rewrite PTree.gss; reflexivity.
  destruct (IHG H) as [fs ?].
- destruct (eq_dec (fst a) i). econstructor; subst; rewrite PTree.gss; eauto.
+ change (@ptree_set) with (@PTree.set) in *. destruct a; simpl in *.
+ destruct (eq_dec i0 i). econstructor; subst; rewrite PTree.gss; eauto.
  econstructor; rewrite PTree.gso by auto; eauto.
 Qed.
 

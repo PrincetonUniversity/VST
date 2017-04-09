@@ -395,7 +395,6 @@ Proof.
   + normalize in H0.
     clear H H0.
     simpl. rewrite <- map_ptree_rel.
-Check guard_environ_put_te'.
     apply guard_environ_put_te'; auto. subst. simpl.
     unfold construct_rho in *; auto.
 
