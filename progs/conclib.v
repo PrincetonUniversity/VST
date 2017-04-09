@@ -1659,6 +1659,22 @@ Proof.
   rewrite Zlength_correct in *; Omega0.
 Qed.
 
+Lemma make_tycontext_s_distinct : forall a l (Ha : In a l) (Hdistinct : NoDup (map fst l)),
+  (make_tycontext_s l) ! (fst a) = Some (snd a).
+Proof.
+  intros a l. unfold make_tycontext_s.
+  change (@ptree_set) with (@PTree.set).
+  induction l; simpl; intros. 
+  contradiction.
+  inv Hdistinct. destruct a0. simpl in *.
+  destruct Ha. subst.
+  simpl. rewrite PTree.gss. auto.
+  rewrite PTree.gso.
+  apply IHl; auto.
+  intro; subst.
+  apply H1; apply in_map. auto.
+Qed.
+
 Lemma lookup_distinct : forall {A B} (f : A -> B) a l t (Ha : In a l) (Hdistinct : NoDup (map fst l)),
   (fold_right (fun v : ident * A => PTree.set (fst v) (f (snd v))) t l) ! (fst a) =
   Some (f (snd a)).
@@ -1708,7 +1724,7 @@ Proof.
         rewrite PTree.gsspec.
         destruct (peq id (fst a)); eauto; subst; simpl.
         rewrite lookup_out.
-        apply lookup_distinct with (f0 := id); auto.
+        apply lookup_distinct with (f0:=id); auto.
         { apply Hdistinct.
           rewrite in_map_iff; eexists; split; eauto. }
     + intros.
@@ -1719,11 +1735,16 @@ Proof.
   - unfold make_tycontext_s.
     revert dependent G2; induction G; simpl; intros.
     + rewrite PTree.gempty; simpl; auto.
-    + intros.
+    + destruct a; simpl. hnf.
+      change @ptree_set with @PTree.set in * at 1.
       rewrite incl_cons_iff in HG; destruct HG.
       rewrite PTree.gsspec.
-      destruct (peq id (fst a)); eauto; subst; simpl.
-      apply lookup_distinct with (f0 := id); auto.
+      change (@PTree.set) with @ptree_set in IHG.
+      fold make_tycontext_s in *.
+      destruct (peq id i); eauto; subst; simpl.
+      apply make_tycontext_s_distinct with (a:=(i,f0)); auto.
+      destruct ((make_tycontext_s G) ! id); auto.
+      apply IHG; auto. 
 Qed.
 
 (* This lets us use a library as a client. *)
