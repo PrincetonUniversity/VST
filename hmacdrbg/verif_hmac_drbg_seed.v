@@ -342,13 +342,13 @@ Proof.
   destruct d as [[[[newV newK] newRC] dd] newPR].
   unfold hmac256drbgabs_common_mpreds. simpl. subst ST. unfold hmac256drbgstate_md_info_pointer. simpl. Intros.
   unfold_data_at 1%nat. freeze [0;1;2;4;5;6;7;8;9;10;11] XX.
-  forward. forward.
+  forward. forward. 
   Exists Int.zero. simpl. symmetry in Heqd. apply orb_false_iff in Heqd. destruct Heqd as [Heqd1 Heqd2].
   destruct (zlt 256 (Zlength Data)); try discriminate.
   apply andp_right. apply prop_right; trivial.
-  apply andp_right. apply prop_right; split; trivial.
-  thaw XX. thaw OLD_MD. cancel. simpl in *. rewrite Heqd2.
-  Exists p. normalize.
+  apply andp_right. apply prop_right; split; trivial. 
+  thaw XX. thaw OLD_MD. cancel. simpl in *. rewrite Heqd2, <- HeqMRS.
+  Exists p. normalize. 
   apply andp_right. apply prop_right; repeat split; trivial.
   unfold_data_at 1%nat. cancel.
 Time Qed. (*Coq8.6: 47secs*)
