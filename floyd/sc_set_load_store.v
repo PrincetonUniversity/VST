@@ -143,7 +143,7 @@ Proof.
   eapply semax_post'; [| apply semax_set_forward].
   apply andp_left2; 
   rewrite <- insert_local.
-  rewrite <- remove_localdef_PROP.
+  eapply derives_trans; [| apply andp_derives; [apply derives_refl | apply remove_localdef_PROP]].
   normalize.
   apply (exp_right old).
   autorewrite with subst.

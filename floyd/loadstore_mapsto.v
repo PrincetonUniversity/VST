@@ -66,8 +66,7 @@ Proof.
       apply andp_derives; auto.
       * simpl; unfold local, lift1; unfold_lift.
         intros; apply prop_derives; congruence.
-      * apply derives_refl'.
-        apply remove_localdef_PROP.
+      * apply remove_localdef_PROP.
   +
     eapply derives_trans; [apply H1 | clear H1].
     apply andp_left2. auto.
@@ -122,8 +121,7 @@ Proof.
         intros; apply prop_derives.
         unfold force_val1.
         congruence.
-      * apply derives_refl'.
-        apply remove_localdef_PROP.
+      * apply remove_localdef_PROP.
   +
     eapply derives_trans; [apply H1 | clear H1].
     apply andp_left2. auto.

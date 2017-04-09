@@ -782,7 +782,7 @@ Proof.
   - do 4 right; left; repeat eexists; rewrite PTree.gro by auto; eauto.
   - do 5 right; left; repeat eexists; rewrite PTree.gro by auto; eauto.
 Qed.
-
+(*
 Lemma LocalD_subst : forall id v Q0 T1 T2 Q,
   In Q0 (LocalD (PTree.remove id T1) T2 (map (subst_localdef id v) Q)) ->
   In Q0 (map (subst_localdef id v) (LocalD T1 T2 Q)).
@@ -831,8 +831,7 @@ Proof.
   destruct H; [left; auto | right].
   apply LocalD_subst, H.
 Qed.
-
-
+*)
 Lemma nth_error_local':
   forall n P Q R (Qn: localdef),
     nth_error Q n = Some Qn ->
