@@ -306,12 +306,3 @@ Lemma compute_LR_cont_sound: forall (cs: compspecs) (T1: PTree.t val) (T2: PTree
     PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |-- rel_r_value (fill_r_cont c v0) v ->
     PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |-- rel_r_value e v). /\
 *)
-
-
-Fixpoint delete_temp_from_locals  (id: ident)  (Q: list localdef) : list localdef :=
- match Q with
- | temp j v :: Qr => if ident_eq j id then delete_temp_from_locals id Qr
-                               else temp j v :: delete_temp_from_locals id Qr
- | a :: Qr => a :: delete_temp_from_locals id Qr
- | nil => nil
- end.
