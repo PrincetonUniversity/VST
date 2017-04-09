@@ -231,7 +231,5 @@ Proof.
   remember (mbed_tls_fround (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4) buf (52 - i * 8)) as S'.
   replace (52 - i * 8 + 4 + 4) with (52 - (i - 1) * 8) by omega.
   entailer!.
-  Show.
-(* Qed. takes forever! *)
-Admitted.
+Time Qed. (*April 9th, 2017: 48 secs on Ubuntu laptop, Coq8.6*)
 
