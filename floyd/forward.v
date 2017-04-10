@@ -528,21 +528,6 @@ Ltac check_cast_params :=
 Inductive Witness_type_of_forward_call_does_not_match_witness_type_of_funspec:
     Type -> Type -> Prop := .
 
-
-Ltac find_spec_in_globals id :=
-   match goal with |- ?X = _ => let x := fresh "x" in set (x:=X); hnf in x; subst x end;
-   match goal with
-   | |- Some ?fs = _ => check_canonical_funspec (id,fs);
-      first [reflexivity |
-      match goal with
-       | |- Some (mk_funspec _ _ ?t1 _ _) = Some (mk_funspec _ _ ?t2 _ _) =>
-         first [unify t1 t2
-           | elimtype False; elimtype (Witness_type_of_forward_call_does_not_match_witness_type_of_funspec
-      t2 t1)]
-      end]
-   | |- None = _ => elimtype  (Cannot_find_function_spec_in_Delta id)
-   end.
-
 Ltac find_spec_in_globals' :=
    match goal with |- ?X = _ => let x := fresh "x" in set (x:=X); hnf in x; subst x end;
    try reflexivity.
@@ -558,12 +543,24 @@ Ltac check_funspec_precondition :=
    first [reflexivity | elimtype  Funspec_precondition_is_not_in_PROP_LOCAL_SEP_form].
 
 Ltac lookup_spec_and_change_compspecs CS id :=
- match goal with |- ?A = ?B =>
+ tryif apply f_equal_Some
+ then
+   (match goal with |- ?A = ?B =>
       let x := fresh "x" in set (x := A);
       let y := fresh "y" in set (y := B);
-      hnf in x; subst x; try change_compspecs CS; subst y;
-      find_spec_in_globals id
- end.
+      hnf in x; subst x; try change_compspecs CS; subst y
+   end;
+   match goal with
+   | |- ?fs = _ => check_canonical_funspec (id,fs);
+      first [reflexivity |
+      match goal with
+       | |- mk_funspec _ _ ?t1 _ _ = mk_funspec _ _ ?t2 _ _ =>
+         first [unify t1 t2
+           | elimtype False; elimtype (Witness_type_of_forward_call_does_not_match_witness_type_of_funspec
+      t2 t1)]
+      end]
+   end)
+ else elimtype  (Cannot_find_function_spec_in_Delta id).
 
 Inductive Function_arguments_include_a_memory_load_of_type (t:type) := .
 

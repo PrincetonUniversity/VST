@@ -164,10 +164,8 @@ Proof. intros. abbreviate_semax.
          FCcb by entailer!. (*3.8*)
 
       freeze [0;2;3] FR3.
+
       Time forward_call (Vptr cb cofs). (* 4.3 versus 18 *)
-      { (* TODO: This should have solved automatically *)
-        change_compspecs CompSpecs; solve [cancel].
-      }
 
       (*call to SHA256_Update*)
       thaw FR3.
@@ -176,7 +174,6 @@ Proof. intros. abbreviate_semax.
       freeze [2;3;5;6] FR4.
       Time forward_call (@nil Z, key, Vptr cb cofs, Vptr kb kofs, Tsh, l, kv). (*4.5*)
       { unfold data_block. rewrite prop_true_andp by auto.
-        change_compspecs CompSpecs. (* TODO: should not be necessary *)
         Time cancel. (*0.1*)
       }
       { clear HeqPostIf_j_Len (*HeqPostKeyNull*).
@@ -270,7 +267,6 @@ Proof. intros. abbreviate_semax.
        thaw FR5.
        unfold data_at_, field_at_, tarray, data_block.
        unfold_data_at 2%nat. simpl. Time cancel. (*0.7*)
-       progress change_compspecs CompSpecs. (* TODO: should not be necessary? *)
        Time (normalize; cancel). (*0.6*)
        rewrite field_at_data_at, field_address_offset by auto with field_compatible.
        rewrite field_at_data_at, field_address_offset by auto with field_compatible.
