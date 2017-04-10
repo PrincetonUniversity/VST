@@ -270,7 +270,7 @@ Opaque HTruePostCond. Opaque HFalsePostCond.
 
 Lemma core_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_core core_spec.
-Proof. unfold core_spec(*, f_core_POST*).
+Proof. unfold core_spec, f_core_POST.
 start_function. abbreviate_semax.
 rename lvar3 into t.
 rename lvar2 into y.
