@@ -830,7 +830,7 @@ Lemma closed_wrt_tc_andp:
 Proof.
  intros.
  hnf; intros.
- repeat rewrite denote_tc_assert_andp; f_equal; auto.
+ repeat rewrite denote_tc_assert_andp; simpl; f_equal; auto.
 Qed.
 
 
@@ -842,7 +842,7 @@ Lemma closed_wrt_tc_orp:
 Proof.
  intros.
  hnf; intros.
- repeat rewrite denote_tc_assert_orp.
+ repeat rewrite denote_tc_assert_orp; simpl.
  f_equal; auto.
 Qed.
 
@@ -864,7 +864,7 @@ Lemma closed_wrtl_tc_andp:
 Proof.
  intros.
  hnf; intros.
- repeat rewrite denote_tc_assert_andp; f_equal; auto.
+ repeat rewrite denote_tc_assert_andp; simpl; f_equal; auto.
 Qed.
 
 
@@ -876,7 +876,7 @@ Lemma closed_wrtl_tc_orp:
 Proof.
  intros.
  hnf; intros.
- repeat rewrite denote_tc_assert_orp.
+ repeat rewrite denote_tc_assert_orp; simpl.
  f_equal; auto.
 Qed.
 Lemma closed_wrtl_tc_bool:
