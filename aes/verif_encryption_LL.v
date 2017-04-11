@@ -1,35 +1,9 @@
 Require Import aes.api_specs.
 Require Import aes.bitfiddling.
-Require Import aes.verif_encryption_LL_loop_body.
 Require Import aes.encryption_LL_round_step_eqs.
+Require Import aes.verif_encryption_LL_loop_body.
+Require Import aes.verif_encryption_LL_after_loop.
 Open Scope Z.
-
-Ltac simpl_Int := repeat match goal with
-| |- context [ (Int.mul (Int.repr ?A) (Int.repr ?B)) ] =>
-    let x := fresh "x" in (pose (x := (A * B)%Z)); simpl in x;
-    replace (Int.mul (Int.repr A) (Int.repr B)) with (Int.repr x); subst x; [|reflexivity]
-| |- context [ (Int.add (Int.repr ?A) (Int.repr ?B)) ] =>
-    let x := fresh "x" in (pose (x := (A + B)%Z)); simpl in x;
-    replace (Int.add (Int.repr A) (Int.repr B)) with (Int.repr x); subst x; [|reflexivity]
-end.
-
-Ltac remember_temp_Vints done :=
-lazymatch goal with
-| |- context [ ?T :: done ] => match T with
-  | temp ?Id (Vint ?V) =>
-    let V0 := fresh "V" in remember V as V0;
-    remember_temp_Vints ((temp Id (Vint V0)) :: done)
-  | _ => remember_temp_Vints (T :: done)
-  end
-| |- semax _ (PROPx _ (LOCALx done (SEPx _))) _ _ => idtac
-| _ => fail 100 "assertion failure: did not find" done
-end.
-
-Ltac simpl_upd_Znth := match goal with
-| |- context [ (upd_Znth ?i ?l (Vint ?v)) ] =>
-  let vv := fresh "vv" in remember v as vv;
-  let a := eval cbv in (upd_Znth i l (Vint vv)) in change (upd_Znth i l (Vint vv)) with a
-end.
 
 Lemma body_aes_encrypt: semax_body Vprog Gprog f_mbedtls_aes_encrypt encryption_spec_ll.
 Proof.
@@ -158,31 +132,6 @@ Proof.
   { (* loop body *) 
   Intro i.
   reassoc_seq.
-
-Ltac forward_if'_new ::=
-match goal with
-| |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sifthenelse ?e ?c1 ?c2) _ =>
-   let HRE := fresh "H" in let v := fresh "v" in
-    evar (v: val);
-    do_compute_expr Delta P Q R e v HRE;
-    simpl in v;
-    apply (semax_ifthenelse_PQR' _ v);
-     [ reflexivity | entailer | assumption
-     | clear HRE; subst v; apply semax_extract_PROP; intro HRE;
-       do_repr_inj HRE;
-       repeat (apply semax_extract_PROP; intro);
-       try rewrite Int.signed_repr in HRE by repable_signed;
-       abbreviate_semax
-     | clear HRE; subst v; apply semax_extract_PROP; intro HRE;
-       do_repr_inj HRE;
-       repeat (apply semax_extract_PROP; intro);
-       try rewrite Int.signed_repr in HRE by repable_signed;
-       abbreviate_semax
-     ]
-| |- semax _ _ (Sswitch _ _) _ =>
-  forward_switch'
-end.
-
   forward_if
   (EX i: Z, PROP ( 
      0 < i <= 6
@@ -226,86 +175,17 @@ end.
   simple eapply encryption_loop_body_proof; eauto.
   }} { (* loop decr *)
   Intro i. forward. unfold loop2_ret_assert. Exists (i-1). entailer!.
-  }} {
-  abbreviate_semax. subst vv. unfold tables_initialized.
-  pose proof masked_byte_range.
+  }} 
 
-  (* 2nd-to-last AES round: just a normal AES round, but not inside the loop *)
-
-  forward. forward. simpl (temp _RK _). rewrite Eq by computable. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by computable. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by computable. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by computable. forward. do 4 forward. forward.
-
-  remember (mbed_tls_fround S12 buf 52) as S13.
-
-  destruct (round13eq _ _ _ HeqS13) as [EqY0 [EqY1 [EqY2 EqY3]]].
-  rewrite EqY0. rewrite EqY1. rewrite EqY2. rewrite EqY3.
-  clear EqY0 EqY1 EqY2 EqY3.
-
-  (* last AES round: special (uses S-box instead of forwarding tables) *)
-  assert (forall i, Int.unsigned (Znth i FSb Int.zero) <= Byte.max_unsigned). {
-    intros. pose proof (FSb_range i) as P. change 256 with (Byte.max_unsigned + 1) in P. omega.
-  }
-
-  (* We have to hide the definition of S12 and S13 for subst, because otherwise the entailer
-     will substitute them and then call my_auto, which calls now, which calls easy, which calls
-     inversion on a hypothesis containing the substituted S12, which takes forever, because it
-     tries to simplify S12.
-     TODO floyd or documentation: What should users do if "forward" takes forever? *)
-  pose proof (HeqS12, HeqS13) as hidden. clear HeqS12 HeqS13.
-
-  forward. forward. simpl (temp _RK _). rewrite Eq by computable. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by computable. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by computable. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by computable. forward. do 4 forward. forward.
-
-  remember (mbed_tls_final_fround S13 buf 56) as S14.
-
-  destruct (round14eq _ _ _ HeqS14) as [EqX0 [EqX1 [EqX2 EqX3]]].
-  rewrite EqX0. rewrite EqX1. rewrite EqX2. rewrite EqX3.
-  clear EqX0 EqX1 EqX2 EqX3.
-
-  Ltac entailer_for_load_tac ::= idtac.
-
-  remember_temp_Vints (@nil localdef).
-  do 4 (forward; simpl_upd_Znth).
-  do 4 (forward; simpl_upd_Znth).
-  do 4 (forward; simpl_upd_Znth).
-  do 4 (forward; simpl_upd_Znth).
-
-  cbv [cast_int_int] in *.
-  rewrite zero_ext_mask in *.
-  rewrite zero_ext_mask in *.
-  rewrite Int.and_assoc in *.
-  rewrite Int.and_assoc in *.
-  rewrite Int.and_idem in *.
-  rewrite Int.and_idem in *.
-  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
-
-  rewrite (final_aes_eq buf plaintext S0 S12 S13) by (destruct hidden as [? ?]; auto).
-
-  Ltac entailer_for_return ::= idtac.
-
-  (* TODO reuse from above *)
-  assert ((field_address t_struct_aesctx [StructField _buf] ctx)
-        = (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx)) as EqBuf. {
-    do 2 rewrite field_compatible_field_address by auto with field_compatible.
-    reflexivity.
-  }
-  rewrite <- EqBuf in *.
-
-  (* return None *)
-  forward.
-  remember (mbed_tls_aes_enc plaintext buf) as Res.
-  unfold tables_initialized.
-  entailer!.
-  }
-(* Time Qed.
-   In 32-bit CoqIde on Andrew's Windows laptop:  runs out of memory 
-   In 32-bit CoqIde on Sam's laptop:
-      Finished transaction in 97.856 secs (81.632u,0.332s) (successful) *)
-Admitted.
+(** AFTER THE LOOP **)
+subst vv.
+abbreviate_semax.
+subst MORE_COMMANDS POSTCONDITION; unfold abbreviate.
+match goal with |- semax _ _ ?S _ => change S with encryption_after_loop end.
+change Delta with (encryption_loop_body_Delta' Delta_specs).
+clear Delta.
+simple eapply encryption_after_loop_proof; eassumption.
+Time Qed. (* 9.2 secs on Andrew's machine *)
 
 (* TODO floyd: sc_new_instantiate: distinguish between errors caused because the tactic is trying th
    wrong thing and errors because of user type errors such as "tuint does not equal t_struct_aesctx" *)

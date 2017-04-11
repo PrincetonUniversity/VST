@@ -183,19 +183,19 @@ match goal with
        | context [update_tycon Delta ?c] =>
            let C := fresh "C" in set (C:=c);
            let U := fresh "U" in pose (U := @abbreviate tycontext (update_tycon D C));
-           (* change (update_tycon Delta C) with U;*)
-           replace (update_tycon Delta C) with U by (unfold U, abbreviate; reflexivity); 
+           (* change (update_tycon Delta C) with U; *)
+           replace (update_tycon Delta C) with U by (unfold U, abbreviate; reflexivity);
            unfold abbreviate in Delta; subst Delta; rename U into Delta;
            compute_in_Delta; subst C
        | context [initialized ?I Delta] =>
            let U := fresh "U" in pose (U := @abbreviate tycontext (initialized I Delta));
-           (* change (initialized I Delta) with U;*)
+           (* change (initialized I Delta) with U; *)
            replace (initialized I Delta) with U by (unfold U, abbreviate; reflexivity);
            unfold abbreviate in Delta; subst Delta; rename U into Delta;
            compute_in_Delta
        | context [with_Delta_specs ?DS Delta] =>
            let U := fresh "U" in pose (U := @abbreviate tycontext (with_Delta_specs DS Delta));
-           (* change (initialized I Delta) with U;*)
+           (* change (with_Delta_specs DS Delta) with U; *)
            replace (with_Delta_specs DS Delta) with U by (unfold U, abbreviate; reflexivity);
            unfold abbreviate in Delta; subst Delta; rename U into Delta;
            compute_in_Delta
@@ -208,7 +208,6 @@ match goal with
        end; simplify_Delta
  | |- _ => fail "simplify_Delta did not put Delta_specs and Delta into canonical form"
  end.
-
 
 (*
 Ltac build_Struct_env :=
@@ -359,5 +358,7 @@ Ltac no_reassociate_stmt S := S.
 
 Ltac find_statement_in_body f reassoc pat :=
   let body := eval hnf in (fn_body f)
-      in let S := pat body in
-          let S' := reassoc S in exact S'.
+      in let body := constr:(Ssequence body (Sreturn None))
+      in let body := reassoc body
+      in let S := pat body
+      in exact S.
