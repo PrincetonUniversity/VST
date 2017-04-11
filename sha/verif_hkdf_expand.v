@@ -180,9 +180,10 @@ forward_if
   rewrite if_false in HV; try omega.
   subst v.
   destruct (zlt 255 ((olen + 32 - 1) / 32)); [clear H | inv H].
-  forward. Exists ctr. Exists hmac. Exists previous.
-  Exists (expand_out_post shmd (CONT PRK) (CONT INFO) olen out).
-  thaw FR1; entailer. unfold expand_out_post, digest_len; simpl.
+  forward. normalize. Exists ctr. 
+  Exists (expand_out_post shmd (CONT PRK) (CONT INFO) olen out) hmac previous. 
+  thaw FR1; entailer.
+  unfold expand_out_post, digest_len; simpl.
   rewrite if_false; try omega.
   rewrite if_true; trivial. entailer!. }
 { forward. entailer. unfold typed_false in H; simpl in H; inv H.
@@ -577,8 +578,9 @@ forward_for_simple_bound bnd
      { forward. entailer!. } 
      { forward. entailer!. }
 
-  forward. Exists ctr hmac previous.
+  forward. Exists ctr.
      Exists (expand_out_post shmd (CONT PRK) (CONT INFO) (32 * rounds + rest) out).
+     Exists hmac previous.
      Time entailer.
      apply andp_right.
      + apply prop_right. unfold expand_out_post, digest_len.
