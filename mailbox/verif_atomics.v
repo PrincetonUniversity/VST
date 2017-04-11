@@ -939,6 +939,13 @@ Definition hist_R g i R v := EX h : _, !!(apply_hist (vint i) h = Some (vint v))
 
 Definition atomic_loc_hist sh p g i R (h : hist) := atomic_loc sh p (hist_R g i R) * ghost_hist sh h g.
 
+Lemma atomic_loc_hist_isptr : forall sh p g i R h,
+  atomic_loc_hist sh p g i R h = !!(isptr p) && atomic_loc_hist sh p g i R h.
+Proof.
+  intros; eapply local_facts_isptr with (P := fun p => atomic_loc_hist sh p g i R h); eauto.
+  unfold atomic_loc_hist; rewrite atomic_loc_isptr; entailer!.
+Qed.
+
 Lemma hist_R_precise : forall p i R v, precise (EX h : _, R h v) -> precise (hist_R p i R v).
 Proof.
   intros; unfold hist_R; apply derives_precise' with
@@ -976,14 +983,87 @@ Proof.
   eapply derives_trans, precise_weak_precise, hist_R_precise; auto.
 Qed.
 
+Inductive add_events h : list hist_el -> hist -> Prop :=
+| add_events_nil : add_events h [] h
+| add_events_snoc : forall le h' t e (Hh' : add_events h le h') (Ht : newer h' t),
+    add_events h (le ++ [e]) (h' ++ [(t, e)]).
+Hint Resolve add_events_nil.
+
+Lemma add_events_1 : forall h t e (Ht : newer h t), add_events h [e] (h ++ [(t, e)]).
+Proof.
+  intros; apply (add_events_snoc _ []); auto.
+Qed.
+
+Lemma add_events_trans : forall h le h' le' h'' (H1 : add_events h le h') (H2 : add_events h' le' h''),
+  add_events h (le ++ le') h''.
+Proof.
+  induction 2.
+  - rewrite app_nil_r; auto.
+  - rewrite app_assoc; constructor; auto.
+Qed.
+
+Lemma add_events_add : forall h le h', add_events h le h' -> exists h2, h' = h ++ h2 /\ map snd h2 = le.
+Proof.
+  induction 1.
+  - eexists; rewrite app_nil_r; auto.
+  - destruct IHadd_events as (? & -> & ?).
+    rewrite <- app_assoc; do 2 eexists; eauto.
+    subst; rewrite map_app; auto.
+Qed.
+
+Corollary add_events_snd : forall h le h', add_events h le h' -> map snd h' = map snd h ++ le.
+Proof.
+  intros; apply add_events_add in H.
+  destruct H as (? & ? & ?); subst.
+  rewrite map_app; auto.
+Qed.
+
+Corollary add_events_incl : forall h le h', add_events h le h' -> incl h h'.
+Proof.
+  intros; apply add_events_add in H.
+  destruct H as (? & ? & ?); subst.
+  apply incl_appl, incl_refl.
+Qed.
+
+Corollary add_events_newer : forall h le h' t, add_events h le h' -> newer h' t -> newer h t.
+Proof.
+  intros; eapply Forall_incl, add_events_incl; eauto.
+Qed.
+
+Lemma add_events_in : forall h le h' e, add_events h le h' -> In e le -> exists t, newer h t /\ In (t, e) h'.
+Proof.
+  induction 1; [contradiction|].
+  rewrite in_app; intros [? | [? | ?]]; try contradiction.
+  - destruct IHadd_events as (? & ? & ?); auto.
+    do 2 eexists; [|rewrite in_app]; eauto.
+  - subst; do 2 eexists; [|rewrite in_app; simpl; eauto].
+    eapply add_events_newer; eauto.
+Qed.
+
+Lemma add_events_ordered : forall h le h', add_events h le h' -> ordered_hist h -> ordered_hist h'.
+Proof.
+  induction 1; auto; intros.
+  apply ordered_snoc; auto.
+Qed.
+
+Lemma add_events_last : forall h le h', add_events h le h' -> le <> [] ->
+  value_of_hist h' = value_of (last le (Store (vint 0))).
+Proof.
+  intros; apply add_events_add in H.
+  destruct H as (? & ? & ?); subst.
+  unfold value_of_hist.
+  rewrite last_app, last_map; auto.
+  intro; subst; contradiction.
+Qed.
+
 Notation AL_witness sh p g i R h P Q :=
   (sh%logic, p%logic, (ghost_hist sh h g * P)%logic, hist_R g%logic i R,
-   EX t' : nat, fun v => !!(newer h t') && ghost_hist sh (h%gfield ++ [(t', Load (vint v))]) g * Q v).
+   EX h' : hist, fun v => !!(add_events h [Load (vint v)] h') && ghost_hist sh h' g * Q v).
 Lemma AL_hist_spec : forall sh g i R h P Q
   (HPQR : forall h' v (Hhist : hist_incl h h'), apply_hist (vint i) h' = Some (vint v) -> repable_signed v ->
     view_shift (R h' v * P) (R (h' ++ [Load (vint v)]) v * Q v)) (Hsh : sh <> Share.bot),
   AL_spec (ghost_hist sh h g * P) (hist_R g i R)
-    (EX t' : nat, fun v => !!(newer h t') && ghost_hist sh (h ++ [(t', Load (vint v))]) g * Q v).
+    (EX h' : hist, fun v => !!(add_events h [Load (vint v)] h') && ghost_hist sh h' g * Q v).
 Proof.
   repeat intro.
   unfold hist_R.
@@ -999,21 +1079,21 @@ Proof.
   focus_SEP 1; apply HPQR; auto.
   eapply semax_pre; [|eauto].
   unfold hist_R; go_lowerx.
-  Exists (h' ++ [Load (vint vx)]) (length h'); entailer!.
-  split; [|apply hist_incl_lt; auto].
+  Exists (h' ++ [Load (vint vx)]) (h ++ [(length h', Load (vint vx))]); entailer!.
+  split; [|apply add_events_1, hist_incl_lt; auto].
   rewrite apply_hist_app; simpl.
   replace (apply_hist (vint i) h') with (Some (vint vx)); rewrite eq_dec_refl; auto.
 Qed.
 
 Notation AS_witness sh p g i R h v P Q :=
   (sh%logic, p%logic, v%Z%logic, (ghost_hist sh h g * P)%logic, hist_R g%logic i R,
-   EX t' : nat, !!(newer h t') && ghost_hist sh (h%gfield ++ [(t', Store (vint v))]) g * Q v%Z).
+   EX h' : hist, !!(add_events h [Store (vint v)] h') && ghost_hist sh h' g * Q v%Z).
 Lemma AS_hist_spec : forall sh g i R h v P Q
   (HPQR : forall h' v' (Hhist : hist_incl h h'), apply_hist (vint i) h' = Some (vint v') -> repable_signed v' ->
      view_shift (R h' v' * P) (R (h' ++ [Store (vint v)]) v * Q)) (Hsh : sh <> Share.bot)
   (Hprecise : precise (EX h : _, R h v)),
   AS_spec v (ghost_hist sh h g * P) (hist_R g i R)
-    (EX t' : nat, !!(newer h t') && ghost_hist sh (h ++ [(t', Store (vint v))]) g * Q).
+    (EX h' : hist, !!(add_events h [Store (vint v)] h') && ghost_hist sh h' g * Q).
 Proof.
   repeat intro.
   unfold hist_R.
@@ -1029,8 +1109,8 @@ Proof.
   focus_SEP 1; apply HPQR; auto.
   eapply semax_pre; [|eauto].
   unfold hist_R; go_lowerx.
-  Exists (h' ++ [Store (vint v)]) (length h'); entailer!.
-  split; [|apply hist_incl_lt; auto].
+  Exists (h' ++ [Store (vint v)]) (h ++ [(length h', Store (vint v))]); entailer!.
+  split; [|apply add_events_1, hist_incl_lt; auto].
   rewrite apply_hist_app; simpl.
   replace (apply_hist (vint i) h') with (Some (vint vx)); auto.
   { apply andp_right; auto.
@@ -1039,14 +1119,14 @@ Qed.
 
 Notation ACAS_witness sh p g i R h c v P Q :=
   (sh%logic, p%logic, c%Z%logic, v%Z%logic, (ghost_hist sh h g * P)%logic, hist_R g%logic i R,
-   fun v' => EX t' : nat, !!(newer h t') &&
-     ghost_hist sh (h%gfield ++ [(t', CAS (vint v') (vint c) (vint v))]) g * Q v').
+   fun v' => EX h' : hist, !!(add_events h [CAS (vint v') (vint c) (vint v)] h') &&
+     ghost_hist sh h' g * Q v').
 Lemma ACAS_hist_spec : forall sh g i R h v c P Q
   (HPQR : forall h' v' (Hhist : hist_incl h h'), apply_hist (vint i) h' = Some (vint v') -> repable_signed v' ->
     view_shift (R h' v' * P) (R (h' ++ [CAS (vint v') (vint c) (vint v)]) (if eq_dec c v' then v else v') * Q v'))
   (Hsh : sh <> Share.bot) (Hc : repable_signed c) (Hprecise : forall v, precise (EX h : _, R h v)),
   ACAS_spec c v (ghost_hist sh h g * P) (hist_R g i R)
-    (fun v' => EX t' : nat, !!(newer h t') && ghost_hist sh (h ++ [(t', CAS (vint v') (vint c) (vint v))]) g * Q v').
+    (fun v' => EX h' : hist, !!(add_events h [CAS (vint v') (vint c) (vint v)] h') && ghost_hist sh h' g * Q v').
 Proof.
   repeat intro.
   unfold hist_R.
@@ -1062,8 +1142,9 @@ Proof.
   focus_SEP 1; apply HPQR; auto.
   eapply semax_pre; [|eauto].
   unfold hist_R; go_lowerx.
-  Exists (h' ++ [CAS (vint vx) (vint c) (vint v)]) (length h'); entailer!.
-  split; [|apply hist_incl_lt; auto].
+  Exists (h' ++ [CAS (vint vx) (vint c) (vint v)]) (h ++ [(length h', CAS (vint vx) (vint c) (vint v))]);
+    entailer!.
+  split; [|apply add_events_1, hist_incl_lt; auto].
   rewrite apply_hist_app; simpl.
   replace (apply_hist (vint i) h') with (Some (vint vx)); rewrite eq_dec_refl.
   if_tac.
