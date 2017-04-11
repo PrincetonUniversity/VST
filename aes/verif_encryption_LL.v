@@ -63,24 +63,21 @@ Proof.
     entailer!. intros.
     do 2 rewrite field_compatible_field_address by auto with field_compatible.
     simpl. destruct ctx; inversion PNctx; try reflexivity.
-    simpl. rewrite Int.add_assoc.
-    replace (Int.mul (Int.repr 4) (Int.repr 1)) with (Int.repr 4) by reflexivity.
-    rewrite add_repr.
-    replace (8 + 4 * (i + 1)) with (8 + 4 * i + 4) by (clear; omega).
-    reflexivity.
+    simpl. f_equal. rewrite Int.add_assoc.
+    change (Int.mul (Int.repr 4) (Int.repr 1)) with (Int.repr 4).
+    rewrite add_repr. f_equal. f_equal.  clear; omega.
   }
 
   (* GET_UINT32_LE( X0, input,  0 ); X0 ^= *RK++;
      GET_UINT32_LE( X1, input,  4 ); X1 ^= *RK++;
      GET_UINT32_LE( X2, input,  8 ); X2 ^= *RK++;
      GET_UINT32_LE( X3, input, 12 ); X3 ^= *RK++; *)
-  do 4 forward. simpl. forward. forward. forward. simpl. rewrite Eq by computable. simpl. forward. forward.
-  do 4 forward. simpl. forward. forward. forward. simpl. rewrite Eq by computable. simpl. forward. forward.
-  do 4 forward. simpl. forward. forward. forward. simpl. rewrite Eq by computable. simpl. forward. forward.
-  do 4 forward. simpl. forward. forward. forward. simpl. rewrite Eq by computable. simpl. forward. forward.
+  do 9 (forward; simpl); rewrite Eq by computable; simpl.
+  do 9 (forward; simpl); rewrite Eq by computable; simpl.
+  do 9 (forward; simpl); rewrite Eq by computable; simpl.
+  do 9 (forward; simpl); rewrite Eq by computable; simpl.
 
   pose (S0 := mbed_tls_initial_add_round_key plaintext buf).
-
   match goal with |- context [temp _X0 (Vint ?E)] => change E with (col 0 S0) end.
   match goal with |- context [temp _X1 (Vint ?E)] => change E with (col 1 S0) end.
   match goal with |- context [temp _X2 (Vint ?E)] => change E with (col 2 S0) end.
@@ -203,6 +200,7 @@ Proof.
   clear i. Intro i. Intros. 
   unfold tables_initialized. subst vv.
   subst MORE_COMMANDS POSTCONDITION. unfold abbreviate.
+  change Delta with (encryption_loop_body_Delta Delta_specs).
   simple eapply encryption_loop_body_proof; eauto.
   }} { (* loop decr *)
   Intro i. forward. unfold loop2_ret_assert. Exists (i-1). entailer!.

@@ -149,6 +149,19 @@ Ltac simplify_Delta_at DS Delta D :=
  end.
 *)
 
+Definition with_Delta_specs (DS: PTree.t funspec) (Delta: tycontext) : tycontext :=
+  match Delta with
+    mk_tycontext a b c d _ => mk_tycontext a b c d DS
+  end.
+
+Ltac compute_in_Delta :=
+ lazymatch goal with
+ | DS := @abbreviate (PTree.t funspec) _, Delta := @abbreviate tycontext _ |- _ =>
+           cbv beta iota zeta delta - [abbreviate DS] in Delta
+ | Delta := @abbreviate tycontext _ |- _ =>
+           cbv beta iota zeta delta - [abbreviate] in Delta
+ end.
+
 (* This tactic is carefully tuned to avoid proof blowups,
   both in execution and in Qed *)
 Ltac simplify_Delta :=
@@ -164,7 +177,7 @@ match goal with
      change e with (@abbreviate (PTree.t funspec) e) in DS;
      let D := fresh "Delta" in set (D := mk_tycontext a b c d DS);
      change (mk_tycontext a b c d DS) with (@abbreviate _ (mk_tycontext a b c d DS)) in D
- | DS := @abbreviate (PTree.t funspec) _, Delta := @abbreviate tycontext ?D 
+ | Delta := @abbreviate tycontext ?D 
       |- semax ?DD _ _ _ => 
        match DD with
        | context [update_tycon Delta ?c] =>
@@ -173,13 +186,19 @@ match goal with
            (* change (update_tycon Delta C) with U;*)
            replace (update_tycon Delta C) with U by (unfold U, abbreviate; reflexivity); 
            unfold abbreviate in Delta; subst Delta; rename U into Delta;
-           cbv beta iota zeta delta - [abbreviate DS] in Delta; subst C
+           compute_in_Delta; subst C
        | context [initialized ?I Delta] =>
            let U := fresh "U" in pose (U := @abbreviate tycontext (initialized I Delta));
            (* change (initialized I Delta) with U;*)
            replace (initialized I Delta) with U by (unfold U, abbreviate; reflexivity);
            unfold abbreviate in Delta; subst Delta; rename U into Delta;
-           cbv beta iota zeta delta - [abbreviate DS] in Delta
+           compute_in_Delta
+       | context [with_Delta_specs ?DS Delta] =>
+           let U := fresh "U" in pose (U := @abbreviate tycontext (with_Delta_specs DS Delta));
+           (* change (initialized I Delta) with U;*)
+           replace (with_Delta_specs DS Delta) with U by (unfold U, abbreviate; reflexivity);
+           unfold abbreviate in Delta; subst Delta; rename U into Delta;
+           compute_in_Delta
        end; simplify_Delta
  | |- semax ?DD _ _ _ => 
        match DD with
@@ -189,6 +208,7 @@ match goal with
        end; simplify_Delta
  | |- _ => fail "simplify_Delta did not put Delta_specs and Delta into canonical form"
  end.
+
 
 (*
 Ltac build_Struct_env :=

@@ -2726,6 +2726,16 @@ match goal with |- semax _ (PROPx _ (LOCALx ?L (SEPx ?S))) _ _ =>
   end
 end.
 
+
+Ltac clear_Delta_specs_if_leaf_function :=
+ match goal with DS := @abbreviate (PTree.t funspec) _  |- semax _ _ ?S _ =>
+   let S' := eval compute in S in
+    match S' with 
+    | appcontext [Scall] => idtac
+    | _ => clearbody DS
+    end
+ end.
+
 Ltac start_function :=
  match goal with |- semax_body ?V ?G ?F ?spec =>
     let s := fresh "spec" in
@@ -2781,7 +2791,8 @@ Ltac start_function :=
  first [ eapply eliminate_extra_return'; [ reflexivity | reflexivity | ]
         | eapply eliminate_extra_return; [ reflexivity | reflexivity | ]
         | idtac];
- abbreviate_semax.
+ abbreviate_semax;
+ clear_Delta_specs_if_leaf_function.
 
 Opaque sepcon.
 Opaque emp.
