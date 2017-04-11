@@ -957,6 +957,78 @@ Ltac pull_left A :=
   | |- context [?Q * A] => rewrite <- (pull_right0 A Q)
   end.
 
+Lemma cancel_left: forall P Q R: mpred,
+   Q |-- R -> P * Q |-- P * R.
+Proof.
+intros; apply sepcon_derives; auto.
+Qed.
+
+Lemma pull_left_special: forall A B C : mpred,
+    (B * (A * C)) = (A * (B * C)).
+Proof.
+intros. rewrite sepcon_comm. rewrite sepcon_assoc. f_equal.
+ apply sepcon_comm.
+Qed.
+
+Lemma pull_left_special0: forall A B : mpred,
+    (B * A) = (A * B).
+Proof.
+intros; apply sepcon_comm.
+Qed.
+
+Ltac qcancel P :=
+ lazymatch P with
+ | sepcon ?A ?B => 
+     match goal with |- _ |-- ?Q =>
+       try match Q with context [A] =>
+         rewrite ?(pull_left_special0 A), ?(pull_left_special A);
+         apply cancel_left
+       end;
+       qcancel B
+     end
+ | ?A => 
+     try match goal with |- _ |-- ?Q =>
+       lazymatch Q with context [A] =>
+         rewrite ?(pull_left_special0 A), ?(pull_left_special A);
+         apply cancel_left
+      end
+     end
+ end.
+
+Ltac cancel :=
+  repeat match goal with |- ?A * _ |-- ?B * _ => 
+     constr_eq A B;  simple apply (cancel_left A)
+  end;
+  match goal with |- ?P |-- _ => qcancel P end;
+  repeat first [rewrite emp_sepcon | rewrite sepcon_emp];
+  try match goal with |- ?A |-- ?B => 
+       constr_eq A B; simple apply (derives_refl A)
+  end;
+  match goal with |- ?P |-- _ =>
+   (* The "emp" is a marker to notice when one complete pass has been made *)
+   rewrite <- (emp_sepcon P)
+  end;
+  repeat rewrite <- sepcon_assoc;
+  repeat match goal with
+    | |- sepcon _ emp |-- _ => fail 1
+    | |- sepcon _ TT |-- _ => pull_left (@TT mpred _)
+    | |- sepcon _ ?P' |-- _ => first [ cancel2 | pull_left P' ]
+   end;
+  repeat first [rewrite emp_sepcon | rewrite sepcon_emp];
+  pull_left (@TT mpred _);
+  first [ simple apply derives_refl'; repeat f_equal; reflexivity (* this is NOT a _complete_ tactic;
+                 for example, "simple apply derives_refl" would be more complete.  But that
+                 tactic can sometimes take minutes to discover that something doesn't unify;
+                 what I have here is a compromise between reliable speed, and (in)completeness.
+               *)
+          | apply TT_right
+          | apply sepcon_TT
+          | apply TT_sepcon
+          | cancel_frame
+          | idtac
+          ].
+
+(* 
 Ltac cancel :=
 repeat first [rewrite emp_sepcon | rewrite sepcon_emp];
 match goal with |- ?P |-- ?Q =>
@@ -983,6 +1055,7 @@ match goal with
           | cancel_frame
           | idtac
           ].
+*)
 
 Lemma exp_trivial {A}{NA: NatDed A}:
   forall {T: Type} (any: T) (P: A), exp (fun x:T => P) = P.

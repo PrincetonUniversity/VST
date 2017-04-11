@@ -62,7 +62,7 @@ Hint Rewrite @gather_prop5 using not_a_prop : gather_prop.
 
 Hint Rewrite @sepcon_andp_prop @sepcon_andp_prop' : gather_prop.
 
-Hint Rewrite <- sepcon_assoc : gather_prop.
+(*Hint Rewrite <- sepcon_assoc : gather_prop.*)
 
 Lemma go_lower_lem1:
   forall (P1 P: Prop) (QR PQR: mpred),
