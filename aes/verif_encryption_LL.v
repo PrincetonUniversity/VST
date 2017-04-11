@@ -66,7 +66,7 @@ Proof.
     simpl. rewrite Int.add_assoc.
     replace (Int.mul (Int.repr 4) (Int.repr 1)) with (Int.repr 4) by reflexivity.
     rewrite add_repr.
-    replace (8 + 4 * (i + 1)) with (8 + 4 * i + 4) by omega.
+    replace (8 + 4 * (i + 1)) with (8 + 4 * i + 4) by (clear; omega).
     reflexivity.
   }
 
@@ -74,10 +74,10 @@ Proof.
      GET_UINT32_LE( X1, input,  4 ); X1 ^= *RK++;
      GET_UINT32_LE( X2, input,  8 ); X2 ^= *RK++;
      GET_UINT32_LE( X3, input, 12 ); X3 ^= *RK++; *)
-  do 4 forward. simpl. forward. forward. forward. simpl. rewrite Eq by omega. simpl. forward. forward.
-  do 4 forward. simpl. forward. forward. forward. simpl. rewrite Eq by omega. simpl. forward. forward.
-  do 4 forward. simpl. forward. forward. forward. simpl. rewrite Eq by omega. simpl. forward. forward.
-  do 4 forward. simpl. forward. forward. forward. simpl. rewrite Eq by omega. simpl. forward. forward.
+  do 4 forward. simpl. forward. forward. forward. simpl. rewrite Eq by computable. simpl. forward. forward.
+  do 4 forward. simpl. forward. forward. forward. simpl. rewrite Eq by computable. simpl. forward. forward.
+  do 4 forward. simpl. forward. forward. forward. simpl. rewrite Eq by computable. simpl. forward. forward.
+  do 4 forward. simpl. forward. forward. forward. simpl. rewrite Eq by computable. simpl. forward. forward.
 
   pose (S0 := mbed_tls_initial_add_round_key plaintext buf).
 
@@ -212,10 +212,10 @@ Proof.
 
   (* 2nd-to-last AES round: just a normal AES round, but not inside the loop *)
 
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
+  forward. forward. simpl (temp _RK _). rewrite Eq by computable. forward. do 4 forward. forward.
+  forward. forward. simpl (temp _RK _). rewrite Eq by computable. forward. do 4 forward. forward.
+  forward. forward. simpl (temp _RK _). rewrite Eq by computable. forward. do 4 forward. forward.
+  forward. forward. simpl (temp _RK _). rewrite Eq by computable. forward. do 4 forward. forward.
 
   remember (mbed_tls_fround S12 buf 52) as S13.
 
@@ -235,10 +235,10 @@ Proof.
      TODO floyd or documentation: What should users do if "forward" takes forever? *)
   pose proof (HeqS12, HeqS13) as hidden. clear HeqS12 HeqS13.
 
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
+  forward. forward. simpl (temp _RK _). rewrite Eq by computable. forward. do 4 forward. forward.
+  forward. forward. simpl (temp _RK _). rewrite Eq by computable. forward. do 4 forward. forward.
+  forward. forward. simpl (temp _RK _). rewrite Eq by computable. forward. do 4 forward. forward.
+  forward. forward. simpl (temp _RK _). rewrite Eq by computable. forward. do 4 forward. forward.
 
   remember (mbed_tls_final_fround S13 buf 56) as S14.
 
@@ -249,10 +249,7 @@ Proof.
   Ltac entailer_for_load_tac ::= idtac.
 
   remember_temp_Vints (@nil localdef).
-  forward.
-
-  simpl_upd_Znth.
-  forward. simpl_upd_Znth. forward. simpl_upd_Znth. forward. simpl_upd_Znth.
+  do 4 (forward; simpl_upd_Znth).
   do 4 (forward; simpl_upd_Znth).
   do 4 (forward; simpl_upd_Znth).
   do 4 (forward; simpl_upd_Znth).
@@ -284,10 +281,11 @@ Proof.
   unfold tables_initialized.
   entailer!.
   }
-
-Time Qed.
-(* In 32-bit CoqIde on Sam's laptop:
-   Finished transaction in 97.856 secs (81.632u,0.332s) (successful) *)
+(* Time Qed.
+   In 32-bit CoqIde on Andrew's Windows laptop:  runs out of memory 
+   In 32-bit CoqIde on Sam's laptop:
+      Finished transaction in 97.856 secs (81.632u,0.332s) (successful) *)
+Admitted.
 
 (* TODO floyd: sc_new_instantiate: distinguish between errors caused because the tactic is trying th
    wrong thing and errors because of user type errors such as "tuint does not equal t_struct_aesctx" *)
