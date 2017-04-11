@@ -1535,9 +1535,15 @@ match goal with
     apply (semax_ifthenelse_PQR' _ v);
      [ reflexivity | entailer | assumption
      | clear HRE; subst v; apply semax_extract_PROP; intro HRE;
-       do_repr_inj HRE; abbreviate_semax
+       do_repr_inj HRE;
+       repeat (apply semax_extract_PROP; intro);
+       try rewrite Int.signed_repr in HRE by repable_signed;
+       abbreviate_semax
      | clear HRE; subst v; apply semax_extract_PROP; intro HRE;
-       do_repr_inj HRE; abbreviate_semax
+       do_repr_inj HRE;
+       repeat (apply semax_extract_PROP; intro);
+       try rewrite Int.signed_repr in HRE by repable_signed;
+       abbreviate_semax
      ]
 | |- semax _ _ (Sswitch _ _) _ =>
   forward_switch'

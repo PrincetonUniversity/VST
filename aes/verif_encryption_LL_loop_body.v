@@ -1,10 +1,21 @@
 Require Import aes.api_specs.
 Require Import aes.spec_encryption_LL.
-Require Import aes.aes_encryption_loop_body.
 Require Import aes.bitfiddling.
 Local Open Scope Z.
 
-(*  This almost works, except for the reassoc_seq issue ...
+Definition encryption_loop_body : statement :=
+   ltac:(find_statement_in_body
+       f_mbedtls_aes_encrypt
+       reassociate_stmt
+       ltac:(fun body => match body with
+              context [  Sloop
+                       (Ssequence
+                         (Sifthenelse (Ebinop Ogt (Etempvar _i _) (Econst_int (Int.repr 0) _)  _)
+                             Sskip  Sbreak)
+                       ?S) _ ] => S
+      end)).
+
+(*
 Definition encryption_loop_body : statement :=
    ltac:(let body := eval hnf in (fn_body f_mbedtls_aes_encrypt)
       in match body with
@@ -12,9 +23,9 @@ Definition encryption_loop_body : statement :=
                        (Ssequence
                          (Sifthenelse (Ebinop Ogt (Etempvar _i _) (Econst_int (Int.repr 0) _)  _)
                              Sskip  Sbreak)
-                       ?S) _ ] => exact S
+                       ?S) _ ] => let S' := reassociate_stmt S in exact S'
     end).
- *)
+*)
 
 Definition encryption_loop_body_Delta DS :=
  (with_Delta_specs DS

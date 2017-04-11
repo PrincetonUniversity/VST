@@ -39,8 +39,6 @@ Proof.
 
   (* RK = ctx->rk; *)
   forward.
-  { entailer!. auto with field_compatible. (* TODO floyd: why is this not done automatically? *) }
-
   assert_PROP (field_compatible t_struct_aesctx [StructField _buf] ctx) as Fctx. entailer!.
   assert ((field_address t_struct_aesctx [StructField _buf] ctx)
         = (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx)) as Eq. {
@@ -161,6 +159,30 @@ Proof.
   Intro i.
   reassoc_seq.
 
+Ltac forward_if'_new ::=
+match goal with
+| |- semax ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) (Sifthenelse ?e ?c1 ?c2) _ =>
+   let HRE := fresh "H" in let v := fresh "v" in
+    evar (v: val);
+    do_compute_expr Delta P Q R e v HRE;
+    simpl in v;
+    apply (semax_ifthenelse_PQR' _ v);
+     [ reflexivity | entailer | assumption
+     | clear HRE; subst v; apply semax_extract_PROP; intro HRE;
+       do_repr_inj HRE;
+       repeat (apply semax_extract_PROP; intro);
+       try rewrite Int.signed_repr in HRE by repable_signed;
+       abbreviate_semax
+     | clear HRE; subst v; apply semax_extract_PROP; intro HRE;
+       do_repr_inj HRE;
+       repeat (apply semax_extract_PROP; intro);
+       try rewrite Int.signed_repr in HRE by repable_signed;
+       abbreviate_semax
+     ]
+| |- semax _ _ (Sswitch _ _) _ =>
+  forward_switch'
+end.
+
   forward_if
   (EX i: Z, PROP ( 
      0 < i <= 6
@@ -183,12 +205,12 @@ Proof.
   )).
   { (* then-branch: Sskip to body *)
   Intros. forward. Exists i.
-  rewrite Int.signed_repr in *; [ | repable_signed ]. (* TODO floyd why is this not automatic? *)
+(*  rewrite Int.signed_repr in *; [ | repable_signed ]. (* TODO floyd why is this not automatic? *) *)
   entailer!.
   }
   { (* else-branch: exit loop *)
   Intros.
-  rewrite Int.signed_repr in *; [ | repable_signed ]. (* TODO floyd why is this not automatic? *)
+(*  rewrite Int.signed_repr in *; [ | repable_signed ]. (* TODO floyd why is this not automatic? *) *)
   forward. assert (i = 0) by omega. subst i.
   change (52 - 0 * 8) with 52.
   change (12 - 2 * Z.to_nat 0)%nat with 12%nat.

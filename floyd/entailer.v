@@ -518,7 +518,7 @@ Ltac prove_it_now :=
         | reflexivity
         | Omega0
         | repeat match goal with H: ?A |- _ => has_evar A; clear H end;
-          auto with prove_it_now;
+          auto with prove_it_now field_compatible;
           autorewrite with norm entailer_rewrite; normalize;
           fail
          ].

@@ -354,3 +354,10 @@ Ltac semax_subcommand V G F :=
 
 Arguments join_te te1 te2 / .
 Arguments PTree.fold {A} {B} f m v / .
+
+Ltac no_reassociate_stmt S := S.
+
+Ltac find_statement_in_body f reassoc pat :=
+  let body := eval hnf in (fn_body f)
+      in let S := pat body in
+          let S' := reassoc S in exact S'.
