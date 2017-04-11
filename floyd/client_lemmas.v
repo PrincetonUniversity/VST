@@ -1935,6 +1935,11 @@ Lemma subst_sepcon: forall i v (P Q: environ->mpred),
 Proof. reflexivity. Qed.
 Hint Rewrite subst_sepcon : subst.
 
+Lemma subst_ext:
+  forall (A B: Type) (NA : NatDed A) (a : ident) (v : environ -> val) (P: B -> environ -> A),
+    subst a v (EX b: B, P b) = EX b: B, subst a v (P b).
+Proof. intros; reflexivity. Qed.
+
 Fixpoint remove_localdef (i: ident) (l: list localdef) : list localdef :=
   match l with
   | nil => nil
@@ -2008,6 +2013,69 @@ Proof.
       unfold local, lift1; unfold_lift; intros rho.
       unfold subst; simpl.
       auto.
+Qed.
+
+Lemma eval_id_denote_tc_initialized: forall Delta i t v,
+  (temp_types Delta) ! i = Some t ->
+  local (tc_environ Delta) && local (`and (`(eq v) (eval_id i)) `(v <> Vundef)) |-- denote_tc_initialized i t.
+Proof.
+  intros.
+  intros rho.
+  unfold local, lift1; unfold_lift; simpl.
+  rewrite <- prop_and; apply prop_derives.
+  intros [? [? ?]].
+  destruct H0 as [? _].
+  specialize (H0 _ _ H).
+  destruct H0 as [v0 [? ?]].
+  unfold eval_id in H1.
+  rewrite H0 in *; clear H0; subst v; rename v0 into v.
+  simpl in H2.
+  specialize (H3 H2).
+  eauto.
+Qed.
+
+Lemma PQR_denote_tc_initialized: forall Delta i t v P Q R,
+  (temp_types Delta) ! i = Some t ->
+  local (tc_environ Delta) && PROPx P (LOCALx (temp i v :: Q) R) |-- denote_tc_initialized i t.
+Proof.
+  intros.
+  eapply derives_trans; [| apply eval_id_denote_tc_initialized; eauto].
+  apply andp_derives; [apply derives_refl |].
+  rewrite <- insert_local'.
+  apply andp_left1.
+  apply derives_refl.
+Qed.
+
+Lemma derives_remove_localdef_PQR: forall P Q R i,
+  PROPx P (LOCALx Q (SEPx R)) |-- PROPx P (LOCALx (remove_localdef i Q) (SEPx R)).
+Proof.
+  intros.
+  go_lowerx.
+  apply andp_right; auto.
+  apply prop_right.
+  clear H; rename H0 into H.
+  induction Q; simpl in *; auto.
+  destruct a; try now (destruct H; simpl in *; split; auto).
+  destruct H.
+  if_tac; simpl in *; auto.
+Qed.
+
+Lemma subst_remove_localdef_PQR: forall P Q R i v,
+  subst i v (PROPx P (LOCALx (remove_localdef i Q) (SEPx R))) |-- PROPx P (LOCALx (remove_localdef i Q) (SEPx R)).
+Proof.
+  intros.
+  go_lowerx.
+  apply andp_right; auto.
+  apply prop_right.
+  clear H; rename H0 into H.
+  induction Q; simpl in *; auto.
+  destruct a; try now (destruct H; simpl in *; split; auto).
+  if_tac; simpl in *; auto.
+  destruct H; split; auto.
+  unfold_lift in H.
+  destruct H; subst.
+  unfold_lift. rewrite eval_id_other in * by auto.
+  auto.
 Qed.
 
 Fixpoint iota_formals (i: ident) (tl: typelist) :=

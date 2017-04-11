@@ -259,8 +259,7 @@ eapply semax_pre_simple; [ | apply semax_break].
 eapply derives_trans; try apply Post.
  unfold local,lift0,lift1; simpl.
  repeat apply andp_right; try apply prop_right; auto.
-apply semax_extensionality_Delta with Delta; auto.
-apply tycontext_sub_refl.
+auto.
 Qed.
 
 Lemma semax_while_3g1 :
@@ -349,8 +348,6 @@ rewrite andp_assoc.
 apply andp_derives; auto.
 rewrite andp_comm.
 auto.
-apply semax_extensionality_Delta with Delta.
-apply tycontext_sub_refl.
 eapply semax_pre_simple; [ | apply H2].
 apply andp_left2.
 apply andp_left2.
