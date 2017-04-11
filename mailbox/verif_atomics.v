@@ -636,7 +636,7 @@ Proof.
     rewrite (lock_inv_isptr sh1), (lock_inv_isptr sh2); Intros.
     unfold field_at, at_offset; Intros.
     rewrite !data_at_rec_eq; unfold unfold_reptype; simpl.
-    rewrite sepcon_assoc, sepcon_comm.
+    rewrite sepcon_comm.
     assert_PROP (l1 = l2) by (apply sepcon_derives_prop, mapsto_value_eq; auto; intro; subst; contradiction).
     Exists l1; subst.
     erewrite mapsto_share_join, lock_inv_share_join; eauto; entailer!.
@@ -1069,7 +1069,7 @@ Proof.
   unfold hist_R.
   rewrite exp_sepcon1, extract_exists_in_SEP; Intro h'.
   erewrite !sepcon_andp_prop', extract_prop_in_SEP with (n := O); simpl; eauto; Intros.
-  rewrite (sepcon_comm _ (ghost_hist _ _ _)), <- sepcon_assoc.
+  rewrite <- sepcon_assoc, (sepcon_comm _ (ghost_hist _ _ _)), <- sepcon_assoc.
   rewrite sepcon_assoc, flatten_sepcon_in_SEP.
   assert_PROP (hist_incl h h').
   { go_lowerx; apply sepcon_derives_prop.
@@ -1099,7 +1099,7 @@ Proof.
   unfold hist_R.
   rewrite exp_sepcon1, extract_exists_in_SEP; Intro h'.
   erewrite !sepcon_andp_prop', extract_prop_in_SEP with (n := O); simpl; eauto; Intros.
-  rewrite (sepcon_comm _ (ghost_hist _ _ _)), <- sepcon_assoc.
+  rewrite <- sepcon_assoc, (sepcon_comm _ (ghost_hist _ _ _)), <- sepcon_assoc.
   rewrite sepcon_assoc, flatten_sepcon_in_SEP.
   assert_PROP (hist_incl h h').
   { go_lowerx; apply sepcon_derives_prop.
@@ -1132,7 +1132,7 @@ Proof.
   unfold hist_R.
   rewrite exp_sepcon1, extract_exists_in_SEP; Intro h'.
   erewrite !sepcon_andp_prop', extract_prop_in_SEP with (n := O); simpl; eauto; Intros.
-  rewrite (sepcon_comm _ (ghost_hist _ _ _)), <- sepcon_assoc.
+  rewrite <- sepcon_assoc, (sepcon_comm _ (ghost_hist _ _ _)), <- sepcon_assoc.
   rewrite sepcon_assoc, flatten_sepcon_in_SEP.
   assert_PROP (hist_incl h h').
   { go_lowerx; apply sepcon_derives_prop.

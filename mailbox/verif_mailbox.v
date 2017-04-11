@@ -344,7 +344,7 @@ Definition Gprog : funspecs := ltac:(with_library prog [release_spec; makelock_s
 
 Ltac cancel_for_forward_call ::= repeat (rewrite ?sepcon_andp_prop', ?sepcon_andp_prop);
   repeat (apply andp_right; [auto; apply prop_right; auto|]); fast_cancel.
-Ltac entailer_for_return ::= go_lower; entailer'.
+(*Ltac entailer_for_return ::= go_lower; entailer'.*)
 
 Lemma body_surely_malloc: semax_body Vprog Gprog f_surely_malloc surely_malloc_spec.
 Proof.
@@ -773,7 +773,7 @@ Proof.
     erewrite extract_prop_in_SEP with (n := O); simpl; eauto.
     Intros; subst.
     assert (last_two_reads (rev hx) = (vint b1, vint b2)) as Hlast by assumption.
-    rewrite sepcon_comm, <- !sepcon_assoc, 3sepcon_assoc.
+    rewrite <- sepcon_assoc, sepcon_comm, <- !sepcon_assoc, 3sepcon_assoc.
     assert_PROP (vint b1 = vint b0) as Hb1.
     { go_lowerx.
       do 2 apply sepcon_derives_prop.
@@ -1377,6 +1377,7 @@ Proof.
       destruct (eq_dec lasti b0); [contradiction Hneq0; auto|].
       destruct (eq_dec lasti b); [contradiction Hneq; auto|].
       Intros v1 ish v2.
+      rewrite <- sepcon_assoc.
       eapply derives_trans; [apply sepcon_derives; [apply data_at_buffer_cohere; auto | apply derives_refl]|].
       assert (exists sh', sepalg.join ish shi sh') as (sh' & ?).
       { eapply make_shares_join; eauto.
@@ -1396,6 +1397,7 @@ Proof.
       erewrite upd_Znth_diff, Znth_map, Znth_upto; rewrite ?Z2Nat.id; auto; try omega.
       destruct (eq_dec b0 b0); [|contradiction n0; auto].
       Intros v1 ish v2.
+      rewrite <- sepcon_assoc.
       eapply derives_trans; [apply sepcon_derives; [apply data_at_buffer_cohere; auto | apply derives_refl]|].
       assert (exists sh', sepalg.join ish shi sh') as (sh' & ?).
       { eapply make_shares_join; eauto.

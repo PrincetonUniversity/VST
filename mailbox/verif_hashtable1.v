@@ -1202,9 +1202,7 @@ Proof.
       do 2 (split; [rewrite Forall_app; auto|]).
       split; [|split]; apply Forall2_app; auto; repeat constructor; unfold full_hist; eauto.
       intros t e Hin; match goal with H : hist_list hki _ |- _ => apply H, nth_error_in in Hin; auto end.
-    + rewrite !sepcon_emp, !emp_sepcon, !sepcon_assoc.
-      apply sepcon_derives; [auto|].
-      apply sepcon_derives; [auto|].
+    + fast_cancel.
       rewrite !map_app; simpl.
       replace (i + 1) with (Zlength (map (fun x => vint x) lk ++ [vint ki]))
         by (rewrite Zlength_app, Zlength_map, Zlength_cons, Zlength_nil; omega).
@@ -1213,12 +1211,18 @@ Proof.
         by (rewrite !Zlength_app, !Zlength_map, !Zlength_cons, !Zlength_nil; omega).
       rewrite <- upd_complete_gen by (rewrite Zlength_map; omega).
       rewrite !Zlength_map.
+      apply sepcon_derives; [auto|].
       apply sepcon_derives; [replace i with (Zlength lk) | replace i with (Zlength lv)]; auto.
   - Intros lk lv; forward.
     rewrite Hlen, Zminus_diag, !app_nil_r, !sublist_nil.
+    unfold atomic_entries; simpl.
     repeat match goal with H : Forall2 _ (map _ (sublist _ _ _)) _ |- _ =>
       rewrite sublist_same in H by (auto; omega) end.
-    Exists lk lv; entailer!.
+    Exists lk lv; apply andp_right; auto.
+    (* entailer! is slow here *)
+    apply andp_right; [entailer!|].
+    apply andp_right; auto.
+    apply sepcon_derives; [apply data_at_data_at_ | fast_cancel].
 Qed.
 
 Lemma lock_struct_array : forall sh z (v : list val) p,
@@ -3025,8 +3029,8 @@ Proof.
     rewrite <- upd_complete_gen by omega.
     rewrite !app_Znth2 by omega.
     replace (Zlength locks) with (Zlength res); rewrite Zminus_diag, !Znth_0_cons.
-    rewrite (sepcon_comm _ (@data_at CompSpecs Ews (tarray tentry size) entries m_entries)), !sepcon_assoc;
-      apply sepcon_derives; [auto|].
+    rewrite <- !sepcon_assoc, (sepcon_comm _ (@data_at CompSpecs Ews (tarray tentry size) entries m_entries)),
+      !sepcon_assoc; apply sepcon_derives; [auto|].
     rewrite <- !sepcon_assoc, (sepcon_comm _ (atomic_entries Tsh entries ghosts empty_hists)), !sepcon_assoc;
       apply sepcon_derives; [auto|].
     rewrite ?sepcon_emp, ?emp_sepcon; rewrite ?sepcon_assoc.
@@ -3036,7 +3040,7 @@ Proof.
     rewrite <- 2sepcon_assoc, sepcon_comm, !sepcon_assoc.
     destruct r; try contradiction.
     destruct l; try contradiction.
-    fast_cancel; cancel.
+    cancel.
     apply sepcon_list_derives; rewrite !Zlength_map, !Zlength_upto, <- Zlength_correct.
     { rewrite Z2Nat.id; auto; omega. }
     intros.
@@ -3279,7 +3283,7 @@ Proof.
   exploit (add_three lr lk lv); auto; intro.
   forward.
   Exists values keys.
-  rewrite !sepcon_assoc, (sepcon_comm (data_at _ _ _ keys)), (sepcon_comm (data_at _ _ _ values)).
+  rewrite (sepcon_comm (data_at _ _ _ keys)), (sepcon_comm (data_at _ _ _ values)).
   rewrite sepcon_assoc, (sepcon_comm (data_at _ _ _ values)), <- !sepcon_assoc; apply sepcon_derives;
     [apply sepcon_derives; auto|]; apply andp_right, data_at_data_at_; apply prop_right; auto.
 Qed.
