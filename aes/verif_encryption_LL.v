@@ -1,72 +1,8 @@
 Require Import aes.api_specs.
 Require Import aes.bitfiddling.
 Require Import aes.verif_encryption_LL_loop_body.
+Require Import aes.encryption_LL_round_step_eqs.
 Open Scope Z.
-
-Definition round_column_ast rk b0 b1 b2 b3 t Y X0 X1 X2 X3 := 
-(Ssequence (Sset t (Etempvar _RK (tptr tuint)))
-   (Ssequence
-      (Sset _RK
-         (Ebinop Oadd (Etempvar t (tptr tuint))
-            (Econst_int (Int.repr 1) tint) (tptr tuint)))
-      (Ssequence (Sset rk (Ederef (Etempvar t (tptr tuint)) tuint))
-         (Ssequence
-            (Sset b0
-               (Ederef
-                  (Ebinop Oadd
-                     (Efield
-                        (Evar _tables t_struct_tables)
-                        _FT0 (tarray tuint 256))
-                     (Ebinop Oand (Etempvar X0 tuint)
-                        (Econst_int (Int.repr 255) tint) tuint) (tptr tuint))
-                  tuint))
-            (Ssequence
-               (Sset b1
-                  (Ederef
-                     (Ebinop Oadd
-                        (Efield
-                           (Evar _tables t_struct_tables)
-                           _FT1 (tarray tuint 256))
-                        (Ebinop Oand
-                           (Ebinop Oshr (Etempvar X1 tuint)
-                              (Econst_int (Int.repr 8) tint) tuint)
-                           (Econst_int (Int.repr 255) tint) tuint)
-                        (tptr tuint)) tuint))
-               (Ssequence
-                  (Sset b2
-                     (Ederef
-                        (Ebinop Oadd
-                           (Efield
-                              (Evar _tables
-                                 t_struct_tables) _FT2
-                              (tarray tuint 256))
-                           (Ebinop Oand
-                              (Ebinop Oshr (Etempvar X2 tuint)
-                                 (Econst_int (Int.repr 16) tint) tuint)
-                              (Econst_int (Int.repr 255) tint) tuint)
-                           (tptr tuint)) tuint))
-                  (Ssequence
-                     (Sset b3
-                        (Ederef
-                           (Ebinop Oadd
-                              (Efield
-                                 (Evar _tables
-                                    t_struct_tables) _FT3
-                                 (tarray tuint 256))
-                              (Ebinop Oand
-                                 (Ebinop Oshr (Etempvar X3 tuint)
-                                    (Econst_int (Int.repr 24) tint) tuint)
-                                 (Econst_int (Int.repr 255) tint) tuint)
-                              (tptr tuint)) tuint))
-                     (Sset Y
-                        (Ebinop Oxor
-                           (Ebinop Oxor
-                              (Ebinop Oxor
-                                 (Ebinop Oxor (Etempvar rk tuint)
-                                    (Etempvar b0 tuint) tuint)
-                                 (Etempvar b1 tuint) tuint)
-                              (Etempvar b2 tuint) tuint)
-                           (Etempvar b3 tuint) tuint))))))))).
 
 Ltac simpl_Int := repeat match goal with
 | |- context [ (Int.mul (Int.repr ?A) (Int.repr ?B)) ] =>
@@ -75,6 +11,24 @@ Ltac simpl_Int := repeat match goal with
 | |- context [ (Int.add (Int.repr ?A) (Int.repr ?B)) ] =>
     let x := fresh "x" in (pose (x := (A + B)%Z)); simpl in x;
     replace (Int.add (Int.repr A) (Int.repr B)) with (Int.repr x); subst x; [|reflexivity]
+end.
+
+Ltac remember_temp_Vints done :=
+lazymatch goal with
+| |- context [ ?T :: done ] => match T with
+  | temp ?Id (Vint ?V) =>
+    let V0 := fresh "V" in remember V as V0;
+    remember_temp_Vints ((temp Id (Vint V0)) :: done)
+  | _ => remember_temp_Vints (T :: done)
+  end
+| |- semax _ (PROPx _ (LOCALx done (SEPx _))) _ _ => idtac
+| _ => fail 100 "assertion failure: did not find" done
+end.
+
+Ltac simpl_upd_Znth := match goal with
+| |- context [ (upd_Znth ?i ?l (Vint ?v)) ] =>
+  let vv := fresh "vv" in remember v as vv;
+  let a := eval cbv in (upd_Znth i l (Vint vv)) in change (upd_Znth i l (Vint vv)) with a
 end.
 
 Lemma body_aes_encrypt: semax_body Vprog Gprog f_mbedtls_aes_encrypt encryption_spec_ll.
@@ -248,26 +202,6 @@ Proof.
   { (* rest: loop body *)
   clear i. Intro i. Intros. 
   unfold tables_initialized. subst vv.
-  unfold MORE_COMMANDS, abbreviate.
-
-  reassoc_seq_chunks 8.
-
-  progress fold t_struct_tables.
-  progress fold (round_column_ast _rk _b0__4 _b1__4 _b2__4 _b3__4 _t'5 _Y0 _X0 _X1 _X2 _X3).
-  progress fold (round_column_ast _rk _b0__4 _b1__4 _b2__4 _b3__4 _t'6 _Y1 _X1 _X2 _X3 _X0).
-  progress fold (round_column_ast _rk _b0__4 _b1__4 _b2__4 _b3__4 _t'7 _Y2 _X2 _X3 _X0 _X1).
-  progress fold (round_column_ast _rk _b0__4 _b1__4 _b2__4 _b3__4 _t'8 _Y3 _X3 _X0 _X1 _X2).
-  progress fold (round_column_ast _rk__1 _b0__5 _b1__5 _b2__5 _b3__5 _t'9  _X0 _Y0 _Y1 _Y2 _Y3).
-  progress fold (round_column_ast _rk__1 _b0__5 _b1__5 _b2__5 _b3__5 _t'10 _X1 _Y1 _Y2 _Y3 _Y0).
-  progress fold (round_column_ast _rk__1 _b0__5 _b1__5 _b2__5 _b3__5 _t'11 _X2 _Y2 _Y3 _Y0 _Y1).
-  progress fold (round_column_ast _rk__1 _b0__5 _b1__5 _b2__5 _b3__5 _t'12 _X3 _Y3 _Y0 _Y1 _Y2).
-
-  (* drop_LOCALs [_ctx; _input; _output]. *)
-
-  (* undo the reassociation into blocks of 8 to apply the lemma for the whole loop body *)
-  unfold round_column_ast.
-  reassoc_seq.
-
   subst MORE_COMMANDS POSTCONDITION. unfold abbreviate.
   simple eapply encryption_loop_body_proof; eauto.
   }} { (* loop decr *)
@@ -285,22 +219,7 @@ Proof.
 
   remember (mbed_tls_fround S12 buf 52) as S13.
 
-  match goal with |- context [temp _Y0 (Vint ?E0)] =>
-    match goal with |- context [temp _Y1 (Vint ?E1)] =>
-      match goal with |- context [temp _Y2 (Vint ?E2)] =>
-        match goal with |- context [temp _Y3 (Vint ?E3)] =>
-          assert (S13 = (E0, (E1, (E2, E3)))) as Eq2
-        end
-      end
-    end
-  end.
-  {
-    subst S13.
-    rewrite (split_four_ints S12).
-    forget 12%nat as N.
-    reflexivity.
-  }
-  apply split_four_ints_eq in Eq2. destruct Eq2 as [EqY0 [EqY1 [EqY2 EqY3]]].
+  destruct (round13eq _ _ _ HeqS13) as [EqY0 [EqY1 [EqY2 EqY3]]].
   rewrite EqY0. rewrite EqY1. rewrite EqY2. rewrite EqY3.
   clear EqY0 EqY1 EqY2 EqY3.
 
@@ -323,47 +242,14 @@ Proof.
 
   remember (mbed_tls_final_fround S13 buf 56) as S14.
 
-  match goal with |- context [temp _X0 (Vint ?E0)] =>
-    match goal with |- context [temp _X1 (Vint ?E1)] =>
-      match goal with |- context [temp _X2 (Vint ?E2)] =>
-        match goal with |- context [temp _X3 (Vint ?E3)] =>
-          assert (S14 = (E0, (E1, (E2, E3)))) as Eq2
-        end
-      end
-    end
-  end.
-  {
-    subst S14.
-    rewrite (split_four_ints S13).
-    forget 12%nat as N.
-    reflexivity.
-  }
-  apply split_four_ints_eq in Eq2. destruct Eq2 as [EqX0 [EqX1 [EqX2 EqX3]]].
+  destruct (round14eq _ _ _ HeqS14) as [EqX0 [EqX1 [EqX2 EqX3]]].
   rewrite EqX0. rewrite EqX1. rewrite EqX2. rewrite EqX3.
   clear EqX0 EqX1 EqX2 EqX3.
 
   Ltac entailer_for_load_tac ::= idtac.
 
-  Ltac remember_temp_Vints done :=
-  lazymatch goal with
-  | |- context [ ?T :: done ] => match T with
-    | temp ?Id (Vint ?V) =>
-      let V0 := fresh "V" in remember V as V0;
-      remember_temp_Vints ((temp Id (Vint V0)) :: done)
-    | _ => remember_temp_Vints (T :: done)
-    end
-  | |- semax _ (PROPx _ (LOCALx done (SEPx _))) _ _ => idtac
-  | _ => fail 100 "assertion failure: did not find" done
-  end.
-
   remember_temp_Vints (@nil localdef).
   forward.
-
-  Ltac simpl_upd_Znth := match goal with
-  | |- context [ (upd_Znth ?i ?l (Vint ?v)) ] =>
-    let vv := fresh "vv" in remember v as vv;
-    let a := eval cbv in (upd_Znth i l (Vint vv)) in change (upd_Znth i l (Vint vv)) with a
-  end.
 
   simpl_upd_Znth.
   forward. simpl_upd_Znth. forward. simpl_upd_Znth. forward. simpl_upd_Znth.
@@ -380,25 +266,7 @@ Proof.
   rewrite Int.and_idem in *.
   repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
 
-  match goal with
-  | |- context [ field_at _ _ _ ?res output ] =>
-     assert (res = (map Vint (mbed_tls_aes_enc plaintext buf))) as Eq3
-  end. {
-  unfold mbed_tls_aes_enc. progress unfold output_four_ints_as_bytes. progress unfold put_uint32_le.
-  repeat match goal with
-  | |- context [ Int.and ?a ?b ] => let va := fresh "va" in remember (Int.and a b) as va
-  end.
-  cbv.
-  repeat subst. remember (exp_key ++ list_repeat 8 0) as buf.
-  destruct hidden as [? ?].
-  subst S0 S12 S13.
-  remember 12%nat as twelve.
-  unfold mbed_tls_enc_rounds. fold mbed_tls_enc_rounds.
-  assert (4 + 4 * Z.of_nat twelve = 52) as Eq4. { subst twelve. reflexivity. }
-  rewrite Eq4. clear Eq4.
-  reflexivity.
-  }
-  rewrite Eq3. clear Eq3.
+  rewrite (final_aes_eq buf plaintext S0 S12 S13) by (destruct hidden as [? ?]; auto).
 
   Ltac entailer_for_return ::= idtac.
 
@@ -417,9 +285,9 @@ Proof.
   entailer!.
   }
 
-  Show.
-(* Time Qed. takes forever *)
-Admitted.
+Time Qed.
+(* In 32-bit CoqIde on Sam's laptop:
+   Finished transaction in 97.856 secs (81.632u,0.332s) (successful) *)
 
 (* TODO floyd: sc_new_instantiate: distinguish between errors caused because the tactic is trying th
    wrong thing and errors because of user type errors such as "tuint does not equal t_struct_aesctx" *)

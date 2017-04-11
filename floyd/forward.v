@@ -584,6 +584,12 @@ end.
 Ltac cancel_for_forward_call := cancel.
 Ltac default_cancel_for_forward_call := cancel.
 
+Ltac unfold_post := match goal with |- ?Post = _ => let A := fresh "A" in let B := fresh "B" in first
+  [evar (A : Type); evar (B : A -> environ -> mpred); unify Post (@exp _ _ ?A ?B);
+     change Post with (@exp _ _ A B); subst A B |
+   evar (A : list Prop); evar (B : environ -> mpred); unify Post (PROPx ?A ?B);
+     change Post with (PROPx A B); subst A B | idtac] end.
+
 Ltac forward_call_id1_x_wow A witness Frame H :=
  eapply (@semax_call_id1_x_wow A witness Frame _ _ _ _ _ _ _ _ _ H);
  clear H; try clear Frame;
@@ -599,7 +605,7 @@ Ltac forward_call_id1_x_wow A witness Frame H :=
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
- | cbv beta iota zeta; extensionality rho; 
+ | cbv beta iota zeta; unfold_post; extensionality rho;
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    first [apply exp_congr; intros ?vret; reflexivity
@@ -626,7 +632,7 @@ Ltac forward_call_id1_y_wow A witness Frame H :=
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
- | cbv beta iota zeta; extensionality rho; 
+ | cbv beta iota zeta; unfold_post; extensionality rho;
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    first [apply exp_congr; intros ?vret; reflexivity
@@ -651,7 +657,7 @@ Ltac forward_call_id1_wow A witness Frame H :=
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
- | cbv beta iota zeta; extensionality rho; 
+ | cbv beta iota zeta; unfold_post; extensionality rho;
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    first [apply exp_congr; intros ?vret; reflexivity
@@ -674,7 +680,7 @@ Ltac forward_call_id01_wow A witness Frame H :=
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
- | cbv beta iota zeta; extensionality rho;
+ | cbv beta iota zeta; unfold_post; extensionality rho;
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    first [apply exp_congr; intros ?vret; reflexivity
@@ -696,11 +702,11 @@ Ltac forward_call_id00_wow A witness Frame H :=
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
- | cbv beta iota zeta; extensionality rho;
+ | cbv beta iota zeta; unfold_post; extensionality rho;
     repeat rewrite exp_uncurry;
     try rewrite no_post_exists0;
     repeat rewrite exp_unfold;
-    first [reflexivity | extensionality; simpl; reflexivity]
+    first [reflexivity | extensionality; simpl; reflexivity | give_EX_warning]
  | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
  ].
