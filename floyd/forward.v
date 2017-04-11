@@ -182,10 +182,6 @@ apply sepcon_derives; auto.
 apply exp_left; intro v.
 normalize.
 eapply var_block_lvar0; try apply H; try eassumption.
-clear - H5.
-destruct ek; simpl in *; auto.
-unfold tc_environ in *.
-apply expr_lemmas.typecheck_environ_update in H5; auto.
 Qed.
 
 Ltac process_stackframe_of :=
@@ -1407,8 +1403,7 @@ Tactic Notation "forward_while" constr(Inv) :=
          normalize in HRE
         ]
        end
-       | simpl update_tycon;
-         apply extract_exists_pre; special_intros_EX;
+       | apply extract_exists_pre; special_intros_EX;
          let HRE := fresh "HRE" in apply semax_extract_PROP; intro HRE;
          do_repr_inj HRE;
          repeat (apply semax_extract_PROP; intro);
@@ -1435,7 +1430,7 @@ Ltac forward_for_simple_bound n Pre :=
     end
   | simple eapply semax_seq';
     [forward_for_simple_bound' n Pre
-    | cbv beta; simpl update_tycon; abbreviate_semax  ]
+    | cbv beta; abbreviate_semax  ]
   | eapply semax_post_flipped';
      [forward_for_simple_bound' n Pre
      | ]
@@ -1460,7 +1455,7 @@ Ltac forward_for Inv PreIncr Postcond :=
           | unfold_and_local_semax
           | unfold_and_local_semax
           ]
-       | simpl update_tycon
+       | 
        ])
     ]; abbreviate_semax; autorewrite with ret_assert.
 
@@ -1662,7 +1657,7 @@ Ltac warn s :=
 
 Lemma semax_post3:
   forall R' Espec {cs: compspecs} Delta P c R,
-    local (tc_environ (update_tycon Delta c)) && R' |-- R ->
+    local (tc_environ Delta) && R' |-- R ->
     @semax cs Espec Delta P c (normal_ret_assert R') ->
     @semax cs Espec Delta P c (normal_ret_assert R) .
 Proof.
@@ -1676,7 +1671,7 @@ Qed.
 Lemma semax_post_flipped3:
   forall R' Espec {cs: compspecs} Delta P c R,
     @semax cs Espec Delta P c (normal_ret_assert R') ->
-    local (tc_environ (update_tycon Delta c)) && R' |-- R ->
+    local (tc_environ Delta) && R' |-- R ->
     @semax cs Espec Delta P c (normal_ret_assert R) .
 Proof.
 intros; eapply semax_post3; eauto.
@@ -2460,7 +2455,7 @@ Ltac forward0 :=  (* USE FOR DEBUGGING *)
               evar (Post : environ->mpred);
               apply semax_seq' with Post;
                [
-               | unfold exit_tycon, update_tycon, Post; clear Post ]
+               | unfold Post; clear Post ]
   end.
 
 Lemma normal_ret_assert_derives'':
