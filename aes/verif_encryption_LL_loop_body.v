@@ -15,18 +15,6 @@ Definition encryption_loop_body : statement :=
                        ?S) _ ] => S
       end)).
 
-(*
-Definition encryption_loop_body : statement :=
-   ltac:(let body := eval hnf in (fn_body f_mbedtls_aes_encrypt)
-      in match body with
-     context [  Sloop
-                       (Ssequence
-                         (Sifthenelse (Ebinop Ogt (Etempvar _i _) (Econst_int (Int.repr 0) _)  _)
-                             Sskip  Sbreak)
-                       ?S) _ ] => let S' := reassociate_stmt S in exact S'
-    end).
-*)
-
 Definition encryption_loop_body_Delta DS :=
  (with_Delta_specs DS
    (initialized_list
