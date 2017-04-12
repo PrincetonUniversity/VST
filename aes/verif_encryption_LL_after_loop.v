@@ -168,3 +168,6 @@ intros.
   cancel.
 Admitted.
 (* Qed uses more than 1.2 gigs of memory, blows up on Windows *)
+(* Time Qed.
+   Finished transaction in 69.962 secs (57.209u,0.259s) (successful)
+   In 32-bit CoqIde on Sam's Fedora Laptop, 1.2 GB of memory, Apr 12, 2017 *)
