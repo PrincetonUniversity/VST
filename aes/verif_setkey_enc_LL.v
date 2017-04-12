@@ -97,6 +97,13 @@ Lemma Vundef_is_Vint:
   repeat_op_table 4 Vundef id = repeat_op_table 4 (Vint Int.zero) id.
 Admitted.
 
+Lemma key_expansion_final_eq: forall key_chars,
+  pow_fun GrowKeyByOne (Z.to_nat (Nb * (Nr + 2) - Nk)) (key_bytes_to_key_words key_chars)
+  = KeyExpansion2 (key_bytes_to_key_words key_chars).
+Proof.
+  intros. unfold KeyExpansion2. reflexivity.
+Qed.
+
 Lemma body_key_expansion: semax_body Vprog Gprog f_mbedtls_aes_setkey_enc key_expansion_spec.
 Proof.
   start_function.
@@ -277,12 +284,7 @@ Proof.
   (* return 0 *)
   assert ((Nb * (Nr + 2) - Nk) = 7 * 8)%Z as E by reflexivity.
   rewrite <- E.
-  assert ((pow_fun GrowKeyByOne (Z.to_nat (Nb * (Nr + 2) - Nk)) (key_bytes_to_key_words key_chars)
-   = (KeyExpansion2 (key_bytes_to_key_words key_chars)))) as Eq. {
-    unfold KeyExpansion2. (* without this, reflexivity takes forever *)
-    reflexivity.
-  }
-  rewrite Eq. rewrite E. clear Eq. clear E.
+  rewrite key_expansion_final_eq. rewrite E.
   change (60 - 7 * 8) with 4.
   forget (KeyExpansion2 (key_bytes_to_key_words key_chars)) as R.
   forward.
