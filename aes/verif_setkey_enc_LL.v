@@ -1,6 +1,7 @@
 Require Import aes.api_specs.
 Require Import aes.partially_filled.
 Require Import aes.bitfiddling.
+Require Import floyd.deadvars.
 Open Scope Z.
 Local Open Scope logic.
 
@@ -142,6 +143,7 @@ Proof.
     forward.
     assert (Int.unsigned (Int.repr 3) = 3) by reflexivity.
     forward.
+
     rewrite E1, H2, H3, H4. clear H2 H3 H4.
     simpl.
     forward.
@@ -224,16 +226,16 @@ Proof.
     forward. forward.
     fold (tables_initialized tables).
     simpl.
-    RK_store E.
+    RK_store E.  deadvars.
     RK_load E.
     RK_load E.
-    RK_store E.
+    RK_store E.  deadvars.
     RK_load E.
     RK_load E.
-    RK_store E.
+    RK_store E.  deadvars.
     RK_load E.
     RK_load E.
-    RK_store E.
+    RK_store E.  deadvars.
 
     RK_load E.
     RK_load E.
@@ -243,16 +245,16 @@ Proof.
     forward. forward.
     fold (tables_initialized tables).
     simpl.
-    RK_store E.
+    RK_store E.  deadvars.
     RK_load E.
     RK_load E.
-    RK_store E.
+    RK_store E.  deadvars.
     RK_load E.
     RK_load E.
-    RK_store E.
+    RK_store E.  deadvars.
     RK_load E.
     RK_load E.
-    RK_store E.
+    RK_store E.  deadvars.
 
     forward. 
     assert_PROP (isptr ctx) as P by entailer!. destruct ctx; inv P.
