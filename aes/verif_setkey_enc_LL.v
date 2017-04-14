@@ -1,6 +1,7 @@
 Require Import aes.api_specs.
 Require Import aes.partially_filled.
 Require Import aes.bitfiddling.
+Require Import floyd.deadvars.
 Open Scope Z.
 Local Open Scope logic.
 
@@ -97,6 +98,13 @@ Lemma Vundef_is_Vint:
   repeat_op_table 4 Vundef id = repeat_op_table 4 (Vint Int.zero) id.
 Admitted.
 
+Lemma key_expansion_final_eq: forall key_chars,
+  pow_fun GrowKeyByOne (Z.to_nat (Nb * (Nr + 2) - Nk)) (key_bytes_to_key_words key_chars)
+  = KeyExpansion2 (key_bytes_to_key_words key_chars).
+Proof.
+  intros. unfold KeyExpansion2. reflexivity.
+Qed.
+
 Lemma body_key_expansion: semax_body Vprog Gprog f_mbedtls_aes_setkey_enc key_expansion_spec.
 Proof.
   start_function.
@@ -135,6 +143,7 @@ Proof.
     forward.
     assert (Int.unsigned (Int.repr 3) = 3) by reflexivity.
     forward.
+
     rewrite E1, H2, H3, H4. clear H2 H3 H4.
     simpl.
     forward.
@@ -217,16 +226,16 @@ Proof.
     forward. forward.
     fold (tables_initialized tables).
     simpl.
-    RK_store E.
+    RK_store E.  deadvars.
     RK_load E.
     RK_load E.
-    RK_store E.
+    RK_store E.  deadvars.
     RK_load E.
     RK_load E.
-    RK_store E.
+    RK_store E.  deadvars.
     RK_load E.
     RK_load E.
-    RK_store E.
+    RK_store E.  deadvars.
 
     RK_load E.
     RK_load E.
@@ -236,16 +245,16 @@ Proof.
     forward. forward.
     fold (tables_initialized tables).
     simpl.
-    RK_store E.
+    RK_store E.  deadvars.
     RK_load E.
     RK_load E.
-    RK_store E.
+    RK_store E.  deadvars.
     RK_load E.
     RK_load E.
-    RK_store E.
+    RK_store E.  deadvars.
     RK_load E.
     RK_load E.
-    RK_store E.
+    RK_store E.  deadvars.
 
     forward. 
     assert_PROP (isptr ctx) as P by entailer!. destruct ctx; inv P.
@@ -277,12 +286,7 @@ Proof.
   (* return 0 *)
   assert ((Nb * (Nr + 2) - Nk) = 7 * 8)%Z as E by reflexivity.
   rewrite <- E.
-  assert ((pow_fun GrowKeyByOne (Z.to_nat (Nb * (Nr + 2) - Nk)) (key_bytes_to_key_words key_chars)
-   = (KeyExpansion2 (key_bytes_to_key_words key_chars)))) as Eq. {
-    unfold KeyExpansion2. (* without this, reflexivity takes forever *)
-    reflexivity.
-  }
-  rewrite Eq. rewrite E. clear Eq. clear E.
+  rewrite key_expansion_final_eq. rewrite E.
   change (60 - 7 * 8) with 4.
   forget (KeyExpansion2 (key_bytes_to_key_words key_chars)) as R.
   forward.

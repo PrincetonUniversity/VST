@@ -1,6 +1,7 @@
 Require Import aes.api_specs.
 Require Import aes.spec_encryption_LL.
 Require Import aes.bitfiddling.
+Require Import floyd.deadvars.
 Local Open Scope Z.
 
 Definition encryption_loop_body : statement :=
@@ -132,6 +133,8 @@ semax (encryption_loop_body_Delta DS)
            (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf]
               ctx, map Vint (map Int.repr buf))) ctx)))).
 
+Hint Resolve 0%Z : inhabited.
+
 Lemma encryption_loop_body_proof: encryption_loop_body_proof_statement.
 Proof.
   unfold encryption_loop_body_proof_statement. intros.
@@ -139,10 +142,10 @@ Proof.
   abbreviate_semax.
   pose proof masked_byte_range.
 
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
 
   replace (52 - i * 8 + 1 + 1 + 1 + 1) with (52 - i * 8 + 4) by omega.
   replace (52 - i * 8 + 1 + 1 + 1)     with (52 - i * 8 + 3) by omega.
@@ -168,10 +171,10 @@ Proof.
   rewrite EqY0. rewrite EqY1. rewrite EqY2. rewrite EqY3.
   clear EqY0 EqY1 EqY2 EqY3.
 
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
 
   pose (S'' := mbed_tls_fround S' buf (52-i*8+4)).
 
@@ -247,5 +250,9 @@ Proof.
   remember (mbed_tls_fround (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4) buf (52 - i * 8)) as S'.
   replace (52 - i * 8 + 4 + 4) with (52 - (i - 1) * 8) by omega.
   entailer!.
-Time Qed. (*April 9th, 2017: 48 secs on Ubuntu laptop, Coq8.6*)
+Time Qed. 
+(* On Andrew's ThinkPad T440p, April 13, 2017, to do Qed:
+  With deadvar-elim:  37.6 seconds, 0.934GB
+  Without deadvar-elim: 47.8 seconds, 1.073 GB
+  (This computer seems to be same speed as Sam's Ubuntu laptop *)
 
