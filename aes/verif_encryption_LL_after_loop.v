@@ -100,7 +100,6 @@ intros.
 
   (* 2nd-to-last AES round: just a normal AES round, but not inside the loop *)
   do 2 forward. simpl (temp _RK _). rewrite Eq by computable. do 6 forward.
-
   deadvars. rewrite EqY0; clear EqY0. 
   do 2 forward. simpl (temp _RK _). rewrite Eq by computable. do 6 forward.
   deadvars. rewrite EqY1; clear EqY1.
@@ -131,8 +130,8 @@ intros.
   deadvars. rewrite EqX2; clear EqX2.
   do 2 forward. simpl (temp _RK _). rewrite Eq by computable. do 6 forward.
   deadvars. rewrite EqX3; clear EqX3.
-
-  remember_temp_Vints (@nil localdef).
+ clear Eq.
+ remember_temp_Vints (@nil localdef).
 
   do 16 (forward;
     match goal with |- context [(upd_Znth ?i ?L ?W)] =>
@@ -147,12 +146,11 @@ intros.
   rewrite Hfinal; clear Hfinal.
 
   (* TODO reuse from above *)
-  assert ((field_address t_struct_aesctx [StructField _buf] ctx)
-        = (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx)) as EqBuf. {
-    do 2 rewrite field_compatible_field_address by auto with field_compatible.
-    reflexivity.
-  }
-  rewrite <- EqBuf in *. clear EqBuf.
+  replace (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx)
+    with (field_address t_struct_aesctx [StructField _buf] ctx)
+     in * by (rewrite !field_compatible_field_address by auto with field_compatible;
+                 reflexivity).
+
   subst POSTCONDITION; unfold abbreviate.
   forget (mbed_tls_aes_enc plaintext buf) as Res.
   unfold tables_initialized.
