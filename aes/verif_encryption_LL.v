@@ -3,7 +3,6 @@ Require Import aes.bitfiddling.
 Require Import aes.encryption_LL_round_step_eqs.
 Require Import aes.verif_encryption_LL_loop_body.
 Require Import aes.verif_encryption_LL_after_loop.
-Require Import floyd.deadvars.
 Open Scope Z.
 
 Lemma body_aes_encrypt: semax_body Vprog Gprog f_mbedtls_aes_encrypt encryption_spec_ll.
@@ -45,10 +44,10 @@ Proof.
      GET_UINT32_LE( X1, input,  4 ); X1 ^= *RK++;
      GET_UINT32_LE( X2, input,  8 ); X2 ^= *RK++;
      GET_UINT32_LE( X3, input, 12 ); X3 ^= *RK++; *)
-  do 9 (forward; simpl); rewrite Eq by computable; simpl. deadvars.
-  do 9 (forward; simpl); rewrite Eq by computable; simpl. deadvars.
-  do 9 (forward; simpl); rewrite Eq by computable; simpl. deadvars.
-  do 9 (forward; simpl); rewrite Eq by computable; simpl. deadvars.
+  do 9 (forward; simpl); rewrite Eq by computable; simpl. deadvars!.
+  do 9 (forward; simpl); rewrite Eq by computable; simpl. deadvars!.
+  do 9 (forward; simpl); rewrite Eq by computable; simpl. deadvars!.
+  do 9 (forward; simpl); rewrite Eq by computable; simpl. deadvars!.
 
   pose (S0 := mbed_tls_initial_add_round_key plaintext buf).
   match goal with |- context [temp _X0 (Vint ?E)] => change E with (col 0 S0) end.
@@ -57,7 +56,7 @@ Proof.
   match goal with |- context [temp _X3 (Vint ?E)] => change E with (col 3 S0) end.
 
   forward. unfold Sfor. forward.
-  deadvars.
+  deadvars!.
 
   (* ugly hack to avoid type mismatch between
    "(val * (val * list val))%type" and "reptype t_struct_aesctx" *)

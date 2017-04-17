@@ -1,7 +1,6 @@
 Require Import aes.api_specs.
 Require Import aes.partially_filled.
 Require Import aes.bitfiddling.
-Require Import floyd.deadvars.
 Open Scope Z.
 Local Open Scope logic.
 
@@ -115,13 +114,13 @@ Proof.
   forward. entailer!. (* else-branch: Sskip *) (* TODO floyd why do I have to call entailer? *)
   (* rest: *)
   (* ctx->nr = 14; *)
-  forward.  deadvars.
+  forward.  deadvars!.
   (* ctx->rk = RK = ctx->buf; *)
   forward. replace_temp _t'1 (field_address t_struct_aesctx [StructField _buf] ctx). {
     entailer!. rewrite field_compatible_field_address by auto with field_compatible. reflexivity.
   }
   forward. replace_temp _t'1 (field_address t_struct_aesctx [StructField _buf] ctx) by entailer!.
-  forward.  deadvars.
+  forward.  deadvars!.
   (* first loop: *)
   forward_for_simple_bound 8 
     (first_loop_inv0 ctx key tables aes_init_done init_done key_chars ctx_sh key_sh ish).
@@ -159,7 +158,7 @@ Proof.
     apply update_partially_filled. omega.
   }
   reassoc_seq.
-  deadvars.
+  deadvars!.
   (* main loop: *)
 
   (* TODO floyd: we can only use forward_for_simple_bound because we moved the "RK += 8" from the 
@@ -225,16 +224,16 @@ Proof.
     forward. forward.
     fold (tables_initialized tables).
     simpl.
-    RK_store E.  deadvars.
+    RK_store E.  deadvars!.
     RK_load E.
     RK_load E.
-    RK_store E.  deadvars.
+    RK_store E.  deadvars!.
     RK_load E.
     RK_load E.
-    RK_store E.  deadvars.
+    RK_store E.  deadvars!.
     RK_load E.
     RK_load E.
-    RK_store E.  deadvars.
+    RK_store E.  deadvars!.
 
     RK_load E.
     RK_load E.
@@ -244,16 +243,16 @@ Proof.
     forward. forward.
     fold (tables_initialized tables).
     simpl.
-    RK_store E.  deadvars.
+    RK_store E.  deadvars!.
     RK_load E.
     RK_load E.
-    RK_store E.  deadvars.
+    RK_store E.  deadvars!.
     RK_load E.
     RK_load E.
-    RK_store E.  deadvars.
+    RK_store E.  deadvars!.
     RK_load E.
     RK_load E.
-    RK_store E.  deadvars.
+    RK_store E.  deadvars!.
 
     forward. 
     assert_PROP (isptr ctx) as P by entailer!. destruct ctx; inv P.
