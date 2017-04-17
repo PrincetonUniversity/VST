@@ -127,6 +127,54 @@ Proof.
       normalize.
   + simpl msubst_denote_tc_assert; simpl denote_tc_assert.
     apply imp_andp_adjoint.
+    destruct (msubst_eval_expr T1 T2 e) eqn:?H, (msubst_eval_expr T1 T2 e0) eqn:?H.
+    - eapply derives_trans; [apply andp_left2; apply andp_right; eapply msubst_eval_expr_eq; [exact H | exact H0] |].
+      rewrite <- imp_andp_adjoint.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      simpl.
+      normalize.
+    - apply andp_left1, imp_andp_adjoint, andp_left2.
+      unfold denote_tc_test_eq.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      destruct v; simpl; normalize.
+    - apply andp_left1, imp_andp_adjoint, andp_left2.
+      unfold denote_tc_test_eq.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      destruct v; simpl; normalize.
+    - apply andp_left1, imp_andp_adjoint, andp_left2.
+      unfold denote_tc_test_eq.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      simpl; normalize.
+  + simpl msubst_denote_tc_assert; simpl denote_tc_assert.
+    apply imp_andp_adjoint.
+    destruct (msubst_eval_expr T1 T2 e) eqn:?H, (msubst_eval_expr T1 T2 e0) eqn:?H.
+    - eapply derives_trans; [apply andp_left2; apply andp_right; eapply msubst_eval_expr_eq; [exact H | exact H0] |].
+      rewrite <- imp_andp_adjoint.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      simpl.
+      normalize.
+    - apply andp_left1, imp_andp_adjoint, andp_left2.
+      unfold denote_tc_test_order.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      destruct v; simpl; normalize.
+    - apply andp_left1, imp_andp_adjoint, andp_left2.
+      unfold denote_tc_test_order.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      destruct v; simpl; normalize.
+    - apply andp_left1, imp_andp_adjoint, andp_left2.
+      unfold denote_tc_test_order.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      simpl; normalize.
+  + simpl msubst_denote_tc_assert; simpl denote_tc_assert.
+    apply imp_andp_adjoint.
     destruct (msubst_eval_expr T1 T2 e) eqn:?H.
     - eapply derives_trans; [apply andp_left2; eapply msubst_eval_expr_eq; eauto |].
       apply imp_andp_adjoint.
@@ -135,12 +183,94 @@ Proof.
       simpl.
       normalize.
     - apply andp_left1, imp_andp_adjoint, andp_left2.
-      simpl denote_tc_nonzero.
+      simpl denote_tc_igt.
       unfold local, lift1; unfold_lift.
       intros rho.
       simpl.
       normalize.
-    SearchAbout msubst_eval_expr.
+  + simpl msubst_denote_tc_assert; simpl denote_tc_assert.
+    apply imp_andp_adjoint.
+    destruct (msubst_eval_expr T1 T2 e) eqn:?H.
+    - eapply derives_trans; [apply andp_left2; eapply msubst_eval_expr_eq; eauto |].
+      apply imp_andp_adjoint.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      simpl.
+      normalize.
+    - apply andp_left1, imp_andp_adjoint, andp_left2.
+      simpl denote_tc_Zge.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      simpl.
+      normalize.
+  + simpl msubst_denote_tc_assert; simpl denote_tc_assert.
+    apply imp_andp_adjoint.
+    destruct (msubst_eval_expr T1 T2 e) eqn:?H.
+    - eapply derives_trans; [apply andp_left2; eapply msubst_eval_expr_eq; eauto |].
+      apply imp_andp_adjoint.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      simpl.
+      normalize.
+    - apply andp_left1, imp_andp_adjoint, andp_left2.
+      simpl denote_tc_Zle.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      simpl.
+      normalize.
+  + simpl msubst_denote_tc_assert; simpl denote_tc_assert.
+    apply imp_andp_adjoint.
+    destruct (msubst_eval_expr T1 T2 e) eqn:?H, (msubst_eval_expr T1 T2 e0) eqn:?H.
+    - eapply derives_trans; [apply andp_left2; apply andp_right; eapply msubst_eval_expr_eq; [exact H | exact H0] |].
+      rewrite <- imp_andp_adjoint.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      simpl.
+      normalize.
+    - apply andp_left1, imp_andp_adjoint, andp_left2.
+      unfold denote_tc_samebase.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      destruct v; simpl; normalize.
+    - apply andp_left1, imp_andp_adjoint, andp_left2.
+      unfold denote_tc_samebase.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      destruct v; simpl; normalize.
+    - apply andp_left1, imp_andp_adjoint, andp_left2.
+      unfold denote_tc_samebase.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      simpl; normalize.
+  + simpl msubst_denote_tc_assert; simpl denote_tc_assert.
+    apply imp_andp_adjoint.
+    destruct (msubst_eval_expr T1 T2 e) eqn:?H, (msubst_eval_expr T1 T2 e0) eqn:?H.
+    - eapply derives_trans; [apply andp_left2; apply andp_right; eapply msubst_eval_expr_eq; [exact H | exact H0] |].
+      rewrite <- imp_andp_adjoint.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      simpl.
+      normalize.
+    - apply andp_left1, imp_andp_adjoint, andp_left2.
+      unfold denote_tc_nodivover.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      destruct v; simpl; normalize.
+    - apply andp_left1, imp_andp_adjoint, andp_left2.
+      unfold denote_tc_nodivover.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      destruct v; simpl; normalize.
+    - apply andp_left1, imp_andp_adjoint, andp_left2.
+      unfold denote_tc_nodivover.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      simpl; normalize.
+  + simpl msubst_denote_tc_assert; simpl denote_tc_assert.
+    unfold local, lift1; unfold_lift.
+    intros rho.
+    simpl; normalize.
+Qed.
 
 Lemma msubst_simpl_tc_andp: forall {cs: compspecs} P T1 tc1 tc2,
   P |-- denote_tc_assert (msubst_simpl_tc_assert T1 tc1) && denote_tc_assert (msubst_simpl_tc_assert T1 tc2) ->
