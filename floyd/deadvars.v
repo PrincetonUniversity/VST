@@ -75,7 +75,17 @@ Fixpoint deadvars_delete (al vl live: list ident) : list ident * list ident :=
  | nil => (vl,live)
  end.
 
-(* (live'',dead'') = deadvars_stmt vl live dead c (fun vl' live' dead' => B)     means,
+Fixpoint nobreaks (s: statement) : bool :=
+match s with
+| Sbreak => false
+| Scontinue => false
+| Ssequence c1 c2 => nobreaks c1 && nobreaks c2
+| Sloop c1 c2 => nobreaks c1 && nobreaks c2
+| Sifthenelse _ c1 c2 => nobreaks c1 && nobreaks c2
+| _ => true
+end.
+
+(* (live'',dead'') = deadvars_stmt vl live dead c (fun vl' live' dead' => B) (bcont)    means,
    Let ubd = the variables of vl, used-before-defined in c
    Let def = variables of vl, defined-before-used in c
    Let vl = ubd U def U vl'
@@ -83,10 +93,10 @@ Fixpoint deadvars_delete (al vl live: list ident) : list ident * list ident :=
      def we know for sure are dead,
      and vl' we need to keep investigating the commands after c.
    Finally, live' = ubd U live,      dead' = def U dead
-     and we continue the flow analysis with B.
+     and we continue the flow analysis with B, or for break statements we continue with bcont.
    What's returned is a pair (live'',dead'') such that live'' U dead'' = vl.  *)
 Fixpoint deadvars_stmt (vl: list ident) (live dead: list ident) (c: statement) 
-                   (cont: list ident -> list ident -> list ident -> list ident * list ident) : list ident * list ident :=
+                   (cont bcont: list ident -> list ident -> list ident -> list ident * list ident) : list ident * list ident :=
   match vl with nil => (live,dead) | _ =>
    match c with
    | Sskip => cont vl live dead
@@ -110,18 +120,33 @@ Fixpoint deadvars_stmt (vl: list ident) (live dead: list ident) (c: statement)
                       in cont vl'' live' (d++dead)
    | Ssequence c1 c2 =>
           deadvars_stmt vl live dead c1 (fun vl' live' dead' => 
-             deadvars_stmt vl' live' dead' c2 cont)
+             deadvars_stmt vl' live' dead' c2 cont bcont) bcont
    | Sreturn None => (nil, vl++dead)
    | Sreturn (Some e) => let (vl',live') := deadvars_removel [e] vl live
                           in (live', vl' ++ dead)
    | Sifthenelse e c1 c2 =>
+      if nobreaks c1 && nobreaks c2
+      then
            let (vl', live')  := deadvars_removel [e] vl live in
-            let (live1,dead1) := deadvars_stmt vl' nil nil c1 (fun _ l d => (l,d)) in
-            let (live2,dead2) := deadvars_stmt vl' nil nil c2 (fun _ l d => (l,d)) in
+            let (live1,dead1) := deadvars_stmt vl' nil dead c1 (fun _ l d => (l,d)) bcont in
+            let (live2,dead2) := deadvars_stmt vl' nil dead c2 (fun _ l d => (l,d)) bcont in
             let live'' := deadvars_union live1 live2 in
             let dead'' := deadvars_intersection dead1 dead2 in
             let (vl'',live3) := deadvars_delete live'' vl' live' in
-            cont vl'' live3 dead''  
+            cont vl'' live3 dead''
+     else
+           let (vl', live')  := deadvars_removel [e] vl live in
+            let (live1,dead1) := deadvars_stmt vl' live' dead c1 cont bcont in
+            let (live2,dead2) := deadvars_stmt vl' live' dead c2 cont bcont in
+            let live'' := deadvars_union live1 live2 in
+            let dead'' := deadvars_intersection dead1 dead2 in
+            (live'',dead'')           
+   | Sbreak => bcont vl live dead
+   | Sloop c1 c2 =>
+                             (* on the next line, using  vlx++deadx  instead of just deadx  is rather aggressive; is it sound?  *)
+            let cont0 := fun vlx livex deadx => (livex,vlx++deadx) in
+            let cont1 := fun vl' live' dead' => deadvars_stmt vl' live' dead' c2 cont0 cont
+            in deadvars_stmt vl live dead c1 cont1 cont
    | _ => (live,dead)
    end
   end.
@@ -193,20 +218,25 @@ Ltac locals_of_assert P :=
            d
  end.
 
-
 Ltac locals_of_ret_assert Post :=
  match Post with
  | @abbreviate ret_assert ?P => locals_of_ret_assert P
- | normal_ret_assert ?P => locals_of_assert P
- | loop1_ret_assert ?P _ => locals_of_assert P
- | loop2_ret_assert ?P _ => locals_of_assert P
- | function_body_ret_assert _ _ => constr:(@nil ident)
- | overridePost ?P _ => locals_of_assert P
+ | normal_ret_assert ?P => let a := locals_of_assert P in
+                                          constr:(pair a (@nil ident))
+ | loop1_ret_assert ?P ?R => let a := locals_of_assert P in 
+                                            let b := locals_of_ret_assert R in
+                                               constr:(pair a (fst b))
+ | loop2_ret_assert ?P _ => let a := locals_of_assert P in
+                                          constr:(pair a (@nil ident))
+ | function_body_ret_assert _ _ => constr:(pair (@nil ident) (@nil ident))
+ | overridePost ?P ?R => let b := locals_of_ret_assert R in
+                                      let a := locals_of_assert P in
+                                         constr:(pair a (snd b))
  | frame_ret_assert ?A ?B =>
      let vlA :=  locals_of_ret_assert A
       in let vlB := locals_of_assert B
-       in let vl := constr:(vlA++vlB)
-        in vl     
+       in let vl := constr:(pair (fst vlA ++ vlB) (snd vlA ++ vlB))
+        in vl
  end.
 
 Ltac deadvars := 
@@ -216,7 +246,10 @@ Ltac deadvars :=
     constr_eq X Y; 
      let vl := locals_of_assert P in 
      let post := locals_of_ret_assert Q in
-     let d := constr:(snd (deadvars_stmt vl nil nil c (deadvars_post post))) in
+     let post := eval compute in post in
+     let d := constr:(snd (deadvars_stmt vl nil nil c 
+                                     (deadvars_post (fst post)) 
+                                     (deadvars_post (snd post)))) in
       let d := eval compute in d in
        match d with nil => idtac | _ => 
            idtac "Dropping dead vars!"; drop_LOCALs d

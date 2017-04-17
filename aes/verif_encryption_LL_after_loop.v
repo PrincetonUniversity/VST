@@ -65,7 +65,7 @@ semax (encryption_loop_body_Delta' Delta_specs)
             (field_address t_struct_aesctx [ArraySubsc 52; StructField _buf]
                ctx); temp _X3 (Vint (col 3 S12));
    temp _X2 (Vint (col 2 S12)); temp _X1 (Vint (col 1 S12));
-   temp _X0 (Vint (col 0 S12)); temp _ctx ctx; temp _input input;
+   temp _X0 (Vint (col 0 S12));
    temp _output output; gvar _tables tables)
    SEP (data_at_ out_sh (tarray tuchar 16) output; tables_initialized tables;
    data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;

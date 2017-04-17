@@ -33,8 +33,7 @@ Definition first_loop_inv00 ctx key tables aes_init_done init_done key_chars ctx
     PROP ( )
     LOCAL (
       temp _RK  (field_address t_struct_aesctx [StructField _buf] ctx);
-      temp _t'1 (field_address t_struct_aesctx [StructField _buf] ctx);
-      temp _ctx ctx; temp _key key; temp _keybits (Vint (Int.repr 256));
+      temp _key key; temp _keybits (Vint (Int.repr 256));
       gvar _aes_init_done aes_init_done; gvar _tables tables)
     SEP (
       field_at ctx_sh t_struct_aesctx [StructField _nr] (Vint (Int.repr 14)) ctx;
@@ -53,7 +52,6 @@ Definition main_loop_invariant0 ctx key tables ctx_sh key_sh ish key_chars aes_i
   PROP ( )
   LOCAL (
     temp _RK (offset_val (i*32) (field_address t_struct_aesctx [StructField _buf] ctx));
-    temp _ctx ctx;
     gvar _tables tables
   ) SEP (
     field_at ctx_sh t_struct_aesctx [StructField _nr] (Vint (Int.repr 14)) ctx;
@@ -117,13 +115,13 @@ Proof.
   forward. entailer!. (* else-branch: Sskip *) (* TODO floyd why do I have to call entailer? *)
   (* rest: *)
   (* ctx->nr = 14; *)
-  forward.
+  forward.  deadvars.
   (* ctx->rk = RK = ctx->buf; *)
   forward. replace_temp _t'1 (field_address t_struct_aesctx [StructField _buf] ctx). {
     entailer!. rewrite field_compatible_field_address by auto with field_compatible. reflexivity.
   }
   forward. replace_temp _t'1 (field_address t_struct_aesctx [StructField _buf] ctx) by entailer!.
-  forward.
+  forward.  deadvars.
   (* first loop: *)
   forward_for_simple_bound 8 
     (first_loop_inv0 ctx key tables aes_init_done init_done key_chars ctx_sh key_sh ish).
@@ -161,6 +159,7 @@ Proof.
     apply update_partially_filled. omega.
   }
   reassoc_seq.
+  deadvars.
   (* main loop: *)
 
   (* TODO floyd: we can only use forward_for_simple_bound because we moved the "RK += 8" from the 

@@ -67,7 +67,7 @@ semax (encryption_loop_body_Delta DS)
      (Vint (col 1 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4)));
    temp _X0
      (Vint (col 0 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4)));
-   temp _ctx ctx; temp _input input; temp _output output;
+   temp _output output;
    gvar _tables tables)
    SEP (data_at_ out_sh (tarray tuchar 16) output;
    data_at Ews t_struct_tables
@@ -105,7 +105,7 @@ semax (encryption_loop_body_Delta DS)
       temp _X0
         (Vint
            (col 0 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat (i0 - 1)) S0 buf 4)));
-      temp _ctx ctx; temp _input input; temp _output output;
+      temp _output output;
       gvar _tables tables)
       SEP (data_at_ out_sh (tarray tuchar 16) output;
       tables_initialized tables;
@@ -122,7 +122,7 @@ semax (encryption_loop_body_Delta DS)
                      [ArraySubsc 52; StructField _buf] ctx);
          temp _X3 (Vint (col 3 S12)); temp _X2 (Vint (col 2 S12));
          temp _X1 (Vint (col 1 S12)); temp _X0 (Vint (col 0 S12));
-         temp _ctx ctx; temp _input input; temp _output output;
+         temp _output output;
          gvar _tables tables)
          SEP (data_at_ out_sh (tarray tuchar 16) output;
          tables_initialized tables;
