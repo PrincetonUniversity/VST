@@ -1,6 +1,13 @@
 Require Import floyd.base.
 Local Open Scope logic.
 
+Ltac solve_andp' :=
+  first [ apply derives_refl
+        | apply andp_left1; solve_andp'
+        | apply andp_left2; solve_andp'].
+
+Ltac solve_andp := repeat apply andp_right; solve_andp'.
+
 Lemma proj_sumbool_is_false:
   forall (P: Prop) (a: {P}+{~P}), ~P -> proj_sumbool a = false.
 Proof.

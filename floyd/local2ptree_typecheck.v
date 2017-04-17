@@ -40,3 +40,201 @@ Definition msubst_tc_lvalue {cs: compspecs} (Delta: tycontext) (T1: PTree.t val)
 
 Definition msubst_tc_expr {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (T2: PTree.t vardesc) (e: expr) :=
   msubst_denote_tc_assert T1 T2 (msubst_simpl_tc_assert T1 (typecheck_expr Delta e)).
+
+
+(* Soundness proof *)
+
+(* We cannot prove the following lemma because we need the property that
+whenever a tc_initialized is called, a temp_type exists in Delta
+
+Lemma msubst_simpl_tc_assert_sound: forall {cs: compspecs} Delta P T1 T2 Q R tc,
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+    denote_tc_assert (msubst_simpl_tc_assert T1 tc) ->
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+    denote_tc_assert tc.*)
+
+Lemma msubst_denote_tc_assert_sound: forall {cs: compspecs} Delta P T1 T2 Q R tc,
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+    `(msubst_denote_tc_assert T1 T2 tc) ->
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+    denote_tc_assert tc.
+Proof.
+  intros.
+  rewrite (add_andp _ _ H); clear H.
+  induction tc.
+  + apply andp_left2; auto.
+  + apply andp_left2; auto.
+  + change (denote_tc_assert (tc_andp' tc1 tc2)) with (denote_tc_assert tc1 && denote_tc_assert tc2).
+    change (`(msubst_denote_tc_assert T1 T2 (tc_andp' tc1 tc2)))
+      with (`(msubst_denote_tc_assert T1 T2 tc1) && `(msubst_denote_tc_assert T1 T2 tc2)).
+    apply andp_right.
+    - eapply derives_trans; [| apply IHtc1].
+      solve_andp.
+    - eapply derives_trans; [| apply IHtc2].
+      solve_andp.
+  + change (denote_tc_assert (tc_orp' tc1 tc2)) with (denote_tc_assert tc1 || denote_tc_assert tc2).
+    change (`(msubst_denote_tc_assert T1 T2 (tc_orp' tc1 tc2)))
+      with (`(msubst_denote_tc_assert T1 T2 tc1) || `(msubst_denote_tc_assert T1 T2 tc2)).
+    rewrite (andp_comm (_ && _)).
+    apply imp_andp_adjoint.
+    apply orp_left; apply imp_andp_adjoint; rewrite <- (andp_comm (_ && _)).
+    - eapply derives_trans; [exact IHtc1 | apply orp_right1; auto].
+    - eapply derives_trans; [exact IHtc2 | apply orp_right2; auto].
+  + simpl msubst_denote_tc_assert; simpl denote_tc_assert.
+    apply imp_andp_adjoint.
+    destruct (msubst_eval_expr T1 T2 e) eqn:?H.
+    - eapply derives_trans; [apply andp_left2; eapply msubst_eval_expr_eq; eauto |].
+      apply imp_andp_adjoint.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      simpl.
+      normalize.
+    - apply andp_left1, imp_andp_adjoint, andp_left2.
+      simpl denote_tc_nonzero.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      simpl.
+      normalize.
+  + simpl msubst_denote_tc_assert; simpl denote_tc_assert.
+    apply imp_andp_adjoint.
+    destruct (msubst_eval_expr T1 T2 e) eqn:?H.
+    - eapply derives_trans; [apply andp_left2; eapply msubst_eval_expr_eq; eauto |].
+      apply imp_andp_adjoint.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      simpl.
+      normalize.
+    - apply andp_left1, imp_andp_adjoint, andp_left2.
+      simpl denote_tc_iszero.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      simpl.
+      normalize.
+  + simpl msubst_denote_tc_assert; simpl denote_tc_assert.
+    apply imp_andp_adjoint.
+    destruct (msubst_eval_expr T1 T2 e) eqn:?H.
+    - eapply derives_trans; [apply andp_left2; eapply msubst_eval_expr_eq; eauto |].
+      apply imp_andp_adjoint.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      simpl.
+      normalize.
+    - apply andp_left1, imp_andp_adjoint, andp_left2.
+      unfold denote_tc_isptr.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      simpl.
+      normalize.
+  + simpl msubst_denote_tc_assert; simpl denote_tc_assert.
+    apply imp_andp_adjoint.
+    destruct (msubst_eval_expr T1 T2 e) eqn:?H.
+    - eapply derives_trans; [apply andp_left2; eapply msubst_eval_expr_eq; eauto |].
+      apply imp_andp_adjoint.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      simpl.
+      normalize.
+    - apply andp_left1, imp_andp_adjoint, andp_left2.
+      simpl denote_tc_nonzero.
+      unfold local, lift1; unfold_lift.
+      intros rho.
+      simpl.
+      normalize.
+    SearchAbout msubst_eval_expr.
+
+Lemma msubst_simpl_tc_andp: forall {cs: compspecs} P T1 tc1 tc2,
+  P |-- denote_tc_assert (msubst_simpl_tc_assert T1 tc1) && denote_tc_assert (msubst_simpl_tc_assert T1 tc2) ->
+  P |-- denote_tc_assert (msubst_simpl_tc_assert T1 (tc_andp' tc1 tc2)).
+Proof. 
+  intros.
+  eapply derives_trans; [exact H | clear H].
+  simpl msubst_simpl_tc_assert.
+  rewrite denote_tc_assert_andp.
+  change (denote_tc_assert (tc_andp' tc1 tc2)) with (denote_tc_assert tc1 && denote_tc_assert tc2).
+  auto.
+Qed.
+SearchAbout tc_andp.
+Lemma msubst_simpl_tc_andp_sound: forall {cs: compspecs} T1 tc1 tc2,
+  msubst_simpl_tc_assert T1 (tc_andp tc1 tc2) =
+  tc_andp (msubst_simpl_tc_assert T1 tc1) (msubst_simpl_tc_assert T1 tc2).
+Proof.
+  intros.
+  destruct tc1, tc2; auto.
+  + simpl.
+    destruct (tc_andp (msubst_simpl_tc_assert T1 tc1_1) (msubst_simpl_tc_assert T1 tc1_2)); auto.
+                         msubst_denote_tc_assert T1 T2 (msubst_simpl_tc_assert T1 tc1) &&
+  msubst_denote_tc_assert T1 T2 (msubst_simpl_tc_assert T1 tc2).
+
+Lemma msubst_simpl_tc_orp: forall {cs: compspecs} P T1 tc1 tc2,
+  P |-- denote_tc_assert (msubst_simpl_tc_assert T1 tc1) || denote_tc_assert (msubst_simpl_tc_assert T1 tc2) ->
+  P |-- denote_tc_assert (msubst_simpl_tc_assert T1 (tc_orp' tc1 tc2)).
+Proof. 
+  intros.
+  eapply derives_trans; [exact H | clear H].
+  simpl msubst_simpl_tc_assert.
+  rewrite denote_tc_assert_orp.
+  change (denote_tc_assert (tc_orp' tc1 tc2)) with (denote_tc_assert tc1 || denote_tc_assert tc2).
+  auto.
+Qed.
+
+Lemma msubst_tc_lvalue_sound: forall {cs: compspecs} Delta P T1 T2 Q R e,
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+    `(msubst_tc_lvalue Delta T1 T2 e) ->
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+    tc_lvalue Delta e
+ with msubst_tc_expr_sound: forall {cs: compspecs} Delta P T1 T2 Q R e,
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+    `(msubst_tc_expr Delta T1 T2 e) ->
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+    tc_expr Delta e.
+Proof.
+  + intros.
+    rewrite (add_andp _ _ H); clear H.
+    induction e; try solve [apply andp_left2; auto];
+    unfold tc_lvalue, msubst_tc_lvalue;
+    simpl denote_tc_assert; simpl msubst_denote_tc_assert.
+    - destruct (get_var_type Delta i); try solve [apply andp_left2; auto].
+      destruct (eqb_type t t0); try solve [apply andp_left2; auto].
+    - unfold tc_lvalue, msubst_tc_lvalue.
+      simpl denote_tc_assert; simpl msubst_denote_tc_assert.
+      destruct (get_var_type Delta i); try solve [apply andp_left2; auto].
+      destruct (eqb_type t t0); try solve [apply andp_left2; auto].
+  + simpl msubst_simpl_tc_assert.
+    rewrite denote_tc_assert_andp.
+    change (denote_tc_assert (tc_andp' tc1 tc2)) with (denote_tc_assert tc1 && denote_tc_assert tc2).
+    apply andp_right.
+    - eapply derives_trans; [| exact IHtc1].
+      solve_andp.
+    - eapply derives_trans; [| exact IHtc2].
+      solve_andp.
+  + simpl msubst_simpl_tc_assert.
+    rewrite denote_tc_assert_orp.
+    change (denote_tc_assert (tc_orp' tc1 tc2)) with (denote_tc_assert tc1 || denote_tc_assert tc2).
+    rewrite (andp_comm (_ && _)).
+    apply imp_andp_adjoint.
+    apply orp_left; apply imp_andp_adjoint; rewrite <- (andp_comm (_ && _)).
+    - eapply derives_trans; [exact IHtc1 | apply orp_right1; auto].
+    - eapply derives_trans; [exact IHtc2 | apply orp_right2; auto].
+  + simpl denote_tc_assert.
+    unfold denote_tc_initialized.
+    destruct (T1 ! e) eqn:?H.
+    - intros rho.
+      unfold PROPx, LOCALx.
+      simpl.
+      unfold local, lift1; unfold_lift.
+      apply andp_left1.
+      rewrite <- !andp_assoc.
+      apply andp_left1.
+      rewrite andp_comm, <- andp_assoc.
+      apply andp_left1.
+      rewrite <- prop_and.
+      apply prop_derives.
+      intros [? ?].
+      apply msubst_eval_eq_aux in H0.
+      destruct H0 as [? _].
+      specialize (H0 _ _ H).
+      unfold eval_id in H0.
+      destruct H1 as [? _].
+      specialize (H1 e t).
+      unfold force_val in H0.
+    SearchAbout LocalD (_ ! _).
