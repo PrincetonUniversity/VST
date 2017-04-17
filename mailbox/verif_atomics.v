@@ -1056,6 +1056,20 @@ Proof.
   intro; subst; contradiction.
 Qed.
 
+Lemma add_events_NoDup : forall h le h', add_events h le h' -> NoDup (map fst h) -> NoDup (map fst h').
+Proof.
+  induction 1; auto; intros.
+  rewrite map_app, NoDup_app_iff.
+  split; auto.
+  split; [repeat constructor; simpl; auto|].
+  simpl; intros ? Hin [? | ?]; [subst | contradiction].
+  unfold newer in Ht.
+  rewrite in_map_iff in Hin; destruct Hin as (? & ? & Hin); subst.
+  rewrite Forall_forall in Ht; specialize (Ht _ Hin); omega.
+Qed.
+
+(* FCSL takes the approach that h is always empty, and the previous history is framed out and then combined
+   with the new event by hist join. We can do that, but whether it's preferable might be a matter of taste. *)
 Notation AL_witness sh p g i R h P Q :=
   (sh%logic, p%logic, (ghost_hist sh h g * P)%logic, hist_R g%logic i R,
    EX h' : hist, fun v => !!(add_events h [Load (vint v)] h') && ghost_hist sh h' g * Q v).

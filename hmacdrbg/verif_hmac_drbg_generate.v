@@ -1515,7 +1515,6 @@ set (HLP := HMAC_DRBG_generate_helper_Z HMAC256 (*after_update_key after_update_
     {
       clear Heqdone_output Hmultiple.
       entailer!.
-      rewrite H10 (*Zlength = done *) in *; assumption.
     }
     replace_SEP 1 (
         data_at Tsh (tarray tuchar use_len) (list_repeat (Z.to_nat use_len) Vundef) done_output *

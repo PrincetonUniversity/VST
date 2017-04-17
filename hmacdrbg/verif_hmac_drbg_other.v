@@ -167,6 +167,259 @@ Proof.
   Intros v. forward. simpl. Exists (Vint v). entailer!.
 Qed.
 
+Definition WF (I:hmac256drbgabs):=
+         Zlength (hmac256drbgabs_value I) = 32 /\ 
+         0 < hmac256drbgabs_entropy_len I <= 384 /\
+         hmac256drbgabs_reseed_interval I = 10000 /\
+         0 <= hmac256drbgabs_reseed_counter I <= Int.max_signed /\
+         Forall isbyteZ (hmac256drbgabs_value I).
+
+Definition hmac_drbg_random_spec_simple :=
+  DECLARE _mbedtls_hmac_drbg_random
+   WITH output: val, n: Z,
+        ctx: val, i: hmac256drbgstate,
+        I: hmac256drbgabs,
+        kv: val, info: md_info_state,
+        s: ENTROPY.stream, bytes:_, J:_, ss:_
+    PRE [_p_rng OF tptr tvoid, _output OF tptr tuchar, _out_len OF tuint ]
+       PROP ( WF I;
+         0 <= n <= 1024;
+         mbedtls_HMAC256_DRBG_generate_function s I n [] = ENTROPY.success (bytes, J) ss)
+       LOCAL (temp _p_rng ctx; temp _output output;
+              temp _out_len (Vint (Int.repr n)); gvar sha._K256 kv)
+       SEP (
+         data_at_ Tsh (tarray tuchar n) output;
+         data_at Tsh t_struct_hmac256drbg_context_st i ctx;
+         hmac256drbg_relate I i;
+         data_at Tsh t_struct_mbedtls_md_info info (hmac256drbgstate_md_info_pointer i);
+         Stream s;
+         K_vector kv)
+    POST [ tint ] EX F: hmac256drbgabs, EX f: hmac256drbgstate,
+       PROP (F = match J with ((((VV, KK), RC), _), PR) =>
+                   HMAC256DRBGabs KK VV RC (hmac256drbgabs_entropy_len I) PR 
+                        (hmac256drbgabs_reseed_interval I)
+                      end) 
+       LOCAL (temp ret_temp (Vint Int.zero))
+       SEP (data_at Tsh (tarray tuchar n) (map Vint (map Int.repr bytes)) output;
+            data_at Tsh t_struct_hmac256drbg_context_st f ctx;
+         hmac256drbg_relate F f;
+         data_at Tsh t_struct_mbedtls_md_info info (hmac256drbgstate_md_info_pointer f);
+        Stream ss; K_vector kv).
+
+Lemma AUX s I n bytes J ss: mbedtls_HMAC256_DRBG_generate_function s I n [] =
+  ENTROPY.success (bytes, J) ss ->
+  hmac256drbgabs_generate I s n [] = 
+  match J with ((((VV, KK), RC), _), PR) =>
+     HMAC256DRBGabs KK VV RC (hmac256drbgabs_entropy_len I) PR 
+                    (hmac256drbgabs_reseed_interval I)
+  end.
+Proof. unfold hmac256drbgabs_generate. intros H; rewrite H.
+  destruct I. simpl. trivial. 
+Qed. 
+
+Opaque hmac256drbgabs_generate.
+
+Lemma body_hmac_drbg_random_simple: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
+      f_mbedtls_hmac_drbg_random hmac_drbg_random_spec_simple.
+Proof.
+  start_function.
+  abbreviate_semax.
+  destruct H as [ASS1 [ASS2 [ASS3 [ASS4 ASS5]]]].
+  destruct H0 as [ASS6 ASS7]. rename H1 into ASS8.
+  forward.
+  forward_call (@nil Z, nullval, Z0, output, n, ctx, i,
+                I, kv, info, s).
+  { rewrite da_emp_null; trivial. cancel. }
+  { rewrite Zlength_nil.
+    repeat (split; try assumption; try rewrite int_max_unsigned_eq; try omega).
+    constructor. }
+  Intros v. forward. unfold hmac256drbgabs_common_mpreds.
+  unfold generatePOST, contents_with_add; simpl. 
+  apply Zgt_is_gt_bool_f in ASS7. rewrite ASS7 in *.
+  rewrite ASS8 in *.
+  unfold return_value_relate_result, da_emp; simpl. entailer!.
+  Exists (hmac256drbgabs_generate I s
+            (Zlength (map Vint (map Int.repr bytes))) []).
+  Exists (hmac256drbgabs_to_state (hmac256drbgabs_generate I s
+            (Zlength (map Vint (map Int.repr bytes))) []) i).
+  apply andp_right. 
+  + entailer!. apply AUX in ASS8; rewrite <- ASS8; reflexivity. 
+  + entailer!.
+  unfold hmac256drbgabs_common_mpreds; simpl.
+  cancel.
+  eapply derives_trans. apply sepcon_derives. apply derives_refl.
+  instantiate (1:=emp). 
+  apply orp_left. trivial. normalize. cancel. 
+Qed.
+(*
+Definition myProp s n I (i F:hmac256drbgstate): Prop :=
+  F = (hmac256drbgabs_to_state (hmac256drbgabs_generate I s n []) i).
+
+Definition hmac_drbg_random_spec_simple :=
+  DECLARE _mbedtls_hmac_drbg_random
+   WITH output: val, out_len: Z,
+        ctx: val, i: hmac256drbgstate,
+        I: hmac256drbgabs,
+        kv: val, info: md_info_state,
+        s: ENTROPY.stream, bytes:_, J:_, ss:_
+    PRE [_p_rng OF tptr tvoid, _output OF tptr tuchar, _out_len OF tuint ]
+       PROP ( WF I;
+         0 <= out_len <= 1024;
+         mbedtls_HMAC256_DRBG_generate_function s I out_len [] = ENTROPY.success (bytes, J) ss)
+       LOCAL (temp _p_rng ctx; temp _output output;
+              temp _out_len (Vint (Int.repr out_len)); gvar sha._K256 kv)
+       SEP (
+         data_at_ Tsh (tarray tuchar out_len) output;
+         data_at Tsh t_struct_hmac256drbg_context_st i ctx;
+         hmac256drbg_relate I i;
+         data_at Tsh t_struct_mbedtls_md_info info (hmac256drbgstate_md_info_pointer i);
+         Stream s;
+         K_vector kv)
+    POST [ tint ] EX final_state: hmac256drbgstate,
+       PROP (final_state = hmac256drbgabs_to_state (hmac256drbgabs_generate I s out_len []) i)
+       LOCAL (temp ret_temp (Vint Int.zero))
+       SEP (data_at Tsh (tarray tuchar out_len) (map Vint (map Int.repr bytes)) output;
+            data_at Tsh t_struct_hmac256drbg_context_st final_state ctx;
+         hmac256drbg_relate (hmac256drbgabs_generate I s out_len []) final_state;
+         data_at Tsh t_struct_mbedtls_md_info info (hmac256drbgstate_md_info_pointer final_state);
+        Stream ss; K_vector kv).
+(*
+generatePOST (Vint Int.zero) nil nullval 0 output out_len ctx initial_state I kv info_contents s).
+*)
+
+Lemma AUX s I n bytes J ss: mbedtls_HMAC256_DRBG_generate_function s I n [] =
+  ENTROPY.success (bytes, J) ss ->
+  hmac256drbgabs_generate I s n [] = 
+  match J with ((((VV, KK), RC), _), PR) =>
+     HMAC256DRBGabs KK VV RC (hmac256drbgabs_entropy_len I) PR 
+                    (hmac256drbgabs_reseed_interval I)
+  end.
+Proof. unfold hmac256drbgabs_generate. intros H; rewrite H.
+  destruct I. simpl. trivial. 
+Qed. 
+
+Opaque hmac256drbgabs_generate.
+
+Lemma body_hmac_drbg_random_simple: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
+      f_mbedtls_hmac_drbg_random hmac_drbg_random_spec_simple.
+Proof.
+  start_function.
+  abbreviate_semax.
+  destruct H as [ASS1 [ASS2 [ASS3 [ASS4 ASS5]]]].
+  destruct H0 as [ASS6 ASS7]. rename H1 into ASS8.
+  forward.
+  forward_call (@nil Z, nullval, Z0, output, out_len, ctx, i,
+                I, kv, info, s).
+  { rewrite da_emp_null; trivial. cancel. }
+  { rewrite Zlength_nil.
+    repeat (split; try assumption; try rewrite int_max_unsigned_eq; try omega).
+    constructor. }
+  Intros v. forward. unfold hmac256drbgabs_common_mpreds.
+  unfold generatePOST, contents_with_add; simpl. 
+  apply Zgt_is_gt_bool_f in ASS7. rewrite ASS7 in *.
+  rewrite ASS8 in *.
+  unfold return_value_relate_result, da_emp; simpl. entailer!.
+  Exists (hmac256drbgabs_to_state (hmac256drbgabs_generate I s
+            (Zlength (map Vint (map Int.repr bytes))) []) i).
+  apply andp_right. 
+  + entailer!. 
+  + entailer!.
+  unfold hmac256drbgabs_common_mpreds; simpl.
+  cancel.
+  eapply derives_trans. apply sepcon_derives. apply derives_refl.
+  instantiate (1:=emp). 
+  apply orp_left. trivial. normalize. cancel. 
+Qed.
+ unfold hmac256drbgabs_generate.
+  remember  (@Zlength (@reptype hmac_drbg_compspecs.CompSpecs tuchar)
+                       (@map Int.int val Vint (@map Z Int.int Int.repr bytes))) as len. 
+  remember (HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance
+        reseed_interval) as A. 
+  remember (HMAC256DRBGabs l0 l z entropy_len b reseed_interval) as B. 
+  assert (HB: B = (hmac256drbgabs_generate A s len [])).
+  { clear - Heqlen ASS8 H0. rewrte . rewrite ASS8 in H0.  subst.  subst. rewrite ASS8 in H0. unfold hmac256drbgabs_generate,  mbedtls_HMAC256_DRBG_generate_function. simpl in H0. rewrite H0.
+  rewrite <- HB.
+  cancel.
+  remember (hmac256drbgabs_generate
+     (HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance
+        reseed_interval) s (Zlength (map Vint (map Int.repr bytes))) (@nil Z)) as hh; clear Heqhh. 
+  destruct initial_state as [? ? ? ? ?]. simpl.
+  unfold hmac256drbgabs_to_state.
+  remember (mbedtls_HMAC256_DRBG_generate_function s I
+               (Zlength (map Vint (map Int.repr bytes))) []). 
+  assert (r=ENTROPY.success (bytes, J) ss).
+  { subst r. apply ASS8. } clear Heqr. cancel.
+  remember (hmac256drbgabs_generate I s
+            (Zlength (map Vint (map Int.repr bytes))) []) as h.
+  unfold hmac256drbgabs_generate in Heqh. 
+  unfold hmac256drbgabs_common_mpreds; simpl.
+  remember (mbedtls_HMAC256_DRBG_generate_function s I
+               (Zlength (map Vint (map Int.repr bytes))) []). 
+  assert (r=ENTROPY.success (bytes, J) ss).
+  { subst r. apply ASS8. } clear Heqr.
+  Exists (hmac256drbgabs_to_state h initial_state). 
+  apply andp_right. admit. 
+  entailer. 
+  cancel.
+  destruct I. destruct J as [[[[? ?] ?] ?] ?].
+  eapply derives_trans. apply sepcon_derives. apply derives_refl.
+  instantiate (1:=emp). 
+  apply orp_left. trivial. normalize. unfold hmac256drbgabs_generate.
+  remember  (@Zlength (@reptype hmac_drbg_compspecs.CompSpecs tuchar)
+                       (@map Int.int val Vint (@map Z Int.int Int.repr bytes))) as len. 
+  remember (HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance
+        reseed_interval) as A. 
+  remember (HMAC256DRBGabs l0 l z entropy_len b reseed_interval) as B. 
+  assert (HB: B = (hmac256drbgabs_generate A s len [])).
+  { clear - Heqlen ASS8 H0. rewrte . rewrite ASS8 in H0.  subst.  subst. rewrite ASS8 in H0. unfold hmac256drbgabs_generate,  mbedtls_HMAC256_DRBG_generate_function. simpl in H0. rewrite H0.
+  rewrite <- HB.
+  cancel.
+  remember (hmac256drbgabs_generate
+     (HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance
+        reseed_interval) s (Zlength (map Vint (map Int.repr bytes))) (@nil Z)) as hh; clear Heqhh. 
+  destruct initial_state as [? ? ? ? ?]. simpl.
+  unfold hmac256drbgabs_to_state.
+Print hmac256drbgstate. cancel. simpl.
+  remember ().
+  unfold hmac256drbgabs_generate.
+  normalize. cancel.
+Qed. 
+  remember (hmac256drbgabs_generate I s (Zlength (map Vint (map Int.repr bytes)))
+         []). 
+  unfold hmac256drbgabs_generate. rewrite ASS8. clear ASS8. 
+  destruct I as [K V RC EL PR RI]. simpl in *. 
+  destruct J as [[[[VAL KEY] RCC] SecStr] PRflag]. simpl. rewrite ASS7. subst h; simpl.
+  destruct I (hmac256drbgabs_generate I s (Zlength (map Vint (map Int.repr bytes))) []).
+  unfold hmac256drbgabs_common_mpreds. simpl.
+  unfold hmac256drbgabs_generate in Heqh. rewrite ASS8 in Heqh.
+  subst h. entailer.
+Locate hmac256drbgabs.
+  destruct I as [K V RC EL PR RI]. simpl in *. 
+Print DRBG_functions.DRBG_state_handle. destruct J as [[[[VAL KEY] RCC] SecStr] PRflag]. subst h; simpl.
+  unfold return_value_relate_result, da_emp; simpl. entailer!.
+  unfold hmac256drbgabs_common_mpreds. simpl.
+  cancel.
+  eapply derives_trans. apply sepcon_derives. apply derives_refl.
+  instantiate (1:=emp). 2: cancel. 
+  apply orp_left. trivial. normalize. 
+Qed. ntailer.
+ normalize. cancel. destruct (
+  destruct I. simpl in *. 
+  apply Zgt_is_gt_bool_f in ASS7. rewrite ASS7 in *.
+  rewrite ASS8 in *; clear ASS8.  unfold return_value_relate_result in *. simpl in *. 
+  unfold da_emp; simpl. unfold hmac256drbgabs_common_mpreds; simpl. unfold hmac256drbgabs_to_state. simpl.
+  destruct xx as [[[[V' key'] rc'] x']pr']. 
+  destruct initial_state. simpl.
+  unfold hmac256drbgstate_md_info_pointer. simpl.
+  unfold hmac256drbgabs_common_mpreds. simpl. 
+  unfold hmac256drbgabs_to_state, hmac256drbgstate_md_info_pointer.
+  simpl.
+  unfold mbedtls_HMAC256_DRBG_generate_function in H5. 
+  destruct initial_state_abs.  simpl in *. rewrite H5.
+  remember (Z.gtb out_len 1024). Focus 2. rewrite if_false.
+  rewrite H5. Exists (Vint v). entailer!.
+Qed.
+*)
 Lemma body_hmac_drbg_init: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
       f_mbedtls_hmac_drbg_init hmac_drbg_init_spec.
 Proof.
