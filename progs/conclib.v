@@ -2303,6 +2303,22 @@ Proof.
     subst; repeat rewrite prop_true_andp; auto.
 Qed.
 
+Lemma comp_join_top : forall sh, sepalg.join sh (Share.comp sh) Tsh.
+Proof.
+  intro; pose proof (Share.comp1 sh).
+  apply comp_parts_join with (L := sh)(R := Share.comp sh); auto;
+    rewrite Share.glb_idem, Share.glb_top.
+  - rewrite Share.comp2; auto.
+  - rewrite Share.glb_commute, Share.comp2; auto.
+Qed.
+
+Lemma unreadable_bot : ~readable_share Share.bot.
+Proof.
+  unfold readable_share, nonempty_share, sepalg.nonidentity.
+  rewrite Share.glb_bot; auto.
+Qed.
+Hint Resolve unreadable_bot.
+
 Lemma split_readable_share sh :
   readable_share sh ->
   exists sh1, exists sh2,

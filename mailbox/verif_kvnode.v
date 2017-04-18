@@ -20,57 +20,74 @@ Opaque upto.
 
 Definition make_loads lv := map (fun v => Load (vint v)) lv.
 
+(* Invariant for version number: Every write increases it, and the version of each data location is at least the
+   most recently read version. *)
+(* Invariant for each location: The "rounded up" version number is at least the location's version. *)
+
+Definition round_up i := i + i mod 2.
+Definition round_down i := i - i mod 2.
+
+Definition ver_R g lg (h : list hist_el) v := EX lv : list Z,
+  !!(Zlength lv = 8 /\ Forall (fun v' => round_down v <= v') lv) &&
+  ghost_master v g * fold_right sepcon emp (map (fun '(v, g) => ghost_snap v g) (combine lv lg)).
+Definition loc_R g gv (h : list hist_el) (v : Z) := EX ver : Z, EX ver' : Z, !!(ver <= round_up ver') &&
+  ghost_master ver g * ghost_snap ver' gv.
+
 Definition read_spec :=
  DECLARE _read
- WITH n : val, out : val, sh : share, version : val, locs : list val,
-   gv : val, hv : hist, ghosts : list val, hists : list hist
+ WITH n : val, out : val, sh : share, version : val, locs : list val, gv : val, gv2 : val, lg : list val,
+   hv : hist, ghosts : list val, hists : list hist, v0 : Z, vals0 : list Z
  PRE [ _n OF tptr tnode, _out OF tptr tint ]
-  PROP (readable_share sh; Zlength ghosts = 8; Zlength hists = 8)
+  PROP (readable_share sh; Zlength lg = 8; Zlength ghosts = 8; Zlength hists = 8; Zlength vals0 = 8)
   LOCAL (temp _n n; temp _out out)
   SEP (data_at sh tnode (version, locs) n; data_at_ Tsh (tarray tint 8) out;
-       atomic_loc_hist sh version gv 0 (fun _ _ => emp) hv;
+       atomic_loc_hist sh version gv 0 (ver_R gv2 lg) hv; ghost_snap v0 gv2;
        fold_right sepcon emp (map (fun i => atomic_loc_hist sh (Znth i locs Vundef) (Znth i ghosts Vundef) 0
-         (fun _ _ => emp) (Znth i hists [])) (upto 8)))
+         (loc_R (Znth i lg Vundef) gv2) (Znth i hists [])) (upto 8));
+       fold_right sepcon emp (map (fun '(v, g) => ghost_snap v g) (combine vals0 lg)))
  POST [ tvoid ]
   EX failvs : list Z, EX loops : Z, EX v : Z, EX hv' : hist, EX vals : list Z, EX hists' : list hist,
   PROP (Z.testbit v 0 = false; add_events hv (make_loads (failvs ++ [v; v])) hv'; Forall repable_signed failvs;
         Forall repable_signed vals; Zlength hists' = 8; loops <= Zlength failvs)
   LOCAL ()
   SEP (data_at sh tnode (version, locs) n; data_at Tsh (tarray tint 8) (map (fun x => vint x) vals) out;
-       atomic_loc_hist sh version gv 0 (fun _ _ => emp) hv';
+       atomic_loc_hist sh version gv 0 (ver_R gv2 lg) hv'; ghost_snap v gv2;
        fold_right sepcon emp (map (fun i => EX fails : list Z,
          !!(add_events (Znth i hists []) (make_loads (fails ++ [Znth i vals 0])) (Znth i hists' []) /\
             Zlength fails = loops) &&
-         atomic_loc_hist sh (Znth i locs Vundef) (Znth i ghosts Vundef) 0 (fun _ _ => emp) (Znth i hists' []))
-         (upto 8))).
+         atomic_loc_hist sh (Znth i locs Vundef) (Znth i ghosts Vundef) 0
+           (loc_R (Znth i lg Vundef) gv2) (Znth i hists' [])) (upto 8));
+       fold_right sepcon emp (map (ghost_snap v) lg)).
 
 Definition write_spec :=
  DECLARE _write
- WITH n : val, input : val, sh : share, version : val, locs : list val, vals : list Z,
-   gv : val, hv : hist, ghosts : list val, hists : list hist
+ WITH n : val, input : val, sh : share, version : val, locs : list val, vals : list Z, gv : val, gv2 : val,
+   lg : list val, hv : hist, ghosts : list val, hists : list hist, v0 : Z, vals0 : list Z
  PRE [ _n OF tptr tnode, _in OF tptr tint ]
-  PROP (readable_share sh; Forall repable_signed vals; Zlength ghosts = 8; Zlength hists = 8)
+  PROP (readable_share sh; Forall repable_signed vals; Zlength lg = 8; Zlength ghosts = 8; Zlength hists = 8;
+        Zlength vals0 = 8)
   LOCAL (temp _n n; temp _in input)
   SEP (data_at sh tnode (version, locs) n; data_at Tsh (tarray tint 8) (map (fun x => vint x) vals) input;
-       atomic_loc_hist sh version gv 0 (fun _ _ => emp) hv;
+       atomic_loc_hist sh version gv 0 (ver_R gv2 lg) hv; ghost_snap v0 gv2;
        fold_right sepcon emp (map (fun i => atomic_loc_hist sh (Znth i locs Vundef) (Znth i ghosts Vundef) 0
-         (fun _ _ => emp) (Znth i hists [])) (upto 8)))
+         (loc_R (Znth i lg Vundef) gv2) (Znth i hists [])) (upto 8));
+       fold_right sepcon emp (map (fun '(v, g) => ghost_snap v g) (combine vals0 lg)))
  POST [ tvoid ]
   EX v : Z, EX hv' : hist, EX hists' : list hist,
   PROP (add_events hv [Load (vint v); Store (vint (Z.lor v 1)); Store (vint (v + 2))] hv'; Zlength hists' = 8)
   LOCAL ()
   SEP (data_at sh tnode (version, locs) n; data_at Tsh (tarray tint 8) (map (fun x => vint x) vals) input;
-       atomic_loc_hist sh version gv 0 (fun _ _ => emp) hv';
+       atomic_loc_hist sh version gv 0 (ver_R gv2 lg) hv'; ghost_snap (v + 2) gv2;
        fold_right sepcon emp (map (fun i =>
        !!(add_events (Znth i hists []) [Store (vint (Znth i vals 0))] (Znth i hists' [])) &&
-       atomic_loc_hist sh (Znth i locs Vundef) (Znth i ghosts Vundef) 0 (fun _ _ => emp) (Znth i hists' []))
-       (upto 8))).
+       atomic_loc_hist sh (Znth i locs Vundef) (Znth i ghosts Vundef) 0
+         (loc_R (Znth i lg Vundef) gv2) (Znth i hists' [])) (upto 8));
+       fold_right sepcon emp (map (ghost_snap (v + 2)) lg)).
 
 Definition Gprog : funspecs := ltac:(with_library prog [load_SC_spec; store_SC_spec; read_spec; write_spec]).
 
 Ltac cancel_for_forward_call ::= repeat (rewrite ?sepcon_andp_prop', ?sepcon_andp_prop);
   repeat (apply andp_right; [auto; apply prop_right; auto|]); fast_cancel.
-(*Ltac entailer_for_return ::= go_lower; entailer'.*)
 
 Lemma body_write : semax_body Vprog Gprog f_write write_spec.
 Proof.
@@ -79,7 +96,7 @@ Proof.
   rewrite atomic_loc_isptr; Intros.
   forward.
   assert (sh <> Share.bot) by (intro; subst; contradiction unreadable_bot).
-  forward_call (AL_witness sh version gv 0 (fun _ _ => emp) hv emp (fun _ => emp)).
+  forward_call (AL_witness sh version gv 0 (ver_R gv2 lg) hv emp (fun _ => emp)).
   { split; auto.
     apply AL_hist_spec; auto; repeat intro; auto. }
   Intros v; simpl; Intros hv1.
@@ -285,3 +302,57 @@ Proof.
         destruct (zlt i 8); [|rewrite Zlength_upto in *; simpl in *; omega].
         rewrite Zlength_app, Zlength_cons, Zlength_nil; split; auto.
 Qed.
+
+(* Steps to linearizability:
+   A single thread sees a sequence of reads and writes.
+   The join of a collection of sequences of reads and writes, if consistent, is equivalent to a sequence of reads
+   and writes. *)
+Inductive lin_op := Read (v : Z) (vals : list Z) | Write (v : Z) (vals : list Z).
+
+Fixpoint do_op h1 op h2 :=
+  match op with
+  | Read v vals => Z.testbit v 0 = false /\ exists failvs, Forall repable_signed failvs /\
+      add_events (fst h1) (make_loads (failvs ++ [v; v])) (fst h2) /\ exists loops,
+      forall i, 0 <= i < 8 -> exists fails, Zlength fails = loops /\
+        add_events (Znth i (snd h1) []) (make_loads (fails ++ [Znth i vals 0])) (Znth i (snd h2) [])
+  | Write v vals =>
+      add_events (fst h1) [Load (vint v); Store (vint (Z.lor v 1)); Store (vint (v + 2))] (fst h2) /\
+      forall i, 0 <= i < 8 -> add_events (Znth i (snd h1) []) [Store (vint (Znth i vals 0))] (Znth i (snd h2) [])
+  end.
+
+Inductive do_ops h : list lin_op -> hist * list hist -> Prop :=
+| do_ops_nil : do_ops h [] h
+| do_ops_cons : forall a la h' h'' (Hh' : do_op h a h') (Hh'' : do_ops h' la h''), do_ops h (a :: la) h''.
+
+(* For now, we're relying on there being only one writer. *)
+Lemma full_hist_writes : forall w lr v (Hv : full_hist' (concat (w :: lr)) v) (Hw : NoDup (map fst w))
+  (Hr : Forall (fun h => exists lv, map snd h = make_loads lv) lr), full_hist' w v.
+Proof.
+  intros; eapply full_hist'_drop; eauto.
+  { simpl; apply incl_appl, incl_refl. }
+  simpl; intros ?? Hin Hout ??.
+  rewrite in_app in Hin; destruct Hin as [? | Hin]; [contradiction|].
+  rewrite in_concat in Hin; destruct Hin as (h & ? & ?).
+  rewrite Forall_forall in Hr; exploit Hr; eauto; intros (? & Hsnd).
+  assert (In e (map snd h)) as He by (rewrite in_map_iff; do 2 eexists; eauto; auto).
+  unfold make_loads in Hsnd; rewrite Hsnd, in_map_iff in He; destruct He as (? & ? & ?); subst; contradiction.
+Qed.
+
+Definition empty_state := ([] : hist, repeat ([] : hist) 8).
+
+Definition make_reads le := map (fun '(v, lv) => Read v lv) le.
+Definition make_writes le := map (fun '(v, lv) => Write v lv) le.
+
+Lemma read_written : forall w lr writes reads v vals (Hw : do_ops empty_state (make_writes writes) w)
+  (Hlr : Forall2 (fun rs r => do_ops empty_state (make_reads rs) r) reads lr)
+  (Hfullv : full_hist' (concat (map fst (w :: lr))) v)
+  (Hvals : Zlength vals = 8) (Hfullvs : forall i, 0 <= i < 8 ->
+    full_hist' (concat (map (fun l => Znth i (snd l) []) (w :: lr))) (vint (Znth i vals 0))),
+  incl (concat reads) writes.
+Proof.
+  repeat intro.
+  rewrite in_concat in H; destruct H as (r & Hr & Hin).
+  (* We actually need the memory model here. Since there's no connection between histories on different
+     locations, we don't know that the write of the version number happens before the writes to the bodies.
+     How can we recover this information? With a ghost variable marking the version number on each location? *)
+  
