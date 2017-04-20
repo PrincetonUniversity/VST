@@ -1100,14 +1100,16 @@ Proof.
     rewrite data_at__eq; unfold default_val; simpl.
     rewrite repeat_list_repeat, Z.sub_0_r; auto.
   - Intros entries ghosts.
-    apply ghost_alloc with (g := init_hist); Intros gk.
+    eapply ghost_alloc with (g := init_hist); auto with init.
+    Intro gk.
     forward_call (MA_witness gk 0 k_R).
     { unfold k_R; entailer!. }
     { split; [|split; computable].
       apply MA_hist_spec; auto. }
     Intro k.
     forward.
-    apply ghost_alloc with (g := init_hist); Intros gv.
+    eapply ghost_alloc with (g := init_hist); auto with init.
+    Intro gv.
     forward_call (MA_witness gv 0 v_R).
     { unfold v_R; entailer!. }
     { split; [|split; computable].

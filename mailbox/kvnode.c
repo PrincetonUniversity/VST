@@ -20,7 +20,7 @@ void read(node *n, int *out){
 void write(node *n, int *in){
   atomic_loc *ver = n->version;
   int v = load_SC(ver);
-  store_SC(ver, v | 1);
+  store_SC(ver, v + 1);
   for(int i = 0; i < 8; i++){
     atomic_loc *l = n->data[i];
     int d = in[i];

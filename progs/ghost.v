@@ -31,7 +31,8 @@ Definition update a b := forall c, joins a c -> joins b c.
 Parameter ghost : forall (g : A) (p : val), mpred.
 
 (* subject to change *)
-Axiom ghost_alloc : forall (g : A) P, view_shift P (EX p : val, ghost g p * P).
+(* We need to make sure we can't allocate invalid ghost state (which would immediately entail False). *)
+Axiom ghost_alloc : forall (g : A) P, (exists g', joins g g') -> view_shift P (EX p : val, ghost g p * P).
 Axiom ghost_dealloc : forall (g : A) p, view_shift (ghost g p) emp.
 
 Axiom ghost_join : forall g1 g2 g p, join g1 g2 g -> ghost g1 p * ghost g2 p = ghost g p.
@@ -200,6 +201,11 @@ Proof.
     [exists v; auto | apply ghost_var_precise].
 Qed.
 
+Lemma ghost_var_init : forall (g : share * A), exists g', joins g g'.
+Proof.
+  intros (sh, a); exists (Share.bot, a), (sh, a); simpl; auto.
+Qed.
+
 End GVar.
 
 Section Reference.
@@ -278,23 +284,22 @@ Qed.
 
 End Reference.
 
+Class PCM_order `{P : PCM} (ord : A -> A -> Prop) := { ord_refl :> RelationClasses.Reflexive ord;
+  ord_trans :> RelationClasses.Transitive ord;
+  join_ord : forall a b c, join a b c -> ord a c /\ ord b c; ord_join : forall a b, ord b a -> join a b a }.
+
 Section Snapshot.
 (* One common kind of PCM is one in which a central authority has a reference copy, and clients pass around
    partial knowledge. *)
 
-Context `{P : PCM}.
-Variable (ord : A -> A -> Prop).
-Hypothesis ord_refl : forall a, ord a a.
-Hypothesis ord_trans : forall a b c, ord a b -> ord b c -> ord a c.
-Hypothesis join_ord : forall a b c, join a b c -> ord a c /\ ord b c.
-Hypothesis ord_join : forall a b, ord b a -> join a b a.
+Context `{ORD : PCM_order}.
 
 Definition lift_ord a b := match a with Some a => ord a b | None => True end.
 
 Lemma join_lift_ord : forall a b c, @join _ option_PCM a b (Some c) -> lift_ord a c /\ lift_ord b c.
 Proof.
   simpl; intros.
-  destruct a, b; subst; simpl; auto.
+  destruct a, b; subst; simpl; try apply join_ord; try split; auto; reflexivity.
 Qed.
 
 Global Instance snap_PCM : PCM (option A * option A) :=
@@ -352,12 +357,19 @@ Proof.
   { unfold update; intros ? (? & Hfst & Hcase & Hcompat); simpl in *.
     destruct Hcase as [(Hx & ?) | (? & ?)]; [|discriminate].
     rewrite <- Hx in Hcompat.
-    eexists (Some v', Some v'); simpl; repeat split; eauto; simpl.
+    eexists (Some v', Some v'); simpl; repeat split; eauto; simpl; try reflexivity.
     destruct (fst c), (fst x); auto; try contradiction.
     apply join_ord in Hfst; destruct Hfst.
-    eapply ord_join, ord_trans; eauto. }
+    eapply ord_join, ord_trans; eauto.
+    eapply ord_trans; eauto. }
   eapply semax_pre; [|eauto].
   go_lowerx; entailer!.
+Qed.
+
+Lemma snap_master_init : forall (a : A), exists g', joins (Some a, Some a) g'.
+Proof.
+  intros; exists (None, None), (Some a, Some a); simpl.
+  repeat (split; auto); reflexivity.
 Qed.
 
 End Snapshot.
@@ -372,20 +384,38 @@ Proof.
     rewrite Z.max_assoc; auto.
 Defined.
 
-Program Definition gt_PCM : PCM (option Z * option Z) := snap_PCM Z.le _ _ _.
-Next Obligation.
-  omega.
+Global Instance max_order : PCM_order Z.le.
+Proof.
+  constructor; simpl; intros.
+  - intro; omega.
+  - intros ???; omega.
+  - subst; split; [apply Z.le_max_l | apply Z.le_max_r].
+  - rewrite Z.max_l; auto.
+Defined.
+
+Lemma ghost_snap_join' : forall v1 v2 p, ghost_snap v1 p * ghost_snap v2 p = ghost_snap (Z.max v1 v2) p.
+Proof.
+  intros; apply ghost_snap_join; simpl; auto.
 Qed.
-Next Obligation.
-  omega.
+
+Lemma snap_master_join' : forall v1 v2 p,
+  ghost_snap v1 p * ghost_master v2 p = !!(v1 <= v2) && ghost (Some v1, Some v2) p.
+Proof.
+  intros; apply snap_master_join.
 Qed.
-Next Obligation.
-  split; [apply Z.le_max_l | apply Z.le_max_r].
+
+Lemma snap_master_update' : forall (v1 v2 : Z) p v', v2 <= v' ->
+  view_shift (ghost_snap v1 p * ghost_master v2 p) (ghost_snap v' p * ghost_master v' p).
+Proof.
+  intros; apply snap_master_update; auto.
+Qed.
+
+Lemma snap_master_init' : forall (v : Z), exists g', joins (Some v, Some v) g'.
+Proof.
+  intro; apply snap_master_init.
 Qed.
 
 End PVar.
-
-Existing Instance gt_PCM.
 
 Section GHist.
 
@@ -987,6 +1017,15 @@ Proof.
     exploit Hlast; eauto; omega.
 Qed.
 
+Lemma ghost_hist_init : exists g', joins (Some (Tsh, []), Some []) g'.
+Proof.
+  exists (None, None), (Some (Tsh, []), Some []); simpl.
+  pose proof Share.nontrivial.
+  unfold completable; repeat split; auto.
+  exists None; simpl.
+  split; auto.
+Qed.
+
 End GHist.
 
 Section AEHist.
@@ -1018,3 +1057,4 @@ End Ghost.
 
 Hint Resolve disjoint_nil hist_incl_nil hist_list_nil ordered_nil hist_list'_nil.
 Hint Resolve ghost_var_precise ghost_var_precise'.
+Hint Resolve ghost_var_init snap_master_init' ghost_hist_init : init.

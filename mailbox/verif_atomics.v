@@ -1101,7 +1101,7 @@ Qed.
 
 Notation AS_witness sh p g i R h v P Q :=
   (sh%logic, p%logic, v%Z%logic, (ghost_hist sh h g * P)%logic, hist_R g%logic i R,
-   EX h' : hist, !!(add_events h [Store (vint v)] h') && ghost_hist sh h' g * Q v%Z).
+   EX h' : hist, !!(add_events h [Store (vint v)] h') && ghost_hist sh h' g * Q).
 Lemma AS_hist_spec : forall sh g i R h v P Q
   (HPQR : forall h' v' (Hhist : hist_incl h h'), apply_hist (vint i) h' = Some (vint v') -> repable_signed v' ->
      view_shift (R h' v' * P) (R (h' ++ [Store (vint v)]) v * Q)) (Hsh : sh <> Share.bot)
