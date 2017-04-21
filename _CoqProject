@@ -9,6 +9,7 @@
 -R concurrency concurrency
 -R fcf fcf
 -R hmacfcf hmacfcf
+-R hmacdrbg hmacdrbg
 -R ccc26x86 ccc26x86
 -R tweetnacl20140427 tweetnacl20140427
 -R ../mirror-shard/src MirrorShard
