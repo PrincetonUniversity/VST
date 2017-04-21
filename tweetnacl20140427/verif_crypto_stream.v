@@ -68,7 +68,6 @@ simpl. Exists s. unfold ThirtyTwoByte. entailer.
 destruct HSalsaRes as [q1 q2]. cancel.
 Qed.
 
-
 (*The crypto_stream_xor function*)
 Lemma crypto_stream_xsalsa20_tweet_xor_ok:
       semax_body SalsaVarSpecs SalsaFunSpecs
