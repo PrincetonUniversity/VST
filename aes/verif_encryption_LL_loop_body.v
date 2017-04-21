@@ -1,7 +1,6 @@
 Require Import aes.api_specs.
 Require Import aes.spec_encryption_LL.
 Require Import aes.bitfiddling.
-Require Import floyd.deadvars.
 Local Open Scope Z.
 
 Definition encryption_loop_body : statement :=
@@ -67,7 +66,7 @@ semax (encryption_loop_body_Delta DS)
      (Vint (col 1 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4)));
    temp _X0
      (Vint (col 0 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4)));
-   temp _ctx ctx; temp _input input; temp _output output;
+   temp _output output;
    gvar _tables tables)
    SEP (data_at_ out_sh (tarray tuchar 16) output;
    data_at Ews t_struct_tables
@@ -105,7 +104,7 @@ semax (encryption_loop_body_Delta DS)
       temp _X0
         (Vint
            (col 0 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat (i0 - 1)) S0 buf 4)));
-      temp _ctx ctx; temp _input input; temp _output output;
+      temp _output output;
       gvar _tables tables)
       SEP (data_at_ out_sh (tarray tuchar 16) output;
       tables_initialized tables;
@@ -122,7 +121,7 @@ semax (encryption_loop_body_Delta DS)
                      [ArraySubsc 52; StructField _buf] ctx);
          temp _X3 (Vint (col 3 S12)); temp _X2 (Vint (col 2 S12));
          temp _X1 (Vint (col 1 S12)); temp _X0 (Vint (col 0 S12));
-         temp _ctx ctx; temp _input input; temp _output output;
+         temp _output output;
          gvar _tables tables)
          SEP (data_at_ out_sh (tarray tuchar 16) output;
          tables_initialized tables;
@@ -142,10 +141,10 @@ Proof.
   abbreviate_semax.
   pose proof masked_byte_range.
 
-  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
-  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
-  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
-  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars!.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars!.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars!.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars!.
 
   replace (52 - i * 8 + 1 + 1 + 1 + 1) with (52 - i * 8 + 4) by omega.
   replace (52 - i * 8 + 1 + 1 + 1)     with (52 - i * 8 + 3) by omega.
@@ -171,10 +170,10 @@ Proof.
   rewrite EqY0. rewrite EqY1. rewrite EqY2. rewrite EqY3.
   clear EqY0 EqY1 EqY2 EqY3.
 
-  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
-  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
-  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
-  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars!.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars!.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars!.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward.
 
   pose (S'' := mbed_tls_fround S' buf (52-i*8+4)).
 

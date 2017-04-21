@@ -44,10 +44,10 @@ Proof.
      GET_UINT32_LE( X1, input,  4 ); X1 ^= *RK++;
      GET_UINT32_LE( X2, input,  8 ); X2 ^= *RK++;
      GET_UINT32_LE( X3, input, 12 ); X3 ^= *RK++; *)
-  do 9 (forward; simpl); rewrite Eq by computable; simpl.
-  do 9 (forward; simpl); rewrite Eq by computable; simpl.
-  do 9 (forward; simpl); rewrite Eq by computable; simpl.
-  do 9 (forward; simpl); rewrite Eq by computable; simpl.
+  do 9 (forward; simpl); rewrite Eq by computable; simpl. deadvars!.
+  do 9 (forward; simpl); rewrite Eq by computable; simpl. deadvars!.
+  do 9 (forward; simpl); rewrite Eq by computable; simpl. deadvars!.
+  do 9 (forward; simpl); rewrite Eq by computable; simpl. deadvars!.
 
   pose (S0 := mbed_tls_initial_add_round_key plaintext buf).
   match goal with |- context [temp _X0 (Vint ?E)] => change E with (col 0 S0) end.
@@ -56,6 +56,7 @@ Proof.
   match goal with |- context [temp _X3 (Vint ?E)] => change E with (col 3 S0) end.
 
   forward. unfold Sfor. forward.
+  deadvars!.
 
   (* ugly hack to avoid type mismatch between
    "(val * (val * list val))%type" and "reptype t_struct_aesctx" *)
@@ -68,7 +69,6 @@ Proof.
   destruct EE as [vv EE].
 
   remember (mbed_tls_enc_rounds 12 S0 buf 4) as S12.
-
   apply semax_pre with (P' := 
   (EX i: Z, PROP ( 
      0 <= i <= 6
@@ -79,8 +79,6 @@ Proof.
      temp _X2 (Vint (col 2 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 buf 4)));
      temp _X1 (Vint (col 1 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 buf 4)));
      temp _X0 (Vint (col 0 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 buf 4)));
-     temp _ctx ctx;
-     temp _input input;
      temp _output output;
      gvar _tables tables
   ) SEP (
@@ -99,8 +97,6 @@ Proof.
      temp _X2 (Vint (col 2 S12));
      temp _X1 (Vint (col 1 S12));
      temp _X0 (Vint (col 0 S12));
-     temp _ctx ctx;
-     temp _input input;
      temp _output output;
      gvar _tables tables
   ) SEP (
@@ -119,8 +115,6 @@ Proof.
      temp _X2 (Vint (col 2 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat (i-1))) S0 buf 4)));
      temp _X1 (Vint (col 1 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat (i-1))) S0 buf 4)));
      temp _X0 (Vint (col 0 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat (i-1))) S0 buf 4)));
-     temp _ctx ctx;
-     temp _input input;
      temp _output output;
      gvar _tables tables
   ) SEP (
@@ -142,8 +136,6 @@ Proof.
      temp _X2 (Vint (col 2 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 buf 4)));
      temp _X1 (Vint (col 1 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 buf 4)));
      temp _X0 (Vint (col 0 (mbed_tls_enc_rounds (12 - 2 * (Z.to_nat i)) S0 buf 4)));
-     temp _ctx ctx;
-     temp _input input;
      temp _output output;
      gvar _tables tables
   ) SEP (

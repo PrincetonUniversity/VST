@@ -33,6 +33,7 @@ Require Export floyd.entailer.
 Require Export floyd.globals_lemmas.
 Require Export floyd.diagnosis.
 Require Export floyd.freezer.
+Require Export floyd.deadvars.
 Export ListNotations.
 
 Hint Rewrite add_repr mul_repr sub_repr : entailer_rewrite.

@@ -1,7 +1,6 @@
 Require Import aes.api_specs.
 Require Import aes.bitfiddling.
 Require Import aes.encryption_LL_round_step_eqs.
-Require Import floyd.deadvars.
 Open Scope Z.
 
 (* duplicated from verif_encryption_LL_loop_body to allow make -j *)
@@ -65,7 +64,7 @@ semax (encryption_loop_body_Delta' Delta_specs)
             (field_address t_struct_aesctx [ArraySubsc 52; StructField _buf]
                ctx); temp _X3 (Vint (col 3 S12));
    temp _X2 (Vint (col 2 S12)); temp _X1 (Vint (col 1 S12));
-   temp _X0 (Vint (col 0 S12)); temp _ctx ctx; temp _input input;
+   temp _X0 (Vint (col 0 S12));
    temp _output output; gvar _tables tables)
    SEP (data_at_ out_sh (tarray tuchar 16) output; tables_initialized tables;
    data_at in_sh (tarray tuchar 16) (map Vint (map Int.repr plaintext)) input;
@@ -100,14 +99,13 @@ intros.
 
   (* 2nd-to-last AES round: just a normal AES round, but not inside the loop *)
   do 2 forward. simpl (temp _RK _). rewrite Eq by computable. do 6 forward.
-
-  deadvars. rewrite EqY0; clear EqY0. 
+  deadvars!. rewrite EqY0; clear EqY0. 
   do 2 forward. simpl (temp _RK _). rewrite Eq by computable. do 6 forward.
-  deadvars. rewrite EqY1; clear EqY1.
+  deadvars!. rewrite EqY1; clear EqY1.
   do 2 forward. simpl (temp _RK _). rewrite Eq by computable. do 6 forward.
-  deadvars. rewrite EqY2; clear EqY2.
+  deadvars!. rewrite EqY2; clear EqY2.
   do 2 forward. simpl (temp _RK _). rewrite Eq by computable. do 6 forward.
-  deadvars. rewrite EqY3; clear EqY3.
+  deadvars!. rewrite EqY3; clear EqY3.
 
   (* last AES round: special (uses S-box instead of forwarding tables) *)
   assert (forall i, Int.unsigned (Znth i FSb Int.zero) <= Byte.max_unsigned). {
@@ -124,15 +122,15 @@ intros.
   destruct (round14eq _ _ _ HeqS14) as [EqX0 [EqX1 [EqX2 EqX3]]]. clear HeqS14.
 
   do 2 forward. simpl (temp _RK _). rewrite Eq by computable. do 6 forward.
-  deadvars. rewrite EqX0; clear EqX0.
+  deadvars!. rewrite EqX0; clear EqX0.
   do 2 forward. simpl (temp _RK _). rewrite Eq by computable. do 6 forward.
-  deadvars. rewrite EqX1; clear EqX1.
+  deadvars!. rewrite EqX1; clear EqX1.
   do 2 forward. simpl (temp _RK _). rewrite Eq by computable. do 6 forward.
-  deadvars. rewrite EqX2; clear EqX2.
+  deadvars!. rewrite EqX2; clear EqX2.
   do 2 forward. simpl (temp _RK _). rewrite Eq by computable. do 6 forward.
-  deadvars. rewrite EqX3; clear EqX3.
-
-  remember_temp_Vints (@nil localdef).
+  deadvars!. rewrite EqX3; clear EqX3.
+ clear Eq.
+ remember_temp_Vints (@nil localdef).
 
   do 16 (forward;
     match goal with |- context [(upd_Znth ?i ?L ?W)] =>
@@ -147,12 +145,11 @@ intros.
   rewrite Hfinal; clear Hfinal.
 
   (* TODO reuse from above *)
-  assert ((field_address t_struct_aesctx [StructField _buf] ctx)
-        = (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx)) as EqBuf. {
-    do 2 rewrite field_compatible_field_address by auto with field_compatible.
-    reflexivity.
-  }
-  rewrite <- EqBuf in *. clear EqBuf.
+  replace (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf] ctx)
+    with (field_address t_struct_aesctx [StructField _buf] ctx)
+     in * by (rewrite !field_compatible_field_address by auto with field_compatible;
+                 reflexivity).
+
   subst POSTCONDITION; unfold abbreviate.
   forget (mbed_tls_aes_enc plaintext buf) as Res.
   unfold tables_initialized.
