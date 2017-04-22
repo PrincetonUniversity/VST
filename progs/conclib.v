@@ -178,6 +178,13 @@ Proof.
     apply nth_last.
 Qed.
 
+Lemma last_app : forall {A} l1 l2 (d : A), l2 <> [] -> last (l1 ++ l2) d = last l2 d.
+Proof.
+  induction l1; auto; intros.
+  setoid_rewrite last_cons; eauto.
+  intro X; apply app_eq_nil in X; tauto.
+Qed.
+
 Lemma nat_sorted_list_eq : forall d n l (Hl : forall i, (i < n)%nat <-> In i l) (Hlen : length l = n)
   (Hsorted : forall i j, (i < j < n -> nth i l d < nth j l d)%nat) i (Hi : (i < n)%nat), nth i l d = i.
 Proof.

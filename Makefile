@@ -230,7 +230,7 @@ FLOYD_FILES= \
    nested_field_lemmas.v efield_lemmas.v proj_reptype_lemmas.v replace_refill_reptype_lemmas.v \
    data_at_rec_lemmas.v field_at.v stronger.v \
    for_lemmas.v semax_tactics.v diagnosis.v simple_reify.v simpl_reptype.v \
-   freezer.v
+   freezer.v deadvars.v
 #real_forward.v
 
 

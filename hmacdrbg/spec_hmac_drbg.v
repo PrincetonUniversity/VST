@@ -305,9 +305,10 @@ Definition hmac256drbgabs_to_state (a: hmac256drbgabs) (old: hmac256drbgstate):h
   end.
 
 Definition hmac256drbgabs_common_mpreds (final_state_abs: hmac256drbgabs) (old_state: hmac256drbgstate) (ctx: val) (info_contents: reptype t_struct_mbedtls_md_info): mpred :=
-                  (data_at Tsh t_struct_hmac256drbg_context_st (hmac256drbgabs_to_state final_state_abs old_state) ctx) *
-                  (data_at Tsh t_struct_mbedtls_md_info info_contents (hmac256drbgstate_md_info_pointer (hmac256drbgabs_to_state final_state_abs old_state))) *
-                  (hmac256drbg_relate final_state_abs (hmac256drbgabs_to_state final_state_abs old_state)).
+                  let st := hmac256drbgabs_to_state final_state_abs old_state in
+                  (data_at Tsh t_struct_hmac256drbg_context_st st ctx) *
+                  (data_at Tsh t_struct_mbedtls_md_info info_contents (hmac256drbgstate_md_info_pointer st)) *
+                  (hmac256drbg_relate final_state_abs st).
 
 Definition hmac256drbgabs_hmac_drbg_update (a:hmac256drbgabs) (additional_data: list Z): hmac256drbgabs :=
   match a with HMAC256DRBGabs key V reseed_counter entropy_len prediction_resistance reseed_interval =>

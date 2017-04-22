@@ -624,9 +624,9 @@ Proof. intros.
       auto 50 with valid_pointer. (* TODO regression, this should have solved it *)
       apply sepcon_valid_pointer1.
       apply sepcon_valid_pointer1.
-      apply sepcon_valid_pointer1.
-      apply sepcon_valid_pointer1.
-      apply sepcon_valid_pointer2. normalize.
+      apply sepcon_valid_pointer2. 
+      apply sepcon_valid_pointer2.
+      apply sepcon_valid_pointer1. 
       apply data_at_valid_ptr; auto. auto 50 with valid_pointer.
     }
 

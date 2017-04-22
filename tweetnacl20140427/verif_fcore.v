@@ -270,7 +270,7 @@ Opaque HTruePostCond. Opaque HFalsePostCond.
 
 Lemma core_spec_ok: semax_body SalsaVarSpecs SalsaFunSpecs
        f_core core_spec.
-Proof. unfold core_spec(*, f_core_POST*).
+Proof. unfold core_spec, f_core_POST.
 start_function. abbreviate_semax.
 rename lvar3 into t.
 rename lvar2 into y.
@@ -357,7 +357,10 @@ apply semax_seq with (Q:=fcore_EpiloguePOST t y x w nonce out c k h OUT data).
     Intros snuffleRes ys.
     freeze [0;1;2;3;4] FR2.
     Time forward. (*4 versus 18*)
-    Exists t y x w. thaw FR2. Time entailer!. (*4.6 versus 8.4*)
+    Exists t. rewrite <- sepcon_assoc. Exists y.
+    rewrite <- sepcon_assoc. Exists x.
+    rewrite <- sepcon_assoc. Exists w.
+    thaw FR2. Time entailer!. (*4.6 versus 8.4*)
     rewrite Zlength_map in H1.
     specialize (Snuffle_length _ _ _  H0 (prepare_data_length _ )); intros L.
     unfold fcore_result.

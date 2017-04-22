@@ -937,6 +937,7 @@ apply semax_pre0 with
         lseg ls dsh psh r y v2 :: R)))).
 old_go_lower; entailer.
 Exists h r y.
+rewrite <- ?sepcon_assoc.
 normalize.
   autorewrite with subst norm1 norm2; normalize.
 Intros h r y.
@@ -1056,6 +1057,7 @@ destruct a as [v el].
 normalize.
 apply exp_right with x0.
 normalize.
+rewrite <- ?sepcon_assoc.
   autorewrite with subst norm1 norm2; normalize.
 specialize (IHl x0).
 apply andp_right.
@@ -1141,6 +1143,7 @@ rewrite prop_true_andp by (split; reflexivity).
 apply lseg_cons_right_null.
 rewrite lseg_cons_eq.
 Intros u. Exists u. subst z.
+rewrite <- ?sepcon_assoc.
 rewrite !prop_true_andp by auto.
 normalize.
 apply sepcon_derives; auto.
@@ -1537,6 +1540,7 @@ apply semax_pre0 with
         lseg ls sh r y v2 :: R)))).
 old_go_lower; entailer.  (* Intros h r y should work here, but doesn't. *)
 Exists h r y.
+rewrite <- ?sepcon_assoc.
 normalize.
   autorewrite with subst norm1 norm2; normalize.
 Intros h r y.
@@ -2198,6 +2202,7 @@ apply semax_pre0 with
         lseg ls dsh psh r y v2 :: R)))).
 old_go_lower; entailer.
 Exists h r y.
+rewrite <- ?sepcon_assoc.
 normalize.
   autorewrite with subst norm1 norm2; normalize.
 Intros h r y.
@@ -2319,6 +2324,7 @@ normalize.
 unfold lseg; simpl.
 normalize.
 apply exp_right with x0.
+rewrite <- ?sepcon_assoc.
 normalize.
   autorewrite with subst norm1 norm2; normalize.
 specialize (IHl x0).

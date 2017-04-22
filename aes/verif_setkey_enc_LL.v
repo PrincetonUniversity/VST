@@ -1,6 +1,7 @@
 Require Import aes.api_specs.
 Require Import aes.partially_filled.
 Require Import aes.bitfiddling.
+Require Import floyd.deadvars.
 Open Scope Z.
 Local Open Scope logic.
 
@@ -32,8 +33,7 @@ Definition first_loop_inv00 ctx key tables aes_init_done init_done key_chars ctx
     PROP ( )
     LOCAL (
       temp _RK  (field_address t_struct_aesctx [StructField _buf] ctx);
-      temp _t'1 (field_address t_struct_aesctx [StructField _buf] ctx);
-      temp _ctx ctx; temp _key key; temp _keybits (Vint (Int.repr 256));
+      temp _key key; temp _keybits (Vint (Int.repr 256));
       gvar _aes_init_done aes_init_done; gvar _tables tables)
     SEP (
       field_at ctx_sh t_struct_aesctx [StructField _nr] (Vint (Int.repr 14)) ctx;
@@ -52,7 +52,6 @@ Definition main_loop_invariant0 ctx key tables ctx_sh key_sh ish key_chars aes_i
   PROP ( )
   LOCAL (
     temp _RK (offset_val (i*32) (field_address t_struct_aesctx [StructField _buf] ctx));
-    temp _ctx ctx;
     gvar _tables tables
   ) SEP (
     field_at ctx_sh t_struct_aesctx [StructField _nr] (Vint (Int.repr 14)) ctx;
@@ -97,6 +96,13 @@ Lemma Vundef_is_Vint:
   repeat_op_table 4 Vundef id = repeat_op_table 4 (Vint Int.zero) id.
 Admitted.
 
+Lemma key_expansion_final_eq: forall key_chars,
+  pow_fun GrowKeyByOne (Z.to_nat (Nb * (Nr + 2) - Nk)) (key_bytes_to_key_words key_chars)
+  = KeyExpansion2 (key_bytes_to_key_words key_chars).
+Proof.
+  intros. unfold KeyExpansion2. reflexivity.
+Qed.
+
 Lemma body_key_expansion: semax_body Vprog Gprog f_mbedtls_aes_setkey_enc key_expansion_spec.
 Proof.
   start_function.
@@ -105,37 +111,38 @@ Proof.
   | |- semax ?Delta (PROPx ?P1 (LOCALx ?Q1 (SEPx ?R1))) _ _ =>
     forward_if (PROPx P1 (LOCALx Q1 (SEPx R1)))
   end.
-  omega. (* then-branch: contradiction *)
+  congruence. (* then-branch: contradiction *)
   forward. entailer!. (* else-branch: Sskip *) (* TODO floyd why do I have to call entailer? *)
   (* rest: *)
   (* ctx->nr = 14; *)
-  forward.
+  forward.  deadvars.
   (* ctx->rk = RK = ctx->buf; *)
   forward. replace_temp _t'1 (field_address t_struct_aesctx [StructField _buf] ctx). {
     entailer!. rewrite field_compatible_field_address by auto with field_compatible. reflexivity.
   }
   forward. replace_temp _t'1 (field_address t_struct_aesctx [StructField _buf] ctx) by entailer!.
-  forward.
+  forward.  deadvars.
   (* first loop: *)
   forward_for_simple_bound 8 
     (first_loop_inv0 ctx key tables aes_init_done init_done key_chars ctx_sh key_sh ish).
   { (* precondition implies loop invariant: *)
     entailer!.
-    unfold_field_at 1%nat. entailer!. }
+    unfold_field_at 1%nat. cancel. }
   { (* loop body preserves invariant: *)
     reassoc_seq.
     assert (Int.unsigned (Int.shl (Int.repr i) (Int.repr 2)) = (4 * i)%Z) as E1. {
       rewrite <- Int.mul_pow2 with (n := (Int.repr 4)) by reflexivity.
       rewrite mul_repr. rewrite Z.mul_comm. apply Int.unsigned_repr. repable_signed.
     }
+    forward. 
+    assert (Int.unsigned (Int.repr 1) = 1) by reflexivity.
     forward.
-    assert (Int.unsigned (Int.repr 1) = 1) by (apply Int.unsigned_repr; repable_signed).
+    assert (Int.unsigned (Int.repr 2) = 2) by reflexivity.
     forward.
-    assert (Int.unsigned (Int.repr 2) = 2) by (apply Int.unsigned_repr; repable_signed).
+    assert (Int.unsigned (Int.repr 3) = 3) by reflexivity.
     forward.
-    assert (Int.unsigned (Int.repr 3) = 3) by (apply Int.unsigned_repr; repable_signed).
-    forward.
-    rewrite E1. rewrite H2, H3, H4. clear H2 H3 H4.
+
+    rewrite E1, H2, H3, H4. clear H2 H3 H4.
     simpl.
     forward.
     (* assert_PROP what forward asks us to prove: *)
@@ -152,6 +159,7 @@ Proof.
     apply update_partially_filled. omega.
   }
   reassoc_seq.
+  deadvars.
   (* main loop: *)
 
   (* TODO floyd: we can only use forward_for_simple_bound because we moved the "RK += 8" from the 
@@ -179,30 +187,35 @@ Proof.
 
     (* TODO floyd: In these two tactics, entailer! does not solve everything, but entailer works *)
 
-    Ltac RK_load E j :=
+    Ltac RK_load E :=
       let A := fresh "A" in let E2 := fresh "E" in
-      assert (0 <= j < 16) as A by omega;
+      match goal with 
+      |- semax _ _ (Ssequence (Sset _ (Ederef (Ebinop _ _ (Econst_int (Int.repr ?j) _) _) _)) _) _ =>
+        assert (0 <= j < 16) as A by computable
+      end;
       pose proof (E _ A) as E2; clear A;
       forward;
       repeat rewrite upd_Znth_diff by (repeat rewrite upd_Znth_Zlength; omega);
       repeat rewrite upd_Znth_same by (repeat rewrite upd_Znth_Zlength; omega);
-      rewrite ?Znth_partially_expanded_key by omega; [ entailer | ];
+      rewrite ?Znth_partially_expanded_key by omega; [ entailer! | ];
       clear E2.
 
-    Ltac RK_store E j :=
+    Ltac RK_store E :=
       let A := fresh "A" in let E2 := fresh "E" in
-      assert (0 <= j < 16) as A by omega;
+      match goal with
+      |- semax _ _ (Ssequence (Sassign (Ederef (Ebinop _ _ (Econst_int (Int.repr ?j) _) _) _) _) _) _ =>
+          assert (0 <= j < 16) as A by computable
+      end;
       pose proof (E _ A) as E2; clear A;
-      forward; [ entailer | ];
+      forward;
       clear E2.
 
     Arguments Z.land _ _ : simpl never.
 
-    pose proof (Zlength_partially_expanded_key i key_chars) as L.
-    spec L; [ omega | ]. spec L; [ assumption | ].
+    pose proof (Zlength_partially_expanded_key i key_chars H1 H) as L.
 
-    RK_load E 0.
-    RK_load E 7.
+    RK_load E.
+    RK_load E.
     unfold tables_initialized.
     Transparent RCON.
     assert (Zlength RCON = 10) by reflexivity.
@@ -212,79 +225,72 @@ Proof.
     forward. forward.
     fold (tables_initialized tables).
     simpl.
-    RK_store E 8.
-    RK_load E 1.
-    RK_load E 8.
-    RK_store E 9.
-    RK_load E 2.
-    RK_load E 9.
-    RK_store E 10.
-    RK_load E 3.
-    RK_load E 10.
-    RK_store E 11.
+    RK_store E.  deadvars.
+    RK_load E.
+    RK_load E.
+    RK_store E.  deadvars.
+    RK_load E.
+    RK_load E.
+    RK_store E.  deadvars.
+    RK_load E.
+    RK_load E.
+    RK_store E.  deadvars.
 
-    RK_load E 4.
-    RK_load E 11.
+    RK_load E.
+    RK_load E.
     unfold tables_initialized.
     pose proof masked_byte_range.
     forward. forward.
     forward. forward.
     fold (tables_initialized tables).
     simpl.
-    RK_store E 12.
-    RK_load E 5.
-    RK_load E 12.
-    RK_store E 13.
-    RK_load E 6.
-    RK_load E 13.
-    RK_store E 14.
-    RK_load E 7.
-    RK_load E 14.
-    RK_store E 15.
+    RK_store E.  deadvars.
+    RK_load E.
+    RK_load E.
+    RK_store E.  deadvars.
+    RK_load E.
+    RK_load E.
+    RK_store E.  deadvars.
+    RK_load E.
+    RK_load E.
+    RK_store E.  deadvars.
 
-    forward. {
-      entailer.
-    }
+    forward. 
     assert_PROP (isptr ctx) as P by entailer!. destruct ctx; inv P.
     entailer!.
-    - simpl. rewrite E by omega.
+    - simpl. rewrite E by computable.
       rewrite field_compatible_field_address by assumption.
       rewrite field_compatible_field_address by auto with field_compatible.
-      simpl. rewrite Int.add_assoc. do 2 f_equal. rewrite add_repr. f_equal. omega.
-    - clear H10.
-
+      simpl. rewrite Int.add_assoc. do 2 f_equal. rewrite add_repr. f_equal. clear; omega.
+    - clear.
+      apply derives_refl'. f_equal.
       rewrite update_partially_expanded_key.
-      replace (i * 8 + 9) with (i * 8 + 1 + 8) by omega.
+      replace (i * 8 + 9) with (i * 8 + 1 + 8) by (clear; omega).
       rewrite update_partially_expanded_key.
-      replace (i * 8 + 10) with (i * 8 + 1 + 1 + 8) by omega.
+      replace (i * 8 + 10) with (i * 8 + 1 + 1 + 8) by (clear; omega).
       rewrite update_partially_expanded_key.
-      replace (i * 8 + 11) with (i * 8 + 1 + 1 + 1 + 8) by omega.
+      replace (i * 8 + 11) with (i * 8 + 1 + 1 + 1 + 8) by (clear; omega).
       rewrite update_partially_expanded_key.
-      replace (i * 8 + 12) with (i * 8 + 1 + 1 + 1 + 1 + 8) by omega.
+      replace (i * 8 + 12) with (i * 8 + 1 + 1 + 1 + 1 + 8) by (clear; omega).
       rewrite update_partially_expanded_key.
-      replace (i * 8 + 13) with (i * 8 + 1 + 1 + 1 + 1 + 1 + 8) by omega.
+      replace (i * 8 + 13) with (i * 8 + 1 + 1 + 1 + 1 + 1 + 8) by (clear; omega).
       rewrite update_partially_expanded_key.
-      replace (i * 8 + 14) with (i * 8 + 1 + 1 + 1 + 1 + 1 + 1 + 8) by omega.
+      replace (i * 8 + 14) with (i * 8 + 1 + 1 + 1 + 1 + 1 + 1 + 8) by (clear; omega).
       rewrite update_partially_expanded_key.
-      replace (i * 8 + 15) with (i * 8 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 8) by omega.
+      replace (i * 8 + 15) with (i * 8 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 8) by (clear; omega).
       rewrite update_partially_expanded_key.
-      replace (i * 8 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1) with ((i + 1) * 8)%Z by omega.
-      apply derives_refl.
+      replace (i * 8 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1) with ((i + 1) * 8)%Z by (clear; omega).
+      reflexivity.
   }
   (* return 0 *)
   assert ((Nb * (Nr + 2) - Nk) = 7 * 8)%Z as E by reflexivity.
   rewrite <- E.
-  assert ((pow_fun GrowKeyByOne (Z.to_nat (Nb * (Nr + 2) - Nk)) (key_bytes_to_key_words key_chars)
-   = (KeyExpansion2 (key_bytes_to_key_words key_chars)))) as Eq. {
-    unfold KeyExpansion2. (* without this, reflexivity takes forever *)
-    reflexivity.
-  }
-  rewrite Eq. rewrite E. clear Eq. clear E.
+  rewrite key_expansion_final_eq. rewrite E.
   change (60 - 7 * 8) with 4.
   forget (KeyExpansion2 (key_bytes_to_key_words key_chars)) as R.
   forward.
   rewrite Vundef_is_Vint.
-  unfold_data_at 4%nat. entailer!.
+  unfold_data_at 4%nat. cancel.
   Show.
 (* Time Qed. takes forever *)
 Admitted.

@@ -2338,18 +2338,6 @@ intros.
 apply pred_ext; normalize.
 Qed.
 
-Lemma orp_FF {A}{NA: NatDed A}:
- forall Q, Q || FF = Q.
-Proof.
-intros. apply pred_ext. apply orp_left; normalize. apply orp_right1; auto.
-Qed.
-
-Lemma FF_orp {A}{NA: NatDed A}:
- forall Q, FF || Q = Q.
-Proof.
-intros. apply pred_ext. apply orp_left; normalize. apply orp_right2; auto.
-Qed.
-
 Lemma wand_join {A}{NA: NatDed A}{SA: SepLog A}:
   forall x1 x2 y1 y2: A,
     (x1 -* y1) * (x2 -* y2) |-- ((x1 * x2) -* (y1 * y2)).

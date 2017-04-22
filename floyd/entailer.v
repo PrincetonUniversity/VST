@@ -485,7 +485,8 @@ Ltac entailer :=
  | |- _ => fail "The entailer tactic works only on entailments   _ |-- _ "
  end;
  saturate_local;
- entailer'.
+ entailer';
+ rewrite <- ?sepcon_assoc.
 
 
 Ltac splittable :=
@@ -517,8 +518,8 @@ Ltac prove_it_now :=
         | reflexivity
         | Omega0
         | repeat match goal with H: ?A |- _ => has_evar A; clear H end;
-          auto with prove_it_now;
-          normalize;
+          auto with prove_it_now field_compatible;
+          autorewrite with norm entailer_rewrite; normalize;
           fail
          ].
 
@@ -578,10 +579,17 @@ Ltac entailer_for_return :=
  normalize;
  repeat erewrite elim_globals_only by (split3; [eassumption | reflexivity.. ]);
  entailer';
+ rewrite <- ?sepcon_assoc;
  try match goal with rho: environ |- _ => clear rho end.
 
 Ltac entbang :=
  intros;
+ try match goal with POSTCONDITION := @abbreviate ret_assert _ |- _ =>
+        clear POSTCONDITION
+      end;
+ try match goal with MORE_COMMANDS := @abbreviate statement _ |- _ =>
+        clear MORE_COMMANDS
+      end;
  match goal with
  | |- local _ && ?P |-- _ => go_lower; try simple apply empTrue
  | |- ?P |-- _ =>
@@ -594,10 +602,13 @@ Ltac entbang :=
  ent_iter;
  first [ contradiction
         | simple apply prop_right; my_auto
-        | simple apply prop_and_same_derives'; my_auto
+        | match goal with |- ?Q |-- !! _ && ?Q' => constr_eq  Q Q';
+                      simple apply prop_and_same_derives'; my_auto
+          end
         | simple apply andp_right;
-            [apply prop_right; my_auto | cancel; autorewrite with norm ]
-        | normalize; cancel
+            [apply prop_right; my_auto 
+            | cancel; rewrite <- ?sepcon_assoc; autorewrite with norm ]
+        | normalize; cancel; rewrite <- ?sepcon_assoc
         ].
 
 Tactic Notation "entailer" "!" := entbang.

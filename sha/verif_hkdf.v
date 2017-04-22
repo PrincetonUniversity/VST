@@ -78,7 +78,7 @@ destruct (zlt 255 ((olen + 31) / 32)); inv EXPAND_RES.
   { forward. entailer!. }
 
   forward_if (`FF).
-  { forward. Exists plen prk 0. entailer!.
+  { forward. Exists plen. entailer!. Exists prk 0. entailer.
     thaw FR2. cancel. erewrite (split2_data_at__Tarray_tuchar Tsh 64 32); simpl; trivial; try omega.
     rewrite field_address_offset by auto with field_compatible. simpl.
     rewrite isptr_offset_val_zero; trivial. cancel.
@@ -113,7 +113,7 @@ destruct (zlt 255 ((olen + 31) / 32)); inv EXPAND_RES.
    FRZL FR2; data_at Tsh tuint (Vint (Int.repr 32)) plen))).
   { elim H; trivial. }
   { clear H; forward. entailer!. }
-  forward. Exists plen prk 1. entailer!. thaw FR2. cancel.   
+  forward. Exists plen. entailer!. Exists prk 1. entailer!. thaw FR2. cancel.   
   erewrite (split2_data_at__Tarray_tuchar Tsh 64 32); simpl; trivial; try omega.
   rewrite field_address_offset by auto with field_compatible. simpl.
   rewrite isptr_offset_val_zero; trivial. cancel.

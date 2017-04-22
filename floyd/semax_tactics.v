@@ -131,6 +131,19 @@ Ltac simplify_Delta_at DS Delta D :=
  end.
 *)
 
+Definition with_Delta_specs (DS: PTree.t funspec) (Delta: tycontext) : tycontext :=
+  match Delta with
+    mk_tycontext a b c d _ => mk_tycontext a b c d DS
+  end.
+
+Ltac compute_in_Delta :=
+ lazymatch goal with
+ | DS := @abbreviate (PTree.t funspec) _, Delta := @abbreviate tycontext _ |- _ =>
+           cbv beta iota zeta delta - [abbreviate DS] in Delta
+ | Delta := @abbreviate tycontext _ |- _ =>
+           cbv beta iota zeta delta - [abbreviate] in Delta
+ end.
+
 (* This tactic is carefully tuned to avoid proof blowups,
   both in execution and in Qed *)
 Ltac simplify_Delta :=
@@ -241,3 +254,12 @@ Ltac semax_subcommand V G F :=
 (**** END semax_subcommand stuff *)
 
 Arguments PTree.fold {A} {B} f m v / .
+
+Ltac no_reassociate_stmt S := S.
+
+Ltac find_statement_in_body f reassoc pat :=
+  let body := eval hnf in (fn_body f)
+      in let body := constr:(Ssequence body (Sreturn None))
+      in let body := reassoc body
+      in let S := pat body
+      in exact S.

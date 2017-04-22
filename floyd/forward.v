@@ -524,21 +524,6 @@ Ltac check_cast_params :=
 Inductive Witness_type_of_forward_call_does_not_match_witness_type_of_funspec:
     Type -> Type -> Prop := .
 
-
-Ltac find_spec_in_globals id :=
-   match goal with |- ?X = _ => let x := fresh "x" in set (x:=X); hnf in x; subst x end;
-   match goal with
-   | |- Some ?fs = _ => check_canonical_funspec (id,fs);
-      first [reflexivity |
-      match goal with
-       | |- Some (mk_funspec _ _ ?t1 _ _) = Some (mk_funspec _ _ ?t2 _ _) =>
-         first [unify t1 t2
-           | elimtype False; elimtype (Witness_type_of_forward_call_does_not_match_witness_type_of_funspec
-      t2 t1)]
-      end]
-   | |- None = _ => elimtype  (Cannot_find_function_spec_in_Delta id)
-   end.
-
 Ltac find_spec_in_globals' :=
    match goal with |- ?X = _ => let x := fresh "x" in set (x:=X); hnf in x; subst x end;
    try reflexivity.
@@ -554,12 +539,24 @@ Ltac check_funspec_precondition :=
    first [reflexivity | elimtype  Funspec_precondition_is_not_in_PROP_LOCAL_SEP_form].
 
 Ltac lookup_spec_and_change_compspecs CS id :=
- match goal with |- ?A = ?B =>
+ tryif apply f_equal_Some
+ then
+   (match goal with |- ?A = ?B =>
       let x := fresh "x" in set (x := A);
       let y := fresh "y" in set (y := B);
-      hnf in x; subst x; try change_compspecs CS; subst y;
-      find_spec_in_globals id
- end.
+      hnf in x; subst x; try change_compspecs CS; subst y
+   end;
+   match goal with
+   | |- ?fs = _ => check_canonical_funspec (id,fs);
+      first [reflexivity |
+      match goal with
+       | |- mk_funspec _ _ ?t1 _ _ = mk_funspec _ _ ?t2 _ _ =>
+         first [unify t1 t2
+           | elimtype False; elimtype (Witness_type_of_forward_call_does_not_match_witness_type_of_funspec
+      t2 t1)]
+      end]
+   end)
+ else elimtype  (Cannot_find_function_spec_in_Delta id).
 
 Inductive Function_arguments_include_a_memory_load_of_type (t:type) := .
 
@@ -583,6 +580,12 @@ end.
 Ltac cancel_for_forward_call := cancel.
 Ltac default_cancel_for_forward_call := cancel.
 
+Ltac unfold_post := match goal with |- ?Post = _ => let A := fresh "A" in let B := fresh "B" in first
+  [evar (A : Type); evar (B : A -> environ -> mpred); unify Post (@exp _ _ ?A ?B);
+     change Post with (@exp _ _ A B); subst A B |
+   evar (A : list Prop); evar (B : environ -> mpred); unify Post (PROPx ?A ?B);
+     change Post with (PROPx A B); subst A B | idtac] end.
+
 Ltac forward_call_id1_x_wow A witness Frame H :=
  eapply (@semax_call_id1_x_wow A witness Frame _ _ _ _ _ _ _ _ _ H);
  clear H; try clear Frame;
@@ -598,7 +601,7 @@ Ltac forward_call_id1_x_wow A witness Frame H :=
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
- | cbv beta iota zeta; extensionality rho; 
+ | cbv beta iota zeta; unfold_post; extensionality rho;
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    first [apply exp_congr; intros ?vret; reflexivity
@@ -625,7 +628,7 @@ Ltac forward_call_id1_y_wow A witness Frame H :=
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
- | cbv beta iota zeta; extensionality rho; 
+ | cbv beta iota zeta; unfold_post; extensionality rho;
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    first [apply exp_congr; intros ?vret; reflexivity
@@ -650,7 +653,7 @@ Ltac forward_call_id1_wow A witness Frame H :=
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
- | cbv beta iota zeta; extensionality rho; 
+ | cbv beta iota zeta; unfold_post; extensionality rho;
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    first [apply exp_congr; intros ?vret; reflexivity
@@ -673,7 +676,7 @@ Ltac forward_call_id01_wow A witness Frame H :=
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
- | cbv beta iota zeta; extensionality rho;
+ | cbv beta iota zeta; unfold_post; extensionality rho;
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
    first [apply exp_congr; intros ?vret; reflexivity
@@ -695,11 +698,11 @@ Ltac forward_call_id00_wow A witness Frame H :=
  | Forall_pTree_from_elements
  | Forall_pTree_from_elements
  | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
- | cbv beta iota zeta; extensionality rho;
+ | cbv beta iota zeta; unfold_post; extensionality rho;
     repeat rewrite exp_uncurry;
     try rewrite no_post_exists0;
     repeat rewrite exp_unfold;
-    first [reflexivity | extensionality; simpl; reflexivity]
+    first [reflexivity | extensionality; simpl; reflexivity | give_EX_warning]
  | unify_postcondition_exps
  | unfold fold_right_and; repeat rewrite and_True; auto
  ].
@@ -1527,9 +1530,15 @@ match goal with
     apply (semax_ifthenelse_PQR' _ v);
      [ reflexivity | entailer | assumption
      | clear HRE; subst v; apply semax_extract_PROP; intro HRE;
-       do_repr_inj HRE; abbreviate_semax
+       do_repr_inj HRE;
+       repeat (apply semax_extract_PROP; intro);
+       try rewrite Int.signed_repr in HRE by repable_signed;
+       abbreviate_semax
      | clear HRE; subst v; apply semax_extract_PROP; intro HRE;
-       do_repr_inj HRE; abbreviate_semax
+       do_repr_inj HRE;
+       repeat (apply semax_extract_PROP; intro);
+       try rewrite Int.signed_repr in HRE by repable_signed;
+       abbreviate_semax
      ]
 | |- semax _ _ (Sswitch _ _) _ =>
   forward_switch'
@@ -2718,6 +2727,16 @@ match goal with |- semax _ (PROPx _ (LOCALx ?L (SEPx ?S))) _ _ =>
   end
 end.
 
+
+Ltac clear_Delta_specs_if_leaf_function :=
+ match goal with DS := @abbreviate (PTree.t funspec) _  |- semax _ _ ?S _ =>
+   let S' := eval compute in S in
+    match S' with 
+    | appcontext [Scall] => idtac
+    | _ => clearbody DS
+    end
+ end.
+
 Ltac start_function :=
  match goal with |- semax_body ?V ?G ?F ?spec =>
     let s := fresh "spec" in
@@ -2773,7 +2792,8 @@ Ltac start_function :=
  first [ eapply eliminate_extra_return'; [ reflexivity | reflexivity | ]
         | eapply eliminate_extra_return; [ reflexivity | reflexivity | ]
         | idtac];
- abbreviate_semax.
+ abbreviate_semax;
+ clear_Delta_specs_if_leaf_function.
 
 Opaque sepcon.
 Opaque emp.

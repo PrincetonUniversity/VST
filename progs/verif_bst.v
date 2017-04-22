@@ -620,7 +620,6 @@ Proof.
       (* TODO entailer: not to simply too much in entailer? *)
       Opaque tree_rep. entailer!. Transparent tree_rep.
         (* TODO: simplify this line *)
-        1: unfold field_address; simpl; rewrite if_true by auto with field_compatible; auto.
       apply RAMIF_PLAIN.trans'.
       apply bst_left_entail; auto.
   + forward. (* Sskip *)

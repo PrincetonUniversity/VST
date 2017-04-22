@@ -806,7 +806,7 @@ Proof.
   Exists lvar0.
   entailer!.
 } }
-  Show.
+(*  Show.*)
 Time Qed.
 (* Coq 8.5.2: 177s
    Coq 8.6  :  75s

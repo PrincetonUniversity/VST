@@ -1,12 +1,33 @@
 Require Import aes.api_specs.
 Require Import aes.spec_encryption_LL.
-Require Import aes.aes_encryption_loop_body.
 Require Import aes.bitfiddling.
+Require Import floyd.deadvars.
 Local Open Scope Z.
+
+Definition encryption_loop_body : statement :=
+   ltac:(find_statement_in_body
+       f_mbedtls_aes_encrypt
+       reassociate_stmt
+       ltac:(fun body => match body with
+              context [  Sloop
+                       (Ssequence
+                         (Sifthenelse (Ebinop Ogt (Etempvar _i _) (Econst_int (Int.repr 0) _)  _)
+                             Sskip  Sbreak)
+                       ?S) _ ] => S
+      end)).
+
+Definition encryption_loop_body_Delta DS :=
+ (with_Delta_specs DS
+   (initialized_list
+     [_i; _RK; _X0; _X1; _X2; _X3; _tmp; _b0; _b1; _b2; _b3; _b0__1; _b1__1;
+     _b2__1; _b3__1; _b0__2; _b1__2; _b2__2; _b3__2; _b0__3; _b1__3; _b2__3;
+     _b3__3; _t'4; _t'3; _t'2; _t'1]
+     (func_tycontext f_mbedtls_aes_encrypt Vprog Gprog))).
 
 Definition encryption_loop_body_proof_statement :=
  forall
   (Espec : OracleKind)
+  (DS: PTree.t funspec)
   (ctx input output : val)
   (ctx_sh in_sh out_sh : share)
   (plaintext exp_key : list Z)
@@ -32,12 +53,7 @@ Definition encryption_loop_body_proof_statement :=
   (HeqS12 : S12 = mbed_tls_enc_rounds 12 S0 buf 4)
   (i : Z)
   (H1 : 0 < i <= 6),
-semax
-  (initialized_list
-     [_i; _RK; _X0; _X1; _X2; _X3; _tmp; _b0; _b1; _b2; _b3; _b0__1; _b1__1;
-     _b2__1; _b3__1; _b0__2; _b1__2; _b2__2; _b3__2; _b0__3; _b1__3; _b2__3;
-     _b3__3; _t'4; _t'3; _t'2; _t'1]
-     (func_tycontext f_mbedtls_aes_encrypt Vprog Gprog))
+semax (encryption_loop_body_Delta DS)
   (PROP ( )
    LOCAL (temp _i (Vint (Int.repr i));
    temp _RK
@@ -51,7 +67,7 @@ semax
      (Vint (col 1 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4)));
    temp _X0
      (Vint (col 0 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4)));
-   temp _ctx ctx; temp _input input; temp _output output;
+   temp _output output;
    gvar _tables tables)
    SEP (data_at_ out_sh (tarray tuchar 16) output;
    data_at Ews t_struct_tables
@@ -89,7 +105,7 @@ semax
       temp _X0
         (Vint
            (col 0 (mbed_tls_enc_rounds (12 - 2 * Z.to_nat (i0 - 1)) S0 buf 4)));
-      temp _ctx ctx; temp _input input; temp _output output;
+      temp _output output;
       gvar _tables tables)
       SEP (data_at_ out_sh (tarray tuchar 16) output;
       tables_initialized tables;
@@ -106,7 +122,7 @@ semax
                      [ArraySubsc 52; StructField _buf] ctx);
          temp _X3 (Vint (col 3 S12)); temp _X2 (Vint (col 2 S12));
          temp _X1 (Vint (col 1 S12)); temp _X0 (Vint (col 0 S12));
-         temp _ctx ctx; temp _input input; temp _output output;
+         temp _output output;
          gvar _tables tables)
          SEP (data_at_ out_sh (tarray tuchar 16) output;
          tables_initialized tables;
@@ -117,16 +133,19 @@ semax
            (field_address t_struct_aesctx [ArraySubsc 0; StructField _buf]
               ctx, map Vint (map Int.repr buf))) ctx)))).
 
+Hint Resolve 0%Z : inhabited.
+
 Lemma encryption_loop_body_proof: encryption_loop_body_proof_statement.
 Proof.
   unfold encryption_loop_body_proof_statement. intros.
-  unfold encryption_loop_body. abbreviate_semax.
+  unfold encryption_loop_body, encryption_loop_body_Delta.
+  abbreviate_semax.
   pose proof masked_byte_range.
 
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
 
   replace (52 - i * 8 + 1 + 1 + 1 + 1) with (52 - i * 8 + 4) by omega.
   replace (52 - i * 8 + 1 + 1 + 1)     with (52 - i * 8 + 3) by omega.
@@ -152,10 +171,10 @@ Proof.
   rewrite EqY0. rewrite EqY1. rewrite EqY2. rewrite EqY3.
   clear EqY0 EqY1 EqY2 EqY3.
 
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
-  forward. forward. simpl (temp _RK _). rewrite Eq by omega. forward. do 4 forward. forward.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
 
   pose (S'' := mbed_tls_fround S' buf (52-i*8+4)).
 
@@ -231,7 +250,9 @@ Proof.
   remember (mbed_tls_fround (mbed_tls_enc_rounds (12 - 2 * Z.to_nat i) S0 buf 4) buf (52 - i * 8)) as S'.
   replace (52 - i * 8 + 4 + 4) with (52 - (i - 1) * 8) by omega.
   entailer!.
-  Show.
-(* Qed. takes forever! *)
-Admitted.
+Time Qed. 
+(* On Andrew's ThinkPad T440p, April 13, 2017, to do Qed:
+  With deadvar-elim:  37.6 seconds, 0.934GB
+  Without deadvar-elim: 47.8 seconds, 1.073 GB
+  (This computer seems to be same speed as Sam's Ubuntu laptop *)
 
