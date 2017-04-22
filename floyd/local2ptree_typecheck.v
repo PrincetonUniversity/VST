@@ -44,15 +44,6 @@ Definition msubst_tc_expr {cs: compspecs} (Delta: tycontext) (T1: PTree.t val) (
 
 (* Soundness proof *)
 
-(* We cannot prove the following lemma because we need the property that
-whenever a tc_initialized is called, a temp_type exists in Delta
-
-Lemma msubst_simpl_tc_assert_sound: forall {cs: compspecs} Delta P T1 T2 Q R tc,
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
-    denote_tc_assert (msubst_simpl_tc_assert T1 tc) ->
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
-    denote_tc_assert tc.*)
-
 Lemma msubst_denote_tc_assert_sound: forall {cs: compspecs} Delta P T1 T2 Q R tc,
   local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
     `(msubst_denote_tc_assert T1 T2 tc) ->
@@ -271,173 +262,201 @@ Proof.
     intros rho.
     simpl; normalize.
 Qed.
-(*
-Lemma msubst_simpl_tc_andp: forall {cs: compspecs} P T1 tc1 tc2,
-  P |-- denote_tc_assert (msubst_simpl_tc_assert T1 tc1) && denote_tc_assert (msubst_simpl_tc_assert T1 tc2) ->
-  P |-- denote_tc_assert (msubst_simpl_tc_assert T1 (tc_andp' tc1 tc2)).
-Proof. 
-  intros.
-  eapply derives_trans; [exact H | clear H].
-  simpl msubst_simpl_tc_assert.
-  rewrite denote_tc_assert_andp.
-  change (denote_tc_assert (tc_andp' tc1 tc2)) with (denote_tc_assert tc1 && denote_tc_assert tc2).
-  auto.
-Qed.
-SearchAbout tc_andp.
-*)
-Lemma msubst_simpl_tc_andp_sound: forall {cs: compspecs} T1 tc1 tc2,
-  denote_tc_assert (msubst_simpl_tc_assert T1 (tc_andp tc1 tc2)) =
-  denote_tc_assert ((msubst_simpl_tc_assert T1 tc1)) && denote_tc_assert (msubst_simpl_tc_assert T1 tc2).
+
+Definition legal_tc_init (Delta: tycontext): tc_assert -> Prop :=
+  fix legal_tc_init (tc: tc_assert): Prop :=
+  match tc with
+  | tc_andp' tc1 tc2 => legal_tc_init tc1 /\ legal_tc_init tc2
+  | tc_orp' tc1 tc2 => legal_tc_init tc1 /\ legal_tc_init tc2
+  | tc_initialized i t => (temp_types Delta) ! i = Some t
+  | _ => True
+  end.
+
+Lemma msubst_simpl_tc_assert_sound: forall {cs: compspecs} Delta P T1 T2 Q R tc,
+  legal_tc_init Delta tc ->
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) &&
+    denote_tc_assert (msubst_simpl_tc_assert T1 tc) |--
+  denote_tc_assert tc.
 Proof.
   intros.
-  transitivity (denote_tc_assert (msubst_simpl_tc_assert T1 (tc_andp' tc1 tc2))).
-  + destruct tc1, tc2; try reflexivity;
-    simpl msubst_simpl_tc_assert;
-    rewrite !denote_tc_assert_andp;
-    extensionality rho; simpl;
-    try first [symmetry; apply andp_FF | symmetry; apply andp_TT].
-  + simpl msubst_simpl_tc_assert.
+  induction tc; try solve [apply andp_left2; auto].
+  + inversion H.
+    simpl msubst_simpl_tc_assert.
     rewrite denote_tc_assert_andp.
-    auto.
-Qed.
-
-Lemma msubst_simpl_tc_orp_sound: forall {cs: compspecs} T1 tc1 tc2,
-  denote_tc_assert (msubst_simpl_tc_assert T1 (tc_orp tc1 tc2)) =
-  denote_tc_assert ((msubst_simpl_tc_assert T1 tc1)) || denote_tc_assert (msubst_simpl_tc_assert T1 tc2).
-Proof.
-  intros.
-  transitivity (denote_tc_assert (msubst_simpl_tc_assert T1 (tc_orp' tc1 tc2))).
-  + destruct tc1, tc2; try reflexivity;
-    simpl msubst_simpl_tc_assert;
-    rewrite !denote_tc_assert_orp;
-    extensionality rho; simpl;
-    try first [symmetry; apply orp_FF | symmetry; apply orp_TT].
-    SearchAbout orp FF.
-    Locate orp_FF.
-  + simpl msubst_simpl_tc_assert.
-    rewrite denote_tc_assert_orp.
-    auto.
-Qed.
-
-Lemma msubst_simpl_tc_bool_sound: forall {cs: compspecs} T1 b err,
-  denote_tc_assert (msubst_simpl_tc_assert T1 (tc_bool b err)) =
-  denote_tc_assert (tc_bool b err).
-Proof.
-  intros.
-  destruct b; auto.
-Qed.
-
-(*
-Lemma msubst_simpl_tc_orp: forall {cs: compspecs} P T1 tc1 tc2,
-  P |-- denote_tc_assert (msubst_simpl_tc_assert T1 tc1) || denote_tc_assert (msubst_simpl_tc_assert T1 tc2) ->
-  P |-- denote_tc_assert (msubst_simpl_tc_assert T1 (tc_orp' tc1 tc2)).
-Proof. 
-  intros.
-  eapply derives_trans; [exact H | clear H].
-  simpl msubst_simpl_tc_assert.
-  rewrite denote_tc_assert_orp.
-  change (denote_tc_assert (tc_orp' tc1 tc2)) with (denote_tc_assert tc1 || denote_tc_assert tc2).
-  auto.
-Qed.
-*)
-Lemma msubst_tc_lvalue_sound: forall {cs: compspecs} Delta P T1 T2 Q R e,
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) &&
-    denote_tc_assert (msubst_simpl_tc_assert T1 (typecheck_lvalue Delta e)) |--
-  tc_lvalue Delta e
- with msubst_tc_expr_sound: forall {cs: compspecs} Delta P T1 T2 Q R e,
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) &&
-    denote_tc_assert (msubst_simpl_tc_assert T1 (typecheck_expr Delta e)) |--
-  tc_expr Delta e.
-Proof.
-  + intros.
-    induction e; try solve [apply andp_left2; auto];
-    unfold tc_lvalue; simpl denote_tc_assert.
-    - destruct (get_var_type Delta i); try solve [apply andp_left2; auto].
-      destruct (eqb_type t t0); try solve [apply andp_left2; auto].
-    - rewrite !msubst_simpl_tc_andp_sound, !denote_tc_assert_andp, !msubst_simpl_tc_bool_sound.
-      apply andp_right; [apply andp_right |]; try solve_andp.
-      eapply derives_trans; [| apply msubst_tc_expr_sound].
+    change (denote_tc_assert (tc_andp' tc1 tc2)) with
+      (denote_tc_assert tc1 && denote_tc_assert tc2).
+    apply andp_right.
+    - eapply derives_trans; [| apply IHtc1, H0].
       solve_andp.
-    - rewrite !msubst_simpl_tc_andp_sound, !denote_tc_assert_andp.
-      apply andp_right.
-      * eapply derives_trans; [| apply msubst_tc_lvalue_sound].
-        solve_andp.
-      * destruct (typeof e); try solve_andp.
-       ++ destruct (cenv_cs ! i0); try solve_andp.
-          destruct (field_offset cenv_cs i (co_members c)); try solve_andp.
-       ++ destruct (cenv_cs ! i0); try solve_andp.
-  + intros.
-    induction e; try solve [apply andp_left2; auto];
-    unfold tc_expr; simpl denote_tc_assert.
-    - destruct t; try solve [apply andp_left2; auto].
-      destruct i0; try solve [apply andp_left2; auto].
-    - destruct t; try solve [apply andp_left2; auto].
-      destruct f0; try solve [apply andp_left2; auto].
-    - destruct t; try solve [apply andp_left2; auto].
-      destruct f0; try solve [apply andp_left2; auto].
-    - destruct (access_mode t); try solve [apply andp_left2; auto].
-      destruct (get_var_type Delta i); try solve [apply andp_left2; auto].
-      rewrite msubst_simpl_tc_bool_sound; apply andp_left2; auto.
-    - destruct ((temp_types Delta) ! i) eqn:?H; try solve [apply andp_left2; auto].
-      if_tac; try solve [apply andp_left2; auto].
-      simpl denote_tc_assert.
-      destruct (T1 ! i) eqn:?H; [apply andp_left1 | simpl; intros; apply andp_left2, FF_left].
-      apply (LocalD_sound_temp _ _ _ T2 Q) in H0.
-      rewrite (add_andp _ _ (in_local _ _ _ _ _ H0)).
-      intros rho.
-      unfold local, lift1; simpl; unfold_lift; simpl.
-      normalize.
-      destruct H2 as [? _].
-      specialize (H2 _ _ H).
-      destruct H2 as [v' [? ?]].
-      unfold denote_tc_initialized.
-      apply prop_right.
-      exists v'; split; auto.
-      unfold eval_id in H1.
-      rewrite H2 in H1.
-      revert H1; auto.
-    - destruct (access_mode t); try solve [apply andp_left2; auto].
-      rewrite !msubst_simpl_tc_andp_sound, !denote_tc_assert_andp.
-      apply andp_right; [apply andp_right |]; try solve_andp.
-      * eapply derives_trans; [| apply msubst_tc_expr_sound].
-        solve_andp.
-      * rewrite msubst_simpl_tc_bool_sound;
-        solve_andp.
-    - rewrite !msubst_simpl_tc_andp_sound, !denote_tc_assert_andp.
-      apply andp_right.
-      * eapply derives_trans; [| apply msubst_tc_lvalue_sound].
-        solve_andp.
-      * rewrite msubst_simpl_tc_bool_sound;
-        solve_andp.
-    - rewrite !msubst_simpl_tc_andp_sound, !denote_tc_assert_andp.
-      apply andp_right.
-      * apply andp_left2, andp_left1; simpl msubst_simpl_tc_assert.
-        unfold isUnOpResultType.
-        eapply derives_trans; [| apply msubst_tc_expr_sound].
-        solve_andp.
-      * rewrite msubst_simpl_tc_bool_sound;
-        solve_andp.
-      apply andp_right.
-      eapply derives_trans; [clear H1; revert rho; apply in_local; exact H2 |].
-      SearchAbout LocalD (_ ! _).
-    destruct (T1 ! e) eqn:?H.
-    - intros rho.
-      unfold PROPx, LOCALx.
-      simpl.
-      unfold local, lift1; unfold_lift.
-      apply andp_left1.
-      rewrite <- !andp_assoc.
-      apply andp_left1.
-      rewrite andp_comm, <- andp_assoc.
-      apply andp_left1.
-      rewrite <- prop_and.
-      apply prop_derives.
-      intros [? ?].
-      apply msubst_eval_eq_aux in H0.
-      destruct H0 as [? _].
-      specialize (H0 _ _ H).
-      unfold eval_id in H0.
-      destruct H1 as [? _].
-      specialize (H1 e t).
-      unfold force_val in H0.
-    SearchAbout LocalD (_ ! _).
+    - eapply derives_trans; [| apply IHtc2, H1].
+      solve_andp.
+  + inversion H.
+    simpl msubst_simpl_tc_assert.
+    rewrite denote_tc_assert_orp.
+    change (denote_tc_assert (tc_orp' tc1 tc2)) with
+      (denote_tc_assert tc1 || denote_tc_assert tc2).
+    rewrite (andp_comm (_ && _)).
+    apply imp_andp_adjoint.
+    apply orp_left; apply imp_andp_adjoint; rewrite <- (andp_comm (_ && _)).
+    - eapply derives_trans; [apply IHtc1, H0 | apply orp_right1; auto].
+    - eapply derives_trans; [apply IHtc2, H1 | apply orp_right2; auto].
+  + inv H.
+    simpl denote_tc_assert.
+    destruct (T1 ! e) eqn:?H; [apply andp_left1 | simpl; intros; apply andp_left2, FF_left].
+    apply (LocalD_sound_temp _ _ _ T2 Q) in H.
+    rewrite (add_andp _ _ (in_local _ _ _ _ _ H)).
+    intros rho.
+    unfold local, lift1; simpl; unfold_lift; simpl.
+    normalize.
+    destruct H2 as [? _].
+    specialize (H2 _ _ H1).
+    destruct H2 as [v [? ?]].
+    unfold denote_tc_initialized.
+    apply prop_right.
+    exists v; split; auto.
+    unfold eval_id in H0.
+    rewrite H2 in H0.
+    revert H0; auto.
+Qed.
+
+Lemma legal_tc_init_tc_bool: forall Delta b err,
+  legal_tc_init Delta (tc_bool b err).
+Proof.
+  intros.
+  destruct b; simpl; auto.
+Qed.
+
+Lemma legal_tc_init_tc_andp: forall Delta tc1 tc2,
+  legal_tc_init Delta tc1 ->
+  legal_tc_init Delta tc2 ->
+  legal_tc_init Delta (tc_andp tc1 tc2).
+Proof.
+  intros.
+  destruct tc1, tc2; simpl; auto.
+Qed.
+
+Lemma legal_tc_init_tc_nonzero: forall {cs: compspecs} Delta e,
+  legal_tc_init Delta (tc_nonzero e).
+Proof.
+  intros.
+  unfold tc_nonzero.
+  destruct (eval_expr e any_environ); simpl; auto;
+  if_tac; simpl; auto.
+Qed.
+
+Lemma legal_tc_init_tc_iszero: forall {cs: compspecs} Delta e,
+  legal_tc_init Delta (tc_iszero e).
+Proof.
+  intros.
+  unfold tc_iszero.
+  destruct (eval_expr e any_environ); simpl; auto;
+  if_tac; simpl; auto.
+Qed.
+
+Lemma legal_tc_init_tc_test_eq: forall {cs: compspecs} Delta e1 e2,
+  legal_tc_init Delta (tc_test_eq e1 e2).
+Proof.
+  intros.
+  unfold tc_test_eq.
+  destruct (eval_expr e1 any_environ), (eval_expr e2 any_environ); simpl; auto;
+  if_tac; simpl; auto.
+Qed.
+
+Lemma legal_tc_init_tc_test_order: forall {cs: compspecs} Delta e1 e2,
+  legal_tc_init Delta (tc_test_order e1 e2).
+Proof.
+  intros.
+  unfold tc_test_order.
+  destruct (eval_expr e1 any_environ), (eval_expr e2 any_environ); simpl; auto;
+  if_tac; simpl; auto.
+Qed.
+
+Lemma legal_tc_init_tc_nodivover: forall {cs: compspecs} Delta e1 e2,
+  legal_tc_init Delta (tc_nodivover e1 e2).
+Proof.
+  intros.
+  unfold tc_nodivover.
+  destruct (eval_expr e1 any_environ), (eval_expr e2 any_environ); simpl; auto;
+  if_tac; simpl; auto.
+Qed.
+
+Lemma legal_tc_init_tc_ilt: forall {cs: compspecs} Delta e i,
+  legal_tc_init Delta (tc_ilt e i).
+Proof.
+  intros.
+  unfold tc_ilt.
+  destruct (eval_expr e any_environ); simpl; auto;
+  if_tac; simpl; auto.
+Qed.
+
+Lemma legal_tc_init_binarithType: forall Delta t1 t2 t err err',
+  legal_tc_init Delta (binarithType t1 t2 t err err').
+Proof.
+  intros.
+  unfold binarithType.
+  destruct (classify_binarith t1 t2);
+  first [apply legal_tc_init_tc_bool | simpl; auto].
+Qed.
+
+Ltac solve_legal_tc_init :=
+  repeat progress
+   (simpl; auto;
+      match goal with
+      | |- context [match ?A with _ => _ end] => destruct A eqn:?H
+      | |- legal_tc_init _ (tc_bool _ _) => apply legal_tc_init_tc_bool
+      | |- legal_tc_init _ (tc_andp _ _) => apply legal_tc_init_tc_andp
+      | |- legal_tc_init _ (tc_nonzero _) => apply legal_tc_init_tc_nonzero
+      | |- legal_tc_init _ (tc_iszero _) => apply legal_tc_init_tc_iszero
+      | |- legal_tc_init _ (tc_test_eq _ _) => apply legal_tc_init_tc_test_eq
+      | |- legal_tc_init _ (tc_test_order _ _) => apply legal_tc_init_tc_test_order
+      | |- legal_tc_init _ (tc_nodivover _ _) => apply legal_tc_init_tc_nodivover
+      | |- legal_tc_init _ (tc_ilt _ _) => apply legal_tc_init_tc_ilt
+      | |- legal_tc_init _ (binarithType _ _ _ _ _) => apply legal_tc_init_binarithType
+      | |- _ => idtac
+      end).
+
+Lemma typecheck_lvalue_legal_tc_init: forall {cs: compspecs} Delta e,
+  legal_tc_init Delta (typecheck_lvalue Delta e)
+ with typecheck_expr_legal_tc_init: forall {cs: compspecs} Delta e,
+  legal_tc_init Delta (typecheck_expr Delta e).
+Proof.
+  + clear typecheck_lvalue_legal_tc_init.
+    intros.
+    induction e; simpl; solve_legal_tc_init.
+  + clear typecheck_expr_legal_tc_init.
+    intros.
+    induction e; simpl; solve_legal_tc_init.
+    - unfold isUnOpResultType; solve_legal_tc_init.
+    - unfold isBinOpResultType.
+      Opaque tc_andp tc_orp.
+      solve_legal_tc_init.
+      Transparent tc_andp tc_orp.
+    - unfold isCastResultType.
+      solve_legal_tc_init.
+Qed.  
+
+Lemma msubst_tc_lvalue_sound: forall {cs: compspecs} Delta P T1 T2 Q R e,
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+    ` (msubst_tc_lvalue Delta T1 T2 e) ->
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+    tc_lvalue Delta e.
+Proof.
+  intros.
+  unfold msubst_tc_lvalue in H.
+  apply msubst_denote_tc_assert_sound in H.
+  eapply derives_trans; [| apply msubst_simpl_tc_assert_sound, typecheck_lvalue_legal_tc_init].
+  apply andp_right; [apply derives_refl | exact H].
+Qed.
+
+Lemma msubst_tc_expr_sound: forall {cs: compspecs} Delta P T1 T2 Q R e,
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+    ` (msubst_tc_expr Delta T1 T2 e) ->
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
+    tc_expr Delta e.
+Proof.
+  intros.
+  unfold msubst_tc_expr in H.
+  apply msubst_denote_tc_assert_sound in H.
+  eapply derives_trans; [| apply msubst_simpl_tc_assert_sound, typecheck_expr_legal_tc_init].
+  apply andp_right; [apply derives_refl | exact H].
+Qed.
