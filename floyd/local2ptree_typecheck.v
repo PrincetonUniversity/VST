@@ -271,7 +271,7 @@ Proof.
     intros rho.
     simpl; normalize.
 Qed.
-
+(*
 Lemma msubst_simpl_tc_andp: forall {cs: compspecs} P T1 tc1 tc2,
   P |-- denote_tc_assert (msubst_simpl_tc_assert T1 tc1) && denote_tc_assert (msubst_simpl_tc_assert T1 tc2) ->
   P |-- denote_tc_assert (msubst_simpl_tc_assert T1 (tc_andp' tc1 tc2)).
@@ -284,16 +284,42 @@ Proof.
   auto.
 Qed.
 SearchAbout tc_andp.
+*)
 Lemma msubst_simpl_tc_andp_sound: forall {cs: compspecs} T1 tc1 tc2,
-  msubst_simpl_tc_assert T1 (tc_andp tc1 tc2) =
-  tc_andp (msubst_simpl_tc_assert T1 tc1) (msubst_simpl_tc_assert T1 tc2).
+  denote_tc_assert (msubst_simpl_tc_assert T1 (tc_andp tc1 tc2)) =
+  denote_tc_assert ((msubst_simpl_tc_assert T1 tc1)) && denote_tc_assert (msubst_simpl_tc_assert T1 tc2).
 Proof.
   intros.
-  destruct tc1, tc2; auto.
-  + simpl.
-    destruct (tc_andp (msubst_simpl_tc_assert T1 tc1_1) (msubst_simpl_tc_assert T1 tc1_2)); auto.
-                         msubst_denote_tc_assert T1 T2 (msubst_simpl_tc_assert T1 tc1) &&
-  msubst_denote_tc_assert T1 T2 (msubst_simpl_tc_assert T1 tc2).
+  transitivity (denote_tc_assert (msubst_simpl_tc_assert T1 (tc_andp' tc1 tc2))).
+  + destruct tc1, tc2; try reflexivity;
+    simpl msubst_simpl_tc_assert;
+    rewrite !denote_tc_assert_andp;
+    extensionality rho; simpl;
+    try first [symmetry; apply andp_FF | symmetry; apply andp_TT].
+  + simpl msubst_simpl_tc_assert.
+    rewrite denote_tc_assert_andp.
+    auto.
+Qed.
+
+Lemma msubst_simpl_tc_orp_sound: forall {cs: compspecs} T1 tc1 tc2,
+  denote_tc_assert (msubst_simpl_tc_assert T1 (tc_orp tc1 tc2)) =
+  denote_tc_assert ((msubst_simpl_tc_assert T1 tc1)) || denote_tc_assert (msubst_simpl_tc_assert T1 tc2).
+Proof.
+  intros.
+  transitivity (denote_tc_assert (msubst_simpl_tc_assert T1 (tc_orp' tc1 tc2))).
+  + destruct tc1, tc2; try reflexivity;
+    simpl msubst_simpl_tc_assert;
+    rewrite !denote_tc_assert_orp;
+    extensionality rho; simpl;
+    try first [symmetry; apply orp_FF | symmetry; apply orp_TT].
+    SearchAbout orp FF.
+    Locate orp_FF.
+  + simpl msubst_simpl_tc_assert.
+    rewrite denote_tc_assert_andp.
+    auto.
+Qed.
+
+ 
 
 Lemma msubst_simpl_tc_orp: forall {cs: compspecs} P T1 tc1 tc2,
   P |-- denote_tc_assert (msubst_simpl_tc_assert T1 tc1) || denote_tc_assert (msubst_simpl_tc_assert T1 tc2) ->
@@ -306,28 +332,25 @@ Proof.
   change (denote_tc_assert (tc_orp' tc1 tc2)) with (denote_tc_assert tc1 || denote_tc_assert tc2).
   auto.
 Qed.
-
+*)
 Lemma msubst_tc_lvalue_sound: forall {cs: compspecs} Delta P T1 T2 Q R e,
   local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
-    `(msubst_tc_lvalue Delta T1 T2 e) ->
+    denote_tc_assert (msubst_simpl_tc_assert T1 (typecheck_lvalue Delta e)) ->
   local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
     tc_lvalue Delta e
  with msubst_tc_expr_sound: forall {cs: compspecs} Delta P T1 T2 Q R e,
   local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
-    `(msubst_tc_expr Delta T1 T2 e) ->
+    denote_tc_assert (msubst_simpl_tc_assert T1 (typecheck_expr Delta e)) ->
   local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
     tc_expr Delta e.
 Proof.
   + intros.
     rewrite (add_andp _ _ H); clear H.
     induction e; try solve [apply andp_left2; auto];
-    unfold tc_lvalue, msubst_tc_lvalue;
-    simpl denote_tc_assert; simpl msubst_denote_tc_assert.
+    unfold tc_lvalue; simpl denote_tc_assert.
     - destruct (get_var_type Delta i); try solve [apply andp_left2; auto].
       destruct (eqb_type t t0); try solve [apply andp_left2; auto].
-    - unfold tc_lvalue, msubst_tc_lvalue.
-      simpl denote_tc_assert; simpl msubst_denote_tc_assert.
-      destruct (get_var_type Delta i); try solve [apply andp_left2; auto].
+    - destruct (get_var_type Delta i); try solve [apply andp_left2; auto].
       destruct (eqb_type t t0); try solve [apply andp_left2; auto].
   + simpl msubst_simpl_tc_assert.
     rewrite denote_tc_assert_andp.
