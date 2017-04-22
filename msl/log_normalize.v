@@ -290,6 +290,22 @@ Proof.
   apply FF_orp.
 Qed.
 
+Lemma orp_TT {A}{NA: NatDed A}:
+ forall Q, Q || TT = TT.
+Proof.
+  intros. apply pred_ext.
+  + apply orp_left; apply TT_right.
+  + apply orp_right2; auto.
+Qed.
+
+Lemma TT_orp {A}{NA: NatDed A}:
+ forall Q, TT || Q = TT.
+Proof.
+  intros. apply pred_ext.
+  + apply orp_left; apply TT_right.
+  + apply orp_right1; auto.
+Qed.
+
 Lemma allp_forall: forall {A B: Type} `{NatDed A} P Q (x:B), (forall x:B, (P x = Q)) -> (allp P = Q).
 Proof.
   intros.
