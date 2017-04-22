@@ -315,12 +315,19 @@ Proof.
     SearchAbout orp FF.
     Locate orp_FF.
   + simpl msubst_simpl_tc_assert.
-    rewrite denote_tc_assert_andp.
+    rewrite denote_tc_assert_orp.
     auto.
 Qed.
 
- 
+Lemma msubst_simpl_tc_bool_sound: forall {cs: compspecs} T1 b err,
+  denote_tc_assert (msubst_simpl_tc_assert T1 (tc_bool b err)) =
+  denote_tc_assert (tc_bool b err).
+Proof.
+  intros.
+  destruct b; auto.
+Qed.
 
+(*
 Lemma msubst_simpl_tc_orp: forall {cs: compspecs} P T1 tc1 tc2,
   P |-- denote_tc_assert (msubst_simpl_tc_assert T1 tc1) || denote_tc_assert (msubst_simpl_tc_assert T1 tc2) ->
   P |-- denote_tc_assert (msubst_simpl_tc_assert T1 (tc_orp' tc1 tc2)).
@@ -334,42 +341,85 @@ Proof.
 Qed.
 *)
 Lemma msubst_tc_lvalue_sound: forall {cs: compspecs} Delta P T1 T2 Q R e,
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
-    denote_tc_assert (msubst_simpl_tc_assert T1 (typecheck_lvalue Delta e)) ->
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
-    tc_lvalue Delta e
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) &&
+    denote_tc_assert (msubst_simpl_tc_assert T1 (typecheck_lvalue Delta e)) |--
+  tc_lvalue Delta e
  with msubst_tc_expr_sound: forall {cs: compspecs} Delta P T1 T2 Q R e,
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
-    denote_tc_assert (msubst_simpl_tc_assert T1 (typecheck_expr Delta e)) ->
-  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) |--
-    tc_expr Delta e.
+  local (tc_environ Delta) && PROPx P (LOCALx (LocalD T1 T2 Q) (SEPx R)) &&
+    denote_tc_assert (msubst_simpl_tc_assert T1 (typecheck_expr Delta e)) |--
+  tc_expr Delta e.
 Proof.
   + intros.
-    rewrite (add_andp _ _ H); clear H.
     induction e; try solve [apply andp_left2; auto];
     unfold tc_lvalue; simpl denote_tc_assert.
     - destruct (get_var_type Delta i); try solve [apply andp_left2; auto].
       destruct (eqb_type t t0); try solve [apply andp_left2; auto].
-    - destruct (get_var_type Delta i); try solve [apply andp_left2; auto].
-      destruct (eqb_type t t0); try solve [apply andp_left2; auto].
-  + simpl msubst_simpl_tc_assert.
-    rewrite denote_tc_assert_andp.
-    change (denote_tc_assert (tc_andp' tc1 tc2)) with (denote_tc_assert tc1 && denote_tc_assert tc2).
-    apply andp_right.
-    - eapply derives_trans; [| exact IHtc1].
+    - rewrite !msubst_simpl_tc_andp_sound, !denote_tc_assert_andp, !msubst_simpl_tc_bool_sound.
+      apply andp_right; [apply andp_right |]; try solve_andp.
+      eapply derives_trans; [| apply msubst_tc_expr_sound].
       solve_andp.
-    - eapply derives_trans; [| exact IHtc2].
-      solve_andp.
-  + simpl msubst_simpl_tc_assert.
-    rewrite denote_tc_assert_orp.
-    change (denote_tc_assert (tc_orp' tc1 tc2)) with (denote_tc_assert tc1 || denote_tc_assert tc2).
-    rewrite (andp_comm (_ && _)).
-    apply imp_andp_adjoint.
-    apply orp_left; apply imp_andp_adjoint; rewrite <- (andp_comm (_ && _)).
-    - eapply derives_trans; [exact IHtc1 | apply orp_right1; auto].
-    - eapply derives_trans; [exact IHtc2 | apply orp_right2; auto].
-  + simpl denote_tc_assert.
-    unfold denote_tc_initialized.
+    - rewrite !msubst_simpl_tc_andp_sound, !denote_tc_assert_andp.
+      apply andp_right.
+      * eapply derives_trans; [| apply msubst_tc_lvalue_sound].
+        solve_andp.
+      * destruct (typeof e); try solve_andp.
+       ++ destruct (cenv_cs ! i0); try solve_andp.
+          destruct (field_offset cenv_cs i (co_members c)); try solve_andp.
+       ++ destruct (cenv_cs ! i0); try solve_andp.
+  + intros.
+    induction e; try solve [apply andp_left2; auto];
+    unfold tc_expr; simpl denote_tc_assert.
+    - destruct t; try solve [apply andp_left2; auto].
+      destruct i0; try solve [apply andp_left2; auto].
+    - destruct t; try solve [apply andp_left2; auto].
+      destruct f0; try solve [apply andp_left2; auto].
+    - destruct t; try solve [apply andp_left2; auto].
+      destruct f0; try solve [apply andp_left2; auto].
+    - destruct (access_mode t); try solve [apply andp_left2; auto].
+      destruct (get_var_type Delta i); try solve [apply andp_left2; auto].
+      rewrite msubst_simpl_tc_bool_sound; apply andp_left2; auto.
+    - destruct ((temp_types Delta) ! i) eqn:?H; try solve [apply andp_left2; auto].
+      if_tac; try solve [apply andp_left2; auto].
+      simpl denote_tc_assert.
+      destruct (T1 ! i) eqn:?H; [apply andp_left1 | simpl; intros; apply andp_left2, FF_left].
+      apply (LocalD_sound_temp _ _ _ T2 Q) in H0.
+      rewrite (add_andp _ _ (in_local _ _ _ _ _ H0)).
+      intros rho.
+      unfold local, lift1; simpl; unfold_lift; simpl.
+      normalize.
+      destruct H2 as [? _].
+      specialize (H2 _ _ H).
+      destruct H2 as [v' [? ?]].
+      unfold denote_tc_initialized.
+      apply prop_right.
+      exists v'; split; auto.
+      unfold eval_id in H1.
+      rewrite H2 in H1.
+      revert H1; auto.
+    - destruct (access_mode t); try solve [apply andp_left2; auto].
+      rewrite !msubst_simpl_tc_andp_sound, !denote_tc_assert_andp.
+      apply andp_right; [apply andp_right |]; try solve_andp.
+      * eapply derives_trans; [| apply msubst_tc_expr_sound].
+        solve_andp.
+      * rewrite msubst_simpl_tc_bool_sound;
+        solve_andp.
+    - rewrite !msubst_simpl_tc_andp_sound, !denote_tc_assert_andp.
+      apply andp_right.
+      * eapply derives_trans; [| apply msubst_tc_lvalue_sound].
+        solve_andp.
+      * rewrite msubst_simpl_tc_bool_sound;
+        solve_andp.
+    - rewrite !msubst_simpl_tc_andp_sound, !denote_tc_assert_andp.
+      apply andp_right.
+      * apply andp_left2, andp_left1; simpl msubst_simpl_tc_assert.
+        unfold isUnOpResultType.
+        eapply derives_trans; [| apply msubst_tc_expr_sound].
+        solve_andp.
+      * rewrite msubst_simpl_tc_bool_sound;
+        solve_andp.
+      apply andp_right.
+      eapply derives_trans; [clear H1; revert rho; apply in_local; exact H2 |].
+      SearchAbout LocalD (_ ! _).
     destruct (T1 ! e) eqn:?H.
     - intros rho.
       unfold PROPx, LOCALx.
