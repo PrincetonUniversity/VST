@@ -17,6 +17,7 @@ Require Import floyd.sc_set_load_store.
 Require Import floyd.stronger.
 Require Import floyd.local2ptree_denote.
 Require Import floyd.local2ptree_eval.
+Require Import floyd.local2ptree_typecheck.
 Require Import floyd.reptype_lemmas.
 Require Import floyd.proj_reptype_lemmas.
 Require Import floyd.replace_refill_reptype_lemmas.
@@ -71,7 +72,6 @@ Hint Resolve field_address_eq_offset' : prove_it_now.
 Hint Rewrite <- @prop_and using solve [auto with typeclass_instances]: norm1.
 
 Local Open Scope logic.
-
 
 Lemma var_block_lvar2:
  forall {cs: compspecs} {Espec: OracleKind} id t Delta P Q R Vs c Post,
@@ -1748,6 +1748,22 @@ Ltac quick_typecheck3 :=
  apply quick_derives_right; clear; go_lowerx; intros;
  clear; repeat apply andp_right; auto; fail.
 
+Ltac quick_typecheck4 :=
+  match goal with
+  | |- ENTAIL _, PROPx ?P (LOCALx ?Q (SEPx ?R)) |-- _ =>
+    let H := fresh "H" in
+    pose proof @eq_refl _ (local2ptree Q) as H;
+    unfold local2ptree at 2 in H; simpl in H;
+    rewrite (local2ptree_soundness _ _ _ _ _ _ _ H)
+  end;
+  match goal with
+  | |- ENTAIL _, _ |-- tc_expr _ _ =>
+         apply msubst_tc_expr_sound
+  | |- ENTAIL _, _ |-- tc_lvalue _ _ =>
+         apply msubst_tc_lvalue_sound
+  end;
+  quick_typecheck3.
+
 Ltac forward_setx :=
   ensure_normal_ret_assert;
     hoist_later_in_pre;
@@ -1760,7 +1776,7 @@ Ltac forward_setx :=
       [ reflexivity
       | reflexivity
       | exact HRE
-      | first [quick_typecheck3
+      | first [quick_typecheck4
             | pre_entailer; clear HRE; subst v; try solve [entailer!]]
       ]
  end.
@@ -2071,7 +2087,7 @@ Inductive undo_and_first__assert_PROP: Prop -> Prop := .
 
 Ltac default_entailer_for_load_tac :=
   repeat match goal with H := _ |- _ => clear H end;
-  try quick_typecheck3;
+  try quick_typecheck4;
   unfold tc_efield, tc_LR, tc_LR_strong; simpl typeof;
   try solve [entailer!].
 
@@ -2316,7 +2332,7 @@ Ltac store_tac_without_hint Delta P Q R gfs e_root efs tts p_root p_full sh t_SE
     | solve_store_rule_evaluation
     | subst gfs0 gfs1 efs tts lr n;
       pre_entailer;
-      try quick_typecheck3;
+      try quick_typecheck4;
       unfold tc_efield; entailer_for_store_tac;
       simpl app; simpl typeof
     | solve_legal_nested_field_in_entailment ]
@@ -2376,7 +2392,7 @@ Ltac store_tac_with_root_path_hint Delta P Q R gfs sh e_full p_full t_SEP
     | solve_store_rule_evaluation
     | subst gfs0 gfs1 n;
       pre_entailer;
-      try quick_typecheck3;
+      try quick_typecheck4;
       unfold tc_efield; entailer_for_store_tac;
       simpl app; simpl typeof
     | solve_legal_nested_field_in_entailment
@@ -2417,7 +2433,7 @@ Ltac store_tac_with_full_path_hint Delta P Q R gfs e_full p_full sh t_SEP gfs0 g
     | solve_store_rule_evaluation
     | subst gfs0 gfs1 sh n;
       pre_entailer;
-      try quick_typecheck3; 
+      try quick_typecheck4; 
       unfold tc_efield; entailer_for_store_tac;
       simpl app; simpl typeof
     | solve_legal_nested_field_in_entailment ]
