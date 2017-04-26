@@ -34,7 +34,9 @@ int validate(int e, node *pred, node *curr){
   }
   n = pred->next;
   node *p = load_SC(n);
-  return(succ == curr && p == curr);
+  int r = (succ == curr);
+  r = r && (p == curr);
+  return r;
 }
 
 void locate(int e, node **r1, node **r2){

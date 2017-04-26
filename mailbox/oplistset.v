@@ -214,8 +214,9 @@ Definition f_validate := {|
   fn_vars := nil;
   fn_temps := ((_succ, (tptr (Tstruct _node noattr))) :: (_v, tint) ::
                (_n, (tptr (Tstruct _atomic_loc noattr))) ::
-               (_p, (tptr (Tstruct _node noattr))) :: (_t'3, tint) ::
-               (_t'2, (tptr tvoid)) :: (_t'1, (tptr tvoid)) :: nil);
+               (_p, (tptr (Tstruct _node noattr))) :: (_r, tint) ::
+               (_t'3, tint) :: (_t'2, (tptr tvoid)) ::
+               (_t'1, (tptr tvoid)) :: nil);
   fn_body :=
 (Ssequence
   (Sset _succ (Evar _head (tptr (Tstruct _node noattr))))
@@ -262,17 +263,20 @@ Definition f_validate := {|
               ((Etempvar _n (tptr (Tstruct _atomic_loc noattr))) :: nil))
             (Sset _p (Etempvar _t'2 (tptr tvoid))))
           (Ssequence
-            (Sifthenelse (Ebinop Oeq
-                           (Etempvar _succ (tptr (Tstruct _node noattr)))
-                           (Etempvar _curr (tptr (Tstruct _node noattr)))
-                           tint)
-              (Sset _t'3
-                (Ecast
-                  (Ebinop Oeq (Etempvar _p (tptr (Tstruct _node noattr)))
-                    (Etempvar _curr (tptr (Tstruct _node noattr))) tint)
-                  tbool))
-              (Sset _t'3 (Econst_int (Int.repr 0) tint)))
-            (Sreturn (Some (Etempvar _t'3 tint)))))))))
+            (Sset _r
+              (Ebinop Oeq (Etempvar _succ (tptr (Tstruct _node noattr)))
+                (Etempvar _curr (tptr (Tstruct _node noattr))) tint))
+            (Ssequence
+              (Ssequence
+                (Sifthenelse (Etempvar _r tint)
+                  (Sset _t'3
+                    (Ecast
+                      (Ebinop Oeq (Etempvar _p (tptr (Tstruct _node noattr)))
+                        (Etempvar _curr (tptr (Tstruct _node noattr))) tint)
+                      tbool))
+                  (Sset _t'3 (Econst_int (Int.repr 0) tint)))
+                (Sset _r (Etempvar _t'3 tint)))
+              (Sreturn (Some (Etempvar _r tint))))))))))
 |}.
 
 Definition f_locate := {|
