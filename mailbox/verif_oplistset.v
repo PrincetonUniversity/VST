@@ -24,7 +24,7 @@ Definition tnode := Tstruct _node noattr.
    it impossible to rejoin the shares or know that they're all recollected, but maybe that's fine. We could even
    try using a token factory. *)
 
-(* A PCM for rights to a specific share of a data structure of unknown extent. *)
+(*(* A PCM for rights to a specific share of a data structure of unknown extent. *)
 (* Can this be simplified? *)
 Instance shares_PCM : PCM (option (list val) * option (val * bool)) :=
   { join a b c := match a, b with
@@ -42,7 +42,7 @@ Defined.
    share lists). Unfortunately, I don't know how else to provide predictable shares. *)
 
 Definition ghost_list (l : list val) p := ghost (Some l, @None (option val)) p.
-Definition ghost_this (d : option val) p := ghost (@None (list val), Some d) p.
+Definition ghost_this (d : option val) p := ghost (@None (list val), Some d) p.*)
 
 (*
 (* Holding the other half of the ghost var gives permission to write to next/know that it won't change. *)
@@ -188,6 +188,19 @@ Definition node_data gsh1 gsh2 sh rep p := data_at sh tnode (vint (data rep), (n
 Definition node' gsh1 gsh2 p := EX sh : share, EX rep : node_rep,
   !!(readable_share sh /\ repable_signed (data rep)) && node_data gsh1 gsh2 sh rep p.
 
+Definition new_node_spec := DECLARE _new_node
+  WITH e : Z, nnext : val, sh : share, rep : node_rep, gsh1 : share, gsh2 : share
+  PRE [ _e OF tint ]
+    PROP (repable_signed e; readable_share sh; repable_signed (data rep); e < data rep;
+          if eq_dec (data rep) Int.max_signed then next rep = nullval else True; sepalg.join gsh1 gsh2 Tsh)
+    LOCAL (temp _e (vint e); temp _nnext nnext)
+    SEP (node_data gsh1 gsh2 sh rep nnext)
+  POST [ tptr tnode ]
+   EX p : val, EX rep' : node_rep,
+    PROP ()
+    LOCAL (temp ret_temp p)
+    SEP (node_data gsh1 gsh2 Tsh rep' p; ghost_var gsh1 nnext (gnext rep')).
+
 Definition validate_spec := DECLARE _validate
   WITH hp : val, head : val, e : Z, pred : val, curr : val, sh : share, gsh1 : share, gsh2 : share,
     reph : node_rep, shp : share, repp : node_rep, pn : val, shc : share, repc : node_rep, nodes : list val
@@ -219,7 +232,7 @@ Definition locate_spec := DECLARE _locate
     LOCAL (gvar _head hp; temp _e (vint e); temp _r1 r1; temp _r2 r2)
     SEP (data_at sh (tptr tnode) head hp; data_at_ Tsh (tptr tnode) r1; data_at_ Tsh (tptr tnode) r2;
          node_data gsh1 gsh2 sh reph head; fold_right sepcon emp (map (node' gsh1 gsh2) nodes))
-  POST [ tint ]
+  POST [ tvoid ]
    EX pred : val, EX shp : share, EX repp : node_rep, EX curr : val, EX shc : share, EX repc : node_rep,
    EX pc : val, EX nodes' : list val,
     PROP (readable_share shp; readable_share shc;
@@ -231,6 +244,46 @@ Definition locate_spec := DECLARE _locate
          if eq_dec pred head then emp else node_data gsh1 gsh2 sh reph head;
          node_data gsh1 gsh2 shp repp pred; ghost_var gsh2 curr (gnext repp);
          node_data gsh1 gsh2 shc repc curr; ghost_var gsh2 pc (gnext repc);
+         fold_right sepcon emp (map (node' gsh1 gsh2) nodes')).
+
+(* Could we prove at least simple linearization points after all, e.g. by abstracting the list of nodes into a set
+   and then showing that some atomic step in the function body has the abstract pre and postcondition? This
+   wouldn't be part of a funspec as such, but it's part of RGSep methodology. (See the marked steps in Figure 2
+   of Proving Correctness of Highly-Concurrent Linearisable Objects, Vafeiadis et al, PPoPP 2006. *)
+(* Without such an approach, we don't get much useful information out of the return value, unless we use
+   histories to say that writes occur only on a successful add (which we can, along the lines of hashtable1). *)
+Definition add_spec := DECLARE _add
+  WITH hp : val, head : val, e : Z, sh : share, gsh1 : share, gsh2 : share, reph : node_rep, nodes : list val
+  PRE [ _e OF tint ]
+    PROP (Int.min_signed < e < Int.max_signed; readable_share sh; readable_share gsh1; readable_share gsh2;
+          sepalg.join gsh1 gsh2 Tsh; NoDup nodes; ~In head nodes; data reph = Int.min_signed)
+    LOCAL (gvar _head hp; temp _e (vint e))
+    SEP (data_at sh (tptr tnode) head hp; node_data gsh1 gsh2 sh reph head;
+         fold_right sepcon emp (map (node' gsh1 gsh2) nodes))
+  POST [ tint ]
+   EX b : bool, EX sh' : share, EX rep' : node_rep, EX n' : val, EX nodes' : list val,
+    PROP (readable_share sh'; data rep' = e; if b then incl nodes nodes' else incl nodes (n' :: nodes');
+          ~In head nodes'; ~In n' nodes)
+    LOCAL (temp ret_temp (Val.of_bool b))
+    SEP (node_data gsh1 gsh2 sh' rep' n';
+         fold_right sepcon emp (map (node' gsh1 gsh2) nodes')).
+
+(* A useful spec for remove is even more unclear. How do we know the removed node is no longer in the list? *)
+Definition remove_spec := DECLARE _remove
+  WITH hp : val, head : val, e : Z, sh : share, gsh1 : share, gsh2 : share, reph : node_rep, nodes : list val
+  PRE [ _e OF tint ]
+    PROP (Int.min_signed < e < Int.max_signed; readable_share sh; readable_share gsh1; readable_share gsh2;
+          sepalg.join gsh1 gsh2 Tsh; NoDup nodes; ~In head nodes; data reph = Int.min_signed)
+    LOCAL (gvar _head hp; temp _e (vint e))
+    SEP (data_at sh (tptr tnode) head hp; node_data gsh1 gsh2 sh reph head;
+         fold_right sepcon emp (map (node' gsh1 gsh2) nodes))
+  POST [ tint ]
+   EX b : bool, EX n' : val, EX nodes' : list val,
+    PROP (if b then incl nodes (n' :: nodes') else incl nodes nodes'; ~In head nodes';
+          if b then ~In n' nodes else True)
+    LOCAL (temp ret_temp (Val.of_bool b))
+    SEP (if b then EX sh' : share, EX rep' : node_rep, EX n' : val, !!(readable_share sh' /\ data rep' = e) &&
+           node_data gsh1 gsh2 sh' rep' n' else emp;
          fold_right sepcon emp (map (node' gsh1 gsh2) nodes')).
 
 Definition Gprog : funspecs := ltac:(with_library prog [acquire_spec; release_spec; load_SC_spec;
@@ -893,3 +946,24 @@ Proof.
       * Exists shc repc; entailer!.
       * Exists shp repp shc repc; entailer!.
 Admitted.
+
+Lemma body_add : semax_body Vprog Gprog f_add add_spec.
+Proof.
+  name r1 _n1; name r3 _n3.
+  start_function.
+  forward_call (hp, head, e, r1, r3, sh, gsh1, gsh2, reph, nodes).
+  { unfold tnode; cancel. }
+  { tauto. }
+  Intros x; destruct x as (((((((pred, shp), repp), curr), shc), repc), cn), nodes1); simpl in *.
+  unfold node_data at 3; Intros.
+  forward.
+  forward_if ().
+  unfold node_data at 2; Intros.
+  forward.
+  forward_call ().
+  forward.
+  forward_call ().
+  forward.
+  Exists; entailer!.
+Qed.
+  

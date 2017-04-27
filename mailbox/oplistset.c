@@ -4,13 +4,17 @@ typedef struct node { int val; atomic_loc *next; lock_t *lock; } node;
 
 node *head;
 
-node *new_node(int e){
+//To ensure that the atomic_loc invariant holds to start with, we need to provide the
+//next node at creation.
+node *new_node(int e, node *nnext){
   node *r = surely_malloc(sizeof(node));
   r->val = e;
-  r->next = make_atomic(NULL);
+  atomic_loc *n = make_atomic(nnext);
+  r->next = n;
   lock_t *l = surely_malloc(sizeof(lock_t));
   makelock(l);
   r->lock = l;
+  release(l);
   return r;
 }
 
@@ -68,15 +72,13 @@ void locate(int e, node **r1, node **r2){
 }
 
 int add(int e){
-  node *n1, *n3;
-  locate(e, &n1, &n3);
+  //node *n1, *n3;
+  //locate(e, &n1, &n3); This doesn't seem to work in Verifiable C.
   int v = n3->val;
   int result;
   if(v != e){
-    node *n2 = new_node(e);
-    atomic_loc *n = n2->next;
-    store_SC(n, n3);
-    n = n1->next;
+    node *n2 = new_node(e, n3);
+    atomic_loc *n = n1->next;
     store_SC(n, n2);
     result = 1;
   }
