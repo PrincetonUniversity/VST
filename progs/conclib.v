@@ -806,6 +806,11 @@ Proof.
 Qed.
 Hint Resolve incl_nil.
 
+Lemma incl_cons_out : forall {A} (a : A) l1 l2, incl l1 (a :: l2) -> ~In a l1 -> incl l1 l2.
+Proof.
+  intros; intros ? Hin; specialize (H _ Hin); destruct H; auto; subst; contradiction.
+Qed.
+
 Lemma In_upto : forall n i, In i (upto n) <-> 0 <= i < Z.of_nat n.
 Proof.
   induction n; intro.
@@ -1348,6 +1353,49 @@ Proof.
     intros (? & ? & ?); rewrite In_upto in *; omega.
   - apply FinFun.Injective_map_NoDup; auto.
     intros ???; omega.
+Qed.
+
+Lemma In_remove : forall {A} {A_eq : EqDec A} (x y : A) l, In x (remove A_eq y l) <-> In x l /\ x <> y.
+Proof.
+  induction l; simpl; intros; [tauto|].
+  destruct (A_eq y a); simpl; rewrite IHl; repeat split; try tauto.
+  - destruct H as [[|]]; auto; subst; contradiction.
+  - destruct H as [|[]]; subst; auto.
+Qed.
+
+Lemma remove_NoDup : forall {A} {A_eq : EqDec A} (x : A) l, NoDup l -> NoDup (remove A_eq x l).
+Proof.
+  induction 1; simpl.
+  - constructor.
+  - if_tac; auto.
+    constructor; auto.
+    intro X; apply In_remove in X; destruct X; contradiction.
+Qed.
+
+Lemma remove_out : forall {A} {A_eq : EqDec A} (x : A) l, ~In x l -> remove A_eq x l = l.
+Proof.
+  induction l; auto; simpl; intros.
+  rewrite IHl by auto.
+  if_tac; auto; subst; tauto.
+Qed.
+
+Lemma remove_from_NoDup : forall {A} {A_eq : EqDec A} (x : A) l1 l2, NoDup (l1 ++ x :: l2) ->
+  remove A_eq x (l1 ++ x :: l2) = l1 ++ l2.
+Proof.
+  induction l1; simpl; intros.
+  - if_tac; [|contradiction].
+    inv H; apply remove_out; auto.
+  - inversion H as [|?? Hx]; subst.
+    rewrite IHl1 by auto.
+    if_tac; auto.
+    subst; contradiction Hx; rewrite in_app; simpl; auto.
+Qed.
+
+Lemma incl_remove_add : forall {A} {A_eq : EqDec A} (x : A) l1 l2, incl l1 l2 -> incl l1 (x :: remove A_eq x l2).
+Proof.
+  intros; intros ? Hin; specialize (H _ Hin).
+  simpl; rewrite In_remove.
+  destruct (eq_dec a x); auto.
 Qed.
 
 Lemma list_pigeonhole : forall l n, Zlength l < n -> exists a, 0 <= a < n /\ ~In a l.
@@ -2727,6 +2775,57 @@ Proof.
   intros.
   transitivity (base.compose (compcert_rmaps.R.approx n) (compcert_rmaps.R.approx n) P); auto.
   rewrite compcert_rmaps.RML.approx_oo_approx; auto.
+Qed.
+
+Lemma eqp_refl : forall (G : Triv) P, G |-- P <=> P.
+Proof.
+  intros; rewrite andp_dup; apply subp_refl.
+Qed.
+
+Lemma eqp_sepcon : forall (G : Triv) (P P' Q Q' : mpred)
+  (HP : G |-- P <=> P') (HQ : G |-- Q <=> Q'), G |-- P * Q <=> P' * Q'.
+Proof.
+  intros.
+  rewrite fash_andp in HP, HQ |- *.
+  apply andp_right; apply subp_sepcon; auto; intros ? Ha; destruct (HP _ Ha), (HQ _ Ha); auto.
+Qed.
+
+Lemma eqp_andp : forall (G : Triv) (P P' Q Q' : mpred)
+  (HP : G |-- P <=> P') (HQ : G |-- Q <=> Q'), G |-- P && Q <=> P' && Q'.
+Proof.
+  intros.
+  rewrite fash_andp in HP, HQ |- *.
+  apply andp_right; apply subp_andp; auto; intros ? Ha; destruct (HP _ Ha), (HQ _ Ha); auto.
+Qed.
+
+Lemma eqp_exp : forall (A : Type) (NA : NatDed A) (IA : Indir A) (RecIndir : RecIndir A)
+    (G : Triv) (B : Type) (X Y : B -> A),
+  (forall x : B, G |-- X x <=> Y x) ->
+  G |-- (EX x : _, X x) <=> (EX x : _, Y x).
+Proof.
+  intros.
+  rewrite fash_andp; apply andp_right; apply subp_exp; intro x; specialize (H x); rewrite fash_andp in H;
+    intros ? Ha; destruct (H _ Ha); auto.
+Qed.
+
+Lemma fold_right_sepcon_nonexpansive : forall lP1 lP2, Zlength lP1 = Zlength lP2 ->
+  (ALL i : Z, Znth i lP1 FF <=> Znth i lP2 FF) |--
+  fold_right sepcon emp lP1 <=> fold_right sepcon emp lP2.
+Proof.
+  induction lP1; intros.
+  - symmetry in H; apply Zlength_nil_inv in H; subst.
+    apply eqp_refl.
+  - destruct lP2; [apply Zlength_nil_inv in H; discriminate|].
+    rewrite !Zlength_cons in H.
+    simpl fold_right; apply eqp_sepcon.
+    + apply allp_left with 0.
+      rewrite !Znth_0_cons; auto.
+    + eapply derives_trans, IHlP1; [|omega].
+      apply allp_right; intro i.
+      apply allp_left with (i + 1).
+      destruct (zlt i 0).
+      { rewrite !(Znth_underflow _ _ _ l); apply eqp_refl. }
+      rewrite !Znth_pos_cons, Z.add_simpl_r by omega; auto.
 Qed.
 
 (* tactics *)

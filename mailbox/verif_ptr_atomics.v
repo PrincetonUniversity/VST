@@ -51,6 +51,23 @@ Definition A_inv p l R := EX v : val, field_at Tsh tatomic [StructField _val] v 
 Definition atomic_loc sh p R := !!(field_compatible tatomic [] p) &&
   (EX lock : val, field_at sh tatomic [StructField _lock] lock p * lock_inv sh lock (A_inv p lock R)).
 
+Lemma A_inv_nonexpansive : forall p l P1 P2, ALL x : val, P1 x <=> P2 x |-- A_inv p l P1 <=> A_inv p l P2.
+Proof.
+  intros; rewrite fash_andp; apply andp_right; unfold A_inv.
+  - apply subp_exp; intro v.
+    apply allp_left with v.
+    repeat apply subp_sepcon; try apply subp_andp; try apply subp_refl.
+    + apply fash_derives, andp_left1; auto.
+    + eapply derives_trans; [apply precise_mpred_nonexpansive|].
+      simpl; apply subtypes.fash_derives, predicates_hered.andp_left1; auto.
+  - apply subp_exp; intro v.
+    apply allp_left with v.
+    repeat apply subp_sepcon; try apply subp_andp; try apply subp_refl.
+    + apply fash_derives, andp_left2; auto.
+    + eapply derives_trans; [apply precise_mpred_nonexpansive|].
+      simpl; apply subtypes.fash_derives, predicates_hered.andp_left2; auto.
+Qed.
+
 Lemma A_inv_super_non_expansive : forall n p l R,
   compcert_rmaps.RML.R.approx n (A_inv p l R) =
   compcert_rmaps.RML.R.approx n (A_inv p l (fun v => compcert_rmaps.RML.R.approx n (R v))).

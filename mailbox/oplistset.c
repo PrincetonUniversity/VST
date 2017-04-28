@@ -4,13 +4,17 @@ typedef struct node { int val; atomic_loc *next; lock_t *lock; } node;
 
 node *head;
 
-node *new_node(int e){
+//To ensure that the atomic_loc invariant holds to start with, we need to provide the
+//next node at creation.
+node *new_node(int e, node *nnext){
   node *r = surely_malloc(sizeof(node));
   r->val = e;
-  r->next = make_atomic(NULL);
   lock_t *l = surely_malloc(sizeof(lock_t));
   makelock(l);
   r->lock = l;
+  release(l);
+  atomic_loc *n = make_atomic(nnext);
+  r->next = n;
   return r;
 }
 
@@ -34,10 +38,14 @@ int validate(int e, node *pred, node *curr){
   }
   n = pred->next;
   node *p = load_SC(n);
-  return(succ == curr && p == curr);
+  int r = (succ == curr);
+  r = r && (p == curr);
+  return r;
 }
 
-void locate(int e, node **r1, node **r2){
+typedef struct node_pair { node *first; node *second; } node_pair;
+
+node_pair *locate(int e){
   while(1){
     node *pred = head;
     atomic_loc *n = pred->next;
@@ -54,9 +62,10 @@ void locate(int e, node **r1, node **r2){
     acquire(l1);
     acquire(l2);
     if(validate(e, pred, curr)){
-      *r1 = pred;
-      *r2 = curr;
-      return;
+      node_pair *r = surely_malloc(sizeof(node_pair));
+      r->first = pred;
+      r->second = curr;
+      return r;
     }
     else{
       release(l1);
@@ -66,15 +75,17 @@ void locate(int e, node **r1, node **r2){
 }
 
 int add(int e){
-  node *n1, *n3;
-  locate(e, &n1, &n3);
+  //node *n1, *n3;
+  //locate(e, &n1, &n3); This doesn't seem to work in Verifiable C.
+  node_pair *r = locate(e);
+  node *n1 = r->first;
+  node *n3 = r->second;
+  free(r);
   int v = n3->val;
   int result;
   if(v != e){
-    node *n2 = new_node(e);
-    atomic_loc *n = n2->next;
-    store_SC(n, n3);
-    n = n1->next;
+    node *n2 = new_node(e, n3);
+    atomic_loc *n = n1->next;
     store_SC(n, n2);
     result = 1;
   }
@@ -87,8 +98,12 @@ int add(int e){
 }
 
 int remove(int e){
-  node *n1, *n2;
-  locate(e, &n1, &n2);
+  /*  node *n1, *n2;
+      locate(e, &n1, &n2);*/
+  node_pair *r = locate(e);
+  node *n1 = r->first;
+  node *n2 = r->second;
+  free(r);
   int v = n2->val;
   int result;
   if(v == e){
