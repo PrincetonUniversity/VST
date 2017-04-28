@@ -1444,28 +1444,136 @@ Ltac forward_for_simple_bound n Pre :=
      | ]
   ].
 
-Ltac forward_for Inv PreIncr Postcond :=
+Ltac forward_for3 Inv PreInc Postcond :=
+   apply semax_seq with Postcond;
+       [ eapply semax_for_3g1 with (PQR:=PreInc);
+        [ reflexivity
+        |intro  
+        | intro ;
+          match goal with |- ENTAIL ?Delta, ?Pre |-- local (`(eq _) (eval_expr ?e)) =>
+            do_compute_expr1 Delta Pre e;
+            match goal with v := _ : val , H: ENTAIL _ , _ |-- _ |- _ => subst v; apply H end
+          end
+        | intro; let HRE := fresh in 
+            apply semax_extract_PROP; intro HRE; 
+            repeat (apply semax_extract_PROP; fancy_intro true);
+            do_repr_inj HRE
+        | intro; let HRE := fresh in 
+            apply semax_extract_PROP; intro HRE; 
+            repeat (apply semax_extract_PROP; fancy_intro true);
+            do_repr_inj HRE 
+        | intro; let HRE := fresh in 
+            apply derives_extract_PROP; intro HRE; 
+            repeat (apply derives_extract_PROP; fancy_intro true);
+            do_repr_inj HRE;
+         autorewrite with ret_assert ]        
+       | abbreviate_semax;
+         repeat (apply semax_extract_PROP; fancy_intro true)
+      ].
+
+Fixpoint no_breaks (s: statement) : bool :=
+ match s with
+ | Sbreak => false
+ | Ssequence a b => andb (no_breaks a) (no_breaks b)
+ | Sifthenelse _ a b => andb (no_breaks a) (no_breaks b)
+ | Sloop _ _ => true (* breaks within the inner loop are OK *)
+ | _ => true
+ end.
+
+Ltac forward_for2 Inv PreInc :=
+ repeat  match goal with P := @abbreviate ret_assert _ |- semax _ _ _ ?P' =>
+                         constr_eq P P'; unfold abbreviate in P; subst P
+           end;
+ match goal with |- semax _ _ (Sloop (Ssequence (Sifthenelse _ Sskip Sbreak) ?body) _) _ =>
+   (tryif unify (no_breaks body) true 
+          then idtac
+      else fail "Since there is a break in the loop body, you need to supply an explicit postcondition using the 3-argument form of forward_for.");
+   eapply semax_for_3g2 with (PQR:=PreInc);
+        [ reflexivity 
+        |intro  
+        | intro ;
+          match goal with |- ENTAIL ?Delta, ?Pre |-- local (`(eq _) (eval_expr ?e)) =>
+            do_compute_expr1 Delta Pre e;
+            match goal with v := _ : val , H: ENTAIL _ , _ |-- _ |- _ => subst v; apply H end
+          end
+        | intro; let HRE := fresh in 
+            apply semax_extract_PROP; intro HRE; 
+            repeat (apply semax_extract_PROP; fancy_intro true);
+            do_repr_inj HRE
+        | intro; let HRE := fresh in 
+            apply semax_extract_PROP; intro HRE; 
+            repeat (apply semax_extract_PROP; fancy_intro true);
+            do_repr_inj HRE
+        ]    
+  end.
+
+Lemma seq_assoc1: 
+   forall (Espec: OracleKind) (CS : compspecs) (Delta : tycontext) (P : environ -> mpred)
+         (s1 s2 s3 : statement) (R : ret_assert),
+       semax Delta P (Ssequence s1 (Ssequence s2 s3)) R ->
+       semax Delta P (Ssequence (Ssequence s1 s2) s3) R.
+Proof. intros. apply -> seq_assoc; auto. Qed.
+
+Tactic Notation "forward_for" constr(Inv) constr(PreInc) :=
   check_Delta;
-  repeat (apply -> seq_assoc; abbreviate_semax);
-  first [ignore (Inv: environ->mpred)
-         | fail 1 "Invariant (first argument to forward_for) must have type (environ->mpred)"];
-  first [ignore (Postcond: environ->mpred)
-         | fail 1 "Postcondition (last argument to forward_for) must have type (environ->mpred)"];
-  apply semax_pre with Inv;
-    [  unfold_function_derives_right
-    | (apply semax_seq with Postcond;
-       [ first
-          [ apply semax_for with PreIncr
-          ];
-          [ compute; auto
-          | unfold_and_local_derives
-          | unfold_and_local_derives
-          | unfold_and_local_semax
-          | unfold_and_local_semax
-          ]
-       | simpl update_tycon
-       ])
-    ]; abbreviate_semax; autorewrite with ret_assert.
+  repeat simple apply seq_assoc1;
+  lazymatch type of Inv with
+  | _ -> environ -> mpred => idtac
+  | _ => fail "Invariant (first argument to forward_for) must have type (_ -> environ -> mpred)"
+  end;
+  lazymatch type of PreInc with
+  | _ -> environ -> mpred => idtac
+  | _ => fail "PreInc (second argument to forward_for) must have type (_ -> environ -> mpred)"
+  end;
+  lazymatch goal with
+  | |- semax _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
+      apply -> seq_assoc;
+      apply semax_seq' with (exp Inv); abbreviate_semax;
+      [  | eapply semax_seq; 
+         [ forward_for2 Inv PreInc 
+          | abbreviate_semax;
+            apply extract_exists_pre; intro;
+            let HRE := fresh in 
+            apply semax_extract_PROP; intro HRE; 
+            repeat (apply semax_extract_PROP; fancy_intro true);
+            do_repr_inj HRE]
+   ]
+  | |- semax _ _ (Sfor _ _ _ _) ?Post =>
+      apply semax_seq' with (exp Inv); abbreviate_semax;
+      [  | forward_for3 Inv PreInc Post]
+  | |- semax _ _ (Sloop (Ssequence (Sifthenelse _ Sskip Sbreak) _) _) ?Post =>
+     apply semax_pre with (exp Inv);
+      [  | forward_for3 Inv PreInc Post]
+  | |- semax _ _ (Sloop (Ssequence (Sifthenelse _ Sskip Sbreak) _) _) _ =>
+     apply semax_pre with (exp Inv);
+      [ unfold_function_derives_right | forward_for2 Inv PreInc ]
+  | |- _ => fail "forward_for2x cannot recognize the loop"
+  end.
+
+Tactic Notation "forward_for" constr(Inv) constr(PreInc) constr(Postcond) :=
+  check_Delta;
+  repeat simple apply seq_assoc1;
+  lazymatch type of Inv with
+  | _ -> environ -> mpred => idtac
+  | _ => fail "Invariant (first argument to forward_for) must have type (_ -> environ -> mpred)"
+  end;
+  lazymatch type of PreInc with
+  | _ -> environ -> mpred => idtac
+  | _ => fail "PreInc (second argument to forward_for) must have type (_ -> environ -> mpred)"
+  end;
+  lazymatch type of Postcond with
+  | environ -> mpred => idtac
+  | _ => fail "Postcond (third argument to forward_for) must have type (environ -> mpred)"
+  end;
+  lazymatch goal with
+  | |- semax _ _ (Ssequence (Sfor _ _ _ _) _) _ =>
+      apply -> seq_assoc;
+      apply semax_seq' with (exp Inv); abbreviate_semax;
+      [  | forward_for3 Inv PreInc Postcond]
+  | |- semax _ _ (Sloop (Ssequence (Sifthenelse _ Sskip Sbreak) _) _) _ =>
+     apply semax_pre with (exp Inv);
+      [ unfold_function_derives_right | forward_for3 Inv PreInc Postcond ]
+  end.
 
 Ltac process_cases := 
 match goal with
@@ -2509,6 +2617,16 @@ Ltac forward_return :=
        entailer_for_return
      end.
 
+Ltac test_simple_bound test incr :=
+ match incr with
+ |   Sset ?i (Ebinop Oadd (Etempvar ?j _) (Econst_int (Int.repr 1) _) _) =>
+     constr_eq i j;
+     match test with
+     | Ebinop Olt (Etempvar ?k _) _ _ =>
+       constr_eq i k
+    end
+ end.
+(*
 Ltac forward_if_complain :=
            (*semax_logic_and_or
            ||*)  fail 2 "Use this tactic:  forward_if POST, where POST is the post condition".
@@ -2520,6 +2638,7 @@ Ltac forward_for_complain :=
            fail 2 "Use this tactic:  forward_for INV PRE_INCR POST,
       where INV is the loop invariant, PRE_INCR is the invariant at the increment,
       and POST is the postcondition".
+*)
 
 Ltac forward_skip := apply semax_skip.
 
@@ -2561,6 +2680,53 @@ try eapply semax_seq';
  end
  | .. ].
 
+Ltac forward_advise :=
+ match goal with
+ | Delta' := @abbreviate tycontext _, Post' := @abbreviate ret_assert ?R |- semax ?Delta _ ?s ?Post =>
+     tryif (constr_eq Post' Post; constr_eq Delta' Delta)
+       then (unfold abbreviate in Post'; subst Post')
+       else fail "Pleasex use abbreviate_semax to put your proof goal into standard form" 
+ | |- semax _ _ _ _ => fail "Please use abbreviate_semax to put your proof goal into standard form."
+ | |- _ => fail "Proof goal is not (semax _ _ _ _)."
+ end;
+ repeat match goal with
+ | MC := @abbreviate statement _ |- _ => subst MC; unfold abbreviate
+ | |- _ => simple apply seq_assoc1
+ end;
+ try simple eapply semax_seq;
+ lazymatch goal with
+ | |- semax _ _ (Sfor _ _ ?body Sskip) ?R =>
+       tryif unify (no_breaks body) true
+       then fail "Use [forward_while Inv] to prove this loop, where Inv is a loop invariant of type (environ->mpred)"
+       else tryif has_evar R
+            then fail "Use [forward_for Inv Inv Post] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred), and Post is a loop-postcondition. A is the type of whatever loop-varying quantity you have, such as the value of your loop iteration variable.  You can use the same Inv twice, before and after the for-loop-increment statement, because your for-loop-increment statement is trivial"
+            else fail "Use [forward_for Inv Inv] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred).  A is the type of whatever loop-varying quantity you have, such as your loop iteration variable.  You can use the same Inv twice, before and after the for-loop-increment statement, because your for-loop-increment statement is trivial"
+  | |- semax _ _ (Sfor _ ?test ?body ?incr) ?R =>
+       tryif has_evar R
+       then tryif unify (no_breaks body) true
+               then tryif test_simple_bound test incr
+                  then fail "You can probably use [forward_for_simple_bound n Inv], provided that the upper bound of your loop can be expressed as a constant value (n:Z), and the loop invariant Inv can be expressed as (EX i:Z, ...).  Note that the Inv need not mention the LOCAL binding of the loop-count variable to the value i, and need not assert the PROP that i<=n; these will be inserted automatically.
+Otherwise, you can use the general case:
+Use [forward_for Inv PreInc] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred), and PreInc is the invariant (of the same type) just before the for-loop-increment statement"
+                  else fail "Use [forward_for Inv PreInc] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred), and PreInc is the invariant (of the same type) just before the for-loop-increment statement"
+               else fail "Use [forward_for Inv PreInc Post] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred), PreInc is the invariant (of the same type) just before the for-loop-increment statement, and  Post is a loop-postcondition"
+       else tryif test_simple_bound test incr
+               then fail "You can probably use [forward_for_simple_bound n Inv], provided that the upper bound of your loop can be expressed as a constant value (n:Z), and the loop invariant Inv can be expressed as (EX i:Z, ...).  Note that the Inv need not mention the LOCAL binding of the loop-count variable to the value i, and need not assert the PROP that i<=n; these will be inserted automatically.
+Otherwise, you can use the general case:
+Use [forward_for Inv PreInc] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred), and PreInc is the invariant (of the same type) for just before the for-loop-increment statement"
+               else fail "Use [forward_for Inv PreInc] to prove this loop, where Inv is a loop invariant of type (A -> environ -> mpred), and PreInc is the invariant (of the same type) for just before the for-loop-increment statement"
+   | |- semax _ _ (Sifthenelse _ _ _) ?R =>
+       tryif has_evar R
+       then fail "Use [forward_if Post] to prove this if-statement, where Post is the postcondition of both branches"
+       else fail "Use [forward_if] to prove this loop; you don't need to supply a postcondition"
+   | |- semax ?Delta _ (Scall (Some ?id) (Evar ?f _) ?bl) _ =>
+      let fsig:=fresh "fsig" in let cc := fresh "cc" in let A := fresh "Witness_Type" in let Pre := fresh "Pre" in let Post := fresh"Post" in
+      evar (fsig: funsig); evar (cc: calling_convention); evar (A: Type); evar (Pre: A -> environ->mpred); evar (Post: A -> environ->mpred);
+      get_global_fun_def Delta f fsig cc A Pre Post;
+      clear fsig cc Pre Post;
+      assert Undo__Then_do__forward_call_W__where_W_is_a_witness_whose_type_is_given_above_the_line_now
+end.
+
 Ltac forward1 s :=  (* Note: this should match only those commands that
                                      can take a normal_ret_assert AND DO NOT USE DELTA_SPECS *)
   clear_Delta_specs;
@@ -2569,11 +2735,11 @@ Ltac forward1 s :=  (* Note: this should match only those commands that
   | Sset _ ?e =>
     first [no_loads_expr e false; forward_setx
             | load_tac]
-  | Sifthenelse ?e _ _ => forward_if_complain
+(*  | Sifthenelse ?e _ _ => forward_if_complain
   | Swhile _ _ => forward_while_complain
   | Sloop (Ssequence (Sifthenelse _ Sskip Sbreak) _) _ => forward_for_complain
   | Scall _ (Evar _ _) _ =>  advise_forward_call
-  | Sskip => forward_skip
+*)  | Sskip => forward_skip
   end.
 
 Ltac derives_after_forward :=
@@ -2636,6 +2802,7 @@ Ltac forward :=
         Intros;
         abbreviate_semax;
         try fwd_skip ]
+    | |- _ => forward_advise
     end
   end.
 

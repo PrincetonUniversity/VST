@@ -273,16 +273,16 @@ Qed.
 Definition loop1_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
  fun ek vl =>
  match ek with
- | EK_normal => Inv
+ | EK_normal => fun rho => !! (vl = None) && Inv rho
  | EK_break => R EK_normal None
- | EK_continue => Inv
+ | EK_continue => fun rho => !! (vl = None) && Inv rho
  | EK_return => R EK_return vl
  end.
 
 Definition loop2_ret_assert (Inv: assert) (R: ret_assert) : ret_assert :=
  fun ek vl =>
  match ek with
- | EK_normal => Inv
+ | EK_normal => fun rho => !! (vl = None) && Inv rho
  | EK_break => fun _ => FF
  | EK_continue => fun _ => FF
  | EK_return => R EK_return vl

@@ -469,7 +469,7 @@ Proof.
         simpl tree_rep. Exists pa pb. entailer!.
   * (* After the loop *)
     forward.
-    simpl loop2_ret_assert. apply andp_left2. auto.
+    unfold loop2_ret_assert. apply andp_left2. normalize. 
 Qed.
 
 Definition lookup_inv (b0 p0: val) (t0: tree val) (x: Z): environ -> mpred :=
@@ -624,6 +624,7 @@ Proof.
       apply bst_left_entail; auto.
   + forward. (* Sskip *)
     apply andp_left2.
+    unfold loop2_ret_assert. rewrite prop_true_andp by auto.
     auto.
 Qed.
 

@@ -427,7 +427,7 @@ apply semax_seq with (sumarray_Post a sh contents size).
      unfold sumarray_PostBody.
      Intros i.
      forward. (* i++; *)
-     simpl loop2_ret_assert.
+     unfold loop2_ret_assert.
      unfold sumarray_Inv.
      Exists (i+1).
      entailer!.

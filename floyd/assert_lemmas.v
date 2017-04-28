@@ -456,7 +456,10 @@ Hint Rewrite overridePost_EK_break loop1_ret_assert_EK_break
 
 Lemma loop1_ret_assert_normal:
   forall P Q, loop1_ret_assert P Q EK_normal None = P.
-Proof. reflexivity. Qed.
+Proof. 
+  intros.
+ unfold loop1_ret_assert. normalize.
+Qed.
 Hint Rewrite loop1_ret_assert_normal: ret_assert.
 
 Lemma unfold_make_args': forall fsig args rho,
