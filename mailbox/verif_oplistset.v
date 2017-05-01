@@ -751,17 +751,23 @@ Proof.
   forward_call (r, sizeof (tnode_pair)).
   { apply sepcon_derives; [apply  data_at_memory_block | cancel_frame]. }
   forward.
-  focus_SEP 8.
+  assert (incl nodes ((pred, repp) :: (curr, repc) :: nodesa' ++ nodesb')) as Hincl.
+  { eapply incl_tran; eauto.
+    intros a Hin; destruct (in_dec EqDec_node a (nodesa ++ nodesb)).
+    + rewrite Heq in i.
+      destruct (in_dec EqDec_node a (nodesa' ++ nodesb')); [simpl; auto|].
+      rewrite in_app in *; simpl in *; destruct i as [|[|]]; auto; contradiction n; auto.
+    + rewrite in_app in *; simpl in *; destruct Hin as [|[|]]; auto; contradiction n; auto. }
+  gather_SEP 2 3 4 5 6; rewrite <- !sepcon_assoc; fold (node_data gsh1 gsh2 shc repc curr).
   match goal with |-semax _ (PROP () (LOCALx ?Q (SEPx (_ :: ?R)))) _ _ =>
-    forward_if (EX n' : val, EX sh' : share, EX rep' : node_rep,
-      PROP (data rep' = e)
+    forward_if (EX shc' : share, EX n' : val, EX rep' : node_rep, EX nodes' : _,
+      PROP (data rep' = e; readable_share shc'; incl (nodesa' ++ nodesb') nodes';
+            if eq_dec (data repc) e then n' = curr /\ rep' = repc
+            else In (n', rep') nodes' /\ ~In n' (map fst nodes))
       (LOCALx (temp _result (Val.of_bool (if eq_dec (data repc) e then false else true)) :: Q)
-      (SEPx ((if eq_dec (data repc) e then emp else node_data gsh1 gsh2 sh' rep' n') ::
-             fold_right sepcon emp (map (node' gsh1 gsh2)
-               (if eq_dec (data repc) e then nodes1 else remove EqDec_val n' nodes1)) :: R)))) end.
+      (SEPx (node_data gsh1 gsh2 shc' repc curr :: ghost_var gsh2 n' (gnext repp) ::
+             known_nodes gsh1 gsh2 nodes' :: R)))) end.
   { destruct (split_readable_share shc) as (shc1 & shc2 & ? & ? & Hshc); auto.
-    gather_SEP 5 6 7; replace_SEP 0 (node_data gsh1 gsh2 shc repc curr).
-    { unfold node_data; entailer!. }
     rewrite <- (node_data_share_join _ _ shc1 shc2 shc) by auto.
     forward_call (e, curr, shc2, repc, gsh1, gsh2).
     { split; [unfold repable_signed; omega|].
@@ -769,7 +775,27 @@ Proof.
       split; [auto|].
       split; [omega | auto]. }
     Intro x; destruct x as (n' & rep').
-    unfold node_data at 4; Intros.
+    destruct (in_dec EqDec_val n' (map fst nodes)).
+    { rewrite in_map_iff in i; destruct i as ((n'', rep'') & ? & Hin); subst.
+      apply Hincl in Hin; destruct Hin as [X|[X|Hin]]; try inv X; simpl.
+      - unfold node_data at 1 3; Intros.
+        gather_SEP 0 9.
+        eapply semax_pre, semax_ff.
+        go_lower; eapply derives_trans; [apply sepcon_derives, derives_refl | rewrite FF_sepcon; auto].
+        apply data_at_Tsh_conflict; auto; simpl; computable.
+      - unfold node_data at 1 2; Intros.
+        gather_SEP 0 5.
+        eapply semax_pre, semax_ff.
+        go_lower; eapply derives_trans; [apply sepcon_derives, derives_refl | rewrite FF_sepcon; auto].
+        apply data_at_Tsh_conflict; auto; simpl; computable.
+      - apply in_split in Hin; destruct Hin as (? & ? & ->).
+        rewrite known_node; unfold node'.
+        unfold node_data at 1 3; Intros sh'.
+        gather_SEP 0 6.
+        eapply semax_pre, semax_ff.
+        go_lower; eapply derives_trans; [apply sepcon_derives, derives_refl | rewrite FF_sepcon; auto].
+        apply data_at_Tsh_conflict; auto; simpl; computable. }
+    unfold node_data at 3; Intros.
     destruct (eq_dec (data repp) Int.max_signed); [omega|].
     rewrite node_data_isptr, atomic_loc_isptr; Intros.
     forward.
@@ -778,7 +804,8 @@ Proof.
       node_data gsh1 gsh2 gsh2 rep' n' * ghost_var gsh2 curr (gnext repp),
       fun v => |>node gsh1 gsh2 (data repp, gnext repp, v),
       |>(ghost_var gsh2 n' (gnext repp) *
-         EX shc' : share, EX repc' : node_rep, !!(readable_share shc' /\ repable_signed (data repc')) &&
+         EX shc' : share, EX repc' : node_rep, !!(readable_share shc' /\ repable_signed (data repc') /\
+           if eq_dec (data repc') Int.max_signed then next repc' = nullval else True) &&
            node_data gsh1 gsh2 shc' repc' curr)).
     { split; [|split; auto].
       intro.
@@ -799,26 +826,50 @@ Proof.
       rewrite <- !sepcon_assoc, (sepcon_comm _ (ghost_var _ _ _)), <- !sepcon_assoc.
       erewrite ghost_var_share_join' by eauto.
       rewrite !sepcon_andp_prop'; apply view_shift_prop; intro; subst.
-      rewrite !sepcon_assoc; etransitivity; [apply view_shift_sepcon; [apply ghost_var_update with (v' := n') | reflexivity]|].
+      rewrite !sepcon_assoc; etransitivity; [apply view_shift_sepcon;
+        [apply ghost_var_update with (v' := n') | reflexivity]|].
       erewrite <- ghost_var_share_join by eauto.
       apply derives_view_shift; rewrite node_eq.
       Exists sh' gsh2 (data rep') (next rep') (lock rep') (gnext rep')
         {| data := e'; next := next'; lock := lock'; gnext := g' |}.
       unfold node_data; simpl; entailer!.
-      simpl in *; unfold repable_signed; omega.
+      simpl in *; split; [unfold repable_signed; omega|].
+      split; [omega|].
+      if_tac; auto; omega.
       { apply derives_view_shift, andp_right; auto.
         eapply derives_trans, precise_weak_precise; auto. } }
     forward.
     Intros x; destruct x as (shc', repc').
-    Exists n' sh'
+    Exists shc1 n' rep' ((n', rep') :: (curr, repc') :: nodesa' ++ nodesb'); rewrite !known_nodes_cons.
+    unfold node', node_data; Exists gsh1 shc'; entailer!.
+    - simpl in *; if_tac; [contradiction|].
+      split; split; auto; [do 2 apply incl_tl; apply incl_refl|].
+      split; [unfold repable_signed; omega|].
+      if_tac; auto; omega.
+    - if_tac; [omega | cancel].
+      admit. (* We need to carry malloc_tokens around in all of the node assertions. *) }
   { forward.
-    Exists curr shc repc; subst; rewrite !eq_dec_refl; entailer!. }
-  unfold node_data at 2; Intros.
+    Exists shc curr repc (nodesa' ++ nodesb'); subst; rewrite !eq_dec_refl; entailer!.
+    apply incl_refl. }
+  unfold node_data at 2; rewrite lock_inv_isptr; Intros shc' n' rep' nodes'.
   forward.
-  forward_call ().
+  forward_call (lock repp, shp, EX p : val, ghost_var gsh2 p (gnext repp)).
+  { lock_props.
+    Exists n'; cancel. }
+  unfold node_data; rewrite (lock_inv_isptr shc'); Intros.
   forward.
-  forward_call ().
+  forward_call (lock repc, shc', EX p : val, ghost_var gsh2 p (gnext repc)).
+  { lock_props.
+    Exists cn; cancel. }
   forward.
-  Exists; entailer!.
-Qed.
-  
+  Exists (if eq_dec (data repc) (data rep') then false else true) rep' n'
+    ((pred, repp) :: (curr, repc) :: nodes'); rewrite !known_nodes_cons.
+  unfold node', node_data; Exists shp shc'; entailer!.
+  split.
+  - eapply incl_tran; eauto.
+    do 2 apply incl_same_head; auto.
+  - if_tac; simpl.
+    + split; [discriminate|].
+      match goal with H : _ /\ _ |- _ => destruct H; subst; auto end.
+    + split; tauto.
+Admitted.

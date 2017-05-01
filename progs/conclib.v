@@ -2367,6 +2367,20 @@ Proof.
 Qed.
 Hint Resolve unreadable_bot.
 
+Lemma data_at_Tsh_conflict : forall sh t v v' p, sepalg.nonidentity sh -> 0 < sizeof t ->
+  data_at Tsh t v p * data_at sh t v' p |-- FF.
+Proof.
+  intros.
+  assert_PROP (field_compatible t [] p) by entailer!.
+  pose proof (comp_join_top sh).
+  erewrite <- data_at_share_join by eauto.
+  rewrite sepcon_comm, <- sepcon_assoc.
+  eapply derives_trans; [apply sepcon_derives, derives_refl | rewrite FF_sepcon; auto].
+  apply data_at_conflict; auto.
+  split; auto.
+  unfold field_compatible in *; tauto.
+Qed.
+
 Lemma split_readable_share sh :
   readable_share sh ->
   exists sh1, exists sh2,
