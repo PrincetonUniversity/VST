@@ -1063,6 +1063,7 @@ Proof.
     Exists i; entailer!.
   + Intros i.
     forward.
+    unfold loop2_ret_assert.
     Exists (i + 1); entailer!.
     intros; destruct (eq_dec j i); subst; auto.
     assert (j < i) by omega; auto.
@@ -2011,7 +2012,7 @@ Proof.
   { repeat (split; auto). }
   Intros x; destruct x as (lasts', h').
   forward.
-  Exists (v + 1) b lasts' h'; entailer!.
+  unfold loop2_ret_assert; Exists (v + 1) b lasts' h'; entailer!.
   replace N with (Zlength h) by auto; symmetry; eapply mem_lemmas.Forall2_Zlength; eauto.
 Qed.
 

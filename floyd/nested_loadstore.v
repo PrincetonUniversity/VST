@@ -1956,7 +1956,7 @@ Proof.
     apply andp_left2.
     rewrite andp_comm.
     apply derives_refl.
-  + apply semax_extract_later_prop.
+  + apply semax_extract_later_prop1.
     auto.
 Qed.
 

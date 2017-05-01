@@ -324,8 +324,8 @@ Qed.
 
 Lemma semax_extract_later_prop:
   forall {CS: compspecs} Delta (PP: Prop) P c Q,
-           (PP -> semax Espec Delta (fun rho => |> (P rho)) c Q) ->
-           semax Espec Delta (fun rho => (|> (!!PP && P rho))) c Q.
+           (PP -> semax Espec Delta (fun rho => (P rho)) c Q) ->
+           semax Espec Delta (fun rho => (|> !!PP) && P rho) c Q.
 Proof.
 intros.
 intro w.
@@ -335,15 +335,13 @@ apply prop_imp_i; intros [TS HGG].
 intros w' ? ? k F w'' ? ?.
 intros te ve w''' ? w4 ? [[[? ?] ?] ?].
 
-rewrite later_andp in H8.
-
 replace ((F (construct_rho (filter_genv gx) ve te) *
-        (|>(!!PP) && (|> P (construct_rho (filter_genv gx) ve te))))%pred) with
+        (|>(!!PP) && (P (construct_rho (filter_genv gx) ve te))))%pred) with
         (|>!!PP && (F (construct_rho (filter_genv gx) ve te) *
-         (|> P (construct_rho (filter_genv gx) ve te)))%pred) in H8.
+         (P (construct_rho (filter_genv gx) ve te)))%pred) in H8.
 Focus 2. {
   rewrite (sepcon_comm (F (construct_rho (filter_genv gx) ve te))
-    (|>!!PP && |>P (construct_rho (filter_genv gx) ve te))).
+    (|>!!PP && P (construct_rho (filter_genv gx) ve te))).
 
  rewrite corable_andp_sepcon1 by (apply corable_later; apply corable_prop).
 

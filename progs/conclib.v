@@ -2111,6 +2111,7 @@ Lemma cond_var_isptr : forall {cs} sh v, @cond_var cs sh v = !! isptr v && cond_
 Proof.
   intros; apply data_at__isptr.
 Qed.
+Hint Resolve lock_inv_isptr cond_var_isptr : saturate_local.
 
 Lemma cond_var_share_join : forall {cs} sh1 sh2 sh v (Hjoin : sepalg.join sh1 sh2 sh),
   @cond_var cs sh1 v * cond_var sh2 v = cond_var sh v.
@@ -2367,7 +2368,7 @@ Proof.
 Qed.
 Hint Resolve unreadable_bot.
 
-Lemma data_at_Tsh_conflict : forall sh t v v' p, sepalg.nonidentity sh -> 0 < sizeof t ->
+Lemma data_at_Tsh_conflict : forall {cs : compspecs} sh t v v' p, sepalg.nonidentity sh -> 0 < sizeof t ->
   data_at Tsh t v p * data_at sh t v' p |-- FF.
 Proof.
   intros.
@@ -2751,12 +2752,35 @@ Proof.
     apply Heq; omega.
 Qed.
 
+Lemma semax_extract_later_prop'':
+  forall {CS : compspecs} {Espec: OracleKind},
+    forall (Delta : tycontext) (PP : Prop) P Q R c post P1 P2,
+      P2 |-- !!PP ->
+      (PP -> semax Delta (PROPx P (LOCALx Q (SEPx (P1 && |>P2 :: R)))) c post) ->
+      semax Delta (PROPx P (LOCALx Q (SEPx (P1 && |>P2 :: R)))) c post.
+Proof.
+  intros.
+  erewrite (add_andp P2) by eauto.
+  apply semax_pre0 with (P' := |>!!PP && PROPx P (LOCALx Q (SEPx (P1 && |>P2 :: R)))).
+  { go_lowerx.
+    rewrite later_andp, <- andp_assoc, andp_comm, corable_andp_sepcon1; auto.
+    apply corable_later; auto. }
+  apply semax_extract_later_prop; auto.
+Qed.
+
 Lemma field_at_array_inbounds : forall {cs : compspecs} sh t z a i v p,
   field_at sh (Tarray t z a) [ArraySubsc i] v p |-- !!(0 <= i < z).
 Proof.
   intros; entailer!.
   destruct H as (_ & _ & _ & _ & _ & _ & _ & _ & ?); auto.
 Qed.
+
+Lemma valid_pointer_isptr : forall v, valid_pointer v |-- !!(is_pointer_or_null v).
+Proof.
+  destruct v; simpl; auto.
+  entailer!.
+Qed.
+Hint Resolve valid_pointer_isptr : saturate_local.
 
 Lemma andp_emp_derives_dup : forall (P : mpred),
   predicates_hered.derives (P && emp) ((P && emp) * (P && emp)).

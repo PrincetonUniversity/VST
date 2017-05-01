@@ -32,21 +32,16 @@ Definition surely_malloc_spec :=
 Definition tatomic := Tstruct _atomic_loc noattr.
 
 (* v needs to be valid so we can do comparison on it for CAS. *)
-Lemma valid_pointer_isptr : forall v, valid_pointer v |-- !!(is_pointer_or_null v).
+Definition valid R v := (R v && |>valid_pointer v).
+
+Lemma valid_same : forall R v, R v |-- |>valid_pointer v -> valid R v = R v.
 Proof.
-  destruct v; simpl; auto.
-  entailer!.
+  intros; unfold valid; rewrite <- add_andp; auto.
 Qed.
 
-Notation valid R v := (R v && valid_pointer v).
-
-Lemma valid_same : forall R v, R v |-- valid_pointer v -> valid R v = R v.
-Proof.
-  intros; rewrite <- add_andp; auto.
-Qed.
-
-Definition A_inv p l R := EX v : val, field_at Tsh tatomic [StructField _val] v p * valid R v *
-   (weak_precise_mpred (R v) && emp) * malloc_token Tsh (sizeof tatomic) p * malloc_token Tsh (sizeof tlock) l.
+Definition A_inv p l R := EX v : val, !!(is_pointer_or_null v) &&
+  field_at Tsh tatomic [StructField _val] v p * valid R v *
+  (weak_precise_mpred (R v) && emp) * malloc_token Tsh (sizeof tatomic) p * malloc_token Tsh (sizeof tlock) l.
 
 Definition atomic_loc sh p R := !!(field_compatible tatomic [] p) &&
   (EX lock : val, field_at sh tatomic [StructField _lock] lock p * lock_inv sh lock (A_inv p lock R)).
@@ -74,7 +69,7 @@ Lemma A_inv_super_non_expansive : forall n p l R,
 Proof.
   intros; unfold A_inv.
   rewrite !approx_exp; apply f_equal; extensionality v.
-  rewrite !approx_sepcon, !approx_andp, approx_idem.
+  unfold valid; rewrite !approx_sepcon, !approx_andp, approx_idem.
   rewrite (nonexpansive_super_non_expansive (fun R => weak_precise_mpred R))
     by (apply precise_mpred_nonexpansive); auto.
 Qed.
@@ -125,7 +120,7 @@ Proof.
     SEP (let '(v, P, R, Q) := x in P) rho).
   apply (PROP_LOCAL_SEP_super_non_expansive MA_type [fun _ => _] [fun _ => _] [fun _ => _]);
     repeat constructor; hnf; intros; destruct x as (((v, P), R), Q); auto; simpl.
-  - unfold MA_spec.
+  - unfold MA_spec, valid.
     rewrite view_shift_super_non_expansive.
     setoid_rewrite view_shift_super_non_expansive at 2.
     rewrite !approx_sepcon, !approx_andp, !approx_idem.
@@ -195,7 +190,7 @@ Proof.
     apply (PROP_LOCAL_SEP_super_non_expansive (ProdType (ConstType val) (ArrowType (ConstType val) Mpred))
       [] [fun ts x => let '(p, R) := x in _] [fun ts x => let '(p, R) := x in _]); repeat constructor; hnf;
       intros; destruct x0 as (p, R); auto; simpl.
-    rewrite !approx_andp, approx_idem; auto.
+    unfold valid; rewrite !approx_andp, approx_idem; auto.
   - extensionality ts x rho.
     destruct x; auto.
 Qed.
@@ -244,7 +239,7 @@ Proof.
     rewrite !prop_forall, !(approx_allp _ _ _ Vundef); apply f_equal; extensionality vx.
     rewrite view_shift_super_non_expansive.
     setoid_rewrite view_shift_super_non_expansive at 2.
-    rewrite !approx_sepcon, !approx_andp, !approx_idem; auto.
+    unfold valid; rewrite !approx_sepcon, !approx_andp, !approx_idem; auto.
   - rewrite !approx_sepcon, approx_idem, atomic_loc_super_non_expansive; auto.
   - extensionality ts x rho.
     destruct x as ((((?, ?), P), R), Q).
@@ -289,7 +284,7 @@ Definition AS_type := ProdType (ProdType (ProdType
 Program Definition store_SC_spec := DECLARE _store_SC
   TYPE AS_type WITH sh : share, tgt : val, v : val, P : mpred, R : val -> mpred, Q : mpred
   PRE [ _tgt OF tptr tatomic, _v OF tptr tvoid ]
-   PROP (AS_spec v P R Q; readable_share sh; is_pointer_or_null v)
+   PROP (AS_spec v P R Q; readable_share sh)
    LOCAL (temp _tgt tgt; temp _v v)
    SEP (atomic_loc sh tgt R; P)
   POST [ tvoid ]
@@ -299,7 +294,7 @@ Program Definition store_SC_spec := DECLARE _store_SC
 Next Obligation.
 Proof.
   replace _ with (fun (_ : list Type) (x : share * val * val * mpred * (val -> mpred) * mpred) rho =>
-    PROP (let '(sh, tgt, v, P, R, Q) := x in AS_spec v P R Q /\ readable_share sh /\ is_pointer_or_null v)
+    PROP (let '(sh, tgt, v, P, R, Q) := x in AS_spec v P R Q /\ readable_share sh)
     LOCAL (let '(sh, tgt, v, P, R, Q) := x in temp _tgt tgt; let '(sh, tgt, v, P, R, Q) := x in temp _v v)
     SEP (let '(sh, tgt, v, P, R, Q) := x in atomic_loc sh tgt R * P) rho).
   apply (PROP_LOCAL_SEP_super_non_expansive AS_type [fun _ => _] [fun _ => _; fun _ => _] [fun _ => _]);
@@ -309,7 +304,7 @@ Proof.
     rewrite !prop_forall, !(approx_allp _ _ _ Vundef); apply f_equal; extensionality vx.
     rewrite view_shift_super_non_expansive.
     setoid_rewrite view_shift_super_non_expansive at 2.
-    rewrite !approx_sepcon, !approx_andp, !approx_idem.
+    unfold valid; rewrite !approx_sepcon, !approx_andp, !approx_idem.
     rewrite (nonexpansive_super_non_expansive weak_precise_mpred) by (apply precise_mpred_nonexpansive); auto.
   - rewrite !approx_sepcon, approx_idem, atomic_loc_super_non_expansive; auto.
   - extensionality ts x rho.
@@ -372,7 +367,7 @@ Proof.
     rewrite !prop_forall, !(approx_allp _ _ _ Vundef); apply f_equal; extensionality vx.
     rewrite view_shift_super_non_expansive.
     setoid_rewrite view_shift_super_non_expansive at 2.
-    rewrite !approx_sepcon, !approx_andp, !approx_idem.
+    unfold valid; rewrite !approx_sepcon, !approx_andp, !approx_idem.
     rewrite (nonexpansive_super_non_expansive weak_precise_mpred) by (apply precise_mpred_nonexpansive); auto.
   - rewrite !approx_sepcon, !approx_andp, approx_idem, atomic_loc_super_non_expansive; auto.
   - extensionality ts x rho.
@@ -425,18 +420,17 @@ Proof.
   unfold A_inv; intros.
   apply ex_positive; intro.
   repeat apply positive_sepcon1.
-  apply positive_andp2; unfold at_offset; rewrite data_at_rec_eq; simpl; auto.
+  do 2 apply positive_andp2; unfold at_offset; rewrite data_at_rec_eq; simpl; auto.
 Qed.
 Hint Resolve A_inv_positive.
 
-Lemma A_inv_precise : forall x l R,
-  predicates_hered.derives TT (weak_precise_mpred (A_inv x l R)).
+Lemma A_inv_precise : forall x l R, predicates_hered.derives TT (weak_precise_mpred (A_inv x l R)).
 Proof.
   intros ??? rho _ ???
     (? & v1 & ? & ? & Hj1 & (? & ? & Hj'1 & (? & ? & Hj''1 & (? & r1 & Hj'''1 &
-      (? & Hv1) & ? & Hr1) & HR & Hemp1) & Hma1) & Hml1)
+      (? & ? & Hv1) & ? & Hr1) & HR & Hemp1) & Hma1) & Hml1)
     (? & v2 & ? & ? & Hj2 & (? & ? & Hj'2 & (? & ? & Hj''2 & (? & r2 & Hj'''2 &
-      (? & Hv2) & ? & Hr2) & _ & Hemp2) & Hma2) & Hml2)
+      (? & ? & Hv2) & ? & Hr2) & _ & Hemp2) & Hma2) & Hml2)
     Hw1 Hw2.
   unfold at_offset in *; simpl in *; rewrite data_at_rec_eq in Hv1, Hv2; simpl in *.
   exploit (malloc_token_precise _ _ _ w _ _ Hma1 Hma2); try join_sub; intro; subst.
@@ -482,15 +476,15 @@ Proof.
   forward.
   forward_call (l, Tsh, A_inv p l R).
   focus_SEP 4; apply H.
+  Intros; eapply semax_extract_later_prop''; [apply valid_pointer_isptr | intro].
   forward_call (l, Tsh, A_inv p l R).
   { rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
       [repeat apply andp_right; auto; eapply derives_trans; try apply positive_weak_positive; auto|].
     { apply A_inv_precise; auto. }
     unfold A_inv.
-    assert_PROP (is_pointer_or_null v).
-    { apply sepcon_derives_prop, andp_left2, valid_pointer_isptr. }
     unfold_field_at 1%nat.
-    Exists v; simpl; entailer!. }
+    Exists v; unfold valid; simpl; entailer!.
+    cancel. }
   forward.
   unfold atomic_loc.
   Exists p l; entailer!.
@@ -512,8 +506,6 @@ Proof.
     - eapply derives_trans, A_inv_precise; auto.
     - eapply derives_trans, positive_weak_positive, A_inv_positive; auto. }
   unfold A_inv; Intros v.
-  assert_PROP (is_pointer_or_null v).
-  { focus_SEP 2; go_lowerx; apply sepcon_derives_prop, andp_left2, valid_pointer_isptr. }
   forward_call (l, sizeof tlock).
   { rewrite data_at__memory_block; entailer!. }
   forward.
@@ -547,8 +539,6 @@ Proof.
   forward.
   forward_call (l, sh, A_inv tgt l R).
   unfold A_inv at 2; Intros v.
-  assert_PROP (is_pointer_or_null v).
-  { focus_SEP 2; go_lowerx; apply sepcon_derives_prop, andp_left2, valid_pointer_isptr. }
   forward.
   gather_SEP 2 7; apply H.
   forward_call (l, sh, A_inv tgt l R).
@@ -573,12 +563,14 @@ Proof.
   unfold A_inv at 2; Intros v'.
   forward.
   gather_SEP 2 7; apply H.
+  Intros; eapply semax_extract_later_prop''; [apply valid_pointer_isptr | intro].
   forward_call (l, sh, A_inv tgt l R).
   { rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
       [repeat apply andp_right; auto; eapply derives_trans; try apply positive_weak_positive; auto|].
     { apply A_inv_precise; auto. }
     unfold A_inv.
-    Exists v; simpl; entailer!. }
+    Exists v; unfold valid; simpl; entailer!.
+    cancel. }
   forward.
   unfold atomic_loc; Exists l; entailer!.
   apply andp_left2; auto.
@@ -594,10 +586,9 @@ Proof.
   forward.
   forward_call (l, sh, A_inv tgt l R).
   unfold A_inv at 2; Intros v'.
-  assert_PROP (is_pointer_or_null v').
-  { focus_SEP 2; go_lowerx; apply sepcon_derives_prop, andp_left2, valid_pointer_isptr. }
+  focus_SEP 2; eapply semax_extract_later_prop''; [apply valid_pointer_isptr | intro].
   forward.
-  focus_SEP 1.
+  focus_SEP 2.
   match goal with |- semax _ (PROP () (LOCALx ?Q
     (SEPx (field_at Tsh tatomic ?f v' tgt :: ?R)))) _ _ =>
     forward_if (PROP ( ) (LOCALx (temp _r (if eq_dec c v' then vint 1 else vint 0) :: Q)
@@ -624,13 +615,17 @@ Proof.
   replace_SEP 7 P.
   { entailer!.
     apply andp_left1; auto. }
-  gather_SEP 2 7; apply H.
+  replace_SEP 1 (valid R v').
+  { go_lower; apply andp_right; [apply andp_left1 | apply andp_left2]; entailer!.
+    apply now_later. }
+  gather_SEP 1 7; apply H.
+  Intros; eapply semax_extract_later_prop''; [apply valid_pointer_isptr | intro].
   forward_call (l, sh, A_inv tgt l R).
   { rewrite ?sepcon_assoc; rewrite <- sepcon_emp at 1; rewrite sepcon_comm; apply sepcon_derives;
       [repeat apply andp_right; auto; eapply derives_trans; try apply positive_weak_positive; auto|].
     { apply A_inv_precise; auto. }
     unfold A_inv.
-    Exists (if eq_dec c v' then v else v'); entailer!. }
+    Exists (if eq_dec c v' then v else v'); unfold valid; entailer!. }
   forward.
   Exists v'; unfold atomic_loc; Exists l; entailer!.
   apply andp_left2; auto.
@@ -641,6 +636,7 @@ Proof.
   intros; eapply local_facts_isptr with (P := fun p => atomic_loc sh p R); eauto.
   unfold atomic_loc; entailer!.
 Qed.
+Hint Resolve atomic_loc_isptr : saturate_local.
 
 Lemma atomic_loc_precise : forall sh p R, readable_share sh -> precise (atomic_loc sh p R).
 Proof.
@@ -955,11 +951,19 @@ Proof.
   apply andp_left1; auto.
 Qed.
 
+Lemma sepcon_later_valid_pointer2 : forall P Q p, P |-- |>valid_pointer p -> Q * P |-- |>valid_pointer p.
+Proof.
+  intros.
+  eapply derives_trans, later_derives, sepcon_valid_pointer2, derives_refl.
+  rewrite later_sepcon; apply sepcon_derives; auto.
+  apply now_later.
+Qed.
+
 Lemma hist_R_valid : forall g R v, valid (hist_R g R) v = hist_R g R v.
 Proof.
-  intros; unfold hist_R.
-  rewrite <- add_andp; auto; entailer!.
-  apply sepcon_valid_pointer2, andp_left2; auto.
+  intros; apply valid_same.
+  unfold hist_R; Intros h.
+  apply sepcon_later_valid_pointer2, andp_left2; auto.
 Qed.
 
 (* The user must make the init_hist before calling make_atomic, so that the ghost location is known. *)
@@ -979,7 +983,6 @@ Proof.
   eapply semax_pre; [|eauto].
   rewrite hist_R_valid; unfold hist_R; go_lowerx.
   Exists [Store v]; entailer!.
-  rewrite <- sepcon_emp at 1; apply sepcon_derives; auto.
   apply andp_right; auto.
   eapply derives_trans, precise_weak_precise, hist_R_precise; auto.
 Qed.

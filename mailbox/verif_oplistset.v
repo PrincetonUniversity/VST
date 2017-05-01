@@ -72,6 +72,7 @@ Proof.
   Intros sh e next lock.
   rewrite data_at_isptr; entailer!.
 Qed.
+Hint Resolve node_isptr : saturate_local.
 
 Definition acquire_spec := DECLARE _acquire acquire_spec.
 Definition release_spec := DECLARE _release release_spec.
@@ -233,8 +234,8 @@ Proof.
     rewrite <- sepcon_emp at 1; apply sepcon_derives.
     apply andp_right.
     - eapply derives_trans, now_later.
-      Exists sh (data rep) (next rep) (lock rep) (gnext rep); entailer!.
-    - entailer!.
+      rewrite node_eq; Exists sh (data rep) (next rep) (lock rep) (gnext rep); entailer!.
+    - eapply derives_trans, now_later; entailer!.
     - apply andp_right; auto.
       eapply derives_trans, precise_weak_precise; auto.
       rewrite <- node_eq; auto. }
@@ -296,6 +297,7 @@ Proof.
   eapply local_facts_isptr; [|eauto].
   unfold node_data; entailer!.
 Qed.
+Hint Resolve node_data_isptr : saturate_local.
 
 Lemma node_data_share_join : forall gsh1 gsh2 sh1 sh2 sh rep p, readable_share sh1 -> readable_share sh2 ->
   sepalg.join sh1 sh2 sh ->
@@ -410,7 +412,7 @@ Proof.
   - entailer!.
   - unfold node_data; Intros.
     destruct (eq_dec (data reps) Int.max_signed); [omega|].
-    rewrite atomic_loc_isptr; Intros.
+(*    rewrite atomic_loc_isptr; Intros.*)
     repeat forward.
     forward_call (shs, next reps, emp,
       fun v => |>node gsh1 gsh2 (data reps, gnext reps, v),
@@ -420,6 +422,7 @@ Proof.
           node_data gsh1 gsh2 shs' reps' v)).
     { split; auto.
       intro.
+      (*!!*)
       rewrite <- add_andp by admit.
       rewrite sepcon_emp, <- later_sepcon; apply derives_view_shift, later_derives.
       rewrite node_eq; Intros sh' e' next' lock' g'.

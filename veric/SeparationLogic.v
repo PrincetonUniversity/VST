@@ -1345,8 +1345,8 @@ Axiom semax_extract_prop:
 Axiom semax_extract_later_prop:
   forall {Espec: OracleKind}{CS: compspecs},
   forall Delta (PP: Prop) P c Q,
-           (PP -> @semax CS Espec Delta (|> P) c Q) ->
-           @semax CS Espec Delta (|> (!!PP && P)) c Q.
+           (PP -> @semax CS Espec Delta P c Q) ->
+           @semax CS Espec Delta ((|> !!PP) && P) c Q.
 
 (* THESE RULES FROM semax_ext *)
 
