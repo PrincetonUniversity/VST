@@ -1069,15 +1069,6 @@ Proof.
   rewrite Forall_forall in Ht; specialize (Ht _ Hin); omega.
 Qed.
 
-(*(* up? *)
-Axiom view_shift_andp : forall P Q R, view_shift P Q -> view_shift (P && R) (Q && R).*)
-
-(* up *)
-Lemma view_shift_sepcon : forall P Q R, view_shift P Q -> view_shift (P * R) (Q * R).
-Proof.
-  repeat intro.
-  rewrite flatten_sepcon_in_SEP in *; apply H; auto.
-Qed.
 
 (* FCSL takes the approach that h is always empty, and the previous history is framed out and then combined
    with the new event by hist join. We can do that, but whether it's preferable might be a matter of taste. *)

@@ -20,8 +20,55 @@ Definition view_shift A B := forall (Espec : OracleKind) D P Q R C P',
   semax D (PROPx P (LOCALx Q (SEPx (B :: R)))) C P' ->
   semax D (PROPx P (LOCALx Q (SEPx (A :: R)))) C P'.
 
+Section ViewShift.
+
 Axiom view_shift_super_non_expansive : forall n P Q, compcert_rmaps.RML.R.approx n (!!view_shift P Q) =
   compcert_rmaps.RML.R.approx n (!!view_shift (compcert_rmaps.RML.R.approx n P) (compcert_rmaps.RML.R.approx n Q)).
+
+Axiom view_shift_later : forall P Q, view_shift P Q -> view_shift (|>P) (|>Q).
+
+Global Instance view_shift_refl : RelationClasses.Reflexive view_shift.
+Proof.
+  repeat intro; auto.
+Qed.
+
+Global Instance view_shift_trans : RelationClasses.Transitive view_shift.
+Proof.
+  repeat intro; apply H; auto.
+Qed.
+
+Lemma derives_view_shift : forall P Q, P |-- Q -> view_shift P Q.
+Proof.
+  repeat intro; eapply semax_pre; [|eauto].
+  go_lowerx; cancel.
+Qed.
+
+Lemma view_shift_sepcon : forall P Q P' Q' (HP : view_shift P P') (HQ : view_shift Q Q'),
+  view_shift (P * Q) (P' * Q').
+Proof.
+  repeat intro.
+  rewrite flatten_sepcon_in_SEP in *; apply HP.
+  focus_SEP 1; apply HQ.
+  focus_SEP 1; auto.
+Qed.
+
+Lemma view_shift_exists : forall {A} (P : A -> mpred) Q,
+  (forall x, view_shift (P x) Q) -> view_shift (EX x : _, P x) Q.
+Proof.
+  repeat intro.
+  rewrite extract_exists_in_SEP; Intro x.
+  apply H; auto.
+Qed.
+
+Lemma view_shift_prop : forall (P1 : Prop) P Q,
+  (P1 -> view_shift P Q) -> view_shift (!!P1 && P) Q.
+Proof.
+  repeat intro.
+  erewrite extract_prop_in_SEP with (n := O); [|simpl; eauto].
+  Intros; simpl; apply H; auto.
+Qed.
+
+End ViewShift.
 
 Definition joins a b := exists c, join a b c.
 
@@ -172,6 +219,17 @@ Proof.
   apply prop_left; intros (? & ? & [(? & ?) | [(? & ?) | (? & ?)]]); simpl in *; subst;
     try (exploit unreadable_bot; eauto; contradiction).
   apply prop_right; auto.
+Qed.
+
+Lemma ghost_var_share_join' : forall sh1 sh2 sh v1 v2 p, readable_share sh1 -> readable_share sh2 ->
+  sepalg.join sh1 sh2 sh ->
+  ghost_var sh1 v1 p * ghost_var sh2 v2 p = !!(v1 = v2) && ghost_var sh v2 p.
+Proof.
+  intros; apply mpred_ext.
+  - assert_PROP (v1 = v2) by (apply ghost_var_inj; auto).
+    subst; erewrite ghost_var_share_join; eauto; entailer!.
+  - Intros; subst.
+    erewrite ghost_var_share_join; eauto.
 Qed.
 
 Lemma join_Tsh : forall a b, sepalg.join Tsh a b -> b = Tsh /\ a = Share.bot.
