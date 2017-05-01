@@ -5,7 +5,11 @@ HOW TO BUILD:
   will tell you which versions are compatible.
 
 0a. Make sure you have the right version of CompCert.
-   VST 1.7 uses CompCert 2.7.1 for Coq 8.5pl2.
+   VST 1.8 uses CompCert 2.7.2 for Coq 8.6.
+   However, AbsInt.com (the official distributor of CompCert)
+   does not support CompCert 2.7 for Coq 8.6 (only for 8.4 and 8.5).
+   The version of CompCert 2.7 for Coq 8.6 is this _unofficial_ port:
+   https://github.com/ildyria/CompCert/tree/v2.7.2
 
 METHOD A [recommended]
  This method bases the VST on a copy of certain CompCert specification
