@@ -505,14 +505,17 @@ endif
 version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
 	sh util/make_version
 
-.loadpath: Makefile
+_CoqProject: Makefile
+	echo $(COQFLAGS) | sed 's/ -/\n-/g' >_CoqProject
+
+.loadpath: Makefile _CoqProject
 	echo $(COQFLAGS) > .loadpath
 
 floyd/floyd.coq: floyd/proofauto.vo
 	coqtop $(COQFLAGS) -load-vernac-object floyd/proofauto -outputstate floyd/floyd -batch
 
 dep:
-	$(COQDEP) >.depend `find . -name "*.v"`
+	-$(COQDEP) 2>&1 >.depend `find . -name "*.v"` | grep -v Warning:
 
 .depend depend:
 #	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
