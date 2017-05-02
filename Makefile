@@ -233,7 +233,12 @@ FLOYD_FILES= \
 #real_forward.v
 
 
+# CONCPROGS must be kept separate (see util/PACKAGE), and
+# each line that contains the word CONCPROGS must be deletable independently
+CONCPROGS= conclib.v incr.v verif_incr.v cond.v verif_cond.v
+
 PROGS_FILES= \
+  $(CONCPROGS) \
   bin_search.v list_dt.v verif_reverse.v verif_queue.v verif_queue2.v verif_sumarray.v \
   insertionsort.v reverse.v queue.v sumarray.v message.v string.v\
   revarray.v verif_revarray.v insertionsort.v append.v min.v verif_min.v \
@@ -242,7 +247,7 @@ PROGS_FILES= \
   logical_compare.v verif_logical_compare.v field_loadstore.v  verif_field_loadstore.v \
   even.v verif_even.v odd.v verif_odd.v verif_evenodd_spec.v  \
   merge.v verif_merge.v verif_append.v verif_append2.v bst.v bst_oo.v verif_bst.v verif_bst_oo.v \
-  verif_bin_search.v incr.v verif_incr.v cond.v verif_cond.v conclib.v verif_floyd_tests.v \
+  verif_bin_search.v verif_floyd_tests.v \
   verif_sumarray2.v verif_switch.v
 # verif_message.v verif_dotprod.v verif_insertion_sort.v
 
@@ -377,7 +382,8 @@ else
 	@$(COQC) $(COQFLAGS) $*.v 
 endif
 
-COQVERSION= 8.5pl1 or-else 8.5pl2 or-else 8.5pl3 or-else 8.6beta1 or-else 8.6
+# you can also write, COQVERSION= 8.6 or-else 8.6pl2 or-else 8.6pl3   (etc.)
+COQVERSION= 8.6
 COQV=$(shell $(COQC) -v)
 ifeq ("$(filter $(COQVERSION),$(COQV))","")
 	$(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
