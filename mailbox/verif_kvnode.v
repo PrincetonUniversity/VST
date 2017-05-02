@@ -240,10 +240,11 @@ Proof.
       unfold POSTCONDITION, abbreviate, overridePost.
       destruct (eq_dec EK_continue EK_normal); [discriminate|].
       unfold loop1_ret_assert.
-      Exists (failvs ++ [v]) loops hv1 hists' v lv1; entailer!.
-      split; [unfold make_loads; rewrite map_app; eapply add_events_trans; eauto|].
-      split; [rewrite Forall_app; auto|].
-      rewrite Zlength_app, Zlength_cons, Zlength_nil; omega. }
+      Exists (failvs ++ [v]) loops hv1 hists' v; entailer!.
+      - split; [unfold make_loads; rewrite map_app; eapply add_events_trans; eauto|].
+        split; [rewrite Forall_app; auto|].
+        rewrite Zlength_app, Zlength_cons, Zlength_nil; omega.
+      - Exists lv1; entailer!. }
     { forward.
       entailer!.
       unfold Int.one in *; rewrite and_repr, land_1, Zmod_odd in *.
@@ -383,10 +384,11 @@ Proof.
       * intros; unfold overridePost.
         destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
         unfold POSTCONDITION, abbreviate, loop1_ret_assert.
-        Intros; Exists (failvs ++ [v; v2]) (loops + 1) hv2 hists'' v2 lv'; unfold atomic_loc_hist at 2; entailer!.
+        Intros; Exists (failvs ++ [v; v2]) (loops + 1) hv2 hists'' v2; unfold atomic_loc_hist at 2; entailer!.
         { rewrite Forall_app, Zlength_app, !Zlength_cons, Zlength_nil; repeat (constructor; auto); [|omega].
           unfold make_loads; rewrite map_app; eapply add_events_trans; eauto.
           eapply add_events_trans with (le := [_]); eauto. }
+        Exists lv'; entailer!.
         apply sepcon_list_derives; rewrite !Zlength_map; auto; intros.
         erewrite !Znth_map, !Znth_upto by (auto; rewrite Zlength_upto in *; omega).
         Intros fails; Exists (fails ++ [Znth i vals 0]); entailer!.

@@ -391,20 +391,17 @@ Proof.
             (~In j (indices (hash key) ((i + 1) + hash key)) -> Znth j h' ([], []) = Znth j h ([], [])))
           LOCAL (temp _idx (vint i1); temp _key (vint key); temp _value (vint value); gvar _m_entries p)
           SEP (@data_at CompSpecs sh (tarray tentry size) entries p; atomic_entries sh entries ghosts h')).
-        Exists i (i1 mod size) (upd_Znth (i1 mod size) h' (hki1, hvi)).
-        go_lower.
-        apply andp_right.
-        { apply prop_right; split.
+        Exists i (i1 mod size) (upd_Znth (i1 mod size) h' (hki1, hvi)); entailer!.
+        { split.
           { rewrite upd_Znth_Zlength; auto; omega. }
           rewrite Zmod_mod.
-          split; auto; split; auto; split; auto.
+          split; auto.
           apply incr_invariant; auto; simpl in *; try omega.
           * rewrite Heq, Hhi; repeat (eexists; eauto); auto.
             match goal with H : forall v0, last_value hki v0 -> v0 <> vint 0 -> vint v = v0 |- _ =>
               symmetry; apply H; auto end.
             rewrite ordered_last_value; auto.
           * admit. (* list is long enough *) }
-        apply andp_right; [apply prop_right; auto|].
         fast_cancel.
         erewrite <- !sepcon_assoc, replace_nth_sepcon, update_entries_hist; eauto; try omega.
         rewrite sepcon_assoc; auto. }
@@ -472,12 +469,11 @@ Proof.
           destruct (eq_dec EK_continue EK_normal); [discriminate|].
           unfold loop1_ret_assert.
           go_lower.
-          Exists i (i1 mod size) (upd_Znth (i1 mod size) h' (hki3, hvi)).
-          apply andp_right.
-          { apply prop_right; split.
+          Exists i (i1 mod size) (upd_Znth (i1 mod size) h' (hki3, hvi)); entailer!.
+          { split.
             { rewrite upd_Znth_Zlength; auto; omega. }
             rewrite Zmod_mod.
-            split; auto; split; auto; split; auto.
+            split; auto.
             apply incr_invariant; auto; simpl in *; try omega.
             * rewrite Heq, Hhi; do 2 eexists; eauto.
               repeat split; auto.
@@ -485,7 +481,6 @@ Proof.
                 symmetry; apply H; auto end.
               rewrite ordered_last_value; auto.
             * admit. (* list is long enough *) }
-          apply andp_right; [apply prop_right; auto|].
           fast_cancel.
           erewrite <- !sepcon_assoc, replace_nth_sepcon, update_entries_hist; eauto; try omega.
           rewrite sepcon_assoc; auto. }
@@ -542,11 +537,8 @@ Proof.
         go_lowerx; entailer!. }
       Intros hvi1.
       forward.
-      Exists (i1 mod size) (upd_Znth (i1 mod size) h' (hki', hvi1)).
-      apply andp_right; auto.
-      apply andp_right.
-      { apply prop_right; split; auto.
-        split.
+      Exists (i1 mod size) (upd_Znth (i1 mod size) h' (hki', hvi1)); entailer!.
+      { split.
         { rewrite upd_Znth_Zlength; auto. }
         split; [replace (Zlength h) with (Zlength h'); auto|].
         setoid_rewrite Heq.
@@ -568,7 +560,6 @@ Proof.
           match goal with H : forall j, (In j _ -> _) /\ (~In j _ -> _) |- _ => apply H; auto end.
           { intro; contradiction Hout; subst; simpl.
             rewrite <- Hindex; auto. } }
-      apply andp_right; auto.
       fast_cancel.
       erewrite <- !sepcon_assoc, (sepcon_comm _ (atomic_loc_hist _ _ _ _ _ _)), replace_nth_sepcon,
         update_entries_hist; eauto; auto; omega.
@@ -667,12 +658,8 @@ Proof.
         go_lowerx; entailer!. }
       subst; Intros v; simpl; Intros hvi1.
       forward.
-      Exists v (i1 mod size) (upd_Znth (i1 mod size) h' (hki1, hvi1)).
-      apply andp_right.
-      { apply prop_right.
-        split; auto.
-        split; auto.
-        split.
+      Exists v (i1 mod size) (upd_Znth (i1 mod size) h' (hki1, hvi1)); entailer!.
+      { split.
         { rewrite upd_Znth_Zlength; auto. }
         split; [replace (Zlength h) with (Zlength h'); auto|].
         setoid_rewrite Heq.
@@ -697,7 +684,6 @@ Proof.
             match goal with H : forall j, (In j _ -> _) /\ (~In j _ -> _) |- _ => apply H; auto end.
             { intro; contradiction Hout; subst; simpl.
               rewrite <- Hindex; auto. } }
-      apply andp_right; [apply prop_right; auto|].
       fast_cancel.
       erewrite <- !sepcon_assoc, (sepcon_assoc _ (atomic_loc _ _ _)), replace_nth_sepcon,
         update_entries_hist; eauto; try omega.
@@ -707,37 +693,32 @@ Proof.
     + Intros; match goal with |- semax _ (PROP () (LOCALx ?Q (SEPx ?R))) _ _ =>
         forward_if (PROP (v <> 0) (LOCALx Q (SEPx R))) end.
       * forward.
-        Exists 0 (i1 mod size) (upd_Znth (i1 mod size) h' (hki1, hvi)).
-        apply andp_right.
-        { apply prop_right.
-          split; [split; computable|].
-          split; auto.
-        split.
-        { rewrite upd_Znth_Zlength; auto. }
-        split; [replace (Zlength h) with (Zlength h'); auto|].
-        setoid_rewrite Heq.
-        rewrite Hhi; simpl.
-        rewrite upd_Znth_same by auto; simpl; split.
-        - do 2 eexists; eauto; split; auto.
-          match goal with H : forall v0, last_value hki v0 -> v0 <> vint 0 -> vint 0 = v0 |- _ =>
-            symmetry; apply H; auto end.
-          rewrite ordered_last_value; auto.
-        - assert (indices (hash key) (i + hash key) = indices (hash key) (i1 mod size)) as Hindex.
-          { unfold indices.
-            replace (i1 mod size) with ((i + hash key) mod size).
-            rewrite Zminus_mod_idemp_l; auto. }
-          simpl in Hindex; split.
-          + intro Hin; simpl in *.
-            rewrite upd_Znth_diff'; auto.
-            match goal with H : forall j, (In j _ -> _) /\ (~In j _ -> _) |- _ => apply H; auto end.
-            rewrite Hindex; auto.
-            { intro; contradiction Hnew; subst.
-              rewrite Hindex; auto. }
-          + intros Hout ?; rewrite upd_Znth_diff'; auto.
-            match goal with H : forall j, (In j _ -> _) /\ (~In j _ -> _) |- _ => apply H; auto end.
-            { intro; contradiction Hout; subst; simpl.
-              rewrite <- Hindex; auto. } }
-        apply andp_right; [apply prop_right; auto|].
+        Exists 0 (i1 mod size) (upd_Znth (i1 mod size) h' (hki1, hvi)); entailer!.
+        { split.
+          { rewrite upd_Znth_Zlength; auto. }
+          split; [replace (Zlength h) with (Zlength h'); auto|].
+          setoid_rewrite Heq.
+          rewrite Hhi; simpl.
+          rewrite upd_Znth_same by auto; simpl; split.
+          - do 2 eexists; eauto; split; auto.
+            match goal with H : forall v0, last_value hki v0 -> v0 <> vint 0 -> vint 0 = v0 |- _ =>
+              symmetry; apply H; auto end.
+            rewrite ordered_last_value; auto.
+          - assert (indices (hash key) (i + hash key) = indices (hash key) (i1 mod size)) as Hindex.
+            { unfold indices.
+              replace (i1 mod size) with ((i + hash key) mod size).
+              rewrite Zminus_mod_idemp_l; auto. }
+            simpl in Hindex; split.
+            + intro Hin; simpl in *.
+              rewrite upd_Znth_diff'; auto.
+              match goal with H : forall j, (In j _ -> _) /\ (~In j _ -> _) |- _ => apply H; auto end.
+              rewrite Hindex; auto.
+              { intro; contradiction Hnew; subst.
+                rewrite Hindex; auto. }
+            + intros Hout ?; rewrite upd_Znth_diff'; auto.
+              match goal with H : forall j, (In j _ -> _) /\ (~In j _ -> _) |- _ => apply H; auto end.
+              { intro; contradiction Hout; subst; simpl.
+                rewrite <- Hindex; auto. } }
         fast_cancel.
         erewrite <- !sepcon_assoc, replace_nth_sepcon, update_entries_hist; eauto; try omega.
         rewrite (sepcon_assoc _ (atomic_loc _ _ _)); auto.
@@ -754,20 +735,17 @@ Proof.
             (~In j (indices (hash key) ((i + 1) + hash key)) -> Znth j h' ([], []) = Znth j h ([], [])))
           LOCAL (temp _idx (vint i1); temp _key (vint key); gvar _m_entries p)
           SEP (@data_at CompSpecs sh (tarray tentry size) entries p; atomic_entries sh entries ghosts h')).
-        Exists i (i1 mod size) (upd_Znth (i1 mod size) h' (hki1, hvi)).
-        go_lower.
-        apply andp_right.
-        { apply prop_right; split.
+        Exists i (i1 mod size) (upd_Znth (i1 mod size) h' (hki1, hvi)); entailer!.
+        { split.
           { rewrite upd_Znth_Zlength; auto; omega. }
           rewrite Zmod_mod.
-          split; auto; split; auto; split; auto.
+          split; auto.
           apply incr_invariant; auto; simpl in *; try omega.
           * rewrite Heq, Hhi; repeat (eexists; eauto); auto.
             match goal with H : forall v0, last_value hki v0 -> v0 <> vint 0 -> vint v = v0 |- _ =>
               symmetry; apply H; auto end.
             rewrite ordered_last_value; auto.
           * admit. (* list is long enough *) }
-        apply andp_right; [apply prop_right; auto|].
         fast_cancel.
         erewrite <- !sepcon_assoc, replace_nth_sepcon, update_entries_hist; eauto; try omega.
         rewrite (sepcon_assoc _ (atomic_loc _ _ _)); auto.
@@ -895,20 +873,17 @@ Proof.
           (~In j (indices (hash key) ((i + 1) + hash key)) -> Znth j h' ([], []) = Znth j h ([], [])))
         LOCAL (temp _idx (vint i1); temp _key (vint key); temp _value (vint value); gvar _m_entries p)
         SEP (@data_at CompSpecs sh (tarray tentry size) entries p; atomic_entries sh entries ghosts h')).
-      Exists i (i1 mod size) (upd_Znth (i1 mod size) h' (hki1, hvi)).
-      go_lower.
-      apply andp_right.
-      { apply prop_right; split.
+      Exists i (i1 mod size) (upd_Znth (i1 mod size) h' (hki1, hvi)); entailer!.
+      { split.
         { rewrite upd_Znth_Zlength; auto; omega. }
         rewrite Zmod_mod.
-        split; auto; split; auto; split; auto.
+        split; auto.
         apply incr_invariant; auto; simpl in *; try omega.
         * rewrite Heq, Hhi; repeat (eexists; eauto); auto.
           match goal with H : forall v0, last_value hki v0 -> v0 <> vint 0 -> vint v = v0 |- _ =>
             symmetry; apply H; auto end.
           rewrite ordered_last_value; auto.
         * admit. (* list is long enough *) }
-      apply andp_right; [apply prop_right; auto|].
       fast_cancel.
       erewrite <- !sepcon_assoc, replace_nth_sepcon, update_entries_hist; eauto; try omega.
       rewrite (sepcon_assoc _ (atomic_loc _ _ _)); auto. }
@@ -999,19 +974,17 @@ Proof.
         destruct (eq_dec EK_continue EK_normal); [discriminate|].
         unfold loop1_ret_assert.
         go_lower.
-        Exists i (i1 mod size) (upd_Znth (i1 mod size) h' (hki3, hvi)).
-        apply andp_right.
-        { apply prop_right; split.
+        Exists i (i1 mod size) (upd_Znth (i1 mod size) h' (hki3, hvi)); entailer!.
+        { split.
           { rewrite upd_Znth_Zlength; auto; omega. }
           rewrite Zmod_mod.
-          split; auto; split; auto; split; auto.
+          split; auto.
           apply incr_invariant; auto; simpl in *; try omega.
           * rewrite Heq, Hhi; do 2 eexists; eauto; repeat split; auto.
             match goal with H : forall v0, last_value hki v0 -> v0 <> vint 0 -> vint v = v0 |- _ =>
               symmetry; apply H; auto end.
             rewrite ordered_last_value; auto.
           * admit. (* list is long enough *) }
-        apply andp_right; [apply prop_right; auto|].
         fast_cancel.
         erewrite <- !sepcon_assoc, replace_nth_sepcon, update_entries_hist; eauto; try omega.
         rewrite (sepcon_assoc _ (atomic_loc _ _ _)); auto.
@@ -1038,10 +1011,8 @@ Proof.
       go_lowerx; entailer!. }
     Intros hvi1.
     forward.
-    Exists true (i1 mod size) (upd_Znth (i1 mod size) h' (hki2, hvi1)).
-    apply andp_right.
-    { apply prop_right; split; auto.
-      split.
+    Exists true (i1 mod size) (upd_Znth (i1 mod size) h' (hki2, hvi1)); entailer!.
+    { split.
       { rewrite upd_Znth_Zlength; auto. }
       split; [auto|].
       setoid_rewrite Heq.
@@ -1062,7 +1033,6 @@ Proof.
         match goal with H : forall j, (In j _ -> _) /\ (~In j _ -> _) |- _ => apply H; auto end.
         { intro; contradiction Hout; subst; simpl.
           rewrite <- Hindex; auto. } }
-    apply andp_right; [apply prop_right; auto|].
     fast_cancel.
     erewrite <- !sepcon_assoc, replace_nth_sepcon, update_entries_hist; eauto; try omega.
     rewrite (sepcon_assoc _ (atomic_loc _ _ _)), sepcon_comm; auto.
