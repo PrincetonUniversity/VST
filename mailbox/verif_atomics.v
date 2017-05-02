@@ -606,6 +606,7 @@ Proof.
   intros; eapply local_facts_isptr with (P := fun p => atomic_loc sh p R); eauto.
   unfold atomic_loc; entailer!.
 Qed.
+Hint Resolve atomic_loc_isptr : saturate_local.
 
 Lemma atomic_loc_precise : forall sh p R, readable_share sh -> precise (atomic_loc sh p R).
 Proof.
@@ -950,6 +951,7 @@ Proof.
   intros; eapply local_facts_isptr with (P := fun p => atomic_loc_hist sh p g i R h); eauto.
   unfold atomic_loc_hist; rewrite atomic_loc_isptr; entailer!.
 Qed.
+Hint Resolve atomic_loc_hist_isptr : saturate_local.
 
 Lemma hist_R_precise : forall p i R v, precise (EX h : _, R h v) -> precise (hist_R p i R v).
 Proof.

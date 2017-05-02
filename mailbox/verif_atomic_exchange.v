@@ -206,7 +206,7 @@ Lemma body_atomic_exchange : semax_body Vprog Gprog f_simulate_atomic_exchange a
 Proof.
   start_dep_function.
   simpl; destruct ts as (((((((((lsh, tgt), g), l), i), v), h), P), R), Q).
-  unfold AE_loc; rewrite lock_inv_isptr; Intros.
+  unfold AE_loc; Intros.
   forward_call (l, lsh, AE_inv tgt g i R).
   unfold AE_inv at 2; Intros h' v'.
   assert (lsh <> Share.bot).
