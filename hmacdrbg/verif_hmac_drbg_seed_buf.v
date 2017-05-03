@@ -19,47 +19,6 @@ Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
 Require Import hmacdrbg.spec_hmac_drbg_pure_lemmas.
 Require Import floyd.library.
 
-Definition hmac_drbg_seed_buf_spec :=
-  DECLARE _mbedtls_hmac_drbg_seed_buf
-   WITH ctx: val, info:val, d_len: Z, data:val, Data: list Z,
-        Ctx: hmac256drbgstate,
-        CTX: hmac256drbgabs,
-        kv: val, Info: md_info_state
-    PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
-         _md_info OF (tptr (Tstruct _mbedtls_md_info_t noattr)),
-         _data OF tptr tuchar, _data_len OF tuint ]
-       PROP ( (d_len = Zlength Data \/ d_len=0) /\
-              0 <= d_len <= Int.max_unsigned /\ Forall isbyteZ Data)
-       LOCAL (temp _ctx ctx; temp _md_info info;
-              temp _data_len (Vint (Int.repr d_len)); temp _data data; gvar sha._K256 kv)
-       SEP (
-         data_at Tsh t_struct_hmac256drbg_context_st Ctx ctx;
-         hmac256drbg_relate CTX Ctx;
-         data_at Tsh t_struct_mbedtls_md_info Info info;
-         da_emp Tsh (tarray tuchar (Zlength Data)) (map Vint (map Int.repr Data)) data;
-         K_vector kv)
-    POST [ tint ]
-       EX ret_value:_,
-       PROP ()
-       LOCAL (temp ret_temp ret_value)
-       SEP (data_at Tsh t_struct_mbedtls_md_info Info info *
-            da_emp Tsh (tarray tuchar (Zlength Data)) (map Vint (map Int.repr Data)) data *
-            K_vector kv;
-            orp ( !!(ret_value = Vint (Int.repr (-20864))) &&
-                  data_at Tsh t_struct_hmac256drbg_context_st Ctx ctx *
-                  hmac256drbg_relate CTX Ctx)
-                ( !!(ret_value <> Vint (Int.repr (-20864))) &&
-  (                      match Ctx, CTX
-                         with (mds, (V', (RC', (EL', (PR', RI'))))),
-                              HMAC256DRBGabs key V RC EL PR RI
-                         => EX KEY:list Z, EX VAL:list Z, EX p:val,
-                          !!(HMAC256_DRBG_update (contents_with_add data d_len Data) V (list_repeat 32 1) = (KEY, VAL))
-                             && md_full key mds * malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
-                                data_at Tsh t_struct_hmac256drbg_context_st ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI'))))) ctx *
-                                hmac256drbg_relate (HMAC256DRBGabs KEY VAL RC EL PR RI) ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI')))))
-                        end))
-       ).
-
 Lemma body_hmac_drbg_seed_buf: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
       f_mbedtls_hmac_drbg_seed_buf hmac_drbg_seed_buf_spec.
 Proof.
@@ -67,7 +26,7 @@ Proof.
   abbreviate_semax.
   destruct H as [HDlen1 [HDlen2 HData]].
   rewrite data_at_isptr with (p:=ctx). Intros.
-  destruct ctx; try contradiction.
+  destruct ctx; try contradiction; clear Pctx.
   unfold_data_at 1%nat.
   destruct Ctx as [MdCTX [V [RC [EL [PR RI]]]]]. simpl.
   destruct MdCTX as [M1 [M2 M3]].
@@ -91,8 +50,8 @@ Proof.
             data_at Tsh (Tstruct _mbedtls_md_context_t noattr) (info,(M2,p)) (Vptr b i));
             FRZL FR0)).
   { destruct Hv; try omega. rewrite if_false; trivial.
-    forward. Exists (Vint (Int.repr (-20864))).
-    entailer!. thaw FR0. cancel. apply orp_right1. cancel.
+    forward. Exists (Vint (Int.repr (-20864))). rewrite if_true; trivial.
+    entailer!. thaw FR0. cancel. 
     unfold_data_at 2%nat. thaw FIELDS. cancel. rewrite field_at_data_at. simpl.
     unfold field_address. rewrite if_true; simpl; trivial. rewrite int_add_repr_0_r; trivial. }
   { subst v; clear Hv. rewrite if_true; trivial.
@@ -173,26 +132,21 @@ Proof.
   { subst ABS; simpl. repeat split; trivial; try omega. apply IB1. split; omega.
   }
 
-  forward. Exists (Vint (Int.repr 0)). normalize.
-  apply andp_right. apply prop_right; split; trivial.
-  cancel.
-  unfold hmac256drbgabs_common_mpreds.
+  forward. Exists (Vint (Int.repr 0)). rewrite if_false; [ | intros N; inv N]. 
   remember(HMAC256_DRBG_update (contents_with_add data d_len Data) V0
              [1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1;
              1; 1; 1; 1; 1; 1; 1; 1; 1; 1]) as HH.
-  destruct HH as [KEY VALUE]. simpl. normalize. cancel.
-  apply orp_right2.
-  Exists KEY.
-  apply andp_right. apply prop_right. intros N. inv N.
-(*  unfold hmac256drbgstate_md_info_pointer. simpl.*)
-  Exists VALUE p. normalize.
-  apply andp_right. apply prop_right. repeat split; trivial.
+  normalize.
+  unfold hmac256drbgabs_common_mpreds.
+  destruct HH as [KEY VALUE]. simpl.
+  Exists KEY VALUE p. normalize.
+  apply andp_right. solve [apply prop_right; repeat split; trivial].
   cancel.
 Time Qed.
-          (*Coq8.6: 18secs*)
+          (*Coq8.6: 13secs*)
           (*Feb22nd, 2017: 116.921 secs (111.953u,0.015s) (successful)*)
           (*earlier: 26.657 secs (26.656u,0.s) (successful)*)
-
+(*
 Definition hmac_drbg_seed_buf_spec2 :=
   DECLARE _mbedtls_hmac_drbg_seed_buf
    WITH ctx: val, info:val, d_len: Z, data:val, Data: list Z,
@@ -368,3 +322,4 @@ Proof.
 Time Qed.  (*Coq8.6: 21secs*)
            (*Feb 22nd 2017: Finished transaction in 116.281 secs (105.203u,0.062s) (successful)
             earlier: Finished transaction in 45.61 secs (21.031u,0.s) (successful)*)
+*)
