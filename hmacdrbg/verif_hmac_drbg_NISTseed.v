@@ -18,6 +18,7 @@ Require Import hmacdrbg.spec_hmac_drbg.
 Require Import hmacdrbg.HMAC_DRBG_common_lemmas.
 Require Import hmacdrbg.spec_hmac_drbg_pure_lemmas.
 Require Import floyd.library.
+Require Import floyd.deadvars.
 
 Require Import hmacdrbg.verif_hmac_drbg_seed_common.
 
@@ -117,6 +118,8 @@ Proof. rewrite <- instantiate256_reseed, instantiate_eq; trivial. Qed.
 
 Opaque mbedtls_HMAC256_DRBG_reseed_function.
 Opaque initial_key. Opaque initial_value.
+Opaque mbedtls_HMAC256_DRBG_reseed_function.
+Opaque list_repeat. 
 
 (*specification for the expected case, in which 0<=len<=256.
   But use mbedtls_HMAC256_DRBG_instantiate_function PROP of PRE and assume SUCCESS*)
@@ -201,8 +204,9 @@ Proof.
   Intros. subst v. clear Hv. Intros p. rename H into MCp. simpl in MCp.
 
   (*Alloction / md_setup succeeded. Now get md_size*)
+  deadvars. (*
   drop_LOCAL 0%nat.
-  drop_LOCAL 0%nat.
+  drop_LOCAL 0%nat.*)
   forward_call tt.
 
   (*call mbedtls_md_hmac_starts( &ctx->md_ctx, ctx->V, md_size )*)
@@ -259,7 +263,7 @@ Proof.
     forward_if.
     + elim H; trivial. 
     + clear H. forward. forward. entailer!. }
-  forward. simpl. drop_LOCAL 7%nat. (*_t'4*)
+  forward. simpl. deadvars. (*drop_LOCAL 7%nat. _t'4*)
 
   (*NEXT INSTRUCTION:  ctx->entropy_len = entropy_len * 3 / 2*)
   thaw ALLSEP. thaw FIELDS2. forward.
@@ -315,15 +319,12 @@ Proof.
                  Zlength (contents_with_add data (Zlength Data) Data) = Zlength Data).
          { unfold contents_with_add. if_tac. right; trivial. left; trivial. }
   forward.
-
+  deadvars.
   forward_if (
    PROP ( v = nullval)
    LOCAL (temp _ret v; temp _t'7 v;
    temp _entropy_len (Vint (Int.repr 32));
-   temp _md_size (Vint (Int.repr 32)); temp _ctx (Vptr b i);
-   temp _md_info info;
-   temp _len (Vint (Int.repr (Zlength Data)));
-   temp _custom data; gvar sha._K256 kv)
+   temp _ctx (Vptr b i); gvar sha._K256 kv)
    SEP (reseedPOST v Data data (Zlength Data) s
           myABS (Vptr b i) Info kv ST; FRZL OLD_MD)).
   { rename H into Hv. forward. simpl. Exists v.
@@ -356,7 +357,7 @@ Proof.
     apply negb_false_iff in Hv.
     symmetry in Hv; apply binop_lemmas2.int_eq_true in Hv; subst v. trivial.
   }
-  Intros. subst v.
+  deadvars. Intros. subst v.
   unfold reseedPOST. 
   remember ((zlt 256 (Zlength Data)
           || zlt 384 (hmac256drbgabs_entropy_len myABS + Zlength Data))%bool) as d.
@@ -376,9 +377,9 @@ Proof.
   Exists Int.zero. simpl.
   apply andp_right. apply prop_right; trivial.
   apply andp_right. apply prop_right; split; trivial.
-  thaw ALLSEP. thaw OLD_MD. Exists p. cancel.
-  normalize. 
-  apply andp_right. apply prop_right; repeat split; trivial.
+  thaw ALLSEP. thaw OLD_MD. Exists p. 
+  cancel;  normalize. 
+  apply andp_right. solve [apply prop_right; repeat split; trivial].
   cancel.
   unfold_data_at 1%nat. cancel.
   apply hmac_interp_empty.
@@ -471,6 +472,7 @@ Proof.
 
   Intros v. rename H into Hv.
   forward.
+  deadvars.
   forward_if (
      PROP (v=0)
    LOCAL (temp _ret (Vint (Int.repr v)); temp _t'2 (Vint (Int.repr v));
@@ -492,8 +494,7 @@ Proof.
   Intros. subst v. clear Hv. Intros p. rename H into MCp. simpl in MCp.
 
   (*Alloction / md_setup succeeded. Now get md_size*)
-  drop_LOCAL 0%nat.
-  drop_LOCAL 0%nat.
+  deadvars.
   forward_call tt.
 
   (*call mbedtls_md_hmac_starts( &ctx->md_ctx, ctx->V, md_size )*)
@@ -535,13 +536,14 @@ Proof.
     rewrite int_add_repr_0_r.
     cancel.
   }
+  deadvars.
   thaw FIELDS1. forward.
   freeze [0;4;5;6;7] FIELDS2.
   freeze [0;1;2;3;4;5;6;7;8;9] ALLSEP.
 
   forward_if
   (PROP ( )
-   LOCAL (temp _md_size (Vint (Int.repr 32)); temp _ctx (Vptr b i); temp _md_info info;
+   LOCAL (temp _md_size (Vint (Int.repr 32)); temp _ctx (Vptr b i); 
    temp _len (Vint (Int.repr (Zlength Data))); temp _custom data; gvar sha._K256 kv;
    temp _t'4 (Vint (Int.repr 32)))
    SEP (FRZL ALLSEP)).
@@ -550,7 +552,7 @@ Proof.
     forward_if.
     + elim H; trivial. 
     + clear H. forward. forward. entailer!. }
-  forward. simpl. drop_LOCAL 7%nat. (*_t'4*)
+  forward. simpl. deadvars. (*drop_LOCAL 7%nat. _t'4*)
 
   (*NEXT INSTRUCTION:  ctx->entropy_len = entropy_len * 3 / 2*)
   thaw ALLSEP. thaw FIELDS2. forward.
@@ -606,15 +608,11 @@ Proof.
                  Zlength (contents_with_add data (Zlength Data) Data) = Zlength Data).
          { unfold contents_with_add. if_tac. right; trivial. left; trivial. }
   forward.
-
+  deadvars.
   forward_if (
    PROP ( v = nullval)
    LOCAL (temp _ret v; temp _t'7 v;
-   temp _entropy_len (Vint (Int.repr 32));
-   temp _md_size (Vint (Int.repr 32)); temp _ctx (Vptr b i);
-   temp _md_info info;
-   temp _len (Vint (Int.repr (Zlength Data)));
-   temp _custom data; gvar sha._K256 kv)
+   temp _entropy_len (Vint (Int.repr 32)); temp _ctx (Vptr b i); gvar sha._K256 kv)
    SEP (reseedPOST v Data data (Zlength Data) s
           myABS (Vptr b i) Info kv ST; FRZL OLD_MD)).
   { rename H into Hv. forward. simpl. Exists v.
@@ -654,7 +652,7 @@ Proof.
     apply negb_false_iff in Hv.
     symmetry in Hv; apply binop_lemmas2.int_eq_true in Hv; subst v. trivial.
   }
-  Intros. subst v.
+  deadvars. Intros. subst v.
   unfold reseedPOST.
   remember ((zlt 256 (Zlength Data)
           || zlt 384 (hmac256drbgabs_entropy_len myABS + Zlength Data))%bool) as d.
@@ -687,7 +685,7 @@ Proof.
   cancel.
   unfold_data_at 1%nat. cancel.
   apply hmac_interp_empty. 
-Time Qed. (*Coq8.6: 34secs*)
+Time Qed. (*Coq8.6: 32secs*)
    (*Feb 22nd 2017: 245.406 secs (233.843u,0.203s) (successful)*)
    (*earlier: 69.671 secs (59.578u,0.015s) (successful)*)
 
@@ -803,6 +801,7 @@ Proof.
   Time forward_call ((M1,(M2,M3)), Vptr b i, Vint (Int.repr 1), info).
   Intros v. rename H into Hv.
   forward.
+
   forward_if (
      PROP (v=0)
    LOCAL (temp _ret (Vint (Int.repr v)); temp _t'2 (Vint (Int.repr v));
@@ -824,8 +823,7 @@ Proof.
   Intros. subst v. clear Hv. Intros p. rename H into MCp.
 
   (*Alloction / md_setup succeeded. Now get md_size*)
-  drop_LOCAL 0%nat.
-  drop_LOCAL 0%nat.
+  deadvars. 
   forward_call tt.
 
   (*call mbedtls_md_hmac_starts( &ctx->md_ctx, ctx->V, md_size )*)
@@ -987,7 +985,7 @@ Proof.
     symmetry in Hv; apply binop_lemmas2.int_eq_true in Hv. subst v.
     entailer!.
   }
-  Intros. subst v.
+  deadvars. Intros. subst v.
   unfold reseedPOST.
   remember ((zlt 256 (Zlength Data)
           || zlt 384 (hmac256drbgabs_entropy_len myABS + Zlength Data))%bool) as d.
@@ -1010,6 +1008,6 @@ Proof.
   Exists p. normalize. 
   apply andp_right. apply prop_right; repeat split; trivial.
   unfold_data_at 1%nat. cancel.
-Time Qed. (*Coq8.6: 44secs*)
+Time Qed. (*Coq8.6: 40secs*)
           (*Jan 22nd 2017: 267.171 secs (182.812u,0.015s) (successful)*)
           (*earlier: Finished transaction in 121.296 secs (70.921u,0.062s) (successful)*)
