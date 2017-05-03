@@ -3,6 +3,7 @@
 \usepackage{xr-hyper}
 \input{setup}
 \input{macros}
+\hyphenation{name-space}
 
 \externaldocument{book}[PLCC.pdf]
 \hypersetup{filecolor=black}
@@ -154,19 +155,19 @@ statement.
 The Verified Software Toolchain runs on Linux, Mac, or Windows.
 You will need to install:
 
-\begin{enumerate}
-\item Coq 8.6, from coq.inria.fr.  Follow the standard installation instructions.
-\item CompCert 2.7.2, from \href{https://github.com/ildyria/CompCert/tree/v2.7.2}{https://github.com/ildyria/CompCert/tree/v2.7.2}. (This is an unofficial release, since no official release of CompCert 2.7 is ported to Coq8.6.)
-  You will want to build the \emph{clightgen} tool, using these commands:
+\begin{description}
+\item[Coq 8.6,] from coq.inria.fr.  Follow the standard installation instructions.
+\item[CompCert 2.7.2,] from \href{https://github.com/ildyria/CompCert/tree/v2.7.2}{https://github.com/ildyria/CompCert/tree/v2.7.2}. (This is an unofficial release, since no official release of CompCert 2.7 is ported to Coq8.6.)
+  Build the \emph{clightgen} tool, using these commands:
   \textsf{./configure ia32-linux; make clightgen}.  You might replace
   ia32-linux with ia32-macosx or ia32-cygwin.  Verifiable C should work
   on other 32-bit architectures as well, but has not been extensively tested.
-\item VST 1.8, from \href{vst.cs.princeton.edu}{vst.cs.princeton.edu},
+\item[VST 1.8,] from \href{vst.cs.princeton.edu}{vst.cs.princeton.edu},
   or else an appropriate
   version from \href{https://github.com/PrincetonUniversity/VST}{https://github.com/PrincetonUniversity/VST}.
   After unpacking, read the \textsc{build\_organization} file
   (or simply \textsf{make -j}).
-\end{enumerate}
+\end{description}
 
 
 \newthought{Workflow.}
@@ -386,6 +387,7 @@ After the boilerplate (and the functional spec),
 we have the function specifications for each function
 in the API spec:
 
+\label{refcard:sumarray-spec}
 \begin{lstlisting}
 Definition sumarray_spec :=
 DECLARE _sumarray
@@ -402,8 +404,10 @@ DECLARE _sumarray
     SEP (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a).
 \end{lstlisting}
 
-The funspec begins, \lstinline{Definition $f$_spec := DECLARE $\mathrm{id}_f$ ...}
-where $f$ is the name of the C function.
+The funspec begins, \lstinline{Definition $f$_spec := DECLARE $\,\_f$ ...}
+where $f$ is the name of the C function, and $\_f : \mathsf{ident}$ is
+Coq's name for the identifier that denotes $f$ in the AST of the C program
+(see \autopageref{s-has-type-ident}).
 
 A function is specified by its \emph{precondition} and its \emph{postcondition}.
 The \textsc{with} clause quantifies over Coq values that
@@ -411,9 +415,6 @@ may appear in both the precondition and the postcondition.
 The precondition is parameterized by the C-language function parameters,
 and the postcondition is parameterized by a identifier \lstinline{ret_temp},
 which is short for, ``the temporary variable holding the return value.''
-But really, the Coq variable \lstinline{_a} does not have type (pointer-to-int);
-it has type \lstinline{ident} (see
-\autopageref{s-has-type-ident}).
 
 An assertion in Verifiable C's \emph{separation logic}
 can be written at either of two levels:
@@ -431,7 +432,7 @@ independent of program state.  Of course, in the function precondition
 above, the statement \lstinline{0 $\le$ size $\le$ Int.max_signed} is
 ``forever'' true \emph{just within the scope of the quantification of
   the variable \lstinline{size}}; it is bound by
-\lstinline{WITH} and spans the \lstinline{PRE} and
+\lstinline{WITH}, and spans the \lstinline{PRE} and
 \lstinline{POST} assertions.
 
 The \lstinline{LOCAL} propositions $\vec{Q}$ are \emph{variable
@@ -441,7 +442,7 @@ variables, or ``temp'' variables.  The localdef
 \lstinline{(temp _a  a)}
 says that (in this program state) the contents of C local
 variable \lstinline{_a} is the Coq value \lstinline{a}.  In general,
-the contents of a C scalar variable is always a \lstinline{val}; this
+a C scalar variable holds something of type \lstinline{val}; this
 type is defined by CompCert as,
 
 \begin{lstlisting}
@@ -493,10 +494,10 @@ integers into 32-bit integers by taking the (sign-extended) low-order
 32 bits.  \lstinline{Int.signed: int -> Z} injects back into the signed
 integers.
 
-The postcondition guarantees that the value return is
+The postcondition guarantees that the value returned is\linebreak
 \lstinline{Int.repr (sum_Z contents)}.  But what if
 $\sum s \ge 2^{31}$, so the sum doesn't fit in
-a 32-bit signed integer?  Then
+a 32-bit signed integer?  Then\newline
 \lstinline{Int.signed(Int.repr (sum_Z contents)) $\not=$ (sum_Z contents)}.  In general, for a claim about \lstinline{Int.repr($x$)} to
 be \emph{useful}, one also needs
 a claim that $0\le x \le \mathsf{Int.max\_unsigned}$
@@ -523,6 +524,7 @@ To prove correctness of a whole program,
 \end{enumerate}
 
 In \file{progs/verif\_sumarray.v}, the first step is easy:
+\label{refcard:with-library1}
 \begin{lstlisting}
 Definition Gprog := ltac:(wi$$th_library prog [sumarray_spec; main_spec]).
 \end{lstlisting}
@@ -653,7 +655,7 @@ In a forward Hoare logic proof
 of $\triple{P}{i=0;\mathit{more}}{R}$ we might first apply
 the sequence rule,
 \[
-\inference{\triple{P}{i=0}{Q}\quad
+\inference{\triple{P}{i=0;}{Q}\quad
   \triple{Q}{\mathit{more}}{R}}{\triple{P}{i=0;\mathit{more}}{R}}
 \]
 assuming we could derive some appropriate assertion $Q$.
@@ -695,7 +697,7 @@ It's much like the precondition of
   information that $i$ is initialized.
 \end{itemize}
 
-Another \lstinline{forward} goes through
+Applying the \lstinline{forward} again will go through
 \lstinline{s=0;} to yield a proof goal
 with a \lstinline{LOCAL} binding for the \lstinline{_s}
 variable.
@@ -745,7 +747,7 @@ Share $\pi$ must be a \lstinline{readable_share}.
   Share $\pi$ must be a \lstinline{writable_share}.
 
 \item[\textsf{if ($E$) $C_1$ else $C_2$}]
-For an if-statement, use \lstinline{forward_if} and provide a postcondition.
+For an if-statement, use \lstinline{forward_if} and (perhaps) provide a postcondition.
 
 \item[\textsf{while} ($E$) $C$]
 For a while-loop, use the \lstinline{forward_while} tactic
@@ -782,6 +784,64 @@ It will generally be instantiated by a call to \lstinline|cancel|.
 \end{description}
 
 
+\chapter{If, While, For, call}
+\label{refcard:if-while-for}
+
+To do forward proof through if-statements, while-loops, and for-loops,
+you need to provide additional information: join-postconditions, loop invariants, etc.
+If the first statement (not counting \lstinline{Ssequence})
+in the current proof goal is \lstinline{Sifthenelse},
+\lstinline{Swhile},
+\lstinline{Sfor},
+\lstinline{Sloop},
+\lstinline{Scall}, or
+you can simply apply the \lstinline{forward} tactic:
+it will fail, with an error message explaining 
+what you need to provide; that is, it suggests the appropriate
+choice from this menu:
+
+\begin{itemize}
+\item $\mathbf{if}\,e\,\textbf{then}\,s_1\,\textbf{else}\,s_2;~s_3\ldots$
+  \newline
+  you do, \lstinline{forward_if $Q$}, where $Q$ is the precondition of
+  statement $s_3$.  We call it the \emph{join postcondition}, as it's the
+  assertion that goes where $s_1$ and $s_2$ join back together.
+
+\item $\mathbf{if}\,e\,\mathbf{then}\,s_1\,\mathbf{else}\,s_2;\}\ldots$
+  When the if-statement appears at the end of a basic block, so the
+  postcondition is already known, you can do \lstinline{forward_if.}
+  That is, you don't need to supply a join postcondition if
+  \lstinline{POSTCONDITION} is fully instantiated, without any
+  unification variables.  You can do
+  \lstinline{unfold abbreviate in POSTCONDITION} to see what's there.
+
+\item $\mathbf{while}\,(e)\,s; \ldots$ \qquad (no \lstinline{break} statements in $s$)\newline
+  You write \lstinline{forward_while $Q$}, where $Q$ is a loop invariant.
+  See \autoref{refcard:forward-while}.
+
+\item $\mathbf{while}\,(e)\,s; \ldots$ \qquad (with \lstinline{break} statements in $s$)\newline
+  You must treat this as if it were $\mathbf{for}\,(;e;)~ s$, and use the
+  \lstinline{forward_for} tactic; see below.
+
+\item $\mathbf{for}\,(e_1;i<e_2;i++)~ s$ \qquad (no \lstinline{break} statements in $s$)\newline
+  If $e_2$ is loop-invariant, you may be able to use
+  \lstinline{forward_for_simple_bound}; see \autoref{refcard:for}.
+
+\item $\mathbf{for}\,(e_1;e_2;e_3)~ s$ \qquad (no \lstinline{break} statements in $s$)\newline
+  Use \lstinline{forward_for $Q$ $Q'$}, where $Q$ is the loop invariant
+  and $Q'$ is the assertion that goes right before the \emph{increment}
+  command, $e_3$. See \autoref{refcard:for-general}.
+
+\item $\mathbf{for}\,(e_1;e_2;e_3)~ s; \ldots $\newline
+  If $s$ contains \lstinline{break} statements \emph{and} there are more
+  commands after the loop, you will need to write
+  \lstinline{forward_for $Q$ $Q'$ $R$}, where $Q$ and $Q'$ are as above,
+  and $R$ is the join-postcondition. See \autoref{refcard:for-general}.
+
+\item $f(e_1,\ldots,e_n)$ \newline
+  Use \lstinline{forward_call}; see \autoref{refcard:forward-call1}.
+
+\end{itemize}
 
 \chapter{While loops}
 \label{refcard:forward-while}
@@ -871,9 +931,10 @@ and cannot ``see'' the local variables (\lstinline{tempvar}s)
 of the C program.
 
 Type \lstinline{environ} is a local/global
-variable environment, mapping identifiers \lstinline{(ident)}
-to the values of globals, addressable locals, and tempvars (nonaddressable
-locals).  A \emph{lifted predicate} of type
+to the \emph{values} of tempvars (nonaddressable
+locals) and to the \emph{addresses} of 
+globals and addressable locals.
+A \emph{lifted predicate} of type
 \lstinline{environ->mpred} can ``see'' both the heap
 and the local/global variables.
 The Pre/Post arguments of Hoare triples \lstinline{(semax $\Delta$ Pre c Post)}
@@ -913,21 +974,21 @@ perhaps with some \lstinline{EX} quantifiers in the front.
 The turnstile $\vdash$ is written in Coq as \verb.|--..
 
 Let's consider the entailment arising from \lstinline{forward_while}
-in the \file{progs/verif\_sumarray.v} example:
+in the \linebreak \file{progs/verif\_sumarray.v} example:
 \begin{lstlisting}
 H : 0 <= size <= Int.max_signed
 $\mbox{\underline{~~~\emph{(other above-the-line hypotheses elided)}~~~~~~~~~~~}}_\mathrm{1/4}$
 ENTAIL Delta,
-       PROP  ()
-       LOCAL  (temp _s (Vint (Int.repr 0)); temp _i (Vint (Int.repr 0));
-              temp _a a; temp _n (Vint (Int.repr size)))
-       SEP  (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a)
+     PROP  ()
+     LOCAL  (temp _s (Vint (Int.repr 0)); temp _i (Vint (Int.repr 0));
+            temp _a a; temp _n (Vint (Int.repr size)))
+     SEP  (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a)
 |-- EX  $i$ : Z,
-       PROP  (0 <= $i$ <= size)
-       LOCAL  (temp _a a; temp _i (Vint (Int.repr $i$));
-              temp _n (Vint (Int.repr size));
-              temp _s (Vint (Int.repr (sum_Z (sublist 0 $i$ contents)))))
-       SEP  (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a)
+     PROP  (0 <= $i$ <= size)
+     LOCAL  (temp _a a; temp _i (Vint (Int.repr $i$));
+            temp _n (Vint (Int.repr size));
+            temp _s (Vint (Int.repr (sum_Z (sublist 0 $i$ contents)))))
+     SEP  (data_at sh (tarray tint size) (map Vint (map Int.repr contents)) a)
 \end{lstlisting}
 We instantiate the existential with the only value that works here, zero:
 \lstinline{Exists 0.}
@@ -956,8 +1017,8 @@ $\neg(i<n)$,
 \begin{lstlisting}
 ENTAIL Delta, PROP  ($\ldots$) LOCAL  ($\ldots$) SEP  ($\ldots$)
 |-- tc_expr Delta
-      (Eunop Onotbool (Ebinop Olt (Etempvar _i tint) (Etempvar _n tint) tint)
-         tint)
+    (Eunop Onotbool (Ebinop Olt (Etempvar _i tint) (Etempvar _n tint) tint)
+       tint)
 \end{lstlisting}
 This solves completely via the \lstinline{entailer!} tactic.
 To see why that is, instead of doing \lstinline{entailer!},
@@ -1009,45 +1070,27 @@ Indeed, the \lstinline{data_at} is there, and
 the share is taken care of automatically
 by the hypothesis \lstinline{SH} above the line.
 
-So, \lstinline{forward} succeeds; but it leaves an array-bounds subgoal:
+If we were to try \lstinline{forward} right now, it would fail with
+a message, ``Please make sure omega or auto can prove
+$(0 \le i < \mathsf{Zlength}\,\mathit{contents})$.''  That's what
+would ensure that the subscript $i$ is within the bounds of the array.
 
+Therefore, we write,
 \begin{lstlisting}
-ENTAIL Delta, PROP  ($\ldots$) LOCAL  ($\ldots$) SEP  ($\ldots$)
-|-- tc_expr Delta (Etempvar _a (tptr tint)) &&
-    local `(tc_val tint (Znth i (map Vint (map Int.repr contents)) Vundef)) &&
-    (tc_expr Delta (Etempvar _i tint) && TT)
+assert_PROP (Zlength contents = size). {
+  entailer!. do 2 rewrite Zlength_map. reflexivity.
+}
 \end{lstlisting}
-The two \lstinline{tc_expr} conjuncts are trivial
-(they are $\beta\eta$-equal to TT)
-but the middle conjunct is nontrivial.  To clean things up,
-we run \lstinline{entailer!}, which leaves this subgoal:
+The reason this is so easily provable is that
+\lstinline{data_at $sh$ (tarray $\tau$ $n$) $\sigma$ $a$}
+holds only when $\mathsf{Zlength}(\sigma)=n$.
 
-\begin{lstlisting}
-HRE : $i$ < Zlength (map Vint (map Int.repr contents))
-H1 : 0 <= $i$ <= Zlength (map Vint (map Int.repr contents))
-$\mbox{\underline{~~~\emph{(other above-the-line hypotheses elided)}~~~~~~~~~~~}}$
-is_int I32 Signed (Znth $i$ (map Vint (map Int.repr contents)) Vundef)
-\end{lstlisting}
-For the load to succeed, the $i$ element of
-\lstinline{(map Vint (map Int.repr contents))}
-must actually be an integer, not an undefined value.
-To prove this, we use the \lstinline{Znth_map} lemma\label{refcard:rewrite-znth-map}
-to move the \lstinline{Znth} inside the \lstinline{Vint},
-leaving the goal,
-\begin{lstlisting}
-is_int I32 Signed (Vint (Znth i (map Int.repr contents) Int.zero))
-\end{lstlisting}
-This is an instance of
-\lstinline{is_int I32 Signed (Vint $\ldots$)}
-which is $\beta\eta$-equal to True.
-However, when we rewrote by \lstinline{Znth_map}, that left a subgoal,
-\begin{lstlisting}
-HRE : $i$ < Zlength (map Vint (map Int.repr contents))
-H1 : 0 <= $i$ <= Zlength (map Vint (map Int.repr contents))
-$\mbox{\underline{~~~\emph{(other above-the-line hypotheses elided)}~~~~~~~~~~~}}$
-0 <= $i$ < Zlength (map Int.repr contents)
-\end{lstlisting}
-This solves straightforwardly as shown in the proof script.
+Now that we have the assertion
+\lstinline{H_2: Zlength contents = size} above the line,
+\lstinline{forward} succeeds on the array subscript.
+
+Two more \lstinline{forward} commands take us to the end
+of the loop body.
 
 \chapter{Splitting sublists}
 In \file{progs/verif\_sumarray.v}, at the comment ``Now we have reached
@@ -1090,34 +1133,15 @@ The usual way to get to the hard part is to run \lstinline{entailer!},
 which we do now.  After clearing away the irrelevant hypotheses, we have:
 
 \begin{lstlisting}
-H : 0 <= Zlength (map Vint (map Int.repr contents)) <= Int.max_signed
-HRE : i < Zlength (map Vint (map Int.repr contents))
-H1 : 0 <= i <= Zlength (map Vint (map Int.repr contents))
-______________________________________(1/1)
-Vint (Int.repr (sum_Z (sublist 0 (i + 1) contents))) =
-force_val
-  (sem_add_default tint tint (Vint (Int.repr (sum_Z (sublist 0 i contents))))
-     (Znth i (map Vint (map Int.repr contents)) Vundef))
-\end{lstlisting}
-The \lstinline{sem_add_default} comes from the semantics of C
-expression evaluation:  adding integers means one thing,
-but adding an integer to a Vundef is undefined, and so on.
-To clear that sludge out of the way, we
-move the \lstinline{Znth} inside the \lstinline{Vint} just
-as on \autopageref{refcard:rewrite-znth-map},
-then \lstinline{simpl}, yielding this goal:
-
-\begin{lstlisting}
 H : 0 <= Zlength contents <= Int.max_signed
 HRE : i < Zlength contents
 H1 : 0 <= i <= Zlength contents
 ______________________________________(1/1)
 Vint (Int.repr (sum_Z (sublist 0 (i + 1) contents))) =
-Vint (Int.add (Int.repr (sum_Z (sublist 0 i contents)))
-       (Int.repr (Znth i contents 0)))
+Vint (Int.repr (sum_Z (sublist 0 i contents) + Znth i contents 0))
 \end{lstlisting}
 
-The lemma \lstinline{add_repr: $\forall i\,j,$ Int.add (Int.repr $i$) (Int.repr $j$) = Int.repr ($i+j$)} is useful here; followed by \lstinline{f_equal}, leaves:
+Applying \lstinline{f_equal} twice, leaves the goal,
 \begin{lstlisting}
 sum_Z (sublist 0 (i + 1) contents) =
 sum_Z (sublist 0 i contents) + Znth i contents 0
@@ -1136,12 +1160,12 @@ In \file{progs/verif\_sumarray.v}, at the comment ``After the loop,'' we have re
 The \lstinline{forward} tactic works here, leaving a proof goal
 that the precondition of the \lstinline{return}
 entails the postcondition of the function-spec.
-(When this automatically, it leaves no proof goal at all.)
+(Sometimes the entailment solves automatically, leaving no proof goal at all.)
 The goal is a \emph{lowered} entailment (on
 \lstinline{mpred} assertions).
 
 After doing \lstinline{simpl}
-to clear away some C-expression-evaluation sludge, we have
+to do some C-expression-evaluation, we have
 \begin{lstlisting}
 H4 : Forall (value_fits tint) (map Vint (map Int.repr contents))
 H2 : field_compatible (Tarray tint (Zlength $\ldots$) noattr) [] a
@@ -1238,15 +1262,25 @@ address $\mathit{four}$, with access permission
 the standard access permission of extern global writable
 variables.  See \autoref{refcard:shares}.
 
+\chapter{Function calls}
+\label{refcard:forward-call1}
+Continuing our example, the \lstinline{Lemma body_main}
+in \file{verif\_sumarray.v}:
+
 Now it's time to prove the function-call statement,
 \lstinline{s = sumarray(four,4)}.
 When proving a function call, one must supply
 a \emph{witness} for the \lstinline{WITH} clause
 of the function-spec.  The \lstinline{_sumarray}
-function's \lstinline{WITH} clause binds variables
-\textsf{a:val, sh:share, contents:list~Z, size:~Z},
+function's \lstinline{WITH} clause (\autopageref{refcard:sumarray-spec})
+starts,
+\begin{lstlisting}
+Definition sumarray_spec :=
+DECLARE _sumarray
+ WITH a: val, sh : share, contents : list Z, size: Z
+\end{lstlisting}
 so the type of the witness will be
-\lstinline{(val*(share*(list Z * list Z)))}.
+\lstinline{(val*(share*(list Z * Z)))}.
 To choose the witness, examine your actual parameter values
 (along with the precondition of the funspec) to see
 what witness would be consistent; here, we use\label{refcard:forward-call1}
@@ -1310,10 +1344,8 @@ theorem for the program \lstinline{sumarray.c}:
 Lemma all_funcs_correct: semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.
 unfold Gprog, prog, prog_funct; simpl.
-semax_func_skipn.
 semax_func_cons body_sumarray.
 semax_func_cons body_main.
-apply semax_func_nil.
 Qed.
 \end{lstlisting}
 The calls to \lstinline{semax_func_cons}
@@ -1325,8 +1357,14 @@ as they appear in
 
 \chapter{Separation logic: \upshape \textsf{EX}, $*$, \textsf{emp}, !!}
 \label{refcard:separation-logic}
-The \emph{base level} separation logic is built,
-like any separation logic,  from predicates on ``heaplets''.
+We have discussed the \emph{lifted} separation logic, the language
+of \emph{assertions} \lstinline{PROP($\ldots$) LOCAL($\ldots$) SEP($\ldots$)}
+whose \lstinline{LOCAL} clause can see local variables,
+and whose \lstinline{SEP} clause can see the heap.  Often we
+want to hold all local variables constant and reason only about
+the heap; for this we use the \emph{base level} separation logic.
+
+Like most separation logics, it is built from predicates on ``heaplets''.
 The grammar of base-level separation-logic expressions is,
 
 \[\begin{array}{lll}
@@ -1433,8 +1471,8 @@ one wants to move \lstinline{PROP} propositions
 above the line and flatten the $*$ operators into semicolons.
 One can just say \lstinline{Intros} with no arguments to do that.
 
-If you want to Intro an existential \emph{without} gratuitous
-\lstinline{PROP}-introduction and $*$-flattening, you can
+If you want to Intro an existential \emph{without}
+\lstinline{PROP}-introduction and \linebreak $*$-flattening, you can
 just use \lstinline{Intro a}, instead of \lstinline{Intros a}.
 
 Then, instantiate $u$ by \lstinline{Exists b}.
@@ -2010,7 +2048,7 @@ the tactic \lstinline{old_go_lower} can still be useful.
 
 \lstinline{go_lower}
 moves the propositions $\vec{P}$ above the line; when a proposition
-is an equality on a Coq variable, substitute the variable.
+is an equality on a Coq variable, it substitutes the variable.
 
 For each localdef in $\vec{Q}$ (such as \lstinline{temp $i$ $v$}),
 \lstinline{go_lower} looks up $i$ in $\Delta$ to derive a type-checking fact
@@ -2099,8 +2137,7 @@ we have,
 data_at $\pi$ t_struct_b $(i,(f,j))$ $p$ |--
     data_at $\pi$ tint $i$ $p$ * data_at $\pi$ t_struct_a $(f,j)$ (offset_val $p$ 12)
 \end{lstlisting}
-\emph{\textbf{but don't write it that way!}}  For one thing,
-the converse is not valid:
+\emph{\textbf{but the converse is not valid:}}
 \begin{lstlisting}
 data_at $\pi$ tint $i$ $p$ * data_at $\pi$ t_struct_a $(f,j)$ (offset_val $p$ 12)
       $\not\vdash$  data_at $\pi$ t_struct_b $(i,(f,j))$ $p$
@@ -2306,10 +2343,9 @@ The result is that either the goal is entirely solved, or a residual entailment 
 \label{refcard:normalize}
 The \lstinline{normalize} tactic performs
 \lstinline{autorewrite with norm} and several other transformations.
-\textbf{Normalize can be slow:}
-Many of these simplifications
-can be done more efficiently and systematically by
-\lstinline{entailer} or \lstinline{Intros}.
+\textbf{Normalize can be slow:
+  use \lstinline{Intros} and \lstinline{entailer}
+  if they can do the job.}
 
 The \lstinline{norm} rewrite-hint database uses several sets of rules.
 
@@ -2603,8 +2639,10 @@ Read-only globals come with a half-share of \lstinline{Rsh}.
 
 Sequential programs usually have little need of any shares except
 the \lstinline{Tsh} and \lstinline{Ews}.  However, many function
-specifications can be parameterized over any share (example: \autopageref{refcard:example-readable-share}), and this sort
-of generalized specification makes the functions usable in more contexts.
+specifications can be parameterized over any share (example:
+\lstinline{sumarray_spec} on \autopageref{refcard:sumarray-spec});
+that kind of
+generalized specification makes the functions usable in more contexts.
 
 In C it is undefined to test deallocated pointers for equality or inequalities,
 so the Hoare-logic rule for pointer comparison also requires some
@@ -2621,7 +2659,7 @@ allocated object; and similarly for $q$.  Testing
 \lstinline{$p$<$q$} (etc.) has even stricter requirements:
 $p$ and $q$ must be pointers into the \emph{same} allocated object.
 
-Verifiable C's enforces this by creating ``type-checking'' conditions
+Verifiable C enforces this by creating ``type-checking'' conditions
 for the evaluation of such pointer-comparison expressions.
 Before reasoning about the result of evaluating expression
 \lstinline{$p$=$q$}, you must first prove\newline
@@ -2872,11 +2910,11 @@ The \lstinline{typed_true} premise solves easily by \lstinline{entailer!}.
   of the loop body.  Now we are
   \textsf{(* at end of loop body, re-establish invariant *).}
 
-We choose appropriate values to instantiate the existentials:
-\lstinline{Exists (h::cts1,r,v,y).}  Note that for some reason
-the four separate \lstinline{EX} quantifiers have been
-uncurried into a single 4-tuple \lstinline{EX}; this may
-be adjusted in a future version of Verifiable C.  Then
+We choose values to instantiate the existentials:
+\lstinline{Exists (h::cts1,r,v,y).}  (Note that
+\lstinline{forward_while} has uncurried
+the four separate \lstinline{EX} quantifiers 
+into a single 4-tuple \lstinline{EX}.)  Then
 \lstinline{entailer!} leaves two subgoals:
 \begin{lstlisting}
 ______________________________________________(1/2)
@@ -2898,7 +2936,7 @@ Then we appropriately instantiate some existentials,
 call on the \emph{entailer!} again, and the goal is solved.
 
 (4) After the loop, we must prove that the loop invariant
-\emph{and not the loop-test condition} is a sufficient
+\emph{and the negation of the loop-test condition} is a sufficient
 precondition for the next statement(s).  In this case,
 the next statement is a return; one can \emph{always}
 go forward through a return, but now we have to prove
@@ -2987,8 +3025,8 @@ as part of the \lstinline{main_pre} definition
 When proving \lstinline{semax_body} for the main
 function, the \lstinline{start_function} tactic takes these definitions
 from \lstinline{main_pre} and puts them in the precondition
-of the function body.  In VST version 1.6,
-in some cases this is done using the more-primitive \lstinline{mapsto}
+of the function body.  In
+some cases this is done using the more-primitive \lstinline{mapsto}
 operator\footnote{For example, examine the proof state in
   \file{progs/verif\_reverse.v} immediately after \textsf{start\_function} in \textsf{Lemma body\_main}; and see the conversion to
 \textsf{data\_at} done by the \textsf{setup\_globals} lemma in that file.},
@@ -3039,69 +3077,50 @@ int sumarray(int a[], int n) {   /* sumarray2.c */
 }
 \end{lstlisting}
 \vspace{-16pt}
-Also see \file{progs/verif\_min.v} for \emph{two} approaches to the specification/verification of another for-loop.
+Also see \file{progs/verif\_min.v} for several approaches to the specification/verification of another for-loop.
 
 \ychapter{For loops (general case)}{}
 \label{refcard:for-general}
 
 The C-language \textsf{for} loop has the general form,
-\lstinline{for ($\mathit{init}$; $\mathit{test}$; $\mathit{incr}$) $\mathit{body}$}
-in which $\mathit{init}$ and $\mathit{incr}$ can be any statements
-that don't do control flow, $\mathit{test}$ can be
-any expression, and the $\mathit{body}$ can contain
-\lstinline{break} or \lstinline{continue} statements.
+\lstinline{for ($\mathit{init}$; $\mathit{test}$; $\mathit{incr}$) $\mathit{body}$}.
+Let \textit{Inv} be the loop invariant, established by the
+initializer and preserved
+by the body-plus-increment.  Let \textit{PreInc} be
+the assertion just before the increment.
+\textit{Post} is the join-postcondition of the loop;
+you don't need to provide it if \emph{either} (1) there are
+no \lstinline{break} statements in the loop, or (2)
+the postcondition is already provided in your proof context
+(typically because a close-brace follows the entire loop).
+Depending on whether you need \emph{Post}, verify the loop with,
 
-To handle the general case, you cannot use
-\lstinline{forward_for_simple_bound}.
-Instead, you should unfold \lstinline{Sfor} into
-\lstinline{Ssequence _ $$ (Sloop _ $$ _)}, and use
-Verifiable C's \lstinline{semax_loop} rule.
+\noindent\lstinline{forward_for $\mathit{Inv}$ $\mathit{PreInc}$.}\qquad or\qquad\lstinline{forward_for $\mathit{Inv}$ $\mathit{PreInc}$ $\mathit{Post}$.}
 
 This is demonstrated in the lemma
 \lstinline{body_sumarray_alt} in
 the file \linebreak \file{progs/verif\_sumarray2.v}.
-The procedure there is straightforward but cumbersome,
-because you need to define assertions at each of these points:
 
-\begin{minipage}{2in}
 \begin{lstlisting}
 int sumarray(int a[], int n) {
   int i,s,x;
   s=0;
-  for (i=0; i<n; i++) {
+  for (i=0;
+    /* $\mathit{Inv}:$ loop invariant */
+            i<n; i++) {
     x = a[i];
     s += x;
+    /* $\mathit{PreInc}:$ pre-increment invariant */
   }
+  /* $\mathit{Post}:$ loop postcondition */
   return s;
 }
 \end{lstlisting}
-\end{minipage}
-\qquad
-\begin{minipage}{3in}
-\begin{lstlisting}
-int sumarray(int a[], int n) {
-  int i,s,x;
-  s=0; i=0;  $\mathit{Pre}$
-  for ( ; ; i++) { $\mathit{Inv}$
-    if (i<n) ;  else break;
-    $\mathit{PreBody}$    x = a[i]; s += x;   $\mathit{PostBody}$
-  } $\mathit{Post}$
-  return s;
-}
-\end{lstlisting}
-\end{minipage}
 
-\textit{Pre} and \textit{Post}
-are the precondition/postcondition for the loop as a whole.
-\textit{PreBody} and \textit{PostBody}
-are the precondition/postcondition for the loop body
-(not including the increment);
-and \textit{Inv} is the loop invariant.
 
-In the general case, why is the increment (\lstinline{i++}) not
-attached directly to the end of the loop body?  Answer: because the
-\lstinline{continue} statement goes to right \emph{before} the
-increment.
+The \textit{Inv} and \textit{PreInc} should have type $A\rightarrow \mathrm{environ}\rightarrow\mathrm{mpred}$, where $A$ is the type of some iteration-dependent quantity (in this example, \textsf{Z}, to hold the value of loop iteration variable \textit{i}), and $\mathrm{environ}\rightarrow\mathrm{mpred}$
+is the usual type of assertions.
+
 
 \chapter{Manipulating preconditions}
 In some cases you cannot go \lstinline{forward} until the precondition
@@ -3215,25 +3234,6 @@ semax $\Delta$ $\PROP(\vec{P})\LOCAL(\vec{Q})\SEP(R_0;R_2)~$ $c_1;c_2$ $~\ldots$
 Now you'll see that (in the precondition of the second subgoal)
 the unification variable $\mathsf{?88}$ has been
 instantiated in such a way that $R_2$ is added back in.
-
-\chapter{malloc/free}
-\label{refcard:malloc}
-
-If your program uses \lstinline|malloc| or \lstinline|free|, you must declare
-and specify these as external functions.
-But even then, \lstinline{free} is difficult to specify:
-``\href{http://www.thecoffeeplace.com/jokes/aaaaaayc.html}{How do it know?}'' the size of the object being freed?
-
-The answer is that the malloc/free system maintains an implicit extra
-field (before the official ``beginning'' of the object) with the
-length.  One could indeed reason about this in separation logic,
-but for some applications it is overkill.
-
-For simpler-to-specify memory allocation,
-you may want to change the interface of the
-\lstinline|free| function. We do this in our example definitions of
-\lstinline|malloc| and \lstinline|free| in \file{progs/queue.c} and their
-specifications in \file{progs/verif\_queue.v}.
 
 \ychapter{32-bit Integers}{(\file{compcert/lib/Integers.v})}
 \label{refcard:32bit}
@@ -3394,7 +3394,7 @@ In each case, a soundness proof relates the Verifiable C semantics
 to the CompCert Clight semantics.
 
 Rules for \lstinline{semax} are given in
-\file{veric/SeparationLogic.v}---but the user rarely uses
+\file{veric/SeparationLogic.v}---but you rarely use
 these rules directly.  Instead, derived lemmas regarding
 \lstinline{semax} are proved in \file{floyd/*.v} and
 Floyd's \lstinline{forward} tactic applies them (semi)automatically.
@@ -3414,8 +3414,7 @@ eval_binop{CS:compspecs} (op:binary_operation) (t1 t2: type) (v1 v2: val): val.
 eval_lvalue {CS: compspecs} (e: expr) : environ -> val.
      (* evalue an $l$-expression, one that denotes a loadable/storable place*)
 eval_expr {CS: compspecs} (e: expr) : environ -> val.
-     (* evalue an $r$-expression, one that is not storable *)
-\end{lstlisting}
+     (* evalue an $r$-expression, one that is not storable *)\end{lstlisting}
 
 The \emph{environ} argument is for looking up the values of
 local and global variables.  However, in most cases where
@@ -3505,11 +3504,13 @@ calculate the \emph{address} for subscripting the $i$th element.
 As shown in the \lstinline{body_main} proof in
 \file{progs/verif\_sumarray2.v},
 the lemma \lstinline{split_array} proves the equivalence of
-these two predicates.  Then the \lstinline{data_at $\ldots$ $q$)}
+these two predicates, using the VST-Floyd lemma
+\lstinline{split2_data_at_Tarray}.  Then the \lstinline{data_at $\ldots$ $q$}
   predicate can satisfy the precondition of \lstinline{sumarray},
   while the $p$ slice will be part of the ``frame'' for the function
   call.
 
+See also: \lstinline{split3_data_at_Tarray}.
 \chapter{sublist}
 \label{refcard:sublist}
 
@@ -3571,13 +3572,22 @@ simplify expressions involving
 \lstinline{Znth},
 and \lstinline{list_repeat}.
 
+Often, you find equations ``above the line'' of the form,
+\begin{lstlisting}
+H: n = Zlength (map Vint (map Int.repr contents))
+\end{lstlisting}
+You may find it useful to do \lstinline{autorewrite with sublist in *|-}
+to change this to \lstinline{n=Zlength contents} before proceeding
+with \lstinline{(autorewrite with sublist)} below the line.
+
+
 
 \ychapter{Later}{(See PLCC \autoref{ch:stepindex})}
-Many of the Hoare rules, such as the one on \autopageref{refcard:later1},
+Many of the Hoare rules (e.g., see PLCC, \autopageref{rule:semax-set-forward})
+have the operater $\later$ (pronounced ``later'') in their precondition:
 \[\inference[semax\_set\_forward]{}{
 \Delta\vdash\triple{\later P}{~x:=e~}{\exists v.\,x=(e[v/x])\wedge P[v/x]}
 }\label{rule:semax-set-forward}\]
-have the operater $\later$ (pronounced ``later'') in their precondition.
 
 The modal assertion $\later P$ is a slightly weaker version of the
 assertion $P$.  It is used for reasoning by induction over how many
@@ -3609,7 +3619,7 @@ A more sophisticated understanding of $\later$ is needed to
 build proof rules for recursive data types and for
 some kinds of object-oriented programming; see PLCC \autoref{ch:lseg}.
 
-
+\iffalse
 
 
 
@@ -3846,6 +3856,8 @@ from type \lstinline{val->val->mpred} to type
 and the third one lifts from \lstinline{val} to
 \lstinline{environ->val}.
 
+\fi
+
 \ychapter{Mapsto and func\_ptr}{(see PLCC \autoref{clight-mapsto})}
 
 Aside from the standard operators and axioms of separation logic,
@@ -3881,7 +3893,7 @@ at address $v$, with permission-share $\mathit{sh}$.
 From these primitives, \lstinline{field_at} and \lstinline{data_at} are constructed.
 
 \chapter{\textsf{with\_library}: Library functions}
-\label{with-library}
+\label{refcard:with-library}
 
 A CompCert C program is implicitly linked with dozens of ``built-in'' and
 library functions.  In the .v file produced by \textsf{clightgen},
@@ -3899,6 +3911,10 @@ tactic \lstinline{wi$$th_library $\mathit{prog}$ [$s_1; s_2; \ldots; s_n$]}
 augments your explicit funspec-list $[s_1; s_2; \ldots; s_n]$ with
 such trivial funspecs for the other functions in the program $\mathit{prog}$.
 
+\begin{lstlisting}
+Definition Gprog := ltac:(wi$$th_library prog [sumarray_spec; main_spec]).
+\end{lstlisting}
+
 \newthought{You may wish} to use standard library functions such as
 \textsf{malloc}, \textsf{free}, \textsf{exit}.  These are axiomatized
 (with external funspecs) in \lstinline{floyd.library}.  To use them,
@@ -3915,9 +3931,59 @@ import \lstinline{floyd.library}.
 The next chapters explain the specifications of certain
 standard-library functions.
 
-\chapter{Malloc, free}
+\chapter{malloc/free}
+\label{refcard:malloc}
+
+The C library's \lstinline|malloc| and \lstinline|free| functions
+have these specifications:
+\begin{lstlisting}
+DECLARE _malloc
+   WITH n:Z
+   PRE [ 1%positive OF tuint ]
+       PROP (0 <= n <= Int.max_unsigned)
+       LOCAL (temp 1%positive (Vint (Int.repr n)))
+       SEP ()
+    POST [ tptr tvoid ] EX p:_,
+       PROP ()
+       LOCAL (temp ret_temp p)
+       SEP (if eq_dec p nullval then emp
+            else (malloc_token Tsh n p * memory_block Tsh n p)).
+
+DECLARE _free
+   WITH p:val, n:Z
+   PRE [ 1%positive OF tptr tvoid ]
+       PROP ()
+       LOCAL (temp 1%positive p)
+       SEP (malloc_token Tsh n p; memory_block Tsh n p)
+    POST [ Tvoid ]
+       PROP ()
+       LOCAL ()
+       SEP ().
+\end{lstlisting}
+You must \lstinline{Import floyd.library.}
+Then these funspecs are made available in your Gprog by the use of the
+\lstinline{wi$$th_library} tactic (\autoref{refcard:with-library}).
+
+The purpose of the \lstinline{malloc_token} is to describe the special
+record-descriptor that tells \lstinline{free} how big the allocated
+record was.
+
+See \file{progs/verif\_queue.v} for a demonstration of malloc/free.
 
 \chapter{exit}
+\lstinline{Import floyd.library.}
+before you define
+\lstinline{ Gprog := ltac:(wi$$th_library prog [$\ldots$]).}
+and you will get:
+
+\begin{lstlisting}
+DECLARE _exit
+ WITH u: unit
+ PRE [1%positive OF tint]
+   PROP () LOCAL() SEP()
+ POST [ tvoid ]
+   PROP(False) LOCAL() SEP().
+\end{lstlisting}
 
 \chapter{Function pointers}
 \begin{lstlisting}
@@ -4016,6 +4082,7 @@ The three arguments are as in the statement of surrounding semax-body
 lemma, i.e.~are of type $\mathit{varspecs}$, $\mathit{funspecs}$, and
 $\mathit{function}$.
 
+\label{refcard:mkConciseDelta}
 The subordinate tactic $\mathit{mkConciseDelta}\ V\ G\ F\ \Delta$ can
 also be invoked individually, to concisely display the type context $\Delta$
 as the application of a sequence of initializations
@@ -4080,17 +4147,31 @@ programmer's insight is combined with performance improvements.
 \label{refcard:sepcomp}
 
 What to do when your program is spread over multiple .c files.
-
-\newthought{Code preparation.}
-In order to separate the namespaces of multiple files compiled by CompCert's clightgen tool, it is necessary to apply
-
-python fix\_clightgen.py file1.v ...fileN.v
-
-The script reads in the named files, concisely renames variables etc by
-making up new positives, and writes the modified files back to the
-given names.
+See \file{progs/even.c} and \file{progs/odd.c} for an example.
 
 
+CompCert's clightgen tool translates your .c file into a .v file
+in which each C-language identifier is assigned a positive number
+in the AST (Abstract Syntax Tree) representation.  When you have
+several .c files, you need consistent numbering of the identifiers
+in the .v files.  One way to achieve this is to run clightgen
+on all the .c files at once:
+
+\noindent\texttt{clightgen even.c odd.c}
+
+This generates even.v and odd.v with consistent names.  (It's not
+exactly separate compilation, but it will have to suffice for now.)
+
+Now, you can do \emph{modular verification of modular programs.}  This is
+illustrated in,
+
+\begin{description}
+\item[\file{progs/verif\_evenodd\_spec.v}]  Specifications of the functions.
+\item[\file{progs/verif\_even.v}] Verification of even.c.
+\item[\file{progs/verif\_odd.v}] Verification of odd.c.
+\end{description}
+Linking of the final proofs is described by Stewart.\footnote{Gordon Stewart,
+  \emph{\href{http://www.cs.princeton.edu/research/techreps/TR-980-15}{Verified Separate Compilation for C}}, PhD Thesis, Department of Computer Science, Princeton University, April 2015}.
 
 \chapter{Catalog of tactics/lemmas}
 Below is an alphabetic catalog of the major floyd tactics. In addition
@@ -4121,9 +4202,16 @@ for the user to prove.  The more aggressive
 \lstinline{entailer!} should usually be used, but it
 sometimes turns a provable goal into an unprovable goal.
 
+\item[\textsf{deadvars!}]
+  (tactic) Removes from the LOCAL block of the current precondition, any variables that are irrelevant to the rest of program execution.  Fails if there is no such variable.
 
 \item[\textsf{drop\_LOCAL $n$}]
 (tactic, where $n:nat$). Removes the $n$th entry of a the LOCAL block of a
+\lstinline{semax} or \lstinline{ENTAIL} precondition.
+
+\item[\textsf{drop\_LOCALs [\_i; \_j]}]
+Removes variables \textsf{\_i} and \textsf{\_j}
+from the LOCAL block of a
 \lstinline{semax} or \lstinline{ENTAIL} precondition.
 
 \item[\textsf{forward}]
@@ -4131,14 +4219,12 @@ sometimes turns a provable goal into an unprovable goal.
   Do forward Hoare-logic proof through one C statement (assignment, break, continue, return).
 
 \item[\textsf{forward\_call} \textit{ARGS}]
-  (tactic; \autopageref{refcard:forward-call}, \autopageref{forward-call1})
+  (tactic; \autopageref{refcard:forward-call})
   Forward Hoare-logic proof through one C function-call,
   where \emph{ARGS} is a witness for the \textsf{WITH} clause of the funspec.
 
 \item[\textsf{forward\_for}]
-  (tactic)  This tactic does not work well in VST 1.6.  Use
-  \lstinline{forward_for_simple_bound} when applicable, or
-  see the method described in \autoref{refcard:for-general}.
+  (tactic; \autopageref{refcard:for-general})  Hoare-logic proof for the \lstinline{for} statement, general case.
 
 \item[\textsf{forward\_for\_simple\_bound} $n$ \textit{Inv}]
   (tactic, \autopageref{refcard:for})  When a for-loop has the form
@@ -4150,7 +4236,7 @@ sometimes turns a provable goal into an unprovable goal.
 (tactic)
 
 \item[\textsf{mkConciseDelta\ $V$\ $G$\ $F$\ $\Delta$}]
-(tactic)
+(tactic; \autopageref{refcard:mkConciseDelta})
 Applicable to a proof state with a semax goal. Simplies the $\Delta$
 component to the application of a sequence of initializations to the
 host function's func\_tycontext.  Used to prepare the current

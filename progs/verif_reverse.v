@@ -189,6 +189,7 @@ focus_SEP 1; apply semax_lseg_nonnull;
 subst cts2.
 forward. (* t = v->tail; *)
 forward. (* v->tail = w; *)
+(* The following line is optional, the proof works without it. *)
 replace_SEP 2 (field_at sh t_struct_list (DOT _tail) w v) by entailer!.
 forward.  (*  w = v; *)
 forward.  (* v = t; *)

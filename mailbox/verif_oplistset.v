@@ -245,7 +245,7 @@ Proof.
     destruct (eq_dec e Int.max_signed); [unfold repable_signed in *; omega|]; entailer!.
   { exists 2; auto. }
   { exists 2; auto. }
-Admitted.
+Qed.
 
 Lemma node_contents_eq : forall sh1 sh2 e1 e2 n1 n2 l1 l2 p, readable_share sh1 -> readable_share sh2 ->
   repable_signed e1 -> repable_signed e2 -> n1 <> Vundef -> n2 <> Vundef -> l1 <> Vundef -> l2 <> Vundef ->
@@ -383,6 +383,13 @@ Proof.
   rewrite in_app in *; destruct Hin2 as [|[|]]; auto; contradiction.
 Qed.
 
+Lemma node_valid : forall gsh1 gsh2 e g p, |> node gsh1 gsh2 (e, g, p) |-- |> valid_pointer p.
+Proof.
+  intros; apply later_derives.
+  rewrite node_eq.
+  Intros sh1 e1 next1 lock1; entailer!.
+Qed.
+
 Lemma body_validate : semax_body Vprog Gprog f_validate validate_spec.
 Proof.
   start_function.
@@ -412,7 +419,7 @@ Proof.
   - entailer!.
   - unfold node_data; Intros.
     destruct (eq_dec (data reps) Int.max_signed); [omega|].
-(*    rewrite atomic_loc_isptr; Intros.*)
+    rewrite atomic_loc_isptr; Intros.
     repeat forward.
     forward_call (shs, next reps, emp,
       fun v => |>node gsh1 gsh2 (data reps, gnext reps, v),
@@ -422,8 +429,7 @@ Proof.
           node_data gsh1 gsh2 shs' reps' v)).
     { split; auto.
       intro.
-      (*!!*)
-      rewrite <- add_andp by admit.
+      rewrite valid_same by (apply node_valid).
       rewrite sepcon_emp, <- later_sepcon; apply derives_view_shift, later_derives.
       rewrite node_eq; Intros sh' e' next' lock' g'.
       exploit split_readable_share; eauto; intros (sh1 & sh2 & ? & ? & Hsh).
@@ -476,7 +482,7 @@ Proof.
       fun v => |>(!!(v = pn /\ isptr pn) && ghost_var gsh2 pn (gnext repp) * valid_pointer pn)).
     { split; auto.
       intro.
-      rewrite <- add_andp by admit.
+      rewrite valid_same by (apply node_valid).
       etransitivity; [apply view_shift_sepcon, derives_view_shift, now_later; reflexivity|].
       rewrite <- !later_sepcon.
       apply view_shift_later.
@@ -572,7 +578,7 @@ Proof.
       entailer!.
       unfold known_nodes; if_tac; simpl; entailer!.
       unfold node', node_data; Exists shs; entailer!.
-Admitted.
+Qed.
 
 Lemma body_locate : semax_body Vprog Gprog f_locate locate_spec.
 Proof.
@@ -600,7 +606,7 @@ Proof.
       node_data gsh1 gsh2 shc repc v)).
   { split; auto; intro.
     apply derives_view_shift.
-    rewrite <- add_andp by admit.
+    rewrite valid_same by (apply node_valid).
     rewrite <- later_sepcon.
     eapply derives_trans, later_derives; [rewrite later_sepcon; apply sepcon_derives, now_later; auto|].
     rewrite node_eq.
@@ -653,7 +659,7 @@ Proof.
         node_data gsh1 gsh2 sh' rep' v)).
     { split; auto; intro.
       apply derives_view_shift.
-      rewrite <- add_andp by admit.
+      rewrite valid_same by (apply node_valid).
       rewrite <- later_sepcon.
       eapply derives_trans, later_derives; [rewrite later_sepcon; apply sepcon_derives, now_later; auto|].
       rewrite node_eq; unfold node'.
@@ -719,13 +725,24 @@ Proof.
       + simpl; auto.
       + admit. (* more or less *)
       + exists 2; auto. }
-    { (*forward_call (lock repp, shp, EX p : val, ghost_var gsh2 p (gnext repp)).
+    { simpl in *; assert (In (pred, repp) nodes'') as Hpred.
+      { match goal with H : incl _ nodes'' |- _ => apply H end.
+        simpl; rewrite in_app; simpl; auto. }
+      apply in_split in Hpred; destruct Hpred as (nodesa' & nodesb' & ?); subst.
+      rewrite known_node; unfold node', node_data; Intros shp'.
+      forward_call (lock repp, shp', EX p : val, ghost_var gsh2 p (gnext repp)).
       { unfold node_data; lock_props.
         Exists pn; cancel. }
-      forward_call (lock repc, shc, EX p : val, ghost_var gsh2 p (gnext repc)).
+      assert (In (curr, repc) (nodesa' ++ nodesb')) as Hcurr.
+      { match goal with H : incl _ _ |- _ => specialize (H _ (or_introl eq_refl)); rewrite in_app in *;
+          destruct H as [|[X|]]; auto; inv X; contradiction end. }
+      apply in_split in Hcurr; destruct Hcurr as (nodesa'' & nodesb'' & Heq).
+      rewrite Heq, known_node; unfold node', node_data; Intros shc'.
+      forward_call (lock repc, shc', EX p : val, ghost_var gsh2 p (gnext repc)).
       { unfold node_data; Intros; lock_props.
         Exists cn; cancel. }
-      unfold node_data; entailer!.*) admit. }
+      rewrite known_node, Heq, known_node.
+      unfold node', node_data; Exists shp' shc'; entailer!. }
     intros; unfold overridePost.
     destruct (eq_dec ek EK_normal); [subst | apply drop_tc_environ].
     unfold POSTCONDITION, abbreviate, loop1_ret_assert; Intros.
@@ -810,11 +827,10 @@ Proof.
          EX shc' : share, EX repc' : node_rep, !!(readable_share shc' /\ repable_signed (data repc') /\
            if eq_dec (data repc') Int.max_signed then next repc' = nullval else True) &&
            node_data gsh1 gsh2 shc' repc' curr)).
-    { split; [|split; auto].
-      intro.
+    { split; auto; intro.
       rewrite sepcon_comm; etransitivity;
         [apply view_shift_sepcon; [apply derives_view_shift, now_later | reflexivity]|].
-      rewrite <- 2add_andp by admit.
+      rewrite !valid_same by (apply node_valid).
       rewrite (sepcon_comm _ (|>(_ * _))), <- sepcon_assoc, <- !later_sepcon.
       rewrite <- sepcon_emp at 1; apply view_shift_sepcon.
       apply view_shift_later.

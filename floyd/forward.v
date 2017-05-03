@@ -229,6 +229,7 @@ Ltac semax_func_cons_ext_tc :=
   repeat match goal with
   | |- (forall x: (?A * ?B), _) =>
       intros [? ?];  match goal with a1:_ , a2:_ |- _ => revert a1 a2 end
+  | |- forall x:?T, _ => let t := fresh "t" in set (t:=T); progress simpl in t; subst t
   | |- forall x, _ => intro
   end;
   normalize; simpl tc_option_val' .
@@ -266,10 +267,26 @@ Proof.
     + rewrite PTree.gso in H; auto.
 Qed.
 
+Lemma typecheck_return_value:
+  forall (f: val -> Prop)  (v: val) (gx: genviron) (ret: option val),
+ f v -> 
+ (PROP ( )
+  LOCAL (temp ret_temp v)
+  SEP ()) (make_ext_rval gx ret) |-- !! f (force_val ret).
+Proof.
+intros.
+ rewrite <- insert_local.
+ rewrite lower_andp.
+ apply derives_extract_prop; intro.
+ hnf in H0. rewrite retval_ext_rval in H0. rewrite <- H0.
+ apply prop_right; auto.
+Qed.
+
 Ltac semax_func_cons_ext :=
   eapply semax_func_cons_ext;
     [ reflexivity | reflexivity | reflexivity | reflexivity | reflexivity
-    | semax_func_cons_ext_tc
+    | semax_func_cons_ext_tc;
+      try (apply typecheck_return_value; auto)
     | solve[ first [eapply semax_ext;
           [ (*repeat first [reflexivity | left; reflexivity | right]*) apply from_elements_In; reflexivity
           | apply compute_funspecs_norepeat_e; reflexivity

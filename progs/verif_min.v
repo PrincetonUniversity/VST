@@ -92,6 +92,8 @@ Definition minimum_spec :=
 Definition Gprog : funspecs :=
       ltac:(with_library prog [minimum_spec]).
 
+(* First approach from "Modular Verification for Computer Security",
+  proved using forward_for_simple_bound *)
 Lemma body_min: semax_body Vprog Gprog f_minimum minimum_spec.
 Proof.
 start_function.
@@ -213,6 +215,9 @@ Definition minimum_spec2 :=
     LOCAL(temp ret_temp  (Vint (Int.repr j)))
     SEP   (data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a).
 
+
+(* Second approach from "Modular Verification for Computer Security",
+  proved using forward_for_simple_bound *)
 Lemma body_min2: semax_body Vprog Gprog f_minimum minimum_spec2.
 Proof.
 start_function.
