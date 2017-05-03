@@ -1516,6 +1516,14 @@ intros.
 apply field_at_conflict; auto.
 Qed.
 
+Lemma sepcon_FF_derives':
+  forall (P Q: mpred), Q |-- FF -> P * Q |-- FF.
+Proof.
+intros.
+eapply derives_trans. apply sepcon_derives; try eassumption; eauto.
+rewrite sepcon_FF. auto.
+Qed.
+
 Lemma field_compatible_offset_isptr:
 forall t path n c, field_compatible t path (offset_val n c) ->
           isptr c.
@@ -1600,6 +1608,18 @@ Proof.
 Qed.
 
 End CENV.
+
+Ltac data_at_conflict z :=
+eapply derives_trans with FF; [ | apply FF_left];
+ rewrite <- ?sepcon_assoc;
+ unfold data_at_, data_at, field_at_;
+ let x := fresh "x" in set (x := field_at _ _ _ _ z); pull_right x;
+ let y := fresh "y" in set (y := field_at _ _ _ _ z); pull_right y;
+ rewrite sepcon_assoc;
+ eapply sepcon_FF_derives';
+ subst x y;
+ apply field_at_conflict; auto;
+ try solve [simpl; computable].
 
 Definition natural_alignment := 8.
 

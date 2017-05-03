@@ -386,7 +386,7 @@ endif
 COQVERSION= 8.6
 COQV=$(shell $(COQC) -v)
 ifeq ("$(filter $(COQVERSION),$(COQV))","")
-	$(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
+ $(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
 endif
 
 

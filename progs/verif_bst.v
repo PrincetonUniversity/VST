@@ -291,7 +291,6 @@ Proof.
   destruct t; [entailer! |].
   simpl tree_rep.
   Intros pa pb. entailer!.
-  destruct H1; contradiction.
 Qed.
 
 Hint Resolve tree_rep_nullval: saturate_local.
