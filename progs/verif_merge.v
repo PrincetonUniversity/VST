@@ -554,7 +554,6 @@ cancel.
 idtac.
 rewrite (lseg_unfold LS _ _ c_).
 Exists ab_; entailer!.
-apply H6. (* TODO-LTAC entailer should see that data_at ... _c implies that _c is not null*)
 rewrite list_cell_field_at.
 unfold_data_at 1%nat.
 simpl. cancel.

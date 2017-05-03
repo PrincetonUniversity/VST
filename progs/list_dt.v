@@ -1041,12 +1041,7 @@ apply exp_right with z.
 apply andp_right.
 apply not_prop_right; intro.
 apply ptr_eq_e in H. subst y.
-rewrite sepcon_assoc.
-eapply derives_trans.
-apply sepcon_derives.
-apply derives_refl.
-2: rewrite sepcon_FF; auto.
-apply field_at_conflict; auto.
+data_at_conflict z.
 apply list_link_size_in_range.
 apply list_struct_alignas_legal.
 rewrite prop_true_andp by auto.
@@ -1065,15 +1060,7 @@ rewrite prop_and.
 apply andp_right; [ | apply prop_right; auto].
 apply not_prop_right; intro.
 apply ptr_eq_e in H0. subst x.
-pull_right (field_at psh list_struct (StructField list_link :: nil)
-  (valinject (nested_field_type list_struct (StructField list_link :: nil))
-     x0) z).
-rewrite sepcon_assoc.
-eapply derives_trans.
-apply sepcon_derives.
-apply derives_refl.
-2: rewrite sepcon_FF; auto.
-apply field_at_conflict; auto.
+data_at_conflict z.
 apply list_link_size_in_range.
 apply list_struct_alignas_legal.
 pull_right (list_cell ls dsh el x).
@@ -2307,12 +2294,7 @@ apply exp_right with z.
 apply andp_right.
 apply not_prop_right; intro.
 apply ptr_eq_e in H. subst y.
-rewrite sepcon_assoc.
-eapply derives_trans.
-apply sepcon_derives.
-apply derives_refl.
-2: rewrite sepcon_FF; auto.
-apply field_at_conflict; auto.
+data_at_conflict z.
 apply list_link_size_in_range.
 apply list_struct_alignas_legal.
 rewrite prop_true_andp by auto.
@@ -2333,15 +2315,7 @@ rewrite prop_and.
 apply andp_right; [ | apply prop_right; auto].
 apply not_prop_right; intro.
 apply ptr_eq_e in H0. subst x.
-pull_right (field_at psh list_struct (StructField list_link :: nil)
-  (valinject (nested_field_type list_struct (StructField list_link :: nil))
-     x0) z).
-rewrite sepcon_assoc.
-eapply derives_trans.
-apply sepcon_derives.
-apply derives_refl.
-2: rewrite sepcon_FF; auto.
-apply field_at_conflict; auto.
+data_at_conflict z.
 apply list_link_size_in_range.
 apply list_struct_alignas_legal.
 pull_right (list_token dsh x); pull_right (list_cell ls dsh (vund ls) x).

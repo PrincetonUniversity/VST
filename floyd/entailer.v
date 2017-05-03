@@ -511,6 +511,8 @@ Hint Extern 4 (value_fits _ _ _) =>
     rewrite ?proj_sumbool_is_false by auto;
     repeat simplify_value_fits; auto) : prove_it_now.
 
+Ltac prove_it_now_more := fail.
+
 Ltac prove_it_now :=
  first [ splittable; fail 1
         | computable
@@ -520,7 +522,7 @@ Ltac prove_it_now :=
         | repeat match goal with H: ?A |- _ => has_evar A; clear H end;
           auto with prove_it_now field_compatible;
           autorewrite with norm entailer_rewrite; normalize;
-          fail
+          prove_it_now_more
          ].
 
 Ltac try_prove_it_now :=
