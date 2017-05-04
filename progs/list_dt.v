@@ -1031,22 +1031,16 @@ Lemma lseg_cons_right_neq (ls: listspec list_structid list_link list_token): for
    |--   lseg ls dsh psh (l++(y,h)::nil) x z * field_at psh list_struct (StructField list_link :: nil) (valinject (nested_field_type list_struct (StructField list_link :: nil)) w) z.
 Proof.
 intros. rename H into SH.
+assert (SZ: 0 < sizeof (nested_field_type list_struct (DOT list_link)))
+  by (rewrite list_link_type; simpl; computable).
 rewrite (field_at_isptr _ _ _ _ z).
 normalize.
 revert x; induction l; simpl; intros.
 *
 normalize.
   autorewrite with subst norm1 norm2; normalize.
-apply exp_right with z.
-apply andp_right.
-apply not_prop_right; intro.
-apply ptr_eq_e in H. subst y.
-data_at_conflict z.
-apply list_link_size_in_range.
-apply list_struct_alignas_legal.
-rewrite prop_true_andp by auto.
-rewrite prop_true_andp by (apply ptr_eq_refl; auto).
-normalize.
+ apply exp_right with z.
+ entailer!.
 *
 destruct a as [v el].
 normalize.
@@ -1055,14 +1049,7 @@ normalize.
 rewrite <- ?sepcon_assoc.
   autorewrite with subst norm1 norm2; normalize.
 specialize (IHl x0).
-apply andp_right.
-rewrite prop_and.
-apply andp_right; [ | apply prop_right; auto].
-apply not_prop_right; intro.
-apply ptr_eq_e in H0. subst x.
-data_at_conflict z.
-apply list_link_size_in_range.
-apply list_struct_alignas_legal.
+entailer.
 pull_right (list_cell ls dsh el x).
 apply sepcon_derives; auto.
 pull_right (field_at psh list_struct (StructField list_link :: nil)
@@ -2282,6 +2269,8 @@ Lemma lseg_cons_right_neq (ls: listspec list_structid list_link list_token):
    |--   lseg ls dsh psh (l++y::nil) x z * field_at psh list_struct (StructField list_link :: nil) (valinject (nested_field_type list_struct (StructField list_link :: nil)) w) z.
 Proof.
 intros. rename H into SH. rename H0 into NR.
+assert (SZ: 0 < sizeof (nested_field_type list_struct (DOT list_link)))
+  by (rewrite list_link_type; simpl; computable).
 rewrite (field_at_isptr _ _ _ _ z).
 normalize.
 revert x; induction l; simpl; intros.
@@ -2291,15 +2280,7 @@ simpl.
 normalize.
   autorewrite with subst norm1 norm2; normalize.
 apply exp_right with z.
-apply andp_right.
-apply not_prop_right; intro.
-apply ptr_eq_e in H. subst y.
-data_at_conflict z.
-apply list_link_size_in_range.
-apply list_struct_alignas_legal.
-rewrite prop_true_andp by auto.
-rewrite prop_true_andp by (apply ptr_eq_refl; auto).
-normalize.
+entailer.
  apply derives_refl';  f_equal. f_equal. f_equal.
  apply (nonreadable_list_cell_eq); auto.
 *
@@ -2310,14 +2291,7 @@ rewrite <- ?sepcon_assoc.
 normalize.
   autorewrite with subst norm1 norm2; normalize.
 specialize (IHl x0).
-apply andp_right.
-rewrite prop_and.
-apply andp_right; [ | apply prop_right; auto].
-apply not_prop_right; intro.
-apply ptr_eq_e in H0. subst x.
-data_at_conflict z.
-apply list_link_size_in_range.
-apply list_struct_alignas_legal.
+entailer.
 pull_right (list_token dsh x); pull_right (list_cell ls dsh (vund ls) x).
 apply sepcon_derives; auto.
 apply sepcon_derives; auto.

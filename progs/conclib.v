@@ -2367,7 +2367,7 @@ Proof.
   rewrite Share.glb_bot; auto.
 Qed.
 Hint Resolve unreadable_bot.
-
+(*
 Lemma data_at_Tsh_conflict : forall {cs : compspecs} sh t v v' p, sepalg.nonidentity sh -> 0 < sizeof t ->
   data_at Tsh t v p * data_at sh t v' p |-- FF.
 Proof.
@@ -2381,6 +2381,7 @@ Proof.
   split; auto.
   unfold field_compatible in *; tauto.
 Qed.
+*)
 
 Lemma split_readable_share sh :
   readable_share sh ->

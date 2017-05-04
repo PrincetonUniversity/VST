@@ -1578,3 +1578,11 @@ Hint Extern 2 (field_compatible _ (StructField _ :: _) _) =>
   (apply field_compatible_cons; split; [ apply compute_in_members_e; reflexivity | ])
       : field_compatible.
 
+Lemma field_compatible_nullval: forall CS t f P,
+  @field_compatible CS t f nullval -> P.
+Proof.
+intros.
+destruct H.
+contradiction H.
+Qed.
+

@@ -3,6 +3,7 @@ Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.reptype_lemmas.
 Require Import floyd.data_at_rec_lemmas.
+Require Import floyd.field_at floyd.nested_field_lemmas.
 Require Import floyd.sublist.
 
 Local Open Scope logic.
@@ -427,7 +428,8 @@ Ltac ent_iter :=
    simpl_denote_tc;
    subst_any;
    try autorewrite with entailer_rewrite in *;
-   try solve_valid_pointer.
+   try solve_valid_pointer;
+   repeat data_at_conflict_neq.
 
 Lemma and_False: forall x, (x /\ False) = False.
 Proof.
@@ -511,8 +513,6 @@ Hint Extern 4 (value_fits _ _ _) =>
     rewrite ?proj_sumbool_is_false by auto;
     repeat simplify_value_fits; auto) : prove_it_now.
 
-Ltac prove_it_now_more := fail.
-
 Ltac prove_it_now :=
  first [ splittable; fail 1
         | computable
@@ -522,7 +522,7 @@ Ltac prove_it_now :=
         | repeat match goal with H: ?A |- _ => has_evar A; clear H end;
           auto with prove_it_now field_compatible;
           autorewrite with norm entailer_rewrite; normalize;
-          prove_it_now_more
+          eapply field_compatible_nullval; eassumption
          ].
 
 Ltac try_prove_it_now :=

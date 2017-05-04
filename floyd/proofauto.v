@@ -45,14 +45,3 @@ Arguments Z.mul !x !y.
 Arguments Z.sub !m !n.
 Arguments Z.add !x !y.
 Global Transparent peq.
-
-Lemma field_compatible_nullval: forall CS t f P,
-  @field_compatible CS t f nullval -> P.
-Proof.
-intros.
-destruct H.
-contradiction H.
-Qed.
-
-Ltac prove_it_now_more ::= 
-  eapply field_compatible_nullval; eassumption.
