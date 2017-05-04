@@ -23,12 +23,12 @@ Module MemoryLemmas.
     erewrite Mem.store_mem_contents; eauto.
     simpl.
     destruct (Pos.eq_dec b b') as [Heq | Hneq];
-      [| by erewrite Maps.PMap.gso by auto].
+      [| erewrite Maps.PMap.gso by auto; reflexivity ].
     subst b'.
     rewrite Maps.PMap.gss.
     destruct (Z_lt_le_dec ofs' ofs) as [Hlt | Hge].
     erewrite Mem.setN_outside by (left; auto);
-      by reflexivity.
+      reflexivity.
     destruct (Z_lt_ge_dec
                 ofs' (ofs + (size_chunk chunk)))
       as [Hlt | Hge'].
@@ -38,10 +38,10 @@ Module MemoryLemmas.
     destruct Hstore as [Hcontra _].
     unfold Mem.range_perm in Hcontra.
     specialize (Hcontra ofs' (conj Hge Hlt));
-      by exfalso.
-    erewrite Mem.setN_outside by (right; rewrite size_chunk_conv in Hge';
-                                    by rewrite encode_val_length);
-      by auto.
+      exfalso; intuition.
+    erewrite Mem.setN_outside; auto.
+    right; rewrite size_chunk_conv in Hge';
+      rewrite encode_val_length; auto.
   Qed.
 
   Transparent Mem.alloc.
@@ -312,7 +312,7 @@ Module MemoryLemmas.
     unfold permission_at in H.
     rewrite H.
     rewrite getMaxPerm_correct;
-      by assumption.
+      assumption.
   Qed.
 
    Lemma sim_valid_access:
@@ -334,7 +334,7 @@ Module MemoryLemmas.
     unfold Mem.perm.
     rewrite <- Hperm.
     simpl;
-      by constructor.
+      constructor.
   Qed.
 
   Lemma setPermBlock_lt:
@@ -350,7 +350,7 @@ Module MemoryLemmas.
     destruct (Pos.eq_dec b b').
     - subst.
       destruct (Intv.In_dec ofs' (ofs, ofs + Z.of_nat sz)%Z).
-      + erewrite setPermBlock_same by eauto.
+      + erewrite setPermBlock_same; [|eauto].
         specialize (Hinv _ ofs' Hvalid).
         erewrite getMaxPerm_correct in *.
         erewrite Hinv in *.
@@ -361,7 +361,7 @@ Module MemoryLemmas.
         assumption.
         eapply Intv.range_notin in n; eauto.
         simpl. zify; omega.
-    - erewrite setPermBlock_other_2 by eauto.
+    - erewrite setPermBlock_other_2; [| eauto].
       assumption.
   Qed.
 

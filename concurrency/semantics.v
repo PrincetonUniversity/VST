@@ -19,7 +19,7 @@ Module Type Semantics.
   Parameter F V : Type.
   Parameter G: Type.
   Parameter C: Type.
-  Parameter Sem: EvSem G C.
+  Parameter Sem: @EvSem G C.
   Parameter getEnv : G -> Genv.t F V.
 End Semantics.
 

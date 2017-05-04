@@ -2,7 +2,7 @@
 
 Require Import compcert.lib.Axioms.
 
-Add LoadPath "../concurrency" as concurrency.
+(* Add LoadPath "../concurrency" as concurrency.*)
 
 Require Import concurrency.sepcomp.
 Import SepComp.
