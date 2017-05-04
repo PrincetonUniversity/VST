@@ -68,7 +68,7 @@ Proof.
   Intros. subst v. clear Hv. Intros p. rename H into MCp. simpl in MCp.
 
   (*Alloction / md_setup succeeded. Now get md_size*)
-  deadvars.
+  deadvars!.
   forward_call tt.
 
   (*call mbedtls_md_hmac_starts( &ctx->md_ctx, ctx->V, md_size )*)
@@ -126,7 +126,7 @@ Proof.
     + elim H; trivial. 
     + clear H. forward. forward. entailer!.  }
   forward. 
-  deadvars. (*drop_LOCAL 7%nat.  _t'4 *)
+  deadvars!. (*drop_LOCAL 7%nat.  _t'4 *)
 
   (*NEXT INSTRUCTION:  ctx->entropy_len = entropy_len * 3 / 2*)
   thaw ALLSEP. thaw FIELDS2. forward.
@@ -182,7 +182,7 @@ Proof.
                  Zlength (contents_with_add data (Zlength Data) Data) = Zlength Data).
          { unfold contents_with_add. if_tac. right; trivial. left; trivial. }
   forward.
-  deadvars. 
+  deadvars!. 
   forward_if (
    PROP ( v = nullval)
    LOCAL (temp _ret v; temp _t'7 v;
@@ -220,7 +220,7 @@ Proof.
     apply negb_false_iff in Hv.
     symmetry in Hv; apply binop_lemmas2.int_eq_true in Hv; subst v. trivial.
   }
-  deadvars. Intros. subst v. unfold reseedPOST. 
+  deadvars!. Intros. subst v. unfold reseedPOST. 
 
   remember ((zlt 256 (Zlength Data)
           || zlt 384 (hmac256drbgabs_entropy_len myABS + Zlength Data))%bool) as d.
