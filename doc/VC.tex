@@ -2313,12 +2313,9 @@ The \lstinline{entailer} and \lstinline{entailer!} tactics
 simplify (or solve entirely) entailments in either the
 lifted or base-level separation logic.  The \lstinline{entailer}
 never turns a provable entailment into an unprovable one;
-\lstinline{entailer!} is more aggressive and somewhat more efficient,
-but sometimes turns a provable entailment into an unprovable one,
-especially in cases related to the \textsc{Warning} on
-\autopageref{refcard:cancel-warning}; see also \autoref{refcard:lseg}.
-We recommend trying \lstinline{entailer!} first, especially
-where list segments are not involved.
+\lstinline{entailer!} is more aggressive and more efficient,
+but sometimes (rarely) turns a provable entailment into an unprovable one.
+We recommend trying \lstinline{entailer!} first.
 
 When \lstinline{go_lower} is applicable, the entailers start by applying it
 (see \autoref{refcard:go-lower}).
@@ -4188,22 +4185,18 @@ definition.
 Deletes identical spatial conjuncts
 from both sides of a base-level entailment.
 
+\item[\textsf{data\_at\_conflict $p$}]
+  (tactic) equivalent to \textsf{field\_at\_conflict $p$ nil}.
+
+\item[\textsf{deadvars!}]
+  (tactic) Removes from the LOCAL block of the current precondition, any variables that are irrelevant to the rest of program execution.  Fails if there is no such variable.
+
 \item[\textsf{derives\_refl}]
 (lemma)  $A\vdash A$.  Useful after \lstinline{cancel}
   to handle $\beta\eta$-equality; see \autopageref{cancel-beta}.
 
 \item[\textsf{derives\_refl'}]
 (lemma)  $A=B ~\rightarrow~A\vdash B$.
-
-\item[\textsf{entailer}]
-(tactic; \autopageref{refcard:entailer}, \autopageref{refcard:entailments})
-Proves (lifted or base-level) entailments, possibly leaving a residue
-for the user to prove.  The more aggressive
-\lstinline{entailer!} should usually be used, but it
-sometimes turns a provable goal into an unprovable goal.
-
-\item[\textsf{deadvars!}]
-  (tactic) Removes from the LOCAL block of the current precondition, any variables that are irrelevant to the rest of program execution.  Fails if there is no such variable.
 
 \item[\textsf{drop\_LOCAL $n$}]
 (tactic, where $n:nat$). Removes the $n$th entry of a the LOCAL block of a
@@ -4213,6 +4206,25 @@ sometimes turns a provable goal into an unprovable goal.
 Removes variables \textsf{\_i} and \textsf{\_j}
 from the LOCAL block of a
 \lstinline{semax} or \lstinline{ENTAIL} precondition.
+
+\item[\textsf{entailer}]
+(tactic; \autopageref{refcard:entailer}, \autopageref{refcard:entailments})
+Proves (lifted or base-level) entailments, possibly leaving a residue
+for the user to prove.  The more aggressive
+\lstinline{entailer!} should usually be used, but it
+sometimes turns a provable goal into an unprovable goal.
+
+\item[\textsf{field\_at\_conflict $p$ $\mathit{fld}$}]
+  (tactic) Solves an entailment of the form \newline
+  \lstinline{$\ldots$ * field_at $\mathit{sh}$ $t$ $\mathit{fld}$ $v_1$ $p$ * $\ldots$ * field_at $\mathit{sh}$ $t$ $\mathit{fld}$ $v_2$ $p$ * $\ldots$ |-- _}\newline
+  based on the contradiction that the same field-assertion cannot
+  \lstinline{*}-separate.  Usually invoked automatically by
+  \lstinline{entailer} (or \lstinline{entailer}!) to prove goals such as
+  \lstinline{!!($p$<>$q$)}.  Needs to be able to prove (or compute)
+  the fact that \lstinline{0 < sizeof (nested_field_type $t$ $\mathit{fld}$)};
+  \newline
+  for \lstinline{data_at_conflict} that's equivalent to
+  \lstinline{0 < sizeof $t$}.
 
 \item[\textsf{forward}]
   (tactic; \autopageref{refcard:forward})
