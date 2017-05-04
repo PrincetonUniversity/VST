@@ -15,30 +15,6 @@ Definition perm_of_sh (sh: Share.t): option permission :=
          else if eq_dec sh Share.bot
                    then None
                    else Some Nonempty.
-(*
-Lemma perm_of_sh_pshare: forall rsh (sh: pshare), 
-   exists p,  perm_of_sh rsh (pshare_sh sh) = Some p.
-Proof.
-intros sh.
-unfold perm_of_sh.
-if_tac. subst.
-if_tac.
-contradiction Share.nontrivial; auto.
-intro sh.
-if_tac; eauto.
-if_tac; eauto.
-intros.
-if_tac; eauto.
-if_tac; eauto.
-if_tac; eauto.
-destruct sh0; simpl in *.
-subst x.
-clear - n.
-elimtype False.
-generalize bot_identity; rewrite identity_unit_equiv; intro.
-apply (n _ H).
-Qed.
-*)
 
 Definition contents_at (m: mem) (loc: address) : memval :=
   ZMap.get (snd loc) (PMap.get (fst loc) (mem_contents m)).
@@ -68,6 +44,32 @@ Definition perm_of_res (r: resource) :=
  | YES sh rsh _ _ => Some Nonempty
  end.
 
+(*To do a case analysis over perm_of_res, use:
+functional induction (perm_of_res_explicit r1) using perm_of_res_expl_ind 
+We define the induction shceme bellow. *)
+Definition perm_of_res_lock_explicit
+             (r : compcert_rmaps.RML.R.resource):=
+    match r with
+    | compcert_rmaps.RML.R.NO _ _ => None
+    | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.VAL _) _ => None
+    | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.LK _) _ =>
+      if writable_share_dec (Share.glb Share.Rsh sh)
+      then if eq_dec (Share.glb Share.Rsh sh) Share.top then Some Freeable else Some Writable
+      else if readable_share_dec (Share.glb Share.Rsh sh) then Some Readable else
+             if eq_dec  (Share.glb Share.Rsh sh) Share.bot then None else Some Nonempty
+    | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.CT _) _ => 
+      if writable_share_dec (Share.glb Share.Rsh sh)
+      then if eq_dec (Share.glb Share.Rsh sh) Share.top then Some Freeable else Some Writable
+      else if readable_share_dec (Share.glb Share.Rsh sh) then Some Readable else
+             if eq_dec  (Share.glb Share.Rsh sh) Share.bot then None else Some Nonempty
+    | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.FUN _ _) _ => None
+    | compcert_rmaps.RML.R.PURE _ _ => None
+    end.
+      
+  Functional Scheme perm_of_res_lock_expl_ind := Induction for perm_of_res_lock_explicit Sort Prop.
+
+
+
 Definition perm_of_res' (r: resource) :=
   (*  perm_of_sh (res_retain' r) (valshare r). *)
  match r with
@@ -83,6 +85,29 @@ Definition perm_of_res_lock (r: resource) :=
  | YES sh rsh (CT _) _ => perm_of_sh (Share.glb Share.Rsh sh)
  | _ => None 
  end.
+(*To do a case analysis over perm_of_res_lock, use:
+functional induction (perm_of_res_lock_explicit r1) using perm_of_res_lock_expl_ind 
+We define the induction shceme bellow. *)
+Definition perm_of_res_explicit
+               (r : compcert_rmaps.RML.R.resource):=
+        match r with
+        | compcert_rmaps.RML.R.NO sh _ => if eq_dec sh Share.bot then None else Some Nonempty
+           | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.VAL _) _ =>
+             if writable_share_dec sh
+             then if eq_dec sh Share.top then Some Freeable else Some Writable
+             else
+               if readable_share_dec sh
+               then Some Readable
+               else if eq_dec sh Share.bot then None else Some Nonempty
+           | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.LK _) _ => Some Nonempty
+           | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.CT _) _ => Some Nonempty
+           | compcert_rmaps.RML.R.YES sh _ (compcert_rmaps.FUN _ _) _ => Some Nonempty
+           | compcert_rmaps.RML.R.PURE _ _ => Some Nonempty
+        end.
+      
+Functional Scheme perm_of_res_expl_ind := Induction for perm_of_res_explicit Sort Prop.
+
+
 
 (*Definition perm_of_res_lock (r: resource) :=
   (*  perm_of_sh (res_retain' r) (valshare r). *)
