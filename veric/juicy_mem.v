@@ -14,7 +14,9 @@ Definition perm_of_sh (sh: Share.t): option permission :=
          then Some Readable
          else if eq_dec sh Share.bot
                    then None
-                   else Some Nonempty.
+              else Some Nonempty.
+Functional Scheme perm_of_sh_ind := Induction for perm_of_sh Sort Prop.
+
 
 Definition contents_at (m: mem) (loc: address) : memval :=
   ZMap.get (snd loc) (PMap.get (fst loc) (mem_contents m)).
