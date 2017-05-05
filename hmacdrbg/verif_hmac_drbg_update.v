@@ -584,7 +584,7 @@ Proof. intros.
   rewrite data_at_isptr with (p:=ctx).
   unfold hmac256drbgstate_md_info_pointer. simpl.
   rewrite data_at_isptr with (p:=IS1a).
-  normalize.
+  Intros.
   freeze [0;1;2;4;6] FR0.
   freeze [0;2] FR1.
 
@@ -998,7 +998,7 @@ Proof. intros.
     destruct H1; try solve[omega].
     subst add_len. destruct contents; simpl; trivial. elim n.
 idtac "Timing the Qed of hmacdrbg_update". apply Zlength_nil.
-Time Qed. (*Coq8.6: 37secs*)
+Time Qed. (*Coq8.6: 34secs*)
 
 Lemma body_hmac_drbg_update: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
        f_mbedtls_hmac_drbg_update hmac_drbg_update_spec.
