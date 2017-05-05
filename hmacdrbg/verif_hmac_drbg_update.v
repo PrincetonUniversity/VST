@@ -601,7 +601,7 @@ Proof. intros.
   forward_call tt.
 
   (*Intros md_len. LENB: replaced by the following*)
-  change (Z.of_nat SHA256.DigestLength) with 32.
+  (*change (Z.of_nat SHA256.DigestLength) with 32.*)
   remember (andb (negb (eq_dec additional nullval)) (negb (eq_dec add_len 0))) as na.
   freeze [0;1] FR2. clear PIS1a.
   forward_if (
@@ -723,7 +723,7 @@ Proof. intros.
   }
   {
     (* loop body *)
-    Intros key value state_abs. normalize.
+    Intros key value state_abs.
     clear FR2 FR1 FR0.
 
     (*( semax_subcommand HmacDrbgVarSpecs HmacDrbgFunSpecs
@@ -744,8 +744,6 @@ Proof. intros.
     unfold hmac256drbgabs_to_state. simpl. destruct state_abs. simpl in *. subst key0 value.
     abbreviate_semax. Intros.
     freeze [1;2;3;5;6] FR0.
-    rewrite data_at_isptr with (p:= ctx).
-    rewrite da_emp_isptrornull. normalize.
     unfold_data_at 1%nat. thaw FR0.
     freeze [7;8;9;10] OtherFields.
     rewrite (field_at_data_at _ _ [StructField _md_ctx]); simpl.
@@ -832,7 +830,7 @@ Proof. intros.
     ). (* 4.4 *)
     {
       (* rounds = 2 case *)
-      destruct na; rewrite Heqrounds in *. Focus 2. inv H7. clear H7.
+      destruct na; rewrite Heqrounds in *; [ clear H7 | solve [inv H7]]. 
       subst rounds. simpl in Heqna.
       assert (isptr additional) as Hisptr_add.
       { 
@@ -841,7 +839,7 @@ Proof. intros.
       }
       clear PNadditional.
       destruct additional; try contradiction. clear Hisptr_add.
-      simpl in Heqna. destruct H1; subst add_len. 2: simpl in Heqna; discriminate.
+      simpl in Heqna. destruct H1; subst add_len. 2: solve [simpl in Heqna; discriminate].
       rewrite da_emp_ptr. Intros.
 
       (* mbedtls_md_hmac_update( &ctx->md_ctx, additional, add_len ); *)
@@ -949,7 +947,7 @@ Proof. intros.
     Exists (HMAC256 V (HMAC256 (V ++ [i] ++ (if na then contents else [])) key)).
     Exists (HMAC256DRBGabs (HMAC256 (V ++ [i] ++ (if na then contents else [])) key)
                            (HMAC256 V (HMAC256 (V ++ [i] ++ (if na then contents else [])) key)) reseed_counter entropy_len prediction_resistance reseed_interval).
-    normalize.
+    normalize. 
     apply andp_right. apply prop_right. repeat split; eauto.
       subst initial_key initial_value.
       apply HMAC_DRBG_update_round_incremental_Z; try eassumption. omega.
