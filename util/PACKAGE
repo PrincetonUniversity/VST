@@ -5,6 +5,7 @@
 # THEN, from some place outside of a git-checked-out directory,
 #   sh  .../vst/util/PACKAGE
 # the result will be in vst.tgz
+# see also: util/RELEASE
 
 set -e
 mkdir vst
