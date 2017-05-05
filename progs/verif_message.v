@@ -1,5 +1,8 @@
 Require Import floyd.proofauto.
 Require Import progs.message.
+Instance CompSpecs : compspecs. make_compspecs prog. Defined.
+Definition Vprog : varspecs. mk_varspecs prog. Defined.
+
 
 Local Open Scope Z.
 Local Open Scope logic.
@@ -10,16 +13,20 @@ Local Open Scope logic.
 
 Definition natural_alignment := 8.
 
-Lemma natural_alignment_enough: forall t, type_is_by_value t = true -> legal_alignas_type t = true -> (alignof t | 8).
+Lemma natural_alignment_enough: 
+   forall t, 
+    type_is_by_value t = true -> 
+    attr_of_type t = noattr ->
+    (alignof t | 8).
 Proof.
   intros.
   assert (1 | 8). exists 8. reflexivity.
   assert (2 | 8). exists 4. reflexivity.
   assert (4 | 8). exists 2. reflexivity.
   assert (8 | 8). exists 1. reflexivity.
-  destruct t; try inversion H; simpl;
-  unfold legal_alignas_type in H0; simpl in H0;
-  destruct (attr_alignas a); inversion H0; [destruct i| | destruct f|]; assumption.
+  destruct t; simpl in *; try subst a;
+ try inversion H; simpl;
+  try destruct i; try destruct f; try assumption.
 Qed.
 
 Definition natural_align_compatible p :=
@@ -36,9 +43,9 @@ mf_build {
    mf_size_range:  0 <= mf_size <= Int.max_signed;
    mf_bufprop: forall sh buf len data,
            mf_assert sh buf len data |--
-                 !!(0 <= len <= mf_size) && memory_block sh (Int.repr len) buf;
+                 !!(0 <= len <= mf_size) && memory_block sh len buf;
    mf_restbuf := fun (sh: share) (buf: val) (len: Z) =>
-          memory_block sh (Int.repr (mf_size-len)) (offset_val (Int.repr len) buf)
+          memory_block sh (mf_size-len) (offset_val len buf)
 }.
 
 Implicit Arguments mf_build [[t]].
@@ -48,8 +55,13 @@ Implicit Arguments mf_assert [[t]].
 Implicit Arguments mf_bufprop [[t]].
 Implicit Arguments mf_size_range [[t]].
 Implicit Arguments mf_restbuf [[t]].
+
+
 (* need to add a proof to message_format, that the
      representation of a  buf implies the data_at_ of the bufsize array *)
+
+Definition t_struct_intpair := Tstruct _intpair noattr.
+Definition t_struct_message := Tstruct _message noattr.
 
 Program Definition intpair_message: message_format t_struct_intpair :=
   mf_build 8 (fun data => is_int I32 Signed (fst data) /\ is_int I32 Signed (snd data))
@@ -69,36 +81,37 @@ Next Obligation.
   apply derives_refl.
 Qed.
 
-(* align_compatible requirement is neccesary in precondition *)
+(* align_compatible requirement is necessary in precondition *)
 Definition serialize_spec {t: type} (format: message_format t) :=
   WITH data: reptype t, p: val, buf: val, sh: share, sh': share
   PRE [ _p OF (tptr tvoid), _buf OF (tptr tuchar) ]
-          PROP (writable_share sh';
+          PROP (readable_share sh; writable_share sh';
                 mf_data_assert format data;
                 natural_align_compatible buf)
           LOCAL (temp _p p; temp _buf buf)
-          SEP (`(data_at sh t data p);
-               `(memory_block sh' (Int.repr (mf_size format)) buf))
+          SEP (data_at sh t data p;
+                 memory_block sh' (mf_size format) buf)
   POST [ tint ]
          EX len: Z,
-          local (`(eq (Vint (Int.repr len))) retval) &&
-         `(data_at sh t data p)
-            * `(mf_assert format sh' buf len data) * `(mf_restbuf format sh' buf len).
+          PROP() LOCAL (temp ret_temp (Vint (Int.repr len)))
+          SEP( data_at sh t data p;
+                 mf_assert format sh' buf len data;
+                 mf_restbuf format sh' buf len).
 
 Definition deserialize_spec {t: type} (format: message_format t) :=
   WITH data: reptype t, p: val, buf: val, shs: share*share, len: Z
   PRE [ _p OF (tptr tvoid), _buf OF (tptr tuchar), _length OF tint ]
-          PROP (writable_share (fst shs);
+          PROP (readable_share (snd shs); writable_share (fst shs);
                 0 <= len <= mf_size format)
           LOCAL (temp _p p;
                  temp _buf buf;
                  temp _length (Vint (Int.repr len)))
-          SEP (`(mf_assert format (snd shs) buf len data);
-               `(data_at_ (fst shs) t p))
+          SEP (mf_assert format (snd shs) buf len data;
+                 data_at_ (fst shs) t p)
   POST [ tvoid ]
           PROP (mf_data_assert format data)  LOCAL ()
-          SEP (`(mf_assert format (snd shs) buf len data);
-                 `(data_at (fst shs) t data p)).
+          SEP (mf_assert format (snd shs) buf len data;
+                 data_at (fst shs) t data p).
 
 Definition intpair_serialize_spec :=
  DECLARE _intpair_serialize (serialize_spec intpair_message).
@@ -112,8 +125,6 @@ Definition main_spec :=
   PRE  [] main_pre prog nil u
   POST [ tint ] main_post prog nil u.
 
-Definition Vprog : varspecs := (_intpair_message, t_struct_message)::nil.
-
 Definition message (sh: share) {t: type} (format: message_format t) (m: val) : mpred :=
   EX fg: val*val,
           func_ptr (serialize_spec format) (fst fg) &&
@@ -123,62 +134,68 @@ Definition message (sh: share) {t: type} (format: message_format t) (m: val) : m
 Definition Gprog : funspecs :=   ltac:(with_library prog [
     intpair_serialize_spec; intpair_deserialize_spec; main_spec]).
 
+Lemma memory_block_field_compatible_tarray_tint:
+  forall sh n buf, 
+   0 <= n -> 4*n < Int.modulus ->
+   natural_align_compatible buf ->
+   memory_block sh (sizeof (tarray tint n)) buf =
+   !! field_compatible (tarray tint n) [] buf && memory_block sh (sizeof (tarray tint n)) buf.
+Proof.
+intros.
+apply pred_ext; [ apply andp_right; auto | apply andp_left2; auto].
+rewrite memory_block_size_compatible.
+Intros.
+entailer!.
+destruct buf; try contradiction.
+repeat split; auto; simpl; auto; try computable.
+destruct n; try reflexivity.
+hnf in H. simpl in H. elimtype False; auto.
+unfold size_compatible in H2. simpl in H2.
+rewrite Z.max_r by omega. auto.
+destruct H1 as [z H1]; exists (z*2)%Z. rewrite <- Z.mul_assoc. apply H1.
+Qed.
+
 Lemma body_intpair_serialize: semax_body Vprog Gprog f_intpair_serialize intpair_serialize_spec.
 Proof.
 unfold intpair_serialize_spec.
 unfold serialize_spec.
 start_function.
-name p0 _p.
-name buf0 _buf.
-name x _x.
-name y _y.
-destruct H0 as [Dx Dy].
+destruct H as [Dx Dy].
 destruct data as [[|x1 | | | | ] [|y1 | | | | ]]; try contradiction. clear Dx Dy.
 
-unfold_data_at 1%nat.
 change (mf_size intpair_message) with (sizeof (tarray tint 2)).
-rewrite memory_block_data_at_; try reflexivity.
-Focus 2. {
-  unfold natural_align_compatible in H1.
-  unfold align_compatible.
-  destruct buf; auto.
-  eapply Z.divide_trans; [| exact H1].
-  exists 2.
-  cbv.
-  reflexivity.
-} Unfocus.
-
+rewrite memory_block_field_compatible_tarray_tint; try computable; auto.
+Intros.
+rewrite memory_block_data_at_; auto.
+change (data_at_ sh' (tarray tint 2) buf) with
+   (data_at sh' (tarray tint 2) [Vundef;Vundef] buf).
 forward. (* x = p->x; *)
 forward. (* y = p->y; *)
+(* TODO: fix bug-- without the assert_PROP, wrong error message from store_tac *)
+(* TODO: fix bug2: the assert_PROP shouldn't even be necessary... *)
+assert_PROP (force_val (sem_cast_neutral buf) = field_address (tarray tint 2) nil buf).
+entailer!; rewrite field_compatible_field_address by auto; simpl; normalize.
 forward. (*  ((int * )buf)[0]=x; *)
 forward. (*  ((int * )buf)[1]=y; *)
 forward. (* return 8; *)
 apply exp_right with 8.
-entailer.
-
-unfold_data_at 2%nat.
-cancel.
-unfold mf_restbuf. simpl.
-destruct buf0; inv Pbuf0.
-simpl. rewrite memory_block_zero.
 entailer!.
+unfold mf_restbuf. simpl.
+rewrite memory_block_zero. entailer!.
 Qed.
 
 Lemma body_intpair_deserialize: semax_body Vprog Gprog f_intpair_deserialize intpair_deserialize_spec.
 Proof.
 unfold intpair_deserialize_spec, deserialize_spec.
-start_function. destruct shs as (sh,sh'). simpl @fst; simpl @snd.
-name p0 _p.
-name buf0 _buf.
-name x _x.
-name y _y.
-name len0 _length.
-destruct data as (x1,y1); simpl in *.
-normalize.
-destruct x1 as [|x1| | | |]; try contradiction.
-destruct y1 as [|y1| | | |]; try contradiction.
-clear H2 H3.
+start_function. destruct shs as (sh,sh'). simpl @fst in *; simpl @snd in *.
+unfold mf_assert. simpl. Intros. subst len.
+destruct data as [[|x1 | | | | ] [|y1 | | | | ]]; try contradiction.
+clear H H1 H2.
 
+(* TODO: fix bug-- without the assert_PROP, wrong error message from store_tac *)
+(* TODO: fix bug2: the assert_PROP shouldn't even be necessary... *)
+assert_PROP (force_val (sem_cast_neutral buf) = field_address (tarray tint 2) nil buf).
+entailer!; rewrite field_compatible_field_address by auto; simpl; normalize.
 forward. (* x = ((int * )buf)[0]; *)
 forward. (* y = ((int * )buf)[1]; *)
 forward. (* p->x = x; *)
@@ -186,16 +203,18 @@ forward. (*  p->y = y; *)
 forward.  (* return; *)
 Qed.
 
+(*
 Ltac simpl_stackframe_of :=
   unfold stackframe_of, fn_vars; simpl map; unfold fold_right; rewrite sepcon_emp;
   repeat rewrite var_block_data_at_ by reflexivity.
+*)
 
 Ltac get_global_function id :=
   eapply (call_lemmas.semax_fun_id' id); [ reflexivity | simpl; reflexivity | ].
 
 Lemma slide_func_ptr:
   forall f e R1 R,
-  SEPx (`(func_ptr' f) e :: R1 :: R) = SEPx ((`(func_ptr f) e && R1)::R).
+  SEPx (func_ptr' f e :: R1 :: R) = SEPx ((func_ptr f e && R1)::R).
 Proof.
  intros. unfold SEPx; unfold_lift.
 extensionality rho.
@@ -210,8 +229,9 @@ Qed.
 Ltac get_global_function' id :=
   eapply (call_lemmas.semax_fun_id' id); [ reflexivity | reflexivity | simpl; reflexivity | rewrite slide_func_ptr ].
 
+(*
 Lemma  create_message_object:
- forall t (msg: message_format t) objid serid desid
+ forall t (msg: message_format t) objid serid desid d s ob
  (Vobj: (var_types (func_tycontext f_main Vprog Gprog)) ! objid = None)
  (Gobj: (glob_types (func_tycontext f_main Vprog Gprog)) ! objid = Some (t_struct_message))
  (Vser: (var_types (func_tycontext f_main Vprog Gprog)) ! serid = None)
@@ -221,20 +241,17 @@ Lemma  create_message_object:
  (Gdes: (glob_types (func_tycontext f_main Vprog Gprog)) ! desid =
                                    Some (type_of_funspec (deserialize_spec msg))),
 PROP  ()
-LOCAL (tc_environ (func_tycontext f_main Vprog Gprog))
+LOCAL (gvar desid d; gvar serid s; gvar objid ob)
 SEP
-   (`(func_ptr (serialize_spec msg))
-      (eval_var serid
-         (type_of_funspec (serialize_spec msg))) &&
-    (`(func_ptr (deserialize_spec msg))
-       (eval_var desid
-          (type_of_funspec  (deserialize_spec msg))) &&
+   ((func_ptr (serialize_spec msg)) s &&
+    (func_ptr (deserialize_spec msg) d
+        &&
   (id2pred_star (func_tycontext f_main Vprog Gprog) Ews t_struct_message
-    (eval_var objid t_struct_message) 0
+     ob 0
     (Init_int32 (Int.repr (mf_size msg))
      :: Init_addrof serid (Int.repr 0)
         :: Init_addrof desid (Int.repr 0) :: nil))))
-  |-- PROP()  LOCAL() SEP (`(message Ews msg)  (eval_var objid t_struct_message)).
+  |-- PROP()  LOCAL(gvar objid ob) SEP (message Ews msg ob).
 Proof.
 intros.
 unfold id2pred_star, init_data2pred'.
@@ -278,14 +295,22 @@ apply andp_derives; auto.
    rewrite int_add_repr_0_r.
    normalize.
 Qed.
-
+*)
 Definition serialize_A {t}  (msg: message_format t) : Type :=
-  match serialize_spec msg with mk_funspec _ A _ _ => A  end.
+  match serialize_spec msg with
+  |  mk_funspec _ _ (rmaps.ConstType A) _ _ _ _ => A  
+  | _ =>  unit
+  end.
 
 Definition serialize_pre {t} (msg: message_format t)  :=
 match serialize_spec msg as f
-     return match f with mk_funspec _ A _ _ => A -> environ->mpred end
-with mk_funspec f A P Q => P end.
+     return match f with
+       | mk_funspec _ _ (rmaps.ConstType A) _ _ _ _ => A -> environ->mpred 
+       | _ => unit
+     end
+with mk_funspec f _ A P Q _ _ => P
+     | _ => tt
+ end.
 
 Definition serialize_post {t} (msg: message_format t)  :=
 match serialize_spec msg as f
