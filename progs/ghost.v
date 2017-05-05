@@ -475,16 +475,13 @@ Qed.
 
 End PVar.
 
-Section GHist.
-
-(* Ghost histories in the style of Nanevsky *)
-Context {hist_el : Type}.
-
-Notation hist_part := (list (nat * hist_el)).
+Section ListMap.
 
 Require Import Sorting.Permutation.
 
-Definition disjoint (h1 h2 : hist_part) := forall n e, In (n, e) h1 -> forall e', ~In (n, e') h2.
+Context {A B : Type}.
+
+Definition disjoint (h1 h2 : list (A * B)) := forall n e, In (n, e) h1 -> forall e', ~In (n, e') h2.
 
 Lemma disjoint_nil : forall l, disjoint l [].
 Proof.
@@ -517,7 +514,7 @@ Proof.
   - eapply Hdisj; [rewrite <- Hp1 | rewrite <- Hp2]; eauto.
 Qed.
 
-Instance map_PCM : PCM hist_part := { join a b c := disjoint a b /\ Permutation (a ++ b) c }.
+Global Instance map_PCM : PCM (list (A * B)) := { join a b c := disjoint a b /\ Permutation (a ++ b) c }.
 Proof.
   - intros ??? (Hdisj & ?); split.
     + apply disjoint_comm; auto.
@@ -531,7 +528,22 @@ Proof.
       rewrite app_assoc; apply Permutation_app_tail; auto.
 Defined.
 
-Definition hist_sub sh h hr := if eq_dec sh Tsh then h = hr
+Lemma ghost_map_init : exists g', joins (@nil (A * B)) g'.
+Proof.
+  exists []; exists []; simpl; auto.
+Qed.
+
+End ListMap.
+Hint Resolve disjoint_nil.
+
+Section GHist.
+
+(* Ghost histories in the style of Nanevsky *)
+Context {hist_el : Type}.
+
+Notation hist_part := (list (nat * hist_el)).
+
+Definition hist_sub sh (h : hist_part) hr := if eq_dec sh Tsh then h = hr
   else sh <> Share.bot /\ exists h', disjoint h h' /\ Permutation (h ++ h') hr.
 
 Lemma completable_alt : forall sh h hr, completable (Some (sh, h)) hr <-> hist_sub sh h hr.
@@ -1075,7 +1087,7 @@ Proof.
     exploit Hlast; eauto; omega.
 Qed.
 
-Lemma ghost_hist_init : exists g', joins (Some (Tsh, []), Some []) g'.
+Lemma ghost_hist_init : exists g', joins (Some (Tsh, ([] : hist_part)), Some ([] : hist_part)) g'.
 Proof.
   exists (None, None), (Some (Tsh, []), Some []); simpl.
   pose proof Share.nontrivial.
@@ -1115,4 +1127,4 @@ End Ghost.
 
 Hint Resolve disjoint_nil hist_incl_nil hist_list_nil ordered_nil hist_list'_nil.
 Hint Resolve ghost_var_precise ghost_var_precise'.
-Hint Resolve ghost_var_init snap_master_init' ghost_hist_init : init.
+Hint Resolve ghost_var_init snap_master_init' ghost_map_init ghost_hist_init : init.
