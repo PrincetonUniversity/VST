@@ -1031,6 +1031,28 @@ Ltac cancel :=
           | idtac
           ].
 
+Ltac apply_find_core X :=
+ match X with
+ | ?U -> ?V => match type of U with Prop => apply_find_core V end
+ | @derives mpred _ _ _ => constr:(X)
+ end.
+
+Ltac sep_apply H :=
+    match goal with |- ?A |-- ?B =>
+     match type of H with ?TH =>
+     match apply_find_core TH with  ?C |-- ?D =>
+      let frame := fresh "frame" in evar (frame: list mpred);
+       apply derives_trans with (C * fold_right_sepcon frame);
+             [solve [cancel] 
+             | eapply derives_trans; 
+                 [apply sepcon_derives; [clear frame; apply H | apply derives_refl] 
+                 | subst frame; unfold fold_right_sepcon; rewrite ?sepcon_emp
+                 ]
+             ]
+     end
+     end
+    end.
+
 (* 
 Ltac cancel :=
 repeat first [rewrite emp_sepcon | rewrite sepcon_emp];

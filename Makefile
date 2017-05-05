@@ -29,7 +29,7 @@ COMPCERT ?= compcert
 
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-DIRS= msl sepcomp veric concurrency floyd progs sha linking fcf hmacfcf tweetnacl20140427 ccc26x86 hmacdrbg aes mailbox
+DIRS= msl sepcomp veric concurrency floyd progs sha fcf hmacfcf tweetnacl20140427 ccc26x86 hmacdrbg aes mailbox
 INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -Q $(a) $(a))) -R $(COMPCERT) compcert -as compcert $(if $(MATHCOMP), -Q mathcomp $(MATHCOMP))
 #Replace the INCLUDE above with the following in order to build the linking target:
 #INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert -I $(SSREFLECT)/src -R $(SSREFLECT)/theories -as Ssreflect \
@@ -333,6 +333,7 @@ HMACDRBG_FILES = \
   hmacdrbg_test_noPredRes_noReseed.v \
   verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v \
   verif_hmac_drbg_generate.v verif_hmac_drbg_seed_buf.v verif_mocked_md.v \
+  verif_hmac_drbg_seed_common.v \
   verif_hmac_drbg_seed.v verif_hmac_drbg_NISTseed.v verif_hmac_drbg_other.v
 
 # these are only the top-level AES files, but they depend on many other AES files, so first run "make depend"
@@ -387,7 +388,7 @@ endif
 COQVERSION= 8.6
 COQV=$(shell $(COQC) -v)
 ifeq ("$(filter $(COQVERSION),$(COQV))","")
-	$(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
+ $(error FAILURE: You need Coq $(COQVERSION) but you have this version: $(COQV))
 endif
 
 
@@ -506,18 +507,22 @@ endif
 version.v:  VERSION $(MSL_FILES:%=msl/%) $(SEPCOMP_FILES:%=sepcomp/%) $(VERIC_FILES:%=veric/%) $(FLOYD_FILES:%=floyd/%)
 	sh util/make_version
 
-.loadpath: Makefile
+_CoqProject: Makefile
+	echo $(COQFLAGS) | sed 's/ -/\n-/g' >_CoqProject
+
+.loadpath: Makefile _CoqProject
 	echo $(COQFLAGS) > .loadpath
 
 floyd/floyd.coq: floyd/proofauto.vo
 	coqtop $(COQFLAGS) -load-vernac-object floyd/proofauto -outputstate floyd/floyd -batch
 
 dep:
-	$(COQDEP) >.depend `find . -name "*.v"`
+	-$(COQDEP) 2>&1 >.depend `find . -name "*.v"` | grep -v Warning:
 
 .depend depend:
 #	$(COQDEP) $(filter $(wildcard *.v */*.v */*/*.v),$(FILES))  > .depend
-	$(COQDEP) >.depend `find compcert $(DIRS) -name "*.v"`
+	@echo 'coqdep ... >.depend'
+	-@$(COQDEP) 2>&1 >.depend `find compcert $(filter $(wildcard *), $(DIRS)) -name "*.v"` | grep -v Warning:
 
 depend-paco:
 	$(COQDEP) > .depend-paco $(PACO_FILES:%.v=concurrency/paco/src/%.v)

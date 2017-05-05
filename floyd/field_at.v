@@ -1478,11 +1478,15 @@ Qed.
 
 Lemma field_at_conflict: forall sh t fld p v v',
   sepalg.nonidentity sh ->
-  0 < sizeof (nested_field_type t fld) < Int.modulus ->
-  legal_alignas_type t = true ->
+  0 < sizeof (nested_field_type t fld) ->
   field_at sh t fld v p * field_at sh t fld v' p|-- FF.
 Proof.
   intros.
+  rewrite field_at_compatible'. normalize.
+  destruct H1 as [? [? [? [? [? [? [? ?]]]]]]].
+  destruct (nested_field_offset_in_range t fld H8 H3).
+  assert (0 < sizeof (nested_field_type t fld) < Int.modulus) by omega.
+  clear - H H2 H11.  
   eapply derives_trans.
   + apply sepcon_derives.
     apply field_at_field_at_; try assumption; auto.
@@ -1497,23 +1501,30 @@ Qed.
 Lemma data_at_conflict: forall sh t v v' p,
   sepalg.nonidentity sh ->
   field_compatible t nil p ->
-  0 < sizeof t < Int.modulus ->
+  0 < sizeof t ->
   data_at sh t v p * data_at sh t v' p |-- FF.
 Proof.
   intros. unfold data_at. apply field_at_conflict; auto.
-  destruct H0 as [? [? ?]]; auto.
 Qed.
 
 Lemma field_at__conflict:
   forall sh t fld p,
   sepalg.nonidentity sh ->
-  0 < sizeof (nested_field_type t fld) < Int.modulus ->
+  0 < sizeof (nested_field_type t fld) ->
   legal_alignas_type t = true ->
         field_at_ sh t fld p
         * field_at_ sh t fld p |-- FF.
 Proof.
 intros.
 apply field_at_conflict; auto.
+Qed.
+
+Lemma sepcon_FF_derives':
+  forall (P Q: mpred), Q |-- FF -> P * Q |-- FF.
+Proof.
+intros.
+eapply derives_trans. apply sepcon_derives; try eassumption; eauto.
+rewrite sepcon_FF. auto.
 Qed.
 
 Lemma field_compatible_offset_isptr:
@@ -1600,6 +1611,53 @@ Proof.
 Qed.
 
 End CENV.
+
+Ltac field_at_conflict z fld :=
+eapply derives_trans with FF; [ | apply FF_left];
+ rewrite <- ?sepcon_assoc;
+ unfold data_at_, data_at, field_at_;
+ let x := fresh "x" in set (x := field_at _ _ fld _ z); pull_right x;
+ let y := fresh "y" in set (y := field_at _ _ fld _ z); pull_right y;
+ try (rewrite sepcon_assoc; eapply sepcon_FF_derives');
+ subst x y;
+ apply field_at_conflict; auto;
+ try solve [simpl; computable].
+
+Ltac data_at_conflict z := field_at_conflict z (@nil gfield).
+
+Ltac data_at_conflict_neq_aux1 A sh fld E x y :=
+   match A with
+   | context [data_at sh _ _ y] => unify fld (@nil gfield)
+   | context [data_at_ sh _ y]  => unify fld (@nil gfield)
+   | context [field_at sh _ fld _ y] => idtac
+   | context [field_at_ sh _ fld y]  => idtac
+   end;
+   apply derives_trans with (!! (~ E) && A);
+   [apply andp_right; [ | apply derives_refl];
+    let H := fresh in
+    apply not_prop_right; intro H; 
+    (rewrite H || rewrite (ptr_eq_e _ _ H)); 
+    field_at_conflict y fld 
+   | apply derives_extract_prop;
+     let H1 := fresh in intro H1;
+     rewrite (eq_True _ H1)
+    ].
+
+Ltac data_at_conflict_neq_aux2 A E x y :=
+   match A with
+   | context [data_at ?sh _ _ x] => data_at_conflict_neq_aux1 A sh (@nil gfield) E x y
+   | context [data_at_ ?sh _ x]  => data_at_conflict_neq_aux1 A sh (@nil gfield) E x y
+   | context [field_at ?sh _ ?fld _ x] => data_at_conflict_neq_aux1 A sh fld E x y
+   | context [field_at_ ?sh _ ?fld x]  => data_at_conflict_neq_aux1 A sh fld E x y
+   end.
+
+Ltac data_at_conflict_neq :=
+  match goal with |- ?A |-- ?B =>
+   match B with
+   | context [?x <> ?y] => data_at_conflict_neq_aux2 A (x=y) x y
+   | context [~ ptr_eq ?x ?y] => data_at_conflict_neq_aux2 A (ptr_eq x y) x y
+   end
+  end.
 
 Definition natural_alignment := 8.
 
@@ -1905,8 +1963,7 @@ Ltac unfold_data_at N  :=
 Lemma field_at_ptr_neq{cs: compspecs} :
    forall sh t fld p1 p2 v1 v2,
   sepalg.nonidentity sh ->
- 0 < sizeof (nested_field_type t (fld :: nil)) < Int.modulus ->
- legal_alignas_type t = true ->
+   0 < sizeof (nested_field_type t (fld :: nil))  ->
    field_at sh t (fld::nil) v1 p1 *
    field_at sh t (fld::nil) v2 p2
    |--
@@ -1914,15 +1971,14 @@ Lemma field_at_ptr_neq{cs: compspecs} :
 Proof.
    intros.
    apply not_prop_right; intros.
-   apply ptr_eq_e in H2; rewrite -> H2.
+  rewrite -> (ptr_eq_e _ _ H1).   
    apply field_at_conflict; try assumption.
 Qed.
 
 Lemma field_at_ptr_neq_andp_emp{cs: compspecs} :
     forall sh t fld p1 p2 v1 v2,
   sepalg.nonidentity sh ->
- 0 < sizeof (nested_field_type t (fld :: nil)) < Int.modulus ->
- legal_alignas_type t = true ->
+ 0 < sizeof (nested_field_type t (fld :: nil))  ->
    field_at sh t (fld::nil) v1 p1 *
    field_at sh t (fld::nil) v2 p2
    |--
