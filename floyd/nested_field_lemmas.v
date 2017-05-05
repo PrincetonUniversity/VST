@@ -1586,3 +1586,16 @@ destruct H.
 contradiction H.
 Qed.
 
+Lemma field_compatible_nullval1:
+ forall (CS: compspecs) t fld p,
+  @field_compatible CS t fld p -> p <> nullval.
+Proof.
+ intros. intro; subst p. apply (field_compatible_nullval _ _ _ _ H).
+Qed.
+
+Lemma field_compatible_nullval2:
+ forall (CS: compspecs) t fld p,
+  @field_compatible CS t fld p -> nullval <> p.
+Proof.
+ intros. intro; subst p. apply (field_compatible_nullval _ _ _ _ H).
+Qed.
