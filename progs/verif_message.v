@@ -308,7 +308,7 @@ match serialize_spec msg as f
        | mk_funspec _ _ (rmaps.ConstType A) _ _ _ _ => A -> environ->mpred 
        | _ => unit
      end
-with mk_funspec f _ A P Q _ _ => P
+with mk_funspec f _ (rmaps.ConstType A) P Q _ _ => P nil 
      | _ => tt
  end.
 
