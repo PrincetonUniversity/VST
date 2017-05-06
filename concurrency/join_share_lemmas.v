@@ -81,80 +81,20 @@ Proof.
  contradict H0.
  unfold writable_share in *.
  destruct H0.
-(*
- apply leq_join_sub in H0. apply leq_join_sub.
- destruct (join_comp_parts comp_Lsh_Rsh H).
-
- destruct H.
- subst sh3. rename H into G.
+ destruct (join_comp_parts comp_Lsh_Rsh H) as [_ ?].
+ destruct (join_comp_parts comp_Lsh_Rsh H0) as [_ ?].
+ rewrite Share.glb_idem in H3.
  apply not_readable_Rsh_part in H1.
- destruct H0.
- destruct H.
- exists (Share.glb Share.Lsh sh1).
- split.
- rewrite <- Share.glb_assoc.
- rewrite (Share.glb_commute Share.Rsh).
- rewrite glb_Lsh_Rsh.
- rewrite Share.glb_commute, Share.glb_bot; auto.
- clear dependent x.
- rewrite Share.distrib2.
- rewrite (Share.lub_commute Share.Rsh).
- rewrite lub_Lsh_Rsh.
- rewrite Share.glb_commute, Share.glb_top.
- 
- 
- auto.
-
- 
- 
-
- apply leq_join_sub in H0. apply leq_join_sub.
- pose proof (comp_parts comp_Lsh_Rsh sh2).
- rewrite H1 in H. rewrite Share.lub_bot in H.
- rewrite H in H0.
- rewrite Share.distrib2 in H0.
- rewrite Share.distrib1 in H0.
- rewrite (Share.glb_commute _ sh2) in H0.
- rewrite Share.distrib1 in H0.
- rewrite (Share.glb_commute sh2 sh1) in H0.
- rewrite G in H0. 
- rewrite (Share.lub_commute Share.bot) in H0.
- rewrite Share.lub_bot in H0.
- rewrite (Share.glb_commute _ sh1) in H0.
- rewrite Share.distrib1 in H0.
- rewrite Share.glb_idem in H0.
- rewrite Share.lub_absorb in H0.
- apply Share.ord_spec2 in H0. 
- rewrite Share.distrib2 in H0.
- rewrite (Share.lub_commute sh1) in H0.
- SearchAbout (Share.lub _ (Share.glb _ _) ). 
-rewrite Share.distrib1 in H0.
-
- 
- Search (Share.lub _ (Share.glb _ _) = _).
- 
- rewrite <- Share.distrib2 in H0.
- rewrite (Share.distrib1 _ _ sh2) in H0.
- 
-
- eapply Share.ord_trans; try apply H0.
- eapply Share.ord_trans; try apply Share.glb_lower1.
- 
- Search Share.Ord Share.glb.
-(* apply Share.ord_spec2.*)
- apply Share.ord_spec2 in H0. 
- apply Share.ord_spec2 in H0.
- rewrite (Share.lub_commute sh1) in H0.
- rewrite <- Share.lub_assoc in H0.
- pattern sh2 at 1 in H0; rewrite H in H0.
- rewrite Share.distrib2 in H0.
- rewrite (Share.lub_commute Share.Rsh) in H0.
- rewrite lub_Lsh_Rsh in H0.
- rewrite (Share.glb_commute Share.top) in H0.
- rewrite Share.glb_top in H0.
- rewrite Share.lub_assoc in H0.
-*)
-Admitted.
+ rewrite H1 in H2.
+ apply join_unit2_e in H2; [ | apply bot_identity].
+ rewrite <- H2 in H3.
+ assert (join_sub Share.Rsh (Share.glb Share.Rsh sh1)).
+ eexists; eauto.
+ apply leq_join_sub in H4.
+ eapply leq_join_sub.
+ eapply Share.ord_trans; eauto.
+ apply Share.glb_lower2.
+Qed.
 
 Lemma readable_glb:
    forall sh,
