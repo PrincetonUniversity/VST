@@ -67,9 +67,43 @@ Module lifting (SEMT: Semantics) (Machine: MachinesSig with Module SEM := SEMT).
       Machine_sim
         (new_DMachineSem sch psrc)
         (Machine.DryConc.new_MachineSemantics sch ptgt)
-        gS gT main
-        ge_inv init_inv halt_inv.
+        gS gT main.
+        (*ge_inv init_inv halt_inv.*)
     Proof.
+
+
+      (*Transitivity lemma*)
+      Lemma compose_machine_simulations:
+        forall G1 G2 G3 C1 C2 C3 TID SCH TR M, 
+        forall (Sem1: @ConcurSemantics G1 TID SCH TR C1 M)
+          (Sem2: @ConcurSemantics G2 TID SCH TR C2 M)
+          (Sem3: @ConcurSemantics G3 TID SCH TR C3 M)
+          g1 g2 g3 main,
+        Machine_sim Sem1 Sem2 g1 g2 main ->
+        Machine_sim Sem2 Sem3 g2 g3 main ->
+        Machine_sim Sem1 Sem3 g1 g3 main.
+      Admitted.
+
+      eapply compose_machine_simulations.
+      
+          
+      eapply Build_Machine_sim.
+      - admit. (*Order is well founded*) 
+      - admit. (*ge_in*)
+      - { admit. 
+         (* simpl;
+          unfold DryConc.init_machine', Machine.DryConc.init_machine';
+          intros.
+          destruct (DryMachine.init_mach psrc gS main vals1) eqn:HH;
+            inversion H.
+          subst t.
+          eexists; eexists.
+          unfold DryMachine.init_mach in HH.
+        rewrite /ge_inv /genvs_domain_eq; intros.
+        { repeat split; simpl; intros.
+          + destruct H as [id H].
+            exists id. *) }
+      - intros. 
     Admitted.
 
   End lifting.

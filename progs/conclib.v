@@ -806,6 +806,11 @@ Proof.
 Qed.
 Hint Resolve incl_nil.
 
+Lemma incl_cons_out : forall {A} (a : A) l1 l2, incl l1 (a :: l2) -> ~In a l1 -> incl l1 l2.
+Proof.
+  intros; intros ? Hin; specialize (H _ Hin); destruct H; auto; subst; contradiction.
+Qed.
+
 Lemma In_upto : forall n i, In i (upto n) <-> 0 <= i < Z.of_nat n.
 Proof.
   induction n; intro.
@@ -1348,6 +1353,49 @@ Proof.
     intros (? & ? & ?); rewrite In_upto in *; omega.
   - apply FinFun.Injective_map_NoDup; auto.
     intros ???; omega.
+Qed.
+
+Lemma In_remove : forall {A} {A_eq : EqDec A} (x y : A) l, In x (remove A_eq y l) <-> In x l /\ x <> y.
+Proof.
+  induction l; simpl; intros; [tauto|].
+  destruct (A_eq y a); simpl; rewrite IHl; repeat split; try tauto.
+  - destruct H as [[|]]; auto; subst; contradiction.
+  - destruct H as [|[]]; subst; auto.
+Qed.
+
+Lemma remove_NoDup : forall {A} {A_eq : EqDec A} (x : A) l, NoDup l -> NoDup (remove A_eq x l).
+Proof.
+  induction 1; simpl.
+  - constructor.
+  - if_tac; auto.
+    constructor; auto.
+    intro X; apply In_remove in X; destruct X; contradiction.
+Qed.
+
+Lemma remove_out : forall {A} {A_eq : EqDec A} (x : A) l, ~In x l -> remove A_eq x l = l.
+Proof.
+  induction l; auto; simpl; intros.
+  rewrite IHl by auto.
+  if_tac; auto; subst; tauto.
+Qed.
+
+Lemma remove_from_NoDup : forall {A} {A_eq : EqDec A} (x : A) l1 l2, NoDup (l1 ++ x :: l2) ->
+  remove A_eq x (l1 ++ x :: l2) = l1 ++ l2.
+Proof.
+  induction l1; simpl; intros.
+  - if_tac; [|contradiction].
+    inv H; apply remove_out; auto.
+  - inversion H as [|?? Hx]; subst.
+    rewrite IHl1 by auto.
+    if_tac; auto.
+    subst; contradiction Hx; rewrite in_app; simpl; auto.
+Qed.
+
+Lemma incl_remove_add : forall {A} {A_eq : EqDec A} (x : A) l1 l2, incl l1 l2 -> incl l1 (x :: remove A_eq x l2).
+Proof.
+  intros; intros ? Hin; specialize (H _ Hin).
+  simpl; rewrite In_remove.
+  destruct (eq_dec a x); auto.
 Qed.
 
 Lemma list_pigeonhole : forall l n, Zlength l < n -> exists a, 0 <= a < n /\ ~In a l.
@@ -2063,6 +2111,7 @@ Lemma cond_var_isptr : forall {cs} sh v, @cond_var cs sh v = !! isptr v && cond_
 Proof.
   intros; apply data_at__isptr.
 Qed.
+Hint Resolve lock_inv_isptr cond_var_isptr : saturate_local.
 
 Lemma cond_var_share_join : forall {cs} sh1 sh2 sh v (Hjoin : sepalg.join sh1 sh2 sh),
   @cond_var cs sh1 v * cond_var sh2 v = cond_var sh v.
@@ -2302,6 +2351,37 @@ Proof.
     destruct (eq_dec i o); [|repeat rewrite prop_false_andp; try (intro X; inv X; contradiction n); auto].
     subst; repeat rewrite prop_true_andp; auto.
 Qed.
+
+Lemma comp_join_top : forall sh, sepalg.join sh (Share.comp sh) Tsh.
+Proof.
+  intro; pose proof (Share.comp1 sh).
+  apply comp_parts_join with (L := sh)(R := Share.comp sh); auto;
+    rewrite Share.glb_idem, Share.glb_top.
+  - rewrite Share.comp2; auto.
+  - rewrite Share.glb_commute, Share.comp2; auto.
+Qed.
+
+Lemma unreadable_bot : ~readable_share Share.bot.
+Proof.
+  unfold readable_share, nonempty_share, sepalg.nonidentity.
+  rewrite Share.glb_bot; auto.
+Qed.
+Hint Resolve unreadable_bot.
+(*
+Lemma data_at_Tsh_conflict : forall {cs : compspecs} sh t v v' p, sepalg.nonidentity sh -> 0 < sizeof t ->
+  data_at Tsh t v p * data_at sh t v' p |-- FF.
+Proof.
+  intros.
+  assert_PROP (field_compatible t [] p) by entailer!.
+  pose proof (comp_join_top sh).
+  erewrite <- data_at_share_join by eauto.
+  rewrite sepcon_comm, <- sepcon_assoc.
+  eapply derives_trans; [apply sepcon_derives, derives_refl | rewrite FF_sepcon; auto].
+  apply data_at_conflict; auto.
+  split; auto.
+  unfold field_compatible in *; tauto.
+Qed.
+*)
 
 Lemma split_readable_share sh :
   readable_share sh ->
@@ -2673,12 +2753,35 @@ Proof.
     apply Heq; omega.
 Qed.
 
+Lemma semax_extract_later_prop'':
+  forall {CS : compspecs} {Espec: OracleKind},
+    forall (Delta : tycontext) (PP : Prop) P Q R c post P1 P2,
+      P2 |-- !!PP ->
+      (PP -> semax Delta (PROPx P (LOCALx Q (SEPx (P1 && |>P2 :: R)))) c post) ->
+      semax Delta (PROPx P (LOCALx Q (SEPx (P1 && |>P2 :: R)))) c post.
+Proof.
+  intros.
+  erewrite (add_andp P2) by eauto.
+  apply semax_pre0 with (P' := |>!!PP && PROPx P (LOCALx Q (SEPx (P1 && |>P2 :: R)))).
+  { go_lowerx.
+    rewrite later_andp, <- andp_assoc, andp_comm, corable_andp_sepcon1; auto.
+    apply corable_later; auto. }
+  apply semax_extract_later_prop; auto.
+Qed.
+
 Lemma field_at_array_inbounds : forall {cs : compspecs} sh t z a i v p,
   field_at sh (Tarray t z a) [ArraySubsc i] v p |-- !!(0 <= i < z).
 Proof.
   intros; entailer!.
   destruct H as (_ & _ & _ & _ & _ & _ & _ & _ & ?); auto.
 Qed.
+
+Lemma valid_pointer_isptr : forall v, valid_pointer v |-- !!(is_pointer_or_null v).
+Proof.
+  destruct v; simpl; auto.
+  entailer!.
+Qed.
+Hint Resolve valid_pointer_isptr : saturate_local.
 
 Lemma andp_emp_derives_dup : forall (P : mpred),
   predicates_hered.derives (P && emp) ((P && emp) * (P && emp)).
@@ -2711,6 +2814,57 @@ Proof.
   intros.
   transitivity (base.compose (compcert_rmaps.R.approx n) (compcert_rmaps.R.approx n) P); auto.
   rewrite compcert_rmaps.RML.approx_oo_approx; auto.
+Qed.
+
+Lemma eqp_refl : forall (G : Triv) P, G |-- P <=> P.
+Proof.
+  intros; rewrite andp_dup; apply subp_refl.
+Qed.
+
+Lemma eqp_sepcon : forall (G : Triv) (P P' Q Q' : mpred)
+  (HP : G |-- P <=> P') (HQ : G |-- Q <=> Q'), G |-- P * Q <=> P' * Q'.
+Proof.
+  intros.
+  rewrite fash_andp in HP, HQ |- *.
+  apply andp_right; apply subp_sepcon; auto; intros ? Ha; destruct (HP _ Ha), (HQ _ Ha); auto.
+Qed.
+
+Lemma eqp_andp : forall (G : Triv) (P P' Q Q' : mpred)
+  (HP : G |-- P <=> P') (HQ : G |-- Q <=> Q'), G |-- P && Q <=> P' && Q'.
+Proof.
+  intros.
+  rewrite fash_andp in HP, HQ |- *.
+  apply andp_right; apply subp_andp; auto; intros ? Ha; destruct (HP _ Ha), (HQ _ Ha); auto.
+Qed.
+
+Lemma eqp_exp : forall (A : Type) (NA : NatDed A) (IA : Indir A) (RecIndir : RecIndir A)
+    (G : Triv) (B : Type) (X Y : B -> A),
+  (forall x : B, G |-- X x <=> Y x) ->
+  G |-- (EX x : _, X x) <=> (EX x : _, Y x).
+Proof.
+  intros.
+  rewrite fash_andp; apply andp_right; apply subp_exp; intro x; specialize (H x); rewrite fash_andp in H;
+    intros ? Ha; destruct (H _ Ha); auto.
+Qed.
+
+Lemma fold_right_sepcon_nonexpansive : forall lP1 lP2, Zlength lP1 = Zlength lP2 ->
+  (ALL i : Z, Znth i lP1 FF <=> Znth i lP2 FF) |--
+  fold_right sepcon emp lP1 <=> fold_right sepcon emp lP2.
+Proof.
+  induction lP1; intros.
+  - symmetry in H; apply Zlength_nil_inv in H; subst.
+    apply eqp_refl.
+  - destruct lP2; [apply Zlength_nil_inv in H; discriminate|].
+    rewrite !Zlength_cons in H.
+    simpl fold_right; apply eqp_sepcon.
+    + apply allp_left with 0.
+      rewrite !Znth_0_cons; auto.
+    + eapply derives_trans, IHlP1; [|omega].
+      apply allp_right; intro i.
+      apply allp_left with (i + 1).
+      destruct (zlt i 0).
+      { rewrite !(Znth_underflow _ _ _ l); apply eqp_refl. }
+      rewrite !Znth_pos_cons, Z.add_simpl_r by omega; auto.
 Qed.
 
 (* tactics *)

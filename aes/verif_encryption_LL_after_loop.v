@@ -1,7 +1,6 @@
 Require Import aes.api_specs.
 Require Import aes.bitfiddling.
 Require Import aes.encryption_LL_round_step_eqs.
-Require Import floyd.deadvars.
 Open Scope Z.
 
 (* duplicated from verif_encryption_LL_loop_body to allow make -j *)
@@ -100,13 +99,13 @@ intros.
 
   (* 2nd-to-last AES round: just a normal AES round, but not inside the loop *)
   do 2 forward. simpl (temp _RK _). rewrite Eq by computable. do 6 forward.
-  deadvars. rewrite EqY0; clear EqY0. 
+  deadvars!. rewrite EqY0; clear EqY0. 
   do 2 forward. simpl (temp _RK _). rewrite Eq by computable. do 6 forward.
-  deadvars. rewrite EqY1; clear EqY1.
+  deadvars!. rewrite EqY1; clear EqY1.
   do 2 forward. simpl (temp _RK _). rewrite Eq by computable. do 6 forward.
-  deadvars. rewrite EqY2; clear EqY2.
+  deadvars!. rewrite EqY2; clear EqY2.
   do 2 forward. simpl (temp _RK _). rewrite Eq by computable. do 6 forward.
-  deadvars. rewrite EqY3; clear EqY3.
+  deadvars!. rewrite EqY3; clear EqY3.
 
   (* last AES round: special (uses S-box instead of forwarding tables) *)
   assert (forall i, Int.unsigned (Znth i FSb Int.zero) <= Byte.max_unsigned). {
@@ -123,13 +122,13 @@ intros.
   destruct (round14eq _ _ _ HeqS14) as [EqX0 [EqX1 [EqX2 EqX3]]]. clear HeqS14.
 
   do 2 forward. simpl (temp _RK _). rewrite Eq by computable. do 6 forward.
-  deadvars. rewrite EqX0; clear EqX0.
+  deadvars!. rewrite EqX0; clear EqX0.
   do 2 forward. simpl (temp _RK _). rewrite Eq by computable. do 6 forward.
-  deadvars. rewrite EqX1; clear EqX1.
+  deadvars!. rewrite EqX1; clear EqX1.
   do 2 forward. simpl (temp _RK _). rewrite Eq by computable. do 6 forward.
-  deadvars. rewrite EqX2; clear EqX2.
+  deadvars!. rewrite EqX2; clear EqX2.
   do 2 forward. simpl (temp _RK _). rewrite Eq by computable. do 6 forward.
-  deadvars. rewrite EqX3; clear EqX3.
+  deadvars!. rewrite EqX3; clear EqX3.
  clear Eq.
  remember_temp_Vints (@nil localdef).
 

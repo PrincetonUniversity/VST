@@ -68,7 +68,6 @@ simpl. Exists s. unfold ThirtyTwoByte. entailer.
 destruct HSalsaRes as [q1 q2]. cancel.
 Qed.
 
-
 (*The crypto_stream_xor function*)
 Lemma crypto_stream_xsalsa20_tweet_xor_ok:
       semax_body SalsaVarSpecs SalsaFunSpecs
@@ -99,14 +98,9 @@ assert (exists HSalsaRes, hSalsaOut v =
            littleendian_invert (Znth 8 v Int.zero),
            littleendian_invert (Znth 9 v Int.zero))).
   do 2 rewrite SixteenByte2ValList_char. repeat rewrite <- app_assoc. trivial. }
-destruct H0 as [HSalsaRes HS]. rewrite HS.
-forward_call (c, s, m, offset_val 16 nonce, d, Nonce2, HSalsaRes, mCont, SV).
-{ unfold SByte, Sigma_vector. unfold ThirtyTwoByte at 2.
-  destruct HSalsaRes as [q1 q2]. cancel.
-  unfold data_at_. cancel. }
+destruct H0 as [[q1 q2] HS]. rewrite HS. 
+forward_call (c, s, m, offset_val 16 nonce, d, Nonce2, (q1,q2), mCont, SV).
+{ unfold SByte, Sigma_vector, data_at_. unfold ThirtyTwoByte at 2. cancel. }
 forward.
-simpl. Exists s. entailer.
- unfold ThirtyTwoByte.
- Exists HSalsaRes. entailer. cancel.
- destruct HSalsaRes as [q1 q2]. cancel.
+Exists s (q1, q2). unfold ThirtyTwoByte. entailer!. 
 Qed.

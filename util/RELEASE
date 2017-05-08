@@ -1,0 +1,7 @@
+***** reminder about how to generate a release
+
+1. in some other directory, run .../vst/util/PACKAGE
+   which creates (in that directory) vst and vst-X.Y.tgz
+2. cd vst; make [-kj7] floyd progs  (* just to make sure it works *)
+3. scp vst-X.Y.tgz cycles.cs.princeton.edu:/n/fs/vst/download
+4. cd .../vst; git tag -a vX.Y -m "VST release X.Y"; git push origin vX.Y

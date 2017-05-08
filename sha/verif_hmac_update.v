@@ -38,9 +38,9 @@ Time assert_PROP (isptr c /\ field_compatible t_struct_hmac_ctx_st [] c)
    as H by entailer!. (*1.95*)
 destruct H as [isptr_c FC_c].
 assert (FC_md_ctx: field_compatible t_struct_hmac_ctx_st [StructField _md_ctx] c).
- {red in FC_c. red. intuition.  constructor. trivial. constructor. reflexivity. }
+ {red in FC_c. repeat split; try solve [apply FC_c]. constructor; trivial. }
 assert (FC_i_ctx: field_compatible t_struct_hmac_ctx_st [StructField _i_ctx] c).
- {red in FC_c. red. intuition.  constructor. trivial. right; left. reflexivity. }
+ {red in FC_c. repeat split; try solve [apply FC_c]. simpl. right; left; reflexivity. }
 unfold_data_at 1%nat.
 freeze [2;3] FR.
 rewrite (field_at_data_at _ _ [StructField _md_ctx]).
@@ -57,7 +57,7 @@ Time forward_call (ctx, data, Vptr b i, d, Tsh, len, kv). (*6 versus 21 *)
     change (Tstruct _SHA256state_st noattr) with  t_struct_SHA256state_st.
     cancel.
   }
-  intuition.
+split; [ intuition | omega ].
 rewrite sublist_same; trivial.
 freeze [0;1;2] FR1.
 Time forward. (*12 versus 12.4*)

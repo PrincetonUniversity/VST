@@ -69,21 +69,6 @@ unfold fcorePOST_SEP; cancel.
   destruct K as [[[K1 K2] K3] K4].
   destruct L as [[[L1 L2] L3] L4].
 apply derives_refl'. f_equal.
-  rewrite X2 in H.
-  rewrite X2 in H.
-  rewrite X2 in H.
-  rewrite X2 in H.
-  rewrite X2 in H.
-  rewrite X2 in H.
-  rewrite X2 in H.
-  rewrite X2 in H.
-subst res. reflexivity.
-  omega. reflexivity.
-  omega. reflexivity.
-  omega. reflexivity.
-  omega. reflexivity.
-  omega. reflexivity.
-  omega. reflexivity.
-  omega. reflexivity.
-  omega. reflexivity.
+  do 8 rewrite X2 in H by (try omega; reflexivity).
+  apply H.
 Time Qed. (*2.8*)

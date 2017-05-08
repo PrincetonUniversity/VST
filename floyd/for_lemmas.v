@@ -162,6 +162,7 @@ apply andp_left2.
 unfold normal_ret_assert, loop1_ret_assert; normalize.
 intro rho; unfold subst; simpl.
 apply exp_right with i.
+rewrite prop_true_andp by auto.
 apply exp_right with x0.
 normalize.
 *
@@ -201,6 +202,7 @@ rewrite exp_andp2.
 simpl.
 unfold subst.
 apply exp_left; intro i.
+rewrite prop_true_andp by auto.
 apply exp_right with (i+1).
 rewrite exp_andp2.
 apply exp_left; intro x.
@@ -374,6 +376,7 @@ apply andp_left2.
 unfold normal_ret_assert, loop1_ret_assert; normalize.
 intro rho; unfold subst; simpl.
 apply exp_right with i.
+rewrite prop_true_andp by auto.
 apply exp_right with x0.
 normalize.
 *
@@ -411,6 +414,7 @@ rewrite exp_andp2.
 simpl.
 unfold subst.
 apply exp_left; intro i.
+rewrite prop_true_andp by auto.
 apply exp_right with (i+1).
 rewrite exp_andp2.
 apply exp_left; intro x.

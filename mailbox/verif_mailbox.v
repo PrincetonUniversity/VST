@@ -554,8 +554,11 @@ Proof.
     rewrite memory_block_data_at_; auto.
     rewrite <- lock_struct_array.
     forward.
-    apply (ghost_alloc (Tsh, vint 1)), (ghost_alloc (Tsh, vint 0)), (ghost_alloc (Tsh, vint 1)),
-      (ghost_alloc (Some (Tsh, [] : hist), Some ([] : hist))); Intros g' g0' g1' g2'.
+    apply (ghost_alloc (Tsh, vint 1)); auto with init.
+    apply (ghost_alloc (Tsh, vint 0)); auto with init.
+    apply (ghost_alloc (Tsh, vint 1)); auto with init.
+    eapply (ghost_alloc (Some (Tsh, [] : hist), Some ([] : hist))); auto with init.
+    Intros g' g0' g1' g2'.
     forward_call (l, Tsh, AE_inv c g' (vint 0) (comm_R bufs (Znth i shs Tsh) gsh2 g0' g1' g2')).
     rewrite <- hist_ref_join_nil by (apply Share.nontrivial).
     fold (ghost_var Tsh (vint 1) g0') (ghost_var Tsh (vint 0) g1') (ghost_var Tsh (vint 1) g2').
@@ -1060,6 +1063,7 @@ Proof.
     Exists i; entailer!.
   + Intros i.
     forward.
+    unfold loop2_ret_assert.
     Exists (i + 1); entailer!.
     intros; destruct (eq_dec j i); subst; auto.
     assert (j < i) by omega; auto.
@@ -2008,7 +2012,7 @@ Proof.
   { repeat (split; auto). }
   Intros x; destruct x as (lasts', h').
   forward.
-  Exists (v + 1) b lasts' h'; entailer!.
+  unfold loop2_ret_assert; Exists (v + 1) b lasts' h'; entailer!.
   replace N with (Zlength h) by auto; symmetry; eapply mem_lemmas.Forall2_Zlength; eauto.
 Qed.
 

@@ -83,6 +83,7 @@ entailer!.  (* Typechecking conditions usually solve quite easily *)
 assert_PROP (Zlength contents = size). {
   entailer!. do 2 rewrite Zlength_map. reflexivity.
 }
+
 forward. (* x = a[i] *)
 forward. (* s += x; *)
 forward. (* i++; *)
@@ -100,7 +101,7 @@ forward. (* i++; *)
 forward.  (* return s; *)
  (* Here we prove that the postcondition of the function body
     entails the postcondition demanded by the function specification. *)
-apply prop_right.
+entailer!.
 autorewrite with sublist in *.
 autorewrite with sublist.
 reflexivity.
@@ -113,8 +114,6 @@ Lemma body_main:  semax_body Vprog Gprog f_main main_spec.
 Proof.
 name four _four.
 start_function.
-fold_types. (* this should not be necessary; why does the "fold_types"
-   in process_one_globvar not do the job? *)
 forward_call (*  s = sumarray(four,4); *)
   (four,Ews,four_contents,4).
  split3; auto. computable.

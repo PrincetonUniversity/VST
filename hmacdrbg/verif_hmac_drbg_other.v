@@ -194,7 +194,7 @@ Definition hmac_drbg_random_spec_simple :=
          data_at Tsh t_struct_mbedtls_md_info info (hmac256drbgstate_md_info_pointer i);
          Stream s;
          K_vector kv)
-    POST [ tint ] EX F: hmac256drbgabs, EX f: hmac256drbgstate,
+    POST [ tint ] EX F: hmac256drbgabs, EX f: hmac256drbgstate, 
        PROP (F = match J with ((((VV, KK), RC), _), PR) =>
                    HMAC256DRBGabs KK VV RC (hmac256drbgabs_entropy_len I) PR 
                         (hmac256drbgabs_reseed_interval I)
@@ -214,9 +214,8 @@ Lemma AUX s I n bytes J ss: mbedtls_HMAC256_DRBG_generate_function s I n [] =
                     (hmac256drbgabs_reseed_interval I)
   end.
 Proof. unfold hmac256drbgabs_generate. intros H; rewrite H.
-  destruct I. simpl. trivial. 
+  destruct I. simpl. destruct J. destruct p. destruct d. destruct p. f_equal.
 Qed. 
-
 Opaque hmac256drbgabs_generate.
 
 Lemma body_hmac_drbg_random_simple: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
@@ -237,19 +236,20 @@ Proof.
   unfold generatePOST, contents_with_add; simpl. 
   apply Zgt_is_gt_bool_f in ASS7. rewrite ASS7 in *.
   rewrite ASS8 in *.
-  unfold return_value_relate_result, da_emp; simpl. entailer!.
+  unfold return_value_relate_result, da_emp; simpl. (* entailer!.*)
   Exists (hmac256drbgabs_generate I s
             (Zlength (map Vint (map Int.repr bytes))) []).
   Exists (hmac256drbgabs_to_state (hmac256drbgabs_generate I s
             (Zlength (map Vint (map Int.repr bytes))) []) i).
-  apply andp_right. 
-  + entailer!. apply AUX in ASS8; rewrite <- ASS8; reflexivity. 
-  + entailer!.
+  apply AUX in ASS8. rewrite <- ASS8; clear ASS8. 
+  Time entailer!. 
   unfold hmac256drbgabs_common_mpreds; simpl.
   cancel.
-  eapply derives_trans. apply sepcon_derives. apply derives_refl.
-  instantiate (1:=emp). 
-  apply orp_left. trivial. normalize. cancel. 
+  eapply derives_trans.
+  + apply sepcon_derives. apply derives_refl.
+    instantiate (1:=emp).  
+    apply orp_left; [ trivial | normalize].
+  + cancel. 
 Qed.
 (*
 Definition myProp s n I (i F:hmac256drbgstate): Prop :=

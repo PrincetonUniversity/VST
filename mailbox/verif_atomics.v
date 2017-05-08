@@ -190,6 +190,11 @@ Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 'PRE'
              x5 at level 0,
              P at level 100, Q at level 100).
 
+(* One obvious restriction on this rule that might be needed for soundness (but maybe not for SC?) is that
+   the footprint of P be empty, and vice versa for store. *)
+(* For this to work with load_acquire, Q needs to be somehow future-proof: it should be okay even if v wasn't
+   actually the latest value of tgt. For instance, Q might only get a history that's some prefix of the
+   latest state. *)
 Program Definition load_SC_spec := DECLARE _load_SC TYPE AL_type
   WITH sh : share, tgt : val, P : mpred, R : Z -> mpred, Q : Z -> mpred
   PRE [ _tgt OF tptr tatomic ]
@@ -601,6 +606,7 @@ Proof.
   intros; eapply local_facts_isptr with (P := fun p => atomic_loc sh p R); eauto.
   unfold atomic_loc; entailer!.
 Qed.
+Hint Resolve atomic_loc_isptr : saturate_local.
 
 Lemma atomic_loc_precise : forall sh p R, readable_share sh -> precise (atomic_loc sh p R).
 Proof.
@@ -945,6 +951,7 @@ Proof.
   intros; eapply local_facts_isptr with (P := fun p => atomic_loc_hist sh p g i R h); eauto.
   unfold atomic_loc_hist; rewrite atomic_loc_isptr; entailer!.
 Qed.
+Hint Resolve atomic_loc_hist_isptr : saturate_local.
 
 Lemma hist_R_precise : forall p i R v, precise (EX h : _, R h v) -> precise (hist_R p i R v).
 Proof.
@@ -1101,7 +1108,7 @@ Qed.
 
 Notation AS_witness sh p g i R h v P Q :=
   (sh%logic, p%logic, v%Z%logic, (ghost_hist sh h g * P)%logic, hist_R g%logic i R,
-   EX h' : hist, !!(add_events h [Store (vint v)] h') && ghost_hist sh h' g * Q v%Z).
+   EX h' : hist, !!(add_events h [Store (vint v)] h') && ghost_hist sh h' g * Q).
 Lemma AS_hist_spec : forall sh g i R h v P Q
   (HPQR : forall h' v' (Hhist : hist_incl h h'), apply_hist (vint i) h' = Some (vint v') -> repable_signed v' ->
      view_shift (R h' v' * P) (R (h' ++ [Store (vint v)]) v * Q)) (Hsh : sh <> Share.bot)

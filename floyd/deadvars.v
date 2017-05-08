@@ -239,11 +239,7 @@ Ltac locals_of_ret_assert Post :=
         in vl
  end.
 
-Ltac deadvars := 
- match goal with
- | X := @abbreviate ret_assert ?Q |-
-    semax _ ?P ?c ?Y =>
-    constr_eq X Y; 
+Ltac find_dead_vars P c Q :=
      let vl := locals_of_assert P in 
      let post := locals_of_ret_assert Q in
      let post := eval compute in post in
@@ -251,9 +247,37 @@ Ltac deadvars :=
                                      (deadvars_post (fst post)) 
                                      (deadvars_post (snd post)))) in
       let d := eval compute in d in
-       match d with nil => idtac | _ => 
-           idtac "Dropping dead vars!"; drop_LOCALs d
-       end
+      d.
+ 
+
+Ltac deadvars := 
+ match goal with
+ | X := @abbreviate ret_assert ?Q |-
+    semax _ ?P ?c ?Y =>
+    constr_eq X Y;
+    match find_dead_vars P c Q with
+    | nil => idtac
+    | ?d =>  idtac "Dropping dead vars!"; drop_LOCALs d
+     end
+ | |- semax _ _ _ _ => 
+       fail "deadvars: Postcondition must be an abbreviated local definition (POSTCONDITION); try abbreviate_semax first"
  | |- _ |-- _ => idtac
+ | |- _ => fail "deadvars: the proof goal should be a semax"
  end.
+
+Tactic Notation "deadvars" "!" :=
+ match goal with
+ | X := @abbreviate ret_assert ?Q |-
+    semax _ ?P ?c ?Y =>
+    constr_eq X Y;
+    match find_dead_vars P c Q with
+    | nil => fail "deadvars!: Did not find any dead variables"
+    | ?d =>  drop_LOCALs d
+     end
+ | |- semax _ _ _ _ => 
+       fail "deadvars!: Postcondition must be an abbreviated local definition (POSTCONDITION); try abbreviate_semax first"
+ | |- _ => fail "deadvars!: the proof goal should be a semax"
+ end.
+  
+   
 

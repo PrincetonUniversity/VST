@@ -207,7 +207,7 @@ Definition f_write := {|
                           (Tcons (tptr (Tstruct _atomic_loc noattr))
                             (Tcons tint Tnil)) tvoid cc_default))
         ((Etempvar _ver (tptr (Tstruct _atomic_loc noattr))) ::
-         (Ebinop Oor (Etempvar _v tint) (Econst_int (Int.repr 1) tint) tint) ::
+         (Ebinop Oadd (Etempvar _v tint) (Econst_int (Int.repr 1) tint) tint) ::
          nil))
       (Ssequence
         (Ssequence

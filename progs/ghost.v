@@ -20,8 +20,55 @@ Definition view_shift A B := forall (Espec : OracleKind) D P Q R C P',
   semax D (PROPx P (LOCALx Q (SEPx (B :: R)))) C P' ->
   semax D (PROPx P (LOCALx Q (SEPx (A :: R)))) C P'.
 
+Section ViewShift.
+
 Axiom view_shift_super_non_expansive : forall n P Q, compcert_rmaps.RML.R.approx n (!!view_shift P Q) =
   compcert_rmaps.RML.R.approx n (!!view_shift (compcert_rmaps.RML.R.approx n P) (compcert_rmaps.RML.R.approx n Q)).
+
+Axiom view_shift_later : forall P Q, view_shift P Q -> view_shift (|>P) (|>Q).
+
+Global Instance view_shift_refl : RelationClasses.Reflexive view_shift.
+Proof.
+  repeat intro; auto.
+Qed.
+
+Global Instance view_shift_trans : RelationClasses.Transitive view_shift.
+Proof.
+  repeat intro; apply H; auto.
+Qed.
+
+Lemma derives_view_shift : forall P Q, P |-- Q -> view_shift P Q.
+Proof.
+  repeat intro; eapply semax_pre; [|eauto].
+  go_lowerx; cancel.
+Qed.
+
+Lemma view_shift_sepcon : forall P Q P' Q' (HP : view_shift P P') (HQ : view_shift Q Q'),
+  view_shift (P * Q) (P' * Q').
+Proof.
+  repeat intro.
+  rewrite flatten_sepcon_in_SEP in *; apply HP.
+  focus_SEP 1; apply HQ.
+  focus_SEP 1; auto.
+Qed.
+
+Lemma view_shift_exists : forall {A} (P : A -> mpred) Q,
+  (forall x, view_shift (P x) Q) -> view_shift (EX x : _, P x) Q.
+Proof.
+  repeat intro.
+  rewrite extract_exists_in_SEP; Intro x.
+  apply H; auto.
+Qed.
+
+Lemma view_shift_prop : forall (P1 : Prop) P Q,
+  (P1 -> view_shift P Q) -> view_shift (!!P1 && P) Q.
+Proof.
+  repeat intro.
+  erewrite extract_prop_in_SEP with (n := O); [|simpl; eauto].
+  Intros; simpl; apply H; auto.
+Qed.
+
+End ViewShift.
 
 Definition joins a b := exists c, join a b c.
 
@@ -31,7 +78,8 @@ Definition update a b := forall c, joins a c -> joins b c.
 Parameter ghost : forall (g : A) (p : val), mpred.
 
 (* subject to change *)
-Axiom ghost_alloc : forall (g : A) P, view_shift P (EX p : val, ghost g p * P).
+(* We need to make sure we can't allocate invalid ghost state (which would immediately entail False). *)
+Axiom ghost_alloc : forall (g : A) P, (exists g', joins g g') -> view_shift P (EX p : val, ghost g p * P).
 Axiom ghost_dealloc : forall (g : A) p, view_shift (ghost g p) emp.
 
 Axiom ghost_join : forall g1 g2 g p, join g1 g2 g -> ghost g1 p * ghost g2 p = ghost g p.
@@ -163,12 +211,6 @@ Proof.
   intros; apply ghost_join; simpl; auto.
 Qed.
 
-Lemma unreadable_bot : ~readable_share Share.bot.
-Proof.
-  unfold readable_share, nonempty_share, sepalg.nonidentity.
-  rewrite Share.glb_bot; auto.
-Qed.
-
 Lemma ghost_var_inj : forall sh1 sh2 v1 v2 p, readable_share sh1 -> readable_share sh2 ->
   ghost_var sh1 v1 p * ghost_var sh2 v2 p |-- !!(v1 = v2).
 Proof.
@@ -177,6 +219,17 @@ Proof.
   apply prop_left; intros (? & ? & [(? & ?) | [(? & ?) | (? & ?)]]); simpl in *; subst;
     try (exploit unreadable_bot; eauto; contradiction).
   apply prop_right; auto.
+Qed.
+
+Lemma ghost_var_share_join' : forall sh1 sh2 sh v1 v2 p, readable_share sh1 -> readable_share sh2 ->
+  sepalg.join sh1 sh2 sh ->
+  ghost_var sh1 v1 p * ghost_var sh2 v2 p = !!(v1 = v2) && ghost_var sh v2 p.
+Proof.
+  intros; apply mpred_ext.
+  - assert_PROP (v1 = v2) by (apply ghost_var_inj; auto).
+    subst; erewrite ghost_var_share_join; eauto; entailer!.
+  - Intros; subst.
+    erewrite ghost_var_share_join; eauto.
 Qed.
 
 Lemma join_Tsh : forall a b, sepalg.join Tsh a b -> b = Tsh /\ a = Share.bot.
@@ -206,11 +259,17 @@ Proof.
     [exists v; auto | apply ghost_var_precise].
 Qed.
 
+Lemma ghost_var_init : forall (g : share * A), exists g', joins g g'.
+Proof.
+  intros (sh, a); exists (Share.bot, a), (sh, a); simpl; auto.
+Qed.
+
 End GVar.
 
 Section Reference.
 (* One common kind of PCM is one in which a central authority has a reference copy, and clients pass around
    partial knowledge. When a client recovers all pieces, it can gain full knowledge. *)
+(* This is related to the snapshot PCM, but the parts have different types. *)
 
 Context `{P : PCM}.
 
@@ -283,16 +342,146 @@ Qed.
 
 End Reference.
 
-Section GHist.
+Class PCM_order `{P : PCM} (ord : A -> A -> Prop) := { ord_refl :> RelationClasses.Reflexive ord;
+  ord_trans :> RelationClasses.Transitive ord;
+  join_ord : forall a b c, join a b c -> ord a c /\ ord b c; ord_join : forall a b, ord b a -> join a b a }.
 
-(* Ghost histories in the style of Nanevsky *)
-Context {hist_el : Type}.
+Section Snapshot.
+(* One common kind of PCM is one in which a central authority has a reference copy, and clients pass around
+   partial knowledge. *)
 
-Notation hist_part := (list (nat * hist_el)).
+Context `{ORD : PCM_order}.
+
+Definition lift_ord a b := match a with Some a => ord a b | None => True end.
+
+Lemma join_lift_ord : forall a b c, @join _ option_PCM a b (Some c) -> lift_ord a c /\ lift_ord b c.
+Proof.
+  simpl; intros.
+  destruct a, b; subst; simpl; try apply join_ord; try split; auto; reflexivity.
+Qed.
+
+Global Instance snap_PCM : PCM (option A * option A) :=
+  { join a b c := @join _ option_PCM (fst a) (fst b) (fst c) /\ @join _ exclusive_PCM (snd a) (snd b) (snd c) /\
+      match snd c with Some r => lift_ord (fst c) r | None => True end }.
+Proof.
+  - intros ??? (Hfst & Hsnd & ?).
+    split; [|split]; try apply join_comm; auto.
+  - intros ????? (Hfst1 & Hsnd1 & Hcase1) (Hfst2 & Hsnd2 & Hcase2).
+    destruct (join_assoc _ _ _ _ _ Hfst1 Hfst2) as (c'1 & ? & Hc'1).
+    destruct (join_assoc _ _ _ _ _ Hsnd1 Hsnd2) as (c'2 & ? & Hc'2).
+    exists (c'1, c'2).
+    destruct Hc'2 as [(He & ?) | (? & ?)]; subst; [repeat split; simpl; auto|].
+    repeat split; try solve [simpl; auto].
+    simpl snd; destruct (snd e); auto; simpl.
+    destruct c'1; simpl; auto.
+    destruct (fst e).
+    apply join_lift_ord in Hc'1; destruct Hc'1.
+    eapply ord_trans; eauto.
+    { destruct (fst a); contradiction. }
+Defined.
+
+Definition ghost_snap (a : A) p := ghost (Some a, @None A) p.
+Definition ghost_master (a : A) p := ghost (@None A, Some a) p.
+
+Lemma ghost_snap_join : forall v1 v2 p v, join v1 v2 v ->
+  ghost_snap v1 p * ghost_snap v2 p = ghost_snap v p.
+Proof.
+  intros; apply ghost_join; simpl; auto.
+Qed.
+
+Lemma snap_master_join : forall v1 v2 p,
+  ghost_snap v1 p * ghost_master v2 p = !!(ord v1 v2) && ghost (Some v1, Some v2) p.
+Proof.
+  unfold ghost_snap, ghost_master; intros; apply mpred_ext.
+  - eapply derives_trans; [apply prop_and_same_derives, ghost_conflict|].
+    apply derives_extract_prop; intros (x & Hj1 & Hj2 & Hcompat).
+    assert (ord v1 v2).
+    { destruct Hj2 as [(? & ?) | (Hsnd & ?)]; [discriminate|].
+      rewrite <- Hsnd in Hcompat; simpl in *.
+      destruct (fst x); [subst; auto | contradiction]. }
+    erewrite ghost_join; [entailer!|].
+    simpl; auto.
+  - Intros; erewrite ghost_join; eauto.
+    simpl; auto.
+Qed.
+
+Lemma snap_master_update : forall v1 v2 p v', ord v2 v' ->
+  view_shift (ghost_snap v1 p * ghost_master v2 p) (ghost_snap v' p * ghost_master v' p).
+Proof.
+  intros; rewrite !snap_master_join.
+  repeat intro.
+  erewrite extract_prop_in_SEP with (n := O); simpl; eauto; Intros.
+  apply ghost_update with (g' := (Some v', Some v')).
+  { unfold update; intros ? (? & Hfst & Hcase & Hcompat); simpl in *.
+    destruct Hcase as [(Hx & ?) | (? & ?)]; [|discriminate].
+    rewrite <- Hx in Hcompat.
+    eexists (Some v', Some v'); simpl; repeat split; eauto; simpl; try reflexivity.
+    destruct (fst c), (fst x); auto; try contradiction.
+    apply join_ord in Hfst; destruct Hfst.
+    eapply ord_join, ord_trans; eauto.
+    eapply ord_trans; eauto. }
+  eapply semax_pre; [|eauto].
+  go_lowerx; entailer!.
+Qed.
+
+Lemma snap_master_init : forall (a : A), exists g', joins (Some a, Some a) g'.
+Proof.
+  intros; exists (None, None), (Some a, Some a); simpl.
+  repeat (split; auto); reflexivity.
+Qed.
+
+End Snapshot.
+
+Section PVar.
+(* Like ghost variables, but the partial values may be out of date. *)
+
+Instance max_PCM : PCM Z := { join a b c := c = Z.max a b }.
+Proof.
+  - intros; rewrite Z.max_comm; auto.
+  - intros; do 2 eexists; eauto; subst.
+    rewrite Z.max_assoc; auto.
+Defined.
+
+Global Instance max_order : PCM_order Z.le.
+Proof.
+  constructor; simpl; intros.
+  - intro; omega.
+  - intros ???; omega.
+  - subst; split; [apply Z.le_max_l | apply Z.le_max_r].
+  - rewrite Z.max_l; auto.
+Defined.
+
+Lemma ghost_snap_join' : forall v1 v2 p, ghost_snap v1 p * ghost_snap v2 p = ghost_snap (Z.max v1 v2) p.
+Proof.
+  intros; apply ghost_snap_join; simpl; auto.
+Qed.
+
+Lemma snap_master_join' : forall v1 v2 p,
+  ghost_snap v1 p * ghost_master v2 p = !!(v1 <= v2) && ghost (Some v1, Some v2) p.
+Proof.
+  intros; apply snap_master_join.
+Qed.
+
+Lemma snap_master_update' : forall (v1 v2 : Z) p v', v2 <= v' ->
+  view_shift (ghost_snap v1 p * ghost_master v2 p) (ghost_snap v' p * ghost_master v' p).
+Proof.
+  intros; apply snap_master_update; auto.
+Qed.
+
+Lemma snap_master_init' : forall (v : Z), exists g', joins (Some v, Some v) g'.
+Proof.
+  intro; apply snap_master_init.
+Qed.
+
+End PVar.
+
+Section ListMap.
 
 Require Import Sorting.Permutation.
 
-Definition disjoint (h1 h2 : hist_part) := forall n e, In (n, e) h1 -> forall e', ~In (n, e') h2.
+Context {A B : Type}.
+
+Definition disjoint (h1 h2 : list (A * B)) := forall n e, In (n, e) h1 -> forall e', ~In (n, e') h2.
 
 Lemma disjoint_nil : forall l, disjoint l [].
 Proof.
@@ -325,7 +514,7 @@ Proof.
   - eapply Hdisj; [rewrite <- Hp1 | rewrite <- Hp2]; eauto.
 Qed.
 
-Instance map_PCM : PCM hist_part := { join a b c := disjoint a b /\ Permutation (a ++ b) c }.
+Global Instance map_PCM : PCM (list (A * B)) := { join a b c := disjoint a b /\ Permutation (a ++ b) c }.
 Proof.
   - intros ??? (Hdisj & ?); split.
     + apply disjoint_comm; auto.
@@ -339,18 +528,23 @@ Proof.
       rewrite app_assoc; apply Permutation_app_tail; auto.
 Defined.
 
-Definition hist_sub sh h hr := if eq_dec sh Tsh then h = hr
-  else sh <> Share.bot /\ exists h', disjoint h h' /\ Permutation (h ++ h') hr.
-
-(* up *)
-Lemma comp_join_top : forall sh, sepalg.join sh (Share.comp sh) Tsh.
+Lemma ghost_map_init : exists g', joins (@nil (A * B)) g'.
 Proof.
-  intro; pose proof (Share.comp1 sh).
-  apply comp_parts_join with (L := sh)(R := Share.comp sh); auto;
-    rewrite Share.glb_idem, Share.glb_top.
-  - rewrite Share.comp2; auto.
-  - rewrite Share.glb_commute, Share.comp2; auto.
+  exists []; exists []; simpl; auto.
 Qed.
+
+End ListMap.
+Hint Resolve disjoint_nil.
+
+Section GHist.
+
+(* Ghost histories in the style of Nanevsky *)
+Context {hist_el : Type}.
+
+Notation hist_part := (list (nat * hist_el)).
+
+Definition hist_sub sh (h : hist_part) hr := if eq_dec sh Tsh then h = hr
+  else sh <> Share.bot /\ exists h', disjoint h h' /\ Permutation (h ++ h') hr.
 
 Lemma completable_alt : forall sh h hr, completable (Some (sh, h)) hr <-> hist_sub sh h hr.
 Proof.
@@ -893,6 +1087,15 @@ Proof.
     exploit Hlast; eauto; omega.
 Qed.
 
+Lemma ghost_hist_init : exists g', joins (Some (Tsh, ([] : hist_part)), Some ([] : hist_part)) g'.
+Proof.
+  exists (None, None), (Some (Tsh, []), Some []); simpl.
+  pose proof Share.nontrivial.
+  unfold completable; repeat split; auto.
+  exists None; simpl.
+  split; auto.
+Qed.
+
 End GHist.
 
 Section AEHist.
@@ -924,3 +1127,4 @@ End Ghost.
 
 Hint Resolve disjoint_nil hist_incl_nil hist_list_nil ordered_nil hist_list'_nil.
 Hint Resolve ghost_var_precise ghost_var_precise'.
+Hint Resolve ghost_var_init snap_master_init' ghost_map_init ghost_hist_init : init.

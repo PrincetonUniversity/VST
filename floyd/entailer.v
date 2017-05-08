@@ -3,6 +3,7 @@ Require Import floyd.assert_lemmas.
 Require Import floyd.client_lemmas.
 Require Import floyd.reptype_lemmas.
 Require Import floyd.data_at_rec_lemmas.
+Require Import floyd.field_at floyd.nested_field_lemmas.
 Require Import floyd.sublist.
 
 Local Open Scope logic.
@@ -195,71 +196,6 @@ Proof.
 intros. apply andp_right; auto.
 Qed.
 
-(* try_conjuncts.  The purpose of this is to avoid splitting any
-  goal into two subgoals, for the reason that perhaps the
-  user wants to simplify things above the line before splitting.
-   On the other hand, if the current goal is  A/\B/\C/\D
-  where B and D are easily provable, one wants to leave the
-  goal A/\C.
-*)
-Lemma try_conjuncts_lem2: forall A B : Prop,
-   B -> A -> (A /\ B).
-Proof. intuition. Qed.
-
-Lemma try_conjuncts_lem: forall A B A' B' : Prop,
-   (A -> A') -> (B -> B') -> (A /\ B -> A' /\ B').
-Proof. intuition. Qed.
-
-Lemma try_conjuncts_start: forall A B: Prop,
-   (A -> B) -> (A -> B).
- Proof. intuition. Qed.
-
-Ltac try_conjuncts_solver :=
-    match goal with H:_ |- ?A =>
-         no_evars A;
-         first [clear H; try immediate; solve [auto]
-                | apply Coq.Init.Logic.I
-                | computable
-                | Omega0
-                ]
-    end.
-
-Ltac try_conjuncts :=
- first [ simple eapply conj;
-                [try_conjuncts_solver | try_conjuncts ]
-        | simple eapply try_conjuncts_lem2;
-                [try_conjuncts_solver | match goal with H:_ |- _ => apply H end ]
-        | simple eapply try_conjuncts_lem;
-            [intro; try_conjuncts | intro; try_conjuncts
-            |match goal with H:_ |- _ => apply H end ]
-        | match goal with H:_ |- _ => instantiate (1:=True) in H;
-                try_conjuncts_solver
-          end
-        | match goal with H:_ |- _ => apply H end
-        ].
-
-Lemma try_conjuncts_prop_and:
-  forall {A}{NA: NatDed A} (S: A) (P P': Prop) Q,
-      (P' -> P) ->
-      S |-- !! P' && Q ->
-      S |-- !! P && Q.
-Proof. intros.
- eapply derives_trans; [apply H0 |].
- apply andp_derives; auto.
- apply prop_derives; auto.
-Qed.
-
-
-Lemma try_conjuncts_prop:
-  forall {A}{NA: NatDed A} (S: A) (P P': Prop),
-      (P' -> P) ->
-      S |-- !! P' ->
-      S |-- !! P .
-Proof. intros.
- eapply derives_trans; [apply H0 |].
- apply prop_derives; auto.
-Qed.
-
 Arguments denote_tc_isptr v / .
 Arguments denote_tc_iszero !v .
 Arguments denote_tc_nonzero !v .
@@ -427,7 +363,8 @@ Ltac ent_iter :=
    simpl_denote_tc;
    subst_any;
    try autorewrite with entailer_rewrite in *;
-   try solve_valid_pointer.
+   try solve_valid_pointer;
+   repeat data_at_conflict_neq.
 
 Lemma and_False: forall x, (x /\ False) = False.
 Proof.
@@ -448,6 +385,110 @@ Lemma False_and: forall x, (False /\ x) = False.
 Proof.
 intros; apply prop_ext; intuition.
 Qed.
+Ltac splittable :=
+ match goal with
+ | |- _ <= _ < _ => fail 1
+ | |- _ < _ <= _ => fail 1
+ | |- _ <= _ <= _ => fail 1
+ | |- _ < _ < _ => fail 1
+ | |- _ <-> _ => fail 1
+ | |- _ /\ _ => idtac
+ end.
+
+Lemma ptr_eq_refl: forall x, isptr x -> ptr_eq x x.
+Proof.
+destruct x; simpl; intros; try contradiction.
+split; auto. apply Int.eq_true.
+Qed.
+Hint Resolve ptr_eq_refl : prove_it_now.
+
+Hint Extern 4 (value_fits _ _ _) =>
+   (rewrite ?proj_sumbool_is_true by auto;
+    rewrite ?proj_sumbool_is_false by auto;
+    repeat simplify_value_fits; auto) : prove_it_now.
+
+Ltac prove_it_now :=
+ first [ splittable; fail 1
+        | computable
+        | apply Coq.Init.Logic.I
+        | reflexivity
+        | Omega0
+        | repeat match goal with H: ?A |- _ => has_evar A; clear H end;
+          auto with prove_it_now field_compatible;
+          autorewrite with norm entailer_rewrite; normalize;
+          first [eapply field_compatible_nullval; eassumption
+                 | eapply field_compatible_nullval1; eassumption
+                 | eapply field_compatible_nullval2; eassumption
+                 ]
+         ].
+
+Ltac try_prove_it_now :=
+ first [match goal with H := _ |- _ => instantiate (1:=True) in H; prove_it_now end
+       | eassumption].
+
+(* try_conjuncts.  The purpose of this is to avoid splitting any
+  goal into two subgoals, for the reason that perhaps the
+  user wants to simplify things above the line before splitting.
+   On the other hand, if the current goal is  A/\B/\C/\D
+  where B and D are easily provable, one wants to leave the
+  goal A/\C.
+*)
+Lemma try_conjuncts_lem2: forall A B : Prop,
+   B -> A -> (A /\ B).
+Proof. intuition. Qed.
+
+Lemma try_conjuncts_lem: forall A B A' B' : Prop,
+   (A -> A') -> (B -> B') -> (A /\ B -> A' /\ B').
+Proof. intuition. Qed.
+
+Lemma try_conjuncts_start: forall A B: Prop,
+   (A -> B) -> (A -> B).
+ Proof. intuition. Qed.
+
+Ltac try_conjuncts_solver :=
+    match goal with H:_ |- ?A =>
+         no_evars A;
+         clear H; try immediate; auto; prove_it_now; fail
+    end.
+
+Ltac try_conjuncts :=
+ first [ simple eapply conj;
+                [try_conjuncts_solver | try_conjuncts ]
+        | simple eapply try_conjuncts_lem2;
+                [try_conjuncts_solver | match goal with H:_ |- _ => apply H end ]
+        | simple eapply try_conjuncts_lem;
+            [intro; try_conjuncts | intro; try_conjuncts
+            |match goal with H:_ |- _ => apply H end ]
+        | match goal with H:_ |- _ => instantiate (1:=True) in H;
+                try_conjuncts_solver
+          end
+        | match goal with H:_ |- _ => apply H end
+        ].
+
+Lemma try_conjuncts_prop_and:
+  forall {A}{NA: NatDed A} (S: A) (P P': Prop) Q,
+      (P' -> P) ->
+      S |-- !! P' && Q ->
+      S |-- !! P && Q.
+Proof. intros.
+ eapply derives_trans; [apply H0 |].
+ apply andp_derives; auto.
+ apply prop_derives; auto.
+Qed.
+
+
+Lemma try_conjuncts_prop:
+  forall {A}{NA: NatDed A} (S: A) (P P': Prop),
+      (P' -> P) ->
+      S |-- !! P' ->
+      S |-- !! P .
+Proof. intros.
+ eapply derives_trans; [apply H0 |].
+ apply prop_derives; auto.
+Qed.
+
+Ltac prop_right_cautious :=
+ try solve [simple apply prop_right; auto; prove_it_now].
 
 Ltac prune_conjuncts :=
  repeat rewrite and_assoc';
@@ -487,45 +528,6 @@ Ltac entailer :=
  saturate_local;
  entailer';
  rewrite <- ?sepcon_assoc.
-
-
-Ltac splittable :=
- match goal with
- | |- _ <= _ < _ => fail 1
- | |- _ < _ <= _ => fail 1
- | |- _ <= _ <= _ => fail 1
- | |- _ < _ < _ => fail 1
- | |- _ <-> _ => fail 1
- | |- _ /\ _ => idtac
- end.
-
-Lemma ptr_eq_refl: forall x, isptr x -> ptr_eq x x.
-Proof.
-destruct x; simpl; intros; try contradiction.
-split; auto. apply Int.eq_true.
-Qed.
-Hint Resolve ptr_eq_refl : prove_it_now.
-
-Hint Extern 4 (value_fits _ _ _) =>
-   (rewrite ?proj_sumbool_is_true by auto;
-    rewrite ?proj_sumbool_is_false by auto;
-    repeat simplify_value_fits; auto) : prove_it_now.
-
-Ltac prove_it_now :=
- first [ splittable; fail 1
-        | computable
-        | apply Coq.Init.Logic.I
-        | reflexivity
-        | Omega0
-        | repeat match goal with H: ?A |- _ => has_evar A; clear H end;
-          auto with prove_it_now field_compatible;
-          autorewrite with norm entailer_rewrite; normalize;
-          fail
-         ].
-
-Ltac try_prove_it_now :=
- first [match goal with H := _ |- _ => instantiate (1:=True) in H; prove_it_now end
-       | eassumption].
 
 Lemma my_auto_lem:
  forall (P Q: Prop), (P -> Q) -> (P -> Q).

@@ -1,7 +1,6 @@
 Require Import aes.api_specs.
 Require Import aes.spec_encryption_LL.
 Require Import aes.bitfiddling.
-Require Import floyd.deadvars.
 Local Open Scope Z.
 
 Definition encryption_loop_body : statement :=
@@ -142,10 +141,10 @@ Proof.
   abbreviate_semax.
   pose proof masked_byte_range.
 
-  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
-  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
-  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
-  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars!.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars!.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars!.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars!.
 
   replace (52 - i * 8 + 1 + 1 + 1 + 1) with (52 - i * 8 + 4) by omega.
   replace (52 - i * 8 + 1 + 1 + 1)     with (52 - i * 8 + 3) by omega.
@@ -171,10 +170,10 @@ Proof.
   rewrite EqY0. rewrite EqY1. rewrite EqY2. rewrite EqY3.
   clear EqY0 EqY1 EqY2 EqY3.
 
-  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
-  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
-  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
-  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars!.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars!.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward. deadvars!.
+  do 2 forward. simpl (temp _RK _). rewrite Eq by omega. do 6 forward.
 
   pose (S'' := mbed_tls_fround S' buf (52-i*8+4)).
 
