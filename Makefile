@@ -29,7 +29,7 @@ COMPCERT ?= compcert
 
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-DIRS= msl sepcomp veric concurrency floyd progs sha fcf hmacfcf tweetnacl20140427 ccc26x86 hmacdrbg aes mailbox
+DIRS= msl sepcomp veric concurrency floyd progs wand_demo sha fcf hmacfcf tweetnacl20140427 ccc26x86 hmacdrbg aes mailbox
 INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -Q $(a) $(a))) -R $(COMPCERT) compcert -as compcert $(if $(MATHCOMP), -Q mathcomp $(MATHCOMP))
 #Replace the INCLUDE above with the following in order to build the linking target:
 #INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert -I $(SSREFLECT)/src -R $(SSREFLECT)/theories -as Ssreflect \
@@ -232,6 +232,8 @@ FLOYD_FILES= \
    freezer.v deadvars.v
 #real_forward.v
 
+WAND_DEMO_FILES= \
+   list_head_switch.v list_append.v
 
 # CONCPROGS must be kept separate (see util/PACKAGE), and
 # each line that contains the word CONCPROGS must be deletable independently
@@ -354,6 +356,7 @@ FILES = \
  $(VERIC_FILES:%=veric/%) \
  $(FLOYD_FILES:%=floyd/%) \
  $(PROGS_FILES:%=progs/%) \
+ $(WAND_DEMO_FILES:%=wand_demo/%) \
  $(SHA_FILES:%=sha/%) \
  $(HMAC_FILES:%=sha/%) \
  $(FCF_FILES:%=fcf/%) \
@@ -433,6 +436,7 @@ linking: .loadpath $(LINKING_FILES:%.v=linking/%.vo)
 veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
 floyd:   .loadpath $(FLOYD_FILES:%.v=floyd/%.vo)
 progs:   .loadpath $(PROGS_FILES:%.v=progs/%.vo)
+wand_demo:   .loadpath $(WAND_DEMO_FILES:%.v=wand_demo/%.vo)
 sha:     .loadpath $(SHA_FILES:%.v=sha/%.vo)
 hmac:    .loadpath $(HMAC_FILES:%.v=sha/%.vo)
 hmacequiv:    .loadpath $(HMAC_FILES:%.v=sha/%.vo)
