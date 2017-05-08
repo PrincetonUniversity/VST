@@ -127,7 +127,6 @@ CONCUR_FILES= \
   erased_machine.v erasure_proof.v erasure_safety.v erasure_signature.v \
   fineConc_safe.v inj_lemmas.v join_sm.v juicy_machine.v \
   lksize.v \
-  join_share_lemmas.v \
   main.v mem_obs_eq.v memory_lemmas.v permissions.v permjoin_def.v pos.v pred_lemmas.v \
   bounded_maps.v \
   rc_semantics.v rc_semantics_lemmas.v \

@@ -3,10 +3,23 @@ Require Import msl.sepalg.
 Require Import msl.shares.
 Require Import msl.pshares.
 Require Import veric.coqlib4.
+Require Import veric.shares.
 Require Import veric.juicy_mem.
 Require Import veric.juicy_mem_ops.
 Require Import concurrency.permjoin_def.
-Require Import concurrency.join_share_lemmas.
+Import Memtype.
+
+  Lemma perm_of_glb_not_Freeable: forall sh,
+      ~ perm_of_sh (Share.glb Share.Rsh sh) = Some Freeable.
+  Proof.
+   intros.
+   unfold perm_of_sh.
+   if_tac.
+   rewrite if_false by apply glb_Rsh_not_top.
+   congruence.
+   if_tac. congruence.
+   if_tac. congruence. congruence.
+  Qed.
 
 Lemma join_bot_bot_eq sh :
   sepalg.join Share.bot Share.bot sh ->
@@ -200,15 +213,26 @@ Proof.
     try constructor;
   functional induction (perm_of_sh sh1) using perm_of_sh_ind;
     simpl; if_simpl;
+    repeat match goal with
+           | [  |- context [eq_dec Share.top Share.bot] ] => rewrite top_aint_bot 
+           end;
   functional induction (perm_of_sh sh2) using perm_of_sh_ind;
     simpl; if_simpl;
+    repeat match goal with
+           | [  |- context [eq_dec Share.top Share.bot] ] => rewrite top_aint_bot 
+           end;
   functional induction (perm_of_sh sh3) using perm_of_sh_ind;
   simpl; if_simpl;
     repeat match goal with
            | [  |- context [eq_dec Share.top Share.bot] ] => rewrite top_aint_bot 
            end;
-    try (unfold perm_of_sh; if_simpl; econstructor);
-    try (do 2 join_share_contradictions).
+    try (do 2 join_share_contradictions);
+    unfold perm_of_sh; if_simpl; 
+    try econstructor.
+    contradiction (join_readable_unreadable RJ _x _x2); apply writable_share_top.
+    contradiction (join_readable_unreadable RJ _x _x2).
+    contradiction (join_readable_unreadable (join_comm RJ) _x2 _x0); apply writable_share_top.
+    contradiction (join_readable_unreadable (join_comm RJ) _x2 _x0).
 Qed.
 
 Lemma join_permjoin_lock
@@ -252,5 +276,14 @@ Proof.
     try (unfold perm_of_sh; if_simpl; econstructor);
     try (do 2 join_share_contradictions);
   try eapply permjoin_None_l;
-  try eapply permjoin_None_r.
+  try eapply permjoin_None_r;
+  forget (Share.glb Share.Rsh sh1) as s1;
+  forget (Share.glb Share.Rsh sh2) as s2;
+  forget (Share.glb Share.Rsh sh3) as s3;
+  clear e e0 e1 e2 e3 e4 e5; subst;
+  try contradiction (join_readable_unreadable RJ _x _x2).
+  apply join_unit1_e in RJ; auto; subst; contradiction.
+  contradiction (join_readable_unreadable (join_comm RJ) _x2 _x0).
+  apply join_unit1_e in RJ; auto; subst; contradiction.
+  contradiction (join_readable_unreadable (join_comm RJ) _x2 _x0).
 Qed.
