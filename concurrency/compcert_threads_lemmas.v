@@ -2,7 +2,7 @@
 
 Require Import compcert.lib.Axioms.
 
-Add LoadPath "../concurrency" as concurrency.
+(* Add LoadPath "../concurrency" as concurrency.*)
 
 Require Import concurrency.sepcomp.
 Import SepComp.
@@ -541,7 +541,7 @@ Module SimProofs (SEM: Semantics)
       destruct (i == j) eqn:Hij; move/eqP:Hij=>Hij; subst.
       + rewrite gssThreadCC.
         pf_cleanup.
-        specialize (Htp_wd _ cntj).
+        specialize (Htp_wd _ ctn).
         rewrite Hcode in Htp_wd.
       destruct X as [? ?].
       simpl in *.
@@ -574,7 +574,7 @@ Module SimProofs (SEM: Semantics)
       pf_cleanup.
       simpl.
       eapply initial_core_wd; eauto.
-      specialize (Htp_wd _ cntj).
+      specialize (Htp_wd _ ctn).
       rewrite Hcode in Htp_wd.
       simpl in Htp_wd.
       destruct Htp_wd.
@@ -1491,7 +1491,7 @@ Module SimProofs (SEM: Semantics)
         rewrite gssFP.
         rewrite gsoFP; auto.
         intros b b' b2 b2' Hf Hf' Hfk' Hfj'.
-        destruct (fp j cntj b') as [b2''|] eqn:Hfj.
+        destruct (fp j pfc b') as [b2''|] eqn:Hfj.
         assert (Heq:b2' = b2'')
           by (apply Hincr' in Hfj; rewrite Hfj in Hfj';
                 by inversion Hfj'); subst b2''.

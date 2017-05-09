@@ -25,7 +25,6 @@ forward_if (PROP (z > 0) LOCAL (temp _n (Vint (Int.repr z))) SEP ()).
   case_eq (Z.odd z); rewrite Zodd_even_bool;
    destruct (Z.even z); simpl; try (intros; congruence).
 Qed.
-Locate augment_funspecs'.
 
 (* The Espec for odd is different from the Espec for even;
   the former has only "even" as an external function, and vice versa. *)

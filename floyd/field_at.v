@@ -1618,8 +1618,7 @@ eapply derives_trans with FF; [ | apply FF_left];
  unfold data_at_, data_at, field_at_;
  let x := fresh "x" in set (x := field_at _ _ fld _ z); pull_right x;
  let y := fresh "y" in set (y := field_at _ _ fld _ z); pull_right y;
- rewrite sepcon_assoc;
- eapply sepcon_FF_derives';
+ try (rewrite sepcon_assoc; eapply sepcon_FF_derives');
  subst x y;
  apply field_at_conflict; auto;
  try solve [simpl; computable].
