@@ -43,9 +43,7 @@ Lemma data_at_unfolding CS sh b ofs phi :
     adr_range (b, Int.intval ofs) 4%Z loc ->
     exists p v,
       phi @ loc =
-      YES
-        (Share.unrel Share.Lsh sh)
-        (mk_lifted (Share.unrel Share.Rsh sh) p)
+      YES sh p
         (VAL v) NoneP.
 Proof.
   intros Readable [A [B wob]].
@@ -57,7 +55,7 @@ Proof.
   simpl in *.
   unfold nested_field_lemmas.nested_field_offset in *. simpl in *.
   unfold reptype_lemmas.unfold_reptype in *. simpl in *.
-  unfold reptype_lemmas.default_val, Znth in *.
+  unfold reptype_lemmas.default_val in *.
   simpl in *.
   unfold SeparationLogic.mapsto in *.
   simpl in *.
@@ -118,7 +116,7 @@ Lemma mapsto_unfold sh z b ofs phi loc :
   if adr_range_dec (b, Int.unsigned (Int.add ofs (Int.repr (4 * z)))) 4%Z loc then
     exists p v,
       phi @ loc =
-      YES (Share.unrel Share.Lsh sh) (mk_lifted (Share.unrel Share.Rsh sh) p) (VAL v) NoneP
+      YES sh p (VAL v) NoneP
   else
     identity (phi @ loc).
 Proof.
@@ -155,9 +153,7 @@ Lemma data_at_unfold_readable CS sh b ofs phi length :
       exists p v,
         phi @ loc =
         YES
-          (Share.unrel Share.Lsh sh)
-          (mk_lifted (Share.unrel Share.Rsh sh) p)
-          (VAL v) NoneP
+          sh p (VAL v) NoneP
     else
       identity (phi @ loc).
 Proof.
@@ -193,7 +189,7 @@ Proof.
                       Vundef) (Vptr b (Int.add ofs (Int.repr 0)))) phi).
   {
     exact_eq H. repeat (f_equal || extensionality). rewrite Nat2Z.id; auto.
-    unfold Znth. if_tac; auto.
+    unfold sublist.Znth. if_tac; auto.
     generalize (Z.to_nat (x - 0)).
     clear bound1 bound2.
     induction length; intros [|n]; simpl; auto.
@@ -383,6 +379,7 @@ Proof.
            intros <-; auto.
 Qed.
 
+(*
 Lemma writable_unique_right sh :
   writable_share sh ->
   forall p, mk_lifted (Share.unrel Share.Rsh sh) p = pfullshare.
@@ -391,14 +388,14 @@ Proof.
   unfold pfullshare.
   rewrite writable_share_right; auto.
   intros p; f_equal; apply proof_irr.
-Qed.
+Qed.*)
 
 Lemma data_at_unfold CS sh b ofs phi length :
-  writable_share sh ->
+  forall (Hw: writable_share sh),
   app_pred (@data_at_ CS sh (Tarray (Tpointer Tvoid noattr) (Z.of_nat length) noattr) (Vptr b ofs)) phi ->
   forall loc,
     if adr_range_dec (b, Int.intval ofs) (4 * Z.of_nat length)%Z loc then
-      exists v, phi @ loc = YES (Share.unrel Share.Lsh sh) pfullshare (VAL v) NoneP
+      exists v, phi @ loc = YES sh (writable_readable_share Hw) (VAL v) NoneP
     else
       identity (phi @ loc).
 Proof.
@@ -409,7 +406,7 @@ Proof.
   if_tac; auto.
   destruct H as (p, H).
   exact_eq H; repeat (extensionality || f_equal).
-  apply writable_unique_right, Hw.
+  apply proof_irr.
 Qed.
 
 Lemma data_at_unfold_weak CS sh b ofs phi z z' loc :
@@ -420,8 +417,7 @@ Lemma data_at_unfold_weak CS sh b ofs phi z z' loc :
   exists p v,
     phi @ loc =
     YES
-      (Share.unrel Share.Lsh sh)
-      (mk_lifted (Share.unrel Share.Rsh sh) p)
+      sh p 
       (VAL v) NoneP.
 Proof.
   intros R AT range L.
@@ -453,13 +449,14 @@ Definition rmap_makelock phi phi' loc R length :=
   (forall x, ~ adr_range loc length x -> phi @ x = phi' @ x) /\
   (forall x,
       adr_range loc length x ->
-      exists val sh,
-        phi @ x = YES sh pfullshare (VAL val) NoneP /\
+      exists val sh Psh,
+        phi @ x = YES sh Psh (VAL val) NoneP /\
+        writable_share sh /\
         phi' @ x =
         if eq_dec x loc then
-          YES sh pfullshare (LK length) (pack_res_inv (approx (level phi) R))
+          YES sh Psh (LK length) (pack_res_inv (approx (level phi) R))
         else
-          YES sh pfullshare (CT (snd x - snd loc)) NoneP).
+          YES sh Psh (CT (snd x - snd loc)) NoneP).
 
 (* rmap_freelock phi phi' is ALMOST rmap_makelock phi' phi but we
 specify that the VAL will be the dry memory's *)
@@ -468,13 +465,14 @@ Definition rmap_freelock phi phi' m loc R length :=
   (forall x, ~ adr_range loc length x -> phi @ x = phi' @ x) /\
   (forall x,
       adr_range loc length x ->
-      exists sh,
-        phi' @ x = YES sh pfullshare (VAL (contents_at m x)) NoneP /\
+      exists sh Psh,
+        phi' @ x = YES sh Psh (VAL (contents_at m x)) NoneP /\
+        writable_share sh /\
         phi @ x =
         if eq_dec x loc then
-          YES sh pfullshare (LK length) (pack_res_inv (approx (level phi) R))
+          YES sh Psh (LK length) (pack_res_inv (approx (level phi) R))
         else
-          YES sh pfullshare (CT (snd x - snd loc)) NoneP).
+          YES sh Psh (CT (snd x - snd loc)) NoneP).
 
 Definition makelock_f phi loc R length : address -> resource :=
   fun x =>
@@ -487,7 +485,7 @@ Definition makelock_f phi loc R length : address -> resource :=
           YES sh sh' (CT (snd x - snd loc)) NoneP
       | YES _ _ _ _
       | PURE _ _
-      | NO _ => NO Share.bot
+      | NO _ _ => NO Share.bot bot_unreadable
       end
     else
       phi @ x.
@@ -500,7 +498,7 @@ Definition freelock_f phi m loc length : address -> resource :=
       | YES sh sh' (CT _) _ => YES sh sh' (VAL (contents_at m x)) NoneP
       | YES _ _ _ _
       | PURE _ _
-      | NO _ => NO Share.bot
+      | NO _ _ => NO Share.bot bot_unreadable
       end
     else
       phi @ x.
@@ -529,21 +527,23 @@ Proof.
     pose proof j as j0.
     eapply resource_at_join with (loc := (b, ofs)) in j0.
     if_tac [r|nr].
-    - destruct (Hchanged (b, ofs) r) as (val & sh & E & E').
+    - destruct (Hchanged (b, ofs) r) as (val & sh & Rsh & E & Wsh & E').
       rewrite E in j0.
       inv j0; pfulltac.
       if_tac [e|ne].
       + simpl.
         intros i Hi.
         if_tac [ri|nri].
-        * destruct (Hchanged (b, ofs + i) ri) as (vali & shi & Ei & Ei').
+        * destruct (Hchanged (b, ofs + i) ri) as (vali & shi & Rshi & Ei & Wshi& Ei').
           pose proof j as ji.
           eapply resource_at_join with (loc := (b, ofs + i)) in ji.
           rewrite Ei in ji.
           inv ji; pfulltac.
           if_tac.
           -- assert (ofs = ofs + i) by congruence. omega.
-          -- simpl. repeat f_equal; omega.
+          -- simpl. repeat f_equal; try omega.
+             
+             eapply join_readable_part; eauto.
         * destruct nri.
           subst loc; split; auto. omega.
       + simpl.
