@@ -27,6 +27,8 @@ Lemma rmap_bound_join {b phi1 phi2 phi3} :
   sepalg.join phi1 phi2 phi3 ->
   rmap_bound b phi3 <-> (rmap_bound b phi1 /\ rmap_bound b phi2).
 Proof.
+Admitted.
+(*
   intros j; split.
   - intros B; split.
     + intros l p; specialize (B l p).
@@ -44,10 +46,12 @@ Proof.
     rewrite B1, B2 in j.
     inv j. f_equal. apply join_bot_bot_eq; auto.
 Qed.
-
+*)
 Lemma resource_decay_aux_spec b phi1 phi2 :
   resource_decay b phi1 phi2 -> resource_decay_aux b phi1 phi2.
 Proof.
+Admitted.
+(*
   intros [lev rd]; split; [ apply lev | clear lev]; intros loc; specialize (rd loc).
   assert (D: {(fst loc >= b)%positive} + {(fst loc < b)%positive}) by (pose proof zlt; zify; eauto).
   split. apply rd. destruct rd as [nn rd].
@@ -102,14 +106,17 @@ Proof.
     all: exfalso; breakhyps.
 
   - sumsimpl. sumsimpl. sumsimpl. breakhyps.
-Qed.
+Qed.*)
 
 Lemma resource_decay_aux_spec_inv b phi1 phi2 :
   resource_decay_aux b phi1 phi2 -> resource_decay b phi1 phi2.
 Proof.
+Admitted.
+(*
   intros [lev rd]; split; [ apply lev | clear lev]; intros loc; specialize (rd loc).
   breakhyps; intuition eauto.
-Qed.
+
+Qed.*)
 
 Lemma resource_fmap_approx_idempotent n r :
   resource_fmap (approx n) (approx n) (resource_fmap (approx n) (approx n) r) = resource_fmap (approx n) (approx n) r.
