@@ -126,34 +126,28 @@ Section permMapDefs.
 
   Lemma perm_of_glb_not_Freeable: forall sh,
       ~ perm_of_sh (Share.glb Share.Rsh sh) = Some Freeable.
-    (*Andrew says this is easy*)
   Admitted.
   Lemma writable_not_join_readable:
     forall sh1 sh2,
       joins sh1 sh2 ->
       writable_share sh1 ->
       ~ readable_share sh2.
-    (*Andrew can probably proof this*)
   Admitted. 
   Lemma writable_not_join_writable :
     forall sh1 sh2,
       joins sh1 sh2 ->
       writable_share sh1 ->
       ~ writable_share sh2.
-    (*Andrew can probably proof this*)
   Admitted. 
   Lemma only_bot_joins_top:
     forall sh, joins Share.top sh -> sh = Share.bot.
-    (*Andrew can probably proof this*)
   Admitted.
   Lemma glb_Rsh_not_top:
     forall sh, ~ Share.glb Share.Rsh sh = Share.top.
-    (*Andrew can probably proof this*)
   Admitted.
   Lemma writable_right:
     forall sh,  writable_share (Share.glb Share.Rsh sh) ->
            writable_share sh.
-    (*Andrew can probably proof this*)
   Admitted.
   
   Lemma perm_coh_self: forall res,
