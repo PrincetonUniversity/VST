@@ -60,46 +60,8 @@ End DecayingSemantics. *)
  * concurrency.permissions.v and
  * veric.juicy_mem_lemmas.v          *)
 
-Lemma po_join_sub_lock:
-  forall r1 r2 : resource,
-    join_sub r2 r1 ->
-    Mem.perm_order'' (perm_of_res_lock r1) (perm_of_res_lock r2).
-Proof.
-  intros r1 r2 H.
-  destruct H as [x H].
-  inversion H; subst; simpl; try constructor.
-  - destruct k; simpl; auto;
-    apply po_refl.
-  - apply event_semantics.po_None.
-  - destruct k; try apply event_semantics.po_None.
-    + apply juicy_mem_lemmas.po_join_sub_sh.
-      * exists Share.bot. apply bot_join_eq.
-      * exists (pshare_sh sh2); assumption.
-    + apply juicy_mem_lemmas.po_join_sub_sh.
-      * exists Share.bot. apply bot_join_eq.
-      * exists (pshare_sh sh2); assumption.
-Qed.
 
 
-Lemma perm_coh_join_sub:
-    forall a b, join_sub a b ->
-           perm_coh (perm_of_res a) (perm_of_res_lock b).
-  Proof. intros.
-         eapply perm_coh_lower.
-         apply perm_coh_self.
-         - apply po_refl.
-         - eapply juicy_mem_lemmas.po_join_sub; eauto.
-  Qed.
-
-  Lemma perm_coh_join_sub':
-    forall a b, join_sub b a ->
-           perm_coh (perm_of_res a) (perm_of_res_lock b).
-  Proof. intros.
-         eapply perm_coh_lower.
-         apply perm_coh_self.
-         apply po_join_sub_lock; eauto.
-         apply po_refl.
-  Qed.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -366,8 +328,11 @@ Module Parching <: ErasureSig.
       cut (Mem.perm_order'' None (Some Nonempty)).
       { intros AA; inversion AA. }
       eapply po_trans; eauto.
-      destruct (perm_of_sh_pshare sh psh) as [P is_Some].
-      rewrite is_Some. constructor.
+      destruct (perm_of_sh _) eqn:?; inversion max_coh.
+      apply perm_of_empty_inv in Heqo.
+      subst.
+      exfalso; apply shares.bot_unreadable; assumption.
+      
   Qed.
 
   Lemma MTCH_updt:
@@ -1030,7 +995,7 @@ Module Parching <: ErasureSig.
     assert (Htid':= MTCH_cnt MATCH Hi).
     pose (inflated_delta1:=
             fun loc => match (d_phi @ loc ) with
-                      NO s => if Share.EqDec_share s Share.bot then None else Some ( perm_of_res (phi' @ loc))
+                      NO s _ => if Share.EqDec_share s Share.bot then None else Some ( perm_of_res (phi' @ loc))
                     | _ => Some (perm_of_res (phi' @ loc))
                     end).
     pose (inflated_delta2:=
