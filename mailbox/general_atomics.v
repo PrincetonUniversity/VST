@@ -8,38 +8,18 @@ Set Bullet Behavior "Strict Subproofs".
 
 Parameter invariant : mpred -> val -> mpred.
 
+Axiom invariant_duplicable : forall P p, invariant P p = invariant P p * invariant P p.
+
+Axiom invariant_precise : forall P p, precise (invariant P p).
+
+(* I think this is sound, and follows from Iris's rules... *)
+Axiom invariant_view_shift : forall {CS : compspecs} P Q R p, view_shift (P * R) (Q * R) ->
+  view_shift (P * invariant R p) (Q * invariant R p).
+
 Axiom invariant_super_non_expansive : forall n P p, compcert_rmaps.RML.R.approx n (invariant P p) =
 compcert_rmaps.RML.R.approx n (invariant (compcert_rmaps.RML.R.approx n P) p).
 
 Arguments view_shift {_} A%logic B%logic.
-
-(* up *)
-Definition super_non_expansive' {A} P := forall n ts x, compcert_rmaps.RML.R.approx n (P ts x) =
-  compcert_rmaps.RML.R.approx n (P ts (functors.MixVariantFunctor.fmap (dependent_type_functor_rec ts A)
-        (compcert_rmaps.RML.R.approx n) (compcert_rmaps.RML.R.approx n) x)).
-
-Lemma approx_sepcon_list: forall n lP, lP <> [] ->
-  compcert_rmaps.RML.R.approx n (fold_right sepcon emp lP) =
-  fold_right sepcon emp (map (compcert_rmaps.RML.R.approx n) lP).
-Proof.
-  induction lP; [contradiction | intros].
-  destruct lP; simpl in *.
-  - simpl; rewrite !sepcon_emp; auto.
-  - rewrite approx_sepcon, IHlP; auto; discriminate.
-Qed.
-
-Lemma approx_FF : forall n, compcert_rmaps.RML.R.approx n FF = FF.
-Proof.
-  intro; apply predicates_hered.pred_ext; intros ??; try contradiction.
-  destruct H; contradiction.
-Qed.
-
-(* up *)
-Lemma later_nonexpansive : nonexpansive (@later mpred _ _).
-Proof.
-  apply contractive_nonexpansive, later_contractive.
-  intros ??; auto.
-Qed.
 
 Section atomics.
 
@@ -50,6 +30,12 @@ Axiom new_inv : forall P, view_shift (|>P) (EX p : val, invariant P p).
 Corollary new_inv' : forall P, view_shift P (EX p : val, invariant P p).
 Proof.
   intro; etransitivity; [apply derives_view_shift, now_later | apply new_inv].
+Qed.
+
+Corollary make_inv : forall P Q, P |-- Q -> view_shift P (EX p : val, invariant Q p).
+Proof.
+  intros.
+  etransitivity; [apply derives_view_shift | apply new_inv']; auto.
 Qed.
 
 Definition AL_type := ProdType (ProdType (ProdType (ProdType (ProdType (ConstType val) Mpred)
@@ -344,6 +330,9 @@ Section atomicity.
 
 (* The logical atomicity of Iris, with TaDa's private part. *)
 Definition view_shift_iff P Q := view_shift P Q /\ view_shift Q P.
+
+(* Do we need this, or the timeless view shift in atomic_shift, for soundness? *)
+Axiom ghost_timeless : forall {A} (g : A) p, view_shift (|>ghost g p) (ghost g p).
 
 Definition atomic_shift {A B} P (a R : A -> mpred) E (b Q : A -> B -> mpred) :=
   view_shift (|>P) P /\
