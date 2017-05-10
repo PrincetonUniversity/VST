@@ -456,13 +456,23 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
   Proof. move=> m n /ltP LE.
          assert (m < n )%coq_nat by omega.
          by move: H => /ltP. Qed.
-  Program Fixpoint find_thread' {st:t}{filter:@ctl code -> bool} n (P: n < num_threads st):=
+  Program Fixpoint find_thread' {st:t}{filter:@ctl code -> bool} n (P: n < num_threads st) {struct n}:=
     if filter (@pool st (@Ordinal (num_threads st) n P))
     then Some n
     else match n with
          | S n' =>  find_thread' n' (lt_decr  n' _ P)
          | O => None
          end.
+  
+  Next Obligation.
+    intros; exact st.
+    Defined.
+  Next Obligation.
+  intros. auto.
+  Qed.
+  Next Obligation.
+    intros. subst; reflexivity.
+  Defined.
   Definition pos_pred (n:pos): nat.
   Proof. destruct n. destruct n eqn:AA; [omega|].
          exact n0.
@@ -471,7 +481,7 @@ Module OrdinalPool (SEM:Semantics) (RES:Resources) <: ThreadPoolSig
   Program Definition find_thread (st:t)(filter:@ctl code -> bool): option tid:=
     @find_thread' st filter (pos_pred (num_threads st)) _ .
   Next Obligation.
-    rewrite /pos_pred /=.
+    rewrite /pos_pred /= => st filter.
     elim (num_threads st) => n N_pos /=.
     destruct n; try omega; eauto.
   Qed.

@@ -55,31 +55,38 @@ int get_item(int key){
   }
 }
 
+//If we want this to be linearizable, then we have to be careful.
+//For instance, if an add and a set race, then either the add happens first (and the set's
+//value wins), or the add happens second (and fails). So we can't allow an add to
+//overwrite a set's value. In other words, the version in hashtable1.c isn't linearizable
+//wrt set (and we discovered this through atomicity proofs!).
 int add_item(int key, int value){
   for(int idx = integer_hash(key);; idx++){
     idx &= ARRAY_SIZE - 1;
     int *i = m_entries[idx].key;
     int probed_key = load_SC(i);
-    if(probed_key == key) return 0;
-    if (probed_key != 0) continue;
-    int result = CAS_SC(i, 0, key);
-    if(!result){
-      probed_key = load_SC(i);
-      if(probed_key == key) return 0;
-      else continue;
+    if (probed_key != key){
+      if (probed_key != 0)
+	continue;
+      int result = CAS_SC(i, 0, key);
+      if(!result){
+	probed_key = load_SC(i);
+	if(probed_key != key) continue;
+      }
     }
     i = m_entries[idx].value;
-    store_SC(i, value);
-    return 1;
+    return CAS_SC(i, 0, value); //only add if no one else has set the value
   }
 }
 
 void init_table(){
   for(int i = 0; i < ARRAY_SIZE; i++){
-    int *p = m_entries[i].key;
+    int *p = surely_malloc(sizeof(int));
     *p = 0;
-    p = m_entries[i].value;
+    m_entries[i].key = p;
+    p = surely_malloc(sizeof(int));
     *p = 0;
+    m_entries[i].value = p;
   }
 }
 

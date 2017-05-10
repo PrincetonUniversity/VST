@@ -10,7 +10,7 @@ Require Import concurrency.scheduler.
 Require Import concurrency.concurrent_machine.
 Require Import concurrency.addressFiniteMap. (*The finite maps*)
 Require Import concurrency.threads_lemmas.
-(*Require Import concurrency.rmap_locking. *)
+Require Import concurrency.rmap_locking.
 Require Import concurrency.lksize.
 Require Import concurrency.semantics.
 Require Import concurrency.permjoin.
@@ -1310,7 +1310,7 @@ Qed.
             syncStep' genv cnt0 Hcompat  tp'' m (freelock (b, Int.intval ofs))
 
     | step_acqfail :
-        forall  c b ofs jm psh m1,
+        forall  c b ofs jm m1,
           let: phi := m_phi jm in
           forall
             (Hinv : invariant tp)
@@ -1322,7 +1322,7 @@ Qed.
                personal_mem (thread_mem_compatible Hcompatible cnt0) = jm)
             (Hrestrict_map: juicyRestrict_locks
                               (mem_compat_thread_max_cohere Hcompat cnt0) = m1)
-            (sh:Share.t)(R:pred rmap)
+            (sh:Share.t) psh(R:pred rmap)
             (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
             (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero)),
             syncStep' genv cnt0 Hcompat tp m (failacq (b,Int.intval ofs)).

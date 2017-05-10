@@ -4,6 +4,7 @@ From mathcomp.ssreflect Require Import ssreflect seq ssrbool
 Set Implicit Arguments.
 Require Import msl.Coqlib2.
 Require Import sepcomp.mem_lemmas.
+Require Import sepcomp.event_semantics.
 Require Import concurrency.threads_lemmas.
 Require Import concurrency.permjoin_def.
 Require Import compcert.common.Memory.
@@ -11,7 +12,7 @@ Require Import compcert.common.Values. (*for val*)
 Require Import compcert.lib.Integers.
 Require Export compcert.lib.Maps.
 Require Import Coq.ZArith.ZArith.
-From veric Require Import shares juicy_mem.
+From veric Require Import shares juicy_mem juicy_mem_lemmas.
 Require Import msl.msl_standard.
 Import cjoins.
 
@@ -125,34 +126,28 @@ Section permMapDefs.
 
   Lemma perm_of_glb_not_Freeable: forall sh,
       ~ perm_of_sh (Share.glb Share.Rsh sh) = Some Freeable.
-    (*Andrew says this is easy*)
   Admitted.
   Lemma writable_not_join_readable:
     forall sh1 sh2,
       joins sh1 sh2 ->
       writable_share sh1 ->
       ~ readable_share sh2.
-    (*Andrew can probably proof this*)
   Admitted. 
   Lemma writable_not_join_writable :
     forall sh1 sh2,
       joins sh1 sh2 ->
       writable_share sh1 ->
       ~ writable_share sh2.
-    (*Andrew can probably proof this*)
   Admitted. 
   Lemma only_bot_joins_top:
     forall sh, joins Share.top sh -> sh = Share.bot.
-    (*Andrew can probably proof this*)
   Admitted.
   Lemma glb_Rsh_not_top:
     forall sh, ~ Share.glb Share.Rsh sh = Share.top.
-    (*Andrew can probably proof this*)
   Admitted.
   Lemma writable_right:
     forall sh,  writable_share (Share.glb Share.Rsh sh) ->
            writable_share sh.
-    (*Andrew can probably proof this*)
   Admitted.
   
   Lemma perm_coh_self: forall res,
@@ -216,6 +211,26 @@ Section permMapDefs.
           exfalso; eapply glb_Rsh_not_top; eauto.
     - constructor.
   Qed.
+
+  
+  Lemma po_join_sub_lock:
+  forall r1 r2 ,
+    join_sub r2 r1 ->
+    Mem.perm_order'' (perm_of_res_lock r1) (perm_of_res_lock r2).
+  Proof.
+  intros.
+  destruct H as [x H].
+  inversion H; subst; simpl; try constructor.
+  - destruct k; simpl; auto;
+      apply juicy_mem_lemmas.po_join_sub_sh; eexists;
+        eapply compcert_rmaps.join_glb_Rsh; eassumption.
+  - apply event_semantics.po_None.
+    
+  - destruct k; simpl; auto;
+      apply juicy_mem_lemmas.po_join_sub_sh; eexists;
+        eapply compcert_rmaps.join_glb_Rsh; eassumption.
+    
+Qed.
 
 
   Definition permMapCoherence (pmap1 pmap2 : access_map) :=

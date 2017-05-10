@@ -235,6 +235,24 @@ Proof.
       rewrite in_map_iff; do 2 eexists; eauto; apply Znth_In; auto.
 Qed.
 
+Lemma lookup_upd_same : forall m k i v', lookup m k = Some i -> Zlength m = size -> 0 <= i < Zlength m ->
+  lookup (upd_Znth i m (k, v')) k = lookup m k.
+Proof.
+  unfold lookup; intros.
+  pose proof (hash_range k).
+  rewrite rebase_upd by (auto; omega).
+  rewrite index_of'_upd; auto.
+  - rewrite Zlength_rebase by omega.
+    apply Z_mod_lt; omega.
+  - pose proof (index_of'_spec k (rebase m (hash k))) as Hspec.
+    destruct (index_of' (rebase m (hash k)) k); inv H.
+    replace size with (Zlength m).
+    rewrite Zminus_mod_idemp_l, Z.add_simpl_r.
+    destruct Hspec as (Hz & ? & ?).
+    rewrite Zlength_rebase in Hz by omega.
+    rewrite Zmod_small; auto.
+Qed.
+
 Lemma lookup_upd_diff : forall m k i k' v', lookup m k <> Some i -> Zlength m = size -> 0 <= i < Zlength m ->
   k' <> k /\ k' <> 0 ->
   lookup (upd_Znth i m (k', v')) k = lookup m k.
