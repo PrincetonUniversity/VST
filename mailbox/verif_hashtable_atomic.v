@@ -294,10 +294,6 @@ Qed.
 
 Opaque upto.
 
-Ltac entailer_for_return ::= go_lower; entailer'.
-Ltac cancel_for_forward_call ::= repeat (rewrite ?sepcon_andp_prop', ?sepcon_andp_prop);
-  repeat (apply andp_right; [auto; apply prop_right; auto|]); fast_cancel.
-
 Lemma ghost_snap_forget : forall (v : Z) g, view_shift (ghost_snap v g) (ghost_snap 0 g).
 Proof.
   intros; apply ghost_update.
@@ -1907,6 +1903,7 @@ Proof.
   replace 16384 with size by (setoid_rewrite (proj2_sig has_size); auto).
   forward.
   forward_call m_entries.
+  { fast_cancel. }
   Intros x; destruct x as ((entries, g), lg); simpl in *.
   apply ghost_alloc with (g0 := (Some (Tsh, [] : hist), Some ([] : hist))); auto with init.
   Intro gh.
@@ -1958,7 +1955,7 @@ Proof.
     forward_call (l, Tsh, f_lock i l r).
     { entailer!.
       destruct l; try contradiction; auto. }
-    { apply sepcon_derives; [apply lock_struct | cancel_frame]. }
+    { rewrite !sepcon_assoc; apply sepcon_derives; [apply lock_struct | cancel_frame]. }
     Exists (res ++ [r]) (locks ++ [l]); rewrite !Zlength_app, !Zlength_cons, !Zlength_nil; entailer!.
     rewrite lock_inv_isptr, data_at__isptr; Intros.
     rewrite Z2Nat.inj_add, upto_app, !map_app, !sepcon_app by omega.
@@ -2146,7 +2143,8 @@ Proof.
     erewrite sublist_next with (l := locks) by (auto; omega); simpl.
     forward_call (Znth i locks Vundef, sizeof (Tstruct _lock_t noattr)).
     { entailer!. }
-    { apply sepcon_derives; [|cancel_frame].
+    { fast_cancel.
+      apply sepcon_derives; [|cancel_frame].
       rewrite data_at__memory_block; Intros; auto. }
     unfold f_lock_inv at 1; Intros b1 b2 b3 hi.
     assert (0 <= i < Zlength shs) by omega.
@@ -2159,7 +2157,8 @@ Proof.
     erewrite sublist_next with (l := res) by (auto; omega); simpl.
     forward_call (Znth i res Vundef, sizeof tint).
     { entailer!. }
-    { rewrite <- !sepcon_assoc, (sepcon_comm _ (data_at _ _ _ (Znth i res Vundef))), !sepcon_assoc;
+    { fast_cancel.
+      rewrite <- !sepcon_assoc, (sepcon_comm _ (data_at _ _ _ (Znth i res Vundef))), !sepcon_assoc;
         apply sepcon_derives; [|cancel_frame].
       apply data_at_memory_block. }
     assert (3 <= Zlength shs) by omega.
@@ -2167,19 +2166,19 @@ Proof.
       inversion H as [|??? w1 ? Hj1]; subst end.
     match goal with H : sepalg_list.list_join sh3' _ _ |- _ => rewrite sublist_next with (d := Tsh) in H by (auto; omega);
       inversion H as [|??? w1' ? Hj1']; subst end.
-    gather_SEP 15 4.
+    gather_SEP 15 2.
     replace_SEP 0 (data_at w1 (tarray (tptr (Tstruct _lock_t noattr)) 3) locks locksp).
     { go_lower.
       rewrite <- lock_struct_array.
       eapply derives_trans; [apply data_at_array_value_cohere; auto|].
       erewrite data_at_share_join; eauto. }
-    gather_SEP 13 5.
+    gather_SEP 13 3.
     replace_SEP 0 (data_at w1 (tarray (tptr tint) 3) res resp).
     { go_lower.
       eapply derives_trans; [apply data_at_array_value_cohere; auto|].
       erewrite data_at_share_join; eauto. }
-    gather_SEP 4 7; rewrite <- invariant_duplicable.
-    gather_SEP 5 9; rewrite ghost_snaps_join.
+    gather_SEP 5 6; rewrite <- invariant_duplicable.
+    gather_SEP 8 9; rewrite ghost_snaps_join.
     gather_SEP 7 4; erewrite ghost_hist_join; eauto.
     gather_SEP 6 5; erewrite data_at_share_join by eauto.
     forward.
