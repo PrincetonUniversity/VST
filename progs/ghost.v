@@ -891,6 +891,13 @@ Proof.
     split; auto; exists []; auto.
 Qed.
 
+Lemma hist_ref_incl : forall sh h h' p, sh <> Share.bot ->
+  ghost_hist sh h p * ghost_ref h' p |-- !!hist_incl h h'.
+Proof.
+  intros; rewrite hist_ref_join by auto.
+  Intros l; eapply prop_right, hist_sub_list_incl; eauto.
+Qed.
+
 Lemma hist_add' : forall sh h h' e p, sh <> Share.bot ->
   view_shift (ghost_hist sh h p * ghost_ref h' p)
   (ghost_hist sh (h ++ [(length h', e)]) p * ghost_ref (h' ++ [e]) p).
@@ -1087,6 +1094,20 @@ Proof.
     exploit Hlast; eauto; omega.
 Qed.
 
+Lemma hist_list'_perm : forall h l, hist_list' h l -> Permutation.Permutation (map snd h) l.
+Proof.
+  induction 1; auto; subst.
+  rewrite map_app; simpl.
+  symmetry; etransitivity; [apply Permutation.Permutation_app_comm|].
+  apply Permutation.Permutation_cons_app; symmetry.
+  rewrite map_app in *; auto.
+Qed.
+
+Corollary hist_list_perm : forall h l, hist_list h l -> Permutation.Permutation (map snd h) l.
+Proof.
+  intros; apply hist_list'_perm, hist_list_weak; auto.
+Qed.
+
 Lemma ghost_hist_init : exists g', joins (Some (Tsh, ([] : hist_part)), Some ([] : hist_part)) g'.
 Proof.
   exists (None, None), (Some (Tsh, []), Some []); simpl.
@@ -1094,6 +1115,90 @@ Proof.
   unfold completable; repeat split; auto.
   exists None; simpl.
   split; auto.
+Qed.
+
+Inductive add_events h : list hist_el -> hist_part -> Prop :=
+| add_events_nil : add_events h [] h
+| add_events_snoc : forall le h' t e (Hh' : add_events h le h') (Ht : newer h' t),
+    add_events h (le ++ [e]) (h' ++ [(t, e)]).
+Hint Resolve add_events_nil.
+
+Lemma add_events_1 : forall h t e (Ht : newer h t), add_events h [e] (h ++ [(t, e)]).
+Proof.
+  intros; apply (add_events_snoc _ []); auto.
+Qed.
+
+Lemma add_events_trans : forall h le h' le' h'' (H1 : add_events h le h') (H2 : add_events h' le' h''),
+  add_events h (le ++ le') h''.
+Proof.
+  induction 2.
+  - rewrite app_nil_r; auto.
+  - rewrite app_assoc; constructor; auto.
+Qed.
+
+Lemma add_events_add : forall h le h', add_events h le h' -> exists h2, h' = h ++ h2 /\ map snd h2 = le.
+Proof.
+  induction 1.
+  - eexists; rewrite app_nil_r; auto.
+  - destruct IHadd_events as (? & -> & ?).
+    rewrite <- app_assoc; do 2 eexists; eauto.
+    subst; rewrite map_app; auto.
+Qed.
+
+Corollary add_events_snd : forall h le h', add_events h le h' -> map snd h' = map snd h ++ le.
+Proof.
+  intros; apply add_events_add in H.
+  destruct H as (? & ? & ?); subst.
+  rewrite map_app; auto.
+Qed.
+
+Corollary add_events_incl : forall h le h', add_events h le h' -> incl h h'.
+Proof.
+  intros; apply add_events_add in H.
+  destruct H as (? & ? & ?); subst.
+  apply incl_appl, incl_refl.
+Qed.
+
+Corollary add_events_newer : forall h le h' t, add_events h le h' -> newer h' t -> newer h t.
+Proof.
+  intros; eapply Forall_incl, add_events_incl; eauto.
+Qed.
+
+Lemma add_events_in : forall h le h' e, add_events h le h' -> In e le -> exists t, newer h t /\ In (t, e) h'.
+Proof.
+  induction 1; [contradiction|].
+  rewrite in_app; intros [? | [? | ?]]; try contradiction.
+  - destruct IHadd_events as (? & ? & ?); auto.
+    do 2 eexists; [|rewrite in_app]; eauto.
+  - subst; do 2 eexists; [|rewrite in_app; simpl; eauto].
+    eapply add_events_newer; eauto.
+Qed.
+
+Lemma add_events_ordered : forall h le h', add_events h le h' -> ordered_hist h -> ordered_hist h'.
+Proof.
+  induction 1; auto; intros.
+  apply ordered_snoc; auto.
+Qed.
+
+Lemma add_events_last : forall h le h', add_events h le h' -> le <> [] -> snd (last h' (O, d)) = last le d.
+Proof.
+  intros; apply add_events_add in H.
+  destruct H as (? & ? & ?); subst.
+  rewrite last_app.
+  setoid_rewrite last_map at 2; auto.
+  { intro; subst; contradiction. }
+Qed.
+
+Lemma add_events_NoDup : forall h le h', add_events h le h' -> NoDup (map fst h) -> NoDup (map fst h').
+Proof.
+  induction 1; auto; intros.
+  rewrite map_app, NoDup_app_iff.
+  split; auto.
+  split; [repeat constructor; simpl; auto|].
+  simpl; intros ? Hin [? | ?]; [subst | contradiction].
+  unfold newer in Ht.
+  rewrite in_map_iff in Hin; destruct Hin as (? & ? & Hin); subst.
+  rewrite Forall_forall in Ht; specialize (Ht _ Hin); omega.
 Qed.
 
 End GHist.
@@ -1125,6 +1230,6 @@ Notation AE_hist := (list (nat * AE_hist_el)).
 
 End Ghost.
 
-Hint Resolve disjoint_nil hist_incl_nil hist_list_nil ordered_nil hist_list'_nil.
+Hint Resolve disjoint_nil hist_incl_nil hist_list_nil ordered_nil hist_list'_nil add_events_nil.
 Hint Resolve ghost_var_precise ghost_var_precise'.
 Hint Resolve ghost_var_init snap_master_init' ghost_map_init ghost_hist_init : init.
