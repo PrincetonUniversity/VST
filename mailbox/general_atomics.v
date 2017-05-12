@@ -373,7 +373,7 @@ Definition super_non_expansive_lb {B W} lb := forall n ts w (v : B) rho,
    W is the TypeTree of the witness for the rest of the function. *)
 Program Definition atomic_spec {A T} W (a0 : A) args tz la Pp a (t : T) lb Qp b
   (Hla : super_non_expansive_la la) (HPp : super_non_expansive' Pp) (Ha : super_non_expansive_a a)
-  (Hlb : super_non_expansive_lb lb) (HQp : super_non_expansive' Qp) (Hb : super_non_expansive_b b) :=
+  (Hlb : super_non_expansive_lb lb) (HQp : super_non_expansive_b Qp) (Hb : super_non_expansive_b b) :=
   mk_funspec (pair args tz) cc_default (atomic_spec_type A W T)
   (fun (ts: list Type) '(w, P, Q, R, lI, II) =>
     PROP (atomic_shift P (a ts w) R (map II lI) (b ts w) Q)
@@ -381,7 +381,7 @@ Program Definition atomic_spec {A T} W (a0 : A) args tz la Pp a (t : T) lb Qp b
     (SEP (Pp ts w; fold_right sepcon emp (map (fun p => invariant (II p) p) lI); P))))
   (fun (ts: list Type) '(w, P, Q, R, lI, II) => EX v : T, EX x : A,
     PROP () (LOCALx (map (fun l => l ts w v) lb)
-    (SEP (Qp ts w; fold_right sepcon emp (map (fun p => invariant (II p) p) lI); Q x v)))) _ _.
+    (SEP (Qp ts w x v; fold_right sepcon emp (map (fun p => invariant (II p) p) lI); Q x v)))) _ _.
 Next Obligation.
 Proof.
   replace _ with (fun (ts : list Type) (x : _ * mpred * (A -> T -> mpred) * (A -> mpred) * _ * _) rho =>
@@ -445,20 +445,20 @@ Proof.
     EX v : T, EX x : A, PROP ()
     (LOCALx (map (fun Q0 => Q0 ts w) (map (fun l ts w => let '(w, P, Q, R, lI, II) := w in l ts w v) lb))
      SEP (let '(w, P, Q, R, lI, II) := w in
-          Qp ts w * fold_right sepcon emp (map (fun p => invariant (II p) p) lI) * Q x v)) rho).
+          Qp ts w x v * fold_right sepcon emp (map (fun p => invariant (II p) p) lI) * Q x v)) rho).
   repeat intro.
   rewrite !approx_exp; apply f_equal; extensionality v.
   rewrite !approx_exp; apply f_equal; extensionality x1.
   apply (PROP_LOCAL_SEP_super_non_expansive (atomic_spec_type A W T) []
     (map (fun l ts w => let '(w, P, Q, R, lI, II) := w in l ts w v) lb)
     [fun ts w => let '(w, P, Q, R, lI, II) := w in
-       Qp ts w * fold_right sepcon emp (map (fun p => invariant (II p) p) lI) * Q x1 v]);
+       Qp ts w x1 v * fold_right sepcon emp (map (fun p => invariant (II p) p) lI) * Q x1 v]);
     repeat constructor; hnf; intros; try destruct x0 as (((((x0, P), Q), R), ?), ?); auto; simpl.
   - rewrite Forall_forall; intros ? Hin.
     rewrite in_map_iff in Hin; destruct Hin as (? & ? & Hin); subst.
     intros ?? (((((x', P), Q), R), ?), ?) ?.
     specialize (Hlb n0 ts0 x' v rho0); rewrite Forall_forall in Hlb; apply (Hlb _ Hin).
-  - rewrite !sepcon_assoc, !(approx_sepcon (Qp _ _)), HQp; apply f_equal.
+  - rewrite !sepcon_assoc, !(approx_sepcon (Qp _ _ _ _)), HQp; apply f_equal.
     rewrite sepcon_comm, (sepcon_comm _ (_ _ (Q _ _))).
     setoid_rewrite (approx_sepcon_list _ (Q _ _ :: _)); [|discriminate].
     setoid_rewrite (approx_sepcon_list _ (_ _ (Q _ _) :: _)); [|discriminate]; simpl.

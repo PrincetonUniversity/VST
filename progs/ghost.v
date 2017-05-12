@@ -68,6 +68,13 @@ Proof.
   Intros; simpl; apply H; auto.
 Qed.
 
+Lemma view_shift_assert : forall P Q PP, P |-- !!PP -> (PP -> view_shift P Q) -> view_shift P Q.
+Proof.
+  intros.
+  rewrite (add_andp P (!!PP)) by auto.
+  rewrite andp_comm; apply view_shift_prop; auto.
+Qed.
+
 End ViewShift.
 
 Definition joins a b := exists c, join a b c.
@@ -422,6 +429,18 @@ Proof.
     eapply ord_trans; eauto. }
   eapply semax_pre; [|eauto].
   go_lowerx; entailer!.
+Qed.
+
+Lemma master_update : forall v v' p, ord v v' -> view_shift (ghost_master v p) (ghost_master v' p).
+Proof.
+  intros; apply ghost_update.
+  intros (s, ?) ((s', ?) & ? & [[]|[]] & ?); try discriminate; simpl in *; subst.
+  assert (s' = s).
+  { destruct s, s'; auto; contradiction. }
+  subst; exists (s, Some v'); simpl.
+  destruct s; auto.
+  split; auto; split; auto; simpl in *.
+  etransitivity; eauto.
 Qed.
 
 Lemma snap_master_init : forall (a : A), exists g', joins (Some a, Some a) g'.
@@ -1233,3 +1252,14 @@ End Ghost.
 Hint Resolve disjoint_nil hist_incl_nil hist_list_nil ordered_nil hist_list'_nil add_events_nil.
 Hint Resolve ghost_var_precise ghost_var_precise'.
 Hint Resolve ghost_var_init snap_master_init' ghost_map_init ghost_hist_init : init.
+
+Ltac view_shift_intro a := repeat rewrite ?exp_sepcon1, ?exp_sepcon2, ?sepcon_andp_prop, ?sepcon_andp_prop';
+  repeat match goal with
+    | |-view_shift (exp _) _ => apply view_shift_exists; intro a
+    | |-view_shift (!!_ && _) _ => apply view_shift_prop; fancy_intros false
+  end.
+
+Ltac view_shift_intros := repeat rewrite ?exp_sepcon1, ?exp_sepcon2, ?sepcon_andp_prop, ?sepcon_andp_prop';
+  repeat match goal with
+    | |-view_shift (!!_ && _) _ => apply view_shift_prop; fancy_intros false
+  end.

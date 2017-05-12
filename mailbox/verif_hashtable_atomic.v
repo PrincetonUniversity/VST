@@ -101,7 +101,7 @@ Program Definition set_item_spec := DECLARE _set_item atomic_spec
    data_at sh (tarray tentry size) entries p * fold_right sepcon emp (map (ghost_snap 0) lg))
   (fun _ '(k, v, p, sh, entries, g, lg) H => hashtable H g lg entries)
   tt []
-  (fun _ '(k, v, p, sh, entries, g, lg) => data_at sh (tarray tentry size) entries p *
+  (fun _ '(k, v, p, sh, entries, g, lg) _ _ => data_at sh (tarray tentry size) entries p *
    fold_right sepcon emp (map (ghost_snap 0) lg))
   (fun _ '(k, v, p, sh, entries, g, lg) H _ => hashtable (map_upd H k v) g lg entries)
   _ _ _ _ _ _.
@@ -141,7 +141,7 @@ Program Definition get_item_spec := DECLARE _get_item atomic_spec
    data_at sh (tarray tentry size) entries p * fold_right sepcon emp (map (ghost_snap 0) lg))
   (fun _ '(k, p, sh, entries, g, lg) H => hashtable H g lg entries)
   0 [fun _ _ v => temp ret_temp (vint v)]
-  (fun _ '(k, p, sh, entries, g, lg) => data_at sh (tarray tentry size) entries p *
+  (fun _ '(k, p, sh, entries, g, lg) _ _ => data_at sh (tarray tentry size) entries p *
    fold_right sepcon emp (map (ghost_snap 0) lg))
   (fun _ '(k, p, sh, entries, g, lg) H v => !!(if eq_dec v 0 then H k = None else H k = Some v) &&
    hashtable H g lg entries)
@@ -182,7 +182,7 @@ Program Definition add_item_spec := DECLARE _add_item atomic_spec
    data_at sh (tarray tentry size) entries p * fold_right sepcon emp (map (ghost_snap 0) lg))
   (fun _ '(k, v, p, sh, entries, g, lg) H => hashtable H g lg entries)
   true [fun _ _ b => temp ret_temp (Val.of_bool b)]
-  (fun _ '(k, v, p, sh, entries, g, lg) => data_at sh (tarray tentry size) entries p *
+  (fun _ '(k, v, p, sh, entries, g, lg) _ _ => data_at sh (tarray tentry size) entries p *
    fold_right sepcon emp (map (ghost_snap 0) lg))
   (fun _ '(k, v, p, sh, entries, g, lg) H b => !!(H k = None <-> b = true) &&
    hashtable (if b then map_upd H k v else H) g lg entries)
@@ -398,17 +398,6 @@ Corollary wf_table_upd_same : forall T k v i (Hwf : wf_table T) (HT : Zlength T 
 Proof.
   intros; apply wf_table_upd; auto.
 Qed.
-
-Ltac view_shift_intro a := repeat rewrite ?exp_sepcon1, ?exp_sepcon2, ?sepcon_andp_prop, ?sepcon_andp_prop';
-  repeat match goal with
-    | |-view_shift (exp _) _ => apply view_shift_exists; intro a
-    | |-view_shift (!!_ && _) _ => apply view_shift_prop; fancy_intros false
-  end.
-
-Ltac view_shift_intros := repeat rewrite ?exp_sepcon1, ?exp_sepcon2, ?sepcon_andp_prop, ?sepcon_andp_prop';
-  repeat match goal with
-    | |-view_shift (!!_ && _) _ => apply view_shift_prop; fancy_intros false
-  end.
 
 Lemma body_set_item : semax_body Vprog Gprog f_set_item set_item_spec.
 Proof.
@@ -1569,7 +1558,7 @@ Proof.
          lock_inv tsh lockt (f_lock_pred tsh sh gsh entries gh g lg pi p t locksp lockt resultsp res))).
   - Exists (@nil bool) (@nil (nat * hashtable_hist_el)); entailer!.
   - Intros h.
-    Timeout 100 forward_call (i + 1, 1, p, sh, entries, g, lg, ghost_hist gsh h gh,
+    forward_call (i + 1, 1, p, sh, entries, g, lg, ghost_hist gsh h gh,
       fun (_ : Z -> option Z) b => EX h' : _, !!(add_events h [HAdd (i + 1) 1 b] h') && ghost_hist gsh h' gh,
       fun H => ghost_hist gsh h gh * EX hr : _, !!(apply_hist empty_map hr = Some H) && ghost_ref hr gh,
       [pi], fun p => if eq_dec p pi then hashtable_inv gh g lg entries else FF).
@@ -2143,6 +2132,7 @@ Proof.
     erewrite sublist_next with (l := locks) by (auto; omega); simpl.
     forward_call (Znth i locks Vundef, sizeof (Tstruct _lock_t noattr)).
     { entailer!. }
+    { entailer!. }
     { fast_cancel.
       apply sepcon_derives; [|cancel_frame].
       rewrite data_at__memory_block; Intros; auto. }
@@ -2156,6 +2146,7 @@ Proof.
     forward.
     erewrite sublist_next with (l := res) by (auto; omega); simpl.
     forward_call (Znth i res Vundef, sizeof tint).
+    { entailer!. }
     { entailer!. }
     { fast_cancel.
       rewrite <- !sepcon_assoc, (sepcon_comm _ (data_at _ _ _ (Znth i res Vundef))), !sepcon_assoc;
