@@ -360,8 +360,8 @@ FILES = \
  $(HMACEQUIV_FILES:%=sha/%) \
  $(CCC26x86_FILES:%=ccc26x86/%) \
  $(TWEETNACL_FILES:%=tweetnacl20140427/%) \
+# $(CONCUR_FILES:%=concurrency/%) \
  $(HMACDRBG_Files:%=hmacdrbg/%)
-#$(CONCUR_FILES:%=concurrency/%)
 # $(DRBG_FILES:%=verifiedDrbg/spec/%)
 
 %_stripped.v: %.v

@@ -510,6 +510,24 @@ Definition freelock_f phi m loc length : address -> resource :=
  * forall (sh2 sh3:pshares) -> join pfullshare sh2 sh3 -> False. *)
 Local Ltac pfulltac := try solve [exfalso; eapply join_writable_readable; eauto].
 
+Lemma readable_part_writable:
+               forall sh
+                 (Hw : writable_share sh)
+                 (Hr : readable_share sh),
+                 readable_part (Hr) =
+                 exist _ _ pure_readable_Rsh.
+Proof.
+intros.
+apply exist_ext.
+clear Hr.
+unfold writable_share in Hw.
+apply leq_join_sub in Hw.
+apply Share.ord_antisym.
+apply (Share.glb_lower1 Share.Rsh sh).
+apply Share.glb_greatest; auto.
+apply Share.ord_refl.
+Qed.
+
 Lemma rmap_makelock_join phi1 phi1' loc R length phi2 phi :
   0 < length ->
   rmap_makelock phi1 phi1' loc R length ->
@@ -547,14 +565,6 @@ Proof.
           if_tac.
           -- assert (ofs = ofs + i) by congruence. omega.
           -- simpl. repeat f_equal; try omega.
-             Lemma readable_part_writable:
-               forall sh
-                 (Hw : writable_share sh)
-                 (Hr : readable_share sh),
-                 readable_part (Hr) =
-                 exist _ _ pure_readable_Rsh.
-             Proof.
-             Admitted.
              rewrite readable_part_writable; eauto.
              rewrite readable_part_writable; eauto.
              eapply join_writable1; eauto.
@@ -1162,6 +1172,17 @@ Definition getNO_aux (phi : rmap) (loc : address) : resource :=
   | PURE k pp => PURE k pp
   end.
 
+Lemma readable_part_glb:
+      forall (sh sh0 : Share.t) (r : readable_share sh) (r0 : readable_share sh0),
+  Share.glb Share.Rsh sh0 = Share.glb Share.Rsh sh ->
+  readable_part (readable_glb r0) = readable_part (readable_glb r).
+Proof.
+intros.
+unfold readable_part.
+apply exist_ext.
+rewrite H. auto.
+Qed.
+
 Program Definition getYES (phi : rmap) := proj1_sig (make_rmap (getYES_aux phi) _ (level phi) _).
 Next Obligation.
   pose proof juicy_mem.phi_valid phi as V.
@@ -1171,15 +1192,13 @@ Next Obligation.
   destruct k; auto.
   - intros i ri; spec V i ri. destruct (phi @ _); try inversion V; subst.
     simpl; f_equal; f_equal.
-    Lemma readable_part_glb:
-      forall (sh sh0 : Share.t) (r : readable_share sh) (r0 : readable_share sh0),
-  Share.glb Share.Rsh sh0 = Share.glb Share.Rsh sh ->
-  readable_part (readable_glb r0) = readable_part (readable_glb r).
-    Proof.
-    Admitted.
     apply readable_part_glb; auto.
-  - destruct (phi @ _); auto.
-Admitted.
+  - destruct (phi @ _); auto;
+      try solve [destruct V as [n0 [? H0]]; inv H0].
+     destruct V as [n0 [? ?]]; inv H0.
+     exists n0; split; auto. simpl.
+     f_equal; f_equal; apply exist_ext. rewrite H2; auto.
+Qed.
 Next Obligation.
   pose proof resource_at_approx phi as V.
   extensionality l. spec V l.
@@ -1208,7 +1227,15 @@ Proof.
   unfold getYES, getNO; do 2 rewrite resource_at_make_rmap.
   unfold getYES_aux, getNO_aux; intros loc.
   destruct (phi @ loc); constructor; try apply bot_join_eq.
-Admitted.
+  pose proof (comp_parts comp_Lsh_Rsh sh).
+  split.
+  rewrite (Share.glb_commute Share.Rsh).
+  rewrite Share.glb_assoc. rewrite <- (Share.glb_assoc Share.Rsh).
+  rewrite (Share.glb_commute Share.Rsh).
+  rewrite glb_Lsh_Rsh. 
+  rewrite (Share.glb_commute Share.bot), !Share.glb_bot. auto.
+  rewrite Share.lub_commute, <- H. auto.
+Qed.
 
 Lemma noyes_getNO phi : noyes (getNO phi).
 Proof.
@@ -1217,20 +1244,29 @@ Proof.
   destruct (phi @ _); congruence.
 Qed.
 
+Lemma writable_glb_Rsh:
+  forall sh, writable_share sh -> Share.glb Share.Rsh sh = Share.Rsh.
+Proof.
+ intros. unfold writable_share in H.
+apply leq_join_sub in H.
+apply Share.ord_antisym.
+apply (Share.glb_lower1 Share.Rsh sh).
+apply Share.glb_greatest; auto.
+apply Share.ord_refl.
+Qed.
+
 Section simpler_invariant_tentative.
 
 (* This section about getYES and getNO is currently unused.  Maybe
 it would give us a simpler invariant, but maybe not. *)
 
-Variable unrel_lsh_rsh : Share.unrel Share.Lsh Share.Rsh = Share.bot.
+(* Variable unrel_lsh_rsh : Share.unrel Share.Lsh Share.Rsh = Share.bot. *)
 
 Lemma mapsto_getYES sh t v v' phi :
   writable_share sh ->
   app_pred (mapsto sh t v v') phi ->
   app_pred (mapsto Share.Rsh t v v') (getYES phi).
 Proof.
-  admit.
-  (*
   intros Hw At. pose proof writable_readable_share Hw as Hr.
   assert (Hw' : writable_share Share.Rsh). {
     apply writable_Rsh.
@@ -1239,8 +1275,8 @@ Proof.
     by (apply writable_readable_share; auto).
   cut
     (forall m v loc,
-        (address_mapsto m v (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) loc) phi ->
-        (address_mapsto m v (Share.unrel Share.Lsh Share.Rsh) (Share.unrel Share.Rsh Share.Rsh) loc) (getYES phi)).
+        (address_mapsto m v sh loc) phi ->
+        (address_mapsto m v Share.Rsh loc) (getYES phi)).
   { intros CUT.
     unfold mapsto in *; destruct (access_mode t);
       repeat if_tac;
@@ -1258,28 +1294,21 @@ Proof.
     unfold getYES, getYES_aux in *.
     rewrite resource_at_make_rmap.
     destruct (phi @ x); try congruence.
-    injection M as -> -> -> ->.
-    assert (p' : nonunit (Share.unrel Share.Rsh Share.Rsh)). {
-      rewrite writable_share_right; auto.
-      apply top_share_nonunit.
+    injection M as -> -> ->.
+    assert (p' : readable_share Share.Rsh). {
+      apply writable_readable_share.
+      apply writable_Rsh.
     }
     exists p'; f_equal.
-    + rewrite unrel_lsh_rsh; reflexivity.
-    + pose proof writable_share_right Hw as R.
-      assert (R': Share.unrel Share.Rsh Share.Rsh = Share.top).
-      { apply writable_share_right. auto. }
-      revert p p' R R'.
-      generalize (Share.unrel Share.Rsh sh).
-      generalize (Share.unrel Share.Rsh Share.Rsh).
-      intros ? ? ? ? -> ->; f_equal; apply proof_irr.
+    +
+      apply YES_ext. apply  writable_glb_Rsh; auto.
   - apply empty_NO in M.
     unfold getYES, getYES_aux in *.
     rewrite resource_at_make_rmap.
     destruct M as [-> | (k & pp & ->)].
     + apply NO_identity.
     + apply PURE_identity.
-*)
-Admitted.
+Qed.
 
 Lemma memory_block_getYES sh z v phi :
   writable_share sh ->
