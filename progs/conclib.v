@@ -126,6 +126,11 @@ Proof.
   rewrite IHi; auto.
 Qed.
 
+Lemma in_insert_iff : forall {A} (x y : A) l1 l2, In x (l1 ++ y :: l2) <-> x = y \/ In x (l1 ++ l2).
+Proof.
+  intros; rewrite !in_app; split; simpl; intros [|[|]]; auto.
+Qed.
+
 Definition remove_at {A} i (l : list A) := firstn i l ++ skipn (S i) l.
 
 Lemma Forall_firstn : forall {A} (P : A -> Prop) l i, Forall P l ->
@@ -674,6 +679,19 @@ Proof.
   exists (Z.of_nat n); unfold Znth.
   split; [rewrite Zlength_correct; Omega0|].
   rewrite Nat2Z.id; destruct (zlt (Z.of_nat n) 0); auto; omega.
+Qed.
+
+Lemma In_upd_Znth_old : forall {A} i (x y d : A) l, In x l -> x <> Znth i l d -> 0 <= i <= Zlength l ->
+  In x (upd_Znth i l y).
+Proof.
+  intros.
+  apply In_Znth with (d0 := d) in H; destruct H as (j & ? & ?); subst.
+  unfold upd_Znth.
+  destruct (eq_dec j i); [subst; contradiction|].
+  rewrite in_app; simpl.
+  destruct (zlt j i); [left | right; right].
+  - erewrite <- (Z.add_0_r j), <- Znth_sublist; [apply Znth_In; rewrite Zlength_sublist| |]; auto; omega.
+  - erewrite <- (Z.sub_simpl_r _ (i + 1)), <- Znth_sublist; [apply Znth_In; rewrite Zlength_sublist| |]; omega.
 Qed.
 
 Lemma Znth_combine : forall {A B} i l1 l2 (a : A) (b : B), Zlength l1 = Zlength l2 ->
@@ -1305,6 +1323,23 @@ Proof.
   destruct (f a); auto.
   constructor; auto.
   rewrite filter_In; intros (? & ?); contradiction.
+Qed.
+
+Lemma Permutation_Zlength : forall {A} (l1 l2 : list A), Permutation.Permutation l1 l2 ->
+  Zlength l1 = Zlength l2.
+Proof.
+  intros; apply Z2Nat.inj; try apply Zlength_nonneg.
+  rewrite !ZtoNat_Zlength; apply Permutation.Permutation_length; auto.
+Qed.
+
+Lemma Permutation_filter : forall {A} (f : A -> bool) l1 l2, Permutation.Permutation l1 l2 ->
+  Permutation.Permutation (filter f l1) (filter f l2).
+Proof.
+  induction 1; simpl; auto.
+  - if_tac; auto.
+  - if_tac; auto; if_tac; auto.
+    constructor.
+  - etransitivity; eauto.
 Qed.
 
 Lemma NoDup_add : forall {A} l1 l2 (x : A), NoDup (l1 ++ l2) -> ~In x (l1 ++ l2) -> NoDup (l1 ++ x :: l2).
@@ -2800,7 +2835,8 @@ Proof.
 Qed.
 
 Lemma approx_imp : forall n P Q, compcert_rmaps.RML.R.approx n (predicates_hered.imp P Q) =
-  compcert_rmaps.RML.R.approx n (predicates_hered.imp (compcert_rmaps.RML.R.approx n P) (compcert_rmaps.RML.R.approx n Q)).
+  compcert_rmaps.RML.R.approx n (predicates_hered.imp (compcert_rmaps.RML.R.approx n P)
+    (compcert_rmaps.RML.R.approx n Q)).
 Proof.
   intros; apply predicates_hered.pred_ext; intros ? (? & Himp); split; auto; intros ? Ha' HP.
   - destruct HP; split; auto.
@@ -2814,6 +2850,32 @@ Proof.
   intros.
   transitivity (base.compose (compcert_rmaps.R.approx n) (compcert_rmaps.R.approx n) P); auto.
   rewrite compcert_rmaps.RML.approx_oo_approx; auto.
+Qed.
+
+Definition super_non_expansive' {A} P := forall n ts x, compcert_rmaps.RML.R.approx n (P ts x) =
+  compcert_rmaps.RML.R.approx n (P ts (functors.MixVariantFunctor.fmap (rmaps.dependent_type_functor_rec ts A)
+        (compcert_rmaps.RML.R.approx n) (compcert_rmaps.RML.R.approx n) x)).
+
+Lemma approx_sepcon_list: forall n lP, lP <> [] ->
+  compcert_rmaps.RML.R.approx n (fold_right sepcon emp lP) =
+  fold_right sepcon emp (map (compcert_rmaps.RML.R.approx n) lP).
+Proof.
+  induction lP; [contradiction | intros].
+  destruct lP; simpl in *.
+  - simpl; rewrite !sepcon_emp; auto.
+  - rewrite approx_sepcon, IHlP; auto; discriminate.
+Qed.
+
+Lemma approx_FF : forall n, compcert_rmaps.RML.R.approx n FF = FF.
+Proof.
+  intro; apply predicates_hered.pred_ext; intros ??; try contradiction.
+  destruct H; contradiction.
+Qed.
+
+Lemma later_nonexpansive : nonexpansive (@later mpred _ _).
+Proof.
+  apply contractive_nonexpansive, later_contractive.
+  intros ??; auto.
 Qed.
 
 Lemma eqp_refl : forall (G : Triv) P, G |-- P <=> P.

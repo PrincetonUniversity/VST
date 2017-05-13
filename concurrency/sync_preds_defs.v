@@ -1,11 +1,11 @@
+Require Import concurrency.lksize.
+Require Import concurrency.addressFiniteMap.
 Require Import msl.Coqlib2.
 Require Import msl.eq_dec.
 Require Import msl.seplog.
 Require Import veric.compcert_rmaps.
 Require Import veric.tycontext.
 Require Import veric.res_predicates.
-Require Import concurrency.lksize.
-Require Import concurrency.addressFiniteMap.
 
 Set Bullet Behavior "Strict Subproofs".
 
@@ -22,17 +22,17 @@ Proof.
 Qed.
 
 Definition LKspec_ext (R: pred rmap) : spec :=
-   fun (rsh sh: Share.t) (l: AV.address)  =>
+   fun (sh: Share.t) (l: AV.address)  =>
      allp
        (jam
           (adr_range_dec l LKSIZE)
           (jam (eq_dec l)
-               (yesat (SomeP rmaps.Mpred (fun _ => R)) (LK LKSIZE) rsh sh)
-               (CTat l rsh sh))
+               (yesat (SomeP rmaps.Mpred (fun _ => R)) (LK LKSIZE) sh)
+               (CTat l sh))
           (fun _ => TT)).
 
 Definition LK_at R sh :=
-  LKspec_ext R (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh).
+  LKspec_ext R sh.
 
 (* We used LK_at in lock_coherence before, but we it requires that all
 the LK, CT, ... have the same share, which might not be true. The
@@ -72,7 +72,7 @@ Definition predat phi loc (R: pred rmap) :=
   exists sh sh' z, phi @ loc = YES sh sh' (LK z) (SomeP rmaps.Mpred (fun _ => R)).
 
 Definition rmap_bound b phi :=
-  (forall loc, (fst loc >= b)%positive -> phi @ loc = NO Share.bot).
+  (forall loc, (fst loc >= b)%positive -> phi @ loc = NO Share.bot shares.bot_unreadable).
 
 (* Constructive version of resource_decay (equivalent to the
 non-constructive version, see resource_decay_join.v) *)
@@ -80,16 +80,17 @@ Definition resource_decay_aux (nextb: block) (phi1 phi2: rmap) : Type :=
   prod (level phi1 >= level phi2)%nat
   (forall l: address,
 
-  ((fst l >= nextb)%positive -> phi1 @ l = NO Share.bot) *
+  ((fst l >= nextb)%positive -> phi1 @ l = NO Share.bot shares.bot_unreadable) *
   ( (resource_fmap (approx (level phi2)) (approx (level phi2)) (phi1 @ l) = (phi2 @ l))
 
-  + { rsh : _ & { v : _ & { v' : _ |
-       resource_fmap (approx (level phi2)) (approx (level phi2)) (phi1 @ l) = YES rsh pfullshare (VAL v) NoneP /\
-       phi2 @ l = YES rsh pfullshare (VAL v') NoneP }}}
+  + { sh : _ & { Psh : _ & { v : _ & { v' : _ |
+       resource_fmap (approx (level phi2)) (approx (level phi2)) (phi1 @ l) = YES sh Psh (VAL v) NoneP /\
+       phi2 @ l = YES sh Psh (VAL v') NoneP /\
+       shares.writable_share sh}}}}
 
-  + (fst l >= nextb)%positive * { v | phi2 @ l = YES Share.top pfullshare (VAL v) NoneP }
+  + (fst l >= nextb)%positive * { v | phi2 @ l = YES Share.top shares.readable_share_top  (VAL v) NoneP }
 
-  + { v : _ & { pp : _ | phi1 @ l = YES Share.top pfullshare (VAL v) pp /\ phi2 @ l = NO Share.bot } })).
+  + { v : _ & { pp : _ | phi1 @ l = YES Share.top shares.readable_share_top (VAL v) pp /\ phi2 @ l = NO Share.bot shares.bot_unreadable} })).
 
 Ltac breakhyps :=
   repeat
@@ -123,13 +124,14 @@ Ltac sumsimpl :=
   end.
 
 Definition resource_decay_at (nextb: block) n (r1 r2 : resource) b :=
-  ((b >= nextb)%positive -> r1 = NO Share.bot) /\
+  ((b >= nextb)%positive -> r1 = NO Share.bot shares.bot_unreadable) /\
   (resource_fmap (approx (n)) (approx (n)) (r1) = (r2) \/
-  (exists rsh, exists v, exists v',
-       resource_fmap (approx (n)) (approx (n)) (r1) = YES rsh pfullshare (VAL v) NoneP /\
-       r2 = YES rsh pfullshare (VAL v') NoneP)
-  \/ ((b >= nextb)%positive /\ exists v, r2 = YES Share.top pfullshare (VAL v) NoneP)
-  \/ (exists v, exists pp, r1 = YES Share.top pfullshare (VAL v) pp /\ r2 = NO Share.bot)).
+  (exists sh, exists Psh, exists v, exists v',
+       resource_fmap (approx (n)) (approx (n)) (r1) = YES sh Psh (VAL v) NoneP /\
+       r2 = YES sh Psh (VAL v') NoneP /\
+       shares.writable_share sh)
+  \/ ((b >= nextb)%positive /\ exists v, r2 = YES Share.top shares.readable_share_top  (VAL v) NoneP)
+  \/ (exists v, exists pp, r1 = YES Share.top shares.readable_share_top (VAL v) pp /\ r2 = NO Share.bot shares.bot_unreadable)).
 
 Ltac range_tac :=
   match goal with

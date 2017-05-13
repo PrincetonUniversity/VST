@@ -32,6 +32,8 @@ Require Import concurrency.permjoin.
 Require Import concurrency.sync_preds_defs.
 Require Import concurrency.semax_conc_pred.
 
+Require Import Setoid.
+
 Set Bullet Behavior "Strict Subproofs".
 
 Local Open Scope Z_scope.
@@ -43,9 +45,7 @@ Lemma data_at_unfolding CS sh b ofs phi :
     adr_range (b, Int.intval ofs) 4%Z loc ->
     exists p v,
       phi @ loc =
-      YES
-        (Share.unrel Share.Lsh sh)
-        (mk_lifted (Share.unrel Share.Rsh sh) p)
+      YES sh p
         (VAL v) NoneP.
 Proof.
   intros Readable [A [B wob]].
@@ -57,7 +57,7 @@ Proof.
   simpl in *.
   unfold nested_field_lemmas.nested_field_offset in *. simpl in *.
   unfold reptype_lemmas.unfold_reptype in *. simpl in *.
-  unfold reptype_lemmas.default_val, Znth in *.
+  unfold reptype_lemmas.default_val in *.
   simpl in *.
   unfold SeparationLogic.mapsto in *.
   simpl in *.
@@ -118,7 +118,7 @@ Lemma mapsto_unfold sh z b ofs phi loc :
   if adr_range_dec (b, Int.unsigned (Int.add ofs (Int.repr (4 * z)))) 4%Z loc then
     exists p v,
       phi @ loc =
-      YES (Share.unrel Share.Lsh sh) (mk_lifted (Share.unrel Share.Rsh sh) p) (VAL v) NoneP
+      YES sh p (VAL v) NoneP
   else
     identity (phi @ loc).
 Proof.
@@ -155,9 +155,7 @@ Lemma data_at_unfold_readable CS sh b ofs phi length :
       exists p v,
         phi @ loc =
         YES
-          (Share.unrel Share.Lsh sh)
-          (mk_lifted (Share.unrel Share.Rsh sh) p)
-          (VAL v) NoneP
+          sh p (VAL v) NoneP
     else
       identity (phi @ loc).
 Proof.
@@ -193,7 +191,7 @@ Proof.
                       Vundef) (Vptr b (Int.add ofs (Int.repr 0)))) phi).
   {
     exact_eq H. repeat (f_equal || extensionality). rewrite Nat2Z.id; auto.
-    unfold Znth. if_tac; auto.
+    unfold sublist.Znth. if_tac; auto.
     generalize (Z.to_nat (x - 0)).
     clear bound1 bound2.
     induction length; intros [|n]; simpl; auto.
@@ -383,6 +381,7 @@ Proof.
            intros <-; auto.
 Qed.
 
+(*
 Lemma writable_unique_right sh :
   writable_share sh ->
   forall p, mk_lifted (Share.unrel Share.Rsh sh) p = pfullshare.
@@ -391,14 +390,14 @@ Proof.
   unfold pfullshare.
   rewrite writable_share_right; auto.
   intros p; f_equal; apply proof_irr.
-Qed.
+Qed.*)
 
 Lemma data_at_unfold CS sh b ofs phi length :
-  writable_share sh ->
+  forall (Hw: writable_share sh),
   app_pred (@data_at_ CS sh (Tarray (Tpointer Tvoid noattr) (Z.of_nat length) noattr) (Vptr b ofs)) phi ->
   forall loc,
     if adr_range_dec (b, Int.intval ofs) (4 * Z.of_nat length)%Z loc then
-      exists v, phi @ loc = YES (Share.unrel Share.Lsh sh) pfullshare (VAL v) NoneP
+      exists v, phi @ loc = YES sh (writable_readable_share Hw) (VAL v) NoneP
     else
       identity (phi @ loc).
 Proof.
@@ -409,7 +408,7 @@ Proof.
   if_tac; auto.
   destruct H as (p, H).
   exact_eq H; repeat (extensionality || f_equal).
-  apply writable_unique_right, Hw.
+  apply proof_irr.
 Qed.
 
 Lemma data_at_unfold_weak CS sh b ofs phi z z' loc :
@@ -420,8 +419,7 @@ Lemma data_at_unfold_weak CS sh b ofs phi z z' loc :
   exists p v,
     phi @ loc =
     YES
-      (Share.unrel Share.Lsh sh)
-      (mk_lifted (Share.unrel Share.Rsh sh) p)
+      sh p 
       (VAL v) NoneP.
 Proof.
   intros R AT range L.
@@ -453,13 +451,14 @@ Definition rmap_makelock phi phi' loc R length :=
   (forall x, ~ adr_range loc length x -> phi @ x = phi' @ x) /\
   (forall x,
       adr_range loc length x ->
-      exists val sh,
-        phi @ x = YES sh pfullshare (VAL val) NoneP /\
+      exists val sh Psh,
+        phi @ x = YES sh Psh (VAL val) NoneP /\
+        writable_share sh /\
         phi' @ x =
         if eq_dec x loc then
-          YES sh pfullshare (LK length) (pack_res_inv (approx (level phi) R))
+          YES sh Psh (LK length) (pack_res_inv (approx (level phi) R))
         else
-          YES sh pfullshare (CT (snd x - snd loc)) NoneP).
+          YES sh Psh (CT (snd x - snd loc)) NoneP).
 
 (* rmap_freelock phi phi' is ALMOST rmap_makelock phi' phi but we
 specify that the VAL will be the dry memory's *)
@@ -468,13 +467,14 @@ Definition rmap_freelock phi phi' m loc R length :=
   (forall x, ~ adr_range loc length x -> phi @ x = phi' @ x) /\
   (forall x,
       adr_range loc length x ->
-      exists sh,
-        phi' @ x = YES sh pfullshare (VAL (contents_at m x)) NoneP /\
+      exists sh Psh,
+        phi' @ x = YES sh Psh (VAL (contents_at m x)) NoneP /\
+        writable_share sh /\
         phi @ x =
         if eq_dec x loc then
-          YES sh pfullshare (LK length) (pack_res_inv (approx (level phi) R))
+          YES sh Psh (LK length) (pack_res_inv (approx (level phi) R))
         else
-          YES sh pfullshare (CT (snd x - snd loc)) NoneP).
+          YES sh Psh (CT (snd x - snd loc)) NoneP).
 
 Definition makelock_f phi loc R length : address -> resource :=
   fun x =>
@@ -487,7 +487,7 @@ Definition makelock_f phi loc R length : address -> resource :=
           YES sh sh' (CT (snd x - snd loc)) NoneP
       | YES _ _ _ _
       | PURE _ _
-      | NO _ => NO Share.bot
+      | NO _ _ => NO Share.bot bot_unreadable
       end
     else
       phi @ x.
@@ -500,12 +500,33 @@ Definition freelock_f phi m loc length : address -> resource :=
       | YES sh sh' (CT _) _ => YES sh sh' (VAL (contents_at m x)) NoneP
       | YES _ _ _ _
       | PURE _ _
-      | NO _ => NO Share.bot
+      | NO _ _ => NO Share.bot bot_unreadable
       end
     else
       phi @ x.
 
-Local Ltac pfulltac := try solve [exfalso; eapply join_pfullshare; eauto].
+(*The name is legacy. Comes from the time there was two shares. Then
+ * The contradiction would look like 
+ * forall (sh2 sh3:pshares) -> join pfullshare sh2 sh3 -> False. *)
+Local Ltac pfulltac := try solve [exfalso; eapply join_writable_readable; eauto].
+
+Lemma readable_part_writable:
+               forall sh
+                 (Hw : writable_share sh)
+                 (Hr : readable_share sh),
+                 readable_part (Hr) =
+                 exist _ _ pure_readable_Rsh.
+Proof.
+intros.
+apply exist_ext.
+clear Hr.
+unfold writable_share in Hw.
+apply leq_join_sub in Hw.
+apply Share.ord_antisym.
+apply (Share.glb_lower1 Share.Rsh sh).
+apply Share.glb_greatest; auto.
+apply Share.ord_refl.
+Qed.
 
 Lemma rmap_makelock_join phi1 phi1' loc R length phi2 phi :
   0 < length ->
@@ -529,21 +550,25 @@ Proof.
     pose proof j as j0.
     eapply resource_at_join with (loc := (b, ofs)) in j0.
     if_tac [r|nr].
-    - destruct (Hchanged (b, ofs) r) as (val & sh & E & E').
+    - destruct (Hchanged (b, ofs) r) as (val & sh & Rsh & E & Wsh & E').
       rewrite E in j0.
       inv j0; pfulltac.
       if_tac [e|ne].
       + simpl.
         intros i Hi.
         if_tac [ri|nri].
-        * destruct (Hchanged (b, ofs + i) ri) as (vali & shi & Ei & Ei').
+        * destruct (Hchanged (b, ofs + i) ri) as (vali & shi & Rshi & Ei & Wshi& Ei').
           pose proof j as ji.
           eapply resource_at_join with (loc := (b, ofs + i)) in ji.
           rewrite Ei in ji.
           inv ji; pfulltac.
           if_tac.
           -- assert (ofs = ofs + i) by congruence. omega.
-          -- simpl. repeat f_equal; omega.
+          -- simpl. repeat f_equal; try omega.
+             rewrite readable_part_writable; eauto.
+             rewrite readable_part_writable; eauto.
+             eapply join_writable1; eauto.
+             eapply join_writable1; eauto.
         * destruct nri.
           subst loc; split; auto. omega.
       + simpl.
@@ -554,12 +579,17 @@ Proof.
         replace (ofs - (ofs - ofs')) with ofs' by omega.
         if_tac [r'|nr'].
         * spec Hchanged (b, ofs') r'.
-          destruct Hchanged as (val' & sh' & Eq & Eq').
+          destruct Hchanged as (val' & sh' & Rsh' & Eq & Eq' & Wsh').
           pose proof j as j'.
           eapply resource_at_join with (loc := (b, ofs')) in j'.
           rewrite Eq in j'.
           inv j'; pfulltac.
-          if_tac; tauto.
+          if_tac; try tauto.
+          simpl.
+          rewrite readable_part_writable; eauto.
+          rewrite readable_part_writable; eauto.
+          eapply join_writable1; eauto.
+          eapply join_writable1; eauto.
         * destruct nr'; split; auto.
           split; auto; omega.
     - spec V b ofs.
@@ -568,7 +598,7 @@ Proof.
         if_tac [ri'|nri]; [ | easy ].
         exfalso.
         spec Hchanged (b, ofs + i) ri'.
-        destruct Hchanged as (val & sh & E & E').
+        destruct Hchanged as (val & sh & Rsh & E & Wsh & E').
         pose proof j as ji.
         eapply resource_at_join with (loc := (b, ofs + i)) in ji.
         rewrite E in ji.
@@ -578,7 +608,7 @@ Proof.
         exfalso.
         spec Hchanged (b, ofs - z) rz.
         destruct V as (?&?&V).
-        destruct Hchanged as (?&?&?&?).
+        destruct Hchanged as (?&?&?&?&?&?).
         pose proof j as jz.
         eapply resource_at_join with (loc := (b, ofs - z)) in jz.
         rewr (phi1 @ (b, ofs - z)) in jz.
@@ -617,16 +647,16 @@ Proof.
       unfold makelock_f.
       if_tac [r|nr].
       + spec Hchanged x r.
-        destruct Hchanged as (val & sh & E & E').
+        destruct Hchanged as (val & sh & Rsh & E & Wsh & E').
         rewrite E in j. rewrite E'.
         rewrite L1 in *.
         if_tac [e|ne].
         * inv j.
           -- constructor. auto.
-          -- exfalso; eapply join_pfullshare. eauto.
+          -- pfulltac.
         * inv j.
           -- constructor. auto.
-          -- exfalso; eapply join_pfullshare. eauto.
+          -- pfulltac.
       + spec Hsame x nr.
         congruence.
   }
@@ -639,7 +669,7 @@ Proof.
     eapply resource_at_join with (loc := x) in j'.
     eapply join_eq. apply j. rewrite <-Hsame in j'. eapply j'.
   + intros x r. spec Hchanged x r.
-    destruct Hchanged as (val & sh & E & E').
+    destruct Hchanged as (val & sh & Rsh & E & Wsh & E').
     exists val.
     eapply resource_at_join with (loc := x) in j.
     eapply resource_at_join with (loc := x) in j'.
@@ -647,14 +677,21 @@ Proof.
     rewrite E' in j'.
     rewrite L1 in *.
     if_tac [e|ne].
-    * inv j; inv j'; try solve [exfalso; eapply join_pfullshare; eauto].
-      eexists; split; f_equal.
-      assert (rsh0 = rsh2) by congruence; subst.
-      eapply join_eq; eauto.
-    * inv j; inv j'; try solve [exfalso; eapply join_pfullshare; eauto].
-      eexists; split; f_equal.
-      assert (rsh0 = rsh2) by congruence; subst.
-      eapply join_eq; eauto.
+    * inv j; inv j'; try solve [pfulltac].
+      eexists; eexists; split; eauto; split; eauto.
+      eapply join_writable1; eauto. 
+      rewrite <- H in H5. inversion H5; subst.
+      assert (sh4 = sh3) by (eapply join_eq; eauto).
+      subst. f_equal. apply proof_irr.
+      clear RJ0; exfalso; eapply join_writable_readable; eauto.
+      
+    * inv j; inv j'; try solve [pfulltac].
+      eexists; eexists; split; eauto; split; eauto.
+      eapply join_writable1; eauto. 
+      rewrite <- H in H5. inversion H5; subst.
+      assert (sh4 = sh3) by (eapply join_eq; eauto).
+      subst. f_equal. apply proof_irr.
+      clear RJ0; exfalso; eapply join_writable_readable; eauto.
 Qed.
 
 Lemma rmap_freelock_join phi1 phi1' m loc R length phi2 phi :
@@ -680,7 +717,7 @@ Proof.
     pose proof j as j0.
     eapply resource_at_join with (loc := (b, ofs)) in j0.
     if_tac [r|nr].
-    - destruct (Hchanged (b, ofs) r) as (sh & E' & E).
+    - destruct (Hchanged (b, ofs) r) as (sh & Rsh & E' & Wsh & E).
       rewrite E in j0.
       if_tac [e|ne] in E.
       + inv j0; pfulltac.
@@ -693,7 +730,7 @@ Proof.
       + intros i ii; spec V i ii.
         if_tac [ri|nri]; simpl; try congruence. exfalso.
         spec Hchanged (b, ofs + i) ri.
-        destruct Hchanged as (sh & _ & Ei).
+        destruct Hchanged as (shi & Rshi & Ei' & Wshi & Ei).
         if_tac in Ei.
         * subst loc.
           eapply resource_at_join with (loc := (b, ofs + i)) in j.
@@ -713,7 +750,7 @@ Proof.
       + pose proof V as V''. destruct V'' as (n & rn & Ez). exists n; split; auto.
         if_tac [rz|nrz]; simpl; try congruence. exfalso.
         spec Hchanged (b, ofs - z) rz.
-        destruct Hchanged as (sh & _ & Ei).
+        destruct Hchanged as (shi & Rshi & Ei' & Wshi & Ei).
         if_tac in Ei.
         * subst loc. apply nr. split; auto. split. omega. cut (n = length). omega.
           eapply resource_at_join with (loc := (b, ofs - z)) in j.
@@ -750,16 +787,16 @@ Proof.
       unfold freelock_f.
       if_tac [r|nr].
       + spec Hchanged x r.
-        destruct Hchanged as (sh & E' & E).
+        destruct Hchanged as (sh & Rsh & E' & Wsh & E).
         rewrite E in j. rewrite E'.
         rewrite L1 in *.
         if_tac [e|ne] in E.
         * inv j.
           -- constructor. auto.
-          -- exfalso; eapply join_pfullshare. eauto.
+          -- pfulltac.
         * inv j.
           -- constructor. auto.
-          -- exfalso; eapply join_pfullshare. eauto.
+          -- pfulltac.
       + spec Hsame x nr.
         congruence.
   }
@@ -772,21 +809,27 @@ Proof.
     eapply resource_at_join with (loc := x) in j'.
     eapply join_eq. apply j. rewrite <-Hsame in j'. eapply j'.
   + intros x r. spec Hchanged x r.
-    destruct Hchanged as (sh & E' & E).
+    destruct Hchanged as (sh & Rsh & E' & Wsh & E).
     eapply resource_at_join with (loc := x) in j.
     eapply resource_at_join with (loc := x) in j'.
     rewrite E in j.
     rewrite E' in j'.
     rewrite L1 in *.
     if_tac [e|ne].
-    * inv j; inv j'; try solve [exfalso; eapply join_pfullshare; eauto].
-      eexists; split; f_equal.
-      eapply join_eq; eauto.
-      assert (rsh0 = rsh2) by congruence; subst. auto.
-    * inv j; inv j'; try solve [exfalso; eapply join_pfullshare; eauto].
-      eexists; split; f_equal.
-      assert (rsh0 = rsh2) by congruence; subst.
-      eapply join_eq; eauto.
+    * inv j; inv j'; try solve [pfulltac].
+      eexists; eexists; split; eauto; split; eauto.
+      eapply join_writable1; eauto. 
+      rewrite <- H in H5. inversion H5; subst.
+      assert (sh4 = sh3) by (eapply join_eq; eauto).
+      subst. f_equal. apply proof_irr.
+      clear RJ0; exfalso; eapply join_writable_readable; eauto.
+    * inv j; inv j'; try solve [pfulltac].
+      eexists; eexists; split; eauto; split; eauto.
+      eapply join_writable1; eauto. 
+      rewrite <- H in H5. inversion H5; subst.
+      assert (sh4 = sh3) by (eapply join_eq; eauto).
+      subst. f_equal. apply proof_irr.
+      clear RJ0; exfalso; eapply join_writable_readable; eauto.
 Qed.
 
 (* TODO those definitions are also in sync_preds_defs, see if we can
@@ -797,15 +840,15 @@ keep enough control over joining with other rmaps that it should be
 enough *)
 
 Definition LKspec_ext (R: pred rmap) lksize : spec :=
-   fun (rsh sh: Share.t) (l: AV.address)  =>
+   fun (sh: Share.t) (l: AV.address)  =>
     allp (jam (adr_range_dec l lksize)
               (jam (eq_dec l)
-                   (yesat (SomeP rmaps.Mpred (fun _ => R)) (LK lksize) rsh sh)
-                   (CTat l rsh sh))
+                   (yesat (SomeP rmaps.Mpred (fun _ => R)) (LK lksize) sh)
+                   (CTat l sh))
               (fun _ => TT)).
 
 Definition LK_at R lksize sh :=
-  LKspec_ext R lksize (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh).
+  LKspec_ext R lksize sh.
 
 Lemma data_at_rmap_makelock CS sh b ofs R phi length :
   0 < length ->
@@ -903,8 +946,8 @@ Proof.
       spec Hbefore x.
       if_tac in Hbefore. 2:tauto.
       destruct Hbefore as (val & ->).
-      exists val, (Share.unrel Share.Lsh sh).
-      split; reflexivity.
+      exists val, sh, (writable_readable_share Hwritable).
+      repeat split; auto; reflexivity.
   - intros x.
     remember (4 * length) as n.
     simpl.
@@ -918,15 +961,11 @@ Proof.
       if_tac. 2:tauto.
       f_equal.
       symmetry.
-      apply writable_unique_right, Hwritable.
-      unfold pack_res_inv in *.
-      f_equal. extensionality. f_equal. auto.
+      unfold pack_res_inv.
+      rewrite Hlev; reflexivity.
     + eexists.
       if_tac. congruence.
       f_equal.
-      symmetry.
-      apply writable_unique_right, Hwritable.
-      Unshelve. all:rewrite <-readable_share_unrel_Rsh; apply writable_readable_share; auto.
 Qed.
 
 Lemma nat_of_Z_nonzero z n: n <> O -> nat_of_Z z = n -> z = Z.of_nat n.
@@ -996,12 +1035,15 @@ Proof.
       spec Hli x. simpl in Hli.
       if_tac in Hli. 2:tauto.
       if_tac in Hli; destruct Hli as (p, ->); simpl.
-      * exists (Share.unrel Share.Lsh sh); split; f_equal.
-        -- apply writable_unique_right, Hwritable.
-        -- if_tac; f_equal; try apply writable_unique_right, Hwritable; try congruence.
-      * exists (Share.unrel Share.Lsh sh); split; f_equal.
-        -- apply writable_unique_right, Hwritable.
-        -- if_tac; f_equal; try apply writable_unique_right, Hwritable; try congruence.
+      * exists sh, (writable_readable_share Hwritable); repeat split; auto; f_equal.
+        -- apply proof_irr.
+        -- if_tac; f_equal; try apply proof_irr;
+           try congruence.
+      * exists sh, (writable_readable_share Hwritable); repeat split; auto; f_equal.
+        -- apply proof_irr.
+        -- if_tac; f_equal; try apply proof_irr;
+             try congruence.
+           
   - split; [repeat split|]. assumption. assumption.
     split. reflexivity. simpl. rewrite seplog.sepcon_emp.
     unfold mapsto_memory_block.at_offset in *.
@@ -1017,13 +1059,15 @@ Proof.
     intros x. spec Hli x. simpl in *. unfold lksize.LKSIZE in *.
     rewrite Ephi'. unfold freelock_f.
     if_tac [r|nr]. 2:assumption.
-    rewrite writable_share_right; auto. exists top_share_nonunit.
+    exists  (writable_readable_share Hwritable).
     if_tac [<-|ne] in Hli.
-    * destruct Hli as (p & ->). f_equal. now apply writable_unique_right; auto.
+    * destruct Hli as (p & ->). f_equal.
+      apply proof_irr.
       simpl.
       replace (Int.unsigned ofs - Int.unsigned ofs) with 0 by omega; simpl.
       reflexivity.
-    * destruct Hli as (p & ->). f_equal. now apply writable_unique_right; auto.
+    * destruct Hli as (p & ->). f_equal.
+      apply proof_irr.
       destruct x as (b', ox); simpl in r; destruct r as (<-, r); simpl.
       assert (A : forall a b c, a - b = c -> a = b + c) by (intros; omega).
       destruct (nat_of_Z (ox - Int.unsigned ofs)) as [|[|[|[|[|]]]]] eqn:Ez; auto.
@@ -1044,6 +1088,12 @@ Proof.
   intros x.
   destruct (adr_range_dec loc len x) as [r | nr].
   - spec in1 x r. spec in2 x r. if_tac in in1; breakhyps.
+    + subst.
+      rewrite H0 in H3; inversion H3; subst.
+      rewrite H5, H2. f_equal; apply proof_irr.
+    + subst.
+      rewrite H0 in H3; inversion H3; subst.
+      rewrite H5, H2. f_equal; apply proof_irr.
   - spec out1 x nr. spec out2 x nr. congruence.
 Qed.
 
@@ -1057,6 +1107,12 @@ Proof.
   intros x.
   destruct (adr_range_dec loc len x) as [r | nr].
   - spec in1 x r. spec in2 x r. if_tac in in1; breakhyps.
+    + subst.
+      rewrite H2 in H5; inversion H5; subst.
+      rewrite H0, H3. f_equal; apply proof_irr.
+    + subst.
+      rewrite H2 in H5; inversion H5; subst.
+      rewrite H0, H3. f_equal; apply proof_irr.
   - spec out1 x nr. spec out2 x nr. congruence.
 Qed.
 
@@ -1068,7 +1124,8 @@ Lemma rmap_freelock_pures_same phi phi' m loc R length :
 Proof.
   intros (lev & before & after); intros l.
   destruct (adr_range_dec loc length l) as  [r|n].
-  - spec after l r. destruct after as (sh & -> & ->). if_tac; intros; split; congruence.
+  - spec after l r.
+    destruct after as (sh & Psh & -> & Hw & ->). if_tac; intros; split; congruence.
   - spec before l n. rewrite before. tauto.
 Qed.
 
@@ -1078,7 +1135,7 @@ Lemma rmap_makelock_pures_same phi phi' loc R length :
 Proof.
   intros (lev & before & after); intros l.
   destruct (adr_range_dec loc length l) as  [r|n].
-  - spec after l r. destruct after as (val & sh & -> & ->). if_tac; intros; split; congruence.
+  - spec after l r. destruct after as (val & sh & Psh & -> & ? & ->). if_tac; intros; split; congruence.
   - spec before l n. rewrite before. tauto.
 Qed.
 
@@ -1088,31 +1145,61 @@ Definition noyes phi := forall x sh rsh k pp, phi @ x <> YES sh rsh k pp.
 
 Definition getYES_aux (phi : rmap) (loc : address) : resource :=
   match phi @ loc with
-    YES sh rsh k pp => YES Share.bot rsh k pp
-  | NO sh => NO Share.bot
+    YES sh Psh k pp => YES (Share.glb Share.Rsh sh) (readable_glb Psh) k pp
+  | NO sh _ => NO Share.bot bot_unreadable
   | PURE k pp => PURE k pp
   end.
 
+
+Lemma glb_Lsh_unreadable:
+  forall sh,
+    ~ readable_share  (Share.glb Share.Lsh sh).
+Proof.
+  intros. unfold readable_share.
+  rewrite Share.glb_commute, Share.glb_assoc.
+  replace (Share.glb sh Share.Rsh) with (Share.glb Share.Rsh sh) by apply Share.glb_commute.
+  rewrite glb_Lsh_Rsh'.
+  unfold nonempty_share, nonidentity.
+  intros H; apply H; apply bot_identity.
+Qed.
+
+  
+  
 Definition getNO_aux (phi : rmap) (loc : address) : resource :=
   match phi @ loc with
-    YES sh rsh k pp => NO sh
-  | NO sh => NO sh
+    YES sh Psh k pp => NO (Share.glb Share.Lsh sh) (glb_Lsh_unreadable sh)
+  | NO sh Psh => NO sh Psh
   | PURE k pp => PURE k pp
   end.
+
+Lemma readable_part_glb:
+      forall (sh sh0 : Share.t) (r : readable_share sh) (r0 : readable_share sh0),
+  Share.glb Share.Rsh sh0 = Share.glb Share.Rsh sh ->
+  readable_part (readable_glb r0) = readable_part (readable_glb r).
+Proof.
+intros.
+unfold readable_part.
+apply exist_ext.
+rewrite H. auto.
+Qed.
 
 Program Definition getYES (phi : rmap) := proj1_sig (make_rmap (getYES_aux phi) _ (level phi) _).
 Next Obligation.
-  intros phi.
   pose proof juicy_mem.phi_valid phi as V.
   intros b ofs. spec V b ofs.
   unfold getYES_aux, "oo" in *.
   destruct (phi @ _); simpl in *; auto.
   destruct k; auto.
-  - intros i ri; spec V i ri. destruct (phi @ _); auto.
-  - destruct (phi @ _); auto.
+  - intros i ri; spec V i ri. destruct (phi @ _); try inversion V; subst.
+    simpl; f_equal; f_equal.
+    apply readable_part_glb; auto.
+  - destruct (phi @ _); auto;
+      try solve [destruct V as [n0 [? H0]]; inv H0].
+     destruct V as [n0 [? ?]]; inv H0.
+     exists n0; split; auto. simpl.
+     f_equal; f_equal; apply exist_ext. rewrite H2; auto.
 Qed.
 Next Obligation.
-  intros phi.
   pose proof resource_at_approx phi as V.
   extensionality l. spec V l.
   unfold getYES_aux, "oo" in *.
@@ -1122,14 +1209,12 @@ Qed.
 
 Program Definition getNO (phi : rmap) := proj1_sig (make_rmap (getNO_aux phi) _ (level phi) _).
 Next Obligation.
-  intros phi.
   pose proof juicy_mem.phi_valid phi as V.
   intros b ofs. spec V b ofs.
   unfold getNO_aux, "oo" in *.
   destruct (phi @ _); simpl in *; auto.
 Qed.
 Next Obligation.
-  intros phi.
   pose proof resource_at_approx phi as V.
   extensionality l. spec V l.
   unfold getNO_aux, "oo" in *.
@@ -1141,7 +1226,15 @@ Proof.
   apply resource_at_join2; try apply level_make_rmap.
   unfold getYES, getNO; do 2 rewrite resource_at_make_rmap.
   unfold getYES_aux, getNO_aux; intros loc.
-  destruct (phi @ loc); constructor; apply bot_join_eq.
+  destruct (phi @ loc); constructor; try apply bot_join_eq.
+  pose proof (comp_parts comp_Lsh_Rsh sh).
+  split.
+  rewrite (Share.glb_commute Share.Rsh).
+  rewrite Share.glb_assoc. rewrite <- (Share.glb_assoc Share.Rsh).
+  rewrite (Share.glb_commute Share.Rsh).
+  rewrite glb_Lsh_Rsh. 
+  rewrite (Share.glb_commute Share.bot), !Share.glb_bot. auto.
+  rewrite Share.lub_commute, <- H. auto.
 Qed.
 
 Lemma noyes_getNO phi : noyes (getNO phi).
@@ -1151,12 +1244,23 @@ Proof.
   destruct (phi @ _); congruence.
 Qed.
 
+Lemma writable_glb_Rsh:
+  forall sh, writable_share sh -> Share.glb Share.Rsh sh = Share.Rsh.
+Proof.
+ intros. unfold writable_share in H.
+apply leq_join_sub in H.
+apply Share.ord_antisym.
+apply (Share.glb_lower1 Share.Rsh sh).
+apply Share.glb_greatest; auto.
+apply Share.ord_refl.
+Qed.
+
 Section simpler_invariant_tentative.
 
 (* This section about getYES and getNO is currently unused.  Maybe
 it would give us a simpler invariant, but maybe not. *)
 
-Variable unrel_lsh_rsh : Share.unrel Share.Lsh Share.Rsh = Share.bot.
+(* Variable unrel_lsh_rsh : Share.unrel Share.Lsh Share.Rsh = Share.bot. *)
 
 Lemma mapsto_getYES sh t v v' phi :
   writable_share sh ->
@@ -1171,8 +1275,8 @@ Proof.
     by (apply writable_readable_share; auto).
   cut
     (forall m v loc,
-        (address_mapsto m v (Share.unrel Share.Lsh sh) (Share.unrel Share.Rsh sh) loc) phi ->
-        (address_mapsto m v (Share.unrel Share.Lsh Share.Rsh) (Share.unrel Share.Rsh Share.Rsh) loc) (getYES phi)).
+        (address_mapsto m v sh loc) phi ->
+        (address_mapsto m v Share.Rsh loc) (getYES phi)).
   { intros CUT.
     unfold mapsto in *; destruct (access_mode t);
       repeat if_tac;
@@ -1190,20 +1294,14 @@ Proof.
     unfold getYES, getYES_aux in *.
     rewrite resource_at_make_rmap.
     destruct (phi @ x); try congruence.
-    injection M as -> -> -> ->.
-    assert (p' : nonunit (Share.unrel Share.Rsh Share.Rsh)). {
-      rewrite writable_share_right; auto.
-      apply top_share_nonunit.
+    injection M as -> -> ->.
+    assert (p' : readable_share Share.Rsh). {
+      apply writable_readable_share.
+      apply writable_Rsh.
     }
     exists p'; f_equal.
-    + rewrite unrel_lsh_rsh; reflexivity.
-    + pose proof writable_share_right Hw as R.
-      assert (R': Share.unrel Share.Rsh Share.Rsh = Share.top).
-      { apply writable_share_right. auto. }
-      revert p p' R R'.
-      generalize (Share.unrel Share.Rsh sh).
-      generalize (Share.unrel Share.Rsh Share.Rsh).
-      intros ? ? ? ? -> ->; f_equal; apply proof_irr.
+    +
+      apply YES_ext. apply  writable_glb_Rsh; auto.
   - apply empty_NO in M.
     unfold getYES, getYES_aux in *.
     rewrite resource_at_make_rmap.

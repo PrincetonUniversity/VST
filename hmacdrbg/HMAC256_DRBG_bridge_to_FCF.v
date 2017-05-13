@@ -1,5 +1,6 @@
 Require Import hmacdrbg.spec_hmac_drbg.
-Require Import fcf.HMAC_DRBG_definitions_only.
+(*Require Import fcf.HMAC_DRBG_definitions_only.*)
+Require Import fcf.HMAC_DRBG_nonadaptive.
 Require Import sha.ByteBitRelations.
 Require Import BinInt.
 Require Import hmacdrbg.DRBG_functions.
@@ -79,7 +80,7 @@ Lemma Genloop_Zlength_blocks : forall n eta k f v blocks u,
 Proof. 
   induction n.
 + simpl; intros. inv H. apply Zlength_nil. 
-+ intros. simpl in H. remember (Gen_loop f k (f k (to_list v)) n).
++ intros. simpl in H. remember (Gen_loop f k (f k (Vector.to_list v)) n).
   destruct p. inversion H; clear H. subst.
   symmetry in Heqp. apply IHn in Heqp. 
   replace (Z.of_nat (S n)) with (1 + Z.of_nat n)%Z. 
@@ -122,9 +123,10 @@ Lemma GenloopBvec_Gen_loop k: forall n v blocks u,
 Proof. 
   induction n; simpl; intros.
 + inv H; trivial.
-+ remember (Gen_loop_Bvec k (HMAC_Bvec k (to_list v)) n) as p.
++ unfold to_list in H.
+  remember (Gen_loop_Bvec k (HMAC_Bvec k (Vector.to_list v)) n) as p.
   destruct p; inv H. 
-  symmetry in Heqp. apply IHn in Heqp; rewrite Heqp; clear Heqp IHn.
+  symmetry in Heqp. apply IHn in Heqp. rewrite Heqp; clear Heqp IHn.
   rewrite rev_app_distr; trivial.
 Qed.
 
@@ -407,7 +409,7 @@ Proof. unfold GenUpdate_original_Zlist, GenUpdate_original_Blist.
   assert (T: Forall (Forall isbyteZ) nil) by eauto.
   specialize (Gen_loop_Zlist_isbyteZ _ K n _ V); rewrite Heqp. intros [? ?]. 
   rewrite ! bitsToBytes_app, ! bytes_bits_bytes_id; trivial.
-  apply isbyteZ_HMAC256. 
+  f_equal. f_equal. unfold zeroes. simpl. apply  isbyteZ_HMAC256. 
   apply bytesToBits_InBlocks. 
 Qed. 
 
@@ -544,7 +546,7 @@ Proof.
   specialize (Generate_Bvec_ok k v z n Z K KL V VL). rewrite Heqp; clear Heqp.
   intros W; rewrite W, map_rev; trivial. 
 Qed.
-
+(*
 Require Import fcf.FCF.
 Definition GenUpdate_original_refactored (state : KV 256) (n : nat) :
   Comp (list (Bvector 256) * KV 256) := ret (GenUpdate_original_core state n).
@@ -557,5 +559,6 @@ Proof.
   unfold GenUpdate_original, GenUpdate_original_refactored, GenUpdate_original_core.
   destruct kv as [k v]. prog_simp. apply comp_spec_ret; trivial. 
 Qed.
-
-(*Now add FCF lemmas relating refactored to Generate, for relational spec relating bvectors to list Z, using the obaove Gallina equalities*)
+*)
+(*Could now optionally FCF-relate GenUpdate_original_refactored to Generate, for 
+  relational spec relating bvectors to list Z,  using the above Gallina equalities*)

@@ -117,7 +117,6 @@ SEPCOMP_FILES = \
 
 CONCUR_FILES= \
   addressFiniteMap.v cast.v compcert_imports.v \
-  compcert_linking.v compcert_linking_lemmas.v \
   compcert_threads_lemmas.v threadPool.v  \
   semantics.v \
   concurrent_machine.v disjointness.v dry_context.v dry_machine.v \
@@ -251,8 +250,8 @@ PROGS_FILES= \
   even.v verif_even.v odd.v verif_odd.v verif_evenodd_spec.v  \
   merge.v verif_merge.v verif_append.v verif_append2.v bst.v bst_oo.v verif_bst.v verif_bst_oo.v \
   verif_bin_search.v verif_floyd_tests.v \
-  verif_sumarray2.v verif_switch.v
-# verif_message.v verif_dotprod.v verif_insertion_sort.v
+  verif_sumarray2.v verif_switch.v verif_message.v 
+# verif_dotprod.v verif_insertion_sort.v
 
 SHA_FILES= \
   general_lemmas.v SHA256.v common_lemmas.v pure_lemmas.v sha_lemmas.v functional_prog.v \
@@ -290,7 +289,7 @@ FCF_FILES= \
   DistRules.v  WC_PolyTime.v \
   DistSem.v Lognat.v Rat.v WC_PolyTime_old.v \
   DistTacs.v NoDup_gen.v RepeatCore.v SplitVector.v \
-  PRF_DRBG.v HMAC_DRBG_definitions_only.v
+  PRF_DRBG.v HMAC_DRBG_definitions_only.v map_swap.v
 # ConstructedFunc.v Encryption_2W.v Sigma.v ListHybrid.v Procedure.v PRP_PRF.v RandPermSwitching.v State.v
 
 #FCF_FILES= \
@@ -326,6 +325,7 @@ TWEETNACL_FILES = \
   verif_verify.v
 
 HMACDRBG_FILES = \
+  HMAC_DRBG_nonadaptive.v \
   entropy.v entropy_lemmas.v DRBG_functions.v HMAC_DRBG_algorithms.v \
   HMAC256_DRBG_functional_prog.v HMAC_DRBG_pure_lemmas.v \
   HMAC_DRBG_update.v \
@@ -365,8 +365,8 @@ FILES = \
  $(HMACEQUIV_FILES:%=sha/%) \
  $(CCC26x86_FILES:%=ccc26x86/%) \
  $(TWEETNACL_FILES:%=tweetnacl20140427/%) \
+ $(CONCUR_FILES:%=concurrency/%) \
  $(HMACDRBG_Files:%=hmacdrbg/%)
-#$(CONCUR_FILES:%=concurrency/%)
 # $(DRBG_FILES:%=verifiedDrbg/spec/%)
 
 %_stripped.v: %.v

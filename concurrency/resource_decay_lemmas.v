@@ -31,7 +31,7 @@ Proof.
   destruct R as [N [R|[R|[R|R]]]].
   - rewrite <- R.
     reflexivity.
-  - destruct R as [sh' [v [v' [R H]]]]. simpl in R. congruence.
+  - destruct R as [sh' [Psh [v [v' [R H]]]]]. simpl in R. congruence.
   - destruct R as [v [v' R]]. specialize (N ltac:(auto)). congruence.
   - destruct R as [v [pp' [R H]]]. congruence.
 Qed.
@@ -47,7 +47,7 @@ Proof.
   destruct R as [N [R|[R|[R|R]]]].
   - rewrite <- R.
     unfold resource_fmap in *; f_equal.
-  - destruct R as [sh' [v [v' [R H]]]]. simpl in R. congruence.
+  - destruct R as [sh' [Psh [v [v' [R H]]]]]. simpl in R. congruence.
   - destruct R as [v [v' R]]. specialize (N ltac:(auto)). congruence.
   - destruct R as [v [pp' [R H]]]. congruence.
 Qed.
@@ -66,8 +66,9 @@ Proof.
   - destruct (phi @ loc); simpl in R; try discriminate.
     eexists.
     injection R. intros; subst.
-    split; reflexivity.
-  - destruct R as [sh' [v [v' [R H]]]]; congruence.
+    split; try reflexivity.
+    f_equal; apply proof_irr. 
+  - destruct R as [sh' [Psh [v [v' [R H]]]]]; congruence.
   - destruct R as [v [v' R]]; congruence.
   - destruct R as [v [pp [R H]]]; congruence.
 Qed.
@@ -84,8 +85,8 @@ Proof.
   - auto.
   - apply YES_not_identity in ID. tauto.
   - apply PURE_identity.
-  - destruct RD as (? & sh & _ & E & _).
-    destruct (phi @ loc); simpl in E; try discriminate.
+  - destruct RD as (sh & Psh & v1 & v2 & A & B).
+    destruct (phi @ loc); simpl in A; simpl in B; try discriminate.
     apply YES_not_identity in ID. tauto.
   - destruct RD. auto with *.
   - destruct RD as (? & ? & ? & ->).
@@ -209,7 +210,7 @@ Proof.
   specialize (RD loc).
   destruct RD as [N [RD|[RD|[RD|RD]]]].
   - rewrite PAT in RD; simpl in RD. rewrite RD; auto.
-  - rewrite PAT in RD; simpl in RD. destruct RD as (?&?&?&?&?). congruence.
+  - rewrite PAT in RD; simpl in RD. destruct RD as (?&?&?&?&?&?). congruence.
   - rewrite PAT in N. pose proof (N (proj1 RD)). congruence.
   - rewrite PAT in RD; simpl in RD. destruct RD as (?&?&?&?). congruence.
 Qed.
