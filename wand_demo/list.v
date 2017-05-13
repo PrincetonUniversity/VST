@@ -49,22 +49,84 @@ Definition ___i64_udiv : ident := 24%positive.
 Definition ___i64_umod : ident := 26%positive.
 Definition ___i64_utod : ident := 20%positive.
 Definition ___i64_utof : ident := 22%positive.
-Definition _append1 : ident := 56%positive.
-Definition _append2 : ident := 61%positive.
-Definition _append3 : ident := 62%positive.
-Definition _cur : ident := 60%positive.
-Definition _curp : ident := 58%positive.
+Definition _append1 : ident := 66%positive.
+Definition _append2 : ident := 71%positive.
+Definition _append3 : ident := 72%positive.
+Definition _cur : ident := 70%positive.
+Definition _curp : ident := 68%positive.
+Definition _h : ident := 54%positive.
+Definition _h1 : ident := 59%positive.
+Definition _h2 : ident := 60%positive.
 Definition _head : ident := 1%positive.
+Definition _head_head_switch : ident := 61%positive.
+Definition _head_pointer_switch : ident := 56%positive.
+Definition _i : ident := 55%positive.
+Definition _l : ident := 52%positive.
+Definition _l1 : ident := 57%positive.
+Definition _l2 : ident := 58%positive.
 Definition _list : ident := 2%positive.
-Definition _main : ident := 63%positive.
-Definition _ret : ident := 59%positive.
-Definition _retp : ident := 57%positive.
-Definition _t : ident := 54%positive.
+Definition _main : ident := 73%positive.
+Definition _p : ident := 53%positive.
+Definition _ret : ident := 69%positive.
+Definition _retp : ident := 67%positive.
+Definition _t : ident := 64%positive.
 Definition _tail : ident := 3%positive.
-Definition _u : ident := 55%positive.
-Definition _x : ident := 52%positive.
-Definition _y : ident := 53%positive.
-Definition _t'1 : ident := 64%positive.
+Definition _u : ident := 65%positive.
+Definition _x : ident := 62%positive.
+Definition _y : ident := 63%positive.
+Definition _t'1 : ident := 74%positive.
+
+Definition f_head_pointer_switch := {|
+  fn_return := tvoid;
+  fn_callconv := cc_default;
+  fn_params := ((_l, (tptr (Tstruct _list noattr))) :: (_p, (tptr tint)) ::
+                nil);
+  fn_vars := nil;
+  fn_temps := ((_h, tint) :: (_i, tint) :: nil);
+  fn_body :=
+(Ssequence
+  (Sset _h
+    (Efield
+      (Ederef (Etempvar _l (tptr (Tstruct _list noattr)))
+        (Tstruct _list noattr)) _head tint))
+  (Ssequence
+    (Sset _i (Ederef (Etempvar _p (tptr tint)) tint))
+    (Ssequence
+      (Sassign
+        (Efield
+          (Ederef (Etempvar _l (tptr (Tstruct _list noattr)))
+            (Tstruct _list noattr)) _head tint) (Etempvar _i tint))
+      (Sassign (Ederef (Etempvar _p (tptr tint)) tint) (Etempvar _h tint)))))
+|}.
+
+Definition f_head_head_switch := {|
+  fn_return := tvoid;
+  fn_callconv := cc_default;
+  fn_params := ((_l1, (tptr (Tstruct _list noattr))) ::
+                (_l2, (tptr (Tstruct _list noattr))) :: nil);
+  fn_vars := nil;
+  fn_temps := ((_h1, tint) :: (_h2, tint) :: nil);
+  fn_body :=
+(Ssequence
+  (Sset _h1
+    (Efield
+      (Ederef (Etempvar _l1 (tptr (Tstruct _list noattr)))
+        (Tstruct _list noattr)) _head tint))
+  (Ssequence
+    (Sset _h2
+      (Efield
+        (Ederef (Etempvar _l2 (tptr (Tstruct _list noattr)))
+          (Tstruct _list noattr)) _head tint))
+    (Ssequence
+      (Sassign
+        (Efield
+          (Ederef (Etempvar _l1 (tptr (Tstruct _list noattr)))
+            (Tstruct _list noattr)) _head tint) (Etempvar _h2 tint))
+      (Sassign
+        (Efield
+          (Ederef (Etempvar _l2 (tptr (Tstruct _list noattr)))
+            (Tstruct _list noattr)) _head tint) (Etempvar _h1 tint)))))
+|}.
 
 Definition f_append1 := {|
   fn_return := (tptr (Tstruct _list noattr));
@@ -110,47 +172,50 @@ Definition f_append2 := {|
   fn_callconv := cc_default;
   fn_params := ((_x, (tptr (Tstruct _list noattr))) ::
                 (_y, (tptr (Tstruct _list noattr))) :: nil);
-  fn_vars := ((_cur, (tptr (Tstruct _list noattr))) :: nil);
+  fn_vars := ((_x, (tptr (Tstruct _list noattr))) :: nil);
   fn_temps := ((_retp, (tptr (tptr (Tstruct _list noattr)))) ::
                (_curp, (tptr (tptr (Tstruct _list noattr)))) ::
-               (_ret, (tptr (Tstruct _list noattr))) :: nil);
+               (_ret, (tptr (Tstruct _list noattr))) ::
+               (_cur, (tptr (Tstruct _list noattr))) :: nil);
   fn_body :=
 (Ssequence
-  (Sassign (Evar _cur (tptr (Tstruct _list noattr)))
+  (Sassign (Evar _x (tptr (Tstruct _list noattr)))
     (Etempvar _x (tptr (Tstruct _list noattr))))
   (Ssequence
-    (Sset _curp
-      (Eaddrof (Evar _cur (tptr (Tstruct _list noattr)))
-        (tptr (tptr (Tstruct _list noattr)))))
+    (Sset _cur (Evar _x (tptr (Tstruct _list noattr))))
     (Ssequence
-      (Sset _retp
-        (Eaddrof (Evar _cur (tptr (Tstruct _list noattr)))
+      (Sset _curp
+        (Eaddrof (Evar _x (tptr (Tstruct _list noattr)))
           (tptr (tptr (Tstruct _list noattr)))))
       (Ssequence
-        (Swhile
-          (Ebinop One (Evar _cur (tptr (Tstruct _list noattr)))
-            (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
-          (Ssequence
-            (Sset _curp
-              (Eaddrof
-                (Efield
-                  (Ederef (Evar _cur (tptr (Tstruct _list noattr)))
-                    (Tstruct _list noattr)) _tail
-                  (tptr (Tstruct _list noattr)))
-                (tptr (tptr (Tstruct _list noattr)))))
-            (Sassign (Evar _cur (tptr (Tstruct _list noattr)))
-              (Ederef (Etempvar _curp (tptr (tptr (Tstruct _list noattr))))
-                (tptr (Tstruct _list noattr))))))
+        (Sset _retp
+          (Eaddrof (Evar _x (tptr (Tstruct _list noattr)))
+            (tptr (tptr (Tstruct _list noattr)))))
         (Ssequence
-          (Sassign
-            (Ederef (Etempvar _curp (tptr (tptr (Tstruct _list noattr))))
-              (tptr (Tstruct _list noattr)))
-            (Etempvar _y (tptr (Tstruct _list noattr))))
+          (Swhile
+            (Ebinop One (Etempvar _cur (tptr (Tstruct _list noattr)))
+              (Ecast (Econst_int (Int.repr 0) tint) (tptr tvoid)) tint)
+            (Ssequence
+              (Sset _curp
+                (Eaddrof
+                  (Efield
+                    (Ederef (Etempvar _cur (tptr (Tstruct _list noattr)))
+                      (Tstruct _list noattr)) _tail
+                    (tptr (Tstruct _list noattr)))
+                  (tptr (tptr (Tstruct _list noattr)))))
+              (Sset _cur
+                (Ederef (Etempvar _curp (tptr (tptr (Tstruct _list noattr))))
+                  (tptr (Tstruct _list noattr))))))
           (Ssequence
-            (Sset _ret
-              (Ederef (Etempvar _retp (tptr (tptr (Tstruct _list noattr))))
-                (tptr (Tstruct _list noattr))))
-            (Sreturn (Some (Etempvar _ret (tptr (Tstruct _list noattr)))))))))))
+            (Sassign
+              (Ederef (Etempvar _curp (tptr (tptr (Tstruct _list noattr))))
+                (tptr (Tstruct _list noattr)))
+              (Etempvar _y (tptr (Tstruct _list noattr))))
+            (Ssequence
+              (Sset _ret
+                (Ederef (Etempvar _retp (tptr (tptr (Tstruct _list noattr))))
+                  (tptr (Tstruct _list noattr))))
+              (Sreturn (Some (Etempvar _ret (tptr (Tstruct _list noattr))))))))))))
 |}.
 
 Definition f_append3 := {|
@@ -423,11 +488,14 @@ prog_defs :=
                      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|}))
      (Tcons tint Tnil) tvoid
      {|cc_vararg:=true; cc_unproto:=false; cc_structret:=false|})) ::
+ (_head_pointer_switch, Gfun(Internal f_head_pointer_switch)) ::
+ (_head_head_switch, Gfun(Internal f_head_head_switch)) ::
  (_append1, Gfun(Internal f_append1)) ::
  (_append2, Gfun(Internal f_append2)) ::
  (_append3, Gfun(Internal f_append3)) :: nil);
 prog_public :=
-(_append3 :: _append2 :: _append1 :: ___builtin_debug :: ___builtin_nop ::
+(_append3 :: _append2 :: _append1 :: _head_head_switch ::
+ _head_pointer_switch :: ___builtin_debug :: ___builtin_nop ::
  ___builtin_write32_reversed :: ___builtin_write16_reversed ::
  ___builtin_read32_reversed :: ___builtin_read16_reversed ::
  ___builtin_fnmsub :: ___builtin_fnmadd :: ___builtin_fmsub ::
