@@ -233,7 +233,8 @@ FLOYD_FILES= \
 #real_forward.v
 
 WAND_DEMO_FILES= \
-   list_head_switch.v list_append.v
+   list.v list_lemmas.v verif_list.v \
+   bst.v
 
 # CONCPROGS must be kept separate (see util/PACKAGE), and
 # each line that contains the word CONCPROGS must be deletable independently
