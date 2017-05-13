@@ -68,7 +68,7 @@ Definition md_free_spec :=
             UNDER_SPEC.EMPTY (snd (snd r)); 
             malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) (snd (snd r)))
   POST [ tvoid ] 
-    SEP (data_at Tsh t_struct_md_ctx_st r ctx).
+       PROP () LOCAL () SEP (data_at Tsh t_struct_md_ctx_st r ctx).
 
 Definition mbedtls_zeroize_spec :=
   DECLARE _mbedtls_zeroize
@@ -78,7 +78,7 @@ Definition mbedtls_zeroize_spec :=
        LOCAL (temp _n (Vint (Int.repr n)); temp _v v)
        SEP (data_at_ Tsh (tarray tuchar n ) v)
     POST [ tvoid ]
-       SEP (data_block Tsh (list_repeat (Z.to_nat n) 0) v).
+       PROP () LOCAL () SEP (data_block Tsh (list_repeat (Z.to_nat n) 0) v).
 
 Definition drbg_memcpy_spec :=
   DECLARE _memcpy
