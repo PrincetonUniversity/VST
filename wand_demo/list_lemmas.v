@@ -1,26 +1,34 @@
 Require Import floyd.proofauto.
+Require Import wand_demo.wand_frame.
 Require Import wand_demo.list.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
 Definition t_struct_list := Tstruct _list noattr.
 
-Fixpoint listrep (sh: share)
-            (contents: list val) (x: val) : mpred :=
+Fixpoint listrep (sh: share) (contents: list int) (x: val) : mpred :=
  match contents with
- | h::hs => field_at sh t_struct_list [StructField _head] h x *
+ | h::hs => field_at sh t_struct_list [StructField _head] (Vint h) x *
               EX y:val,
                 field_at sh t_struct_list [StructField _tail] y x * listrep sh hs y
  | nil => !! (x = nullval) && emp
  end.
 
+Module ListHead.
+
+Lemma wf_intro_list_head: forall sh (x y: int) (s: list int) (l: val),
+  listrep sh (x :: s) l |--
+    field_at sh t_struct_list [StructField _head] (Vint x) l *
+      (field_at sh t_struct_list [StructField _head] (Vint y) l -* listrep sh (y :: s) l).
+Proof.
+  intros; simpl.
+  apply sepcon_derives; auto.
+  apply wf_intro.
+Qed.
+
+End ListHead.
+
 Arguments listrep sh contents x : simpl never.
 
-Module list_head.
-
-Lemma wf_intro_list_head: forall sh (x y: val) (s: list val) (l: val):
-listrep sh (x :: s) l
-  |-- field_at sh t_struct_list [StructField _head] x l *
-      (field_at sh t_struct_list [StructField _head] y l -* listrep sh (y :: s) l).
 (*
 Lemma listrep_local_facts:
   forall sh contents p,

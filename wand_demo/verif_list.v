@@ -1,39 +1,50 @@
 Require Import floyd.proofauto.
+Require Import wand_demo.wand_frame.
 Require Import wand_demo.list.
 Require Import wand_demo.list_lemmas.
 
-Module VERIF_HEAD_POINTER_SWITCH.
+Module VerifHeadPointerSwitch.
 
+Import ListHead.
+  
 Definition head_pointer_switch_spec :=
  DECLARE _head_pointer_switch
-  WITH sh : share, l: val, p: val, x: val, s: list val, y: val
+  WITH sh : share, l: val, p: val, x: int, s: list int, y: int
   PRE [ _l OF (tptr t_struct_list) , _p OF (tptr tint)]
      PROP  (writable_share sh)
      LOCAL (temp _l l; temp _p p)
-     SEP   (listrep sh (x :: s) l; data_at sh tint y p)
+     SEP   (listrep sh (x :: s) l; data_at sh tint (Vint y) p)
   POST [ tvoid ]
      PROP  ()
      LOCAL ()
-     SEP   (listrep sh (y :: s) l; data_at sh tint x p).
+     SEP   (listrep sh (y :: s) l; data_at sh tint (Vint x) p).
 
 Definition Gprog : funspecs := ltac:(with_library prog [ head_pointer_switch_spec ]).
 
+(* TODO: try use sep_apply in this proof instead of cancel, sepcon_comm. *)
 Lemma body_head_pointer_switch: semax_body Vprog Gprog f_head_pointer_switch head_pointer_switch_spec.
 Proof.
   start_function.
   replace_SEP 0
-    (field_at sh t_struct_list [StructField _head] x l *
-      (field_at sh t_struct_list [StructField _head] y l -* listrep sh (y :: s) l)).
+    (field_at sh t_struct_list [StructField _head] (Vint x) l *
+      (field_at sh t_struct_list [StructField _head] (Vint y) l -* listrep sh (y :: s) l)).
     {
       entailer!.
-      
-  forward_if (PROP (False) LOCAL () SEP ()).
-*
- subst x. normalize.
- forward.
- Exists y.
- entailer!.
-*
+      apply wf_intro_list_head.
+    }
+  Intros. freeze [1] Fr.  
+    forward. (* h = l -> head; *)
+    forward. (* i = * p; *)
+    forward. (* l -> head = i *)
+    forward. (* * p = h *)
+  thaw Fr.
+  forward. (* return *)
+  cancel.
+  rewrite sepcon_comm. apply wf_elim.
+Qed.
+
+End VerifHeadPointerSwitch.
+(*
 
 Definition append_spec (_append: ident) :=
  DECLARE _append
@@ -63,3 +74,4 @@ Definition append_spec (_append: ident) :=
 
 Definition Gprog : funspecs :=   ltac:(with_library prog [ append_spec ]).
 
+*)
