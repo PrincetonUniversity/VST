@@ -286,7 +286,7 @@ FCF_FILES= \
   DistRules.v  WC_PolyTime.v \
   DistSem.v Lognat.v Rat.v WC_PolyTime_old.v \
   DistTacs.v NoDup_gen.v RepeatCore.v SplitVector.v \
-  PRF_DRBG.v HMAC_DRBG_definitions_only.v
+  PRF_DRBG.v HMAC_DRBG_definitions_only.v map_swap.v
 # ConstructedFunc.v Encryption_2W.v Sigma.v ListHybrid.v Procedure.v PRP_PRF.v RandPermSwitching.v State.v
 
 #FCF_FILES= \
@@ -322,6 +322,7 @@ TWEETNACL_FILES = \
   verif_verify.v
 
 HMACDRBG_FILES = \
+  HMAC_DRBG_nonadaptive.v \
   entropy.v entropy_lemmas.v DRBG_functions.v HMAC_DRBG_algorithms.v \
   HMAC256_DRBG_functional_prog.v HMAC_DRBG_pure_lemmas.v \
   HMAC_DRBG_update.v \
