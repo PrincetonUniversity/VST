@@ -15,14 +15,14 @@ Fixpoint listrep (sh: share) (contents: list int) (x: val) : mpred :=
 
 Module ListHead.
 
-Lemma wf_intro_list_head: forall sh (x y: int) (s: list int) (l: val),
+Lemma wand_frame_intro_list_head: forall sh (x y: int) (s: list int) (l: val),
   listrep sh (x :: s) l |--
     field_at sh t_struct_list [StructField _head] (Vint x) l *
       (field_at sh t_struct_list [StructField _head] (Vint y) l -* listrep sh (y :: s) l).
 Proof.
   intros; simpl.
   apply sepcon_derives; auto.
-  apply wf_intro.
+  apply wand_frame_intro.
 Qed.
 
 End ListHead.
