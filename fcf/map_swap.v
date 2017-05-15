@@ -204,11 +204,8 @@ Lemma compMap_v_eq_init_list_h : forall (a b : Bvector eta)  (init : list (list 
             (((to_list b) :: (map (@to_list _ eta) x)) ++ init)).
 
   intuition.
-  Check list_pred.
-  Print list_pred.
   Unset Printing Notations.
   (* simpl. *)
-  Locate list_pred.
   simpl in H.
   (* list_pred is like Forall but with a predicate P that relates each pair of two elements in two lists *)
   (* do we need to assume H on init init? can i prove it? *)
@@ -220,8 +217,8 @@ Lemma compMap_v_eq_init_list_h : forall (a b : Bvector eta)  (init : list (list 
   eapply comp_spec_seq; eauto with inhabited.
   eapply compMap_spec.
   eapply list_pred_eq.
-  intuition. 
-  admit. (*eapply (rnd_swap a b).
+  intros.
+  eapply (rnd_swap a b).
   intuition.
 
   eapply comp_spec_ret; intuition.
@@ -238,7 +235,6 @@ Lemma compMap_v_eq_init_list_h : forall (a b : Bvector eta)  (init : list (list 
   left; intuition; eauto using to_list_eq_inv.
 
   trivial.
-*)
-Admitted.
+Qed.
 
 End Sec.
