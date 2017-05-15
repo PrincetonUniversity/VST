@@ -1,5 +1,6 @@
 Require Import floyd.proofauto.
 Require Import wand_demo.wand_frame.
+Require Import wand_demo.wandQ_frame.
 Require Import wand_demo.list.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 Definition Vprog : varspecs. mk_varspecs prog. Defined.
@@ -56,6 +57,41 @@ Proof.
 Qed.
 
 End LsegWandFrame.
+
+Module LsegWandQFrame.
+
+Definition lseg (sh: share) (contents: list int) (x z: val) : mpred :=
+  ALL tcontents: list int, listrep sh tcontents z -* listrep sh (contents ++ tcontents) x.
+
+Lemma singleton_lseg: forall sh (contents: list int) (a: int) (x y: val),
+  field_at sh t_struct_list [StructField _head] (Vint a) x *
+  field_at sh t_struct_list [StructField _tail] y x |--
+  lseg sh [a] x y.
+Proof.
+  intros.
+  unfold lseg.
+  apply allp_right; intros.
+  apply -> wand_sepcon_adjoint.
+  simpl app.
+  simpl listrep.
+  Exists y.
+  cancel.
+Qed.
+
+Lemma app_lseg: forall sh (s1 s2: list int) (x y z: val),
+  lseg sh s2 y z * lseg sh s1 x y |-- lseg sh (s1 ++ s2) x z.
+Proof.
+  intros.
+  unfold lseg.
+  eapply derives_trans; [apply sepcon_derives; [apply derives_refl |] | apply wandQ_frame_ver].
+  eapply derives_trans; [apply (wandQ_frame_refine _ _ _ (app s2)) |].
+  apply derives_refl'.
+  f_equal; extensionality tcontents; simpl.
+  rewrite app_assoc.
+  auto.
+Qed.
+
+End LsegWandQFrame.
 
 Arguments listrep sh contents x : simpl never.
 

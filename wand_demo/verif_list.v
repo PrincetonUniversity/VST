@@ -1,5 +1,6 @@
 Require Import floyd.proofauto.
 Require Import wand_demo.wand_frame.
+Require Import wand_demo.wandQ_frame.
 Require Import wand_demo.list.
 Require Import wand_demo.list_lemmas.
 
@@ -227,31 +228,86 @@ Proof.
    Exists x.
    rewrite (listrep_null _ s1c) by auto.
    entailer!.
-   simpl app; rewrite <- app_assoc.
+   simpl app.
    rewrite (sepcon_assoc _ (@field_at _ _ _ _ _ _) (@field_at _ _ _ _ _ _)).
    eapply derives_trans; [apply sepcon_derives; [apply sepcon_derives; [apply derives_refl | apply (singleton_lseg sh s2)] | apply derives_refl] |].
    rewrite (sepcon_comm _ (lseg _ _ _ _ _)).
-   eapply derives_trans; [apply sepcon_derives; [apply wand_frame_ver | apply derives_refl] |].
+   eapply derives_trans; [apply sepcon_derives; [apply app_lseg | apply derives_refl] |].
    rewrite sepcon_comm.
    apply wand_frame_elim.
 Qed.
 
 End ProofByWandFrame2.
-(*
 
+Module ProofByWandQFrame.
 
-Definition append_spec (_append: ident) :=
- DECLARE _append
-  WITH sh : share, contents : list int, x: val, y: val, s1: list val, s2: list val
-  PRE [ _x OF (tptr t_struct_list) , _y OF (tptr t_struct_list)]
-     PROP(writable_share sh)
-     LOCAL (temp _x x; temp _y y)
-     SEP (listrep sh s1 x; listrep sh s2 y)
-  POST [ tptr t_struct_list ]
-    EX r: val,
-     PROP()
-     LOCAL(temp ret_temp r)
-     SEP (listrep sh (s1++s2) r).
+Import LsegWandQFrame.
+  
+Lemma body_append1: semax_body Vprog Gprog f_append1 append1_spec.
+Proof.
+  start_function.
+  forward_if. (* if (x == NULL) *)
+  * rewrite (listrep_null _ _ x) by auto. normalize.
+    forward. (* return; *)
+    Exists y.
+    entailer!.
+  * forward. (* t = x; *)
+    rewrite (listrep_nonnull _ _ x) by auto.
+    Intros v s1' u.
+    forward. (* u = t -> tail; *)
+    forward_while
+      ( EX s1a: list int, EX b: int, EX s1c: list int, EX t: val, EX u: val,
+            PROP (s1 = s1a ++ b :: s1c)
+            LOCAL (temp _x x; temp _t t; temp _u u; temp _y y)
+            SEP (lseg sh s1a x t;
+                 field_at sh t_struct_list [StructField _head] (Vint b) t;
+                 field_at sh t_struct_list [StructField _tail] u t;
+                 listrep sh s1c u;
+                 listrep sh s2 y))%assert.
++ (* current assertion implies loop invariant *)
+   Exists (@nil int) v s1' x u.
+   subst s1. entailer!. unfold lseg; simpl; apply allp_right; intros; cancel_wand.
++ (* loop test is safe to execute *)
+   entailer!.
++ (* loop body preserves invariant *)
+  clear v H0.
+  rewrite (listrep_nonnull _ _ u0) by auto.
+  Intros c s1d z.
+  forward. (* t = u; *)
+   forward. (* u = t -> tail; *)
+   Exists ((s1a ++ b :: nil),c,s1d,u0,z). unfold fst, snd.
+   simpl app.
+   entailer!.
+     1: apply (app_assoc s1a [b] (c :: s1d)).
+   rewrite sepcon_assoc.
+   eapply derives_trans; [apply sepcon_derives; [apply derives_refl | apply (singleton_lseg sh (c :: s1d ++ s2))] |].
+   rewrite sepcon_comm.
+   apply app_lseg.
++ (* after the loop *)
+   clear v s1' H0.
+   forward. (* t -> tail = y; *)
+   forward. (* return x; *)
+   Exists x.
+   rewrite (listrep_null _ s1c) by auto.
+   entailer!.
+   simpl app.
+   rewrite (sepcon_assoc _ (@field_at _ _ _ _ _ _) (@field_at _ _ _ _ _ _)).
+   eapply derives_trans; [apply sepcon_derives; [apply sepcon_derives; [apply derives_refl | apply (singleton_lseg sh s2)] | apply derives_refl] |].
+   rewrite (sepcon_comm _ (lseg _ _ _ _)).
+   eapply derives_trans; [apply sepcon_derives; [apply app_lseg | apply derives_refl] |].
+   rewrite sepcon_comm.
+   unfold lseg.
+   change (listrep sh s2 y) with ((fun s2 => listrep sh s2 y) s2).
+   change
+     (ALL tcontents : list int , listrep sh tcontents y -* listrep sh ((s1a ++ [b]) ++ tcontents) x)
+   with
+     (allp ((fun tcontents => listrep sh tcontents y) -* (fun tcontents => listrep sh ((s1a ++ [b]) ++ tcontents) x))).
+   change (listrep sh ((s1a ++ [b]) ++ s2) x) with ((fun s2 => listrep sh ((s1a ++ [b]) ++ s2) x) s2).
+   apply wandQ_frame_elim.
+Qed.
 
+End ProofByWandQFrame.
 
-*)
+End VerifAppend1.
+
+End VerifAppend.
