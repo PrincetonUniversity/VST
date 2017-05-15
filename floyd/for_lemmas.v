@@ -157,6 +157,7 @@ apply andp_left2.
 unfold normal_ret_assert, loop1_ret_assert; normalize.
 intro rho; unfold subst; simpl.
 apply exp_right with i.
+rewrite prop_true_andp by auto.
 apply exp_right with x0.
 normalize.
 *
@@ -196,6 +197,7 @@ apply andp_right.
            local Q1 &&
            PROPx ((Int.min_signed <= x0 <= Int.max_signed) :: P x0 x1)
            (LOCALx (temp _i (Vint (Int.repr x0)) :: Q x0 x1) (SEPx (R x0 x1))))).
+  rewrite subst_andp.
   rewrite subst_ext.
   Exists (i + 1).
   rewrite subst_ext.
@@ -206,7 +208,8 @@ apply andp_right.
   rename H4 into CLOQ1; rename H5 into CLOQ.
   autorewrite with subst.
   autorewrite with subst.
-  apply andp_right; [| apply andp_right].
+  apply andp_right; [| apply andp_right; [| apply andp_right]].
+  - apply prop_right; auto.
   - apply andp_left2; apply andp_left1; auto.
   - simpl locald_denote.
     autorewrite with subst.
@@ -372,6 +375,7 @@ apply andp_left2.
 unfold normal_ret_assert, loop1_ret_assert; normalize.
 intro rho; unfold subst; simpl.
 apply exp_right with i.
+rewrite prop_true_andp by auto.
 apply exp_right with x0.
 normalize.
 *
@@ -417,6 +421,7 @@ apply andp_right.
            local Q1 &&
            PROPx ((0 <= x0 <= Int.max_unsigned) :: P x0 x1)
            (LOCALx (temp _i (Vint (Int.repr x0)) :: Q x0 x1) (SEPx (R x0 x1))))).
+  rewrite subst_andp.
   rewrite subst_ext.
   Exists (i + 1).
   rewrite subst_ext.
@@ -427,7 +432,8 @@ apply andp_right.
   rename H4 into CLOQ1; rename H5 into CLOQ.
   autorewrite with subst.
   autorewrite with subst.
-  apply andp_right; [| apply andp_right].
+  apply andp_right; [| apply andp_right; [| apply andp_right]].
+  - apply prop_right; auto.
   - apply andp_left2; apply andp_left1; auto.
   - simpl locald_denote.
     autorewrite with subst.

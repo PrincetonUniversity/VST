@@ -23,6 +23,8 @@ Require Import sha.HMAC256_isPRF.
 Require Import sha.hmac.
 Require Import sha.spec_hmac.
 
+Require Import List.
+
 Lemma key_vector l:
   length (bytesToBits (HMAC_SHA256.mkKey l)) = b.
 Proof. rewrite bytesToBits_len, hmac_common_lemmas.mkKey_length; reflexivity. Qed.
@@ -160,13 +162,14 @@ destruct RES as [h2 dig].
 simpl.
 
 forward_call (h2,buf).
+freeze [0; 1; 2; 3; 4] FR1.
 forward.
 (*assert_PROP (field_compatible (tarray tuchar (sizeof t_struct_hmac_ctx_st)) nil buf).
 { unfold data_block at 1. unfold Zlength. simpl. apply prop_right. assumption. }
 rename H5 into FBUF.*)
 specialize (hmac_sound key data). unfold hmac.
 rewrite <- HeqRES. simpl; intros.
-Exists buf dig. entailer!. 
+Exists buf dig. thaw FR1. entailer!. 
 { subst.
        split. unfold bitspec. simpl. rewrite Equivalence.
          f_equal. unfold HMAC_spec_abstract.HMAC_Abstract.Message2Blist.

@@ -463,7 +463,10 @@ Hint Rewrite overridePost_EK_break loop1_ret_assert_EK_break
 
 Lemma loop1_ret_assert_normal:
   forall P Q, loop1_ret_assert P Q EK_normal None = P.
-Proof. reflexivity. Qed.
+Proof. 
+  intros.
+ unfold loop1_ret_assert. normalize.
+Qed.
 Hint Rewrite loop1_ret_assert_normal: ret_assert.
 
 Lemma unfold_make_args': forall fsig args rho,
@@ -1034,6 +1037,28 @@ Ltac cancel :=
           | cancel_frame
           | idtac
           ].
+
+Ltac apply_find_core X :=
+ match X with
+ | ?U -> ?V => match type of U with Prop => apply_find_core V end
+ | @derives mpred _ _ _ => constr:(X)
+ end.
+
+Ltac sep_apply H :=
+    match goal with |- ?A |-- ?B =>
+     match type of H with ?TH =>
+     match apply_find_core TH with  ?C |-- ?D =>
+      let frame := fresh "frame" in evar (frame: list mpred);
+       apply derives_trans with (C * fold_right_sepcon frame);
+             [solve [cancel] 
+             | eapply derives_trans; 
+                 [apply sepcon_derives; [clear frame; apply H | apply derives_refl] 
+                 | subst frame; unfold fold_right_sepcon; rewrite ?sepcon_emp
+                 ]
+             ]
+     end
+     end
+    end.
 
 (* 
 Ltac cancel :=

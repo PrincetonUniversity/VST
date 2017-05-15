@@ -1044,3 +1044,103 @@ identity (Share.glb Share.Rsh (snd (Share.split sh))) ->
 identity (Share.glb Share.Rsh sh).
 Admitted.
 
+(** the following lemmas are useful in the concurrency proofs *)
+
+
+  Lemma writable_not_join_readable:
+    forall sh1 sh2,
+      joins sh1 sh2 ->
+      writable_share sh1 ->
+      ~ readable_share sh2.
+  Proof.
+    intros.
+    intro.
+    unfold readable_share, writable_share in *.
+    destruct H0. destruct H.
+    destruct (join_assoc (join_comm H0) H) as [? [? _]].
+    unfold nonempty_share in H1. clear - H1 H2.
+    destruct H2 as [H2 _]. rewrite H2 in H1.
+    apply H1. apply bot_identity.
+ Qed.
+
+  Lemma writable_not_join_writable :
+    forall sh1 sh2,
+      joins sh1 sh2 ->
+      writable_share sh1 ->
+      ~ writable_share sh2.
+   Proof.
+     intros. intro.
+    pose proof (writable_not_join_readable H H0).
+    apply H2. auto.
+   Qed.
+
+  Lemma only_bot_joins_top:
+    forall sh, joins Share.top sh -> sh = Share.bot.
+  Proof.
+    intros. destruct H. destruct H.
+    rewrite Share.glb_commute in H. rewrite Share.glb_top in H. auto.
+  Qed.
+
+(*
+  Lemma glb_Rsh_not_top:
+    forall sh, ~ Share.glb Share.Rsh sh = Share.top.
+  Proof.
+    intros. apply glb_Rsh_not_top.
+  Qed.
+*)
+  Lemma writable_right:
+    forall sh,  writable_share (Share.glb Share.Rsh sh) ->
+           writable_share sh.
+  Proof.
+     intros.
+     unfold writable_share in *.
+     apply leq_join_sub in H.
+     apply leq_join_sub.
+     eapply Share.ord_trans; try eassumption.
+     rewrite Share.glb_commute.
+     apply Share.glb_lower1.
+  Qed.
+
+Lemma join_readable_unreadable:
+  forall sh1 sh2 sh3,
+    join sh1 sh2 sh3 ->
+    ~ writable_share sh1 ->
+    ~ readable_share sh2 ->
+    ~ writable_share sh3.
+Proof.
+ intros.
+ contradict H0.
+ unfold writable_share in *.
+ destruct H0.
+ destruct (join_comp_parts comp_Lsh_Rsh H) as [_ ?].
+ destruct (join_comp_parts comp_Lsh_Rsh H0) as [_ ?].
+ rewrite Share.glb_idem in H3.
+ apply not_readable_Rsh_part in H1.
+ rewrite H1 in H2.
+ apply join_unit2_e in H2; [ | apply bot_identity].
+ rewrite <- H2 in H3.
+ assert (join_sub Share.Rsh (Share.glb Share.Rsh sh1)).
+ eexists; eauto.
+ apply leq_join_sub in H4.
+ eapply leq_join_sub.
+ eapply Share.ord_trans; eauto.
+ apply Share.glb_lower2.
+Qed.
+
+Lemma readable_glb:
+   forall sh,
+     readable_share sh ->
+     readable_share (Share.glb Share.Rsh sh).
+ Proof.
+   intros.
+   unfold readable_share in *. rewrite glb_twice. auto.
+ Qed.
+
+ Lemma unreadable_glb:
+   forall sh,
+     ~readable_share sh ->
+     ~readable_share (Share.glb Share.Rsh sh).
+ Proof.
+   intros.
+   unfold readable_share in *. rewrite glb_twice. auto.
+ Qed.

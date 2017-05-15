@@ -40,7 +40,7 @@ Section Hashtable.
 Context {hf : hash_fun}.
 Hint Resolve size_pos hash_range.
 
-Definition rebase (m : list (Z * Z)) i := rotate m (Zlength m - i) (Zlength m).
+Definition rebase {A} (m : list A) i := rotate m (Zlength m - i) (Zlength m).
 
 Definition well_chained (m : list (Z * Z)) := forall k i, index_of (rebase m (hash k)) k = Some i ->
   Forall (fun x => fst x <> 0) (sublist 0 i (rebase m (hash k))).
@@ -68,7 +68,7 @@ Definition get m k := match lookup m k with Some i => let '(k', v') := Znth i m 
 Definition map_incl (m m' : list (Z * Z)) := forall k v i, k <> 0 -> Znth i m (0, 0) = (k, v) ->
   Znth i m' (0, 0) = (k, v).
 
-Lemma rebase_0 : forall m i d, 0 <= i < Zlength m -> Znth 0 (rebase m i) d = Znth i m d.
+Lemma rebase_0 : forall {A} (m : list A) i d, 0 <= i < Zlength m -> Znth 0 (rebase m i) d = Znth i m d.
 Proof.
   intros; unfold rebase.
   destruct (eq_dec (Zlength m) 0).
@@ -107,7 +107,7 @@ Proof.
   - tauto.
 Qed.
 
-Lemma Znth_rebase : forall m i j d, 0 <= i < Zlength m -> 0 <= j < Zlength m ->
+Lemma Znth_rebase : forall {A} (m : list A) i j d, 0 <= i < Zlength m -> 0 <= j < Zlength m ->
   Znth i (rebase m j) d = Znth ((i + j) mod Zlength m) m d.
 Proof.
   intros; unfold rebase.
@@ -118,7 +118,7 @@ Proof.
   rewrite Z.mod_add; auto.
 Qed.
 
-Corollary Znth_rebase' : forall m i j d, 0 <= i < Zlength m -> 0 <= j < Zlength m ->
+Corollary Znth_rebase' : forall {A} (m : list A) i j d, 0 <= i < Zlength m -> 0 <= j < Zlength m ->
   Znth ((i - j) mod Zlength m) (rebase m j) d = Znth i m d.
 Proof.
   intros; rewrite Znth_rebase; auto.
@@ -152,12 +152,12 @@ Proof.
       do 2 eexists; eauto; apply Znth_In; auto.
 Qed.
 
-Lemma Zlength_rebase : forall m i, 0 <= i < Zlength m -> Zlength (rebase m i) = Zlength m.
+Lemma Zlength_rebase : forall {A} (m : list A) i, 0 <= i < Zlength m -> Zlength (rebase m i) = Zlength m.
 Proof.
   intros; unfold rebase; rewrite Zlength_rotate; auto; omega.
 Qed.
 
-Lemma rebase_upd : forall m i j x, 0 <= i < Zlength m -> 0 <= j < Zlength m ->
+Lemma rebase_upd : forall {A} (m : list A) i j x, 0 <= i < Zlength m -> 0 <= j < Zlength m ->
   rebase (upd_Znth i m x) j = upd_Znth ((i - j) mod Zlength m) (rebase m j) x.
 Proof.
   intros; unfold rebase.
@@ -171,7 +171,7 @@ Proof.
   { apply Z_mod_lt; omega. }
 Qed.
 
-Corollary rebase_upd' : forall m i j x, 0 <= i < Zlength m -> 0 <= j < Zlength m ->
+Corollary rebase_upd' : forall {A} (m : list A) i j x, 0 <= i < Zlength m -> 0 <= j < Zlength m ->
   rebase (upd_Znth ((i + j) mod Zlength m) m x) j = upd_Znth i (rebase m j) x.
 Proof.
   intros; rewrite rebase_upd; auto.
@@ -233,6 +233,24 @@ Proof.
     rewrite upd_Znth_diff' in Hz by auto.
     destruct Hk as (Hk' & Hz'); destruct Hz; [contradiction Hk' | contradiction Hz'];
       rewrite in_map_iff; do 2 eexists; eauto; apply Znth_In; auto.
+Qed.
+
+Lemma lookup_upd_same : forall m k i v', lookup m k = Some i -> Zlength m = size -> 0 <= i < Zlength m ->
+  lookup (upd_Znth i m (k, v')) k = lookup m k.
+Proof.
+  unfold lookup; intros.
+  pose proof (hash_range k).
+  rewrite rebase_upd by (auto; omega).
+  rewrite index_of'_upd; auto.
+  - rewrite Zlength_rebase by omega.
+    apply Z_mod_lt; omega.
+  - pose proof (index_of'_spec k (rebase m (hash k))) as Hspec.
+    destruct (index_of' (rebase m (hash k)) k); inv H.
+    replace size with (Zlength m).
+    rewrite Zminus_mod_idemp_l, Z.add_simpl_r.
+    destruct Hspec as (Hz & ? & ?).
+    rewrite Zlength_rebase in Hz by omega.
+    rewrite Zmod_small; auto.
 Qed.
 
 Lemma lookup_upd_diff : forall m k i k' v', lookup m k <> Some i -> Zlength m = size -> 0 <= i < Zlength m ->

@@ -408,7 +408,7 @@ normalize. rewrite H6; auto.
 intros.
 apply andp_left2.
 unfold loop1_ret_assert.
-destruct ek; auto.
+destruct ek; try apply andp_derives; auto.
 apply exp_right with a; auto.
 apply exp_right with a; auto.
 apply extract_exists_pre; intro a.
@@ -584,6 +584,127 @@ Proof.
  apply prop_derives; intros [? ?]; auto.
 Qed.
 *)
+
+Lemma semax_for_3g1 :
+ forall Espec {cs: compspecs} {A} (PQR: A -> environ -> mpred) (v: A -> val) Delta P Q R test body incr Post,
+     bool_type (typeof test) = true ->
+     (forall a, ENTAIL Delta, PROPx (P a) (LOCALx (Q a) (SEPx (R a))) |-- (tc_expr Delta (Eunop Cop.Onotbool test tint))) ->
+     (forall a, ENTAIL Delta, PROPx (P a) (LOCALx (Q a) (SEPx (R a))) |-- local (`(eq (v a)) (eval_expr test))) ->
+     (forall a, @semax cs Espec Delta (PROPx (typed_true (typeof test) (v a) :: (P a)) (LOCALx (Q a) (SEPx (R a))))
+                 body (loop1_ret_assert (EX a:A, PQR a) Post)) ->
+     (forall a, @semax cs Espec Delta (PQR a) incr
+                         (normal_ret_assert (EX a:A, PROPx (P a) (LOCALx (Q a) (SEPx (R a)))))) ->
+     (forall a, ENTAIL Delta, PROPx (typed_false (typeof test) (v a) :: (P a)) (LOCALx (Q a) (SEPx (R a))) 
+                             |-- Post EK_normal None) ->
+     @semax cs Espec Delta (EX a:A, PROPx (P a) (LOCALx (Q a) (SEPx (R a))))
+                 (Sloop (Ssequence (Sifthenelse test Sskip Sbreak)  body) incr)
+                 Post.
+Proof.
+intros.
+apply semax_loop with (Q':= (EX a:A, PQR a)).
+*
+ apply extract_exists_pre; intro a.
+ apply semax_seq with (Q0 := PROPx (typed_true (typeof test) (v a) :: P a) (LOCALx (Q a) (SEPx (R a)))).
+ apply semax_pre with (tc_expr Delta (Eunop Onotbool test (Tint I32 Signed noattr)) 
+                                        && (local (`(eq (v a)) (eval_expr test)) && (PROPx (P a) (LOCALx (Q a) (SEPx (R a))))));
+   [ | apply semax_ifthenelse; auto].
+ apply andp_right; auto.
+ apply andp_right; auto.
+ apply andp_left2; auto.
+ apply sequential.
+ eapply semax_post_flipped; [apply semax_skip | ].
+ intros.
+ unfold overridePost at 1. rewrite if_true by auto.
+ apply ENTAIL_normal_ret_assert.
+ intros. subst ek vl.
+ rewrite prop_true_andp by auto.
+ clear.
+ rewrite <- insert_prop.
+ apply andp_left2.
+ forget (PROPx (P a) (LOCALx (Q a) (SEPx (R a)))) as PQR.
+ intro rho.  simpl. unfold_lift.  unfold local, lift1. normalize.
+ rewrite H0. normalize.
+ eapply semax_pre; [ | apply semax_break].
+ autorewrite with ret_assert.
+ eapply derives_trans; [ | apply (H4 a)]. clear.
+ apply andp_derives; auto.
+ rewrite <- insert_prop.
+ clear.
+ forget (PROPx (P a) (LOCALx (Q a) (SEPx (R a)))) as PQR.
+ intro rho.  simpl. unfold_lift.  unfold local, lift1. normalize.
+ rewrite H0. normalize.
+ apply semax_extensionality_Delta with Delta.
+ apply tycontext_sub_refl.
+ eapply semax_post_flipped.
+ apply H2.
+ intros. apply andp_left2; auto.
+*
+ make_sequential.
+ Intros a.
+ eapply semax_post_flipped. apply (H3 a).
+ intros ek vl.
+ apply ENTAIL_normal_ret_assert; intros; subst.
+ unfold loop2_ret_assert. apply andp_left2. rewrite prop_true_andp; auto.
+Qed.
+
+Definition mk_ret_assert (n b c : environ -> mpred) (r: option val -> environ -> mpred) : ret_assert :=
+    fun (ek : exitkind) (vl : option val) =>
+ match ek with
+ | EK_normal => !! (vl=None) && n
+ | EK_break => !! (vl=None) && b
+ | EK_continue => !! (vl=None) && c
+ | EK_return => r vl
+ end.
+
+Definition loop1x_ret_assert (Inv : environ -> mpred) (R : ret_assert) (ek : exitkind) (vl : option val) :=
+match ek with
+| EK_normal => !! (vl=None) && Inv
+| EK_break => FF
+| EK_continue => !! (vl=None) && Inv
+| EK_return => R EK_return vl
+end.
+
+Lemma loop1x_ret_assert_EK_normal:
+ forall Inv R vl, loop1x_ret_assert Inv R EK_normal vl =
+    !! (vl=None) && Inv.
+Proof. reflexivity. Qed.
+Hint Rewrite loop1x_ret_assert_EK_normal: ret_assert.
+
+Lemma semax_for_3g2:  (* no break statements in loop *)
+ forall Espec {cs: compspecs} {A} (PQR: A -> environ -> mpred) (v: A -> val) Delta P Q R test body incr Post,
+     bool_type (typeof test) = true ->
+     (forall a, ENTAIL Delta, PROPx (P a) (LOCALx (Q a) (SEPx (R a))) |-- (tc_expr Delta (Eunop Cop.Onotbool test tint))) ->
+     (forall a, ENTAIL Delta, PROPx (P a) (LOCALx (Q a) (SEPx (R a))) |-- local (`(eq (v a)) (eval_expr test))) ->
+     (forall a, @semax cs Espec Delta (PROPx (typed_true (typeof test) (v a) :: (P a)) (LOCALx (Q a) (SEPx (R a))))
+                 body (loop1x_ret_assert (EX a:A, PQR a) Post)) ->
+     (forall a, @semax cs Espec Delta (PQR a) incr
+                         (normal_ret_assert (EX a:A, PROPx (P a) (LOCALx (Q a) (SEPx (R a)))))) ->
+     @semax cs Espec Delta (EX a:A, PROPx (P a) (LOCALx (Q a) (SEPx (R a))))
+                 (Sloop (Ssequence (Sifthenelse test Sskip Sbreak)  body) incr)
+                 (overridePost
+                      (EX a:A, PROPx (typed_false (typeof test) (v a) :: (P a)) (LOCALx (Q a) (SEPx (R a))))
+                  Post).
+Proof.
+intros.
+eapply semax_for_3g1; try eassumption.
+*
+ intro a.  eapply semax_post_flipped. apply H2.
+ intros ek vl.
+ apply andp_left2.
+ destruct ek; unfold loop1x_ret_assert, loop1_ret_assert, overridePost; auto. Exists a; auto.
+ apply FF_left.
+*
+ intro a.
+ apply andp_left2. unfold overridePost. rewrite prop_true_andp by auto. Exists a. auto.
+Qed.
+
+Definition loop1y_ret_assert (Inv : environ -> mpred) (ek : exitkind) (vl : option val) :=
+match ek with
+| EK_normal => !! (vl=None) && Inv
+| EK_break => FF
+| EK_continue => !! (vl=None) && Inv
+| EK_return => FF
+end.
 
 Transparent tc_andp.  (* ? should leave it opaque, maybe? *)
 

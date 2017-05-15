@@ -658,16 +658,16 @@ Definition frame_ret_assert (R: ret_assert) (F: environ->mpred) : ret_assert :=
 Definition loop1_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
  fun ek vl =>
  match ek with
- | EK_normal => Inv
+ | EK_normal => !! (vl=None) && Inv
  | EK_break => R EK_normal None
- | EK_continue => Inv
+ | EK_continue => !! (vl=None) && Inv
  | EK_return => R EK_return vl
  end.
 
 Definition loop2_ret_assert (Inv: environ->mpred) (R: ret_assert) : ret_assert :=
  fun ek vl =>
  match ek with
- | EK_normal => Inv
+ | EK_normal => !! (vl=None) && Inv
  | EK_break => fun _ => FF
  | EK_continue => fun _ => FF
  | EK_return => R EK_return vl
@@ -1338,8 +1338,8 @@ Axiom semax_extract_prop:
 Axiom semax_extract_later_prop:
   forall {Espec: OracleKind}{CS: compspecs},
   forall Delta (PP: Prop) P c Q,
-           (PP -> @semax CS Espec Delta (|> P) c Q) ->
-           @semax CS Espec Delta (|> (!!PP && P)) c Q.
+           (PP -> @semax CS Espec Delta P c Q) ->
+           @semax CS Espec Delta ((|> !!PP) && P) c Q.
 
 (* THESE RULES FROM semax_ext *)
 

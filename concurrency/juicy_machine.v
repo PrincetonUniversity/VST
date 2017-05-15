@@ -13,6 +13,7 @@ Require Import concurrency.threads_lemmas.
 Require Import concurrency.rmap_locking.
 Require Import concurrency.lksize.
 Require Import concurrency.semantics.
+Require Import concurrency.permjoin.
 Require Import Coq.Program.Program.
 From mathcomp.ssreflect Require Import ssreflect ssrbool ssrnat ssrfun eqtype seq fintype finfun.
 Set Implicit Arguments.
@@ -582,11 +583,10 @@ Qed.
           rewrite search. rewrite Mem_canonical_useful.
           unfold perm_of_res_lock. destruct ( r @ (b, ofs)); auto.
           destruct k; auto. simpl.
-          destruct (perm_of_sh Share.bot (pshare_sh p) ) eqn: HH; auto.
+          destruct (perm_of_sh (Share.glb Share.Rsh sh)) eqn: HH; auto.
           intros; exfalso; assumption.
-          destruct (perm_of_sh t0 (pshare_sh p)); auto; intro HH;
-          destruct (perm_of_sh Share.bot (pshare_sh p));
-          inversion HH; reflexivity.
+          destruct (perm_of_sh (Share.glb Share.Rsh sh)); auto; intro HH.
+          inversion HH.
     Qed.
 
     Lemma juic2Perm_correct:
@@ -605,10 +605,10 @@ Qed.
           unfold max_access_at. unfold access_at. unfold PMap.get; simpl.
           rewrite search. rewrite Mem_canonical_useful.
           unfold perm_of_res. destruct ( r @ (b, ofs)).
-          destruct (eq_dec t0 Share.bot); auto; simpl.
+          destruct (eq_dec sh Share.bot); auto; simpl.
           intros HH. contradiction HH.
           destruct k;  try solve [intros HH;inversion HH].
-          destruct (perm_of_sh t0 (pshare_sh p)); auto.
+          destruct (perm_of_sh sh); auto.
           intros HH;inversion HH.
           intros HH;inversion HH.
       Qed.
@@ -692,10 +692,10 @@ Qed.
     Proof.
       rewrite /perm_of_res /perm_of_res' => r.
       destruct r; try solve[ apply po_refl].
-      assert (Mem.perm_order'' (perm_of_sh t0 (pshare_sh p)) (Some Nonempty)).
-      { destruct (perm_of_sh t0 (pshare_sh p)) eqn:HH; try solve[constructor].
-        apply perm_of_empty_inv in HH; destruct HH as [AA BB].
-        exfalso; apply (juicy_mem_ops.Abs.pshare_sh_bot _ BB). }
+      assert (Mem.perm_order'' (perm_of_sh sh) (Some Nonempty)).
+      { destruct (perm_of_sh sh) eqn:HH; try solve[constructor].
+        apply perm_of_empty_inv in HH; subst sh.
+        exfalso; apply shares.bot_unreadable; eauto. }
       destruct k; first[ apply po_refl | assumption].
     Qed.
 
@@ -730,66 +730,52 @@ Qed.
            + subst.
              if_tac.
              * eauto with *.
-             * exfalso.
-               pose proof Share.lub_upper1 rsh1 rsh2.
-               inversion RJ as [_ E].
-               rewrite E in H0.
-               eauto with *.
+             * apply join_to_bot_l in RJ; subst;
+               congruence.
            + if_tac; constructor.
          - destruct k; try solve [constructor].
            + apply po_join_sub_sh.
-             * eexists; eauto.
-             * apply join_sub_refl.
+             eexists; eauto.
            + apply po_join_sub_sh.
              * eexists; eauto.
-             * apply join_sub_refl.
            + apply po_join_sub_sh.
              * eexists; eauto.
-             * apply join_sub_refl.
            + apply po_join_sub_sh.
              * eexists; eauto.
-             * apply join_sub_refl.
          - destruct k.
            + if_tac.
              * hnf. if_tac; apply I.
-             * apply perm_order''_trans with (perm_of_sh rsh1 (pshare_sh sh)).
+             * apply perm_order''_trans with (perm_of_sh sh3).
                -- apply po_join_sub_sh.
                   ++ eexists; eauto.
-                  ++ apply join_sub_refl.
-               -- destruct  (perm_of_sh rsh1 (pshare_sh sh)) eqn:E.
+               -- destruct  (perm_of_sh sh3) eqn:E.
                   ++ constructor.
-                  ++ pose proof @perm_of_empty_inv _ _ E. tauto.
-
+                  ++ pose proof @perm_of_empty_inv _ E; subst.
+                     apply join_to_bot_l in RJ; subst; congruence.
            + if_tac.
              * hnf. if_tac; apply I.
-             * apply perm_order''_trans with (perm_of_sh rsh1 (pshare_sh sh)).
+             * apply perm_order''_trans with (perm_of_sh sh1).
                -- apply po_join_sub_sh.
                   ++ eexists; eauto.
-                  ++ apply join_sub_refl.
-               -- destruct  (perm_of_sh rsh1 (pshare_sh sh)) eqn:E.
+               -- destruct  (perm_of_sh sh1) eqn:E.
                   ++ constructor.
-                  ++ pose proof @perm_of_empty_inv _ _ E. tauto.
-
+                  ++ pose proof @perm_of_empty_inv _ E; subst; congruence.
            + if_tac.
              * hnf. if_tac; apply I.
-             * apply perm_order''_trans with (perm_of_sh rsh1 (pshare_sh sh)).
+             * apply perm_order''_trans with (perm_of_sh sh1).
                -- apply po_join_sub_sh.
                   ++ eexists; eauto.
-                  ++ apply join_sub_refl.
-               -- destruct  (perm_of_sh rsh1 (pshare_sh sh)) eqn:E.
+               -- destruct  (perm_of_sh sh1) eqn:E.
                   ++ constructor.
-                  ++ pose proof @perm_of_empty_inv _ _ E. tauto.
-
+                  ++ pose proof @perm_of_empty_inv _ E; subst; congruence.
            + if_tac.
              * hnf. if_tac; apply I.
-             * apply perm_order''_trans with (perm_of_sh rsh1 (pshare_sh sh)).
+             * apply perm_order''_trans with (perm_of_sh sh1).
                -- apply po_join_sub_sh.
                   ++ eexists; eauto.
-                  ++ apply join_sub_refl.
-               -- destruct  (perm_of_sh rsh1 (pshare_sh sh)) eqn:E.
+               -- destruct  (perm_of_sh sh1) eqn:E.
                   ++ constructor.
-                  ++ pose proof @perm_of_empty_inv _ _ E. tauto.
-
+                  ++ pose proof @perm_of_empty_inv _ E; subst; congruence.
          - destruct k; try constructor.
            + apply po_join_sub_sh; eexists; eauto.
            + apply po_join_sub_sh; eexists; eauto.
@@ -822,7 +808,7 @@ Qed.
         destruct H0 as [X H0].
         inversion H0; subst.
         + symmetry in H. apply cont_coh0 in H; assumption.
-        + symmetry in H6; apply cont_coh0 in H6; assumption.
+        + symmetry in H; apply cont_coh0 in H; assumption.
       (* - intros loc.
         eapply resource_at_join_sub with (l:= loc) in H0.
         eapply po_join_sub  in H0.
@@ -839,6 +825,7 @@ Qed.
         inversion H0; auto.
         apply split_identity in RJ; auto.
         apply identity_share_bot in RJ; subst; auto.
+        f_equal; apply proof_irr.
     Qed.
 
     Lemma compatible_threadRes_sub:
@@ -1117,7 +1104,7 @@ Qed.
       apply age_to_ind; [ | reflexivity].
       intros x y A <- .
       destruct (x @ loc) as [sh | rsh sh k p | k p] eqn:E.
-      - destruct (age1_NO x y loc sh A) as [[]_]; eauto.
+      - destruct (age1_NO x y loc sh n) as [[]_]; eauto.
       - destruct (age1_YES' x y loc rsh sh k A) as [[p' ->] _]; eauto.
       - destruct (age1_PURE x y loc k A) as [[p' ->] _]; eauto.
     Qed.
@@ -1128,7 +1115,7 @@ Qed.
       apply age_to_ind; [ | reflexivity].
       intros x y A <- .
       destruct (x @ loc) as [sh | rsh sh k p | k p] eqn:E.
-      - destruct (age1_NO x y loc sh A) as [[]_]; eauto.
+      - destruct (age1_NO x y loc sh n) as [[]_]; eauto.
       - destruct (age1_YES' x y loc rsh sh k A) as [[p' ->] _]; eauto.
       - destruct (age1_PURE x y loc k A) as [[p' ->] _]; eauto.
     Qed.
@@ -1140,11 +1127,11 @@ Qed.
       intros rm H loc.
       specialize (H loc).
       destruct (rm @ loc) eqn:res.
-      - simpl (perm_of_res(NO t0)).
-        destruct (eq_dec t0 Share.bot); auto; constructor.
+      - simpl (perm_of_res (NO sh n)).
+        destruct (eq_dec sh Share.bot); auto; constructor.
       - destruct k;
           try (simpl; constructor).
-        specialize (H t0 p (VAL m) p0 ltac:(reflexivity) m).
+        specialize (H sh r (VAL m) p ltac:(reflexivity) m).
         contradict H; reflexivity.
       - simpl; constructor.
     Qed.
@@ -1194,7 +1181,7 @@ Qed.
               (cnt0:containsThread tp tid0)(Hcompat:mem_compatible tp m):
       thread_pool -> mem -> sync_event -> Prop :=
     | step_acquire :
-        forall (tp' tp'' tp''':thread_pool) c m0 m1 b ofs d_phi psh phi phi' m' pmap_tid',
+        forall (tp' tp'' tp''':thread_pool) c m0 m1 b ofs d_phi phi phi' m' pmap_tid',
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kblocked c)
@@ -1204,7 +1191,7 @@ Qed.
             (*Hpersonal_perm:
                personal_mem cnt0 Hcompatible = jm*)
             (Hpersonal_juice: getThreadR cnt0 = phi)
-            (sh:Share.t)(R:pred rmap)
+            (sh:Share.t)psh(R:pred rmap)
             (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
             (Hrestrict_map0: juicyRestrict_locks
                               (mem_compat_thread_max_cohere Hcompat cnt0) = m0)
@@ -1227,7 +1214,7 @@ Qed.
             (Htp''': tp''' = age_tp_to (level phi - 1)%coq_nat tp''),
             syncStep' genv cnt0 Hcompat tp''' m' (acquire (b, Int.intval ofs) None)
     | step_release :
-        forall  (tp' tp'' tp''':thread_pool) c m0 m1 b ofs psh  (phi d_phi :rmap) (R: pred rmap) phi' m' pmap_tid',
+        forall  (tp' tp'' tp''':thread_pool) c m0 m1 b ofs  (phi d_phi :rmap) (R: pred rmap) phi' m' pmap_tid',
           forall
             (Hinv : invariant tp)
             (Hthread: getThreadC cnt0 = Kblocked c)
@@ -1237,7 +1224,7 @@ Qed.
             (* Hpersonal_perm:
                personal_mem cnt0 Hcompatible = jm *)
             (Hpersonal_juice: getThreadR cnt0 = phi)
-            (sh:Share.t)
+            (sh:Share.t) psh
             (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
             (Hrestrict_map0: juicyRestrict_locks
                               (mem_compat_thread_max_cohere Hcompat cnt0) = m0)
@@ -1323,7 +1310,7 @@ Qed.
             syncStep' genv cnt0 Hcompat  tp'' m (freelock (b, Int.intval ofs))
 
     | step_acqfail :
-        forall  c b ofs jm psh m1,
+        forall  c b ofs jm m1,
           let: phi := m_phi jm in
           forall
             (Hinv : invariant tp)
@@ -1335,7 +1322,7 @@ Qed.
                personal_mem (thread_mem_compatible Hcompatible cnt0) = jm)
             (Hrestrict_map: juicyRestrict_locks
                               (mem_compat_thread_max_cohere Hcompat cnt0) = m1)
-            (sh:Share.t)(R:pred rmap)
+            (sh:Share.t) psh(R:pred rmap)
             (HJcanwrite: phi@(b, Int.intval ofs) = YES sh psh (LK LKSIZE) (pack_res_inv R))
             (Hload: Mem.load Mint32 m1 b (Int.intval ofs) = Some (Vint Int.zero)),
             syncStep' genv cnt0 Hcompat tp m (failacq (b,Int.intval ofs)).

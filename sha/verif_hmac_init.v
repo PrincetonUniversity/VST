@@ -162,9 +162,9 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
      Time assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs))
        as FC_cb by entailer!. (*1.8 versus 3.9*)
      assert (FC_cb_ictx: field_compatible t_struct_hmac_ctx_st [StructField _i_ctx] (Vptr cb cofs)).
-       red; red in FC_cb. intuition. split; trivial. right; left. reflexivity.
+     { red in FC_cb. repeat split; try solve [apply FC_cb]. right; left; reflexivity. }
      assert (FC_cb_md: field_compatible t_struct_hmac_ctx_st [StructField _md_ctx] (Vptr cb cofs)).
-       red; red in FC_cb. intuition. split; trivial. left. reflexivity.
+     { red in FC_cb. repeat split; try solve [apply FC_cb]. left. reflexivity. }
 
      Time unfold_data_at 1%nat. (*0.8, was slow*)
      rewrite (field_at_data_at _ _ [StructField _i_ctx]).
@@ -220,9 +220,9 @@ eapply semax_seq. instantiate (1:=PostResetBranch).
     freeze [0; 2] FR6.
     Time assert_PROP (field_compatible t_struct_hmac_ctx_st [] (Vptr cb cofs)) as FC_cb by entailer!. (*2.8*)
     assert (FC_cb_ictx: field_compatible t_struct_hmac_ctx_st [StructField _i_ctx] (Vptr cb cofs)).
-       red; red in FC_cb. intuition. split; trivial. right; left. reflexivity.
+    { red in FC_cb. repeat split; try solve [apply FC_cb]. right; left; reflexivity. }
     assert (FC_cb_md: field_compatible t_struct_hmac_ctx_st [StructField _md_ctx] (Vptr cb cofs)).
-       red; red in FC_cb. intuition. split; trivial. left. reflexivity.
+    { red in FC_cb. repeat split; try solve [apply FC_cb]. left; reflexivity. }
 
     unfold_data_at 1%nat.
     freeze [0; 3] FR7.

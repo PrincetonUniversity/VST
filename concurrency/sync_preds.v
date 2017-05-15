@@ -515,6 +515,8 @@ Proof.
   apply (P phi w1 w2); auto; eapply approx_p; eassumption.
 Qed.
 
+Import shares.
+
 Lemma positive_precise_joins_false R phi1 phi2 :
   positive_mpred R ->
   precise R ->
@@ -537,7 +539,10 @@ Proof.
   rewrite E in j.
   destruct j as (r3, j).
   inv j.
-  eapply self_join_pshare_false; eauto.
+ clear - RJ rsh0.
+ destruct RJ.
+ rewrite Share.glb_idem in H. subst.
+ apply bot_unreadable; auto.
 Qed.
 
 Lemma weak_positive_precise_joins_false R phi phi1 phi2 :
@@ -565,7 +570,10 @@ Proof.
   rewrite E in j.
   destruct j as (r3, j).
   inv j.
-  eapply self_join_pshare_false; eauto.
+ clear - RJ rsh0.
+ destruct RJ.
+ rewrite Share.glb_idem in H. subst.
+ apply bot_unreadable; auto.
 Qed.
 
 Lemma isLKCT_rewrite r :
@@ -580,7 +588,7 @@ Proof.
 Qed.
 
 Lemma isLK_rewrite r :
-  (forall (sh : Share.t) (sh' : pshare) (z : Z) (P : preds), r <> YES sh sh' (LK z) P)
+  (forall (sh : Share.t) Psh (z : Z) (P : preds), r <> YES sh Psh (LK z) P)
   <->
   ~ isLK r.
 Proof.
@@ -596,8 +604,8 @@ Proof.
   rewrite age_to_resource_at.
   destruct (phi @ loc); simpl; auto.
   - apply prop_ext; split;
-      intros (sh & sh' & z & P & E);
-      injection E; intros; subst; eauto.
+      intros (shi & shi' & zi & Pi & Ei);
+      injection Ei; intros; subst; eauto.
   - repeat (f_equal; extensionality).
     apply prop_ext; split; congruence.
 Qed.
@@ -608,8 +616,8 @@ Proof.
   rewrite age_to_resource_at.
   destruct (phi @ loc); simpl; auto.
   - apply prop_ext; split;
-      intros (sh & sh' & z & P & E);
-      injection E; intros; subst; eauto.
+      intros (shi & shi' & zi & Pi & Ei);
+      injection Ei; intros; subst; eauto.
   - repeat (f_equal; extensionality).
     apply prop_ext; split; congruence.
 Qed.
@@ -624,8 +632,8 @@ Proof.
   breakhyps.
   rewr (phi @ loc) in H.
   pose proof (YES_inj _ _ _ _ _ _ _ _ H).
-  assert (snd ((x, x0, LK x1, SomeP rmaps.Mpred (fun _ : list Type => R2: pred rmap))) =
-    snd  (x2, x3, LK x4, SomeP rmaps.Mpred (fun _ : list Type => R1))) by (f_equal; auto).
+  assert (snd ((x, LK x1, SomeP rmaps.Mpred (fun _ : list Type => R2: pred rmap))) =
+          snd  (x2, LK x4, SomeP rmaps.Mpred (fun _ : list Type => R1))) by (f_equal; auto).
   simpl in H2.
   apply SomeP_inj in H2.
   pose proof equal_f_dep H2 nil.
@@ -643,13 +651,13 @@ Proof.
   eauto.
 Qed.
 
-Lemma predat2 {phi loc R sh sh'} :
-  LKspec_ext R sh sh' loc phi ->
+Lemma predat2 {phi loc R sh } :
+  LKspec_ext R sh loc phi ->
   predat phi loc (approx (level phi) R).
 Proof.
   intros lk; specialize (lk loc); simpl in lk.
   if_tac in lk. 2:range_tac.
-  if_tac in lk. 2:tauto.
+  if_tac in lk. 2:congruence.
   hnf. unfold "oo" in *; simpl in *; destruct lk; eauto.
 Qed.
 

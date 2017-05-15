@@ -1558,6 +1558,16 @@ apply semax_extract_prop.
 auto.
 Qed.
 
+Lemma semax_extract_later_prop1:
+  forall {cs: compspecs} {Espec: OracleKind} Delta (PP: Prop) P c Q,
+           (PP -> semax Delta (|> P) c Q) ->
+           semax Delta (|> (!!PP && P)) c Q.
+Proof.
+  intros.
+  rewrite later_andp.
+  apply semax_extract_later_prop; auto.
+Qed.
+
 Lemma assert_later_PROP:
  forall P1 Espec {cs: compspecs} Delta PQR c Post,
     ENTAIL Delta, PQR|-- !! P1 ->
@@ -1570,7 +1580,7 @@ apply later_left2.
 apply andp_right.
 apply H.
 apply andp_left2; apply derives_refl.
-apply semax_extract_later_prop.
+apply semax_extract_later_prop1.
 auto.
 Qed.
 

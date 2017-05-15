@@ -221,6 +221,7 @@ apply semax_seq with (local (`(typed_true (typeof (Ebinop Olt (Etempvar _i tuint
     simpl.
     unfold subst.
     apply exp_left; intro i.
+    rewrite prop_true_andp by auto.
     apply exp_right with (i+1).
     simpl.
     repeat rewrite <- insert_local.

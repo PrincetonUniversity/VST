@@ -92,6 +92,8 @@ Definition minimum_spec :=
 Definition Gprog : funspecs :=
       ltac:(with_library prog [minimum_spec]).
 
+(* First approach from "Modular Verification for Computer Security",
+  proved using forward_for_simple_bound *)
 Lemma body_min: semax_body Vprog Gprog f_minimum minimum_spec.
 Proof.
 start_function.
@@ -138,6 +140,67 @@ forward_for_simple_bound n
  autorewrite with sublist. auto.
 Qed.
 
+(* Demonstration of the same theorem, but using
+    forward_for  instead of forward_for_simple_bound *)
+Lemma body_min': semax_body Vprog Gprog f_minimum minimum_spec.
+Proof.
+start_function.
+assert_PROP (Zlength al = n). {
+  entailer!. autorewrite with sublist; auto.
+}
+revert POSTCONDITION;
+ replace (hd 0 al) with (Znth 0 al 0) by (destruct al; reflexivity);
+ intro POSTCONDITION.
+forward.  (* min = a[0]; *)
+pose (Inv d (f: Z->Prop) (i: Z) :=
+    PROP(0 <= i <= n; f i)
+    LOCAL(temp _min (Vint (Int.repr (fold_right Z.min (Znth 0 al 0) (sublist 0 (i+d) al))));
+          temp _a a; temp _i (Vint (Int.repr i));
+          temp _n (Vint (Int.repr n)))
+    SEP(data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a)).
+forward_for (Inv 0 (fun _ => True)) (Inv 1 (Z.gt n)).
+*
+forward.
+Exists 0. unfold Inv; entailer!.
+*
+entailer!.
+*
+rename a0 into i.
+ forward. (* j = a[i]; *)
+ assert (repable_signed (Znth i al 0))
+     by (apply Forall_Znth; auto; omega).
+ assert (repable_signed (fold_right Z.min (Znth 0 al 0) (sublist 0 i al)))
+   by (apply Forall_fold_min;
+          [apply Forall_Znth; auto; omega
+          |apply Forall_sublist; auto]).
+ autorewrite with sublist.
+ apply semax_post_flipped with  (normal_ret_assert (Inv 1 (Z.gt n) i)).
+ unfold Inv.
+ rewrite (sublist_split 0 i (i+1)) by omega.
+ rewrite (sublist_one i (i+1) al 0) by omega.
+ rewrite fold_min_another.
+ forward_if.
+ +
+ forward. (* min = j; *)
+ entailer!. rewrite Z.min_r; auto; omega.
+ +
+ forward. (* skip; *)
+ entailer!. rewrite Z.min_l; auto; omega.
+ +
+ intros.
+ subst POSTCONDITION; unfold abbreviate. (* TODO: some of these lines should all be done by forward_if *)
+ unfold normal_ret_assert. normalize. autorewrite with ret_assert.
+ (* TODO: entailer! fails here with a misleading error message *)
+ Exists i. apply andp_left2. normalize.
+*
+ rename a0 into i.
+ forward.
+ Exists (i+1).
+ entailer!.
+*
+ autorewrite with sublist.
+ forward.
+Qed.
 
 Definition minimum_spec2 :=
  DECLARE _minimum
@@ -152,6 +215,9 @@ Definition minimum_spec2 :=
     LOCAL(temp ret_temp  (Vint (Int.repr j)))
     SEP   (data_at Ews (tarray tint n) (map Vint (map Int.repr al)) a).
 
+
+(* Second approach from "Modular Verification for Computer Security",
+  proved using forward_for_simple_bound *)
 Lemma body_min2: semax_body Vprog Gprog f_minimum minimum_spec2.
 Proof.
 start_function.

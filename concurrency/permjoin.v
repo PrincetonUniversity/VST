@@ -3,9 +3,23 @@ Require Import msl.sepalg.
 Require Import msl.shares.
 Require Import msl.pshares.
 Require Import veric.coqlib4.
+Require Import veric.shares.
 Require Import veric.juicy_mem.
 Require Import veric.juicy_mem_ops.
 Require Import concurrency.permjoin_def.
+Import Memtype.
+
+  Lemma perm_of_glb_not_Freeable: forall sh,
+      ~ perm_of_sh (Share.glb Share.Rsh sh) = Some Freeable.
+  Proof.
+   intros.
+   unfold perm_of_sh.
+   if_tac.
+   rewrite if_false by apply glb_Rsh_not_top.
+   congruence.
+   if_tac. congruence.
+   if_tac. congruence. congruence.
+  Qed.
 
 Lemma join_bot_bot_eq sh :
   sepalg.join Share.bot Share.bot sh ->
@@ -115,44 +129,110 @@ Proof.
   apply join_pshare_top_l in j; auto.
 Qed.
 
+(*Got this ltac from permission.v maybe should factor*)
+Ltac if_simpl:=
+  repeat match goal with
+         | [ H: ?X = true |- context[if ?X then _ else _] ] => rewrite H; simpl 
+         | [ H: ?X = false |- context[if ?X then _ else _] ] => rewrite H; simpl 
+         | [ H: ?X = left _ |- context[match ?X with left _ => _ | right _ => _ end] ]=>
+           rewrite H; simpl 
+         | [ H: ?X = right _ |- context[match ?X with left _ => _ | right _ => _ end] ]=>
+           rewrite H; simpl 
+         end.
+Lemma top_aint_bot:
+  eq_dec Share.top Share.bot = right Share.nontrivial.
+  destruct (eq_dec Share.top Share.bot).
+  - exfalso; apply Share.nontrivial; auto.
+  - f_equal. apply proof_irr.
+Qed.
+
+  
+Ltac common_contradictions:=
+  match goal with
+  | [H: Share.glb _ _ = Share.top |- _ ] =>
+    exfalso;
+    eapply shares.glb_Rsh_not_top; eassumption
+    | [ H: Share.bot = Share.top |- _ ] => exfalso; apply Share.nontrivial; symmetry; assumption
+    | [ H: Share.top = Share.bot |- _ ] => exfalso; apply Share.nontrivial; assumption
+    | [ H: ~ shares.readable_share Share.top |- _ ] => pose proof shares.readable_share_top; contradiction
+    | [ H: ~ shares.writable_share Share.top |- _ ] => pose proof shares.writable_share_top; contradiction
+    | [ H: shares.readable_share Share.bot |- _ ] => pose proof shares.bot_unreadable; contradiction        
+    | [ H: shares.writable_share Share.bot |- _ ] => apply shares.writable_readable in H; pose proof shares.bot_unreadable; contradiction
+    | [ H: shares.writable_share ?sh, H0: ~ shares.readable_share ?sh   |- _ ] =>
+      exfalso; apply H0; eapply shares.writable_readable; assumption
+    | _ => contradiction 
+    end.
+  
+  Ltac join_share_contradictions_oneside:=
+    match goal with
+    | [ H: @join Share.t _ Share.top _ _ |- _ ] =>
+      pose proof (join_top_l H); first [common_contradictions | subst]
+    | [ H: @join Share.t _ Share.bot _ _ |- _ ] =>
+      pose proof (join_with_bot_l _ _ H); first [common_contradictions | subst]
+    | [ H: @join Share.t _ _ _ Share.bot |- _ ] =>
+      pose proof (join_to_bot_l H); pose proof (join_to_bot_r H);
+      first [common_contradictions | subst]
+    | [ H1: ~ shares.readable_share ?sh1,
+        H2: ~ shares.readable_share ?sh2,
+            H: join ?sh1 ?sh2 _ |- _ ] =>
+      pose proof (shares.join_unreadable_shares H H1 H2);
+      first [common_contradictions | subst]
+    | [ H1: ~ shares.writable_share ?sh1,
+        H2: ~ shares.readable_share ?sh2,
+            H: join ?sh1 ?sh2 _ |- _ ] =>
+      pose proof (join_readable_unreadable _ _ _ H H1 H2);
+      first [common_contradictions | subst]
+    | [ H1: shares.writable_share ?sh1,
+        H2: shares.writable_share ?sh2,
+            H: join ?sh1 ?sh2 _ |- _ ] =>
+      exfalso; eapply shares.join_writable_readable;
+      try eapply shares.writable_readable; eassumption
+    | [ H1: shares.writable_share ?sh1,
+            H: join ?sh1 _ _ |- _ ] =>
+      pose proof (shares.join_writable1 H H1);
+      first [common_contradictions | subst]
+    | [ H1: shares.readable_share ?sh1,
+            H: join ?sh1 ?sh2 _ |- _ ] =>
+      pose proof (shares.join_readable1 H H1);
+      common_contradictions
+    end.
+  Ltac join_share_contradictions:=
+    try join_share_contradictions_oneside;
+    match goal with
+    | [ H: @join Share.t _ _ _ _ |- _ ] =>
+      apply join_comm in H; join_share_contradictions_oneside
+    end; try contradiction.
+
 Lemma join_permjoin r1 r2 r3 :
   join r1 r2 r3 ->
   permjoin (perm_of_res r1) (perm_of_res r2) (perm_of_res r3).
 Proof.
-  destruct r1 as [t1 | t1 p1 k1 pp1 | k1 pp1];
-    destruct r2 as [t2 | t2 p2 k2 pp2 | k2 pp2];
-    destruct r3 as [t3 | t3 p3 k3 pp3 | k3 pp3].
-  all: intros j; inversion j; subst.
-  all: simpl.
-  all: repeat if_tac; try constructor.
-  all: subst.
-  all: try pose proof join_bot_bot_eq _ RJ.
-  all: try pose proof join_with_bot_l _ _ RJ.
-  all: try pose proof join_with_bot_r _ _ RJ.
-  all: try pose proof join_to_bot_l RJ.
-  all: try pose proof join_to_bot_r RJ.
-  all: subst.
-  all: try congruence.
-  all: try destruct k3.
-  all: try constructor.
-  all: unfold perm_of_sh; repeat if_tac; subst.
-  all: try pose proof @join_top_l _ _ RJ.
-  all: try pose proof @join_top_r _ _ RJ.
-  all: subst.
-  all: try constructor.
-  all: try pose proof @join_top_l _ _ RJ.
-  all: try pose proof @join_top_r _ _ RJ.
-  all: try congruence.
-  all: try pose proof join_to_bot_l RJ.
-  all: try pose proof join_to_bot_r RJ.
-  all: subst.
-  all: try congruence.
-  all: try constructor.
-  all: try solve [edestruct Share.nontrivial; eauto].
-  all: exfalso.
-  all: try solve [edestruct Abs.pshare_sh_bot; eauto].
-  all: try solve [eapply join_pshare_top_l; eauto].
-  all: try solve [eapply join_pshare_top_r; eauto].
+  intros.
+  inversion H; subst;
+    try (destruct k);
+    try constructor;
+  functional induction (perm_of_sh sh1) using perm_of_sh_ind;
+    simpl; if_simpl;
+    repeat match goal with
+           | [  |- context [eq_dec Share.top Share.bot] ] => rewrite top_aint_bot 
+           end;
+  functional induction (perm_of_sh sh2) using perm_of_sh_ind;
+    simpl; if_simpl;
+    repeat match goal with
+           | [  |- context [eq_dec Share.top Share.bot] ] => rewrite top_aint_bot 
+           end;
+  functional induction (perm_of_sh sh3) using perm_of_sh_ind;
+  simpl; if_simpl;
+    repeat match goal with
+           | [  |- context [eq_dec Share.top Share.bot] ] => rewrite top_aint_bot 
+           end;
+    try (do 2 join_share_contradictions);
+    unfold perm_of_sh; if_simpl; 
+    try econstructor.
+    contradiction (join_readable_unreadable RJ _x _x2); apply writable_share_top.
+    contradiction (join_readable_unreadable RJ _x _x2).
+    contradiction (join_readable_unreadable (join_comm RJ) _x2 _x0); apply writable_share_top.
+    contradiction (join_readable_unreadable (join_comm RJ) _x2 _x0).
 Qed.
 
 Lemma join_permjoin_lock
@@ -163,38 +243,47 @@ Lemma join_permjoin_lock
       (perm_of_res_lock r2)
       (perm_of_res_lock r3).
 Proof.
-  destruct r1 as [t1 | t1 p1 k1 pp1 | k1 pp1];
-    destruct r2 as [t2 | t2 p2 k2 pp2 | k2 pp2];
-    destruct r3 as [t3 | t3 p3 k3 pp3 | k3 pp3].
-  all: intros j; inversion j; subst.
-  all: simpl.
-  all: repeat if_tac; try constructor.
-  all: subst.
-  all: try pose proof join_bot_bot_eq _ RJ.
-  all: try pose proof join_with_bot_l _ _ RJ.
-  all: try pose proof join_with_bot_r _ _ RJ.
-  all: try pose proof join_to_bot_l RJ.
-  all: try pose proof join_to_bot_r RJ.
-  all: subst.
-  all: try congruence.
-  all: try destruct k3.
-  all: try constructor.
-  all: unfold perm_of_sh; repeat if_tac; subst.
-  all: try pose proof @join_top_l _ _ RJ.
-  all: try pose proof @join_top_r _ _ RJ.
-  all: subst.
-  all: try constructor.
-  all: try pose proof @join_top_l _ _ RJ.
-  all: try pose proof @join_top_r _ _ RJ.
-  all: try congruence.
-  all: try pose proof join_to_bot_l RJ.
-  all: try pose proof join_to_bot_r RJ.
-  all: subst.
-  all: try congruence.
-  all: try constructor.
-  all: try solve [edestruct Share.nontrivial; eauto].
-  all: exfalso.
-  all: try solve [edestruct Abs.pshare_sh_bot; eauto].
-  all: try solve [eapply join_pshare_top_l; eauto].
-  all: try solve [eapply join_pshare_top_r; eauto].
+ intros.
+ inversion H; clear H; subst; simpl; try constructor;
+ repeat match goal with
+ | [ H: join ?sh _ _ , H1: shares.readable_share ?sh  |- _ ] =>
+   apply readable_glb in H1
+ | [ H: join ?sh _ _ , H1: ~ shares.readable_share ?sh  |- _ ] =>
+   apply unreadable_glb in H1
+ | [ H: join _ ?sh _ , H1: shares.readable_share ?sh  |- _ ] =>
+   apply readable_glb in H1
+ | [ H: join _ ?sh _ , H1: ~ shares.readable_share ?sh  |- _ ] =>
+   apply unreadable_glb in H1
+ | [ H: join _ _ ?sh , H1: shares.readable_share ?sh  |- _ ] =>
+   apply readable_glb in H1
+ | [ H: join _ _ ?sh , H1: ~ shares.readable_share ?sh  |- _ ] =>
+   apply unreadable_glb in H1
+ end;
+ match goal with
+   | [ H: join _ _ _ |- _ ] => eapply compcert_rmaps.join_glb_Rsh in H 
+ end;
+   try (destruct k);
+    try constructor;
+  functional induction (perm_of_sh  (Share.glb Share.Rsh sh1)) using perm_of_sh_ind;
+    simpl; if_simpl;
+  functional induction (perm_of_sh  (Share.glb Share.Rsh sh2)) using perm_of_sh_ind;
+    simpl; if_simpl;
+  functional induction (perm_of_sh  (Share.glb Share.Rsh sh3)) using perm_of_sh_ind;
+  simpl; if_simpl;
+    repeat match goal with
+           | [  |- context [eq_dec Share.top Share.bot] ] => rewrite top_aint_bot 
+           end;
+    try (unfold perm_of_sh; if_simpl; econstructor);
+    try (do 2 join_share_contradictions);
+  try eapply permjoin_None_l;
+  try eapply permjoin_None_r;
+  forget (Share.glb Share.Rsh sh1) as s1;
+  forget (Share.glb Share.Rsh sh2) as s2;
+  forget (Share.glb Share.Rsh sh3) as s3;
+  clear e e0 e1 e2 e3 e4 e5; subst;
+  try contradiction (join_readable_unreadable RJ _x _x2).
+  apply join_unit1_e in RJ; auto; subst; contradiction.
+  contradiction (join_readable_unreadable (join_comm RJ) _x2 _x0).
+  apply join_unit1_e in RJ; auto; subst; contradiction.
+  contradiction (join_readable_unreadable (join_comm RJ) _x2 _x0).
 Qed.

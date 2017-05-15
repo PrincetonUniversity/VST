@@ -202,7 +202,7 @@ Proof. intros. abbreviate_semax.
      change (32+32) with 64.
      intros MBS; rewrite MBS; clear MBS; trivial.
      Focus 2. destruct (Int.unsigned_range ckoff). split; try omega.
-              red in FC_ctxkey. simpl in FC_ctxkey. intuition.
+              red in FC_ctxkey. simpl in FC_ctxkey. omega. 
      flatten_sepcon_in_SEP.
 
      thaw FR6.
@@ -350,7 +350,7 @@ Proof. intros.
        apply sepcon_derives. eapply derives_trans. apply data_at_memory_block.
            simpl. rewrite Z.max_r. rewrite Z.mul_1_l. trivial. omega.
        Time cancel. (*0.1 versus 2.4*) }
-     { simpl. rewrite Z.max_r, Z.mul_1_l. intuition. specialize Int.max_signed_unsigned; omega. omega. }
+     { simpl. specialize Int.max_signed_unsigned. rewrite Z.max_r, Z.mul_1_l; repeat split; trivial; omega. }
      unfold tarray.
      remember (64 - l) as l64.
      remember (map Vint (map Int.repr key)) as KCONT.
@@ -570,7 +570,7 @@ forward_if  (PostKeyNull c k pad kv h1 l key ckb ckoff).
 
     assert (field_compatible t_struct_hmac_ctx_st [StructField _md_ctx] (Vptr cb cofs)) as  FC_md_ctx.
     { red. clear - FC_ctx. red in FC_ctx; simpl in FC_ctx.
-      intuition. split; trivial. left; reflexivity. }
+      repeat split; try solve [apply FC_ctx]. left; reflexivity. }
 
     Time assert_PROP (field_compatible (Tarray tuchar 64 noattr) [] (Vptr ckb ckoff))
       as FC_cxtkey by entailer!. (*1.1 versus 1.9*)
@@ -597,7 +597,7 @@ forward_if  (PostKeyNull c k pad kv h1 l key ckb ckoff).
    if_tac;  [| apply andp_left2; trivial].
    Time normalize. (*0.8*)
    subst.
-   Exists cb cofs 1. Time entailer!. (*7.3 versus 8.1*)
+   Exists cb cofs 1. Time entailer; cancel. (*7.3 versus 8.1*)
   }
   { (*key == NULL*)
      rename H into Hk; rewrite Hk in *.

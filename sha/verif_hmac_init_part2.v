@@ -139,7 +139,7 @@ Proof. intros. unfold HMAC_SHA256.mkArgZ in *.
                    rewrite Int.unsigned_repr.
                    assert (Z.lxor (nth (Z.to_nat i) (HMAC_SHA256.mkKey key) 0) 54 < two_p 8 ). apply BB. omega.
                    rewrite int_max_unsigned_eq.
-                   intuition.
+                   omega.
                    omega.
                    rewrite Zlength_map in ZLI; rewrite ZLI; assumption.
                    rewrite ZLI; assumption.
@@ -352,7 +352,7 @@ Focus 2.
             repeat rewrite map_nth. rewrite Qb. trivial.
           }
 
-        Time freeze [0;1] FR1.
+        Time freeze [0;1] FR1. 
         Time forward; rewrite X. (*6.7 versus 9*)
         { entailer!. rewrite <- isbyte_zeroExt8'; trivial.
           apply (isbyteZ_range _ isbyteZQb). }
@@ -705,7 +705,10 @@ forward_if PostResetBranch.
       destruct k; try contradiction.
       Time if_tac; entailer!. (* 0.92 *)
       Exists b i.
-      Time entailer!. (* 6.7 *) }
+      (*04/21/17: entailer! used to solve this in 6.7secs but now takes > 30secs;
+       the following is a little faster.*)
+      normalize. apply andp_right. apply prop_right; repeat split; trivial.
+          Time entailer; cancel. }
     Intros kb kofs.
     rename H into isbyte_key.
 
@@ -738,7 +741,7 @@ Qed.*)
       (*semax_subcommand HmacVarSpecs HmacFunSpecs f_HMAC_Init.*)
        eapply semax_pre.
        Focus 2. eapply (ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv myPred); try eassumption.
-       entailer. cancel. (*
+       subst HMS'. clear - HeqmyPred. Time entailer!; cancel. (*
       eapply semax_pre. Focus 2. eapply (ipad_loop Espec pb pofs cb cofs ckb ckoff kb kofs l key kv
                       (K_vector kv * data_at Tsh t_struct_hmac_ctx_st HMS' (Vptr cb cofs)
                           * data_at Tsh (tarray tuchar (Zlength key)) (map Vint (map Int.repr key))
@@ -772,7 +775,8 @@ Qed.*)
     freeze [0;1;4] FR2.
     rewrite (field_at_data_at  Tsh t_struct_hmac_ctx_st [StructField _i_ctx]).
     assert_PROP (field_compatible t_struct_hmac_ctx_st [StructField _i_ctx] (Vptr cb cofs)) as FC_ICTX.
-    { apply prop_right. clear - FC_C. red in FC_C; red; intuition. split; trivial. right; left; trivial. }
+    { apply prop_right. clear - FC_C. red in FC_C.
+      repeat split; try solve [apply FC_C]. right; left; trivial. }
     rewrite field_address_offset by auto with field_compatible.
     simpl.
 
@@ -817,7 +821,8 @@ Qed.*)
     freeze [0;1;2] FR6.
     rewrite (field_at_data_at Tsh t_struct_hmac_ctx_st [StructField _o_ctx]).
     assert_PROP (field_compatible t_struct_hmac_ctx_st [StructField _o_ctx] (Vptr cb cofs)) as FC_OCTX.
-    { apply prop_right. clear - FC_C. red in FC_C; red; intuition. split; trivial. right; right; left; trivial. }
+    { apply prop_right. clear - FC_C. red in FC_C. 
+      repeat split; try solve [apply FC_C]. right; right; left; trivial. }
     rewrite field_address_offset by auto with field_compatible.
 
     (*Call to _SHA256_Init*)
@@ -838,7 +843,7 @@ Qed.*)
       rewrite ZLO; trivial.
       Time entailer!. (*1.5*) apply isbyte_map_ByteUnsigned. (*superfluous.. apply derives_refl.*)
     }
-    { rewrite ZLO. intuition. }
+    { rewrite ZLO; intuition. }
 
     rewrite sublist_same; try rewrite ZLO; trivial.
 
@@ -861,7 +866,7 @@ Qed.*)
     Time forward. (*0.2*)
     subst. unfold initPostKeyNullConditional. Time entailer!.  (*6.5*)
     destruct R; subst; [ |discriminate].
-    simpl; clear H. Time destruct k; try solve[entailer!]. (*2.9*)
+    simpl; clear H. Time destruct k; try solve[entailer]. (*2.9*)
     unfold hmacstate_PreInitNull, hmac_relate_PreInitNull; simpl.
     Time if_tac; [ | entailer!].
     Intros v x. destruct h1.
@@ -869,8 +874,13 @@ Qed.*)
     unfold hmacstate_PreInitNull, hmac_relate_PreInitNull; simpl.
     Exists v x.
     change (Tarray tuchar 64 noattr) with (tarray tuchar 64).
-    rewrite !prop_true_andp by (auto; intuition). Time cancel. (*0.7*)
-   }
+    rewrite !prop_true_andp by (auto; intuition). 
+    (* 04/21/17: Script used to say cancel (*0.7secs*).
+       But cancel now takes 43 secs.
+       solve [entailer; cancel] takes 16.9secs
+       solve [entailer!; cancel] takes 43secs*) 
+     Time solve [entailer; cancel]. (*16.9secs*)
+   } 
 intros ? ?. apply andp_left2.
    unfold POSTCONDITION, abbreviate. rewrite overridePost_overridePost.
    apply derives_refl.

@@ -68,7 +68,7 @@ Definition md_free_spec :=
             UNDER_SPEC.EMPTY (snd (snd r)); 
             malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) (snd (snd r)))
   POST [ tvoid ] 
-    SEP (data_at Tsh t_struct_md_ctx_st r ctx).
+       PROP () LOCAL () SEP (data_at Tsh t_struct_md_ctx_st r ctx).
 
 Definition mbedtls_zeroize_spec :=
   DECLARE _mbedtls_zeroize
@@ -78,7 +78,7 @@ Definition mbedtls_zeroize_spec :=
        LOCAL (temp _n (Vint (Int.repr n)); temp _v v)
        SEP (data_at_ Tsh (tarray tuchar n ) v)
     POST [ tvoid ]
-       SEP (data_block Tsh (list_repeat (Z.to_nat n) 0) v).
+       PROP () LOCAL () SEP (data_block Tsh (list_repeat (Z.to_nat n) 0) v).
 
 Definition drbg_memcpy_spec :=
   DECLARE _memcpy
@@ -582,21 +582,18 @@ Definition hmac_drbg_seed_buf_spec :=
        SEP (data_at Tsh t_struct_mbedtls_md_info Info info *
             da_emp Tsh (tarray tuchar (Zlength Data)) (map Vint (map Int.repr Data)) data *
             K_vector kv;
-            orp ( !!(ret_value = Vint (Int.repr (-20864))) &&
-                  data_at Tsh t_struct_hmac256drbg_context_st Ctx ctx *
-                  hmac256drbg_relate CTX Ctx)
-                ( !!(ret_value <> Vint (Int.repr (-20864))) &&
-                  match Ctx, CTX
-                  with (mds, (V', (RC', (EL', (PR', RI'))))),
+            if Val.eq ret_value (Vint (Int.repr (-20864)))
+            then data_at Tsh t_struct_hmac256drbg_context_st Ctx ctx *
+                 hmac256drbg_relate CTX Ctx
+            else match Ctx, CTX
+                         with (mds, (V', (RC', (EL', (PR', RI'))))),
                               HMAC256DRBGabs key V RC EL PR RI
-                     => EX KEY:list Z, EX VAL:list Z, EX p:val,
+                         => EX KEY:list Z, EX VAL:list Z, EX p:val,
                           !!(HMAC256_DRBG_update (contents_with_add data d_len Data) V (list_repeat 32 1) = (KEY, VAL))
-                          && md_full key mds * malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
-                             data_at Tsh t_struct_hmac256drbg_context_st ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI'))))) ctx *
-                             hmac256drbg_relate (HMAC256DRBGabs KEY VAL RC EL PR RI) ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI')))))
-                  end)
-       ).
-
+                             && md_full key mds * malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+                                data_at Tsh t_struct_hmac256drbg_context_st ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI'))))) ctx *
+                                hmac256drbg_relate (HMAC256DRBGabs KEY VAL RC EL PR RI) ((info, (fst(snd mds), p)), (map Vint (map Int.repr VAL), (RC', (EL', (PR', RI')))))
+                        end).
 
 Definition get_entropy_spec :=
   DECLARE _get_entropy
@@ -674,6 +671,96 @@ Definition hmac_drbg_random_spec :=
        LOCAL (temp ret_temp ret_value)
        SEP (generatePOST ret_value nil nullval 0 output out_len ctx initial_state initial_state_abs kv info_contents s).
 
+(*********************************** hmac_drbg_seed specification ******************************)
+
+(*Parameter max_personalization_string_length: Z. (*NIST SP 800-90A, page 38, Table2: 2^35 bits;
+         Our personalization string is a list of bytes, so have max length 2^32*)
+  Axiom max_personalization_string336: 336 <= max_personalization_string_length.*)
+  (*Definition max_personalization_string_length: Z := 20. *)(*Appendix B2 of NIST SP 800-90A says: 160 bits. We measure in bytes*)
+Definition max_personalization_string_length: Z := 336. (*= MBEDTLS_HMAC_DRBG_MAX_SEED_INPUT -48*) 
+
+(*Max entropy_length*)
+Definition max_elength: Z:= 2^32. (*bytes. NIST SP 800-90A, page 38, Table2: 2^35 bits*)
+
+Definition instantiate_function_256  (es: ENTROPY.stream) (prflag: bool)
+            (pers_string: list Z): ENTROPY.result DRBG_state_handle :=
+   if (Zlength pers_string) >? max_personalization_string_length 
+   then ENTROPY.error ENTROPY.generic_error es
+   else let secStrength := 32
+        in  match get_entropy (secStrength+secStrength/2) (secStrength+secStrength/2) max_elength prflag es
+            with ENTROPY.error e s' => ENTROPY.error ENTROPY.catastrophic_error s'
+               | ENTROPY.success entropy s' =>
+                   let initial_working_state := HMAC256_DRBG_instantiate_algorithm entropy nil pers_string secStrength
+                   in ENTROPY.success (initial_working_state, secStrength, prflag) s'                    
+            end.
+
+Inductive hmac_any:=
+  hmac_any_empty: hmac_any
+| hmac_any_rep: forall h:UNDER_SPEC.HABS, hmac_any
+| hmac_any_full: forall k:list Z, hmac_any.
+
+Definition hmac_interp (d:hmac_any) (r: mdstate):mpred :=
+  match d with
+    hmac_any_empty => md_empty r
+  | hmac_any_rep h => md_relate h r
+  | hmac_any_full k => md_full k r
+  end.
+
+Definition preseed_relate d rc pr ri (r : hmac256drbgstate):mpred:=
+    match r with
+     (md_ctx', (V', (reseed_counter', (entropy_len', (prediction_resistance', reseed_interval'))))) =>
+    hmac_interp d md_ctx' &&
+    !! (map Vint (map Int.repr initial_key) = V' /\
+        (Vint (Int.repr rc) = reseed_counter')  (*Explicitly reset in sucessful runs of reseed and hence seed*)
+        (*Vint (Int.repr entropy_len) = entropy_len' Explicitly set in seed*) /\
+        Vint (Int.repr ri) = reseed_interval' /\
+        Val.of_bool pr = prediction_resistance')
+   end.
+
+(*specification for the expected case, in which 0<=len<=256.
+  Also, use instantiate_function_256 in PROP of PRE, and assume SUCCESS.
+  Alternative specs (and proofs can be found in verif_hmac_drbg_NISTseed.v*)
+Definition hmac_drbg_seed_inst256_spec :=
+  DECLARE _mbedtls_hmac_drbg_seed
+   WITH dp:_, ctx: val, info:val, len: Z, data:val, Data: list Z,
+        Ctx: hmac256drbgstate,
+        kv: val, Info: md_info_state, s:ENTROPY.stream, rc:Z, pr_flag:bool, ri:Z,
+        handle_ss: DRBG_state_handle * ENTROPY.stream
+    PRE [_ctx OF tptr (Tstruct _mbedtls_hmac_drbg_context noattr),
+         _md_info OF tptr (Tstruct _mbedtls_md_info_t noattr),
+         _custom OF tptr tuchar, _len OF tuint ]
+       PROP (len = Zlength Data /\ 0 <= len <=256 /\ Forall isbyteZ Data /\
+             instantiate_function_256 s pr_flag (contents_with_add data (Zlength Data) Data)
+               = ENTROPY.success (fst handle_ss) (snd handle_ss))
+       LOCAL (temp _ctx ctx; temp _md_info info;
+              temp _len (Vint (Int.repr len)); temp _custom data; gvar sha._K256 kv)
+       SEP (
+         data_at Tsh t_struct_hmac256drbg_context_st Ctx ctx;
+         preseed_relate dp rc pr_flag ri Ctx;
+         data_at Tsh t_struct_mbedtls_md_info Info info;
+         da_emp Tsh (tarray tuchar (Zlength Data)) (map Vint (map Int.repr Data)) data;
+         K_vector kv; Stream s)
+    POST [ tint ]
+       EX ret_value:_,
+       PROP ()
+       LOCAL (temp ret_temp (Vint ret_value))
+       SEP (data_at Tsh t_struct_mbedtls_md_info Info info;
+            da_emp Tsh (tarray tuchar (Zlength Data)) (map Vint (map Int.repr Data)) data;
+            K_vector kv;
+            if Int.eq ret_value (Int.repr (-20864))
+            then data_at Tsh t_struct_hmac256drbg_context_st Ctx ctx *
+                 preseed_relate dp rc pr_flag ri Ctx * Stream s
+            else !!(ret_value = Int.zero) && 
+                 md_empty (fst Ctx) *
+                 EX p:val, malloc_token Tsh (sizeof (Tstruct _hmac_ctx_st noattr)) p *
+                 match (fst Ctx, fst handle_ss) with ((M1, (M2, M3)), ((((newV, newK), newRC), newEL), newPR)) =>
+                   let CtxFinal := ((info, (M2, p)), (map Vint (map Int.repr newV), (Vint (Int.repr newRC), (Vint (Int.repr 32), (Val.of_bool newPR, Vint (Int.repr 10000)))))) 
+                   in data_at Tsh t_struct_hmac256drbg_context_st CtxFinal ctx *
+                      hmac256drbg_relate (HMAC256DRBGabs newK newV newRC 32 newPR 10000) CtxFinal *
+                      Stream (snd handle_ss) 
+                end).
+
+(*********************************** end of hmac_drbg_seed specification ******************************)
 Definition setPR_ABS res (a: hmac256drbgabs): hmac256drbgabs :=
   match a with HMAC256DRBGabs key V x el r reseed_interval => 
                HMAC256DRBGabs key V x el res reseed_interval
@@ -836,6 +923,7 @@ Definition HmacDrbgFunSpecs : funspecs :=  ltac:(with_library prog (
   md_free_spec ::hmac_drbg_free_spec::mbedtls_zeroize_spec::
   hmac_drbg_setReseedInterval_spec::hmac_drbg_setEntropyLen_spec::
   hmac_drbg_setPredictionResistance_spec::hmac_drbg_random_spec::hmac_drbg_init_spec::
+  hmac_drbg_seed_inst256_spec::
   hmac_drbg_update_spec::
   hmac_drbg_reseed_spec::
   hmac_drbg_generate_spec::hmac_drbg_seed_buf_spec ::

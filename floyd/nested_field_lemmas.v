@@ -1578,3 +1578,24 @@ Hint Extern 2 (field_compatible _ (StructField _ :: _) _) =>
   (apply field_compatible_cons; split; [ apply compute_in_members_e; reflexivity | ])
       : field_compatible.
 
+Lemma field_compatible_nullval: forall CS t f P,
+  @field_compatible CS t f nullval -> P.
+Proof.
+intros.
+destruct H.
+contradiction H.
+Qed.
+
+Lemma field_compatible_nullval1:
+ forall (CS: compspecs) t fld p,
+  @field_compatible CS t fld p -> p <> nullval.
+Proof.
+ intros. intro; subst p. apply (field_compatible_nullval _ _ _ _ H).
+Qed.
+
+Lemma field_compatible_nullval2:
+ forall (CS: compspecs) t fld p,
+  @field_compatible CS t fld p -> nullval <> p.
+Proof.
+ intros. intro; subst p. apply (field_compatible_nullval _ _ _ _ H).
+Qed.

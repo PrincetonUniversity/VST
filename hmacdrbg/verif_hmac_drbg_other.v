@@ -19,18 +19,17 @@ Proof.
   abbreviate_semax.
   rewrite da_emp_isptrornull. Intros.
   destruct ctx; try contradiction.
-  { (*ctx==null*)
+  - (*ctx==null*)
     simpl in *; subst i. rewrite da_emp_null; trivial.
     forward_if (`FF).
     + forward. apply tt.
     + inv H.
     + apply semax_ff.
-  }
-  { (*isptr ctx*)
+  - (*isptr ctx*)
     rewrite da_emp_ptr. clear PNctx. Intros. simpl. rewrite if_false; try discriminate.
     assert_PROP (field_compatible t_struct_hmac256drbg_context_st
                    [StructField _md_ctx] (Vptr b i)) as FC_mdctx.
-    { entailer. unfold_data_at 1%nat. simpl. entailer. }
+    { entailer!. (*unfold_data_at 1%nat. simpl. entailer.*) }
     forward_if (PROP ( )
        LOCAL (temp _ctx (Vptr b i))
        SEP (data_at Tsh t_struct_hmac256drbg_context_st CTX (Vptr b i);
@@ -46,38 +45,14 @@ Proof.
       unfold md_full; simpl. replace_SEP 2 (UNDER_SPEC.EMPTY v1).
       { entailer. apply UNDER_SPEC.FULL_EMPTY. }
       assert (exists xx:reptype t_struct_md_ctx_st, xx = (v, (v0, v1))). eexists; reflexivity.
-      destruct  H1 as [xx XX].
-      forward_seq.
-        forward_seq.
-          { (*forward_call (Vptr b i, (v, (v0, v1))).*)
-             eapply (@semax_call_id00_wow (rmaps.ConstType (val * reptype t_struct_md_ctx_st))
-                        (Vptr b i, xx) [FRZL FR])
-             with (B:= (Prop*mpred)%type)
-                  (Ppost:=fun x => [fst x])
-                  (Rpost:=fun x => [data_at Tsh t_struct_md_ctx_st xx (Vptr b i)]);
-              trivial ; try reflexivity. constructor; try reflexivity. simpl. split. reflexivity. reflexivity.
-              reflexivity.
-            + entailer!.
-            + reflexivity.
-            + reflexivity.
-            + reflexivity.
-            + entailer!. constructor. constructor. constructor.
-            + entailer!. constructor.
-            + subst xx. simpl. cancel.
-            + extensionality x. apply pred_ext; simpl.
-              - Exists (True, emp). simpl.
-                unfold PROPx, LOCALx, SEPx. simpl. entailer.
-              - Intros z. destruct z as [P M]. simpl.
-                unfold PROPx, LOCALx, SEPx. simpl. entailer.
-            + simpl; trivial.
-          }
-          { Intros q. destruct q as [P M]. simpl. Intros.
-            replace_SEP 0 (memory_block Tsh 12 (Vptr b i)).
+      destruct  H1 as [xx XX]. 
+      forward_call (Vptr b i, (v, (v0, v1))). { simpl; cancel. } 
+      replace_SEP 0 (memory_block Tsh 12 (Vptr b i)).
             { specialize (data_at_memory_block Tsh t_struct_md_ctx_st xx); simpl; intros.
               entailer. apply andp_left2. unfold PROPx, LOCALx, SEPx. simpl. normalize.
-              apply andp_left2. apply H2. }
-            freeze [0;1] FR1.
-            replace_SEP 0 (data_at_ Tsh (tarray tuchar (sizeof (Tstruct _mbedtls_hmac_drbg_context noattr))) (Vptr b i)).
+              apply andp_left2. apply H1. }
+      freeze [0;1] FR1.
+      replace_SEP 0 (data_at_ Tsh (tarray tuchar (sizeof (Tstruct _mbedtls_hmac_drbg_context noattr))) (Vptr b i)).
             { thaw FR1.
               entailer. rewrite data_at__memory_block.
               apply andp_right. apply prop_right. unfold field_compatible in *; simpl in *.
@@ -113,41 +88,20 @@ Proof.
                destruct FC; simpl in *; omega.
                rewrite <- hmac_pure_lemmas.max_unsigned_modulus, int_max_unsigned_eq; omega.
                destruct FC; simpl in *; omega.
-               destruct FC; repeat split; trivial; simpl in *; try omega. apply H5.
+               destruct FC; repeat split; trivial; simpl in *; try omega. apply H4.
                right; simpl. right; right; right. right; left; trivial.
-               destruct FC; repeat split; trivial; simpl in *; try omega. apply H5.
+               destruct FC; repeat split; trivial; simpl in *; try omega. apply H4.
                right; simpl. right; right; right. left; trivial.
-               destruct FC; repeat split; trivial; simpl in *; try omega. apply H5.
+               destruct FC; repeat split; trivial; simpl in *; try omega. apply H4.
                right; simpl. right; right; left; trivial.
-               destruct FC; repeat split; trivial; simpl in *; try omega. apply H5.
+               destruct FC; repeat split; trivial; simpl in *; try omega. apply H4.
                right; simpl. right; left; trivial.
-               destruct FC; repeat split; trivial; simpl in *; try omega. apply H5.
+               destruct FC; repeat split; trivial; simpl in *; try omega. apply H4.
                right; simpl. left; trivial.
             }
-            clear FR1. clear FR.
-            eapply (@semax_call_id00_wow (rmaps.ConstType (Z * val))
-                        (sizeof (Tstruct _mbedtls_hmac_drbg_context noattr), Vptr b i) nil)
-             with (B:= (Prop*mpred)%type)(Ppost:=fun x => [fst x])
-                  (Rpost:=fun x => [data_block Tsh (list_repeat 60 0) (Vptr b i)]); trivial; try reflexivity.
-            + constructor; try reflexivity. split; reflexivity.
-            + reflexivity.
-            + entailer!.
-            + reflexivity.
-            + reflexivity.
-            + reflexivity.
-            + entailer!. repeat constructor.
-            + entailer!. constructor.
-            + simpl. cancel.
-            + extensionality x. apply pred_ext; simpl.
-              - Exists (True, emp). simpl.
-                unfold PROPx, LOCALx, SEPx. simpl. entailer.
-              - Intros z. destruct z as [PP MM]. simpl.
-                unfold PROPx, LOCALx, SEPx. simpl. entailer.
-            + simpl; split; trivial. rewrite int_max_unsigned_eq. omega.
-          }
-          Intros z; destruct z as [PP MM]; simpl.
-          forward. apply tt.
-        }
+      clear FR1. clear FR.
+      forward_call (sizeof (Tstruct _mbedtls_hmac_drbg_context noattr), Vptr b i).
+      forward. apply tt.
 Qed.
 
 Lemma body_hmac_drbg_random: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
@@ -194,7 +148,7 @@ Definition hmac_drbg_random_spec_simple :=
          data_at Tsh t_struct_mbedtls_md_info info (hmac256drbgstate_md_info_pointer i);
          Stream s;
          K_vector kv)
-    POST [ tint ] EX F: hmac256drbgabs, EX f: hmac256drbgstate,
+    POST [ tint ] EX F: hmac256drbgabs, EX f: hmac256drbgstate, 
        PROP (F = match J with ((((VV, KK), RC), _), PR) =>
                    HMAC256DRBGabs KK VV RC (hmac256drbgabs_entropy_len I) PR 
                         (hmac256drbgabs_reseed_interval I)
@@ -214,9 +168,8 @@ Lemma AUX s I n bytes J ss: mbedtls_HMAC256_DRBG_generate_function s I n [] =
                     (hmac256drbgabs_reseed_interval I)
   end.
 Proof. unfold hmac256drbgabs_generate. intros H; rewrite H.
-  destruct I. simpl. trivial. 
+  destruct I. simpl. destruct J. destruct p. destruct d. destruct p. f_equal.
 Qed. 
-
 Opaque hmac256drbgabs_generate.
 
 Lemma body_hmac_drbg_random_simple: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
@@ -237,19 +190,20 @@ Proof.
   unfold generatePOST, contents_with_add; simpl. 
   apply Zgt_is_gt_bool_f in ASS7. rewrite ASS7 in *.
   rewrite ASS8 in *.
-  unfold return_value_relate_result, da_emp; simpl. entailer!.
+  unfold return_value_relate_result, da_emp; simpl. (* entailer!.*)
   Exists (hmac256drbgabs_generate I s
             (Zlength (map Vint (map Int.repr bytes))) []).
   Exists (hmac256drbgabs_to_state (hmac256drbgabs_generate I s
             (Zlength (map Vint (map Int.repr bytes))) []) i).
-  apply andp_right. 
-  + entailer!. apply AUX in ASS8; rewrite <- ASS8; reflexivity. 
-  + entailer!.
+  apply AUX in ASS8. rewrite <- ASS8; clear ASS8. 
+  entailer!. 
   unfold hmac256drbgabs_common_mpreds; simpl.
   cancel.
-  eapply derives_trans. apply sepcon_derives. apply derives_refl.
-  instantiate (1:=emp). 
-  apply orp_left. trivial. normalize. cancel. 
+  eapply derives_trans.
+  + apply sepcon_derives. apply derives_refl.
+    instantiate (1:=emp).  
+    apply orp_left; [ trivial | normalize].
+  + cancel. 
 Qed.
 (*
 Definition myProp s n I (i F:hmac256drbgstate): Prop :=

@@ -1,10 +1,10 @@
 Require Import floyd.proofauto.
 Require Import progs.odd.
+Require Import progs.verif_evenodd_spec.
 Instance CompSpecs : compspecs. make_compspecs prog. Defined.
 
-Require Import progs.verif_even.
-
-Definition Gprog : funspecs :=   ltac:(with_library prog [even_spec; odd_spec]).
+Definition Gprog : funspecs :=
+     ltac:(with_library prog [odd_spec; even_spec]).
 
 Lemma body_odd : semax_body Vprog Gprog f_odd odd_spec.
 Proof.
@@ -34,13 +34,8 @@ Existing Instance Espec.
 Lemma all_funcs_correct:
   semax_func Vprog Gprog (prog_funct prog) Gprog.
 Proof.
-unfold Gprog, prog, prog_funct; simpl.
+(*unfold Gprog at 2, prog, prog_funct; simpl. *)
 repeat (apply semax_func_cons_ext_vacuous; [reflexivity | reflexivity | ]).
-semax_func_cons_ext. {
- rewrite <- insert_local.
- rewrite lower_andp.
- apply derives_extract_prop; intro.
- hnf in H0. rewrite retval_ext_rval in H0. rewrite <- H0. entailer!.
-}
+semax_func_cons_ext.
 semax_func_cons body_odd.
 Qed.

@@ -653,7 +653,7 @@ Proof.
       rewrite sepcon_comm.
       unfold loop1_ret_assert.
       intros tx3 vx3.
-      auto.
+      auto. normalize in vx3; auto.
   + intros tx3 vx3.
     unfold loop1_ret_assert, frame_ret_assert.
     eapply subp_trans'; [ | apply (H3' EK_normal None tx3 vx3)].
@@ -668,7 +668,7 @@ Proof.
       apply derives_subp.
       apply andp_derives; auto.
       rewrite sepcon_comm.
-      apply andp_derives; auto.
+      apply andp_derives; auto. normalize; auto.
     } Unfocus.
     clear tx2 vx2.
     intros ek2 vl2 tx2 vx2.
@@ -687,6 +687,7 @@ Proof.
         intros tx4 vx4.
         unfold frame_ret_assert in H3', vx4.
         rewrite sepcon_comm; auto.
+        normalize in vx4; auto.
     - intros tx4 vx4.
       unfold frame_ret_assert in H3', vx4|-*.
       unfold loop2_ret_assert. normalize.
