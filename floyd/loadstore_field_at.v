@@ -19,13 +19,6 @@ Proof.
   destruct t, t'; try inversion H; simpl; auto.
 Qed.
 
-Ltac solve_andp' :=
-  first [ apply derives_refl
-        | apply andp_left1; solve_andp'
-        | apply andp_left2; solve_andp'].
-
-Ltac solve_andp := repeat apply andp_right; solve_andp'.
-
 (********************************************
 
 Max length gfs field_at load store:

@@ -1,4 +1,5 @@
- Require Import floyd.base.
+Require Import Coq.Sorting.Permutation.
+Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Export floyd.canon.
 Local Open Scope logic.
@@ -1915,6 +1916,97 @@ specialize (IHl _ _ H2 H1).
 unfold_lift; rewrite IHl. auto.
 Qed.
 Hint Rewrite @subst_make_args' using (solve[reflexivity]) : subst.
+
+Fixpoint remove_localdef (x: localdef) (l: list localdef) : list localdef :=
+  match l with
+  | nil => nil
+  | y :: l0 =>
+     match x, y with
+     | temp i u, temp j v =>
+       if ident_eq i j
+       then remove_localdef x l0
+       else y :: remove_localdef x l0
+     | lvar i ti u, lvar j tj v =>
+       if ident_eq i j
+       then remove_localdef x l0
+       else y :: remove_localdef x l0
+     | gvar i u, gvar j v =>
+       if ident_eq i j
+       then remove_localdef x l0
+       else y :: remove_localdef x l0
+     | sgvar i u, sgvar j v =>
+       if ident_eq i j
+       then remove_localdef x l0
+       else y :: remove_localdef x l0
+     | _, _ => y :: remove_localdef x l0
+     end
+  end.
+
+Fixpoint extractp_localdef (x: localdef) (l: list localdef) : list Prop :=
+  match l with
+  | nil => nil
+  | y :: l0 =>
+     match x, y with
+     | temp i u, temp j v =>
+       if ident_eq i j
+       then (u = v) :: extractp_localdef x l0
+       else extractp_localdef x l0
+     | lvar i ti u, lvar j tj v =>
+       if ident_eq i j
+       then (ti = tj) :: (u = v) :: extractp_localdef x l0
+       else extractp_localdef x l0
+     | gvar i u, gvar j v =>
+       if ident_eq i j
+       then (u= v) :: extractp_localdef x l0
+       else extractp_localdef x l0
+     | sgvar i u, sgvar j v =>
+       if ident_eq i j
+       then (u = v) :: extractp_localdef x l0
+       else extractp_localdef x l0
+     | _, _ => extractp_localdef x l0
+     end
+  end.
+
+Lemma go_lower_localdef_one_step: forall Delta Ppre l Qpre Rpre Ppost Qpost Rpost,
+  local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |--
+    PROPx (Ppost ++ extractp_localdef l Qpost) (LOCALx (remove_localdef l Qpost) (SEPx Rpost)) ->
+  local (tc_environ Delta) && PROPx Ppre (LOCALx (l :: Qpre) (SEPx Rpre)) |--
+    PROPx Ppost (LOCALx Qpost (SEPx Rpost)).
+Proof.
+  intros.
+  replace (PROPx (Ppost ++ extractp_localdef l Qpost)) with (PROPx (extractp_localdef l Qpost ++ Ppost)) in H.
+  Focus 2. {
+    apply PROPx_Permutation.
+    apply Permutation_app_comm.
+  } Unfocus.
+  induction Qpost.
+  + rewrite <- insert_local'.
+    eapply derives_trans; [| apply H].
+    solve_andp.
+  + rewrite <- (insert_local' a).
+    eapply derives_trans; [| apply andp_derives; [apply derives_refl | apply IHQpost]];
+    clear IHQpost.
+    - apply andp_right; [| auto].
+      rewrite <- (insert_local' l).
+      rewrite <- andp_assoc, (andp_comm _ (local _)),
+              <- (andp_dup (local (tc_environ Delta))), <- andp_assoc,
+              (andp_assoc _ _ (PROPx _ _)).
+      eapply derives_trans; [apply andp_derives; [apply derives_refl | apply H] | clear H].
+      simpl extractp_localdef; simpl remove_localdef.
+      destruct l, a; try if_tac;
+        try (rewrite <- insert_local'; solve_andp);
+        try (rewrite (andp_comm _ (local _)), andp_assoc, insert_local';
+             rewrite <- !app_comm_cons;
+             repeat (simple apply derives_extract_PROP; intros);
+             subst; rewrite <- insert_local'; solve_andp).
+    - rewrite <- (andp_dup (local (tc_environ Delta))), andp_assoc.
+      eapply derives_trans; [apply andp_derives; [apply derives_refl | apply H] | clear H].
+      simpl extractp_localdef; simpl remove_localdef.
+      destruct l, a; try if_tac;
+      rewrite <- ?app_comm_cons, <- ?app_comm_cons, <- ?insert_local';
+      repeat (simple apply derives_extract_PROP; intros);
+      solve_andp.
+Qed.
 
 Lemma subst_andp {A}{NA: NatDed A}:
   forall id v (P Q: environ-> A), subst id v (P && Q) = subst id v P && subst id v Q.
