@@ -562,7 +562,7 @@ Lemma body_hmac_drbg_reseed: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
 Proof.
   start_function.
   rename lvar0 into seed.
-  destruct initial_state_abs.
+  destruct I.
   destruct initial_state as [md_ctx' [V' [reseed_counter' [entropy_len' [prediction_resistance' reseed_interval']]]]].
   unfold hmac256drbg_relate.
   Intros. simpl in *.
@@ -662,8 +662,9 @@ Proof.
   {
     (*subst entropy_len.*)
     erewrite <- data_at_complete_split with (length:=384)(AB:=list_repeat (Z.to_nat 384) (Vint Int.zero)); repeat rewrite Zlength_list_repeat; trivial; try omega.
-    go_lower. apply derives_refl. rewrite Zplus_minus. assumption.
-    rewrite list_repeat_app. rewrite Z2Nat.inj_sub; try omega. rewrite le_plus_minus_r. trivial. apply Z2Nat.inj_le; try omega.
+    solve [go_lower; apply derives_refl]. 
+    solve [rewrite Zplus_minus; assumption].
+    rewrite list_repeat_app, Z2Nat.inj_sub; try omega. rewrite le_plus_minus_r; trivial. apply Z2Nat.inj_le; try omega.
   }
   flatten_sepcon_in_SEP.
 
@@ -709,7 +710,7 @@ Proof.
   {
     (* != 0 case *)
     forward.
-    Exists seed (Vint (Int.neg (Int.repr (9)))). normalize. entailer!.
+    Exists seed (Vint (Int.neg (Int.repr (9)))). entailer!. 
     unfold reseedPOST.
     remember ((zlt 256 (Zlength contents)
        || zlt 384
@@ -791,5 +792,6 @@ Proof.
   thaw FR5. thaw FR4.
   eapply REST with (s0:=s0)(contents':=contents'); trivial.
 idtac "Timing the Qed of drbg_reseed (goal: 25secs)". omega. 
-Time Qed. (*Feb 23 2017: Finished transaction in 105.344 secs (74.078u,0.015s) (successful)*)
+Time Qed. (*May7th, Coq8.6:12.5secs
+           Feb 23 2017: Finished transaction in 105.344 secs (74.078u,0.015s) (successful)*)
           (*earlier Coq8.5pl2: 24secs*)
