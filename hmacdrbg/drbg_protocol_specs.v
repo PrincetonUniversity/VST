@@ -1207,7 +1207,7 @@ Proof.
   unfold AREP. focus_SEP 1.
   rewrite extract_exists_in_SEP. Intros Info. unfold REP.
   rewrite extract_exists_in_SEP. Intros i. 
-  destruct H as [WF1 [WF2 [WF3 [WF4 WF5]]]].
+  destruct H as [WF1 [WF2 [WF3 [WF4 WF5]]]]. 
   forward. simpl.
   forward_call (@nil Z, nullval, Z0, output, n, ctx, i,
                 I, kv, Info, s).
