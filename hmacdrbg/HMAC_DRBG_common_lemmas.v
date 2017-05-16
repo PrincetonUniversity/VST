@@ -36,6 +36,18 @@ Proof. intros; unfold da_emp, nullval; simpl.
   + apply orp_right2. trivial.
 Qed.
 
+Lemma false_zgt z a: false = (z >? a) -> z<=a. 
+Proof. unfold Z.gtb.
+  remember (z ?= a). destruct c. symmetry in Heqc; apply Z.compare_eq in Heqc. subst; intros. omega.
+  symmetry in Heqc. destruct (Z.compare_lt_iff z a); intros. apply H in Heqc. omega.
+  discriminate.
+Qed. 
+Lemma false_zge z a: false = (z >=? a) -> z<=a. 
+Proof. unfold Z.geb.
+  remember (z ?= a). destruct c; intros; try discriminate.
+  symmetry in Heqc. destruct (Z.compare_lt_iff z a); intros. apply H0 in Heqc. omega.
+Qed.
+
 (*
 Lemma da_emp_isptrornull sh t v p :
    da_emp sh t v p = (!!is_pointer_or_null p) &&  da_emp sh t v p.

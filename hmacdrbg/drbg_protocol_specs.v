@@ -1097,7 +1097,7 @@ Proof.
   unfold AREP. focus_SEP 1.
   rewrite extract_exists_in_SEP. Intros Info. unfold REP.
   rewrite extract_exists_in_SEP. Intros i. 
-  destruct H as [WF1 [WF2 [WF3 [WF4 WF5]]]].
+  destruct H as [WF1 [WF2 [WF3 [WF4 WF5]]]]. 
   forward. simpl.
   forward_call (@nil Z, nullval, Z0, output, n, ctx, i,
                 I, kv, Info, s).
@@ -1123,7 +1123,7 @@ Proof.
   apply andp_right. 
   + apply prop_right. rewrite M; red. simpl.
     apply hmac256drbgabs_generateWF in M. intuition.
-    omega. intuition. apply WF3.
+    omega. intuition. red in WF3. omega. 
   + cancel.
     apply orp_left; [ trivial | normalize].
 Time Qed. (*Coq8.6: 2.3secs*)
