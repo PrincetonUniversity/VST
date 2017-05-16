@@ -290,7 +290,8 @@ FCF_FILES= \
   DistRules.v  WC_PolyTime.v \
   DistSem.v Lognat.v Rat.v WC_PolyTime_old.v \
   DistTacs.v NoDup_gen.v RepeatCore.v SplitVector.v \
-  PRF_DRBG.v HMAC_DRBG_definitions_only.v map_swap.v
+  PRF_DRBG.v HMAC_DRBG_nonadaptive.v HMAC_DRBG_definitions_only.v \
+  map_swap.v
 # ConstructedFunc.v Encryption_2W.v Sigma.v ListHybrid.v Procedure.v PRP_PRF.v RandPermSwitching.v State.v
 
 #FCF_FILES= \
@@ -326,7 +327,6 @@ TWEETNACL_FILES = \
   verif_verify.v
 
 HMACDRBG_FILES = \
-  HMAC_DRBG_nonadaptive.v \
   entropy.v entropy_lemmas.v DRBG_functions.v HMAC_DRBG_algorithms.v \
   HMAC256_DRBG_functional_prog.v HMAC_DRBG_pure_lemmas.v \
   HMAC_DRBG_update.v \
@@ -337,7 +337,8 @@ HMACDRBG_FILES = \
   verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v \
   verif_hmac_drbg_generate.v verif_hmac_drbg_seed_buf.v verif_mocked_md.v \
   verif_hmac_drbg_seed_common.v \
-  verif_hmac_drbg_seed.v verif_hmac_drbg_NISTseed.v verif_hmac_drbg_other.v
+  verif_hmac_drbg_seed.v verif_hmac_drbg_NISTseed.v verif_hmac_drbg_other.v \
+  drbg_protocol_specs.v
 
 # these are only the top-level AES files, but they depend on many other AES files, so first run "make depend"
 AES_FILES = \
