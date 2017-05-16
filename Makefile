@@ -232,7 +232,7 @@ FLOYD_FILES= \
 #real_forward.v
 
 WAND_DEMO_FILES= \
-  wand_frame.v \
+  wand_frame.v wandQ_frame.v \
   list.v list_lemmas.v verif_list.v \
   bst.v
 
