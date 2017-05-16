@@ -1,4 +1,4 @@
-Require Import floyd.base.
+ Require Import floyd.base.
 Require Import floyd.assert_lemmas.
 Require Export floyd.canon.
 Local Open Scope logic.
@@ -1949,16 +1949,16 @@ Lemma subst_sepcon: forall i v (P Q: environ->mpred),
 Proof. reflexivity. Qed.
 Hint Rewrite subst_sepcon : subst.
 
-Fixpoint remove_localdef (i: ident) (l: list localdef) : list localdef :=
+Fixpoint remove_localdef_temp (i: ident) (l: list localdef) : list localdef :=
   match l with
   | nil => nil
   | d :: l0 =>
      match d with
      | temp j v =>
        if ident_eq i j
-       then remove_localdef i l0
-       else d :: remove_localdef i l0
-     | _ => d :: remove_localdef i l0
+       then remove_localdef_temp i l0
+       else d :: remove_localdef_temp i l0
+     | _ => d :: remove_localdef_temp i l0
      end
   end.
 
@@ -1975,9 +1975,9 @@ apply IHl.
 Qed.
 Hint Rewrite @subst_stackframe_of : subst.
 
-Lemma remove_localdef_PROP: forall (i: ident) P Q R,
+Lemma remove_localdef_temp_PROP: forall (i: ident) P Q R,
   EX old: val, subst i `old (PROPx P (LOCALx Q (SEPx R))) |--
-  PROPx P (LOCALx (remove_localdef i Q) (SEPx R)).
+  PROPx P (LOCALx (remove_localdef_temp i Q) (SEPx R)).
 Proof.
   intros.
   apply exp_left; intro old.

@@ -109,7 +109,7 @@ Lemma semax_SC_set:
         (Sset id e2)
           (normal_ret_assert
             (PROPx P
-              (LOCALx (temp id v :: remove_localdef id Q)
+              (LOCALx (temp id v :: remove_localdef_temp id Q)
                 (SEPx R)))).
 Proof.
   intros.
@@ -143,7 +143,7 @@ Proof.
   eapply semax_post'; [| apply semax_set_forward].
   apply andp_left2; 
   rewrite <- insert_local.
-  eapply derives_trans; [| apply andp_derives; [apply derives_refl | apply remove_localdef_PROP]].
+  eapply derives_trans; [| apply andp_derives; [apply derives_refl | apply remove_localdef_temp_PROP]].
   normalize.
   apply (exp_right old).
   autorewrite with subst.
@@ -180,7 +180,7 @@ Lemma semax_SC_field_load:
         (Sset id (nested_efield e1 efs tts))
           (normal_ret_assert
             (PROPx P
-              (LOCALx (temp id v :: remove_localdef id Q)
+              (LOCALx (temp id v :: remove_localdef_temp id Q)
                 (SEPx R)))).
 Proof.
   intros until 7; pose proof I; intros.
@@ -234,7 +234,7 @@ Lemma semax_SC_field_load':
         (Sset id e)
           (normal_ret_assert
             (PROPx P 
-              (LOCALx (temp id v :: remove_localdef id Q)
+              (LOCALx (temp id v :: remove_localdef_temp id Q)
                 (SEPx R)))).
 Proof.
   intros.
@@ -295,7 +295,7 @@ Lemma semax_SC_field_load'':
         (Sset id (nested_efield e1 efs tts))
           (normal_ret_assert
             (PROPx P
-              (LOCALx (temp id v :: remove_localdef id Q)
+              (LOCALx (temp id v :: remove_localdef_temp id Q)
                 (SEPx R)))).
 Proof.
   intros until 0. intros TypeOf Cast Volatile Ugly Edenote Nice GetR Rsh Split Dig Tc Lnf EqLr Lnef.
@@ -381,7 +381,7 @@ Lemma semax_SC_field_cast_load:
         (Sset id (Ecast (nested_efield e1 efs tts) t))
           (normal_ret_assert
             (PROPx P
-              (LOCALx (temp id (eval_cast (typeof (nested_efield e1 efs tts)) t v) :: remove_localdef id Q)
+              (LOCALx (temp id (eval_cast (typeof (nested_efield e1 efs tts)) t v) :: remove_localdef_temp id Q)
                 (SEPx R)))).
 Proof.
   intros until 2. intro H6. intros.
