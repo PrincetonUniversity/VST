@@ -80,7 +80,7 @@ Lemma Genloop_Zlength_blocks : forall n eta k f v blocks u,
 Proof. 
   induction n.
 + simpl; intros. inv H. apply Zlength_nil. 
-+ intros. simpl in H. remember (Gen_loop f k (f k (Vector.to_list v)) n).
++ intros. simpl in H. unfold to_list in *. remember (Gen_loop f k (f k (Vector.to_list v)) n).
   destruct p. inversion H; clear H. subst.
   symmetry in Heqp. apply IHn in Heqp. 
   replace (Z.of_nat (S n)) with (1 + Z.of_nat n)%Z. 
@@ -101,6 +101,12 @@ Fixpoint Gen_loop_Bvec (k : Bvector 256) (v : Bvector 256) (n : nat)
     let (bits, v'') := Gen_loop_Bvec k v' n' in
     (List.app bits (List.cons v' List.nil), v'')     
   end.
+
+(*A statement suitable for isntantiating the Variable HMAC_DRBG_nonadaptive.eqDecState*)
+Lemma eqDecState : EqDec (HMAC_DRBG_nonadaptive.KV 256).
+Proof. unfold KV, Bvector. specialize (@Vector_EqDec _ bool_EqDec 256); intros.
+  apply pair_EqDec; trivial.
+Qed.
 
 Lemma GenloopBvec_ZlengthBlocks k: forall n v blocks u,
   Gen_loop_Bvec k v n = (blocks,u) -> Zlength blocks = Z.of_nat n.
@@ -123,8 +129,8 @@ Lemma GenloopBvec_Gen_loop k: forall n v blocks u,
 Proof. 
   induction n; simpl; intros.
 + inv H; trivial.
-+ unfold to_list in H.
-  remember (Gen_loop_Bvec k (HMAC_Bvec k (Vector.to_list v)) n) as p.
++ (*unfold to_list in H. *)
+  remember (Gen_loop_Bvec k (HMAC_Bvec k (to_list v)) n) as p.
   destruct p; inv H. 
   symmetry in Heqp. apply IHn in Heqp. rewrite Heqp; clear Heqp IHn.
   rewrite rev_app_distr; trivial.
@@ -400,37 +406,36 @@ Lemma GenUpdate_original_Zlist_Blist k v n
     GenUpdate_original_Blist (bytesToBits k, bytesToBits v) n =
          (map bytesToBits blocks,(bytesToBits k', bytesToBits v'))
   end.
-Proof. unfold GenUpdate_original_Zlist, GenUpdate_original_Blist.
+Proof. unfold GenUpdate_original_Zlist, GenUpdate_original_Blist. 
   remember (Gen_loop_Zlist k v n) as p; symmetry in Heqp. destruct p as [bits v'].
   specialize (Gen_loop_Zlist_Blist _ K n _ V). rewrite Heqp; intros Q. simpl in Q. 
   remember (Gen_loop_Blist (bytesToBits k) (bytesToBits v) n) as q; destruct q.
   assert (W: (l, b) =(@map (list Z) ByteBitRelations.Blist bytesToBits bits, bytesToBits v')) by (rewrite <- Q, Heqq; trivial). 
-  clear Q Heqq; inv W. unfold HMAC_Blist.
+  clear Q Heqq; inv W. f_equal. unfold HMAC_Blist.
   assert (T: Forall (Forall isbyteZ) nil) by eauto.
   specialize (Gen_loop_Zlist_isbyteZ _ K n _ V); rewrite Heqp. intros [? ?]. 
   rewrite ! bitsToBytes_app, ! bytes_bits_bytes_id; trivial.
-  f_equal. f_equal. unfold zeroes. simpl. apply  isbyteZ_HMAC256. 
+  f_equal. unfold zeroes. simpl. apply  isbyteZ_HMAC256. 
   apply bytesToBits_InBlocks. 
 Qed. 
 
-(*Specialization of Naphat's HMAC256_DRBG_generate_algorithm: no additional input, some large reseedInterval*)
-Definition reseedInterval:Z := 100000.
-Definition Generate (WS: DRBG_functions.DRBG_working_state) n: DRBG_functions.DRBG_generate_algorithm_result :=
-           HMAC256_DRBG_generate_algorithm reseedInterval
+(*Specialization of HMAC256_DRBG_generate_algorithm: no additional input*)
+Definition Generate RI (WS: DRBG_functions.DRBG_working_state) n: DRBG_functions.DRBG_generate_algorithm_result :=
+           HMAC256_DRBG_functional_prog.HMAC256_DRBG_generate_algorithm RI
                                            WS
                                            n
                                            nil.
 
-Lemma GenerateCorrect k v z n (Z: (z<=reseedInterval)%Z):
+Lemma GenerateCorrect RI k v z n (Z: (z<=RI)%Z):
   match GenUpdate_original_Zlist (k,v) (S n) with (blocks,(k',v')) => 
-    Generate (v, k, z) (Z.of_nat ((32 * n +1)%nat)) = 
+    Generate RI (v, k, z) (Z.of_nat ((32 * n +1)%nat)) = 
     generate_algorithm_success (firstn ((32 * n +1)%nat) (fcf.Fold.flatten (rev blocks))) (v',k',(z+1)%Z) 
   end.
 Proof. remember (GenUpdate_original_Zlist (k, v) (S n)) as p; destruct p as [kk [vv zz]]; symmetry in Heqp. 
   unfold GenUpdate_original_Zlist in Heqp.
   remember (Gen_loop_Zlist k v (S n)) as q; destruct q as [blocks v']; symmetry in Heqq; inv Heqp.
   apply (E n) in Heqq. remember (32 * n + 1)%nat as a.
-  simpl. remember (z >? reseedInterval) as d. destruct d; symmetry in Heqd. 
+  simpl. remember (z >? RI) as d. destruct d; symmetry in Heqd. 
   + apply Zgt_is_gt_bool in Heqd; omega.
   + rewrite Z.mul_sub_distr_l in Heqq.
     assert (W: (32 * Z.of_nat (S n) - 32 * 1 + 1 = Z.of_nat a)%Z).
@@ -439,24 +444,24 @@ Proof. remember (GenUpdate_original_Zlist (k, v) (S n)) as p; destruct p as [kk 
     rewrite W in Heqq. rewrite Heqq, Nat2Z.id; trivial.
 Qed.
 
-Lemma Generate_Blist_ok k v z n (Z: (z<=reseedInterval)%Z) l kk vv zz 
+Lemma Generate_Blist_ok RI k v z n (Z: (z<=RI)%Z) l kk vv zz 
     (K: Forall isbyteZ k) (V:Forall isbyteZ v):
-    Generate (v, k, z) (Z.of_nat ((32 * n +1)%nat)) = generate_algorithm_success l (kk,vv, zz) ->
+    Generate RI (v, k, z) (Z.of_nat ((32 * n +1)%nat)) = generate_algorithm_success l (kk,vv, zz) ->
     exists y,
     GenUpdate_original_Blist (bytesToBits k, bytesToBits v) (S n) = 
     (map bytesToBits y,(bytesToBits vv, bytesToBits kk)) /\ zz=z+1 /\ 
     l = firstn (32 * n + 1) (flatten (rev y)).
 Proof.
   remember (GenUpdate_original_Zlist (k,v) (S n)) as g. symmetry in Heqg; destruct g as [a [b c]].
-  specialize (GenerateCorrect k v z n Z). rewrite Heqg; intros HH1 HH2.
-  rewrite HH1 in HH2. exists a. inv HH2. repeat split; trivial.
+  specialize (GenerateCorrect RI k v z n Z). rewrite Heqg; intros HH1 HH2.
+  rewrite HH1 in HH2. exists a. inv HH2. repeat split; trivial. 
   specialize (GenUpdate_original_Zlist_Blist k v (S n) K V).
   rewrite Heqg; intros HH; rewrite HH; trivial.
 Qed.
 
-Lemma Generate_Bvec_ok' k v z n (Z: (z<=reseedInterval)%Z) l kk vv zz 
+Lemma Generate_Bvec_ok' RI k v z n (Z: (z<=RI)%Z) l kk vv zz 
     (K: Forall isbyteZ k) (KL: length (bytesToBits k) = 256%nat) (V:Forall isbyteZ v) (VL:length (bytesToBits v) = 256%nat):
-    Generate (v, k, z) (Z.of_nat ((32 * n +1)%nat)) = generate_algorithm_success l (kk,vv, zz) ->
+    Generate RI (v, k, z) (Z.of_nat ((32 * n +1)%nat)) = generate_algorithm_success l (kk,vv, zz) ->
     match GenUpdate_original_Bvec (of_list_length _ KL, of_list_length _ VL) (S n) with (blocks, kv) =>
     zz=z+1 /\ 
     bitsToBytes (@Vector.to_list _ 256 (fst kv)) = vv /\ 
@@ -465,7 +470,7 @@ Lemma Generate_Bvec_ok' k v z n (Z: (z<=reseedInterval)%Z) l kk vv zz
     end.
 Proof.
   remember (GenUpdate_original_Zlist (k,v) (S n)) as g. symmetry in Heqg; destruct g as [a [b c]].
-  specialize (GenerateCorrect k v z n Z). rewrite Heqg; intros HH1 HH2.
+  specialize (GenerateCorrect RI k v z n Z). rewrite Heqg; intros HH1 HH2.
   rewrite HH1 in HH2. Opaque mult. inv HH2. 
   specialize (GenUpdate_original_Zlist_Blist k v (S n) K V).
   rewrite Heqg. intros HH.
@@ -482,17 +487,17 @@ Proof.
   repeat split; trivial.
   rewrite <- map_rev. f_equal. apply flatten_bytes_bits. apply Forall_rev; trivial.
 Qed.
-Lemma Generate_Bvec_ok k v z n (Z: (z<=reseedInterval)%Z) 
+Lemma Generate_Bvec_ok RI k v z n (Z: (z<=RI)%Z) 
               (K: Forall isbyteZ k) (KL: length (bytesToBits k) = 256%nat)
               (V:Forall isbyteZ v) (VL:length (bytesToBits v) = 256%nat):
     match GenUpdate_original_Bvec (of_list_length _ KL, of_list_length _ VL) (S n) with (blocks, (kk,vv)) =>
-          Generate (v, k, z) (Z.of_nat ((32 * n +1)%nat)) 
+          Generate RI (v, k, z) (Z.of_nat ((32 * n +1)%nat)) 
           = generate_algorithm_success (firstn (32 * n + 1) (bitsToBytes (flatten (rev (map (@Vector.to_list _ 256) blocks)))))
                                        (bitsToBytes (@Vector.to_list _ 256 vv), bitsToBytes (@Vector.to_list _ 256 kk), z+1)
     end.
 Proof.
   remember (GenUpdate_original_Zlist (k,v) (S n)) as g. symmetry in Heqg; destruct g as [a [b c]].
-  specialize (GenerateCorrect k v z n Z). rewrite Heqg; intros HH; rewrite HH.
+  specialize (GenerateCorrect RI k v z n Z). rewrite Heqg; intros HH; rewrite HH.
   specialize (GenUpdate_original_Zlist_Blist _ _ (S n) K V); rewrite Heqg; intros.
   remember ( GenUpdate_original_Bvec
     (of_list_length (bytesToBits k) KL, of_list_length (bytesToBits v) VL)
@@ -507,10 +512,9 @@ Proof.
   - rewrite ! bytes_bits_bytes_id; trivial.
 Qed.
 
-
-Lemma Generate_ok' k v z n (Z: (z<=reseedInterval)%Z) l kk vv zz 
+Lemma Generate_ok' RI k v z n (Z: (z<=RI)%Z) l kk vv zz 
     (K: Forall isbyteZ k) (KL: length (bytesToBits k) = 256%nat) (V:Forall isbyteZ v) (VL:length (bytesToBits v) = 256%nat):
-    Generate (v, k, z) (Z.of_nat ((32 * n +1)%nat)) = generate_algorithm_success l (kk,vv, zz) ->
+    Generate RI (v, k, z) (Z.of_nat ((32 * n +1)%nat)) = generate_algorithm_success l (kk,vv, zz) ->
     match GenUpdate_original_core (of_list_length _ KL, of_list_length _ VL) (S n) with (blocks, kv) =>
     zz=z+1 /\ 
     bitsToBytes (@Vector.to_list _ 256 (fst kv)) = vv /\ 
@@ -518,7 +522,7 @@ Lemma Generate_ok' k v z n (Z: (z<=reseedInterval)%Z) l kk vv zz
           l = firstn (32 * n + 1) (bitsToBytes (flatten (map (@Vector.to_list _ 256) blocks)))
     end.
 Proof. intros.
-  specialize (Generate_Bvec_ok' k v z n Z l kk vv zz K KL V VL H); clear H; intros.
+  specialize (Generate_Bvec_ok' RI k v z n Z l kk vv zz K KL V VL H); clear H; intros.
   remember (GenUpdate_original_Bvec
         (of_list_length (bytesToBits k) KL,
         of_list_length (bytesToBits v) VL) (S n)) as p; symmetry in Heqp; destruct p as [blocks state]. 
@@ -527,11 +531,11 @@ Proof. intros.
                 of_list_length (bytesToBits v) VL) (S n)). 
   rewrite Heqp; clear Heqp; intros Q; rewrite Q, map_rev; apply H.
 Qed.
-Lemma Generate_ok k v z n (Z: (z<=reseedInterval)%Z) 
+Lemma Generate_ok RI k v z n (Z: (z<=RI)%Z) 
               (K: Forall isbyteZ k) (KL: length (bytesToBits k) = 256%nat)
               (V:Forall isbyteZ v) (VL:length (bytesToBits v) = 256%nat):
     match GenUpdate_original_core (of_list_length _ KL, of_list_length _ VL) (S n) with (blocks, (kk,vv)) =>
-          Generate (v, k, z) (Z.of_nat ((32 * n +1)%nat)) 
+          Generate RI (v, k, z) (Z.of_nat ((32 * n +1)%nat)) 
           = generate_algorithm_success (firstn (32 * n + 1) (bitsToBytes (flatten (map (@Vector.to_list _ 256) blocks))))
                                        (bitsToBytes (@Vector.to_list _ 256 vv), bitsToBytes (@Vector.to_list _ 256 kk), z+1)
     end.
@@ -543,7 +547,7 @@ Proof.
   specialize (GenUpdate_original_Bvec_correct (of_list_length (bytesToBits k) KL,
          of_list_length (bytesToBits v) VL) (S n)). rewrite Heqp. 
   intros Q; rewrite Q; clear Q.
-  specialize (Generate_Bvec_ok k v z n Z K KL V VL). rewrite Heqp; clear Heqp.
+  specialize (Generate_Bvec_ok RI k v z n Z K KL V VL). rewrite Heqp; clear Heqp.
   intros W; rewrite W, map_rev; trivial. 
 Qed.
 (*

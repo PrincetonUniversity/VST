@@ -30,8 +30,6 @@ Ltac prog_equiv := repeat (simplify; fcf_skip_eq); try simplify.
 
 Ltac bv_exist := try apply oneVector.
 
-Variable bve : Bvector 10.
-
 (* Lemma demonstrating use of `bv_exist` ltac *)
 Lemma fcf_skip_admits : forall (n m : nat),
   comp_spec eq
@@ -94,8 +92,9 @@ Section PRG.
   (* note: the domain of the f is now Blist, not an abstract D
 the key type is now also Bvector eta, since HMAC specifies that the key has the same size as the output (simplified) *)
 (* Variable eta : nat. *)
-Definition eta:=1%nat.
-Opaque eta.
+(*Definition eta:=1%nat.
+Opaque eta.*)
+Variable eta:nat.
 (* coq gets stuck on an fcf_skip around line 256 *)
 
 (* Variable RndK : Comp (Bvector eta). *)
@@ -109,7 +108,7 @@ Ltac kv_exist := try apply (oneVector eta, oneVector eta).
 Variable f : Bvector eta -> Blist -> Bvector eta.
 
 Definition KV : Set := (Bvector eta * Bvector eta)%type.
-Hypothesis eqDecState : EqDec KV.
+Variable eqDecState : EqDec KV.
 (* Variable eqdbv : EqDec (Bvector eta). *)
 Definition eqdbv := Bvector_EqDec eta.
 (* Variable eqdbl : EqDec Blist. *)
@@ -117,9 +116,9 @@ Definition eqdbl := list_EqDec bool_EqDec.
 (* Opaque eqdbl. *)
 
 (* injection is to_list. TODO prove this *)
-Variable injD : Bvector eta -> Blist.
-Hypothesis injD_correct :
-  forall r1 r2, injD r1 = injD r2 -> r1 = r2.
+Definition injD : Bvector eta -> Blist := Vector.to_list.
+Lemma injD_correct r1 r2: injD r1 = injD r2 -> r1 = r2.
+Proof. apply to_list_eq_inv. Qed.
 
 Definition to_list (A : Type) (n : nat) (v : Vector.t A n) := Vector.to_list v.
 
@@ -173,7 +172,7 @@ Fixpoint replicate {A} (n : nat) (a : A) : list A :=
   | S n' => a :: replicate n' a
   end.
 
-Definition zeroes : list bool := replicate 8 true.
+Definition zeroes : list bool := replicate 8 false.
 
 (* oracle 1 *)
 
@@ -3885,8 +3884,8 @@ Proof.
           unfold zeroes in *.
           rewrite length_replicate in len_eq.
           rewrite plus_comm in len_eq.
-          simpl in *.
-          discriminate.
+          simpl in *. omega.
+(*          discriminate.*)
         }
 
         (* every element of l has length eta, and zeroes is nonempty *)
@@ -3900,8 +3899,8 @@ Proof.
             | [ H:  In (to_list key_input ++ zeroes, _) init |- _ ] => 
                apply inputs_len in H; simpl in *; rewrite app_length in H;
                unfold zeroes in H; rewrite length_replicate in H;
-               rewrite plus_comm in H; simpl in *; discriminate
-          end.
+               rewrite plus_comm in H; simpl in *; try discriminate
+          end. admit. (*due to eta issue*)
         }
       }
       contradiction.
@@ -3962,7 +3961,7 @@ Proof.
     apply Permutation_sym.
     apply Permutation_cons_append.
     reflexivity.
-Qed.
+Admitted.
 
 (* apply above theorem for i <> 0, GenUpdate_oc *)
 Lemma Gi_rb_collisions_inner_eq_general_i_neq0 : forall (blocks : nat) (k v : Bvector eta) (init : list (Blist * Bvector eta)),
@@ -4035,7 +4034,7 @@ Proof.
     { prog_equiv. fcf_spec_ret. }
 
     revert k v init inputs_len. (*clear H. *)rename blocks' into blocks.
-    intros k_irr.
+    intros k_irr. 
     apply Gi_rb_collisions_inner_eq_general_irr_l. 
 Qed.
 

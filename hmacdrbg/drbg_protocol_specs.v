@@ -13,12 +13,7 @@ Require Import hmacdrbg.entropy_lemmas.
 Require Import floyd.library.
 Require Import floyd.deadvars.
 
-(*from bridge file*)
-Definition Generate reseedInterval (WS: DRBG_functions.DRBG_working_state) n: DRBG_functions.DRBG_generate_algorithm_result :=
-           HMAC256_DRBG_functional_prog.HMAC256_DRBG_generate_algorithm reseedInterval
-                                           WS
-                                           n
-                                           nil.
+Require Import hmacdrbg.HMAC256_DRBG_bridge_to_FCF.
 
 Lemma Bridge s I n bytes J ss (M: mbedtls_HMAC256_DRBG_generate_function s I n [] = ENTROPY.success (bytes, J) ss):
   match I with HMAC256DRBGabs K V reseed_counter entropy_len prediction_resistance reseed_interval =>
