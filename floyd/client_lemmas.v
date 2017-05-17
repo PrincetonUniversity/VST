@@ -1923,19 +1923,19 @@ Fixpoint remove_localdef (x: localdef) (l: list localdef) : list localdef :=
   | y :: l0 =>
      match x, y with
      | temp i u, temp j v =>
-       if ident_eq i j
+       if Pos.eqb i j
        then remove_localdef x l0
        else y :: remove_localdef x l0
      | lvar i ti u, lvar j tj v =>
-       if ident_eq i j
+       if Pos.eqb i j
        then remove_localdef x l0
        else y :: remove_localdef x l0
      | gvar i u, gvar j v =>
-       if ident_eq i j
+       if Pos.eqb i j
        then remove_localdef x l0
        else y :: remove_localdef x l0
      | sgvar i u, sgvar j v =>
-       if ident_eq i j
+       if Pos.eqb i j
        then remove_localdef x l0
        else y :: remove_localdef x l0
      | _, _ => y :: remove_localdef x l0
@@ -1948,23 +1948,29 @@ Fixpoint extractp_localdef (x: localdef) (l: list localdef) : list Prop :=
   | y :: l0 =>
      match x, y with
      | temp i u, temp j v =>
-       if ident_eq i j
+       if Pos.eqb i j
        then (u = v) :: extractp_localdef x l0
        else extractp_localdef x l0
      | lvar i ti u, lvar j tj v =>
-       if ident_eq i j
+       if Pos.eqb i j
        then (ti = tj) :: (u = v) :: extractp_localdef x l0
        else extractp_localdef x l0
      | gvar i u, gvar j v =>
-       if ident_eq i j
+       if Pos.eqb i j
        then (u= v) :: extractp_localdef x l0
        else extractp_localdef x l0
      | sgvar i u, sgvar j v =>
-       if ident_eq i j
+       if Pos.eqb i j
        then (u = v) :: extractp_localdef x l0
        else extractp_localdef x l0
      | _, _ => extractp_localdef x l0
      end
+  end.
+
+Ltac pos_eqb_tac :=
+  let H := fresh "H" in
+  match goal with
+  | |- context [Pos.eqb ?i ?j] => destruct (Pos.eqb i j) eqn:H; [apply Pos.eqb_eq in H | apply Pos.eqb_neq in H]
   end.
 
 Lemma go_lower_localdef_one_step: forall Delta Ppre l Qpre Rpre Ppost Qpost Rpost,
@@ -1993,7 +1999,7 @@ Proof.
               (andp_assoc _ _ (PROPx _ _)).
       eapply derives_trans; [apply andp_derives; [apply derives_refl | apply H] | clear H].
       simpl extractp_localdef; simpl remove_localdef.
-      destruct l, a; try if_tac;
+      destruct l, a; try pos_eqb_tac;
         try (rewrite <- insert_local'; solve_andp);
         try (rewrite (andp_comm _ (local _)), andp_assoc, insert_local';
              rewrite <- !app_comm_cons;
@@ -2002,7 +2008,7 @@ Proof.
     - rewrite <- (andp_dup (local (tc_environ Delta))), andp_assoc.
       eapply derives_trans; [apply andp_derives; [apply derives_refl | apply H] | clear H].
       simpl extractp_localdef; simpl remove_localdef.
-      destruct l, a; try if_tac;
+      destruct l, a; try pos_eqb_tac;
       rewrite <- ?app_comm_cons, <- ?app_comm_cons, <- ?insert_local';
       repeat (simple apply derives_extract_PROP; intros);
       solve_andp.
@@ -2041,8 +2047,7 @@ Proof.
   intros.
   unfold extractp_localdefs, re_localdefs; simpl.
   forget (remove_localdef a Qpost) as Q.
-  assert (Permutation (extractp_localdef a Qpost :: nil) (extractp_localdef a Qpost :: nil))
-    by apply Permutation_refl.
+  pose proof Permutation_refl (extractp_localdef a Qpost :: nil).
   revert H.
   generalize (extractp_localdef a Qpost :: nil) at 1 3; intros P1.
   generalize (@nil (list Prop)) at 1 2; intros P2.
@@ -2081,6 +2086,41 @@ Proof.
     apply Permutation_app_head.
     apply extractp_localdefs_cons.
 Qed.
+
+Ltac unfold_localdef_name QQ Q :=
+  match Q with
+  | nil => idtac
+  | cons ?Qh ?Qt =>
+    match Qh with
+    | temp ?n _ => unfold n in QQ
+    | lvar ?n _ _ => unfold n in QQ
+    | gvar ?n _ => unfold n in QQ
+    | sgvar ?n _ => unfold n in QQ
+    end;
+    unfold_localdef_name QQ Qt
+  end.
+
+Ltac symbolic_go_lower :=
+  apply go_lower_localdef;
+  let el := fresh "el" in
+  let rl := fresh "rl" in
+  let PP := fresh "P" in
+  let QQ := fresh "Q" in
+  let PPr := fresh "Pr" in
+  match goal with
+  | |- context [?Pr ++ extractp_localdefs ?P ?Q] =>
+         set (el := Pr ++ extractp_localdefs P Q);
+         set (rl := remove_localdefs P Q);
+         set (PPr := Pr) in el;
+         set (PP := P) in el, rl;
+         set (QQ := Q) in el, rl;
+         cbv [extractp_localdefs remove_localdefs extractp_localdef remove_localdef re_localdefs concat rev fold_left app Pos.eqb] in el, rl;
+         unfold_localdef_name PP P;
+         unfold_localdef_name QQ Q;
+         subst PPr PP QQ;
+         cbv beta iota zeta in el, rl;
+         subst el rl
+  end.
 
 Lemma subst_andp {A}{NA: NatDed A}:
   forall id v (P Q: environ-> A), subst id v (P && Q) = subst id v P && subst id v Q.
