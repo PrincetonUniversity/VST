@@ -29,7 +29,7 @@ COMPCERT ?= compcert
 
 CC_TARGET=compcert/cfrontend/Clight.vo
 CC_DIRS= lib common cfrontend exportclight
-DIRS= msl sepcomp veric concurrency floyd progs sha fcf hmacfcf tweetnacl20140427 ccc26x86 hmacdrbg aes mailbox
+DIRS= msl sepcomp veric concurrency floyd progs wand_demo sha fcf hmacfcf tweetnacl20140427 ccc26x86 hmacdrbg aes mailbox
 INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -Q $(a) $(a))) -R $(COMPCERT) compcert -as compcert $(if $(MATHCOMP), -Q mathcomp $(MATHCOMP))
 #Replace the INCLUDE above with the following in order to build the linking target:
 #INCLUDE= $(foreach a,$(DIRS),$(if $(wildcard $(a)), -I $(a) -as $(a))) -R $(COMPCERT) -as compcert -I $(SSREFLECT)/src -R $(SSREFLECT)/theories -as Ssreflect \
@@ -231,6 +231,10 @@ FLOYD_FILES= \
    freezer.v deadvars.v
 #real_forward.v
 
+WAND_DEMO_FILES= \
+  wand_frame.v wandQ_frame.v \
+  list.v list_lemmas.v verif_list.v \
+  bst.v
 
 # CONCPROGS must be kept separate (see util/PACKAGE), and
 # each line that contains the word CONCPROGS must be deletable independently
@@ -247,8 +251,8 @@ PROGS_FILES= \
   even.v verif_even.v odd.v verif_odd.v verif_evenodd_spec.v  \
   merge.v verif_merge.v verif_append.v verif_append2.v bst.v bst_oo.v verif_bst.v verif_bst_oo.v \
   verif_bin_search.v verif_floyd_tests.v \
-  verif_sumarray2.v verif_switch.v
-# verif_message.v verif_dotprod.v verif_insertion_sort.v
+  verif_sumarray2.v verif_switch.v verif_message.v 
+# verif_dotprod.v verif_insertion_sort.v
 
 SHA_FILES= \
   general_lemmas.v SHA256.v common_lemmas.v pure_lemmas.v sha_lemmas.v functional_prog.v \
@@ -286,7 +290,8 @@ FCF_FILES= \
   DistRules.v  WC_PolyTime.v \
   DistSem.v Lognat.v Rat.v WC_PolyTime_old.v \
   DistTacs.v NoDup_gen.v RepeatCore.v SplitVector.v \
-  PRF_DRBG.v HMAC_DRBG_definitions_only.v
+  PRF_DRBG.v HMAC_DRBG_nonadaptive.v HMAC_DRBG_definitions_only.v \
+  map_swap.v
 # ConstructedFunc.v Encryption_2W.v Sigma.v ListHybrid.v Procedure.v PRP_PRF.v RandPermSwitching.v State.v
 
 #FCF_FILES= \
@@ -332,7 +337,8 @@ HMACDRBG_FILES = \
   verif_hmac_drbg_update.v verif_hmac_drbg_reseed.v \
   verif_hmac_drbg_generate.v verif_hmac_drbg_seed_buf.v verif_mocked_md.v \
   verif_hmac_drbg_seed_common.v \
-  verif_hmac_drbg_seed.v verif_hmac_drbg_NISTseed.v verif_hmac_drbg_other.v
+  verif_hmac_drbg_seed.v verif_hmac_drbg_NISTseed.v verif_hmac_drbg_other.v \
+  drbg_protocol_specs.v
 
 # these are only the top-level AES files, but they depend on many other AES files, so first run "make depend"
 AES_FILES = \
@@ -353,6 +359,7 @@ FILES = \
  $(VERIC_FILES:%=veric/%) \
  $(FLOYD_FILES:%=floyd/%) \
  $(PROGS_FILES:%=progs/%) \
+ $(WAND_DEMO_FILES:%=wand_demo/%) \
  $(SHA_FILES:%=sha/%) \
  $(HMAC_FILES:%=sha/%) \
  $(FCF_FILES:%=fcf/%) \
@@ -360,8 +367,8 @@ FILES = \
  $(HMACEQUIV_FILES:%=sha/%) \
  $(CCC26x86_FILES:%=ccc26x86/%) \
  $(TWEETNACL_FILES:%=tweetnacl20140427/%) \
+ $(CONCUR_FILES:%=concurrency/%) \
  $(HMACDRBG_Files:%=hmacdrbg/%)
-#$(CONCUR_FILES:%=concurrency/%)
 # $(DRBG_FILES:%=verifiedDrbg/spec/%)
 
 %_stripped.v: %.v
@@ -432,6 +439,7 @@ linking: .loadpath $(LINKING_FILES:%.v=linking/%.vo)
 veric:   .loadpath $(VERIC_FILES:%.v=veric/%.vo)
 floyd:   .loadpath $(FLOYD_FILES:%.v=floyd/%.vo)
 progs:   .loadpath $(PROGS_FILES:%.v=progs/%.vo)
+wand_demo:   .loadpath $(WAND_DEMO_FILES:%.v=wand_demo/%.vo)
 sha:     .loadpath $(SHA_FILES:%.v=sha/%.vo)
 hmac:    .loadpath $(HMAC_FILES:%.v=sha/%.vo)
 hmacequiv:    .loadpath $(HMAC_FILES:%.v=sha/%.vo)

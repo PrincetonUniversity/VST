@@ -150,12 +150,12 @@ Definition init_data2pred' {cs: compspecs}
   | Init_addrof symb ofs =>
       match (var_types Delta) ! symb, (glob_types Delta) ! symb with
       | None, Some (Tarray t n' att) =>
-         EX s:val, local (locald_denote (sgvar symb s)) && `(mapsto sh (Tpointer t noattr) v (offset_val (Int.unsigned ofs) s))
+         EX s:val, local (locald_denote (gvar symb s)) && `(mapsto sh (Tpointer t noattr) v (offset_val (Int.unsigned ofs) s))
       | None, Some Tvoid => TT
 (*
       | None, Some t => `(mapsto sh (Tpointer t noattr) v) (`(offset_val ofs) (eval_sgvar symb t))
 *)
-      | None, Some t => EX s:val, local (locald_denote (sgvar symb s)) && `((mapsto sh (Tpointer t noattr) v) (offset_val (Int.unsigned ofs) s))
+      | None, Some t => EX s:val, local (locald_denote (gvar symb s)) && `((mapsto sh (Tpointer t noattr) v) (offset_val (Int.unsigned ofs) s))
       | Some _, Some (Tarray t _ att) => `(memory_block sh 4 v)
       | Some _, Some Tvoid => TT
       | Some _, Some (Tpointer (Tfunction _ _ _) _) => `(memory_block sh 4 v)
@@ -253,13 +253,9 @@ intros H1 HH H1' H6' H6 H7 H8 H1'' RS.
     auto.
  +
    destruct (proj1 (proj2 (proj2 H7)) _ _ Hg) as [b' [H15 H16]]; rewrite H15.
-   assert (locald_denote (sgvar i (Vptr b' Int.zero)) rho)
-     by (hnf; rewrite H15; auto).
-(*
-    assert (eval_sgvar i t0 rho = Vptr b' Int.zero).
-    {unfold eval_sgvar, Map.get. rewrite H15. auto.
-    }
-*)
+   assert (Hv' :=proj1 (expr_lemmas2.typecheck_var_environ_None _ _ (proj1 (proj2 H7)) i) Hv).
+   assert (locald_denote (gvar i (Vptr b' Int.zero)) rho)
+     by (hnf; rewrite Hv'; rewrite H15; auto).
     destruct t0; simpl; try apply TT_right; try rewrite H8; try rewrite H;
     (apply exp_right with (Vptr b' Int.zero); apply andp_right;
       [unfold local, lift1; apply prop_right; auto
@@ -1104,7 +1100,7 @@ Lemma move_globfield_into_SEP'':
    (h: val -> val) (S2 S3 S4: environ -> mpred) c Post,
    In (gvar i v) Q ->
   semax Delta (PROPx P (LOCALx Q (SEPx ((g (h v))::R))) * S2 * S3 * S4) c Post ->
- semax Delta (PROPx P (LOCALx Q (SEPx R)) * ((EX x:val, local (locald_denote (sgvar i x)) && `(g (h x))) * S2) * S3 * S4) c Post.
+ semax Delta (PROPx P (LOCALx Q (SEPx R)) * ((EX x:val, local (locald_denote (gvar i x)) && `(g (h x))) * S2) * S3 * S4) c Post.
 Proof.
 intros.
 normalize.

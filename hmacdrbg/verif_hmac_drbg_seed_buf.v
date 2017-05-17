@@ -30,14 +30,13 @@ Proof.
   unfold_data_at 1%nat.
   destruct Ctx as [MdCTX [V [RC [EL [PR RI]]]]]. simpl.
   destruct MdCTX as [M1 [M2 M3]].
-  freeze [1;2;3;4;5] FIELDS.
+  freeze [1;2;3;4;5] FIELDS. 
   rewrite field_at_compatible'. Intros. rename H into FC_mdx.
   rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial. rewrite int_add_repr_0_r.
   freeze [0;2;3;4;5] FR0.
   Time forward_call ((M1,(M2,M3)), Vptr b i, Vint (Int.repr 1), info).
-   (*without FR0, this akes about 5mins but succeeds*)
 
-  Intros v. rename H into Hv.
+  Intros v. rename H into Hv. simpl.
   forward.
   forward_if (
      PROP (v=0)
@@ -61,36 +60,36 @@ Proof.
 
   forward_call tt.
 
-  thaw FR0. unfold hmac256drbg_relate. destruct CTX. normalize.
+  thaw FR0. unfold hmac256drbg_relate. destruct CTX. Intros; subst.
+  rename V0 into V. rename H0 into lenV. rename H1 into isbtV.
   thaw FIELDS.
   freeze [4;5;6;7] FIELDS1.
-  rewrite field_at_compatible'. Intros. rename H1 into FC_V.
+  rewrite field_at_compatible'. Intros. rename H into FC_V.
   rewrite field_at_data_at. unfold field_address. simpl. rewrite if_true; trivial.
-  rewrite <- H.
+(*  rewrite <- lenV.*)
   freeze [0;2;5;6;7] FR2.
   replace_SEP 1 (UNDER_SPEC.EMPTY p).
   { entailer!. 
     eapply derives_trans. 2: apply UNDER_SPEC.mkEmpty.
     rewrite data_at__memory_block. simpl. entailer!. 
   }
-  forward_call (Vptr b i, (((*M1*)info,(M2,p)):mdstate), 32, V0, kv, b, Int.add i (Int.repr 12)).
-  { rewrite H, int_add_repr_0_r; simpl.
+  forward_call (Vptr b i, (((*M1*)info,(M2,p)):mdstate), 32, V, kv, b, Int.add i (Int.repr 12)).
+  (*{ rewrite H, int_add_repr_0_r; simpl.
     apply prop_right; repeat split; trivial.
-  }
-  { simpl. cancel. }
-  { split; trivial. red. simpl. rewrite int_max_signed_eq, H.
+  }*)
+  { rewrite lenV; simpl. cancel. }
+  { split; trivial. red. simpl. rewrite int_max_signed_eq, lenV.
     split. trivial. split. omega. rewrite two_power_pos_equiv.
-    replace (2^64) with 18446744073709551616. omega. reflexivity.
+    replace (2^64) with 18446744073709551616 by reflexivity. omega.
   }
   Intros.
 
   forward_call tt.
 
-  freeze [0;1;3;4] FR3.
+  freeze [0;1;3;4] FR3. rewrite lenV.
   forward_call (Tsh, Vptr b (Int.add i (Int.repr 12)), 32, Int.one).
-  { rewrite sepcon_comm. apply sepcon_derives. 2: cancel.
-    eapply derives_trans. apply data_at_memory_block.
-    rewrite H. simpl. cancel.
+  { rewrite sepcon_comm. apply sepcon_derives. 2: cancel. 
+    eapply derives_trans. apply data_at_memory_block. cancel.
   }
 
   thaw FR3. thaw FR2. unfold md_relate. simpl.
@@ -104,7 +103,7 @@ Proof.
       (Vint (Int.repr entropy_len),
        (Val.of_bool prediction_resistance,
         (Vint (Int.repr reseed_interval)))))))). eexists; reflexivity.
-  destruct H1 as [xx XX].
+  destruct H as [xx XX].
 
   replace_SEP 0
     (data_at Tsh t_struct_hmac256drbg_context_st xx (Vptr b i)).
@@ -119,7 +118,7 @@ Proof.
   }
   clear INI. thaw OTHER.
   specialize (Forall_list_repeat isbyteZ 32 1); intros IB1.
-  set (ABS:= HMAC256DRBGabs V0 (list_repeat 32 1) reseed_counter entropy_len prediction_resistance reseed_interval) in *.
+  set (ABS:= HMAC256DRBGabs V (list_repeat 32 1) reseed_counter entropy_len prediction_resistance reseed_interval) in *.
   replace_SEP 1 (hmac256drbg_relate (*(HMAC256DRBGabs V0 (list_repeat 32 1) reseed_counter entropy_len prediction_resistance reseed_interval)*) ABS xx).
   { entailer!. subst ABS; unfold md_full. simpl.
     apply andp_right. apply prop_right. repeat split; trivial. apply IB1. split; omega.
@@ -131,17 +130,16 @@ Proof.
   }
   { subst ABS; simpl. repeat split; trivial; try omega. apply IB1. split; omega.
   }
-
+  freeze [0;1;2;3;4] ALLSEP.
   forward. Exists (Vint (Int.repr 0)). rewrite if_false; [ | intros N; inv N]. 
-  remember(HMAC256_DRBG_update (contents_with_add data d_len Data) V0
+  thaw ALLSEP.
+  unfold hmac256drbgabs_common_mpreds. simpl.
+  remember(HMAC256_DRBG_update (contents_with_add data d_len Data) V
              [1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1; 1;
              1; 1; 1; 1; 1; 1; 1; 1; 1; 1]) as HH.
-  normalize.
-  unfold hmac256drbgabs_common_mpreds.
   destruct HH as [KEY VALUE]. simpl.
   Exists KEY VALUE p. normalize.
-  apply andp_right. solve [apply prop_right; repeat split; trivial].
-  cancel.
+  apply andp_right; [apply prop_right; repeat split; trivial | cancel].
 Time Qed.
           (*Coq8.6: 13secs*)
           (*Feb22nd, 2017: 116.921 secs (111.953u,0.015s) (successful)*)

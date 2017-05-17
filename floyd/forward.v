@@ -607,21 +607,32 @@ Ltac unfold_post := match goal with |- ?Post = _ => let A := fresh "A" in let B 
    evar (A : list Prop); evar (B : environ -> mpred); unify Post (PROPx ?A ?B);
      change Post with (PROPx A B); subst A B | idtac] end.
 
-Ltac forward_call_id1_x_wow A witness Frame H :=
- eapply (@semax_call_id1_x_wow A witness Frame _ _ _ _ _ _ _ _ _ H);
- clear H; try clear Frame;
+Ltac  forward_call_id1_wow := 
+let H := fresh in intro H;
+eapply (semax_call_id1_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+ clear H; 
+ lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
+ [check_result_type
+ |apply Logic.I
+ | cbv beta iota zeta; unfold_post; extensionality rho;
+   repeat rewrite exp_uncurry;
+   try rewrite no_post_exists; repeat rewrite exp_unfold;
+   first [apply exp_congr; intros ?vret; reflexivity
+           | give_EX_warning
+           ]
+ | prove_delete_temp
+ | unify_postcondition_exps
+ | unfold fold_right_and; repeat rewrite and_True; auto
+ ].
+
+Ltac forward_call_id1_x_wow :=
+let H := fresh in intro H;
+eapply (semax_call_id1_x_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+ clear H;
+ lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type | check_result_type
  | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity
  | (clear; let H := fresh in intro H; inversion H)
- | check_parameter_types
- | check_prove_local2ptree
- | check_typecheck
- | check_funspec_precondition
- | check_prove_local2ptree
- | check_cast_params | reflexivity
- | Forall_pTree_from_elements
- | Forall_pTree_from_elements
- | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
  | cbv beta iota zeta; unfold_post; extensionality rho;
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
@@ -634,21 +645,15 @@ Ltac forward_call_id1_x_wow A witness Frame H :=
  | unfold fold_right_and; repeat rewrite and_True; auto
  ].
 
-Ltac forward_call_id1_y_wow A witness Frame H :=
- eapply (@semax_call_id1_y_wow A witness Frame _ _ _ _ _ _ _ _ _ H);
- clear H; try clear Frame;
+
+Ltac forward_call_id1_y_wow :=
+let H := fresh in intro H;
+eapply (semax_call_id1_y_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+ clear H;
+ lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
  [ check_result_type | check_result_type
  | apply Coq.Init.Logic.I | apply Coq.Init.Logic.I | reflexivity
  | (clear; let H := fresh in intro H; inversion H)
- | check_parameter_types
- | check_prove_local2ptree
- | check_typecheck
- | check_funspec_precondition
- | check_prove_local2ptree
- | check_cast_params | reflexivity
- | Forall_pTree_from_elements
- | Forall_pTree_from_elements
- | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
  | cbv beta iota zeta; unfold_post; extensionality rho;
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
@@ -661,42 +666,12 @@ Ltac forward_call_id1_y_wow A witness Frame H :=
  | unfold fold_right_and; repeat rewrite and_True; auto
  ].
 
-Ltac forward_call_id1_wow A witness Frame H :=
- eapply (@semax_call_id1_wow A witness Frame _ _ _ _ _ _ _ _ _ H);
- clear H; try clear Frame;
- [ check_result_type
- | apply Coq.Init.Logic.I | check_parameter_types
- | check_prove_local2ptree
- | check_typecheck
- | check_funspec_precondition
- | check_prove_local2ptree
- | check_cast_params | reflexivity
- | Forall_pTree_from_elements
- | Forall_pTree_from_elements
- | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
- | cbv beta iota zeta; unfold_post; extensionality rho;
-   repeat rewrite exp_uncurry;
-   try rewrite no_post_exists; repeat rewrite exp_unfold;
-   first [apply exp_congr; intros ?vret; reflexivity
-           | give_EX_warning
-           ]
- | prove_delete_temp
- | unify_postcondition_exps
- | unfold fold_right_and; repeat rewrite and_True; auto
- ].
-
-Ltac forward_call_id01_wow A witness Frame H :=
- eapply (@semax_call_id01_wow A witness Frame _ _ _ _ _ _ _ _ _ H);
- clear H; try clear Frame;
- [ apply Coq.Init.Logic.I | reflexivity
- | check_prove_local2ptree
- | check_typecheck
- | check_funspec_precondition
- | check_prove_local2ptree
- | check_cast_params | reflexivity
- | Forall_pTree_from_elements
- | Forall_pTree_from_elements
- | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
+Ltac forward_call_id01_wow :=
+let H := fresh in intro H;
+eapply (semax_call_id01_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+ clear H;
+ lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
+ [ apply Coq.Init.Logic.I 
  | cbv beta iota zeta; unfold_post; extensionality rho;
    repeat rewrite exp_uncurry;
    try rewrite no_post_exists; repeat rewrite exp_unfold;
@@ -707,18 +682,12 @@ Ltac forward_call_id01_wow A witness Frame H :=
  | unfold fold_right_and; repeat rewrite and_True; auto
  ].
 
-Ltac forward_call_id00_wow A witness Frame H :=
- eapply (@semax_call_id00_wow A witness Frame _ _ _ _ _ _ _ _ _ H);
- clear H; try clear Frame;
- [ check_result_type | check_parameter_types
- | check_prove_local2ptree
- | check_typecheck
- | check_funspec_precondition
- | check_prove_local2ptree
- | check_cast_params | reflexivity
- | Forall_pTree_from_elements
- | Forall_pTree_from_elements
- | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
+Ltac forward_call_id00_wow  :=
+let H := fresh in intro H;
+eapply (semax_call_id00_wow _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H); 
+ clear H;
+ lazymatch goal with Frame := _ : list mpred |- _ => try clear Frame end;
+ [ check_result_type 
  | cbv beta iota zeta; unfold_post; extensionality rho;
     repeat rewrite exp_uncurry;
     try rewrite no_post_exists0;
@@ -802,7 +771,7 @@ Ltac cleanup_no_post_exists :=
  || unfold eq_no_post.
 
 Ltac after_forward_call :=
-    cbv beta iota delta [remove_localdef];
+    cbv beta iota delta [remove_localdef_temp];
     simpl ident_eq; cbv beta iota zeta;
     repeat match goal with |- context [eq_rec_r ?A ?B ?C] =>
               change (eq_rec_r A B C) with B; cbv beta iota zeta
@@ -826,53 +795,12 @@ Ltac clear_MORE_POST :=
         clear MORE_COMMANDS
       end.
 
-(* old
-Ltac fwd_call' A witness H :=
- first[ eapply semax_seq';
-         [clear_Delta_specs; clear_MORE_POST;
-          let Frame := fresh "Frame" in
-          evar (Frame: list (mpred));
-          first [forward_call_id1_wow A witness Frame H
-           | forward_call_id1_x_wow A witness Frame H
-           | forward_call_id1_y_wow A witness Frame H
-           | forward_call_id01_wow A witness Frame H
-           | forward_call_id00_wow A witness Frame H
-           ]
-         | clear H; after_forward_call]
-     | rewrite <- seq_assoc; fwd_call' A witness H].
-*)
-
-Ltac fwd_call' A witness H :=
-lazymatch goal with
-| |- semax _ _ (Ssequence (Scall _ _ _) _) _ =>
-  eapply semax_seq';
-    [clear_Delta_specs; clear_MORE_POST;
-     let Frame := fresh "Frame" in evar (Frame: list (mpred));
-     lazymatch goal with |- semax _ _ ?C _ =>
-      lazymatch C with
-      | Scall (Some _) (Evar _ _) _ =>
-         forward_call_id1_wow A witness Frame H
-      | Scall None (Evar _ (Tfunction _ ?retty _)) _ =>
-        tryif (unify retty Tvoid)
-        then forward_call_id00_wow A witness Frame H
-       else forward_call_id01_wow A witness Frame H 
-      end
-    end
-   | clear H; after_forward_call ]
-| |- semax _ _ (Ssequence (Ssequence (Scall (Some _) _ _) (Sset _ _)) _) _ =>
- (eapply semax_seq';
-    [clear_Delta_specs; clear_MORE_POST;
-     let Frame := fresh "Frame" in evar (Frame: list (mpred));
-         (forward_call_id1_x_wow A witness Frame H
-          || forward_call_id1_y_wow A witness Frame H)
-     |  clear H; after_forward_call ])   
- || (rewrite <- seq_assoc; fwd_call' A witness H)
-| |- _ => rewrite <- seq_assoc; fwd_call' A witness H
-end.
-
 Inductive Ridiculous: Type := .
 
 Ltac check_witness_type A witness :=
+  (unify A (rmaps.ConstType Ridiculous); (* because [is_evar A] doesn't seem to work *)
+             elimtype False)
+ ||
  let TA := constr:(functors.MixVariantFunctor._functor
      (rmaps.dependent_type_functor_rec nil A) mpred) in
   let TA' := eval cbv 
@@ -899,6 +827,94 @@ Witness type: " T "
 Funspec type: " TA'')
      end.
 
+Ltac prove_call_setup1 :=
+match goal with |- @semax ?CS _ ?Delta (PROPx ?P (LOCALx ?Q (SEPx ?R))) ?c _ =>
+ lazymatch c with
+ | context [Scall _ (Evar ?id ?ty) ?bl] =>
+    exploit (call_setup1_i2 CS Delta P Q R id ty bl);
+    [check_prove_local2ptree
+    | apply can_assume_funcptr2;
+      [ check_function_name
+      | lookup_spec_and_change_compspecs CS id
+      | find_spec_in_globals'
+      | reflexivity  (* function-id type in AST matches type in funspec *)
+      ]
+    | reflexivity  (* function-id type in AST matches type in funspec *)
+    |check_typecheck
+    |check_typecheck
+    |check_cast_params
+    |reflexivity
+    | ..
+    ]
+ | context [Scall _ ?a ?bl] =>
+ exploit (call_setup1_i CS Delta P Q R a bl);
+ [check_prove_local2ptree
+ |reflexivity
+ |prove_func_ptr
+ |check_parameter_types
+ |check_typecheck
+ |check_typecheck
+ |check_cast_params
+ |reflexivity
+ | ]
+ end
+end.
+
+Ltac prove_call_setup witness :=
+ prove_call_setup1;
+ [ .. | 
+ match goal with |- call_setup1 _ _ _ _ _ _ _ _ _ _ _ ?A _ _ _ _ _ _ _ -> _ =>
+      check_witness_type A witness
+ end;
+ let H := fresh in
+ intro H;
+ let Frame := fresh "Frame" in evar (Frame: list mpred);
+ exploit (call_setup2_i _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ H witness Frame); clear H;
+ [ reflexivity
+ | check_prove_local2ptree
+ | Forall_pTree_from_elements
+ | Forall_pTree_from_elements
+ | unfold fold_right_sepcon at 1 2; cancel_for_forward_call
+ | 
+ ]].
+
+Ltac fwd_call' witness :=
+lazymatch goal with
+| |- semax _ _ (Ssequence (Scall _ _ _) _) _ =>
+  eapply semax_seq';
+    [prove_call_setup witness;
+     clear_Delta_specs; clear_MORE_POST;
+     [ .. | 
+      lazymatch goal with
+      | |- _ -> semax _ _ (Scall (Some _) _ _) _ =>
+         forward_call_id1_wow
+      | |- call_setup2 _ _ _ _ _ _ _ _ _ ?retty _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ -> 
+                semax _ _ (Scall None _ _) _ =>
+        tryif (unify retty Tvoid)
+        then forward_call_id00_wow
+        else forward_call_id01_wow
+     end]
+   | after_forward_call ]
+| |- semax _ _ (Ssequence (Ssequence (Scall (Some ?ret') _ _)
+                                       (Sset _ (Ecast (Etempvar ?ret'2 _) _))) _) _ =>
+       unify ret' ret'2;
+       eapply semax_seq';
+         [prove_call_setup witness;
+          clear_Delta_specs; clear_MORE_POST;
+             [ .. | forward_call_id1_x_wow ]
+         |  after_forward_call ]
+| |- semax _ _ (Ssequence (Ssequence (Scall (Some ?ret') _ _)
+                                       (Sset _ (Etempvar ?ret'2 _))) _) _ =>
+       unify ret' ret'2;
+       eapply semax_seq';
+         [prove_call_setup witness;
+          clear_Delta_specs; clear_MORE_POST;
+             [ .. | forward_call_id1_y_wow ]
+         |  after_forward_call ]
+| |- _ => rewrite <- seq_assoc; fwd_call' witness
+end.
+
+
 Ltac fwd_call witness :=
  try lazymatch goal with
       | |- semax _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip
@@ -908,62 +924,12 @@ Ltac fwd_call witness :=
       rewrite <- seq_assoc
  end;
 lazymatch goal with |- @semax ?CS _ ?Delta _ (Ssequence ?C _) _ =>
-  lazymatch C with context [Scall _ (Evar ?id _) _] =>
-   refine (modusponens (global_funspec Delta id _ _ _ _ _ _ _ _) _ _ _);
-  [ eapply lookup_funspec;
-    [check_function_name
-    | lookup_spec_and_change_compspecs CS id
-    | find_spec_in_globals']
-  | let H := fresh in intro H;
-    match type of H with global_funspec _ _ _ _ _ ?A _ _ _ _ =>
-      (unify A (rmaps.ConstType Ridiculous); (* because [is_evar A] doesn't seem to work *)
-             elimtype False)
-     || (check_witness_type A witness;
-         fwd_call' A witness H)
-    end ]
-  end
-end.
-
-(* old: 
-Ltac fwd_call witness :=
- try match goal with
-      | |- semax _ _ (Scall _ _ _) _ => rewrite -> semax_seq_skip
-      end;
- repeat match goal with
-  | |- semax _ _ (Ssequence (Ssequence (Ssequence _ _) _) _) _ =>
-      rewrite <- seq_assoc
- end;
-match goal with |- @semax ?CS _ ?Delta _ (Ssequence ?C _) _ =>
-  match C with context [Scall _ (Evar ?id _) _] =>
-   refine (modusponens (global_funspec Delta id _ _ _ _ _ _ _ _) _ _ _);
-  [ eapply lookup_funspec;
-    [check_function_name
-    | lookup_spec_and_change_compspecs CS id
-    | find_spec_in_globals']
-  | let H := fresh in intro H;
-    match type of H with global_funspec _ _ _ _ _ ?A _ _ _ _ =>
-      (unify A (rmaps.ConstType Ridiculous); (* because [is_evar A] doesn't seem to work *)
-             elimtype False)
-     || fwd_call' A witness H
+  lazymatch C with context [Scall _ _ _] =>
+         fwd_call' witness
     end
-  ]
-  end
 end.
-*)
 
 Tactic Notation "forward_call" constr(witness) := fwd_call witness.
-(*
-    check_canonical_call;
-   match goal with |- semax _ _ _ _ =>
-    check_Delta;
-    match goal with
-    | |- semax _ _ _ _ =>
-        first [fwd_call witness | fail 3]
-    | |- _ => idtac
-    end
-   | _ => idtac
-   end.
-*)
 
 Lemma seq_assoc2:
   forall (Espec: OracleKind) {cs: compspecs}  Delta P c1 c2 c3 c4 Q,
@@ -2785,8 +2751,8 @@ Ltac fwd_result :=
   repeat
    (let P := fresh "P" in
     match goal with
-    | |- context[remove_localdef ?A ?B] =>
-         set (P := remove_localdef A B);
+    | |- context[remove_localdef_temp ?A ?B] =>
+         set (P := remove_localdef_temp A B);
          hnf in P;
          subst P
     end);

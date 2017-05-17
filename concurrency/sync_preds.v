@@ -515,6 +515,8 @@ Proof.
   apply (P phi w1 w2); auto; eapply approx_p; eassumption.
 Qed.
 
+Import shares.
+
 Lemma positive_precise_joins_false R phi1 phi2 :
   positive_mpred R ->
   precise R ->
@@ -537,7 +539,11 @@ Proof.
   rewrite E in j.
   destruct j as (r3, j).
   inv j.
-Admitted.
+ clear - RJ rsh0.
+ destruct RJ.
+ rewrite Share.glb_idem in H. subst.
+ apply bot_unreadable; auto.
+Qed.
 
 Lemma weak_positive_precise_joins_false R phi phi1 phi2 :
   level phi = level phi1 ->
@@ -564,7 +570,11 @@ Proof.
   rewrite E in j.
   destruct j as (r3, j).
   inv j.
-Admitted.
+ clear - RJ rsh0.
+ destruct RJ.
+ rewrite Share.glb_idem in H. subst.
+ apply bot_unreadable; auto.
+Qed.
 
 Lemma isLKCT_rewrite r :
   (forall sh sh' z P,

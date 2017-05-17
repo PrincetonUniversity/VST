@@ -19,13 +19,6 @@ Proof.
   destruct t, t'; try inversion H; simpl; auto.
 Qed.
 
-Ltac solve_andp' :=
-  first [ apply derives_refl
-        | apply andp_left1; solve_andp'
-        | apply andp_left2; solve_andp'].
-
-Ltac solve_andp := repeat apply andp_right; solve_andp'.
-
 (********************************************
 
 Max length gfs field_at load store:
@@ -73,7 +66,7 @@ Lemma semax_max_path_field_load_nth_ram:
         (Sset id (nested_efield e1 efs tts))
           (normal_ret_assert
             (PROPx P
-              (LOCALx (temp id v :: remove_localdef id Q)
+              (LOCALx (temp id v :: remove_localdef_temp id Q)
                 (SEPx R)))).
 Proof.
   intros.
@@ -135,7 +128,7 @@ Lemma semax_max_path_field_load_nth_ram':
         (Sset id e)
           (normal_ret_assert
             (PROPx P 
-              (LOCALx (temp id v :: remove_localdef id Q)
+              (LOCALx (temp id v :: remove_localdef_temp id Q)
                 (SEPx R)))).
 Proof.
   intros.
@@ -181,7 +174,7 @@ Lemma semax_max_path_field_load_nth_ram'':
         (Sset id (nested_efield e1 efs tts))
           (normal_ret_assert
             (PROPx P
-              (LOCALx (temp id v :: remove_localdef id Q)
+              (LOCALx (temp id v :: remove_localdef_temp id Q)
                 (SEPx R)))).
 Proof.
   intros until 0. intros TId Cast Rsh EqLr Volatile Lnf JM GetR F Evale1 Tc.
@@ -256,7 +249,7 @@ Lemma semax_max_path_field_cast_load_nth_ram:
         (Sset id (Ecast (nested_efield e1 efs tts) t))
           (normal_ret_assert
             (PROPx P
-              (LOCALx (temp id (eval_cast (typeof (nested_efield e1 efs tts)) t v) :: remove_localdef id Q)
+              (LOCALx (temp id (eval_cast (typeof (nested_efield e1 efs tts)) t v) :: remove_localdef_temp id Q)
                 (SEPx R)))).
 Proof.
   intros until 2. intro HCAST; intros.
