@@ -2008,6 +2008,80 @@ Proof.
       solve_andp.
 Qed.
 
+Definition re_localdefs (Pre Post: list localdef): list (list Prop) * list localdef :=
+  fold_left (fun (PQ: list (list Prop) * list localdef) l => let (P, Q) := PQ in (extractp_localdef l Q :: P, remove_localdef l Q)) Pre (nil, Post).
+
+Definition remove_localdefs (Pre Post: list localdef): list localdef :=
+  match re_localdefs Pre Post with
+  | (_, Q) => Q
+  end.
+
+Definition extractp_localdefs (Pre Post: list localdef): list Prop :=
+  match re_localdefs Pre Post with
+  | (P, _) => concat (rev P)
+  end.
+
+Lemma remove_localdefs_cons: forall a Qpre Qpost,
+  remove_localdefs (a :: Qpre) Qpost = remove_localdefs Qpre (remove_localdef a Qpost).
+Proof.
+  intros.
+  unfold remove_localdefs, re_localdefs; simpl.
+  forget (extractp_localdef a Qpost :: nil) as P'.
+  forget (@nil (list Prop)) as Q'.
+  revert P' Q' a Qpost; induction Qpre; intros.
+  * auto.
+  * simpl.
+    apply IHQpre.
+Qed.
+
+Lemma extractp_localdefs_cons: forall a Qpre Qpost,
+  Permutation (extractp_localdefs (a :: Qpre) Qpost)
+    (extractp_localdef a Qpost ++ extractp_localdefs Qpre (remove_localdef a Qpost)).
+Proof.
+  intros.
+  unfold extractp_localdefs, re_localdefs; simpl.
+  forget (remove_localdef a Qpost) as Q.
+  assert (Permutation (extractp_localdef a Qpost :: nil) (extractp_localdef a Qpost :: nil))
+    by apply Permutation_refl.
+  revert H.
+  generalize (extractp_localdef a Qpost :: nil) at 1 3; intros P1.
+  generalize (@nil (list Prop)) at 1 2; intros P2.
+  revert P1 P2 Q; induction Qpre; intros.
+  + simpl.
+    apply Permutation_rev' in H.
+    rewrite <- (Permutation_rev (_ :: _)) in H.
+    apply Permutation_concat in H.
+    rewrite H; clear H.
+    simpl.
+    apply Permutation_app_head, Permutation_concat, Permutation_rev.
+  + simpl.
+    apply IHQpre.
+    rewrite perm_swap.
+    apply perm_skip.
+    auto.
+Qed.
+
+Lemma go_lower_localdef: forall Delta Ppre Qpre Rpre Ppost Qpost Rpost,
+  local (tc_environ Delta) && PROPx Ppre (LOCALx nil (SEPx Rpre)) |--
+    PROPx (Ppost ++ extractp_localdefs Qpre Qpost) (LOCALx (remove_localdefs Qpre Qpost) (SEPx Rpost)) ->
+  local (tc_environ Delta) && PROPx Ppre (LOCALx Qpre (SEPx Rpre)) |--
+    PROPx Ppost (LOCALx Qpost (SEPx Rpost)).
+Proof.
+  intros.
+  revert Ppost Qpost H; induction Qpre; intros.
+  + cbv [re_localdefs fold_left concat rev] in H.
+    rewrite app_nil_r in H; auto.
+  + apply go_lower_localdef_one_step.
+    apply IHQpre.
+    eapply derives_trans; [exact H |].
+    clear.
+    rewrite <- remove_localdefs_cons.
+    erewrite PROPx_Permutation; [apply derives_refl |].
+    rewrite <- app_assoc.
+    apply Permutation_app_head.
+    apply extractp_localdefs_cons.
+Qed.
+
 Lemma subst_andp {A}{NA: NatDed A}:
   forall id v (P Q: environ-> A), subst id v (P && Q) = subst id v P && subst id v Q.
 Proof.
