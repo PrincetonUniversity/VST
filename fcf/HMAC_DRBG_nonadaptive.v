@@ -106,7 +106,7 @@ Definition RndV : Comp (Bvector eta) := {0,1}^eta.
 
 Ltac kv_exist := try apply (oneVector eta, oneVector eta).
 
-Parameter f : Bvector eta -> Blist -> Bvector eta.
+Variable f : Bvector eta -> Blist -> Bvector eta.
 
 Definition KV : Set := (Bvector eta * Bvector eta)%type.
 Hypothesis eqDecState : EqDec KV.
@@ -716,7 +716,7 @@ Proof.
       fcf_skip; kv_exist.
       (* this goes thru without needing the non-0 block hypothesis *)
       { instantiate (1 := (fun x y => x = fst y)).
-        clear H (*H0*).               (* ok? *)
+        clear H0 (*H0*).               (* ok? *)
         revert block k b.
         induction block as [ | n']; intros.
         - (*Print Gen_loop_rb_intermediate.*)
@@ -1861,6 +1861,7 @@ Theorem randomFunc_withDups_spec :
        arrayLookup _ (snd x1) a0 = arrayLookup _ (snd x2) a0))
      (randomFunc ({ 0 , 1 }^eta) _ s1 a) (randomFunc_withDups s2 a).
 
+  clear f.
   intuition.
   unfold randomFunc_withDups, randomFunc.
   case_eq (arrayLookup _ s1 a); intuition.
@@ -2082,6 +2083,7 @@ Lemma Gen_loop_oc_states_diff : forall x state2 state1 v ,
      ((Gen_loop_oc v x) (list (Blist * Bvector eta))
         (list_EqDec (pair_EqDec eqdbl eqdbv)) rb_oracle state1).
 Proof.
+    clear f.
     induction x as [ | x']; intros; simplify.
     - fcf_spec_ret.
     - unfold rb_oracle. simplify. fold rb_oracle.
@@ -2138,7 +2140,7 @@ Proof.
   fcf_skip. instantiate (1 := (fun x y => fst x = fst y)).
   apply Gen_loop_oc_states_diff.
 
-  simplify. unfold rb_oracle. simplify. fcf_skip_eq. simplify. simpl in *. inversion H1. subst.
+  simplify. unfold rb_oracle. simplify. fcf_skip_eq. simplify. simpl in *. inversion H2. subst.
   fcf_spec_ret.
 Qed.
 
@@ -2197,7 +2199,7 @@ Proof.
   instantiate (1 := (fun x y => fst x = fst y)).
   apply Gen_loop_oc_states_diff.
 
-  simpl in *. destruct b1. simpl in *. destruct p. inversion H1. subst.
+  simpl in *. destruct b1. simpl in *. destruct p. inversion H2. subst.
   simplify. unfold rb_oracle. simplify. fcf_skip_eq. simplify.
   fcf_spec_ret.
 Qed.
@@ -2841,7 +2843,7 @@ Proof.
         fcf_skip_eq; kv_exist.
         (* TODO factor out *)
         { 
-          revert a k H.
+          revert a k H0.
           induction x as [ | x']; intros; simplify.
           - (* using hypothesis that number of blocks is not 0 *)
             apply Forall_inv in blocks_neq_0. omega.
@@ -2852,7 +2854,7 @@ Proof.
         (* unfold Gen_loop_rb. unfold Gen_loop_rb_intermediate. *)
         simplify. fcf_spec_ret.
         simpl in *. breakdown H1. simplify. fcf_spec_ret.
-        destruct b. simpl in *. destruct k. simpl in *. subst. auto.
+        destruct b. simpl in *. destruct k0. simpl in *. subst. auto.
       -
         (* presumably now `i <> 0`? what assumptions hold here? *)
         assert (H_i_eq : beq_nat i i = true) by apply Nat.eqb_refl.
@@ -3317,376 +3319,13 @@ Proof.
     fcf_ident_expand_l. simplify. prog_equiv. fcf_reflexivity.
 Qed.
 
-(* attempting proof for when every RB uses the last v: (meaning the adversary doesn't request 0 blocks?)
-BUT need to make the change at the top level, 
-merge it into Gi_normal_prf, (just check first)
-and add 'list <> 0' assumptions everywhere
-and confirm it doesn't break ANYTHING referring to Gi_prg
-  looks like Pr_collisions could be fine too?
-STEP BACK: is this theorem actually true? intuition says yes bc the structures are the same now
-
-WANT TO PROVE
-
-eq
-([k,v] <-2 Instantiate;
-oracleMap (Oi_prg (S i)) (0, (k,v)) l)
-([k,v] <-2 Instantiate;
-oracleCompMap_inner (Oi_oc' i) (0, (k,v)) l)
-
-----
-
-calls < i:
-
-eq
-([k,v] <-2 Instantiate;
-v' <-$ Rnd;
-[bits,v''] <- Gen_loop_last v' n;
-oracleMap (Oi_prg (S i)) (1, (k,v'')) ns)
-
-([k,v] <-2 Instantiate;
-v' <-$ Rnd;
-[bits,v''] <- Gen_loop_last v' n;
-oracleCompMap_inner (Oi_oc' i) (1, (k,v'')) ns)
-
-what structures do I use? remember, CAN'T UPDATE K AT ALL. not even on both sides ( * why?)
-anyway, should be ok for calls < i, since same structure
-how to do induction like last time? push instantiate in? TODO?
-the calls=i case looks good but can i even push the Instantiate in? I didn't manage to pull one out either? so now I'm just confused? is the below possible? I definitely need to push the k in for the later k update (and the k *can* be pushed in). and apparently I don't need to push the v in?
-
-try this form:
-
-WANT TO PROVE
-
-eq
-(v <- RndV;
-k <- RndK;
-oracleMap (Oi_prg (S i)) (0, (k,v)) l)
-(v <- RndV;
-k <- RndK;
-oracleCompMap_inner (Oi_oc' i) (0, (k,v)) l)
-
-so we skip. forall v,
-
-eq
-(k <- RndK;
-oracleMap (Oi_prg (S i)) (0, (k,v)) l)
-(k <- RndK;
-oracleCompMap_inner (Oi_oc' i) (0, (k,v)) l)
-
-and, after reverting, we induct on l. now we are GIVEN
-
-IH: forall v, (and forall calls, k, v, i)
-eq
-(k <- RndK;
-oracleMap (Oi_prg (S i)) (calls, (k,v)) xs)
-(k <- RndK;
-oracleCompMap_inner (Oi_oc' i) (calls, (k,v)) xs)
-
-and WANT TO PROVE:
-
-eq
-(k <- RndK;
-oracleMap (Oi_prg (S i)) (0, (k,v)) x::xs)
-(k <- RndK;
-oracleCompMap_inner (Oi_oc' i) (0, (k,v)) x::xs)
-
-(-this isn't quite right--it's actually calls < i \/ calls = i, not calls = 0. but the overall induct-then-destruct structure is okay)
-(-did i deal with the calls=0 special case?
-i think it's ok since they both do the same thing? but what if i=0 or something)
-(-when i do the proof, need to verify these theorem statements are correct)
-
-expanding the call:
-( * assuming in the beginning we do GenUpdate_rb on both left and right? if i=0)
-
-eq
-(k <-$ Rnd;
-v' <- Rnd;
-[bits,v''] <- Gen_loop_last v' n;
-oracleMap (Oi_prg (S i)) (1, (k,v'')) xs) 
-
-(k <-$ Rnd;
-v' <- Rnd;
-[bits,v''] <- Gen_loop_last v' n;
-oracleCompMap_inner (Oi_oc' i) (1, (k,v'')) xs)
-
-(this expansion assumes calls < i)
-the k is irrelevant so we can swap it to before the last line, and skip the v and bits first
-*** being able to prove k irrelevant and swap it to the back seems like a major lemma
-*** if k is used anywhere in between, then we need to skip the k sample, otherwise there's no variable
-(however, it doesn't look like GenUpdate_rb uses the k at all)
-(BTW the intermediate postcondition may be different, but it'll probably be eq)
-
-eq
-(k <-$ Rnd;
-oracleMap (Oi_prg (S i)) (1, (k,v'')) xs)
-
-(k <-$ Rnd;
-oracleCompMap_inner (Oi_oc' i) (1, (k,v'')) xs)
-
-does this match the IH? yes, actually.... because it's forall v now?
-so, this could work?
-
-----
-
-calls = i: 
-( *ns here should be xs?)
-
-eq
-(k <-$ Rnd;
-v' <-$ Rnd;
-[bits,v''] <- Gen_loop_last v' n; <--- @@@ this is the problem: the real RB does not currently update v, but we'll change it to do so
-oracleMap (Oi_prg (S i)) (S i, (k,v'')) ns)
-
-(k <-$ Rnd;
-v' <-$ Rnd;
-<**>
-[bits,v''] <- Gen_loop_last v' n;
-k' <-$ Rnd;
-oracleCompMap_inner (Oi_oc' i) (S i, (k',v'')) ns)
-
-<**> how come we can ignore the v from instantiate? did I forget to type this line?
-if every RB uses the last v, then it doesn't matter if v is re-sampled, since we'll just sample it again (-in gen_loop_last?) 
-(as long as we never request 0 blocks)?
-(-gen_loop_last doesn't use the input v', and the v'' are resampled uniformly as long as n>0)
-
-there's just an extra k, so manipulate the rightmost. 
-the last k re-sampling can be moved to before the loop
-
-eq
-(k <- Rnd;
-v' <-$ Rnd;
-[bits,v''] <- Gen_loop_last v' n;
-oracleMap (Oi_prg (S i)) (S i, (k,v'')) ns)
-
-(k <- Rnd;
-k' <-$ Rnd;
-v' <-$ Rnd;
-[bits,v''] <- Gen_loop_last v' n;
-oracleCompMap_inner (Oi_oc' i) (S i, (k',v'')) ns)
-
---> do fcf_irr_r *on the first k on the right (from the instantiate) 
-+ switch *the resulting first 2 lines on the left
-
-eq
-(k <- Rnd;
-v' <-$ Rnd;
-[bits,v''] <- Gen_loop_last v' n;
-oracleMap (Oi_prg (S i)) (S i, (k,v'')) ns)
-
-(k' <-$ Rnd;
-v' <-$ Rnd;
-[bits,v''] <- Gen_loop_last v' n;
-oracleCompMap_inner (Oi_oc' i) (S i, (k',v'')) ns)
-
---> skip
-
-eq
-(v' <-$ Rnd;
-[bits,v''] <- Gen_loop_last v' n;
-oracleMap (Oi_prg (S i)) (S i, (k,v'')) ns)
-
-(v' <-$ Rnd;
-[bits,v''] <- Gen_loop_last v' n;
-oracleCompMap_inner (Oi_oc' i) (S i, (k',v'')) ns)
-
-then both are the same? so we can prove k,v,bits are the same?
-in fact we don't need the v from instantiate, just the k
-TODO how do i deal with noV then? apparently it doesn't matter?
-that only matters if
-* if what?
-* do we use the IH here? why or why not? no IH, only for calls < i, different IH for calls > i
-
-maybe I mistyped the statement and the end result actually has an extra v-sampling, but it doesn't matter
-(see email)
-----
-
-calls > i:
-
-again unsure if both instantiates will still be here? 
-just need that the inputted k v are the same and the outputted bits are the same 
-
-eq
-(k <-$ RndK;
-v' <-$ f k v;
-[bits,v''] <- Gen_loop_PRF k v n;
-k' <-$ f k (v''||00);
-oracleMap (Oi_prg (S i)) (?, (k',v'')) ns)
-
-(k <-$ RndK;
-v' <-$ f k v;
-[bits,v''] <- Gen_loop_PRF k v n;
-k' <-$ f k (v''||00);
-oracleCompMap_inner (Oi_oc' i) (?, (k',v'')) ns) *)
-
-  
-(* does not hold for i = 0:
-Gi_prg 0: PRF PRF PRF...
-Gi_prg 1: RB PRF PRF...
-Gi_rb 0 : RB PRF PRF... 
-(call number 0 uses the RB oracle) -- equivalence, no replacing happening here *)
-(* might have misnumbered something here? *)
-(* using random bits as the oracle for the ith call = the (i+1)th hybrid *)
-(* proof very similar to Gi_normal_prf_eq 
-used in Gi_rf_rb_close to move from Gi_prg (S i) to Gi_rb i *)
-
-  (* what would it mean to put the former in terms of an oracle interaction? wouldn't that just be this theorem? *)
-  (* TODO email adam about PRF adversary *)
-(* this proof doesn't quite work *)
-  (* maybe prove that i can "cut out" the k and v, and re-instantiate it on the `i`th call?
-     (or just re-instantiate it.)
-   then the types would change?
-   also, would it just be shifting the problem around?
-   would the induction still work?? we wouldn't want Instantiate in the hypothesis
-
-  can I also prove, in the latter, that the k,v update can be moved OUT when we're using RB?
-or at least moved out together into an Instantiate in the beginning of calls=i.
-can i further prove that it can be moved out altogether, into before oracleCompMap_inner?
-then i could skip the first leftmost Instantiate
-the problem is again, what do i do with inducting while Instantiate is in the statement??
-
-proof outline:
-
-left:
-Instantiate, oracleCompMap (calls = i: Instantiate; generate bits)
-
-right:
-Instantiate, Instantiate, oracleCompMap (calls = i: generate bits)
-
--> fcf_skip first Instantiate
-
-left:
-kv -> oracleCompMap (calls = i: Instantiate; generate bits) l
-
-right:
-kv -> Instantiate, oracleCompMap (calls = i: generate bits) l
-
-induct on l
-
-->
-IH:
-(left:
-forall kv, oracleCompMap (calls = i: Instantiate; generate bits) xs
-
-right:
-forall kv, Instantiate; oracleCompMap (calls = i: generate bits) xs)
-
-- show
-(left:
-forall kv, Oi_oc x; oracleCompMap (calls = i: Instantiate; generate bits) xs
-
-right:
-forall kv, Instantiate; Oi_oc x; oracleCompMap (calls = i: generate bits) xs)
-
-- rewrite:
-what's the condition on calls?
-either calls < i or calls = i
-
-- first: calls < i
-
-(left:
-forall kv, Oi_oc x; oracleCompMap (calls = i: Instantiate; generate bits) xs
-
-right:
-if calls < i, then Instantiate is irrelevant (we already have a kv), so we can move it after
-forall kv, Oi_oc x; Instantiate; oracleCompMap (calls = i: generate bits) xs)
-
-then fcf_skip the first, which is equal (calls < i)
-
-new state:
-(left:
-forall kv, oracleCompMap (calls = i: Instantiate; generate bits) xs
-
-right:
-if calls < i, then Instantiate is irrelevant (we already have a kv), so we can move it after
-forall kv, Instantiate; oracleCompMap (calls = i: generate bits) xs)
-
-apply the induction hypothesis! yay!
-
-- second: calls = i
-
-(left:
-forall kv, Oi_oc [calls = i: Instantiate; generate bits] x; oracleCompMap xs
-
-right:
-forall kv, Instantiate; Oi_oc [calls = i: generate bits] x; oracleCompMap xs)
-
-now we can pull out the Instantiate on the left:
-
-(left:
-forall kv, Instantiate; Oi_oc [calls = i: generate bits] x; oracleCompMap xs
-
-right:
-forall kv, Instantiate; Oi_oc [calls = i: generate bits] x; oracleCompMap xs)
-
-and apply fcf_reflexivity!
-
----
-
-and if this works, we can work with 
-
-left: 
-Instantiate, oracleMap
-
-right:
-Instantiate, Instantiate, oracleCompMap (calls = i: generate bits)
-
-(irr_r)->
-
-left: 
-Instantiate, oracleMap
-
-right:
-Instantiate, oracleCompMap (calls = i: generate bits)
-
-->
-
-left: 
-kv -> oracleMap
-
-right:
-kv -> oracleCompMap (calls = i: generate bits)
-
-and inside the inner computation, we should be able to skip the two loops and end up with unchanged k and their two v's will be the same!
-
-----
-
-for i = 0, top-level theorem:
-
-Instantiate, oracleMap
-Instantiate, RndK, oracleCompMap (calls=0: generate)
-
-->
-
-RndK, RndV, oracleMap
-RndK, RndV, RndK, oracleCompMap (calls=0: generate)
-
--> (irr_r)
-
-RndK, RndV, oracleMap
-RndV, RndK, oracleCompMap (calls=0: generate)
-
--> (swap)
-
-RndK, RndV, oracleMap
-RndK, RndV, oracleCompMap (calls=0: generate)
-
--> proceed as above (split out lemma??)
-
-see Lemma i_eq_0_k_mask_test above for proof that this works
-
-----
-
-i also forgot about the whole "v is not updated twice on the first call" :-/
-
-can i prove things for updating v only in GenUpdate_rb_int.?
-note i only have to relate them on calls=i   *)
-
 (* ----------------------- *Identical until bad section *)
 
 Theorem Gen_loop_rb_intermediate_wf:
   forall a b c,
      well_formed_comp (Gen_loop_rb_intermediate b c a).
 
+  clear f.
   induction a; intuition; simpl; fcf_well_formed.
 
 Qed.
@@ -3705,7 +3344,7 @@ Qed.
 Theorem Gen_loop_oc_wf : 
   forall a b0,
      well_formed_oc (Gen_loop_oc b0 a).
-
+  clear f.
   induction a; intuition; simpl; fcf_well_formed.
 Qed.
 
@@ -3724,7 +3363,7 @@ Qed.
 Theorem GenUpdate_oc_wf : 
   forall b a,
      well_formed_oc (GenUpdate_oc b a).
-
+  clear f.
   intros.
   unfold GenUpdate_oc.
   fcf_simp.
@@ -3735,7 +3374,6 @@ Qed.
 Theorem GenUpdate_PRF_oc_wf : 
   forall b a,
      well_formed_oc (GenUpdate_PRF_oc b a).
-
   intros.
   unfold GenUpdate_PRF_oc.
   fcf_simp.
@@ -3764,7 +3402,6 @@ Theorem oracleCompMap_inner_wf :
   eapply GenUpdate_PRF_oc_wf.
 
 Qed.
-
 
 
 (* SAME PROOF AS PRF_A_randomFunc_eq_until_bad (with the computation order switched) *)
@@ -3849,7 +3486,7 @@ Proof.
         rewrite notInArrayLookupNone in H.
         discriminate.
         intuition.
-        rewrite unzip_eq_split in H3.
+        rewrite unzip_eq_split in H4.
         remember (split x2) as z.
         destruct z.
         pairInv.
@@ -3866,7 +3503,7 @@ Proof.
         rewrite notInArrayLookupNone in H.
         discriminate.
         intuition.
-        rewrite unzip_eq_split in H3.
+        rewrite unzip_eq_split in H4.
         remember (split x2) as z.
         destruct z.
         pairInv.
@@ -4219,6 +3856,7 @@ Lemma Gi_rb_collisions_inner_eq_general_irr_l : forall (blocks : nat) (v : Bvect
             (to_list v
              :: map (to_list (n:=eta)) x ++ map (fst (B:=Bvector eta)) init)).
 Proof.
+  clear f.
   induction blocks as [ | blocks']; intros v init inputs_len.
   - simplify.
     fcf_irr_l. rename a into key_input. simplify.
@@ -4340,7 +3978,7 @@ Lemma Gi_rb_collisions_inner_eq_general_i_neq0 : forall (blocks : nat) (k v : Bv
         ret hasDups _ ((map (@to_list _ _) (v :: x)) ++ (map (@fst _ _ ) init))).
 Proof.
   intuition; simpl. 
-  rename H into inputs_len.
+  rename H0 into inputs_len.
   unfold rb_oracle.
   fcf_inline_first.
   revert k v init inputs_len. (*clear H.*)
@@ -4365,7 +4003,7 @@ Lemma Gi_rb_collisions_inner_eq_general_i_eq0 : forall (blocks : nat) (k v : Bve
                    (map (to_list (n:=eta)) (v :: x) ++ map (fst (B:=Bvector eta)) init)).
 Proof.
   intuition; simpl.
-  rename H into inputs_len. rename H0 into blocks_neq_0.
+  rename H0 into inputs_len. rename H1 into blocks_neq_0.
   unfold rb_oracle.
   fcf_inline_first.
   destruct blocks as [ | blocks']. 
@@ -4710,6 +4348,7 @@ Theorem compMap_hasDups_cons_orb :
     Pr[lb <-$ compMap _ (fun _ => {0,1}^eta) ls; ret hasDups _ (x :: lb)] ==
     Pr[lb <-$ compMap _ (fun _ => {0,1}^eta) ls; ret (if (in_dec (EqDec_dec _) x lb) then true else false) || hasDups _ lb].
 
+  clear f.
   intuition.
   fcf_skip.
   rewrite hasDups_cons_orb.
@@ -4927,6 +4566,8 @@ Proof.
   specialize (distance_le_prod_f (fun i => Pr[Gi_prg i]) Gi_Gi_plus_1_close numCalls).
   intuition.
 Qed.
+
+End PRG.
 (*
 Theorem G1_G2_close :
   (* TODO: constructed PRF adversary *)
@@ -5148,4 +4789,3 @@ Check (Gen_loop_oc v n).
      : OracleComp (list bool) (Bvector eta)
          (list (Bvector eta) * Bvector eta) *)
 *) 
-End PRG.
