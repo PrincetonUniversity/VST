@@ -14,4 +14,3 @@
 -Q aes aes
 -Q mailbox mailbox
 -R compcert compcert
--R ../math-comp/mathcomp/ mathcomp

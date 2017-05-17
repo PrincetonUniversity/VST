@@ -13,6 +13,54 @@ Require Import hmacdrbg.entropy_lemmas.
 Require Import floyd.library.
 Require Import floyd.deadvars.
 
+(*from bridge file*)
+Definition Generate reseedInterval (WS: DRBG_functions.DRBG_working_state) n: DRBG_functions.DRBG_generate_algorithm_result :=
+           HMAC256_DRBG_functional_prog.HMAC256_DRBG_generate_algorithm reseedInterval
+                                           WS
+                                           n
+                                           nil.
+
+Lemma Bridge s I n bytes J ss (M: mbedtls_HMAC256_DRBG_generate_function s I n [] = ENTROPY.success (bytes, J) ss):
+  match I with HMAC256DRBGabs K V reseed_counter entropy_len prediction_resistance reseed_interval =>
+  reseed_counter <= reseed_interval -> prediction_resistance = false ->
+  match J with (ws,sstrength,prflag) =>
+  s=ss /\ Generate reseed_interval (V,K,reseed_counter) n = DRBG_functions.generate_algorithm_success bytes ws
+  end end.
+Proof. destruct I. destruct J as [[ws sstrength] prf]. simpl. simpl in M.
+remember (n >? 1024) as d; destruct d; try discriminate.
+rewrite andb_negb_r in M. intros; subst.
+apply Zgt_is_gt_bool_f in H. rewrite H.
+remember (HMAC_DRBG_algorithms.HMAC_DRBG_generate_helper_Z HMAC256 key V n) as p; destruct p.
+unfold HMAC256_DRBG_functional_prog.HMAC256_DRBG_generate_algorithm in M; simpl in M.
+rewrite H, <- Heqp in M. inv M; split; trivial.
+Qed.
+
+Definition mbedlts_generate s I n :=
+   match mbedtls_HMAC256_DRBG_generate_function s I n [] 
+   with ENTROPY.success (bytes, J) ss =>
+          match J with ((((VV, KK), RC), _), PR) =>
+            Some (bytes, ss, HMAC256DRBGabs KK VV RC (hmac256drbgabs_entropy_len I) PR 
+                                 (hmac256drbgabs_reseed_interval I))
+          end
+      | _ => None  
+   end.
+
+Lemma Bridge' s I n bytes F ss (M: mbedlts_generate s I n = Some(bytes, ss, F)):
+  match I with HMAC256DRBGabs K V reseed_counter entropy_len prediction_resistance reseed_interval =>
+  reseed_counter <= reseed_interval -> prediction_resistance = false ->
+  match F with HMAC256DRBGabs KK VV rc _ _ _ =>
+  s=ss /\ rc=reseed_counter+1 /\
+  Generate reseed_interval (V,K,reseed_counter) n = DRBG_functions.generate_algorithm_success bytes ((VV,KK), rc)
+  end end.
+Proof. destruct I. destruct F. simpl. unfold mbedlts_generate in M. simpl in M.
+remember (n >? 1024) as d; destruct d; try discriminate.
+rewrite andb_negb_r in M. intros; subst.
+apply Zgt_is_gt_bool_f in H. rewrite H.
+remember (HMAC_DRBG_algorithms.HMAC_DRBG_generate_helper_Z HMAC256 key V n) as p; destruct p.
+unfold HMAC256_DRBG_functional_prog.HMAC256_DRBG_generate_algorithm in M; simpl in M.
+rewrite H, <- Heqp in M. inv M; auto. 
+Qed.
+
 Definition WF (I:hmac256drbgabs):=
          Zlength (hmac256drbgabs_value I) = 32 /\ 
          0 < hmac256drbgabs_entropy_len I <= 384 /\
@@ -197,6 +245,24 @@ Definition drbg_reseed_spec_abs :=
 (*random_with_add not yet done using REP/AREP*)
 (*from verif_hmacdrbg_other*)
 Definition drbg_random_abs_spec :=
+  DECLARE _mbedtls_hmac_drbg_random
+   WITH output: val, n: Z, ctx: val, 
+        I: hmac256drbgabs, kv: val, 
+        s: ENTROPY.stream, bytes:_, F:_, ss:_
+    PRE [_p_rng OF tptr tvoid, _output OF tptr tuchar, _out_len OF tuint ]
+       PROP (0 <= n <= 1024;
+         mbedlts_generate s I n = Some(bytes, ss, F))
+       LOCAL (temp _p_rng ctx; temp _output output;
+              temp _out_len (Vint (Int.repr n)); gvar sha._K256 kv)
+       SEP (data_at_ Tsh (tarray tuchar n) output;
+            AREP kv I ctx; Stream s)
+    POST [ tint ] 
+       PROP () 
+       LOCAL (temp ret_temp (Vint Int.zero))
+       SEP (data_at Tsh (tarray tuchar n) (map Vint (map Int.repr bytes)) output;
+            AREP kv F ctx; Stream ss).
+
+Definition drbg_random_abs_spec1 :=
   DECLARE _mbedtls_hmac_drbg_random
    WITH output: val, n: Z, ctx: val, 
         I: hmac256drbgabs, kv: val, 
@@ -1093,6 +1159,50 @@ Lemma body_hmac_drbg_random_abs: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
 Proof.
   start_function.
   abbreviate_semax.
+  rename H0 into M. destruct H as [N1 N2].
+  unfold AREP. focus_SEP 1.
+  rewrite extract_exists_in_SEP. Intros Info. unfold REP.
+  rewrite extract_exists_in_SEP. Intros i. 
+  destruct H as [WF1 [WF2 [WF3 [WF4 WF5]]]].
+  forward. simpl.
+  forward_call (@nil Z, nullval, Z0, output, n, ctx, i,
+                I, kv, Info, s).
+  { rewrite da_emp_null; trivial. cancel. }
+  { rewrite Zlength_nil.
+    repeat (split; try assumption; try rewrite int_max_unsigned_eq; try omega).
+    constructor. }
+  Intros v. forward. unfold mbedlts_generate in M.
+  remember (mbedtls_HMAC256_DRBG_generate_function s I n []) as q; destruct q; try discriminate. 
+  destruct p as [bytes' J].
+  destruct J as [[[[V K] RC] x] PR]. inv M.
+  unfold generatePOST, contents_with_add; simpl. 
+  apply Zgt_is_gt_bool_f in N2. rewrite N2 in *. 
+  rewrite <- Heqq in *.
+  unfold return_value_relate_result, da_emp; simpl. 
+  symmetry in Heqq.
+  apply AUX in Heqq. rewrite Heqq.
+  Intros. inversion H0; clear H0; subst v.
+  assert_PROP (n=Zlength(map Vint (map Int.repr bytes))) as HN by entailer!.
+  entailer!. 
+  Exists Info
+     (hmac256drbgabs_to_state
+       (hmac256drbgabs_generate I s (Zlength (map Vint (map Int.repr bytes))) []) i).
+  rewrite Heqq. unfold hmac256drbgabs_common_mpreds. 
+  normalize. 
+  apply andp_right. 
+  + apply prop_right. red. simpl.
+    apply hmac256drbgabs_generateWF in Heqq. intuition.
+    omega. intuition. red in WF3. clear - WF3. omega. 
+  + cancel. 
+    apply orp_left; [ trivial | normalize].
+Time Qed. (*Coq8.6: 2.3secs*)
+
+Opaque hmac256drbgabs_generate.
+Lemma body_hmac_drbg_random_abs1: semax_body HmacDrbgVarSpecs HmacDrbgFunSpecs
+      f_mbedtls_hmac_drbg_random drbg_random_abs_spec1.
+Proof.
+  start_function.
+  abbreviate_semax.
   destruct H as [N1 N2]. rename H0 into M.
   unfold AREP. focus_SEP 1.
   rewrite extract_exists_in_SEP. Intros Info. unfold REP.
@@ -1114,7 +1224,7 @@ Proof.
   apply AUX in M. rewrite <- M.
   Intros. inversion H0; clear H0; subst v.
   assert_PROP (n=Zlength(map Vint (map Int.repr bytes))) as HN by entailer!.
-  entailer. cancel. 
+  entailer!.
   Exists Info
      (hmac256drbgabs_to_state
        (hmac256drbgabs_generate I s (Zlength (map Vint (map Int.repr bytes))) []) i).
@@ -1123,7 +1233,7 @@ Proof.
   apply andp_right. 
   + apply prop_right. rewrite M; red. simpl.
     apply hmac256drbgabs_generateWF in M. intuition.
-    omega. intuition. apply WF3.
+    omega. intuition. red in WF3. omega. 
   + cancel.
     apply orp_left; [ trivial | normalize].
 Time Qed. (*Coq8.6: 2.3secs*)
