@@ -13,4 +13,4 @@
 -Q hmacdrbg hmacdrbg
 -Q aes aes
 -Q mailbox mailbox
--R ../CompCert-Unofficial compcert
+-R compcert compcert
