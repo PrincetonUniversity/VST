@@ -3963,7 +3963,7 @@ Proof.
     apply Permutation_sym.
     apply Permutation_cons_append.
     reflexivity.
-Admitted.
+Qed.
 
 (* apply above theorem for i <> 0, Generate_v_oc *)
 Lemma Gi_rb_collisions_inner_eq_general_i_neq0 : forall (blocks : nat) (k v : Bvector eta) (init : list (Blist * Bvector eta)),

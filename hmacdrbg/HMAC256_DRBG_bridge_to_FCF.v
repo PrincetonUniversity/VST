@@ -445,7 +445,7 @@ Proof. unfold GenUpdate_original_Zlist, GenUpdate_original_Blist.
 Qed. 
 
 (*Specialization of HMAC256_DRBG_generate_algorithm: no additional input*)
-Definition Generate RI (WS: DRBG_functions.DRBG_working_state) n: DRBG_functions.DRBG_generate_algorithm_result :=
+Definition FunGenerate RI (WS: DRBG_functions.DRBG_working_state) n: DRBG_functions.DRBG_generate_algorithm_result :=
            HMAC256_DRBG_functional_prog.HMAC256_DRBG_generate_algorithm RI
                                            WS
                                            n
@@ -454,7 +454,7 @@ Opaque mult.
 
 Lemma GenerateCorrect RI k v z n (Z: (z<=RI)%Z) (N:(0<n)%nat):
   match GenUpdate_original_Zlist (k,v) n with (blocks,(k',v')) => 
-    Generate RI (v, k, z) (Z.of_nat ((32 * n)%nat)) = 
+    FunGenerate RI (v, k, z) (Z.of_nat ((32 * n)%nat)) = 
     generate_algorithm_success (firstn ((32 * n)%nat) (fcf.Fold.flatten (rev blocks))) (v',k',(z+1)%Z) 
   end.
 Proof. remember (GenUpdate_original_Zlist (k, v) n) as p; destruct p as [kk [vv zz]]; symmetry in Heqp. 
@@ -467,29 +467,11 @@ Proof. remember (GenUpdate_original_Zlist (k, v) n) as p; destruct p as [kk [vv 
     rewrite Heqq. subst a; rewrite Nat2Z.id; trivial.
     subst a; clear -N. simpl. rewrite Nat2Z.inj_mul. simpl; omega.
 Qed.
-Opaque Generate.
-(*
-Lemma GenerateCorrect RI k v z n (Z: (z<=RI)%Z):
-  match GenUpdate_original_Zlist (k,v) (S n) with (blocks,(k',v')) => 
-    Generate RI (v, k, z) (Z.of_nat ((32 * n +1)%nat)) = 
-    generate_algorithm_success (firstn ((32 * n +1)%nat) (fcf.Fold.flatten (rev blocks))) (v',k',(z+1)%Z) 
-  end.
-Proof. remember (GenUpdate_original_Zlist (k, v) (S n)) as p; destruct p as [kk [vv zz]]; symmetry in Heqp. 
-  unfold GenUpdate_original_Zlist in Heqp.
-  remember (Gen_loop_Zlist k v (S n)) as q; destruct q as [blocks v']; symmetry in Heqq; inv Heqp.
-  apply (E n) in Heqq. remember (32 * n + 1)%nat as a.
-  simpl. remember (z >? RI) as d. destruct d; symmetry in Heqd. 
-  + apply Zgt_is_gt_bool in Heqd; omega.
-  + rewrite Z.mul_sub_distr_l in Heqq.
-    assert (W: (32 * Z.of_nat (S n) - 32 * 1 + 1 = Z.of_nat a)%Z).
-    { subst a; clear. change (S n) with (1+n)%nat; rewrite (Nat2Z.inj_add (32*n) 1), (Nat2Z.inj_add 1 n). 
-      rewrite Z.mul_add_distr_l, Nat2Z.inj_mul. simpl; omega. }
-    rewrite W in Heqq. rewrite Heqq, Nat2Z.id; trivial.
-Qed.
-*)
+Opaque FunGenerate.
+
 Lemma Generate_Blist_ok RI k v z n (Z: (z<=RI)%Z) l kk vv zz 
     (K: Forall isbyteZ k) (V:Forall isbyteZ v) (N:(0<n)%nat):
-    Generate RI (v, k, z) (Z.of_nat ((32 * n)%nat)) = generate_algorithm_success l (kk,vv, zz) ->
+    FunGenerate RI (v, k, z) (Z.of_nat ((32 * n)%nat)) = generate_algorithm_success l (kk,vv, zz) ->
     exists y,
     GenUpdate_original_Blist (bytesToBits k, bytesToBits v) n = 
     (map bytesToBits y,(bytesToBits vv, bytesToBits kk)) /\ zz=z+1 /\ 
@@ -500,25 +482,11 @@ Proof.
   rewrite HH1 in HH2. exists a. inv HH2. repeat split; trivial. 
   specialize (GenUpdate_original_Zlist_Blist k v n K V).
   rewrite Heqg; intros HH; rewrite HH; trivial.
-Qed. (*
-Lemma Generate_Blist_ok RI k v z n (Z: (z<=RI)%Z) l kk vv zz 
-    (K: Forall isbyteZ k) (V:Forall isbyteZ v):
-    Generate RI (v, k, z) (Z.of_nat ((32 * n +1)%nat)) = generate_algorithm_success l (kk,vv, zz) ->
-    exists y,
-    GenUpdate_original_Blist (bytesToBits k, bytesToBits v) (S n) = 
-    (map bytesToBits y,(bytesToBits vv, bytesToBits kk)) /\ zz=z+1 /\ 
-    l = firstn (32 * n + 1) (flatten (rev y)).
-Proof.
-  remember (GenUpdate_original_Zlist (k,v) (S n)) as g. symmetry in Heqg; destruct g as [a [b c]].
-  specialize (GenerateCorrect RI k v z n Z). rewrite Heqg; intros HH1 HH2.
-  rewrite HH1 in HH2. exists a. inv HH2. repeat split; trivial. 
-  specialize (GenUpdate_original_Zlist_Blist k v (S n) K V).
-  rewrite Heqg; intros HH; rewrite HH; trivial.
-Qed.*)
+Qed. 
 
 Lemma Generate_Bvec_ok' RI k v z n (Z: (z<=RI)%Z) l kk vv zz (N:(0<n)%nat)
     (K: Forall isbyteZ k) (KL: length (bytesToBits k) = 256%nat) (V:Forall isbyteZ v) (VL:length (bytesToBits v) = 256%nat):
-    Generate RI (v, k, z) (Z.of_nat ((32 * n)%nat)) = generate_algorithm_success l (kk,vv, zz) ->
+    FunGenerate RI (v, k, z) (Z.of_nat ((32 * n)%nat)) = generate_algorithm_success l (kk,vv, zz) ->
     match GenUpdate_original_Bvec (of_list_length _ KL, of_list_length _ VL) n with (blocks, kv) =>
     zz=z+1 /\ 
     bitsToBytes (@Vector.to_list _ 256 (fst kv)) = vv /\ 
@@ -548,7 +516,7 @@ Lemma Generate_Bvec_ok RI k v z n (Z: (z<=RI)%Z) (N:(0<n)%nat)
               (K: Forall isbyteZ k) (KL: length (bytesToBits k) = 256%nat)
               (V:Forall isbyteZ v) (VL:length (bytesToBits v) = 256%nat):
     match GenUpdate_original_Bvec (of_list_length _ KL, of_list_length _ VL) n with (blocks, (kk,vv)) =>
-          Generate RI (v, k, z) (Z.of_nat ((32 * n)%nat)) 
+          FunGenerate RI (v, k, z) (Z.of_nat ((32 * n)%nat)) 
           = generate_algorithm_success (firstn (32 * n) (bitsToBytes (flatten (rev (map (@Vector.to_list _ 256) blocks)))))
                                        (bitsToBytes (@Vector.to_list _ 256 vv), bitsToBytes (@Vector.to_list _ 256 kk), z+1)
     end.
@@ -571,7 +539,7 @@ Qed.
 
 Lemma Generate_ok' RI k v z n (Z: (z<=RI)%Z) l kk vv zz (N:(0<n)%nat)
     (K: Forall isbyteZ k) (KL: length (bytesToBits k) = 256%nat) (V:Forall isbyteZ v) (VL:length (bytesToBits v) = 256%nat):
-    Generate RI (v, k, z) (Z.of_nat ((32 * n)%nat)) = generate_algorithm_success l (kk,vv, zz) ->
+    FunGenerate RI (v, k, z) (Z.of_nat ((32 * n)%nat)) = generate_algorithm_success l (kk,vv, zz) ->
     match GenUpdate_original_core (of_list_length _ KL, of_list_length _ VL) n with (blocks, kv) =>
     zz=z+1 /\ 
     bitsToBytes (@Vector.to_list _ 256 (fst kv)) = vv /\ 
@@ -592,7 +560,7 @@ Lemma Generate_ok RI k v z n (Z: (z<=RI)%Z) (N:(0<n)%nat)
               (K: Forall isbyteZ k) (KL: length (bytesToBits k) = 256%nat)
               (V:Forall isbyteZ v) (VL:length (bytesToBits v) = 256%nat):
     match GenUpdate_original_core (of_list_length _ KL, of_list_length _ VL) n with (blocks, (kk,vv)) =>
-          Generate RI (v, k, z) (Z.of_nat ((32 * n)%nat)) 
+          FunGenerate RI (v, k, z) (Z.of_nat ((32 * n)%nat)) 
           = generate_algorithm_success (firstn (32 * n) (bitsToBytes (flatten (map (@Vector.to_list _ 256) blocks))))
                                        (bitsToBytes (@Vector.to_list _ 256 vv), bitsToBytes (@Vector.to_list _ 256 kk), z+1)
     end.
@@ -615,10 +583,10 @@ Lemma Bridge s I n bytes J ss (M: mbedtls_HMAC256_DRBG_generate_function s I n [
   match I with HMAC256DRBGabs K V reseed_counter entropy_len prediction_resistance reseed_interval =>
   reseed_counter <= reseed_interval -> prediction_resistance = false ->
   match J with (ws,sstrength,prflag) =>
-  s=ss /\ Generate reseed_interval (V,K,reseed_counter) n = DRBG_functions.generate_algorithm_success bytes ws
+  s=ss /\ FunGenerate reseed_interval (V,K,reseed_counter) n = DRBG_functions.generate_algorithm_success bytes ws
   end end.
 Proof. destruct I. destruct J as [[ws sstrength] prf].
-Transparent Generate. simpl. Opaque Generate. simpl in M.
+Transparent FunGenerate. simpl. Opaque FunGenerate. simpl in M.
 remember (n >? 1024) as d; destruct d; try discriminate.
 rewrite andb_negb_r in M. intros; subst.
 apply Zgt_is_gt_bool_f in H. rewrite H.
@@ -643,9 +611,9 @@ Lemma Bridge' s I n bytes F ss (M: mbedlts_generate s I n = Some(bytes, ss, F)):
   reseed_counter <= reseed_interval -> prediction_resistance = false ->
   match F with HMAC256DRBGabs KK VV rc _ _ _ =>
   s=ss /\ rc=reseed_counter+1 /\
-  Generate reseed_interval (V,K,reseed_counter) n = DRBG_functions.generate_algorithm_success bytes ((VV,KK), rc)
+  FunGenerate reseed_interval (V,K,reseed_counter) n = DRBG_functions.generate_algorithm_success bytes ((VV,KK), rc)
   end end.
-Proof. destruct I. destruct F. Transparent Generate. simpl. Opaque Generate.
+Proof. destruct I. destruct F. Transparent FunGenerate. simpl. Opaque FunGenerate.
 unfold mbedlts_generate in M. simpl in M.
 remember (n >? 1024) as d; destruct d; try discriminate.
 rewrite andb_negb_r in M. intros; subst.
@@ -729,19 +697,41 @@ Proof.
  rewrite H. omega.
 Qed.  
 
-(*
 Require Import fcf.FCF.
-Definition GenUpdate_original_refactored (state : KV 256) (n : nat) :
+Definition AsGame {A} f (a:A) : Comp (list (Bvector 256) * KV 256) := ret(f a).
+Definition Generate_refactored state := AsGame (GenUpdate_original_core state). 
+
+Lemma Refactored kv n: 
+     comp_spec (fun x y => x=y)
+               (@Generate _ HMAC_Bvec eqDecState kv n)
+               (AsGame (GenUpdate_original_core kv) n).
+Proof.
+  unfold AsGame, Generate, GenUpdate_original_core.
+  destruct kv as [k v]. prog_simp. apply comp_spec_ret; trivial. 
+Qed.
+
+(* final theorem? 
+Theorem X_close kv :
+  | Pr[AsGame (GenUpdate_original_core kv)] - Pr[@G_ideal 256] | <= (numCalls / 1) * Gi_Gi_plus_1_bound.
+Proof.
+  rewrite Generate_move_v_update.
+  rewrite G_real_is_first_hybrid.
+  rewrite G_ideal_is_last_hybrid.
+  specialize (hybrid_argument (fun i => Pr[Gi_prg i]) Gi_adjacent_hybrids_close numCalls).
+  intuition.
+Qed.
+
+(*Temporary stuff
+Definition Generate_refactored (state : KV 256) (n : nat) :
   Comp (list (Bvector 256) * KV 256) := ret (GenUpdate_original_core state n).
 
 Lemma Refactored kv n: 
      comp_spec (fun x y => x=y)
-               (GenUpdate_original HMAC_Bvec kv n)
-               (GenUpdate_original_refactored kv n).
+               (@Generate _ HMAC_Bvec eqDecState kv n)
+               (Generate_refactored kv n).
 Proof.
-  unfold GenUpdate_original, GenUpdate_original_refactored, GenUpdate_original_core.
+  unfold Generate, Generate_refactored, GenUpdate_original_core.
   destruct kv as [k v]. prog_simp. apply comp_spec_ret; trivial. 
-Qed.
-*)
+Qed.*)
 (*Could now optionally FCF-relate GenUpdate_original_refactored to Generate, for 
-  relational spec relating bvectors to list Z,  using the above Gallina equalities*)
+  relational spec relating bvectors to list Z,  using the above Gallina equalities*)*)
