@@ -6,36 +6,6 @@ Require Import floyd.sublist.
 
 Set Bullet Behavior "Strict Subproofs".
 
-Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6) =>
-     match x with (x1,x2,x3,x4,x5,x6) => P%assert end)
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6) =>
-     match x with (x1,x2,x3,x4,x5,x6) => Q%assert end) _ _)
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0, 
-             x5 at level 0, x6 at level 0,
-             P at level 100, Q at level 100).
-
-Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7) => P%assert end)
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7) => Q%assert end) _ _)
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
-             x5 at level 0, x6 at level 0, x7 at level 0,
-             P at level 100, Q at level 100).
-
-Notation "'TYPE' A 'WITH'  x1 : t1 , x2 : t2 , x3 : t3 , x4 : t4 , x5 : t5 , x6 : t6 , x7 : t7 , x8 : t8 'PRE'  [ u , .. , v ] P 'POST' [ tz ] Q" :=
-     (mk_funspec ((cons u%formals .. (cons v%formals nil) ..), tz) cc_default A
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8) => P%assert end)
-  (fun (ts: list Type) (x: t1*t2*t3*t4*t5*t6*t7*t8) =>
-     match x with (x1,x2,x3,x4,x5,x6,x7,x8) => Q%assert end) _ _)
-            (at level 200, x1 at level 0, x2 at level 0, x3 at level 0, x4 at level 0,
-             x5 at level 0, x6 at level 0, x7 at level 0, x8 at level 0,
-             P at level 100, Q at level 100).
-
 Parameter invariant : mpred -> mpred.
 
 Axiom invariant_duplicable : forall P, invariant P = invariant P * invariant P.
@@ -49,7 +19,7 @@ Axiom invariant_view_shift : forall {CS : compspecs} P Q R, view_shift (P * R) (
 Axiom invariant_super_non_expansive : forall n P, compcert_rmaps.RML.R.approx n (invariant P) =
 compcert_rmaps.RML.R.approx n (invariant (compcert_rmaps.RML.R.approx n P)).
 
-Arguments view_shift {_} A%logic B%logic.
+Global Arguments view_shift {_} A%logic B%logic.
 
 Section atomics.
 
@@ -96,22 +66,14 @@ Program Definition load_SC_spec := TYPE AL_type
    SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI); Q v).
 Next Obligation.
 Proof.
-  replace _ with (fun (_ : list Type) (x : _ * list Z * _ * _) rho =>
-    PROP (let '(p, P, II, lI, P', Q) := x in view_shift (fold_right sepcon emp (P :: map (fun p => |>II p) lI))
-           (EX sh : share, EX v : Z, !!(readable_share sh /\ repable_signed v) &&
-              data_at sh tint (vint v) p * P' sh v) /\
-         forall sh v, view_shift (!!(readable_share sh /\ repable_signed v) &&
-           data_at sh tint (vint v) p * P' sh v) (fold_right sepcon emp (Q v :: map (fun p => |>II p) lI)))
-    LOCAL (let '(p, P, II, lI, P', Q) := x in temp 1%positive p)
-    SEP (let '(p, P, II, lI, P', Q) := x in fold_right sepcon emp (P :: map (fun p => invariant (II p)) lI))
-    rho).
-  apply (PROP_LOCAL_SEP_super_non_expansive AL_type [fun _ => _] [fun _ => _] [fun _ => _]);
-    repeat constructor; hnf; intros; destruct x as (((((?, ?), ?), ?), ?), ?); auto; cbn -[fold_right].
-  - rewrite !prop_and, !approx_andp; f_equal.
+  repeat intro.
+  destruct x as (((((?, ?), ?), ?), ?), ?); simpl.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal; [rewrite ?prop_and, ?approx_andp |
+    f_equal; rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem].
+  - f_equal; [|f_equal].
     + rewrite view_shift_super_non_expansive.
       setoid_rewrite view_shift_super_non_expansive at 2; do 2 apply f_equal; f_equal.
-      * rewrite !approx_sepcon_list by discriminate; simpl.
-        rewrite approx_idem; apply f_equal.
+      * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
         erewrite !map_map, map_ext; eauto.
         intro; simpl; rewrite nonexpansive_super_non_expansive by (apply later_nonexpansive); auto.
       * rewrite !approx_exp; apply f_equal; extensionality sh.
@@ -122,41 +84,23 @@ Proof.
       rewrite view_shift_super_non_expansive.
       setoid_rewrite view_shift_super_non_expansive at 2; do 2 apply f_equal; f_equal.
       * rewrite !approx_sepcon, approx_idem; auto.
-      * rewrite !approx_sepcon_list by discriminate; simpl.
-        rewrite approx_idem; apply f_equal.
+      * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
         erewrite !map_map, map_ext; eauto.
         intro; simpl; rewrite nonexpansive_super_non_expansive by (apply later_nonexpansive); auto.
-  - rewrite !approx_sepcon_list by discriminate; simpl.
-    erewrite approx_idem, !map_map, map_ext; eauto.
+  - rewrite !approx_sepcon_list'.
+    erewrite !map_map, map_ext; eauto.
     intros; simpl; rewrite invariant_super_non_expansive; auto.
-  - extensionality ts x rho.
-    destruct x as (((((?, ?), ?), ?), ?), Q); simpl.
-    rewrite !(sepcon_comm m); unfold PROPx, SEPx; simpl; rewrite !sepcon_assoc, !sepcon_emp; f_equal.
-    rewrite and_assoc, !prop_and; apply f_equal; f_equal.
-    rewrite !prop_forall; apply f_equal; extensionality sh.
-    rewrite !prop_forall; apply f_equal; extensionality v'.
-    rewrite (sepcon_comm (Q _)); auto.
 Qed.
 Next Obligation.
 Proof.
-  replace _ with (fun (_ : list Type) (x : val * mpred * _ * list Z * (share -> Z -> mpred) * _) rho =>
-    EX v : Z,
-      PROP (let '(p, P, II, lI, P', Q) := x in repable_signed v)
-      LOCAL (let '(p, P, II, lI, P', Q) := x in temp ret_temp (vint v))
-      SEP (let '(p, P, II, lI, P', Q) := x in
-        fold_right sepcon emp (Q v :: map (fun p => invariant (II p)) lI)) rho).
-  - repeat intro.
-    rewrite !approx_exp; apply f_equal; extensionality v.
-    apply (PROP_LOCAL_SEP_super_non_expansive AL_type [fun _ '(p, P, lI, II, P', Q) => _]
-      [fun _ '(p, P, lI, II, P', Q) => _] [fun _ '(p, P, lI, II, P', Q) => _]);
-      repeat constructor; hnf; intros; destruct x0 as (((((?, ?), ?), ?), ?), ?); auto; cbn -[fold_right].
-    rewrite !approx_sepcon_list by discriminate; simpl.
-    erewrite approx_idem, !map_map, map_ext; eauto.
-    intros; simpl; rewrite invariant_super_non_expansive; auto.
-  - extensionality ts x rho.
-    destruct x as (((((?, ?), ?), ?), ?), ?); simpl.
-    apply f_equal; extensionality.
-    rewrite sepcon_comm; unfold SEPx; simpl; rewrite !sepcon_assoc; auto.
+  repeat intro.
+  destruct x as (((((?, ?), ?), ?), ?), ?); simpl.
+  rewrite !approx_exp; apply f_equal; extensionality v.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
+    rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
+  rewrite !approx_sepcon_list'.
+  erewrite !map_map, map_ext; eauto.
+  intros; simpl; rewrite invariant_super_non_expansive; auto.
 Qed.
 
 Definition AS_type := ProdType (ProdType (ProdType (ProdType (ProdType (ConstType (val * Z)) Mpred)
@@ -178,23 +122,14 @@ Program Definition store_SC_spec := TYPE AS_type
    SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI); Q).
 Next Obligation.
 Proof.
-  replace _ with (fun (_ : list Type) (x : _ * list Z * _ * _) rho =>
-    PROP (let '(p, v, P, II, lI, P', Q) := x in repable_signed v /\
-         view_shift (fold_right sepcon emp (P :: map (fun p => |>II p) lI))
-           (EX sh : share, !!(writable_share sh) && data_at_ sh tint p * P' sh) /\
-         forall sh, view_shift (!!(writable_share sh) && data_at sh tint (vint v) p * P' sh)
-           (fold_right sepcon emp (Q :: map (fun p => |>II p) lI)))
-    LOCAL (let '(p, v, P, II, lI, P', Q) := x in temp 1%positive p;
-           let '(p, v, P, II, lI, P', Q) := x in temp 2%positive (vint v))
-    SEP (let '(p, v, P, II, lI, P', Q) := x in fold_right sepcon emp (P :: map (fun p => invariant (II p)) lI))
-    rho).
-  apply (PROP_LOCAL_SEP_super_non_expansive AS_type [fun _ => _] [fun _ => _; fun _ => _] [fun _ => _]);
-    repeat constructor; hnf; intros; destruct x as ((((((?, ?), ?), ?), ?), ?), ?); auto; cbn -[fold_right].
-  - rewrite !prop_and, !approx_andp; apply f_equal; f_equal.
+  repeat intro.
+  destruct x as ((((((?, ?), ?), ?), ?), ?), ?); simpl.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal; [rewrite ?prop_and, ?approx_andp |
+    f_equal; rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem].
+  - apply f_equal; f_equal; [|f_equal].
     + rewrite view_shift_super_non_expansive.
       setoid_rewrite view_shift_super_non_expansive at 2; do 2 apply f_equal; f_equal.
-      * rewrite !approx_sepcon_list by discriminate; simpl.
-        rewrite approx_idem; apply f_equal.
+      * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
         erewrite !map_map, map_ext; eauto.
         intro; simpl; rewrite nonexpansive_super_non_expansive by (apply later_nonexpansive); auto.
       * rewrite !approx_exp; apply f_equal; extensionality sh.
@@ -203,35 +138,22 @@ Proof.
       rewrite view_shift_super_non_expansive.
       setoid_rewrite view_shift_super_non_expansive at 2; do 2 apply f_equal; f_equal.
       * rewrite !approx_sepcon, approx_idem; auto.
-      * rewrite !approx_sepcon_list by discriminate; simpl.
-        rewrite approx_idem; apply f_equal.
+      * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
         erewrite !map_map, map_ext; eauto.
         intro; simpl; rewrite nonexpansive_super_non_expansive by (apply later_nonexpansive); auto.
-  - rewrite !approx_sepcon_list by discriminate; simpl.
-    erewrite approx_idem, !map_map, map_ext; eauto.
+  - rewrite !approx_sepcon_list'.
+    erewrite !map_map, map_ext; eauto.
     intros; simpl; rewrite invariant_super_non_expansive; auto.
-  - extensionality ts x rho.
-    destruct x as ((((((?, ?), ?), ?), ?), ?), Q); simpl.
-    rewrite !(sepcon_comm m); unfold PROPx, SEPx; simpl; rewrite !sepcon_assoc, !sepcon_emp; f_equal.
-    rewrite !and_assoc, !prop_and; do 2 apply f_equal; f_equal.
-    rewrite !prop_forall; apply f_equal; extensionality sh.
-    rewrite (sepcon_comm Q); auto.
 Qed.
 Next Obligation.
 Proof.
-  replace _ with (fun (_ : list Type) (x : val * Z * mpred * _ * list Z * (share -> mpred) * _) rho =>
-      PROP () LOCAL ()
-      SEP (let '(p, v, P, II, lI, P', Q) := x in
-        fold_right sepcon emp (Q :: map (fun p => invariant (II p)) lI)) rho).
-  - repeat intro.
-    apply (PROP_LOCAL_SEP_super_non_expansive AS_type [] [] [fun _ '(p, v, P, lI, II, P', Q) => _]);
-      repeat constructor; hnf; intros; destruct x0 as ((((((?, ?), ?), ?), ?), ?), ?); auto; cbn -[fold_right].
-    rewrite !approx_sepcon_list by discriminate; simpl.
-    erewrite approx_idem, !map_map, map_ext; eauto.
-    intros; simpl; rewrite invariant_super_non_expansive; auto.
-  - extensionality ts x rho.
-    destruct x as ((((((?, ?), ?), ?), ?), ?), ?); simpl.
-    rewrite sepcon_comm; unfold SEPx; simpl; rewrite !sepcon_assoc; auto.
+  repeat intro.
+  destruct x as ((((((?, ?), ?), ?), ?), ?), ?); simpl.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
+    rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
+  rewrite !approx_sepcon_list'.
+  erewrite !map_map, map_ext; eauto.
+  intros; simpl; rewrite invariant_super_non_expansive; auto.
 Qed.
 
 Definition ACAS_type := ProdType (ProdType (ProdType (ProdType (ProdType (ConstType (val * Z * Z)) Mpred)
@@ -258,27 +180,14 @@ Program Definition CAS_SC_spec := TYPE ACAS_type
    SEP (fold_right sepcon emp (map (fun p => invariant (II p)) lI); Q v').
 Next Obligation.
 Proof.
-  replace _ with (fun (_ : list Type) (x : _ * list Z * _ * _) rho =>
-    PROP (let '(p, c, v, P, II, lI, P', Q) := x in repable_signed c /\ repable_signed v /\
-         view_shift (fold_right sepcon emp (P :: map (fun p => |>II p) lI))
-           (EX sh : share, EX v0 : Z, !!(writable_share sh /\ repable_signed v0) &&
-              data_at sh tint (vint v0) p * P' sh v0) /\
-         forall sh v0, view_shift (!!(writable_share sh /\ repable_signed v0) &&
-           data_at sh tint (vint (if eq_dec v0 c then v else v0)) p * P' sh v0)
-           (fold_right sepcon emp (Q v0 :: map (fun p => |>II p) lI)))
-    LOCAL (let '(p, c, v, P, II, lI, P', Q) := x in temp 1%positive p;
-           let '(p, c, v, P, II, lI, P', Q) := x in temp 2%positive (vint c);
-           let '(p, c, v, P, II, lI, P', Q) := x in temp 3%positive (vint v))
-    SEP (let '(p, c, v, P, II, lI, P', Q) := x in fold_right sepcon emp (P :: map (fun p => invariant (II p)) lI))
-    rho).
-  apply (PROP_LOCAL_SEP_super_non_expansive ACAS_type [fun _ => _] [fun _ => _; fun _ => _; fun _ => _]
-    [fun _ => _]); repeat constructor; hnf; intros; destruct x as (((((((?, ?), ?), ?), ?), ?), ?), ?); auto;
-    cbn -[fold_right].
-  - rewrite !prop_and, !approx_andp; do 2 apply f_equal; f_equal.
+  repeat intro.
+  destruct x as (((((((?, ?), ?), ?), ?), ?), ?), ?); simpl.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; f_equal; [rewrite ?prop_and, ?approx_andp |
+    f_equal; rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem].
+  - do 2 apply f_equal; f_equal; [|f_equal].
     + rewrite view_shift_super_non_expansive.
       setoid_rewrite view_shift_super_non_expansive at 2; do 2 apply f_equal; f_equal.
-      * rewrite !approx_sepcon_list by discriminate; simpl.
-        rewrite approx_idem; apply f_equal.
+      * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
         erewrite !map_map, map_ext; eauto.
         intro; simpl; rewrite nonexpansive_super_non_expansive by (apply later_nonexpansive); auto.
       * rewrite !approx_exp; apply f_equal; extensionality sh.
@@ -289,41 +198,23 @@ Proof.
       rewrite view_shift_super_non_expansive.
       setoid_rewrite view_shift_super_non_expansive at 2; do 2 apply f_equal; f_equal.
       * rewrite !approx_sepcon, approx_idem; auto.
-      * rewrite !approx_sepcon_list by discriminate; simpl.
-        rewrite approx_idem; apply f_equal.
+      * rewrite !approx_sepcon, !approx_sepcon_list', approx_idem.
         erewrite !map_map, map_ext; eauto.
         intro; simpl; rewrite nonexpansive_super_non_expansive by (apply later_nonexpansive); auto.
-  - rewrite !approx_sepcon_list by discriminate; simpl.
-    erewrite approx_idem, !map_map, map_ext; eauto.
+  - rewrite !approx_sepcon_list'.
+    erewrite !map_map, map_ext; eauto.
     intros; simpl; rewrite invariant_super_non_expansive; auto.
-  - extensionality ts x rho.
-    destruct x as (((((((?, ?), ?), ?), ?), ?), ?), Q); simpl.
-    rewrite !(sepcon_comm m); unfold PROPx, SEPx; simpl; rewrite !sepcon_assoc, !sepcon_emp; f_equal.
-    rewrite !and_assoc, !prop_and; do 3 apply f_equal; f_equal.
-    rewrite !prop_forall; apply f_equal; extensionality sh.
-    rewrite !prop_forall; apply f_equal; extensionality v0.
-    rewrite (sepcon_comm (Q _)); auto.
 Qed.
 Next Obligation.
 Proof.
-  replace _ with (fun (_ : list Type) (x : val * Z * Z * mpred * _ * list Z * (share -> Z -> mpred) * _) rho =>
-    EX v' : Z,
-      PROP (let '(p, c, v, P, II, lI, P', Q) := x in repable_signed v')
-      LOCAL (let '(p, c, v, P, II, lI, P', Q) := x in temp ret_temp (vint (if eq_dec v' c then 1 else 0)))
-      SEP (let '(p, c, v, P, II, lI, P', Q) := x in
-        fold_right sepcon emp (Q v' :: map (fun p => invariant (II p)) lI)) rho).
-  - repeat intro.
-    rewrite !approx_exp; apply f_equal; extensionality v.
-    apply (PROP_LOCAL_SEP_super_non_expansive ACAS_type [fun _ '(p, c, v, P, lI, II, P', Q) => _]
-      [fun _ '(p, c, v, P, lI, II, P', Q) => _] [fun _ '(p, c, v, P, lI, II, P', Q) => _]);
-      repeat constructor; hnf; intros; destruct x0 as (((((((?, ?), ?), ?), ?), ?), ?), ?); auto; cbn -[fold_right].
-    rewrite !approx_sepcon_list by discriminate; simpl.
-    erewrite approx_idem, !map_map, map_ext; eauto.
-    intros; simpl; rewrite invariant_super_non_expansive; auto.
-  - extensionality ts x rho.
-    destruct x as (((((((?, ?), ?), ?), ?), ?), ?), ?); simpl.
-    apply f_equal; extensionality.
-    rewrite sepcon_comm; unfold SEPx; simpl; rewrite !sepcon_assoc; auto.
+  repeat intro.
+  destruct x as (((((((?, ?), ?), ?), ?), ?), ?), ?); simpl.
+  rewrite !approx_exp; apply f_equal; extensionality vr.
+  unfold PROPx, LOCALx, SEPx; simpl; rewrite !approx_andp; do 2 apply f_equal;
+    rewrite !sepcon_emp, ?approx_sepcon, ?approx_idem.
+  rewrite !approx_sepcon_list'.
+  erewrite !map_map, map_ext; eauto.
+  intros; simpl; rewrite invariant_super_non_expansive; auto.
 Qed.
 
 Section atomicity.
@@ -419,19 +310,15 @@ Proof.
       apply f_equal; extensionality.
       rewrite view_shift_super_non_expansive.
       setoid_rewrite view_shift_super_non_expansive at 2.
-      rewrite (sepcon_comm _ (Q _ _)), (sepcon_comm _ (_ _ (Q _ _))).
-      setoid_rewrite (approx_sepcon_list _ (Q _ _ :: _)); [|discriminate].
-      setoid_rewrite (approx_sepcon_list _ (_ _ (Q _ _) :: _)); [|discriminate]; simpl.
-      erewrite !approx_sepcon, !approx_idem, Hb, !map_map, map_ext; eauto.
+      rewrite !approx_sepcon, !approx_sepcon_list'.
+      erewrite !approx_idem, Hb, !map_map, map_ext; eauto.
       intros; simpl; rewrite nonexpansive_super_non_expansive by (apply later_nonexpansive); auto.
   - rewrite Forall_forall; intros ? Hin.
     rewrite in_map_iff in Hin; destruct Hin as (? & ? & Hin); subst.
     intros ?? (((((x, P), Q), R), ?), ?) ?.
     specialize (Hla n ts x rho); rewrite Forall_forall in Hla; apply (Hla _ Hin).
   - rewrite !sepcon_assoc, !(approx_sepcon (Pp _ _)), HPp; apply f_equal.
-    rewrite sepcon_comm, (sepcon_comm _ (_ _ P)).
-    setoid_rewrite (approx_sepcon_list _ (P :: _)); [|discriminate].
-    setoid_rewrite (approx_sepcon_list _ (_ _ P :: _)); [|discriminate]; simpl.
+    rewrite !approx_sepcon, !approx_sepcon_list'.
     erewrite approx_idem, !map_map, map_ext; eauto.
     intros; simpl; rewrite invariant_super_non_expansive; auto.
   - extensionality ts x rho.
@@ -459,9 +346,7 @@ Proof.
     intros ?? (((((x', P), Q), R), ?), ?) ?.
     specialize (Hlb n0 ts0 x' v rho0); rewrite Forall_forall in Hlb; apply (Hlb _ Hin).
   - rewrite !sepcon_assoc, !(approx_sepcon (Qp _ _ _ _)), HQp; apply f_equal.
-    rewrite sepcon_comm, (sepcon_comm _ (_ _ (Q _ _))).
-    setoid_rewrite (approx_sepcon_list _ (Q _ _ :: _)); [|discriminate].
-    setoid_rewrite (approx_sepcon_list _ (_ _ (Q _ _) :: _)); [|discriminate]; simpl.
+    rewrite !approx_sepcon, !approx_sepcon_list'.
     erewrite approx_idem, !map_map, map_ext; eauto.
     intros; simpl; rewrite invariant_super_non_expansive; auto.
   - extensionality ts x rho.

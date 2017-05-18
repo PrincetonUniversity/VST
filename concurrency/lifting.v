@@ -61,16 +61,19 @@ Module lifting (SEMT: Semantics) (Machine: MachinesSig with Module SEM := SEMT).
         gS gT main
         ge_inv init_inv halt_inv.
     Proof.
+      
     Admitted.
 
     Lemma concur_sim main psrc ptgt (sch : mySchedule.schedule) :
       Machine_sim
         (new_DMachineSem sch psrc)
         (Machine.DryConc.new_MachineSemantics sch ptgt)
-        gS gT main.
-        (*ge_inv init_inv halt_inv.*)
+        gS gT main
+        ge_inv init_inv halt_inv.
     Proof.
-
+      econstructor.
+      
+      
 
       (*Transitivity lemma*)
       Lemma compose_machine_simulations:
