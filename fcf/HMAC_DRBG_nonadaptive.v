@@ -93,9 +93,9 @@ Section PRG.
 
   (* note: the domain of the f is now Blist, not an abstract D
 the key type is now also Bvector eta, since HMAC specifies that the key has the same size as the output (simplified) *)
-(* Variable eta : nat. *)
-Definition eta:=1%nat.
-Opaque eta.
+
+Variable eta : nat.
+Hypothesis eta_nonzero : eta <> 0%nat.
 (* coq gets stuck on an fcf_skip around line 256 *)
 
 (* Variable RndK : Comp (Bvector eta). *)
@@ -3886,7 +3886,7 @@ Proof.
           rewrite length_replicate in len_eq.
           rewrite plus_comm in len_eq.
           simpl in *.
-          discriminate.
+          omega.
         }
 
         (* every element of l has length eta, and zeroes is nonempty *)
@@ -3896,12 +3896,19 @@ Proof.
           subst.
           rewrite Forall_forall in inputs_len.
           destruct (in_split_l_if init _ in_fixed_len_list). eauto.
-          match goal with 
-            | [ H:  In (to_list key_input ++ zeroes, _) init |- _ ] => 
-               apply inputs_len in H; simpl in *; rewrite app_length in H;
-               unfold zeroes in H; rewrite length_replicate in H;
-               rewrite plus_comm in H; simpl in *; discriminate
-          end.
+
+          unfold to_list in *.
+          apply inputs_len in H1; simpl in *; rewrite app_length in H1;
+            unfold zeroes in H1; rewrite length_replicate in H1;
+              rewrite plus_comm in H1; simpl in *.
+          rewrite to_list_length in *. omega.
+          
+          (* match goal with  *)
+          (*   | [ H1:  In (to_list key_input ++ zeroes, _) init |- _ ] =>  *)
+          (*      apply inputs_len in H1; simpl in *; rewrite app_length in H1; *)
+          (*      unfold zeroes in H1; rewrite length_replicate in H1; *)
+          (*      rewrite plus_comm in H1; simpl in *; discriminate *)
+          (* end. *)
         }
       }
       contradiction.
@@ -4568,23 +4575,7 @@ Proof.
 Qed.
 
 End PRG.
-(*
-Theorem G1_G2_close :
-  (* TODO: constructed PRF adversary *)
-  (* | Pr[G1_prg] - Pr[G2_prg] | <= (q / 1) * (PRF_Advantage RndK ({0,1}^eta) f _ _ ). *)
-  | Pr[G1_prg] - Pr[G2_prg] | <= (numCalls / 1) * Gi_Gi_plus_1_bound.
-Proof.
-  rewrite G1_Gi_O_equal.
-  rewrite G2_Gi_n_equal.
-  (* rewrite ratDistance_comm. *)
-  Check distance_le_prod_f.
-  Locate distance_le_prod_f.
-  (* inductive argument *)
-  Check distance_le_prod_f.
-  specialize (distance_le_prod_f (fun i => Pr[Gi_prg i]) Gi_Gi_plus_1_close numCalls).
-  intuition.
-Qed.
-*)
+
 (* ------------------------------- *)
 (* 
 (* Backtracking resistance, using indistinguishability proof *)
